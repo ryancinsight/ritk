@@ -33,6 +33,16 @@ negative per-image offsets are rejected with contextual errors. Rejecting an
 unsupported variant is preferable to decoding it with the wrong byte order or
 geometry.
 
+The extensions are not sufficient format identification. A paired NIfTI-1
+dataset uses `ni1\0` at header bytes 344–347 and commonly includes the four-byte
+extension indicator after the shared 348-byte header. RITK reports that case as
+paired NIfTI instead of decoding NIfTI affine fields as Analyze history fields.
+Use the `.nii` single-file form with RITK's NIfTI reader. The
+[NIfTI-1 FAQ](https://nifti.nimh.nih.gov/nifti-1/documentation/faq.html)
+documents the shared pair layout and extension indicator; the
+[SimpleITK I/O list](https://simpleitk.readthedocs.io/en/main/IO.html)
+documents `NiftiImageIO` as the standard handler for these extensions.
+
 The public API is backend-bound but format behavior is shared:
 
 ```rust,ignore
@@ -119,6 +129,7 @@ Reading returns no partial image when any contract fails. Errors identify:
 
 - invalid or unsupported dimensionality;
 - unsupported endianness or scalar type;
+- paired NIfTI presented through the ambiguous `.hdr`/`.img` extensions;
 - mismatched `datatype` and `bitpix`;
 - non-finite spacing, scaling, or offset;
 - offset and byte-count overflow;

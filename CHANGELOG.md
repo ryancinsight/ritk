@@ -27,10 +27,14 @@
 - Validate writer shape, storage length, finite `f32` header spacing, and the
   `i16` origin-coordinate range before creating files, and publish the header
   only after the payload has been flushed.
+- Identify paired NIfTI-1 `ni1` headers that share `.hdr`/`.img` extensions and
+  reject them with a directed format error instead of interpreting NIfTI
+  spatial fields as Analyze metadata.
 
 ### Tests
 
-- Cover all five supported scalar encodings, scale application, endian and
+- Cover all five supported scalar encodings, scale application, endian,
+  paired-NIfTI separation, and
   dimensionality rejection, hostile declared geometry, metadata validation,
   exact offsets and payload lengths, decode chunk boundaries, writer preflight,
   and exact native-image round trips.

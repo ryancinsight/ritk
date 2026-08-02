@@ -41,14 +41,17 @@
   stays within the committed runtime budget; and formatting, warning-denied
   Clippy, Nextest, doctest, Rustdoc, mdBook, semantic-version, review, and
   hosted gates pass. Local closure evidence: formatting, warning-denied
-  all-target Clippy, 11/11 Nextest tests in 0.147 seconds, doctests,
+  all-target Clippy, 12/12 Nextest tests in 0.341 seconds, doctests,
   warning-denied Rustdoc, deterministic example regeneration, and mdBook
   test/build pass. The inspected 13,082-byte SVG has SHA-256
   `FCDB15272CAE80140F35AD765C5935C2607588DFA34309F728E504E518993E19`;
   the warm executable completes in 939.562 ms. Semantic compatibility passes
   196 checks with 57 inapplicable checks skipped. Review found and corrected
-  header-length, spacing-representation, and origin-range gaps. Hosted gates
-  remain.
+  header-length, spacing-representation, and origin-range gaps. The first
+  hosted wheel smoke run then exposed a stale test that treated SimpleITK's
+  352-byte paired NIfTI output as Analyze 7.5. The corrected boundary identifies
+  `ni1` explicitly, preserves RITK-Analyze-to-SimpleITK interoperability, and
+  rejects cross-format decoding; exact corrected-head hosted gates remain.
 
 - **SAFE-687-01 [patch] - Reject truncated JPEG 2000 marker tails**
   (DONE; owner=Codex; last-update=2026-08-01; scope=

@@ -368,10 +368,11 @@ def test_io_metadata_axis_order_matches_sitk(ext, tmp_path):
 
 
 def test_analyze_spacing_and_pixels_match_sitk(tmp_path):
-    """Analyze 7.5 (.hdr/.img) pixel data and spacing match sitk in both
-    directions. Regression: the Analyze reader/writer read/wrote pixdim in
-    core tensor-axis [z,y,x] order instead of the file's [x,y,z] order, so a
-    non-cube spacing (2,3,4) loaded as (4,3,2) vs sitk.
+    """RITK Analyze output preserves pixels and spacing through SimpleITK.
+
+    Regression: the Analyze reader/writer read/wrote pixdim in core tensor-axis
+    [z,y,x] order instead of the file's [x,y,z] order, so a non-cube spacing
+    (2,3,4) loaded as (4,3,2) vs sitk.
 
     Origin is deliberately NOT asserted for parity: Analyze 7.5 is deprecated
     (sitk emits a deprecation warning) and has no reliable physical-origin
@@ -384,24 +385,32 @@ def test_analyze_spacing_and_pixels_match_sitk(tmp_path):
     vol = np.arange(nz * ny * nx, dtype=np.float32).reshape(nz, ny, nx)
     spacing_xyz = [2.0, 3.0, 4.0]
 
-    si = sitk.GetImageFromArray(np.ascontiguousarray(vol))
-    si.SetSpacing(spacing_xyz)
+    ri = ritk.Image(np.ascontiguousarray(vol), spacing=spacing_xyz[::-1])
+    analyze_path = str(tmp_path / "r.img")
+    ritk.io.write_image(ri, analyze_path)
 
-    # sitk-write -> ritk-read: pixels identical, spacing equals sitk reversed.
-    p = str(tmp_path / "s.img")
-    sitk.WriteImage(si, p)
-    ri = ritk.io.read_image(p)
-    assert np.array_equal(np.asarray(ri.to_numpy()), vol)
-    assert tuple(round(s, 5) for s in ri.spacing) == tuple(spacing_xyz[::-1])
-
-    # ritk-write -> sitk-read: pixels and spacing survive the round-trip.
-    p2 = str(tmp_path / "r.img")
-    ritk.io.write_image(ri, p2)
-    sb = sitk.ReadImage(p2)
+    # RITK read and SimpleITK foreign read agree on the RITK-written Analyze pair.
+    rb = ritk.io.read_image(analyze_path)
+    assert np.array_equal(np.asarray(rb.to_numpy()), vol)
+    assert tuple(round(s, 5) for s in rb.spacing) == tuple(spacing_xyz[::-1])
+    sb = sitk.ReadImage(analyze_path)
     assert np.array_equal(
         sitk.GetArrayFromImage(sb).astype(np.float32), vol
     )
     assert tuple(round(s, 5) for s in sb.GetSpacing()) == tuple(spacing_xyz)
+
+    # Standard SimpleITK builds select NiftiImageIO for `.img` writes. The
+    # resulting 352-byte `ni1` pair is NIfTI-1, not Analyze 7.5, and must not be
+    # silently decoded through Analyze's incompatible spatial metadata fields.
+    si = sitk.GetImageFromArray(np.ascontiguousarray(vol))
+    si.SetSpacing(spacing_xyz)
+    nifti_pair_path = tmp_path / "s.img"
+    sitk.WriteImage(si, str(nifti_pair_path))
+    nifti_header = nifti_pair_path.with_suffix(".hdr").read_bytes()
+    assert len(nifti_header) in (348, 352)
+    assert nifti_header[344:348] == b"ni1\x00"
+    with pytest.raises(OSError, match="paired NIfTI-1"):
+        ritk.io.read_image(str(nifti_pair_path))
 
 
 def test_image_origin_spacing_share_axis_order():

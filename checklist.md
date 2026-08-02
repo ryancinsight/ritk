@@ -31,14 +31,17 @@
       in the book and regenerate the figure in Pages CI.
 - [ ] Run focused format, lint, test, documentation, example-runtime, mdBook,
       semantic-version, review, and hosted gates against the delivered revision.
-      Local formatting, warning-denied all-target Clippy, 11/11 Nextest tests
-      in 0.147 seconds, doctests, warning-denied Rustdoc, deterministic figure
+      Local formatting, warning-denied all-target Clippy, 12/12 Nextest tests
+      in 0.341 seconds, doctests, warning-denied Rustdoc, deterministic figure
       regeneration, mdBook test/build, and semantic compatibility pass. The
       inspected 13,082-byte figure has SHA-256
       `FCDB15272CAE80140F35AD765C5935C2607588DFA34309F728E504E518993E19`;
       the warm example completes in 939.562 ms. Review findings for exact header
       length, representable spacing, and unclamped origin range are corrected.
-      Hosted gates remain.
+      The first hosted wheel smoke run identified SimpleITK's `.img` output as
+      paired NIfTI rather than Analyze; the corrected parser, Rust regression,
+      Python differential contract, and book explanation pass locally.
+      Corrected-head hosted gates remain.
 - [ ] Reconcile PM evidence, commit, publish, review, merge, and verify the
       automatic Pages build without manually triggering deployment.
 

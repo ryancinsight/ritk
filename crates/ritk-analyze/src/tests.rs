@@ -300,6 +300,33 @@ fn analyze_reader_requires_exact_header_length() -> Result<()> {
 }
 
 #[test]
+fn analyze_reader_identifies_paired_nifti_header() -> Result<()> {
+    let directory = tempdir()?;
+    let mut header = analyze_header(DT_FLOAT, 32, [1, 1, 1]);
+    header[344..348].copy_from_slice(b"ni1\0");
+
+    for (name, extension_indicator) in [("exact", false), ("extended", true)] {
+        let path = directory.path().join(format!("paired-nifti-{name}.hdr"));
+        let mut paired_header = header.to_vec();
+        if extension_indicator {
+            paired_header.extend_from_slice(&[0; 4]);
+        }
+        std::fs::write(&path, paired_header)?;
+        std::fs::write(path.with_extension("img"), 1.0_f32.to_le_bytes())?;
+
+        let error = read_analyze(&path, &SequentialBackend)
+            .expect_err("paired NIfTI must not be decoded as Analyze 7.5")
+            .to_string();
+        assert!(
+            error.contains("paired NIfTI-1") && error.contains(".nii"),
+            "unexpected error for {name} paired header: {error}"
+        );
+    }
+
+    Ok(())
+}
+
+#[test]
 fn analyze_reader_rejects_non_finite_metadata_and_invalid_offsets() -> Result<()> {
     for (offset, value, field) in [
         (80, f32::NAN, "pixdim[1]"),

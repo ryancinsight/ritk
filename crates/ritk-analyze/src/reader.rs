@@ -8,6 +8,11 @@
 //! * `<name>.hdr` — 348-byte binary header (little-endian).
 //! * `<name>.img` — raw voxel values (little-endian, type given by `datatype` field).
 //!
+//! A paired NIfTI-1 dataset can use the same extensions, but identifies itself
+//! with `ni1\0` at bytes 344–347 and is not an Analyze 7.5 file. This reader
+//! rejects that variant explicitly instead of interpreting NIfTI spatial fields
+//! as Analyze history fields.
+//!
 //! # Header Layout (key fields)
 //!
 //! | Offset | Type  | Field             | Meaning                                  |
@@ -142,7 +147,8 @@ impl AnalyzeVoxel for f64 {
 /// # Errors
 /// Returns an error when:
 /// - Either file cannot be opened or read.
-/// - The header is not a little-endian, 348-byte Analyze header.
+/// - The header is not a little-endian, 348-byte Analyze header, including
+///   paired NIfTI data using the same extensions.
 /// - The header does not describe exactly one 3-D volume with positive,
 ///   non-overflowing dimensions.
 /// - `datatype` is not supported or `bitpix` does not match it.
@@ -188,7 +194,7 @@ fn decode_analyze<P: AsRef<Path>>(path: P) -> Result<DecodedAnalyze> {
         .metadata()
         .context("Cannot inspect Analyze header")?
         .len();
-    if header_len != HDR_SIZE as u64 {
+    if header_len < HDR_SIZE as u64 {
         return Err(anyhow!(
             "Invalid Analyze header length: expected {HDR_SIZE} bytes, found {header_len}"
         ));
@@ -197,6 +203,16 @@ fn decode_analyze<P: AsRef<Path>>(path: P) -> Result<DecodedAnalyze> {
     hdr_file
         .read_exact(&mut hdr)
         .with_context(|| "Cannot read 348-byte header".to_string())?;
+    if hdr[344..348] == *b"ni1\0" {
+        return Err(anyhow!(
+            "Unsupported paired NIfTI-1 header (ni1 magic); use the NIfTI reader with a single-file .nii dataset"
+        ));
+    }
+    if header_len != HDR_SIZE as u64 {
+        return Err(anyhow!(
+            "Invalid Analyze header length: expected {HDR_SIZE} bytes, found {header_len}"
+        ));
+    }
 
     // sizeof_hdr must be exactly 348. Identify the unsupported byte order so a
     // big-endian file is not reported as arbitrary header corruption.
