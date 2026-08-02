@@ -14,6 +14,8 @@
   - [Example: Analyze 7.5 Round Trip](examples/analyze_roundtrip.md)
 - [MGH and MGZ Format Boundary](mgh_format.md)
   - [Example: MGH and MGZ Round Trip](examples/mgh_roundtrip.md)
+- [MINC2 Format Boundary](minc_format.md)
+  - [Example: MINC2 Round Trip](examples/minc_roundtrip.md)
 - [TIFF and BigTIFF Format Boundary](tiff_format.md)
   - [Example: Multi-page TIFF Round Trip](examples/tiff_roundtrip.md)
 - [PNG Format Boundary](png_format.md)

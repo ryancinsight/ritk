@@ -6,23 +6,23 @@
 //! developed at the Montreal Neurological Institute (MNI). It is the
 //! standard format for the MNI152 template and ANTs atlas workflows.
 //!
-//! # HDF5 Layout
+//! # Typical HDF5 Layout
 //!
 //! ```text
 //! / (root)
-//!   Attributes: ident, minc_version, history
 //!   └── minc-2.0/ (group)
 //!       ├── dimensions/ (group)
-//!       │   ├── xspace (group)
+//!       │   ├── xspace (dimension object)
 //!       │   │   Attributes: start, step, length, direction_cosines, units
-//!       │   ├── yspace (group, same attributes)
-//!       │   └── zspace (group, same attributes)
+//!       │   ├── yspace (same attributes)
+//!       │   └── zspace (same attributes)
+//!       ├── info/ (group; optional scan and subject metadata)
 //!       └── image/ (group)
 //!           └── 0/ (group)
 //!               ├── image (N-D dataset: volume data)
 //!               │   Attributes: dimorder, valid_range, signtype, complete
-//!               ├── image-max (dataset: per-slice maximum)
-//!               └── image-min (dataset: per-slice minimum)
+//!               ├── image-max (optional scaling dataset)
+//!               └── image-min (optional scaling dataset)
 //! ```
 //!
 //! # Spatial Metadata
@@ -55,10 +55,10 @@
 //!
 //! # Data Type Handling
 //!
-//! The reader converts all MINC2 voxel data types (u8, i8, u16, i16,
-//! u32, i32, f32, f64) to `f32` for the RITK tensor. Integer data
-//! may be normalized using the `image-min` / `image-max` per-slice
-//! datasets and `valid_range` attribute when present.
+//! The reader converts contiguous MINC2 voxel data types (u8, i8, u16, i16,
+//! u32, i32, f32, f64) to `f32` for the RITK tensor. It currently returns the
+//! stored values directly; `image-min` / `image-max` real-value scaling is not
+//! yet applied. The writer emits one contiguous little-endian `f32` volume.
 
 pub mod attrs;
 pub mod convert;

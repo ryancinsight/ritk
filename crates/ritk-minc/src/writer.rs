@@ -4,7 +4,6 @@
 //!
 //! ```text
 //! / (root)
-//!   Attributes: ident, minc_version
 //!   └── minc-2.0/ (group)
 //!       ├── dimensions/ (group)
 //!       │   ├── xspace (group, attrs: start, step, length, direction_cosines)
@@ -13,7 +12,7 @@
 //!       └── image/ (group)
 //!           └── 0/ (group)
 //!               └── image (dataset: f32 voxel data, contiguous layout)
-//!                   Attributes: dimorder, valid_range, signtype, complete
+//!                   Contiguous little-endian f32 voxels
 //! ```
 //!
 //! # Data Type
@@ -28,7 +27,7 @@
 //! format the MINC2 reader's `parse_dimension_attrs` expects.
 
 use crate::hdf5_binary::write_minc2_hdf5;
-use anyhow::{bail, Result};
+use anyhow::{bail, Context, Result};
 use std::path::Path;
 
 // ── Public API ────────────────────────────────────────────────────────────
@@ -50,43 +49,75 @@ where
     B::DeviceBuffer<f32>: coeus_core::CpuAddressableStorage<f32>,
     P: AsRef<Path>,
 {
-    let [nz, ny, nx] = image.shape();
-    let total_voxels = nz * ny * nx;
-
-    if total_voxels == 0 {
-        bail!("Cannot write empty image (zero voxels)");
-    }
-
+    let shape = image.shape();
+    let origin = image.origin();
+    let spacing = image.spacing();
+    let direction = image.direction();
+    let total_voxels = validate_geometry(shape, origin, spacing, direction)?;
     let f32_values = image.data_cow_on(backend);
 
     if f32_values.len() != total_voxels {
         bail!(
-            "Tensor data length {} does not match shape {:?} ({} voxels)",
+            "Tensor data length {} does not match shape {:?} ({total_voxels} voxels)",
             f32_values.len(),
-            [nz, ny, nx],
-            total_voxels
+            shape
         );
-    }
-
-    let origin = image.origin();
-    let spacing = image.spacing();
-    let direction = image.direction();
-
-    let mut raw_bytes: Vec<u8> = Vec::with_capacity(total_voxels * 4);
-    for &v in f32_values.iter() {
-        raw_bytes.extend_from_slice(&v.to_le_bytes());
     }
 
     write_minc2_hdf5(
         path.as_ref(),
-        &raw_bytes,
-        [nz, ny, nx],
+        &f32_values,
+        shape,
         [origin[0], origin[1], origin[2]],
         [spacing[0], spacing[1], spacing[2]],
         direction,
     )?;
 
     Ok(())
+}
+
+fn validate_geometry(
+    shape: [usize; 3],
+    origin: &ritk_spatial::Point<3>,
+    spacing: &ritk_spatial::Spacing<3>,
+    direction: &ritk_spatial::Direction<3>,
+) -> Result<usize> {
+    let total_voxels = shape.into_iter().try_fold(1_usize, |product, extent| {
+        product
+            .checked_mul(extent)
+            .context("MINC2 voxel count overflows usize")
+    })?;
+    if total_voxels == 0 {
+        bail!("Cannot write empty MINC2 image (zero voxels)");
+    }
+    for (axis, extent) in shape.into_iter().enumerate() {
+        i32::try_from(extent).with_context(|| {
+            format!("MINC2 axis {axis} length {extent} exceeds the i32 length attribute")
+        })?;
+    }
+    total_voxels
+        .checked_mul(size_of::<f32>())
+        .context("MINC2 voxel byte count overflows usize")?;
+
+    for (axis, coordinate) in origin.as_slice().iter().copied().enumerate() {
+        if !coordinate.is_finite() {
+            bail!("MINC2 origin axis {axis} is not finite: {coordinate}");
+        }
+    }
+    for axis in 0..3 {
+        let step = spacing[axis];
+        if !step.is_finite() || step <= 0.0 {
+            bail!("MINC2 spacing axis {axis} must be finite and positive, got {step}");
+        }
+    }
+    if direction.iter().any(|value| !value.is_finite()) {
+        bail!("MINC2 direction matrix contains a non-finite value");
+    }
+    if !direction.is_orthogonal() {
+        bail!("MINC2 direction matrix must contain orthonormal axis vectors");
+    }
+
+    Ok(total_voxels)
 }
 
 /// Typed writer wrapping `write_minc` for API consistency.
