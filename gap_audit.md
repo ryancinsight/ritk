@@ -13,6 +13,38 @@
 > workflow were removed after the Burn-to-Coeus migration completed.
 > References to these tools in the evidence below are historical.
 
+## PERF-690-01 audit (2026-08-02)
+
+The MINC2 writer previously multiplied dimensions and byte widths without
+checked arithmetic and encoded the complete `f32` volume into a second
+volume-sized `Vec<u8>` before issuing one positioned write. Spatial metadata
+was not preflighted, so non-finite origins and invalid direction matrices could
+reach file construction.
+
+The corrected boundary validates representable nonzero axes, checked voxel and
+byte products, storage length, finite origin and spacing, and orthonormal
+direction columns before file creation. Voxel encoding now reuses one
+stack-backed 8 KiB buffer over 2,048-value chunks. Writer-owned conversion
+scratch is constant with volume size; no runtime speedup is claimed without a
+controlled timing baseline.
+
+Focused baseline was 42/42 Nextest tests in 0.356 seconds. The corrected suite
+passes 45/45 in 0.272 seconds, including an exact 20,480-voxel round trip across
+ten stream chunks and a non-finite-origin case that confirms no partial file is
+created. The generated 9 × 64 × 64 phantom figure compares source and decoded
+slices on one display range, shows an explicit zero-difference mask, and derives
+the reported file size and physical geometry from the actual round trip. The
+inspected 42,058-byte SVG has SHA-256
+`50823916BC41B330F5219F71F9D15C45ED4D1BB7FD9655F34D41CA9C5666D56C`;
+warm deterministic regeneration completes in 53.417 ms.
+
+Residual MINC2 scope is documented rather than implied: the reader supports
+contiguous datasets only and does not apply `image-min`/`image-max` real-value
+scaling; the writer does not emit arbitrary `info` metadata, chunking,
+compression, or multiresolution levels. Foreign quantitative and clinical
+interchange therefore requires representative differential validation until
+those format profiles are implemented and tested.
+
 ## SAFE-688-01 audit (2026-08-01)
 
 The Analyze reader previously converted signed `i16` dimensions to `usize`

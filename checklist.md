@@ -13,6 +13,35 @@
 > workflow were removed after the Burn-to-Coeus migration completed.
 > References to these tools in the entries below are historical.
 
+## PERF-690-01 — Stream and teach MINC2 writing
+**Target version**: Unreleased patch
+**Sprint phase**: Execution
+
+- [x] Reconcile origin, worktrees, active peer claims, the MINC2 owner, and
+      current book coverage.
+- [x] Record the focused package baseline before production edits: 42/42
+      Nextest tests pass in 0.356 seconds.
+- [x] Validate shape and payload arithmetic before file creation.
+- [x] Stream little-endian voxels through stack-backed bounded scratch storage.
+- [x] Add value-semantic, malformed-input, and no-partial-file regressions.
+- [x] Add and inspect the deterministic MINC2 round-trip example and figure.
+      The 42,058-byte SVG has SHA-256
+      `50823916BC41B330F5219F71F9D15C45ED4D1BB7FD9655F34D41CA9C5666D56C`;
+      warm regeneration completes in 53.417 ms and is byte-identical.
+- [x] Teach MINC2 hierarchy, geometry, scalar, and storage boundaries in the
+      book and regenerate the figure in Pages CI.
+- [ ] Run focused format, lint, test, documentation, example-runtime, mdBook,
+      semantic-version, review, and hosted gates against the delivered head.
+      Formatting, warning-denied all-target Clippy, 45/45 Nextest tests in
+      0.272 seconds, doctests, warning-denied Rustdoc, deterministic figure
+      regeneration, and mdBook test/build pass. `cargo-semver-checks` cannot
+      establish a registry baseline because `ritk-minc` is not yet indexed;
+      the diff changes no public Rust item signature. Focused self-review found
+      no residual defect after replacing heap scratch with a fixed stack array;
+      the independent read-only reviewer did not return before shutdown, so
+      hosted review remains the independent evidence.
+- [ ] Reconcile PM evidence, commit, publish, merge, and verify Pages.
+
 ## RELEASE-689-01 — Publish the Rust library closure
 **Target version**: Current workspace package versions
 **Sprint phase**: Execution

@@ -8,6 +8,27 @@
 
 # CHANGELOG
 
+## [Unreleased] — MINC2 writer and book (PERF-690-01)
+
+### Changed
+
+- Stream MINC2 voxel encoding through one stack-backed 8 KiB buffer
+  instead of allocating a second volume-sized byte vector.
+- Add a MINC2 book chapter and deterministic public-API round-trip figure with
+  shared display scales, an explicit bitwise-difference mask, measured file
+  size, and data-derived geometry labels.
+
+### Fixed
+
+- Reject empty or unrepresentable dimensions, checked voxel and byte-count
+  overflow, non-finite origins, invalid spacing, and non-orthogonal direction
+  matrices before creating the output file.
+
+### Tests
+
+- Cover writer preflight and no-partial-file behavior plus exact voxel and
+  geometry preservation across multiple conversion chunks.
+
 ## [Unreleased] — crates.io publishing (RELEASE-689-01)
 
 ### Added

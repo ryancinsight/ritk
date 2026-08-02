@@ -15,6 +15,36 @@
 > workflow were removed after the Burn-to-Coeus migration completed.
 > References to these tools in the entries below are historical.
 
+- **PERF-690-01 [patch] - Stream and teach MINC2 writing**
+  (REVIEW; owner=Codex; last-update=2026-08-02; scope=
+  `crates/ritk-minc/{src,examples}/**`,
+  `docs/book/{SUMMARY.md,minc_format.md,examples/minc_roundtrip.md,
+  figures/minc_roundtrip.svg}`, `.github/workflows/book-pages.yml`,
+  `CHANGELOG.md`, `gap_audit.md`, and PM artifacts; non-goal=MINC1,
+  chunked or compressed HDF5 datasets, additional output scalar types,
+  changing valid MINC2 output, release, or manual deployment). The writer
+  multiplies dimensions and byte widths without checked arithmetic and copies
+  every voxel into a second volume-sized byte buffer before writing. Validate
+  the representable MINC2 shape and checked payload length before file
+  creation, then stream little-endian voxel chunks through one fixed scratch
+  buffer into the existing HDF5 writer. Add value-semantic and no-partial-file
+  regressions plus a deterministic public-API round-trip figure with source,
+  decoded, and absolute-difference panels on explicit scales. Acceptance:
+  invalid or unrepresentable geometry returns contextual errors without panic
+  or a partial file; valid voxel bits and physical geometry round-trip exactly;
+  writer scratch memory stays bounded independently of volume size; displayed
+  metrics agree with generated data; the example stays within the committed
+  runtime budget; and formatting, warning-denied Clippy, Nextest, doctest,
+  Rustdoc, mdBook, semantic-version, review, and hosted gates pass.
+  Local formatting, warning-denied all-target Clippy, 45/45 Nextest tests in
+  0.272 seconds, doctests, warning-denied Rustdoc, deterministic figure
+  regeneration, and mdBook test/build pass. The inspected 42,058-byte SVG has
+  SHA-256
+  `50823916BC41B330F5219F71F9D15C45ED4D1BB7FD9655F34D41CA9C5666D56C`
+  and warm regeneration completes in 53.417 ms. A registry semantic baseline
+  is unavailable because `ritk-minc` is not yet indexed; the diff changes no
+  public Rust item signature. Hosted review and gates remain.
+
 - **RELEASE-689-01 [patch] - Publish the Rust library closure to crates.io**
   (IN PROGRESS; owner=Codex; last-update=2026-08-02; scope=workspace and package
   registry metadata, local dependency version requirements, dependency aliases,

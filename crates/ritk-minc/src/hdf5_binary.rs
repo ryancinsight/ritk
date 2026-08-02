@@ -10,9 +10,11 @@
 //! MINC2 reader's `parse_dimension_attrs` expects when it calls
 //! `extract_float_array_3` on an `AttributeValue::FloatArray(3)`.
 
-use anyhow::Result;
+use anyhow::{Context, Result};
 use consus_io::WriteAt;
 use ritk_spatial::Direction;
+
+const VOXEL_STREAM_VALUES: usize = 2_048;
 
 /// Geometry parameters for a MINC2 volume.
 #[derive(Debug, Clone, Copy)]
@@ -28,14 +30,14 @@ struct Minc2VolumeGeometry {
 /// # Arguments
 ///
 /// - `path`: output file path.
-/// - `raw_data`: voxel bytes (little-endian f32).
+/// - `voxels`: voxel values, encoded as little-endian `f32` while writing.
 /// - `shape`: `[nz, ny, nx]`.
 /// - `origin`: physical start per dimorder axis.
 /// - `spacing`: voxel spacing per dimorder axis.
 /// - `direction`: 3×3 direction matrix (columns = axis direction cosines).
 pub fn write_minc2_hdf5(
     path: &std::path::Path,
-    raw_data: &[u8],
+    voxels: &[f32],
     shape: [usize; 3],
     origin: [f64; 3],
     spacing: [f64; 3],
@@ -50,7 +52,7 @@ pub fn write_minc2_hdf5(
 
     build_minc2_hdf5_binary(
         &mut file,
-        raw_data,
+        voxels,
         Minc2VolumeGeometry {
             shape,
             origin,
@@ -293,7 +295,7 @@ fn wrap_attr_envelope(msg_data: Vec<u8>) -> Vec<u8> {
 /// ```
 fn build_minc2_hdf5_binary(
     file: &mut std::fs::File,
-    raw_data: &[u8],
+    voxels: &[f32],
     geom: Minc2VolumeGeometry,
     dim_names: [&str; 3],
     offset_size: u8,
@@ -326,7 +328,14 @@ fn build_minc2_hdf5_binary(
     let min_data_offset = image_ds_addr + oh_dataset;
     let data_offset = (min_data_offset + 511) & !511; // 512-byte aligned
 
-    let eof = data_offset + raw_data.len() as u64;
+    let voxel_bytes = voxels
+        .len()
+        .checked_mul(size_of::<f32>())
+        .context("MINC2 voxel byte count overflows usize")?;
+    let voxel_bytes_u64 = u64::try_from(voxel_bytes).context("MINC2 voxel payload exceeds u64")?;
+    let eof = data_offset
+        .checked_add(voxel_bytes_u64)
+        .context("MINC2 file length overflows u64")?;
 
     // ── Superblock v2 ─────────────────────────────────────────────────────
     let mut sb = [0u8; 44];
@@ -364,7 +373,8 @@ fn build_minc2_hdf5_binary(
     for (i, &addr) in dim_addrs.iter().enumerate() {
         let start_attr = build_attr_msg_float("start", origin[i]);
         let step_attr = build_attr_msg_float("step", spacing[i]);
-        let length_attr = build_attr_msg_int("length", shape[i] as i32);
+        let length = i32::try_from(shape[i]).context("MINC2 dimension exceeds i32")?;
+        let length_attr = build_attr_msg_int("length", length);
         // direction_cosines as a single FloatArray(3) attribute.
         let dc = [direction[(0, i)], direction[(1, i)], direction[(2, i)]];
         let dc_attr = build_attr_msg_float_array("direction_cosines", &dc);
@@ -396,15 +406,43 @@ fn build_minc2_hdf5_binary(
     layout_data.push(3u8); // version 3
     layout_data.push(1u8); // class 1 = contiguous
     layout_data.extend_from_slice(&data_offset.to_le_bytes());
-    layout_data.extend_from_slice(&(raw_data.len() as u64).to_le_bytes());
+    layout_data.extend_from_slice(&voxel_bytes_u64.to_le_bytes());
     let layout_msg = wrap_msg(0x0008, &layout_data);
 
     write_v1_oh(file, image_ds_addr, &[dt_msg, ds_msg, layout_msg])?;
 
     // ── Raw voxel data ────────────────────────────────────────────────────
-    file.write_at(data_offset, raw_data)
-        .map_err(|e| anyhow::anyhow!("Failed to write voxel data: {}", e))?;
+    write_voxel_stream(file, data_offset, voxels)?;
 
+    Ok(())
+}
+
+fn write_voxel_stream(file: &mut std::fs::File, data_offset: u64, voxels: &[f32]) -> Result<()> {
+    let scratch_bytes = VOXEL_STREAM_VALUES
+        .checked_mul(size_of::<f32>())
+        .context("MINC2 scratch size overflows usize")?;
+    let mut encoded = [0_u8; VOXEL_STREAM_VALUES * size_of::<f32>()];
+
+    let mut written = 0_u64;
+    for chunk in voxels.chunks(VOXEL_STREAM_VALUES) {
+        for (destination, voxel) in encoded.chunks_exact_mut(size_of::<f32>()).zip(chunk) {
+            destination.copy_from_slice(&voxel.to_le_bytes());
+        }
+        let chunk_bytes = chunk
+            .len()
+            .checked_mul(size_of::<f32>())
+            .context("MINC2 chunk byte count overflows usize")?;
+        let offset = data_offset
+            .checked_add(written)
+            .context("MINC2 voxel write offset overflows u64")?;
+        file.write_at(offset, &encoded[..chunk_bytes])
+            .map_err(|error| anyhow::anyhow!("Failed to write voxel data: {error}"))?;
+        let chunk_bytes = u64::try_from(chunk_bytes).context("MINC2 chunk exceeds u64")?;
+        written = written
+            .checked_add(chunk_bytes)
+            .context("MINC2 written byte count overflows u64")?;
+    }
+    debug_assert_eq!(scratch_bytes, encoded.len());
     Ok(())
 }
 

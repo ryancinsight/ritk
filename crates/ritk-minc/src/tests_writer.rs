@@ -119,7 +119,7 @@ fn read_minc_rejects_shape_exceeding_backed_data() {
     let path = dir.path().join("forged.mnc");
     write_minc2_hdf5(
         &path,
-        &[0_u8; 8 * 4],
+        &[0.0_f32; 8],
         [64, 64, 64],
         [0.0; 3],
         [1.0; 3],
@@ -132,5 +132,86 @@ fn read_minc_rejects_shape_exceeding_backed_data() {
     assert!(
         format!("{error:#}").contains("voxel data"),
         "expected voxel-data read error, got {error:#}"
+    );
+}
+
+#[test]
+fn write_minc_rejects_non_finite_geometry_before_file_creation() {
+    let backend = SequentialBackend;
+    let values = vec![1.0_f32; 8];
+    let image = Image::from_flat_on(
+        values,
+        [2, 2, 2],
+        Point::new([f64::NAN, 0.0, 0.0]),
+        Spacing::uniform(1.0),
+        Direction::identity(),
+        &backend,
+    )
+    .expect("valid storage and shape");
+    let directory = tempfile::tempdir().expect("create temporary directory");
+    let path = directory.path().join("invalid-geometry.mnc");
+
+    let error =
+        crate::write_minc(&image, &path, &backend).expect_err("non-finite origin must be rejected");
+
+    assert!(
+        error.to_string().contains("origin axis 0"),
+        "unexpected error: {error:#}"
+    );
+    assert!(!path.exists(), "preflight failure must not create a file");
+}
+
+#[test]
+fn write_minc_round_trips_across_stream_chunks() {
+    let backend = SequentialBackend;
+    let shape = [5, 64, 64];
+    let voxel_count = shape.into_iter().product();
+    let values: Vec<f32> = (0..voxel_count)
+        .map(|index| {
+            let index = u16::try_from(index).expect("test voxel index fits u16");
+            f32::from(index).mul_add(0.25, -1_024.0)
+        })
+        .collect();
+    let image = Image::from_flat_on(
+        values.clone(),
+        shape,
+        Point::new([4.5, -8.0, 12.25]),
+        Spacing::new([1.5, 0.75, 0.5]),
+        Direction::from_rows([[0.0, -1.0, 0.0], [1.0, 0.0, 0.0], [0.0, 0.0, 1.0]]),
+        &backend,
+    )
+    .expect("valid streamed image");
+    let directory = tempfile::tempdir().expect("create temporary directory");
+    let path = directory.path().join("streamed.mnc");
+
+    crate::write_minc(&image, &path, &backend).expect("write streamed MINC2 volume");
+    let decoded = crate::read_minc(&path, &backend).expect("read streamed MINC2 volume");
+
+    assert_eq!(decoded.shape(), shape);
+    assert_eq!(decoded.origin(), image.origin());
+    assert_eq!(decoded.spacing(), image.spacing());
+    assert_eq!(decoded.direction(), image.direction());
+    assert_eq!(decoded.data_slice().expect("host data"), values);
+}
+
+#[test]
+fn geometry_preflight_rejects_unrepresentable_axis_length() {
+    let oversized_axis = usize::try_from(i32::MAX)
+        .expect("usize represents i32::MAX")
+        .checked_add(1)
+        .expect("supported targets represent i32::MAX + 1");
+    let error = super::validate_geometry(
+        [oversized_axis, 1, 1],
+        &Point::origin(),
+        &Spacing::uniform(1.0),
+        &Direction::identity(),
+    )
+    .expect_err("MINC2 length attribute is i32");
+
+    assert!(
+        error
+            .to_string()
+            .contains("exceeds the i32 length attribute"),
+        "unexpected error: {error:#}"
     );
 }
