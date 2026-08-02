@@ -1,5 +1,5 @@
-<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 952 340">
-<rect width="952" height="340" fill="#f8fafc"/>
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 952 555">
+<rect width="952" height="555" fill="#f8fafc"/>
 <style>.panel{fill:#fff;stroke:#cbd5e1}.title{font:600 15px sans-serif;fill:#172033}.label{font:600 12px sans-serif;fill:#172033}.small{font:11px sans-serif;fill:#475569}.metric{font:13px sans-serif;fill:#172033}.success{font:600 12px sans-serif;fill:#047857}</style>
 <g transform="translate(0,0)">
 <rect x="7" y="7" width="224" height="266" class="panel"/>
@@ -33,4 +33,17 @@
 <text x="17" y="232" class="success">direction matrix preserved</text>
 <text x="17" y="251" class="small">8 KiB writer scratch</text></g>
 <text x="18" y="302" class="success">The identical-looking panels are confirmed by the explicit zero-difference mask and a full-volume bit comparison.</text>
-<text x="18" y="325" class="metric">One 3-D volume · x-fastest contiguous payload · exact f32 voxels · physical geometry retained</text></svg>
+<text x="18" y="325" class="metric">One 3-D volume · x-fastest contiguous payload · exact f32 voxels · physical geometry retained</text>
+<g transform="translate(0,355)">
+<rect x="7" y="7" width="938" height="178" class="panel"/>
+<text x="18" y="31" class="title">Quantitative i16 scaling: stored codes and decoded intensities must differ</text>
+<text x="18" y="55" class="metric">real = image-min + (stored − valid-min) × (image-max − image-min) / (valid-max − valid-min)</text>
+<text x="18" y="79" class="small">valid_range = [0, 100] · first spatial axis selects one image range per slice</text>
+<text x="18" y="107" class="label">Slice 0 · image range [−1000, 1000]</text>
+<text x="275" y="107" class="small">stored [0, 25, 50, 100]</text>
+<text x="550" y="107" class="success">read_minc → [−1000, −500, 0, 1000]</text>
+<text x="18" y="137" class="label">Slice 1 · image range [0, 200]</text>
+<text x="275" y="137" class="small">stored [0, 25, 50, 100]</text>
+<text x="550" y="137" class="success">read_minc → [0, 50, 100, 200]</text>
+<text x="18" y="166" class="small">These values come from the public reader, not from labels assembled for the figure.</text></g>
+</svg>

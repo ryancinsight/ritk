@@ -30,11 +30,11 @@ The standard's
 [minimal-file rule](https://www.bic.mni.mcgill.ca/software/minc/minc2_format/node26.html)
 requires the image and its dimensions; the three principal groups form the
 recommended framework. RITK currently reads one three-dimensional contiguous
-`image` dataset and writes one contiguous little-endian `f32` dataset. It does
-not yet read chunked/compressed datasets, apply `image-min`/`image-max`
-real-value scaling, expose arbitrary metadata under `info`, or write
-multiresolution levels. Those cases return an error where they are detectable;
-scaled integer data is not yet a supported quantitative interchange path.
+`image` dataset and writes one contiguous little-endian `f32` dataset. The
+reader supports global and first-spatial-axis per-slice integer scaling. It does
+not yet read chunked/compressed datasets, expose arbitrary metadata under
+`info`, or write multiresolution levels. Those cases return an error where they
+are detectable.
 
 This restricted profile is useful for exact RITK round trips. It is not a claim
 that every MINC2 variant is supported. Validate representative foreign files
@@ -70,23 +70,42 @@ direction columns before creating a file.
 ## Scalar conversion
 
 The reader accepts contiguous HDF5 boolean, signed integer, unsigned integer,
-`f32`, and `f64` payloads and returns `f32`. Integer values beyond binary32's
-exact integer range and finite `f64` values can round under this explicit
-output contract. The current writer accepts `Image<f32, B, 3>` and preserves
-the little-endian IEEE-754 bits exactly.
+`f32`, and `f64` payloads and returns `f32`. The current writer accepts
+`Image<f32, B, 3>` and preserves the little-endian IEEE-754 bits exactly.
 
-Because RITK does not yet apply MINC real-value scaling, a foreign integer file
-that uses `valid_range`, `image-min`, and `image-max` must not be interpreted as
-calibrated intensity. The
-[image attribute specification](https://www.bic.mni.mcgill.ca/software/minc/minc2_format/node15.html)
-describes that scaling metadata.
+For integer image data, the
+[MINC pixel-conversion specification](https://www.bic.mni.mcgill.ca/software/minc/prog_guide/node19.html)
+maps each stored value \(v\) to a real intensity \(r\):
+
+\[
+r = r_{\min} +
+    (v-v_{\min})\frac{r_{\max}-r_{\min}}{v_{\max}-v_{\min}}.
+\]
+
+Here \([v_{\min},v_{\max}]\) is the image dataset's `valid_range`, whose
+[endpoint order is insignificant](https://www.bic.mni.mcgill.ca/software/minc/minc2_format/node15.html).
+If it is absent, RITK uses the complete stored integer range. The real range
+\([r_{\min},r_{\max}]\) comes from `image-min` and `image-max`. Those datasets
+may be scalar for one global mapping or contain one value per slice along the
+first spatial image axis. If both are absent, the MINC default real range is
+`[0, 1]`.
+
+Values outside `valid_range` denote missing or uninitialized data. RITK's
+`Image<f32, B, 3>` has no missing-value mask, so the reader returns a contextual
+error naming the first invalid voxel instead of silently inventing a value.
+Floating-point image datasets bypass `image-min`/`image-max` scaling, as the
+MINC conversion contract requires. Integer values beyond binary64's exact
+integer range and finite `f64` image values can still round under the explicit
+`f32` output contract.
 
 ## Bounded reading and writing
 
-The reader calculates element and byte counts with checked arithmetic. It reads
-the contiguous dataset through a bounded growth helper, so a hostile shape that
-claims more voxels than the file backs fails on I/O without reserving the full
-declared payload first.
+The reader validates exact dataset and dimension shapes and calculates element,
+slice, and byte counts with checked arithmetic. It reads at most 8 KiB of raw
+voxel bytes at a time and decodes directly into the returned `f32` volume. A
+hostile shape that claims more voxels than the file backs therefore fails on
+the first unbacked chunk without reserving a second volume-sized byte buffer.
+Scaling is applied while each chunk enters the final output.
 
 Before file creation, the writer checks the voxel product, the format's `i32`
 dimension limit, payload bytes, storage length, and physical metadata. It then
@@ -107,10 +126,12 @@ write_minc(&image, "copy.mnc", &backend)?;
 
 Reading reports malformed HDF5 structure, absent image or dimensions, invalid
 dimension attributes, unsupported storage layout or scalar type, byte-count
-overflow, truncated voxel data, and image-construction failure. Writing reports
-empty or unrepresentable axes, storage/shape disagreement, invalid physical
-metadata, allocation failure, and positioned-write failure. Logical preflight
-errors occur before the output path is created.
+overflow, truncated voxel data, malformed scaling ranges, incomplete
+`image-min`/`image-max` pairs, out-of-range stored values, and
+image-construction failure. Writing reports empty or unrepresentable axes,
+storage/shape disagreement, invalid physical metadata, allocation failure, and
+positioned-write failure. Logical preflight errors occur before the output path
+is created.
 
 The [MINC2 round-trip example](examples/minc_roundtrip.md) makes the visual and
 numerical comparison explicit.

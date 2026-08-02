@@ -8,6 +8,29 @@
 
 # CHANGELOG
 
+## [Unreleased] — MINC2 integer scaling (SAFE-691-01)
+
+### Changed
+
+- Stream contiguous MINC2 decoding through one fixed 8 KiB raw scratch buffer
+  directly into the returned `f32` volume.
+- Extend the executable MINC2 figure with actual stored integer codes, the
+  mapping equation, and public-reader results for two distinct slice ranges.
+
+### Fixed
+
+- Apply scalar and per-slice `valid_range` to `image-min` / `image-max`
+  quantitative scaling for integer and boolean MINC2 datasets.
+- Reject incomplete, non-finite, inverted, mismatched, or unrepresentable
+  image ranges and stored values outside `valid_range` with contextual errors.
+- Validate exact dataset geometry and checked element products before reading.
+
+### Tests
+
+- Cover analytical endpoints, midpoints, reversed valid-range order, uniform
+  slices, default ranges, per-slice public-reader values, malformed range
+  pairs, and out-of-range stored samples.
+
 ## [Unreleased] — MINC2 writer and book (PERF-690-01)
 
 ### Changed

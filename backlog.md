@@ -16,7 +16,7 @@
 > References to these tools in the entries below are historical.
 
 - **SAFE-691-01 [patch] - Decode MINC2 quantitative integer voxels**
-  (IN PROGRESS; owner=Codex; last-update=2026-08-02; scope=
+  (REVIEW; owner=Codex; last-update=2026-08-02; scope=
   `crates/ritk-minc/{src,examples}/**`,
   `docs/book/{minc_format.md,examples/minc_roundtrip.md,
   figures/minc_roundtrip.svg}`, `CHANGELOG.md`, `gap_audit.md`, and PM

@@ -15,19 +15,34 @@
 
 ## SAFE-691-01 — Decode MINC2 quantitative integer voxels
 **Target version**: Unreleased patch
-**Sprint phase**: Foundation
+**Sprint phase**: Review
 
 - [x] Reconcile origin, worktrees, active peer claims, the MINC2 owner, and
       current reader/book coverage.
-- [ ] Record the focused package baseline before production edits.
-- [ ] Ground scalar and per-slice scaling in the MINC2 specification and pin
+- [x] Record the focused package baseline before production edits: 45/45
+      Nextest tests pass in 0.507 seconds.
+- [x] Ground scalar and per-slice scaling in the MINC2 specification and pin
       the mapping, indexing, missing-value, and float-dataset contracts.
-- [ ] Implement allocation-bounded integer scaling with typed boundary errors.
-- [ ] Add analytical, malformed-input, and public-reader regressions.
-- [ ] Extend and inspect the deterministic public-API example and figure.
-- [ ] Synchronize Rustdoc, book, changelog, gap audit, and PM state.
+- [x] Implement allocation-bounded integer scaling with typed boundary errors.
+- [x] Add analytical, malformed-input, and public-reader regressions. The
+      corrected focused suite passes 57/57 tests in 0.591 seconds against the
+      clean Git provider graph.
+- [x] Extend and inspect the deterministic public-API example and figure. The
+      43,110-byte SVG has SHA-256
+      `71A61FEFAF4DCA94AC45D3C902D0F8291C24B1697C6C103364419F6F859E9577`;
+      direct warm regeneration completes in 69.158 ms and is byte-identical.
+      The inspected rendering exposes the two distinct decoded ranges next to
+      their identical stored codes and the mapping equation.
+- [x] Synchronize Rustdoc, book, changelog, gap audit, and PM state.
 - [ ] Run focused format, lint, test, documentation, example-runtime, mdBook,
       semantic-version, review, and hosted gates against the delivered head.
+      Local formatting, `git diff --check`, warning-denied all-target Clippy,
+      57/57 Nextest tests, doctests, warning-denied Rustdoc, deterministic
+      example generation, and mdBook test/build pass. `cargo-semver-checks`
+      cannot establish a registry baseline because `ritk-minc` is not yet
+      indexed; the diff changes no public Rust item signature. Focused
+      self-review resolved datatype-range validation and existence-only error
+      assertions before finding no residual defect. Hosted gates remain.
 - [ ] Commit, publish, merge after exact-head CI, and verify Pages deployment.
 
 ## PERF-690-01 — Stream and teach MINC2 writing

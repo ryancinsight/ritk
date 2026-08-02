@@ -118,6 +118,29 @@ fn extract_float_array_3_rejects_scalar() {
 }
 
 #[test]
+fn extract_numeric_range_accepts_all_numeric_array_kinds() {
+    assert_eq!(
+        extract_numeric_range(&AttributeValue::FloatArray(vec![-1.5, 2.5])).expect("float range"),
+        [-1.5, 2.5]
+    );
+    assert_eq!(
+        extract_numeric_range(&AttributeValue::IntArray(vec![-2, 7])).expect("signed range"),
+        [-2.0, 7.0]
+    );
+    assert_eq!(
+        extract_numeric_range(&AttributeValue::UintArray(vec![2, 7])).expect("unsigned range"),
+        [2.0, 7.0]
+    );
+}
+
+#[test]
+fn extract_numeric_range_rejects_wrong_arity() {
+    let error = extract_numeric_range(&AttributeValue::FloatArray(vec![1.0]))
+        .expect_err("range requires two endpoints");
+    assert!(error.to_string().contains("two-element numeric range"));
+}
+
+#[test]
 fn extract_string_from_string() {
     let val = AttributeValue::String("zspace,yspace,xspace".to_string());
     assert_eq!(

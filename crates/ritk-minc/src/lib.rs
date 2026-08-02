@@ -56,14 +56,22 @@
 //! # Data Type Handling
 //!
 //! The reader converts contiguous MINC2 voxel data types (u8, i8, u16, i16,
-//! u32, i32, f32, f64) to `f32` for the RITK tensor. It currently returns the
-//! stored values directly; `image-min` / `image-max` real-value scaling is not
-//! yet applied. The writer emits one contiguous little-endian `f32` volume.
+//! u32, i32, f32, f64) to `f32` for the RITK tensor. Integer images are mapped
+//! from their `valid_range` to scalar or per-slice `image-min` / `image-max`
+//! real ranges. Values outside `valid_range` are rejected because the public
+//! image contract has no missing-value mask. Floating-point datasets bypass
+//! real-value scaling. The writer emits one contiguous little-endian `f32`
+//! volume.
+//!
+//! This follows the MINC
+//! [pixel-conversion contract](https://www.bic.mni.mcgill.ca/software/minc/prog_guide/node19.html)
+//! and [standard image variables](https://www.bic.mni.mcgill.ca/software/minc/minc1_format/node5.html).
 
 pub mod attrs;
 pub mod convert;
 pub(crate) mod hdf5_binary;
 pub mod reader;
+mod scaling;
 pub mod spatial;
 pub mod writer;
 

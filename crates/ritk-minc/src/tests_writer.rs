@@ -6,6 +6,9 @@ use ritk_spatial::{Direction, Point, Spacing};
 
 type B = SequentialBackend;
 
+#[path = "scaled_fixture.rs"]
+mod scaled_fixture;
+
 fn make_test_image(
     nz: usize,
     ny: usize,
@@ -212,6 +215,104 @@ fn geometry_preflight_rejects_unrepresentable_axis_length() {
         error
             .to_string()
             .contains("exceeds the i32 length attribute"),
+        "unexpected error: {error:#}"
+    );
+}
+
+#[test]
+fn read_minc_applies_per_slice_integer_scaling() {
+    use scaled_fixture::{write_scaled_integer_fixture, ImageRangeFixture};
+
+    let directory = tempfile::tempdir().expect("create temporary directory");
+    let path = directory.path().join("scaled-int16.mnc");
+    let stored = [0_i16, 25, 50, 100, 0, 25, 50, 100];
+    write_scaled_integer_fixture(
+        &path,
+        &stored,
+        [2, 2, 2],
+        [0, 100],
+        ImageRangeFixture::Complete {
+            minima: &[-1_000.0, 0.0],
+            maxima: &[1_000.0, 200.0],
+        },
+    )
+    .expect("write scaled fixture");
+
+    let image = crate::read_minc(&path, &SequentialBackend).expect("read scaled fixture");
+    assert_eq!(image.shape(), [2, 2, 2]);
+    assert_eq!(
+        image.data_slice().expect("host data"),
+        [-1_000.0, -500.0, 0.0, 1_000.0, 0.0, 50.0, 100.0, 200.0]
+    );
+}
+
+#[test]
+fn read_minc_uses_default_real_range_when_image_ranges_are_absent() {
+    use scaled_fixture::{write_scaled_integer_fixture, ImageRangeFixture};
+
+    let directory = tempfile::tempdir().expect("create temporary directory");
+    let path = directory.path().join("default-range.mnc");
+    write_scaled_integer_fixture(
+        &path,
+        &[0_i16, 25, 50, 100],
+        [1, 2, 2],
+        [0, 100],
+        ImageRangeFixture::Omitted,
+    )
+    .expect("write default-range fixture");
+
+    let image = crate::read_minc(&path, &SequentialBackend).expect("read default-range fixture");
+    assert_eq!(
+        image.data_slice().expect("host data"),
+        [0.0, 0.25, 0.5, 1.0]
+    );
+}
+
+#[test]
+fn read_minc_rejects_incomplete_image_range_pair() {
+    use scaled_fixture::{write_scaled_integer_fixture, ImageRangeFixture};
+
+    let directory = tempfile::tempdir().expect("create temporary directory");
+    let path = directory.path().join("missing-image-max.mnc");
+    write_scaled_integer_fixture(
+        &path,
+        &[0_i16, 25, 50, 100],
+        [1, 2, 2],
+        [0, 100],
+        ImageRangeFixture::MinimumOnly { minima: &[-100.0] },
+    )
+    .expect("write malformed range fixture");
+
+    let error = crate::read_minc(&path, &SequentialBackend)
+        .expect_err("an incomplete image-range pair must fail");
+    assert!(
+        error.to_string().contains("image-max is missing"),
+        "unexpected error: {error:#}"
+    );
+}
+
+#[test]
+fn read_minc_rejects_stored_integer_outside_valid_range() {
+    use scaled_fixture::{write_scaled_integer_fixture, ImageRangeFixture};
+
+    let directory = tempfile::tempdir().expect("create temporary directory");
+    let path = directory.path().join("invalid-stored-value.mnc");
+    write_scaled_integer_fixture(
+        &path,
+        &[0_i16, 25, 101, 100],
+        [1, 2, 2],
+        [0, 100],
+        ImageRangeFixture::Complete {
+            minima: &[-100.0],
+            maxima: &[300.0],
+        },
+    )
+    .expect("write out-of-range fixture");
+
+    let error = crate::read_minc(&path, &SequentialBackend)
+        .expect_err("out-of-range stored values must not be silently mapped");
+    assert!(
+        format!("{error:#}").contains("stored voxel 2 value 101"),
         "unexpected error: {error:#}"
     );
 }
