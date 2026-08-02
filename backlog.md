@@ -16,7 +16,7 @@
 > References to these tools in the entries below are historical.
 
 - **PERF-690-01 [patch] - Stream and teach MINC2 writing**
-  (REVIEW; owner=Codex; last-update=2026-08-02; scope=
+  (DONE; owner=Codex; last-update=2026-08-02; scope=
   `crates/ritk-minc/{src,examples}/**`,
   `docs/book/{SUMMARY.md,minc_format.md,examples/minc_roundtrip.md,
   figures/minc_roundtrip.svg}`, `.github/workflows/book-pages.yml`,
@@ -43,7 +43,13 @@
   `50823916BC41B330F5219F71F9D15C45ED4D1BB7FD9655F34D41CA9C5666D56C`
   and warm regeneration completes in 53.417 ms. A registry semantic baseline
   is unavailable because `ritk-minc` is not yet indexed; the diff changes no
-  public Rust item signature. Hosted review and gates remain.
+  public Rust item signature. PR #92 merged as `aeb56e5d`; exact-head CI run
+  `30753087020`, Python run `30753087037`, and PR book build `30753087001`
+  passed. Default-branch Pages run `30753831094` regenerated and deployed the
+  book. The live chapter, example, and figure return HTTP 200, and the deployed
+  figure's SHA-256 matches the inspected local artifact. CodeRabbit was rate
+  limited and Recurse failed before analysis, so neither external service
+  furnished review findings; focused self-review found no residual defect.
 
 - **RELEASE-689-01 [patch] - Publish the Rust library closure to crates.io**
   (IN PROGRESS; owner=Codex; last-update=2026-08-02; scope=workspace and package
