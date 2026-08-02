@@ -339,6 +339,7 @@ impl OdField {
             .zip(self.coefficients.iter())
             .map(|((_, degree, order), coefficient)| {
                 coefficient * real_spherical_harmonic(degree, order, theta, phi)
+                    .expect("invariant: SH evaluation with pre-validated basis")
             })
             .sum()
     }
@@ -423,7 +424,7 @@ pub fn estimate_odf(
         .iter()
         .map(|index| signals[*index] / baseline_signal)
         .collect::<Vec<_>>();
-    let design = basis.design_matrix(&directions);
+    let design = basis.design_matrix(&directions)?;
     let signal_coefficients =
         solve_regularized(&design, &normalized, &basis, config.regularization())?;
     let residual = residual_norm(&design, &signal_coefficients, &normalized);

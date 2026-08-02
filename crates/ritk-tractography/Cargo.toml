@@ -9,7 +9,10 @@ description = "Streamline tractography using Gaia Polyline geometry"
 [dependencies]
 gaia = { workspace = true }
 leto = { workspace = true }
+ritk-diffusion = { workspace = true }
 ritk-spatial.workspace = true
 thiserror.workspace = true
 
 [dev-dependencies]
+apollo-sht = { workspace = true }
+ritk-diffusion-scheme = { workspace = true }

@@ -136,3 +136,61 @@ fn scheme_validation_rejects_non_unit_weighted_direction() -> Result<()> {
     assert!(error.to_string().contains("unit vector"));
     Ok(())
 }
+
+// ── ADR 0036 verification condition 8: DICOM round-trip ─────────────────
+
+#[test]
+fn dicom_write_read_round_trip_recovers_identical_scheme() -> Result<()> {
+    use ritk_diffusion_scheme::{GradientDirection, GradientScheme};
+    use ritk_spatial::Vector;
+
+    let scheme = GradientScheme::new(
+        vec![
+            GradientDirection::new(
+                DiffusionWeighting::from_seconds_per_square_millimeter(0.0)?,
+                Vector::new([0.0, 0.0, 0.0]),
+            )?,
+            GradientDirection::new(
+                DiffusionWeighting::from_seconds_per_square_millimeter(500.0)?,
+                Vector::new([0.5_f64.sqrt(), 0.5_f64.sqrt(), 0.0]),
+            )?,
+            GradientDirection::new(
+                DiffusionWeighting::from_seconds_per_square_millimeter(1_000.0)?,
+                Vector::new([0.0, 1.0, 0.0]),
+            )?,
+            GradientDirection::new(
+                DiffusionWeighting::from_seconds_per_square_millimeter(2_000.0)?,
+                Vector::new([0.0, 0.0, 1.0]),
+            )?,
+        ],
+        GradientFrame::Lps,
+    )?;
+
+    let directory = tempfile::tempdir()?;
+    let mut paths: Vec<std::path::PathBuf> = Vec::new();
+    for (i, entry) in scheme.directions().iter().enumerate() {
+        let b = entry.weighting().seconds_per_square_millimeter();
+        let [x, y, z] = entry.direction().to_array();
+        let path = directory.path().join(format!("instance_{i:04}.dcm"));
+        write_instance(&path, b, &[x, y, z], &format!("2.25.{}", 100 + i))?;
+        paths.push(path);
+    }
+
+    let recovered = read_dicom_gradient_scheme_from_files(&paths)?;
+
+    assert_eq!(recovered.frame(), scheme.frame());
+    assert_eq!(recovered.len(), scheme.len());
+    for (original, recovered) in scheme.directions().iter().zip(recovered.directions().iter()) {
+        assert_eq!(
+            original.weighting(),
+            recovered.weighting(),
+            "weightings differ"
+        );
+        assert_eq!(
+            original.direction(),
+            recovered.direction(),
+            "directions differ"
+        );
+    }
+    Ok(())
+}

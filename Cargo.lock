@@ -1266,12 +1266,22 @@ dependencies = [
 ]
 
 [[package]]
+name = "coeus-leto"
+version = "0.9.0"
+source = "git+https://github.com/ryancinsight/Coeus.git#7048e9f62ddacb0842b42801e9ce7e65fd6ac586"
+dependencies = [
+ "coeus-core",
+ "leto",
+ "leto-ops",
+]
+
+[[package]]
 name = "coeus-nn"
 version = "0.9.0"
 dependencies = [
  "coeus-autograd",
  "coeus-core",
- "coeus-leto",
+ "coeus-leto 0.9.0",
  "coeus-ops",
  "coeus-tensor",
  "smallvec",
@@ -1284,7 +1294,7 @@ version = "0.9.0"
 dependencies = [
  "bytemuck",
  "coeus-core",
- "coeus-leto",
+ "coeus-leto 0.9.0",
  "coeus-sparse",
  "coeus-tensor",
  "eunomia",
@@ -1324,7 +1334,7 @@ version = "0.9.0"
 dependencies = [
  "bytemuck",
  "coeus-core",
- "coeus-leto",
+ "coeus-leto 0.9.0",
  "rkyv 0.8.17",
  "smallvec",
  "thiserror 2.0.19",
@@ -5690,6 +5700,18 @@ dependencies = [
 ]
 
 [[package]]
+name = "ritk-connectome"
+version = "0.1.0"
+dependencies = [
+ "gaia",
+ "leto",
+ "ritk-spatial",
+ "serde",
+ "serde_json",
+ "thiserror 2.0.19",
+]
+
+[[package]]
 name = "ritk-core"
 version = "0.9.0"
 dependencies = [
@@ -5724,11 +5746,17 @@ dependencies = [
 name = "ritk-diffusion"
 version = "0.1.0"
 dependencies = [
+ "anyhow",
  "apollo-sht",
+ "coeus-optim",
  "leto",
  "leto-ops",
  "ritk-diffusion-scheme",
+ "ritk-image",
+ "ritk-io",
  "ritk-spatial",
+ "ritk-tractography",
+ "tempfile",
  "thiserror 2.0.19",
 ]
 
@@ -5737,7 +5765,12 @@ name = "ritk-diffusion-scheme"
 version = "0.1.0"
 dependencies = [
  "aequitas",
+ "anyhow",
+ "dicom",
+ "ritk-dicom",
+ "ritk-nrrd",
  "ritk-spatial",
+ "tempfile",
  "thiserror 2.0.19",
 ]
 
@@ -5922,7 +5955,7 @@ dependencies = [
  "bytemuck",
  "coeus-autograd",
  "coeus-core",
- "coeus-leto",
+ "coeus-leto 0.9.0 (git+https://github.com/ryancinsight/Coeus.git)",
  "coeus-nn",
  "coeus-ops",
  "coeus-optim",
@@ -6108,6 +6141,7 @@ version = "0.1.0"
 dependencies = [
  "leto",
  "serde",
+ "thiserror 2.0.19",
 ]
 
 [[package]]
@@ -6130,7 +6164,7 @@ version = "0.1.0"
 dependencies = [
  "anyhow",
  "coeus-core",
- "coeus-leto",
+ "coeus-leto 0.9.0 (git+https://github.com/ryancinsight/Coeus.git)",
  "coeus-ops",
  "coeus-tensor",
  "eunomia",
@@ -6156,8 +6190,11 @@ dependencies = [
 name = "ritk-tractography"
 version = "0.1.0"
 dependencies = [
+ "apollo-sht",
  "gaia",
  "leto",
+ "ritk-diffusion",
+ "ritk-diffusion-scheme",
  "ritk-spatial",
  "thiserror 2.0.19",
 ]
@@ -9021,11 +9058,27 @@ dependencies = [
 ]
 
 [[patch.unused]]
-name = "tyche-core"
+name = "proteus"
 version = "0.1.0"
 
 [[patch.unused]]
-name = "proteus"
+name = "athena-core"
+version = "0.1.0"
+
+[[patch.unused]]
+name = "athena-leto"
+version = "0.1.0"
+
+[[patch.unused]]
+name = "consus-npy"
+version = "0.1.0"
+
+[[patch.unused]]
+name = "consus-zarr"
+version = "0.1.0"
+
+[[patch.unused]]
+name = "tyche-core"
 version = "0.1.0"
 
 [[patch.unused]]
@@ -9034,6 +9087,14 @@ version = "0.1.0"
 
 [[patch.unused]]
 name = "asclepius-coeus"
+version = "0.1.0"
+
+[[patch.unused]]
+name = "hyperion"
+version = "0.1.0"
+
+[[patch.unused]]
+name = "horae"
 version = "0.1.0"
 
 [[patch.unused]]
@@ -9057,18 +9118,6 @@ name = "hephaestus-wgpu"
 version = "0.18.0"
 
 [[patch.unused]]
-name = "hyperion"
-version = "0.1.0"
-
-[[patch.unused]]
-name = "consus-npy"
-version = "0.1.0"
-
-[[patch.unused]]
-name = "consus-zarr"
-version = "0.1.0"
-
-[[patch.unused]]
 name = "apollo-nufft"
 version = "0.7.0"
 
@@ -9079,15 +9128,3 @@ version = "0.4.0"
 [[patch.unused]]
 name = "moirai-http"
 version = "0.4.0"
-
-[[patch.unused]]
-name = "athena-core"
-version = "0.1.0"
-
-[[patch.unused]]
-name = "athena-leto"
-version = "0.1.0"
-
-[[patch.unused]]
-name = "horae"
-version = "0.1.0"

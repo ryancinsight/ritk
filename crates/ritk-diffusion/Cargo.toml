@@ -4,10 +4,11 @@ version = "0.1.0"
 edition = "2024"
 rust-version = "1.95"
 license.workspace = true
-description = "Regularized analytical Q-ball diffusion MRI models"
+description = "DTI, DKI, Q-ball, and CSD diffusion MRI models"
 
 [dependencies]
 apollo-sht = { workspace = true }
+coeus-optim = { workspace = true }
 leto = { workspace = true }
 leto-ops = { workspace = true }
 ritk-diffusion-scheme = { workspace = true }
@@ -16,4 +17,7 @@ thiserror.workspace = true
 
 [dev-dependencies]
 anyhow.workspace = true
+ritk-image.workspace = true
+ritk-io.workspace = true
 ritk-tractography.workspace = true
+tempfile.workspace = true

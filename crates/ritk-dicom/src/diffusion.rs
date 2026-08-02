@@ -5,10 +5,12 @@
 //! patient frame. RITK patient coordinates are physical LPS, so successful
 //! extraction produces [`GradientFrame::Lps`].
 //!
-//! This module supports top-level elements in classic single-frame instances.
-//! Enhanced multi-frame functional groups and vendor-private conventions need
-//! sequence- and manufacturer-specific geometry handling and are rejected by
+//! When the standard top-level elements are absent this module falls back to
+//! vendor-specific private blocks (Siemens CSA headers).  Enhanced multi-frame
+//! functional groups need sequence-level geometry handling and are rejected by
 //! absence rather than guessed.
+
+mod vendor;
 
 use std::path::Path;
 
@@ -42,7 +44,8 @@ pub fn extract_diffusion_pair(
         .context("failed to read Diffusion Gradient Orientation")?;
 
     match (weighting, direction) {
-        (None, None) => Ok(None),
+        (None, None) => vendor::try_vendor_pair(object)
+            .with_context(|| "failed to extract diffusion metadata from vendor private blocks"),
         (Some(value), Some(components)) => {
             let components: [f64; 3] = components.try_into().map_err(|values: Vec<f64>| {
                 anyhow::anyhow!(

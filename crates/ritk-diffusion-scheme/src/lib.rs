@@ -15,12 +15,14 @@
 mod error;
 mod fsl;
 mod gradient;
+mod mrtrix;
 mod scheme;
 mod weighting;
 
 pub use error::GradientSchemeError;
-pub use fsl::{parse_fsl_bval, parse_fsl_bvec, read_fsl_scheme};
+pub use fsl::{parse_fsl_bval, parse_fsl_bvec, read_fsl_scheme, write_fsl_scheme};
 pub use gradient::{GradientDirection, GradientFrame};
+pub use mrtrix::{read_mrtrix_scheme, write_mrtrix_scheme};
 pub use scheme::GradientScheme;
 pub use weighting::DiffusionWeighting;
 
