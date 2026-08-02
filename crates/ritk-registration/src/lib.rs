@@ -46,6 +46,7 @@ pub mod classical;
 pub(crate) mod deformable_field_ops;
 pub mod demons;
 pub mod diffeomorphic;
+pub mod epi;
 pub mod error;
 pub mod label_transfer;
 pub mod lddmm;
