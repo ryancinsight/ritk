@@ -46,7 +46,9 @@ fn named_adam_optimizes_displacement_through_registration_seam() {
     objective(&transform)
         .backward()
         .expect("backward succeeds over the test loss");
-    optimizer.step();
+    optimizer
+        .step()
+        .expect("Adam step succeeds for finite registration gradients");
     transform
         .load_named_parameters(&optimizer.params)
         .expect("stable field inventory");
