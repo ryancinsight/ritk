@@ -15,6 +15,28 @@
 > workflow were removed after the Burn-to-Coeus migration completed.
 > References to these tools in the entries below are historical.
 
+- **SAFE-691-01 [patch] - Decode MINC2 quantitative integer voxels**
+  (IN PROGRESS; owner=Codex; last-update=2026-08-02; scope=
+  `crates/ritk-minc/{src,examples}/**`,
+  `docs/book/{minc_format.md,examples/minc_roundtrip.md,
+  figures/minc_roundtrip.svg}`, `CHANGELOG.md`, `gap_audit.md`, and PM
+  artifacts; non-goal=MINC1, chunked or compressed HDF5 datasets,
+  integer-valued writing, arbitrary `info` metadata, four-dimensional or
+  vector images, release, or deployment). The reader currently converts
+  stored integer samples directly to `f32` and ignores MINC2 `valid_range`,
+  `image-min`, and `image-max`, so quantitatively scaled foreign images decode
+  with incorrect intensities. Apply the MINC2 linear mapping for scalar and
+  per-slice image ranges after validating datatype, range shape, finiteness,
+  ordering, degeneracy, sample bounds, and checked slice indexing. Keep
+  floating-point datasets unscaled. Add analytical and public-reader
+  regressions plus an executable figure that makes stored-versus-real values
+  and the mapping formula explicit. Acceptance: valid integer data decodes to
+  the specified real range; reversed `valid_range` endpoints remain valid;
+  malformed or out-of-range data returns contextual errors without panic or
+  partial output; scaling uses no second volume-sized buffer; displayed values
+  agree with decoded data; and formatting, warning-denied Clippy, Nextest,
+  doctest, Rustdoc, mdBook, semantic-version, review, and hosted gates pass.
+
 - **PERF-690-01 [patch] - Stream and teach MINC2 writing**
   (DONE; owner=Codex; last-update=2026-08-02; scope=
   `crates/ritk-minc/{src,examples}/**`,

@@ -13,6 +13,23 @@
 > workflow were removed after the Burn-to-Coeus migration completed.
 > References to these tools in the entries below are historical.
 
+## SAFE-691-01 — Decode MINC2 quantitative integer voxels
+**Target version**: Unreleased patch
+**Sprint phase**: Foundation
+
+- [x] Reconcile origin, worktrees, active peer claims, the MINC2 owner, and
+      current reader/book coverage.
+- [ ] Record the focused package baseline before production edits.
+- [ ] Ground scalar and per-slice scaling in the MINC2 specification and pin
+      the mapping, indexing, missing-value, and float-dataset contracts.
+- [ ] Implement allocation-bounded integer scaling with typed boundary errors.
+- [ ] Add analytical, malformed-input, and public-reader regressions.
+- [ ] Extend and inspect the deterministic public-API example and figure.
+- [ ] Synchronize Rustdoc, book, changelog, gap audit, and PM state.
+- [ ] Run focused format, lint, test, documentation, example-runtime, mdBook,
+      semantic-version, review, and hosted gates against the delivered head.
+- [ ] Commit, publish, merge after exact-head CI, and verify Pages deployment.
+
 ## PERF-690-01 — Stream and teach MINC2 writing
 **Target version**: Unreleased patch
 **Sprint phase**: Closure
