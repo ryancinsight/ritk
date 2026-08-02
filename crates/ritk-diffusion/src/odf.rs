@@ -89,6 +89,17 @@ pub enum OdfError {
     /// Evaluation angles or direction violate the finite domain.
     #[error("invalid ODF evaluation direction: {0}")]
     InvalidEvaluation(String),
+    /// ODF evaluation overflowed to infinity.
+    #[error("ODF evaluation produced a non-finite value")]
+    NonFiniteEvaluation,
+    /// A normalized signal value is non-finite.
+    #[error("normalized signal at acquisition index {index} is not finite: {value}")]
+    NonFiniteNormalizedSignal {
+        /// Acquisition-order index.
+        index: usize,
+        /// Invalid normalized signal value.
+        value: f64,
+    },
     /// Apollo rejected the even-degree basis configuration.
     #[error("spherical-harmonic basis error: {0}")]
     Basis(#[from] RealShError),
@@ -255,7 +266,7 @@ impl OdField {
                 "phi must be finite, got {phi}"
             )));
         }
-        Ok(self.evaluate_unchecked(theta, phi))
+        Ok(self.evaluate_unchecked(theta, phi)?)
     }
 
     /// Evaluate at a finite unit Cartesian direction in [`Self::frame`].
@@ -282,7 +293,7 @@ impl OdField {
         }
         let theta = direction[2].clamp(-1.0, 1.0).acos();
         let phi = direction[1].atan2(direction[0]);
-        Ok(self.evaluate_unchecked(theta, phi))
+        self.evaluate_unchecked(theta, phi)
     }
 
     /// Evaluate a contiguous equiangular spherical grid.
@@ -324,7 +335,7 @@ impl OdField {
             let theta = std::f64::consts::PI * (theta_index as f64 + 0.5) / theta_samples as f64;
             for phi_index in 0..phi_samples {
                 let phi = std::f64::consts::TAU * phi_index as f64 / phi_samples as f64;
-                values.push(self.evaluate_unchecked(theta, phi));
+                values.push(self.evaluate_unchecked(theta, phi)?);
             }
         }
         Ok(SphericalOdfGrid {
@@ -333,15 +344,20 @@ impl OdField {
         })
     }
 
-    fn evaluate_unchecked(&self, theta: f64, phi: f64) -> f64 {
-        self.basis
-            .iter_lm()
-            .zip(self.coefficients.iter())
-            .map(|((_, degree, order), coefficient)| {
-                coefficient * real_spherical_harmonic(degree, order, theta, phi)
-                    .expect("invariant: SH evaluation with pre-validated basis")
-            })
-            .sum()
+    fn evaluate_unchecked(&self, theta: f64, phi: f64) -> Result<f64, OdfError> {
+        let mut result = 0.0;
+        for ((_, degree, order), coefficient) in
+            self.basis.iter_lm().zip(self.coefficients.iter())
+        {
+            let basis_value = real_spherical_harmonic(degree, order, theta, phi)
+                .expect("invariant: SH evaluation with pre-validated basis");
+            result += coefficient * basis_value;
+        }
+        if result.is_finite() {
+            Ok(result)
+        } else {
+            Err(OdfError::NonFiniteEvaluation)
+        }
     }
 }
 
@@ -424,6 +440,16 @@ pub fn estimate_odf(
         .iter()
         .map(|index| signals[*index] / baseline_signal)
         .collect::<Vec<_>>();
+    if let Some((acq_index, &value)) = dwi_indices
+        .iter()
+        .zip(normalized.iter())
+        .find(|&(_, &value)| !value.is_finite())
+    {
+        return Err(OdfError::NonFiniteNormalizedSignal {
+            index: *acq_index,
+            value,
+        });
+    }
     let design = basis.design_matrix(&directions)?;
     let signal_coefficients =
         solve_regularized(&design, &normalized, &basis, config.regularization())?;
