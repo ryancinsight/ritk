@@ -13,6 +13,23 @@
 > workflow were removed after the Burn-to-Coeus migration completed.
 > References to these tools in the entries below are historical.
 
+## PERF-690-01 — Stream and teach MINC2 writing
+**Target version**: Unreleased patch
+**Sprint phase**: Execution
+
+- [x] Reconcile origin, worktrees, active peer claims, the MINC2 owner, and
+      current book coverage.
+- [ ] Record the focused package baseline before production edits.
+- [ ] Validate shape and payload arithmetic before file creation.
+- [ ] Stream little-endian voxels through bounded scratch storage.
+- [ ] Add value-semantic, malformed-input, and no-partial-file regressions.
+- [ ] Add and inspect the deterministic MINC2 round-trip example and figure.
+- [ ] Teach MINC2 hierarchy, geometry, scalar, and storage boundaries in the
+      book and regenerate the figure in Pages CI.
+- [ ] Run focused format, lint, test, documentation, example-runtime, mdBook,
+      semantic-version, review, and hosted gates against the delivered head.
+- [ ] Reconcile PM evidence, commit, publish, merge, and verify Pages.
+
 ## RELEASE-689-01 — Publish the Rust library closure
 **Target version**: Current workspace package versions
 **Sprint phase**: Execution
