@@ -43,8 +43,16 @@
       black→red→yellow error map. Regeneration is byte-identical at SHA-256
       `60e300ff2bff2e972901c8f8a040765150ec76a2678d4c4bb16bf18c5261798b`;
       mdBook test and build pass.
-- [ ] Run focused and full gates, semantic compatibility, independent review,
+- [x] Run focused and full gates, semantic compatibility, independent review,
       exact-head hosted checks, merge, and verify the automatic Pages build.
+      The zero-exponent bit-plane review fix passes 324/324 focused codec
+      tests and warning-denied Clippy. At exact reviewed head `cb8d062f`, CI
+      run `30821937276`, Python CI run `30821936974`, PR mdBook run
+      `30821936718`, and the independent Copilot re-review pass. PR #100
+      merged as `e02bfcba`; default-branch Pages run `30824163963` passes.
+      The live chapter and example return HTTP 200, and the deployed SVG is
+      byte-identical to the generated artifact at SHA-256
+      `60e300ff2bff2e972901c8f8a040765150ec76a2678d4c4bb16bf18c5261798b`.
 
 ## SAFE-691-01 — Decode MINC2 quantitative integer voxels
 **Target version**: Unreleased patch

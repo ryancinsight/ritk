@@ -16,7 +16,7 @@
 > References to these tools in the entries below are historical.
 
 - **FEAT-692-01 [major] - Control native JPEG 2000 lossy quantization**
-  (IN PROGRESS; owner=Codex; last-update=2026-08-03; scope=
+  (DONE; owner=Codex; last-update=2026-08-03; scope=
   `crates/ritk-codecs/src/jpeg_2000/**`, every in-repository
   `encode_grayscale_j2k` caller, codec examples and benchmarks,
   `docs/adr/0012-fallible-jpeg-2000-encoder.md`,
@@ -37,7 +37,14 @@
   transform allocation; captured OpenJPEG interoperability remains green;
   displayed byte counts and error metrics agree with generated data; and
   formatting, warning-denied Clippy, Nextest, doctest, Rustdoc, mdBook,
-  semantic-version, review, and hosted gates pass.
+  semantic-version, review, and hosted gates pass. Delivered by PR #100 at
+  reviewed head `cb8d062f` and merged as `e02bfcba`. Hosted CI
+  (`30821937276`), Python CI (`30821936974`), the PR mdBook build
+  (`30821936718`), and the independent Copilot re-review passed. The
+  default-branch Pages run `30824163963` deployed the same revision; the live
+  chapter and example return HTTP 200, and the live SVG is byte-identical to
+  the generated artifact at SHA-256
+  `60e300ff2bff2e972901c8f8a040765150ec76a2678d4c4bb16bf18c5261798b`.
 
 - **SAFE-691-01 [patch] - Decode MINC2 quantitative integer voxels**
   (DONE; owner=Codex; last-update=2026-08-02; scope=
