@@ -41,7 +41,7 @@
 <text x="18" y="79" class="small">valid_range = [0, 100] · first spatial axis selects one image range per slice</text>
 <text x="18" y="107" class="label">Slice 0 · image range [−1000, 1000]</text>
 <text x="275" y="107" class="small">stored [0, 25, 50, 100]</text>
-<text x="550" y="107" class="success">read_minc → [−1000, −500, 0, 1000]</text>
+<text x="550" y="107" class="success">read_minc → [-1000, -500, 0, 1000]</text>
 <text x="18" y="137" class="label">Slice 1 · image range [0, 200]</text>
 <text x="275" y="137" class="small">stored [0, 25, 50, 100]</text>
 <text x="550" y="137" class="success">read_minc → [0, 50, 100, 200]</text>

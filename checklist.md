@@ -29,9 +29,9 @@
       clean Git provider graph, including every voxel of a per-slice mapping
       whose second slice crosses the 8 KiB stream boundary.
 - [x] Extend and inspect the deterministic public-API example and figure. The
-      43,110-byte SVG has SHA-256
-      `71A61FEFAF4DCA94AC45D3C902D0F8291C24B1697C6C103364419F6F859E9577`;
-      direct warm regeneration completes in 69.158 ms and is byte-identical.
+      43,106-byte SVG has SHA-256
+      `CA90C9896D00566C7608B5813748F39F1D603A07B18830718370561D0585C13A`;
+      direct warm regeneration completes in 90.040 ms and is byte-identical.
       The inspected rendering exposes the two distinct decoded ranges next to
       their identical stored codes and the mapping equation.
 - [x] Synchronize Rustdoc, book, changelog, gap audit, and PM state.
@@ -44,7 +44,10 @@
       cannot establish a registry baseline because `ritk-minc` is not yet
       indexed; the diff changes no public Rust item signature. Focused
       self-review resolved datatype-range validation and existence-only error
-      assertions before finding no residual defect. Hosted gates remain.
+      assertions. CodeRabbit's six findings produced five test, figure, book,
+      and changelog corrections; full output pre-reservation was rejected
+      because it would allocate from unverified shape metadata. Hosted gates
+      remain.
 - [ ] Commit, publish, merge after exact-head CI, and verify Pages deployment.
 
 ## PERF-690-01 — Stream and teach MINC2 writing

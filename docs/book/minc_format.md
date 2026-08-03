@@ -32,9 +32,10 @@ requires the image and its dimensions; the three principal groups form the
 recommended framework. RITK currently reads one three-dimensional contiguous
 `image` dataset and writes one contiguous little-endian `f32` dataset. The
 reader supports global and first-spatial-axis per-slice integer scaling. It does
-not yet read chunked/compressed datasets, expose arbitrary metadata under
-`info`, or write multiresolution levels. Those cases return an error where they
-are detectable.
+the same for boolean storage, treating false and true as stored codes 0 and 1.
+It does not yet read chunked/compressed datasets, expose arbitrary metadata
+under `info`, or write multiresolution levels. Those cases return an error where
+they are detectable.
 
 This restricted profile is useful for exact RITK round trips. It is not a claim
 that every MINC2 variant is supported. Validate representative foreign files
@@ -73,7 +74,7 @@ The reader accepts contiguous HDF5 boolean, signed integer, unsigned integer,
 `f32`, and `f64` payloads and returns `f32`. The current writer accepts
 `Image<f32, B, 3>` and preserves the little-endian IEEE-754 bits exactly.
 
-For integer image data, the
+For integer and boolean image data, the
 [MINC pixel-conversion specification](https://www.bic.mni.mcgill.ca/software/minc/prog_guide/node19.html)
 maps each stored value \(v\) to a real intensity \(r\):
 
@@ -88,7 +89,9 @@ If it is absent, RITK uses the complete stored integer range. The real range
 \([r_{\min},r_{\max}]\) comes from `image-min` and `image-max`. Those datasets
 may be scalar for one global mapping or contain one value per slice along the
 first spatial image axis. If both are absent, the MINC default real range is
-`[0, 1]`.
+`[0, 1]`. Equal `valid_range` endpoints are malformed because the conversion
+denominator is zero, so the reader rejects them. For boolean storage, the
+default valid range is `[0, 1]`; false and true then follow the same mapping.
 
 Values outside `valid_range` denote missing or uninitialized data. RITK's
 `Image<f32, B, 3>` has no missing-value mask, so the reader returns a contextual

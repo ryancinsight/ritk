@@ -94,7 +94,34 @@ fn malformed_ranges_and_out_of_range_samples_are_rejected() {
         "unexpected error: {outside_storage:#}"
     );
 
+    let length_mismatch =
+        IntegerScaling::new([0.0, 1.0], storage_range, vec![0.0, 0.0], vec![1.0], 4, 8)
+            .expect_err("image-min/image-max length mismatch must fail");
+    assert!(
+        length_mismatch.to_string().contains("length mismatch"),
+        "unexpected error: {length_mismatch:#}"
+    );
+
+    let inconsistent_geometry =
+        IntegerScaling::new([0.0, 1.0], storage_range, vec![0.0], vec![1.0], 3, 8)
+            .expect_err("non-divisible scaling geometry must fail");
+    assert!(
+        inconsistent_geometry
+            .to_string()
+            .contains("geometry is inconsistent"),
+        "unexpected error: {inconsistent_geometry:#}"
+    );
+
     let scaling = scaling([0.0, 100.0], vec![0.0], vec![1.0]);
+    let out_of_bounds = scaling
+        .scale(0.0, 8)
+        .expect_err("index beyond the declared element count must fail");
+    assert!(
+        out_of_bounds
+            .to_string()
+            .contains("exceeds declared element count 8"),
+        "unexpected error: {out_of_bounds:#}"
+    );
     let error = scaling
         .scale(101.0, 6)
         .expect_err("out-of-range sample must not be silently converted");

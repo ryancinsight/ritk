@@ -47,8 +47,8 @@ codes and mapping equation. Local formatting, warning-denied all-target
 Clippy, 58/58 debug Nextest tests in 0.397 seconds, 58/58 optimized release
 tests in 0.379 seconds, doctests, warning-denied Rustdoc, deterministic figure
 regeneration, and mdBook test/build pass. The inspected
-43,110-byte SVG has SHA-256
-`71A61FEFAF4DCA94AC45D3C902D0F8291C24B1697C6C103364419F6F859E9577`.
+43,106-byte SVG has SHA-256
+`CA90C9896D00566C7608B5813748F39F1D603A07B18830718370561D0585C13A`.
 `cargo-semver-checks` cannot establish a registry baseline because `ritk-minc`
 is not yet indexed; no public Rust item signature changes. Hosted closure
 evidence remains pending on the exact delivery head.

@@ -23,6 +23,8 @@
   quantitative scaling for integer and boolean MINC2 datasets.
 - Reject incomplete, non-finite, inverted, mismatched, or unrepresentable
   image ranges and stored values outside `valid_range` with contextual errors.
+- Reject a raw public-decoder input ending in a partial scalar instead of
+  silently discarding those trailing bytes.
 - Validate exact dataset geometry and checked element products before reading.
 
 ### Tests

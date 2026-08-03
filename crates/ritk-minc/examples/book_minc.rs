@@ -305,6 +305,14 @@ fn draw_scaling_panel(svg: &mut String, stored: &[i16; 8], scaled: &Volume) -> R
     let decoded = scaled
         .data_slice()
         .context("borrow scaled fixture voxels")?;
+    let [slice_zero_first, slice_zero_second, slice_zero_third, slice_zero_fourth, slice_one_first, slice_one_second, slice_one_third, slice_one_fourth] =
+        decoded
+    else {
+        bail!(
+            "scaled MINC2 fixture has {} voxels, expected 8",
+            decoded.len()
+        );
+    };
     let expected = [-1_000.0, -500.0, 0.0, 1_000.0, 0.0, 50.0, 100.0, 200.0];
     if decoded != expected {
         bail!("scaled MINC2 fixture mismatch: got {decoded:?}, expected {expected:?}");
@@ -329,7 +337,7 @@ fn draw_scaling_panel(svg: &mut String, stored: &[i16; 8], scaled: &Volume) -> R
     )?;
     writeln!(
         svg,
-        "<text x=\"550\" y=\"107\" class=\"success\">read_minc → [−1000, −500, 0, 1000]</text>"
+        "<text x=\"550\" y=\"107\" class=\"success\">read_minc → [{slice_zero_first}, {slice_zero_second}, {slice_zero_third}, {slice_zero_fourth}]</text>"
     )?;
     writeln!(
         svg,
@@ -342,7 +350,7 @@ fn draw_scaling_panel(svg: &mut String, stored: &[i16; 8], scaled: &Volume) -> R
     )?;
     writeln!(
         svg,
-        "<text x=\"550\" y=\"137\" class=\"success\">read_minc → [0, 50, 100, 200]</text>"
+        "<text x=\"550\" y=\"137\" class=\"success\">read_minc → [{slice_one_first}, {slice_one_second}, {slice_one_third}, {slice_one_fourth}]</text>"
     )?;
     writeln!(svg, "<text x=\"18\" y=\"166\" class=\"small\">These values come from the public reader, not from labels assembled for the figure.</text></g>")?;
     Ok(())
