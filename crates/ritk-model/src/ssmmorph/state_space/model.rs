@@ -3,7 +3,7 @@
 use coeus_autograd::{mul, permute, reshape, sigmoid, slice, softplus, Var};
 use coeus_core::{Backend, CpuAddressableStorage, CpuAddressableStorageMut};
 use coeus_nn::{Dropout, Linear, Module};
-use coeus_ops::{BackendOps, CpuBackend, RandomInitOps};
+use coeus_ops::{BackendOps, CpuBackend};
 use coeus_tensor::Tensor;
 
 use super::config::SelectiveStateSpaceConfig;
@@ -33,7 +33,7 @@ where
 
 impl<B> SelectiveStateSpace<B>
 where
-    B: Backend + BackendOps<f32> + CpuBackend + RandomInitOps<f32>,
+    B: Backend + BackendOps<f32> + CpuBackend,
     B::DeviceBuffer<f32>: CpuAddressableStorage<f32> + CpuAddressableStorageMut<f32>,
 {
     /// Initialize a selective state-space layer.

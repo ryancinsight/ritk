@@ -2,11 +2,11 @@
 
 use coeus_core::{Backend, CpuAddressableStorageMut};
 use coeus_nn::{init, Conv3d, DepthwiseConv3d, Linear};
-use coeus_ops::{BackendOps, CpuBackend, RandomInitOps};
+use coeus_ops::{BackendOps, CpuBackend};
 
 pub(crate) fn linear<B>(layer: &mut Linear<f32, B>, fan_in: usize, fan_out: usize, seed: u64)
 where
-    B: Backend + BackendOps<f32> + CpuBackend + RandomInitOps<f32>,
+    B: Backend + BackendOps<f32> + CpuBackend,
     B::DeviceBuffer<f32>: CpuAddressableStorageMut<f32>,
 {
     init::xavier_uniform_with_seed(&mut layer.weight, fan_in, fan_out, seed)
@@ -21,7 +21,7 @@ pub(crate) fn depthwise_convolution<B>(
     kernel: usize,
     seed: u64,
 ) where
-    B: Backend + BackendOps<f32> + CpuBackend + RandomInitOps<f32>,
+    B: Backend + BackendOps<f32> + CpuBackend,
     B::DeviceBuffer<f32>: CpuAddressableStorageMut<f32>,
 {
     init::kaiming_uniform_with_seed(&mut layer.weight, kernel * kernel * kernel, seed)
@@ -37,7 +37,7 @@ pub(crate) fn convolution<B>(
     kernel: usize,
     seed: u64,
 ) where
-    B: Backend + BackendOps<f32> + CpuBackend + RandomInitOps<f32>,
+    B: Backend + BackendOps<f32> + CpuBackend,
     B::DeviceBuffer<f32>: CpuAddressableStorageMut<f32>,
 {
     let fan_in = input_channels * kernel * kernel * kernel;

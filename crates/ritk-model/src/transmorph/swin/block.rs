@@ -12,7 +12,7 @@ use coeus_autograd::{add, cat, permute, reshape, roll, slice, Parameter, Var};
 use coeus_core::{Backend, CpuAddressableStorage, CpuAddressableStorageMut};
 use coeus_nn::module::Module;
 use coeus_nn::normalization::LayerNorm;
-use coeus_ops::{BackendOps, CpuBackend, RandomInitOps};
+use coeus_ops::{BackendOps, CpuBackend};
 use coeus_tensor::Tensor;
 
 /// LayerNorm numerical-stability constant (matches the Coeus `LayerNorm` default).
@@ -33,7 +33,7 @@ pub struct SwinTransformerBlock<B: Backend + BackendOps<f32> + Default> {
 
 impl<B> SwinTransformerBlock<B>
 where
-    B: Backend + BackendOps<f32> + Default + CpuBackend + RandomInitOps<f32>,
+    B: Backend + BackendOps<f32> + Default + CpuBackend,
     B::DeviceBuffer<f32>: CpuAddressableStorage<f32> + CpuAddressableStorageMut<f32>,
 {
     /// Construct a Swin block over `input_dim` channels.

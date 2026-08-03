@@ -3,7 +3,7 @@
 use coeus_autograd::Var;
 use coeus_core::{Backend, CpuAddressableStorage, CpuAddressableStorageMut};
 use coeus_nn::{Conv3d, Module};
-use coeus_ops::{BackendOps, CpuBackend, RandomInitOps};
+use coeus_ops::{BackendOps, CpuBackend};
 
 use super::config::{DownsamplePolicy, EncoderStageConfig};
 use crate::ssmmorph::vmamba_block::{VMambaBlock, VMambaBlockConfig};
@@ -35,7 +35,7 @@ where
 
 impl<B> EncoderStage<B>
 where
-    B: Backend + BackendOps<f32> + CpuBackend + RandomInitOps<f32>,
+    B: Backend + BackendOps<f32> + CpuBackend,
     B::DeviceBuffer<f32>: CpuAddressableStorage<f32> + CpuAddressableStorageMut<f32>,
 {
     /// Initialize an encoder stage.
