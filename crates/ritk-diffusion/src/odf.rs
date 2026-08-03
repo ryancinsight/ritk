@@ -266,7 +266,7 @@ impl OdField {
                 "phi must be finite, got {phi}"
             )));
         }
-        Ok(self.evaluate_unchecked(theta, phi)?)
+        self.evaluate_unchecked(theta, phi)
     }
 
     /// Evaluate at a finite unit Cartesian direction in [`Self::frame`].

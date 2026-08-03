@@ -254,7 +254,7 @@ impl NoddiFit {
             direction,
             self.principal_direction,
             kappa,
-            &quadrature_sphere(),
+            quadrature_sphere(),
         );
         let a_ec = (-b_value * D_EXTRA).exp();
         let a_iso = (-b_value * D_ISO).exp();

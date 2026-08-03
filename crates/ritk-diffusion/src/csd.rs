@@ -837,8 +837,7 @@ fn build_deconvolution_matrix(
             let response_index = degree / 2;
             let r_l = response.harmonics()[response_index];
             // κ_l = 4π/(2l+1) · r_l  (Legendre-coefficient convention).
-            let kappa = 4.0 * std::f64::consts::PI / (2.0 * degree as f64 + 1.0) * r_l;
-            kappa
+            4.0 * std::f64::consts::PI / (2.0 * degree as f64 + 1.0) * r_l
         })
         .collect();
 
@@ -1032,7 +1031,7 @@ impl FodVolume {
         let idx = |z: usize, y: usize, x: usize| -> usize { z * nxy + y * nxnc + x * nc };
 
         let mut result = vec![0.0; nc];
-        for c in 0..nc {
+        for (c, value) in result.iter_mut().enumerate() {
             let v000 = self.coefficients[idx(iz, iy, ix) + c];
             let v100 = self.coefficients[idx(iz, iy, ix1) + c];
             let v010 = self.coefficients[idx(iz, iy1, ix) + c];
@@ -1042,7 +1041,7 @@ impl FodVolume {
             let v011 = self.coefficients[idx(iz1, iy1, ix) + c];
             let v111 = self.coefficients[idx(iz1, iy1, ix1) + c];
 
-            result[c] = (1.0 - wx) * (1.0 - wy) * (1.0 - wz) * v000
+            *value = (1.0 - wx) * (1.0 - wy) * (1.0 - wz) * v000
                 + wx * (1.0 - wy) * (1.0 - wz) * v100
                 + (1.0 - wx) * wy * (1.0 - wz) * v010
                 + wx * wy * (1.0 - wz) * v110
