@@ -1,7 +1,7 @@
 use coeus_autograd::{cat, mean, pow, sub, Var};
 use coeus_core::{Backend, CpuAddressableStorage, CpuAddressableStorageMut, SequentialBackend};
 use coeus_nn::Module;
-use coeus_ops::{BackendOps, OptimizerOps};
+use coeus_ops::{BackendOps, OptimizerOps, RandomInitOps};
 use coeus_optim::{Adam, Optimizer};
 use coeus_tensor::Tensor;
 use ritk_model::affine::{AffineNetwork, AffineNetworkConfig, AffineTransform};
@@ -14,7 +14,7 @@ fn main() {
 
 fn run_training<B>()
 where
-    B: Backend + BackendOps<f32> + OptimizerOps<f32> + Default,
+    B: Backend + BackendOps<f32> + OptimizerOps<f32> + RandomInitOps<f32> + Default + coeus_ops::CpuBackend,
     B::DeviceBuffer<f32>: CpuAddressableStorage<f32> + CpuAddressableStorageMut<f32>,
 {
     let config = AffineNetworkConfig::default();

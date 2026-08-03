@@ -1,6 +1,6 @@
 use coeus_autograd::{cat, Var};
 use coeus_core::{Backend, CpuAddressableStorage, CpuAddressableStorageMut, SequentialBackend};
-use coeus_ops::BackendOps;
+use coeus_ops::{BackendOps, RandomInitOps};
 use coeus_tensor::Tensor;
 use ritk_model::transmorph::{TransMorph, TransMorphConfig, TransformIntegration};
 use std::time::Instant;
@@ -12,7 +12,7 @@ fn main() {
 
 fn run_registration<B>()
 where
-    B: Backend + BackendOps<f32> + Default,
+    B: Backend + BackendOps<f32> + RandomInitOps<f32> + Default + coeus_ops::CpuBackend,
     B::DeviceBuffer<f32>: CpuAddressableStorage<f32> + CpuAddressableStorageMut<f32>,
 {
     let config = TransMorphConfig::new(2, 48, 3)
