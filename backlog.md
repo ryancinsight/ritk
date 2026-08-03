@@ -16,14 +16,22 @@
 > References to these tools in the entries below are historical.
 
 - **DOC-693-01 [patch] - Make binary morphology equations render without
-  external MathJax** (IN PROGRESS; owner=Codex; last-update=2026-08-03;
+  external MathJax** (DONE; owner=Codex; last-update=2026-08-03;
   scope=`docs/book/examples/binary_morphology.md` and PM artifacts;
   non-goal=changing morphology kernels, figures, or the site-wide math
   renderer). Replace the raw display-math delimiters on the binary morphology
   example with a portable rendered representation. Acceptance: the deployed
   page contains no literal TeX commands for the two equations, preserves the
   opening/closing definitions and explanatory text, and passes mdBook build,
-  diff, hosted Pages, and live visual inspection.
+  diff, hosted Pages, and live visual inspection. Delivered by PR #102 at
+  reviewed head `51905394`, merged as `a8b725b1`. Local `mdbook build
+  docs/book`, `mdbook test docs/book`, and `git diff --check` passed. PR
+  checks passed in Deploy mdBook `30840143314`, CI `30840143502`, and Python
+  CI `30840143323`; the post-merge Pages deployment `30841796875`, Python CI
+  `30841796930`, and CI `30841796951` passed. The live page returns HTTP 200,
+  contains `open_B(A) = (A ⊖ B) ⊕ B` and
+  `close_B(A) = (A ⊕ B) ⊖ B`, contains no raw TeX commands, and its figure
+  images loaded during browser visual inspection.
 
 - **FEAT-692-01 [major] - Control native JPEG 2000 lossy quantization**
   (DONE; owner=Codex; last-update=2026-08-03; scope=
