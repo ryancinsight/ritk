@@ -11,19 +11,19 @@ directions, physical b-values, and coordinate frames, while
 For the idealized Stejskal–Tanner pulsed-gradient experiment, the diffusion
 weighting is
 
-\[
-b = \gamma^2 G^2 \delta^2\left(\Delta-\frac{\delta}{3}\right),
-\]
+```text
+b = γ² G² δ² (Δ − δ/3)
+```
 
-where \(\gamma\) is the gyromagnetic ratio, \(G\) the gradient amplitude,
-\(\delta\) the pulse duration, and \(\Delta\) the pulse separation. The measured
-signal for a Gaussian diffusion tensor \(D\) is
+where `γ` is the gyromagnetic ratio, `G` the gradient amplitude, `δ` the pulse
+duration, and `Δ` the pulse separation. The measured signal for a Gaussian
+diffusion tensor `D` is
 
-\[
-S(b,\mathbf g)=S_0\exp\!\left(-b\,\mathbf g^T D\mathbf g\right).
-\]
+```text
+S(b, g) = S₀ exp(−b gᵀ D g)
+```
 
-Thus \(b\) has dimensions of time per area, conventionally s/mm²; it is not a
+Thus `b` has dimensions of time per area, conventionally s/mm²; it is not a
 diffusivity. RITK's `DiffusionWeighting` is a validated quantity with that
 dimension and stores the canonical SI value internally. The scanner-facing
 constructor and accessor use s/mm² explicitly. See Stejskal and Tanner,
@@ -92,9 +92,9 @@ Q-ball imaging estimates an orientation distribution function (ODF) without
 assuming a single diffusion tensor. RITK first normalizes weighted signals by
 the mean b0 signal and fits an even-degree real spherical-harmonic expansion:
 
-\[
-E(\mathbf g)=\sum_{l,m} c_{lm}Y_{lm}(\mathbf g).
-\]
+```text
+E(g) = Σₗ,ₘ cₗₘ Yₗₘ(g)
+```
 
 The weighted samples must occupy one q-space shell. `OdfConfig` makes the
 allowed absolute b-value tolerance explicit; an off-shell acquisition returns
@@ -103,13 +103,13 @@ allowed absolute b-value tolerance explicit; an off-shell acquisition returns
 peaks keep an unambiguous coordinate meaning.
 
 The least-squares system is augmented with a Laplace–Beltrami penalty. For
-coefficient degree \(l\), the diagonal penalty factor is \(l(l+1)\), so the
+coefficient degree `l`, the diagonal penalty factor is `l(l + 1)`, so the
 configured nonnegative weight suppresses high-degree oscillation. The
 Funk–Radon transform then acts degree by degree:
 
-\[
-\psi_{lm}=2\pi P_l(0)c_{lm}.
-\]
+```text
+ψₗₘ = 2π Pₗ(0) cₗₘ
+```
 
 This is the analytical Q-ball construction of Descoteaux et al.,
 [“Regularized, Fast, and Robust Analytical Q-Ball Imaging”](https://doi.org/10.1002/mrm.21277).
