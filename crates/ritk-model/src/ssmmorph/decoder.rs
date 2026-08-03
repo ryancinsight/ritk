@@ -3,7 +3,7 @@
 use coeus_autograd::{cat, permute, Var};
 use coeus_core::{Backend, CpuAddressableStorage, CpuAddressableStorageMut};
 use coeus_nn::{Conv3d, ConvTranspose3d, LayerNorm, Module};
-use coeus_ops::BackendOps;
+use coeus_ops::{BackendOps, CpuBackend, RandomInitOps};
 
 use super::vmamba_block::{VMambaBlock, VMambaBlockConfig};
 use crate::ModelError;
@@ -91,7 +91,7 @@ where
 
 impl<B> DecoderStage<B>
 where
-    B: Backend + BackendOps<f32>,
+    B: Backend + BackendOps<f32> + CpuBackend + RandomInitOps<f32>,
     B::DeviceBuffer<f32>: CpuAddressableStorage<f32> + CpuAddressableStorageMut<f32>,
 {
     fn new(
@@ -102,7 +102,8 @@ where
         use_skip: bool,
     ) -> Self {
         let upsample =
-            ConvTranspose3d::with_params(input_channels, output_channels, 4, 2, 1, 0, 1, false);
+            ConvTranspose3d::with_params(input_channels, output_channels, 4, 2, 1, 0, 1, false)
+                .expect("invariant: transposed-convolution fan is valid");
         let mut fusion = use_skip.then(|| {
             Conv3d::with_params(
                 output_channels + skip_channels,
@@ -126,7 +127,13 @@ where
             norm: LayerNorm::new(output_channels, 1e-5),
         }
     }
+}
 
+impl<B> DecoderStage<B>
+where
+    B: Backend + BackendOps<f32>,
+    B::DeviceBuffer<f32>: CpuAddressableStorage<f32> + CpuAddressableStorageMut<f32>,
+{
     fn forward(
         &self,
         input: &Var<f32, B>,
@@ -212,7 +219,7 @@ where
 
 impl<B> SSMMorphDecoder<B>
 where
-    B: Backend + BackendOps<f32>,
+    B: Backend + BackendOps<f32> + CpuBackend + RandomInitOps<f32>,
     B::DeviceBuffer<f32>: CpuAddressableStorage<f32> + CpuAddressableStorageMut<f32>,
 {
     /// Initialize a decoder.
@@ -243,7 +250,13 @@ where
             use_skips,
         }
     }
+}
 
+impl<B> SSMMorphDecoder<B>
+where
+    B: Backend + BackendOps<f32>,
+    B::DeviceBuffer<f32>: CpuAddressableStorage<f32> + CpuAddressableStorageMut<f32>,
+{
     /// Decode a bottleneck and encoder features into a displacement field.
     pub fn forward(
         &self,

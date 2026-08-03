@@ -13,7 +13,7 @@ use coeus_autograd::{
 };
 use coeus_core::{Backend, CpuAddressableStorage, CpuAddressableStorageMut};
 use coeus_nn::{module::Module, Linear};
-use coeus_ops::BackendOps;
+use coeus_ops::{BackendOps, CpuBackend, RandomInitOps};
 use coeus_tensor::Tensor;
 
 /// Windowed multi-head self-attention with relative-position bias.
@@ -34,7 +34,7 @@ pub struct WindowAttention<B: Backend + BackendOps<f32> + Default> {
 
 impl<B> WindowAttention<B>
 where
-    B: Backend + BackendOps<f32> + Default,
+    B: Backend + BackendOps<f32> + Default + CpuBackend + RandomInitOps<f32>,
     B::DeviceBuffer<f32>: CpuAddressableStorage<f32> + CpuAddressableStorageMut<f32>,
 {
     /// Construct window attention over `input_dim` channels split into
@@ -61,7 +61,8 @@ where
             Tensor::zeros_on([num_relative_distance, num_heads], &backend),
             true,
         );
-        coeus_nn::init::normal_with_seed(&mut table, 0.0, 0.02, seed);
+        coeus_nn::init::normal_with_seed(&mut table, 0.0, 0.02, seed)
+            .expect("invariant: relative-position bias table rank is supported");
 
         let index = Self::compute_relative_position_index(m);
         let index: Vec<f32> = index.into_iter().map(|i| i as f32).collect();
@@ -76,7 +77,8 @@ where
                 &mut layer.weight,
                 input_dim,
                 seed.wrapping_add(offset),
-            );
+            )
+            .expect("invariant: attention projection fan is positive");
             layer
         };
 
@@ -121,7 +123,13 @@ where
         }
         index
     }
+}
 
+impl<B> WindowAttention<B>
+where
+    B: Backend + BackendOps<f32> + Default,
+    B::DeviceBuffer<f32>: CpuAddressableStorage<f32> + CpuAddressableStorageMut<f32>,
+{
     /// Attention over `[B_windows, N, C]` tokens.
     ///
     /// `mask`, when present, is `[B_windows, 1, N, N]` with `0`/`-100` entries

@@ -8,7 +8,7 @@
 
 use coeus_core::{Backend, CpuAddressableStorage, CpuAddressableStorageMut};
 use coeus_nn::Conv3d;
-use coeus_ops::BackendOps;
+use coeus_ops::{BackendOps, CpuBackend, RandomInitOps};
 
 use crate::transmorph::{
     integration::VecInt, model::TransMorph, spatial_transform::SpatialTransformer,
@@ -84,7 +84,7 @@ impl TransMorphConfig {
     /// Instantiate a [`TransMorph`] over backend `B`.
     pub fn init<B>(&self) -> TransMorph<B>
     where
-        B: Backend + BackendOps<f32> + Default,
+        B: Backend + BackendOps<f32> + Default + CpuBackend + RandomInitOps<f32>,
         B::DeviceBuffer<f32>: CpuAddressableStorage<f32> + CpuAddressableStorageMut<f32>,
     {
         let seed = std::cell::Cell::new(INIT_SEED);
@@ -97,7 +97,8 @@ impl TransMorphConfig {
             let mut layer =
                 Conv3d::<f32, B>::with_params(in_ch, out_ch, kernel, stride, pad, DILATION, true);
             let fan_in = in_ch * kernel * kernel * kernel;
-            coeus_nn::init::kaiming_uniform_with_seed(&mut layer.weight, fan_in, next_seed());
+            coeus_nn::init::kaiming_uniform_with_seed(&mut layer.weight, fan_in, next_seed())
+                .expect("invariant: TransMorph conv fan is positive");
             layer
         };
 
