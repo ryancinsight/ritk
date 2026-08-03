@@ -47,7 +47,11 @@
       assertions. CodeRabbit's six findings produced five test, figure, book,
       and changelog corrections; full output pre-reservation was rejected
       because it would allocate from unverified shape metadata. Hosted gates
-      remain.
+      found one infrastructure failure: Python 3.10 on macOS arm64 restored a
+      full-match target cache containing a non-executable PyO3 build script.
+      The cache now has an explicit interpreter dimension, the cache action is
+      commit-pinned, and both CI workflows cancel superseded same-ref runs.
+      Exact-head hosted reruns remain.
 - [ ] Commit, publish, merge after exact-head CI, and verify Pages deployment.
 
 ## PERF-690-01 — Stream and teach MINC2 writing

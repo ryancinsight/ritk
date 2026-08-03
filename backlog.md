@@ -19,7 +19,8 @@
   (REVIEW; owner=Codex; last-update=2026-08-02; scope=
   `crates/ritk-minc/{src,examples}/**`,
   `docs/book/{minc_format.md,examples/minc_roundtrip.md,
-  figures/minc_roundtrip.svg}`, `CHANGELOG.md`, `gap_audit.md`, and PM
+  figures/minc_roundtrip.svg}`, `.github/workflows/{ci,python_ci}.yml`,
+  `CHANGELOG.md`, `gap_audit.md`, and PM
   artifacts; non-goal=MINC1, chunked or compressed HDF5 datasets,
   integer-valued writing, arbitrary `info` metadata, four-dimensional or
   vector images, release, or deployment). The reader currently converts
@@ -36,6 +37,9 @@
   partial output; scaling uses no second volume-sized buffer; displayed values
   agree with decoded data; and formatting, warning-denied Clippy, Nextest,
   doctest, Rustdoc, mdBook, semantic-version, review, and hosted gates pass.
+  Hosted delivery also isolates PyO3 target caches by Python interpreter and
+  cancels superseded same-ref CI runs after a restored matrix cache exposed a
+  non-executable stale build script on macOS arm64.
 
 - **PERF-690-01 [patch] - Stream and teach MINC2 writing**
   (DONE; owner=Codex; last-update=2026-08-02; scope=
