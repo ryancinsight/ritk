@@ -1,14 +1,16 @@
 //! Registration-model parameter initialization policies.
 
-use coeus_core::Backend;
+use coeus_core::{Backend, CpuAddressableStorageMut};
 use coeus_nn::{init, Conv3d, DepthwiseConv3d, Linear};
-use coeus_ops::BackendOps;
+use coeus_ops::{BackendOps, CpuBackend, RandomInitOps};
 
 pub(crate) fn linear<B>(layer: &mut Linear<f32, B>, fan_in: usize, fan_out: usize, seed: u64)
 where
-    B: Backend + BackendOps<f32>,
+    B: Backend + BackendOps<f32> + CpuBackend + RandomInitOps<f32>,
+    B::DeviceBuffer<f32>: CpuAddressableStorageMut<f32>,
 {
-    init::xavier_uniform_with_seed(&mut layer.weight, fan_in, fan_out, seed);
+    init::xavier_uniform_with_seed(&mut layer.weight, fan_in, fan_out, seed)
+        .expect("invariant: linear layer fan is positive");
     if let Some(bias) = &mut layer.bias {
         init::zeros(bias);
     }
@@ -19,9 +21,11 @@ pub(crate) fn depthwise_convolution<B>(
     kernel: usize,
     seed: u64,
 ) where
-    B: Backend + BackendOps<f32>,
+    B: Backend + BackendOps<f32> + CpuBackend + RandomInitOps<f32>,
+    B::DeviceBuffer<f32>: CpuAddressableStorageMut<f32>,
 {
-    init::kaiming_uniform_with_seed(&mut layer.weight, kernel * kernel * kernel, seed);
+    init::kaiming_uniform_with_seed(&mut layer.weight, kernel * kernel * kernel, seed)
+        .expect("invariant: depthwise convolution kernel is non-zero");
     if let Some(bias) = &mut layer.bias {
         init::zeros(bias);
     }
@@ -33,10 +37,12 @@ pub(crate) fn convolution<B>(
     kernel: usize,
     seed: u64,
 ) where
-    B: Backend + BackendOps<f32>,
+    B: Backend + BackendOps<f32> + CpuBackend + RandomInitOps<f32>,
+    B::DeviceBuffer<f32>: CpuAddressableStorageMut<f32>,
 {
     let fan_in = input_channels * kernel * kernel * kernel;
-    init::kaiming_uniform_with_seed(&mut layer.weight, fan_in, seed);
+    init::kaiming_uniform_with_seed(&mut layer.weight, fan_in, seed)
+        .expect("invariant: convolution fan is positive");
     if let Some(bias) = &mut layer.bias {
         init::zeros(bias);
     }

@@ -11,10 +11,10 @@
 //! or backends cross this boundary.
 
 use coeus_autograd::{add, relu, reshape, Parameter, Var};
-use coeus_core::{Float, MoiraiBackend};
+use coeus_core::{CpuAddressableStorageMut, Float, MoiraiBackend};
 use coeus_nn::module::Module;
 use coeus_nn::{Conv3d, GlobalAvgPool3d, InstanceNorm3d, Linear};
-use coeus_ops::BackendOps;
+use coeus_ops::{BackendOps, CpuBackend, RandomInitOps};
 use coeus_tensor::Tensor;
 
 /// Number of predicted affine parameters (a flattened `3×4` matrix).
@@ -75,7 +75,8 @@ impl AffineNetworkConfig {
     pub fn init<T, B>(&self) -> AffineNetwork<T, B>
     where
         T: Float + coeus_leto::RandomScalar,
-        B: BackendOps<T> + Default,
+        B: BackendOps<T> + CpuBackend + RandomInitOps<T> + Default,
+        B::DeviceBuffer<T>: CpuAddressableStorageMut<T>,
     {
         assert_eq!(
             self.channels.len(),
@@ -89,7 +90,8 @@ impl AffineNetworkConfig {
                 Conv3d::<T, B>::with_params(in_ch, out_ch, KERNEL, STRIDE, PADDING, DILATION, true);
             let fan_in = in_ch * KERNEL * KERNEL * KERNEL;
             seed = seed.wrapping_add(SEED_STEP);
-            coeus_nn::init::kaiming_uniform_with_seed(&mut layer.weight, fan_in, seed);
+            coeus_nn::init::kaiming_uniform_with_seed(&mut layer.weight, fan_in, seed)
+                .expect("invariant: affine conv fan is positive");
             layer
         };
         let conv1 = make_conv(IN_CHANNELS, c[0]);
@@ -100,7 +102,8 @@ impl AffineNetworkConfig {
 
         let mut fc = Linear::new(c[4], AFFINE_PARAMS, true);
         seed = seed.wrapping_add(SEED_STEP);
-        coeus_nn::init::kaiming_uniform_with_seed(&mut fc.weight, c[4], seed);
+        coeus_nn::init::kaiming_uniform_with_seed(&mut fc.weight, c[4], seed)
+            .expect("invariant: affine head fan is positive");
 
         AffineNetwork {
             conv1,

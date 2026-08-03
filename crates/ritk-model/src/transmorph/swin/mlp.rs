@@ -7,10 +7,10 @@
 
 use crate::error::ModelError;
 use coeus_autograd::{gelu, Parameter, Var};
-use coeus_core::Backend;
+use coeus_core::{Backend, CpuAddressableStorageMut};
 use coeus_nn::module::Module;
 use coeus_nn::Linear;
-use coeus_ops::BackendOps;
+use coeus_ops::{BackendOps, CpuBackend, RandomInitOps};
 
 /// Two-layer channel-wise MLP with a GELU nonlinearity.
 #[derive(Clone)]
@@ -21,7 +21,8 @@ pub struct Mlp<B: Backend + BackendOps<f32> + Default> {
 
 impl<B> Mlp<B>
 where
-    B: Backend + BackendOps<f32> + Default,
+    B: Backend + BackendOps<f32> + Default + CpuBackend + RandomInitOps<f32>,
+    B::DeviceBuffer<f32>: CpuAddressableStorageMut<f32>,
 {
     /// Construct an MLP mapping `input_dim → hidden_dim → input_dim`.
     ///
@@ -30,12 +31,19 @@ where
     /// [`Linear::new`] alone leaves weights at ones.
     pub fn new(input_dim: usize, hidden_dim: usize, seed: u64) -> Self {
         let mut fc1 = Linear::new(input_dim, hidden_dim, true);
-        coeus_nn::init::kaiming_uniform_with_seed(&mut fc1.weight, input_dim, seed);
+        coeus_nn::init::kaiming_uniform_with_seed(&mut fc1.weight, input_dim, seed)
+            .expect("invariant: MLP input fan is positive");
         let mut fc2 = Linear::new(hidden_dim, input_dim, true);
-        coeus_nn::init::kaiming_uniform_with_seed(&mut fc2.weight, hidden_dim, seed ^ 0x5DEE_CE66);
+        coeus_nn::init::kaiming_uniform_with_seed(&mut fc2.weight, hidden_dim, seed ^ 0x5DEE_CE66)
+            .expect("invariant: MLP hidden fan is positive");
         Self { fc1, fc2 }
     }
+}
 
+impl<B> Mlp<B>
+where
+    B: Backend + BackendOps<f32> + Default,
+{
     /// Forward pass over a `[B, D, H, W, C]` token volume.
     pub fn forward(&self, x: &Var<f32, B>) -> Result<Var<f32, B>, ModelError> {
         let x = self.fc1.forward(x)?;
