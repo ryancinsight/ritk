@@ -15,6 +15,16 @@
 > workflow were removed after the Burn-to-Coeus migration completed.
 > References to these tools in the entries below are historical.
 
+- **DOC-693-01 [patch] - Make binary morphology equations render without
+  external MathJax** (IN PROGRESS; owner=Codex; last-update=2026-08-03;
+  scope=`docs/book/examples/binary_morphology.md` and PM artifacts;
+  non-goal=changing morphology kernels, figures, or the site-wide math
+  renderer). Replace the raw display-math delimiters on the binary morphology
+  example with a portable rendered representation. Acceptance: the deployed
+  page contains no literal TeX commands for the two equations, preserves the
+  opening/closing definitions and explanatory text, and passes mdBook build,
+  diff, hosted Pages, and live visual inspection.
+
 - **FEAT-692-01 [major] - Control native JPEG 2000 lossy quantization**
   (DONE; owner=Codex; last-update=2026-08-03; scope=
   `crates/ritk-codecs/src/jpeg_2000/**`, every in-repository
