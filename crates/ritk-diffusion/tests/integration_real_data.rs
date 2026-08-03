@@ -418,3 +418,48 @@ fn real_data_tests_skipped_when_dataset_missing() {
         eprintln!("  cargo test -p ritk-diffusion --test integration_real_data -- --ignored");
     }
 }
+
+/// Load the real 4-D DWI volume and check it against its own gradient scheme.
+///
+/// Every other test in this file uses the real *acquisition scheme* with a
+/// synthesized signal, which is why they run in milliseconds and passed before
+/// the imaging data was ever fetched. This is the only case that reads the
+/// NIfTI volume itself, so it is the only one that exercises the rank-4 series
+/// reader on data a scanner produced.
+///
+/// The oracle is internal consistency: the file's volume count must equal the
+/// number of b-values in its companion `.bval`, and every volume must share one
+/// spatial grid. A reader that silently returned the first volume, or that
+/// mis-strided the acquisition axis, fails both.
+#[test]
+#[ignore = "requires the DWI volume fetched by test_data/diffusion/download.sh"]
+fn real_dwi_volume_loads_as_a_series_matching_its_scheme() {
+    let dwi = data_dir().join("sub-01/dwi/sub-01_run-1_dwi.nii.gz");
+    let bval = data_dir().join("sub-01/dwi/sub-01_run-1_dwi.bval");
+    if !dwi.exists() || std::fs::metadata(&dwi).map(|m| m.len()).unwrap_or(0) < 1_000_000 {
+        eprintln!("skipping: DWI volume absent or is a git-annex pointer");
+        return;
+    }
+
+    let declared = std::fs::read_to_string(&bval)
+        .expect("bval readable")
+        .split_whitespace()
+        .count();
+
+    let series = ritk_io::read_image_series_native(&dwi).expect("real DWI reads as a series");
+
+    assert_eq!(
+        series.len(),
+        declared,
+        "the series must carry one volume per b-value"
+    );
+
+    let grid = series[0].shape();
+    for (index, volume) in series.iter().enumerate() {
+        assert_eq!(volume.shape(), grid, "volume {index} must share the grid");
+    }
+    assert!(
+        grid.iter().all(|extent| *extent > 1),
+        "a brain volume has three non-degenerate spatial axes, got {grid:?}"
+    );
+}

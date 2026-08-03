@@ -167,7 +167,8 @@ impl DicomAttributeRead for DefaultDicomObject {
         };
         let bytes = element
             .value()
-            .bytes()
+            .to_bytes()
+            .with_context(|| "decode raw bytes".to_string())?
             .to_vec();
         Ok(Some(bytes))
     }

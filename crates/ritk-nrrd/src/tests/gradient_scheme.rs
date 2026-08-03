@@ -75,7 +75,11 @@ fn nrrd_write_read_round_trip_recovers_identical_scheme() -> Result<()> {
     let scheme = GradientScheme::new(
         vec![
             GradientDirection::new(weighting(0.0), Vector::new([0.0, 0.0, 0.0])).unwrap(),
-            GradientDirection::new(weighting(500.0), Vector::new([0.5_f64.sqrt(), 0.5_f64.sqrt(), 0.0])).unwrap(),
+            GradientDirection::new(
+                weighting(500.0),
+                Vector::new([0.5_f64.sqrt(), 0.5_f64.sqrt(), 0.0]),
+            )
+            .unwrap(),
             GradientDirection::new(weighting(1_000.0), Vector::new([0.0, 1.0, 0.0])).unwrap(),
             GradientDirection::new(weighting(2_000.0), Vector::new([0.0, 0.0, 1.0])).unwrap(),
         ],
@@ -92,10 +96,14 @@ fn nrrd_write_read_round_trip_recovers_identical_scheme() -> Result<()> {
 
     assert_eq!(recovered.frame(), scheme.frame());
     assert_eq!(recovered.len(), scheme.len());
-    for (original, recovered) in scheme.directions().iter().zip(recovered.directions().iter()) {
+    for (original, recovered) in scheme
+        .directions()
+        .iter()
+        .zip(recovered.directions().iter())
+    {
         let delta = (original.weighting().seconds_per_square_millimeter()
             - recovered.weighting().seconds_per_square_millimeter())
-            .abs();
+        .abs();
         assert!(
             delta < 1e-9,
             "weightings differ by {delta}: original {:?}, recovered {:?}",
@@ -103,22 +111,13 @@ fn nrrd_write_read_round_trip_recovers_identical_scheme() -> Result<()> {
             recovered.weighting().seconds_per_square_millimeter(),
         );
         assert!(
-            (original.direction().to_array()[0]
-                - recovered.direction().to_array()[0])
-                .abs()
-                < 1e-9,
+            (original.direction().to_array()[0] - recovered.direction().to_array()[0]).abs() < 1e-9,
         );
         assert!(
-            (original.direction().to_array()[1]
-                - recovered.direction().to_array()[1])
-                .abs()
-                < 1e-9,
+            (original.direction().to_array()[1] - recovered.direction().to_array()[1]).abs() < 1e-9,
         );
         assert!(
-            (original.direction().to_array()[2]
-                - recovered.direction().to_array()[2])
-                .abs()
-                < 1e-9,
+            (original.direction().to_array()[2] - recovered.direction().to_array()[2]).abs() < 1e-9,
         );
     }
     Ok(())

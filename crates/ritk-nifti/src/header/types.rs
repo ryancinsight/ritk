@@ -1,4 +1,3 @@
-use anyhow::{anyhow, bail, Context, Result};
 use super::convert::{f64_affine_to_f32, f64_to_f32, f64x4_to_f32x4};
 use super::raw::{
     read_array, read_f32, read_f32x4_as_f64, read_f64, read_f64x4, read_i16, read_i32, read_i64,
@@ -10,6 +9,7 @@ use super::validate::{
     qform_quaternion_scalar, validate_bitpix, validate_dims, validate_i64_vox_offset,
     validate_vox_offset, volume_count,
 };
+use anyhow::{anyhow, bail, Context, Result};
 
 const NIFTI1_HEADER_LEN: usize = 348;
 const NIFTI1_SINGLE_FILE_VOX_OFFSET: usize = 352;

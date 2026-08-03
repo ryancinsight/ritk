@@ -1,9 +1,7 @@
 //! Native image format dispatch.
 
-use std::path::Path;
 use anyhow;
 
-use crate::domain::NativeImage;
 use crate::format;
 
 // ── Image format enumeration ──────────────────────────────────────────────────
@@ -312,7 +310,7 @@ pub fn read_image_series_native<P: AsRef<std::path::Path>>(
     let path = path.as_ref();
     let backend = NativeBackend::default();
     if path.is_dir() {
-        let image = read_native_dicom_series(path, &backend)?;
+        let image = format::dicom::read_native_dicom_series(path, &backend)?;
         return Ok(vec![image]);
     }
 

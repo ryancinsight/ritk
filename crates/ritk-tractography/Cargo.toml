@@ -14,6 +14,9 @@ gaia = { workspace = true }
 leto = { workspace = true }
 ritk-diffusion = { workspace = true }
 ritk-spatial.workspace = true
+ritk-trk.workspace = true
+ritk-tck.workspace = true
+ritk-trx.workspace = true
 thiserror.workspace = true
 
 [dev-dependencies]

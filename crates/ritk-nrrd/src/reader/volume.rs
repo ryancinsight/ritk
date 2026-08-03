@@ -204,7 +204,11 @@ fn decode_nrrd<P: AsRef<Path>>(path: P) -> Result<DecodedNrrd> {
 
     let nx = spatial_sizes[0];
     let ny = spatial_sizes[1];
-    let nz = if spatial_sizes.len() >= 3 { spatial_sizes[2] } else { 1 };
+    let nz = if spatial_sizes.len() >= 3 {
+        spatial_sizes[2]
+    } else {
+        1
+    };
 
     let encoding = headers
         .get("encoding")

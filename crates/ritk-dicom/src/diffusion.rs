@@ -15,7 +15,9 @@ mod vendor;
 use std::path::Path;
 
 use anyhow::{Context, Result};
-use ritk_diffusion_scheme::{GradientFrame, GradientScheme};
+use ritk_diffusion_scheme::{
+    GradientFrame, GradientScheme, DEFAULT_B0_THRESHOLD_SECONDS_PER_SQUARE_MILLIMETER,
+};
 use ritk_spatial::Vector;
 
 use crate::attribute::{tags, DicomAttributeRead};
@@ -60,9 +62,14 @@ pub fn extract_diffusion_pair(
             }
             Ok(Some((value, Vector::new(components))))
         }
-        (Some(value), None) if value == 0.0 => Ok(Some((value, Vector::new([0.0, 0.0, 0.0])))),
+        (Some(value), None)
+            if value.is_finite()
+                && (0.0..=DEFAULT_B0_THRESHOLD_SECONDS_PER_SQUARE_MILLIMETER).contains(&value) =>
+        {
+            Ok(Some((value, Vector::new([0.0, 0.0, 0.0]))))
+        }
         (Some(value), None) => Err(anyhow::anyhow!(
-            "Diffusion b-value {value} is nonzero but Diffusion Gradient Orientation is missing"
+            "Diffusion b-value {value} exceeds the baseline threshold but Diffusion Gradient Orientation is missing"
         )),
         (None, Some(_)) => Err(anyhow::anyhow!(
             "Diffusion Gradient Orientation is present but Diffusion b-value is missing"

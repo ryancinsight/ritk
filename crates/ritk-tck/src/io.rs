@@ -103,12 +103,11 @@ impl TckTractogram {
             if trimmed.is_empty() {
                 continue;
             }
-            let (key, value) = parse_header_line(&trimmed).ok_or_else(|| {
-                TckError::MalformedHeaderLine {
+            let (key, value) =
+                parse_header_line(&trimmed).ok_or_else(|| TckError::MalformedHeaderLine {
                     offset,
                     line: trimmed.clone(),
-                }
-            })?;
+                })?;
             fields.push((key.to_string(), value.to_string()));
         }
 
@@ -138,12 +137,8 @@ impl TckTractogram {
             if x.is_nan() && y.is_nan() && z.is_nan() {
                 if !current_points.is_empty() {
                     let index = streamlines.len();
-                    let polyline =
-                        Polyline::new(std::mem::take(&mut current_points))
-                            .map_err(|source| TckError::InvalidPolyline {
-                                index,
-                                source,
-                            })?;
+                    let polyline = Polyline::new(std::mem::take(&mut current_points))
+                        .map_err(|source| TckError::InvalidPolyline { index, source })?;
                     streamlines.push(polyline);
                 }
                 continue;
@@ -161,9 +156,8 @@ impl TckTractogram {
 
         if !current_points.is_empty() {
             let index = streamlines.len();
-            let polyline = Polyline::new(current_points).map_err(|source| {
-                TckError::InvalidPolyline { index, source }
-            })?;
+            let polyline = Polyline::new(current_points)
+                .map_err(|source| TckError::InvalidPolyline { index, source })?;
             streamlines.push(polyline);
         }
 
@@ -274,29 +268,30 @@ fn build_header(fields: &[(String, String)]) -> Result<TckHeader, TckError> {
         map.insert(key.clone(), value.clone());
         match key.as_str() {
             "count" => {
-                header.count = Some(
-                    value
-                        .parse::<i64>()
-                        .map_err(|_| TckError::MalformedHeaderLine {
-                            offset: 0,
-                            line: format!("{key}: {value}"),
-                        })?,
-                );
+                header.count =
+                    Some(
+                        value
+                            .parse::<i64>()
+                            .map_err(|_| TckError::MalformedHeaderLine {
+                                offset: 0,
+                                line: format!("{key}: {value}"),
+                            })?,
+                    );
             }
             "total_count" => {
-                header.total_count = Some(
-                    value
-                        .parse::<i64>()
-                        .map_err(|_| TckError::MalformedHeaderLine {
-                            offset: 0,
-                            line: format!("{key}: {value}"),
-                        })?,
-                );
+                header.total_count =
+                    Some(
+                        value
+                            .parse::<i64>()
+                            .map_err(|_| TckError::MalformedHeaderLine {
+                                offset: 0,
+                                line: format!("{key}: {value}"),
+                            })?,
+                    );
             }
             "datatype" => {
-                header.datatype = TckDatatype::parse(value).ok_or_else(|| {
-                    TckError::UnknownDatatype(value.clone())
-                })?;
+                header.datatype = TckDatatype::parse(value)
+                    .ok_or_else(|| TckError::UnknownDatatype(value.clone()))?;
             }
             "transform" => {
                 header.transform = Some(parse_transform(value)?);
@@ -558,12 +553,8 @@ pub fn read_tck_weights(reader: impl Read) -> Result<Vec<Box<[f32]>>, TckError> 
 /// Decode a single scalar from a byte buffer according to `datatype`.
 fn decode_scalar(dt: TckDatatype, buf: &[u8]) -> f64 {
     match dt {
-        TckDatatype::Float32LE => {
-            f32::from_le_bytes(buf[..4].try_into().unwrap()) as f64
-        }
-        TckDatatype::Float32BE => {
-            f32::from_be_bytes(buf[..4].try_into().unwrap()) as f64
-        }
+        TckDatatype::Float32LE => f32::from_le_bytes(buf[..4].try_into().unwrap()) as f64,
+        TckDatatype::Float32BE => f32::from_be_bytes(buf[..4].try_into().unwrap()) as f64,
         TckDatatype::Float64LE => f64::from_le_bytes(buf[..8].try_into().unwrap()),
         TckDatatype::Float64BE => f64::from_be_bytes(buf[..8].try_into().unwrap()),
     }

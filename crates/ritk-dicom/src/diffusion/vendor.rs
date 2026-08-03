@@ -19,7 +19,7 @@
 //! 2. A format-specific decoder in this module.
 //! 3. A new arm in [`try_vendor_pair`].
 
-use anyhow::{bail, Context, Result};
+use anyhow::{bail, Result};
 use ritk_spatial::Vector;
 
 use crate::attribute::{DicomAttributeRead, DicomTag};

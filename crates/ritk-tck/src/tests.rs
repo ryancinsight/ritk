@@ -248,10 +248,7 @@ fn write_read_round_trip() {
 #[test]
 fn write_read_round_trip_f32() {
     let header = TckHeader::default(); // Float32LE
-    let points = vec![
-        Point3::new(1.0, 2.0, 3.0),
-        Point3::new(4.0, 5.0, 6.0),
-    ];
+    let points = vec![Point3::new(1.0, 2.0, 3.0), Point3::new(4.0, 5.0, 6.0)];
 
     let tractogram = TckTractogram {
         header,
@@ -370,10 +367,16 @@ fn no_barrier_still_reads() {
     writeln!(buf, "END").unwrap();
 
     let data: [f32; 9] = [
-        1.0, 2.0, 3.0, // point 1
-        4.0, 5.0, 6.0, // point 2
-        f32::NAN, f32::NAN, f32::NAN, // delimiter
-        // No barrier.
+        1.0,
+        2.0,
+        3.0, // point 1
+        4.0,
+        5.0,
+        6.0, // point 2
+        f32::NAN,
+        f32::NAN,
+        f32::NAN, // delimiter
+                  // No barrier.
     ];
     for v in &data {
         buf.extend_from_slice(&v.to_le_bytes());
