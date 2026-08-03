@@ -8,7 +8,9 @@ use crate::jpeg_2000::tag_tree::TagTree;
 use crate::jpeg_2000::wavelet::inverse_dwt_5_3;
 use crate::jpeg_2000::wavelet_9_7::inverse_dwt_9_7;
 
-use super::{band_cblks, cblk_grid, lblock_extra_bits, CblkRef, WaveletTransform};
+use super::{
+    band_cblks, cblk_grid, lblock_extra_bits, total_bit_planes, CblkRef, WaveletTransform,
+};
 
 /// Read individual bits (MSB first) from a borrowed §B.10.1 bit-stuffed
 /// header: after a 0xFF byte, the following byte contributes only its low
@@ -309,7 +311,7 @@ pub fn decode_tile_part(
             .copied()
             .unwrap_or(coding.precision + b.gain);
         // Mb = ε_b + G − 1 (ISO 15444-1 §E.1).
-        let total_bp = (u32::from(coding.num_guard_bits) + exponent).saturating_sub(1);
+        let total_bp = total_bit_planes(coding.num_guard_bits, exponent);
         let num_bit_planes = if st.included_before {
             total_bp.saturating_sub(st.msbs)
         } else {
@@ -341,16 +343,18 @@ pub fn decode_tile_part(
             // Dequantize each subband (Δ_b from the QCD ε_b/μ_b relative to
             // R_b = precision + gain_b), inverse 9/7, then round to integers.
             // With ≥ 1 decomposition level the coefficients are continuous 9/7
-            // outputs (sub-step uncertainty → midpoint reconstruction); with zero
-            // levels the single LL band is the original integer image captured
-            // losslessly (exact → no reconstruction bias).
-            let continuous = coding.num_decomp_levels > 0;
+            // outputs (sub-step uncertainty → midpoint reconstruction). With
+            // zero levels the single LL band is exact only when Δ = 1; any
+            // coarser quantizer still carries interval uncertainty.
             let mut coeffs = vec![0f32; sample_count];
             for (bi, b) in bands.iter().enumerate() {
                 let r_b = coding.precision + b.gain;
                 let exponent = coding.exponents.get(bi).copied().unwrap_or(r_b);
                 let mantissa = coding.mantissas.get(bi).copied().unwrap_or(0);
                 let delta = step_size(r_b, exponent, mantissa);
+                let exact_integer =
+                    coding.num_decomp_levels == 0 && exponent == r_b && mantissa == 0;
+                let continuous = !exact_integer;
                 for y in 0..b.h {
                     for x in 0..b.w {
                         let idx = (b.y0 + y) * width + b.x0 + x;

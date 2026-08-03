@@ -15,6 +15,30 @@
 > workflow were removed after the Burn-to-Coeus migration completed.
 > References to these tools in the entries below are historical.
 
+- **FEAT-692-01 [major] - Control native JPEG 2000 lossy quantization**
+  (IN PROGRESS; owner=Codex; last-update=2026-08-03; scope=
+  `crates/ritk-codecs/src/jpeg_2000/**`, every in-repository
+  `encode_grayscale_j2k` caller, codec examples and benchmarks,
+  `docs/adr/0012-fallible-jpeg-2000-encoder.md`,
+  `docs/book/{SUMMARY.md,jpeg_2000_codec.md,examples/jpeg_2000_codec.md,
+  figures/jpeg_2000_codec.svg}`, `CHANGELOG.md`, `gap_audit.md`, and PM
+  artifacts; non-goal=rate-distortion optimization, target-byte rate control,
+  multiple quality layers, color components, JP2 containers, release, or
+  manual deployment). Replace the independent transform and decomposition
+  arguments with one encoding-mode contract so lossless 5/3 cannot carry
+  lossy settings and irreversible 9/7 requires a finite positive scalar
+  quantization step. Encode every transformed subband with the exact step
+  represented by its QCD exponent/mantissa pair, update every caller without
+  a compatibility wrapper, and teach the visible quality/size tradeoff with a
+  regenerated public-API figure. Acceptance: lossless output remains
+  bit-exact; increasing the lossy step reduces encoded size on the documented
+  phantom while keeping reconstruction error within the transmitted
+  quantizer bound; invalid or unrepresentable steps return typed errors before
+  transform allocation; captured OpenJPEG interoperability remains green;
+  displayed byte counts and error metrics agree with generated data; and
+  formatting, warning-denied Clippy, Nextest, doctest, Rustdoc, mdBook,
+  semantic-version, review, and hosted gates pass.
+
 - **SAFE-691-01 [patch] - Decode MINC2 quantitative integer voxels**
   (DONE; owner=Codex; last-update=2026-08-02; scope=
   `crates/ritk-minc/{src,examples}/**`,

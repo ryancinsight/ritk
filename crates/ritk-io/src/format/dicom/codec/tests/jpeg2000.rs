@@ -3,7 +3,7 @@ use dicom::core::smallvec::SmallVec;
 use dicom::core::value::PixelFragmentSequence;
 use dicom::core::{DataElement, PrimitiveValue, Tag, VR};
 use dicom::object::{FileMetaTableBuilder, InMemDicomObject};
-use ritk_codecs::jpeg_2000::encoder::{encode_grayscale_j2k, WaveletTransform};
+use ritk_codecs::jpeg_2000::encoder::{encode_grayscale_j2k, Jpeg2000Encoding};
 use ritk_codecs::PixelSignedness;
 
 /// Build and write a minimal JPEG 2000 Lossless DICOM Part 10 file.
@@ -36,8 +36,9 @@ fn write_jpeg2000_lossless_dicom_file(
         width,
         16,
         PixelSignedness::Unsigned,
-        2,
-        WaveletTransform::Reversible,
+        Jpeg2000Encoding::Lossless {
+            decomposition_levels: 2,
+        },
     )
     .expect("valid DICOM fixture must encode");
 

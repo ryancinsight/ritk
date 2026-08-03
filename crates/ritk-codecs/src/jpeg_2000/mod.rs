@@ -32,8 +32,9 @@
 //!   tile-part per tile, and no multiple-component transform. Unsupported
 //!   profiles are rejected before output allocation rather than decoded with
 //!   incorrect packet traversal.
-//! - Lossy 9/7 irreversible encode and decode are supported (scalar quantization,
-//!   unit-step near-lossless encoder); a rate-controlled quality knob is pending.
+//! - Lossy 9/7 irreversible encode and decode support validated scalar
+//!   quantization steps. The encoder does not claim target-byte rate control or
+//!   multiple quality layers.
 //!
 //! # Untrusted-input bounds
 //! SIZ image/tile geometry and SOT tile-part fields are validated before packet

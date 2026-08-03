@@ -1,6 +1,20 @@
 use super::*;
 use crate::PixelSignedness;
-use encoder::{encode_grayscale_j2k, WaveletTransform};
+use encoder::{encode_grayscale_j2k, Jpeg2000Encoding, QuantizationStep};
+
+const fn lossless(decomposition_levels: u8) -> Jpeg2000Encoding {
+    Jpeg2000Encoding::Lossless {
+        decomposition_levels,
+    }
+}
+
+fn lossy(decomposition_levels: u8, step: f32) -> Jpeg2000Encoding {
+    Jpeg2000Encoding::Lossy {
+        decomposition_levels,
+        quantization_step: QuantizationStep::new(step)
+            .expect("test quantization step must be finite and positive"),
+    }
+}
 
 fn layout(rows: usize, cols: usize, bits: u16, signed: PixelSignedness) -> PixelLayout {
     PixelLayout {
@@ -15,16 +29,8 @@ fn layout(rows: usize, cols: usize, bits: u16, signed: PixelSignedness) -> Pixel
 }
 
 fn single_pixel_codestream() -> Vec<u8> {
-    encode_grayscale_j2k(
-        &[17],
-        1,
-        1,
-        8,
-        PixelSignedness::Unsigned,
-        0,
-        WaveletTransform::Reversible,
-    )
-    .expect("valid single-pixel image must encode")
+    encode_grayscale_j2k(&[17], 1, 1, 8, PixelSignedness::Unsigned, lossless(0))
+        .expect("valid single-pixel image must encode")
 }
 
 fn insert_before_eoc(codestream: &mut Vec<u8>, bytes: &[u8]) {
@@ -136,16 +142,8 @@ fn decode_returns_error_for_truncated_codestream() {
 #[test]
 fn decode_rejects_out_of_range_sot_before_packet_decode() {
     let pixels = [17i32];
-    let mut j2k = encode_grayscale_j2k(
-        &pixels,
-        1,
-        1,
-        8,
-        PixelSignedness::Unsigned,
-        0,
-        WaveletTransform::Reversible,
-    )
-    .expect("valid image must encode");
+    let mut j2k = encode_grayscale_j2k(&pixels, 1, 1, 8, PixelSignedness::Unsigned, lossless(0))
+        .expect("valid image must encode");
     let sot = j2k
         .windows(2)
         .position(|bytes| bytes == [0xFF, 0x90])
@@ -162,16 +160,8 @@ fn decode_rejects_out_of_range_sot_before_packet_decode() {
 #[test]
 fn decode_rejects_tile_part_length_beyond_codestream() {
     let pixels = [17i32];
-    let mut j2k = encode_grayscale_j2k(
-        &pixels,
-        1,
-        1,
-        8,
-        PixelSignedness::Unsigned,
-        0,
-        WaveletTransform::Reversible,
-    )
-    .expect("valid image must encode");
+    let mut j2k = encode_grayscale_j2k(&pixels, 1, 1, 8, PixelSignedness::Unsigned, lossless(0))
+        .expect("valid image must encode");
     let sot = j2k
         .windows(2)
         .position(|bytes| bytes == [0xFF, 0x90])
@@ -412,16 +402,9 @@ fn decode_rejects_payload_after_eoc() {
 fn decode_accepts_only_required_dicom_zero_padding_after_eoc() {
     let mut odd_codestream = None;
     for value in 0..=255 {
-        let candidate = encode_grayscale_j2k(
-            &[value],
-            1,
-            1,
-            8,
-            PixelSignedness::Unsigned,
-            0,
-            WaveletTransform::Reversible,
-        )
-        .expect("valid single-pixel image must encode");
+        let candidate =
+            encode_grayscale_j2k(&[value], 1, 1, 8, PixelSignedness::Unsigned, lossless(0))
+                .expect("valid single-pixel image must encode");
         if candidate.len() % 2 == 1 {
             odd_codestream = Some((candidate, value));
             break;
@@ -440,16 +423,9 @@ fn decode_rejects_unrequired_or_multiple_dicom_zero_padding() {
     let mut odd_codestream = None;
     let mut even_codestream = None;
     for value in 0..=255 {
-        let candidate = encode_grayscale_j2k(
-            &[value],
-            1,
-            1,
-            8,
-            PixelSignedness::Unsigned,
-            0,
-            WaveletTransform::Reversible,
-        )
-        .expect("valid single-pixel image must encode");
+        let candidate =
+            encode_grayscale_j2k(&[value], 1, 1, 8, PixelSignedness::Unsigned, lossless(0))
+                .expect("valid single-pixel image must encode");
         if candidate.len().is_multiple_of(2) && even_codestream.is_none() {
             even_codestream = Some(candidate);
         } else if !candidate.len().is_multiple_of(2) && odd_codestream.is_none() {
@@ -577,8 +553,7 @@ fn decode_jpeg2000_lossless_round_trip_4x4_uniform() {
         cols,
         8,
         PixelSignedness::Unsigned,
-        0,
-        WaveletTransform::Reversible,
+        lossless(0),
     )
     .expect("valid image must encode");
 
@@ -611,8 +586,7 @@ fn decode_jpeg2000_lossless_round_trip_gradient_2x4() {
         cols,
         8,
         PixelSignedness::Unsigned,
-        0,
-        WaveletTransform::Reversible,
+        lossless(0),
     )
     .expect("valid image must encode");
 
@@ -628,16 +602,8 @@ fn decode_jpeg2000_lossless_round_trip_gradient_2x4() {
 #[test]
 fn decode_jpeg2000_signed_samples_round_trip() {
     let pixels = [-4i32, -1, 0, 3];
-    let j2k = encode_grayscale_j2k(
-        &pixels,
-        2,
-        2,
-        8,
-        PixelSignedness::Signed,
-        0,
-        WaveletTransform::Reversible,
-    )
-    .expect("valid image must encode");
+    let j2k = encode_grayscale_j2k(&pixels, 2, 2, 8, PixelSignedness::Signed, lossless(0))
+        .expect("valid image must encode");
 
     let decoded = decode_jpeg2000_fragment(&j2k, layout(2, 2, 8, PixelSignedness::Signed))
         .expect("signed lossless JPEG 2000 round-trip must succeed");
@@ -648,16 +614,8 @@ fn decode_jpeg2000_signed_samples_round_trip() {
 #[test]
 fn decode_jpeg2000_lossless_rescale_applied_correctly() {
     let pixels = [100i32];
-    let j2k = encode_grayscale_j2k(
-        &pixels,
-        1,
-        1,
-        8,
-        PixelSignedness::Unsigned,
-        0,
-        WaveletTransform::Reversible,
-    )
-    .expect("valid image must encode");
+    let j2k = encode_grayscale_j2k(&pixels, 1, 1, 8, PixelSignedness::Unsigned, lossless(0))
+        .expect("valid image must encode");
     let mut pixel_layout = layout(1, 1, 8, PixelSignedness::Unsigned);
     pixel_layout.rescale_slope = 2.0;
     pixel_layout.rescale_intercept = -1024.0;
@@ -673,16 +631,8 @@ fn decode_jpeg2000_lossless_round_trip_unsigned_16bit() {
     let pixels: Vec<i32> = vec![
         0, 256, 512, 1024, 2048, 3071, 3584, 3840, 100, 200, 400, 800, 1600, 2400, 3000, 4095,
     ];
-    let j2k = encode_grayscale_j2k(
-        &pixels,
-        4,
-        4,
-        16,
-        PixelSignedness::Unsigned,
-        0,
-        WaveletTransform::Reversible,
-    )
-    .expect("valid image must encode");
+    let j2k = encode_grayscale_j2k(&pixels, 4, 4, 16, PixelSignedness::Unsigned, lossless(0))
+        .expect("valid image must encode");
     let decoded = decode_jpeg2000_fragment(&j2k, layout(4, 4, 16, PixelSignedness::Unsigned))
         .expect("16-bit lossless round-trip must succeed");
     let expected: Vec<f32> = pixels.iter().map(|&p| p as f32).collect();
@@ -720,7 +670,14 @@ proptest::proptest! {
             u8::try_from(u32::BITS - (rows.max(cols) - 1).leading_zeros())
                 .expect("invariant: u32 bit width fits u8");
         let num_decomp_levels = num_decomp_levels.min(maximum_levels);
-        let j2k = encode_grayscale_j2k(&pixels, rows, cols, precision, signedness, num_decomp_levels, WaveletTransform::Reversible)
+        let j2k = encode_grayscale_j2k(
+            &pixels,
+            rows,
+            cols,
+            precision,
+            signedness,
+            lossless(num_decomp_levels),
+        )
             .expect("generated valid image must encode");
         let decoded = decode_jpeg2000_fragment(
             &j2k,
@@ -756,8 +713,7 @@ fn decode_jpeg2000_multi_codeblock_zero_levels() {
         cols,
         8,
         PixelSignedness::Unsigned,
-        0,
-        WaveletTransform::Reversible,
+        lossless(0),
     )
     .expect("valid image must encode");
     let decoded = decode_jpeg2000_fragment(&j2k, layout(70, 130, 8, PixelSignedness::Unsigned))
@@ -776,8 +732,7 @@ fn decode_jpeg2000_multi_codeblock_two_levels_16bit() {
         cols,
         16,
         PixelSignedness::Unsigned,
-        2,
-        WaveletTransform::Reversible,
+        lossless(2),
     )
     .expect("valid image must encode");
     let decoded = decode_jpeg2000_fragment(&j2k, layout(100, 150, 16, PixelSignedness::Unsigned))
@@ -797,8 +752,7 @@ fn decode_jpeg2000_lossless_round_trip_two_dwt_levels_16bit() {
         cols,
         16,
         PixelSignedness::Unsigned,
-        2,
-        WaveletTransform::Reversible,
+        lossless(2),
     )
     .expect("valid image must encode");
     let decoded = decode_jpeg2000_fragment(&j2k, layout(8, 12, 16, PixelSignedness::Unsigned))
@@ -812,16 +766,8 @@ fn decode_jpeg2000_lossless_round_trip_three_dwt_levels_signed_odd_dims() {
     let rows = 7u32;
     let cols = 9u32;
     let pixels: Vec<i32> = (0..63).map(|i| ((i * 37) % 256) - 128).collect();
-    let j2k = encode_grayscale_j2k(
-        &pixels,
-        rows,
-        cols,
-        8,
-        PixelSignedness::Signed,
-        3,
-        WaveletTransform::Reversible,
-    )
-    .expect("valid image must encode");
+    let j2k = encode_grayscale_j2k(&pixels, rows, cols, 8, PixelSignedness::Signed, lossless(3))
+        .expect("valid image must encode");
     let decoded = decode_jpeg2000_fragment(&j2k, layout(7, 9, 8, PixelSignedness::Signed))
         .expect("3-level DWT signed odd-dims round-trip must succeed");
     let expected: Vec<f32> = pixels.iter().map(|&p| p as f32).collect();
@@ -831,16 +777,8 @@ fn decode_jpeg2000_lossless_round_trip_three_dwt_levels_signed_odd_dims() {
 #[test]
 fn ritk_native_decoder_replaces_openjp2_backend() {
     let pixels: Vec<i32> = (0..16i32).map(|v| v * 10).collect();
-    let j2k = encode_grayscale_j2k(
-        &pixels,
-        4,
-        4,
-        8,
-        PixelSignedness::Unsigned,
-        0,
-        WaveletTransform::Reversible,
-    )
-    .expect("valid image must encode");
+    let j2k = encode_grayscale_j2k(&pixels, 4, 4, 8, PixelSignedness::Unsigned, lossless(0))
+        .expect("valid image must encode");
     let decoded = decode_jpeg2000_fragment(&j2k, layout(4, 4, 8, PixelSignedness::Unsigned))
         .expect("native codec round-trip must succeed");
     let max_err = pixels
@@ -878,8 +816,7 @@ fn decode_jpeg2000_lossy_9_7_round_trip_structured_8bit() {
         cols,
         8,
         PixelSignedness::Unsigned,
-        2,
-        WaveletTransform::Irreversible,
+        lossy(2, 1.0),
     )
     .expect("valid image must encode");
 
@@ -927,8 +864,7 @@ fn decode_jpeg2000_lossy_9_7_round_trip_signed_16bit() {
         cols,
         16,
         PixelSignedness::Signed,
-        1,
-        WaveletTransform::Irreversible,
+        lossy(1, 1.0),
     )
     .expect("valid image must encode");
     let decoded = decode_jpeg2000_fragment(
@@ -945,4 +881,14 @@ fn decode_jpeg2000_lossy_9_7_round_trip_signed_16bit() {
         max_err <= 8.0,
         "signed 16-bit 9/7 max error {max_err} exceeds tolerance"
     );
+}
+
+#[test]
+fn lossy_zero_level_coarse_step_reconstructs_bin_midpoints() {
+    let pixels = [4, 5, 7, 8];
+    let j2k = encode_grayscale_j2k(&pixels, 2, 2, 8, PixelSignedness::Signed, lossy(0, 4.0))
+        .expect("valid zero-level lossy image must encode");
+    let decoded = decode_jpeg2000_fragment(&j2k, layout(2, 2, 8, PixelSignedness::Signed))
+        .expect("zero-level lossy stream must decode");
+    assert_eq!(decoded, vec![6.0, 6.0, 6.0, 10.0]);
 }

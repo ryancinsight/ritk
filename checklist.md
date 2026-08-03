@@ -13,6 +13,39 @@
 > workflow were removed after the Burn-to-Coeus migration completed.
 > References to these tools in the entries below are historical.
 
+## FEAT-692-01 — Control native JPEG 2000 lossy quantization
+**Target version**: Next major release
+**Sprint phase**: Closure
+
+- [x] Reconcile `origin/main`, worktrees, peer claims, native codec limits,
+      public callers, tests, benchmark coverage, ADR 0012, and book coverage.
+- [x] Record the focused codec baseline before production edits. The first
+      command compiled dependencies for 120 seconds without reaching Nextest;
+      the warmed retry then collided with concurrent GNU and MSVC workspace
+      builds in the single shared target tree and the integration-test link
+      exited without a diagnostic. A subsequent offline check waited 180
+      seconds on the same build-directory lock. This is recorded as
+      pre-existing shared-cache contention; no production file changed before
+      these attempts.
+- [x] Revise ADR 0012 with the encoding-mode and quantizer representation
+      contract, migration, failure modes, and verification plan.
+- [x] Implement validated lossless/lossy encoding modes and exact QCD-driven
+      per-subband quantization without a compatibility path. Irreversible
+      encode now retains one image-sized `f32` Mallat volume and bounds its
+      additional integer workspace to one nominal 64 × 64 code block.
+- [x] Migrate every in-repository caller and add analytical, malformed-input,
+      size/quality, and interoperability regressions. The focused codec suite
+      passes 322/322 tests; the downstream DICOM round trip passes at exact
+      pixel equality; the benchmark smoke executes all seven codec cases.
+- [x] Regenerate and inspect the executable book figure; synchronize the
+      chapter, runnable example, Rustdoc, changelog, gap audit, and PM state.
+      Browser inspection confirms five complete panels with a distinct
+      black→red→yellow error map. Regeneration is byte-identical at SHA-256
+      `60e300ff2bff2e972901c8f8a040765150ec76a2678d4c4bb16bf18c5261798b`;
+      mdBook test and build pass.
+- [ ] Run focused and full gates, semantic compatibility, independent review,
+      exact-head hosted checks, merge, and verify the automatic Pages build.
+
 ## SAFE-691-01 — Decode MINC2 quantitative integer voxels
 **Target version**: Unreleased patch
 **Sprint phase**: Closure

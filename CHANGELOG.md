@@ -8,6 +8,36 @@
 
 # CHANGELOG
 
+## [Unreleased] — JPEG 2000 scalar quality control (FEAT-692-01)
+
+### Changed
+
+- Replace independent JPEG 2000 transform and decomposition arguments with one
+  `Jpeg2000Encoding` mode, making lossless 5/3 and lossy 9/7 quantization
+  contracts mutually exclusive.
+- Quantize irreversible coefficients one 64 × 64 code block at a time from the
+  `f32` Mallat volume instead of allocating a second image-sized `i32` volume.
+- Extend the executable codec figure with unit and coarse quantization panels,
+  actual codestream sizes, maximum errors, PSNR, and a magnified coarse-error
+  map.
+
+### Added
+
+- Add validated `QuantizationStep` control for irreversible JPEG 2000 encode;
+  packet coefficients and QCD metadata share the exact represented subband
+  step.
+
+### Fixed
+
+- Reject non-positive, non-finite, or subband-unrepresentable lossy steps before
+  transform allocation.
+
+### Tests
+
+- Cover quantizer construction, QCD exponent/mantissa representation,
+  unrepresentable-step rejection, monotonic size/error behavior on a fixed
+  phantom, and all migrated native/OpenJPEG interoperability callers.
+
 ## [Unreleased] — MINC2 integer scaling (SAFE-691-01)
 
 ### Changed

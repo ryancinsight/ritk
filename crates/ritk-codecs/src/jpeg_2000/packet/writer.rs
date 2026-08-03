@@ -4,7 +4,9 @@ use crate::jpeg_2000::subband::{resolution_band_range, subband_layout};
 use crate::jpeg_2000::wavelet::forward_dwt_5_3;
 use crate::jpeg_2000::wavelet_9_7::forward_dwt_9_7;
 
-use super::{band_cblks, band_trees, lblock_extra_bits, CblkRef, WaveletTransform};
+use super::{
+    band_cblks, band_trees, lblock_extra_bits, total_bit_planes, CblkRef, WaveletTransform,
+};
 
 /// Write individual bits, MSB first, into a byte buffer.
 ///
@@ -117,18 +119,24 @@ pub(crate) fn encode_tile_part(
     tile_index: u16,
     num_decomp_levels: u8,
     transform: WaveletTransform,
+    quantizers: Option<&[crate::jpeg_2000::quantization::ScalarQuantizer]>,
 ) -> Vec<u8> {
-    // Forward DWT into the Mallat coefficient layout.  The irreversible 9/7
-    // path transforms in floating point and then dead-zone quantizes with a
-    // unit step (Δ_b = 1, i.e. ε_b = R_b = precision + gain_b, μ_b = 0) so the
-    // quantized integer coefficients reuse the same Mb = G + ε_b − 1 bit-plane
-    // budget and entropy-coding path as the reversible 5/3 transform.
+    // Forward DWT into the Mallat coefficient layout. The irreversible 9/7
+    // path retains floating-point coefficients and quantizes each code block
+    // with its QCD-derived step. Quantized integers reuse the same
+    // Mb = G + ε_b − 1 bit-plane budget and entropy-coding path as reversible
+    // 5/3 coefficients.
+    enum MallatCoefficients {
+        Integer(Vec<i32>),
+        Float(Vec<f32>),
+    }
+
     let mallat = match transform {
         WaveletTransform::Reversible => {
             let mut m: Vec<i32> = samples.iter().map(|&sample| sample + dc_offset).collect();
             forward_dwt_5_3(&mut m, width, height, num_decomp_levels)
                 .expect("invariant: samples.len() == width × height");
-            m
+            MallatCoefficients::Integer(m)
         }
         WaveletTransform::Irreversible => {
             let mut f: Vec<f32> = samples
@@ -137,10 +145,11 @@ pub(crate) fn encode_tile_part(
                 .collect();
             forward_dwt_9_7(&mut f, width, height, num_decomp_levels)
                 .expect("invariant: samples.len() == width × height");
-            f.iter().map(|&c| quantize(c, 1.0)).collect()
+            MallatCoefficients::Float(f)
         }
     };
     let bands = subband_layout(width, height, num_decomp_levels);
+    debug_assert!(quantizers.is_none_or(|values| values.len() == bands.len()));
 
     // EBCOT-encode every code-block of every non-empty subband.
     struct EncCblk {
@@ -156,14 +165,34 @@ pub(crate) fn encode_tile_part(
             let mut coeffs = Vec::with_capacity(cblk.w * cblk.h);
             for y in 0..cblk.h {
                 let off = (b.y0 + cblk.y0 + y) * width + b.x0 + cblk.x0;
-                coeffs.extend_from_slice(&mallat[off..off + cblk.w]);
+                match &mallat {
+                    MallatCoefficients::Integer(values) => {
+                        coeffs.extend_from_slice(&values[off..off + cblk.w]);
+                    }
+                    MallatCoefficients::Float(values) => {
+                        let delta = quantizers
+                            .and_then(|values| values.get(bi))
+                            .expect(
+                                "invariant: irreversible encoding has one quantizer per subband",
+                            )
+                            .delta;
+                        coeffs.extend(
+                            values[off..off + cblk.w]
+                                .iter()
+                                .map(|&coefficient| quantize(coefficient, delta)),
+                        );
+                    }
+                }
             }
             let enc = encode_code_block(&coeffs, cblk.w, cblk.h, b.orient);
             let (msbs, passes, data) = if enc.num_bit_planes == 0 {
                 (0u32, 0u32, Vec::new())
             } else {
                 // Mb = ε_b + G − 1 (ISO 15444-1 §E.1), ε_b = precision + gain.
-                let total_bp = u32::from(num_guard_bits) + precision + b.gain - 1;
+                let exponent = quantizers
+                    .and_then(|values| values.get(bi))
+                    .map_or(precision + b.gain, |quantizer| quantizer.exponent);
+                let total_bp = total_bit_planes(num_guard_bits, exponent);
                 (
                     total_bp.saturating_sub(u32::from(enc.num_bit_planes)),
                     enc.num_passes,

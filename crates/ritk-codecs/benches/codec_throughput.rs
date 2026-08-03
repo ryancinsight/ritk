@@ -13,7 +13,7 @@
 //!   with 5 DWT levels (multi-code-block, multi-resolution).
 
 use criterion::{criterion_group, criterion_main, Criterion};
-use ritk_codecs::jpeg_2000::encoder::{encode_grayscale_j2k, WaveletTransform};
+use ritk_codecs::jpeg_2000::encoder::{encode_grayscale_j2k, Jpeg2000Encoding};
 use ritk_codecs::jpeg_ls::encoder::encode_grayscale_jpeg_ls;
 use ritk_codecs::{decode_jpeg2000_fragment, decode_jpeg_ls_fragment};
 use ritk_codecs::{PixelLayout, PixelSignedness};
@@ -95,8 +95,9 @@ fn bench_jpeg_2000(c: &mut Criterion) {
                 cols as u32,
                 16,
                 PixelSignedness::Unsigned,
-                0,
-                WaveletTransform::Reversible,
+                Jpeg2000Encoding::Lossless {
+                    decomposition_levels: 0,
+                },
             ))
         })
     });
@@ -107,8 +108,9 @@ fn bench_jpeg_2000(c: &mut Criterion) {
         cols as u32,
         16,
         PixelSignedness::Unsigned,
-        0,
-        WaveletTransform::Reversible,
+        Jpeg2000Encoding::Lossless {
+            decomposition_levels: 0,
+        },
     )
     .expect("benchmark fixture must encode");
     c.bench_function("jpeg2000_decode_64x64_16bit_lossless", |b| {
@@ -136,8 +138,9 @@ fn bench_jpeg_2000_full(c: &mut Criterion) {
                 cols as u32,
                 16,
                 PixelSignedness::Unsigned,
-                5,
-                WaveletTransform::Reversible,
+                Jpeg2000Encoding::Lossless {
+                    decomposition_levels: 5,
+                },
             ))
         })
     });
@@ -148,8 +151,9 @@ fn bench_jpeg_2000_full(c: &mut Criterion) {
         cols as u32,
         16,
         PixelSignedness::Unsigned,
-        5,
-        WaveletTransform::Reversible,
+        Jpeg2000Encoding::Lossless {
+            decomposition_levels: 5,
+        },
     )
     .expect("benchmark fixture must encode");
     c.bench_function("jpeg2000_decode_512x512_16bit_5levels", |b| {

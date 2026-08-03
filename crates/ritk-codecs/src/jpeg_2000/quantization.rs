@@ -23,11 +23,130 @@
 //! Δ_b = 2^(R_b − ε_b) · (1 + μ_b / 2^11)
 //! ```
 
+use std::fmt;
+
 /// Mantissa precision: μ_b occupies the low 11 bits of the scalar SPqcd entry.
 const MANTISSA_BITS: u32 = 11;
 const MANTISSA_SCALE: f32 = (1u32 << MANTISSA_BITS) as f32; // 2048
 const MANTISSA_MAX: u32 = (1u32 << MANTISSA_BITS) - 1; // 2047
 const EXPONENT_MAX: u32 = (1u32 << 5) - 1; // ε_b is 5 bits
+
+/// Positive finite scalar-quantization step requested for irreversible 9/7
+/// encoding.
+///
+/// JPEG 2000 represents a step through a five-bit exponent and an eleven-bit
+/// mantissa. The encoder rounds this requested value to the nearest
+/// representable QCD value for each subband and uses that represented value for
+/// coefficient quantization, so its packet data and QCD metadata cannot
+/// diverge.
+#[repr(transparent)]
+#[derive(Clone, Copy, Debug, PartialEq, Eq, Hash)]
+pub struct QuantizationStep(u32);
+
+impl QuantizationStep {
+    /// Unit quantization, preserving the previous irreversible encoder
+    /// behavior.
+    pub const UNIT: Self = Self(1.0f32.to_bits());
+
+    /// Validate a requested scalar-quantization step.
+    ///
+    /// # Errors
+    /// Returns [`QuantizationStepError`] when `value` is zero, negative, NaN,
+    /// or infinite.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// use ritk_codecs::jpeg_2000::encoder::QuantizationStep;
+    ///
+    /// let step = QuantizationStep::new(8.0)?;
+    /// assert_eq!(step.get(), 8.0);
+    /// # Ok::<(), Box<dyn std::error::Error>>(())
+    /// ```
+    pub fn new(value: f32) -> Result<Self, QuantizationStepError> {
+        if value.is_finite() && value > 0.0 {
+            Ok(Self(value.to_bits()))
+        } else {
+            Err(QuantizationStepError {
+                value_bits: value.to_bits(),
+            })
+        }
+    }
+
+    /// Return the validated requested step.
+    #[must_use]
+    pub const fn get(self) -> f32 {
+        f32::from_bits(self.0)
+    }
+}
+
+/// Error returned when constructing an invalid [`QuantizationStep`].
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub struct QuantizationStepError {
+    value_bits: u32,
+}
+
+impl QuantizationStepError {
+    /// Return the rejected floating-point value.
+    #[must_use]
+    pub const fn value(self) -> f32 {
+        f32::from_bits(self.value_bits)
+    }
+}
+
+impl fmt::Display for QuantizationStepError {
+    fn fmt(&self, formatter: &mut fmt::Formatter<'_>) -> fmt::Result {
+        write!(
+            formatter,
+            "JPEG 2000 quantization step must be finite and positive; got {}",
+            self.value()
+        )
+    }
+}
+
+impl std::error::Error for QuantizationStepError {}
+
+/// Scalar QCD representation and the exact step reconstructed from it.
+#[derive(Clone, Copy, Debug, PartialEq)]
+pub(crate) struct ScalarQuantizer {
+    pub(crate) exponent: u32,
+    pub(crate) mantissa: u32,
+    pub(crate) delta: f32,
+}
+
+impl ScalarQuantizer {
+    /// Round `step` to the nearest QCD representation for dynamic range `r_b`.
+    pub(crate) fn from_step(step: QuantizationStep, r_b: u32) -> Option<Self> {
+        let requested = step.get();
+        // log2(f32) is bounded to [-149, 128] for positive finite values. The
+        // conversion is the format-defined exponent extraction, not a
+        // precision-changing numerical computation.
+        let mut power = requested.log2().floor() as i32;
+        let base = 2f32.powi(power);
+        let normalized = requested / base;
+        // The rounded value is analytically in 0..=2048 because normalized is
+        // in [1, 2). A carry produces the next power of two.
+        let mut mantissa = ((normalized - 1.0) * MANTISSA_SCALE).round() as u32;
+        if mantissa == MANTISSA_SCALE as u32 {
+            power = power.checked_add(1)?;
+            mantissa = 0;
+        }
+        let exponent = i32::try_from(r_b).ok()?.checked_sub(power)?;
+        let exponent = u32::try_from(exponent).ok()?;
+        if exponent > EXPONENT_MAX {
+            return None;
+        }
+        Some(Self {
+            exponent,
+            mantissa,
+            delta: step_size(r_b, exponent, mantissa),
+        })
+    }
+
+    pub(crate) fn packed(self) -> u16 {
+        pack_spqcd(self.exponent, self.mantissa)
+    }
+}
 
 /// Reconstruct the step size `Δ_b` from the dynamic-range exponent `R_b` and the
 /// transmitted (ε_b, μ_b) pair (ISO 15444-1 eq E-3).
@@ -157,17 +276,22 @@ mod tests {
     }
 
     #[test]
-    fn quantize_dequantize_continuous_error_within_half_step() {
-        // Floor-quantize a continuous coefficient then reconstruct at the
-        // fully-decoded midpoint: error never exceeds half the step.
+    fn quantize_dequantize_continuous_obeys_dead_zone_error_bound() {
+        // A non-zero bin reconstructs at its midpoint, so its error is at most
+        // Δ/2 plus the rounding from four f32 operations. The zero dead zone
+        // reconstructs to zero and has error strictly below Δ.
         let delta = 2.5f32;
         for i in -100..=100 {
             let coeff = i as f32 * 0.37;
             let q = quantize(coeff, delta);
             let r = dequantize(q, delta, 0, true);
-            if q != 0 {
+            let error = (r - coeff).abs();
+            if q == 0 {
+                assert!(error < delta, "coeff={coeff} q={q} r={r} Δ={delta}");
+            } else {
+                let rounding_bound = 4.0 * f32::EPSILON * coeff.abs().max(delta);
                 assert!(
-                    (r - coeff).abs() <= delta,
+                    error <= 0.5 * delta + rounding_bound,
                     "coeff={coeff} q={q} r={r} Δ={delta}"
                 );
             }
@@ -183,5 +307,31 @@ mod tests {
         assert_eq!(quantize(4.1, delta), 1);
         assert_eq!(quantize(-4.1, delta), -1);
         assert_eq!(quantize(8.0, delta), 2);
+    }
+
+    #[test]
+    fn quantization_step_rejects_non_positive_or_non_finite_values() {
+        for value in [0.0, -1.0, f32::NAN, f32::INFINITY, f32::NEG_INFINITY] {
+            let error = QuantizationStep::new(value)
+                .expect_err("non-positive or non-finite step must fail");
+            assert_eq!(error.value().to_bits(), value.to_bits());
+        }
+    }
+
+    #[test]
+    fn scalar_quantizer_represents_exact_binary_fraction() {
+        let step = QuantizationStep::new(3.25).expect("positive finite step must be valid");
+        let quantizer = ScalarQuantizer::from_step(step, 12)
+            .expect("3.25 must be representable at dynamic range 12");
+        assert_eq!(quantizer.exponent, 11);
+        assert_eq!(quantizer.mantissa, 1280);
+        assert_eq!(quantizer.delta, 3.25);
+        assert_eq!(quantizer.packed(), pack_spqcd(11, 1280));
+    }
+
+    #[test]
+    fn scalar_quantizer_rejects_exponent_outside_qcd_field() {
+        let step = QuantizationStep::new(4.0).expect("positive finite step must be valid");
+        assert_eq!(ScalarQuantizer::from_step(step, 1), None);
     }
 }

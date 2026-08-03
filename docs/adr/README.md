@@ -13,7 +13,7 @@
 | [0009](0009-statistics-native-extrema.md) | Native statistics extrema boundary | — |
 | [0010](0010-atlas-provider-checkout.md) | Atlas-owned provider checkout | — |
 | [0011](0011-iris-visualization-provider.md) | Iris visualization-provider boundary | — |
-| [0012](0012-fallible-jpeg-2000-encoder.md) | Fallible native JPEG 2000 encoder | Accepted |
+| [0012](0012-fallible-jpeg-2000-encoder.md) | Native JPEG 2000 encoding contract | Accepted |
 | [0013](0013-fallible-jpeg-ls-encoder.md) | Fallible native JPEG-LS encoder and rolling reconstruction rows | Accepted |
 | [0014](0014-fallible-descriptive-statistics.md) | Fallible finite descriptive statistics | Accepted |
 | [0015](0015-fallible-temporal-synchronization.md) | Fallible temporal synchronization | Accepted |
