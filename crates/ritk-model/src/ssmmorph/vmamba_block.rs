@@ -3,7 +3,7 @@
 use coeus_autograd::{add, gelu, permute, reshape, Var};
 use coeus_core::{Backend, CpuAddressableStorage, CpuAddressableStorageMut};
 use coeus_nn::{DepthwiseConv3d, LayerNorm, Linear, Module};
-use coeus_ops::BackendOps;
+use coeus_ops::{BackendOps, CpuBackend};
 
 use super::cross_scan::{CrossScan, CrossScanConfig};
 use super::policy::ScanDimensionality;
@@ -57,7 +57,7 @@ where
 
 impl<B> VMambaBlock<B>
 where
-    B: Backend + BackendOps<f32>,
+    B: Backend + BackendOps<f32> + CpuBackend,
     B::DeviceBuffer<f32>: CpuAddressableStorage<f32> + CpuAddressableStorageMut<f32>,
 {
     /// Initialize a VMamba block.
@@ -90,7 +90,13 @@ where
         crate::initialization::linear(&mut block.ffn_project, config.dim * 4, config.dim, 403);
         block
     }
+}
 
+impl<B> VMambaBlock<B>
+where
+    B: Backend + BackendOps<f32>,
+    B::DeviceBuffer<f32>: CpuAddressableStorage<f32> + CpuAddressableStorageMut<f32>,
+{
     /// Transform `[batch, channels, depth, height, width]` features.
     pub fn forward(&self, input: &Var<f32, B>) -> Result<Var<f32, B>, ModelError> {
         let shape = input.tensor.shape();

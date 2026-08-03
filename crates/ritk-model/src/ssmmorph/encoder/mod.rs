@@ -47,7 +47,7 @@ use crate::ModelError;
 use coeus_autograd::Var;
 use coeus_core::{Backend, CpuAddressableStorage, CpuAddressableStorageMut};
 use coeus_nn::Module;
-use coeus_ops::BackendOps;
+use coeus_ops::{BackendOps, CpuBackend};
 
 /// SSMMorph Encoder - Hierarchical feature extraction
 #[derive(Clone)]
@@ -76,7 +76,7 @@ where
 
 impl<B> SSMMorphEncoder<B>
 where
-    B: Backend + BackendOps<f32>,
+    B: Backend + BackendOps<f32> + CpuBackend,
     B::DeviceBuffer<f32>: CpuAddressableStorage<f32> + CpuAddressableStorageMut<f32>,
 {
     /// Create new SSMMorph encoder
@@ -96,7 +96,13 @@ where
             stage_channels,
         }
     }
+}
 
+impl<B> SSMMorphEncoder<B>
+where
+    B: Backend + BackendOps<f32>,
+    B::DeviceBuffer<f32>: CpuAddressableStorage<f32> + CpuAddressableStorageMut<f32>,
+{
     /// Get number of channels at each stage
     pub fn channels(&self) -> &[usize] {
         &self.stage_channels

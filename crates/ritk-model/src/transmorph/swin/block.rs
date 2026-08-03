@@ -12,7 +12,7 @@ use coeus_autograd::{add, cat, permute, reshape, roll, slice, Parameter, Var};
 use coeus_core::{Backend, CpuAddressableStorage, CpuAddressableStorageMut};
 use coeus_nn::module::Module;
 use coeus_nn::normalization::LayerNorm;
-use coeus_ops::BackendOps;
+use coeus_ops::{BackendOps, CpuBackend};
 use coeus_tensor::Tensor;
 
 /// LayerNorm numerical-stability constant (matches the Coeus `LayerNorm` default).
@@ -33,7 +33,7 @@ pub struct SwinTransformerBlock<B: Backend + BackendOps<f32> + Default> {
 
 impl<B> SwinTransformerBlock<B>
 where
-    B: Backend + BackendOps<f32> + Default,
+    B: Backend + BackendOps<f32> + Default + CpuBackend,
     B::DeviceBuffer<f32>: CpuAddressableStorage<f32> + CpuAddressableStorageMut<f32>,
 {
     /// Construct a Swin block over `input_dim` channels.
@@ -59,7 +59,13 @@ where
             window_size,
         }
     }
+}
 
+impl<B> SwinTransformerBlock<B>
+where
+    B: Backend + BackendOps<f32> + Default,
+    B::DeviceBuffer<f32>: CpuAddressableStorage<f32> + CpuAddressableStorageMut<f32>,
+{
     /// Forward pass over a `[B, D, H, W, C]` token volume.
     pub fn forward(&self, x: &Var<f32, B>) -> Result<Var<f32, B>, ModelError> {
         let sh = x.tensor.shape();

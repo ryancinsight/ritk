@@ -13,7 +13,7 @@ use coeus_autograd::{
 };
 use coeus_core::{Backend, CpuAddressableStorage, CpuAddressableStorageMut};
 use coeus_nn::{module::Module, Linear};
-use coeus_ops::BackendOps;
+use coeus_ops::{BackendOps, CpuBackend};
 use coeus_tensor::Tensor;
 
 /// Windowed multi-head self-attention with relative-position bias.
@@ -34,7 +34,7 @@ pub struct WindowAttention<B: Backend + BackendOps<f32> + Default> {
 
 impl<B> WindowAttention<B>
 where
-    B: Backend + BackendOps<f32> + Default,
+    B: Backend + BackendOps<f32> + Default + CpuBackend,
     B::DeviceBuffer<f32>: CpuAddressableStorage<f32> + CpuAddressableStorageMut<f32>,
 {
     /// Construct window attention over `input_dim` channels split into
@@ -121,7 +121,13 @@ where
         }
         index
     }
+}
 
+impl<B> WindowAttention<B>
+where
+    B: Backend + BackendOps<f32> + Default,
+    B::DeviceBuffer<f32>: CpuAddressableStorage<f32> + CpuAddressableStorageMut<f32>,
+{
     /// Attention over `[B_windows, N, C]` tokens.
     ///
     /// `mask`, when present, is `[B_windows, 1, N, N]` with `0`/`-100` entries

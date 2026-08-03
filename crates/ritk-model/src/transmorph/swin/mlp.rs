@@ -7,10 +7,10 @@
 
 use crate::error::ModelError;
 use coeus_autograd::{gelu, Parameter, Var};
-use coeus_core::Backend;
+use coeus_core::{Backend, CpuAddressableStorageMut};
 use coeus_nn::module::Module;
 use coeus_nn::Linear;
-use coeus_ops::BackendOps;
+use coeus_ops::{BackendOps, CpuBackend};
 
 /// Two-layer channel-wise MLP with a GELU nonlinearity.
 #[derive(Clone)]
@@ -21,7 +21,8 @@ pub struct Mlp<B: Backend + BackendOps<f32> + Default> {
 
 impl<B> Mlp<B>
 where
-    B: Backend + BackendOps<f32> + Default,
+    B: Backend + BackendOps<f32> + Default + CpuBackend,
+    B::DeviceBuffer<f32>: CpuAddressableStorageMut<f32>,
 {
     /// Construct an MLP mapping `input_dim → hidden_dim → input_dim`.
     ///
@@ -35,7 +36,12 @@ where
         coeus_nn::init::kaiming_uniform_with_seed(&mut fc2.weight, hidden_dim, seed ^ 0x5DEE_CE66);
         Self { fc1, fc2 }
     }
+}
 
+impl<B> Mlp<B>
+where
+    B: Backend + BackendOps<f32> + Default,
+{
     /// Forward pass over a `[B, D, H, W, C]` token volume.
     pub fn forward(&self, x: &Var<f32, B>) -> Result<Var<f32, B>, ModelError> {
         let x = self.fc1.forward(x)?;

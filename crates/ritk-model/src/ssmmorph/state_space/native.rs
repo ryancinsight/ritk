@@ -23,7 +23,7 @@ use coeus_autograd::{
 use coeus_core::{Backend, CpuAddressableStorage, CpuAddressableStorageMut};
 use coeus_nn::module::Module;
 use coeus_nn::Linear;
-use coeus_ops::BackendOps;
+use coeus_ops::{BackendOps, CpuBackend};
 use coeus_tensor::Tensor;
 
 /// Base seed for deterministic Kaiming initialization; the odd increment
@@ -65,7 +65,7 @@ impl SelectiveStateSpaceConfig {
     #[must_use]
     pub fn init<B>(&self) -> SelectiveStateSpace<B>
     where
-        B: Backend + BackendOps<f32> + Default,
+        B: Backend + BackendOps<f32> + Default + CpuBackend,
         B::DeviceBuffer<f32>: CpuAddressableStorage<f32> + CpuAddressableStorageMut<f32>,
     {
         SelectiveStateSpace::new(self, INIT_SEED)
@@ -99,7 +99,7 @@ pub struct SelectiveStateSpace<B: Backend + BackendOps<f32> + Default> {
 
 impl<B> SelectiveStateSpace<B>
 where
-    B: Backend + BackendOps<f32> + Default,
+    B: Backend + BackendOps<f32> + Default + CpuBackend,
     B::DeviceBuffer<f32>: CpuAddressableStorage<f32> + CpuAddressableStorageMut<f32>,
 {
     /// Construct with Kaiming-uniform projection weights (fan-in scaled, the
@@ -151,7 +151,13 @@ where
             expand_factor: config.expand_factor,
         }
     }
+}
 
+impl<B> SelectiveStateSpace<B>
+where
+    B: Backend + BackendOps<f32> + Default,
+    B::DeviceBuffer<f32>: CpuAddressableStorage<f32> + CpuAddressableStorageMut<f32>,
+{
     /// Selective-scan forward for a `[batch, seq, input_dim]` sequence.
     ///
     /// # Panics

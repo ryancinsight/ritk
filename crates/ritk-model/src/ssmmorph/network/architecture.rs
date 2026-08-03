@@ -3,7 +3,7 @@
 use coeus_autograd::{cat, Var};
 use coeus_core::{Backend, CpuAddressableStorage, CpuAddressableStorageMut};
 use coeus_nn::Module;
-use coeus_ops::BackendOps;
+use coeus_ops::{BackendOps, CpuBackend};
 
 use crate::ssmmorph::decoder::{SSMMorphDecoder, SSMMorphDecoderConfig};
 use crate::ssmmorph::encoder::{DropPath, SSMMorphEncoder, SSMMorphEncoderConfig};
@@ -114,7 +114,7 @@ where
 
 impl<B> SSMMorph<B>
 where
-    B: Backend + BackendOps<f32>,
+    B: Backend + BackendOps<f32> + CpuBackend,
     B::DeviceBuffer<f32>: CpuAddressableStorage<f32> + CpuAddressableStorageMut<f32>,
 {
     /// Initialize the registration model.
@@ -132,7 +132,13 @@ where
                 .then(|| VecInt::new(config.integration_steps)),
         }
     }
+}
 
+impl<B> SSMMorph<B>
+where
+    B: Backend + BackendOps<f32>,
+    B::DeviceBuffer<f32>: CpuAddressableStorage<f32> + CpuAddressableStorageMut<f32>,
+{
     /// Register a moving image to a fixed image.
     pub fn forward(
         &self,

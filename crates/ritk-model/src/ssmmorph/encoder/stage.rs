@@ -3,7 +3,7 @@
 use coeus_autograd::Var;
 use coeus_core::{Backend, CpuAddressableStorage, CpuAddressableStorageMut};
 use coeus_nn::{Conv3d, Module};
-use coeus_ops::BackendOps;
+use coeus_ops::{BackendOps, CpuBackend};
 
 use super::config::{DownsamplePolicy, EncoderStageConfig};
 use crate::ssmmorph::vmamba_block::{VMambaBlock, VMambaBlockConfig};
@@ -35,7 +35,7 @@ where
 
 impl<B> EncoderStage<B>
 where
-    B: Backend + BackendOps<f32>,
+    B: Backend + BackendOps<f32> + CpuBackend,
     B::DeviceBuffer<f32>: CpuAddressableStorage<f32> + CpuAddressableStorageMut<f32>,
 {
     /// Initialize an encoder stage.
@@ -63,7 +63,13 @@ where
             out_channels: config.out_channels,
         }
     }
+}
 
+impl<B> EncoderStage<B>
+where
+    B: Backend + BackendOps<f32>,
+    B::DeviceBuffer<f32>: CpuAddressableStorage<f32> + CpuAddressableStorageMut<f32>,
+{
     /// Return pre-downsample features and an optional downsampled continuation.
     pub fn forward(&self, input: &Var<f32, B>) -> Result<EncoderStageOutput<B>, ModelError> {
         let mut output = match self.projection.as_ref() {

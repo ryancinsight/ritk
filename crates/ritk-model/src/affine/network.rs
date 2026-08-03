@@ -11,10 +11,10 @@
 //! or backends cross this boundary.
 
 use coeus_autograd::{add, relu, reshape, Parameter, Var};
-use coeus_core::{Float, MoiraiBackend};
+use coeus_core::{CpuAddressableStorageMut, Float, MoiraiBackend};
 use coeus_nn::module::Module;
 use coeus_nn::{Conv3d, GlobalAvgPool3d, InstanceNorm3d, Linear};
-use coeus_ops::BackendOps;
+use coeus_ops::{BackendOps, CpuBackend};
 use coeus_tensor::Tensor;
 
 /// Number of predicted affine parameters (a flattened `3×4` matrix).
@@ -75,7 +75,8 @@ impl AffineNetworkConfig {
     pub fn init<T, B>(&self) -> AffineNetwork<T, B>
     where
         T: Float + coeus_leto::RandomScalar,
-        B: BackendOps<T> + Default,
+        B: BackendOps<T> + CpuBackend + Default,
+        B::DeviceBuffer<T>: CpuAddressableStorageMut<T>,
     {
         assert_eq!(
             self.channels.len(),

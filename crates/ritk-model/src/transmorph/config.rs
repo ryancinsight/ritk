@@ -8,7 +8,7 @@
 
 use coeus_core::{Backend, CpuAddressableStorage, CpuAddressableStorageMut};
 use coeus_nn::Conv3d;
-use coeus_ops::BackendOps;
+use coeus_ops::{BackendOps, CpuBackend};
 
 use crate::transmorph::{
     integration::VecInt, model::TransMorph, spatial_transform::SpatialTransformer,
@@ -84,7 +84,7 @@ impl TransMorphConfig {
     /// Instantiate a [`TransMorph`] over backend `B`.
     pub fn init<B>(&self) -> TransMorph<B>
     where
-        B: Backend + BackendOps<f32> + Default,
+        B: Backend + BackendOps<f32> + Default + CpuBackend,
         B::DeviceBuffer<f32>: CpuAddressableStorage<f32> + CpuAddressableStorageMut<f32>,
     {
         let seed = std::cell::Cell::new(INIT_SEED);
