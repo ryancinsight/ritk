@@ -16,14 +16,21 @@
 > References to these tools in the entries below are historical.
 
 - **DOC-694-01 [patch] - Render diffusion-MRI equations portably**
-  (IN PROGRESS; owner=Codex; last-update=2026-08-03;
+  (DONE; owner=Codex; last-update=2026-08-03;
   scope=`docs/book/diffusion_mri.md` and PM artifacts; non-goal=changing
   diffusion-MRI algorithms or the site-wide renderer). Replace the chapter's
   external MathJax-dependent display equations and inline TeX variables with
   portable Unicode/math text. Acceptance: the deployed chapter contains no
   literal TeX commands, preserves the b-value, signal, Q-ball, and
   regularization equations and explanatory text, and passes mdBook build,
-  mdBook test, diff, hosted Pages, and live visual inspection.
+  mdBook test, diff, hosted Pages, and live visual inspection. Delivered by
+  PR #104 at `226d1997`, merged as `bc8706b5`. Local `mdbook build docs/book`,
+  `mdbook test docs/book`, raw-TeX scan, generated-HTML equation checks, and
+  `git diff --check` passed. PR Pages build `30847029473`, CI `30847029489`,
+  and Python CI `30847030525` passed; post-merge Pages `30849065004`, Python
+  CI `30849063404`, and CI `30849066060` passed. The live chapter returns
+  HTTP 200, contains all four Unicode equations, contains no raw TeX, and
+  passed full-page browser visual inspection.
 
 - **DOC-693-01 [patch] - Make binary morphology equations render without
   external MathJax** (DONE; owner=Codex; last-update=2026-08-03;

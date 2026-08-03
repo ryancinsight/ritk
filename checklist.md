@@ -15,15 +15,21 @@
 
 ## DOC-694-01 — Render diffusion-MRI equations portably
 **Target version**: Unreleased patch
-**Sprint phase**: Execution
+**Sprint phase**: Closure
 
 - [x] Audit the live tractography example and diffusion-MRI chapter. The
       tractography figure loads and its numbered panels are legible; the
       diffusion-MRI chapter renders its four displayed equations as literal
       TeX because the external MathJax runtime is unavailable.
-- [ ] Replace only the diffusion-MRI chapter's displayed equations and inline
+- [x] Replace only the diffusion-MRI chapter's displayed equations and inline
       TeX variables with portable Unicode/math text, then verify source
-      semantics, mdBook build/test, and the deployed page.
+      semantics, mdBook build/test, and the deployed page. Local build/test,
+      raw-TeX scan, generated-HTML checks, and diff check passed. PR #104
+      (`226d1997`) merged as `bc8706b5`; PR Pages `30847029473`, CI
+      `30847029489`, Python CI `30847030525`, post-merge Pages `30849065004`,
+      Python CI `30849063404`, and CI `30849066060` passed. Live HTTP 200 and
+      browser visual inspection confirmed readable b-value, signal, Q-ball,
+      and regularization equations with no literal TeX.
 
 ## DOC-693-01 — Make binary morphology equations render without external MathJax
 **Target version**: Unreleased patch
