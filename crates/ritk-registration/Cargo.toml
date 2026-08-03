@@ -54,26 +54,11 @@ proptest = { workspace = true }
 tempfile = { workspace = true }
 ritk-image = { path = "../ritk-image", features = ["test-helpers"], version = "0.2.0" }
 
-[[bench]]
-name = "bspline_displacement"
-harness = false
 
 [[bench]]
 name = "lddmm_smoothing"
 harness = false
 
-[[bench]]
-name = "temporal_sync"
-harness = false
-
 [[example]]
 name = "dl_registration"
 path = "examples/dl_registration.rs"
-
-[[example]]
-name = "dl_train"
-path = "examples/dl_train.rs"
-
-[[example]]
-name = "book_temporal_sync"
-path = "examples/book_temporal_sync.rs"
