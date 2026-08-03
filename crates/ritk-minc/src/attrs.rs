@@ -45,6 +45,20 @@ pub fn extract_float_array_3(val: &AttributeValue) -> Result<[f64; 3]> {
     }
 }
 
+/// Extract a two-endpoint numeric range from an `AttributeValue`.
+pub(crate) fn extract_numeric_range(val: &AttributeValue) -> Result<[f64; 2]> {
+    match val {
+        AttributeValue::FloatArray(values) if values.len() == 2 => Ok([values[0], values[1]]),
+        AttributeValue::IntArray(values) if values.len() == 2 => {
+            Ok([values[0] as f64, values[1] as f64])
+        }
+        AttributeValue::UintArray(values) if values.len() == 2 => {
+            Ok([values[0] as f64, values[1] as f64])
+        }
+        other => bail!("Expected a two-element numeric range, got {other:?}"),
+    }
+}
+
 /// Extract a string from an `AttributeValue`.
 pub fn extract_string(val: &AttributeValue) -> Result<String> {
     match val {

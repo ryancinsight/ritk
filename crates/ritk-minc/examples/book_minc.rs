@@ -10,6 +10,9 @@ use ritk_spatial::{Direction, Point, Spacing};
 use std::fmt::Write as _;
 use std::path::{Path, PathBuf};
 
+#[path = "../src/scaled_fixture.rs"]
+mod scaled_fixture;
+
 const SHAPE: [usize; 3] = [9, 64, 64];
 const DISPLAY_SLICE: usize = 4;
 const DISPLAY_SIZE: u32 = 180;
@@ -298,7 +301,69 @@ fn draw_contract_panel(svg: &mut String, source: &Volume, file_bytes: u64) -> Re
     Ok(())
 }
 
-fn write_figure(output: &Path, source: &Volume, decoded: &Volume, file_bytes: u64) -> Result<()> {
+fn draw_scaling_panel(svg: &mut String, stored: &[i16; 8], scaled: &Volume) -> Result<()> {
+    let decoded = scaled
+        .data_slice()
+        .context("borrow scaled fixture voxels")?;
+    let [slice_zero_first, slice_zero_second, slice_zero_third, slice_zero_fourth, slice_one_first, slice_one_second, slice_one_third, slice_one_fourth] =
+        decoded
+    else {
+        bail!(
+            "scaled MINC2 fixture has {} voxels, expected 8",
+            decoded.len()
+        );
+    };
+    let expected = [-1_000.0, -500.0, 0.0, 1_000.0, 0.0, 50.0, 100.0, 200.0];
+    if decoded != expected {
+        bail!("scaled MINC2 fixture mismatch: got {decoded:?}, expected {expected:?}");
+    }
+
+    writeln!(svg, "<g transform=\"translate(0,355)\">")?;
+    writeln!(
+        svg,
+        "<rect x=\"7\" y=\"7\" width=\"938\" height=\"178\" class=\"panel\"/>"
+    )?;
+    writeln!(svg, "<text x=\"18\" y=\"31\" class=\"title\">Quantitative i16 scaling: stored codes and decoded intensities must differ</text>")?;
+    writeln!(svg, "<text x=\"18\" y=\"55\" class=\"metric\">real = image-min + (stored − valid-min) × (image-max − image-min) / (valid-max − valid-min)</text>")?;
+    writeln!(svg, "<text x=\"18\" y=\"79\" class=\"small\">valid_range = [0, 100] · first spatial axis selects one image range per slice</text>")?;
+    writeln!(
+        svg,
+        "<text x=\"18\" y=\"107\" class=\"label\">Slice 0 · image range [−1000, 1000]</text>"
+    )?;
+    writeln!(
+        svg,
+        "<text x=\"275\" y=\"107\" class=\"small\">stored [{}, {}, {}, {}]</text>",
+        stored[0], stored[1], stored[2], stored[3]
+    )?;
+    writeln!(
+        svg,
+        "<text x=\"550\" y=\"107\" class=\"success\">read_minc → [{slice_zero_first}, {slice_zero_second}, {slice_zero_third}, {slice_zero_fourth}]</text>"
+    )?;
+    writeln!(
+        svg,
+        "<text x=\"18\" y=\"137\" class=\"label\">Slice 1 · image range [0, 200]</text>"
+    )?;
+    writeln!(
+        svg,
+        "<text x=\"275\" y=\"137\" class=\"small\">stored [{}, {}, {}, {}]</text>",
+        stored[4], stored[5], stored[6], stored[7]
+    )?;
+    writeln!(
+        svg,
+        "<text x=\"550\" y=\"137\" class=\"success\">read_minc → [{slice_one_first}, {slice_one_second}, {slice_one_third}, {slice_one_fourth}]</text>"
+    )?;
+    writeln!(svg, "<text x=\"18\" y=\"166\" class=\"small\">These values come from the public reader, not from labels assembled for the figure.</text></g>")?;
+    Ok(())
+}
+
+fn write_figure(
+    output: &Path,
+    source: &Volume,
+    decoded: &Volume,
+    file_bytes: u64,
+    stored: &[i16; 8],
+    scaled: &Volume,
+) -> Result<()> {
     let source_slice = display_slice(source)?;
     let decoded_slice = display_slice(decoded)?;
     let source_png = grayscale_png(source_slice, 0.0, 1_200.0)?;
@@ -311,7 +376,7 @@ fn write_figure(output: &Path, source: &Volume, decoded: &Volume, file_bytes: u6
     let width = 4_u32
         .checked_mul(PANEL_WIDTH)
         .context("MINC2 figure width overflows u32")?;
-    let height = 340;
+    let height = 555;
     let mut svg = String::new();
     writeln!(
         svg,
@@ -348,7 +413,9 @@ fn write_figure(output: &Path, source: &Volume, decoded: &Volume, file_bytes: u6
     )?;
     draw_contract_panel(&mut svg, source, file_bytes)?;
     writeln!(svg, "<text x=\"18\" y=\"302\" class=\"success\">The identical-looking panels are confirmed by the explicit zero-difference mask and a full-volume bit comparison.</text>")?;
-    writeln!(svg, "<text x=\"18\" y=\"325\" class=\"metric\">One 3-D volume · x-fastest contiguous payload · exact f32 voxels · physical geometry retained</text></svg>")?;
+    writeln!(svg, "<text x=\"18\" y=\"325\" class=\"metric\">One 3-D volume · x-fastest contiguous payload · exact f32 voxels · physical geometry retained</text>")?;
+    draw_scaling_panel(&mut svg, stored, scaled)?;
+    writeln!(svg, "</svg>")?;
 
     if let Some(parent) = output.parent() {
         std::fs::create_dir_all(parent).context("create MINC2 figure directory")?;
@@ -373,5 +440,27 @@ fn main() -> Result<()> {
     let file_bytes = std::fs::metadata(&path)
         .context("inspect MINC2 file size")?
         .len();
-    write_figure(&output_path(), &source, &decoded, file_bytes)
+    let scaled_path = directory.path().join("scaled-int16.mnc");
+    let stored = [0_i16, 25, 50, 100, 0, 25, 50, 100];
+    scaled_fixture::write_scaled_integer_fixture(
+        &scaled_path,
+        &stored,
+        [2, 2, 2],
+        [0, 100],
+        scaled_fixture::ImageRangeFixture::Complete {
+            minima: &[-1_000.0, 0.0],
+            maxima: &[1_000.0, 200.0],
+        },
+    )
+    .context("write deterministic scaled-integer MINC2 fixture")?;
+    let scaled = read_minc(&scaled_path, &SequentialBackend)
+        .context("read deterministic scaled-integer MINC2 fixture")?;
+    write_figure(
+        &output_path(),
+        &source,
+        &decoded,
+        file_bytes,
+        &stored,
+        &scaled,
+    )
 }

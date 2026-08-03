@@ -15,19 +15,43 @@
 
 ## SAFE-691-01 — Decode MINC2 quantitative integer voxels
 **Target version**: Unreleased patch
-**Sprint phase**: Foundation
+**Sprint phase**: Review
 
 - [x] Reconcile origin, worktrees, active peer claims, the MINC2 owner, and
       current reader/book coverage.
-- [ ] Record the focused package baseline before production edits.
-- [ ] Ground scalar and per-slice scaling in the MINC2 specification and pin
+- [x] Record the focused package baseline before production edits: 45/45
+      Nextest tests pass in 0.507 seconds.
+- [x] Ground scalar and per-slice scaling in the MINC2 specification and pin
       the mapping, indexing, missing-value, and float-dataset contracts.
-- [ ] Implement allocation-bounded integer scaling with typed boundary errors.
-- [ ] Add analytical, malformed-input, and public-reader regressions.
-- [ ] Extend and inspect the deterministic public-API example and figure.
-- [ ] Synchronize Rustdoc, book, changelog, gap audit, and PM state.
+- [x] Implement allocation-bounded integer scaling with typed boundary errors.
+- [x] Add analytical, malformed-input, and public-reader regressions. The
+      corrected focused suite passes 58/58 tests in 0.397 seconds against the
+      clean Git provider graph, including every voxel of a per-slice mapping
+      whose second slice crosses the 8 KiB stream boundary.
+- [x] Extend and inspect the deterministic public-API example and figure. The
+      43,106-byte SVG has SHA-256
+      `CA90C9896D00566C7608B5813748F39F1D603A07B18830718370561D0585C13A`;
+      direct warm regeneration completes in 90.040 ms and is byte-identical.
+      The inspected rendering exposes the two distinct decoded ranges next to
+      their identical stored codes and the mapping equation.
+- [x] Synchronize Rustdoc, book, changelog, gap audit, and PM state.
 - [ ] Run focused format, lint, test, documentation, example-runtime, mdBook,
       semantic-version, review, and hosted gates against the delivered head.
+      Local formatting, `git diff --check`, warning-denied all-target Clippy,
+      58/58 debug Nextest tests, 58/58 optimized release tests in 0.379
+      seconds, doctests, warning-denied Rustdoc, deterministic example
+      generation, and mdBook test/build pass. `cargo-semver-checks`
+      cannot establish a registry baseline because `ritk-minc` is not yet
+      indexed; the diff changes no public Rust item signature. Focused
+      self-review resolved datatype-range validation and existence-only error
+      assertions. CodeRabbit's six findings produced five test, figure, book,
+      and changelog corrections; full output pre-reservation was rejected
+      because it would allocate from unverified shape metadata. Hosted gates
+      found one infrastructure failure: Python 3.10 on macOS arm64 restored a
+      full-match target cache containing a non-executable PyO3 build script.
+      The cache now has an explicit interpreter dimension, the cache action is
+      commit-pinned, and both CI workflows cancel superseded same-ref runs.
+      Exact-head hosted reruns remain.
 - [ ] Commit, publish, merge after exact-head CI, and verify Pages deployment.
 
 ## PERF-690-01 — Stream and teach MINC2 writing

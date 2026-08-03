@@ -25,6 +25,10 @@ on:
     branches:
       - main
 
+concurrency:
+  group: python-ci-${{ github.ref }}
+  cancel-in-progress: true
+
 permissions:
   contents: read
 
@@ -70,9 +74,10 @@ jobs:
           components: rustfmt, clippy
 
       - name: Cache Rust build artifacts
-        uses: Swatinem/rust-cache@v2
+        uses: Swatinem/rust-cache@e18b497796c12c097a38f9edb9d0641fb99eee32
         with:
           workspaces: "ritk -> target"
+          key: python-${{ matrix.python-version }}-abi3
 
       - name: Set up Python ${{ matrix.python-version }}
         uses: actions/setup-python@v6

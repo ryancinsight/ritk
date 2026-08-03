@@ -13,6 +13,52 @@
 > workflow were removed after the Burn-to-Coeus migration completed.
 > References to these tools in the evidence below are historical.
 
+## SAFE-691-01 audit (2026-08-02)
+
+The MINC2 reader previously converted integer storage values directly to
+`f32`, ignoring `valid_range`, `image-min`, and `image-max`. Quantitative
+foreign images therefore carried stored codes instead of calibrated real
+intensities. The reader also retained the full raw payload while constructing
+the decoded output, and dataset element multiplication could overflow before
+the checked byte-count boundary.
+
+The corrected boundary follows the MINC pixel-conversion contract. It
+normalizes the order-insensitive valid-range endpoints, validates finite
+scalar or first-spatial-axis image ranges, applies the linear mapping in `f64`,
+and narrows once to the documented `f32` image contract. Values outside
+`valid_range` are rejected because RITK has no missing-value mask. Float image
+datasets remain unscaled. Missing image ranges use MINC's `[0, 1]` default.
+
+The reader now validates exact dataset geometry and checked element, slice, and
+byte products before reading. It reuses one stack-backed 8 KiB raw buffer and
+decodes each confirmed chunk directly into the final voxel vector. Decoder
+scratch is therefore constant with volume size; no runtime speedup is claimed
+without controlled benchmark evidence.
+
+The analytical and real-file suite covers global and per-slice mappings,
+endpoints and midpoint, reversed valid-range order, constant real slices,
+default image ranges, incomplete range pairs, malformed shapes, and an
+out-of-range stored voxel with its exact linear index. A 4,224-voxel fixture
+checks every mapped value while the second slice crosses the 8 KiB stream
+boundary. The executable book figure constructs a deterministic scaled `i16`
+HDF5 file through the generic
+Consus writer and displays the actual public-reader results next to the stored
+codes and mapping equation. Local formatting, warning-denied all-target
+Clippy, 58/58 debug Nextest tests in 0.397 seconds, 58/58 optimized release
+tests in 0.379 seconds, doctests, warning-denied Rustdoc, deterministic figure
+regeneration, and mdBook test/build pass. The inspected
+43,106-byte SVG has SHA-256
+`CA90C9896D00566C7608B5813748F39F1D603A07B18830718370561D0585C13A`.
+`cargo-semver-checks` cannot establish a registry baseline because `ritk-minc`
+is not yet indexed; no public Rust item signature changes. Hosted closure
+evidence remains pending on the exact delivery head. The first hosted Python
+matrix restored a full-match Rust target cache before selecting Python 3.10;
+its macOS arm64 Rust-test step then found a stale PyO3 build-script executable
+that the kernel could not run. The workflow now keys target artifacts by the
+matrix interpreter in addition to the cache action's OS, architecture,
+toolchain, and manifest dimensions, pins that action to audited commit
+`e18b4977`, and cancels superseded same-ref CI runs.
+
 ## PERF-690-01 audit (2026-08-02)
 
 The MINC2 writer previously multiplied dimensions and byte widths without
@@ -48,11 +94,10 @@ failed before analysis, so neither external service furnished findings;
 focused self-review found no residual defect.
 
 Residual MINC2 scope is documented rather than implied: the reader supports
-contiguous datasets only and does not apply `image-min`/`image-max` real-value
-scaling; the writer does not emit arbitrary `info` metadata, chunking,
-compression, or multiresolution levels. Foreign quantitative and clinical
-interchange therefore requires representative differential validation until
-those format profiles are implemented and tested.
+contiguous datasets only; the writer does not emit arbitrary `info` metadata,
+integer scaling metadata, chunking, compression, or multiresolution levels.
+Foreign quantitative and clinical interchange requires representative
+differential validation outside the implemented profile.
 
 ## SAFE-688-01 audit (2026-08-01)
 
