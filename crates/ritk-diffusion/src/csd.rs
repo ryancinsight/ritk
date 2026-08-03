@@ -847,8 +847,7 @@ fn build_deconvolution_matrix(
             let response_index = degree / 2;
             let r_l = response.harmonics()[response_index];
             // κ_l = 4π/(2l+1) · r_l  (Legendre-coefficient convention).
-            let kappa = 4.0 * std::f64::consts::PI / (2.0 * degree as f64 + 1.0) * r_l;
-            kappa
+            4.0 * std::f64::consts::PI / (2.0 * degree as f64 + 1.0) * r_l
         })
         .collect();
 
@@ -996,6 +995,7 @@ impl FodVolume {
     /// Returns `None` when the point maps to a continuous voxel index outside
     /// `[-0.5, shape[i] - 0.5)` for any axis — i.e., when the interpolation
     /// stencil extends beyond the grid.
+    #[allow(clippy::indexing_slicing)]
     pub fn interpolate_coefficients_at(
         &self,
         point: &ritk_spatial::Point<3>,
@@ -1039,6 +1039,7 @@ impl FodVolume {
         let idx = |z: usize, y: usize, x: usize| -> usize { z * nxy + y * nxnc + x * nc };
 
         let mut result = vec![0.0; nc];
+        #[allow(clippy::needless_range_loop)]
         for c in 0..nc {
             let v000 = self.coefficients[idx(iz, iy, ix) + c];
             let v100 = self.coefficients[idx(iz, iy, ix1) + c];

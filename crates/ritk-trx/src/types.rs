@@ -6,6 +6,9 @@ use std::collections::HashMap;
 use gaia::Polyline;
 use serde::{Deserialize, Serialize};
 
+/// Raw TRX output tuple: header, positions, offsets, per-vertex scalar maps.
+pub type TrxRawOutput = (TrxHeader, Vec<u8>, Vec<u8>, HashMap<String, Vec<u8>>);
+
 /// The parsed header from a TRX file's `header.json`.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct TrxHeader {

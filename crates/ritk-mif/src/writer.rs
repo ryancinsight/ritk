@@ -166,11 +166,7 @@ fn write_mif_flat(
     }
 
     // Reference to the data file.  Inline: "." with offset 0.
-    if nframes > 1 {
-        writeln!(writer, "file: . 0")?;
-    } else {
-        writeln!(writer, "file: . 0")?;
-    }
+    writeln!(writer, "file: . 0")?;
 
     // END marker.
     writeln!(writer, "END")?;
@@ -230,9 +226,9 @@ fn build_transform(
     // columns 0,1,2 = voxel-x, voxel-y, voxel-z
     // Translation is the corner position (origin).
     [
-        [dx[0], dy[0], dz[0], origin[0] as f64],
-        [dx[1], dy[1], dz[1], origin[1] as f64],
-        [dx[2], dy[2], dz[2], origin[2] as f64],
+        [dx[0], dy[0], dz[0], origin[0]],
+        [dx[1], dy[1], dz[1], origin[1]],
+        [dx[2], dy[2], dz[2], origin[2]],
         [0.0, 0.0, 0.0, 1.0],
     ]
 }

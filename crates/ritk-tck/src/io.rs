@@ -503,11 +503,11 @@ pub fn read_tck_weights(reader: impl Read) -> Result<Vec<Box<[f32]>>, TckError> 
         if trimmed.is_empty() {
             continue;
         }
-        if let Some((key, value)) = parse_header_line(trimmed) {
-            if key == "datatype" {
-                datatype = TckDatatype::parse(value)
-                    .ok_or_else(|| TckError::UnknownDatatype(value.to_string()))?;
-            }
+        if let Some((key, value)) = parse_header_line(trimmed)
+            && key == "datatype"
+        {
+            datatype = TckDatatype::parse(value)
+                .ok_or_else(|| TckError::UnknownDatatype(value.to_string()))?;
         }
     }
 

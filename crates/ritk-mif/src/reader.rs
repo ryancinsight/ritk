@@ -334,21 +334,9 @@ fn decompose_transform_affine(
     let origin = Point::new([matrix[0][3], matrix[1][3], matrix[2][3]]);
 
     let spacing = Spacing::new([
-        if sz > 0.0 {
-            sz
-        } else {
-            vox_sizes.get(2).copied().unwrap_or(1.0)
-        },
-        if sy > 0.0 {
-            sy
-        } else {
-            vox_sizes.get(1).copied().unwrap_or(1.0)
-        },
-        if sx > 0.0 {
-            sx
-        } else {
-            vox_sizes.get(0).copied().unwrap_or(1.0)
-        },
+        if sz > 0.0 { sz } else { vox_sizes[2] },
+        if sy > 0.0 { sy } else { vox_sizes[1] },
+        if sx > 0.0 { sx } else { vox_sizes[0] },
     ]);
 
     (origin, spacing, direction)

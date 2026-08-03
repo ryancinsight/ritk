@@ -436,7 +436,7 @@ pub fn build_connectivity_matrix(
     let mut intra_region_count = 0usize;
     let mut skipped_count = 0usize;
 
-    for (_streamline_index, streamline) in streamlines.iter().enumerate() {
+    for streamline in streamlines.iter() {
         let points = streamline.points();
         if points.len() < 2 {
             continue;

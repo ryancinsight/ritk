@@ -249,7 +249,7 @@ impl NoddiFit {
             return self.baseline_signal;
         }
         let kappa = odi_to_kappa(self.odi);
-        let a_ic = watson_stick(b_value, direction, self.principal_direction, kappa, &quadrature_sphere());
+        let a_ic = watson_stick(b_value, direction, self.principal_direction, kappa, quadrature_sphere());
         let a_ec = (-b_value * D_EXTRA).exp();
         let a_iso = (-b_value * D_ISO).exp();
         self.baseline_signal
