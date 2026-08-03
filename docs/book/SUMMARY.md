@@ -56,6 +56,7 @@
 - [Diffusion MRI Physics and the Signal Equation](diffusion_mri.md)
 - [Deterministic Streamline Tractography](tractography.md)
   - [Example: Signal to Streamlines](examples/diffusion_tractography.md)
+  - [Example: A Real Subject](examples/brain_tractography.md)
 - [Connectome Construction and Graph Measures](connectome.md)
 
 ## Tractogram Interchange Formats
