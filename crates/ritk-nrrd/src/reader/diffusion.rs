@@ -1,14 +1,35 @@
 //! NRRD DWI key/value and measurement-frame decoding.
 
-use std::collections::HashMap;
+use std::{collections::HashMap, path::Path};
 
 use anyhow::{anyhow, bail, Context, Result};
 use ritk_codecs::parse_usize_vec;
 use ritk_diffusion_scheme::{GradientFrame, GradientScheme};
 use ritk_spatial::Vector;
 
-use super::decode::{parse_parenthesized_vectors, parse_space_direction_slots};
+use super::{
+    decode::{parse_parenthesized_vectors, parse_space_direction_slots},
+    header::read_nrrd_header_map,
+};
 use crate::axes::{locate_acquisition_axis, AcquisitionAxis};
+
+/// Read the diffusion gradient scheme from a NRRD header.
+///
+/// Extracts `DWMRI_gradient_NNNN` direction keys and `DWMRI_b-value` from the
+/// NRRD header and returns a validated [`ritk_diffusion_scheme::GradientScheme`].
+/// Directions are mapped through the measurement frame into the declared
+/// world space and returned in RITK physical LPS coordinates.
+///
+/// # Errors
+///
+/// Returns an error when the file cannot be opened, the header is missing
+/// required DWMRI fields, or the gradient table fails validation.
+pub fn read_nrrd_gradient_scheme<P: AsRef<Path>>(
+    path: P,
+) -> Result<ritk_diffusion_scheme::GradientScheme> {
+    let headers = read_nrrd_header_map(path)?;
+    scheme_from_headers(&headers)
+}
 
 /// Decode a validated gradient scheme from lowercased NRRD header fields.
 ///

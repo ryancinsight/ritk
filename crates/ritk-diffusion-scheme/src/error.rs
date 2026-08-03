@@ -34,6 +34,9 @@ pub enum GradientSchemeError {
     /// FSL b-vector rows do not have the required shape.
     #[error("invalid FSL b-vector table: {0}")]
     InvalidBVectorTable(String),
+    /// MRtrix .mif DW_scheme header is malformed or inconsistent.
+    #[error("invalid MRtrix DW_scheme: {0}")]
+    InvalidMrtrixHeader(String),
     /// Weighting and direction counts differ.
     #[error("weighting count ({weightings}) does not match direction count ({directions})")]
     LengthMismatch {

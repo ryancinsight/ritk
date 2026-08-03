@@ -33,6 +33,11 @@ members = [
   "crates/ritk-diffusion-scheme",
   "crates/ritk-diffusion",
   "crates/ritk-tractography",
+  "crates/ritk-connectome",
+  "crates/ritk-trk",
+  "crates/ritk-mif",
+  "crates/ritk-tck",
+  "crates/ritk-trx",
   "xtask",
 ]
 resolver = "2"
@@ -43,7 +48,7 @@ authors = ["Ryan Clanton <ryanclanton@outlook.com>"]
 repository = "https://github.com/ryancinsight/ritk"
 
 [workspace.dependencies]
-iris = { version = "0.1.0", git = "https://github.com/ryancinsight/iris" }
+iris = { path = "../../repos/iris", package = "iris" }
 ritk-filter = { path = "crates/ritk-filter", version = "0.2.60" }
 ritk-segmentation = { path = "crates/ritk-segmentation", version = "0.2.0" }
 ritk-core = { path = "crates/ritk-core", version = "0.9.0" }
@@ -74,28 +79,33 @@ ritk-statistics = { path = "crates/ritk-statistics", version = "0.3.0" }
 ritk-diffusion = { path = "crates/ritk-diffusion", version = "0.1.0" }
 ritk-diffusion-scheme = { path = "crates/ritk-diffusion-scheme", version = "0.1.0" }
 ritk-tractography = { path = "crates/ritk-tractography", version = "0.1.0" }
-gaia = { version = "0.3.0", git = "https://github.com/ryancinsight/gaia", default-features = false }
+ritk-connectome = { path = "crates/ritk-connectome", version = "0.1.0" }
+ritk-trk = { path = "crates/ritk-trk", version = "0.1.0" }
+ritk-mif = { path = "crates/ritk-mif", version = "0.1.0" }
+ritk-tck = { path = "crates/ritk-tck", version = "0.1.0" }
+ritk-trx = { path = "crates/ritk-trx", version = "0.1.0" }
+gaia = { path = "../../repos/gaia", package = "gaia", default-features = false }
 criterion = { version = "0.5", features = ["html_reports"] }
-coeus-nn = { version = "0.9.0", git = "https://github.com/ryancinsight/Coeus.git" }
-coeus-optim = { version = "0.9.0", git = "https://github.com/ryancinsight/Coeus.git" }
+coeus-nn = { path = "../../repos/coeus/crates/coeus-nn", package = "coeus-nn" }
+coeus-optim = { path = "../../repos/coeus/crates/coeus-optim", package = "coeus-optim" }
 onnx-ir = "0.20.1"
 pyo3 = { version = "0.22", features = ["abi3-py39"] }
 numpy = "0.22"
 dicom = { version = "0.10.0", default-features = false }
-moirai = { package = "moirai-runtime", version = "0.4.0", git = "https://github.com/ryancinsight/Moirai.git", features = ["melinoe"] }
+moirai = { path = "../../repos/moirai/moirai", package = "moirai-runtime", features = ["melinoe"] }
 # Apollo FFT scratch caches use Eunomia complex values through Mnemosyne.
-mnemosyne = { package = "mnemosyne-memory", version = "0.6.0", git = "https://github.com/ryancinsight/Mnemosyne.git", default-features = false, features = ["std_tls", "eunomia"] }
-eunomia = { version = "0.7.0", git = "https://github.com/ryancinsight/eunomia", default-features = false }
-coeus-core = { version = "0.9.0", git = "https://github.com/ryancinsight/Coeus.git" }
-coeus-tensor = { version = "0.9.0", git = "https://github.com/ryancinsight/Coeus.git" }
-coeus-ops = { version = "0.9.0", git = "https://github.com/ryancinsight/Coeus.git" }
-coeus-leto = { version = "0.9.0", git = "https://github.com/ryancinsight/Coeus.git" }
-coeus-autograd = { version = "0.9.0", git = "https://github.com/ryancinsight/Coeus.git" }
-leto = { version = "0.40.0", git = "https://github.com/ryancinsight/leto.git" }
-leto-ops = { version = "0.40.0", git = "https://github.com/ryancinsight/leto.git" }
-apollo-fft = { version = "0.25.0", git = "https://github.com/ryancinsight/apollo" }
-apollo-sht = { version = "0.7.0", git = "https://github.com/ryancinsight/apollo" }
-aequitas = { version = "0.1.0", git = "https://github.com/ryancinsight/aequitas" }
+mnemosyne = { path = "../../repos/mnemosyne/crates/mnemosyne", package = "mnemosyne-memory", features = ["eunomia"] }
+eunomia = { path = "../../repos/eunomia/crates/eunomia", package = "eunomia", default-features = false }
+coeus-core = { path = "../../repos/coeus/crates/coeus-core", package = "coeus-core" }
+coeus-tensor = { path = "../../repos/coeus/crates/coeus-tensor", package = "coeus-tensor" }
+coeus-ops = { path = "../../repos/coeus/crates/coeus-ops", package = "coeus-ops" }
+coeus-leto = { path = "../../repos/coeus/crates/coeus-leto", package = "coeus-leto" }
+coeus-autograd = { path = "../../repos/coeus/crates/coeus-autograd", package = "coeus-autograd" }
+leto = { path = "../../repos/leto/crates/leto", package = "leto", features = ["std"], default-features = false }
+leto-ops = { path = "../../repos/leto/crates/leto-ops", package = "leto-ops", features = ["std"], default-features = false }
+apollo-fft = { path = "../../repos/apollo/crates/apollo-fft", package = "apollo-fft" }
+apollo-sht = { path = "../../repos/apollo/crates/apollo-sht", package = "apollo-sht" }
+aequitas = { path = "../../repos/aequitas", package = "aequitas" }
 anyhow = "1.0"
 thiserror = "2.0"
 tracing = "0.1"
@@ -138,11 +148,11 @@ dicom-core = "0.10"
 dicom-ul = "0.10"
 dicom-pixeldata = { version = "0.10", default-features = false }
 dicom-transfer-syntax-registry = { version = "0.10", default-features = false }
-consus-hdf5 = { version = "0.1.0", git = "https://github.com/ryancinsight/consus.git", features = ["std"] }
-consus-core = { version = "0.1.0", git = "https://github.com/ryancinsight/consus.git", features = ["std"] }
-consus-compression = { version = "0.1.0", git = "https://github.com/ryancinsight/consus.git", features = ["std", "deflate"] }
-consus-io = { version = "0.1.0", git = "https://github.com/ryancinsight/consus.git", features = ["std", "alloc"] }
-consus-onnx = { version = "0.1.0", git = "https://github.com/ryancinsight/consus.git", features = ["std", "alloc"] }
+consus-hdf5 = { path = "../../repos/consus/crates/consus-hdf5", package = "consus-hdf5", features = ["std"] }
+consus-core = { path = "../../repos/consus/crates/consus-core", package = "consus-core", features = ["std"] }
+consus-compression = { path = "../../repos/consus/crates/consus-compression", package = "consus-compression", features = ["std", "deflate"] }
+consus-io = { path = "../../repos/consus/crates/consus-io", package = "consus-io", features = ["std", "alloc"] }
+consus-onnx = { path = "../../repos/consus/crates/consus-onnx", package = "consus-onnx", features = ["std", "alloc"] }
 jpeg-decoder = "0.3"
 
 arrayvec = "0.7"

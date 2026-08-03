@@ -13,6 +13,10 @@
 > workflow were removed after the Burn-to-Coeus migration completed.
 > References to these tools in the entries below are historical.
 
+## SAFE-687-01 — Reject truncated JPEG 2000 marker tails
+**Target version**: Unreleased patch
+**Sprint phase**: Review
+
 ## DOC-694-01 — Render diffusion-MRI equations portably
 **Target version**: Unreleased patch
 **Sprint phase**: Closure
@@ -250,6 +254,15 @@
       EOC after all declared tiles.
 - [x] Reject multi-component, MCT, and non-LRCP streams before output
       allocation instead of returning duplicated or misordered channels.
+- [x] Add value-semantic malformed-tail regressions while preserving native and
+      captured OpenJPEG interoperability.
+- [x] Correct native codec ownership and parser-safety documentation.
+- [x] Run local formatting, warning-denied Clippy, Nextest, doctest, Rustdoc,
+      and mdBook gates. All 297 codec tests, the captured OpenJPEG corpus,
+      warning-denied all-target Clippy, doctests, warning-denied Rustdoc, and
+      mdBook test/build pass.
+- [ ] Complete independent review and exact-head hosted gates.
+- [ ] Reconcile PM evidence, commit, publish, and merge after hosted gates pass.
 - [x] Preflight tile headers structurally; reject POC/coding overrides, packed
       packet headers, and multi-part tiles before output allocation.
 - [x] Require every expected LRCP packet header and every SIZ-declared tile.

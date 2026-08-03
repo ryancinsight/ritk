@@ -13,3 +13,10 @@ license.workspace = true
 thiserror.workspace = true
 ritk-spatial.workspace = true
 aequitas.workspace = true
+
+[dev-dependencies]
+ritk-nrrd.workspace = true
+ritk-dicom.workspace = true
+dicom.workspace = true
+tempfile.workspace = true
+anyhow.workspace = true

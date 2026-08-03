@@ -105,6 +105,16 @@ pub trait DicomAttributeRead {
     /// DICOM decimal string vector.
     fn optional_decimal_vec(&self, tag: DicomTag, name: &'static str) -> Result<Option<Vec<f64>>>;
 
+    /// Read an optional element as raw bytes.
+    ///
+    /// Returns `None` when the element is absent.
+    ///
+    /// # Errors
+    ///
+    /// Returns an error when the element is present but its value cannot be
+    /// decoded as a byte sequence.
+    fn optional_bytes(&self, tag: DicomTag, name: &'static str) -> Result<Option<Vec<u8>>>;
+
     /// Return the transfer syntax UID recorded in the file meta table.
     fn transfer_syntax_uid(&self) -> &str;
 }
@@ -149,6 +159,18 @@ impl DicomAttributeRead for DefaultDicomObject {
             .to_multi_float64()
             .map(Some)
             .with_context(|| format!("decode {name} as decimal vector"))
+    }
+
+    fn optional_bytes(&self, tag: DicomTag, _name: &'static str) -> Result<Option<Vec<u8>>> {
+        let Ok(element) = self.element(Tag::from(tag)) else {
+            return Ok(None);
+        };
+        let bytes = element
+            .value()
+            .to_bytes()
+            .with_context(|| "decode raw bytes".to_string())?
+            .to_vec();
+        Ok(Some(bytes))
     }
 
     #[inline]

@@ -1,0 +1,17 @@
+[package]
+name = "ritk-connectome"
+version = "0.1.0"
+edition = "2024"
+rust-version = "1.95"
+license.workspace = true
+description = "Parcellation-to-graph construction and graph measures for diffusion-MRI connectomics"
+
+[dependencies]
+gaia = { workspace = true }
+ritk-spatial.workspace = true
+serde = { workspace = true, features = ["derive"] }
+serde_json = { workspace = true }
+thiserror.workspace = true
+
+[dev-dependencies]
+leto = { workspace = true }

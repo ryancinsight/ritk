@@ -2,7 +2,7 @@ use std::io::Write;
 use std::path::Path;
 
 use anyhow::Result;
-use ritk_diffusion_scheme::{DiffusionWeighting, GradientFrame};
+use ritk_diffusion_scheme::{DiffusionWeighting, GradientDirection, GradientFrame, GradientScheme};
 use ritk_spatial::Vector;
 use tempfile::tempdir;
 
@@ -25,9 +25,105 @@ fn write_header(path: &Path, fields: &[&str]) -> Result<()> {
     Ok(())
 }
 
+/// Write NRRD header fields for a gradient scheme suitable for
+/// [`read_nrrd_gradient_scheme`].  Returns the DWMRI_b-value and
+/// DWMRI_gradient_NNNN lines.
+///
+/// The NRRD DWI convention encodes effective b-values via gradient
+/// magnitude: `b_eff = nominal * (|g| / max|g|)²`.  This helper computes
+/// the maximum b-value as the nominal and scales each raw direction
+/// accordingly.  b0 entries are emitted as the zero vector.
+fn nrrd_scheme_fields(scheme: &GradientScheme) -> Vec<String> {
+    let max_b = scheme
+        .directions()
+        .iter()
+        .map(|entry| entry.weighting().seconds_per_square_millimeter())
+        .max_by(f64::total_cmp)
+        .unwrap_or(0.0);
+
+    let mut fields: Vec<String> = Vec::new();
+    let count = scheme.len();
+    fields.push(format!("sizes: {count} 2 2 2"));
+    fields.push("modality:=DWMRI".to_owned());
+    fields.push(format!("DWMRI_b-value:={max_b}"));
+    for (index, entry) in scheme.directions().iter().enumerate() {
+        let b = entry.weighting().seconds_per_square_millimeter();
+        let [x, y, z] = entry.direction().to_array();
+        if b == 0.0 {
+            fields.push(format!("DWMRI_gradient_{index:04}:=0 0 0"));
+        } else {
+            let scale = (b / max_b).sqrt();
+            fields.push(format!(
+                "DWMRI_gradient_{index:04}:={} {} {}",
+                x * scale,
+                y * scale,
+                z * scale
+            ));
+        }
+    }
+    fields
+}
+
 fn weighting(value: f64) -> DiffusionWeighting {
     DiffusionWeighting::from_seconds_per_square_millimeter(value).expect("finite weighting")
 }
+
+// ── ADR 0036 verification condition 8: NRRD round-trip ──────────────────
+
+#[test]
+fn nrrd_write_read_round_trip_recovers_identical_scheme() -> Result<()> {
+    let scheme = GradientScheme::new(
+        vec![
+            GradientDirection::new(weighting(0.0), Vector::new([0.0, 0.0, 0.0])).unwrap(),
+            GradientDirection::new(
+                weighting(500.0),
+                Vector::new([0.5_f64.sqrt(), 0.5_f64.sqrt(), 0.0]),
+            )
+            .unwrap(),
+            GradientDirection::new(weighting(1_000.0), Vector::new([0.0, 1.0, 0.0])).unwrap(),
+            GradientDirection::new(weighting(2_000.0), Vector::new([0.0, 0.0, 1.0])).unwrap(),
+        ],
+        GradientFrame::Lps,
+    )?;
+
+    let directory = tempdir()?;
+    let path = directory.path().join("roundtrip.nrrd");
+    let fields = nrrd_scheme_fields(&scheme);
+    let field_strs: Vec<&str> = fields.iter().map(|s| s.as_str()).collect();
+    write_header(&path, &field_strs)?;
+
+    let recovered = read_nrrd_gradient_scheme(path)?;
+
+    assert_eq!(recovered.frame(), scheme.frame());
+    assert_eq!(recovered.len(), scheme.len());
+    for (original, recovered) in scheme
+        .directions()
+        .iter()
+        .zip(recovered.directions().iter())
+    {
+        let delta = (original.weighting().seconds_per_square_millimeter()
+            - recovered.weighting().seconds_per_square_millimeter())
+        .abs();
+        assert!(
+            delta < 1e-9,
+            "weightings differ by {delta}: original {:?}, recovered {:?}",
+            original.weighting().seconds_per_square_millimeter(),
+            recovered.weighting().seconds_per_square_millimeter(),
+        );
+        assert!(
+            (original.direction().to_array()[0] - recovered.direction().to_array()[0]).abs() < 1e-9,
+        );
+        assert!(
+            (original.direction().to_array()[1] - recovered.direction().to_array()[1]).abs() < 1e-9,
+        );
+        assert!(
+            (original.direction().to_array()[2] - recovered.direction().to_array()[2]).abs() < 1e-9,
+        );
+    }
+    Ok(())
+}
+
+// ── Original tests ───────────────────────────────────────────────────────
 
 #[test]
 fn nominal_weighting_and_gradient_magnitude_form_multiple_shells() -> Result<()> {

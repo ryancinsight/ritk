@@ -1,0 +1,12 @@
+[package]
+name = "ritk-tck"
+version = "0.1.0"
+edition = "2024"
+rust-version = "1.95"
+license.workspace = true
+description = "MRtrix3 .tck tractogram format reader and writer"
+
+[dependencies]
+gaia = { workspace = true }
+leto = { workspace = true }
+thiserror.workspace = true

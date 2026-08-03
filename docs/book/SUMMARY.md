@@ -53,9 +53,19 @@
 
 # Part III — Diffusion MRI and Tractography
 
-- [Diffusion MRI Acquisition and Q-ball ODFs](diffusion_mri.md)
+- [Diffusion Gradient Schemes](diffusion_scheme.md)
+- [Diffusion Models](ritk_diffusion.md)
+- [Diffusion MRI Physics and the Signal Equation](diffusion_mri.md)
 - [Deterministic Streamline Tractography](tractography.md)
   - [Example: Signal to Streamlines](examples/diffusion_tractography.md)
+  - [Example: A Real Subject](examples/brain_tractography.md)
+- [Connectome Construction and Graph Measures](connectome.md)
+
+## Tractogram Interchange Formats
+
+- [.trk — DSI Studio / TrackVis](trk_format.md)
+- [.tck — MRtrix3](tck_format.md)
+- [.trx — Tractography Reference eXchange](trx_format.md)
 
 # Part IV — Registration Algorithms
 
@@ -80,6 +90,10 @@
 
 # Part VI — Integration with atlas Foundation
 
+- [Coeus Nonlinear Least-Squares Solver](coeus_optim.md)
+- [Leto Linear Algebra Operations](leto_linalg.md)
+- [Apollo Spherical Harmonic Basis](apollo_sht.md)
+- [Gaia Polyline Geometry](gaia_polyline.md)
+- [Moirai Parallel Execution Backend](moirai_execution.md)
 - [Coeus Tensor Integration](coeus_integration.md)
 - [Leto Operations Integration](leto_integration.md)
-- [Moirai Execution Integration](moirai_integration.md)

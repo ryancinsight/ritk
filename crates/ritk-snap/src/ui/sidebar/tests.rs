@@ -1,5 +1,33 @@
-use super::*;
+//! Tests for the sidebar UI module.
 
+#[allow(unused_imports)]
+use super::*;
+use crate::dicom::metadata_table::{MetadataRow, MetadataScope};
+use std::borrow::Cow;
+
+/// Test helper: build a MetadataRow from raw string slices.
+fn make_row<'a>(tag: &'a str, keyword: &'a str, value: &'a str) -> MetadataRow<'a> {
+    MetadataRow {
+        scope: MetadataScope::Series,
+        tag: Cow::Borrowed(tag),
+        keyword: Cow::Borrowed(keyword),
+        vr: Cow::Borrowed("LO"),
+        value: Cow::Borrowed(value),
+    }
+}
+
+/// Test helper: filter rows by case-insensitive needle matching tag, keyword, or value.
+fn filter_rows<'a>(rows: &'a [MetadataRow<'a>], needle: &str) -> Vec<&'a MetadataRow<'a>> {
+    let needle_lc = needle.to_ascii_lowercase();
+    rows.iter()
+        .filter(|r| {
+            needle.is_empty()
+                || r.tag.to_ascii_lowercase().contains(&needle_lc)
+                || r.keyword.to_ascii_lowercase().contains(&needle_lc)
+                || r.value.to_ascii_lowercase().contains(&needle_lc)
+        })
+        .collect()
+}
 /// `SidebarTab::default()` must be `SidebarTab::Series`.
 ///
 /// The `#[default]` attribute on `Series` drives the derived `Default`
@@ -25,38 +53,6 @@ fn test_sidebar_tab_variants_are_distinct() {
         SidebarTab::Metadata,
         "SidebarTab::Series and SidebarTab::Metadata must be distinct variants"
     );
-}
-
-// ── Tag filter logic ──────────────────────────────────────────────────────
-
-fn make_row<'a>(
-    tag: &'a str,
-    keyword: &'a str,
-    value: &'a str,
-) -> crate::dicom::metadata_table::MetadataRow<'a> {
-    crate::dicom::metadata_table::MetadataRow {
-        scope: crate::dicom::metadata_table::MetadataScope::Series,
-        tag: std::borrow::Cow::Borrowed(tag),
-        keyword: std::borrow::Cow::Borrowed(keyword),
-        vr: std::borrow::Cow::Borrowed("LO"),
-        value: std::borrow::Cow::Borrowed(value),
-    }
-}
-
-/// Mirrors the exact filter predicate in `show_metadata_tab`.
-fn filter_rows<'a>(
-    rows: &[crate::dicom::metadata_table::MetadataRow<'a>],
-    needle: &str,
-) -> Vec<crate::dicom::metadata_table::MetadataRow<'a>> {
-    let needle_lc = needle.to_lowercase();
-    rows.iter()
-        .filter(|r| {
-            r.keyword.to_lowercase().contains(&needle_lc)
-                || r.tag.to_lowercase().contains(&needle_lc)
-                || r.value.to_lowercase().contains(&needle_lc)
-        })
-        .cloned()
-        .collect()
 }
 
 /// Needle "patient" (case-insensitive) must match PatientName and PatientID.

@@ -115,3 +115,32 @@ pub fn read_fsl_scheme(
         .collect::<Result<Vec<_>, _>>()?;
     GradientScheme::new(entries, GradientFrame::ImageAxis)
 }
+
+/// Serialise a gradient scheme to FSL `.bval` / `.bvec` companion strings.
+///
+/// Returns `(bval, bvec)` where bval is a single line of space-separated
+/// s/mm² values and bvec is a three-line table of direction components.
+pub fn write_fsl_scheme(scheme: &GradientScheme) -> (String, String) {
+    let mut bval_parts = Vec::with_capacity(scheme.len());
+    let mut bvec_x = Vec::with_capacity(scheme.len());
+    let mut bvec_y = Vec::with_capacity(scheme.len());
+    let mut bvec_z = Vec::with_capacity(scheme.len());
+
+    for entry in scheme.directions() {
+        let b = entry.weighting().seconds_per_square_millimeter();
+        bval_parts.push(format!("{b}"));
+        let [x, y, z] = entry.direction().to_array();
+        bvec_x.push(format!("{x}"));
+        bvec_y.push(format!("{y}"));
+        bvec_z.push(format!("{z}"));
+    }
+
+    let bval = bval_parts.join(" ");
+    let bvec = format!(
+        "{}\n{}\n{}",
+        bvec_x.join(" "),
+        bvec_y.join(" "),
+        bvec_z.join(" ")
+    );
+    (bval, bvec)
+}

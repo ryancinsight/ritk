@@ -15,6 +15,10 @@
 > workflow were removed after the Burn-to-Coeus migration completed.
 > References to these tools in the entries below are historical.
 
+- **SAFE-687-01 [patch] - Reject truncated JPEG 2000 marker tails**
+  (REVIEW; owner=Codex; last-update=2026-08-01; scope=
+  `crates/ritk-codecs/src/jpeg_2000/{ebcot/mod.rs,image.rs,mod.rs,tests.rs}`,
+
 - **DOC-694-01 [patch] - Render diffusion-MRI equations portably**
   (DONE; owner=Codex; last-update=2026-08-03;
   scope=`docs/book/diffusion_mri.md` and PM artifacts; non-goal=changing
@@ -221,6 +225,21 @@
   or partial output. The same packet reader traverses one LRCP component but
   was invoked from byte zero for every declared component, silently duplicating
   channel zero; reject multi-component, MCT, and non-LRCP streams before output
+  allocation until their packet traversal exists. Correct the stale architecture claim that production
+  decode still uses `jpeg2k`/`openjp2`, and document the native parser boundary.
+  Acceptance: complete native and captured OpenJPEG streams remain
+  value-exact; marker-only, truncated-length, oversized-length, and missing-EOC
+  cases and unsupported component traversal return contextual errors; focused formatting, warning-denied Clippy,
+  Nextest, doctest, Rustdoc, mdBook, and review gates pass. Local closure:
+  all 297 codec tests pass, including the complete captured OpenJPEG corpus and
+  six new malformed/unsupported-stream regressions; warning-denied all-target
+  Clippy, doctests, warning-denied Rustdoc, mdBook test/build, formatting, and
+  diff checks pass. The package's already-const test trace initializer carries
+  a scoped Clippy 1.97 expectation because the macro expansion is diagnosed
+  despite the const block. Hosted gates and independent review remain.
+
+- **FEAT-686-01 [minor][arch] - Establish a physically typed diffusion-MRI
+  and tractography pipeline** (IN PROGRESS; owner=Codex;
   allocation until their packet traversal exists. Structurally parse tile
   headers, reject unsupported coding/progression overrides and multi-part tiles,
   and require every expected LRCP packet. Correct the stale architecture claim

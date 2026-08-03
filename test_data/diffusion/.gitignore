@@ -1,0 +1,18 @@
+# Downloaded imaging data is never committed.
+#
+# The DWI volumes are tens of megabytes each and are reproducible from
+# `download.sh` plus the OpenNeuro S3 objects it documents, so the provenance
+# belongs in git and the bytes do not. Committing one is effectively permanent:
+# git keeps the blob in history even after a later deletion.
+#
+# `README.md` and `download.sh` are the tracked contents of this directory.
+*.nii
+*.nii.gz
+
+# Gradient sidecars come with the volumes and are re-fetched the same way.
+*.bval
+*.bvec
+*.json
+
+# DataLad/git-annex working clones created by `download.sh`.
+ds*_repo/

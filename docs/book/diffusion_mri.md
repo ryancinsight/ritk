@@ -1,10 +1,18 @@
 # Diffusion MRI Acquisition and Q-ball ODFs
 
-Diffusion-weighted MRI changes the signal according to the direction and
-strength of a diffusion-sensitizing gradient. RITK separates this acquisition
-description from image storage: `ritk-diffusion-scheme` owns validated gradient
-directions, physical b-values, and coordinate frames, while
-`ritk-diffusion` owns orientation models derived from voxel signals.
+Diffusion-weighted MRI measures how water self-diffusion varies with gradient
+direction and strength. RITK separates three concerns:
+
+| Concern | Owner | Chapter |
+|---|---|---|
+| Validated gradient metadata (b-values, directions, frames, codecs, reorientation) | `ritk-diffusion-scheme` | [Diffusion Gradient Schemes](diffusion_scheme.md) |
+| Orientation models derived from voxel signals | `ritk-diffusion` | This chapter (Q-ball ODFs; DTI, DKI, CSD, and NODDI follow the same pipeline pattern) |
+| Streamline integration over a local orientation field | `ritk-tractography` | [Deterministic Streamline Tractography](tractography.md) |
+
+This chapter focuses on the physics that relates gradient pulses to signal
+attenuation — the bridge between the validated metadata in the scheme chapter
+and the model-fitting algorithms documented in the [Diffusion
+Models](ritk_diffusion.md) chapter.
 
 ## From gradient pulse to b-value
 
@@ -23,33 +31,38 @@ diffusion tensor `D` is
 S(b, g) = S₀ exp(−b gᵀ D g)
 ```
 
-Thus `b` has dimensions of time per area, conventionally s/mm²; it is not a
-diffusivity. RITK's `DiffusionWeighting` is a validated quantity with that
-dimension and stores the canonical SI value internally. The scanner-facing
-constructor and accessor use s/mm² explicitly. See Stejskal and Tanner,
+Thus \(b\) has dimensions of time per area, conventionally s/mm²; it is not a
+diffusivity. `DiffusionWeighting` stores the canonical SI value (s/m²)
+internally through the Aequitas quantity system and exposes the scanner-facing
+s/mm² value at the API boundary. See [the scheme
+chapter](diffusion_scheme.md#diffusion-weighting) for the type-level contract
+and Stejskal and Tanner,
 [“Spin Diffusion Measurements”](https://doi.org/10.1063/1.1695690).
 
-## A gradient scheme is more than two arrays
+## Relationship to the gradient scheme
 
-Every acquisition entry combines a weighting and direction under these
-invariants:
+The [Diffusion Gradient Schemes](diffusion_scheme.md) chapter establishes
+four guarantees that every model fitting depends on: validated directions,
+unambiguous coordinate frames, scheme-level reorientation, and shell
+grouping. The [Diffusion Models](ritk_diffusion.md) chapter documents how
+all five implemented models (DTI, DKI, ODF, CSD, NODDI) consume these
+guarantees — this chapter focuses on the physics shared by all of them.
 
-- b-values are finite and nonnegative in both scanner-facing s/mm² and
-  canonical SI storage;
-- a b0 entry has the zero direction;
-- a weighted entry has a finite unit direction; and
-- every direction has one declared frame: image-axis or physical LPS.
+## From scheme to signal to model
 
-At scanner and file-format boundaries, finite values at or below the default
-50 s/mm² threshold are canonicalized to exact zero weighting and direction.
-This treats small scanner baseline values consistently even when orientation
-is absent or carries a nominal finite vector. Values above the threshold must
-provide a unit direction.
+The pipeline established by the three chapters in this part is:
 
-`GradientScheme` keeps acquisition order and provides thresholded b0/DWI
-indices and shell grouping. Reorientation accepts only a finite, proper
-orthonormal rotation. Reflections and scale/shear matrices fail because they
-would silently change physical orientation.
+1. **Validated scheme** — the [Diffusion Gradient Schemes](diffusion_scheme.md)
+   chapter ensures every direction carries a declared frame, a physically
+   typed weighting, and a validated unit-vector contract.
+2. **Orientation model** — the [Diffusion Models](ritk_diffusion.md) chapter
+   documents the transformation from validated scheme + voxel signals →
+   fitted field. Five models are implemented: DTI (log-linear tensor),
+   DKI (nonlinear kurtosis), ODF (analytical Q-ball), CSD (non-negative
+   fODF), and NODDI (3-compartment biophysical).
+3. **Streamline geometry** — the [Deterministic Streamline
+   Tractography](tractography.md) chapter integrates the fitted orientation
+   field into Gaia polyline curves.
 
 ~~~rust,ignore
 use ritk_diffusion_scheme::{GradientFrame, GradientScheme};
@@ -129,3 +142,7 @@ rather than a pointer-chasing grid of rows.
 The [signal-to-streamlines example](examples/diffusion_tractography.md) uses a
 known tensor to verify that the recovered antipodal ODF peak matches its
 analytical x axis.
+
+The [signal-to-streamlines example](examples/diffusion_tractography.md)
+closes the loop: known tensor → synthetic signals → model fit → direction
+field → streamlines.
