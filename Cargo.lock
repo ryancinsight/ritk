@@ -5958,10 +5958,12 @@ name = "ritk-minc"
 version = "0.1.0"
 dependencies = [
  "anyhow",
+ "base64",
  "coeus-core",
  "consus-core",
  "consus-hdf5",
  "consus-io",
+ "image 0.24.9",
  "ritk-core",
  "ritk-image",
  "ritk-spatial",
