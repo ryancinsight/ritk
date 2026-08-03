@@ -3,10 +3,10 @@
 Binary opening and closing are dual compositions with visibly different
 purposes:
 
-\[
-\operatorname{open}_B(A)=(A\ominus B)\oplus B,\qquad
-\operatorname{close}_B(A)=(A\oplus B)\ominus B.
-\]
+- `open_B(A) = (A ⊖ B) ⊕ B` removes structures that cannot contain the
+  structuring element;
+- `close_B(A) = (A ⊕ B) ⊖ B` fills gaps that cannot contain the reflected
+  structuring element.
 
 Opening is anti-extensive: it removes foreground structures that cannot
 contain the structuring element. Closing is extensive: it fills background

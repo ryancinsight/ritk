@@ -13,6 +13,20 @@
 > workflow were removed after the Burn-to-Coeus migration completed.
 > References to these tools in the entries below are historical.
 
+## DOC-693-01 — Make binary morphology equations render without external MathJax
+**Target version**: Unreleased patch
+**Sprint phase**: Execution
+
+- [x] Inspect the live GrowCut, CT/MR registration, and binary morphology
+      pages and confirm image resources load. The GrowCut and registration
+      figures are legible and semantically labeled; the morphology figure
+      distinguishes opening removal from closing fill, but its display formula
+      is rendered as literal TeX because the external MathJax runtime is not
+      available.
+- [ ] Replace only the binary morphology display formula with a portable
+      Unicode/math representation and verify mdBook build, diff integrity, and
+      the deployed page.
+
 ## FEAT-692-01 — Control native JPEG 2000 lossy quantization
 **Target version**: Next major release
 **Sprint phase**: Closure
