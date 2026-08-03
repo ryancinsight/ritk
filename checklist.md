@@ -13,6 +13,24 @@
 > workflow were removed after the Burn-to-Coeus migration completed.
 > References to these tools in the entries below are historical.
 
+## FEAT-692-01 — Control native JPEG 2000 lossy quantization
+**Target version**: Next major release
+**Sprint phase**: Foundation
+
+- [x] Reconcile `origin/main`, worktrees, peer claims, native codec limits,
+      public callers, tests, benchmark coverage, ADR 0012, and book coverage.
+- [ ] Record the focused codec baseline before production edits.
+- [ ] Revise ADR 0012 with the encoding-mode and quantizer representation
+      contract, migration, failure modes, and verification plan.
+- [ ] Implement validated lossless/lossy encoding modes and exact QCD-driven
+      per-subband quantization without a compatibility path.
+- [ ] Migrate every in-repository caller and add analytical, malformed-input,
+      size/quality, and interoperability regressions.
+- [ ] Regenerate and inspect the executable book figure; synchronize the
+      chapter, runnable example, Rustdoc, changelog, gap audit, and PM state.
+- [ ] Run focused and full gates, semantic compatibility, independent review,
+      exact-head hosted checks, merge, and verify the automatic Pages build.
+
 ## SAFE-691-01 — Decode MINC2 quantitative integer voxels
 **Target version**: Unreleased patch
 **Sprint phase**: Closure
