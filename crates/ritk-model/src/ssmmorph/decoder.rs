@@ -102,8 +102,7 @@ where
         use_skip: bool,
     ) -> Self {
         let upsample =
-            ConvTranspose3d::with_params(input_channels, output_channels, 4, 2, 1, 0, 1, false)
-                .expect("invariant: transposed-convolution fan is valid");
+            ConvTranspose3d::with_params(input_channels, output_channels, 4, 2, 1, 0, 1, false);
         let mut fusion = use_skip.then(|| {
             Conv3d::with_params(
                 output_channels + skip_channels,

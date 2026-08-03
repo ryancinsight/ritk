@@ -97,8 +97,7 @@ impl TransMorphConfig {
             let mut layer =
                 Conv3d::<f32, B>::with_params(in_ch, out_ch, kernel, stride, pad, DILATION, true);
             let fan_in = in_ch * kernel * kernel * kernel;
-            coeus_nn::init::kaiming_uniform_with_seed(&mut layer.weight, fan_in, next_seed())
-                .expect("invariant: TransMorph conv fan is positive");
+            coeus_nn::init::kaiming_uniform_with_seed(&mut layer.weight, fan_in, next_seed());
             layer
         };
 

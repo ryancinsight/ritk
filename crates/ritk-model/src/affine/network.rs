@@ -90,8 +90,7 @@ impl AffineNetworkConfig {
                 Conv3d::<T, B>::with_params(in_ch, out_ch, KERNEL, STRIDE, PADDING, DILATION, true);
             let fan_in = in_ch * KERNEL * KERNEL * KERNEL;
             seed = seed.wrapping_add(SEED_STEP);
-            coeus_nn::init::kaiming_uniform_with_seed(&mut layer.weight, fan_in, seed)
-                .expect("invariant: affine conv fan is positive");
+            coeus_nn::init::kaiming_uniform_with_seed(&mut layer.weight, fan_in, seed);
             layer
         };
         let conv1 = make_conv(IN_CHANNELS, c[0]);
@@ -102,8 +101,7 @@ impl AffineNetworkConfig {
 
         let mut fc = Linear::new(c[4], AFFINE_PARAMS, true);
         seed = seed.wrapping_add(SEED_STEP);
-        coeus_nn::init::kaiming_uniform_with_seed(&mut fc.weight, c[4], seed)
-            .expect("invariant: affine head fan is positive");
+        coeus_nn::init::kaiming_uniform_with_seed(&mut fc.weight, c[4], seed);
 
         AffineNetwork {
             conv1,

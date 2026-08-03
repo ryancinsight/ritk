@@ -115,8 +115,7 @@ where
         let mut make_linear = |in_features: usize, out_features: usize| {
             let mut layer = Linear::<f32, B>::new(in_features, out_features, true);
             current = current.wrapping_add(SEED_STEP);
-            coeus_nn::init::kaiming_uniform_with_seed(&mut layer.weight, in_features, current)
-                .expect("invariant: SSM projection fan is positive");
+            coeus_nn::init::kaiming_uniform_with_seed(&mut layer.weight, in_features, current);
             layer
         };
 
