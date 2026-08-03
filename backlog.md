@@ -15,6 +15,16 @@
 > workflow were removed after the Burn-to-Coeus migration completed.
 > References to these tools in the entries below are historical.
 
+- **DOC-694-01 [patch] - Render diffusion-MRI equations portably**
+  (IN PROGRESS; owner=Codex; last-update=2026-08-03;
+  scope=`docs/book/diffusion_mri.md` and PM artifacts; non-goal=changing
+  diffusion-MRI algorithms or the site-wide renderer). Replace the chapter's
+  external MathJax-dependent display equations and inline TeX variables with
+  portable Unicode/math text. Acceptance: the deployed chapter contains no
+  literal TeX commands, preserves the b-value, signal, Q-ball, and
+  regularization equations and explanatory text, and passes mdBook build,
+  mdBook test, diff, hosted Pages, and live visual inspection.
+
 - **DOC-693-01 [patch] - Make binary morphology equations render without
   external MathJax** (DONE; owner=Codex; last-update=2026-08-03;
   scope=`docs/book/examples/binary_morphology.md` and PM artifacts;
