@@ -32,7 +32,7 @@ mod parse;
 mod types;
 
 pub use error::TrxError;
-pub use types::{TrxArrayDef, TrxGroup, TrxHeader, TrxReference, TrxTractogram};
+pub use types::{TrxArrayDef, TrxGroup, TrxHeader, TrxRawOutput, TrxReference, TrxTractogram};
 
 #[cfg(test)]
 mod tests;

@@ -5,7 +5,7 @@ use std::collections::HashMap;
 use std::path::Path;
 
 use crate::parse::{F32_BYTES, F64_BYTES, U64_BYTES};
-use crate::{TrxError, TrxHeader, TrxTractogram};
+use crate::{TrxError, TrxHeader, TrxRawOutput, TrxTractogram};
 
 impl TrxTractogram {
     /// Read a TRX file from a directory path.
@@ -92,7 +92,7 @@ impl TrxTractogram {
     /// Returns [`TrxError`] on encoding failure.
     pub fn to_raw(
         &self,
-    ) -> Result<(TrxHeader, Vec<u8>, Vec<u8>, HashMap<String, Vec<u8>>), TrxError> {
+    ) -> Result<TrxRawOutput, TrxError> {
         debug_assert!(
             self.dpv_data
                 .keys()
