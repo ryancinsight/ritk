@@ -15,7 +15,7 @@
 
 ## SAFE-691-01 — Decode MINC2 quantitative integer voxels
 **Target version**: Unreleased patch
-**Sprint phase**: Review
+**Sprint phase**: Closure
 
 - [x] Reconcile origin, worktrees, active peer claims, the MINC2 owner, and
       current reader/book coverage.
@@ -35,7 +35,7 @@
       The inspected rendering exposes the two distinct decoded ranges next to
       their identical stored codes and the mapping equation.
 - [x] Synchronize Rustdoc, book, changelog, gap audit, and PM state.
-- [ ] Run focused format, lint, test, documentation, example-runtime, mdBook,
+- [x] Run focused format, lint, test, documentation, example-runtime, mdBook,
       semantic-version, review, and hosted gates against the delivered head.
       Local formatting, `git diff --check`, warning-denied all-target Clippy,
       58/58 debug Nextest tests, 58/58 optimized release tests in 0.379
@@ -51,8 +51,13 @@
       full-match target cache containing a non-executable PyO3 build script.
       The cache now has an explicit interpreter dimension, the cache action is
       commit-pinned, and both CI workflows cancel superseded same-ref runs.
-      Exact-head hosted reruns remain.
-- [ ] Commit, publish, merge after exact-head CI, and verify Pages deployment.
+      Exact-head CI `30774914723`, all 13 Python lanes in `30774914759`, and
+      book build `30774914768` pass at `6e27e0b6`.
+- [x] Commit, publish, merge after exact-head CI, and verify Pages deployment.
+      PR #95 merged as `18b00c0b`. Default-branch Pages run `30776049992`
+      regenerated and deployed the book; the live format chapter and example
+      contain the scaling material, and the 43,106-byte SVG matches SHA-256
+      `CA90C9896D00566C7608B5813748F39F1D603A07B18830718370561D0585C13A`.
 
 ## PERF-690-01 — Stream and teach MINC2 writing
 **Target version**: Unreleased patch

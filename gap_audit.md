@@ -50,14 +50,22 @@ regeneration, and mdBook test/build pass. The inspected
 43,106-byte SVG has SHA-256
 `CA90C9896D00566C7608B5813748F39F1D603A07B18830718370561D0585C13A`.
 `cargo-semver-checks` cannot establish a registry baseline because `ritk-minc`
-is not yet indexed; no public Rust item signature changes. Hosted closure
-evidence remains pending on the exact delivery head. The first hosted Python
-matrix restored a full-match Rust target cache before selecting Python 3.10;
-its macOS arm64 Rust-test step then found a stale PyO3 build-script executable
-that the kernel could not run. The workflow now keys target artifacts by the
-matrix interpreter in addition to the cache action's OS, architecture,
-toolchain, and manifest dimensions, pins that action to audited commit
-`e18b4977`, and cancels superseded same-ref CI runs.
+is not yet indexed; no public Rust item signature changes. The first hosted
+Python matrix restored a full-match Rust target cache before selecting Python
+3.10; its macOS arm64 Rust-test step then found a stale PyO3 build-script
+executable that the kernel could not run. The workflow now keys target
+artifacts by the matrix interpreter in addition to the cache action's OS,
+architecture, toolchain, and manifest dimensions, pins that action to audited
+commit `e18b4977`, and cancels superseded same-ref CI runs.
+
+PR #95 merged as `18b00c0b` after exact-head CI `30774914723`, all 13 Python
+lanes in `30774914759`, and PR book build `30774914768` passed. In particular,
+the corrected Python 3.10/macOS arm64 lane passed in 11m52s with its isolated
+cache. Default-branch Pages run `30776049992` regenerated and deployed the book
+from the merge. The live MINC2 format chapter and example contain the
+quantitative-scaling material, and the deployed 43,106-byte SVG has SHA-256
+`CA90C9896D00566C7608B5813748F39F1D603A07B18830718370561D0585C13A`,
+matching the inspected local artifact.
 
 ## PERF-690-01 audit (2026-08-02)
 

@@ -16,7 +16,7 @@
 > References to these tools in the entries below are historical.
 
 - **SAFE-691-01 [patch] - Decode MINC2 quantitative integer voxels**
-  (REVIEW; owner=Codex; last-update=2026-08-02; scope=
+  (DONE; owner=Codex; last-update=2026-08-02; scope=
   `crates/ritk-minc/{src,examples}/**`,
   `docs/book/{minc_format.md,examples/minc_roundtrip.md,
   figures/minc_roundtrip.svg}`, `.github/workflows/{ci,python_ci}.yml`,
@@ -40,6 +40,12 @@
   Hosted delivery also isolates PyO3 target caches by Python interpreter and
   cancels superseded same-ref CI runs after a restored matrix cache exposed a
   non-executable stale build script on macOS arm64.
+  PR #95 merged as `18b00c0b` after exact-head CI `30774914723`, all 13
+  Python lanes in `30774914759`, and book build `30774914768` passed.
+  Default-branch Pages run `30776049992` regenerated and deployed the book;
+  the live format chapter, example, and 43,106-byte SVG return successfully,
+  and the SVG matches the inspected SHA-256
+  `CA90C9896D00566C7608B5813748F39F1D603A07B18830718370561D0585C13A`.
 
 - **PERF-690-01 [patch] - Stream and teach MINC2 writing**
   (DONE; owner=Codex; last-update=2026-08-02; scope=
