@@ -15,7 +15,7 @@
 
 ## DOC-693-01 — Make binary morphology equations render without external MathJax
 **Target version**: Unreleased patch
-**Sprint phase**: Execution
+**Sprint phase**: Closure
 
 - [x] Inspect the live GrowCut, CT/MR registration, and binary morphology
       pages and confirm image resources load. The GrowCut and registration
@@ -23,9 +23,15 @@
       distinguishes opening removal from closing fill, but its display formula
       is rendered as literal TeX because the external MathJax runtime is not
       available.
-- [ ] Replace only the binary morphology display formula with a portable
+- [x] Replace only the binary morphology display formula with a portable
       Unicode/math representation and verify mdBook build, diff integrity, and
-      the deployed page.
+      the deployed page. `mdbook build docs/book`, `mdbook test docs/book`,
+      and `git diff --check` passed; PR #102 (`51905394`) merged as
+      `a8b725b1`. PR checks `30840143314`, `30840143502`, and `30840143323`,
+      plus post-merge Pages `30841796875`, Python CI `30841796930`, and CI
+      `30841796951`, passed. Live HTTP 200 verification found both Unicode
+      equations, no raw TeX commands, and loaded figure images; the browser
+      screenshot showed distinct red opening removal and green closing fill.
 
 ## FEAT-692-01 — Control native JPEG 2000 lossy quantization
 **Target version**: Next major release
