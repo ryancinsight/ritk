@@ -54,12 +54,15 @@ fn dti_recover_fa_md_pev_on_all_voxels() {
             continue;
         }
 
-        let dti =
-            estimate_dti(&b1000_scheme, &signals, config).expect("DTI must succeed");
+        let dti = estimate_dti(&b1000_scheme, &signals, config).expect("DTI must succeed");
 
         let fa = dti.fa();
         let gt_fa = phantom.fa_gt[vox];
-        let fa_tol = if label == Tissue::Crossing { 0.12 } else { 0.08 };
+        let fa_tol = if label == Tissue::Crossing {
+            0.12
+        } else {
+            0.08
+        };
         assert!(
             (fa - gt_fa).abs() < fa_tol,
             "voxel {vox} ({label:?}): FA = {:.4} vs gt {:.4}",
@@ -69,7 +72,11 @@ fn dti_recover_fa_md_pev_on_all_voxels() {
 
         let md = dti.md();
         let gt_md = phantom.md_gt[vox];
-        let md_tol = if label == Tissue::Crossing { 8e-5 } else { 2e-5 };
+        let md_tol = if label == Tissue::Crossing {
+            8e-5
+        } else {
+            2e-5
+        };
         assert!(
             (md - gt_md).abs() < md_tol,
             "voxel {vox} ({label:?}): MD = {:.6} vs gt {:.6}",
@@ -136,10 +143,13 @@ fn dki_recover_kurtosis_metrics_on_single_fibre_voxels() {
 
     // Cross-check FA against DTI on same voxel.
     let b1000_scheme = single_shell_scheme();
-    let b1000_signals =
-        extract_b1000_signals(phantom.voxel_signals(vox), &b1000_scheme);
-    let dti = estimate_dti(&b1000_scheme, &b1000_signals, DtiConfig::new(b0_threshold()))
-        .expect("DTI");
+    let b1000_signals = extract_b1000_signals(phantom.voxel_signals(vox), &b1000_scheme);
+    let dti = estimate_dti(
+        &b1000_scheme,
+        &b1000_signals,
+        DtiConfig::new(b0_threshold()),
+    )
+    .expect("DTI");
     let fa_diff = (dki.fa() - dti.fa()).abs();
     assert!(
         fa_diff < 0.1,
@@ -163,7 +173,11 @@ fn dki_on_single_shell_is_ill_conditioned_but_may_succeed() {
     let result = estimate_dki(&b1000_scheme, &signals, &KtiConfig::default());
     // If it succeeds, kurtosis should be near zero (degenerate DKI ≈ DTI).
     if let Ok(dki) = result {
-        assert!(dki.mk().abs() < 0.05, "single-shell MK ≈ 0 expected, got {:.4}", dki.mk());
+        assert!(
+            dki.mk().abs() < 0.05,
+            "single-shell MK ≈ 0 expected, got {:.4}",
+            dki.mk()
+        );
     }
 }
 
@@ -227,8 +241,7 @@ fn csd_detect_single_peak_in_horizontal_fibre() {
     let config = CsdConfig::new(4, b0_threshold(), leto_ops::NnlsConfig::default())
         .expect("valid CSD config");
 
-    let fod = estimate_fod(&b1000_scheme, &signals, &response, &config)
-        .expect("CSD must converge");
+    let fod = estimate_fod(&b1000_scheme, &signals, &response, &config).expect("CSD must converge");
 
     let peaks = fod.find_peaks(50, 100, 0.1).expect("peak extraction");
     assert!(!peaks.is_empty(), "must detect at least one peak");
@@ -279,7 +292,11 @@ fn noddi_recover_low_ndi_in_csf() {
 
     // NODDI may not converge on pure CSF — that's acceptable.
     if let Ok(noddi) = estimate_noddi(&multi_scheme, phantom.voxel_signals(vox), &config) {
-        assert!(noddi.ndi() < 0.5, "CSF NDI = {:.4}, expected < 0.5", noddi.ndi());
+        assert!(
+            noddi.ndi() < 0.5,
+            "CSF NDI = {:.4}, expected < 0.5",
+            noddi.ndi()
+        );
         assert!(
             noddi.f_iso() > 0.3,
             "CSF f_iso = {:.4}, expected > 0.3",
@@ -354,21 +371,31 @@ fn all_models_preserve_lps_frame() {
     );
 
     // DTI.
-    let b1000_signals =
-        extract_b1000_signals(phantom.voxel_signals(vox), &b1000_scheme);
-    let dti = estimate_dti(&b1000_scheme, &b1000_signals, DtiConfig::new(b0_threshold()))
-        .unwrap();
+    let b1000_signals = extract_b1000_signals(phantom.voxel_signals(vox), &b1000_scheme);
+    let dti = estimate_dti(
+        &b1000_scheme,
+        &b1000_signals,
+        DtiConfig::new(b0_threshold()),
+    )
+    .unwrap();
     assert_eq!(dti.frame(), GradientFrame::Lps, "DTI frame mismatch");
 
     // DKI.
-    let dki = estimate_dki(&multi_scheme, phantom.voxel_signals(vox), &KtiConfig::default())
-        .unwrap();
+    let dki = estimate_dki(
+        &multi_scheme,
+        phantom.voxel_signals(vox),
+        &KtiConfig::default(),
+    )
+    .unwrap();
     assert_eq!(dki.frame(), GradientFrame::Lps, "DKI frame mismatch");
 
     // NODDI.
-    let noddi =
-        estimate_noddi(&multi_scheme, phantom.voxel_signals(vox), &NoddiConfig::default())
-            .unwrap();
+    let noddi = estimate_noddi(
+        &multi_scheme,
+        phantom.voxel_signals(vox),
+        &NoddiConfig::default(),
+    )
+    .unwrap();
     assert_eq!(noddi.frame(), GradientFrame::Lps, "NODDI frame mismatch");
 }
 
@@ -391,9 +418,17 @@ fn dti_noise_robustness_at_snr_30() {
     let dti = estimate_dti(&b1000_scheme, &noisy, config).expect("DTI must not panic at SNR=30");
 
     // FA ∈ [0, 1].
-    assert!((0.0..=1.0).contains(&dti.fa()), "FA = {} outside [0,1]", dti.fa());
+    assert!(
+        (0.0..=1.0).contains(&dti.fa()),
+        "FA = {} outside [0,1]",
+        dti.fa()
+    );
     // MD in physiological range.
-    assert!((0.0..=0.004).contains(&dti.md()), "MD = {} outside range", dti.md());
+    assert!(
+        (0.0..=0.004).contains(&dti.md()),
+        "MD = {} outside range",
+        dti.md()
+    );
     // At SNR=30, FA error should be modest: |FA − gt| < 0.15.
     let fa_err = (dti.fa() - phantom.fa_gt[vox]).abs();
     assert!(
@@ -462,8 +497,7 @@ fn dti_at_snr_10_still_recovers_dominant_direction() {
     let clean = extract_b1000_signals(phantom.voxel_signals(vox), &b1000_scheme);
     let noisy = add_rician_noise(&clean, 10.0, vox as u64);
 
-    let dti = estimate_dti(&b1000_scheme, &noisy, config)
-        .expect("DTI must not panic at SNR=10");
+    let dti = estimate_dti(&b1000_scheme, &noisy, config).expect("DTI must not panic at SNR=10");
 
     // PEV should still have dominant x-component (horizontal fibre).
     let pev = dti.principal_eigenvector();
@@ -538,15 +572,17 @@ fn csd_noise_robustness_at_snr_30() {
         .expect("CSD must not panic at SNR=30");
 
     let peaks = fod.find_peaks(50, 100, 0.1).expect("peak extraction");
-    assert!(!peaks.is_empty(), "CSD must detect at least one peak at SNR=30");
+    assert!(
+        !peaks.is_empty(),
+        "CSD must detect at least one peak at SNR=30"
+    );
 
     // Direction must be a finite unit vector (valid geometry, even if the
     // exact orientation is noise-shifted).
     for peak in &peaks {
-        let norm = (peak.direction[0].powi(2)
-            + peak.direction[1].powi(2)
-            + peak.direction[2].powi(2))
-        .sqrt();
+        let norm =
+            (peak.direction[0].powi(2) + peak.direction[1].powi(2) + peak.direction[2].powi(2))
+                .sqrt();
         assert!(
             (norm - 1.0).abs() < 1e-6,
             "SNR=30: peak direction norm = {norm:.6}, expected unit"

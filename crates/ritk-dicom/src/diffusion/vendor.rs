@@ -135,10 +135,9 @@ fn parse_csa_entries(blob: &[u8]) -> Result<Vec<CsaEntry>> {
 
         let vm = u32::from_le_bytes(blob[offset + 64..offset + 68].try_into().unwrap());
         let _vr = &blob[offset + 68..offset + 72]; // 4-char ASCII, e.g. "FD  "
-        let _syngo_dt =
-            u32::from_le_bytes(blob[offset + 72..offset + 76].try_into().unwrap());
-        let n_items = u32::from_le_bytes(blob[offset + 76..offset + 80].try_into().unwrap())
-            as usize;
+        let _syngo_dt = u32::from_le_bytes(blob[offset + 72..offset + 76].try_into().unwrap());
+        let n_items =
+            u32::from_le_bytes(blob[offset + 76..offset + 80].try_into().unwrap()) as usize;
 
         // Skip the 4-byte pad after the tag header.
         offset += 84;
@@ -153,9 +152,7 @@ fn parse_csa_entries(blob: &[u8]) -> Result<Vec<CsaEntry>> {
             offset += 4;
 
             if offset + item_len > blob.len() {
-                bail!(
-                    "CSA item data of {item_len} bytes at offset {offset} extends past blob end"
-                );
+                bail!("CSA item data of {item_len} bytes at offset {offset} extends past blob end");
             }
             // For simple values (no leading array count), just collect.
             data.extend_from_slice(&blob[offset..offset + item_len]);

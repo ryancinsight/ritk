@@ -38,11 +38,7 @@ fn make_three_volume_single_shell_scheme() -> GradientScheme {
 }
 
 fn assert_scheme_equivalence(expected: &GradientScheme, actual: &GradientScheme) {
-    assert_eq!(
-        actual.len(),
-        expected.len(),
-        "scheme lengths differ"
-    );
+    assert_eq!(actual.len(), expected.len(), "scheme lengths differ");
     for (i, (exp, act)) in expected
         .directions()
         .iter()
@@ -72,7 +68,12 @@ fn assert_scheme_equivalence(expected: &GradientScheme, actual: &GradientScheme)
 /// Round-trip a scheme through all four codecs, returning FSL, MRtrix,
 /// NRRD, and DICOM results in that order.
 fn cross_codec_round_trip_all(scheme: &GradientScheme) -> [GradientScheme; 4] {
-    [fsl_round_trip(scheme), mrtrix_round_trip(scheme), nrrd_round_trip(scheme), dicom_round_trip(scheme)]
+    [
+        fsl_round_trip(scheme),
+        mrtrix_round_trip(scheme),
+        nrrd_round_trip(scheme),
+        dicom_round_trip(scheme),
+    ]
 }
 
 // ── FSL round-trip ───────────────────────────────────────────────────────
@@ -225,9 +226,7 @@ fn ds004666_dwi_dir() -> PathBuf {
 }
 
 fn ds002087_available() -> bool {
-    ds002087_dwi_dir()
-        .join("sub-01_run-1_dwi.bval")
-        .exists()
+    ds002087_dwi_dir().join("sub-01_run-1_dwi.bval").exists()
 }
 
 fn ds004666_available() -> bool {
@@ -278,7 +277,10 @@ fn subset_by_b(scheme: &GradientScheme, min_b: f64, b0_cutoff: f64) -> GradientS
 }
 
 /// Read a scheme from FSL bval/bvec in a data directory.
-fn load_scheme_from_fsl(bval_path: &std::path::Path, bvec_path: &std::path::Path) -> Option<GradientScheme> {
+fn load_scheme_from_fsl(
+    bval_path: &std::path::Path,
+    bvec_path: &std::path::Path,
+) -> Option<GradientScheme> {
     if !bval_path.exists() || !bvec_path.exists() {
         return None;
     }
@@ -305,7 +307,10 @@ fn multi_dataset_cross_codec_ds002087() {
     assert!(scheme.len() >= 50, "ds002087 must have ≥50 volumes");
     // ds002087 is mixed-shell (b≈700 + b≈2000); subset to single shell.
     let single = subset_by_b(&scheme, 2_000.0, 50.0);
-    assert!(single.len() >= 30, "single-shell subset must have ≥30 volumes");
+    assert!(
+        single.len() >= 30,
+        "single-shell subset must have ≥30 volumes"
+    );
 
     let [fsl, mrtrix, nrrd, dicom] = cross_codec_round_trip_all(&single);
 
@@ -335,7 +340,10 @@ fn multi_dataset_cross_codec_ds004666() {
 
     assert!(scheme.len() >= 100, "ds004666 must have ≥100 volumes");
     let single = subset_by_b(&scheme, 2_000.0, 50.0);
-    assert!(single.len() >= 30, "single-shell subset must have ≥30 volumes");
+    assert!(
+        single.len() >= 30,
+        "single-shell subset must have ≥30 volumes"
+    );
 
     let [fsl, mrtrix, nrrd, dicom] = cross_codec_round_trip_all(&single);
 

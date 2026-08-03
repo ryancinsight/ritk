@@ -20,14 +20,13 @@
 
 use std::path::{Path, PathBuf};
 
+use leto_ops::NnlsConfig;
 use ritk_diffusion::csd::{CsdConfig, ResponseFunction, estimate_fod};
 use ritk_diffusion::dki::{KtiConfig, estimate_dki};
 use ritk_diffusion::dti::{DtiConfig, estimate_dti};
 use ritk_diffusion_scheme::{
-    DiffusionWeighting, GradientFrame, GradientScheme, read_fsl_scheme,
-    write_fsl_scheme,
+    DiffusionWeighting, GradientFrame, GradientScheme, read_fsl_scheme, write_fsl_scheme,
 };
-use leto_ops::NnlsConfig;
 
 // ═══════════════════════════════════════════════════════════════════════════
 // Helpers
@@ -48,8 +47,7 @@ fn data_dir_edden() -> PathBuf {
 /// Check that the required bval/bvec files exist for ds002087.
 fn dataset_available() -> bool {
     let dwi = data_dir().join("sub-01/dwi");
-    dwi.join("sub-01_run-1_dwi.bval").exists()
-        && dwi.join("sub-01_run-1_dwi.bvec").exists()
+    dwi.join("sub-01_run-1_dwi.bval").exists() && dwi.join("sub-01_run-1_dwi.bvec").exists()
 }
 
 /// Check that the EDDEN (ds004666) dataset is available.
@@ -89,11 +87,8 @@ fn normalise_scheme(scheme: &GradientScheme) -> Option<GradientScheme> {
             if norm < 1e-15 {
                 return Some((*entry).clone());
             }
-            let normalised = ritk_spatial::Vector::new([
-                dir[0] / norm,
-                dir[1] / norm,
-                dir[2] / norm,
-            ]);
+            let normalised =
+                ritk_spatial::Vector::new([dir[0] / norm, dir[1] / norm, dir[2] / norm]);
             ritk_diffusion_scheme::GradientDirection::new(entry.weighting(), normalised).ok()
         })
         .collect::<Option<Vec<_>>>()?;
@@ -140,7 +135,14 @@ fn subset_by_b(scheme: &GradientScheme, min_b: f64, b0_cutoff: f64) -> GradientS
 }
 
 /// Generate synthetic signals from a prolate tensor for use with a real scheme.
-fn prolate_signals(scheme: &GradientScheme, ad: f64, rd: f64, dx: f64, dy: f64, dz: f64) -> Vec<f64> {
+fn prolate_signals(
+    scheme: &GradientScheme,
+    ad: f64,
+    rd: f64,
+    dx: f64,
+    dy: f64,
+    dz: f64,
+) -> Vec<f64> {
     scheme
         .directions()
         .iter()
@@ -167,8 +169,8 @@ fn fsl_codec_round_trips_real_bvec() {
     let scheme = load_real_scheme().expect("dataset not available — run download.sh first");
 
     let (bval_out, bvec_out) = write_fsl_scheme(&scheme);
-    let scheme_rt = read_fsl_scheme(&bval_out, &bvec_out)
-        .expect("FSL round-trip must parse its own output");
+    let scheme_rt =
+        read_fsl_scheme(&bval_out, &bvec_out).expect("FSL round-trip must parse its own output");
 
     assert_eq!(scheme_rt.len(), scheme.len());
     for (i, (orig, rt)) in scheme
@@ -177,7 +179,11 @@ fn fsl_codec_round_trips_real_bvec() {
         .zip(scheme_rt.directions().iter())
         .enumerate()
     {
-        assert_eq!(orig.weighting(), rt.weighting(), "b-value mismatch at volume {i}");
+        assert_eq!(
+            orig.weighting(),
+            rt.weighting(),
+            "b-value mismatch at volume {i}"
+        );
         let od = orig.direction().to_array();
         let rd = rt.direction().to_array();
         assert!(
@@ -200,8 +206,8 @@ fn dti_with_real_scheme_recovers_synthetic_prolate() {
     let scheme = load_real_scheme().expect("dataset not available — run download.sh first");
 
     let signals = prolate_signals(&scheme, 0.0017, 0.0003, 1.0, 0.0, 0.0);
-    let dti = estimate_dti(&scheme, &signals, DtiConfig::new(b0_threshold()))
-        .expect("DTI must succeed");
+    let dti =
+        estimate_dti(&scheme, &signals, DtiConfig::new(b0_threshold())).expect("DTI must succeed");
 
     assert!(dti.fa() > 0.7, "FA = {:.4}", dti.fa());
     let expected_md = (0.0017 + 2.0 * 0.0003) / 3.0;
@@ -246,8 +252,7 @@ fn csd_with_real_scheme_recovers_single_peak() {
     let signals = prolate_signals(&scheme, 0.0017, 0.0003, 1.0, 0.0, 0.0);
     let response =
         ResponseFunction::from_tensor(1_000.0, 0.0017, 0.0003, 6).expect("valid response");
-    let config =
-        CsdConfig::new(6, b0_threshold(), NnlsConfig::default()).expect("valid config");
+    let config = CsdConfig::new(6, b0_threshold(), NnlsConfig::default()).expect("valid config");
 
     let fod = estimate_fod(&scheme, &signals, &response, &config).expect("CSD must converge");
     let peaks = fod.find_peaks(50, 100, 0.1).expect("peak extraction");
@@ -256,8 +261,11 @@ fn csd_with_real_scheme_recovers_single_peak() {
     let norm = (peaks[0].direction[0].powi(2)
         + peaks[0].direction[1].powi(2)
         + peaks[0].direction[2].powi(2))
-        .sqrt();
-    assert!((norm - 1.0).abs() < 1e-6, "peak direction must be unit; norm={norm:.6}");
+    .sqrt();
+    assert!(
+        (norm - 1.0).abs() < 1e-6,
+        "peak direction must be unit; norm={norm:.6}"
+    );
 }
 
 // ═══════════════════════════════════════════════════════════════════════════
@@ -269,11 +277,15 @@ fn csd_with_real_scheme_recovers_single_peak() {
 fn edden_fsl_codec_round_trips() {
     let scheme = load_edden_scheme().expect("EDDEN dataset not available — run download.sh first");
     // EDDEN ses-0p9mm has ~199 volumes with b≈1000/b≈2000 shells.
-    assert!(scheme.len() >= 100, "EDDEN scheme too small: {} volumes", scheme.len());
+    assert!(
+        scheme.len() >= 100,
+        "EDDEN scheme too small: {} volumes",
+        scheme.len()
+    );
 
     let (bval_out, bvec_out) = write_fsl_scheme(&scheme);
-    let scheme_rt = read_fsl_scheme(&bval_out, &bvec_out)
-        .expect("FSL round-trip must parse its own output");
+    let scheme_rt =
+        read_fsl_scheme(&bval_out, &bvec_out).expect("FSL round-trip must parse its own output");
 
     assert_eq!(scheme_rt.len(), scheme.len());
     for (i, (orig, rt)) in scheme
@@ -282,7 +294,11 @@ fn edden_fsl_codec_round_trips() {
         .zip(scheme_rt.directions().iter())
         .enumerate()
     {
-        assert_eq!(orig.weighting(), rt.weighting(), "b-value mismatch at volume {i}");
+        assert_eq!(
+            orig.weighting(),
+            rt.weighting(),
+            "b-value mismatch at volume {i}"
+        );
         let od = orig.direction().to_array();
         let rd = rt.direction().to_array();
         assert!(
@@ -328,8 +344,7 @@ fn edden_csd_high_b_shell_recovers_peak() {
     let signals = prolate_signals(&scheme, 0.0017, 0.0003, 1.0, 0.0, 0.0);
     let response =
         ResponseFunction::from_tensor(1_000.0, 0.0017, 0.0003, 6).expect("valid response");
-    let config =
-        CsdConfig::new(6, b0_threshold(), NnlsConfig::default()).expect("valid config");
+    let config = CsdConfig::new(6, b0_threshold(), NnlsConfig::default()).expect("valid config");
 
     let fod = estimate_fod(&scheme, &signals, &response, &config).expect("CSD must converge");
     let peaks = fod.find_peaks(50, 100, 0.1).expect("peak extraction");
@@ -338,8 +353,11 @@ fn edden_csd_high_b_shell_recovers_peak() {
     let norm = (peaks[0].direction[0].powi(2)
         + peaks[0].direction[1].powi(2)
         + peaks[0].direction[2].powi(2))
-        .sqrt();
-    assert!((norm - 1.0).abs() < 1e-6, "peak direction must be unit; norm={norm:.6}");
+    .sqrt();
+    assert!(
+        (norm - 1.0).abs() < 1e-6,
+        "peak direction must be unit; norm={norm:.6}"
+    );
 }
 
 #[test]
@@ -383,8 +401,16 @@ fn dti_on_real_scheme_produces_physically_plausible_fa_and_md() {
         let dti = estimate_dti(&scheme, &signals, DtiConfig::new(b0_threshold()))
             .unwrap_or_else(|e| panic!("DTI must succeed on {label}: {e}"));
 
-        assert!((0.0..=1.0).contains(&dti.fa()), "{label}: FA = {}", dti.fa());
-        assert!((0.0..=0.004).contains(&dti.md()), "{label}: MD = {}", dti.md());
+        assert!(
+            (0.0..=1.0).contains(&dti.fa()),
+            "{label}: FA = {}",
+            dti.fa()
+        );
+        assert!(
+            (0.0..=0.004).contains(&dti.md()),
+            "{label}: MD = {}",
+            dti.md()
+        );
         let pev = dti.principal_eigenvector();
         let norm = (pev[0].powi(2) + pev[1].powi(2) + pev[2].powi(2)).sqrt();
         assert!(
@@ -404,7 +430,9 @@ fn real_data_tests_skipped_when_dataset_missing() {
     let edden = dataset_edden_available();
 
     if ds087 && edden {
-        eprintln!("Both real DWI datasets (ds002087 + EDDEN) are present — use --ignored to run real-data tests.");
+        eprintln!(
+            "Both real DWI datasets (ds002087 + EDDEN) are present — use --ignored to run real-data tests."
+        );
     } else {
         if !ds087 {
             eprintln!("ds002087 dataset is not present.");

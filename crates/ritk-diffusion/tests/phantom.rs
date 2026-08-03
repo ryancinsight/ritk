@@ -16,10 +16,8 @@ use ritk_spatial::Vector;
 pub fn multi_shell_scheme() -> GradientScheme {
     let mut entries = Vec::with_capacity(94);
     let b0 = DiffusionWeighting::from_seconds_per_square_millimeter(0.0).unwrap();
-    let b1000 =
-        DiffusionWeighting::from_seconds_per_square_millimeter(1_000.0).unwrap();
-    let b3000 =
-        DiffusionWeighting::from_seconds_per_square_millimeter(3_000.0).unwrap();
+    let b1000 = DiffusionWeighting::from_seconds_per_square_millimeter(1_000.0).unwrap();
+    let b3000 = DiffusionWeighting::from_seconds_per_square_millimeter(3_000.0).unwrap();
     let zero = Vector::new([0.0, 0.0, 0.0]);
 
     for _ in 0..4 {
@@ -59,8 +57,7 @@ pub fn multi_shell_scheme() -> GradientScheme {
 pub fn single_shell_scheme() -> GradientScheme {
     let mut entries = Vec::with_capacity(34);
     let b0 = DiffusionWeighting::from_seconds_per_square_millimeter(0.0).unwrap();
-    let b1000 =
-        DiffusionWeighting::from_seconds_per_square_millimeter(1_000.0).unwrap();
+    let b1000 = DiffusionWeighting::from_seconds_per_square_millimeter(1_000.0).unwrap();
     let zero = Vector::new([0.0, 0.0, 0.0]);
     for _ in 0..4 {
         entries.push(GradientDirection::new(b0, zero).unwrap());
@@ -173,10 +170,8 @@ impl Phantom {
                             1000.0 * (-b * adc).exp()
                         }
                         Tissue::Crossing => {
-                            let adc1 =
-                                adc_prolate(0.0017, 0.0003, c30(), s30(), 0.0, gx, gy, gz);
-                            let adc2 =
-                                adc_prolate(0.0017, 0.0003, c30(), -s30(), 0.0, gx, gy, gz);
+                            let adc1 = adc_prolate(0.0017, 0.0003, c30(), s30(), 0.0, gx, gy, gz);
+                            let adc2 = adc_prolate(0.0017, 0.0003, c30(), -s30(), 0.0, gx, gy, gz);
                             500.0 * (-b * adc1).exp() + 500.0 * (-b * adc2).exp()
                         }
                         Tissue::Csf => 1000.0 * (-b * 0.0030).exp(),
@@ -230,10 +225,7 @@ fn s30() -> f64 {
     0.5
 }
 
-fn tissue_properties(
-    ix: usize,
-    iy: usize,
-) -> (Tissue, f64, f64, [f64; 3], Vec<[f64; 3]>) {
+fn tissue_properties(ix: usize, iy: usize) -> (Tissue, f64, f64, [f64; 3], Vec<[f64; 3]>) {
     // Layout (all z-slices identical):
     //   y=3  V | V | G | G
     //   y=2  V | V | G | G
@@ -343,8 +335,7 @@ fn tensor_md(elements: &[f64; 6]) -> f64 {
 fn fa_prolate(ad: f64, rd: f64) -> f64 {
     // Eigenvalues: λ₁ = ad, λ₂ = λ₃ = rd.
     let md = (ad + 2.0 * rd) / 3.0;
-    let num =
-        ((ad - md).powi(2) + 2.0 * (rd - md).powi(2)).sqrt();
+    let num = ((ad - md).powi(2) + 2.0 * (rd - md).powi(2)).sqrt();
     let den = (ad.powi(2) + 2.0 * rd.powi(2)).sqrt();
     if den < 1e-30 {
         return 0.0;
@@ -352,25 +343,14 @@ fn fa_prolate(ad: f64, rd: f64) -> f64 {
     (3.0_f64 / 2.0).sqrt() * num / den
 }
 
-fn fa_prolate_with_trace(
-    dxx: f64,
-    dyy: f64,
-    dzz: f64,
-    dxy: f64,
-    dxz: f64,
-    dyz: f64,
-) -> f64 {
+fn fa_prolate_with_trace(dxx: f64, dyy: f64, dzz: f64, dxy: f64, dxz: f64, dyz: f64) -> f64 {
     let md = (dxx + dyy + dzz) / 3.0;
     let dx = dxx - md;
     let dy = dyy - md;
     let dz = dzz - md;
-    let num =
-        (dx * dx + dy * dy + dz * dz + 2.0 * (dxy * dxy + dxz * dxz + dyz * dyz)).sqrt();
-    let den = (dxx * dxx
-        + dyy * dyy
-        + dzz * dzz
-        + 2.0 * (dxy * dxy + dxz * dxz + dyz * dyz))
-    .sqrt();
+    let num = (dx * dx + dy * dy + dz * dz + 2.0 * (dxy * dxy + dxz * dxz + dyz * dyz)).sqrt();
+    let den =
+        (dxx * dxx + dyy * dyy + dzz * dzz + 2.0 * (dxy * dxy + dxz * dxz + dyz * dyz)).sqrt();
     if den < 1e-30 {
         0.0
     } else {
@@ -389,10 +369,7 @@ fn fa_prolate_with_trace(
 /// first N entries (the single-shell scheme is a prefix of the multi-shell
 /// scheme).  This coupling is documented and verified in the integration
 /// tests.
-pub fn extract_b1000_signals(
-    full_signals: &[f64],
-    b1000_scheme: &GradientScheme,
-) -> Vec<f64> {
+pub fn extract_b1000_signals(full_signals: &[f64], b1000_scheme: &GradientScheme) -> Vec<f64> {
     full_signals
         .iter()
         .zip(b1000_scheme.directions().iter())
@@ -417,7 +394,10 @@ pub fn extract_b1000_signals(
 ///
 /// Panics if `snr` is not finite and strictly positive.
 pub fn add_rician_noise(signals: &[f64], snr: f64, voxel_seed: u64) -> Vec<f64> {
-    assert!(snr.is_finite() && snr > 0.0, "SNR must be finite and positive");
+    assert!(
+        snr.is_finite() && snr > 0.0,
+        "SNR must be finite and positive"
+    );
 
     let baseline = signals[0]; // b0 volume is always first.
     let sigma = baseline / snr;

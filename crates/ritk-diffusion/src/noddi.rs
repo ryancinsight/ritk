@@ -249,7 +249,13 @@ impl NoddiFit {
             return self.baseline_signal;
         }
         let kappa = odi_to_kappa(self.odi);
-        let a_ic = watson_stick(b_value, direction, self.principal_direction, kappa, &quadrature_sphere());
+        let a_ic = watson_stick(
+            b_value,
+            direction,
+            self.principal_direction,
+            kappa,
+            &quadrature_sphere(),
+        );
         let a_ec = (-b_value * D_EXTRA).exp();
         let a_iso = (-b_value * D_ISO).exp();
         self.baseline_signal
@@ -311,13 +317,7 @@ fn quadrature_sphere() -> &'static [[f64; 3]] {
 ///
 /// Returns `(1/Z) · Σᵢ exp(κ·(μ·vᵢ)²) · exp(−b·d_‖·(g·vᵢ)²)` where
 /// `Z = Σᵢ exp(κ·(μ·vᵢ)²)` is the empirical partition function.
-fn watson_stick(
-    b: f64,
-    g: [f64; 3],
-    mu: [f64; 3],
-    kappa: f64,
-    quad_points: &[[f64; 3]],
-) -> f64 {
+fn watson_stick(b: f64, g: [f64; 3], mu: [f64; 3], kappa: f64, quad_points: &[[f64; 3]]) -> f64 {
     let mut num = 0.0f64;
     let mut den = 0.0f64;
 
@@ -363,11 +363,7 @@ impl LeastSquaresProblem<f64> for WatsonNoddiProblem {
         PARAM_COUNT
     }
 
-    fn residuals(
-        &self,
-        parameters: &[f64],
-        residuals: &mut [f64],
-    ) -> Result<(), ProblemError> {
+    fn residuals(&self, parameters: &[f64], residuals: &mut [f64]) -> Result<(), ProblemError> {
         let f_intra = parameters[F_INTRA];
         let f_iso = parameters[F_ISO];
         let odi = parameters[ODI];
@@ -382,18 +378,13 @@ impl LeastSquaresProblem<f64> for WatsonNoddiProblem {
             let a_iso = (-b * D_ISO).exp();
 
             let predicted = self.baseline
-                * ((1.0 - f_iso) * (f_intra * a_ic + (1.0 - f_intra) * a_ec)
-                    + f_iso * a_iso);
+                * ((1.0 - f_iso) * (f_intra * a_ic + (1.0 - f_intra) * a_ec) + f_iso * a_iso);
             *slot = self.signals[i] - predicted;
         }
         Ok(())
     }
 
-    fn jacobian(
-        &self,
-        parameters: &[f64],
-        jacobian: &mut [f64],
-    ) -> Result<(), ProblemError> {
+    fn jacobian(&self, parameters: &[f64], jacobian: &mut [f64]) -> Result<(), ProblemError> {
         let f_intra = parameters[F_INTRA];
         let f_iso = parameters[F_ISO];
         let odi = parameters[ODI];
@@ -415,8 +406,7 @@ impl LeastSquaresProblem<f64> for WatsonNoddiProblem {
             jacobian[base + F_INTRA] = -s0 * (1.0 - f_iso) * (a_ic - a_ec);
 
             // ∂r/∂f_iso = S₀·(f_intra·A_ic + (1−f_intra)·A_ec − A_iso)
-            jacobian[base + F_ISO] =
-                s0 * (f_intra * a_ic + (1.0 - f_intra) * a_ec - a_iso);
+            jacobian[base + F_ISO] = s0 * (f_intra * a_ic + (1.0 - f_intra) * a_ec - a_iso);
         }
 
         // ── Finite-difference columns: ODI, θ, φ ──────────────────────────
@@ -433,8 +423,11 @@ impl LeastSquaresProblem<f64> for WatsonNoddiProblem {
         self.residuals(&p_minus, &mut r_minus)?;
         let h_eff = p_plus[ODI] - p_minus[ODI];
         for i in 0..self.signals.len() {
-            jacobian[i * PARAM_COUNT + ODI] =
-                if h_eff > 1e-30 { (r_plus[i] - r_minus[i]) / h_eff } else { 0.0 };
+            jacobian[i * PARAM_COUNT + ODI] = if h_eff > 1e-30 {
+                (r_plus[i] - r_minus[i]) / h_eff
+            } else {
+                0.0
+            };
         }
 
         // θ
@@ -522,9 +515,12 @@ pub fn estimate_noddi(
     }
 
     // ── Initial guess from DTI ────────────────────────────────────────────
-    let dti_tensor =
-        crate::dti::estimate_dti(scheme, signals, crate::dti::DtiConfig::new(config.b0_threshold()))
-            .map_err(|e| NoddiError::SolverFailed(format!("DTI initial fit failed: {e}")))?;
+    let dti_tensor = crate::dti::estimate_dti(
+        scheme,
+        signals,
+        crate::dti::DtiConfig::new(config.b0_threshold()),
+    )
+    .map_err(|e| NoddiError::SolverFailed(format!("DTI initial fit failed: {e}")))?;
     let pev = dti_tensor.principal_eigenvector();
     let theta_init = pev[2].clamp(-1.0, 1.0).acos();
     let phi_init = pev[1].atan2(pev[0]);
@@ -554,12 +550,9 @@ pub fn estimate_noddi(
         baseline: baseline_signal,
     };
 
-    let report: LeastSquaresReport<f64> = levenberg_marquardt(
-        &problem,
-        &initial,
-        config.lm_config(),
-    )
-    .map_err(|error| NoddiError::SolverFailed(error.to_string()))?;
+    let report: LeastSquaresReport<f64> =
+        levenberg_marquardt(&problem, &initial, config.lm_config())
+            .map_err(|error| NoddiError::SolverFailed(error.to_string()))?;
 
     // ── Post-process ─────────────────────────────────────────────────────
     let f_intra = report.parameters[F_INTRA].clamp(0.0, 1.0);
@@ -648,7 +641,13 @@ impl NoddiVolume {
             )));
         }
         let [sx, sy, sz] = spacing;
-        if !sx.is_finite() || sx <= 0.0 || !sy.is_finite() || sy <= 0.0 || !sz.is_finite() || sz <= 0.0 {
+        if !sx.is_finite()
+            || sx <= 0.0
+            || !sy.is_finite()
+            || sy <= 0.0
+            || !sz.is_finite()
+            || sz <= 0.0
+        {
             return Err(NoddiError::VolumeValidation(format!(
                 "spacing must be finite and positive, got [{sx}, {sy}, {sz}]"
             )));
@@ -710,7 +709,8 @@ impl NoddiVolume {
         let iy = ((py - oy) / sy).round() as isize;
         let iz = ((pz - oz) / sz).round() as isize;
 
-        if ix < 0 || ix >= nx as isize || iy < 0 || iy >= ny as isize || iz < 0 || iz >= nz as isize {
+        if ix < 0 || ix >= nx as isize || iy < 0 || iy >= ny as isize || iz < 0 || iz >= nz as isize
+        {
             return None;
         }
 

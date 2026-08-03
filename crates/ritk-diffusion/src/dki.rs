@@ -104,24 +104,69 @@ pub enum KtiError {
 /// in the order they appear in the parameter vector.
 const W_ELEMENTS: [WElement; 15] = [
     // Type-iiii (multiplicity 1): W_iiii · g_i⁴
-    WElement { multiplicity: 1, powers: [4, 0, 0] },
-    WElement { multiplicity: 1, powers: [0, 4, 0] },
-    WElement { multiplicity: 1, powers: [0, 0, 4] },
+    WElement {
+        multiplicity: 1,
+        powers: [4, 0, 0],
+    },
+    WElement {
+        multiplicity: 1,
+        powers: [0, 4, 0],
+    },
+    WElement {
+        multiplicity: 1,
+        powers: [0, 0, 4],
+    },
     // Type-iiij (multiplicity 4): W_iiij · 4·g_i³·g_j
-    WElement { multiplicity: 4, powers: [3, 1, 0] },
-    WElement { multiplicity: 4, powers: [3, 0, 1] },
-    WElement { multiplicity: 4, powers: [1, 3, 0] },
-    WElement { multiplicity: 4, powers: [0, 3, 1] },
-    WElement { multiplicity: 4, powers: [1, 0, 3] },
-    WElement { multiplicity: 4, powers: [0, 1, 3] },
+    WElement {
+        multiplicity: 4,
+        powers: [3, 1, 0],
+    },
+    WElement {
+        multiplicity: 4,
+        powers: [3, 0, 1],
+    },
+    WElement {
+        multiplicity: 4,
+        powers: [1, 3, 0],
+    },
+    WElement {
+        multiplicity: 4,
+        powers: [0, 3, 1],
+    },
+    WElement {
+        multiplicity: 4,
+        powers: [1, 0, 3],
+    },
+    WElement {
+        multiplicity: 4,
+        powers: [0, 1, 3],
+    },
     // Type-iijj (multiplicity 6): W_iijj · 6·g_i²·g_j²
-    WElement { multiplicity: 6, powers: [2, 2, 0] },
-    WElement { multiplicity: 6, powers: [2, 0, 2] },
-    WElement { multiplicity: 6, powers: [0, 2, 2] },
+    WElement {
+        multiplicity: 6,
+        powers: [2, 2, 0],
+    },
+    WElement {
+        multiplicity: 6,
+        powers: [2, 0, 2],
+    },
+    WElement {
+        multiplicity: 6,
+        powers: [0, 2, 2],
+    },
     // Type-iijk (multiplicity 12): W_iijk · 12·g_i²·g_j·g_k
-    WElement { multiplicity: 12, powers: [2, 1, 1] },
-    WElement { multiplicity: 12, powers: [1, 2, 1] },
-    WElement { multiplicity: 12, powers: [1, 1, 2] },
+    WElement {
+        multiplicity: 12,
+        powers: [2, 1, 1],
+    },
+    WElement {
+        multiplicity: 12,
+        powers: [1, 2, 1],
+    },
+    WElement {
+        multiplicity: 12,
+        powers: [1, 1, 2],
+    },
 ];
 
 /// One element of the kurtosis tensor, with its multiplicity and monomial powers.
@@ -166,7 +211,10 @@ impl KtiConfig {
     /// volumes.  `lm_config` tunes the Levenberg-Marquardt solver; the
     /// default tolerances (`√ε`) are appropriate for noise-free synthetic
     /// data and should be relaxed for in-vivo fitting.
-    pub const fn new(b0_threshold: DiffusionWeighting, lm_config: LevenbergMarquardtConfig<f64>) -> Self {
+    pub const fn new(
+        b0_threshold: DiffusionWeighting,
+        lm_config: LevenbergMarquardtConfig<f64>,
+    ) -> Self {
         Self {
             b0_threshold,
             lm_config,
@@ -334,7 +382,8 @@ impl DiffusionKurtosisTensor {
         let d_app = self.quadratic_form(direction);
         let md = self.md();
         let w_app = compute_w_contraction(&self.elements_w, direction);
-        self.baseline_signal * (-b_value * d_app + (b_value.powi(2) / 6.0) * md.powi(2) * w_app).exp()
+        self.baseline_signal
+            * (-b_value * d_app + (b_value.powi(2) / 6.0) * md.powi(2) * w_app).exp()
     }
 
     /// Quadratic form `gᵀ D g` for a unit direction `g`.
@@ -403,11 +452,7 @@ impl LeastSquaresProblem<f64> for DkiProblem {
         PARAMETER_COUNT
     }
 
-    fn residuals(
-        &self,
-        parameters: &[f64],
-        residuals: &mut [f64],
-    ) -> Result<(), ProblemError> {
+    fn residuals(&self, parameters: &[f64], residuals: &mut [f64]) -> Result<(), ProblemError> {
         let d = &parameters[D_OFFSET..D_OFFSET + 6];
         let w = &parameters[W_OFFSET..W_OFFSET + 15];
         let md = (d[0] + d[1] + d[2]) / 3.0;
@@ -431,11 +476,7 @@ impl LeastSquaresProblem<f64> for DkiProblem {
         Ok(())
     }
 
-    fn jacobian(
-        &self,
-        parameters: &[f64],
-        jacobian: &mut [f64],
-    ) -> Result<(), ProblemError> {
+    fn jacobian(&self, parameters: &[f64], jacobian: &mut [f64]) -> Result<(), ProblemError> {
         let d = &parameters[D_OFFSET..D_OFFSET + 6];
         let w = &parameters[W_OFFSET..W_OFFSET + 15];
         let md = (d[0] + d[1] + d[2]) / 3.0;
@@ -447,7 +488,8 @@ impl LeastSquaresProblem<f64> for DkiProblem {
             .copied()
             .zip(self.directions.iter().copied())
             .enumerate()
-        {            let w_app = compute_w_contraction_slice(w, gx, gy, gz);
+        {
+            let w_app = compute_w_contraction_slice(w, gx, gy, gz);
 
             let base = i * PARAMETER_COUNT;
 
@@ -467,8 +509,7 @@ impl LeastSquaresProblem<f64> for DkiProblem {
             // ∂r/∂W_j = −(b²/6)·MD²·m_j·(g-power monomial)
             let factor = -(b.powi(2) / 6.0) * md_sq;
             for (j, element) in W_ELEMENTS.iter().enumerate() {
-                jacobian[base + W_OFFSET + j] =
-                    factor * element.monomial(gx, gy, gz);
+                jacobian[base + W_OFFSET + j] = factor * element.monomial(gx, gy, gz);
             }
         }
         Ok(())
@@ -580,12 +621,9 @@ pub fn estimate_dki(
         log_signals,
     };
 
-    let report: LeastSquaresReport<f64> = levenberg_marquardt(
-        &problem,
-        &initial,
-        config.lm_config(),
-    )
-    .map_err(|error| KtiError::SolverFailed(error.to_string()))?;
+    let report: LeastSquaresReport<f64> =
+        levenberg_marquardt(&problem, &initial, config.lm_config())
+            .map_err(|error| KtiError::SolverFailed(error.to_string()))?;
 
     // ── Post-process ─────────────────────────────────────────────────────
     let elements_d = [
@@ -597,17 +635,26 @@ pub fn estimate_dki(
         report.parameters[5],
     ];
     let elements_w = [
-        report.parameters[6],  report.parameters[7],  report.parameters[8],
-        report.parameters[9],  report.parameters[10], report.parameters[11],
-        report.parameters[12], report.parameters[13], report.parameters[14],
-        report.parameters[15], report.parameters[16], report.parameters[17],
-        report.parameters[18], report.parameters[19], report.parameters[20],
+        report.parameters[6],
+        report.parameters[7],
+        report.parameters[8],
+        report.parameters[9],
+        report.parameters[10],
+        report.parameters[11],
+        report.parameters[12],
+        report.parameters[13],
+        report.parameters[14],
+        report.parameters[15],
+        report.parameters[16],
+        report.parameters[17],
+        report.parameters[18],
+        report.parameters[19],
+        report.parameters[20],
     ];
 
     // Use DTI's eigendecomposition for the final D tensor (the LM refinement
     // is typically small and using the DTI decomposition is safe).
-    let (eigenvalues, principal_eigenvector) =
-        dti::decompose_3x3_symmetric_infallible(elements_d);
+    let (eigenvalues, principal_eigenvector) = dti::decompose_3x3_symmetric_infallible(elements_d);
 
     let md = (elements_d[0] + elements_d[1] + elements_d[2]) / 3.0;
     let mk = compute_mk(&elements_d, &elements_w, md);
@@ -661,12 +708,7 @@ fn compute_mk(d: &[f64; 6], w: &[f64; 15], md: f64) -> f64 {
 /// Compute axial kurtosis `AK = K(e₁)` along the principal eigenvector.
 ///
 /// `AK = (MD / λ₁)² · W(e₁)` where `λ₁` is the largest eigenvalue.
-fn compute_ak(
-    w: &[f64; 15],
-    md: f64,
-    pev: [f64; 3],
-    lambda1: f64,
-) -> f64 {
+fn compute_ak(w: &[f64; 15], md: f64, pev: [f64; 3], lambda1: f64) -> f64 {
     if md < 1e-15 || lambda1 < 1e-15 {
         return 0.0;
     }
@@ -755,7 +797,6 @@ fn sph_to_cart(theta: f64, phi: f64) -> [f64; 3] {
     let sin_theta = theta.sin();
     [sin_theta * phi.cos(), sin_theta * phi.sin(), theta.cos()]
 }
-
 
 #[cfg(test)]
 mod tests;

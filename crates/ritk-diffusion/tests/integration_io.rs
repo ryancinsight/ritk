@@ -6,7 +6,7 @@
 //! then round-tripping through the unified `read_image_native` /
 //! `write_image_native` API.
 
-use ritk_io::{read_image_native, write_image_native, NativeImage};
+use ritk_io::{NativeImage, read_image_native, write_image_native};
 use ritk_spatial::{Direction, Point, Spacing};
 
 /// Build a small 3-D f32 volume with known spatial metadata.
@@ -83,8 +83,7 @@ fn round_trip(ext: &str, volume: &NativeImage, label: &str) {
     write_image_native(&path, volume).unwrap_or_else(|e| panic!("{label}: write .{ext}: {e}"));
     assert!(path.exists(), "{label}: .{ext} file not created");
 
-    let loaded =
-        read_image_native(&path).unwrap_or_else(|e| panic!("{label}: read .{ext}: {e}"));
+    let loaded = read_image_native(&path).unwrap_or_else(|e| panic!("{label}: read .{ext}: {e}"));
     assert_image_eq(&loaded, volume, label);
 }
 
@@ -106,9 +105,7 @@ fn phantom_b0_slice_round_trips_all_formats() {
     let nx = 4;
     let ny = 4;
     let nz = 4;
-    let data: Vec<f32> = (0..nx * ny * nz)
-        .map(|_| 1000.0_f32)
-        .collect();
+    let data: Vec<f32> = (0..nx * ny * nz).map(|_| 1000.0_f32).collect();
 
     let original = NativeImage::from_flat(
         data,
@@ -292,7 +289,10 @@ fn missing_file_produces_error() {
     let err = read_image_native("nonexistent_volume.nii").unwrap_err();
     let msg = err.to_string().to_lowercase();
     assert!(
-        msg.contains("not found") || msg.contains("no such file") || msg.contains("cannot") || msg.contains("failed to read"),
+        msg.contains("not found")
+            || msg.contains("no such file")
+            || msg.contains("cannot")
+            || msg.contains("failed to read"),
         "missing file should produce an error, got: {msg}"
     );
 }

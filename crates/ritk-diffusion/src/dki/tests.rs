@@ -30,9 +30,7 @@ fn multi_shell_scheme(b0_count: usize, dir_count: usize, b_values: &[f64]) -> Gr
         for &b in b_values {
             let weighting =
                 DiffusionWeighting::from_seconds_per_square_millimeter(b).expect("finite b");
-            entries.push(
-                GradientDirection::new(weighting, g).expect("weighted direction"),
-            );
+            entries.push(GradientDirection::new(weighting, g).expect("weighted direction"));
         }
     }
 
@@ -96,7 +94,12 @@ fn isotropic_gaussian_recovers_zero_kurtosis() {
 
     // D elements recovered.
     let d_fit = tensor.elements_d();
-    assert!((d_fit[0] - d[0]).abs() < 1e-7, "Dxx mismatch: {} vs {}", d_fit[0], d[0]);
+    assert!(
+        (d_fit[0] - d[0]).abs() < 1e-7,
+        "Dxx mismatch: {} vs {}",
+        d_fit[0],
+        d[0]
+    );
 
     // Kurtosis near zero.
     assert!(
@@ -156,11 +159,19 @@ fn single_fibre_recovers_axial_kurtosis() {
     );
 
     // MK positive.
-    assert!(tensor.mk() > 0.0, "MK must be positive, got {}", tensor.mk());
+    assert!(
+        tensor.mk() > 0.0,
+        "MK must be positive, got {}",
+        tensor.mk()
+    );
     assert!(tensor.mk() < 1.5, "MK={} implausibly large", tensor.mk());
 
     // AK positive.
-    assert!(tensor.ak() > 0.0, "AK must be positive, got {}", tensor.ak());
+    assert!(
+        tensor.ak() > 0.0,
+        "AK must be positive, got {}",
+        tensor.ak()
+    );
 }
 
 #[test]
@@ -218,9 +229,7 @@ fn gaussian_signal_matches_dti() {
     let dti_tensor = dti::estimate_dti(
         &scheme,
         &signals,
-        DtiConfig::new(
-            DiffusionWeighting::from_seconds_per_square_millimeter(50.0).unwrap(),
-        ),
+        DtiConfig::new(DiffusionWeighting::from_seconds_per_square_millimeter(50.0).unwrap()),
     )
     .expect("DTI fit should succeed");
 
@@ -340,8 +349,8 @@ fn rotated_tensor_recovers_consistent_fa() {
     // Rotated W: only W_zzzz → rotated contributions.
     let mut w_rot = [0.0; 15];
     let w0_zzzz = 0.7;
-    w_rot[0] = w0_zzzz * sin_a.powi(4);   // W_xxxx
-    w_rot[2] = w0_zzzz * cos_a.powi(4);   // W_zzzz
+    w_rot[0] = w0_zzzz * sin_a.powi(4); // W_xxxx
+    w_rot[2] = w0_zzzz * cos_a.powi(4); // W_zzzz
     w_rot[9] = w0_zzzz * sin_a * sin_a * cos_a * cos_a; // W_xxzz
 
     let s0 = 1000.0;
@@ -392,9 +401,7 @@ fn reorient_gradients_recovers_original_pev_skip_reorientation_gives_wrong_pev()
     let angle = std::f64::consts::FRAC_PI_4;
     let rotation = rotation_y(angle);
 
-    let scheme_reoriented = scheme
-        .reorient(rotation)
-        .expect("valid proper rotation");
+    let scheme_reoriented = scheme.reorient(rotation).expect("valid proper rotation");
 
     // Generate DKI signals from the original tensor via the reoriented
     // scheme — this represents data after a rigid correction.
@@ -402,9 +409,8 @@ fn reorient_gradients_recovers_original_pev_skip_reorientation_gives_wrong_pev()
     let signals = dki_signals(&scheme_reoriented, s0, &tensor, &w_true);
 
     // ── With reorientation: correct path ─────────────────────────────────
-    let dki_correct =
-        estimate_dki(&scheme_reoriented, &signals, &default_config())
-            .expect("DKI fit with reoriented scheme");
+    let dki_correct = estimate_dki(&scheme_reoriented, &signals, &default_config())
+        .expect("DKI fit with reoriented scheme");
     let pev_correct = dki_correct.principal_eigenvector();
 
     let dot_original = (pev_correct[0] * original_pev[0]
@@ -422,8 +428,7 @@ fn reorient_gradients_recovers_original_pev_skip_reorientation_gives_wrong_pev()
 
     // ── Without reorientation: error path ────────────────────────────────
     let dki_wrong =
-        estimate_dki(&scheme, &signals, &default_config())
-            .expect("DKI fit without reorientation");
+        estimate_dki(&scheme, &signals, &default_config()).expect("DKI fit without reorientation");
     let pev_wrong = dki_wrong.principal_eigenvector();
 
     // Fitting with the original (unrotated) scheme on signals generated
@@ -450,7 +455,11 @@ fn reorient_gradients_recovers_original_pev_skip_reorientation_gives_wrong_pev()
         "ADR 0036 vc7 DKI: without reorientation PEV must align with \
          R^T·[0,0,1] = [{:.4}, 0, {:.4}]; PEV = [{:.4}, {:.4}, {:.4}], \
          dot = {dot_rotated:.4}",
-        -r2, r2, pev_wrong[0], pev_wrong[1], pev_wrong[2]
+        -r2,
+        r2,
+        pev_wrong[0],
+        pev_wrong[1],
+        pev_wrong[2]
     );
 
     // Verify the correct-path fit converged.

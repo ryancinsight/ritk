@@ -182,7 +182,11 @@ fn dicom_write_read_round_trip_recovers_identical_scheme() -> Result<()> {
 
     assert_eq!(recovered.frame(), scheme.frame());
     assert_eq!(recovered.len(), scheme.len());
-    for (original, recovered) in scheme.directions().iter().zip(recovered.directions().iter()) {
+    for (original, recovered) in scheme
+        .directions()
+        .iter()
+        .zip(recovered.directions().iter())
+    {
         assert_eq!(
             original.weighting(),
             recovered.weighting(),

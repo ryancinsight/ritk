@@ -56,9 +56,7 @@ pub enum DtiError {
     #[error("gradient scheme has no diffusion-weighted volumes")]
     NoDwiDirections,
     /// The number of weighted directions is fewer than the six unknowns.
-    #[error(
-        "{direction_count} diffusion-weighted directions cannot identify 6 tensor elements"
-    )]
+    #[error("{direction_count} diffusion-weighted directions cannot identify 6 tensor elements")]
     Underdetermined {
         /// Weighted measurement count.
         direction_count: usize,
@@ -325,15 +323,17 @@ pub fn estimate_dti(
         .map_err(|error| DtiError::SolveFailed(error.to_string()))?;
 
     let elements = [
-        solution[0], solution[1], solution[2],
-        solution[3], solution[4], solution[5],
+        solution[0],
+        solution[1],
+        solution[2],
+        solution[3],
+        solution[4],
+        solution[5],
     ];
 
     // ── Decompose ─────────────────────────────────────────────────────────
-    let (eigenvalues, principal_eigenvector) =
-        decompose_3x3_symmetric(elements).map_err(|(index, value)| {
-            DtiError::NonPositiveEigenvalue { index, value }
-        })?;
+    let (eigenvalues, principal_eigenvector) = decompose_3x3_symmetric(elements)
+        .map_err(|(index, value)| DtiError::NonPositiveEigenvalue { index, value })?;
 
     let residual = compute_residual(&design, &solution, &log_signals);
 
@@ -366,8 +366,7 @@ pub(crate) fn decompose_3x3_symmetric(
     // Invariants of the characteristic polynomial λ³ − I₁λ² + I₂λ − I₃.
     let i1 = dxx + dyy + dzz; // trace
     let i2 = dxx * dyy + dxx * dzz + dyy * dzz - dxy * dxy - dxz * dxz - dyz * dyz;
-    let i3 = dxx * dyy * dzz
-        + 2.0 * dxy * dxz * dyz
+    let i3 = dxx * dyy * dzz + 2.0 * dxy * dxz * dyz
         - dxx * dyz * dyz
         - dyy * dxz * dxz
         - dzz * dxy * dxy;
@@ -470,9 +469,7 @@ pub(crate) fn decompose_3x3_symmetric(
 /// # Panics
 ///
 /// Panics if any eigenvalue is not strictly positive.
-pub(crate) fn decompose_3x3_symmetric_infallible(
-    elements: [f64; 6],
-) -> ([f64; 3], [f64; 3]) {
+pub(crate) fn decompose_3x3_symmetric_infallible(elements: [f64; 6]) -> ([f64; 3], [f64; 3]) {
     match decompose_3x3_symmetric(elements) {
         Ok(result) => result,
         Err((idx, val)) => {
@@ -484,7 +481,11 @@ pub(crate) fn decompose_3x3_symmetric_infallible(
     }
 }
 
-fn compute_residual(design: &Array2<f64>, solution: &Array1<f64>, log_signals: &Array1<f64>) -> f64 {
+fn compute_residual(
+    design: &Array2<f64>,
+    solution: &Array1<f64>,
+    log_signals: &Array1<f64>,
+) -> f64 {
     let n_rows = design.shape()[0];
     let n_cols = design.shape()[1];
     let mut sum_sq = 0.0;

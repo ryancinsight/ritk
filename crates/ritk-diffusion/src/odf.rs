@@ -346,8 +346,7 @@ impl OdField {
 
     fn evaluate_unchecked(&self, theta: f64, phi: f64) -> Result<f64, OdfError> {
         let mut result = 0.0;
-        for ((_, degree, order), coefficient) in
-            self.basis.iter_lm().zip(self.coefficients.iter())
+        for ((_, degree, order), coefficient) in self.basis.iter_lm().zip(self.coefficients.iter())
         {
             let basis_value = real_spherical_harmonic(degree, order, theta, phi)
                 .expect("invariant: SH evaluation with pre-validated basis");
