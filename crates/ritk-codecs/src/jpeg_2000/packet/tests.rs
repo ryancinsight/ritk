@@ -18,6 +18,13 @@ fn reversible_coding() -> TileCodingParams<'static> {
 }
 
 #[test]
+fn bit_plane_budget_saturates_at_zero() {
+    assert_eq!(total_bit_planes(0, 0), 0);
+    assert_eq!(total_bit_planes(2, 0), 1);
+    assert_eq!(total_bit_planes(2, 12), 13);
+}
+
+#[test]
 fn tile_decode_rejects_oversized_dimensions_before_allocation() {
     let result = decode_tile_part(
         &[],

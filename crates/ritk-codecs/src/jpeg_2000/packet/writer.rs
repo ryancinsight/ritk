@@ -4,7 +4,9 @@ use crate::jpeg_2000::subband::{resolution_band_range, subband_layout};
 use crate::jpeg_2000::wavelet::forward_dwt_5_3;
 use crate::jpeg_2000::wavelet_9_7::forward_dwt_9_7;
 
-use super::{band_cblks, band_trees, lblock_extra_bits, CblkRef, WaveletTransform};
+use super::{
+    band_cblks, band_trees, lblock_extra_bits, total_bit_planes, CblkRef, WaveletTransform,
+};
 
 /// Write individual bits, MSB first, into a byte buffer.
 ///
@@ -190,7 +192,7 @@ pub(crate) fn encode_tile_part(
                 let exponent = quantizers
                     .and_then(|values| values.get(bi))
                     .map_or(precision + b.gain, |quantizer| quantizer.exponent);
-                let total_bp = u32::from(num_guard_bits) + exponent - 1;
+                let total_bp = total_bit_planes(num_guard_bits, exponent);
                 (
                     total_bp.saturating_sub(u32::from(enc.num_bit_planes)),
                     enc.num_passes,

@@ -33,6 +33,15 @@ pub enum WaveletTransform {
 /// encoder's COD emission and both tier-2 directions.
 pub(crate) const CBLK_SIZE: usize = 64;
 
+/// Number of available EBCOT magnitude bit-planes for a subband.
+///
+/// ISO 15444-1 §E.1 defines this as `M_b = G + ε_b − 1`. The saturated
+/// subtraction covers the representable boundary `G = ε_b = 0` without a
+/// debug-build panic or release-build wraparound.
+pub(crate) fn total_bit_planes(num_guard_bits: u8, exponent: u32) -> u32 {
+    (u32::from(num_guard_bits) + exponent).saturating_sub(1)
+}
+
 /// One code-block: its subband, grid position, and rectangle within the band.
 #[derive(Clone, Copy, Debug)]
 pub(crate) struct CblkRef {

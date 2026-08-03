@@ -483,6 +483,32 @@ mod tests {
     }
 
     #[test]
+    fn lossy_zero_exponent_encodes_without_bit_plane_underflow() {
+        let pixels = [0, 1024, 2048, 4095];
+        let codestream = encode_grayscale_j2k(
+            &pixels,
+            2,
+            2,
+            12,
+            PixelSignedness::Unsigned,
+            Jpeg2000Encoding::Lossy {
+                decomposition_levels: 0,
+                quantization_step: QuantizationStep::new(4096.0)
+                    .expect("positive finite step must be valid"),
+            },
+        )
+        .expect("QCD exponent zero must remain encodable");
+
+        let (header, _) = crate::jpeg_2000::codestream::parse_main_header(&codestream)
+            .expect("encoder output must have a valid main header");
+        assert_eq!(header.qcd.exponents(), &[0]);
+
+        let decoded = decode_j2k_fragment(&codestream, layout(2, 2, 12, PixelSignedness::Unsigned))
+            .expect("zero-exponent codestream must decode");
+        assert_eq!(decoded, vec![2048.0; pixels.len()]);
+    }
+
+    #[test]
     fn coarser_lossy_step_reduces_documented_fixture_size() {
         let pixels: Vec<i32> = (0i32..96 * 96)
             .map(|index| {

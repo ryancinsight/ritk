@@ -8,7 +8,9 @@ use crate::jpeg_2000::tag_tree::TagTree;
 use crate::jpeg_2000::wavelet::inverse_dwt_5_3;
 use crate::jpeg_2000::wavelet_9_7::inverse_dwt_9_7;
 
-use super::{band_cblks, cblk_grid, lblock_extra_bits, CblkRef, WaveletTransform};
+use super::{
+    band_cblks, cblk_grid, lblock_extra_bits, total_bit_planes, CblkRef, WaveletTransform,
+};
 
 /// Read individual bits (MSB first) from a borrowed §B.10.1 bit-stuffed
 /// header: after a 0xFF byte, the following byte contributes only its low
@@ -309,7 +311,7 @@ pub fn decode_tile_part(
             .copied()
             .unwrap_or(coding.precision + b.gain);
         // Mb = ε_b + G − 1 (ISO 15444-1 §E.1).
-        let total_bp = (u32::from(coding.num_guard_bits) + exponent).saturating_sub(1);
+        let total_bp = total_bit_planes(coding.num_guard_bits, exponent);
         let num_bit_planes = if st.included_before {
             total_bp.saturating_sub(st.msbs)
         } else {
