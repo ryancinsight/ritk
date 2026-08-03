@@ -16,7 +16,7 @@
 //! - Ten byte-exact MQ/EBCOT regression patterns compare RITK and OpenJPEG tile
 //!   bodies and decode to exact source samples.
 
-use ritk_codecs::jpeg_2000::encoder::{encode_grayscale_j2k, WaveletTransform};
+use ritk_codecs::jpeg_2000::encoder::{encode_grayscale_j2k, Jpeg2000Encoding};
 use ritk_codecs::{decode_jpeg2000_fragment, PixelLayout, PixelSignedness};
 use std::collections::BTreeSet;
 use std::sync::OnceLock;
@@ -194,8 +194,9 @@ fn encode(fixture: Fixture<'_>, source: &[i32]) -> Vec<u8> {
         u32::from(fixture.cols),
         u32::from(fixture.precision),
         PixelSignedness::Unsigned,
-        fixture.levels,
-        WaveletTransform::Reversible,
+        Jpeg2000Encoding::Lossless {
+            decomposition_levels: fixture.levels,
+        },
     )
     .expect("captured valid fixture must encode")
 }

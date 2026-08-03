@@ -1,5 +1,7 @@
 use std::fmt;
 
+use crate::jpeg_2000::quantization::QuantizationStep;
+
 /// Maximum sample precision supported by the current `i32` entropy path.
 ///
 /// DICOM permits larger JPEG 2000 precisions, but accepting them here would
@@ -57,6 +59,14 @@ pub enum Jpeg2000EncodeError {
         /// Inclusive upper bound.
         maximum: i32,
     },
+    /// The requested lossy step cannot be represented by this subband's QCD
+    /// exponent field.
+    UnrepresentableQuantizationStep {
+        /// Requested positive finite step.
+        step: QuantizationStep,
+        /// Subband dynamic-range exponent `R_b`.
+        dynamic_range: u32,
+    },
 }
 
 impl fmt::Display for Jpeg2000EncodeError {
@@ -92,6 +102,14 @@ impl fmt::Display for Jpeg2000EncodeError {
             } => write!(
                 formatter,
                 "JPEG 2000 sample[{index}]={value} is outside [{minimum}, {maximum}]"
+            ),
+            Self::UnrepresentableQuantizationStep {
+                step,
+                dynamic_range,
+            } => write!(
+                formatter,
+                "JPEG 2000 quantization step {} is not representable for subband dynamic range {dynamic_range}",
+                step.get()
             ),
         }
     }

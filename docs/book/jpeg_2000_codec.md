@@ -87,21 +87,31 @@ equal the source samples bit-for-bit.
 ## Irreversible 9/7 transform
 
 The irreversible path uses the floating-point 9/7 lifting transform and
-dead-zone scalar quantization. RITK currently uses a unit quantization step:
-the path is lossy because floating-point lifting and coefficient quantization
-do not preserve every integer exactly, but it does not yet expose a target
-bit-rate or quality parameter. Treat codestream size as an observed result,
-not a requested rate.
+dead-zone scalar quantization. `QuantizationStep` controls the coefficient
+interval width `Δ`: larger steps map more nearby coefficients to the same
+integer index, usually reducing packet bytes while increasing reconstruction
+error. JPEG 2000 stores `Δ` as a five-bit exponent and eleven-bit mantissa in
+QCD. RITK rounds the requested positive finite step to the nearest
+representable QCD value for each subband, then uses that exact represented
+value for both coefficient quantization and metadata.
 
-The worked example deliberately renders the 9/7 absolute error with its own
-magnified scale. Source and reconstructed anatomy otherwise appear nearly
-identical when all three image panels share the same 12-bit display range.
+This is scalar quality control, not target-rate control. The same `Δ` can
+produce different byte lengths for different anatomy, noise, precision, and
+wavelet depth. Treat codestream size and PSNR as measured outputs. Target-byte
+or target-bitrate encoding requires multiple coding-pass truncation points and
+rate-distortion optimization, which this one-layer encoder does not claim.
+
+The worked example shows unit and coarse (`Δ = 32`) reconstructions side by
+side, prints each actual byte count and PSNR, and renders the coarse absolute
+error with its own magnified black→red→yellow scale. That separate palette and
+scale make changes visible even where the shared 12-bit anatomy display range
+hides them.
 
 ## Encoding through the public API
 
 ```rust,ignore
 use ritk_codecs::jpeg_2000::encoder::{
-    encode_grayscale_j2k, WaveletTransform,
+    encode_grayscale_j2k, Jpeg2000Encoding,
 };
 use ritk_codecs::PixelSignedness;
 
@@ -112,8 +122,9 @@ let codestream = encode_grayscale_j2k(
     2,
     12,
     PixelSignedness::Unsigned,
-    1,
-    WaveletTransform::Reversible,
+    Jpeg2000Encoding::Lossless {
+        decomposition_levels: 1,
+    },
 )?;
 ```
 
@@ -126,10 +137,25 @@ The encoder validates before constructing the transform buffer:
   count; and
 - every sample fits the declared signed or unsigned range.
 
+Lossy construction validates the scalar step separately:
+
+```rust,ignore
+use ritk_codecs::jpeg_2000::encoder::{Jpeg2000Encoding, QuantizationStep};
+
+let encoding = Jpeg2000Encoding::Lossy {
+    decomposition_levels: 3,
+    quantization_step: QuantizationStep::new(8.0)?,
+};
+```
+
+Zero, negative, NaN, and infinite steps fail at `QuantizationStep::new`.
+A finite step whose QCD exponent is unavailable for any requested subband
+fails before wavelet allocation.
+
 These are errors, not panic conditions. The current `i32` entropy path
 intentionally rejects DICOM's wider legal precision range rather than
 truncating values or risking lifting overflow. Color components, chroma
-subsampling, multiple tiles, custom precincts, rate control, and JP2
+subsampling, multiple tiles, custom precincts, target-rate control, and JP2
 containers are also outside the current encoder contract.
 
 ## Memory and packet structure
@@ -139,7 +165,9 @@ Unsigned JPEG 2000 components are centered by subtracting
 transform buffer. It does not first allocate a second, complete shifted image.
 For a reversible image of `N` samples, this removes `4N` bytes of peak
 full-image storage and one pass that writes those bytes. Code-block coefficient
-vectors remain bounded by the 64 × 64 code-block geometry.
+vectors remain bounded by the 64 × 64 code-block geometry. Irreversible encode
+similarly retains one `f32` Mallat volume and quantizes one code block at a
+time; it no longer materializes a second complete `i32` coefficient volume.
 
 The encoder emits one image-wide tile, one quality layer, LRCP progression,
 one precinct per resolution, and 64 × 64 nominal code-blocks. Before output
@@ -152,9 +180,11 @@ header and bounds its declared body length before consuming packet data.
 RITK tests the native paths at three levels:
 
 1. analytical round trips require zero error for reversible 5/3;
-2. captured OpenJPEG 2.5.4 codestreams exercise independent producer/consumer
+2. quantization tests require each requested step to round to one QCD pair and
+   require packet coefficients to use the reconstructed QCD value;
+3. captured OpenJPEG 2.5.4 codestreams exercise independent producer/consumer
    interoperability without loading OpenJPEG at test time; and
-3. malformed geometry, unsupported component/progression overrides, truncated
+4. malformed geometry, unsupported component/progression overrides, truncated
    markers, zero-length or exhausted entropy bodies, incomplete packets,
    multi-part declarations, missing tiles, invalid `Psot = 0` boundaries,
    trailing payload, and missing EOC require typed rejection instead of a panic

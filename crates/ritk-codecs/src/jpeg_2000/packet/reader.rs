@@ -341,16 +341,18 @@ pub fn decode_tile_part(
             // Dequantize each subband (Δ_b from the QCD ε_b/μ_b relative to
             // R_b = precision + gain_b), inverse 9/7, then round to integers.
             // With ≥ 1 decomposition level the coefficients are continuous 9/7
-            // outputs (sub-step uncertainty → midpoint reconstruction); with zero
-            // levels the single LL band is the original integer image captured
-            // losslessly (exact → no reconstruction bias).
-            let continuous = coding.num_decomp_levels > 0;
+            // outputs (sub-step uncertainty → midpoint reconstruction). With
+            // zero levels the single LL band is exact only when Δ = 1; any
+            // coarser quantizer still carries interval uncertainty.
             let mut coeffs = vec![0f32; sample_count];
             for (bi, b) in bands.iter().enumerate() {
                 let r_b = coding.precision + b.gain;
                 let exponent = coding.exponents.get(bi).copied().unwrap_or(r_b);
                 let mantissa = coding.mantissas.get(bi).copied().unwrap_or(0);
                 let delta = step_size(r_b, exponent, mantissa);
+                let exact_integer =
+                    coding.num_decomp_levels == 0 && exponent == r_b && mantissa == 0;
+                let continuous = !exact_integer;
                 for y in 0..b.h {
                     for x in 0..b.w {
                         let idx = (b.y0 + y) * width + b.x0 + x;

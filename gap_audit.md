@@ -169,6 +169,28 @@ book successfully. The live
 `figures/analyze_roundtrip.svg` resources each return HTTP 200; the SVG served
 by Pages is the inspected 13,080-byte generated artifact.
 
+## FEAT-692-01 audit (2026-08-03)
+
+The pure-Rust irreversible JPEG 2000 encoder already implemented 9/7 lifting,
+dead-zone quantization, QCD serialization, EBCOT, and native decode, but every
+subband used a hardcoded unit step. The public transform and decomposition
+arguments were independent, so the type system did not own the required
+lossless-versus-lossy configuration relationship. Irreversible encode also
+materialized both a complete `f32` Mallat volume and a complete quantized
+`i32` volume before partitioning code blocks.
+
+FEAT-692-01 makes the transform contract one `Jpeg2000Encoding` enum and uses a
+validated `QuantizationStep` for irreversible mode. Each requested step is
+rounded to the QCD exponent/mantissa representation for its subband; that exact
+reconstructed value drives coefficient quantization and marker emission. The
+packet writer now quantizes from the float Mallat volume one nominal 64 × 64
+code block at a time, removing the second image-sized coefficient allocation.
+
+Residual scope is explicit: scalar quantization does not select a target byte
+count or bitrate. Rate-distortion optimization, multiple quality layers,
+multi-component traversal, and JP2 containers remain separate feature work,
+not hidden fallbacks.
+
 ## SAFE-687-01 audit (2026-08-01)
 
 The native JPEG 2000 packet reader traverses one LRCP component stream, but the

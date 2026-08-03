@@ -5,9 +5,8 @@
 //! .91 lossy).
 //! Current configuration:
 //! - One tile = entire image.
-//! - Caller-selected DWT decomposition levels.
-//! - Caller-selected wavelet ([`WaveletTransform`]): 5/3 reversible (lossless,
-//!   no quantization) or 9/7 irreversible (lossy, unit-step scalar quantization).
+//! - Caller-selected [`Jpeg2000Encoding`]: 5/3 reversible lossless or 9/7
+//!   irreversible with a validated scalar quantization step.
 //! - One quality layer.
 //! - Guard bits = 2.
 //!
@@ -15,14 +14,16 @@
 //! `SOC | SIZ | COD | QCD | [tile-part: SOT + SOD + packet] | EOC`
 //!
 //! # Evidence tier
-//! Correctness is verified by the round-trip tests in `mod.rs` which encode with
-//! this module and decode with the pure-Rust decoder: the 5/3 path reconstructs
-//! with exactly zero error (lossless invariant); the 9/7 path reconstructs an
-//! 8-bit image at PSNR ≥ 48 dB (near-lossless invariant).
+//! Correctness is verified by round-trip tests that encode with this module and
+//! decode with the pure-Rust decoder. The reversible path reconstructs every
+//! sample exactly. Irreversible tests verify the transmitted quantization step,
+//! bounded reconstruction error, and the expected size/error ordering between
+//! finer and coarser steps.
 
 use super::packet::encode_tile_part;
-pub use super::packet::WaveletTransform;
-use super::quantization::pack_spqcd;
+use super::packet::WaveletTransform;
+use super::quantization::ScalarQuantizer;
+pub use super::quantization::{QuantizationStep, QuantizationStepError};
 use super::subband::subband_layout;
 use crate::PixelSignedness;
 
@@ -34,6 +35,66 @@ use validation::{validate_geometry, validate_precision};
 /// Guard bits used in the QCD marker and MSBs computation.
 const GUARD_BITS: u8 = 2;
 
+/// Transform, decomposition depth, and quantization contract for one encoded
+/// component.
+///
+/// The variants make a lossless transform with lossy settings
+/// unrepresentable. Use [`QuantizationStep::UNIT`] to retain the previous
+/// irreversible encoder behavior.
+///
+/// # Examples
+///
+/// ```
+/// use ritk_codecs::jpeg_2000::encoder::{Jpeg2000Encoding, QuantizationStep};
+///
+/// let lossless = Jpeg2000Encoding::Lossless {
+///     decomposition_levels: 2,
+/// };
+/// let lossy = Jpeg2000Encoding::Lossy {
+///     decomposition_levels: 2,
+///     quantization_step: QuantizationStep::new(4.0)?,
+/// };
+/// assert_ne!(lossless, lossy);
+/// # Ok::<(), Box<dyn std::error::Error>>(())
+/// ```
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+#[non_exhaustive]
+pub enum Jpeg2000Encoding {
+    /// Reversible 5/3 transform with no quantization.
+    Lossless {
+        /// Number of wavelet decomposition levels.
+        decomposition_levels: u8,
+    },
+    /// Irreversible 9/7 transform with scalar dead-zone quantization.
+    Lossy {
+        /// Number of wavelet decomposition levels.
+        decomposition_levels: u8,
+        /// Requested positive finite quantization step.
+        quantization_step: QuantizationStep,
+    },
+}
+
+impl Jpeg2000Encoding {
+    const fn decomposition_levels(self) -> u8 {
+        match self {
+            Self::Lossless {
+                decomposition_levels,
+            }
+            | Self::Lossy {
+                decomposition_levels,
+                ..
+            } => decomposition_levels,
+        }
+    }
+
+    const fn transform(self) -> WaveletTransform {
+        match self {
+            Self::Lossless { .. } => WaveletTransform::Reversible,
+            Self::Lossy { .. } => WaveletTransform::Irreversible,
+        }
+    }
+}
+
 /// Encode a grayscale image as a bare J2K codestream.
 ///
 /// # Parameters
@@ -43,6 +104,8 @@ const GUARD_BITS: u8 = 2;
 /// - `rows` / `cols`: image dimensions.
 /// - `precision`: bit-depth (1–16).
 /// - `signed`: whether the component uses signed representation.
+/// - `encoding`: reversible/lossless or irreversible/lossy mode, including
+///   decomposition depth and the lossy quantization step.
 ///
 /// # DC level shift (ISO 15444-1 §G.1.2)
 /// Unsigned components are DC-shifted by `−2^(precision−1)` before EBCOT
@@ -51,17 +114,19 @@ const GUARD_BITS: u8 = 2;
 /// # Errors
 /// Returns an error for zero or overflowing geometry, a mismatched sample
 /// count, precision outside 1–16, a decomposition depth larger than the image
-/// geometry supports, or a sample outside the range declared by `precision`
-/// and `signed`.
+/// geometry supports, a sample outside the range declared by `precision` and
+/// `signed`, or a lossy quantization step that the QCD exponent cannot
+/// represent for every transformed subband.
 pub fn encode_grayscale_j2k(
     pixels: &[i32],
     rows: u32,
     cols: u32,
     precision: u32,
     signed: PixelSignedness,
-    num_decomp_levels: u8,
-    transform: WaveletTransform,
+    encoding: Jpeg2000Encoding,
 ) -> Result<Vec<u8>, Jpeg2000EncodeError> {
+    let num_decomp_levels = encoding.decomposition_levels();
+    let transform = encoding.transform();
     let (w, h) = validate_geometry(pixels.len(), rows, cols, num_decomp_levels)?;
     let is_signed = signed.is_signed();
     let (minimum, maximum) = validate_precision(precision, is_signed)?;
@@ -85,7 +150,29 @@ pub fn encode_grayscale_j2k(
         -(1i32 << (precision - 1))
     };
 
-    // Build the tile-part (SOT + SOD + packet).
+    let bands = subband_layout(w, h, num_decomp_levels);
+    let quantizers = match encoding {
+        Jpeg2000Encoding::Lossless { .. } => None,
+        Jpeg2000Encoding::Lossy {
+            quantization_step, ..
+        } => Some(
+            bands
+                .iter()
+                .map(|band| {
+                    let dynamic_range = precision + band.gain;
+                    ScalarQuantizer::from_step(quantization_step, dynamic_range).ok_or(
+                        Jpeg2000EncodeError::UnrepresentableQuantizationStep {
+                            step: quantization_step,
+                            dynamic_range,
+                        },
+                    )
+                })
+                .collect::<Result<Vec<_>, _>>()?,
+        ),
+    };
+
+    // Build the tile-part (SOT + SOD + packet). The packet writer quantizes
+    // with the exact deltas reconstructed from the QCD values below.
     let tile_part = encode_tile_part(
         pixels,
         w,
@@ -96,6 +183,7 @@ pub fn encode_grayscale_j2k(
         0,
         num_decomp_levels,
         transform,
+        quantizers.as_deref(),
     );
 
     // Assemble the full codestream.
@@ -130,8 +218,8 @@ pub fn encode_grayscale_j2k(
 
     // COD: Scod=0 (no custom precincts, no SOP/EPH),
     //       progression=LRCP(0), layers=1, MCT=0,
-    //       num_decomp=0, xcb_o=4 (64px), ycb_o=4 (64px),
-    //       cb_style=0, wavelet=1 (5/3 reversible).
+    //       caller-selected decomposition depth, xcb_o=4 (64px),
+    //       ycb_o=4 (64px), cb_style=0, and caller-selected wavelet.
     let lcod: u16 = 12; // Lcod = 12 bytes
     cs.extend_from_slice(&[0xFF, 0x52]); // COD marker
     cs.extend_from_slice(&lcod.to_be_bytes()); // Lcod
@@ -148,9 +236,9 @@ pub fn encode_grayscale_j2k(
         WaveletTransform::Irreversible => 0x00, // 9/7 irreversible
     }); // SPcod: wavelet_transform
 
-    // QCD: reversible → no quantization (style 0, 1-byte ε entries); irreversible
-    // → scalar expounded (style 2, 2-byte ε/μ entries).  The irreversible encoder
-    // uses a unit step Δ_b = 1 (ε_b = precision + gain_b, μ_b = 0).
+    // QCD: reversible → no quantization (style 0, 1-byte ε entries);
+    // irreversible → scalar expounded (style 2, 2-byte ε/μ entries) using the
+    // exact per-subband representations already supplied to the packet writer.
     let num_bands = 3 * u16::from(num_decomp_levels) + 1;
     cs.extend_from_slice(&[0xFF, 0x5C]); // QCD marker
     match transform {
@@ -159,7 +247,7 @@ pub fn encode_grayscale_j2k(
             let sqcd: u8 = GUARD_BITS << 5; // guard bits in 7-5, style 0
             cs.extend_from_slice(&lqcd.to_be_bytes());
             cs.push(sqcd);
-            for band in subband_layout(w, h, num_decomp_levels) {
+            for band in &bands {
                 cs.push((((precision + band.gain) << 3) & 0xFF) as u8); // ε in 7-3
             }
         }
@@ -168,9 +256,11 @@ pub fn encode_grayscale_j2k(
             let sqcd: u8 = (GUARD_BITS << 5) | 0x02; // guard bits in 7-5, style 2
             cs.extend_from_slice(&lqcd.to_be_bytes());
             cs.push(sqcd);
-            for band in subband_layout(w, h, num_decomp_levels) {
-                // ε_b = R_b = precision + gain_b, μ_b = 0 (Δ_b = 1).
-                cs.extend_from_slice(&pack_spqcd(precision + band.gain, 0).to_be_bytes());
+            for quantizer in quantizers
+                .as_ref()
+                .expect("invariant: irreversible encoding has one quantizer per subband")
+            {
+                cs.extend_from_slice(&quantizer.packed().to_be_bytes());
             }
         }
     }
@@ -203,18 +293,16 @@ mod tests {
         }
     }
 
+    const fn lossless(decomposition_levels: u8) -> Jpeg2000Encoding {
+        Jpeg2000Encoding::Lossless {
+            decomposition_levels,
+        }
+    }
+
     #[test]
     fn encoder_output_starts_with_soc() {
-        let j2k = encode_grayscale_j2k(
-            &[0i32; 4],
-            2,
-            2,
-            8,
-            PixelSignedness::Unsigned,
-            0,
-            WaveletTransform::Reversible,
-        )
-        .expect("valid image must encode");
+        let j2k = encode_grayscale_j2k(&[0i32; 4], 2, 2, 8, PixelSignedness::Unsigned, lossless(0))
+            .expect("valid image must encode");
         assert!(
             is_soc(&j2k),
             "encoded codestream must start with SOC 0xFF4F"
@@ -223,16 +311,8 @@ mod tests {
 
     #[test]
     fn encoder_ends_with_eoc() {
-        let j2k = encode_grayscale_j2k(
-            &[1i32; 4],
-            2,
-            2,
-            8,
-            PixelSignedness::Unsigned,
-            0,
-            WaveletTransform::Reversible,
-        )
-        .expect("valid image must encode");
+        let j2k = encode_grayscale_j2k(&[1i32; 4], 2, 2, 8, PixelSignedness::Unsigned, lossless(0))
+            .expect("valid image must encode");
         let last2 = &j2k[j2k.len() - 2..];
         assert_eq!(
             last2,
@@ -245,16 +325,8 @@ mod tests {
     fn round_trip_uniform_unsigned_8bit() {
         let pixel_value = 128i32;
         let pixels = vec![pixel_value; 16];
-        let j2k = encode_grayscale_j2k(
-            &pixels,
-            4,
-            4,
-            8,
-            PixelSignedness::Unsigned,
-            0,
-            WaveletTransform::Reversible,
-        )
-        .expect("valid image must encode");
+        let j2k = encode_grayscale_j2k(&pixels, 4, 4, 8, PixelSignedness::Unsigned, lossless(0))
+            .expect("valid image must encode");
         let decoded = decode_j2k_fragment(&j2k, layout(4, 4, 8, PixelSignedness::Unsigned))
             .expect("round-trip decode must succeed");
         assert_eq!(decoded.len(), 16);
@@ -266,16 +338,8 @@ mod tests {
     #[test]
     fn round_trip_gradient_unsigned_8bit() {
         let pixels: Vec<i32> = (0..8).collect();
-        let j2k = encode_grayscale_j2k(
-            &pixels,
-            2,
-            4,
-            8,
-            PixelSignedness::Unsigned,
-            0,
-            WaveletTransform::Reversible,
-        )
-        .expect("valid image must encode");
+        let j2k = encode_grayscale_j2k(&pixels, 2, 4, 8, PixelSignedness::Unsigned, lossless(0))
+            .expect("valid image must encode");
         let decoded = decode_j2k_fragment(&j2k, layout(2, 4, 8, PixelSignedness::Unsigned))
             .expect("gradient round-trip must succeed");
         for (i, (&orig, &dec)) in pixels.iter().zip(decoded.iter()).enumerate() {
@@ -286,16 +350,8 @@ mod tests {
     #[test]
     fn round_trip_signed_8bit() {
         let pixels = vec![-4i32, -1, 0, 3];
-        let j2k = encode_grayscale_j2k(
-            &pixels,
-            2,
-            2,
-            8,
-            PixelSignedness::Signed,
-            0,
-            WaveletTransform::Reversible,
-        )
-        .expect("valid image must encode");
+        let j2k = encode_grayscale_j2k(&pixels, 2, 2, 8, PixelSignedness::Signed, lossless(0))
+            .expect("valid image must encode");
         let decoded = decode_j2k_fragment(&j2k, layout(2, 2, 8, PixelSignedness::Signed))
             .expect("signed round-trip must succeed");
         assert_eq!(decoded, vec![-4.0f32, -1.0, 0.0, 3.0]);
@@ -304,16 +360,8 @@ mod tests {
     #[test]
     fn round_trip_single_pixel_with_rescale() {
         let pixels = vec![100i32];
-        let j2k = encode_grayscale_j2k(
-            &pixels,
-            1,
-            1,
-            8,
-            PixelSignedness::Unsigned,
-            0,
-            WaveletTransform::Reversible,
-        )
-        .expect("valid image must encode");
+        let j2k = encode_grayscale_j2k(&pixels, 1, 1, 8, PixelSignedness::Unsigned, lossless(0))
+            .expect("valid image must encode");
         let mut lyt = layout(1, 1, 8, PixelSignedness::Unsigned);
         lyt.rescale_slope = 2.0;
         lyt.rescale_intercept = -1024.0;
@@ -323,31 +371,15 @@ mod tests {
 
     #[test]
     fn encoder_rejects_zero_geometry() {
-        let error = encode_grayscale_j2k(
-            &[],
-            0,
-            1,
-            8,
-            PixelSignedness::Unsigned,
-            0,
-            WaveletTransform::Reversible,
-        )
-        .expect_err("zero-height image must fail");
+        let error = encode_grayscale_j2k(&[], 0, 1, 8, PixelSignedness::Unsigned, lossless(0))
+            .expect_err("zero-height image must fail");
         assert_eq!(error, Jpeg2000EncodeError::EmptyImage { rows: 0, cols: 1 });
     }
 
     #[test]
     fn encoder_rejects_mismatched_sample_count() {
-        let error = encode_grayscale_j2k(
-            &[0],
-            2,
-            2,
-            8,
-            PixelSignedness::Unsigned,
-            0,
-            WaveletTransform::Reversible,
-        )
-        .expect_err("mismatched sample count must fail");
+        let error = encode_grayscale_j2k(&[0], 2, 2, 8, PixelSignedness::Unsigned, lossless(0))
+            .expect_err("mismatched sample count must fail");
         assert_eq!(
             error,
             Jpeg2000EncodeError::PixelCountMismatch {
@@ -360,16 +392,9 @@ mod tests {
     #[test]
     fn encoder_rejects_unsupported_precision() {
         for precision in [0, 17] {
-            let error = encode_grayscale_j2k(
-                &[0],
-                1,
-                1,
-                precision,
-                PixelSignedness::Signed,
-                0,
-                WaveletTransform::Reversible,
-            )
-            .expect_err("unsupported precision must fail");
+            let error =
+                encode_grayscale_j2k(&[0], 1, 1, precision, PixelSignedness::Signed, lossless(0))
+                    .expect_err("unsupported precision must fail");
             assert_eq!(
                 error,
                 Jpeg2000EncodeError::UnsupportedPrecision {
@@ -382,16 +407,8 @@ mod tests {
 
     #[test]
     fn encoder_rejects_excessive_decomposition() {
-        let error = encode_grayscale_j2k(
-            &[0; 4],
-            2,
-            2,
-            8,
-            PixelSignedness::Unsigned,
-            2,
-            WaveletTransform::Reversible,
-        )
-        .expect_err("decomposition beyond geometry must fail");
+        let error = encode_grayscale_j2k(&[0; 4], 2, 2, 8, PixelSignedness::Unsigned, lossless(2))
+            .expect_err("decomposition beyond geometry must fail");
         assert_eq!(
             error,
             Jpeg2000EncodeError::ExcessiveDecomposition {
@@ -409,16 +426,8 @@ mod tests {
             (PixelSignedness::Signed, -129, -128, 127),
             (PixelSignedness::Signed, 128, -128, 127),
         ] {
-            let error = encode_grayscale_j2k(
-                &[sample],
-                1,
-                1,
-                8,
-                signedness,
-                0,
-                WaveletTransform::Reversible,
-            )
-            .expect_err("out-of-range sample must fail");
+            let error = encode_grayscale_j2k(&[sample], 1, 1, 8, signedness, lossless(0))
+                .expect_err("out-of-range sample must fail");
             assert_eq!(
                 error,
                 Jpeg2000EncodeError::SampleOutOfRange {
@@ -437,22 +446,126 @@ mod tests {
             (PixelSignedness::Unsigned, [0, 255]),
             (PixelSignedness::Signed, [-128, 127]),
         ] {
-            let codestream = encode_grayscale_j2k(
-                &pixels,
-                1,
-                2,
-                8,
-                signedness,
-                0,
-                WaveletTransform::Reversible,
-            )
-            .expect("inclusive sample boundaries must encode");
+            let codestream = encode_grayscale_j2k(&pixels, 1, 2, 8, signedness, lossless(0))
+                .expect("inclusive sample boundaries must encode");
             let decoded = decode_j2k_fragment(&codestream, layout(1, 2, 8, signedness))
                 .expect("boundary codestream must decode");
             assert_eq!(
                 decoded,
                 pixels.map(|sample| sample as f32),
                 "declared sample boundaries must round-trip exactly"
+            );
+        }
+    }
+
+    #[test]
+    fn encoder_rejects_unrepresentable_lossy_step_before_transform() {
+        let step = QuantizationStep::new(4.0).expect("positive finite step must be valid");
+        let error = encode_grayscale_j2k(
+            &[0],
+            1,
+            1,
+            1,
+            PixelSignedness::Unsigned,
+            Jpeg2000Encoding::Lossy {
+                decomposition_levels: 0,
+                quantization_step: step,
+            },
+        )
+        .expect_err("QCD exponent underflow must fail");
+        assert_eq!(
+            error,
+            Jpeg2000EncodeError::UnrepresentableQuantizationStep {
+                step,
+                dynamic_range: 1,
+            }
+        );
+    }
+
+    #[test]
+    fn coarser_lossy_step_reduces_documented_fixture_size() {
+        let pixels: Vec<i32> = (0i32..96 * 96)
+            .map(|index| {
+                let x = index % 96;
+                let y = index / 96;
+                (x * 31 + y * 17 + (x / 8) * 211) % 4096
+            })
+            .collect();
+        let encode = |step| {
+            encode_grayscale_j2k(
+                &pixels,
+                96,
+                96,
+                12,
+                PixelSignedness::Unsigned,
+                Jpeg2000Encoding::Lossy {
+                    decomposition_levels: 3,
+                    quantization_step: QuantizationStep::new(step)
+                        .expect("fixture step must be positive and finite"),
+                },
+            )
+            .expect("valid lossy fixture must encode")
+        };
+        let unit = encode(1.0);
+        let coarse = encode(8.0);
+        assert!(
+            coarse.len() < unit.len(),
+            "coarse={} bytes, unit={} bytes",
+            coarse.len(),
+            unit.len()
+        );
+
+        let mean_squared_error = |codestream: &[u8]| {
+            let decoded =
+                decode_j2k_fragment(codestream, layout(96, 96, 12, PixelSignedness::Unsigned))
+                    .expect("lossy codestream must decode");
+            let sample_count =
+                u32::try_from(pixels.len()).expect("invariant: fixture sample count fits u32");
+            pixels
+                .iter()
+                .zip(&decoded)
+                .map(|(&source, &reconstructed)| {
+                    let error = f64::from(source) - f64::from(reconstructed);
+                    error * error
+                })
+                .sum::<f64>()
+                / f64::from(sample_count)
+        };
+        let unit_error = mean_squared_error(&unit);
+        let coarse_error = mean_squared_error(&coarse);
+        assert!(
+            coarse_error > unit_error,
+            "coarse MSE={coarse_error}, unit MSE={unit_error}"
+        );
+    }
+
+    #[test]
+    fn lossy_codestream_qcd_carries_requested_representable_step() {
+        let step = QuantizationStep::new(3.25).expect("positive finite step must be valid");
+        let pixels: Vec<i32> = (0..64).map(|value| value * 53 % 4096).collect();
+        let codestream = encode_grayscale_j2k(
+            &pixels,
+            8,
+            8,
+            12,
+            PixelSignedness::Unsigned,
+            Jpeg2000Encoding::Lossy {
+                decomposition_levels: 2,
+                quantization_step: step,
+            },
+        )
+        .expect("representable step must encode");
+        let (header, _) = crate::jpeg_2000::codestream::parse_main_header(&codestream)
+            .expect("encoder output must have a valid main header");
+        let exponents = header.qcd.exponents();
+        let mantissas = header.qcd.mantissas();
+        let bands = subband_layout(8, 8, 2);
+        assert_eq!(exponents.len(), bands.len());
+        assert_eq!(mantissas.len(), bands.len());
+        for ((band, exponent), mantissa) in bands.iter().zip(exponents).zip(mantissas) {
+            assert_eq!(
+                crate::jpeg_2000::quantization::step_size(12 + band.gain, exponent, mantissa,),
+                step.get()
             );
         }
     }

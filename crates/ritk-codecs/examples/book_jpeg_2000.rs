@@ -1,14 +1,14 @@
 //! Generate the native JPEG 2000 figure used by the RITK mdBook.
 //!
 //! The example encodes one deterministic 12-bit medical-style phantom through
-//! RITK's public reversible 5/3 and irreversible 9/7 paths, decodes both
-//! codestreams, verifies exact reversible reconstruction, and renders source,
-//! reconstruction, and magnified absolute-error panels.
+//! RITK's public reversible 5/3 and irreversible 9/7 paths, decodes each
+//! codestream, verifies exact reversible reconstruction, and renders the
+//! visible size/error tradeoff between unit and coarse scalar quantization.
 
 use anyhow::{bail, Context, Result};
 use base64::{engine::general_purpose::STANDARD, Engine as _};
 use image::{codecs::png::PngEncoder, ColorType, ImageEncoder};
-use ritk_codecs::jpeg_2000::encoder::{encode_grayscale_j2k, WaveletTransform};
+use ritk_codecs::jpeg_2000::encoder::{encode_grayscale_j2k, Jpeg2000Encoding, QuantizationStep};
 use ritk_codecs::{decode_jpeg2000_fragment, PixelLayout, PixelSignedness};
 use std::fmt::Write as _;
 use std::path::{Path, PathBuf};
@@ -17,6 +17,7 @@ const WIDTH: usize = 96;
 const HEIGHT: usize = 96;
 const PRECISION: u32 = 12;
 const LEVELS: u8 = 3;
+const COARSE_STEP: f32 = 32.0;
 const PANEL_WIDTH: u32 = 260;
 const PANEL_HEIGHT: u32 = 280;
 const IMAGE_SIZE: u32 = 190;
@@ -71,15 +72,14 @@ fn layout() -> PixelLayout {
     }
 }
 
-fn encode_decode(source: &[i32], transform: WaveletTransform) -> Result<(Vec<u8>, Vec<f32>)> {
+fn encode_decode(source: &[i32], encoding: Jpeg2000Encoding) -> Result<(Vec<u8>, Vec<f32>)> {
     let codestream = encode_grayscale_j2k(
         source,
         u32::try_from(HEIGHT).context("height exceeds u32")?,
         u32::try_from(WIDTH).context("width exceeds u32")?,
         PRECISION,
         PixelSignedness::Unsigned,
-        LEVELS,
-        transform,
+        encoding,
     )
     .context("encode native JPEG 2000 codestream")?;
     let reconstruction = decode_jpeg2000_fragment(&codestream, layout())
@@ -87,7 +87,13 @@ fn encode_decode(source: &[i32], transform: WaveletTransform) -> Result<(Vec<u8>
     Ok((codestream, reconstruction))
 }
 
-fn to_png(values: &[f32], lower: f32, upper: f32) -> Result<String> {
+#[derive(Clone, Copy)]
+enum ColorMap {
+    Grayscale,
+    ErrorHeat,
+}
+
+fn to_png(values: &[f32], lower: f32, upper: f32, color_map: ColorMap) -> Result<String> {
     if values.len() != WIDTH * HEIGHT {
         bail!(
             "panel sample count mismatch: got {}, expected {}",
@@ -115,8 +121,21 @@ fn to_png(values: &[f32], lower: f32, upper: f32) -> Result<String> {
             let normalized = ((value - lower) / (upper - lower)).clamp(0.0, 1.0);
             // The display mapping is clamped to the complete u8 range before
             // conversion; this is a raster boundary, not codec arithmetic.
-            let gray = (normalized * 255.0).round() as u8;
-            raster.extend_from_slice(&[gray, gray, gray]);
+            match color_map {
+                ColorMap::Grayscale => {
+                    let gray = (normalized * 255.0).round() as u8;
+                    raster.extend_from_slice(&[gray, gray, gray]);
+                }
+                ColorMap::ErrorHeat => {
+                    let red = (normalized * 2.0).clamp(0.0, 1.0);
+                    let green = (normalized * 2.0 - 1.0).clamp(0.0, 1.0);
+                    raster.extend_from_slice(&[
+                        (red * 255.0).round() as u8,
+                        (green * 255.0).round() as u8,
+                        0,
+                    ]);
+                }
+            }
         }
     }
 
@@ -132,7 +151,57 @@ struct Panel<'a> {
     title: &'a str,
     subtitle: &'a str,
     range: (f32, f32),
+    color_map: ColorMap,
     column: u32,
+}
+
+struct ErrorMetrics {
+    absolute_error: Vec<f32>,
+    maximum_error: f32,
+    psnr: f64,
+}
+
+struct Reconstruction<'a> {
+    values: &'a [f32],
+    codestream_bytes: usize,
+}
+
+struct FigureData<'a> {
+    source: &'a [i32],
+    reversible: Reconstruction<'a>,
+    unit: Reconstruction<'a>,
+    coarse: Reconstruction<'a>,
+}
+
+fn error_metrics(source: &[f32], reconstruction: &[f32]) -> Result<ErrorMetrics> {
+    if reconstruction.len() != source.len() {
+        bail!(
+            "reconstruction sample count mismatch: got {}, expected {}",
+            reconstruction.len(),
+            source.len()
+        );
+    }
+    let absolute_error: Vec<f32> = source
+        .iter()
+        .zip(reconstruction)
+        .map(|(&expected, &actual)| (actual - expected).abs())
+        .collect();
+    let maximum_error = absolute_error.iter().copied().fold(0.0f32, f32::max);
+    if maximum_error == 0.0 {
+        bail!("irreversible reconstruction produced no visible error");
+    }
+    let mse = absolute_error
+        .iter()
+        .map(|&error| f64::from(error) * f64::from(error))
+        .sum::<f64>()
+        / f64::from(u32::try_from(absolute_error.len()).context("sample count exceeds u32")?);
+    let peak = f64::from((1u32 << PRECISION) - 1);
+    let psnr = 10.0 * (peak * peak / mse).log10();
+    Ok(ErrorMetrics {
+        absolute_error,
+        maximum_error,
+        psnr,
+    })
 }
 
 fn draw_panel(svg: &mut String, panel: Panel<'_>) -> Result<()> {
@@ -141,9 +210,10 @@ fn draw_panel(svg: &mut String, panel: Panel<'_>) -> Result<()> {
         title,
         subtitle,
         range,
+        color_map,
         column,
     } = panel;
-    let encoded = to_png(values, range.0, range.1)?;
+    let encoded = to_png(values, range.0, range.1, color_map)?;
     let offset_x = column
         .checked_mul(PANEL_WIDTH)
         .context("panel x offset overflows")?;
@@ -173,44 +243,43 @@ fn draw_panel(svg: &mut String, panel: Panel<'_>) -> Result<()> {
     Ok(())
 }
 
-fn write_figure(
-    path: &Path,
-    source: &[i32],
-    reversible: &[f32],
-    irreversible: &[f32],
-    reversible_bytes: usize,
-    irreversible_bytes: usize,
-) -> Result<()> {
+fn write_figure(path: &Path, data: FigureData<'_>) -> Result<()> {
+    let FigureData {
+        source,
+        reversible,
+        unit,
+        coarse,
+    } = data;
     // Every source sample is 12-bit, so conversion to f32 is exact.
     let source_values: Vec<f32> = source.iter().map(|&value| value as f32).collect();
     let reversible_mismatches = source_values
         .iter()
-        .zip(reversible)
+        .zip(reversible.values)
         .filter(|(expected, actual)| expected != actual)
         .count();
     if reversible_mismatches != 0 {
         bail!("reversible reconstruction has {reversible_mismatches} mismatched samples");
     }
 
-    let absolute_error: Vec<f32> = source_values
-        .iter()
-        .zip(irreversible)
-        .map(|(&expected, &actual)| (actual - expected).abs())
-        .collect();
-    let maximum_error = absolute_error.iter().copied().fold(0.0f32, f32::max);
-    if maximum_error == 0.0 {
-        bail!("irreversible reconstruction produced no visible error");
+    let unit_metrics = error_metrics(&source_values, unit.values)?;
+    let coarse_metrics = error_metrics(&source_values, coarse.values)?;
+    if coarse.codestream_bytes >= unit.codestream_bytes {
+        bail!(
+            "coarse quantization did not reduce codestream size: coarse={}, unit={}",
+            coarse.codestream_bytes,
+            unit.codestream_bytes
+        );
     }
-    let mse = absolute_error
-        .iter()
-        .map(|&error| f64::from(error) * f64::from(error))
-        .sum::<f64>()
-        / f64::from(u32::try_from(absolute_error.len()).context("sample count exceeds u32")?);
-    let peak = f64::from((1u32 << PRECISION) - 1);
-    let psnr = 10.0 * (peak * peak / mse).log10();
+    if coarse_metrics.maximum_error <= unit_metrics.maximum_error {
+        bail!(
+            "coarse quantization did not increase maximum error: coarse={}, unit={}",
+            coarse_metrics.maximum_error,
+            unit_metrics.maximum_error
+        );
+    }
 
-    let figure_width = PANEL_WIDTH * 4;
-    let figure_height = PANEL_HEIGHT + 82;
+    let figure_width = PANEL_WIDTH * 5;
+    let figure_height = PANEL_HEIGHT + 110;
     let mut svg = String::new();
     writeln!(
         svg,
@@ -230,50 +299,76 @@ fn write_figure(
             title: "12-bit source phantom",
             subtitle: "deterministic structures and edges",
             range: (0.0, 4095.0),
+            color_map: ColorMap::Grayscale,
             column: 0,
         },
     )?;
     draw_panel(
         &mut svg,
         Panel {
-            values: reversible,
+            values: reversible.values,
             title: "Reversible 5/3",
             subtitle: "decoded native codestream",
             range: (0.0, 4095.0),
+            color_map: ColorMap::Grayscale,
             column: 1,
         },
     )?;
     draw_panel(
         &mut svg,
         Panel {
-            values: irreversible,
-            title: "Irreversible 9/7",
-            subtitle: "decoded native codestream",
+            values: unit.values,
+            title: "9/7, Δ = 1",
+            subtitle: "higher fidelity · larger stream",
             range: (0.0, 4095.0),
+            color_map: ColorMap::Grayscale,
             column: 2,
         },
     )?;
     draw_panel(
         &mut svg,
         Panel {
-            values: &absolute_error,
-            title: "9/7 absolute error",
-            subtitle: "magnified; independent scale",
-            range: (0.0, maximum_error),
+            values: coarse.values,
+            title: "9/7, Δ = 32",
+            subtitle: "coarser detail · smaller stream",
+            range: (0.0, 4095.0),
+            color_map: ColorMap::Grayscale,
             column: 3,
+        },
+    )?;
+    draw_panel(
+        &mut svg,
+        Panel {
+            values: &coarse_metrics.absolute_error,
+            title: "Δ = 32 absolute error",
+            subtitle: "black → red → yellow; magnified",
+            range: (0.0, coarse_metrics.maximum_error),
+            color_map: ColorMap::ErrorHeat,
+            column: 4,
         },
     )?;
     writeln!(
         svg,
-        "<text x=\"24\" y=\"310\" class=\"metric\">5/3: {reversible_bytes} bytes · mismatched samples: {reversible_mismatches}</text>"
+        "<text x=\"24\" y=\"310\" class=\"metric\">5/3: {} bytes · mismatched samples: {reversible_mismatches}</text>",
+        reversible.codestream_bytes
     )?;
     writeln!(
         svg,
-        "<text x=\"24\" y=\"336\" class=\"metric\">9/7: {irreversible_bytes} bytes · max error: {maximum_error:.3} · PSNR: {psnr:.2} dB</text>"
+        "<text x=\"24\" y=\"336\" class=\"metric\">9/7 Δ=1: {} bytes · max error: {:.3} · PSNR: {:.2} dB</text>",
+        unit.codestream_bytes,
+        unit_metrics.maximum_error,
+        unit_metrics.psnr
     )?;
     writeln!(
         svg,
-        "<text x=\"620\" y=\"323\" class=\"metric\">source → level shift → DWT → EBCOT → J2K → decode</text>"
+        "<text x=\"24\" y=\"362\" class=\"metric\">9/7 Δ=32: {} bytes · max error: {:.3} · PSNR: {:.2} dB</text>",
+        coarse.codestream_bytes,
+        coarse_metrics.maximum_error,
+        coarse_metrics.psnr
+    )?;
+    writeln!(
+        svg,
+        "<text x=\"690\" y=\"336\" class=\"metric\">larger Δ → fewer coefficient magnitudes → fewer EBCOT bits</text>"
     )?;
     svg.push_str("</svg>\n");
 
@@ -291,16 +386,44 @@ fn main() -> Result<()> {
         .map(PathBuf::from)
         .unwrap_or_else(|| PathBuf::from("docs/book/figures/jpeg_2000_codec.svg"));
     let source = phantom()?;
-    let (reversible_codestream, reversible) = encode_decode(&source, WaveletTransform::Reversible)?;
-    let (irreversible_codestream, irreversible) =
-        encode_decode(&source, WaveletTransform::Irreversible)?;
+    let (reversible_codestream, reversible) = encode_decode(
+        &source,
+        Jpeg2000Encoding::Lossless {
+            decomposition_levels: LEVELS,
+        },
+    )?;
+    let (unit_codestream, unit) = encode_decode(
+        &source,
+        Jpeg2000Encoding::Lossy {
+            decomposition_levels: LEVELS,
+            quantization_step: QuantizationStep::UNIT,
+        },
+    )?;
+    let (coarse_codestream, coarse) = encode_decode(
+        &source,
+        Jpeg2000Encoding::Lossy {
+            decomposition_levels: LEVELS,
+            quantization_step: QuantizationStep::new(COARSE_STEP)
+                .context("construct coarse quantization step")?,
+        },
+    )?;
     write_figure(
         &output,
-        &source,
-        &reversible,
-        &irreversible,
-        reversible_codestream.len(),
-        irreversible_codestream.len(),
+        FigureData {
+            source: &source,
+            reversible: Reconstruction {
+                values: &reversible,
+                codestream_bytes: reversible_codestream.len(),
+            },
+            unit: Reconstruction {
+                values: &unit,
+                codestream_bytes: unit_codestream.len(),
+            },
+            coarse: Reconstruction {
+                values: &coarse,
+                codestream_bytes: coarse_codestream.len(),
+            },
+        },
     )?;
     println!("wrote {}", output.display());
     Ok(())

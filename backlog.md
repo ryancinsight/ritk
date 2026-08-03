@@ -20,7 +20,7 @@
   `crates/ritk-codecs/src/jpeg_2000/**`, every in-repository
   `encode_grayscale_j2k` caller, codec examples and benchmarks,
   `docs/adr/0012-fallible-jpeg-2000-encoder.md`,
-  `docs/book/{jpeg_2000_codec.md,examples/jpeg_2000_codec.md,
+  `docs/book/{SUMMARY.md,jpeg_2000_codec.md,examples/jpeg_2000_codec.md,
   figures/jpeg_2000_codec.svg}`, `CHANGELOG.md`, `gap_audit.md`, and PM
   artifacts; non-goal=rate-distortion optimization, target-byte rate control,
   multiple quality layers, color components, JP2 containers, release, or
