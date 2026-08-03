@@ -31,9 +31,11 @@ where
     /// [`Linear::new`] alone leaves weights at ones.
     pub fn new(input_dim: usize, hidden_dim: usize, seed: u64) -> Self {
         let mut fc1 = Linear::new(input_dim, hidden_dim, true);
-        coeus_nn::init::kaiming_uniform_with_seed(&mut fc1.weight, input_dim, seed);
+        coeus_nn::init::kaiming_uniform_with_seed(&mut fc1.weight, input_dim, seed)
+            .expect("invariant: MLP input fan is positive");
         let mut fc2 = Linear::new(hidden_dim, input_dim, true);
-        coeus_nn::init::kaiming_uniform_with_seed(&mut fc2.weight, hidden_dim, seed ^ 0x5DEE_CE66);
+        coeus_nn::init::kaiming_uniform_with_seed(&mut fc2.weight, hidden_dim, seed ^ 0x5DEE_CE66)
+            .expect("invariant: MLP hidden fan is positive");
         Self { fc1, fc2 }
     }
 }

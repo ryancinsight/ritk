@@ -61,7 +61,8 @@ where
             Tensor::zeros_on([num_relative_distance, num_heads], &backend),
             true,
         );
-        coeus_nn::init::normal_with_seed(&mut table, 0.0, 0.02, seed);
+        coeus_nn::init::normal_with_seed(&mut table, 0.0, 0.02, seed)
+            .expect("invariant: relative-position bias table rank is supported");
 
         let index = Self::compute_relative_position_index(m);
         let index: Vec<f32> = index.into_iter().map(|i| i as f32).collect();
@@ -76,7 +77,8 @@ where
                 &mut layer.weight,
                 input_dim,
                 seed.wrapping_add(offset),
-            );
+            )
+            .expect("invariant: attention projection fan is positive");
             layer
         };
 

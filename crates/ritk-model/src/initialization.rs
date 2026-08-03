@@ -9,7 +9,8 @@ where
     B: Backend + BackendOps<f32> + CpuBackend,
     B::DeviceBuffer<f32>: CpuAddressableStorageMut<f32>,
 {
-    init::xavier_uniform_with_seed(&mut layer.weight, fan_in, fan_out, seed);
+    init::xavier_uniform_with_seed(&mut layer.weight, fan_in, fan_out, seed)
+        .expect("invariant: linear layer fan is positive");
     if let Some(bias) = &mut layer.bias {
         init::zeros(bias);
     }
@@ -23,7 +24,8 @@ pub(crate) fn depthwise_convolution<B>(
     B: Backend + BackendOps<f32> + CpuBackend,
     B::DeviceBuffer<f32>: CpuAddressableStorageMut<f32>,
 {
-    init::kaiming_uniform_with_seed(&mut layer.weight, kernel * kernel * kernel, seed);
+    init::kaiming_uniform_with_seed(&mut layer.weight, kernel * kernel * kernel, seed)
+        .expect("invariant: depthwise convolution kernel is non-zero");
     if let Some(bias) = &mut layer.bias {
         init::zeros(bias);
     }
@@ -39,7 +41,8 @@ pub(crate) fn convolution<B>(
     B::DeviceBuffer<f32>: CpuAddressableStorageMut<f32>,
 {
     let fan_in = input_channels * kernel * kernel * kernel;
-    init::kaiming_uniform_with_seed(&mut layer.weight, fan_in, seed);
+    init::kaiming_uniform_with_seed(&mut layer.weight, fan_in, seed)
+        .expect("invariant: convolution fan is positive");
     if let Some(bias) = &mut layer.bias {
         init::zeros(bias);
     }
