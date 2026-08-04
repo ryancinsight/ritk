@@ -115,10 +115,16 @@ pub struct Phantom {
     // Computed but not yet asserted on. Kept rather than deleted so the
     // assertions can be written without recomputing the phantom; the gap
     // is tracked in atlas backlog.md#atlas-ritk-land-1.
-    #[expect(dead_code, reason = "ground truth awaiting its assertions")]
+    // allow, not expect: this file is compiled into two test binaries and the
+    // fields are read in one of them, so an expectation would be unfulfilled
+    // there.
+    #[allow(dead_code)]
     pub pev_gt: Vec<f64>,
     /// Ground-truth fibre directions per voxel.
-    #[expect(dead_code, reason = "ground truth awaiting its assertions")]
+    // allow, not expect: this file is compiled into two test binaries and the
+    // fields are read in one of them, so an expectation would be unfulfilled
+    // there.
+    #[allow(dead_code)]
     pub fibre_dirs_gt: Vec<Vec<[f64; 3]>>,
 }
 
