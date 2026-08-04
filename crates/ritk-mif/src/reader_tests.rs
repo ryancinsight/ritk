@@ -5,7 +5,7 @@
 
 use std::path::PathBuf;
 
-use coeus_core::{ComputeBackend, SequentialBackend};
+use coeus_core::SequentialBackend;
 use ritk_image::Image;
 use ritk_spatial::{Direction, Point, Spacing};
 

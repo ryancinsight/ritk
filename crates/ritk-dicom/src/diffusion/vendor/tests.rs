@@ -1,5 +1,5 @@
 use super::*;
-use crate::attribute::{tags, DicomAttributeRead, DicomTag};
+use crate::attribute::{tags, DicomTag};
 use crate::diffusion::extract_diffusion_pair;
 use dicom::core::smallvec::SmallVec;
 use dicom::core::{DataElement, PrimitiveValue, Tag, VR};

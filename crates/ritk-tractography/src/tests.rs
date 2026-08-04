@@ -244,7 +244,6 @@ fn dti_pev_field_is_skipped_for_untrackable_seed() -> Result<(), TractographyErr
 
     // Isotropic tensor: all eigenvalues equal.
     let s0 = 1000.0;
-    let d: [f64; 6] = [0.0007, 0.0007, 0.0007, 0.0, 0.0, 0.0];
     let signals: Vec<f64> = scheme
         .directions()
         .iter()
@@ -311,7 +310,7 @@ fn fod_volume_field_tracks_through_homogeneous_z_fibre() -> Result<(), Tractogra
             if b == 0.0 {
                 return 1.0;
             }
-            let [gx, gy, gz] = entry.direction().to_array();
+            let [_gx, _gy, gz] = entry.direction().to_array();
             let adc = 0.0003 + (0.0017 - 0.0003) * gz * gz;
             (-b * adc).exp()
         })
@@ -443,7 +442,7 @@ fn noddi_volume_field_tracks_through_homogeneous_z_fibre() -> Result<(), Tractog
             if b == 0.0 {
                 return s0;
             }
-            let [gx, gy, gz] = entry.direction().to_array();
+            let [_gx, _gy, gz] = entry.direction().to_array();
             let adc = 0.0003 + (0.0017 - 0.0003) * gz * gz;
             s0 * (-b * adc).exp()
         })
@@ -558,7 +557,6 @@ fn to_trk_with_scalars_round_trips_fa_and_md() -> Result<(), TractographyError> 
 
 #[test]
 fn to_trx_with_dpv_stores_fa_data() -> Result<(), TractographyError> {
-    use ritk_trx::TrxTractogram;
     use std::collections::HashMap;
 
     let config = TractographyConfig::new(1.0, 2, 60.0, TrackingDirection::Forward)?;

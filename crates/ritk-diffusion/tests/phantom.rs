@@ -115,8 +115,10 @@ pub struct Phantom {
     /// Ground-truth MD per voxel.
     pub md_gt: Vec<f64>,
     /// Ground-truth PEV per voxel: flat `[x, y, z, …]`.
+    #[allow(dead_code)]
     pub pev_gt: Vec<f64>,
     /// Ground-truth fibre directions per voxel.
+    #[allow(dead_code)]
     pub fibre_dirs_gt: Vec<Vec<[f64; 3]>>,
 }
 
