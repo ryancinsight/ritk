@@ -3,10 +3,10 @@
 CT voxels carry Hounsfield units (HU), but the useful display range depends on
 the tissue being inspected. Windowing is a saturating affine map:
 
-\[
-W(I) = \operatorname{clamp}(I, a, b), \qquad
-O(I) = \frac{W(I)-a}{b-a}(o_{max}-o_{min}) + o_{min}.
-\]
+```text
+W(I) = clamp(I, a, b)
+O(I) = (W(I) − a) / (b − a) · (o_max − o_min) + o_min
+```
 
 Values below `a` map to `o_min`, values above `b` map to `o_max`, and values
 inside the window retain their relative order. Rescaling is different: it

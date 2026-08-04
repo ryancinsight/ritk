@@ -15,8 +15,8 @@ to scanner data, recover anatomy".
 ## The data
 
 OpenNeuro [`ds002087`](https://openneuro.org/datasets/ds002087) sub-01, released
-under CC0. 104 × 104 × 72 voxels at 2 mm isotropic, 99 volumes at \(b = 0\) and
-\(b = 700\) s/mm², with FSL `bval`/`bvec` sidecars.
+under CC0. 104 × 104 × 72 voxels at 2 mm isotropic, 99 volumes at `b = 0` and
+`b = 700` s/mm², with FSL `bval`/`bvec` sidecars.
 
 The dataset is not committed. `test_data/diffusion/download.sh` records its
 provenance and fetches the gradient sidecars; the DWI volume itself comes from
@@ -59,7 +59,7 @@ Both exist because a plausible-looking map is easy to produce by accident.
 
 **A background mask.** Outside the head the signal is noise, and a tensor
 fitted to noise is strongly anisotropic. Without masking, a bright rim traces
-the skull and dominates the FA range. Voxels below 12 % of the \(b = 0\)
+the skull and dominates the FA range. Voxels below 12 % of the `b = 0`
 signal's 98th percentile are not fitted.
 
 **Rejecting degenerate fits, not dim voxels.** Some voxels pass the intensity
@@ -74,7 +74,7 @@ is not a measurement.
 Peak FA in the rendered slice is **0.972**. Coherent white matter measures
 roughly 0.85–0.90, so the highest values here are still fit artefacts rather
 than tissue — residual partial-volume voxels at boundaries, which single-shell
-DTI at \(b = 700\) does not resolve. The remedy is a better fit or proper brain
+DTI at `b = 700` does not resolve. The remedy is a better fit or proper brain
 extraction, not a tighter constant: tightening the eigenvalue floor until the
 peak looks physiological would tune a threshold to move a number rather than fix
 the estimate.

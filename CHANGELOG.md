@@ -8,6 +8,14 @@
 
 # CHANGELOG
 
+## [Unreleased] — Portable book equations (DOC-695-01)
+
+### Changed
+
+- Replace raw TeX delimiters in the equation-bearing mdBook chapters and
+  examples with portable Unicode/code equations that remain legible on the
+  deployed GitHub Pages surface.
+
 ## [Unreleased] — crates.io publishing (RELEASE-689-01)
 
 ### Added

@@ -13,22 +13,22 @@ that write streamlines for validation against reference toolchains.
 
 ## Integration rule
 
-For a physical seed point \\(\\mathbf x_0\\), step size \\(h > 0\\), and local unit
-orientation \\(\\mathbf v(\\mathbf x)\\), one forward step is
+For a physical seed point `x₀`, step size `h > 0`, and local unit orientation
+`v(x)`, one forward step is
 
-\\[
-\\mathbf x_{k+1} = \\mathbf x_k + h \\, \\mathbf v(\\mathbf x_k).
-\\]
+```text
+xₖ₊₁ = xₖ + h · v(xₖ)
+```
 
 At each sample the integrator validates the returned direction:
-non-finite components or a norm that deviates from unity beyond \\(10^{-6}\\)
+non-finite components or a norm that deviates from unity beyond `10⁻⁶`
 produce a typed `InvalidDirection` error rather than a silently dropped
 streamline.
 
 ### Sign continuity
 
-Diffusion orientations are antipodally symmetric: \\(\\mathbf v\\) and
-\\(-\\mathbf v\\) describe the same physical axis. An ODF peak extractor,
+Diffusion orientations are antipodally symmetric: `v` and `−v` describe the
+same physical axis. An ODF peak extractor,
 spherical harmonic evaluator, or eigendecomposition may return either sign
 arbitrarily. At each step the integrator computes the dot product between
 the current direction and the returned direction. When the dot product is
@@ -62,9 +62,9 @@ output.
 
 | Parameter | Type | Default | Constraint |
 |---|---|---|---|
-| `step_size` | `f64` | 0.5 mm | Finite, \\(> 0\\) |
+| `step_size` | `f64` | 0.5 mm | Finite, `> 0` |
 | `max_steps` | `usize` | 1 000 | Nonzero, seed + steps fits in `usize` |
-| `max_turn_degrees` | `f64` | 60° | Finite, \\(\\in [0, 180]\\) |
+| `max_turn_degrees` | `f64` | 60° | Finite, `∈ [0, 180]` |
 | `tracking_direction` | `TrackingDirection` | `Bidirectional` | — |
 
 Construction validates every parameter and returns `InvalidStepSize`,
@@ -88,7 +88,7 @@ Every half-streamline records exactly one `TerminationReason`:
 | Variant | Condition | The out-of-domain point |
 |---|---|---|
 | `FieldBoundary` | Direction field returns `None` at the proposal | Not appended |
-| `TurningAngle` | Sign-aligned direction dot product \\(< \\cos(\\theta_{\\max})\\) | Appended (it was reached) |
+| `TurningAngle` | Sign-aligned direction dot product `< cos(θ_max)` | Appended (it was reached) |
 | `StepLimit` | `max_steps` accepted steps exhausted | N/A — last step was accepted |
 
 The distinction between `FieldBoundary` and `TurningAngle` matters for
@@ -121,7 +121,7 @@ let result = euler_tractography(&seeds, track_config, dti_pev_direction_field(&t
 ```
 
 `dti_pev_direction_field` returns `None` when the fitted tensor has
-near-zero FA (\\(< 10^{-10}\\)), i.e. it is isotropic and the PEV is not
+near-zero FA (`< 10⁻¹⁰`), i.e. it is isotropic and the PEV is not
 trackable.
 
 `fod_peak_direction_field` pre-extracts the strongest fODF peak via

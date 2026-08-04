@@ -41,21 +41,19 @@ the transformation from validated scheme + signals → fitted field.
 
 DTI is the baseline diffusion model. It assumes a 3-D Gaussian
 displacement distribution characterised by a symmetric 3×3 diffusion
-tensor \\(D\\). The normalised signal at gradient direction \\(\\mathbf g\\)
-and b-value \\(b\\) is
+tensor `D`. The normalised signal at gradient direction `g` and b-value `b` is
 
-\\[
-\\frac{S}{S_0} = \\exp\\!\\left(-b\\,\\mathbf g^{\\!T} D\\,\\mathbf g\\right).
-\\]
+```text
+S / S₀ = exp(−b gᵀ D g)
+```
 
 Taking the log gives a linear system in the six unique tensor elements:
 
-\\[
-\\ln(S/S_0) = -b \\cdot [g_x^2, g_y^2, g_z^2, 2g_x g_y, 2g_x g_z, 2g_y g_z]
-\\cdot \\mathbf d
-\\]
+```text
+ln(S / S₀) = −b · [gₓ², gᵧ², g_z², 2gₓgᵧ, 2gₓg_z, 2gᵧg_z] · d
+```
 
-where \\(\\mathbf d = [D_{xx}, D_{yy}, D_{zz}, D_{xy}, D_{xz}, D_{yz}]^{\\!T}\\).
+where `d = [Dxx, Dyy, Dzz, Dxy, Dxz, Dyz]ᵀ`.
 RITK assembles the design matrix over all weighted acquisitions and solves
 via `leto_ops::solve_least_squares`. Fractional anisotropy, mean
 diffusivity, and the principal eigenvector are derived from the fitted
@@ -100,17 +98,15 @@ linear solve, and non-positive eigenvalues in the fitted tensor.
 
 ## DKI — Diffusion Kurtosis Imaging
 
-DKI extends DTI with the kurtosis tensor \\(W\\), a fourth-order symmetric
+DKI extends DTI with the kurtosis tensor `W`, a fourth-order symmetric
 tensor that captures non-Gaussian diffusion. The normalised signal is
 
-\\[
-\\frac{S}{S_0}= \\exp\\!\\left(-b\\,D(\\mathbf g)
-+ \\frac{b^2}{6}\\,\\mathrm{MD}^2\\,W(\\mathbf g)\\right)
-\\]
+```text
+S / S₀ = exp(−b D(g) + b² MD² W(g) / 6)
+```
 
-where \\(D(\\mathbf g)=\\mathbf g^{\\!T}D\\mathbf g\\) is the apparent
-diffusion coefficient, \\(\\mathrm{MD} = \\operatorname{tr}(D)/3\\), and
-\\(W(\\mathbf g)\\) is the full contraction of the kurtosis tensor with
+where `D(g) = gᵀ D g` is the apparent diffusion coefficient, `MD = tr(D) / 3`,
+and `W(g)` is the full contraction of the kurtosis tensor with
 the gradient direction.
 
 The model has 21 parameters (6 for D, 15 for W). Estimation proceeds in
@@ -141,12 +137,11 @@ let kt = estimate_dki(&scheme, &signals, &config)?;
 
 | Metric | Symbol | Definition |
 |---|---|---|
-| Mean kurtosis | MK | \\(\\langle K(\\mathbf g)\\rangle\\) over 200 quasi-uniform sphere directions |
-| Axial kurtosis | AK | \\(K(\\mathbf e_1)\\) along the principal eigenvector |
-| Radial kurtosis | RK | \\(\\langle K(\\mathbf g)\\rangle\\) over directions perpendicular to \\(\\mathbf e_1\\) |
+| Mean kurtosis | MK | `⟨K(g)⟩` over 200 quasi-uniform sphere directions |
+| Axial kurtosis | AK | `K(e₁)` along the principal eigenvector |
+| Radial kurtosis | RK | `⟨K(g)⟩` over directions perpendicular to `e₁` |
 
-The apparent kurtosis coefficient is \\(K(\\mathbf g) = (\\mathrm{MD}/D(\\mathbf g))^2
-\\cdot W(\\mathbf g)\\).
+The apparent kurtosis coefficient is `K(g) = (MD / D(g))² · W(g)`.
 
 ### Output
 
@@ -173,10 +168,9 @@ Funk–Radon transform converts signal coefficients to ODF coefficients.
 
 ### Signal model
 
-\\[
-E(\\mathbf g)=\\sum_{l=0,2,4,\\dots}^{l_{\\max}} \\sum_{m=-l}^{l}
-c_{lm}Y_{lm}(\\mathbf g)
-\\]
+```text
+E(g) = Σ(l = 0, 2, 4, …, l_max) Σ(m = −l … l) c_lm Y_lm(g)
+```
 
 Only even degrees appear because diffusion is antipodally symmetric. The
 design matrix is evaluated at the scheme's scattered gradient directions
@@ -186,23 +180,23 @@ by `apollo_sht::RealSphericalHarmonicBasis::design_matrix`.
 
 The coefficients are estimated by solving
 
-\\[
-\\hat{\\mathbf c} = (B^{\\!T} B + \\lambda L)^{-1} B^{\\!T} \\mathbf e
-\\]
+```text
+ĉ = (BᵀB + λL)⁻¹ Bᵀe
+```
 
-where \\(\\lambda \\ge 0\\) is the Laplace–Beltrami penalty weight and
-\\(L\\) has diagonal entries \\(l(l+1)\\) for each degree-\\(l\\)
+where `λ ≥ 0` is the Laplace–Beltrami penalty weight and `L` has diagonal
+entries `l(l + 1)` for each degree-`l`
 coefficient. The solve routes through `leto_ops::solve_least_squares`.
 
 ### Funk–Radon transform
 
 The fitted signal coefficients become Q-ball ODF coefficients through
 
-\\[
-\\psi_{lm}=2\\pi P_l(0)c_{lm}
-\\]
+```text
+ψ_lm = 2π P_l(0) c_lm
+```
 
-where \\(P_l(0)\\) is the Legendre polynomial of degree \\(l\\) at zero.
+where `P_l(0)` is the Legendre polynomial of degree `l` at zero.
 This produces an **ODF**, not a fibre orientation density — the two must
 not be interpreted interchangeably.
 
@@ -249,27 +243,25 @@ function to recover the fibre orientation distribution (fODF). In the
 spherical harmonic basis the convolution becomes a diagonal rescaling of
 each degree block:
 
-\\[
-s_{lm} = \\sqrt{\\frac{4\\pi}{2l+1}} \\cdot r_l \\cdot f_{lm}
-\\]
+```text
+s_lm = √(4π / (2l + 1)) · r_l · f_lm
+```
 
-where \\(r_l\\) are the rotational harmonics of the single-fibre response.
-The deconvolution matrix is \\(B_{\\text{resp}} = B \\cdot
-\\operatorname{diag}(\\kappa_l)\\) with \\(\\kappa_l = 4\\pi/(2l+1) \\cdot
-r_l\\). The fODF coefficients are recovered by solving
+where `r_l` are the rotational harmonics of the single-fibre response. The
+deconvolution matrix is `B_resp = B · diag(κ_l)` with
+`κ_l = 4π/(2l + 1) · r_l`. The fODF coefficients are recovered by solving
 
-\\[
-\\min \\|B_{\\text{resp}} \\mathbf f - \\mathbf S/S_0\\|_2 \\quad
-\\text{subject to} \\quad \\mathbf f \\ge 0
-\\]
+```text
+min ‖B_resp f − S/S₀‖₂  subject to  f ≥ 0
+```
 
 through `leto_ops::nnls` (Lawson–Hanson active-set NNLS). The result is a
 non-negative fODF whose peaks correspond to fibre directions.
 
 ### Response function
 
-`ResponseFunction` carries rotational harmonics \\(r_0, r_2, r_4, \\dots\\)
-with \\(r_0 = 1.0\\) (normalised to unit baseline). The convenience
+`ResponseFunction` carries rotational harmonics `r₀, r₂, r₄, …` with
+`r₀ = 1.0` (normalised to unit baseline). The convenience
 constructor `from_tensor(b_value, ad, rd, l_max)` computes them from an
 axially symmetric diffusion tensor by numerical projection onto the
 Legendre polynomials.
@@ -313,7 +305,7 @@ relative_threshold)`.
 
 `CsdError` covers signal/scheme length mismatch, non-finite signals,
 missing b0/weighted volumes, invalid baseline, underdetermined system,
-response degree too low for the requested basis, invalid \\(r_0\\),
+response degree too low for the requested basis, invalid `r₀`,
 invalid evaluation/grid parameters, Apollo basis errors, NNLS failures,
 and volume construction validation (shape, spacing, origin, coefficient
 count).
@@ -324,7 +316,7 @@ count).
 |---|---|---|
 | Solver | Laplace–Beltrami-regularised least-squares | Lawson–Hanson NNLS |
 | Output | ODF (can be negative) | fODF (guaranteed non-negative) |
-| Response | Implicit (Funk–Radon of signal SH) | Explicit (rotational harmonics \\(r_l\\)) |
+| Response | Implicit (Funk–Radon of signal SH) | Explicit (rotational harmonics `r_l`) |
 | Purpose | Orientation distribution | Fibre orientation density |
 | Tractography | ODF peaks | fODF peaks (sharper angular resolution) |
 
@@ -334,41 +326,39 @@ NODDI (Zhang et al., 2012) is a 3-compartment tissue model that separates
 water diffusion into intra-neurite (restricted), extra-neurite (hindered),
 and CSF (free) pools:
 
-\\[
-\\frac{S}{S_0} = (1 - f_{\\text{iso}})\\left[f_{\\text{intra}}A_{\\text{ic}}
-+ (1 - f_{\\text{intra}})A_{\\text{ec}}\\right]
-+ f_{\\text{iso}}A_{\\text{iso}}
-\\]
+```text
+S / S₀ = (1 − f_iso) [f_intra A_ic + (1 − f_intra) A_ec]
+         + f_iso A_iso
+```
 
-- \\(A_{\\text{ic}}\\) — Watson-averaged stick signal evaluated by Monte
+- `A_ic` — Watson-averaged stick signal evaluated by Monte
   Carlo quadrature over 300 quasi-uniform directions on the sphere.
-- \\(A_{\\text{ec}} = \\exp(-b \\cdot d_{\\text{ec}})\\) — hindered
+- `A_ec = exp(−b · d_ec)` — hindered
   extra-cellular compartment.
-- \\(A_{\\text{iso}} = \\exp(-b \\cdot d_{\\text{iso}})\\) — free-water
+- `A_iso = exp(−b · d_iso)` — free-water
   CSF compartment.
 
-Biophysical constants are fixed: \\(d_{\\parallel} = 1.7 \\times 10^{-3}\\)
-mm²/s, \\(d_{\\text{ec}} = 0.8 \\times 10^{-3}\\) mm²/s, \\(d_{\\text{iso}}
-= 3.0 \\times 10^{-3}\\) mm²/s.
+Biophysical constants are fixed: `d_parallel = 1.7 × 10⁻³` mm²/s,
+`d_ec = 0.8 × 10⁻³` mm²/s, `d_iso = 3.0 × 10⁻³` mm²/s.
 
 ### Parameters and metrics
 
 | Parameter | Symbol | Range | Metric |
 |---|---|---|---|
-| Intra-cellular fraction | \\(f_{\\text{intra}}\\) | [0, 1] | NDI — neurite density index |
-| CSF fraction | \\(f_{\\text{iso}}\\) | [0, 1] | fISO — free water fraction |
+| Intra-cellular fraction | `f_intra` | [0, 1] | NDI — neurite density index |
+| CSF fraction | `f_iso` | [0, 1] | fISO — free water fraction |
 | Orientation dispersion | ODI | [0, 1] | `(2/π)·arctan(1/κ)` |
-| Polar angle | \\(\\theta\\) | [0, π] | Principal fibre direction |
-| Azimuthal angle | \\(\\phi\\) | [0, 2π) | Principal fibre direction |
+| Polar angle | `θ` | [0, π] | Principal fibre direction |
+| Azimuthal angle | `φ` | [0, 2π) | Principal fibre direction |
 
 ODI = 0 means perfectly aligned sticks (κ → ∞); ODI = 1 means isotropic
 dispersion (κ → 0). The extra-cellular fraction is computed as
-\\(f_{\\text{ec}} = (1 - f_{\\text{iso}})(1 - f_{\\text{intra}})\\).
+`f_ec = (1 − f_iso)(1 − f_intra)`.
 
 ### Solver
 
 Fitting uses Levenberg-Marquardt with five parameters. The Jacobian has
-two analytic columns (\\(f_{\\text{intra}}\\), \\(f_{\\text{iso}}\\)) and
+two analytic columns (`f_intra`, `f_iso`) and
 three finite-difference columns (ODI, θ, φ). The initial guess uses DTI's
 PEV for the fibre direction and conservative defaults for the volume
 fractions.

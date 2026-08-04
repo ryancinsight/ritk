@@ -11,31 +11,24 @@ time, or perform dynamic time warping. Those are different contracts.
 
 ## Lag convention
 
-Let \(x_i\) be the reference signal and \(y_i\) the moving signal. At integer
-lag \(k\), RITK evaluates only the index pairs that exist in both arrays:
+Let `xᵢ` be the reference signal and `yᵢ` the moving signal. At integer
+lag `k`, RITK evaluates only the index pairs that exist in both arrays:
 
-\[
-r(k)=
-\frac{
-  \sum_i (x_i-\bar{x}_k)(y_{i+k}-\bar{y}_k)
-}{
-  \sqrt{
-    \sum_i(x_i-\bar{x}_k)^2
-    \sum_i(y_{i+k}-\bar{y}_k)^2
-  }
-}.
-\]
+```text
+r(k) = Σᵢ (xᵢ − x̄_k)(yᵢ₊ₖ − ȳ_k)
+       / √(Σᵢ (xᵢ − x̄_k)² · Σᵢ (yᵢ₊ₖ − ȳ_k)²)
+```
 
 The overlap-specific means prevent a shorter edge overlap from being compared
 against full-signal means. Pearson normalization also makes the estimated lag
 invariant to a positive scale and offset applied to either signal.
 
-A **positive** \(k\) means the moving signal is delayed. To align it, sample
-the moving signal at \(i+k\). The reported shift in seconds is
+A **positive** `k` means the moving signal is delayed. To align it, sample the
+moving signal at `i + k`. The reported shift in seconds is
 
-\[
-\Delta t = k\,T_\mathrm{frame}.
-\]
+```text
+Δt = k · T_frame
+```
 
 This sign convention is visible in the [worked
 example](examples/temporal_synchronization.md): the unaligned orange curve
@@ -48,13 +41,10 @@ The integer lag with maximum normalized correlation is the discrete estimate.
 When correlations exist on both sides of an interior maximum, RITK fits a
 three-point parabola:
 
-\[
-\delta =
-\frac{r(k-1)-r(k+1)}
-     {2[r(k-1)-2r(k)+r(k+1)]},
-\qquad
-\hat{k}=k+\delta.
-\]
+```text
+δ = [r(k − 1) − r(k + 1)] / [2(r(k − 1) − 2r(k) + r(k + 1))]
+k̂ = k + δ
+```
 
 The offset is accepted only for a finite concave peak and is bounded to the
 neighboring interval. A peak at the configured search boundary remains
@@ -127,15 +117,12 @@ signals share the same polarity and timing.
 
 ## Residual metrics and units
 
-After estimating \(\hat{k}\), RITK linearly interpolates \(y\) at
-\(i+\hat{k}\). Only coordinates inside the moving signal contribute:
+After estimating `k̂`, RITK linearly interpolates `y` at `i + k̂`. Only
+coordinates inside the moving signal contribute:
 
-\[
-\mathrm{RMS} =
-\sqrt{\frac{1}{N_\mathrm{overlap}}
-  \sum_{i\in\mathrm{overlap}}
-  [x_i-\tilde{y}(i+\hat{k})]^2}.
-\]
+```text
+RMS = √((1 / N_overlap) · Σᵢ∈overlap [xᵢ − ỹ(i + k̂)]²)
+```
 
 `residual_rms` and `residual_max_abs` are in **signal amplitude units**, not
 seconds. `shift_seconds` is the timing quantity. `overlap_samples` states the
@@ -163,8 +150,8 @@ A profile sample is `None` when that particular overlap is locally constant.
 The normal peak selector ignores it. Full-signal zero variance remains a typed
 input error.
 
-The direct method performs \(O(NS)\) work for \(N\) samples and search radius
-\(S\). It is appropriate when the physically plausible delay window is small.
+The direct method performs `O(N · S)` work for `N` samples and search radius
+`S`. It is appropriate when the physically plausible delay window is small.
 The committed `temporal_sync` benchmark covers 4,096 samples and a ±64-frame
 search without changing the workload between implementations.
 

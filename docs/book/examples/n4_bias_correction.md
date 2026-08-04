@@ -3,13 +3,13 @@
 MRI intensity is not spatially uniform even when the underlying tissue is.
 The N4 model writes the measured image as
 
-\[
-I(x) = S(x) B(x), \qquad \log I(x) = \log S(x) + \log B(x),
-\]
+```text
+I(x) = S(x) B(x),     log I(x) = log S(x) + log B(x)
+```
 
-where \(S\) is the tissue signal and \(B\) is a slowly varying multiplicative
+where `S` is the tissue signal and `B` is a slowly varying multiplicative
 bias field. RITK estimates the log-bias with histogram sharpening and a
-multi-resolution cubic B-spline fit, then returns \(\exp(\log I - \widehat b)\).
+multi-resolution cubic B-spline fit, then returns `exp(log I − b̂)`.
 The implementation follows Tustison et al., *N4ITK: Improved N3 Bias
 Correction*, IEEE TMI 29(6), 1310–1320 (2010), which is also cited by the
 filter's Rustdoc.
@@ -24,7 +24,7 @@ The four panels use a two-by-two layout:
 2. the native N4-corrected slice;
 3. the estimated field's percentage deviation from its foreground median,
    using blue for lower and red for higher multiplicative bias; and
-4. the estimated multiplicative field \(I / I_{corrected}\).
+4. the estimated multiplicative field `I / I_corrected`.
 
 The first two panels intentionally use one shared robust intensity window
 formed from both slices' 2nd–98th percentile ranges. Their labels repeat that

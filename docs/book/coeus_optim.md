@@ -12,7 +12,7 @@ The gradient-descent optimisers in `coeus-optim` (`SGD`, `Adam`, `AdamW`,
 `RMSProp`, `AdaGrad`) step on gradients already accumulated into parameters,
 which suits network training. A least-squares solver instead re-evaluates the
 model at trial points to decide whether a step is acceptable, and exploits
-the Gauss-Newton curvature approximation \\(J^{\\!T}\\!J \\approx H\\) that a
+the Gauss-Newton curvature approximation `JᵀJ ≈ H` that a
 bare gradient does not expose. The two are different contracts, not two
 spellings of one.
 
@@ -23,16 +23,16 @@ requires:
 
 | Method | Purpose |
 |---|---|
-| `residual_count() -> usize` | Number of residual components \\(m\\) |
-| `parameter_count() -> usize` | Number of free parameters \\(n\\) |
-| `residuals(&self, &[T], &mut [T])` | Evaluate \\(r(p)\\) — \\(m\\) values |
-| `jacobian(&self, &[T], &mut [T])` | Evaluate \\(J(p) = \\partial r/\\partial p\\) — row-major, \\(m \\times n\\) |
+| `residual_count() -> usize` | Number of residual components `m` |
+| `parameter_count() -> usize` | Number of free parameters `n` |
+| `residuals(&self, &[T], &mut [T])` | Evaluate `r(p)` — `m` values |
+| `jacobian(&self, &[T], &mut [T])` | Evaluate `J(p) = ∂r/∂p` — row-major, `m × n` |
 
-The Jacobian is row-major: entry \\((i, j)\\) at index \\(i \\cdot n + j\\) is
-\\(\\partial r_i / \\partial p_j\\).
+The Jacobian is row-major: entry `(i, j)` at index `i · n + j` is
+`∂rᵢ / ∂pⱼ`.
 
-The solver requires \\(m \\ge n\\) — fewer residuals than parameters makes
-\\(J^{\\!T}\\!J\\) singular by construction, and damping would mask that
+The solver requires `m ≥ n` — fewer residuals than parameters makes
+`JᵀJ` singular by construction, and damping would mask that
 rather than solve it.
 
 ### Domain errors
@@ -47,26 +47,25 @@ back toward the last accepted point — rather than a failure.
 
 Each iteration solves the damped normal equations:
 
-\\[
-(J^{\\!T}\\!J + \\lambda \\cdot \\operatorname{diag}(J^{\\!T}\\!J)) \\delta
-= -J^{\\!T}r
-\\]
+```text
+(JᵀJ + λ · diag(JᵀJ)) δ = −Jᵀr
+```
 
-Damping is scaled by \\(\\operatorname{diag}(J^{\\!T}\\!J)\\) rather than the
+Damping is scaled by `diag(JᵀJ)` rather than the
 identity (Marquardt's modification), making the step invariant to rescaling
 of individual parameters — a diffusion model mixing diffusivities near
-\\(10^{-3}\\) with signal amplitudes near \\(10^3\\) is exactly the
+`10⁻³` with signal amplitudes near `10³` is exactly the
 badly-scaled case that motivates it.
 
 The algorithm proceeds as follows:
 
 1. Evaluate residuals and Jacobian at the current parameters.
-2. Check gradient convergence: \\(\\|J^{\\!T}r\\|_\\infty \\le\\) `gradient_tolerance`.
-3. Build \\(J^{\\!T}\\!J\\) and solve the damped system via Cholesky
-   decomposition (the matrix is symmetric positive-definite for \\(\\lambda > 0\\)).
-4. If Cholesky fails, increase \\(\\lambda\\) and retry (up to a cap).
+2. Check gradient convergence: `‖Jᵀr‖∞ ≤ gradient_tolerance`.
+3. Build `JᵀJ` and solve the damped system via Cholesky
+   decomposition (the matrix is symmetric positive-definite for `λ > 0`).
+4. If Cholesky fails, increase `λ` and retry (up to a cap).
 5. Accept the step when cost decreases; otherwise reject and increase
-   \\(\\lambda\\). On acceptance, decrease \\(\\lambda\\).
+   `λ`. On acceptance, decrease `λ`.
 6. Check step-tolerance and cost-tolerance convergence.
 
 ### Usage
@@ -100,18 +99,18 @@ let report: LeastSquaresReport<f64> = levenberg_marquardt(
 
 | Parameter | Default | Meaning |
 |---|---|---|
-| `gradient_tolerance` | \\(\\sqrt{\\varepsilon}\\) | Stop when \\(\\|J^{\\!T}r\\|_\\infty\\) falls to this |
-| `step_tolerance` | \\(\\sqrt{\\varepsilon}\\) | Stop when \\(\\|\\delta\\| \\le \\tau \\cdot (\\|p\\| + \\tau)\\) |
-| `cost_tolerance` | \\(\\sqrt{\\varepsilon}\\) | Stop when relative cost reduction falls below this |
+| `gradient_tolerance` | `√ε` | Stop when `‖Jᵀr‖∞` falls to this |
+| `step_tolerance` | `√ε` | Stop when `‖δ‖ ≤ τ · (‖p‖ + τ)` |
+| `cost_tolerance` | `√ε` | Stop when relative cost reduction falls below this |
 | `max_iterations` | 100 | Runaway guard (typical problems converge in single digits) |
-| `initial_damping` | \\(10^{-3}\\) | Starting \\(\\lambda\\) |
-| `damping_increase` | 10 | Multiply \\(\\lambda\\) on rejection |
-| `damping_decrease` | 10 | Divide \\(\\lambda\\) on acceptance |
+| `initial_damping` | `10⁻³` | Starting `λ` |
+| `damping_increase` | 10 | Multiply `λ` on rejection |
+| `damping_decrease` | 10 | Divide `λ` on acceptance |
 
-The tolerance defaults are \\(\\sqrt{\\varepsilon}\\) for the working scalar
+The tolerance defaults are `√ε` for the working scalar
 type — the standard choice for a first-order criterion in floating point: a
-residual computed to relative accuracy \\(\\varepsilon\\) cannot certify
-stationarity below roughly \\(\\sqrt{\\varepsilon}\\).
+residual computed to relative accuracy `ε` cannot certify stationarity below
+roughly `√ε`.
 
 ## Report and termination
 
@@ -120,8 +119,8 @@ stationarity below roughly \\(\\sqrt{\\varepsilon}\\).
 | Field | Meaning |
 |---|---|
 | `parameters` | Best accepted parameters |
-| `cost` | \\(0.5\\|r\\|^2\\) at the solution |
-| `gradient_norm` | \\(\\|J^{\\!T}r\\|_\\infty\\) at the solution |
+| `cost` | `0.5‖r‖²` at the solution |
+| `gradient_norm` | `‖Jᵀr‖∞` at the solution |
 | `iterations` | Iterations executed |
 | `termination` | Why the solver stopped |
 

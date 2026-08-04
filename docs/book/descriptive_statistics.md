@@ -16,18 +16,17 @@ statistics, and spatial filters answer different questions.
 
 ## The population contract
 
-For finite samples \(x_1,\ldots,x_N\), RITK computes
+For finite samples `x₁, …, x_N`, RITK computes
 
-\[
-\mu = \frac{1}{N}\sum_{i=1}^{N} x_i
-\]
+```text
+μ = (1 / N) Σᵢ₌₁ᴺ xᵢ
+```
 
 and
 
-\[
-\sigma =
-\sqrt{\frac{\sum_{i=1}^{N}(x_i-\mu)^2}{N-\mathrm{ddof}}}.
-\]
+```text
+σ = √(Σᵢ₌₁ᴺ (xᵢ − μ)² / (N − ddof))
+```
 
 Use `ddof = 0` for population standard deviation and `ddof = 1` for
 sample standard deviation. This is the same divisor convention documented by
@@ -44,11 +43,9 @@ their magnitude. Results remain `f32` at the public image boundary.
 
 RITK reports three discrete order statistics:
 
-\[
-Q_1 = x_{(\lfloor N/4\rfloor)},\quad
-Q_2 = x_{(\lfloor N/2\rfloor)},\quad
-Q_3 = x_{(\lfloor 3N/4\rfloor)}.
-\]
+```text
+Q₁ = x_(⌊N / 4⌋),  Q₂ = x_(⌊N / 2⌋),  Q₃ = x_(⌊3N / 4⌋)
+```
 
 Indices are zero-based after ordering the samples. These are observed sample
 values, not interpolated estimates. NumPy exposes multiple
@@ -58,8 +55,8 @@ RITK's floor-rank convention is stable and explicit.
 
 The implementation does not fully sort the image. It copies a borrowed slice
 once, then isolates the three ranks in place with progressively smaller
-quickselect suffixes. The average complexity is \(O(N)\), and the workspace is
-one `f32` buffer of length \(N\). Masked statistics collect foreground values
+quickselect suffixes. The average complexity is `O(N)`, and the workspace is
+one `f32` buffer of length `N`. Masked statistics collect foreground values
 once and reuse that allocation as the percentile workspace.
 
 ## Full image and masked foreground
@@ -90,10 +87,10 @@ population.
 A histogram divides an explicit finite range `[min, max]` into equal-width
 bins. Every bin except the last is half-open. The last includes `max`:
 
-\[
-B_k = [e_k,e_{k+1}),\qquad
-B_{K-1} = [e_{K-1},e_K].
-\]
+```text
+B_k = [e_k, e_(k+1))       for k < K − 1
+B_(K−1) = [e_(K−1), e_K]
+```
 
 This matches the edge convention documented by
 [NumPy `histogram`](https://numpy.org/doc/stable/reference/generated/numpy.histogram.html).

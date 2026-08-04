@@ -28,24 +28,22 @@ alongside the complex SHT means:
 
 The real, orthonormal convention follows the [MRtrix3
 formulation](https://mrtrix.readthedocs.io/en/dev/concepts/spherical_harmonics.html#formulation-used-in-mrtrix3).
-From the complex orthonormal harmonics \\(Y_l^m(\\theta, \\phi)\\) with
-Condon-Shortley phase:
+From the complex orthonormal harmonics `Y_l^m(θ, φ)` with Condon-Shortley
+phase:
 
-\\[
-\\begin{aligned}
-R_l^0(\\theta, \\phi)    &= \\operatorname{Re}\\big(Y_l^0(\\theta, \\phi)\\big) \\\\
-R_l^m(\\theta, \\phi)    &= \\sqrt{2}\\, \\operatorname{Re}\\big(Y_l^m(\\theta, \\phi)\\big) \\quad (m > 0) \\\\
-R_l^{-m}(\\theta, \\phi) &= \\sqrt{2}\\, \\operatorname{Im}\\big(Y_l^m(\\theta, \\phi)\\big) \\quad (m > 0)
-\\end{aligned}
-\\]
+```text
+R_l^0(θ, φ)    = Re(Y_l^0(θ, φ))
+R_l^m(θ, φ)    = √2 · Re(Y_l^m(θ, φ))  (m > 0)
+R_l^(−m)(θ, φ) = √2 · Im(Y_l^m(θ, φ))  (m > 0)
+```
 
-The basis is orthonormal: \\(\\int_{S^2} R_l^m R_{l'}^{m'}\\,d\\Omega = \\delta_{l,l'}\\delta_{m,m'}\\).
-Only even degrees \\(l = 0, 2, 4, \\ldots, l_{\\max}\\) are included, because
-the diffusion signal is antipodally symmetric (\\(S(\\mathbf{g}) = S(-\\mathbf{g})\\))
+The basis is orthonormal: `∫ₛ² R_l^m R_l′^m′ dΩ = δₗ,ₗ′ δₘ,ₘ′`.
+Only even degrees `l = 0, 2, 4, …, l_max` are included, because the diffusion
+signal is antipodally symmetric (`S(g) = S(−g)`)
 and odd-degree harmonics vanish.
 
-The coefficient count is \\((l_{\\max} + 1)(l_{\\max} + 2) / 2\\) — for
-\\(l_{\\max} = 8\\) that is 45 coefficients.
+The coefficient count is `(l_max + 1)(l_max + 2) / 2` — for `l_max = 8` that is
+45 coefficients.
 
 ## RealSphericalHarmonicBasis
 
@@ -66,22 +64,21 @@ Construction validates:
 - `l_max` is even (odd degrees have no place in an antipodally symmetric basis).
 - `l_max >= 2` (trivial basis not useful for orientation estimation).
 - `l_max <= 85` (maximum stable degree in binary64 — the
-  normalization product \\((2l)!\\) stays finite until degree 85).
+  normalization product `(2l)!` stays finite until degree 85).
 
 ### Accessors
 
 | Method | Returns |
 |---|---|
 | `l_max() -> usize` | Maximum even degree |
-| `num_coefficients() -> usize` | \\((l_{\\max} + 1)(l_{\\max} + 2) / 2\\) |
+| `num_coefficients() -> usize` | `(l_max + 1)(l_max + 2) / 2` |
 | `index_to_lm(index) -> Option<(usize, isize)>` | Maps flattened coefficient index to `(degree, order)` |
 | `iter_lm() -> impl Iterator<Item = (usize, usize, isize)>` | Iterates `(index, degree, order)` triples |
 
 ## Pointwise Evaluation
 
 `real_spherical_harmonic(degree, order, theta, phi)` evaluates one basis
-function at spherical coordinates \\(\\theta \\in [0, \\pi]\\),
-\\(\\phi \\in [0, 2\\pi)\\):
+function at spherical coordinates `θ ∈ [0, π]`, `φ ∈ [0, 2π)`:
 
 ```rust,ignore
 use apollo_sht::real_spherical_harmonic;
@@ -100,7 +97,7 @@ let row = basis.evaluate_at_direction(&direction)?;
 ```
 
 `evaluate_at_direction` validates that the input vector has unit-length
-squared norm (within \\(32\\varepsilon\\)) and converts to spherical
+squared norm (within `32ε`) and converts to spherical
 coordinates.
 
 To evaluate all basis functions at spherical angles:
@@ -111,9 +108,9 @@ let row = basis.evaluate(theta, phi)?;
 
 ## Design Matrix
 
-`design_matrix(directions)` builds the full \\(N \\times K\\) design matrix
-\\(B\\) where \\(B_{i,k} = R_{l(k)}^{m(k)}(\\theta_i, \\phi_i)\\) for
-\\(N\\) gradient directions and \\(K\\) coefficients:
+`design_matrix(directions)` builds the full `N × K` design matrix `B` where
+`Bᵢ,ₖ = R_l(k)^m(k)(θᵢ, φᵢ)` for
+`N` gradient directions and `K` coefficients:
 
 ```rust,ignore
 let directions: Vec<[f64; 3]> = scheme.directions.iter()
@@ -123,7 +120,7 @@ let design: leto::Array2<f64> = basis.design_matrix(&directions)?;
 // design.shape() == [N, K]
 ```
 
-The operation costs \\(O(N \\cdot K \\cdot l_{\\max})\\). No temporary row
+The operation costs `O(N · K · l_max)`. No temporary row
 vectors are allocated — each basis value is pushed directly into the
 row-major buffer. The result is a Leto `Array2<f64>` ready for linear solves.
 
@@ -139,7 +136,7 @@ row-major buffer. The result is a Leto `Array2<f64>` ready for linear solves.
 | `CoefficientCountOverflow(usize)` | Coefficient-count arithmetic overflowed |
 | `MatrixSizeOverflow { rows, columns }` | Design-matrix element-count overflowed |
 | `AllocationFailed { element_count }` | Could not reserve storage |
-| `InvalidOrder { degree, order }` | `\|order\| > degree` |
+| `InvalidOrder { degree, order }` | `|order| > degree` |
 | `InvalidTheta(f64)` / `InvalidPhi(f64)` | Angle out of domain |
 | `NonFiniteDirection { axis, value }` | Cartesian component non-finite |
 | `NonUnitDirection { norm_squared, tolerance }` | Direction not unit-length |
@@ -155,23 +152,23 @@ infrastructure:
 
 | Component | Role |
 |---|---|
-| `spherical_harmonic(l, m, theta, phi)` | Complex \\(Y_l^m\\) with Condon-Shortley phase |
-| `associated_legendre(l, m, x)` | \\(P_l^m(\\cos\\theta)\\) via Bonnet recurrence at fixed order |
-| `normalization_constant(l, m)` | \\(N_{lm} = \\sqrt{(2l+1)/(4\\pi) \\cdot (l-m)!/(l+m)!}\\) |
-| `gauss_legendre_nodes_weights(n)` | GL quadrature nodes and positive weights on \\([-1, 1]\\) |
+| `spherical_harmonic(l, m, theta, phi)` | Complex `Y_l^m` with Condon-Shortley phase |
+| `associated_legendre(l, m, x)` | `P_l^m(cos θ)` via Bonnet recurrence at fixed order |
+| `normalization_constant(l, m)` | `N_lm = √((2l + 1)/(4π) · (l − m)!/(l + m)!)` |
+| `gauss_legendre_nodes_weights(n)` | GL quadrature nodes and positive weights on `[-1, 1]` |
 | `ShtPlan` | Forward/inverse complex SHT on Gauss-Legendre product grids |
-| `SphericalHarmonicCoefficients` | Dense \\((l_{\\max}+1) \\times (2l_{\\max}+1)\\) coefficient matrix |
+| `SphericalHarmonicCoefficients` | Dense `(l_max + 1) × (2l_max + 1)` coefficient matrix |
 
 The complex transform machinery is verified by:
-- **Theorem 1** — Bonnet's recurrence converges for all \\(|x| \\leq 1\\)
+- **Theorem 1** — Bonnet's recurrence converges for all `|x| ≤ 1`
   (numerically stable upward recurrence at fixed order).
-- **Theorem 2** — The \\(n\\)-point GL rule integrates polynomials of degree
-  \\(\\leq 2n-1\\) exactly (Golub & Welsch, 1969).
-- **Theorem 3** — The complex harmonics are orthonormal on \\(S^2\\)
+- **Theorem 2** — The `n`-point GL rule integrates polynomials of degree
+  `≤ 2n − 1` exactly (Golub & Welsch, 1969).
+- **Theorem 3** — The complex harmonics are orthonormal on `S²`
   (Driscoll & Healy, 1994).
 - **Theorem 4** — Forward-inverse SHT round-trips exactly for band-limited
   fields when the grid satisfies the Shannon-Nyquist condition.
-- **Parseval verification** — Energy \\(\\sum |a_{lm}|^2\\) is conserved
+- **Parseval verification** — Energy `Σ |a_lm|²` is conserved
   through the transform (proptest-verified with random band-limited fields).
 
 ## Relationship to the Diffusion Pipeline
@@ -181,11 +178,11 @@ The real SH basis is consumed by two models in `ritk-diffusion`:
 ### ODF — Orientation Distribution Function
 
 The analytical Q-ball ODF estimator:
-1. Builds the design matrix \\(B\\) via `basis.design_matrix(&scheme.directions)`.
-2. Appends Laplace-Beltrami penalty rows: \\(\\lambda \\cdot l^2(l+1)^2\\)
-   on the diagonal for each \\((l, m)\\).
+1. Builds the design matrix `B` via `basis.design_matrix(&scheme.directions)`.
+2. Appends Laplace-Beltrami penalty rows: `λ · l²(l + 1)²`
+   on the diagonal for each `(l, m)`.
 3. Solves the augmented system via `leto_ops::solve_least_squares`.
-4. Evaluates the ODF on a display grid: \\(\\Psi(\\theta, \\phi) = \\sum c_{lm} R_l^m(\\theta, \\phi)\\).
+4. Evaluates the ODF on a display grid: `Ψ(θ, φ) = Σ c_lm R_l^m(θ, φ)`.
 
 ```rust,ignore
 use apollo_sht::RealSphericalHarmonicBasis;
@@ -202,9 +199,9 @@ let coeffs = solve_least_squares(&augmented_design.view(), &augmented_rhs.view()
 The fibre ODF estimator:
 1. Builds the SH design matrix as above.
 2. Computes the response function's rotational harmonics
-   \\(r_l = 2\\pi \\int_{-1}^{1} R(\\cos\\alpha)\\,P_l(\\cos\\alpha)\\,d(\\cos\\alpha)\\).
-3. Forms the convolution matrix \\(B_{\\text{resp}}\\) by scaling each SH
-   column by the corresponding \\(r_l\\).
+   `r_l = 2π ∫₋₁¹ R(cos α) P_l(cos α) d(cos α)`.
+3. Forms the convolution matrix `B_resp` by scaling each SH
+   column by the corresponding `r_l`.
 4. Solves via `leto_ops::nnls` to enforce non-negative fODF coefficients.
 5. Extracts peaks from the reconstructed fODF for tractography.
 

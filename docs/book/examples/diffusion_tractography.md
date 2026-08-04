@@ -9,8 +9,8 @@ then a separate curved unit-vector field is integrated into streamlines.
 Read the numbered panels from left to right:
 
 1. Blue points are the 48 actual unit gradient directions supplied to
-   `GradientScheme`, all at \(b=1500\) s/mm². Two additional b0 measurements
-   establish \(S_0\).
+`GradientScheme`, all at `b = 1500` s/mm². Two additional b0 measurements
+establish `S₀`.
 2. Orange points show the generated tensor signal against alignment with the
    known fiber axis. Stronger alignment causes greater attenuation. The blue
    polar shape is the ODF evaluated from RITK's fitted coefficients; the dashed

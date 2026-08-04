@@ -19,19 +19,19 @@ Models](ritk_diffusion.md) chapter.
 For the idealized Stejskal–Tanner pulsed-gradient experiment, the diffusion
 weighting is
 
-\[
-b = \gamma^2 G^2 \delta^2\left(\Delta-\frac{\delta}{3}\right),
-\]
+```text
+b = γ² G² δ² (Δ − δ/3)
+```
 
-where \(\gamma\) is the gyromagnetic ratio, \(G\) the gradient amplitude,
-\(\delta\) the pulse duration, and \(\Delta\) the pulse separation. The measured
-signal for a Gaussian diffusion tensor \(D\) is
+where `γ` is the gyromagnetic ratio, `G` the gradient amplitude, `δ` the pulse
+duration, and `Δ` the pulse separation. The measured signal for a Gaussian
+diffusion tensor `D` is
 
-\[
-S(b,\mathbf g)=S_0\exp\!\left(-b\,\mathbf g^T D\mathbf g\right).
-\]
+```text
+S(b, g) = S₀ exp(−b gᵀ D g)
+```
 
-Thus \(b\) has dimensions of time per area, conventionally s/mm²; it is not a
+Thus `b` has dimensions of time per area, conventionally s/mm²; it is not a
 diffusivity. `DiffusionWeighting` stores the canonical SI value (s/m²)
 internally through the Aequitas quantity system and exposes the scanner-facing
 s/mm² value at the API boundary. See [the scheme

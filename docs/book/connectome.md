@@ -80,8 +80,8 @@ let label = parcellation.label_at(&point);
 `ConnectivityMatrix` is a weighted undirected adjacency between
 parcellation regions. Weights are streamline counts — each streamline
 contributes 1.0 to exactly one edge. Weights are stored as a flat
-\\(n \\times n\\) row-major matrix with an upper-triangular convention:
-edge \\((i, j)\\) with \\(i \\le j\\) is at index \\(i \\cdot n + j\\).
+`n × n` row-major matrix with an upper-triangular convention: edge `(i, j)`
+with `i ≤ j` is at index `i · n + j`.
 
 ### Construction
 
@@ -99,7 +99,7 @@ region labels. The algorithm handles three cases:
 
 | Case | Action |
 |---|---|
-| Both endpoints in different non-background regions | Increment edge \\((a, b)\\) |
+| Both endpoints in different non-background regions | Increment edge `(a, b)` |
 | Both endpoints in the same non-background region | Increment `intra_region_count` and the self-edge |
 | One or both endpoints background or out of bounds | Increment `skipped_count` |
 
@@ -154,9 +154,8 @@ let s = matrix.strength(1); // Some(sum) or None
 ### Density
 
 `density()` returns the graph density — the ratio of actual edges to
-possible edges. For an undirected graph with \\(n\\) nodes, the maximum is
-\\(n(n-1)/2\\). Density ∈ \\([0, 1]\\) for \\(n > 1\\); returns `0.0` when
-\\(n \\le 1\\):
+possible edges. For an undirected graph with `n` nodes, the maximum is
+`n(n − 1)/2`. Density ∈ `[0, 1]` for `n > 1`; returns `0.0` when `n ≤ 1`:
 
 ```rust,ignore
 let rho = matrix.density(); // ∈ [0, 1]
