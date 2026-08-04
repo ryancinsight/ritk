@@ -112,10 +112,21 @@ pub struct Phantom {
     /// Ground-truth MD per voxel.
     pub md_gt: Vec<f64>,
     /// Ground-truth PEV per voxel: flat `[x, y, z, …]`.
-    #[expect(dead_code, reason = "reserved for future quantitative DTI accuracy tests")]
+    // Computed but not yet asserted on. Kept rather than deleted so the
+    // assertions can be written without recomputing the phantom; the gap
+    // is tracked in atlas backlog.md#atlas-ritk-land-1.
+    #[expect(dead_code, reason = "ground truth awaiting its assertions")]
+    #[expect(
+        dead_code,
+        reason = "reserved for future quantitative DTI accuracy tests"
+    )]
     pub pev_gt: Vec<f64>,
     /// Ground-truth fibre directions per voxel.
-    #[expect(dead_code, reason = "reserved for future fibre orientation accuracy tests")]
+    #[expect(dead_code, reason = "ground truth awaiting its assertions")]
+    #[expect(
+        dead_code,
+        reason = "reserved for future fibre orientation accuracy tests"
+    )]
     pub fibre_dirs_gt: Vec<Vec<[f64; 3]>>,
 }
 
