@@ -225,16 +225,6 @@ fn ds004666_dwi_dir() -> PathBuf {
     test_data_dir().join("ds004666_repo/sub-01/ses-0p9mm/dwi")
 }
 
-fn ds002087_available() -> bool {
-    ds002087_dwi_dir().join("sub-01_run-1_dwi.bval").exists()
-}
-
-fn ds004666_available() -> bool {
-    ds004666_dwi_dir()
-        .join("sub-01_ses-0p9mm_dir-AP_dwi.bval")
-        .exists()
-}
-
 /// Normalise gradient directions so they pass the unit-vector contract.
 ///
 /// Real bvec files often have directions whose Euclidean norm is within

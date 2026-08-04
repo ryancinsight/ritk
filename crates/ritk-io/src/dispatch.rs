@@ -1,7 +1,5 @@
 //! Native image format dispatch.
 
-use anyhow;
-
 use crate::format;
 
 // ── Image format enumeration ──────────────────────────────────────────────────
