@@ -1266,12 +1266,22 @@ dependencies = [
 ]
 
 [[package]]
+name = "coeus-leto"
+version = "0.9.0"
+source = "git+https://github.com/ryancinsight/Coeus.git#13bc772b831368510f9da07086d7a5814f2cd642"
+dependencies = [
+ "coeus-core",
+ "leto",
+ "leto-ops",
+]
+
+[[package]]
 name = "coeus-nn"
 version = "0.9.0"
 dependencies = [
  "coeus-autograd",
  "coeus-core",
- "coeus-leto",
+ "coeus-leto 0.9.0",
  "coeus-ops",
  "coeus-tensor",
  "smallvec",
@@ -1284,7 +1294,7 @@ version = "0.9.0"
 dependencies = [
  "bytemuck",
  "coeus-core",
- "coeus-leto",
+ "coeus-leto 0.9.0",
  "coeus-sparse",
  "coeus-tensor",
  "eunomia",
@@ -1324,7 +1334,7 @@ version = "0.9.0"
 dependencies = [
  "bytemuck",
  "coeus-core",
- "coeus-leto",
+ "coeus-leto 0.9.0",
  "rkyv 0.8.17",
  "smallvec",
  "thiserror 2.0.19",
@@ -5941,10 +5951,12 @@ name = "ritk-minc"
 version = "0.1.0"
 dependencies = [
  "anyhow",
+ "base64",
  "coeus-core",
  "consus-core",
  "consus-hdf5",
  "consus-io",
+ "image 0.24.9",
  "ritk-core",
  "ritk-image",
  "ritk-spatial",
@@ -5958,7 +5970,7 @@ dependencies = [
  "bytemuck",
  "coeus-autograd",
  "coeus-core",
- "coeus-leto",
+ "coeus-leto 0.9.0 (git+https://github.com/ryancinsight/Coeus.git)",
  "coeus-nn",
  "coeus-ops",
  "coeus-optim",
@@ -6176,7 +6188,7 @@ version = "0.1.0"
 dependencies = [
  "anyhow",
  "coeus-core",
- "coeus-leto",
+ "coeus-leto 0.9.0 (git+https://github.com/ryancinsight/Coeus.git)",
  "coeus-ops",
  "coeus-tensor",
  "eunomia",
@@ -9102,8 +9114,32 @@ name = "asclepius-coeus"
 version = "0.1.0"
 
 [[patch.unused]]
-name = "apollo-nufft"
-version = "0.7.0"
+name = "athena-core"
+version = "0.1.0"
+
+[[patch.unused]]
+name = "athena-leto"
+version = "0.1.0"
+
+[[patch.unused]]
+name = "proteus"
+version = "0.1.0"
+
+[[patch.unused]]
+name = "tyche-core"
+version = "0.1.0"
+
+[[patch.unused]]
+name = "consus-npy"
+version = "0.1.0"
+
+[[patch.unused]]
+name = "consus-zarr"
+version = "0.1.0"
+
+[[patch.unused]]
+name = "horae"
+version = "0.1.0"
 
 [[patch.unused]]
 name = "hephaestus-core"
@@ -9130,32 +9166,8 @@ name = "hyperion"
 version = "0.1.0"
 
 [[patch.unused]]
-name = "tyche-core"
-version = "0.1.0"
-
-[[patch.unused]]
-name = "athena-core"
-version = "0.1.0"
-
-[[patch.unused]]
-name = "athena-leto"
-version = "0.1.0"
-
-[[patch.unused]]
-name = "horae"
-version = "0.1.0"
-
-[[patch.unused]]
-name = "proteus"
-version = "0.1.0"
-
-[[patch.unused]]
-name = "consus-npy"
-version = "0.1.0"
-
-[[patch.unused]]
-name = "consus-zarr"
-version = "0.1.0"
+name = "apollo-nufft"
+version = "0.7.0"
 
 [[patch.unused]]
 name = "moirai-gpu"
@@ -9164,3 +9176,31 @@ version = "0.4.0"
 [[patch.unused]]
 name = "moirai-http"
 version = "0.4.0"
+
+[[patch.unused]]
+name = "ritk-core"
+version = "0.9.0"
+
+[[patch.unused]]
+name = "ritk-dicom"
+version = "0.1.0"
+
+[[patch.unused]]
+name = "ritk-image"
+version = "0.2.0"
+
+[[patch.unused]]
+name = "ritk-io"
+version = "0.2.0"
+
+[[patch.unused]]
+name = "ritk-registration"
+version = "0.53.0"
+
+[[patch.unused]]
+name = "ritk-spatial"
+version = "0.1.0"
+
+[[patch.unused]]
+name = "ritk-vtk"
+version = "0.1.0"
