@@ -6,6 +6,7 @@ use crate::dicom::metadata_table::{MetadataRow, MetadataScope};
 use std::borrow::Cow;
 
 /// Test helper: build a MetadataRow from raw string slices.
+#[expect(dead_code, reason = "shared helper for future sidebar search tests")]
 fn make_row<'a>(tag: &'a str, keyword: &'a str, value: &'a str) -> MetadataRow<'a> {
     MetadataRow {
         scope: MetadataScope::Series,
@@ -17,6 +18,7 @@ fn make_row<'a>(tag: &'a str, keyword: &'a str, value: &'a str) -> MetadataRow<'
 }
 
 /// Test helper: filter rows by case-insensitive needle matching tag, keyword, or value.
+#[expect(dead_code, reason = "shared helper for future sidebar search tests")]
 fn filter_rows<'a>(rows: &'a [MetadataRow<'a>], needle: &str) -> Vec<&'a MetadataRow<'a>> {
     let needle_lc = needle.to_ascii_lowercase();
     rows.iter()
