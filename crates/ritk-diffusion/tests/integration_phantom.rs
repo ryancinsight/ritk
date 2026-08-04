@@ -328,7 +328,6 @@ fn reorient_gradients_preserves_pev_across_rotation() {
     );
 
     // Generate signals from reoriented scheme with original tensor.
-    let tensor: [f64; 6] = [0.0003, 0.0003, 0.0017, 0.0, 0.0, 0.0];
     let signals: Vec<f64> = scheme_reoriented
         .directions()
         .iter()
@@ -337,7 +336,7 @@ fn reorient_gradients_preserves_pev_across_rotation() {
             if b == 0.0 {
                 return 1000.0;
             }
-            let [gx, gy, gz] = entry.direction().to_array();
+            let [_, _, gz] = entry.direction().to_array();
             let adc = 0.0003 + (0.0017 - 0.0003) * gz * gz;
             1000.0 * (-b * adc).exp()
         })

@@ -117,6 +117,12 @@ pub struct Phantom {
     pub fibre_dirs_gt: Vec<Vec<[f64; 3]>>,
 }
 
+impl Default for Phantom {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
 impl Phantom {
     /// Build the 4×4×4 multi-shell phantom.
     pub fn new() -> Self {
@@ -151,9 +157,8 @@ impl Phantom {
 
         // Generate DWI signals.
         let mut dwi = vec![0.0; n_vox * n_vol];
-        for vox in 0..n_vox {
+        for (vox, &label) in labels.iter().enumerate() {
             let base = vox * n_vol;
-            let label = labels[vox];
             for (vol, entry) in scheme.directions().iter().enumerate() {
                 let b = entry.weighting().seconds_per_square_millimeter();
                 let [gx, gy, gz] = entry.direction().to_array();
@@ -162,16 +167,18 @@ impl Phantom {
                 } else {
                     match label {
                         Tissue::Horizontal => {
-                            let adc = adc_prolate(0.0017, 0.0003, 1.0, 0.0, 0.0, gx, gy, gz);
+                            let adc = adc_prolate(0.0017, 0.0003, [1.0, 0.0, 0.0], [gx, gy, gz]);
                             1000.0 * (-b * adc).exp()
                         }
                         Tissue::Vertical => {
-                            let adc = adc_prolate(0.0017, 0.0003, 0.0, 0.0, 1.0, gx, gy, gz);
+                            let adc = adc_prolate(0.0017, 0.0003, [0.0, 0.0, 1.0], [gx, gy, gz]);
                             1000.0 * (-b * adc).exp()
                         }
                         Tissue::Crossing => {
-                            let adc1 = adc_prolate(0.0017, 0.0003, c30(), s30(), 0.0, gx, gy, gz);
-                            let adc2 = adc_prolate(0.0017, 0.0003, c30(), -s30(), 0.0, gx, gy, gz);
+                            let adc1 =
+                                adc_prolate(0.0017, 0.0003, [c30(), s30(), 0.0], [gx, gy, gz]);
+                            let adc2 =
+                                adc_prolate(0.0017, 0.0003, [c30(), -s30(), 0.0], [gx, gy, gz]);
                             500.0 * (-b * adc1).exp() + 500.0 * (-b * adc2).exp()
                         }
                         Tissue::Csf => 1000.0 * (-b * 0.0030).exp(),
@@ -279,7 +286,9 @@ fn tissue_properties(ix: usize, iy: usize) -> (Tissue, f64, f64, [f64; 3], Vec<[
 // ── Signal helpers ────────────────────────────────────────────────────────────
 
 /// ADC `gᵀ D g` for a prolate tensor with principal direction `(dx, dy, dz)`.
-fn adc_prolate(ad: f64, rd: f64, dx: f64, dy: f64, dz: f64, gx: f64, gy: f64, gz: f64) -> f64 {
+fn adc_prolate(ad: f64, rd: f64, direction: [f64; 3], gradient: [f64; 3]) -> f64 {
+    let [dx, dy, dz] = direction;
+    let [gx, gy, gz] = gradient;
     let t = prolate_tensor(ad, rd, dx, dy, dz);
     tensor_adc(&t, gx, gy, gz)
 }

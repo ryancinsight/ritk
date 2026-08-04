@@ -302,11 +302,11 @@ fn evaluation_rejects_finite_coefficient_overflow() {
 
     assert!(matches!(
         odf.evaluate(0.0, 0.0),
-        Err(OdfError::NonFiniteEvaluation { .. })
+        Err(OdfError::NonFiniteEvaluation)
     ));
     assert!(matches!(
         odf.evaluate_at_direction([0.0, 0.0, 1.0]),
-        Err(OdfError::NonFiniteEvaluation { .. })
+        Err(OdfError::NonFiniteEvaluation)
     ));
 
     let grid_basis = RealSphericalHarmonicBasis::new(6).expect("valid even basis");
@@ -329,6 +329,6 @@ fn evaluation_rejects_finite_coefficient_overflow() {
     };
     assert!(matches!(
         grid_odf.evaluate_on_grid(1, 1),
-        Err(OdfError::NonFiniteEvaluation { .. })
+        Err(OdfError::NonFiniteEvaluation)
     ));
 }

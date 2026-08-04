@@ -1268,7 +1268,7 @@ dependencies = [
 [[package]]
 name = "coeus-leto"
 version = "0.9.0"
-source = "git+https://github.com/ryancinsight/Coeus.git#452db38e066729a5fb84d4ca473cdce89fc3dba6"
+source = "git+https://github.com/ryancinsight/Coeus.git#13bc772b831368510f9da07086d7a5814f2cd642"
 dependencies = [
  "coeus-core",
  "leto",
@@ -9110,47 +9110,23 @@ name = "apollo-nufft"
 version = "0.7.0"
 
 [[patch.unused]]
-name = "moirai-gpu"
-version = "0.4.0"
+name = "proteus"
+version = "0.1.0"
 
 [[patch.unused]]
-name = "moirai-http"
-version = "0.4.0"
+name = "consus-npy"
+version = "0.1.0"
+
+[[patch.unused]]
+name = "consus-zarr"
+version = "0.1.0"
 
 [[patch.unused]]
 name = "hyperion"
 version = "0.1.0"
 
 [[patch.unused]]
-name = "horae"
-version = "0.1.0"
-
-[[patch.unused]]
-name = "hephaestus-core"
-version = "0.18.0"
-
-[[patch.unused]]
-name = "hephaestus-cuda"
-version = "0.18.0"
-
-[[patch.unused]]
-name = "hephaestus-metal"
-version = "0.18.0"
-
-[[patch.unused]]
-name = "hephaestus-rocm"
-version = "0.18.0"
-
-[[patch.unused]]
-name = "hephaestus-wgpu"
-version = "0.18.0"
-
-[[patch.unused]]
-name = "athena-core"
-version = "0.1.0"
-
-[[patch.unused]]
-name = "athena-leto"
+name = "tyche-core"
 version = "0.1.0"
 
 [[patch.unused]]
@@ -9182,11 +9158,11 @@ name = "ritk-vtk"
 version = "0.1.0"
 
 [[patch.unused]]
-name = "proteus"
+name = "athena-core"
 version = "0.1.0"
 
 [[patch.unused]]
-name = "tyche-core"
+name = "athena-leto"
 version = "0.1.0"
 
 [[patch.unused]]
@@ -9198,9 +9174,33 @@ name = "asclepius-coeus"
 version = "0.1.0"
 
 [[patch.unused]]
-name = "consus-npy"
-version = "0.1.0"
+name = "hephaestus-core"
+version = "0.18.0"
 
 [[patch.unused]]
-name = "consus-zarr"
+name = "hephaestus-cuda"
+version = "0.18.0"
+
+[[patch.unused]]
+name = "hephaestus-metal"
+version = "0.18.0"
+
+[[patch.unused]]
+name = "hephaestus-rocm"
+version = "0.18.0"
+
+[[patch.unused]]
+name = "hephaestus-wgpu"
+version = "0.18.0"
+
+[[patch.unused]]
+name = "moirai-gpu"
+version = "0.4.0"
+
+[[patch.unused]]
+name = "moirai-http"
+version = "0.4.0"
+
+[[patch.unused]]
+name = "horae"
 version = "0.1.0"

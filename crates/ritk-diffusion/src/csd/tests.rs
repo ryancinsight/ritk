@@ -503,8 +503,8 @@ fn interpolation_at_voxel_centre_recovers_exact_coefficients() -> Result<(), Csd
         .expect("in bounds");
     let nc = volume.coefficient_count();
 
-    for c in 0..nc {
-        let delta = (interp[c]
+    for (c, value) in interp.iter().enumerate().take(nc) {
+        let delta = (*value
             - volume
                 .coefficients
                 .as_ref()
@@ -525,8 +525,8 @@ fn interpolation_at_midpoint_averages_two_voxels() -> Result<(), CsdError> {
     let mid = Point::new([1.0, 1.0, 1.0]);
     let interp = volume.interpolate_coefficients_at(&mid).expect("in bounds");
 
-    for c in 0..nc {
-        let delta = (interp[c]
+    for (c, value) in interp.iter().enumerate().take(nc) {
+        let delta = (*value
             - volume
                 .coefficients
                 .as_ref()
