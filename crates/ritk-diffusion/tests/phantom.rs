@@ -116,17 +116,9 @@ pub struct Phantom {
     // assertions can be written without recomputing the phantom; the gap
     // is tracked in atlas backlog.md#atlas-ritk-land-1.
     #[expect(dead_code, reason = "ground truth awaiting its assertions")]
-    #[expect(
-        dead_code,
-        reason = "reserved for future quantitative DTI accuracy tests"
-    )]
     pub pev_gt: Vec<f64>,
     /// Ground-truth fibre directions per voxel.
     #[expect(dead_code, reason = "ground truth awaiting its assertions")]
-    #[expect(
-        dead_code,
-        reason = "reserved for future fibre orientation accuracy tests"
-    )]
     pub fibre_dirs_gt: Vec<Vec<[f64; 3]>>,
 }
 
