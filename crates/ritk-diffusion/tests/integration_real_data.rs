@@ -85,7 +85,7 @@ fn normalise_scheme(scheme: &GradientScheme) -> Option<GradientScheme> {
             let dir = entry.direction().to_array();
             let norm = (dir[0].powi(2) + dir[1].powi(2) + dir[2].powi(2)).sqrt();
             if norm < 1e-15 {
-                return Some((*entry).clone());
+                return Some(*entry);
             }
             let normalised =
                 ritk_spatial::Vector::new([dir[0] / norm, dir[1] / norm, dir[2] / norm]);
