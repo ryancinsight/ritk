@@ -13,14 +13,19 @@
 **Sprint phase**: Execution
 **Owner**: Codex
 
-- [ ] Inventory raw TeX delimiters in the affected book chapters and record
-      the pre-edit count.
-- [ ] Replace display and inline TeX with portable Unicode/code equations;
-      preserve code literals and mathematical meaning.
-- [ ] Run `mdbook test`, `mdbook build`, generated-HTML delimiter scans, and
-      `git diff --check`.
+- [x] Inventory raw TeX delimiters in the affected book chapters and examples;
+      the pre-edit scan found 271 backslash-bearing lines, including code and
+      data literals that were preserved.
+- [x] Replace display and inline TeX with portable Unicode/code equations;
+      preserve code literals and mathematical meaning. Commits `7c82e84a`
+      (claim) and `1a6540c0` (implementation) contain the slice.
+- [x] Run `mdbook test`, `mdbook build`, generated-HTML delimiter scans, and
+      `git diff --check`; all pass, and the local Apollo, morphology, and
+      GrowCut pages were visually inspected with their figures loaded.
 - [ ] Inspect the exact hosted Pages revision and reconcile the closure
-      evidence after the Pages deployment succeeds.
+      evidence after the Pages deployment succeeds. This remains pending
+      integration onto a publishable branch because the current checkout is
+      peer-owned and its remote ref is gone.
 
 > **Retired tooling note**: The `burn-migration-audit` xtask command,
 > `xtask/burn_surface.allowlist`, and the `legacy-migration-audit` CI
