@@ -35,9 +35,9 @@ pub(crate) fn parse_header(buf: &[u8; 1000]) -> TrkHeader {
     property_name.copy_from_slice(&buf[240..440]);
 
     let mut vox_to_ras = [[0f32; 4]; 4];
-    for row in 0..4 {
-        for col in 0..4 {
-            vox_to_ras[row][col] = f32_from_le(buf, 440 + (row * 4 + col) * 4);
+    for (row, values) in vox_to_ras.iter_mut().enumerate() {
+        for (col, value) in values.iter_mut().enumerate() {
+            *value = f32_from_le(buf, 440 + (row * 4 + col) * 4);
         }
     }
 

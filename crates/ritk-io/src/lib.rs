@@ -64,6 +64,8 @@ pub use format::vtk::{
     write_vtk_polydata, write_vtp_polydata,
 };
 
-
 mod dispatch;
-pub use dispatch::{ImageFormat, NativeBackend, NativeImage, NativeSeries, is_native_read_capable, is_native_write_capable, read_image_native, read_image_series_native, write_image_native};
+pub use dispatch::{
+    is_native_read_capable, is_native_write_capable, read_image_native, read_image_series_native,
+    write_image_native, ImageFormat, NativeBackend, NativeImage, NativeSeries,
+};

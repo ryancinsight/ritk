@@ -161,7 +161,11 @@ fn fsl_write_read_round_trip_recovers_identical_scheme() {
     let scheme = GradientScheme::new(
         vec![
             GradientDirection::new(weighting(0.0), Vector::new([0.0, 0.0, 0.0])).unwrap(),
-            GradientDirection::new(weighting(500.0), Vector::new([0.5_f64.sqrt(), 0.5_f64.sqrt(), 0.0])).unwrap(),
+            GradientDirection::new(
+                weighting(500.0),
+                Vector::new([0.5_f64.sqrt(), 0.5_f64.sqrt(), 0.0]),
+            )
+            .unwrap(),
             GradientDirection::new(weighting(1_000.0), Vector::new([0.0, 1.0, 0.0])).unwrap(),
             GradientDirection::new(weighting(2_000.0), Vector::new([0.0, 0.0, 1.0])).unwrap(),
         ],
@@ -174,7 +178,11 @@ fn fsl_write_read_round_trip_recovers_identical_scheme() {
 
     assert_eq!(recovered.frame(), scheme.frame());
     assert_eq!(recovered.len(), scheme.len());
-    for (original, recovered) in scheme.directions().iter().zip(recovered.directions().iter()) {
+    for (original, recovered) in scheme
+        .directions()
+        .iter()
+        .zip(recovered.directions().iter())
+    {
         assert_eq!(
             original.weighting(),
             recovered.weighting(),
@@ -195,7 +203,11 @@ fn mrtrix_write_read_round_trip_recovers_identical_scheme() {
     let scheme = GradientScheme::new(
         vec![
             GradientDirection::new(weighting(0.0), Vector::new([0.0, 0.0, 0.0])).unwrap(),
-            GradientDirection::new(weighting(500.0), Vector::new([0.5_f64.sqrt(), 0.5_f64.sqrt(), 0.0])).unwrap(),
+            GradientDirection::new(
+                weighting(500.0),
+                Vector::new([0.5_f64.sqrt(), 0.5_f64.sqrt(), 0.0]),
+            )
+            .unwrap(),
             GradientDirection::new(weighting(1_000.0), Vector::new([0.0, 1.0, 0.0])).unwrap(),
             GradientDirection::new(weighting(2_000.0), Vector::new([0.0, 0.0, 1.0])).unwrap(),
         ],
@@ -208,7 +220,11 @@ fn mrtrix_write_read_round_trip_recovers_identical_scheme() {
 
     assert_eq!(recovered.frame(), GradientFrame::ImageAxis);
     assert_eq!(recovered.len(), scheme.len());
-    for (original, recovered) in scheme.directions().iter().zip(recovered.directions().iter()) {
+    for (original, recovered) in scheme
+        .directions()
+        .iter()
+        .zip(recovered.directions().iter())
+    {
         assert_eq!(original.weighting(), recovered.weighting());
         assert_eq!(original.direction(), recovered.direction());
     }

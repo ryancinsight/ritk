@@ -7,6 +7,10 @@ use std::path::Path;
 use crate::parse::{F32_BYTES, F64_BYTES, U64_BYTES};
 use crate::{TrxError, TrxHeader, TrxTractogram};
 
+/// The serialized parts of a TRX file: header, offsets, positions, and the
+/// per-vertex data arrays keyed by name.
+type RawTrx = (TrxHeader, Vec<u8>, Vec<u8>, HashMap<String, Vec<u8>>);
+
 impl TrxTractogram {
     /// Read a TRX file from a directory path.
     ///
@@ -90,9 +94,7 @@ impl TrxTractogram {
     /// # Errors
     ///
     /// Returns [`TrxError`] on encoding failure.
-    pub fn to_raw(
-        &self,
-    ) -> Result<(TrxHeader, Vec<u8>, Vec<u8>, HashMap<String, Vec<u8>>), TrxError> {
+    pub fn to_raw(&self) -> Result<RawTrx, TrxError> {
         debug_assert!(
             self.dpv_data
                 .keys()

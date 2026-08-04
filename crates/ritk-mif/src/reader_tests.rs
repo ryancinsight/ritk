@@ -5,7 +5,7 @@
 
 use std::path::PathBuf;
 
-use coeus_core::{ComputeBackend, SequentialBackend};
+use coeus_core::SequentialBackend;
 use ritk_image::Image;
 use ritk_spatial::{Direction, Point, Spacing};
 
@@ -38,13 +38,26 @@ fn make_test_image(backend: &SequentialBackend) -> Image<f32, SequentialBackend,
     .expect("synthetic image invariant")
 }
 
-fn temp_mif_path() -> PathBuf {
-    let dir = std::env::temp_dir();
-    let suffix = std::time::SystemTime::now()
+/// A temp path unique across concurrently running test processes.
+///
+/// A timestamp alone is not enough: nextest runs test binaries in parallel,
+/// clock granularity is coarse on some platforms, and two tests that land in
+/// the same tick then read each other's file. The pid separates processes and
+/// the counter separates calls within one.
+fn unique_temp_path(stem: &str, extension: &str) -> PathBuf {
+    use std::sync::atomic::{AtomicU64, Ordering};
+    static SEQ: AtomicU64 = AtomicU64::new(0);
+    let nanos = std::time::SystemTime::now()
         .duration_since(std::time::UNIX_EPOCH)
         .map(|d| d.as_nanos())
         .unwrap_or(0);
-    dir.join(format!("ritk_mif_test_{suffix:016x}.mif"))
+    let pid = std::process::id();
+    let seq = SEQ.fetch_add(1, Ordering::Relaxed);
+    std::env::temp_dir().join(format!("{stem}_{pid}_{nanos:016x}_{seq}.{extension}"))
+}
+
+fn temp_mif_path() -> PathBuf {
+    unique_temp_path("ritk_mif_test", "mif")
 }
 
 // ── Single-volume round-trip ────────────────────────────────────────────

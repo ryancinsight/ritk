@@ -2,11 +2,29 @@
 
 use coeus_core::SequentialBackend;
 
+/// A temp path unique across concurrently running test processes.
+///
+/// A timestamp alone is not enough: nextest runs test binaries in parallel,
+/// clock granularity is coarse on some platforms, and two tests landing in the
+/// same tick then read each other's file. The pid separates processes, the
+/// counter separates calls within one.
+fn unique_temp_path(stem: &str, extension: &str) -> std::path::PathBuf {
+    use std::sync::atomic::{AtomicU64, Ordering};
+    static SEQ: AtomicU64 = AtomicU64::new(0);
+    let nanos = std::time::SystemTime::now()
+        .duration_since(std::time::UNIX_EPOCH)
+        .map(|d| d.as_nanos())
+        .unwrap_or(0);
+    let pid = std::process::id();
+    let seq = SEQ.fetch_add(1, Ordering::Relaxed);
+    std::env::temp_dir().join(format!("{stem}_{pid}_{nanos:016x}_{seq}.{extension}"))
+}
+
 #[test]
 fn write_mif_series_rejects_empty_volumes() {
     use ritk_image::Image;
     let backend = SequentialBackend;
-    let path = std::env::temp_dir().join("empty_series_test.mif");
+    let path = unique_temp_path("empty_series_test", "mif");
     let result = crate::write_mif_series::<SequentialBackend, _>(
         &path,
         &[] as &[Image<f32, SequentialBackend, 3>],
@@ -46,7 +64,7 @@ fn write_mif_series_rejects_heterogeneous_shapes() {
     )
     .unwrap();
 
-    let path = std::env::temp_dir().join("hetero_series_test.mif");
+    let path = unique_temp_path("hetero_series_test", "mif");
     let result = crate::write_mif_series(&path, &[img1, img2], &backend);
     let _ = std::fs::remove_file(&path);
     assert!(result.is_err());

@@ -1,5 +1,5 @@
 use super::*;
-use crate::attribute::{tags, DicomAttributeRead, DicomTag};
+use crate::attribute::{tags, DicomTag};
 use crate::diffusion::extract_diffusion_pair;
 use dicom::core::smallvec::SmallVec;
 use dicom::core::{DataElement, PrimitiveValue, Tag, VR};
@@ -127,7 +127,10 @@ fn csa_parser_extracts_b_value_and_direction_from_sv10_blob() {
     ]);
 
     let result = parse_csa_blob(&blob);
-    assert!(result.is_some(), "must extract B_value and direction from valid SV10 blob");
+    assert!(
+        result.is_some(),
+        "must extract B_value and direction from valid SV10 blob"
+    );
     let (b, dir) = result.unwrap();
     assert!((b - 1000.0).abs() < 1e-9, "b-value must be 1000, got {b}");
     assert!(
@@ -182,10 +185,7 @@ fn vendor_fallback_extracts_from_csa_when_standard_tags_absent() -> anyhow::Resu
     ]);
 
     // Object with ONLY the CSA header — no standard diffusion tags.
-    let object = object_with_bytes(
-        crate::diffusion::vendor::SIEMENS_CSA_SERIES,
-        csa_blob,
-    );
+    let object = object_with_bytes(crate::diffusion::vendor::SIEMENS_CSA_SERIES, csa_blob);
 
     // extract_diffusion_pair should fall back to vendor extraction.
     let pair = extract_diffusion_pair(&object)?;

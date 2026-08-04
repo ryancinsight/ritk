@@ -199,14 +199,16 @@ fn read_float32be_streamlines() {
 #[test]
 fn write_read_round_trip() {
     // Build a tractogram programmatically.
-    let mut header = TckHeader::default();
-    header.datatype = TckDatatype::Float64LE;
-    header.mrtrix_version = Some("3.0.4".into());
-
     let mut header_fields = HashMap::new();
     header_fields.insert("mrtrix_version".into(), "3.0.4".into());
     header_fields.insert("datatype".into(), "Float64LE".into());
-    header.fields = header_fields;
+
+    let header = TckHeader {
+        datatype: TckDatatype::Float64LE,
+        mrtrix_version: Some("3.0.4".into()),
+        fields: header_fields,
+        ..TckHeader::default()
+    };
 
     let points1 = vec![
         Point3::new(1.0, 2.0, 3.0),

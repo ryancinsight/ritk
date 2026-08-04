@@ -57,27 +57,21 @@ fn two_fibre_signal(
 ) -> Vec<f64> {
     let sig_a = tensor_signal(scheme, axis_a, fraction_a, 0.0017, 0.0003);
     let sig_b = tensor_signal(scheme, axis_b, 1.0 - fraction_a, 0.0017, 0.0003);
-    sig_a
-        .iter()
-        .zip(sig_b.iter())
-        .map(|(a, b)| a + b)
-        .collect()
+    sig_a.iter().zip(sig_b.iter()).map(|(a, b)| a + b).collect()
 }
 
 // ── Response function tests ───────────────────────────────────────────────
 
 #[test]
 fn tensor_response_r0_is_unity() -> Result<(), CsdError> {
-    let response =
-        ResponseFunction::from_tensor(3_000.0, 0.0017, 0.0003, 8)?;
+    let response = ResponseFunction::from_tensor(3_000.0, 0.0017, 0.0003, 8)?;
     assert!((response.harmonics()[0] - 1.0).abs() < 1e-12);
     Ok(())
 }
 
 #[test]
 fn tensor_response_r2_is_nonzero_for_anisotropic_tensor() -> Result<(), CsdError> {
-    let response =
-        ResponseFunction::from_tensor(3_000.0, 0.0017, 0.0003, 8)?;
+    let response = ResponseFunction::from_tensor(3_000.0, 0.0017, 0.0003, 8)?;
     // r_2 can be negative at high b-values because the perpendicular signal
     // (larger, P_2 < 0) dominates the parallel signal (smaller, P_2 > 0).
     assert!(response.harmonics()[1].abs() > 1e-12);
@@ -89,8 +83,7 @@ fn tensor_response_reconstruction_is_non_negative() -> Result<(), CsdError> {
     // The response function is a signal profile and must be non-negative
     // everywhere.  Reconstruct it from the Legendre coefficients at a
     // dense set of angles and assert non-negativity.
-    let response =
-        ResponseFunction::from_tensor(3_000.0, 0.0017, 0.0003, 8)?;
+    let response = ResponseFunction::from_tensor(3_000.0, 0.0017, 0.0003, 8)?;
     let harmonics = response.harmonics();
     const N_THETA: usize = 200;
     for i in 0..N_THETA {
@@ -113,8 +106,7 @@ fn tensor_response_reconstruction_is_non_negative() -> Result<(), CsdError> {
 fn isotropic_tensor_response_all_zeros_beyond_r0() -> Result<(), CsdError> {
     // Isotropic tensor (ad == rd).  Numerical quadrature with 512 samples
     // leaves sub-1e-4 residual; 1e-4 is the verified tolerance.
-    let response =
-        ResponseFunction::from_tensor(3_000.0, 0.0017, 0.0017, 4)?;
+    let response = ResponseFunction::from_tensor(3_000.0, 0.0017, 0.0017, 4)?;
     assert!((response.harmonics()[0] - 1.0).abs() < 1e-12);
     for &r in &response.harmonics()[1..] {
         assert!(r.abs() < 2e-5, "isotropic r_l must be near zero, got {r}");
@@ -133,8 +125,7 @@ fn response_new_rejects_non_unity_r0() {
 #[test]
 fn single_fibre_recovers_peak_on_axis() -> Result<(), CsdError> {
     let scheme = scheme(60);
-    let response =
-        ResponseFunction::from_tensor(3_000.0, 0.0017, 0.0003, 8)?;
+    let response = ResponseFunction::from_tensor(3_000.0, 0.0017, 0.0003, 8)?;
     let config = CsdConfig::new(8, weighting(50.0), NnlsConfig::default())?;
     let signals = tensor_signal(&scheme, [1.0, 0.0, 0.0], 1.0, 0.0017, 0.0003);
     let fod = estimate_fod(&scheme, &signals, &response, &config)?;
@@ -149,8 +140,7 @@ fn single_fibre_recovers_peak_on_axis() -> Result<(), CsdError> {
 #[test]
 fn single_fibre_antipodal_symmetry() -> Result<(), CsdError> {
     let scheme = scheme(60);
-    let response =
-        ResponseFunction::from_tensor(3_000.0, 0.0017, 0.0003, 8)?;
+    let response = ResponseFunction::from_tensor(3_000.0, 0.0017, 0.0003, 8)?;
     let config = CsdConfig::new(8, weighting(50.0), NnlsConfig::default())?;
     let signals = tensor_signal(&scheme, [0.0, 0.0, 1.0], 1.0, 0.0017, 0.0003);
     let fod = estimate_fod(&scheme, &signals, &response, &config)?;
@@ -164,8 +154,7 @@ fn single_fibre_antipodal_symmetry() -> Result<(), CsdError> {
 #[test]
 fn all_coefficients_are_non_negative() -> Result<(), CsdError> {
     let scheme = scheme(60);
-    let response =
-        ResponseFunction::from_tensor(3_000.0, 0.0017, 0.0003, 8)?;
+    let response = ResponseFunction::from_tensor(3_000.0, 0.0017, 0.0003, 8)?;
     let config = CsdConfig::new(8, weighting(50.0), NnlsConfig::default())?;
     let signals = tensor_signal(&scheme, [1.0, 0.0, 0.0], 1.0, 0.0017, 0.0003);
     let fod = estimate_fod(&scheme, &signals, &response, &config)?;
@@ -179,8 +168,7 @@ fn all_coefficients_are_non_negative() -> Result<(), CsdError> {
 #[test]
 fn two_fibre_crossing_has_two_peaks() -> Result<(), CsdError> {
     let scheme = scheme(120);
-    let response =
-        ResponseFunction::from_tensor(3_000.0, 0.0017, 0.0003, 8)?;
+    let response = ResponseFunction::from_tensor(3_000.0, 0.0017, 0.0003, 8)?;
     let config = CsdConfig::new(8, weighting(50.0), NnlsConfig::default())?;
     let axis_a = [1.0_f64, 0.0, 0.0];
     let axis_b = [0.0_f64, 1.0, 0.0];
@@ -190,8 +178,14 @@ fn two_fibre_crossing_has_two_peaks() -> Result<(), CsdError> {
     let fod_x = fod.evaluate_at_direction(axis_a)?;
     let fod_y = fod.evaluate_at_direction(axis_b)?;
     let fod_z = fod.evaluate_at_direction([0.0, 0.0, 1.0])?;
-    assert!(fod_x > fod_z, "crossing peak x {fod_x} must exceed z {fod_z}");
-    assert!(fod_y > fod_z, "crossing peak y {fod_y} must exceed z {fod_z}");
+    assert!(
+        fod_x > fod_z,
+        "crossing peak x {fod_x} must exceed z {fod_z}"
+    );
+    assert!(
+        fod_y > fod_z,
+        "crossing peak y {fod_y} must exceed z {fod_z}"
+    );
     Ok(())
 }
 
@@ -201,8 +195,7 @@ fn constant_signal_fits_isotropic_fod() -> Result<(), CsdError> {
     // The only degree that can represent a constant is l=0, so c_0 should
     // absorb all weight and higher-degree coefficients be negligible.
     let scheme = scheme(60);
-    let response =
-        ResponseFunction::from_tensor(3_000.0, 0.0017, 0.0003, 8)?;
+    let response = ResponseFunction::from_tensor(3_000.0, 0.0017, 0.0003, 8)?;
     let config = CsdConfig::new(8, weighting(50.0), NnlsConfig::default())?;
     let signals = vec![1.0; scheme.len()];
     let fod = estimate_fod(&scheme, &signals, &response, &config)?;
@@ -216,8 +209,7 @@ fn constant_signal_fits_isotropic_fod() -> Result<(), CsdError> {
 #[test]
 fn response_degree_too_low_errors() -> Result<(), CsdError> {
     let scheme = scheme(60);
-    let response =
-        ResponseFunction::from_tensor(3_000.0, 0.0017, 0.0003, 4)?;
+    let response = ResponseFunction::from_tensor(3_000.0, 0.0017, 0.0003, 4)?;
     let config = CsdConfig::new(8, weighting(50.0), NnlsConfig::default())?;
     let signals = tensor_signal(&scheme, [1.0, 0.0, 0.0], 1.0, 0.0017, 0.0003);
     let err = estimate_fod(&scheme, &signals, &response, &config).unwrap_err();
@@ -228,8 +220,7 @@ fn response_degree_too_low_errors() -> Result<(), CsdError> {
 #[test]
 fn response_higher_degree_is_accepted() -> Result<(), CsdError> {
     let scheme = scheme(60);
-    let response =
-        ResponseFunction::from_tensor(3_000.0, 0.0017, 0.0003, 8)?;
+    let response = ResponseFunction::from_tensor(3_000.0, 0.0017, 0.0003, 8)?;
     let config = CsdConfig::new(4, weighting(50.0), NnlsConfig::default())?;
     let signals = tensor_signal(&scheme, [1.0, 0.0, 0.0], 1.0, 0.0017, 0.0003);
     let fod = estimate_fod(&scheme, &signals, &response, &config)?;
@@ -240,8 +231,7 @@ fn response_higher_degree_is_accepted() -> Result<(), CsdError> {
 #[test]
 fn signal_length_mismatch_errors() {
     let scheme = scheme(30);
-    let response =
-        ResponseFunction::from_tensor(3_000.0, 0.0017, 0.0003, 8).unwrap();
+    let response = ResponseFunction::from_tensor(3_000.0, 0.0017, 0.0003, 8).unwrap();
     let config = CsdConfig::new(8, weighting(50.0), NnlsConfig::default()).unwrap();
     let err = estimate_fod(&scheme, &[1.0; 5], &response, &config).unwrap_err();
     assert!(matches!(err, CsdError::SignalLengthMismatch { .. }));
@@ -250,8 +240,7 @@ fn signal_length_mismatch_errors() {
 #[test]
 fn grid_is_flat_and_finite() -> Result<(), CsdError> {
     let scheme = scheme(60);
-    let response =
-        ResponseFunction::from_tensor(3_000.0, 0.0017, 0.0003, 8)?;
+    let response = ResponseFunction::from_tensor(3_000.0, 0.0017, 0.0003, 8)?;
     let config = CsdConfig::new(8, weighting(50.0), NnlsConfig::default())?;
     let signals = tensor_signal(&scheme, [1.0, 0.0, 0.0], 1.0, 0.0017, 0.0003);
     let fod = estimate_fod(&scheme, &signals, &response, &config)?;
@@ -276,8 +265,7 @@ fn single_fibre_peak_agrees_with_evaluation() -> Result<(), CsdError> {
     // Use a z-axis fibre — the pole is away from the antipodal-symmetric
     // ringing region and the peak finder reliably recovers it.
     let scheme = scheme(60);
-    let response =
-        ResponseFunction::from_tensor(3_000.0, 0.0017, 0.0003, 8)?;
+    let response = ResponseFunction::from_tensor(3_000.0, 0.0017, 0.0003, 8)?;
     let config = CsdConfig::new(8, weighting(50.0), NnlsConfig::default())?;
     let signals = tensor_signal(&scheme, [0.0, 0.0, 1.0], 1.0, 0.0017, 0.0003);
     let fod = estimate_fod(&scheme, &signals, &response, &config)?;
@@ -286,18 +274,14 @@ fn single_fibre_peak_agrees_with_evaluation() -> Result<(), CsdError> {
     assert!(!peaks.is_empty(), "must find at least one peak");
     // The strongest peak direction should approximate (0,0,±1).
     let abs_z = peaks[0].direction[2].abs();
-    assert!(
-        abs_z > 0.8,
-        "strongest peak z={abs_z} should be near ±1"
-    );
+    assert!(abs_z > 0.8, "strongest peak z={abs_z} should be near ±1");
     Ok(())
 }
 
 #[test]
 fn two_fibre_fod_has_two_peaks() -> Result<(), CsdError> {
     let scheme = scheme(120);
-    let response =
-        ResponseFunction::from_tensor(3_000.0, 0.0017, 0.0003, 8)?;
+    let response = ResponseFunction::from_tensor(3_000.0, 0.0017, 0.0003, 8)?;
     let config = CsdConfig::new(8, weighting(50.0), NnlsConfig::default())?;
     let axis_a = [1.0_f64, 0.0, 0.0];
     let axis_b = [0.0_f64, 1.0, 0.0];
@@ -305,7 +289,11 @@ fn two_fibre_fod_has_two_peaks() -> Result<(), CsdError> {
     let fod = estimate_fod(&scheme, &signals, &response, &config)?;
 
     let peaks = fod.find_peaks(50, 100, 0.1)?;
-    assert!(peaks.len() >= 2, "expected at least 2 peaks, got {}", peaks.len());
+    assert!(
+        peaks.len() >= 2,
+        "expected at least 2 peaks, got {}",
+        peaks.len()
+    );
     // The first two peaks should align with the two fibre axes.
     let dots: Vec<f64> = peaks
         .iter()
@@ -325,8 +313,7 @@ fn two_fibre_fod_has_two_peaks() -> Result<(), CsdError> {
 #[test]
 fn relative_threshold_discards_weak_peaks() -> Result<(), CsdError> {
     let scheme = scheme(60);
-    let response =
-        ResponseFunction::from_tensor(3_000.0, 0.0017, 0.0003, 8)?;
+    let response = ResponseFunction::from_tensor(3_000.0, 0.0017, 0.0003, 8)?;
     let config = CsdConfig::new(8, weighting(50.0), NnlsConfig::default())?;
     let signals = tensor_signal(&scheme, [1.0, 0.0, 0.0], 1.0, 0.0017, 0.0003);
     let fod = estimate_fod(&scheme, &signals, &response, &config)?;
@@ -346,8 +333,7 @@ fn relative_threshold_discards_weak_peaks() -> Result<(), CsdError> {
 #[test]
 fn peak_amplitudes_are_sorted_descending() -> Result<(), CsdError> {
     let scheme = scheme(60);
-    let response =
-        ResponseFunction::from_tensor(3_000.0, 0.0017, 0.0003, 8)?;
+    let response = ResponseFunction::from_tensor(3_000.0, 0.0017, 0.0003, 8)?;
     let config = CsdConfig::new(8, weighting(50.0), NnlsConfig::default())?;
     let signals = tensor_signal(&scheme, [1.0, 0.0, 0.0], 1.0, 0.0017, 0.0003);
     let fod = estimate_fod(&scheme, &signals, &response, &config)?;
@@ -367,8 +353,8 @@ fn rotation_y(angle: f64) -> [[f64; 3]; 3] {
 }
 
 #[test]
-fn reorient_gradients_recovers_original_peak_skip_reorientation_gives_wrong_peak(
-) -> Result<(), CsdError> {
+fn reorient_gradients_recovers_original_peak_skip_reorientation_gives_wrong_peak()
+-> Result<(), CsdError> {
     let scheme = scheme(60);
     let response = ResponseFunction::from_tensor(3_000.0, 0.0017, 0.0003, 8)?;
     let config = CsdConfig::new(8, weighting(50.0), NnlsConfig::default())?;
@@ -378,19 +364,15 @@ fn reorient_gradients_recovers_original_peak_skip_reorientation_gives_wrong_peak
     let rotation = rotation_y(angle);
     let scheme_reoriented = scheme.reorient(rotation).expect("valid rotation");
 
-    let signals = tensor_signal(
-        &scheme_reoriented,
-        original_peak,
-        1.0,
-        0.0017,
-        0.0003,
-    );
+    let signals = tensor_signal(&scheme_reoriented, original_peak, 1.0, 0.0017, 0.0003);
 
     // With reorientation: fit with reoriented scheme recovers original peak.
-    let fod_correct =
-        estimate_fod(&scheme_reoriented, &signals, &response, &config)?;
+    let fod_correct = estimate_fod(&scheme_reoriented, &signals, &response, &config)?;
     let peaks_correct = fod_correct.find_peaks(50, 100, 0.1)?;
-    assert!(!peaks_correct.is_empty(), "must find peak with reorientation");
+    assert!(
+        !peaks_correct.is_empty(),
+        "must find peak with reorientation"
+    );
     let abs_z = peaks_correct[0].direction[2].abs();
     assert!(
         abs_z > 0.8,
@@ -400,7 +382,10 @@ fn reorient_gradients_recovers_original_peak_skip_reorientation_gives_wrong_peak
     // Without reorientation: fit with original scheme gives wrong peak.
     let fod_wrong = estimate_fod(&scheme, &signals, &response, &config)?;
     let peaks_wrong = fod_wrong.find_peaks(50, 100, 0.1)?;
-    assert!(!peaks_wrong.is_empty(), "must find peak without reorientation");
+    assert!(
+        !peaks_wrong.is_empty(),
+        "must find peak without reorientation"
+    );
     // Peak should be rotated away from z-axis: PEV = R^T.[0,0,1] = [-r2,0,r2].
     let abs_z_wrong = peaks_wrong[0].direction[2].abs();
     assert!(
@@ -427,8 +412,7 @@ fn reorient_gradients_recovers_original_peak_skip_reorientation_gives_wrong_peak
 /// replicated at every voxel.
 fn two_by_two_z_fibre_volume() -> Result<FodVolume, CsdError> {
     let scheme = scheme(60);
-    let response =
-        ResponseFunction::from_tensor(3_000.0, 0.0017, 0.0003, 8)?;
+    let response = ResponseFunction::from_tensor(3_000.0, 0.0017, 0.0003, 8)?;
     let config = CsdConfig::new(8, weighting(50.0), NnlsConfig::default())?;
     let signals = tensor_signal(&scheme, [0.0, 0.0, 1.0], 1.0, 0.0017, 0.0003);
     let fod = estimate_fod(&scheme, &signals, &response, &config)?;
@@ -514,13 +498,20 @@ fn interpolation_at_voxel_centre_recovers_exact_coefficients() -> Result<(), Csd
     let volume = two_by_two_z_fibre_volume()?;
 
     let centre = Point::new([0.0, 0.0, 0.0]);
-    let interp = volume.interpolate_coefficients_at(&centre).expect("in bounds");
+    let interp = volume
+        .interpolate_coefficients_at(&centre)
+        .expect("in bounds");
     let nc = volume.coefficient_count();
 
-    for c in 0..nc {
-        let delta = (interp[c]
-            - volume.coefficients.as_ref().get(c).copied().unwrap_or(f64::NAN))
-            .abs();
+    for (c, value) in interp.iter().enumerate().take(nc) {
+        let delta = (*value
+            - volume
+                .coefficients
+                .as_ref()
+                .get(c)
+                .copied()
+                .unwrap_or(f64::NAN))
+        .abs();
         assert!(delta < 1e-12, "coefficient {c} delta {delta} too large");
     }
     Ok(())
@@ -534,10 +525,15 @@ fn interpolation_at_midpoint_averages_two_voxels() -> Result<(), CsdError> {
     let mid = Point::new([1.0, 1.0, 1.0]);
     let interp = volume.interpolate_coefficients_at(&mid).expect("in bounds");
 
-    for c in 0..nc {
-        let delta =
-            (interp[c] - volume.coefficients.as_ref().get(c).copied().unwrap_or(f64::NAN))
-                .abs();
+    for (c, value) in interp.iter().enumerate().take(nc) {
+        let delta = (*value
+            - volume
+                .coefficients
+                .as_ref()
+                .get(c)
+                .copied()
+                .unwrap_or(f64::NAN))
+        .abs();
         assert!(
             delta < 1e-12,
             "coefficient {c} at midpoint delta {delta} too large"
@@ -572,9 +568,6 @@ fn direction_at_recovers_z_axis_in_homogeneous_volume() -> Result<(), CsdError> 
         .direction_at(&Point::new([1.0, 1.0, 1.0]), 50, 100, 0.1)
         .expect("direction inside volume");
     let abs_z = dir.to_array()[2].abs();
-    assert!(
-        abs_z > 0.8,
-        "interpolated peak z={abs_z} must be near ±1"
-    );
+    assert!(abs_z > 0.8, "interpolated peak z={abs_z} must be near ±1");
     Ok(())
 }

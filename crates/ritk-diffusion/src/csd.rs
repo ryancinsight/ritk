@@ -91,9 +91,7 @@ pub enum CsdError {
         coefficient_count: usize,
     },
     /// The response function degree is too low for the requested basis.
-    #[error(
-        "response function l_max is {response_l_max}; must be at least {config_l_max}"
-    )]
+    #[error("response function l_max is {response_l_max}; must be at least {config_l_max}")]
     ResponseDegreeTooLow {
         /// Maximum degree covered by the response.
         response_l_max: usize,
@@ -203,18 +201,14 @@ impl ResponseFunction {
             return Err(CsdError::InvalidR0 { value: f64::NAN });
         }
         if harmonics.iter().any(|value| !value.is_finite()) {
-            return Err(CsdError::InvalidR0 {
-                value: f64::NAN,
-            });
+            return Err(CsdError::InvalidR0 { value: f64::NAN });
         }
         if (harmonics[0] - 1.0).abs() > 1e-12 {
             return Err(CsdError::InvalidR0 {
                 value: harmonics[0],
             });
         }
-        let degrees: Box<[usize]> = (0..harmonics.len())
-            .map(|i| i * 2)
-            .collect();
+        let degrees: Box<[usize]> = (0..harmonics.len()).map(|i| i * 2).collect();
         Ok(Self {
             harmonics: harmonics.into_boxed_slice(),
             degrees,
@@ -232,12 +226,7 @@ impl ResponseFunction {
     /// `l_max` is the maximum even SH degree.
     ///
     /// The response is normalised so that `r_0 = 1.0`.
-    pub fn from_tensor(
-        b_value: f64,
-        ad: f64,
-        rd: f64,
-        l_max: usize,
-    ) -> Result<Self, CsdError> {
+    pub fn from_tensor(b_value: f64, ad: f64, rd: f64, l_max: usize) -> Result<Self, CsdError> {
         RealSphericalHarmonicBasis::new(l_max)?;
 
         const N_THETA: usize = 512;
@@ -588,8 +577,9 @@ impl FodField {
             .iter_lm()
             .zip(self.coefficients.iter())
             .map(|((_, degree, order), coefficient)| {
-                coefficient * real_spherical_harmonic(degree, order, theta, phi)
-                    .expect("invariant: SH evaluation with pre-validated basis")
+                coefficient
+                    * real_spherical_harmonic(degree, order, theta, phi)
+                        .expect("invariant: SH evaluation with pre-validated basis")
             })
             .sum()
     }
@@ -617,10 +607,7 @@ impl FodField {
         let grid = self.evaluate_on_grid(grid_theta, grid_phi)?;
         let values = grid.values();
         let [n_theta, n_phi] = grid.shape();
-        let max_value = values
-            .iter()
-            .copied()
-            .fold(f64::NEG_INFINITY, f64::max);
+        let max_value = values.iter().copied().fold(f64::NEG_INFINITY, f64::max);
         let floor = max_value * relative_threshold;
 
         let index = |ti: usize, pi: usize| -> usize { ti * n_phi + pi };
@@ -636,17 +623,26 @@ impl FodField {
                 // Pole rows (ti == 0 or ti == n_theta-1) are not excluded:
                 // the deduplication pass below merges physically identical
                 // pole peaks that the ϕ-periodic grid produces.
-                let is_maximum = [(0, -1), (0, 1), (-1, -1), (-1, 0), (-1, 1), (1, -1), (1, 0), (1, 1)]
-                    .into_iter()
-                    .filter_map(|(dt, dp)| {
-                        let nt = ti.wrapping_add_signed(dt);
-                        if nt >= n_theta {
-                            return None;
-                        }
-                        let np = (pi.wrapping_add_signed(dp)) % n_phi;
-                        Some(values[index(nt, np)])
-                    })
-                    .all(|neighbour| value > neighbour);
+                let is_maximum = [
+                    (0, -1),
+                    (0, 1),
+                    (-1, -1),
+                    (-1, 0),
+                    (-1, 1),
+                    (1, -1),
+                    (1, 0),
+                    (1, 1),
+                ]
+                .into_iter()
+                .filter_map(|(dt, dp)| {
+                    let nt = ti.wrapping_add_signed(dt);
+                    if nt >= n_theta {
+                        return None;
+                    }
+                    let np = (pi.wrapping_add_signed(dp)) % n_phi;
+                    Some(values[index(nt, np)])
+                })
+                .all(|neighbour| value > neighbour);
                 if !is_maximum {
                     continue;
                 }
@@ -654,17 +650,17 @@ impl FodField {
                 let phi = std::f64::consts::TAU * pi as f64 / n_phi as f64;
                 let sin_theta = theta.sin();
                 peaks.push(FodPeak {
-                    direction: [
-                        sin_theta * phi.cos(),
-                        sin_theta * phi.sin(),
-                        theta.cos(),
-                    ],
+                    direction: [sin_theta * phi.cos(), sin_theta * phi.sin(), theta.cos()],
                     amplitude: value,
                 });
             }
         }
 
-        peaks.sort_by(|a, b| b.amplitude.partial_cmp(&a.amplitude).unwrap_or(std::cmp::Ordering::Equal));
+        peaks.sort_by(|a, b| {
+            b.amplitude
+                .partial_cmp(&a.amplitude)
+                .unwrap_or(std::cmp::Ordering::Equal)
+        });
 
         // Deduplicate: keep the highest-amplitude peak when multiple grid
         // points represent the same physical direction (common at poles
@@ -672,15 +668,12 @@ impl FodField {
         const DEDUP_DOT: f64 = 0.996; // cos(≈5°)
         let mut kept: Vec<FodPeak> = Vec::with_capacity(peaks.len());
         for peak in peaks {
-            if kept
-                .iter()
-                .any(|existing| {
-                    existing.direction[0] * peak.direction[0]
-                        + existing.direction[1] * peak.direction[1]
-                        + existing.direction[2] * peak.direction[2]
-                        > DEDUP_DOT
-                })
-            {
+            if kept.iter().any(|existing| {
+                existing.direction[0] * peak.direction[0]
+                    + existing.direction[1] * peak.direction[1]
+                    + existing.direction[2] * peak.direction[2]
+                    > DEDUP_DOT
+            }) {
                 continue;
             }
             kept.push(peak);
@@ -801,11 +794,8 @@ pub fn estimate_fod(
     let deconv = build_deconvolution_matrix(&design, &basis, response);
 
     // ── NNLS solve ────────────────────────────────────────────────────────
-    let rhs = Array1::from_vec(
-        dwi_indices.len(),
-        normalized.clone(),
-    )
-    .map_err(|error| CsdError::NnlsFailed(error.to_string()))?;
+    let rhs = Array1::from_vec(dwi_indices.len(), normalized.clone())
+        .map_err(|error| CsdError::NnlsFailed(error.to_string()))?;
     let nnls_result: NnlsResult = nnls(&deconv.view(), &rhs.view(), config.nnls_config)
         .map_err(|error| CsdError::NnlsFailed(error.to_string()))?;
 
@@ -847,8 +837,7 @@ fn build_deconvolution_matrix(
             let response_index = degree / 2;
             let r_l = response.harmonics()[response_index];
             // κ_l = 4π/(2l+1) · r_l  (Legendre-coefficient convention).
-            let kappa = 4.0 * std::f64::consts::PI / (2.0 * degree as f64 + 1.0) * r_l;
-            kappa
+            4.0 * std::f64::consts::PI / (2.0 * degree as f64 + 1.0) * r_l
         })
         .collect();
 
@@ -931,7 +920,13 @@ impl FodVolume {
             });
         }
         let [sx, sy, sz] = spacing;
-        if !sx.is_finite() || sx <= 0.0 || !sy.is_finite() || sy <= 0.0 || !sz.is_finite() || sz <= 0.0 {
+        if !sx.is_finite()
+            || sx <= 0.0
+            || !sy.is_finite()
+            || sy <= 0.0
+            || !sz.is_finite()
+            || sz <= 0.0
+        {
             return Err(CsdError::VolumeSpacingInvalid { sx, sy, sz });
         }
         let [ox, oy, oz] = origin;
@@ -996,10 +991,7 @@ impl FodVolume {
     /// Returns `None` when the point maps to a continuous voxel index outside
     /// `[-0.5, shape[i] - 0.5)` for any axis — i.e., when the interpolation
     /// stencil extends beyond the grid.
-    pub fn interpolate_coefficients_at(
-        &self,
-        point: &ritk_spatial::Point<3>,
-    ) -> Option<Vec<f64>> {
+    pub fn interpolate_coefficients_at(&self, point: &ritk_spatial::Point<3>) -> Option<Vec<f64>> {
         let [fx, fy, fz] = self.world_to_voxel(point)?;
         let [nx, ny, nz] = self.shape;
 
@@ -1039,7 +1031,7 @@ impl FodVolume {
         let idx = |z: usize, y: usize, x: usize| -> usize { z * nxy + y * nxnc + x * nc };
 
         let mut result = vec![0.0; nc];
-        for c in 0..nc {
+        for (c, value) in result.iter_mut().enumerate() {
             let v000 = self.coefficients[idx(iz, iy, ix) + c];
             let v100 = self.coefficients[idx(iz, iy, ix1) + c];
             let v010 = self.coefficients[idx(iz, iy1, ix) + c];
@@ -1049,7 +1041,7 @@ impl FodVolume {
             let v011 = self.coefficients[idx(iz1, iy1, ix) + c];
             let v111 = self.coefficients[idx(iz1, iy1, ix1) + c];
 
-            result[c] = (1.0 - wx) * (1.0 - wy) * (1.0 - wz) * v000
+            *value = (1.0 - wx) * (1.0 - wy) * (1.0 - wz) * v000
                 + wx * (1.0 - wy) * (1.0 - wz) * v100
                 + (1.0 - wx) * wy * (1.0 - wz) * v010
                 + wx * wy * (1.0 - wz) * v110
@@ -1096,8 +1088,12 @@ impl FodVolume {
             false, // nnls_converged
             self.frame,
         );
-        let peaks = field.find_peaks(grid_theta, grid_phi, relative_threshold).ok()?;
-        peaks.first().map(|peak| ritk_spatial::Vector::new(peak.direction))
+        let peaks = field
+            .find_peaks(grid_theta, grid_phi, relative_threshold)
+            .ok()?;
+        peaks
+            .first()
+            .map(|peak| ritk_spatial::Vector::new(peak.direction))
     }
 }
 

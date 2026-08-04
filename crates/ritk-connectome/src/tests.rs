@@ -9,12 +9,9 @@ use super::*;
 fn three_region_2x2x2() -> Parcellation {
     let labels: Box<[u32]> = Box::new([
         // z=0, y=0: x=0,1
-        1, 0,
-        // z=0, y=1: x=0,1
-        0, 3,
-        // z=1, y=0: x=0,1
-        0, 2,
-        // z=1, y=1: x=0,1
+        1, 0, // z=0, y=1: x=0,1
+        0, 3, // z=1, y=0: x=0,1
+        0, 2, // z=1, y=1: x=0,1
         3, 0,
     ]);
     Parcellation::new(
@@ -57,14 +54,8 @@ fn parcellation_rejects_empty_labels() {
 #[test]
 fn parcellation_rejects_all_background() {
     let labels: Box<[u32]> = vec![0u32; 8].into_boxed_slice();
-    let err = Parcellation::new(
-        labels,
-        [2, 2, 2],
-        [1.0, 1.0, 1.0],
-        [0.0, 0.0, 0.0],
-        vec![],
-    )
-    .unwrap_err();
+    let err =
+        Parcellation::new(labels, [2, 2, 2], [1.0, 1.0, 1.0], [0.0, 0.0, 0.0], vec![]).unwrap_err();
     assert!(matches!(err, ConnectomeError::EmptyParcellation(0)));
 }
 

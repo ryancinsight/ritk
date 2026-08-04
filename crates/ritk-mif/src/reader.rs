@@ -347,7 +347,7 @@ fn decompose_transform_affine(
         if sx > 0.0 {
             sx
         } else {
-            vox_sizes.get(0).copied().unwrap_or(1.0)
+            vox_sizes.first().copied().unwrap_or(1.0)
         },
     ]);
 

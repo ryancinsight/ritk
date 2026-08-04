@@ -109,14 +109,8 @@ fn extract_dw_scheme_lines(header: &str) -> Result<Vec<Vec<f64>>, GradientScheme
     if parts.len() != 2 {
         return Err(dim_err());
     }
-    let expected: usize = parts[0]
-        .trim()
-        .parse()
-        .map_err(|_| dim_err())?;
-    let columns: usize = parts[1]
-        .trim()
-        .parse()
-        .map_err(|_| dim_err())?;
+    let expected: usize = parts[0].trim().parse().map_err(|_| dim_err())?;
+    let columns: usize = parts[1].trim().parse().map_err(|_| dim_err())?;
     if columns != 4 {
         return Err(GradientSchemeError::InvalidMrtrixHeader(format!(
             "DW_scheme: expected 4 columns, got {columns}"
@@ -136,12 +130,12 @@ fn extract_dw_scheme_lines(header: &str) -> Result<Vec<Vec<f64>>, GradientScheme
             .split(|c: char| c == ',' || c.is_whitespace())
             .filter(|s| !s.is_empty())
             .map(|token| {
-                token.parse::<f64>().map_err(|_| {
-                    GradientSchemeError::InvalidToken {
+                token
+                    .parse::<f64>()
+                    .map_err(|_| GradientSchemeError::InvalidToken {
                         field: "MRtrix DW_scheme component",
                         token: token.to_owned(),
-                    }
-                })
+                    })
             })
             .collect::<Result<_, _>>()?;
         if row.len() != 4 {

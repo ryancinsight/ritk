@@ -164,12 +164,7 @@ impl Parcellation {
     /// Sorted list of unique non-background region labels.
     #[must_use]
     pub fn region_labels(&self) -> Vec<u32> {
-        let mut labels: Vec<u32> = self
-            .labels
-            .iter()
-            .copied()
-            .filter(|&l| l != 0)
-            .collect();
+        let mut labels: Vec<u32> = self.labels.iter().copied().filter(|&l| l != 0).collect();
         labels.sort_unstable();
         labels.dedup();
         labels
@@ -349,9 +344,7 @@ impl ConnectivityMatrix {
     pub fn strength(&self, label: u32) -> Option<f64> {
         let i = self.index_of(label)?;
         let start = i * self.region_count;
-        let row_sum: f64 = self.weights[start..start + self.region_count]
-            .iter()
-            .sum();
+        let row_sum: f64 = self.weights[start..start + self.region_count].iter().sum();
         let col_sum: f64 = (0..i)
             .map(|r| self.weights[r * self.region_count + i])
             .sum();
@@ -424,19 +417,19 @@ pub fn build_connectivity_matrix(
         .collect();
     let total = n * n;
     let mut weights = Vec::with_capacity(total);
-    weights.try_reserve_exact(total).map_err(|_| {
-        ConnectomeError::RegionCountMismatch {
+    weights
+        .try_reserve_exact(total)
+        .map_err(|_| ConnectomeError::RegionCountMismatch {
             expected: total,
             actual: 0,
-        }
-    })?;
+        })?;
     weights.resize(total, 0.0);
 
     let mut total_streamlines = 0usize;
     let mut intra_region_count = 0usize;
     let mut skipped_count = 0usize;
 
-    for (_streamline_index, streamline) in streamlines.iter().enumerate() {
+    for streamline in streamlines.iter() {
         let points = streamline.points();
         if points.len() < 2 {
             continue;
@@ -496,8 +489,6 @@ pub fn build_connectivity_matrix(
         skipped_count,
     })
 }
-
-
 
 /// Binary search the internal index for a given label.
 fn label_index(lookup: &[(u32, usize)], label: u32) -> Option<usize> {

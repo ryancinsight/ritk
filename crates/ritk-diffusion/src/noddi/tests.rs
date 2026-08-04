@@ -82,8 +82,16 @@ fn perfectly_aligned_stick_recovers_near_zero_odi() {
         .expect("aligned stick NODDI fit should succeed");
 
     assert!(fit.converged());
-    assert!((fit.ndi() - 0.7).abs() < 0.15, "NDI mismatch: {:.3}", fit.ndi());
-    assert!(fit.odi() < 0.15, "ODI should be near 0 for aligned sticks, got {}", fit.odi());
+    assert!(
+        (fit.ndi() - 0.7).abs() < 0.15,
+        "NDI mismatch: {:.3}",
+        fit.ndi()
+    );
+    assert!(
+        fit.odi() < 0.15,
+        "ODI should be near 0 for aligned sticks, got {}",
+        fit.odi()
+    );
     assert!(fit.f_iso() < 0.1, "f_iso should be near 0");
 }
 
@@ -98,9 +106,17 @@ fn moderately_dispersed_stick_recovers_positive_odi() {
         .expect("moderately dispersed NODDI fit should succeed");
 
     assert!(fit.converged());
-    assert!(fit.odi() > 0.1, "ODI should be positive for dispersed sticks, got {}", fit.odi());
+    assert!(
+        fit.odi() > 0.1,
+        "ODI should be positive for dispersed sticks, got {}",
+        fit.odi()
+    );
     // ODI recovery tolerance: quadrature and LM convergence limit precision.
-    assert!((fit.odi() - 0.3).abs() < 0.2, "ODI recovery: {:.3} vs 0.3", fit.odi());
+    assert!(
+        (fit.odi() - 0.3).abs() < 0.2,
+        "ODI recovery: {:.3} vs 0.3",
+        fit.odi()
+    );
 }
 
 #[test]
@@ -114,7 +130,11 @@ fn highly_dispersed_stick_approaches_isotropic() {
         .expect("highly dispersed NODDI fit should succeed");
 
     assert!(fit.converged());
-    assert!(fit.odi() > 0.5, "ODI should be high for near-isotropic dispersion, got {}", fit.odi());
+    assert!(
+        fit.odi() > 0.5,
+        "ODI should be high for near-isotropic dispersion, got {}",
+        fit.odi()
+    );
 }
 
 // ── Compartment recovery ──────────────────────────────────────────────────────
@@ -129,7 +149,11 @@ fn pure_csf_is_identified_correctly() {
         .expect("pure CSF NODDI fit should succeed");
 
     assert!(fit.converged());
-    assert!(fit.f_iso() > 0.7, "f_iso should be high for pure CSF, got {}", fit.f_iso());
+    assert!(
+        fit.f_iso() > 0.7,
+        "f_iso should be high for pure CSF, got {}",
+        fit.f_iso()
+    );
 }
 
 #[test]
@@ -143,7 +167,11 @@ fn pure_ball_recovers_zero_intra_and_low_csf() {
 
     assert!(fit.converged());
     assert!(fit.ndi() < 0.2, "NDI should be near 0, got {}", fit.ndi());
-    assert!(fit.f_iso() < 0.2, "f_iso should be near 0, got {}", fit.f_iso());
+    assert!(
+        fit.f_iso() < 0.2,
+        "f_iso should be near 0, got {}",
+        fit.f_iso()
+    );
 }
 
 #[test]
@@ -167,8 +195,8 @@ fn signal_prediction_round_trips() {
     let s0 = 1000.0;
     let signals = noddi_signals(&scheme, s0, 0.6, 0.0, 0.15, z_dir());
 
-    let fit = estimate_noddi(&scheme, &signals, &default_config())
-        .expect("NODDI fit should succeed");
+    let fit =
+        estimate_noddi(&scheme, &signals, &default_config()).expect("NODDI fit should succeed");
 
     for (idx, entry) in scheme.directions().iter().enumerate() {
         let b = entry.weighting().seconds_per_square_millimeter();
@@ -190,14 +218,17 @@ fn compartment_fractions_sum_to_one() {
     let s0 = 1000.0;
     let signals = noddi_signals(&scheme, s0, 0.5, 0.1, 0.1, z_dir());
 
-    let fit = estimate_noddi(&scheme, &signals, &default_config())
-        .expect("NODDI fit should succeed");
+    let fit =
+        estimate_noddi(&scheme, &signals, &default_config()).expect("NODDI fit should succeed");
 
     let stick = fit.f_intra() * (1.0 - fit.f_iso());
     let ball = (1.0 - fit.f_intra()) * (1.0 - fit.f_iso());
     let csf = fit.f_iso();
     let total = stick + ball + csf;
-    assert!((total - 1.0).abs() < 1e-12, "compartments must sum to 1.0, got {total}");
+    assert!(
+        (total - 1.0).abs() < 1e-12,
+        "compartments must sum to 1.0, got {total}"
+    );
 }
 
 // ── Error cases ───────────────────────────────────────────────────────────────
@@ -275,12 +306,18 @@ fn reorient_gradients_recovers_original_direction() {
     let fit_correct = estimate_noddi(&scheme_reoriented, &signals, &default_config())
         .expect("NODDI fit with reoriented scheme");
     let abs_z = fit_correct.principal_direction()[2].abs();
-    assert!(abs_z > 0.96, "with reorientation |z| should be near 1, got {abs_z}");
+    assert!(
+        abs_z > 0.96,
+        "with reorientation |z| should be near 1, got {abs_z}"
+    );
 
     let fit_wrong = estimate_noddi(&scheme, &signals, &default_config())
         .expect("NODDI fit without reorientation");
     let abs_z_wrong = fit_wrong.principal_direction()[2].abs();
-    assert!(abs_z_wrong < 0.85, "without reorientation |z| should deviate, got {abs_z_wrong}");
+    assert!(
+        abs_z_wrong < 0.85,
+        "without reorientation |z| should deviate, got {abs_z_wrong}"
+    );
 }
 
 // ── NoddiVolume tests ────────────────────────────────────────────────────
@@ -312,43 +349,54 @@ fn volume_construction_validates_inputs() {
     let dirs: Box<[f64]> = vec![0.0; 8 * 3].into_boxed_slice();
 
     // Zero shape.
-    assert!(NoddiVolume::new(
-        dirs.clone(),
-        [0, 2, 2],
-        [2.0, 2.0, 2.0],
-        [0.0, 0.0, 0.0],
-        GradientFrame::ImageAxis,
-    )
-    .is_err());
+    assert!(
+        NoddiVolume::new(
+            dirs.clone(),
+            [0, 2, 2],
+            [2.0, 2.0, 2.0],
+            [0.0, 0.0, 0.0],
+            GradientFrame::ImageAxis,
+        )
+        .is_err()
+    );
 
     // Mismatched direction count.
-    assert!(NoddiVolume::new(
-        vec![0.0; 4 * 3].into_boxed_slice(),
-        [2, 2, 2],
-        [2.0, 2.0, 2.0],
-        [0.0, 0.0, 0.0],
-        GradientFrame::ImageAxis,
-    )
-    .is_err());
+    assert!(
+        NoddiVolume::new(
+            vec![0.0; 4 * 3].into_boxed_slice(),
+            [2, 2, 2],
+            [2.0, 2.0, 2.0],
+            [0.0, 0.0, 0.0],
+            GradientFrame::ImageAxis,
+        )
+        .is_err()
+    );
 
     // Negative spacing.
-    assert!(NoddiVolume::new(
-        dirs.clone(),
-        [2, 2, 2],
-        [-1.0, 2.0, 2.0],
-        [0.0, 0.0, 0.0],
-        GradientFrame::ImageAxis,
-    )
-    .is_err());
+    assert!(
+        NoddiVolume::new(
+            dirs.clone(),
+            [2, 2, 2],
+            [-1.0, 2.0, 2.0],
+            [0.0, 0.0, 0.0],
+            GradientFrame::ImageAxis,
+        )
+        .is_err()
+    );
 }
 
 #[test]
 fn direction_at_voxel_centre_recovers_z_axis() -> Result<(), NoddiError> {
     let volume = two_by_two_z_volume()?;
 
-    let dir = volume.direction_at(&Point::new([0.0, 0.0, 0.0])).expect("in bounds");
+    let dir = volume
+        .direction_at(&Point::new([0.0, 0.0, 0.0]))
+        .expect("in bounds");
     let abs_z = dir.to_array()[2].abs();
-    assert!(abs_z > 0.98, "NODDI volume direction should be near z, got |z|={abs_z}");
+    assert!(
+        abs_z > 0.98,
+        "NODDI volume direction should be near z, got |z|={abs_z}"
+    );
     Ok(())
 }
 
@@ -356,7 +404,15 @@ fn direction_at_voxel_centre_recovers_z_axis() -> Result<(), NoddiError> {
 fn direction_at_outside_volume_returns_none() {
     let volume = two_by_two_z_volume().expect("valid volume");
 
-    assert!(volume.direction_at(&Point::new([-10.0, 0.0, 0.0])).is_none());
+    assert!(
+        volume
+            .direction_at(&Point::new([-10.0, 0.0, 0.0]))
+            .is_none()
+    );
     assert!(volume.direction_at(&Point::new([0.0, 0.0, 10.0])).is_none());
-    assert!(volume.direction_at(&Point::new([f64::NAN, 0.0, 0.0])).is_none());
+    assert!(
+        volume
+            .direction_at(&Point::new([f64::NAN, 0.0, 0.0]))
+            .is_none()
+    );
 }

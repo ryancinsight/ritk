@@ -140,8 +140,10 @@ fn write_read_round_trip_f32() {
 
 #[test]
 fn write_read_round_trip_f64() {
-    let mut header = TrxHeader::default();
-    header.dtype = "float64".into();
+    let header = TrxHeader {
+        dtype: "float64".into(),
+        ..TrxHeader::default()
+    };
     let points = vec![Point3::new(1.0, 2.0, 3.0), Point3::new(4.0, 5.0, 6.0)];
 
     let tractogram = TrxTractogram {

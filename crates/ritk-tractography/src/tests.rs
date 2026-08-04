@@ -244,7 +244,6 @@ fn dti_pev_field_is_skipped_for_untrackable_seed() -> Result<(), TractographyErr
 
     // Isotropic tensor: all eigenvalues equal.
     let s0 = 1000.0;
-    let d: [f64; 6] = [0.0007, 0.0007, 0.0007, 0.0, 0.0, 0.0];
     let signals: Vec<f64> = scheme
         .directions()
         .iter()
@@ -311,7 +310,7 @@ fn fod_volume_field_tracks_through_homogeneous_z_fibre() -> Result<(), Tractogra
             if b == 0.0 {
                 return 1.0;
             }
-            let [gx, gy, gz] = entry.direction().to_array();
+            let [_, _, gz] = entry.direction().to_array();
             let adc = 0.0003 + (0.0017 - 0.0003) * gz * gz;
             (-b * adc).exp()
         })
@@ -443,7 +442,7 @@ fn noddi_volume_field_tracks_through_homogeneous_z_fibre() -> Result<(), Tractog
             if b == 0.0 {
                 return s0;
             }
-            let [gx, gy, gz] = entry.direction().to_array();
+            let [_, _, gz] = entry.direction().to_array();
             let adc = 0.0003 + (0.0017 - 0.0003) * gz * gz;
             s0 * (-b * adc).exp()
         })
@@ -558,7 +557,6 @@ fn to_trk_with_scalars_round_trips_fa_and_md() -> Result<(), TractographyError> 
 
 #[test]
 fn to_trx_with_dpv_stores_fa_data() -> Result<(), TractographyError> {
-    use ritk_trx::TrxTractogram;
     use std::collections::HashMap;
 
     let config = TractographyConfig::new(1.0, 2, 60.0, TrackingDirection::Forward)?;
@@ -857,11 +855,13 @@ fn cross_codec_non_identity_affine_recovers_same_physical_coordinates()
         .map(|s| s.geometry().clone())
         .collect();
 
-    let mut trk_header = ritk_trk::TrkHeader::default();
-    trk_header.dim = [128, 128, 60];
-    trk_header.voxel_size = [2.0, 2.0, 2.0];
-    trk_header.vox_to_ras = vox_to_ras_f32;
-    trk_header.n_count = 2;
+    let trk_header = ritk_trk::TrkHeader {
+        dim: [128, 128, 60],
+        voxel_size: [2.0, 2.0, 2.0],
+        vox_to_ras: vox_to_ras_f32,
+        n_count: 2,
+        ..ritk_trk::TrkHeader::default()
+    };
     let trk = TrkTractogram {
         header: trk_header,
         streamlines: streamlines.clone(),
@@ -869,8 +869,10 @@ fn cross_codec_non_identity_affine_recovers_same_physical_coordinates()
         properties: vec![],
     };
 
-    let mut tck_header = ritk_tck::TckHeader::default();
-    tck_header.transform = Some(vox_to_ras_f64);
+    let tck_header = ritk_tck::TckHeader {
+        transform: Some(vox_to_ras_f64),
+        ..ritk_tck::TckHeader::default()
+    };
     let tck = TckTractogram {
         header: tck_header,
         streamlines,

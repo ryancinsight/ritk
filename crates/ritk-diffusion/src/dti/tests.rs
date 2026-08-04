@@ -152,7 +152,10 @@ fn pev_aligns_with_principal_axis() -> Result<(), DtiError> {
     let dti = estimate_dti(&scheme, &signals, DtiConfig::default())?;
     let pev = dti.principal_eigenvector();
     let x_component = pev[0].abs();
-    assert!(x_component > 0.99, "PEV x = {x_component}, should be near 1");
+    assert!(
+        x_component > 0.99,
+        "PEV x = {x_component}, should be near 1"
+    );
     Ok(())
 }
 
@@ -173,7 +176,10 @@ fn pev_aligns_with_diagonal_axis() -> Result<(), DtiError> {
     let pev = dti.principal_eigenvector();
     // PEV should be near (s, s, 0) or (-s, -s, 0).
     let dot = (pev[0] * s + pev[1] * s).abs();
-    assert!(dot > 0.99, "PEV dot with diagonal = {dot}, should be near 1");
+    assert!(
+        dot > 0.99,
+        "PEV dot with diagonal = {dot}, should be near 1"
+    );
     Ok(())
 }
 
@@ -252,18 +258,13 @@ fn non_finite_signal_errors() {
 #[test]
 fn fewer_than_six_dwi_errors() {
     // 5 DWI volumes + 1 b0 = 6 total; only 5 DWI < 6 needed.
-    let mut entries = vec![
-        GradientDirection::new(weighting(0.0), Vector::new([0.0, 0.0, 0.0])).expect("b0"),
-    ];
+    let mut entries =
+        vec![GradientDirection::new(weighting(0.0), Vector::new([0.0, 0.0, 0.0])).expect("b0")];
     for i in 0..5 {
         entries.push(
             GradientDirection::new(
                 weighting(1_000.0),
-                Vector::new([
-                    (i as f64 * 0.5).cos(),
-                    (i as f64 * 0.5).sin(),
-                    0.0,
-                ]),
+                Vector::new([(i as f64 * 0.5).cos(), (i as f64 * 0.5).sin(), 0.0]),
             )
             .expect("DWI"),
         );
@@ -314,8 +315,8 @@ fn rotation_y(angle: f64) -> [[f64; 3]; 3] {
 /// scheme recovers the original PEV; fitting with the original scheme
 /// (i.e., skipping reorientation) recovers a different, wrong PEV.
 #[test]
-fn reorient_gradients_recover_original_pev_skip_reorientation_gives_wrong_pev(
-) -> Result<(), DtiError> {
+fn reorient_gradients_recover_original_pev_skip_reorientation_gives_wrong_pev()
+-> Result<(), DtiError> {
     // ── Setup ────────────────────────────────────────────────────────────
     let scheme = scheme(60);
     // Tensor with PEV along +z: D = diag(0.0003, 0.0003, 0.0017).
@@ -327,9 +328,7 @@ fn reorient_gradients_recover_original_pev_skip_reorientation_gives_wrong_pev(
     let rotation = rotation_y(angle);
 
     // Reoriented scheme: gradients are rotated with the data.
-    let scheme_reoriented = scheme
-        .reorient(rotation)
-        .expect("valid proper rotation");
+    let scheme_reoriented = scheme.reorient(rotation).expect("valid proper rotation");
 
     // Generate signals from the ORIGINAL tensor using the REORIENTED
     // scheme.  These signals represent data acquired after a rigid
@@ -337,11 +336,7 @@ fn reorient_gradients_recover_original_pev_skip_reorientation_gives_wrong_pev(
     let signals = dti_signal(&scheme_reoriented, tensor, 1000.0);
 
     // ── With reorientation: correct path ─────────────────────────────────
-    let dti_correct = estimate_dti(
-        &scheme_reoriented,
-        &signals,
-        DtiConfig::default(),
-    )?;
+    let dti_correct = estimate_dti(&scheme_reoriented, &signals, DtiConfig::default())?;
     let pev_correct = dti_correct.principal_eigenvector();
 
     // The fitted PEV must recover the original direction — the rotation
@@ -362,8 +357,7 @@ fn reorient_gradients_recover_original_pev_skip_reorientation_gives_wrong_pev(
     // ── Without reorientation: error path ────────────────────────────────
     // Fit the same signals with the ORIGINAL (unrotated) scheme.  This
     // is the defect: the gradients were not rotated to match the data.
-    let dti_wrong =
-        estimate_dti(&scheme, &signals, DtiConfig::default())?;
+    let dti_wrong = estimate_dti(&scheme, &signals, DtiConfig::default())?;
     let pev_wrong = dti_wrong.principal_eigenvector();
 
     // The fitted PEV must NOT align with the original direction.  Without
