@@ -8,6 +8,20 @@
 
 # RITK Sprint Checklist — Active
 
+## DOC-695-01 — Make book equations portable across Pages
+**Target version**: Unreleased patch
+**Sprint phase**: Execution
+**Owner**: Codex
+
+- [ ] Inventory raw TeX delimiters in the affected book chapters and record
+      the pre-edit count.
+- [ ] Replace display and inline TeX with portable Unicode/code equations;
+      preserve code literals and mathematical meaning.
+- [ ] Run `mdbook test`, `mdbook build`, generated-HTML delimiter scans, and
+      `git diff --check`.
+- [ ] Inspect the exact hosted Pages revision and reconcile the closure
+      evidence after the Pages deployment succeeds.
+
 > **Retired tooling note**: The `burn-migration-audit` xtask command,
 > `xtask/burn_surface.allowlist`, and the `legacy-migration-audit` CI
 > workflow were removed after the Burn-to-Coeus migration completed.

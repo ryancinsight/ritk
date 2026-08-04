@@ -1,5 +1,19 @@
 # RITK Backlog - Active Planning
 
+- **DOC-695-01 [patch] - Make book equations portable across Pages**
+  (IN PROGRESS; owner=Codex; last-update=2026-08-03; scope=
+  `docs/book/{apollo_sht,coeus_optim,connectome,descriptive_statistics,
+  diffusion_mri,leto_linalg,ritk_diffusion,segmentation,
+  temporal_synchronization,tractography}.md`, `CHANGELOG.md`, and PM
+  artifacts; non-goal=algorithm or generated-figure changes). Replace raw
+  TeX delimiters that render literally on the deployed mdBook surface with
+  portable Unicode/code equations while preserving the documented formulas.
+  Acceptance: the affected chapters contain no raw TeX delimiters outside
+  code examples or escaped data literals; mdBook test/build and generated
+  HTML checks pass; headings, links, and equation meaning remain intact; and
+  the exact hosted Pages revision is visually inspected after deployment.
+
+
 - Composition note (2026-07-31, session-2026-07-30-board-ssot): commit
   `c2cd7b37` on this lane carries the diffusion frontier's in-flight
   snapshot under an unrelated commit message ("feat(metal): Delegate the
