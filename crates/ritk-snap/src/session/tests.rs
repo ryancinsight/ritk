@@ -212,8 +212,7 @@ fn save_to_file_and_load_from_file_round_trip_with_annotations() {
     let mut snapshot = canonical_snapshot_no_annotations();
     snapshot.annotations = all_annotation_variants();
 
-    let dir = std::env::temp_dir();
-    let path = dir.join("ritk_snap_session_test_round_trip.json");
+    let path = unique_temp_path("ritk_snap_session_test_round_trip", "json");
 
     save_to_file(&snapshot, &path).expect("save_to_file must succeed");
     let recovered = load_from_file(&path).expect("load_from_file must succeed");
@@ -243,8 +242,7 @@ fn save_to_file_produces_valid_json_with_annotations_key() {
         value: 100.0,
     });
 
-    let dir = std::env::temp_dir();
-    let path = dir.join("ritk_snap_session_test_annotations_key.json");
+    let path = unique_temp_path("ritk_snap_session_test_annotations_key", "json");
 
     save_to_file(&snapshot, &path).expect("save_to_file must succeed");
     let json = std::fs::read_to_string(&path).expect("read saved file");
@@ -281,12 +279,25 @@ fn load_from_file_returns_error_for_nonexistent_path() {
 
 #[test]
 fn load_from_file_returns_error_for_invalid_json() {
-    let dir = std::env::temp_dir();
-    let path = dir.join("ritk_snap_session_test_invalid.json");
+    let path = unique_temp_path("ritk_snap_session_test_invalid", "json");
     std::fs::write(&path, b"not valid json {{{{").expect("write invalid file");
 
     let result = load_from_file(&path);
     assert!(result.is_err(), "load_from_file must fail for invalid JSON");
 
     let _ = std::fs::remove_file(&path);
+}
+
+/// Temp path unique across concurrent test processes; see ritk-mif's copy for
+/// why a timestamp alone races under nextest's parallelism.
+fn unique_temp_path(stem: &str, extension: &str) -> std::path::PathBuf {
+    use std::sync::atomic::{AtomicU64, Ordering};
+    static SEQ: AtomicU64 = AtomicU64::new(0);
+    let nanos = std::time::SystemTime::now()
+        .duration_since(std::time::UNIX_EPOCH)
+        .map(|d| d.as_nanos())
+        .unwrap_or(0);
+    let pid = std::process::id();
+    let seq = SEQ.fetch_add(1, Ordering::Relaxed);
+    std::env::temp_dir().join(format!("{stem}_{pid}_{nanos:016x}_{seq}.{extension}"))
 }
