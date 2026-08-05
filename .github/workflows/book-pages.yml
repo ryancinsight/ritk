@@ -5,74 +5,10 @@ on:
     branches: [main]
     paths:
       - "docs/book/**"
-      - "crates/ritk-filter/examples/book_processing_pipeline.rs"
-      - "crates/ritk-io/examples/book_windowing_rescale.rs"
-      - "crates/ritk-codecs/examples/book_jpeg_ls.rs"
-      - "crates/ritk-codecs/examples/book_jpeg_2000.rs"
-      - "crates/ritk-segmentation/examples/book_growcut.rs"
-      - "crates/ritk-segmentation/src/region_growing/growcut.rs"
-      - "crates/ritk-segmentation/Cargo.toml"
-      - "crates/ritk-statistics/examples/book_descriptive_statistics.rs"
-      - "crates/ritk-statistics/src/error.rs"
-      - "crates/ritk-statistics/src/histogram.rs"
-      - "crates/ritk-statistics/src/image_statistics.rs"
-      - "crates/ritk-statistics/Cargo.toml"
-      - "crates/ritk-registration/examples/book_temporal_sync.rs"
-      - "crates/ritk-registration/src/classical/temporal/**"
-      - "crates/ritk-registration/Cargo.toml"
-      - "crates/ritk-mgh/examples/book_mgh.rs"
-      - "crates/ritk-mgh/src/reader/**"
-      - "crates/ritk-mgh/src/types.rs"
-      - "crates/ritk-mgh/Cargo.toml"
-      - "crates/ritk-tiff/examples/book_tiff.rs"
-      - "crates/ritk-tiff/src/**"
-      - "crates/ritk-tiff/Cargo.toml"
-      - "crates/ritk-analyze/examples/book_analyze.rs"
-      - "crates/ritk-analyze/src/**"
-      - "crates/ritk-analyze/Cargo.toml"
-      - "crates/ritk-minc/examples/book_minc.rs"
-      - "crates/ritk-minc/src/**"
-      - "crates/ritk-minc/Cargo.toml"
-      - "crates/ritk-diffusion-scheme/**"
-      - "crates/ritk-diffusion/**"
-      - "crates/ritk-tractography/**"
-      - ".github/actions/checkout-atlas-path-dependencies/action.yml"
       - ".github/workflows/book-pages.yml"
   pull_request:
     paths:
       - "docs/book/**"
-      - "crates/ritk-filter/examples/book_processing_pipeline.rs"
-      - "crates/ritk-io/examples/book_windowing_rescale.rs"
-      - "crates/ritk-codecs/examples/book_jpeg_ls.rs"
-      - "crates/ritk-codecs/examples/book_jpeg_2000.rs"
-      - "crates/ritk-segmentation/examples/book_growcut.rs"
-      - "crates/ritk-segmentation/src/region_growing/growcut.rs"
-      - "crates/ritk-segmentation/Cargo.toml"
-      - "crates/ritk-statistics/examples/book_descriptive_statistics.rs"
-      - "crates/ritk-statistics/src/error.rs"
-      - "crates/ritk-statistics/src/histogram.rs"
-      - "crates/ritk-statistics/src/image_statistics.rs"
-      - "crates/ritk-statistics/Cargo.toml"
-      - "crates/ritk-registration/examples/book_temporal_sync.rs"
-      - "crates/ritk-registration/src/classical/temporal/**"
-      - "crates/ritk-registration/Cargo.toml"
-      - "crates/ritk-mgh/examples/book_mgh.rs"
-      - "crates/ritk-mgh/src/reader/**"
-      - "crates/ritk-mgh/src/types.rs"
-      - "crates/ritk-mgh/Cargo.toml"
-      - "crates/ritk-tiff/examples/book_tiff.rs"
-      - "crates/ritk-tiff/src/**"
-      - "crates/ritk-tiff/Cargo.toml"
-      - "crates/ritk-analyze/examples/book_analyze.rs"
-      - "crates/ritk-analyze/src/**"
-      - "crates/ritk-analyze/Cargo.toml"
-      - "crates/ritk-minc/examples/book_minc.rs"
-      - "crates/ritk-minc/src/**"
-      - "crates/ritk-minc/Cargo.toml"
-      - "crates/ritk-diffusion-scheme/**"
-      - "crates/ritk-diffusion/**"
-      - "crates/ritk-tractography/**"
-      - ".github/actions/checkout-atlas-path-dependencies/action.yml"
       - ".github/workflows/book-pages.yml"
   workflow_dispatch:
 
@@ -84,120 +20,15 @@ concurrency:
   cancel-in-progress: true
 
 jobs:
-  build:
-    runs-on: ubuntu-latest
-    timeout-minutes: 30
-    defaults:
-      run:
-        working-directory: ritk
-
-    steps:
-      - uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6
-        with:
-          path: ritk
-          persist-credentials: false
-
-      - name: Checkout provider dependencies
-        uses: ./ritk/.github/actions/checkout-atlas-path-dependencies
-        with:
-          manifest: ritk/Cargo.toml
-          destination: .
-
-      - name: Configure Pages
-        uses: actions/configure-pages@45bfe0192ca1faeb007ade9deae92b16b8254a0d # v6
-
-      - name: Install mdBook
-        env:
-          MDBOOK_VERSION: "0.5.4"
-          MDBOOK_SHA256: "3f28de05dafca9d0f2eab99c662116b0e37b89b1d96a08f8f430b9eeae958cd7"
-        run: |
-          curl --fail --location --silent --show-error \
-            "https://github.com/rust-lang/mdBook/releases/download/v${MDBOOK_VERSION}/mdbook-v${MDBOOK_VERSION}-x86_64-unknown-linux-gnu.tar.gz" \
-            --output mdbook.tar.gz
-          echo "${MDBOOK_SHA256}  mdbook.tar.gz" | sha256sum --check --strict
-          tar -xzf mdbook.tar.gz
-          echo "$PWD" >> "$GITHUB_PATH"
-          export PATH="$PWD:$PATH"
-          mdbook --version
-
-      - name: Generate deterministic book figures
-        run: |
-          # The provider checkout is a local path overlay, so Cargo must
-          # resolve a temporary CI lock instead of enforcing the git-source
-          # lock committed for standalone and release builds.
-          cargo run -p ritk-filter --example book_processing_pipeline -- \
-            docs/book/figures/processing_pipeline.svg
-          cargo run -p ritk-io --example book_windowing_rescale -- \
-            docs/book/figures/windowing_rescale.svg
-          cargo run -p ritk-codecs --example book_jpeg_ls -- \
-            docs/book/figures/jpeg_ls_codec.svg
-          cargo run -p ritk-codecs --example book_jpeg_2000 -- \
-            docs/book/figures/jpeg_2000_codec.svg
-          cargo run -p ritk-segmentation --example book_growcut -- \
-            docs/book/figures/growcut.svg
-          cargo run -p ritk-statistics --example book_descriptive_statistics -- \
-            docs/book/figures/descriptive_statistics.svg
-          cargo run -p ritk-registration --example book_temporal_sync -- \
-            docs/book/figures/temporal_synchronization.svg
-          cargo run -p ritk-mgh --example book_mgh -- \
-            docs/book/figures/mgh_roundtrip.svg
-          cargo run -p ritk-tiff --example book_tiff -- \
-            docs/book/figures/tiff_roundtrip.svg
-          cargo run -p ritk-analyze --example book_analyze -- \
-            docs/book/figures/analyze_roundtrip.svg
-          cargo run -p ritk-minc --example book_minc -- \
-            docs/book/figures/minc_roundtrip.svg
-          cargo run -p ritk-diffusion --example book_diffusion_tractography -- \
-            docs/book/figures/diffusion_tractography.svg
-          git diff --exit-code -- docs/book/figures
-
-      - name: Build book
-        run: |
-          mdbook test docs/book
-          mdbook build docs/book
-          test -f target/book/ritk/index.html
-
-      - name: Upload generated book figures
-        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7
-        with:
-          name: book-generated-figures-${{ github.sha }}
-          path: |
-            ritk/docs/book/figures/processing_pipeline.svg
-            ritk/docs/book/figures/windowing_rescale.svg
-            ritk/docs/book/figures/jpeg_ls_codec.svg
-            ritk/docs/book/figures/jpeg_2000_codec.svg
-            ritk/docs/book/figures/growcut.svg
-            ritk/docs/book/figures/descriptive_statistics.svg
-            ritk/docs/book/figures/temporal_synchronization.svg
-            ritk/docs/book/figures/mgh_roundtrip.svg
-            ritk/docs/book/figures/tiff_roundtrip.svg
-            ritk/docs/book/figures/analyze_roundtrip.svg
-            ritk/docs/book/figures/minc_roundtrip.svg
-            ritk/docs/book/figures/diffusion_tractography.svg
-          if-no-files-found: error
-
-      - name: Upload Pages artifact
-        uses: actions/upload-pages-artifact@fc324d3547104276b827a68afc52ff2a11cc49c9 # v5
-        with:
-          path: ritk/target/book/ritk
-
-  deploy:
-    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
-    needs: build
-    runs-on: ubuntu-latest
-    timeout-minutes: 10
-
+  book:
+    # Body owned once by Atlas (ADR 0035), pinned by SHA like any action. The
+    # shared workflow keeps the pull-request build and skips deployment there,
+    # so PRs still prove the book builds without publishing it.
+    uses: ryancinsight/atlas/.github/workflows/book-pages.yml@9772542cc9dbd53123da0b369a75f34a180da867
     permissions:
+      contents: read
+      # The shared deploy job publishes to Pages over OIDC.
       pages: write
       id-token: write
-
-    environment:
-      name: github-pages
-      url: ${{ steps.deployment.outputs.page_url }}
-
-    steps:
-      - name: Deploy to GitHub Pages
-        id: deployment
-        uses: actions/deploy-pages@cd2ce8fcbc39b97be8ca5fce6e763baed58fa128 # v5
-        with:
-          timeout: 540000
+    with:
+      output-path: target/book/ritk
