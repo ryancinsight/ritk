@@ -7,7 +7,8 @@ impl TractographyResult {
     /// Tractography points are already in physical millimetre coordinates,
     /// so the header uses an **identity** affine.  Callers that need a
     /// voxel‑to‑RAS mapping should set `dim` and `voxel_size` to match the
-    /// reference image and optionally replace [`TrkHeader::vox_to_ras`]
+    /// reference image and optionally replace
+    /// [`ritk_trk::TrkHeader::vox_to_ras`]
     /// on the returned tractogram.
     ///
     /// Per‑point scalars and per‑streamline properties are not populated.
@@ -20,13 +21,13 @@ impl TractographyResult {
     /// `vox_to_ras` affine.
     ///
     /// When `vox_to_ras` is `None` the identity affine is used (same as
-    /// [`to_trk`]).  This is useful when the reference image has a
+    /// [`Self::to_trk`]).  This is useful when the reference image has a
     /// non‑trivial voxel‑to‑world mapping — the affine is embedded in
     /// the `.trk` header so DSI Studio can display streamlines in the
     /// correct anatomical space.
     ///
     /// Per‑point scalars are not populated; use
-    /// [`to_trk_with_scalars`] and replace the header affine on the
+    /// [`Self::to_trk_with_scalars`] and replace the header affine on the
     /// returned tractogram, or combine `to_trk_header` with manual
     /// scalar construction.
     #[must_use]
@@ -116,7 +117,8 @@ impl TractographyResult {
     ///
     /// Tractography points are already in scanner-space millimetre
     /// coordinates, which is the native `.tck` coordinate system — no
-    /// affine conversion is needed.  The header uses [`TckDatatype::Float32LE`]
+    /// affine conversion is needed.  The header uses
+    /// [`ritk_tck::TckDatatype::Float32LE`]
     /// by default.
     ///
     /// Per‑point scalars and per‑streamline properties are not stored
@@ -190,7 +192,7 @@ impl TractographyResult {
     /// `dpv_data` keys must match entries the caller adds to the returned
     /// header's `dpv` map.  Each value is the raw encoded byte buffer
     /// for the corresponding array; the dtype and `n_components` are
-    /// declared in the [`TrxHeader::dpv`] entry.
+    /// declared in the [`ritk_trx::TrxHeader::dpv`] entry.
     ///
     /// # Example
     ///

@@ -107,20 +107,10 @@ checksum = "320119579fcad9c21884f5c4861d16174d0e06250625266f50fe6898340abefa"
 [[package]]
 name = "aequitas"
 version = "0.1.0"
+source = "git+https://github.com/ryancinsight/aequitas#3c51a27383d887ffd541b63dbac540ab281ef41f"
 dependencies = [
  "eunomia",
  "typenum",
-]
-
-[[package]]
-name = "ahash"
-version = "0.7.8"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "891477e0c6a8957309ee5c45a6368af3ae14bb510732d2684ffa19af310920f9"
-dependencies = [
- "getrandom 0.2.17",
- "once_cell",
- "version_check",
 ]
 
 [[package]]
@@ -267,6 +257,7 @@ checksum = "330a5ed07fa54e4702c9d6c4174f74427fc0ef6e214bbd677ae50a5099946470"
 [[package]]
 name = "apollo-fft"
 version = "0.25.0"
+source = "git+https://github.com/ryancinsight/apollo#bd349bfa78b7dfeb123a2d04d32a892e6297db24"
 dependencies = [
  "apollo-fft-macros",
  "apollo-leto-interop",
@@ -288,6 +279,7 @@ dependencies = [
 [[package]]
 name = "apollo-fft-macros"
 version = "0.2.0"
+source = "git+https://github.com/ryancinsight/apollo#bd349bfa78b7dfeb123a2d04d32a892e6297db24"
 dependencies = [
  "proc-macro2",
  "quote",
@@ -297,6 +289,7 @@ dependencies = [
 [[package]]
 name = "apollo-leto-interop"
 version = "0.17.0"
+source = "git+https://github.com/ryancinsight/apollo#bd349bfa78b7dfeb123a2d04d32a892e6297db24"
 dependencies = [
  "leto",
 ]
@@ -304,6 +297,7 @@ dependencies = [
 [[package]]
 name = "apollo-sht"
 version = "0.7.0"
+source = "git+https://github.com/ryancinsight/apollo#bd349bfa78b7dfeb123a2d04d32a892e6297db24"
 dependencies = [
  "apollo-fft",
  "apollo-leto-interop",
@@ -769,18 +763,6 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "b588b76d00fde79687d7646a9b5bdf3cc0f655e0bbd080335a95d7e96f3587da"
 
 [[package]]
-name = "bitvec"
-version = "1.1.1"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "ddcec3d12c579d40898fe0a9a358a803c23e9c52ca3c425707f81c9436211837"
-dependencies = [
- "funty",
- "radium",
- "tap",
- "wyz",
-]
-
-[[package]]
 name = "block"
 version = "0.1.6"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -917,36 +899,14 @@ dependencies = [
 
 [[package]]
 name = "bytecheck"
-version = "0.6.12"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "23cdc57ce23ac53c931e88a43d06d070a6fd142f2617be5855eb75efc9beb1c2"
-dependencies = [
- "bytecheck_derive 0.6.12",
- "ptr_meta 0.1.4",
- "simdutf8",
-]
-
-[[package]]
-name = "bytecheck"
 version = "0.8.2"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "0caa33a2c0edca0419d15ac723dff03f1956f7978329b1e3b5fdaaaed9d3ca8b"
 dependencies = [
- "bytecheck_derive 0.8.2",
- "ptr_meta 0.3.1",
+ "bytecheck_derive",
+ "ptr_meta",
  "rancor",
  "simdutf8",
-]
-
-[[package]]
-name = "bytecheck_derive"
-version = "0.6.12"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "3db406d29fbcd95542e92559bed4d8ad92636d1ca8b3b72ede10b4bcc010e659"
-dependencies = [
- "proc-macro2",
- "quote",
- "syn 1.0.109",
 ]
 
 [[package]]
@@ -1232,6 +1192,7 @@ dependencies = [
 [[package]]
 name = "coeus-autograd"
 version = "0.9.0"
+source = "git+https://github.com/ryancinsight/Coeus.git#5602093b4cc57cc5b8254209eb3816843e597959"
 dependencies = [
  "apollo-fft",
  "coeus-core",
@@ -1246,6 +1207,7 @@ dependencies = [
 [[package]]
 name = "coeus-core"
 version = "0.9.0"
+source = "git+https://github.com/ryancinsight/Coeus.git#5602093b4cc57cc5b8254209eb3816843e597959"
 dependencies = [
  "bytemuck",
  "eunomia",
@@ -1259,16 +1221,7 @@ dependencies = [
 [[package]]
 name = "coeus-leto"
 version = "0.9.0"
-dependencies = [
- "coeus-core",
- "leto",
- "leto-ops",
-]
-
-[[package]]
-name = "coeus-leto"
-version = "0.9.0"
-source = "git+https://github.com/ryancinsight/Coeus.git#13bc772b831368510f9da07086d7a5814f2cd642"
+source = "git+https://github.com/ryancinsight/Coeus.git#5602093b4cc57cc5b8254209eb3816843e597959"
 dependencies = [
  "coeus-core",
  "leto",
@@ -1278,10 +1231,11 @@ dependencies = [
 [[package]]
 name = "coeus-nn"
 version = "0.9.0"
+source = "git+https://github.com/ryancinsight/Coeus.git#5602093b4cc57cc5b8254209eb3816843e597959"
 dependencies = [
  "coeus-autograd",
  "coeus-core",
- "coeus-leto 0.9.0",
+ "coeus-leto",
  "coeus-ops",
  "coeus-tensor",
  "smallvec",
@@ -1291,10 +1245,11 @@ dependencies = [
 [[package]]
 name = "coeus-ops"
 version = "0.9.0"
+source = "git+https://github.com/ryancinsight/Coeus.git#5602093b4cc57cc5b8254209eb3816843e597959"
 dependencies = [
  "bytemuck",
  "coeus-core",
- "coeus-leto 0.9.0",
+ "coeus-leto",
  "coeus-sparse",
  "coeus-tensor",
  "eunomia",
@@ -1308,6 +1263,7 @@ dependencies = [
 [[package]]
 name = "coeus-optim"
 version = "0.9.0"
+source = "git+https://github.com/ryancinsight/Coeus.git#5602093b4cc57cc5b8254209eb3816843e597959"
 dependencies = [
  "coeus-autograd",
  "coeus-core",
@@ -1321,6 +1277,7 @@ dependencies = [
 [[package]]
 name = "coeus-sparse"
 version = "0.9.0"
+source = "git+https://github.com/ryancinsight/Coeus.git#5602093b4cc57cc5b8254209eb3816843e597959"
 dependencies = [
  "coeus-core",
  "coeus-tensor",
@@ -1331,11 +1288,12 @@ dependencies = [
 [[package]]
 name = "coeus-tensor"
 version = "0.9.0"
+source = "git+https://github.com/ryancinsight/Coeus.git#5602093b4cc57cc5b8254209eb3816843e597959"
 dependencies = [
  "bytemuck",
  "coeus-core",
- "coeus-leto 0.9.0",
- "rkyv 0.8.17",
+ "coeus-leto",
+ "rkyv",
  "smallvec",
  "thiserror 2.0.19",
 ]
@@ -1427,6 +1385,7 @@ dependencies = [
 [[package]]
 name = "consus-compression"
 version = "0.1.0"
+source = "git+https://github.com/ryancinsight/consus.git#5c2e39340f24265b6b1023def7cb96775f3bb244"
 dependencies = [
  "byteorder",
  "consus-core",
@@ -1435,6 +1394,7 @@ dependencies = [
 [[package]]
 name = "consus-core"
 version = "0.1.0"
+source = "git+https://github.com/ryancinsight/consus.git#5c2e39340f24265b6b1023def7cb96775f3bb244"
 dependencies = [
  "byteorder",
  "smallvec",
@@ -1444,6 +1404,7 @@ dependencies = [
 [[package]]
 name = "consus-hdf5"
 version = "0.1.0"
+source = "git+https://github.com/ryancinsight/consus.git#5c2e39340f24265b6b1023def7cb96775f3bb244"
 dependencies = [
  "byteorder",
  "consus-compression",
@@ -1454,6 +1415,7 @@ dependencies = [
 [[package]]
 name = "consus-io"
 version = "0.1.0"
+source = "git+https://github.com/ryancinsight/consus.git#5c2e39340f24265b6b1023def7cb96775f3bb244"
 dependencies = [
  "consus-core",
 ]
@@ -1461,6 +1423,7 @@ dependencies = [
 [[package]]
 name = "consus-onnx"
 version = "0.1.0"
+source = "git+https://github.com/ryancinsight/consus.git#5c2e39340f24265b6b1023def7cb96775f3bb244"
 
 [[package]]
 name = "convert_case"
@@ -1984,7 +1947,7 @@ version = "0.28.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "6490ef800b2e41ee129b1f32f9ac15f713233fe3bc18e241a1afe1e4fb6811e0"
 dependencies = [
- "ahash 0.8.12",
+ "ahash",
  "bytemuck",
  "document-features",
  "egui",
@@ -2020,7 +1983,7 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "20c97e70a2768de630f161bb5392cbd3874fcf72868f14df0e002e82e06cb798"
 dependencies = [
  "accesskit",
- "ahash 0.8.12",
+ "ahash",
  "emath",
  "epaint",
  "log",
@@ -2033,7 +1996,7 @@ version = "0.28.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "47c7a7c707877c3362a321ebb4f32be811c0b91f7aebf345fb162405c0218b4c"
 dependencies = [
- "ahash 0.8.12",
+ "ahash",
  "bytemuck",
  "document-features",
  "egui",
@@ -2053,7 +2016,7 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "fac4e066af341bf92559f60dbdf2020b2a03c963415349af5f3f8d79ff7a4926"
 dependencies = [
  "accesskit_winit",
- "ahash 0.8.12",
+ "ahash",
  "arboard",
  "egui",
  "log",
@@ -2070,7 +2033,7 @@ version = "0.28.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "4e2bdc8b38cfa17cc712c4ae079e30c71c00cd4c2763c9e16dc7860a02769103"
 dependencies = [
- "ahash 0.8.12",
+ "ahash",
  "bytemuck",
  "egui",
  "glow",
@@ -2256,7 +2219,7 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "3f0dcc0a0771e7500e94cd1cb797bd13c9f23b9409bdc3c824e2cbc562b7fa01"
 dependencies = [
  "ab_glyph",
- "ahash 0.8.12",
+ "ahash",
  "bytemuck",
  "ecolor",
  "emath",
@@ -2289,11 +2252,12 @@ checksum = "dea2df4cf52843e0452895c455a1a2cfbb842a1e7329671acf418fdc53ed4c59"
 
 [[package]]
 name = "eunomia"
-version = "0.7.0"
+version = "0.8.0"
+source = "git+https://github.com/ryancinsight/eunomia#c223fcf675d2fd6e84d723bfb707e47049e7a56a"
 dependencies = [
  "bytemuck",
  "libm",
- "rkyv 0.7.46",
+ "rkyv",
  "serde",
 ]
 
@@ -2462,12 +2426,6 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "42703706b716c37f96a77aea830392ad231f44c9e9a67872fa5548707e11b11c"
 
 [[package]]
-name = "funty"
-version = "2.0.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "e6d5a32815ae3f33302d95fdcb2ce17862f8c65363dcfd29360480ba1001fc9c"
-
-[[package]]
 name = "futures"
 version = "0.3.33"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -2586,6 +2544,7 @@ dependencies = [
 [[package]]
 name = "gaia"
 version = "0.3.0"
+source = "git+https://github.com/ryancinsight/gaia#683565ec1e87e7d0e32e4dcf0810b597346a52c6"
 dependencies = [
  "anyhow",
  "eunomia",
@@ -2860,15 +2819,6 @@ dependencies = [
 
 [[package]]
 name = "hashbrown"
-version = "0.12.3"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "8a9ee70c43aaf417c914396645a0fa852624801b24ebb7ae78fe8272889ac888"
-dependencies = [
- "ahash 0.7.8",
-]
-
-[[package]]
-name = "hashbrown"
 version = "0.15.5"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "9229cfe53dfd69f0609a49f65461bd93001ea1ef889cd5529dd176593f5338a1"
@@ -2919,6 +2869,7 @@ checksum = "2304e00983f87ffb38b55b444b5e3b60a884b5d30c0fca7d82fe33449bbe55ea"
 [[package]]
 name = "hermes-simd"
 version = "0.5.0"
+source = "git+https://github.com/ryancinsight/hermes.git#612e02f840c5e8e59fb78c8e37fb70f268e6c33b"
 dependencies = [
  "eunomia",
  "hermes-simd-core",
@@ -2931,17 +2882,19 @@ dependencies = [
 [[package]]
 name = "hermes-simd-core"
 version = "0.5.0"
+source = "git+https://github.com/ryancinsight/hermes.git#612e02f840c5e8e59fb78c8e37fb70f268e6c33b"
 dependencies = [
  "bytemuck",
  "eunomia",
  "mnemosyne-memory",
- "rkyv 0.7.46",
+ "rkyv",
  "themis-topology",
 ]
 
 [[package]]
 name = "hermes-simd-intrinsics"
 version = "0.5.0"
+source = "git+https://github.com/ryancinsight/hermes.git#612e02f840c5e8e59fb78c8e37fb70f268e6c33b"
 dependencies = [
  "eunomia",
  "hermes-simd-core",
@@ -2950,6 +2903,7 @@ dependencies = [
 [[package]]
 name = "hermes-simd-macros"
 version = "0.5.0"
+source = "git+https://github.com/ryancinsight/hermes.git#612e02f840c5e8e59fb78c8e37fb70f268e6c33b"
 dependencies = [
  "proc-macro2",
  "quote",
@@ -2959,6 +2913,7 @@ dependencies = [
 [[package]]
 name = "hermes-simd-types"
 version = "0.5.0"
+source = "git+https://github.com/ryancinsight/hermes.git#612e02f840c5e8e59fb78c8e37fb70f268e6c33b"
 dependencies = [
  "hermes-simd-core",
  "hermes-simd-intrinsics",
@@ -3332,6 +3287,7 @@ checksum = "6a756c3fac73139e83f14c2d742155dd2b78d3ee56597b419a0579b7bdd6dd78"
 [[package]]
 name = "iris"
 version = "0.1.0"
+source = "git+https://github.com/ryancinsight/iris#2382c3289cda99e1773676f3fa43b8462e80de55"
 dependencies = [
  "serde",
 ]
@@ -3703,6 +3659,7 @@ checksum = "7a79a3332a6609480d7d0c9eab957bca6b455b91bb84e66d19f5ff66294b85b8"
 [[package]]
 name = "leto"
 version = "0.40.0"
+source = "git+https://github.com/ryancinsight/leto.git#912b9918db2e44c6a43cc0b337e71ffdbf9f82da"
 dependencies = [
  "aequitas",
  "bytemuck",
@@ -3715,6 +3672,7 @@ dependencies = [
 [[package]]
 name = "leto-ops"
 version = "0.40.0"
+source = "git+https://github.com/ryancinsight/leto.git#912b9918db2e44c6a43cc0b337e71ffdbf9f82da"
 dependencies = [
  "bytemuck",
  "eunomia",
@@ -3852,6 +3810,7 @@ dependencies = [
 [[package]]
 name = "melinoe"
 version = "0.9.0"
+source = "git+https://github.com/ryancinsight/melinoe.git#9988daa956edc23bee7dcb4b1955b2871a68c31e"
 
 [[package]]
 name = "memchr"
@@ -3925,6 +3884,7 @@ dependencies = [
 [[package]]
 name = "mnemosyne-arena"
 version = "0.3.0"
+source = "git+https://github.com/ryancinsight/Mnemosyne.git#e1c43802b2c865fdd0910a8c835b4e553ecb864b"
 dependencies = [
  "eunomia",
  "mnemosyne-backend",
@@ -3935,6 +3895,7 @@ dependencies = [
 [[package]]
 name = "mnemosyne-backend"
 version = "0.5.0"
+source = "git+https://github.com/ryancinsight/Mnemosyne.git#e1c43802b2c865fdd0910a8c835b4e553ecb864b"
 dependencies = [
  "mnemosyne-memory-core",
 ]
@@ -3942,10 +3903,12 @@ dependencies = [
 [[package]]
 name = "mnemosyne-build-util"
 version = "0.2.0"
+source = "git+https://github.com/ryancinsight/Mnemosyne.git#e1c43802b2c865fdd0910a8c835b4e553ecb864b"
 
 [[package]]
 name = "mnemosyne-decay"
 version = "0.2.0"
+source = "git+https://github.com/ryancinsight/Mnemosyne.git#e1c43802b2c865fdd0910a8c835b4e553ecb864b"
 dependencies = [
  "mnemosyne-arena",
  "mnemosyne-backend",
@@ -3955,6 +3918,7 @@ dependencies = [
 [[package]]
 name = "mnemosyne-hardened"
 version = "0.2.0"
+source = "git+https://github.com/ryancinsight/Mnemosyne.git#e1c43802b2c865fdd0910a8c835b4e553ecb864b"
 dependencies = [
  "mnemosyne-memory-core",
 ]
@@ -3962,6 +3926,7 @@ dependencies = [
 [[package]]
 name = "mnemosyne-heap"
 version = "0.3.0"
+source = "git+https://github.com/ryancinsight/Mnemosyne.git#e1c43802b2c865fdd0910a8c835b4e553ecb864b"
 dependencies = [
  "melinoe",
  "mnemosyne-arena",
@@ -3975,6 +3940,7 @@ dependencies = [
 [[package]]
 name = "mnemosyne-local"
 version = "0.3.0"
+source = "git+https://github.com/ryancinsight/Mnemosyne.git#e1c43802b2c865fdd0910a8c835b4e553ecb864b"
 dependencies = [
  "melinoe",
  "mnemosyne-arena",
@@ -3989,6 +3955,7 @@ dependencies = [
 [[package]]
 name = "mnemosyne-memory"
 version = "0.6.0"
+source = "git+https://github.com/ryancinsight/Mnemosyne.git#e1c43802b2c865fdd0910a8c835b4e553ecb864b"
 dependencies = [
  "eunomia",
  "mnemosyne-arena",
@@ -4004,10 +3971,12 @@ dependencies = [
 [[package]]
 name = "mnemosyne-memory-core"
 version = "0.2.0"
+source = "git+https://github.com/ryancinsight/Mnemosyne.git#e1c43802b2c865fdd0910a8c835b4e553ecb864b"
 
 [[package]]
 name = "mnemosyne-prof"
 version = "0.2.0"
+source = "git+https://github.com/ryancinsight/Mnemosyne.git#e1c43802b2c865fdd0910a8c835b4e553ecb864b"
 dependencies = [
  "backtrace",
  "mnemosyne-build-util",
@@ -4042,6 +4011,7 @@ dependencies = [
 [[package]]
 name = "moirai-async"
 version = "0.4.0"
+source = "git+https://github.com/ryancinsight/Moirai.git#963879ede19cf25efa65beeb183734628614d584"
 dependencies = [
  "futures",
  "libc",
@@ -4057,6 +4027,7 @@ dependencies = [
 [[package]]
 name = "moirai-async-macros"
 version = "0.4.0"
+source = "git+https://github.com/ryancinsight/Moirai.git#963879ede19cf25efa65beeb183734628614d584"
 dependencies = [
  "proc-macro2",
  "quote",
@@ -4066,6 +4037,7 @@ dependencies = [
 [[package]]
 name = "moirai-core"
 version = "0.4.0"
+source = "git+https://github.com/ryancinsight/Moirai.git#963879ede19cf25efa65beeb183734628614d584"
 dependencies = [
  "bytemuck",
  "libc",
@@ -4076,6 +4048,7 @@ dependencies = [
 [[package]]
 name = "moirai-executor"
 version = "0.4.0"
+source = "git+https://github.com/ryancinsight/Moirai.git#963879ede19cf25efa65beeb183734628614d584"
 dependencies = [
  "melinoe",
  "mnemosyne-memory",
@@ -4088,6 +4061,7 @@ dependencies = [
 [[package]]
 name = "moirai-iter"
 version = "0.4.0"
+source = "git+https://github.com/ryancinsight/Moirai.git#963879ede19cf25efa65beeb183734628614d584"
 dependencies = [
  "futures",
  "libc",
@@ -4103,6 +4077,7 @@ dependencies = [
 [[package]]
 name = "moirai-pal"
 version = "0.4.0"
+source = "git+https://github.com/ryancinsight/Moirai.git#963879ede19cf25efa65beeb183734628614d584"
 dependencies = [
  "js-sys",
  "libc",
@@ -4117,6 +4092,7 @@ dependencies = [
 [[package]]
 name = "moirai-parallel"
 version = "0.4.0"
+source = "git+https://github.com/ryancinsight/Moirai.git#963879ede19cf25efa65beeb183734628614d584"
 dependencies = [
  "melinoe",
  "moirai-core",
@@ -4126,6 +4102,7 @@ dependencies = [
 [[package]]
 name = "moirai-runtime"
 version = "0.4.0"
+source = "git+https://github.com/ryancinsight/Moirai.git#963879ede19cf25efa65beeb183734628614d584"
 dependencies = [
  "melinoe",
  "mnemosyne-memory",
@@ -4143,6 +4120,7 @@ dependencies = [
 [[package]]
 name = "moirai-scheduler"
 version = "0.4.0"
+source = "git+https://github.com/ryancinsight/Moirai.git#963879ede19cf25efa65beeb183734628614d584"
 dependencies = [
  "mnemosyne-memory",
  "moirai-core",
@@ -4154,6 +4132,7 @@ dependencies = [
 [[package]]
 name = "moirai-sync"
 version = "0.4.0"
+source = "git+https://github.com/ryancinsight/Moirai.git#963879ede19cf25efa65beeb183734628614d584"
 dependencies = [
  "libc",
  "moirai-core",
@@ -4163,6 +4142,7 @@ dependencies = [
 [[package]]
 name = "moirai-transport"
 version = "0.4.0"
+source = "git+https://github.com/ryancinsight/Moirai.git#963879ede19cf25efa65beeb183734628614d584"
 dependencies = [
  "bytemuck",
  "moirai-core",
@@ -4173,6 +4153,7 @@ dependencies = [
 [[package]]
 name = "moirai-utils"
 version = "0.4.0"
+source = "git+https://github.com/ryancinsight/Moirai.git#963879ede19cf25efa65beeb183734628614d584"
 
 [[package]]
 name = "moxcms"
@@ -5064,31 +5045,11 @@ dependencies = [
 
 [[package]]
 name = "ptr_meta"
-version = "0.1.4"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "0738ccf7ea06b608c10564b31debd4f5bc5e197fc8bfe088f68ae5ce81e7a4f1"
-dependencies = [
- "ptr_meta_derive 0.1.4",
-]
-
-[[package]]
-name = "ptr_meta"
 version = "0.3.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "0b9a0cf95a1196af61d4f1cbdab967179516d9a4a4312af1f31948f8f6224a79"
 dependencies = [
- "ptr_meta_derive 0.3.1",
-]
-
-[[package]]
-name = "ptr_meta_derive"
-version = "0.1.4"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "16b845dbfca988fa33db069c0e230574d15a3088f147a87b64c7589eb662c9ac"
-dependencies = [
- "proc-macro2",
- "quote",
- "syn 1.0.109",
+ "ptr_meta_derive",
 ]
 
 [[package]]
@@ -5297,18 +5258,12 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "f8dcc9c7d52a811697d2151c701e0d08956f92b0e24136cf4cf27b57a6a0d9bf"
 
 [[package]]
-name = "radium"
-version = "0.7.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "dc33ff2d4973d518d823d61aa239014831e521c75da58e3df4840d3f47749d09"
-
-[[package]]
 name = "rancor"
 version = "0.1.2"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "daff8b7b3ccf5f7ba270b3e7a0a4d4c701c5797e38dec27c7e2c3dbb830fed1c"
 dependencies = [
- "ptr_meta 0.3.1",
+ "ptr_meta",
 ]
 
 [[package]]
@@ -5520,9 +5475,9 @@ dependencies = [
 
 [[package]]
 name = "regex-automata"
-version = "0.4.16"
+version = "0.4.18"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "8fcfdb36bda0c880c5931cdc7a2bcdc8ba4556847b9d912bca70bc94708711ad"
+checksum = "ad8553b9b26413251cbf30e620595c7a41b3887f03da04579c0e6b0d6a06b4b2"
 dependencies = [
  "aho-corasick",
  "memchr",
@@ -5537,20 +5492,11 @@ checksum = "d6f6ff9a378485b298a5286656da665ba74413d36db0979633275d2e708145d4"
 
 [[package]]
 name = "rend"
-version = "0.4.2"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "71fe3824f5629716b1589be05dacd749f6aa084c87e00e016714a8cdfccc997c"
-dependencies = [
- "bytecheck 0.6.12",
-]
-
-[[package]]
-name = "rend"
 version = "0.5.4"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "663ba70707f96e871406fe10d68128412e619b06d1d47cb91c3a4c6501176240"
 dependencies = [
- "bytecheck 0.8.2",
+ "bytecheck",
 ]
 
 [[package]]
@@ -5970,7 +5916,7 @@ dependencies = [
  "bytemuck",
  "coeus-autograd",
  "coeus-core",
- "coeus-leto 0.9.0 (git+https://github.com/ryancinsight/Coeus.git)",
+ "coeus-leto",
  "coeus-nn",
  "coeus-ops",
  "coeus-optim",
@@ -6188,7 +6134,7 @@ version = "0.1.0"
 dependencies = [
  "anyhow",
  "coeus-core",
- "coeus-leto 0.9.0 (git+https://github.com/ryancinsight/Coeus.git)",
+ "coeus-leto",
  "coeus-ops",
  "coeus-tensor",
  "eunomia",
@@ -6290,50 +6236,21 @@ version = "0.1.0"
 
 [[package]]
 name = "rkyv"
-version = "0.7.46"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "2297bf9c81a3f0dc96bc9521370b88f054168c29826a75e89c55ff196e7ed6a1"
-dependencies = [
- "bitvec",
- "bytecheck 0.6.12",
- "bytes",
- "hashbrown 0.12.3",
- "ptr_meta 0.1.4",
- "rend 0.4.2",
- "rkyv_derive 0.7.46",
- "seahash",
- "tinyvec",
- "uuid",
-]
-
-[[package]]
-name = "rkyv"
 version = "0.8.17"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "815cc8a37159a463064825246cadb07961e25cd9885908606f6d08a98d8f8874"
 dependencies = [
- "bytecheck 0.8.2",
+ "bytecheck",
  "bytes",
  "hashbrown 0.17.1",
  "indexmap",
  "munge",
- "ptr_meta 0.3.1",
+ "ptr_meta",
  "rancor",
- "rend 0.5.4",
- "rkyv_derive 0.8.17",
+ "rend",
+ "rkyv_derive",
  "tinyvec",
  "uuid",
-]
-
-[[package]]
-name = "rkyv_derive"
-version = "0.7.46"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "84d7b42d4b8d06048d3ac8db0eb31bcb942cbeb709f0b5f2b2ebde398d3038f5"
-dependencies = [
- "proc-macro2",
- "quote",
- "syn 1.0.109",
 ]
 
 [[package]]
@@ -6561,12 +6478,6 @@ dependencies = [
  "smithay-client-toolkit 0.18.1",
  "tiny-skia",
 ]
-
-[[package]]
-name = "seahash"
-version = "4.1.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "1c107b6f4780854c8b126e228ea8869f4d7b71260f962fefb57b996b8959ba6b"
 
 [[package]]
 name = "security-framework"
@@ -7045,12 +6956,6 @@ dependencies = [
 ]
 
 [[package]]
-name = "tap"
-version = "1.0.1"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "55937e1799185b12863d447f42597ed69d9928686b8d88a1df17376a097d8369"
-
-[[package]]
 name = "tar"
 version = "0.4.46"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -7102,6 +7007,7 @@ dependencies = [
 [[package]]
 name = "themis-topology"
 version = "0.10.1"
+source = "git+https://github.com/ryancinsight/themis.git#54b89f97430bee96c0573f4dfc21995a723537f2"
 dependencies = [
  "melinoe",
 ]
@@ -7894,9 +7800,9 @@ dependencies = [
 
 [[package]]
 name = "webbrowser"
-version = "1.2.3"
+version = "1.2.4"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "3d6eb50cc7b133f0c7720a64661fbd8e520b882f8ab9015deea5e00d5cd809c4"
+checksum = "62c35be770821a214dbc362fc26908c853e776c0004294d0b10b8a6bad582f94"
 dependencies = [
  "jni 0.22.4",
  "log",
@@ -8554,7 +8460,7 @@ version = "0.29.15"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "0d59ad965a635657faf09c8f062badd885748428933dad8e8bdd64064d92e5ca"
 dependencies = [
- "ahash 0.8.12",
+ "ahash",
  "android-activity",
  "atomic-waker",
  "bitflags 2.13.1",
@@ -8626,15 +8532,6 @@ name = "writeable"
 version = "0.6.3"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "1ffae5123b2d3fc086436f8834ae3ab053a283cfac8fe0a0b8eaae044768a4c4"
-
-[[package]]
-name = "wyz"
-version = "0.5.1"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "05f360fc0b24296329c78fda852a1e9ae82de9cf7b27dae4b7f62f118f77b9ed"
-dependencies = [
- "tap",
-]
 
 [[package]]
 name = "x11-dl"
@@ -9104,103 +9001,3 @@ dependencies = [
  "quote",
  "syn 2.0.119",
 ]
-
-[[patch.unused]]
-name = "asclepius"
-version = "0.1.0"
-
-[[patch.unused]]
-name = "asclepius-coeus"
-version = "0.1.0"
-
-[[patch.unused]]
-name = "athena-core"
-version = "0.1.0"
-
-[[patch.unused]]
-name = "athena-leto"
-version = "0.1.0"
-
-[[patch.unused]]
-name = "proteus"
-version = "0.1.0"
-
-[[patch.unused]]
-name = "tyche-core"
-version = "0.1.0"
-
-[[patch.unused]]
-name = "consus-npy"
-version = "0.1.0"
-
-[[patch.unused]]
-name = "consus-zarr"
-version = "0.1.0"
-
-[[patch.unused]]
-name = "horae"
-version = "0.1.0"
-
-[[patch.unused]]
-name = "hephaestus-core"
-version = "0.18.0"
-
-[[patch.unused]]
-name = "hephaestus-cuda"
-version = "0.18.0"
-
-[[patch.unused]]
-name = "hephaestus-metal"
-version = "0.18.0"
-
-[[patch.unused]]
-name = "hephaestus-rocm"
-version = "0.18.0"
-
-[[patch.unused]]
-name = "hephaestus-wgpu"
-version = "0.18.0"
-
-[[patch.unused]]
-name = "hyperion"
-version = "0.1.0"
-
-[[patch.unused]]
-name = "apollo-nufft"
-version = "0.7.0"
-
-[[patch.unused]]
-name = "moirai-gpu"
-version = "0.4.0"
-
-[[patch.unused]]
-name = "moirai-http"
-version = "0.4.0"
-
-[[patch.unused]]
-name = "ritk-core"
-version = "0.9.0"
-
-[[patch.unused]]
-name = "ritk-dicom"
-version = "0.1.0"
-
-[[patch.unused]]
-name = "ritk-image"
-version = "0.2.0"
-
-[[patch.unused]]
-name = "ritk-io"
-version = "0.2.0"
-
-[[patch.unused]]
-name = "ritk-registration"
-version = "0.53.0"
-
-[[patch.unused]]
-name = "ritk-spatial"
-version = "0.1.0"
-
-[[patch.unused]]
-name = "ritk-vtk"
-version = "0.1.0"

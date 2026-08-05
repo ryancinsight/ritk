@@ -38,7 +38,7 @@
 //!
 //! The `.mif` header may contain a `DW_scheme` key with the diffusion
 //! gradient table.  Extraction of this block is owned by
-//! [`ritk_diffusion_scheme::mrtrix`], which this crate re‑exports for
+//! [`ritk_diffusion_scheme::read_mrtrix_scheme`], which this crate re‑exports for
 //! convenience when reading a DWI series.
 
 pub(crate) mod decode;

@@ -23,7 +23,7 @@ pub(crate) const U64_BYTES: usize = 8;
 impl TrxTractogram {
     /// Read a TRX tractogram from in-memory header and raw array buffers.
     ///
-    /// DPV data is not read; use [`from_raw_with_dpv`] for round-trip
+    /// DPV data is not read; use [`Self::from_raw_with_dpv`] for round-trip
     /// fidelity.
     ///
     /// # Errors
@@ -40,7 +40,7 @@ impl TrxTractogram {
 
     /// Read a TRX tractogram from in-memory buffers including DPV data.
     ///
-    /// Unlike [`from_raw`], this method accepts a `dpv_data` map so that
+    /// Unlike [`Self::from_raw`], this method accepts a `dpv_data` map so that
     /// per-vertex arrays survive a round-trip through encode / decode.
     ///
     /// # Errors

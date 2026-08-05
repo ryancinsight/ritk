@@ -10,6 +10,13 @@
 
 ## [Unreleased] — JPEG 2000 scalar quality control (FEAT-692-01)
 
+### Compatibility
+
+- Update the workspace Eunomia provider requirement to `0.8.0`, removing the
+  `rkyv 0.7` security-advisory path from Ritk consumers. The lockfile is
+  regenerated from the provider graph and the existing real/complex Eunomia
+  numerical boundary is unchanged; no imaginary SI unit is introduced.
+
 ### Changed
 
 - Replace independent JPEG 2000 transform and decomposition arguments with one
