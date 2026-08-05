@@ -8,6 +8,18 @@
 
 # RITK Sprint Checklist — Active
 
+## AEQUITAS-AEQ-MET-68 — Eunomia 0.8 provider compatibility [patch] — review
+
+- [x] Update the workspace Eunomia requirement from `0.7.0` to `0.8.0` and
+      regenerate the standalone lockfile without an Atlas path overlay.
+- [x] Preserve the existing Eunomia real/complex numerical boundary; no
+      imaginary physical unit is added.
+- [ ] Run the repository's locked metadata, format, Clippy, Nextest, doctest,
+      Rustdoc, and hosted security gates at the exact PR head.
+
+Acceptance: the clean Ritk provider graph resolves Eunomia 0.8 and no active
+dependency retains the vulnerable Eunomia 0.7/rkyv 0.7 path.
+
 > **Retired tooling note**: The `burn-migration-audit` xtask command,
 > `xtask/burn_surface.allowlist`, and the `legacy-migration-audit` CI
 > workflow were removed after the Burn-to-Coeus migration completed.

@@ -2,7 +2,8 @@ use ritk_spatial::{Point, Vector};
 
 /// Build a tractography direction field from a single-voxel fODF.
 ///
-/// Pre-extracts the strongest peak via [`FodField::find_peaks`] using
+/// Pre-extracts the strongest peak via
+/// [`ritk_diffusion::csd::FodField::find_peaks`] using
 /// a 50×100 grid and 10% relative threshold.  Returns a closure that
 /// always yields that peak direction, or `None` when no peak is found.
 ///

@@ -19,7 +19,7 @@
 //! min ‖B_resp · f − S/S₀‖₂   subject to   f ≥ 0
 //! ```
 //!
-//! through [`leto_ops::nnls`].  The result is a non-negative fODF whose peaks
+//! through [`leto_ops::nnls()`].  The result is a non-negative fODF whose peaks
 //! correspond to fibre directions — the input to FOD-based tractography.
 //!
 //! [Tournier et al. (2007)](https://doi.org/10.1016/j.neuroimage.2007.02.016)
@@ -34,7 +34,7 @@
 //!
 //! # Relation to analytical Q-ball
 //!
-//! | Property | [`super::odf`] (analytical Q-ball) | [`csd`] |
+//! | Property | [`super::odf`] (analytical Q-ball) | CSD |
 //! |----------|-----------------------------------|---------|
 //! | Solver | Laplace-Beltrami-regularized least-squares | Lawson–Hanson NNLS |
 //! | Output | Q-ball ODF (can be negative) | fODF (guaranteed non-negative) |
@@ -717,7 +717,7 @@ impl FodField {
 ///
 /// The response function's rotational harmonics `r_l` are combined with the
 /// Apollo real SH design matrix to form the deconvolution matrix
-/// `B_resp = B · diag(κ_l)`, then [`leto_ops::nnls`] enforces `f ≥ 0`.
+/// `B_resp = B · diag(κ_l)`, then [`leto_ops::nnls()`] enforces `f ≥ 0`.
 ///
 /// # Errors
 ///

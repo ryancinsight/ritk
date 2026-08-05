@@ -15,6 +15,15 @@
 > workflow were removed after the Burn-to-Coeus migration completed.
 > References to these tools in the entries below are historical.
 
+- **AEQUITAS-AEQ-MET-68 [patch] - Align Ritk with Eunomia 0.8**
+  (REVIEW; owner=Codex; last-update=2026-08-05; scope=`Cargo.toml`,
+  `Cargo.lock`, and synchronized PM artifacts; non-goal=changing numerical
+  real/complex semantics or introducing imaginary SI units). Update the
+  workspace provider requirement and lockfile so downstream Aequitas
+  consumers do not resolve Eunomia 0.7/rkyv 0.7. Acceptance: locked metadata,
+  package checks, value-semantic tests, and hosted security gates pass at the
+  exact PR head.
+
 - **SAFE-687-01 [patch] - Reject truncated JPEG 2000 marker tails**
   (REVIEW; owner=Codex; last-update=2026-08-01; scope=
   `crates/ritk-codecs/src/jpeg_2000/{ebcot/mod.rs,image.rs,mod.rs,tests.rs}`,
