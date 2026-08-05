@@ -46,8 +46,9 @@
 //!
 //! `ClaheScratch` pre-allocates all per-tile buffers (CDFs, histograms, tile pixel
 //! values, output slice) once. `apply_with_scratch` reuses these buffers across
-//! repeated CLAHE applications, eliminating per-tile allocations. Each Rayon thread
-//! receives its own `ClaheScratch` via `map_with`, so no synchronization is needed.
+//! repeated CLAHE applications, eliminating per-tile allocations. Each parallel
+//! worker receives its own `ClaheScratch` via `map_with`, so no synchronization
+//! is needed.
 //!
 //! # References
 //!
@@ -92,7 +93,7 @@ pub struct ClaheFilter {
 /// Pre-allocated scratch buffers for zero-allocation CLAHE execution.
 ///
 /// All per-tile working memory is allocated once and reused across calls to
-/// [`ClaheFilter::apply_with_scratch`]. Each Rayon thread uses its own
+/// [`ClaheFilter::apply_with_scratch`]. Each parallel worker uses its own
 /// `ClaheScratch` via `map_with`.
 ///
 /// Layout: `cdfs` and `histograms` are flattened `n_tiles_y * n_tiles_x * bins`
@@ -242,9 +243,9 @@ impl ClaheFilter {
 
     /// Apply CLAHE to a 3-D image using a caller-provided scratch buffer.
     ///
-    /// Each Rayon thread receives its own `ClaheScratch` via `map_with`.
-    /// The passed `scratch` is consumed as the init value for one thread;
-    /// additional threads clone it. After the call, `scratch` is re-initialized
+    /// Each parallel worker receives its own `ClaheScratch` via `map_with`.
+    /// The passed `scratch` is consumed as the init value for one worker;
+    /// additional workers clone it. After the call, `scratch` is re-initialized
     /// to the correct dimensions for potential reuse.
     ///
     /// # Errors

@@ -31,7 +31,9 @@ fn conv1d_replicate(input: &[f32], kernel: &[f32], output: &mut [f32]) {
     }
 }
 
-/// Convolve flat C-order `[NZ, NY, NX]` array along one axis. Rayon-parallel.
+/// Convolve flat C-order `[NZ, NY, NX]` array along one axis. Parallel via
+/// `moirai::for_each_chunk_mut_enumerated_with` on the `Adaptive` execution
+/// policy.
 fn convolve3d_dim(
     src: &[f32],
     dst: &mut [f32],

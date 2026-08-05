@@ -9,8 +9,9 @@ use crate::deformable_field_ops::{VectorField, VectorFieldMut};
 /// where force_scale = (J_w(p)−μ_J)/denom − CC·(I_w(p)−μ_I)/(σ_I²+ε)
 /// and denom = √(σ_I²·σ_J²) + ε
 ///
-/// Parallelized over voxels via Rayon; each voxel's window reads are
-/// independent, producing no data race.
+/// Parallelized over voxels via `moirai::map_collect_index_with` on the
+/// `Adaptive` execution policy; each voxel's window reads are independent,
+/// producing no data race.
 #[cfg(test)]
 pub(crate) fn cc_forces(
     i_w: &[f32],
@@ -63,7 +64,7 @@ pub(crate) fn cc_forces(
 /// directly into `fz`, `fy`, `fx` without intermediate allocation. All three buffers must have length
 /// `dims[0] * dims[1] * dims[2]`.
 ///
-/// Parallelized over z-slices via Rayon; each slice writes to a disjoint
+/// Parallelized over z-slices via moirai; each slice writes to a disjoint
 /// contiguous range in the output buffers, producing no data race.
 #[cfg(test)]
 pub(crate) fn cc_forces_into(

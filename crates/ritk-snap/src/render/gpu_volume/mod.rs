@@ -27,7 +27,7 @@
 //!   while dimensions are constant (typical medical imaging: fixed viewport).
 //! - **Volume upload**: single-channel volumes bypass extraction with a
 //!   zero-copy `Arc<Vec<f32>>` slice reference. Multi-channel volumes use
-//!   Rayon parallel extraction of the first channel.
+//!   Moirai-parallel extraction of the first channel.
 //!
 //! # Fallback contract
 //!

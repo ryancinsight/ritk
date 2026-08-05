@@ -217,7 +217,8 @@ impl GpuVolumeRenderer {
     /// # Multi-channel path
     ///
     /// When `volume.channels > 1` the first channel is extracted in parallel
-    /// using Rayon before uploading.
+    /// using moirai's `map_collect_index_with` (Adaptive policy) before
+    /// uploading.
     pub(super) fn ensure_volume_uploaded(&mut self, volume: &LoadedVolume) {
         let ptr = Arc::as_ptr(&volume.data) as usize;
         if self.vol_data_ptr == Some(ptr) && self.vol_size == Some(volume.shape) {
@@ -234,7 +235,8 @@ impl GpuVolumeRenderer {
         let extracted: Option<Vec<f32>> = if ch == 1 && raw.len() >= n_voxels {
             None
         } else {
-            // Multi-channel: extract first channel in parallel with Rayon.
+            // Multi-channel: extract first channel in parallel with moirai
+            // (`map_collect_index_with`, Adaptive policy).
             // Voxel at linear index `lin` has first-channel value at raw[lin * ch].
             Some(moirai::map_collect_index_with::<moirai::Adaptive, _, _>(
                 n_voxels,
