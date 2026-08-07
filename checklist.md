@@ -8,6 +8,19 @@
 
 # RITK Sprint Checklist — Active
 
+## EX-696-01 — transform compute-seam book example
+**Target version**: Unreleased patch  
+**Sprint phase**: Closure  
+**Owner**: current session
+
+- [x] Add `crates/ritk-transform/examples/book_affine_transform.rs`.
+- [x] Exercise `AtlasAffineTransform` over `MoiraiBackend` and read back the
+      transformed host slice through the native image carrier boundary.
+- [x] Pass focused example check and warning-denied Clippy for
+      `ritk-transform`.
+- [x] Pass `cargo nextest run -p ritk-transform`.
+- [x] Pass `cargo run -p xtask -- dependency-alignment`.
+
 ## DOC-695-01 — Make book equations portable across Pages
 **Target version**: Unreleased patch
 **Sprint phase**: Execution

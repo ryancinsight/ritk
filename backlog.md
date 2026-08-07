@@ -1,5 +1,17 @@
 # RITK Backlog - Active Planning
 
+- **EX-696-01 [patch] - Add transform compute-seam book example**
+  (DONE; owner=current session; last-update=2026-08-07; scope=
+  `crates/ritk-transform/examples/book_affine_transform.rs`,
+  `backlog.md`, `checklist.md`, `gap_audit.md`; non-goal=algorithm changes).
+  Added a mdBook-oriented `book_*.rs` example in `ritk-transform` that
+  exercises the host-backed Atlas affine seam over Coeus backend types
+  (`MoiraiBackend`) and verifies host-slice extraction through the native
+  image carrier boundary. Local gates: `cargo check -p ritk-transform
+  --examples`, warning-denied `cargo clippy -p ritk-transform --examples`,
+  `cargo nextest run -p ritk-transform`, and `cargo run -p xtask --
+  dependency-alignment` passed.
+
 - **DOC-695-01 [patch] - Make book equations portable across Pages**
   (IN PROGRESS; owner=Codex; last-update=2026-08-03; scope=
   `docs/book/{apollo_sht,coeus_optim,connectome,descriptive_statistics,

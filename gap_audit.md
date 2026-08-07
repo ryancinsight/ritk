@@ -8,6 +8,17 @@
 
 # RITK Gap Audit - Active
 
+## EX-696-01 audit (2026-08-07)
+
+`ritk-transform` had no mdBook-oriented `book_*.rs` example despite being the
+consumer-local Coeus-backed transform seam in RITK. The new
+`book_affine_transform.rs` exercises the host-backed `AtlasAffineTransform`
+with `MoiraiBackend`, applies a 3D affine mapping over a rank-2 points image,
+and validates host-slice extraction through the output image carrier boundary.
+The slice is examples-only: no transform algorithm or contract behavior changed.
+Focused `ritk-transform` example check, warning-denied Clippy, package Nextest,
+and workspace dependency-alignment checks pass.
+
 > **Retired tooling note**: The `burn-migration-audit` xtask command,
 > `xtask/burn_surface.allowlist`, and the `legacy-migration-audit` CI
 > workflow were removed after the Burn-to-Coeus migration completed.
