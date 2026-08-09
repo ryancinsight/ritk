@@ -152,3 +152,96 @@ fn test_smooth_filter_parameter_change_triggers_rerun() {
         mtime_after_iters.value()
     );
 }
+
+/// Two triangles sharing an edge plus one line segment plus one isolated
+/// vertex: the CSR layout must reproduce the sorted, deduplicated neighbor
+/// *set* of the jagged reference for every vertex.
+#[test]
+fn adjacency_matches_sorted_jagged_reference() {
+    let poly = VtkPolyData {
+        points: vec![
+            [0.0, 0.0, 0.0], // 0
+            [1.0, 0.0, 0.0], // 1
+            [0.5, 1.0, 0.0], // 2
+            [1.5, 1.0, 0.0], // 3
+            [9.0, 9.0, 9.0], // 4 — isolated
+        ],
+        polygons: vec![vec![0, 1, 2], vec![1, 3, 2]],
+        lines: vec![vec![0, 2, 3]],
+        ..Default::default()
+    };
+    let adj = Adjacency::build(&poly);
+
+    // CSR invariants: n + 1 offsets, zero start, sentinel == flat length,
+    // monotonically non-decreasing offsets.
+    assert_eq!(adj.offsets.len(), poly.points.len() + 1);
+    assert_eq!(adj.offsets[0], 0);
+    assert_eq!(*adj.offsets.last().unwrap(), adj.neighbors.len());
+    assert!(adj.offsets.windows(2).all(|w| w[0] <= w[1]));
+
+    // Parity: the sorted deduplicated neighbor set per vertex.
+    let expected: [&[u32]; 5] = [
+        &[1, 2],    // 0: polygons (0,1),(0,2) + line (0,2)
+        &[0, 2, 3], // 1: polygons (0,1),(1,2),(1,3)
+        &[0, 1, 3], // 2: polygons (0,2),(1,2),(2,3) + line (2,3)
+        &[1, 2],    // 3: polygon (1,3),(2,3) + line (2,3)
+        &[],        // 4: isolated
+    ];
+    for (v, want) in expected.iter().enumerate() {
+        assert_eq!(
+            adj.neighbors_of(v),
+            *want,
+            "vertex {v} neighbor run must match the sorted jagged reference"
+        );
+    }
+}
+
+/// On a quad grid every interior vertex is shared by four cells and must get
+/// exactly its four edge-sharing neighbors, sorted and deduplicated.
+#[test]
+fn adjacency_interior_grid_vertex_has_sorted_edge_neighbors() {
+    // 3×3 vertex grid, 2×2 quad cells; center vertex is index 4.
+    let rows = 3usize;
+    let cols = 3usize;
+    let mut points = Vec::with_capacity(rows * cols);
+    for r in 0..rows {
+        for c in 0..cols {
+            points.push([c as f32, r as f32, 0.0]);
+        }
+    }
+    let mut polygons = Vec::new();
+    for r in 0..rows - 1 {
+        for c in 0..cols - 1 {
+            let tl = r * cols + c;
+            polygons.push(vec![
+                tl as u32,
+                (tl + 1) as u32,
+                (tl + cols + 1) as u32,
+                (tl + cols) as u32,
+            ]);
+        }
+    }
+    let poly = VtkPolyData {
+        points,
+        polygons,
+        ..Default::default()
+    };
+    let adj = Adjacency::build(&poly);
+    assert_eq!(
+        adj.neighbors_of(4),
+        &[1, 3, 5, 7],
+        "interior vertex must reach its four edge-sharing neighbors"
+    );
+}
+
+/// The sorted, deduplicated CSR layout is fully deterministic: two builds of
+/// the same mesh must produce byte-identical `Adjacency` values.
+#[test]
+fn adjacency_build_is_deterministic() {
+    let poly = VtkPolyData {
+        points: vec![[0.0, 0.0, 0.0], [1.0, 0.0, 0.0], [0.5, 1.0, 0.0]],
+        polygons: vec![vec![0, 1, 2]],
+        ..Default::default()
+    };
+    assert_eq!(Adjacency::build(&poly), Adjacency::build(&poly));
+}
