@@ -8,5 +8,5 @@ pub mod smooth;
 pub mod threshold;
 
 pub use normals::ComputeNormalsFilter;
-pub use smooth::SmoothFilter;
+pub use smooth::{Adjacency, SmoothFilter};
 pub use threshold::ThresholdFilter;

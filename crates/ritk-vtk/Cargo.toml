@@ -21,3 +21,8 @@ gaia = { workspace = true }
 
 [dev-dependencies]
 tempfile = { workspace = true }
+criterion = { workspace = true }
+
+[[bench]]
+name = "smooth_adjacency_comparison"
+harness = false
