@@ -141,20 +141,12 @@ fn bench_adjacency_build(c: &mut Criterion) {
             "both builds must produce one run per vertex"
         );
 
-        group.bench_with_input(
-            BenchmarkId::new("jagged", cells),
-            &mesh,
-            |b, mesh| {
-                b.iter(|| std::hint::black_box(build_adjacency_jagged(mesh)));
-            },
-        );
-        group.bench_with_input(
-            BenchmarkId::new("csr", cells),
-            &mesh,
-            |b, mesh| {
-                b.iter(|| std::hint::black_box(Adjacency::build(mesh)));
-            },
-        );
+        group.bench_with_input(BenchmarkId::new("jagged", cells), &mesh, |b, mesh| {
+            b.iter(|| std::hint::black_box(build_adjacency_jagged(mesh)));
+        });
+        group.bench_with_input(BenchmarkId::new("csr", cells), &mesh, |b, mesh| {
+            b.iter(|| std::hint::black_box(Adjacency::build(mesh)));
+        });
 
         // Parity spot-check: CSR run must be a sorted permutation of the
         // jagged run (jagged order is HashSet-defined, so compare as sets).
