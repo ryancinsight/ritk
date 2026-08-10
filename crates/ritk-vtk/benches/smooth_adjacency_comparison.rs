@@ -150,8 +150,8 @@ fn bench_adjacency_build(c: &mut Criterion) {
 
         // Parity spot-check: CSR run must be a sorted permutation of the
         // jagged run (jagged order is HashSet-defined, so compare as sets).
-        for v in 0..mesh.points.len() {
-            let mut jag = jagged[v].clone();
+        for (v, neighbors) in jagged.iter().enumerate() {
+            let mut jag = neighbors.clone();
             jag.sort_unstable();
             assert_eq!(csr.neighbors_of(v), &jag[..], "vertex {v} parity");
         }
