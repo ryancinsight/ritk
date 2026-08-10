@@ -23,6 +23,10 @@ mod tests_anonymize_extended;
 #[cfg(test)]
 #[path = "tests_anonymize_stats.rs"]
 mod tests_anonymize_stats;
+#[cfg(test)]
+#[path = "tests_verify.rs"]
+mod tests_verify;
+pub mod verify;
 
 pub use profile::{AnonymizationProfile, TagAction};
 
@@ -409,5 +413,48 @@ pub fn anonymize_dicom_directory(
         }
     }
 
+    Ok(stats)
+}
+
+/// Anonymize a DICOM file and verify the exported metadata is intact.
+///
+/// This is the export-gate entry point recommended for PACS-bound output: it
+/// runs `anonymize_dicom_file` and then verifies the written file re-parses,
+/// carries conformant and consistent UIDs, keeps geometry metadata coherent
+/// with the pixel payload, and contains none of the supplied
+/// `verify_options.prohibited_values`.
+///
+/// # Errors
+/// Returns an error when anonymization fails, the export cannot be written, or
+/// verification finds any issue.
+pub fn anonymize_dicom_file_verified(
+    input_path: impl AsRef<Path>,
+    output_path: impl AsRef<Path>,
+    options: &AnonymizeOptions,
+    verify_options: &verify::VerifyOptions,
+) -> Result<AnonymizeResult> {
+    let result = anonymize_dicom_file(&input_path, &output_path, options)?;
+    verify::ensure_dicom_file_clean(&output_path, verify_options)?;
+    Ok(result)
+}
+
+/// Anonymize a directory tree and verify every exported file.
+///
+/// Runs `anonymize_dicom_directory` and then a cross-file export gate
+/// (`verify::ensure_dicom_directory_clean`) that asserts one Study/Series UID
+/// set, unique SOPInstanceUIDs, and clean per-file metadata across the output
+/// directory.
+///
+/// # Errors
+/// Returns an error when the directory pass fails or verification finds any
+/// issue in any exported file.
+pub fn anonymize_dicom_directory_verified(
+    input_dir: impl AsRef<Path>,
+    output_dir: impl AsRef<Path>,
+    options: &AnonymizeOptions,
+    verify_options: &verify::VerifyOptions,
+) -> Result<AnonymizeStats> {
+    let stats = anonymize_dicom_directory(&input_dir, &output_dir, options)?;
+    verify::ensure_dicom_directory_clean(&output_dir, verify_options)?;
     Ok(stats)
 }
