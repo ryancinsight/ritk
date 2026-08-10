@@ -35,7 +35,8 @@ fn iris_grayscale_remains_channel_equal_and_monotone() {
 
 #[test]
 fn iris_runtime_selection_is_complete_and_labeled() {
-    assert_eq!(NamedColorMap::ALL.len(), 11);
+    // Iris owns the color-map catalog (IRIS-004 added Inferno/Magma/Turbo).
+    assert_eq!(NamedColorMap::ALL.len(), 14);
     for (index, map) in NamedColorMap::ALL.iter().copied().enumerate() {
         assert!(!map.label().is_empty());
         assert!(
