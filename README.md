@@ -204,6 +204,34 @@ JPEG 2000 fragments. Pure-Rust pixel decode additionally covers JPEG XL through
 `jxl-oxide`. `dicom-rs` remains the dataset, metadata, and external-codec
 adapter; no supported DICOM pixel path requires a C or C++ codec library.
 
+#### DICOM de-identification and export verification
+
+`ritk-io` ships a PS 3.15 Annex E de-identification toolset with an
+export-time metadata integrity gate — the piece that stops corrupt or leaking
+metadata from silently shipping to a destination PACS:
+
+- `AnonymizationProfile` — `Basic`, `BasicReplaceUids`, `Aggressive`, and
+  `Enhanced` profiles covering every Annex E Table E.1-1 attribute, with
+  deterministic SHA-256 UID remapping (referentially consistent within a
+  batch, irreversible without the salt).
+- `anonymize_dicom_file` / `anonymize_dicom_directory` — single-object and
+  directory-batch de-identification with per-run statistics and optional
+  pixel-data / private-tag cleaning.
+- `anonymize::verify` — the export gate:
+  - re-parse check (the exported file must open as a conformant Part 10 object),
+  - UID presence, DICOM-conformant format, and cross-file Study/Series
+    consistency with unique SOPInstanceUIDs,
+  - geometry coherence (`Rows × Columns × Samples × BytesPerPixel` vs.
+    PixelData length),
+  - prohibited-value leak scan for the exact identifiers the pipeline scrubbed.
+- `anonymize_dicom_file_verified` / `anonymize_dicom_directory_verified` —
+  run anonymization and the export gate as one operation, failing closed on
+  any defect.
+
+See `crates/ritk-io/examples/anonymize_pacs_export.rs` for the complete
+PACS-bound export pipeline.
+
+
 ### Registration (`ritk-registration`)
 
 **Metrics** — MSE, Mutual Information (Standard / Mattes / NMI), NCC, LNCC, Correlation Ratio, DL losses.

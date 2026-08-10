@@ -1,4 +1,4 @@
-mod anonymize;
+pub mod anonymize;
 mod codec;
 mod color;
 mod color_common;
@@ -19,7 +19,8 @@ mod writer;
 mod writer_object;
 
 pub use anonymize::{
-    anonymize_dicom_directory, anonymize_dicom_file, anonymize_object, AnonymizationProfile,
+    anonymize_dicom_directory, anonymize_dicom_directory_verified, anonymize_dicom_file,
+    anonymize_dicom_file_verified, anonymize_object, verify, AnonymizationProfile,
     AnonymizeOptions, AnonymizeResult, AnonymizeStats, CleaningPolicy, TagAction,
 };
 pub use color::{is_rgb_dicom_series, load_color_volume_flat, load_color_volume_flat_from_path};

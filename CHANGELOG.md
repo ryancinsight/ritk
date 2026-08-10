@@ -33,6 +33,17 @@
 - Add validated `QuantizationStep` control for irreversible JPEG 2000 encode;
   packet coefficients and QCD metadata share the exact represented subband
   step.
+- Add the DICOM export-time metadata verification gate
+  (`ritk_io::format::dicom::anonymize::verify`): after anonymization, verify a
+  file re-parses as a conformant Part 10 object, carries present and
+  DICOM-conformant Study/Series/SOPInstance/FrameOfReference UIDs, keeps
+  Rows/Columns/BitsAllocated coherent with the PixelData payload, and contains
+  none of the supplied prohibited patient values. `verify_dicom_directory`
+  additionally enforces one Study/Series UID set and unique SOPInstanceUIDs
+  across the export. `anonymize_dicom_file_verified` and
+  `anonymize_dicom_directory_verified` run the gate as part of the export
+  itself, so a corrupt or leaking export fails closed instead of shipping to
+  the destination PACS.
 
 ### Fixed
 

@@ -9,8 +9,9 @@ pub use domain::{
 };
 pub use format::analyze::{read_analyze, write_analyze, AnalyzeReader, AnalyzeWriter};
 pub use format::dicom::{
-    anonymize_dicom_directory, anonymize_dicom_file, anonymize_object, dicom_echo, dicom_find,
-    dicom_retrieve, dicom_retrieve_series, dicom_seg_to_label_map, dicom_store, is_private_tag,
+    anonymize_dicom_directory, anonymize_dicom_directory_verified, anonymize_dicom_file,
+    anonymize_dicom_file_verified, anonymize_object, dicom_echo, dicom_find, dicom_retrieve,
+    dicom_retrieve_series, dicom_seg_to_label_map, dicom_store, is_private_tag,
     is_rgb_dicom_series, label_map_to_dicom_seg, label_map_to_rt_struct, literal_arraystring,
     load_atlas_color_multiframe, load_color_multiframe_flat, load_color_volume_flat,
     load_color_volume_flat_from_path, load_dicom_from_series, load_dicom_multiframe,

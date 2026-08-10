@@ -1,5 +1,20 @@
 # RITK Backlog - Active Planning
 
+- **RITK-DICOM-EXPORT-GATE [minor] - DICOM export-time metadata verification
+  (DONE; owner=Codex; scope=`crates/ritk-io/src/format/dicom/anonymize/verify.rs`,
+  `crates/ritk-io/src/format/dicom/anonymize/{mod.rs,tests_verify.rs}`,
+  `crates/ritk-io/examples/anonymize_pacs_export.rs`, README, CHANGELOG).**
+  Adds the PS 3.15 Annex E export gate: after anonymization, verify the
+  exported file re-parses as a conformant Part 10 object, carries present and
+  conformant Study/Series/SOPInstance/FrameOfReference UIDs, keeps
+  Rows/Columns/BitsAllocated coherent with PixelData, and contains no
+  prohibited patient values; directory mode enforces one Study/Series UID set
+  and unique SOPInstanceUIDs. `anonymize_dicom_file_verified` and
+  `anonymize_dicom_directory_verified` run the gate as part of the export,
+  failing closed on any defect. Acceptance: value-semantic verify tests (10)
+  plus the existing anonymize suite (40) pass; clippy `-D warnings` and fmt
+  clean.
+
 - Composition note (2026-07-31, session-2026-07-30-board-ssot): commit
   `c2cd7b37` on this lane carries the diffusion frontier's in-flight
   snapshot under an unrelated commit message ("feat(metal): Delegate the
