@@ -11,6 +11,7 @@ use dicom::core::smallvec::SmallVec;
 use dicom::core::value::PixelFragmentSequence;
 use dicom::core::{DataElement, PrimitiveValue, VR};
 use dicom::object::{FileMetaTableBuilder, InMemDicomObject};
+use ritk_codecs::encode_rle_lossless_fragment_u16_grayscale;
 use ritk_codecs::jpeg_2000::encoder::{encode_grayscale_j2k, Jpeg2000Encoding};
 use ritk_codecs::jpeg_ls::encoder::encode_grayscale_jpeg_ls;
 
@@ -706,6 +707,53 @@ fn dicom_rs_backend_round_trips_j2k_pixeldata_via_write_bytes() {
         .pixels;
 
     let expected: Vec<f32> = original_u8.iter().map(|&v| f32::from(v)).collect();
+    assert_eq!(decoded_before, expected);
+    assert_eq!(decoded_after, expected);
+}
+
+#[test]
+fn dicom_rs_backend_round_trips_rle_pixeldata_via_write_bytes() {
+    let dir = tempfile::tempdir().expect("tempdir must be created");
+    let src = dir.path().join("rle_src.dcm");
+    let width = 3u16;
+    let height = 2u16;
+
+    let original_u16: Vec<u16> = vec![1, 2, 1024, 2048, 4096, 65535];
+    let fragment = encode_rle_lossless_fragment_u16_grayscale(&original_u16);
+    write_single_frame_compressed_fixture(
+        &src,
+        width,
+        height,
+        "1.2.840.10008.1.2.5",
+        "2.25.900003",
+        fragment,
+    );
+
+    let request = DecodeFrameRequest {
+        frame_index: 0,
+        transfer_syntax: TransferSyntaxKind::RleLossless,
+        layout: PixelLayout {
+            rows: usize::from(height),
+            cols: usize::from(width),
+            samples_per_pixel: 1,
+            bits_allocated: 16,
+            pixel_representation: PixelSignedness::Unsigned,
+            rescale_slope: 1.0,
+            rescale_intercept: 0.0,
+        },
+    };
+
+    let parsed = parse_file_with::<DicomRsBackend, _>(&src).expect("parse source RLE file");
+    let decoded_before = decode_frame_with::<DicomRsBackend>(&parsed, request.clone())
+        .expect("decode source RLE frame")
+        .pixels;
+    let bytes = write_bytes_with::<DicomRsBackend>(&parsed).expect("write RLE bytes");
+    let reparsed = parse_bytes_with::<DicomRsBackend>(&bytes).expect("reparse RLE bytes");
+    let decoded_after = decode_frame_with::<DicomRsBackend>(&reparsed, request)
+        .expect("decode RLE frame after write_bytes")
+        .pixels;
+
+    let expected: Vec<f32> = original_u16.iter().map(|&v| v as f32).collect();
     assert_eq!(decoded_before, expected);
     assert_eq!(decoded_after, expected);
 }

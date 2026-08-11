@@ -216,3 +216,34 @@ fn test_write_multiframe_jpeg2000_lossless_round_trip() {
         );
     }
 }
+
+#[test]
+fn test_write_multiframe_rle_lossless_round_trip() {
+    let tmp = tempfile::tempdir().expect("tempdir");
+    let out_path = tmp.path().join("mf_rle.dcm");
+    let voxels = vec![2.0_f32, 4.0, 8.0, 16.0, 32.0, 64.0];
+    let image = native_image(voxels.clone(), [2, 1, 3], [0.0; 3], [1.0; 3]);
+    let config = MultiFrameWriterConfig {
+        transfer_syntax: TransferSyntaxKind::RleLossless,
+        ..MultiFrameWriterConfig::default()
+    };
+
+    write_dicom_multiframe_native_with_config(&out_path, &image, &config)
+        .expect("RLE multiframe write");
+
+    let ts_uid = parse_file_with::<DicomRsBackend, _>(&out_path)
+        .expect("parse file")
+        .meta()
+        .transfer_syntax()
+        .to_owned();
+    assert_eq!(ts_uid, TransferSyntaxKind::RleLossless.uid());
+
+    let decoded = load_dicom_multiframe_flat(&out_path).expect("decode RLE multiframe");
+    assert_eq!(decoded.shape, [2, 1, 3]);
+    for (actual, expected) in decoded.data.iter().zip(voxels.iter()) {
+        assert!(
+            (actual - expected).abs() <= 1.5,
+            "decoded voxel {actual} differed too much from source {expected}"
+        );
+    }
+}
