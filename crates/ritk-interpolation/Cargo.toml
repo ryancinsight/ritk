@@ -1,6 +1,6 @@
 [package]
 name = "ritk-interpolation"
-version = "0.4.0"
+version = "0.5.0"
 description = "Medical image interpolation operators for RITK"
 authors.workspace = true
 repository.workspace = true
@@ -10,16 +10,16 @@ license.workspace = true
 
 [dependencies]
 eunomia = { workspace = true }
-ritk-core = { path = "../ritk-core", version = "0.9.0" }
-ritk-image = { path = "../ritk-image", version = "0.2.0" }
-ritk-wgpu-compat = { path = "../ritk-wgpu-compat", version = "0.1.0" }
-ritk-spatial = { path = "../ritk-spatial", version = "0.1.0" }
+ritk-core = { path = "../ritk-core", version = "0.10.0" }
+ritk-image = { path = "../ritk-image", version = "0.3.0" }
+ritk-wgpu-compat = { path = "../ritk-wgpu-compat", version = "0.2.0" }
+ritk-spatial = { path = "../ritk-spatial", version = "0.2.0" }
 serde = { workspace = true }
 anyhow = { workspace = true }
 coeus-core = { workspace = true }
 coeus-tensor = { workspace = true }
 coeus-ops = { workspace = true }
-ritk-tensor-ops = { path = "../ritk-tensor-ops", version = "0.1.0" }
+ritk-tensor-ops = { path = "../ritk-tensor-ops", version = "0.2.0" }
 
 [dev-dependencies]
 criterion = { workspace = true }

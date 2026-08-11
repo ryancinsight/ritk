@@ -1,6 +1,6 @@
 [package]
 name = "ritk-model"
-version = "0.1.0"
+version = "0.2.0"
 description = "Medical image model and inference integration for RITK"
 authors.workspace = true
 repository.workspace = true

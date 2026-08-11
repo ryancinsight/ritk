@@ -48,65 +48,67 @@ authors = ["Ryan Clanton <ryanclanton@outlook.com>"]
 repository = "https://github.com/ryancinsight/ritk"
 
 [workspace.dependencies]
+# crates.io reserves `iris`, so the crate is published as `iris-viz`; the
+# import path stays `iris` via its `[lib] name`, so no source changes.
 iris = { package = "iris-viz", version = "0.1.0", git = "https://github.com/ryancinsight/iris" }
-ritk-filter = { path = "crates/ritk-filter", version = "0.2.60" }
-ritk-segmentation = { path = "crates/ritk-segmentation", version = "0.2.0" }
-ritk-core = { path = "crates/ritk-core", version = "0.9.0" }
-ritk-dicom = { path = "crates/ritk-dicom", version = "0.1.0" }
-ritk-codecs = { path = "crates/ritk-codecs", version = "0.5.3" }
-ritk-nifti = { path = "crates/ritk-nifti", version = "0.1.0" }
-ritk-nrrd = { path = "crates/ritk-nrrd", version = "0.1.1" }
-ritk-metaimage = { path = "crates/ritk-metaimage", version = "0.1.1" }
-ritk-mgh = { path = "crates/ritk-mgh", version = "0.2.0" }
-ritk-analyze = { path = "crates/ritk-analyze", version = "0.1.0" }
-ritk-png = { path = "crates/ritk-png", version = "0.1.0" }
-ritk-jpeg = { path = "crates/ritk-jpeg", version = "0.1.0" }
-ritk-tiff = { path = "crates/ritk-tiff", version = "0.1.0" }
-ritk-minc = { path = "crates/ritk-minc", version = "0.1.0" }
-ritk-vtk = { path = "crates/ritk-vtk", version = "0.1.0" }
-ritk-io = { path = "crates/ritk-io", version = "0.2.0" }
-ritk-model = { path = "crates/ritk-model", version = "0.1.0" }
-ritk-registration = { path = "crates/ritk-registration", version = "0.53.0" }
-ritk-transform = { path = "crates/ritk-transform", version = "0.1.0" }
-ritk-interpolation = { path = "crates/ritk-interpolation", version = "0.4.0" }
-ritk-spatial = { path = "crates/ritk-spatial", version = "0.1.0" }
-ritk-image = { path = "crates/ritk-image", version = "0.2.0" }
-ritk-wgpu-compat = { path = "crates/ritk-wgpu-compat", version = "0.1.0" }
-ritk-morphology = { path = "crates/ritk-morphology", version = "0.1.0" }
-ritk-annotation = { path = "crates/ritk-annotation", version = "0.1.0" }
-ritk-tensor-ops = { path = "crates/ritk-tensor-ops", version = "0.1.0" }
-ritk-statistics = { path = "crates/ritk-statistics", version = "0.3.0" }
+ritk-filter = { path = "crates/ritk-filter", version = "0.3.0" }
+ritk-segmentation = { path = "crates/ritk-segmentation", version = "0.3.0" }
+ritk-core = { path = "crates/ritk-core", version = "0.10.0" }
+ritk-dicom = { path = "crates/ritk-dicom", version = "0.2.0" }
+ritk-codecs = { path = "crates/ritk-codecs", version = "0.6.0" }
+ritk-nifti = { path = "crates/ritk-nifti", version = "0.2.0" }
+ritk-nrrd = { path = "crates/ritk-nrrd", version = "0.2.0" }
+ritk-metaimage = { path = "crates/ritk-metaimage", version = "0.2.0" }
+ritk-mgh = { path = "crates/ritk-mgh", version = "0.3.0" }
+ritk-analyze = { path = "crates/ritk-analyze", version = "0.2.0" }
+ritk-png = { path = "crates/ritk-png", version = "0.2.0" }
+ritk-jpeg = { path = "crates/ritk-jpeg", version = "0.2.0" }
+ritk-tiff = { path = "crates/ritk-tiff", version = "0.2.0" }
+ritk-minc = { path = "crates/ritk-minc", version = "0.2.0" }
+ritk-vtk = { path = "crates/ritk-vtk", version = "0.2.0" }
+ritk-io = { path = "crates/ritk-io", version = "0.3.0" }
+ritk-model = { path = "crates/ritk-model", version = "0.2.0" }
+ritk-registration = { path = "crates/ritk-registration", version = "0.54.0" }
+ritk-transform = { path = "crates/ritk-transform", version = "0.2.0" }
+ritk-interpolation = { path = "crates/ritk-interpolation", version = "0.5.0" }
+ritk-spatial = { path = "crates/ritk-spatial", version = "0.2.0" }
+ritk-image = { path = "crates/ritk-image", version = "0.3.0" }
+ritk-wgpu-compat = { path = "crates/ritk-wgpu-compat", version = "0.2.0" }
+ritk-morphology = { path = "crates/ritk-morphology", version = "0.2.0" }
+ritk-annotation = { path = "crates/ritk-annotation", version = "0.2.0" }
+ritk-tensor-ops = { path = "crates/ritk-tensor-ops", version = "0.2.0" }
+ritk-statistics = { path = "crates/ritk-statistics", version = "0.4.0" }
 ritk-diffusion = { path = "crates/ritk-diffusion", version = "0.1.0" }
-ritk-diffusion-scheme = { path = "crates/ritk-diffusion-scheme", version = "0.1.0" }
+ritk-diffusion-scheme = { path = "crates/ritk-diffusion-scheme", version = "0.2.0" }
 ritk-tractography = { path = "crates/ritk-tractography", version = "0.1.0" }
 ritk-connectome = { path = "crates/ritk-connectome", version = "0.1.0" }
 ritk-trk = { path = "crates/ritk-trk", version = "0.1.0" }
-ritk-mif = { path = "crates/ritk-mif", version = "0.1.0" }
+ritk-mif = { path = "crates/ritk-mif", version = "0.2.0" }
 ritk-tck = { path = "crates/ritk-tck", version = "0.1.0" }
 ritk-trx = { path = "crates/ritk-trx", version = "0.1.0" }
-# Published as `gaia-mesh`; `[lib] name` in that crate keeps the import path
-# `gaia`, so every `use gaia::…` is unchanged. Same package/lib split as
-# `iris-viz`, `moirai-runtime`, and `mnemosyne-memory`.
-gaia = { package = "gaia-mesh", version = "0.3.0", git = "https://github.com/ryancinsight/gaia", default-features = false }
+# The crates.io name `gaia` belongs to an unrelated third-party crate, so the
+# crate is published as `gaia-mesh`; the import path stays `gaia` via its
+# `[lib] name`, so no source changes.
+gaia = { package = "gaia-mesh", version = "0.4.0", git = "https://github.com/ryancinsight/gaia", default-features = false }
 criterion = { version = "0.5", features = ["html_reports"] }
-coeus-nn = { version = "0.9.0", git = "https://github.com/ryancinsight/Coeus.git" }
-coeus-optim = { version = "0.9.0", git = "https://github.com/ryancinsight/Coeus.git" }
+coeus-nn = { version = "0.10.0", git = "https://github.com/ryancinsight/Coeus.git" }
+coeus-optim = { version = "0.10.0", git = "https://github.com/ryancinsight/Coeus.git" }
 onnx-ir = "0.20.1"
 pyo3 = { version = "0.22", features = ["abi3-py39"] }
 numpy = "0.22"
 dicom = { version = "0.10.0", default-features = false }
-moirai = { package = "moirai-runtime", version = "0.4.0", git = "https://github.com/ryancinsight/Moirai.git", features = ["melinoe"] }
+moirai = { package = "moirai-runtime", version = "0.5.0", git = "https://github.com/ryancinsight/Moirai.git", features = ["melinoe"] }
 # Apollo FFT scratch caches use Eunomia complex values through Mnemosyne.
-mnemosyne = { package = "mnemosyne-memory", version = "0.6.0", git = "https://github.com/ryancinsight/Mnemosyne.git", default-features = false, features = ["std_tls", "eunomia"] }
+mnemosyne = { package = "mnemosyne-memory", version = "0.7.0", git = "https://github.com/ryancinsight/Mnemosyne.git", default-features = false, features = ["std_tls", "eunomia"] }
 eunomia = { version = "0.8.0", git = "https://github.com/ryancinsight/eunomia", default-features = false }
-coeus-core = { version = "0.9.0", git = "https://github.com/ryancinsight/Coeus.git" }
-coeus-tensor = { version = "0.9.0", git = "https://github.com/ryancinsight/Coeus.git" }
-coeus-ops = { version = "0.9.0", git = "https://github.com/ryancinsight/Coeus.git" }
-coeus-leto = { version = "0.9.0", git = "https://github.com/ryancinsight/Coeus.git" }
-coeus-autograd = { version = "0.9.0", git = "https://github.com/ryancinsight/Coeus.git" }
-leto = { version = "0.41.0", git = "https://github.com/ryancinsight/leto.git" }
-leto-ops = { version = "0.41.0", git = "https://github.com/ryancinsight/leto.git" }
-apollo-fft = { version = "0.25.0", git = "https://github.com/ryancinsight/apollo" }
+coeus-core = { version = "0.10.0", git = "https://github.com/ryancinsight/Coeus.git" }
+coeus-tensor = { version = "0.10.0", git = "https://github.com/ryancinsight/Coeus.git" }
+coeus-ops = { version = "0.10.0", git = "https://github.com/ryancinsight/Coeus.git" }
+coeus-leto = { version = "0.10.0", git = "https://github.com/ryancinsight/Coeus.git" }
+coeus-autograd = { version = "0.10.0", git = "https://github.com/ryancinsight/Coeus.git" }
+leto = { version = "0.42.0", git = "https://github.com/ryancinsight/leto.git" }
+leto-ops = { version = "0.42.0", git = "https://github.com/ryancinsight/leto.git" }
+apollo-fft = { version = "0.26.0", git = "https://github.com/ryancinsight/apollo" }
 apollo-sht = { version = "0.7.0", git = "https://github.com/ryancinsight/apollo" }
 aequitas = { version = "0.2.0", git = "https://github.com/ryancinsight/aequitas" }
 anyhow = "1.0"

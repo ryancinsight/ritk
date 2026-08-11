@@ -1,6 +1,6 @@
 [package]
 name = "ritk-filter"
-version = "0.2.60"
+version = "0.3.0"
 description = "Medical image filtering algorithms for RITK"
 authors.workspace = true
 repository.workspace = true
@@ -9,16 +9,16 @@ edition = "2021"
 license.workspace = true
 
 [dependencies]
-ritk-core = { path = "../ritk-core", version = "0.9.0" }
-ritk-image = { path = "../ritk-image", features = ["test-helpers"], version = "0.2.0" }
-ritk-wgpu-compat = { path = "../ritk-wgpu-compat", version = "0.1.0" }
-ritk-morphology = { path = "../ritk-morphology", version = "0.1.0" }
-ritk-annotation = { path = "../ritk-annotation", version = "0.1.0" }
-ritk-tensor-ops = { path = "../ritk-tensor-ops", version = "0.1.0" }
-ritk-statistics = { path = "../ritk-statistics", version = "0.3.0" }
-ritk-spatial = { path = "../ritk-spatial", version = "0.1.0" }
-ritk-interpolation = { path = "../ritk-interpolation", version = "0.4.0" }
-ritk-transform = { path = "../ritk-transform", version = "0.1.0" }
+ritk-core = { path = "../ritk-core", version = "0.10.0" }
+ritk-image = { path = "../ritk-image", features = ["test-helpers"], version = "0.3.0" }
+ritk-wgpu-compat = { path = "../ritk-wgpu-compat", version = "0.2.0" }
+ritk-morphology = { path = "../ritk-morphology", version = "0.2.0" }
+ritk-annotation = { path = "../ritk-annotation", version = "0.2.0" }
+ritk-tensor-ops = { path = "../ritk-tensor-ops", version = "0.2.0" }
+ritk-statistics = { path = "../ritk-statistics", version = "0.4.0" }
+ritk-spatial = { path = "../ritk-spatial", version = "0.2.0" }
+ritk-interpolation = { path = "../ritk-interpolation", version = "0.5.0" }
+ritk-transform = { path = "../ritk-transform", version = "0.2.0" }
 anyhow = { workspace = true }
 apollo-fft = { workspace = true }
 eunomia = { workspace = true }

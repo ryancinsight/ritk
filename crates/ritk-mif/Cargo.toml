@@ -1,6 +1,6 @@
 [package]
 name = "ritk-mif"
-version = "0.1.0"
+version = "0.2.0"
 authors.workspace = true
 repository.workspace = true
 publish = true
@@ -9,9 +9,9 @@ license.workspace = true
 description = "MRtrix .mif image format I/O for RITK"
 
 [dependencies]
-ritk-image = { path = "../ritk-image", version = "0.2.0" }
-ritk-spatial = { path = "../ritk-spatial", version = "0.1.0" }
-ritk-diffusion-scheme = { path = "../ritk-diffusion-scheme", version = "0.1.0" }
+ritk-image = { path = "../ritk-image", version = "0.3.0" }
+ritk-spatial = { path = "../ritk-spatial", version = "0.2.0" }
+ritk-diffusion-scheme = { path = "../ritk-diffusion-scheme", version = "0.2.0" }
 coeus-core = { workspace = true }
 anyhow = { workspace = true }
 bytemuck = { workspace = true }

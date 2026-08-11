@@ -1,6 +1,6 @@
 [package]
 name = "ritk-annotation"
-version = "0.1.0"
+version = "0.2.0"
 authors.workspace = true
 repository.workspace = true
 publish = true
@@ -9,7 +9,7 @@ license.workspace = true
 description = "ITK-SNAP workflow annotation primitives — label tables, dense label maps, seed/contour annotations, undo/redo history, and overlay composition state"
 
 [dependencies]
-ritk-spatial = { path = "../ritk-spatial", version = "0.1.0" }
+ritk-spatial = { path = "../ritk-spatial", version = "0.2.0" }
 serde = { workspace = true }
 serde_json = { workspace = true }
 thiserror = { workspace = true }

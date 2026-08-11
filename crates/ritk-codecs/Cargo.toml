@@ -1,6 +1,6 @@
 [package]
 name = "ritk-codecs"
-version = "0.5.3"
+version = "0.6.0"
 authors.workspace = true
 repository.workspace = true
 publish = true
