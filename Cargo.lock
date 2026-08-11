@@ -3286,9 +3286,9 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "6a756c3fac73139e83f14c2d742155dd2b78d3ee56597b419a0579b7bdd6dd78"
 
 [[package]]
-name = "iris"
+name = "iris-viz"
 version = "0.1.0"
-source = "git+https://github.com/ryancinsight/iris#ab3eea284e41a9649941253a7b7a69c839907fb3"
+source = "git+https://github.com/ryancinsight/iris#2e7ee2047924d28c05b7a34ec42138ca1d2015c0"
 dependencies = [
  "serde",
 ]
@@ -6065,7 +6065,7 @@ dependencies = [
  "getrandom 0.2.17",
  "getrandom 0.3.4",
  "image 0.24.9",
- "iris",
+ "iris-viz",
  "js-sys",
  "moirai-runtime",
  "pollster",
@@ -6215,7 +6215,7 @@ dependencies = [
  "consus-io",
  "criterion",
  "gaia",
- "iris",
+ "iris-viz",
  "ritk-image",
  "ritk-spatial",
  "serde_json",
