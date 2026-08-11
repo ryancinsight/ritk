@@ -28,9 +28,9 @@
   `DicomRsBackend`, so RITK now exposes explicit backend-level DICOM encoding
   alongside parse/decode.
 - Extend `ritk-io` multi-frame DICOM writer config with transfer-syntax
-  selection and add compressed PixelData emission for JPEG-LS Lossless and
-  JPEG 2000 Lossless, while preserving Explicit VR Little Endian as the
-  default output mode.
+  selection and add compressed PixelData emission for JPEG-LS Lossless,
+  JPEG 2000 Lossless, and RLE Lossless, while preserving Explicit VR Little
+  Endian as the default output mode.
 - Make workspace publication intent explicit for tractography/connectome crates
   by setting `publish = false` on `ritk-connectome`, `ritk-trk`, `ritk-tck`,
   and `ritk-trx`, removing the remaining implicit publish-policy surface.

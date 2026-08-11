@@ -28,7 +28,7 @@
 //!   binding may reject the file.
 //! - **Transfer Syntax**: configurable via [`MultiFrameWriterConfig::transfer_syntax`].
 //!   Supported output syntaxes are Explicit VR Little Endian (uncompressed),
-//!   JPEG-LS Lossless, and JPEG 2000 Lossless.
+//!   JPEG-LS Lossless, JPEG 2000 Lossless, and RLE Lossless.
 //! - **Pixel depth**: always 16-bit unsigned (BitsAllocated=16, BitsStored=16,
 //!   HighBit=15, PixelRepresentation=0).
 //!

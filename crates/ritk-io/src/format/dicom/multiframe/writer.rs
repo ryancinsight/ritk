@@ -7,6 +7,7 @@ use dicom::core::value::PixelFragmentSequence;
 use dicom::core::{DataElement, PrimitiveValue, Tag, VR};
 use dicom::object::meta::FileMetaTableBuilder;
 use dicom::object::InMemDicomObject;
+use ritk_codecs::encode_rle_lossless_fragment_u16_grayscale;
 use ritk_codecs::jpeg_2000::encoder::{encode_grayscale_j2k, Jpeg2000Encoding};
 use ritk_codecs::jpeg_ls::encoder::encode_grayscale_jpeg_ls;
 use ritk_core::image::Image;
@@ -33,8 +34,8 @@ use crate::format::dicom::writer::pixel_encoding::{
 ///
 /// ## Encoding
 /// Defaults to Explicit VR Little Endian (1.2.840.10008.1.2.1). Use
-/// [`MultiFrameWriterConfig::transfer_syntax`] for JPEG-LS/JPEG 2000 lossless
-/// compressed output.
+/// [`MultiFrameWriterConfig::transfer_syntax`] for JPEG-LS/JPEG 2000/RLE
+/// lossless compressed output.
 pub fn write_dicom_multiframe<B: Backend, P: AsRef<Path>>(
     path: P,
     image: &Image<f32, B, 3>,
@@ -324,7 +325,9 @@ fn write_multiframe_flat(
                 PrimitiveValue::U16(SmallVec::from_vec(pixel_u16)),
             ));
         }
-        TransferSyntaxKind::JpegLsLossless | TransferSyntaxKind::Jpeg2000Lossless => {
+        TransferSyntaxKind::JpegLsLossless
+        | TransferSyntaxKind::Jpeg2000Lossless
+        | TransferSyntaxKind::RleLossless => {
             let encoded_fragments = encode_compressed_frames(
                 &pixel_u16,
                 n_frames,
@@ -342,7 +345,7 @@ fn write_multiframe_flat(
         }
         syntax => {
             bail!(
-                "DICOM multiframe write transfer syntax '{}' is not supported; supported output syntaxes are Explicit VR Little Endian, JPEG-LS Lossless, and JPEG 2000 Lossless",
+                "DICOM multiframe write transfer syntax '{}' is not supported; supported output syntaxes are Explicit VR Little Endian, JPEG-LS Lossless, JPEG 2000 Lossless, and RLE Lossless",
                 syntax.uid()
             );
         }
@@ -418,6 +421,7 @@ fn encode_compressed_frames(
                     format!("JPEG 2000 lossless encode failed for frame {frame_index}")
                 })?
             }
+            TransferSyntaxKind::RleLossless => encode_rle_lossless_fragment_u16_grayscale(frame),
             _ => bail!(
                 "internal error: compressed frame encoder called with non-compressed syntax '{}'",
                 syntax.uid()

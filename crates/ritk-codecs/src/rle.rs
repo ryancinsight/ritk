@@ -89,6 +89,70 @@ pub fn decode_rle_lossless_fragment(fragment: &[u8], layout: PixelLayout) -> Res
     decode_native_pixel_bytes_checked(&raw, layout)
 }
 
+/// Encode 16-bit single-channel pixels into one DICOM RLE Lossless fragment.
+///
+/// The returned bytes are a complete encapsulated fragment payload:
+/// 64-byte RLE header + PackBits-compressed segments.
+/// Segment ordering follows DICOM PS3.5 Annex G byte-plane order:
+/// segment 0 = high byte plane, segment 1 = low byte plane.
+pub fn encode_rle_lossless_fragment_u16_grayscale(pixels: &[u16]) -> Vec<u8> {
+    let mut high = Vec::with_capacity(pixels.len());
+    let mut low = Vec::with_capacity(pixels.len());
+    for &p in pixels {
+        high.push((p >> 8) as u8);
+        low.push((p & 0x00FF) as u8);
+    }
+
+    let high_encoded = packbits_encode(&high);
+    let low_encoded = packbits_encode(&low);
+    const HEADER_BYTES: usize = 64;
+    let mut header = [0u32; 16];
+    header[0] = 2;
+    header[1] = HEADER_BYTES as u32;
+    header[2] = (HEADER_BYTES + high_encoded.len()) as u32;
+
+    let mut out = Vec::with_capacity(HEADER_BYTES + high_encoded.len() + low_encoded.len());
+    for &w in &header {
+        out.extend_from_slice(&w.to_le_bytes());
+    }
+    out.extend_from_slice(&high_encoded);
+    out.extend_from_slice(&low_encoded);
+    out
+}
+
+fn packbits_encode(data: &[u8]) -> Vec<u8> {
+    let mut out = Vec::with_capacity(data.len() + data.len() / 128 + 2);
+    let mut i = 0usize;
+    while i < data.len() {
+        let mut repeat = 1usize;
+        while i + repeat < data.len() && data[i + repeat] == data[i] && repeat < 128 {
+            repeat += 1;
+        }
+        if repeat >= 2 {
+            out.push((257 - repeat) as u8);
+            out.push(data[i]);
+            i += repeat;
+            continue;
+        }
+        let lit_start = i;
+        let mut lit = 1usize;
+        while i + lit < data.len() && lit < 128 {
+            if i + lit + 1 < data.len() && data[i + lit] == data[i + lit + 1] {
+                break;
+            }
+            lit += 1;
+        }
+        out.push((lit - 1) as u8);
+        out.extend_from_slice(&data[lit_start..lit_start + lit]);
+        i += lit;
+    }
+    // DICOM RLE segments are even-length padded.
+    if out.len() % 2 != 0 {
+        out.push(0x00);
+    }
+    out
+}
+
 fn read_u32_le(bytes: &[u8], offset: usize, field: &str) -> Result<u32> {
     let end = offset
         .checked_add(4)
@@ -126,5 +190,26 @@ mod tests {
         )
         .unwrap();
         assert_eq!(decoded, vec![42.0, 7.0, 128.0, 255.0]);
+    }
+
+    #[test]
+    fn rle_16bit_grayscale_encode_decode_roundtrip_is_exact() {
+        let original: Vec<u16> = vec![0, 1, 255, 256, 1024, 4095, 65535, 42];
+        let fragment = encode_rle_lossless_fragment_u16_grayscale(&original);
+        let decoded = decode_rle_lossless_fragment(
+            &fragment,
+            PixelLayout {
+                rows: 2,
+                cols: 4,
+                samples_per_pixel: 1,
+                bits_allocated: 16,
+                pixel_representation: crate::PixelSignedness::Unsigned,
+                rescale_slope: 1.0,
+                rescale_intercept: 0.0,
+            },
+        )
+        .expect("RLE decode must succeed");
+        let expected: Vec<f32> = original.iter().map(|&v| f32::from(v)).collect();
+        assert_eq!(decoded, expected);
     }
 }
