@@ -84,7 +84,10 @@ ritk-trk = { path = "crates/ritk-trk", version = "0.1.0" }
 ritk-mif = { path = "crates/ritk-mif", version = "0.1.0" }
 ritk-tck = { path = "crates/ritk-tck", version = "0.1.0" }
 ritk-trx = { path = "crates/ritk-trx", version = "0.1.0" }
-gaia = { version = "0.3.0", git = "https://github.com/ryancinsight/gaia", default-features = false }
+# Published as `gaia-mesh`; `[lib] name` in that crate keeps the import path
+# `gaia`, so every `use gaia::…` is unchanged. Same package/lib split as
+# `iris-viz`, `moirai-runtime`, and `mnemosyne-memory`.
+gaia = { package = "gaia-mesh", version = "0.3.0", git = "https://github.com/ryancinsight/gaia", default-features = false }
 criterion = { version = "0.5", features = ["html_reports"] }
 coeus-nn = { version = "0.9.0", git = "https://github.com/ryancinsight/Coeus.git" }
 coeus-optim = { version = "0.9.0", git = "https://github.com/ryancinsight/Coeus.git" }
