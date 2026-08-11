@@ -1,6 +1,6 @@
 //! Gaussian-family smoothing filters: FIR Gaussian, discrete Gaussian, and recursive Gaussian (IIR).
 use crate::errors::{RitkPyError, RitkResult};
-use crate::image::{image_from_py, into_py_image, PyImage};
+use crate::image::{into_py_image, PyImage};
 use coeus_core::MoiraiBackend;
 use pyo3::prelude::*;
 use ritk_filter::edge::GaussianSigma;
@@ -109,21 +109,22 @@ pub fn discrete_gaussian_derivative(
     variance: f64,
     maximum_error: f64,
     use_image_spacing: bool,
-) -> PyImage {
-    // TODO: migrate once DiscreteGaussianDerivativeFilter gains apply_native.
-    let image = image_from_py(image);
+) -> RitkResult<PyImage> {
+    let native = Arc::clone(&image.inner);
+    let backend = MoiraiBackend;
     // sitk (x, y, z) → ritk axis-major (z, y, x).
     let order = [order_z, order_y, order_x];
-    let result = py.allow_threads(|| {
+    py.allow_threads(|| {
         ritk_filter::DiscreteGaussianDerivativeFilter::new(
             variance,
             order,
             maximum_error,
             use_image_spacing,
         )
-        .apply(&image)
-    });
-    into_py_image(result)
+        .apply_native(native.as_ref(), &backend)
+        .map_err(|e| RitkPyError::runtime(e.to_string()))
+    })
+    .map(into_py_image)
 }
 
 /// Apply a recursive Gaussian (Young–van Vliet 3rd-order IIR) filter.

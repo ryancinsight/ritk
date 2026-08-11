@@ -1,5 +1,3 @@
-use apollo_fft::domain::metadata::shape::Shape1D;
-use apollo_fft::FftPlan1D;
 use eunomia::Complex;
 
 // ── ZST FFT direction strategy ──────────────────────────────────────────────
@@ -10,11 +8,8 @@ use eunomia::Complex;
 /// the FFT functions with the direction fully inlined and the match branch
 /// eliminated — zero runtime overhead versus a hand-written variant.
 pub trait FftDirection: Default {
-    /// Create an FFT plan for the given transform length.
-    fn plan(len: usize) -> FftPlan1D<f32>;
-
-    /// Process the slice in-place.
-    fn process(plan: &FftPlan1D<f32>, slice: &mut [Complex<f32>]);
+    /// Process a 1-D slice in-place.
+    fn process(slice: &mut [Complex<f32>]);
 }
 
 /// Forward FFT direction: spatial → frequency domain.
@@ -23,13 +18,8 @@ pub struct ForwardFft;
 
 impl FftDirection for ForwardFft {
     #[inline]
-    fn plan(len: usize) -> FftPlan1D<f32> {
-        FftPlan1D::<f32>::new(Shape1D::new(len).expect("FFT length must be > 0"))
-    }
-
-    #[inline]
-    fn process(plan: &FftPlan1D<f32>, slice: &mut [Complex<f32>]) {
-        plan.forward_complex_slice_inplace(slice);
+    fn process(slice: &mut [Complex<f32>]) {
+        apollo_fft::application::execution::kernel::fft_forward(slice);
     }
 }
 
@@ -39,13 +29,10 @@ pub struct InverseFft;
 
 impl FftDirection for InverseFft {
     #[inline]
-    fn plan(len: usize) -> FftPlan1D<f32> {
-        FftPlan1D::<f32>::new(Shape1D::new(len).expect("FFT length must be > 0"))
-    }
-
-    #[inline]
-    fn process(plan: &FftPlan1D<f32>, slice: &mut [Complex<f32>]) {
-        plan.inverse_complex_slice_unnorm_inplace(slice);
+    fn process(slice: &mut [Complex<f32>]) {
+        // Keep inverse unnormalized so outer callers can apply one global 1/N
+        // normalization after all axis passes.
+        apollo_fft::application::execution::kernel::fft_inverse_unnorm(slice);
     }
 }
 
@@ -70,12 +57,9 @@ pub fn fft_nd<const D: usize, Dir: FftDirection>(buf: &mut [Complex<f32>], dims:
 /// Pass 2: 1-D transform along each column via a scratch column buffer
 /// (transform length = `rows`).
 pub fn fft2d<Dir: FftDirection>(buf: &mut [Complex<f32>], rows: usize, cols: usize) {
-    let row_fft = Dir::plan(cols);
-    let col_fft = Dir::plan(rows);
-
     // Row-wise pass.
     for r in 0..rows {
-        Dir::process(&row_fft, &mut buf[r * cols..(r + 1) * cols]);
+        Dir::process(&mut buf[r * cols..(r + 1) * cols]);
     }
 
     // Column-wise pass via scratch buffer.
@@ -84,7 +68,7 @@ pub fn fft2d<Dir: FftDirection>(buf: &mut [Complex<f32>], rows: usize, cols: usi
         for r in 0..rows {
             col_buf[r] = buf[r * cols + c];
         }
-        Dir::process(&col_fft, &mut col_buf);
+        Dir::process(&mut col_buf);
         for r in 0..rows {
             buf[r * cols + c] = col_buf[r];
         }
@@ -98,19 +82,12 @@ pub fn fft2d<Dir: FftDirection>(buf: &mut [Complex<f32>], rows: usize, cols: usi
 /// Pass 2: 1-D transform along each column (transform length = `rows`).
 /// Pass 3: 1-D transform along the depth axis (transform length = `depth`).
 pub fn fft3d<Dir: FftDirection>(buf: &mut [Complex<f32>], depth: usize, rows: usize, cols: usize) {
-    let row_fft = Dir::plan(cols);
-    let col_fft = Dir::plan(rows);
-    let depth_fft = Dir::plan(depth);
-
     let slice = rows * cols;
 
     // Row-wise pass: for each (depth, row), transform along cols.
     for d in 0..depth {
         for r in 0..rows {
-            Dir::process(
-                &row_fft,
-                &mut buf[d * slice + r * cols..d * slice + (r + 1) * cols],
-            );
+            Dir::process(&mut buf[d * slice + r * cols..d * slice + (r + 1) * cols]);
         }
     }
 
@@ -121,7 +98,7 @@ pub fn fft3d<Dir: FftDirection>(buf: &mut [Complex<f32>], depth: usize, rows: us
             for r in 0..rows {
                 col_buf[r] = buf[d * slice + r * cols + c];
             }
-            Dir::process(&col_fft, &mut col_buf);
+            Dir::process(&mut col_buf);
             for r in 0..rows {
                 buf[d * slice + r * cols + c] = col_buf[r];
             }
@@ -135,7 +112,7 @@ pub fn fft3d<Dir: FftDirection>(buf: &mut [Complex<f32>], depth: usize, rows: us
             for d in 0..depth {
                 depth_buf[d] = buf[d * slice + r * cols + c];
             }
-            Dir::process(&depth_fft, &mut depth_buf);
+            Dir::process(&mut depth_buf);
             for d in 0..depth {
                 buf[d * slice + r * cols + c] = depth_buf[d];
             }

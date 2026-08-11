@@ -1,10 +1,12 @@
 use crate::errors::{RitkPyError, RitkResult};
-use crate::image::{image_from_py, into_py_image, PyImage};
+use crate::image::{into_py_image, PyImage};
+use coeus_core::MoiraiBackend;
 use pyo3::prelude::*;
 use ritk_filter::{
     BinarizationThreshold, DistanceMeasure, DistanceTransformImageFilter,
     SignedDistanceTransformImageFilter, SignedMaurerDistanceMapImageFilter,
 };
+use std::sync::Arc;
 
 /// Distance metric variant for distance transform, replacing `squared: bool`.
 ///
@@ -59,7 +61,8 @@ pub fn distance_transform(
     foreground_threshold: f32,
     metric: PyDistanceMetric,
 ) -> RitkResult<PyImage> {
-    let arc = image_from_py(image);
+    let native = Arc::clone(&image.inner);
+    let backend = MoiraiBackend;
     let measure = match metric {
         PyDistanceMetric::Euclidean => DistanceMeasure::Euclidean,
         PyDistanceMetric::Squared => DistanceMeasure::Squared,
@@ -69,7 +72,7 @@ pub fn distance_transform(
         DistanceTransformImageFilter::new()
             .with_threshold(threshold)
             .with_measure(measure)
-            .apply(&arc)
+            .apply_native(native.as_ref(), &backend)
     });
     result
         .map(into_py_image)
@@ -93,12 +96,13 @@ pub fn signed_distance_map(
     image: &PyImage,
     foreground_threshold: f32,
 ) -> RitkResult<PyImage> {
-    let arc = image_from_py(image);
+    let native = Arc::clone(&image.inner);
+    let backend = MoiraiBackend;
     let threshold = BinarizationThreshold::new(foreground_threshold).map_err(RitkPyError::value)?;
     py.allow_threads(|| {
         SignedDistanceTransformImageFilter::new()
             .with_threshold(threshold)
-            .apply(&arc)
+            .apply_native(native.as_ref(), &backend)
             .map_err(|e| RitkPyError::runtime(e.to_string()))
     })
     .map(into_py_image)
@@ -127,7 +131,8 @@ pub fn signed_maurer_distance_map(
     use_image_spacing: bool,
     background_value: f32,
 ) -> RitkResult<PyImage> {
-    let arc = image_from_py(image);
+    let native = Arc::clone(&image.inner);
+    let backend = MoiraiBackend;
     py.allow_threads(|| {
         SignedMaurerDistanceMapImageFilter {
             background_value,
@@ -135,7 +140,7 @@ pub fn signed_maurer_distance_map(
             squared_distance,
             use_image_spacing,
         }
-        .apply(&arc)
+        .apply_native(native.as_ref(), &backend)
         .map_err(|e| RitkPyError::runtime(e.to_string()))
     })
     .map(into_py_image)

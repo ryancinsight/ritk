@@ -1,4 +1,5 @@
 use super::*;
+use ritk_dicom::TransferSyntaxKind;
 use ritk_dicom::{parse_file_with, DicomRsBackend};
 
 #[test]
@@ -152,4 +153,66 @@ fn test_multiframe_has_type2_patient_study_series_tags() {
         .expect("StudyID (0020,0010) must be present");
     obj.element(Tag(0x0020, 0x0011))
         .expect("SeriesNumber (0020,0011) must be present");
+}
+
+#[test]
+fn test_write_multiframe_jpegls_lossless_round_trip() {
+    let tmp = tempfile::tempdir().expect("tempdir");
+    let out_path = tmp.path().join("mf_jpegls.dcm");
+    let voxels = vec![0.0_f32, 10.0, 20.0, 30.0, 40.0, 50.0];
+    let image = native_image(voxels.clone(), [2, 1, 3], [0.0; 3], [1.0; 3]);
+    let config = MultiFrameWriterConfig {
+        transfer_syntax: TransferSyntaxKind::JpegLsLossless,
+        ..MultiFrameWriterConfig::default()
+    };
+
+    write_dicom_multiframe_native_with_config(&out_path, &image, &config)
+        .expect("JPEG-LS multiframe write");
+
+    let ts_uid = parse_file_with::<DicomRsBackend, _>(&out_path)
+        .expect("parse file")
+        .meta()
+        .transfer_syntax()
+        .to_owned();
+    assert_eq!(ts_uid, TransferSyntaxKind::JpegLsLossless.uid());
+
+    let decoded = load_dicom_multiframe_flat(&out_path).expect("decode JPEG-LS multiframe");
+    assert_eq!(decoded.shape, [2, 1, 3]);
+    for (actual, expected) in decoded.data.iter().zip(voxels.iter()) {
+        assert!(
+            (actual - expected).abs() <= 1.5,
+            "decoded voxel {actual} differed too much from source {expected}"
+        );
+    }
+}
+
+#[test]
+fn test_write_multiframe_jpeg2000_lossless_round_trip() {
+    let tmp = tempfile::tempdir().expect("tempdir");
+    let out_path = tmp.path().join("mf_j2k.dcm");
+    let voxels = vec![5.0_f32, 8.0, 13.0, 21.0];
+    let image = native_image(voxels.clone(), [1, 2, 2], [0.0; 3], [1.0; 3]);
+    let config = MultiFrameWriterConfig {
+        transfer_syntax: TransferSyntaxKind::Jpeg2000Lossless,
+        ..MultiFrameWriterConfig::default()
+    };
+
+    write_dicom_multiframe_native_with_config(&out_path, &image, &config)
+        .expect("JPEG 2000 multiframe write");
+
+    let ts_uid = parse_file_with::<DicomRsBackend, _>(&out_path)
+        .expect("parse file")
+        .meta()
+        .transfer_syntax()
+        .to_owned();
+    assert_eq!(ts_uid, TransferSyntaxKind::Jpeg2000Lossless.uid());
+
+    let decoded = load_dicom_multiframe_flat(&out_path).expect("decode JPEG 2000 multiframe");
+    assert_eq!(decoded.shape, [1, 2, 2]);
+    for (actual, expected) in decoded.data.iter().zip(voxels.iter()) {
+        assert!(
+            (actual - expected).abs() <= 1.5,
+            "decoded voxel {actual} differed too much from source {expected}"
+        );
+    }
 }

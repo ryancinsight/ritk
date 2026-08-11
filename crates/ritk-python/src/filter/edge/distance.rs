@@ -1,12 +1,14 @@
 //! Distance transform, level set reinitialisation, and zero-crossing filters.
 
 use crate::errors::{RitkPyError, RitkResult};
-use crate::image::{image_from_py, into_py_image, PyImage};
+use crate::image::{into_py_image, PyImage};
+use coeus_core::MoiraiBackend;
 use pyo3::prelude::*;
 use ritk_filter::{
     ApproximateSignedDistanceMapFilter, IsoContourDistanceFilter, ReinitializeLevelSetFilter,
     ZeroCrossingBasedEdgeDetectionFilter,
 };
+use std::sync::Arc;
 
 /// Zero-crossing-based edge detection, matching
 /// `SimpleITK.ZeroCrossingBasedEdgeDetection`.
@@ -34,7 +36,8 @@ pub fn zero_crossing_based_edge_detection(
     foreground_value: f32,
     background_value: f32,
 ) -> RitkResult<PyImage> {
-    let arc = image_from_py(image);
+    let native = Arc::clone(&image.inner);
+    let backend = MoiraiBackend;
     py.allow_threads(|| {
         ZeroCrossingBasedEdgeDetectionFilter::new(
             variance,
@@ -42,7 +45,7 @@ pub fn zero_crossing_based_edge_detection(
             foreground_value,
             background_value,
         )
-        .apply(&arc)
+        .apply_native(native.as_ref(), &backend)
         .map_err(|e| RitkPyError::runtime(e.to_string()))
     })
     .map(into_py_image)
@@ -69,11 +72,15 @@ pub fn iso_contour_distance(
     image: &PyImage,
     level_set_value: f64,
     far_value: f64,
-) -> PyImage {
-    let arc = image_from_py(image);
-    let out =
-        py.allow_threads(|| IsoContourDistanceFilter::new(level_set_value, far_value).apply(&arc));
-    into_py_image(out)
+) -> RitkResult<PyImage> {
+    let native = Arc::clone(&image.inner);
+    let backend = MoiraiBackend;
+    py.allow_threads(|| {
+        IsoContourDistanceFilter::new(level_set_value, far_value)
+            .apply_native(native.as_ref(), &backend)
+            .map_err(|e| RitkPyError::runtime(e.to_string()))
+    })
+    .map(into_py_image)
 }
 
 /// Approximate signed distance map of a binary/label image, matching
@@ -97,13 +104,14 @@ pub fn approximate_signed_distance_map(
     inside_value: f64,
     outside_value: f64,
 ) -> RitkResult<PyImage> {
-    let arc = image_from_py(image);
+    let native = Arc::clone(&image.inner);
+    let backend = MoiraiBackend;
     py.allow_threads(|| {
         ApproximateSignedDistanceMapFilter {
             inside_value,
             outside_value,
         }
-        .apply(&arc)
+        .apply_native(native.as_ref(), &backend)
         .map_err(|e| RitkPyError::runtime(e.to_string()))
     })
     .map(into_py_image)
@@ -128,10 +136,11 @@ pub fn reinitialize_level_set(
     image: &PyImage,
     level_set_value: f64,
 ) -> RitkResult<PyImage> {
-    let arc = image_from_py(image);
+    let native = Arc::clone(&image.inner);
+    let backend = MoiraiBackend;
     py.allow_threads(|| {
         ReinitializeLevelSetFilter::new(level_set_value)
-            .apply(&arc)
+            .apply_native(native.as_ref(), &backend)
             .map_err(|e| RitkPyError::runtime(e.to_string()))
     })
     .map(into_py_image)

@@ -9,13 +9,15 @@
 //! image returns a [1, H, W] PyImage.
 
 use crate::errors::{RitkPyError, RitkResult};
-use crate::image::{image_from_py, into_py_image, PyImage};
+use crate::image::{into_py_image, PyImage};
+use coeus_core::MoiraiBackend;
 use pyo3::prelude::*;
 use ritk_filter::projection::{
     BinaryProjectionFilter, BinaryThresholdProjectionFilter, MaxIntensityProjectionFilter,
     MeanIntensityProjectionFilter, MedianIntensityProjectionFilter, MinIntensityProjectionFilter,
     ProjectionAxis, StdDevIntensityProjectionFilter, SumIntensityProjectionFilter,
 };
+use std::sync::Arc;
 
 /// Parse an axis integer (0, 1, 2) into `ProjectionAxis`.
 fn parse_axis(axis: usize) -> RitkResult<ProjectionAxis> {
@@ -52,10 +54,11 @@ pub fn max_intensity_projection(
     axis: usize,
 ) -> RitkResult<PyImage> {
     let ax = parse_axis(axis)?;
-    let image = image_from_py(image);
+    let native = Arc::clone(&image.inner);
+    let backend = MoiraiBackend;
     py.allow_threads(|| {
         MaxIntensityProjectionFilter::new(ax)
-            .apply(&image)
+            .apply_native(native.as_ref(), &backend)
             .map_err(|e| RitkPyError::runtime(e.to_string()))
     })
     .map(into_py_image)
@@ -81,10 +84,10 @@ pub fn min_intensity_projection(
     axis: usize,
 ) -> RitkResult<PyImage> {
     let ax = parse_axis(axis)?;
-    let image = image_from_py(image);
+    let native = Arc::clone(&image.inner);
     py.allow_threads(|| {
         MinIntensityProjectionFilter::new(ax)
-            .apply(&image)
+            .apply(native.as_ref())
             .map_err(|e| RitkPyError::runtime(e.to_string()))
     })
     .map(into_py_image)
@@ -110,10 +113,10 @@ pub fn mean_intensity_projection(
     axis: usize,
 ) -> RitkResult<PyImage> {
     let ax = parse_axis(axis)?;
-    let image = image_from_py(image);
+    let native = Arc::clone(&image.inner);
     py.allow_threads(|| {
         MeanIntensityProjectionFilter::new(ax)
-            .apply(&image)
+            .apply(native.as_ref())
             .map_err(|e| RitkPyError::runtime(e.to_string()))
     })
     .map(into_py_image)
@@ -132,10 +135,10 @@ pub fn binary_projection(
     background: f32,
 ) -> RitkResult<PyImage> {
     let ax = parse_axis(axis)?;
-    let image = image_from_py(image);
+    let native = Arc::clone(&image.inner);
     py.allow_threads(|| {
         BinaryProjectionFilter::new(ax, foreground, background)
-            .apply(&image)
+            .apply(native.as_ref())
             .map_err(|e| RitkPyError::runtime(e.to_string()))
     })
     .map(into_py_image)
@@ -156,10 +159,10 @@ pub fn binary_threshold_projection(
     background: f32,
 ) -> RitkResult<PyImage> {
     let ax = parse_axis(axis)?;
-    let image = image_from_py(image);
+    let native = Arc::clone(&image.inner);
     py.allow_threads(|| {
         BinaryThresholdProjectionFilter::new(ax, threshold, foreground, background)
-            .apply(&image)
+            .apply(native.as_ref())
             .map_err(|e| RitkPyError::runtime(e.to_string()))
     })
     .map(into_py_image)
@@ -176,10 +179,10 @@ pub fn median_intensity_projection(
     axis: usize,
 ) -> RitkResult<PyImage> {
     let ax = parse_axis(axis)?;
-    let image = image_from_py(image);
+    let native = Arc::clone(&image.inner);
     py.allow_threads(|| {
         MedianIntensityProjectionFilter::new(ax)
-            .apply(&image)
+            .apply(native.as_ref())
             .map_err(|e| RitkPyError::runtime(e.to_string()))
     })
     .map(into_py_image)
@@ -205,10 +208,10 @@ pub fn sum_intensity_projection(
     axis: usize,
 ) -> RitkResult<PyImage> {
     let ax = parse_axis(axis)?;
-    let image = image_from_py(image);
+    let native = Arc::clone(&image.inner);
     py.allow_threads(|| {
         SumIntensityProjectionFilter::new(ax)
-            .apply(&image)
+            .apply(native.as_ref())
             .map_err(|e| RitkPyError::runtime(e.to_string()))
     })
     .map(into_py_image)
@@ -237,10 +240,10 @@ pub fn stddev_intensity_projection(
     axis: usize,
 ) -> RitkResult<PyImage> {
     let ax = parse_axis(axis)?;
-    let image = image_from_py(image);
+    let native = Arc::clone(&image.inner);
     py.allow_threads(|| {
         StdDevIntensityProjectionFilter::new(ax)
-            .apply(&image)
+            .apply(native.as_ref())
             .map_err(|e| RitkPyError::runtime(e.to_string()))
     })
     .map(into_py_image)

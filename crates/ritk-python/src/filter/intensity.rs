@@ -2,7 +2,7 @@
 //! normalize, unsharp mask, and zero crossing.
 
 use crate::errors::{RitkPyError, RitkResult};
-use crate::image::{image_from_py, into_py_image, PyImage};
+use crate::image::{into_py_image, PyImage};
 use coeus_core::MoiraiBackend;
 use pyo3::prelude::*;
 use ritk_filter::edge::GaussianSigma;
@@ -462,15 +462,19 @@ pub fn bitwise_not(
     bits: u32,
     signed: bool,
 ) -> RitkResult<PyImage> {
-    // TODO: BitwiseNotImageFilter still lacks apply_native; keep the Coeus tensor roundtrip for now.
-    let arc = image_from_py(image);
+    let native = Arc::clone(&image.inner);
+    let backend = MoiraiBackend;
     let filter = if signed {
         BitwiseNotImageFilter::signed()
     } else {
         BitwiseNotImageFilter::unsigned(bits)
     };
-    let out = py.allow_threads(|| filter.apply(&arc));
-    Ok(into_py_image(out))
+    py.allow_threads(|| {
+        filter
+            .apply_native(native.as_ref(), &backend)
+            .map_err(|e| RitkPyError::runtime(e.to_string()))
+    })
+    .map(into_py_image)
 }
 
 /// Apply a linear shift-then-scale to every voxel.

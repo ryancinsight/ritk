@@ -1,6 +1,7 @@
 use crate::errors::RitkPyError;
 use crate::errors::RitkResult;
 use crate::image::{image_from_py, into_py_image, PyImage};
+use coeus_core::MoiraiBackend;
 use pyo3::prelude::*;
 
 /// Warp a moving image through a dense displacement field.
@@ -59,21 +60,28 @@ pub fn invert_displacement_field(
     max_error_tolerance: f64,
     mean_error_tolerance: f64,
     enforce_boundary: bool,
-) -> (PyImage, PyImage, PyImage) {
+) -> RitkResult<(PyImage, PyImage, PyImage)> {
     let az = image_from_py(disp_z);
     let ay = image_from_py(disp_y);
     let ax = image_from_py(disp_x);
-    let (vx, vy, vz) = py.allow_threads(|| {
-        ritk_filter::InvertDisplacementField {
-            max_iterations,
-            max_error_tolerance,
-            mean_error_tolerance,
-            enforce_boundary,
-        }
-        .apply(&ax, &ay, &az)
-    });
+    let backend = MoiraiBackend;
+    let out = py
+        .allow_threads(|| {
+            ritk_filter::InvertDisplacementField {
+                max_iterations,
+                max_error_tolerance,
+                mean_error_tolerance,
+                enforce_boundary,
+            }
+            .apply_native(&ax, &ay, &az, &backend)
+        })
+        .map_err(|e| RitkPyError::runtime(e.to_string()))?;
     // Return in (disp_z, disp_y, disp_x) order to match the input convention.
-    (into_py_image(vz), into_py_image(vy), into_py_image(vx))
+    Ok((
+        into_py_image(out.z),
+        into_py_image(out.y),
+        into_py_image(out.x),
+    ))
 }
 
 /// Invert a dense displacement field by thin-plate-spline fitting, matching
@@ -100,14 +108,22 @@ pub fn inverse_displacement_field(
     disp_y: &PyImage,
     disp_x: &PyImage,
     subsampling_factor: usize,
-) -> (PyImage, PyImage, PyImage) {
+) -> RitkResult<(PyImage, PyImage, PyImage)> {
     let az = image_from_py(disp_z);
     let ay = image_from_py(disp_y);
     let ax = image_from_py(disp_x);
-    let (vx, vy, vz) = py.allow_threads(|| {
-        ritk_filter::InverseDisplacementField { subsampling_factor }.apply(&ax, &ay, &az)
-    });
-    (into_py_image(vz), into_py_image(vy), into_py_image(vx))
+    let backend = MoiraiBackend;
+    let out = py
+        .allow_threads(|| {
+            ritk_filter::InverseDisplacementField { subsampling_factor }
+                .apply_native(&ax, &ay, &az, &backend)
+        })
+        .map_err(|e| RitkPyError::runtime(e.to_string()))?;
+    Ok((
+        into_py_image(out.z),
+        into_py_image(out.y),
+        into_py_image(out.x),
+    ))
 }
 
 /// Iteratively invert a dense displacement field by coordinate-descent line
@@ -133,16 +149,23 @@ pub fn iterative_inverse_displacement_field(
     disp_x: &PyImage,
     number_of_iterations: usize,
     stop_value: f64,
-) -> (PyImage, PyImage, PyImage) {
+) -> RitkResult<(PyImage, PyImage, PyImage)> {
     let az = image_from_py(disp_z);
     let ay = image_from_py(disp_y);
     let ax = image_from_py(disp_x);
-    let (vx, vy, vz) = py.allow_threads(|| {
-        ritk_filter::IterativeInverseDisplacementField {
-            number_of_iterations,
-            stop_value,
-        }
-        .apply(&ax, &ay, &az)
-    });
-    (into_py_image(vz), into_py_image(vy), into_py_image(vx))
+    let backend = MoiraiBackend;
+    let out = py
+        .allow_threads(|| {
+            ritk_filter::IterativeInverseDisplacementField {
+                number_of_iterations,
+                stop_value,
+            }
+            .apply_native(&ax, &ay, &az, &backend)
+        })
+        .map_err(|e| RitkPyError::runtime(e.to_string()))?;
+    Ok((
+        into_py_image(out.z),
+        into_py_image(out.y),
+        into_py_image(out.x),
+    ))
 }

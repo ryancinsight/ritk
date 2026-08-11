@@ -5,12 +5,14 @@
 //! images (shape `[1, H, W]`) are handled without special-casing.
 
 use crate::errors::{RitkPyError, RitkResult};
-use crate::image::{image_from_py, into_py_image, PyImage};
+use crate::image::{into_py_image, PyImage};
+use coeus_core::MoiraiBackend;
 use pyo3::prelude::*;
 use ritk_filter::{
     InverseDeconvolution, LandweberDeconvolution, LandweberProjection, RichardsonLucyDeconvolution,
     TikhonovDeconvolution, WienerDeconvolution,
 };
+use std::sync::Arc;
 
 /// Apply Wiener deconvolution to a 3-D image.
 ///
@@ -38,11 +40,12 @@ pub fn wiener_deconvolution(
     kernel: &PyImage,
     noise_variance: f32,
 ) -> RitkResult<PyImage> {
-    let img_ref = image_from_py(image);
-    let ker_ref = image_from_py(kernel);
+    let img_ref = Arc::clone(&image.inner);
+    let ker_ref = Arc::clone(&kernel.inner);
+    let backend = MoiraiBackend;
     let result = py.allow_threads(|| {
         WienerDeconvolution::new(noise_variance)
-            .apply(&img_ref, &ker_ref)
+            .apply_native::<MoiraiBackend, 3>(img_ref.as_ref(), ker_ref.as_ref(), &backend)
             .map_err(|e| RitkPyError::runtime(e.to_string()))
     })?;
     Ok(into_py_image(result))
@@ -71,11 +74,12 @@ pub fn tikhonov_deconvolution(
     kernel: &PyImage,
     lambda: f32,
 ) -> RitkResult<PyImage> {
-    let img_ref = image_from_py(image);
-    let ker_ref = image_from_py(kernel);
+    let img_ref = Arc::clone(&image.inner);
+    let ker_ref = Arc::clone(&kernel.inner);
+    let backend = MoiraiBackend;
     let result = py.allow_threads(|| {
         TikhonovDeconvolution::new(lambda)
-            .apply(&img_ref, &ker_ref)
+            .apply_native::<MoiraiBackend, 3>(img_ref.as_ref(), ker_ref.as_ref(), &backend)
             .map_err(|e| RitkPyError::runtime(e.to_string()))
     })?;
     Ok(into_py_image(result))
@@ -106,11 +110,12 @@ pub fn inverse_deconvolution(
     kernel: &PyImage,
     kernel_zero_magnitude_threshold: f32,
 ) -> RitkResult<PyImage> {
-    let img_ref = image_from_py(image);
-    let ker_ref = image_from_py(kernel);
+    let img_ref = Arc::clone(&image.inner);
+    let ker_ref = Arc::clone(&kernel.inner);
+    let backend = MoiraiBackend;
     let result = py.allow_threads(|| {
         InverseDeconvolution::new(kernel_zero_magnitude_threshold)
-            .apply(&img_ref, &ker_ref)
+            .apply_native::<MoiraiBackend, 3>(img_ref.as_ref(), ker_ref.as_ref(), &backend)
             .map_err(|e| RitkPyError::runtime(e.to_string()))
     })?;
     Ok(into_py_image(result))
@@ -144,13 +149,14 @@ pub fn richardson_lucy_deconvolution(
     max_iterations: usize,
     tolerance: f32,
 ) -> RitkResult<PyImage> {
-    let img_ref = image_from_py(image);
-    let ker_ref = image_from_py(kernel);
+    let img_ref = Arc::clone(&image.inner);
+    let ker_ref = Arc::clone(&kernel.inner);
+    let backend = MoiraiBackend;
     let result = py.allow_threads(|| {
         RichardsonLucyDeconvolution::new()
             .with_max_iterations(max_iterations)
             .with_tolerance(tolerance)
-            .apply(&img_ref, &ker_ref)
+            .apply_native::<MoiraiBackend, 3>(img_ref.as_ref(), ker_ref.as_ref(), &backend)
             .map_err(|e| RitkPyError::runtime(e.to_string()))
     })?;
     Ok(into_py_image(result))
@@ -184,14 +190,15 @@ pub fn landweber_deconvolution(
     max_iterations: usize,
     tolerance: f32,
 ) -> RitkResult<PyImage> {
-    let img_ref = image_from_py(image);
-    let ker_ref = image_from_py(kernel);
+    let img_ref = Arc::clone(&image.inner);
+    let ker_ref = Arc::clone(&kernel.inner);
+    let backend = MoiraiBackend;
     let result = py.allow_threads(|| {
         LandweberDeconvolution::new()
             .with_step_size(step_size)
             .with_max_iterations(max_iterations)
             .with_tolerance(tolerance)
-            .apply(&img_ref, &ker_ref)
+            .apply_native::<MoiraiBackend, 3>(img_ref.as_ref(), ker_ref.as_ref(), &backend)
             .map_err(|e| RitkPyError::runtime(e.to_string()))
     })?;
     Ok(into_py_image(result))
@@ -222,15 +229,16 @@ pub fn projected_landweber_deconvolution(
     max_iterations: usize,
     tolerance: f32,
 ) -> RitkResult<PyImage> {
-    let img_ref = image_from_py(image);
-    let ker_ref = image_from_py(kernel);
+    let img_ref = Arc::clone(&image.inner);
+    let ker_ref = Arc::clone(&kernel.inner);
+    let backend = MoiraiBackend;
     let result = py.allow_threads(|| {
         LandweberDeconvolution::new()
             .with_step_size(step_size)
             .with_max_iterations(max_iterations)
             .with_tolerance(tolerance)
             .with_projection(LandweberProjection::NonNegative)
-            .apply(&img_ref, &ker_ref)
+            .apply_native::<MoiraiBackend, 3>(img_ref.as_ref(), ker_ref.as_ref(), &backend)
             .map_err(|e| RitkPyError::runtime(e.to_string()))
     })?;
     Ok(into_py_image(result))

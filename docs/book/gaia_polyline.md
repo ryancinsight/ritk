@@ -4,7 +4,8 @@ Gaia owns the `Polyline` type — the canonical open curve that
 `ritk-tractography` produces as streamline output and `ritk-connectome`
 consumes as the input streamlines for connectivity matrix construction.
 This is an upstream provider contract per [ADR 0036 decision
-2](../../docs/adr/0036-neuroimaging-and-mr-ownership.md): streamlines are
+2](https://github.com/ryancinsight/atlas/blob/main/docs/adr/0036-neuroimaging-and-mr-ownership.md):
+streamlines are
 Gaia polyline geometry; RITK owns the integration policy that produces them
 and does not define a local curve or polyline type.
 
@@ -193,7 +194,7 @@ canonical curve representation.
 
 ## References
 
-- [ADR 0036 — Neuroimaging and MR Ownership](../../docs/adr/0036-neuroimaging-and-mr-ownership.md)
+- [ADR 0036 — Neuroimaging and MR Ownership](https://github.com/ryancinsight/atlas/blob/main/docs/adr/0036-neuroimaging-and-mr-ownership.md)
 - [Deterministic Streamline Tractography](tractography.md) — the RITK integration side
 - [Connectome Construction and Graph Measures](connectome.md) — the RITK consumption side
 - [.trk Format](trk_format.md), [.tck Format](tck_format.md), [.trx Format](trx_format.md) — interchange format chapters

@@ -26,8 +26,9 @@
 //!   (`1.2.840.10008.5.1.4.1.1.7.3`). The output is not an Enhanced Multi-Frame
 //!   CT, MR, or PET object. Viewers that enforce strict modality-to-SOP-class
 //!   binding may reject the file.
-//! - **Transfer Syntax**: Explicit VR Little Endian (`1.2.840.10008.1.2.1`).
-//!   Compressed transfer syntaxes (JPEG, JPEG-LS, JPEG 2000) are not supported.
+//! - **Transfer Syntax**: configurable via [`MultiFrameWriterConfig::transfer_syntax`].
+//!   Supported output syntaxes are Explicit VR Little Endian (uncompressed),
+//!   JPEG-LS Lossless, and JPEG 2000 Lossless.
 //! - **Pixel depth**: always 16-bit unsigned (BitsAllocated=16, BitsStored=16,
 //!   HighBit=15, PixelRepresentation=0).
 //!

@@ -1,8 +1,6 @@
 use crate::errors::{RitkPyError, RitkResult};
-use crate::image::{
-    image_from_py, into_py_image, native_into_py_image, py_image_to_native, PyImage,
-};
-use coeus_core::SequentialBackend;
+use crate::image::{into_py_image, PyImage};
+use coeus_core::MoiraiBackend;
 use pyo3::prelude::*;
 use ritk_filter::{
     ClosingByReconstructionFilter, GrayscaleFillholeFilter, GrayscaleGrindPeakFilter,
@@ -10,6 +8,7 @@ use ritk_filter::{
     OpeningByReconstructionFilter, ReconstructionMode, RegionalMaximaFilter, RegionalMinimaFilter,
     ValuedRegionalMaximaFilter, ValuedRegionalMinimaFilter,
 };
+use std::sync::Arc;
 
 use super::contour::connectivity_from;
 
@@ -42,12 +41,13 @@ pub fn morphological_reconstruction(
         }
     };
     let connectivity = connectivity_from(fully_connected);
-    let marker_arc = image_from_py(marker);
-    let mask_arc = image_from_py(mask);
+    let marker_arc = Arc::clone(&marker.inner);
+    let mask_arc = Arc::clone(&mask.inner);
+    let backend = MoiraiBackend;
     py.allow_threads(|| {
         MorphologicalReconstruction::new(recon_mode)
             .with_connectivity(connectivity)
-            .apply(&marker_arc, &mask_arc)
+            .apply_native(marker_arc.as_ref(), mask_arc.as_ref(), &backend)
             .map_err(|e| RitkPyError::runtime(e.to_string()))
     })
     .map(into_py_image)
@@ -63,12 +63,12 @@ pub fn h_maxima(
     height: f32,
     fully_connected: bool,
 ) -> RitkResult<PyImage> {
-    let arc = image_from_py(image);
+    let arc = Arc::clone(&image.inner);
     let conn = connectivity_from(fully_connected);
     py.allow_threads(|| {
         HMaximaFilter::new(height)
             .with_connectivity(conn)
-            .apply(&arc)
+            .apply(arc.as_ref())
             .map_err(|e| RitkPyError::runtime(e.to_string()))
     })
     .map(into_py_image)
@@ -84,15 +84,16 @@ pub fn h_minima(
     height: f32,
     fully_connected: bool,
 ) -> RitkResult<PyImage> {
-    let image = py_image_to_native(image)?;
+    let image = Arc::clone(&image.inner);
+    let backend = MoiraiBackend;
     let conn = connectivity_from(fully_connected);
     py.allow_threads(|| {
         HMinimaFilter::new(height)
             .with_connectivity(conn)
-            .apply_native(&image, &SequentialBackend)
+            .apply_native(image.as_ref(), &backend)
             .map_err(|error| RitkPyError::value(error.to_string()))
     })
-    .map(native_into_py_image)
+    .map(into_py_image)
 }
 
 /// H-convex transform: `f − HMaxima_h(f)`, the bright dynamic suppressed by
@@ -105,12 +106,12 @@ pub fn h_convex(
     height: f32,
     fully_connected: bool,
 ) -> RitkResult<PyImage> {
-    let arc = image_from_py(image);
+    let arc = Arc::clone(&image.inner);
     let conn = connectivity_from(fully_connected);
     py.allow_threads(|| {
         HConvexFilter::new(height)
             .with_connectivity(conn)
-            .apply(&arc)
+            .apply(arc.as_ref())
             .map_err(|e| RitkPyError::runtime(e.to_string()))
     })
     .map(into_py_image)
@@ -126,12 +127,12 @@ pub fn h_concave(
     height: f32,
     fully_connected: bool,
 ) -> RitkResult<PyImage> {
-    let arc = image_from_py(image);
+    let arc = Arc::clone(&image.inner);
     let conn = connectivity_from(fully_connected);
     py.allow_threads(|| {
         HConcaveFilter::new(height)
             .with_connectivity(conn)
-            .apply(&arc)
+            .apply(arc.as_ref())
             .map_err(|e| RitkPyError::runtime(e.to_string()))
     })
     .map(into_py_image)
@@ -148,13 +149,13 @@ pub fn regional_maxima(
     background: f32,
     fully_connected: bool,
 ) -> RitkResult<PyImage> {
-    let arc = image_from_py(image);
+    let arc = Arc::clone(&image.inner);
     let conn = connectivity_from(fully_connected);
     py.allow_threads(|| {
         RegionalMaximaFilter::new()
             .with_values(foreground, background)
             .with_connectivity(conn)
-            .apply(&arc)
+            .apply(arc.as_ref())
             .map_err(|e| RitkPyError::runtime(e.to_string()))
     })
     .map(into_py_image)
@@ -171,16 +172,17 @@ pub fn regional_minima(
     background: f32,
     fully_connected: bool,
 ) -> RitkResult<PyImage> {
-    let image = py_image_to_native(image)?;
+    let image = Arc::clone(&image.inner);
+    let backend = MoiraiBackend;
     let conn = connectivity_from(fully_connected);
     py.allow_threads(|| {
         RegionalMinimaFilter::new()
             .with_values(foreground, background)
             .with_connectivity(conn)
-            .apply_native(&image, &SequentialBackend)
+            .apply_native(image.as_ref(), &backend)
             .map_err(|error| RitkPyError::value(error.to_string()))
     })
-    .map(native_into_py_image)
+    .map(into_py_image)
 }
 
 /// Valued regional maxima: keep the input value on regional maxima, set
@@ -193,12 +195,12 @@ pub fn valued_regional_maxima(
     image: &PyImage,
     fully_connected: bool,
 ) -> RitkResult<PyImage> {
-    let arc = image_from_py(image);
+    let arc = Arc::clone(&image.inner);
     let conn = connectivity_from(fully_connected);
     py.allow_threads(|| {
         ValuedRegionalMaximaFilter::new()
             .with_connectivity(conn)
-            .apply(&arc)
+            .apply(arc.as_ref())
             .map_err(|e| RitkPyError::runtime(e.to_string()))
     })
     .map(into_py_image)
@@ -214,12 +216,12 @@ pub fn valued_regional_minima(
     image: &PyImage,
     fully_connected: bool,
 ) -> RitkResult<PyImage> {
-    let arc = image_from_py(image);
+    let arc = Arc::clone(&image.inner);
     let conn = connectivity_from(fully_connected);
     py.allow_threads(|| {
         ValuedRegionalMinimaFilter::new()
             .with_connectivity(conn)
-            .apply(&arc)
+            .apply(arc.as_ref())
             .map_err(|e| RitkPyError::runtime(e.to_string()))
     })
     .map(into_py_image)
@@ -236,12 +238,13 @@ pub fn opening_by_reconstruction(
     radius: usize,
     fully_connected: bool,
 ) -> RitkResult<PyImage> {
-    let arc = image_from_py(image);
+    let arc = Arc::clone(&image.inner);
+    let backend = MoiraiBackend;
     let conn = connectivity_from(fully_connected);
     py.allow_threads(|| {
         OpeningByReconstructionFilter::new(radius)
             .with_connectivity(conn)
-            .apply(&arc)
+            .apply_native(arc.as_ref(), &backend)
             .map_err(|e| RitkPyError::runtime(e.to_string()))
     })
     .map(into_py_image)
@@ -258,12 +261,13 @@ pub fn closing_by_reconstruction(
     radius: usize,
     fully_connected: bool,
 ) -> RitkResult<PyImage> {
-    let arc = image_from_py(image);
+    let arc = Arc::clone(&image.inner);
+    let backend = MoiraiBackend;
     let conn = connectivity_from(fully_connected);
     py.allow_threads(|| {
         ClosingByReconstructionFilter::new(radius)
             .with_connectivity(conn)
-            .apply(&arc)
+            .apply_native(arc.as_ref(), &backend)
             .map_err(|e| RitkPyError::runtime(e.to_string()))
     })
     .map(into_py_image)
@@ -273,10 +277,11 @@ pub fn closing_by_reconstruction(
 /// border. ITK Parity: GrayscaleFillholeImageFilter (`sitk.GrayscaleFillhole`).
 #[pyfunction]
 pub fn grayscale_fillhole(py: Python<'_>, image: &PyImage) -> RitkResult<PyImage> {
-    let arc = image_from_py(image);
+    let arc = Arc::clone(&image.inner);
+    let backend = MoiraiBackend;
     py.allow_threads(|| {
         GrayscaleFillholeFilter::new()
-            .apply(&arc)
+            .apply_native(arc.as_ref(), &backend)
             .map_err(|e| RitkPyError::runtime(e.to_string()))
     })
     .map(into_py_image)
@@ -292,12 +297,13 @@ pub fn grayscale_grind_peak(
     image: &PyImage,
     fully_connected: bool,
 ) -> RitkResult<PyImage> {
-    let arc = image_from_py(image);
+    let arc = Arc::clone(&image.inner);
+    let backend = MoiraiBackend;
     let conn = connectivity_from(fully_connected);
     py.allow_threads(|| {
         GrayscaleGrindPeakFilter::new()
             .with_connectivity(conn)
-            .apply(&arc)
+            .apply_native(arc.as_ref(), &backend)
             .map_err(|e| RitkPyError::runtime(e.to_string()))
     })
     .map(into_py_image)

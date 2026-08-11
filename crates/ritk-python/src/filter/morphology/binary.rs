@@ -1,5 +1,5 @@
 use crate::errors::{RitkPyError, RitkResult};
-use crate::image::{image_from_py, into_py_image, PyImage};
+use crate::image::{into_py_image, PyImage};
 use coeus_core::MoiraiBackend;
 use pyo3::prelude::*;
 use ritk_filter::{
@@ -21,11 +21,15 @@ use std::sync::Arc;
 /// Returns:
 ///     Skeleton PyImage, same shape and spatial metadata as input.
 #[pyfunction]
-pub fn binary_thinning(py: Python<'_>, image: &PyImage) -> PyImage {
-    // TODO: BinaryThinningFilter still lacks apply_native; keep the Coeus tensor roundtrip for now.
-    let arc = image_from_py(image);
-    let out = py.allow_threads(|| BinaryThinningFilter::new().apply(&arc));
-    into_py_image(out)
+pub fn binary_thinning(py: Python<'_>, image: &PyImage) -> RitkResult<PyImage> {
+    let native = Arc::clone(&image.inner);
+    let backend = MoiraiBackend;
+    py.allow_threads(|| {
+        BinaryThinningFilter::new()
+            .apply_native(native.as_ref(), &backend)
+            .map_err(|e| RitkPyError::runtime(e.to_string()))
+    })
+    .map(into_py_image)
 }
 
 /// Prune short spurs from a binary skeleton, matching `SimpleITK.BinaryPruning`
@@ -41,11 +45,15 @@ pub fn binary_thinning(py: Python<'_>, image: &PyImage) -> PyImage {
 ///     Pruned PyImage, same shape and spatial metadata as input.
 #[pyfunction]
 #[pyo3(signature = (image, iteration=3))]
-pub fn binary_pruning(py: Python<'_>, image: &PyImage, iteration: usize) -> PyImage {
-    // TODO: BinaryPruningFilter still lacks apply_native; keep the Coeus tensor roundtrip for now.
-    let arc = image_from_py(image);
-    let out = py.allow_threads(|| BinaryPruningFilter::new(iteration).apply(&arc));
-    into_py_image(out)
+pub fn binary_pruning(py: Python<'_>, image: &PyImage, iteration: usize) -> RitkResult<PyImage> {
+    let native = Arc::clone(&image.inner);
+    let backend = MoiraiBackend;
+    py.allow_threads(|| {
+        BinaryPruningFilter::new(iteration)
+            .apply_native(native.as_ref(), &backend)
+            .map_err(|e| RitkPyError::runtime(e.to_string()))
+    })
+    .map(into_py_image)
 }
 
 /// Erode an object's surface with a box structuring element, matching
@@ -72,14 +80,15 @@ pub fn erode_object_morphology(
     radius: usize,
     object_value: f32,
     background_value: f32,
-) -> PyImage {
-    // TODO: ErodeObjectMorphologyFilter still lacks apply_native; keep the Coeus tensor roundtrip for now.
-    let arc = image_from_py(image);
-    let out = py.allow_threads(|| {
+) -> RitkResult<PyImage> {
+    let native = Arc::clone(&image.inner);
+    let backend = MoiraiBackend;
+    py.allow_threads(|| {
         ErodeObjectMorphologyFilter::new([radius, radius, radius], object_value, background_value)
-            .apply(&arc)
-    });
-    into_py_image(out)
+            .apply_native(native.as_ref(), &backend)
+            .map_err(|e| RitkPyError::runtime(e.to_string()))
+    })
+    .map(into_py_image)
 }
 
 /// Apply hit-or-miss transform for shape detection in binary images.

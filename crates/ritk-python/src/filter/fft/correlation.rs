@@ -1,7 +1,7 @@
 //! FFT-based normalized cross-correlation filters.
 
 use crate::errors::{RitkPyError, RitkResult};
-use crate::image::{image_from_py, image_to_vec, into_py_image, vec_to_image_like, PyImage};
+use crate::image::{image_to_vec, into_py_image, vec_to_image_like, PyImage};
 use coeus_core::MoiraiBackend;
 use pyo3::prelude::*;
 use ritk_filter::{
@@ -79,14 +79,14 @@ pub fn fft_normalized_correlate_3d(
     volume: &PyImage,
     template: &PyImage,
 ) -> RitkResult<PyImage> {
-    let vol = image_from_py(volume);
-    let tmpl = image_from_py(template);
+    let vol = Arc::clone(&volume.inner);
+    let tmpl = Arc::clone(&template.inner);
 
     py.allow_threads(|| {
-        let filter = FftNormalizedCorrelation3DFilter::<MoiraiBackend>::new(&tmpl)
+        let filter = FftNormalizedCorrelation3DFilter::<MoiraiBackend>::new(tmpl.as_ref())
             .map_err(|e| RitkPyError::runtime(e.to_string()))?;
         filter
-            .apply(&vol)
+            .apply(vol.as_ref())
             .map_err(|e| RitkPyError::runtime(e.to_string()))
     })
     .map(into_py_image)
@@ -100,11 +100,11 @@ pub fn normalized_correlation(
     mask: &PyImage,
     template: &PyImage,
 ) -> RitkResult<PyImage> {
-    let img = image_from_py(image);
-    let msk = image_from_py(mask);
-    let tpl = image_from_py(template);
+    let img = Arc::clone(&image.inner);
+    let msk = Arc::clone(&mask.inner);
+    let tpl = Arc::clone(&template.inner);
     py.allow_threads(|| {
-        core_normalized_correlation(&img, &msk, &tpl)
+        core_normalized_correlation(img.as_ref(), msk.as_ref(), tpl.as_ref())
             .map_err(|e| RitkPyError::runtime(e.to_string()))
     })
     .map(into_py_image)
@@ -123,16 +123,17 @@ pub fn masked_fft_normalized_correlation(
     required_number_of_overlapping_pixels: u64,
     required_fraction_of_overlapping_pixels: f32,
 ) -> RitkResult<PyImage> {
-    let f = image_from_py(fixed);
-    let m = image_from_py(moving);
-    let fm = image_from_py(fixed_mask);
-    let mm = image_from_py(moving_mask);
+    let f = Arc::clone(&fixed.inner);
+    let m = Arc::clone(&moving.inner);
+    let fm = Arc::clone(&fixed_mask.inner);
+    let mm = Arc::clone(&moving_mask.inner);
+    let backend = MoiraiBackend;
     py.allow_threads(|| {
         ritk_filter::MaskedFftNormalizedCorrelationFilter {
             required_number_of_overlapping_pixels,
             required_fraction_of_overlapping_pixels,
         }
-        .apply(&f, &m, &fm, &mm)
+        .apply_native(f.as_ref(), m.as_ref(), fm.as_ref(), mm.as_ref(), &backend)
         .map_err(|e| RitkPyError::runtime(e.to_string()))
     })
     .map(into_py_image)

@@ -1,6 +1,7 @@
 //! Public data types for multi-frame DICOM reader and writer.
 
 use crate::format::dicom::reader::types::literal_arraystring;
+use crate::format::dicom::transfer_syntax::TransferSyntaxKind;
 use arrayvec::ArrayString;
 use ritk_dicom::PixelSignedness;
 use std::path::PathBuf;
@@ -117,6 +118,13 @@ pub struct MultiFrameWriterConfig {
     pub spatial: Option<MultiFrameSpatialMetadata>,
     /// InstanceNumber (0020,0013). Defaults to 1.
     pub instance_number: u32,
+    /// Pixel-data transfer syntax used for output encoding.
+    ///
+    /// Supported values:
+    /// - `ExplicitVrLittleEndian` (uncompressed native OW payload)
+    /// - `JpegLsLossless` (encapsulated JPEG-LS fragments)
+    /// - `Jpeg2000Lossless` (encapsulated JPEG 2000 fragments)
+    pub transfer_syntax: TransferSyntaxKind,
 }
 
 impl Default for MultiFrameWriterConfig {
@@ -125,6 +133,7 @@ impl Default for MultiFrameWriterConfig {
             sop_class_uid: literal_arraystring(MF_GRAYSCALE_WORD_SC_UID),
             spatial: None,
             instance_number: 1,
+            transfer_syntax: TransferSyntaxKind::ExplicitVrLittleEndian,
         }
     }
 }

@@ -220,13 +220,6 @@ pub(crate) enum Extremum {
 ///
 /// Output is **bit-identical** to the serial version — the passes are
 /// embarrassingly parallel with no data sharing within a pass.
-#[cfg_attr(
-    windows,
-    expect(
-        clippy::missing_const_for_thread_local,
-        reason = "Rust 1.97 on Windows reports this lint for an already-const initializer"
-    )
-)]
 pub(crate) fn separable_box_3d(
     data: &[f32],
     dims: [usize; 3],

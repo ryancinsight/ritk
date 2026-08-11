@@ -1,7 +1,9 @@
 use crate::errors::{RitkPyError, RitkResult};
-use crate::image::{image_from_py, into_py_image, PyImage};
+use crate::image::{into_py_image, PyImage};
+use coeus_core::MoiraiBackend;
 use pyo3::prelude::*;
 use ritk_filter::{BinaryContourImageFilter, Connectivity, LabelContourImageFilter};
+use std::sync::Arc;
 
 /// Binary contour: keep only foreground voxels that touch the background
 /// (the object boundary). ITK Parity: BinaryContourImageFilter
@@ -14,11 +16,12 @@ pub fn binary_contour(
     fully_connected: bool,
     foreground_value: f32,
 ) -> RitkResult<PyImage> {
-    let arc = image_from_py(image);
+    let arc = Arc::clone(&image.inner);
+    let backend = MoiraiBackend;
     let conn = connectivity_from(fully_connected);
     py.allow_threads(|| {
         BinaryContourImageFilter::new(conn, foreground_value)
-            .apply(&arc)
+            .apply_native(arc.as_ref(), &backend)
             .map_err(|e| RitkPyError::runtime(e.to_string()))
     })
     .map(into_py_image)
@@ -35,11 +38,12 @@ pub fn label_contour(
     fully_connected: bool,
     background_value: f32,
 ) -> RitkResult<PyImage> {
-    let arc = image_from_py(image);
+    let arc = Arc::clone(&image.inner);
+    let backend = MoiraiBackend;
     let conn = connectivity_from(fully_connected);
     py.allow_threads(|| {
         LabelContourImageFilter::new(conn, background_value)
-            .apply(&arc)
+            .apply_native(arc.as_ref(), &backend)
             .map_err(|e| RitkPyError::runtime(e.to_string()))
     })
     .map(into_py_image)
@@ -65,14 +69,18 @@ pub fn contour_extractor_2d(
     py: Python<'_>,
     image: &PyImage,
     contour_value: f32,
-) -> Vec<Vec<(f64, f64)>> {
-    let arc = image_from_py(image);
-    let contours = py
-        .allow_threads(|| ritk_filter::ContourExtractor2DImageFilter { contour_value }.apply(&arc));
-    contours
+) -> RitkResult<Vec<Vec<(f64, f64)>>> {
+    let arc = Arc::clone(&image.inner);
+    let backend = MoiraiBackend;
+    let contours = py.allow_threads(|| {
+        ritk_filter::ContourExtractor2DImageFilter { contour_value }
+            .apply_native(arc.as_ref(), &backend)
+            .map_err(|e| RitkPyError::runtime(e.to_string()))
+    })?;
+    Ok(contours
         .into_iter()
         .map(|c| c.into_iter().map(|p| (p.y as f64, p.x as f64)).collect())
-        .collect()
+        .collect())
 }
 
 /// Map the `fully_connected` flag to the structuring-element adjacency

@@ -1,7 +1,7 @@
 # Connectome Construction and Graph Measures
 
 `ritk-connectome` is the third leaf crate from
-[ADR 0036 decision 1](../../docs/adr/0036-neuroimaging-and-mr-ownership.md).
+[ADR 0036 decision 1](https://github.com/ryancinsight/atlas/blob/main/docs/adr/0036-neuroimaging-and-mr-ownership.md).
 It reduces a set of streamline endpoints and a volumetric parcellation into a
 weighted undirected `ConnectivityMatrix` — the adjacency of anatomical regions
 — plus per-node and global graph measures.

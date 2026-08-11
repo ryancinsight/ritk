@@ -19,6 +19,40 @@
 
 ### Changed
 
+- Route `ritk-filter` FFT axis passes through Apollo's kernel-dispatch entry
+  points (`fft_forward` / `fft_inverse_unnorm`) instead of constructing local
+  per-axis plan objects inside `fft_strategy`, keeping inverse normalization
+  behavior unchanged while tightening Apollo ownership of FFT execution.
+- Add a symmetric `ritk-dicom` backend serialization boundary (`DicomWriteBackend`
+  with `write_file_with` / `write_bytes_with`) and implement it for
+  `DicomRsBackend`, so RITK now exposes explicit backend-level DICOM encoding
+  alongside parse/decode.
+- Extend `ritk-io` multi-frame DICOM writer config with transfer-syntax
+  selection and add compressed PixelData emission for JPEG-LS Lossless and
+  JPEG 2000 Lossless, while preserving Explicit VR Little Endian as the
+  default output mode.
+- Make workspace publication intent explicit for tractography/connectome crates
+  by setting `publish = false` on `ritk-connectome`, `ritk-trk`, `ritk-tck`,
+  and `ritk-trx`, removing the remaining implicit publish-policy surface.
+- Switch `ritk-python` wrapper callsites in edge/smooth/intensity/morphology
+  from legacy Coeus tensor round-trips to `ritk-filter` native `apply_native`
+  paths (`Derivative`, `Sobel`, `LaplacianSharpening`,
+  `DiscreteGaussianDerivative`, `BitwiseNot`, `BinaryThinning`,
+  `BinaryPruning`, `ErodeObjectMorphology`, `CannySegmentationLevelSet`).
+- Route `ritk-python` arithmetic, transform, edge-distance, and spatial-distance wrappers
+  (unary/binary/mask arithmetic including N-ary folds; shape/axis + pad/crop
+  transforms; zero-crossing/iso-contour/signed-distance/reinit level-set;
+  Euclidean/signed/Maurer distance maps; fast marching + colliding fronts;
+  Wiener/Tikhonov/inverse/RL/Landweber deconvolution; additive/speckle/shot/
+  salt-pepper noise plus patch-based denoising; binary/label/2-D contour;
+  Frangi/Sato vesselness; native Paste transform; invert/inverse/iterative
+  inverse displacement field; FFT frequency-domain wrappers and core
+  forward/inverse/shift paths; masked FFT normalized correlation; mean/median/
+  bilateral/N4/spatial-convolution + box/rank/binomial/bin-shrink smoothing;
+  anisotropic/curvature/coherence diffusion, anti-alias, and dense Chan-Vese;
+  morphology reconstruction/opening/closing/fill-hole/grind-peak) to
+  native execution paths where provider-native methods exist, removing legacy
+  bridge usage in those modules.
 - Replace independent JPEG 2000 transform and decomposition arguments with one
   `Jpeg2000Encoding` mode, making lossless 5/3 and lossy 9/7 quantization
   contracts mutually exclusive.
@@ -55,6 +89,8 @@
 - Cover quantizer construction, QCD exponent/mantissa representation,
   unrepresentable-step rejection, monotonic size/error behavior on a fixed
   phantom, and all migrated native/OpenJPEG interoperability callers.
+- Add compressed round-trip coverage for backend/object write paths and
+  multi-frame writer output (JPEG-LS Lossless and JPEG 2000 Lossless).
 
 ## [Unreleased] — MINC2 integer scaling (SAFE-691-01)
 

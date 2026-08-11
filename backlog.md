@@ -30,18 +30,19 @@
 > workflow were removed after the Burn-to-Coeus migration completed.
 > References to these tools in the entries below are historical.
 
-- **AEQUITAS-AEQ-MET-68 [patch] - Align Ritk with Eunomia 0.8**
-  (REVIEW; owner=Codex; last-update=2026-08-05; scope=`Cargo.toml`,
-  `Cargo.lock`, and synchronized PM artifacts; non-goal=changing numerical
-  real/complex semantics or introducing imaginary SI units). Update the
-  workspace provider requirement and lockfile so downstream Aequitas
-  consumers do not resolve Eunomia 0.7/rkyv 0.7. Acceptance: locked metadata,
-  package checks, value-semantic tests, and hosted security gates pass at the
-  exact PR head.
-
-- **SAFE-687-01 [patch] - Reject truncated JPEG 2000 marker tails**
-  (REVIEW; owner=Codex; last-update=2026-08-01; scope=
-  `crates/ritk-codecs/src/jpeg_2000/{ebcot/mod.rs,image.rs,mod.rs,tests.rs}`,
+- **AEQUITAS-AEQ-MET-68 [patch] - Align RITK with Eunomia 0.8**
+  (LOCAL CLOSURE; external release gates open; owner=Codex; last-update=2026-08-10;
+  scope=`Cargo.toml`, `Cargo.lock`, `crates/ritk-filter/src/morphology/mod.rs`,
+  and synchronized PM artifacts; non-goal=changing numerical real/complex
+  semantics or introducing imaginary SI units). The workspace requirement and
+  standalone lock now resolve Eunomia 0.8.0 with rkyv 0.8.17; no active
+  manifest requests Eunomia 0.7. The stale Windows-only lint expectation was
+  removed without changing morphology behavior. Locked metadata, formatting,
+  strict all-target/all-feature Clippy, workspace doctests, and Rustdoc pass;
+  full Nextest is 5,137 passed, 0 failed, and 24 skipped, with the focused
+  ritk-filter suite at 1,123/1,123. Hosted security/indexing, owner review,
+  package archive verification, registry publication, and merge remain open
+  external release steps.
 
 - **DOC-694-01 [patch] - Render diffusion-MRI equations portably**
   (DONE; owner=Codex; last-update=2026-08-03;
@@ -178,17 +179,30 @@
   furnished review findings; focused self-review found no residual defect.
 
 - **RELEASE-689-01 [patch] - Publish the Rust library closure to crates.io**
-  (IN PROGRESS; owner=Codex; last-update=2026-08-02; scope=workspace and package
+  (IN PROGRESS; owner=Codex; last-update=2026-08-10; scope=workspace and package
   registry metadata, local dependency version requirements, dependency aliases,
   `.github/workflows/rust-release.yml`, release documentation, and publication
-  of the 28 reusable Rust library packages; non-goal=publishing `ritk-cli`,
-  `ritk-snap`, `ritk-python`, `ritk-diffusion`, `ritk-tractography`, `xtask`, or
-  changing the Python release version). Acceptance: `cargo metadata` identifies
-  exactly the intended publishable set; every package passes
-  `cargo publish --dry-run` in dependency order; repository gates and hosted CI
-  pass; every version is indexed on crates.io; each crate has the exact GitHub
-  workflow configured as a trusted publisher with long-lived publishing
-  disabled; and each package version has a matching GitHub Release.
+  of the explicit 29 `publish = true` Rust library packages; non-goal=publishing
+  `ritk-cli`, `ritk-snap`, `ritk-python`, `ritk-diffusion`, `ritk-tractography`,
+  `xtask`, or changing the Python release version). The older 28-package target
+  is stale and requires owner reconciliation before publication. Readiness
+  evidence: locked metadata passes; the Rust/PyPI workflow YAML
+  parses and the trusted-publisher contract has the immutable Atlas workflow
+  pin, OIDC permissions, and no PyPI API token. A bounded crates.io API probe
+  finds, in the bounded 2026-08-10 probe, 22 indexed packages, 8 absent
+  (404), and 3 network errors. The workspace now has explicit publish policy
+  on every crate (29 `publish = true`, 9 `publish = false`), so the previous
+  33-package mixed-policy denominator is obsolete. The registry probe also hit
+  a transient TLS reset. Actual
+  archive preparation is blocked before `.crate` creation because
+  `ritk-filter` requires `gaia ^0.3.0`, while crates.io currently indexes Gaia
+  only through 0.2.1. Acceptance remains: reconcile the package set, then  every package passes `cargo publish --dry-run` in dependency order;
+  repository gates and hosted CI pass; every version is indexed on crates.io;
+  the RITK caller does not pass a registry token and selects the OIDC
+  trusted-publishing path; runtime repository-secret/environment configuration
+  remains externally unverifiable. The shared Atlas workflow's documented
+  optional `CARGO_REGISTRY_TOKEN` fallback is separately governed; and each
+  package version has a matching GitHub Release.
 
 - **SAFE-688-01 [patch] - Bound and teach Analyze 7.5 decoding**
   (DONE; owner=Codex; last-update=2026-08-01; scope=
@@ -237,7 +251,7 @@
   SVG each return HTTP 200.
 
 - **SAFE-687-01 [patch] - Reject truncated JPEG 2000 marker tails**
-  (DONE; owner=Codex; last-update=2026-08-01; scope=
+  (DONE; owner=Codex; last-update=2026-08-10; scope=
   `crates/ritk-codecs/src/jpeg_2000/{codestream.rs,ebcot/mod.rs,image.rs,marker.rs,mod.rs,packet/reader.rs,tests.rs}`,
   `ARCHITECTURE.md`, `docs/book/jpeg_2000_codec.md`, `CHANGELOG.md`,
   `gap_audit.md`, and PM artifacts; non-goal=codec feature expansion,
@@ -609,11 +623,12 @@
   calculations. It was inspected from a 960x456 PNG; the already-built
   example completes in 1.437 seconds. GrowCut is 10/10 and the full package is
   484/484 in 2.925 seconds. Formatting, focused warning-denied all-target
-  Clippy, doctest, warning-denied Rustdoc, and mdBook test/build pass. The
-  dependency-inclusive Clippy lane remains blocked by an existing
-  `ritk-filter` `missing_const_for_thread_local` diagnostic on an initializer
-  already written as `const`. Clean draft PR #73 isolates the GrowCut history
-  from unrelated architecture commits that had entered the original branch.
+  Clippy, doctest, warning-denied Rustdoc, and mdBook test/build pass.  At that historical head, the dependency-inclusive Clippy lane was blocked by
+  an existing `ritk-filter` `missing_const_for_thread_local` diagnostic on an
+  initializer already written as `const`; the expectation was later removed in
+  the Eunomia 0.8 local-closure slice. Clean draft PR #73 isolates the GrowCut
+  history from unrelated architecture commits that had entered the original
+  branch.
   Exact head `96432bbd` passes every repository-owned lane, and PR #73 merged
   to `main` as `0ed4a87f`.
 

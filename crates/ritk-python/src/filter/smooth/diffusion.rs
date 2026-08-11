@@ -1,6 +1,7 @@
 //! Diffusion-family filters: Perona–Malik anisotropic, curvature anisotropic, and coherence-enhancing diffusion.
 use crate::errors::{RitkPyError, RitkResult};
-use crate::image::{image_from_py, into_py_image, PyImage};
+use crate::image::{into_py_image, PyImage};
+use coeus_core::MoiraiBackend;
 use pyo3::prelude::*;
 use ritk_filter::diffusion::{
     CoherenceConfig, ConductanceFunction, CurvatureConfig, DiffusionConfig,
@@ -13,6 +14,7 @@ use ritk_filter::{
     CurvatureAnisotropicDiffusionFilter, CurvatureFlowConfig, CurvatureFlowImageFilter,
     MinMaxCurvatureFlowConfig, MinMaxCurvatureFlowImageFilter, ScalarChanAndVeseDenseLevelSet,
 };
+use std::sync::Arc;
 
 /// Conductance function kind for anisotropic diffusion, replacing `exponential: bool`.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -76,7 +78,8 @@ pub fn anisotropic_diffusion(
     conductance_kind: Option<&str>,
 ) -> RitkResult<PyImage> {
     let kind = PyConductanceKind::from(conductance_kind);
-    let image = image_from_py(image);
+    let image = Arc::clone(&image.inner);
+    let backend = MoiraiBackend;
     py.allow_threads(|| match kind {
         // ITK-exact gradient anisotropic diffusion (matches SimpleITK).
         PyConductanceKind::Exponential => {
@@ -85,7 +88,7 @@ pub fn anisotropic_diffusion(
                 time_step: time_step as f32,
                 conductance: conductance as f32,
             })
-            .apply(&image)
+            .apply_native(image.as_ref(), &backend)
             .map_err(|e| RitkPyError::runtime(e.to_string()))
         }
         // Crate-specific Perona-Malik with quadratic conductance.
@@ -95,7 +98,7 @@ pub fn anisotropic_diffusion(
             time_step: time_step as f32,
             function: ConductanceFunction::Quadratic,
         }
-        .apply(&image)
+        .apply_native(image.as_ref(), &backend)
         .map_err(|e| RitkPyError::runtime(e.to_string())),
     })
     .map(into_py_image)
@@ -128,7 +131,8 @@ pub fn curvature_anisotropic_diffusion(
     time_step: f64,
     conductance: f64,
 ) -> RitkResult<PyImage> {
-    let image = image_from_py(image);
+    let image = Arc::clone(&image.inner);
+    let backend = MoiraiBackend;
     py.allow_threads(|| {
         let filter = CurvatureAnisotropicDiffusionFilter::new(CurvatureConfig {
             num_iterations: iterations,
@@ -136,7 +140,7 @@ pub fn curvature_anisotropic_diffusion(
             conductance: conductance as f32,
         });
         filter
-            .apply(&image)
+            .apply_native(image.as_ref(), &backend)
             .map_err(|e| RitkPyError::runtime(e.to_string()))
     })
     .map(into_py_image)
@@ -152,13 +156,14 @@ pub fn curvature_flow(
     time_step: f64,
     iterations: usize,
 ) -> RitkResult<PyImage> {
-    let image = image_from_py(image);
+    let image = Arc::clone(&image.inner);
+    let backend = MoiraiBackend;
     py.allow_threads(|| {
         CurvatureFlowImageFilter::new(CurvatureFlowConfig {
             num_iterations: iterations,
             time_step: time_step as f32,
         })
-        .apply(&image)
+        .apply_native(image.as_ref(), &backend)
         .map_err(|e| RitkPyError::runtime(e.to_string()))
     })
     .map(into_py_image)
@@ -177,14 +182,15 @@ pub fn min_max_curvature_flow(
     iterations: usize,
     stencil_radius: usize,
 ) -> RitkResult<PyImage> {
-    let image = image_from_py(image);
+    let image = Arc::clone(&image.inner);
+    let backend = MoiraiBackend;
     py.allow_threads(|| {
         MinMaxCurvatureFlowImageFilter::new(MinMaxCurvatureFlowConfig {
             num_iterations: iterations,
             time_step: time_step as f32,
             stencil_radius,
         })
-        .apply(&image)
+        .apply_native(image.as_ref(), &backend)
         .map_err(|e| RitkPyError::runtime(e.to_string()))
     })
     .map(into_py_image)
@@ -203,7 +209,8 @@ pub fn binary_min_max_curvature_flow(
     stencil_radius: usize,
     threshold: f64,
 ) -> RitkResult<PyImage> {
-    let image = image_from_py(image);
+    let image = Arc::clone(&image.inner);
+    let backend = MoiraiBackend;
     py.allow_threads(|| {
         BinaryMinMaxCurvatureFlowImageFilter::new(BinaryMinMaxCurvatureFlowConfig {
             num_iterations: iterations,
@@ -211,7 +218,7 @@ pub fn binary_min_max_curvature_flow(
             stencil_radius,
             threshold,
         })
-        .apply(&image)
+        .apply_native(image.as_ref(), &backend)
         .map_err(|e| RitkPyError::runtime(e.to_string()))
     })
     .map(into_py_image)
@@ -246,9 +253,10 @@ pub fn coherence_enhancing_diffusion(
     alpha: f64,
     time_step: f64,
     iterations: usize,
-) -> PyImage {
-    let image = image_from_py(image);
-    let result = py.allow_threads(|| {
+) -> RitkResult<PyImage> {
+    let image = Arc::clone(&image.inner);
+    let backend = MoiraiBackend;
+    py.allow_threads(|| {
         let config = CoherenceConfig {
             sigma: GaussianSigma::new_unchecked(sigma),
             contrast,
@@ -257,9 +265,11 @@ pub fn coherence_enhancing_diffusion(
             n_iterations: iterations,
         };
         let filter = CoherenceEnhancingDiffusionFilter::new(config);
-        filter.apply(&image)
-    });
-    into_py_image(result)
+        filter
+            .apply_native::<MoiraiBackend, 3>(image.as_ref(), &backend)
+            .map_err(|e| RitkPyError::runtime(e.to_string()))
+    })
+    .map(into_py_image)
 }
 
 // ── AntiAliasBinary ─────────────────────────────────────────────────────
@@ -288,16 +298,18 @@ pub fn anti_alias_binary(
     image: &PyImage,
     max_rms_error: f32,
     number_of_iterations: usize,
-) -> PyImage {
-    let arc = image_from_py(image);
-    let result = py.allow_threads(|| {
+) -> RitkResult<PyImage> {
+    let arc = Arc::clone(&image.inner);
+    let backend = MoiraiBackend;
+    py.allow_threads(|| {
         AntiAliasBinaryImageFilter {
             max_rms_error,
             number_of_iterations,
         }
-        .apply(&arc)
-    });
-    into_py_image(result)
+        .apply_native(arc.as_ref(), &backend)
+        .map_err(|e| RitkPyError::runtime(e.to_string()))
+    })
+    .map(into_py_image)
 }
 
 // ── ScalarChanAndVeseDenseLevelSet ──────────────────────────────────────
@@ -337,8 +349,9 @@ pub fn scalar_chan_and_vese_dense_level_set(
     nu: f32,
     epsilon: f32,
 ) -> RitkResult<PyImage> {
-    let arc_init = image_from_py(initial_level_set);
-    let arc_feat = image_from_py(feature_image);
+    let arc_init = Arc::clone(&initial_level_set.inner);
+    let arc_feat = Arc::clone(&feature_image.inner);
+    let backend = MoiraiBackend;
     let result = py.allow_threads(|| {
         ScalarChanAndVeseDenseLevelSet {
             number_of_iterations,
@@ -348,7 +361,7 @@ pub fn scalar_chan_and_vese_dense_level_set(
             nu,
             epsilon,
         }
-        .apply(&arc_init, &arc_feat)
+        .apply_native(arc_init.as_ref(), arc_feat.as_ref(), &backend)
     });
     result
         .map(into_py_image)

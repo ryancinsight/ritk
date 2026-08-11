@@ -3,16 +3,19 @@
 use anyhow::{bail, Context, Result};
 use coeus_core::MoiraiBackend;
 use dicom::core::smallvec::SmallVec;
+use dicom::core::value::PixelFragmentSequence;
 use dicom::core::{DataElement, PrimitiveValue, Tag, VR};
 use dicom::object::meta::FileMetaTableBuilder;
 use dicom::object::InMemDicomObject;
+use ritk_codecs::jpeg_2000::encoder::{encode_grayscale_j2k, Jpeg2000Encoding};
+use ritk_codecs::jpeg_ls::encoder::encode_grayscale_jpeg_ls;
 use ritk_core::image::Image;
+use ritk_dicom::TransferSyntaxKind;
 use ritk_image::tensor::Backend;
 use ritk_image::Image as NativeImage;
 use std::path::Path;
 
 use super::types::{MultiFrameSpatialMetadata, MultiFrameWriterConfig};
-use crate::format::dicom::transfer_syntax::EXPLICIT_VR_LE;
 use crate::format::dicom::writer::pixel_encoding::{
     emit_pixel_format_tags, generate_series_uid, normalize_to_u16, MONOCHROME2,
 };
@@ -29,9 +32,9 @@ use crate::format::dicom::writer::pixel_encoding::{
 ///   invariant: abs(recovered - original) <= rescale_slope + 1.0).
 ///
 /// ## Encoding
-/// Transfer syntax: Explicit VR Little Endian (1.2.840.10008.1.2.1).
-/// SOP Class: Multi-Frame Grayscale Word Secondary Capture Image Storage
-/// (1.2.840.10008.5.1.4.1.1.7.3).
+/// Defaults to Explicit VR Little Endian (1.2.840.10008.1.2.1). Use
+/// [`MultiFrameWriterConfig::transfer_syntax`] for JPEG-LS/JPEG 2000 lossless
+/// compressed output.
 pub fn write_dicom_multiframe<B: Backend, P: AsRef<Path>>(
     path: P,
     image: &Image<f32, B, 3>,
@@ -313,18 +316,44 @@ fn write_multiframe_flat(
         ));
     }
 
-    obj.put(DataElement::new(
-        Tag(0x7FE0, 0x0010),
-        VR::OW,
-        PrimitiveValue::U16(SmallVec::from_vec(pixel_u16)),
-    ));
+    match &config.transfer_syntax {
+        TransferSyntaxKind::ExplicitVrLittleEndian => {
+            obj.put(DataElement::new(
+                Tag(0x7FE0, 0x0010),
+                VR::OW,
+                PrimitiveValue::U16(SmallVec::from_vec(pixel_u16)),
+            ));
+        }
+        TransferSyntaxKind::JpegLsLossless | TransferSyntaxKind::Jpeg2000Lossless => {
+            let encoded_fragments = encode_compressed_frames(
+                &pixel_u16,
+                n_frames,
+                rows,
+                cols,
+                &config.transfer_syntax,
+            )?;
+            obj.put(DataElement::new(
+                Tag(0x7FE0, 0x0010),
+                VR::OB,
+                PixelFragmentSequence::<Vec<u8>>::new_fragments(SmallVec::from_vec(
+                    encoded_fragments,
+                )),
+            ));
+        }
+        syntax => {
+            bail!(
+                "DICOM multiframe write transfer syntax '{}' is not supported; supported output syntaxes are Explicit VR Little Endian, JPEG-LS Lossless, and JPEG 2000 Lossless",
+                syntax.uid()
+            );
+        }
+    }
 
     let file_obj = obj
         .with_meta(
             FileMetaTableBuilder::new()
                 .media_storage_sop_class_uid(config.sop_class_uid.as_str())
                 .media_storage_sop_instance_uid(sop_instance_uid.as_str())
-                .transfer_syntax(EXPLICIT_VR_LE),
+                .transfer_syntax(config.transfer_syntax.uid()),
         )
         .map_err(|e| anyhow::anyhow!("DICOM multiframe meta build failed: {e}"))?;
 
@@ -333,4 +362,68 @@ fn write_multiframe_flat(
         .map_err(|e| anyhow::anyhow!("DICOM multiframe write to {:?} failed: {e}", path))?;
 
     Ok(())
+}
+
+fn encode_compressed_frames(
+    pixels_u16: &[u16],
+    n_frames: usize,
+    rows: usize,
+    cols: usize,
+    syntax: &TransferSyntaxKind,
+) -> Result<Vec<Vec<u8>>> {
+    let frame_pixels = rows
+        .checked_mul(cols)
+        .context("DICOM multiframe compressed write frame size overflow")?;
+    let expected = n_frames
+        .checked_mul(frame_pixels)
+        .context("DICOM multiframe compressed write total size overflow")?;
+    if pixels_u16.len() != expected {
+        bail!(
+            "DICOM multiframe compressed write expected {} u16 pixels for shape [{}, {}, {}], got {}",
+            expected,
+            n_frames,
+            rows,
+            cols,
+            pixels_u16.len()
+        );
+    }
+
+    let mut fragments = Vec::with_capacity(n_frames);
+    for frame_index in 0..n_frames {
+        let start = frame_index
+            .checked_mul(frame_pixels)
+            .context("DICOM multiframe compressed write frame offset overflow")?;
+        let end = start + frame_pixels;
+        let frame = &pixels_u16[start..end];
+
+        let encoded = match syntax {
+            TransferSyntaxKind::JpegLsLossless => {
+                encode_grayscale_jpeg_ls(frame, rows as u32, cols as u32, 16, 0).with_context(
+                    || format!("JPEG-LS lossless encode failed for frame {frame_index}"),
+                )?
+            }
+            TransferSyntaxKind::Jpeg2000Lossless => {
+                let frame_i32: Vec<i32> = frame.iter().map(|&v| i32::from(v)).collect();
+                encode_grayscale_j2k(
+                    &frame_i32,
+                    rows as u32,
+                    cols as u32,
+                    16,
+                    ritk_dicom::PixelSignedness::Unsigned,
+                    Jpeg2000Encoding::Lossless {
+                        decomposition_levels: 1,
+                    },
+                )
+                .with_context(|| {
+                    format!("JPEG 2000 lossless encode failed for frame {frame_index}")
+                })?
+            }
+            _ => bail!(
+                "internal error: compressed frame encoder called with non-compressed syntax '{}'",
+                syntax.uid()
+            ),
+        };
+        fragments.push(encoded);
+    }
+    Ok(fragments)
 }

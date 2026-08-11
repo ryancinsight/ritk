@@ -37,7 +37,7 @@ No model in this chapter re-validates direction norms or re-derives shell
 structure. The scheme chapter owns format-codec concerns; this chapter owns
 the transformation from validated scheme + signals → fitted field.
 
-## DTI — Diffusion Tensor Imaging
+## DTI — Diffusion Tensor Imaging {#dti-diffusion-tensor-imaging}
 
 DTI is the baseline diffusion model. It assumes a 3-D Gaussian
 displacement distribution characterised by a symmetric 3×3 diffusion
@@ -60,7 +60,7 @@ RITK assembles the design matrix over all weighted acquisitions and solves
 via `leto_ops::solve_least_squares`. Fractional anisotropy, mean
 diffusivity, and the principal eigenvector are derived from the fitted
 tensor through a closed-form 3×3 symmetric eigendecomposition, per
-[ADR 0036 decision 2](../../docs/adr/0036-neuroimaging-and-mr-ownership.md).
+[ADR 0036 decision 2](https://github.com/ryancinsight/atlas/blob/main/docs/adr/0036-neuroimaging-and-mr-ownership.md).
 
 ### Configuration
 
@@ -98,7 +98,7 @@ missing b0 or weighted volumes, fewer than six DWI directions
 (`Underdetermined`), invalid baseline or normalised signals, a failed
 linear solve, and non-positive eigenvalues in the fitted tensor.
 
-## DKI — Diffusion Kurtosis Imaging
+## DKI — Diffusion Kurtosis Imaging {#dki-diffusion-kurtosis-imaging}
 
 DKI extends DTI with the kurtosis tensor \\(W\\), a fourth-order symmetric
 tensor that captures non-Gaussian diffusion. The normalised signal is
@@ -163,7 +163,7 @@ The apparent kurtosis coefficient is \\(K(\\mathbf g) = (\\mathrm{MD}/D(\\mathbf
 missing b0/weighted volumes, invalid baseline or normalised signals, a
 failed DTI initial fit, and Levenberg-Marquardt solver failures.
 
-## ODF — Analytical Q-ball
+## ODF — Analytical Q-ball {#odf-analytical-q-ball}
 
 Q-ball imaging estimates an orientation distribution function (ODF)
 without assuming a single diffusion tensor. RITK implements the analytical
@@ -242,7 +242,7 @@ baseline, invalid regularisation, invalid spherical grid, invalid
 evaluation directions, basis errors (propagated from Apollo), and failed
 solves.
 
-## CSD — Constrained Spherical Deconvolution
+## CSD — Constrained Spherical Deconvolution {#csd-constrained-spherical-deconvolution}
 
 CSD deconvolves the diffusion signal with an axially symmetric response
 function to recover the fibre orientation distribution (fODF). In the
@@ -328,7 +328,7 @@ count).
 | Purpose | Orientation distribution | Fibre orientation density |
 | Tractography | ODF peaks | fODF peaks (sharper angular resolution) |
 
-## NODDI — Neurite Orientation Dispersion and Density Imaging
+## NODDI — Neurite Orientation Dispersion and Density Imaging {#noddi-neurite-orientation-dispersion-and-density-imaging}
 
 NODDI (Zhang et al., 2012) is a 3-compartment tissue model that separates
 water diffusion into intra-neurite (restricted), extra-neurite (hindered),

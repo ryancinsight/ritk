@@ -1,7 +1,8 @@
 //! Derivatives, Laplacian, and Sobel gradient filters.
 
 use crate::errors::{RitkPyError, RitkResult};
-use crate::image::{image_from_py, into_py_image, PyImage};
+use crate::image::{into_py_image, PyImage};
+use coeus_core::MoiraiBackend;
 use pyo3::prelude::*;
 use ritk_filter::{
     DerivativeImageFilter, GradientMagnitudeFilter, LaplacianFilter, LaplacianSharpeningFilter,
@@ -29,11 +30,11 @@ pub fn derivative(
     }
     // sitk direction [x,y,z] → ritk tensor axis [z,y,x].
     let axis = 2 - direction;
-    // TODO: DerivativeImageFilter still lacks apply_native; keep the Coeus tensor roundtrip for now.
-    let arc = image_from_py(image);
+    let native = Arc::clone(&image.inner);
+    let backend = MoiraiBackend;
     py.allow_threads(|| {
         DerivativeImageFilter::new(axis, order, use_image_spacing)
-            .apply(&arc)
+            .apply_native(native.as_ref(), &backend)
             .map_err(|e| RitkPyError::runtime(e.to_string()))
     })
     .map(into_py_image)
@@ -110,10 +111,14 @@ pub fn laplacian_sharpening(
     image: &PyImage,
     use_image_spacing: bool,
 ) -> RitkResult<PyImage> {
-    // TODO: LaplacianSharpeningFilter still lacks apply_native; keep the Coeus tensor roundtrip for now.
-    let arc = image_from_py(image);
-    let out = py.allow_threads(|| LaplacianSharpeningFilter::new(use_image_spacing).apply(&arc));
-    Ok(into_py_image(out))
+    let native = Arc::clone(&image.inner);
+    let backend = MoiraiBackend;
+    py.allow_threads(|| {
+        LaplacianSharpeningFilter::new(use_image_spacing)
+            .apply_native(native.as_ref(), &backend)
+            .map_err(|e| RitkPyError::runtime(e.to_string()))
+    })
+    .map(into_py_image)
 }
 
 /// Compute the Sobel gradient magnitude of an image.
@@ -133,13 +138,12 @@ pub fn laplacian_sharpening(
 ///     RuntimeError: on internal computation failure.
 #[pyfunction]
 pub fn sobel_gradient(py: Python<'_>, image: &PyImage) -> RitkResult<PyImage> {
-    // TODO: SobelFilter still lacks apply_native; keep the Coeus tensor roundtrip for now.
-    let image = image_from_py(image);
+    let native = Arc::clone(&image.inner);
     py.allow_threads(|| {
-        let spacing = image.spacing();
+        let spacing = native.spacing();
         let filter = SobelFilter::new(*spacing);
         filter
-            .apply(&image)
+            .apply_native(native.as_ref())
             .map_err(|e| RitkPyError::runtime(e.to_string()))
     })
     .map(into_py_image)

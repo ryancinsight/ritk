@@ -65,7 +65,7 @@ CSD uses NNLS to enforce the non-negativity constraint on the fibre
 orientation distribution. The deconvolution matrix \\(B_{\\text{resp}}\\) is
 assembled by rescaling the Apollo SH design matrix with the rotational
 harmonics of the response function. See the [Diffusion
-Models](ritk_diffusion.md#csd--constrained-spherical-deconvolution)
+Models](ritk_diffusion.md#csd-constrained-spherical-deconvolution)
 chapter.
 
 ## Cholesky decomposition and solve

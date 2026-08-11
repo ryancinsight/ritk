@@ -25,12 +25,14 @@ pub use frequency::{
 };
 
 use crate::errors::{RitkPyError, RitkResult};
-use crate::image::{image_from_py, into_py_image, vec_to_image_like, with_image_slice, PyImage};
+use crate::image::{into_py_image, vec_to_image_like, with_image_slice, PyImage};
+use coeus_core::MoiraiBackend;
 use pyo3::prelude::*;
 use ritk_filter::{
     FftShiftFilter, ForwardFftFilter, HalfHermitianToRealInverseFftFilter, InverseFftFilter,
     RealFftShiftFilter, RealToHalfHermitianForwardFftFilter,
 };
+use std::sync::Arc;
 
 /// Deinterleave a complex image `[D, H, 2W]` (real,imag pairs along X) into a
 /// real `[D, H, W]` image by mapping each `(re, im)` pair through `f`.
@@ -165,10 +167,11 @@ pub fn complex_to_phase(image: &PyImage) -> RitkResult<PyImage> {
 ///     RuntimeError: on internal FFT failure.
 #[pyfunction]
 pub fn forward_fft(py: Python<'_>, image: &PyImage) -> RitkResult<PyImage> {
-    let image = image_from_py(image);
+    let image = Arc::clone(&image.inner);
+    let backend = MoiraiBackend;
     py.allow_threads(|| {
         ForwardFftFilter::new()
-            .apply(&image)
+            .apply_native(image.as_ref(), &backend)
             .map_err(|e| RitkPyError::runtime(e.to_string()))
     })
     .map(into_py_image)
@@ -189,10 +192,10 @@ pub fn forward_fft(py: Python<'_>, image: &PyImage) -> RitkResult<PyImage> {
 ///     Half-Hermitian complex PyImage of shape [D, H, 2*(W/2+1)].
 #[pyfunction]
 pub fn real_to_half_hermitian_forward_fft(py: Python<'_>, image: &PyImage) -> RitkResult<PyImage> {
-    let image = image_from_py(image);
+    let image = Arc::clone(&image.inner);
     py.allow_threads(|| {
         RealToHalfHermitianForwardFftFilter::new()
-            .apply(&image)
+            .apply(image.as_ref())
             .map_err(|e| RitkPyError::runtime(e.to_string()))
     })
     .map(into_py_image)
@@ -219,10 +222,10 @@ pub fn half_hermitian_to_real_inverse_fft(
     image: &PyImage,
     actual_x_is_odd: bool,
 ) -> RitkResult<PyImage> {
-    let image = image_from_py(image);
+    let image = Arc::clone(&image.inner);
     py.allow_threads(|| {
         HalfHermitianToRealInverseFftFilter::new(actual_x_is_odd)
-            .apply(&image)
+            .apply(image.as_ref())
             .map_err(|e| RitkPyError::runtime(e.to_string()))
     })
     .map(into_py_image)
@@ -246,10 +249,11 @@ pub fn half_hermitian_to_real_inverse_fft(
 ///     RuntimeError: on internal IFFT failure.
 #[pyfunction]
 pub fn inverse_fft(py: Python<'_>, image: &PyImage) -> RitkResult<PyImage> {
-    let image = image_from_py(image);
+    let image = Arc::clone(&image.inner);
+    let backend = MoiraiBackend;
     py.allow_threads(|| {
         InverseFftFilter::new()
-            .apply(&image)
+            .apply_native(image.as_ref(), &backend)
             .map_err(|e| RitkPyError::runtime(e.to_string()))
     })
     .map(into_py_image)
@@ -274,10 +278,11 @@ pub fn inverse_fft(py: Python<'_>, image: &PyImage) -> RitkResult<PyImage> {
 ///     RuntimeError: on internal shift failure.
 #[pyfunction]
 pub fn fft_shift(py: Python<'_>, image: &PyImage) -> RitkResult<PyImage> {
-    let image = image_from_py(image);
+    let image = Arc::clone(&image.inner);
+    let backend = MoiraiBackend;
     py.allow_threads(|| {
         FftShiftFilter::new()
-            .apply(&image)
+            .apply_native(image.as_ref(), &backend)
             .map_err(|e| RitkPyError::runtime(e.to_string()))
     })
     .map(into_py_image)
@@ -307,10 +312,10 @@ pub fn fft_shift(py: Python<'_>, image: &PyImage) -> RitkResult<PyImage> {
 ///     RuntimeError: on internal tensor extraction failure.
 #[pyfunction]
 pub fn real_fft_shift(py: Python<'_>, image: &PyImage) -> RitkResult<PyImage> {
-    let image = image_from_py(image);
+    let image = Arc::clone(&image.inner);
     py.allow_threads(|| {
         RealFftShiftFilter::new()
-            .apply(&image)
+            .apply(image.as_ref())
             .map_err(|e| RitkPyError::runtime(e.to_string()))
     })
     .map(into_py_image)

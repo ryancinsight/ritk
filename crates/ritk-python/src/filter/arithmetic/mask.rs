@@ -1,7 +1,9 @@
 use crate::errors::{RitkPyError, RitkResult};
-use crate::image::{image_from_py, into_py_image, PyImage};
+use crate::image::{into_py_image, PyImage};
+use coeus_core::MoiraiBackend;
 use pyo3::prelude::*;
 use ritk_filter::{MaskImageFilter, MaskNegatedImageFilter, MaskedAssignImageFilter};
+use std::sync::Arc;
 
 /// Mask `image` by `mask`: keep where mask > 0, else `outside_value`.
 /// ITK Parity: MaskImageFilter.
@@ -13,12 +15,13 @@ pub fn mask_image(
     mask: &PyImage,
     outside_value: f32,
 ) -> RitkResult<PyImage> {
-    let img = image_from_py(image);
-    let msk = image_from_py(mask);
+    let img = Arc::clone(&image.inner);
+    let msk = Arc::clone(&mask.inner);
+    let backend = MoiraiBackend;
     py.allow_threads(|| {
         MaskImageFilter::new()
             .with_outside_value(outside_value)
-            .apply(&img, &msk)
+            .apply_native(img.as_ref(), msk.as_ref(), &backend)
             .map_err(|e| RitkPyError::runtime(e.to_string()))
     })
     .map(into_py_image)
@@ -34,11 +37,12 @@ pub fn masked_assign(
     mask: &PyImage,
     assign_value: f32,
 ) -> RitkResult<PyImage> {
-    let img = image_from_py(image);
-    let msk = image_from_py(mask);
+    let img = Arc::clone(&image.inner);
+    let msk = Arc::clone(&mask.inner);
+    let backend = MoiraiBackend;
     py.allow_threads(|| {
         MaskedAssignImageFilter::new(assign_value)
-            .apply(&img, &msk)
+            .apply_native(img.as_ref(), msk.as_ref(), &backend)
             .map_err(|e| RitkPyError::runtime(e.to_string()))
     })
     .map(into_py_image)
@@ -54,12 +58,13 @@ pub fn mask_negated_image(
     mask: &PyImage,
     outside_value: f32,
 ) -> RitkResult<PyImage> {
-    let img = image_from_py(image);
-    let msk = image_from_py(mask);
+    let img = Arc::clone(&image.inner);
+    let msk = Arc::clone(&mask.inner);
+    let backend = MoiraiBackend;
     py.allow_threads(|| {
         MaskNegatedImageFilter::new()
             .with_outside_value(outside_value)
-            .apply(&img, &msk)
+            .apply_native(img.as_ref(), msk.as_ref(), &backend)
             .map_err(|e| RitkPyError::runtime(e.to_string()))
     })
     .map(into_py_image)

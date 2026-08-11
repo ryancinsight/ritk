@@ -4,10 +4,15 @@ macro_rules! unary_math_pyfn {
         #[doc = ""]
         #[doc = concat!("ITK Parity: ", $itk)]
         #[pyfunction]
-        pub fn $name(py: Python<'_>, image: &PyImage) -> PyImage {
-            let arc = crate::image::image_from_py(image);
-            let out = py.allow_threads(|| $filter::new().apply(&arc));
-            crate::image::into_py_image(out)
+        pub fn $name(py: Python<'_>, image: &PyImage) -> RitkResult<PyImage> {
+            let native = std::sync::Arc::clone(&image.inner);
+            let backend = coeus_core::MoiraiBackend;
+            py.allow_threads(|| {
+                $filter::new()
+                    .apply_native(native.as_ref(), &backend)
+                    .map_err(|e| RitkPyError::runtime(e.to_string()))
+            })
+            .map(crate::image::into_py_image)
         }
     };
 }
@@ -19,11 +24,12 @@ macro_rules! binary_pyfn {
         #[doc = concat!("ITK Parity: ", $itk)]
         #[pyfunction]
         pub fn $name(py: Python<'_>, a: &PyImage, b: &PyImage) -> RitkResult<PyImage> {
-            let a_arc = crate::image::image_from_py(a);
-            let b_arc = crate::image::image_from_py(b);
+            let a_native = std::sync::Arc::clone(&a.inner);
+            let b_native = std::sync::Arc::clone(&b.inner);
+            let backend = coeus_core::MoiraiBackend;
             py.allow_threads(|| {
                 $filter::new()
-                    .apply(&a_arc, &b_arc)
+                    .apply_native(a_native.as_ref(), b_native.as_ref(), &backend)
                     .map_err(|e| RitkPyError::runtime(e.to_string()))
             })
             .map(crate::image::into_py_image)
@@ -38,12 +44,18 @@ macro_rules! ternary_pyfn {
         #[doc = concat!("ITK Parity: ", $itk)]
         #[pyfunction]
         pub fn $name(py: Python<'_>, a: &PyImage, b: &PyImage, c: &PyImage) -> RitkResult<PyImage> {
-            let a_arc = crate::image::image_from_py(a);
-            let b_arc = crate::image::image_from_py(b);
-            let c_arc = crate::image::image_from_py(c);
+            let a_native = std::sync::Arc::clone(&a.inner);
+            let b_native = std::sync::Arc::clone(&b.inner);
+            let c_native = std::sync::Arc::clone(&c.inner);
+            let backend = coeus_core::MoiraiBackend;
             py.allow_threads(|| {
                 $filter::new()
-                    .apply(&a_arc, &b_arc, &c_arc)
+                    .apply_native(
+                        a_native.as_ref(),
+                        b_native.as_ref(),
+                        c_native.as_ref(),
+                        &backend,
+                    )
                     .map_err(|e| RitkPyError::runtime(e.to_string()))
             })
             .map(crate::image::into_py_image)
