@@ -10,6 +10,8 @@
 //!
 //! # Invariants
 //! - Non-DICOM files in directory mode are skipped silently.
+//! - Tag actions and private-tag removal are applied at every sequence nesting
+//!   level, not only to top-level elements.
 //! - File meta-header (transfer syntax, SOP class) is preserved unchanged.
 //! - `clean_pixel_data = CleaningPolicy::Skip` (default) never touches pixel data.
 //! - Same `(original_uid, salt)` always produces the same replacement UID.
@@ -23,6 +25,9 @@ mod tests_anonymize_extended;
 #[cfg(test)]
 #[path = "tests_anonymize_stats.rs"]
 mod tests_anonymize_stats;
+#[cfg(test)]
+#[path = "tests_recursion.rs"]
+mod tests_recursion;
 #[cfg(test)]
 #[path = "tests_verify.rs"]
 mod tests_verify;
@@ -42,6 +47,7 @@ pub enum CleaningPolicy {
 
 use anyhow::{Context, Result};
 use dicom::core::header::Header;
+use dicom::core::value::{DataSetSequence, Value};
 use dicom::core::{DataElement, PrimitiveValue, Tag, VR};
 use dicom::object::{open_file, FileDicomObject, InMemDicomObject};
 use sha2::{Digest, Sha256};
@@ -201,7 +207,7 @@ pub(crate) fn generate_uid_from_hash(original: &str, salt: &str) -> String {
 /// For `ReplaceUid`: hashes the original UID string deterministically.
 /// For `Remove`: silently tolerates absent elements.
 fn apply_action(
-    obj: &mut FileDicomObject<InMemDicomObject>,
+    obj: &mut InMemDicomObject,
     tag: Tag,
     action: TagAction,
     opts: &AnonymizeOptions,
@@ -267,14 +273,122 @@ fn apply_action(
     }
 }
 
+// ─── Dataset traversal ────────────────────────────────────────────────────────
+
+/// Maximum sequence nesting depth traversed by [`anonymize_dataset`].
+///
+/// A DICOM data set is a tree, so traversal terminates without a depth limit;
+/// this bound exists only to keep a pathologically or maliciously nested object
+/// from exhausting the stack. Conformant objects nest far below it — structured
+/// reports, the deepest common case, are typically under ten levels.
+const MAX_SEQUENCE_DEPTH: u32 = 64;
+
+/// Apply `tag_actions` to `dataset` and to every data set nested within it.
+///
+/// # Why recursion is required
+///
+/// Sequence attributes (`VR::SQ`) contain complete nested data sets, which
+/// contain their own sequences. Identifying attributes occur at every level:
+/// `RequestAttributesSequence (0040,0275)` nests accession numbers,
+/// `ReferencedImageSequence (0008,1140)` nests `ReferencedSOPInstanceUID`
+/// values that must be remapped consistently with the top-level UIDs or the
+/// references dangle, `ContentSequence (0040,A730)` nests operator-authored
+/// text and person names at arbitrary depth, and
+/// `OriginalAttributesSequence (0400,0561)` nests the original values that a
+/// previous de-identification replaced.
+///
+/// Applying the profile only to top-level elements leaves all of that in place
+/// while reporting success.
+///
+/// # Invariants
+///
+/// - The same `uid_map` is threaded through every level, so one source UID maps
+///   to one replacement UID across the whole object regardless of the depth at
+///   which it appears.
+/// - Private-tag removal, when enabled, applies at every level.
+/// - Statistics in `result` accumulate across all levels.
+fn anonymize_dataset(
+    dataset: &mut InMemDicomObject,
+    tag_actions: &[(Tag, TagAction)],
+    options: &AnonymizeOptions,
+    result: &mut AnonymizeResult,
+    uid_map: &mut HashMap<String, String>,
+    depth: u32,
+) {
+    for (tag, action) in tag_actions {
+        apply_action(dataset, *tag, *action, options, result, uid_map);
+    }
+
+    // Remove private tags at this level before descending, mirroring the
+    // top-level ordering relative to pixel-data handling.
+    if options.clean_private_tags == CleaningPolicy::Clean || options.profile.removes_private_tags()
+    {
+        // Collect private tag addresses first to avoid borrow conflicts.
+        // DICOM private elements have odd group numbers.
+        // Group 0x0002 (file meta-header) is always excluded.
+        let private_tags: Vec<Tag> = dataset
+            .iter()
+            .map(|e| e.tag())
+            .filter(|t| t.group() & 1 == 1 && t.group() != 0x0002)
+            .collect();
+        result.private_tags_removed += private_tags.len();
+        for tag in private_tags {
+            let _ = dataset.remove_element(tag);
+        }
+    }
+
+    if depth >= MAX_SEQUENCE_DEPTH {
+        tracing::warn!(
+            depth,
+            "sequence nesting exceeded {MAX_SEQUENCE_DEPTH} levels; deeper data sets \
+             were not anonymized"
+        );
+        return;
+    }
+
+    // Sequence addresses are collected before mutation so the data set is not
+    // iterated while it is being modified.
+    let sequence_tags: Vec<Tag> = dataset
+        .iter()
+        .filter(|e| matches!(e.value(), Value::Sequence(_)))
+        .map(|e| e.tag())
+        .collect();
+
+    for tag in sequence_tags {
+        let Ok(element) = dataset.element(tag).cloned() else {
+            continue;
+        };
+        let vr = element.vr();
+        let Value::Sequence(sequence) = element.into_value() else {
+            continue;
+        };
+
+        let items: Vec<InMemDicomObject> = sequence
+            .into_items()
+            .into_iter()
+            .map(|mut item| {
+                anonymize_dataset(&mut item, tag_actions, options, result, uid_map, depth + 1);
+                item
+            })
+            .collect();
+
+        dataset.put(DataElement::new(
+            tag,
+            vr,
+            Value::Sequence(DataSetSequence::from(items)),
+        ));
+    }
+}
+
 // ─── Public API ───────────────────────────────────────────────────────────────
 
 /// Apply anonymization to a single in-memory DICOM object.
 ///
 /// Iterates the `options.profile` tag-action list, mutating `obj` in place
-/// (via `DerefMut`). The file meta-header is never modified. Returns
-/// `AnonymizeResult` with per-operation statistics and the UID cross-reference
-/// map.
+/// (via `DerefMut`), and descends into every nested sequence so that
+/// identifying attributes below the top level are acted on as well. The file
+/// meta-header is never modified. Returns `AnonymizeResult` with per-operation
+/// statistics and the UID cross-reference map.
 ///
 /// When `options.clean_pixel_data` is `CleaningPolicy::Clean`, the
 /// `PixelData` element `(7FE0,0010)` is overwritten with an equal-length
@@ -287,27 +401,18 @@ pub fn anonymize_object(
     let tag_actions = options.profile.tag_actions();
     let mut uid_map: HashMap<String, String> = HashMap::with_capacity(tag_actions.len());
 
-    for (tag, action) in tag_actions {
-        apply_action(&mut obj, tag, action, options, &mut result, &mut uid_map);
-    }
-
-    // Remove private tags before pixel data handling to avoid removing
-    // private pixel data blocks after they have already been zeroed.
-    if options.clean_private_tags == CleaningPolicy::Clean || options.profile.removes_private_tags()
-    {
-        // Collect private tag addresses first to avoid borrow conflicts.
-        // DICOM private elements have odd group numbers.
-        // Group 0x0002 (file meta-header) is always excluded.
-        let private_tags: Vec<Tag> = obj
-            .iter()
-            .map(|e| e.tag())
-            .filter(|t| t.group() & 1 == 1 && t.group() != 0x0002)
-            .collect();
-        result.private_tags_removed = private_tags.len();
-        for tag in private_tags {
-            let _ = obj.remove_element(tag);
-        }
-    }
+    // Tag actions and private-tag removal are applied to the top-level data set
+    // and to every data set nested inside a sequence. Private tags are removed
+    // before pixel data handling below, so a private pixel data block is not
+    // removed after it has already been zeroed.
+    anonymize_dataset(
+        &mut obj,
+        &tag_actions,
+        options,
+        &mut result,
+        &mut uid_map,
+        0,
+    );
 
     if options.clean_pixel_data == CleaningPolicy::Clean {
         let pixel_tag = Tag(0x7FE0, 0x0010);
