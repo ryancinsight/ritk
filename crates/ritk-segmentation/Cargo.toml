@@ -24,4 +24,4 @@ leto-ops = { workspace = true }
 [dev-dependencies]
 base64 = { workspace = true }
 image = { workspace = true }
-ritk-spatial = { workspace = true }
+ritk-spatial = { path = "../ritk-spatial" }  # path-only: dev-deps form a publish cycle

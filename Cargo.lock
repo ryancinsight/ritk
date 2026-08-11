@@ -1192,7 +1192,7 @@ dependencies = [
 [[package]]
 name = "coeus-autograd"
 version = "0.10.0"
-source = "git+https://github.com/ryancinsight/Coeus.git#393a464d16b8a401baade9df127e740fb24d65f9"
+source = "git+https://github.com/ryancinsight/Coeus.git#3295a3786dc84d9df1257625ece12ca1fc902954"
 dependencies = [
  "apollo-fft",
  "coeus-core",
@@ -1207,7 +1207,7 @@ dependencies = [
 [[package]]
 name = "coeus-core"
 version = "0.10.0"
-source = "git+https://github.com/ryancinsight/Coeus.git#393a464d16b8a401baade9df127e740fb24d65f9"
+source = "git+https://github.com/ryancinsight/Coeus.git#3295a3786dc84d9df1257625ece12ca1fc902954"
 dependencies = [
  "bytemuck",
  "eunomia",
@@ -1222,7 +1222,7 @@ dependencies = [
 [[package]]
 name = "coeus-leto"
 version = "0.10.0"
-source = "git+https://github.com/ryancinsight/Coeus.git#393a464d16b8a401baade9df127e740fb24d65f9"
+source = "git+https://github.com/ryancinsight/Coeus.git#3295a3786dc84d9df1257625ece12ca1fc902954"
 dependencies = [
  "coeus-core",
  "leto",
@@ -1232,7 +1232,7 @@ dependencies = [
 [[package]]
 name = "coeus-nn"
 version = "0.10.0"
-source = "git+https://github.com/ryancinsight/Coeus.git#393a464d16b8a401baade9df127e740fb24d65f9"
+source = "git+https://github.com/ryancinsight/Coeus.git#3295a3786dc84d9df1257625ece12ca1fc902954"
 dependencies = [
  "coeus-autograd",
  "coeus-core",
@@ -1246,7 +1246,7 @@ dependencies = [
 [[package]]
 name = "coeus-ops"
 version = "0.10.0"
-source = "git+https://github.com/ryancinsight/Coeus.git#393a464d16b8a401baade9df127e740fb24d65f9"
+source = "git+https://github.com/ryancinsight/Coeus.git#3295a3786dc84d9df1257625ece12ca1fc902954"
 dependencies = [
  "bytemuck",
  "coeus-core",
@@ -1264,7 +1264,7 @@ dependencies = [
 [[package]]
 name = "coeus-optim"
 version = "0.10.0"
-source = "git+https://github.com/ryancinsight/Coeus.git#393a464d16b8a401baade9df127e740fb24d65f9"
+source = "git+https://github.com/ryancinsight/Coeus.git#3295a3786dc84d9df1257625ece12ca1fc902954"
 dependencies = [
  "coeus-autograd",
  "coeus-core",
@@ -1278,7 +1278,7 @@ dependencies = [
 [[package]]
 name = "coeus-sparse"
 version = "0.10.0"
-source = "git+https://github.com/ryancinsight/Coeus.git#393a464d16b8a401baade9df127e740fb24d65f9"
+source = "git+https://github.com/ryancinsight/Coeus.git#3295a3786dc84d9df1257625ece12ca1fc902954"
 dependencies = [
  "coeus-core",
  "coeus-tensor",
@@ -1289,7 +1289,7 @@ dependencies = [
 [[package]]
 name = "coeus-tensor"
 version = "0.10.0"
-source = "git+https://github.com/ryancinsight/Coeus.git#393a464d16b8a401baade9df127e740fb24d65f9"
+source = "git+https://github.com/ryancinsight/Coeus.git#3295a3786dc84d9df1257625ece12ca1fc902954"
 dependencies = [
  "bytemuck",
  "coeus-core",
