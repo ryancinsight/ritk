@@ -10,6 +10,22 @@
 
 ## [Unreleased] — JPEG 2000 scalar quality control (FEAT-692-01)
 
+### Fixed
+
+- Apply DICOM anonymization to nested sequences. `anonymize_object` previously
+  iterated only top-level elements, so identifying attributes inside sequence
+  items survived de-identification while the run reported success. Tag actions
+  and private-tag removal now descend into every nested data set, and the UID
+  map is threaded through all levels so one source UID maps to one replacement
+  UID at every depth. Affected attributes include `PatientName` and
+  `ReferencedSOPInstanceUID` inside `ReferencedImageSequence`, accession
+  numbers inside `RequestAttributesSequence`, person names and text inside
+  structured-report `ContentSequence`, and — most consequentially — the values
+  archived in `OriginalAttributesSequence`, which records exactly the data a
+  previous de-identification replaced. Traversal is bounded at 64 levels as a
+  stack guard. Statistics in `AnonymizeResult` now accumulate across all
+  nesting levels rather than counting only top-level elements.
+
 ### Compatibility
 
 - Update the workspace Eunomia provider requirement to `0.8.0`, removing the
