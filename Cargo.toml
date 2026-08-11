@@ -86,7 +86,10 @@ ritk-trk = { path = "crates/ritk-trk", version = "0.1.0" }
 ritk-mif = { path = "crates/ritk-mif", version = "0.1.0" }
 ritk-tck = { path = "crates/ritk-tck", version = "0.1.0" }
 ritk-trx = { path = "crates/ritk-trx", version = "0.1.0" }
-gaia = { version = "0.3.0", git = "https://github.com/ryancinsight/gaia", default-features = false }
+# The crates.io name `gaia` belongs to an unrelated third-party crate, so the
+# crate is published as `gaia-mesh`; the import path stays `gaia` via its
+# `[lib] name`, so no source changes.
+gaia = { package = "gaia-mesh", version = "0.3.0", git = "https://github.com/ryancinsight/gaia", default-features = false }
 criterion = { version = "0.5", features = ["html_reports"] }
 coeus-nn = { version = "0.9.0", git = "https://github.com/ryancinsight/Coeus.git" }
 coeus-optim = { version = "0.9.0", git = "https://github.com/ryancinsight/Coeus.git" }

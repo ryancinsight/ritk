@@ -107,7 +107,7 @@ checksum = "320119579fcad9c21884f5c4861d16174d0e06250625266f50fe6898340abefa"
 [[package]]
 name = "aequitas"
 version = "0.2.0"
-source = "git+https://github.com/ryancinsight/aequitas#681042b4cebb7bdd0c22a60b612ce74cb86733b2"
+source = "git+https://github.com/ryancinsight/aequitas#f181ce617f61811fcb1f6d35c0d217dfb5fbfb34"
 dependencies = [
  "eunomia",
  "typenum",
@@ -2254,7 +2254,7 @@ checksum = "dea2df4cf52843e0452895c455a1a2cfbb842a1e7329671acf418fdc53ed4c59"
 [[package]]
 name = "eunomia"
 version = "0.8.0"
-source = "git+https://github.com/ryancinsight/eunomia#184ba926cc732e7bcd8775026f8c29edfbe8a5bf"
+source = "git+https://github.com/ryancinsight/eunomia#a1a2e35c33da974697b5aec907351e02739609d9"
 dependencies = [
  "bytemuck",
  "libm",
@@ -2543,9 +2543,9 @@ dependencies = [
 ]
 
 [[package]]
-name = "gaia"
+name = "gaia-mesh"
 version = "0.3.0"
-source = "git+https://github.com/ryancinsight/gaia#ea6c40a244737f14a74b97b242f6024868710cb4"
+source = "git+https://github.com/ryancinsight/gaia#5ea09cbc0fefa1a932bfd7e6900fb0a7ea2b6aff"
 dependencies = [
  "anyhow",
  "eunomia",
@@ -3288,7 +3288,7 @@ checksum = "6a756c3fac73139e83f14c2d742155dd2b78d3ee56597b419a0579b7bdd6dd78"
 [[package]]
 name = "iris-viz"
 version = "0.1.0"
-source = "git+https://github.com/ryancinsight/iris#2e7ee2047924d28c05b7a34ec42138ca1d2015c0"
+source = "git+https://github.com/ryancinsight/iris#4f6d29f48ecebf0948416a1695aada2ff1ee279c"
 dependencies = [
  "serde",
 ]
@@ -4003,7 +4003,7 @@ dependencies = [
 [[package]]
 name = "moirai-async"
 version = "0.4.0"
-source = "git+https://github.com/ryancinsight/Moirai.git#905b5f5d2ecd35e7323142e1bd08d5bffb9cfa05"
+source = "git+https://github.com/ryancinsight/Moirai.git#57c4ec4421ccfb2eae00cb8e51541130b2af534d"
 dependencies = [
  "futures",
  "libc",
@@ -4019,7 +4019,7 @@ dependencies = [
 [[package]]
 name = "moirai-async-macros"
 version = "0.4.0"
-source = "git+https://github.com/ryancinsight/Moirai.git#905b5f5d2ecd35e7323142e1bd08d5bffb9cfa05"
+source = "git+https://github.com/ryancinsight/Moirai.git#57c4ec4421ccfb2eae00cb8e51541130b2af534d"
 dependencies = [
  "proc-macro2",
  "quote",
@@ -4029,18 +4029,19 @@ dependencies = [
 [[package]]
 name = "moirai-core"
 version = "0.4.0"
-source = "git+https://github.com/ryancinsight/Moirai.git#905b5f5d2ecd35e7323142e1bd08d5bffb9cfa05"
+source = "git+https://github.com/ryancinsight/Moirai.git#57c4ec4421ccfb2eae00cb8e51541130b2af534d"
 dependencies = [
  "bytemuck",
  "libc",
  "mnemosyne-memory",
  "moirai-utils",
+ "themis-topology",
 ]
 
 [[package]]
 name = "moirai-executor"
 version = "0.4.0"
-source = "git+https://github.com/ryancinsight/Moirai.git#905b5f5d2ecd35e7323142e1bd08d5bffb9cfa05"
+source = "git+https://github.com/ryancinsight/Moirai.git#57c4ec4421ccfb2eae00cb8e51541130b2af534d"
 dependencies = [
  "melinoe",
  "mnemosyne-memory",
@@ -4048,12 +4049,13 @@ dependencies = [
  "moirai-pal",
  "moirai-scheduler",
  "moirai-utils",
+ "themis-topology",
 ]
 
 [[package]]
 name = "moirai-iter"
 version = "0.4.0"
-source = "git+https://github.com/ryancinsight/Moirai.git#905b5f5d2ecd35e7323142e1bd08d5bffb9cfa05"
+source = "git+https://github.com/ryancinsight/Moirai.git#57c4ec4421ccfb2eae00cb8e51541130b2af534d"
 dependencies = [
  "futures",
  "libc",
@@ -4069,7 +4071,7 @@ dependencies = [
 [[package]]
 name = "moirai-pal"
 version = "0.4.0"
-source = "git+https://github.com/ryancinsight/Moirai.git#905b5f5d2ecd35e7323142e1bd08d5bffb9cfa05"
+source = "git+https://github.com/ryancinsight/Moirai.git#57c4ec4421ccfb2eae00cb8e51541130b2af534d"
 dependencies = [
  "js-sys",
  "libc",
@@ -4084,17 +4086,18 @@ dependencies = [
 [[package]]
 name = "moirai-parallel"
 version = "0.4.0"
-source = "git+https://github.com/ryancinsight/Moirai.git#905b5f5d2ecd35e7323142e1bd08d5bffb9cfa05"
+source = "git+https://github.com/ryancinsight/Moirai.git#57c4ec4421ccfb2eae00cb8e51541130b2af534d"
 dependencies = [
  "melinoe",
  "moirai-core",
  "moirai-executor",
+ "themis-topology",
 ]
 
 [[package]]
 name = "moirai-runtime"
 version = "0.4.0"
-source = "git+https://github.com/ryancinsight/Moirai.git#905b5f5d2ecd35e7323142e1bd08d5bffb9cfa05"
+source = "git+https://github.com/ryancinsight/Moirai.git#57c4ec4421ccfb2eae00cb8e51541130b2af534d"
 dependencies = [
  "melinoe",
  "mnemosyne-memory",
@@ -4112,7 +4115,7 @@ dependencies = [
 [[package]]
 name = "moirai-scheduler"
 version = "0.4.0"
-source = "git+https://github.com/ryancinsight/Moirai.git#905b5f5d2ecd35e7323142e1bd08d5bffb9cfa05"
+source = "git+https://github.com/ryancinsight/Moirai.git#57c4ec4421ccfb2eae00cb8e51541130b2af534d"
 dependencies = [
  "mnemosyne-memory",
  "moirai-core",
@@ -4124,7 +4127,7 @@ dependencies = [
 [[package]]
 name = "moirai-sync"
 version = "0.4.0"
-source = "git+https://github.com/ryancinsight/Moirai.git#905b5f5d2ecd35e7323142e1bd08d5bffb9cfa05"
+source = "git+https://github.com/ryancinsight/Moirai.git#57c4ec4421ccfb2eae00cb8e51541130b2af534d"
 dependencies = [
  "libc",
  "moirai-core",
@@ -4134,7 +4137,7 @@ dependencies = [
 [[package]]
 name = "moirai-transport"
 version = "0.4.0"
-source = "git+https://github.com/ryancinsight/Moirai.git#905b5f5d2ecd35e7323142e1bd08d5bffb9cfa05"
+source = "git+https://github.com/ryancinsight/Moirai.git#57c4ec4421ccfb2eae00cb8e51541130b2af534d"
 dependencies = [
  "bytemuck",
  "moirai-core",
@@ -4145,7 +4148,7 @@ dependencies = [
 [[package]]
 name = "moirai-utils"
 version = "0.4.0"
-source = "git+https://github.com/ryancinsight/Moirai.git#905b5f5d2ecd35e7323142e1bd08d5bffb9cfa05"
+source = "git+https://github.com/ryancinsight/Moirai.git#57c4ec4421ccfb2eae00cb8e51541130b2af534d"
 
 [[package]]
 name = "moxcms"
@@ -5642,7 +5645,7 @@ dependencies = [
 name = "ritk-connectome"
 version = "0.1.0"
 dependencies = [
- "gaia",
+ "gaia-mesh",
  "leto",
  "ritk-spatial",
  "serde",
@@ -5725,7 +5728,7 @@ dependencies = [
  "coeus-tensor",
  "criterion",
  "eunomia",
- "gaia",
+ "gaia-mesh",
  "image 0.24.9",
  "moirai-runtime",
  "rand 0.9.5",
@@ -5796,7 +5799,7 @@ dependencies = [
  "dicom-ul",
  "eunomia",
  "flate2",
- "gaia",
+ "gaia-mesh",
  "image 0.24.9",
  "moirai-runtime",
  "reqwest",
@@ -6061,7 +6064,7 @@ dependencies = [
  "coeus-core",
  "eframe",
  "egui",
- "gaia",
+ "gaia-mesh",
  "getrandom 0.2.17",
  "getrandom 0.3.4",
  "image 0.24.9",
@@ -6115,7 +6118,7 @@ dependencies = [
 name = "ritk-tck"
 version = "0.1.0"
 dependencies = [
- "gaia",
+ "gaia-mesh",
  "leto",
  "thiserror 2.0.20",
 ]
@@ -6153,7 +6156,7 @@ name = "ritk-tractography"
 version = "0.1.0"
 dependencies = [
  "apollo-sht",
- "gaia",
+ "gaia-mesh",
  "leto",
  "ritk-diffusion",
  "ritk-diffusion-scheme",
@@ -6189,7 +6192,7 @@ dependencies = [
 name = "ritk-trk"
 version = "0.1.0"
 dependencies = [
- "gaia",
+ "gaia-mesh",
  "leto",
  "tempfile",
  "thiserror 2.0.20",
@@ -6199,7 +6202,7 @@ dependencies = [
 name = "ritk-trx"
 version = "0.1.0"
 dependencies = [
- "gaia",
+ "gaia-mesh",
  "leto",
  "serde",
  "serde_json",
@@ -6214,7 +6217,7 @@ dependencies = [
  "coeus-core",
  "consus-io",
  "criterion",
- "gaia",
+ "gaia-mesh",
  "iris-viz",
  "ritk-image",
  "ritk-spatial",
@@ -7000,7 +7003,7 @@ dependencies = [
 [[package]]
 name = "themis-topology"
 version = "0.10.1"
-source = "git+https://github.com/ryancinsight/themis.git#038457df2912bb6fc2824e961e0190d43afa793f"
+source = "git+https://github.com/ryancinsight/themis.git#12f4531bed770166dd3194a3bede4bc7f811eacb"
 dependencies = [
  "melinoe",
 ]
