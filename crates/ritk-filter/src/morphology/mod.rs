@@ -220,10 +220,9 @@ pub(crate) enum Extremum {
 ///
 /// Output is **bit-identical** to the serial version — the passes are
 /// embarrassingly parallel with no data sharing within a pass.
-#[expect(
-    clippy::missing_const_for_thread_local,
-    reason = "Rust 1.97 reports this lint even though the initializer is already const"
-)]
+// Clippy 1.97.0 reports the const initializer; 1.97.1 reports an `expect`
+// for the same lint as unfulfilled.
+#[allow(clippy::missing_const_for_thread_local)]
 pub(crate) fn separable_box_3d(
     data: &[f32],
     dims: [usize; 3],
