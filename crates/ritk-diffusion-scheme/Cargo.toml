@@ -15,8 +15,8 @@ ritk-spatial.workspace = true
 aequitas.workspace = true
 
 [dev-dependencies]
-ritk-nrrd.workspace = true
-ritk-dicom.workspace = true
+ritk-nrrd = { path = "../ritk-nrrd" }  # path-only: dev-deps form a publish cycle
+ritk-dicom = { path = "../ritk-dicom" }  # path-only: dev-deps form a publish cycle
 dicom.workspace = true
 tempfile.workspace = true
 anyhow.workspace = true
