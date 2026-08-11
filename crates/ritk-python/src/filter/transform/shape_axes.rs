@@ -1,10 +1,12 @@
 use crate::errors::{RitkPyError, RitkResult};
-use crate::image::{image_from_py, into_py_image, PyImage};
+use crate::image::{into_py_image, PyImage};
+use coeus_core::MoiraiBackend;
 use pyo3::prelude::*;
 use ritk_filter::{
     CyclicShiftImageFilter, ExpandImageFilter, FlipImageFilter, OrientImageFilter,
     PermuteAxesImageFilter, ShrinkImageFilter,
 };
+use std::sync::Arc;
 
 /// Flip the image along any combination of the Z, Y, X axes.
 /// ITK Parity: FlipImageFilter (`sitk.Flip` with `flipAxes` reversed to `[x,y,z]`).
@@ -17,10 +19,11 @@ pub fn flip(
     flip_y: bool,
     flip_x: bool,
 ) -> RitkResult<PyImage> {
-    let arc = image_from_py(image);
+    let native = Arc::clone(&image.inner);
+    let backend = MoiraiBackend;
     py.allow_threads(|| {
         FlipImageFilter::from_bools([flip_z, flip_y, flip_x])
-            .apply(&arc)
+            .apply_native(native.as_ref(), &backend)
             .map_err(|e| RitkPyError::runtime(e.to_string()))
     })
     .map(into_py_image)
@@ -39,10 +42,10 @@ pub fn shrink(
     factor_y: usize,
     factor_x: usize,
 ) -> RitkResult<PyImage> {
-    let arc = image_from_py(image);
+    let native = Arc::clone(&image.inner);
     py.allow_threads(|| {
         ShrinkImageFilter::new([factor_z, factor_y, factor_x])
-            .apply(&arc)
+            .apply(native.as_ref())
             .map_err(|e| RitkPyError::runtime(e.to_string()))
     })
     .map(into_py_image)
@@ -53,11 +56,19 @@ pub fn shrink(
 /// origin shift, edge-clamp). ITK Parity: ExpandImageFilter (`sitk.Expand`,
 /// factors `[fx,fy,fz]`).
 #[pyfunction]
-pub fn expand(py: Python<'_>, image: &PyImage, factors: (usize, usize, usize)) -> PyImage {
-    let arc = image_from_py(image);
-    let out =
-        py.allow_threads(|| ExpandImageFilter::new([factors.0, factors.1, factors.2]).apply(&arc));
-    into_py_image(out)
+pub fn expand(
+    py: Python<'_>,
+    image: &PyImage,
+    factors: (usize, usize, usize),
+) -> RitkResult<PyImage> {
+    let native = Arc::clone(&image.inner);
+    let backend = MoiraiBackend;
+    py.allow_threads(|| {
+        ExpandImageFilter::new([factors.0, factors.1, factors.2])
+            .apply_native(native.as_ref(), &backend)
+            .map_err(|e| RitkPyError::runtime(e.to_string()))
+    })
+    .map(into_py_image)
 }
 
 /// Cyclically roll the image by `shift = (z, y, x)` voxels (periodic wrap-around,
@@ -68,10 +79,14 @@ pub fn cyclic_shift(
     image: &PyImage,
     shift: (i64, i64, i64),
 ) -> RitkResult<PyImage> {
-    let arc = image_from_py(image);
-    let out =
-        py.allow_threads(|| CyclicShiftImageFilter::new([shift.0, shift.1, shift.2]).apply(&arc));
-    Ok(into_py_image(out))
+    let native = Arc::clone(&image.inner);
+    let backend = MoiraiBackend;
+    py.allow_threads(|| {
+        CyclicShiftImageFilter::new([shift.0, shift.1, shift.2])
+            .apply_native(native.as_ref(), &backend)
+            .map_err(|e| RitkPyError::runtime(e.to_string()))
+    })
+    .map(into_py_image)
 }
 
 /// Permute the tensor axes. `order` is a permutation of `(0, 1, 2)` in `[z,y,x]`
@@ -82,10 +97,11 @@ pub fn permute_axes(
     image: &PyImage,
     order: (usize, usize, usize),
 ) -> RitkResult<PyImage> {
-    let arc = image_from_py(image);
+    let native = Arc::clone(&image.inner);
+    let backend = MoiraiBackend;
     py.allow_threads(|| {
         PermuteAxesImageFilter::new([order.0, order.1, order.2])
-            .apply(&arc)
+            .apply_native(native.as_ref(), &backend)
             .map_err(|e| RitkPyError::runtime(e.to_string()))
     })
     .map(into_py_image)
@@ -96,12 +112,13 @@ pub fn permute_axes(
 /// ITK Parity: DICOMOrientImageFilter (`sitk.DICOMOrient`).
 #[pyfunction]
 pub fn dicom_orient(py: Python<'_>, image: &PyImage, orientation: &str) -> RitkResult<PyImage> {
-    let arc = image_from_py(image);
+    let native = Arc::clone(&image.inner);
+    let backend = MoiraiBackend;
     let filter =
         OrientImageFilter::from_code(orientation).map_err(|e| RitkPyError::value(e.to_string()))?;
     py.allow_threads(|| {
         filter
-            .apply(&arc)
+            .apply_native(native.as_ref(), &backend)
             .map_err(|e| RitkPyError::runtime(e.to_string()))
     })
     .map(into_py_image)

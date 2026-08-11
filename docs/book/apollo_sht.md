@@ -3,7 +3,8 @@
 `apollo-sht` owns the spherical harmonic basis used by the ODF and CSD models
 in `ritk-diffusion`. The real, even-order, antipodally symmetric basis is an
 upstream provider capability per [ADR 0036 decision
-2](../../docs/adr/0036-neuroimaging-and-mr-ownership.md). RITK assembles the
+2](https://github.com/ryancinsight/atlas/blob/main/docs/adr/0036-neuroimaging-and-mr-ownership.md).
+RITK assembles the
 design matrix and calls `apollo_sht` for basis evaluation; it implements no
 local spherical-harmonic path, no local associated-Legendre recurrence, and no
 local SH normalization.

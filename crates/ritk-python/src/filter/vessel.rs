@@ -1,10 +1,12 @@
 //! Vesselness filters: Frangi multiscale vesselness, Sato line filter.
 
 use crate::errors::{RitkPyError, RitkResult};
-use crate::image::{image_from_py, into_py_image, PyImage};
+use crate::image::{into_py_image, PyImage};
+use coeus_core::MoiraiBackend;
 use pyo3::prelude::*;
 use ritk_filter::vesselness::{FrangiConfig, SatoConfig, VesselPolarity};
 use ritk_filter::{FrangiVesselnessFilter, SatoLineFilter};
+use std::sync::Arc;
 
 /// Vessel/brightness polarity for vesselness filters, replacing `bright_vessels: bool`.
 ///
@@ -73,7 +75,8 @@ pub fn frangi_vesselness(
     gamma: f64,
     polarity: PyVesselPolarity,
 ) -> RitkResult<PyImage> {
-    let image = image_from_py(image);
+    let image = Arc::clone(&image.inner);
+    let backend = MoiraiBackend;
     py.allow_threads(|| {
         let config = FrangiConfig {
             scales: scales.unwrap_or_else(|| vec![0.5, 1.0, 2.0]),
@@ -84,7 +87,7 @@ pub fn frangi_vesselness(
         };
         let filter = FrangiVesselnessFilter::new(config);
         filter
-            .apply(&image)
+            .apply_native(image.as_ref(), &backend)
             .map_err(|e| RitkPyError::runtime(e.to_string()))
     })
     .map(into_py_image)
@@ -117,7 +120,8 @@ pub fn sato_line_filter(
     alpha: f64,
     polarity: PyVesselPolarity,
 ) -> RitkResult<PyImage> {
-    let image = image_from_py(image);
+    let image = Arc::clone(&image.inner);
+    let backend = MoiraiBackend;
     py.allow_threads(|| {
         let filter = SatoLineFilter::new(SatoConfig {
             scales: scales.unwrap_or_else(|| vec![1.0, 2.0, 3.0]),
@@ -125,7 +129,7 @@ pub fn sato_line_filter(
             polarity: VesselPolarity::from(polarity),
         });
         filter
-            .apply(&image)
+            .apply_native(image.as_ref(), &backend)
             .map_err(|e| RitkPyError::runtime(e.to_string()))
     })
     .map(into_py_image)

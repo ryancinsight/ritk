@@ -8,26 +8,35 @@
 
 # RITK Sprint Checklist — Active
 
-## AEQUITAS-AEQ-MET-68 — Eunomia 0.8 provider compatibility [patch] — review
+## AEQUITAS-AEQ-MET-68 — Eunomia 0.8 provider compatibility [patch] — local closure; external release gates open
 
 - [x] Update the workspace Eunomia requirement from `0.7.0` to `0.8.0` and
       regenerate the standalone lockfile without an Atlas path overlay.
 - [x] Preserve the existing Eunomia real/complex numerical boundary; no
       imaginary physical unit is added.
-- [ ] Run the repository's locked metadata, format, Clippy, Nextest, doctest,
-      Rustdoc, and hosted security gates at the exact PR head.
+- [x] Remove the stale Windows-only `missing_const_for_thread_local` lint
+      expectation in `ritk-filter/src/morphology/mod.rs`; the pinned Rust 1.97
+      toolchain accepts the const initializer and `-D warnings` rejects an
+      unfulfilled expectation.
+- [x] Run the repository-owned gates at the reconciled standalone lock: locked
+      metadata, formatting, strict all-target/all-feature Clippy, full Nextest,
+      workspace doctests, and workspace Rustdoc all pass. Full Nextest is
+      5,137 passed, 0 failed, and 24 skipped; the focused `ritk-filter` suite
+      is 1,123/1,123.
+- [ ] Run hosted security/indexing gates at the exact delivery head and obtain
+      owner review before merge; registry indexing and package archive checks
+      are external to this local closure.
 
-Acceptance: the clean Ritk provider graph resolves Eunomia 0.8 and no active
-dependency retains the vulnerable Eunomia 0.7/rkyv 0.7 path.
+Acceptance: the standalone RITK provider graph resolves Eunomia 0.8 with
+`rkyv 0.8.17`, no active manifest requests Eunomia 0.7, and all local
+repository-owned validation gates are green. Crates.io/PyPI publication,
+trusted-publisher verification, hosted security, and merge remain open release
+steps.
 
 > **Retired tooling note**: The `burn-migration-audit` xtask command,
 > `xtask/burn_surface.allowlist`, and the `legacy-migration-audit` CI
 > workflow were removed after the Burn-to-Coeus migration completed.
 > References to these tools in the entries below are historical.
-
-## SAFE-687-01 — Reject truncated JPEG 2000 marker tails
-**Target version**: Unreleased patch
-**Sprint phase**: Review
 
 ## DOC-694-01 — Render diffusion-MRI equations portably
 **Target version**: Unreleased patch
@@ -195,21 +204,26 @@ dependency retains the vulnerable Eunomia 0.7/rkyv 0.7 path.
 **Target version**: Current workspace package versions
 **Sprint phase**: Execution
 
-- [x] Reconcile the current workspace package graph and select the 28 reusable
-      Rust library packages in the dependency closure.
+- [x] Reconcile the current workspace package graph. The live manifests
+      enumerate 29 crates with explicit `publish = true`; the older 28-package
+      release target is stale and must be reconciled before publication.
 - [x] Complete package metadata, explicit publish policy, local dependency
       versions, and external package aliases.
 - [x] Add the tag-selected OIDC crates.io release workflow without changing the
       independent Python wheel workflow.
 - [ ] Verify metadata, formatting, lint, focused native tests, documentation,
       and each packaged source archive.
-      Exact standalone evidence: locked metadata reports 34 workspace packages
-      and exactly 28 publishable packages in an acyclic local graph; Rustfmt and
-      workspace dependency alignment pass; warning-denied all-target Clippy for
-      `ritk-filter` passes; Nextest passes 1,123/1,123 `ritk-filter` tests in
-      8.183 seconds and 484/484 `ritk-segmentation` tests in 6.643 seconds; and
-      focused doctests pass. Per-package archive verification remains pending on
-      upstream registry indexing.
+      Exact local evidence: locked metadata reports 39 workspace packages and
+      the manifests contain 29 explicit `publish = true` packages, alongside
+      nine explicit nonpublishable packages and zero packages with implicit
+      publish policy. Rustfmt and workspace dependency alignment pass;
+      warning-denied all-target Clippy for `ritk-filter` passes; Nextest passes
+      1,123/1,123 `ritk-filter` tests in 8.183 seconds and 484/484
+      `ritk-segmentation` tests in 6.643 seconds; and focused doctests pass.
+      Non-publishing archive preparation is blocked before `.crate` creation:
+      `ritk-filter` requires `gaia ^0.3.0`, while crates.io currently indexes
+      Gaia only through 0.2.1. The remaining archive set is therefore not
+      claimed verified.
 - [ ] Merge hosted gates and publish every package in dependency order.
 - [ ] Verify crates.io indexing, trusted-publishing-only enforcement, and a
       matching GitHub Release for every published package version.
@@ -256,7 +270,7 @@ dependency retains the vulnerable Eunomia 0.7/rkyv 0.7 path.
 
 ## SAFE-687-01 — Reject truncated JPEG 2000 marker tails
 **Target version**: Unreleased patch
-**Sprint phase**: Closure
+**Sprint phase**: Closure — PM reconciled 2026-08-10
 
 - [x] Reconcile `origin/main`, worktrees, peer-owned diffusion changes, the
       native codec parser, tests, architecture claims, and book coverage.
@@ -411,11 +425,11 @@ dependency retains the vulnerable Eunomia 0.7/rkyv 0.7 path.
       341/341 Nextest, 15/15 Python binding tests, statistics all-target
       warning-denied Clippy, two doctests, warning-denied Rustdoc, mdBook
       test/build, the deterministic example, and the declared-major semantic
-      check against `7c2f2ac5` pass.
-- [x] Classify the broader local Python Clippy result. It is an accepted
-      pre-existing provider-overlay exception: the command reaches
-      `ritk-filter`'s unrelated `missing_const_for_thread_local` diagnostic,
-      while the exact provider-pinned hosted workspace Clippy gate passes.
+      check against `7c2f2ac5` pass.  - [x] Classify the broader local Python Clippy result at that historical
+        head: the command reached a then-present provider-overlay
+        `missing_const_for_thread_local` diagnostic in `ritk-filter`; the
+        expectation was subsequently removed by the Eunomia 0.8 local-closure
+        slice recorded at the top of this checklist.
 - [x] Run exact-code-head hosted gates. CI `30527279931`, all 13 Python lanes
       in `30527280041`, and mdBook build `30527279966` pass at `08ba5e4e`.
 - [x] Reconcile CHANGELOG, audit, backlog, and checklist evidence; commit,

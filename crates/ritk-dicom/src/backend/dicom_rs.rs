@@ -11,8 +11,8 @@ use dicom_pixeldata::PixelDecoder;
 use std::path::Path;
 
 use crate::backend::{
-    DecodeFrameRequest, DecodedFrame, DicomParseBackend, EncapsulatedFrameSource,
-    NativeCodecBackend, PixelDecodeBackend,
+    DecodeFrameRequest, DecodedFrame, DicomParseBackend, DicomWriteBackend,
+    EncapsulatedFrameSource, NativeCodecBackend, PixelDecodeBackend,
 };
 use crate::pixel::{decode_native_pixel_bytes_checked, PixelLayout};
 use crate::syntax::TransferSyntaxKind;
@@ -54,6 +54,24 @@ impl DicomParseBackend for DicomRsBackend {
         use std::io::Cursor;
         dicom::object::from_reader(Cursor::new(data))
             .with_context(|| "dicom-rs backend failed to parse DICOM bytes")
+    }
+}
+
+impl DicomWriteBackend for DicomRsBackend {
+    type Object = DefaultDicomObject;
+
+    fn write_file(path: &Path, object: &Self::Object) -> Result<()> {
+        object
+            .write_to_file(path)
+            .with_context(|| format!("dicom-rs backend failed to write {:?}", path))
+    }
+
+    fn write_bytes(object: &Self::Object) -> Result<Vec<u8>> {
+        let mut bytes = Vec::new();
+        object
+            .write_all(&mut bytes)
+            .with_context(|| "dicom-rs backend failed to write DICOM bytes")?;
+        Ok(bytes)
     }
 }
 

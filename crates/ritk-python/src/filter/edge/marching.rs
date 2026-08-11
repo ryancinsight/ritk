@@ -1,8 +1,11 @@
 //! Fast marching and colliding fronts filters.
 
-use crate::image::{image_from_py, into_py_image, PyImage};
+use crate::errors::{RitkPyError, RitkResult};
+use crate::image::{into_py_image, PyImage};
+use coeus_core::MoiraiBackend;
 use pyo3::prelude::*;
 use ritk_filter::{CollidingFrontsFilter, FastMarchingFilter};
+use std::sync::Arc;
 
 /// Solve the Eikonal arrival-time field by fast marching, matching
 /// `SimpleITK.FastMarching`.
@@ -30,18 +33,20 @@ pub fn fast_marching(
     normalization_factor: f64,
     stopping_value: Option<f64>,
     initial_trial_values: Vec<f64>,
-) -> PyImage {
-    let arc = image_from_py(image);
-    let out = py.allow_threads(|| {
+) -> RitkResult<PyImage> {
+    let native = Arc::clone(&image.inner);
+    let backend = MoiraiBackend;
+    py.allow_threads(|| {
         FastMarchingFilter {
             trial_points,
             initial_trial_values,
             normalization_factor,
             stopping_value: stopping_value.unwrap_or(f64::MAX / 2.0),
         }
-        .apply(&arc)
-    });
-    into_py_image(out)
+        .apply_native(native.as_ref(), &backend)
+        .map_err(|e| RitkPyError::runtime(e.to_string()))
+    })
+    .map(into_py_image)
 }
 
 /// Colliding-fronts segmentation potential, matching `SimpleITK.CollidingFronts`.
@@ -70,16 +75,18 @@ pub fn colliding_fronts(
     seeds2: Vec<[usize; 3]>,
     apply_connectivity: bool,
     negative_epsilon: f64,
-) -> PyImage {
-    let arc = image_from_py(image);
-    let out = py.allow_threads(|| {
+) -> RitkResult<PyImage> {
+    let native = Arc::clone(&image.inner);
+    let backend = MoiraiBackend;
+    py.allow_threads(|| {
         CollidingFrontsFilter {
             seeds1,
             seeds2,
             apply_connectivity,
             negative_epsilon,
         }
-        .apply(&arc)
-    });
-    into_py_image(out)
+        .apply_native(native.as_ref(), &backend)
+        .map_err(|e| RitkPyError::runtime(e.to_string()))
+    })
+    .map(into_py_image)
 }

@@ -30,6 +30,12 @@ pub trait DicomParseBackend {
     fn parse_bytes(data: &[u8]) -> Result<Self::Object>;
 }
 
+pub trait DicomWriteBackend {
+    type Object;
+    fn write_file(path: &Path, object: &Self::Object) -> Result<()>;
+    fn write_bytes(object: &Self::Object) -> Result<Vec<u8>>;
+}
+
 pub trait PixelDecodeBackend<O> {
     fn decode_frame(object: &O, request: DecodeFrameRequest) -> Result<DecodedFrame>;
 }
@@ -57,6 +63,21 @@ where
     B: DicomParseBackend,
 {
     B::parse_bytes(data)
+}
+
+pub fn write_file_with<B, P>(path: P, object: &<B as DicomWriteBackend>::Object) -> Result<()>
+where
+    B: DicomWriteBackend,
+    P: AsRef<Path>,
+{
+    B::write_file(path.as_ref(), object)
+}
+
+pub fn write_bytes_with<B>(object: &<B as DicomWriteBackend>::Object) -> Result<Vec<u8>>
+where
+    B: DicomWriteBackend,
+{
+    B::write_bytes(object)
 }
 
 pub fn decode_frame_with<B>(

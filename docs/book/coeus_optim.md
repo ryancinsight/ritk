@@ -2,7 +2,7 @@
 
 `coeus-optim` owns the Levenberg-Marquardt (damped Gauss-Newton) solver used
 by the nonlinear diffusion models in
-[ADR 0036 decision 2](../../docs/adr/0036-neuroimaging-and-mr-ownership.md).
+[ADR 0036 decision 2](https://github.com/ryancinsight/atlas/blob/main/docs/adr/0036-neuroimaging-and-mr-ownership.md).
 DKI, NODDI, and IVIM fit their parameters through this solver; RITK adds no
 local nonlinear optimiser.
 

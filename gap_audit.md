@@ -8,6 +8,94 @@
 
 # RITK Gap Audit - Active
 
+## RELEASE-689-01 — Hosted release-readiness audit (2026-08-10)
+
+The release workflow contract is syntactically valid: RITK pins the Atlas
+reusable crates workflow at `9772542c`, passes Rust `1.97.0` and the selected
+package/version dispatch inputs, and grants `id-token: write`. The reusable
+workflow provides the `crates-io` environment and OIDC token action, with an
+optional `CARGO_REGISTRY_TOKEN` fallback. The independent PyPI workflow uses
+its `pypi` environment and `id-token: write` without an API token. External
+crates.io/PyPI trusted-publisher registrations and GitHub environment bindings
+cannot be proven from the checkout and remain externally verifiable gates.
+
+The live workspace has 39 members and 29 crates with explicit
+`publish = true`: `ritk-analyze`, `ritk-annotation`, `ritk-codecs`, `ritk-core`,
+`ritk-dicom`, `ritk-diffusion-scheme`, `ritk-filter`, `ritk-image`,
+`ritk-interpolation`, `ritk-io`, `ritk-jpeg`, `ritk-metaimage`, `ritk-mgh`,
+`ritk-mif`, `ritk-minc`, `ritk-model`, `ritk-morphology`, `ritk-nifti`,
+`ritk-nrrd`, `ritk-png`, `ritk-registration`, `ritk-segmentation`,
+`ritk-spatial`, `ritk-statistics`, `ritk-tensor-ops`, `ritk-tiff`,
+`ritk-transform`, `ritk-vtk`, and `ritk-wgpu-compat`. The workspace now uses
+an explicit publish policy for every crate: 29 packages are `publish = true`
+and 9 packages are `publish = false`. The older 28-package release claim is
+stale and requires owner reconciliation.
+
+Non-publishing archive preparation was attempted without uploading anything.
+`cargo package` fails before creating a `.crate` because `ritk-filter` requires
+`gaia ^0.3.0`, while crates.io currently exposes Gaia only through `0.2.1`;
+the same failure occurs online and offline. Cargo.lock and the Atlas root Cargo
+configuration were restored byte-for-byte after the probe. No archive is
+claimed verified. A bounded crates.io API probe found 22 indexed packages at
+their requested versions, plus 8 HTTP 404 responses and 3 transient network
+errors; `cargo search` also encountered a transient TLS reset. These counts
+are readiness evidence, not publication evidence.
+
+The release item remains open for package-set reconciliation, dependency
+publication/order resolution, actual `cargo publish --dry-run` archive checks,
+hosted security/owner review, registry indexing, external trusted-publisher
+verification, and matching GitHub Releases. No publish or upload was executed
+during this audit, and no credentials were used; the existing release/tag
+workflows remain capable of publishing when their external gates and triggers
+are satisfied.
+
+## SAFE-687-01 — JPEG 2000 review-state reconciliation (2026-08-10)
+
+The duplicate top-of-file `REVIEW` stubs in `backlog.md` and `checklist.md`
+were stale reintroductions of the already-closed JPEG 2000 marker-safety item.
+The authoritative closure record remains the detailed `SAFE-687-01` entry below:
+implementation head `324058ac`, merged PR #81 `23d85703`, hosted Rust CI
+`30711180971`, Python matrix `30711181015`, Pages artifact `30711180970`, and
+post-merge Pages `30712037138`. Those hosted results are historical evidence
+for the merged head, not a claim about the dirty descendant checkout.
+
+A current-tree package gate was attempted with the Atlas root overlay removed
+and restored. Locked metadata and formatting passed, but strict Clippy,
+Nextest, doctest, Rustdoc, and JPEG 2000 interop stopped before compilation
+because Cargo required a lockfile rewrite under `--locked`; no current-tree
+codec test count is claimed from that attempt. Cargo.lock and the root Cargo
+configuration were restored byte-for-byte, and unrelated dirty files were
+preserved. The stale review state is therefore closed as PM reconciliation;
+current-tree revalidation remains an environment/lock-graph follow-up rather
+than a new JPEG 2000 source defect.
+
+## AEQUITAS-AEQ-MET-68 — Eunomia 0.8 closure audit (2026-08-10)
+
+The RITK workspace manifest now requests Eunomia `0.8.0`; the reconciled
+standalone lock resolves Eunomia `0.8.0` from the Git provider and `rkyv`
+`0.8.17` from crates.io. No active RITK manifest requests Eunomia `0.7`, and
+no imaginary physical unit or real/complex boundary was introduced. The lock
+refresh was performed with the Atlas overlay bypassed and the root Cargo
+configuration was restored byte-for-byte afterward; the generated lock diff
+also contains current provider-source materialization and is retained with the
+existing peer worktree state rather than presented as a one-line dependency edit.
+
+A stale Windows-only `expect(clippy::missing_const_for_thread_local)` around
+RITK's already-const morphology thread-local initializer was removed. The
+function body and runtime behavior are unchanged; the expectation itself was
+failing under `-D warnings` as unfulfilled. Repository-owned validation at the
+standalone lock is green: locked metadata, formatting, strict all-target/all-
+feature Clippy, workspace doctests, and workspace Rustdoc pass. Full Nextest
+passes 5,137 tests with 24 configured skips and no failures; the focused
+`ritk-filter` suite passes 1,123/1,123.
+
+This is local source and provider-graph closure only. Hosted security, exact
+head owner review, registry indexing, package archive verification, crates.io/
+PyPI publication, trusted-publisher enforcement, and merge remain external
+release gates. The RITK worktree also retains pre-existing peer edits in
+`CHANGELOG.md`, `Cargo.lock`, and several filter/interpolation/Python files;
+this audit did not reset, clean, commit, or push them.
+
 > **Retired tooling note**: The `burn-migration-audit` xtask command,
 > `xtask/burn_surface.allowlist`, and the `legacy-migration-audit` CI
 > workflow were removed after the Burn-to-Coeus migration completed.
@@ -507,9 +595,10 @@ integer and fractional delays, sign symmetry, positive affine-intensity
 invariance, threshold status, streaming/profile equivalence, interpolated
 residual accounting, invalid configuration, non-finite samples, and constant
 signals. Target-only warning-denied all-target Clippy, two compiled doctests,
-Rustdoc, mdBook build, and the 2.291-second direct example run pass. Broader
-local Clippy reaches a pre-existing `missing_const_for_thread_local`
-diagnostic in `ritk-filter/src/morphology/mod.rs`. The standalone declared-
+Rustdoc, mdBook build, and the 2.291-second direct example run pass. At that historical head, broader
+local Clippy reached a then-present `missing_const_for_thread_local`
+diagnostic in `ritk-filter/src/morphology/mod.rs`; the expectation was removed
+by the later Eunomia 0.8 closure recorded above. The standalone declared-
 major semantic-version attempt gets past the Atlas overlay but fails before
 API comparison while `aws-lc-sys` compiles under the local Windows GNU
 toolchain. Exact code head `07989fa5` passes Rustfmt, warning-denied Clippy,
@@ -560,12 +649,11 @@ edge inclusion, finite extreme bounds, and unallocatable count storage.
 Warning-denied all-target Clippy for `ritk-statistics`, two runnable doctests,
 warning-denied Rustdoc, and mdBook test/build pass. The exact-branch release
 Python extension builds, and all 15 statistics binding tests pass under Python
-3.13.12 in 0.10 seconds. A broader `ritk-python` Clippy attempt reaches a
-pre-existing warning-denied `missing_const_for_thread_local` diagnostic in
-`ritk-filter/src/morphology/mod.rs`. This is an accepted local-provider-overlay
-exception, not a SAFE-682 closure blocker: the diagnostic is outside the
-statistics/Python changes, and the provider-pinned hosted workspace Clippy
-gate passes. The declared-major
+3.13.12 in 0.10 seconds. A broader `ritk-python` Clippy attempt at that historical head reached a
+then-present warning-denied `missing_const_for_thread_local` diagnostic in
+`ritk-filter/src/morphology/mod.rs`. The expectation was subsequently removed
+by the Eunomia 0.8 closure recorded above; this historical passage is retained
+for provenance, not as a current exception. The declared-major
 `cargo-semver-checks` comparison against merge base `7c2f2ac5` completes in
 15.420 seconds with all 253 incompatible-change lints skipped as expected for
 a major release. Exact code head `08ba5e4e` passes Rustfmt, warning-denied

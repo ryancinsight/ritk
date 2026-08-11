@@ -210,9 +210,13 @@ fn test_bspline_performance_regression_volumetric() {
     let n_points = 1000;
     let mut indices_data = vec![0.0f32; n_points * 3];
     for i in 0..n_points {
-        indices_data[i * 3] = (rand::random::<f32>() * size as f32) - 0.5;
-        indices_data[i * 3 + 1] = (rand::random::<f32>() * size as f32) - 0.5;
-        indices_data[i * 3 + 2] = (rand::random::<f32>() * size as f32) - 0.5;
+        // Deterministic quasi-random sampling keeps this perf test reproducible.
+        let u = ((i as f32) * 0.618_034).fract();
+        let v = ((i as f32) * 0.414_214).fract();
+        let w = ((i as f32) * 0.732_051).fract();
+        indices_data[i * 3] = u * size as f32 - 0.5;
+        indices_data[i * 3 + 1] = v * size as f32 - 0.5;
+        indices_data[i * 3 + 2] = w * size as f32 - 0.5;
     }
     let indices = Tensor::<f32, TestBackend>::from_slice([n_points, 3], &indices_data);
 

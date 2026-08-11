@@ -1,6 +1,7 @@
 //! Special-purpose filters: median, bilateral, N4 bias correction, and bin-shrink downsampling.
 use crate::errors::{RitkPyError, RitkResult};
-use crate::image::{image_from_py, image_to_vec, into_py_image, PyImage};
+use crate::image::{image_to_vec, into_py_image, PyImage};
+use coeus_core::MoiraiBackend;
 use pyo3::prelude::*;
 use ritk_filter::bias::N4Config;
 use ritk_filter::{
@@ -8,6 +9,7 @@ use ritk_filter::{
     BoxSigmaImageFilter, MeanImageFilter, MedianFilter, N4BiasFieldCorrectionFilter,
     NoiseImageFilter, RankImageFilter, SpatialConvolutionFilter,
 };
+use std::sync::Arc;
 
 /// Apply a mean (box) filter: each voxel becomes the average of the
 /// axis-aligned cube of half-width `radius` (replicate padding).
@@ -15,10 +17,11 @@ use ritk_filter::{
 #[pyfunction]
 #[pyo3(signature = (image, radius=1))]
 pub fn mean_filter(py: Python<'_>, image: &PyImage, radius: usize) -> RitkResult<PyImage> {
-    let image = image_from_py(image);
+    let image = Arc::clone(&image.inner);
+    let backend = MoiraiBackend;
     py.allow_threads(|| {
         MeanImageFilter::new(radius)
-            .apply(&image)
+            .apply_native(image.as_ref(), &backend)
             .map_err(|e| RitkPyError::runtime(e.to_string()))
     })
     .map(into_py_image)
@@ -36,11 +39,15 @@ pub fn box_mean(
     radius_z: usize,
     radius_y: usize,
     radius_x: usize,
-) -> PyImage {
-    let image = image_from_py(image);
-    let out =
-        py.allow_threads(|| BoxMeanImageFilter::new([radius_z, radius_y, radius_x]).apply(&image));
-    into_py_image(out)
+) -> RitkResult<PyImage> {
+    let image = Arc::clone(&image.inner);
+    let backend = MoiraiBackend;
+    py.allow_threads(|| {
+        BoxMeanImageFilter::new([radius_z, radius_y, radius_x])
+            .apply_native(image.as_ref(), &backend)
+            .map_err(|e| RitkPyError::runtime(e.to_string()))
+    })
+    .map(into_py_image)
 }
 
 /// Apply a box sigma filter: the per-axis sample standard deviation over the
@@ -55,11 +62,15 @@ pub fn box_sigma(
     radius_z: usize,
     radius_y: usize,
     radius_x: usize,
-) -> PyImage {
-    let image = image_from_py(image);
-    let out =
-        py.allow_threads(|| BoxSigmaImageFilter::new([radius_z, radius_y, radius_x]).apply(&image));
-    into_py_image(out)
+) -> RitkResult<PyImage> {
+    let image = Arc::clone(&image.inner);
+    let backend = MoiraiBackend;
+    py.allow_threads(|| {
+        BoxSigmaImageFilter::new([radius_z, radius_y, radius_x])
+            .apply_native(image.as_ref(), &backend)
+            .map_err(|e| RitkPyError::runtime(e.to_string()))
+    })
+    .map(into_py_image)
 }
 
 /// Estimate local image noise: the per-axis sample standard deviation over the
@@ -75,11 +86,15 @@ pub fn local_noise(
     radius_z: usize,
     radius_y: usize,
     radius_x: usize,
-) -> PyImage {
-    let image = image_from_py(image);
-    let out =
-        py.allow_threads(|| NoiseImageFilter::new([radius_z, radius_y, radius_x]).apply(&image));
-    into_py_image(out)
+) -> RitkResult<PyImage> {
+    let image = Arc::clone(&image.inner);
+    let backend = MoiraiBackend;
+    py.allow_threads(|| {
+        NoiseImageFilter::new([radius_z, radius_y, radius_x])
+            .apply_native(image.as_ref(), &backend)
+            .map_err(|e| RitkPyError::runtime(e.to_string()))
+    })
+    .map(into_py_image)
 }
 
 /// Apply a box rank filter: the order statistic at `floor(rank·(n−1))` of the
@@ -94,11 +109,15 @@ pub fn rank(
     radius_z: usize,
     radius_y: usize,
     radius_x: usize,
-) -> PyImage {
-    let image = image_from_py(image);
-    let out = py
-        .allow_threads(|| RankImageFilter::new([radius_z, radius_y, radius_x], rank).apply(&image));
-    into_py_image(out)
+) -> RitkResult<PyImage> {
+    let image = Arc::clone(&image.inner);
+    let backend = MoiraiBackend;
+    py.allow_threads(|| {
+        RankImageFilter::new([radius_z, radius_y, radius_x], rank)
+            .apply_native(image.as_ref(), &backend)
+            .map_err(|e| RitkPyError::runtime(e.to_string()))
+    })
+    .map(into_py_image)
 }
 
 /// Apply a binomial blur: the separable `[¼,½,¼]` kernel along each axis,
@@ -106,10 +125,15 @@ pub fn rank(
 /// BinomialBlurImageFilter (`sitk.BinomialBlur`).
 #[pyfunction]
 #[pyo3(signature = (image, repetitions=1))]
-pub fn binomial_blur(py: Python<'_>, image: &PyImage, repetitions: usize) -> PyImage {
-    let image = image_from_py(image);
-    let out = py.allow_threads(|| BinomialBlurImageFilter::new(repetitions).apply(&image));
-    into_py_image(out)
+pub fn binomial_blur(py: Python<'_>, image: &PyImage, repetitions: usize) -> RitkResult<PyImage> {
+    let image = Arc::clone(&image.inner);
+    let backend = MoiraiBackend;
+    py.allow_threads(|| {
+        BinomialBlurImageFilter::new(repetitions)
+            .apply_native(image.as_ref(), &backend)
+            .map_err(|e| RitkPyError::runtime(e.to_string()))
+    })
+    .map(into_py_image)
 }
 
 /// Apply a median (rank) filter for impulse-noise removal.
@@ -131,11 +155,11 @@ pub fn binomial_blur(py: Python<'_>, image: &PyImage, repetitions: usize) -> PyI
 #[pyfunction]
 #[pyo3(signature = (image, radius=1))]
 pub fn median_filter(py: Python<'_>, image: &PyImage, radius: usize) -> RitkResult<PyImage> {
-    let image = image_from_py(image);
+    let image = Arc::clone(&image.inner);
     py.allow_threads(|| {
         let filter = MedianFilter::new(radius);
         filter
-            .apply(&image)
+            .apply_native(image.as_ref())
             .map_err(|e| RitkPyError::runtime(e.to_string()))
     })
     .map(into_py_image)
@@ -165,11 +189,12 @@ pub fn bilateral_filter(
     spatial_sigma: f64,
     range_sigma: f64,
 ) -> RitkResult<PyImage> {
-    let image = image_from_py(image);
+    let image = Arc::clone(&image.inner);
+    let backend = MoiraiBackend;
     py.allow_threads(|| {
         let filter = BilateralFilter::new(spatial_sigma, range_sigma);
         filter
-            .apply(&image)
+            .apply_native(image.as_ref(), &backend)
             .map_err(|e| RitkPyError::runtime(e.to_string()))
     })
     .map(into_py_image)
@@ -219,7 +244,8 @@ pub fn n4_bias_correction(
     noise_estimate: f64,
     shrink_factor: usize,
 ) -> RitkResult<PyImage> {
-    let image = image_from_py(image);
+    let image = Arc::clone(&image.inner);
+    let backend = MoiraiBackend;
     py.allow_threads(|| {
         let config = N4Config {
             num_fitting_levels,
@@ -230,7 +256,7 @@ pub fn n4_bias_correction(
         };
         let filter = N4BiasFieldCorrectionFilter::new(config);
         filter
-            .apply(&image)
+            .apply_native(image.as_ref(), &backend)
             .map_err(|e| RitkPyError::runtime(e.to_string()))
     })
     .map(into_py_image)
@@ -261,13 +287,16 @@ pub fn bin_shrink(
     factor_z: usize,
     factor_y: usize,
     factor_x: usize,
-) -> PyImage {
-    let image = image_from_py(image);
-    let result = py.allow_threads(|| {
+) -> RitkResult<PyImage> {
+    let image = Arc::clone(&image.inner);
+    let backend = MoiraiBackend;
+    py.allow_threads(|| {
         let filter = BinShrinkImageFilter::new(vec![factor_z, factor_y, factor_x]);
-        filter.apply(&image)
-    });
-    into_py_image(result)
+        filter
+            .apply_native(image.as_ref(), &backend)
+            .map_err(|e| RitkPyError::runtime(e.to_string()))
+    })
+    .map(into_py_image)
 }
 
 /// Convolve a 3-D image with a kernel image using zero-flux Neumann boundary
@@ -302,13 +331,14 @@ pub fn bin_shrink(
 ///     RuntimeError:  on internal tensor extraction failure.
 #[pyfunction]
 pub fn spatial_convolve(py: Python<'_>, image: &PyImage, kernel: &PyImage) -> RitkResult<PyImage> {
-    let image_inner = image_from_py(image);
+    let image_inner = Arc::clone(&image.inner);
+    let backend = MoiraiBackend;
     let (kernel_vals, kernel_dims) = image_to_vec(kernel.inner.as_ref());
     py.allow_threads(|| {
         let filter = SpatialConvolutionFilter::new(kernel_vals, kernel_dims)
             .map_err(|e| RitkPyError::value(e.to_string()))?;
         filter
-            .apply(&image_inner)
+            .apply_native(image_inner.as_ref(), &backend)
             .map_err(|e| RitkPyError::runtime(e.to_string()))
     })
     .map(into_py_image)

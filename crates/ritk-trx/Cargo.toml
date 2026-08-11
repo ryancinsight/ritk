@@ -5,6 +5,7 @@ edition = "2024"
 rust-version = "1.95"
 license.workspace = true
 description = "TRX (Tractography Reference eXchange) format reader and writer"
+publish = false
 
 [dependencies]
 gaia = { workspace = true }

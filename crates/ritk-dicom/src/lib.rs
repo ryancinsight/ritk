@@ -13,9 +13,9 @@ pub mod syntax;
 
 pub use attribute::{tags, DicomAttributeRead, DicomTag};
 pub use backend::{
-    decode_frame_with, parse_bytes_with, parse_file_with, DecodeFrameRequest, DecodedFrame,
-    DicomBackend, DicomParseBackend, DicomRsBackend, EncapsulatedFrameSource, NativeCodecBackend,
-    PixelDecodeBackend,
+    decode_frame_with, parse_bytes_with, parse_file_with, write_bytes_with, write_file_with,
+    DecodeFrameRequest, DecodedFrame, DicomBackend, DicomParseBackend, DicomRsBackend,
+    DicomWriteBackend, EncapsulatedFrameSource, NativeCodecBackend, PixelDecodeBackend,
 };
 pub use codec::{decode_jpeg_fragment, decode_rle_lossless_fragment, packbits_decode};
 pub use diffusion::{

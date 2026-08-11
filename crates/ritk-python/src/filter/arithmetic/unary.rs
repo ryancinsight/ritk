@@ -1,5 +1,6 @@
 use crate::errors::{RitkPyError, RitkResult};
-use crate::image::{image_from_py, into_py_image, PyImage};
+use crate::image::{into_py_image, PyImage};
+use coeus_core::MoiraiBackend;
 use pyo3::prelude::*;
 use ritk_filter::{
     AbsImageFilter, AcosImageFilter, AsinImageFilter, AtanImageFilter, BinaryNotImageFilter,
@@ -8,15 +9,17 @@ use ritk_filter::{
     ModulusImageFilter, NotImageFilter, RoundImageFilter, SinImageFilter, SqrtImageFilter,
     SquareImageFilter, TanImageFilter, UnaryMinusImageFilter,
 };
+use std::sync::Arc;
 
 /// Pixelwise clamp to `[lower, upper]`. ITK Parity: ClampImageFilter.
 #[pyfunction]
 #[pyo3(signature = (image, lower, upper))]
 pub fn clamp_image(py: Python<'_>, image: &PyImage, lower: f32, upper: f32) -> RitkResult<PyImage> {
-    let arc = image_from_py(image);
+    let native = Arc::clone(&image.inner);
+    let backend = MoiraiBackend;
     py.allow_threads(|| {
         ClampImageFilter::new(lower, upper)
-            .apply(&arc)
+            .apply_native(native.as_ref(), &backend)
             .map_err(|e| RitkPyError::runtime(e.to_string()))
     })
     .map(into_py_image)
@@ -30,9 +33,14 @@ pub fn modulus(py: Python<'_>, image: &PyImage, dividend: i64) -> RitkResult<PyI
     if dividend == 0 {
         return Err(RitkPyError::value("modulus: dividend must be non-zero"));
     }
-    let arc = image_from_py(image);
-    let out = py.allow_threads(|| ModulusImageFilter::new(dividend).apply(&arc));
-    Ok(into_py_image(out))
+    let native = Arc::clone(&image.inner);
+    let backend = MoiraiBackend;
+    py.allow_threads(|| {
+        ModulusImageFilter::new(dividend)
+            .apply_native(native.as_ref(), &backend)
+            .map_err(|e| RitkPyError::runtime(e.to_string()))
+    })
+    .map(into_py_image)
 }
 
 /// Binary logical NOT: out(x) = background where in(x) == foreground, else
@@ -45,20 +53,29 @@ pub fn binary_not(
     foreground: f32,
     background: f32,
 ) -> RitkResult<PyImage> {
-    let arc = image_from_py(image);
-    let out =
-        py.allow_threads(|| BinaryNotImageFilter::with_labels(foreground, background).apply(&arc));
-    Ok(into_py_image(out))
+    let native = Arc::clone(&image.inner);
+    let backend = MoiraiBackend;
+    py.allow_threads(|| {
+        BinaryNotImageFilter::with_labels(foreground, background)
+            .apply_native(native.as_ref(), &backend)
+            .map_err(|e| RitkPyError::runtime(e.to_string()))
+    })
+    .map(into_py_image)
 }
 
 /// Invert intensities about `maximum`: out(x) = maximum − in(x).
 /// ITK Parity: InvertIntensityImageFilter.
 #[pyfunction]
 #[pyo3(signature = (image, maximum = 255.0))]
-pub fn invert_intensity(py: Python<'_>, image: &PyImage, maximum: f32) -> PyImage {
-    let arc = image_from_py(image);
-    let out = py.allow_threads(|| InvertIntensityFilter::with_maximum(maximum).apply(&arc));
-    into_py_image(out)
+pub fn invert_intensity(py: Python<'_>, image: &PyImage, maximum: f32) -> RitkResult<PyImage> {
+    let native = Arc::clone(&image.inner);
+    let backend = MoiraiBackend;
+    py.allow_threads(|| {
+        InvertIntensityFilter::with_maximum(maximum)
+            .apply_native(native.as_ref(), &backend)
+            .map_err(|e| RitkPyError::runtime(e.to_string()))
+    })
+    .map(into_py_image)
 }
 
 unary_math_pyfn!(

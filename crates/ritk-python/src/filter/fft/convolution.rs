@@ -1,7 +1,7 @@
 //! FFT-based convolution filters.
 
 use crate::errors::{RitkPyError, RitkResult};
-use crate::image::{image_from_py, image_to_vec, into_py_image, vec_to_image_like, PyImage};
+use crate::image::{image_to_vec, into_py_image, vec_to_image_like, PyImage};
 use coeus_core::MoiraiBackend;
 use pyo3::prelude::*;
 use ritk_filter::{FftConvolution3DFilter, FftConvolutionFilter};
@@ -68,14 +68,14 @@ pub fn fft_convolve(py: Python<'_>, image: &PyImage, kernel: &PyImage) -> RitkRe
 /// Apply full 3-D FFT convolution of a volume with a 3-D kernel.
 #[pyfunction]
 pub fn fft_convolve_3d(py: Python<'_>, volume: &PyImage, kernel: &PyImage) -> RitkResult<PyImage> {
-    let vol = image_from_py(volume);
-    let kern = image_from_py(kernel);
+    let vol = Arc::clone(&volume.inner);
+    let kern = Arc::clone(&kernel.inner);
 
     py.allow_threads(|| {
-        let filter = FftConvolution3DFilter::<MoiraiBackend>::new(&kern)
+        let filter = FftConvolution3DFilter::<MoiraiBackend>::new(kern.as_ref())
             .map_err(|e| RitkPyError::runtime(e.to_string()))?;
         filter
-            .apply(&vol)
+            .apply(vol.as_ref())
             .map_err(|e| RitkPyError::runtime(e.to_string()))
     })
     .map(into_py_image)

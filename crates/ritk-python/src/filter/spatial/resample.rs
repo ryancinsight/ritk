@@ -1,5 +1,5 @@
 use crate::errors::{RitkPyError, RitkResult};
-use crate::image::{image_from_py, into_py_image, Backend, PyImage};
+use crate::image::{into_py_image, Backend, PyImage};
 use pyo3::prelude::*;
 use ritk_filter::ResampleImageFilter;
 use ritk_image::tensor::Tensor;
@@ -7,6 +7,7 @@ use ritk_interpolation::LinearInterpolator;
 use ritk_interpolation::{BSplineInterpolator, Lanczos5Interpolator, NearestNeighborInterpolator};
 use ritk_spatial::Spacing as CoreSpacing;
 use ritk_transform::affine::translation::TranslationTransform;
+use std::sync::Arc;
 
 /// Resample a 3-D image to new voxel spacing.
 ///
@@ -42,7 +43,7 @@ pub fn resample_image(
         )));
     }
     let mode = mode.to_string();
-    let inner = image_from_py(image);
+    let inner = Arc::clone(&image.inner);
 
     py.allow_threads(move || -> Result<_, String> {
         let orig_dims = inner.shape();
@@ -73,7 +74,7 @@ pub fn resample_image(
                 TranslationTransform::<Backend, 3>::new(zero_t),
                 NearestNeighborInterpolator::new(),
             )
-            .apply(&inner)),
+            .apply(inner.as_ref())),
             "linear" => Ok(ResampleImageFilter::new(
                 [new_nz, new_ny, new_nx],
                 orig_orig,
@@ -82,7 +83,7 @@ pub fn resample_image(
                 TranslationTransform::<Backend, 3>::new(zero_t),
                 LinearInterpolator::new(),
             )
-            .apply(&inner)),
+            .apply(inner.as_ref())),
             "bspline" => Ok(ResampleImageFilter::new(
                 [new_nz, new_ny, new_nx],
                 orig_orig,
@@ -91,7 +92,7 @@ pub fn resample_image(
                 TranslationTransform::<Backend, 3>::new(zero_t),
                 BSplineInterpolator::new(),
             )
-            .apply(&inner)),
+            .apply(inner.as_ref())),
             "lanczos" => Ok(ResampleImageFilter::new(
                 [new_nz, new_ny, new_nx],
                 orig_orig,
@@ -100,7 +101,7 @@ pub fn resample_image(
                 TranslationTransform::<Backend, 3>::new(zero_t),
                 Lanczos5Interpolator::new(),
             )
-            .apply(&inner)),
+            .apply(inner.as_ref())),
             other => Err(format!(
                 "Unknown interpolation mode '{}'. Use: nearest, linear, bspline, lanczos",
                 other
@@ -147,7 +148,7 @@ pub fn zoom_image(
             "zoom factors must be positive, got ({zoom_z},{zoom_y},{zoom_x})"
         )));
     }
-    let inner = image_from_py(image);
+    let inner = Arc::clone(&image.inner);
     let sp = *inner.spacing();
     // new_spacing = old_spacing / zoom_factor
     let new_sz = sp[0] / zoom_z;

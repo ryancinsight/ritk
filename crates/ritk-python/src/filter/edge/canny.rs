@@ -1,7 +1,7 @@
 //! Canny edge detection, Laplacian of Gaussian, and level set filters.
 
 use crate::errors::{RitkPyError, RitkResult};
-use crate::image::{image_from_py, into_py_image, PyImage};
+use crate::image::{into_py_image, PyImage};
 use coeus_core::MoiraiBackend;
 use pyo3::prelude::*;
 use ritk_filter::{
@@ -163,10 +163,10 @@ pub fn canny_segmentation_level_set(
     number_of_iterations: usize,
     iso_surface_value: f32,
 ) -> RitkResult<PyImage> {
-    // TODO: CannySegmentationLevelSet still lacks apply_native; keep the Coeus tensor roundtrip for now.
-    let arc_init = image_from_py(initial_level_set);
-    let arc_feat = image_from_py(feature_image);
-    let result = py.allow_threads(|| {
+    let init_native = Arc::clone(&initial_level_set.inner);
+    let feat_native = Arc::clone(&feature_image.inner);
+    let backend = MoiraiBackend;
+    py.allow_threads(|| {
         CannySegmentationLevelSet {
             canny_threshold: threshold,
             canny_variance: variance,
@@ -177,9 +177,8 @@ pub fn canny_segmentation_level_set(
             advection_scaling,
             iso_surface_value,
         }
-        .apply(&arc_init, &arc_feat)
-    });
-    result
-        .map(into_py_image)
+        .apply_native(init_native.as_ref(), feat_native.as_ref(), &backend)
         .map_err(|e| RitkPyError::runtime(e.to_string()))
+    })
+    .map(into_py_image)
 }
