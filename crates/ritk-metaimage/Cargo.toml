@@ -1,6 +1,6 @@
 [package]
 name = "ritk-metaimage"
-version = "0.1.1"
+version = "0.2.0"
 authors.workspace = true
 repository.workspace = true
 publish = true
@@ -9,9 +9,9 @@ license.workspace = true
 description = "MetaImage (MHA/MHD) I/O for RITK"
 
 [dependencies]
-ritk-image = { path = "../ritk-image", version = "0.2.0" }
-ritk-spatial = { path = "../ritk-spatial", version = "0.1.0" }
-ritk-codecs = { path = "../ritk-codecs", version = "0.5.3" }
+ritk-image = { path = "../ritk-image", version = "0.3.0" }
+ritk-spatial = { path = "../ritk-spatial", version = "0.2.0" }
+ritk-codecs = { path = "../ritk-codecs", version = "0.6.0" }
 anyhow = { workspace = true }
 bytemuck = { workspace = true }
 flate2 = { workspace = true }

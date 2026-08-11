@@ -1,6 +1,6 @@
 [package]
 name = "ritk-nrrd"
-version = "0.1.1"
+version = "0.2.0"
 authors.workspace = true
 repository.workspace = true
 publish = true
@@ -9,10 +9,10 @@ license.workspace = true
 description = "NRRD (Nearly Raw Raster Data) I/O for RITK"
 
 [dependencies]
-ritk-image = { path = "../ritk-image", version = "0.2.0" }
-ritk-spatial = { path = "../ritk-spatial", version = "0.1.0" }
-ritk-codecs = { path = "../ritk-codecs", version = "0.5.3" }
-ritk-diffusion-scheme = { path = "../ritk-diffusion-scheme", version = "0.1.0" }
+ritk-image = { path = "../ritk-image", version = "0.3.0" }
+ritk-spatial = { path = "../ritk-spatial", version = "0.2.0" }
+ritk-codecs = { path = "../ritk-codecs", version = "0.6.0" }
+ritk-diffusion-scheme = { path = "../ritk-diffusion-scheme", version = "0.2.0" }
 coeus-core = { workspace = true }
 anyhow = { workspace = true }
 bytemuck = { workspace = true }
