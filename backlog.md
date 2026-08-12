@@ -193,10 +193,43 @@
   (404), and 3 network errors. The workspace now has explicit publish policy
   on every crate (29 `publish = true`, 9 `publish = false`), so the previous
   33-package mixed-policy denominator is obsolete. The registry probe also hit
-  a transient TLS reset. Actual
-  archive preparation is blocked before `.crate` creation because
-  `ritk-filter` requires `gaia ^0.3.0`, while crates.io currently indexes Gaia
-  only through 0.2.1. Acceptance remains: reconcile the package set, then  every package passes `cargo publish --dry-run` in dependency order;
+  a transient TLS reset.
+
+  Blocker chain resolved and executing (2026-08-11, owner=Claude). A full
+  registry sweep gives the exact residual: 24 of the 29 publishable packages
+  are indexed; 6 are absent — `ritk-mif`, `ritk-filter`, `ritk-vtk`,
+  `ritk-segmentation`, `ritk-io`, `ritk-registration`. None is blocked by
+  RITK itself. Their unmet first-party requirements are `gaia 0.3.0`
+  (indexed 0.2.1), `leto`/`leto-ops 0.41.0` (indexed 0.40.0), and `iris
+  0.1.0` (never indexed); every other first-party requirement —
+  `coeus-* 0.9.0`, `eunomia 0.8.0`, `moirai-runtime 0.4.0`,
+  `mnemosyne-memory 0.6.0`, `aequitas 0.2.0`, `themis-topology 0.10.1`,
+  `melinoe 0.9.0`, `apollo-fft 0.25.0` — is already indexed at the exact
+  required version.
+
+  Root cause of the earlier upstream failures was the committed lockfile, not
+  the manifests: `cargo publish --locked` fails closed when the lock carries
+  overlay-stripped path sources. leto fixed this in `1c36ce1`; gaia's
+  equivalent fix was sitting uncommitted and stale in its tree and landed as
+  gaia PR #24. The stale `crate-leto-v0.41.0` tag (2026-08-09, commit
+  24368e09) predated leto's lock fix and its three publish runs all failed; it
+  was re-pointed at `ca93b63`, which validates clean (run 31462196501).
+
+  Executable publish order, upstream first, each gated by the repo's
+  `cargo publish --locked --dry-run` validate job:
+  `iris 0.1.0` (validated, run 31462172808) and `leto 0.41.0` (validated) ->
+  `leto-ops 0.41.0` -> `gaia 0.3.0` -> then RITK: `ritk-mif` (unblocked
+  today; `cargo package` succeeds), `ritk-filter`, `ritk-vtk`,
+  `ritk-segmentation`, `ritk-io`, `ritk-registration`.
+
+  RITK's own lock is clean: `cargo metadata --locked` resolves from outside
+  the Atlas overlay, so RITK will not hit the gaia/leto lockfile failure.
+
+  Release tags `crate-leto-v0.41.0` and `crate-iris-v0.1.0` are created and
+  their publish runs are queued behind account-wide runner saturation; they
+  are the only remaining gate on the upstream half.
+
+  Acceptance remains: reconcile the package set, then  every package passes `cargo publish --dry-run` in dependency order;
   repository gates and hosted CI pass; every version is indexed on crates.io;
   the RITK caller does not pass a registry token and selects the OIDC
   trusted-publishing path; runtime repository-secret/environment configuration
