@@ -14,6 +14,7 @@
 //! | [`tool_shortcuts`] | Tool keyboard shortcuts SSOT (L=length, A=angle, etc.). |
 //! | [`mpr_cursor`]   | [`LinkedCursor`] and viewport/voxel transforms.         |
 //! | [`cine`]         | [`CinePlayback`] — per-frame playback timing state.     |
+//! | [`coordinate_system`] | [`AnatomicalFrame`], [`lps_to_ras`], [`ras_to_lps`] — LPS/RAS frame conversion. |
 //! | [`cursor_info`]  | [`voxel_to_lps`] — ITK affine voxel → LPS mm transform. |
 //! | [`pointer_intensity`] | [`intensity_at_voxel`] — voxel intensity lookup SSOT. |
 //! | [`live_preview`] | `live_length_mm` and `live_angle_deg` — live measurement labels. |
@@ -38,6 +39,7 @@ pub mod anatomical_plane;
 pub mod annotation_panel;
 pub mod cine;
 pub mod colorbar;
+pub mod coordinate_system;
 pub mod cursor_info;
 pub mod dropped_input;
 pub mod export_plan;
@@ -72,6 +74,9 @@ pub use anatomical_plane::{anatomical_label_for_axis, axis_for_plane_in_volume, 
 pub use annotation_panel::{draw_annotation_panel, AnnotationPanelAction};
 pub use cine::CinePlayback;
 pub use colorbar::{draw_colorbar, show_colorbar, COLORBAR_PANEL_WIDTH, COLORBAR_WIDTH};
+pub use coordinate_system::{
+    format_point_mm, lps_to_ras, ras_to_lps, AnatomicalFrame, PatientPosition,
+};
 pub use cursor_info::{format_lps, voxel_to_lps};
 pub use dropped_input::{decide_dropped_input_action, DroppedInputAction};
 pub use export_plan::{

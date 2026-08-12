@@ -1,4 +1,4 @@
-﻿//! Coordinate-system utilities for medical image display.
+//! Coordinate-system utilities for medical image display.
 //!
 //! This module provides SSOT helpers for:
 //! - Anatomical frame conversion (`LPS` <-> `RAS`)
@@ -13,14 +13,16 @@ pub enum AnatomicalFrame {
     /// Left-Posterior-Superior patient frame (DICOM/ITK convention).
     Lps,
     /// Right-Anterior-Superior patient frame (NIfTI/FSL convention).
-    Ras }
+    Ras,
+}
 
 impl AnatomicalFrame {
     /// Short display label.
     pub fn label(self) -> &'static str {
         match self {
             Self::Lps => "LPS",
-            Self::Ras => "RAS" }
+            Self::Ras => "RAS",
+        }
     }
 }
 
@@ -73,8 +75,14 @@ mod tests {
 
     #[test]
     fn patient_position_parser_maps_standard_codes() {
-        assert_eq!(PatientPosition::from_dicom_code("hfs"), PatientPosition::HeadFirstSupine);
-        assert_eq!(PatientPosition::from_dicom_code("FFP"), PatientPosition::FeetFirstProne);
+        assert_eq!(
+            PatientPosition::from_dicom_code("hfs"),
+            PatientPosition::HeadFirstSupine
+        );
+        assert_eq!(
+            PatientPosition::from_dicom_code("FFP"),
+            PatientPosition::FeetFirstProne
+        );
         assert_eq!(
             PatientPosition::from_dicom_code("HFDL"),
             PatientPosition::HeadFirstDecubitusLeft
