@@ -12,6 +12,13 @@
 
 ### Added
 
+- `ritk_image::PhasedArray3D`: a `CoordinateMap` variant for 3-D phased-array
+  acquisitions, which steer in two independent tangent angles from one apex.
+  Index columns are `(azimuth beam, elevation beam, sample)`. Defined only at
+  `D == 3`. Steering at or past a quarter turn is rejected rather than
+  sign-flipped: `tan` is finite for every representable `f64`, so a finiteness
+  check cannot catch it and the ray would silently land on the opposite side of
+  the array. Formulas follow `itkPhasedArray3DSpecialCoordinatesImage.h`.
 - `ritk_image::CoordinateMap`: an acquisition coordinate map carried on
   `Image`, so an image's index space need not be Cartesian. `Cartesian` is the
   default and every existing constructor produces it; `CurvilinearArray`
