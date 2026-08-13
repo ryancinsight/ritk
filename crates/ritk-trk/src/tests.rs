@@ -1,5 +1,58 @@
+use std::alloc::{GlobalAlloc, Layout, System};
+use std::sync::atomic::{AtomicUsize, Ordering};
+
 use super::parse::{TRK_MAGIC, encode_header, parse_header};
 use super::*;
+
+/// Live heap bytes across the test binary.
+static LIVE_BYTES: AtomicUsize = AtomicUsize::new(0);
+/// High-water mark of [`LIVE_BYTES`], reset by [`peak_bytes_during`].
+static PEAK_BYTES: AtomicUsize = AtomicUsize::new(0);
+
+/// Allocator that records the high-water mark of live bytes.
+///
+/// A reader that reserves from an untrusted length field is a memory defect,
+/// and memory is the thing to measure: inferring it from elapsed time would be
+/// a wall-clock assertion, and `Vec::capacity` is not observable through the
+/// public read API. Counters are relaxed atomics — no test depends on ordering
+/// between threads, only on the magnitude of the peak.
+struct PeakTrackingAllocator;
+
+// SAFETY: every method forwards to `System` with the caller's layout unchanged,
+// so the allocator contract is whatever `System` already guarantees. The
+// counters are side effects on atomics and affect no returned pointer.
+unsafe impl GlobalAlloc for PeakTrackingAllocator {
+    unsafe fn alloc(&self, layout: Layout) -> *mut u8 {
+        // SAFETY: `layout` is forwarded exactly as received.
+        let ptr = unsafe { System.alloc(layout) };
+        if !ptr.is_null() {
+            let live = LIVE_BYTES.fetch_add(layout.size(), Ordering::Relaxed) + layout.size();
+            PEAK_BYTES.fetch_max(live, Ordering::Relaxed);
+        }
+        ptr
+    }
+
+    unsafe fn dealloc(&self, ptr: *mut u8, layout: Layout) {
+        LIVE_BYTES.fetch_sub(layout.size(), Ordering::Relaxed);
+        // SAFETY: `ptr` and `layout` are forwarded exactly as received.
+        unsafe { System.dealloc(ptr, layout) }
+    }
+}
+
+#[global_allocator]
+static ALLOCATOR: PeakTrackingAllocator = PeakTrackingAllocator;
+
+/// Run `body` and return the peak live-byte high-water mark it reached.
+///
+/// The mark is process-wide, so a concurrently running sibling test inflates
+/// it. Every other test in this crate works on kilobyte fixtures, so the
+/// measurement stays usable for a threshold set orders of magnitude above that
+/// noise floor.
+fn peak_bytes_during<T>(body: impl FnOnce() -> T) -> (T, usize) {
+    PEAK_BYTES.store(LIVE_BYTES.load(Ordering::Relaxed), Ordering::Relaxed);
+    let value = body();
+    (value, PEAK_BYTES.load(Ordering::Relaxed))
+}
 
 /// Build a default header with a simple identity affine.
 fn default_header() -> TrkHeader {
@@ -292,4 +345,93 @@ fn rejects_negative_point_count() {
 
     let err = TrkTractogram::read(&mut buf.as_slice()).expect_err("negative count");
     assert!(matches!(err, TrkError::InvalidPointCount { count: -1, .. }));
+}
+
+/// A header claiming a huge streamline count must not allocate for it.
+///
+/// `n_count` sits at offset 988 of a 1000-byte header and is fully
+/// caller-controlled. Reserving from it let a 1000-byte file demand gigabytes
+/// before a single record was read — the length-field-driven allocation class.
+/// The count is a claim, so the read must be bounded by the bytes that
+/// actually arrive.
+///
+/// The count used here is deliberately 100_000_000 — the largest value the
+/// previous range check admitted, so a reader that reserves from the header
+/// passes its own validation and then asks for roughly 4.8 GB across the three
+/// vectors. Picking a count the old check rejected would have made this test
+/// pass against the very defect it exists to catch.
+///
+/// Peak allocation is measured rather than inferred: the eager reservation
+/// does not necessarily abort — a 4.8 GB request can simply succeed — so
+/// asserting only on the returned error leaves the defect invisible. Elapsed
+/// time is not an option either, since a wall-clock assertion is flaky by
+/// construction.
+///
+/// Threshold: the input is about a kilobyte and decodes to one streamline, so
+/// an honest read touches kilobytes, as do the sibling tests sharing this
+/// binary. 64 MiB sits three orders of magnitude above that noise floor and
+/// two below the 4.8 GB the defect demands.
+#[test]
+fn a_huge_streamline_count_does_not_drive_allocation() {
+    const PEAK_LIMIT: usize = 64 * 1024 * 1024;
+
+    let mut header = default_header();
+    header.n_count = 100_000_000;
+    let mut buf = Vec::new();
+    buf.extend_from_slice(&encode_header(&header));
+    // One well-formed streamline, then the file simply stops.
+    buf.extend_from_slice(&2i32.to_le_bytes());
+    for value in [0.0f32, 0.0, 0.0, 1.0, 0.0, 0.0] {
+        buf.extend_from_slice(&value.to_le_bytes());
+    }
+
+    let (result, peak) = peak_bytes_during(|| TrkTractogram::read(&mut buf.as_slice()));
+
+    let err = result.expect_err("a file holding one record cannot satisfy a claim of 100 million");
+    assert!(
+        matches!(err, TrkError::UnexpectedEof { .. }),
+        "expected the read to end at the real end of the input, got {err:?}"
+    );
+    assert!(
+        peak < PEAK_LIMIT,
+        "reading a {}-byte file peaked at {peak} live bytes, above the {PEAK_LIMIT}-byte limit; \
+         the header's streamline count is driving allocation",
+        buf.len()
+    );
+}
+
+/// A negative streamline count is malformed and is rejected by value.
+#[test]
+fn a_negative_streamline_count_is_rejected() {
+    let mut header = default_header();
+    header.n_count = -1;
+    let buf = encode_header(&header).to_vec();
+
+    let err = TrkTractogram::read(&mut buf.as_slice()).expect_err("negative count is malformed");
+    assert!(
+        matches!(err, TrkError::InvalidStreamlineCount { count: -1 }),
+        "expected the count itself to be reported, got {err:?}"
+    );
+}
+
+/// A count larger than the records present yields exactly the records present.
+///
+/// Guards the growth path against silently padding the result to the claimed
+/// length, which would fabricate empty streamlines.
+#[test]
+fn an_overstated_count_yields_only_the_records_that_decode() {
+    let mut header = default_header();
+    header.n_count = 2;
+    let mut buf = Vec::new();
+    buf.extend_from_slice(&encode_header(&header));
+    for _ in 0..2 {
+        buf.extend_from_slice(&2i32.to_le_bytes());
+        for value in [1.0f32, 2.0, 3.0, 4.0, 5.0, 6.0] {
+            buf.extend_from_slice(&value.to_le_bytes());
+        }
+    }
+
+    let tractogram = TrkTractogram::read(&mut buf.as_slice()).expect("two complete records");
+    assert_eq!(tractogram.streamlines.len(), 2);
+    assert_eq!(tractogram.streamlines[0].points().len(), 2);
 }
