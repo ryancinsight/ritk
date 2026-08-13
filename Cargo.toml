@@ -46,6 +46,17 @@ resolver = "2"
 license = "MIT OR Apache-2.0"
 authors = ["Ryan Clanton <ryanclanton@outlook.com>"]
 repository = "https://github.com/ryancinsight/ritk"
+homepage = "https://ryancinsight.github.io/ritk/"
+# Resolved relative to each member's own directory, so a member opting in with
+# `readme.workspace = true` must carry its own `crates/<name>/README.md`.
+readme = "README.md"
+keywords = ["medical-imaging", "dicom", "registration", "itk", "image-processing"]
+categories = [
+  "science",
+  "multimedia::images",
+  "computer-vision",
+  "science::neuroscience",
+]
 
 [workspace.dependencies]
 # crates.io reserves `iris`, so the crate is published as `iris-viz`; the

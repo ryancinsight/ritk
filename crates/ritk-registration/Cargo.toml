@@ -2,6 +2,10 @@
 name = "ritk-registration"
 version = "0.54.0"
 description = "Medical image registration algorithms for RITK"
+keywords.workspace = true
+categories.workspace = true
+homepage.workspace = true
+readme.workspace = true
 authors.workspace = true
 repository.workspace = true
 publish = true

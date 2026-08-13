@@ -2,6 +2,10 @@
 name = "ritk-transform"
 version = "0.2.0"
 description = "Spatial image transform operators for RITK"
+keywords.workspace = true
+categories.workspace = true
+homepage.workspace = true
+readme.workspace = true
 authors.workspace = true
 repository.workspace = true
 publish = true

@@ -5,6 +5,7 @@ edition = "2024"
 rust-version = "1.95"
 license.workspace = true
 description = "Parcellation-to-graph construction and graph measures for diffusion-MRI connectomics"
+repository.workspace = true
 publish = false
 
 [dependencies]

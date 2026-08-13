@@ -2,6 +2,10 @@
 name = "ritk-filter"
 version = "0.3.0"
 description = "Medical image filtering algorithms for RITK"
+keywords.workspace = true
+categories.workspace = true
+homepage.workspace = true
+readme.workspace = true
 authors.workspace = true
 repository.workspace = true
 publish = true

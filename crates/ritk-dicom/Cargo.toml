@@ -2,6 +2,10 @@
 name = "ritk-dicom"
 version = "0.2.0"
 description = "DICOM image I/O and DIMSE networking for RITK"
+keywords.workspace = true
+categories.workspace = true
+homepage.workspace = true
+readme.workspace = true
 authors.workspace = true
 repository.workspace = true
 publish = true

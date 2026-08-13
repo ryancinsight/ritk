@@ -81,6 +81,49 @@ else
 fi
 echo ""
 
+
+# ── DWI volumes from OpenNeuro S3 ───────────────────────────────────────────
+#
+# The DataLad clones above carry git-annex pointer files, not the imaging data:
+# a .nii.gz there is a few hundred bytes naming a key. Fetching the content
+# normally needs git-annex, which is not a reasonable prerequisite, so the
+# volumes come straight from OpenNeuro's public S3 bucket instead.
+#
+# Size is what distinguishes a real volume from a pointer, so that is what the
+# idempotence check tests -- an existence check would accept the pointer.
+ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+MIN_VOLUME_BYTES=1000000
+
+fetch_volume() {
+    local url="$1" dest="$2"
+    if [ -f "${dest}" ]; then
+        local size
+        size=$(wc -c < "${dest}" | tr -d ' ')
+        if [ "${size}" -ge "${MIN_VOLUME_BYTES}" ]; then
+            echo "  present: $(basename "${dest}") (${size} bytes)"
+            return 0
+        fi
+        echo "  replacing git-annex pointer: $(basename "${dest}")"
+    fi
+    echo "  fetching $(basename "${dest}") ..."
+    if ! curl -fsSL -o "${dest}.partial" "${url}"; then
+        echo "  ERROR: download failed for ${url}" >&2
+        rm -f "${dest}.partial"
+        return 1
+    fi
+    # Rename only after a complete transfer, so an interrupted run leaves no
+    # truncated file that the size check would later accept.
+    mv "${dest}.partial" "${dest}"
+    echo "  fetched $(basename "${dest}") ($(wc -c < "${dest}" | tr -d ' ') bytes)"
+}
+
+echo "ds002087 sub-01 DWI volume (~55 MB):"
+fetch_volume     "https://s3.amazonaws.com/openneuro.org/ds002087/sub-01/dwi/sub-01_run-1_dwi.nii.gz"     "${ROOT}/sub-01_dwi.nii.gz"
+cp -f "${ROOT}/ds002087_repo/sub-01/dwi/sub-01_run-1_dwi.bval" "${ROOT}/sub-01_dwi.bval" 2>/dev/null || true
+cp -f "${ROOT}/ds002087_repo/sub-01/dwi/sub-01_run-1_dwi.bvec" "${ROOT}/sub-01_dwi.bvec" 2>/dev/null || true
+cp -f "${ROOT}/sub-01_dwi.nii.gz" "${ROOT}/ds002087_repo/sub-01/dwi/sub-01_run-1_dwi.nii.gz" 2>/dev/null || true
+echo ""
+
 # ── Done ────────────────────────────────────────────────────────────────────
 echo "================================================"
 echo "  Download complete"
@@ -88,3 +131,6 @@ echo "================================================"
 echo ""
 echo "To run the real-data integration tests:"
 echo "  cargo test -p ritk-diffusion --test integration_real_data -- --ignored"
+echo ""
+echo "To regenerate the book figure:"
+echo "  cargo run --release -p ritk-diffusion --example book_brain_tractography"

@@ -1,5 +1,10 @@
 # RITK Performance Optimization Guide
 
+> **Historical record.** Sprint entries below are dated logs. Those predating
+> the Coeus migration reference the retired Burn tensor backend; they record what
+> was done at the time and are not statements about the current stack, which uses
+> the Coeus tensor and autodiff contracts over Leto storage.
+
 This document tracks performance characteristics, known bottlenecks, and
 optimization opportunities across the RITK codebase.
 
@@ -464,23 +469,6 @@ result += unsafe { *volume_slice.get_unchecked(idx) } * weight;
 ---
 
 ### 🟡 MEDIUM PRIORITY
-
-#### 3. Tensor Data Movement Between CPU/GPU
-**Location:** Various - any code using `to_data()` or `.into_data()`
-
-**Issue:**
-- Burn tensors may be on GPU (via wgpu backend)
-- Frequent `.to_data()` calls force CPU-GPU sync
-- B-spline interpolation does this in hot loop
-
-**Impact:**
-- GPU backend: Significant performance penalty
-- CPU backend: Minimal impact
-
-**Solution:**
-- Keep data on device when possible
-- Use device-native operations
-- Batch sync operations
 
 #### 4. Histogram Chunking Overhead
 **Location:** `histogram.rs`
@@ -1223,7 +1211,6 @@ Prefixed `_i` in `chamfer/tests.rs` to silence `unused_variables` warning.
 | Medium | `DicomValue::Text(String)` → stack allocation for short text VRs | Deferred (needs design RFC: ArrayString vs SmallVec vs CompactString) |
 | Low | `inline_const_exprs` for `D*D` replacing `DD` workaround | Blocked on nightly stabilization |
 | Low | Arg-struct refactors for `too_many_arguments` | Monitor (14 instances, all justified) |
-| External | `slice_ref(&self)` API for burn tensor | Would eliminate 11 conditional clones in regularization |
 
 ---
 
@@ -1271,7 +1258,6 @@ through `ritk-io`'s public API chain.
 
 | Priority | Item | Notes |
 |----------|------|-------|
-| High | `burn` `slice_ref(&self)` / `narrow_ref(&self)` API | Would eliminate ~79 clones in regularization, interpolation, transforms; revisit each sprint |
 | Medium | Remaining `ArrayString::from(LITERAL).unwrap()` in test code | ~25+ sites in test files; safe by construction but noisy |
 | Low | `inline_const_exprs` for `D*D` replacing `DD` workaround | Blocked on nightly stabilization |
 | Low | Arg-struct refactors for `too_many_arguments` | 14 instances, all justified |
@@ -1329,7 +1315,6 @@ Hardened 4 production `.unwrap()` calls in `series.rs`:
 
 | Priority | Item | Notes |
 |----------|------|-------|
-| High | `burn` `slice_ref(&self)` / `narrow_ref(&self)` API | Would eliminate ~79 clones in regularization, interpolation, transforms; revisit each sprint |
 | Medium | Remaining `ArrayString::from(LITERAL).unwrap()` in test code | ~25+ sites in test files; safe by construction but noisy |
 | Low | `inline_const_exprs` for `D*D` replacing `DD` workaround | Blocked on nightly stabilization |
 | Low | Arg-struct refactors for `too_many_arguments` | 14 instances, all justified |
@@ -1439,6 +1424,6 @@ Tests green at 707/707 across `ritk-filter`.
 
 ## References
 
-- [Burn Tensor Operations](https://docs.rs/burn/latest/burn/tensor/)
+- [Coeus tensor contracts](https://github.com/ryancinsight/Coeus)
 - [Rust Performance Book](https://doc.rust-lang.org/1.70.0/book/performance.html)
 - [CMA-ES Original Paper](https://www.researchgate.net/publication/221220513_Completely_Derandomized_Self-Adaptation_in_Evolution_Strategies)

@@ -18,22 +18,46 @@ OpenNeuro [`ds002087`](https://openneuro.org/datasets/ds002087) sub-01, released
 under CC0. 104 × 104 × 72 voxels at 2 mm isotropic, 99 volumes at \(b = 0\) and
 \(b = 700\) s/mm², with FSL `bval`/`bvec` sidecars.
 
-The dataset is not committed. `test_data/diffusion/download.sh` records its
-provenance and fetches the gradient sidecars; the DWI volume itself comes from
-OpenNeuro's S3 bucket. Regenerate the figure with:
+The dataset is not committed — only its provenance is. Fetch it, then
+regenerate the figure:
 
 ```bash
+bash test_data/diffusion/download.sh
 cargo run --release -p ritk-diffusion --example book_brain_tractography
 ```
+
+The script clones the OpenNeuro DataLad repositories for the sidecars and pulls
+the DWI volume from the public S3 bucket. The clones carry git-annex *pointer*
+files rather than imaging data — a `.nii.gz` there is a few hundred bytes naming
+a key — so the volume is fetched directly instead of requiring git-annex. Re-runs
+skip files already present, judged by size rather than existence, since an
+existence check would happily accept the pointer.
 
 The example exits without writing when the data is absent, so it stays runnable
 where the dataset is not present.
 
 ## Reading the panels
 
+Both panels are **directionally encoded**: red is left-right, green
+anterior-posterior, blue superior-inferior, following the standard diffusion
+convention. Colour comes from the absolute components of the local orientation —
+absolute because an eigenvector has no sign, so a fibre running left-to-right
+must not change colour against one running right-to-left.
+
+That mapping is derived per volume rather than assumed. `resolve_colour_channels`
+reads the image's own direction cosines and works out which anatomical axis each
+gradient component actually points along, because the two orders involved are
+reversed: FSL `bvec` components are in image-axis order `(i, j, k)`, while RITK
+stores direction cosines as `[depth, row, column]` against LPS rows. It fails
+rather than guesses when an axis has no dominant anatomical direction, which is
+what an obliquely acquired volume looks like — colours would then name
+directions the data does not have. For this acquisition the sform is
+axis-aligned to within a few degrees, so the resolved channels are the identity.
+
 **Panel 1 — fractional anisotropy.** One tensor is fitted per voxel from all 99
 volumes; FA is the rotationally invariant measure of how directional that
-tensor is. The anatomy is the check, because it is not something a bug produces:
+tensor is, and here it sets the brightness while orientation sets the hue. The
+anatomy is the check, because it is not something a bug produces:
 
 - the **corpus callosum** reads as a bright arc, genu anteriorly and splenium
   posteriorly, which is the most coherent white matter in the brain;
@@ -45,6 +69,9 @@ tensor is. The anatomy is the check, because it is not something a bug produces:
 
 **Panel 2 — streamlines.** Deterministic tracking follows the principal
 eigenvector through the fitted field, seeded in the most anisotropic voxels.
+Each segment is coloured by its own local direction rather than each track by a
+single colour, since a streamline changes orientation along its length and one
+stroke colour would average that away.
 Tracking is three-dimensional over a 29-slice slab; the tracks are projected
 onto the rendered plane for display. Their agreement with the bright structure
 underneath is the check — tracks straying onto dark tissue would mean the

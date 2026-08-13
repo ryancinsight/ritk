@@ -108,6 +108,8 @@ fn main() -> Result<()> {
         scheme.len()
     );
 
+    let channels = resolve_colour_channels(series[0].direction())?;
+
     let [depth, rows, columns] = series[0].shape();
     #[expect(
         clippy::cast_possible_truncation,
@@ -203,13 +205,17 @@ fn main() -> Result<()> {
 
     let centre = slice - first;
     let figure = render(
-        &fa[centre * plane..(centre + 1) * plane],
-        rows,
-        columns,
+        &SlicePanel {
+            fa: &fa[centre * plane..(centre + 1) * plane],
+            pev: &pev[centre * plane..(centre + 1) * plane],
+            channels,
+            rows,
+            columns,
+            slice,
+            depth,
+            peak: brightest,
+        },
         &tracks,
-        slice,
-        depth,
-        brightest,
     )?;
     let out = figure_path();
     std::fs::write(&out, figure).with_context(|| format!("writing {}", out.display()))?;
@@ -295,15 +301,123 @@ fn figure_path() -> PathBuf {
 }
 
 /// Render the FA map and the streamline overlay as two panels.
-fn render(
-    fa: &[f64],
+/// Smallest ratio by which one anatomical component must dominate the others
+/// for an image axis to count as anatomical.
+///
+/// The colour convention needs each image axis to be essentially one anatomical
+/// direction. An oblique acquisition has no such correspondence, and the colours
+/// would then name directions the data does not have.
+const MIN_AXIS_DOMINANCE: f64 = 3.0;
+
+/// Map each gradient component onto an RGB channel from the image's own
+/// direction cosines.
+///
+/// The convention is red left-right, green anterior-posterior, blue
+/// superior-inferior. Turning a gradient component into a channel needs the
+/// frame the components live in, which is not safe to assume: FSL `bvec` values
+/// are in image-axis order `(i, j, k)`, while RITK stores direction cosines as
+/// `[depth, row, column]` against LPS rows. Those orders are reversed with
+/// respect to each other, so gradient component `c` corresponds to direction
+/// column `2 - c`. LPS row 0 is left-right, row 1 anterior-posterior, row 2
+/// superior-inferior — already RGB order.
+///
+/// # Errors
+///
+/// Fails when an image axis has no dominant anatomical direction, or when the
+/// resolved channels are not a permutation, which would mean two components
+/// claim the same colour.
+fn resolve_colour_channels(direction: &ritk_spatial::Direction<3>) -> Result<[usize; 3]> {
+    let mut channels = [0_usize; 3];
+    for (component, channel) in channels.iter_mut().enumerate() {
+        let column = 2 - component;
+        let magnitudes = [
+            direction.0[(0, column)].abs(),
+            direction.0[(1, column)].abs(),
+            direction.0[(2, column)].abs(),
+        ];
+        let dominant = (0..3)
+            .max_by(|a, b| magnitudes[*a].total_cmp(&magnitudes[*b]))
+            .unwrap_or(0);
+        let runner_up = (0..3)
+            .filter(|axis| *axis != dominant)
+            .map(|axis| magnitudes[axis])
+            .fold(0.0_f64, f64::max);
+        anyhow::ensure!(
+            magnitudes[dominant] >= runner_up * MIN_AXIS_DOMINANCE,
+            "gradient component {component} maps to image axis {column}, whose anatomical              direction is ambiguous ({magnitudes:?}): the volume is obliquely acquired, so a              directional colour would name a direction the data does not have"
+        );
+        *channel = dominant;
+    }
+    let mut seen = channels;
+    seen.sort_unstable();
+    anyhow::ensure!(
+        seen == [0, 1, 2],
+        "resolved colour channels {channels:?} are not a permutation; two gradient          components would claim the same colour"
+    );
+    Ok(channels)
+}
+
+/// Directionally encoded colour for a unit orientation.
+///
+/// Absolute components because an eigenvector has no sign — a fibre running
+/// left-to-right is the same fibre as one running right-to-left, so the colour
+/// must not flip with an arbitrary sign choice. `weight` scales by anisotropy,
+/// so isotropic tissue stays dark rather than showing a saturated colour for a
+/// direction that means nothing.
+fn directional_colour(direction: [f64; 3], weight: f64, channels: [usize; 3]) -> String {
+    let level = |component: f64| {
+        #[expect(
+            clippy::cast_possible_truncation,
+            clippy::cast_sign_loss,
+            reason = "the product of two values in [0, 1] scaled by 255 fits u8"
+        )]
+        let value = (component.abs().clamp(0.0, 1.0) * weight.clamp(0.0, 1.0) * 255.0) as u8;
+        value
+    };
+    let mut rgb = [0_u8; 3];
+    for (component, channel) in channels.iter().enumerate() {
+        rgb[*channel] = level(direction[component]);
+    }
+    format!("#{:02x}{:02x}{:02x}", rgb[0], rgb[1], rgb[2])
+}
+
+/// The one slice a figure draws: its fitted fields, its extent, and where it
+/// sits in the volume.
+///
+/// Bundled rather than passed loose because `rows`, `columns`, `slice`, and
+/// `depth` are all `usize` and a caller transposing any two would render a
+/// plausible-looking figure of the wrong thing.
+struct SlicePanel<'a> {
+    /// Fractional anisotropy over the slice, row-major.
+    fa: &'a [f64],
+    /// Principal eigenvector per voxel, in gradient-component order.
+    pev: &'a [[f64; 3]],
+    /// Gradient component to RGB channel, from [`resolve_colour_channels`].
+    channels: [usize; 3],
     rows: usize,
     columns: usize,
-    tracks: &ritk_tractography::TractographyResult,
+    /// Index of this slice, and the volume's extent along the sliced axis.
     slice: usize,
     depth: usize,
+    /// Largest FA in the slice, which sets the brightness range.
     peak: f64,
+}
+
+fn render(
+    panel: &SlicePanel<'_>,
+    tracks: &ritk_tractography::TractographyResult,
 ) -> Result<String> {
+    let &SlicePanel {
+        fa,
+        pev,
+        channels,
+        rows,
+        columns,
+        slice,
+        depth,
+        peak,
+    } = panel;
+
     #[expect(
         clippy::cast_precision_loss,
         reason = "voxel counts are far below f64 exact-integer range"
@@ -320,7 +434,7 @@ fn render(
     )?;
     writeln!(
         svg,
-        r#"<style>.t{{font:600 15px sans-serif;fill:#172033}}.s{{font:11px sans-serif;fill:#64748b}}.tr{{fill:none;stroke:#f97316;stroke-width:1.1;stroke-opacity:.85}}</style>"#
+        r#"<style>.t{{font:600 15px sans-serif;fill:#172033}}.s{{font:11px sans-serif;fill:#64748b}}</style>"#
     )?;
     writeln!(svg, r##"<rect width="100%" height="100%" fill="#fff"/>"##)?;
 
@@ -338,16 +452,14 @@ fn render(
         // fitted value normalized by the slice peak.
         for row in 0..rows {
             for column in 0..columns {
-                let value = fa[row * columns + column] / peak;
+                let index = row * columns + column;
+                let value = fa[index] / peak;
                 if value <= 0.02 {
                     continue;
                 }
-                #[expect(
-                    clippy::cast_possible_truncation,
-                    clippy::cast_sign_loss,
-                    reason = "value is clamped to [0, 1] by construction above"
-                )]
-                let level = (value.clamp(0.0, 1.0) * 255.0) as u8;
+                // Hue carries orientation, brightness carries anisotropy, so one
+                // panel shows both what is white matter and which way it runs.
+                let fill = directional_colour(pev[index], value, channels);
                 #[expect(
                     clippy::cast_precision_loss,
                     reason = "voxel indices are small integers"
@@ -355,23 +467,33 @@ fn render(
                 let (x, y) = (column as f64 * scale, row as f64 * scale);
                 writeln!(
                     svg,
-                    r##"<rect x="{x:.2}" y="{y:.2}" width="{scale:.2}" height="{scale:.2}" fill="#{level:02x}{level:02x}{level:02x}"/>"##
+                    r#"<rect x="{x:.2}" y="{y:.2}" width="{scale:.2}" height="{scale:.2}" fill="{fill}"/>"#
                 )?;
             }
         }
         if panel > 0.0 {
+            // One coloured segment per step rather than one path per track: a
+            // streamline changes orientation along its length, and a single
+            // stroke colour would average that away.
             for streamline in tracks.streamlines() {
-                let mut path = String::new();
-                for (step, point) in streamline.geometry().points().iter().enumerate() {
-                    let command = if step == 0 { 'M' } else { 'L' };
-                    write!(
-                        path,
-                        "{command}{:.1} {:.1} ",
-                        point.z * scale,
-                        point.y * scale
+                for pair in streamline.geometry().points().windows(2) {
+                    let (a, b) = (pair[0], pair[1]);
+                    let step = [b.x - a.x, b.y - a.y, b.z - a.z];
+                    let length = (step[0] * step[0] + step[1] * step[1] + step[2] * step[2]).sqrt();
+                    if length <= f64::EPSILON {
+                        continue;
+                    }
+                    let unit = [step[0] / length, step[1] / length, step[2] / length];
+                    writeln!(
+                        svg,
+                        r#"<line x1="{:.1}" y1="{:.1}" x2="{:.1}" y2="{:.1}" stroke="{}" stroke-width="1.2" stroke-opacity=".9"/>"#,
+                        a.z * scale,
+                        a.y * scale,
+                        b.z * scale,
+                        b.y * scale,
+                        directional_colour(unit, 1.0, channels)
                     )?;
                 }
-                writeln!(svg, r#"<path class="tr" d="{}"/>"#, path.trim_end())?;
             }
         }
         writeln!(svg, "</g>")?;

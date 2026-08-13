@@ -7,6 +7,9 @@ publish = true
 edition = "2021"
 license.workspace = true
 description = "NRRD (Nearly Raw Raster Data) I/O for RITK"
+keywords.workspace = true
+categories.workspace = true
+homepage.workspace = true
 
 [dependencies]
 ritk-image = { path = "../ritk-image", version = "0.3.0" }

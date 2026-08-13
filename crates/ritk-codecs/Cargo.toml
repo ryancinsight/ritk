@@ -7,6 +7,10 @@ publish = true
 edition = "2021"
 license.workspace = true
 description = "RITK-native codec implementations: JPEG, JPEG-LS, JPEG 2000, PackBits, RLE Lossless"
+keywords.workspace = true
+categories.workspace = true
+homepage.workspace = true
+readme.workspace = true
 
 [dependencies]
 anyhow = { workspace = true }
