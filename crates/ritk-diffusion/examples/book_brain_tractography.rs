@@ -479,8 +479,7 @@ fn render(
                 for pair in streamline.geometry().points().windows(2) {
                     let (a, b) = (pair[0], pair[1]);
                     let step = [b.x - a.x, b.y - a.y, b.z - a.z];
-                    let length =
-                        (step[0] * step[0] + step[1] * step[1] + step[2] * step[2]).sqrt();
+                    let length = (step[0] * step[0] + step[1] * step[1] + step[2] * step[2]).sqrt();
                     if length <= f64::EPSILON {
                         continue;
                     }
