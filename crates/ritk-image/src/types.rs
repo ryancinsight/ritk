@@ -238,6 +238,30 @@ where
             index[D - 2] = beam;
             return Ok(index);
         }
+        if let CoordinateMap::PhasedArray3D(geometry) = self.map {
+            let shape = self.shape();
+            let (azimuth_index, elevation_index, sample) = geometry
+                .index_from_cartesian(
+                    point[D - 1],
+                    point[D - 2],
+                    point[D - 3],
+                    shape[D - 1],
+                    shape[D - 2],
+                )
+                .ok_or_else(|| {
+                    anyhow!(
+                        "physical point ({}, {}, {}) lies outside the phased-array acquisition",
+                        point[D - 1],
+                        point[D - 2],
+                        point[D - 3]
+                    )
+                })?;
+            let mut index = Point::origin();
+            index[D - 1] = azimuth_index;
+            index[D - 2] = elevation_index;
+            index[D - 3] = sample;
+            return Ok(index);
+        }
         let inverse = self
             .direction
             .try_inverse()
@@ -265,6 +289,26 @@ where
             let mut point = Point::origin();
             point[D - 1] = radius * angle.sin();
             point[D - 2] = radius * angle.cos();
+            return point;
+        }
+        if let CoordinateMap::PhasedArray3D(geometry) = self.map {
+            let shape = self.shape();
+            let mut point = Point::origin();
+            if let Some((azimuth_axis, elevation_axis, depth)) = geometry.cartesian_from_index(
+                index[D - 1],
+                index[D - 2],
+                index[D - 3],
+                shape[D - 1],
+                shape[D - 2],
+            ) {
+                point[D - 1] = azimuth_axis;
+                point[D - 2] = elevation_axis;
+                point[D - 3] = depth;
+            } else {
+                for axis in 0..D {
+                    point[axis] = f64::NAN;
+                }
+            }
             return point;
         }
         let mut scaled = ritk_spatial::Vector::zeros();
@@ -517,6 +561,9 @@ where
             CoordinateMap::CurvilinearArray(geometry) => {
                 self.world_to_index_curvilinear(&geometry, points, n, backend)
             }
+            CoordinateMap::PhasedArray3D(geometry) => {
+                self.world_to_index_phased_array(&geometry, points, n, backend)
+            }
         }
     }
 
@@ -590,6 +637,9 @@ where
             CoordinateMap::Cartesian => self.index_to_world_cartesian(indices, n, backend),
             CoordinateMap::CurvilinearArray(geometry) => {
                 self.index_to_world_curvilinear(&geometry, indices, n, backend)
+            }
+            CoordinateMap::PhasedArray3D(geometry) => {
+                self.index_to_world_phased_array(&geometry, indices, n, backend)
             }
         }
     }
@@ -733,6 +783,93 @@ where
                     acc += (p[r] - origin_t[r]) * t[r][c];
                 }
                 o[c] = acc;
+            }
+        }
+
+        Tensor::from_slice_on([n, D], &out, backend)
+    }
+
+    /// Phased-array arm of [`Self::index_to_world_native_on`].
+    ///
+    /// Index columns are `(azimuth beam, elevation beam, sample)`; the physical
+    /// triple lands on axes `(2, 1, 0)` — azimuth, elevation, depth — matching
+    /// the innermost-first column convention. Only defined at `D == 3`, which
+    /// [`CoordinateMap::validate_dimensionality`] enforces at attach time.
+    ///
+    /// A ray whose steering angle has no finite depth yields NaN, on the same
+    /// grounds as the curvilinear out-of-fan case.
+    #[must_use]
+    fn index_to_world_phased_array(
+        &self,
+        geometry: &crate::coordinate_map::PhasedArray3D,
+        indices: &Tensor<T, B>,
+        n: usize,
+        backend: &B,
+    ) -> Tensor<T, B> {
+        let shape = self.shape();
+        let (azimuth_count, elevation_count) = (shape[D - 1], shape[D - 2]);
+
+        let src = indices.as_slice();
+        let mut out = vec![T::zero(); n * D];
+        for (idx, o) in src.chunks_exact(D).zip(out.chunks_exact_mut(D)) {
+            match geometry.cartesian_from_index(
+                Scalar::to_f64(idx[0]),
+                Scalar::to_f64(idx[1]),
+                Scalar::to_f64(idx[2]),
+                azimuth_count,
+                elevation_count,
+            ) {
+                Some((azimuth_axis, elevation_axis, depth)) => {
+                    o[D - 1] = T::from_f64(azimuth_axis);
+                    o[D - 2] = T::from_f64(elevation_axis);
+                    o[D - 3] = T::from_f64(depth);
+                }
+                None => {
+                    for value in o.iter_mut() {
+                        *value = T::from_f64(f64::NAN);
+                    }
+                }
+            }
+        }
+
+        Tensor::from_slice_on([n, D], &out, backend)
+    }
+
+    /// Phased-array arm of [`Self::world_to_index_native_on`].
+    ///
+    /// Inverse of [`Self::index_to_world_phased_array`]. Points behind the
+    /// array (`depth <= 0`) have no ray and are emitted as NaN.
+    #[must_use]
+    fn world_to_index_phased_array(
+        &self,
+        geometry: &crate::coordinate_map::PhasedArray3D,
+        points: &Tensor<T, B>,
+        n: usize,
+        backend: &B,
+    ) -> Tensor<T, B> {
+        let shape = self.shape();
+        let (azimuth_count, elevation_count) = (shape[D - 1], shape[D - 2]);
+
+        let src = points.as_slice();
+        let mut out = vec![T::zero(); n * D];
+        for (p, o) in src.chunks_exact(D).zip(out.chunks_exact_mut(D)) {
+            match geometry.index_from_cartesian(
+                Scalar::to_f64(p[D - 1]),
+                Scalar::to_f64(p[D - 2]),
+                Scalar::to_f64(p[D - 3]),
+                azimuth_count,
+                elevation_count,
+            ) {
+                Some((azimuth_index, elevation_index, sample)) => {
+                    o[0] = T::from_f64(azimuth_index);
+                    o[1] = T::from_f64(elevation_index);
+                    o[2] = T::from_f64(sample);
+                }
+                None => {
+                    for value in o.iter_mut() {
+                        *value = T::from_f64(f64::NAN);
+                    }
+                }
             }
         }
 
@@ -1205,6 +1342,122 @@ mod tests {
         let idx = img.world_to_index_native(&pts_t);
         assert!(idx.as_slice()[0].is_nan(), "sample index must be NaN");
         assert!(idx.as_slice()[1].is_nan(), "beam index must be NaN");
+    }
+
+    fn phased_array_image() -> TensorImage<3> {
+        // shape [sample, elevation, azimuth]: innermost axis (index column 0)
+        // is the azimuth beam, matching the geometry's column contract.
+        let geometry = crate::coordinate_map::PhasedArray3D::try_new(
+            1.0e-4,
+            0.01,
+            0.75_f64.to_radians(),
+            1.5_f64.to_radians(),
+        )
+        .expect("valid geometry");
+        Image::from_flat(
+            vec![0.0_f32; 8 * 5 * 9],
+            [8, 5, 9],
+            Point::new([0.0, 0.0, 0.0]),
+            Spacing::new([1.0, 1.0, 1.0]),
+            Direction::identity(),
+        )
+        .expect("image")
+        .with_coordinate_map(CoordinateMap::PhasedArray3D(geometry))
+        .expect("3-D image accepts a phased-array map")
+    }
+
+    /// Boresight through the real `Image` transform: the centre azimuth and
+    /// elevation beams must produce a point with no lateral or elevation
+    /// offset, confirming the column-to-axis wiring.
+    #[test]
+    fn phased_array_boresight_through_the_image_transform() {
+        let img = phased_array_image();
+        // shape [8, 5, 9] -> azimuth_count = shape[2] = 9 (centre 4),
+        // elevation_count = shape[1] = 5 (centre 2).
+        let indices = [4.0_f32, 2.0, 50.0];
+        let idx_t = Tensor::<f32, SequentialBackend>::from_slice([1, 3], &indices);
+        let world = img.index_to_world_native(&idx_t);
+        let w = world.as_slice();
+        // axis-major: axis 2 = azimuth, axis 1 = elevation, axis 0 = depth.
+        assert!(w[2].abs() < 1.0e-6, "azimuth offset {}", w[2]);
+        assert!(w[1].abs() < 1.0e-6, "elevation offset {}", w[1]);
+        let expected = 0.01 + 50.0 * 1.0e-4;
+        assert!((w[0] - expected).abs() < 1.0e-6, "depth {}", w[0]);
+    }
+
+    /// Index -> point -> index through the real transforms, covering steered
+    /// rays in both angles. Tolerance follows the geometry-level reasoning,
+    /// loosened for `f32` storage.
+    #[test]
+    fn phased_array_round_trips_through_the_image_transforms() {
+        let img = phased_array_image();
+        let indices: Vec<f32> = vec![
+            4.0, 2.0, 0.0, // boresight, first sample
+            0.0, 0.0, 60.0, // both angles steered to a corner
+            8.0, 4.0, 30.0, // opposite corner
+            6.0, 1.0, 75.0,
+        ];
+        let idx_t = Tensor::<f32, SequentialBackend>::from_slice([4, 3], &indices);
+        let world = img.index_to_world_native(&idx_t);
+        let back = img.world_to_index_native(&world);
+
+        for (row, chunk) in back.as_slice().chunks_exact(3).enumerate() {
+            for col in 0..3 {
+                let want = indices[row * 3 + col];
+                assert!(
+                    (chunk[col] - want).abs() < 0.05,
+                    "row {row} col {col}: {} != {want}",
+                    chunk[col]
+                );
+            }
+        }
+    }
+
+    /// Steering must be independent per angle: moving only the azimuth beam
+    /// must leave the elevation offset at zero, which a single spherical polar
+    /// angle would not do.
+    #[test]
+    fn phased_array_angles_steer_independently() {
+        let img = phased_array_image();
+        let indices = [0.0_f32, 2.0, 50.0, 8.0, 2.0, 50.0];
+        let idx_t = Tensor::<f32, SequentialBackend>::from_slice([2, 3], &indices);
+        let w = img.index_to_world_native(&idx_t);
+        let w = w.as_slice();
+        // Elevation stays on boresight for both azimuth-steered rays.
+        assert!(w[1].abs() < 1.0e-6, "elevation leaked: {}", w[1]);
+        assert!(w[4].abs() < 1.0e-6, "elevation leaked: {}", w[4]);
+        // Azimuth offsets mirror, depths match.
+        assert!((w[2] + w[5]).abs() < 1.0e-6, "azimuth must mirror");
+        assert!((w[0] - w[3]).abs() < 1.0e-6, "depth must match");
+    }
+
+    #[test]
+    fn phased_array_points_behind_the_array_become_nan() {
+        let img = phased_array_image();
+        // axis-major (depth, elevation, azimuth): depth <= 0 is behind the array.
+        let pts = [-0.02_f32, 0.001, 0.001];
+        let pts_t = Tensor::<f32, SequentialBackend>::from_slice([1, 3], &pts);
+        let idx = img.world_to_index_native(&pts_t);
+        assert!(idx.as_slice().iter().all(|v| v.is_nan()));
+    }
+
+    #[test]
+    fn phased_array_map_is_rejected_outside_three_dimensions() {
+        let geometry = crate::coordinate_map::PhasedArray3D::try_new(
+            1.0e-4,
+            0.01,
+            0.75_f64.to_radians(),
+            1.5_f64.to_radians(),
+        )
+        .expect("valid geometry");
+        let img = dummy_image::<f64, 2>(
+            Point::new([0.0, 0.0]),
+            Spacing::new([1.0, 1.0]),
+            Direction::identity(),
+        );
+        assert!(img
+            .with_coordinate_map(CoordinateMap::PhasedArray3D(geometry))
+            .is_err());
     }
 
     #[test]
