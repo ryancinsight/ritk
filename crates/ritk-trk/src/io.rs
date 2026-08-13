@@ -41,14 +41,20 @@ impl TrkTractogram {
         }
 
         let n_count = header.n_count;
-        if !(0..=100_000_000).contains(&n_count) {
+        if n_count < 0 {
             return Err(TrkError::InvalidStreamlineCount { count: n_count });
         }
 
+        // `n_count` is a claim from a 1000-byte header, not a fact about the
+        // file, so nothing is reserved from it: `Vec::with_capacity(n_count)`
+        // let a short malformed file demand gigabytes before a single record
+        // was read. The vectors grow as records genuinely decode, which bounds
+        // them by the real input — each iteration must read at least the
+        // 4-byte point count, so the reader reaching EOF ends the loop.
         let n_streamlines = n_count as usize;
-        let mut streamlines = Vec::with_capacity(n_streamlines);
-        let mut scalars = Vec::with_capacity(n_streamlines);
-        let mut properties = Vec::with_capacity(n_streamlines);
+        let mut streamlines = Vec::new();
+        let mut scalars = Vec::new();
+        let mut properties = Vec::new();
 
         let n_scalars = header.n_scalars.max(0) as usize;
         let n_properties = header.n_properties.max(0) as usize;

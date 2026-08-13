@@ -15,11 +15,18 @@
 //! 4. original_attributes_sequence_contents_are_removed
 //! 5. every_item_of_a_multi_item_sequence_is_anonymized
 //! 6. nested_private_tags_are_removed
-//! 7. nested_statistics_accumulate_across_levels
-//! 8. clinical_attributes_inside_sequences_are_preserved
-//! 9. objects_without_sequences_are_unaffected
+//! 7. private_tags_removed_counts_every_level_against_the_output
+//! 8. nested_statistics_accumulate_across_levels
+//! 9. nesting_at_the_traversal_bound_is_fully_anonymized
+//! 10. nesting_past_the_traversal_bound_is_reported_as_failure_not_success
+//! 11. clinical_attributes_inside_sequences_are_preserved
+//! 12. objects_without_sequences_are_unaffected
 
-use super::{anonymize_object, AnonymizationProfile, AnonymizeOptions, CleaningPolicy};
+use super::{
+    anonymize_object, AnonymizationProfile, AnonymizeError, AnonymizeOptions, CleaningPolicy,
+    MAX_SEQUENCE_DEPTH,
+};
+use dicom::core::header::Header;
 use dicom::core::value::{DataSetSequence, PrimitiveValue, Value};
 use dicom::core::{DataElement, Tag, VR};
 use dicom::object::meta::FileMetaTableBuilder;
@@ -108,6 +115,37 @@ fn read_item(item: &InMemDicomObject, tag: Tag) -> Option<String> {
         .ok()
         .and_then(|element| element.value().to_str().ok())
         .map(|value| value.trim().to_owned())
+}
+
+/// Count private elements (odd group, excluding the file meta group) across the
+/// whole tree. Measuring the data set itself is what makes the reported count
+/// checkable against reality rather than against another counter.
+fn private_element_count(dataset: &InMemDicomObject) -> usize {
+    dataset
+        .iter()
+        .map(|element| {
+            let group = element.tag().group();
+            let here = usize::from(group & 1 == 1 && group != 0x0002);
+            match element.value() {
+                Value::Sequence(sequence) => {
+                    here + sequence
+                        .items()
+                        .iter()
+                        .map(private_element_count)
+                        .sum::<usize>()
+                }
+                _ => here,
+            }
+        })
+        .sum()
+}
+
+/// Wrap `leaf` in `levels` nested sequences, placing it at traversal depth
+/// `levels`; the top-level data set is depth 0.
+fn nest(leaf: InMemDicomObject, levels: u32) -> InMemDicomObject {
+    (0..levels).fold(leaf, |inner, _| {
+        InMemDicomObject::from_element_iter([sequence(REFERENCED_IMAGE_SEQUENCE, vec![inner])])
+    })
 }
 
 // ─── Recursion: identifying attributes ────────────────────────────────────────
@@ -288,6 +326,40 @@ fn nested_private_tags_are_removed() {
 }
 
 #[test]
+fn private_tags_removed_counts_every_level_against_the_output() {
+    // The count is checked against the elements the output data set actually
+    // lost. A count taken from the surviving candidates rather than from the
+    // removals would credit work the object does not show.
+    let deep =
+        InMemDicomObject::from_element_iter([text(Tag(0x0029, 0x1010), VR::LO, "deep-payload")]);
+    let middle = InMemDicomObject::from_element_iter([
+        text(Tag(0x0019, 0x1001), VR::LO, "middle-payload"),
+        sequence(ANATOMIC_REGION_SEQUENCE, vec![deep]),
+    ]);
+    let object = with_meta(InMemDicomObject::from_element_iter([
+        text(Tag(0x0009, 0x0010), VR::LO, "top-payload"),
+        sequence(REFERENCED_IMAGE_SEQUENCE, vec![middle]),
+    ]));
+
+    let before = private_element_count(&object);
+    assert_eq!(
+        before, 3,
+        "the fixture carries one private element per level"
+    );
+
+    let (result, stats) =
+        anonymize_object(object, &enhanced_options()).expect("anonymization must succeed");
+
+    let after = private_element_count(&result);
+    assert_eq!(after, 0, "no private element may survive at any depth");
+    assert_eq!(
+        stats.private_tags_removed,
+        before - after,
+        "the report must credit exactly the private elements the output lost"
+    );
+}
+
+#[test]
 fn nested_statistics_accumulate_across_levels() {
     let item = InMemDicomObject::from_element_iter([
         text(PATIENT_NAME, VR::PN, "Doe^John"),
@@ -312,6 +384,50 @@ fn nested_statistics_accumulate_across_levels() {
         stats.tags_deleted >= 1,
         "statistics must count nested removals, got tags_deleted={}",
         stats.tags_deleted
+    );
+}
+
+// ─── Recursion: traversal bound ───────────────────────────────────────────────
+
+#[test]
+fn nesting_at_the_traversal_bound_is_fully_anonymized() {
+    // Reaching the bound is not itself a truncation: nothing lies below this
+    // leaf, so the walk is complete and must report success.
+    let leaf = InMemDicomObject::from_element_iter([text(PATIENT_NAME, VR::PN, "Deep^Patient")]);
+    let object = with_meta(nest(leaf, MAX_SEQUENCE_DEPTH));
+
+    let (result, stats) = anonymize_object(object, &enhanced_options())
+        .expect("nesting that reaches the bound without exceeding it must succeed");
+
+    assert!(
+        !leaked(&result, "Deep^Patient"),
+        "the identifier sitting at the traversal bound must be replaced"
+    );
+    assert_eq!(
+        stats.tags_zeroed, 1,
+        "exactly the one pre-existing PatientName is suppressed; the placeholders \
+         written into the intervening levels replaced nothing"
+    );
+}
+
+#[test]
+fn nesting_past_the_traversal_bound_is_reported_as_failure_not_success() {
+    // The walk stops at the bound with a data set still below it, so the leaf
+    // identifier survives. Reporting success would certify a data set that
+    // still carries it — the report is the only evidence a caller has.
+    let leaf = InMemDicomObject::from_element_iter([text(PATIENT_NAME, VR::PN, "Deep^Patient")]);
+    let object = with_meta(nest(leaf, MAX_SEQUENCE_DEPTH + 1));
+
+    let Err(error) = anonymize_object(object, &enhanced_options()) else {
+        panic!("an object nested past the traversal bound must not report success");
+    };
+
+    assert_eq!(
+        error.downcast_ref::<AnonymizeError>(),
+        Some(&AnonymizeError::SequenceTooDeep {
+            depth: MAX_SEQUENCE_DEPTH
+        }),
+        "the truncated traversal must surface as a typed error naming the depth"
     );
 }
 

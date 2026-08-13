@@ -15,6 +15,11 @@
 //! - File meta-header (transfer syntax, SOP class) is preserved unchanged.
 //! - `clean_pixel_data = CleaningPolicy::Skip` (default) never touches pixel data.
 //! - Same `(original_uid, salt)` always produces the same replacement UID.
+//! - Every count in [`AnonymizeResult`] is taken from the mutation that produced
+//!   it, never from a prior survey of candidates, so the report can only
+//!   under-state what happened, never over-state it.
+//! - A step that cannot complete aborts the run with [`AnonymizeError`]; the
+//!   object it would have described is never returned as a success.
 
 mod profile;
 #[cfg(test)]
@@ -96,6 +101,10 @@ impl Default for AnonymizeOptions {
 }
 
 /// Per-object statistics returned by `anonymize_object`.
+///
+/// Each count is incremented by the mutation that performed the work, not by a
+/// preceding survey of candidates, so a figure here is a record of what the
+/// object actually lost.
 #[derive(Debug, Clone, Default)]
 pub struct AnonymizeResult {
     /// Number of tags deleted (Remove action applied to a present element).
@@ -104,10 +113,57 @@ pub struct AnonymizeResult {
     pub tags_zeroed: usize,
     /// Number of UIDs remapped (ReplaceUid action applied to a present element).
     pub uids_remapped: usize,
-    /// Number of private tags removed.
+    /// Number of private elements actually removed from the object.
     pub private_tags_removed: usize,
     /// Map of original UID → replacement UID for cross-reference tracking.
     pub uid_map: HashMap<String, String>,
+}
+
+/// A de-identification step that could not be completed.
+///
+/// [`AnonymizeResult`] is the evidence a caller relies on to certify a data set
+/// as de-identified, so a step that leaves identifying data behind aborts the
+/// run rather than being folded into a success report: a report that overstates
+/// de-identification is worse than no report. Every variant means the object
+/// still holds data the profile was asked to destroy, and the object is
+/// therefore never returned.
+///
+/// The variants are surfaced through the `anyhow::Error` returned by
+/// [`anonymize_object`] and its file/directory wrappers; recover the structured
+/// form with `anyhow::Error::downcast_ref::<AnonymizeError>`.
+#[derive(Debug, Clone, PartialEq, Eq, thiserror::Error)]
+pub enum AnonymizeError {
+    /// A private element present in the data set was not removed by the
+    /// removal pass, so it survives in the output.
+    #[error("private element {tag} at sequence depth {depth} survived removal")]
+    PrivateTagRetained {
+        /// Address of the element that survived.
+        tag: Tag,
+        /// Nesting level it was found at; `0` is the top-level data set.
+        depth: u32,
+    },
+    /// A sequence element could not be read back as a sequence for traversal,
+    /// so the data sets nested inside it were never visited.
+    #[error(
+        "sequence {tag} at sequence depth {depth} could not be traversed; \
+         the data sets nested inside it were not anonymized"
+    )]
+    SequenceNotTraversed {
+        /// Address of the sequence that could not be traversed.
+        tag: Tag,
+        /// Nesting level it was found at; `0` is the top-level data set.
+        depth: u32,
+    },
+    /// Nesting reached the traversal bound while sequences remained below it,
+    /// so those data sets were left untouched.
+    #[error(
+        "sequence nesting reached the traversal bound at depth {depth}; \
+         the data sets below it were not anonymized"
+    )]
+    SequenceTooDeep {
+        /// Depth at which traversal stopped.
+        depth: u32,
+    },
 }
 
 /// Cumulative statistics for a `anonymize_dicom_directory` run.
@@ -222,7 +278,6 @@ fn apply_action(
             }
         }
         TagAction::Dummy => {
-            let was_present = obj.element(tag).is_ok();
             // Extract VR before the mutable put; VR is Copy so the borrow ends.
             let vr = obj.element(tag).map(|e| e.vr()).unwrap_or(VR::LO);
             let val: &str = match tag {
@@ -230,17 +285,22 @@ fn apply_action(
                 Tag(0x0010, 0x0020) => &opts.patient_id,   // PatientID
                 _ => &opts.patient_name,                   // default dummy
             };
-            obj.put(DataElement::new(tag, vr, PrimitiveValue::from(val)));
-            if was_present {
-                // Dummy replaces; count as zeroed (value suppressed).
+            // `put` yields the element it displaced, so a suppressed value is
+            // counted from the replacement itself rather than from a presence
+            // check taken beforehand. Dummy replaces; count as zeroed.
+            if obj
+                .put(DataElement::new(tag, vr, PrimitiveValue::from(val)))
+                .is_some()
+            {
                 result.tags_zeroed += 1;
             }
         }
         TagAction::Empty => {
-            let was_present = obj.element(tag).is_ok();
             let vr = obj.element(tag).map(|e| e.vr()).unwrap_or(VR::LO);
-            obj.put(DataElement::new(tag, vr, PrimitiveValue::Empty));
-            if was_present {
+            if obj
+                .put(DataElement::new(tag, vr, PrimitiveValue::Empty))
+                .is_some()
+            {
                 result.tags_zeroed += 1;
             }
         }
@@ -306,7 +366,16 @@ const MAX_SEQUENCE_DEPTH: u32 = 64;
 ///   to one replacement UID across the whole object regardless of the depth at
 ///   which it appears.
 /// - Private-tag removal, when enabled, applies at every level.
-/// - Statistics in `result` accumulate across all levels.
+/// - Statistics in `result` accumulate across all levels, each increment taken
+///   from the mutation that performed the work.
+///
+/// # Errors
+///
+/// Returns [`AnonymizeError`] when a step leaves identifying data in the object:
+/// a private element that survives its own removal, a sequence that cannot be
+/// read back for traversal, or nesting that reaches [`MAX_SEQUENCE_DEPTH`] with
+/// sequences still below it. `result` then describes a partial pass and the
+/// caller must discard the object.
 fn anonymize_dataset(
     dataset: &mut InMemDicomObject,
     tag_actions: &[(Tag, TagAction)],
@@ -314,7 +383,7 @@ fn anonymize_dataset(
     result: &mut AnonymizeResult,
     uid_map: &mut HashMap<String, String>,
     depth: u32,
-) {
+) -> Result<(), AnonymizeError> {
     for (tag, action) in tag_actions {
         apply_action(dataset, *tag, *action, options, result, uid_map);
     }
@@ -331,19 +400,16 @@ fn anonymize_dataset(
             .map(|e| e.tag())
             .filter(|t| t.group() & 1 == 1 && t.group() != 0x0002)
             .collect();
-        result.private_tags_removed += private_tags.len();
         for tag in private_tags {
-            let _ = dataset.remove_element(tag);
+            // The address was just read from this data set, so a removal that
+            // reports nothing removed means the element is still there. Counting
+            // the survey instead would credit the report with a removal that did
+            // not happen, which is the one direction this report must not err in.
+            if !dataset.remove_element(tag) {
+                return Err(AnonymizeError::PrivateTagRetained { tag, depth });
+            }
+            result.private_tags_removed += 1;
         }
-    }
-
-    if depth >= MAX_SEQUENCE_DEPTH {
-        tracing::warn!(
-            depth,
-            "sequence nesting exceeded {MAX_SEQUENCE_DEPTH} levels; deeper data sets \
-             were not anonymized"
-        );
-        return;
     }
 
     // Sequence addresses are collected before mutation so the data set is not
@@ -354,23 +420,35 @@ fn anonymize_dataset(
         .map(|e| e.tag())
         .collect();
 
+    // The bound is checked only when there is something below it to visit, so an
+    // object that merely reaches the bound still completes; one that would need
+    // to descend past it fails closed rather than reporting a walk it truncated.
+    if !sequence_tags.is_empty() && depth >= MAX_SEQUENCE_DEPTH {
+        tracing::warn!(
+            depth,
+            "sequence nesting reached {MAX_SEQUENCE_DEPTH} levels; deeper data sets \
+             were not anonymized"
+        );
+        return Err(AnonymizeError::SequenceTooDeep { depth });
+    }
+
     for tag in sequence_tags {
-        let Ok(element) = dataset.element(tag).cloned() else {
-            continue;
-        };
+        // The address and its sequence-ness were just read from this data set;
+        // failing either check means the element moved under the walk, leaving
+        // the data sets it holds unvisited.
+        let element = dataset
+            .element(tag)
+            .cloned()
+            .map_err(|_| AnonymizeError::SequenceNotTraversed { tag, depth })?;
         let vr = element.vr();
         let Value::Sequence(sequence) = element.into_value() else {
-            continue;
+            return Err(AnonymizeError::SequenceNotTraversed { tag, depth });
         };
 
-        let items: Vec<InMemDicomObject> = sequence
-            .into_items()
-            .into_iter()
-            .map(|mut item| {
-                anonymize_dataset(&mut item, tag_actions, options, result, uid_map, depth + 1);
-                item
-            })
-            .collect();
+        let mut items: Vec<InMemDicomObject> = sequence.into_items().into_iter().collect();
+        for item in &mut items {
+            anonymize_dataset(item, tag_actions, options, result, uid_map, depth + 1)?;
+        }
 
         dataset.put(DataElement::new(
             tag,
@@ -378,6 +456,8 @@ fn anonymize_dataset(
             Value::Sequence(DataSetSequence::from(items)),
         ));
     }
+
+    Ok(())
 }
 
 // ─── Public API ───────────────────────────────────────────────────────────────
@@ -393,6 +473,14 @@ fn anonymize_dataset(
 /// When `options.clean_pixel_data` is `CleaningPolicy::Clean`, the
 /// `PixelData` element `(7FE0,0010)` is overwritten with an equal-length
 /// zero buffer if present and readable as a flat byte sequence.
+///
+/// # Errors
+///
+/// Returns [`AnonymizeError`] (as `anyhow::Error`; recover it with
+/// `downcast_ref`) when a step would leave identifying data in the object — a
+/// private element surviving removal, an untraversable sequence, or nesting
+/// past [`MAX_SEQUENCE_DEPTH`]. The object is not returned in that case, so a
+/// partially de-identified data set can never be mistaken for a clean one.
 pub fn anonymize_object(
     mut obj: FileDicomObject<InMemDicomObject>,
     options: &AnonymizeOptions,
@@ -412,7 +500,7 @@ pub fn anonymize_object(
         &mut result,
         &mut uid_map,
         0,
-    );
+    )?;
 
     if options.clean_pixel_data == CleaningPolicy::Clean {
         let pixel_tag = Tag(0x7FE0, 0x0010);
@@ -437,9 +525,15 @@ pub fn anonymize_object(
 
 /// Read a DICOM file from `input_path`, anonymize it, and write to `output_path`.
 ///
-/// Fails if `input_path` cannot be parsed as a DICOM Part 10 file, or if the
-/// output cannot be written. Propagates the underlying I/O and DICOM errors
-/// with context. Returns `AnonymizeResult` with per-operation statistics.
+/// Returns `AnonymizeResult` with per-operation statistics.
+///
+/// # Errors
+///
+/// Fails if `input_path` cannot be parsed as a DICOM Part 10 file, if
+/// anonymization cannot complete ([`AnonymizeError`]), or if the output cannot
+/// be written. Propagates the underlying I/O and DICOM errors with context. An
+/// incomplete anonymization aborts before the write, so `output_path` is never
+/// left holding a data set the report would have called de-identified.
 pub fn anonymize_dicom_file(
     input_path: impl AsRef<Path>,
     output_path: impl AsRef<Path>,
@@ -459,10 +553,18 @@ pub fn anonymize_dicom_file(
 ///
 /// `output_dir` is created if it does not exist.
 /// Files that cannot be opened as DICOM are skipped silently and not counted.
-/// Files that are valid DICOM but fail during anonymization or writing are
-/// counted in `AnonymizeStats::error_count` and logged at `WARN` level.
+/// Files that are valid DICOM but fail during anonymization ([`AnonymizeError`])
+/// or writing are counted in `AnonymizeStats::error_count`, recorded in
+/// `AnonymizeStats::errors`, and logged at `WARN` level; no output file is
+/// written for them.
 /// Output filenames match input filenames; directory structure is not
 /// recursed.
+///
+/// # Errors
+///
+/// Fails only if `output_dir` cannot be created or `input_dir` cannot be read;
+/// per-file failures are reported through `AnonymizeStats` rather than aborting
+/// the run.
 pub fn anonymize_dicom_directory(
     input_dir: impl AsRef<Path>,
     output_dir: impl AsRef<Path>,

@@ -151,8 +151,10 @@ fn native_nifti_metadata_round_trips_coordinates() {
         (shape[1] / 2) as f64,
         (shape[2] / 2) as f64,
     ]);
-    let physical = image.transform_continuous_index_to_physical_point(&index);
-    let back_to_index = image.transform_physical_point_to_continuous_index(&physical);
+    let physical = image.continuous_index_to_physical_point(&index);
+    let back_to_index = image
+        .physical_point_to_continuous_index(&physical)
+        .expect("Cartesian image with an invertible direction has an index for every point");
 
     for axis in 0..3 {
         assert!(

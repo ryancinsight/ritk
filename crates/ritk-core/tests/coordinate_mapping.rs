@@ -51,8 +51,9 @@ proptest! {
         let image = make_image(origin, spacing, direction);
         let point = Point::<D>::new(point);
 
-        let index = image.transform_physical_point_to_continuous_index(&point);
-        let recovered = image.transform_continuous_index_to_physical_point(&index);
+        let index = image.physical_point_to_continuous_index(&point)
+        .expect("Cartesian image with an invertible direction has an index for every point");
+        let recovered = image.continuous_index_to_physical_point(&index);
 
         prop_assert!((point[0] - recovered[0]).abs() < 1e-4, "X mismatch: {} vs {}", point[0], recovered[0]);
         prop_assert!((point[1] - recovered[1]).abs() < 1e-4, "Y mismatch: {} vs {}", point[1], recovered[1]);

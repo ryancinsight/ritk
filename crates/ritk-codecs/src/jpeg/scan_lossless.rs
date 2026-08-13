@@ -83,7 +83,7 @@ pub(crate) fn decode_lossless_scan(
     }
 
     let scan_comp = &frame.sos.components[0];
-    let dc_table = frame.dc_huff[scan_comp.dc_table_id as usize]
+    let dc_table = frame.dc_huff[scan_comp.dc_table_id.index()]
         .as_ref()
         .with_context(|| {
             format!(

@@ -79,6 +79,326 @@
   `close_B(A) = (A ⊕ B) ⊖ B`, contains no raw TeX commands, and its figure
   images loaded during browser visual inspection.
 
+- **TEST-696-01 [patch] - Verify deformable registration recovers a known deformation**
+  (DONE; owner=Claude; last-update=2026-08-13; scope=
+  `crates/ritk-registration/src/classical/engine/tests.rs` and
+  `crates/ritk-registration/tests/deformable_recovery_test.rs`;
+  non-goal=`ritk-statistics`, which holds its own tautologies — see
+  TEST-696-02).
+
+  Two gaps. First, the entire deformable family — demons in five variants,
+  B-spline FFD, SyN, B-spline SyN, LDDMM, atlas — had no test comparing a
+  recovered displacement field against a known applied one. The closest,
+  `thirion/tests.rs` `translation_recovery_direction`, asserted `mean_dx > 0.0`:
+  a sign, not a magnitude. Second, `test_mutual_information_identical` and
+  `test_mutual_information_different` fed constant volumes to
+  `MutualInformationMetric::compute`, which short-circuits on
+  `h_x + h_y == 0.0` and returns literal `1.0` / `0.0` — so both assertions
+  were satisfied by returned constants without a histogram ever being built.
+
+  Six MI tests now assert real algebraic properties through the histogram path:
+  `MI(X,X) = H(X)`, symmetry, invariance under a bijective intensity
+  remapping (which NCC would fail), exactly-zero MI for constructed
+  independent fields, strict monotone decay over a misalignment ladder, and an
+  honest `assert_eq!` on the degenerate branch. Three recovery tests assert
+  Thirion and diffeomorphic demons recover a known translation and a known
+  divergence-free sinusoidal field, with ground truth exact by construction —
+  both images sampled analytically, so the applied field is the unique correct
+  answer under the crate's warp convention.
+
+  Every tolerance is a derived named constant: `NMI_ROUNDING_TOLERANCE` from
+  the 1024-term entropy sum's worst-case accumulation, `INTERPOLATION_BIAS`
+  from the trilinear cell sag over the RMS gradient, `SUB_VOXEL_LIMIT` at half
+  the conventional `h/2` ambiguity limit.
+
+  Finding, not a defect: non-rigid recovery degrades with structural scale.
+  At periods 13/15/17 the algorithm converges (240 and 400 iterations agree to
+  <1e-3 voxel) yet recovers only ~70% of the deformation amplitude. A sigma
+  sweep refutes the regulariser as the cause — alpha stays in 0.69-0.72 across
+  sigma in [0.4, 1.0]. The cause is the rank-1 aperture structure of the
+  Thirion force, which constrains only the gradient-parallel component per
+  voxel. Translation is immune, recovering to <=0.08 voxel at every scale. The
+  measurement table is recorded in the test file's module docs.
+
+- **TEST-696-02 [patch] - Replace the clamp-guaranteed assertions in ritk-statistics**
+  (DONE; owner=Claude; last-update=2026-08-13; scope=
+  `crates/ritk-statistics/src/information/`
+  `{mutual_information.rs,tests/mi.rs}`; non-goal=the estimators' output on
+  well-formed input, which is unchanged).
+
+  Five assertions across four tests could not fail, because the implementation
+  clamped the value they checked: `mi_is_non_negative`,
+  `mi_mattes_non_negative` and `cmi_is_non_negative` sat above `.max(0.0)`, and
+  both bounds in `su_in_zero_one` sat above a `.clamp(0.0, 1.0)`.
+  `nmi_at_least_one` / `nmi_at_most_two` look similar but genuinely test
+  subadditivity and are untouched.
+
+  The clamps were the root cause, so they moved too. MI is non-negative by
+  Jensen, and cancellation between independently summed entropies can push an
+  exact zero a few ulps below — collapsing that is right. Collapsing a
+  substantial negative is not: the only things producing one are estimator
+  defects, and returning `0.0` presents the defect as a valid "these share no
+  information" answer that a registration metric will optimise against.
+  `non_negative_information` now errors past a 1e-9 rounding budget derived
+  from the entropy sums' worst-case accumulation, and `symmetric_uncertainty`
+  guards its upper bound the same way.
+
+  The replacements assert values the estimators must produce:
+  `MI(X, X) = H(X) = ln 8`; `MI = 0` exactly for a constructed independent
+  pair; Mattes soft binning agrees with hard binning on the diagonal, where
+  the two see the same distribution; SU reaches exactly 1 and exactly 0 at its
+  endpoints; `I(X;Y|X) = 0`.
+
+  Verification: 342 tests, clippy `-D warnings`, fmt. Discrimination confirmed
+  by mutation — scaling the joint entropy term by 0.95 fails 12 tests
+  including all four rewrites, while every assertion they replaced still
+  passed under the same mutant.
+
+- **TEST-696-03 [patch] - Ground-truth recovery test for multi-resolution demons**
+  (DoR; owner=unclaimed; last-update=2026-08-13; scope=
+  `crates/ritk-registration` multi-resolution demons tests; non-goal=algorithm
+  changes).
+
+  `MultiResDemonsRegistration` is the standard remedy for the amplitude
+  shortfall TEST-696-01 measured, and has no ground-truth recovery test.
+
+  Outcome: the recovery harness from `deformable_recovery_test.rs` applied to
+  the multi-resolution path, quantifying whether the coarse-to-fine schedule
+  closes the ~30% gap at long structural scale.
+
+  Acceptance: measured amplitude ratio against the single-resolution table
+  already recorded, at matching grid, wavelength and iteration budget.
+
+  Risk: [patch]; test-only.
+
+- **ARCH-695-01 [patch][arch] - Give the Image operation families their own leaf modules**
+  (DoR; owner=Claude; last-update=2026-08-13; scope=
+  `crates/ritk-image/src/{types.rs,transform.rs,tests_transform.rs}` and the
+  new leaf modules; non-goal=any behaviour change — this is a pure move, and a
+  commit that alters an expression is out of scope by definition).
+
+  `types.rs` is 1546 lines carrying four distinct operation families on one
+  type: construction and accessors, single-point coordinate transforms, batch
+  tensor transforms with their per-`CoordinateMap` kernels, and host data
+  access (`data_slice`, `data_cow*`, `data_vec*`). `transform.rs` meanwhile
+  contains no code at all — only a comment describing itself as "an
+  organizational placeholder for future transform-specific logic", which is
+  the scaffolding-without-content the standards forbid, sitting on the exact
+  name the transforms belong under.
+
+  Outcome: `transform.rs` becomes the canonical home for both transform
+  granularities (batch kernels under `transform/`), host access moves to its
+  own leaf module, and `types.rs` retains the type, its constructors, and its
+  accessors. The co-located test module splits along the same seams.
+
+  Acceptance: no diff hunk outside module paths, `use` statements and item
+  moves; the full ritk-image suite passes unchanged in name and count; every
+  file lands under the 500-line target.
+
+  Risk: [patch] — nothing public moves, since all four families are inherent
+  methods on `Image` and stay reachable at the same paths. [arch] because it
+  establishes where the family boundary sits for the crate.
+
+  Sequenced after FIX-690-01's PR merges: a pure-move diff of this size is
+  unreviewable stacked under behavioural commits.
+
+- **SAFE-693-04 [patch] - Report DICOM de-identification failures instead of success**
+  (DONE; owner=Claude; last-update=2026-08-13; scope=
+  `crates/ritk-io/src/format/dicom/anonymize/**` and the two re-export lists
+  naming its siblings; non-goal=the de-identification profiles themselves and
+  the DICOM PS3.15 attribute tables).
+
+  `anonymize_dataset` discarded three "did not happen" signals. The reachable
+  one: an object nested past `MAX_SEQUENCE_DEPTH` logged a warning, returned,
+  and left every deeper data set unanonymized while `anonymize_object`
+  returned `Ok` with a clean-looking report — the failure mode where the report
+  is the evidence a user relies on to certify a data set. The other two were
+  `let _ = dataset.remove_element(tag)` and two `else { continue }` arms
+  skipping a sequence that could not be read back.
+
+  Separately, `private_tags_removed` was incremented by the candidate count
+  before the removal loop. This did not produce a wrong number — the candidates
+  come from iterating the same `BTreeMap` with no intervening mutation, so
+  removal cannot currently fail — but its correctness was incidental to a data
+  structure rather than structural. It now counts per successful removal.
+
+  Resolved with a typed `AnonymizeError` travelling inside the existing
+  `anyhow::Error` and recovered by `downcast_ref`, matching `verify.rs`'s
+  idiom, so no call-site signature changes. A report-only failure list was
+  rejected: it would leave `anonymize_dicom_file` writing the PHI-bearing file
+  and returning `Ok`, which is the original defect in a new shape.
+
+  The depth check now fires only when sequences genuinely remain below the
+  bound, so an object that merely reaches depth 64 with nothing under it still
+  succeeds — without that refinement, correct at-bound objects would have
+  started failing.
+
+  Verification: 395 ritk-io tests, clippy `-D warnings`, fmt. The count tests
+  assert an input-minus-output identity against the actual output object rather
+  than against another counter, so they pin the contract; they pass against the
+  old code too, since removal cannot currently fail. The depth test was
+  confirmed to fail against the restored `return Ok(())` while the at-bound
+  test still passed.
+
+  Behaviour change to note for review: depth truncation is now fail-closed
+  rather than warn-and-succeed. Judged correct for a de-identification gate.
+
+- **SAFE-693-03 [patch] - Stop the .trk header count from driving allocation**
+  (DONE; owner=Claude; last-update=2026-08-13; scope=`crates/ritk-trk/src/`
+  `{io.rs,tests.rs}`; non-goal=the `.tck` and `.trx` readers, both audited and
+  already sound — `.tck` never allocates from a count, and `.trx` validates
+  `nb_streamlines` against the real offsets length before building).
+
+  `TrkTractogram::read` reserved three vectors from `header.n_count`, an i32 at
+  offset 988 of the 1000-byte header. The only guard was a magic
+  `0..=100_000_000` range, which is not a bound derived from the input: a
+  1028-byte file declaring the maximum admitted count allocated **4.8 GB** —
+  measured, not estimated. The request succeeds on a machine with the memory,
+  so this was silent exhaustion rather than a crash.
+
+  Resolved by not reserving from the claim at all. The vectors grow as records
+  decode, which the input itself bounds: every iteration must read at least the
+  4-byte point count, so EOF ends the loop. The magic cap is gone; a negative
+  count remains rejected by value. The per-record path already used
+  `try_reserve_exact` and is unchanged.
+
+  Verification: a `GlobalAlloc` wrapper records peak live bytes, so the test
+  asserts what the read actually demands. Against the previous code it reports
+  4800006182 bytes from a 1028-byte file; after the fix the same read stays
+  under the 64 MiB limit. Measuring was necessary — the eager reservation
+  neither aborts nor errors, so an assertion on the returned error alone left
+  the defect invisible, and an elapsed-time assertion would have been flaky by
+  construction.
+
+- **PERF-694-01 [patch] - Remove per-sample work from the decode and resample hot paths**
+  (DONE; owner=Claude; last-update=2026-08-13; scope=
+  `crates/ritk-codecs/src/jpeg/idct.rs` and
+  `crates/ritk-interpolation/src/interpolation/kernel/linear/mod.rs`;
+  non-goal=vectorizing either kernel, which needs a benchmark baseline first).
+
+  Two loop-invariant costs paid per element:
+
+  - `idct_8x8` rebuilt the 8x8 cosine basis on every call, so a 512x512 image
+    evaluated 4096 x 64 = 262144 `cos` calls whose results never differ. The
+    table is now a `LazyLock` static — `cos` is not a `const fn`, so first-use
+    initialisation is as early as it goes.
+  - the linear interpolator's `interpolate_point` allocated three `Vec`s per
+    interpolated point. Resampling a 512^3 volume is 4e8 heap allocations for
+    scratch that is at most four elements wide. Now a stack `[AxisBracket; 4]`,
+    bounded by the same `MAX_RANK` the entry assertion enforces, so the two
+    cannot drift.
+
+  The IDCT gained an oracle it did not have: the separable implementation is
+  now checked against T.81 Eq. A.3.3 evaluated directly in f64 over a
+  full-spectrum block. The previous tests covered only all-zero and DC-only
+  input, which any implementation with the right scale factor satisfies —
+  neither could detect a transposed or mis-normalised basis. A linearity test
+  covers state leaking through the newly shared table.
+
+  Residual: no timing figures are claimed. Three peer agents were building
+  concurrently, and a busy host makes a microbenchmark number misleading. Both
+  changes are loop-invariant hoists whose correctness does not rest on the
+  measurement. Filed as PERF-694-02.
+
+- **PERF-694-02 [patch] - Baseline the JPEG decode and resample paths**
+  (DoR; owner=unclaimed; last-update=2026-08-13; scope=
+  `crates/ritk-codecs/benches/codec_throughput.rs` and a new interpolation
+  bench; non-goal=further optimization, which this exists to direct).
+
+  Outcome: criterion baselines for baseline-JPEG fragment decode and linear
+  resampling, so PERF-694-01's hoists carry measured deltas and any later
+  regression blocks merge.
+
+  Method: extend the existing criterion suite; run on a quiet host (no peer
+  cargo processes) per the benchmark time budget in the standards. A
+  baseline-DCT JPEG fixture is needed — the committed fixtures are lossless
+  SOF3 and never reach the IDCT.
+
+  Acceptance: baselines committed, before/after deltas recorded here.
+
+  Risk: [patch]; benchmark-only, no production code.
+
+- **SAFE-693-01 [patch] - Harden JPEG header parsing against malformed input**
+  (DONE; owner=Claude; last-update=2026-08-13; scope=
+  `crates/ritk-codecs/src/jpeg/{marker.rs,scan_dct.rs,scan_lossless.rs}`;
+  non-goal=the entropy-decoding bit reader and the JPEG 2000 and JPEG-LS
+  codecs, which are separate parsers with their own boundaries).
+
+  `parse_jpeg` indexed by raw offset with only the segment loop guarding the
+  end, so a fragment truncated mid-segment panicked instead of erroring.
+  Fragments arrive inside DICOM pixel data, so this is reachable from any file
+  with a short or corrupt encapsulated frame.
+
+  Two nibble fields were used as capability without validation: table ids
+  (Tq, Td, Ta) span 0-15 on the wire while a frame holds four slots, and the
+  scan decoder indexed `dc_huff[id]`; sampling factors (Hi, Vi) admitted zero,
+  which reaches `max_samp / factor` as a division by zero.
+
+  Resolved by a `Cursor` owning every bounds check — the parse body cannot
+  index out of range by construction — and `TableId` / `SamplingFactor`
+  newtypes validating at the parse boundary, so `TableId::index` is in range
+  by type and the decoder keeps indexing without a check.
+
+  Verification: the prefix sweep asserts a step function at
+  `scan_data_start` — every shorter prefix errors, every longer one yields an
+  identical header — so an over-permissive parser fails too. The corruption
+  sweep substitutes 0x00/0x0F/0xF0/0xFF at every offset of both fixtures and
+  asserts any frame that comes back satisfies the invariants the decoder
+  relies on; 11 variants are rejected as out-of-range table ids and 4 as
+  invalid sampling factors, each a panic before this change. 333 codec tests,
+  clippy `-D warnings`, and fmt pass.
+
+  Residual: the entropy bit reader and the remaining format parsers have not
+  had the same sweep applied. Filed as SAFE-693-02.
+
+- **SAFE-693-02 [patch] - Extend the malformed-input sweep to the remaining parsers**
+  (DoR; owner=unclaimed; last-update=2026-08-13; scope=the JPEG entropy bit
+  reader, JPEG 2000, JPEG-LS, and the NRRD, MINC, MGH and MIF header readers;
+  non-goal=changing any decoder's output on well-formed input).
+
+  Outcome: each parser reachable from file data either errors or returns a
+  structurally valid result under truncation and single-byte corruption.
+
+  Method: the two sweeps SAFE-693-01 established — prefix truncation asserted
+  against the parser's own header boundary, and adversarial byte substitution
+  asserting the invariants downstream code relies on. Where a parser has a
+  natural corpus, a `cargo-fuzz` target replaces the substitution sweep.
+
+  Acceptance: findings fixed at the parse boundary with validating newtypes
+  rather than per-site checks, or a clean report recorded in `gap_audit.md`.
+
+  Risk: [patch] unless a validating newtype changes a public signature.
+
+- **FIX-690-01 [minor] - Consolidate the Image coordinate-transform API**
+  (DONE; owner=Claude; last-update=2026-08-13; scope=
+  `crates/ritk-image/src/types.rs`, the 18 in-repository call sites across
+  `ritk-core`, `ritk-filter`, `ritk-image`, `ritk-io`, `ritk-nifti` and
+  `ritk-registration`, `docs/adr/0018-single-coordinate-transform-api.md`,
+  `CHANGELOG.md`, and the `ritk-image` version requirement;
+  non-goal=the batch tensor transforms, which were already map-aware, and the
+  `CoordinateMap` variants themselves).
+
+  `Image` carried two public single-point transform APIs in adjacent `impl`
+  blocks with identical bounds. The map-aware pair had zero callers; the
+  `transform_`-prefixed pair had all 18 and applied `origin + D S index`
+  unconditionally, so beam-space images transformed as if they were Cartesian
+  rasters. On the curvilinear fixture the far sample of the centre beam mapped
+  to (32 m, 63 m) rather than (66 mm, 9 mm). Cartesian images agreed exactly,
+  which is why no test caught it: every constructor sets
+  `CoordinateMap::Cartesian`, and no test attached a map and then used the
+  single-point path.
+
+  Resolved by deleting the `transform_`-prefixed pair and moving every call
+  site, per ADR 0018 — no deprecated re-export, since a shim would preserve the
+  wrong-answer path. `physical_point_to_continuous_index` returns `Result`,
+  removing an `expect` on a direction matrix that comes from a file header.
+  `ritk-image` 0.3.0 -> 0.4.0.
+
+  Verification: `single_point_transform_honours_the_curvilinear_map` pins the
+  single-point path to the batch form, which reaches the geometry by an
+  independent route and was already correct; it fails against the deleted
+  implementation by ~30 m. Workspace tests, clippy `-D warnings`, and fmt pass.
+
 - **FEAT-692-01 [major] - Control native JPEG 2000 lossy quantization**
   (DONE; owner=Codex; last-update=2026-08-03; scope=
   `crates/ritk-codecs/src/jpeg_2000/**`, every in-repository

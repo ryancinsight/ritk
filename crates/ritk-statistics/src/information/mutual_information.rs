@@ -19,11 +19,12 @@ use super::entropy::{joint_entropy, joint_entropy_n, marginal_entropy, min_max};
 
 /// Standard bivariate mutual information I(X;Y) = H(X) + H(Y) − H(X,Y).
 ///
-/// Returns `max(I, 0.0)` — negative values are numerical artefacts from
-/// finite-bin histograms where I(X;Y) ≈ 0.
+/// Rounding noise around zero is collapsed to zero; see
+/// [`non_negative_information`] for why a larger negative is an error instead.
 ///
 /// # Errors
-/// Propagates errors from [`joint_entropy`] and [`marginal_entropy`].
+/// Propagates errors from [`joint_entropy`] and [`marginal_entropy`], and
+/// reports an estimate negative beyond the rounding budget.
 pub fn mutual_information(a: &[f32], b: &[f32], num_bins: usize) -> Result<f64> {
     if a.len() != b.len() {
         bail!("channel lengths differ: {} vs {}", a.len(), b.len());
@@ -34,7 +35,41 @@ pub fn mutual_information(a: &[f32], b: &[f32], num_bins: usize) -> Result<f64> 
     let h_a = marginal_entropy(a, num_bins)?;
     let h_b = marginal_entropy(b, num_bins)?;
     let h_ab = joint_entropy(a, b, num_bins)?;
-    Ok((h_a + h_b - h_ab).max(0.0))
+    non_negative_information(h_a + h_b - h_ab, "mutual information")
+}
+
+/// Collapse a mutual-information value's rounding error to zero, rejecting a
+/// genuinely negative one.
+///
+/// MI is non-negative by Jensen's inequality, but it is computed here as a
+/// difference of independently summed entropies, so cancellation can push an
+/// exact zero a few ulps below it. Clamping that away is right. Clamping away
+/// a substantial negative is not: the only things that produce one are
+/// estimator defects — binning that differs between the marginal and joint
+/// histograms, or a distribution that does not sum to one — and returning
+/// `0.0` presents the defect as a valid "these share no information" answer,
+/// which a registration metric will happily optimise against.
+///
+/// Tolerance: each entropy is a sum of at most `num_bins^k` terms `-p·ln p`,
+/// bounded in magnitude by `ln(num_bins^k)`. At f64's 2.2e-16 relative
+/// precision, worst-case accumulation across the four entropies of the
+/// conditional form stays far below 1e-9 for any bin count a histogram
+/// estimator can populate.
+///
+/// # Errors
+///
+/// Returns an error when `value` is negative beyond that rounding budget.
+fn non_negative_information(value: f64, quantity: &str) -> Result<f64> {
+    /// Largest negative excursion attributable to floating-point cancellation.
+    const ROUNDING_BUDGET: f64 = 1e-9;
+
+    if value < -ROUNDING_BUDGET {
+        bail!(
+            "{quantity} evaluated to {value}, negative beyond the {ROUNDING_BUDGET} rounding \
+             budget; the entropy terms are inconsistent"
+        );
+    }
+    Ok(value.max(0.0))
 }
 
 /// Normalized mutual information NMI(X,Y) = (H(X) + H(Y)) / H(X,Y).
@@ -85,7 +120,19 @@ pub fn symmetric_uncertainty(a: &[f32], b: &[f32], num_bins: usize) -> Result<f6
     if denom < 1e-15 {
         return Ok(0.0);
     }
-    Ok((2.0 * mi / denom).clamp(0.0, 1.0))
+    // `mi` is already checked non-negative, leaving only the upper bound.
+    // `2·MI ≤ H(X) + H(Y)` because `MI ≤ min(H(X), H(Y))`, so a value above one
+    // means the marginal and joint histograms disagree — the same defect
+    // `non_negative_information` guards the other side of, and equally wrong to
+    // present as a valid perfect-dependence answer.
+    let su = 2.0 * mi / denom;
+    if su > 1.0 + 1e-9 {
+        bail!(
+            "symmetric uncertainty evaluated to {su}, above one; 2·MI exceeds H(X) + H(Y), \
+             so the entropy terms are inconsistent"
+        );
+    }
+    Ok(su.clamp(0.0, 1.0))
 }
 
 /// Bilinear soft-assignment mutual information (Mattes et al. 2003).
@@ -95,7 +142,8 @@ pub fn symmetric_uncertainty(a: &[f32], b: &[f32], num_bins: usize) -> Result<f6
 /// Soft-binning produces smoother gradients for image registration at the
 /// cost of ~4× more histogram updates per sample.
 ///
-/// Returns `max(I, 0.0)` — negative values are numerical artefacts.
+/// Rounding noise around zero is collapsed to zero; a larger negative is an
+/// error, per [`non_negative_information`].
 ///
 /// # Errors
 /// Returns an error when lengths differ, `a` is empty, or `num_bins < 2`.
@@ -176,7 +224,7 @@ pub fn mutual_information_mattes(a: &[f32], b: &[f32], num_bins: usize) -> Resul
         .filter(|&&p| p > 0.0)
         .map(|&p| -p * p.ln())
         .sum();
-    Ok((h_a + h_b - h_ab).max(0.0))
+    non_negative_information(h_a + h_b - h_ab, "Mattes mutual information")
 }
 
 /// Conditional mutual information I(X;Y|Z) = H(X,Z) + H(Y,Z) − H(X,Y,Z) − H(Z).
@@ -213,7 +261,7 @@ pub fn conditional_mutual_information(
     let h_yz = joint_entropy_n(&[y, z], num_bins)?;
     let h_xyz = joint_entropy_n(&[x, y, z], num_bins)?;
     let h_z = marginal_entropy(z, num_bins)?;
-    Ok((h_xz + h_yz - h_xyz - h_z).max(0.0))
+    non_negative_information(h_xz + h_yz - h_xyz - h_z, "conditional mutual information")
 }
 
 /// Interaction information (co-information) II(X;Y;Z) = I(X;Y) − I(X;Y|Z).

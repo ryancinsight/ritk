@@ -50,6 +50,15 @@
 
 ### Changed
 
+- Two loop-invariant costs removed from per-element paths. `idct_8x8` rebuilt
+  the 8x8 cosine basis on every call — 262144 `cos` evaluations for a 512x512
+  image, all identical — and now shares one lazily initialised table. The
+  linear interpolator allocated three `Vec`s per interpolated point, which is
+  4e8 heap allocations to resample a 512^3 volume, and now uses stack scratch
+  bounded by the rank limit the entry check already enforces. The IDCT is
+  additionally verified against T.81 Eq. A.3.3 evaluated directly, which the
+  previous all-zero and DC-only tests could not distinguish from a transposed
+  or mis-normalised basis.
 - **Breaking:** `Image::into_parts` now returns
   `(tensor, origin, spacing, direction, coordinate_map)` rather than a
   four-tuple. The map is part of an image's identity: a caller that rebuilt an
@@ -63,6 +72,48 @@
 
 ### Fixed
 
+- **Breaking:** `Image` had two single-point coordinate-transform APIs, and the
+  one every caller used ignored the attached `CoordinateMap`. On a
+  `CurvilinearArray` or `PhasedArray3D` image it applied the Cartesian formula
+  to a beam/sample index pair, silently placing the far sample of the centre
+  beam at (32 m, 63 m) instead of (66 mm, 9 mm). The map-aware pair had zero
+  callers. `transform_continuous_index_to_physical_point` and
+  `transform_physical_point_to_continuous_index` are removed in favour of
+  `continuous_index_to_physical_point` and `physical_point_to_continuous_index`;
+  the latter returns `Result`, so a singular direction matrix read from a file
+  header is now an error rather than a panic. See ADR 0018 for the rename
+  mapping. `ritk-filter`'s displacement resampler is correct on beam-space
+  images as a result.
+- **Breaking:** DICOM de-identification reports failure instead of success when
+  it cannot finish. An object nested past `MAX_SEQUENCE_DEPTH` previously
+  logged a warning, left every deeper data set unanonymized, and returned `Ok`
+  with a clean-looking report — so the report a user relies on to certify a
+  data set could assert de-identification that had not happened. Two further
+  "did not happen" signals were discarded outright. A typed `AnonymizeError`
+  now travels inside the returned `anyhow::Error`, recoverable with
+  `downcast_ref`, so existing call sites keep their signatures. Callers that
+  treated a warning as tolerable will now see an error, which is the point.
+  `private_tags_removed` counts per successful removal rather than per
+  candidate found.
+- A `.trk` header's streamline count no longer drives allocation. `n_count` is
+  an i32 at offset 988 of the 1000-byte header, guarded only by a magic
+  `0..=100_000_000` range, and three vectors were reserved from it: a
+  1028-byte file declaring the maximum admitted count allocated 4.8 GB. The
+  request succeeds where the memory exists, so this was silent exhaustion
+  rather than a crash. The vectors now grow as records decode, which the input
+  bounds. The `.tck` and `.trx` readers were audited and are unaffected.
+- JPEG header parsing no longer panics on malformed input. `parse_jpeg`
+  indexed by raw offset, so a fragment truncated mid-segment aborted the read
+  instead of failing it; table ids (0-15 on the wire, four slots in a frame)
+  and sampling factors (zero admitted) were used as an array index and a
+  divisor without validation. Bounds checking is now concentrated in one
+  cursor, and both fields validate at the parse boundary. Reachable from any
+  DICOM file carrying a short or corrupt encapsulated frame.
+- Treat a non-physical DICOM `PixelSpacing` (0028,0030) as absent rather than
+  aborting the process. `Spacing::new` asserts each component is finite and
+  strictly positive, and derived and secondary-capture objects legitimately
+  carry `"0\0"`, so a routine series could kill the reader. Both parse sites now
+  fall back to unit spacing and emit a `tracing` warning.
 - Apply DICOM anonymization to nested sequences. `anonymize_object` previously
   iterated only top-level elements, so identifying attributes inside sequence
   items survived de-identification while the run reported success. Tag actions

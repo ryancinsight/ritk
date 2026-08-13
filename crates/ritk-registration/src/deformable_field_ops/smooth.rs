@@ -345,16 +345,14 @@ impl<B: Backend> GpuFieldSmoother<B> {
     /// Smooth a 3-component displacement or velocity field **in place** using
     /// the pre-allocated GPU resources.
     ///
-    /// Uploads `fz`, `fy`, `fx` from CPU to GPU via local staging tensors
-    /// (`copy_from_slice` → `mem::take` — zero heap allocation), applies
-    /// separable Gaussian convolution via [`ritk_filter::GaussianFilter`],
-    /// and downloads the result back to the CPU buffers.
+    /// Uploads `fz`, `fy`, `fx` into the persistent staging buffers, applies
+    /// separable Gaussian convolution via [`ritk_filter::GaussianFilter`], and
+    /// copies the result back into the caller's slices.
     ///
-    /// Tensors are created as locals and passed by value, so there are no
-    /// `.clone()` calls before `apply_tensor` or `into_data`.  After the
-    /// first warm-up iteration, the download buffer is recovered via
-    /// `::into_vec` and reused as the next iteration's staging
-    /// buffer, so the per-iteration heap cost is zero.
+    /// The staging buffers are allocated once in [`Self::new`] and reused. Each
+    /// call still allocates: `Tensor::from_slice_on` copies into device
+    /// storage, and `to_vec` materialises the result on the host. The saving is
+    /// that neither the staging buffers nor the shape are rebuilt per call.
     ///
     /// A `sigma ≤ 0` is a no-op.
     pub fn smooth_field_inplace(&mut self, fz: &mut [f32], fy: &mut [f32], fx: &mut [f32]) {
@@ -362,39 +360,28 @@ impl<B: Backend> GpuFieldSmoother<B> {
             return;
         }
 
-        // ── Upload: copy_from_slice → mem::take → → local Tensor ──
+        // Upload. `from_slice_on` copies, so the staging buffers are borrowed
+        // rather than moved out: a `mem::take` here would leave the fields
+        // empty and drop their allocation, forcing `new`'s buffers to be
+        // rebuilt on every call — the opposite of what they exist for.
         self.staging_z.copy_from_slice(fz);
-        let tz = Tensor::from_slice_on(
-            self.shape.clone(),
-            &std::mem::take(&mut self.staging_z),
-            &self.device,
-        );
+        let tz = Tensor::from_slice_on(self.shape.clone(), &self.staging_z, &self.device);
         self.staging_y.copy_from_slice(fy);
-        let ty = Tensor::from_slice_on(
-            self.shape.clone(),
-            &std::mem::take(&mut self.staging_y),
-            &self.device,
-        );
+        let ty = Tensor::from_slice_on(self.shape.clone(), &self.staging_y, &self.device);
         self.staging_x.copy_from_slice(fx);
-        let tx = Tensor::from_slice_on(
-            self.shape.clone(),
-            &std::mem::take(&mut self.staging_x),
-            &self.device,
-        );
+        let tx = Tensor::from_slice_on(self.shape.clone(), &self.staging_x, &self.device);
 
-        // ── GPU smoothing — pass by value, zero clones ─────────────────────────
+        // Smooth — tensors pass by value, so no clone is needed.
         let tz = self.filter.apply_tensor(tz, &self.spacing);
         let ty = self.filter.apply_tensor(ty, &self.spacing);
         let tx = self.filter.apply_tensor(tx, &self.spacing);
 
-        // ── Download — consume tensors, recover staging buffers ────────────────
-        self.staging_z = tz.to_vec();
-        self.staging_y = ty.to_vec();
-        self.staging_x = tx.to_vec();
-
-        fz.copy_from_slice(&self.staging_z);
-        fy.copy_from_slice(&self.staging_y);
-        fx.copy_from_slice(&self.staging_x);
+        // Download straight into the caller's slices. Routing through the
+        // staging buffers would replace their allocation with the downloaded
+        // one and add a second copy for no benefit.
+        fz.copy_from_slice(&tz.to_vec());
+        fy.copy_from_slice(&ty.to_vec());
+        fx.copy_from_slice(&tx.to_vec());
     }
 }
 

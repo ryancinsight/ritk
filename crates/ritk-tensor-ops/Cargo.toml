@@ -12,7 +12,7 @@ categories.workspace = true
 homepage.workspace = true
 
 [dependencies]
-ritk-image = { path = "../ritk-image", features = ["test-helpers"], version = "0.3.0" }
+ritk-image = { path = "../ritk-image", features = ["test-helpers"], version = "0.4.0" }
 ritk-spatial = { path = "../ritk-spatial", version = "0.2.0" }
 anyhow = { workspace = true }
 eunomia = { workspace = true }

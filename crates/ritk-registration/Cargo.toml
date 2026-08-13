@@ -20,7 +20,7 @@ serde = ["dep:serde"]
 
 [dependencies]
 ritk-core = { path = "../ritk-core", version = "0.10.0" }
-ritk-image = { path = "../ritk-image", version = "0.3.0" }
+ritk-image = { path = "../ritk-image", version = "0.4.0" }
 ritk-wgpu-compat = { path = "../ritk-wgpu-compat", version = "0.2.0" }
 ritk-spatial = { path = "../ritk-spatial", version = "0.2.0" }
 ritk-statistics = { path = "../ritk-statistics", version = "0.4.0" }
@@ -56,7 +56,7 @@ criterion = { workspace = true }
 rand = { workspace = true }
 proptest = { workspace = true }
 tempfile = { workspace = true }
-ritk-image = { path = "../ritk-image", features = ["test-helpers"], version = "0.3.0" }
+ritk-image = { path = "../ritk-image", features = ["test-helpers"], version = "0.4.0" }
 
 
 [[bench]]

@@ -60,8 +60,8 @@ where
         let shape = data.shape().to_vec();
         let rank = shape.len();
         assert!(
-            (1..=4).contains(&rank),
-            "Linear interpolation only supports 1D-4D data"
+            (1..=MAX_RANK).contains(&rank),
+            "Linear interpolation only supports 1D-{MAX_RANK}D data"
         );
 
         let idx_shape = indices.shape();
@@ -97,6 +97,14 @@ fn compute_strides(shape: &[usize]) -> Vec<usize> {
     strides
 }
 
+/// Highest data rank the linear kernel accepts.
+///
+/// Bounds both the entry check and the per-axis stack scratch, so the two
+/// cannot drift apart. Four covers 3-D volumes with a time or channel axis;
+/// beyond that the `2^rank` corner loop stops being a linear interpolation in
+/// any practical sense.
+const MAX_RANK: usize = 4;
+
 /// Clamp a coordinate to the valid index range for an axis.
 fn clamp_index(idx: f32, size: usize) -> usize {
     if size == 0 {
@@ -105,6 +113,18 @@ fn clamp_index(idx: f32, size: usize) -> usize {
     let max = (size - 1) as f32;
     let clamped = idx.clamp(0.0, max);
     clamped as usize
+}
+
+/// The two bracketing indices and the interpolation weight along one axis.
+///
+/// Held together rather than in three parallel arrays because the corner loop
+/// reads all three of an axis at once.
+#[derive(Clone, Copy, Default)]
+struct AxisBracket {
+    lower: usize,
+    upper: usize,
+    /// Fractional distance from `lower` towards `upper`, in `[0, 1]`.
+    weight: f32,
 }
 
 /// Linearly interpolate a single point.
@@ -121,11 +141,13 @@ fn interpolate_point(
     // Compute lower/upper integer indices and weights for each axis.
     // `coords` columns are innermost-first ([x, y, z]), while `shape` is
     // row-major ([z, y, x]); map axis `d` to coordinate `rank - 1 - d`.
-    let mut lower = vec![0usize; rank];
-    let mut upper = vec![0usize; rank];
-    let mut weights = vec![0.0f32; rank];
+    //
+    // Stack scratch, not `vec!`: this runs once per output sample, so a
+    // heap allocation here is one per voxel of a resampled volume. `MAX_RANK`
+    // is the same bound `interpolate` already enforces on entry.
+    let mut axes = [AxisBracket::default(); MAX_RANK];
 
-    for d in 0..rank {
+    for (d, axis) in axes.iter_mut().take(rank).enumerate() {
         let size = shape[d];
         let coord = coords[rank - 1 - d];
         let floor = coord.floor();
@@ -137,14 +159,15 @@ fn interpolate_point(
             if floor_c < 0 || floor_c > (size - 1) as isize {
                 return 0.0;
             }
-            lower[d] = floor_c.clamp(0, size as isize - 1) as usize;
-            upper[d] = upper_c.clamp(0, size as isize - 1) as usize;
+            axis.lower = floor_c.clamp(0, size as isize - 1) as usize;
+            axis.upper = upper_c.clamp(0, size as isize - 1) as usize;
         } else {
-            lower[d] = clamp_index(floor, size);
-            upper[d] = clamp_index(upper_c as f32, size);
+            axis.lower = clamp_index(floor, size);
+            axis.upper = clamp_index(upper_c as f32, size);
         }
-        weights[d] = frac.clamp(0.0, 1.0);
+        axis.weight = frac.clamp(0.0, 1.0);
     }
+    let axes = &axes[..rank];
 
     // Iterate over all 2^rank corners and accumulate weighted values.
     let mut result = 0.0f32;
@@ -152,16 +175,15 @@ fn interpolate_point(
     for corner in 0..corners {
         let mut offset = 0usize;
         let mut weight = 1.0f32;
-        for d in 0..rank {
+        for (d, axis) in axes.iter().enumerate() {
             let is_upper = (corner >> d) & 1 == 1;
-            let idx = if is_upper { upper[d] } else { lower[d] };
+            let idx = if is_upper { axis.upper } else { axis.lower };
             offset += idx * strides[d];
-            let w = if is_upper {
-                weights[d]
+            weight *= if is_upper {
+                axis.weight
             } else {
-                1.0 - weights[d]
+                1.0 - axis.weight
             };
-            weight *= w;
         }
         result += data[offset] * weight;
     }

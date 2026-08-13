@@ -20,7 +20,9 @@ fn test_physical_to_index_transform() {
         .expect("test tensor is rank three");
 
     let point = Point3::new([5.0, 5.0, 5.0]);
-    let index = image.transform_physical_point_to_continuous_index(&point);
+    let index = image
+        .physical_point_to_continuous_index(&point)
+        .expect("Cartesian image with an invertible direction has an index for every point");
 
     assert!((index[0] - 5.0).abs() < 1e-6);
     assert!((index[1] - 5.0).abs() < 1e-6);
@@ -39,7 +41,7 @@ fn test_index_to_physical_transform() {
         .expect("test tensor is rank three");
 
     let index = Point3::new([5.0, 5.0, 5.0]);
-    let point = image.transform_continuous_index_to_physical_point(&index);
+    let point = image.continuous_index_to_physical_point(&index);
 
     assert!((point[0] - 5.0).abs() < 1e-6);
     assert!((point[1] - 5.0).abs() < 1e-6);
@@ -58,8 +60,10 @@ fn test_transform_roundtrip() {
         .expect("test tensor is rank three");
 
     let original_point = Point3::new([3.5, 4.5, 5.5]);
-    let index = image.transform_physical_point_to_continuous_index(&original_point);
-    let transformed_point = image.transform_continuous_index_to_physical_point(&index);
+    let index = image
+        .physical_point_to_continuous_index(&original_point)
+        .expect("Cartesian image with an invertible direction has an index for every point");
+    let transformed_point = image.continuous_index_to_physical_point(&index);
 
     assert!((original_point[0] - transformed_point[0]).abs() < 1e-6);
     assert!((original_point[1] - transformed_point[1]).abs() < 1e-6);
@@ -78,7 +82,9 @@ fn test_non_unit_spacing() {
         .expect("test tensor is rank three");
 
     let point = Point3::new([10.0, 10.0, 10.0]);
-    let index = image.transform_physical_point_to_continuous_index(&point);
+    let index = image
+        .physical_point_to_continuous_index(&point)
+        .expect("Cartesian image with an invertible direction has an index for every point");
 
     assert!((index[0] - 5.0).abs() < 1e-6);
     assert!((index[1] - 5.0).abs() < 1e-6);
@@ -97,7 +103,9 @@ fn test_non_zero_origin() {
         .expect("test tensor is rank three");
 
     let point = Point3::new([15.0, 25.0, 35.0]);
-    let index = image.transform_physical_point_to_continuous_index(&point);
+    let index = image
+        .physical_point_to_continuous_index(&point)
+        .expect("Cartesian image with an invertible direction has an index for every point");
 
     assert!((index[0] - 5.0).abs() < 1e-6);
     assert!((index[1] - 5.0).abs() < 1e-6);

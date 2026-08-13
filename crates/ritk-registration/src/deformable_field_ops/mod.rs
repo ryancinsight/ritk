@@ -144,9 +144,10 @@ impl FieldSmoother for CpuFieldSmoother {
 /// Static-dispatch union of [`CpuFieldSmoother`] and [`GpuFieldSmoother`].
 ///
 /// Replaces `Box<dyn FieldSmoother>` in multi-resolution registration loops
-/// where a per-level smoother must be created.  The enum is stack-allocated
-/// and uses a match arm instead of vtable dispatch — zero heap allocations,
-/// zero dynamic dispatch.
+/// where a per-level smoother must be created. The enum is stack-allocated and
+/// selects by match arm rather than vtable, so the *dispatch* costs no
+/// allocation and no indirect call. The selected smoother allocates whatever
+/// its own path requires — the GPU one stages through device tensors.
 ///
 /// # Type parameter
 ///
