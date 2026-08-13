@@ -7,7 +7,6 @@
 //! softmax, and the value aggregation all run through [`coeus_autograd`] ops, so
 //! gradients flow to every projection and to the bias table.
 
-use eunomia::FloatElement;
 use crate::error::ModelError;
 use coeus_autograd::{
     add, index_select, matmul, permute, reshape, scalar_mul, softmax, transpose, Parameter, Var,
@@ -16,6 +15,7 @@ use coeus_core::{Backend, CpuAddressableStorage, CpuAddressableStorageMut};
 use coeus_nn::{module::Module, Linear};
 use coeus_ops::{BackendOps, CpuBackend};
 use coeus_tensor::Tensor;
+use eunomia::FloatElement;
 
 /// Windowed multi-head self-attention with relative-position bias.
 #[derive(Clone)]
