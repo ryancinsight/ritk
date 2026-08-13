@@ -50,6 +50,15 @@
 
 ### Changed
 
+- Two loop-invariant costs removed from per-element paths. `idct_8x8` rebuilt
+  the 8x8 cosine basis on every call — 262144 `cos` evaluations for a 512x512
+  image, all identical — and now shares one lazily initialised table. The
+  linear interpolator allocated three `Vec`s per interpolated point, which is
+  4e8 heap allocations to resample a 512^3 volume, and now uses stack scratch
+  bounded by the rank limit the entry check already enforces. The IDCT is
+  additionally verified against T.81 Eq. A.3.3 evaluated directly, which the
+  previous all-zero and DC-only tests could not distinguish from a transposed
+  or mis-normalised basis.
 - **Breaking:** `Image::into_parts` now returns
   `(tensor, origin, spacing, direction, coordinate_map)` rather than a
   four-tuple. The map is part of an image's identity: a caller that rebuilt an
@@ -75,6 +84,13 @@
   header is now an error rather than a panic. See ADR 0018 for the rename
   mapping. `ritk-filter`'s displacement resampler is correct on beam-space
   images as a result.
+- A `.trk` header's streamline count no longer drives allocation. `n_count` is
+  an i32 at offset 988 of the 1000-byte header, guarded only by a magic
+  `0..=100_000_000` range, and three vectors were reserved from it: a
+  1028-byte file declaring the maximum admitted count allocated 4.8 GB. The
+  request succeeds where the memory exists, so this was silent exhaustion
+  rather than a crash. The vectors now grow as records decode, which the input
+  bounds. The `.tck` and `.trx` readers were audited and are unaffected.
 - JPEG header parsing no longer panics on malformed input. `parse_jpeg`
   indexed by raw offset, so a fragment truncated mid-segment aborted the read
   instead of failing it; table ids (0-15 on the wire, four slots in a frame)

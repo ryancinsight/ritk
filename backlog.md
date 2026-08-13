@@ -79,6 +79,81 @@
   `close_B(A) = (A ⊕ B) ⊖ B`, contains no raw TeX commands, and its figure
   images loaded during browser visual inspection.
 
+- **SAFE-693-03 [patch] - Stop the .trk header count from driving allocation**
+  (DONE; owner=Claude; last-update=2026-08-13; scope=`crates/ritk-trk/src/`
+  `{io.rs,tests.rs}`; non-goal=the `.tck` and `.trx` readers, both audited and
+  already sound — `.tck` never allocates from a count, and `.trx` validates
+  `nb_streamlines` against the real offsets length before building).
+
+  `TrkTractogram::read` reserved three vectors from `header.n_count`, an i32 at
+  offset 988 of the 1000-byte header. The only guard was a magic
+  `0..=100_000_000` range, which is not a bound derived from the input: a
+  1028-byte file declaring the maximum admitted count allocated **4.8 GB** —
+  measured, not estimated. The request succeeds on a machine with the memory,
+  so this was silent exhaustion rather than a crash.
+
+  Resolved by not reserving from the claim at all. The vectors grow as records
+  decode, which the input itself bounds: every iteration must read at least the
+  4-byte point count, so EOF ends the loop. The magic cap is gone; a negative
+  count remains rejected by value. The per-record path already used
+  `try_reserve_exact` and is unchanged.
+
+  Verification: a `GlobalAlloc` wrapper records peak live bytes, so the test
+  asserts what the read actually demands. Against the previous code it reports
+  4800006182 bytes from a 1028-byte file; after the fix the same read stays
+  under the 64 MiB limit. Measuring was necessary — the eager reservation
+  neither aborts nor errors, so an assertion on the returned error alone left
+  the defect invisible, and an elapsed-time assertion would have been flaky by
+  construction.
+
+- **PERF-694-01 [patch] - Remove per-sample work from the decode and resample hot paths**
+  (DONE; owner=Claude; last-update=2026-08-13; scope=
+  `crates/ritk-codecs/src/jpeg/idct.rs` and
+  `crates/ritk-interpolation/src/interpolation/kernel/linear/mod.rs`;
+  non-goal=vectorizing either kernel, which needs a benchmark baseline first).
+
+  Two loop-invariant costs paid per element:
+
+  - `idct_8x8` rebuilt the 8x8 cosine basis on every call, so a 512x512 image
+    evaluated 4096 x 64 = 262144 `cos` calls whose results never differ. The
+    table is now a `LazyLock` static — `cos` is not a `const fn`, so first-use
+    initialisation is as early as it goes.
+  - the linear interpolator's `interpolate_point` allocated three `Vec`s per
+    interpolated point. Resampling a 512^3 volume is 4e8 heap allocations for
+    scratch that is at most four elements wide. Now a stack `[AxisBracket; 4]`,
+    bounded by the same `MAX_RANK` the entry assertion enforces, so the two
+    cannot drift.
+
+  The IDCT gained an oracle it did not have: the separable implementation is
+  now checked against T.81 Eq. A.3.3 evaluated directly in f64 over a
+  full-spectrum block. The previous tests covered only all-zero and DC-only
+  input, which any implementation with the right scale factor satisfies —
+  neither could detect a transposed or mis-normalised basis. A linearity test
+  covers state leaking through the newly shared table.
+
+  Residual: no timing figures are claimed. Three peer agents were building
+  concurrently, and a busy host makes a microbenchmark number misleading. Both
+  changes are loop-invariant hoists whose correctness does not rest on the
+  measurement. Filed as PERF-694-02.
+
+- **PERF-694-02 [patch] - Baseline the JPEG decode and resample paths**
+  (DoR; owner=unclaimed; last-update=2026-08-13; scope=
+  `crates/ritk-codecs/benches/codec_throughput.rs` and a new interpolation
+  bench; non-goal=further optimization, which this exists to direct).
+
+  Outcome: criterion baselines for baseline-JPEG fragment decode and linear
+  resampling, so PERF-694-01's hoists carry measured deltas and any later
+  regression blocks merge.
+
+  Method: extend the existing criterion suite; run on a quiet host (no peer
+  cargo processes) per the benchmark time budget in the standards. A
+  baseline-DCT JPEG fixture is needed — the committed fixtures are lossless
+  SOF3 and never reach the IDCT.
+
+  Acceptance: baselines committed, before/after deltas recorded here.
+
+  Risk: [patch]; benchmark-only, no production code.
+
 - **SAFE-693-01 [patch] - Harden JPEG header parsing against malformed input**
   (DONE; owner=Claude; last-update=2026-08-13; scope=
   `crates/ritk-codecs/src/jpeg/{marker.rs,scan_dct.rs,scan_lossless.rs}`;
