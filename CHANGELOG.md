@@ -75,6 +75,13 @@
   header is now an error rather than a panic. See ADR 0018 for the rename
   mapping. `ritk-filter`'s displacement resampler is correct on beam-space
   images as a result.
+- JPEG header parsing no longer panics on malformed input. `parse_jpeg`
+  indexed by raw offset, so a fragment truncated mid-segment aborted the read
+  instead of failing it; table ids (0-15 on the wire, four slots in a frame)
+  and sampling factors (zero admitted) were used as an array index and a
+  divisor without validation. Bounds checking is now concentrated in one
+  cursor, and both fields validate at the parse boundary. Reachable from any
+  DICOM file carrying a short or corrupt encapsulated frame.
 - Treat a non-physical DICOM `PixelSpacing` (0028,0030) as absent rather than
   aborting the process. `Spacing::new` asserts each component is finite and
   strictly positive, and derived and secondary-capture objects legitimately

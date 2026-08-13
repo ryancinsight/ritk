@@ -15,7 +15,7 @@ use super::color::ycbcr_to_rgb;
 use super::constants::{DCT_BLOCK_CELLS, DCT_BLOCK_DIM};
 use super::huffman::{receive_and_extend, BitReader};
 use super::idct::idct_8x8;
-use super::marker::{JpegFrameData, QuantPrecision, SOF0, SOF1};
+use super::marker::{JpegFrameData, QuantPrecision, TableId, SOF0, SOF1};
 
 /// Natural zigzag-to-raster reorder (T.81 §A.3.6).
 const ZIGZAG: [usize; DCT_BLOCK_CELLS] = [
@@ -30,18 +30,18 @@ const ZIGZAG: [usize; DCT_BLOCK_CELLS] = [
 fn decode_block(
     reader: &mut BitReader<'_>,
     frame: &JpegFrameData,
-    dc_table_id: u8,
-    ac_table_id: u8,
-    quant_id: usize,
+    dc_table_id: TableId,
+    ac_table_id: TableId,
+    quant_id: TableId,
     prev_dc: &mut i32,
 ) -> Result<[i16; 64]> {
-    let dc_table = frame.dc_huff[dc_table_id as usize]
+    let dc_table = frame.dc_huff[dc_table_id.index()]
         .as_ref()
         .with_context(|| format!("DC Huffman table {dc_table_id} not loaded"))?;
-    let ac_table = frame.ac_huff[ac_table_id as usize]
+    let ac_table = frame.ac_huff[ac_table_id.index()]
         .as_ref()
         .with_context(|| format!("AC Huffman table {ac_table_id} not loaded"))?;
-    let quant = frame.quant[quant_id]
+    let quant = frame.quant[quant_id.index()]
         .as_ref()
         .with_context(|| format!("Quantization table {quant_id} not loaded"))?;
     if quant.precision != QuantPrecision::Bits8 {
@@ -182,7 +182,7 @@ fn decode_baseline_grayscale(
                 frame,
                 scan_comp.dc_table_id,
                 scan_comp.ac_table_id,
-                fc.quant_id as usize,
+                fc.quant_id,
                 &mut prev_dc,
             )?;
             let block = reconstruct_block(&coeffs, frame.sof.precision);
@@ -220,21 +220,17 @@ fn decode_baseline_ycbcr(
 ) -> Result<JpegDecoded> {
     // Determine MCU structure from scan component sampling factors.
     // Find max H and V sampling factors across all scan components.
-    let mut max_h = 1u8;
-    let mut max_v = 1u8;
+    let mut max_h = 1usize;
+    let mut max_v = 1usize;
     for sc in &frame.sos.components {
         let fc_idx = comp_by_id(sc.id)?;
         let fc = &frame.sof.components[fc_idx];
-        if fc.h_samp > max_h {
-            max_h = fc.h_samp;
-        }
-        if fc.v_samp > max_v {
-            max_v = fc.v_samp;
-        }
+        max_h = max_h.max(fc.h_samp.get());
+        max_v = max_v.max(fc.v_samp.get());
     }
 
-    let mcu_width = DCT_BLOCK_DIM * max_h as usize;
-    let mcu_height = DCT_BLOCK_DIM * max_v as usize;
+    let mcu_width = DCT_BLOCK_DIM * max_h;
+    let mcu_height = DCT_BLOCK_DIM * max_v;
     let mcus_x = width.div_ceil(mcu_width);
     let mcus_y = height.div_ceil(mcu_height);
     let total_width = mcus_x * mcu_width;
@@ -256,14 +252,14 @@ fn decode_baseline_ycbcr(
                 let fc = &frame.sof.components[fc_idx];
 
                 // Decode h_samp × v_samp blocks for this component per MCU
-                for bv in 0..(fc.v_samp as usize) {
-                    for bh in 0..(fc.h_samp as usize) {
+                for bv in 0..fc.v_samp.get() {
+                    for bh in 0..fc.h_samp.get() {
                         let coeffs = decode_block(
                             &mut reader,
                             frame,
                             sc.dc_table_id,
                             sc.ac_table_id,
-                            fc.quant_id as usize,
+                            fc.quant_id,
                             &mut prev_dc[ci],
                         )?;
                         let block = reconstruct_block(&coeffs, frame.sof.precision);
@@ -272,8 +268,8 @@ fn decode_baseline_ycbcr(
                         // Component (ci) has sampling h_samp:max_h, v_samp:max_v.
                         // Each MCU has max_h*8 × max_v*8 pixels at full resolution.
                         // Component ci's sub-blocks map to that MCU region.
-                        let base_x = mcu_x * max_h as usize * DCT_BLOCK_DIM + bh * DCT_BLOCK_DIM;
-                        let base_y = mcu_y * max_v as usize * DCT_BLOCK_DIM + bv * DCT_BLOCK_DIM;
+                        let base_x = mcu_x * max_h * DCT_BLOCK_DIM + bh * DCT_BLOCK_DIM;
+                        let base_y = mcu_y * max_v * DCT_BLOCK_DIM + bv * DCT_BLOCK_DIM;
 
                         for r in 0..DCT_BLOCK_DIM {
                             for c in 0..DCT_BLOCK_DIM {
@@ -305,8 +301,8 @@ fn decode_baseline_ycbcr(
                     .position(|c| c.id == sc.id)
                     .expect("infallible: validated precondition");
                 let fc = &frame.sof.components[fc_idx];
-                let scale_x = max_h as usize / fc.h_samp as usize;
-                let scale_y = max_v as usize / fc.v_samp as usize;
+                let scale_x = max_h / fc.h_samp.get();
+                let scale_y = max_v / fc.v_samp.get();
                 let cp_x = px / scale_x;
                 let cp_y = py / scale_y;
                 comps[ci] = planes[ci][cp_y * total_width + cp_x];

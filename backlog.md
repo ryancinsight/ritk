@@ -79,6 +79,57 @@
   `close_B(A) = (A ⊕ B) ⊖ B`, contains no raw TeX commands, and its figure
   images loaded during browser visual inspection.
 
+- **SAFE-693-01 [patch] - Harden JPEG header parsing against malformed input**
+  (DONE; owner=Claude; last-update=2026-08-13; scope=
+  `crates/ritk-codecs/src/jpeg/{marker.rs,scan_dct.rs,scan_lossless.rs}`;
+  non-goal=the entropy-decoding bit reader and the JPEG 2000 and JPEG-LS
+  codecs, which are separate parsers with their own boundaries).
+
+  `parse_jpeg` indexed by raw offset with only the segment loop guarding the
+  end, so a fragment truncated mid-segment panicked instead of erroring.
+  Fragments arrive inside DICOM pixel data, so this is reachable from any file
+  with a short or corrupt encapsulated frame.
+
+  Two nibble fields were used as capability without validation: table ids
+  (Tq, Td, Ta) span 0-15 on the wire while a frame holds four slots, and the
+  scan decoder indexed `dc_huff[id]`; sampling factors (Hi, Vi) admitted zero,
+  which reaches `max_samp / factor` as a division by zero.
+
+  Resolved by a `Cursor` owning every bounds check — the parse body cannot
+  index out of range by construction — and `TableId` / `SamplingFactor`
+  newtypes validating at the parse boundary, so `TableId::index` is in range
+  by type and the decoder keeps indexing without a check.
+
+  Verification: the prefix sweep asserts a step function at
+  `scan_data_start` — every shorter prefix errors, every longer one yields an
+  identical header — so an over-permissive parser fails too. The corruption
+  sweep substitutes 0x00/0x0F/0xF0/0xFF at every offset of both fixtures and
+  asserts any frame that comes back satisfies the invariants the decoder
+  relies on; 11 variants are rejected as out-of-range table ids and 4 as
+  invalid sampling factors, each a panic before this change. 333 codec tests,
+  clippy `-D warnings`, and fmt pass.
+
+  Residual: the entropy bit reader and the remaining format parsers have not
+  had the same sweep applied. Filed as SAFE-693-02.
+
+- **SAFE-693-02 [patch] - Extend the malformed-input sweep to the remaining parsers**
+  (DoR; owner=unclaimed; last-update=2026-08-13; scope=the JPEG entropy bit
+  reader, JPEG 2000, JPEG-LS, and the NRRD, MINC, MGH and MIF header readers;
+  non-goal=changing any decoder's output on well-formed input).
+
+  Outcome: each parser reachable from file data either errors or returns a
+  structurally valid result under truncation and single-byte corruption.
+
+  Method: the two sweeps SAFE-693-01 established — prefix truncation asserted
+  against the parser's own header boundary, and adversarial byte substitution
+  asserting the invariants downstream code relies on. Where a parser has a
+  natural corpus, a `cargo-fuzz` target replaces the substitution sweep.
+
+  Acceptance: findings fixed at the parse boundary with validating newtypes
+  rather than per-site checks, or a clean report recorded in `gap_audit.md`.
+
+  Risk: [patch] unless a validating newtype changes a public signature.
+
 - **FIX-690-01 [minor] - Consolidate the Image coordinate-transform API**
   (DONE; owner=Claude; last-update=2026-08-13; scope=
   `crates/ritk-image/src/types.rs`, the 18 in-repository call sites across
