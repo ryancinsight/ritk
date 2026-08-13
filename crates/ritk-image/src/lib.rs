@@ -4,7 +4,6 @@
 //! tensor backend.
 
 pub mod color;
-pub mod coordinate_map;
 pub mod grid;
 pub mod metadata;
 #[cfg(any(test, feature = "test-helpers"))]
@@ -13,9 +12,12 @@ pub mod transform;
 pub mod types;
 
 pub use color::{ColorVolume, RgbVolume};
-pub use coordinate_map::{CoordinateMap, CurvilinearArray};
+// The coordinate map is pure geometry and lives with the rest of the spatial
+// vocabulary in `ritk-spatial`; it is re-exported here because it appears in
+// this crate's own public signatures (`Image::coordinate_map`).
 pub use grid::{generate_grid, generate_random_points};
 pub use metadata::ImageMetadata;
+pub use ritk_spatial::{CoordinateMap, CurvilinearArray, InvalidCoordinateMap, PhasedArray3D};
 pub use types::Image;
 
 /// Coeus-backed tensor and module surface re-exported for downstream crates.

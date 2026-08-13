@@ -7,7 +7,7 @@ use coeus_core::{ComputeBackend, CpuAddressableStorage, Scalar};
 use coeus_tensor::Tensor;
 use ritk_spatial::{Direction, Point, Spacing};
 
-use crate::coordinate_map::CoordinateMap;
+use ritk_spatial::CoordinateMap;
 
 /// Medical image backed by a Coeus tensor.
 ///
@@ -692,7 +692,7 @@ where
     #[must_use]
     fn index_to_world_curvilinear(
         &self,
-        geometry: &crate::coordinate_map::CurvilinearArray,
+        geometry: &ritk_spatial::CurvilinearArray,
         indices: &Tensor<T, B>,
         n: usize,
         backend: &B,
@@ -742,7 +742,7 @@ where
     #[must_use]
     fn world_to_index_curvilinear(
         &self,
-        geometry: &crate::coordinate_map::CurvilinearArray,
+        geometry: &ritk_spatial::CurvilinearArray,
         points: &Tensor<T, B>,
         n: usize,
         backend: &B,
@@ -801,7 +801,7 @@ where
     #[must_use]
     fn index_to_world_phased_array(
         &self,
-        geometry: &crate::coordinate_map::PhasedArray3D,
+        geometry: &ritk_spatial::PhasedArray3D,
         indices: &Tensor<T, B>,
         n: usize,
         backend: &B,
@@ -842,7 +842,7 @@ where
     #[must_use]
     fn world_to_index_phased_array(
         &self,
-        geometry: &crate::coordinate_map::PhasedArray3D,
+        geometry: &ritk_spatial::PhasedArray3D,
         points: &Tensor<T, B>,
         n: usize,
         backend: &B,
@@ -1247,9 +1247,8 @@ mod tests {
     fn curvilinear_image() -> TensorImage<2> {
         // 64 samples along each of 33 beams: shape is [beam, sample] so that the
         // innermost axis (index column 0) is the sample along a beam.
-        let geometry =
-            crate::coordinate_map::CurvilinearArray::try_new(1.0e-4, 0.06, 0.5_f64.to_radians())
-                .expect("valid geometry");
+        let geometry = ritk_spatial::CurvilinearArray::try_new(1.0e-4, 0.06, 0.5_f64.to_radians())
+            .expect("valid geometry");
         Image::from_flat(
             vec![0.0_f32; 33 * 64],
             [33, 64],
@@ -1347,7 +1346,7 @@ mod tests {
     fn phased_array_image() -> TensorImage<3> {
         // shape [sample, elevation, azimuth]: innermost axis (index column 0)
         // is the azimuth beam, matching the geometry's column contract.
-        let geometry = crate::coordinate_map::PhasedArray3D::try_new(
+        let geometry = ritk_spatial::PhasedArray3D::try_new(
             1.0e-4,
             0.01,
             0.75_f64.to_radians(),
@@ -1443,7 +1442,7 @@ mod tests {
 
     #[test]
     fn phased_array_map_is_rejected_outside_three_dimensions() {
-        let geometry = crate::coordinate_map::PhasedArray3D::try_new(
+        let geometry = ritk_spatial::PhasedArray3D::try_new(
             1.0e-4,
             0.01,
             0.75_f64.to_radians(),
@@ -1462,9 +1461,8 @@ mod tests {
 
     #[test]
     fn curvilinear_map_is_rejected_on_a_one_dimensional_image() {
-        let geometry =
-            crate::coordinate_map::CurvilinearArray::try_new(1.0e-4, 0.06, 0.5_f64.to_radians())
-                .expect("valid geometry");
+        let geometry = ritk_spatial::CurvilinearArray::try_new(1.0e-4, 0.06, 0.5_f64.to_radians())
+            .expect("valid geometry");
         let img = dummy_image::<f64, 1>(
             Point::new([0.0]),
             Spacing::new([1.0]),

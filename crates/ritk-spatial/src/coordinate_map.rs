@@ -23,7 +23,44 @@
 //!   (`TransformContinuousIndexToPhysicalPoint` and its inverse) — the formulas
 //!   and the lateral-centering convention below are taken from that source.
 
-use anyhow::{bail, Result};
+/// Why a coordinate map or its geometry was rejected.
+#[derive(Debug, Clone, PartialEq, thiserror::Error)]
+pub enum InvalidCoordinateMap {
+    /// A geometry parameter was NaN or infinite.
+    #[error("{parameter} must be finite, got {value}")]
+    NotFinite {
+        /// The offending parameter's name.
+        parameter: &'static str,
+        /// The value supplied.
+        value: f64,
+    },
+    /// A geometry parameter that must be strictly positive was not.
+    #[error("{parameter} must be greater than zero, got {value}")]
+    NotPositive {
+        /// The offending parameter's name.
+        parameter: &'static str,
+        /// The value supplied.
+        value: f64,
+    },
+    /// A radius-like parameter was negative.
+    #[error("{parameter} must be zero or greater, got {value}")]
+    Negative {
+        /// The offending parameter's name.
+        parameter: &'static str,
+        /// The value supplied.
+        value: f64,
+    },
+    /// The map is not defined at the image's dimensionality.
+    #[error("{map} coordinate map requires {expected}, got a {actual}-D image")]
+    Dimensionality {
+        /// The map variant's name.
+        map: &'static str,
+        /// The dimensionality the variant requires.
+        expected: &'static str,
+        /// The image dimensionality supplied.
+        actual: usize,
+    },
+}
 
 /// Convex (curvilinear) array acquisition geometry.
 ///
@@ -42,9 +79,10 @@ use anyhow::{bail, Result};
 ///
 /// The beams are centered on `θ = 0`, so the fan is symmetric about the axial
 /// axis regardless of beam count. The physical pair is `(r·sin θ, r·cos θ)`,
-/// placed on the two innermost spatial axes (see
-/// [`crate::types::Image::index_to_world_native_on`] for the column
-/// conventions). Any further axes use the ordinary affine row.
+/// placed on the two innermost spatial axes. Index columns are innermost-first
+/// (column `c` is spatial axis `D-1-c`) and physical points are axis-major,
+/// matching the batch transforms in `ritk-image`; any further axes use the
+/// ordinary affine row.
 #[derive(Clone, Copy, Debug, PartialEq)]
 pub struct CurvilinearArray {
     radius_sample_size: f64,
@@ -70,30 +108,13 @@ impl CurvilinearArray {
         radius_sample_size: f64,
         first_sample_distance: f64,
         lateral_angular_separation: f64,
-    ) -> Result<Self> {
-        if !radius_sample_size.is_finite()
-            || !first_sample_distance.is_finite()
-            || !lateral_angular_separation.is_finite()
-        {
-            bail!(
-                "curvilinear geometry parameters must be finite: \
-                 radius_sample_size={radius_sample_size}, \
-                 first_sample_distance={first_sample_distance}, \
-                 lateral_angular_separation={lateral_angular_separation}"
-            );
-        }
-        if radius_sample_size <= 0.0 {
-            bail!("curvilinear radius_sample_size must be > 0, got {radius_sample_size}");
-        }
-        if lateral_angular_separation <= 0.0 {
-            bail!(
-                "curvilinear lateral_angular_separation must be > 0, \
-                 got {lateral_angular_separation}"
-            );
-        }
-        if first_sample_distance < 0.0 {
-            bail!("curvilinear first_sample_distance must be >= 0, got {first_sample_distance}");
-        }
+    ) -> Result<Self, InvalidCoordinateMap> {
+        finite("radius_sample_size", radius_sample_size)?;
+        finite("first_sample_distance", first_sample_distance)?;
+        finite("lateral_angular_separation", lateral_angular_separation)?;
+        positive("radius_sample_size", radius_sample_size)?;
+        positive("lateral_angular_separation", lateral_angular_separation)?;
+        non_negative("first_sample_distance", first_sample_distance)?;
         Ok(Self {
             radius_sample_size,
             first_sample_distance,
@@ -207,32 +228,15 @@ impl PhasedArray3D {
         first_sample_distance: f64,
         azimuth_angular_separation: f64,
         elevation_angular_separation: f64,
-    ) -> Result<Self> {
-        if !radius_sample_size.is_finite()
-            || !first_sample_distance.is_finite()
-            || !azimuth_angular_separation.is_finite()
-            || !elevation_angular_separation.is_finite()
-        {
-            bail!("phased-array geometry parameters must be finite");
-        }
-        if radius_sample_size <= 0.0 {
-            bail!("phased-array radius_sample_size must be > 0, got {radius_sample_size}");
-        }
-        if azimuth_angular_separation <= 0.0 {
-            bail!(
-                "phased-array azimuth_angular_separation must be > 0, \
-                 got {azimuth_angular_separation}"
-            );
-        }
-        if elevation_angular_separation <= 0.0 {
-            bail!(
-                "phased-array elevation_angular_separation must be > 0, \
-                 got {elevation_angular_separation}"
-            );
-        }
-        if first_sample_distance < 0.0 {
-            bail!("phased-array first_sample_distance must be >= 0, got {first_sample_distance}");
-        }
+    ) -> Result<Self, InvalidCoordinateMap> {
+        finite("radius_sample_size", radius_sample_size)?;
+        finite("first_sample_distance", first_sample_distance)?;
+        finite("azimuth_angular_separation", azimuth_angular_separation)?;
+        finite("elevation_angular_separation", elevation_angular_separation)?;
+        positive("radius_sample_size", radius_sample_size)?;
+        positive("azimuth_angular_separation", azimuth_angular_separation)?;
+        positive("elevation_angular_separation", elevation_angular_separation)?;
+        non_negative("first_sample_distance", first_sample_distance)?;
         Ok(Self {
             radius_sample_size,
             first_sample_distance,
@@ -380,22 +384,46 @@ impl CoordinateMap {
     /// Returns an error when the map's required axes are absent: a curvilinear
     /// array needs a lateral axis in addition to the axis along the beam, and a
     /// 3-D phased array steers in two angles, so it is defined only at `D == 3`.
-    pub fn validate_dimensionality(&self, d: usize) -> Result<()> {
+    pub fn validate_dimensionality(&self, d: usize) -> Result<(), InvalidCoordinateMap> {
         match self {
             Self::Cartesian => Ok(()),
-            Self::CurvilinearArray(_) => {
-                if d < 2 {
-                    bail!("curvilinear coordinate map requires a 2-D or higher image, got {d}-D");
-                }
-                Ok(())
-            }
-            Self::PhasedArray3D(_) => {
-                if d != 3 {
-                    bail!("phased-array coordinate map requires a 3-D image, got {d}-D");
-                }
-                Ok(())
-            }
+            Self::CurvilinearArray(_) if d < 2 => Err(InvalidCoordinateMap::Dimensionality {
+                map: "curvilinear",
+                expected: "a 2-D or higher image",
+                actual: d,
+            }),
+            Self::CurvilinearArray(_) => Ok(()),
+            Self::PhasedArray3D(_) if d != 3 => Err(InvalidCoordinateMap::Dimensionality {
+                map: "phased-array",
+                expected: "a 3-D image",
+                actual: d,
+            }),
+            Self::PhasedArray3D(_) => Ok(()),
         }
+    }
+}
+
+fn finite(parameter: &'static str, value: f64) -> Result<(), InvalidCoordinateMap> {
+    if value.is_finite() {
+        Ok(())
+    } else {
+        Err(InvalidCoordinateMap::NotFinite { parameter, value })
+    }
+}
+
+fn positive(parameter: &'static str, value: f64) -> Result<(), InvalidCoordinateMap> {
+    if value > 0.0 {
+        Ok(())
+    } else {
+        Err(InvalidCoordinateMap::NotPositive { parameter, value })
+    }
+}
+
+fn non_negative(parameter: &'static str, value: f64) -> Result<(), InvalidCoordinateMap> {
+    if value >= 0.0 {
+        Ok(())
+    } else {
+        Err(InvalidCoordinateMap::Negative { parameter, value })
     }
 }
 

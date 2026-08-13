@@ -12,6 +12,15 @@
 
 ### Added
 
+- **Breaking:** `CoordinateMap`, `CurvilinearArray` and `PhasedArray3D` now live
+  in `ritk-spatial` alongside the rest of the spatial vocabulary, and their
+  validation returns a typed `InvalidCoordinateMap` instead of `anyhow::Error`.
+  They are pure `f64` geometry with no tensor coupling, so `ritk-image` was the
+  wrong home: it pulls the coeus autograd/nn/optim stack, which put the geometry
+  out of reach of dependency-light consumers. `ritk-image` re-exports all four
+  types, so `use ritk_image::CoordinateMap` keeps working; code that named
+  `ritk_image::coordinate_map::…` by module path must use the re-export or
+  `ritk_spatial`. `ritk-spatial` gained no new dependency.
 - `ritk_image::PhasedArray3D`: a `CoordinateMap` variant for 3-D phased-array
   acquisitions, which steer in two independent tangent angles from one apex.
   Index columns are `(azimuth beam, elevation beam, sample)`. Defined only at
