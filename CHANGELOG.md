@@ -84,6 +84,17 @@
   header is now an error rather than a panic. See ADR 0018 for the rename
   mapping. `ritk-filter`'s displacement resampler is correct on beam-space
   images as a result.
+- **Breaking:** DICOM de-identification reports failure instead of success when
+  it cannot finish. An object nested past `MAX_SEQUENCE_DEPTH` previously
+  logged a warning, left every deeper data set unanonymized, and returned `Ok`
+  with a clean-looking report — so the report a user relies on to certify a
+  data set could assert de-identification that had not happened. Two further
+  "did not happen" signals were discarded outright. A typed `AnonymizeError`
+  now travels inside the returned `anyhow::Error`, recoverable with
+  `downcast_ref`, so existing call sites keep their signatures. Callers that
+  treated a warning as tolerable will now see an error, which is the point.
+  `private_tags_removed` counts per successful removal rather than per
+  candidate found.
 - A `.trk` header's streamline count no longer drives allocation. `n_count` is
   an i32 at offset 988 of the 1000-byte header, guarded only by a magic
   `0..=100_000_000` range, and three vectors were reserved from it: a

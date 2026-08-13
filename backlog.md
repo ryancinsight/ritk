@@ -79,6 +79,47 @@
   `close_B(A) = (A ⊕ B) ⊖ B`, contains no raw TeX commands, and its figure
   images loaded during browser visual inspection.
 
+- **SAFE-693-04 [patch] - Report DICOM de-identification failures instead of success**
+  (DONE; owner=Claude; last-update=2026-08-13; scope=
+  `crates/ritk-io/src/format/dicom/anonymize/**` and the two re-export lists
+  naming its siblings; non-goal=the de-identification profiles themselves and
+  the DICOM PS3.15 attribute tables).
+
+  `anonymize_dataset` discarded three "did not happen" signals. The reachable
+  one: an object nested past `MAX_SEQUENCE_DEPTH` logged a warning, returned,
+  and left every deeper data set unanonymized while `anonymize_object`
+  returned `Ok` with a clean-looking report — the failure mode where the report
+  is the evidence a user relies on to certify a data set. The other two were
+  `let _ = dataset.remove_element(tag)` and two `else { continue }` arms
+  skipping a sequence that could not be read back.
+
+  Separately, `private_tags_removed` was incremented by the candidate count
+  before the removal loop. This did not produce a wrong number — the candidates
+  come from iterating the same `BTreeMap` with no intervening mutation, so
+  removal cannot currently fail — but its correctness was incidental to a data
+  structure rather than structural. It now counts per successful removal.
+
+  Resolved with a typed `AnonymizeError` travelling inside the existing
+  `anyhow::Error` and recovered by `downcast_ref`, matching `verify.rs`'s
+  idiom, so no call-site signature changes. A report-only failure list was
+  rejected: it would leave `anonymize_dicom_file` writing the PHI-bearing file
+  and returning `Ok`, which is the original defect in a new shape.
+
+  The depth check now fires only when sequences genuinely remain below the
+  bound, so an object that merely reaches depth 64 with nothing under it still
+  succeeds — without that refinement, correct at-bound objects would have
+  started failing.
+
+  Verification: 395 ritk-io tests, clippy `-D warnings`, fmt. The count tests
+  assert an input-minus-output identity against the actual output object rather
+  than against another counter, so they pin the contract; they pass against the
+  old code too, since removal cannot currently fail. The depth test was
+  confirmed to fail against the restored `return Ok(())` while the at-bound
+  test still passed.
+
+  Behaviour change to note for review: depth truncation is now fail-closed
+  rather than warn-and-succeed. Judged correct for a de-identification gate.
+
 - **SAFE-693-03 [patch] - Stop the .trk header count from driving allocation**
   (DONE; owner=Claude; last-update=2026-08-13; scope=`crates/ritk-trk/src/`
   `{io.rs,tests.rs}`; non-goal=the `.tck` and `.trx` readers, both audited and

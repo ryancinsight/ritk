@@ -12,8 +12,11 @@
 //! 5. clean_private_tags_false_preserves_private_elements
 //! 6. clean_private_tags_true_removes_private_elements
 //! 7. clean_private_tags_true_preserves_standard_elements
+//! 8. private_tags_removed_equals_the_private_elements_the_output_lost
+//! 9. private_tags_removed_credits_nothing_when_the_output_keeps_them
 
 use super::{generate_uid_from_hash, AnonymizationProfile, AnonymizeOptions, CleaningPolicy};
+use dicom::core::header::Header;
 use dicom::core::{DataElement, PrimitiveValue, Tag, VR};
 use dicom::object::{meta::FileMetaTableBuilder, FileDicomObject, InMemDicomObject};
 
@@ -125,6 +128,34 @@ fn make_test_object() -> FileDicomObject<InMemDicomObject> {
             .transfer_syntax("1.2.840.10008.1.2.1"),
     )
     .expect("FileMetaTableBuilder must succeed for test fixture")
+}
+
+/// Count private elements (odd group, excluding the file meta group) in `object`.
+///
+/// Measuring the data set is what makes the reported count checkable against
+/// what the object holds rather than against a second counter.
+fn private_element_count(object: &FileDicomObject<InMemDicomObject>) -> usize {
+    object
+        .iter()
+        .filter(|element| {
+            let group = element.tag().group();
+            group & 1 == 1 && group != 0x0002
+        })
+        .count()
+}
+
+/// Insert a synthetic private element at each of `tags`.
+fn with_private_elements(
+    object: &mut FileDicomObject<InMemDicomObject>,
+    tags: impl IntoIterator<Item = Tag>,
+) {
+    for tag in tags {
+        object.put(DataElement::new(
+            tag,
+            VR::LO,
+            PrimitiveValue::from("vendor_payload"),
+        ));
+    }
 }
 
 // ─── anonymize_dicom_file (roundtrip with tempfile) ───────────────────────────
@@ -309,6 +340,73 @@ fn clean_private_tags_true_removes_private_elements() {
     assert_eq!(
         result.private_tags_removed, 2,
         "AnonymizeResult.private_tags_removed must be 2"
+    );
+}
+
+/// The reported private-tag count must equal the number of private elements the
+/// output actually lost.
+///
+/// The comparison is against the output data set, not against a second counter:
+/// a count taken from the candidates found rather than from the removals
+/// performed would overstate de-identification, which is the one direction this
+/// report must not err in.
+#[test]
+fn private_tags_removed_equals_the_private_elements_the_output_lost() {
+    let mut obj = make_test_object();
+    with_private_elements(
+        &mut obj,
+        [
+            Tag(0x0009, 0x0010),
+            Tag(0x0009, 0x1001),
+            Tag(0x0019, 0x0010),
+            Tag(0x0029, 0x1010),
+        ],
+    );
+    let before = private_element_count(&obj);
+    assert_eq!(before, 4, "the fixture must carry four private elements");
+
+    let opts = AnonymizeOptions {
+        profile: AnonymizationProfile::Basic,
+        clean_private_tags: CleaningPolicy::Clean,
+        ..AnonymizeOptions::default()
+    };
+    let (anon, result) =
+        super::anonymize_object(obj, &opts).expect("anonymize_object must succeed");
+
+    let after = private_element_count(&anon);
+    assert_eq!(
+        after, 0,
+        "every private element must be absent from the output"
+    );
+    assert_eq!(
+        result.private_tags_removed,
+        before - after,
+        "the report must credit exactly the private elements the output lost"
+    );
+}
+
+/// With removal disabled the report must credit no removals, matching an output
+/// that still holds every private element.
+#[test]
+fn private_tags_removed_credits_nothing_when_the_output_keeps_them() {
+    let mut obj = make_test_object();
+    with_private_elements(&mut obj, [Tag(0x0009, 0x0010), Tag(0x0019, 0x0010)]);
+    let before = private_element_count(&obj);
+    assert_eq!(before, 2, "the fixture must carry two private elements");
+
+    let opts = AnonymizeOptions {
+        profile: AnonymizationProfile::Basic,
+        clean_private_tags: CleaningPolicy::Skip,
+        ..AnonymizeOptions::default()
+    };
+    let (anon, result) =
+        super::anonymize_object(obj, &opts).expect("anonymize_object must succeed");
+
+    let after = private_element_count(&anon);
+    assert_eq!(after, before, "no private element may be removed");
+    assert_eq!(
+        result.private_tags_removed, 0,
+        "the report must credit no removal when the output lost nothing"
     );
 }
 
