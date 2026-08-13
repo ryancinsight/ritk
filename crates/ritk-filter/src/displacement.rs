@@ -55,7 +55,7 @@ pub fn transform_to_displacement_field<B: Backend>(
             ((linear % plane) / dims[2]) as f64,
             (linear % dims[2]) as f64,
         ]);
-        let point = reference.transform_continuous_index_to_physical_point(&index);
+        let point = reference.continuous_index_to_physical_point(&index);
         for (row, component) in components.iter_mut().enumerate() {
             let transformed = (0..3)
                 .map(|column| matrix[row][column] * (point[column] - center[column]))

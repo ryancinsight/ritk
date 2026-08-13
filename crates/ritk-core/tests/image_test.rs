@@ -42,7 +42,9 @@ fn test_rotated_image_transform() {
 
     // Point at (1, 0, 0) physical → index should be (0, -1, 0)
     let point = Point3::new([1.0, 0.0, 0.0]);
-    let index = image.transform_physical_point_to_continuous_index(&point);
+    let index = image
+        .physical_point_to_continuous_index(&point)
+        .expect("Cartesian image with an invertible direction has an index for every point");
 
     assert!(
         (index[0] - 0.0).abs() < 1e-5,

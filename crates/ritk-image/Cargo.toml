@@ -1,6 +1,6 @@
 [package]
 name = "ritk-image"
-version = "0.3.0"
+version = "0.4.0"
 description = "Native medical image storage and metadata for RITK"
 authors.workspace = true
 repository.workspace = true

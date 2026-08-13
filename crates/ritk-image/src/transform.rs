@@ -1,7 +1,7 @@
 //! Batch tensor coordinate transforms for [`crate::Image`].
 //!
-//! The single-point `transform_physical_point_to_continuous_index` and
-//! `transform_continuous_index_to_physical_point` methods now live directly
+//! The single-point `physical_point_to_continuous_index` and
+//! `continuous_index_to_physical_point` methods now live directly
 //! on `Image` in [`crate::types`]. The batch tensor transforms
 //! (`world_to_index_tensor` / `index_to_world_tensor`) also live on `Image`
 //! in [`crate::types`] via coeus-native implementations.

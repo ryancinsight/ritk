@@ -72,7 +72,7 @@ ritk-registration = { path = "crates/ritk-registration", version = "0.54.0" }
 ritk-transform = { path = "crates/ritk-transform", version = "0.2.0" }
 ritk-interpolation = { path = "crates/ritk-interpolation", version = "0.5.0" }
 ritk-spatial = { path = "crates/ritk-spatial", version = "0.2.0" }
-ritk-image = { path = "crates/ritk-image", version = "0.3.0" }
+ritk-image = { path = "crates/ritk-image", version = "0.4.0" }
 ritk-wgpu-compat = { path = "crates/ritk-wgpu-compat", version = "0.2.0" }
 ritk-morphology = { path = "crates/ritk-morphology", version = "0.2.0" }
 ritk-annotation = { path = "crates/ritk-annotation", version = "0.2.0" }

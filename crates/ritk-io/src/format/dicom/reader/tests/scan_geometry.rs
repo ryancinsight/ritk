@@ -330,13 +330,13 @@ fn test_physical_transform_depth_index_advances_along_slice_normal() {
         .expect("invariant: fixture tensor has the declared rank");
 
     // Voxel (0,0,0): must be at origin
-    let p0 = image.transform_continuous_index_to_physical_point(&Point::new([0.0, 0.0, 0.0]));
+    let p0 = image.continuous_index_to_physical_point(&Point::new([0.0, 0.0, 0.0]));
     assert!((p0[0] - 10.0).abs() < TOL, "origin x; got {}", p0[0]);
     assert!((p0[1] - 20.0).abs() < TOL, "origin y; got {}", p0[1]);
     assert!((p0[2] + 50.0).abs() < TOL, "origin z; got {}", p0[2]);
 
     // Voxel (1,0,0): depth=1 → origin + 2.5*[0,0,1] = [10,20,-47.5]
-    let p1 = image.transform_continuous_index_to_physical_point(&Point::new([1.0, 0.0, 0.0]));
+    let p1 = image.continuous_index_to_physical_point(&Point::new([1.0, 0.0, 0.0]));
     assert!(
         (p1[0] - 10.0).abs() < TOL,
         "depth=1: x must stay; got {}",
@@ -354,7 +354,7 @@ fn test_physical_transform_depth_index_advances_along_slice_normal() {
     );
 
     // Voxel (0,1,0): row=1 → origin + 0.8*F_c = origin + 0.8*[0,1,0]
-    let p2 = image.transform_continuous_index_to_physical_point(&Point::new([0.0, 1.0, 0.0]));
+    let p2 = image.continuous_index_to_physical_point(&Point::new([0.0, 1.0, 0.0]));
     assert!((p2[0] - 10.0).abs() < TOL, "row=1: x stays; got {}", p2[0]);
     assert!(
         (p2[1] - 20.8).abs() < TOL,
@@ -364,7 +364,7 @@ fn test_physical_transform_depth_index_advances_along_slice_normal() {
     assert!((p2[2] + 50.0).abs() < TOL, "row=1: z stays; got {}", p2[2]);
 
     // Voxel (0,0,1): col=1 → origin + 0.8*F_r = origin + 0.8*[1,0,0]
-    let p3 = image.transform_continuous_index_to_physical_point(&Point::new([0.0, 0.0, 1.0]));
+    let p3 = image.continuous_index_to_physical_point(&Point::new([0.0, 0.0, 1.0]));
     assert!(
         (p3[0] - 10.8).abs() < TOL,
         "col=1: x advances 0.8mm; got {}",

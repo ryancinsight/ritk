@@ -10,7 +10,7 @@ license.workspace = true
 
 [dependencies]
 ritk-core = { path = "../ritk-core", version = "0.10.0" }
-ritk-image = { path = "../ritk-image", features = ["test-helpers"], version = "0.3.0" }
+ritk-image = { path = "../ritk-image", features = ["test-helpers"], version = "0.4.0" }
 ritk-wgpu-compat = { path = "../ritk-wgpu-compat", version = "0.2.0" }
 ritk-morphology = { path = "../ritk-morphology", version = "0.2.0" }
 ritk-annotation = { path = "../ritk-annotation", version = "0.2.0" }

@@ -79,6 +79,36 @@
   `close_B(A) = (A ⊕ B) ⊖ B`, contains no raw TeX commands, and its figure
   images loaded during browser visual inspection.
 
+- **FIX-690-01 [minor] - Consolidate the Image coordinate-transform API**
+  (DONE; owner=Claude; last-update=2026-08-13; scope=
+  `crates/ritk-image/src/types.rs`, the 18 in-repository call sites across
+  `ritk-core`, `ritk-filter`, `ritk-image`, `ritk-io`, `ritk-nifti` and
+  `ritk-registration`, `docs/adr/0018-single-coordinate-transform-api.md`,
+  `CHANGELOG.md`, and the `ritk-image` version requirement;
+  non-goal=the batch tensor transforms, which were already map-aware, and the
+  `CoordinateMap` variants themselves).
+
+  `Image` carried two public single-point transform APIs in adjacent `impl`
+  blocks with identical bounds. The map-aware pair had zero callers; the
+  `transform_`-prefixed pair had all 18 and applied `origin + D S index`
+  unconditionally, so beam-space images transformed as if they were Cartesian
+  rasters. On the curvilinear fixture the far sample of the centre beam mapped
+  to (32 m, 63 m) rather than (66 mm, 9 mm). Cartesian images agreed exactly,
+  which is why no test caught it: every constructor sets
+  `CoordinateMap::Cartesian`, and no test attached a map and then used the
+  single-point path.
+
+  Resolved by deleting the `transform_`-prefixed pair and moving every call
+  site, per ADR 0018 — no deprecated re-export, since a shim would preserve the
+  wrong-answer path. `physical_point_to_continuous_index` returns `Result`,
+  removing an `expect` on a direction matrix that comes from a file header.
+  `ritk-image` 0.3.0 -> 0.4.0.
+
+  Verification: `single_point_transform_honours_the_curvilinear_map` pins the
+  single-point path to the batch form, which reaches the geometry by an
+  independent route and was already correct; it fails against the deleted
+  implementation by ~30 m. Workspace tests, clippy `-D warnings`, and fmt pass.
+
 - **FEAT-692-01 [major] - Control native JPEG 2000 lossy quantization**
   (DONE; owner=Codex; last-update=2026-08-03; scope=
   `crates/ritk-codecs/src/jpeg_2000/**`, every in-repository

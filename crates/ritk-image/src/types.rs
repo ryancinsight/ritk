@@ -465,53 +465,6 @@ impl<T, B, const D: usize> Image<T, B, D>
 where
     T: Scalar,
     B: ComputeBackend,
-{
-    /// Convert a continuous index to a physical point.
-    ///
-    /// `point = origin + Direction * (index * spacing)`
-    ///
-    /// Reproduces the exact arithmetic and column conventions of the
-    /// `transform_continuous_index_to_physical_point` operation.
-    pub fn transform_continuous_index_to_physical_point(
-        &self,
-        index: &ritk_spatial::Point<D>,
-    ) -> ritk_spatial::Point<D> {
-        let mut scaled_index = ritk_spatial::Vector::<D>::zeros();
-        for i in 0..D {
-            scaled_index[i] = index[i] * self.spacing()[i];
-        }
-        let rotated = *self.direction() * scaled_index;
-        *self.origin() + rotated
-    }
-
-    /// Convert a continuous physical point to a continuous index.
-    ///
-    /// `index = (Direction^-1 * (point - origin)) / spacing`
-    ///
-    /// Reproduces the exact arithmetic and column conventions of the
-    /// `transform_physical_point_to_continuous_index` operation.
-    pub fn transform_physical_point_to_continuous_index(
-        &self,
-        point: &ritk_spatial::Point<D>,
-    ) -> ritk_spatial::Point<D> {
-        let diff = *point - *self.origin();
-        let inv_dir = self
-            .direction()
-            .try_inverse()
-            .expect("direction matrix must be invertible");
-        let rotated = inv_dir * diff;
-        let mut index = ritk_spatial::Point::<D>::origin();
-        for i in 0..D {
-            index[i] = rotated[i] / self.spacing()[i];
-        }
-        index
-    }
-}
-
-impl<T, B, const D: usize> Image<T, B, D>
-where
-    T: Scalar,
-    B: ComputeBackend,
     B::DeviceBuffer<T>: CpuAddressableStorage<T>,
 {
     /// Batch transform physical points to continuous indices.
@@ -1230,6 +1183,42 @@ mod tests {
         .expect("2-D image accepts a curvilinear map")
     }
 
+    /// The single-point transform must honour the attached coordinate map.
+    ///
+    /// A curvilinear image indexes beams and samples, not a Cartesian raster,
+    /// so `origin + D S index` places its points in no physical space at all —
+    /// index (32, 63) would land at 32 m by 63 m rather than 66 mm by 9 mm.
+    /// The batch form is the independent oracle: it has always routed through
+    /// the map, so agreement pins the single-point path to it.
+    ///
+    /// Tolerance: `f32` storage carries ~1.2e-7 relative precision and the
+    /// radii here reach 0.07 m, so the two paths may differ by ~1e-8 through
+    /// the polar trig. 1e-6 stays well above that and far below the ~30 m
+    /// error the Cartesian formula produces.
+    #[test]
+    fn single_point_transform_honours_the_curvilinear_map() {
+        let img = curvilinear_image();
+        // Far sample on the centre beam: deep in the fan, where the polar
+        // mapping is furthest from the raw index pair.
+        let index = Point::<2>::new([32.0, 63.0]);
+        let point = img.continuous_index_to_physical_point(&index);
+
+        // Batch column c corresponds to axis D-1-c on the index side.
+        let batch = img.index_to_world_native(&Tensor::<f32, SequentialBackend>::from_slice(
+            [1, 2],
+            &[index[1] as f32, index[0] as f32],
+        ));
+
+        for axis in 0..2 {
+            assert!(
+                (f64::from(batch.as_slice()[axis]) - point[axis]).abs() <= 1e-6,
+                "axis {axis}: batch={}, single-point={}",
+                batch.as_slice()[axis],
+                point[axis]
+            );
+        }
+    }
+
     /// Beam index -> physical point -> beam index, through the real `Image`
     /// transforms rather than the geometry helper, so the column conventions
     /// are covered too.
@@ -1488,7 +1477,9 @@ mod tests {
         for row in 0..12 {
             let p = Point::<3>::new([pts[row * 3], pts[row * 3 + 1], pts[row * 3 + 2]]);
             // Single-point index (axis-major).
-            let idx_axis = img.transform_physical_point_to_continuous_index(&p);
+            let idx_axis = img
+                .physical_point_to_continuous_index(&p)
+                .expect("rotated Cartesian metadata is invertible");
             let batch_row = &idx_batch.as_slice()[row * 3..row * 3 + 3];
             // batch column c ↔ axis D-1-c.
             for c in 0..3 {
@@ -1505,7 +1496,7 @@ mod tests {
                 &Tensor::<f64, SequentialBackend>::from_slice([1, 3], batch_row),
             );
             let idx_pt = Point::<3>::new([idx_axis[0], idx_axis[1], idx_axis[2]]);
-            let world_single = img.transform_continuous_index_to_physical_point(&idx_pt);
+            let world_single = img.continuous_index_to_physical_point(&idx_pt);
             for a in 0..3 {
                 assert!(
                     (world_batch.as_slice()[a] - world_single[a]).abs() <= 1e-9,

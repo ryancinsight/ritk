@@ -258,8 +258,8 @@ fn test_oblique_nifti_round_trip_preserves_affine_and_voxels() -> Result<()> {
 
     // Affine transform check using native Image methods
     let index = Point::new([1.0, 2.0, 3.0]);
-    let physical = loaded.transform_continuous_index_to_physical_point(&index);
-    let expected = image.transform_continuous_index_to_physical_point(&index);
+    let physical = loaded.continuous_index_to_physical_point(&index);
+    let expected = image.continuous_index_to_physical_point(&index);
     assert!(
         (physical[0] - expected[0]).abs() < 1e-6,
         "physical x must follow oblique affine"

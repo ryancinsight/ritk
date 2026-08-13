@@ -63,6 +63,23 @@
 
 ### Fixed
 
+- **Breaking:** `Image` had two single-point coordinate-transform APIs, and the
+  one every caller used ignored the attached `CoordinateMap`. On a
+  `CurvilinearArray` or `PhasedArray3D` image it applied the Cartesian formula
+  to a beam/sample index pair, silently placing the far sample of the centre
+  beam at (32 m, 63 m) instead of (66 mm, 9 mm). The map-aware pair had zero
+  callers. `transform_continuous_index_to_physical_point` and
+  `transform_physical_point_to_continuous_index` are removed in favour of
+  `continuous_index_to_physical_point` and `physical_point_to_continuous_index`;
+  the latter returns `Result`, so a singular direction matrix read from a file
+  header is now an error rather than a panic. See ADR 0018 for the rename
+  mapping. `ritk-filter`'s displacement resampler is correct on beam-space
+  images as a result.
+- Treat a non-physical DICOM `PixelSpacing` (0028,0030) as absent rather than
+  aborting the process. `Spacing::new` asserts each component is finite and
+  strictly positive, and derived and secondary-capture objects legitimately
+  carry `"0\0"`, so a routine series could kill the reader. Both parse sites now
+  fall back to unit spacing and emit a `tracing` warning.
 - Apply DICOM anonymization to nested sequences. `anonymize_object` previously
   iterated only top-level elements, so identifying attributes inside sequence
   items survived de-identification while the run reported success. Tag actions

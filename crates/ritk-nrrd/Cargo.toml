@@ -9,7 +9,7 @@ license.workspace = true
 description = "NRRD (Nearly Raw Raster Data) I/O for RITK"
 
 [dependencies]
-ritk-image = { path = "../ritk-image", version = "0.3.0" }
+ritk-image = { path = "../ritk-image", version = "0.4.0" }
 ritk-spatial = { path = "../ritk-spatial", version = "0.2.0" }
 ritk-codecs = { path = "../ritk-codecs", version = "0.6.0" }
 ritk-diffusion-scheme = { path = "../ritk-diffusion-scheme", version = "0.2.0" }
