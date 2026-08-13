@@ -79,6 +79,116 @@
   `close_B(A) = (A ⊕ B) ⊖ B`, contains no raw TeX commands, and its figure
   images loaded during browser visual inspection.
 
+- **TEST-696-01 [patch] - Verify deformable registration recovers a known deformation**
+  (DONE; owner=Claude; last-update=2026-08-13; scope=
+  `crates/ritk-registration/src/classical/engine/tests.rs` and
+  `crates/ritk-registration/tests/deformable_recovery_test.rs`;
+  non-goal=`ritk-statistics`, which holds its own tautologies — see
+  TEST-696-02).
+
+  Two gaps. First, the entire deformable family — demons in five variants,
+  B-spline FFD, SyN, B-spline SyN, LDDMM, atlas — had no test comparing a
+  recovered displacement field against a known applied one. The closest,
+  `thirion/tests.rs` `translation_recovery_direction`, asserted `mean_dx > 0.0`:
+  a sign, not a magnitude. Second, `test_mutual_information_identical` and
+  `test_mutual_information_different` fed constant volumes to
+  `MutualInformationMetric::compute`, which short-circuits on
+  `h_x + h_y == 0.0` and returns literal `1.0` / `0.0` — so both assertions
+  were satisfied by returned constants without a histogram ever being built.
+
+  Six MI tests now assert real algebraic properties through the histogram path:
+  `MI(X,X) = H(X)`, symmetry, invariance under a bijective intensity
+  remapping (which NCC would fail), exactly-zero MI for constructed
+  independent fields, strict monotone decay over a misalignment ladder, and an
+  honest `assert_eq!` on the degenerate branch. Three recovery tests assert
+  Thirion and diffeomorphic demons recover a known translation and a known
+  divergence-free sinusoidal field, with ground truth exact by construction —
+  both images sampled analytically, so the applied field is the unique correct
+  answer under the crate's warp convention.
+
+  Every tolerance is a derived named constant: `NMI_ROUNDING_TOLERANCE` from
+  the 1024-term entropy sum's worst-case accumulation, `INTERPOLATION_BIAS`
+  from the trilinear cell sag over the RMS gradient, `SUB_VOXEL_LIMIT` at half
+  the conventional `h/2` ambiguity limit.
+
+  Finding, not a defect: non-rigid recovery degrades with structural scale.
+  At periods 13/15/17 the algorithm converges (240 and 400 iterations agree to
+  <1e-3 voxel) yet recovers only ~70% of the deformation amplitude. A sigma
+  sweep refutes the regulariser as the cause — alpha stays in 0.69-0.72 across
+  sigma in [0.4, 1.0]. The cause is the rank-1 aperture structure of the
+  Thirion force, which constrains only the gradient-parallel component per
+  voxel. Translation is immune, recovering to <=0.08 voxel at every scale. The
+  measurement table is recorded in the test file's module docs.
+
+- **TEST-696-02 [patch] - Replace the clamp-guaranteed assertions in ritk-statistics**
+  (DoR; owner=unclaimed; last-update=2026-08-13; scope=
+  `crates/ritk-statistics/src/information/`
+  `{mutual_information.rs,tests/mi.rs}`; non-goal=changing any estimator's
+  output).
+
+  Five assertions across four tests cannot fail, because the implementation
+  clamps the value they check: `mi_is_non_negative`, `mi_mattes_non_negative`,
+  `cmi_is_non_negative` sit above `.max(0.0)` at `mutual_information.rs:37`,
+  `:179`, `:216`, and both bounds in `su_in_zero_one` sit above a
+  `.clamp(0.0, 1.0)` at `:88`. `nmi_at_least_one` / `nmi_at_most_two` are
+  bound-style but genuinely test subadditivity and are not affected.
+
+  Outcome: each replaced by a property that can fail — the set established in
+  TEST-696-01 transfers directly.
+
+  Acceptance: every rewritten assertion demonstrated to fail against a
+  deliberately broken estimator, recorded here.
+
+  Risk: [patch]; test-only unless an estimator defect surfaces.
+
+- **TEST-696-03 [patch] - Ground-truth recovery test for multi-resolution demons**
+  (DoR; owner=unclaimed; last-update=2026-08-13; scope=
+  `crates/ritk-registration` multi-resolution demons tests; non-goal=algorithm
+  changes).
+
+  `MultiResDemonsRegistration` is the standard remedy for the amplitude
+  shortfall TEST-696-01 measured, and has no ground-truth recovery test.
+
+  Outcome: the recovery harness from `deformable_recovery_test.rs` applied to
+  the multi-resolution path, quantifying whether the coarse-to-fine schedule
+  closes the ~30% gap at long structural scale.
+
+  Acceptance: measured amplitude ratio against the single-resolution table
+  already recorded, at matching grid, wavelength and iteration budget.
+
+  Risk: [patch]; test-only.
+
+- **ARCH-695-01 [patch][arch] - Give the Image operation families their own leaf modules**
+  (DoR; owner=Claude; last-update=2026-08-13; scope=
+  `crates/ritk-image/src/{types.rs,transform.rs,tests_transform.rs}` and the
+  new leaf modules; non-goal=any behaviour change — this is a pure move, and a
+  commit that alters an expression is out of scope by definition).
+
+  `types.rs` is 1546 lines carrying four distinct operation families on one
+  type: construction and accessors, single-point coordinate transforms, batch
+  tensor transforms with their per-`CoordinateMap` kernels, and host data
+  access (`data_slice`, `data_cow*`, `data_vec*`). `transform.rs` meanwhile
+  contains no code at all — only a comment describing itself as "an
+  organizational placeholder for future transform-specific logic", which is
+  the scaffolding-without-content the standards forbid, sitting on the exact
+  name the transforms belong under.
+
+  Outcome: `transform.rs` becomes the canonical home for both transform
+  granularities (batch kernels under `transform/`), host access moves to its
+  own leaf module, and `types.rs` retains the type, its constructors, and its
+  accessors. The co-located test module splits along the same seams.
+
+  Acceptance: no diff hunk outside module paths, `use` statements and item
+  moves; the full ritk-image suite passes unchanged in name and count; every
+  file lands under the 500-line target.
+
+  Risk: [patch] — nothing public moves, since all four families are inherent
+  methods on `Image` and stay reachable at the same paths. [arch] because it
+  establishes where the family boundary sits for the crate.
+
+  Sequenced after FIX-690-01's PR merges: a pure-move diff of this size is
+  unreviewable stacked under behavioural commits.
+
 - **SAFE-693-04 [patch] - Report DICOM de-identification failures instead of success**
   (DONE; owner=Claude; last-update=2026-08-13; scope=
   `crates/ritk-io/src/format/dicom/anonymize/**` and the two re-export lists
