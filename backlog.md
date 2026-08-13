@@ -121,25 +121,38 @@
   measurement table is recorded in the test file's module docs.
 
 - **TEST-696-02 [patch] - Replace the clamp-guaranteed assertions in ritk-statistics**
-  (DoR; owner=unclaimed; last-update=2026-08-13; scope=
+  (DONE; owner=Claude; last-update=2026-08-13; scope=
   `crates/ritk-statistics/src/information/`
-  `{mutual_information.rs,tests/mi.rs}`; non-goal=changing any estimator's
-  output).
+  `{mutual_information.rs,tests/mi.rs}`; non-goal=the estimators' output on
+  well-formed input, which is unchanged).
 
-  Five assertions across four tests cannot fail, because the implementation
-  clamps the value they check: `mi_is_non_negative`, `mi_mattes_non_negative`,
-  `cmi_is_non_negative` sit above `.max(0.0)` at `mutual_information.rs:37`,
-  `:179`, `:216`, and both bounds in `su_in_zero_one` sit above a
-  `.clamp(0.0, 1.0)` at `:88`. `nmi_at_least_one` / `nmi_at_most_two` are
-  bound-style but genuinely test subadditivity and are not affected.
+  Five assertions across four tests could not fail, because the implementation
+  clamped the value they checked: `mi_is_non_negative`,
+  `mi_mattes_non_negative` and `cmi_is_non_negative` sat above `.max(0.0)`, and
+  both bounds in `su_in_zero_one` sat above a `.clamp(0.0, 1.0)`.
+  `nmi_at_least_one` / `nmi_at_most_two` look similar but genuinely test
+  subadditivity and are untouched.
 
-  Outcome: each replaced by a property that can fail — the set established in
-  TEST-696-01 transfers directly.
+  The clamps were the root cause, so they moved too. MI is non-negative by
+  Jensen, and cancellation between independently summed entropies can push an
+  exact zero a few ulps below — collapsing that is right. Collapsing a
+  substantial negative is not: the only things producing one are estimator
+  defects, and returning `0.0` presents the defect as a valid "these share no
+  information" answer that a registration metric will optimise against.
+  `non_negative_information` now errors past a 1e-9 rounding budget derived
+  from the entropy sums' worst-case accumulation, and `symmetric_uncertainty`
+  guards its upper bound the same way.
 
-  Acceptance: every rewritten assertion demonstrated to fail against a
-  deliberately broken estimator, recorded here.
+  The replacements assert values the estimators must produce:
+  `MI(X, X) = H(X) = ln 8`; `MI = 0` exactly for a constructed independent
+  pair; Mattes soft binning agrees with hard binning on the diagonal, where
+  the two see the same distribution; SU reaches exactly 1 and exactly 0 at its
+  endpoints; `I(X;Y|X) = 0`.
 
-  Risk: [patch]; test-only unless an estimator defect surfaces.
+  Verification: 342 tests, clippy `-D warnings`, fmt. Discrimination confirmed
+  by mutation — scaling the joint entropy term by 0.95 fails 12 tests
+  including all four rewrites, while every assertion they replaced still
+  passed under the same mutant.
 
 - **TEST-696-03 [patch] - Ground-truth recovery test for multi-resolution demons**
   (DoR; owner=unclaimed; last-update=2026-08-13; scope=

@@ -18,12 +18,41 @@ fn mi_identical_equals_marginal_entropy() {
     );
 }
 
+/// `MI(X, X) = H(X)`: a signal shares all of its information with itself.
+///
+/// Replaces a `mi >= 0.0` assertion that `mutual_information` guaranteed by
+/// construction and could therefore never fail. This pins the value instead:
+/// eight bins populated uniformly give `H = ln 8`, so the estimator has to
+/// build a real histogram to satisfy it.
+///
+/// Tolerance: 64 joint-histogram terms summed in f64, each bounded by
+/// `ln 8 = 2.08`, so worst-case accumulation is `64 * 2.2e-16 * 2.08 = 2.9e-14`.
 #[test]
-fn mi_is_non_negative() {
+fn mi_of_a_signal_with_itself_equals_its_entropy() {
+    let a: Vec<f32> = (0..256).map(|i| (i % 8) as f32).collect();
+    let mi = mutual_information(&a, &a, 8).unwrap();
+    let entropy = 8.0_f64.ln();
+    assert!(
+        (mi - entropy).abs() < 1e-12,
+        "MI(X, X) must equal H(X) = {entropy}, got {mi}"
+    );
+}
+
+/// `MI = 0` exactly when the joint distribution factorises.
+///
+/// `a` cycles every 8 samples and `b` every 64, so across 256 samples each of
+/// the 64 (a, b) pairs occurs exactly 4 times: `p(a, b) = p(a) * p(b)` by
+/// construction. Independence is then a property the estimator must reproduce,
+/// not a bound it is clamped into.
+#[test]
+fn mi_of_exactly_independent_channels_is_zero() {
     let a: Vec<f32> = (0..256).map(|i| (i % 8) as f32).collect();
     let b: Vec<f32> = (0..256).map(|i| ((i / 8) % 8) as f32).collect();
     let mi = mutual_information(&a, &b, 8).unwrap();
-    assert!(mi >= 0.0, "MI must be non-negative, got {mi}");
+    assert!(
+        mi.abs() < 1e-12,
+        "independent channels must share no information, got {mi}"
+    );
 }
 
 #[test]
@@ -127,12 +156,26 @@ fn mi_mattes_constant_channel_is_zero() {
     assert!(mi.abs() < 1e-9, "Mattes MI(X, const) must be 0, got {mi}");
 }
 
+/// Soft binning must agree with hard binning where the two cannot differ.
+///
+/// Replaces a `mi >= 0.0` assertion the implementation guaranteed. Mattes
+/// spreads each sample bilinearly over neighbouring cells, which changes the
+/// estimate in general — but a signal against itself puts every sample on the
+/// diagonal, where both estimators see the same distribution. Agreement there
+/// constrains the soft-assignment weights: a normalisation error in the
+/// bilinear split breaks it while leaving the value non-negative.
+///
+/// Tolerance: as `mi_of_a_signal_with_itself_equals_its_entropy`, widened one
+/// decade for the four-way weight split per sample.
 #[test]
-fn mi_mattes_non_negative() {
+fn mi_mattes_agrees_with_hard_binning_on_the_diagonal() {
     let a: Vec<f32> = (0..128).map(|i| (i % 8) as f32).collect();
-    let b: Vec<f32> = (0..128).map(|i| ((i / 4) % 8) as f32).collect();
-    let mi = mutual_information_mattes(&a, &b, 8).unwrap();
-    assert!(mi >= 0.0, "Mattes MI must be non-negative, got {mi}");
+    let soft = mutual_information_mattes(&a, &a, 8).unwrap();
+    let hard = mutual_information(&a, &a, 8).unwrap();
+    assert!(
+        (soft - hard).abs() < 1e-11,
+        "on the diagonal soft binning must match hard binning: {soft} vs {hard}"
+    );
 }
 
 #[test]
@@ -155,13 +198,29 @@ fn su_identical_non_constant_is_one() {
     );
 }
 
+/// Symmetric uncertainty reaches its endpoints, rather than merely lying
+/// between them.
+///
+/// Replaces two assertions that `symmetric_uncertainty` guaranteed by clamping
+/// to `[0, 1]`. Both extremes are constructed exactly here: a signal against
+/// itself is total dependence, the independent pair is none. An estimator
+/// returning a constant mid-range value passed the old bounds and fails these.
 #[test]
-fn su_in_zero_one() {
+fn su_reaches_one_for_identity_and_zero_for_independence() {
     let a: Vec<f32> = (0..256).map(|i| (i % 8) as f32).collect();
     let b: Vec<f32> = (0..256).map(|i| ((i / 8) % 8) as f32).collect();
-    let su = symmetric_uncertainty(&a, &b, 8).unwrap();
-    assert!(su >= 0.0 - 1e-9, "SU={su:.6} must be ≥ 0");
-    assert!(su <= 1.0 + 1e-9, "SU={su:.6} must be ≤ 1");
+
+    let identical = symmetric_uncertainty(&a, &a, 8).unwrap();
+    assert!(
+        (identical - 1.0).abs() < 1e-12,
+        "SU of a signal with itself must be 1, got {identical}"
+    );
+
+    let independent = symmetric_uncertainty(&a, &b, 8).unwrap();
+    assert!(
+        independent.abs() < 1e-12,
+        "SU of independent channels must be 0, got {independent}"
+    );
 }
 
 #[test]
@@ -174,14 +233,22 @@ fn su_constant_channels_returns_zero() {
 
 // ── conditional_mutual_information tests ─────────────────────────────────────
 
+/// Conditioning on a copy of X removes everything X and Y share.
+///
+/// Replaces a `cmi >= 0.0` assertion the implementation guaranteed. With Z set
+/// to X itself, `I(X;Y|Z) = 0` exactly: whatever Y knows about X, Z already
+/// told us. The four-entropy expression has to produce that value — a sign
+/// error or a mismatched joint histogram gives a non-zero result while staying
+/// non-negative.
 #[test]
-fn cmi_is_non_negative() {
-    // I(X;Y|Z) ≥ 0 by the data processing inequality.
+fn cmi_vanishes_when_conditioned_on_one_of_its_arguments() {
     let x: Vec<f32> = (0..256).map(|i| (i % 8) as f32).collect();
     let y: Vec<f32> = (0..256).map(|i| ((i / 8) % 8) as f32).collect();
-    let z: Vec<f32> = (0..256).map(|i| ((i / 16) % 8) as f32).collect();
-    let cmi = conditional_mutual_information(&x, &y, &z, 8).unwrap();
-    assert!(cmi >= 0.0, "CMI must be ≥ 0, got {cmi}");
+    let cmi = conditional_mutual_information(&x, &y, &x, 8).unwrap();
+    assert!(
+        cmi.abs() < 1e-12,
+        "conditioning on X must leave X and Y sharing nothing, got {cmi}"
+    );
 }
 
 #[test]
