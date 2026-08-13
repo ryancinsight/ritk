@@ -179,63 +179,55 @@
   furnished review findings; focused self-review found no residual defect.
 
 - **RELEASE-689-01 [patch] - Publish the Rust library closure to crates.io**
-  (IN PROGRESS; owner=Codex; last-update=2026-08-10; scope=workspace and package
-  registry metadata, local dependency version requirements, dependency aliases,
-  `.github/workflows/rust-release.yml`, release documentation, and publication
-  of the explicit 29 `publish = true` Rust library packages; non-goal=publishing
-  `ritk-cli`, `ritk-snap`, `ritk-python`, `ritk-diffusion`, `ritk-tractography`,
-  `xtask`, or changing the Python release version). The older 28-package target
-  is stale and requires owner reconciliation before publication. Readiness
-  evidence: locked metadata passes; the Rust/PyPI workflow YAML
-  parses and the trusted-publisher contract has the immutable Atlas workflow
-  pin, OIDC permissions, and no PyPI API token. A bounded crates.io API probe
-  finds, in the bounded 2026-08-10 probe, 22 indexed packages, 8 absent
-  (404), and 3 network errors. The workspace now has explicit publish policy
-  on every crate (29 `publish = true`, 9 `publish = false`), so the previous
-  33-package mixed-policy denominator is obsolete. The registry probe also hit
-  a transient TLS reset.
+  (DONE; owner=Claude; last-update=2026-08-13; scope=workspace and package
+  registry metadata, local dependency version requirements, the overlay-free
+  lockfile, and publication of the 29 `publish = true` Rust library packages;
+  non-goal=publishing `ritk-cli`, `ritk-snap`, `ritk-python`,
+  `ritk-diffusion`, `ritk-tractography`, or `xtask`).
 
-  Blocker chain resolved and executing (2026-08-11, owner=Claude). A full
-  registry sweep gives the exact residual: 24 of the 29 publishable packages
-  are indexed; 6 are absent — `ritk-mif`, `ritk-filter`, `ritk-vtk`,
-  `ritk-segmentation`, `ritk-io`, `ritk-registration`. None is blocked by
-  RITK itself. Their unmet first-party requirements are `gaia 0.3.0`
-  (indexed 0.2.1), `leto`/`leto-ops 0.41.0` (indexed 0.40.0), and `iris
-  0.1.0` (never indexed); every other first-party requirement —
-  `coeus-* 0.9.0`, `eunomia 0.8.0`, `moirai-runtime 0.4.0`,
-  `mnemosyne-memory 0.6.0`, `aequitas 0.2.0`, `themis-topology 0.10.1`,
-  `melinoe 0.9.0`, `apollo-fft 0.25.0` — is already indexed at the exact
-  required version.
+  All 29 publishable packages are indexed. The five that had never been
+  published — `ritk-filter 0.3.0`, `ritk-io 0.3.0`, `ritk-segmentation 0.3.0`,
+  `ritk-vtk 0.2.0`, `ritk-registration 0.54.0` — are live alongside a
+  coherent re-release of the rest.
 
-  Root cause of the earlier upstream failures was the committed lockfile, not
-  the manifests: `cargo publish --locked` fails closed when the lock carries
-  overlay-stripped path sources. leto fixed this in `1c36ce1`; gaia's
-  equivalent fix was sitting uncommitted and stale in its tree and landed as
-  gaia PR #24. The stale `crate-leto-v0.41.0` tag (2026-08-09, commit
-  24368e09) predated leto's lock fix and its three publish runs all failed; it
-  was re-pointed at `ca93b63`, which validates clean (run 31462196501).
+  Root cause was not RITK. The stack develops against the Atlas path overlay,
+  so a published version can carry different dependency requirements than the
+  same version number in source. `apollo-fft 0.25.0` on crates.io implemented
+  `FftPrecision` for `coeus_core::Complex` while its source implemented it for
+  `eunomia::Complex`; published `mnemosyne-arena 0.3.0`, `coeus-core 0.9.0`,
+  and `hermes-simd 0.5.0` required `eunomia ^0.7.0` against a source on 0.8.
+  Registry versions are immutable, so each needed a bump, and the closure was
+  the whole provider layer: mnemosyne (6), hermes (5), moirai (16), leto (2),
+  hephaestus (3), apollo (2), coeus (8) — 42 provider crates re-released onto
+  eunomia 0.8 before RITK could resolve.
 
-  Executable publish order, upstream first, each gated by the repo's
-  `cargo publish --locked --dry-run` validate job:
-  `iris 0.1.0` (validated, run 31462172808) and `leto 0.41.0` (validated) ->
-  `leto-ops 0.41.0` -> `gaia 0.3.0` -> then RITK: `ritk-mif` (unblocked
-  today; `cargo package` succeeds), `ritk-filter`, `ritk-vtk`,
-  `ritk-segmentation`, `ritk-io`, `ritk-registration`.
+  Two crate names were unobtainable: crates.io reserves `iris`, and `gaia`
+  belongs to an unrelated third-party crate (owner `ucarion`) — the 0.2.1 that
+  earlier planning read as this project's prior release was never ours. Both
+  publish under a registry/lib split (`iris-viz`, `gaia-mesh`) that leaves
+  every `use iris::…` and `use gaia::…` unchanged, matching the existing
+  `moirai-runtime` / `mnemosyne-memory` / `themis-topology` pattern.
 
-  RITK's own lock is clean: `cargo metadata --locked` resolves from outside
-  the Atlas overlay, so RITK will not hit the gaia/leto lockfile failure.
+  A dev-dependency cycle (`ritk-diffusion-scheme` <-> `ritk-nrrd`/`ritk-dicom`,
+  plus `ritk-io`/`ritk-codecs` and `ritk-segmentation`/`ritk-spatial`) had no
+  topological publish order at all; the three edges are now path-only, which
+  cargo omits from the published manifest without changing what tests compile
+  against.
 
-  Release tags `crate-leto-v0.41.0` and `crate-iris-v0.1.0` are created and
-  their publish runs are queued behind account-wide runner saturation; they
-  are the only remaining gate on the upstream half.
+  Verification. A scratch consumer depending on `ritk-io`, `ritk-registration`,
+  `ritk-segmentation`, `ritk-filter`, and `ritk-vtk` from crates.io alone — no
+  Atlas overlay, no git sources, no path dependencies — compiles clean. All 26
+  provider crates re-checked for stale `eunomia ^0.7` / `mnemosyne ^0.6` /
+  `hermes-simd ^0.5` requirements: zero remain. OIDC trusted publishing is
+  proven end to end by `ritk-mif 0.2.1` (run 31654707025): JWT minted, token
+  retrieved from `/api/v1/trusted_publishing/tokens`, crate uploaded, token
+  revoked — no registry token involved. Trusted publishers are registered for
+  all six previously-unregistered RITK crates.
 
-  Acceptance remains: reconcile the package set, then  every package passes `cargo publish --dry-run` in dependency order;
-  repository gates and hosted CI pass; every version is indexed on crates.io;
-  the RITK caller does not pass a registry token and selects the OIDC
-  trusted-publishing path; runtime repository-secret/environment configuration
-  remains externally unverifiable. The shared Atlas workflow's documented
-  optional `CARGO_REGISTRY_TOKEN` fallback is separately governed; and each
-  package version has a matching GitHub Release.
+  Residual: `ritk-mif` and `ritk-vtk` were created with a local token, so a
+  `workflow_dispatch` validate run cannot exercise their publisher — only a
+  real release can. Consumer repositories pinning first-party requirements
+  track their own boards.
 
 - **SAFE-688-01 [patch] - Bound and teach Analyze 7.5 decoding**
   (DONE; owner=Codex; last-update=2026-08-01; scope=
