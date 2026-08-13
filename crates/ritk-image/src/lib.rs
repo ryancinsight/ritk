@@ -4,6 +4,7 @@
 //! tensor backend.
 
 pub mod color;
+pub mod coordinate_map;
 pub mod grid;
 pub mod metadata;
 #[cfg(any(test, feature = "test-helpers"))]
@@ -12,6 +13,7 @@ pub mod transform;
 pub mod types;
 
 pub use color::{ColorVolume, RgbVolume};
+pub use coordinate_map::{CoordinateMap, CurvilinearArray};
 pub use grid::{generate_grid, generate_random_points};
 pub use metadata::ImageMetadata;
 pub use types::Image;

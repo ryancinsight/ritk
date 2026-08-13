@@ -10,6 +10,31 @@
 
 ## [Unreleased] — JPEG 2000 scalar quality control (FEAT-692-01)
 
+### Added
+
+- `ritk_image::CoordinateMap`: an acquisition coordinate map carried on
+  `Image`, so an image's index space need not be Cartesian. `Cartesian` is the
+  default and every existing constructor produces it; `CurvilinearArray`
+  models a convex ultrasound array, whose index space is
+  `(sample along beam, beam number)` and whose map into physical space is
+  polar. Both batch transforms (`index_to_world_native_on`,
+  `world_to_index_native_on`) and both single-point transforms dispatch on it,
+  matching once per call and then running a monomorphic per-point loop. The
+  Cartesian path is bit-identical to before. See atlas ADR 0042.
+
+### Changed
+
+- **Breaking:** `Image::into_parts` now returns
+  `(tensor, origin, spacing, direction, coordinate_map)` rather than a
+  four-tuple. The map is part of an image's identity: a caller that rebuilt an
+  `Image` from the old parts would silently reinterpret beam-space data as a
+  Cartesian raster. Intensity-only filters (`GaussianFilter`,
+  `DiscreteGaussianFilter`, `DiscreteGaussianDerivativeFilter`) carry the map
+  through unchanged. `DownsampleFilter` requires a Cartesian image and now
+  documents that contract: decimation rescales `spacing`, which has no correct
+  analogue in beam space, since the centred-fan convention only survives beam
+  decimation when the factor divides `lateral_count - 1`.
+
 ### Fixed
 
 - Apply DICOM anonymization to nested sequences. `anonymize_object` previously

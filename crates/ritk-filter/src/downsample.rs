@@ -24,8 +24,21 @@ impl<B: Backend> DownsampleFilter<B> {
     }
 
     /// Apply the filter to an image.
+    ///
+    /// # Panics
+    ///
+    /// Panics when the image carries a non-Cartesian coordinate map. Decimation
+    /// rescales `spacing`, which has no correct analogue in beam space: the
+    /// centred-fan convention only survives beam decimation when the factor
+    /// divides `lateral_count - 1`, so silently rescaling the geometry would
+    /// mis-place every beam. Resampling a beam-space image is a scan-conversion
+    /// operation, not a decimation one.
     pub fn apply<const D: usize>(&self, image: &Image<f32, B, D>) -> Image<f32, B, D> {
-        let (data, origin, mut spacing, direction) = image.clone().into_parts();
+        let (data, origin, mut spacing, direction, map) = image.clone().into_parts();
+        assert!(
+            map.is_cartesian(),
+            "DownsampleFilter requires a Cartesian image; got {map:?}"
+        );
         let dims: [usize; D] = data
             .shape()
             .try_into()

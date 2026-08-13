@@ -59,7 +59,7 @@ impl DiscreteGaussianDerivativeFilter {
 
     /// Apply the filter to a 3-D image.
     pub fn apply<B: Backend>(&self, image: &Image<f32, B, 3>) -> Image<f32, B, 3> {
-        let (tensor, origin, spacing, direction) = image.clone().into_parts();
+        let (tensor, origin, spacing, direction, map) = image.clone().into_parts();
         let dims: [usize; 3] = tensor
             .shape()
             .try_into()
@@ -84,8 +84,10 @@ impl DiscreteGaussianDerivativeFilter {
         }
 
         if kernels.iter().all(|k| k.is_none()) {
+            // Intensity-only filter: geometry unchanged, so the map carries through.
             return Image::new(tensor, origin, spacing, direction)
-                .expect("filter preserves the statically validated image rank");
+                .and_then(|image| image.with_coordinate_map(map))
+                .expect("filter preserves the statically validated image rank and map");
         }
 
         let flat = tensor.to_vec();
