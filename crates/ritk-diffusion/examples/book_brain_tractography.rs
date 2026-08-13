@@ -205,15 +205,17 @@ fn main() -> Result<()> {
 
     let centre = slice - first;
     let figure = render(
-        &fa[centre * plane..(centre + 1) * plane],
-        &pev[centre * plane..(centre + 1) * plane],
-        channels,
-        rows,
-        columns,
+        &SlicePanel {
+            fa: &fa[centre * plane..(centre + 1) * plane],
+            pev: &pev[centre * plane..(centre + 1) * plane],
+            channels,
+            rows,
+            columns,
+            slice,
+            depth,
+            peak: brightest,
+        },
         &tracks,
-        slice,
-        depth,
-        brightest,
     )?;
     let out = figure_path();
     std::fs::write(&out, figure).with_context(|| format!("writing {}", out.display()))?;
@@ -379,17 +381,43 @@ fn directional_colour(direction: [f64; 3], weight: f64, channels: [usize; 3]) ->
     format!("#{:02x}{:02x}{:02x}", rgb[0], rgb[1], rgb[2])
 }
 
-fn render(
-    fa: &[f64],
-    pev: &[[f64; 3]],
+/// The one slice a figure draws: its fitted fields, its extent, and where it
+/// sits in the volume.
+///
+/// Bundled rather than passed loose because `rows`, `columns`, `slice`, and
+/// `depth` are all `usize` and a caller transposing any two would render a
+/// plausible-looking figure of the wrong thing.
+struct SlicePanel<'a> {
+    /// Fractional anisotropy over the slice, row-major.
+    fa: &'a [f64],
+    /// Principal eigenvector per voxel, in gradient-component order.
+    pev: &'a [[f64; 3]],
+    /// Gradient component to RGB channel, from [`resolve_colour_channels`].
     channels: [usize; 3],
     rows: usize,
     columns: usize,
-    tracks: &ritk_tractography::TractographyResult,
+    /// Index of this slice, and the volume's extent along the sliced axis.
     slice: usize,
     depth: usize,
+    /// Largest FA in the slice, which sets the brightness range.
     peak: f64,
+}
+
+fn render(
+    panel: &SlicePanel<'_>,
+    tracks: &ritk_tractography::TractographyResult,
 ) -> Result<String> {
+    let &SlicePanel {
+        fa,
+        pev,
+        channels,
+        rows,
+        columns,
+        slice,
+        depth,
+        peak,
+    } = panel;
+
     #[expect(
         clippy::cast_precision_loss,
         reason = "voxel counts are far below f64 exact-integer range"
