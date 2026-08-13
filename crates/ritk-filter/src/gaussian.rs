@@ -93,10 +93,13 @@ impl<B> GaussianFilter<B> {
 impl<B: Backend> GaussianFilter<B> {
     /// Apply the filter to an image.
     pub fn apply<const D: usize>(&self, image: &Image<f32, B, D>) -> Image<f32, B, D> {
-        let (tensor, origin, spacing, direction) = image.clone().into_parts();
+        let (tensor, origin, spacing, direction, map) = image.clone().into_parts();
         let data = self.apply_tensor(tensor, &spacing);
+        // Intensity-only filter: the acquisition geometry is unchanged, so the
+        // coordinate map carries through.
         Image::new(data, origin, spacing, direction)
-            .expect("filter preserves the statically validated image rank")
+            .and_then(|image| image.with_coordinate_map(map))
+            .expect("filter preserves the statically validated image rank and map")
     }
 
     /// Apply the filter to a tensor directly.

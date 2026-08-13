@@ -139,10 +139,13 @@ impl<B: Backend> DiscreteGaussianFilter<B> {
 
     /// Apply the filter; spatial metadata preserved.
     pub fn apply<const D: usize>(&self, image: &Image<f32, B, D>) -> Image<f32, B, D> {
-        let (tensor, origin, spacing, direction) = image.clone().into_parts();
+        let (tensor, origin, spacing, direction, map) = image.clone().into_parts();
         let smoothed = self.apply_inner(tensor, &spacing);
+        // Intensity-only filter: the acquisition geometry is unchanged, so the
+        // coordinate map carries through.
         Image::new(smoothed, origin, spacing, direction)
-            .expect("filter preserves the statically validated image rank")
+            .and_then(|image| image.with_coordinate_map(map))
+            .expect("filter preserves the statically validated image rank and map")
     }
 
     /// Build the per-axis discrete-Gaussian kernels for the given spacing.
