@@ -15,6 +15,7 @@ use coeus_core::{Backend, CpuAddressableStorage, CpuAddressableStorageMut};
 use coeus_nn::{module::Module, Linear};
 use coeus_ops::{BackendOps, CpuBackend};
 use coeus_tensor::Tensor;
+use eunomia::FloatElement;
 
 /// Windowed multi-head self-attention with relative-position bias.
 #[derive(Clone)]
@@ -91,7 +92,7 @@ where
             relative_position_index,
             num_heads,
             head_dim,
-            scale: (head_dim as f64).powf(-0.5) as f32,
+            scale: (head_dim as f64).rsqrt() as f32,
         }
     }
 
