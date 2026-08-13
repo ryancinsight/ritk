@@ -83,7 +83,7 @@ ritk-diffusion-scheme = { path = "crates/ritk-diffusion-scheme", version = "0.2.
 ritk-tractography = { path = "crates/ritk-tractography", version = "0.1.0" }
 ritk-connectome = { path = "crates/ritk-connectome", version = "0.1.0" }
 ritk-trk = { path = "crates/ritk-trk", version = "0.1.0" }
-ritk-mif = { path = "crates/ritk-mif", version = "0.2.0" }
+ritk-mif = { path = "crates/ritk-mif", version = "0.2.1" }
 ritk-tck = { path = "crates/ritk-tck", version = "0.1.0" }
 ritk-trx = { path = "crates/ritk-trx", version = "0.1.0" }
 # The crates.io name `gaia` belongs to an unrelated third-party crate, so the
