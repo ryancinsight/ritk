@@ -108,6 +108,8 @@ fn main() -> Result<()> {
         scheme.len()
     );
 
+    let channels = resolve_colour_channels(series[0].direction())?;
+
     let [depth, rows, columns] = series[0].shape();
     #[expect(
         clippy::cast_possible_truncation,
@@ -204,6 +206,8 @@ fn main() -> Result<()> {
     let centre = slice - first;
     let figure = render(
         &fa[centre * plane..(centre + 1) * plane],
+        &pev[centre * plane..(centre + 1) * plane],
+        channels,
         rows,
         columns,
         &tracks,
@@ -402,7 +406,7 @@ fn render(
     )?;
     writeln!(
         svg,
-        r#"<style>.t{{font:600 15px sans-serif;fill:#172033}}.s{{font:11px sans-serif;fill:#64748b}}.tr{{fill:none;stroke:#f97316;stroke-width:1.1;stroke-opacity:.85}}</style>"#
+        r#"<style>.t{{font:600 15px sans-serif;fill:#172033}}.s{{font:11px sans-serif;fill:#64748b}}</style>"#
     )?;
     writeln!(svg, r##"<rect width="100%" height="100%" fill="#fff"/>"##)?;
 
@@ -420,16 +424,14 @@ fn render(
         // fitted value normalized by the slice peak.
         for row in 0..rows {
             for column in 0..columns {
-                let value = fa[row * columns + column] / peak;
+                let index = row * columns + column;
+                let value = fa[index] / peak;
                 if value <= 0.02 {
                     continue;
                 }
-                #[expect(
-                    clippy::cast_possible_truncation,
-                    clippy::cast_sign_loss,
-                    reason = "value is clamped to [0, 1] by construction above"
-                )]
-                let level = (value.clamp(0.0, 1.0) * 255.0) as u8;
+                // Hue carries orientation, brightness carries anisotropy, so one
+                // panel shows both what is white matter and which way it runs.
+                let fill = directional_colour(pev[index], value, channels);
                 #[expect(
                     clippy::cast_precision_loss,
                     reason = "voxel indices are small integers"
@@ -437,23 +439,34 @@ fn render(
                 let (x, y) = (column as f64 * scale, row as f64 * scale);
                 writeln!(
                     svg,
-                    r##"<rect x="{x:.2}" y="{y:.2}" width="{scale:.2}" height="{scale:.2}" fill="#{level:02x}{level:02x}{level:02x}"/>"##
+                    r#"<rect x="{x:.2}" y="{y:.2}" width="{scale:.2}" height="{scale:.2}" fill="{fill}"/>"#
                 )?;
             }
         }
         if panel > 0.0 {
+            // One coloured segment per step rather than one path per track: a
+            // streamline changes orientation along its length, and a single
+            // stroke colour would average that away.
             for streamline in tracks.streamlines() {
-                let mut path = String::new();
-                for (step, point) in streamline.geometry().points().iter().enumerate() {
-                    let command = if step == 0 { 'M' } else { 'L' };
-                    write!(
-                        path,
-                        "{command}{:.1} {:.1} ",
-                        point.z * scale,
-                        point.y * scale
+                for pair in streamline.geometry().points().windows(2) {
+                    let (a, b) = (pair[0], pair[1]);
+                    let step = [b.x - a.x, b.y - a.y, b.z - a.z];
+                    let length =
+                        (step[0] * step[0] + step[1] * step[1] + step[2] * step[2]).sqrt();
+                    if length <= f64::EPSILON {
+                        continue;
+                    }
+                    let unit = [step[0] / length, step[1] / length, step[2] / length];
+                    writeln!(
+                        svg,
+                        r#"<line x1="{:.1}" y1="{:.1}" x2="{:.1}" y2="{:.1}" stroke="{}" stroke-width="1.2" stroke-opacity=".9"/>"#,
+                        a.z * scale,
+                        a.y * scale,
+                        b.z * scale,
+                        b.y * scale,
+                        directional_colour(unit, 1.0, channels)
                     )?;
                 }
-                writeln!(svg, r#"<path class="tr" d="{}"/>"#, path.trim_end())?;
             }
         }
         writeln!(svg, "</g>")?;
