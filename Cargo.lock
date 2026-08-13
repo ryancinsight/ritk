@@ -2254,7 +2254,7 @@ checksum = "dea2df4cf52843e0452895c455a1a2cfbb842a1e7329671acf418fdc53ed4c59"
 [[package]]
 name = "eunomia"
 version = "0.8.0"
-source = "git+https://github.com/ryancinsight/eunomia#760c9c9ff756de3cc0b5377e8891c651eadf6d66"
+source = "git+https://github.com/ryancinsight/eunomia#1a52590c05cb881a28443703c68d4659a17e4654"
 dependencies = [
  "bytemuck",
  "libm",
