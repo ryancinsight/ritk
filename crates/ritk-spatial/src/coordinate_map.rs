@@ -70,15 +70,17 @@ pub enum InvalidCoordinateMap {
 ///
 /// # Mathematical specification
 ///
-/// With `maxLateral = lateral_count − 1`, for index `(s, b)`:
+/// For index `(s, b)`:
 ///
 /// ```text
 /// r = s · radius_sample_size + first_sample_distance
-/// θ = (b − maxLateral/2) · lateral_angular_separation
+/// θ = b · lateral_angular_separation + first_lateral_angle
 /// ```
 ///
-/// The beams are centered on `θ = 0`, so the fan is symmetric about the axial
-/// axis regardless of beam count. The physical pair is `(r·sin θ, r·cos θ)`,
+/// The fan origin is explicit, so an acquisition whose beams are not symmetric
+/// about the axial axis is representable. ITK centres its fan on boresight;
+/// that is the special case `first_lateral_angle = −(n−1)/2 · Δ`, which
+/// [`CurvilinearArray::centred`] constructs. The physical pair is `(r·sin θ, r·cos θ)`,
 /// placed on the two innermost spatial axes. Index columns are innermost-first
 /// (column `c` is spatial axis `D-1-c`) and physical points are axis-major,
 /// matching the batch transforms in `ritk-image`; any further axes use the
@@ -88,6 +90,7 @@ pub struct CurvilinearArray {
     radius_sample_size: f64,
     first_sample_distance: f64,
     lateral_angular_separation: f64,
+    first_lateral_angle: f64,
 }
 
 impl CurvilinearArray {
@@ -108,10 +111,12 @@ impl CurvilinearArray {
         radius_sample_size: f64,
         first_sample_distance: f64,
         lateral_angular_separation: f64,
+        first_lateral_angle: f64,
     ) -> Result<Self, InvalidCoordinateMap> {
         finite("radius_sample_size", radius_sample_size)?;
         finite("first_sample_distance", first_sample_distance)?;
         finite("lateral_angular_separation", lateral_angular_separation)?;
+        finite("first_lateral_angle", first_lateral_angle)?;
         positive("radius_sample_size", radius_sample_size)?;
         positive("lateral_angular_separation", lateral_angular_separation)?;
         non_negative("first_sample_distance", first_sample_distance)?;
@@ -119,7 +124,33 @@ impl CurvilinearArray {
             radius_sample_size,
             first_sample_distance,
             lateral_angular_separation,
+            first_lateral_angle,
         })
+    }
+
+    /// Construct a fan centred on the axial axis, ITK's convention.
+    ///
+    /// Equivalent to [`Self::try_new`] with
+    /// `first_lateral_angle = -(lateral_count - 1)/2 · lateral_angular_separation`.
+    /// Provided because the centred fan is the common case and because it is the
+    /// parameterization `itkCurvilinearArraySpecialCoordinatesImage.h` uses.
+    ///
+    /// # Errors
+    ///
+    /// As [`Self::try_new`].
+    pub fn centred(
+        radius_sample_size: f64,
+        first_sample_distance: f64,
+        lateral_angular_separation: f64,
+        lateral_count: usize,
+    ) -> Result<Self, InvalidCoordinateMap> {
+        let max_lateral = lateral_count.saturating_sub(1) as f64;
+        Self::try_new(
+            radius_sample_size,
+            first_sample_distance,
+            lateral_angular_separation,
+            -max_lateral / 2.0 * lateral_angular_separation,
+        )
     }
 
     /// Range increment per sample along a beam.
@@ -143,15 +174,19 @@ impl CurvilinearArray {
         self.lateral_angular_separation
     }
 
-    /// Polar `(radius, angle)` for a `(sample, beam)` index pair.
-    ///
-    /// `lateral_count` is the number of beams, which centers the fan.
+    /// Angle of beam zero, in radians. Zero is the axial axis.
     #[inline]
     #[must_use]
-    pub fn polar_from_index(&self, sample: f64, beam: f64, lateral_count: usize) -> (f64, f64) {
-        let max_lateral = lateral_count.saturating_sub(1) as f64;
+    pub fn first_lateral_angle(&self) -> f64 {
+        self.first_lateral_angle
+    }
+
+    /// Polar `(radius, angle)` for a `(sample, beam)` index pair.
+    #[inline]
+    #[must_use]
+    pub fn polar_from_index(&self, sample: f64, beam: f64) -> (f64, f64) {
         let radius = sample.mul_add(self.radius_sample_size, self.first_sample_distance);
-        let angle = (beam - max_lateral / 2.0) * self.lateral_angular_separation;
+        let angle = beam.mul_add(self.lateral_angular_separation, self.first_lateral_angle);
         (radius, angle)
     }
 
@@ -163,22 +198,16 @@ impl CurvilinearArray {
     /// producing an index that silently denotes the wrong beam.
     #[inline]
     #[must_use]
-    pub fn index_from_cartesian(
-        &self,
-        lateral: f64,
-        axial: f64,
-        lateral_count: usize,
-    ) -> Option<(f64, f64)> {
+    pub fn index_from_cartesian(&self, lateral: f64, axial: f64) -> Option<(f64, f64)> {
         // Non-finite is rejected explicitly: `axial <= 0.0` alone is false for
         // NaN, so a NaN would otherwise pass into the polar inverse.
         if !axial.is_finite() || !lateral.is_finite() || axial <= 0.0 {
             return None;
         }
-        let max_lateral = lateral_count.saturating_sub(1) as f64;
         let radius = lateral.hypot(axial);
         let angle = (lateral / axial).atan();
         let sample = (radius - self.first_sample_distance) / self.radius_sample_size;
-        let beam = angle / self.lateral_angular_separation + max_lateral / 2.0;
+        let beam = (angle - self.first_lateral_angle) / self.lateral_angular_separation;
         Some((sample, beam))
     }
 }
@@ -191,12 +220,11 @@ impl CurvilinearArray {
 ///
 /// # Mathematical specification
 ///
-/// With `maxAz = azimuth_count − 1` and `maxEl = elevation_count − 1`, for
-/// index `(a, e, s)`:
+/// For index `(a, e, s)`:
 ///
 /// ```text
-/// azimuth   = (a − maxAz/2) · azimuth_angular_separation
-/// elevation = (e − maxEl/2) · elevation_angular_separation
+/// azimuth   = a · azimuth_angular_separation + first_azimuth_angle
+/// elevation = e · elevation_angular_separation + first_elevation_angle
 /// r         = s · radius_sample_size + first_sample_distance
 ///
 /// depth = r / √(1 + tan²azimuth + tan²elevation)
@@ -206,13 +234,17 @@ impl CurvilinearArray {
 ///
 /// Note this is *not* a spherical polar map: `azimuth` and `elevation` are
 /// independent tangent steering angles, so the depth term carries both
-/// tangents. Beams are centred on the boresight in both angles.
+/// tangents. Both angular origins are explicit, as for
+/// [`CurvilinearArray`]; [`PhasedArray3D::centred`] builds ITK's
+/// boresight-centred volume.
 #[derive(Clone, Copy, Debug, PartialEq)]
 pub struct PhasedArray3D {
     radius_sample_size: f64,
     first_sample_distance: f64,
     azimuth_angular_separation: f64,
     elevation_angular_separation: f64,
+    first_azimuth_angle: f64,
+    first_elevation_angle: f64,
 }
 
 impl PhasedArray3D {
@@ -223,16 +255,21 @@ impl PhasedArray3D {
     /// Returns an error when any parameter is non-finite, when
     /// `radius_sample_size` or either angular separation is not strictly
     /// positive, or when `first_sample_distance` is negative.
+    #[allow(clippy::too_many_arguments)]
     pub fn try_new(
         radius_sample_size: f64,
         first_sample_distance: f64,
         azimuth_angular_separation: f64,
         elevation_angular_separation: f64,
+        first_azimuth_angle: f64,
+        first_elevation_angle: f64,
     ) -> Result<Self, InvalidCoordinateMap> {
         finite("radius_sample_size", radius_sample_size)?;
         finite("first_sample_distance", first_sample_distance)?;
         finite("azimuth_angular_separation", azimuth_angular_separation)?;
         finite("elevation_angular_separation", elevation_angular_separation)?;
+        finite("first_azimuth_angle", first_azimuth_angle)?;
+        finite("first_elevation_angle", first_elevation_angle)?;
         positive("radius_sample_size", radius_sample_size)?;
         positive("azimuth_angular_separation", azimuth_angular_separation)?;
         positive("elevation_angular_separation", elevation_angular_separation)?;
@@ -242,7 +279,35 @@ impl PhasedArray3D {
             first_sample_distance,
             azimuth_angular_separation,
             elevation_angular_separation,
+            first_azimuth_angle,
+            first_elevation_angle,
         })
+    }
+
+    /// Construct a volume centred on the boresight in both angles, ITK's
+    /// convention (`itkPhasedArray3DSpecialCoordinatesImage.h`).
+    ///
+    /// # Errors
+    ///
+    /// As [`Self::try_new`].
+    pub fn centred(
+        radius_sample_size: f64,
+        first_sample_distance: f64,
+        azimuth_angular_separation: f64,
+        elevation_angular_separation: f64,
+        azimuth_count: usize,
+        elevation_count: usize,
+    ) -> Result<Self, InvalidCoordinateMap> {
+        let max_azimuth = azimuth_count.saturating_sub(1) as f64;
+        let max_elevation = elevation_count.saturating_sub(1) as f64;
+        Self::try_new(
+            radius_sample_size,
+            first_sample_distance,
+            azimuth_angular_separation,
+            elevation_angular_separation,
+            -max_azimuth / 2.0 * azimuth_angular_separation,
+            -max_elevation / 2.0 * elevation_angular_separation,
+        )
     }
 
     /// Range increment per sample along a ray.
@@ -273,6 +338,20 @@ impl PhasedArray3D {
         self.elevation_angular_separation
     }
 
+    /// Angle of azimuth beam zero, in radians. Zero is the boresight.
+    #[inline]
+    #[must_use]
+    pub fn first_azimuth_angle(&self) -> f64 {
+        self.first_azimuth_angle
+    }
+
+    /// Angle of elevation beam zero, in radians. Zero is the boresight.
+    #[inline]
+    #[must_use]
+    pub fn first_elevation_angle(&self) -> f64 {
+        self.first_elevation_angle
+    }
+
     /// Cartesian `(azimuth_axis, elevation_axis, depth)` for an index triple.
     ///
     /// Returns `None` when either steering angle reaches or passes a quarter
@@ -290,13 +369,13 @@ impl PhasedArray3D {
         azimuth_index: f64,
         elevation_index: f64,
         sample: f64,
-        azimuth_count: usize,
-        elevation_count: usize,
     ) -> Option<(f64, f64, f64)> {
-        let max_azimuth = azimuth_count.saturating_sub(1) as f64;
-        let max_elevation = elevation_count.saturating_sub(1) as f64;
-        let azimuth = (azimuth_index - max_azimuth / 2.0) * self.azimuth_angular_separation;
-        let elevation = (elevation_index - max_elevation / 2.0) * self.elevation_angular_separation;
+        let azimuth =
+            azimuth_index.mul_add(self.azimuth_angular_separation, self.first_azimuth_angle);
+        let elevation = elevation_index.mul_add(
+            self.elevation_angular_separation,
+            self.first_elevation_angle,
+        );
         let radius = sample.mul_add(self.radius_sample_size, self.first_sample_distance);
 
         if !azimuth.is_finite()
@@ -329,8 +408,6 @@ impl PhasedArray3D {
         azimuth_axis: f64,
         elevation_axis: f64,
         depth: f64,
-        azimuth_count: usize,
-        elevation_count: usize,
     ) -> Option<(f64, f64, f64)> {
         if !azimuth_axis.is_finite()
             || !elevation_axis.is_finite()
@@ -339,17 +416,14 @@ impl PhasedArray3D {
         {
             return None;
         }
-        let max_azimuth = azimuth_count.saturating_sub(1) as f64;
-        let max_elevation = elevation_count.saturating_sub(1) as f64;
-
         let azimuth = (azimuth_axis / depth).atan();
         let elevation = (elevation_axis / depth).atan();
         let radius =
             (azimuth_axis * azimuth_axis + elevation_axis * elevation_axis + depth * depth).sqrt();
 
         Some((
-            azimuth / self.azimuth_angular_separation + max_azimuth / 2.0,
-            elevation / self.elevation_angular_separation + max_elevation / 2.0,
+            (azimuth - self.first_azimuth_angle) / self.azimuth_angular_separation,
+            (elevation - self.first_elevation_angle) / self.elevation_angular_separation,
             (radius - self.first_sample_distance) / self.radius_sample_size,
         ))
     }
@@ -433,32 +507,31 @@ mod tests {
 
     fn geometry() -> CurvilinearArray {
         // 0.1 mm range sampling, 60 mm apex offset, 0.5 degree beam pitch.
-        CurvilinearArray::try_new(1.0e-4, 0.06, 0.5_f64.to_radians()).expect("valid geometry")
+        CurvilinearArray::centred(1.0e-4, 0.06, 0.5_f64.to_radians(), 129).expect("valid geometry")
     }
 
     #[test]
     fn rejects_non_positive_and_non_finite_parameters() {
-        assert!(CurvilinearArray::try_new(0.0, 0.06, 0.01).is_err());
-        assert!(CurvilinearArray::try_new(-1.0e-4, 0.06, 0.01).is_err());
-        assert!(CurvilinearArray::try_new(1.0e-4, -0.01, 0.01).is_err());
-        assert!(CurvilinearArray::try_new(1.0e-4, 0.06, 0.0).is_err());
-        assert!(CurvilinearArray::try_new(f64::NAN, 0.06, 0.01).is_err());
-        assert!(CurvilinearArray::try_new(1.0e-4, f64::INFINITY, 0.01).is_err());
+        assert!(CurvilinearArray::try_new(0.0, 0.06, 0.01, 0.0).is_err());
+        assert!(CurvilinearArray::try_new(-1.0e-4, 0.06, 0.01, 0.0).is_err());
+        assert!(CurvilinearArray::try_new(1.0e-4, -0.01, 0.01, 0.0).is_err());
+        assert!(CurvilinearArray::try_new(1.0e-4, 0.06, 0.0, 0.0).is_err());
+        assert!(CurvilinearArray::try_new(f64::NAN, 0.06, 0.01, 0.0).is_err());
+        assert!(CurvilinearArray::try_new(1.0e-4, f64::INFINITY, 0.01, 0.0).is_err());
     }
 
     #[test]
     fn fan_is_centred_on_the_axial_axis() {
         let g = geometry();
-        let lateral_count = 129;
         // The middle beam of an odd-count fan sits exactly on theta = 0.
-        let (_, angle) = g.polar_from_index(0.0, 64.0, lateral_count);
+        let (_, angle) = g.polar_from_index(0.0, 64.0);
         assert!(
             angle.abs() < 1.0e-15,
             "centre beam must be axial, got {angle}"
         );
         // Outermost beams are symmetric about it.
-        let (_, first) = g.polar_from_index(0.0, 0.0, lateral_count);
-        let (_, last) = g.polar_from_index(0.0, 128.0, lateral_count);
+        let (_, first) = g.polar_from_index(0.0, 0.0);
+        let (_, last) = g.polar_from_index(0.0, 128.0);
         assert!(
             (first + last).abs() < 1.0e-15,
             "fan must be symmetric: {first} vs {last}"
@@ -468,9 +541,9 @@ mod tests {
     #[test]
     fn radius_starts_at_the_apex_offset() {
         let g = geometry();
-        let (radius, _) = g.polar_from_index(0.0, 0.0, 65);
+        let (radius, _) = g.polar_from_index(0.0, 0.0);
         assert!((radius - 0.06).abs() < 1.0e-15, "got {radius}");
-        let (radius, _) = g.polar_from_index(100.0, 0.0, 65);
+        let (radius, _) = g.polar_from_index(100.0, 0.0);
         assert!(
             (radius - (0.06 + 100.0 * 1.0e-4)).abs() < 1.0e-15,
             "got {radius}"
@@ -488,15 +561,14 @@ mod tests {
     #[test]
     fn index_round_trips_through_cartesian_over_the_fan() {
         let g = geometry();
-        let lateral_count = 129;
-        for beam_i in 0..lateral_count {
+        for beam_i in 0..129 {
             for sample_i in [0_usize, 1, 37, 128, 199] {
                 let sample = sample_i as f64;
                 let beam = beam_i as f64;
-                let (radius, angle) = g.polar_from_index(sample, beam, lateral_count);
+                let (radius, angle) = g.polar_from_index(sample, beam);
                 let (lateral, axial) = (radius * angle.sin(), radius * angle.cos());
                 let (s, b) = g
-                    .index_from_cartesian(lateral, axial, lateral_count)
+                    .index_from_cartesian(lateral, axial)
                     .expect("fan point must invert");
                 assert!(
                     (s - sample).abs() < 1.0e-9,
@@ -507,28 +579,82 @@ mod tests {
         }
     }
 
+    /// The fan origin is explicit, so an acquisition whose beams are not
+    /// symmetric about the axial axis round-trips exactly.
+    ///
+    /// This is what the ITK-inherited centred convention could not express, and
+    /// it is the geometry kwavers' `ScanGeometry::angle_min` already supports.
+    #[test]
+    fn asymmetric_fan_round_trips() {
+        // Beams run from +5 deg to +25 deg: entirely off-axis, no symmetry.
+        let g = CurvilinearArray::try_new(1.0e-4, 0.06, 0.5_f64.to_radians(), 5.0_f64.to_radians())
+            .expect("valid geometry");
+        for beam_i in 0..41 {
+            for sample_i in [0_usize, 63, 250] {
+                let (sample, beam) = (sample_i as f64, beam_i as f64);
+                let (radius, angle) = g.polar_from_index(sample, beam);
+                assert!(
+                    angle > 0.0,
+                    "every beam of this fan is off-axis, got {angle}"
+                );
+                let (lateral, axial) = (radius * angle.sin(), radius * angle.cos());
+                let (s, b) = g
+                    .index_from_cartesian(lateral, axial)
+                    .expect("fan point must invert");
+                assert!((s - sample).abs() < 1.0e-9, "sample {sample} -> {s}");
+                assert!((b - beam).abs() < 1.0e-9, "beam {beam} -> {b}");
+            }
+        }
+    }
+
+    /// `centred` must reproduce ITK's convention exactly, so the generalization
+    /// loses nothing: beam zero sits at `-(n-1)/2 · Delta`.
+    #[test]
+    fn centred_matches_the_itk_convention() {
+        let separation = 0.5_f64.to_radians();
+        let g = CurvilinearArray::centred(1.0e-4, 0.06, separation, 129).expect("valid geometry");
+        assert!((g.first_lateral_angle() - (-64.0 * separation)).abs() < 1.0e-15);
+        let (_, centre) = g.polar_from_index(0.0, 64.0);
+        assert!(
+            centre.abs() < 1.0e-15,
+            "centre beam must be axial, got {centre}"
+        );
+
+        let p = PhasedArray3D::centred(1.0e-4, 0.01, separation, separation, 65, 33)
+            .expect("valid geometry");
+        assert!((p.first_azimuth_angle() - (-32.0 * separation)).abs() < 1.0e-15);
+        assert!((p.first_elevation_angle() - (-16.0 * separation)).abs() < 1.0e-15);
+    }
+
     #[test]
     fn points_behind_the_apex_plane_are_rejected() {
         let g = geometry();
-        assert!(g.index_from_cartesian(0.01, 0.0, 65).is_none());
-        assert!(g.index_from_cartesian(0.01, -0.05, 65).is_none());
-        assert!(g.index_from_cartesian(0.0, 0.07, 65).is_some());
+        assert!(g.index_from_cartesian(0.01, 0.0).is_none());
+        assert!(g.index_from_cartesian(0.01, -0.05).is_none());
+        assert!(g.index_from_cartesian(0.0, 0.07).is_some());
     }
 
     fn phased_geometry() -> PhasedArray3D {
         // 0.1 mm range sampling, 10 mm apex offset, 0.75 deg azimuth / 1.5 deg
         // elevation beam pitch.
-        PhasedArray3D::try_new(1.0e-4, 0.01, 0.75_f64.to_radians(), 1.5_f64.to_radians())
-            .expect("valid geometry")
+        PhasedArray3D::centred(
+            1.0e-4,
+            0.01,
+            0.75_f64.to_radians(),
+            1.5_f64.to_radians(),
+            65,
+            33,
+        )
+        .expect("valid geometry")
     }
 
     #[test]
     fn phased_array_rejects_invalid_parameters() {
-        assert!(PhasedArray3D::try_new(0.0, 0.01, 0.01, 0.01).is_err());
-        assert!(PhasedArray3D::try_new(1.0e-4, -0.01, 0.01, 0.01).is_err());
-        assert!(PhasedArray3D::try_new(1.0e-4, 0.01, 0.0, 0.01).is_err());
-        assert!(PhasedArray3D::try_new(1.0e-4, 0.01, 0.01, 0.0).is_err());
-        assert!(PhasedArray3D::try_new(f64::NAN, 0.01, 0.01, 0.01).is_err());
+        assert!(PhasedArray3D::try_new(0.0, 0.01, 0.01, 0.01, 0.0, 0.0).is_err());
+        assert!(PhasedArray3D::try_new(1.0e-4, -0.01, 0.01, 0.01, 0.0, 0.0).is_err());
+        assert!(PhasedArray3D::try_new(1.0e-4, 0.01, 0.0, 0.01, 0.0, 0.0).is_err());
+        assert!(PhasedArray3D::try_new(1.0e-4, 0.01, 0.01, 0.0, 0.0, 0.0).is_err());
+        assert!(PhasedArray3D::try_new(f64::NAN, 0.01, 0.01, 0.01, 0.0, 0.0).is_err());
     }
 
     /// The boresight ray (centre azimuth and elevation beams) must run straight
@@ -538,7 +664,7 @@ mod tests {
     fn phased_array_boresight_is_pure_depth() {
         let g = phased_geometry();
         let (az, el, depth) = g
-            .cartesian_from_index(32.0, 16.0, 100.0, 65, 33)
+            .cartesian_from_index(32.0, 16.0, 100.0)
             .expect("boresight is representable");
         assert!(az.abs() < 1.0e-15, "azimuth offset {az}");
         assert!(el.abs() < 1.0e-15, "elevation offset {el}");
@@ -550,9 +676,8 @@ mod tests {
     #[test]
     fn phased_array_steering_is_symmetric_per_angle() {
         let g = phased_geometry();
-        let (az_left, el_left, d_left) = g.cartesian_from_index(0.0, 16.0, 100.0, 65, 33).unwrap();
-        let (az_right, el_right, d_right) =
-            g.cartesian_from_index(64.0, 16.0, 100.0, 65, 33).unwrap();
+        let (az_left, el_left, d_left) = g.cartesian_from_index(0.0, 16.0, 100.0).unwrap();
+        let (az_right, el_right, d_right) = g.cartesian_from_index(64.0, 16.0, 100.0).unwrap();
         assert!((az_left + az_right).abs() < 1.0e-15, "azimuth must mirror");
         assert!((d_left - d_right).abs() < 1.0e-15, "depth must match");
         // Steering azimuth alone leaves elevation on boresight.
@@ -568,15 +693,14 @@ mod tests {
     #[test]
     fn phased_array_index_round_trips() {
         let g = phased_geometry();
-        let (az_count, el_count) = (65_usize, 33_usize);
         for &a in &[0.0_f64, 1.0, 32.0, 47.5, 64.0] {
             for &e in &[0.0_f64, 8.0, 16.0, 32.0] {
                 for &sample in &[0.0_f64, 25.0, 199.0] {
                     let (x, y, z) = g
-                        .cartesian_from_index(a, e, sample, az_count, el_count)
+                        .cartesian_from_index(a, e, sample)
                         .expect("steered ray is representable");
                     let (a2, e2, s2) = g
-                        .index_from_cartesian(x, y, z, az_count, el_count)
+                        .index_from_cartesian(x, y, z)
                         .expect("forward point must invert");
                     assert!((a2 - a).abs() < 1.0e-9, "azimuth {a} -> {a2}");
                     assert!((e2 - e).abs() < 1.0e-9, "elevation {e} -> {e2}");
@@ -589,14 +713,10 @@ mod tests {
     #[test]
     fn phased_array_rejects_points_behind_the_array() {
         let g = phased_geometry();
-        assert!(g.index_from_cartesian(0.001, 0.001, 0.0, 65, 33).is_none());
-        assert!(g
-            .index_from_cartesian(0.001, 0.001, -0.02, 65, 33)
-            .is_none());
-        assert!(g
-            .index_from_cartesian(f64::NAN, 0.001, 0.02, 65, 33)
-            .is_none());
-        assert!(g.index_from_cartesian(0.001, 0.001, 0.02, 65, 33).is_some());
+        assert!(g.index_from_cartesian(0.001, 0.001, 0.0).is_none());
+        assert!(g.index_from_cartesian(0.001, 0.001, -0.02).is_none());
+        assert!(g.index_from_cartesian(f64::NAN, 0.001, 0.02).is_none());
+        assert!(g.index_from_cartesian(0.001, 0.001, 0.02).is_some());
     }
 
     /// A steering angle at or past a quarter turn leaves the forward half-space
@@ -610,20 +730,20 @@ mod tests {
     fn phased_array_rejects_degenerate_steering() {
         // 90 degrees per beam: 3 beams centre on index 1, so index 2 is exactly
         // +pi/2 and index 3 is past it (where tan turns negative).
-        let g = PhasedArray3D::try_new(1.0e-4, 0.01, std::f64::consts::FRAC_PI_2, 0.01)
+        let g = PhasedArray3D::centred(1.0e-4, 0.01, std::f64::consts::FRAC_PI_2, 0.01, 3, 1)
             .expect("valid geometry");
         assert!(
-            g.cartesian_from_index(2.0, 0.0, 10.0, 3, 1).is_none(),
+            g.cartesian_from_index(2.0, 0.0, 10.0).is_none(),
             "a quarter-turn steer must be rejected"
         );
         assert!(
-            g.cartesian_from_index(3.0, 0.0, 10.0, 3, 1).is_none(),
+            g.cartesian_from_index(3.0, 0.0, 10.0).is_none(),
             "steering past a quarter turn must be rejected, not sign-flipped"
         );
         // Just inside the limit remains representable.
-        let g = PhasedArray3D::try_new(1.0e-4, 0.01, 89.0_f64.to_radians(), 0.01)
+        let g = PhasedArray3D::centred(1.0e-4, 0.01, 89.0_f64.to_radians(), 0.01, 3, 1)
             .expect("valid geometry");
-        assert!(g.cartesian_from_index(2.0, 0.0, 10.0, 3, 1).is_some());
+        assert!(g.cartesian_from_index(2.0, 0.0, 10.0).is_some());
     }
 
     #[test]

@@ -223,9 +223,8 @@ where
     /// which this single-point form reports as an error instead).
     pub fn physical_point_to_continuous_index(&self, point: &Point<D>) -> anyhow::Result<Point<D>> {
         if let CoordinateMap::CurvilinearArray(geometry) = self.map {
-            let lateral_count = self.shape()[D - 2];
             let (sample, beam) = geometry
-                .index_from_cartesian(point[D - 1], point[D - 2], lateral_count)
+                .index_from_cartesian(point[D - 1], point[D - 2])
                 .ok_or_else(|| {
                     anyhow!(
                         "physical point ({}, {}) lies outside the curvilinear acquisition",
@@ -239,15 +238,8 @@ where
             return Ok(index);
         }
         if let CoordinateMap::PhasedArray3D(geometry) = self.map {
-            let shape = self.shape();
             let (azimuth_index, elevation_index, sample) = geometry
-                .index_from_cartesian(
-                    point[D - 1],
-                    point[D - 2],
-                    point[D - 3],
-                    shape[D - 1],
-                    shape[D - 2],
-                )
+                .index_from_cartesian(point[D - 1], point[D - 2], point[D - 3])
                 .ok_or_else(|| {
                     anyhow!(
                         "physical point ({}, {}, {}) lies outside the phased-array acquisition",
@@ -283,24 +275,17 @@ where
     #[must_use]
     pub fn continuous_index_to_physical_point(&self, index: &Point<D>) -> Point<D> {
         if let CoordinateMap::CurvilinearArray(geometry) = self.map {
-            let lateral_count = self.shape()[D - 2];
-            let (radius, angle) =
-                geometry.polar_from_index(index[D - 1], index[D - 2], lateral_count);
+            let (radius, angle) = geometry.polar_from_index(index[D - 1], index[D - 2]);
             let mut point = Point::origin();
             point[D - 1] = radius * angle.sin();
             point[D - 2] = radius * angle.cos();
             return point;
         }
         if let CoordinateMap::PhasedArray3D(geometry) = self.map {
-            let shape = self.shape();
             let mut point = Point::origin();
-            if let Some((azimuth_axis, elevation_axis, depth)) = geometry.cartesian_from_index(
-                index[D - 1],
-                index[D - 2],
-                index[D - 3],
-                shape[D - 1],
-                shape[D - 2],
-            ) {
+            if let Some((azimuth_axis, elevation_axis, depth)) =
+                geometry.cartesian_from_index(index[D - 1], index[D - 2], index[D - 3])
+            {
                 point[D - 1] = azimuth_axis;
                 point[D - 2] = elevation_axis;
                 point[D - 3] = depth;
@@ -697,8 +682,6 @@ where
         n: usize,
         backend: &B,
     ) -> Tensor<T, B> {
-        let lateral_count = self.shape()[D - 2];
-
         // Affine rows for the outer axes, hoisted exactly as the Cartesian arm.
         let mut m = [[T::zero(); D]; D];
         for (r, row) in m.iter_mut().enumerate() {
@@ -712,11 +695,8 @@ where
         let src = indices.as_slice();
         let mut out = vec![T::zero(); n * D];
         for (idx, o) in src.chunks_exact(D).zip(out.chunks_exact_mut(D)) {
-            let (radius, angle) = geometry.polar_from_index(
-                Scalar::to_f64(idx[0]),
-                Scalar::to_f64(idx[1]),
-                lateral_count,
-            );
+            let (radius, angle) =
+                geometry.polar_from_index(Scalar::to_f64(idx[0]), Scalar::to_f64(idx[1]));
             o[D - 1] = T::from_f64(radius * angle.sin());
             o[D - 2] = T::from_f64(radius * angle.cos());
             for c in 0..D - 2 {
@@ -747,8 +727,6 @@ where
         n: usize,
         backend: &B,
     ) -> Tensor<T, B> {
-        let lateral_count = self.shape()[D - 2];
-
         let inv_dir = self
             .direction()
             .try_inverse()
@@ -767,7 +745,7 @@ where
         for (p, o) in src.chunks_exact(D).zip(out.chunks_exact_mut(D)) {
             let lateral = Scalar::to_f64(p[D - 1]);
             let axial = Scalar::to_f64(p[D - 2]);
-            match geometry.index_from_cartesian(lateral, axial, lateral_count) {
+            match geometry.index_from_cartesian(lateral, axial) {
                 Some((sample, beam)) => {
                     o[0] = T::from_f64(sample);
                     o[1] = T::from_f64(beam);
@@ -806,9 +784,6 @@ where
         n: usize,
         backend: &B,
     ) -> Tensor<T, B> {
-        let shape = self.shape();
-        let (azimuth_count, elevation_count) = (shape[D - 1], shape[D - 2]);
-
         let src = indices.as_slice();
         let mut out = vec![T::zero(); n * D];
         for (idx, o) in src.chunks_exact(D).zip(out.chunks_exact_mut(D)) {
@@ -816,8 +791,6 @@ where
                 Scalar::to_f64(idx[0]),
                 Scalar::to_f64(idx[1]),
                 Scalar::to_f64(idx[2]),
-                azimuth_count,
-                elevation_count,
             ) {
                 Some((azimuth_axis, elevation_axis, depth)) => {
                     o[D - 1] = T::from_f64(azimuth_axis);
@@ -847,9 +820,6 @@ where
         n: usize,
         backend: &B,
     ) -> Tensor<T, B> {
-        let shape = self.shape();
-        let (azimuth_count, elevation_count) = (shape[D - 1], shape[D - 2]);
-
         let src = points.as_slice();
         let mut out = vec![T::zero(); n * D];
         for (p, o) in src.chunks_exact(D).zip(out.chunks_exact_mut(D)) {
@@ -857,8 +827,6 @@ where
                 Scalar::to_f64(p[D - 1]),
                 Scalar::to_f64(p[D - 2]),
                 Scalar::to_f64(p[D - 3]),
-                azimuth_count,
-                elevation_count,
             ) {
                 Some((azimuth_index, elevation_index, sample)) => {
                     o[0] = T::from_f64(azimuth_index);
@@ -1247,8 +1215,9 @@ mod tests {
     fn curvilinear_image() -> TensorImage<2> {
         // 64 samples along each of 33 beams: shape is [beam, sample] so that the
         // innermost axis (index column 0) is the sample along a beam.
-        let geometry = ritk_spatial::CurvilinearArray::try_new(1.0e-4, 0.06, 0.5_f64.to_radians())
-            .expect("valid geometry");
+        let geometry =
+            ritk_spatial::CurvilinearArray::centred(1.0e-4, 0.06, 0.5_f64.to_radians(), 33)
+                .expect("valid geometry");
         Image::from_flat(
             vec![0.0_f32; 33 * 64],
             [33, 64],
@@ -1346,11 +1315,13 @@ mod tests {
     fn phased_array_image() -> TensorImage<3> {
         // shape [sample, elevation, azimuth]: innermost axis (index column 0)
         // is the azimuth beam, matching the geometry's column contract.
-        let geometry = ritk_spatial::PhasedArray3D::try_new(
+        let geometry = ritk_spatial::PhasedArray3D::centred(
             1.0e-4,
             0.01,
             0.75_f64.to_radians(),
             1.5_f64.to_radians(),
+            9,
+            5,
         )
         .expect("valid geometry");
         Image::from_flat(
@@ -1442,11 +1413,13 @@ mod tests {
 
     #[test]
     fn phased_array_map_is_rejected_outside_three_dimensions() {
-        let geometry = ritk_spatial::PhasedArray3D::try_new(
+        let geometry = ritk_spatial::PhasedArray3D::centred(
             1.0e-4,
             0.01,
             0.75_f64.to_radians(),
             1.5_f64.to_radians(),
+            9,
+            5,
         )
         .expect("valid geometry");
         let img = dummy_image::<f64, 2>(
@@ -1461,8 +1434,9 @@ mod tests {
 
     #[test]
     fn curvilinear_map_is_rejected_on_a_one_dimensional_image() {
-        let geometry = ritk_spatial::CurvilinearArray::try_new(1.0e-4, 0.06, 0.5_f64.to_radians())
-            .expect("valid geometry");
+        let geometry =
+            ritk_spatial::CurvilinearArray::centred(1.0e-4, 0.06, 0.5_f64.to_radians(), 33)
+                .expect("valid geometry");
         let img = dummy_image::<f64, 1>(
             Point::new([0.0]),
             Spacing::new([1.0]),

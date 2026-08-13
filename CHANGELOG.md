@@ -12,6 +12,16 @@
 
 ### Added
 
+- **Breaking:** the curvilinear and phased-array geometries now carry their
+  angular origin explicitly (`first_lateral_angle`; `first_azimuth_angle` and
+  `first_elevation_angle`) instead of inheriting ITK's centre-on-boresight
+  convention, which could only express a fan symmetric about the axial axis.
+  New `CurvilinearArray::centred` / `PhasedArray3D::centred` constructors build
+  ITK's convention as the `-(n-1)/2 · Δ` special case, so nothing is lost. The
+  element-count arguments are gone from `polar_from_index`,
+  `cartesian_from_index` and `index_from_cartesian` — the count existed only to
+  recover the implied centring, so the geometry no longer depends on image
+  shape.
 - **Breaking:** `CoordinateMap`, `CurvilinearArray` and `PhasedArray3D` now live
   in `ritk-spatial` alongside the rest of the spatial vocabulary, and their
   validation returns a typed `InvalidCoordinateMap` instead of `anyhow::Error`.
