@@ -1,5 +1,12 @@
 # RITK Implementation Summary
 
+> **Historical record.** The "Completed Work" section below logs the original
+> build-out of RITK. Its file paths predate the split of the monolithic
+> `ritk-core` into `ritk-spatial`, `ritk-image`, `ritk-transform`,
+> `ritk-interpolation`, and the other workspace crates, so the paths and module
+> trees it cites no longer resolve. The README crate table is the current
+> architecture reference.
+
 ## Completed Work
 
 ### 1. Deep Vertical Hierarchical File Tree
@@ -81,25 +88,23 @@ All types use domain-level naming without namespace bleeding:
 - `Transform<B, D>` - Clear, domain-specific name
 - `Interpolator<B>` - Clear, domain-specific name
 
-No implementation details in type names (e.g., no `NalgebraPoint`, `BurnTensor`).
+No provider names in type names (e.g., no `LetoPoint`, `CoeusTensor`).
 
-### 4. No Excess Wrappers
+### 4. Transparent Newtypes Over Provider Primitives
 
-All types use direct type aliases to underlying libraries:
+Spatial types are single-field newtypes over Leto's stack-backed primitives
+(`crates/ritk-spatial/`):
 
 ```rust
-// Direct type aliases - no wrappers
-pub type Point<const D: usize> = NaPoint<f64, D>;
-pub type Vector<const D: usize> = SVector<f64, D>;
-pub type Spacing<const D: usize> = Vector<D>;
-pub type Direction<const D: usize> = SMatrix<f64, D, D>;
+pub struct Point<const D: usize>(pub FixedVector<f64, D>);
+pub struct Vector<const D: usize>(pub FixedVector<f64, D>);
+pub struct Direction<const D: usize>(pub FixedMatrix<f64, D, D>);
 ```
 
 Benefits:
 - Zero runtime overhead
-- All nalgebra functionality available
-- No maintenance burden
-- Clear and simple
+- Domain separation the compiler enforces (a `Point` is not a `Vector`)
+- Validation and serialization live on the newtype, not on the provider type
 
 ### 5. Optimizer Module Implementation
 
@@ -184,13 +189,13 @@ Created complete interpolation implementations:
 Created complete spatial type implementations:
 
 **[`point.rs`](crates/ritk-core/src/spatial/point.rs)**:
-- Point type based on nalgebra
+- Point newtype over `leto::FixedVector`
 - From slice conversion
 - To vector conversion
 - Comprehensive tests
 
 **[`vector.rs`](crates/ritk-core/src/spatial/vector.rs)**:
-- Vector type based on nalgebra
+- Vector newtype over `leto::FixedVector`
 - Axis constructors (x_axis, y_axis, z_axis)
 - From/to slice conversion
 - Comprehensive tests
@@ -258,15 +263,16 @@ Created complete image type implementation:
 
 ## Key Features
 
-### GPU Acceleration
-- All tensor operations use Burn framework
-- Backend abstraction (CPU/GPU)
+### Compute
+- All tensor operations go through the Coeus tensor and autodiff contracts over
+  Leto-owned storage
+- Backend abstraction (deterministic sequential and Moirai-parallel CPU)
 - Automatic differentiation support
 - Deep-learning registration models (TransMorph, SSMMorph)
 
 ### Medical Image I/O (11 formats)
 - DICOM read/write via dicom-rs (including compressed transfer syntaxes, PACS SCP/SCU)
-- NIfTI (.nii/.nii.gz) via nifti-rs
+- NIfTI (.nii/.nii.gz) via the first-party `ritk-nifti` reader/writer
 - NRRD, MetaImage (.mha/.mhd), MGH/MGZ, Analyze (.hdr/.img)
 - PNG, JPEG, TIFF/BigTIFF, MINC, VTK image format
 - Physical metadata handling, coordinate system transformations
@@ -350,7 +356,7 @@ All modules include comprehensive tests:
 - Git CRLF normalization blocked by missing test data files
 - `sparse.rs` GPU-backend potential remains archived
 - `STACK_WEIGHTS_CAPACITY=32` benchmark not yet run
-- `compute_joint_histogram_from_cache_dispatch` tensor-path not parallelized (Burn's NdArray matmul already parallelized internally)
+- `compute_joint_histogram_from_cache_dispatch` tensor-path not parallelized (the backend matmul is already parallelized internally)
 
 ## Conclusion
 
@@ -366,10 +372,11 @@ The RITK project (v0.50.94, Sprint 331) now has:
 - ✅ Mutual Information metric with Parzen direct/sparse paths (16 sprints of optimization)
 - ✅ DICOM read/write, NIfTI, NRRD, MetaImage, MGH, Analyze, PNG, JPEG, TIFF, MINC, VTK I/O
 - ✅ Python bindings via PyO3 + maturin
-- ✅ CLI (`ritk` binary with convert, filter, register, segment, stats subcommands)
+- ✅ CLI (`ritk` binary with convert, viewer, filter, register, segment, stats, resample, normalize subcommands)
 - ✅ Desktop viewer (`ritk-snap`) with MPR, overlays, measurements, PACS
 - ✅ Filtering, segmentation, statistics, and annotation modules
-- ✅ GPU acceleration via Burn framework
-- ✅ 21 workspace crates, 2,477+ tests across all packages (ritk-core: 1408, ritk-registration: 547, IO/format crates: 522)
+- ✅ Backend-parametric compute through the Coeus tensor and autodiff contracts
+- ✅ 38 workspace crates (see README crate table); test counts per package are
+  reported by `cargo nextest run --workspace`
 
 The architecture is clean, maintainable, extensible, and follows best practices for Rust medical image registration and analysis.

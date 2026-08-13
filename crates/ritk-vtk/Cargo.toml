@@ -6,6 +6,10 @@ repository.workspace = true
 publish = true
 edition = "2021"
 description = "VTK-native data model and I/O for the RITK toolkit."
+keywords.workspace = true
+categories.workspace = true
+homepage.workspace = true
+readme.workspace = true
 license.workspace = true
 
 [dependencies]

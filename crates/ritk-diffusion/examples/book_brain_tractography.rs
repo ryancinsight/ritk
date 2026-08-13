@@ -295,8 +295,90 @@ fn figure_path() -> PathBuf {
 }
 
 /// Render the FA map and the streamline overlay as two panels.
+/// Smallest ratio by which one anatomical component must dominate the others
+/// for an image axis to count as anatomical.
+///
+/// The colour convention needs each image axis to be essentially one anatomical
+/// direction. An oblique acquisition has no such correspondence, and the colours
+/// would then name directions the data does not have.
+const MIN_AXIS_DOMINANCE: f64 = 3.0;
+
+/// Map each gradient component onto an RGB channel from the image's own
+/// direction cosines.
+///
+/// The convention is red left-right, green anterior-posterior, blue
+/// superior-inferior. Turning a gradient component into a channel needs the
+/// frame the components live in, which is not safe to assume: FSL `bvec` values
+/// are in image-axis order `(i, j, k)`, while RITK stores direction cosines as
+/// `[depth, row, column]` against LPS rows. Those orders are reversed with
+/// respect to each other, so gradient component `c` corresponds to direction
+/// column `2 - c`. LPS row 0 is left-right, row 1 anterior-posterior, row 2
+/// superior-inferior — already RGB order.
+///
+/// # Errors
+///
+/// Fails when an image axis has no dominant anatomical direction, or when the
+/// resolved channels are not a permutation, which would mean two components
+/// claim the same colour.
+fn resolve_colour_channels(direction: &ritk_spatial::Direction<3>) -> Result<[usize; 3]> {
+    let mut channels = [0_usize; 3];
+    for (component, channel) in channels.iter_mut().enumerate() {
+        let column = 2 - component;
+        let magnitudes = [
+            direction.0[(0, column)].abs(),
+            direction.0[(1, column)].abs(),
+            direction.0[(2, column)].abs(),
+        ];
+        let dominant = (0..3)
+            .max_by(|a, b| magnitudes[*a].total_cmp(&magnitudes[*b]))
+            .unwrap_or(0);
+        let runner_up = (0..3)
+            .filter(|axis| *axis != dominant)
+            .map(|axis| magnitudes[axis])
+            .fold(0.0_f64, f64::max);
+        anyhow::ensure!(
+            magnitudes[dominant] >= runner_up * MIN_AXIS_DOMINANCE,
+            "gradient component {component} maps to image axis {column}, whose anatomical              direction is ambiguous ({magnitudes:?}): the volume is obliquely acquired, so a              directional colour would name a direction the data does not have"
+        );
+        *channel = dominant;
+    }
+    let mut seen = channels;
+    seen.sort_unstable();
+    anyhow::ensure!(
+        seen == [0, 1, 2],
+        "resolved colour channels {channels:?} are not a permutation; two gradient          components would claim the same colour"
+    );
+    Ok(channels)
+}
+
+/// Directionally encoded colour for a unit orientation.
+///
+/// Absolute components because an eigenvector has no sign — a fibre running
+/// left-to-right is the same fibre as one running right-to-left, so the colour
+/// must not flip with an arbitrary sign choice. `weight` scales by anisotropy,
+/// so isotropic tissue stays dark rather than showing a saturated colour for a
+/// direction that means nothing.
+fn directional_colour(direction: [f64; 3], weight: f64, channels: [usize; 3]) -> String {
+    let level = |component: f64| {
+        #[expect(
+            clippy::cast_possible_truncation,
+            clippy::cast_sign_loss,
+            reason = "the product of two values in [0, 1] scaled by 255 fits u8"
+        )]
+        let value = (component.abs().clamp(0.0, 1.0) * weight.clamp(0.0, 1.0) * 255.0) as u8;
+        value
+    };
+    let mut rgb = [0_u8; 3];
+    for (component, channel) in channels.iter().enumerate() {
+        rgb[*channel] = level(direction[component]);
+    }
+    format!("#{:02x}{:02x}{:02x}", rgb[0], rgb[1], rgb[2])
+}
+
 fn render(
     fa: &[f64],
+    pev: &[[f64; 3]],
+    channels: [usize; 3],
     rows: usize,
     columns: usize,
     tracks: &ritk_tractography::TractographyResult,

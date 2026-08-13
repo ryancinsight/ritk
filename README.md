@@ -37,9 +37,14 @@ RITK provides a comprehensive framework for medical image analysis:
 | Domain contracts | `ritk-spatial`, `ritk-image`, `ritk-transform`, `ritk-interpolation`, `ritk-annotation` | Physical coordinates, typed images, transforms, interpolation, and annotation state |
 | Operations | `ritk-filter`, `ritk-segmentation`, `ritk-morphology`, `ritk-statistics`, `ritk-tensor-ops` | Image algorithms and shared Coeus host-buffer operations |
 | Registration | `ritk-registration`, `ritk-model` | Classical, deformable, differentiable, and learned registration |
-| Format owners | `ritk-dicom`, `ritk-codecs`, `ritk-nifti`, `ritk-nrrd`, `ritk-metaimage`, `ritk-mgh`, `ritk-analyze`, `ritk-png`, `ritk-jpeg`, `ritk-tiff`, `ritk-minc`, `ritk-vtk` | Validated byte-level codecs and format-specific I/O |
+| Diffusion & tractography | `ritk-diffusion-scheme`, `ritk-diffusion`, `ritk-tractography`, `ritk-connectome` | Validated acquisition schemes, DTI/DKI/NODDI/Q-ball/CSD models, streamline tracking, and parcellation graph measures |
+| Format owners | `ritk-dicom`, `ritk-codecs`, `ritk-nifti`, `ritk-nrrd`, `ritk-metaimage`, `ritk-mgh`, `ritk-analyze`, `ritk-png`, `ritk-jpeg`, `ritk-tiff`, `ritk-minc`, `ritk-vtk`, `ritk-mif` | Validated byte-level codecs and format-specific image I/O |
+| Tractogram formats | `ritk-tck`, `ritk-trk`, `ritk-trx` | MRtrix3 `.tck`, TrackVis `.trk`, and TRX streamline I/O |
 | Integration | `ritk-io`, `ritk-core`, `ritk-wgpu-compat` | Unified I/O dispatch, public facade contracts, and graphics interop |
 | Deliverables | `ritk-cli`, `ritk-snap`, `ritk-python` | CLI, native viewer, and thin PyO3 bindings |
+
+All 38 workspace crates appear above; `xtask` is the build-automation member and
+is not a library crate.
 
 Dependencies point inward toward domain contracts. Format crates own byte-level
 parsing, `ritk-io` owns cross-format dispatch, and applications and bindings
@@ -117,7 +122,8 @@ await start_web("ritk-snap-canvas");
 
 ### Core contracts
 
-**Spatial types** — `Point<D>`, `Vector<D>`, `Spacing<D>`, `Direction<D>` backed by nalgebra.
+**Spatial types** — `Point<D>`, `Vector<D>`, `Spacing<D>`, `Direction<D>` built on
+`leto::FixedVector` / `leto::FixedMatrix` (`ritk-spatial`).
 
 **Image** — `ritk_image::Image<T, B, D>` carries typed Coeus storage plus
 origin, spacing, and direction metadata with index-to-physical and
@@ -162,7 +168,6 @@ physical-to-index transforms.
 **Segmentation**
 
 | Category | Algorithms |
-| Segmentation | Algorithms |
 |---|---|
 | Thresholding | Otsu, Multi-Otsu, Li, Yen, Kapur, Triangle |
 | Binary Morphology | Erosion, Dilation, Opening, Closing, Skeletonization, Fill Holes, Morphological Gradient |
@@ -283,11 +288,14 @@ PyO3 + maturin package exposing:
 ### CLI (`ritk-cli`)
 
 ```
-ritk convert  <input> <output>          # Format conversion
-ritk filter   <input> <output> [opts]   # Apply filters
-ritk register <fixed> <moving> [opts]   # Run registration
-ritk segment  <input> <output> [opts]   # Run segmentation
-ritk stats    --input <path> [opts]     # Summary and comparison metrics
+ritk convert   <input> <output>          # Format conversion
+ritk viewer    <input> [opts]            # Inspect a DICOM study using the viewer core
+ritk filter    <input> <output> [opts]   # Apply filters
+ritk register  <fixed> <moving> [opts]   # Run registration
+ritk segment   <input> <output> [opts]   # Run segmentation
+ritk stats     --input <path> [opts]     # Summary and comparison metrics
+ritk resample  <input> <output> [opts]   # Resample to a new voxel spacing
+ritk normalize <input> <output> [opts]   # Normalize intensities (histogram-match, nyul, zscore, minmax, white-stripe)
 ```
 
 Current `ritk segment --method` coverage includes:
@@ -323,21 +331,40 @@ fn main() -> anyhow::Result<()> {
 
 ## Dependencies
 
+First-party Atlas stack providers:
+
 | Crate | Role |
 |---|---|
-| `coeus` | Tensor, backend, and autodiff contracts |
-| `leto` | Array storage and numerical operations |
-| `nalgebra` | Linear algebra, spatial types |
-| `dicom` | DICOM format support |
-| `nifti` | NIfTI format support |
+| `coeus-core` / `-tensor` / `-ops` / `-leto` / `-autograd` / `-nn` / `-optim` | Tensor, backend, and autodiff contracts |
+| `leto` / `leto-ops` | Array storage, linear algebra, and numerical operations |
+| `eunomia` | Scalar and numeric trait vocabulary |
+| `aequitas` | Statistical distributions and estimators |
+| `apollo-fft` / `apollo-sht` | FFT and spherical-harmonic transforms |
 | `moirai` | CPU parallelism and task execution |
-| `mnemosyne` | Optional workspace allocator |
-| `wgpu` | Viewer rendering and graphics interop |
-| `apollo-fft` | FFT planning and execution |
+| `mnemosyne` | Workspace allocator |
+| `consus-hdf5` / `-core` / `-compression` / `-io` / `-onnx` | Pure-Rust HDF5 (MINC), compression, and ONNX parsing |
+| `gaia` | Polyline and mesh geometry for tractography |
+| `iris` | Normalized color laws and lookup-table construction |
+
+Third-party:
+
+| Crate | Role |
+|---|---|
+| `dicom` (`dicom-rs`) | DICOM dataset, metadata, and external-codec adapter |
+| `tiff` / `image` | Pixel codecs behind `ritk-tiff` and `ritk-png` |
+| `jpeg-decoder` / `zune-jpegxl` | JPEG and JPEG XL pixel decode |
+| `wgpu` / `eframe` / `egui` | Viewer rendering and graphics interop |
+| `onnx-ir` | ONNX graph import for DL registration |
 | `pyo3` / `numpy` | Python bindings |
-| `serde` | Serialization (transform I/O) |
+| `clap` | CLI argument parsing |
+| `serde` / `serde_json` | Serialization (transform I/O) |
 | `anyhow` / `thiserror` | Error handling |
 | `tracing` | Structured logging |
+
+Header, geometry, and metadata parsing is first-party throughout: `ritk-nifti`,
+`ritk-nrrd`, `ritk-metaimage`, `ritk-mgh`, `ritk-analyze`, `ritk-minc`,
+`ritk-vtk`, `ritk-mif`, and `ritk-codecs` own their byte-level readers and
+writers. No supported path requires a C or C++ library.
 
 ## Building
 
@@ -363,34 +390,23 @@ not have a second RITK-owned list.
 
 ### Rust package distribution
 
-RITK publishes its 28 reusable Rust library packages to crates.io in local
-dependency order. A `crate-<package>-v<version>` tag triggers the release
-workflow, which verifies the packaged source and uses crates.io trusted
-publishing to obtain a short-lived credential. The matching GitHub Release is
-the source and artifact record for that package version.
+RITK publishes its 29 reusable Rust library packages to crates.io in local
+dependency order. Publishing a GitHub Release whose tag is
+`crate-<package>-v<version>` triggers the `Crates.io Release` workflow, which
+verifies the packaged source and uses crates.io trusted publishing to obtain a
+short-lived credential. The matching GitHub Release is the source and artifact
+record for that package version.
 
-The CLI, Snap application, Python extension, and diffusion/tractography
-packages outside the current library closure are not crates.io packages. Python
-wheels use the separate `v<version>` maturin release workflow.
+Nine workspace members carry `publish = false` and are not crates.io packages:
+`ritk-cli`, `ritk-snap`, `ritk-python`, `ritk-diffusion`, `ritk-tractography`,
+`ritk-connectome`, `ritk-tck`, `ritk-trk`, and `ritk-trx`. Python wheels use
+the separate `v<version>` maturin release workflow.
 
 ## Development
 
-### Recent Sprints
+### Release history
 
-- **Sprint 338** (v0.51.6, `ritk-core` 0.6.0): `value_indices` — per-value index map implementing `scipy.ndimage.value_indices` (added in scipy 1.10.0). For each distinct voxel value, returns the row-major list of multi-indices `[i_0, …, i_{D-1}]` where it occurs. `ignore_value` keyword parameter mirrors scipy's. Generic over `B: Backend, const D: usize`; one authoritative implementation serves 1-D/2-D/3-D/arbitrary-D. `F32Key` newtype provides bit-equality + bit-hash for `f32` HashMap keys. 16 differential tests cross-validated against scipy v1.17.1. Plus incidental typo fix: `NyulUdapaNormalizer` → `NyulUdupaNormalizer` in `statistics/mod.rs`. 1521/0/1 ritk-core tests.
-- **Sprint 337** (v0.51.5, `ritk-core` 0.5.0): Morphological Laplacian filter — implements `scipy.ndimage.morphological_laplace` (D + E − 2f) with half-sample symmetric reflect-mode boundary handling (period 2n). Cubic structuring element of half-width `radius`. 9 differential tests cross-validated against scipy v1.17.1, including full 64-voxel byte-exact match on 4×4×4 two-corner-voxels. Plus structural partition: `morphological_laplace.rs` (595 → 2 files). 1505/0/1 ritk-core tests.
-- **Sprint 336** (v0.51.4, `ritk-core` 0.4.0): Chamfer distance transform — implements `scipy.ndimage.distance_transform_cdt` (Chessboard L∞ + Taxicab L1) with two 3×3×3 raster scans over the 7-tap predecessor + 7-tap successor half-mask covering all 26 unique neighbours. Interior distance convention (bg=0, fg=chamfer distance, all-fg=−1.0 sentinel). Anisotropic spacing extension. 18 differential tests cross-validated against scipy v1.17.1. Plus structural partitions: `rank.rs` (567→4 files) and `chamfer.rs` (673→4 files). 1496/0/1 ritk-core tests.
-- **Sprint 335** (v0.51.1, `ritk-core` 0.3.0): Prewitt filter (3-D, separable, factor 18·h, replicate padding) + position-of-extrema (`maximum_position` / `minimum_position`, generic over B and D) + histogram with [min,max] range and bins. 1478/0/1 ritk-core tests.
-- **Sprint 334** (v0.51.0, `ritk-core` 0.2.0): Morphology foundation (Offset3D, StructuringElement, sealed SeShape trait, Cube/Cross/Ball ZSTs) + percentile filter + rank filter with O(n) `select_nth_unstable_by` introselect. 1431/0/1 ritk-core tests.
-- **Sprint 332** (v0.50.95): Documentation audit, compaction, and cleanup — 4 stale files deleted, ARCHIVE.md created (18k lines), 3 root files compacted (18k→~400 lines). Structural audit — 3 violations partitioned into directory modules; ZERO files > 500 lines workspace-wide.
-
-- **Sprint 331** (v0.50.94): Clippy zero-warning — 28 + 110+ residual warnings eliminated across all 14 crates. 8 preemptive structural partitions (association, dimse, dicom, test modules). Flaky test hardening (`translation_recovery_shifted_gaussian`). Documentation overhaul (IMPLEMENTATION_SUMMARY.md, OPTIMIZATION.md, README.md).
-
-- **Sprint 330** (v0.50.93): Architectural decomposition — Monolithic `types.rs` → `types/` vertical hierarchy (half_width, stack_weights, bin_range, parzen_config). Monolithic `sample.rs` → `sample/` vertical hierarchy (sample_window, sparse_entry). `ParzenConfig::half_width()` and `inv_2sigma_sq()` promoted to production API. Computation functions extracted into `accumulate.rs`, `compute_direct.rs`, `compute_sparse.rs`. 24 new tests, 547 total ritk-registration tests.
-
-- **Sprint 329** (v0.50.92): Sparse full joint normalization — `inv_sum_f` stored per-sample in `SparseWFixedT`, making direct↔sparse histograms numerically identical. FMA-idiomatic inner accumulation loop retained. Structural size regression tests added. 24 new tests, 523 total ritk-registration tests.
-
-- **Sprint 328** (v0.50.91): Per-sample weight normalization — `accumulate_sample_direct` multiplies by `inv_sum_f × inv_sum_m` (σ²-invariant histogram total). Sparse-path moving-axis normalization. `StackWeights::len()`/`BinRange::len()` promoted to production. 18 new tests, 499 total ritk-registration tests.
+Release history and per-package changes live in [CHANGELOG.md](CHANGELOG.md).
 
 ## Testing
 
@@ -444,5 +460,4 @@ Contributions are welcome. Requirements:
 ## Acknowledgments
 
 - Inspired by [ITK](https://itk.org/) (Insight Segmentation and Registration Toolkit)
-- Uses Coeus and Leto for tensor and numerical execution
-- Uses [nalgebra](https://nalgebra.org/) for linear algebra
+- Uses Coeus and Leto for tensor, linear-algebra, and numerical execution

@@ -2,6 +2,9 @@
 name = "ritk-diffusion-scheme"
 version = "0.2.0"
 description = "Validated diffusion MRI acquisition schemes for RITK"
+keywords.workspace = true
+categories.workspace = true
+homepage.workspace = true
 authors.workspace = true
 repository.workspace = true
 publish = true

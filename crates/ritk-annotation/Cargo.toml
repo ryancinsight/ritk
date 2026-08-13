@@ -7,6 +7,9 @@ publish = true
 edition = "2021"
 license.workspace = true
 description = "ITK-SNAP workflow annotation primitives — label tables, dense label maps, seed/contour annotations, undo/redo history, and overlay composition state"
+keywords.workspace = true
+categories.workspace = true
+homepage.workspace = true
 
 [dependencies]
 ritk-spatial = { path = "../ritk-spatial", version = "0.2.0" }

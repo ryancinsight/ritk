@@ -2,6 +2,10 @@
 name = "ritk-io"
 version = "0.3.0"
 description = "Unified medical image I/O for RITK"
+keywords.workspace = true
+categories.workspace = true
+homepage.workspace = true
+readme.workspace = true
 authors.workspace = true
 repository.workspace = true
 publish = true

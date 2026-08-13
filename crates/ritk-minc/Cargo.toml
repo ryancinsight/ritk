@@ -7,6 +7,9 @@ publish = true
 edition = "2021"
 license.workspace = true
 description = "MINC2 (.mnc / .mnc2) image I/O for RITK"
+keywords.workspace = true
+categories.workspace = true
+homepage.workspace = true
 
 [dependencies]
 ritk-core = { workspace = true }

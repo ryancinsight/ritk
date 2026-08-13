@@ -7,6 +7,10 @@ publish = true
 edition = "2021"
 license.workspace = true
 description = "Image statistics, information theory, image comparison metrics, normalization, and noise estimation"
+keywords.workspace = true
+categories.workspace = true
+homepage.workspace = true
+readme.workspace = true
 
 [dependencies]
 ritk-image = { path = "../ritk-image", features = ["test-helpers"], version = "0.3.0" }

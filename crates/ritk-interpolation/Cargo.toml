@@ -2,6 +2,10 @@
 name = "ritk-interpolation"
 version = "0.5.0"
 description = "Medical image interpolation operators for RITK"
+keywords.workspace = true
+categories.workspace = true
+homepage.workspace = true
+readme.workspace = true
 authors.workspace = true
 repository.workspace = true
 publish = true

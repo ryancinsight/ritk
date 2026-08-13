@@ -5,6 +5,7 @@ edition = "2024"
 rust-version = "1.95"
 license.workspace = true
 description = "MRtrix3 .tck tractogram format reader and writer"
+repository.workspace = true
 publish = false
 
 [dependencies]

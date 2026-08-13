@@ -65,9 +65,9 @@ py -m pytest crates/ritk-python/tests/ -v
 The extension module (`_ritk.cdylib`) is compiled from `src/lib.rs` and registered as
 submodules `filter`, `registration`, `segmentation`, `statistics`, and `io`.  All computation
 delegates to Rust crates (zero business logic in the binding layer).  The image I/O boundary
-uses `ritk-io`'s Atlas-native readers/writers and converts only at the `PyImage` boundary while
-the processing surface remains Burn-backed.  The `PyImage` wrapper holds an
-`Arc<Image<NdArray<f32>, 3>>` and provides `.to_numpy()` for zero-copy-where-possible extraction.
+uses `ritk-io`'s native readers/writers and converts only at the `PyImage` boundary.  The
+`PyImage` wrapper holds an `Arc<ritk_image::Image<f32, MoiraiBackend, 3>>` over Coeus/Leto
+storage and provides `.to_numpy()` for zero-copy-where-possible extraction.
 
 ### DICOM I/O
 

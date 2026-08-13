@@ -2,6 +2,10 @@
 name = "ritk-core"
 version = "0.10.0"
 description = "Core medical image processing algorithms for RITK"
+keywords.workspace = true
+categories.workspace = true
+homepage.workspace = true
+readme.workspace = true
 authors.workspace = true
 repository.workspace = true
 publish = true
