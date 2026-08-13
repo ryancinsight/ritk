@@ -363,7 +363,7 @@ not have a second RITK-owned list.
 
 ### Rust package distribution
 
-RITK publishes its 28 reusable Rust library packages to crates.io in local
+RITK publishes its 29 reusable Rust library packages to crates.io in local
 dependency order. A `crate-<package>-v<version>` tag triggers the release
 workflow, which verifies the packaged source and uses crates.io trusted
 publishing to obtain a short-lived credential. The matching GitHub Release is
@@ -372,6 +372,13 @@ the source and artifact record for that package version.
 The CLI, Snap application, Python extension, and diffusion/tractography
 packages outside the current library closure are not crates.io packages. Python
 wheels use the separate `v<version>` maturin release workflow.
+
+Two provider packages carry a registry name that differs from their import
+path, because crates.io reserves `iris` and the name `gaia` belongs to an
+unrelated crate. They are published as `iris-viz` and `gaia-mesh`, and the
+workspace maps them back with Cargo's `package` key, so every `use iris::…`
+and `use gaia::…` in RITK is unchanged. A consumer depending on those
+providers directly needs the same mapping.
 
 ## Development
 
