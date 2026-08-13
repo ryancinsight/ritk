@@ -402,6 +402,13 @@ Nine workspace members carry `publish = false` and are not crates.io packages:
 `ritk-connectome`, `ritk-tck`, `ritk-trk`, and `ritk-trx`. Python wheels use
 the separate `v<version>` maturin release workflow.
 
+Two provider packages carry a registry name that differs from their import
+path, because crates.io reserves `iris` and the name `gaia` belongs to an
+unrelated crate. They are published as `iris-viz` and `gaia-mesh`, and the
+workspace maps them back with Cargo's `package` key, so every `use iris::…`
+and `use gaia::…` in RITK is unchanged. A consumer depending on those
+providers directly needs the same mapping.
+
 ## Development
 
 ### Release history
