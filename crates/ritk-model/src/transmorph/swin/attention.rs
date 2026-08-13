@@ -7,6 +7,7 @@
 //! softmax, and the value aggregation all run through [`coeus_autograd`] ops, so
 //! gradients flow to every projection and to the bias table.
 
+use eunomia::FloatElement;
 use crate::error::ModelError;
 use coeus_autograd::{
     add, index_select, matmul, permute, reshape, scalar_mul, softmax, transpose, Parameter, Var,
@@ -91,7 +92,7 @@ where
             relative_position_index,
             num_heads,
             head_dim,
-            scale: (head_dim as f64).powf(-0.5) as f32,
+            scale: (head_dim as f64).rsqrt() as f32,
         }
     }
 

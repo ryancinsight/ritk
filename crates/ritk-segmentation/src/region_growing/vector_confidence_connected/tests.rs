@@ -191,7 +191,7 @@ fn maximal_radius_is_bounded_by_unique_image_voxels() {
 fn covariance_inversion_obeys_itk_determinant_boundary() {
     let singular = inverse_covariance(&[0.000_488_281_25, 0.0, 0.0, 0.000_488_281_25], 2)
         .expect("infallible: validated precondition");
-    assert_eq!(singular[0], f64::MAX.powf(1.0 / 3.0) / 2.0);
+    assert_eq!(singular[0], f64::MAX.cbrt() / 2.0);
     assert_eq!(singular[1], 0.0);
     assert_eq!(singular[2], 0.0);
     assert_eq!(singular[3], singular[0]);

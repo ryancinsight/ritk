@@ -123,7 +123,7 @@ pub(super) fn mahalanobis_squared<S: AsRef<[f32]>>(
 }
 
 fn singular_inverse(channel_count: usize) -> Vec<f64> {
-    let diagonal = f64::MAX.powf(1.0 / 3.0) / channel_count as f64;
+    let diagonal = f64::MAX.cbrt() / channel_count as f64;
     let mut inverse = vec![0.0; channel_count * channel_count];
     for index in 0..channel_count {
         inverse[index * channel_count + index] = diagonal;
