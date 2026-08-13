@@ -172,10 +172,38 @@
   Risk: [patch]; test-only.
 
 - **ARCH-695-01 [patch][arch] - Give the Image operation families their own leaf modules**
-  (DoR; owner=Claude; last-update=2026-08-13; scope=
-  `crates/ritk-image/src/{types.rs,transform.rs,tests_transform.rs}` and the
-  new leaf modules; non-goal=any behaviour change — this is a pure move, and a
-  commit that alters an expression is out of scope by definition).
+  (DONE; owner=Claude; last-update=2026-08-13; scope=
+  `crates/ritk-image/src/**`; non-goal=any behaviour change).
+
+  `types.rs` held four operation families on one type across 1546 lines, while
+  `transform.rs` contained no code — only a comment calling itself "an
+  organizational placeholder for future transform-specific logic", sitting on
+  the exact name the transforms belonged under.
+
+  Now: `types.rs` (241) keeps the type, its constructors and its accessors;
+  `access.rs` (104) owns the host-view family; `transform/point.rs` (117) and
+  `transform/batch.rs` (451) split the transforms by granularity, which is what
+  changes their cost model. `transform/mod.rs` is a manifest. Tests split the
+  same way, with the beam-space cases in their own file because the coordinate
+  map is load-bearing there and incidental everywhere else. Every file is now
+  under the 500-line target; the largest is 451.
+
+  Two deviations from a pure move, both deliberate:
+
+  - the `Image` fields became `pub(crate)`, which the split requires. The type
+    stays externally opaque, so the validating constructors remain the only way
+    to build one.
+  - `dummy_image` was a second body for what `test_support::make_image_with`
+    already does. It is deleted; the fixture survives as
+    `test_support::metadata_only_image`, which calls the canonical helper. The
+    five other shared fixtures moved to `test_support.rs` alongside the
+    `make_image_*` family rather than being copied into three test files.
+
+  Verification: the test-name set is byte-identical before and after — 49
+  tests, `comm` reports no difference in either direction. A normalised
+  line-multiset diff of all moved code shows only the visibility changes, the
+  fixture consolidation, and rustfmt reflow; no expression changed. Workspace
+  tests, clippy `-D warnings` and fmt pass.
 
   `types.rs` is 1546 lines carrying four distinct operation families on one
   type: construction and accessors, single-point coordinate transforms, batch
