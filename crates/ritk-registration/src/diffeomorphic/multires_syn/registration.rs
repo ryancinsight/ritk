@@ -56,8 +56,9 @@ impl super::MultiResSyNRegistration {
     /// CPU path for typical 256³ fields.
     ///
     /// A fresh smoother is constructed per resolution level (because
-    /// dimensions change). The [`CpuOrGpu`] enum is stack-allocated —
-    /// zero heap allocation, zero dynamic dispatch per `smooth_field` call.
+    /// dimensions change). The [`CpuOrGpu`] enum is stack-allocated, so
+    /// selecting the smoother costs no allocation and no indirect call; the
+    /// smoothing itself allocates whatever the chosen path requires.
     pub fn register_with<B: Backend>(
         &self,
         fixed: &[f32],
