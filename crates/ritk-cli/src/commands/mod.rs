@@ -5,6 +5,7 @@
 //! the concrete `Backend` type alias used throughout all command handlers.
 
 pub mod convert;
+pub mod dwi;
 pub mod filter;
 pub mod normalize;
 pub mod register;

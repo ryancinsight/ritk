@@ -296,7 +296,23 @@ ritk segment   <input> <output> [opts]   # Run segmentation
 ritk stats     --input <path> [opts]     # Summary and comparison metrics
 ritk resample  <input> <output> [opts]   # Resample to a new voxel spacing
 ritk normalize <input> <output> [opts]   # Normalize intensities (histogram-match, nyul, zscore, minmax, white-stripe)
+ritk dwi       <subcommand> [opts]       # Diffusion-weighted image processing
 ```
+
+`ritk dwi tensor` fits one diffusion tensor per voxel from a DWI series and its
+FSL sidecars, and writes the scalar maps requested:
+
+```
+ritk dwi tensor --dwi sub-01_dwi.nii.gz \
+                --bval sub-01_dwi.bval --bvec sub-01_dwi.bvec \
+                --fa fa.nii.gz --md md.nii.gz --ad ad.nii.gz --rd rd.nii.gz
+```
+
+Voxels below `--background-fraction` of the b = 0 signal's upper percentile are
+not fitted, because a tensor fitted to noise is strongly anisotropic and would
+otherwise trace a bright rim around the skull. Fits outside the physical
+diffusivity bounds are rejected rather than written; see
+`ritk_diffusion::maps::DiffusionMapsConfig` for the derivations.
 
 Current `ritk segment --method` coverage includes:
 
