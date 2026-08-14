@@ -112,9 +112,11 @@ fn validate_transform_geometry(
     if num_levels > 0 && (width == 0 || height == 0) {
         bail!("{operation}: nonzero decomposition levels require positive dimensions");
     }
-    if u32::from(num_levels) > usize::BITS {
+    // `>=`, not `>`: shifting by exactly the width of `usize` is already
+    // undefined, so the boundary value has to be rejected too.
+    if u32::from(num_levels) >= usize::BITS {
         bail!(
-            "{operation}: decomposition levels ({num_levels}) exceed the {}-bit geometry limit",
+            "{operation}: decomposition levels ({num_levels}) reach the {}-bit geometry limit",
             usize::BITS
         );
     }

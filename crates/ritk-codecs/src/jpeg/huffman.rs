@@ -174,9 +174,22 @@ impl<'a> BitReader<'a> {
     }
 
     /// Read `n` bits (MSB first) and return them as a `u32`.
-    /// `n` must be ≤ 16.
+    ///
+    /// # Errors
+    ///
+    /// Returns an error when `n` exceeds [`MAX_CODE_LEN`].
+    ///
+    /// This is the chokepoint for every bit-count in the entropy stage, and
+    /// those counts come from decoded HUFFVAL bytes, which span 0-255 on the
+    /// wire. A `debug_assert` here left release builds shifting past the width
+    /// of `u32` at `n >= 32`, and — worse — `fill` accumulating `avail` past
+    /// the range of a `u8` at `n >= 249`, wrapping it to zero and spinning
+    /// forever on a file that merely needed rejecting. Rejecting here bounds
+    /// `fill` by construction, since it is only ever reached with a valid `n`.
     pub(crate) fn read_bits(&mut self, n: u8) -> Result<u32> {
-        debug_assert!(n <= MAX_CODE_LEN as u8);
+        if n as usize > MAX_CODE_LEN {
+            bail!("entropy stage requested {n} bits; T.81 codes are at most {MAX_CODE_LEN}");
+        }
         if n == 0 {
             return Ok(0);
         }
@@ -277,5 +290,50 @@ mod tests {
         let b1 = reader.read_bits(8).unwrap();
         assert_eq!(b0, 0xFF);
         assert_eq!(b1, 0x80);
+    }
+
+    /// An out-of-range bit count is refused rather than shifted or spun on.
+    ///
+    /// `read_bits` is the chokepoint for every bit count in the entropy stage,
+    /// and those counts are decoded HUFFVAL bytes spanning 0-255 on the wire.
+    /// A `debug_assert` guarded this, so release builds carried two defects:
+    /// `n >= 32` shifts past the width of `u32`, and `n >= 249` accumulates
+    /// `avail` past a `u8` inside `fill`, wrapping it to zero and looping
+    /// forever on input that merely needed rejecting.
+    ///
+    /// 249 is the value that hangs; it is checked explicitly so a future
+    /// refactor that reintroduces the wrap fails here rather than in CI's
+    /// timeout.
+    #[test]
+    fn an_out_of_range_bit_count_is_an_error_not_a_shift_or_a_hang() {
+        let data = [0xAAu8; 8];
+        for n in [17u8, 31, 32, 33, 64, 249, 255] {
+            let mut reader = BitReader::new(&data);
+            let err = reader
+                .read_bits(n)
+                .expect_err("T.81 codes are at most 16 bits");
+            let message = format!("{err:#}");
+            assert!(
+                message.contains(&n.to_string()),
+                "the error should name the {n} bits requested, got: {message}"
+            );
+        }
+    }
+
+    /// Every count the spec does allow still reads.
+    ///
+    /// Guards the new bound against being set one too low, which would reject
+    /// conforming streams while still passing the rejection test above.
+    #[test]
+    fn every_conforming_bit_count_is_accepted() {
+        let data = [0xFFu8; 8];
+        for n in 0..=16u8 {
+            let mut reader = BitReader::new(&data);
+            let bits = reader
+                .read_bits(n)
+                .unwrap_or_else(|e| panic!("{n} bits is within T.81's range: {e:#}"));
+            let expected = if n == 0 { 0 } else { (1u32 << n) - 1 };
+            assert_eq!(bits, expected, "reading {n} bits of 0xFF");
+        }
     }
 }

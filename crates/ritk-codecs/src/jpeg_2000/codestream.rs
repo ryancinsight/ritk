@@ -12,6 +12,12 @@ use anyhow::{bail, Context, Result};
 
 use super::marker;
 
+/// Most wavelet decomposition levels a COD segment may declare.
+///
+/// ISO/IEC 15444-1 Table A.11. The value drives `1 << k` shifts in the subband
+/// geometry, so it is a capability rather than a hint.
+pub(crate) const MAX_DECOMPOSITION_LEVELS: u8 = 32;
+
 // ── Public header types ───────────────────────────────────────────────────────
 
 /// ISO 15444-1 §A.5.1 – Image and tile size.
@@ -535,7 +541,16 @@ fn parse_cod(body: &[u8]) -> Result<CodMarker> {
     let progression_order = body[1];
     let num_layers = u16::from_be_bytes([body[2], body[3]]);
     let mct = body[4];
+    // Table A.11 bounds SPcod's decomposition levels to 0-32. The value feeds
+    // `1usize << k` in the subband geometry, so an unbounded byte shifts past
+    // the width of `usize` long before the transform's own check is reached.
     let num_decomp_levels = body[5];
+    if num_decomp_levels > MAX_DECOMPOSITION_LEVELS {
+        bail!(
+            "J2K: COD declares {num_decomp_levels} decomposition levels; Table A.11 allows 0 to \
+             {MAX_DECOMPOSITION_LEVELS}"
+        );
+    }
     let xcb_o = body[6] & 0x0F;
     let ycb_o = body[7] & 0x0F;
     let cb_style = body[8];

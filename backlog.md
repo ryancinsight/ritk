@@ -436,7 +436,8 @@
   had the same sweep applied. Filed as SAFE-693-02.
 
 - **SAFE-693-02 [patch] - Sweep the remaining parsers for malformed input**
-  (AUDIT DONE, fixes in progress; owner=Claude; last-update=2026-08-13;
+  (DONE for MIF, JPEG and JPEG 2000; A3 and the trx arithmetic remain, filed
+  as SAFE-693-06; owner=Claude; last-update=2026-08-13;
   scope=NRRD, MINC, MGH, MIF, MetaImage, JPEG 2000, JPEG-LS, and the JPEG
   entropy stage; non-goal=changing any decoder's output on well-formed input).
 
@@ -490,12 +491,54 @@
   panics (unreachable by construction), and `codestream.rs:75`'s subtraction
   (`parse_siz` validates first).
 
+  Fixed. MIF: the offset now streams to a sink, allocating nothing, and every
+  axis is checked for a zero extent. JPEG: SOS `Ns` is bounded to T.81's 1-4 at
+  the parse boundary, which closes A2, B2 and the `prev_dc`/`comps` indexing
+  together; `read_bits` rejects an out-of-range count as a typed error instead
+  of a `debug_assert`, which bounds `fill` by construction and removes the
+  release-build infinite loop; the DC category is checked against T.81 Table
+  F.1 so the error names the field; and the MCU-padded plane allocation is
+  re-checked through the crate's own `checked_pixel_count` /
+  `checked_sample_count`, since the decoder's earlier cap covers only
+  `width * height`. JPEG 2000: decomposition levels are bounded to Table A.11's
+  0-32 at the COD parse, and the transform's own guard is corrected from `>` to
+  `>=`, which had still admitted a shift equal to the width of `usize`.
+
+  Every fix was confirmed against the unfixed code. In release, `read_bits(17)`
+  returned 87381 rather than erroring — the `debug_assert` was inert exactly
+  where it mattered — and `Ns = 0` parsed to an empty component vector, which
+  is the value `scan_dct.rs` then indexed. The MIF offset reported 4000062712
+  live bytes from a sub-kilobyte file, and the zero extent panicked with
+  "chunk size must be non-zero".
+
   Coverage gap driving the fix order: **`ritk-mif` has no truncation or
   corruption tests at all**, and both A1 and B1 live there. The JPEG marker
   layer is solid precisely because it has the prefix and substitution sweeps —
   but its fixtures are single-component lossless, which is why A2, B2 and the
   scan-array findings survived in the DCT path. No fuzz target exists anywhere
   in `ritk-codecs`.
+
+- **SAFE-693-06 [patch] - Bound decompression ratio and the trx header arithmetic**
+  (DoR; owner=unclaimed; last-update=2026-08-14; scope=
+  `ritk-nrrd/src/reader/volume.rs`, `ritk-metaimage/src/reader.rs`,
+  `ritk-trx/src/parse.rs`; non-goal=the parsers SAFE-693-02 already fixed).
+
+  Two findings from that audit remain. The inflate `.take()` cap in both
+  readers is `expected_payload_bytes`, computed from the attacker's own
+  `sizes` / `DimSize`, so it stops an infinite stream but not a compression
+  bomb: `sizes: 10000 10000 10000` sets the cap to roughly 4 TB, and a 1 MB
+  deflate stream inflates to its full ~1 GB before the post-check fires. The
+  missing half is a cap against `payload.len()` times a fixed ratio.
+
+  Separately, `trx/parse.rs:65,78` runs unchecked `u64` arithmetic on
+  `serde_json`-parsed header values before the length gates. The allocations
+  themselves are gated and safe; `nb_streamlines = u64::MAX` wraps `+ 1` to
+  zero, passes the length check against an empty file, then indexes.
+
+  Acceptance: each demonstrated against the unfixed code, as SAFE-693-02's
+  fixes were.
+
+  Risk: [patch].
 
 - **SAFE-693-05 [patch] - Add malformed-input coverage where the audit found none**
   (DoR; owner=unclaimed; last-update=2026-08-13; scope=`ritk-mif`,

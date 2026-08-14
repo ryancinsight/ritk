@@ -102,6 +102,12 @@ impl fmt::Display for TableId {
     }
 }
 
+/// Most components one scan may carry (T.81 §B.2.3, Ns).
+///
+/// The scan decoder sizes a full-frame plane per scan component and indexes
+/// fixed arrays by this count, so it is a capability, not a hint.
+pub(crate) const MAX_SCAN_COMPONENTS: usize = 4;
+
 /// Component sampling factor (T.81 §B.2.2, Hi and Vi).
 ///
 /// The spec bounds these to 1-4. Zero is the dangerous value: it reaches
@@ -408,6 +414,18 @@ pub(crate) fn parse_jpeg(data: &[u8]) -> Result<JpegFrameData> {
             SOS => {
                 let _len = cur.u16()?;
                 let ncomp = cur.u8()? as usize;
+                // T.81 §B.2.3 bounds Ns to 1-4. Both ends matter downstream:
+                // the scan decoder allocates one full-frame plane per scan
+                // component, so an unbounded 255 turns 510 bytes of header into
+                // gigabytes before an entropy byte is read; and it indexes
+                // `components[0]`, `[i32; 4]` and `[u8; 3]` by this count, none
+                // of which survive zero or an oversized value.
+                if !(1..=MAX_SCAN_COMPONENTS).contains(&ncomp) {
+                    bail!(
+                        "SOS declares {ncomp} scan components; T.81 §B.2.3 allows 1 to \
+                         {MAX_SCAN_COMPONENTS}"
+                    );
+                }
                 let mut scan_comps = Vec::with_capacity(ncomp);
                 for _ in 0..ncomp {
                     let [id, tables] = cur.array::<2>()?;
@@ -582,6 +600,56 @@ mod tests {
                 }
             }
         }
+    }
+
+    /// The SOS component count is bounded at both ends by T.81 §B.2.3.
+    ///
+    /// Zero and oversized values are both capability defects downstream, and
+    /// neither was previously rejected. The scan decoder indexes
+    /// `sos.components[0]` — so `Ns = 0` is an out-of-bounds read on any
+    /// grayscale baseline image — and sizes one full-frame plane per scan
+    /// component, so `Ns = 255` turns 510 bytes of header into gigabytes.
+    ///
+    /// The fixture's SOS component count sits at a known offset, so this
+    /// substitutes it directly rather than hand-building a second stream.
+    #[test]
+    fn the_sos_component_count_is_bounded_at_both_ends() {
+        let fixture = crate::jpeg::scan_lossless::tests::lossless_8bit_fixture();
+        let ns_offset = sos_component_count_offset(&fixture);
+        assert_eq!(fixture[ns_offset], 1, "the fixture declares one component");
+
+        for ns in [0u8, 5, 16, 255] {
+            let mut corrupt = fixture.clone();
+            corrupt[ns_offset] = ns;
+            let err = parse_jpeg(&corrupt).err().unwrap_or_else(|| {
+                panic!("Ns of {ns} is outside the 1-4 range T.81 §B.2.3 defines")
+            });
+            let message = format!("{err:#}");
+            assert!(
+                message.contains("scan components"),
+                "Ns={ns} should be rejected by count, got: {message}"
+            );
+        }
+
+        // The bound must not reject the values the spec allows. Only Ns=1 has
+        // matching component entries in this fixture, so the others are
+        // expected to fail later, in the entropy stage, not at the count check.
+        let mut valid = fixture.clone();
+        valid[ns_offset] = 1;
+        assert!(parse_jpeg(&valid).is_ok(), "Ns=1 is conforming");
+    }
+
+    /// Byte offset of the SOS segment's `Ns` field within `fixture`.
+    ///
+    /// Located by scanning for the marker rather than hard-coded, so a change
+    /// to the fixture's earlier segments cannot silently retarget the test at
+    /// an unrelated byte.
+    fn sos_component_count_offset(fixture: &[u8]) -> usize {
+        let marker = fixture
+            .windows(2)
+            .position(|w| w == [0xFF, 0xDA])
+            .expect("fixture contains an SOS marker");
+        marker + 4 // 2 marker bytes + 2 length bytes
     }
 
     /// A table id outside the four slots is rejected at the parse boundary.

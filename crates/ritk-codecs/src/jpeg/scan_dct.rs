@@ -15,7 +15,14 @@ use super::color::ycbcr_to_rgb;
 use super::constants::{DCT_BLOCK_CELLS, DCT_BLOCK_DIM};
 use super::huffman::{receive_and_extend, BitReader};
 use super::idct::idct_8x8;
-use super::marker::{JpegFrameData, QuantPrecision, TableId, SOF0, SOF1};
+use super::marker::{JpegFrameData, QuantPrecision, TableId, MAX_SCAN_COMPONENTS, SOF0, SOF1};
+use crate::dimensions::{checked_pixel_count, checked_sample_count};
+
+/// Largest DC difference magnitude category T.81 Table F.1 defines.
+///
+/// Baseline uses 0-11; the extended sequential process reaches 15. The value
+/// arrives as a decoded HUFFVAL byte, which spans 0-255 on the wire.
+const MAX_DC_CATEGORY: u8 = 15;
 
 /// Natural zigzag-to-raster reorder (T.81 §A.3.6).
 const ZIGZAG: [usize; DCT_BLOCK_CELLS] = [
@@ -50,8 +57,18 @@ fn decode_block(
         );
     }
 
-    // Decode DC coefficient (T.81 §F.2.2.1)
+    // Decode DC coefficient (T.81 §F.2.2.1).
+    //
+    // The category is a decoded HUFFVAL byte, so the wire admits 0-255 while
+    // T.81 Table F.1 defines 0-11 for baseline and 0-15 for extended. Rejecting
+    // it here names the offending value; `read_bits` also refuses out-of-range
+    // counts, but by then the error no longer says which field was wrong.
     let dc_cat = dc_table.decode(reader)?;
+    if dc_cat > MAX_DC_CATEGORY {
+        bail!(
+            "invalid DC difference magnitude category {dc_cat}; T.81 allows 0 to {MAX_DC_CATEGORY}"
+        );
+    }
     let dc_diff = receive_and_extend(reader, dc_cat)?;
     *prev_dc += dc_diff;
     let dc = *prev_dc;
@@ -236,13 +253,18 @@ fn decode_baseline_ycbcr(
     let total_width = mcus_x * mcu_width;
     let total_height = mcus_y * mcu_height;
 
-    // Component plane buffers (full padded size)
+    // `RitkJpegDecoder` bounds `width * height` against the SOF, but the buffers
+    // allocated here are the MCU-padded size times the *scan* component count,
+    // and padding grows with the sampling factors. Re-check the number actually
+    // allocated through the same limit rather than assuming the earlier one
+    // covered it.
+    let plane_cells =
+        checked_pixel_count(total_width, total_height).context("MCU-padded frame dimensions")?;
     let ncomp = frame.sos.components.len();
-    let mut planes: Vec<Vec<u8>> = (0..ncomp)
-        .map(|_| vec![0u8; total_width * total_height])
-        .collect();
+    checked_sample_count(plane_cells, ncomp).context("MCU-padded scan planes")?;
+    let mut planes: Vec<Vec<u8>> = (0..ncomp).map(|_| vec![0u8; plane_cells]).collect();
 
-    let mut prev_dc = [0i32; 4];
+    let mut prev_dc = [0i32; MAX_SCAN_COMPONENTS];
     let mut reader = BitReader::new(entropy_data);
 
     for mcu_y in 0..mcus_y {
