@@ -11,11 +11,20 @@
 //! - JPEG-LS near-lossless (NEAR=2) 512×512 16-bit.
 //! - JPEG 2000 lossless 64×64 16-bit (single code-block) and 512×512 16-bit
 //!   with 5 DWT levels (multi-code-block, multi-resolution).
+//! - Baseline DCT JPEG decode, grayscale and 3-component YCbCr at 512×512.
+//!   This path had no baseline at all until PERF-694-03, because no committed
+//!   fixture reached it — the sample fragments are lossless SOF3. The stream
+//!   is DC-only, so it measures the per-block Huffman, dequantisation and IDCT
+//!   cost without a hostile-sized workload. Recorded on Windows, release,
+//!   quiet host (2026-08-14): grayscale 933.8 us, 3-component YCbCr 7.003 ms.
+//!   The 7.5x gap across a 3x block-count increase is the YCbCr-to-RGB
+//!   conversion, which the grayscale path skips entirely.
 
 use criterion::{criterion_group, criterion_main, Criterion};
+use ritk_codecs::jpeg::fixtures::baseline_fixture;
 use ritk_codecs::jpeg_2000::encoder::{encode_grayscale_j2k, Jpeg2000Encoding};
 use ritk_codecs::jpeg_ls::encoder::encode_grayscale_jpeg_ls;
-use ritk_codecs::{decode_jpeg2000_fragment, decode_jpeg_ls_fragment};
+use ritk_codecs::{decode_jpeg2000_fragment, decode_jpeg_fragment, decode_jpeg_ls_fragment};
 use ritk_codecs::{PixelLayout, PixelSignedness};
 use std::hint::black_box;
 
@@ -166,10 +175,26 @@ fn bench_jpeg_2000_full(c: &mut Criterion) {
     });
 }
 
+/// Baseline DCT decode, the path PERF-694-01 hoisted the IDCT cosine table out
+/// of. The 3-component case decodes three planes per MCU and then converts
+/// YCbCr to RGB, so the pair isolates how much of the cost is colour.
+fn bench_jpeg_baseline(c: &mut Criterion) {
+    let (rows, cols) = (512usize, 512usize);
+    for (components, name) in [(1usize, "grayscale"), (3, "ycbcr")] {
+        let stream = baseline_fixture(components, cols as u16, rows as u16);
+        let mut pixel_layout = layout(rows, cols, 8);
+        pixel_layout.samples_per_pixel = components;
+        c.bench_function(&format!("jpeg_baseline_decode_512x512_{name}"), |b| {
+            b.iter(|| black_box(decode_jpeg_fragment(black_box(&stream), pixel_layout)));
+        });
+    }
+}
+
 criterion_group!(
     benches,
     bench_jpeg_ls,
     bench_jpeg_2000,
-    bench_jpeg_2000_full
+    bench_jpeg_2000_full,
+    bench_jpeg_baseline
 );
 criterion_main!(benches);

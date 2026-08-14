@@ -348,95 +348,8 @@ fn decode_baseline_ycbcr(
 #[cfg(test)]
 pub(crate) mod tests {
     use super::*;
+    use crate::jpeg::fixtures::{baseline_grayscale_fixture, baseline_ycbcr_fixture};
     use crate::jpeg::marker::parse_jpeg;
-
-    /// Hand-crafted three-component baseline DCT JPEG: 8×8, YCbCr, 1×1 sampling.
-    ///
-    /// The committed fixtures were all single-component lossless (SOF3), so no
-    /// test reached this decoder at all — which is why the SOS component count,
-    /// the DC category and the MCU-padded allocation each went unbounded until
-    /// an audit found them by reading. This is the smallest stream that
-    /// exercises the three-component DCT path end to end.
-    ///
-    /// Every block codes DC category 0 (difference 0) followed immediately by
-    /// EOB, so all coefficients are zero and each component reconstructs to the
-    /// level shift, 128. Y=Cb=Cr=128 is mid-grey in RGB.
-    ///
-    /// Both Huffman tables hold a single one-bit code `0`: DC symbol 0 is
-    /// category 0, AC symbol 0x00 is EOB. Each block is therefore two bits, and
-    /// three blocks fill six, padded to `0b000000_11` per T.81 §F.1.2.3.
-    pub(crate) fn baseline_ycbcr_fixture() -> Vec<u8> {
-        baseline_fixture(3)
-    }
-
-    /// Single-component baseline DCT JPEG, otherwise identical.
-    ///
-    /// The grayscale scan path is a separate function reached only when SOF
-    /// declares one component, so the three-component fixture never exercises
-    /// it — and that is the path holding the `sos.components[0]` index.
-    pub(crate) fn baseline_grayscale_fixture() -> Vec<u8> {
-        baseline_fixture(1)
-    }
-
-    /// Build a baseline fixture with `components` components, 1x1 sampled.
-    fn baseline_fixture(components: usize) -> Vec<u8> {
-        let mut stream = vec![
-            0xFF, 0xD8, // SOI
-            0xFF, 0xDB, // DQT
-            0x00, 0x43, // length 67 = 2 + 1 + 64
-            0x00, // Pq=0 (8-bit), Tq=0
-        ];
-        stream.extend(std::iter::repeat_n(0x01, 64)); // flat quantisation
-
-        let sof_marker_at = stream.len();
-        stream.extend_from_slice(&[
-            0xFF, 0xC0, // SOF0 (baseline DCT)
-            0x00, 0x00, // length patched below
-            0x08, // precision 8
-            0x00, 0x08, // height 8
-            0x00, 0x08, // width 8
-        ]);
-        stream.push(components as u8);
-        for id in 1..=components as u8 {
-            stream.extend_from_slice(&[id, 0x11, 0x00]); // 1x1 sampling, quant table 0
-        }
-
-        // DC table 0 and AC table 0, each one code of length 1 mapping to
-        // symbol 0.
-        for class_and_id in [0x00u8, 0x10] {
-            stream.extend_from_slice(&[0xFF, 0xC4, 0x00, 0x14, class_and_id]);
-            stream.push(0x01); // BITS[1] = one code of length 1
-            stream.extend(std::iter::repeat_n(0x00, 15)); // BITS[2..=16] = 0
-            stream.push(0x00); // HUFFVAL[0] = 0
-        }
-
-        stream.extend_from_slice(&[]);
-
-        // SOF0 length: 2 + precision + 2*dimension + component count + 3 each.
-        let sof_len = (8 + 3 * components) as u16;
-        let sof_len_at = sof_marker_at + 2;
-        stream[sof_len_at..sof_len_at + 2].copy_from_slice(&sof_len.to_be_bytes());
-
-        stream.extend_from_slice(&[0xFF, 0xDA]); // SOS
-        let sos_len = (6 + 2 * components) as u16;
-        stream.extend_from_slice(&sos_len.to_be_bytes());
-        stream.push(components as u8);
-        for id in 1..=components as u8 {
-            stream.extend_from_slice(&[id, 0x00]); // DC table 0, AC table 0
-        }
-        stream.extend_from_slice(&[
-            0x00, // Ss = 0
-            0x3F, // Se = 63
-            0x00, // Ah = 0, Al = 0
-        ]);
-        // Two bits per block (DC category 0, then EOB), padded with 1-bits per
-        // T.81 §F.1.2.3.
-        let used = 2 * components;
-        let entropy = (0xFFu16 >> used) as u8;
-        stream.push(entropy);
-        stream.extend_from_slice(&[0xFF, 0xD9]); // EOI
-        stream
-    }
 
     /// Decode the fragment the way the public entry point does.
     ///
@@ -457,12 +370,10 @@ pub(crate) mod tests {
     /// their fixtures are single-component lossless, so nothing exercised the
     /// entropy decoder against a short stream. The entropy stage pads with
     /// 1-bits at end of data by design, so a truncated scan decodes to
-    /// *something*; what matters is that it stays inside its buffers while
-    /// doing so.
+    /// *something*; what matters is that it stays inside its buffers.
     #[test]
     fn truncating_the_baseline_stream_never_panics() {
         for fixture in [baseline_grayscale_fixture(), baseline_ycbcr_fixture()] {
-            let channels = usize::from(fixture[9]); // SOF component count
             for cut in 0..fixture.len() {
                 let Some(result) = decode_fragment(&fixture[..cut]) else {
                     continue; // rejected at the header stage, which is its own sweep
@@ -479,7 +390,7 @@ pub(crate) mod tests {
                 decode_fragment(&fixture)
                     .expect("intact stream reaches the scan")
                     .is_ok(),
-                "the intact {channels}-component fixture must decode"
+                "the intact fixture must decode"
             );
         }
     }
@@ -493,8 +404,8 @@ pub(crate) mod tests {
     ///
     /// Both halves of the assertion matter. Arriving here at all requires no
     /// panic, and any image that comes back must have a buffer matching the
-    /// dimensions it reports — so a decoder that wrote a plane sized from one
-    /// component count and reported another fails here.
+    /// dimensions it reports — so a decoder that sized a plane from one
+    /// component count and reported another fails here too.
     #[test]
     fn single_byte_corruption_of_the_baseline_stream_stays_self_consistent() {
         for fixture in [baseline_grayscale_fixture(), baseline_ycbcr_fixture()] {
@@ -506,12 +417,12 @@ pub(crate) mod tests {
                         continue;
                     };
                     assert_eq!(
-                    decoded.pixels.len(),
-                    decoded.width * decoded.height * decoded.pixel_format.pixel_bytes(),
-                    "byte {byte:#04X} at offset {offset} produced a buffer inconsistent                      with its {}x{} dimensions",
-                    decoded.width,
-                    decoded.height
-                );
+                        decoded.pixels.len(),
+                        decoded.width * decoded.height * decoded.pixel_format.pixel_bytes(),
+                        "byte {byte:#04X} at offset {offset} produced a buffer inconsistent                          with its {}x{} dimensions",
+                        decoded.width,
+                        decoded.height
+                    );
                 }
             }
         }
