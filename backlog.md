@@ -1,5 +1,14 @@
 # RITK Backlog - Active Planning
 
+- **RITK-PLACEMENT-AXIS-ASSESS-001 [audit] - themis/melinoe adoption:
+  transitively satisfied, no direct deps (DONE; owner=Codex; last-update=
+  2026-08-14).** Zero `themis`/`melinoe` tokens in any ritk source file.
+  ritk's direct deps `moirai` (moirai-runtime, `melinoe` feature enabled),
+  `mnemosyne` (mnemosyne-memory, consumes themis internally for
+  `PlacementHint`/`NumaNodeId`), `leto`, and `coeus-leto` already carry
+  themis/melinoe transitively; ritk calls no placement/affinity/evidence
+  APIs. Per the consumer-local-need rule, no direct dependency is added.
+
 - **ATLAS-RITK-DICOM-ORIENTATION-070 [minor] - Publish the provider-owned
   ImageOrientationPatient tag (DONE locally; owner=Codex; last-update=
   2026-08-14; scope=`crates/ritk-dicom/src/attribute.rs`).** Add the named
