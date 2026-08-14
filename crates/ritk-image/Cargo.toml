@@ -22,6 +22,8 @@ coeus-ops = { workspace = true }
 coeus-autograd = { workspace = true }
 coeus-nn = { workspace = true }
 coeus-optim = { workspace = true }
+coeus-leto = { workspace = true }
+leto = { workspace = true }
 rand = { workspace = true }
 
 [features]

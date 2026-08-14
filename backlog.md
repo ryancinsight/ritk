@@ -1,5 +1,57 @@
 # RITK Backlog - Active Planning
 
+- **ARCH-696-01 [arch][major] - Borrowed voxel view seam**
+  (IN-PROGRESS; owner=Claude; last-update=2026-08-13;
+  scope=`docs/adr/0019-borrowed-voxel-view-seam.md`,
+  `crates/ritk-image/src/{view.rs,tests_view.rs,lib.rs}`,
+  `crates/ritk-image/Cargo.toml`,
+  `crates/ritk-interpolation/src/interpolation/kernel/linear/mod.rs`;
+  non-goal=migrating any consumer other than the linear kernel, deleting any
+  existing accessor, and the batch coordinate-transform defect below).
+
+  `Image` has no indexed access to its voxels: all seven host accessors answer
+  "give me a flat row-major slice", which copies whenever the layout is strided
+  or offset. See [ADR 0019](docs/adr/0019-borrowed-voxel-view-seam.md) for the
+  decision — `leto::ArrayView` via `coeus_leto::to_leto_view`, no RITK view
+  type, no GAT — the seven-to-two collapse, and the ordered migration path over
+  the remaining 152 production call sites.
+
+  Acceptance: pointer-identity evidence that `Image::view`/`tensor_view` borrow
+  the source allocation on contiguous, permuted and offset layouts; the linear
+  kernel's existing suite passes unchanged as an independent behaviour oracle;
+  a strided-input case the kernel could not previously express.
+
+  Risk: [arch] for the access seam; [major] only when the accessors are
+  deleted, which this item does not do.
+
+- **FIX-696-02 [minor] - Batch coordinate transforms disagree on `CoordinateMap`**
+  (TODO; owner=unclaimed; last-update=2026-08-13;
+  scope=`crates/ritk-image/src/transform/batch.rs` and its callers).
+
+  ADR 0018 collapsed the two single-point transform pairs but left the same
+  divergence one granularity up: `physical_points_to_continuous_indices` applies
+  the Cartesian formula unconditionally and returns a typed error on a singular
+  direction, while `world_to_index_native_on`/`index_to_world_native_on`
+  dispatch on `CoordinateMap` and panic instead. Same operation, two answers,
+  diverging exactly on beam-space acquisitions — the ADR-0018 defect, unfixed at
+  batch granularity. Needs an ADR-0018 successor, not a patch.
+
+  Acceptance: one batch pair, map-aware, fallible; the curvilinear fixture
+  asserts batch and single-point agree.
+
+- **DEBT-696-03 [patch] - Retire the `Shape` alias and its allocating helper**
+  (TODO; owner=unclaimed; last-update=2026-08-13;
+  scope=`crates/ritk-image/src/lib.rs`,
+  `crates/ritk-registration/src/deformable_field_ops/smooth.rs`, 5 dead imports
+  in `crates/ritk-io/src/format/dicom/reader/tests/`).
+
+  `pub type Shape = Vec<usize>` has exactly one live use (`GpuFieldSmoother`'s
+  `shape` field) and eight dead test imports; its sibling
+  `pub fn shape(dims: impl IntoIterator<Item = usize>) -> Vec<usize>` has zero
+  call sites. An alias simulating a domain type over `Vec<usize>` while
+  `ritk-spatial`'s `VolumeDims<D>` newtype exists is alias-driven architecture.
+  Inline `Vec<usize>` at the one live site, drop the dead imports, delete both.
+
 - **RITK-FLOATELEMENT-ROOTS-001 [patch] - Migrate powf root emulation to
   eunomia FloatElement (DONE; owner=Codex; last-update=2026-08-13;
   scope=3 `powf`-emulated root sites across 4 files: the `ritk-model` Swin

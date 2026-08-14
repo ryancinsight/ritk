@@ -11,6 +11,7 @@ pub mod metadata;
 pub mod test_support;
 pub mod transform;
 pub mod types;
+pub mod view;
 
 pub use color::{ColorVolume, RgbVolume};
 // The coordinate map is pure geometry and lives with the rest of the spatial
@@ -20,6 +21,10 @@ pub use grid::{generate_grid, generate_random_points};
 pub use metadata::ImageMetadata;
 pub use ritk_spatial::{CoordinateMap, CurvilinearArray, InvalidCoordinateMap, PhasedArray3D};
 pub use types::Image;
+// The borrowed view type is leto's, not this crate's (see `view`); re-exported
+// because it appears in `Image::view`'s signature.
+pub use leto::ArrayView;
+pub use view::tensor_view;
 
 /// Coeus-backed tensor and module surface re-exported for downstream crates.
 pub mod coeus {

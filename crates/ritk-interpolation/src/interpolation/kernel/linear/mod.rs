@@ -9,6 +9,7 @@ use crate::interpolation::shared::OutOfBoundsMode;
 use coeus_core::{Backend, CpuAddressableStorage};
 use coeus_tensor::Tensor;
 use ritk_core::interpolation::Interpolator;
+use ritk_image::tensor_view;
 use serde::{Deserialize, Serialize};
 
 /// Linear Interpolator.
@@ -57,8 +58,7 @@ where
 {
     fn interpolate(&self, data: &Tensor<f32, B>, indices: Tensor<f32, B>) -> Tensor<f32, B> {
         let mode = self.bounds_policy.as_out_of_bounds_mode();
-        let shape = data.shape().to_vec();
-        let rank = shape.len();
+        let rank = data.ndim();
         assert!(
             (1..=MAX_RANK).contains(&rank),
             "Linear interpolation only supports 1D-{MAX_RANK}D data"
@@ -66,35 +66,63 @@ where
 
         let idx_shape = indices.shape();
         assert_eq!(idx_shape.len(), 2, "indices must be a 2D tensor [N, rank]");
-        let n_points = idx_shape[0];
-        let idx_rank = idx_shape[1];
-        assert_eq!(idx_rank, rank, "indices rank must match data rank");
+        assert_eq!(idx_shape[1], rank, "indices rank must match data rank");
 
-        let data_contig = data.to_contiguous();
-        let data_slice = data_contig.as_slice();
-        let idx_contig = indices.to_contiguous();
-        let idx_slice = idx_contig.as_slice();
-
-        let mut results = vec![0.0f32; n_points];
-        let strides = compute_strides(&shape);
-
-        for i in 0..n_points {
-            let coords = &idx_slice[i * rank..(i + 1) * rank];
-            results[i] = interpolate_point(data_slice, &shape, &strides, coords, mode);
+        // Rank dispatch happens once, here, and monomorphizes the whole kernel
+        // body below it: the per-axis loops become fixed-trip, the scratch
+        // becomes exactly `[_; N]`, and no per-sample work inspects the rank.
+        match rank {
+            1 => sample_all::<1, B>(data, &indices, mode),
+            2 => sample_all::<2, B>(data, &indices, mode),
+            3 => sample_all::<3, B>(data, &indices, mode),
+            4 => sample_all::<4, B>(data, &indices, mode),
+            _ => unreachable!("the entry assertion bounds rank to 1..={MAX_RANK}"),
         }
-
-        Tensor::from_slice([n_points], &results)
     }
 }
 
-/// Compute row-major strides for a shape.
-fn compute_strides(shape: &[usize]) -> Vec<usize> {
-    let rank = shape.len();
-    let mut strides = vec![1usize; rank];
-    for d in (0..rank.saturating_sub(1)).rev() {
-        strides[d] = strides[d + 1] * shape[d + 1];
-    }
-    strides
+/// Sample every point of a `[point_count, N]` index tensor against rank-`N` data.
+///
+/// Both operands are borrowed through [`tensor_view`], so an arbitrarily
+/// strided or offset input costs no copy: the layout is carried in the view's
+/// strides and consumed by the offset arithmetic below. The previous
+/// `to_contiguous()` pair materialized the entire volume *and* the entire index
+/// tensor before reading either.
+fn sample_all<const N: usize, B>(
+    data: &Tensor<f32, B>,
+    indices: &Tensor<f32, B>,
+    mode: OutOfBoundsMode,
+) -> Tensor<f32, B>
+where
+    B: Backend,
+    B::DeviceBuffer<f32>: CpuAddressableStorage<f32>,
+{
+    let data_view = tensor_view::<f32, B, N>(data)
+        .expect("invariant: CpuAddressableStorage data of rank N views as rank N");
+    let index_view = tensor_view::<f32, B, 2>(indices)
+        .expect("invariant: CpuAddressableStorage indices of rank 2 view as rank 2");
+
+    let shape = data_view.shape();
+    let data_strides = data_view.strides();
+    let data_base = data_view.offset();
+    let values = data_view.data();
+
+    let point_count = index_view.shape()[0];
+    let index_strides = index_view.strides();
+    let index_base = index_view.offset();
+    let index_values = index_view.data();
+
+    let results = (0..point_count)
+        .map(|point| {
+            let row = index_base as isize + index_strides[0] * point as isize;
+            let coords: [f32; N] = std::array::from_fn(|axis| {
+                index_values[(row + index_strides[1] * axis as isize) as usize]
+            });
+            interpolate_point::<N>(values, shape, data_strides, data_base, coords, mode)
+        })
+        .collect::<Vec<_>>();
+
+    Tensor::from_slice([point_count], &results)
 }
 
 /// Highest data rank the linear kernel accepts.
@@ -115,20 +143,24 @@ fn clamp_index(idx: f32, size: usize) -> usize {
     clamped as usize
 }
 
-/// Linearly interpolate a single point.
-fn interpolate_point(
+/// Linearly interpolate a single point of rank-`N` data.
+///
+/// `strides` and `base` come from the source tensor's layout rather than from
+/// a row-major recomputation, so the kernel reads a strided or offset volume
+/// in place. `data` is the whole storage slice and `base` its logical origin.
+fn interpolate_point<const N: usize>(
     data: &[f32],
-    shape: &[usize],
-    strides: &[usize],
-    coords: &[f32],
+    shape: [usize; N],
+    strides: [isize; N],
+    base: usize,
+    coords: [f32; N],
     mode: OutOfBoundsMode,
 ) -> f32 {
-    let rank = shape.len();
     let zero_pad = mode == OutOfBoundsMode::ZeroPad;
 
     // Compute lower/upper integer indices and weights for each axis.
     // `coords` columns are innermost-first ([x, y, z]), while `shape` is
-    // row-major ([z, y, x]); map axis `d` to coordinate `rank - 1 - d`.
+    // row-major ([z, y, x]); map axis `d` to coordinate `N - 1 - d`.
     //
     // Stack scratch rather than `vec!`: this runs once per output sample, and
     // the vectors were measured at three real allocations per call — 300000
@@ -139,15 +171,16 @@ fn interpolate_point(
     //
     // Three flat arrays, not one array of structs: the struct-of-arrays layout
     // measured 2x faster than packing the three fields together, so the
-    // original layout stays. `MAX_RANK` is the bound `interpolate` already
-    // enforces on entry, so the buffers and the check cannot drift apart.
-    let mut lower = [0usize; MAX_RANK];
-    let mut upper = [0usize; MAX_RANK];
-    let mut weights = [0.0f32; MAX_RANK];
+    // original layout stays. The buffers are `[_; N]` rather than `[_; MAX_RANK]`
+    // because the rank dispatch in `interpolate` monomorphizes this body, so
+    // they are exactly as long as the loops that fill them.
+    let mut lower = [0usize; N];
+    let mut upper = [0usize; N];
+    let mut weights = [0.0f32; N];
 
-    for d in 0..rank {
+    for d in 0..N {
         let size = shape[d];
-        let coord = coords[rank - 1 - d];
+        let coord = coords[N - 1 - d];
         let floor = coord.floor();
         let frac = coord - floor;
         let floor_c = floor as isize;
@@ -166,22 +199,23 @@ fn interpolate_point(
         weights[d] = frac.clamp(0.0, 1.0);
     }
 
-    // Iterate over all 2^rank corners and accumulate weighted values.
+    // Iterate over all 2^N corners and accumulate weighted values.
     let mut result = 0.0f32;
-    let corners = 1usize << rank;
+    let corners = 1usize << N;
     for corner in 0..corners {
-        let mut offset = 0usize;
+        let mut offset = base as isize;
         let mut weight = 1.0f32;
-        for d in 0..rank {
+        for d in 0..N {
             let is_upper = (corner >> d) & 1 == 1;
-            offset += if is_upper { upper[d] } else { lower[d] } * strides[d];
+            let index = if is_upper { upper[d] } else { lower[d] };
+            offset += index as isize * strides[d];
             weight *= if is_upper {
                 weights[d]
             } else {
                 1.0 - weights[d]
             };
         }
-        result += data[offset] * weight;
+        result += data[offset as usize] * weight;
     }
 
     result
