@@ -206,8 +206,8 @@ fn every_reference_volume_contributes_to_the_mask() {
     let mut volumes = series(&scheme, &[(ANISOTROPIC, 1000.0), (ANISOTROPIC, 1000.0)]);
 
     // Voxel 1: bright in reference 0, near-zero in references 1..4.
-    for reference in 1..4 {
-        volumes[reference][1] = 1.0;
+    for reference in &mut volumes[1..4] {
+        reference[1] = 1.0;
     }
 
     let maps = fit(&scheme, &volumes, &DiffusionMapsConfig::default());

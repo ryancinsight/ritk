@@ -34,7 +34,7 @@ use std::fmt::Write as _;
 use std::path::{Path, PathBuf};
 
 use anyhow::{Context, Result};
-use ritk_diffusion::dti::{DtiConfig, estimate_dti};
+use ritk_diffusion::maps::{DiffusionMapsConfig, fit_diffusion_maps};
 use ritk_diffusion_scheme::{GradientScheme, read_fsl_scheme};
 use ritk_spatial::{Point, Vector};
 use ritk_tractography::{TractographyConfig, euler_tractography};
@@ -62,30 +62,6 @@ const MAX_SEEDS: usize = 220;
 /// leave the plane while keeping the demonstration bounded. Widening this to
 /// the full depth is the scale-up path and changes nothing but runtime.
 const SLAB_RADIUS: usize = 14;
-
-/// Upper bound on a physically admissible diffusivity, in mm^2/s.
-///
-/// Free water at body temperature diffuses at about 3.0e-3 mm^2/s, and no
-/// tissue compartment exceeds free water. An eigenvalue above this is a fit
-/// artefact, not a measurement.
-const FREE_WATER_CEILING: f64 = 3.2e-3;
-
-/// Lower bound on a physically admissible diffusivity, in mm^2/s.
-///
-/// Radial diffusivity in coherent white matter is around 2-3e-4 mm^2/s; no
-/// tissue restricts water two orders below that. A smallest eigenvalue under
-/// this floor is a collapsed, rank-one fit rather than an anisotropic voxel —
-/// which is the actual source of impossible FA, since such a tensor is
-/// positive-definite and passes a sign check while driving FA toward one.
-const RESTRICTED_DIFFUSIVITY_FLOOR: f64 = 1.0e-5;
-
-/// Background threshold as a fraction of the b = 0 signal's upper percentile.
-///
-/// Outside the head the signal is noise, and a tensor fitted to noise produces
-/// spurious anisotropy — the bright rim that otherwise dominates the FA range.
-/// Referencing a high percentile rather than the maximum keeps one hot voxel
-/// from setting the scale.
-const BACKGROUND_FRACTION: f64 = 0.12;
 
 const PANEL: f64 = 420.0;
 
@@ -123,54 +99,23 @@ fn main() -> Result<()> {
         .map(|volume| volume.data_slice().expect("contiguous host voxels"))
         .collect();
 
-    // ── Background mask from the b = 0 volume ─────────────────────────────
-    let b0 = scheme
-        .directions()
-        .iter()
-        .position(|entry| entry.weighting().is_unweighted())
-        .context("the scheme declares no b = 0 volume to build a mask from")?;
-    let mut sorted: Vec<f32> = voxels[b0].to_vec();
-    sorted.sort_by(f32::total_cmp);
-    let upper = f64::from(sorted[sorted.len() * 98 / 100]);
-    let floor = upper * BACKGROUND_FRACTION;
-
     // ── Fit one tensor per voxel of the slab ──────────────────────────────
+    // The mask and the degenerate-fit rejection are the library's, not this
+    // example's: they are properties of the estimator, and their physical
+    // bounds are documented at `DiffusionMapsConfig`.
     let first = slice.saturating_sub(SLAB_RADIUS);
     let last = (slice + SLAB_RADIUS + 1).min(depth);
     let slab = last - first;
     let plane = rows * columns;
 
-    let mut fa = vec![0.0_f64; slab * plane];
-    let mut pev = vec![[0.0_f64; 3]; slab * plane];
-    let mut signals = vec![0.0_f64; scheme.len()];
-
-    for local in 0..slab {
-        for row in 0..rows {
-            for column in 0..columns {
-                let offset = (first + local) * plane + row * columns + column;
-                if f64::from(voxels[b0][offset]) < floor {
-                    continue;
-                }
-                for (slot, volume) in signals.iter_mut().zip(&voxels) {
-                    *slot = f64::from(volume[offset]);
-                }
-                if let Ok(tensor) = estimate_dti(&scheme, &signals, DtiConfig::default()) {
-                    // Reject the fit, not the voxel. Diffusion eigenvalues are
-                    // positive and bounded by free water; a tensor violating
-                    // either is a failed estimate however bright its voxel was.
-                    // Those degenerate fits are what drive FA toward 1 and put
-                    // a speckle of impossible anisotropy through the map.
-                    let [largest, _, smallest] = *tensor.eigenvalues();
-                    if smallest < RESTRICTED_DIFFUSIVITY_FLOOR || largest > FREE_WATER_CEILING {
-                        continue;
-                    }
-                    let index = local * plane + row * columns + column;
-                    fa[index] = tensor.fa();
-                    pev[index] = tensor.principal_eigenvector();
-                }
-            }
-        }
-    }
+    let slab_volumes: Vec<&[f32]> = voxels
+        .iter()
+        .map(|volume| &volume[first * plane..last * plane])
+        .collect();
+    let maps = fit_diffusion_maps(&scheme, &slab_volumes, &DiffusionMapsConfig::default())
+        .context("fitting the tensor field over the slab")?;
+    let fa = maps.fractional_anisotropy();
+    let pev = maps.principal_eigenvector();
 
     let brightest = fa.iter().copied().fold(0.0_f64, f64::max);
     anyhow::ensure!(
