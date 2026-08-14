@@ -297,6 +297,7 @@ ritk stats     --input <path> [opts]     # Summary and comparison metrics
 ritk resample  <input> <output> [opts]   # Resample to a new voxel spacing
 ritk normalize <input> <output> [opts]   # Normalize intensities (histogram-match, nyul, zscore, minmax, white-stripe)
 ritk dwi       <subcommand> [opts]       # Diffusion-weighted image processing
+ritk tract     <subcommand> [opts]       # Streamline tractography
 ```
 
 `ritk dwi tensor` fits one diffusion tensor per voxel from a DWI series and its
@@ -313,6 +314,21 @@ not fitted, because a tensor fitted to noise is strongly anisotropic and would
 otherwise trace a bright rim around the skull. Fits outside the physical
 diffusivity bounds are rejected rather than written; see
 `ritk_diffusion::maps::DiffusionMapsConfig` for the derivations.
+
+`ritk tract dti` fits the same field and tracks streamlines through it, writing
+MRtrix `.tck` in the image's physical frame:
+
+```
+ritk tract dti --dwi sub-01_dwi.nii.gz \
+               --bval sub-01_dwi.bval --bvec sub-01_dwi.bvec \
+               --output tracks.tck
+```
+
+Streamlines are short by the standards of a tuned pipeline — on a single-shell
+b = 700 acquisition the median track runs about 16 mm against an anatomical
+30–150 mm. That is the data and the nearest-neighbour direction lookup, not a
+threshold to loosen; the command reports why each track stopped so the two can
+be told apart.
 
 Current `ritk segment --method` coverage includes:
 

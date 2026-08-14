@@ -53,6 +53,22 @@ pub fn fod_volume_direction_field<'a>(
     move |point: &Point<3>| -> Option<Vector<3>> { volume.direction_at(point, 50, 100, 0.1) }
 }
 
+/// Build a whole-brain tractography direction field from a fitted DTI volume.
+///
+/// At each integration step a nearest-neighbour lookup retrieves the principal
+/// eigenvector, and the volume reports no direction outside the grid, at an
+/// unfitted voxel, or below its anisotropy floor — each of which terminates the
+/// streamline.
+///
+/// This is the whole-brain counterpart to [`dti_pev_direction_field`], which
+/// yields one fixed direction from a single voxel. Queries are in voxel-index
+/// space; see [`ritk_diffusion::maps::DtiVolume`] for the frame.
+pub fn dti_volume_direction_field<'a>(
+    volume: &'a ritk_diffusion::maps::DtiVolume,
+) -> impl Fn(&Point<3>) -> Option<Vector<3>> + 'a {
+    move |point: &Point<3>| -> Option<Vector<3>> { volume.direction_at(point) }
+}
+
 /// Build a whole-brain tractography direction field from a NODDI volume.
 ///
 /// At each integration step a nearest-neighbour spatial lookup retrieves
