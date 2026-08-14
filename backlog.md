@@ -38,8 +38,9 @@
 
 > **Retired tooling note**: The `burn-migration-audit` xtask command,
 > `xtask/burn_surface.allowlist`, and the `legacy-migration-audit` CI
-> workflow were removed after the Burn-to-Coeus migration completed.
-> References to these tools in the entries below are historical.
+> workflow were retired. Their removal is not evidence that the consumer
+> cutover is complete; references to these tools in the entries below are
+> historical.
 
 - **AEQUITAS-AEQ-MET-68 [patch] - Align RITK with Eunomia 0.8**
   (LOCAL CLOSURE; external release gates open; owner=Codex; last-update=2026-08-10;
