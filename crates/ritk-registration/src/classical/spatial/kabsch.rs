@@ -9,7 +9,7 @@
 //! Reference: Kabsch (1976), *Acta Crystallogr.* A32:922–923.
 
 use leto::{Array2, FixedMatrix, FixedVector};
-use leto_ops::svd_rank_revealing;
+use leto_ops::svd_decompose;
 
 use super::error::SpatialError;
 
@@ -72,7 +72,15 @@ pub(crate) fn kabsch_algorithm(
         ],
     )
     .map_err(|err| SpatialError::SvdConvergence(format!("Kabsch covariance layout: {err}")))?;
-    let svd = svd_rank_revealing(&h_array.view())
+    // `svd_decompose` replaces the removed `svd_rank_revealing`. Kabsch reads
+    // only `U` and `V`, and the substitution is strictly safer for a rotation:
+    // the retired Jacobi path left the `U` column of a null-space direction
+    // zeroed, so a degenerate point set yielded a non-orthonormal `U` and a
+    // singular `R`. The surviving path accumulates Householder reflectors and
+    // Givens rotations, whose orthonormality does not depend on the singular
+    // values being nonzero, so `U` and `V` stay orthonormal at every rank and
+    // the determinant correction below remains meaningful.
+    let svd = svd_decompose(&h_array.view())
         .map_err(|err| SpatialError::SvdConvergence(format!("Kabsch SVD failed: {err}")))?;
 
     let u = matrix_from_svd_columns(&svd.left_singular_vectors)?;
