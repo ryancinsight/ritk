@@ -361,6 +361,43 @@ pub fn estimate_dti(
 pub(crate) fn decompose_3x3_symmetric(
     elements: [f64; 6],
 ) -> Result<([f64; 3], [f64; 3]), (usize, f64)> {
+    let (mut eigenvalues, principal_eigenvector) = decompose_3x3_symmetric_unchecked(elements);
+
+    // An isotropic tensor is held to strict positivity, an anisotropic one to a
+    // tolerance that absorbs fp error on a near-zero eigenvalue. The two rules
+    // differ because an isotropic result has no small eigenvalue to round: all
+    // three are the same number, so a non-positive one is the fit, not noise.
+    let isotropic = (eigenvalues[0] - eigenvalues[2]).abs() <= 0.0;
+    for (idx, &val) in eigenvalues.iter().enumerate() {
+        let invalid = if isotropic { val <= 0.0 } else { val < -1e-10 };
+        if invalid {
+            return Err((idx, val));
+        }
+    }
+    // Clamp fp-negative eigenvalues to zero.
+    for val in &mut eigenvalues {
+        if *val < 0.0 {
+            *val = 0.0;
+        }
+    }
+    Ok((eigenvalues, principal_eigenvector))
+}
+
+/// Eigenvalues (descending) and principal eigenvector of a 3×3 symmetric
+/// matrix, with no validity check on the result.
+///
+/// The positivity check in [`decompose_3x3_symmetric`] is a *diffusion tensor*
+/// contract — a fitted `D` with a non-positive eigenvalue is not a measurement —
+/// not a property of symmetric matrices. Callers whose matrix is legitimately
+/// singular use this directly. The dyadic `Σ wᵢ vᵢvᵢᵀ` that
+/// [`crate::maps::DtiVolume`] interpolates is exactly such a case: it is
+/// positive *semi*-definite by construction, and a single contributor gives
+/// eigenvalues `(w, 0, 0)`.
+///
+/// Eigenvalues are returned raw, so a caller that needs them clamped does that
+/// itself. The principal eigenvector is unaffected either way: it is extracted
+/// from the largest eigenvalue, which clamping never touches.
+pub(crate) fn decompose_3x3_symmetric_unchecked(elements: [f64; 6]) -> ([f64; 3], [f64; 3]) {
     let [dxx, dyy, dzz, dxy, dxz, dyz] = elements;
 
     // Invariants of the characteristic polynomial λ³ − I₁λ² + I₂λ − I₃.
@@ -380,14 +417,9 @@ pub(crate) fn decompose_3x3_symmetric(
     // Near-isotropic / degenerate: p ≈ 0 ⇒ all eigenvalues ≈ shift.
     let sqrt_neg_p_over_3 = (-p / 3.0).sqrt();
     if sqrt_neg_p_over_3 < 1e-15 {
-        let eigenvalues = [shift, shift, shift];
-        // Strict positivity check.
-        for (idx, &val) in eigenvalues.iter().enumerate() {
-            if val <= 0.0 {
-                return Err((idx, val));
-            }
-        }
-        return Ok((eigenvalues, [1.0, 0.0, 0.0]));
+        // Numerically isotropic: no eigenvalue is distinguished, so no
+        // direction is either. The caller decides what that means.
+        return ([shift, shift, shift], [1.0, 0.0, 0.0]);
     }
 
     // Three real roots via trigonometric formula (symmetric ⇒ all real).
@@ -401,19 +433,6 @@ pub(crate) fn decompose_3x3_symmetric(
 
     let mut eigenvalues = [mu0 + shift, mu1 + shift, mu2 + shift];
     eigenvalues.sort_by(|a, b| b.partial_cmp(a).unwrap_or(std::cmp::Ordering::Equal));
-
-    for (idx, &val) in eigenvalues.iter().enumerate() {
-        // Allow tiny negative values from fp error on near-zero eigenvalues.
-        if val < -1e-10 {
-            return Err((idx, val));
-        }
-    }
-    // Clamp fp-negative eigenvalues to zero.
-    for val in &mut eigenvalues {
-        if *val < 0.0 {
-            *val = 0.0;
-        }
-    }
 
     // Principal eigenvector: try all three row-pair cross products of
     // (D − λ₀I) and keep the one with the largest norm.  A single pair
@@ -453,11 +472,9 @@ pub(crate) fn decompose_3x3_symmetric(
     let pev = cross_products[best_idx];
     let norm = norms[best_idx].sqrt();
     if norm < 1e-15 {
-        return Ok((eigenvalues, [1.0, 0.0, 0.0]));
+        return (eigenvalues, [1.0, 0.0, 0.0]);
     }
-    let principal_eigenvector = [pev[0] / norm, pev[1] / norm, pev[2] / norm];
-
-    Ok((eigenvalues, principal_eigenvector))
+    (eigenvalues, [pev[0] / norm, pev[1] / norm, pev[2] / norm])
 }
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
