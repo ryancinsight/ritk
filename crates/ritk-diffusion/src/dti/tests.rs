@@ -1,52 +1,7 @@
 use super::*;
+use crate::test_support::{dti_signal, scheme, weighting};
 use ritk_diffusion_scheme::{GradientDirection, GradientFrame, GradientScheme};
 use ritk_spatial::Vector;
-
-fn weighting(value: f64) -> DiffusionWeighting {
-    DiffusionWeighting::from_seconds_per_square_millimeter(value).expect("finite weighting")
-}
-
-fn scheme(direction_count: usize) -> GradientScheme {
-    let mut entries = vec![
-        GradientDirection::new(weighting(0.0), Vector::new([0.0, 0.0, 0.0])).expect("valid b0"),
-    ];
-    let golden_angle = std::f64::consts::PI * (3.0 - 5.0_f64.sqrt());
-    for index in 0..direction_count {
-        let z = 1.0 - 2.0 * (index as f64 + 0.5) / direction_count as f64;
-        let radius = (1.0 - z * z).sqrt();
-        let phi = golden_angle * index as f64;
-        entries.push(
-            GradientDirection::new(
-                weighting(1_000.0),
-                Vector::new([radius * phi.cos(), radius * phi.sin(), z]),
-            )
-            .expect("unit Fibonacci direction"),
-        );
-    }
-    GradientScheme::new(entries, GradientFrame::Lps).expect("valid scheme")
-}
-
-fn dti_signal(scheme: &GradientScheme, tensor_elements: [f64; 6], s0: f64) -> Vec<f64> {
-    let [dxx, dyy, dzz, dxy, dxz, dyz] = tensor_elements;
-    scheme
-        .directions()
-        .iter()
-        .map(|entry| {
-            let b = entry.weighting().seconds_per_square_millimeter();
-            if b == 0.0 {
-                return s0;
-            }
-            let [gx, gy, gz] = entry.direction().to_array();
-            let q = dxx * gx * gx
-                + dyy * gy * gy
-                + dzz * gz * gz
-                + 2.0 * dxy * gx * gy
-                + 2.0 * dxz * gx * gz
-                + 2.0 * dyz * gy * gz;
-            s0 * (-b * q).exp()
-        })
-        .collect()
-}
 
 // ── Round-trip tests ─────────────────────────────────────────────────────
 
