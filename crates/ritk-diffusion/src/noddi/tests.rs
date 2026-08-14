@@ -416,3 +416,56 @@ fn direction_at_outside_volume_returns_none() {
             .is_none()
     );
 }
+
+#[test]
+fn shape_is_ordered_x_fastest_not_like_image_shape() {
+    // Pins the axis-order contract. A non-cubic volume is required: on a cubic
+    // grid a transposed shape still indexes in bounds and the error is silent,
+    // which is exactly the failure this guards.
+    //
+    // shape [nx, ny, nz] = [4, 2, 1] with storage z-slowest means offset
+    // = z*(ny*nx) + y*nx + x, so the voxel at x = 3 is flat index 3, and the
+    // voxel at y = 1 is flat index 4.
+    // Bound to SHAPE so the buffer and the declared shape cannot disagree.
+    const SHAPE: [usize; 3] = [4, 2, 1];
+    let mut flat = vec![0.0_f64; SHAPE.iter().product::<usize>() * 3];
+    flat[3 * 3] = 1.0; // x = 3, y = 0: direction +x
+    flat[4 * 3 + 1] = 1.0; // x = 0, y = 1: direction +y
+
+    let volume = NoddiVolume::new(
+        flat.into_boxed_slice(),
+        SHAPE,
+        [1.0, 1.0, 1.0],
+        [0.0, 0.0, 0.0],
+        GradientFrame::ImageAxis,
+    )
+    .expect("valid volume");
+
+    // Physical (3, 0, 0) is x = 3: the +x voxel.
+    let at_x = volume
+        .direction_at(&ritk_spatial::Point::new([3.0, 0.0, 0.0]))
+        .expect("x = 3 is inside a volume 4 wide in x");
+    assert!(
+        at_x.to_array()[0].abs() > 0.999,
+        "expected the +x voxel at x = 3, got {at_x:?} -- shape read slowest-first \
+         would have placed it out of bounds"
+    );
+
+    // Physical (0, 1, 0) is y = 1: the +y voxel.
+    let at_y = volume
+        .direction_at(&ritk_spatial::Point::new([0.0, 1.0, 0.0]))
+        .expect("y = 1 is inside a volume 2 deep in y");
+    assert!(
+        at_y.to_array()[1].abs() > 0.999,
+        "expected the +y voxel at y = 1"
+    );
+
+    // The far corner of a transposed reading: x = 0, y = 0, z = 3 must be
+    // outside, because nz is 1.
+    assert!(
+        volume
+            .direction_at(&ritk_spatial::Point::new([0.0, 0.0, 3.0]))
+            .is_none(),
+        "z = 3 is outside a volume 1 deep in z; a transposed shape would admit it"
+    );
+}

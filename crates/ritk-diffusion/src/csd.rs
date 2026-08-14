@@ -857,6 +857,22 @@ fn build_deconvolution_matrix(
 /// Stores one coefficient vector per voxel in z-major (slice-first) order.
 /// Supports trilinear interpolation for sub-voxel direction queries during
 /// whole-brain tractography via [`FodVolume::direction_at`].
+///
+/// # Axis order
+///
+/// Every array here is in physical **x, y, z** order — `shape` is
+/// `[nx, ny, nz]`, `spacing` is `[sx, sy, sz]`, `origin` is `[ox, oy, oz]` —
+/// matching the `(px, py, pz)` of the physical points this type is queried
+/// with. Storage is z-slowest, so `nx` is correctly the innermost stride.
+///
+/// This is the opposite order from `Image::shape()`, which is
+/// `[depth, row, column]`, slowest first. **Passing `image.shape()` here
+/// compiles and silently transposes the volume**, because both are
+/// `[usize; 3]`; reverse it at the call site.
+///
+/// [`crate::maps::DtiVolume`] uses the `Image` order instead, because it is
+/// queried with voxel indices rather than physical points. Neither order is
+/// arbitrary: each matches the frame its own queries arrive in.
 #[derive(Debug, Clone)]
 pub struct FodVolume {
     /// Flat coefficient array: `[z][y][x][coefficient_index]`.
