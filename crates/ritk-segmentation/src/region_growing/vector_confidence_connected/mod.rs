@@ -17,9 +17,7 @@ use ritk_image::Image;
 use ritk_tensor_ops::{extract_vec, rebuild};
 
 use flood::FloodWorkspace;
-use statistics::{
-    inverse_covariance, mahalanobis_squared, mean_covariance, weighted_mean_covariance,
-};
+use statistics::{inverse_covariance, mean_covariance, weighted_mean_covariance};
 
 /// Validated vector confidence-connected configuration.
 #[derive(Clone, Copy, Debug, PartialEq)]
@@ -225,20 +223,13 @@ fn segment_values<S: AsRef<[f32]>>(
     }
 
     let mut inverse = inverse_covariance(&covariance, channel_count)?;
-    let mut threshold = config.multiplier;
-    let mut delta = vec![0.0; channel_count];
-    for &seed in &seeds {
-        let distance = mahalanobis_squared(
-            channels,
-            flatten(seed, dimensions),
-            &mean,
-            &inverse,
-            &mut delta,
-        )
-        .max(0.0)
-        .sqrt();
-        threshold = threshold.max(distance);
-    }
+    // ITK applies the multiplier as given. An earlier version widened it to
+    // cover each seed's own Mahalanobis distance, so that seeds would survive
+    // the criterion; seeds are now admitted unconditionally in `FloodWorkspace`
+    // as ITK does, which is both closer to the reference and independent of how
+    // exactly the covariance inverse is computed. Widening also loosened the
+    // criterion for every *neighbour*, admitting pixels ITK rejects.
+    let threshold = config.multiplier;
 
     let mut flood = FloodWorkspace::new(voxel_count, channel_count);
     flood.fill(channels, dimensions, &seeds, &mean, &inverse, threshold);
@@ -320,10 +311,6 @@ fn zero_flux_weights(center: usize, extent: usize, radius: usize) -> Vec<(usize,
             (index, weight)
         })
         .collect()
-}
-
-fn flatten(seed: VoxelIndex, dimensions: [usize; 3]) -> usize {
-    (seed[0] * dimensions[1] + seed[1]) * dimensions[2] + seed[2]
 }
 
 #[derive(Clone, Copy)]

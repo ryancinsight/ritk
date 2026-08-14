@@ -581,51 +581,84 @@
   scan-array findings survived in the DCT path. No fuzz target exists anywhere
   in `ritk-codecs`.
 
-- **DEP-697-01 [patch] - Migrate the two leto SVD consumers off the removed entry points**
-  (DoR; owner=unclaimed; last-update=2026-08-14; scope=
+- **DEP-697-01 [patch] - Migrate the leto SVD consumers; fix the seed-inclusion divergence it exposed**
+  (DONE; owner=Claude; last-update=2026-08-14; scope=
   `crates/ritk-segmentation/src/region_growing/vector_confidence_connected/`
-  `{statistics.rs,tests.rs}` and
+  `{statistics.rs,flood.rs,mod.rs,tests.rs}` and
   `crates/ritk-registration/src/classical/spatial/kabsch.rs`; non-goal=leto
-  itself, whose refactor is deliberate).
+  itself, whose refactor is correct).
 
-  leto `58b6eb3` removed `svd_decompose_with_tolerance`, `svd_rank_revealing`,
-  `svd_rank_revealing_with_tolerance` and `svd_via_bidiagonal`, leaving
-  `svd_decompose`. It is on leto's default branch.
+  leto `58b6eb3` removed four SVD entry points in favour of `svd_decompose`.
+  Two consumers called the removed ones, not the one originally filed:
+  `statistics.rs` and `kabsch.rs`. Both are mechanical renames —
+  `svd_decompose` applies no rank cutoff, which is what the tolerance-zero call
+  requested.
 
-  **Two consumers, not one.** The original filing named only
-  `statistics.rs:5,76`; `kabsch.rs:12,75` calls `svd_rank_revealing` and was
-  missed. Both are mechanical renames — `svd_decompose` takes no tolerance,
-  and the tolerance-zero call requested no cutoff, which is its default.
+  **The migration exposed a conformance defect that predated it.** Applying it
+  made `corner_seed_uses_simpleitk_zero_flux_neighborhood` return an empty
+  mask, and the reference was checked rather than guessed: SimpleITK 3.0's
+  `VectorConfidenceConnectedImageFilter` was run on the identical input.
 
-  Still invisible in CI: the committed lockfile pins leto to `8c4e609`, which
-  predates the removal, so this only lands when the pin advances. It
-  reproduces today under the Atlas path overlay.
+  Its covariance matches ours to every printed digit, so the statistics were
+  never in question. But it **includes the seed at every multiplier**, down to
+  1e-6, where nothing can satisfy the criterion — its flood-fill iterator is
+  constructed at the seeds and writes them before any test runs. The seed's own
+  Mahalanobis distance here is 1.082 against a 0.5 multiplier.
 
-  **The migration is mathematically sound.** `SvdDecomposition` is unchanged
-  (U and V as columns, singular values descending), and the reconstructed
-  inverse was checked against the property that matters: for the covariance the
-  failing test produces,
-  `[0.7457, 0.0483; 0.0483, 0.01335]`, `cov * inverse` is the identity to
-  1e-16. `svd_decompose` was also probed on 1x1 and 3x3 covariances — correct
-  singular values and the expected singularity branch in each.
+  Our implementation instead tested the seed, and to keep it kept **widening
+  the threshold** to `max(multiplier, max seed distance)`. That had two
+  consequences: seed inclusion depended on the numerical detail of the
+  covariance inverse — which is why an exact inverse broke it — and the widened
+  threshold was then applied to every *neighbour*, admitting pixels ITK
+  rejects. The old behaviour survived on a `sqrt`-then-square round-trip
+  landing favourably at the boundary.
 
-  What remains is one knife-edge assertion.
-  `corner_seed_uses_simpleitk_zero_flux_neighborhood` runs a 2-channel 1x5x5
-  image with multiplier 0.5 and radius 1, and expects only the seed voxel; with
-  the migration it segments nothing. The determinant is 7.6e-3, so this is not
-  the singular branch — it is a Mahalanobis distance sitting near the threshold
-  that a numerically different but equally valid inverse pushes across.
+  Seeds are now admitted unconditionally and the multiplier is used as given.
 
-  Acceptance: decide the expected mask against the SimpleITK behaviour the test
-  name invokes, not against whichever implementation happens to be linked. If
-  SimpleITK includes the seed, the divergence is a leto finding for its ADR
-  0005; if the mask is genuinely ambiguous at multiplier 0.5, the fixture wants
-  a less marginal configuration. **Do not resolve this by editing the expected
-  mask to match the new output** — the determinant rule at `statistics.rs:80`
-  is ITK's contract and this test is what pins conformance to it.
+  Verification: a multiplier sweep asserts our masks equal SimpleITK's captured
+  output at 1e-6, 0.5, 1.09, 2.0 and 5.0 — a differential oracle, not a
+  restatement of our own behaviour. The 1e-6 row is load-bearing: no
+  implementation that tests the seed can reproduce it at any threshold. 484
+  segmentation tests and 363 registration tests pass, clippy `-D warnings`,
+  fmt. A dead duplicate `flatten` fell out and was removed.
 
-  Risk: [patch] for the renames; upgrades to a leto item if the paths disagree
-  numerically beyond this one threshold crossing.
+  `kabsch.rs` is **not** migrated here, and the reason is measured. CI pins
+  leto `8c4e609`, and `58b6eb3` rewrote `bidiagonal_qr` as well as deleting the
+  Jacobi entry points — so `svd_decompose` is a *different function* before and
+  after. `test_rigid_landmark_known_rotation` passes against post-refactor leto
+  and fails against the pinned one, on all three CI platforms. Migrating
+  `kabsch.rs` therefore cannot land before the pin advances; both have to move
+  in one change. Tracked as DEP-697-02.
+
+  `statistics.rs` has no such constraint: it moved from Jacobi to
+  `svd_decompose`, and the segmentation suite passes against both the pinned
+  and the current `bidiagonal_qr`. That is a property of the fix rather than
+  luck — admitting seeds unconditionally removed the dependency on the
+  inverse's numerical detail that made the old behaviour fragile.
+
+  Note for whoever advances the pin: the seed defect had to be fixed anyway.
+  The migration did not cause it; it removed the numerical accident hiding it.
+
+- **DEP-697-02 [patch] - Migrate kabsch with the leto pin advance**
+  (DoR; owner=unclaimed; last-update=2026-08-14; scope=
+  `crates/ritk-registration/src/classical/spatial/kabsch.rs` and the leto
+  entry in `Cargo.lock`; non-goal=leto itself).
+
+  `kabsch.rs:12,75` calls `svd_rank_revealing`, which leto `58b6eb3` deleted.
+  The rename to `svd_decompose` is mechanical but **cannot land alone**:
+  `58b6eb3` also rewrote `bidiagonal_qr`, so `svd_decompose` differs before and
+  after the pin. Measured — `test_rigid_landmark_known_rotation` passes against
+  post-refactor leto and fails against the pinned `8c4e609` on all three CI
+  platforms.
+
+  Outcome: the rename and `cargo update -p leto-ops` land in one change, with
+  that test green.
+
+  Acceptance: green CI on the advanced pin, not on the old one.
+
+  Risk: [patch] unless the rotation test still fails after the pin moves, in
+  which case Kabsch depends on a property the Jacobi path had and bidiagonal QR
+  does not — a leto finding for its ADR 0005.
 
 - **SAFE-693-06 [patch] - Bound the trx header arithmetic; A3 disproven**
   (DONE; owner=Claude; last-update=2026-08-14; scope=

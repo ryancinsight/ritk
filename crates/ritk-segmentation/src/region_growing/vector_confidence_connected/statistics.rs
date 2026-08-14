@@ -2,7 +2,7 @@
 
 use anyhow::Result;
 use leto::{Array2, Storage};
-use leto_ops::svd_rank_revealing_with_tolerance;
+use leto_ops::svd_decompose;
 
 const SINGULAR_DETERMINANT_THRESHOLD: f64 = 1.0e-6;
 
@@ -73,7 +73,9 @@ pub(super) fn inverse_covariance(covariance: &[f64], channel_count: usize) -> Re
     let matrix = Array2::from_shape_vec([channel_count, channel_count], covariance.to_vec())?;
     // ITK decides singularity from the determinant, so an independent relative
     // rank cutoff would change its contract before that decision is applied.
-    let decomposition = svd_rank_revealing_with_tolerance(&matrix.view(), 0.0)?;
+    // `svd_decompose` applies none, which is exactly what the removed
+    // `svd_rank_revealing_with_tolerance(.., 0.0)` requested.
+    let decomposition = svd_decompose(&matrix.view())?;
     let determinant = decomposition.singular_values.iter().product::<f64>();
     if determinant <= SINGULAR_DETERMINANT_THRESHOLD {
         return Ok(singular_inverse(channel_count));

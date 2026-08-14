@@ -58,10 +58,13 @@ fn borrowed_core_matches_simpleitk_blob_exactly() {
     }
 }
 
-#[test]
-fn corner_seed_uses_simpleitk_zero_flux_neighborhood() {
-    // NumPy default_rng(0), shape (5, 5, 2), split by final component.
-    let channels = vec![
+/// The 2-channel 5x5 fixture: `default_rng(0).standard_normal((5, 5, 2))`,
+/// split by final component.
+///
+/// Shared by every test that compares against a captured SimpleITK reference,
+/// so the two cannot drift onto different inputs.
+fn corner_seed_channels() -> Vec<Vec<f32>> {
+    vec![
         vec![
             0.125_730_22,
             0.640_422_64,
@@ -116,7 +119,13 @@ fn corner_seed_uses_simpleitk_zero_flux_neighborhood() {
             1.960_258_4,
             1.315_103_8,
         ],
-    ];
+    ]
+}
+
+#[test]
+fn corner_seed_uses_simpleitk_zero_flux_neighborhood() {
+    // NumPy default_rng(0), shape (5, 5, 2), split by final component.
+    let channels = corner_seed_channels();
     let config = VectorConfidenceConnectedConfig::new(0.5, 0, 1, 1.0)
         .expect("infallible: validated precondition");
     let output = segment_values(&channels, [1, 5, 5], &[[0, 0, 0].into()], config)
@@ -124,6 +133,71 @@ fn corner_seed_uses_simpleitk_zero_flux_neighborhood() {
     let mut expected = vec![0.0; 25];
     expected[0] = 1.0;
     assert_eq!(output, expected);
+}
+
+/// Match SimpleITK's own output across the multiplier range, not just at one point.
+///
+/// The single corner-seed case above pins one configuration; this pins the
+/// shape of the criterion. Reference masks come from SimpleITK 3.0's
+/// `VectorConfidenceConnectedImageFilter` on the identical input
+/// (`default_rng(0).standard_normal((5, 5, 2))`, seed `(0, 0)`,
+/// `NumberOfIterations = 0`, `InitialNeighborhoodRadius = 1`), captured by
+/// running the filter rather than reasoned about.
+///
+/// The 1e-6 row is the load-bearing one. No pixel can satisfy a criterion that
+/// tight — the seed's own Mahalanobis distance is 1.082 — yet ITK still
+/// returns it, because its flood-fill iterator is constructed at the seeds and
+/// writes them before any criterion runs. An implementation that tests the
+/// seed cannot reproduce that row at any threshold, which is what makes this a
+/// differential oracle rather than a restatement of our own behaviour.
+#[test]
+fn multiplier_sweep_matches_the_simpleitk_reference_masks() {
+    let channels = corner_seed_channels();
+    // (multiplier, reference mask over the 5x5 grid)
+    let reference: [(f64, [u8; 25]); 5] = [
+        (
+            1e-6,
+            [
+                1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
+            ],
+        ),
+        (
+            0.5,
+            [
+                1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
+            ],
+        ),
+        (
+            1.09,
+            [
+                1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
+            ],
+        ),
+        (
+            2.0,
+            [
+                1, 1, 0, 0, 0, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
+            ],
+        ),
+        (
+            5.0,
+            [
+                1, 1, 1, 0, 0, 1, 1, 0, 0, 0, 0, 1, 1, 0, 0, 0, 0, 1, 1, 0, 0, 0, 1, 0, 0,
+            ],
+        ),
+    ];
+
+    for (multiplier, expected_mask) in reference {
+        let config = VectorConfidenceConnectedConfig::new(multiplier, 0, 1, 1.0)
+            .expect("infallible: validated precondition");
+        let output = segment_values(&channels, [1, 5, 5], &[[0, 0, 0].into()], config)
+            .expect("infallible: validated precondition");
+        let expected: Vec<f32> = expected_mask.iter().map(|&v| f64::from(v) as f32).collect();
+        assert_eq!(
+            output, expected,
+            "multiplier {multiplier} diverges from the SimpleITK reference mask"
+        );
+    }
 }
 
 #[test]

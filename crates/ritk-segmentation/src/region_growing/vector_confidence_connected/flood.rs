@@ -44,12 +44,19 @@ impl FloodWorkspace {
         self.queue.clear();
         self.visit_order.clear();
         let threshold_squared = threshold * threshold;
+        // Seeds enter unconditionally, matching ITK: its flood-fill iterator is
+        // constructed *at* the seeds and writes them before any criterion runs,
+        // so a seed appears in the output even at a multiplier no pixel could
+        // satisfy. Verified against SimpleITK 3.0 down to multiplier 1e-6,
+        // where it still returns exactly the seed.
+        //
+        // Testing the seed here instead made its inclusion depend on the
+        // numerical detail of the covariance inverse — the same seed measured
+        // 1.082 against a 0.5 multiplier and was retained only because the
+        // caller had widened the threshold to cover it.
         for &seed in seeds {
             let index = flatten(seed, dimensions);
-            if !self.mask[index]
-                && mahalanobis_squared(channels, index, mean, inverse, &mut self.delta)
-                    <= threshold_squared
-            {
+            if !self.mask[index] {
                 self.mask[index] = true;
                 self.queue.push_back(index);
                 self.visit_order.push(index);
