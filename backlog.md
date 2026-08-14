@@ -186,21 +186,39 @@
   passed under the same mutant.
 
 - **TEST-696-03 [patch] - Ground-truth recovery test for multi-resolution demons**
-  (DoR; owner=unclaimed; last-update=2026-08-13; scope=
-  `crates/ritk-registration` multi-resolution demons tests; non-goal=algorithm
-  changes).
+  (DONE; owner=Claude; last-update=2026-08-14; scope=
+  `crates/ritk-registration/tests/multires_recovery_test.rs`;
+  non-goal=algorithm changes, and the leto SVD migration the local build needs,
+  which stays DEP-697-01).
 
-  `MultiResDemonsRegistration` is the standard remedy for the amplitude
-  shortfall TEST-696-01 measured, and has no ground-truth recovery test.
+  The pyramid had no ground-truth recovery test, so the remedy for the
+  amplitude shortfall TEST-696-01 measured had never been checked against a
+  known deformation. Both arms now run on the same fixed/moving pair at the
+  same grid, wavelength, sigma and full-resolution iteration budget, so the
+  comparison is a direct measurement rather than one across two runs.
 
-  Outcome: the recovery harness from `deformable_recovery_test.rs` applied to
-  the multi-resolution path, quantifying whether the coarse-to-fine schedule
-  closes the ~30% gap at long structural scale.
+  Measured at periods 13/15/17 on 20^3, sigma 0.75, 240 iterations:
 
-  Acceptance: measured amplitude ratio against the single-resolution table
-  already recorded, at matching grid, wavelength and iteration budget.
+  | Arm | alpha | RMS error |
+  | --- | --- | --- |
+  | Single resolution | 0.7177 | 0.4336 voxel |
+  | 2-level pyramid | 0.7704 | 0.3911 voxel |
 
-  Risk: [patch]; test-only.
+  **The pyramid helps but does not close the gap.** It recovers 0.053 more
+  amplitude, about 19% of the 0.282 single resolution leaves — real, and well
+  short of what the textbook framing implies. The single-resolution arm
+  reproduces the 0.712 TEST-696-01 recorded independently, so the two
+  measurements corroborate each other.
+
+  The assertion is a floor on the gain (0.02, a 2.6x margin against the
+  measured 0.053) rather than the measured value, so it fails on a regression
+  to parity without being brittle. Both arms are deterministic, so run-to-run
+  variation is floating-point only.
+
+  Verified locally with DEP-697-01's migration applied to make the workspace
+  compile under the Atlas overlay; that migration is not part of this change,
+  and CI is unaffected because the committed lockfile pins leto to 8c4e609,
+  which predates the removal.
 
 - **ARCH-695-01 [patch][arch] - Give the Image operation families their own leaf modules**
   (DONE; owner=Claude; last-update=2026-08-13; scope=
