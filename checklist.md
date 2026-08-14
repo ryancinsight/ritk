@@ -46,8 +46,9 @@ steps.
 
 > **Retired tooling note**: The `burn-migration-audit` xtask command,
 > `xtask/burn_surface.allowlist`, and the `legacy-migration-audit` CI
-> workflow were removed after the Burn-to-Coeus migration completed.
-> References to these tools in the entries below are historical.
+> workflow were retired. Their removal is not evidence that the consumer
+> cutover is complete; references to these tools in the entries below are
+> historical.
 
 ## DOC-694-01 — Render diffusion-MRI equations portably
 **Target version**: Unreleased patch
