@@ -15,6 +15,7 @@
 mod backend;
 pub(crate) mod color;
 pub(crate) mod constants;
+pub mod fixtures;
 pub(crate) mod huffman;
 pub(crate) mod idct;
 pub(crate) mod marker;

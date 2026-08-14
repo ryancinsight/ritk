@@ -404,23 +404,48 @@
   reproducible, and it is what nearly cost a correct optimisation a revert.
 
 - **PERF-694-03 [patch] - Commit criterion baselines for the decode and resample paths**
-  (DoR; owner=unclaimed; last-update=2026-08-13; scope=
-  `crates/ritk-codecs/benches/codec_throughput.rs` and a new interpolation
-  bench; non-goal=further optimization, which this exists to direct).
+  (DONE; owner=Claude; last-update=2026-08-14; scope=
+  `crates/ritk-codecs/{benches/codec_throughput.rs,src/jpeg/fixtures.rs}` and
+  `crates/ritk-interpolation/benches/linear_interpolation.rs`;
+  non-goal=further optimization, which these exist to direct).
 
-  Outcome: durable criterion baselines so a later regression blocks merge,
-  rather than the one-off measurements PERF-694-02 recorded.
+  The blocker was the fixture: no committed JPEG sample reached the baseline
+  DCT decoder, and the crate has no baseline encoder to make one. The builder
+  SAFE-693-05 wrote for its corruption sweeps is now `jpeg::fixtures`,
+  generalised to arbitrary dimensions and made public rather than test-gated —
+  a bench is a separate compilation unit from the test harness, so `cfg(test)`
+  cannot reach it, and a cargo feature to bridge that would be a build toggle
+  rather than the dependency management features are for.
 
-  Method: extend the existing criterion suite under the committed benchmark
-  time budget. A baseline-DCT JPEG fixture has to be built first — the
-  committed fixtures are lossless SOF3 and never reach the IDCT, and the crate
-  has no baseline-JPEG encoder to generate one with.
+  Baselines, Windows release on a quiet host:
 
-  Acceptance: baselines committed; the harness interleaves variants and
-  reports minima, since PERF-694-02 showed a single ordering is not
-  reproducible for allocator-sensitive kernels.
+  | Benchmark | Median |
+  | --- | --- |
+  | `jpeg_baseline_decode_512x512_grayscale` | 933.8 us |
+  | `jpeg_baseline_decode_512x512_ycbcr` | 7.003 ms |
+  | `linear_interpolation_3d/1000` | 27.98 us |
+  | `linear_interpolation_3d/100000` | 2.531 ms |
+  | `linear_interpolation_bounds/extend` | 1.617 ms |
+  | `linear_interpolation_bounds/zero_pad` | 696.0 us |
 
-  Risk: [patch]; benchmark-only, no production code.
+  Three observations the first pass produced. YCbCr costs 7.5x grayscale for a
+  3x block-count increase, so the colour conversion — not the block decode —
+  dominates that path. Linear interpolation's per-point cost is flat from 1e3
+  to 1e5 points (28.0 ns against 25.3 ns), so nothing falls off a cache cliff
+  across that range. And `ZeroPad` is 2.3x faster than `Extend` on a
+  half-out-of-bounds batch, because it returns before the eight-corner loop
+  instead of clamping into it — overhanging a resample is cheaper under
+  `ZeroPad`, not merely different.
+
+  The interpolation bench carries an explicit noise floor in its module docs:
+  PERF-694-02 measured heap timings from 3.3 ms to 31.5 ms across runs of
+  identical code depending on allocator state, so a delta under roughly 20%
+  there is not evidence until it reproduces across invocations. Recording that
+  is the point — the regression PERF-694-02 caught went in precisely because
+  no baseline existed to catch it.
+
+  Both benches smoke-run under `--test` within the standard budget, so the
+  gates exercise them without a timing pass.
 
 - **SAFE-693-01 [patch] - Harden JPEG header parsing against malformed input**
   (DONE; owner=Claude; last-update=2026-08-13; scope=
