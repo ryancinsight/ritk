@@ -518,6 +518,45 @@
   scan-array findings survived in the DCT path. No fuzz target exists anywhere
   in `ritk-codecs`.
 
+- **DEP-697-01 [patch] - Migrate vector-confidence statistics off the removed leto SVD**
+  (DoR; owner=unclaimed; last-update=2026-08-14; scope=
+  `crates/ritk-segmentation/src/region_growing/vector_confidence_connected/`
+  `{statistics.rs,tests.rs}`; non-goal=changing leto, whose refactor is
+  deliberate, or relaxing the SimpleITK conformance assertion).
+
+  leto `58b6eb3` ("refactor(leto)!: Collapse the duplicate SVD onto one
+  implementation") is pushed to leto's default branch and removes
+  `svd_decompose_with_tolerance`, `svd_rank_revealing`,
+  `svd_rank_revealing_with_tolerance` and `svd_via_bidiagonal`, leaving
+  `svd_decompose`. `statistics.rs:5,76` still imports and calls
+  `svd_rank_revealing_with_tolerance`.
+
+  Not currently visible in CI: `Cargo.lock` pins the pre-refactor rev, so the
+  break only lands when the pin advances. It reproduces now under the Atlas
+  path overlay, which is how it was found.
+
+  The obvious migration is not behaviour-preserving. The call passes tolerance
+  `0.0` specifically so no independent rank cutoff is applied, and
+  `svd_decompose` applies none — but substituting it directly turns
+  `corner_seed_uses_simpleitk_zero_flux_neighborhood` from segmenting the seed
+  voxel into segmenting nothing. `svd_decompose` was probed on 1x1 covariances
+  (0.0, 1.0, 0.25) and returns the correct singular values with the expected
+  singularity branch, so the divergence is in the multi-channel path, not the
+  degenerate one. Do not make the test pass by adjusting the assertion: the
+  determinant rule at `statistics.rs:80` is ITK's contract, and this test is
+  what pins conformance to it.
+
+  Outcome: the consumer builds against post-`58b6eb3` leto with
+  `corner_seed_uses_simpleitk_zero_flux_neighborhood` passing unmodified, or a
+  recorded finding that the two SVD paths genuinely disagree on this input —
+  which would be a leto defect and belongs upstream under its ADR 0005.
+
+  Acceptance: the divergence explained with the singular values from both
+  paths on the failing covariance, not merely made green.
+
+  Risk: [patch] for the consumer; upgrades to a leto item if the paths
+  disagree numerically.
+
 - **SAFE-693-06 [patch] - Bound decompression ratio and the trx header arithmetic**
   (DoR; owner=unclaimed; last-update=2026-08-14; scope=
   `ritk-nrrd/src/reader/volume.rs`, `ritk-metaimage/src/reader.rs`,
