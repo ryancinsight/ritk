@@ -328,21 +328,63 @@
   changes are loop-invariant hoists whose correctness does not rest on the
   measurement. Filed as PERF-694-02.
 
-- **PERF-694-02 [patch] - Baseline the JPEG decode and resample paths**
+- **PERF-694-02 [patch] - Measure the PERF-694-01 hoists**
+  (DONE; owner=Claude; last-update=2026-08-13; scope=in-process differential
+  measurement of both hoists, and the correction it forced in
+  `crates/ritk-interpolation/src/interpolation/kernel/linear/mod.rs`;
+  non-goal=committed criterion benches, which still need a baseline-DCT JPEG
+  fixture — filed as PERF-694-03).
+
+  Measured in release on a quiet host (zero peer cargo processes), each
+  variant warmed then interleaved with the others, minimum per variant.
+
+  IDCT, per 4096 blocks (one 512x512 image): shared basis 320us, rebuilt per
+  block 1.17ms — **3.64x**. The hoist is confirmed.
+
+  Linear interpolation contradicted the premise and forced a correction. Three
+  findings, in the order they arrived:
+
+  1. The `vec!` scratch really does allocate: 300000 allocations for 100000
+     points, exactly three per call, not elided by the optimizer. The audit's
+     count was right.
+  2. Removing them buys nothing when the allocator is warm. Best-case heap
+     3.29ms against 3.35ms for stack scratch over 262144 points — parity. The
+     allocator fast path is not this kernel's bottleneck. Heap timing is
+     bimodal across runs (3.3, 3.7, 22.2, 31.5ms), so the win is real only
+     when the free list is cold.
+  3. **The shipped change was a 2x regression.** Packing the three per-axis
+     values into one `AxisBracket` struct measured 6.59ms against 3.35ms for
+     the original three flat arrays. The array-of-structs layout, which I
+     introduced on the reasoning that the corner loop reads all three
+     together, is simply slower here.
+
+  Corrected: stack scratch retained, structure-of-arrays layout restored. The
+  justification is now allocator traffic under parallel resampling — which a
+  single-threaded benchmark cannot show — rather than a single-threaded
+  speedup that does not exist.
+
+  Process note for the pattern library: the first measurement of this pair
+  reported 0.47x and the second 3.20x for the same code. Neither was
+  trustworthy; a single ordering is sensitive to allocator and cache state.
+  Interleaving variants and taking per-variant minima is what made the numbers
+  reproducible, and it is what nearly cost a correct optimisation a revert.
+
+- **PERF-694-03 [patch] - Commit criterion baselines for the decode and resample paths**
   (DoR; owner=unclaimed; last-update=2026-08-13; scope=
   `crates/ritk-codecs/benches/codec_throughput.rs` and a new interpolation
   bench; non-goal=further optimization, which this exists to direct).
 
-  Outcome: criterion baselines for baseline-JPEG fragment decode and linear
-  resampling, so PERF-694-01's hoists carry measured deltas and any later
-  regression blocks merge.
+  Outcome: durable criterion baselines so a later regression blocks merge,
+  rather than the one-off measurements PERF-694-02 recorded.
 
-  Method: extend the existing criterion suite; run on a quiet host (no peer
-  cargo processes) per the benchmark time budget in the standards. A
-  baseline-DCT JPEG fixture is needed — the committed fixtures are lossless
-  SOF3 and never reach the IDCT.
+  Method: extend the existing criterion suite under the committed benchmark
+  time budget. A baseline-DCT JPEG fixture has to be built first — the
+  committed fixtures are lossless SOF3 and never reach the IDCT, and the crate
+  has no baseline-JPEG encoder to generate one with.
 
-  Acceptance: baselines committed, before/after deltas recorded here.
+  Acceptance: baselines committed; the harness interleaves variants and
+  reports minima, since PERF-694-02 showed a single ordering is not
+  reproducible for allocator-sensitive kernels.
 
   Risk: [patch]; benchmark-only, no production code.
 
