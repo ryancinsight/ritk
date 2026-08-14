@@ -238,7 +238,7 @@ fn decode_nrrd<P: AsRef<Path>>(path: P) -> Result<DecodedNrrd> {
         } else {
             parse_space_directions(sd_str)?
         };
-        metadata_from_file_space_directions(dirs)
+        metadata_from_file_space_directions(dirs)?
     } else if let Some(sp_str) = headers.get("spacings") {
         let sp = parse_f64_vec(sp_str, "spacings", dimension)?;
         let sp: Vec<f64> = match acquisition {
@@ -247,9 +247,9 @@ fn decode_nrrd<P: AsRef<Path>>(path: P) -> Result<DecodedNrrd> {
             AcquisitionAxis::Slowest => sp[..3].to_vec(),
         };
         let sz = if sp.len() >= 3 { sp[2] } else { 1.0 };
-        metadata_from_file_spacings([sp[0], sp[1], sz])
+        metadata_from_file_spacings([sp[0], sp[1], sz])?
     } else {
-        metadata_from_file_spacings([1.0, 1.0, 1.0])
+        metadata_from_file_spacings([1.0, 1.0, 1.0])?
     };
 
     let origin = if let Some(so_str) = headers.get("space origin") {

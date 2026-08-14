@@ -613,18 +613,42 @@
   disproving.
 
 - **SAFE-693-05 [patch] - Add malformed-input coverage where the audit found none**
-  (DoR; owner=unclaimed; last-update=2026-08-13; scope=`ritk-mif`,
-  `ritk-nrrd`, `ritk-trx` test modules and a multi-component DCT JPEG fixture;
+  (DONE; owner=Claude; last-update=2026-08-14; scope=
+  `crates/ritk-codecs/src/jpeg/scan_dct.rs` fixtures and sweeps, and
+  `crates/ritk-nrrd/src/{spatial.rs,reader/volume.rs,tests/reader.rs}`;
   non-goal=the crates SAFE-693-02 found clean).
 
-  Outcome: the prefix-truncation and byte-substitution sweeps from
-  SAFE-693-01 applied where they are absent, plus a three-component baseline
-  DCT fixture so the JPEG sweeps reach the scan stage they currently miss.
+  The JPEG fixtures were all single-component lossless (SOF3), so the entire
+  DCT decoder — the stage holding the SOS component count, the DC category and
+  the MCU-padded allocation — had no corruption coverage at all. Two
+  hand-built baseline fixtures now exist, one grayscale and one three-component
+  YCbCr, sharing a builder parameterised by component count so the grayscale
+  and YCbCr scan paths are both reached. Each block codes DC category 0 then
+  EOB, so the stream is minimal and decodes to the 128 level shift.
 
-  Acceptance: each new sweep demonstrated to fail against the corresponding
-  unfixed code, recorded here.
+  Prefix-truncation and byte-substitution sweeps run over both. They are not
+  merely panic-freedom assertions: any image that comes back must have a buffer
+  matching the dimensions it reports, so a decoder sizing a plane from one
+  component count and reporting another fails too.
 
-  Risk: [patch]; test-only.
+  Discrimination measured, and honestly: removing the `read_bits` and DC
+  category bounds makes the corruption sweep fail with "attempt to shift left
+  with overflow" in the entropy stage — the class the fixture was built to
+  reach. Removing the SOS component bound does **not** trip it, because the
+  `Ss`/`Se` scan-parameter check rejects the corrupt header first; that
+  finding stays pinned by the targeted test in `marker.rs` rather than by
+  these sweeps.
+
+  The same sweeps applied to NRRD found a defect that was not in the audit.
+  `metadata_from_internal_scaled_columns` built `Spacing::new` from direction
+  column norms, and `Spacing` asserts each component is finite and positive —
+  so a corrupt `space directions` field with a degenerate vector aborted the
+  process. This is the same class as the DICOM `PixelSpacing` abort fixed in
+  RELEASE-689's follow-up, in a second reader. The chain is fallible now,
+  reporting through `Spacing::try_new`.
+
+  NRRD previously had one negative test out of nineteen and no truncation
+  coverage; it now has both sweeps.
 
 - **FIX-690-01 [minor] - Consolidate the Image coordinate-transform API**
   (DONE; owner=Claude; last-update=2026-08-13; scope=
