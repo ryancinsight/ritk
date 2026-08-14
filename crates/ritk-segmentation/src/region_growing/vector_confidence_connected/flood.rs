@@ -38,12 +38,11 @@ impl FloodWorkspace {
         seeds: &[VoxelIndex],
         mean: &[f64],
         inverse: &[f64],
-        threshold: f64,
+        threshold_squared: f64,
     ) {
         self.mask.fill(false);
         self.queue.clear();
         self.visit_order.clear();
-        let threshold_squared = threshold * threshold;
         for &seed in seeds {
             let index = flatten(seed, dimensions);
             if !self.mask[index]

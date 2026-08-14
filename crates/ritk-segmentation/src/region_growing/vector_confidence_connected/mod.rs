@@ -225,30 +225,50 @@ fn segment_values<S: AsRef<[f32]>>(
     }
 
     let mut inverse = inverse_covariance(&covariance, channel_count)?;
-    let mut threshold = config.multiplier;
+    // Compared in squared space throughout. Taking `sqrt` here and squaring it
+    // back inside `fill` is not the identity in binary floating point: for the
+    // SimpleITK corner-seed fixture, `d = 1.1711988960481510` round-trips to a
+    // value strictly below itself, so the seed failed `d <= threshold²` — its
+    // own threshold — and the region came back empty. Squaring the multiplier
+    // instead preserves the ordering (it is validated finite and positive) and
+    // lets a seed compare against exactly the value it contributed.
+    let mut threshold_squared = config.multiplier * config.multiplier;
     let mut delta = vec![0.0; channel_count];
     for &seed in &seeds {
-        let distance = mahalanobis_squared(
+        let distance_squared = mahalanobis_squared(
             channels,
             flatten(seed, dimensions),
             &mean,
             &inverse,
             &mut delta,
         )
-        .max(0.0)
-        .sqrt();
-        threshold = threshold.max(distance);
+        .max(0.0);
+        threshold_squared = threshold_squared.max(distance_squared);
     }
 
     let mut flood = FloodWorkspace::new(voxel_count, channel_count);
-    flood.fill(channels, dimensions, &seeds, &mean, &inverse, threshold);
+    flood.fill(
+        channels,
+        dimensions,
+        &seeds,
+        &mean,
+        &inverse,
+        threshold_squared,
+    );
     for _ in 0..config.iterations {
         if flood.visit_order().is_empty() {
             break;
         }
         (mean, covariance) = mean_covariance(channels, flood.visit_order());
         inverse = inverse_covariance(&covariance, channel_count)?;
-        flood.fill(channels, dimensions, &seeds, &mean, &inverse, threshold);
+        flood.fill(
+            channels,
+            dimensions,
+            &seeds,
+            &mean,
+            &inverse,
+            threshold_squared,
+        );
     }
 
     Ok(flood
