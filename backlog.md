@@ -186,21 +186,39 @@
   passed under the same mutant.
 
 - **TEST-696-03 [patch] - Ground-truth recovery test for multi-resolution demons**
-  (DoR; owner=unclaimed; last-update=2026-08-13; scope=
-  `crates/ritk-registration` multi-resolution demons tests; non-goal=algorithm
-  changes).
+  (DONE; owner=Claude; last-update=2026-08-14; scope=
+  `crates/ritk-registration/tests/multires_recovery_test.rs`;
+  non-goal=algorithm changes, and the leto SVD migration the local build needs,
+  which stays DEP-697-01).
 
-  `MultiResDemonsRegistration` is the standard remedy for the amplitude
-  shortfall TEST-696-01 measured, and has no ground-truth recovery test.
+  The pyramid had no ground-truth recovery test, so the remedy for the
+  amplitude shortfall TEST-696-01 measured had never been checked against a
+  known deformation. Both arms now run on the same fixed/moving pair at the
+  same grid, wavelength, sigma and full-resolution iteration budget, so the
+  comparison is a direct measurement rather than one across two runs.
 
-  Outcome: the recovery harness from `deformable_recovery_test.rs` applied to
-  the multi-resolution path, quantifying whether the coarse-to-fine schedule
-  closes the ~30% gap at long structural scale.
+  Measured at periods 13/15/17 on 20^3, sigma 0.75, 240 iterations:
 
-  Acceptance: measured amplitude ratio against the single-resolution table
-  already recorded, at matching grid, wavelength and iteration budget.
+  | Arm | alpha | RMS error |
+  | --- | --- | --- |
+  | Single resolution | 0.7177 | 0.4336 voxel |
+  | 2-level pyramid | 0.7704 | 0.3911 voxel |
 
-  Risk: [patch]; test-only.
+  **The pyramid helps but does not close the gap.** It recovers 0.053 more
+  amplitude, about 19% of the 0.282 single resolution leaves — real, and well
+  short of what the textbook framing implies. The single-resolution arm
+  reproduces the 0.712 TEST-696-01 recorded independently, so the two
+  measurements corroborate each other.
+
+  The assertion is a floor on the gain (0.02, a 2.6x margin against the
+  measured 0.053) rather than the measured value, so it fails on a regression
+  to parity without being brittle. Both arms are deterministic, so run-to-run
+  variation is floating-point only.
+
+  Verified locally with DEP-697-01's migration applied to make the workspace
+  compile under the Atlas overlay; that migration is not part of this change,
+  and CI is unaffected because the committed lockfile pins leto to 8c4e609,
+  which predates the removal.
 
 - **ARCH-695-01 [patch][arch] - Give the Image operation families their own leaf modules**
   (DONE; owner=Claude; last-update=2026-08-13; scope=
@@ -563,44 +581,51 @@
   scan-array findings survived in the DCT path. No fuzz target exists anywhere
   in `ritk-codecs`.
 
-- **DEP-697-01 [patch] - Migrate vector-confidence statistics off the removed leto SVD**
+- **DEP-697-01 [patch] - Migrate the two leto SVD consumers off the removed entry points**
   (DoR; owner=unclaimed; last-update=2026-08-14; scope=
   `crates/ritk-segmentation/src/region_growing/vector_confidence_connected/`
-  `{statistics.rs,tests.rs}`; non-goal=changing leto, whose refactor is
-  deliberate, or relaxing the SimpleITK conformance assertion).
+  `{statistics.rs,tests.rs}` and
+  `crates/ritk-registration/src/classical/spatial/kabsch.rs`; non-goal=leto
+  itself, whose refactor is deliberate).
 
-  leto `58b6eb3` ("refactor(leto)!: Collapse the duplicate SVD onto one
-  implementation") is pushed to leto's default branch and removes
-  `svd_decompose_with_tolerance`, `svd_rank_revealing`,
+  leto `58b6eb3` removed `svd_decompose_with_tolerance`, `svd_rank_revealing`,
   `svd_rank_revealing_with_tolerance` and `svd_via_bidiagonal`, leaving
-  `svd_decompose`. `statistics.rs:5,76` still imports and calls
-  `svd_rank_revealing_with_tolerance`.
+  `svd_decompose`. It is on leto's default branch.
 
-  Not currently visible in CI: `Cargo.lock` pins the pre-refactor rev, so the
-  break only lands when the pin advances. It reproduces now under the Atlas
-  path overlay, which is how it was found.
+  **Two consumers, not one.** The original filing named only
+  `statistics.rs:5,76`; `kabsch.rs:12,75` calls `svd_rank_revealing` and was
+  missed. Both are mechanical renames — `svd_decompose` takes no tolerance,
+  and the tolerance-zero call requested no cutoff, which is its default.
 
-  The obvious migration is not behaviour-preserving. The call passes tolerance
-  `0.0` specifically so no independent rank cutoff is applied, and
-  `svd_decompose` applies none — but substituting it directly turns
-  `corner_seed_uses_simpleitk_zero_flux_neighborhood` from segmenting the seed
-  voxel into segmenting nothing. `svd_decompose` was probed on 1x1 covariances
-  (0.0, 1.0, 0.25) and returns the correct singular values with the expected
-  singularity branch, so the divergence is in the multi-channel path, not the
-  degenerate one. Do not make the test pass by adjusting the assertion: the
-  determinant rule at `statistics.rs:80` is ITK's contract, and this test is
-  what pins conformance to it.
+  Still invisible in CI: the committed lockfile pins leto to `8c4e609`, which
+  predates the removal, so this only lands when the pin advances. It
+  reproduces today under the Atlas path overlay.
 
-  Outcome: the consumer builds against post-`58b6eb3` leto with
-  `corner_seed_uses_simpleitk_zero_flux_neighborhood` passing unmodified, or a
-  recorded finding that the two SVD paths genuinely disagree on this input —
-  which would be a leto defect and belongs upstream under its ADR 0005.
+  **The migration is mathematically sound.** `SvdDecomposition` is unchanged
+  (U and V as columns, singular values descending), and the reconstructed
+  inverse was checked against the property that matters: for the covariance the
+  failing test produces,
+  `[0.7457, 0.0483; 0.0483, 0.01335]`, `cov * inverse` is the identity to
+  1e-16. `svd_decompose` was also probed on 1x1 and 3x3 covariances — correct
+  singular values and the expected singularity branch in each.
 
-  Acceptance: the divergence explained with the singular values from both
-  paths on the failing covariance, not merely made green.
+  What remains is one knife-edge assertion.
+  `corner_seed_uses_simpleitk_zero_flux_neighborhood` runs a 2-channel 1x5x5
+  image with multiplier 0.5 and radius 1, and expects only the seed voxel; with
+  the migration it segments nothing. The determinant is 7.6e-3, so this is not
+  the singular branch — it is a Mahalanobis distance sitting near the threshold
+  that a numerically different but equally valid inverse pushes across.
 
-  Risk: [patch] for the consumer; upgrades to a leto item if the paths
-  disagree numerically.
+  Acceptance: decide the expected mask against the SimpleITK behaviour the test
+  name invokes, not against whichever implementation happens to be linked. If
+  SimpleITK includes the seed, the divergence is a leto finding for its ADR
+  0005; if the mask is genuinely ambiguous at multiplier 0.5, the fixture wants
+  a less marginal configuration. **Do not resolve this by editing the expected
+  mask to match the new output** — the determinant rule at `statistics.rs:80`
+  is ITK's contract and this test is what pins conformance to it.
+
+  Risk: [patch] for the renames; upgrades to a leto item if the paths disagree
+  numerically beyond this one threshold crossing.
 
 - **SAFE-693-06 [patch] - Bound the trx header arithmetic; A3 disproven**
   (DONE; owner=Claude; last-update=2026-08-14; scope=
