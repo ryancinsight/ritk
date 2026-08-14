@@ -338,8 +338,11 @@
   Measured in release on a quiet host (zero peer cargo processes), each
   variant warmed then interleaved with the others, minimum per variant.
 
-  IDCT, per 4096 blocks (one 512x512 image): shared basis 320us, rebuilt per
-  block 1.17ms — **3.64x**. The hoist is confirmed.
+  IDCT, per 4096 blocks (one 512x512 image): shared basis 242us, rebuilt per
+  block 898us — **3.71x**. Confirmed. The first pass measured this with a
+  single warmed ordering and got 3.64x; re-running it under the interleaved
+  protocol below moved the figure by 2%, because this path is compute-bound
+  with no allocator in it and so was never the unstable one.
 
   Linear interpolation contradicted the premise and forced a correction. Three
   findings, in the order they arrived:
