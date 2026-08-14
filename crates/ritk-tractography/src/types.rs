@@ -1,4 +1,5 @@
 use gaia::{Polyline, PolylineError};
+use ritk_spatial::Point;
 
 /// Direction regimes supported by deterministic tracking.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -191,6 +192,56 @@ impl TractographyResult {
     #[must_use]
     pub fn streamlines(&self) -> &[Streamline] {
         &self.streamlines
+    }
+
+    /// A copy with every point mapped through `transform`.
+    ///
+    /// Tracking runs in whatever frame the direction field is defined in, which
+    /// for a voxel-index field is not the frame a tractogram should be written
+    /// in — a file is only meaningful beside the anatomy it came from. The
+    /// export methods on this type all assume physical millimetres, so a
+    /// caller tracking in indices converts first.
+    ///
+    /// Termination reasons are carried over unchanged: they describe why
+    /// tracking stopped, which no change of coordinates affects.
+    ///
+    /// # Errors
+    ///
+    /// [`TractographyError`] if a mapped streamline is no longer a valid
+    /// polyline, which a transform collapsing distinct points would cause.
+    pub fn map_points(
+        &self,
+        transform: impl Fn(&Point<3>) -> Point<3>,
+    ) -> Result<Self, TractographyError> {
+        let mut streamlines = Vec::new();
+        streamlines
+            .try_reserve_exact(self.streamlines.len())
+            .map_err(|_| TractographyError::Allocation {
+                requested: self.streamlines.len(),
+            })?;
+
+        for streamline in &self.streamlines {
+            let points: Vec<_> = streamline
+                .geometry
+                .points()
+                .iter()
+                .map(|point| {
+                    let mapped = transform(&Point::new([point.x, point.y, point.z]));
+                    let [x, y, z] = mapped.to_array();
+                    leto::geometry::Point3::new(x, y, z)
+                })
+                .collect();
+            streamlines.push(Streamline {
+                geometry: Polyline::new(points).map_err(TractographyError::from)?,
+                forward_termination: streamline.forward_termination,
+                backward_termination: streamline.backward_termination,
+            });
+        }
+
+        Ok(Self {
+            streamlines: streamlines.into_boxed_slice(),
+            seeds_attempted: self.seeds_attempted,
+        })
     }
 
     /// Number of input seeds queried.
