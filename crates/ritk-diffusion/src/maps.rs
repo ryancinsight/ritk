@@ -45,7 +45,7 @@
 
 mod volume;
 
-pub use volume::DtiVolume;
+pub use volume::{DirectionInterpolation, DtiVolume};
 
 use ritk_diffusion_scheme::GradientScheme;
 use thiserror::Error;

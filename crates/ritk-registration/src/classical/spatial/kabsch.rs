@@ -9,7 +9,7 @@
 //! Reference: Kabsch (1976), *Acta Crystallogr.* A32:922–923.
 
 use leto::{Array2, FixedMatrix, FixedVector};
-use leto_ops::svd_rank_revealing;
+use leto_ops::svd_decompose;
 
 use super::error::SpatialError;
 
@@ -72,7 +72,7 @@ pub(crate) fn kabsch_algorithm(
         ],
     )
     .map_err(|err| SpatialError::SvdConvergence(format!("Kabsch covariance layout: {err}")))?;
-    let svd = svd_rank_revealing(&h_array.view())
+    let svd = svd_decompose(&h_array.view())
         .map_err(|err| SpatialError::SvdConvergence(format!("Kabsch SVD failed: {err}")))?;
 
     let u = matrix_from_svd_columns(&svd.left_singular_vectors)?;
