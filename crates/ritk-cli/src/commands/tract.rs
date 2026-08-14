@@ -9,7 +9,9 @@ use std::io::BufWriter;
 use std::path::{Path, PathBuf};
 
 use anyhow::{Context, Result};
-use ritk_diffusion::maps::{fit_diffusion_maps, DiffusionMapsConfig, DtiVolume};
+use ritk_diffusion::maps::{
+    fit_diffusion_maps, DiffusionMapsConfig, DirectionInterpolation, DtiVolume,
+};
 use ritk_image::Image;
 use ritk_spatial::Point;
 use ritk_tck::{TckHeader, TckTractogram};
@@ -110,10 +112,38 @@ pub struct DtiArgs {
     #[arg(long, default_value_t = 60.0)]
     pub max_turn_degrees: f64,
 
+    /// How the orientation is sampled between voxel centres.
+    ///
+    /// `trilinear` interpolates the outer product of the surrounding voxels,
+    /// which is sign-invariant and so cannot cancel two neighbours describing
+    /// the same fibre with opposite eigenvector signs. `nearest` is the
+    /// piecewise-constant baseline, kept so the two can be compared on the same
+    /// data.
+    #[arg(long, value_enum, default_value_t = Interpolation::Trilinear)]
+    pub interpolation: Interpolation,
+
     /// Background threshold, as a fraction of the b = 0 signal's upper
     /// percentile. Pass `0` to fit every voxel.
     #[arg(long, default_value_t = DiffusionMapsConfig::default().background_fraction)]
     pub background_fraction: f64,
+}
+
+/// Orientation sampling mode, as a command-line value.
+#[derive(clap::ValueEnum, Clone, Copy, Debug, PartialEq, Eq)]
+pub enum Interpolation {
+    /// The orientation of the nearest voxel centre.
+    Nearest,
+    /// Trilinear over the outer product of the surrounding voxels.
+    Trilinear,
+}
+
+impl From<Interpolation> for DirectionInterpolation {
+    fn from(value: Interpolation) -> Self {
+        match value {
+            Interpolation::Nearest => Self::Nearest,
+            Interpolation::Trilinear => Self::Trilinear,
+        }
+    }
 }
 
 /// Execute the `tract` subcommand group.
@@ -167,7 +197,8 @@ fn dti(args: DtiArgs) -> Result<()> {
 
     let anisotropy = maps.fractional_anisotropy();
     let volume = DtiVolume::new(maps, reference.shape(), args.track_anisotropy)
-        .context("placing the tensor field on the image grid")?;
+        .context("placing the tensor field on the image grid")?
+        .with_interpolation(args.interpolation.into());
 
     let seeds = seed(
         &anisotropy,
