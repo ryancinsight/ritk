@@ -186,3 +186,151 @@ fn an_anisotropy_floor_outside_zero_to_one_is_rejected() {
         }
     ));
 }
+
+// ── Interpolation ─────────────────────────────────────────────────────────────
+
+/// Eigenvalues of a strongly prolate voxel; only their ordering and anisotropy
+/// matter to a direction lookup.
+const PROLATE: [f64; 3] = [1.7e-3, 3.0e-4, 3.0e-4];
+
+/// Build a volume from stored orientations directly, bypassing the fit.
+fn oriented(directions: &[[f64; 3]], shape: [usize; 3], floor: f64) -> DtiVolume {
+    let maps = DiffusionMaps::from_parts(
+        vec![PROLATE; directions.len()],
+        directions.to_vec(),
+        vec![true; directions.len()],
+    );
+    DtiVolume::new(maps, shape, floor).expect("shape matches the supplied voxels")
+}
+
+#[test]
+fn opposite_stored_signs_do_not_cancel() {
+    // The defect this guards against. An eigenvector has no sign, so two
+    // neighbours may legitimately store v and -v for the same fibre. Averaging
+    // the vectors gives exactly zero and the streamline stops mid-bundle;
+    // averaging the outer product cannot, because (-v)(-v)ᵀ = v vᵀ.
+    let volume = oriented(&[[1.0, 0.0, 0.0], [-1.0, 0.0, 0.0]], [2, 1, 1], 0.2);
+
+    let direction = at(&volume, [0.5, 0.0, 0.0]).expect("a fibre runs through the midpoint");
+    let [x, y, z] = direction.to_array();
+    assert!(
+        x.abs() > 0.999,
+        "the midpoint of a straight bundle must follow it, got {direction:?}"
+    );
+    assert!(y.abs() < 1.0e-9 && z.abs() < 1.0e-9);
+}
+
+#[test]
+fn interpolation_lies_between_the_contributing_orientations() {
+    // Two neighbours 40 degrees apart: the midpoint must land between them, not
+    // snap to either. This is what distinguishes interpolation from a
+    // nearest-neighbour lookup that merely happens to be smooth.
+    let angle = 40.0_f64.to_radians();
+    let volume = oriented(
+        &[[1.0, 0.0, 0.0], [angle.cos(), angle.sin(), 0.0]],
+        [2, 1, 1],
+        0.2,
+    );
+
+    let midpoint = at(&volume, [0.5, 0.0, 0.0]).expect("both neighbours contribute");
+    let [x, y, _] = midpoint.to_array();
+    let recovered = y.atan2(x).to_degrees().abs();
+    assert!(
+        (recovered - 20.0).abs() < 1.0e-6,
+        "the midpoint of 0 and 40 degrees is 20, got {recovered}"
+    );
+}
+
+#[test]
+fn nearest_mode_is_piecewise_constant() {
+    // The comparison baseline: the same query points under Nearest must snap to
+    // one voxel's orientation, which is the discontinuity interpolation removes.
+    let angle = 40.0_f64.to_radians();
+    let volume = oriented(
+        &[[1.0, 0.0, 0.0], [angle.cos(), angle.sin(), 0.0]],
+        [2, 1, 1],
+        0.2,
+    )
+    .with_interpolation(DirectionInterpolation::Nearest);
+
+    let [x, y, _] = at(&volume, [0.4, 0.0, 0.0])
+        .expect("inside voxel 0")
+        .to_array();
+    assert!(
+        y.atan2(x).abs() < 1.0e-9,
+        "voxel 0 is exactly on the x axis"
+    );
+
+    let [x, y, _] = at(&volume, [0.6, 0.0, 0.0])
+        .expect("inside voxel 1")
+        .to_array();
+    assert!(
+        (y.atan2(x).to_degrees().abs() - 40.0).abs() < 1.0e-9,
+        "voxel 1 is exactly 40 degrees"
+    );
+}
+
+#[test]
+fn interpolation_does_not_extend_the_trackable_region() {
+    // Where a streamline may go is decided by the voxel it is in, not by its
+    // neighbours. If interpolation could bridge a masked voxel, switching
+    // interpolation would silently change where tracking stops.
+    let maps = DiffusionMaps::from_parts(
+        vec![PROLATE; 2],
+        vec![[1.0, 0.0, 0.0]; 2],
+        vec![true, false],
+    );
+    let volume = DtiVolume::new(maps, [2, 1, 1], 0.2).expect("shape matches");
+
+    assert!(at(&volume, [0.0, 0.0, 0.0]).is_some(), "the fitted voxel");
+    assert!(
+        at(&volume, [1.0, 0.0, 0.0]).is_none(),
+        "a masked voxel stays untrackable however its neighbour is oriented"
+    );
+}
+
+#[test]
+fn contradictory_orientations_fall_back_to_the_voxel_rather_than_averaging() {
+    // Perpendicular neighbours at equal weight sum to a dyadic with two equal
+    // leading eigenvalues, so no axis is preferred -- which is what a fibre
+    // crossing looks like to a single tensor. Interpolation reports nothing
+    // there, and the lookup uses the voxel's own orientation.
+    //
+    // The alternative failure this pins down is averaging: the mean of x and y
+    // points at 45 degrees, an orientation neither voxel holds and no fibre
+    // follows.
+    let volume = oriented(&[[1.0, 0.0, 0.0], [0.0, 1.0, 0.0]], [2, 1, 1], 0.2);
+
+    // 0.5 rounds away from zero, so the nearest voxel is 1, which holds y.
+    let [x, y, _] = at(&volume, [0.5, 0.0, 0.0])
+        .expect("the voxel is trackable even where interpolation is ambiguous")
+        .to_array();
+    assert!(
+        y.abs() > 0.999 && x.abs() < 1.0e-9,
+        "expected voxel 1's own orientation, got ({x}, {y}) -- a diagonal here          would mean the orientations were averaged"
+    );
+
+    // Off-centre one contribution dominates, so interpolation resolves again
+    // and bends the direction toward the other voxel.
+    let [x, y, _] = at(&volume, [0.2, 0.0, 0.0])
+        .expect("voxel 0 dominates")
+        .to_array();
+    let tilt = y.atan2(x).to_degrees().abs();
+    assert!(
+        (0.0..45.0).contains(&tilt),
+        "0.2 lies nearer voxel 0, so the direction tilts part way toward voxel 1, got {tilt} degrees"
+    );
+}
+
+#[test]
+fn a_uniform_bundle_interpolates_to_itself() {
+    // Interpolation must be exact where there is nothing to interpolate --
+    // otherwise it would bend a straight bundle.
+    let volume = oriented(&[[1.0, 0.0, 0.0]; 4], [4, 1, 1], 0.2);
+    for position in [0.0, 0.5, 1.25, 2.75, 3.0] {
+        let [x, y, z] = at(&volume, [position, 0.0, 0.0])
+            .unwrap_or_else(|| panic!("uniform bundle at {position}"))
+            .to_array();
+        assert!(x.abs() > 0.999 && y.abs() < 1.0e-9 && z.abs() < 1.0e-9);
+    }
+}
