@@ -491,3 +491,119 @@ fn real_dwi_volume_loads_as_a_series_matching_its_scheme() {
         "a brain volume has three non-degenerate spatial axes, got {grid:?}"
     );
 }
+
+/// Slices either side of the mid-brain plane fitted for the comparison.
+const SLAB_RADIUS: usize = 8;
+
+/// Interpolating the direction field reduces turn-limit terminations.
+///
+/// The acceptance oracle for sign-invariant interpolation. A nearest-neighbour
+/// field holds one orientation per voxel and steps discontinuously at each
+/// boundary, so a streamline following a smooth bundle can be stopped by a turn
+/// limit the bundle never exceeds. Interpolating should convert some of those
+/// terminations into continued tracking.
+///
+/// Measured on real tissue rather than a phantom, because a synthetic bundle is
+/// smooth by construction and would show the effect whether or not it survives
+/// the noise and partial-volume structure of an actual acquisition.
+///
+/// Both runs share a seed set, a configuration, and a mask, so the only
+/// difference is how the orientation is sampled between voxel centres.
+#[test]
+#[ignore = "requires the DWI volume fetched by test_data/diffusion/download.sh"]
+fn interpolation_reduces_turn_limit_terminations() {
+    let dwi = data_dir().join("sub-01/dwi/sub-01_run-1_dwi.nii.gz");
+    if !dwi.exists() || std::fs::metadata(&dwi).map(|m| m.len()).unwrap_or(0) < 1_000_000 {
+        eprintln!("skipping: DWI volume absent or is a git-annex pointer");
+        return;
+    }
+    let scheme = load_real_scheme().expect("real gradient scheme");
+    let series = ritk_io::read_image_series_native(&dwi).expect("real DWI reads as a series");
+    // A mid-brain slab rather than the whole volume: what is being compared is
+    // how orientation is sampled between voxel centres, which a slab exercises
+    // identically. Fitting all 72 slices would spend the test's whole budget on
+    // the part it is not measuring.
+    let [depth, rows, columns] = series[0].shape();
+    let plane = rows * columns;
+    let first = depth / 2 - SLAB_RADIUS;
+    let last = depth / 2 + SLAB_RADIUS;
+    let shape = [last - first, rows, columns];
+
+    let voxels: Vec<&[f32]> = series
+        .iter()
+        .map(|volume| {
+            &volume.data_slice().expect("contiguous host voxels")[first * plane..last * plane]
+        })
+        .collect();
+
+    let maps = ritk_diffusion::maps::fit_diffusion_maps(
+        &scheme,
+        &voxels,
+        &ritk_diffusion::maps::DiffusionMapsConfig::default(),
+    )
+    .expect("real series fits");
+    let anisotropy = maps.fractional_anisotropy();
+
+    // A strided sample of confident white matter, so the comparison runs over
+    // the same voxels in both modes without tracking the whole brain.
+    let seeds: Vec<ritk_spatial::Point<3>> = anisotropy
+        .iter()
+        .enumerate()
+        .filter(|(_, value)| **value >= 0.25)
+        .step_by(29)
+        .map(|(voxel, _)| {
+            let plane = shape[1] * shape[2];
+            ritk_spatial::Point::new([
+                (voxel / plane) as f64,
+                ((voxel % plane) / shape[2]) as f64,
+                (voxel % shape[2]) as f64,
+            ])
+        })
+        .collect();
+    assert!(
+        seeds.len() > 100,
+        "expected a usable seed set, got {}",
+        seeds.len()
+    );
+
+    let turn_limit_share = |interpolation| {
+        let volume = ritk_diffusion::maps::DtiVolume::new(maps.clone(), shape, 0.15)
+            .expect("shape matches the fitted voxels")
+            .with_interpolation(interpolation);
+        let tracks = ritk_tractography::euler_tractography(
+            &seeds,
+            ritk_tractography::TractographyConfig::default(),
+            ritk_tractography::dti_volume_direction_field(&volume),
+        )
+        .expect("tracking succeeds");
+
+        let mut turning = 0_usize;
+        let mut total = 0_usize;
+        for streamline in tracks.streamlines() {
+            for reason in std::iter::once(streamline.forward_termination())
+                .chain(streamline.backward_termination())
+            {
+                total += 1;
+                if reason == ritk_tractography::TerminationReason::TurningAngle {
+                    turning += 1;
+                }
+            }
+        }
+        assert!(total > 0, "tracking produced no terminations to compare");
+        turning as f64 / total as f64
+    };
+
+    let nearest = turn_limit_share(ritk_diffusion::maps::DirectionInterpolation::Nearest);
+    let trilinear = turn_limit_share(ritk_diffusion::maps::DirectionInterpolation::Trilinear);
+
+    assert!(
+        trilinear < nearest,
+        "interpolation must reduce turn-limit terminations: nearest {nearest:.3}, \
+         trilinear {trilinear:.3}"
+    );
+    eprintln!(
+        "turn-limit share: nearest {nearest:.3} -> trilinear {trilinear:.3} \
+         ({:.1}% fewer)",
+        100.0 * (nearest - trilinear) / nearest
+    );
+}
