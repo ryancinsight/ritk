@@ -20,4 +20,5 @@ anyhow = { workspace = true }
 bytemuck = { workspace = true }
 
 [dev-dependencies]
+ritk-core = { path = "../ritk-core", features = ["test-helpers"] }
 tempfile = { workspace = true }
