@@ -43,5 +43,3 @@ coeus-core = { workspace = true }
 tempfile = { workspace = true }
 ritk-nifti = { path = "../ritk-nifti", version = "0.2.0" }
 
-[lints]
-workspace = true
