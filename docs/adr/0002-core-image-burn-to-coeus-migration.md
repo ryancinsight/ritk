@@ -1,14 +1,21 @@
 # ADR 0002 — Core `Image` / tensor-substrate Burn→Coeus migration strategy
 
-- Status: Superseded by completed cutover
+- Status: Accepted
 - Change class: [arch]
 - Date: 2026-06-30
 - Related: `docs/coeus_migration.md`, ADR 0001 (registration traits), backlog
   MIG-471…482 (parallel Coeus registration capability)
 
+> **Revision (2026-08-14):** The previous status claimed that the cutover was
+> complete, but the live tree still retains the Burn production path described
+> by this strategy. The migration direction remains the accepted decision;
+> completion is not claimed until the consumer cutover and Burn removal are
+> evidenced in the tree.
+
 > **Retired tooling note**: The `burn-migration-audit` xtask command and
-> `xtask/burn_surface.allowlist` were removed after the Burn-to-Coeus migration
-> completed. References to the audit in this ADR are historical.
+> `xtask/burn_surface.allowlist` were removed when that audit workflow was
+> retired. Their removal is not evidence that the consumer cutover is complete;
+> references to the audit in this ADR are historical.
 
 ## Context
 
