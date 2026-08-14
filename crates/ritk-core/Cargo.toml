@@ -14,6 +14,9 @@ license.workspace = true
 
 [features]
 default = []
+## Test-only helpers: the peak-allocation probe consumers use to assert what a
+## read costs. Not part of the runtime surface.
+test-helpers = []
 
 [dependencies]
 ritk-spatial = { path = "../ritk-spatial", version = "0.2.0" }

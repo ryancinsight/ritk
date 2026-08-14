@@ -435,23 +435,81 @@
   Residual: the entropy bit reader and the remaining format parsers have not
   had the same sweep applied. Filed as SAFE-693-02.
 
-- **SAFE-693-02 [patch] - Extend the malformed-input sweep to the remaining parsers**
-  (DoR; owner=unclaimed; last-update=2026-08-13; scope=the JPEG entropy bit
-  reader, JPEG 2000, JPEG-LS, and the NRRD, MINC, MGH and MIF header readers;
-  non-goal=changing any decoder's output on well-formed input).
+- **SAFE-693-02 [patch] - Sweep the remaining parsers for malformed input**
+  (AUDIT DONE, fixes in progress; owner=Claude; last-update=2026-08-13;
+  scope=NRRD, MINC, MGH, MIF, MetaImage, JPEG 2000, JPEG-LS, and the JPEG
+  entropy stage; non-goal=changing any decoder's output on well-formed input).
 
-  Outcome: each parser reachable from file data either errors or returns a
-  structurally valid result under truncation and single-byte corruption.
+  Five crates are clean and stay untouched: **MGH** (`checked_mul` throughout,
+  streaming decode with `try_reserve_exact` bounded by confirmed input),
+  **MINC** (16 MiB speculative-allocation cap, per-dimension positivity, shape
+  cross-check — modulo external `consus_hdf5`), **JPEG-LS** (one correct
+  `marker_segment_bounds` gate pinning every downstream index), **TCK**, and
+  the **JPEG 2000 allocation sites** (all gated by `checked_pixel_count`).
+  NRRD's `sizes` indexing and both readers' over-allocation guards were
+  verified working.
 
-  Method: the two sweeps SAFE-693-01 established — prefix truncation asserted
-  against the parser's own header boundary, and adversarial byte substitution
-  asserting the invariants downstream code relies on. Where a parser has a
-  natural corpus, a `cargo-fuzz` target replaces the substitution sweep.
+  Confirmed at source by me, ordered by severity:
 
-  Acceptance: findings fixed at the parse boundary with validating newtypes
-  rather than per-site checks, or a clean report recorded in `gap_audit.md`.
+  - **A1 `ritk-mif/src/reader.rs:203`** — `vec![0u8; offset as usize]` where
+    `offset` is parsed from the header line `file: . <offset>` with no bound.
+    `file: . 4000000000` in a 300-byte file zero-fills 4 GB and succeeds. The
+    `.trk` class again. The byte-count checks run afterwards.
+  - **A2 `ritk-codecs/src/jpeg/scan_dct.rs:241`** — one plane of
+    `total_width * total_height` per SOS component. SOS `Ns` is read as a raw
+    `u8` in `marker.rs:410` and never bounded or cross-checked against SOF
+    `Nf`; the `1<<28` cap in `ritk_decoder.rs` applies to the SOF count. 510
+    bytes of SOS entries against a large SOF reaches ~17 GB before an entropy
+    byte is read.
+  - **A3 NRRD `volume.rs:300` / MetaImage `reader.rs:238`** — the inflate
+    `.take()` cap is `expected_payload_bytes`, computed from the attacker's
+    own `sizes`, so it stops an infinite stream but not a compression bomb.
+    Missing half is a cap against `payload.len()` times a fixed ratio.
+  - **B1 `ritk-mif/src/reader.rs:270`** — `chunks(voxels_per_volume)` panics on
+    a zero chunk size. Only `nframes == 0` is rejected; `dim: 0 4 4` reaches
+    `chunks(0)`.
+  - **B2 `scan_dct.rs:168`** — `frame.sos.components[0]` on an empty vector
+    when `Ns = 0`. `scan_lossless.rs:81` gets this right.
+  - **B3 `jpeg_2000/codestream.rs:538`** — `num_decomp_levels` taken raw from
+    one COD byte, then `1usize << k` with `k` up to 255. The existing guard in
+    `wavelet.rs:118` is off by one (`>` for `>=`) and sits downstream of the
+    panic site.
+  - **B4 `jpeg/huffman.rs:150,179,187`** — the DC category is a raw HUFFVAL
+    byte fed to `receive_and_extend`; T.81 caps it at 15. `n >= 32` shifts
+    past width, and `n >= 249` wraps `avail` to zero, which is an **infinite
+    loop in release**. `scan_lossless.rs:129` handles this correctly.
+  - **B5 `scan_dct.rs:236`** — MCU-padded geometry multiplied unchecked; the
+    `1<<28` cap covers `width*height`, not the padded product.
+  - **`ritk-trx/src/parse.rs:65,78`** — unchecked `u64` arithmetic before the
+    length gates. The earlier pass was right that the *allocations* are safe
+    (both `with_capacity` calls are gated); the gap is the arithmetic running
+    ahead of them.
 
-  Risk: [patch] unless a validating newtype changes a public signature.
+  Recorded as latent, not to be re-chased: `byte_decode.rs:62`'s unchecked
+  product (both callers `checked_mul` first), `mif/header.rs:54,61`'s variant
+  panics (unreachable by construction), and `codestream.rs:75`'s subtraction
+  (`parse_siz` validates first).
+
+  Coverage gap driving the fix order: **`ritk-mif` has no truncation or
+  corruption tests at all**, and both A1 and B1 live there. The JPEG marker
+  layer is solid precisely because it has the prefix and substitution sweeps —
+  but its fixtures are single-component lossless, which is why A2, B2 and the
+  scan-array findings survived in the DCT path. No fuzz target exists anywhere
+  in `ritk-codecs`.
+
+- **SAFE-693-05 [patch] - Add malformed-input coverage where the audit found none**
+  (DoR; owner=unclaimed; last-update=2026-08-13; scope=`ritk-mif`,
+  `ritk-nrrd`, `ritk-trx` test modules and a multi-component DCT JPEG fixture;
+  non-goal=the crates SAFE-693-02 found clean).
+
+  Outcome: the prefix-truncation and byte-substitution sweeps from
+  SAFE-693-01 applied where they are absent, plus a three-component baseline
+  DCT fixture so the JPEG sweeps reach the scan stage they currently miss.
+
+  Acceptance: each new sweep demonstrated to fail against the corresponding
+  unfixed code, recorded here.
+
+  Risk: [patch]; test-only.
 
 - **FIX-690-01 [minor] - Consolidate the Image coordinate-transform API**
   (DONE; owner=Claude; last-update=2026-08-13; scope=

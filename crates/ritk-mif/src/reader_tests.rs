@@ -9,7 +9,14 @@ use coeus_core::SequentialBackend;
 use ritk_image::Image;
 use ritk_spatial::{Direction, Point, Spacing};
 
+use ritk_core::alloc_probe::{peak_bytes_during, PeakTrackingAllocator};
+
 use crate::{read_mif, read_mif_series, write_mif, write_mif_series};
+
+// `#[global_allocator]` is per binary, so the declaration lives here while the
+// mechanism lives in `ritk_core::alloc_probe`.
+#[global_allocator]
+static ALLOCATOR: PeakTrackingAllocator = PeakTrackingAllocator;
 
 // ── Test helpers ─────────────────────────────────────────────────────────
 
@@ -222,4 +229,89 @@ fn inline_file_dot_zero_is_read_correctly() {
     let _ = std::fs::remove_file(&path);
 
     assert_eq!(rt.shape(), image.shape());
+}
+
+// ── Malformed header contracts ──────────────────────────────────────────
+//
+// The reader takes header values that determine allocation and chunking. These
+// pin the two that previously reached a `vec!` and a `chunks(0)` unguarded;
+// before this crate had no truncation or corruption coverage at all.
+
+/// Write a hand-built `.mif` and return its path.
+fn write_raw_mif(body: &str, payload: &[u8]) -> PathBuf {
+    let path = temp_mif_path();
+    let mut bytes = body.as_bytes().to_vec();
+    bytes.extend_from_slice(payload);
+    std::fs::write(&path, &bytes).expect("write malformed .mif fixture");
+    path
+}
+
+/// A minimal well-formed header, so each test varies exactly one field.
+fn header_with(dim: &str, file_key: &str) -> String {
+    format!(
+        "mrtrix image\ndim: {dim}\nvox: 1 1 1\nlayout: +0,+1,+2\ndatatype: Float32LE\n\
+         file: {file_key}\nEND\n"
+    )
+}
+
+/// An overstated `file:` offset must fail as truncation, not allocate for it.
+///
+/// The offset is a number on a header line, not a fact about the file. It
+/// previously sized a zero-filled `Vec` directly, so `file: . 4000000000` in a
+/// 300-byte file demanded 4 GB — and succeeded, which is silent exhaustion
+/// rather than a crash.
+///
+/// Threshold: the fixture is well under a kilobyte and decodes to nothing, so
+/// an honest read touches kilobytes. 64 MiB sits far above that and two orders
+/// of magnitude below the 4 GB the defect demands.
+#[test]
+fn an_overstated_file_offset_does_not_drive_allocation() {
+    const PEAK_LIMIT: usize = 64 * 1024 * 1024;
+    let backend = SequentialBackend;
+    let path = write_raw_mif(&header_with("2 2 2", ". 4000000000"), &[0u8; 32]);
+
+    let (result, peak) =
+        peak_bytes_during(|| -> anyhow::Result<Image<f32, SequentialBackend, 3>> {
+            read_mif(&path, &backend)
+        });
+    let _ = std::fs::remove_file(&path);
+
+    let err = result.expect_err("a 32-byte payload cannot satisfy a 4 GB offset");
+    let message = format!("{err:#}");
+    assert!(
+        message.contains("offset"),
+        "the error should name the offset that could not be satisfied, got: {message}"
+    );
+    assert!(
+        peak < PEAK_LIMIT,
+        "reading a sub-kilobyte file peaked at {peak} live bytes, above {PEAK_LIMIT}; \
+         the header offset is driving allocation"
+    );
+}
+
+/// A zero extent on any axis is rejected before it reaches `chunks(0)`.
+///
+/// `Vec::chunks` panics on a zero chunk size, and `voxels_per_volume` is the
+/// product of the spatial extents. The payload check cannot catch this: zero
+/// voxels expects zero bytes, so a truncated file satisfies it.
+#[test]
+fn a_zero_extent_on_any_axis_is_rejected() {
+    let backend = SequentialBackend;
+    for (dim, axis) in [
+        ("0 4 4", "x"),
+        ("4 0 4", "y"),
+        ("4 4 0", "z"),
+        ("4 4 4 0", "frame"),
+    ] {
+        let path = write_raw_mif(&header_with(dim, ". 0"), &[]);
+        let result: Result<Image<f32, SequentialBackend, 3>, _> = read_mif(&path, &backend);
+        let _ = std::fs::remove_file(&path);
+
+        let err = result.expect_err("a zero extent cannot describe a voxel grid");
+        let message = format!("{err:#}");
+        assert!(
+            message.contains("extent of 0"),
+            "dim {dim} should be rejected for its zero {axis} extent, got: {message}"
+        );
+    }
 }

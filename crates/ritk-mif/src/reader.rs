@@ -9,7 +9,7 @@ use crate::header::{
     parse_datatype, parse_dim, parse_f64_vec, parse_layout, parse_mif_header_from_path,
     parse_transform,
 };
-use anyhow::{anyhow, Context, Result};
+use anyhow::{anyhow, bail, Context, Result};
 use coeus_core::ComputeBackend;
 use ritk_image::Image;
 use ritk_spatial::{Direction, Point, Spacing, Vector};
@@ -118,8 +118,16 @@ fn decode_mif<P: AsRef<Path>>(path: P) -> Result<DecodedMif> {
     let nz = if dim.len() > 2 { dim[2] } else { 1 };
     let nframes = if dim.len() > 3 { dim[3] } else { 1 };
 
-    if nframes == 0 {
-        return Err(anyhow!(".mif 'dim' must declare at least 1 frame"));
+    // Every axis, not just the frame count: a zero spatial extent makes
+    // `voxels_per_volume` zero, and `Vec::chunks(0)` panics. The payload check
+    // downstream cannot catch it either, since zero voxels expects zero bytes
+    // and a truncated file satisfies that.
+    for (axis, extent) in [("x", nx), ("y", ny), ("z", nz), ("frame", nframes)] {
+        if extent == 0 {
+            return Err(anyhow!(
+                ".mif 'dim' declares a {axis} extent of 0; every axis must span at least one voxel"
+            ));
+        }
     }
 
     // ── Datatype ──────────────────────────────────────────────────────────
@@ -200,9 +208,24 @@ fn decode_mif<P: AsRef<Path>>(path: P) -> Result<DecodedMif> {
                 // positioned right after END\n, so offset 0 here means
                 // "start now".  >0 means skip additional bytes.
                 if offset > 0 {
-                    let mut skip_buf = vec![0u8; offset as usize];
-                    std::io::Read::read_exact(&mut reader, &mut skip_buf)
-                        .context("Failed to skip inline data offset in .mif")?;
+                    // Discard through a fixed scratch rather than allocating
+                    // the offset: it is a number on a header line, not a fact
+                    // about the file, so `vec![0u8; offset]` let
+                    // `file: . 4000000000` zero-fill 4 GB from a 300-byte input
+                    // — and succeed, which is silent exhaustion rather than a
+                    // crash. Copying to a sink is bounded by the bytes that
+                    // actually arrive, so an overstated offset fails as the
+                    // truncation it is.
+                    let skipped = std::io::copy(
+                        &mut std::io::Read::by_ref(&mut reader).take(offset),
+                        &mut std::io::sink(),
+                    )
+                    .context("Failed to skip inline data offset in .mif")?;
+                    if skipped != offset {
+                        bail!(
+                            ".mif 'file' key declares offset {offset}, but only {skipped} bytes                              follow the header"
+                        );
+                    }
                 }
                 let mut bytes = Vec::new();
                 reader
