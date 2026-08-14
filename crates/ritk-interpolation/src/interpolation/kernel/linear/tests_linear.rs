@@ -195,3 +195,58 @@ fn test_linear_interpolator_4d() {
 
     assert!((val_center - 6.25).abs() < 1e-5);
 }
+
+#[test]
+fn strided_volume_samples_without_materialization() {
+    // A permuted volume: strides are non-row-major, so the previous
+    // `to_contiguous()` had to copy the whole buffer before reading it. The
+    // kernel now reads it in place through the view's strides. The oracle is
+    // the same logical volume built contiguously — an independent construction
+    // of the identical data, so agreement pins the stride arithmetic rather
+    // than restating it.
+    let base = Tensor::<f32, TestBackend>::from_slice([2, 3], &[0.0, 1.0, 2.0, 10.0, 11.0, 12.0]);
+    let permuted = base.permute(&[1, 0]); // shape [3, 2]
+    assert!(!permuted.is_contiguous(), "fixture must be strided");
+
+    // Host transpose of the base: permuted[r][c] == base[c][r].
+    let materialized =
+        Tensor::<f32, TestBackend>::from_slice([3, 2], &[0.0, 10.0, 1.0, 11.0, 2.0, 12.0]);
+
+    let interpolator = LinearInterpolator::new();
+    let indices = Tensor::<f32, TestBackend>::from_slice(
+        [4, 2],
+        &[0.0, 0.0, 1.0, 2.0, 0.5, 0.5, 1.0, 1.5],
+    );
+
+    let strided = interpolator.interpolate(&permuted, indices.clone());
+    let contiguous = interpolator.interpolate(&materialized, indices);
+
+    let strided = strided.to_contiguous().as_slice().to_vec();
+    let contiguous = contiguous.to_contiguous().as_slice().to_vec();
+    assert_eq!(
+        strided, contiguous,
+        "a strided volume must sample identically to its contiguous twin"
+    );
+    // Value semantics, not just agreement: index [row=0, col=0] is 0.0 and
+    // [row=2, col=1] is 12.0, with coords innermost-first.
+    assert_eq!(strided[0], 0.0);
+    assert_eq!(strided[1], 12.0);
+}
+
+#[test]
+fn offset_volume_samples_without_materialization() {
+    // The sharp case: an offset row slice reports `is_contiguous()` true
+    // (strides alone are inspected) yet `to_contiguous()` still copies it,
+    // because its free path also requires a zero offset. The view pays neither.
+    let base = Tensor::<f32, TestBackend>::from_slice([2, 3], &[0.0, 1.0, 2.0, 10.0, 11.0, 12.0]);
+    let row = Tensor::from_raw_parts(base.storage().clone(), base.layout().slice(&[(1, 2), (0, 3)]));
+    assert_eq!(row.layout().offset(), 3, "fixture must carry a nonzero offset");
+
+    let interpolator = LinearInterpolator::new();
+    let indices = Tensor::<f32, TestBackend>::from_slice([3, 2], &[0.0, 0.0, 2.0, 0.0, 1.0, 0.0]);
+    let sampled = interpolator.interpolate(&row, indices);
+    let sampled = sampled.to_contiguous().as_slice().to_vec();
+
+    // The slice is the second row, [10, 11, 12], as a [1, 3] volume.
+    assert_eq!(sampled, vec![10.0, 12.0, 11.0]);
+}

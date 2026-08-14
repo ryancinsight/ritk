@@ -20,3 +20,4 @@
 | [0016](0016-module-error-bridge.md) | Type-erased Coeus module-error bridge | Accepted |
 | [0017](0017-diffusion-mri-pipeline.md) | Physically typed diffusion MRI pipeline | Accepted |
 | [0018](0018-single-coordinate-transform-api.md) | One coordinate-transform API on `Image` | Accepted |
+| [0019](0019-borrowed-voxel-view-seam.md) | Borrowed voxel views on `Image` | Proposed |
