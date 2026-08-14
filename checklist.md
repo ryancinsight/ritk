@@ -8,6 +8,19 @@
 
 # RITK Sprint Checklist — Active
 
+## ATLAS-RITK-DICOM-ORIENTATION-070 — Provider tag SSOT [minor] — local closure 2026-08-14
+
+- [x] Add `tags::IMAGE_ORIENTATION_PATIENT` for DICOM `(0020,0037)` with
+      documentation of the six direction-cosine values.
+- [x] Extend the typed attribute test with a six-value decimal fixture and
+      exact value assertion.
+- [x] Run `cargo fmt --all -- --check` and `cargo nextest run -p ritk-dicom
+      --offline`: 37/37 tests pass. The `--locked` command is blocked by the
+      Atlas development overlay's required lock regeneration; standalone
+      locked verification remains a provider CI gate.
+- [ ] Merge the provider head, then let Helios consume the named constant and
+      complete the cross-repo exact-head integration gate.
+
 ## RITK-FLOATELEMENT-ROOTS-001 — Migrate powf root emulation to eunomia FloatElement [patch] — done 2026-08-13
 
 - [x] Replace `powf`-emulated scalar roots with the sign-preserving Eunomia
