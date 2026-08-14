@@ -157,7 +157,10 @@ fn tensor(args: TensorArgs) -> Result<()> {
 /// point takes contents, and `write_fsl_scheme` returns strings rather than
 /// writing — so reading the files is the caller's job. This is four lines of
 /// glue rather than duplicated parsing.
-fn read_scheme(bval: &Path, bvec: &Path) -> Result<ritk_diffusion_scheme::GradientScheme> {
+pub(super) fn read_scheme(
+    bval: &Path,
+    bvec: &Path,
+) -> Result<ritk_diffusion_scheme::GradientScheme> {
     let bval_contents =
         std::fs::read_to_string(bval).with_context(|| format!("reading {}", bval.display()))?;
     let bvec_contents =

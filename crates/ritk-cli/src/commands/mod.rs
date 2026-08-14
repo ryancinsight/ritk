@@ -12,6 +12,7 @@ pub mod register;
 pub mod resample;
 pub mod segment;
 pub mod stats;
+pub mod tract;
 pub mod viewer;
 
 use anyhow::{anyhow, bail, Context, Result};

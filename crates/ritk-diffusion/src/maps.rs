@@ -43,6 +43,10 @@
 //! FA and MD come from [`crate::dti::DiffusionTensor`]; AD and RD are defined
 //! here because they are pure functions of the eigenvalues.
 
+mod volume;
+
+pub use volume::DtiVolume;
+
 use ritk_diffusion_scheme::GradientScheme;
 use thiserror::Error;
 
@@ -220,6 +224,23 @@ impl DiffusionMaps {
     #[must_use]
     pub fn fractional_anisotropy(&self) -> Vec<f64> {
         self.derive(fractional_anisotropy)
+    }
+
+    /// Fractional anisotropy at one voxel.
+    ///
+    /// The whole-volume accessors allocate, which a per-voxel query — a
+    /// tractography step, say — cannot afford to do at every point.
+    ///
+    /// # Panics
+    ///
+    /// If `voxel` is out of range.
+    #[must_use]
+    pub fn fractional_anisotropy_at(&self, voxel: usize) -> f64 {
+        if self.mask[voxel] {
+            fractional_anisotropy(self.eigenvalues[voxel])
+        } else {
+            0.0
+        }
     }
 
     /// Mean diffusivity, in mm²/s.
