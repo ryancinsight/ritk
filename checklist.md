@@ -8,6 +8,17 @@
 
 # RITK Sprint Checklist — Active
 
+## RITK-FLOATELEMENT-ROOTS-001 — Migrate powf root emulation to eunomia FloatElement [patch] — done 2026-08-13
+
+- [x] Replace `powf`-emulated scalar roots with the sign-preserving Eunomia
+      `FloatElement` surface: `powf(-0.5)` → `.rsqrt()` (Swin attention
+      scale, `ritk-model`) and `powf(1/3)` → `.cbrt()` (vector-confidence-
+      connected singular-inverse path, `ritk-segmentation`).
+- [x] Add the `eunomia` dependency to `ritk-model` and regenerate the
+      standalone lock with the new edge.
+- [x] Verify `cargo check --all-targets --offline` rc=0 and the full suite
+      passes 5171/5171 (24 skipped). Merged as ritk PR #139 (`ec7e2e4c`).
+
 ## AEQUITAS-AEQ-MET-68 — Eunomia 0.8 provider compatibility [patch] — local closure; external release gates open
 
 - [x] Update the workspace Eunomia requirement from `0.7.0` to `0.8.0` and

@@ -8,6 +8,16 @@
 
 # RITK Gap Audit - Active
 
+## RITK-FLOATELEMENT-ROOTS-001 — powf root emulation → provider roots (closed 2026-08-13)
+
+RITK emulated scalar roots through `powf` fractional powers instead of the
+provider-owned sign-preserving Eunomia `FloatElement` root surface — a
+redundancy gap where `powf(-0.5)` and `powf(1/3)` re-derived `rsqrt`/`cbrt`.
+The gap is closed: both sites now route through `FloatElement::{rsqrt, cbrt}`,
+and `ritk-model` declares the `eunomia` dependency. Evidence: `cargo check
+--all-targets --offline` rc=0 and the full suite passes 5171/5171 (24
+skipped). Merged as ritk PR #139 (`ec7e2e4c`), resolving eunomia at `1a52590`.
+
 ## RELEASE-689-01 — Hosted release-readiness audit (2026-08-10)
 
 The release workflow contract is syntactically valid: RITK pins the Atlas

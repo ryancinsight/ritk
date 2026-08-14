@@ -1,5 +1,16 @@
 # RITK Backlog - Active Planning
 
+- **RITK-FLOATELEMENT-ROOTS-001 [patch] - Migrate powf root emulation to
+  eunomia FloatElement (DONE; owner=Codex; last-update=2026-08-13;
+  scope=3 `powf`-emulated root sites across 4 files: the `ritk-model` Swin
+  attention scale and the `ritk-segmentation` vector-confidence-connected
+  statistics/tests, plus the `eunomia` dependency edge for `ritk-model`).**
+  `powf(-0.5)` → `.rsqrt()` in the Swin attention scale and `powf(1/3)` →
+  `.cbrt()` in the singular-inverse path, on the sign-preserving Eunomia
+  `FloatElement` surface. Evidence: `cargo check --all-targets --offline`
+  rc=0 and the full suite passes 5171/5171 (24 skipped). Merged as ritk PR
+  #139 (`ec7e2e4c`).
+
 - **RITK-DICOM-EXPORT-GATE [minor] - DICOM export-time metadata verification
   (DONE; owner=Codex; scope=`crates/ritk-io/src/format/dicom/anonymize/verify.rs`,
   `crates/ritk-io/src/format/dicom/anonymize/{mod.rs,tests_verify.rs}`,
