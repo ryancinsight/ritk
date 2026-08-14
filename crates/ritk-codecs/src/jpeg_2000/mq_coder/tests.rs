@@ -1,3 +1,4 @@
+#![expect(clippy::print_stderr, reason = "ratchet RITK-LINT-1")]
 use super::*;
 
 /// Encode `symbols` with a fresh context array, then decode them back.

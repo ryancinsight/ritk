@@ -17,3 +17,6 @@ thiserror.workspace = true
 
 [dev-dependencies]
 leto = { workspace = true }
+
+[lints]
+workspace = true

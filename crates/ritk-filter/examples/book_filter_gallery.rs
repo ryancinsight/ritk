@@ -3,6 +3,7 @@
 //! The input is a deterministic 3-D phantom with one axial slice. The
 //! Gaussian and Canny stages execute through their public native image APIs;
 //! the SVG writer only renders the resulting values for documentation.
+#![expect(clippy::print_stdout, reason = "ratchet RITK-LINT-1")]
 
 use anyhow::{bail, Context, Result};
 use base64::{engine::general_purpose::STANDARD, Engine as _};

@@ -222,6 +222,7 @@ pub(crate) fn receive_and_extend(reader: &mut BitReader<'_>, n: u8) -> Result<i3
 
 #[cfg(test)]
 mod tests {
+    #![expect(clippy::unwrap_used, reason = "ratchet RITK-UNWRAP-1")]
     use super::*;
 
     #[test]

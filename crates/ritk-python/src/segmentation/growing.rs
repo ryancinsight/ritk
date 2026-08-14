@@ -35,7 +35,6 @@ use ritk_segmentation::{
 #[pyfunction]
 #[pyo3(signature = (channels, seeds, multiplier=2.5, number_of_iterations=4,
                     initial_neighborhood_radius=1, replace_value=1.0))]
-#[allow(clippy::too_many_arguments)]
 pub fn vector_confidence_connected_segment(
     py: Python<'_>,
     channels: Vec<PyRef<'_, PyImage>>,
@@ -132,7 +131,7 @@ pub fn connected_threshold_segment(
 #[pyo3(signature = (image, seed1, seed2, lower=0.0_f32, upper=1.0_f32,
                     replace_value=1.0_f32, isolated_value_tolerance=1.0_f64,
                     find_upper_threshold=true))]
-#[allow(clippy::too_many_arguments)]
+#[expect(clippy::too_many_arguments, reason = "ratchet RITK-LINT-1")]
 pub fn isolated_connected_segment(
     py: Python<'_>,
     image: &PyImage,
@@ -298,7 +297,6 @@ pub fn neighborhood_connected_segment(
 #[pyfunction]
 #[pyo3(signature = (image, seed1, seed2, threshold=0.0,
                     isolated_value_tolerance=0.001, upper_value_limit=1.0))]
-#[allow(clippy::too_many_arguments)]
 pub fn isolated_watershed_segment(
     py: Python<'_>,
     image: &PyImage,

@@ -4,6 +4,7 @@
 //! RITK's public reversible 5/3 and irreversible 9/7 paths, decodes each
 //! codestream, verifies exact reversible reconstruction, and renders the
 //! visible size/error tradeoff between unit and coarse scalar quantization.
+#![expect(clippy::print_stdout, reason = "ratchet RITK-LINT-1")]
 
 use anyhow::{bail, Context, Result};
 use base64::{engine::general_purpose::STANDARD, Engine as _};

@@ -1,3 +1,4 @@
+#![expect(clippy::print_stdout, reason = "ratchet RITK-LINT-1")]
 use super::*;
 use coeus_core::MoiraiBackend;
 use coeus_tensor::Tensor;

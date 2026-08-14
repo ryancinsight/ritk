@@ -27,7 +27,7 @@ pub(super) const J: [u32; 32] = [
 /// All 8 modes are defined by the ISO 14495-1 standard and remain present as
 /// exhaustive match arms in `predict()` for standard compliance. DICOM JPEG-LS
 /// lossless production decode uses the adaptive predictor.
-#[allow(dead_code)]
+#[expect(dead_code, reason = "ratchet RITK-LINT-1")]
 #[derive(Debug, Clone, Copy, PartialEq)]
 pub(super) enum Predictor {
     /// Predictor 0: no prediction (Px = 0 for first sample, left for others).

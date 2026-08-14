@@ -7,6 +7,7 @@
 //! scan-order numbering) for evenly- and non-evenly-dividing super-grids in 2-D
 //! and 3-D. Image and goldens are emitted from one script so they stay
 //! consistent.
+#![expect(clippy::unwrap_used, reason = "ratchet RITK-UNWRAP-1")]
 
 use super::super::{
     ConnectivityEnforcement, InitializationPerturbation, ItkSlicConfig, ItkSlicFilter,

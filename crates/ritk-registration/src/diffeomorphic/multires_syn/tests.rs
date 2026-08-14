@@ -1,3 +1,4 @@
+#![expect(clippy::unwrap_used, reason = "ratchet RITK-UNWRAP-1")]
 use super::super::local_cc::{cc_forces, mean_local_cc};
 use super::pyramid::{downsample, upsample_field};
 use super::{InverseConsistency, MultiResSyNConfig, MultiResSyNRegistration};

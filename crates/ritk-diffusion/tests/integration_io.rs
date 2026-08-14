@@ -5,6 +5,7 @@
 //! same data to all three format families that support 3-D image I/O,
 //! then round-tripping through the unified `read_image_native` /
 //! `write_image_native` API.
+#![expect(clippy::unwrap_used, reason = "ratchet RITK-UNWRAP-1")]
 
 use ritk_io::{NativeImage, read_image_native, write_image_native};
 use ritk_spatial::{Direction, Point, Spacing};

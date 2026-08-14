@@ -1,8 +1,3 @@
-#![allow(
-    clippy::too_many_arguments,
-    clippy::field_reassign_with_default, // stylistic; test code patterns
-)]
-
 //! `ritk-snap` viewer core.
 //!
 //! This crate defines the viewer domain model and backend abstraction for

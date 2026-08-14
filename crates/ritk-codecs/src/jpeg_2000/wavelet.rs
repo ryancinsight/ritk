@@ -303,6 +303,7 @@ fn fdwt_1d_5_3(buf: &mut [i32]) {
 
 #[cfg(test)]
 mod tests {
+    #![expect(clippy::unwrap_used, reason = "ratchet RITK-UNWRAP-1")]
     use super::*;
 
     fn round_trip_1d(signal: &[i32]) {

@@ -149,7 +149,7 @@ pub fn laplacian_of_gaussian(py: Python<'_>, image: &PyImage, sigma: f64) -> Rit
 #[pyo3(signature = (initial_level_set, feature_image, threshold=0.0, variance=0.0,
                     propagation_scaling=1.0, curvature_scaling=1.0, advection_scaling=1.0,
                     maximum_rms_error=0.02, number_of_iterations=1000, iso_surface_value=0.0))]
-#[allow(clippy::too_many_arguments)]
+#[expect(clippy::too_many_arguments, reason = "ratchet RITK-LINT-1")]
 pub fn canny_segmentation_level_set(
     py: Python<'_>,
     initial_level_set: &PyImage,

@@ -4,6 +4,7 @@
 //! temporary files, covering the standard PACS anonymization export failure
 //! modes: corrupt writes, diverged series UIDs, leaked identifiers, and
 //! geometry/pixel drift.
+#![expect(clippy::unwrap_used, reason = "ratchet RITK-UNWRAP-1")]
 
 use super::super::anonymize::verify::{
     ensure_dicom_file_clean, verify_dicom_directory, verify_dicom_file, VerifyIssue, VerifyOptions,

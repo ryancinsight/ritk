@@ -1,3 +1,4 @@
+#![expect(clippy::unwrap_used, reason = "ratchet RITK-UNWRAP-1")]
 use super::super::{generate_series_uid, write_dicom_series};
 use super::fixtures::{make_image, Backend};
 use dicom::core::Tag;
@@ -87,7 +88,7 @@ fn test_series_writer_has_samples_per_pixel_one() {
 /// slope = 65535/65535 = 1.0, intercept = 0.0. The clamped path must keep
 /// all pixels <= 65535.
 #[test]
-#[allow(unused_comparisons)]
+#[allow(unused_comparisons, reason = "ratchet RITK-LINT-1")]
 fn test_series_pixel_clamp_unsigned_range() {
     let tmp = tempfile::tempdir().expect("tempdir");
     let out_path = tmp.path().join("clamp_series");

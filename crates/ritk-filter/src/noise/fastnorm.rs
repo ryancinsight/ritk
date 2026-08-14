@@ -248,7 +248,7 @@ impl FastNorm {
             let tr = tx * tx + ty * ty;
             // ITK source verbatim: `(tr > 1.0) || (tr < 0.1)` (tr is a finite
             // sum of squares; the range form would obscure the source mapping).
-            #[allow(clippy::manual_range_contains)]
+            #[expect(clippy::manual_range_contains, reason = "ratchet RITK-LINT-1")]
             if tr > 1.0 || tr < 0.1 {
                 continue;
             }

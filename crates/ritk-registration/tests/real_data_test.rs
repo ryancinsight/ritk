@@ -3,6 +3,10 @@
 //! These tests are skipped by default. To run them:
 //! 1. Download test data: `cargo xtask download-datasets`
 //! 2. Run: `cargo nextest run -p ritk-registration --run-ignored all`
+#![expect(
+    clippy::print_stdout,
+    reason = "RITK-LINT-1: example/test diagnostic output"
+)]
 
 use coeus_core::SequentialBackend;
 use ritk_core::spatial::Point3;

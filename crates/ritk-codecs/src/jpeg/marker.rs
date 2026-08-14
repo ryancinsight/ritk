@@ -491,6 +491,7 @@ fn skip_segment(cur: &mut Cursor<'_>, marker: u16) -> Result<()> {
 
 #[cfg(test)]
 mod tests {
+    #![expect(clippy::unwrap_used, reason = "ratchet RITK-UNWRAP-1")]
     use super::*;
 
     /// The lossless 8-bit hand-crafted fixture must parse to a 1×1 SOF3 frame.

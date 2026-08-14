@@ -210,7 +210,7 @@ pub fn binary_threshold(
 /// inner-band voxel. ITK Parity: DoubleThresholdImageFilter (`sitk.DoubleThreshold`).
 #[pyfunction]
 #[pyo3(signature = (image, threshold1=0.0, threshold2=1.0, threshold3=254.0, threshold4=255.0, inside_value=1.0, outside_value=0.0))]
-#[allow(clippy::too_many_arguments)]
+#[expect(clippy::too_many_arguments, reason = "ratchet RITK-LINT-1")]
 pub fn double_threshold(
     py: Python<'_>,
     image: &PyImage,

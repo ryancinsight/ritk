@@ -11,6 +11,10 @@
 //!
 //! To run these tests:
 //!   cargo test --test ct_mri_dicom_registration_test -- --ignored
+#![expect(
+    clippy::print_stderr,
+    reason = "RITK-LINT-1: example/test diagnostic output"
+)]
 
 use coeus_core::SequentialBackend;
 use ritk_io::{read_dicom_series_with_metadata, DicomReadMetadata};

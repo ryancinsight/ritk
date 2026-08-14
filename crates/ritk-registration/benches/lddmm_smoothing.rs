@@ -10,6 +10,7 @@
 //! cargo bench -p ritk-registration --bench lddmm_smoothing
 //! ```
 //!
+#![expect(clippy::unwrap_used, reason = "ratchet RITK-UNWRAP-1")]
 use criterion::{black_box, criterion_group, criterion_main, Criterion};
 use rand::SeedableRng;
 

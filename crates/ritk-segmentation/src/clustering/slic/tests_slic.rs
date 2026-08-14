@@ -1,6 +1,6 @@
 //! Tests for SLIC super-pixel segmentation.
 //! Extracted to keep the 500-line structural limit.
-#![allow(clippy::needless_range_loop)]
+#![expect(clippy::unwrap_used, reason = "ratchet RITK-UNWRAP-1")]
 
 use super::*;
 use crate::clustering::slic::coords::decode_coords_dyn as decode_coords;

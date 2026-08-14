@@ -4,6 +4,10 @@
 //! bias-field correction filter, and renders an axial slice together with the
 //! multiplicative field estimated by the correction. Every displayed value is
 //! derived from the dataset or from the filter output.
+#![expect(
+    clippy::print_stdout,
+    reason = "RITK-LINT-1: example/test diagnostic output"
+)]
 
 use anyhow::{bail, Context, Result};
 use base64::{engine::general_purpose::STANDARD, Engine as _};

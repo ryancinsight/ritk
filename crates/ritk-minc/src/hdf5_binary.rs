@@ -452,6 +452,7 @@ fn wrap_msg(msg_type: u16, data: &[u8]) -> Vec<u8> {
 
 #[cfg(test)]
 mod tests {
+    #![expect(clippy::unwrap_used, reason = "ratchet RITK-UNWRAP-1")]
     use super::*;
 
     #[test]

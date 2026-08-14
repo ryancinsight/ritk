@@ -10,7 +10,7 @@ use ritk_tensor_ops::extract_vec;
 /// Used by [`cpr_apply_matches_brute_force_reference`] to lock value
 /// semantics of the optimized kernel against the explicit mathematical
 /// formulation.
-#[allow(clippy::too_many_lines)]
+#[expect(clippy::too_many_lines, reason = "ratchet RITK-LINT-1")]
 pub fn cpr_apply_reference<B: Backend>(
     cpr: &CprImageFilter,
     image: &Image<f32, B, 3>,

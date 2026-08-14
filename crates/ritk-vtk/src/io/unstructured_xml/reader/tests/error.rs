@@ -1,3 +1,4 @@
+#![expect(clippy::unwrap_used, reason = "ratchet RITK-UNWRAP-1")]
 use crate::domain::vtk_data_object::{VtkCellType, VtkUnstructuredGrid};
 use crate::io::unstructured_xml::reader::{parse_vtu, read_vtu_unstructured_grid};
 use crate::io::unstructured_xml::writer::write_vtu_unstructured_grid;

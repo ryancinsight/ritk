@@ -1,3 +1,4 @@
+#![expect(clippy::unwrap_used, reason = "ratchet RITK-UNWRAP-1")]
 use super::super::entropy::marginal_entropy;
 use super::super::variation_of_information::{
     multivariate_variation_of_information, variation_of_information,

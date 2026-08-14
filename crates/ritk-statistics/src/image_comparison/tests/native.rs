@@ -11,6 +11,7 @@
 //!   in `f64`, so the two agree only to the `f32` accumulation error. For the
 //!   `n ≤ 64` fixtures here the bound is `n · ε_f32 · max|term| ≈ 64 · 6e-8 · 1 ≈
 //!   4e-6`; `PARITY_DIFF = 1e-4` covers it with margin.
+#![expect(clippy::unwrap_used, reason = "ratchet RITK-UNWRAP-1")]
 
 use super::{make_image, F32_TOL};
 use crate::image_comparison as coeus_metrics;

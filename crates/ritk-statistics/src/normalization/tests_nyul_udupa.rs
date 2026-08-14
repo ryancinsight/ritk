@@ -1,5 +1,6 @@
 //! Tests for nyul_udupa
 //! Extracted to keep the 500-line structural limit.
+#![expect(clippy::unwrap_used, reason = "ratchet RITK-UNWRAP-1")]
 use super::*;
 use coeus_core::SequentialBackend;
 use ritk_image::test_support::make_image;

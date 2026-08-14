@@ -12,3 +12,6 @@ publish = false
 gaia = { workspace = true }
 leto = { workspace = true }
 thiserror.workspace = true
+
+[lints]
+workspace = true

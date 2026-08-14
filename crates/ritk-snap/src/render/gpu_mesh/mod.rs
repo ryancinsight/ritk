@@ -33,6 +33,7 @@
 //! # Platform gate
 //!
 //! Compiled only on non-wasm32 targets (same gate as `gpu_volume`).
+#![expect(clippy::unwrap_used, reason = "ratchet RITK-UNWRAP-1")]
 
 mod context;
 mod frame_cache;

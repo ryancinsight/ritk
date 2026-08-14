@@ -1,5 +1,3 @@
-#![allow(clippy::identity_op, clippy::erasing_op)]
-
 use super::*;
 use coeus_core::SequentialBackend;
 use ritk_core::image::Image;

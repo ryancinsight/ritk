@@ -196,6 +196,7 @@ pub fn decode_native_pixel_bytes_checked(bytes: &[u8], layout: PixelLayout) -> R
 
 #[cfg(test)]
 mod tests {
+    #![expect(clippy::unwrap_used, reason = "ratchet RITK-UNWRAP-1")]
     use super::*;
 
     #[test]

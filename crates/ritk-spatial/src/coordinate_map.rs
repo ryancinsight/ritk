@@ -255,7 +255,7 @@ impl PhasedArray3D {
     /// Returns an error when any parameter is non-finite, when
     /// `radius_sample_size` or either angular separation is not strictly
     /// positive, or when `first_sample_distance` is negative.
-    #[allow(clippy::too_many_arguments)]
+    #[allow(clippy::too_many_arguments, reason = "ratchet RITK-LINT-1")]
     pub fn try_new(
         radius_sample_size: f64,
         first_sample_distance: f64,
@@ -503,6 +503,7 @@ fn non_negative(parameter: &'static str, value: f64) -> Result<(), InvalidCoordi
 
 #[cfg(test)]
 mod tests {
+    #![expect(clippy::unwrap_used, reason = "ratchet RITK-UNWRAP-1")]
     use super::*;
 
     fn geometry() -> CurvilinearArray {

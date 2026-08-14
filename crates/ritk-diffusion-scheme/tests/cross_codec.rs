@@ -10,6 +10,7 @@
 //!
 //! The multi-dataset tests use the downloaded OpenNeuro datasets from
 //! `test_data/diffusion/` and are `#[ignore]` by default.
+#![expect(clippy::unwrap_used, reason = "ratchet RITK-UNWRAP-1")]
 
 use std::path::PathBuf;
 

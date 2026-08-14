@@ -1,7 +1,6 @@
 //! Tests for `ClaheFilter::apply` and `ClaheScratch`.
 //!
 //! Extracted from `tests_clahe.rs` to keep the 500-line structural limit.
-#![allow(clippy::identity_op, clippy::erasing_op)]
 
 use super::*;
 use coeus_core::SequentialBackend;

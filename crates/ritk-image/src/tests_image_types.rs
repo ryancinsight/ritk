@@ -1,4 +1,5 @@
 //! Construction, validation and metadata contracts of [`Image`].
+#![expect(clippy::unwrap_used, reason = "ratchet RITK-UNWRAP-1")]
 
 use coeus_core::SequentialBackend;
 

@@ -1,4 +1,5 @@
 //! Numerical and property tests for the canonical native image-statistics API.
+#![expect(clippy::unwrap_used, reason = "ratchet RITK-UNWRAP-1")]
 
 use super::{
     compute_statistics_from_slice,

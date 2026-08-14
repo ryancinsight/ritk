@@ -16,6 +16,7 @@
 //!      must survive is each frame's voxels staying attached to its own frame.
 //!
 //! Run with `cargo run --example nifti_roundtrip -p ritk-nifti`.
+#![expect(clippy::print_stdout, reason = "ratchet RITK-LINT-1")]
 
 use anyhow::{bail, Context, Result};
 use coeus_core::SequentialBackend;

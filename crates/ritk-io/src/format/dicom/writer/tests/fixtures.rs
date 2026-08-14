@@ -1,3 +1,4 @@
+#![expect(clippy::unwrap_used, reason = "ratchet RITK-UNWRAP-1")]
 use crate::format::dicom::reader::DicomReadMetadata;
 use arrayvec::ArrayString;
 use ritk_core::image::Image;

@@ -1,3 +1,4 @@
+#![expect(clippy::unwrap_used, reason = "ratchet RITK-UNWRAP-1")]
 use super::*;
 use crate::domain::vtk_data_object::{AttributeArray, VtkDataObject, VtkImageData};
 

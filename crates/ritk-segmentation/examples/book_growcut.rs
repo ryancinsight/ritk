@@ -3,6 +3,7 @@
 //! The example constructs an analytical two-tissue phantom, supplies sparse
 //! foreground/background seeds, executes the public Coeus-native GrowCut API,
 //! and verifies the resulting labels against the known circular region.
+#![expect(clippy::print_stdout, reason = "ratchet RITK-LINT-1")]
 
 use anyhow::{bail, Context, Result};
 use base64::{engine::general_purpose::STANDARD, Engine as _};

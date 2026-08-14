@@ -109,6 +109,6 @@ impl Default for BinaryMorphologicalOpening {
 // ── Tests ─────────────────────────────────────────────────────────────────────
 
 #[cfg(test)]
-#[allow(clippy::identity_op, clippy::erasing_op)]
+#[expect(clippy::identity_op, reason = "ratchet RITK-LINT-1")]
 #[path = "tests_binary_opening.rs"]
 mod tests_binary_opening;

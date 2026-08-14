@@ -1,4 +1,5 @@
 //! Writer tests — round-trip tests live in `reader_tests.rs`.
+#![expect(clippy::unwrap_used, reason = "ratchet RITK-UNWRAP-1")]
 
 use coeus_core::SequentialBackend;
 

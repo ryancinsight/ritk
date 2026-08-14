@@ -2,6 +2,7 @@
 //!
 //! These tests round-trip images through the writer and reader to verify
 //! voxel fidelity, spatial metadata preservation, and frame handling.
+#![expect(clippy::unwrap_used, reason = "ratchet RITK-UNWRAP-1")]
 
 use std::path::PathBuf;
 

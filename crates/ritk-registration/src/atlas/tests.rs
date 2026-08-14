@@ -1,4 +1,5 @@
 //! Tests for atlas registration.
+#![expect(clippy::unwrap_used, reason = "ratchet RITK-UNWRAP-1")]
 
 use super::*;
 use crate::diffeomorphic::multires_syn::InverseConsistency;

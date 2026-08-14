@@ -7,6 +7,8 @@
 //!
 //! Example:
 //!   cargo run --example dicom_to_nifti -- "D:\ritk\data\brain.hdr" patient01_ct.nii.gz
+#![expect(clippy::print_stderr, reason = "ratchet RITK-LINT-1")]
+#![expect(clippy::print_stdout, reason = "ratchet RITK-LINT-1")]
 
 use coeus_core::SequentialBackend;
 use ritk_io::{

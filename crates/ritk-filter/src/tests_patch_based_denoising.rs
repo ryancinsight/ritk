@@ -1,3 +1,4 @@
+#![expect(clippy::unwrap_used, reason = "ratchet RITK-UNWRAP-1")]
 use super::*;
 use ritk_image::test_support as ts;
 use ritk_tensor_ops::extract_vec;

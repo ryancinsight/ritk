@@ -1,3 +1,4 @@
+#![expect(clippy::unwrap_used, reason = "ratchet RITK-UNWRAP-1")]
 use super::*;
 
 /// Invariant: write_rt_struct followed by read_rt_struct preserves all fields

@@ -236,6 +236,7 @@ pub(super) fn run_morphological_reconstruction(args: &FilterArgs) -> Result<()> 
 // ── Tests ─────────────────────────────────────────────────────────────────────
 #[cfg(test)]
 mod tests {
+    #![expect(clippy::unwrap_used, reason = "ratchet RITK-UNWRAP-1")]
     use super::*;
     use crate::commands::filter::{default_args, make_test_image, FilterKind};
     use crate::commands::{read_image, write_image, Backend};

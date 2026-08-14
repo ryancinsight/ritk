@@ -1,3 +1,4 @@
+#![expect(clippy::unwrap_used, reason = "ratchet RITK-UNWRAP-1")]
 use crate::types::Image;
 use coeus_core::SequentialBackend;
 use coeus_tensor::Tensor;

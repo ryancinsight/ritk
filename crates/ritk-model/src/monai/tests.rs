@@ -4,6 +4,7 @@
 //! 1. Type serialisation/deserialisation (no I/O).
 //! 2. Multipart response parsing (no I/O).
 //! 3. HTTP client methods against a local `mockito` mock server.
+#![expect(clippy::unwrap_used, reason = "ratchet RITK-UNWRAP-1")]
 
 use super::client::{parse_infer_response, MonaiLabelClient};
 use super::types::{InferRequest, ModelInfo, ModelType, MonaiError, ServerInfo};

@@ -1,4 +1,5 @@
 //! Joint label fusion (JLF) tests.
+#![expect(clippy::unwrap_used, reason = "ratchet RITK-UNWRAP-1")]
 
 use super::super::*;
 

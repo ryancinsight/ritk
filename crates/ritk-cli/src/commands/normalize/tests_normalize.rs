@@ -1,4 +1,5 @@
 //! Tests for the `normalize` command.
+#![expect(clippy::unwrap_used, reason = "ratchet RITK-UNWRAP-1")]
 use super::*;
 use crate::commands::Backend;
 use ritk_image::Image;

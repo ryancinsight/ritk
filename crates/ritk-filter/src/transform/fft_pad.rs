@@ -53,7 +53,7 @@ pub enum FftPadBoundary {
 /// prime larger than every tried factor and is therefore the greatest.
 // `is_multiple_of` is not const-stable, and `% == 0` is the canonical trial-
 // division form here.
-#[allow(clippy::manual_is_multiple_of)]
+#[expect(clippy::manual_is_multiple_of, reason = "ratchet RITK-LINT-1")]
 const fn greatest_prime_factor(mut n: usize) -> usize {
     let mut g = 1;
     while n % 2 == 0 {

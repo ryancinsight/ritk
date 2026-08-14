@@ -298,6 +298,7 @@ pub fn nyul_udupa_normalize(
 
 #[cfg(test)]
 mod tests {
+    #![expect(clippy::unwrap_used, reason = "ratchet RITK-UNWRAP-1")]
     use super::{validate_percentiles, validate_range};
 
     #[test]

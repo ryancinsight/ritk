@@ -1,3 +1,4 @@
+#![expect(clippy::unwrap_used, reason = "ratchet RITK-UNWRAP-1")]
 use super::super::mutual_information::mutual_information;
 use super::super::total_correlation::total_correlation;
 

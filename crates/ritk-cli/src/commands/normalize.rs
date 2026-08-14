@@ -9,6 +9,10 @@
 //! | `zscore`           | Zero-mean, unit-variance normalization             |
 //! | `minmax`           | Rescale intensities to \[0, 1\]                    |
 //! | `white-stripe`     | Brain MRI white-stripe normalization               |
+#![expect(
+    clippy::print_stdout,
+    reason = "RITK-LINT-1: ritk-cli is the application output layer"
+)]
 
 use anyhow::{anyhow, Result};
 use clap::Args;

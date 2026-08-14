@@ -1,4 +1,5 @@
 //! Native DICOM RGB color-volume tests.
+#![expect(clippy::unwrap_used, reason = "ratchet RITK-UNWRAP-1")]
 
 use ritk_dicom::PixelSignedness;
 

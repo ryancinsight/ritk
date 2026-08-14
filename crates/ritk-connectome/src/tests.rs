@@ -1,3 +1,4 @@
+#![expect(clippy::unwrap_used, reason = "ratchet RITK-UNWRAP-1")]
 use super::*;
 
 /// A 2×2×2 parcellation with three regions in a diagonal pattern:

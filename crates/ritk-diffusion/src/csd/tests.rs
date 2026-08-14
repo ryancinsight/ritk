@@ -1,3 +1,4 @@
+#![expect(clippy::unwrap_used, reason = "ratchet RITK-UNWRAP-1")]
 use super::*;
 use ritk_diffusion_scheme::{GradientDirection, GradientFrame, GradientScheme};
 use ritk_spatial::{Point, Vector};

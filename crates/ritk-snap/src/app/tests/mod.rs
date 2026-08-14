@@ -2,6 +2,7 @@
 //!
 //! Each submodule exercises one cohesive domain: cursor, navigation, session,
 //! tool, measurement, colormap, segmentation loading, and RT dose/plan.
+#![expect(clippy::unwrap_used, reason = "ratchet RITK-UNWRAP-1")]
 
 use crate::app::state::SnapApp;
 use crate::render::NamedColorMap;

@@ -1,6 +1,6 @@
 //! Affine transform family: affine, rigid, scale, translation, versor.
 
-#[allow(clippy::module_inception)]
+#[expect(clippy::module_inception, reason = "ratchet RITK-LINT-1")]
 pub mod affine;
 pub mod atlas_affine;
 pub mod rigid;

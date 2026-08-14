@@ -1,3 +1,4 @@
+#![expect(clippy::unwrap_used, reason = "ratchet RITK-UNWRAP-1")]
 mod reorient_per_volume;
 
 use ritk_spatial::Vector;

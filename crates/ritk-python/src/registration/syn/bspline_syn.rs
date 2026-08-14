@@ -55,7 +55,7 @@ impl PyBSplineSynOptions {
         regularization_weight = 0.001,
         gradient_step = 0.25,
     ))]
-    #[allow(clippy::too_many_arguments)]
+    #[expect(clippy::too_many_arguments, reason = "ratchet RITK-LINT-1")]
     pub fn new(
         max_iterations: usize,
         control_spacing_z: usize,

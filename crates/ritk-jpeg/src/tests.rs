@@ -1,4 +1,5 @@
 //! JPEG tests migrated to the Atlas-native (Coeus) path — ADR 0002.
+#![expect(clippy::unwrap_used, reason = "ratchet RITK-UNWRAP-1")]
 
 use anyhow::Result;
 use coeus_core::SequentialBackend;

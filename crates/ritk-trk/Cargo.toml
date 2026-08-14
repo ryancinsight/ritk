@@ -16,3 +16,6 @@ thiserror.workspace = true
 [dev-dependencies]
 ritk-core = { path = "../ritk-core", features = ["test-helpers"] }
 tempfile.workspace = true
+
+[lints]
+workspace = true

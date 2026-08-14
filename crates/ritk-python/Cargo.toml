@@ -31,3 +31,6 @@ ritk-segmentation = { path = "../ritk-segmentation", version = "0.3.0" }
 ritk-io = { path = "../ritk-io", version = "0.3.0" }
 ritk-registration = { path = "../ritk-registration", version = "0.54.0" }
 anyhow = { workspace = true }
+
+[lints]
+workspace = true

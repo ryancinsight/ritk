@@ -1,3 +1,4 @@
+#![expect(clippy::print_stderr, reason = "ratchet RITK-LINT-1")]
 use super::reader::{read_num_passes, BitReader};
 use super::writer::{write_num_passes, BitWriter};
 use super::*;

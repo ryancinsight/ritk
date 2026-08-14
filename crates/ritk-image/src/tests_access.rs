@@ -1,4 +1,5 @@
 //! Host-access contracts: when a view borrows and when it materialises.
+#![expect(clippy::unwrap_used, reason = "ratchet RITK-UNWRAP-1")]
 
 use coeus_core::SequentialBackend;
 

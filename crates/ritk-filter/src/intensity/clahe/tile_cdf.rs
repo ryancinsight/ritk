@@ -76,7 +76,7 @@ pub(super) fn build_tile_cdf(
 ///
 /// # Edge case
 /// When the tile region is empty or `n_T == 0`, writes identity ramp `b/(bins-1)`.
-#[allow(clippy::too_many_arguments)]
+#[expect(clippy::too_many_arguments, reason = "ratchet RITK-LINT-1")]
 pub(super) fn build_tile_cdf_into(
     pixels: &[f32],
     y0: usize,

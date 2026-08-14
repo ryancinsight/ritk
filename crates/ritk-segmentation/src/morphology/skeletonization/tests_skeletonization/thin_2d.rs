@@ -1,5 +1,4 @@
 //! 2-D Zhang-Suen thinning tests.
-#![allow(clippy::identity_op, clippy::erasing_op)]
 
 use super::*;
 use ritk_core::image::Image;

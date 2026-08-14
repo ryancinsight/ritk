@@ -3,7 +3,7 @@
 //! All JPEG 2000 markers are 2-byte codes with high byte 0xFF (§A.4–§A.9).
 //! Constants are named exactly as in the standard.
 
-#![allow(dead_code)] // Marker constants are spec-mandated; used selectively by parsers.
+#![expect(dead_code, reason = "ratchet RITK-LINT-1")]
 
 /// Start of Codestream (§A.4.1).
 pub const SOC: u16 = 0xFF4F;

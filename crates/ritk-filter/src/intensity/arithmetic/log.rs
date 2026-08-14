@@ -3,6 +3,7 @@ pub use super::unary::LogImageFilter;
 
 #[cfg(test)]
 mod tests {
+    #![expect(clippy::unwrap_used, reason = "ratchet RITK-UNWRAP-1")]
     use super::*;
     use crate::native_support::{make_native_image, native_vals};
     use coeus_core::SequentialBackend;

@@ -1,3 +1,4 @@
+#![expect(clippy::unwrap_used, reason = "ratchet RITK-UNWRAP-1")]
 use super::*; // ── Negative: multi-otsu classes < 2 returns error ───────────────────────
 
 #[test]

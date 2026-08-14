@@ -1,4 +1,4 @@
-#![allow(clippy::needless_range_loop)]
+#![expect(clippy::unwrap_used, reason = "ratchet RITK-UNWRAP-1")]
 
 use crate::domain::vtk_data_object::{AttributeArray, VtkImageData};
 use crate::io::image_xml::reader::parse_vti;

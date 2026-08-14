@@ -18,6 +18,7 @@
 //! 1. A private element lookup (via [`crate::attribute::DicomAttributeRead::optional_bytes`]).
 //! 2. A format-specific decoder in this module.
 //! 3. A new arm in [`try_vendor_pair`].
+#![expect(clippy::unwrap_used, reason = "ratchet RITK-UNWRAP-1")]
 
 use anyhow::{bail, Result};
 use ritk_spatial::Vector;

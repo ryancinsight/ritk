@@ -96,6 +96,7 @@ pub fn register(parent: &Bound<'_, PyModule>) -> PyResult<()> {
 
 #[cfg(test)]
 mod tests {
+    #![expect(clippy::unwrap_used, reason = "ratchet RITK-UNWRAP-1")]
     use super::*;
     use crate::image::{vec_to_image, PyImage};
     use std::sync::Arc;

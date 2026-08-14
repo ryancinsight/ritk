@@ -1,3 +1,4 @@
+#![expect(clippy::unwrap_used, reason = "ratchet RITK-UNWRAP-1")]
 use arrayvec::ArrayString;
 use dicom::core::Tag;
 use dicom::object::open_file;

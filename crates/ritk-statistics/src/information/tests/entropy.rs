@@ -1,3 +1,4 @@
+#![expect(clippy::unwrap_used, reason = "ratchet RITK-UNWRAP-1")]
 use super::super::entropy::{joint_entropy, joint_entropy_n, marginal_entropy};
 
 // ── marginal_entropy tests ────────────────────────────────────────────────────

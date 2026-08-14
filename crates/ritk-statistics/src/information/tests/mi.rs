@@ -1,3 +1,4 @@
+#![expect(clippy::unwrap_used, reason = "ratchet RITK-UNWRAP-1")]
 use super::super::entropy::marginal_entropy;
 use super::super::mutual_information::{
     conditional_mutual_information, interaction_information, mutual_information,

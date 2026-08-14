@@ -1,4 +1,5 @@
 //! Tests for the `.mif` header parser.
+#![expect(clippy::unwrap_used, reason = "ratchet RITK-UNWRAP-1")]
 
 use std::io::Cursor;
 

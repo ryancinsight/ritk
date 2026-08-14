@@ -112,6 +112,7 @@ fn checked_voxel_count_with_label(dims: [usize; 3], label: &str) -> Result<usize
 
 #[cfg(test)]
 mod tests {
+    #![expect(clippy::unwrap_used, reason = "ratchet RITK-UNWRAP-1")]
     use super::*;
 
     #[test]

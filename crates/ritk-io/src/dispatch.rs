@@ -332,6 +332,7 @@ pub fn read_image_series_native<P: AsRef<std::path::Path>>(
 
 #[cfg(test)]
 mod native_dispatch_tests {
+    #![expect(clippy::unwrap_used, reason = "ratchet RITK-UNWRAP-1")]
     use super::*;
     use ritk_spatial::{Direction, Point, Spacing};
 

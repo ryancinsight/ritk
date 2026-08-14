@@ -1,4 +1,6 @@
-#![allow(unused_imports)]
+#![expect(unused_imports, reason = "ratchet RITK-LINT-1")]
+#![expect(clippy::print_stdout, reason = "ratchet RITK-LINT-1")]
+#![expect(clippy::unwrap_used, reason = "ratchet RITK-UNWRAP-1")]
 
 use super::super::detection::is_likely_dicom_file;
 use super::super::geometry::{

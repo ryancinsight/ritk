@@ -11,6 +11,10 @@
 //! # Supported output formats
 //! NIfTI, MetaImage, NRRD.  PNG and DICOM output are not supported because
 //! `ritk-io` does not export write implementations for those formats.
+#![expect(
+    clippy::print_stdout,
+    reason = "RITK-LINT-1: ritk-cli is the application output layer"
+)]
 
 use anyhow::{anyhow, Result};
 use clap::Args;
@@ -144,6 +148,7 @@ pub fn run(args: ConvertArgs) -> Result<()> {
 
 #[cfg(test)]
 mod tests {
+    #![expect(clippy::unwrap_used, reason = "ratchet RITK-UNWRAP-1")]
     use super::*;
     use ritk_image::Image;
     use ritk_spatial::{Direction, Point, Spacing};

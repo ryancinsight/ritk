@@ -1,3 +1,4 @@
+#![expect(clippy::unwrap_used, reason = "ratchet RITK-UNWRAP-1")]
 use super::{read_tiff, TiffReader};
 use crate::write_tiff;
 use anyhow::Result;

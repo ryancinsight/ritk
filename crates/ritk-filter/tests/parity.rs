@@ -2,6 +2,7 @@
 //! reference values. Each expected value is derived from a closed-form formula,
 //! not from empirical RITK output observation. This documents and verifies that
 //! RITK produces results consistent with ITK/SimpleITK for the same inputs.
+#![expect(clippy::unwrap_used, reason = "ratchet RITK-UNWRAP-1")]
 use coeus_core::SequentialBackend;
 use ritk_image::Image;
 use ritk_spatial::{Direction, Point, Spacing};

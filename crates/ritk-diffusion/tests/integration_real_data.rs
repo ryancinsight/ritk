@@ -17,6 +17,8 @@
 //!
 //! ADR 0036 verification conditions exercised:
 //! - vc8: FSL bval/bvec codec round-trip on real gradient directions (both datasets)
+#![expect(clippy::print_stderr, reason = "ratchet RITK-LINT-1")]
+#![expect(clippy::unwrap_used, reason = "ratchet RITK-UNWRAP-1")]
 
 use std::path::{Path, PathBuf};
 

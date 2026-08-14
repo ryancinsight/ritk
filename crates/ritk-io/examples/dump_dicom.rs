@@ -1,3 +1,5 @@
+#![expect(clippy::print_stderr, reason = "ratchet RITK-LINT-1")]
+#![expect(clippy::print_stdout, reason = "ratchet RITK-LINT-1")]
 use dicom::dictionary_std::tags;
 use dicom::object::open_file;
 use dicom_pixeldata::PixelDecoder;

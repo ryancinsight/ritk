@@ -57,7 +57,7 @@ impl PyMultiresDemonsOptions {
                     "Invalid Demons variant '{other}'. Expected 'thirion' or 'diffeomorphic'."
                 )))
             }
-        };
+        }
         Ok(Self {
             max_iterations,
             sigma_diffusion,

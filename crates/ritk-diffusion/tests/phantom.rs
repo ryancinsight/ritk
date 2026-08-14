@@ -4,6 +4,7 @@
 //! a multi-shell gradient scheme, and analytically-computed ground-truth
 //! maps (FA, MD, PEV, fODF peaks).  Every integration test runs against
 //! known-oracle data so regressions are caught by value-level assertions.
+#![expect(clippy::unwrap_used, reason = "ratchet RITK-UNWRAP-1")]
 
 use ritk_diffusion_scheme::{DiffusionWeighting, GradientDirection, GradientFrame, GradientScheme};
 use ritk_spatial::Vector;
@@ -118,13 +119,13 @@ pub struct Phantom {
     // allow, not expect: this file is compiled into two test binaries and the
     // fields are read in one of them, so an expectation would be unfulfilled
     // there.
-    #[allow(dead_code)]
+    #[allow(dead_code, reason = "ratchet RITK-LINT-1")]
     pub pev_gt: Vec<f64>,
     /// Ground-truth fibre directions per voxel.
     // allow, not expect: this file is compiled into two test binaries and the
     // fields are read in one of them, so an expectation would be unfulfilled
     // there.
-    #[allow(dead_code)]
+    #[allow(dead_code, reason = "ratchet RITK-LINT-1")]
     pub fibre_dirs_gt: Vec<Vec<[f64; 3]>>,
 }
 

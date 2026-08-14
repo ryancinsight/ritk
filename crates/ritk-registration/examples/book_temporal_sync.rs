@@ -3,6 +3,10 @@
 //! The example synthesizes a delayed finite signal, estimates its lag through
 //! RITK's public API, verifies the reported diagnostics against independently
 //! interpolated residuals, and renders before/profile/after/residual panels.
+#![expect(
+    clippy::print_stdout,
+    reason = "RITK-LINT-1: example/test diagnostic output"
+)]
 
 use std::fmt::Write as _;
 use std::path::{Path, PathBuf};

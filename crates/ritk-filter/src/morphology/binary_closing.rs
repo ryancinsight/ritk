@@ -108,6 +108,6 @@ impl Default for BinaryMorphologicalClosing {
 // ── Tests ─────────────────────────────────────────────────────────────────────
 
 #[cfg(test)]
-#[allow(clippy::identity_op, clippy::erasing_op)]
+#[expect(clippy::identity_op, reason = "ratchet RITK-LINT-1")]
 #[path = "tests_binary_closing.rs"]
 mod tests_binary_closing;

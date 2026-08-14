@@ -18,6 +18,7 @@
 //! Scaling: 64× voxels → ~63× time at 64³, confirming compute-bound
 //! after z-slice parallelism (PERF-377-02). Prior header reported 152ms
 //! for 32³ (pre-spatial-LUT baseline); current med is ~13.3× faster.
+#![expect(clippy::unwrap_used, reason = "ratchet RITK-UNWRAP-1")]
 
 use coeus_core::SequentialBackend;
 use criterion::{criterion_group, criterion_main, BenchmarkId, Criterion};

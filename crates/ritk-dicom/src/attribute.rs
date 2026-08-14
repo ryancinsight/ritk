@@ -186,6 +186,7 @@ impl DicomAttributeRead for DefaultDicomObject {
 
 #[cfg(test)]
 mod tests {
+    #![expect(clippy::unwrap_used, reason = "ratchet RITK-UNWRAP-1")]
     use super::*;
     use dicom::core::smallvec::SmallVec;
     use dicom::core::{DataElement, PrimitiveValue, VR};

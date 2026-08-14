@@ -163,6 +163,8 @@ pub(crate) fn decode_lossless_scan(
 
 #[cfg(test)]
 pub(crate) mod tests {
+    #![expect(clippy::unwrap_used, reason = "ratchet RITK-UNWRAP-1")]
+    #![expect(clippy::print_stdout, reason = "ratchet RITK-LINT-1")]
     use super::*;
     use crate::jpeg::marker::parse_jpeg;
 

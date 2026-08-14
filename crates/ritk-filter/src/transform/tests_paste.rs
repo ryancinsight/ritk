@@ -1,6 +1,5 @@
 //! Tests for paste
 //! Extracted to keep the 500-line structural limit.
-#![allow(clippy::identity_op, clippy::erasing_op)]
 use super::*;
 use ritk_image::test_support as ts;
 use ritk_image::Image;

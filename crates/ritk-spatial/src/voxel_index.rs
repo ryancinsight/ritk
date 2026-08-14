@@ -126,8 +126,8 @@ mod tests {
     #[test]
     fn repr_transparent_layout() {
         let idx = VoxelIndex::new(1, 2, 3);
-        let ptr_core = &idx.0 as *const [usize; 3];
-        let ptr_newtype = &idx as *const VoxelIndex;
+        let ptr_core = std::ptr::from_ref::<[usize; 3]>(&idx.0);
+        let ptr_newtype = std::ptr::from_ref::<VoxelIndex>(&idx);
         assert_eq!(
             ptr_core as *const u8, ptr_newtype as *const u8,
             "repr(transparent) must share address with inner array"

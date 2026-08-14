@@ -30,3 +30,6 @@ criterion = { workspace = true }
 [[bench]]
 name = "smooth_adjacency_comparison"
 harness = false
+
+[lints]
+workspace = true

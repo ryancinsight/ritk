@@ -29,6 +29,8 @@
 //!
 //! Both panels are rendered from the fitted values, not drawn. Nothing here is
 //! illustrative.
+#![expect(clippy::print_stderr, reason = "ratchet RITK-LINT-1")]
+#![expect(clippy::print_stdout, reason = "ratchet RITK-LINT-1")]
 
 use std::fmt::Write as _;
 use std::path::{Path, PathBuf};

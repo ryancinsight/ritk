@@ -1,3 +1,4 @@
+#![expect(clippy::unwrap_used, reason = "ratchet RITK-UNWRAP-1")]
 use super::*;
 
 fn layout_8bit(rows: usize, cols: usize, slope: f32, intercept: f32) -> PixelLayout {

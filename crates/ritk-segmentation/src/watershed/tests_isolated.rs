@@ -4,6 +4,7 @@
 //! `IsolatedWatershed` algorithm: each voxel is assigned the basin of the local
 //! minimum of `g` it flows to via steepest descent, then seed basins are labeled
 //! 1.0 and 2.0, and the rest 0.0.
+#![expect(clippy::unwrap_used, reason = "ratchet RITK-UNWRAP-1")]
 
 use super::isolated_watershed_values;
 use super::IsolatedWatershed;
@@ -74,7 +75,7 @@ const GOLDEN_7X7: [f32; 49] = [
 fn test_isolated_watershed_matches_sitk_relief_7x7() {
     let dims = [1_usize, 7, 7];
     // seed1 at (y=1, x=3) → flat 1*7+3 = 10; seed2 at (y=5, x=3) → flat 38.
-    #[allow(clippy::identity_op)]
+    #[expect(clippy::identity_op, reason = "ratchet RITK-LINT-1")]
     let seed1 = 1 * 7 + 3;
     let seed2 = 5 * 7 + 3;
     let config = IsolatedWatershedConfig::default();

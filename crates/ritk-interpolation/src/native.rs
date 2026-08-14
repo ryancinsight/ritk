@@ -20,7 +20,7 @@ use eunomia::{CastFrom, FloatElement};
 ///
 /// # Panics
 /// Panics if buffer lengths don't match the declared dimensions.
-#[allow(clippy::too_many_arguments)]
+#[expect(clippy::too_many_arguments, reason = "ratchet RITK-LINT-1")]
 pub fn trilinear_interpolation<T>(
     image: &[T],
     b: usize,

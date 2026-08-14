@@ -119,7 +119,7 @@ impl<'a> BitReader<'a> {
     }
 
     /// Return remaining byte count (approximate; does not account for buffered bits).
-    #[allow(dead_code)]
+    #[allow(dead_code, reason = "ratchet RITK-LINT-1")]
     pub(super) fn remaining_bytes(&self) -> usize {
         self.data.len().saturating_sub(self.pos)
     }

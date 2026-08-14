@@ -1,3 +1,4 @@
+#![expect(clippy::unwrap_used, reason = "ratchet RITK-UNWRAP-1")]
 use super::super::{label_map_to_dicom_seg, SegEncoding};
 use ritk_annotation::RgbaBytes;
 

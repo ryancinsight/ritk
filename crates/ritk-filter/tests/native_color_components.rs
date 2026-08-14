@@ -1,4 +1,5 @@
 //! Tests for the per-component color filtering adaptor.
+#![expect(clippy::unwrap_used, reason = "ratchet RITK-UNWRAP-1")]
 
 use coeus_core::SequentialBackend;
 use ritk_filter::{map_color_components, MedianFilter};
