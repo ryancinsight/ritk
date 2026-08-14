@@ -577,27 +577,40 @@
   Risk: [patch] for the consumer; upgrades to a leto item if the paths
   disagree numerically.
 
-- **SAFE-693-06 [patch] - Bound decompression ratio and the trx header arithmetic**
-  (DoR; owner=unclaimed; last-update=2026-08-14; scope=
-  `ritk-nrrd/src/reader/volume.rs`, `ritk-metaimage/src/reader.rs`,
-  `ritk-trx/src/parse.rs`; non-goal=the parsers SAFE-693-02 already fixed).
+- **SAFE-693-06 [patch] - Bound the trx header arithmetic; A3 disproven**
+  (DONE; owner=Claude; last-update=2026-08-14; scope=
+  `crates/ritk-trx/src/{parse.rs,error.rs,tests.rs}`; non-goal=the NRRD and
+  MetaImage inflate caps, which measurement showed need no change).
 
-  Two findings from that audit remain. The inflate `.take()` cap in both
-  readers is `expected_payload_bytes`, computed from the attacker's own
-  `sizes` / `DimSize`, so it stops an infinite stream but not a compression
-  bomb: `sizes: 10000 10000 10000` sets the cap to roughly 4 TB, and a 1 MB
-  deflate stream inflates to its full ~1 GB before the post-check fires. The
-  missing half is a cap against `payload.len()` times a fixed ratio.
+  **The trx finding was real.** `nb_points` and `nb_streamlines` arrive as
+  unbounded JSON numbers from `header.json`, and the length checks that would
+  catch a nonsensical value run *after* the arithmetic deriving element counts
+  from them. Both are `checked_` now, reported through a typed
+  `HeaderCountOverflow`. Confirmed against wrapping arithmetic in release:
+  `nb_points = u64::MAX` surfaced as `PositionsLengthMismatch { expected:
+  18446744073709551613 }` — the wrapped value presented as a length — instead
+  of naming the offending field.
 
-  Separately, `trx/parse.rs:65,78` runs unchecked `u64` arithmetic on
-  `serde_json`-parsed header values before the length gates. The allocations
-  themselves are gated and safe; `nb_streamlines = u64::MAX` wraps `+ 1` to
-  zero, passes the length check against an empty file, then indexes.
+  **The A3 decompression-ratio finding does not hold, and no change shipped
+  for it.** The audit reported that capping the inflate at
+  `expected_payload_bytes` bounds an endless stream but not a compression
+  bomb. Measured, that is not so. A bound at DEFLATE's maximum 1032:1 ratio
+  was implemented, and peak live bytes were recorded across the same
+  260753-byte gzip payload declaring `sizes: 1000 1000 1000`: **807041678
+  bytes with the ratio bound and 807041678 without it — identical.**
 
-  Acceptance: each demonstrated against the unfixed code, as SAFE-693-02's
-  fixes were.
+  The reason is that RFC 1951 already guarantees the ratio the bound was
+  re-asserting, so it can never bind for a conforming stream. Nor does the
+  declared-size cap preallocate: `read_to_end` grows to the bytes actually
+  produced, so memory stays proportional to the payload an attacker really
+  supplies, whatever the header claims. The implementation and its module were
+  removed rather than kept as a no-op wearing a fix's name.
 
-  Risk: [patch].
+  Residual, and separate from what was reported: peak memory reached ~807 MB
+  for ~269 MB of inflated output, which is `Vec` growth doubling rather than
+  any cap. Worth revisiting only with a measurement showing it matters; filed
+  nowhere until then, since a speculative fix is what this item just finished
+  disproving.
 
 - **SAFE-693-05 [patch] - Add malformed-input coverage where the audit found none**
   (DoR; owner=unclaimed; last-update=2026-08-13; scope=`ritk-mif`,

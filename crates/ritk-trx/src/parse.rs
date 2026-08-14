@@ -62,7 +62,18 @@ impl TrxTractogram {
             "header.dpv declares keys not present in dpv_data"
         );
 
-        let expected_pos_elements = header.nb_points * TRX_DIMENSIONS as u64;
+        // `nb_points` and `nb_streamlines` are JSON numbers from `header.json`,
+        // so both arrive unbounded. The length checks below are correct, but
+        // they run *after* this arithmetic: unchecked, `nb_points` near u64::MAX
+        // panics here in debug, and `nb_streamlines + 1` wraps to zero in
+        // release, which then passes the offsets check against an empty file and
+        // indexes with the unwrapped value.
+        let expected_pos_elements = header.nb_points.checked_mul(TRX_DIMENSIONS as u64).ok_or(
+            TrxError::HeaderCountOverflow {
+                field: "nb_points",
+                value: header.nb_points,
+            },
+        )?;
         let pos_element_count = match header.dtype.as_str() {
             "float32" => (positions_raw.len() / F32_BYTES) as u64,
             "float64" => (positions_raw.len() / F64_BYTES) as u64,
@@ -75,7 +86,14 @@ impl TrxTractogram {
             });
         }
 
-        let expected_offsets = header.nb_streamlines + 1;
+        let expected_offsets =
+            header
+                .nb_streamlines
+                .checked_add(1)
+                .ok_or(TrxError::HeaderCountOverflow {
+                    field: "nb_streamlines",
+                    value: header.nb_streamlines,
+                })?;
         let offset_count = (offsets_raw.len() / U64_BYTES) as u64;
         if offset_count != expected_offsets {
             return Err(TrxError::OffsetsLengthMismatch {

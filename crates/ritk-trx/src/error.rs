@@ -5,6 +5,19 @@
 #[derive(Debug, thiserror::Error)]
 #[non_exhaustive]
 pub enum TrxError {
+    /// A header count is too large to size the arrays it describes.
+    ///
+    /// `header.json` supplies these as unbounded JSON numbers, so the
+    /// arithmetic that derives element counts from them runs before the
+    /// length checks that would otherwise catch a nonsensical value.
+    #[error("TRX header field '{field}' is {value}, too large to size the data it describes")]
+    HeaderCountOverflow {
+        /// Name of the offending header field.
+        field: &'static str,
+        /// Value it declared.
+        value: u64,
+    },
+
     /// An I/O error occurred.
     #[error("I/O error: {0}")]
     Io(#[from] std::io::Error),
