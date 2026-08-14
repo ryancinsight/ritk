@@ -172,10 +172,38 @@
   Risk: [patch]; test-only.
 
 - **ARCH-695-01 [patch][arch] - Give the Image operation families their own leaf modules**
-  (DoR; owner=Claude; last-update=2026-08-13; scope=
-  `crates/ritk-image/src/{types.rs,transform.rs,tests_transform.rs}` and the
-  new leaf modules; non-goal=any behaviour change — this is a pure move, and a
-  commit that alters an expression is out of scope by definition).
+  (DONE; owner=Claude; last-update=2026-08-13; scope=
+  `crates/ritk-image/src/**`; non-goal=any behaviour change).
+
+  `types.rs` held four operation families on one type across 1546 lines, while
+  `transform.rs` contained no code — only a comment calling itself "an
+  organizational placeholder for future transform-specific logic", sitting on
+  the exact name the transforms belonged under.
+
+  Now: `types.rs` (241) keeps the type, its constructors and its accessors;
+  `access.rs` (104) owns the host-view family; `transform/point.rs` (117) and
+  `transform/batch.rs` (451) split the transforms by granularity, which is what
+  changes their cost model. `transform/mod.rs` is a manifest. Tests split the
+  same way, with the beam-space cases in their own file because the coordinate
+  map is load-bearing there and incidental everywhere else. Every file is now
+  under the 500-line target; the largest is 451.
+
+  Two deviations from a pure move, both deliberate:
+
+  - the `Image` fields became `pub(crate)`, which the split requires. The type
+    stays externally opaque, so the validating constructors remain the only way
+    to build one.
+  - `dummy_image` was a second body for what `test_support::make_image_with`
+    already does. It is deleted; the fixture survives as
+    `test_support::metadata_only_image`, which calls the canonical helper. The
+    five other shared fixtures moved to `test_support.rs` alongside the
+    `make_image_*` family rather than being copied into three test files.
+
+  Verification: the test-name set is byte-identical before and after — 49
+  tests, `comm` reports no difference in either direction. A normalised
+  line-multiset diff of all moved code shows only the visibility changes, the
+  fixture consolidation, and rustfmt reflow; no expression changed. Workspace
+  tests, clippy `-D warnings` and fmt pass.
 
   `types.rs` is 1546 lines carrying four distinct operation families on one
   type: construction and accessors, single-point coordinate transforms, batch
@@ -300,21 +328,66 @@
   changes are loop-invariant hoists whose correctness does not rest on the
   measurement. Filed as PERF-694-02.
 
-- **PERF-694-02 [patch] - Baseline the JPEG decode and resample paths**
+- **PERF-694-02 [patch] - Measure the PERF-694-01 hoists**
+  (DONE; owner=Claude; last-update=2026-08-13; scope=in-process differential
+  measurement of both hoists, and the correction it forced in
+  `crates/ritk-interpolation/src/interpolation/kernel/linear/mod.rs`;
+  non-goal=committed criterion benches, which still need a baseline-DCT JPEG
+  fixture — filed as PERF-694-03).
+
+  Measured in release on a quiet host (zero peer cargo processes), each
+  variant warmed then interleaved with the others, minimum per variant.
+
+  IDCT, per 4096 blocks (one 512x512 image): shared basis 242us, rebuilt per
+  block 898us — **3.71x**. Confirmed. The first pass measured this with a
+  single warmed ordering and got 3.64x; re-running it under the interleaved
+  protocol below moved the figure by 2%, because this path is compute-bound
+  with no allocator in it and so was never the unstable one.
+
+  Linear interpolation contradicted the premise and forced a correction. Three
+  findings, in the order they arrived:
+
+  1. The `vec!` scratch really does allocate: 300000 allocations for 100000
+     points, exactly three per call, not elided by the optimizer. The audit's
+     count was right.
+  2. Removing them buys nothing when the allocator is warm. Best-case heap
+     3.29ms against 3.35ms for stack scratch over 262144 points — parity. The
+     allocator fast path is not this kernel's bottleneck. Heap timing is
+     bimodal across runs (3.3, 3.7, 22.2, 31.5ms), so the win is real only
+     when the free list is cold.
+  3. **The shipped change was a 2x regression.** Packing the three per-axis
+     values into one `AxisBracket` struct measured 6.59ms against 3.35ms for
+     the original three flat arrays. The array-of-structs layout, which I
+     introduced on the reasoning that the corner loop reads all three
+     together, is simply slower here.
+
+  Corrected: stack scratch retained, structure-of-arrays layout restored. The
+  justification is now allocator traffic under parallel resampling — which a
+  single-threaded benchmark cannot show — rather than a single-threaded
+  speedup that does not exist.
+
+  Process note for the pattern library: the first measurement of this pair
+  reported 0.47x and the second 3.20x for the same code. Neither was
+  trustworthy; a single ordering is sensitive to allocator and cache state.
+  Interleaving variants and taking per-variant minima is what made the numbers
+  reproducible, and it is what nearly cost a correct optimisation a revert.
+
+- **PERF-694-03 [patch] - Commit criterion baselines for the decode and resample paths**
   (DoR; owner=unclaimed; last-update=2026-08-13; scope=
   `crates/ritk-codecs/benches/codec_throughput.rs` and a new interpolation
   bench; non-goal=further optimization, which this exists to direct).
 
-  Outcome: criterion baselines for baseline-JPEG fragment decode and linear
-  resampling, so PERF-694-01's hoists carry measured deltas and any later
-  regression blocks merge.
+  Outcome: durable criterion baselines so a later regression blocks merge,
+  rather than the one-off measurements PERF-694-02 recorded.
 
-  Method: extend the existing criterion suite; run on a quiet host (no peer
-  cargo processes) per the benchmark time budget in the standards. A
-  baseline-DCT JPEG fixture is needed — the committed fixtures are lossless
-  SOF3 and never reach the IDCT.
+  Method: extend the existing criterion suite under the committed benchmark
+  time budget. A baseline-DCT JPEG fixture has to be built first — the
+  committed fixtures are lossless SOF3 and never reach the IDCT, and the crate
+  has no baseline-JPEG encoder to generate one with.
 
-  Acceptance: baselines committed, before/after deltas recorded here.
+  Acceptance: baselines committed; the harness interleaves variants and
+  reports minima, since PERF-694-02 showed a single ordering is not
+  reproducible for allocator-sensitive kernels.
 
   Risk: [patch]; benchmark-only, no production code.
 

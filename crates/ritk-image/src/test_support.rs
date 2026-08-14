@@ -133,6 +133,117 @@ where
     make_image(vec![value; n], dims)
 }
 
+use coeus_core::SequentialBackend;
+use ritk_spatial::CoordinateMap;
+
+/// Concrete image type the geometry fixtures below return.
+type TensorImage<const D: usize> = Image<f32, SequentialBackend, D>;
+
+// ── Geometry fixtures ──
+//
+// Shared by the transform, construction and host-access suites. They live
+// here for the same reason the `make_image_*` family does: one definition
+// rather than a copy per `tests_*.rs`.
+
+pub fn metadata_2d() -> (Point<2>, Spacing<2>, Direction<2>) {
+    (
+        Point::new([10.0, 20.0]),
+        Spacing::new([0.5, 1.5]),
+        Direction::identity(),
+    )
+}
+
+// ── Batch point transforms ──────────────────────────────────────────────
+
+/// Rotation of 90° about the z-axis: rows [0,-1,0], [1,0,0], [0,0,1].
+/// Orthonormal (inverse = transpose), determinant 1 — exercises the
+/// direction terms and the axis-major ↔ innermost-first column reordering.
+pub fn rotated_metadata_3d() -> (Point<3>, Spacing<3>, Direction<3>) {
+    (
+        Point::new([10.5, -3.25, 7.0]),
+        Spacing::new([0.5, 1.25, 2.0]),
+        Direction::from_rows([[0.0, -1.0, 0.0], [1.0, 0.0, 0.0], [0.0, 0.0, 1.0]]),
+    )
+}
+
+/// Deterministic pseudo-random point rows in `[-range, range]` (LCG; no
+/// test-time randomness dependency, replayable).
+pub fn pseudo_points(n: usize, range: f64) -> Vec<f64> {
+    let mut state: u64 = 0x2545_F491_4F6C_DD1D;
+    (0..n * 3)
+        .map(|_| {
+            state = state
+                .wrapping_mul(6364136223846793005)
+                .wrapping_add(1442695040888963407);
+            let unit = ((state >> 33) as f64) / ((1u64 << 31) as f64); // [0, 2)
+            (unit - 1.0) * range
+        })
+        .collect()
+}
+
+/// One-voxel image carrying only spatial metadata.
+///
+/// For tests whose subject is the coordinate mapping rather than the voxels:
+/// the shape is `[1; D]`, so nothing the test asserts depends on the data.
+pub fn metadata_only_image<T, B, const D: usize>(
+    origin: Point<D>,
+    spacing: Spacing<D>,
+    direction: Direction<D>,
+) -> Image<T, B, D>
+where
+    T: Scalar,
+    B: ComputeBackend + Default,
+{
+    make_image_with(
+        vec![T::zero()],
+        [1; D],
+        Some(origin),
+        Some(spacing),
+        Some(direction),
+    )
+}
+
+pub fn curvilinear_image() -> TensorImage<2> {
+    // 64 samples along each of 33 beams: shape is [beam, sample] so that the
+    // innermost axis (index column 0) is the sample along a beam.
+    let geometry = ritk_spatial::CurvilinearArray::centred(1.0e-4, 0.06, 0.5_f64.to_radians(), 33)
+        .expect("valid geometry");
+    Image::from_flat(
+        vec![0.0_f32; 33 * 64],
+        [33, 64],
+        Point::new([0.0, 0.0]),
+        Spacing::new([1.0, 1.0]),
+        Direction::identity(),
+    )
+    .expect("image")
+    .with_coordinate_map(CoordinateMap::CurvilinearArray(geometry))
+    .expect("2-D image accepts a curvilinear map")
+}
+
+pub fn phased_array_image() -> TensorImage<3> {
+    // shape [sample, elevation, azimuth]: innermost axis (index column 0)
+    // is the azimuth beam, matching the geometry's column contract.
+    let geometry = ritk_spatial::PhasedArray3D::centred(
+        1.0e-4,
+        0.01,
+        0.75_f64.to_radians(),
+        1.5_f64.to_radians(),
+        9,
+        5,
+    )
+    .expect("valid geometry");
+    Image::from_flat(
+        vec![0.0_f32; 8 * 5 * 9],
+        [8, 5, 9],
+        Point::new([0.0, 0.0, 0.0]),
+        Spacing::new([1.0, 1.0, 1.0]),
+        Direction::identity(),
+    )
+    .expect("image")
+    .with_coordinate_map(CoordinateMap::PhasedArray3D(geometry))
+    .expect("3-D image accepts a phased-array map")
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;

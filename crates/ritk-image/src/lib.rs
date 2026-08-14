@@ -3,6 +3,7 @@
 //! Depends on `ritk-spatial` for spatial types and `coeus` for the Atlas-native
 //! tensor backend.
 
+pub mod access;
 pub mod color;
 pub mod grid;
 pub mod metadata;
