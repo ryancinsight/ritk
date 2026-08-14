@@ -56,6 +56,11 @@ pub mod tags {
     pub const SLICE_THICKNESS: DicomTag = DicomTag::new(0x0018, 0x0050);
     /// Image Position Patient (0020,0032).
     pub const IMAGE_POSITION_PATIENT: DicomTag = DicomTag::new(0x0020, 0x0032);
+    /// Image Orientation Patient (0020,0037).
+    ///
+    /// The first three values are the direction cosine of the image rows and
+    /// the last three values are the direction cosine of the image columns.
+    pub const IMAGE_ORIENTATION_PATIENT: DicomTag = DicomTag::new(0x0020, 0x0037);
 
     // ── Diffusion MRI ─────────────────────────────────────────────────
 
@@ -214,6 +219,18 @@ mod tests {
                     "1.25".to_owned(),
                 ])),
             ),
+            DataElement::new(
+                Tag::from(tags::IMAGE_ORIENTATION_PATIENT),
+                VR::DS,
+                PrimitiveValue::Strs(SmallVec::from_vec(vec![
+                    "1".to_owned(),
+                    "0".to_owned(),
+                    "0".to_owned(),
+                    "0".to_owned(),
+                    "1".to_owned(),
+                    "0".to_owned(),
+                ])),
+            ),
         ]);
 
         assert_eq!(obj.required_unsigned(tags::ROWS, "Rows").unwrap(), 7);
@@ -221,6 +238,11 @@ mod tests {
             obj.optional_decimal_vec(tags::PIXEL_SPACING, "PixelSpacing")
                 .unwrap(),
             Some(vec![0.8, 1.25])
+        );
+        assert_eq!(
+            obj.optional_decimal_vec(tags::IMAGE_ORIENTATION_PATIENT, "ImageOrientationPatient")
+                .unwrap(),
+            Some(vec![1.0, 0.0, 0.0, 0.0, 1.0, 0.0])
         );
         assert_eq!(obj.transfer_syntax_uid(), "1.2.840.10008.1.2.1");
     }

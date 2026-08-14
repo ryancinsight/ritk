@@ -1,5 +1,15 @@
 # RITK Backlog - Active Planning
 
+- **ATLAS-RITK-DICOM-ORIENTATION-070 [minor] - Publish the provider-owned
+  ImageOrientationPatient tag (DONE locally; owner=Codex; last-update=
+  2026-08-14; scope=`crates/ritk-dicom/src/attribute.rs`).** Add the named
+  `(0020,0037)` tag to the canonical DICOM attribute vocabulary and cover its
+  six-value decimal read with a value-semantic test. The Helios consumer
+  replaces its local tag duplicate in the paired consumer increment. Focused
+  `ritk-dicom` nextest passes 37/37 under the Atlas offline overlay; locked
+  standalone verification remains a hosted/provider-merge gate because the
+  parent overlay would otherwise rewrite the lockfile.
+
 - **RITK-FLOATELEMENT-ROOTS-001 [patch] - Migrate powf root emulation to
   eunomia FloatElement (DONE; owner=Codex; last-update=2026-08-13;
   scope=3 `powf`-emulated root sites across 4 files: the `ritk-model` Swin

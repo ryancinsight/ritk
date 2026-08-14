@@ -917,3 +917,57 @@ fn cross_codec_non_identity_affine_recovers_same_physical_coordinates()
     }
     Ok(())
 }
+
+#[test]
+fn map_points_moves_geometry_without_changing_terminations() -> Result<(), TractographyError> {
+    // The CLI tracks in voxel indices and writes in physical millimetres, so
+    // this is the conversion every export depends on. A termination reason
+    // describes why tracking stopped, which no change of coordinates affects --
+    // carrying it over unchanged is part of the contract.
+    let config = TractographyConfig::new(0.5, 10, 60.0, TrackingDirection::Forward)?;
+    let seeds = &[Point::new([0.0, 0.0, 0.0]), Point::new([1.0, 0.0, 0.0])];
+    let result = euler_tractography(seeds, config, horizontal)?;
+    assert_eq!(result.streamlines_generated(), 2);
+
+    // An anisotropic scale plus an offset: a uniform scale would not catch an
+    // axis being transposed, and a pure scale would not catch a dropped origin.
+    let scale = [2.0, 3.0, 4.0];
+    let offset = [10.0, -5.0, 0.5];
+    let moved = result.map_points(|point| {
+        let [x, y, z] = point.to_array();
+        Point::new([
+            x * scale[0] + offset[0],
+            y * scale[1] + offset[1],
+            z * scale[2] + offset[2],
+        ])
+    })?;
+
+    assert_eq!(moved.streamlines().len(), result.streamlines().len());
+    assert_eq!(moved.seeds_attempted(), result.seeds_attempted());
+
+    for (before, after) in result.streamlines().iter().zip(moved.streamlines()) {
+        assert_eq!(
+            before.forward_termination(),
+            after.forward_termination(),
+            "a change of coordinates cannot change why tracking stopped"
+        );
+        assert_eq!(before.backward_termination(), after.backward_termination());
+
+        assert_eq!(before.geometry().len(), after.geometry().len());
+        for (p, q) in before
+            .geometry()
+            .points()
+            .iter()
+            .zip(after.geometry().points())
+        {
+            assert!((q.x - (p.x * scale[0] + offset[0])).abs() < 1e-9);
+            assert!((q.y - (p.y * scale[1] + offset[1])).abs() < 1e-9);
+            assert!((q.z - (p.z * scale[2] + offset[2])).abs() < 1e-9);
+        }
+    }
+
+    // The original is untouched: exports may be produced in several frames from
+    // one tracking run.
+    assert!((result.streamlines()[0].geometry().points()[0].x - 0.0).abs() < 1e-9);
+    Ok(())
+}

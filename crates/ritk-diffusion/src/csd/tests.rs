@@ -571,3 +571,59 @@ fn direction_at_recovers_z_axis_in_homogeneous_volume() -> Result<(), CsdError> 
     assert!(abs_z > 0.8, "interpolated peak z={abs_z} must be near ±1");
     Ok(())
 }
+
+#[test]
+fn shape_is_ordered_x_fastest_not_like_image_shape() -> Result<(), CsdError> {
+    // Pins the axis-order contract, as `noddi::tests` does for its volume. A
+    // non-cubic grid is required: on a cubic one a transposed shape still
+    // indexes in bounds and the error is silent, which is the failure this
+    // guards against.
+    //
+    // shape [nx, ny, nz] = [4, 2, 1], storage z-slowest, so the voxel at x = 3
+    // is flat index 3. A real fODF is placed there and nowhere else: reading
+    // the shape slowest-first would make x = 3 out of bounds and z = 3 in
+    // bounds, reversing both answers below.
+    let scheme = scheme(60);
+    let response = ResponseFunction::from_tensor(3_000.0, 0.0017, 0.0003, 8)?;
+    let config = CsdConfig::new(8, weighting(50.0), NnlsConfig::default())?;
+    let signals = tensor_signal(&scheme, [0.0, 0.0, 1.0], 1.0, 0.0017, 0.0003);
+    let fod = estimate_fod(&scheme, &signals, &response, &config)?;
+
+    let nc = fod.coefficients().len();
+    // Bound to SHAPE so the buffer and the declared shape cannot disagree.
+    const SHAPE: [usize; 3] = [4, 2, 1];
+    let mut flat = vec![0.0_f64; SHAPE.iter().product::<usize>() * nc];
+    flat[3 * nc..4 * nc].copy_from_slice(fod.coefficients());
+
+    let basis = RealSphericalHarmonicBasis::new(8).expect("valid basis");
+    let volume = FodVolume::new(
+        flat.into_boxed_slice(),
+        SHAPE,
+        [1.0, 1.0, 1.0],
+        [0.0, 0.0, 0.0],
+        basis,
+        GradientFrame::Lps,
+    )?;
+
+    assert_eq!(
+        volume.shape(),
+        SHAPE,
+        "the shape is reported in the order it was given"
+    );
+
+    let peak = volume
+        .direction_at(&ritk_spatial::Point::new([3.0, 0.0, 0.0]), 50, 100, 0.1)
+        .expect("x = 3 holds the fODF and is inside a volume 4 wide in x");
+    assert!(
+        peak.to_array()[2].abs() > 0.9,
+        "the z-aligned fibre must be recovered at x = 3, got {peak:?}"
+    );
+
+    assert!(
+        volume
+            .direction_at(&ritk_spatial::Point::new([0.0, 0.0, 3.0]), 50, 100, 0.1)
+            .is_none(),
+        "z = 3 is outside a volume 1 deep in z; a transposed shape would admit it"
+    );
+    Ok(())
+}
