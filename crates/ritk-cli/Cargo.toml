@@ -28,6 +28,8 @@ ritk-diffusion = { path = "../ritk-diffusion", version = "0.1.0" }
 ritk-diffusion-scheme = { path = "../ritk-diffusion-scheme", version = "0.2.0" }
 ritk-tractography = { path = "../ritk-tractography", version = "0.1.0" }
 ritk-tck = { path = "../ritk-tck", version = "0.1.0" }
+ritk-trk = { path = "../ritk-trk", version = "0.1.0" }
+ritk-trx = { path = "../ritk-trx", version = "0.1.0" }
 gaia = { workspace = true }
 ritk-snap = { path = "../ritk-snap", version = "0.1.0" }
 clap = { workspace = true }
@@ -40,3 +42,6 @@ coeus-core = { workspace = true }
 [dev-dependencies]
 tempfile = { workspace = true }
 ritk-nifti = { path = "../ritk-nifti", version = "0.2.0" }
+
+[lints]
+workspace = true
