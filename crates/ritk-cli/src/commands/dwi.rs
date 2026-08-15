@@ -61,6 +61,15 @@ pub struct TensorArgs {
     #[arg(long)]
     pub rd: Option<PathBuf>,
 
+    /// Write the principal eigenvector field here, as a 3-volume series.
+    ///
+    /// The local fibre orientation, one volume per component in the image's own
+    /// axis order. Unlike the scalar maps this cannot be a single 3-D image, so
+    /// the path must name a format with a native series writer -- `.nii`,
+    /// `.nrrd` or `.mgh`.
+    #[arg(long)]
+    pub pev: Option<PathBuf>,
+
     /// Background threshold, as a fraction of the b = 0 signal's upper
     /// percentile.
     ///
@@ -91,8 +100,8 @@ fn tensor(args: TensorArgs) -> Result<()> {
         ("rd", args.rd.as_deref()),
     ];
     anyhow::ensure!(
-        requested.iter().any(|(_, path)| path.is_some()),
-        "no output requested: pass at least one of --fa, --md, --ad, --rd"
+        requested.iter().any(|(_, path)| path.is_some()) || args.pev.is_some(),
+        "no output requested: pass at least one of --fa, --md, --ad, --rd, --pev"
     );
 
     info!(
@@ -148,6 +157,12 @@ fn tensor(args: TensorArgs) -> Result<()> {
             .with_context(|| format!("writing {name} map to {}", path.display()))?;
         info!("wrote {name} to {}", path.display());
     }
+
+    if let Some(path) = args.pev.as_deref() {
+        write_vector_field(path, maps.principal_eigenvector(), &reference)
+            .with_context(|| format!("writing the eigenvector field to {}", path.display()))?;
+        info!("wrote pev to {}", path.display());
+    }
     Ok(())
 }
 
@@ -181,6 +196,42 @@ fn measure(maps: &DiffusionMaps, name: &str) -> Vec<f64> {
         "rd" => maps.radial_diffusivity(),
         other => unreachable!("invariant: {other} is not one of the declared outputs"),
     }
+}
+
+/// Write a vector field as one volume per component.
+///
+/// A three-component field cannot be a single 3-D image, and splitting it into
+/// three separate files would let the components drift apart on disk. A series
+/// keeps them in one artefact, in the same order the vectors are stored, and is
+/// what `ritk_io::read_image_series_native` reads back.
+///
+/// Each component volume inherits the reference geometry, exactly as the scalar
+/// maps do, so the field overlays the anatomy it was measured from.
+fn write_vector_field(
+    path: &Path,
+    field: &[[f64; 3]],
+    reference: &Image<f32, Backend, 3>,
+) -> Result<()> {
+    let backend = Backend::default();
+    let volumes = (0..3)
+        .map(|component| {
+            #[expect(
+                clippy::cast_possible_truncation,
+                reason = "unit-vector components are written at image precision, like every other RITK map"
+            )]
+            let data: Vec<f32> = field.iter().map(|vector| vector[component] as f32).collect();
+            Image::from_flat_on(
+                data,
+                reference.shape(),
+                *reference.origin(),
+                *reference.spacing(),
+                *reference.direction(),
+                &backend,
+            )
+        })
+        .collect::<anyhow::Result<Vec<_>>>()?;
+
+    ritk_io::write_image_series_native(path, &volumes)
 }
 
 /// Write a scalar map carrying the input series' geometry.
