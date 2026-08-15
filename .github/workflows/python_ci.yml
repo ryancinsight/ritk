@@ -115,6 +115,7 @@ jobs:
       - name: Run Python parity and smoke tests
         run: >-
           pytest
+          crates/ritk-python/tests/test_diffusion.py
           crates/ritk-python/tests/test_python_api_parity.py
           crates/ritk-python/tests/test_segmentation_bindings.py
           crates/ritk-python/tests/test_statistics_bindings.py

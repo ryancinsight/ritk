@@ -51,6 +51,7 @@ _add_windows_dll_directories()
 
 from ritk._ritk import (
     __version__,
+    diffusion,  # noqa: F401
     filter,  # noqa: F401
     io,  # noqa: F401
     metrics,  # noqa: F401
@@ -72,6 +73,7 @@ import sys as _sys
 # "import ritk.filter", "import ritk.io", etc. work as expected.
 # PyO3 add_submodule() exposes submodules as attributes but does not
 # automatically register them as importable paths; we do it here.
+_sys.modules.setdefault("ritk.diffusion", diffusion)
 _sys.modules.setdefault("ritk.filter", filter)
 _sys.modules.setdefault("ritk.io", io)
 _sys.modules.setdefault("ritk.metrics", metrics)
@@ -85,6 +87,7 @@ __all__ = [
     "ColorImage",
     "image",
     "io",
+    "diffusion",
     "filter",
     "metrics",
     "registration",
