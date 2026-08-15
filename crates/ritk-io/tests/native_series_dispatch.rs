@@ -215,3 +215,71 @@ fn native_dispatch_rejects_unsupported_series_format() {
     let error = read_image_series_native(&vtk_path).expect_err("VTK has no series reader");
     assert!(format!("{error:#}").contains("not yet supported"));
 }
+
+// ── Series writing through the dispatch ───────────────────────────────────────
+
+/// A series survives a write/read round trip through the dispatch, per format.
+///
+/// The oracle is the reader that already existed: whatever
+/// `write_image_series_native` produces must come back through
+/// `read_image_series_native` unchanged. Checking voxel values and not just the
+/// volume count is what distinguishes a real round trip from a file that merely
+/// parses.
+#[test]
+fn a_written_series_reads_back_unchanged() {
+    let dims = [2usize, 3, 4];
+    let expected = native_series_fixture(3, dims);
+    let dir = tempfile::tempdir().expect("tempdir");
+
+    for extension in ["nii", "nrrd", "mgh"] {
+        let path = dir.path().join(format!("series.{extension}"));
+        ritk_io::write_image_series_native(&path, &expected)
+            .unwrap_or_else(|error| panic!(".{extension} series writes: {error:#}"));
+
+        let actual = read_image_series_native(&path)
+            .unwrap_or_else(|error| panic!(".{extension} series reads back: {error:#}"));
+
+        assert_eq!(
+            actual.len(),
+            expected.len(),
+            ".{extension} must return every volume written"
+        );
+        for (index, (written, read)) in expected.iter().zip(&actual).enumerate() {
+            assert_eq!(read.shape(), written.shape(), ".{extension} volume {index}");
+            assert_eq!(
+                read.data_slice().expect("contiguous"),
+                written.data_slice().expect("contiguous"),
+                ".{extension} volume {index} voxels must survive the round trip"
+            );
+        }
+    }
+}
+
+#[test]
+fn an_unwritable_format_is_rejected_by_name() {
+    // The message has to name the format, because the caller's next step is to
+    // reach for that format's own series writer.
+    let dir = tempfile::tempdir().expect("tempdir");
+    let path = dir.path().join("series.png");
+
+    let error = ritk_io::write_image_series_native(&path, &native_series_fixture(2, [2, 2, 2]))
+        .expect_err("PNG has no native series writer");
+    let message = format!("{error:#}");
+    assert!(
+        message.contains("series I/O is not yet supported"),
+        "unexpected error: {message}"
+    );
+}
+
+#[test]
+fn an_unknown_extension_is_rejected_before_writing() {
+    let dir = tempfile::tempdir().expect("tempdir");
+    let path = dir.path().join("series.unknown-extension");
+
+    let error = ritk_io::write_image_series_native(&path, &native_series_fixture(2, [2, 2, 2]))
+        .expect_err("no format can be inferred");
+    assert!(
+        format!("{error:#}").contains("cannot infer native series output format"),
+        "unexpected error: {error:#}"
+    );
+}

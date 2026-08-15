@@ -289,6 +289,44 @@ pub fn write_image_native<P: AsRef<std::path::Path>>(
     .map_err(anyhow::Error::from)
 }
 
+/// Write a series of volumes to `path`, inferring the format from its extension.
+///
+/// The counterpart to [`read_image_series_native`], over the same three formats.
+/// A caller that can read a 4-D series through this module can now write one
+/// back; before, only the format-specific writers could, which forced a
+/// dependency on the format crate for what the dispatch already knew how to do.
+///
+/// Every volume must share one grid — the format writers enforce that — and the
+/// first volume's geometry describes the series.
+///
+/// # Errors
+///
+/// Returns an error when the path has no supported native series writer or the
+/// selected format series writer fails.
+pub fn write_image_series_native<P: AsRef<std::path::Path>>(
+    path: P,
+    volumes: &[NativeImage],
+) -> anyhow::Result<()> {
+    let path = path.as_ref();
+    let backend = NativeBackend::default();
+
+    let fmt = ImageFormat::from_path(path).ok_or_else(|| {
+        anyhow::anyhow!(
+            "cannot infer native series output format from path: {}",
+            path.display()
+        )
+    })?;
+
+    match fmt {
+        ImageFormat::NIfTI => ritk_nifti::write_nifti_series(path, volumes, &backend),
+        ImageFormat::Nrrd => ritk_nrrd::write_nrrd_series(path, volumes, &backend),
+        ImageFormat::Mgh => ritk_mgh::write_mgh_series(path, volumes, &backend),
+        other => Err(anyhow::anyhow!(
+            "series I/O is not yet supported for {other:?} through the native              dispatch; use the format-specific series writer directly"
+        )),
+    }
+}
+
 /// Read a 3-D f32 acquisition series through the native reader dispatch.
 ///
 /// Each returned image shares one spatial grid and is in acquisition order.

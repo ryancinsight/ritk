@@ -95,6 +95,7 @@ fn args(dir: &Path, paths: &(PathBuf, PathBuf, PathBuf)) -> TensorArgs {
         md: Some(dir.join("md.nii")),
         ad: Some(dir.join("ad.nii")),
         rd: Some(dir.join("rd.nii")),
+        pev: None,
         // The phantom is uniform, so a percentile-relative mask would threshold
         // it against itself; every voxel here is signal.
         background_fraction: 0.0,
@@ -251,5 +252,78 @@ fn masking_the_whole_volume_is_reported_rather_than_written() {
             .to_string()
             .contains("no voxel yielded an admissible tensor"),
         "unexpected error: {error}"
+    );
+}
+
+// ── Vector-field output ───────────────────────────────────────────────────────
+
+#[test]
+fn the_eigenvector_field_writes_as_a_unit_vector_series() {
+    // Three volumes, one per component, and every fitted voxel unit length.
+    // A field of arbitrary numbers would pass a "the file exists" check; unit
+    // norm is what identifies these as orientations.
+    let dir = tempdir().expect("tempdir");
+    let paths = phantom(dir.path());
+    let mut arguments = args(dir.path(), &paths);
+    let pev_path = dir.path().join("pev.nii");
+    arguments.pev = Some(pev_path.clone());
+
+    tensor(arguments).expect("fit succeeds");
+
+    let series = ritk_io::read_image_series_native(&pev_path).expect("pev series reads back");
+    assert_eq!(series.len(), 3, "one volume per component");
+
+    let components: Vec<Vec<f32>> = series.iter().map(values).collect();
+    for volume in &series {
+        assert_eq!(
+            volume.shape(),
+            SHAPE,
+            "each component covers the same voxels"
+        );
+    }
+
+    for voxel in 0..components[0].len() {
+        let norm = components
+            .iter()
+            .map(|component| f64::from(component[voxel]).powi(2))
+            .sum::<f64>()
+            .sqrt();
+        assert!(
+            (norm - 1.0).abs() < 1.0e-6,
+            "voxel {voxel} orientation must be unit length, got {norm}"
+        );
+    }
+}
+
+#[test]
+fn the_eigenvector_field_alone_is_a_valid_request() {
+    // --pev is an output like any other: asking for it and nothing else must not
+    // trip the "no output requested" guard.
+    let dir = tempdir().expect("tempdir");
+    let paths = phantom(dir.path());
+    let mut arguments = args(dir.path(), &paths);
+    arguments.fa = None;
+    arguments.md = None;
+    arguments.ad = None;
+    arguments.rd = None;
+    arguments.pev = Some(dir.path().join("pev.nii"));
+
+    tensor(arguments).expect("a pev-only request is valid");
+}
+
+#[test]
+fn a_format_without_a_series_writer_is_rejected() {
+    // The scalar maps accept any writable image format, but a vector field needs
+    // a series, so the same path that works for --fa can fail for --pev. Saying
+    // so beats writing nothing and reporting success.
+    let dir = tempdir().expect("tempdir");
+    let paths = phantom(dir.path());
+    let mut arguments = args(dir.path(), &paths);
+    arguments.pev = Some(dir.path().join("pev.png"));
+
+    let error = tensor(arguments).expect_err("PNG has no native series writer");
+    assert!(
+        format!("{error:#}").contains("series I/O is not yet supported"),
+        "unexpected error: {error:#}"
     );
 }
