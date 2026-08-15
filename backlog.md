@@ -581,6 +581,38 @@
   scan-array findings survived in the DCT path. No fuzz target exists anywhere
   in `ritk-codecs`.
 
+- **CONF-698-01 [patch] - Seed admission diverges from ITK in principle, not yet in evidence**
+  (DoR; owner=unclaimed; last-update=2026-08-14; scope=
+  `crates/ritk-segmentation/src/region_growing/vector_confidence_connected/`
+  `{flood.rs,mod.rs,tests.rs}`; non-goal=the sqrt round-trip, already fixed).
+
+  ITK admits seeds **unconditionally**: its flood-fill iterator is constructed
+  at the seeds and writes them before any criterion runs. Verified by running
+  SimpleITK 3.0 at multiplier 1e-6, where nothing can satisfy the criterion —
+  the seed's own Mahalanobis distance is 1.082 — and it still returns exactly
+  the seed.
+
+  This crate instead tests the seed and, to retain it, widens
+  `threshold_squared` to `max(multiplier², max seed distance²)`. That widened
+  threshold is then applied to every **neighbour**, so at multiplier 0.5 the
+  region grows at an effective 1.082.
+
+  **Not yet demonstrated.** The SimpleITK sweep added alongside this item
+  passes against the current implementation: widening only binds below 1.082,
+  and on this fixture no neighbour lies between the multiplier and that
+  distance, so the two rules coincide at every multiplier tested. The
+  divergence is real in principle and currently unevidenced.
+
+  Outcome: either a fixture where a neighbour falls in that gap — which would
+  make the divergence a measured defect and justify admitting seeds
+  unconditionally — or a recorded finding that the two rules cannot differ for
+  a covariance derived from the seed neighbourhood, which would make the
+  widening equivalent and worth saying so in the code.
+
+  Acceptance: whichever it is, demonstrated rather than argued.
+
+  Risk: [patch]; the fix, if needed, is local to `flood.rs` seed admission.
+
 - **DEP-697-01 [patch] - Migrate the two leto SVD consumers off the removed entry points**
   (DoR; owner=unclaimed; last-update=2026-08-14; scope=
   `crates/ritk-segmentation/src/region_growing/vector_confidence_connected/`
