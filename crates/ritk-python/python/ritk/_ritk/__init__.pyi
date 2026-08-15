@@ -1,5 +1,6 @@
 """Type stub package for the native _ritk extension module (compiled by PyO3/maturin)."""
 
+from ritk._ritk import diffusion as diffusion
 from ritk._ritk import filter as filter
 from ritk._ritk import image as image
 from ritk._ritk import io as io

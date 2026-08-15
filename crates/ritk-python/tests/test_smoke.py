@@ -23,7 +23,15 @@ def test_ritk_has_expected_submodules():
     """All public submodules declared in ritk/__init__.py must be importable."""
     import ritk
 
-    expected = ["image", "io", "filter", "registration", "segmentation", "statistics"]
+    expected = [
+        "image",
+        "io",
+        "diffusion",
+        "filter",
+        "registration",
+        "segmentation",
+        "statistics",
+    ]
     for name in expected:
         assert (
             hasattr(ritk, name) or importlib.util.find_spec(f"ritk.{name}") is not None
@@ -37,6 +45,7 @@ def test_ritk_top_level_exports_match_public_contract():
     expected_exports = {
         "Image",
         "io",
+        "diffusion",
         "filter",
         "registration",
         "segmentation",
@@ -56,6 +65,7 @@ def test_ritk___all___matches_public_contract():
         "ColorImage",
         "image",
         "io",
+        "diffusion",
         "filter",
         "metrics",
         "registration",

@@ -24,6 +24,8 @@ ritk-core = { path = "../ritk-core", version = "0.10.0" }
 ritk-image = { path = "../ritk-image", version = "0.4.0" }
 ritk-spatial = { path = "../ritk-spatial", version = "0.2.0" }
 ritk-statistics = { path = "../ritk-statistics", version = "0.4.0" }
+ritk-diffusion = { path = "../ritk-diffusion", version = "0.1.0" }
+ritk-diffusion-scheme = { path = "../ritk-diffusion-scheme", version = "0.2.0" }
 ritk-interpolation = { path = "../ritk-interpolation", version = "0.5.0" }
 ritk-transform = { path = "../ritk-transform", version = "0.2.0" }
 ritk-filter = { path = "../ritk-filter", version = "0.3.0" }

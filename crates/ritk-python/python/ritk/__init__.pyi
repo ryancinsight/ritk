@@ -8,6 +8,7 @@ from ritk._ritk import io as io
 from ritk._ritk import metrics as metrics
 from ritk._ritk import registration as registration
 from ritk._ritk import segmentation as segmentation
+from ritk._ritk import diffusion as diffusion
 from ritk._ritk import statistics as statistics
 from ritk._ritk.image import ColorImage as ColorImage
 from ritk._ritk.image import Image as Image
