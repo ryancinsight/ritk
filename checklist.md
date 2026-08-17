@@ -25,6 +25,9 @@
       scope the Windows-only `missing_const_for_thread_local` expectation to
       the generated scratch item; local Rustfmt, check, Clippy, and focused
       nextest remain green.
+- [x] Reproduce the hosted wheel failure (`cargo-fmt` component conflict) and
+      install `rustfmt, clippy` alongside Rust 1.97.0 in every plain CI job so
+      Cargo does not perform a second component synchronization.
 
 ## ATLAS-RITK-CONFORMANCE-101 — Diffusion binding structure ratchet [patch]
 
