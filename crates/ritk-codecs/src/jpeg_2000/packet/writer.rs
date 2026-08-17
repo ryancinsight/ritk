@@ -108,7 +108,7 @@ pub(crate) fn write_num_passes(bw: &mut BitWriter, ncp: u32) {
 /// - `num_guard_bits`: from the QCD marker (typically 2).
 /// - `precision`: component bit precision (from SIZ Ssiz).
 /// - `num_decomp_levels`: 5/3 reversible DWT levels (0 = no transform).
-#[allow(clippy::too_many_arguments)]
+#[expect(clippy::too_many_arguments)]
 pub(crate) fn encode_tile_part(
     samples: &[i32],
     width: usize,

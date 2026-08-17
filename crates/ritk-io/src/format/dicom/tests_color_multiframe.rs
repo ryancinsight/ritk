@@ -22,7 +22,7 @@ fn write_multiframe(
     );
 }
 
-#[allow(clippy::too_many_arguments)]
+#[expect(clippy::too_many_arguments)]
 fn write_multiframe_with_dims(
     path: &Path,
     samples_per_pixel: u16,

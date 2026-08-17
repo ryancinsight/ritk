@@ -27,7 +27,7 @@ use super::wavelet::ceil_div_pow2;
 // values; they carry more digits than f32 can represent, but the compiler rounds
 // each to the same deterministic f32 constant used by every conformant codec, so
 // the documented precision is intentional.
-#[allow(clippy::excessive_precision)]
+#[expect(clippy::excessive_precision)]
 mod coeffs {
     pub const ALPHA: f32 = -1.586_134_342_059_924;
     pub const BETA: f32 = -0.052_980_118_572_961;

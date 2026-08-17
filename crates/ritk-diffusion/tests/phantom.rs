@@ -118,13 +118,13 @@ pub struct Phantom {
     // allow, not expect: this file is compiled into two test binaries and the
     // fields are read in one of them, so an expectation would be unfulfilled
     // there.
-    #[allow(dead_code)]
+    #[expect(dead_code)]
     pub pev_gt: Vec<f64>,
     /// Ground-truth fibre directions per voxel.
     // allow, not expect: this file is compiled into two test binaries and the
     // fields are read in one of them, so an expectation would be unfulfilled
     // there.
-    #[allow(dead_code)]
+    #[expect(dead_code)]
     pub fibre_dirs_gt: Vec<Vec<[f64; 3]>>,
 }
 

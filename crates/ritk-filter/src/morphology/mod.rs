@@ -222,7 +222,7 @@ pub(crate) enum Extremum {
 /// embarrassingly parallel with no data sharing within a pass.
 // Clippy 1.97.0 reports the const initializer; 1.97.1 reports an `expect`
 // for the same lint as unfulfilled.
-#[allow(clippy::missing_const_for_thread_local)]
+#[expect(clippy::missing_const_for_thread_local)]
 pub(crate) fn separable_box_3d(
     data: &[f32],
     dims: [usize; 3],
@@ -355,7 +355,7 @@ fn window_1d(
                            // and the sliding-window algorithm mutates `next`/`deque` across steps. No
                            // iterator form preserves the per-step window semantics; per the symmetry
                            // with `diffusion/curvature.rs`, the inline allow is the idiomatic gesture.
-    #[allow(clippy::needless_range_loop)]
+    #[expect(clippy::needless_range_loop)]
     for i in 0..n {
         let hi = (i + radius).min(n - 1);
         while next <= hi {

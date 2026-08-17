@@ -64,7 +64,7 @@ impl HeaderValue {
     }
 
     /// True when this is a multi-line block.
-    #[allow(dead_code)]
+    #[expect(dead_code)]
     pub fn is_block(&self) -> bool {
         matches!(self, Self::Block(_))
     }

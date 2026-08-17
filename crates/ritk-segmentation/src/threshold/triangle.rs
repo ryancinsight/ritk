@@ -152,7 +152,7 @@ fn percentile_bin(counts: &[u64], total: u64, quantile: f64) -> usize {
 /// `itk::TriangleThresholdCalculator`. `x_min` is the lower intensity bound and
 /// `bin_size = (x_max − x_min)/N`; the returned value is the bin centre of the
 /// selected (`+1`-shifted) bin.
-#[allow(clippy::needless_range_loop)]
+#[expect(clippy::needless_range_loop)]
 fn triangle_from_counts(counts: &[u64], x_min: f64, bin_size: f64) -> f32 {
     let n = counts.len();
     let total: u64 = counts.iter().sum();

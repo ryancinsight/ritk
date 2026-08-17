@@ -6,7 +6,7 @@ use crate::io::image_xml::writer::write_vti_binary_appended_bytes;
 /// binary-appended VTI byte buffer and returns it with exact scalar values.
 
 #[test]
-#[allow(clippy::approx_constant)]
+#[expect(clippy::approx_constant)]
 fn test_read_vti_binary_appended_cell_data_roundtrip() {
     // extent [0,1,0,1,0,1] → n_cells = 1×1×1 = 1; n_points = 2×2×2 = 8
     let grid = VtkImageData {
@@ -52,7 +52,7 @@ fn test_read_vti_binary_appended_cell_data_roundtrip() {
 /// Invariant: the reader preserves both PointData and CellData sections
 /// from a mixed binary-appended file with all values intact.
 #[test]
-#[allow(clippy::approx_constant)]
+#[expect(clippy::approx_constant)]
 fn test_read_vti_binary_appended_preserves_both_sections() {
     // extent [0,1,0,1,0,0] → n_points = 2×2×1 = 4; n_cells = 1×1×1 = 1
     let grid = VtkImageData {

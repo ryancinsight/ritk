@@ -119,7 +119,7 @@ impl<'a> BitReader<'a> {
     }
 
     /// Return remaining byte count (approximate; does not account for buffered bits).
-    #[allow(dead_code)]
+    #[expect(dead_code)]
     pub(super) fn remaining_bytes(&self) -> usize {
         self.data.len().saturating_sub(self.pos)
     }

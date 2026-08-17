@@ -98,7 +98,7 @@ impl SpatialConvolutionFilter {
     ///
     /// # Errors
     /// Returns `Err` when the tensor data cannot be extracted as `f32`.
-    #[allow(clippy::needless_range_loop)]
+    #[expect(clippy::needless_range_loop)]
     pub fn apply<B: Backend>(&self, image: &Image<f32, B, 3>) -> Result<Image<f32, B, 3>> {
         let (vals, dims) = extract_vec(image)?;
         let [dz, dy, dx] = dims;

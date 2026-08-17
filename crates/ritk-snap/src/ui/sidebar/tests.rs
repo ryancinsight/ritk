@@ -1,6 +1,6 @@
 //! Tests for the sidebar UI module.
 
-#[allow(unused_imports)]
+#[expect(unused_imports)]
 use super::*;
 use crate::dicom::metadata_table::{MetadataRow, MetadataScope};
 use std::borrow::Cow;

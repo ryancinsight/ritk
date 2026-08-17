@@ -195,7 +195,7 @@ pub fn multi_label_staple(
     // `vox`/`ci` index multiple parallel buffers, and the `!(w < win)` tie test
     // mirrors ITK's exact branch (equal-or-incomparable maxima -> undecided), so
     // the index loops and negated partial-order compare are intentional.
-    #[allow(clippy::needless_range_loop, clippy::neg_cmp_op_on_partial_ord)]
+    #[expect(clippy::needless_range_loop, clippy::neg_cmp_op_on_partial_ord)]
     let labels = {
         let mut labels = vec![undecided; n];
         for vox in 0..n {

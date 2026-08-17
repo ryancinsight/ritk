@@ -87,11 +87,11 @@ use crate::PixelLayout;
 use image::{decode_j2k_fragment, is_soc};
 
 /// J2K Start of Codestream marker (ISO 15444-1 §A.3): bytes `0xFF 0x4F`.
-#[allow(dead_code)] // Tested via soc_marker_constant_matches_iso_15444_1
+#[expect(dead_code)] // Tested via soc_marker_constant_matches_iso_15444_1
 pub(crate) const SOC: u16 = 0xFF4F;
 
 /// JPEG / JFIF Start of Image marker (0xFFD8), distinct from SOC.
-#[allow(dead_code)] // Tested via soi_constant_matches_jpeg_start_of_image
+#[expect(dead_code)] // Tested via soi_constant_matches_jpeg_start_of_image
 pub(crate) const SOI: u16 = 0xFFD8;
 
 /// Decode a DICOM-encapsulated JPEG 2000 J2K codestream fragment.

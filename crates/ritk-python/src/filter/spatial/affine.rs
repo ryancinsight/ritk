@@ -37,7 +37,7 @@ use std::sync::Arc;
 ///     ValueError: if `mode` is not one of the recognised modes.
 #[pyfunction]
 #[pyo3(signature = (image, angle_x=0.0_f64, angle_y=0.0_f64, angle_z=0.0_f64, mode="linear", default_pixel_value=0.0_f64))]
-#[allow(clippy::too_many_arguments)]
+#[expect(clippy::too_many_arguments)]
 pub fn rotate_image(
     py: Python<'_>,
     image: &PyImage,
@@ -136,7 +136,7 @@ pub fn rotate_image(
 ///     ValueError: if `mode` is not one of the recognised modes.
 #[pyfunction]
 #[pyo3(signature = (image, shift_z=0.0_f64, shift_y=0.0_f64, shift_x=0.0_f64, mode="linear", default_pixel_value=0.0_f64))]
-#[allow(clippy::too_many_arguments)]
+#[expect(clippy::too_many_arguments)]
 pub fn shift_image(
     py: Python<'_>,
     image: &PyImage,

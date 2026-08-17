@@ -1006,7 +1006,7 @@
 - **SAFE-687-01 [patch] - Reject truncated JPEG 2000 marker tails**
   (DONE; owner=Codex; last-update=2026-08-10; scope=
   `crates/ritk-codecs/src/jpeg_2000/{codestream.rs,ebcot/mod.rs,image.rs,marker.rs,mod.rs,packet/reader.rs,tests.rs}`,
-  `ARCHITECTURE.md`, `docs/book/jpeg_2000_codec.md`, `CHANGELOG.md`,
+  `docs/architecture.md`, `docs/book/jpeg_2000_codec.md`, `CHANGELOG.md`,
   `gap_audit.md`, and PM artifacts; non-goal=codec feature expansion,
   rate control, JP2 containers, changing valid codestream output, release, or
   deployment). After at least one decoded tile, truncated PPT/COM or unknown
@@ -2245,7 +2245,7 @@
   native tests). **Unblocks:** cli/python `read_image` native cutover — the
   next [major], which finally begins dropping Burn from the format crates.
 
-> **Full sprint history (Sprints 262-322)**: see [ARCHIVE.md](./ARCHIVE.md)
+> **Full sprint history (Sprints 262-322)**: see [docs/archive.md](./docs/archive.md)
 
 ---
 
@@ -5085,7 +5085,7 @@ after CPU Coeus parity exists.
 
 | Gap ID | Description | Status |
 |--------|-------------|--------|
-| DOC-332-01 | Documentation compaction: delete stale docs, create ARCHIVE.md (18k lines), compact backlog/checklist/gap_audit (18k→~400 lines total), update IMPLEMENTATION_SUMMARY.md to v0.50.94 | **Closed** |
+| DOC-332-01 | Documentation compaction: delete stale docs, create docs/archive.md (18k lines), compact backlog/checklist/gap_audit (18k→~400 lines total), update docs/implementation_summary.md to v0.50.94 | **Closed** |
 | STR-332-02 | Structural audit — 3 violations (709, 670, 536 lines) partitioned into directory modules; ZERO files > 500 lines | **Closed** |
 | BENCH-332-03 | `STACK_WEIGHTS_CAPACITY=32` Criterion benchmark — measure AVX2 speedup vs 8-entry version | **Open** |
 | GPU-332-04 | Evaluate `sparse.rs` GPU-backend potential (Burn autodiff scatter compatibility, custom kernel feasibility) | **Open** |
@@ -5093,7 +5093,7 @@ after CPU Coeus parity exists.
 
 ### Architecture
 
-1. **DOC-332-01**: Deleted 4 stale files (`docs/backlog.md`, `docs/checklist.md`, `docs/CHANGELOG.md`, `SPINT_293_PLAN.md`). Created `ARCHIVE.md` with all pre-Sprint 320 sprint history (18,150 lines). Compacted `backlog.md` (6,378→134), `checklist.md` (5,893→110), `gap_audit.md` (6,200→145). Updated `IMPLEMENTATION_SUMMARY.md` to v0.50.94 with Sprint 331 entries and corrected test counts.
+1. **DOC-332-01**: Deleted 4 stale files (`docs/backlog.md`, `docs/checklist.md`, `docs/CHANGELOG.md`, `SPINT_293_PLAN.md`). Created `docs/archive.md` with all pre-Sprint 320 sprint history (18,150 lines). Compacted `backlog.md` (6,378→134), `checklist.md` (5,893→110), `gap_audit.md` (6,200→145). Updated `docs/implementation_summary.md` to v0.50.94 with Sprint 331 entries and corrected test counts.
 
 2. **STR-332-02**: 3 violations found and partitioned:
    - `direct_phase_fourteen_tests.rs` (709→dir) → `direct_phase_fourteen_tests/{mod,normalization,identity,size_and_end_to_end}.rs`
@@ -5125,7 +5125,7 @@ after CPU Coeus parity exists.
 | CLIPPY-331-06 | Deep clippy cleanup pass — 110+ residual warnings → 0 across 14 crates (this-session) | **Closed** |
 | ARCH-331-02 | Preemptive structural partitions — 8 files above 470 lines decomposed | **Closed** |
 | FIX-331-03 | Flaky test hardening: `translation_recovery_shifted_gaussian` sampling 0.50→0.75, iterations 200→300, tolerance 0.5→0.8 | **Closed** |
-| DOC-331-04 | Documentation overhaul: IMPLEMENTATION_SUMMARY.md, OPTIMIZATION.md, README.md updated to v0.50.93 | **Closed** |
+| DOC-331-04 | Documentation overhaul: docs/implementation_summary.md, docs/optimization.md, README.md updated to v0.50.93 | **Closed** |
 | CLEANUP-331-05 | Orphan test file `ritk-core/filter/fft/tests_convolution.rs` removed (duplicate) | **Closed** |
 | FIX-331-07 | Resolved DICOM networking pdu.rs vs pdu/ module conflict (deleted orphan pdu.rs, moved tests_pdu.rs to pdu/tests.rs) | **Closed** |
 | FIX-331-08 | Unused `bail` import in pdu/presentation_context.rs removed | **Closed** |

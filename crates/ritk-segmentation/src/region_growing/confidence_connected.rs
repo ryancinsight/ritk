@@ -351,7 +351,7 @@ pub(crate) fn grow_region(
 /// lies in `[lower, upper]` (inclusive). The `visited`/`queue`/`region` buffers
 /// are cleared and reused across calls. Returns the region's intensity `sum` and
 /// `sum_sq` for statistics.
-#[allow(clippy::too_many_arguments)]
+#[expect(clippy::too_many_arguments)]
 fn flood_region(
     data: &[f32],
     dims: [usize; 3],

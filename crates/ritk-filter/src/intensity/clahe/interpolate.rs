@@ -25,7 +25,7 @@ use super::tile_cdf::build_tile_cdf_into;
 /// Output values lie in `[v_min, v_max]` where `v_min/v_max` are the
 /// minimum and maximum finite values of `pixels`. When all values are
 /// identical (span = 0), output equals input.
-#[allow(clippy::too_many_arguments)]
+#[expect(clippy::too_many_arguments)]
 pub(super) fn clahe_2d_with_scratch(
     pixels: &[f32],
     rows: usize,
@@ -132,7 +132,7 @@ pub(super) fn clahe_2d_with_scratch(
 ///
 /// This is the legacy path preserved for the 2-D unit tests in `tests_clahe.rs`.
 /// The production path uses [`clahe_2d_with_scratch`] instead.
-#[allow(clippy::too_many_arguments)]
+#[expect(clippy::too_many_arguments)]
 #[cfg(test)]
 pub(super) fn clahe_2d(
     pixels: &[f32],
