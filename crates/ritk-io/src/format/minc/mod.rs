@@ -95,8 +95,12 @@ pub mod native {
             std::fs::write(&path, b"not an hdf5 file").expect("write bad file");
 
             let reader = MincReader::new(SequentialBackend);
-            let result = ImageReader::read(&reader, &path);
-            assert!(result.is_err(), "reading invalid HDF5 must fail");
+            let error =
+                ImageReader::read(&reader, &path).expect_err("reading invalid HDF5 must fail");
+            assert!(
+                error.to_string().contains("HDF5 open failed"),
+                "invalid MINC payload must report an HDF5-open failure, got: {error}"
+            );
         }
     }
 }

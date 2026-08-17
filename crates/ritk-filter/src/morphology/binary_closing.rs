@@ -108,6 +108,9 @@ impl Default for BinaryMorphologicalClosing {
 // ── Tests ─────────────────────────────────────────────────────────────────────
 
 #[cfg(test)]
-#[allow(clippy::identity_op, clippy::erasing_op)]
+#[expect(
+    clippy::identity_op,
+    reason = "fixture indices retain explicit z/y/x stride terms"
+)]
 #[path = "tests_binary_closing.rs"]
 mod tests_binary_closing;

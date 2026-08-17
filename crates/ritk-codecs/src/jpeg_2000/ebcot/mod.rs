@@ -5,9 +5,9 @@ pub mod decoder;
 pub mod encoder;
 
 pub use contexts::SubbandOrientation;
-#[allow(unused_imports)]
+#[expect(unused_imports)]
 pub use decoder::{decode_code_block, DecodedBlock};
-#[allow(unused_imports)]
+#[expect(unused_imports)]
 pub use encoder::{encode_code_block, EncodedBlock};
 
 #[cfg(test)]
@@ -204,8 +204,9 @@ pub(crate) fn cup_trace_take() -> Vec<(usize, u32)> {
 }
 
 #[inline(always)]
-#[allow(unused_variables)]
 pub(crate) fn trace(ctx: usize, bit: u32) {
     #[cfg(test)]
     CUP_TRACE.with(|t| t.borrow_mut().push((ctx, bit)));
+    #[cfg(not(test))]
+    let _ = (ctx, bit);
 }

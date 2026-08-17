@@ -8,6 +8,27 @@
 
 # RITK Sprint Checklist — Active
 
+## ATLAS-RITK-CONFORMANCE-CLEANUP [patch]
+
+- [x] Move the four root documentation reports under `docs/` and update
+      current links and code comments.
+- [x] Replace 80 provider `#[allow]` sites with checked `#[expect]` sites;
+      exact-head conformance count is 80 → 0.
+- [x] Replace the new MINC existence-only assertion with an error-message
+      contract assertion; exact-head count is 176 → 175.
+- [x] Exact-head root-file conformance count is 4 → 0.
+- [x] Fix the hosted Clippy follow-up by removing stale expectations and
+      deleting unconsumed phantom PEV/fibre-direction fixtures; exact local
+      gates pass with workspace Clippy `--all-targets --all-features -D
+      warnings`, workspace check, and the two focused RITK I/O nextest cases.
+- [x] Pin all hosted Rust and Python CI toolchain installs to Rust 1.97.0 and
+      scope the Windows-only `missing_const_for_thread_local` expectation to
+      the generated scratch item; local Rustfmt, check, Clippy, and focused
+      nextest remain green.
+- [x] Reproduce the hosted wheel failure (`cargo-fmt` component conflict) and
+      install `rustfmt, clippy` alongside Rust 1.97.0 in every plain CI job so
+      Cargo does not perform a second component synchronization.
+
 ## ATLAS-RITK-CONFORMANCE-101 — Diffusion binding structure ratchet [patch]
 
 - [x] Reproduce the exact-head increase: `diffusion/mod.rs` was a 109-line
@@ -6543,7 +6564,7 @@ Subsequent parallel-agent commits since session start:
 - [x] BILAT-PERF-01 [minor]: `BilateralFilter::compute` rewritten with precomputed spatial-kernel lookup table `spatial_w[d²]` + clamped boundary iteration `z_lo..z_hi`. Per-neighbour cost reduced from 3 squarings + mul + `exp` to 1 lookup + 1 `exp`. Per-neighbour `as isize`/`as usize` casts and boundary branches eliminated. Verified bitwise identical vs brute-force reference (`max |Δ| = 0` on `5×6×7` deterministic volume).
 - [x] BILAT-REGRESSION-01 [patch]: `test_bilateral_matches_brute_force_reference` added — locks the kernel computation to the original mathematical formulation by comparing `apply` output against an explicit-arithmetic reference on a non-trivial volume.
 - [x] BILAT-BENCH-01 [patch]: criterion bench `benches/bilateral.rs` registered — measures `apply` over 16³/32³/64³ volumes at spatial σ = 1.5 (r ≈ 5). Baselines: 16³=14.4ms, 32³=152ms.
-- [x] DOC-376-01 [patch]: `OPTIMIZATION.md` updated with Sprint 376 BilateralFilter section documenting LUT, clamped iteration, equivalence evidence and measured timings.
+- [x] DOC-376-01 [patch]: `docs/optimization.md` updated with Sprint 376 BilateralFilter section documenting LUT, clamped iteration, equivalence evidence and measured timings.
 - [x] CPR-PERF-01 [patch]: `CprImageFilter::apply` rewritten with hoisted `direction.inverse()` (3×3 inverse computed once per call instead of once per cross-section sample) and a per-path-point index basis `(idx_p0, slope)` that collapses the inner loop to a linear-in-offset `idx_p[i,j] = idx_p0[i] + slope[i] * offset[j]`. New private helper `trilinear_sample_from_idx` accepts the precomputed voxel index; public `trilinear_sample` unchanged.
 - [x] CPR-REGRESSION-01 [patch]: `cpr_apply_matches_brute_force_reference` + `cpr_apply_matches_brute_force_reference_nonidentity_direction` brute-force differential tests — locks value semantics against the pre-optimisation form (`max |Δ| ≤ 1e-5`) on both identity and non-identity direction matrices.
 - [x] CPR-BENCH-01 [patch]: `benches/cpr_apply.rs` criterion bench — end-to-end `apply` on 16³/32³/64³ default config; head-to-head Δ vs reverted reference: 16³ 1.98×, 32³ 1.47×, 64³ 1.14×.

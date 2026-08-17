@@ -139,7 +139,7 @@ pub(super) fn integrate_geodesic(
 ///
 /// All other scratch buffers (`vel_*`, `mom_*`, `adj_*`, `comp_*`) are still
 /// caller-provided; only the `smooth_tmp` buffer is replaced by the smoother.
-#[allow(clippy::too_many_arguments)]
+#[expect(clippy::too_many_arguments)]
 pub(super) fn integrate_geodesic_into_with_smoother(
     v0z: &[f32],
     v0y: &[f32],

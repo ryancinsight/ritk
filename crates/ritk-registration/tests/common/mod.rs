@@ -14,7 +14,7 @@
 //!
 //! This module is compiled into every integration-test binary that does
 //! `mod common;`. Each binary uses a different subset of helpers, so almost
-//! every item is "dead" in some binaries. The `#[allow(dead_code)]` is a
+//! every item is "dead" in some binaries. The `#[expect(dead_code)]` is a
 //! standard Rust idiom for shared test-utility modules.
 
 #![allow(dead_code)]
@@ -357,7 +357,7 @@ pub fn rigid_inverse(r: &[f64; 9], t: &[f64; 3]) -> ([f64; 9], [f64; 3]) {
 /// 1. Compute physical CT coords: `px_ct = ix * ct_spacing_xyz[0]`, etc.
 /// 2. Apply the rigid transform: `p_mri = R · p_ct + t`.
 /// 3. Convert to MRI fractional voxel coords and trilinearly sample.
-#[allow(clippy::too_many_arguments)] // 8-arg test helper; flat signature reads cleanly
+#[expect(clippy::too_many_arguments)] // 8-arg test helper; flat signature reads cleanly
 pub fn resample_mri_into_ct_space(
     _ct_data: &[f32],
     ct_shape: [usize; 3],

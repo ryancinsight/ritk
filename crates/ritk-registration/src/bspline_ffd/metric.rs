@@ -247,11 +247,11 @@ pub(super) fn compute_metric_gradient_fast_into(
                     && ix < ix_hi;
 
                 if interior {
-                    #[allow(clippy::needless_range_loop)]
+                    #[expect(clippy::needless_range_loop)]
                     for az in 0..4usize {
                         let ciz = (kz + az as isize) as usize;
                         let wz = bz[az];
-                        #[allow(clippy::needless_range_loop)]
+                        #[expect(clippy::needless_range_loop)]
                         for ay in 0..4usize {
                             let ciy = (ky + ay as isize) as usize;
                             let wzy = wz * by[ay];

@@ -5881,7 +5881,7 @@ None. All prior outstanding QA gaps closed in this sprint.
 ---
 
 
-> **Full audit history (Sprints 262-322)**: see [ARCHIVE.md](./ARCHIVE.md)
+> **Full audit history (Sprints 262-322)**: see [docs/archive.md](./docs/archive.md)
 
 
 
@@ -5908,7 +5908,7 @@ None. All prior outstanding QA gaps closed in this sprint.
 ---
 
 
-> **Full audit history (Sprints 262-322)**: see [ARCHIVE.md](./ARCHIVE.md)
+> **Full audit history (Sprints 262-322)**: see [docs/archive.md](./docs/archive.md)
 
 
 ## Sprint 384 Audit (2026-06-19) — Correctness Fixes, Perf Optimisation, cmake Parity Expansion
@@ -6716,12 +6716,12 @@ type-level proof.
 
 | Gap ID | Description | Module | Tests |
 |--------|-------------|--------|-------|
-| DOC-332-01 | Documentation compaction — 4 stale files removed, ARCHIVE.md created (18k lines), 3 root files compacted (18k→~400 lines), IMPLEMENTATION_SUMMARY.md updated | docs | N/A |
+| DOC-332-01 | Documentation compaction — 4 stale files removed, docs/archive.md created (18k lines), 3 root files compacted (18k→~400 lines), docs/implementation_summary.md updated | docs | N/A |
 | STR-332-02 | Structural audit — 3 violations (709, 670, 536 lines) partitioned into directory modules; ZERO files > 500 lines workspace-wide | `ritk-registration::direct` | 547 |
 
 ### Architecture
 
-1. **DOC-332-01**: Deleted stale `docs/backlog.md`, `docs/checklist.md`, `docs/CHANGELOG.md`, and `SPINT_293_PLAN.md`. Created `ARCHIVE.md` with all pre-Sprint 320 sprint history (18,150 lines). Compacted `backlog.md` (6,378→134), `checklist.md` (5,893→110), `gap_audit.md` (6,200→145). Updated `IMPLEMENTATION_SUMMARY.md` to v0.50.94.
+1. **DOC-332-01**: Deleted stale `docs/backlog.md`, `docs/checklist.md`, `docs/CHANGELOG.md`, and `SPINT_293_PLAN.md`. Created `docs/archive.md` with all pre-Sprint 320 sprint history (18,150 lines). Compacted `backlog.md` (6,378→134), `checklist.md` (5,893→110), `gap_audit.md` (6,200→145). Updated `docs/implementation_summary.md` to v0.50.94.
 
 2. **STR-332-02**: Structural audit of the entire workspace found 3 violations:
    - `direct_phase_fourteen_tests.rs` (709→dir) — split into `normalization.rs` (histogram sum/ratio assertions), `identity.rs` (identical-image symmetry tests), `size_and_end_to_end.rs` (regression guards).
@@ -6819,7 +6819,7 @@ type-level proof.
 | CLIPPY-331-01 | 28 clippy warnings → 0 across 6 crates | ritk-core, ritk-vtk, ritk-io, ritk-registration, ritk-snap, ritk-python | 2,099 |
 | ARCH-331-02 | Preemptive partition of 8 near-limit files (470–560 lines) | ritk-io (3), ritk-registration (3), ritk-core (2) | 2,099 |
 | FIX-331-03 | Flaky `translation_recovery_shifted_gaussian` hardened | ritk-registration | 547 |
-| DOC-331-04 | IMPLEMENTATION_SUMMARY.md, OPTIMIZATION.md, README.md updated | docs | N/A |
+| DOC-331-04 | docs/implementation_summary.md, docs/optimization.md, README.md updated | docs | N/A |
 | CLEANUP-331-05 | Orphan `tests_convolution.rs` removed | ritk-core | 1408 |
 
 ### Architecture

@@ -8,7 +8,23 @@
 
 # CHANGELOG
 
-## [Unreleased] — JPEG 2000 scalar quality control (FEAT-692-01)
+## [Unreleased] — conformance cleanup and JPEG 2000 scalar quality control (FEAT-692-01)
+
+- [patch] Move the architecture, archive, implementation, and optimization
+  documents under `docs/`, replace provider-local `#[allow]` suppressions with
+  checked `#[expect]` sites, and strengthen the invalid-MINC regression to
+  assert the reported HDF5-open failure.
+
+- [patch] Remove unfulfilled lint expectations and unconsumed phantom
+  ground-truth buffers exposed by the hosted all-target Clippy gate; retain
+  value-semantic DICOM clamp coverage.
+
+- [patch] Pin hosted Rust and Python CI jobs to the repository's Rust 1.97.0
+  toolchain so Clippy expectations and local verification use the same compiler.
+
+- [patch] Install the pinned Rust toolchain's declared `rustfmt` and `clippy`
+  components in every CI job, preventing Cargo from re-synchronizing components
+  during the Python wheel build.
 
 - [patch] Split the diffusion Python binding manifest into dedicated map and
   tensor-fitting modules, restoring the conformance structure count at merged
@@ -4768,7 +4784,7 @@
 ## [0.89.0] — 2026-06-17 (Sprint 392: O(N) separable grayscale morphology)
 
 ### Performance
-- `ritk-filter`: grayscale erosion/dilation (and everything built on them — opening, closing, white/black top-hat, and the safe-border composed open/close) reimplemented from the naive O(N·(2r+1)³) cube scan to a **separable O(N) sliding-window** (monotonic-deque min/max along X, then Y, then Z). `min`/`max` over a box is separable, so the result is **bit-identical** to the cube scan and to `sitk.GrayscaleDilate/Erode` (box SE, maxdiff 0.0); all 81 morphology + 17 grayscale cmake parity cases unchanged. **Measured on a 128³ f32 volume: runtime is now ~105 ms constant in radius (r=1: 109→103, r=2: 435→108, r=3: 1225→109, r=5: 4842→107 ms — up to 45× at r=5)**. Memory: small per-line scratch (max-dim) + one working buffer, no extra full-volume allocations. OPTIMIZATION.md (Sprint 392).
+- `ritk-filter`: grayscale erosion/dilation (and everything built on them — opening, closing, white/black top-hat, and the safe-border composed open/close) reimplemented from the naive O(N·(2r+1)³) cube scan to a **separable O(N) sliding-window** (monotonic-deque min/max along X, then Y, then Z). `min`/`max` over a box is separable, so the result is **bit-identical** to the cube scan and to `sitk.GrayscaleDilate/Erode` (box SE, maxdiff 0.0); all 81 morphology + 17 grayscale cmake parity cases unchanged. **Measured on a 128³ f32 volume: runtime is now ~105 ms constant in radius (r=1: 109→103, r=2: 435→108, r=3: 1225→109, r=5: 4842→107 ms — up to 45× at r=5)**. Memory: small per-line scratch (max-dim) + one working buffer, no extra full-volume allocations. docs/optimization.md (Sprint 392).
 
 ## [0.88.1] — 2026-06-17 (Sprint 391b: hit-or-miss z=1 degenerate-axis fix)
 
@@ -4824,7 +4840,7 @@
 ## [0.83.0] — 2026-06-17 (Sprint 386: O(N) morphological reconstruction)
 
 ### Performance
-- `ritk-filter`: `MorphologicalReconstruction` (engine for geodesic dilation/erosion, the H-transform family, regional extrema, and grayscale opening/closing-by-reconstruction) reimplemented from **parallel-raster iteration (O(N·diameter))** to **Vincent's (1993) hybrid algorithm (O(N))** — one forward raster scan, one anti-raster scan seeding a FIFO queue, then queue-driven propagation. On a 64×64×128 volume with a 128-deep ramp: **4423 ms → 228 ms (~19×, same debug profile); 26 ms in release**. Output is **bit-identical** to the prior fixed point and to `sitk.ReconstructionBy{Dilation,Erosion}` (maxdiff 0.0); all 728 Rust + 100 cmake parity cases unchanged. Dilation/erosion polarity is a ZST `Polarity` strategy trait → one generic kernel monomorphised into two branch-free specialisations. **Memory**: one in-place working `Vec<f32>` + an N-bounded `VecDeque` index queue, versus the iterative version's two full `Vec<f32>` reallocated every pass. Removed the now-dead `max_iter`/`with_max_iter` API and the per-step `dilate1_scalar`/`erode1_scalar` full-volume scans. Detailed analysis in OPTIMIZATION.md (Sprint 386).
+- `ritk-filter`: `MorphologicalReconstruction` (engine for geodesic dilation/erosion, the H-transform family, regional extrema, and grayscale opening/closing-by-reconstruction) reimplemented from **parallel-raster iteration (O(N·diameter))** to **Vincent's (1993) hybrid algorithm (O(N))** — one forward raster scan, one anti-raster scan seeding a FIFO queue, then queue-driven propagation. On a 64×64×128 volume with a 128-deep ramp: **4423 ms → 228 ms (~19×, same debug profile); 26 ms in release**. Output is **bit-identical** to the prior fixed point and to `sitk.ReconstructionBy{Dilation,Erosion}` (maxdiff 0.0); all 728 Rust + 100 cmake parity cases unchanged. Dilation/erosion polarity is a ZST `Polarity` strategy trait → one generic kernel monomorphised into two branch-free specialisations. **Memory**: one in-place working `Vec<f32>` + an N-bounded `VecDeque` index queue, versus the iterative version's two full `Vec<f32>` reallocated every pass. Removed the now-dead `max_iter`/`with_max_iter` API and the per-step `dilate1_scalar`/`erode1_scalar` full-volume scans. Detailed analysis in docs/optimization.md (Sprint 386).
 
 ## [0.82.0] — 2026-06-17 (Sprint 385: regional-extrema family)
 
@@ -4885,7 +4901,7 @@ reduces to deinterleave → scalar filter per channel → reinterleave.
 ## [0.75.1] — 2026-06-17 (Sprint 379 Increment 9: Deriche recursive-Gaussian parallelism)
 
 ### Performance
-- `ritk-filter`: the recursive-Gaussian / gradient-magnitude / Laplacian-of-Gaussian path (`apply_deriche_1d`) now parallelises its X and Y 1-D passes across Z-slices via `moirai` (contiguous `nyx`-length output chunks, one scratch set per slice); the per-line Deriche IIR is factored into a shared `deriche_line` so the serial and parallel paths run identical arithmetic. Measured **1.50× (smooth), 1.71× (gradient-magnitude), 1.81× (Laplacian-of-Gaussian)** on a 128³ f32 volume (min-of-20). Output is **bit-identical** to the previous serial implementation (verified by exact array equality on a non-cube volume), so the float-exact SimpleITK parity is unchanged. The Z pass (strided across the whole volume) remains serial; analysis and the remaining headroom are recorded in OPTIMIZATION.md (PERF-379-01). Two earlier single-thread micro-optimizations (boundary branch-hoist, output-buffer recycling) were A/B-measured as 15–28% regressions and rejected — the inner loop is latency-bound on its 4th-order recurrence, so cross-line parallelism is the only real lever.
+- `ritk-filter`: the recursive-Gaussian / gradient-magnitude / Laplacian-of-Gaussian path (`apply_deriche_1d`) now parallelises its X and Y 1-D passes across Z-slices via `moirai` (contiguous `nyx`-length output chunks, one scratch set per slice); the per-line Deriche IIR is factored into a shared `deriche_line` so the serial and parallel paths run identical arithmetic. Measured **1.50× (smooth), 1.71× (gradient-magnitude), 1.81× (Laplacian-of-Gaussian)** on a 128³ f32 volume (min-of-20). Output is **bit-identical** to the previous serial implementation (verified by exact array equality on a non-cube volume), so the float-exact SimpleITK parity is unchanged. The Z pass (strided across the whole volume) remains serial; analysis and the remaining headroom are recorded in docs/optimization.md (PERF-379-01). Two earlier single-thread micro-optimizations (boundary branch-hoist, output-buffer recycling) were A/B-measured as 15–28% regressions and rejected — the inner loop is latency-bound on its 4th-order recurrence, so cross-line parallelism is the only real lever.
 
 ## [0.75.0] — 2026-06-17 (Sprint 379 Increment 8: auto-threshold ITK histogram parity)
 
@@ -5869,7 +5885,7 @@ reduces to deinterleave → scalar filter per channel → reinterleave.
 ## [0.50.95] - 2026-06-03
 
 ### Added
-- **DOC-332-01: Documentation audit, compaction, and cleanup** — 4 stale documentation files deleted (`docs/backlog.md`, `docs/checklist.md`, `docs/CHANGELOG.md`, `SPINT_293_PLAN.md`). Created `ARCHIVE.md` (18,150 lines) with all pre-Sprint 320 sprint history from `backlog.md`, `checklist.md`, and `gap_audit.md`. Compacted 3 root files: `backlog.md` (6,378→140 lines), `checklist.md` (5,893→120 lines), `gap_audit.md` (6,200→155 lines). Updated `IMPLEMENTATION_SUMMARY.md` to v0.50.94. All documentation files now reference `ARCHIVE.md` for historical context.
+- **DOC-332-01: Documentation audit, compaction, and cleanup** — 4 stale documentation files deleted (`docs/backlog.md`, `docs/checklist.md`, `docs/CHANGELOG.md`, `SPINT_293_PLAN.md`). Created `docs/archive.md` (18,150 lines) with all pre-Sprint 320 sprint history from `backlog.md`, `checklist.md`, and `gap_audit.md`. Compacted 3 root files: `backlog.md` (6,378→140 lines), `checklist.md` (5,893→120 lines), `gap_audit.md` (6,200→155 lines). Updated `docs/implementation_summary.md` to v0.50.94. All documentation files now reference `docs/archive.md` for historical context.
 - **STR-332-02: Structural audit and partition** — Full workspace scan for files > 500 lines. 3 violations found, all partitioned into directory modules:
   - `direct_phase_fourteen_tests.rs` (709→dir) → `direct_phase_fourteen_tests/{mod,normalization,identity,size_and_end_to_end}.rs`
   - `direct_phase_nine_tests.rs` (670→dir) → `direct_phase_nine_tests/{mod,config,sample_window,pool_and_boundary}.rs`
@@ -5878,8 +5894,8 @@ reduces to deinterleave → scalar filter per channel → reinterleave.
 
 ### Changed
 - All root documentation files (`backlog.md`, `checklist.md`, `gap_audit.md`) now contain only Sprint 328–current active history with archive references.
-- `IMPLEMENTATION_SUMMARY.md` updated to v0.50.94 with Sprint 331 details and corrected test counts.
-- `OPTIMIZATION.md` updated with Sprint 331 and 332 entries.
+- `docs/implementation_summary.md` updated to v0.50.94 with Sprint 331 details and corrected test counts.
+- `docs/optimization.md` updated with Sprint 331 and 332 entries.
 - `README.md` recent sprints section updated with Sprints 331–332.
 
 ### Verified
@@ -5902,7 +5918,7 @@ reduces to deinterleave → scalar filter per channel → reinterleave.
   - `ritk-core/filter/intensity/clahe.rs` (476→3 files) → `clahe/{mod,tile_cdf,interpolate}.rs`
   - `ritk-core/filter/fft/convolution/tests_convolution.rs` (472→3 files) → `tests_convolution/{mod,conv_2d,ncc_2d,conv_3d_ncc_3d}.rs`
 - **FIX-331-03: Flaky test hardening** — `translation_recovery_shifted_gaussian` stability improved: sampling_percentage 0.50→0.75, maximum_iterations 200→300, tolerance 0.5→0.8 voxels. Eliminates thread-contention flakiness reported since Sprint 328.
-- **DOC-331-04: Documentation overhaul** — IMPLEMENTATION_SUMMARY.md rewritten with accurate crate structures, current feature set, updated future work, and residual risks. OPTIMIZATION.md updated to v0.50.93 with Sprint 329/330 entries. README.md recent sprints section updated.
+- **DOC-331-04: Documentation overhaul** — docs/implementation_summary.md rewritten with accurate crate structures, current feature set, updated future work, and residual risks. docs/optimization.md updated to v0.50.93 with Sprint 329/330 entries. README.md recent sprints section updated.
 - **CLEANUP-331-05: Orphan test file removed** — `ritk-core/filter/fft/tests_convolution.rs` (duplicate of `convolution/tests_convolution.rs`) deleted.
 
 ### Changed
@@ -7315,7 +7331,7 @@ All registration methods diverge from identity without brain masking. TRE improv
   - `read_ply_indexed` / `write_indexed_ply` (delegate to `gaia::infrastructure::io::ply`).
   - `write_indexed_glb` (delegate to `gaia::infrastructure::io::gltf_export`).
 - `ritk-vtk/Cargo.toml`: added `gaia = { workspace = true }` and `nalgebra = { workspace = true }` dependencies.
-- `ARCHITECTURE.md §19 Gaia Meshing Boundary`: formal theorem, invariants, boundary surface, and proof obligation documenting the gaia-as-SSOT contract.
+- `docs/architecture.md §19 Gaia Meshing Boundary`: formal theorem, invariants, boundary surface, and proof obligation documenting the gaia-as-SSOT contract.
 - 13 new value-semantic tests: 7 in `domain::mesh_bridge::tests`, 6 in `io::mesh_indexed::tests`.
 
 ### Fixed [patch]

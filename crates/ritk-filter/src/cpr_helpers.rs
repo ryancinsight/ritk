@@ -257,7 +257,13 @@ pub fn cross_section_basis(tangent: &[f64; 3]) -> ([f64; 3], [f64; 3]) {
 /// path uses [`trilinear_sample_from_idx`] with a precomputed inverse);
 /// kept as a public helper for external consumers that need the raw
 /// physical→index transform.
-#[allow(dead_code)]
+#[cfg_attr(
+    not(test),
+    expect(
+        dead_code,
+        reason = "public compatibility helper remains an external consumer seam"
+    )
+)]
 pub fn physical_to_index(
     point: &[f64; 3],
     origin: &Point<3>,
@@ -288,7 +294,13 @@ pub fn physical_to_index(
 /// path uses [`trilinear_sample_from_idx`] directly with a precomputed
 /// inverse to avoid the 3×3 matrix inverse per cross-section sample; this
 /// single-shot form is kept for external consumers and tests.
-#[allow(dead_code)]
+#[cfg_attr(
+    not(test),
+    expect(
+        dead_code,
+        reason = "public single-shot interpolation remains an external consumer seam"
+    )
+)]
 pub fn trilinear_sample(
     vals: &[f32],
     dims: [usize; 3],

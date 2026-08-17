@@ -420,7 +420,7 @@ fn build_axis_mask_table(dim: usize, ctrl_spacing: f64, ctrl_axis: usize) -> Vec
 /// # Panics
 /// Panics if `dz`, `dy`, or `dx` are shorter than
 /// `dims[0] * dims[1] * dims[2]`.
-#[allow(clippy::too_many_arguments)]
+#[expect(clippy::too_many_arguments)]
 pub fn evaluate_bspline_displacement_fast_into(
     cp_z: &[f32],
     cp_y: &[f32],
@@ -537,11 +537,11 @@ pub fn evaluate_bspline_displacement_fast_into(
         // Unrolled 4×4×4 tensor product — all control points guaranteed
         // in-bounds. Structured so the compiler can auto-vectorize the
         // 4-wide x-axis accumulation.
-        #[allow(clippy::needless_range_loop)]
+        #[expect(clippy::needless_range_loop)]
         for az in 0..4usize {
             let ciz = (kz + az as isize) as usize;
             let wz = bz[az];
-            #[allow(clippy::needless_range_loop)]
+            #[expect(clippy::needless_range_loop)]
             for ay in 0..4usize {
                 let ciy = (ky + ay as isize) as usize;
                 let wzy = wz * by[ay];

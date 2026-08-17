@@ -3,9 +3,7 @@
 pub mod decoder;
 pub mod encoder;
 
-#[allow(unused_imports)]
 pub use decoder::MqDecoder;
-#[allow(unused_imports)]
 pub use encoder::MqEncoder;
 
 /// One entry of the MQ probability state table.

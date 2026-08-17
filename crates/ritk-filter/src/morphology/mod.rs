@@ -112,6 +112,15 @@ pub use iterate_structure::{iterate_structure, iterate_structure_with_origin, Bo
 pub mod types;
 pub use types::ForegroundValue;
 
+thread_local! {
+    #[cfg_attr(target_os = "windows", expect(clippy::missing_const_for_thread_local, reason = "Rust 1.97.0 Windows Clippy does not recognize this const initializer"))]
+    static SCRATCH: std::cell::RefCell<(
+        Vec<f32>,
+        Vec<f32>,
+        std::collections::VecDeque<usize>,
+    )> = const { std::cell::RefCell::new((Vec::new(), Vec::new(), std::collections::VecDeque::new())) };
+}
+
 #[cfg(test)]
 #[path = "tests_native_grayscale.rs"]
 mod tests_native_grayscale;
@@ -220,9 +229,6 @@ pub(crate) enum Extremum {
 ///
 /// Output is **bit-identical** to the serial version — the passes are
 /// embarrassingly parallel with no data sharing within a pass.
-// Clippy 1.97.0 reports the const initializer; 1.97.1 reports an `expect`
-// for the same lint as unfulfilled.
-#[allow(clippy::missing_const_for_thread_local)]
 pub(crate) fn separable_box_3d(
     data: &[f32],
     dims: [usize; 3],
@@ -238,14 +244,6 @@ pub(crate) fn separable_box_3d(
     // One scratch tuple per OS thread: (output_buf, input_copy_buf, deque).
     // `resize` grows the Vec on first use or when the dimension increases;
     // it never shrinks the allocation, so steady-state is allocation-free.
-    thread_local! {
-        static SCRATCH: std::cell::RefCell<(
-            Vec<f32>,
-            Vec<f32>,
-            std::collections::VecDeque<usize>,
-        )> = const { std::cell::RefCell::new((Vec::new(), Vec::new(), std::collections::VecDeque::new())) };
-    }
-
     // ── Pass 1: X-axis (contiguous nx-element rows) ──────────────────────────────
     // nz z-slices × ny rows each; chunk = one z-slice (ny*nx elements).
     // Thread-local (wout_t, tmp, deq) reused across all ny rows in the slice.
@@ -355,7 +353,7 @@ fn window_1d(
                            // and the sliding-window algorithm mutates `next`/`deque` across steps. No
                            // iterator form preserves the per-step window semantics; per the symmetry
                            // with `diffusion/curvature.rs`, the inline allow is the idiomatic gesture.
-    #[allow(clippy::needless_range_loop)]
+    #[expect(clippy::needless_range_loop)]
     for i in 0..n {
         let hi = (i + radius).min(n - 1);
         while next <= hi {

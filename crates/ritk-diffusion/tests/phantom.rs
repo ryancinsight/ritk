@@ -99,7 +99,7 @@ pub enum Tissue {
     Gray = 5,
 }
 
-/// A 4×4×4 phantom volume with known ground truth.
+/// A 4×4×4 phantom volume with known scalar ground truth.
 pub struct Phantom {
     /// Voxel data: flat [voxel * n_vol + vol].
     pub dwi: Vec<f64>,
@@ -111,21 +111,6 @@ pub struct Phantom {
     pub fa_gt: Vec<f64>,
     /// Ground-truth MD per voxel.
     pub md_gt: Vec<f64>,
-    /// Ground-truth PEV per voxel: flat `[x, y, z, …]`.
-    // Computed but not yet asserted on. Kept rather than deleted so the
-    // assertions can be written without recomputing the phantom; the gap
-    // is tracked in atlas backlog.md#atlas-ritk-land-1.
-    // allow, not expect: this file is compiled into two test binaries and the
-    // fields are read in one of them, so an expectation would be unfulfilled
-    // there.
-    #[allow(dead_code)]
-    pub pev_gt: Vec<f64>,
-    /// Ground-truth fibre directions per voxel.
-    // allow, not expect: this file is compiled into two test binaries and the
-    // fields are read in one of them, so an expectation would be unfulfilled
-    // there.
-    #[allow(dead_code)]
-    pub fibre_dirs_gt: Vec<Vec<[f64; 3]>>,
 }
 
 impl Default for Phantom {
@@ -147,21 +132,14 @@ impl Phantom {
         let mut labels = vec![Tissue::Gray; n_vox];
         let mut fa_gt = vec![0.0; n_vox];
         let mut md_gt = vec![0.0; n_vox];
-        let mut pev_gt = vec![0.0; n_vox * 3];
-        let mut fibre_dirs_gt: Vec<Vec<[f64; 3]>> = vec![vec![]; n_vox];
-
         for iz in 0..nz {
             for iy in 0..ny {
                 for ix in 0..nx {
                     let idx = iz * ny * nx + iy * nx + ix;
-                    let (label, fa, md, pev, dirs) = tissue_properties(ix, iy);
+                    let (label, fa, md) = tissue_properties(ix, iy);
                     labels[idx] = label;
                     fa_gt[idx] = fa;
                     md_gt[idx] = md;
-                    pev_gt[idx * 3] = pev[0];
-                    pev_gt[idx * 3 + 1] = pev[1];
-                    pev_gt[idx * 3 + 2] = pev[2];
-                    fibre_dirs_gt[idx] = dirs;
                 }
             }
         }
@@ -206,8 +184,6 @@ impl Phantom {
             labels,
             fa_gt,
             md_gt,
-            pev_gt,
-            fibre_dirs_gt,
         }
     }
 
@@ -243,7 +219,7 @@ fn s30() -> f64 {
     0.5
 }
 
-fn tissue_properties(ix: usize, iy: usize) -> (Tissue, f64, f64, [f64; 3], Vec<[f64; 3]>) {
+fn tissue_properties(ix: usize, iy: usize) -> (Tissue, f64, f64) {
     // Layout (all z-slices identical):
     //   y=3  V | V | G | G
     //   y=2  V | V | G | G
@@ -264,33 +240,15 @@ fn tissue_properties(ix: usize, iy: usize) -> (Tissue, f64, f64, [f64; 3], Vec<[
     let crossing_md = tensor_md(&crossing_avg);
 
     if ix < 2 && iy < 2 {
-        (
-            Tissue::Horizontal,
-            horizontal_fa,
-            horizontal_md,
-            [1.0, 0.0, 0.0],
-            vec![[1.0, 0.0, 0.0]],
-        )
+        (Tissue::Horizontal, horizontal_fa, horizontal_md)
     } else if ix < 2 {
-        (
-            Tissue::Vertical,
-            vertical_fa,
-            vertical_md,
-            [0.0, 0.0, 1.0],
-            vec![[0.0, 0.0, 1.0]],
-        )
+        (Tissue::Vertical, vertical_fa, vertical_md)
     } else if iy < 2 && ix == 2 {
-        (
-            Tissue::Crossing,
-            crossing_fa,
-            crossing_md,
-            [c30(), 0.0, 0.0], // PEV is approx +x
-            vec![[c30(), s30(), 0.0], [c30(), -s30(), 0.0]],
-        )
+        (Tissue::Crossing, crossing_fa, crossing_md)
     } else if (ix == 3 && iy < 2) || (ix == 2 && iy >= 2) {
-        (Tissue::Csf, 0.0, 0.0030, [0.0, 0.0, 0.0], vec![])
+        (Tissue::Csf, 0.0, 0.0030)
     } else {
-        (Tissue::Gray, 0.0, 0.0008, [0.0, 0.0, 0.0], vec![])
+        (Tissue::Gray, 0.0, 0.0008)
     }
 }
 

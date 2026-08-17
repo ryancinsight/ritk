@@ -243,7 +243,7 @@ impl CprImageFilter {
         // ── 2. Sample cross-sections along the path ───────────────────────────
         //
         // Per-call work hoisted out of the per-pixel inner loop (see
-        // OPTIMIZATION.md § Sprint 376 CPR-PERF-01):
+        // docs/optimization.md § Sprint 376 CPR-PERF-01):
         //
         // (a) `inv_dir = direction.inverse()` — 3×3 matrix inverse computed
         //     once instead of once per cross-section sample.

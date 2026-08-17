@@ -128,6 +128,6 @@ pub(crate) fn threshold_vec(vals: &[f32], mode: &ThresholdMode) -> Vec<f32> {
 }
 
 #[cfg(test)]
-#[allow(clippy::needless_range_loop)]
+#[expect(clippy::needless_range_loop)]
 #[path = "tests_threshold.rs"]
 mod tests;

@@ -173,7 +173,7 @@ fn erode_line_run(buf: &mut [f64], magnitude: f64, extreme: f64) {
     let mut newcontact: isize = 0;
     // index-based: the inner loop reads `buf`/`tmp` at the computed contact
     // offset `pos + krange`, so a positional iterator does not apply.
-    #[allow(clippy::needless_range_loop)]
+    #[expect(clippy::needless_range_loop)]
     for pos in 0..n {
         let mut base_val = extreme;
         let mut krange = koffset;
@@ -408,7 +408,6 @@ pub fn label_set_morph<B: Backend>(
 /// First erosion dimension: run-length encode, erode each run into the distance
 /// buffer, optionally threshold labels (`last` pass). Ports
 /// `doOneDimensionErodeFirstPass`.
-#[allow(clippy::too_many_arguments)]
 fn erode_first_dim(
     line_lab: &mut [f32],
     line_dist: &mut [f64],
@@ -445,7 +444,6 @@ fn erode_first_dim(
 
 /// Subsequent erosion dimension: run-length encode, erode padded runs, threshold
 /// on the last pass. Ports `doOneDimensionErode`.
-#[allow(clippy::too_many_arguments)]
 fn erode_subsequent_dim(
     line_lab: &mut [f32],
     line_dist: &mut [f64],

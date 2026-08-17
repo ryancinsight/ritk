@@ -249,10 +249,10 @@ consolidated to a single SSOT path.
 
 All 7 documentation files audited. 4 stale files deleted (`docs/backlog.md`,
 `docs/checklist.md`, `docs/CHANGELOG.md`, `SPINT_293_PLAN.md`). Created
-`ARCHIVE.md` (18,150 lines) with all pre-Sprint 320 sprint history from
+`docs/archive.md` (18,150 lines) with all pre-Sprint 320 sprint history from
 `backlog.md`, `checklist.md`, and `gap_audit.md`. Compacted 3 root files:
 `backlog.md` (6,378→140 lines), `checklist.md` (5,893→120 lines), `gap_audit.md`
-(6,200→155 lines). Updated `IMPLEMENTATION_SUMMARY.md` to v0.50.94.
+(6,200→155 lines). Updated `docs/implementation_summary.md` to v0.50.94.
 
 ## Sprint 337 (0.51.5) — Morphological Laplacian
 

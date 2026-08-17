@@ -132,7 +132,7 @@ Created two detailed documentation files:
 - Building instructions
 - Future work
 
-**[`ARCHITECTURE.md`](ARCHITECTURE.md)**:
+**[`docs/architecture.md`](docs/architecture.md)**:
 - Design philosophy (SSOT, SRP, SOC)
 - Module organization
 - Domain-level naming
@@ -349,7 +349,7 @@ All modules include comprehensive tests:
 - Eliminated all 28 clippy warnings across 6 crates (ritk-core, ritk-vtk, ritk-io, ritk-registration, ritk-snap, ritk-python)
 - Preemptively partitioned 8 near-limit files (association.rs, dimse/mod.rs, dicom/mod.rs, direct_property_tests.rs, direct_types_tests.rs, tests_label_fusion.rs, clahe.rs, tests_convolution.rs)
 - Hardened flaky `translation_recovery_shifted_gaussian` test (sampling 0.50→0.75, iterations 200→300, tolerance 0.5→0.8)
-- Updated all documentation (IMPLEMENTATION_SUMMARY.md, OPTIMIZATION.md, README.md)
+- Updated all documentation (docs/implementation_summary.md, docs/optimization.md, README.md)
 - Removed orphan test file `ritk-core/filter/fft/tests_convolution.rs`
 
 ## Residual Risks

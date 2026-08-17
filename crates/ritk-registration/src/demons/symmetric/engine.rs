@@ -176,7 +176,7 @@ impl SymmetricDemonsRegistration {
 
 // ── Private helpers ───────────────────────────────────────────────────────────
 
-#[allow(clippy::too_many_arguments)]
+#[expect(clippy::too_many_arguments)]
 fn symmetric_forces_into(
     fixed: &[f32],
     m_warped: &[f32],

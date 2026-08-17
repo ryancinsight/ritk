@@ -50,7 +50,7 @@ pub fn warp(
 #[pyfunction]
 #[pyo3(signature = (disp_z, disp_y, disp_x, max_iterations=10, max_error_tolerance=0.1,
                     mean_error_tolerance=0.001, enforce_boundary=true))]
-#[allow(clippy::too_many_arguments)]
+#[expect(clippy::too_many_arguments)]
 pub fn invert_displacement_field(
     py: Python<'_>,
     disp_z: &PyImage,

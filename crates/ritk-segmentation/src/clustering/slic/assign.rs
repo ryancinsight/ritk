@@ -90,7 +90,7 @@ pub fn build_grid_map_into(
 }
 
 /// Recursively enumerate grid cells in a hyper-rectangular range.
-#[allow(clippy::too_many_arguments)]
+#[expect(clippy::too_many_arguments)]
 fn enumerate_cells_range(
     cell_coords: &mut [usize],
     depth: usize,
@@ -134,7 +134,7 @@ fn enumerate_cells_range(
 ///
 /// # Panics
 /// Panics if `ndim` is not in {2, 3}.
-#[allow(clippy::too_many_arguments)]
+#[expect(clippy::too_many_arguments)]
 pub fn assign_voxels(
     intensities: &[f32],
     shape: &[usize],
@@ -181,7 +181,7 @@ pub fn assign_voxels(
 ///
 /// Uses stack-allocated `[usize; D]` arrays for coordinates and cell indices,
 /// eliminating per-voxel `Vec` allocations in the hot parallel loop.
-#[allow(clippy::too_many_arguments)]
+#[expect(clippy::too_many_arguments)]
 fn assign_voxels_impl<const D: usize>(
     intensities: &[f32],
     shape: &[usize],

@@ -2289,7 +2289,7 @@ All methods still diverge from cold start **without masking**. The brain masking
 - ⟳ `crates/ritk-vtk/src/domain/mod.rs`: registered `mesh_bridge`
 - ⟳ `crates/ritk-vtk/src/io/mod.rs`: registered `mesh_indexed` + re-exports
 - ⟳ `crates/ritk-vtk/src/lib.rs`: re-exported bridge and indexed I/O functions
-- ⟳ `ARCHITECTURE.md §19 Gaia Meshing Boundary`: formal theorem, boundary surface, invariants, proof obligation
+- ⟳ `docs/architecture.md §19 Gaia Meshing Boundary`: formal theorem, boundary surface, invariants, proof obligation
 - ⟳ `crates/ritk-core/src/segmentation/clustering/slic.rs`: deleted (940-line stale monolith; E0761 conflict with `slic/mod.rs`)
 - ⟳ `cargo check --workspace`: 0 errors, 0 warnings
 - ⟳ `cargo test -p ritk-vtk --lib`: 177 passed (13 new)
@@ -6438,7 +6438,7 @@ No structural partitions this cycle.
 - [x] All source files < 500 lines
 - [x] No `unsafe` in the Parzen direct path
 - [x] CHANGELOG.md updated (0.50.77)
-- [x] OPTIMIZATION.md updated (Sprint 315)
+- [x] docs/optimization.md updated (Sprint 315)
 - [x] backlog.md updated
 - [x] checklist.md updated
 
@@ -6475,7 +6475,7 @@ No structural partitions this cycle.
 - [x] ritk-registration clippy warnings: 0 (was 4)
 - [x] All 16 source files < 500 lines
 - [x] CHANGELOG.md updated (0.50.76)
-- [x] OPTIMIZATION.md updated (Sprint 314)
+- [x] docs/optimization.md updated (Sprint 314)
 - [x] gap_audit.md updated
 - [x] checklist.md updated
 
@@ -6511,7 +6511,7 @@ No structural partitions this cycle.
 - [x] Parzen clippy warnings: 0 (was 4)
 - [x] All 16 source files < 500 lines
 - [x] CHANGELOG.md updated (0.50.75)
-- [x] OPTIMIZATION.md updated (Sprint 313 + architecture decision)
+- [x] docs/optimization.md updated (Sprint 313 + architecture decision)
 - [x] gap_audit.md updated
 - [x] checklist.md updated
 
@@ -6534,7 +6534,7 @@ No structural partitions this cycle.
 - [x] 3 new tests for masked-path caching
 - [x] Release-mode benchmarks verified with actual numbers
 - [x] CHANGELOG.md updated
-- [x] OPTIMIZATION.md updated (Sprint 312 section + architecture decision)
+- [x] docs/optimization.md updated (Sprint 312 section + architecture decision)
 - [x] gap_audit.md updated
 
 ## Sprint 311 (0.50.73) — Direct Parzen Inner-Loop Optimization + Lazy Sparse Cache
@@ -6554,7 +6554,7 @@ No structural partitions this cycle.
 - [x] `cargo check -p ritk-registration --no-default-features`: 0 errors, 0 warnings
 - [x] Structural violations: ZERO files > 500 lines
 - [x] CHANGELOG.md updated (0.50.73)
-- [x] OPTIMIZATION.md updated (Sprint 311 section + 2 architecture decisions)
+- [x] docs/optimization.md updated (Sprint 311 section + 2 architecture decisions)
 - [x] gap_audit.md updated
 - [x] checklist.md updated
 - [x] backlog.md updated
@@ -6588,7 +6588,7 @@ No structural partitions this cycle.
 - [x] CHANGELOG.md updated (0.50.70)
 - [x] backlog.md updated (Sprint 300 complete)
 - [x] gap_audit.md updated
-- [x] OPTIMIZATION.md updated
+- [x] docs/optimization.md updated
 
 ## Sprint 299 (0.50.69) — RIRE Brain Mask Validation
 - [x] SPRINT-299-01: CT brain mask generation pipeline (threshold [0,100] HU → binary erosion r=2 → 26-CCL → largest component → dilation r=2 → hole fill)
@@ -6632,7 +6632,7 @@ No structural partitions this cycle.
 - [x] CHANGELOG.md updated
 - [x] backlog.md updated
 - [x] gap_audit.md updated
-- [x] OPTIMIZATION.md updated
+- [x] docs/optimization.md updated
 - [x] Committed and pushed
 
 ## Sprint 296 (0.50.67) — RT Structure Set Writer
@@ -7449,7 +7449,7 @@ No structural partitions this cycle.
 - [x] Register `mesh_bridge` in `domain/mod.rs`
 - [x] Register `mesh_indexed` in `io/mod.rs` with re-exports
 - [x] Re-export bridge + indexed I/O from `lib.rs`
-- [x] Add `ARCHITECTURE.md §19 Gaia Meshing Boundary`
+- [x] Add `docs/architecture.md §19 Gaia Meshing Boundary`
 - [x] Delete stale `ritk-core/src/segmentation/clustering/slic.rs` (E0761 fix)
 - [x] `cargo check --workspace`: 0 errors
 - [x] `cargo test -p ritk-vtk --lib`: 177 passed

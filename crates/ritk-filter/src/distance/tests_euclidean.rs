@@ -19,7 +19,7 @@ fn voxels(img: &Image<f32, B, 3>) -> Vec<f32> {
 // --- edt_3d unit tests ---------------------------------------------------
 
 #[test]
-#[allow(clippy::erasing_op, clippy::identity_op)]
+#[expect(clippy::erasing_op, clippy::identity_op)]
 fn edt_3d_single_foreground_voxel_at_origin() {
     // 5x5x5 volume, single foreground at (0,0,0)
     let dims = [5usize, 5, 5];

@@ -18,7 +18,7 @@
 //!
 //! Recorded as the Sprint 376 CPR-PERF-01 baseline. Subsequent runs
 //! should not regress below these floors without an architectural
-//! reason recorded in `OPTIMIZATION.md`.
+//! reason recorded in `docs/optimization.md`.
 
 use coeus_core::SequentialBackend;
 use criterion::{criterion_group, criterion_main, BenchmarkId, Criterion};
