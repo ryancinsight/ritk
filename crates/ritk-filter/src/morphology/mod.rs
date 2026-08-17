@@ -220,9 +220,6 @@ pub(crate) enum Extremum {
 ///
 /// Output is **bit-identical** to the serial version — the passes are
 /// embarrassingly parallel with no data sharing within a pass.
-// Clippy 1.97.0 reports the const initializer; 1.97.1 reports an `expect`
-// for the same lint as unfulfilled.
-#[expect(clippy::missing_const_for_thread_local)]
 pub(crate) fn separable_box_3d(
     data: &[f32],
     dims: [usize; 3],
@@ -239,6 +236,7 @@ pub(crate) fn separable_box_3d(
     // `resize` grows the Vec on first use or when the dimension increases;
     // it never shrinks the allocation, so steady-state is allocation-free.
     thread_local! {
+        #[expect(clippy::missing_const_for_thread_local, reason = "Rust 1.97.0 does not recognize this const initializer")]
         static SCRATCH: std::cell::RefCell<(
             Vec<f32>,
             Vec<f32>,
