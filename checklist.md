@@ -8,6 +8,25 @@
 
 # RITK Sprint Checklist — Active
 
+## ATLAS-RITK-CONFORMANCE-101 — Diffusion binding structure ratchet [patch]
+
+- [x] Reproduce the exact-head increase: `diffusion/mod.rs` was a 109-line
+      implementation-bearing manifest and raised `manifest_implementation`
+      from 111 to 112.
+- [x] Move the `PyDiffusionMaps` wrapper and `fit_tensor_maps` operation into
+      dedicated `maps.rs` and `fit.rs` leaves while preserving registration and
+      public behavior.
+- [x] Run formatting and the clean-lane conformance scan; the structural count
+      returns to `manifest_implementation=111`.
+- [x] Merge source `81f510f6` at default `7ae4b69b`; provider-owned Clippy,
+      Rustfmt, dependency alignment, full Rust, Python 3.9-3.13, and wheel
+      smoke gates pass in `32026464996` and `32026464796`.
+
+The local locked package check remains blocked by the Atlas development
+overlay resolving first-party patches to the peer-dirty primary checkout; the
+hosted exact-head matrix is the compilation and behavior gate. The external
+`recurseml/analysis` error is report-only.
+
 ## ATLAS-RITK-DICOM-ORIENTATION-070 — Provider tag SSOT [minor] — local closure 2026-08-14
 
 - [x] Add `tags::IMAGE_ORIENTATION_PATIENT` for DICOM `(0020,0037)` with

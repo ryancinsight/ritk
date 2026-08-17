@@ -10,6 +10,10 @@
 
 ## [Unreleased] — JPEG 2000 scalar quality control (FEAT-692-01)
 
+- [patch] Split the diffusion Python binding manifest into dedicated map and
+  tensor-fitting modules, restoring the conformance structure count at merged
+  default `7ae4b69b`.
+
 ### Added
 
 - **Breaking:** the curvilinear and phased-array geometries now carry their
