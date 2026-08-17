@@ -21,6 +21,10 @@
       deleting unconsumed phantom PEV/fibre-direction fixtures; exact local
       gates pass with workspace Clippy `--all-targets --all-features -D
       warnings`, workspace check, and the two focused RITK I/O nextest cases.
+- [x] Pin all hosted Rust and Python CI toolchain installs to Rust 1.97.0 and
+      scope the `missing_const_for_thread_local` expectation to the generated
+      scratch item; local Rustfmt, check, Clippy, and focused nextest remain
+      green.
 
 ## ATLAS-RITK-CONFORMANCE-101 — Diffusion binding structure ratchet [patch]
 

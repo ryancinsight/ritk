@@ -112,6 +112,15 @@ pub use iterate_structure::{iterate_structure, iterate_structure_with_origin, Bo
 pub mod types;
 pub use types::ForegroundValue;
 
+thread_local! {
+    #[expect(clippy::missing_const_for_thread_local, reason = "Rust 1.97.0 does not recognize this const initializer")]
+    static SCRATCH: std::cell::RefCell<(
+        Vec<f32>,
+        Vec<f32>,
+        std::collections::VecDeque<usize>,
+    )> = const { std::cell::RefCell::new((Vec::new(), Vec::new(), std::collections::VecDeque::new())) };
+}
+
 #[cfg(test)]
 #[path = "tests_native_grayscale.rs"]
 mod tests_native_grayscale;
@@ -235,15 +244,6 @@ pub(crate) fn separable_box_3d(
     // One scratch tuple per OS thread: (output_buf, input_copy_buf, deque).
     // `resize` grows the Vec on first use or when the dimension increases;
     // it never shrinks the allocation, so steady-state is allocation-free.
-    thread_local! {
-        #[expect(clippy::missing_const_for_thread_local, reason = "Rust 1.97.0 does not recognize this const initializer")]
-        static SCRATCH: std::cell::RefCell<(
-            Vec<f32>,
-            Vec<f32>,
-            std::collections::VecDeque<usize>,
-        )> = const { std::cell::RefCell::new((Vec::new(), Vec::new(), std::collections::VecDeque::new())) };
-    }
-
     // ── Pass 1: X-axis (contiguous nx-element rows) ──────────────────────────────
     // nz z-slices × ny rows each; chunk = one z-slice (ny*nx elements).
     // Thread-local (wout_t, tmp, deq) reused across all ny rows in the slice.

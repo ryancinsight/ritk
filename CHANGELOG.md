@@ -19,6 +19,9 @@
   ground-truth buffers exposed by the hosted all-target Clippy gate; retain
   value-semantic DICOM clamp coverage.
 
+- [patch] Pin hosted Rust and Python CI jobs to the repository's Rust 1.97.0
+  toolchain so Clippy expectations and local verification use the same compiler.
+
 - [patch] Split the diffusion Python binding manifest into dedicated map and
   tensor-fitting modules, restoring the conformance structure count at merged
   default `7ae4b69b`.
