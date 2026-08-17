@@ -113,7 +113,7 @@ pub mod types;
 pub use types::ForegroundValue;
 
 thread_local! {
-    #[expect(clippy::missing_const_for_thread_local, reason = "Rust 1.97.0 does not recognize this const initializer")]
+    #[cfg_attr(target_os = "windows", expect(clippy::missing_const_for_thread_local, reason = "Rust 1.97.0 Windows Clippy does not recognize this const initializer"))]
     static SCRATCH: std::cell::RefCell<(
         Vec<f32>,
         Vec<f32>,
