@@ -87,7 +87,6 @@ pub fn grid_image_source(
 /// All `(x, y, z)` tuples are in sitk axis order. ITK Parity: GaborImageSource.
 #[pyfunction]
 #[pyo3(signature = (size, spacing=(1.0, 1.0, 1.0), origin=(0.0, 0.0, 0.0), sigma=(16.0, 16.0, 16.0), mean=(32.0, 32.0, 32.0), frequency=0.4))]
-#[expect(clippy::too_many_arguments)]
 pub fn gabor_image_source(
     py: Python<'_>,
     size: (usize, usize, usize),

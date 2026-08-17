@@ -220,7 +220,13 @@ pub struct RegisterArgs {
 ///
 /// # Panics
 /// Panics if the tensor data cannot be extracted as `f32`.
-#[expect(dead_code)]
+#[cfg_attr(
+    not(test),
+    expect(
+        dead_code,
+        reason = "registration conversion remains the CLI boundary seam"
+    )
+)]
 pub(super) fn image_to_leto_volume(image: &Image<f32, Backend, 3>) -> Array3<f64> {
     let shape = image.shape();
     let slice = image
@@ -235,7 +241,13 @@ pub(super) fn image_to_leto_volume(image: &Image<f32, Backend, 3>) -> Array3<f64
 ///
 /// The spatial metadata (origin, spacing, direction) is copied from
 /// `reference` so the output image lives in the fixed image's frame.
-#[expect(dead_code)]
+#[cfg_attr(
+    not(test),
+    expect(
+        dead_code,
+        reason = "registration conversion remains the CLI boundary seam"
+    )
+)]
 pub(super) fn leto_volume_to_image(
     volume: Array3<f64>,
     reference: &Image<f32, Backend, 3>,

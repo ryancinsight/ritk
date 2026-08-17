@@ -408,7 +408,6 @@ pub fn label_set_morph<B: Backend>(
 /// First erosion dimension: run-length encode, erode each run into the distance
 /// buffer, optionally threshold labels (`last` pass). Ports
 /// `doOneDimensionErodeFirstPass`.
-#[expect(clippy::too_many_arguments)]
 fn erode_first_dim(
     line_lab: &mut [f32],
     line_dist: &mut [f64],
@@ -445,7 +444,6 @@ fn erode_first_dim(
 
 /// Subsequent erosion dimension: run-length encode, erode padded runs, threshold
 /// on the last pass. Ports `doOneDimensionErode`.
-#[expect(clippy::too_many_arguments)]
 fn erode_subsequent_dim(
     line_lab: &mut [f32],
     line_dist: &mut [f64],

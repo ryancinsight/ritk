@@ -127,7 +127,6 @@ impl VotingBinaryImageFilter {
 /// `r` (window includes the centre voxel, matching ITK): a background voxel is
 /// born foreground when its foreground count reaches `birth`, a foreground voxel
 /// dies when its count falls below `survival`, otherwise the value is kept.
-#[expect(clippy::too_many_arguments)]
 pub(crate) fn voting_binary_vec(
     vals: &[f32],
     dims: [usize; 3],

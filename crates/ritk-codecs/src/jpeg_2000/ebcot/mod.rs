@@ -204,8 +204,9 @@ pub(crate) fn cup_trace_take() -> Vec<(usize, u32)> {
 }
 
 #[inline(always)]
-#[expect(unused_variables)]
 pub(crate) fn trace(ctx: usize, bit: u32) {
     #[cfg(test)]
     CUP_TRACE.with(|t| t.borrow_mut().push((ctx, bit)));
+    #[cfg(not(test))]
+    let _ = (ctx, bit);
 }

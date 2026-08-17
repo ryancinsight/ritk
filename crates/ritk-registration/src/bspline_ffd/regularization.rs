@@ -207,7 +207,13 @@ pub(super) fn bending_energy_gradient_into(
 /// computed via the chain rule on the finite-difference operators.
 /// Applies the discretized biharmonic operator (Laplacian of Laplacian) to
 /// each control point as an efficient approximation.
-#[expect(dead_code)]
+#[cfg_attr(
+    not(test),
+    expect(
+        dead_code,
+        reason = "regularization helper remains part of the internal algorithm seam"
+    )
+)]
 #[inline]
 pub(super) fn bending_energy_gradient(
     cp_z: &[f32],

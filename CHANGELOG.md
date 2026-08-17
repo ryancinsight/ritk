@@ -15,6 +15,10 @@
   checked `#[expect]` sites, and strengthen the invalid-MINC regression to
   assert the reported HDF5-open failure.
 
+- [patch] Remove unfulfilled lint expectations and unconsumed phantom
+  ground-truth buffers exposed by the hosted all-target Clippy gate; retain
+  value-semantic DICOM clamp coverage.
+
 - [patch] Split the diffusion Python binding manifest into dedicated map and
   tensor-fitting modules, restoring the conformance structure count at merged
   default `7ae4b69b`.

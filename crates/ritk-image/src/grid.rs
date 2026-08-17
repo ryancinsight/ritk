@@ -78,6 +78,5 @@ where
 }
 
 #[cfg(test)]
-#[expect(clippy::single_range_in_vec_init)]
 #[path = "tests_grid.rs"]
 mod tests;

@@ -119,7 +119,10 @@ impl<'a> BitReader<'a> {
     }
 
     /// Return remaining byte count (approximate; does not account for buffered bits).
-    #[expect(dead_code)]
+    #[cfg_attr(
+        not(test),
+        expect(dead_code, reason = "reserved for bounded JPEG-LS reader diagnostics")
+    )]
     pub(super) fn remaining_bytes(&self) -> usize {
         self.data.len().saturating_sub(self.pos)
     }

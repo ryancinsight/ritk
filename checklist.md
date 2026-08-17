@@ -17,6 +17,10 @@
 - [x] Replace the new MINC existence-only assertion with an error-message
       contract assertion; exact-head count is 176 → 175.
 - [x] Exact-head root-file conformance count is 4 → 0.
+- [x] Fix the hosted Clippy follow-up by removing stale expectations and
+      deleting unconsumed phantom PEV/fibre-direction fixtures; exact local
+      gates pass with workspace Clippy `--all-targets --all-features -D
+      warnings`, workspace check, and the two focused RITK I/O nextest cases.
 
 ## ATLAS-RITK-CONFORMANCE-101 — Diffusion binding structure ratchet [patch]
 
