@@ -581,6 +581,39 @@
   scan-array findings survived in the DCT path. No fuzz target exists anywhere
   in `ritk-codecs`.
 
+- **FLAKE-699-01 [patch] - N4 bias-correction parity test hangs nondeterministically**
+  (DoR; owner=unclaimed; last-update=2026-08-15; scope=
+  `crates/ritk-python/tests/test_sitk_cmake_corpus_extended.py`
+  `::TestN4BiasCorrectionParity::test_n4_reduces_intensity_variance_of_uniform_region`
+  and the N4 implementation it exercises; non-goal=raising the job timeout,
+  which would hide it).
+
+  On ritk#159 the Python wheel smoke test reached 98%, then produced no output
+  for 15 minutes on this test before the 30-minute job budget cancelled the
+  run. The identical commit passed on rerun in 11m47s, so the behaviour is
+  nondeterministic rather than a slow runner: a deterministic slowdown would
+  reproduce.
+
+  Evidence: run 31888313892, job 95020720031 (hung, last output 14:05:48,
+  cancelled 14:21:16) against job 95024332260 (passed, same SHA `f061516b`).
+
+  Not caused by that change, which adds Rust test code in `ritk-segmentation`
+  and cannot reach N4. The wheel job also passed on the three preceding main
+  runs, so this is intermittent rather than newly broken.
+
+  Outcome: the nondeterminism root-caused. A hang rather than a slow run
+  points at an unbounded loop — N4's fitting iteration terminating on a
+  convergence criterion that a particular input or scheduling order never
+  satisfies — rather than at load. Worth checking whether the iteration has a
+  hard cap at all, per the solver-termination rule in the standards.
+
+  Acceptance: either a reproduction plus a bounded termination criterion, or a
+  recorded finding that the wait is legitimate and the budget is wrong — the
+  first with a regression test, the second with the measurement behind it.
+
+  Risk: [patch] unless the fix changes N4's numerical output, which would make
+  it [minor] and need a parity re-check against SimpleITK.
+
 - **CONF-698-01 [patch] - Seed admission diverges from ITK in principle, not yet in evidence**
   (DoR; owner=unclaimed; last-update=2026-08-14; scope=
   `crates/ritk-segmentation/src/region_growing/vector_confidence_connected/`
