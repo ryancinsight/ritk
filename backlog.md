@@ -1,5 +1,17 @@
 # RITK Backlog - Active Planning
 
+- **ATLAS-RITK-CONFORMANCE-101 [patch] - Close diffusion binding structure
+  ratchet (DONE; owner=Codex; last-update=2026-08-17).** The new
+  `crates/ritk-python/src/diffusion/mod.rs` manifest exceeded the structural
+  implementation target after the diffusion binding landed. Split its map
+  wrapper and tensor-fitting function into dedicated modules without changing
+  the Python registration or public binding behavior. Source commit
+  `81f510f6` merges at default `7ae4b69b`; provider-owned Clippy, Rustfmt,
+  workspace dependency alignment, full Rust, Python 3.9-3.13, and wheel-smoke
+  gates pass in runs `32026464996` and `32026464796`. The clean-lane
+  conformance scan returns `manifest_implementation=111`, restoring the
+  committed ratchet. The external `recurseml/analysis` error is report-only.
+
 - **RITK-PLACEMENT-AXIS-ASSESS-001 [audit] - themis/melinoe adoption:
   transitively satisfied, no direct deps (DONE; owner=Codex; last-update=
   2026-08-14).** Zero `themis`/`melinoe` tokens in any ritk source file.

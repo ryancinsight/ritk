@@ -8,6 +8,21 @@
 
 # RITK Gap Audit - Active
 
+## ATLAS-RITK-CONFORMANCE-101 — Diffusion binding structure ratchet
+
+- Finding: `crates/ritk-python/src/diffusion/mod.rs` became a 109-line
+  implementation-bearing manifest, increasing the committed
+  `manifest_implementation` count from 111 to 112.
+- Resolution: retain the manifest as module wiring and move the diffusion map
+  wrapper and tensor-fitting operation to `diffusion/maps.rs` and
+  `diffusion/fit.rs`.
+- Evidence: clean-lane scan at source `81f510f6` reports
+  `manifest_implementation=111`; the source merge is default `7ae4b69b`.
+  Provider-owned Rust, Python, wheel, Clippy, Rustfmt, and dependency-alignment
+  checks pass in runs `32026464996` and `32026464796`. The local locked package
+  check is limited by the shared Atlas overlay resolving to a peer-dirty
+  primary checkout; the external `recurseml/analysis` error is report-only.
+
 ## RITK-FLOATELEMENT-ROOTS-001 — powf root emulation → provider roots (closed 2026-08-13)
 
 RITK emulated scalar roots through `powf` fractional powers instead of the
