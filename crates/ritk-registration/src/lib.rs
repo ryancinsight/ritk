@@ -41,6 +41,7 @@
 //! ```
 
 pub mod atlas;
+pub mod block_matching;
 pub mod bspline_ffd;
 pub mod classical;
 pub(crate) mod deformable_field_ops;
