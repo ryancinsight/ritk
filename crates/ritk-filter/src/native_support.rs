@@ -33,7 +33,7 @@ where
     F: FnOnce(&[f32], [usize; 3]) -> Vec<f32>,
 {
     let dims = image.shape();
-    let vals = image.try_data_vec_on(backend)?;
+    let vals = image.data_cow_on(backend).into_owned();
     let result = f(&vals, dims);
     Image::from_flat_on(
         result,
@@ -70,8 +70,8 @@ where
         dims,
         secondary.shape()
     );
-    let a = primary.try_data_vec_on(backend)?;
-    let b = secondary.try_data_vec_on(backend)?;
+    let a = primary.data_cow_on(backend).into_owned();
+    let b = secondary.data_cow_on(backend).into_owned();
     let result = f(&a, &b, dims);
     Image::from_flat_on(
         result,

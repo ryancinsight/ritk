@@ -1,11 +1,12 @@
 //! Host-side access to an [`Image`]'s voxel data.
 //!
-//! Three shapes of one question: can this tensor be read as a flat host slice,
-//! and what does it cost. `data_slice` borrows or fails, `data_cow_*` borrows
-//! when the layout permits and materialises when it does not, and `data_vec_*`
-//! always owns. Kept apart from the type definition because choosing between
-//! them is a performance decision the caller makes, not part of an image's
-//! identity.
+//! Two accessors, one per distinct behaviour. [`Image::data_slice`] borrows a
+//! contiguous host slice or fails; [`Image::data_cow_on`] never fails, borrowing
+//! when the layout permits and materialising a compact copy when it does not.
+//! A caller that needs ownership writes `.into_owned()`, which is where the copy
+//! belongs: visible at the site that pays for it, rather than hidden behind a
+//! name. Kept apart from the type definition because choosing between the two is
+//! a performance decision the caller makes, not part of an image's identity.
 
 use anyhow::anyhow;
 use coeus_core::{ComputeBackend, CpuAddressableStorage, Scalar};
@@ -49,53 +50,13 @@ where
     /// [`Self::data_slice`], it never fails on a strided view — it pays the
     /// copy exactly when the layout requires one (`Cow::Owned`), and is
     /// zero-copy otherwise (`Cow::Borrowed`). Mirrors the Coeus `Image`'s
-    /// `data_slice() -> Cow` contract. (`B: Default` follows from
-    /// `Tensor::to_contiguous_on`'s own bound.)
+    /// `data_slice() -> Cow` contract.
+    ///
+    /// Callers needing an owned `Vec<T>` call `.into_owned()`; extraction
+    /// succeeds for every valid image, so no fallible owning form exists.
     #[must_use]
     pub fn data_cow_on(&self, backend: &B) -> std::borrow::Cow<'_, [T]> {
         self.data.host_cow_on(backend)
-    }
-
-    /// Owned host image data in logical row-major order (layout-independent).
-    ///
-    /// Thin wrapper over [`Self::data_cow_on`] for callers that need a `Vec`
-    /// (the `Image` type's `try_data_vec` equivalent).
-    #[must_use]
-    pub fn data_vec_on(&self, backend: &B) -> Vec<T> {
-        self.data_cow_on(backend).into_owned()
-    }
-
-    /// Copy logical row-major image data into an owned host buffer.
-    ///
-    /// # Errors
-    ///
-    /// This canonical Coeus image contract materializes backend storage and
-    /// non-contiguous views, so extraction succeeds for every valid image.
-    pub fn try_data_vec_on(&self, backend: &B) -> anyhow::Result<Vec<T>> {
-        Ok(self.data.to_vec_on(backend))
-    }
-}
-
-impl<T, B, const D: usize> Image<T, B, D>
-where
-    T: Scalar,
-    B: ComputeBackend + Default,
-{
-    /// [`Self::data_cow_on`] on `B::default()` (mirrors [`Self::from_flat`]).
-    #[must_use]
-    pub fn data_cow(&self) -> std::borrow::Cow<'_, [T]> {
-        self.data_cow_on(&B::default())
-    }
-
-    /// [`Self::data_vec_on`] on `B::default()`.
-    #[must_use]
-    pub fn data_vec(&self) -> Vec<T> {
-        self.data_vec_on(&B::default())
-    }
-
-    /// [`Self::try_data_vec_on`] on `B::default()`.
-    pub fn try_data_vec(&self) -> anyhow::Result<Vec<T>> {
-        self.try_data_vec_on(&B::default())
     }
 }
 

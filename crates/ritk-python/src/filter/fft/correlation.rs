@@ -64,7 +64,7 @@ pub fn fft_normalized_correlate(
             let result = filter
                 .apply(&slice_img)
                 .map_err(|e| RitkPyError::runtime(e.to_string()))?;
-            let result_vals: Vec<f32> = result.data_vec_on(&MoiraiBackend);
+            let result_vals: Vec<f32> = result.data_cow_on(&MoiraiBackend).into_owned();
             out_vals.extend(result_vals);
         }
 

@@ -16,7 +16,7 @@ where
     F: Fn(f32, f32) -> f32 + Sync,
 {
     let [nz, ny, nx] = image.shape();
-    let vals = image.data_cow();
+    let vals = image.data_cow_on(&B::default());
     match axis {
         ProjectionAxis::Z => {
             let out: Vec<f32> =
@@ -59,7 +59,7 @@ where
     F: Fn(f64, usize) -> f32 + Sync,
 {
     let [nz, ny, nx] = image.shape();
-    let vals = image.data_cow();
+    let vals = image.data_cow_on(&B::default());
     match axis {
         ProjectionAxis::Z => {
             let out: Vec<f32> =
@@ -107,7 +107,7 @@ pub(super) fn project_stddev<B: Backend>(
     image: &Image<f32, B, 3>,
 ) -> Result<Image<f32, B, 3>> {
     let [nz, ny, nx] = image.shape();
-    let vals = image.data_cow();
+    let vals = image.data_cow_on(&B::default());
     match axis {
         ProjectionAxis::Z => {
             let out: Vec<f32> =
@@ -181,7 +181,7 @@ pub(super) fn project_median<B: Backend>(
     image: &Image<f32, B, 3>,
 ) -> Result<Image<f32, B, 3>> {
     let [nz, ny, nx] = image.shape();
-    let vals = image.data_cow();
+    let vals = image.data_cow_on(&B::default());
     match axis {
         ProjectionAxis::Z => {
             let mut out = vec![0.0_f32; ny * nx];
@@ -254,7 +254,7 @@ where
 {
     let pick = |hit: bool| if hit { foreground } else { background };
     let [nz, ny, nx] = image.shape();
-    let vals = image.data_cow();
+    let vals = image.data_cow_on(&B::default());
     match axis {
         ProjectionAxis::Z => {
             let out: Vec<f32> =

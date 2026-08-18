@@ -60,6 +60,15 @@
   `oversized_tracked_images` budget class (26 tracked figures/archives over
   200 KiB) is untouched by a board compaction.
 
+
+### Changed
+
+- [major][arch] Remove five redundant `Image` host-extraction methods and move
+  the rank-generic `CartesianGridGeometry` to `ritk-spatial`. Use `data_slice()`
+  for a contiguous borrow and `data_cow_on(&backend)` when a strided layout may
+  require a compact copy; call `.into_owned()` where ownership is needed. All
+  62 in-repository call sites are migrated. See [ADR 0051](docs/adr/0051-two-image-data-accessors.md).
+
 ### Fixed
 
 - Removed 16 reintroduced production `#[allow]` sites. Test-only codec, MIF,

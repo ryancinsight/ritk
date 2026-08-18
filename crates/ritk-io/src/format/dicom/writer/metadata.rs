@@ -6,7 +6,7 @@ use super::pixel_encoding::{
 };
 use super::preservation::emit_preservation_nodes;
 use crate::format::dicom::transfer_syntax::EXPLICIT_VR_LE;
-use anyhow::{bail, Context, Result};
+use anyhow::{bail, Result};
 use dicom::core::smallvec::SmallVec;
 use dicom::core::{DataElement, PrimitiveValue, Tag, VR};
 use dicom::object::meta::FileMetaTableBuilder;
@@ -63,9 +63,7 @@ pub fn write_dicom_series_with_metadata<B: Backend, P: AsRef<Path>>(
     // Slice normal is column 0 of direction matrix = direction[0..3] = NÌ‚.
     let normal = [direction[0], direction[1], direction[2]];
 
-    let all_data = image
-        .try_data_vec()
-        .context("DICOM metadata writer requires f32 image data")?;
+    let all_data = image.data_cow_on(&B::default()).into_owned();
     let slice_len = rows * cols;
 
     for z in 0..depth {

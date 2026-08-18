@@ -45,7 +45,7 @@ pub fn read_mgh_series<B: Backend, P: AsRef<Path>>(
 pub fn write_mgh<B: Backend, P: AsRef<Path>>(image: &Image<f32, B, 3>, path: P) -> Result<()> {
     let backend = SequentialBackend;
     let native = ritk_image::Image::from_flat_on(
-        image.try_data_vec()?,
+        image.data_cow_on(&B::default()).into_owned(),
         image.shape(),
         *image.origin(),
         *image.spacing(),

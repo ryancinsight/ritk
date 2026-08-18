@@ -58,7 +58,7 @@ pub fn read_nifti_from_bytes_native<B: coeus_core::ComputeBackend>(
 pub fn write_nifti<B: Backend, P: AsRef<Path>>(path: P, image: &Image<f32, B, 3>) -> Result<()> {
     let backend = SequentialBackend;
     let native = ritk_image::Image::from_flat_on(
-        image.try_data_vec()?,
+        image.data_cow_on(&B::default()).into_owned(),
         image.shape(),
         *image.origin(),
         *image.spacing(),

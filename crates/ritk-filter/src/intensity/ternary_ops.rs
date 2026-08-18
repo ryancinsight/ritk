@@ -117,9 +117,9 @@ impl<Op: TernaryOp> TernaryOpFilter<Op> {
             sa == sb && sb == sc,
             "ternary image filter: shape mismatch {sa:?} / {sb:?} / {sc:?}"
         );
-        let av = a.try_data_vec_on(backend)?;
-        let bv = b.try_data_vec_on(backend)?;
-        let cv = c.try_data_vec_on(backend)?;
+        let av = a.data_cow_on(backend).into_owned();
+        let bv = b.data_cow_on(backend).into_owned();
+        let cv = c.data_cow_on(backend).into_owned();
         let values = av
             .iter()
             .zip(&bv)
