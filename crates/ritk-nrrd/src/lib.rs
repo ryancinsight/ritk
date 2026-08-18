@@ -57,6 +57,7 @@
 //! Space origin encodes the physical starting point in [X, Y, Z] space.
 
 mod axes;
+pub mod coordinate_map;
 pub mod reader;
 mod spatial;
 pub mod writer;
