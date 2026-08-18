@@ -21,9 +21,23 @@ on:
     branches:
       - main
       - "sprint/*"
+    paths-ignore:
+      - 'backlog.md'
+      - 'checklist.md'
+      - 'CHANGELOG.md'
+      - 'README.md'
+      - 'docs/**'
+      - '.github/agents/**'
   pull_request:
     branches:
       - main
+    paths-ignore:
+      - 'backlog.md'
+      - 'checklist.md'
+      - 'CHANGELOG.md'
+      - 'README.md'
+      - 'docs/**'
+      - '.github/agents/**'
 
 concurrency:
   group: python-ci-${{ github.ref }}
