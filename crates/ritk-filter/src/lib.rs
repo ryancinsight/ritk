@@ -36,7 +36,8 @@ pub use diffusion::{
     ConductanceFunction, ConductanceKernel, CurvatureAnisotropicDiffusionFilter, CurvatureConfig,
     CurvatureFlowConfig, CurvatureFlowImageFilter, DiffusionConfig, ExponentialConductance,
     GradientAnisotropicDiffusionFilter, GradientDiffusionConfig, MinMaxCurvatureFlowConfig,
-    MinMaxCurvatureFlowImageFilter, QuadraticConductance,
+    MinMaxCurvatureFlowImageFilter, QuadraticConductance, SpeckleReducingDiffusionFilter,
+    SradConfig,
 };
 pub use discrete_gaussian::{DiscreteGaussianFilter, SpacingMode};
 pub use discrete_gaussian_derivative::DiscreteGaussianDerivativeFilter;
