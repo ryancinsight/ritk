@@ -479,7 +479,7 @@ fn anonymize_dataset(
 /// Returns [`AnonymizeError`] (as `anyhow::Error`; recover it with
 /// `downcast_ref`) when a step would leave identifying data in the object — a
 /// private element surviving removal, an untraversable sequence, or nesting
-/// past [`MAX_SEQUENCE_DEPTH`]. The object is not returned in that case, so a
+/// past `MAX_SEQUENCE_DEPTH`. The object is not returned in that case, so a
 /// partially de-identified data set can never be mistaken for a clean one.
 pub fn anonymize_object(
     mut obj: FileDicomObject<InMemDicomObject>,
