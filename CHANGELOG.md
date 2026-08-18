@@ -10,6 +10,43 @@
 
 ## [Unreleased] — conformance cleanup and JPEG 2000 scalar quality control (FEAT-692-01)
 
+- [major] Apply the direction cosines in the grid-sweeping filters' index/world
+  transforms (ADR
+  [0020](docs/adr/0020-direction-aware-grid-transforms.md)). Marching cubes and
+  both displacement-field inverters composed `origin` and `spacing` but dropped
+  the direction matrix, so an obliquely acquired volume produced plausible,
+  silently displaced geometry instead of an error. They now share one internal
+  transform pair that applies `origin + D S index` and its inverse, with the
+  direction inversion hoisted out of the per-voxel loops.
+
+  Output is unchanged for a conventionally axial volume — which is what these
+  filters previously hard-coded, rather than the identity direction their own
+  fixtures used — and changes for every other orientation.
+
+  Two adjacent defects went with it: `ritk-snap`'s surface export passed
+  tensor-order spacing into a filter that reads it in `(ix, iy, iz)` order,
+  transposing x and z on anisotropic volumes; and the thin-plate-spline inverter
+  indexed `origin` by tensor axis rather than LPS component (numerically inert,
+  since the spline is translation-equivariant and the offset cancelled).
+
+  `ritk-diffusion`'s `FodVolume` is deliberately left direction-free: it carries
+  no direction, has no production constructor, and defines the frame its own
+  queries are answered in. Its Rustdoc now states that contract.
+
+  **Breaking:** `InverseDisplacementField::apply` and
+  `IterativeInverseDisplacementField::apply` return `anyhow::Result`, reporting
+  a non-Cartesian coordinate map or a singular direction rather than computing a
+  wrong answer. `MarchingCubesFilter` gains a `direction` field, defaulting to
+  the identity so existing axis-aligned output is bit-identical. The Python
+  bindings are unaffected: both already call the `apply_native` forms.
+
+  ```rust
+  // before
+  let (ix, iy, iz) = InverseDisplacementField::default().apply(&dx, &dy, &dz);
+  // after
+  let (ix, iy, iz) = InverseDisplacementField::default().apply(&dx, &dy, &dz)?;
+  ```
+
 - [major] Add borrowed region views to `ritk-image` and migrate
   `BoxSigmaImageFilter` onto them (ADR
   [0019](docs/adr/0019-borrowed-region-views.md)). `Image::region()` returns a

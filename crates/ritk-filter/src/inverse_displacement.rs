@@ -24,14 +24,69 @@
 //!    `A·q + B + Σ_i —–q − s_i—–·D[:,i]` (`= TransformPoint(q) − q`).
 //!
 //! The TPS system is unique and well-conditioned, so the result is float-exact
-//! to `sitk.InverseDisplacementField` (independent of the linear solver). A
-//! `z == 1` field is inverted as a genuine 2-D field (axes `y, x`), matching
-//! sitk's 2-D filter. Internal arithmetic is `f64`. Axis-aligned (identity
-//! direction) is assumed, as for the sibling inversion filters.
+//! to `sitk.InverseDisplacementField` (independent of the linear solver).
+//! Internal arithmetic is `f64`.
+//!
+//! # Geometry
+//!
+//! Landmark and evaluation points are the grid's true physical positions,
+//! `origin + D S index`, so the direction cosines participate in the fit and an
+//! oblique acquisition is inverted about its own axes. The thin-plate-spline
+//! kernel `G(r) = r` depends only on Euclidean distance, so for an orthonormal
+//! direction the fit is exactly the rotation of the axis-aligned fit.
+//!
+//! A `z == 1` field is inverted as a genuine 2-D field, matching sitk's 2-D
+//! filter. The two solved coordinates are then not the `y` and `x` world axes
+//! but an orthonormal basis of the *slab's own plane*, obtained by
+//! Gram-Schmidt from the direction columns of the two in-plane index axes; the
+//! fitted displacement is mapped back to world components through the same
+//! basis. Displacement normal to the slab is outside a 2-D field's
+//! representation and is dropped, as it was before.
 
 use ritk_image::tensor::Backend;
 use ritk_image::Image;
 use ritk_tensor_ops::{extract_vec_infallible, rebuild};
+
+use crate::grid_geometry::CartesianGridGeometry;
+
+/// Euclidean inner product of two physical 3-vectors.
+fn dot(a: [f64; 3], b: [f64; 3]) -> f64 {
+    a[0] * b[0] + a[1] * b[1] + a[2] * b[2]
+}
+
+/// Orthonormal basis of the subspace the active index axes span in physical
+/// space, by Gram-Schmidt over their direction columns.
+///
+/// For the full 3-D case this returns the world axes themselves, so the solve
+/// runs directly in world coordinates; the Gram-Schmidt path exists for the
+/// `z == 1` slab, whose plane is arbitrarily oriented under an oblique
+/// direction.
+fn active_basis(geometry: &CartesianGridGeometry, axes: &[usize]) -> anyhow::Result<Vec<[f64; 3]>> {
+    if axes.len() == 3 {
+        return Ok(vec![[1.0, 0.0, 0.0], [0.0, 1.0, 0.0], [0.0, 0.0, 1.0]]);
+    }
+    let mut basis: Vec<[f64; 3]> = Vec::with_capacity(axes.len());
+    for &axis in axes {
+        let mut candidate = geometry.axis_direction(axis);
+        for existing in &basis {
+            let projection = dot(candidate, *existing);
+            for k in 0..3 {
+                candidate[k] -= projection * existing[k];
+            }
+        }
+        let norm = dot(candidate, candidate).sqrt();
+        anyhow::ensure!(
+            norm > 1e-12,
+            "image direction is degenerate over the active axes {axes:?}"
+        );
+        basis.push([
+            candidate[0] / norm,
+            candidate[1] / norm,
+            candidate[2] / norm,
+        ]);
+    }
+    Ok(basis)
+}
 
 /// Parameters and entry point for thin-plate-spline displacement-field inversion.
 #[derive(Debug, Clone)]
@@ -107,12 +162,18 @@ impl InverseDisplacementField {
     /// Invert the field whose world-frame components are `comp_x`, `comp_y`,
     /// `comp_z` (each a scalar `[z, y, x]` image on a shared grid). Returns the
     /// inverse components `(inv_x, inv_y, inv_z)` on the same grid.
+    ///
+    /// # Errors
+    ///
+    /// Returns an error when `comp_x`'s coordinate map is not Cartesian, when
+    /// its direction matrix is singular, or when the direction is degenerate
+    /// over the active axes of a `z == 1` slab.
     pub fn apply<B: Backend>(
         &self,
         comp_x: &Image<f32, B, 3>,
         comp_y: &Image<f32, B, 3>,
         comp_z: &Image<f32, B, 3>,
-    ) -> (Image<f32, B, 3>, Image<f32, B, 3>, Image<f32, B, 3>) {
+    ) -> anyhow::Result<crate::DisplacementComponents<B>> {
         let (ux, dims) = extract_vec_infallible(comp_x);
         let (uy, _) = extract_vec_infallible(comp_y);
         let (uz, _) = extract_vec_infallible(comp_z);
@@ -120,27 +181,28 @@ impl InverseDisplacementField {
         let uy: Vec<f64> = uy.iter().map(|&v| v as f64).collect();
         let uz: Vec<f64> = uz.iter().map(|&v| v as f64).collect();
         let [nz, ny, nx] = dims;
-        let spacing = comp_x.spacing(); // [sz, sy, sx]
-        let origin = comp_x.origin(); // [oz, oy, ox]
         let stride = [ny * nx, nx, 1usize];
+        let geometry = CartesianGridGeometry::new(
+            comp_x.origin(),
+            comp_x.spacing(),
+            comp_x.direction(),
+            comp_x.coordinate_map(),
+        )?;
 
         // Active axes (tensor-axis indices): a z==1 field is 2-D over (y, x).
         let axes: Vec<usize> = if nz == 1 { vec![1, 2] } else { vec![0, 1, 2] };
         let d = axes.len();
-        let comps: [&[f64]; 3] = [&uz, &uy, &ux]; // indexed by tensor axis 0/1/2
-                                                  // spacing and origin index as f64; no cast needed.
-        let sp = [spacing[0], spacing[1], spacing[2]];
-        let og = [origin[0], origin[1], origin[2]];
+        // Physical basis the solve runs in: the world axes for a 3-D field, the
+        // slab's own plane for a z == 1 field.
+        let basis = active_basis(&geometry, &axes)?;
 
         let f = self.subsampling_factor.max(1);
-        // World position along active-axis position `k` of axis `axes[t]`.
-        let world = |t: usize, idx: usize| -> f64 { og[axes[t]] + idx as f64 * sp[axes[t]] };
 
         // ── Build landmarks (source = p + d, target = p; Y = −d) ─────────────
         let counts: Vec<usize> = axes.iter().map(|&a| (dims[a] / f).max(1)).collect();
         let n_land: usize = counts.iter().product();
         if n_land == 0 {
-            return (comp_x.clone(), comp_y.clone(), comp_z.clone());
+            return Ok((comp_x.clone(), comp_y.clone(), comp_z.clone()));
         }
         let mut gstride = vec![1usize; d];
         for t in (0..d - 1).rev() {
@@ -162,12 +224,14 @@ impl InverseDisplacementField {
                 full[axes[t]] = gk * f;
             }
             let flat = full[0] * stride[0] + full[1] * stride[1] + full[2] * stride[2];
+            // Landmark source is the displaced physical point; both the point
+            // and the displacement are resolved in the solve basis.
+            let point = geometry.point([full[0] as f64, full[1] as f64, full[2] as f64]);
+            let displacement = [ux[flat], uy[flat], uz[flat]];
             for t in 0..d {
-                let a = axes[t];
-                let p = world(t, full[a]);
-                let disp = comps[a][flat];
-                src[li * d + t] = p + disp;
-                ymat[li * d + t] = -disp;
+                let component = dot(displacement, basis[t]);
+                src[li * d + t] = dot(point, basis[t]) + component;
+                ymat[li * d + t] = -component;
             }
         }
 
@@ -246,10 +310,10 @@ impl InverseDisplacementField {
                 let iz = fi / stride[0];
                 let iy = (fi % stride[0]) / stride[1];
                 let ix = fi % stride[1];
-                let full = [iz, iy, ix];
+                let point = geometry.point([iz as f64, iy as f64, ix as f64]);
                 let mut q = [0.0_f64; 3];
                 for t in 0..d {
-                    q[t] = og[axes[t]] + full[axes[t]] as f64 * sp[axes[t]];
+                    q[t] = dot(point, basis[t]);
                 }
                 // Affine part A·q + B.
                 let mut res = [0.0_f64; 3];
@@ -278,27 +342,38 @@ impl InverseDisplacementField {
                 res
             });
 
-        // Scatter active-axis outputs back to (x, y, z) component buffers.
+        // Recombine the solved basis coordinates into world (x, y, z)
+        // components. For a 3-D field the basis is the world axes and this is
+        // the identity; for a z == 1 slab it maps the in-plane result back out.
         let mut ox = vec![0.0_f32; n];
         let mut oy = vec![0.0_f32; n];
         let mut oz = vec![0.0_f32; n];
         for (fi, res) in voxel_out.iter().enumerate() {
+            let mut world_vector = [0.0_f64; 3];
             for t in 0..d {
-                let target = match axes[t] {
-                    0 => &mut oz[fi],
-                    1 => &mut oy[fi],
-                    _ => &mut ox[fi],
-                };
-                *target = res[t] as f32;
+                for k in 0..3 {
+                    world_vector[k] += res[t] * basis[t][k];
+                }
             }
+            ox[fi] = world_vector[0] as f32;
+            oy[fi] = world_vector[1] as f32;
+            oz[fi] = world_vector[2] as f32;
         }
-        (
+        Ok((
             rebuild(ox, dims, comp_x),
             rebuild(oy, dims, comp_y),
             rebuild(oz, dims, comp_z),
-        )
+        ))
     }
+
     /// Coeus-native counterpart to the legacy application method.
+    ///
+    /// # Errors
+    ///
+    /// Returns an error when `comp_x`'s coordinate map is not Cartesian, when
+    /// its direction matrix is singular, when the direction is degenerate over
+    /// the active axes of a `z == 1` slab, or when a device buffer cannot be
+    /// read back or rebuilt.
     pub fn apply_native<B>(
         &self,
         comp_x: &ritk_image::Image<f32, B, 3>,
@@ -317,21 +392,22 @@ impl InverseDisplacementField {
         let uy: Vec<f64> = uy.iter().map(|&v| v as f64).collect();
         let uz: Vec<f64> = uz.iter().map(|&v| v as f64).collect();
         let [nz, ny, nx] = dims;
-        let spacing = comp_x.spacing(); // [sz, sy, sx]
-        let origin = comp_x.origin(); // [oz, oy, ox]
         let stride = [ny * nx, nx, 1usize];
+        let geometry = CartesianGridGeometry::new(
+            comp_x.origin(),
+            comp_x.spacing(),
+            comp_x.direction(),
+            comp_x.coordinate_map(),
+        )?;
 
         // Active axes (tensor-axis indices): a z==1 field is 2-D over (y, x).
         let axes: Vec<usize> = if nz == 1 { vec![1, 2] } else { vec![0, 1, 2] };
         let d = axes.len();
-        let comps: [&[f64]; 3] = [&uz, &uy, &ux]; // indexed by tensor axis 0/1/2
-                                                  // spacing and origin index as f64; no cast needed.
-        let sp = [spacing[0], spacing[1], spacing[2]];
-        let og = [origin[0], origin[1], origin[2]];
+        // Physical basis the solve runs in: the world axes for a 3-D field, the
+        // slab's own plane for a z == 1 field.
+        let basis = active_basis(&geometry, &axes)?;
 
         let f = self.subsampling_factor.max(1);
-        // World position along active-axis position `k` of axis `axes[t]`.
-        let world = |t: usize, idx: usize| -> f64 { og[axes[t]] + idx as f64 * sp[axes[t]] };
 
         // ── Build landmarks (source = p + d, target = p; Y = −d) ─────────────
         let counts: Vec<usize> = axes.iter().map(|&a| (dims[a] / f).max(1)).collect();
@@ -363,12 +439,14 @@ impl InverseDisplacementField {
                 full[axes[t]] = gk * f;
             }
             let flat = full[0] * stride[0] + full[1] * stride[1] + full[2] * stride[2];
+            // Landmark source is the displaced physical point; both the point
+            // and the displacement are resolved in the solve basis.
+            let point = geometry.point([full[0] as f64, full[1] as f64, full[2] as f64]);
+            let displacement = [ux[flat], uy[flat], uz[flat]];
             for t in 0..d {
-                let a = axes[t];
-                let p = world(t, full[a]);
-                let disp = comps[a][flat];
-                src[li * d + t] = p + disp;
-                ymat[li * d + t] = -disp;
+                let component = dot(displacement, basis[t]);
+                src[li * d + t] = dot(point, basis[t]) + component;
+                ymat[li * d + t] = -component;
             }
         }
 
@@ -447,10 +525,10 @@ impl InverseDisplacementField {
                 let iz = fi / stride[0];
                 let iy = (fi % stride[0]) / stride[1];
                 let ix = fi % stride[1];
-                let full = [iz, iy, ix];
+                let point = geometry.point([iz as f64, iy as f64, ix as f64]);
                 let mut q = [0.0_f64; 3];
                 for t in 0..d {
-                    q[t] = og[axes[t]] + full[axes[t]] as f64 * sp[axes[t]];
+                    q[t] = dot(point, basis[t]);
                 }
                 // Affine part A·q + B.
                 let mut res = [0.0_f64; 3];
@@ -479,19 +557,22 @@ impl InverseDisplacementField {
                 res
             });
 
-        // Scatter active-axis outputs back to (x, y, z) component buffers.
+        // Recombine the solved basis coordinates into world (x, y, z)
+        // components. For a 3-D field the basis is the world axes and this is
+        // the identity; for a z == 1 slab it maps the in-plane result back out.
         let mut ox = vec![0.0_f32; n];
         let mut oy = vec![0.0_f32; n];
         let mut oz = vec![0.0_f32; n];
         for (fi, res) in voxel_out.iter().enumerate() {
+            let mut world_vector = [0.0_f64; 3];
             for t in 0..d {
-                let target = match axes[t] {
-                    0 => &mut oz[fi],
-                    1 => &mut oy[fi],
-                    _ => &mut ox[fi],
-                };
-                *target = res[t] as f32;
+                for k in 0..3 {
+                    world_vector[k] += res[t] * basis[t][k];
+                }
             }
+            ox[fi] = world_vector[0] as f32;
+            oy[fi] = world_vector[1] as f32;
+            oz[fi] = world_vector[2] as f32;
         }
         Ok(crate::NativeDisplacementField {
             x: crate::native_support::rebuild_image(ox, dims, comp_x, backend)?,
@@ -509,24 +590,149 @@ mod tests {
 
     type B = coeus_core::SequentialBackend;
 
+    /// Direction of a conventional axial acquisition: index axis 0 (depth) runs
+    /// along world z, axis 1 (row) along y, axis 2 (column) along x.
+    ///
+    /// The fixtures below previously used the default identity direction, which
+    /// in this crate's convention sends the *depth* axis to world x. The solve
+    /// nonetheless produced axial answers because it hard-coded this
+    /// permutation instead of reading the matrix; now that the direction is
+    /// honoured, the fixture has to state the geometry it always meant.
+    fn axial() -> ritk_spatial::Direction<3> {
+        ritk_spatial::Direction::from_rows([[0.0, 0.0, 1.0], [0.0, 1.0, 0.0], [1.0, 0.0, 0.0]])
+    }
+
+    fn axial_image(value: f32, dims: [usize; 3]) -> Image<f32, B, 3> {
+        let n: usize = dims.iter().product();
+        ts::make_image_with::<f32, B, 3>(vec![value; n], dims, None, None, Some(axial()))
+    }
+
     /// The inverse of a constant translation field `(a, b)` is `(−a, −b)`
     /// everywhere (the TPS reduces to a pure affine translation). z=1 ⇒ 2-D.
     #[test]
     fn translation_inverse_is_negated() {
         let (h, w) = (16usize, 16usize);
-        let n = h * w;
-        let dx = ts::make_image::<f32, B, 3>(vec![2.0; n], [1, h, w]);
-        let dy = ts::make_image::<f32, B, 3>(vec![3.0; n], [1, h, w]);
-        let dz = ts::make_image::<f32, B, 3>(vec![0.0; n], [1, h, w]);
+        let dx = axial_image(2.0, [1, h, w]);
+        let dy = axial_image(3.0, [1, h, w]);
+        let dz = axial_image(0.0, [1, h, w]);
         let (ix, iy, _iz) = InverseDisplacementField {
             subsampling_factor: 8,
         }
-        .apply(&dx, &dy, &dz);
+        .apply(&dx, &dy, &dz)
+        .expect("invariant: fixture is Cartesian with an invertible direction");
         let (rx, _) = extract_vec_infallible(&ix);
         let (ry, _) = extract_vec_infallible(&iy);
         for (&vx, &vy) in rx.iter().zip(ry.iter()) {
             assert!((vx - (-2.0)).abs() < 1e-4, "inv x = {vx}, want -2");
             assert!((vy - (-3.0)).abs() < 1e-4, "inv y = {vy}, want -3");
         }
+    }
+
+    /// Regression for ATLAS-RITK-TRANSFORM-DIRECTION-081.
+    ///
+    /// Landmark and evaluation points were built from origin and spacing alone,
+    /// so the thin-plate spline was fitted in the index frame no matter how the
+    /// volume was oriented.
+    ///
+    /// The oracle is rigid-motion equivariance, independent of the solver: the
+    /// TPS kernel `G(r) = r` depends only on Euclidean distance, so rotating a
+    /// fit is the fit of the rotated problem. Inverting on a grid with
+    /// direction `R·A` carrying components `R·u` must give exactly `R·v`.
+    ///
+    /// A direction-blind fit returns the same `v` for both grids, which equals
+    /// `R·v` only for `R = I`.
+    #[test]
+    fn tps_inverse_is_equivariant_under_grid_rotation() {
+        let dims = [3usize, 3usize, 3usize];
+        let [nz, ny, nx] = dims;
+        let n = nz * ny * nx;
+
+        // A spatially varying field; a constant translation inverts to its own
+        // negation in every frame and so cannot detect a dropped direction.
+        let mut ux = Vec::with_capacity(n);
+        let mut uy = Vec::with_capacity(n);
+        let mut uz = Vec::with_capacity(n);
+        for iz in 0..nz {
+            for iy in 0..ny {
+                for ix in 0..nx {
+                    let (fz, fy, fx) = (iz as f32, iy as f32, ix as f32);
+                    ux.push(0.05 * fx - 0.02 * fy);
+                    uy.push(0.03 * fy + 0.01 * fz);
+                    uz.push(0.02 * fz - 0.01 * fx);
+                }
+            }
+        }
+
+        let rotation = ritk_spatial::Direction::from_rows([
+            [0.6, -0.8, 0.0],
+            [0.8, 0.6, 0.0],
+            [0.0, 0.0, 1.0],
+        ]);
+        let filter = InverseDisplacementField {
+            subsampling_factor: 1,
+        };
+        let build = |data: Vec<f32>, direction: ritk_spatial::Direction<3>| {
+            ts::make_image_with::<f32, B, 3>(data, dims, None, None, Some(direction))
+        };
+
+        let reference = filter
+            .apply(
+                &build(ux.clone(), axial()),
+                &build(uy.clone(), axial()),
+                &build(uz.clone(), axial()),
+            )
+            .expect("invariant: axial fixture is Cartesian and invertible");
+
+        let rotate = |row: usize| -> Vec<f32> {
+            (0..n)
+                .map(|i| {
+                    (rotation[(row, 0)] * f64::from(ux[i])
+                        + rotation[(row, 1)] * f64::from(uy[i])
+                        + rotation[(row, 2)] * f64::from(uz[i])) as f32
+                })
+                .collect()
+        };
+        let rotated_direction = rotation * axial();
+        let rotated = filter
+            .apply(
+                &build(rotate(0), rotated_direction),
+                &build(rotate(1), rotated_direction),
+                &build(rotate(2), rotated_direction),
+            )
+            .expect("invariant: rotated fixture is Cartesian and invertible");
+
+        let (rx, _) = extract_vec_infallible(&reference.0);
+        let (ry, _) = extract_vec_infallible(&reference.1);
+        let (rz, _) = extract_vec_infallible(&reference.2);
+        let (gx, _) = extract_vec_infallible(&rotated.0);
+        let (gy, _) = extract_vec_infallible(&rotated.1);
+        let (gz, _) = extract_vec_infallible(&rotated.2);
+
+        let mut largest = 0.0_f64;
+        for i in 0..n {
+            let reference_vector = [f64::from(rx[i]), f64::from(ry[i]), f64::from(rz[i])];
+            largest = largest.max(
+                reference_vector
+                    .iter()
+                    .fold(0.0_f64, |acc, v| acc.max(v.abs())),
+            );
+            let got = [f64::from(gx[i]), f64::from(gy[i]), f64::from(gz[i])];
+            for row in 0..3 {
+                let want: f64 = (0..3)
+                    .map(|column| rotation[(row, column)] * reference_vector[column])
+                    .sum();
+                assert!(
+                    (got[row] - want).abs() < 1e-5,
+                    "voxel {i} row {row}: rotated run gave {}, rotation of the \
+                     reference is {want}",
+                    got[row]
+                );
+            }
+        }
+        assert!(
+            largest > 0.02,
+            "fixture must produce a non-trivial inverse field, largest \
+             component was {largest}"
+        );
     }
 }
