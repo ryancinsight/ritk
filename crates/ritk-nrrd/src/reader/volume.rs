@@ -22,6 +22,9 @@ struct DecodedNrrd {
     origin: Point<3>,
     spacing: Spacing<3>,
     direction: Direction<3>,
+    /// Acquisition geometry from the header's key/value field; `Cartesian`
+    /// when absent, which is what every pre-existing NRRD means.
+    coordinate_map: ritk_spatial::CoordinateMap,
 }
 
 impl DecodedNrrd {
@@ -93,6 +96,7 @@ pub fn read_nrrd<B: ComputeBackend, P: AsRef<Path>>(
         decoded.direction,
     );
 
+    let coordinate_map = decoded.coordinate_map;
     Image::from_flat_on(
         decoded.single_volume_data(),
         dims,
@@ -100,7 +104,8 @@ pub fn read_nrrd<B: ComputeBackend, P: AsRef<Path>>(
         spacing,
         direction,
         backend,
-    )
+    )?
+    .with_coordinate_map(coordinate_map)
 }
 
 /// Read a NRRD acquisition series as one image per volume.
@@ -134,11 +139,15 @@ pub fn read_nrrd_series<B: ComputeBackend, P: AsRef<Path>>(
         origin,
         spacing,
         direction,
+        coordinate_map,
     } = decode_nrrd(path)?;
 
     volumes
         .into_iter()
-        .map(|data| Image::from_flat_on(data, dims, origin, spacing, direction, backend))
+        .map(|data| {
+            Image::from_flat_on(data, dims, origin, spacing, direction, backend)?
+                .with_coordinate_map(coordinate_map)
+        })
         .collect()
 }
 
@@ -349,6 +358,7 @@ fn decode_nrrd<P: AsRef<Path>>(path: P) -> Result<DecodedNrrd> {
         origin,
         spacing: spatial.spacing,
         direction: spatial.direction,
+        coordinate_map: crate::coordinate_map::from_header(&headers)?,
     })
 }
 
