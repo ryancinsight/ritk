@@ -142,7 +142,7 @@ impl SurfaceAnnotation {
         // ── Vertex count ───────────────────────────────────────────────
         read_i32(&mut buf, &mut reader)?;
         let vertex_count = i32::from_le_bytes(buf);
-        if vertex_count < 0 || vertex_count > 1_000_000 {
+        if !(0..=1_000_000).contains(&vertex_count) {
             return Err(FreeSurferSurfaceError::InvalidVertexCount {
                 count: vertex_count,
             });
@@ -167,7 +167,7 @@ impl SurfaceAnnotation {
 
             read_i32(&mut buf, &mut reader)?;
             let name_len = i32::from_le_bytes(buf);
-            if name_len < 0 || name_len > 4096 {
+            if !(0..=4096).contains(&name_len) {
                 return Err(FreeSurferSurfaceError::MalformedLabelTable {
                     index: i,
                     reason: format!("name length {name_len} out of range"),

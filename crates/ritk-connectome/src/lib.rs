@@ -498,5 +498,7 @@ fn label_index(lookup: &[(u32, usize)], label: u32) -> Option<usize> {
         .map(|pos| lookup[pos].1)
 }
 
+pub mod freesurfer;
+
 #[cfg(test)]
 mod tests;
