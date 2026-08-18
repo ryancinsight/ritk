@@ -414,11 +414,10 @@ cd crates/ritk-python && maturin develop --release
 cargo install --path crates/ritk-cli
 ```
 
-Hosted workflows check out RITK at `ritk/` and invoke the Atlas-owned
-`checkout-path-dependencies` composite action at an immutable Atlas commit.
-The action reads `ritk/Cargo.toml` and materializes only its external sibling
-path dependencies at the exact Atlas gitlinks. Provider URLs and revisions do
-not have a second RITK-owned list.
+Hosted workflows check out RITK at `ritk/` and let Cargo resolve the Atlas
+providers directly from their `git + version` sources. RITK declares no sibling
+path dependencies and no `[patch]` sections, so provider URLs and revisions have
+a single home in `Cargo.toml` and `Cargo.lock` with no second RITK-owned list.
 
 ### Rust package distribution
 

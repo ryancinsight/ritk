@@ -45,12 +45,6 @@ jobs:
           path: ritk
           persist-credentials: false
 
-      - name: Checkout provider dependencies
-        uses: ./ritk/.github/actions/checkout-atlas-path-dependencies
-        with:
-          manifest: ritk/Cargo.toml
-          destination: .
-
       - name: Add MSYS2 ucrt64 to PATH (Windows — clang-cl C++ runtime DLLs)
         if: runner.os == 'Windows'
         shell: bash
