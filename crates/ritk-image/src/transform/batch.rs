@@ -20,7 +20,7 @@ where
     /// Map a `[point_count, D]` Coeus tensor from physical coordinates to
     /// continuous image indices.
     ///
-    /// Coordinate columns use the same axis order as [`Point<D>`]. Backend
+    /// Coordinate columns use the same axis order as [`ritk_spatial::Point`]. Backend
     /// dispatch occurs once in broadcast subtraction and matrix multiplication;
     /// the method does not materialize point data on the host.
     ///
