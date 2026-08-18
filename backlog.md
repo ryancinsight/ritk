@@ -1,3 +1,67 @@
+## RITK-PARITY-171 — InverseDisplacementField SimpleITK parity broken on main [major] — todo
+
+`Python Wheel (smoke test)` on main fails three SimpleITK parity tests in
+`crates/ritk-python/tests/test_simpleitk_cmake_data.py`:
+
+    test_cmake_inverse_displacement_field_2d        max 2.2323646545410156
+    test_cmake_inverse_displacement_field_3d        max 0.0820963382720947
+    test_cmake_iterative_inverse_displacement_field max 0.1707854270935059
+
+against a `< 1e-4` tolerance. The 2D test's own docstring records that the TPS
+fit "is unique and well-conditioned, so the result is float-exact (NOT a
+tolerance/SVD-variance case)", so these deltas are behavioural divergence from
+SimpleITK, not numerical noise.
+
+**Regression window, bracketed by CI head SHAs:** run at 14:49 UTC on
+`dd577946` passed; run at 18:06 UTC on `c58ad548` failed. The only commit in
+that range touching these filters is
+`3aa73ba0 fix(ritk-filter)!: Apply the direction matrix in index<->physical transforms`
+(ADR 0020), which rewrote `phys`/`idx`/`world` in
+`iterative_inverse_displacement.rs` and `inverse_displacement.rs`.
+
+**Why it escaped.** That commit updated the Rust tests it touched
+(`tests_iterative_inverse_displacement.rs`, +145 lines) and states "Python
+bindings are unaffected". The bindings surface is indeed unchanged, but the
+bindings expose these same filters, and the parity suite compares their output
+against SimpleITK — so the coordinate-frame change reaches them.
+
+**What needs adjudicating** (not decided here): ADR 0020 argues the previous
+behaviour assumed an axial permutation and was "wrong for everything else,
+including the identity direction their own test fixtures used". The parity
+fixtures use the identity direction. So either the new direction handling
+disagrees with ITK's convention for these fixtures, or the fixtures encode the
+old axial assumption and need regenerating against SimpleITK. Deciding which
+requires checking ITK's index->physical convention against this crate's axis
+order; the ADR states identity here sends the depth axis to world x, whereas
+the filters previously paired `spacing[0]` with z.
+
+**Code-grounded lead (hypothesis, not executed).** For `nz == 1`,
+`inverse_displacement.rs` selects `axes = vec![1, 2]` under the comment
+"a z==1 field is 2-D over (y, x)", then builds the solve basis with
+`active_basis`, which Gram-Schmidts `geometry.axis_direction(1)` and
+`axis_direction(2)` -- i.e. **columns 1 and 2 of the direction matrix**. Under
+the identity direction those columns are world y and world **z**. But ADR 0020
+states this crate's identity sends tensor axis 0 to world x, so tensor axes
+`[1, 2]` map to world `(y, z)`, while the field's two in-plane displacement
+components are `(y, x)` -- the pairing the deleted doc line named when it said
+the 2-D path "matches sitk's 2-D filter (axes `y, x`)".
+
+If that is the defect, the basis and the component convention disagree by one
+axis for the 2-D slab. It fits the observed split: the 2-D test is off by 2.23
+while 3-D is off by 0.082, and the 3-D path never reaches `active_basis`'s
+Gram-Schmidt branch -- `axes.len() == 3` returns the world axes directly.
+
+This is inference from reading `active_basis`, `axis_direction`, and the axis
+selection at `inverse_displacement.rs:193`; nothing was executed to confirm it.
+Verify before acting on it.
+
+**Not a tolerance change.** Widening 1e-4 to cover a 2.23 delta would erase the
+oracle these tests exist to provide.
+
+- Evidence: failing job 95830512966 (PR #170 branch) and 95815805986 (main),
+  identical failing tests and identical max deltas -- confirming the failure is
+  on main and independent of that PR.
+
 # RITK Backlog - Active Planning
 
 - **ATLAS-RITK-CONFORMANCE-101 [patch] - Close diffusion binding structure
