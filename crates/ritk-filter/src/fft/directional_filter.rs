@@ -69,10 +69,15 @@ impl ButterworthBandpass {
         {
             bail!(
                 "ButterworthBandpass: need 0 < low < high <= 0.5, got [{}, {}]",
-                low_cutoff, high_cutoff
+                low_cutoff,
+                high_cutoff
             );
         }
-        Ok(Self { low_cutoff, high_cutoff, order })
+        Ok(Self {
+            low_cutoff,
+            high_cutoff,
+            order,
+        })
     }
 
     fn lp(f: f64, c: f64, n: u32) -> f64 {
@@ -82,7 +87,8 @@ impl ButterworthBandpass {
 
 impl DirectionalResponse for ButterworthBandpass {
     fn response(&self, f: f64) -> f32 {
-        (Self::lp(f, self.high_cutoff, self.order) * (1.0 - Self::lp(f, self.low_cutoff, self.order))) as f32
+        (Self::lp(f, self.high_cutoff, self.order)
+            * (1.0 - Self::lp(f, self.low_cutoff, self.order))) as f32
     }
 }
 
@@ -179,7 +185,11 @@ where
     // and (n-k)/n for k > n/2 (negative half-plane, same magnitude).
     let weights: Vec<f32> = (0..n)
         .map(|k| {
-            let f = if k <= n / 2 { k as f64 / n as f64 } else { (n - k) as f64 / n as f64 };
+            let f = if k <= n / 2 {
+                k as f64 / n as f64
+            } else {
+                (n - k) as f64 / n as f64
+            };
             response.response(f)
         })
         .collect();

@@ -93,7 +93,10 @@ fn all_pass_round_trip_axis_1() {
         .map(|(a, b)| (a - b).abs())
         .fold(0.0_f32, f32::max);
 
-    assert!(max_err < 0.5, "near-all-pass axis-1 error too large: {max_err}");
+    assert!(
+        max_err < 0.5,
+        "near-all-pass axis-1 error too large: {max_err}"
+    );
 }
 
 // ── Passband / stopband oracle ────────────────────────────────────────────────
