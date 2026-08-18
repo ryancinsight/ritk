@@ -7,6 +7,7 @@ pub mod access;
 pub mod color;
 pub mod grid;
 pub mod metadata;
+pub mod region;
 #[cfg(any(test, feature = "test-helpers"))]
 pub mod test_support;
 pub mod transform;
@@ -18,6 +19,7 @@ pub use color::{ColorVolume, RgbVolume};
 // this crate's own public signatures (`Image::coordinate_map`).
 pub use grid::{generate_grid, generate_random_points};
 pub use metadata::ImageMetadata;
+pub use region::{RegionRows, RowWalker, Tiles, VoxelIter, VoxelRegion};
 pub use ritk_spatial::{CoordinateMap, CurvilinearArray, InvalidCoordinateMap, PhasedArray3D};
 pub use types::Image;
 

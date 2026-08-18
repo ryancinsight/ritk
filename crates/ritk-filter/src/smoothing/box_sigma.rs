@@ -18,9 +18,10 @@
 //! `7.071`. Shares the clipped-window/shrink-boundary convention with
 //! [`super::box_mean::BoxMeanImageFilter`].
 
+use coeus_core::{CpuAddressableStorage, Scalar};
 use ritk_image::tensor::Backend;
-use ritk_image::Image;
-use ritk_tensor_ops::{extract_vec_infallible, rebuild};
+use ritk_image::{Image, RowWalker, VoxelRegion};
+use ritk_tensor_ops::rebuild;
 
 /// Box sigma filter — clipped-window sample standard deviation
 /// (ITK `BoxSigmaImageFilter`).
@@ -37,96 +38,88 @@ impl BoxSigmaImageFilter {
     }
 
     /// Apply the box sigma to a 3-D image.
-    pub fn apply<B: Backend>(&self, image: &Image<f32, B, 3>) -> Image<f32, B, 3> {
-        let (vals, dims) = extract_vec_infallible(image);
-        let [nz, ny, nx] = dims;
-        let [rz, ry, rx] = self.radius;
-
-        // Per-voxel independent (each output reads only its clipped window), so
-        // the grid fans out across threads; the result is bitwise identical to a
-        // serial run.
-        let out: Vec<f32> =
-            moirai::map_collect_index_with::<moirai::Adaptive, _, _>(vals.len(), |flat| {
-                let z = flat / (ny * nx);
-                let rem = flat % (ny * nx);
-                let y = rem / nx;
-                let x = rem % nx;
-                let z0 = z.saturating_sub(rz);
-                let z1 = (z + rz).min(nz - 1);
-                let y0 = y.saturating_sub(ry);
-                let y1 = (y + ry).min(ny - 1);
-                let x0 = x.saturating_sub(rx);
-                let x1 = (x + rx).min(nx - 1);
-                let (mut sum, mut sumsq) = (0.0f64, 0.0f64);
-                for kz in z0..=z1 {
-                    for ky in y0..=y1 {
-                        let base = (kz * ny + ky) * nx;
-                        for kx in x0..=x1 {
-                            let v = vals[base + kx] as f64;
-                            sum += v;
-                            sumsq += v * v;
-                        }
-                    }
-                }
-                let n = ((z1 - z0 + 1) * (y1 - y0 + 1) * (x1 - x0 + 1)) as f64;
-                if n > 1.0 {
-                    let var = (sumsq - sum * sum / n) / (n - 1.0);
-                    var.max(0.0).sqrt() as f32
-                } else {
-                    0.0
-                }
-            });
-        rebuild(out, dims, image)
+    ///
+    /// # Panics
+    ///
+    /// Panics when the image's backing tensor rank does not match its type-level
+    /// rank, which `Image`'s constructors already preclude.
+    pub fn apply<B>(&self, image: &Image<f32, B, 3>) -> Image<f32, B, 3>
+    where
+        B: Backend,
+        B::DeviceBuffer<f32>: CpuAddressableStorage<f32>,
+    {
+        let region = image
+            .region()
+            .expect("invariant: Image::new validates tensor rank equals D");
+        rebuild(self.sigma_over(&region), image.shape(), image)
     }
+
     /// Coeus-native counterpart to the legacy application method.
+    ///
+    /// # Errors
+    ///
+    /// Returns an error when the image cannot be viewed as a region, or when the
+    /// result cannot be rebuilt into an image.
     pub fn apply_native<B>(
         &self,
-        image: &ritk_image::Image<f32, B, 3>,
+        image: &Image<f32, B, 3>,
         backend: &B,
-    ) -> anyhow::Result<ritk_image::Image<f32, B, 3>>
+    ) -> anyhow::Result<Image<f32, B, 3>>
     where
         B: coeus_core::ComputeBackend,
-        B::DeviceBuffer<f32>: coeus_core::CpuAddressableStorage<f32>,
+        B::DeviceBuffer<f32>: CpuAddressableStorage<f32>,
     {
-        let (vals, dims) = ritk_tensor_ops::native::extract_image_vec(image)?;
-        let [nz, ny, nx] = dims;
-        let [rz, ry, rx] = self.radius;
+        let region = image.region()?;
+        let out = self.sigma_over(&region);
+        crate::native_support::rebuild_image(out, image.shape(), image, backend)
+    }
+
+    /// Clipped-window sample standard deviation over a borrowed region.
+    ///
+    /// The single kernel behind both entry points. It reads the input through
+    /// the region seam rather than a flat host copy: the window per output voxel
+    /// is a [`VoxelRegion::clipped_window`] (fixed-size arrays, no allocation),
+    /// and its values are accumulated over the lent innermost rows, which are
+    /// direct borrows of the image buffer whenever the inner axis is unit-stride
+    /// — every ordinary volume. The whole traversal allocates only the output.
+    fn sigma_over<T>(&self, region: &VoxelRegion<'_, T, 3>) -> Vec<f32>
+    where
+        T: Scalar + Copy + Into<f64>,
+    {
+        let shape = region.shape();
+        let [_, ny, nx] = shape;
+        let radius = self.radius;
+        let plane = ny * nx;
 
         // Per-voxel independent (each output reads only its clipped window), so
         // the grid fans out across threads; the result is bitwise identical to a
         // serial run.
-        let out: Vec<f32> =
-            moirai::map_collect_index_with::<moirai::Adaptive, _, _>(vals.len(), |flat| {
-                let z = flat / (ny * nx);
-                let rem = flat % (ny * nx);
-                let y = rem / nx;
-                let x = rem % nx;
-                let z0 = z.saturating_sub(rz);
-                let z1 = (z + rz).min(nz - 1);
-                let y0 = y.saturating_sub(ry);
-                let y1 = (y + ry).min(ny - 1);
-                let x0 = x.saturating_sub(rx);
-                let x1 = (x + rx).min(nx - 1);
-                let (mut sum, mut sumsq) = (0.0f64, 0.0f64);
-                for kz in z0..=z1 {
-                    for ky in y0..=y1 {
-                        let base = (kz * ny + ky) * nx;
-                        for kx in x0..=x1 {
-                            let v = vals[base + kx] as f64;
-                            sum += v;
-                            sumsq += v * v;
-                        }
-                    }
+        moirai::map_collect_index_with::<moirai::Adaptive, _, _>(region.len(), move |flat| {
+            let z = flat / plane;
+            let rem = flat % plane;
+            let centre = [z, rem / nx, rem % nx];
+            let window = region
+                .clipped_window(centre, radius)
+                .expect("invariant: centre derives from an in-range flat index");
+
+            let (mut sum, mut sumsq) = (0.0f64, 0.0f64);
+            let mut rows = window.rows();
+            while let Some(row) = rows.next_row() {
+                for &value in row {
+                    let v: f64 = value.into();
+                    sum += v;
+                    sumsq += v * v;
                 }
-                let n = ((z1 - z0 + 1) * (y1 - y0 + 1) * (x1 - x0 + 1)) as f64;
-                if n > 1.0 {
-                    let var = (sumsq - sum * sum / n) / (n - 1.0);
-                    var.max(0.0).sqrt() as f32
-                } else {
-                    0.0
-                }
-            });
-        crate::native_support::rebuild_image(out, dims, image, backend)
+            }
+
+            let n = window.len() as f64;
+            if n > 1.0 {
+                let var = (sumsq - sum * sum / n) / (n - 1.0);
+                var.max(0.0).sqrt() as f32
+            } else {
+                0.0
+            }
+        })
     }
 }
 

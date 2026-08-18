@@ -10,6 +10,46 @@
 
 ## [Unreleased] — conformance cleanup and JPEG 2000 scalar quality control (FEAT-692-01)
 
+- [major] Add borrowed region views to `ritk-image` and migrate
+  `BoxSigmaImageFilter` onto them (ADR
+  [0019](docs/adr/0019-borrowed-region-views.md)). `Image::region()` returns a
+  `VoxelRegion<'_, T, D>` — a borrowed, possibly strided rectangular view
+  carrying its own origin-corrected physical metadata in fixed-size arrays, so
+  narrowing it with `subregion`, `clipped_window` or `subregions` allocates
+  nothing. `rows()` is a lending walker behind the `RowWalker` trait
+  (`type Item<'a>`): it lends direct borrows of the image buffer when the
+  innermost axis is unit-stride, and gathers into one reused scratch buffer when
+  it is not.
+
+  Unlike `data_slice`, `region()` accepts a strided image. A permuted or sliced
+  image previously had no read path except `data_cow`, which materialises the
+  whole volume.
+
+  **Breaking:** `BoxSigmaImageFilter::apply` gains a
+  `B::DeviceBuffer<f32>: CpuAddressableStorage<f32>` bound. Both in-repo call
+  patterns already satisfy it, so no call site changes:
+
+  ```rust
+  // before
+  pub fn apply<B: Backend>(&self, image: &Image<f32, B, 3>) -> Image<f32, B, 3>
+  // after
+  pub fn apply<B>(&self, image: &Image<f32, B, 3>) -> Image<f32, B, 3>
+  where
+      B: Backend,
+      B::DeviceBuffer<f32>: CpuAddressableStorage<f32>,
+  ```
+
+  A backend whose device buffer is not CPU-addressable could not have used this
+  filter regardless: the previous body extracted to host memory unconditionally.
+
+  Both of the filter's entry points carried byte-identical bodies, each preceded
+  by a whole-volume `Vec` copy; they now share one region-reading kernel. On a
+  64³ `f32` volume the filter allocates 3 blocks / 1 048 648 B against a
+  1 048 576 B output — 40 B above the parallel collect's own floor, where the
+  previous implementation added a further 1 048 576 B input copy. Measured by
+  `crates/ritk-filter/tests/box_sigma_allocation.rs`, which installs a counting
+  global allocator; the SimpleITK-pinned value tests are unchanged.
+
 - [patch] Move the architecture, archive, implementation, and optimization
   documents under `docs/`, replace provider-local `#[allow]` suppressions with
   checked `#[expect]` sites, and strengthen the invalid-MINC regression to
