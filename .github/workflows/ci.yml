@@ -3,8 +3,22 @@ name: CI
 on:
   push:
     branches: [main]
+    paths-ignore:
+      - 'backlog.md'
+      - 'checklist.md'
+      - 'CHANGELOG.md'
+      - 'README.md'
+      - 'docs/**'
+      - '.github/agents/**'
   pull_request:
     branches: [main]
+    paths-ignore:
+      - 'backlog.md'
+      - 'checklist.md'
+      - 'CHANGELOG.md'
+      - 'README.md'
+      - 'docs/**'
+      - '.github/agents/**'
 
 concurrency:
   group: ci-${{ github.ref }}
