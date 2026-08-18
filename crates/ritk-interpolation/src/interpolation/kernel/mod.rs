@@ -41,3 +41,6 @@ pub mod bspline;
 pub mod linear;
 pub mod nearest;
 pub mod sinc;
+
+#[cfg(test)]
+mod tests_sinc;

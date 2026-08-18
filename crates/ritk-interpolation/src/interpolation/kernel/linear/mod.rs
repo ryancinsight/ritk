@@ -186,3 +186,6 @@ fn interpolate_point(
 
     result
 }
+
+#[cfg(test)]
+mod tests_linear;
