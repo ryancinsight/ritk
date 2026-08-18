@@ -35,6 +35,26 @@ requires checking ITK's index->physical convention against this crate's axis
 order; the ADR states identity here sends the depth axis to world x, whereas
 the filters previously paired `spacing[0]` with z.
 
+**Code-grounded lead (hypothesis, not executed).** For `nz == 1`,
+`inverse_displacement.rs` selects `axes = vec![1, 2]` under the comment
+"a z==1 field is 2-D over (y, x)", then builds the solve basis with
+`active_basis`, which Gram-Schmidts `geometry.axis_direction(1)` and
+`axis_direction(2)` -- i.e. **columns 1 and 2 of the direction matrix**. Under
+the identity direction those columns are world y and world **z**. But ADR 0020
+states this crate's identity sends tensor axis 0 to world x, so tensor axes
+`[1, 2]` map to world `(y, z)`, while the field's two in-plane displacement
+components are `(y, x)` -- the pairing the deleted doc line named when it said
+the 2-D path "matches sitk's 2-D filter (axes `y, x`)".
+
+If that is the defect, the basis and the component convention disagree by one
+axis for the 2-D slab. It fits the observed split: the 2-D test is off by 2.23
+while 3-D is off by 0.082, and the 3-D path never reaches `active_basis`'s
+Gram-Schmidt branch -- `axes.len() == 3` returns the world axes directly.
+
+This is inference from reading `active_basis`, `axis_direction`, and the axis
+selection at `inverse_displacement.rs:193`; nothing was executed to confirm it.
+Verify before acting on it.
+
 **Not a tolerance change.** Widening 1e-4 to cover a 2.23 delta would erase the
 oracle these tests exist to provide.
 
