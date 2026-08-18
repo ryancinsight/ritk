@@ -10,6 +10,46 @@
 
 ## [Unreleased] — conformance cleanup and JPEG 2000 scalar quality control (FEAT-692-01)
 
+- [major] Collapse `Image`'s seven host-data accessors to two, and give the
+  Cartesian index/world transform pair a home every consumer can reach (ADR
+  [0021](docs/adr/0021-two-image-data-accessors.md)).
+
+  `Image` keeps `data_slice` — borrow a contiguous host slice or fail — and
+  `data_cow_on` — borrow, or materialise a compact copy for a strided layout.
+  Those are the two distinct behaviours; the other five crossed a
+  default-backend convenience and an ownership step over them. Two of the five
+  returned `anyhow::Result` from an operation their own documentation described
+  as infallible, so 28 call sites carried a `?` or `.context(..)?` on a branch
+  that cannot be taken.
+
+  **Breaking:** `data_cow`, `data_vec`, `data_vec_on`, `try_data_vec` and
+  `try_data_vec_on` are removed. Migrate by appending `.into_owned()` for the
+  owning forms and passing `&B::default()` for the default-backend forms:
+  `image.try_data_vec()?` becomes `image.data_cow_on(&B::default()).into_owned()`.
+  All 60 in-repo call sites are converted in this change; no re-export,
+  `#[deprecated]` alias or forwarding wrapper is introduced.
+
+  **Breaking:** `CartesianGridGeometry` moves from `ritk-filter` (where ADR 0020
+  introduced it as a crate-private 3-D type) to `ritk-spatial`, public and
+  generic over rank, with a `NonCartesianGrid` error replacing the `anyhow`
+  message that named its first caller. `Image::grid_geometry()` is the entry
+  point — the third transform granularity beside ADR 0018's per-point pair and
+  ADR 0020's per-tensor batch, and the one a per-voxel sweep needs.
+
+  Four transform sites become consumers of it. The `apply`/`apply_native` pairs
+  in `InverseDisplacementField` and `IterativeInverseDisplacementField` carried
+  byte-identical 179- and 143-line cores behind a legacy-vs-native I/O shell;
+  each collapses to one private solver over host buffers, taking the two files
+  from 738 to 583 and 393 to 263 lines. `DicomOrient`'s duplicated corner-origin
+  loop becomes one `geometry.point(corner)` call in both entry points.
+
+  Thirty transform sites remain, counted and listed in the ADR: 20 are
+  direction-aware and correct, needing only mechanical substitution; 10 are
+  direction-free and wrong for an oblique volume — `transform::expand` most
+  sharply, being the one member of the ROI/pad/shrink/orient/expand family that
+  drops the direction matrix. That set is a numeric change needing oblique
+  fixtures and is deliberately not folded in here.
+
 - [major] Apply the direction cosines in the grid-sweeping filters' index/world
   transforms (ADR
   [0020](docs/adr/0020-direction-aware-grid-transforms.md)). Marching cubes and

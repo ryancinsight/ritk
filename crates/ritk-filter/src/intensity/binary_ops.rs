@@ -373,8 +373,8 @@ impl<Op: BinaryOp> BinaryOpFilter<Op> {
         B: ComputeBackend,
     {
         check_shapes(a.shape(), b.shape())?;
-        let left = a.try_data_vec_on(backend)?;
-        let right = b.try_data_vec_on(backend)?;
+        let left = a.data_cow_on(backend).into_owned();
+        let right = b.data_cow_on(backend).into_owned();
         let output = left
             .iter()
             .zip(&right)

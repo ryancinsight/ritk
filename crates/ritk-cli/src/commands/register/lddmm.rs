@@ -209,8 +209,8 @@ mod tests {
 
         // Round-trip.
         let reconstructed = flat_vec_to_image(data, shape, &image);
-        let recon_vals: Vec<f32> = reconstructed.data_vec();
-        let orig_vals: Vec<f32> = image.data_vec();
+        let recon_vals: Vec<f32> = reconstructed.data_cow_on(&Backend::default()).into_owned();
+        let orig_vals: Vec<f32> = image.data_cow_on(&Backend::default()).into_owned();
         for (i, (&o, &r)) in orig_vals.iter().zip(recon_vals.iter()).enumerate() {
             assert!(
                 (o - r).abs() < 1e-6,

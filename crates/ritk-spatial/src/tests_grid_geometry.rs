@@ -1,7 +1,7 @@
 //! Tests for the hoisted Cartesian index/world transform pair.
 
 use super::CartesianGridGeometry;
-use ritk_spatial::{CoordinateMap, Direction, Point, Spacing};
+use crate::{CoordinateMap, CurvilinearArray, Direction, Point, Spacing};
 
 /// Deliberately oblique fixture with exact-rational geometry.
 ///
@@ -10,7 +10,7 @@ use ritk_spatial::{CoordinateMap, Direction, Point, Spacing};
 /// - direction rotating the (x, y) plane by the exact 3-4-5 angle
 ///   (`cos = 0.6`, `sin = 0.8`), so column 0 — the physical direction of the
 ///   slowest index axis — is `(0.6, 0.8, 0)` rather than a coordinate axis.
-fn oblique() -> CartesianGridGeometry {
+fn oblique() -> CartesianGridGeometry<3> {
     let direction = Direction::from_rows([[0.6, -0.8, 0.0], [0.8, 0.6, 0.0], [0.0, 0.0, 1.0]]);
     assert!(
         direction.is_orthogonal(),
@@ -109,6 +109,64 @@ fn identity_direction_reduces_to_the_axis_aligned_affine() {
         geometry.point(index),
         [10.0 + 2.0 * 4.0, 20.0 + 3.0 * 3.0, 30.0 + 4.0 * 2.0],
         "identity direction must be bit-identical to the direction-free affine"
+    );
+}
+
+#[test]
+fn the_two_dimensional_instantiation_applies_the_same_formula() {
+    // The type is generic over rank; the 2-D instantiation must be the same
+    // affine, not a separate code path. Rotation by the 3-4-5 angle again, so
+    // the expected point is computable by hand: index [1, 1] scales to (4, 3),
+    // D * (4, 3) = 4*(0.6, 0.8) + 3*(-0.8, 0.6) = (0, 5), point = (10, 25).
+    let geometry = CartesianGridGeometry::<2>::new(
+        &Point::new([10.0, 20.0]),
+        &Spacing::try_new([4.0, 3.0]).expect("invariant: fixture spacing is positive"),
+        &Direction::from_rows([[0.6, -0.8], [0.8, 0.6]]),
+        &CoordinateMap::Cartesian,
+    )
+    .expect("invariant: fixture is Cartesian with an orthonormal direction");
+
+    let got = geometry.point([1.0, 1.0]);
+    let want = [10.0, 25.0];
+    for k in 0..2 {
+        assert!(
+            (got[k] - want[k]).abs() < 1e-12,
+            "component {k}: got {got:?}, want {want:?}"
+        );
+    }
+    let back = geometry.index(want);
+    for k in 0..2 {
+        assert!(
+            (back[k] - 1.0).abs() < 1e-12,
+            "component {k}: round trip gave {back:?}, want [1, 1]"
+        );
+    }
+}
+
+#[test]
+fn axis_direction_returns_the_direction_column_not_the_row() {
+    // Column 0 of the oblique fixture is (0.6, 0.8, 0); row 0 is (0.6, -0.8, 0).
+    // The two differ in sign, so a transpose mistake is visible here.
+    assert_eq!(oblique().axis_direction(0), [0.6, 0.8, 0.0]);
+    assert_eq!(oblique().axis_direction(1), [-0.8, 0.6, 0.0]);
+}
+
+#[test]
+fn a_beam_space_acquisition_is_rejected_rather_than_mapped_affinely() {
+    // The whole reason the constructor takes a map: a curvilinear index pair is
+    // a beam and a sample, and the affine formula would answer with a point in
+    // no physical space at all.
+    let beam = CurvilinearArray::try_new(1.0, 0.5, 0.01, -0.5).expect("valid curvilinear geometry");
+    let error = CartesianGridGeometry::<3>::new(
+        &Point::origin(),
+        &Spacing::try_new([1.0, 1.0, 1.0]).expect("invariant: unit spacing is positive"),
+        &Direction::identity(),
+        &CoordinateMap::CurvilinearArray(beam),
+    )
+    .expect_err("a beam-space acquisition must be rejected");
+    assert!(
+        error.to_string().contains("Cartesian coordinate map"),
+        "error should name the coordinate map, got {error}"
     );
 }
 

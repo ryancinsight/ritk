@@ -1,6 +1,6 @@
 //! `execute()` implementation and per-step dispatch logic.
 
-use anyhow::{Context, Result};
+use anyhow::Result;
 use ritk_filter::bias::N4Config;
 use ritk_filter::{GaussianFilter, GaussianSigma, N4BiasFieldCorrectionFilter};
 use ritk_image::tensor::{Backend, Tensor};
@@ -35,17 +35,13 @@ impl PreprocessingPipeline {
                 }
 
                 PreprocessingStep::IntensityNormalization { mode } => {
-                    let vals = image
-                        .try_data_vec()
-                        .context("IntensityNormalization requires f32 image data")?;
+                    let vals = image.data_cow_on(&B::default()).into_owned();
                     let result = normalize_values(&vals, mode);
                     rebuild_image(&image, result)?
                 }
 
                 PreprocessingStep::Clamp { lower, upper } => {
-                    let vals = image
-                        .try_data_vec()
-                        .context("Clamp requires f32 image data")?;
+                    let vals = image.data_cow_on(&B::default()).into_owned();
                     let result = clamp_values(&vals, *lower, *upper);
                     rebuild_image(&image, result)?
                 }
@@ -56,9 +52,7 @@ impl PreprocessingPipeline {
                 } => {
                     let shape = image.shape();
                     validate_mask(mask, *mask_dims, shape)?;
-                    let vals = image
-                        .try_data_vec()
-                        .context("Masking requires f32 image data")?;
+                    let vals = image.data_cow_on(&B::default()).into_owned();
                     let result = apply_mask_values(&vals, mask)?;
                     rebuild_image(&image, result)?
                 }

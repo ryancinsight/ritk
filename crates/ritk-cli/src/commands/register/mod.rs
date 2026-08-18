@@ -275,7 +275,7 @@ pub(super) fn leto_volume_to_image(
 /// Panics if the tensor data cannot be extracted as `f32`.
 pub(super) fn image_to_flat_vec(image: &Image<f32, Backend, 3>) -> (Vec<f32>, [usize; 3]) {
     let shape = image.shape();
-    let data: Vec<f32> = image.data_vec();
+    let data: Vec<f32> = image.data_cow_on(&Backend::default()).into_owned();
     (data, [shape[0], shape[1], shape[2]])
 }
 

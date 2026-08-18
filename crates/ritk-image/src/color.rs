@@ -336,7 +336,7 @@ mod tests {
             &backend,
         )
         .unwrap();
-        assert_eq!(rebuilt.data_vec(), interleaved);
+        assert_eq!(rebuilt.data_cow_on(&B::default()).into_owned(), interleaved);
         assert_eq!(rebuilt.origin(), vol.origin());
         assert_eq!(rebuilt.spacing(), vol.spacing());
     }

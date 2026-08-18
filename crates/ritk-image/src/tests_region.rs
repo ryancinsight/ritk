@@ -342,7 +342,7 @@ fn strided_image_is_readable_in_place_rather_than_materialised() {
         "the flat-slice accessor still refuses a strided image"
     );
     assert!(
-        matches!(image.data_cow(), std::borrow::Cow::Owned(_)),
+        matches!(image.data_cow_on(&B::default()), std::borrow::Cow::Owned(_)),
         "the cow accessor still materialises a strided image"
     );
 

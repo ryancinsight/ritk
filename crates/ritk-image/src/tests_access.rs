@@ -21,13 +21,16 @@ fn data_cow_borrows_when_contiguous() {
     )
     .unwrap();
 
-    let cow = image.data_cow();
+    let cow = image.data_cow_on(&SequentialBackend);
     assert!(
         matches!(cow, std::borrow::Cow::Borrowed(_)),
         "contiguous image must borrow (zero-copy)"
     );
     assert_eq!(cow.as_ref(), &[1.0, 2.0, 3.0, 4.0, 5.0, 6.0]);
-    assert_eq!(image.data_vec(), vec![1.0, 2.0, 3.0, 4.0, 5.0, 6.0]);
+    assert_eq!(
+        image.data_cow_on(&SequentialBackend).into_owned(),
+        vec![1.0, 2.0, 3.0, 4.0, 5.0, 6.0]
+    );
 }
 
 #[test]
@@ -49,13 +52,16 @@ fn data_cow_materializes_logical_order_for_permuted_view() {
 
     // Host transpose oracle: [[1,4],[2,5],[3,6]] row-major.
     let expected = [1.0, 4.0, 2.0, 5.0, 3.0, 6.0];
-    let cow = image.data_cow();
+    let cow = image.data_cow_on(&SequentialBackend);
     assert!(
         matches!(cow, std::borrow::Cow::Owned(_)),
         "non-contiguous image must materialize (owned)"
     );
     assert_eq!(cow.as_ref(), &expected);
-    assert_eq!(image.data_vec(), expected.to_vec());
+    assert_eq!(
+        image.data_cow_on(&SequentialBackend).into_owned(),
+        expected.to_vec()
+    );
 }
 
 #[test]

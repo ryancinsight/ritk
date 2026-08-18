@@ -47,7 +47,7 @@ pub fn write_metaimage<B: Backend, P: AsRef<Path>>(
     path: P,
     image: &Image<f32, B, 3>,
 ) -> Result<()> {
-    let native = legacy_metadata_to_native(image, image.try_data_vec()?)?;
+    let native = legacy_metadata_to_native(image, image.data_cow_on(&B::default()).into_owned())?;
     ritk_metaimage::write_metaimage(path, &native, &SequentialBackend)
 }
 

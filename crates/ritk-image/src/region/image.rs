@@ -17,8 +17,8 @@ where
     /// physical metadata.
     ///
     /// Unlike [`Self::data_slice`], this accepts a strided image. A permuted or
-    /// sliced tensor has no flat host slice, so the only previous route to its
-    /// values was [`Self::data_cow`], which materialises the whole volume; a
+    /// sliced tensor has no flat host slice, so the only other route to its
+    /// values is [`Self::data_cow_on`], which materialises the whole volume; a
     /// region reads the same values in place through the layout's strides.
     /// [`VoxelRegion::as_slice`] still returns `None` for such a region, so the
     /// distinction stays visible where it matters.

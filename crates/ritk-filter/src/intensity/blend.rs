@@ -102,8 +102,8 @@ impl BlendImageFilter {
         );
         let alpha = self.alpha.get();
         let complement = 1.0 - alpha;
-        let left = a.try_data_vec_on(backend)?;
-        let right = b.try_data_vec_on(backend)?;
+        let left = a.data_cow_on(backend).into_owned();
+        let right = b.data_cow_on(backend).into_owned();
         let values = left
             .iter()
             .zip(&right)

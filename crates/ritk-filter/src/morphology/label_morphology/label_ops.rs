@@ -59,7 +59,7 @@ impl LabelDilation {
     where
         B: ComputeBackend,
     {
-        let values = image.try_data_vec_on(backend)?;
+        let values = image.data_cow_on(backend).into_owned();
         ritk_image::Image::from_flat_on(
             dilate_labels(&values, image.shape(), self.radius),
             image.shape(),
@@ -196,7 +196,7 @@ impl LabelErosion {
     where
         B: ComputeBackend,
     {
-        let values = image.try_data_vec_on(backend)?;
+        let values = image.data_cow_on(backend).into_owned();
         ritk_image::Image::from_flat_on(
             erode_labels(&values, image.shape(), self.radius),
             image.shape(),

@@ -166,7 +166,6 @@ pub mod displacement;
 pub mod distance;
 pub mod fast_marching;
 pub mod fractal_dimension;
-pub(crate) mod grid_geometry;
 pub mod inverse_displacement;
 pub mod invert_displacement;
 pub mod iso_contour;

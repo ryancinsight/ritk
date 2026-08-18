@@ -47,7 +47,7 @@ use ritk_image::tensor::Backend;
 use ritk_image::Image;
 use ritk_tensor_ops::{extract_vec_infallible, rebuild};
 
-use crate::grid_geometry::CartesianGridGeometry;
+use ritk_spatial::CartesianGridGeometry;
 
 /// Euclidean inner product of two physical 3-vectors.
 fn dot(a: [f64; 3], b: [f64; 3]) -> f64 {
@@ -61,7 +61,10 @@ fn dot(a: [f64; 3], b: [f64; 3]) -> f64 {
 /// runs directly in world coordinates; the Gram-Schmidt path exists for the
 /// `z == 1` slab, whose plane is arbitrarily oriented under an oblique
 /// direction.
-fn active_basis(geometry: &CartesianGridGeometry, axes: &[usize]) -> anyhow::Result<Vec<[f64; 3]>> {
+fn active_basis(
+    geometry: &CartesianGridGeometry<3>,
+    axes: &[usize],
+) -> anyhow::Result<Vec<[f64; 3]>> {
     if axes.len() == 3 {
         return Ok(vec![[1.0, 0.0, 0.0], [0.0, 1.0, 0.0], [0.0, 0.0, 1.0]]);
     }
@@ -159,42 +162,34 @@ fn solve_linear(mut a: Vec<f64>, mut b: Vec<f64>) -> Vec<f64> {
 }
 
 impl InverseDisplacementField {
-    /// Invert the field whose world-frame components are `comp_x`, `comp_y`,
-    /// `comp_z` (each a scalar `[z, y, x]` image on a shared grid). Returns the
-    /// inverse components `(inv_x, inv_y, inv_z)` on the same grid.
+    /// Solve the inversion on host buffers, independent of how they were
+    /// extracted and how the result is rebuilt.
+    ///
+    /// `Ok(None)` reports the degenerate landmark-free case, where the inverse
+    /// is the input field; the caller owns that identity because the two entry
+    /// points return different image types.
     ///
     /// # Errors
     ///
-    /// Returns an error when `comp_x`'s coordinate map is not Cartesian, when
-    /// its direction matrix is singular, or when the direction is degenerate
-    /// over the active axes of a `z == 1` slab.
-    pub fn apply<B: Backend>(
+    /// Returns an error when the direction is degenerate over the active axes
+    /// of a `z == 1` slab.
+    fn invert_components(
         &self,
-        comp_x: &Image<f32, B, 3>,
-        comp_y: &Image<f32, B, 3>,
-        comp_z: &Image<f32, B, 3>,
-    ) -> anyhow::Result<crate::DisplacementComponents<B>> {
-        let (ux, dims) = extract_vec_infallible(comp_x);
-        let (uy, _) = extract_vec_infallible(comp_y);
-        let (uz, _) = extract_vec_infallible(comp_z);
-        let ux: Vec<f64> = ux.iter().map(|&v| v as f64).collect();
-        let uy: Vec<f64> = uy.iter().map(|&v| v as f64).collect();
-        let uz: Vec<f64> = uz.iter().map(|&v| v as f64).collect();
+        ux: &[f64],
+        uy: &[f64],
+        uz: &[f64],
+        dims: [usize; 3],
+        geometry: &CartesianGridGeometry<3>,
+    ) -> anyhow::Result<Option<[Vec<f32>; 3]>> {
         let [nz, ny, nx] = dims;
         let stride = [ny * nx, nx, 1usize];
-        let geometry = CartesianGridGeometry::new(
-            comp_x.origin(),
-            comp_x.spacing(),
-            comp_x.direction(),
-            comp_x.coordinate_map(),
-        )?;
 
         // Active axes (tensor-axis indices): a z==1 field is 2-D over (y, x).
         let axes: Vec<usize> = if nz == 1 { vec![1, 2] } else { vec![0, 1, 2] };
         let d = axes.len();
         // Physical basis the solve runs in: the world axes for a 3-D field, the
         // slab's own plane for a z == 1 field.
-        let basis = active_basis(&geometry, &axes)?;
+        let basis = active_basis(geometry, &axes)?;
 
         let f = self.subsampling_factor.max(1);
 
@@ -202,7 +197,7 @@ impl InverseDisplacementField {
         let counts: Vec<usize> = axes.iter().map(|&a| (dims[a] / f).max(1)).collect();
         let n_land: usize = counts.iter().product();
         if n_land == 0 {
-            return Ok((comp_x.clone(), comp_y.clone(), comp_z.clone()));
+            return Ok(None);
         }
         let mut gstride = vec![1usize; d];
         for t in (0..d - 1).rev() {
@@ -359,6 +354,34 @@ impl InverseDisplacementField {
             oy[fi] = world_vector[1] as f32;
             oz[fi] = world_vector[2] as f32;
         }
+        Ok(Some([ox, oy, oz]))
+    }
+
+    /// Invert the field whose world-frame components are `comp_x`, `comp_y`,
+    /// `comp_z` (each a scalar `[z, y, x]` image on a shared grid). Returns the
+    /// inverse components `(inv_x, inv_y, inv_z)` on the same grid.
+    ///
+    /// # Errors
+    ///
+    /// Returns an error when `comp_x`'s coordinate map is not Cartesian, when
+    /// its direction matrix is singular, or when the direction is degenerate
+    /// over the active axes of a `z == 1` slab.
+    pub fn apply<B: Backend>(
+        &self,
+        comp_x: &Image<f32, B, 3>,
+        comp_y: &Image<f32, B, 3>,
+        comp_z: &Image<f32, B, 3>,
+    ) -> anyhow::Result<crate::DisplacementComponents<B>> {
+        let (ux, dims) = extract_vec_infallible(comp_x);
+        let (uy, _) = extract_vec_infallible(comp_y);
+        let (uz, _) = extract_vec_infallible(comp_z);
+        let ux: Vec<f64> = ux.iter().map(|&v| v as f64).collect();
+        let uy: Vec<f64> = uy.iter().map(|&v| v as f64).collect();
+        let uz: Vec<f64> = uz.iter().map(|&v| v as f64).collect();
+        let geometry = comp_x.grid_geometry()?;
+        let Some([ox, oy, oz]) = self.invert_components(&ux, &uy, &uz, dims, &geometry)? else {
+            return Ok((comp_x.clone(), comp_y.clone(), comp_z.clone()));
+        };
         Ok((
             rebuild(ox, dims, comp_x),
             rebuild(oy, dims, comp_y),
@@ -391,189 +414,14 @@ impl InverseDisplacementField {
         let ux: Vec<f64> = ux.iter().map(|&v| v as f64).collect();
         let uy: Vec<f64> = uy.iter().map(|&v| v as f64).collect();
         let uz: Vec<f64> = uz.iter().map(|&v| v as f64).collect();
-        let [nz, ny, nx] = dims;
-        let stride = [ny * nx, nx, 1usize];
-        let geometry = CartesianGridGeometry::new(
-            comp_x.origin(),
-            comp_x.spacing(),
-            comp_x.direction(),
-            comp_x.coordinate_map(),
-        )?;
-
-        // Active axes (tensor-axis indices): a z==1 field is 2-D over (y, x).
-        let axes: Vec<usize> = if nz == 1 { vec![1, 2] } else { vec![0, 1, 2] };
-        let d = axes.len();
-        // Physical basis the solve runs in: the world axes for a 3-D field, the
-        // slab's own plane for a z == 1 field.
-        let basis = active_basis(&geometry, &axes)?;
-
-        let f = self.subsampling_factor.max(1);
-
-        // ── Build landmarks (source = p + d, target = p; Y = −d) ─────────────
-        let counts: Vec<usize> = axes.iter().map(|&a| (dims[a] / f).max(1)).collect();
-        let n_land: usize = counts.iter().product();
-        if n_land == 0 {
+        let geometry = comp_x.grid_geometry()?;
+        let Some([ox, oy, oz]) = self.invert_components(&ux, &uy, &uz, dims, &geometry)? else {
             return Ok(crate::NativeDisplacementField {
                 x: comp_x.clone(),
                 y: comp_y.clone(),
                 z: comp_z.clone(),
             });
-        }
-        let mut gstride = vec![1usize; d];
-        for t in (0..d - 1).rev() {
-            gstride[t] = gstride[t + 1] * counts[t + 1];
-        }
-        // Flat row-major layout: src[li * d + t] = world source coordinate of
-        // landmark li along active axis t. Eliminates n_land per-landmark heap
-        // allocations and gives contiguous access in the O(n_land²) K-block loop
-        // and the O(n_voxels × n_land) evaluation loop.
-        let mut src = vec![0.0_f64; n_land * d];
-        let mut ymat = vec![0.0_f64; d * (n_land + d + 1)]; // RHS (−d then zeros)
-        for li in 0..n_land {
-            // Decode landmark grid index → per-active-axis voxel index (×factor).
-            let mut full = [0usize; 3];
-            let mut rem = li;
-            for t in 0..d {
-                let gk = rem / gstride[t];
-                rem %= gstride[t];
-                full[axes[t]] = gk * f;
-            }
-            let flat = full[0] * stride[0] + full[1] * stride[1] + full[2] * stride[2];
-            // Landmark source is the displaced physical point; both the point
-            // and the displacement are resolved in the solve basis.
-            let point = geometry.point([full[0] as f64, full[1] as f64, full[2] as f64]);
-            let displacement = [ux[flat], uy[flat], uz[flat]];
-            for t in 0..d {
-                let component = dot(displacement, basis[t]);
-                src[li * d + t] = dot(point, basis[t]) + component;
-                ymat[li * d + t] = -component;
-            }
-        }
-
-        // ── Assemble L = [[K, P], [Páµ€, 0]] and solve L·W = Y ─────────────────
-        // Flat row-major layout: l[r * sz + c]. Eliminates sz per-row heap
-        // allocations and gives contiguous row access for forward elimination.
-        let sz = d * (n_land + d + 1);
-        let pcol = n_land * d; // column offset for the P and Páµ€ blocks (constant)
-        let mut l = vec![0.0_f64; sz * sz];
-        for i in 0..n_land {
-            for j in 0..n_land {
-                let r2: f64 = src[i * d..(i + 1) * d]
-                    .iter()
-                    .zip(src[j * d..(j + 1) * d].iter())
-                    .map(|(a, b)| {
-                        let dd = a - b;
-                        dd * dd
-                    })
-                    .sum();
-                let g = r2.sqrt();
-                for k in 0..d {
-                    l[(i * d + k) * sz + (j * d + k)] = g;
-                }
-            }
-            // P block (rows i·d.., cols n_land·d..).
-            for j in 0..d {
-                for k in 0..d {
-                    l[(i * d + k) * sz + pcol + j * d + k] = src[i * d + j];
-                }
-            }
-            for k in 0..d {
-                l[(i * d + k) * sz + pcol + d * d + k] = 1.0;
-            }
-        }
-        // Páµ€ block (lower-left).
-        for i in 0..n_land {
-            for j in 0..d {
-                for k in 0..d {
-                    l[(pcol + j * d + k) * sz + i * d + k] = src[i * d + j];
-                }
-            }
-            for k in 0..d {
-                l[(pcol + d * d + k) * sz + i * d + k] = 1.0;
-            }
-        }
-        let w = solve_linear(l, ymat);
-
-        // Reorganise W → spline D (d×N), affine A (d×d), translation B (d).
-        // Flat row-major coefficient blocks keep the read-heavy Moirai
-        // evaluation path contiguous and avoid d + d per-row heap allocations.
-        let mut dmat = Vec::with_capacity(d * n_land);
-        for k in 0..d {
-            for i in 0..n_land {
-                dmat.push(w[i * d + k]);
-            }
-        }
-        let mut amat = Vec::with_capacity(d * d);
-        for i in 0..d {
-            for j in 0..d {
-                amat.push(w[n_land * d + j * d + i]);
-            }
-        }
-        let bvec: Vec<f64> = (0..d).map(|k| w[n_land * d + d * d + k]).collect();
-
-        // ── Evaluate inverse displacement at every output voxel ──────────────
-        // The per-voxel evaluation (affine part + spline sum) is embarrassingly
-        // parallel over fi: each voxel reads shared immutable flat data (src,
-        // dmat, amat, bvec) and writes to its own slot. Parallelised via moirai.
-        //
-        // Output layout: Vec<[f64; 3]> indexed [fi][t] where t in 0..d. Using
-        // a stack-allocated [f64; 3] per voxel avoids any per-voxel heap
-        // allocation inside the parallel closure (d is 2 or 3 at runtime).
-        let n = nz * ny * nx;
-        let voxel_out: Vec<[f64; 3]> =
-            moirai::map_collect_index_with::<moirai::Adaptive, _, _>(n, |fi| {
-                let iz = fi / stride[0];
-                let iy = (fi % stride[0]) / stride[1];
-                let ix = fi % stride[1];
-                let point = geometry.point([iz as f64, iy as f64, ix as f64]);
-                let mut q = [0.0_f64; 3];
-                for t in 0..d {
-                    q[t] = dot(point, basis[t]);
-                }
-                // Affine part A·q + B.
-                let mut res = [0.0_f64; 3];
-                for t in 0..d {
-                    let mut acc = bvec[t];
-                    for j in 0..d {
-                        acc += amat[t * d + j] * q[j];
-                    }
-                    res[t] = acc;
-                }
-                // Spline part Σ_i —–q − s_i—– · D[:, i].
-                for i in 0..n_land {
-                    let r2: f64 = (0..d)
-                        .map(|t| {
-                            let dd = q[t] - src[i * d + t];
-                            dd * dd
-                        })
-                        .sum();
-                    let g = r2.sqrt();
-                    if g != 0.0 {
-                        for t in 0..d {
-                            res[t] += g * dmat[t * n_land + i];
-                        }
-                    }
-                }
-                res
-            });
-
-        // Recombine the solved basis coordinates into world (x, y, z)
-        // components. For a 3-D field the basis is the world axes and this is
-        // the identity; for a z == 1 slab it maps the in-plane result back out.
-        let mut ox = vec![0.0_f32; n];
-        let mut oy = vec![0.0_f32; n];
-        let mut oz = vec![0.0_f32; n];
-        for (fi, res) in voxel_out.iter().enumerate() {
-            let mut world_vector = [0.0_f64; 3];
-            for t in 0..d {
-                for k in 0..3 {
-                    world_vector[k] += res[t] * basis[t][k];
-                }
-            }
-            ox[fi] = world_vector[0] as f32;
-            oy[fi] = world_vector[1] as f32;
-            oz[fi] = world_vector[2] as f32;
-        }
+        };
         Ok(crate::NativeDisplacementField {
             x: crate::native_support::rebuild_image(ox, dims, comp_x, backend)?,
             y: crate::native_support::rebuild_image(oy, dims, comp_y, backend)?,

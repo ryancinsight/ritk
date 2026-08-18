@@ -63,7 +63,7 @@ where
         "cannot sample an empty moving image with shape {:?}",
         moving.shape()
     );
-    let moving_values = moving.data_cow();
+    let moving_values = moving.data_cow_on(&B::default());
     let sampled = trilinear_interpolation(
         &moving_values,
         1,
@@ -130,7 +130,8 @@ where
     let moving_world = transform
         .transform_points(&fixed_world)
         .map_err(|error| anyhow::anyhow!("affine resampling transform failed: {error}"))?
-        .data_vec();
+        .data_cow_on(&Default::default())
+        .into_owned();
     sample_moving_at_world(moving, &moving_world)
 }
 

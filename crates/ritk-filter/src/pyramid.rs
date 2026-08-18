@@ -216,7 +216,7 @@ where
 {
     let input_shape = image.shape();
     let output_shape = std::array::from_fn(|axis| input_shape[axis].div_ceil(factors[axis]));
-    let values = image.try_data_vec_on(backend)?;
+    let values = image.data_cow_on(backend).into_owned();
     let mut output = Vec::with_capacity(output_shape.iter().product());
 
     for z in 0..output_shape[0] {

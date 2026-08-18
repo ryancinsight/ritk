@@ -72,6 +72,15 @@ part of this change.
 
 ## Deviation from the item's acceptance oracle
 
+> **Revised 2026-08-18.** Both deferrals below are closed by ADR
+> [0021](0021-two-image-data-accessors.md), which supersedes this section. The
+> 681-site figure is retained here as written but was misleading: it counts
+> every call to any of the seven accessors, including the 562 on `data_slice`,
+> which is one of the two that survive. The accessors that had to go carried 60
+> call sites, and all 60 were migrated in one change. The 17-implementation
+> transform figure was confirmed, and found to undercount the workspace by ten
+> further sites outside the four crates named below.
+
 The oracle asked for `≤2` accessors on `Image` and one coordinate-transform
 family. Neither is done here, and neither should have been attempted in one
 change:

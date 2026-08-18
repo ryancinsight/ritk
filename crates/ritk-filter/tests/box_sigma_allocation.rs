@@ -9,7 +9,7 @@
 //! [`Counting`] wraps the system allocator and accumulates allocation events
 //! and requested bytes. The test brackets three operations with a counter reset:
 //!
-//! 1. `try_data_vec()` — the whole-volume host copy the filter used to perform
+//! 1. `data_cow_on(..).into_owned()` — the whole-volume host copy the filter used to perform
 //!    on entry. This calibrates the measurement: it establishes, in this
 //!    process and on this allocator, what one copy of this volume costs.
 //! 2. The bare parallel collect over the same element count with a trivial
@@ -113,7 +113,8 @@ fn box_sigma_does_not_copy_its_input_volume() {
     drop(warm);
 
     // Calibration: what one whole-volume host copy costs, measured here.
-    let (copy_events, copy_bytes, copied) = measure(|| image.try_data_vec().expect("host copy"));
+    let (copy_events, copy_bytes, copied) =
+        measure(|| image.data_cow_on(&B::default()).into_owned());
     assert_eq!(copied.len(), voxels);
     assert!(
         copy_bytes >= volume_bytes,

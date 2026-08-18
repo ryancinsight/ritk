@@ -126,7 +126,7 @@ pub fn into_py_image<I: IntoPyImage>(image: I) -> PyImage {
 
 /// Convert a native image from `ritk-io` onto `MoiraiBackend`.
 pub fn native_into_py_image(image: ritk_io::NativeImage) -> PyImage {
-    let values = image.data_vec_on(&SequentialBackend);
+    let values = image.data_cow_on(&SequentialBackend).into_owned();
     let shape = image.shape();
     into_py_image(
         NativeImage::from_flat_on(

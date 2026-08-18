@@ -64,7 +64,7 @@ where
     B: coeus_core::Backend + ComputeBackend + Default,
     B::DeviceBuffer<f32>: CpuAddressableStorage<f32> + coeus_core::CpuAddressableStorageMut<f32>,
 {
-    let f = fixed.data_vec();
+    let f = fixed.data_cow_on(&B::default()).into_owned();
     let fixed_world = fixed_world_points(fixed);
     let m = resample_moving_at_world(&fixed_world, moving, transform)
         .expect("invariant: fixed grid produces valid native resample coordinates");
