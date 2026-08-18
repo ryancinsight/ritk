@@ -68,9 +68,9 @@ where
         );
     }
 
-    let dz = disp_z.data_cow();
-    let dy = disp_y.data_cow();
-    let dx = disp_x.data_cow();
+    let dz = disp_z.data_cow_on(&B::default());
+    let dy = disp_y.data_cow_on(&B::default());
+    let dx = disp_x.data_cow_on(&B::default());
     let mut moving_world = fixed_world_points(disp_z);
     for (point, ((&z, &y), &x)) in moving_world
         .chunks_exact_mut(3)

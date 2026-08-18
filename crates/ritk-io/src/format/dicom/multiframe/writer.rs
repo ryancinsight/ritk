@@ -124,9 +124,7 @@ fn write_multiframe_impl<B: Backend>(
     image: &Image<f32, B, 3>,
     config: &MultiFrameWriterConfig,
 ) -> Result<()> {
-    let all_data = image
-        .try_data_vec()
-        .context("DICOM multiframe writer requires f32 image data")?;
+    let all_data = image.data_cow_on(&B::default()).into_owned();
     write_multiframe_flat(path, &all_data, image.shape(), config)
 }
 

@@ -64,7 +64,7 @@ pub fn extract_vec<B: Backend, const D: usize>(
     image: &Image<f32, B, D>,
 ) -> anyhow::Result<(Vec<f32>, [usize; D])> {
     let dims = image.shape();
-    let vals = image.try_data_vec()?;
+    let vals = image.data_cow_on(&B::default()).into_owned();
     Ok((vals, dims))
 }
 
@@ -81,9 +81,7 @@ pub fn extract_vec_infallible<B: Backend, const D: usize>(
     image: &Image<f32, B, D>,
 ) -> (Vec<f32>, [usize; D]) {
     let dims = image.shape();
-    let vals = image
-        .try_data_vec()
-        .expect("filter ops: canonical Coeus host extraction is infallible");
+    let vals = image.data_cow_on(&B::default()).into_owned();
     (vals, dims)
 }
 

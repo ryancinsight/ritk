@@ -11,6 +11,12 @@
 > `(x,y,z)` inputs for the TPS and iterative inverters. The original
 > SimpleITK `<1e-4` oracles are green after a fresh wheel build.
 
+> **Revision (2026-09-23):** ADR [0051](0051-two-image-data-accessors.md)
+> moves the single `CartesianGridGeometry` implementation from this decision's
+> original private `ritk-filter` home to public, rank-generic
+> `ritk-spatial`. That ADR defines the current API and home; this decision's
+> mapping, validation, and consumer behavior remain applicable.
+
 ## Context
 
 ADR 0018 consolidated `Image`'s single-point coordinate transforms onto
@@ -50,7 +56,9 @@ several times per voxel per iteration.
 
 ## Decision
 
-Introduce one internal `CartesianGridGeometry` in `ritk-filter` that holds the
+ADR 0020 introduced the shared `CartesianGridGeometry` in `ritk-filter`. ADR
+0051 moves that single implementation to public, rank-generic `ritk-spatial`;
+no duplicate geometry implementation remains in `ritk-filter`. It holds the
 image's origin, spacing, direction and the *hoisted* inverse direction, and
 answers both directions of the transform. All four displacement-filter sites
 route through it; the four hand-rolled mappings are deleted.

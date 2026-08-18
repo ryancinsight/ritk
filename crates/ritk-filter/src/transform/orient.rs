@@ -80,7 +80,7 @@ impl OrientImageFilter {
         let (vals, dims) = extract_vec_infallible(image);
         let dir = image.direction();
         let sp_in = image.spacing();
-        let org_in = image.origin();
+        let geometry = image.grid_geometry()?;
 
         // For each output tensor axis o (0=z, 1=y, 2=x), the corresponding image
         // axis is j = 2 - o; the target letter at j gives the world unit vector.
@@ -160,14 +160,7 @@ impl OrientImageFilter {
         for o in 0..3 {
             corner[perm[o]] = if flip[o] { in_dims[perm[o]] - 1 } else { 0 };
         }
-        let mut org_out = [0.0f64; 3];
-        for c in 0..3 {
-            let mut w = org_in[c];
-            for a in 0..3 {
-                w += dir[(c, a)] * sp_in[a] * corner[a] as f64;
-            }
-            org_out[c] = w;
-        }
+        let org_out = geometry.point(corner.map(|k| k as f64));
 
         Ok(rebuild_with_metadata(
             out,
@@ -191,7 +184,7 @@ impl OrientImageFilter {
         let (vals, dims) = ritk_tensor_ops::native::extract_image_vec(image)?;
         let dir = image.direction();
         let sp_in = image.spacing();
-        let org_in = image.origin();
+        let geometry = image.grid_geometry()?;
 
         // For each output tensor axis o (0=z, 1=y, 2=x), the corresponding image
         // axis is j = 2 - o; the target letter at j gives the world unit vector.
@@ -271,14 +264,7 @@ impl OrientImageFilter {
         for o in 0..3 {
             corner[perm[o]] = if flip[o] { in_dims[perm[o]] - 1 } else { 0 };
         }
-        let mut org_out = [0.0f64; 3];
-        for c in 0..3 {
-            let mut w = org_in[c];
-            for a in 0..3 {
-                w += dir[(c, a)] * sp_in[a] * corner[a] as f64;
-            }
-            org_out[c] = w;
-        }
+        let org_out = geometry.point(corner.map(|k| k as f64));
 
         crate::native_support::rebuild_with_metadata(
             out,

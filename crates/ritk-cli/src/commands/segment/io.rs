@@ -53,7 +53,12 @@ pub(crate) fn parse_seed(s: &str) -> Result<[usize; 3]> {
 /// # Panics
 /// Panics if the tensor data cannot be extracted as `f32`.
 pub(crate) fn count_foreground(image: &ritk_core::image::Image<f32, Backend, 3>) -> usize {
-    image.data_vec().iter().filter(|&&v| v > 0.5).count()
+    image
+        .data_cow_on(&Backend::default())
+        .into_owned()
+        .iter()
+        .filter(|&&v| v > 0.5)
+        .count()
 }
 
 pub(crate) fn count_native_foreground(image: &ritk_image::Image<f32, Backend, 3>) -> Result<usize> {

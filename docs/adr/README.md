@@ -59,3 +59,4 @@
 | [0048](0048-jpeg-provider.md) | Shared JPEG raster provider | Accepted |
 | [0049](0049-python-free-threaded-module.md) | Free-threaded Python module contract | Accepted |
 | [0050](0050-responsive-metis-pane-layout.md) | Responsive Métis pane layout | Accepted |
+| [0051](0051-two-image-data-accessors.md) | Two host-data accessors on `Image`, one grid-transform family | Accepted |
