@@ -35,25 +35,35 @@ requires checking ITK's index->physical convention against this crate's axis
 order; the ADR states identity here sends the depth axis to world x, whereas
 the filters previously paired `spacing[0]` with z.
 
-**Code-grounded lead (hypothesis, not executed).** For `nz == 1`,
-`inverse_displacement.rs` selects `axes = vec![1, 2]` under the comment
-"a z==1 field is 2-D over (y, x)", then builds the solve basis with
-`active_basis`, which Gram-Schmidts `geometry.axis_direction(1)` and
-`axis_direction(2)` -- i.e. **columns 1 and 2 of the direction matrix**. Under
-the identity direction those columns are world y and world **z**. But ADR 0020
-states this crate's identity sends tensor axis 0 to world x, so tensor axes
-`[1, 2]` map to world `(y, z)`, while the field's two in-plane displacement
-components are `(y, x)` -- the pairing the deleted doc line named when it said
-the 2-D path "matches sitk's 2-D filter (axes `y, x`)".
+**Correction (2026-08-18): the first lead recorded here was wrong.** It claimed
+the 2-D solve basis and the displacement "component convention" disagreed by one
+axis. There is no such component convention. The landmark loop projects the
+world displacement onto the basis:
 
-If that is the defect, the basis and the component convention disagree by one
-axis for the 2-D slab. It fits the observed split: the 2-D test is off by 2.23
-while 3-D is off by 0.082, and the 3-D path never reaches `active_basis`'s
-Gram-Schmidt branch -- `axes.len() == 3` returns the world axes directly.
+    let displacement = [ux[flat], uy[flat], uz[flat]];
+    let component = dot(displacement, basis[t]);
 
-This is inference from reading `active_basis`, `axis_direction`, and the axis
-selection at `inverse_displacement.rs:193`; nothing was executed to confirm it.
-Verify before acting on it.
+That is a dot product against each basis vector, so it is frame-correct and
+independent of any component ordering. Reading `active_basis` without reading
+its consumer produced a mechanism the code does not contain. Recorded rather
+than deleted, because the retraction is the useful part: do not spend time on it.
+
+**What remains open, stated narrowly.** The projection is sound *given a basis
+that spans the plane the 2-D field actually occupies*. For `nz == 1` the basis
+comes from `geometry.axis_direction(1)` and `axis_direction(2)` -- the direction
+columns of tensor axes 1 and 2. Whether those are the slab's plane depends on
+which world axis each tensor axis maps to. ADR 0020 records that in this crate
+the identity direction sends tensor axis 0 to world x; a SimpleITK-derived
+fixture in `[z][y][x]` array order would instead treat index axis 0 as z. If
+those two readings disagree, the basis spans the wrong plane and every landmark
+is fitted in it -- which would show up as a large 2-D error and a much smaller
+3-D one, since `axes.len() == 3` returns the world axes directly and never
+reaches this branch.
+
+That is a question about the direction-matrix convention, not about the solver.
+It wants the fixture's actual direction matrix and axis order checked against
+ITK's `TransformIndexToPhysicalPoint`, which is measurement, not inspection --
+the step that would have caught the retracted claim above.
 
 **Not a tolerance change.** Widening 1e-4 to cover a 2.23 delta would erase the
 oracle these tests exist to provide.
