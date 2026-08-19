@@ -61,6 +61,11 @@ pub fn encode(map: &CoordinateMap) -> Option<String> {
             g.first_azimuth_angle(),
             g.first_elevation_angle()
         )),
+        // SliceSeries carries a variable-length per-slice transform list; the
+        // NRRD key/value format is defined only for the fixed-parameter variants.
+        // Writing is not yet supported; the caller should save to a format that
+        // can represent the full transform list.
+        CoordinateMap::SliceSeries(_) => None,
     }
 }
 
