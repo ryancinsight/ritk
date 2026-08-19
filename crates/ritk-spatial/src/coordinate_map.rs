@@ -483,15 +483,9 @@ impl SliceTransform {
     #[must_use]
     pub(crate) fn apply(&self, j_x: f64, j_y: f64) -> [f64; 3] {
         [
-            self.rotation[(0, 0)] * j_x
-                + self.rotation[(0, 1)] * j_y
-                + self.translation[0],
-            self.rotation[(1, 0)] * j_x
-                + self.rotation[(1, 1)] * j_y
-                + self.translation[1],
-            self.rotation[(2, 0)] * j_x
-                + self.rotation[(2, 1)] * j_y
-                + self.translation[2],
+            self.rotation[(0, 0)] * j_x + self.rotation[(0, 1)] * j_y + self.translation[0],
+            self.rotation[(1, 0)] * j_x + self.rotation[(1, 1)] * j_y + self.translation[1],
+            self.rotation[(2, 0)] * j_x + self.rotation[(2, 1)] * j_y + self.translation[2],
         ]
     }
 
@@ -653,11 +647,7 @@ impl SliceSeries {
             tf0.translation[1] + t * (tf1.translation[1] - tf0.translation[1]),
             tf0.translation[2] + t * (tf1.translation[2] - tf0.translation[2]),
         ];
-        let rel = [
-            world[0] - orig[0],
-            world[1] - orig[1],
-            world[2] - orig[2],
-        ];
+        let rel = [world[0] - orig[0], world[1] - orig[1], world[2] - orig[2]];
 
         // Interpolated in-plane column vectors; project rel onto each.
         let j_x = {
@@ -1040,11 +1030,7 @@ mod tests {
         let transforms = (0..n)
             .map(|i| {
                 // rotation: identity (columns = [x, y, z] directions, 1 mm/pixel)
-                let rot = Direction::from_rows([
-                    [1.0, 0.0, 0.0],
-                    [0.0, 1.0, 0.0],
-                    [0.0, 0.0, 1.0],
-                ]);
+                let rot = Direction::from_rows([[1.0, 0.0, 0.0], [0.0, 1.0, 0.0], [0.0, 0.0, 1.0]]);
                 SliceTransform::new(rot, [0.0, 0.0, i as f64 * dz])
             })
             .collect();
@@ -1155,9 +1141,8 @@ mod tests {
         // A single-slice sweep with identity rotation: the map is the 2-D
         // index→world formula for the z=0 plane.
         let rot = Direction::from_rows([[1.0, 0.0, 0.0], [0.0, 1.0, 0.0], [0.0, 0.0, 1.0]]);
-        let sweep =
-            SliceSeries::try_new(vec![SliceTransform::new(rot, [0.0, 0.0, 0.0])])
-                .expect("valid single-slice sweep");
+        let sweep = SliceSeries::try_new(vec![SliceTransform::new(rot, [0.0, 0.0, 0.0])])
+            .expect("valid single-slice sweep");
 
         let world = sweep.world_from_index(3.0, 5.0, 0.0);
         assert!((world[0] - 3.0).abs() < 1.0e-12);

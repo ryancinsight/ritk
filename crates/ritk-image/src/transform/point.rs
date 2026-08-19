@@ -125,8 +125,7 @@ where
             return point;
         }
         if let CoordinateMap::SliceSeries(sweep) = &self.map {
-            let world =
-                sweep.world_from_index(index[D - 1], index[D - 2], index[D - 3]);
+            let world = sweep.world_from_index(index[D - 1], index[D - 2], index[D - 3]);
             let mut point = Point::origin();
             point[D - 1] = world[0];
             point[D - 2] = world[1];
