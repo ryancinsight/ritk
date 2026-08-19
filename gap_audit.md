@@ -8,6 +8,26 @@
 
 # RITK Gap Audit - Active
 
+## ATLAS-RITK-RECURSIVE-GAUSSIAN-HESSIAN-STRUCTURE [patch] — operation-family split
+
+- Finding: `recursive_gaussian.rs` carried the recursive-Gaussian public API,
+  smoothing core, derivative helpers, and the separate six-component Hessian
+  operation family in one implementation file.
+- Resolution: move `compute_hessian_iir` to the named
+  `recursive_gaussian_hessian.rs` leaf and re-export it through the existing
+  `pub(crate)` module seam. Frangi and Sato callers remain unchanged; Deriche
+  pass ordering, spacing normalization, and packed output semantics are
+  unchanged.
+- Evidence: Rustfmt and `git diff --check` pass; the parent is 444 lines and
+  the new leaf is 79 lines. Locked all-target compilation passes outside the
+  Atlas overlay. The affected package reports 1073/1073 Nextest tests passed
+  in 45.308 seconds, warning-denied Clippy passes, and package doctests report
+  2/13 executed with 11 environment-only examples ignored. Hosted provider
+  Rust/Python checks pass at exact source head `9034af11` (Rustfmt, Clippy,
+  dependency alignment, Rust suites, Python 3.9–3.13 across Linux/macOS/Windows,
+  wheel smoke, and review checks); RecurseML remains report-only. No
+  performance or allocation claim is attached to this structural change.
+
 ## ATLAS-RITK-BSPLINE-BASIS-STRUCTURE [patch] — operation-family split
 
 - Finding: `crates/ritk-registration/src/bspline_ffd/basis/evaluate.rs` was a
