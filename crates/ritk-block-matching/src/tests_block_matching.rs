@@ -1028,6 +1028,28 @@ fn pyramid_volume_tracking_rejects_invalid_level_inputs() {
 }
 
 #[test]
+fn axial_radius_orients_the_transverse_pair_around_every_axis() {
+    // The two transverse radii fill the non-axial axes in axis order, whichever
+    // axis is axial. Each case is checked against the layout written by hand, so
+    // an off-by-one in the index shift cannot pass.
+    let cases = [(0usize, [9, 2, 3]), (1, [2, 9, 3]), (2, [2, 3, 9])];
+    for (axial_axis, expected) in cases {
+        let config =
+            BlockMatchingConfig::with_axial_radius(axial_axis, 9, [2, 3], [4, 4, 4]).unwrap();
+        assert_eq!(
+            config.block_radius, expected,
+            "axial axis {axial_axis} placed the radii wrongly"
+        );
+        assert_eq!(config.search_radius, [4, 4, 4]);
+    }
+
+    assert!(
+        BlockMatchingConfig::with_axial_radius(3, 9, [2, 3], [4, 4, 4]).is_err(),
+        "an out-of-range axial axis must be rejected, not wrapped"
+    );
+}
+
+#[test]
 fn radius_sources_build_oriented_validated_geometry() {
     let bandwidth = BlockMatchingConfig::from_transducer_bandwidth(
         1540.0,

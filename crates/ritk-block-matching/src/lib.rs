@@ -177,15 +177,14 @@ impl BlockMatchingConfig {
         if axial_axis >= 3 {
             bail!("axial axis must be in [0, 3), got {axial_axis}");
         }
-        let mut block_radius = [0; 3];
-        block_radius[axial_axis] = axial_radius;
-        let mut transverse = 0;
-        for axis in 0..3 {
-            if axis != axial_axis {
-                block_radius[axis] = transverse_radius[transverse];
-                transverse += 1;
-            }
-        }
+        // The two transverse radii fill the two non-axial axes in axis order,
+        // so an axis below the axial one takes its own index and an axis above
+        // takes the index shifted past the axial slot.
+        let block_radius = std::array::from_fn(|axis| match axis.cmp(&axial_axis) {
+            std::cmp::Ordering::Equal => axial_radius,
+            std::cmp::Ordering::Less => transverse_radius[axis],
+            std::cmp::Ordering::Greater => transverse_radius[axis - 1],
+        });
         let config = Self {
             block_radius,
             search_radius,
