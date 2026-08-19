@@ -21,8 +21,8 @@
   rotation bindings. Centers now use the provider's direction-aware
   index-to-physical conversion, matrices use physical `(X,Y,Z)` order, and
   `[Z,Y,X]` shift arguments are translated at the binding boundary. Nine
-  focused SimpleITK affine parity cases pass at `18e5bc7f`; full-suite hosted
-  closure remains pending.
+  focused SimpleITK affine parity cases pass at `18e5bc7f`; exact default-head
+  CI `32244582088` and Python CI `32244582089` pass at `065c4766`.
 
 - [major] Apply the direction cosines in the grid-sweeping filters' index/world
   transforms (ADR

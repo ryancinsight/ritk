@@ -1,4 +1,4 @@
-## RITK-PARITY-171 — InverseDisplacementField SimpleITK parity broken on main [major] — in progress (owner=Atlas coordinator)
+## RITK-PARITY-171 — InverseDisplacementField SimpleITK parity broken on main [major] — done (owner=Atlas coordinator; closed 2026-08-19)
 
 **Owned scope:** establish the SimpleITK index/physical convention at the
 Python image boundary, repair the provider-native filter path if the measured
@@ -61,13 +61,15 @@ requires checking ITK's index->physical convention against this crate's axis
 order; the ADR states identity here sends the depth axis to world x, whereas
 the filters previously paired `spacing[0]` with z.
 
-The current full local Python suite against `18e5bc7f` is `1236 passed, 8
-skipped, 1 xpassed, 1 failed`. The sole failure is the pre-existing
-`test_cmake_patch_based_denoising_structural`: its deterministic witnesses
-remain max 2 ULP against SimpleITK while the test asserts max 1 ULP. The
-failure is unchanged before and after the axis migration, and the denoising
-implementation and test predate this item; no tolerance was changed. Hosted
-closure for `18e5bc7f` is still required before this item is marked done.
+Hosted closure is green at exact default head `065c4766`: CI run
+`32244582088` and Python CI run `32244582089` both pass, including the pinned
+SimpleITK wheel smoke oracle and Windows nextest.
+
+The comprehensive local Python suite was run with SimpleITK
+`3.0.0a1.post183-g61ffa`, outside the repository requirement
+`>=2.5.5,<2.6`; its one max-2-ULP denoising residual is therefore environment
+evidence only, not a supported-version failure. The supported hosted wheel
+oracle passes without a tolerance change.
 
 **Correction (2026-08-18): the first lead recorded here was wrong.** It claimed
 the 2-D solve basis and the displacement "component convention" disagreed by one

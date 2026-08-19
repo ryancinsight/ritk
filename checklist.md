@@ -21,9 +21,11 @@
 - [x] Preserve physical axes in affine shift and Euler rotation bindings;
       9 focused SimpleITK affine parity cases pass after a fresh release wheel
       build at `18e5bc7f`.
-- [ ] Collect hosted CI and Python CI at exact head `18e5bc7f`; the full local
-      Python suite has one pre-existing denoising residual (max 2 ULP versus a
-      max-1 ULP assertion) that remains open without tolerance changes.
+- [x] Collect hosted CI and Python CI at exact default head `065c4766`;
+      `32244582088` and `32244582089` pass, including the pinned SimpleITK
+      wheel oracle and Windows nextest. The local max-2-ULP observation came
+      from unsupported SimpleITK `3.0.0a1.post183-g61ffa` versus the declared
+      `>=2.5.5,<2.6` range and did not require a tolerance change.
 
 ## ATLAS-RITK-CONFORMANCE-CLEANUP [patch]
 
