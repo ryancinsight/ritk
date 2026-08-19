@@ -42,8 +42,30 @@ one centre; `track_volume_pyramid` applies the same propagated-centre contract
 to every valid block in a [`BlockGrid`](https://docs.rs/ritk-block-matching/latest/ritk_block_matching/struct.BlockGrid.html).
 `track_volume_pyramid_regularized` then applies a configured Bayesian prior
 using each finest-level peak as confidence, while preserving centres and peak
-metadata. The optional `fft` feature provides a finite, zero-padded FFT-backed
-metric through the Apollo provider.
+metadata. Use `track_volume_pyramid_diagnostics` (or its FFT counterpart) when
+per-block coarse-to-fine centres and level peaks must be retained; skipped
+blocks are represented by `None` diagnostics and `NAN` confidence.
+`PyramidDisplacementField::validate` checks the four aligned public arrays and
+retained level entries; use `try_as_field` when projecting manually assembled
+or untrusted diagnostics into a `DisplacementField`. The infallible
+`as_field` convenience retains the same validation and is intended for results
+returned by the matcher.
+`DisplacementPipeline::run_pyramid_with_diagnostics` retains the same raw
+evidence while still applying configured strain and Bayesian stages to its
+ returned field. `DisplacementPipeline::run_pyramid` integrates this batch path with
+the pipeline's metric, refinement, strain-window, and Bayesian stages;
+`run_owned_pyramid` is the convenience adapter for [`OwnedPyramid`] values
+constructed by the crate's nearest-neighbour or min/max builders, and
+`run_owned_pyramid_with_diagnostics` retains their raw level evidence. With the
+optional `fft` feature, `match_pyramid_fft`, `track_volume_pyramid_fft`, and
+`DisplacementPipeline`'s `PipelineMetric::Fft` mode run the same
+propagated-centre pipeline through Apollo's explicit zero-padded linear NCC. Their outputs and per-level
+coordinates are parity-tested against the direct path; zero padding is an FFT
+work-buffer policy, not circular correlation or candidate evidence.
+
+For untrusted block radii, use `BlockGrid::try_dense` instead of the
+infallible `BlockGrid::dense`; execution paths validate all grid strides and
+safely skip centres whose block extent would overflow or leave the image.
 
 Two post-processing seams handle unreliable blocks, and they are complements
 rather than alternatives. [`LeastSquaresDisplacementPrior`](https://docs.rs/ritk-block-matching/latest/ritk_block_matching/struct.LeastSquaresDisplacementPrior.html)
@@ -63,6 +85,22 @@ For acquisition-aware geometry, use
 half-length, map it explicitly onto the selected `[z, y, x]` axis, assign the
 two transverse radii, and validate the resulting block/search geometry before
 matching begins.
+
+Use `DisplacementField::valid_mask(minimum_peak_similarity)` to validate the
+parallel field arrays and select finite, confidence-qualified blocks. Use
+`strain_from_displacement_filtered` when invalid blocks must be omitted from
+finite differences; it leaves those output entries as `NAN` and scales across
+skipped axial grid gaps. `PipelineStages::validate` checks manually assembled
+priors, strain windows, and thresholds before matching. Set
+`PipelineStages::minimum_peak_similarity` to use
+that filtered estimator automatically in `DisplacementPipeline::run` and
+`run_pyramid`. For manually assembled fields, use
+`try_strain_from_displacement`, `BayesianDisplacementPrior::try_regularize`,
+or `StrainWindowRegularizer::try_regularize`; these validate aligned arrays and
+return errors instead of truncating or indexing malformed data. The infallible
+helpers remain convenient for matcher-produced fields. Matcher outputs retain
+`NAN` confidence and zero displacement for non-evaluable blocks; these APIs make
+that convention explicit for strain or export consumers.
 
 The algorithm follows the metric-image and displacement-calculator split from
 ITKUltrasound and the sub-sample estimators described by Céspedes et al.

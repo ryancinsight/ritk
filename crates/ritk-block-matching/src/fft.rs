@@ -54,8 +54,45 @@ pub fn match_block_fft<T: Sample>(
     refinement: SubpixelRefinement,
     padding: FftPadding,
 ) -> Result<BlockDisplacement> {
-    let surface = metric_image_fft_at(fixed, moving, dims, centre, centre, config, padding)?;
-    Ok(super::refine::displacement_from(&surface, refinement))
+    match_block_fft_at(
+        fixed, moving, dims, centre, centre, config, refinement, padding,
+    )
+}
+
+/// Match a block around separate fixed and moving centres with the FFT metric.
+///
+/// This crate-visible counterpart to [`match_block_fft`] is the execution seam
+/// used by coarse-to-fine search. The returned displacement includes the
+/// absolute moving-centre offset, just like `match_block_at` in the direct
+/// metric path.
+#[expect(
+    clippy::too_many_arguments,
+    reason = "mirrors match_block_at exactly; grouping the parameters here would               make the two seams diverge in shape without removing any of them"
+)]
+pub(crate) fn match_block_fft_at<T: Sample>(
+    fixed: &[T],
+    moving: &[T],
+    dims: [usize; 3],
+    fixed_centre: [usize; 3],
+    moving_centre: [usize; 3],
+    config: BlockMatchingConfig,
+    refinement: SubpixelRefinement,
+    padding: FftPadding,
+) -> Result<BlockDisplacement> {
+    let surface = metric_image_fft_at(
+        fixed,
+        moving,
+        dims,
+        fixed_centre,
+        moving_centre,
+        config,
+        padding,
+    )?;
+    let mut result = super::refine::displacement_from(&surface, refinement);
+    for axis in 0..3 {
+        result.displacement[axis] += moving_centre[axis] as f64 - fixed_centre[axis] as f64;
+    }
+    Ok(result)
 }
 
 /// Evaluate FFT NCC around `moving_centre` for a block fixed at

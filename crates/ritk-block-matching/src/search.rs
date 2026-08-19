@@ -112,6 +112,44 @@ impl MultiResolutionSearch {
         finest_centre: [usize; 3],
         refinement: SubpixelRefinement,
     ) -> Result<MultiResolutionDisplacement> {
+        self.match_pyramid_with(
+            pyramid,
+            finest_centre,
+            |level, fixed_centre, moving_centre, config| {
+                match_block_at(
+                    level.fixed,
+                    level.moving,
+                    level.dims,
+                    fixed_centre,
+                    moving_centre,
+                    config,
+                    refinement,
+                )
+            },
+        )
+    }
+
+    /// Coarse-to-fine walk shared by every pyramid metric.
+    ///
+    /// Centre propagation, scaling and diagnostics are metric-independent, so
+    /// they exist once here and the metric enters as the per-level match. A
+    /// second copy of this walk is how the direct and FFT paths would drift
+    /// apart in propagated centres while both still looked correct in
+    /// isolation, which is precisely what their parity test checks.
+    fn match_pyramid_with<T: Sample, F>(
+        &self,
+        pyramid: &[PyramidLevel<'_, T>],
+        finest_centre: [usize; 3],
+        mut match_level: F,
+    ) -> Result<MultiResolutionDisplacement>
+    where
+        F: FnMut(
+            &PyramidLevel<'_, T>,
+            [usize; 3],
+            [usize; 3],
+            super::BlockMatchingConfig,
+        ) -> Result<super::BlockDisplacement>,
+    {
         if pyramid.len() != self.regions.len() {
             bail!(
                 "pyramid has {} levels but search plan has {} regions",
@@ -150,15 +188,7 @@ impl MultiResolutionSearch {
                 block_radius: region.block_radius,
                 search_radius: region.search_radius,
             };
-            let result = match_block_at(
-                level.fixed,
-                level.moving,
-                level.dims,
-                fixed_centre,
-                moving_centre,
-                config,
-                refinement,
-            )?;
+            let result = match_level(level, fixed_centre, moving_centre, config)?;
 
             previous_moving = Some(add_displacement(fixed_centre, result.displacement));
             previous_scale = region.scale;
@@ -280,6 +310,156 @@ impl MultiResolutionSearch {
         Ok(prior.regularize(&field))
     }
 
+    /// [`Self::match_pyramid`] with the FFT-backed metric.
+    ///
+    /// Same walk, same centre propagation, same diagnostics — only the
+    /// per-level similarity differs, so any divergence from the direct path is
+    /// a property of the metric rather than of the traversal.
+    ///
+    /// # Errors
+    ///
+    /// Returns the same errors as [`Self::match_pyramid`], plus any raised by
+    /// the FFT provider.
+    #[cfg(feature = "fft")]
+    pub fn match_pyramid_fft<T: Sample>(
+        &self,
+        pyramid: &[PyramidLevel<'_, T>],
+        finest_centre: [usize; 3],
+        refinement: SubpixelRefinement,
+        padding: crate::FftPadding,
+    ) -> Result<MultiResolutionDisplacement> {
+        self.match_pyramid_with(
+            pyramid,
+            finest_centre,
+            |level, fixed_centre, moving_centre, config| {
+                crate::fft::match_block_fft_at(
+                    level.fixed,
+                    level.moving,
+                    level.dims,
+                    fixed_centre,
+                    moving_centre,
+                    config,
+                    refinement,
+                    padding,
+                )
+            },
+        )
+    }
+
+    /// [`Self::track_volume_pyramid`] with the FFT-backed metric.
+    ///
+    /// # Errors
+    ///
+    /// Returns the same errors as [`Self::track_volume_pyramid`], plus any
+    /// raised by the FFT provider.
+    #[cfg(feature = "fft")]
+    pub fn track_volume_pyramid_fft<T: Sample>(
+        &self,
+        pyramid: &[PyramidLevel<'_, T>],
+        grid: BlockGrid,
+        refinement: SubpixelRefinement,
+        padding: crate::FftPadding,
+    ) -> Result<DisplacementField> {
+        self.track_volume_pyramid_fft_diagnostics(pyramid, grid, refinement, padding)
+            .map(|diagnostics| diagnostics.as_field())
+    }
+
+    /// [`Self::track_volume_pyramid_diagnostics`] with the FFT-backed metric.
+    ///
+    /// # Errors
+    ///
+    /// Returns the same errors as [`Self::track_volume_pyramid_diagnostics`],
+    /// plus any raised by the FFT provider.
+    #[cfg(feature = "fft")]
+    pub fn track_volume_pyramid_fft_diagnostics<T: Sample>(
+        &self,
+        pyramid: &[PyramidLevel<'_, T>],
+        grid: BlockGrid,
+        refinement: SubpixelRefinement,
+        padding: crate::FftPadding,
+    ) -> Result<PyramidDisplacementField> {
+        self.track_volume_pyramid_with(pyramid, grid, |centre| {
+            self.match_pyramid_fft(pyramid, centre, refinement, padding)
+        })
+    }
+
+    /// Match every block of a grid, retaining each block's per-level evidence.
+    ///
+    /// Identical to [`Self::track_volume_pyramid`] in what it computes and in
+    /// which blocks it skips; it differs only in keeping the coarse-to-fine
+    /// diagnostics that the plain form discards. Projecting the result with
+    /// [`PyramidDisplacementField::try_as_field`] yields exactly the field the
+    /// plain form returns, so the two never disagree.
+    ///
+    /// # Errors
+    ///
+    /// Returns the same pyramid and grid validation errors as
+    /// [`Self::track_volume_pyramid`].
+    pub fn track_volume_pyramid_diagnostics<T: Sample>(
+        &self,
+        pyramid: &[PyramidLevel<'_, T>],
+        grid: BlockGrid,
+        refinement: SubpixelRefinement,
+    ) -> Result<PyramidDisplacementField> {
+        self.track_volume_pyramid_with(pyramid, grid, |centre| {
+            self.match_pyramid(pyramid, centre, refinement)
+        })
+    }
+
+    /// Shared body of the pyramid volume walks.
+    ///
+    /// The centre grid, the skip rule, and the arrays are identical whichever
+    /// metric ran; only the per-centre match differs. Keeping one walk is what
+    /// makes the direct and FFT diagnostics comparable — a divergence between
+    /// them would otherwise be a difference in the walk rather than in the
+    /// metric under test.
+    fn track_volume_pyramid_with<T: Sample, F>(
+        &self,
+        pyramid: &[PyramidLevel<'_, T>],
+        grid: BlockGrid,
+        mut match_at: F,
+    ) -> Result<PyramidDisplacementField>
+    where
+        F: FnMut([usize; 3]) -> Result<MultiResolutionDisplacement>,
+    {
+        self.validate_pyramid(pyramid)?;
+        grid.validate()?;
+
+        let finest = self
+            .regions
+            .last()
+            .ok_or_else(|| anyhow::anyhow!("multi-resolution search produced no levels"))?;
+        let finest_dims = pyramid
+            .last()
+            .ok_or_else(|| anyhow::anyhow!("multi-resolution pyramid is empty"))?
+            .dims;
+        let config = super::BlockMatchingConfig {
+            block_radius: finest.block_radius,
+            search_radius: finest.search_radius,
+        };
+        let centres = grid.centres(finest_dims, &config);
+        let mut displacements = vec![[0.0; 3]; centres.len()];
+        let mut peak_similarities = vec![f64::NAN; centres.len()];
+        let mut level_diagnostics = vec![None; centres.len()];
+
+        for (index, &centre) in centres.iter().enumerate() {
+            // A failed block keeps its NaN peak and `None` diagnostics: it was
+            // not measured, which is distinct from measuring zero displacement.
+            if let Ok(result) = match_at(centre) {
+                displacements[index] = result.displacement;
+                peak_similarities[index] = result.peak_similarity;
+                level_diagnostics[index] = Some(result.levels);
+            }
+        }
+
+        Ok(PyramidDisplacementField {
+            centres,
+            displacements,
+            peak_similarities,
+            level_diagnostics,
+        })
+    }
+
     fn validate_pyramid<T: Sample>(&self, pyramid: &[PyramidLevel<'_, T>]) -> Result<()> {
         if pyramid.len() != self.regions.len() {
             bail!(
@@ -323,6 +503,153 @@ pub struct PyramidLevelDisplacement {
     pub peak_similarity: f64,
 }
 
+/// A displacement field that retains each block's coarse-to-fine evidence.
+///
+/// [`MultiResolutionSearch::track_volume_pyramid`] returns only the finest-level
+/// answer, which is all most callers want. When a block's result is surprising,
+/// though, the useful question is *where* in the pyramid it went wrong — a
+/// displacement that was already wrong at the coarsest level failed for a
+/// different reason than one that drifted at the last refinement, and the
+/// finest-level peak alone cannot distinguish them.
+///
+/// The four arrays are parallel and indexed together. `level_diagnostics[i]` is
+/// `None` exactly when block `i` was skipped, which is the same condition as a
+/// non-finite `peak_similarities[i]`: a skipped block has no evidence rather
+/// than empty evidence, and the two must not be confused.
+#[derive(Debug, Clone, PartialEq)]
+pub struct PyramidDisplacementField {
+    /// Block centre coordinates at the finest level, in `[z, y, x]` voxel order.
+    pub centres: Vec<[usize; 3]>,
+    /// Displacement per block, in finest-level voxels.
+    pub displacements: Vec<[f64; 3]>,
+    /// Finest-level peak similarity per block; non-finite when skipped.
+    pub peak_similarities: Vec<f64>,
+    /// Per-level evidence for each block, coarse to fine; `None` when skipped.
+    pub level_diagnostics: Vec<Option<Vec<PyramidLevelDisplacement>>>,
+}
+
+impl PyramidDisplacementField {
+    /// Number of blocks.
+    #[inline]
+    #[must_use]
+    pub fn len(&self) -> usize {
+        self.centres.len()
+    }
+
+    /// Whether the field is empty.
+    #[inline]
+    #[must_use]
+    pub fn is_empty(&self) -> bool {
+        self.centres.is_empty()
+    }
+
+    /// Check the invariants every consumer relies on.
+    ///
+    /// The matcher produces a valid field by construction, so this exists for
+    /// fields assembled by hand or arriving from deserialization, where a
+    /// length mismatch would index out of bounds or silently drop blocks.
+    ///
+    /// # Errors
+    ///
+    /// Returns an error when the four arrays disagree in length, when a
+    /// retained diagnostic list is empty (a matched block has at least one
+    /// level), or when a retained level carries a zero scale — scale is a
+    /// divisor when mapping level coordinates to finest-level voxels, so zero
+    /// is not a degenerate case to tolerate but an impossible one.
+    pub fn validate(&self) -> Result<()> {
+        let n = self.centres.len();
+        if self.displacements.len() != n
+            || self.peak_similarities.len() != n
+            || self.level_diagnostics.len() != n
+        {
+            bail!(
+                "pyramid displacement field arrays disagree: {n} centres, {} displacements, \
+                 {} peak similarities, {} diagnostic entries",
+                self.displacements.len(),
+                self.peak_similarities.len(),
+                self.level_diagnostics.len()
+            );
+        }
+        for (index, entry) in self.level_diagnostics.iter().enumerate() {
+            let Some(levels) = entry else { continue };
+            if levels.is_empty() {
+                bail!(
+                    "block {index} retains an empty diagnostic list; a skipped block is \
+                     represented by `None`, not by empty evidence"
+                );
+            }
+            if let Some(level) = levels.iter().position(|level| level.scale == 0) {
+                bail!("block {index} level {level} has scale 0, which cannot be a divisor");
+            }
+        }
+        Ok(())
+    }
+
+    /// Which blocks carry a peak at or above `minimum_peak_similarity`.
+    ///
+    /// A non-finite peak marks a skipped block and is always `false`, so a
+    /// caller thresholding at `0.0` still excludes skipped blocks rather than
+    /// admitting them through a comparison that a `NaN` would fail silently.
+    ///
+    /// # Errors
+    ///
+    /// Returns an error when the field is invalid, or when the threshold is not
+    /// a finite value in `[0, 1]` — normalized correlation has no other range,
+    /// so a threshold outside it is a caller mistake rather than a filter that
+    /// admits everything or nothing.
+    pub fn valid_mask(&self, minimum_peak_similarity: f64) -> Result<Vec<bool>> {
+        self.validate()?;
+        if !minimum_peak_similarity.is_finite() || !(0.0..=1.0).contains(&minimum_peak_similarity) {
+            bail!(
+                "minimum peak similarity must be finite and in [0, 1], got \
+                 {minimum_peak_similarity}"
+            );
+        }
+        Ok(self
+            .peak_similarities
+            .iter()
+            .zip(&self.level_diagnostics)
+            .map(|(peak, levels)| {
+                levels.is_some() && peak.is_finite() && *peak >= minimum_peak_similarity
+            })
+            .collect())
+    }
+
+    /// Project to a plain [`DisplacementField`], dropping the level evidence.
+    ///
+    /// # Errors
+    ///
+    /// Returns an error when [`Self::validate`] does, so an invalid field
+    /// cannot be laundered into a valid-looking one by discarding the very
+    /// evidence that shows it is malformed.
+    pub fn try_as_field(&self) -> Result<DisplacementField> {
+        self.validate()?;
+        Ok(self.as_field_unchecked())
+    }
+
+    /// Project to a plain [`DisplacementField`].
+    ///
+    /// # Panics
+    ///
+    /// Panics when the field is invalid. Prefer this only for a field this
+    /// crate produced, where validity holds by construction; use
+    /// [`Self::try_as_field`] for anything assembled or deserialized.
+    #[must_use]
+    pub fn as_field(&self) -> DisplacementField {
+        self.validate()
+            .expect("invariant: a matcher-produced pyramid field is well-formed");
+        self.as_field_unchecked()
+    }
+
+    fn as_field_unchecked(&self) -> DisplacementField {
+        DisplacementField {
+            centres: self.centres.clone(),
+            displacements: self.displacements.clone(),
+            peak_similarities: self.peak_similarities.clone(),
+        }
+    }
+}
+
 /// Result of a coarse-to-fine pyramid match.
 #[derive(Debug, Clone, PartialEq)]
 pub struct MultiResolutionDisplacement {
@@ -338,10 +665,12 @@ pub struct MultiResolutionDisplacement {
 ///
 /// Levels are ordered coarse-to-fine (the first entry has the largest scale and
 /// the final entry has `scale == 1`), matching [`MultiResolutionSearch::regions`].
+#[derive(Debug, Clone, PartialEq)]
 pub struct OwnedPyramid<T> {
     levels: Vec<OwnedLevel<T>>,
 }
 
+#[derive(Debug, Clone, PartialEq)]
 struct OwnedLevel<T> {
     fixed: Vec<T>,
     moving: Vec<T>,
@@ -375,7 +704,11 @@ impl<T: Sample> OwnedPyramid<T> {
         }
         let mut levels = Vec::with_capacity(scales.len());
         for scale in scales {
-            let level_dims = [dims[0] / scale, dims[1] / scale, dims[2] / scale];
+            let level_dims = [
+                level_extent(dims[0], *scale),
+                level_extent(dims[1], *scale),
+                level_extent(dims[2], *scale),
+            ];
             let level_len = level_dims[0] * level_dims[1] * level_dims[2];
             let mut fixed_level = Vec::with_capacity(level_len);
             let mut moving_level = Vec::with_capacity(level_len);
@@ -422,7 +755,18 @@ impl<T: Sample> OwnedPyramid<T> {
         }
         let mut levels = Vec::with_capacity(scales.len());
         for scale in scales {
-            let base_dims = [dims[0] / scale, dims[1] / scale, dims[2] / scale];
+            let base_dims = [
+                level_extent(dims[0], *scale),
+                level_extent(dims[1], *scale),
+                level_extent(dims[2], *scale),
+            ];
+            // The reduction window is the scale, except on a singleton axis,
+            // which is not downsampled and has no second sample to read.
+            let window = [
+                reduction_window(dims[0], *scale),
+                reduction_window(dims[1], *scale),
+                reduction_window(dims[2], *scale),
+            ];
             let level_dims = [base_dims[0], base_dims[1], 2 * base_dims[2]];
             let level_len = level_dims[0] * level_dims[1] * level_dims[2];
             let mut fixed_level = vec![f64::NAN; level_len];
@@ -431,9 +775,9 @@ impl<T: Sample> OwnedPyramid<T> {
                 for y in 0..base_dims[1] {
                     for x in 0..base_dims[2] {
                         let mut block = [[f64::INFINITY, f64::NEG_INFINITY]; 2];
-                        for dz in 0..*scale {
-                            for dy in 0..*scale {
-                                for dx in 0..*scale {
+                        for dz in 0..window[0] {
+                            for dy in 0..window[1] {
+                                for dx in 0..window[2] {
                                     let sz = z * scale + dz;
                                     let sy = y * scale + dy;
                                     let sx = x * scale + dx;
@@ -489,6 +833,30 @@ impl<T: Sample> OwnedPyramid<T> {
 ///
 /// Scales must be strictly decreasing coarse-to-fine, end at `1`, be non-zero,
 /// and divide every image extent (a fractional level would silently drop data).
+/// Size of the reduction window on one axis.
+///
+/// A singleton axis contributes exactly one sample: it is not downsampled, so
+/// reading `scale` samples along it would index past the image.
+fn reduction_window(extent: usize, scale: usize) -> usize {
+    if extent == 1 {
+        1
+    } else {
+        scale
+    }
+}
+
+/// Extent of one axis at a given pyramid scale.
+///
+/// A singleton axis stays singleton: it carries no resolution to trade away,
+/// and dividing it would produce a zero-extent level.
+fn level_extent(extent: usize, scale: usize) -> usize {
+    if extent == 1 {
+        1
+    } else {
+        extent / scale
+    }
+}
+
 fn validate_scales(dims: [usize; 3], scales: &[usize]) -> Result<()> {
     if scales.is_empty() {
         bail!("a pyramid needs at least one scale");
@@ -501,7 +869,12 @@ fn validate_scales(dims: [usize; 3], scales: &[usize]) -> Result<()> {
             bail!("pyramid scale at level {index} is zero");
         }
         for (axis, &extent) in dims.iter().enumerate() {
-            if !extent.is_multiple_of(scale) {
+            // A singleton axis is not downsampled, so it need not divide: a 2-D
+            // acquisition is a volume with one out-of-plane sample, and
+            // requiring `1 % scale == 0` would reject the dominant ultrasound
+            // geometry outright — the same case `BlockMatchingConfig::validate`
+            // already admits for a zero block radius.
+            if extent != 1 && !extent.is_multiple_of(scale) {
                 bail!(
                     "image extent {extent} on axis {axis} is not divisible by scale {scale} at level {index}"
                 );

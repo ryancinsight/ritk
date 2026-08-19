@@ -535,9 +535,26 @@ fn strain_is_zero_for_uniform_translation() {
     }
 }
 
+#[test]
+fn fallible_strain_rejects_malformed_fields_and_zero_stride() {
+    let malformed = DisplacementField {
+        centres: vec![[0, 0, 0]],
+        displacements: vec![],
+        peak_similarities: vec![1.0],
+    };
+    assert!(try_strain_from_displacement(&malformed, 1).is_err());
+
+    let valid = DisplacementField {
+        centres: vec![[0, 0, 0]],
+        displacements: vec![[0.0, 0.0, 0.0]],
+        peak_similarities: vec![1.0],
+    };
+    assert!(try_strain_from_displacement(&valid, 0).is_err());
+}
+
 /// `strain_from_displacement` must recover a known constant strain when the
 /// displacement increases linearly with axial position.
-///
+
 /// For a pure axial compression with strain ε, the displacement at axial
 /// position z is `d(z) = ε · z`. For blocks at axial stride `s`, the central
 /// difference gives `(d(z+s) - d(z-s)) / (2s) = ε`, which is exact when the
@@ -568,6 +585,28 @@ fn strain_recovers_known_constant_strain() {
             "block {i}: expected strain {strain_truth}, got {s}"
         );
     }
+}
+
+#[test]
+fn filtered_strain_skips_invalid_blocks_and_scales_gaps() {
+    let field = DisplacementField {
+        centres: vec![[0, 0, 0], [9, 0, 0], [18, 0, 0], [27, 0, 0]],
+        displacements: vec![
+            [0.0, 0.0, 0.0],
+            [99.0, 0.0, 0.0],
+            [0.18, 0.0, 0.0],
+            [0.27, 0.0, 0.0],
+        ],
+        peak_similarities: vec![1.0, f64::NAN, 1.0, 1.0],
+    };
+    let strain = strain_from_displacement_filtered(&field, 9, 0.5).expect("filtered strain");
+
+    assert!((strain[0] - 0.01).abs() < 1.0e-12);
+    assert!(strain[1].is_nan());
+    assert!((strain[2] - 0.01).abs() < 1.0e-12);
+    assert!((strain[3] - 0.01).abs() < 1.0e-12);
+    assert!(strain_from_displacement_filtered(&field, 0, 0.5).is_err());
+    assert!(strain_from_displacement_filtered(&field, 9, 1.1).is_err());
 }
 
 /// A single-block field has no neighbour for finite differences; the only
@@ -606,6 +645,48 @@ fn block_grid_dense_enumerates_centres() {
     }
 }
 
+#[test]
+fn block_grid_validates_stride_and_overflow() {
+    assert!(BlockGrid::try_dense([usize::MAX, 0, 0]).is_err());
+    assert!(BlockGrid { stride: [0, 1, 1] }.validate().is_err());
+
+    let grid = BlockGrid { stride: [1, 1, 1] };
+    let oversized = BlockMatchingConfig {
+        block_radius: [usize::MAX, usize::MAX, usize::MAX],
+        search_radius: [1, 1, 1],
+    };
+    assert!(grid.centres([1, 1, 1], &oversized).is_empty());
+}
+
+#[test]
+fn displacement_field_validates_and_masks_confidence() {
+    let field = DisplacementField {
+        centres: vec![[0, 0, 0], [1, 0, 0], [2, 0, 0]],
+        displacements: vec![[1.0, 0.0, 0.0], [f64::NAN, 0.0, 0.0], [3.0, 0.0, 0.0]],
+        peak_similarities: vec![0.95, 0.99, f64::NAN],
+    };
+
+    assert!(field.validate().is_ok());
+    assert_eq!(
+        field.valid_mask(0.9).expect("valid mask"),
+        vec![true, false, false]
+    );
+    assert_eq!(
+        field.valid_mask(0.99).expect("valid mask"),
+        vec![false, false, false]
+    );
+    assert!(field.valid_mask(-0.1).is_err());
+    assert!(field.valid_mask(f64::NAN).is_err());
+
+    let malformed = DisplacementField {
+        centres: vec![[0, 0, 0]],
+        displacements: Vec::new(),
+        peak_similarities: vec![1.0],
+    };
+    assert!(malformed.validate().is_err());
+    assert!(malformed.valid_mask(0.5).is_err());
+}
+
 /// Sample the same physical texture on one pyramid level. The moving image is
 /// translated in finest-resolution voxels, so the expected level displacement
 /// is the physical shift divided by `scale`.
@@ -629,6 +710,49 @@ fn pyramid_image(scale: usize, shift: [isize; 3]) -> Vec<f32> {
 
 /// A coarse level must find the broad motion and the fine level must search
 /// around its propagated moving centre rather than restarting at zero offset.
+#[test]
+fn a_singleton_axis_survives_every_pyramid_level() {
+    // A 2-D acquisition is a volume with one out-of-plane sample. That axis
+    // carries no resolution to trade away, so it must stay 1 at every scale
+    // rather than being divided to zero or rejected as indivisible.
+    let fixed = pyramid_image(1, [0, 0, 0]);
+    let moving = pyramid_image(1, [0, 4, 2]);
+
+    for owned in [
+        OwnedPyramid::nearest(&fixed, &moving, [1, 40, 40], &[4, 2, 1]).expect("nearest pyramid"),
+        OwnedPyramid::min_max(&fixed, &moving, [1, 40, 40], &[4, 2, 1]).expect("min_max pyramid"),
+    ] {
+        let levels = owned.levels();
+        assert_eq!(levels.len(), 3);
+        for (index, (level, expected_plane)) in levels.iter().zip([10, 20, 40]).enumerate() {
+            assert_eq!(level.dims[0], 1, "level {index} lost the singleton axis");
+            assert_eq!(level.dims[1], expected_plane, "level {index}");
+            // min_max stores two planes per level along the last axis, so the
+            // buffer length rather than the extent is what must stay consistent.
+            assert_eq!(
+                level.fixed.len(),
+                level.dims[0] * level.dims[1] * level.dims[2],
+                "level {index} buffer does not match its own dims"
+            );
+        }
+    }
+}
+
+#[test]
+fn an_indivisible_non_singleton_extent_is_still_rejected() {
+    // The singleton relaxation must not become "any extent goes": an axis with
+    // real resolution that the scale cannot divide is still an error, because
+    // the level grid would silently drop samples off the end.
+    let fixed = pyramid_image(1, [0, 0, 0]);
+    let moving = pyramid_image(1, [0, 4, 2]);
+    let err = OwnedPyramid::nearest(&fixed, &moving, [1, 40, 40], &[3, 1])
+        .expect_err("40 is not divisible by 3");
+    assert!(
+        err.to_string().contains("not divisible"),
+        "unexpected error: {err}"
+    );
+}
+
 #[test]
 fn pyramid_matching_propagates_coarse_displacement() {
     let plan = MultiResolutionSearch::new([0, 4, 4], [0, 8, 8], 3).expect("valid plan");
@@ -671,6 +795,117 @@ fn pyramid_matching_propagates_coarse_displacement() {
     assert_eq!(result.levels[1].displacement, [0.0, 4.0, 2.0]);
     assert_eq!(result.levels[2].moving_centre, [0, 28, 24]);
     assert!(result.peak_similarity > 0.999);
+}
+
+#[cfg(feature = "fft")]
+#[test]
+fn fft_pyramid_matches_direct_propagation_and_diagnostics() {
+    let plan = MultiResolutionSearch::new([0, 4, 4], [0, 8, 8], 3).expect("valid plan");
+    let coarse_fixed = pyramid_image(4, [0, 0, 0]);
+    let coarse_moving = pyramid_image(4, [0, 8, 4]);
+    let middle_fixed = pyramid_image(2, [0, 0, 0]);
+    let middle_moving = pyramid_image(2, [0, 8, 4]);
+    let fine_fixed = pyramid_image(1, [0, 0, 0]);
+    let fine_moving = pyramid_image(1, [0, 8, 4]);
+    let pyramid = [
+        PyramidLevel {
+            fixed: &coarse_fixed,
+            moving: &coarse_moving,
+            dims: [1, 10, 10],
+        },
+        PyramidLevel {
+            fixed: &middle_fixed,
+            moving: &middle_moving,
+            dims: [1, 20, 20],
+        },
+        PyramidLevel {
+            fixed: &fine_fixed,
+            moving: &fine_moving,
+            dims: [1, 40, 40],
+        },
+    ];
+
+    let direct = plan
+        .match_pyramid(&pyramid, [0, 20, 20], SubpixelRefinement::None)
+        .expect("direct pyramid match");
+    let fft = plan
+        .match_pyramid_fft(
+            &pyramid,
+            [0, 20, 20],
+            SubpixelRefinement::None,
+            FftPadding::Zero,
+        )
+        .expect("FFT pyramid match");
+
+    assert_eq!(fft.displacement, direct.displacement);
+    assert!((fft.peak_similarity - direct.peak_similarity).abs() < 1.0e-9);
+    assert_eq!(fft.levels.len(), direct.levels.len());
+    for (index, (expected, actual)) in direct.levels.iter().zip(&fft.levels).enumerate() {
+        assert_eq!(actual.scale, expected.scale, "level {index} scale");
+        assert_eq!(
+            actual.fixed_centre, expected.fixed_centre,
+            "level {index} fixed centre"
+        );
+        assert_eq!(
+            actual.moving_centre, expected.moving_centre,
+            "level {index} moving centre"
+        );
+        assert_eq!(
+            actual.displacement, expected.displacement,
+            "level {index} displacement"
+        );
+        assert!(
+            (actual.peak_similarity - expected.peak_similarity).abs() < 1.0e-9,
+            "level {index} peak differs: {} vs {}",
+            actual.peak_similarity,
+            expected.peak_similarity
+        );
+    }
+}
+
+#[cfg(feature = "fft")]
+#[test]
+fn fft_pyramid_volume_matches_direct_field() {
+    let plan = MultiResolutionSearch::new([0, 4, 4], [0, 4, 4], 2).expect("valid plan");
+    let coarse_fixed = pyramid_image(2, [0, 0, 0]);
+    let coarse_moving = pyramid_image(2, [0, 4, 2]);
+    let fine_fixed = pyramid_image(1, [0, 0, 0]);
+    let fine_moving = pyramid_image(1, [0, 4, 2]);
+    let pyramid = [
+        PyramidLevel {
+            fixed: &coarse_fixed,
+            moving: &coarse_moving,
+            dims: [1, 20, 20],
+        },
+        PyramidLevel {
+            fixed: &fine_fixed,
+            moving: &fine_moving,
+            dims: [1, 40, 40],
+        },
+    ];
+    let grid = BlockGrid::dense([0, 4, 4]);
+    let direct = plan
+        .track_volume_pyramid(&pyramid, grid, SubpixelRefinement::None)
+        .expect("direct pyramid volume match");
+    let fft = plan
+        .track_volume_pyramid_fft(&pyramid, grid, SubpixelRefinement::None, FftPadding::Zero)
+        .expect("FFT pyramid volume match");
+
+    assert_eq!(fft.centres, direct.centres);
+    assert_eq!(fft.displacements, direct.displacements);
+    assert_eq!(fft.peak_similarities.len(), direct.peak_similarities.len());
+    for (index, (&expected, &actual)) in direct
+        .peak_similarities
+        .iter()
+        .zip(&fft.peak_similarities)
+        .enumerate()
+    {
+        assert!(
+            expected.is_nan() == actual.is_nan()
+                && (expected.is_nan() || (expected - actual).abs() < 1.0e-9),
+            "block {index} peak differs: {actual} vs {expected}"
+        );
+    }
 }
 
 #[test]
@@ -845,6 +1080,7 @@ fn pipeline_with_least_squares_prior_keeps_linear_strain() {
         stages: PipelineStages {
             bayesian_prior: None,
             least_squares_prior: Some(window),
+            minimum_peak_similarity: Some(0.0),
         },
     };
     let result = pipeline
@@ -869,6 +1105,235 @@ fn pipeline_with_least_squares_prior_keeps_linear_strain() {
         mean_error < 0.05,
         "regularized mean strain error {mean_error} exceeds the derived bound"
     );
+}
+
+#[test]
+fn pipeline_rejects_malformed_public_stage_fields_before_matching() {
+    let pipeline = DisplacementPipeline {
+        metric: PipelineMetric::Direct,
+        refinement: SubpixelRefinement::None,
+        grid: BlockGrid::dense([0, 1, 1]),
+        stages: PipelineStages {
+            bayesian_prior: Some(BayesianDisplacementPrior {
+                mean: [0.0; 3],
+                prior_variance: 0.0,
+                observation_variance: 1.0,
+                minimum_peak_similarity: 0.5,
+            }),
+            least_squares_prior: Some(LeastSquaresDisplacementPrior {
+                window: 2,
+                regularization_strength: 0.5,
+            }),
+            minimum_peak_similarity: Some(f64::NAN),
+        },
+    };
+    assert!(pipeline.stages.validate().is_err());
+    assert!(pipeline
+        .run::<f32>(
+            &[],
+            &[],
+            [1, 1, 1],
+            BlockMatchingConfig {
+                block_radius: [0, 1, 1],
+                search_radius: [0, 1, 1],
+            }
+        )
+        .is_err());
+}
+
+#[test]
+fn pipeline_runs_a_pyramid_and_applies_post_processing() {
+    let plan = MultiResolutionSearch::new([0, 4, 4], [0, 4, 4], 2).expect("valid plan");
+    let coarse_fixed = pyramid_image(2, [0, 0, 0]);
+    let coarse_moving = pyramid_image(2, [0, 4, 2]);
+    let fine_fixed = pyramid_image(1, [0, 0, 0]);
+    let fine_moving = pyramid_image(1, [0, 4, 2]);
+    let pyramid = [
+        PyramidLevel {
+            fixed: &coarse_fixed,
+            moving: &coarse_moving,
+            dims: [1, 20, 20],
+        },
+        PyramidLevel {
+            fixed: &fine_fixed,
+            moving: &fine_moving,
+            dims: [1, 40, 40],
+        },
+    ];
+    let prior =
+        BayesianDisplacementPrior::new([1.0, 0.0, 0.0], 1.0, 1.0, 0.9).expect("valid prior");
+    let pipeline = DisplacementPipeline {
+        metric: PipelineMetric::Direct,
+        refinement: SubpixelRefinement::None,
+        grid: BlockGrid::dense([0, 4, 4]),
+        stages: PipelineStages {
+            bayesian_prior: Some(prior),
+            least_squares_prior: None,
+            minimum_peak_similarity: None,
+        },
+    };
+
+    let raw = plan
+        .track_volume_pyramid(&pyramid, pipeline.grid, SubpixelRefinement::None)
+        .expect("raw pyramid field");
+    let expected = prior.regularize(&raw);
+    let result = pipeline
+        .run_pyramid_with_diagnostics(&plan, &pyramid)
+        .expect("pipeline pyramid run");
+    let with_diagnostics = pipeline
+        .run_pyramid_with_diagnostics(&plan, &pyramid)
+        .expect("diagnostic pipeline pyramid run");
+
+    assert_eq!(result.field, with_diagnostics.field);
+    assert_eq!(with_diagnostics.diagnostics.centres, raw.centres);
+    assert_eq!(
+        with_diagnostics.diagnostics.displacements,
+        raw.displacements
+    );
+    assert_eq!(
+        with_diagnostics.diagnostics.peak_similarities,
+        raw.peak_similarities
+    );
+    assert_eq!(result.field.centres, expected.centres);
+    assert_eq!(result.field.peak_similarities, expected.peak_similarities);
+    assert_eq!(result.field.displacements, expected.displacements);
+    assert!(result.axial_strain.is_none());
+}
+
+#[test]
+fn pipeline_owned_pyramid_matches_explicit_levels() {
+    let plan = MultiResolutionSearch::new([0, 4, 4], [0, 4, 4], 2).expect("valid plan");
+    let fixed = pyramid_image(1, [0, 0, 0]);
+    let moving = pyramid_image(1, [0, 4, 2]);
+    let owned =
+        OwnedPyramid::nearest(&fixed, &moving, [1, 40, 40], &[2, 1]).expect("valid owned pyramid");
+    let levels = owned.levels();
+    let pipeline = DisplacementPipeline {
+        metric: PipelineMetric::Direct,
+        refinement: SubpixelRefinement::None,
+        grid: BlockGrid::dense([0, 4, 4]),
+        stages: PipelineStages::default(),
+    };
+
+    let explicit = pipeline
+        .run_pyramid(&plan, &levels)
+        .expect("explicit-level pipeline run");
+    let adapted = pipeline
+        .run_owned_pyramid(&plan, &owned)
+        .expect("owned-pyramid pipeline run");
+
+    assert_eq!(adapted.field, explicit.field);
+    assert_eq!(adapted.axial_strain, explicit.axial_strain);
+
+    let explicit_diagnostics = pipeline
+        .run_pyramid_with_diagnostics(&plan, &levels)
+        .expect("explicit diagnostic pipeline run");
+    let owned_diagnostics = pipeline
+        .run_owned_pyramid_with_diagnostics(&plan, &owned)
+        .expect("owned diagnostic pipeline run");
+    assert_eq!(owned_diagnostics.field, explicit_diagnostics.field);
+    assert_eq!(
+        owned_diagnostics.diagnostics,
+        explicit_diagnostics.diagnostics
+    );
+}
+
+#[cfg(feature = "fft")]
+#[test]
+fn pipeline_owned_fft_pyramid_matches_direct_adapter() {
+    let plan = MultiResolutionSearch::new([0, 4, 4], [0, 4, 4], 2).expect("valid plan");
+    let fixed = pyramid_image(1, [0, 0, 0]);
+    let moving = pyramid_image(1, [0, 4, 2]);
+    let owned =
+        OwnedPyramid::nearest(&fixed, &moving, [1, 40, 40], &[2, 1]).expect("valid owned pyramid");
+    let grid = BlockGrid::dense([0, 4, 4]);
+    let direct = DisplacementPipeline {
+        metric: PipelineMetric::Direct,
+        refinement: SubpixelRefinement::None,
+        grid,
+        stages: PipelineStages::default(),
+    }
+    .run_owned_pyramid(&plan, &owned)
+    .expect("direct owned-pyramid run");
+    let fft = DisplacementPipeline {
+        metric: PipelineMetric::Fft,
+        refinement: SubpixelRefinement::None,
+        grid,
+        stages: PipelineStages::default(),
+    }
+    .run_owned_pyramid(&plan, &owned)
+    .expect("FFT owned-pyramid run");
+
+    assert_eq!(fft.field.centres, direct.field.centres);
+    assert_eq!(fft.field.displacements, direct.field.displacements);
+    for (index, (&expected, &actual)) in direct
+        .field
+        .peak_similarities
+        .iter()
+        .zip(&fft.field.peak_similarities)
+        .enumerate()
+    {
+        assert!(
+            expected.is_nan() == actual.is_nan()
+                && (expected.is_nan() || (expected - actual).abs() < 1.0e-9),
+            "owned pipeline block {index} peak differs: {actual} vs {expected}"
+        );
+    }
+}
+
+#[cfg(feature = "fft")]
+#[test]
+fn pipeline_fft_pyramid_matches_direct_pipeline() {
+    let plan = MultiResolutionSearch::new([0, 4, 4], [0, 4, 4], 2).expect("valid plan");
+    let coarse_fixed = pyramid_image(2, [0, 0, 0]);
+    let coarse_moving = pyramid_image(2, [0, 4, 2]);
+    let fine_fixed = pyramid_image(1, [0, 0, 0]);
+    let fine_moving = pyramid_image(1, [0, 4, 2]);
+    let pyramid = [
+        PyramidLevel {
+            fixed: &coarse_fixed,
+            moving: &coarse_moving,
+            dims: [1, 20, 20],
+        },
+        PyramidLevel {
+            fixed: &fine_fixed,
+            moving: &fine_moving,
+            dims: [1, 40, 40],
+        },
+    ];
+    let grid = BlockGrid::dense([0, 4, 4]);
+    let direct = DisplacementPipeline {
+        metric: PipelineMetric::Direct,
+        refinement: SubpixelRefinement::None,
+        grid,
+        stages: PipelineStages::default(),
+    }
+    .run_pyramid_with_diagnostics(&plan, &pyramid)
+    .expect("direct pipeline pyramid run");
+    let fft = DisplacementPipeline {
+        metric: PipelineMetric::Fft,
+        refinement: SubpixelRefinement::None,
+        grid,
+        stages: PipelineStages::default(),
+    }
+    .run_pyramid_with_diagnostics(&plan, &pyramid)
+    .expect("FFT pipeline pyramid run");
+
+    assert_eq!(fft.field.centres, direct.field.centres);
+    assert_eq!(fft.field.displacements, direct.field.displacements);
+    for (index, (&expected, &actual)) in direct
+        .field
+        .peak_similarities
+        .iter()
+        .zip(&fft.field.peak_similarities)
+        .enumerate()
+    {
+        assert!(
+            expected.is_nan() == actual.is_nan()
+                && (expected.is_nan() || (expected - actual).abs() < 1.0e-9),
+            "pipeline block {index} peak differs: {actual} vs {expected}"
+        );
+    }
 }
 
 #[test]
@@ -920,6 +1385,144 @@ fn pyramid_volume_tracking_propagates_shift_across_all_valid_blocks() {
             );
         } else {
             assert_eq!(displacement, [0.0; 3]);
+        }
+    }
+}
+
+#[test]
+fn pyramid_volume_diagnostics_align_with_batch_field() {
+    let plan = MultiResolutionSearch::new([0, 4, 4], [0, 4, 4], 2).expect("valid plan");
+    let coarse_fixed = pyramid_image(2, [0, 0, 0]);
+    let coarse_moving = pyramid_image(2, [0, 4, 2]);
+    let fine_fixed = pyramid_image(1, [0, 0, 0]);
+    let fine_moving = pyramid_image(1, [0, 4, 2]);
+    let pyramid = [
+        PyramidLevel {
+            fixed: &coarse_fixed,
+            moving: &coarse_moving,
+            dims: [1, 20, 20],
+        },
+        PyramidLevel {
+            fixed: &fine_fixed,
+            moving: &fine_moving,
+            dims: [1, 40, 40],
+        },
+    ];
+    let grid = BlockGrid::dense([0, 4, 4]);
+    let field = plan
+        .track_volume_pyramid(&pyramid, grid, SubpixelRefinement::None)
+        .expect("batch field");
+    let diagnostics = plan
+        .track_volume_pyramid_diagnostics(&pyramid, grid, SubpixelRefinement::None)
+        .expect("diagnostic field");
+
+    assert_eq!(diagnostics.centres, field.centres);
+    assert_eq!(diagnostics.displacements, field.displacements);
+    assert_eq!(diagnostics.peak_similarities, field.peak_similarities);
+    for (index, (&peak, levels)) in diagnostics
+        .peak_similarities
+        .iter()
+        .zip(&diagnostics.level_diagnostics)
+        .enumerate()
+    {
+        if peak.is_finite() {
+            assert_eq!(
+                levels.as_ref().expect("valid block").len(),
+                2,
+                "block {index}"
+            );
+        } else {
+            assert!(
+                levels.is_none(),
+                "skipped block {index} must have no diagnostics"
+            );
+        }
+    }
+}
+
+#[test]
+fn pyramid_diagnostics_validate_before_field_projection() {
+    let malformed = PyramidDisplacementField {
+        centres: vec![[0, 1, 1]],
+        displacements: vec![[0.0, 0.0, 0.0]],
+        peak_similarities: vec![1.0],
+        level_diagnostics: vec![Some(vec![PyramidLevelDisplacement {
+            scale: 0,
+            fixed_centre: [0, 1, 1],
+            moving_centre: [0, 1, 1],
+            displacement: [0.0, 0.0, 0.0],
+            peak_similarity: 1.0,
+        }])],
+    };
+    assert!(malformed.validate().is_err());
+    assert!(malformed.try_as_field().is_err());
+
+    let misaligned = PyramidDisplacementField {
+        centres: vec![[0, 1, 1]],
+        displacements: vec![],
+        peak_similarities: vec![1.0],
+        level_diagnostics: vec![None],
+    };
+    assert!(misaligned.validate().is_err());
+    assert!(misaligned.try_as_field().is_err());
+}
+
+#[cfg(feature = "fft")]
+#[test]
+fn fft_pyramid_diagnostics_match_direct_diagnostics() {
+    let plan = MultiResolutionSearch::new([0, 4, 4], [0, 4, 4], 2).expect("valid plan");
+    let coarse_fixed = pyramid_image(2, [0, 0, 0]);
+    let coarse_moving = pyramid_image(2, [0, 4, 2]);
+    let fine_fixed = pyramid_image(1, [0, 0, 0]);
+    let fine_moving = pyramid_image(1, [0, 4, 2]);
+    let pyramid = [
+        PyramidLevel {
+            fixed: &coarse_fixed,
+            moving: &coarse_moving,
+            dims: [1, 20, 20],
+        },
+        PyramidLevel {
+            fixed: &fine_fixed,
+            moving: &fine_moving,
+            dims: [1, 40, 40],
+        },
+    ];
+    let grid = BlockGrid::dense([0, 4, 4]);
+    let direct = plan
+        .track_volume_pyramid_diagnostics(&pyramid, grid, SubpixelRefinement::None)
+        .expect("direct diagnostics");
+    let fft = plan
+        .track_volume_pyramid_fft_diagnostics(
+            &pyramid,
+            grid,
+            SubpixelRefinement::None,
+            FftPadding::Zero,
+        )
+        .expect("FFT diagnostics");
+
+    assert_eq!(fft.centres, direct.centres);
+    assert_eq!(fft.displacements, direct.displacements);
+    for (index, (expected, actual)) in direct
+        .level_diagnostics
+        .iter()
+        .zip(&fft.level_diagnostics)
+        .enumerate()
+    {
+        match (expected, actual) {
+            (None, None) => {}
+            (Some(expected), Some(actual)) => {
+                assert_eq!(actual.len(), expected.len(), "block {index} level count");
+                for (level, (expected, actual)) in expected.iter().zip(actual).enumerate() {
+                    assert_eq!(actual.fixed_centre, expected.fixed_centre);
+                    assert_eq!(actual.moving_centre, expected.moving_centre);
+                    assert_eq!(actual.displacement, expected.displacement);
+                    assert!(
+                        (actual.peak_similarity - expected.peak_similarity).abs() < 1.0e-9,
+                        "block {index}, level {level} peak differs"
+                    );
+                }
+            }
+            _ => panic!("block {index} direct/FFT validity differs"),
         }
     }
 }
