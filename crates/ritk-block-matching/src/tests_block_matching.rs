@@ -43,6 +43,7 @@ fn shifted_image(shift: [isize; 3]) -> Vec<f32> {
             }
         }
     }
+
     out
 }
 
@@ -190,6 +191,103 @@ fn metric_image_centre_is_the_null_displacement() {
         (centre - 1.0).abs() < 1.0e-12,
         "centre must be the null displacement with NCC 1, got {centre}"
     );
+}
+
+#[cfg(feature = "fft")]
+fn assert_fft_matches_direct(centre: [usize; 3]) {
+    let fixed = shifted_image([0, 0, 0]);
+    let moving = shifted_image([0, 3, -2]);
+    let direct = metric_image(
+        &fixed,
+        &moving,
+        DIMS,
+        centre,
+        config(),
+        BlockMetric::NormalizedCrossCorrelation,
+    )
+    .expect("direct metric image");
+    let fft = metric_image_fft(&fixed, &moving, DIMS, centre, config(), FftPadding::Zero)
+        .expect("FFT metric image");
+
+    assert_eq!(direct.extent, fft.extent);
+    assert_eq!(direct.search_radius, fft.search_radius);
+    for (index, (&expected, &actual)) in direct.values.iter().zip(&fft.values).enumerate() {
+        match (expected.is_finite(), actual.is_finite()) {
+            (true, true) => assert!(
+                (expected - actual).abs() < 1.0e-9,
+                "FFT/direct NCC mismatch at {index}: {actual} vs {expected}"
+            ),
+            (false, false) => {}
+            _ => panic!("FFT/direct finite-boundary mismatch at {index}: {actual} vs {expected}"),
+        }
+    }
+}
+
+/// Apollo's finite linear NCC must match the direct metric away from image
+/// boundaries, including the full candidate surface rather than only its peak.
+#[cfg(feature = "fft")]
+#[test]
+fn fft_ncc_matches_direct_metric_interior() {
+    assert_fft_matches_direct([0, 20, 20]);
+}
+
+/// Zero padding is an implementation detail, not correlation evidence: the
+/// FFT path must agree with the direct metric when negative candidates are
+/// excluded at a finite image boundary.
+#[cfg(feature = "fft")]
+#[test]
+fn fft_ncc_matches_direct_metric_at_boundary() {
+    assert_fft_matches_direct([0, 8, 8]);
+}
+
+/// The FFT matcher must preserve the public displacement convention and peak
+/// value for an exact translated texture.
+#[cfg(feature = "fft")]
+#[test]
+fn fft_match_recovers_integer_translation() {
+    let fixed = shifted_image([0, 0, 0]);
+    let moving = shifted_image([0, 3, -2]);
+    let direct = match_block(
+        &fixed,
+        &moving,
+        DIMS,
+        [0, 20, 20],
+        config(),
+        SubpixelRefinement::None,
+    )
+    .expect("direct match");
+    let fft = match_block_fft(
+        &fixed,
+        &moving,
+        DIMS,
+        [0, 20, 20],
+        config(),
+        SubpixelRefinement::None,
+        FftPadding::Zero,
+    )
+    .expect("FFT match");
+
+    assert_eq!(direct.displacement, [0.0, 3.0, -2.0]);
+    assert_eq!(fft.displacement, direct.displacement);
+    assert!((fft.peak_similarity - direct.peak_similarity).abs() < 1.0e-9);
+}
+
+#[cfg(feature = "fft")]
+#[test]
+fn fft_ncc_rejects_featureless_and_mismatched_inputs() {
+    let flat = vec![1.0_f32; DIMS[0] * DIMS[1] * DIMS[2]];
+    assert!(
+        metric_image_fft(&flat, &flat, DIMS, [0, 20, 20], config(), FftPadding::Zero,).is_err()
+    );
+    assert!(metric_image_fft(
+        &flat,
+        &flat[..10],
+        DIMS,
+        [0, 20, 20],
+        config(),
+        FftPadding::Zero,
+    )
+    .is_err());
 }
 
 /// Normalized cross-correlation is invariant to affine intensity change; that
@@ -506,4 +604,494 @@ fn block_grid_dense_enumerates_centres() {
         assert!(y + config.block_radius[1] < 32);
         assert!(x + config.block_radius[2] < 32);
     }
+}
+
+/// Sample the same physical texture on one pyramid level. The moving image is
+/// translated in finest-resolution voxels, so the expected level displacement
+/// is the physical shift divided by `scale`.
+fn pyramid_image(scale: usize, shift: [isize; 3]) -> Vec<f32> {
+    let dims = [1, 40 / scale, 40 / scale];
+    let mut image = vec![0.0_f32; dims[0] * dims[1] * dims[2]];
+    for z in 0..dims[0] {
+        for y in 0..dims[1] {
+            for x in 0..dims[2] {
+                image[(z * dims[1] + y) * dims[2] + x] = texture(
+                    z * scale,
+                    y as isize * scale as isize - shift[1],
+                    x as isize * scale as isize - shift[2],
+                );
+            }
+        }
+    }
+
+    image
+}
+
+/// A coarse level must find the broad motion and the fine level must search
+/// around its propagated moving centre rather than restarting at zero offset.
+#[test]
+fn pyramid_matching_propagates_coarse_displacement() {
+    let plan = MultiResolutionSearch::new([0, 4, 4], [0, 8, 8], 3).expect("valid plan");
+    let coarse_fixed = pyramid_image(4, [0, 0, 0]);
+    let coarse_moving = pyramid_image(4, [0, 8, 4]);
+    let middle_fixed = pyramid_image(2, [0, 0, 0]);
+    let middle_moving = pyramid_image(2, [0, 8, 4]);
+    let fine_fixed = pyramid_image(1, [0, 0, 0]);
+    let fine_moving = pyramid_image(1, [0, 8, 4]);
+
+    let result = plan
+        .match_pyramid(
+            &[
+                PyramidLevel {
+                    fixed: &coarse_fixed,
+                    moving: &coarse_moving,
+                    dims: [1, 10, 10],
+                },
+                PyramidLevel {
+                    fixed: &middle_fixed,
+                    moving: &middle_moving,
+                    dims: [1, 20, 20],
+                },
+                PyramidLevel {
+                    fixed: &fine_fixed,
+                    moving: &fine_moving,
+                    dims: [1, 40, 40],
+                },
+            ],
+            [0, 20, 20],
+            SubpixelRefinement::None,
+        )
+        .expect("pyramid match");
+
+    assert_eq!(result.displacement, [0.0, 8.0, 4.0]);
+    assert_eq!(result.levels.len(), 3);
+    assert_eq!(result.levels[0].scale, 4);
+    assert_eq!(result.levels[0].displacement, [0.0, 2.0, 1.0]);
+    assert_eq!(result.levels[1].moving_centre, [0, 14, 12]);
+    assert_eq!(result.levels[1].displacement, [0.0, 4.0, 2.0]);
+    assert_eq!(result.levels[2].moving_centre, [0, 28, 24]);
+    assert!(result.peak_similarity > 0.999);
+}
+
+#[test]
+fn pyramid_matching_rejects_a_level_count_mismatch() {
+    let plan = MultiResolutionSearch::new([0, 2, 2], [0, 2, 2], 2).expect("valid plan");
+    let image = pyramid_image(1, [0, 0, 0]);
+    assert!(plan
+        .match_pyramid(
+            &[PyramidLevel {
+                fixed: &image,
+                moving: &image,
+                dims: [1, 40, 40],
+            }],
+            [0, 20, 20],
+            SubpixelRefinement::None,
+        )
+        .is_err());
+}
+
+#[test]
+fn pyramid_regularization_uses_finest_confidence_and_preserves_diagnostics() {
+    let plan = MultiResolutionSearch::new([0, 4, 4], [0, 8, 8], 2).expect("valid plan");
+    let coarse_fixed = pyramid_image(2, [0, 0, 0]);
+    let coarse_moving = pyramid_image(2, [0, 8, 4]);
+    let fine_fixed = pyramid_image(1, [0, 0, 0]);
+    let fine_moving = pyramid_image(1, [0, 8, 4]);
+    let pyramid = [
+        PyramidLevel {
+            fixed: &coarse_fixed,
+            moving: &coarse_moving,
+            dims: [1, 20, 20],
+        },
+        PyramidLevel {
+            fixed: &fine_fixed,
+            moving: &fine_moving,
+            dims: [1, 40, 40],
+        },
+    ];
+    let prior =
+        BayesianDisplacementPrior::new([0.0; 3], 1.0, 1.0, 0.9).expect("valid Bayesian prior");
+
+    let raw = plan
+        .match_pyramid(&pyramid, [0, 20, 20], SubpixelRefinement::None)
+        .expect("raw pyramid match");
+    let regularized = plan
+        .match_pyramid_regularized(&pyramid, [0, 20, 20], SubpixelRefinement::None, &prior)
+        .expect("regularized pyramid match");
+
+    assert_eq!(raw.displacement, [0.0, 8.0, 4.0]);
+    assert!(raw.peak_similarity > 0.999);
+    let confidence = raw.peak_similarity;
+    let observation_weight = confidence * confidence / (1.0 + confidence * confidence);
+    for axis in 0..3 {
+        let expected = raw.displacement[axis] * observation_weight;
+        assert!(
+            (regularized.displacement[axis] - expected).abs() < 1.0e-10,
+            "axis {axis}: expected posterior {expected}, got {}",
+            regularized.displacement[axis]
+        );
+    }
+
+    assert_eq!(regularized.peak_similarity, raw.peak_similarity);
+    assert_eq!(regularized.levels, raw.levels);
+}
+
+/// Sample the texture with an axial compression applied: the fixed image is
+/// `texture(z, y, x)` and the moving image is the same field resampled at a
+/// linearly increasing axial shift `d(z) = strain · (z - z0)`, which is what a
+/// uniform compression of the tissue produces. `z0` is the reference depth at
+/// which displacement is zero (the transducer face).
+fn compressed_image(z0: isize, strain: f64, z_scale: usize, y_scale: usize) -> Vec<f32> {
+    let dims = [1, 40 / y_scale, 40 / z_scale];
+    let mut image = vec![0.0_f32; dims[0] * dims[1] * dims[2]];
+    for z in 0..dims[0] {
+        for y in 0..dims[1] {
+            for x in 0..dims[2] {
+                // The compressed sample at depth x came from depth x' = x - d(x)
+                // in the uncompressed reference.
+                let x_fine = x as isize * z_scale as isize;
+                let displacement = strain * (x_fine - z0) as f64;
+                let source_x = x_fine as f64 - displacement;
+                let source = source_x.round() as isize;
+                let value = if (0..40).contains(&source) {
+                    texture(0, y as isize * y_scale as isize, source)
+                } else {
+                    0.0 // outside the reference field
+                };
+                image[(z * dims[1] + y) * dims[2] + x] = value;
+            }
+        }
+    }
+
+    image
+}
+
+/// End-to-end D2 oracle: the pipeline must recover a known constant axial
+/// strain from a simulated compression sequence within a derived bound.
+///
+/// A 2% uniform compression produces a displacement field `d(z) = 0.02·(z-z0)`
+/// and a constant strain of 0.02. Block matching with a dense grid, followed
+/// by `strain_from_displacement`, must recover that strain to within the
+/// quantization error of the half-voxel resampling (the moving image is
+/// sampled by rounding the source coordinate, so the displacement is exact at
+/// the half-sample level and the strain is exact up to block-boundary effects).
+#[test]
+fn pipeline_recovers_known_compression_strain() {
+    let strain_truth = 0.02;
+    let z0 = 20_isize; // reference depth at the image centre
+
+    let fixed = pyramid_image(1, [0, 0, 0]);
+    let moving = compressed_image(z0, strain_truth, 1, 1);
+
+    let config = BlockMatchingConfig {
+        block_radius: [0, 4, 4],
+        search_radius: [0, 5, 5],
+    };
+    let pipeline = DisplacementPipeline {
+        metric: PipelineMetric::Direct,
+        refinement: SubpixelRefinement::None,
+        grid: BlockGrid::dense(config.block_radius),
+        stages: PipelineStages::default(),
+    };
+    let result = pipeline
+        .run(&fixed, &moving, [1, 40, 40], config)
+        .expect("pipeline run");
+
+    // The strain at every interior block must approximate the applied strain.
+    let strain = strain_from_displacement(&result.field, pipeline.grid.stride[0]);
+    let mut interior = 0;
+    let mut error_sum = 0.0;
+    for (i, &s) in strain.iter().enumerate() {
+        // Skip blocks at the axial edges where the one-sided difference and the
+        // truncated compression field make the estimate unreliable.
+        if result.field.centres[i][2] < 12 || result.field.centres[i][2] > 28 {
+            continue;
+        }
+        interior += 1;
+        error_sum += (s - strain_truth).abs();
+    }
+
+    assert!(interior >= 2, "expected interior blocks, got {interior}");
+    let mean_error = error_sum / interior as f64;
+    // The rounding of the resampled source coordinate bounds the per-block
+    // displacement error to 0.5 voxel; over the axial block stride (9 voxels)
+    // that is a strain error of ~0.056. Interior blocks average much better;
+    // assert a derived, non-tuned bound well below the gross error scale.
+    assert!(
+        mean_error < 0.05,
+        "mean strain error {mean_error} exceeds the derived bound for strain {strain_truth}"
+    );
+}
+
+/// The end-to-end pipeline with a strain window must smooth an outlier-heavy
+/// field back toward the true strain without erasing a genuine displacement
+/// gradient.
+#[test]
+fn pipeline_with_least_squares_prior_keeps_linear_strain() {
+    let strain_truth = 0.01;
+    let z0 = 20_isize;
+    let fixed = pyramid_image(1, [0, 0, 0]);
+    let moving = compressed_image(z0, strain_truth, 1, 1);
+
+    let config = BlockMatchingConfig {
+        block_radius: [0, 4, 4],
+        search_radius: [0, 5, 5],
+    };
+    let window = LeastSquaresDisplacementPrior::new(5, 0.8).expect("valid strain window");
+    let pipeline = DisplacementPipeline {
+        metric: PipelineMetric::Direct,
+        refinement: SubpixelRefinement::None,
+        grid: BlockGrid::dense(config.block_radius),
+        stages: PipelineStages {
+            bayesian_prior: None,
+            least_squares_prior: Some(window),
+        },
+    };
+    let result = pipeline
+        .run(&fixed, &moving, [1, 40, 40], config)
+        .expect("pipeline run");
+
+    // With the strain window enabled the pipeline reports strain directly.
+    let strain = result.axial_strain.expect("strain window produces strain");
+    let mut interior = 0;
+    let mut error_sum = 0.0;
+    for (i, &s) in strain.iter().enumerate() {
+        if result.field.centres[i][2] < 12 || result.field.centres[i][2] > 28 {
+            continue;
+        }
+        interior += 1;
+        error_sum += (s - strain_truth).abs();
+    }
+
+    assert!(interior >= 2);
+    let mean_error = error_sum / interior as f64;
+    assert!(
+        mean_error < 0.05,
+        "regularized mean strain error {mean_error} exceeds the derived bound"
+    );
+}
+
+#[test]
+fn pyramid_volume_tracking_propagates_shift_across_all_valid_blocks() {
+    let plan = MultiResolutionSearch::new([0, 4, 4], [0, 4, 4], 2).expect("valid plan");
+    let coarse_fixed = pyramid_image(2, [0, 0, 0]);
+    let coarse_moving = pyramid_image(2, [0, 4, 2]);
+    let fine_fixed = pyramid_image(1, [0, 0, 0]);
+    let fine_moving = pyramid_image(1, [0, 4, 2]);
+    let pyramid = [
+        PyramidLevel {
+            fixed: &coarse_fixed,
+            moving: &coarse_moving,
+            dims: [1, 20, 20],
+        },
+        PyramidLevel {
+            fixed: &fine_fixed,
+            moving: &fine_moving,
+            dims: [1, 40, 40],
+        },
+    ];
+
+    let field = plan
+        .track_volume_pyramid(
+            &pyramid,
+            BlockGrid::dense([0, 4, 4]),
+            SubpixelRefinement::None,
+        )
+        .expect("pyramid volume match");
+
+    let valid = field
+        .peak_similarities
+        .iter()
+        .filter(|peak| peak.is_finite())
+        .count();
+    assert!(valid >= 9, "expected valid pyramid blocks, got {valid}");
+    for (index, (&displacement, &peak)) in field
+        .displacements
+        .iter()
+        .zip(&field.peak_similarities)
+        .enumerate()
+    {
+        if peak.is_finite() {
+            assert_eq!(
+                displacement,
+                [0.0, 4.0, 2.0],
+                "block {index} at {:?} missed the known shift",
+                field.centres[index]
+            );
+        } else {
+            assert_eq!(displacement, [0.0; 3]);
+        }
+    }
+}
+
+#[test]
+fn pyramid_volume_regularization_uses_each_block_confidence() {
+    let plan = MultiResolutionSearch::new([0, 4, 4], [0, 4, 4], 2).expect("valid plan");
+    let coarse_fixed = pyramid_image(2, [0, 0, 0]);
+    let coarse_moving = pyramid_image(2, [0, 4, 2]);
+    let fine_fixed = pyramid_image(1, [0, 0, 0]);
+    let fine_moving = pyramid_image(1, [0, 4, 2]);
+    let pyramid = [
+        PyramidLevel {
+            fixed: &coarse_fixed,
+            moving: &coarse_moving,
+            dims: [1, 20, 20],
+        },
+        PyramidLevel {
+            fixed: &fine_fixed,
+            moving: &fine_moving,
+            dims: [1, 40, 40],
+        },
+    ];
+    let prior =
+        BayesianDisplacementPrior::new([1.0, 0.0, 0.0], 1.0, 1.0, 0.9).expect("valid prior");
+    let raw = plan
+        .track_volume_pyramid(
+            &pyramid,
+            BlockGrid::dense([0, 4, 4]),
+            SubpixelRefinement::None,
+        )
+        .expect("raw pyramid volume match");
+    let regularized = plan
+        .track_volume_pyramid_regularized(
+            &pyramid,
+            BlockGrid::dense([0, 4, 4]),
+            SubpixelRefinement::None,
+            &prior,
+        )
+        .expect("regularized pyramid volume match");
+
+    assert_eq!(regularized.centres, raw.centres);
+    assert_eq!(regularized.peak_similarities, raw.peak_similarities);
+    for (index, (&peak, &raw_displacement)) in raw
+        .peak_similarities
+        .iter()
+        .zip(&raw.displacements)
+        .enumerate()
+    {
+        let confidence = if peak.is_finite() && peak >= prior.minimum_peak_similarity {
+            peak.clamp(0.0, 1.0)
+        } else {
+            0.0
+        };
+        let weight = confidence * confidence / (1.0 + confidence * confidence);
+        let expected: [f64; 3] = std::array::from_fn(|axis| {
+            prior.mean[axis] * (1.0 - weight) + raw_displacement[axis] * weight
+        });
+        for (axis, &want) in expected.iter().enumerate() {
+            assert!(
+                (regularized.displacements[index][axis] - want).abs() < 1.0e-12,
+                "block {index}, axis {axis}: expected {want}, got {}",
+                regularized.displacements[index][axis]
+            );
+        }
+    }
+}
+
+#[test]
+fn pyramid_volume_tracking_rejects_invalid_level_inputs() {
+    let plan = MultiResolutionSearch::new([0, 2, 2], [0, 2, 2], 2).expect("valid plan");
+    let image = pyramid_image(1, [0, 0, 0]);
+    let level = PyramidLevel {
+        fixed: &image,
+        moving: &image,
+        dims: [1, 40, 40],
+    };
+    assert!(plan
+        .track_volume_pyramid(
+            &[level],
+            BlockGrid::dense([0, 2, 2]),
+            SubpixelRefinement::None
+        )
+        .is_err());
+
+    let short = vec![0.0_f32; image.len() - 1];
+    let pyramid = [
+        PyramidLevel {
+            fixed: &short,
+            moving: &image,
+            dims: [1, 40, 40],
+        },
+        PyramidLevel {
+            fixed: &image,
+            moving: &image,
+            dims: [1, 40, 40],
+        },
+    ];
+    assert!(plan
+        .track_volume_pyramid(
+            &pyramid,
+            BlockGrid::dense([0, 2, 2]),
+            SubpixelRefinement::None
+        )
+        .is_err());
+}
+
+#[test]
+fn axial_radius_orients_the_transverse_pair_around_every_axis() {
+    // The two transverse radii fill the non-axial axes in axis order, whichever
+    // axis is axial. Each case is checked against the layout written by hand, so
+    // an off-by-one in the index shift cannot pass.
+    let cases = [(0usize, [9, 2, 3]), (1, [2, 9, 3]), (2, [2, 3, 9])];
+    for (axial_axis, expected) in cases {
+        let config =
+            BlockMatchingConfig::with_axial_radius(axial_axis, 9, [2, 3], [4, 4, 4]).unwrap();
+        assert_eq!(
+            config.block_radius, expected,
+            "axial axis {axial_axis} placed the radii wrongly"
+        );
+        assert_eq!(config.search_radius, [4, 4, 4]);
+    }
+
+    assert!(
+        BlockMatchingConfig::with_axial_radius(3, 9, [2, 3], [4, 4, 4]).is_err(),
+        "an out-of-range axial axis must be rejected, not wrapped"
+    );
+}
+
+#[test]
+fn radius_sources_build_oriented_validated_geometry() {
+    let bandwidth = BlockMatchingConfig::from_transducer_bandwidth(
+        1540.0,
+        5.0e6,
+        0.6,
+        1.0e-4,
+        2,
+        [0, 2],
+        [0, 4, 4],
+    )
+    .expect("valid transducer geometry");
+    assert_eq!(bandwidth.block_radius, [0, 2, 3]);
+    assert_eq!(bandwidth.search_radius, [0, 4, 4]);
+
+    let signal = [0.0, 1.0, 0.0, -1.0, 0.0, 1.0, 0.0, -1.0];
+    let autocorrelation =
+        BlockMatchingConfig::from_axial_autocorrelation(&signal, 0.5, 0, [2, 3], [4, 0, 4])
+            .expect("valid autocorrelation geometry");
+    assert!(autocorrelation.block_radius[0] >= 1);
+    assert_eq!(autocorrelation.block_radius[1], 2);
+    assert_eq!(autocorrelation.block_radius[2], 3);
+}
+
+#[test]
+fn radius_geometry_rejects_invalid_axis_and_source_inputs() {
+    assert!(BlockMatchingConfig::with_axial_radius(3, 1, [1, 1], [1, 1, 1]).is_err());
+    assert!(BlockMatchingConfig::from_axial_autocorrelation(
+        &[1.0, 1.0, 1.0],
+        0.5,
+        0,
+        [1, 1],
+        [1, 1, 1],
+    )
+    .is_err());
+    assert!(BlockMatchingConfig::from_transducer_bandwidth(
+        1540.0,
+        5.0e6,
+        0.6,
+        1.0e-4,
+        3,
+        [1, 1],
+        [1, 1, 1],
+    )
+    .is_err());
 }

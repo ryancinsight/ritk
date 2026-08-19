@@ -49,43 +49,73 @@ impl MetricImage {
     }
 }
 
-/// Evaluate `metric` at every integer offset in the search region.
+/// Evaluate `metric` at every integer offset in a same-centre search region.
 ///
-/// # Errors
-///
-/// Returns an error when the fixed block has no variance. A constant block
-/// correlates equally with everything, so its peak is an artefact of iteration
-/// order rather than a measurement; reporting a displacement there would be
-/// indistinguishable from a real match at the API boundary.
+/// This compatibility wrapper searches around `centre` in both images. For a
+/// propagated coarse-to-fine search, use the crate's centre-aware execution
+/// path instead; it keeps the fixed block centre and moving search centre
+/// distinct.
 pub fn metric_image<T: Sample>(
     fixed: &[T],
     moving: &[T],
     dims: [usize; 3],
     centre: [usize; 3],
     config: BlockMatchingConfig,
+    metric: BlockMetric,
+) -> Result<MetricImage> {
+    metric_image_at(fixed, moving, dims, centre, centre, config, metric)
+}
+
+/// Evaluate `metric` around `moving_centre` for a block fixed at
+/// `fixed_centre`.
+///
+/// Candidate offsets that leave the image are not padded or clamped. They are
+/// left at negative infinity, preserving finite-edge semantics and preventing
+/// padding values from becoming correlation evidence.
+pub(crate) fn metric_image_at<T: Sample>(
+    fixed: &[T],
+    moving: &[T],
+    dims: [usize; 3],
+    fixed_centre: [usize; 3],
+    moving_centre: [usize; 3],
+    config: BlockMatchingConfig,
     _metric: BlockMetric,
 ) -> Result<MetricImage> {
-    // One variant; the implementation runs unconditionally.
-    // A second variant (e.g. SSD) would live in a match arm here.
-
     let radius = config.block_radius;
     let search = config.search_radius;
-    let extent = [2 * search[0] + 1, 2 * search[1] + 1, 2 * search[2] + 1];
+    let extent = [
+        search[0]
+            .checked_mul(2)
+            .and_then(|v| v.checked_add(1))
+            .ok_or_else(|| anyhow::anyhow!("search extent overflows on axis 0"))?,
+        search[1]
+            .checked_mul(2)
+            .and_then(|v| v.checked_add(1))
+            .ok_or_else(|| anyhow::anyhow!("search extent overflows on axis 1"))?,
+        search[2]
+            .checked_mul(2)
+            .and_then(|v| v.checked_add(1))
+            .ok_or_else(|| anyhow::anyhow!("search extent overflows on axis 2"))?,
+    ];
+    let value_count = extent[0]
+        .checked_mul(extent[1])
+        .and_then(|v| v.checked_mul(extent[2]))
+        .ok_or_else(|| anyhow::anyhow!("metric image extent {extent:?} overflows"))?;
 
     // Fixed block, mean-subtracted once: it is reused for every candidate.
-    let block = gather_block(fixed, dims, centre, radius);
+    let block = gather_block(fixed, dims, fixed_centre, radius);
     let block_mean = block.iter().sum::<f64>() / block.len() as f64;
     let fixed_centred: Vec<f64> = block.iter().map(|&v| v - block_mean).collect();
     let fixed_energy: f64 = fixed_centred.iter().map(|v| v * v).sum();
     if fixed_energy <= 0.0 {
         bail!(
-            "fixed block at {centre:?} has zero variance; normalized correlation is undefined \
+            "fixed block at {fixed_centre:?} has zero variance; normalized correlation is undefined \
              and any peak would be an artefact of iteration order"
         );
     }
     let fixed_norm = fixed_energy.sqrt();
 
-    let mut values = vec![f64::NEG_INFINITY; extent[0] * extent[1] * extent[2]];
+    let mut values = vec![f64::NEG_INFINITY; value_count];
     // One scratch buffer for every candidate. A speckle tracker calls this per
     // depth sample of every line, so allocating per candidate would put tens of
     // allocations into the inner loop of a volume-wide sweep.
@@ -94,13 +124,15 @@ pub fn metric_image<T: Sample>(
         for (oy, dy) in (-(search[1] as isize)..=search[1] as isize).enumerate() {
             for (ox, dx) in (-(search[2] as isize)..=search[2] as isize).enumerate() {
                 let shifted = [
-                    centre[0] as isize + dz,
-                    centre[1] as isize + dy,
-                    centre[2] as isize + dx,
+                    moving_centre[0] as isize + dz,
+                    moving_centre[1] as isize + dy,
+                    moving_centre[2] as isize + dx,
                 ];
                 // A candidate whose block leaves the image is not evaluated:
                 // padding it would invent data and bias the correlation toward
-                // the padding value.
+                // the padding value. The centre-aware caller validates the
+                // centre block, but retaining this guard makes the metric safe
+                // when the search reaches a finite image boundary.
                 let inside = (0..3).all(|axis| {
                     let r = radius[axis] as isize;
                     let extent = dims[axis] as isize;

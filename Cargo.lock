@@ -5641,6 +5641,8 @@ name = "ritk-block-matching"
 version = "0.1.0"
 dependencies = [
  "anyhow",
+ "apollo-fft",
+ "eunomia",
 ]
 
 [[package]]

@@ -37,9 +37,32 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
 ```
 
 Use [`MultiResolutionSearch`](https://docs.rs/ritk-block-matching/latest/ritk_block_matching/struct.MultiResolutionSearch.html)
-when the caller owns a coarse-to-fine image pyramid. The optional `fft`
-feature provides a finite, zero-padded FFT-backed metric through the Apollo
-provider.
+when the caller owns a coarse-to-fine image pyramid. `match_pyramid` handles
+one centre; `track_volume_pyramid` applies the same propagated-centre contract
+to every valid block in a [`BlockGrid`](https://docs.rs/ritk-block-matching/latest/ritk_block_matching/struct.BlockGrid.html).
+`track_volume_pyramid_regularized` then applies a configured Bayesian prior
+using each finest-level peak as confidence, while preserving centres and peak
+metadata. The optional `fft` feature provides a finite, zero-padded FFT-backed
+metric through the Apollo provider.
+
+Two post-processing seams handle unreliable blocks, and they are complements
+rather than alternatives. [`LeastSquaresDisplacementPrior`](https://docs.rs/ritk-block-matching/latest/ritk_block_matching/struct.LeastSquaresDisplacementPrior.html)
+and [`BayesianDisplacementPrior`](https://docs.rs/ritk-block-matching/latest/ritk_block_matching/struct.BayesianDisplacementPrior.html)
+*condition* every block, blending it toward a local least-squares slope or a
+confidence-weighted prior. [`strain_window_filter`](https://docs.rs/ritk-block-matching/latest/ritk_block_matching/fn.strain_window_filter.html)
+instead *rejects*: a block whose implied axial strain exceeds a plausibility
+bound is replaced by interpolation between its nearest measured neighbours, and
+everything else is returned untouched. Use the priors against measurement noise
+and the filter against peak hopping, where a decorrelated block reports a
+maximum from the wrong correlation lobe and is wrong by roughly a wavelength.
+Blocks with no measured neighbour to draw on are reported rather than invented.
+
+For acquisition-aware geometry, use
+`BlockMatchingConfig::from_axial_autocorrelation` or
+`BlockMatchingConfig::from_transducer_bandwidth`. Both derive an axial
+half-length, map it explicitly onto the selected `[z, y, x]` axis, assign the
+two transverse radii, and validate the resulting block/search geometry before
+matching begins.
 
 The algorithm follows the metric-image and displacement-calculator split from
 ITKUltrasound and the sub-sample estimators described by Céspedes et al.
