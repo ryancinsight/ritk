@@ -10,7 +10,7 @@
 
 ## DOC-TRACTOGRAPHY-VALIDATION [patch] — creation and validation chapter
 
-- **Status:** LOCAL GATES PASSED; owner=Codex; last-update=2026-08-19;
+- **Status:** DONE; owner=Codex; last-update=2026-08-19;
   scope=`docs/book/{SUMMARY.md,tractography.md}`,
   `crates/ritk-diffusion/examples/book_diffusion_tractography.rs`, the existing
   deterministic figure, the blocking `Cargo.lock` repair, and synchronized
@@ -23,8 +23,12 @@
   attempted seeds, recovers the analytical axis at 0.00 degrees, produces five
   boundary-terminated streamlines, and regenerates byte-identical figure and
   tractogram artifacts. Formatting, warning-denied example Clippy, mdBook
-  test/build, strict checking of 188 links, and diff checks pass. Hosted checks,
-  merge, and live Pages verification remain.
+  test/build, strict checking of 188 links, and diff checks pass. Exact-head
+  hosted runs `32272992103` (Rust CI), `32272991999` (Python matrix), and
+  `32272992744` (book build) passed at `2db8dda8`; PR #185 merged as
+  `30f7d05c`. Pages run `32281063710` built and deployed that merge revision.
+  The live chapter returns HTTP 200 with the new title, validation ladder, and
+  resolved Maier-Hein citation.
 
 ## ATLAS-RITK-ZERO-FLUX-PAD-STRUCTURE [patch] — operation-family split
 
