@@ -8,7 +8,7 @@
 
 use crate::array_utils::copy_array4_to_vec;
 use crate::errors::{RitkPyError, RitkResult};
-use crate::image::{image_to_vec, into_py_image, numpy_array_direction, vec_to_image, PyImage};
+use crate::image::{image_to_vec, into_py_image, vec_to_image, PyImage};
 use coeus_core::MoiraiBackend;
 use numpy::{PyArray1, PyArray4, PyArrayMethods, PyReadonlyArray4, PyUntypedArrayMethods};
 use pyo3::prelude::*;
@@ -57,7 +57,7 @@ impl PyColorImage {
             [z, y, x],
             Point::new([orig[2], orig[1], orig[0]]),
             Spacing::new(sp),
-            numpy_array_direction(),
+            Direction::identity(),
             &MoiraiBackend,
         )
         .map_err(|e| RitkPyError::value(e.to_string()))?;
