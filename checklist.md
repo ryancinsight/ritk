@@ -8,6 +8,26 @@
 
 # RITK Sprint Checklist — Active
 
+## ATLAS-RITK-ZERO-FLUX-PAD-STRUCTURE [patch] — Split zero-flux padding leaf
+
+- [x] Confirm `transform/pad.rs` contains a distinct zero-flux Neumann
+      operation family after the constant, mirror, and wrap implementations.
+- [x] Move `ZeroFluxNeumannPadImageFilter` to
+      `transform/pad/zero_flux.rs` and retain the public re-export from
+      `transform::pad`.
+- [x] Preserve edge-clamp indexing, CPU/native output construction, spatial
+      origin updates, and the existing public API; make no performance claim.
+- [x] Run Rustfmt and `git diff --check`; the parent is 462 lines and the
+      zero-flux leaf is 122 lines.
+- [x] Run locked all-target compilation outside the Atlas overlay.
+- [x] Run the strongest affected package gate: `ritk-filter` Nextest reports
+      1073/1073 passed in 64.227s.
+- [x] Run package Clippy with `--all-targets --locked -- -D warnings` and
+      package doctests: 2/13 execute successfully and 11 environment-only
+      examples remain intentionally ignored.
+- [ ] Collect provider hosted Rust/Python checks at the final source head;
+      RecurseML remains report-only if it errors.
+
 ## ATLAS-RITK-RECURSIVE-GAUSSIAN-HESSIAN-STRUCTURE [patch] — Split Hessian leaf
 
 - [x] Confirm `recursive_gaussian.rs` contains a distinct Hessian operation

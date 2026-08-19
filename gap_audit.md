@@ -8,6 +8,23 @@
 
 # RITK Gap Audit - Active
 
+## ATLAS-RITK-ZERO-FLUX-PAD-STRUCTURE [patch] — operation-family split
+
+- Finding: `crates/ritk-filter/src/transform/pad.rs` carried the four padding
+  families in one implementation file; the zero-flux Neumann family occupied
+  a separate tail operation with its own CPU/native paths.
+- Resolution: move `ZeroFluxNeumannPadImageFilter` to the named
+  `transform/pad/zero_flux.rs` leaf and re-export it through the existing
+  `transform::pad` surface. Edge clamping, output shape, origin translation,
+  backend construction, and public signatures are unchanged.
+- Evidence: Rustfmt and `git diff --check` pass; the parent is 462 lines and
+  the new leaf is 122 lines. Locked all-target compilation passes outside the
+  Atlas overlay. The affected package reports 1073/1073 Nextest tests passed
+  in 64.227 seconds, warning-denied Clippy passes, and package doctests report
+  2/13 executed with 11 environment-only examples ignored. Hosted provider
+  verification remains pending. No performance or allocation claim is
+  attached to this structural change.
+
 ## ATLAS-RITK-RECURSIVE-GAUSSIAN-HESSIAN-STRUCTURE [patch] — operation-family split
 
 - Finding: `recursive_gaussian.rs` carried the recursive-Gaussian public API,
