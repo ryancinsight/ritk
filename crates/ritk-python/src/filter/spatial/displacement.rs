@@ -118,16 +118,15 @@ pub fn inverse_displacement_field(
     let out = py
         .allow_threads(|| {
             ritk_filter::InverseDisplacementField { subsampling_factor }
-                .apply_native(&az, &ay, &ax, &backend)
+                .apply_native(&ax, &ay, &az, &backend)
         })
         .map_err(|e| RitkPyError::runtime(e.to_string()))?;
-    // With RITK's identity direction, world[0]=depth, world[1]=row, world[2]=col.
-    // The filter returns out.x/y/z in world[0/1/2] order; map back to Python
-    // (z=depth, y=row, x=col) by returning out.x as iz, out.y as iy, out.z as ix.
+    // The provider consumes physical `(x, y, z)` components; Python exposes
+    // NumPy storage order `(z, y, x)`.
     Ok((
-        into_py_image(out.x),
-        into_py_image(out.y),
         into_py_image(out.z),
+        into_py_image(out.y),
+        into_py_image(out.x),
     ))
 }
 
@@ -165,12 +164,12 @@ pub fn iterative_inverse_displacement_field(
                 number_of_iterations,
                 stop_value,
             }
-            .apply_native(&az, &ay, &ax, &backend)
+            .apply_native(&ax, &ay, &az, &backend)
         })
         .map_err(|e| RitkPyError::runtime(e.to_string()))?;
     Ok((
-        into_py_image(out.x),
-        into_py_image(out.y),
         into_py_image(out.z),
+        into_py_image(out.y),
+        into_py_image(out.x),
     ))
 }

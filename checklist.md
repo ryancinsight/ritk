@@ -8,6 +8,17 @@
 
 # RITK Sprint Checklist — Active
 
+## RITK-PARITY-171 [major] — InverseDisplacementField SimpleITK parity
+
+- [x] Measure SimpleITK's `[Z,Y,X]` NumPy index convention and physical
+      `(X,Y,Z)` mapping; retain the original `<1e-4` oracle.
+- [x] Store the canonical tensor-to-physical permutation at scalar, color,
+      and physical-point Python construction boundaries.
+- [x] Pass provider-owned physical displacement components through TPS and
+      iterative inversion and map results back to Python storage order.
+- [x] Verify 3 targeted Python parity tests, 1073 `ritk-filter` nextest tests,
+      47 `ritk-python` nextest tests, and clippy with `-D warnings`.
+
 ## ATLAS-RITK-CONFORMANCE-CLEANUP [patch]
 
 - [x] Move the four root documentation reports under `docs/` and update

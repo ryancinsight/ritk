@@ -1,9 +1,23 @@
-## RITK-PARITY-171 — InverseDisplacementField SimpleITK parity broken on main [major] — in-progress (owner=Atlas coordinator; claimed 2026-08-19)
+## RITK-PARITY-171 — InverseDisplacementField SimpleITK parity broken on main [major] — done (owner=Atlas coordinator; closed 2026-08-19)
 
 **Owned scope:** establish the SimpleITK index/physical convention at the
 Python image boundary, repair the provider-native filter path if the measured
 fixture proves a contract defect, and add value-semantic regression coverage.
 Do not alter the tolerance or mask a coordinate-frame mismatch.
+
+**Resolution:** NumPy scalar and color constructors now store the canonical
+`[Z,Y,X]` tensor-to-physical permutation. The TPS and iterative Python bindings
+now pass provider-owned physical `(x,y,z)` components and return `(z,y,x)`;
+the physical-point color source uses the same metadata contract. The original
+`<1e-4` SimpleITK oracle passes for all three regressions after a fresh
+`maturin develop --release --locked` build.
+
+**Verification:** `cargo nextest run -p ritk-filter --lib --locked` (1073/1073),
+`cargo nextest run -p ritk-python --lib --locked` (47/47),
+`cargo clippy -p ritk-python --all-targets --locked -- -D warnings`, and the
+three targeted Python parity tests (3/3) pass. The locked local commands ran
+from outside the Atlas overlay against the shared target because the overlay
+intentionally rewrites standalone RITK locks.
 
 `Python Wheel (smoke test)` on main fails three SimpleITK parity tests in
 `crates/ritk-python/tests/test_simpleitk_cmake_data.py`:
