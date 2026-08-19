@@ -73,14 +73,16 @@ pub fn invert_displacement_field(
                 mean_error_tolerance,
                 enforce_boundary,
             }
-            .apply_native(&az, &ay, &ax, &backend)
+            .apply_native(&ax, &ay, &az, &backend)
         })
         .map_err(|e| RitkPyError::runtime(e.to_string()))?;
     // Return in (disp_z, disp_y, disp_x) order to match the input convention.
+    // InvertDisplacementField uses world-x ↔ tensor-col convention internally, so
+    // out.x = col-inverse (Python ix), out.y = row-inverse, out.z = depth-inverse.
     Ok((
-        into_py_image(out.x),
-        into_py_image(out.y),
         into_py_image(out.z),
+        into_py_image(out.y),
+        into_py_image(out.x),
     ))
 }
 
