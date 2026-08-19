@@ -1,4 +1,4 @@
-## RITK-PARITY-171 — InverseDisplacementField SimpleITK parity broken on main [major] — done (owner=Atlas coordinator; closed 2026-08-19)
+## RITK-PARITY-171 — InverseDisplacementField SimpleITK parity broken on main [major] — in progress (owner=Atlas coordinator)
 
 **Owned scope:** establish the SimpleITK index/physical convention at the
 Python image boundary, repair the provider-native filter path if the measured
@@ -11,6 +11,13 @@ now pass provider-owned physical `(x,y,z)` components and return `(z,y,x)`;
 the physical-point color source uses the same metadata contract. The original
 `<1e-4` SimpleITK oracle passes for all three regressions after a fresh
 `maturin develop --release --locked` build.
+
+The follow-up commit `18e5bc7f` completes the same physical-axis migration for
+`shift_image` and `rotate_image`: affine centers now come from the provider's
+continuous index-to-physical conversion, Euler matrices remain in physical
+`(X,Y,Z)` order, and Python `[Z,Y,X]` shifts are translated at the binding
+boundary. The nine focused affine parity cases pass after another fresh
+release wheel build.
 
 **Verification:** `cargo nextest run -p ritk-filter --lib --locked` (1073/1073),
 `cargo nextest run -p ritk-python --lib --locked` (47/47),
@@ -53,6 +60,14 @@ old axial assumption and need regenerating against SimpleITK. Deciding which
 requires checking ITK's index->physical convention against this crate's axis
 order; the ADR states identity here sends the depth axis to world x, whereas
 the filters previously paired `spacing[0]` with z.
+
+The current full local Python suite against `18e5bc7f` is `1236 passed, 8
+skipped, 1 xpassed, 1 failed`. The sole failure is the pre-existing
+`test_cmake_patch_based_denoising_structural`: its deterministic witnesses
+remain max 2 ULP against SimpleITK while the test asserts max 1 ULP. The
+failure is unchanged before and after the axis migration, and the denoising
+implementation and test predate this item; no tolerance was changed. Hosted
+closure for `18e5bc7f` is still required before this item is marked done.
 
 **Correction (2026-08-18): the first lead recorded here was wrong.** It claimed
 the 2-D solve basis and the displacement "component convention" disagreed by one

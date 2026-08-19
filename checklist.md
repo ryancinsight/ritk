@@ -18,6 +18,12 @@
       iterative inversion and map results back to Python storage order.
 - [x] Verify 3 targeted Python parity tests, 1073 `ritk-filter` nextest tests,
       47 `ritk-python` nextest tests, and clippy with `-D warnings`.
+- [x] Preserve physical axes in affine shift and Euler rotation bindings;
+      9 focused SimpleITK affine parity cases pass after a fresh release wheel
+      build at `18e5bc7f`.
+- [ ] Collect hosted CI and Python CI at exact head `18e5bc7f`; the full local
+      Python suite has one pre-existing denoising residual (max 2 ULP versus a
+      max-1 ULP assertion) that remains open without tolerance changes.
 
 ## ATLAS-RITK-CONFORMANCE-CLEANUP [patch]
 

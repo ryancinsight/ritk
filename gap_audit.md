@@ -6977,6 +6977,24 @@ type-level proof.
 - Open: GAP-SCI-01, 02, 05, 06, 08, 11, 12, 13, 14, 15 (10 remaining, target Sprints 336-337).
 - Out of scope [arch]: GAP-SCI-16/17/18 (5 functions requiring callback-based plugin system).
 
+## Finding 2026-08-19: RITK affine parity follow-up remains hosted-gated
+
+The first parity repair also required a second axis-boundary correction in
+`crates/ritk-python/src/filter/spatial/affine.rs`. Commit `18e5bc7f` routes
+rotation centers through direction-aware provider geometry, keeps Euler matrices
+in physical `(X,Y,Z)` order, and maps Python `[Z,Y,X]` shifts to physical
+translation. The focused affine parity set passes 9/9, and the local provider
+Rust gates remain green.
+
+The comprehensive local Python suite at this head reports `1236 passed, 8
+skipped, 1 xpassed, 1 failed`. The only failure is the deterministic,
+pre-existing `test_cmake_patch_based_denoising_structural`, which observes a
+maximum 2 ULP difference against SimpleITK while asserting at most 1 ULP. The
+same failure and witnesses occur before and after the axis changes; the test
+and denoising implementation predate this slice. No tolerance or assertion was
+weakened. Required hosted runs `32244166526` and `32244166498` are the next
+acceptance evidence; Atlas remains on the prior RITK gitlink until they finish.
+
 ---
 
 ## Sprint 336 Audit (2026-06-04) — Chamfer Distance Transform + Structural Cleanup (GAP-SCI-12 closure)

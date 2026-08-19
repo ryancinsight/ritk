@@ -17,6 +17,13 @@
   identity-direction interpretation. The original three `<1e-4` regression
   oracles pass after a fresh wheel build.
 
+- [major] Preserve physical-axis semantics in Python affine shift and Euler
+  rotation bindings. Centers now use the provider's direction-aware
+  index-to-physical conversion, matrices use physical `(X,Y,Z)` order, and
+  `[Z,Y,X]` shift arguments are translated at the binding boundary. Nine
+  focused SimpleITK affine parity cases pass at `18e5bc7f`; full-suite hosted
+  closure remains pending.
+
 - [major] Apply the direction cosines in the grid-sweeping filters' index/world
   transforms (ADR
   [0020](docs/adr/0020-direction-aware-grid-transforms.md)). Marching cubes and
