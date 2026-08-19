@@ -35,14 +35,22 @@
 //! human-readable display and for filters that need centred kernels.
 
 pub mod convolution;
+pub mod directional_filter;
 pub mod forward;
 pub mod frequency_filter;
 pub mod inverse;
 pub mod shift;
 
+#[cfg(test)]
+mod tests_directional_filter;
+
 pub use convolution::{
     fft_nd, FftConvolution3DFilter, FftConvolutionFilter, FftNormalizedCorrelation3DFilter,
     FftNormalizedCorrelationFilter,
+};
+pub use directional_filter::{
+    apply_directional_filter, ButterworthBandpass, ButterworthHighpass, ButterworthLowpass,
+    DirectionalResponse,
 };
 pub use forward::{ForwardFftFilter, RealToHalfHermitianForwardFftFilter};
 pub use frequency_filter::{
