@@ -31,8 +31,10 @@
       checking of 188 links, and diff checks.
 - [x] Rebase onto current `origin/main`, preserve both intervening PM entries,
       and repair its missing `ritk-block-matching` lock entry.
-- [ ] Collect hosted checks, merge the documentation change, and verify the
-      deployed chapter.
+- [x] Collect exact-head hosted runs `32272992103`, `32272991999`, and
+      `32272992744`; merge PR #185 as `30f7d05c`; pass Pages run
+      `32281063710`; and verify the live HTTP 200 chapter contains the new
+      title, validation ladder, and Maier-Hein citation.
 
 ## ATLAS-RITK-ZERO-FLUX-PAD-STRUCTURE [patch] — Split zero-flux padding leaf
 
