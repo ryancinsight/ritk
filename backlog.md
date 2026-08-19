@@ -1,4 +1,9 @@
-## RITK-PARITY-171 — InverseDisplacementField SimpleITK parity broken on main [major] — todo
+## RITK-PARITY-171 — InverseDisplacementField SimpleITK parity broken on main [major] — in-progress (owner=Atlas coordinator; claimed 2026-08-19)
+
+**Owned scope:** establish the SimpleITK index/physical convention at the
+Python image boundary, repair the provider-native filter path if the measured
+fixture proves a contract defect, and add value-semantic regression coverage.
+Do not alter the tolerance or mask a coordinate-frame mismatch.
 
 `Python Wheel (smoke test)` on main fails three SimpleITK parity tests in
 `crates/ritk-python/tests/test_simpleitk_cmake_data.py`:
