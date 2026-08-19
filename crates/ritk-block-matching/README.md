@@ -45,6 +45,18 @@ using each finest-level peak as confidence, while preserving centres and peak
 metadata. The optional `fft` feature provides a finite, zero-padded FFT-backed
 metric through the Apollo provider.
 
+Two post-processing seams handle unreliable blocks, and they are complements
+rather than alternatives. [`LeastSquaresDisplacementPrior`](https://docs.rs/ritk-block-matching/latest/ritk_block_matching/struct.LeastSquaresDisplacementPrior.html)
+and [`BayesianDisplacementPrior`](https://docs.rs/ritk-block-matching/latest/ritk_block_matching/struct.BayesianDisplacementPrior.html)
+*condition* every block, blending it toward a local least-squares slope or a
+confidence-weighted prior. [`strain_window_filter`](https://docs.rs/ritk-block-matching/latest/ritk_block_matching/fn.strain_window_filter.html)
+instead *rejects*: a block whose implied axial strain exceeds a plausibility
+bound is replaced by interpolation between its nearest measured neighbours, and
+everything else is returned untouched. Use the priors against measurement noise
+and the filter against peak hopping, where a decorrelated block reports a
+maximum from the wrong correlation lobe and is wrong by roughly a wavelength.
+Blocks with no measured neighbour to draw on are reported rather than invented.
+
 For acquisition-aware geometry, use
 `BlockMatchingConfig::from_axial_autocorrelation` or
 `BlockMatchingConfig::from_transducer_bandwidth`. Both derive an axial
