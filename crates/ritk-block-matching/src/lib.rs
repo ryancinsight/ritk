@@ -1,4 +1,4 @@
-//! Block-matching displacement estimation.
+//! Block-matching displacement estimation for speckle tracking.
 //!
 //! Speckle tracking for elastography and motion estimation: for each block of
 //! the fixed image, search a bounded region of the moving image for the offset
@@ -27,6 +27,15 @@
 //! Both are closed sets fixed by the method, so they are exhaustively matched
 //! enums rather than trait objects, and the choice is made once per block
 //! rather than per candidate (atlas ADR 0041).
+//!
+//! # Why its own crate
+//!
+//! The algorithm is plain arithmetic over `&[f32]` buffers: no image type, no
+//! tensor, no backend. It first shipped inside `ritk-registration`, whose
+//! manifest pulls `ritk-image` and with it the coeus autograd/nn/wgpu stack —
+//! weight that a consumer wanting only speckle tracking should not inherit.
+//! kwavers' elastography is exactly such a consumer, and could not take the
+//! dependency at all without enabling an unrelated feature.
 //!
 //! # References
 //! - `itkBlockMatchingNormalizedCrossCorrelationMetricImageFilter.hxx` and
