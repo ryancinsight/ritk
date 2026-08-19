@@ -8,6 +8,20 @@
 
 # RITK Gap Audit - Active
 
+## BUILD-BLOCK-MATCHING-LOCK audit (2026-08-19)
+
+- Finding: merge `03809904` registered `crates/ritk-block-matching` as a
+  workspace member but omitted its path-package entry from `Cargo.lock`.
+  `cargo run --locked` and Clippy both stopped with “cannot update the lock
+  file” before compiling the tractography example.
+- Resolution: regenerate the lockfile through Cargo. The complete diff is one
+  seven-line `ritk-block-matching` entry with its existing `anyhow` dependency;
+  no version, checksum, source, or transitive package changed.
+- Evidence: locked example execution again reports a 0.00-degree ODF peak error
+  and five streamlines, and warning-denied example Clippy passes. This is a
+  reproducibility repair for the merged workspace topology, not a dependency
+  update.
+
 ## DOC-TRACTOGRAPHY-VALIDATION audit (2026-08-19)
 
 - Finding: the tractography chapter documented the integrator and export

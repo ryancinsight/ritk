@@ -8,6 +8,14 @@
 
 # RITK Sprint Checklist — Active
 
+## BUILD-BLOCK-MATCHING-LOCK [patch] — Restore locked resolution
+
+- [x] Reproduce the post-merge `--locked` failure from the missing
+      `ritk-block-matching` package entry.
+- [x] Regenerate `Cargo.lock` mechanically and confirm the diff adds only the
+      new path package and its existing `anyhow` dependency.
+- [x] Pass locked tractography-example execution and warning-denied Clippy.
+
 ## DOC-TRACTOGRAPHY-VALIDATION [patch] — Create and validate tractography
 
 - [x] Confirm the existing `tractography.md` chapter is the authoritative home
@@ -21,6 +29,8 @@
       tracked SVG remains byte-identical.
 - [x] Run formatting, warning-denied example Clippy, mdBook test/build, strict
       checking of 188 links, and diff checks.
+- [x] Rebase onto current `origin/main`, preserve both intervening PM entries,
+      and repair its missing `ritk-block-matching` lock entry.
 - [ ] Collect hosted checks, merge the documentation change, and verify the
       deployed chapter.
 

@@ -5637,6 +5637,13 @@ dependencies = [
 ]
 
 [[package]]
+name = "ritk-block-matching"
+version = "0.1.0"
+dependencies = [
+ "anyhow",
+]
+
+[[package]]
 name = "ritk-cli"
 version = "0.1.0"
 dependencies = [

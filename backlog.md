@@ -1,9 +1,20 @@
+## BUILD-BLOCK-MATCHING-LOCK [patch] — restore locked workspace resolution
+
+- **Status:** DONE; owner=Codex; last-update=2026-08-19;
+  scope=`Cargo.lock`; non-goal=dependency version or source changes. The merged
+  block-matching crate extraction added `crates/ritk-block-matching` to the
+  workspace without adding its package entry to `Cargo.lock`, so every real
+  `--locked` target failed before compilation. Cargo regenerated exactly one
+  seven-line package entry (`ritk-block-matching` → `anyhow`). Locked example
+  execution and warning-denied Clippy pass after the repair.
+
 ## DOC-TRACTOGRAPHY-VALIDATION [patch] — creation and validation chapter
 
 - **Status:** LOCAL GATES PASSED; owner=Codex; last-update=2026-08-19;
   scope=`docs/book/{SUMMARY.md,tractography.md}`,
   `crates/ritk-diffusion/examples/book_diffusion_tractography.rs`, the existing
-  deterministic figure, and synchronized PM/CHANGELOG entries;
+  deterministic figure, the blocking `Cargo.lock` repair, and synchronized
+  PM/CHANGELOG entries;
   non-goal=new tracking algorithms, clinical validation, or API changes.
   The authoritative chapter now creates streamlines through the current public
   API, validates seed accounting, termination reasons, and analytical-domain
