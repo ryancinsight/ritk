@@ -17,7 +17,7 @@
 //!
 //! # Structure
 //!
-//! Three seams, matching ITKUltrasound's decomposition and the D2 batch layer:
+//! Four seams, matching ITKUltrasound's decomposition and the D2 batch layer:
 //!
 //! 1. A **metric image** — the similarity evaluated at every candidate integer
 //!    offset in the search region ([`metric_image`]).
@@ -25,6 +25,9 @@
 //!    displacement ([`SubpixelRefinement`]).
 //! 3. A **block grid** — deterministic centres, volume matching, and an axial
 //!    strain calculator ([`BlockGrid`] and [`DisplacementField`]).
+//! 4. A **displacement regularizer** — a post-filter that rejects and replaces
+//!    peak-hopped estimates against a strain plausibility bound
+//!    ([`strain_window_filter`]).
 //!
 //! `track_volume` is deliberately a regular-grid primitive. It does not pad
 //! image edges, silently clamp a block, or claim a result for a partial block.
@@ -89,6 +92,7 @@ impl Sample for f64 {
 
 mod metric;
 mod refine;
+mod regularize;
 
 #[cfg(test)]
 #[path = "tests_block_matching.rs"]
@@ -96,6 +100,7 @@ mod tests;
 
 pub use metric::{metric_image, BlockMetric, MetricImage};
 pub use refine::SubpixelRefinement;
+pub use regularize::{strain_window_filter, StrainWindowParams, StrainWindowReport};
 
 /// Geometry of a block-matching run, in voxels.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
