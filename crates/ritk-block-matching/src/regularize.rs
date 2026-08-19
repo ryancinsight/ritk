@@ -196,9 +196,15 @@ fn reliability(
         .map(|s| s.is_finite())
         .collect();
 
-    // Negated comparison, so a non-finite gradient — from a NaN displacement or
-    // a NaN neighbour — is implausible rather than silently passing.
-    let implausible = |delta: f64| !((delta / stride).abs() <= max_abs_strain);
+    // Ordered explicitly rather than by a negated `<=`: a non-finite gradient —
+    // from a NaN displacement or a NaN neighbour — has no ordering against the
+    // bound at all, and must read as implausible rather than silently passing.
+    let implausible = |delta: f64| {
+        (delta / stride)
+            .abs()
+            .partial_cmp(&max_abs_strain)
+            .is_none_or(std::cmp::Ordering::is_gt)
+    };
 
     for line in lines {
         for (pos, &i) in line.iter().enumerate() {
@@ -270,12 +276,10 @@ fn replacement(
                 return Some(field.displacements[lo]);
             }
             let t = (z - z_lo) / span;
-            let mut out = [0.0f64; 3];
-            for axis in 0..3 {
-                out[axis] = field.displacements[lo][axis]
-                    + t * (field.displacements[hi][axis] - field.displacements[lo][axis]);
-            }
-            Some(out)
+            let (lo_d, hi_d) = (field.displacements[lo], field.displacements[hi]);
+            Some(std::array::from_fn(|axis| {
+                lo_d[axis] + t * (hi_d[axis] - lo_d[axis])
+            }))
         }
         (Some(b), None) => Some(field.displacements[line[b]]),
         (None, Some(a)) => Some(field.displacements[line[position + 1 + a]]),

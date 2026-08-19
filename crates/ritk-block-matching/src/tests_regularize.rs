@@ -112,6 +112,28 @@ fn constant_block_is_replaced_on_similarity_alone() {
 }
 
 #[test]
+fn a_non_finite_displacement_is_implausible_not_incomparable() {
+    let mut field = ramp_line(7, 0, 0);
+    // A NaN displacement has no ordering against the bound at all. Comparing it
+    // with a plain  would report "not greater", quietly admitting it; the
+    // gradient test must reject what it cannot order.
+    field.displacements[3][0] = f64::NAN;
+
+    let report = strain_window_filter(&field, 1, StrainWindowParams::default()).unwrap();
+
+    assert!(report.unrecoverable.is_empty());
+    for z in 0..7 {
+        let value = report.field.displacements[z][0];
+        assert!(value.is_finite(), "block {z} is still {value}");
+        let expected = RAMP_STRAIN * z as f64;
+        assert!(
+            (value - expected).abs() <= INTERPOLATION_TOLERANCE,
+            "block {z}: got {value}, expected the underlying ramp value {expected}"
+        );
+    }
+}
+
+#[test]
 fn a_line_without_any_reliable_block_is_reported_not_invented() {
     let mut field = ramp_line(5, 0, 0);
     for i in 0..5 {
