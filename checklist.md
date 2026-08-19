@@ -8,6 +8,18 @@
 
 # RITK Sprint Checklist — Active
 
+## DOC-TRACTOGRAPHY-VALIDATION [patch] — Create and validate tractography
+
+- [x] Confirm the existing `tractography.md` chapter is the authoritative home
+      and avoid adding a competing tutorial page.
+- [ ] Add one public-API creation workflow with executable analytical oracles.
+- [ ] Separate numerical/geometric verification from anatomical and clinical
+      validation claims.
+- [ ] Regenerate and inspect the existing deterministic tractography figure.
+- [ ] Run mdBook test/build, strict link checking, formatting, and diff checks.
+- [ ] Collect hosted checks, merge the documentation change, and verify the
+      deployed chapter.
+
 ## ATLAS-RITK-ZERO-FLUX-PAD-STRUCTURE [patch] — Split zero-flux padding leaf
 
 - [x] Confirm `transform/pad.rs` contains a distinct zero-flux Neumann

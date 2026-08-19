@@ -1,3 +1,17 @@
+## DOC-TRACTOGRAPHY-VALIDATION [patch] — creation and validation chapter
+
+- **Status:** IN PROGRESS; owner=Codex; last-update=2026-08-19;
+  scope=`docs/book/{SUMMARY.md,tractography.md}`, the existing deterministic
+  tractography example and figure, and synchronized PM/CHANGELOG entries;
+  non-goal=new tracking algorithms, clinical validation, or API changes.
+  Extend the authoritative tractography chapter with one end-to-end workflow
+  that creates streamlines through the current public API, validates seed
+  accounting, termination reasons, domain containment, and segment geometry,
+  and states which anatomical and clinical claims those checks cannot support.
+  Acceptance: the documented symbols match the current source; the existing
+  example regenerates its figure and passes its analytical assertions; mdBook
+  test/build, strict link checking, formatting, and diff checks pass.
+
 ## ATLAS-RITK-ZERO-FLUX-PAD-STRUCTURE [patch] — operation-family split
 
 - **Status:** LOCAL GATES PASSED; owner=Atlas coordinator; last-update=2026-08-19.
