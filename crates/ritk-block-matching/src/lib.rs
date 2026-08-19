@@ -17,16 +17,24 @@
 //!
 //! # Structure
 //!
-//! Two seams, matching ITKUltrasound's decomposition:
+//! Three seams, matching ITKUltrasound's decomposition and the D2 batch layer:
 //!
 //! 1. A **metric image** — the similarity evaluated at every candidate integer
 //!    offset in the search region ([`metric_image`]).
 //! 2. A **displacement calculator** — how a peak in that surface becomes a
 //!    displacement ([`SubpixelRefinement`]).
+//! 3. A **block grid** — deterministic centres, volume matching, and an axial
+//!    strain calculator ([`BlockGrid`] and [`DisplacementField`]).
 //!
-//! Both are closed sets fixed by the method, so they are exhaustively matched
-//! enums rather than trait objects, and the choice is made once per block
-//! rather than per candidate (atlas ADR 0041).
+//! `track_volume` is deliberately a regular-grid primitive. It does not pad
+//! image edges, silently clamp a block, or claim a result for a partial block.
+//! Multi-resolution search policies and FFT-backed metrics remain follow-on
+//! seams; the current D2 field supplies the deterministic batch foundation on
+//! which those policies can build.
+//!
+//! The metric and refinement choices are closed sets fixed by the method, so
+//! they are exhaustively matched enums rather than trait objects, and the
+//! choice is made once per block rather than per candidate (atlas ADR 0041).
 //!
 //! # Why its own crate
 //!
@@ -197,4 +205,225 @@ pub fn match_block<T: Sample>(
         BlockMetric::NormalizedCrossCorrelation,
     )?;
     Ok(refine::displacement_from(&surface, refinement))
+}
+
+// ── Volume-level pipeline (US-023-D2) ────────────────────────────────────────
+
+/// Layout of block centres across a volume.
+///
+/// The grid partitions the image into non-overlapping tiles; the centre of each
+/// tile is the block centre. Axis `i` contributes
+/// `n_blocks[i] = (dims[i] - 2*block_radius[i]) / stride[i]` centres, placed
+/// at `block_radius[i] + k * stride[i]` for `k = 0 .. n_blocks[i]`.
+///
+/// Choosing `stride = 2 * block_radius + 1` gives non-overlapping, dense
+/// coverage. A stride smaller than the block size gives overlapping tiles and
+/// a denser displacement map at the cost of redundant correlation.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub struct BlockGrid {
+    /// Step between adjacent block centres per axis, in voxels.
+    pub stride: [usize; 3],
+}
+
+impl BlockGrid {
+    /// Non-overlapping stride: `2 * block_radius + 1` per axis.
+    #[must_use]
+    pub fn dense(block_radius: [usize; 3]) -> Self {
+        Self {
+            stride: [
+                2 * block_radius[0] + 1,
+                2 * block_radius[1] + 1,
+                2 * block_radius[2] + 1,
+            ],
+        }
+    }
+
+    /// Enumerate block centres within `dims` for `config`.
+    fn centres(&self, dims: [usize; 3], config: &BlockMatchingConfig) -> Vec<[usize; 3]> {
+        let r = config.block_radius;
+        let mut out = Vec::new();
+        let mut z = r[0];
+        while z + r[0] < dims[0] {
+            let mut y = r[1];
+            while y + r[1] < dims[1] {
+                let mut x = r[2];
+                while x + r[2] < dims[2] {
+                    out.push([z, y, x]);
+                    x = match x.checked_add(self.stride[2]) {
+                        Some(v) => v,
+                        None => break,
+                    };
+                }
+                y = match y.checked_add(self.stride[1]) {
+                    Some(v) => v,
+                    None => break,
+                };
+            }
+            z = match z.checked_add(self.stride[0]) {
+                Some(v) => v,
+                None => break,
+            };
+        }
+        out
+    }
+}
+
+/// Displacement estimates for a grid of blocks across a volume.
+///
+/// Each entry `i` corresponds to the block whose centre is `centres[i]`.
+/// Centres are in `[z, y, x]` image-index order. Displacements are in voxels
+/// (sub-voxel when a sub-pixel refinement is applied).
+///
+/// Blocks whose fixed window has zero variance are recorded with
+/// `peak_similarity = f64::NAN` and `displacement = [0.0; 3]`, so callers can
+/// filter low-quality estimates by similarity threshold.
+#[derive(Debug, Clone, PartialEq)]
+pub struct DisplacementField {
+    /// Block centre coordinates, in `[z, y, x]` voxel order.
+    pub centres: Vec<[usize; 3]>,
+    /// Displacement per block, in voxels.
+    pub displacements: Vec<[f64; 3]>,
+    /// Similarity at the correlation peak for each block (`[-1, 1]`).
+    pub peak_similarities: Vec<f64>,
+}
+
+impl DisplacementField {
+    /// Number of estimated blocks.
+    #[inline]
+    #[must_use]
+    pub fn len(&self) -> usize {
+        self.centres.len()
+    }
+
+    /// Whether the field is empty.
+    #[inline]
+    #[must_use]
+    pub fn is_empty(&self) -> bool {
+        self.centres.is_empty()
+    }
+}
+
+/// Estimate displacement at every block centre in a volume.
+///
+/// Scans the fixed/moving buffer pair using the given `grid` layout and
+/// `config`, reporting `BlockDisplacement` at each centre. Blocks whose fixed
+/// window is constant (zero variance) are recorded with `peak_similarity = NAN`
+/// and zero displacement rather than propagating an error.
+///
+/// Both buffers are flat row-major `[nz, ny, nx]` with `nz * ny * nx` voxels.
+///
+/// # Errors
+///
+/// Returns an error when `dims` product does not equal `fixed.len()`, when the
+/// configuration is invalid, or when `grid.stride` is zero on any axis.
+pub fn track_volume<T: Sample>(
+    fixed: &[T],
+    moving: &[T],
+    dims: [usize; 3],
+    config: BlockMatchingConfig,
+    grid: BlockGrid,
+    refinement: SubpixelRefinement,
+) -> Result<DisplacementField> {
+    config.validate()?;
+    for axis in 0..3 {
+        if grid.stride[axis] == 0 {
+            bail!("grid stride is zero on axis {axis}; that would loop forever");
+        }
+    }
+    let expected = dims[0] * dims[1] * dims[2];
+    if fixed.len() != expected || moving.len() != expected {
+        bail!(
+            "fixed ({}) and moving ({}) buffers must both hold {expected} voxels for dims {dims:?}",
+            fixed.len(),
+            moving.len()
+        );
+    }
+
+    let centres = grid.centres(dims, &config);
+    let n = centres.len();
+    let mut displacements = vec![[0.0f64; 3]; n];
+    let mut peak_similarities = vec![f64::NAN; n];
+
+    for (i, &centre) in centres.iter().enumerate() {
+        if let Ok(bd) = match_block(fixed, moving, dims, centre, config, refinement) {
+            displacements[i] = bd.displacement;
+            peak_similarities[i] = bd.peak_similarity;
+        }
+        // constant block (Err) — leave NAN / zeros
+    }
+
+    Ok(DisplacementField {
+        centres,
+        displacements,
+        peak_similarities,
+    })
+}
+
+/// Estimate axial strain from a displacement field, in strain units (voxel/voxel).
+///
+/// For each block, the axial strain is estimated by central finite differences
+/// over the neighbouring blocks' axial displacements, divided by the axial
+/// stride between centres. Blocks at the axial boundary where a neighbour does
+/// not exist use the one-sided (forward or backward) difference instead.
+///
+/// The returned vector is parallel to `field.centres`: `strain[i]` is the
+/// axial strain at `field.centres[i]`.
+///
+/// # Panics
+///
+/// Panics when `axial_stride == 0` (would divide by zero). Use `grid.stride[0]`
+/// or an equivalent positive value.
+#[must_use]
+pub fn strain_from_displacement(field: &DisplacementField, axial_stride: usize) -> Vec<f64> {
+    assert!(axial_stride > 0, "axial_stride must be positive");
+    let n = field.len();
+    if n == 0 {
+        return Vec::new();
+    }
+
+    // Group centre indices by their (y, x) lateral position, ordered by z.
+    // We reconstruct per-line sequences by sorting on (y, x) then z.
+    let mut indexed: Vec<(usize, usize, usize, usize)> = field
+        .centres
+        .iter()
+        .enumerate()
+        .map(|(i, &[z, y, x])| (y, x, z, i))
+        .collect();
+    indexed.sort_unstable();
+
+    let mut strain = vec![0.0f64; n];
+
+    // Walk each lateral position's axial sequence.
+    let mut start = 0;
+    while start < indexed.len() {
+        let (y0, x0, _, _) = indexed[start];
+        let mut end = start + 1;
+        while end < indexed.len() && indexed[end].0 == y0 && indexed[end].1 == x0 {
+            end += 1;
+        }
+        let line = &indexed[start..end]; // sorted by z (key index 2)
+        let m = line.len();
+        for pos in 0..m {
+            let i = line[pos].3;
+            let disp_here = field.displacements[i][0]; // axial = axis 0
+            let s = if m == 1 {
+                0.0
+            } else if pos == 0 {
+                let j = line[1].3;
+                (field.displacements[j][0] - disp_here) / axial_stride as f64
+            } else if pos == m - 1 {
+                let j = line[m - 2].3;
+                (disp_here - field.displacements[j][0]) / axial_stride as f64
+            } else {
+                let j_prev = line[pos - 1].3;
+                let j_next = line[pos + 1].3;
+                (field.displacements[j_next][0] - field.displacements[j_prev][0])
+                    / (2 * axial_stride) as f64
+            };
+            strain[i] = s;
+        }
+        start = end;
+    }
+
+    strain
 }
