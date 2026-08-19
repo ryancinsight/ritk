@@ -121,6 +121,13 @@ fn tracking_paths() -> Result<Vec<Vec<[f64; 2]>>> {
         .map(|offset| Point::new([seed_x, bundle_center(seed_x) + offset, 0.0]));
     let config = TractographyConfig::new(0.35, 160, 20.0, TrackingDirection::Bidirectional)?;
     let result = euler_tractography(&seeds, config, direction_field)?;
+    if result.seeds_attempted() != seeds.len() {
+        bail!(
+            "expected {} attempted seeds, recorded {}",
+            seeds.len(),
+            result.seeds_attempted()
+        );
+    }
     if result.streamlines_generated() != seeds.len() {
         bail!(
             "expected {} analytical streamlines, generated {}",

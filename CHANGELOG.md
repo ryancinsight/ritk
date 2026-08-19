@@ -10,6 +10,11 @@
 
 ## [Unreleased] — conformance cleanup and JPEG 2000 scalar quality control (FEAT-692-01)
 
+- [patch] Expand the tractography book chapter with a reproducible public-API
+  creation workflow, analytical output checks, and an evidence ladder that
+  separates numerical and geometric verification from interoperability,
+  anatomical, and clinical validation.
+
 - [major] Repair SimpleITK parity for the Python thin-plate-spline and
   iterative displacement-field inverters. NumPy `[Z,Y,X]` constructors now
   carry the canonical tensor-to-physical permutation, and bindings pass

@@ -1,3 +1,31 @@
+## BUILD-BLOCK-MATCHING-LOCK [patch] — restore locked workspace resolution
+
+- **Status:** DONE; owner=Codex; last-update=2026-08-19;
+  scope=`Cargo.lock`; non-goal=dependency version or source changes. The merged
+  block-matching crate extraction added `crates/ritk-block-matching` to the
+  workspace without adding its package entry to `Cargo.lock`, so every real
+  `--locked` target failed before compilation. Cargo regenerated exactly one
+  seven-line package entry (`ritk-block-matching` → `anyhow`). Locked example
+  execution and warning-denied Clippy pass after the repair.
+
+## DOC-TRACTOGRAPHY-VALIDATION [patch] — creation and validation chapter
+
+- **Status:** LOCAL GATES PASSED; owner=Codex; last-update=2026-08-19;
+  scope=`docs/book/{SUMMARY.md,tractography.md}`,
+  `crates/ritk-diffusion/examples/book_diffusion_tractography.rs`, the existing
+  deterministic figure, the blocking `Cargo.lock` repair, and synchronized
+  PM/CHANGELOG entries;
+  non-goal=new tracking algorithms, clinical validation, or API changes.
+  The authoritative chapter now creates streamlines through the current public
+  API, validates seed accounting, termination reasons, and analytical-domain
+  containment, and separates numerical/geometric evidence from format,
+  anatomical, and clinical validation. The runnable example records all five
+  attempted seeds, recovers the analytical axis at 0.00 degrees, produces five
+  boundary-terminated streamlines, and regenerates byte-identical figure and
+  tractogram artifacts. Formatting, warning-denied example Clippy, mdBook
+  test/build, strict checking of 188 links, and diff checks pass. Hosted checks,
+  merge, and live Pages verification remain.
+
 ## ATLAS-RITK-ZERO-FLUX-PAD-STRUCTURE [patch] — operation-family split
 
 - **Status:** HOSTED GATE PASSED; owner=Atlas coordinator; last-update=2026-08-19.
