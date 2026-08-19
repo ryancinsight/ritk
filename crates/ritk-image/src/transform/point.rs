@@ -50,8 +50,15 @@ where
             return Ok(index);
         }
         if let CoordinateMap::PhasedArray3D(geometry) = &self.map {
+            // World → probe frame: Direction^-1 · (world - origin).
+            let inverse = self
+                .direction
+                .try_inverse()
+                .ok_or_else(|| anyhow!("image direction matrix is singular"))?;
+            let probe = inverse * (*point - self.origin);
+            // probe axis order: [depth, elevation, azimuth] = [0, 1, 2]
             let (azimuth_index, elevation_index, sample) = geometry
-                .index_from_cartesian(point[D - 1], point[D - 2], point[D - 3])
+                .index_from_cartesian(probe[2], probe[1], probe[0])
                 .ok_or_else(|| {
                     anyhow!(
                         "physical point ({}, {}, {}) lies outside the phased-array acquisition",
@@ -110,13 +117,21 @@ where
             return point;
         }
         if let CoordinateMap::PhasedArray3D(geometry) = &self.map {
+            // Probe frame → world: origin + Direction · probe_point.
             let mut point = Point::origin();
             if let Some((azimuth_axis, elevation_axis, depth)) =
                 geometry.cartesian_from_index(index[D - 1], index[D - 2], index[D - 3])
             {
-                point[D - 1] = azimuth_axis;
-                point[D - 2] = elevation_axis;
-                point[D - 3] = depth;
+                // probe axis order: [depth=0, elevation=1, azimuth=2]
+                let probe = [depth, elevation_axis, azimuth_axis];
+                let d = self.direction;
+                for c in 0..D {
+                    let mut acc = self.origin[c];
+                    for r in 0..3 {
+                        acc += d[(c, r)] * probe[r];
+                    }
+                    point[c] = acc;
+                }
             } else {
                 for axis in 0..D {
                     point[axis] = f64::NAN;

@@ -327,6 +327,11 @@ where
 
     /// Phased-array arm of [`Self::index_to_world_native_on`].
     ///
+    /// Beam-space index → probe-frame Cartesian → world. The probe frame is
+    /// placed in world space by `origin + Direction · probe_point`, composing
+    /// the phased-array steering geometry with the image's affine outer
+    /// transform (atlas US-023-A2 P1 closure).
+    ///
     /// Index columns are `(azimuth beam, elevation beam, sample)`; the physical
     /// triple lands on axes `(2, 1, 0)` — azimuth, elevation, depth — matching
     /// the innermost-first column convention. Only defined at `D == 3`, which
@@ -342,6 +347,8 @@ where
         n: usize,
         backend: &B,
     ) -> Tensor<T, B> {
+        let dir = self.direction();
+        let origin_t = self.origin_narrowed();
         let src = indices.as_slice();
         let mut out = vec![T::zero(); n * D];
         for (idx, o) in src.chunks_exact(D).zip(out.chunks_exact_mut(D)) {
@@ -351,9 +358,16 @@ where
                 Scalar::to_f64(idx[2]),
             ) {
                 Some((azimuth_axis, elevation_axis, depth)) => {
-                    o[D - 1] = T::from_f64(azimuth_axis);
-                    o[D - 2] = T::from_f64(elevation_axis);
-                    o[D - 3] = T::from_f64(depth);
+                    // probe_point in image axis order: axis 2=azimuth, 1=elevation, 0=depth
+                    let probe = [depth, elevation_axis, azimuth_axis];
+                    // world = origin + Direction · probe_point (axis-major)
+                    for c in 0..D {
+                        let mut acc = origin_t[c];
+                        for r in 0..D {
+                            acc += T::from_f64(dir[(c, r)]) * T::from_f64(probe[r]);
+                        }
+                        o[c] = acc;
+                    }
                 }
                 None => {
                     for value in o.iter_mut() {
@@ -368,6 +382,9 @@ where
 
     /// Phased-array arm of [`Self::world_to_index_native_on`].
     ///
+    /// World → probe frame via `Direction^-1 · (world - origin)` → beam-space
+    /// index via phased-array geometry (atlas US-023-A2 P1 closure).
+    ///
     /// Inverse of [`Self::index_to_world_phased_array`]. Points behind the
     /// array (`depth <= 0`) have no ray and are emitted as NaN.
     #[must_use]
@@ -378,14 +395,25 @@ where
         n: usize,
         backend: &B,
     ) -> Tensor<T, B> {
+        let inv_dir = self
+            .direction()
+            .try_inverse()
+            .expect("invariant: direction matrix must be invertible");
+        let origin_t = self.origin_narrowed();
         let src = points.as_slice();
         let mut out = vec![T::zero(); n * D];
         for (p, o) in src.chunks_exact(D).zip(out.chunks_exact_mut(D)) {
-            match geometry.index_from_cartesian(
-                Scalar::to_f64(p[D - 1]),
-                Scalar::to_f64(p[D - 2]),
-                Scalar::to_f64(p[D - 3]),
-            ) {
+            // probe_point = Direction^-1 · (world - origin)
+            let mut probe = [0.0f64; 3];
+            for r in 0..D {
+                let mut acc = 0.0f64;
+                for c in 0..D {
+                    acc += inv_dir[(r, c)] * (Scalar::to_f64(p[c]) - Scalar::to_f64(origin_t[c]));
+                }
+                probe[r] = acc;
+            }
+            // probe is in axis order [depth, elevation, azimuth]
+            match geometry.index_from_cartesian(probe[2], probe[1], probe[0]) {
                 Some((azimuth_index, elevation_index, sample)) => {
                     o[0] = T::from_f64(azimuth_index);
                     o[1] = T::from_f64(elevation_index);
