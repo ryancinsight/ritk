@@ -93,13 +93,16 @@ where
     #[must_use]
     pub fn world_to_index_native_on(&self, points: &Tensor<T, B>, backend: &B) -> Tensor<T, B> {
         let n = self.assert_batch_shape(points);
-        match self.map {
+        match &self.map {
             CoordinateMap::Cartesian => self.world_to_index_cartesian(points, n, backend),
             CoordinateMap::CurvilinearArray(geometry) => {
-                self.world_to_index_curvilinear(&geometry, points, n, backend)
+                self.world_to_index_curvilinear(geometry, points, n, backend)
             }
             CoordinateMap::PhasedArray3D(geometry) => {
-                self.world_to_index_phased_array(&geometry, points, n, backend)
+                self.world_to_index_phased_array(geometry, points, n, backend)
+            }
+            CoordinateMap::SliceSeries(sweep) => {
+                self.world_to_index_slice_series(sweep, points, n, backend)
             }
         }
     }
@@ -170,13 +173,16 @@ where
     #[must_use]
     pub fn index_to_world_native_on(&self, indices: &Tensor<T, B>, backend: &B) -> Tensor<T, B> {
         let n = self.assert_batch_shape(indices);
-        match self.map {
+        match &self.map {
             CoordinateMap::Cartesian => self.index_to_world_cartesian(indices, n, backend),
             CoordinateMap::CurvilinearArray(geometry) => {
-                self.index_to_world_curvilinear(&geometry, indices, n, backend)
+                self.index_to_world_curvilinear(geometry, indices, n, backend)
             }
             CoordinateMap::PhasedArray3D(geometry) => {
-                self.index_to_world_phased_array(&geometry, indices, n, backend)
+                self.index_to_world_phased_array(geometry, indices, n, backend)
+            }
+            CoordinateMap::SliceSeries(sweep) => {
+                self.index_to_world_slice_series(sweep, indices, n, backend)
             }
         }
     }
@@ -393,6 +399,71 @@ where
             }
         }
 
+        Tensor::from_slice_on([n, D], &out, backend)
+    }
+
+    /// Slice-series arm of [`Self::index_to_world_native_on`].
+    ///
+    /// Column 0 (innermost, `axis D-1`) = in-plane x, column 1 = in-plane y,
+    /// column 2 (outermost, `axis D-3`) = slice index. Out-of-range slice
+    /// indices are clamped per the forward-clamp convention.
+    #[must_use]
+    fn index_to_world_slice_series(
+        &self,
+        sweep: &ritk_spatial::SliceSeries,
+        indices: &Tensor<T, B>,
+        n: usize,
+        backend: &B,
+    ) -> Tensor<T, B> {
+        let src = indices.as_slice();
+        let mut out = vec![T::zero(); n * D];
+        for (idx, o) in src.chunks_exact(D).zip(out.chunks_exact_mut(D)) {
+            let j_x = Scalar::to_f64(idx[0]);
+            let j_y = Scalar::to_f64(idx[1]);
+            let slice_f = Scalar::to_f64(idx[2]);
+            let world = sweep.world_from_index(j_x, j_y, slice_f);
+            // Write axis-major: column c = spatial axis c.
+            o[D - 1] = T::from_f64(world[0]);
+            o[D - 2] = T::from_f64(world[1]);
+            o[D - 3] = T::from_f64(world[2]);
+        }
+        Tensor::from_slice_on([n, D], &out, backend)
+    }
+
+    /// Slice-series arm of [`Self::world_to_index_native_on`].
+    ///
+    /// Points outside the sweep extent are emitted as NaN (rejection
+    /// convention, matching the other non-Cartesian variants).
+    #[must_use]
+    fn world_to_index_slice_series(
+        &self,
+        sweep: &ritk_spatial::SliceSeries,
+        points: &Tensor<T, B>,
+        n: usize,
+        backend: &B,
+    ) -> Tensor<T, B> {
+        let src = points.as_slice();
+        let mut out = vec![T::zero(); n * D];
+        for (p, o) in src.chunks_exact(D).zip(out.chunks_exact_mut(D)) {
+            // Input is axis-major: column a = spatial axis a.
+            let world = [
+                Scalar::to_f64(p[D - 1]),
+                Scalar::to_f64(p[D - 2]),
+                Scalar::to_f64(p[D - 3]),
+            ];
+            match sweep.index_from_world(world) {
+                Some(idx) => {
+                    o[0] = T::from_f64(idx[0]);
+                    o[1] = T::from_f64(idx[1]);
+                    o[2] = T::from_f64(idx[2]);
+                }
+                None => {
+                    for value in o.iter_mut() {
+                        *value = T::from_f64(f64::NAN);
+                    }
+                }
+            }
+        }
         Tensor::from_slice_on([n, D], &out, backend)
     }
 

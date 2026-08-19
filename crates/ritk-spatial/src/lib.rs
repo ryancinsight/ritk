@@ -11,7 +11,10 @@ pub mod vector;
 pub mod volume_dims;
 pub mod voxel_index;
 
-pub use coordinate_map::{CoordinateMap, CurvilinearArray, InvalidCoordinateMap, PhasedArray3D};
+pub use coordinate_map::{
+    CoordinateMap, CurvilinearArray, InvalidCoordinateMap, PhasedArray3D, SliceSeries,
+    SliceTransform,
+};
 pub use direction::Direction;
 pub use point::Point;
 pub use rotation::{rotation_from_linear, RotationExtractionError};

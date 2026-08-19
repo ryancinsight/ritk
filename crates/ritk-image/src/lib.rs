@@ -20,7 +20,10 @@ pub use color::{ColorVolume, RgbVolume};
 pub use grid::{generate_grid, generate_random_points};
 pub use metadata::ImageMetadata;
 pub use region::{RegionRows, RowWalker, Tiles, VoxelIter, VoxelRegion};
-pub use ritk_spatial::{CoordinateMap, CurvilinearArray, InvalidCoordinateMap, PhasedArray3D};
+pub use ritk_spatial::{
+    CoordinateMap, CurvilinearArray, InvalidCoordinateMap, PhasedArray3D, SliceSeries,
+    SliceTransform,
+};
 pub use types::Image;
 
 /// Coeus-backed tensor and module surface re-exported for downstream crates.
