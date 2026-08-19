@@ -1,13 +1,16 @@
 ## ATLAS-RITK-ZERO-FLUX-PAD-STRUCTURE [patch] — operation-family split
 
-- **Status:** LOCAL GATES PASSED; owner=Atlas coordinator; last-update=2026-08-19.
+- **Status:** HOSTED GATE PASSED; owner=Atlas coordinator; last-update=2026-08-19.
 - Move the `ZeroFluxNeumannPadImageFilter` operation family from the mixed
   `transform/pad.rs` implementation into the named `transform/pad/zero_flux.rs`
   leaf while preserving the public re-export, CPU/native APIs, edge-clamp
   semantics, and spatial-origin update. Local package gates pass: format/diff
   checks, locked all-target compilation, 1073/1073 Nextest tests in 64.227s,
   warning-denied Clippy, and 2/13 doctests (11 environment-only examples
-  ignored). Hosted provider verification remains pending.
+  ignored). Hosted provider Rust/Python checks pass at exact source head
+  `805b7216`: Rustfmt, Clippy, dependency alignment, Rust suites, Python
+  3.9–3.13 across Linux/macOS/Windows, wheel smoke, and CodeRabbit pass;
+  RecurseML remains report-only.
 
 ## ATLAS-RITK-RECURSIVE-GAUSSIAN-HESSIAN-STRUCTURE [patch] — operation-family split
 

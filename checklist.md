@@ -25,8 +25,10 @@
 - [x] Run package Clippy with `--all-targets --locked -- -D warnings` and
       package doctests: 2/13 execute successfully and 11 environment-only
       examples remain intentionally ignored.
-- [ ] Collect provider hosted Rust/Python checks at the final source head;
-      RecurseML remains report-only if it errors.
+- [x] Collect provider hosted Rust/Python checks at final source head
+      `805b7216`: Rustfmt, Clippy, dependency alignment, Rust suites, Python
+      3.9–3.13 across Linux/macOS/Windows, wheel smoke, and CodeRabbit pass;
+      RecurseML remains report-only.
 
 ## ATLAS-RITK-RECURSIVE-GAUSSIAN-HESSIAN-STRUCTURE [patch] — Split Hessian leaf
 
