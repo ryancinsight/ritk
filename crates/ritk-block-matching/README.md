@@ -37,9 +37,20 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
 ```
 
 Use [`MultiResolutionSearch`](https://docs.rs/ritk-block-matching/latest/ritk_block_matching/struct.MultiResolutionSearch.html)
-when the caller owns a coarse-to-fine image pyramid. The optional `fft`
-feature provides a finite, zero-padded FFT-backed metric through the Apollo
-provider.
+when the caller owns a coarse-to-fine image pyramid. `match_pyramid` handles
+one centre; `track_volume_pyramid` applies the same propagated-centre contract
+to every valid block in a [`BlockGrid`](https://docs.rs/ritk-block-matching/latest/ritk_block_matching/struct.BlockGrid.html).
+`track_volume_pyramid_regularized` then applies a configured Bayesian prior
+using each finest-level peak as confidence, while preserving centres and peak
+metadata. The optional `fft` feature provides a finite, zero-padded FFT-backed
+metric through the Apollo provider.
+
+For acquisition-aware geometry, use
+`BlockMatchingConfig::from_axial_autocorrelation` or
+`BlockMatchingConfig::from_transducer_bandwidth`. Both derive an axial
+half-length, map it explicitly onto the selected `[z, y, x]` axis, assign the
+two transverse radii, and validate the resulting block/search geometry before
+matching begins.
 
 The algorithm follows the metric-image and displacement-calculator split from
 ITKUltrasound and the sub-sample estimators described by Céspedes et al.

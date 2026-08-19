@@ -17,7 +17,7 @@
 //!
 //! # Structure
 //!
-//! Four seams, matching ITKUltrasound's decomposition and the D2 batch layer:
+//! Seven seams, matching ITKUltrasound's decomposition and the D2 batch layer:
 //!
 //! 1. A **metric image** — the similarity evaluated at every candidate integer
 //!    offset in the search region ([`metric_image`]).
@@ -25,15 +25,25 @@
 //!    displacement ([`SubpixelRefinement`]).
 //! 3. A **block grid** — deterministic centres, volume matching, and an axial
 //!    strain calculator ([`BlockGrid`] and [`DisplacementField`]).
-//! 4. A **displacement regularizer** — a post-filter that rejects and replaces
-//!    peak-hopped estimates against a strain plausibility bound
-//!    ([`strain_window_filter`]).
+//! 4. A **coarse-to-fine search** — caller-owned pyramid levels with propagated
+//!    moving centres ([`MultiResolutionSearch`]).
+//! 5. An explicit **confidence regularizer** — a Bayesian post-process that
+//!    pulls the final displacement toward a configured prior ([`BayesianDisplacementPrior`]).
+//! 6. Acquisition-aware **radius calculators** — derive axial block support
+//!    from signal correlation or transducer bandwidth ([`radius_from_bandwidth`]).
+//! 7. A **rejection post-filter** — replaces peak-hopped estimates that violate
+//!    a strain plausibility bound ([`strain_window_filter`]). Seams 5 and 7 are
+//!    complements, not alternatives: 5 conditions every block toward a prior,
+//!    7 discards the blocks whose measurement cannot be believed at all.
 //!
 //! `track_volume` is deliberately a regular-grid primitive. It does not pad
 //! image edges, silently clamp a block, or claim a result for a partial block.
-//! Multi-resolution search policies and FFT-backed metrics remain follow-on
-//! seams; the current D2 field supplies the deterministic batch foundation on
-//! which those policies can build.
+//! [`MultiResolutionSearch`] adds an explicit coarse-to-fine execution seam;
+//! callers own the image pyramid and its resampling. Pyramid regularization is
+//! deliberately a post-process: it uses the finest peak confidence and leaves
+//! level diagnostics intact. The optional FFT-backed metric uses Apollo for
+//! finite, zero-padded linear NCC; it does not silently switch the direct metric
+//! to circular correlation.
 //!
 //! The metric and refinement choices are closed sets fixed by the method, so
 //! they are exhaustively matched enums rather than trait objects, and the
@@ -74,12 +84,23 @@ use anyhow::{bail, Result};
 pub trait Sample: Copy {
     /// Widen to the accumulation type.
     fn to_f64(self) -> f64;
+
+    /// Convert a computed pyramid sample back to the stored scalar type.
+    ///
+    /// This is used by caller-owned min/max pyramid construction. Floating
+    /// conversion follows Rust's saturating float-to-float cast semantics.
+    fn from_f64_saturating(value: f64) -> Self;
 }
 
 impl Sample for f32 {
     #[inline]
     fn to_f64(self) -> f64 {
         f64::from(self)
+    }
+
+    #[inline]
+    fn from_f64_saturating(value: f64) -> Self {
+        value as f32
     }
 }
 
@@ -88,19 +109,37 @@ impl Sample for f64 {
     fn to_f64(self) -> f64 {
         self
     }
+
+    #[inline]
+    fn from_f64_saturating(value: f64) -> Self {
+        value
+    }
 }
 
+#[cfg(feature = "fft")]
+mod fft;
 mod metric;
+mod radius;
 mod refine;
+mod regularization;
 mod regularize;
+mod search;
 
 #[cfg(test)]
 #[path = "tests_block_matching.rs"]
 mod tests;
 
+#[cfg(feature = "fft")]
+pub use fft::{match_block_fft, metric_image_fft, FftPadding};
 pub use metric::{metric_image, BlockMetric, MetricImage};
+pub use radius::{radius_from_axial_autocorrelation, radius_from_bandwidth};
 pub use refine::SubpixelRefinement;
+pub use regularization::{BayesianDisplacementPrior, StrainWindowRegularizer};
 pub use regularize::{strain_window_filter, StrainWindowParams, StrainWindowReport};
+pub use search::{
+    MultiResolutionDisplacement, MultiResolutionSearch, OwnedPyramid, PyramidLevel,
+    PyramidLevelDisplacement, SearchRegion,
+};
 
 /// Geometry of a block-matching run, in voxels.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -116,6 +155,82 @@ pub struct BlockMatchingConfig {
 }
 
 impl BlockMatchingConfig {
+    /// Build a configuration from an axial radius and two transverse radii.
+    ///
+    /// `axial_axis` selects the axial component in `[z, y, x]` order. The two
+    /// entries in `transverse_radius` are assigned to the remaining axes in
+    /// ascending axis order. This makes the orientation explicit instead of
+    /// assuming that every acquisition uses the same storage axis.
+    ///
+    /// The resulting configuration is validated before it is returned.
+    ///
+    /// # Errors
+    ///
+    /// Returns an error when `axial_axis` is not one of `0..3`, or when the
+    /// resulting block/search geometry is invalid.
+    pub fn with_axial_radius(
+        axial_axis: usize,
+        axial_radius: usize,
+        transverse_radius: [usize; 2],
+        search_radius: [usize; 3],
+    ) -> Result<Self> {
+        if axial_axis >= 3 {
+            bail!("axial axis must be in [0, 3), got {axial_axis}");
+        }
+        let mut block_radius = [0; 3];
+        block_radius[axial_axis] = axial_radius;
+        let mut transverse = 0;
+        for axis in 0..3 {
+            if axis != axial_axis {
+                block_radius[axis] = transverse_radius[transverse];
+                transverse += 1;
+            }
+        }
+        let config = Self {
+            block_radius,
+            search_radius,
+        };
+        config.validate()?;
+        Ok(config)
+    }
+
+    /// Build a configuration using the first decorrelation lag of an axial line.
+    ///
+    /// This is the validated composition of [`radius_from_axial_autocorrelation`]
+    /// and [`Self::with_axial_radius`].
+    pub fn from_axial_autocorrelation(
+        signal: &[f64],
+        threshold: f64,
+        axial_axis: usize,
+        transverse_radius: [usize; 2],
+        search_radius: [usize; 3],
+    ) -> Result<Self> {
+        let axial_radius = radius_from_axial_autocorrelation(signal, threshold)?;
+        Self::with_axial_radius(axial_axis, axial_radius, transverse_radius, search_radius)
+    }
+
+    /// Build a configuration from transducer bandwidth and axial sample spacing.
+    ///
+    /// The axial radius is derived from the pulse-echo resolution estimate
+    /// `c / (2 · f_c · BW)` and then mapped through [`Self::with_axial_radius`].
+    pub fn from_transducer_bandwidth(
+        speed_of_sound_m_s: f64,
+        centre_frequency_hz: f64,
+        fractional_bandwidth: f64,
+        axial_sample_spacing_m: f64,
+        axial_axis: usize,
+        transverse_radius: [usize; 2],
+        search_radius: [usize; 3],
+    ) -> Result<Self> {
+        let axial_radius = radius_from_bandwidth(
+            speed_of_sound_m_s,
+            centre_frequency_hz,
+            fractional_bandwidth,
+            axial_sample_spacing_m,
+        )?;
+        Self::with_axial_radius(axial_axis, axial_radius, transverse_radius, search_radius)
+    }
+
     /// Validate the geometry.
     ///
     /// # Errors
@@ -180,8 +295,35 @@ pub fn match_block<T: Sample>(
     config: BlockMatchingConfig,
     refinement: SubpixelRefinement,
 ) -> Result<BlockDisplacement> {
+    match_block_at(fixed, moving, dims, centre, centre, config, refinement)
+}
+
+/// Estimate a block using separate fixed and moving-image search centres.
+///
+/// This is the execution seam used by [`MultiResolutionSearch`]. The returned
+/// displacement is the absolute moving-centre offset plus the local metric
+/// peak, so it remains meaningful when the moving search centre was propagated
+/// from a coarser pyramid level. No padding is performed: the fixed block and
+/// the moving block at the search centre must fit; individual candidate blocks
+/// outside the image are skipped by the finite-boundary metric.
+///
+/// This is crate-visible because the public pyramid API is the supported
+/// coarse-to-fine entry point; keeping the lower-level centre distinction
+/// private prevents callers from accidentally mixing coordinate systems.
+pub(crate) fn match_block_at<T: Sample>(
+    fixed: &[T],
+    moving: &[T],
+    dims: [usize; 3],
+    fixed_centre: [usize; 3],
+    moving_centre: [usize; 3],
+    config: BlockMatchingConfig,
+    refinement: SubpixelRefinement,
+) -> Result<BlockDisplacement> {
     config.validate()?;
-    let expected = dims[0] * dims[1] * dims[2];
+    let expected = dims[0]
+        .checked_mul(dims[1])
+        .and_then(|v| v.checked_mul(dims[2]))
+        .ok_or_else(|| anyhow::anyhow!("dims {dims:?} overflow the buffer size calculation"))?;
     if fixed.len() != expected || moving.len() != expected {
         bail!(
             "fixed ({}) and moving ({}) buffers must both hold {expected} voxels for dims {dims:?}",
@@ -189,27 +331,47 @@ pub fn match_block<T: Sample>(
             moving.len()
         );
     }
+
     for axis in 0..3 {
-        let lo = centre[axis].checked_sub(config.block_radius[axis]);
-        let hi = centre[axis] + config.block_radius[axis];
-        if lo.is_none() || hi >= dims[axis] {
+        let radius = config.block_radius[axis];
+        let fixed_hi = fixed_centre[axis].checked_add(radius);
+        if fixed_centre[axis].checked_sub(radius).is_none()
+            || fixed_hi.is_none_or(|hi| hi >= dims[axis])
+        {
             bail!(
-                "block at {centre:?} with radius {:?} leaves the image on axis {axis} (extent {})",
+                "fixed block at {fixed_centre:?} with radius {:?} leaves the image on axis {axis} (extent {})",
+                config.block_radius,
+                dims[axis]
+            );
+        }
+        let moving_hi = moving_centre[axis].checked_add(config.block_radius[axis]);
+        if moving_centre[axis]
+            .checked_sub(config.block_radius[axis])
+            .is_none()
+            || moving_hi.is_none_or(|hi| hi >= dims[axis])
+        {
+            bail!(
+                "moving block at {moving_centre:?} with radius {:?} leaves the image on axis {axis} (extent {})",
                 config.block_radius,
                 dims[axis]
             );
         }
     }
 
-    let surface = metric_image(
+    let surface = metric::metric_image_at(
         fixed,
         moving,
         dims,
-        centre,
+        fixed_centre,
+        moving_centre,
         config,
         BlockMetric::NormalizedCrossCorrelation,
     )?;
-    Ok(refine::displacement_from(&surface, refinement))
+    let mut result = refine::displacement_from(&surface, refinement);
+    for axis in 0..3 {
+        result.displacement[axis] += moving_centre[axis] as f64 - fixed_centre[axis] as f64;
+    }
+    Ok(result)
 }
 
 // ── Volume-level pipeline (US-023-D2) ────────────────────────────────────────
@@ -335,7 +497,10 @@ pub fn track_volume<T: Sample>(
             bail!("grid stride is zero on axis {axis}; that would loop forever");
         }
     }
-    let expected = dims[0] * dims[1] * dims[2];
+    let expected = dims[0]
+        .checked_mul(dims[1])
+        .and_then(|v| v.checked_mul(dims[2]))
+        .ok_or_else(|| anyhow::anyhow!("dims {dims:?} overflow the buffer size calculation"))?;
     if fixed.len() != expected || moving.len() != expected {
         bail!(
             "fixed ({}) and moving ({}) buffers must both hold {expected} voxels for dims {dims:?}",
@@ -431,4 +596,164 @@ pub fn strain_from_displacement(field: &DisplacementField, axial_stride: usize) 
     }
 
     strain
+}
+
+// ── End-to-end pipeline (US-023-D2) ─────────────────────────────────────────
+
+/// Which correlation metric the pipeline's per-block matcher uses.
+///
+/// The FFT variant is only available when the `fft` feature is enabled; it is
+/// the Apollo-backed finite-boundary path, equivalent to the direct metric up
+/// to the FFT kernel's floating-point error.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Default)]
+pub enum PipelineMetric {
+    /// Direct normalized cross-correlation over the finite candidate block.
+    #[default]
+    Direct,
+    /// Apollo-FFT linear normalized cross-correlation with zero padding.
+    #[cfg(feature = "fft")]
+    Fft,
+}
+
+/// Optional post-processing stages applied after block matching.
+#[derive(Debug, Clone, Copy, PartialEq, Default)]
+pub struct PipelineStages {
+    /// Apply a confidence-weighted Bayesian prior to the displacement field.
+    pub bayesian_prior: Option<BayesianDisplacementPrior>,
+    /// Smooth each axial line toward its local least-squares strain window.
+    pub strain_window: Option<StrainWindowRegularizer>,
+}
+
+/// Configuration for a complete block-matching run over a volume.
+///
+/// The fields are the closed set of choices the pipeline supports; there is no
+/// trait-object seam (atlas ADR 0041). `metric` selects the correlation
+/// backend, `refinement` the sub-sample peak estimator, `grid` the block
+/// layout, and `stages` the optional regularization.
+#[derive(Debug, Clone, Copy, PartialEq)]
+pub struct DisplacementPipeline {
+    /// Correlation metric.
+    pub metric: PipelineMetric,
+    /// Sub-sample peak refinement.
+    pub refinement: SubpixelRefinement,
+    /// Block-grid layout.
+    pub grid: BlockGrid,
+    /// Optional regularization / strain-window stages.
+    pub stages: PipelineStages,
+}
+
+/// Result of a full pipeline run: the displacement field and, when requested,
+/// the axial strain derived from it.
+#[derive(Debug, Clone, PartialEq)]
+pub struct PipelineResult {
+    /// Regularized (or raw) displacement field over the block grid.
+    pub field: DisplacementField,
+    /// Axial strain per block centre, present only when the pipeline's
+    /// [`PipelineStages`] requested it via a strain window.
+    pub axial_strain: Option<Vec<f64>>,
+}
+
+impl DisplacementPipeline {
+    /// Run the pipeline over a fixed/moving volume pair.
+    ///
+    /// The matcher is dispatched once per block (ADR 0041); the strain window
+    /// is applied after matching, before the Bayesian prior, so the prior can
+    /// pull any residual outliers toward the smoothed trend.
+    ///
+    /// # Errors
+    ///
+    /// Returns an error when `dims` is invalid, the buffers do not match, the
+    /// grid stride is zero, or the Bayesian prior configuration is invalid.
+    pub fn run<T: Sample>(
+        &self,
+        fixed: &[T],
+        moving: &[T],
+        dims: [usize; 3],
+        config: BlockMatchingConfig,
+    ) -> Result<PipelineResult> {
+        let mut field = match self.metric {
+            PipelineMetric::Direct => {
+                track_volume(fixed, moving, dims, config, self.grid, self.refinement)?
+            }
+            #[cfg(feature = "fft")]
+            PipelineMetric::Fft => {
+                track_volume_fft(fixed, moving, dims, config, self.grid, self.refinement)?
+            }
+        };
+
+        if let Some(window) = self.stages.strain_window {
+            field = window.regularize(&field);
+        }
+        if let Some(prior) = self.stages.bayesian_prior {
+            field = prior.regularize(&field);
+        }
+
+        let axial_strain = self
+            .stages
+            .strain_window
+            .map(|_| strain_from_displacement(&field, self.grid.stride[0]));
+
+        Ok(PipelineResult {
+            field,
+            axial_strain,
+        })
+    }
+}
+
+/// FFT-backed volume tracking, mirroring [`track_volume`] with the Apollo
+/// finite-boundary metric. Only compiled with the `fft` feature.
+#[cfg(feature = "fft")]
+fn track_volume_fft<T: Sample>(
+    fixed: &[T],
+    moving: &[T],
+    dims: [usize; 3],
+    config: BlockMatchingConfig,
+    grid: BlockGrid,
+    refinement: SubpixelRefinement,
+) -> Result<DisplacementField> {
+    use crate::fft::{match_block_fft, FftPadding};
+
+    config.validate()?;
+    for axis in 0..3 {
+        if grid.stride[axis] == 0 {
+            bail!("grid stride is zero on axis {axis}; that would loop forever");
+        }
+    }
+    let expected = dims[0]
+        .checked_mul(dims[1])
+        .and_then(|v| v.checked_mul(dims[2]))
+        .ok_or_else(|| anyhow::anyhow!("dims {dims:?} overflow the buffer size calculation"))?;
+    if fixed.len() != expected || moving.len() != expected {
+        bail!(
+            "fixed ({}) and moving ({}) buffers must both hold {expected} voxels for dims {dims:?}",
+            fixed.len(),
+            moving.len()
+        );
+    }
+
+    let centres = grid.centres(dims, &config);
+    let n = centres.len();
+    let mut displacements = vec![[0.0f64; 3]; n];
+    let mut peak_similarities = vec![f64::NAN; n];
+
+    for (i, &centre) in centres.iter().enumerate() {
+        if let Ok(bd) = match_block_fft(
+            fixed,
+            moving,
+            dims,
+            centre,
+            config,
+            refinement,
+            FftPadding::Zero,
+        ) {
+            displacements[i] = bd.displacement;
+            peak_similarities[i] = bd.peak_similarity;
+        }
+    }
+
+    Ok(DisplacementField {
+        centres,
+        displacements,
+        peak_similarities,
+    })
 }

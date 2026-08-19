@@ -16,5 +16,13 @@ license.workspace = true
 # plain `f64` displacements, so it needs no image, tensor or backend crate.
 # Consumers that only track speckle — kwavers' elastography among them — must be
 # able to take this without inheriting a registration or tensor stack.
+[features]
+default = []
+# The default build remains dependency-light. FFT mode reuses Apollo's existing
+# provider and Eunomia complex values without pulling image/tensor backends.
+fft = ["dep:apollo-fft", "dep:eunomia"]
+
 [dependencies]
 anyhow = { workspace = true }
+apollo-fft = { workspace = true, optional = true }
+eunomia = { workspace = true, optional = true }
