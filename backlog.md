@@ -1,16 +1,19 @@
 ## DOC-TRACTOGRAPHY-VALIDATION [patch] — creation and validation chapter
 
-- **Status:** IN PROGRESS; owner=Codex; last-update=2026-08-19;
-  scope=`docs/book/{SUMMARY.md,tractography.md}`, the existing deterministic
-  tractography example and figure, and synchronized PM/CHANGELOG entries;
+- **Status:** LOCAL GATES PASSED; owner=Codex; last-update=2026-08-19;
+  scope=`docs/book/{SUMMARY.md,tractography.md}`,
+  `crates/ritk-diffusion/examples/book_diffusion_tractography.rs`, the existing
+  deterministic figure, and synchronized PM/CHANGELOG entries;
   non-goal=new tracking algorithms, clinical validation, or API changes.
-  Extend the authoritative tractography chapter with one end-to-end workflow
-  that creates streamlines through the current public API, validates seed
-  accounting, termination reasons, domain containment, and segment geometry,
-  and states which anatomical and clinical claims those checks cannot support.
-  Acceptance: the documented symbols match the current source; the existing
-  example regenerates its figure and passes its analytical assertions; mdBook
-  test/build, strict link checking, formatting, and diff checks pass.
+  The authoritative chapter now creates streamlines through the current public
+  API, validates seed accounting, termination reasons, and analytical-domain
+  containment, and separates numerical/geometric evidence from format,
+  anatomical, and clinical validation. The runnable example records all five
+  attempted seeds, recovers the analytical axis at 0.00 degrees, produces five
+  boundary-terminated streamlines, and regenerates byte-identical figure and
+  tractogram artifacts. Formatting, warning-denied example Clippy, mdBook
+  test/build, strict checking of 188 links, and diff checks pass. Hosted checks,
+  merge, and live Pages verification remain.
 
 ## ATLAS-RITK-ZERO-FLUX-PAD-STRUCTURE [patch] — operation-family split
 

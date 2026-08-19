@@ -1,4 +1,4 @@
-# Deterministic Streamline Tractography
+# Creating and Validating Deterministic Tractography
 
 `ritk-tractography` integrates a local orientation field into curves, producing
 Gaia polyline geometry. It does not directly reconstruct axons and it does not
@@ -7,9 +7,10 @@ deterministic Euler baseline — explicit stepping with direction continuity,
 turn-angle gating, and step-count bounding — designed for reproducible
 examples and baseline algorithms.
 
-This chapter documents the integration algorithm, the direction-field helpers
-that bridge diffusion models to tractography, and the format export methods
-that write streamlines for validation against reference toolchains.
+This chapter shows how to create a tractogram through the public API, validate
+it against an analytical field, and export it for comparison with reference
+toolchains. It also documents the integration algorithm and the direction-field
+helpers that bridge diffusion models to tractography.
 
 ## Integration rule
 
@@ -92,10 +93,12 @@ Every half-streamline records exactly one `TerminationReason`:
 | `StepLimit` | `max_steps` accepted steps exhausted | N/A — last step was accepted |
 
 The distinction between `FieldBoundary` and `TurningAngle` matters for
-interpretation: a streamline that stops because the field has no trackable
-orientation reached an anatomical boundary; one that stops because the
-turn angle exceeded the limit may have encountered noise, a crossing-fibre
-region, or a genuine curvature that the configuration rejected.
+interpretation. `FieldBoundary` means that the caller-defined direction field
+returned no orientation at the proposal. That boundary may come from an image
+extent, tissue mask, anisotropy threshold, or model-fit failure; it is not by
+itself evidence of an anatomical endpoint. `TurningAngle` means that the next
+valid orientation exceeded the configured limit and may reflect noise, a
+crossing-fibre region, or genuine curvature rejected by the configuration.
 
 A seed at which the field returns `None` at the first query is a normal
 untrackable seed — it produces no streamline and is not an error.
@@ -182,6 +185,137 @@ let result = euler_tractography(&seeds, config, |point| {
 
 The integrator validates unit-norm at every sample; a non-unit direction
 is a typed error, not silently corrected.
+
+## Create and validate a tractogram
+
+A smooth tractogram is not a correctness oracle. The strongest local check
+starts from a direction field whose domain and expected path behavior are
+known before tracking. RITK's runnable book example uses the curved analytical
+bundle below so creation and validation exercise the same public API without
+using the implementation as its own oracle.
+
+![Known diffusion axis, analytical direction field, seeds, domain boundary, and generated streamlines](figures/diffusion_tractography.svg)
+
+### 1. Define a physical field and seeds
+
+The closure returns a unit tangent inside the bundle and `None` outside it.
+This makes the dashed bundle boundary in the figure an executable stopping
+oracle rather than a visual annotation:
+
+```rust,ignore
+use ritk_spatial::{Point, Vector};
+
+fn bundle_center(x: f64) -> f64 {
+    20.0 + 5.0 * (x / 8.0).sin()
+}
+
+fn direction_field(point: &Point<3>) -> Option<Vector<3>> {
+    let [x, y, z] = point.to_array();
+    if !(2.0..=38.0).contains(&x)
+        || (y - bundle_center(x)).abs() > 4.0
+        || z.abs() > 0.5
+    {
+        return None;
+    }
+
+    let slope = 0.625 * (x / 8.0).cos();
+    let norm = (1.0 + slope * slope).sqrt();
+    Some(Vector::new([1.0 / norm, slope / norm, 0.0]))
+}
+
+let seed_x = 20.0;
+let seeds = [-2.5, -1.25, 0.0, 1.25, 2.5]
+    .map(|offset| Point::new([seed_x, bundle_center(seed_x) + offset, 0.0]));
+```
+
+The seeds, field, and output use physical coordinates. A voxel-index field
+must be converted with the image geometry before export; use
+`TractographyResult::map_points` when tracking occurred in index space.
+
+### 2. Create streamlines
+
+Construct a validated configuration, then integrate the seeds. The selected
+step size, turn limit, and field domain are part of the experiment and must be
+reported with any downstream result:
+
+```rust,ignore
+use ritk_tractography::{
+    TrackingDirection, TractographyConfig, euler_tractography,
+};
+
+let config = TractographyConfig::new(
+    0.35,
+    160,
+    20.0,
+    TrackingDirection::Bidirectional,
+)?;
+let result = euler_tractography(&seeds, config, direction_field)?;
+```
+
+### 3. Validate value semantics before rendering
+
+The analytical example requires one output per seed, boundary termination in
+both directions, and containment of every emitted point. These assertions fail
+if tracking silently drops a valid seed, records the wrong stopping cause, or
+appends the first out-of-domain proposal:
+
+```rust,ignore
+use ritk_tractography::TerminationReason;
+
+assert_eq!(result.seeds_attempted(), seeds.len());
+assert_eq!(result.streamlines_generated(), seeds.len());
+
+for streamline in result.streamlines() {
+    assert_eq!(
+        streamline.forward_termination(),
+        TerminationReason::FieldBoundary,
+    );
+    assert_eq!(
+        streamline.backward_termination(),
+        Some(TerminationReason::FieldBoundary),
+    );
+
+    assert!(streamline.geometry().points().iter().all(|point| {
+        direction_field(&Point::new([point.x, point.y, point.z])).is_some()
+    }));
+}
+```
+
+The runnable source also verifies the independently known diffusion axis before
+rendering. Run it from the repository root:
+
+```text
+cargo run --locked -p ritk-diffusion --example book_diffusion_tractography -- \
+  docs/book/figures/diffusion_tractography.svg
+```
+
+The command writes the checked SVG plus `.trk`, `.tck`, and `.tsf` artifacts.
+See [Signal to Streamlines](examples/diffusion_tractography.md) for the signal
+model, angular oracle, exported scalar layout, and interpretation of each panel.
+
+### Validation ladder
+
+Each check supports a different claim. Passing a lower level does not imply a
+higher one:
+
+| Level | Oracle | Claim established |
+|---|---|---|
+| Input contract | Validated configuration, finite seeds, unit directions | The integrator receives values in its declared domain |
+| Numerical integration | Known field, seed count, step/turn limits, exact termination variants | The algorithm follows its deterministic contract |
+| Geometric containment | Every point remains inside the analytical bundle | No out-of-domain proposal enters the polyline |
+| Visual output | Generated metrics agree with labels, seeds, boundaries, and curves | The figure represents the computed data |
+| Format interoperability | Read the exported tractogram in the target tool and compare coordinates, counts, and scalars | The selected file boundary preserves the checked result |
+| Anatomical validation | Independent physical phantom, histology, tracer data, or established anatomical constraints | The reconstructed paths correspond to evidence not generated by the same model |
+| Clinical validation | A task-specific protocol, population, outcomes, and prospective acceptance criteria | The method is fit for that defined clinical use |
+
+The first four levels are covered by the deterministic book example and crate
+tests. Exporting a file does not complete the interoperability level, and the
+real-subject figure demonstrates execution on scanner data rather than ground
+truth. Diffusion tractography can produce coherent false-positive bundles even
+when local orientations are accurate; Maier-Hein et al.'s ground-truth
+challenge therefore cautions against treating tractography alone as anatomical
+evidence ([Nature Communications 8, 1349, 2017](https://doi.org/10.1038/s41467-017-01285-x),
+Results: “Tractograms contained more invalid than valid bundles”).
 
 ## Streamline export
 
@@ -323,8 +457,8 @@ The implementation and tests establish deterministic geometry, sign
 continuity, bounded memory growth, explicit stopping reasons, and rejection
 of invalid field samples. They do not establish anatomical validity,
 clinical utility, crossing-fibre resolution, uncertainty, or invariance to
-acquisition and preprocessing choices. Such claims require independent
-phantoms and validated in-vivo protocols.
+acquisition and preprocessing choices. Apply the validation ladder above and
+state the highest level for which an independent oracle was actually run.
 
 The [signal-to-streamlines example](examples/diffusion_tractography.md)
 closes the loop end-to-end: known tensor → synthetic signals → model fit

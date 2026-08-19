@@ -12,11 +12,15 @@
 
 - [x] Confirm the existing `tractography.md` chapter is the authoritative home
       and avoid adding a competing tutorial page.
-- [ ] Add one public-API creation workflow with executable analytical oracles.
-- [ ] Separate numerical/geometric verification from anatomical and clinical
+- [x] Add one public-API creation workflow with executable analytical oracles.
+- [x] Separate numerical/geometric verification from anatomical and clinical
       validation claims.
-- [ ] Regenerate and inspect the existing deterministic tractography figure.
-- [ ] Run mdBook test/build, strict link checking, formatting, and diff checks.
+- [x] Regenerate and inspect the existing deterministic tractography figure;
+      the 48 acquisition directions, attenuation curve, 0.00-degree ODF axis,
+      five seeds, field bounds, and five streamlines are legible, and the
+      tracked SVG remains byte-identical.
+- [x] Run formatting, warning-denied example Clippy, mdBook test/build, strict
+      checking of 188 links, and diff checks.
 - [ ] Collect hosted checks, merge the documentation change, and verify the
       deployed chapter.
 

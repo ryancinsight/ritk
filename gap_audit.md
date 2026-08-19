@@ -8,6 +8,28 @@
 
 # RITK Gap Audit - Active
 
+## DOC-TRACTOGRAPHY-VALIDATION audit (2026-08-19)
+
+- Finding: the tractography chapter documented the integrator and export
+  surfaces but left the complete create-and-validate workflow distributed
+  across a child example. It also described `FieldBoundary` as an anatomical
+  boundary even though the implementation can only establish that the
+  caller-defined direction field returned `None`.
+- Resolution: the authoritative chapter now defines an analytical physical
+  field and seeds, creates bidirectional streamlines through the public API,
+  and checks seed accounting, exact termination variants, and containment
+  before rendering. The termination text now names image extent, masks,
+  anisotropy thresholds, and model-fit failures as possible field boundaries.
+  A claim ladder separates executable numerical/geometric checks from format,
+  anatomical, and clinical validation, with the latter boundary grounded in
+  the resolved Maier-Hein et al. tractography-challenge paper.
+- Evidence: the locked runnable example reports a 0.00-degree ODF peak error
+  and five streamlines. Its regenerated SVG and `.trk`/`.tck`/`.tsf` outputs
+  match their tracked bytes; the SVG was rasterized and inspected at 1800 px.
+  Warning-denied Clippy passes for the example target. mdBook test/build and
+  strict checking of 77 files and 188 links pass. These checks establish the
+  documented synthetic contract, not anatomical or clinical validity.
+
 ## ATLAS-RITK-ZERO-FLUX-PAD-STRUCTURE [patch] — operation-family split
 
 - Finding: `crates/ritk-filter/src/transform/pad.rs` carried the four padding
