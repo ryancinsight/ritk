@@ -20,15 +20,16 @@
 - [x] Run Rustfmt and `git diff --check`.
 - [x] Run the standalone locked provider package compile outside the Atlas
       overlay: `cargo check -p ritk-registration --all-targets --locked` passes
-      at source `22a2d0f0`; formatting and diff checks remain clean.
+      at source `ff95022b`; formatting and diff checks remain clean.
 - [x] Run the strongest local value-semantic gate: `cargo nextest run -p
       ritk-registration --lib --locked` reports 370/370 passed in 19.076s.
 - [x] Run package Clippy with `--all-targets --locked -- -D warnings` and
       package doctests via `cargo test --doc --locked`; both pass (2 doctests
       run, 7 environment-only examples ignored).
-- [ ] Collect the provider hosted CI and Python matrix at exact head
-      `22a2d0f0`; the shared Atlas overlay limitation is not substituted for
-      that hosted gate.
+- [x] Collect the provider hosted CI and Python matrix at exact head
+      `ff95022b`; all required Rust and Python checks pass, including wheel
+      smoke and CodeRabbit. The shared Atlas overlay limitation is not
+      substituted for that hosted gate.
 
 ## RITK-PARITY-171 [major] — InverseDisplacementField SimpleITK parity
 

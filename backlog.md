@@ -111,7 +111,7 @@ oracle these tests exist to provide.
 # RITK Backlog - Active Planning
 
 - **ATLAS-RITK-BSPLINE-BASIS-STRUCTURE [patch] - Partition B-spline basis
-  evaluation by operation family (HOSTED GATE PENDING; owner=Atlas
+  evaluation by operation family (HOSTED GATE PASSED; owner=Atlas
   coordinator; last-update=2026-08-19).**
   `crates/ritk-registration/src/bspline_ffd/basis/
   evaluate.rs` was a 629-line implementation file combining control-grid
@@ -122,7 +122,7 @@ oracle these tests exist to provide.
   ownership, dense/sparse dispatch, and arithmetic order; no performance claim
   is made. Standalone locked compilation and package Nextest pass outside the
   Atlas overlay: `cargo check -p ritk-registration --all-targets --locked` and
-  370/370 tests. Provider hosted CI at exact head `22a2d0f0` remains the merge
+  370/370 tests. Provider hosted CI at exact head `ff95022b` passes the merge
   gate.
 
 - **ATLAS-RITK-CONFORMANCE-101 [patch] - Close diffusion binding structure
