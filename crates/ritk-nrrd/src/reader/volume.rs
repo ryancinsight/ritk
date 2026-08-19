@@ -91,7 +91,10 @@ pub fn read_nrrd<B: ComputeBackend, P: AsRef<Path>>(
         volumes,
     } = decoded;
     Image::from_flat_on(
-        volumes.into_iter().next().expect("single_volume guaranteed"),
+        volumes
+            .into_iter()
+            .next()
+            .expect("single_volume guaranteed"),
         dims,
         origin,
         spacing,
