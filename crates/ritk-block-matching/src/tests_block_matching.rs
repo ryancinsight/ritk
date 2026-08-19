@@ -281,3 +281,70 @@ fn rejects_invalid_geometry_and_out_of_bounds_blocks() {
     )
     .is_err());
 }
+
+/// The matcher must give the same answer for the same data at either stored
+/// precision, so a consumer is never forced through a narrowing conversion.
+///
+/// Correlation accumulates in `f64` either way, so the only difference is the
+/// input rounding; on data that is exactly representable in `f32`, the two must
+/// agree exactly. RF-domain consumers hold `f64` and their whole value is
+/// sub-sample precision, which a forced `f32` round-trip would erode.
+#[test]
+fn matches_identically_in_f32_and_f64() {
+    let fixed32 = shifted_image([0, 0, 0]);
+    let moving32 = shifted_image([0, 2, -3]);
+    let fixed64: Vec<f64> = fixed32.iter().map(|&v| f64::from(v)).collect();
+    let moving64: Vec<f64> = moving32.iter().map(|&v| f64::from(v)).collect();
+
+    for refinement in [
+        SubpixelRefinement::None,
+        SubpixelRefinement::Parabolic,
+        SubpixelRefinement::Cosine,
+    ] {
+        let a = match_block(&fixed32, &moving32, DIMS, [0, 20, 20], config(), refinement)
+            .expect("f32 match");
+        let b = match_block(&fixed64, &moving64, DIMS, [0, 20, 20], config(), refinement)
+            .expect("f64 match");
+        assert_eq!(
+            a.displacement, b.displacement,
+            "{refinement:?} must agree across stored precision"
+        );
+        assert_eq!(a.peak_similarity, b.peak_similarity);
+    }
+}
+
+/// The 1-D axial case a speckle tracker needs: a single line, block and search
+/// on the fast axis only. This is the shape kwavers' elastography tracker uses,
+/// and it must work through the same seam rather than a second implementation.
+#[test]
+fn tracks_a_one_dimensional_line() {
+    const N: usize = 64;
+    let line: Vec<f64> = (0..N)
+        .map(|i| f64::from(texture(0, 0, i as isize)))
+        .collect();
+    // Same line shifted by +3 samples.
+    let shifted: Vec<f64> = (0..N)
+        .map(|i| f64::from(texture(0, 0, i as isize - 3)))
+        .collect();
+
+    let dims = [1, 1, N];
+    let config = BlockMatchingConfig {
+        block_radius: [0, 0, 6],
+        search_radius: [0, 0, 5],
+    };
+    let result = match_block(
+        &line,
+        &shifted,
+        dims,
+        [0, 0, 32],
+        config,
+        SubpixelRefinement::None,
+    )
+    .expect("1-D match");
+    assert_eq!(
+        result.displacement,
+        [0.0, 0.0, 3.0],
+        "a 1-D line shift must be recovered on the fast axis"
+    );
+    assert!(result.peak_similarity > 0.999);
+}

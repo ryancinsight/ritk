@@ -2,7 +2,7 @@
 
 use anyhow::{bail, Result};
 
-use super::BlockMatchingConfig;
+use super::{BlockMatchingConfig, Sample};
 
 /// Similarity measure evaluated between the fixed block and a candidate moving
 /// block.
@@ -57,9 +57,9 @@ impl MetricImage {
 /// correlates equally with everything, so its peak is an artefact of iteration
 /// order rather than a measurement; reporting a displacement there would be
 /// indistinguishable from a real match at the API boundary.
-pub fn metric_image(
-    fixed: &[f32],
-    moving: &[f32],
+pub fn metric_image<T: Sample>(
+    fixed: &[T],
+    moving: &[T],
     dims: [usize; 3],
     centre: [usize; 3],
     config: BlockMatchingConfig,
@@ -141,13 +141,18 @@ pub fn metric_image(
 }
 
 /// Copy the block centred at `centre` into a flat buffer.
-fn gather_block(buf: &[f32], dims: [usize; 3], centre: [usize; 3], radius: [usize; 3]) -> Vec<f64> {
+fn gather_block<T: Sample>(
+    buf: &[T],
+    dims: [usize; 3],
+    centre: [usize; 3],
+    radius: [usize; 3],
+) -> Vec<f64> {
     let mut out =
         Vec::with_capacity((2 * radius[0] + 1) * (2 * radius[1] + 1) * (2 * radius[2] + 1));
     for z in centre[0] - radius[0]..=centre[0] + radius[0] {
         for y in centre[1] - radius[1]..=centre[1] + radius[1] {
             for x in centre[2] - radius[2]..=centre[2] + radius[2] {
-                out.push(f64::from(buf[(z * dims[1] + y) * dims[2] + x]));
+                out.push(buf[(z * dims[1] + y) * dims[2] + x].to_f64());
             }
         }
     }
