@@ -1,3 +1,13 @@
+## ATLAS-RITK-RECURSIVE-GAUSSIAN-HESSIAN-STRUCTURE [patch] — operation-family split
+
+- **Status:** HOSTED GATE PENDING; owner=Atlas coordinator; last-update=2026-08-19.
+- Move the recursive-Gaussian Hessian operation family from the mixed
+  `recursive_gaussian.rs` implementation into a named leaf without changing
+  the `pub(crate)` provider seam or numerical ordering. Local package gates
+  pass: format/diff checks, locked all-target compilation, 1073/1073 Nextest
+  tests, warning-denied Clippy, and 2/13 doctests (11 environment-only examples
+  ignored). Hosted provider Rust/Python checks remain the merge gate.
+
 ## RITK-PARITY-171 — InverseDisplacementField SimpleITK parity broken on main [major] — done (owner=Atlas coordinator; closed 2026-08-19)
 
 **Owned scope:** establish the SimpleITK index/physical convention at the

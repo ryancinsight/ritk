@@ -8,6 +8,25 @@
 
 # RITK Sprint Checklist — Active
 
+## ATLAS-RITK-RECURSIVE-GAUSSIAN-HESSIAN-STRUCTURE [patch] — Split Hessian leaf
+
+- [x] Confirm `recursive_gaussian.rs` contains a distinct Hessian operation
+      family after the recursive-Gaussian host core.
+- [x] Move `compute_hessian_iir` to
+      `recursive_gaussian_hessian.rs` and retain the `pub(crate)` seam used by
+      Frangi and Sato vesselness consumers.
+- [x] Preserve the Deriche pass order, physical-spacing scaling, packed
+      `[Hzz, Hzy, Hzx, Hyy, Hyx, Hxx]` output, and no performance claim.
+- [x] Run Rustfmt and `git diff --check`; the parent is 444 lines and the
+      Hessian leaf is 79 lines.
+- [x] Run locked all-target compilation outside the Atlas overlay.
+- [x] Run the strongest affected package gate: `ritk-filter` Nextest reports
+      1073/1073 passed in 45.308s.
+- [x] Run package Clippy with `--all-targets --locked -- -D warnings` and
+      package doctests: 2/13 execute successfully and 11 environment-only
+      examples remain intentionally ignored.
+- [ ] Collect provider hosted Rust/Python checks at the final source head.
+
 ## ATLAS-RITK-BSPLINE-BASIS-STRUCTURE [patch] — Partition basis evaluation
 
 - [x] Confirm the 629-line `basis/evaluate.rs` mixed grid setup, dense support
