@@ -1,9 +1,9 @@
 # Diffusion MRI Test Data
 
-Public CC0-licensed diffusion-weighted MRI datasets downloaded from OpenNeuro
-for end-to-end pipeline integration testing.
-
----
+Public human diffusion MRI acquisitions used for end-to-end integration tests
+and the book's tractography/connectomics workflow. Imaging bytes remain
+gitignored; this directory records provenance, checksums, and reproducible
+download commands.
 
 ## Download
 
@@ -11,89 +11,87 @@ for end-to-end pipeline integration testing.
 bash test_data/diffusion/download.sh
 ```
 
-The script is idempotent — re-running it skips files that already exist.
+The script is idempotent. It checks Stanford files against their published MD5
+digests and distinguishes OpenNeuro imaging data from git-annex pointer files
+by size.
 
 Requirements:
-- `curl` (pre-installed on macOS, Linux, and Windows Git Bash)
-- Or: [AWS CLI](https://aws.amazon.com/cli/) (`aws s3 cp --no-sign-request`)
 
----
+- `git`
+- `curl`
+- `md5sum`, `md5`, or `certutil`
 
-## Dataset Inventory
+## Dataset inventory
 
-### `ds002087/` — Single-Subject DWI with Deliberate Head Motion
+### Stanford HARDI — whole-brain tractography and connectomics
 
 | Field | Value |
 |---|---|
-| Title | MRI Datasets with and without deliberate head movements for... |
-| Dataset ID | `ds002087` |
-| Modality | Diffusion-weighted MRI (DWI) |
-| Subject | sub-01 |
-| Volumes | ≈33 (1 b0 + ~32 DWI directions) |
-| Format | NIfTI-1 (.nii.gz) + FSL bval/bvec |
-| License | CC0 (Creative Commons Zero v1.0 Universal) |
-| Size | ≈15–30 MB (DWI files only) |
-| Source | https://openneuro.org/datasets/ds002087 |
-| Purpose | Real-data DTI/DKI/CSD/NODDI pipeline integration testing |
+| Repository record | [`yx282xq2090`](https://purl.stanford.edu/yx282xq2090) |
+| Modality | Human high-angular-resolution diffusion MRI |
+| Acquisition | 150 directions at \(b=2000\) s/mm² plus 10 \(b=0\) volumes |
+| Image shape | 81 × 106 × 76 voxels |
+| Preprocessing | Motion-corrected to the mean \(b=0\); no eddy-current correction |
+| Anatomy | DWI-aligned reduced FreeSurfer parcellation and label table |
+| License | Open Data Commons PDDL 1.0 public-domain dedication |
+| Size | About 92 MB |
+| Purpose | Human whole-brain tensor fitting, deterministic tracking, endpoint connectome, and book figure |
 
-**Files downloaded** (placed directly in `test_data/diffusion/`):
+Files are placed in `test_data/diffusion/stanford_hardi/`:
 
-| File | Description |
+| File | MD5 |
 |---|---|
-| `sub-01_dwi.nii.gz` | 4-D DWI volume (X × Y × Z × 33) |
-| `sub-01_dwi.bval` | b-values (s/mm²), one per volume |
-| `sub-01_dwi.bvec` | Gradient directions (3 rows × 33 columns), unit vectors |
-| `sub-01_dwi.json` | BIDS sidecar with acquisition parameters |
-| `dataset_description.json` | Dataset-level metadata |
+| `dwi.nii.gz` | `0b18513b46132b4d1051ed3364f2acbc` |
+| `dwi.bvals` | `4e08ee9e2b1d2ec3fddb68c70ae23c36` |
+| `dwi.bvecs` | `4c63a586f29afc6a48a5809524a76cb4` |
+| `aparc-reduced.nii.gz` | `742de90090d06e687ce486f680f6d71a` |
+| `label_info.txt` | `39db9f0f5e173d7a2c2e51b07d5d711b` |
 
----
+The repository's use conditions prohibit attempts to identify participants or
+otherwise infringe their privacy. The data are suitable for method
+development, not subject identification or clinical inference.
+
+### `ds002087` — DWI with deliberate head motion
+
+| Field | Value |
+|---|---|
+| Source | [OpenNeuro `ds002087`](https://openneuro.org/datasets/ds002087) |
+| Subject | `sub-01` |
+| Acquisition | 99 volumes at \(b=0\) and \(b=700\) s/mm² |
+| Image shape | 104 × 104 × 72 voxels at 2 mm isotropic |
+| License | CC0 1.0 public-domain dedication |
+| Size | About 55 MB for the DWI volume |
+| Purpose | Real-data DTI, DKI, CSD, and NODDI integration coverage |
+
+The script shallow-clones the OpenNeuro GitHub mirror for text sidecars and
+fetches the DWI volume directly from public S3 because the clone contains a
+git-annex pointer rather than imaging bytes.
+
+### `ds004666` — EDDEN denoising acquisition
+
+| Field | Value |
+|---|---|
+| Source | [OpenNeuro `ds004666`](https://openneuro.org/datasets/ds004666) |
+| Acquisition | 199 multi-shell volumes at approximately \(b=1000\) and \(b=2000\) s/mm² |
+| Resolutions | 0.9, 1.5, and 2.0 mm isotropic |
+| License | CC0 1.0 public-domain dedication |
+| Purpose | Real gradient-scheme coverage for multi-shell models |
 
 ## Usage
 
-### Integration test (requires downloaded data)
+Run the ignored real-data integration target after downloading:
 
 ```bash
-# Download the dataset first
-bash test_data/diffusion/download.sh
-
-# Run the real-data integration test
-cargo test -p ritk-diffusion --test integration_real_data -- --ignored
+cargo nextest run -p ritk-diffusion --test integration_real_data \
+  --run-ignored ignored-only
 ```
 
-The integration test:
-1. Reads `sub-01_dwi.nii.gz` through `ritk-nifti`'s native reader
-2. Parses `sub-01_dwi.bval` / `sub-01_dwi.bvec` into a `GradientScheme`
-3. Runs DTI, DKI, CSD, and NODDI on a central brain slice
-4. Asserts model outputs are physically plausible (FA ∈ [0,1], MD ∈ [0, 0.004], etc.)
-5. Verifies that the gradient-scheme codec (FSL) round-trips losslessly
-
-### Manual CLI usage
+Regenerate the human tractography/connectome artifacts:
 
 ```bash
-# Convert DWI to NRRD
-ritk-cli convert test_data/diffusion/sub-01_dwi.nii.gz dwi.nrrd
+cargo run --release -p ritk-diffusion --example book_brain_tractography
 ```
 
----
-
-## Licensing
-
-| Dataset | License |
-|---|---|
-| `ds002087` | CC0 (Creative Commons Zero v1.0 Universal) — public domain dedication |
-
-No attribution is required for CC0 data, but the source dataset can be cited as:
-
-> OpenNeuro. (2021). ds002087 — MRI Datasets with and without deliberate head
-> movements for... https://openneuro.org/datasets/ds002087
-
----
-
-## Adding More Datasets
-
-To add a new diffusion dataset:
-
-1. Choose a CC0 dataset from https://openneuro.org/search (filter: Modality → MRI → Diffusion, License → CC0)
-2. Add its S3 source URLs to `download.sh`
-3. Document the dataset above following the existing table format
-4. Add a corresponding `#[ignore]` integration test in `crates/ritk-diffusion/tests/integration_real_data.rs`
+The example writes `docs/book/figures/brain_tractography.svg` and the complete
+upper-triangular streamline-count matrix at
+`docs/book/figures/brain_connectome.json`.

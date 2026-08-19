@@ -464,3 +464,9 @@ The [signal-to-streamlines example](examples/diffusion_tractography.md)
 closes the loop end-to-end: known tensor → synthetic signals → model fit
 → direction field → streamlines. Each visual element — seeds, orientation
 glyphs, domain boundaries, generated trajectories — has a defined meaning.
+
+The [human tractography and connectomics example](examples/brain_tractography.md)
+then runs the same public tracking boundary on a checksummed 160-volume human
+HARDI acquisition. It adds exact DWI/parcellation alignment, endpoint
+accounting, an 84-region connectivity matrix, and an explicit separation
+between internal software validation and biological validation.

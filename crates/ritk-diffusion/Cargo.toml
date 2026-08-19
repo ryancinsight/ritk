@@ -22,5 +22,6 @@ thiserror.workspace = true
 anyhow.workspace = true
 ritk-image.workspace = true
 ritk-io.workspace = true
+ritk-connectome.workspace = true
 ritk-tractography.workspace = true
 tempfile.workspace = true

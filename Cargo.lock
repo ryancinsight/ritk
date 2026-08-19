@@ -5741,6 +5741,7 @@ dependencies = [
  "coeus-optim",
  "leto",
  "leto-ops",
+ "ritk-connectome",
  "ritk-diffusion-scheme",
  "ritk-image",
  "ritk-io",

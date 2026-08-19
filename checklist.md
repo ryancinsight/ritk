@@ -8,6 +8,24 @@
 
 # RITK Sprint Checklist — Active
 
+## DOC-HUMAN-CONNECTOME [patch] — Human tractography and connectomics
+
+- [x] Select a public human HARDI acquisition with aligned anatomical labels,
+      durable provenance, and redistributable metadata.
+- [x] Verify all five input checksums and require exact DWI/parcellation shape
+      and spatial-transform agreement.
+- [x] Run whole-brain tensor fitting, white-matter seeding, deterministic
+      tracking, endpoint assignment, and physical-length measurement.
+- [x] Assert seed/streamline accounting, matrix-weight accounting, and
+      undirected query symmetry with value-semantic tests.
+- [x] Regenerate and inspect the three-panel human SVG and complete matrix JSON.
+- [x] Document exact quantitative results and separate reproducibility from
+      anatomical or clinical validation.
+- [x] Pass formatting, warning-denied Clippy, focused Nextest/doctest gates,
+      mdBook test/build, strict links, and diff checks.
+- [ ] Collect exact-head hosted gates, merge, verify Pages deployment, and
+      confirm live chapter and artifact HTTP responses.
+
 ## BUILD-BLOCK-MATCHING-LOCK [patch] — Restore locked resolution
 
 - [x] Reproduce the post-merge `--locked` failure from the missing
