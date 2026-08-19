@@ -8,6 +8,64 @@
 
 # RITK Gap Audit - Active
 
+## ATLAS-RITK-ZERO-FLUX-PAD-STRUCTURE [patch] — operation-family split
+
+- Finding: `crates/ritk-filter/src/transform/pad.rs` carried the four padding
+  families in one implementation file; the zero-flux Neumann family occupied
+  a separate tail operation with its own CPU/native paths.
+- Resolution: move `ZeroFluxNeumannPadImageFilter` to the named
+  `transform/pad/zero_flux.rs` leaf and re-export it through the existing
+  `transform::pad` surface. Edge clamping, output shape, origin translation,
+  backend construction, and public signatures are unchanged.
+- Evidence: Rustfmt and `git diff --check` pass; the parent is 462 lines and
+  the new leaf is 122 lines. Locked all-target compilation passes outside the
+  Atlas overlay. The affected package reports 1073/1073 Nextest tests passed
+  in 64.227 seconds, warning-denied Clippy passes, and package doctests report
+  2/13 executed with 11 environment-only examples ignored. Hosted provider
+  verification remains pending. No performance or allocation claim is
+  attached to this structural change.
+
+## ATLAS-RITK-RECURSIVE-GAUSSIAN-HESSIAN-STRUCTURE [patch] — operation-family split
+
+- Finding: `recursive_gaussian.rs` carried the recursive-Gaussian public API,
+  smoothing core, derivative helpers, and the separate six-component Hessian
+  operation family in one implementation file.
+- Resolution: move `compute_hessian_iir` to the named
+  `recursive_gaussian_hessian.rs` leaf and re-export it through the existing
+  `pub(crate)` module seam. Frangi and Sato callers remain unchanged; Deriche
+  pass ordering, spacing normalization, and packed output semantics are
+  unchanged.
+- Evidence: Rustfmt and `git diff --check` pass; the parent is 444 lines and
+  the new leaf is 79 lines. Locked all-target compilation passes outside the
+  Atlas overlay. The affected package reports 1073/1073 Nextest tests passed
+  in 45.308 seconds, warning-denied Clippy passes, and package doctests report
+  2/13 executed with 11 environment-only examples ignored. Hosted provider
+  Rust/Python checks pass at exact source head `9034af11` (Rustfmt, Clippy,
+  dependency alignment, Rust suites, Python 3.9–3.13 across Linux/macOS/Windows,
+  wheel smoke, and review checks); RecurseML remains report-only. No
+  performance or allocation claim is attached to this structural change.
+
+## ATLAS-RITK-BSPLINE-BASIS-STRUCTURE [patch] — operation-family split
+
+- Finding: `crates/ritk-registration/src/bspline_ffd/basis/evaluate.rs` was a
+  629-line implementation file containing control-grid initialization, dense
+  support-table construction, and sparse cache-based displacement evaluation.
+- Resolution: partition the implementation into `basis/grid.rs`,
+  `basis/dense.rs`, and `basis/sparse.rs`; retain `basis::evaluate` as the
+  stable internal path through curated re-exports. The evaluation loops,
+  output-buffer ownership, dense/sparse dispatch, and arithmetic order are
+  unchanged.
+- Evidence: Rustfmt and `git diff --check` pass. From outside the Atlas
+  overlay, locked `cargo check -p ritk-registration --all-targets` passes at
+  source `ff95022b`, and the package library gate reports 370/370 Nextest
+  tests passed in 19.076 seconds. Package Clippy with `-D warnings` and
+  package doctests also pass (2 executed, 7 environment-only examples
+  ignored). The hosted provider CI and Python matrix pass at exact source head
+  `ff95022b` (Rustfmt, Clippy, dependency alignment, Rust suites, Python
+  3.9–3.13 across Linux/macOS/Windows, wheel smoke, and CodeRabbit). No
+  performance or allocation claim is attached to this structural
+  change.
+
 ## ATLAS-RITK-CONFORMANCE-101 — Diffusion binding structure ratchet
 
 - Finding: `crates/ritk-python/src/diffusion/mod.rs` became a 109-line
@@ -6976,6 +7034,23 @@ type-level proof.
 - Closed: GAP-SCI-03 (prewitt), GAP-SCI-07 (maximum_position/minimum_position), GAP-SCI-09 (histogram).
 - Open: GAP-SCI-01, 02, 05, 06, 08, 11, 12, 13, 14, 15 (10 remaining, target Sprints 336-337).
 - Out of scope [arch]: GAP-SCI-16/17/18 (5 functions requiring callback-based plugin system).
+
+## Finding 2026-08-19: RITK affine parity follow-up remains hosted-gated
+
+The first parity repair also required a second axis-boundary correction in
+`crates/ritk-python/src/filter/spatial/affine.rs`. Commit `18e5bc7f` routes
+rotation centers through direction-aware provider geometry, keeps Euler matrices
+in physical `(X,Y,Z)` order, and maps Python `[Z,Y,X]` shifts to physical
+translation. The focused affine parity set passes 9/9, and the local provider
+Rust gates remain green.
+
+The comprehensive local Python suite at this head reports `1236 passed, 8
+skipped, 1 xpassed, 1 failed` under local SimpleITK
+`3.0.0a1.post183-g61ffa`, outside the declared `>=2.5.5,<2.6` requirement. Its
+sole max-2-ULP denoising observation is therefore not supported-version
+evidence. The exact default-head hosted runs `32244582088` and `32244582089`
+pass, including the pinned-version wheel oracle, and no tolerance or assertion
+was weakened.
 
 ---
 

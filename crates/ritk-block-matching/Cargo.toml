@@ -1,0 +1,20 @@
+[package]
+name = "ritk-block-matching"
+version = "0.1.0"
+description = "Block-matching displacement estimation for speckle tracking"
+keywords.workspace = true
+categories.workspace = true
+homepage.workspace = true
+readme.workspace = true
+authors.workspace = true
+repository.workspace = true
+publish = true
+edition = "2021"
+license.workspace = true
+
+# Deliberately minimal. The API is `&[f32]` buffers plus dimensions and returns
+# plain `f64` displacements, so it needs no image, tensor or backend crate.
+# Consumers that only track speckle — kwavers' elastography among them — must be
+# able to take this without inheriting a registration or tensor stack.
+[dependencies]
+anyhow = { workspace = true }

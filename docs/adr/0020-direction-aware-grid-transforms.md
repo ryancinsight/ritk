@@ -4,6 +4,13 @@
 - Date: 2026-08-18
 - Board item: ATLAS-RITK-TRANSFORM-DIRECTION-081
 
+> **Revision (2026-08-19):** RITK-PARITY-171 showed that the Python NumPy
+> boundary still constructed `[Z,Y,X]` images with the native identity
+> direction. The boundary now stores the axial permutation and maps the
+> Python `(disp_z, disp_y, disp_x)` API to the provider's physical
+> `(x,y,z)` inputs for the TPS and iterative inverters. The original
+> SimpleITK `<1e-4` oracles are green after a fresh wheel build.
+
 ## Context
 
 ADR 0018 consolidated `Image`'s single-point coordinate transforms onto
@@ -82,8 +89,10 @@ pipeline built from an oblique series.
 
 `ritk-filter` takes a breaking change: two `apply` methods return
 `anyhow::Result`, and `MarchingCubesFilter` gains a public field. In-repo
-callers move in the same change. The Python bindings are unaffected — both
-already call the `apply_native` forms, which were already fallible.
+callers move in the same change. The Python bindings call the fallible
+`apply_native` forms, but their NumPy construction boundary must also preserve
+the `[Z,Y,X]` to physical `(X,Y,Z)` mapping; RITK-PARITY-171 closes that
+consumer-side contract gap.
 
 Numerical output changes for any volume whose direction is not the axial
 permutation, which is the point. It is unchanged for volumes that are.
@@ -124,3 +133,9 @@ Every one of these tests was confirmed to fail against the pre-fix
 direction-free composition, and the axis-aligned tests were confirmed to pass
 unchanged under both, which is what makes the oblique fixtures load-bearing:
 an axis-aligned fixture cannot distinguish the two implementations at all.
+
+## Revision history
+
+- 2026-08-19: Revised for RITK-PARITY-171 to close the Python NumPy direction
+  and displacement-component mapping gap; the SimpleITK parity oracles remain
+  unchanged.

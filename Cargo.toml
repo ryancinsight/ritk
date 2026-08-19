@@ -1,5 +1,6 @@
 [workspace]
 members = [
+  "crates/ritk-block-matching",
   "crates/ritk-filter",
   "crates/ritk-segmentation",
   "crates/ritk-vtk",

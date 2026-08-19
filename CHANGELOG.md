@@ -10,6 +10,20 @@
 
 ## [Unreleased] — conformance cleanup and JPEG 2000 scalar quality control (FEAT-692-01)
 
+- [major] Repair SimpleITK parity for the Python thin-plate-spline and
+  iterative displacement-field inverters. NumPy `[Z,Y,X]` constructors now
+  carry the canonical tensor-to-physical permutation, and bindings pass
+  provider-owned physical `(x,y,z)` components rather than relying on an
+  identity-direction interpretation. The original three `<1e-4` regression
+  oracles pass after a fresh wheel build.
+
+- [major] Preserve physical-axis semantics in Python affine shift and Euler
+  rotation bindings. Centers now use the provider's direction-aware
+  index-to-physical conversion, matrices use physical `(X,Y,Z)` order, and
+  `[Z,Y,X]` shift arguments are translated at the binding boundary. Nine
+  focused SimpleITK affine parity cases pass at `18e5bc7f`; exact default-head
+  CI `32244582088` and Python CI `32244582089` pass at `065c4766`.
+
 - [major] Apply the direction cosines in the grid-sweeping filters' index/world
   transforms (ADR
   [0020](docs/adr/0020-direction-aware-grid-transforms.md)). Marching cubes and

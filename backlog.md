@@ -1,4 +1,52 @@
-## RITK-PARITY-171 — InverseDisplacementField SimpleITK parity broken on main [major] — todo
+## ATLAS-RITK-ZERO-FLUX-PAD-STRUCTURE [patch] — operation-family split
+
+- **Status:** LOCAL GATES PASSED; owner=Atlas coordinator; last-update=2026-08-19.
+- Move the `ZeroFluxNeumannPadImageFilter` operation family from the mixed
+  `transform/pad.rs` implementation into the named `transform/pad/zero_flux.rs`
+  leaf while preserving the public re-export, CPU/native APIs, edge-clamp
+  semantics, and spatial-origin update. Local package gates pass: format/diff
+  checks, locked all-target compilation, 1073/1073 Nextest tests in 64.227s,
+  warning-denied Clippy, and 2/13 doctests (11 environment-only examples
+  ignored). Hosted provider verification remains pending.
+
+## ATLAS-RITK-RECURSIVE-GAUSSIAN-HESSIAN-STRUCTURE [patch] — operation-family split
+
+- **Status:** HOSTED GATE PASSED; owner=Atlas coordinator; last-update=2026-08-19.
+- Move the recursive-Gaussian Hessian operation family from the mixed
+  `recursive_gaussian.rs` implementation into a named leaf without changing
+  the `pub(crate)` provider seam or numerical ordering. Local package gates
+  pass: format/diff checks, locked all-target compilation, 1073/1073 Nextest
+  tests, warning-denied Clippy, and 2/13 doctests (11 environment-only examples
+  ignored). Hosted provider Rust/Python checks pass at exact source head
+  `9034af11`; the non-required RecurseML analyzer remains report-only.
+
+## RITK-PARITY-171 — InverseDisplacementField SimpleITK parity broken on main [major] — done (owner=Atlas coordinator; closed 2026-08-19)
+
+**Owned scope:** establish the SimpleITK index/physical convention at the
+Python image boundary, repair the provider-native filter path if the measured
+fixture proves a contract defect, and add value-semantic regression coverage.
+Do not alter the tolerance or mask a coordinate-frame mismatch.
+
+**Resolution:** NumPy scalar and color constructors now store the canonical
+`[Z,Y,X]` tensor-to-physical permutation. The TPS and iterative Python bindings
+now pass provider-owned physical `(x,y,z)` components and return `(z,y,x)`;
+the physical-point color source uses the same metadata contract. The original
+`<1e-4` SimpleITK oracle passes for all three regressions after a fresh
+`maturin develop --release --locked` build.
+
+The follow-up commit `18e5bc7f` completes the same physical-axis migration for
+`shift_image` and `rotate_image`: affine centers now come from the provider's
+continuous index-to-physical conversion, Euler matrices remain in physical
+`(X,Y,Z)` order, and Python `[Z,Y,X]` shifts are translated at the binding
+boundary. The nine focused affine parity cases pass after another fresh
+release wheel build.
+
+**Verification:** `cargo nextest run -p ritk-filter --lib --locked` (1073/1073),
+`cargo nextest run -p ritk-python --lib --locked` (47/47),
+`cargo clippy -p ritk-python --all-targets --locked -- -D warnings`, and the
+three targeted Python parity tests (3/3) pass. The locked local commands ran
+from outside the Atlas overlay against the shared target because the overlay
+intentionally rewrites standalone RITK locks.
 
 `Python Wheel (smoke test)` on main fails three SimpleITK parity tests in
 `crates/ritk-python/tests/test_simpleitk_cmake_data.py`:
@@ -34,6 +82,16 @@ old axial assumption and need regenerating against SimpleITK. Deciding which
 requires checking ITK's index->physical convention against this crate's axis
 order; the ADR states identity here sends the depth axis to world x, whereas
 the filters previously paired `spacing[0]` with z.
+
+Hosted closure is green at exact default head `065c4766`: CI run
+`32244582088` and Python CI run `32244582089` both pass, including the pinned
+SimpleITK wheel smoke oracle and Windows nextest.
+
+The comprehensive local Python suite was run with SimpleITK
+`3.0.0a1.post183-g61ffa`, outside the repository requirement
+`>=2.5.5,<2.6`; its one max-2-ULP denoising residual is therefore environment
+evidence only, not a supported-version failure. The supported hosted wheel
+oracle passes without a tolerance change.
 
 **Correction (2026-08-18): the first lead recorded here was wrong.** It claimed
 the 2-D solve basis and the displacement "component convention" disagreed by one
@@ -73,6 +131,21 @@ oracle these tests exist to provide.
   on main and independent of that PR.
 
 # RITK Backlog - Active Planning
+
+- **ATLAS-RITK-BSPLINE-BASIS-STRUCTURE [patch] - Partition B-spline basis
+  evaluation by operation family (HOSTED GATE PASSED; owner=Atlas
+  coordinator; last-update=2026-08-19).**
+  `crates/ritk-registration/src/bspline_ffd/basis/
+  evaluate.rs` was a 629-line implementation file combining control-grid
+  initialization, dense support-table construction, and sparse cache-based
+  evaluation. Split the implementation into the dedicated `grid.rs`,
+  `dense.rs`, and `sparse.rs` leaves while retaining the stable internal
+  `basis::evaluate` re-export surface. The split preserves output-buffer
+  ownership, dense/sparse dispatch, and arithmetic order; no performance claim
+  is made. Standalone locked compilation and package Nextest pass outside the
+  Atlas overlay: `cargo check -p ritk-registration --all-targets --locked` and
+  370/370 tests. Provider hosted CI at exact head `ff95022b` passes the merge
+  gate.
 
 - **ATLAS-RITK-CONFORMANCE-101 [patch] - Close diffusion binding structure
   ratchet (DONE; owner=Codex; last-update=2026-08-17).** The new

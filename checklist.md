@@ -8,6 +8,90 @@
 
 # RITK Sprint Checklist — Active
 
+## ATLAS-RITK-ZERO-FLUX-PAD-STRUCTURE [patch] — Split zero-flux padding leaf
+
+- [x] Confirm `transform/pad.rs` contains a distinct zero-flux Neumann
+      operation family after the constant, mirror, and wrap implementations.
+- [x] Move `ZeroFluxNeumannPadImageFilter` to
+      `transform/pad/zero_flux.rs` and retain the public re-export from
+      `transform::pad`.
+- [x] Preserve edge-clamp indexing, CPU/native output construction, spatial
+      origin updates, and the existing public API; make no performance claim.
+- [x] Run Rustfmt and `git diff --check`; the parent is 462 lines and the
+      zero-flux leaf is 122 lines.
+- [x] Run locked all-target compilation outside the Atlas overlay.
+- [x] Run the strongest affected package gate: `ritk-filter` Nextest reports
+      1073/1073 passed in 64.227s.
+- [x] Run package Clippy with `--all-targets --locked -- -D warnings` and
+      package doctests: 2/13 execute successfully and 11 environment-only
+      examples remain intentionally ignored.
+- [ ] Collect provider hosted Rust/Python checks at the final source head;
+      RecurseML remains report-only if it errors.
+
+## ATLAS-RITK-RECURSIVE-GAUSSIAN-HESSIAN-STRUCTURE [patch] — Split Hessian leaf
+
+- [x] Confirm `recursive_gaussian.rs` contains a distinct Hessian operation
+      family after the recursive-Gaussian host core.
+- [x] Move `compute_hessian_iir` to
+      `recursive_gaussian_hessian.rs` and retain the `pub(crate)` seam used by
+      Frangi and Sato vesselness consumers.
+- [x] Preserve the Deriche pass order, physical-spacing scaling, packed
+      `[Hzz, Hzy, Hzx, Hyy, Hyx, Hxx]` output, and no performance claim.
+- [x] Run Rustfmt and `git diff --check`; the parent is 444 lines and the
+      Hessian leaf is 79 lines.
+- [x] Run locked all-target compilation outside the Atlas overlay.
+- [x] Run the strongest affected package gate: `ritk-filter` Nextest reports
+      1073/1073 passed in 45.308s.
+- [x] Run package Clippy with `--all-targets --locked -- -D warnings` and
+      package doctests: 2/13 execute successfully and 11 environment-only
+      examples remain intentionally ignored.
+- [x] Collect provider hosted Rust/Python checks at final source head
+      `9034af11`: Rustfmt, Clippy, dependency alignment, Rust suites, Python
+      3.9–3.13 across Linux/macOS/Windows, wheel smoke, and review checks pass;
+      RecurseML remains report-only.
+
+## ATLAS-RITK-BSPLINE-BASIS-STRUCTURE [patch] — Partition basis evaluation
+
+- [x] Confirm the 629-line `basis/evaluate.rs` mixed grid setup, dense support
+      construction, and sparse cache evaluation.
+- [x] Move those operation families to `basis/{grid,dense,sparse}.rs` and keep
+      `basis::evaluate` as the stable internal re-export surface.
+- [x] Preserve dense/sparse selection, output-buffer ownership, and arithmetic
+      order; do not claim a runtime or allocation improvement without a
+      controlled benchmark.
+- [x] Run Rustfmt and `git diff --check`.
+- [x] Run the standalone locked provider package compile outside the Atlas
+      overlay: `cargo check -p ritk-registration --all-targets --locked` passes
+      at source `ff95022b`; formatting and diff checks remain clean.
+- [x] Run the strongest local value-semantic gate: `cargo nextest run -p
+      ritk-registration --lib --locked` reports 370/370 passed in 19.076s.
+- [x] Run package Clippy with `--all-targets --locked -- -D warnings` and
+      package doctests via `cargo test --doc --locked`; both pass (2 doctests
+      run, 7 environment-only examples ignored).
+- [x] Collect the provider hosted CI and Python matrix at exact head
+      `ff95022b`; all required Rust and Python checks pass, including wheel
+      smoke and CodeRabbit. The shared Atlas overlay limitation is not
+      substituted for that hosted gate.
+
+## RITK-PARITY-171 [major] — InverseDisplacementField SimpleITK parity
+
+- [x] Measure SimpleITK's `[Z,Y,X]` NumPy index convention and physical
+      `(X,Y,Z)` mapping; retain the original `<1e-4` oracle.
+- [x] Store the canonical tensor-to-physical permutation at scalar, color,
+      and physical-point Python construction boundaries.
+- [x] Pass provider-owned physical displacement components through TPS and
+      iterative inversion and map results back to Python storage order.
+- [x] Verify 3 targeted Python parity tests, 1073 `ritk-filter` nextest tests,
+      47 `ritk-python` nextest tests, and clippy with `-D warnings`.
+- [x] Preserve physical axes in affine shift and Euler rotation bindings;
+      9 focused SimpleITK affine parity cases pass after a fresh release wheel
+      build at `18e5bc7f`.
+- [x] Collect hosted CI and Python CI at exact default head `065c4766`;
+      `32244582088` and `32244582089` pass, including the pinned SimpleITK
+      wheel oracle and Windows nextest. The local max-2-ULP observation came
+      from unsupported SimpleITK `3.0.0a1.post183-g61ffa` versus the declared
+      `>=2.5.5,<2.6` range and did not require a tolerance change.
+
 ## ATLAS-RITK-CONFORMANCE-CLEANUP [patch]
 
 - [x] Move the four root documentation reports under `docs/` and update
