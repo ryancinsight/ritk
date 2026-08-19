@@ -1,4 +1,4 @@
-//! Block-matching displacement estimation.
+//! Block-matching displacement estimation for speckle tracking.
 //!
 //! Speckle tracking for elastography and motion estimation: for each block of
 //! the fixed image, search a bounded region of the moving image for the offset
@@ -28,6 +28,15 @@
 //! enums rather than trait objects, and the choice is made once per block
 //! rather than per candidate (atlas ADR 0041).
 //!
+//! # Why its own crate
+//!
+//! The algorithm is plain arithmetic over sample buffers: no image type, no
+//! tensor, no backend. It first shipped inside `ritk-registration`, whose
+//! manifest pulls `ritk-image` and with it the coeus autograd/nn/wgpu stack —
+//! weight that a consumer wanting only speckle tracking should not inherit.
+//! kwavers' elastography is exactly such a consumer, and could not take the
+//! dependency at all without enabling an unrelated feature.
+//!
 //! # References
 //! - `itkBlockMatchingNormalizedCrossCorrelationMetricImageFilter.hxx` and
 //!   `itkBlockMatchingMaximumPixelDisplacementCalculator.hxx`,
@@ -39,6 +48,36 @@
 //!   estimators and their bias behaviour.
 
 use anyhow::{bail, Result};
+
+/// A sample type the matcher can correlate.
+///
+/// Correlation accumulates in `f64` regardless of the stored precision, because
+/// the sums are over the whole block and the sub-sample peak estimate is
+/// differenced from near-equal neighbours — both places where `f32`
+/// accumulation loses exactly the precision the method exists to provide.
+///
+/// The stored type is nonetheless parameterized rather than fixed: image data
+/// is `f32`, while RF and the displacement estimators built on it are `f64`,
+/// and forcing either through the other's precision is a real loss. This is the
+/// scalar variation dimension, abstracted rather than duplicated.
+pub trait Sample: Copy {
+    /// Widen to the accumulation type.
+    fn to_f64(self) -> f64;
+}
+
+impl Sample for f32 {
+    #[inline]
+    fn to_f64(self) -> f64 {
+        f64::from(self)
+    }
+}
+
+impl Sample for f64 {
+    #[inline]
+    fn to_f64(self) -> f64 {
+        self
+    }
+}
 
 mod metric;
 mod refine;
@@ -120,9 +159,9 @@ pub struct BlockDisplacement {
 /// caller chooses the block grid, so an out-of-bounds block is a caller error
 /// rather than something to silently clamp, which would compare a different
 /// block than the one requested.
-pub fn match_block(
-    fixed: &[f32],
-    moving: &[f32],
+pub fn match_block<T: Sample>(
+    fixed: &[T],
+    moving: &[T],
     dims: [usize; 3],
     centre: [usize; 3],
     config: BlockMatchingConfig,
