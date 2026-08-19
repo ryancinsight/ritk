@@ -8,6 +8,25 @@
 
 # RITK Gap Audit - Active
 
+## ATLAS-RITK-BSPLINE-BASIS-STRUCTURE [patch] — operation-family split
+
+- Finding: `crates/ritk-registration/src/bspline_ffd/basis/evaluate.rs` was a
+  629-line implementation file containing control-grid initialization, dense
+  support-table construction, and sparse cache-based displacement evaluation.
+- Resolution: partition the implementation into `basis/grid.rs`,
+  `basis/dense.rs`, and `basis/sparse.rs`; retain `basis::evaluate` as the
+  stable internal path through curated re-exports. The evaluation loops,
+  output-buffer ownership, dense/sparse dispatch, and arithmetic order are
+  unchanged.
+- Evidence: Rustfmt and `git diff --check` pass. From outside the Atlas
+  overlay, locked `cargo check -p ritk-registration --all-targets` passes at
+  source `22a2d0f0`, and the package library gate reports 370/370 Nextest
+  tests passed in 19.076 seconds. Package Clippy with `-D warnings` and
+  package doctests also pass (2 executed, 7 environment-only examples
+  ignored). The hosted provider CI and Python matrix remain required for
+  merge. No performance or allocation claim is attached to this structural
+  change.
+
 ## ATLAS-RITK-CONFORMANCE-101 — Diffusion binding structure ratchet
 
 - Finding: `crates/ritk-python/src/diffusion/mod.rs` became a 109-line
