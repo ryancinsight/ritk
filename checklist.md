@@ -25,7 +25,10 @@
 - [x] Run package Clippy with `--all-targets --locked -- -D warnings` and
       package doctests: 2/13 execute successfully and 11 environment-only
       examples remain intentionally ignored.
-- [ ] Collect provider hosted Rust/Python checks at the final source head.
+- [x] Collect provider hosted Rust/Python checks at final source head
+      `9034af11`: Rustfmt, Clippy, dependency alignment, Rust suites, Python
+      3.9–3.13 across Linux/macOS/Windows, wheel smoke, and review checks pass;
+      RecurseML remains report-only.
 
 ## ATLAS-RITK-BSPLINE-BASIS-STRUCTURE [patch] — Partition basis evaluation
 

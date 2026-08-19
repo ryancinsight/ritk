@@ -23,8 +23,10 @@
   Atlas overlay. The affected package reports 1073/1073 Nextest tests passed
   in 45.308 seconds, warning-denied Clippy passes, and package doctests report
   2/13 executed with 11 environment-only examples ignored. Hosted provider
-  Rust/Python checks remain required before merge. No performance or allocation
-  claim is attached to this structural change.
+  Rust/Python checks pass at exact source head `9034af11` (Rustfmt, Clippy,
+  dependency alignment, Rust suites, Python 3.9–3.13 across Linux/macOS/Windows,
+  wheel smoke, and review checks); RecurseML remains report-only. No
+  performance or allocation claim is attached to this structural change.
 
 ## ATLAS-RITK-BSPLINE-BASIS-STRUCTURE [patch] — operation-family split
 
