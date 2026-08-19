@@ -554,7 +554,7 @@ fn fallible_strain_rejects_malformed_fields_and_zero_stride() {
 
 /// `strain_from_displacement` must recover a known constant strain when the
 /// displacement increases linearly with axial position.
-
+///
 /// For a pure axial compression with strain ε, the displacement at axial
 /// position z is `d(z) = ε · z`. For blocks at axial stride `s`, the central
 /// difference gives `(d(z+s) - d(z-s)) / (2s) = ε`, which is exact when the
