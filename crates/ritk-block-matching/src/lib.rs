@@ -134,7 +134,7 @@ pub use fft::{match_block_fft, metric_image_fft, FftPadding};
 pub use metric::{metric_image, BlockMetric, MetricImage};
 pub use radius::{radius_from_axial_autocorrelation, radius_from_bandwidth};
 pub use refine::SubpixelRefinement;
-pub use regularization::{BayesianDisplacementPrior, StrainWindowRegularizer};
+pub use regularization::{BayesianDisplacementPrior, LeastSquaresDisplacementPrior};
 pub use regularize::{strain_window_filter, StrainWindowParams, StrainWindowReport};
 pub use search::{
     MultiResolutionDisplacement, MultiResolutionSearch, OwnedPyramid, PyramidLevel,
@@ -621,7 +621,7 @@ pub struct PipelineStages {
     /// Apply a confidence-weighted Bayesian prior to the displacement field.
     pub bayesian_prior: Option<BayesianDisplacementPrior>,
     /// Smooth each axial line toward its local least-squares strain window.
-    pub strain_window: Option<StrainWindowRegularizer>,
+    pub least_squares_prior: Option<LeastSquaresDisplacementPrior>,
 }
 
 /// Configuration for a complete block-matching run over a volume.
@@ -681,7 +681,7 @@ impl DisplacementPipeline {
             }
         };
 
-        if let Some(window) = self.stages.strain_window {
+        if let Some(window) = self.stages.least_squares_prior {
             field = window.regularize(&field);
         }
         if let Some(prior) = self.stages.bayesian_prior {
@@ -690,7 +690,7 @@ impl DisplacementPipeline {
 
         let axial_strain = self
             .stages
-            .strain_window
+            .least_squares_prior
             .map(|_| strain_from_displacement(&field, self.grid.stride[0]));
 
         Ok(PipelineResult {

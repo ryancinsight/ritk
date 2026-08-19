@@ -3,8 +3,12 @@
 //! The raw matcher reports a displacement for every block independently, so
 //! decorrelated blocks produce spurious outliers that read as strain. These
 //! calculators impose a spatial prior — either a fixed Gaussian prior weighted
-//! by correlation confidence, or a local strain-window smoothness prior — and
-//! return a regularized field with the same centres and peak metadata.
+//! by correlation confidence, or a local least-squares slope prior — and return
+//! a regularized field with the same centres and peak metadata.
+//!
+//! Both **condition** every block. The complementary operation, rejecting the
+//! blocks whose measurement cannot be believed at all, lives in
+//! [`crate::strain_window_filter`].
 
 use anyhow::{bail, Result};
 
@@ -119,8 +123,8 @@ impl BayesianDisplacementPrior {
     }
 }
 
-/// A strain-window regularizer that smooths displacement toward a local
-/// least-squares slope (the Kallel–Ophir estimator).
+/// A displacement prior that smooths toward a local least-squares slope
+/// (the Kallel–Ophir estimator).
 ///
 /// For each block, the neighbouring axial displacements within `window`
 /// blocks are fit to a straight line by ordinary least squares; the fitted
@@ -130,8 +134,16 @@ impl BayesianDisplacementPrior {
 /// is a *displacement* calculator with a strain prior — distinct from the
 /// crate's `strain_from_displacement`, which estimates strain from a finished
 /// displacement field.
+///
+/// Distinct, too, from [`crate::strain_window_filter`], despite both taking a
+/// window over axial strain. This one **conditions** every block, blending it
+/// toward the fitted line, so a real feature is attenuated along with the
+/// noise. That one **rejects**: a block outside a plausibility bound is
+/// discarded and replaced from its neighbours, and everything else is returned
+/// untouched. Use this to suppress measurement noise, that to remove
+/// peak-hopping artefacts; they compose in either order.
 #[derive(Debug, Clone, Copy, PartialEq)]
-pub struct StrainWindowRegularizer {
+pub struct LeastSquaresDisplacementPrior {
     /// Odd window size in blocks (the number of axial neighbours used for the
     /// local fit). Must be `>= 3`.
     pub window: usize,
@@ -140,7 +152,7 @@ pub struct StrainWindowRegularizer {
     pub regularization_strength: f64,
 }
 
-impl StrainWindowRegularizer {
+impl LeastSquaresDisplacementPrior {
     /// Construct a strain-window regularizer.
     ///
     /// # Errors
@@ -295,14 +307,14 @@ mod tests {
     }
 
     #[test]
-    fn strain_window_preserves_a_linear_field_exactly() {
+    fn least_squares_prior_preserves_a_linear_field_exactly() {
         // A perfectly linear axial displacement field (constant strain 0.01)
         // must be unchanged by a strain-window regularizer, because the local
         // line fit reproduces the field exactly.
         let displacements: Vec<[f64; 3]> =
             (0..10).map(|i| [0.01 * (i * 3) as f64, 0.0, 0.0]).collect();
         let peaks = vec![0.9; 10];
-        let regularizer = StrainWindowRegularizer::new(5, 0.5).expect("valid strain window");
+        let regularizer = LeastSquaresDisplacementPrior::new(5, 0.5).expect("valid strain window");
         let result = regularizer.regularize(&field(displacements.clone(), peaks));
         for (before, after) in displacements.iter().zip(&result.displacements) {
             assert!((before[0] - after[0]).abs() < 1.0e-12);
@@ -311,7 +323,7 @@ mod tests {
     }
 
     #[test]
-    fn strain_window_smooths_a_single_outlier() {
+    fn least_squares_prior_smooths_a_single_outlier() {
         // One outlier among an otherwise linear field is pulled toward the
         // local line. Least-squares over the window is not robust, so the
         // outlier is not fully suppressed — but it must move substantially
@@ -320,7 +332,7 @@ mod tests {
             (0..10).map(|i| [0.01 * (i * 3) as f64, 0.0, 0.0]).collect();
         displacements[5] = [5.0, 0.0, 0.0]; // a gross outlier
         let peaks = vec![0.9; 10];
-        let regularizer = StrainWindowRegularizer::new(5, 0.5).expect("valid strain window");
+        let regularizer = LeastSquaresDisplacementPrior::new(5, 0.5).expect("valid strain window");
         let result = regularizer.regularize(&field(displacements, peaks));
         // Raw outlier is 5.0; the surrounding trend at that position is ~0.15.
         // The smoothed value must be a clear fraction of the way toward the
@@ -335,10 +347,10 @@ mod tests {
     }
 
     #[test]
-    fn strain_window_rejects_invalid_configuration() {
-        assert!(StrainWindowRegularizer::new(2, 0.5).is_err());
-        assert!(StrainWindowRegularizer::new(4, 0.5).is_err());
-        assert!(StrainWindowRegularizer::new(5, 1.5).is_err());
-        assert!(StrainWindowRegularizer::new(5, -0.1).is_err());
+    fn least_squares_prior_rejects_invalid_configuration() {
+        assert!(LeastSquaresDisplacementPrior::new(2, 0.5).is_err());
+        assert!(LeastSquaresDisplacementPrior::new(4, 0.5).is_err());
+        assert!(LeastSquaresDisplacementPrior::new(5, 1.5).is_err());
+        assert!(LeastSquaresDisplacementPrior::new(5, -0.1).is_err());
     }
 }

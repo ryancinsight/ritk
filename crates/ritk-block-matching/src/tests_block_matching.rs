@@ -7,9 +7,8 @@ const DIMS: [usize; 3] = [1, 40, 40];
 fn config() -> BlockMatchingConfig {
     BlockMatchingConfig {
         block_radius: [0, 4, 4],
-        search_radius: [0, 5, 5],}
-
-
+        search_radius: [0, 5, 5],
+    }
 }
 
 /// Deterministic white-noise texture, so a block has the variance normalized
@@ -42,8 +41,8 @@ fn shifted_image(shift: [isize; 3]) -> Vec<f32> {
                 out[(z * DIMS[1] + y) * DIMS[2] + x] =
                     texture(z, y as isize - shift[1], x as isize - shift[2]);
             }
-        }}
-
+        }
+    }
 
     out
 }
@@ -78,9 +77,8 @@ fn recovers_an_exact_integer_translation() {
             result.peak_similarity > 0.999,
             "an exact translation must correlate ~1, got {}",
             result.peak_similarity
-        );}
-
-
+        );
+    }
 }
 
 /// Sub-voxel refinement must not meaningfully move an exact integer match.
@@ -109,9 +107,8 @@ fn refinement_does_not_disturb_an_exact_match() {
                 && (result.displacement[2] + 3.0).abs() < 0.05,
             "{refinement:?} moved an exact match to {:?}",
             result.displacement
-        );}
-
-
+        );
+    }
 }
 
 /// A sub-voxel shift must land between the neighbouring integers and on the
@@ -133,9 +130,8 @@ fn subvoxel_shift_lands_between_the_integers() {
                 let b = texture(z, y as isize, x as isize);
                 moving[(z * DIMS[1] + y) * DIMS[2] + x] = 0.5 * (a + b);
             }
-        }}
-
-
+        }
+    }
 
     let integer = match_block(
         &fixed,
@@ -223,9 +219,8 @@ fn assert_fft_matches_direct(centre: [usize; 3]) {
             ),
             (false, false) => {}
             _ => panic!("FFT/direct finite-boundary mismatch at {index}: {actual} vs {expected}"),
-        }}
-
-
+        }
+    }
 }
 
 /// Apollo's finite linear NCC must match the direct metric away from image
@@ -345,23 +340,20 @@ fn rejects_invalid_geometry_and_out_of_bounds_blocks() {
     // axis — but an all-zero radius is not.
     assert!(BlockMatchingConfig {
         block_radius: [0, 0, 4],
-        search_radius: [0, 5, 5],}
-
-
+        search_radius: [0, 5, 5],
+    }
     .validate()
     .is_ok());
     assert!(BlockMatchingConfig {
         block_radius: [0, 0, 0],
-        search_radius: [0, 5, 5],}
-
-
+        search_radius: [0, 5, 5],
+    }
     .validate()
     .is_err());
     assert!(BlockMatchingConfig {
         block_radius: [0, 4, 4],
-        search_radius: [0, 0, 0],}
-
-
+        search_radius: [0, 0, 0],
+    }
     .validate()
     .is_err());
 
@@ -415,9 +407,8 @@ fn matches_identically_in_f32_and_f64() {
             a.displacement, b.displacement,
             "{refinement:?} must agree across stored precision"
         );
-        assert_eq!(a.peak_similarity, b.peak_similarity);}
-
-
+        assert_eq!(a.peak_similarity, b.peak_similarity);
+    }
 }
 
 /// The 1-D axial case a speckle tracker needs: a single line, block and search
@@ -437,9 +428,8 @@ fn tracks_a_one_dimensional_line() {
     let dims = [1, 1, N];
     let config = BlockMatchingConfig {
         block_radius: [0, 0, 6],
-        search_radius: [0, 0, 5],}
-
-;
+        search_radius: [0, 0, 5],
+    };
     let result = match_block(
         &line,
         &shifted,
@@ -474,9 +464,8 @@ fn track_volume_recovers_integer_axial_shift() {
                 }
             }
         }
-        v}
-
-;
+        v
+    };
     let moving: Vec<f32> = {
         let mut v = vec![0.0f32; DIMS3[0] * DIMS3[1] * DIMS3[2]];
         for z in 0..DIMS3[0] {
@@ -487,15 +476,13 @@ fn track_volume_recovers_integer_axial_shift() {
                 }
             }
         }
-        v}
-
-;
+        v
+    };
 
     let config = BlockMatchingConfig {
         block_radius: [0, 4, 4],
-        search_radius: [0, 3, 3],}
-
-;
+        search_radius: [0, 3, 3],
+    };
     let grid = BlockGrid::dense(config.block_radius);
     let field = track_volume(
         &fixed,
@@ -522,9 +509,8 @@ fn track_volume_recovers_integer_axial_shift() {
             field.peak_similarities[i] > 0.99,
             "block {} peak must be close to 1",
             i
-        );}
-
-
+        );
+    }
 }
 
 /// `strain_from_displacement` must recover zero strain when all blocks have the
@@ -538,17 +524,15 @@ fn strain_is_zero_for_uniform_translation() {
     let field = DisplacementField {
         centres,
         displacements,
-        peak_similarities,}
-
-;
+        peak_similarities,
+    };
     let strain = strain_from_displacement(&field, 9);
     for (i, &s) in strain.iter().enumerate() {
         assert!(
             s.abs() < 1.0e-12,
             "block {i}: expected 0 strain for uniform translation, got {s}"
-        );}
-
-
+        );
+    }
 }
 
 /// `strain_from_displacement` must recover a known constant strain when the
@@ -573,9 +557,8 @@ fn strain_recovers_known_constant_strain() {
     let field = DisplacementField {
         centres,
         displacements,
-        peak_similarities,}
-
-;
+        peak_similarities,
+    };
     let strain = strain_from_displacement(&field, stride);
     // Central difference is exact for a linear field; boundary estimates use
     // one-sided differences and are also exact.
@@ -583,9 +566,8 @@ fn strain_recovers_known_constant_strain() {
         assert!(
             (s - strain_truth).abs() < 1.0e-10,
             "block {i}: expected strain {strain_truth}, got {s}"
-        );}
-
-
+        );
+    }
 }
 
 /// A single-block field has no neighbour for finite differences; the only
@@ -595,9 +577,8 @@ fn strain_for_single_block_field_is_zero() {
     let field = DisplacementField {
         centres: vec![[5, 0, 0]],
         displacements: vec![[3.0, 0.0, 0.0]],
-        peak_similarities: vec![0.9],}
-
-;
+        peak_similarities: vec![0.9],
+    };
     let strain = strain_from_displacement(&field, 5);
     assert_eq!(strain.len(), 1);
     assert!(strain[0].abs() < 1.0e-12);
@@ -609,9 +590,8 @@ fn strain_for_single_block_field_is_zero() {
 fn block_grid_dense_enumerates_centres() {
     let config = BlockMatchingConfig {
         block_radius: [0, 4, 4],
-        search_radius: [0, 3, 3],}
-
-;
+        search_radius: [0, 3, 3],
+    };
     let grid = BlockGrid::dense(config.block_radius);
     let centres = grid.centres([1, 32, 32], &config);
     assert!(!centres.is_empty());
@@ -622,9 +602,8 @@ fn block_grid_dense_enumerates_centres() {
         assert!(x >= config.block_radius[2]);
         assert!(z + config.block_radius[0] < 1);
         assert!(y + config.block_radius[1] < 32);
-        assert!(x + config.block_radius[2] < 32);}
-
-
+        assert!(x + config.block_radius[2] < 32);
+    }
 }
 
 /// Sample the same physical texture on one pyramid level. The moving image is
@@ -642,8 +621,8 @@ fn pyramid_image(scale: usize, shift: [isize; 3]) -> Vec<f32> {
                     x as isize * scale as isize - shift[2],
                 );
             }
-        }}
-
+        }
+    }
 
     image
 }
@@ -750,8 +729,8 @@ fn pyramid_regularization_uses_finest_confidence_and_preserves_diagnostics() {
             (regularized.displacement[axis] - expected).abs() < 1.0e-10,
             "axis {axis}: expected posterior {expected}, got {}",
             regularized.displacement[axis]
-        );}
-
+        );
+    }
 
     assert_eq!(regularized.peak_similarity, raw.peak_similarity);
     assert_eq!(regularized.levels, raw.levels);
@@ -781,8 +760,8 @@ fn compressed_image(z0: isize, strain: f64, z_scale: usize, y_scale: usize) -> V
                 };
                 image[(z * dims[1] + y) * dims[2] + x] = value;
             }
-        }}
-
+        }
+    }
 
     image
 }
@@ -806,16 +785,14 @@ fn pipeline_recovers_known_compression_strain() {
 
     let config = BlockMatchingConfig {
         block_radius: [0, 4, 4],
-        search_radius: [0, 5, 5],}
-
-;
+        search_radius: [0, 5, 5],
+    };
     let pipeline = DisplacementPipeline {
         metric: PipelineMetric::Direct,
         refinement: SubpixelRefinement::None,
         grid: BlockGrid::dense(config.block_radius),
-        stages: PipelineStages::default(),}
-
-;
+        stages: PipelineStages::default(),
+    };
     let result = pipeline
         .run(&fixed, &moving, [1, 40, 40], config)
         .expect("pipeline run");
@@ -831,8 +808,8 @@ fn pipeline_recovers_known_compression_strain() {
             continue;
         }
         interior += 1;
-        error_sum += (s - strain_truth).abs();}
-
+        error_sum += (s - strain_truth).abs();
+    }
 
     assert!(interior >= 2, "expected interior blocks, got {interior}");
     let mean_error = error_sum / interior as f64;
@@ -850,7 +827,7 @@ fn pipeline_recovers_known_compression_strain() {
 /// field back toward the true strain without erasing a genuine displacement
 /// gradient.
 #[test]
-fn pipeline_with_strain_window_keeps_linear_strain() {
+fn pipeline_with_least_squares_prior_keeps_linear_strain() {
     let strain_truth = 0.01;
     let z0 = 20_isize;
     let fixed = pyramid_image(1, [0, 0, 0]);
@@ -858,20 +835,18 @@ fn pipeline_with_strain_window_keeps_linear_strain() {
 
     let config = BlockMatchingConfig {
         block_radius: [0, 4, 4],
-        search_radius: [0, 5, 5],}
-
-;
-    let window = StrainWindowRegularizer::new(5, 0.8).expect("valid strain window");
+        search_radius: [0, 5, 5],
+    };
+    let window = LeastSquaresDisplacementPrior::new(5, 0.8).expect("valid strain window");
     let pipeline = DisplacementPipeline {
         metric: PipelineMetric::Direct,
         refinement: SubpixelRefinement::None,
         grid: BlockGrid::dense(config.block_radius),
         stages: PipelineStages {
             bayesian_prior: None,
-            strain_window: Some(window),
-        },}
-
-;
+            least_squares_prior: Some(window),
+        },
+    };
     let result = pipeline
         .run(&fixed, &moving, [1, 40, 40], config)
         .expect("pipeline run");
@@ -885,8 +860,8 @@ fn pipeline_with_strain_window_keeps_linear_strain() {
             continue;
         }
         interior += 1;
-        error_sum += (s - strain_truth).abs();}
-
+        error_sum += (s - strain_truth).abs();
+    }
 
     assert!(interior >= 2);
     let mean_error = error_sum / interior as f64;
@@ -945,9 +920,8 @@ fn pyramid_volume_tracking_propagates_shift_across_all_valid_blocks() {
             );
         } else {
             assert_eq!(displacement, [0.0; 3]);
-        }}
-
-
+        }
+    }
 }
 
 #[test]
@@ -1010,9 +984,8 @@ fn pyramid_volume_regularization_uses_each_block_confidence() {
                 "block {index}, axis {axis}: expected {want}, got {}",
                 regularized.displacements[index][axis]
             );
-        }}
-
-
+        }
+    }
 }
 
 #[test]
@@ -1022,9 +995,8 @@ fn pyramid_volume_tracking_rejects_invalid_level_inputs() {
     let level = PyramidLevel {
         fixed: &image,
         moving: &image,
-        dims: [1, 40, 40],}
-
-;
+        dims: [1, 40, 40],
+    };
     assert!(plan
         .track_volume_pyramid(
             &[level],
@@ -1047,7 +1019,11 @@ fn pyramid_volume_tracking_rejects_invalid_level_inputs() {
         },
     ];
     assert!(plan
-        .track_volume_pyramid(&pyramid, BlockGrid::dense([0, 2, 2]), SubpixelRefinement::None)
+        .track_volume_pyramid(
+            &pyramid,
+            BlockGrid::dense([0, 2, 2]),
+            SubpixelRefinement::None
+        )
         .is_err());
 }
 
@@ -1097,4 +1073,3 @@ fn radius_geometry_rejects_invalid_axis_and_source_inputs() {
     )
     .is_err());
 }
-
