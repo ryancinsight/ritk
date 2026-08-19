@@ -46,13 +46,6 @@ impl DecodedNrrd {
         self.volumes.truncate(1);
         Ok(self)
     }
-
-    /// The sole volume's voxels, after [`Self::into_single_volume`].
-    fn single_volume_data(mut self) -> Vec<f32> {
-        self.volumes
-            .pop()
-            .expect("invariant: single_volume_data follows into_single_volume")
-    }
 }
 
 /// Read a NRRD (Nearly Raw Raster Data) file into a 3-D `Image`.
@@ -89,16 +82,19 @@ pub fn read_nrrd<B: ComputeBackend, P: AsRef<Path>>(
     backend: &B,
 ) -> Result<Image<f32, B, 3>> {
     let decoded = decode_nrrd(path)?.into_single_volume()?;
-    let (dims, origin, spacing, direction) = (
-        decoded.dims,
-        decoded.origin,
-        decoded.spacing,
-        decoded.direction,
-    );
-
-    let coordinate_map = decoded.coordinate_map;
+    let DecodedNrrd {
+        dims,
+        origin,
+        spacing,
+        direction,
+        coordinate_map,
+        volumes,
+    } = decoded;
     Image::from_flat_on(
-        decoded.single_volume_data(),
+        volumes
+            .into_iter()
+            .next()
+            .expect("single_volume guaranteed"),
         dims,
         origin,
         spacing,
@@ -146,7 +142,7 @@ pub fn read_nrrd_series<B: ComputeBackend, P: AsRef<Path>>(
         .into_iter()
         .map(|data| {
             Image::from_flat_on(data, dims, origin, spacing, direction, backend)?
-                .with_coordinate_map(coordinate_map)
+                .with_coordinate_map(coordinate_map.clone())
         })
         .collect()
 }

@@ -34,7 +34,7 @@ where
     /// (where it denotes no index at all — the batch form emits NaN there,
     /// which this single-point form reports as an error instead).
     pub fn physical_point_to_continuous_index(&self, point: &Point<D>) -> anyhow::Result<Point<D>> {
-        if let CoordinateMap::CurvilinearArray(geometry) = self.map {
+        if let CoordinateMap::CurvilinearArray(geometry) = &self.map {
             let (sample, beam) = geometry
                 .index_from_cartesian(point[D - 1], point[D - 2])
                 .ok_or_else(|| {
@@ -49,7 +49,7 @@ where
             index[D - 2] = beam;
             return Ok(index);
         }
-        if let CoordinateMap::PhasedArray3D(geometry) = self.map {
+        if let CoordinateMap::PhasedArray3D(geometry) = &self.map {
             let (azimuth_index, elevation_index, sample) = geometry
                 .index_from_cartesian(point[D - 1], point[D - 2], point[D - 3])
                 .ok_or_else(|| {
@@ -64,6 +64,22 @@ where
             index[D - 1] = azimuth_index;
             index[D - 2] = elevation_index;
             index[D - 3] = sample;
+            return Ok(index);
+        }
+        if let CoordinateMap::SliceSeries(sweep) = &self.map {
+            let world = [point[D - 1], point[D - 2], point[D - 3]];
+            let idx = sweep.index_from_world(world).ok_or_else(|| {
+                anyhow!(
+                    "physical point ({}, {}, {}) lies outside the slice-series sweep",
+                    point[D - 1],
+                    point[D - 2],
+                    point[D - 3]
+                )
+            })?;
+            let mut index = Point::origin();
+            index[D - 1] = idx[0];
+            index[D - 2] = idx[1];
+            index[D - 3] = idx[2];
             return Ok(index);
         }
         let inverse = self
@@ -86,14 +102,14 @@ where
     /// apply the same coordinate map.
     #[must_use]
     pub fn continuous_index_to_physical_point(&self, index: &Point<D>) -> Point<D> {
-        if let CoordinateMap::CurvilinearArray(geometry) = self.map {
+        if let CoordinateMap::CurvilinearArray(geometry) = &self.map {
             let (radius, angle) = geometry.polar_from_index(index[D - 1], index[D - 2]);
             let mut point = Point::origin();
             point[D - 1] = radius * angle.sin();
             point[D - 2] = radius * angle.cos();
             return point;
         }
-        if let CoordinateMap::PhasedArray3D(geometry) = self.map {
+        if let CoordinateMap::PhasedArray3D(geometry) = &self.map {
             let mut point = Point::origin();
             if let Some((azimuth_axis, elevation_axis, depth)) =
                 geometry.cartesian_from_index(index[D - 1], index[D - 2], index[D - 3])
@@ -106,6 +122,14 @@ where
                     point[axis] = f64::NAN;
                 }
             }
+            return point;
+        }
+        if let CoordinateMap::SliceSeries(sweep) = &self.map {
+            let world = sweep.world_from_index(index[D - 1], index[D - 2], index[D - 3]);
+            let mut point = Point::origin();
+            point[D - 1] = world[0];
+            point[D - 2] = world[1];
+            point[D - 3] = world[2];
             return point;
         }
         let mut scaled = ritk_spatial::Vector::zeros();

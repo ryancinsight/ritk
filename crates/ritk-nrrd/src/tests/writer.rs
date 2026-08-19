@@ -476,7 +476,7 @@ fn curvilinear_geometry_survives_a_file_round_trip() -> Result<()> {
         Spacing::new([1.0, 1.0, 1.0]),
         Direction::identity(),
     )
-    .with_coordinate_map(map)
+    .with_coordinate_map(map.clone())
     .expect("2-D image accepts a curvilinear map");
 
     let directory = tempdir()?;
