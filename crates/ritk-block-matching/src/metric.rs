@@ -63,9 +63,10 @@ pub fn metric_image<T: Sample>(
     dims: [usize; 3],
     centre: [usize; 3],
     config: BlockMatchingConfig,
-    metric: BlockMetric,
+    _metric: BlockMetric,
 ) -> Result<MetricImage> {
-    let BlockMetric::NormalizedCrossCorrelation = metric;
+    // One variant; the implementation runs unconditionally.
+    // A second variant (e.g. SSD) would live in a match arm here.
 
     let radius = config.block_radius;
     let search = config.search_radius;

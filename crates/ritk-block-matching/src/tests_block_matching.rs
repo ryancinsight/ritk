@@ -348,3 +348,162 @@ fn tracks_a_one_dimensional_line() {
     );
     assert!(result.peak_similarity > 0.999);
 }
+
+// ── US-023-D2: Volume-level pipeline and strain estimation ────────────────────
+
+/// `track_volume` must recover a known integer displacement at every block
+/// centre in a purely axial shift scenario.
+#[test]
+fn track_volume_recovers_integer_axial_shift() {
+    // 3-D volume: [nz=1, ny=32, nx=32]. Apply shift (+2 in y, +1 in x).
+    const DIMS3: [usize; 3] = [1, 32, 32];
+    let fixed: Vec<f32> = {
+        let mut v = vec![0.0f32; DIMS3[0] * DIMS3[1] * DIMS3[2]];
+        for z in 0..DIMS3[0] {
+            for y in 0..DIMS3[1] {
+                for x in 0..DIMS3[2] {
+                    v[(z * DIMS3[1] + y) * DIMS3[2] + x] = texture(z, y as isize, x as isize);
+                }
+            }
+        }
+        v
+    };
+    let moving: Vec<f32> = {
+        let mut v = vec![0.0f32; DIMS3[0] * DIMS3[1] * DIMS3[2]];
+        for z in 0..DIMS3[0] {
+            for y in 0..DIMS3[1] {
+                for x in 0..DIMS3[2] {
+                    v[(z * DIMS3[1] + y) * DIMS3[2] + x] =
+                        texture(z, y as isize - 2, x as isize - 1);
+                }
+            }
+        }
+        v
+    };
+
+    let config = BlockMatchingConfig {
+        block_radius: [0, 4, 4],
+        search_radius: [0, 3, 3],
+    };
+    let grid = BlockGrid::dense(config.block_radius);
+    let field = track_volume(
+        &fixed,
+        &moving,
+        DIMS3,
+        config,
+        grid,
+        SubpixelRefinement::None,
+    )
+    .expect("ok");
+
+    assert!(!field.is_empty(), "grid must yield at least one block");
+
+    // Every block should recover [0, +2, +1] exactly.
+    for (i, bd) in field.displacements.iter().enumerate() {
+        assert_eq!(
+            *bd,
+            [0.0, 2.0, 1.0],
+            "block {} at {:?} must recover [0,2,1]",
+            i,
+            field.centres[i]
+        );
+        assert!(
+            field.peak_similarities[i] > 0.99,
+            "block {} peak must be close to 1",
+            i
+        );
+    }
+}
+
+/// `strain_from_displacement` must recover zero strain when all blocks have the
+/// same displacement (rigid-body translation — no compression).
+#[test]
+fn strain_is_zero_for_uniform_translation() {
+    // Fake field: 5 blocks along z, all with displacement +3 voxels axially.
+    let centres: Vec<[usize; 3]> = (0..5).map(|k| [k * 9, 0, 0]).collect();
+    let displacements: Vec<[f64; 3]> = vec![[3.0, 0.0, 0.0]; 5];
+    let peak_similarities: Vec<f64> = vec![0.95; 5];
+    let field = DisplacementField {
+        centres,
+        displacements,
+        peak_similarities,
+    };
+    let strain = strain_from_displacement(&field, 9);
+    for (i, &s) in strain.iter().enumerate() {
+        assert!(
+            s.abs() < 1.0e-12,
+            "block {i}: expected 0 strain for uniform translation, got {s}"
+        );
+    }
+}
+
+/// `strain_from_displacement` must recover a known constant strain when the
+/// displacement increases linearly with axial position.
+///
+/// For a pure axial compression with strain ε, the displacement at axial
+/// position z is `d(z) = ε · z`. For blocks at axial stride `s`, the central
+/// difference gives `(d(z+s) - d(z-s)) / (2s) = ε`, which is exact when the
+/// displacement field is linear.
+#[test]
+fn strain_recovers_known_constant_strain() {
+    let strain_truth = 0.02; // 2 % compression
+    let stride = 9usize;
+    let n = 7;
+
+    let centres: Vec<[usize; 3]> = (0..n).map(|k| [k * stride, 0, 0]).collect();
+    let displacements: Vec<[f64; 3]> = centres
+        .iter()
+        .map(|&[z, _, _]| [strain_truth * z as f64, 0.0, 0.0])
+        .collect();
+    let peak_similarities: Vec<f64> = vec![0.95; n];
+    let field = DisplacementField {
+        centres,
+        displacements,
+        peak_similarities,
+    };
+    let strain = strain_from_displacement(&field, stride);
+    // Central difference is exact for a linear field; boundary estimates use
+    // one-sided differences and are also exact.
+    for (i, &s) in strain.iter().enumerate() {
+        assert!(
+            (s - strain_truth).abs() < 1.0e-10,
+            "block {i}: expected strain {strain_truth}, got {s}"
+        );
+    }
+}
+
+/// A single-block field has no neighbour for finite differences; the only
+/// correct answer is zero (no gradient computable).
+#[test]
+fn strain_for_single_block_field_is_zero() {
+    let field = DisplacementField {
+        centres: vec![[5, 0, 0]],
+        displacements: vec![[3.0, 0.0, 0.0]],
+        peak_similarities: vec![0.9],
+    };
+    let strain = strain_from_displacement(&field, 5);
+    assert_eq!(strain.len(), 1);
+    assert!(strain[0].abs() < 1.0e-12);
+}
+
+/// `BlockGrid::dense` must enumerate a non-empty set of centres for a
+/// volume that fits at least one block.
+#[test]
+fn block_grid_dense_enumerates_centres() {
+    let config = BlockMatchingConfig {
+        block_radius: [0, 4, 4],
+        search_radius: [0, 3, 3],
+    };
+    let grid = BlockGrid::dense(config.block_radius);
+    let centres = grid.centres([1, 32, 32], &config);
+    assert!(!centres.is_empty());
+    // Every centre must be at least block_radius away from each image boundary.
+    for &[z, y, x] in &centres {
+        assert!(z >= config.block_radius[0]);
+        assert!(y >= config.block_radius[1]);
+        assert!(x >= config.block_radius[2]);
+        assert!(z + config.block_radius[0] < 1);
+        assert!(y + config.block_radius[1] < 32);
+        assert!(x + config.block_radius[2] < 32);
+    }
+}
