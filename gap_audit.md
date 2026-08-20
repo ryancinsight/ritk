@@ -53,10 +53,11 @@
   passes for both targets, and the corrected rasterized figure was inspected.
   This establishes the implemented data and coordinate contracts, not a
   biological axon count or population-level result.
-- Residual: `DiffusionMaps` does not retain `GradientFrame`, so reusable
-  `DtiVolume` and CLI callers cannot enforce this conversion themselves.
-  `FIX-DTI-VOLUME-FRAME` owns that architectural correction; the book example
-  performs and tests the required permutation explicitly until it lands.
+- The former residual is closed by `FIX-DTI-VOLUME-FRAME`: `DiffusionMaps`
+  retains `GradientFrame`, `DtiVolume` owns the ImageAxis permutation, and the
+  CLI/example callers consume that boundary directly. Hosted verification and
+  merge are tracked in the active item above; the local locked Nextest limit is
+  not source-side evidence.
 
 ## BUILD-BLOCK-MATCHING-LOCK audit (2026-08-19)
 
