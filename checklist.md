@@ -8,6 +8,23 @@
 
 # RITK Sprint Checklist — Active
 
+## FIX-DTI-VOLUME-FRAME [major][arch] — Preserve diffusion coordinate frames
+
+- [x] Record the frame contract in ADR 0017 and retain `GradientFrame` in
+      `DiffusionMaps`.
+- [x] Validate `ImageAxis` at `DtiVolume` construction and centralize the
+      `[column,row,depth]` to `[depth,row,column]` conversion before lookup and
+      interpolation.
+- [x] Delete the book example's FSL adapter and update the CLI path to consume
+      the provider-owned volume contract directly.
+- [x] Add value-semantic axis, oblique-direction, interpolation, and LPS
+      rejection regressions; classify the public error-enum change as major.
+- [x] Pass Rustfmt, `git diff --check`, and locked no-dependency metadata at
+      source commit `14a9c619`.
+- [ ] Run the focused locked Nextest/Clippy/doctest gates outside the Atlas
+      overlay, collect exact-head hosted CI, merge, and advance the Atlas
+      gitlink.
+
 ## DOC-HUMAN-CONNECTOME [patch] — Human tractography and connectomics
 
 - [x] Select a public human HARDI acquisition with aligned anatomical labels,

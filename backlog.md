@@ -26,19 +26,29 @@
   inspected visual output, local book/Rust gates, exact-head hosted gates,
   merged delivery, and live Pages verification.
 
-## FIX-DTI-VOLUME-FRAME [arch][patch] — preserve diffusion coordinate frames
+## FIX-DTI-VOLUME-FRAME [major][arch] — preserve diffusion coordinate frames
 
-- **Status:** TODO; owner=unclaimed; last-update=2026-08-19;
+- **Status:** IMPLEMENTED; owner=Codex `/root`; last-update=2026-08-20;
+  source commit=`14a9c619`; hosted verification and merge remain open;
+  implementation scope=retain `GradientFrame` in `DiffusionMaps`, make
+  `DtiVolume` consume only validated ImageAxis maps, centralize the
+  ImageAxis-to-image-index permutation, remove the book-example adapter, and
+  add coordinate-permutation regressions across the reusable field and CLI
+  path;
   outcome=make the reusable DTI volume field and `ritk tract dti` path consume
   gradient directions in the image-index convention without an example-local
   axis reorder; scope=`DiffusionMaps`, `DtiVolume`, their construction sites,
   CLI tracking, public contracts, and coordinate-permutation regressions;
   non-goal=changing tensor estimation or tracking integration. Acceptance
   requires a recorded frame contract, exhaustive caller migration, synthetic
-  axis-permutation and oblique-image tests, unchanged correctly framed
-  behavior, warning-clean focused gates, and no compatibility path. Dependency:
-  the design must determine whether fitted maps retain `GradientFrame` or the
-  constructor requires an explicit zero-cost frame strategy.
+  axis-permutation and oblique-direction tests, unchanged correctly framed
+  behavior, warning-clean focused gates, and no compatibility path. The
+  accepted design retains `GradientFrame` in fitted maps and rejects `Lps` at
+  `DtiVolume` construction because physical-to-index conversion requires image
+  geometry that the volume does not own. Local `fmt`, diff, and locked
+  no-dependency metadata checks pass; locked Nextest is blocked before
+  compilation by the Atlas overlay requesting a lockfile rewrite for unused
+  local patches, so no local test result is inferred.
 
 ## DTI-CONNECTOME-PARCELLATION [major] — weighted DTI, connectome measures, atlas parcellation
 

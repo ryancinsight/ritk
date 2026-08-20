@@ -48,9 +48,10 @@ The example executes one deterministic path:
    \(\mathrm{FA}\geq0.25\).
 4. Track bidirectionally with 0.5-voxel Euler steps, sign-invariant trilinear
    orientation interpolation, a 60-degree turn limit, and a continuation floor
-   of \(\mathrm{FA}=0.15\). FSL `(column,row,depth)` direction components are
-   explicitly reordered to RITK's `[depth,row,column]` image-index axes before
-   integration.
+   of \(\mathrm{FA}=0.15\). The fitted maps retain `GradientFrame`; `DtiVolume`
+   validates the FSL `ImageAxis` frame and performs the single
+   `(column,row,depth)` to `[depth,row,column]` permutation at its image-grid
+   boundary before integration. No example-local adapter is involved.
 5. Convert the tracker's `[depth,row,column]` coordinates to parcellation
    `[x,y,z]`, then count each endpoint pair in the undirected regional matrix.
    White-matter labels are background for endpoint assignment; only

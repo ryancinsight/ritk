@@ -22,12 +22,12 @@
 //! # What is retained
 //!
 //! [`DiffusionMaps`] keeps the eigen-decomposition — eigenvalues and the
-//! principal eigenvector — rather than the six tensor elements. Every standard
-//! DTI scalar map derives from the eigenvalues alone, so this answers each of
-//! them without a second decomposition, at 49 bytes per voxel instead of the
-//! roughly 144 that retaining whole tensors would cost. A caller needing the
-//! tensor elements themselves calls [`crate::dti::estimate_dti`] for the voxel
-//! it cares about.
+//! principal eigenvector — together with the acquisition [`GradientFrame`],
+//! rather than the six tensor elements. Every standard DTI scalar map derives
+//! from the eigenvalues alone, so this answers each of them without a second
+//! decomposition, at 49 bytes per voxel instead of the roughly 144 that
+//! retaining whole tensors would cost. A caller needing the tensor elements
+//! themselves calls [`crate::dti::estimate_dti`] for the voxel it cares about.
 //!
 //! # Definitions
 //!
@@ -47,7 +47,7 @@ mod volume;
 
 pub use volume::{DirectionInterpolation, DtiVolume};
 
-use ritk_diffusion_scheme::GradientScheme;
+use ritk_diffusion_scheme::{GradientFrame, GradientScheme};
 use thiserror::Error;
 
 use crate::dti::{DtiConfig, estimate_dti, invariants};
@@ -68,6 +68,7 @@ const UNFITTED: [f64; 3] = [0.0; 3];
 /// is noise or the tensor collapses, and are reported through
 /// [`DiffusionMaps::mask`] rather than aborting the volume.
 #[derive(Debug, Error)]
+#[non_exhaustive]
 pub enum DiffusionMapsError {
     /// No volumes were supplied.
     #[error("a diffusion series needs at least one volume")]
@@ -100,6 +101,12 @@ pub enum DiffusionMapsError {
         parameter: &'static str,
         /// The rejected value.
         value: f64,
+    },
+    /// The fitted maps use a frame that cannot be placed on an image-index grid.
+    #[error("DTI volume placement requires ImageAxis gradients, got {frame:?}")]
+    UnsupportedGradientFrame {
+        /// Coordinate frame retained by the fitted maps.
+        frame: GradientFrame,
     },
 }
 
@@ -181,6 +188,7 @@ pub struct DiffusionMaps {
     eigenvalues: Vec<[f64; 3]>,
     principal: Vec<[f64; 3]>,
     mask: Vec<bool>,
+    frame: GradientFrame,
 }
 
 #[cfg(test)]
@@ -197,6 +205,7 @@ impl DiffusionMaps {
         eigenvalues: Vec<[f64; 3]>,
         principal: Vec<[f64; 3]>,
         mask: Vec<bool>,
+        frame: GradientFrame,
     ) -> Self {
         assert!(
             eigenvalues.len() == principal.len() && principal.len() == mask.len(),
@@ -206,6 +215,7 @@ impl DiffusionMaps {
             eigenvalues,
             principal,
             mask,
+            frame,
         }
     }
 }
@@ -245,6 +255,12 @@ impl DiffusionMaps {
     #[must_use]
     pub fn principal_eigenvector(&self) -> &[[f64; 3]] {
         &self.principal
+    }
+
+    /// Coordinate frame of the gradient directions used to fit the maps.
+    #[must_use]
+    pub const fn frame(&self) -> GradientFrame {
+        self.frame
     }
 
     /// Fractional anisotropy, in `[0, 1]`.
@@ -442,6 +458,7 @@ where
         eigenvalues,
         principal,
         mask,
+        frame: scheme.frame(),
     })
 }
 

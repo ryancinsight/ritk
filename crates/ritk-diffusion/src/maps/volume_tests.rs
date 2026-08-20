@@ -2,14 +2,21 @@
 
 use super::*;
 use crate::test_support::{dti_signal, scheme};
+use ritk_diffusion_scheme::{GradientFrame, GradientScheme};
 
 const ANISOTROPIC: [f64; 6] = [1.7e-3, 3.0e-4, 3.0e-4, 0.0, 0.0, 0.0];
 const ISOTROPIC: [f64; 6] = [8.0e-4, 8.0e-4, 8.0e-4, 0.0, 0.0, 0.0];
 
+fn image_axis_scheme(direction_count: usize) -> GradientScheme {
+    let lps_scheme = scheme(direction_count);
+    GradientScheme::new(lps_scheme.directions().to_vec(), GradientFrame::ImageAxis)
+        .expect("valid image-axis scheme")
+}
+
 /// Fit a volume whose voxels carry the given tensors, in `[depth, row, column]`
 /// order, with masking off so every listed voxel is fitted.
 fn volume(tensors: &[[f64; 6]], shape: [usize; 3], floor: f64) -> DtiVolume {
-    let scheme = scheme(30);
+    let scheme = image_axis_scheme(30);
     let per_voxel: Vec<Vec<f64>> = tensors
         .iter()
         .map(|elements| dti_signal(&scheme, *elements, 1000.0))
@@ -39,11 +46,15 @@ fn at(volume: &DtiVolume, index: [f64; 3]) -> Option<Vector<3>> {
 #[test]
 fn a_fitted_voxel_reports_its_unit_orientation() {
     let volume = line(&[ANISOTROPIC], 0.2);
+    assert_eq!(volume.maps().frame(), GradientFrame::ImageAxis);
     let direction = at(&volume, [0.0, 0.0, 0.0]).expect("anisotropic voxel has a direction");
 
     let [x, y, z] = direction.to_array();
-    assert!(x.abs() > 0.999, "prolate along x, got {x}");
-    assert!(y.abs() < 0.01 && z.abs() < 0.01);
+    assert!(
+        z.abs() > 0.999,
+        "external column axis maps to image depth, got {z}"
+    );
+    assert!(x.abs() < 0.01 && y.abs() < 0.01);
 
     let norm = (x * x + y * y + z * z).sqrt();
     assert!(
@@ -129,7 +140,7 @@ fn indices_are_ordered_depth_row_column() {
 fn an_unfitted_voxel_reports_no_direction() {
     // Masked-out voxels store exact zeros. Returning that as a direction would
     // send a streamline off along a meaningless axis instead of stopping it.
-    let scheme = scheme(30);
+    let scheme = image_axis_scheme(30);
     let bright = dti_signal(&scheme, ANISOTROPIC, 1000.0);
     let dim = dti_signal(&scheme, ANISOTROPIC, 10.0);
     let volumes: Vec<Vec<f64>> = (0..scheme.len())
@@ -148,7 +159,7 @@ fn an_unfitted_voxel_reports_no_direction() {
 
 #[test]
 fn a_shape_disagreeing_with_the_fitted_voxels_is_rejected() {
-    let scheme = scheme(30);
+    let scheme = image_axis_scheme(30);
     let signals = dti_signal(&scheme, ANISOTROPIC, 1000.0);
     let volumes: Vec<Vec<f64>> = signals.iter().map(|value| vec![*value]).collect();
     let borrowed: Vec<&[f64]> = volumes.iter().map(Vec::as_slice).collect();
@@ -170,7 +181,7 @@ fn a_shape_disagreeing_with_the_fitted_voxels_is_rejected() {
 fn an_anisotropy_floor_outside_zero_to_one_is_rejected() {
     // FA is a fraction by construction, so a floor above 1 would silently make
     // every voxel untrackable.
-    let scheme = scheme(30);
+    let scheme = image_axis_scheme(30);
     let signals = dti_signal(&scheme, ANISOTROPIC, 1000.0);
     let volumes: Vec<Vec<f64>> = signals.iter().map(|value| vec![*value]).collect();
     let borrowed: Vec<&[f64]> = volumes.iter().map(Vec::as_slice).collect();
@@ -187,18 +198,37 @@ fn an_anisotropy_floor_outside_zero_to_one_is_rejected() {
     ));
 }
 
+#[test]
+fn lps_maps_are_rejected_without_image_geometry() {
+    let scheme = scheme(30);
+    let signals = dti_signal(&scheme, ANISOTROPIC, 1000.0);
+    let volumes: Vec<Vec<f64>> = signals.iter().map(|value| vec![*value]).collect();
+    let borrowed: Vec<&[f64]> = volumes.iter().map(Vec::as_slice).collect();
+    let maps = fit_diffusion_maps(&scheme, &borrowed, &DiffusionMapsConfig::default())
+        .expect("well-formed series");
+
+    let error = DtiVolume::new(maps, [1, 1, 1], 0.2).expect_err("LPS needs image geometry");
+    assert!(matches!(
+        error,
+        DiffusionMapsError::UnsupportedGradientFrame {
+            frame: GradientFrame::Lps
+        }
+    ));
+}
+
 // ── Interpolation ─────────────────────────────────────────────────────────────
 
 /// Eigenvalues of a strongly prolate voxel; only their ordering and anisotropy
 /// matter to a direction lookup.
 const PROLATE: [f64; 3] = [1.7e-3, 3.0e-4, 3.0e-4];
 
-/// Build a volume from stored orientations directly, bypassing the fit.
+/// Build a volume from stored orientations in external ImageAxis order.
 fn oriented(directions: &[[f64; 3]], shape: [usize; 3], floor: f64) -> DtiVolume {
     let maps = DiffusionMaps::from_parts(
         vec![PROLATE; directions.len()],
         directions.to_vec(),
         vec![true; directions.len()],
+        GradientFrame::ImageAxis,
     );
     DtiVolume::new(maps, shape, floor).expect("shape matches the supplied voxels")
 }
@@ -209,7 +239,7 @@ fn opposite_stored_signs_do_not_cancel() {
     // neighbours may legitimately store v and -v for the same fibre. Averaging
     // the vectors gives exactly zero and the streamline stops mid-bundle;
     // averaging the outer product cannot, because (-v)(-v)ᵀ = v vᵀ.
-    let volume = oriented(&[[1.0, 0.0, 0.0], [-1.0, 0.0, 0.0]], [2, 1, 1], 0.2);
+    let volume = oriented(&[[0.0, 0.0, 1.0], [0.0, 0.0, -1.0]], [2, 1, 1], 0.2);
 
     let direction = at(&volume, [0.5, 0.0, 0.0]).expect("a fibre runs through the midpoint");
     let [x, y, z] = direction.to_array();
@@ -227,7 +257,7 @@ fn interpolation_lies_between_the_contributing_orientations() {
     // nearest-neighbour lookup that merely happens to be smooth.
     let angle = 40.0_f64.to_radians();
     let volume = oriented(
-        &[[1.0, 0.0, 0.0], [angle.cos(), angle.sin(), 0.0]],
+        &[[0.0, 0.0, 1.0], [0.0, angle.sin(), angle.cos()]],
         [2, 1, 1],
         0.2,
     );
@@ -247,7 +277,7 @@ fn nearest_mode_is_piecewise_constant() {
     // one voxel's orientation, which is the discontinuity interpolation removes.
     let angle = 40.0_f64.to_radians();
     let volume = oriented(
-        &[[1.0, 0.0, 0.0], [angle.cos(), angle.sin(), 0.0]],
+        &[[0.0, 0.0, 1.0], [0.0, angle.sin(), angle.cos()]],
         [2, 1, 1],
         0.2,
     )
@@ -277,8 +307,9 @@ fn interpolation_does_not_extend_the_trackable_region() {
     // interpolation would silently change where tracking stops.
     let maps = DiffusionMaps::from_parts(
         vec![PROLATE; 2],
-        vec![[1.0, 0.0, 0.0]; 2],
+        vec![[0.0, 0.0, 1.0]; 2],
         vec![true, false],
+        GradientFrame::ImageAxis,
     );
     let volume = DtiVolume::new(maps, [2, 1, 1], 0.2).expect("shape matches");
 
@@ -299,7 +330,7 @@ fn contradictory_orientations_fall_back_to_the_voxel_rather_than_averaging() {
     // The alternative failure this pins down is averaging: the mean of x and y
     // points at 45 degrees, an orientation neither voxel holds and no fibre
     // follows.
-    let volume = oriented(&[[1.0, 0.0, 0.0], [0.0, 1.0, 0.0]], [2, 1, 1], 0.2);
+    let volume = oriented(&[[0.0, 0.0, 1.0], [0.0, 1.0, 0.0]], [2, 1, 1], 0.2);
 
     // 0.5 rounds away from zero, so the nearest voxel is 1, which holds y.
     let [x, y, _] = at(&volume, [0.5, 0.0, 0.0])
@@ -326,7 +357,7 @@ fn contradictory_orientations_fall_back_to_the_voxel_rather_than_averaging() {
 fn a_uniform_bundle_interpolates_to_itself() {
     // Interpolation must be exact where there is nothing to interpolate --
     // otherwise it would bend a straight bundle.
-    let volume = oriented(&[[1.0, 0.0, 0.0]; 4], [4, 1, 1], 0.2);
+    let volume = oriented(&[[0.0, 0.0, 1.0]; 4], [4, 1, 1], 0.2);
     for position in [0.0, 0.5, 1.25, 2.75, 3.0] {
         let [x, y, z] = at(&volume, [position, 0.0, 0.0])
             .unwrap_or_else(|| panic!("uniform bundle at {position}"))

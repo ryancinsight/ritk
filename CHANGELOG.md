@@ -10,6 +10,12 @@
 
 ## [Unreleased] — conformance cleanup and JPEG 2000 scalar quality control (FEAT-692-01)
 
+- [major][arch] Retain `GradientFrame` in fitted `DiffusionMaps` and make
+  `DtiVolume` the single validated ImageAxis-to-image-index boundary. FSL and
+  MRtrix directions now reach reusable and CLI tractography in
+  `[depth,row,column]` order without an example-local adapter; LPS maps fail
+  explicitly because physical-to-index conversion requires image geometry.
+
 - Refresh the Pages caller to the current Atlas reusable workflow revision
   while retaining the existing book output contract. PR #196 merged at
   `aa48c471ac96eb81869437d84bab439e18d89038`; exact post-merge CI
