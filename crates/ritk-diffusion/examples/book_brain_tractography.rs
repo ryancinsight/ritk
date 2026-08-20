@@ -25,7 +25,7 @@ use ritk_diffusion::maps::{
     DiffusionMapsConfig, DirectionInterpolation, DtiVolume, fit_diffusion_maps,
 };
 use ritk_diffusion_scheme::{GradientScheme, read_fsl_scheme};
-use ritk_spatial::{Point, Vector};
+use ritk_spatial::Point;
 use ritk_tractography::{TrackingDirection, TractographyConfig, euler_tractography};
 
 /// Conventional high-confidence white-matter seeding floor.
@@ -103,10 +103,8 @@ fn main() -> Result<()> {
         .with_interpolation(DirectionInterpolation::Trilinear);
     let tracking = TractographyConfig::new(0.5, 1_000, 60.0, TrackingDirection::Bidirectional)
         .context("validating the tractography configuration")?;
-    let tracks = euler_tractography(&seeds, tracking, |point| {
-        volume.direction_at(point).map(fsl_direction_to_image_index)
-    })
-    .context("tracking the human tensor field")?;
+    let tracks = euler_tractography(&seeds, tracking, |point| volume.direction_at(point))
+        .context("tracking the human tensor field")?;
 
     // DtiVolume follows Image order [depth, row, column]. Parcellation follows
     // physical axis order [x, y, z], while both share the same voxel grid.
@@ -255,11 +253,6 @@ fn index_to_label_point(index: &Point<3>) -> Point<3> {
     Point::new([x, y, z])
 }
 
-fn fsl_direction_to_image_index(direction: Vector<3>) -> Vector<3> {
-    let [column, row, depth] = direction.to_array();
-    Vector::new([depth, row, column])
-}
-
 fn validate_connectome_accounting(matrix: &ritk_connectome::ConnectivityMatrix) -> Result<()> {
     // Every streamline that reached a region contributes exactly one unit of
     // weight, to an inter-region edge or to a region's own diagonal, so the
@@ -321,14 +314,6 @@ mod tests {
         assert_eq!(
             index_to_label_point(&Point::new([7.0, 11.0, 13.0])).to_array(),
             [13.0, 11.0, 7.0]
-        );
-    }
-
-    #[test]
-    fn fsl_directions_map_to_internal_image_axes() {
-        assert_eq!(
-            fsl_direction_to_image_index(Vector::new([2.0, 3.0, 5.0])).to_array(),
-            [5.0, 3.0, 2.0]
         );
     }
 }

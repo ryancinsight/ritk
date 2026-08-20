@@ -84,6 +84,12 @@ assert_eq!(scheme.len(), 3);
 
 - FSL `bvec` directions are image-axis coordinates. The three rows are x, y,
   and z components; the companion `bval` sequence supplies s/mm² values.
+  `DiffusionMaps` retains this `ImageAxis` frame. When a fitted field is placed
+  in `DtiVolume`, the volume validates that frame and converts the external
+  `[column, row, depth]` direction order to RITK's image-index
+  `[depth, row, column]` order exactly once. LPS maps are rejected at this
+  boundary because physical-to-index conversion requires image geometry that
+  `DtiVolume` does not own.
 - Standard DICOM Diffusion Gradient Orientation `(0018,9089)` is in the
   patient coordinate system and RITK labels it LPS. Diffusion b-value
   `(0018,9087)` is s/mm². The current reader accepts top-level attributes from

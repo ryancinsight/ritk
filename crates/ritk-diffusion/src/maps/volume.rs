@@ -7,9 +7,12 @@
 //! # Frame
 //!
 //! Queries are in **voxel-index space**, ordered `[depth, row, column]` to match
-//! `Image::shape()` and the layout the maps were fitted from. The volume
-//! therefore carries no origin or spacing: an index needs none, and applying a
-//! physical transform here would duplicate one the image already owns.
+//! `Image::shape()` and the layout the maps were fitted from. FSL and MRtrix
+//! schemes retain their external `ImageAxis` direction order
+//! `[column, row, depth]`; this module applies that permutation once at the
+//! image-grid boundary. The volume therefore carries no origin or spacing: an
+//! index needs none, and applying a physical transform here would duplicate
+//! one the image already owns.
 //! Physical coordinates belong at the IO boundary, through
 //! `Image::continuous_index_to_physical_point`.
 //!
@@ -19,6 +22,7 @@
 //! module; it is recorded rather than silently matched, since matching it would
 //! put this type at odds with the `Image` layout its data comes from.
 
+use ritk_diffusion_scheme::GradientFrame;
 use ritk_spatial::{Point, Vector};
 
 use crate::dti::symmetric_eigen;
@@ -88,12 +92,19 @@ impl DtiVolume {
     /// [`DiffusionMapsError::VolumeLengthMismatch`] when `shape` does not
     /// describe exactly the voxels `maps` holds, and
     /// [`DiffusionMapsError::InvalidConfiguration`] when `anisotropy_floor` is
-    /// not a fraction in `[0, 1]`.
+    /// not a fraction in `[0, 1]`. LPS maps are rejected because conversion to
+    /// image-index coordinates requires image geometry that this type does not
+    /// own.
     pub fn new(
         maps: DiffusionMaps,
         shape: [usize; 3],
         anisotropy_floor: f64,
     ) -> Result<Self, DiffusionMapsError> {
+        if maps.frame() != GradientFrame::ImageAxis {
+            return Err(DiffusionMapsError::UnsupportedGradientFrame {
+                frame: maps.frame(),
+            });
+        }
         if !anisotropy_floor.is_finite() || !(0.0..=1.0).contains(&anisotropy_floor) {
             return Err(DiffusionMapsError::InvalidConfiguration {
                 parameter: "anisotropy_floor",
@@ -166,7 +177,9 @@ impl DtiVolume {
         if self.maps.fractional_anisotropy_at(voxel) < self.anisotropy_floor {
             return None;
         }
-        Some(self.maps.principal_eigenvector()[voxel])
+        Some(image_axis_to_index(
+            self.maps.principal_eigenvector()[voxel],
+        ))
     }
 
     /// Orientation interpolated from the surrounding voxels, if one is defined.
@@ -256,6 +269,12 @@ impl DtiVolume {
         }
         Some(offset)
     }
+}
+
+/// Convert the external ImageAxis order `[column, row, depth]` to the image's
+/// contiguous voxel-index order `[depth, row, column]`.
+fn image_axis_to_index([column, row, depth]: [f64; 3]) -> [f64; 3] {
+    [depth, row, column]
 }
 
 #[cfg(test)]
