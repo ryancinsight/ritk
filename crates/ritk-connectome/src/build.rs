@@ -267,7 +267,7 @@ pub fn build_connectivity_matrix(
 /// Resolves an endpoint to a region label under the configured policy.
 enum Assigner {
     Terminal,
-    Radial(Box<NearestLabelSearch>),
+    Radial(NearestLabelSearch),
 }
 
 impl Assigner {
@@ -277,9 +277,9 @@ impl Assigner {
     ) -> Result<Self, ConnectomeError> {
         Ok(match assignment {
             EndpointAssignment::Terminal => Self::Terminal,
-            EndpointAssignment::RadialSearch { radius_mm } => Self::Radial(Box::new(
-                NearestLabelSearch::new(parcellation.grid(), radius_mm)?,
-            )),
+            EndpointAssignment::RadialSearch { radius_mm } => {
+                Self::Radial(NearestLabelSearch::new(parcellation.grid(), radius_mm)?)
+            }
         })
     }
 
