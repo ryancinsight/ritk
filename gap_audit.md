@@ -8,6 +8,27 @@
 
 # RITK Gap Audit - Active
 
+## FIX-DTI-VOLUME-FRAME audit (2026-08-20)
+
+- Finding: `DiffusionMaps` dropped the acquisition `GradientFrame`, so the
+  reusable `DtiVolume` and `ritk tract dti` path could not own or enforce the
+  FSL/MRtrix ImageAxis-to-RITK image-index convention. The book example held a
+  duplicate adapter, which made the example correct without making the public
+  integration boundary correct.
+- Resolution: `DiffusionMaps` now retains its frame; `DtiVolume` accepts only
+  `ImageAxis`, applies one `[column,row,depth]` to `[depth,row,column]`
+  permutation before nearest or interpolated queries, and rejects `Lps` with a
+  typed error because no image geometry is available at that boundary. The
+  example adapter and its duplicate test are deleted. ADR 0017 and the domain
+  book describe the contract.
+- Evidence: source commit `14a9c619`; `cargo +1.97.0 fmt --all -- --check`,
+  `git diff --check`, ADR index content review, and
+  `cargo +1.97.0 metadata --locked --no-deps --format-version 1` pass.
+  `cargo +1.97.0 nextest run --locked -p ritk-diffusion` is blocked before
+  compilation because the Atlas development overlay has unused local patches
+  and Cargo requests a lockfile rewrite under `--locked`; no test result is
+  claimed. Hosted CI and merge remain residual.
+
 ## DOC-HUMAN-CONNECTOME audit (2026-08-19)
 
 - Finding: the prior human diffusion example fitted only a bounded slab,
