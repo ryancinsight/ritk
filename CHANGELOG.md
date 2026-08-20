@@ -10,6 +10,22 @@
 
 ## [Unreleased] — conformance cleanup and JPEG 2000 scalar quality control (FEAT-692-01)
 
+- [minor] Add `ritk parcellate atlas`, which closes the middle of the
+  connectomics pipeline from the command line. `tract dti` produced streamlines
+  and `tract connectome` consumed a label volume, but nothing produced that
+  volume: the library could parcellate a subject from labelled atlases and the
+  CLI could not. The command registers each atlas onto the subject, warps its
+  labels, and fuses the votes by majority or joint label fusion, optionally
+  writing the per-voxel agreement — which is lowest at the parcel boundaries
+  where streamline endpoints land, so it is the map to consult before trusting
+  an edge weight. An atlas off the subject's grid is rejected rather than
+  resampled silently, because a registration recovers a deformation and never a
+  resampling.
+
+- [patch] Consolidate the CLI's integration tests into one harness binary at
+  `tests/cli/`. Each `tests/*.rs` file is an independent binary that re-links
+  the whole stack, so a file per command pays that cost per command.
+
 - [major][arch] Retain `GradientFrame` in fitted `DiffusionMaps` and make
   `DtiVolume` the single validated ImageAxis-to-image-index boundary. FSL and
   MRtrix directions now reach reusable and CLI tractography in

@@ -8,6 +8,7 @@ pub mod convert;
 pub mod dwi;
 pub mod filter;
 pub mod normalize;
+pub mod parcellate;
 pub mod register;
 pub mod resample;
 pub mod segment;
