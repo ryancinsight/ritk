@@ -6087,6 +6087,7 @@ dependencies = [
  "ritk-interpolation",
  "ritk-io",
  "ritk-model",
+ "ritk-parcellation",
  "ritk-segmentation",
  "ritk-spatial",
  "ritk-statistics",

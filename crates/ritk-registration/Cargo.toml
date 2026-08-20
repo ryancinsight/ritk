@@ -30,6 +30,7 @@ ritk-filter = { path = "../ritk-filter", version = "0.3.0" }
 ritk-segmentation = { path = "../ritk-segmentation", version = "0.3.0" }
 ritk-model = { path = "../ritk-model", version = "0.2.0" }
 ritk-tensor-ops = { path = "../ritk-tensor-ops", version = "0.2.0" }
+ritk-parcellation = { path = "../ritk-parcellation", version = "0.1.0" }
 bytemuck = { workspace = true }
 anyhow = { workspace = true }
 thiserror = { workspace = true }

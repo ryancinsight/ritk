@@ -3,10 +3,14 @@ name = "ritk-parcellation"
 version = "0.1.0"
 authors.workspace = true
 repository.workspace = true
-publish = false
+publish = true
 edition = "2024"
 rust-version = "1.95"
 license.workspace = true
+keywords.workspace = true
+categories.workspace = true
+homepage.workspace = true
+readme.workspace = true
 description = "Anatomical parcellation volumes, region statistics, and label-map formats"
 
 [dependencies]

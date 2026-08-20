@@ -59,6 +59,7 @@
 - [Creating and Validating Deterministic Tractography](tractography.md)
   - [Example: Signal to Streamlines](examples/diffusion_tractography.md)
   - [Human Tractography and Connectomics](examples/brain_tractography.md)
+- [Anatomical Parcellation](parcellation.md)
 - [Connectome Construction and Graph Measures](connectome.md)
 
 ## Tractogram Interchange Formats
