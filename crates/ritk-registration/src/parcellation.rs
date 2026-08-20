@@ -340,22 +340,11 @@ pub fn parcellation_from_labels<B>(
 where
     B: Backend,
 {
-    let [nz, ny, nx] = reference.shape();
-    let [s0, s1, s2] = reference.spacing().to_array();
-    let image_direction = reference.direction();
-
-    let mut direction = [0.0_f64; 9];
-    for row in 0..3 {
-        for column in 0..3 {
-            direction[row * 3 + column] = image_direction[(row, 2 - column)];
-        }
-    }
-
-    let grid = ParcellationGrid::new(
-        [nx, ny, nz],
-        [s2, s1, s0],
+    let grid = ParcellationGrid::from_image_order(
+        reference.shape(),
+        reference.spacing().to_array(),
         reference.origin().to_array(),
-        direction,
+        reference.direction().to_row_major(),
     )?;
     Parcellation::new(labels, grid, region_names)
 }

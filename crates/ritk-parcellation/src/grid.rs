@@ -145,6 +145,49 @@ impl ParcellationGrid {
         })
     }
 
+    /// Build a grid from geometry given in *image* axis order.
+    ///
+    /// The two conventions run in opposite directions and conflating them is
+    /// silent. A medical image numbers its spatial axes outermost-first: for a
+    /// `[nz, ny, nx]` volume its `spacing[0]` is the slice thickness and its
+    /// direction matrix's first *column* is the slice normal. A
+    /// [`ParcellationGrid`] numbers them innermost-first, with axis 0 the
+    /// fastest-varying index. Bridging therefore reverses all three — the
+    /// shape, the spacing, and the direction's columns:
+    ///
+    /// ```text
+    /// origin + D·(s ⊙ [i₀, i₁, i₂])  =  origin + D_g·(s_g ⊙ [i₂, i₁, i₀])
+    /// ```
+    ///
+    /// which holds for every index exactly when `s_g = reverse(s)` and column
+    /// `c` of `D_g` is column `2 − c` of `D`. Reversing some but not all of them
+    /// yields a grid that constructs, validates, and answers every query while
+    /// placing voxels somewhere they are not.
+    ///
+    /// The flat storage order needs no adjustment: both conventions store the
+    /// fastest axis contiguously, so a volume read from a file indexes the same
+    /// way under either.
+    ///
+    /// # Errors
+    ///
+    /// As [`Self::new`].
+    pub fn from_image_order(
+        shape: [usize; 3],
+        spacing: [f64; 3],
+        origin: [f64; 3],
+        direction: [f64; 9],
+    ) -> Result<Self, ParcellationError> {
+        let [nz, ny, nx] = shape;
+        let [s0, s1, s2] = spacing;
+        let mut reversed = [0.0_f64; 9];
+        for row in 0..3 {
+            for column in 0..3 {
+                reversed[row * 3 + column] = direction[row * 3 + (2 - column)];
+            }
+        }
+        Self::new([nx, ny, nz], [s2, s1, s0], origin, reversed)
+    }
+
     /// An axis-aligned grid — the direction matrix is the identity.
     ///
     /// # Errors

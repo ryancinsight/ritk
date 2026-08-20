@@ -32,4 +32,8 @@ ritk-filter = { path = "../ritk-filter", version = "0.3.0" }
 ritk-segmentation = { path = "../ritk-segmentation", version = "0.3.0" }
 ritk-io = { path = "../ritk-io", version = "0.3.0" }
 ritk-registration = { path = "../ritk-registration", version = "0.54.0" }
+ritk-parcellation = { path = "../ritk-parcellation", version = "0.1.0" }
+ritk-connectome = { path = "../ritk-connectome", version = "0.1.0" }
+gaia = { workspace = true }
+leto = { workspace = true }
 anyhow = { workspace = true }

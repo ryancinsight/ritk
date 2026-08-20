@@ -11,6 +11,7 @@ Python bindings for the RITK Rust library, exposing:
 - ``ritk.registration``   — Deformable registration (Demons, SyN, BSpline FFD, LDDMM, atlas building).
 - ``ritk.segmentation``   — Thresholding, connected components, clustering, level sets, morphology.
 - ``ritk.statistics``     — Descriptive statistics, comparison metrics, normalization.
+- ``ritk.connectome``     — Anatomical parcellations, region connectomes, graph measures.
 
 Quick start
 -----------
@@ -51,6 +52,7 @@ _add_windows_dll_directories()
 
 from ritk._ritk import (
     __version__,
+    connectome,  # noqa: F401
     diffusion,  # noqa: F401
     filter,  # noqa: F401
     io,  # noqa: F401
@@ -73,6 +75,7 @@ import sys as _sys
 # "import ritk.filter", "import ritk.io", etc. work as expected.
 # PyO3 add_submodule() exposes submodules as attributes but does not
 # automatically register them as importable paths; we do it here.
+_sys.modules.setdefault("ritk.connectome", connectome)
 _sys.modules.setdefault("ritk.diffusion", diffusion)
 _sys.modules.setdefault("ritk.filter", filter)
 _sys.modules.setdefault("ritk.io", io)
@@ -87,6 +90,7 @@ __all__ = [
     "ColorImage",
     "image",
     "io",
+    "connectome",
     "diffusion",
     "filter",
     "metrics",

@@ -254,3 +254,86 @@ fn physical_displacement_uses_the_grid_spacing() {
         .expect("valid grid");
     assert!((rotated.physical_displacement_of([1, 1, 1]) - 21.0).abs() < TOLERANCE);
 }
+
+/// Image-order geometry must reverse into grid order on all three of shape,
+/// spacing, and the direction's columns.
+///
+/// Reversing some but not all of them is the failure this constructor exists to
+/// make impossible for a caller to commit, so the reversal is asserted directly
+/// rather than only through a round trip.
+#[test]
+fn image_order_geometry_reverses_every_axis() {
+    let grid = ParcellationGrid::from_image_order(
+        [2, 3, 4],              // [nz, ny, nx]
+        [4.0, 2.0, 1.0],        // slowest axis first
+        [-1.0, 5.0, 0.5],
+        [1.0, 0.0, 0.0, 0.0, 1.0, 0.0, 0.0, 0.0, 1.0],
+    )
+    .expect("valid grid");
+
+    assert_eq!(grid.shape(), [4, 3, 2]);
+    assert_eq!(grid.spacing(), [1.0, 2.0, 4.0]);
+    // Reversing the identity's columns gives the exchange matrix.
+    assert_eq!(
+        grid.direction(),
+        [0.0, 0.0, 1.0, 0.0, 1.0, 0.0, 1.0, 0.0, 0.0]
+    );
+    assert_eq!(grid.origin(), [-1.0, 5.0, 0.5]);
+}
+
+/// The reversal has to place voxels where the image convention says they are.
+///
+/// Under image order the voxel at index `(i0, i1, i2) = (1, 2, 3)` of a
+/// `[2, 3, 4]` volume with spacing `[4, 2, 1]` and an identity direction sits at
+/// `(4·1, 2·2, 1·3) = (4, 4, 3)`. Addressed in grid order that is
+/// `(ix, iy, iz) = (3, 2, 1)`, and it must land on the same point.
+#[test]
+fn image_order_places_a_voxel_where_the_image_convention_does() {
+    let grid = ParcellationGrid::from_image_order(
+        [2, 3, 4],
+        [4.0, 2.0, 1.0],
+        [0.0; 3],
+        [1.0, 0.0, 0.0, 0.0, 1.0, 0.0, 0.0, 0.0, 1.0],
+    )
+    .expect("valid grid");
+
+    assert_close(
+        grid.physical_point_of([3, 2, 1]).to_array(),
+        [4.0, 4.0, 3.0],
+        "image-order voxel (1, 2, 3)",
+    );
+}
+
+/// The same equality under an oblique direction, where the column reversal
+/// carries weight that the identity case cannot show.
+#[test]
+fn image_order_survives_an_oblique_direction() {
+    let angle = 0.6_f64;
+    let (sin, cos) = angle.sin_cos();
+    let direction = [cos, -sin, 0.0, sin, cos, 0.0, 0.0, 0.0, 1.0];
+    let spacing = [3.0, 2.0, 1.0];
+    let origin = [7.0, -2.0, 1.5];
+
+    let grid = ParcellationGrid::from_image_order([2, 3, 4], spacing, origin, direction)
+        .expect("valid grid");
+
+    // The image convention, evaluated directly: origin + D·(s ⊙ [i0, i1, i2]).
+    for (i0, i1, i2) in [(0, 0, 0), (1, 2, 3), (1, 0, 2), (0, 2, 1)] {
+        let scaled = [
+            spacing[0] * f64::from(i0),
+            spacing[1] * f64::from(i1),
+            spacing[2] * f64::from(i2),
+        ];
+        let expected = [
+            origin[0] + direction[0] * scaled[0] + direction[1] * scaled[1] + direction[2] * scaled[2],
+            origin[1] + direction[3] * scaled[0] + direction[4] * scaled[1] + direction[5] * scaled[2],
+            origin[2] + direction[6] * scaled[0] + direction[7] * scaled[1] + direction[8] * scaled[2],
+        ];
+        assert_close(
+            grid.physical_point_of([i2 as usize, i1 as usize, i0 as usize])
+                .to_array(),
+            expected,
+            "image-order voxel",
+        );
+    }
+}
