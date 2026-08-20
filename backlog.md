@@ -1,10 +1,18 @@
-## ATLAS-RITK-WORKFLOW-PIN-2026-08-20 — Refresh shared book workflow pin [patch] — hosted verification pending
+## ATLAS-RITK-WORKFLOW-PIN-2026-08-20 — Refresh shared book workflow pin [patch] — done 2026-08-20
 
 - Owner: Atlas integration. Scope is the Pages caller and this PM/changelog
   record; RITK implementation, release work, and lockfile remain unchanged.
 - Acceptance: pin the caller to the current Atlas reusable workflow while
   retaining the existing output path, then pass exact hosted source and Pages
   checks before advancing the Atlas gitlink.
+- Evidence: provider source `20544b405f68e542364da77492ee7a7ffcc44ae9`, PR
+  [#196](https://github.com/ryancinsight/ritk/pull/196), and merged default
+  `aa48c471ac96eb81869437d84bab439e18d89038`. Exact PR Rust, Python, and
+  Pages checks pass; post-merge CI `32344964253`, Python CI `32344964345`, and
+  Deploy mdBook `32344964522` pass. Live Pages returns HTTP 200 with title
+  `Introduction - atlas/RITK: Medical Image Processing and Registration`.
+- Delivery: the caller pin and PM record are closed. No RITK implementation or
+  lockfile change was made.
 
 ## DOC-HUMAN-CONNECTOME [patch] — human tractography and connectomics
 
