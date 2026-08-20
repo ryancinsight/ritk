@@ -1,288 +1,222 @@
+//! Shared graph fixtures, and tests of the matrix itself.
+//!
+//! The fixtures build matrices directly rather than through
+//! [`crate::build_connectivity_matrix`], so that a measure's test fails for a
+//! defect in the measure rather than in the builder. The builder has its own
+//! tests in [`crate::build`].
+
 use super::*;
 
-/// A 2×2×2 parcellation with three regions in a diagonal pattern:
+/// Assemble a matrix from an upper-triangular edge list.
 ///
-/// ```text
-/// z=0:   [1, 0]     z=1:   [0, 2]
-///        [0, 3]            [3, 0]
-/// ```
-fn three_region_2x2x2() -> Parcellation {
-    let labels: Box<[u32]> = Box::new([
-        // z=0, y=0: x=0,1
-        1, 0, // z=0, y=1: x=0,1
-        0, 3, // z=1, y=0: x=0,1
-        0, 2, // z=1, y=1: x=0,1
-        3, 0,
-    ]);
-    Parcellation::new(
+/// `edges` are `(i, j, weight)` over matrix indices; each is written to both
+/// `(i, j)` and `(j, i)`, so a fixture cannot accidentally build an asymmetric
+/// matrix the measures would then misread.
+pub(crate) fn matrix_from_edges(
+    label_count: usize,
+    edges: &[(usize, usize, f64)],
+) -> ConnectivityMatrix {
+    let mut weights = vec![0.0; label_count * label_count];
+    for (i, j, weight) in edges {
+        weights[i * label_count + j] = *weight;
+        weights[j * label_count + i] = *weight;
+    }
+    #[expect(
+        clippy::cast_possible_truncation,
+        reason = "fixtures use small label counts"
+    )]
+    let labels: Box<[u32]> = (0..label_count as u32).collect();
+    ConnectivityMatrix::from_parts(
         labels,
-        [2, 2, 2],
-        [2.0, 2.0, 2.0],
-        [0.0, 0.0, 0.0],
-        vec![
-            (1, "Region A".into()),
-            (2, "Region B".into()),
-            (3, "Region C".into()),
+        weights.into_boxed_slice(),
+        StreamlineAccounting::default(),
+        EdgeWeighting::StreamlineCount,
+    )
+}
+
+/// A path graph `0 — 1 — 2` with unit weights.
+pub(crate) fn path_graph() -> ConnectivityMatrix {
+    matrix_from_edges(3, &[(0, 1, 1.0), (1, 2, 1.0)])
+}
+
+/// A triangle on three nodes with unit weights.
+pub(crate) fn triangle() -> ConnectivityMatrix {
+    matrix_from_edges(3, &[(0, 1, 1.0), (1, 2, 1.0), (0, 2, 1.0)])
+}
+
+/// A star: node 0 at the centre, nodes 1..=3 on the rim, unit weights.
+pub(crate) fn star() -> ConnectivityMatrix {
+    matrix_from_edges(4, &[(0, 1, 1.0), (0, 2, 1.0), (0, 3, 1.0)])
+}
+
+/// Two triangles joined by a single light bridge.
+///
+/// Nodes `0,1,2` and `3,4,5` are each a triangle of weight 10; the single edge
+/// `2 — 3` has weight 1. The modular structure is unambiguous, which is what
+/// makes it a usable oracle for community detection.
+pub(crate) fn two_modules() -> ConnectivityMatrix {
+    matrix_from_edges(
+        6,
+        &[
+            (0, 1, 10.0),
+            (1, 2, 10.0),
+            (0, 2, 10.0),
+            (3, 4, 10.0),
+            (4, 5, 10.0),
+            (3, 5, 10.0),
+            (2, 3, 1.0),
         ],
     )
-    .expect("valid parcellation")
 }
 
-fn polyline_from_points(points: &[[f64; 3]]) -> Polyline<f64> {
-    let pts: Vec<leto::geometry::Point3<f64>> = points
-        .iter()
-        .map(|&[x, y, z]| leto::geometry::Point3::new(x, y, z))
-        .collect();
-    Polyline::new(pts).expect("valid polyline")
-}
-
-// ── Parcellation construction ────────────────────────────────────────────
+// ── Matrix accessors ─────────────────────────────────────────────────────
 
 #[test]
-fn parcellation_rejects_empty_labels() {
-    let err = Parcellation::new(
-        Box::new([]),
-        [2, 2, 2],
-        [1.0, 1.0, 1.0],
-        [0.0, 0.0, 0.0],
-        vec![],
-    )
-    .unwrap_err();
-    assert!(matches!(err, ConnectomeError::RegionCountMismatch { .. }));
+fn weights_are_symmetric() {
+    let matrix = two_modules();
+    for i in 0..matrix.region_count() {
+        for j in 0..matrix.region_count() {
+            assert!(
+                (matrix.weight_at(i, j) - matrix.weight_at(j, i)).abs() < f64::EPSILON,
+                "({i}, {j}) is not symmetric"
+            );
+        }
+    }
 }
 
 #[test]
-fn parcellation_rejects_all_background() {
-    let labels: Box<[u32]> = vec![0u32; 8].into_boxed_slice();
-    let err =
-        Parcellation::new(labels, [2, 2, 2], [1.0, 1.0, 1.0], [0.0, 0.0, 0.0], vec![]).unwrap_err();
-    assert!(matches!(err, ConnectomeError::EmptyParcellation(0)));
+fn labels_resolve_to_indices() {
+    let matrix = path_graph();
+    assert_eq!(matrix.index_of(1), Some(1));
+    assert_eq!(matrix.index_of(99), None);
+    assert_eq!(matrix.weight(0, 1), Some(1.0));
+    assert_eq!(matrix.weight(0, 99), None);
 }
 
 #[test]
-fn parcellation_region_labels_are_sorted_and_deduplicated() {
-    let p = three_region_2x2x2();
-    assert_eq!(p.region_labels(), vec![1, 2, 3]);
-    assert_eq!(p.region_count(), 3);
+fn degree_and_strength_count_neighbours_and_weights() {
+    let matrix = matrix_from_edges(3, &[(0, 1, 2.0), (0, 2, 5.0)]);
+    assert_eq!(matrix.degree(0), Some(2));
+    assert_eq!(matrix.degree(1), Some(1));
+    assert_eq!(matrix.strength(0), Some(7.0));
+    assert_eq!(matrix.strength(2), Some(5.0));
 }
 
+/// A self-connection is recorded but is not a link between two nodes, so it must
+/// not raise the degree, the strength, or the edge count. Getting this wrong
+/// would inflate every downstream measure for any region whose tractogram
+/// contains intra-region streamlines — which is every region.
 #[test]
-fn label_at_voxel_centre() {
-    let p = three_region_2x2x2();
-    // Voxel (0,0,0) centre at [0,0,0] → label 1
-    assert_eq!(p.label_at(&Point::new([0.0, 0.0, 0.0])), Some(1));
-    // Voxel (1,1,0) centre at [2,2,0] → label 3
-    assert_eq!(p.label_at(&Point::new([2.0, 2.0, 0.0])), Some(3));
-    // Voxel (1,0,1) centre at [2,0,2] → label 2
-    assert_eq!(p.label_at(&Point::new([2.0, 0.0, 2.0])), Some(2));
-}
+fn a_self_connection_is_stored_but_excluded_from_degree_and_strength() {
+    let matrix = matrix_from_edges(3, &[(0, 0, 7.0), (0, 1, 2.0)]);
 
-#[test]
-fn label_at_outside_volume_returns_none() {
-    let p = three_region_2x2x2();
-    assert_eq!(p.label_at(&Point::new([-1.0, 0.0, 0.0])), None);
-    assert_eq!(p.label_at(&Point::new([0.0, 0.0, 4.0])), None);
-    assert_eq!(p.label_at(&Point::new([f64::NAN, 0.0, 0.0])), None);
-}
-
-// ── Connectivity matrix construction ─────────────────────────────────────
-
-#[test]
-fn single_streamline_connects_two_regions() -> Result<(), ConnectomeError> {
-    let p = three_region_2x2x2();
-    // Streamline from region 1 (0,0,0) to region 2 (2,0,2).
-    let sl = polyline_from_points(&[[0.0, 0.0, 0.0], [2.0, 0.0, 2.0]]);
-    let matrix = build_connectivity_matrix(&p, &[sl])?;
-
-    assert_eq!(matrix.region_count(), 3);
-    assert_eq!(matrix.total_streamlines(), 1);
-    assert_eq!(matrix.skipped_count(), 0);
-    assert_eq!(matrix.intra_region_count(), 0);
-    assert_eq!(matrix.weight(1, 2), Some(1.0));
-    assert_eq!(matrix.weight(2, 1), Some(1.0));
-    assert_eq!(matrix.weight(1, 3), Some(0.0));
+    assert_eq!(matrix.weight(0, 0), Some(7.0));
+    assert_eq!(matrix.degree(0), Some(1));
+    assert_eq!(matrix.strength(0), Some(2.0));
     assert_eq!(matrix.edge_count(), 1);
-    Ok(())
 }
 
 #[test]
-fn multiple_streamlines_accumulate_weight() -> Result<(), ConnectomeError> {
-    let p = three_region_2x2x2();
-    let sl_a = polyline_from_points(&[[0.0, 0.0, 0.0], [2.0, 0.0, 2.0]]); // 1→2
-    let sl_b = polyline_from_points(&[[0.0, 0.0, 0.0], [2.0, 2.0, 0.0]]); // 1→3
-    let sl_c = polyline_from_points(&[[0.0, 0.0, 0.0], [2.0, 0.0, 2.0]]); // 1→2
-    let matrix = build_connectivity_matrix(&p, &[sl_a, sl_b, sl_c])?;
-
-    assert_eq!(matrix.total_streamlines(), 3);
-    assert_eq!(matrix.weight(1, 2), Some(2.0));
-    assert_eq!(matrix.weight(1, 3), Some(1.0));
-    assert_eq!(matrix.weight(2, 3), Some(0.0));
-    assert_eq!(matrix.edge_count(), 2);
-    Ok(())
+fn edges_lists_every_nonzero_pair_once() {
+    let matrix = two_modules();
+    let edges: Vec<_> = matrix.edges().collect();
+    assert_eq!(edges.len(), 7);
+    for edge in &edges {
+        assert!(
+            edge.source <= edge.target,
+            "edges are listed once: {edge:?}"
+        );
+        assert!(edge.weight > 0.0);
+    }
 }
 
 #[test]
-fn intra_region_streamline_counts_but_not_as_edge() -> Result<(), ConnectomeError> {
-    let p = three_region_2x2x2();
-    // Both endpoints in region 1 → self-edge only.
-    let sl = polyline_from_points(&[[0.0, 0.0, 0.0], [0.5, 0.0, 0.0]]);
-    let matrix = build_connectivity_matrix(&p, &[sl])?;
+fn density_is_edges_over_possible_pairs() {
+    // A triangle is complete: 3 of 3 possible pairs.
+    assert!((triangle().density() - 1.0).abs() < f64::EPSILON);
+    // The path graph has 2 of 3.
+    assert!((path_graph().density() - 2.0 / 3.0).abs() < 1.0e-12);
+    // A single node has no pairs at all.
+    assert_eq!(matrix_from_edges(1, &[]).density(), 0.0);
+}
 
-    assert_eq!(matrix.total_streamlines(), 1);
-    assert_eq!(matrix.intra_region_count(), 1);
-    assert_eq!(matrix.skipped_count(), 0);
-    // Self-weight is recorded but not an inter-region edge.
-    assert_eq!(matrix.weight(1, 1), Some(1.0));
-    assert_eq!(matrix.edge_count(), 0);
-    Ok(())
+// ── Accounting ───────────────────────────────────────────────────────────
+
+#[test]
+fn the_assigned_fraction_is_zero_for_an_empty_tractogram() {
+    assert_eq!(StreamlineAccounting::default().assigned_fraction(), 0.0);
 }
 
 #[test]
-fn out_of_bounds_endpoint_is_skipped() -> Result<(), ConnectomeError> {
-    let p = three_region_2x2x2();
-    // Endpoint outside the volume.
-    let sl = polyline_from_points(&[[0.0, 0.0, 0.0], [-10.0, 0.0, 0.0]]);
-    let matrix = build_connectivity_matrix(&p, &[sl])?;
-
-    assert_eq!(matrix.total_streamlines(), 1);
-    assert_eq!(matrix.skipped_count(), 1);
-    assert_eq!(matrix.edge_count(), 0);
-    Ok(())
-}
-
-#[test]
-fn background_endpoint_is_skipped() -> Result<(), ConnectomeError> {
-    let p = three_region_2x2x2();
-    // Endpoint at (2,0,0) is background (label 0) in this parcellation.
-    let sl = polyline_from_points(&[[0.0, 0.0, 0.0], [2.0, 0.0, 0.0]]);
-    let matrix = build_connectivity_matrix(&p, &[sl])?;
-
-    assert_eq!(matrix.total_streamlines(), 1);
-    assert_eq!(matrix.skipped_count(), 1);
-    assert_eq!(matrix.edge_count(), 0);
-    Ok(())
-}
-
-// ── Graph measures ───────────────────────────────────────────────────────
-
-#[test]
-fn degree_counts_distinct_neighbours() -> Result<(), ConnectomeError> {
-    let p = three_region_2x2x2();
-    // Region 1 connects to 2 and 3.
-    let sl_a = polyline_from_points(&[[0.0, 0.0, 0.0], [2.0, 0.0, 2.0]]); // 1→2
-    let sl_b = polyline_from_points(&[[0.0, 0.0, 0.0], [2.0, 2.0, 0.0]]); // 1→3
-    let matrix = build_connectivity_matrix(&p, &[sl_a, sl_b])?;
-
-    assert_eq!(matrix.degree(1), Some(2)); // connected to 2 and 3
-    assert_eq!(matrix.degree(2), Some(1)); // connected to 1 only
-    assert_eq!(matrix.degree(3), Some(1)); // connected to 1 only
-    assert_eq!(matrix.degree(99), None);
-    Ok(())
-}
-
-#[test]
-fn strength_sums_incident_weights() -> Result<(), ConnectomeError> {
-    let p = three_region_2x2x2();
-    let sl_a = polyline_from_points(&[[0.0, 0.0, 0.0], [2.0, 0.0, 2.0]]); // 1→2
-    let sl_b = polyline_from_points(&[[0.0, 0.0, 0.0], [2.0, 0.0, 2.0]]); // 1→2
-    let sl_c = polyline_from_points(&[[0.0, 0.0, 0.0], [2.0, 2.0, 0.0]]); // 1→3
-    let matrix = build_connectivity_matrix(&p, &[sl_a, sl_b, sl_c])?;
-
-    assert!((matrix.strength(1).unwrap() - 3.0).abs() < 1e-12); // 2+1
-    assert!((matrix.strength(2).unwrap() - 2.0).abs() < 1e-12); // 2 from 1→2
-    assert!((matrix.strength(3).unwrap() - 1.0).abs() < 1e-12); // 1 from 1→3
-    Ok(())
-}
-
-#[test]
-fn density_is_ratio_of_edges_to_possible() -> Result<(), ConnectomeError> {
-    let p = three_region_2x2x2();
-    // Triangle: all edges present → density = 1.0.
-    let sl_a = polyline_from_points(&[[0.0, 0.0, 0.0], [2.0, 0.0, 2.0]]); // 1→2
-    let sl_b = polyline_from_points(&[[0.0, 0.0, 0.0], [2.0, 2.0, 0.0]]); // 1→3
-    let sl_c = polyline_from_points(&[[2.0, 0.0, 2.0], [2.0, 2.0, 0.0]]); // 2→3
-    let matrix = build_connectivity_matrix(&p, &[sl_a, sl_b, sl_c])?;
-
-    assert_eq!(matrix.edge_count(), 3);
-    // 3 nodes → max edges = 3*2/2 = 3 → density = 1.0
-    assert!((matrix.density() - 1.0).abs() < 1e-12);
-    Ok(())
-}
-
-#[test]
-fn density_is_zero_for_single_region() -> Result<(), ConnectomeError> {
-    // Parcellation with only one region.
-    let labels: Box<[u32]> = Box::new([1, 1, 1, 1, 1, 1, 1, 1]);
-    let p = Parcellation::new(
-        labels,
-        [2, 2, 2],
-        [1.0, 1.0, 1.0],
-        [0.0, 0.0, 0.0],
-        vec![(1, "Solo".into())],
-    )
-    .unwrap();
-    let sl = polyline_from_points(&[[0.0, 0.0, 0.0], [1.0, 0.0, 0.0]]);
-    let matrix = build_connectivity_matrix(&p, &[sl])?;
-    assert_eq!(matrix.region_count(), 1);
-    assert_eq!(matrix.density(), 0.0);
-    Ok(())
+fn the_assigned_fraction_reports_the_share_that_produced_edges() {
+    let accounting = StreamlineAccounting {
+        total: 100,
+        assigned: 40,
+        intra_region: 35,
+        unassigned: 25,
+    };
+    assert_eq!(
+        accounting.assigned + accounting.intra_region + accounting.unassigned,
+        accounting.total,
+        "the three outcomes must partition the supplied streamlines"
+    );
+    assert!((accounting.assigned_fraction() - 0.4).abs() < 1.0e-12);
 }
 
 // ── Serialisation ────────────────────────────────────────────────────────
 
 #[test]
-fn json_round_trip_preserves_weights_and_measures() -> Result<(), ConnectomeError> {
-    let p = three_region_2x2x2();
-    let sl_a = polyline_from_points(&[[0.0, 0.0, 0.0], [2.0, 0.0, 2.0]]);
-    let sl_b = polyline_from_points(&[[0.0, 0.0, 0.0], [2.0, 2.0, 0.0]]);
-    let original = build_connectivity_matrix(&p, &[sl_a, sl_b])?;
+fn a_json_round_trip_preserves_weights_and_accounting() {
+    let matrix = two_modules();
+    let decoded =
+        ConnectivityMatrix::from_json(&matrix.to_json().expect("serialise")).expect("deserialise");
 
-    let json = original.to_json()?;
-    let restored = ConnectivityMatrix::from_json(&json)?;
-
-    assert_eq!(restored.region_count(), original.region_count());
-    assert_eq!(restored.edge_count(), original.edge_count());
-    assert_eq!(restored.total_streamlines(), original.total_streamlines());
-    assert_eq!(restored.intra_region_count(), original.intra_region_count());
-    assert_eq!(restored.skipped_count(), original.skipped_count());
-
-    for &label in &[1, 2, 3] {
-        assert_eq!(restored.degree(label), original.degree(label));
-        assert!(
-            (restored.strength(label).unwrap() - original.strength(label).unwrap()).abs() < 1e-12
-        );
-        for &other in &[1, 2, 3] {
-            assert_eq!(restored.weight(label, other), original.weight(label, other));
+    assert_eq!(decoded.region_labels(), matrix.region_labels());
+    assert_eq!(decoded.accounting(), matrix.accounting());
+    assert_eq!(decoded.weighting(), matrix.weighting());
+    for i in 0..matrix.region_count() {
+        for j in 0..matrix.region_count() {
+            assert!(
+                (decoded.weight_at(i, j) - matrix.weight_at(i, j)).abs() < f64::EPSILON,
+                "({i}, {j})"
+            );
         }
     }
-    Ok(())
 }
 
+// ── Decoded matrices are checked, not trusted ────────────────────────────
+
+/// `from_json` is reachable from any caller reading a file it did not write, so
+/// a document that breaks a storage invariant must be refused rather than
+/// producing a value whose first row access panics.
 #[test]
-fn empty_streamline_set_produces_zero_matrix() -> Result<(), ConnectomeError> {
-    let p = three_region_2x2x2();
-    let matrix = build_connectivity_matrix(&p, &[])?;
-    assert_eq!(matrix.region_count(), 3);
-    assert_eq!(matrix.total_streamlines(), 0);
-    assert_eq!(matrix.edge_count(), 0);
-    assert_eq!(matrix.density(), 0.0);
-    for &label in &[1, 2, 3] {
-        assert_eq!(matrix.degree(label), Some(0));
-        assert!((matrix.strength(label).unwrap() - 0.0).abs() < 1e-12);
-    }
-    Ok(())
+fn a_document_whose_weights_do_not_cover_the_regions_is_rejected() {
+    let encoded = two_modules().to_json().expect("serialise");
+    let truncated = encoded.replace("\"weights\":[", "\"weights\":[0.0,0.0,0.0],\"unused\":[");
+    assert_ne!(truncated, encoded, "the fixture must have been edited");
+
+    let error = ConnectivityMatrix::from_json(&truncated).unwrap_err();
+    assert!(
+        error
+            .to_string()
+            .contains("does not cover every region pair")
+            || error.to_string().contains("JSON error"),
+        "expected a rejection, got {error}"
+    );
 }
 
+/// Unsorted labels do not panic — they silently answer with the wrong region,
+/// which is worse, so they are refused at the boundary.
 #[test]
-fn edges_iter_returns_only_nonzero_weights() -> Result<(), ConnectomeError> {
-    let p = three_region_2x2x2();
-    let sl = polyline_from_points(&[[0.0, 0.0, 0.0], [2.0, 0.0, 2.0]]);
-    let matrix = build_connectivity_matrix(&p, &[sl])?;
+fn a_document_with_unsorted_labels_is_rejected() {
+    let matrix = matrix_from_edges(3, &[(0, 1, 1.0), (1, 2, 1.0)]);
+    let encoded = matrix.to_json().expect("serialise");
+    let scrambled = encoded.replace("\"labels\":[0,1,2]", "\"labels\":[2,0,1]");
+    assert_ne!(scrambled, encoded, "the fixture must have been edited");
 
-    let edges: Vec<ConnectivityEdge> = matrix.edges().collect();
-    assert_eq!(edges.len(), 1);
-    assert_eq!(edges[0].source, 1);
-    assert_eq!(edges[0].target, 2);
-    assert!((edges[0].weight - 1.0).abs() < 1e-12);
-    Ok(())
+    let error = ConnectivityMatrix::from_json(&scrambled).unwrap_err();
+    assert!(
+        error.to_string().contains("not sorted"),
+        "expected the ordering rejection, got {error}"
+    );
 }

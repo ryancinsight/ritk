@@ -58,7 +58,8 @@
 - [Diffusion MRI Acquisition and Q-ball ODFs](diffusion_mri.md)
 - [Creating and Validating Deterministic Tractography](tractography.md)
   - [Example: Signal to Streamlines](examples/diffusion_tractography.md)
-  - [Example: A Real Subject](examples/brain_tractography.md)
+  - [Human Tractography and Connectomics](examples/brain_tractography.md)
+- [Anatomical Parcellation](parcellation.md)
 - [Connectome Construction and Graph Measures](connectome.md)
 
 ## Tractogram Interchange Formats

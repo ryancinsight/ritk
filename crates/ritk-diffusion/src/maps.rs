@@ -50,7 +50,7 @@ pub use volume::{DirectionInterpolation, DtiVolume};
 use ritk_diffusion_scheme::GradientScheme;
 use thiserror::Error;
 
-use crate::dti::{DtiConfig, estimate_dti};
+use crate::dti::{DtiConfig, estimate_dti, invariants};
 
 /// Percentile of the reference signal that sets the masking scale.
 ///
@@ -250,7 +250,7 @@ impl DiffusionMaps {
     /// Fractional anisotropy, in `[0, 1]`.
     #[must_use]
     pub fn fractional_anisotropy(&self) -> Vec<f64> {
-        self.derive(fractional_anisotropy)
+        self.derive(invariants::fractional_anisotropy)
     }
 
     /// Fractional anisotropy at one voxel.
@@ -264,7 +264,7 @@ impl DiffusionMaps {
     #[must_use]
     pub fn fractional_anisotropy_at(&self, voxel: usize) -> f64 {
         if self.mask[voxel] {
-            fractional_anisotropy(self.eigenvalues[voxel])
+            invariants::fractional_anisotropy(self.eigenvalues[voxel])
         } else {
             0.0
         }
@@ -273,19 +273,78 @@ impl DiffusionMaps {
     /// Mean diffusivity, in mm²/s.
     #[must_use]
     pub fn mean_diffusivity(&self) -> Vec<f64> {
-        self.derive(|[l1, l2, l3]| (l1 + l2 + l3) / 3.0)
+        self.derive(invariants::mean_diffusivity)
     }
 
     /// Axial diffusivity `λ₁`, in mm²/s.
     #[must_use]
     pub fn axial_diffusivity(&self) -> Vec<f64> {
-        self.derive(|[l1, _, _]| l1)
+        self.derive(invariants::axial_diffusivity)
     }
 
     /// Radial diffusivity `(λ₂ + λ₃) / 2`, in mm²/s.
     #[must_use]
     pub fn radial_diffusivity(&self) -> Vec<f64> {
-        self.derive(|[_, l2, l3]| (l2 + l3) / 2.0)
+        self.derive(invariants::radial_diffusivity)
+    }
+
+    /// Relative anisotropy — see [`invariants::relative_anisotropy`].
+    #[must_use]
+    pub fn relative_anisotropy(&self) -> Vec<f64> {
+        self.derive(invariants::relative_anisotropy)
+    }
+
+    /// Mode of anisotropy in `[−1, 1]` — see [`invariants::mode`].
+    ///
+    /// Read alongside [`Self::fractional_anisotropy`]: FA gives how far the
+    /// tensor is from isotropic, mode gives which way it departed. A voxel with
+    /// high FA and mode near `−1` is a plane, not a fibre, and is the signature
+    /// of crossing bundles inside one voxel.
+    #[must_use]
+    pub fn mode(&self) -> Vec<f64> {
+        self.derive(invariants::mode)
+    }
+
+    /// Westin linear measure `cₗ` — see [`invariants::westin_measures`].
+    #[must_use]
+    pub fn linear_measure(&self) -> Vec<f64> {
+        self.derive(|eigenvalues| invariants::westin_measures(eigenvalues).0)
+    }
+
+    /// Westin planar measure `cₚ` — see [`invariants::westin_measures`].
+    #[must_use]
+    pub fn planar_measure(&self) -> Vec<f64> {
+        self.derive(|eigenvalues| invariants::westin_measures(eigenvalues).1)
+    }
+
+    /// Westin spherical measure `cₛ` — see [`invariants::westin_measures`].
+    ///
+    /// Unfitted voxels read zero like every other map, rather than the
+    /// spherical limit of one that the bare invariant returns for a null
+    /// tensor: a voxel that was never fitted makes no claim about shape.
+    #[must_use]
+    pub fn spherical_measure(&self) -> Vec<f64> {
+        self.derive(|eigenvalues| invariants::westin_measures(eigenvalues).2)
+    }
+
+    /// Direction-encoded colour per voxel — see
+    /// [`invariants::colour_by_orientation`].
+    ///
+    /// Unfitted voxels are black.
+    #[must_use]
+    pub fn colour_by_orientation(&self) -> Vec<[f64; 3]> {
+        self.eigenvalues
+            .iter()
+            .zip(&self.principal)
+            .zip(&self.mask)
+            .map(|((eigenvalues, principal), fitted)| {
+                if *fitted {
+                    invariants::colour_by_orientation(*eigenvalues, *principal)
+                } else {
+                    [0.0; 3]
+                }
+            })
+            .collect()
     }
 
     /// Apply a scalar function of the eigenvalues over the volume.
@@ -300,21 +359,6 @@ impl DiffusionMaps {
             .map(|(eigenvalues, fitted)| if *fitted { measure(*eigenvalues) } else { 0.0 })
             .collect()
     }
-}
-
-/// Fractional anisotropy from eigenvalues.
-///
-/// `FA = sqrt(3/2 · Σ(λᵢ - λ̄)² / Σλᵢ²)`. The denominator is zero only when
-/// every eigenvalue is zero, which the caller excludes by mask, but the guard
-/// stays so the function is total.
-fn fractional_anisotropy(eigenvalues: [f64; 3]) -> f64 {
-    let mean = (eigenvalues[0] + eigenvalues[1] + eigenvalues[2]) / 3.0;
-    let deviation: f64 = eigenvalues.iter().map(|l| (l - mean) * (l - mean)).sum();
-    let magnitude: f64 = eigenvalues.iter().map(|l| l * l).sum();
-    if magnitude <= 0.0 {
-        return 0.0;
-    }
-    (1.5 * deviation / magnitude).sqrt()
 }
 
 /// Fit one tensor per voxel across a diffusion series and derive its maps.

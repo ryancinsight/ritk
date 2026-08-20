@@ -7,11 +7,14 @@
 //!
 //! # Conversion to volume
 //!
-//! A [`SurfaceAnnotation`] must be rasterised onto a volumetric
-//! [`crate::Parcellation`] before it can feed the
-//! [`crate::build_connectivity_matrix`] pipeline.  That conversion
-//! requires the surface geometry (vertex coordinates and faces) and is
-//! not included in this first increment.
+//! A [`SurfaceAnnotation`] labels *vertices of a mesh*, not voxels. Turning one
+//! into a [`crate::Parcellation`] therefore needs the surface geometry the
+//! annotation refers to — the vertex coordinates and faces of the matching
+//! `lh.white`/`rh.white` surface — plus a rasterisation of the cortical ribbon
+//! between the white and pial surfaces. Neither is supplied here, so an
+//! annotation is currently readable but not yet convertible; the
+//! [`read_freesurfer_lut`] table it pairs with is directly usable as the
+//! `region_names` of a volumetric parcellation from any source.
 //!
 //! # References
 //!

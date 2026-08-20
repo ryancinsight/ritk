@@ -1,3 +1,78 @@
+## DOC-HUMAN-CONNECTOME [patch] — human tractography and connectomics
+
+- **Status:** LOCAL GATES PASSED; owner=Codex; last-update=2026-08-19;
+  scope=Stanford HARDI download provenance, FSL rounding-safe parsing, the
+  runnable whole-brain tractography/connectome example, generated SVG/JSON,
+  book chapters, and synchronized PM/CHANGELOG entries;
+  non-goal=new tractography algorithms, biological ground truth, population
+  inference, or release. Acceptance requires checksummed public inputs, exact
+  DWI/parcellation alignment, value-semantic tracking/connectome invariants,
+  inspected visual output, local book/Rust gates, exact-head hosted gates,
+  merged delivery, and live Pages verification.
+
+## FIX-DTI-VOLUME-FRAME [arch][patch] — preserve diffusion coordinate frames
+
+- **Status:** TODO; owner=unclaimed; last-update=2026-08-19;
+  outcome=make the reusable DTI volume field and `ritk tract dti` path consume
+  gradient directions in the image-index convention without an example-local
+  axis reorder; scope=`DiffusionMaps`, `DtiVolume`, their construction sites,
+  CLI tracking, public contracts, and coordinate-permutation regressions;
+  non-goal=changing tensor estimation or tracking integration. Acceptance
+  requires a recorded frame contract, exhaustive caller migration, synthetic
+  axis-permutation and oblique-image tests, unchanged correctly framed
+  behavior, warning-clean focused gates, and no compatibility path. Dependency:
+  the design must determine whether fitted maps retain `GradientFrame` or the
+  constructor requires an explicit zero-cost frame strategy.
+
+## DTI-CONNECTOME-PARCELLATION [major] — weighted DTI, connectome measures, atlas parcellation
+
+- **Status:** LOCAL GATES PASSED; owner=Atlas coordinator; last-update=2026-08-20;
+  branch=`feat/dti-connectome-parcellation`;
+  scope=`crates/ritk-diffusion/src/{dti,dti/*,maps*,test_support}`,
+  `crates/ritk-parcellation/**` (new), `crates/ritk-connectome/**`,
+  `crates/ritk-registration/src/{lib,parcellation,parcellation/tests}.rs`,
+  `docs/book/{SUMMARY,parcellation,connectome}.md`, CHANGELOG, Cargo.lock;
+  non-goal=CLI or Python surfaces for the connectome, surface-annotation
+  rasterisation, rich-club null-model normalisation.
+- Delivered in five commits: weighted (Veraart-style IWLS) DTI fitting with the
+  full invariant set and two eigendecomposition accuracy repairs; extraction of
+  `ritk-parcellation` with the direction-aware affine, region statistics, and
+  radial label search; connectome rebuild with endpoint assignment, edge
+  weighting, streamline accounting, and the graph-measure family; and the
+  atlas-propagation parcellation pipeline in `ritk-registration`; and
+  `ritk tract connectome`, which makes the pipeline reachable from the command
+  line and is covered by integration tests driving the built binary against
+  real NIfTI and TCK files. A sixth commit repairs the image-to-grid axis
+  bridge, whose half-reversal placed voxels off their true positions while its
+  test made the same assumption and cancelled the error; the oracle is now an
+  independent entry point plus a hand-computed position, and reintroducing the
+  defect fails all three axis tests.
+- The unmerged `docs/human-tractography-connectome` branch was integrated in the
+  same series and its example migrated to the new API, so the break and its call
+  sites land together.
+- Local gates at `d7065b40`: workspace `cargo check --all-targets` clean,
+  warning-denied Clippy clean on the four touched packages, warning-denied
+  rustdoc clean, `mdbook build` and `mdbook test` pass, 713/713 Nextest across
+  ritk-diffusion/parcellation/connectome/registration, and package doctests pass.
+- Hosted CI passed every required check at `ef7c267c` (runs `32334966200`,
+  `32334966027`, `32334966588`): Clippy, Rustdoc, Rustfmt, test suites on
+  ubuntu/macos/windows, Python 3.9-3.13 across three platforms, wheel smoke,
+  dependency alignment, and the book build. `recurseml/analysis` errored during
+  analysis and is report-only.
+- CodeRabbit raised 16 findings; 14 accepted and fixed in `c63a77f1`, 2
+  rejected: the renderer's index-space axis use is correct as documented, and
+  the bracketed PM status labels are an established repo-wide convention.
+- **Deferred:** hoisting the per-source scratch buffers in Brandes betweenness.
+  Real but not dominant — the allocation is `O(n²)` small pushes against an
+  `O(n·m·log n)` Dijkstra in a once-per-analysis routine, and hoisting threads
+  five mutable buffers through the inner function. Revisit if a parcellation
+  above ~1000 regions makes it measurable.
+- **Open:** `ritk-python` exposes no
+  connectome or parcellation surface; the rich-club curve is
+  unnormalised by design and its randomised-ensemble normalisation is a
+  follow-up; `ritk-parcellation` is newly `publish = true` and must be released
+  before `ritk-registration` 0.55.
+
 ## BUILD-BLOCK-MATCHING-LOCK [patch] — restore locked workspace resolution
 
 - **Status:** DONE; owner=Codex; last-update=2026-08-19;

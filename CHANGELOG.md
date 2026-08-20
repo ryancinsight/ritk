@@ -10,10 +10,112 @@
 
 ## [Unreleased] — conformance cleanup and JPEG 2000 scalar quality control (FEAT-692-01)
 
-- [patch] Expand the tractography book chapter with a reproducible public-API
-  creation workflow, analytical output checks, and an evidence ladder that
-  separates numerical and geometric verification from interoperability,
-  anatomical, and clinical validation.
+- [major] Return the truly nearest label from the parcellation search. Offsets
+  were ordered by distance between voxel centres while the compared distance is
+  from the query point, so an endpoint near a parcel boundary could be assigned
+  to the parcel across it; the neighbourhood also stopped short of voxels that
+  were genuinely within the radius of the point. Every candidate is now scored
+  and the nearest kept.
+
+- [major] Check decoded parcellations and connectivity matrices. Both derived
+  `Deserialize`, which skips the constructors that establish their invariants: a
+  short label array panicked on the first lookup, and unsorted labels answered
+  with the wrong region without failing. Both decode through a checked
+  representation, which also keeps derived state off the wire.
+
+- [patch] Return a typed error instead of panicking when the DKI refinement
+  leaves a non-positive diffusion tensor. The refinement is unconstrained, so a
+  voxel's own data could reach the panic.
+
+- [patch] Make the streamline accounting partition its input. The malformed
+  bucket is removed rather than reconciled: a `Polyline` cannot hold fewer than
+  two finite points, so the branch was unreachable and the field could never be
+  nonzero.
+
+- [patch] Correct the FSL unit tolerance's derivation, which documented a
+  six-decimal bound for a five-decimal value; reject a negative
+  `--assignment-radius` rather than silently mapping it to terminal assignment;
+  handle an empty tractogram before taking a median; stop the dataset script
+  suppressing failures on gradient files nothing downstream can run without; and
+  describe the persisted connectome as symmetric where the book still said
+  upper-triangular.
+
+- [minor] Weight the DTI tensor fit. The log transform that linearises the
+  tensor system does not preserve the noise model — `var(ln S) ∝ 1/S²` — so
+  ordinary least squares over-trusts the strongly attenuated measurements,
+  which are the least reliable. `TensorFit::Weighted` restores the
+  inverse-variance weights from a prior fit's predicted signal and is now the
+  default; noiseless data is a consistent system, so both estimators return the
+  identical exact solution and only noisy fits change. Over 400 seeded Rician
+  realisations at SNR 30 the weighted fit narrows the axial diffusivity's
+  spread by 18%. It does not reduce bias, and the tests assert that limit
+  rather than claiming otherwise.
+
+- [patch] Repair two accuracy defects in the 3×3 symmetric eigendecomposition.
+  Forming the characteristic invariants from the unshifted matrix subtracts two
+  quantities of order `‖D‖²` to produce one of order `(λ₁−λ₃)²`, losing a
+  near-isotropic voxel's entire eigenvalue spread into rounding; the
+  decomposition now runs on the deviatoric part. Taking all three roots from
+  the trigonometric form loses half their digits at a double root — `acos` has
+  infinite slope at ±1, and prolate and oblate tensors land exactly there — so
+  only the extremal root is read off the cosine and the other two are deflated
+  from the exact symmetric functions. The residual `√ε` limit on a repeated
+  root is intrinsic to any polynomial route and is recorded with its magnitude.
+
+- [minor] Complete the DTI invariants. The tensor and the volume now carry
+  relative anisotropy, Frobenius norm, the Westin linear/planar/spherical
+  measures, mode of anisotropy, direction-encoded colour, and the full
+  orthonormal eigenbasis alongside the existing FA/MD/AD/RD. Westin and mode
+  make the discrimination FA cannot: a prolate and an oblate tensor can share
+  an FA exactly, and only one of them is a coherent fibre. FA had two
+  definitions, on the tensor and again on the volume; it now has one.
+
+- [major] Extract `ritk-parcellation` from `ritk-connectome`. A label volume is
+  the vocabulary between whatever produces one and whatever consumes one, so it
+  no longer sits inside the connectome and no longer forces a consumer to build
+  a graph library to hold labels. The move also repairs a silent correctness
+  defect: the old lookup mapped a physical point with origin and spacing alone,
+  which is right only for an axis-aligned volume, and dropping the obliquity
+  returns the label of a different region without failing. The grid now carries
+  the full affine. New alongside it: per-region volume, centroid and extent in
+  one pass; label remapping and subsetting; and a prepared
+  nearest-labelled-voxel search.
+
+- [major] Rebuild the connectome around endpoint assignment, edge weighting, and
+  graph measures. Radial assignment recovers the streamlines that terminate in
+  white matter, which terminal assignment drops despite their ending exactly
+  where tracking should stop. Edge weighting gains inverse length and inverse
+  node volume, which divide out the two known geometric confounds, plus mean
+  length; none makes a count a measurement of connection strength. Streamline
+  accounting now partitions the tractogram across five buckets. The measures
+  are new: binary and Onnela-weighted clustering, Dijkstra all-pairs paths,
+  characteristic path length with its reachable fraction, global and local
+  efficiency, Brandes betweenness, deterministic Louvain communities with
+  weighted modularity, rich-club coefficients, and components.
+
+- [minor] Add `ritk tract connectome`, which reduces a tractogram and a label
+  volume to a connectivity matrix and, on request, its graph measures. The
+  label volume is read as an ordinary image so its affine comes with it, since
+  a parcellation without one cannot answer where a voxel sits. Streamline
+  accounting prints unconditionally, and the default assignment radius is 2 mm
+  rather than zero — an exact endpoint lookup drops most of a tractogram, and a
+  caller should not have to discover that from an empty matrix.
+
+- [minor] Parcellate a whole brain from labelled atlases. `ritk-registration`
+  composes its existing SyN registration, label warping, and fusion into a
+  subject parcellation with per-voxel agreement and per-atlas registration
+  quality. Resampling is nearest-neighbour throughout, because region 17 and
+  region 19 do not average to region 18. Two directional conventions are
+  established by test rather than assumed — the symmetric registration's
+  midpoint fields, and the image/grid axis-order bridge — since both produce a
+  plausible parcellation when reversed.
+
+- [patch] Expand the tractography book with a checksummed 160-volume Stanford
+  HARDI workflow that fits the full human acquisition, creates 9,737
+  streamlines, builds and publishes an 84-region endpoint connectome with
+  2,350 assigned streamlines, and checks spatial alignment, exact accounting,
+  and matrix symmetry. Accept FSL unit-vector rounding only within its derived
+  six-decimal error envelope.
 
 - [major] Repair SimpleITK parity for the Python thin-plate-spline and
   iterative displacement-field inverters. NumPy `[Z,Y,X]` constructors now

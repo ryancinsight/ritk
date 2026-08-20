@@ -21,7 +21,7 @@
 
 use ritk_spatial::{Point, Vector};
 
-use crate::dti::decompose_3x3_symmetric_unchecked;
+use crate::dti::symmetric_eigen;
 
 use super::{DiffusionMaps, DiffusionMapsError};
 #[cfg(test)]
@@ -227,12 +227,12 @@ impl DtiVolume {
             return None;
         }
 
-        let (eigenvalues, principal) = decompose_3x3_symmetric_unchecked(dyadic);
-        let dominant = eigenvalues[0] - eigenvalues[1];
-        if dominant <= eigenvalues[0].abs() * DEGENERATE_EIGENVALUE_GAP {
+        let eigen = symmetric_eigen(dyadic);
+        let dominant = eigen.values[0] - eigen.values[1];
+        if dominant <= eigen.values[0].abs() * DEGENERATE_EIGENVALUE_GAP {
             return None;
         }
-        Some(principal)
+        Some(eigen.vectors[0])
     }
 
     /// Flat voxel offset for an index, or `None` when it falls outside the grid.

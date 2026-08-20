@@ -8,6 +8,35 @@
 
 # RITK Gap Audit - Active
 
+## DOC-HUMAN-CONNECTOME audit (2026-08-19)
+
+- Finding: the prior human diffusion example fitted only a bounded slab,
+  rendered no regional connectivity, and treated FSL `(column, row, depth)`
+  vector components as the image library's `[depth, row, column]` index axes.
+  The visual output therefore could not substantiate a whole-brain
+  tractography or connectomics result, and the axis mismatch shortened and
+  misdirected the displayed tracks.
+- Resolution: use the checksummed Stanford HARDI acquisition and aligned
+  reduced FreeSurfer parcellation, fit the complete tensor volume, reorder FSL
+  directions once at the scheme-to-image boundary, track deterministic
+  bidirectional streamlines from cerebral white matter, assign endpoints to
+  image-present grey-matter labels, and emit one inspected three-panel SVG plus
+  the complete JSON matrix. The book states the acquisition limitations and
+  separates reproducibility/accounting checks from anatomical or clinical
+  validation.
+- Evidence: 222,880 fitted voxels produce 9,737 streamlines with 70.0 mm median
+  physical length. Exact endpoint accounting is
+  `9,737 = 7,387 + 355 + 1,995`; 2,350 assigned streamlines equal the symmetric
+  matrix weight over 84 present regions and 368 non-zero undirected edges.
+  Six example tests and 29 diffusion-scheme tests pass, warning-denied Clippy
+  passes for both targets, and the corrected rasterized figure was inspected.
+  This establishes the implemented data and coordinate contracts, not a
+  biological axon count or population-level result.
+- Residual: `DiffusionMaps` does not retain `GradientFrame`, so reusable
+  `DtiVolume` and CLI callers cannot enforce this conversion themselves.
+  `FIX-DTI-VOLUME-FRAME` owns that architectural correction; the book example
+  performs and tests the required permutation explicitly until it lands.
+
 ## BUILD-BLOCK-MATCHING-LOCK audit (2026-08-19)
 
 - Finding: merge `03809904` registered `crates/ritk-block-matching` as a

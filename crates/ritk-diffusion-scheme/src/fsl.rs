@@ -6,6 +6,23 @@ use crate::{
     DiffusionWeighting, GradientDirection, GradientFrame, GradientScheme, GradientSchemeError,
 };
 
+/// Maximum unit-norm error introduced by five-decimal FSL sidecars.
+///
+/// Each of three components may be rounded by at most `0.5e-5`, so the
+/// Euclidean perturbation is bounded by `sqrt(3) * 0.5e-5 < 1e-5`.
+///
+/// Five decimals rather than six because that is what the sidecars in the wild
+/// carry: the Stanford HARDI scheme's worst direction has a norm error of
+/// `7.7e-6`, which is inside this bound and an order of magnitude outside the
+/// `sqrt(3) * 0.5e-6 < 1e-6` a six-decimal file would give. A six-decimal
+/// sidecar is therefore admitted too, with a wide margin.
+///
+/// Public because it is part of [`read_fsl_scheme`]'s contract: it is the line
+/// between a direction the reader silently renormalises and one it rejects as
+/// materially non-unit, which a caller writing or validating a sidecar needs to
+/// know rather than discover.
+pub const FSL_UNIT_ROUNDING_TOLERANCE: f64 = 1.0e-5;
+
 /// Parse whitespace-separated FSL b-values in s/mm².
 ///
 /// # Errors
@@ -90,6 +107,12 @@ pub fn parse_fsl_bvec(contents: &str) -> Result<Vec<Vector<3>>, GradientSchemeEr
 ///
 /// The returned directions use [`GradientFrame::ImageAxis`].
 ///
+/// FSL sidecars commonly store five or six decimal places, which leaves a
+/// written direction fractionally off unit length. A weighted direction whose norm
+/// differs from one by at most [`FSL_UNIT_ROUNDING_TOLERANCE`] is normalised
+/// before construction; this removes the textual rounding error without
+/// accepting a materially non-unit vector, which stays an error.
+///
 /// # Errors
 ///
 /// Returns the first parse, count, weighting, or direction validation error.
@@ -110,6 +133,15 @@ pub fn read_fsl_scheme(
         .zip(directions)
         .enumerate()
         .map(|(index, (weighting, direction))| {
+            let norm = direction.norm();
+            let direction = if !weighting.is_unweighted()
+                && norm > 0.0
+                && (norm - 1.0).abs() <= FSL_UNIT_ROUNDING_TOLERANCE
+            {
+                direction / norm
+            } else {
+                direction
+            };
             GradientDirection::at_index(weighting, direction, index)
         })
         .collect::<Result<Vec<_>, _>>()?;

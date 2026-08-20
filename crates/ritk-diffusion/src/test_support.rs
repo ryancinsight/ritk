@@ -6,8 +6,19 @@
 //! needs the same two things, and a second copy would be free to drift from the
 //! first.
 
+use rand::{Rng, SeedableRng, rngs::StdRng};
 use ritk_diffusion_scheme::{DiffusionWeighting, GradientDirection, GradientFrame, GradientScheme};
 use ritk_spatial::Vector;
+
+/// A reproducible generator for the noise realisations a fitting test compares
+/// estimators over.
+///
+/// Seeded explicitly so a failure is replayable: comparing two estimators over
+/// random noise is only evidence if both saw the same noise, and only
+/// actionable if the run that failed can be run again.
+pub(crate) fn seeded_rng(seed: u64) -> StdRng {
+    StdRng::seed_from_u64(seed)
+}
 
 /// A diffusion weighting in s/mm².
 pub(crate) fn weighting(value: f64) -> DiffusionWeighting {
@@ -84,4 +95,62 @@ pub(crate) fn dti_signal(scheme: &GradientScheme, tensor_elements: [f64; 6], s0:
             s0 * (-b * q).exp()
         })
         .collect()
+}
+
+/// Add Rician noise of scale `sigma` to a magnitude series.
+///
+/// MRI magnitude images are Rician, not Gaussian: the reconstruction takes the
+/// modulus of a complex pair whose real and imaginary channels each carry
+/// independent Gaussian noise of the same scale, so
+/// `S_noisy = √((S + n₁)² + n₂²)`. The distinction matters for a fitting test —
+/// the modulus is strictly positive, so noise biases low signals *upward*
+/// rather than averaging out, and an estimator can only be judged against the
+/// noise it will actually meet.
+///
+/// `sigma` is the per-channel Gaussian scale in signal units; an acquisition's
+/// nominal SNR is `S₀ / sigma`.
+pub(crate) fn add_rician_noise(signals: &[f64], sigma: f64, rng: &mut StdRng) -> Vec<f64> {
+    signals
+        .iter()
+        .map(|signal| {
+            let real = signal + sigma * standard_normal(rng);
+            let imaginary = sigma * standard_normal(rng);
+            real.hypot(imaginary)
+        })
+        .collect()
+}
+
+/// One standard normal sample by the Box-Muller transform.
+///
+/// The uniform is drawn on `(0, 1]` rather than `[0, 1)` because the transform
+/// takes its logarithm, which is unbounded at zero.
+fn standard_normal(rng: &mut StdRng) -> f64 {
+    let uniform = 1.0 - rng.random::<f64>();
+    let angle = std::f64::consts::TAU * rng.random::<f64>();
+    (-2.0 * uniform.ln()).sqrt() * angle.cos()
+}
+
+/// Root-mean-square error of a sample against a known truth.
+pub(crate) fn rmse(estimates: &[f64], truth: f64) -> f64 {
+    #[expect(
+        clippy::cast_precision_loss,
+        reason = "trial counts are small integers"
+    )]
+    let count = estimates.len() as f64;
+    let sum: f64 = estimates
+        .iter()
+        .map(|value| (value - truth) * (value - truth))
+        .sum();
+    (sum / count).sqrt()
+}
+
+/// Mean of a sample — the estimator's bias against a known truth is
+/// `mean(estimates) − truth`.
+pub(crate) fn mean(values: &[f64]) -> f64 {
+    #[expect(
+        clippy::cast_precision_loss,
+        reason = "trial counts are small integers"
+    )]
+    let count = values.len() as f64;
+    values.iter().sum::<f64>() / count
 }
