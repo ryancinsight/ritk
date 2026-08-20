@@ -15,6 +15,9 @@
   MRtrix directions now reach reusable and CLI tractography in
   `[depth,row,column]` order without an example-local adapter; LPS maps fail
   explicitly because physical-to-index conversion requires image geometry.
+  PR #198 merged at `2d159850636a6539db61109533f399d31cc7c6f4`; exact post-
+  merge CI `32387951529`, Python CI `32387951635`, and Deploy mdBook
+  `32387952289` all pass.
 
 - Refresh the Pages caller to the current Atlas reusable workflow revision
   while retaining the existing book output contract. PR #196 merged at
