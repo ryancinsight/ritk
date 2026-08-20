@@ -115,11 +115,12 @@ fn fsl_parser_rejects_non_finite_weighting() {
 }
 
 #[test]
-fn fsl_parser_normalizes_six_decimal_direction_rounding() {
-    // Stanford HARDI direction 41 has the largest observed rounding error:
-    // norm 0.9999922788701922, within sqrt(3) * 0.5e-5.
+fn fsl_parser_normalizes_five_decimal_direction_rounding() {
+    // Stanford HARDI direction 41, written to five decimals, has the largest
+    // observed rounding error: norm 0.9999922788701922, an error of 7.7e-6 —
+    // inside sqrt(3) * 0.5e-5 and well outside what six decimals would give.
     let scheme = read_fsl_scheme("2000", "0.52236\n0.69589\n-0.49281")
-        .expect("six-decimal FSL rounding is admissible");
+        .expect("five-decimal FSL rounding is admissible");
     let norm = scheme.directions()[0].direction().norm();
     assert!((norm - 1.0).abs() < f64::EPSILON * 4.0, "norm is {norm}");
 }
@@ -127,7 +128,7 @@ fn fsl_parser_normalizes_six_decimal_direction_rounding() {
 #[test]
 fn fsl_parser_rejects_direction_outside_rounding_bound() {
     let error = read_fsl_scheme("2000", "0.99998\n0\n0")
-        .expect_err("a norm error larger than six-decimal rounding must fail");
+        .expect_err("a norm error larger than five-decimal rounding must fail");
     assert!(matches!(
         error,
         GradientSchemeError::InvalidDirection { index: 0, .. }

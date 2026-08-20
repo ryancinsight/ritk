@@ -39,6 +39,7 @@ use crate::ParcellationError;
 /// describe a volume — a zero extent, a non-finite or zero spacing, or a
 /// direction matrix that is not invertible.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+#[serde(try_from = "GridRepr")]
 pub struct ParcellationGrid {
     shape: [usize; 3],
     spacing: [f64; 3],
@@ -51,7 +52,35 @@ pub struct ParcellationGrid {
     /// Cached because the inverse is what every lookup needs and the forward
     /// form is what every file format supplies; recomputing it per query would
     /// put a 3×3 inversion inside the per-streamline path.
+    ///
+    /// Never read from a decoded document — see [`GridRepr`].
+    #[serde(skip_serializing)]
     inverse: [f64; 9],
+}
+
+/// The grid as it crosses a serialisation boundary.
+///
+/// Deserialising a [`ParcellationGrid`] field-by-field would take the cached
+/// inverse from the document, and a document is not obliged to be consistent
+/// with itself: a hand-edited or truncated file could supply an inverse that
+/// does not invert its own direction matrix, and every lookup afterwards would
+/// return a confidently wrong voxel. Decoding through this shape instead routes
+/// the value back through [`ParcellationGrid::new`], which recomputes the
+/// inverse and rejects a geometry that cannot describe a volume.
+#[derive(Deserialize)]
+struct GridRepr {
+    shape: [usize; 3],
+    spacing: [f64; 3],
+    origin: [f64; 3],
+    direction: [f64; 9],
+}
+
+impl TryFrom<GridRepr> for ParcellationGrid {
+    type Error = ParcellationError;
+
+    fn try_from(repr: GridRepr) -> Result<Self, Self::Error> {
+        Self::new(repr.shape, repr.spacing, repr.origin, repr.direction)
+    }
 }
 
 impl ParcellationGrid {

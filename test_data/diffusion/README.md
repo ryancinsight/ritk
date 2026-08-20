@@ -93,5 +93,5 @@ cargo run --release -p ritk-diffusion --example book_brain_tractography
 ```
 
 The example writes `docs/book/figures/brain_tractography.svg` and the complete
-upper-triangular streamline-count matrix at
+symmetric streamline-count matrix at
 `docs/book/figures/brain_connectome.json`.

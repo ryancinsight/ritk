@@ -154,8 +154,12 @@ fn the_assigned_fraction_reports_the_share_that_produced_edges() {
         assigned: 40,
         intra_region: 35,
         unassigned: 25,
-        degenerate: 3,
     };
+    assert_eq!(
+        accounting.assigned + accounting.intra_region + accounting.unassigned,
+        accounting.total,
+        "the three outcomes must partition the supplied streamlines"
+    );
     assert!((accounting.assigned_fraction() - 0.4).abs() < 1.0e-12);
 }
 
@@ -178,4 +182,41 @@ fn a_json_round_trip_preserves_weights_and_accounting() {
             );
         }
     }
+}
+
+// ── Decoded matrices are checked, not trusted ────────────────────────────
+
+/// `from_json` is reachable from any caller reading a file it did not write, so
+/// a document that breaks a storage invariant must be refused rather than
+/// producing a value whose first row access panics.
+#[test]
+fn a_document_whose_weights_do_not_cover_the_regions_is_rejected() {
+    let encoded = two_modules().to_json().expect("serialise");
+    let truncated = encoded.replace("\"weights\":[", "\"weights\":[0.0,0.0,0.0],\"unused\":[");
+    assert_ne!(truncated, encoded, "the fixture must have been edited");
+
+    let error = ConnectivityMatrix::from_json(&truncated).unwrap_err();
+    assert!(
+        error
+            .to_string()
+            .contains("does not cover every region pair")
+            || error.to_string().contains("JSON error"),
+        "expected a rejection, got {error}"
+    );
+}
+
+/// Unsorted labels do not panic — they silently answer with the wrong region,
+/// which is worse, so they are refused at the boundary.
+#[test]
+fn a_document_with_unsorted_labels_is_rejected() {
+    let matrix = matrix_from_edges(3, &[(0, 1, 1.0), (1, 2, 1.0)]);
+    let encoded = matrix.to_json().expect("serialise");
+    let scrambled = encoded.replace("\"labels\":[0,1,2]", "\"labels\":[2,0,1]");
+    assert_ne!(scrambled, encoded, "the fixture must have been edited");
+
+    let error = ConnectivityMatrix::from_json(&scrambled).unwrap_err();
+    assert!(
+        error.to_string().contains("not sorted"),
+        "expected the ordering rejection, got {error}"
+    );
 }

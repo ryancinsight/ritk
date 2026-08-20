@@ -248,3 +248,50 @@ fn the_neighbourhood_is_clipped_at_the_volume_boundary() {
         .expect("the corner voxel is labelled");
     assert_eq!(found.index, [0, 0, 0]);
 }
+
+/// A point off the centre of its voxel, with labels on both sides at different
+/// true distances but the same offset distance.
+#[test]
+fn probe_off_centre_returns_the_truly_nearest_label() {
+    let mut labels = vec![BACKGROUND; 3];
+    labels[0] = 7; // voxel centre at x = 0
+    labels[2] = 9; // voxel centre at x = 2
+    let grid = ParcellationGrid::axis_aligned([3, 1, 1], [1.0; 3], [0.0; 3]).expect("valid grid");
+    let parcellation =
+        Parcellation::new(labels.into_boxed_slice(), grid, Vec::new()).expect("valid parcellation");
+
+    // The point sits in the middle voxel but well towards region 9.
+    let probe = Point::new([1.4, 0.0, 0.0]);
+    let found = search(&parcellation, 2.0)
+        .find(&parcellation, &probe)
+        .expect("a label within 2 mm");
+    assert_eq!(
+        found.label, 9,
+        "region 9 is 0.6 mm away and region 7 is 1.4 mm; got {found:?}"
+    );
+}
+
+/// A voxel within the radius of the *point* but further than the radius from
+/// the containing voxel's *centre* must still be found.
+///
+/// Enumerating offsets only out to the radius would never consider it: the two
+/// measurements differ by how far the point sits from its own voxel's centre,
+/// so the neighbourhood has to reach half a voxel diagonal further than the
+/// radius it serves.
+#[test]
+fn a_label_inside_the_radius_of_the_point_is_found_past_the_centres_radius() {
+    let mut labels = vec![BACKGROUND; 3];
+    labels[1] = 5; // voxel centre at x = 1
+    let grid = ParcellationGrid::axis_aligned([3, 1, 1], [1.0; 3], [0.0; 3]).expect("valid grid");
+    let parcellation =
+        Parcellation::new(labels.into_boxed_slice(), grid, Vec::new()).expect("valid parcellation");
+
+    // The point is in voxel 0, 0.6 mm from the label — inside a 0.7 mm radius —
+    // while the two voxel centres are 1.0 mm apart, outside it.
+    let probe = Point::new([0.4, 0.0, 0.0]);
+    let found = search(&parcellation, 0.7)
+        .find(&parcellation, &probe)
+        .expect("the label is 0.6 mm from the point");
+    assert_eq!(found.label, 5);
+    assert!((found.distance - 0.6).abs() < 1.0e-12, "{found:?}");
+}

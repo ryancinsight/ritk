@@ -70,7 +70,7 @@ pub enum ParcellationError {
         reason: &'static str,
     },
     /// The label array does not cover the grid.
-    #[error("grid of {expected} voxels needs {expected} labels, got {actual}")]
+    #[error("grid declares {expected} voxels but {actual} labels were supplied")]
     LabelCountMismatch {
         /// Voxels the grid declares.
         expected: usize,
@@ -91,8 +91,11 @@ pub enum ParcellationError {
 /// A labelled anatomical volume.
 ///
 /// Labels are stored z-major — index `[ix, iy, iz]` at offset
-/// `iz·ny·nx + iy·nx + ix` — matching the layout every volumetric format writes.
+/// `iz·ny·nx + iy·nx + ix`. This is the crate's own contract: NIfTI, NRRD, and
+/// MetaImage happen to store volumes this way, but a format that does not
+/// converts at the I/O boundary rather than here.
 #[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(try_from = "ParcellationRepr")]
 pub struct Parcellation {
     labels: Box<[u32]>,
     grid: ParcellationGrid,
@@ -102,8 +105,39 @@ pub struct Parcellation {
     /// Sorted, deduplicated non-background labels.
     ///
     /// Held rather than recomputed because every region-wise operation needs it
-    /// and deriving it is a full pass over the volume.
+    /// and deriving it is a full pass over the volume. Never read from a decoded
+    /// document — see [`ParcellationRepr`].
+    #[serde(skip_serializing)]
     region_labels: Box<[u32]>,
+}
+
+/// The parcellation as it crosses a serialisation boundary.
+///
+/// A derived `Deserialize` would take every field from the document, including
+/// the two the constructor exists to establish. A payload whose `labels` are
+/// shorter than the grid it declares would then panic on the first lookup, and
+/// one whose `region_labels` disagree with its `labels` would answer
+/// [`Parcellation::contains_region`] and [`Parcellation::region_statistics`]
+/// from a list that describes a different volume — neither of which is a
+/// corrupt *file* so much as a value the type says cannot exist.
+///
+/// Decoding through this shape routes the value back through
+/// [`Parcellation::new`], so a document gets exactly the checks a caller does.
+/// The derived list is recomputed rather than read, which also keeps it off the
+/// wire.
+#[derive(Deserialize)]
+struct ParcellationRepr {
+    labels: Box<[u32]>,
+    grid: ParcellationGrid,
+    region_names: Vec<(u32, String)>,
+}
+
+impl TryFrom<ParcellationRepr> for Parcellation {
+    type Error = ParcellationError;
+
+    fn try_from(repr: ParcellationRepr) -> Result<Self, Self::Error> {
+        Self::new(repr.labels, repr.grid, repr.region_names)
+    }
 }
 
 impl Parcellation {

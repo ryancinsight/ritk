@@ -61,7 +61,8 @@ pub struct NearestLabel {
 /// endpoint; a whole-brain tractogram runs this a million times.
 #[derive(Debug, Clone)]
 pub struct NearestLabelSearch {
-    /// Index offsets and their physical distances, ascending by distance.
+    /// Index offsets and the physical distance between the centres they join,
+    /// ascending by that distance.
     offsets: Box<[([isize; 3], f64)]>,
     radius: f64,
 }
@@ -69,8 +70,8 @@ pub struct NearestLabelSearch {
 impl NearestLabelSearch {
     /// Prepare a search over `grid` out to `radius` millimetres.
     ///
-    /// A radius of zero prepares the degenerate search that only ever inspects
-    /// the voxel under the point, which is the exact endpoint lookup.
+    /// A radius of zero prepares the degenerate search that inspects only the
+    /// voxel containing the point, which is the exact endpoint lookup.
     ///
     /// # Errors
     ///
@@ -80,7 +81,15 @@ impl NearestLabelSearch {
         if !radius.is_finite() || radius < 0.0 {
             return Err(ParcellationError::InvalidRadius { value: radius });
         }
-        let bounds = grid.index_radius_bounds(radius);
+
+        // Offsets are enumerated between voxel *centres*, but the radius is
+        // measured from the query point, which sits anywhere inside its voxel.
+        // The two differ by up to half a voxel diagonal, so the enumeration
+        // reaches that much further than the radius — otherwise a voxel whose
+        // centre is genuinely within the radius of the point, but more than
+        // `radius` from the containing voxel's centre, is never even considered.
+        let reach = radius + half_voxel_diagonal(grid);
+        let bounds = grid.index_radius_bounds(reach);
         let mut offsets = Vec::new();
 
         #[expect(
@@ -94,9 +103,8 @@ impl NearestLabelSearch {
                     // The offset's physical length is measured through the grid's
                     // own affine, so an anisotropic or oblique volume gets true
                     // millimetres rather than a voxel count wearing a mm label.
-                    let displacement = grid.physical_displacement_of([dx, dy, dz]);
-                    let distance = displacement.sqrt();
-                    if distance <= radius {
+                    let distance = grid.physical_displacement_of([dx, dy, dz]).sqrt();
+                    if distance <= reach {
                         offsets.push(([dx, dy, dz], distance));
                     }
                 }
@@ -122,25 +130,50 @@ impl NearestLabelSearch {
         self.offsets.len()
     }
 
-    /// The nearest labelled voxel to `point` within the radius.
+    /// The nearest labelled voxel to `point`.
+    ///
+    /// A voxel qualifies when its centre lies within the radius of `point`. The
+    /// voxel *containing* the point always qualifies, whatever the radius —
+    /// otherwise a zero radius would admit nothing at all, since a point is
+    /// rarely exactly on a voxel centre.
     ///
     /// Returns `None` when the point is not finite, falls outside the grid, or
-    /// has no labelled voxel within the radius.
+    /// has no qualifying labelled voxel.
     ///
-    /// The search is centred on the voxel containing the point, and offsets are
-    /// visited nearest-first, so the first labelled voxel found is the nearest
-    /// one. Ties between equidistant voxels resolve to whichever the enumeration
+    /// # Why this is not simply the first hit in offset order
+    ///
+    /// The offsets are ordered by the distance between voxel *centres*, but what
+    /// is reported and compared is the distance from the *point*, which sits
+    /// anywhere inside its voxel. The two orders disagree by up to half a voxel
+    /// diagonal, so the first labelled voxel encountered can be further from the
+    /// point than one reached later — and for an endpoint near a parcel
+    /// boundary, that is the difference between the parcel it is in and the one
+    /// across the border.
+    ///
+    /// So every candidate is scored and the best kept. The walk still stops
+    /// early: a candidate at centre-distance `c` is at least `c − drift` from
+    /// the point, where `drift` is how far the point sits from its own voxel's
+    /// centre, so once `c − drift` exceeds the best distance found, nothing
+    /// further can improve on it.
+    ///
+    /// Ties between equidistant voxels resolve to whichever the enumeration
     /// reached first, which is deterministic for a given grid and radius but
     /// carries no anatomical meaning — an endpoint exactly equidistant from two
     /// parcels is genuinely ambiguous.
     #[must_use]
     pub fn find(&self, parcellation: &Parcellation, point: &Point<3>) -> Option<NearestLabel> {
-        let centre = parcellation.grid().voxel_of(point)?;
-        // Distances are measured from the point itself, not from the centre
-        // voxel, so the reported distance is the real one; the offsets' own
-        // distances only order the walk.
-        let shape = parcellation.grid().shape();
-        for (offset, _) in &self.offsets {
+        let grid = parcellation.grid();
+        let centre = grid.voxel_of(point)?;
+        let drift = euclidean_distance(point, &grid.physical_point_of(centre));
+        let shape = grid.shape();
+
+        let mut best: Option<NearestLabel> = None;
+        for (offset, centre_distance) in &self.offsets {
+            if let Some(found) = &best
+                && centre_distance - drift > found.distance
+            {
+                break;
+            }
             let Some(index) = shifted_index(centre, *offset, shape) else {
                 continue;
             };
@@ -150,24 +183,31 @@ impl NearestLabelSearch {
             if label == BACKGROUND {
                 continue;
             }
-            let centre_point = parcellation.grid().physical_point_of(index);
-            let distance = euclidean_distance(point, &centre_point);
-            if distance > self.radius {
-                // Reachable when the query sits off-centre inside its voxel: the
-                // offset was within the radius of the voxel centre but this
-                // point is not. Skipping rather than stopping is deliberate,
-                // since a nearer labelled voxel may still lie further along in
-                // offset order.
+            let distance = euclidean_distance(point, &grid.physical_point_of(index));
+            let containing = *offset == [0; 3];
+            if !containing && distance > self.radius {
                 continue;
             }
-            return Some(NearestLabel {
-                label,
-                index,
-                distance,
-            });
+            if best.as_ref().is_none_or(|found| distance < found.distance) {
+                best = Some(NearestLabel {
+                    label,
+                    index,
+                    distance,
+                });
+            }
         }
-        None
+        best
     }
+}
+
+/// Half the distance across a voxel, corner to corner, in mm.
+///
+/// The most a query point can sit from the centre of the voxel containing it,
+/// and therefore the gap between the centre-to-centre order the offsets are
+/// enumerated in and the point-to-centre distances [`NearestLabelSearch::find`]
+/// compares.
+fn half_voxel_diagonal(grid: &ParcellationGrid) -> f64 {
+    0.5 * grid.physical_displacement_of([1, 1, 1]).sqrt()
 }
 
 /// Apply an offset to a voxel index, or `None` when it leaves the grid.

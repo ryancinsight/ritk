@@ -83,6 +83,14 @@ pub enum ConnectomeError {
         /// Region count that was attempted.
         regions: usize,
     },
+    /// A decoded matrix violates a storage invariant.
+    #[error("malformed connectome over {regions} regions: {reason}")]
+    MalformedMatrix {
+        /// Which invariant the document broke.
+        reason: &'static str,
+        /// Region count the document declared.
+        regions: usize,
+    },
     /// JSON serialisation or deserialisation failed.
     #[error("JSON error: {0}")]
     Json(#[from] serde_json::Error),
@@ -107,7 +115,10 @@ pub struct ConnectivityEdge {
 /// and nothing in the weights themselves distinguishes the two.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Default, Serialize, Deserialize)]
 pub struct StreamlineAccounting {
-    /// Streamlines considered — those with at least two points.
+    /// Streamlines supplied.
+    ///
+    /// The three fields below partition this exactly:
+    /// `assigned + intra_region + unassigned == total`.
     pub total: usize,
     /// Streamlines that produced an inter-region edge.
     pub assigned: usize,
@@ -115,13 +126,14 @@ pub struct StreamlineAccounting {
     pub intra_region: usize,
     /// Streamlines with at least one endpoint no region could be found for.
     pub unassigned: usize,
-    /// Streamlines rejected for having fewer than two points.
-    pub degenerate: usize,
 }
 
 impl StreamlineAccounting {
-    /// Fraction of considered streamlines that produced an inter-region edge,
+    /// Fraction of the supplied streamlines that produced an inter-region edge,
     /// in `[0, 1]`.
+    ///
+    /// The denominator is every streamline handed in, so the figure answers how
+    /// much of the tractogram became a connectome.
     ///
     /// Returns zero for an empty tractogram.
     #[must_use]
@@ -154,6 +166,7 @@ impl StreamlineAccounting {
 /// density, and every path-based measure, where a self-loop is not a connection
 /// between two nodes.
 #[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(try_from = "MatrixRepr")]
 pub struct ConnectivityMatrix {
     /// Region labels, sorted; matrix index `i` is region `labels[i]`.
     labels: Box<[u32]>,
@@ -161,6 +174,53 @@ pub struct ConnectivityMatrix {
     weights: Box<[f64]>,
     accounting: StreamlineAccounting,
     weighting: EdgeWeighting,
+}
+
+/// The matrix as it crosses a serialisation boundary.
+///
+/// The two storage invariants — sorted labels, and a weight array covering
+/// every region pair — are established by the builder and asserted only in
+/// debug, which is right for a private constructor the crate controls. A
+/// derived `Deserialize` is not that: [`ConnectivityMatrix::from_json`] is
+/// reachable from any caller reading a file it did not write, and a document
+/// whose `weights` are shorter than `labels.len()²` makes
+/// [`ConnectivityMatrix::row`] panic on an out-of-range slice, while unsorted
+/// labels make [`ConnectivityMatrix::index_of`] return the wrong region without
+/// failing at all.
+///
+/// Decoding through this shape checks both before the value exists.
+#[derive(Deserialize)]
+struct MatrixRepr {
+    labels: Box<[u32]>,
+    weights: Box<[f64]>,
+    accounting: StreamlineAccounting,
+    weighting: EdgeWeighting,
+}
+
+impl TryFrom<MatrixRepr> for ConnectivityMatrix {
+    type Error = ConnectomeError;
+
+    fn try_from(repr: MatrixRepr) -> Result<Self, Self::Error> {
+        let regions = repr.labels.len();
+        if repr.weights.len() != regions * regions {
+            return Err(ConnectomeError::MalformedMatrix {
+                reason: "the weight array does not cover every region pair",
+                regions,
+            });
+        }
+        if !repr.labels.is_sorted() {
+            return Err(ConnectomeError::MalformedMatrix {
+                reason: "region labels are not sorted, so they cannot index the matrix",
+                regions,
+            });
+        }
+        Ok(Self {
+            labels: repr.labels,
+            weights: repr.weights,
+            accounting: repr.accounting,
+            weighting: repr.weighting,
+        })
+    }
 }
 
 impl ConnectivityMatrix {

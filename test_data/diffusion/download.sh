@@ -162,10 +162,28 @@ fetch_checked_file() {
     echo "  fetched $(basename "${dest}") (MD5 ${expected_md5})"
 }
 
+# Copy a file the downstream commands cannot run without.
+#
+# Suppressing a failure here would let the script report success while leaving
+# the next command to read a missing or stale gradient table — which fails much
+# later, somewhere that says nothing about the download.
+copy_required() {
+    local source="$1"
+    local dest="$2"
+    if [ ! -f "${source}" ]; then
+        echo "error: required input missing: ${source}" >&2
+        exit 1
+    fi
+    cp -f "${source}" "${dest}"
+}
+
 echo "ds002087 sub-01 DWI volume (~55 MB):"
 fetch_volume     "https://s3.amazonaws.com/openneuro.org/ds002087/sub-01/dwi/sub-01_run-1_dwi.nii.gz"     "${ROOT}/sub-01_dwi.nii.gz"
-cp -f "${ROOT}/ds002087_repo/sub-01/dwi/sub-01_run-1_dwi.bval" "${ROOT}/sub-01_dwi.bval" 2>/dev/null || true
-cp -f "${ROOT}/ds002087_repo/sub-01/dwi/sub-01_run-1_dwi.bvec" "${ROOT}/sub-01_dwi.bvec" 2>/dev/null || true
+copy_required "${ROOT}/ds002087_repo/sub-01/dwi/sub-01_run-1_dwi.bval" "${ROOT}/sub-01_dwi.bval"
+copy_required "${ROOT}/ds002087_repo/sub-01/dwi/sub-01_run-1_dwi.bvec" "${ROOT}/sub-01_dwi.bvec"
+# Seeding the repo checkout with the downloaded volume is a convenience for a
+# later BIDS-shaped read; nothing depends on it, so a missing target is not an
+# error.
 cp -f "${ROOT}/sub-01_dwi.nii.gz" "${ROOT}/ds002087_repo/sub-01/dwi/sub-01_run-1_dwi.nii.gz" 2>/dev/null || true
 echo ""
 

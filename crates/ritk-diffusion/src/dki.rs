@@ -96,6 +96,17 @@ pub enum KtiError {
     /// The Levenberg-Marquardt solver could not proceed.
     #[error("Levenberg-Marquardt solver error: {0}")]
     SolverFailed(String),
+    /// The refined diffusion tensor is not positive-definite.
+    ///
+    /// The refinement is unconstrained, so it can leave the diffusion part of
+    /// the joint fit describing water that concentrates rather than spreads.
+    #[error("refined diffusion eigenvalue {index} = {value} is not positive")]
+    NonPositiveDiffusionEigenvalue {
+        /// Eigenvalue index (0, 1, 2).
+        index: usize,
+        /// The invalid eigenvalue.
+        value: f64,
+    },
 }
 
 // ── Multiplicity table for the 15-element kurtosis tensor ─────────────────────
@@ -652,9 +663,14 @@ pub fn estimate_dki(
         report.parameters[20],
     ];
 
-    // Use DTI's eigendecomposition for the final D tensor (the LM refinement
-    // is typically small and using the DTI decomposition is safe).
-    let eigen = dti::diffusion_eigen_infallible(elements_d);
+    // The initial DTI fit was positive-definite, but the Levenberg-Marquardt
+    // refinement that follows is unconstrained: it optimises the joint diffusion
+    // and kurtosis parameters against the signal and can leave the diffusion
+    // part with a non-positive eigenvalue. That is a fit that did not converge
+    // to a measurement, and a voxel's data can produce it, so it is returned as
+    // an error rather than raised as a panic.
+    let eigen = dti::diffusion_eigen(elements_d)
+        .map_err(|(index, value)| KtiError::NonPositiveDiffusionEigenvalue { index, value })?;
     let eigenvalues = eigen.values;
     let principal_eigenvector = eigen.vectors[0];
 

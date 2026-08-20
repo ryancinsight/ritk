@@ -48,7 +48,7 @@ pub struct ConnectomeArgs {
     /// cortical parcellation labels only grey matter. A few millimetres
     /// recovers those; too many reach across a sulcus into a parcel no fibre
     /// entered.
-    #[arg(long, default_value_t = 2.0)]
+    #[arg(long, default_value_t = 2.0, value_parser = parse_radius)]
     pub assignment_radius: f64,
 
     /// What an edge weight counts.
@@ -62,6 +62,23 @@ pub struct ConnectomeArgs {
     /// Graph measures output (JSON). Omit to skip computing them.
     #[arg(long)]
     pub measures: Option<PathBuf>,
+}
+
+/// Parse a search radius, rejecting anything that is not a usable distance.
+///
+/// Clap's `value_parser` range support does not cover `f64`, and without a
+/// check a negative radius would fall through to terminal assignment — silently
+/// giving a caller who asked for a wide search the narrowest one there is.
+fn parse_radius(value: &str) -> Result<f64, String> {
+    let radius: f64 = value
+        .parse()
+        .map_err(|_| format!("`{value}` is not a number"))?;
+    if !radius.is_finite() || radius < 0.0 {
+        return Err(format!(
+            "assignment radius must be finite and nonnegative, got `{value}`"
+        ));
+    }
+    Ok(radius)
 }
 
 /// Edge weighting, as a command-line choice.

@@ -193,17 +193,13 @@ pub fn build_connectivity_matrix(
     let mut accounting = StreamlineAccounting::default();
 
     for streamline in streamlines {
-        let points = streamline.points();
-        let (Some(first), Some(last)) = (points.first(), points.last()) else {
-            accounting.degenerate += 1;
-            continue;
-        };
-        if points.len() < 2 {
-            accounting.degenerate += 1;
-            continue;
-        }
         accounting.total += 1;
 
+        // A Polyline cannot hold fewer than two finite points — its constructor
+        // rejects that — so there is no short or empty streamline to screen out
+        // here, and the endpoints are always available. The three outcomes below
+        // therefore partition the input exactly.
+        let (first, last) = (streamline.first(), streamline.last());
         let start = Point::new([first.x, first.y, first.z]);
         let end = Point::new([last.x, last.y, last.z]);
         let (Some(source), Some(target)) = (

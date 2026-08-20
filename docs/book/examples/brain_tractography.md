@@ -90,9 +90,12 @@ endpoint policy:
 | left superior parietal | left thalamus proper | 39 |
 | left superior parietal | right precuneus | 38 |
 
-The complete JSON preserves all 84 labels, the upper-triangular 84 × 84 weight
-array, and the total, skipped, and same-region counts. A table entry is a
-streamline count, not an axon count, connection probability, or effect size.
+The complete JSON preserves all 84 labels, the fully symmetric 84 × 84 weight
+array — both `(i, j)` and `(j, i)` carry the weight — and the streamline
+accounting: how many were supplied, how many produced an inter-region edge, how
+many stayed within one region, and how many could not be assigned. A table entry
+is a streamline count, not an axon count, connection probability, or effect
+size.
 
 ## Reading the figure
 

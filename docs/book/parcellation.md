@@ -49,7 +49,9 @@ let grid = ParcellationGrid::axis_aligned([256, 256, 128], [1.0, 1.0, 1.5], [0.0
 ```
 
 Labels are stored z-major — index `[ix, iy, iz]` at offset
-`iz·ny·nx + iy·nx + ix` — matching the layout every volumetric format writes.
+`iz·ny·nx + iy·nx + ix`. That is this crate's contract, not a universal one:
+NIfTI, NRRD, and MetaImage store volumes in this order, but a format that does
+not converts at the I/O boundary rather than here.
 
 ## Construction and lookup
 
@@ -128,10 +130,16 @@ and leaves the white matter background. The endpoint lands in a region-less
 voxel and the streamline is dropped despite ending exactly where it should.
 
 `NearestLabelSearch` recovers those. The offsets within a radius are enumerated
-once and sorted by physical distance, so a query walks them in order and stops at
-the first labelled voxel; preparing the search separately from running it is what
-keeps a per-streamline loop from re-deriving the same neighbourhood a million
-times.
+and sorted once, so a per-streamline loop does not re-derive the same
+neighbourhood a million times.
+
+The walk does not simply return the first labelled voxel it meets. Offsets are
+ordered by the distance between voxel *centres*, while what matters is the
+distance from the *point*, which sits anywhere inside its voxel — the two differ
+by up to half a voxel diagonal. For an endpoint near a parcel boundary that is
+exactly the difference between the parcel it is in and the one across the
+border, so every candidate is scored and the nearest kept, with an early exit
+once no remaining offset can improve on the best found.
 
 ```rust,ignore
 use ritk_parcellation::NearestLabelSearch;

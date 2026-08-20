@@ -6,10 +6,16 @@ use crate::{
     DiffusionWeighting, GradientDirection, GradientFrame, GradientScheme, GradientSchemeError,
 };
 
-/// Maximum unit-norm error introduced by six-decimal FSL sidecars.
+/// Maximum unit-norm error introduced by five-decimal FSL sidecars.
 ///
 /// Each of three components may be rounded by at most `0.5e-5`, so the
 /// Euclidean perturbation is bounded by `sqrt(3) * 0.5e-5 < 1e-5`.
+///
+/// Five decimals rather than six because that is what the sidecars in the wild
+/// carry: the Stanford HARDI scheme's worst direction has a norm error of
+/// `7.7e-6`, which is inside this bound and an order of magnitude outside the
+/// `sqrt(3) * 0.5e-6 < 1e-6` a six-decimal file would give. A six-decimal
+/// sidecar is therefore admitted too, with a wide margin.
 ///
 /// Public because it is part of [`read_fsl_scheme`]'s contract: it is the line
 /// between a direction the reader silently renormalises and one it rejects as
@@ -101,8 +107,8 @@ pub fn parse_fsl_bvec(contents: &str) -> Result<Vec<Vector<3>>, GradientSchemeEr
 ///
 /// The returned directions use [`GradientFrame::ImageAxis`].
 ///
-/// FSL sidecars commonly store six decimal places, which leaves a written
-/// direction fractionally off unit length. A weighted direction whose norm
+/// FSL sidecars commonly store five or six decimal places, which leaves a
+/// written direction fractionally off unit length. A weighted direction whose norm
 /// differs from one by at most [`FSL_UNIT_ROUNDING_TOLERANCE`] is normalised
 /// before construction; this removes the textual rounding error without
 /// accepting a materially non-unit vector, which stays an error.

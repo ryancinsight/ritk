@@ -135,7 +135,12 @@ fn main() -> Result<()> {
         .map(|streamline| streamline.geometry().arc_length())
         .collect::<Vec<_>>();
     lengths.sort_by(f64::total_cmp);
-    let median_length_mm = lengths[lengths.len() / 2];
+    // A non-empty seed list does not guarantee a streamline: every seed can
+    // terminate on its first step at the anisotropy floor. Indexing the median
+    // would then panic where the neighbouring checks return a contextual error.
+    let median_length_mm = *lengths
+        .get(lengths.len() / 2)
+        .context("tracking produced no streamline, so there is no median length")?;
 
     let top_edge = connectome
         .edges()

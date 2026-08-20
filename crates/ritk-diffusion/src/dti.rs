@@ -485,21 +485,5 @@ pub(crate) fn diffusion_eigen(elements: [f64; 6]) -> Result<SymmetricEigen, (usi
     Ok(eigen)
 }
 
-/// Infallible [`diffusion_eigen`] for use after a successful fit, where a
-/// non-positive eigenvalue indicates a solver defect rather than a data error.
-///
-/// # Panics
-///
-/// Panics if any eigenvalue is not positive.
-pub(crate) fn diffusion_eigen_infallible(elements: [f64; 6]) -> SymmetricEigen {
-    match diffusion_eigen(elements) {
-        Ok(eigen) => eigen,
-        Err((index, value)) => panic!(
-            "post-fit D tensor eigenvalue {index} = {value} is not positive — \
-             this is a solver defect, not a data error"
-        ),
-    }
-}
-
 #[cfg(test)]
 mod tests;

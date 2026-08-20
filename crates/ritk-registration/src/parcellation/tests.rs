@@ -351,7 +351,7 @@ fn a_displaced_atlas_lands_its_label_on_the_subject_structure() {
     let after = dice(produced);
     assert!(
         after > before,
-        "registration must improve the label's agreement with the subject:          Dice {after:.3} after versus {before:.3} before"
+        "registration must improve the label agreement with the subject: Dice {after:.3} after versus {before:.3} before"
     );
     // The displacement here is a single voxel against a high-contrast block, so
     // the registration is expected to close it essentially completely rather

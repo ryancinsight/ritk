@@ -170,7 +170,8 @@ fn the_accounting_buckets_partition_the_tractogram() {
     assert_eq!(accounting.total, 5);
     assert_eq!(
         accounting.assigned + accounting.intra_region + accounting.unassigned,
-        accounting.total
+        accounting.total,
+        "every supplied streamline must land in exactly one bucket"
     );
     assert_eq!(accounting.assigned, 2);
     assert_eq!(accounting.intra_region, 1);

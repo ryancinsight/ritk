@@ -209,3 +209,55 @@ fn a_serde_round_trip_preserves_lookups() {
         );
     }
 }
+
+/// A decoded value must pass the same checks a constructed one does.
+///
+/// `Deserialize` is a second construction path, and a derived one skips the
+/// constructor entirely — so a document is free to declare a grid of one size
+/// and a label array of another. The value that produced would index past the
+/// end of its own labels on the first lookup.
+#[test]
+fn a_document_whose_labels_do_not_cover_its_grid_is_rejected() {
+    let encoded = serde_json::to_string(&three_region_cube()).expect("serialise");
+    // Drop the volume to three labels while the grid still declares eight.
+    let truncated = encoded.replace("\"labels\":[1,0,0,3,0,2,3,0]", "\"labels\":[1,0,3]");
+    assert_ne!(truncated, encoded, "the fixture must have been edited");
+
+    let error = serde_json::from_str::<Parcellation>(&truncated).unwrap_err();
+    assert!(
+        error.to_string().contains("labels were supplied"),
+        "expected the count-mismatch message, got {error}"
+    );
+}
+
+/// The same for a document with no labelled voxel at all.
+#[test]
+fn an_all_background_document_is_rejected() {
+    let encoded = serde_json::to_string(&three_region_cube()).expect("serialise");
+    let emptied = encoded.replace(
+        "\"labels\":[1,0,0,3,0,2,3,0]",
+        "\"labels\":[0,0,0,0,0,0,0,0]",
+    );
+    assert_ne!(emptied, encoded, "the fixture must have been edited");
+
+    let error = serde_json::from_str::<Parcellation>(&emptied).unwrap_err();
+    assert!(
+        error.to_string().contains("no labelled regions"),
+        "expected the empty-parcellation message, got {error}"
+    );
+}
+
+/// The grid's cached inverse is derived state and is recomputed on decode
+/// rather than read, so a document cannot supply one that disagrees with its
+/// own direction matrix.
+#[test]
+fn the_grid_inverse_is_not_taken_from_the_document() {
+    let encoded = serde_json::to_string(&three_region_cube()).expect("serialise");
+    assert!(
+        !encoded.contains("inverse"),
+        "derived state must stay off the wire: {encoded}"
+    );
+
+    let decoded: Parcellation = serde_json::from_str(&encoded).expect("round trip");
+    assert_eq!(decoded.label_at(&Point::new([2.0, 2.0, 0.0])), Some(3));
+}

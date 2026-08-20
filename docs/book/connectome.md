@@ -97,11 +97,15 @@ Every streamline lands in exactly one bucket, and the buckets sum to the whole:
 
 | Field | Meaning |
 |---|---|
-| `total` | Streamlines considered (at least two points) |
+| `total` | Streamlines supplied |
 | `assigned` | Produced an inter-region edge |
 | `intra_region` | Both endpoints resolved to the same region |
 | `unassigned` | At least one endpoint no region could be found for |
-| `degenerate` | Rejected for having fewer than two points |
+
+The three outcomes partition the input exactly:
+`assigned + intra_region + unassigned = total`. There is no bucket for a
+malformed streamline, because a `Polyline` cannot hold fewer than two finite
+points — its constructor refuses to build one.
 
 This is kept alongside the matrix because a connectome is not interpretable
 without it. A matrix built from a tractogram of which four fifths were discarded
