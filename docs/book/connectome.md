@@ -48,6 +48,19 @@ let config = ConnectomeConfig::new()
 let matrix = build_connectivity_matrix(&parcellation, &streamlines, &config)?;
 ```
 
+The command line and Python reach the same builder:
+
+```bash
+ritk tract connectome --tractogram tracks.tck --labels dseg.nii.gz \
+                      --output matrix.json --measures measures.json
+```
+
+```python
+matrix = ritk.connectome.build_connectivity_matrix(
+    parcellation, streamlines, assignment_radius=2.0
+)
+```
+
 ### 1. Which region does an endpoint belong to?
 
 | Assignment | Behaviour |
