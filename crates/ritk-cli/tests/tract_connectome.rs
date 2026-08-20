@@ -32,8 +32,13 @@ fn write_labels(path: &Path) {
     ritk_nifti::write_nifti_labels(
         path,
         &[1, 1, 0, 0, 0, 0, 2, 2],
-        // NIfTI shape is innermost-last, so the eight voxels lie along x.
-        [1, 1, 8],
+        // Shape is outermost-first, and an image's spatial axis 0 is its
+        // slowest-varying index — so putting the eight voxels on the first
+        // dimension is what lays them along physical x under an identity
+        // direction. Writing `[1, 1, 8]` would lay them along z instead, and
+        // the streamlines below would then run across the strip rather than
+        // through it.
+        [8, 1, 1],
         [0.0, 0.0, 0.0],
         [1.0, 1.0, 1.0],
         [1.0, 0.0, 0.0, 0.0, 1.0, 0.0, 0.0, 0.0, 1.0],

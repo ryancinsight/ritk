@@ -6,6 +6,8 @@ use ritk_spatial::{Direction, Point, Spacing};
 
 type B = SequentialBackend;
 
+const TOLERANCE: f64 = 1.0e-12;
+
 /// Build an image from a flat `[nz, ny, nx]` buffer with the given geometry.
 fn image(
     data: &[f32],
@@ -24,21 +26,68 @@ fn unit_image(data: &[f32], shape: [usize; 3]) -> Image<f32, B, 3> {
     image(data, shape, [1.0; 3], [0.0; 3], Direction::identity())
 }
 
-// ── The grid bridge ──────────────────────────────────────────────────────
+// -- The grid bridge -----------------------------------------------------
+
+/// Physical position of an image voxel, obtained *without* going through the
+/// axis convention the bridge is being tested for.
+///
+/// `index_to_world_native` documents its input columns as innermost-first —
+/// `[ix, iy, iz]` — which is the parcellation grid's own order, so feeding it
+/// here removes the ambiguity that the axis-major
+/// `continuous_index_to_physical_point` introduces. Reaching for that other
+/// entry point is what makes a bridge error invisible: pass `[ix, iy, iz]` to an
+/// axis-major API and the test reverses exactly the axes the bridge failed to,
+/// so the two mistakes cancel and every voxel appears to round-trip.
+fn world_of(reference: &Image<f32, B, 3>, ix: usize, iy: usize, iz: usize) -> Point<3> {
+    // The native path works in the image's own element type, so the position
+    // comes back as f32. Every coordinate in these fixtures is a small exact
+    // binary value, and the lookup under test rounds to the nearest voxel, so
+    // the narrowing carries no error the assertions could see.
+    let index = Tensor::<f32, B>::from_slice([1, 3], &[ix as f32, iy as f32, iz as f32]);
+    let world = reference.index_to_world_native(&index);
+    let values = world.as_slice();
+    Point::new([
+        f64::from(values[0]),
+        f64::from(values[1]),
+        f64::from(values[2]),
+    ])
+}
+
+/// A hand-computed position, so the convention is pinned by arithmetic rather
+/// than by agreement between two library calls.
+///
+/// For a `[2, 3, 4]` volume with spacing `[4, 2, 1]` and an identity direction,
+/// the image's axis 0 is its *slowest* index, so the voxel at flat offset
+/// `1*3*4 + 2*4 + 3 = 23` — image index `(i0, i1, i2) = (1, 2, 3)` — sits at
+/// `(4*1, 2*2, 1*3) = (4, 4, 3)`.
+#[test]
+fn the_image_axis_convention_is_outermost_first() {
+    let reference = image(
+        &[0.0; 24],
+        [2, 3, 4],
+        [4.0, 2.0, 1.0],
+        [0.0; 3],
+        Direction::identity(),
+    );
+
+    // The same voxel, addressed innermost-first as (ix, iy, iz) = (3, 2, 1).
+    let world = world_of(&reference, 3, 2, 1).to_array();
+    assert!(
+        (world[0] - 4.0).abs() < TOLERANCE
+            && (world[1] - 4.0).abs() < TOLERANCE
+            && (world[2] - 3.0).abs() < TOLERANCE,
+        "expected (4, 4, 3), got {world:?}"
+    );
+}
 
 /// The bridge's whole job: a label read through the parcellation at a voxel's
 /// physical position must be the label the image holds at that voxel.
 ///
-/// This is the round trip that catches an axis convention error. An image
-/// reports its shape innermost-last while its spacing and direction are indexed
-/// by spatial axis, so exactly one of the three has to be reversed; reversing
-/// none, or reversing all three, both produce a grid that looks plausible and
-/// answers the wrong voxel. Sweeping every voxel of an *anisotropic* volume
-/// makes any such transposition fail, because a wrong axis pairing changes the
-/// physical position rather than merely permuting it.
+/// The volume is anisotropic on all three axes, which is what makes a
+/// transposition detectable — with equal spacings a reversed axis order lands on
+/// the right position by coincidence.
 #[test]
 fn every_voxel_round_trips_through_the_grid_bridge() {
-    // Deliberately unequal extents and spacings on all three axes.
     let shape = [3, 4, 5]; // [nz, ny, nx]
     let voxels = shape[0] * shape[1] * shape[2];
     let labels: Vec<u32> = (1..=voxels as u32).collect();
@@ -46,7 +95,7 @@ fn every_voxel_round_trips_through_the_grid_bridge() {
     let reference = image(
         &intensity,
         shape,
-        [0.5, 1.5, 4.0], // spacing by spatial axis: x, y, z
+        [4.0, 1.5, 0.5], // image axis order: slowest index first
         [-7.0, 3.0, 11.0],
         Direction::identity(),
     );
@@ -57,21 +106,17 @@ fn every_voxel_round_trips_through_the_grid_bridge() {
 
     let [nz, ny, nx] = shape;
     assert_eq!(parcellation.grid().shape(), [nx, ny, nz]);
+    // The grid's fastest axis carries the image's fastest spacing.
+    assert_eq!(parcellation.grid().spacing(), [0.5, 1.5, 4.0]);
 
     for iz in 0..nz {
         for iy in 0..ny {
             for ix in 0..nx {
                 let flat = iz * ny * nx + iy * nx + ix;
-                // The image's own transform is the authority on where this voxel
-                // sits, so the assertion compares two independent routes to the
-                // same physical point rather than the bridge against itself.
-                let world = reference.continuous_index_to_physical_point(&Point::new([
-                    ix as f64, iy as f64, iz as f64,
-                ]));
                 assert_eq!(
-                    parcellation.label_at(&world),
+                    parcellation.label_at(&world_of(&reference, ix, iy, iz)),
                     Some(labels[flat]),
-                    "voxel (ix {ix}, iy {iy}, iz {iz}) at {world:?}"
+                    "voxel (ix {ix}, iy {iy}, iz {iz})"
                 );
             }
         }
@@ -79,7 +124,8 @@ fn every_voxel_round_trips_through_the_grid_bridge() {
 }
 
 /// The same round trip under an oblique direction matrix, which is what an
-/// acquired volume actually carries.
+/// acquired volume actually carries — and which makes the column reversal
+/// matter as well as the spacing one.
 #[test]
 fn the_grid_bridge_survives_an_oblique_direction_matrix() {
     let shape = [2, 3, 4];
@@ -93,7 +139,7 @@ fn the_grid_bridge_survives_an_oblique_direction_matrix() {
     let reference = image(
         &intensity,
         shape,
-        [1.0, 2.0, 3.0],
+        [3.0, 2.0, 1.0],
         [4.0, -1.0, 0.5],
         direction,
     );
@@ -107,11 +153,8 @@ fn the_grid_bridge_survives_an_oblique_direction_matrix() {
         for iy in 0..ny {
             for ix in 0..nx {
                 let flat = iz * ny * nx + iy * nx + ix;
-                let world = reference.continuous_index_to_physical_point(&Point::new([
-                    ix as f64, iy as f64, iz as f64,
-                ]));
                 assert_eq!(
-                    parcellation.label_at(&world),
+                    parcellation.label_at(&world_of(&reference, ix, iy, iz)),
                     Some(labels[flat]),
                     "voxel (ix {ix}, iy {iy}, iz {iz})"
                 );
@@ -130,12 +173,12 @@ fn an_all_background_label_volume_is_rejected() {
 
 // ── Spacing order into the registration ──────────────────────────────────
 
-/// The registration takes `dims` innermost-last, so its spacing must be
-/// reversed relative to the image's spatial-axis order. Passing the image's
-/// order through unreversed scales the deformation by the wrong extent on any
-/// anisotropic volume, which is a silent geometric error rather than a failure.
+/// The registration shares the image's axis order, unlike the parcellation
+/// grid, so its spacing passes through unreversed. The two directions are easy
+/// to conflate and the difference is silent on any anisotropic volume, so both
+/// are pinned here rather than only one.
 #[test]
-fn registration_spacing_is_reversed_relative_to_the_image() {
+fn registration_spacing_keeps_the_image_axis_order() {
     let reference = image(
         &[0.0; 24],
         [2, 3, 4],
@@ -143,10 +186,14 @@ fn registration_spacing_is_reversed_relative_to_the_image() {
         [0.0; 3],
         Direction::identity(),
     );
-    assert_eq!(reference.spacing().to_array(), [0.5, 1.0, 2.0]);
-    assert_eq!(registration_spacing(&reference), [2.0, 1.0, 0.5]);
-    // dims follow the image shape directly.
+    assert_eq!(registration_spacing(&reference), [0.5, 1.0, 2.0]);
     assert_eq!(image_dims(&reference), [2, 3, 4]);
+
+    // The grid bridge reverses where the registration does not.
+    let parcellation =
+        parcellation_from_labels(vec![1; 24].into_boxed_slice(), &reference, Vec::new())
+            .expect("valid parcellation");
+    assert_eq!(parcellation.grid().spacing(), [2.0, 1.0, 0.5]);
 }
 
 // ── Label rounding ───────────────────────────────────────────────────────

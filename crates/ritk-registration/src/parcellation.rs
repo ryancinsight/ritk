@@ -306,12 +306,27 @@ where
 
 /// Build a [`Parcellation`] on an image's grid from a label volume.
 ///
-/// The bridge between the two crates' geometry conventions. An [`Image`] reports
-/// its shape innermost-last — `[nz, ny, nx]` — while its `spacing` and
-/// `direction` are indexed by *spatial axis*, so `spacing[0]` is the extent of
-/// the fastest-varying index. A [`ParcellationGrid`] is indexed by spatial axis
-/// throughout, so only the shape is reversed; spacing, direction, and origin
-/// pass through unchanged, and the flat storage order already matches.
+/// The bridge between the two crates' index conventions, which run in opposite
+/// directions. An [`Image`] numbers its spatial axes outermost-first: axis 0 is
+/// the *slowest*-varying index, so for a `[nz, ny, nx]` volume `spacing[0]` is
+/// the slice thickness and `direction`'s first column is the slice normal. A
+/// [`ParcellationGrid`] numbers them innermost-first, with axis 0 the fastest
+/// index. Bridging therefore reverses all three: the shape, the spacing, and the
+/// *columns* of the direction matrix.
+///
+/// Only the origin and the flat storage order pass through unchanged — both are
+/// stated in absolute terms rather than per axis.
+///
+/// Reversing some but not all of them produces a grid that constructs, validates,
+/// and answers every query, while placing voxels somewhere they are not. That is
+/// why the equality it has to satisfy is written out rather than assumed:
+///
+/// ```text
+/// origin + D·(s ⊙ [i₀, i₁, i₂])  =  origin + D_g·(s_g ⊙ [i₂, i₁, i₀])
+/// ```
+///
+/// which holds for every index exactly when `s_g = reverse(s)` and column `c`
+/// of `D_g` is column `2 − c` of `D`.
 ///
 /// # Errors
 ///
@@ -326,11 +341,21 @@ where
     B: Backend,
 {
     let [nz, ny, nx] = reference.shape();
+    let [s0, s1, s2] = reference.spacing().to_array();
+    let image_direction = reference.direction();
+
+    let mut direction = [0.0_f64; 9];
+    for row in 0..3 {
+        for column in 0..3 {
+            direction[row * 3 + column] = image_direction[(row, 2 - column)];
+        }
+    }
+
     let grid = ParcellationGrid::new(
         [nx, ny, nz],
-        reference.spacing().to_array(),
+        [s2, s1, s0],
         reference.origin().to_array(),
-        reference.direction().to_row_major(),
+        direction,
     )?;
     Parcellation::new(labels, grid, region_names)
 }
@@ -421,14 +446,15 @@ fn image_dims<B: Backend>(image: &Image<f32, B, 3>) -> [usize; 3] {
 
 /// Voxel spacing in the `[nz, ny, nx]` order the registration expects.
 ///
-/// The image indexes spacing by spatial axis — `spacing[0]` is the fastest-
-/// varying index — while the registration's `dims` are innermost-last, so the
-/// two orders are reverses of each other. Passing the image's order through
-/// unreversed would scale the deformation by the wrong extent on every
-/// anisotropic volume, which is most of them.
+/// Unreversed, unlike the parcellation bridge above, because the registration
+/// shares the image's convention rather than the grid's: its `dims` are
+/// `[nz, ny, nx]` and its field code reads `spacing[0]` as the slice thickness,
+/// which is exactly what the image's axis 0 already is. Reversing here would
+/// scale the deformation by the wrong extent on every anisotropic volume — a
+/// silent geometric error rather than a failure — and the two directions are
+/// easy to conflate, so both are stated where they are applied.
 fn registration_spacing<B: Backend>(image: &Image<f32, B, 3>) -> [f64; 3] {
-    let [sx, sy, sz] = image.spacing().to_array();
-    [sz, sy, sx]
+    image.spacing().to_array()
 }
 
 /// Nearest label to a warped float value, clamped at background.
