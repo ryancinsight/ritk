@@ -10,6 +10,36 @@
 
 ## [Unreleased] — conformance cleanup and JPEG 2000 scalar quality control (FEAT-692-01)
 
+- [major] Return the truly nearest label from the parcellation search. Offsets
+  were ordered by distance between voxel centres while the compared distance is
+  from the query point, so an endpoint near a parcel boundary could be assigned
+  to the parcel across it; the neighbourhood also stopped short of voxels that
+  were genuinely within the radius of the point. Every candidate is now scored
+  and the nearest kept.
+
+- [major] Check decoded parcellations and connectivity matrices. Both derived
+  `Deserialize`, which skips the constructors that establish their invariants: a
+  short label array panicked on the first lookup, and unsorted labels answered
+  with the wrong region without failing. Both decode through a checked
+  representation, which also keeps derived state off the wire.
+
+- [patch] Return a typed error instead of panicking when the DKI refinement
+  leaves a non-positive diffusion tensor. The refinement is unconstrained, so a
+  voxel's own data could reach the panic.
+
+- [patch] Make the streamline accounting partition its input. The malformed
+  bucket is removed rather than reconciled: a `Polyline` cannot hold fewer than
+  two finite points, so the branch was unreachable and the field could never be
+  nonzero.
+
+- [patch] Correct the FSL unit tolerance's derivation, which documented a
+  six-decimal bound for a five-decimal value; reject a negative
+  `--assignment-radius` rather than silently mapping it to terminal assignment;
+  handle an empty tractogram before taking a median; stop the dataset script
+  suppressing failures on gradient files nothing downstream can run without; and
+  describe the persisted connectome as symmetric where the book still said
+  upper-triangular.
+
 - [minor] Weight the DTI tensor fit. The log transform that linearises the
   tensor system does not preserve the noise model — `var(ln S) ∝ 1/S²` — so
   ordinary least squares over-trusts the strongly attenuated measurements,

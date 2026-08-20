@@ -54,7 +54,20 @@
   warning-denied Clippy clean on the four touched packages, warning-denied
   rustdoc clean, `mdbook build` and `mdbook test` pass, 713/713 Nextest across
   ritk-diffusion/parcellation/connectome/registration, and package doctests pass.
-- **Open:** hosted CI has not run this branch; `ritk-python` exposes no
+- Hosted CI passed every required check at `ef7c267c` (runs `32334966200`,
+  `32334966027`, `32334966588`): Clippy, Rustdoc, Rustfmt, test suites on
+  ubuntu/macos/windows, Python 3.9-3.13 across three platforms, wheel smoke,
+  dependency alignment, and the book build. `recurseml/analysis` errored during
+  analysis and is report-only.
+- CodeRabbit raised 16 findings; 14 accepted and fixed in `c63a77f1`, 2
+  rejected: the renderer's index-space axis use is correct as documented, and
+  the bracketed PM status labels are an established repo-wide convention.
+- **Deferred:** hoisting the per-source scratch buffers in Brandes betweenness.
+  Real but not dominant — the allocation is `O(n²)` small pushes against an
+  `O(n·m·log n)` Dijkstra in a once-per-analysis routine, and hoisting threads
+  five mutable buffers through the inner function. Revisit if a parcellation
+  above ~1000 regions makes it measurable.
+- **Open:** `ritk-python` exposes no
   connectome or parcellation surface; the rich-club curve is
   unnormalised by design and its randomised-ensemble normalisation is a
   follow-up; `ritk-parcellation` is newly `publish = true` and must be released
