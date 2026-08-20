@@ -1,3 +1,11 @@
+## ATLAS-RITK-WORKFLOW-PIN-2026-08-20 — Refresh shared book workflow pin [patch] — hosted verification pending
+
+- Owner: Atlas integration. Scope is the Pages caller and this PM/changelog
+  record; RITK implementation, release work, and lockfile remain unchanged.
+- Acceptance: pin the caller to the current Atlas reusable workflow while
+  retaining the existing output path, then pass exact hosted source and Pages
+  checks before advancing the Atlas gitlink.
+
 ## DOC-HUMAN-CONNECTOME [patch] — human tractography and connectomics
 
 - **Status:** LOCAL GATES PASSED; owner=Codex; last-update=2026-08-19;
