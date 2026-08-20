@@ -28,7 +28,11 @@
 
 ## FIX-DTI-VOLUME-FRAME [arch][patch] — preserve diffusion coordinate frames
 
-- **Status:** TODO; owner=unclaimed; last-update=2026-08-19;
+- **Status:** IN PROGRESS; owner=Codex `/root`; last-update=2026-08-20;
+  active scope=retain `GradientFrame` in `DiffusionMaps`, make `DtiVolume`
+  consume only validated ImageAxis maps, centralize the ImageAxis-to-image-index
+  permutation, remove the book-example adapter, and add coordinate-permutation
+  regressions across the reusable field and CLI path;
   outcome=make the reusable DTI volume field and `ritk tract dti` path consume
   gradient directions in the image-index convention without an example-local
   axis reorder; scope=`DiffusionMaps`, `DtiVolume`, their construction sites,
