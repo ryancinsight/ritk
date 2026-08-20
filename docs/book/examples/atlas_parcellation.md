@@ -76,25 +76,34 @@ unanimous background. The thin grey strips elsewhere are the parcel boundaries,
 where the residual registration error is: precisely where a connectome's
 streamline endpoints land.
 
-## A control that is currently failing
+## Where weighting has nothing to work with
 
-The example also runs both fusion rules over atlases that all assert the *same*
-labels. With nothing in dispute, the question is trivial — return what everyone
-said — and any weighting scheme must answer it correctly whatever weights it
-computes:
+The example also runs both fusion rules over atlases with *none* mislabelled.
+Nothing is then in dispute except each atlas's own registration error:
 
 ```text
-control — every atlas asserting the same labels:
+control — interchangeable atlases, none mislabelled:
   majority vote: Dice vs truth [1.00, 1.00, 1.00]
   joint fusion:  Dice vs truth [0.88, 0.95, 0.91]
 ```
 
-Joint label fusion does not, and it reports a mean agreement above 0.98 while
-doing it. The failure is independent of its patch radius and its regularisation
-across the ranges tried, and it is not a weighting preference: with unanimous
-input there is nothing to weight. Prefer `MajorityVote` until this is resolved;
-it is tracked as `RITK-JLF-UNANIMOUS` on the backlog, and this example is its
-reproduction.
+Voting wins, and the reason is the assumption each rule makes rather than a
+fault in either. Joint label fusion buys its advantage by trusting whichever
+atlas matches the subject best in each neighbourhood — which requires the
+atlases to differ in local registration quality *and* for the intensities to
+reveal that difference. Here all three are the same anatomy under different
+whole-voxel shifts, so they fit equally well everywhere, the weights come out
+near-equal, and following the locally best one means inheriting that one
+atlas's warp error. Voting instead averages three independent errors, which is
+exactly what averaging is good at.
+
+Read that as a statement about the fixture, not a ranking. On real cohorts the
+atlases are different brains that register with genuinely different local
+quality, which is the situation joint fusion was designed for and this
+synthetic one deliberately is not. What the control establishes is the boundary
+of the claim in [the chapter](../parcellation.md): majority voting is right
+when the atlases are interchangeable, and this is what "interchangeable" costs
+the alternative.
 
 ## What the example does not show
 

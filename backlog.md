@@ -118,42 +118,6 @@
   deleted) or stale (a build-target workaround whose premise no longer holds).
   Patches archived under the gitignored `scratch/stash-archive/`.
 
-## RITK-JLF-UNANIMOUS [major] — joint label fusion loses voxels its inputs agree on
-
-- **Status:** todo; owner=unclaimed; last-update=2026-08-20;
-  scope=`crates/ritk-registration/src/atlas/label_fusion.rs` and its tests;
-  non-goal=changing majority voting, the registration, or the parcellation
-  pipeline around them.
-- **Outcome:** joint label fusion returns the unanimous label where its inputs
-  are unanimous, and its reported confidence is a share rather than a saturated
-  constant.
-- **Evidence.** `cargo run --release -p ritk-registration --example
-  book_parcellation` runs both fusion rules over three atlases that assert
-  *identical* labels on a synthetic subject whose correct parcellation is
-  known. Majority voting returns Dice `[1.00, 1.00, 1.00]`; joint label fusion
-  returns `[0.88, 0.95, 0.91]` and reports a mean agreement above 0.98 while
-  doing it. With unanimous input there is nothing to weight, so no choice of
-  weights can explain the loss — the defect is in how the fused labels are
-  formed, not in the weighting.
-- On the disagreeing case in the same example (one atlas mislabelled) it scores
-  `[0.88, 0.46, 0.59]` against majority voting's `[1.00, 1.00, 1.00]`, and a
-  sweep of `patch_radius` in {1, 2, 3} against `beta` in {0.01, 0.1, 1.0} did
-  not bring any cell near the unanimous answer. The parameters are therefore not
-  the cause, and widening them is not the fix.
-- **Acceptance oracle:** a test asserting that fusing N identical label volumes
-  returns that volume exactly, for N in {1, 2, 3}, plus one asserting the
-  reported confidence equals the winning label's weight share and so falls below
-  1 when the atlases split. Both must fail before the fix and pass after. The
-  example's control lines must read `[1.00, 1.00, 1.00]`.
-- **Blast radius:** `LabelFusion::JointLabelFusion` reaches users through
-  `ritk_registration::parcellate_with_atlas_set`, `ritk parcellate atlas
-  --fusion joint`, `ritk.registration.parcellate_with_atlases(fusion="joint")`,
-  and `ritk.registration.joint_label_fusion_py`. All four currently document it
-  as the weighted alternative to voting; the book's example chapter records the
-  defect and says to prefer `MajorityVote` meanwhile.
-- **Dependencies:** none. **Risk/change class:** `[major]` — it changes the
-  values a public fusion rule returns. Effort M.
-
 ## RITK-ULP-PATCH-DENOISE [patch] — a 1-ULP parity tolerance that holds only on CI
 
 - **Status:** todo; owner=unclaimed; last-update=2026-08-20;

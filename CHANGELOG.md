@@ -19,12 +19,11 @@
   0.51-0.73 Dice, and the agreement map reads exactly two thirds where one atlas
   dissents.
 
-  Its unanimous control found a defect: with every atlas asserting identical
-  labels, joint label fusion returns Dice 0.88-0.95 where majority voting
-  returns 1.00, and reports agreement above 0.98 while doing it. With nothing to
-  weight, no choice of weights explains the loss. Filed as `RITK-JLF-UNANIMOUS`;
-  the example is its reproduction and the chapter says to prefer `MajorityVote`
-  meanwhile.
+  A second run with no atlas mislabelled marks the boundary of the chapter's
+  claim that voting is right when the atlases are interchangeable: there voting
+  reaches 1.00 and joint label fusion 0.88-0.95, because weighting needs the
+  atlases to differ in local registration quality and interchangeable ones do
+  not. That is the fixture, not a ranking of the two rules.
 
 - [minor] Add `ritk.registration.parcellate_with_atlases`, closing the same gap
   on the Python surface that `ritk parcellate atlas` closed on the command

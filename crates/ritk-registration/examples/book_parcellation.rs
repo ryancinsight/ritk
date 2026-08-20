@@ -15,6 +15,10 @@
 //! agreement map has something to report — a fused result that never disagreed
 //! would say nothing about fusion.
 //!
+//! A second run with none mislabelled is the control. The only thing separating
+//! those atlases is each one's own registration error, which is where the two
+//! fusion rules' assumptions part company.
+//!
 //! Run with:
 //!
 //! ```text
@@ -260,13 +264,13 @@ fn main() -> Result<()> {
     let joint = parcellate_with_atlas_set(&subject, &labelled, &config)
         .context("parcellating by joint label fusion")?;
 
-    // Joint fusion is reported alongside majority voting because the two
-    // disagree here, and the disagreement is the finding rather than a
-    // parameter to tune. The unanimous probe below is what makes it a defect
-    // and not a weighting preference: when every atlas asserts the same
-    // labels, there is nothing left to weight, so any weighting scheme must
-    // return the unanimous answer. Tracked as RITK-JLF-UNANIMOUS.
-    let unanimous: Vec<LabelledAtlas> = atlas_volumes
+    // Interchangeable atlases are the case where weighting has nothing to work
+    // with. All three fit the subject equally well, so joint fusion's weights
+    // come out near-equal and it ends up following whichever single atlas
+    // matches best locally — inheriting that one atlas's registration error,
+    // where voting averages three independent ones. Removing the mislabelling
+    // is what isolates that, since nothing else is then in dispute.
+    let interchangeable: Vec<LabelledAtlas> = atlas_volumes
         .iter()
         .map(|atlas| LabelledAtlas {
             intensity: intensity_from(&atlas.anatomy),
@@ -275,14 +279,14 @@ fn main() -> Result<()> {
         })
         .collect();
     config.fusion = LabelFusion::MajorityVote;
-    let unanimous_majority = parcellate_with_atlas_set(&subject, &unanimous, &config)
-        .context("parcellating unanimous atlases by majority vote")?;
+    let control_majority = parcellate_with_atlas_set(&subject, &interchangeable, &config)
+        .context("parcellating interchangeable atlases by majority vote")?;
     config.fusion = LabelFusion::JointLabelFusion(Default::default());
-    let unanimous_joint = parcellate_with_atlas_set(&subject, &unanimous, &config)
-        .context("parcellating unanimous atlases by joint label fusion")?;
+    let control_joint = parcellate_with_atlas_set(&subject, &interchangeable, &config)
+        .context("parcellating interchangeable atlases by joint label fusion")?;
 
     report(&majority, &joint, &truth, &atlas_volumes);
-    report_unanimous(&unanimous_majority, &unanimous_joint, &truth);
+    report_control(&control_majority, &control_joint, &truth);
 
     let figure = render(&truth, majority.parcellation.labels(), &majority.agreement);
     let path = figure_path();
@@ -355,28 +359,29 @@ fn report(
     }
 }
 
-/// Report the unanimous-atlas control.
+/// Report the interchangeable-atlas control.
 ///
-/// Every atlas asserts the same labels here, so both rules are being asked the
-/// same trivial question: return what everyone said. A rule that does not is
-/// wrong for a reason that has nothing to do with how it weights.
-fn report_unanimous(
+/// No atlas is mislabelled here, so nothing is in dispute except each atlas's
+/// own registration error. This is where the two rules' assumptions separate:
+/// voting averages three independent errors, while weighting concentrates on
+/// whichever atlas matches best locally and inherits that one's error. Neither
+/// is wrong — they answer different questions, and the example exists so the
+/// difference is a number rather than a claim.
+fn report_control(
     majority: &ritk_registration::ParcellationResult,
     joint: &ritk_registration::ParcellationResult,
     truth: &[u32],
 ) {
-    println!(
-        "
-control — every atlas asserting the same labels:"
-    );
+    println!();
+    println!("control — interchangeable atlases, none mislabelled:");
     for (name, result) in [("majority vote", majority), ("joint fusion", joint)] {
         let scores: Vec<String> = (1..=3)
             .map(|label| format!("{:.2}", dice(result.parcellation.labels(), truth, label)))
             .collect();
         println!("  {name}: Dice vs truth [{}]", scores.join(", "));
     }
-    println!("  With nothing to weight, both must return the unanimous labels.");
-    println!("  Tracked as backlog.md#ritk-jlf-unanimous.");
+    println!("  Voting wins when the atlases are interchangeable, because there is");
+    println!("  then no local quality difference for the weights to exploit.");
 }
 
 fn mean(values: &[f32]) -> f64 {

@@ -256,7 +256,8 @@ back but whether it is right. The [atlas parcellation
 example](examples/atlas_parcellation.md) synthesises a subject whose correct
 parcellation is known, deforms three atlases onto it — one of them deliberately
 mislabelled — and reports Dice against the truth alongside the agreement map.
-It is also where the current joint-label-fusion defect is reproduced.
+It is also where the choice between the two fusion rules becomes a measurement
+rather than a preference.
 
 ### What atlas propagation cannot do
 
