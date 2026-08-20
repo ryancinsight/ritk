@@ -10,6 +10,7 @@ publish = false
 
 [dependencies]
 gaia = { workspace = true }
+rand = { workspace = true }
 ritk-parcellation.workspace = true
 ritk-spatial.workspace = true
 serde = { workspace = true, features = ["derive"] }

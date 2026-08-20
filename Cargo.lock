@@ -5699,6 +5699,7 @@ version = "0.1.0"
 dependencies = [
  "gaia-mesh",
  "leto",
+ "rand 0.9.5",
  "ritk-parcellation",
  "ritk-spatial",
  "serde",
