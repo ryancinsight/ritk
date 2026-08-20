@@ -42,7 +42,11 @@
   atlas-propagation parcellation pipeline in `ritk-registration`; and
   `ritk tract connectome`, which makes the pipeline reachable from the command
   line and is covered by integration tests driving the built binary against
-  real NIfTI and TCK files.
+  real NIfTI and TCK files. A sixth commit repairs the image-to-grid axis
+  bridge, whose half-reversal placed voxels off their true positions while its
+  test made the same assumption and cancelled the error; the oracle is now an
+  independent entry point plus a hand-computed position, and reintroducing the
+  defect fails all three axis tests.
 - The unmerged `docs/human-tractography-connectome` branch was integrated in the
   same series and its example migrated to the new API, so the break and its call
   sites land together.
