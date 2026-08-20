@@ -11,7 +11,10 @@
 ## [Unreleased] — conformance cleanup and JPEG 2000 scalar quality control (FEAT-692-01)
 
 - Refresh the Pages caller to the current Atlas reusable workflow revision
-  while retaining the existing book output contract.
+  while retaining the existing book output contract. PR #196 merged at
+  `aa48c471ac96eb81869437d84bab439e18d89038`; exact post-merge CI
+  `32344964253`, Python CI `32344964345`, Deploy mdBook `32344964522`, and
+  live Pages HTTP 200 pass.
 
 - [major] Return the truly nearest label from the parcellation search. Offsets
   were ordered by distance between voxel centres while the compared distance is
