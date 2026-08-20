@@ -20,6 +20,7 @@ thiserror.workspace = true
 
 [dev-dependencies]
 anyhow.workspace = true
+rand.workspace = true
 ritk-image.workspace = true
 ritk-io.workspace = true
 ritk-tractography.workspace = true

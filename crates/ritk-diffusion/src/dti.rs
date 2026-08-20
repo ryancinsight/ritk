@@ -16,16 +16,31 @@
 //!
 //! where `d = [Dₓₓ, D_yy, D_zz, Dₓy, Dₓz, D_yz]ᵀ`.  RITK assembles the
 //! design matrix over all weighted acquisitions and solves via
-//! [`leto_ops::solve_least_squares`] — the dense QR path that the
-//! [ADR 0036 decision 2](../../../docs/adr/0036-neuroimaging-and-mr-ownership.md)
-//! assigns to Leto.
+//! [`leto_ops::solve_least_squares`] — the dense QR path that
+//! [ADR 0017](../../../docs/adr/0017-diffusion-mri-pipeline.md) assigns to
+//! Leto.
 //!
-//! Fractional anisotropy, mean diffusivity, and the principal eigenvector
-//! are derived from the fitted tensor through a closed-form 3×3 symmetric
-//! eigendecomposition.
+//! # Module map
+//!
+//! | Module | Responsibility |
+//! |--------|----------------|
+//! | [`fit`] | The linear system, and the row weighting that makes it a sound estimator |
+//! | `eigen` | Closed-form eigendecomposition of the fitted symmetric tensor |
+//! | [`invariants`] | Rotationally invariant scalars derived from the eigenvalues |
+//!
+//! The log transform does not preserve the noise model, so the estimator is
+//! weighted by default; [`fit`] derives why and what the weights are.
+
+mod eigen;
+pub mod fit;
+pub mod invariants;
 
 use leto::{Array1, Array2};
 use ritk_diffusion_scheme::{DiffusionWeighting, GradientFrame, GradientScheme};
+
+pub use fit::TensorFit;
+
+pub(crate) use eigen::{SymmetricEigen, symmetric_eigen};
 
 // ── Error ─────────────────────────────────────────────────────────────────────
 
@@ -96,15 +111,27 @@ pub enum DtiError {
 #[derive(Debug, Clone, Copy)]
 pub struct DtiConfig {
     b0_threshold: DiffusionWeighting,
+    fit: TensorFit,
 }
 
 impl DtiConfig {
-    /// Construct a DTI configuration.
+    /// Construct a DTI configuration with the default estimator.
     ///
     /// `b0_threshold` classifies reference (≤ threshold) and weighted
-    /// volumes.
-    pub const fn new(b0_threshold: DiffusionWeighting) -> Self {
-        Self { b0_threshold }
+    /// volumes.  The estimator is [`TensorFit::default`] — weighted least
+    /// squares, which is what real data needs; select another with
+    /// [`Self::with_fit`].
+    pub fn new(b0_threshold: DiffusionWeighting) -> Self {
+        Self {
+            b0_threshold,
+            fit: TensorFit::default(),
+        }
+    }
+
+    /// Replace the estimator.
+    #[must_use]
+    pub const fn with_fit(self, fit: TensorFit) -> Self {
+        Self { fit, ..self }
     }
 
     /// Threshold separating b0 and weighted acquisitions.
@@ -112,14 +139,20 @@ impl DtiConfig {
     pub const fn b0_threshold(self) -> DiffusionWeighting {
         self.b0_threshold
     }
+
+    /// The estimator the log-linear system is solved with.
+    #[must_use]
+    pub const fn fit(self) -> TensorFit {
+        self.fit
+    }
 }
 
 impl Default for DtiConfig {
     fn default() -> Self {
-        Self {
-            b0_threshold: DiffusionWeighting::from_seconds_per_square_millimeter(50.0)
+        Self::new(
+            DiffusionWeighting::from_seconds_per_square_millimeter(50.0)
                 .expect("invariant: default b0 threshold is finite and nonnegative"),
-        }
+        )
     }
 }
 
@@ -132,11 +165,11 @@ impl Default for DtiConfig {
 #[derive(Debug, Clone)]
 pub struct DiffusionTensor {
     elements: [f64; 6],
-    eigenvalues: [f64; 3],
-    principal_eigenvector: [f64; 3],
+    eigen: SymmetricEigen,
     baseline_signal: f64,
     residual_norm: f64,
     frame: GradientFrame,
+    fit: TensorFit,
 }
 
 impl DiffusionTensor {
@@ -160,43 +193,89 @@ impl DiffusionTensor {
         [[dxx, dxy, dxz], [dxy, dyy, dyz], [dxz, dyz, dzz]]
     }
 
-    /// Three eigenvalues `λ₀ ≥ λ₁ ≥ λ₂` in mm²/s, sorted descending.
+    /// Three eigenvalues `λ₁ ≥ λ₂ ≥ λ₃` in mm²/s, sorted descending.
     #[must_use]
     pub fn eigenvalues(&self) -> &[f64; 3] {
-        &self.eigenvalues
+        &self.eigen.values
     }
 
-    /// Fractional anisotropy — a rotationally invariant measure in `[0, 1]`.
+    /// The orthonormal eigenbasis, ordered to match [`Self::eigenvalues`].
     ///
-    /// ```text
-    /// FA = √(3/2) · √(Σ(λᵢ − MD)²) / √(Σ λᵢ²)
-    /// ```
-    ///
-    /// Zero for perfectly isotropic diffusion; approaches one for a
-    /// maximally anisotropic prolate tensor.
+    /// `eigenvectors()[0]` is the principal eigenvector; the other two span the
+    /// plane transverse to it. Repeated eigenvalues leave their eigenvectors
+    /// non-unique, and the basis is then one valid representative rather than a
+    /// distinguished one — see the tensor's [`Self::mode`] and Westin measures
+    /// for whether that degeneracy is present.
     #[must_use]
-    pub fn fa(&self) -> f64 {
-        let [l0, l1, l2] = self.eigenvalues;
-        let md = (l0 + l1 + l2) / 3.0;
-        let numerator = ((l0 - md).powi(2) + (l1 - md).powi(2) + (l2 - md).powi(2)).sqrt();
-        let denominator = (l0.powi(2) + l1.powi(2) + l2.powi(2)).sqrt();
-        if denominator < 1e-15 {
-            return 0.0;
-        }
-        (1.5_f64).sqrt() * numerator / denominator
-    }
-
-    /// Mean diffusivity in mm²/s — the average of the three eigenvalues.
-    #[must_use]
-    pub fn md(&self) -> f64 {
-        (self.eigenvalues[0] + self.eigenvalues[1] + self.eigenvalues[2]) / 3.0
+    pub fn eigenvectors(&self) -> &[[f64; 3]; 3] {
+        &self.eigen.vectors
     }
 
     /// Principal eigenvector `∥PEV∥ = 1` corresponding to the largest
     /// eigenvalue, in the scheme's coordinate frame.
     #[must_use]
     pub fn principal_eigenvector(&self) -> [f64; 3] {
-        self.principal_eigenvector
+        self.eigen.vectors[0]
+    }
+
+    /// Fractional anisotropy — a rotationally invariant measure in `[0, 1]`.
+    ///
+    /// See [`invariants::fractional_anisotropy`].
+    #[must_use]
+    pub fn fa(&self) -> f64 {
+        invariants::fractional_anisotropy(self.eigen.values)
+    }
+
+    /// Mean diffusivity in mm²/s — the average of the three eigenvalues.
+    #[must_use]
+    pub fn md(&self) -> f64 {
+        invariants::mean_diffusivity(self.eigen.values)
+    }
+
+    /// Axial diffusivity `λ₁` in mm²/s — diffusivity along the principal axis.
+    #[must_use]
+    pub fn ad(&self) -> f64 {
+        invariants::axial_diffusivity(self.eigen.values)
+    }
+
+    /// Radial diffusivity `(λ₂ + λ₃)/2` in mm²/s — diffusivity across the
+    /// principal axis.
+    #[must_use]
+    pub fn rd(&self) -> f64 {
+        invariants::radial_diffusivity(self.eigen.values)
+    }
+
+    /// Relative anisotropy — see [`invariants::relative_anisotropy`].
+    #[must_use]
+    pub fn relative_anisotropy(&self) -> f64 {
+        invariants::relative_anisotropy(self.eigen.values)
+    }
+
+    /// Westin linear, planar, and spherical measures `(cₗ, cₚ, cₛ)`.
+    ///
+    /// See [`invariants::westin_measures`].
+    #[must_use]
+    pub fn westin_measures(&self) -> (f64, f64, f64) {
+        invariants::westin_measures(self.eigen.values)
+    }
+
+    /// Mode of anisotropy in `[−1, 1]` — see [`invariants::mode`].
+    #[must_use]
+    pub fn mode(&self) -> f64 {
+        invariants::mode(self.eigen.values)
+    }
+
+    /// Frobenius norm `‖D‖` in mm²/s.
+    #[must_use]
+    pub fn norm(&self) -> f64 {
+        invariants::tensor_norm(self.eigen.values)
+    }
+
+    /// Direction-encoded colour `FA · |v₁|` in the tensor's own
+    /// [`Self::frame`] — see [`invariants::colour_by_orientation`].
+    #[must_use]
+    pub fn colour_by_orientation(&self) -> [f64; 3] {
+        invariants::colour_by_orientation(self.eigen.values, self.principal_eigenvector())
     }
 
     /// Mean signal over b0 acquisitions.
@@ -206,6 +285,9 @@ impl DiffusionTensor {
     }
 
     /// ‖design · d − ln(S/S₀)‖₂ after the least-squares solve.
+    ///
+    /// Reported unweighted whichever estimator produced the tensor, so the
+    /// number is comparable across [`TensorFit`] variants.
     #[must_use]
     pub const fn residual_norm(&self) -> f64 {
         self.residual_norm
@@ -215,6 +297,12 @@ impl DiffusionTensor {
     #[must_use]
     pub const fn frame(&self) -> GradientFrame {
         self.frame
+    }
+
+    /// The estimator that produced this tensor.
+    #[must_use]
+    pub const fn fit(&self) -> TensorFit {
+        self.fit
     }
 
     /// Predicted signal at a unit gradient direction for a given b-value.
@@ -283,8 +371,13 @@ pub fn estimate_dti(
         });
     }
 
+    #[expect(
+        clippy::cast_precision_loss,
+        reason = "a diffusion series has far fewer volumes than f64's exact-integer range"
+    )]
+    let reference_count = b0_indices.len() as f64;
     let baseline_signal =
-        b0_indices.iter().map(|index| signals[*index]).sum::<f64>() / b0_indices.len() as f64;
+        b0_indices.iter().map(|index| signals[*index]).sum::<f64>() / reference_count;
     if !baseline_signal.is_finite() || baseline_signal <= 0.0 {
         return Err(DtiError::InvalidBaseline {
             value: baseline_signal,
@@ -319,9 +412,7 @@ pub fn estimate_dti(
     }
 
     // ── Solve ─────────────────────────────────────────────────────────────
-    let solution = leto_ops::solve_least_squares(&design.view(), &log_signals.view())
-        .map_err(|error| DtiError::SolveFailed(error.to_string()))?;
-
+    let solution = fit::solve_log_linear(&design, &log_signals, config.fit())?;
     let elements = [
         solution[0],
         solution[1],
@@ -332,189 +423,82 @@ pub fn estimate_dti(
     ];
 
     // ── Decompose ─────────────────────────────────────────────────────────
-    let (eigenvalues, principal_eigenvector) = decompose_3x3_symmetric(elements)
+    let eigen = diffusion_eigen(elements)
         .map_err(|(index, value)| DtiError::NonPositiveEigenvalue { index, value })?;
-
-    let residual = compute_residual(&design, &solution, &log_signals);
 
     Ok(DiffusionTensor {
         elements,
-        eigenvalues,
-        principal_eigenvector,
+        eigen,
         baseline_signal,
-        residual_norm: residual,
+        residual_norm: fit::residual_norm(&design, &solution, &log_signals),
         frame: scheme.frame(),
+        fit: config.fit(),
     })
 }
 
-// ── 3×3 symmetric eigendecomposition ──────────────────────────────────────────
+// ── Diffusion-tensor eigen contract ───────────────────────────────────────────
 
-/// Compute eigenvalues (sorted descending) and principal eigenvector of a
-/// 3×3 symmetric matrix from its six unique Voigt elements.
+/// Fraction of the leading eigenvalue below which a negative root is rounding
+/// rather than a measurement.
 ///
-/// Uses the analytic solution of the cubic characteristic polynomial via
-/// the trigonometric formula (three real roots guaranteed for symmetric
-/// matrices).  The principal eigenvector is extracted from the nullspace of
-/// `D − λ₀I`.
+/// A tensor fitted to an almost perfectly anisotropic voxel has a smallest
+/// eigenvalue at the noise floor, and the closed-form decomposition resolves a
+/// repeated root only to `√ε ≈ 1.5·10⁻⁸` of the tensor magnitude, so such a root
+/// can come back slightly negative. The tolerance is relative to `λ₁` rather
+/// than an absolute diffusivity because that is the scale the error actually
+/// carries: an absolute bound would be far too loose for a low-diffusivity
+/// tensor and would tighten into false rejections if the caller ever worked in
+/// different units. A thousandfold margin over `√ε` still rejects any genuinely
+/// negative fit, which sits at the scale of the eigenvalues themselves.
+const EIGENVALUE_ROUNDING: f64 = 1.0e-5;
+
+/// Eigendecompose a *fitted diffusion tensor*, enforcing positivity.
 ///
-/// Returns `Err((index, value))` when an eigenvalue is not strictly positive.
-pub(crate) fn decompose_3x3_symmetric(
-    elements: [f64; 6],
-) -> Result<([f64; 3], [f64; 3]), (usize, f64)> {
-    let (mut eigenvalues, principal_eigenvector) = decompose_3x3_symmetric_unchecked(elements);
+/// Positivity is a property of a measurement, not of a symmetric matrix: a
+/// tensor whose eigenvalue is negative describes water that concentrates rather
+/// than spreads, so the fit is rejected rather than reported. Callers whose
+/// matrix is legitimately semi-definite use [`symmetric_eigen`] instead.
+///
+/// Returns `Err((index, value))` for the first eigenvalue that fails.
+pub(crate) fn diffusion_eigen(elements: [f64; 6]) -> Result<SymmetricEigen, (usize, f64)> {
+    let mut eigen = symmetric_eigen(elements);
 
     // An isotropic tensor is held to strict positivity, an anisotropic one to a
     // tolerance that absorbs fp error on a near-zero eigenvalue. The two rules
     // differ because an isotropic result has no small eigenvalue to round: all
     // three are the same number, so a non-positive one is the fit, not noise.
-    let isotropic = (eigenvalues[0] - eigenvalues[2]).abs() <= 0.0;
-    for (idx, &val) in eigenvalues.iter().enumerate() {
-        let invalid = if isotropic { val <= 0.0 } else { val < -1e-10 };
+    let isotropic = (eigen.values[0] - eigen.values[2]).abs() <= 0.0;
+    let rounding = EIGENVALUE_ROUNDING * eigen.values[0].abs();
+    for (index, &value) in eigen.values.iter().enumerate() {
+        let invalid = if isotropic {
+            value <= 0.0
+        } else {
+            value < -rounding
+        };
         if invalid {
-            return Err((idx, val));
+            return Err((index, value));
         }
     }
-    // Clamp fp-negative eigenvalues to zero.
-    for val in &mut eigenvalues {
-        if *val < 0.0 {
-            *val = 0.0;
-        }
+    for value in &mut eigen.values {
+        *value = value.max(0.0);
     }
-    Ok((eigenvalues, principal_eigenvector))
+    Ok(eigen)
 }
 
-/// Eigenvalues (descending) and principal eigenvector of a 3×3 symmetric
-/// matrix, with no validity check on the result.
-///
-/// The positivity check in [`decompose_3x3_symmetric`] is a *diffusion tensor*
-/// contract — a fitted `D` with a non-positive eigenvalue is not a measurement —
-/// not a property of symmetric matrices. Callers whose matrix is legitimately
-/// singular use this directly. The dyadic `Σ wᵢ vᵢvᵢᵀ` that
-/// [`crate::maps::DtiVolume`] interpolates is exactly such a case: it is
-/// positive *semi*-definite by construction, and a single contributor gives
-/// eigenvalues `(w, 0, 0)`.
-///
-/// Eigenvalues are returned raw, so a caller that needs them clamped does that
-/// itself. The principal eigenvector is unaffected either way: it is extracted
-/// from the largest eigenvalue, which clamping never touches.
-pub(crate) fn decompose_3x3_symmetric_unchecked(elements: [f64; 6]) -> ([f64; 3], [f64; 3]) {
-    let [dxx, dyy, dzz, dxy, dxz, dyz] = elements;
-
-    // Invariants of the characteristic polynomial λ³ − I₁λ² + I₂λ − I₃.
-    let i1 = dxx + dyy + dzz; // trace
-    let i2 = dxx * dyy + dxx * dzz + dyy * dzz - dxy * dxy - dxz * dxz - dyz * dyz;
-    let i3 = dxx * dyy * dzz + 2.0 * dxy * dxz * dyz
-        - dxx * dyz * dyz
-        - dyy * dxz * dxz
-        - dzz * dxy * dxy;
-
-    // Shifted cubic: μ³ + p·μ + q = 0, μ = λ − i1/3.
-    // p ≤ 0 for symmetric real matrices, but fp rounding may nudge it positive.
-    let p = (i2 - i1 * i1 / 3.0).min(0.0);
-    let q = -2.0 * i1 * i1 * i1 / 27.0 + i1 * i2 / 3.0 - i3;
-    let shift = i1 / 3.0;
-
-    // Near-isotropic / degenerate: p ≈ 0 ⇒ all eigenvalues ≈ shift.
-    let sqrt_neg_p_over_3 = (-p / 3.0).sqrt();
-    if sqrt_neg_p_over_3 < 1e-15 {
-        // Numerically isotropic: no eigenvalue is distinguished, so no
-        // direction is either. The caller decides what that means.
-        return ([shift, shift, shift], [1.0, 0.0, 0.0]);
-    }
-
-    // Three real roots via trigonometric formula (symmetric ⇒ all real).
-    let arg = (-q / (2.0 * sqrt_neg_p_over_3.powi(3))).clamp(-1.0, 1.0);
-    let phi = arg.acos();
-    let two_r = 2.0 * sqrt_neg_p_over_3;
-
-    let mu0 = two_r * (phi / 3.0).cos();
-    let mu1 = two_r * ((phi + 2.0 * std::f64::consts::PI) / 3.0).cos();
-    let mu2 = two_r * ((phi + 4.0 * std::f64::consts::PI) / 3.0).cos();
-
-    let mut eigenvalues = [mu0 + shift, mu1 + shift, mu2 + shift];
-    eigenvalues.sort_by(|a, b| b.partial_cmp(a).unwrap_or(std::cmp::Ordering::Equal));
-
-    // Principal eigenvector: try all three row-pair cross products of
-    // (D − λ₀I) and keep the one with the largest norm.  A single pair
-    // can be degenerate when the two rows are linearly dependent.
-    let l0 = eigenvalues[0];
-    let m = [
-        [dxx - l0, dxy, dxz],
-        [dxy, dyy - l0, dyz],
-        [dxz, dyz, dzz - l0],
-    ];
-    let cross_products = [
-        // row0 × row1
-        [
-            m[0][1] * m[1][2] - m[0][2] * m[1][1],
-            m[0][2] * m[1][0] - m[0][0] * m[1][2],
-            m[0][0] * m[1][1] - m[0][1] * m[1][0],
-        ],
-        // row0 × row2
-        [
-            m[0][1] * m[2][2] - m[0][2] * m[2][1],
-            m[0][2] * m[2][0] - m[0][0] * m[2][2],
-            m[0][0] * m[2][1] - m[0][1] * m[2][0],
-        ],
-        // row1 × row2
-        [
-            m[1][1] * m[2][2] - m[1][2] * m[2][1],
-            m[1][2] * m[2][0] - m[1][0] * m[2][2],
-            m[1][0] * m[2][1] - m[1][1] * m[2][0],
-        ],
-    ];
-    let norms: [f64; 3] = cross_products.map(|v| v[0].powi(2) + v[1].powi(2) + v[2].powi(2));
-    let (best_idx, _) = norms
-        .iter()
-        .enumerate()
-        .max_by(|(_, a), (_, b)| a.partial_cmp(b).unwrap_or(std::cmp::Ordering::Equal))
-        .unwrap_or((0, &0.0));
-    let pev = cross_products[best_idx];
-    let norm = norms[best_idx].sqrt();
-    if norm < 1e-15 {
-        return (eigenvalues, [1.0, 0.0, 0.0]);
-    }
-    (eigenvalues, [pev[0] / norm, pev[1] / norm, pev[2] / norm])
-}
-
-// ── Helpers ───────────────────────────────────────────────────────────────────
-
-/// Infallible wrapper around [`decompose_3x3_symmetric`] for use after a
-/// successful DTI or LM fit where non-positive eigenvalues indicate a
-/// solver defect rather than recoverable data error.
+/// Infallible [`diffusion_eigen`] for use after a successful fit, where a
+/// non-positive eigenvalue indicates a solver defect rather than a data error.
 ///
 /// # Panics
 ///
-/// Panics if any eigenvalue is not strictly positive.
-pub(crate) fn decompose_3x3_symmetric_infallible(elements: [f64; 6]) -> ([f64; 3], [f64; 3]) {
-    match decompose_3x3_symmetric(elements) {
-        Ok(result) => result,
-        Err((idx, val)) => {
-            panic!(
-                "post-fit D tensor eigenvalue {idx} = {val} is not positive — \
-                 this is a solver defect, not a data error"
-            );
-        }
+/// Panics if any eigenvalue is not positive.
+pub(crate) fn diffusion_eigen_infallible(elements: [f64; 6]) -> SymmetricEigen {
+    match diffusion_eigen(elements) {
+        Ok(eigen) => eigen,
+        Err((index, value)) => panic!(
+            "post-fit D tensor eigenvalue {index} = {value} is not positive — \
+             this is a solver defect, not a data error"
+        ),
     }
-}
-
-fn compute_residual(
-    design: &Array2<f64>,
-    solution: &Array1<f64>,
-    log_signals: &Array1<f64>,
-) -> f64 {
-    let n_rows = design.shape()[0];
-    let n_cols = design.shape()[1];
-    let mut sum_sq = 0.0;
-    for row in 0..n_rows {
-        let mut pred = 0.0;
-        for col in 0..n_cols {
-            pred += design[[row, col]] * solution[col];
-        }
-        let diff = pred - log_signals[row];
-        sum_sq += diff * diff;
-    }
-    sum_sq.sqrt()
 }
 
 #[cfg(test)]

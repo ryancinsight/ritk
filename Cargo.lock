@@ -5743,6 +5743,7 @@ dependencies = [
  "coeus-optim",
  "leto",
  "leto-ops",
+ "rand 0.9.5",
  "ritk-diffusion-scheme",
  "ritk-image",
  "ritk-io",

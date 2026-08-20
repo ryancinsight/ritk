@@ -654,7 +654,9 @@ pub fn estimate_dki(
 
     // Use DTI's eigendecomposition for the final D tensor (the LM refinement
     // is typically small and using the DTI decomposition is safe).
-    let (eigenvalues, principal_eigenvector) = dti::decompose_3x3_symmetric_infallible(elements_d);
+    let eigen = dti::diffusion_eigen_infallible(elements_d);
+    let eigenvalues = eigen.values;
+    let principal_eigenvector = eigen.vectors[0];
 
     let md = (elements_d[0] + elements_d[1] + elements_d[2]) / 3.0;
     let mk = compute_mk(&elements_d, &elements_w, md);
