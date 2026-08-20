@@ -1,0 +1,18 @@
+[package]
+name = "ritk-parcellation"
+version = "0.1.0"
+authors.workspace = true
+repository.workspace = true
+publish = false
+edition = "2024"
+rust-version = "1.95"
+license.workspace = true
+description = "Anatomical parcellation volumes, region statistics, and label-map formats"
+
+[dependencies]
+ritk-spatial.workspace = true
+serde = { workspace = true, features = ["derive"] }
+thiserror.workspace = true
+
+[dev-dependencies]
+serde_json = { workspace = true }

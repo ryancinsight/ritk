@@ -5697,6 +5697,7 @@ version = "0.1.0"
 dependencies = [
  "gaia-mesh",
  "leto",
+ "ritk-parcellation",
  "ritk-spatial",
  "serde",
  "serde_json",
@@ -6010,6 +6011,16 @@ dependencies = [
  "ritk-image",
  "ritk-spatial",
  "tempfile",
+]
+
+[[package]]
+name = "ritk-parcellation"
+version = "0.1.0"
+dependencies = [
+ "ritk-spatial",
+ "serde",
+ "serde_json",
+ "thiserror 2.0.20",
 ]
 
 [[package]]
