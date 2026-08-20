@@ -48,6 +48,7 @@ pub mod freesurfer;
 pub mod grid;
 pub mod regions;
 pub mod search;
+pub mod storage;
 
 pub use grid::ParcellationGrid;
 pub use regions::RegionStatistics;

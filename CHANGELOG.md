@@ -10,6 +10,23 @@
 
 ## [Unreleased] — conformance cleanup and JPEG 2000 scalar quality control (FEAT-692-01)
 
+- [minor] Add `ritk.registration.parcellate_with_atlases`, closing the same gap
+  on the Python surface that `ritk parcellate atlas` closed on the command
+  line. `ritk.connectome` could consume a parcellation but nothing in the
+  package produced one, so a caller had to bring their own label volume. The
+  binding returns an `AtlasParcellationResult` rather than a bare label volume,
+  because a parcellation without its agreement is not interpretable: the labels
+  look equally confident wherever the atlases split, which is exactly at the
+  parcel boundaries where streamline endpoints land. `ritk.connectome` also
+  gains the type stub it shipped without.
+
+- [patch] Consolidate the float-to-label conversion into
+  `ritk_parcellation::storage::label_from_stored`. Both new callers had grown
+  their own copy, and the second occurrence is where it becomes one home. The
+  shared reader additionally rejects NaN, which the copies let through to the
+  cast: every comparison against NaN is false, so a sign test alone does not
+  stop it.
+
 - [minor] Add `ritk parcellate atlas`, which closes the middle of the
   connectomics pipeline from the command line. `tract dti` produced streamlines
   and `tract connectome` consumed a label volume, but nothing produced that

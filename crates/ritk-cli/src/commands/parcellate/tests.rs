@@ -1,20 +1,5 @@
 use super::*;
 
-// ── Label conversion ─────────────────────────────────────────────────────
-
-/// A label volume arrives as floats, so the reader recovers integers from them.
-/// Rounding rather than truncating matters because a format that stored a label
-/// a hair under its integer would otherwise become the label below.
-#[test]
-fn label_values_recover_from_their_float_representation() {
-    assert_eq!(to_label(-2.0), 0);
-    assert_eq!(to_label(0.0), 0);
-    assert_eq!(to_label(0.4), 0);
-    assert_eq!(to_label(1.0), 1);
-    assert_eq!(to_label(16.999_998), 17);
-    assert_eq!(to_label(17.000_002), 17);
-}
-
 // ── Agreement reporting ──────────────────────────────────────────────────
 
 /// The report must not divide by zero on an empty volume.

@@ -24,6 +24,7 @@
 use std::path::{Path, PathBuf};
 
 use anyhow::{Context, Result};
+use ritk_parcellation::storage::label_from_stored;
 use ritk_registration::{
     parcellate_with_atlas_set, AtlasParcellationConfig, LabelFusion, LabelledAtlas,
 };
@@ -226,24 +227,9 @@ fn read_atlas(intensity: &Path, labels: &Path, voxels: usize) -> Result<Labelled
 
     Ok(LabelledAtlas {
         intensity: intensity_data.to_vec(),
-        labels: label_data.iter().map(|value| to_label(*value)).collect(),
+        labels: label_data.iter().copied().map(label_from_stored).collect(),
         region_names: Vec::new(),
     })
-}
-
-/// Nearest label to a stored float value, with anything at or below zero
-/// background.
-fn to_label(value: f32) -> u32 {
-    if value <= 0.0 {
-        return 0;
-    }
-    #[expect(
-        clippy::cast_possible_truncation,
-        clippy::cast_sign_loss,
-        reason = "the value is positive and a label volume holds integers"
-    )]
-    let label = value.round() as u32;
-    label
 }
 
 /// Write the parcellation as a label volume on the subject's grid.

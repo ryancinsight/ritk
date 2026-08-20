@@ -25,6 +25,16 @@ impl PyParcellation {
     pub(crate) const fn inner(&self) -> &Parcellation {
         &self.inner
     }
+
+    /// Wrap a parcellation another crate produced, with the array shape Python
+    /// should see it as.
+    ///
+    /// `shape` is the caller's `[Z, Y, X]` image shape, not the grid's own
+    /// innermost-first order — the grid reverses on the way in, so reading it
+    /// back off the grid here would hand Python a transposed view.
+    pub(crate) const fn from_parts(inner: Parcellation, shape: [usize; 3]) -> Self {
+        Self { inner, shape }
+    }
 }
 
 #[pymethods]

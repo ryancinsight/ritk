@@ -9,17 +9,21 @@
 //! - `multires`: Multi-resolution and Inverse-consistent Demons.
 //! - `syn`:     Greedy SyN, BSpline FFD, Multi-resolution SyN, BSpline SyN, LDDMM.
 //! - `atlas`:   Population atlas building, majority vote fusion, Joint Label Fusion.
+//! - `parcellation`: Atlas-driven subject parcellation — registration, label
+//!   warping, and fusion in one call.
 
 mod atlas;
 mod demons;
 mod global_mi;
 mod multires;
+mod parcellation;
 mod syn;
 
 pub use atlas::*;
 pub use demons::*;
 pub use global_mi::*;
 pub use multires::*;
+pub use parcellation::*;
 pub use syn::*;
 
 use pyo3::prelude::*;
@@ -48,6 +52,8 @@ pub fn register(parent: &Bound<'_, PyModule>) -> PyResult<()> {
     m.add_function(wrap_pyfunction!(build_atlas, &m)?)?;
     m.add_function(wrap_pyfunction!(majority_vote_fusion, &m)?)?;
     m.add_function(wrap_pyfunction!(joint_label_fusion_py, &m)?)?;
+    m.add_class::<PyAtlasParcellationResult>()?;
+    m.add_function(wrap_pyfunction!(parcellate_with_atlases, &m)?)?;
     m.add_class::<PyGlobalMiOptions>()?;
     m.add_function(wrap_pyfunction!(global_mi_register, &m)?)?;
     parent.add_submodule(&m)?;
