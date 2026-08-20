@@ -26,8 +26,8 @@
 
 ## DTI-CONNECTOME-PARCELLATION [major] — weighted DTI, connectome measures, atlas parcellation
 
-- **Status:** LOCAL GATES PASSED; owner=Atlas coordinator; last-update=2026-08-20;
-  branch=`feat/dti-connectome-parcellation`;
+- **Status:** DONE; owner=Atlas coordinator; last-update=2026-08-20;
+  merged as `d2ff0b9d` (PR #195); meta gitlink advanced in atlas `02d42e0`;
   scope=`crates/ritk-diffusion/src/{dti,dti/*,maps*,test_support}`,
   `crates/ritk-parcellation/**` (new), `crates/ritk-connectome/**`,
   `crates/ritk-registration/src/{lib,parcellation,parcellation/tests}.rs`,
@@ -67,6 +67,9 @@
   `O(n·m·log n)` Dijkstra in a once-per-analysis routine, and hoisting threads
   five mutable buffers through the inner function. Revisit if a parcellation
   above ~1000 regions makes it measurable.
+- Closed out: branch and the merged `docs/human-tractography-connectome` lane
+  deleted locally and on origin; the lane worktree removed, leaving ritk at the
+  one-tree baseline.
 - **Open:** `ritk-python` exposes no
   connectome or parcellation surface; the rich-club curve is
   unnormalised by design and its randomised-ensemble normalisation is a
