@@ -63,6 +63,14 @@
   efficiency, Brandes betweenness, deterministic Louvain communities with
   weighted modularity, rich-club coefficients, and components.
 
+- [minor] Add `ritk tract connectome`, which reduces a tractogram and a label
+  volume to a connectivity matrix and, on request, its graph measures. The
+  label volume is read as an ordinary image so its affine comes with it, since
+  a parcellation without one cannot answer where a voxel sits. Streamline
+  accounting prints unconditionally, and the default assignment radius is 2 mm
+  rather than zero — an exact endpoint lookup drops most of a tractogram, and a
+  caller should not have to discover that from an empty matrix.
+
 - [minor] Parcellate a whole brain from labelled atlases. `ritk-registration`
   composes its existing SyN registration, label warping, and fusion into a
   subject parcellation with per-voxel agreement and per-atlas registration

@@ -34,12 +34,15 @@
   `docs/book/{SUMMARY,parcellation,connectome}.md`, CHANGELOG, Cargo.lock;
   non-goal=CLI or Python surfaces for the connectome, surface-annotation
   rasterisation, rich-club null-model normalisation.
-- Delivered in four commits: weighted (Veraart-style IWLS) DTI fitting with the
+- Delivered in five commits: weighted (Veraart-style IWLS) DTI fitting with the
   full invariant set and two eigendecomposition accuracy repairs; extraction of
   `ritk-parcellation` with the direction-aware affine, region statistics, and
   radial label search; connectome rebuild with endpoint assignment, edge
   weighting, streamline accounting, and the graph-measure family; and the
-  atlas-propagation parcellation pipeline in `ritk-registration`.
+  atlas-propagation parcellation pipeline in `ritk-registration`; and
+  `ritk tract connectome`, which makes the pipeline reachable from the command
+  line and is covered by integration tests driving the built binary against
+  real NIfTI and TCK files.
 - The unmerged `docs/human-tractography-connectome` branch was integrated in the
   same series and its example migrated to the new API, so the break and its call
   sites land together.
@@ -47,8 +50,8 @@
   warning-denied Clippy clean on the four touched packages, warning-denied
   rustdoc clean, `mdbook build` and `mdbook test` pass, 713/713 Nextest across
   ritk-diffusion/parcellation/connectome/registration, and package doctests pass.
-- **Open:** hosted CI has not run this branch; the connectome is not yet
-  reachable from `ritk-cli` or `ritk-python`; the rich-club curve is
+- **Open:** hosted CI has not run this branch; `ritk-python` exposes no
+  connectome or parcellation surface; the rich-club curve is
   unnormalised by design and its randomised-ensemble normalisation is a
   follow-up; `ritk-parcellation` is newly `publish = true` and must be released
   before `ritk-registration` 0.55.
