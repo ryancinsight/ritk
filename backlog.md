@@ -1,3 +1,14 @@
+## ATLAS-RITK-BOOK-STAGING-2026-08-20 — Adopt hash-preserving shared book gate [patch] — in progress
+
+- Owner: Atlas integration. Scope is the Pages caller and this PM record;
+  RITK implementation, lockfile, and book content remain unchanged.
+- Acceptance: pin the caller to Atlas `20c9398`, retain `mdbook-test: true` and
+  the `ritk-statistics` inputs, then pass exact hosted source and Pages checks
+  before advancing the Atlas gitlink.
+- Driver: Atlas `ATLAS-BOOK-STAGING-2026-08-20`; the prior shared workflow
+  selected one hashless dependency artifact by directory order and failed the
+  merged-default book gate with `E0460` for duplicate `rand_core` versions.
+
 ## ATLAS-RITK-WORKFLOW-PIN-2026-08-20 — Refresh shared book workflow pin [patch] — done 2026-08-20
 
 - Owner: Atlas integration. Scope is the Pages caller and this PM/changelog
