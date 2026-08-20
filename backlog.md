@@ -24,6 +24,35 @@
   the design must determine whether fitted maps retain `GradientFrame` or the
   constructor requires an explicit zero-cost frame strategy.
 
+## DTI-CONNECTOME-PARCELLATION [major] — weighted DTI, connectome measures, atlas parcellation
+
+- **Status:** LOCAL GATES PASSED; owner=Atlas coordinator; last-update=2026-08-20;
+  branch=`feat/dti-connectome-parcellation`;
+  scope=`crates/ritk-diffusion/src/{dti,dti/*,maps*,test_support}`,
+  `crates/ritk-parcellation/**` (new), `crates/ritk-connectome/**`,
+  `crates/ritk-registration/src/{lib,parcellation,parcellation/tests}.rs`,
+  `docs/book/{SUMMARY,parcellation,connectome}.md`, CHANGELOG, Cargo.lock;
+  non-goal=CLI or Python surfaces for the connectome, surface-annotation
+  rasterisation, rich-club null-model normalisation.
+- Delivered in four commits: weighted (Veraart-style IWLS) DTI fitting with the
+  full invariant set and two eigendecomposition accuracy repairs; extraction of
+  `ritk-parcellation` with the direction-aware affine, region statistics, and
+  radial label search; connectome rebuild with endpoint assignment, edge
+  weighting, streamline accounting, and the graph-measure family; and the
+  atlas-propagation parcellation pipeline in `ritk-registration`.
+- The unmerged `docs/human-tractography-connectome` branch was integrated in the
+  same series and its example migrated to the new API, so the break and its call
+  sites land together.
+- Local gates at `d7065b40`: workspace `cargo check --all-targets` clean,
+  warning-denied Clippy clean on the four touched packages, warning-denied
+  rustdoc clean, `mdbook build` and `mdbook test` pass, 713/713 Nextest across
+  ritk-diffusion/parcellation/connectome/registration, and package doctests pass.
+- **Open:** hosted CI has not run this branch; the connectome is not yet
+  reachable from `ritk-cli` or `ritk-python`; the rich-club curve is
+  unnormalised by design and its randomised-ensemble normalisation is a
+  follow-up; `ritk-parcellation` is newly `publish = true` and must be released
+  before `ritk-registration` 0.55.
+
 ## BUILD-BLOCK-MATCHING-LOCK [patch] — restore locked workspace resolution
 
 - **Status:** DONE; owner=Codex; last-update=2026-08-19;
