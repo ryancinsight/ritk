@@ -28,8 +28,10 @@
 
 ## FIX-DTI-VOLUME-FRAME [major][arch] — preserve diffusion coordinate frames
 
-- **Status:** IMPLEMENTED; owner=Codex `/root`; last-update=2026-08-20;
-  source commit=`14a9c619`; hosted verification and merge remain open;
+- **Status:** DONE; owner=Codex `/root`; last-update=2026-08-20;
+  source commit=`14a9c619`; merged as `2d159850636a6539db61109533f399d31cc7c6f4`
+  (PR #198); post-merge CI `32387951529`, Python CI `32387951635`, and Deploy
+  mdBook `32387952289` all pass; live Pages HTTP 200 with expected title.
   implementation scope=retain `GradientFrame` in `DiffusionMaps`, make
   `DtiVolume` consume only validated ImageAxis maps, centralize the
   ImageAxis-to-image-index permutation, remove the book-example adapter, and
