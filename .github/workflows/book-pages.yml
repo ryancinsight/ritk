@@ -32,3 +32,7 @@ jobs:
       id-token: write
     with:
       output-path: target/book/ritk
+      mdbook-test: true
+      rust-toolchain: "1.97.0"
+      cargo-package: ritk-statistics
+      cargo-crate: ritk_statistics
