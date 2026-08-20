@@ -4,7 +4,9 @@
   record; RITK implementation, release work, and lockfile remain unchanged.
 - Acceptance: pin the caller to the current Atlas reusable workflow while
   retaining the existing output path, then pass exact hosted source and Pages
-  checks before advancing the Atlas gitlink.## DOC-HUMAN-CONNECTOME [patch] — human tractography and connectomics
+  checks before advancing the Atlas gitlink.
+
+## DOC-HUMAN-CONNECTOME [patch] — human tractography and connectomics
 
 - **Status:** LOCAL GATES PASSED; owner=Codex; last-update=2026-08-19;
   scope=Stanford HARDI download provenance, FSL rounding-safe parsing, the

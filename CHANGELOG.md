@@ -8,9 +8,10 @@
 
 # CHANGELOG
 
-## [Unreleased]
-- Refresh the Pages caller to the current Atlas reusable workflow revision while retaining the existing book output contract.
- — conformance cleanup and JPEG 2000 scalar quality control (FEAT-692-01)
+## [Unreleased] — conformance cleanup and JPEG 2000 scalar quality control (FEAT-692-01)
+
+- Refresh the Pages caller to the current Atlas reusable workflow revision
+  while retaining the existing book output contract.
 
 - [major] Return the truly nearest label from the parcellation search. Offsets
   were ordered by distance between voxel centres while the compared distance is
