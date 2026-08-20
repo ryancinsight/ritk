@@ -60,6 +60,7 @@
   - [Example: Signal to Streamlines](examples/diffusion_tractography.md)
   - [Human Tractography and Connectomics](examples/brain_tractography.md)
 - [Anatomical Parcellation](parcellation.md)
+  - [Example: Atlas Parcellation](examples/atlas_parcellation.md)
 - [Connectome Construction and Graph Measures](connectome.md)
 
 ## Tractogram Interchange Formats

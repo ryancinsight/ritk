@@ -130,6 +130,12 @@ let accounting = matrix.accounting();
 println!("{:.1}% of streamlines produced an edge", 100.0 * accounting.assigned_fraction());
 ```
 
+The [human tractography and connectomics
+example](examples/brain_tractography.md) runs this over a real diffusion
+dataset, and the [atlas parcellation
+example](examples/atlas_parcellation.md) produces the parcellation such a run
+consumes.
+
 ## The connectivity matrix
 
 `ConnectivityMatrix` stores a dense, **fully symmetric** \\(n \\times n\\) weight

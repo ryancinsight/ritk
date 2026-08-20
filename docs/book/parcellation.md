@@ -249,6 +249,15 @@ where the result is a coin toss between neighbouring parcels — usually the
 boundaries, which is exactly where the answer matters most for a connectome,
 since that is where streamlines end.
 
+### Checking that it worked
+
+A parcellation always looks plausible, so the question is not whether one came
+back but whether it is right. The [atlas parcellation
+example](examples/atlas_parcellation.md) synthesises a subject whose correct
+parcellation is known, deforms three atlases onto it — one of them deliberately
+mislabelled — and reports Dice against the truth alongside the agreement map.
+It is also where the current joint-label-fusion defect is reproduced.
+
 ### What atlas propagation cannot do
 
 It transfers a *predefined* parcellation. It cannot discover a region the atlas

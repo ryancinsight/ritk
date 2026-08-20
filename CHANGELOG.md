@@ -10,6 +10,22 @@
 
 ## [Unreleased] — conformance cleanup and JPEG 2000 scalar quality control (FEAT-692-01)
 
+- [patch] Add the atlas-parcellation example and its book chapter. The
+  parcellation chapter taught a pipeline nothing ran, which for a pipeline whose
+  output always looks plausible is the gap that matters: the example synthesises
+  a subject whose correct parcellation is known and reports Dice against it, so
+  a mis-registration shows as a number rather than as a picture that looks fine.
+  Majority voting recovers all three structures exactly from atlases starting at
+  0.51-0.73 Dice, and the agreement map reads exactly two thirds where one atlas
+  dissents.
+
+  Its unanimous control found a defect: with every atlas asserting identical
+  labels, joint label fusion returns Dice 0.88-0.95 where majority voting
+  returns 1.00, and reports agreement above 0.98 while doing it. With nothing to
+  weight, no choice of weights explains the loss. Filed as `RITK-JLF-UNANIMOUS`;
+  the example is its reproduction and the chapter says to prefer `MajorityVote`
+  meanwhile.
+
 - [minor] Add `ritk.registration.parcellate_with_atlases`, closing the same gap
   on the Python surface that `ritk parcellate atlas` closed on the command
   line. `ritk.connectome` could consume a parcellation but nothing in the
