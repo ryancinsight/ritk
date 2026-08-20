@@ -98,6 +98,14 @@
   to volumetric parcellations through the FreeSurfer surface reader and ribbon
   rasteriser. The deferred Brandes scratch-buffer hoist is done, results
   unchanged.
+- **CLI closes the pipeline.** `ritk parcellate atlas` registers labelled
+  atlases onto a subject, warps their labels, and fuses the votes, so the
+  parcellation `tract connectome` consumes no longer has to be produced by
+  writing Rust. An atlas off the subject's grid is rejected with both sizes
+  named rather than silently resampled. PR #203, stacked on #201. Its
+  integration fixtures are anisotropic in shape and spacing on purpose: a cubic
+  volume on an isotropic grid cannot fail an axis-order test, which is the trap
+  the sixth commit above fell into.
 - **Needs release authority:** `ritk-parcellation` 0.1.0 is packaging-clean
   (15 files, README and registry metadata complete) and its only dependency,
   `ritk-spatial` 0.2.0, is published. It must reach crates.io before
