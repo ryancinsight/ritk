@@ -14,6 +14,25 @@ use anyhow::{bail, Result};
 
 use crate::{search::MultiResolutionDisplacement, DisplacementField};
 
+/// Reject a field whose parallel arrays disagree in length.
+///
+/// Every consumer indexes all three by the same position, so unequal lengths
+/// are not a recoverable shape difference — they mean the field does not
+/// describe a consistent set of blocks.
+fn validate_field(field: &DisplacementField) -> Result<()> {
+    let (centres, displacements, peaks) = (
+        field.centres.len(),
+        field.displacements.len(),
+        field.peak_similarities.len(),
+    );
+    if centres != displacements || centres != peaks {
+        bail!(
+            "displacement field arrays disagree: {centres} centres,              {displacements} displacements, {peaks} peak similarities"
+        );
+    }
+    Ok(())
+}
+
 /// A Gaussian prior on displacement, weighted by correlation confidence.
 ///
 /// Each block's displacement is treated as a noisy observation of a global
@@ -65,6 +84,44 @@ impl BayesianDisplacementPrior {
             observation_variance,
             minimum_peak_similarity,
         })
+    }
+
+    /// Re-check the stored values.
+    ///
+    /// [`Self::new`] already rejects invalid input, but the fields are public,
+    /// so a prior can also be assembled by struct literal or deserialized.
+    /// Pipeline entry points call this before doing any metric work, so a
+    /// malformed stage fails before the expensive part rather than silently
+    /// producing a field nobody can interpret.
+    ///
+    /// # Errors
+    ///
+    /// Returns the same errors as [`Self::new`].
+    pub fn validate(&self) -> Result<()> {
+        Self::new(
+            self.mean,
+            self.prior_variance,
+            self.observation_variance,
+            self.minimum_peak_similarity,
+        )
+        .map(|_| ())
+    }
+
+    /// Validate both the prior and the field, then regularize.
+    ///
+    /// [`Self::regularize`] assumes a well-formed field because the matcher
+    /// produces one. A field can also be assembled by hand or arrive from
+    /// deserialization, where mismatched array lengths would otherwise index
+    /// out of bounds or silently drop blocks.
+    ///
+    /// # Errors
+    ///
+    /// Returns an error when this prior is invalid, or when the field's three
+    /// arrays do not have equal length.
+    pub fn try_regularize(&self, field: &DisplacementField) -> Result<DisplacementField> {
+        self.validate()?;
+        validate_field(field)?;
+        Ok(self.regularize(field))
     }
 
     /// Regularize a displacement field, preserving centres and peak metadata.
@@ -170,6 +227,38 @@ impl LeastSquaresDisplacementPrior {
             window,
             regularization_strength,
         })
+    }
+
+    /// Re-check the stored values.
+    ///
+    /// [`Self::new`] already rejects invalid input, but the fields are public,
+    /// so a prior can also be assembled by struct literal or deserialized.
+    /// Pipeline entry points call this before doing any metric work, so a
+    /// malformed stage fails before the expensive part rather than silently
+    /// producing a field nobody can interpret.
+    ///
+    /// # Errors
+    ///
+    /// Returns the same errors as [`Self::new`].
+    pub fn validate(&self) -> Result<()> {
+        Self::new(self.window, self.regularization_strength).map(|_| ())
+    }
+
+    /// Validate both the prior and the field, then regularize.
+    ///
+    /// [`Self::regularize`] assumes a well-formed field because the matcher
+    /// produces one. A field can also be assembled by hand or arrive from
+    /// deserialization, where mismatched array lengths would otherwise index
+    /// out of bounds or silently drop blocks.
+    ///
+    /// # Errors
+    ///
+    /// Returns an error when this prior is invalid, or when the field's three
+    /// arrays do not have equal length.
+    pub fn try_regularize(&self, field: &DisplacementField) -> Result<DisplacementField> {
+        self.validate()?;
+        validate_field(field)?;
+        Ok(self.regularize(field))
     }
 
     /// Regularize a displacement field axially, preserving centres and peaks.

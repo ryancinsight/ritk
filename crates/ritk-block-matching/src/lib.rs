@@ -43,7 +43,9 @@
 //! deliberately a post-process: it uses the finest peak confidence and leaves
 //! level diagnostics intact. The optional FFT-backed metric uses Apollo for
 //! finite, zero-padded linear NCC; it does not silently switch the direct metric
-//! to circular correlation.
+//! to circular correlation. The FFT pyramid methods reuse the direct
+//! propagation policy and are therefore an optimization choice, not a second
+//! coordinate or boundary contract.
 //!
 //! The metric and refinement choices are closed sets fixed by the method, so
 //! they are exhaustively matched enums rather than trait objects, and the
@@ -137,8 +139,8 @@ pub use refine::SubpixelRefinement;
 pub use regularization::{BayesianDisplacementPrior, LeastSquaresDisplacementPrior};
 pub use regularize::{strain_window_filter, StrainWindowParams, StrainWindowReport};
 pub use search::{
-    MultiResolutionDisplacement, MultiResolutionSearch, OwnedPyramid, PyramidLevel,
-    PyramidLevelDisplacement, SearchRegion,
+    MultiResolutionDisplacement, MultiResolutionSearch, OwnedPyramid, PyramidDisplacementField,
+    PyramidLevel, PyramidLevelDisplacement, SearchRegion,
 };
 
 /// Geometry of a block-matching run, in voxels.
@@ -393,15 +395,47 @@ pub struct BlockGrid {
 
 impl BlockGrid {
     /// Non-overlapping stride: `2 * block_radius + 1` per axis.
+    ///
+    /// # Panics
+    ///
+    /// Panics when a radius is too large to represent its dense stride. Use
+    /// [`Self::try_dense`] when radii originate outside trusted configuration.
     #[must_use]
     pub fn dense(block_radius: [usize; 3]) -> Self {
-        Self {
-            stride: [
-                2 * block_radius[0] + 1,
-                2 * block_radius[1] + 1,
-                2 * block_radius[2] + 1,
-            ],
+        Self::try_dense(block_radius).expect("block radius overflows dense grid stride")
+    }
+
+    /// Build a non-overlapping grid with checked stride arithmetic.
+    ///
+    /// This is the fallible counterpart to [`Self::dense`].
+    ///
+    /// # Errors
+    ///
+    /// Returns an error when `2 * block_radius + 1` overflows on any axis.
+    pub fn try_dense(block_radius: [usize; 3]) -> Result<Self> {
+        let mut stride = [0; 3];
+        for axis in 0..3 {
+            stride[axis] = block_radius[axis]
+                .checked_mul(2)
+                .and_then(|value| value.checked_add(1))
+                .ok_or_else(|| anyhow::anyhow!("dense grid stride overflows on axis {axis}"))?;
         }
+        Ok(Self { stride })
+    }
+
+    /// Validate the grid stride.
+    ///
+    /// # Errors
+    ///
+    /// Returns an error when any stride is zero, which would make centre
+    /// enumeration fail to advance.
+    pub fn validate(&self) -> Result<()> {
+        for axis in 0..3 {
+            if self.stride[axis] == 0 {
+                bail!("grid stride is zero on axis {axis}; that would loop forever");
+            }
+        }
+        Ok(())
     }
 
     /// Enumerate block centres within `dims` for `config`.
@@ -409,11 +443,11 @@ impl BlockGrid {
         let r = config.block_radius;
         let mut out = Vec::new();
         let mut z = r[0];
-        while z + r[0] < dims[0] {
+        while z.checked_add(r[0]).is_some_and(|high| high < dims[0]) {
             let mut y = r[1];
-            while y + r[1] < dims[1] {
+            while y.checked_add(r[1]).is_some_and(|high| high < dims[1]) {
                 let mut x = r[2];
-                while x + r[2] < dims[2] {
+                while x.checked_add(r[2]).is_some_and(|high| high < dims[2]) {
                     out.push([z, y, x]);
                     x = match x.checked_add(self.stride[2]) {
                         Some(v) => v,
@@ -467,6 +501,59 @@ impl DisplacementField {
     pub fn is_empty(&self) -> bool {
         self.centres.is_empty()
     }
+
+    /// Validate that all per-block arrays have the same length.
+    ///
+    /// Public field members remain available for convenient construction, so
+    /// callers that assemble a field manually should validate it before
+    /// passing it to strain or regularization code.
+    ///
+    /// # Errors
+    ///
+    /// Returns an error when centres, displacements, and peak similarities do
+    /// not contain the same number of entries.
+    pub fn validate(&self) -> Result<()> {
+        let expected = self.centres.len();
+        if self.displacements.len() != expected || self.peak_similarities.len() != expected {
+            bail!(
+                "displacement field arrays must have equal lengths: centres {}, displacements {}, peaks {}",
+                expected,
+                self.displacements.len(),
+                self.peak_similarities.len()
+            );
+        }
+        Ok(())
+    }
+
+    /// Return a confidence mask for blocks suitable for downstream estimation.
+    ///
+    /// A block is valid when its displacement is finite and its peak similarity
+    /// is finite and at least `minimum_peak_similarity`. This makes the batch
+    /// matcher's documented `NAN`/zero invalid-block convention explicit without
+    /// changing the field's stored values. Similarity values above one are not
+    /// rejected here because floating-point correlation can overshoot by a
+    /// tiny amount; callers choose the acceptance threshold.
+    ///
+    /// # Errors
+    ///
+    /// Returns an error when the field arrays have different lengths or when
+    /// `minimum_peak_similarity` is not finite and in `[0, 1]`.
+    pub fn valid_mask(&self, minimum_peak_similarity: f64) -> Result<Vec<bool>> {
+        self.validate()?;
+        if !minimum_peak_similarity.is_finite() || !(0.0..=1.0).contains(&minimum_peak_similarity) {
+            bail!("minimum peak similarity must be finite and in [0, 1]");
+        }
+        Ok(self
+            .displacements
+            .iter()
+            .zip(&self.peak_similarities)
+            .map(|(displacement, &peak)| {
+                displacement.iter().all(|value| value.is_finite())
+                    && peak.is_finite()
+                    && peak >= minimum_peak_similarity
+            })
+            .collect())
+    }
 }
 
 /// Estimate displacement at every block centre in a volume.
@@ -491,11 +578,7 @@ pub fn track_volume<T: Sample>(
     refinement: SubpixelRefinement,
 ) -> Result<DisplacementField> {
     config.validate()?;
-    for axis in 0..3 {
-        if grid.stride[axis] == 0 {
-            bail!("grid stride is zero on axis {axis}; that would loop forever");
-        }
-    }
+    grid.validate()?;
     let expected = dims[0]
         .checked_mul(dims[1])
         .and_then(|v| v.checked_mul(dims[2]))
@@ -540,14 +623,35 @@ pub fn track_volume<T: Sample>(
 ///
 /// # Panics
 ///
-/// Panics when `axial_stride == 0` (would divide by zero). Use `grid.stride[0]`
-/// or an equivalent positive value.
+/// Panics when the field arrays are malformed or `axial_stride == 0`. Use
+/// [`try_strain_from_displacement`] for untrusted fields or runtime input.
 #[must_use]
 pub fn strain_from_displacement(field: &DisplacementField, axial_stride: usize) -> Vec<f64> {
-    assert!(axial_stride > 0, "axial_stride must be positive");
+    try_strain_from_displacement(field, axial_stride)
+        .expect("invalid displacement field for strain estimation")
+}
+
+/// Fallibly estimate axial strain from a displacement field.
+///
+/// This is the validated counterpart to [`strain_from_displacement`]. It uses
+/// central finite differences in the interior and one-sided differences at
+/// axial boundaries.
+///
+/// # Errors
+///
+/// Returns an error when the field arrays are not aligned or `axial_stride` is
+/// zero.
+pub fn try_strain_from_displacement(
+    field: &DisplacementField,
+    axial_stride: usize,
+) -> Result<Vec<f64>> {
+    field.validate()?;
+    if axial_stride == 0 {
+        bail!("axial_stride must be positive");
+    }
     let n = field.len();
     if n == 0 {
-        return Vec::new();
+        return Ok(Vec::new());
     }
 
     // Group centre indices by their (y, x) lateral position, ordered by z.
@@ -587,14 +691,100 @@ pub fn strain_from_displacement(field: &DisplacementField, axial_stride: usize) 
                 let j_prev = line[pos - 1].3;
                 let j_next = line[pos + 1].3;
                 (field.displacements[j_next][0] - field.displacements[j_prev][0])
-                    / (2 * axial_stride) as f64
+                    / (2.0 * axial_stride as f64)
             };
             strain[i] = s;
         }
         start = end;
     }
 
-    strain
+    Ok(strain)
+}
+
+/// Estimate axial strain using only confidence-qualified field entries.
+///
+/// Blocks below `minimum_peak_similarity`, with non-finite confidence, or with
+/// non-finite displacement are assigned `NAN` in the returned vector and are
+/// omitted from neighbouring finite differences. Valid blocks use the nearest
+/// valid block on each side, so the denominator includes the number of skipped
+/// grid gaps (`axial_stride * gap_count`). This prevents an invalid zero
+/// displacement from manufacturing a strain spike.
+///
+/// Unlike [`strain_from_displacement`], this fallible variant validates the
+/// field's parallel arrays and the confidence threshold before estimating.
+///
+/// # Errors
+///
+/// Returns an error when the field arrays have different lengths, when
+/// `axial_stride` is zero, or when the confidence threshold is not finite and
+/// in `[0, 1]`.
+pub fn strain_from_displacement_filtered(
+    field: &DisplacementField,
+    axial_stride: usize,
+    minimum_peak_similarity: f64,
+) -> Result<Vec<f64>> {
+    if axial_stride == 0 {
+        bail!("axial_stride must be positive");
+    }
+    let valid = field.valid_mask(minimum_peak_similarity)?;
+    let n = field.len();
+    let mut strain = vec![f64::NAN; n];
+    if n == 0 {
+        return Ok(strain);
+    }
+
+    let mut indexed: Vec<(usize, usize, usize, usize)> = field
+        .centres
+        .iter()
+        .enumerate()
+        .map(|(i, &[z, y, x])| (y, x, z, i))
+        .collect();
+    indexed.sort_unstable();
+
+    let mut start = 0;
+    while start < indexed.len() {
+        let (y0, x0, _, _) = indexed[start];
+        let mut end = start + 1;
+        while end < indexed.len() && indexed[end].0 == y0 && indexed[end].1 == x0 {
+            end += 1;
+        }
+        let line = &indexed[start..end];
+        let valid_positions: Vec<usize> = line
+            .iter()
+            .enumerate()
+            .filter_map(|(position, &(_, _, _, index))| valid[index].then_some(position))
+            .collect();
+
+        for (valid_index, &position) in valid_positions.iter().enumerate() {
+            let current = line[position].3;
+            let displacement = field.displacements[current][0];
+            let estimate = if valid_positions.len() == 1 {
+                0.0
+            } else if valid_index == 0 {
+                let next_position = valid_positions[1];
+                let next = line[next_position].3;
+                let gap = (next_position - position) as f64;
+                (field.displacements[next][0] - displacement) / (gap * axial_stride as f64)
+            } else if valid_index == valid_positions.len() - 1 {
+                let previous_position = valid_positions[valid_index - 1];
+                let previous = line[previous_position].3;
+                let gap = (position - previous_position) as f64;
+                (displacement - field.displacements[previous][0]) / (gap * axial_stride as f64)
+            } else {
+                let previous_position = valid_positions[valid_index - 1];
+                let next_position = valid_positions[valid_index + 1];
+                let previous = line[previous_position].3;
+                let next = line[next_position].3;
+                let gap = (next_position - previous_position) as f64;
+                (field.displacements[next][0] - field.displacements[previous][0])
+                    / (gap * axial_stride as f64)
+            };
+            strain[current] = estimate;
+        }
+        start = end;
+    }
+
+    Ok(strain)
 }
 
 // ── End-to-end pipeline (US-023-D2) ─────────────────────────────────────────
@@ -621,6 +811,41 @@ pub struct PipelineStages {
     pub bayesian_prior: Option<BayesianDisplacementPrior>,
     /// Smooth each axial line toward its local least-squares strain window.
     pub least_squares_prior: Option<LeastSquaresDisplacementPrior>,
+    /// Optional minimum peak similarity for confidence-filtered pipeline strain.
+    ///
+    /// When set alongside `least_squares_prior`, invalid or low-confidence blocks are
+    /// omitted from finite differences and reported as `NAN`. When `None`, the
+    /// legacy unfiltered strain estimator is retained.
+    pub minimum_peak_similarity: Option<f64>,
+}
+
+impl PipelineStages {
+    /// Validate all manually configured post-processing stages.
+    ///
+    /// Constructors validate their own values, but the stage fields are public
+    /// and can be assembled directly. Pipeline entry points call this before
+    /// matching so malformed configuration fails before any metric work.
+    ///
+    /// # Errors
+    ///
+    /// Returns an error when a prior, least-squares window, or confidence threshold is
+    /// invalid.
+    pub fn validate(&self) -> Result<()> {
+        if let Some(prior) = self.bayesian_prior {
+            prior.validate()?;
+        }
+        if let Some(window) = self.least_squares_prior {
+            window.validate()?;
+        }
+        if let Some(minimum_peak_similarity) = self.minimum_peak_similarity {
+            if !minimum_peak_similarity.is_finite()
+                || !(0.0..=1.0).contains(&minimum_peak_similarity)
+            {
+                bail!("minimum peak similarity must be finite and in [0, 1]");
+            }
+        }
+        Ok(())
+    }
 }
 
 /// Configuration for a complete block-matching run over a volume.
@@ -652,6 +877,17 @@ pub struct PipelineResult {
     pub axial_strain: Option<Vec<f64>>,
 }
 
+/// Result of a pipeline run over a pyramid with raw per-level diagnostics.
+#[derive(Debug, Clone, PartialEq)]
+pub struct PyramidPipelineResult {
+    /// Regularized (or raw) displacement field over the block grid.
+    pub field: DisplacementField,
+    /// Raw direct/FFT pyramid evidence, retained independently of post-processing.
+    pub diagnostics: PyramidDisplacementField,
+    /// Axial strain per block centre, when requested by the pipeline stages.
+    pub axial_strain: Option<Vec<f64>>,
+}
+
 impl DisplacementPipeline {
     /// Run the pipeline over a fixed/moving volume pair.
     ///
@@ -662,7 +898,8 @@ impl DisplacementPipeline {
     /// # Errors
     ///
     /// Returns an error when `dims` is invalid, the buffers do not match, the
-    /// grid stride is zero, or the Bayesian prior configuration is invalid.
+    /// grid stride is zero, the Bayesian prior configuration is invalid, or a
+    /// configured confidence threshold is outside `[0, 1]`.
     pub fn run<T: Sample>(
         &self,
         fixed: &[T],
@@ -670,6 +907,7 @@ impl DisplacementPipeline {
         dims: [usize; 3],
         config: BlockMatchingConfig,
     ) -> Result<PipelineResult> {
+        self.stages.validate()?;
         let mut field = match self.metric {
             PipelineMetric::Direct => {
                 track_volume(fixed, moving, dims, config, self.grid, self.refinement)?
@@ -681,21 +919,148 @@ impl DisplacementPipeline {
         };
 
         if let Some(window) = self.stages.least_squares_prior {
-            field = window.regularize(&field);
+            field = window.try_regularize(&field)?;
         }
         if let Some(prior) = self.stages.bayesian_prior {
-            field = prior.regularize(&field);
+            field = prior.try_regularize(&field)?;
         }
 
-        let axial_strain = self
-            .stages
-            .least_squares_prior
-            .map(|_| strain_from_displacement(&field, self.grid.stride[0]));
+        let axial_strain = if self.stages.least_squares_prior.is_some() {
+            Some(match self.stages.minimum_peak_similarity {
+                Some(minimum_peak_similarity) => strain_from_displacement_filtered(
+                    &field,
+                    self.grid.stride[0],
+                    minimum_peak_similarity,
+                )?,
+                None => try_strain_from_displacement(&field, self.grid.stride[0])?,
+            })
+        } else {
+            None
+        };
 
         Ok(PipelineResult {
             field,
             axial_strain,
         })
+    }
+
+    /// Run the same pipeline stages over a caller-owned coarse-to-fine pyramid.
+    ///
+    /// The search plan owns the per-level block and search radii; this pipeline
+    /// owns metric selection, grid enumeration, subpixel refinement, and
+    /// post-processing. Direct and FFT modes therefore differ only in the
+    /// finite NCC implementation. The strain window is applied before the
+    /// Bayesian prior, matching [`Self::run`].
+    ///
+    /// # Errors
+    ///
+    /// Returns pyramid, grid, buffer, metric, or configured confidence-threshold
+    /// validation errors. As with the batch pyramid APIs, individual
+    /// non-evaluable block centres are retained with zero displacement and
+    /// `NAN` confidence.
+    pub fn run_pyramid<T: Sample>(
+        &self,
+        search: &MultiResolutionSearch,
+        pyramid: &[PyramidLevel<'_, T>],
+    ) -> Result<PipelineResult> {
+        let result = self.run_pyramid_with_diagnostics(search, pyramid)?;
+        Ok(PipelineResult {
+            field: result.field,
+            axial_strain: result.axial_strain,
+        })
+    }
+
+    /// Run a pyramid pipeline while retaining raw per-level diagnostics.
+    ///
+    /// Matching evidence is collected before strain-window or Bayesian stages;
+    /// `diagnostics` therefore remains a faithful record of direct/FFT matching
+    /// while `field` contains the configured post-processing result.
+    ///
+    /// # Errors
+    ///
+    /// Returns the same pyramid, grid, metric, stage, and threshold validation
+    /// errors as [`Self::run_pyramid`].
+    pub fn run_pyramid_with_diagnostics<T: Sample>(
+        &self,
+        search: &MultiResolutionSearch,
+        pyramid: &[PyramidLevel<'_, T>],
+    ) -> Result<PyramidPipelineResult> {
+        self.stages.validate()?;
+        let diagnostics = match self.metric {
+            PipelineMetric::Direct => {
+                search.track_volume_pyramid_diagnostics(pyramid, self.grid, self.refinement)?
+            }
+            #[cfg(feature = "fft")]
+            PipelineMetric::Fft => search.track_volume_pyramid_fft_diagnostics(
+                pyramid,
+                self.grid,
+                self.refinement,
+                FftPadding::Zero,
+            )?,
+        };
+        let mut field = diagnostics.try_as_field()?;
+
+        if let Some(window) = self.stages.least_squares_prior {
+            field = window.try_regularize(&field)?;
+        }
+        if let Some(prior) = self.stages.bayesian_prior {
+            field = prior.try_regularize(&field)?;
+        }
+
+        let axial_strain = if self.stages.least_squares_prior.is_some() {
+            Some(match self.stages.minimum_peak_similarity {
+                Some(minimum_peak_similarity) => strain_from_displacement_filtered(
+                    &field,
+                    self.grid.stride[0],
+                    minimum_peak_similarity,
+                )?,
+                None => try_strain_from_displacement(&field, self.grid.stride[0])?,
+            })
+        } else {
+            None
+        };
+
+        Ok(PyramidPipelineResult {
+            field,
+            diagnostics,
+            axial_strain,
+        })
+    }
+
+    /// Run the pipeline directly from an [`OwnedPyramid`].
+    ///
+    /// This is a convenience adapter over [`Self::run_pyramid`]: it borrows
+    /// the pyramid's caller-owned levels for the duration of the run and does
+    /// not resample, copy, or alter the matching contract. Use this when the
+    /// pyramid was constructed with [`OwnedPyramid::nearest`] or
+    /// [`OwnedPyramid::min_max`].
+    ///
+    /// # Errors
+    ///
+    /// Returns the same plan, level, grid, and metric errors as
+    /// [`Self::run_pyramid`].
+    pub fn run_owned_pyramid<T: Sample>(
+        &self,
+        search: &MultiResolutionSearch,
+        pyramid: &OwnedPyramid<T>,
+    ) -> Result<PipelineResult> {
+        let levels = pyramid.levels();
+        self.run_pyramid(search, &levels)
+    }
+
+    /// Run an owned pyramid while retaining raw per-level diagnostics.
+    ///
+    /// This is the owned-pyramid adapter for
+    /// [`Self::run_pyramid_with_diagnostics`]. It borrows the constructed levels
+    /// only for the duration of the call and preserves the same post-processing
+    /// and direct/FFT metric selection.
+    pub fn run_owned_pyramid_with_diagnostics<T: Sample>(
+        &self,
+        search: &MultiResolutionSearch,
+        pyramid: &OwnedPyramid<T>,
+    ) -> Result<PyramidPipelineResult> {
+        let levels = pyramid.levels();
+        self.run_pyramid_with_diagnostics(search, &levels)
     }
 }
 
@@ -713,11 +1078,7 @@ fn track_volume_fft<T: Sample>(
     use crate::fft::{match_block_fft, FftPadding};
 
     config.validate()?;
-    for axis in 0..3 {
-        if grid.stride[axis] == 0 {
-            bail!("grid stride is zero on axis {axis}; that would loop forever");
-        }
-    }
+    grid.validate()?;
     let expected = dims[0]
         .checked_mul(dims[1])
         .and_then(|v| v.checked_mul(dims[2]))
