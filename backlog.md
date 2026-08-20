@@ -1,3 +1,29 @@
+## DOC-HUMAN-CONNECTOME [patch] — human tractography and connectomics
+
+- **Status:** LOCAL GATES PASSED; owner=Codex; last-update=2026-08-19;
+  scope=Stanford HARDI download provenance, FSL rounding-safe parsing, the
+  runnable whole-brain tractography/connectome example, generated SVG/JSON,
+  book chapters, and synchronized PM/CHANGELOG entries;
+  non-goal=new tractography algorithms, biological ground truth, population
+  inference, or release. Acceptance requires checksummed public inputs, exact
+  DWI/parcellation alignment, value-semantic tracking/connectome invariants,
+  inspected visual output, local book/Rust gates, exact-head hosted gates,
+  merged delivery, and live Pages verification.
+
+## FIX-DTI-VOLUME-FRAME [arch][patch] — preserve diffusion coordinate frames
+
+- **Status:** TODO; owner=unclaimed; last-update=2026-08-19;
+  outcome=make the reusable DTI volume field and `ritk tract dti` path consume
+  gradient directions in the image-index convention without an example-local
+  axis reorder; scope=`DiffusionMaps`, `DtiVolume`, their construction sites,
+  CLI tracking, public contracts, and coordinate-permutation regressions;
+  non-goal=changing tensor estimation or tracking integration. Acceptance
+  requires a recorded frame contract, exhaustive caller migration, synthetic
+  axis-permutation and oblique-image tests, unchanged correctly framed
+  behavior, warning-clean focused gates, and no compatibility path. Dependency:
+  the design must determine whether fitted maps retain `GradientFrame` or the
+  constructor requires an explicit zero-cost frame strategy.
+
 ## BUILD-BLOCK-MATCHING-LOCK [patch] — restore locked workspace resolution
 
 - **Status:** DONE; owner=Codex; last-update=2026-08-19;

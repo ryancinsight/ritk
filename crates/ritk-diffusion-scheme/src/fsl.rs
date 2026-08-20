@@ -6,6 +6,12 @@ use crate::{
     DiffusionWeighting, GradientDirection, GradientFrame, GradientScheme, GradientSchemeError,
 };
 
+/// Maximum unit-norm error introduced by six-decimal FSL sidecars.
+///
+/// Each of three components may be rounded by at most `0.5e-5`, so the
+/// Euclidean perturbation is bounded by `sqrt(3) * 0.5e-5 < 1e-5`.
+const FSL_UNIT_ROUNDING_TOLERANCE: f64 = 1.0e-5;
+
 /// Parse whitespace-separated FSL b-values in s/mm².
 ///
 /// # Errors
@@ -92,7 +98,11 @@ pub fn parse_fsl_bvec(contents: &str) -> Result<Vec<Vector<3>>, GradientSchemeEr
 ///
 /// # Errors
 ///
-/// Returns the first parse, count, weighting, or direction validation error.
+/// FSL sidecars commonly store six decimal places. A weighted direction whose
+/// norm differs from one by at most [`FSL_UNIT_ROUNDING_TOLERANCE`] is
+/// normalized before construction; this removes textual rounding error without
+/// accepting a materially non-unit vector. Returns the first parse, count,
+/// weighting, or direction validation error.
 pub fn read_fsl_scheme(
     bval_contents: &str,
     bvec_contents: &str,
@@ -110,6 +120,15 @@ pub fn read_fsl_scheme(
         .zip(directions)
         .enumerate()
         .map(|(index, (weighting, direction))| {
+            let norm = direction.norm();
+            let direction = if !weighting.is_unweighted()
+                && norm > 0.0
+                && (norm - 1.0).abs() <= FSL_UNIT_ROUNDING_TOLERANCE
+            {
+                direction / norm
+            } else {
+                direction
+            };
             GradientDirection::at_index(weighting, direction, index)
         })
         .collect::<Result<Vec<_>, _>>()?;

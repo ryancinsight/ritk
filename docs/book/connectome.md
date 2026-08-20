@@ -26,6 +26,12 @@ orientation models, the [Tractography](tractography.md) chapter produces
 streamlines, and this chapter builds the connectome graph from those
 streamlines.
 
+The [human tractography and connectomics example](examples/brain_tractography.md)
+runs that complete path on the Stanford HARDI acquisition. Its committed
+84-region matrix records 9,737 tracked streamlines, including 2,350 exact
+endpoint-pair assignments, and exposes the skipped and same-region counts
+needed to audit every input streamline.
+
 ## Parcellation
 
 A `Parcellation` is a 3-D label volume where each voxel carries one region
@@ -247,12 +253,10 @@ decision 2; Consus HDF5 integration is the natural next step.
 invalid magic bytes, malformed label table entries, and unreasonable
 vertex counts.
 
-## What the current increment establishes
+## Interpretation limits
 
-The crate establishes deterministic graph construction from a label volume
-and streamline set, upper-triangular weighted storage, per-node degree and
-strength, and global graph density. It does not establish the biological
-validity of the resulting graph — edge weights are raw streamline counts
-rather than connection probabilities, and no length correction,
-thresholding, or null model is applied. Those concerns are downstream of
-this crate's ADR 0036 remit.
+Deterministic graph construction, upper-triangular storage, degree, strength,
+and density are software contracts. They do not establish biological validity.
+The weights are raw streamline counts rather than axon counts or connection
+probabilities, and no length correction, thresholding, null model, or
+population normalisation is implied by the API.

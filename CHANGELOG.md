@@ -10,10 +10,12 @@
 
 ## [Unreleased] — conformance cleanup and JPEG 2000 scalar quality control (FEAT-692-01)
 
-- [patch] Expand the tractography book chapter with a reproducible public-API
-  creation workflow, analytical output checks, and an evidence ladder that
-  separates numerical and geometric verification from interoperability,
-  anatomical, and clinical validation.
+- [patch] Expand the tractography book with a checksummed 160-volume Stanford
+  HARDI workflow that fits the full human acquisition, creates 9,737
+  streamlines, builds and publishes an 84-region endpoint connectome with
+  2,350 assigned streamlines, and checks spatial alignment, exact accounting,
+  and matrix symmetry. Accept FSL unit-vector rounding only within its derived
+  six-decimal error envelope.
 
 - [major] Repair SimpleITK parity for the Python thin-plate-spline and
   iterative displacement-field inverters. NumPy `[Z,Y,X]` constructors now
