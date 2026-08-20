@@ -1,4 +1,4 @@
-//! Borrowed, strided views into an [`Image`]'s voxels.
+//! Borrowed, strided views into a [`crate::Image`]'s voxels.
 //!
 //! [`crate::access`] answers "give me the whole buffer, and what does it cost".
 //! This module answers the question that has no answer there: "give me *part* of
