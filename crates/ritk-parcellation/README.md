@@ -26,7 +26,9 @@ stack to hold a label volume.
   radius. Streamlines terminate at the grey/white boundary while a cortical
   parcellation labels only grey matter, so an exact endpoint lookup discards
   most of a tractogram.
-- **`freesurfer`** — FreeSurfer colour lookup tables and surface annotations.
+- **`freesurfer`** — colour lookup tables, surface annotations, the binary
+  triangle surface format, and cortical-ribbon rasterisation from a surface
+  annotation into a volumetric parcellation.
 
 ## Example
 

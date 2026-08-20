@@ -137,9 +137,8 @@ impl PyParcellation {
     ///     `label`, `voxel_count`, `volume_mm3`, `centroid` (physical `(x, y, z)`),
     ///     and `extent` (index-space `[nx, ny, nz]` of its bounding box).
     ///
-    ///     Region volume is what normalises a connectome: a larger region
-    ///     attracts more streamline endpoints for reasons of geometry rather
-    ///     than anatomy.
+    /// Region volume is what normalises a connectome: a larger region attracts
+    /// more streamline endpoints for reasons of geometry rather than anatomy.
     fn region_statistics<'py>(&self, py: Python<'py>) -> RitkResult<Vec<Bound<'py, PyDict>>> {
         self.inner
             .region_statistics()

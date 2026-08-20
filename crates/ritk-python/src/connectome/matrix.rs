@@ -155,9 +155,9 @@ impl PyConnectivityMatrix {
     ///     dict: `total`, `assigned`, `intra_region`, `unassigned`, and
     ///     `assigned_fraction`. The three counts partition `total` exactly.
     ///
-    ///     Read this before reading the weights: a matrix built from a
-    ///     tractogram of which four fifths were discarded is a different claim
-    ///     from one built from a twentieth, and the weights do not say which.
+    /// Read this before reading the weights: a matrix built from a tractogram of
+    /// which four fifths were discarded is a different claim from one built from
+    /// a twentieth, and the weights do not say which.
     #[getter]
     fn accounting<'py>(&self, py: Python<'py>) -> RitkResult<Bound<'py, PyDict>> {
         let accounting = self.inner.accounting();
@@ -214,11 +214,11 @@ impl PyConnectivityMatrix {
     ///     tuple[list[dict], float]: one entry per degree threshold, and the
     ///     fraction of attempted swaps the ensemble accepted.
     ///
-    ///     A `ratio` above one is the evidence of rich-club organisation; the
-    ///     raw coefficient rising is not, since it rises in any graph whose hubs
-    ///     simply have more edges. Read the ratio with the acceptance fraction:
-    ///     a graph too constrained to rewire yields an ensemble that never left
-    ///     where it started.
+    /// A `ratio` above one is the evidence of rich-club organisation; the raw
+    /// coefficient rising is not, since it rises in any graph whose hubs simply
+    /// have more edges. Read the ratio with the acceptance fraction: a graph too
+    /// constrained to rewire yields an ensemble that never left where it
+    /// started.
     ///
     /// Raises:
     ///     ValueError: if the ensemble size or swap count is zero.

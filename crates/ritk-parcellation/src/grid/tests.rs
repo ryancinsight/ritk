@@ -264,8 +264,8 @@ fn physical_displacement_uses_the_grid_spacing() {
 #[test]
 fn image_order_geometry_reverses_every_axis() {
     let grid = ParcellationGrid::from_image_order(
-        [2, 3, 4],              // [nz, ny, nx]
-        [4.0, 2.0, 1.0],        // slowest axis first
+        [2, 3, 4],       // [nz, ny, nx]
+        [4.0, 2.0, 1.0], // slowest axis first
         [-1.0, 5.0, 0.5],
         [1.0, 0.0, 0.0, 0.0, 1.0, 0.0, 0.0, 0.0, 1.0],
     )
@@ -325,9 +325,18 @@ fn image_order_survives_an_oblique_direction() {
             spacing[2] * f64::from(i2),
         ];
         let expected = [
-            origin[0] + direction[0] * scaled[0] + direction[1] * scaled[1] + direction[2] * scaled[2],
-            origin[1] + direction[3] * scaled[0] + direction[4] * scaled[1] + direction[5] * scaled[2],
-            origin[2] + direction[6] * scaled[0] + direction[7] * scaled[1] + direction[8] * scaled[2],
+            origin[0]
+                + direction[0] * scaled[0]
+                + direction[1] * scaled[1]
+                + direction[2] * scaled[2],
+            origin[1]
+                + direction[3] * scaled[0]
+                + direction[4] * scaled[1]
+                + direction[5] * scaled[2],
+            origin[2]
+                + direction[6] * scaled[0]
+                + direction[7] * scaled[1]
+                + direction[8] * scaled[2],
         ];
         assert_close(
             grid.physical_point_of([i2 as usize, i1 as usize, i0 as usize])

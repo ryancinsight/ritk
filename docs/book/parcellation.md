@@ -244,12 +244,53 @@ let annotation = SurfaceAnnotation::read(file)?; // per-vertex labels
 ```
 
 A `SurfaceAnnotation` labels *vertices of a mesh*, not voxels. Converting one to
-a volumetric `Parcellation` needs the surface geometry it refers to — the vertex
-coordinates and faces of the matching `lh.white`/`rh.white` surface — plus a
-rasterisation of the cortical ribbon between the white and pial surfaces.
-Neither is supplied yet, so an annotation is currently readable but not
-convertible. The lookup table it pairs with is directly usable as the
-`region_names` of a volumetric parcellation from any source.
+a volumetric `Parcellation` needs the geometry those vertices belong to —
+`Surface` reads the binary triangle format — and a rasterisation of the cortical
+ribbon, which `rasterise_ribbon` performs.
+
+```rust,ignore
+use ritk_parcellation::freesurfer::{Surface, rasterise_ribbon};
+
+let white = Surface::read(std::fs::File::open("lh.white")?)?.translated(c_ras);
+let pial = Surface::read(std::fs::File::open("lh.pial")?)?.translated(c_ras);
+
+let (parcellation, report) = rasterise_ribbon(&white, &pial, &annotation, &grid, 16)?;
+println!("{} of {} columns filled", report.columns - report.unfilled_columns, report.columns);
+```
+
+### The frame, which is where this goes wrong
+
+FreeSurfer stores surfaces in **surface RAS** (tkrRAS), not the scanner frame a
+volume carries. The two differ by a translation: surface RAS puts the origin at
+the centre of the conformed 256³ volume, scanner RAS puts it where the scanner
+did. The offset is the volume's `c_ras`, typically tens of millimetres — enough
+to place a cortical ribbon outside the brain entirely, without ever failing.
+
+The reader returns coordinates as stored and does not guess, because the surface
+file does not contain the offset. `Surface::translated` applies it once known.
+Rasterising with the wrong frame lands no column inside the volume, which is
+rejected rather than returned as an empty parcellation.
+
+### What the rasterisation does and does not do
+
+The two surfaces share a vertex numbering: vertex *i* of `lh.white` and vertex
+*i* of `lh.pial` are the inner and outer end of the same cortical column.
+Walking that segment and stamping the vertex's label into every voxel it crosses
+fills the ribbon one column at a time — the same approach as FreeSurfer's
+`mri_surf2vol --fill-ribbon`.
+
+It fills the ribbon; it does not tessellate it. A voxel no column crosses stays
+background even if it lies geometrically inside the ribbon, which happens where
+the mesh is coarse relative to the voxel grid. `steps` closes gaps *along* a
+column and does nothing for gaps *between* columns, so a coarse mesh on a fine
+grid is a limitation of the input rather than of the setting.
+`RibbonReport::unfilled_columns` is the signal that the two disagree in
+resolution, and `contested_voxels` counts where two parcels wanted the same
+voxel — concentrated at boundaries and inside sulcal folds, which is exactly
+where a connectome's endpoints land.
+
+The `read_freesurfer_lut` table is separately usable as the `region_names` of a
+volumetric parcellation from any source.
 
 ## Next
 

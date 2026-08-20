@@ -8,13 +8,17 @@
 //! # Conversion to volume
 //!
 //! A [`SurfaceAnnotation`] labels *vertices of a mesh*, not voxels. Turning one
-//! into a [`crate::Parcellation`] therefore needs the surface geometry the
-//! annotation refers to — the vertex coordinates and faces of the matching
-//! `lh.white`/`rh.white` surface — plus a rasterisation of the cortical ribbon
-//! between the white and pial surfaces. Neither is supplied here, so an
-//! annotation is currently readable but not yet convertible; the
-//! [`read_freesurfer_lut`] table it pairs with is directly usable as the
-//! `region_names` of a volumetric parcellation from any source.
+//! into a [`crate::Parcellation`] needs the geometry those vertices belong to —
+//! [`Surface`] reads it — and a rasterisation of the cortical ribbon between the
+//! white and pial surfaces, which [`rasterise_ribbon`] performs.
+//!
+//! Mind the frame: FreeSurfer stores surfaces in surface RAS, which differs
+//! from the scanner frame a volume carries by that volume's `c_ras`
+//! translation. [`Surface::translated`] applies it; [`surface`] sets out why it
+//! cannot be applied automatically.
+//!
+//! The [`read_freesurfer_lut`] table is separately usable as the `region_names`
+//! of a volumetric parcellation from any source.
 //!
 //! # References
 //!
@@ -22,6 +26,12 @@
 //!   <https://surfer.nmr.mgh.harvard.edu/fswiki/FreeSurferFileFormats>
 
 use std::io::{BufRead, BufReader, Read};
+
+pub mod ribbon;
+pub mod surface;
+
+pub use ribbon::{RibbonError, RibbonReport, rasterise_ribbon};
+pub use surface::Surface;
 
 /// Error returned when reading FreeSurfer surface files.
 #[derive(Debug, thiserror::Error)]
