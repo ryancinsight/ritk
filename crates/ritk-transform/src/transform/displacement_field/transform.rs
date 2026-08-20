@@ -123,9 +123,32 @@ where
         &self,
         input: &Var<f32, B>,
     ) -> Result<Var<f32, B>, coeus_nn::ModuleError<<B as coeus_core::ComputeBackend>::Error>> {
-        Ok(self
-            .transform_points(input)
-            .expect("invariant: Module::forward receives valid field coordinates"))
+        // The caller supplies this tensor, so its shape is input rather than an
+        // invariant: a rank or extent the field cannot accept is a contract
+        // error to report, not a reason to abort the process. Panicking here
+        // also crossed a trait boundary whose signature already returns the
+        // error type the failure belongs in.
+        self.transform_points(input).map_err(|error| match error {
+            DisplacementTransformError::PointShape { dimension, actual } => {
+                if actual.len() == 2 {
+                    coeus_nn::ModuleError::ShapeMismatch {
+                        module: "DisplacementFieldTransform",
+                        parameter: "points",
+                        expected: vec![actual[0], dimension],
+                        actual,
+                    }
+                } else {
+                    coeus_nn::ModuleError::InvalidRank {
+                        module: "DisplacementFieldTransform",
+                        expected: "2",
+                        actual: actual.len(),
+                    }
+                }
+            }
+            DisplacementTransformError::Interpolation(error) => {
+                coeus_nn::ModuleError::Interpolation(error)
+            }
+        })
     }
 
     fn load_parameters(&mut self, parameters: &[Var<f32, B>]) {
