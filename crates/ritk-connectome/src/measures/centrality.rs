@@ -98,8 +98,14 @@ pub fn betweenness(matrix: &ConnectivityMatrix) -> Box<[f64]> {
         return centrality.into_boxed_slice();
     }
 
+    // One set of buffers for the whole sweep. Brandes runs a full Dijkstra per
+    // source, and allocating its five working arrays — plus a predecessor list
+    // per node — inside that loop makes the allocation count quadratic in the
+    // node count. Reusing them keeps the predecessor lists' capacity across
+    // sources, so the repeated sweeps stop paying for the same growth.
+    let mut scratch = Scratch::new(n);
     for source in 0..n {
-        accumulate_from(matrix, source, &mut centrality);
+        accumulate_from(matrix, source, &mut scratch, &mut centrality);
     }
 
     // Two factors of two cancel. The sweep visits each unordered pair twice,
@@ -118,20 +124,70 @@ pub fn betweenness(matrix: &ConnectivityMatrix) -> Box<[f64]> {
     centrality.into_boxed_slice()
 }
 
+/// Per-source working state, reused across every source in one sweep.
+struct Scratch {
+    distance: Vec<f64>,
+    path_count: Vec<f64>,
+    predecessors: Vec<Vec<usize>>,
+    /// Nodes in the order they were settled, which is by increasing distance —
+    /// exactly the order the backward sweep needs reversed.
+    settled_order: Vec<usize>,
+    settled: Vec<bool>,
+    dependency: Vec<f64>,
+    heap: BinaryHeap<Frontier>,
+}
+
+impl Scratch {
+    fn new(nodes: usize) -> Self {
+        Self {
+            distance: vec![f64::INFINITY; nodes],
+            path_count: vec![0.0; nodes],
+            predecessors: vec![Vec::new(); nodes],
+            settled_order: Vec::with_capacity(nodes),
+            settled: vec![false; nodes],
+            dependency: vec![0.0; nodes],
+            heap: BinaryHeap::new(),
+        }
+    }
+
+    /// Return every buffer to its start-of-source state.
+    ///
+    /// The predecessor lists are cleared rather than reallocated, which is the
+    /// point of holding them: their capacity is what a fresh source would
+    /// otherwise have to grow again.
+    fn reset(&mut self) {
+        self.distance.fill(f64::INFINITY);
+        self.path_count.fill(0.0);
+        for list in &mut self.predecessors {
+            list.clear();
+        }
+        self.settled_order.clear();
+        self.settled.fill(false);
+        self.dependency.fill(0.0);
+        self.heap.clear();
+    }
+}
+
 /// One Brandes source: build the shortest-path DAG, then sweep it backwards.
-fn accumulate_from(matrix: &ConnectivityMatrix, source: usize, centrality: &mut [f64]) {
-    let n = matrix.region_count();
-    let mut distance = vec![f64::INFINITY; n];
-    let mut path_count = vec![0.0_f64; n];
-    let mut predecessors: Vec<Vec<usize>> = vec![Vec::new(); n];
-    // Nodes in the order they were settled, which is by increasing distance —
-    // exactly the order the backward sweep needs reversed.
-    let mut settled_order = Vec::with_capacity(n);
-    let mut settled = vec![false; n];
+fn accumulate_from(
+    matrix: &ConnectivityMatrix,
+    source: usize,
+    scratch: &mut Scratch,
+    centrality: &mut [f64],
+) {
+    scratch.reset();
+    let Scratch {
+        distance,
+        path_count,
+        predecessors,
+        settled_order,
+        settled,
+        dependency,
+        heap,
+    } = scratch;
 
     distance[source] = 0.0;
     path_count[source] = 1.0;
-    let mut heap = BinaryHeap::new();
     heap.push(Frontier {
         distance: 0.0,
         node: source,
@@ -185,7 +241,6 @@ fn accumulate_from(matrix: &ConnectivityMatrix, source: usize, centrality: &mut 
 
     // Backward sweep: a node's dependency is complete once every node it feeds
     // has been processed, and those are all further from the source.
-    let mut dependency = vec![0.0_f64; n];
     for node in settled_order.iter().rev() {
         for predecessor in &predecessors[*node] {
             if path_count[*node] > 0.0 {

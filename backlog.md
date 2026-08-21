@@ -90,19 +90,27 @@
 - CodeRabbit raised 16 findings; 14 accepted and fixed in `c63a77f1`, 2
   rejected: the renderer's index-space axis use is correct as documented, and
   the bracketed PM status labels are an established repo-wide convention.
-- **Deferred:** hoisting the per-source scratch buffers in Brandes betweenness.
-  Real but not dominant — the allocation is `O(n²)` small pushes against an
-  `O(n·m·log n)` Dijkstra in a once-per-analysis routine, and hoisting threads
-  five mutable buffers through the inner function. Revisit if a parcellation
-  above ~1000 regions makes it measurable.
 - Closed out: branch and the merged `docs/human-tractography-connectome` lane
   deleted locally and on origin; the lane worktree removed, leaving ritk at the
   one-tree baseline.
-- **Open:** `ritk-python` exposes no
-  connectome or parcellation surface; the rich-club curve is
-  unnormalised by design and its randomised-ensemble normalisation is a
-  follow-up; `ritk-parcellation` is newly `publish = true` and must be released
-  before `ritk-registration` 0.55.
+- **All open items resolved.** `ritk.connectome` exposes parcellations,
+  connectome construction, and the graph measures to Python (21 tests against a
+  maturin-built wheel). The rich club is normalised against a degree-preserving
+  null model with the ensemble parameters explicit. Surface annotations convert
+  to volumetric parcellations through the FreeSurfer surface reader and ribbon
+  rasteriser. The deferred Brandes scratch-buffer hoist is done, results
+  unchanged.
+- **Needs release authority:** `ritk-parcellation` 0.1.0 is packaging-clean
+  (15 files, README and registry metadata complete) and its only dependency,
+  `ritk-spatial` 0.2.0, is published. It must reach crates.io before
+  `ritk-registration` 0.55, which now depends on it. Publishing is not an
+  inferred authority, so the release itself is held.
+- Stash triage: all seven cleared. One held a live defect — a panic on an
+  input-dependent path in `DisplacementFieldTransform::forward` — rescued as
+  PR #200. The rest were superseded (block-matching seams, VTK smoothing, the
+  Burn/Coeus terminology sweep, lockfile regenerations, a CI action since
+  deleted) or stale (a build-target workaround whose premise no longer holds).
+  Patches archived under the gitignored `scratch/stash-archive/`.
 
 ## BUILD-BLOCK-MATCHING-LOCK [patch] — restore locked workspace resolution
 

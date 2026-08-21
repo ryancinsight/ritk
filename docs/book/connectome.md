@@ -237,15 +237,47 @@ enormous traffic, and degree does not see it. It is computed by Brandes'
 algorithm, which never enumerates a path.
 
 The rich-club coefficient asks whether the high-degree nodes are preferentially
-wired to each other. **The returned curve is unnormalised.** \\(\\Phi(k)\\) rises
-with \\(k\\) in *any* graph, because high-degree nodes have more edges and so are
-likelier to be connected by chance alone; the published measure is the ratio
-\\(\\Phi(k)/\\Phi_{\\text{random}}(k)\\) against degree-preserving randomised
-graphs, and only a ratio above one is evidence of a rich club. Producing
-\\(\\Phi_{\\text{random}}\\) requires an ensemble of rewirings whose size and
-scheme belong to the study design, not to a library default — so the raw curve is
-what this returns, and **a rising \\(\\Phi(k)\\) from this function is not by
-itself evidence of a rich club.**
+wired to each other. \\(\\Phi(k)\\) rises with \\(k\\) in *any* graph, because
+high-degree nodes have more edges and so are likelier to be connected by chance
+alone — so **a rising raw curve is not by itself evidence of a rich club.** The
+measure is the ratio against a null model that keeps every degree and rewires
+everything else:
+
+\\[ \\Phi_{\\text{norm}}(k) = \\Phi(k) / \\langle \\Phi_{\\text{random}}(k) \\rangle \\]
+
+`normalised_rich_club` computes it. The ensemble is built by repeated
+double-edge swaps, which preserve every node's degree exactly — so the club
+membership at each threshold is identical in every sample, and only the edges
+*among* the club change. That is what makes the ratio a statement about wiring
+rather than about degree.
+
+```rust,ignore
+use ritk_connectome::measures::rich_club::{RandomisationConfig, normalised_rich_club};
+
+let (levels, report) = normalised_rich_club(&matrix, RandomisationConfig::new(1000, 42))?;
+for level in &levels {
+    if let Some(ratio) = level.ratio {
+        println!(
+            "k={} ratio {ratio:.2} (random spread {:.2})",
+            level.observed.degree, level.random_deviation
+        );
+    }
+}
+println!("rewiring acceptance {:.1}%", 100.0 * report.acceptance());
+```
+
+Ensemble size, swaps per edge, and the seed are explicit because each is a
+study-design choice with no defensible default. The seed is fixed rather than
+drawn, so a reported ratio can be reproduced.
+
+**Read the ratio with the acceptance fraction.** A ratio near one means either
+that the wiring is unremarkable *or* that the degree sequence never allowed it to
+be otherwise — four nodes of degree five among eight degree-one leaves has
+exactly six slots for edges between them, every pair, so every graph with that
+sequence has a complete club and one is the true answer. A low acceptance
+fraction means the graph was too constrained to rewire and the ensemble never
+left where it started.
+
 
 Each level also reports `mean_weight`, the weighted companion: a club can be
 topologically complete while its edges are individually weak.

@@ -24,6 +24,8 @@ __pycache__/
 *.pyc
 *.pyo
 *.pyd
+# Debug symbols emitted beside the extension module by `maturin develop`.
+*.pdb
 
 # Windows reserved-name artifact (accidental 'nul' redirection)
 nul

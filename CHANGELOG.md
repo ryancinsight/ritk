@@ -25,6 +25,108 @@
   `32344964253`, Python CI `32344964345`, Deploy mdBook `32344964522`, and
   live Pages HTTP 200 pass.
 
+- [minor] Normalise the rich-club curve against a degree-preserving null model.
+  The raw curve was returned unnormalised because the ensemble size and rewiring
+  scheme belong to the caller's study design; that was a reason to make them
+  parameters, not to withhold the measure. `normalised_rich_club` builds the
+  ensemble by double-edge swaps, which preserve every degree exactly, and reports
+  the swap acceptance alongside the ratio — a graph too constrained to rewire
+  yields an ensemble that never left where it started. A degree sequence can
+  force the club's density, in which case a ratio of one is the true answer; that
+  case is documented and pinned.
+
+- [minor] Rasterise a surface annotation into a cortical ribbon.
+  `ritk-parcellation` reads the FreeSurfer binary triangle surface format and
+  fills the ribbon by walking each cortical column from the white surface to the
+  pial one. FreeSurfer stores surfaces in surface RAS, which differs from a
+  volume's scanner frame by its `c_ras`; the reader does not guess the offset,
+  and surfaces landing outside the grid are rejected rather than returned as an
+  empty parcellation. The report counts unfilled columns and contested voxels,
+  which are the two ways the fill falls short.
+
+- [minor] Expose parcellations and connectomes to Python as `ritk.connectome`:
+  a Parcellation from a `[Z, Y, X]` label array, connectome construction over
+  `[N, 3]` streamline arrays, the graph measures as arrays, and the normalised
+  rich club. The image-to-grid axis reversal moved into
+  `ParcellationGrid::from_image_order` rather than being written a second time,
+  so it now has exactly one implementation.
+
+- [patch] Report a bad points tensor from `DisplacementFieldTransform::forward`
+  instead of panicking. The tensor is the caller's, so a rank or extent the field
+  cannot accept is input rather than programmer error, and the `Module::forward`
+  signature already returns the error type it belongs in.
+
+- [patch] Hoist the Brandes betweenness scratch buffers out of the per-source
+  loop, which had been deferred. Results are unchanged.
+
+- [minor] Normalise the rich-club curve against a degree-preserving null model.
+  The raw curve was returned unnormalised because the ensemble size and rewiring
+  scheme belong to the caller's study design; that was a reason to make them
+  parameters, not to withhold the measure. `normalised_rich_club` builds the
+  ensemble by double-edge swaps, which preserve every degree exactly, and reports
+  the swap acceptance alongside the ratio — a graph too constrained to rewire
+  yields an ensemble that never left where it started. A degree sequence can
+  force the club's density, in which case a ratio of one is the true answer; that
+  case is documented and pinned.
+
+- [minor] Rasterise a surface annotation into a cortical ribbon.
+  `ritk-parcellation` reads the FreeSurfer binary triangle surface format and
+  fills the ribbon by walking each cortical column from the white surface to the
+  pial one. FreeSurfer stores surfaces in surface RAS, which differs from a
+  volume's scanner frame by its `c_ras`; the reader does not guess the offset,
+  and surfaces landing outside the grid are rejected rather than returned as an
+  empty parcellation. The report counts unfilled columns and contested voxels,
+  which are the two ways the fill falls short.
+
+- [minor] Expose parcellations and connectomes to Python as `ritk.connectome`:
+  a Parcellation from a `[Z, Y, X]` label array, connectome construction over
+  `[N, 3]` streamline arrays, the graph measures as arrays, and the normalised
+  rich club. The image-to-grid axis reversal moved into
+  `ParcellationGrid::from_image_order` rather than being written a second time,
+  so it now has exactly one implementation.
+
+- [patch] Report a bad points tensor from `DisplacementFieldTransform::forward`
+  instead of panicking. The tensor is the caller's, so a rank or extent the field
+  cannot accept is input rather than programmer error, and the `Module::forward`
+  signature already returns the error type it belongs in.
+
+- [patch] Hoist the Brandes betweenness scratch buffers out of the per-source
+  loop, which had been deferred. Results are unchanged.
+
+- [minor] Normalise the rich-club curve against a degree-preserving null model.
+  The raw curve was returned unnormalised because the ensemble size and rewiring
+  scheme belong to the caller's study design; that was a reason to make them
+  parameters, not to withhold the measure. `normalised_rich_club` builds the
+  ensemble by double-edge swaps, which preserve every degree exactly, and reports
+  the swap acceptance alongside the ratio — a graph too constrained to rewire
+  yields an ensemble that never left where it started. A degree sequence can
+  force the club's density, in which case a ratio of one is the true answer; that
+  case is documented and pinned.
+
+- [minor] Rasterise a surface annotation into a cortical ribbon.
+  `ritk-parcellation` reads the FreeSurfer binary triangle surface format and
+  fills the ribbon by walking each cortical column from the white surface to the
+  pial one. FreeSurfer stores surfaces in surface RAS, which differs from a
+  volume's scanner frame by its `c_ras`; the reader does not guess the offset,
+  and surfaces landing outside the grid are rejected rather than returned as an
+  empty parcellation. The report counts unfilled columns and contested voxels,
+  which are the two ways the fill falls short.
+
+- [minor] Expose parcellations and connectomes to Python as `ritk.connectome`:
+  a Parcellation from a `[Z, Y, X]` label array, connectome construction over
+  `[N, 3]` streamline arrays, the graph measures as arrays, and the normalised
+  rich club. The image-to-grid axis reversal moved into
+  `ParcellationGrid::from_image_order` rather than being written a second time,
+  so it now has exactly one implementation.
+
+- [patch] Report a bad points tensor from `DisplacementFieldTransform::forward`
+  instead of panicking. The tensor is the caller's, so a rank or extent the field
+  cannot accept is input rather than programmer error, and the `Module::forward`
+  signature already returns the error type it belongs in.
+
+- [patch] Hoist the Brandes betweenness scratch buffers out of the per-source
+  loop, which had been deferred. Results are unchanged.
+
 - [major] Return the truly nearest label from the parcellation search. Offsets
   were ordered by distance between voxel centres while the compared distance is
   from the query point, so an endpoint near a parcel boundary could be assigned

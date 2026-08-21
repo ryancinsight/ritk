@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+from ritk._ritk import connectome as connectome
 from ritk._ritk import filter as filter
 from ritk._ritk import image as image
 from ritk._ritk import io as io

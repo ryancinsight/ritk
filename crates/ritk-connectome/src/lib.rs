@@ -83,6 +83,16 @@ pub enum ConnectomeError {
         /// Region count that was attempted.
         regions: usize,
     },
+    /// A randomisation configuration cannot produce a null model.
+    #[error(
+        "randomisation needs a nonzero ensemble and swap count, got {ensemble_size} samples at {swaps_per_edge} swaps per edge"
+    )]
+    InvalidRandomisation {
+        /// Requested ensemble size.
+        ensemble_size: usize,
+        /// Requested swaps per edge.
+        swaps_per_edge: usize,
+    },
     /// A decoded matrix violates a storage invariant.
     #[error("malformed connectome over {regions} regions: {reason}")]
     MalformedMatrix {

@@ -26,6 +26,7 @@ def test_ritk_has_expected_submodules():
     expected = [
         "image",
         "io",
+        "connectome",
         "diffusion",
         "filter",
         "registration",
@@ -45,6 +46,7 @@ def test_ritk_top_level_exports_match_public_contract():
     expected_exports = {
         "Image",
         "io",
+        "connectome",
         "diffusion",
         "filter",
         "registration",
@@ -65,6 +67,7 @@ def test_ritk___all___matches_public_contract():
         "ColorImage",
         "image",
         "io",
+        "connectome",
         "diffusion",
         "filter",
         "metrics",
