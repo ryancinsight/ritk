@@ -6,6 +6,14 @@
 > wording unless touched by the current slice. Domain medical-atlas terms are
 > preserved.
 
+## ATLAS-RITK-BOOK-STAGING-2026-08-20 — current lane
+
+- [x] Rebase the clean lane from RITK `origin/main` `ad508525` and preserve
+      the existing package/crate inputs.
+- [x] Pin the caller to Atlas shared workflow commit `20c9398`.
+- [ ] Collect exact-head Rust and mdBook hosted checks, merge at terminal
+      success, verify the merged default, and close the Atlas residual.
+
 # RITK Sprint Checklist — Active
 
 ## FIX-DTI-VOLUME-FRAME [major][arch] — Preserve diffusion coordinate frames
