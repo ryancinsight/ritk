@@ -10,6 +10,54 @@
 
 ## [Unreleased] — conformance cleanup and JPEG 2000 scalar quality control (FEAT-692-01)
 
+- [patch] Add the atlas-parcellation example and its book chapter. The
+  parcellation chapter taught a pipeline nothing ran, which for a pipeline whose
+  output always looks plausible is the gap that matters: the example synthesises
+  a subject whose correct parcellation is known and reports Dice against it, so
+  a mis-registration shows as a number rather than as a picture that looks fine.
+  Majority voting recovers all three structures exactly from atlases starting at
+  0.51-0.73 Dice, and the agreement map reads exactly two thirds where one atlas
+  dissents.
+
+  A second run with no atlas mislabelled marks the boundary of the chapter's
+  claim that voting is right when the atlases are interchangeable: there voting
+  reaches 1.00 and joint label fusion 0.88-0.95, because weighting needs the
+  atlases to differ in local registration quality and interchangeable ones do
+  not. That is the fixture, not a ranking of the two rules.
+
+- [minor] Add `ritk.registration.parcellate_with_atlases`, closing the same gap
+  on the Python surface that `ritk parcellate atlas` closed on the command
+  line. `ritk.connectome` could consume a parcellation but nothing in the
+  package produced one, so a caller had to bring their own label volume. The
+  binding returns an `AtlasParcellationResult` rather than a bare label volume,
+  because a parcellation without its agreement is not interpretable: the labels
+  look equally confident wherever the atlases split, which is exactly at the
+  parcel boundaries where streamline endpoints land. `ritk.connectome` also
+  gains the type stub it shipped without.
+
+- [patch] Consolidate the float-to-label conversion into
+  `ritk_parcellation::storage::label_from_stored`. Both new callers had grown
+  their own copy, and the second occurrence is where it becomes one home. The
+  shared reader additionally rejects NaN, which the copies let through to the
+  cast: every comparison against NaN is false, so a sign test alone does not
+  stop it.
+
+- [minor] Add `ritk parcellate atlas`, which closes the middle of the
+  connectomics pipeline from the command line. `tract dti` produced streamlines
+  and `tract connectome` consumed a label volume, but nothing produced that
+  volume: the library could parcellate a subject from labelled atlases and the
+  CLI could not. The command registers each atlas onto the subject, warps its
+  labels, and fuses the votes by majority or joint label fusion, optionally
+  writing the per-voxel agreement — which is lowest at the parcel boundaries
+  where streamline endpoints land, so it is the map to consult before trusting
+  an edge weight. An atlas off the subject's grid is rejected rather than
+  resampled silently, because a registration recovers a deformation and never a
+  resampling.
+
+- [patch] Consolidate the CLI's integration tests into one harness binary at
+  `tests/cli/`. Each `tests/*.rs` file is an independent binary that re-links
+  the whole stack, so a file per command pays that cost per command.
+
 - [major][arch] Retain `GradientFrame` in fitted `DiffusionMaps` and make
   `DtiVolume` the single validated ImageAxis-to-image-index boundary. FSL and
   MRtrix directions now reach reusable and CLI tractography in

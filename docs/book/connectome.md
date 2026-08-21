@@ -48,6 +48,19 @@ let config = ConnectomeConfig::new()
 let matrix = build_connectivity_matrix(&parcellation, &streamlines, &config)?;
 ```
 
+The command line and Python reach the same builder:
+
+```bash
+ritk tract connectome --tractogram tracks.tck --labels dseg.nii.gz \
+                      --output matrix.json --measures measures.json
+```
+
+```python
+matrix = ritk.connectome.build_connectivity_matrix(
+    parcellation, streamlines, assignment_radius=2.0
+)
+```
+
 ### 1. Which region does an endpoint belong to?
 
 | Assignment | Behaviour |
@@ -116,6 +129,12 @@ and nothing in the weights distinguishes the two.
 let accounting = matrix.accounting();
 println!("{:.1}% of streamlines produced an edge", 100.0 * accounting.assigned_fraction());
 ```
+
+The [human tractography and connectomics
+example](examples/brain_tractography.md) runs this over a real diffusion
+dataset, and the [atlas parcellation
+example](examples/atlas_parcellation.md) produces the parcellation such a run
+consumes.
 
 ## The connectivity matrix
 

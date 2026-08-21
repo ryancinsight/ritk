@@ -100,6 +100,14 @@
   to volumetric parcellations through the FreeSurfer surface reader and ribbon
   rasteriser. The deferred Brandes scratch-buffer hoist is done, results
   unchanged.
+- **CLI closes the pipeline.** `ritk parcellate atlas` registers labelled
+  atlases onto a subject, warps their labels, and fuses the votes, so the
+  parcellation `tract connectome` consumes no longer has to be produced by
+  writing Rust. An atlas off the subject's grid is rejected with both sizes
+  named rather than silently resampled. PR #203, stacked on #201. Its
+  integration fixtures are anisotropic in shape and spacing on purpose: a cubic
+  volume on an isotropic grid cannot fail an axis-order test, which is the trap
+  the sixth commit above fell into.
 - **Needs release authority:** `ritk-parcellation` 0.1.0 is packaging-clean
   (15 files, README and registry metadata complete) and its only dependency,
   `ritk-spatial` 0.2.0, is published. It must reach crates.io before
@@ -111,6 +119,27 @@
   Burn/Coeus terminology sweep, lockfile regenerations, a CI action since
   deleted) or stale (a build-target workaround whose premise no longer holds).
   Patches archived under the gitignored `scratch/stash-archive/`.
+
+## RITK-ULP-PATCH-DENOISE [patch] — a 1-ULP parity tolerance that holds only on CI
+
+- **Status:** todo; owner=unclaimed; last-update=2026-08-20;
+  scope=`crates/ritk-python/tests/test_simpleitk_cmake_data.py`
+  (`test_cmake_patch_based_denoising_structural`) and whichever of
+  `ritk-filter`'s patch-based denoising or the stored reference is wrong;
+  non-goal=widening the tolerance to make it pass.
+- **Outcome:** the tolerance is derived, or the divergence is root-caused.
+- Found while verifying an unrelated change: the test fails on this Windows
+  host at 2 ULP against a 1 ULP bound, identically in debug and release, on a
+  tree whose `ritk-filter` matches `HEAD`. The same test passed in hosted CI at
+  `0200826e` on all three platforms, so the bound is one that holds on the CI
+  runners and not here — which is the signature of a tolerance taken from one
+  machine's output rather than derived from the algorithm's error growth.
+- **Acceptance oracle:** either the bound is replaced by one derived from the
+  patch-based denoising error model (machine epsilon, patch count, accumulation
+  order) and the test passes on both hosts, or the 2 ULP gap is traced to a
+  real difference in the implementation and fixed there. Raising the constant
+  to 2 without a derivation is the prohibited empirical hack.
+- **Dependencies:** none. **Risk/change class:** `[patch]`. Effort S.
 
 ## BUILD-BLOCK-MATCHING-LOCK [patch] — restore locked workspace resolution
 

@@ -36,6 +36,9 @@ enum Commands {
     /// Track streamlines through a diffusion tensor field.
     Tract(commands::tract::TractArgs),
 
+    /// Label a subject brain by anatomical region.
+    Parcellate(commands::parcellate::ParcellateArgs),
+
     /// Inspect a DICOM study using the viewer core.
     Viewer(commands::viewer::ViewerArgs),
 
@@ -70,6 +73,7 @@ fn main() -> anyhow::Result<()> {
         Commands::Convert(args) => commands::convert::run(args),
         Commands::Dwi(args) => commands::dwi::run(args),
         Commands::Tract(args) => commands::tract::run(args),
+        Commands::Parcellate(args) => commands::parcellate::run(args),
         Commands::Viewer(args) => commands::viewer::run(args),
         Commands::Filter(args) => commands::filter::run(args),
         Commands::Register(args) => commands::register::run(args),

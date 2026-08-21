@@ -188,6 +188,33 @@ let agreement = result.agreement;         // per-voxel, in [0, 1]
 let quality = result.registration_quality; // final CC per atlas
 ```
 
+### Running it without writing Rust
+
+The same pipeline is a command and a Python call, so a parcellation can be
+produced by whichever surface the rest of the analysis lives on.
+
+```bash
+ritk parcellate atlas --subject T1.nii.gz \
+                      --atlas-intensity a1.nii.gz --atlas-labels a1_dseg.nii.gz \
+                      --atlas-intensity a2.nii.gz --atlas-labels a2_dseg.nii.gz \
+                      --output dseg.nii.gz --agreement agreement.nii.gz
+```
+
+```python
+import ritk
+
+result = ritk.registration.parcellate_with_atlases(
+    subject, atlas_intensities, atlas_labels, fusion="majority"
+)
+parcellation = result.parcellation          # feeds build_connectivity_matrix
+agreement = result.agreement                # [Z, Y, X], in [0, 1]
+```
+
+Every atlas must already lie on the subject's grid. All three surfaces reject a
+mismatch rather than resampling it: a registration recovers a deformation, never
+a resampling, so an atlas of the wrong size quietly accepted would produce
+labels for a different brain.
+
 ### Labels are warped, never interpolated
 
 Label values are identifiers, not measurements. Region 17 and region 19 do not
@@ -221,6 +248,16 @@ The returned `agreement` map is the per-voxel confidence. Low agreement marks
 where the result is a coin toss between neighbouring parcels — usually the
 boundaries, which is exactly where the answer matters most for a connectome,
 since that is where streamlines end.
+
+### Checking that it worked
+
+A parcellation always looks plausible, so the question is not whether one came
+back but whether it is right. The [atlas parcellation
+example](examples/atlas_parcellation.md) synthesises a subject whose correct
+parcellation is known, deforms three atlases onto it — one of them deliberately
+mislabelled — and reports Dice against the truth alongside the agreement map.
+It is also where the choice between the two fusion rules becomes a measurement
+rather than a preference.
 
 ### What atlas propagation cannot do
 

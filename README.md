@@ -298,6 +298,7 @@ ritk resample  <input> <output> [opts]   # Resample to a new voxel spacing
 ritk normalize <input> <output> [opts]   # Normalize intensities (histogram-match, nyul, zscore, minmax, white-stripe)
 ritk dwi       <subcommand> [opts]       # Diffusion-weighted image processing
 ritk tract     <subcommand> [opts]       # Streamline tractography
+ritk parcellate <subcommand> [opts]      # Label a brain by anatomical region
 ```
 
 `ritk dwi tensor` fits one diffusion tensor per voxel from a DWI series and its
@@ -329,6 +330,27 @@ b = 700 acquisition the median track runs about 16 mm against an anatomical
 30–150 mm. That is the data and the nearest-neighbour direction lookup, not a
 threshold to loosen; the command reports why each track stopped so the two can
 be told apart.
+
+`ritk parcellate atlas` labels a subject by registering one or more labelled
+atlases onto it and fusing their votes, which is what turns a tractogram into a
+connectome — the streamline endpoints need regions to land in:
+
+```
+ritk parcellate atlas --subject sub-01_T1w.nii.gz \
+                      --atlas-intensity atlas1.nii.gz --atlas-labels atlas1_dseg.nii.gz \
+                      --atlas-intensity atlas2.nii.gz --atlas-labels atlas2_dseg.nii.gz \
+                      --output sub-01_dseg.nii.gz --agreement agreement.nii.gz
+
+ritk tract connectome --tractogram tracks.tck --labels sub-01_dseg.nii.gz \
+                      --output matrix.json --measures measures.json
+```
+
+Every atlas must already lie on the subject's grid; a registration recovers a
+deformation, never a resampling, and the command rejects a mismatch rather than
+producing labels for a differently sized brain. `--agreement` writes the
+fraction of atlases that voted for each winning label, which is low exactly at
+the parcel boundaries where streamline endpoints land — so it is the map to
+consult before trusting an edge weight.
 
 Current `ritk segment --method` coverage includes:
 
