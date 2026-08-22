@@ -51,9 +51,8 @@ impl LddmmRegistration {
     /// Register `moving` to `fixed` via LDDMM geodesic shooting with a
     /// user-provided [`FieldSmoother`].
     ///
-    /// When `smoother` is a [`crate::deformable_field_ops::GpuFieldSmoother`],
-    /// the per-iteration momentum, adjoint, and body-force smoothing runs on
-    /// the GPU — 10–50× faster than the CPU path for typical 256³ fields.
+    /// The per-iteration momentum, adjoint, and body-force smoothing all run
+    /// through the supplied smoother.
     ///
     /// # Arguments
     /// - `fixed`   — reference image, flat `[f32]` in Z-major order.

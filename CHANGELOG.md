@@ -10,6 +10,24 @@
 
 ## [Unreleased] — conformance cleanup and JPEG 2000 scalar quality control (FEAT-692-01)
 
+### Removed
+
+- **[major] `GpuFieldSmoother` and `CpuOrGpu`.** Neither could do what its name
+  said. `GpuFieldSmoother<B: Backend>` bound `coeus_core::Backend`, whose only
+  implementors are `SequentialBackend` and `MoiraiBackend` — both CPU — so no
+  GPU backend could be substituted; and the convolution beneath it ran on the
+  host anyway, downloading through `to_vec()`, convolving with a scalar loop,
+  and uploading through `from_slice`. Its documentation quoted an RTX 3060
+  timing no code path here can produce. `CpuOrGpu`'s `Gpu` variant was never
+  constructed at any site in the workspace.
+
+  The `FieldSmoother` trait remains as the extension seam, and the per-level
+  factory parameters are now generic over it rather than over a two-variant
+  enum — which admits any implementor rather than exactly two, at the same zero
+  allocation and zero indirect call. A genuine device smoother becomes a new
+  implementor rather than a widened enum. See
+  [ADR 0021](docs/adr/0021-retire-the-gpu-field-smoother.md).
+
 - [patch] Add the atlas-parcellation example and its book chapter. The
   parcellation chapter taught a pipeline nothing ran, which for a pipeline whose
   output always looks plausible is the gap that matters: the example synthesises

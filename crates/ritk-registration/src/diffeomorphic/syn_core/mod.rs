@@ -68,7 +68,7 @@ pub struct SyNResult {
 /// Use [`register`](SyNRegistration::register) for CPU smoothing
 /// (constructs a [`CpuFieldSmoother`] internally).  Use
 /// [`register_with`](SyNRegistration::register_with) to pass an arbitrary
-/// [`FieldSmoother`] implementation (e.g. `GpuFieldSmoother`).
+/// [`FieldSmoother`] implementation.
 #[derive(Debug, Clone)]
 pub struct SyNRegistration {
     /// Algorithm configuration.

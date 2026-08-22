@@ -61,8 +61,8 @@ use ritk_spatial::VolumeDims;
 
 use crate::atlas::label_fusion::{joint_label_fusion, majority_vote, LabelFusionConfig};
 use crate::deformable_field_ops::{
-    compose_fields_into, scaling_and_squaring, warp_image, CpuFieldSmoother, CpuOrGpu,
-    VelocityField, WarpInterpolation,
+    compose_fields_into, scaling_and_squaring, warp_image, CpuFieldSmoother, VelocityField,
+    WarpInterpolation,
 };
 use crate::diffeomorphic::multires_syn::{
     InverseConsistency, MultiResSyNConfig, MultiResSyNRegistration,
@@ -242,12 +242,8 @@ where
 
     let engine = MultiResSyNRegistration::new(config.registration.clone());
     for atlas in atlases {
-        let mut factory = |level: [usize; 3]| -> CpuOrGpu<B> {
-            CpuOrGpu::Cpu(CpuFieldSmoother::new(
-                level,
-                config.registration.sigma_smooth,
-            ))
-        };
+        let mut factory =
+            |level: [usize; 3]| CpuFieldSmoother::new(level, config.registration.sigma_smooth);
         let result = engine.register_with(target, &atlas.intensity, dims, spacing, &mut factory)?;
 
         let displacement = atlas_to_subject_displacement(&result, dims, &config.registration);

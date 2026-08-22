@@ -133,9 +133,8 @@ pub(super) fn integrate_geodesic(
 /// Zero-allocation EPDiff geodesic integration using a [`FieldSmoother`] for
 /// Gaussian smoothing rather than a caller-provided `smooth_tmp` buffer.
 ///
-/// When `smoother` is a [`crate::deformable_field_ops::GpuFieldSmoother`],
-/// the per-step momentum and adjoint smoothing runs on the GPU — 10–50×
-/// faster than the CPU path for typical 256³ fields.
+/// The per-step momentum and adjoint smoothing runs through whichever
+/// [`crate::deformable_field_ops::FieldSmoother`] the caller supplies.
 ///
 /// All other scratch buffers (`vel_*`, `mom_*`, `adj_*`, `comp_*`) are still
 /// caller-provided; only the `smooth_tmp` buffer is replaced by the smoother.
