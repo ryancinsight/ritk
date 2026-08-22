@@ -9,9 +9,10 @@
   selected one hashless dependency artifact by directory order and failed the
   merged-default book gate with `E0460` for duplicate `rand_core` versions.
 
-## RITK-GPU-SMOOTHER-REACH [major][arch] — make the GPU smoother instantiable
+## RITK-GPU-SMOOTHER-REACH [major][arch] — retire the GPU smoother — IMPLEMENTED 2026-08-21
 
-- **Status:** FILED; owner=unclaimed; last-update=2026-08-21;
+- **Status:** IMPLEMENTED; owner=current session, lane
+  `worktrees/ritk-gpu-smoother`; last-update=2026-08-21;
   scope=`GpuFieldSmoother`/`CpuOrGpu` in `ritk-registration`, the `Backend`
   bound on `ritk_filter::GaussianFilter`, and the dev-dependency and
   differential test that would exercise a real device;
@@ -31,20 +32,37 @@
   `ritk-filter` never calls `parallel_for`; a workspace-wide grep finds zero
   call sites in that crate. `ComputeBackend` is what the filter actually needs,
   and `Backend` is what it asks for.
-- **Acceptance:** either (a) `GpuFieldSmoother` and the `GaussianFilter` path
-  beneath it are re-bounded to the trait they use, a `coeus-wgpu`
-  dev-dependency is added, and a differential test asserts value-semantic
-  agreement between the GPU and CPU smoothers at a derived tolerance; or (b) the
-  type is deleted along with its performance claim and callers updated in the
-  same change. A GPU-named surface must not remain that no GPU backend can
-  instantiate, and the RTX 3060 figure is removed or reproduced.
-- **Dependencies:** the device-side half needs
-  [Coeus PR #341](https://github.com/ryancinsight/Coeus/pull/341), without which
-  `coeus-wgpu` cannot acquire a device at all. If (a) instead requires
-  `WgpuBackend: Backend`, that impl belongs upstream in Coeus, not here.
-- **Sequencing:** decompose by crate rather than re-bounding 517 sites at once;
-  the first increment is `ritk-filter`'s `GaussianFilter` and its direct
-  consumers.
+- **Second finding, which decided the outcome:** the convolution beneath the
+  type runs on the host regardless of backend. `GaussianFilter::apply_tensor`
+  calls `input.to_vec()`, runs a scalar loop over a `Vec<f32>`, and rebuilds
+  with `Tensor::from_slice`; no device kernel is dispatched. The sibling
+  `DiscreteGaussianFilter::apply_native` documents the same thing about itself.
+  Re-bounding to `ComputeBackend` would therefore have made the type
+  instantiable while leaving it a host convolution wrapped in two device
+  transfers — strictly slower than `CpuFieldSmoother`, with the false claim
+  preserved and harder to notice.
+- **Third finding:** `CpuOrGpu`'s second variant is dead. Every construction
+  site in the workspace — `atlas/mod.rs:121`,
+  `diffeomorphic/multires_syn/registration.rs:47`, `parcellation.rs:245` —
+  builds `CpuOrGpu::Cpu(..)`. `CpuOrGpu::Gpu` is never constructed.
+- **Delivered (option b):** `GpuFieldSmoother` and `CpuOrGpu` deleted; the
+  `FieldSmoother` trait kept as the extension seam; the three factory
+  parameters changed from `-> CpuOrGpu<B>` to a generic `S: FieldSmoother`,
+  which admits any implementor rather than exactly two and still costs no
+  allocation and no indirect call. Four unreproducible performance claims
+  removed (the RTX 3060 figure and three "10-50x faster" repetitions). The
+  `B: Backend` parameter is gone from signatures whose bodies never touched a
+  backend.
+- **Evidence:** `cargo nextest run --workspace` is `5675 passed, 0 failed` with
+  25 skips — the identical count to before the change, which is what shows the
+  deletion took no surviving test with it. `cargo clippy --workspace
+  --all-targets -- -D warnings` and `cargo fmt --check` are clean.
+- **Decision record:** `docs/adr/0021-retire-the-gpu-field-smoother.md`.
+- **Follow-up, not this item:** a genuine device smoother is now a new
+  `FieldSmoother` implementor with no enum to widen and no bound to relax. It
+  needs a device separable-convolution primitive and a differential test against
+  the CPU smoother at a derived tolerance, which is its own item with its own
+  acceptance.
 
 ## ATLAS-RITK-WORKFLOW-PIN-2026-08-20 — Refresh shared book workflow pin [patch] — done 2026-08-20
 

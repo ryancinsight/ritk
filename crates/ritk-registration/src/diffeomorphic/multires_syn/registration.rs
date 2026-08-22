@@ -1,13 +1,11 @@
 use std::borrow::Cow;
 use std::collections::VecDeque;
 
-use ritk_image::tensor::Backend;
-
 use crate::deformable_field_ops::{
     cc_converged, compose_fields_into, compute_gradient_into, normalize_forces_into,
     scaling_and_squaring, scaling_and_squaring_into, validate_image_pair, warp_image,
-    warp_image_into, CpuFieldSmoother, CpuOrGpu, FieldSmoother, VectorField, VectorFieldMut,
-    VelocityField, WarpInterpolation,
+    warp_image_into, CpuFieldSmoother, FieldSmoother, VectorField, VectorFieldMut, VelocityField,
+    WarpInterpolation,
 };
 use crate::diffeomorphic::SyNResult;
 use crate::error::RegistrationError;
@@ -43,29 +41,28 @@ impl super::MultiResSyNRegistration {
         spacing: [f64; 3],
     ) -> Result<SyNResult, RegistrationError> {
         let sigma = self.config.sigma_smooth;
-        let mut factory =
-            |ld: [usize; 3]| -> CpuOrGpu { CpuOrGpu::Cpu(CpuFieldSmoother::new(ld, sigma)) };
+        let mut factory = |ld: [usize; 3]| CpuFieldSmoother::new(ld, sigma);
         self.register_with(fixed, moving, dims, spacing, &mut factory)
     }
 
     /// Register `moving` to `fixed` using multi-resolution SyN with a
-    /// user-provided [`CpuOrGpu`] factory.
+    /// user-provided [`FieldSmoother`] factory.
     ///
-    /// When the factory returns [`CpuOrGpu::Gpu`], the per-iteration
-    /// velocity-field smoothing runs on the GPU — 10–50× faster than the
-    /// CPU path for typical 256³ fields.
+    /// The factory's return type is a generic parameter rather than a selection
+    /// enum, so any implementor is admissible and the choice still costs no
+    /// allocation and no indirect call.
     ///
     /// A fresh smoother is constructed per resolution level (because
-    /// dimensions change). The [`CpuOrGpu`] enum is stack-allocated, so
+    /// dimensions change). The smoother is a generic parameter, so
     /// selecting the smoother costs no allocation and no indirect call; the
     /// smoothing itself allocates whatever the chosen path requires.
-    pub fn register_with<B: Backend>(
+    pub fn register_with<S: FieldSmoother>(
         &self,
         fixed: &[f32],
         moving: &[f32],
         dims: [usize; 3],
         spacing: [f64; 3],
-        smoother_factory: &mut impl FnMut([usize; 3]) -> CpuOrGpu<B>,
+        smoother_factory: &mut impl FnMut([usize; 3]) -> S,
     ) -> Result<SyNResult, RegistrationError> {
         let [nz, ny, nx] = dims;
         validate_image_pair(fixed, moving, dims)?;
