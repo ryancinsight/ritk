@@ -21,9 +21,14 @@
       rejection regressions; classify the public error-enum change as major.
 - [x] Pass Rustfmt, `git diff --check`, and locked no-dependency metadata at
       source commit `14a9c619`.
-- [ ] Run the focused locked Nextest/Clippy/doctest gates outside the Atlas
-      overlay, collect exact-head hosted CI, merge, and advance the Atlas
-      gitlink.
+- [x] Run the focused locked `ritk-diffusion` Nextest outside the Atlas
+      overlay: run `39e59a64-6827-4555-a5c2-6b62b4058078` passes 184/184
+      tests with 11 configured skips.
+- [ ] Run the focused Clippy/doctest gates with the provider's MSVC toolchain,
+      collect exact-head hosted CI, merge, and advance the Atlas gitlink. The
+      in-tree locked command is still blocked by the Atlas overlay's unused
+      local patches; the overlay-free local lint attempt is separately blocked
+      by the host's unavailable MSVC linker context.
 
 ## DOC-HUMAN-CONNECTOME [patch] — Human tractography and connectomics
 
@@ -7358,3 +7363,132 @@ ritk-core: 0.8.0 → 0.9.0 | ritk-registration: 0.52.0 → 0.53.0
   Python lanes in `30686402102`, and Pages build `30686402101`; PR #80 merged
   as `4d5a076a`, post-merge Pages run `30686954077` succeeded, and all four
   live book resources return HTTP 200.
+
+## gap-audit-2026-08-20 (owner: atlas-gap-audit)
+
+Execution order for the items filed as `RITK-GAP-2026-08-20-0x` in
+`backlog.md`. Ordered by dependency, not by severity: the `_native` rename
+churns most of the files the later items touch, so it goes first even though
+the fuzz gap is the higher security risk. Items 02, 04, 05, 07 and 09 are
+independent of it and can run concurrently on disjoint scopes.
+
+### Audit pass itself (complete)
+
+- [x] Orient at HEAD `d06196b1`; record the four dirty PM files and leave peer
+      edits untouched.
+- [x] Read declared scope: `README.md`, `docs/adr/README.md` (20 ADRs), ADR
+      0002/0017/0018/0020 in full, `docs/book/SUMMARY.md` (78 linked chapters).
+- [x] Measure: LOC, test count, stubs, lint floor, `dyn`, unwrap, naming
+      markers, book coverage, tracked payload size, nextest budgets.
+- [x] Cross-check README capability claims against source; confirm
+      Correlation Ratio and CMA-ES are absent everywhere.
+- [x] Confirm the Coeus `Backend` impl set is CPU-only, so the GPU-named
+      registration types are unreachable.
+- [x] Confirm the axis convention is pinned by anisotropic, oblique,
+      hand-computed oracles (ADR 0020 verification section; `rotated_metadata_3d`).
+- [x] Fix the two unambiguous stale README claims; file the rest.
+- [x] Write the finding into `gap_audit.md` and the DoR items into `backlog.md`.
+
+### RITK-GAP-2026-08-20-01 — collapse `X` / `X_native`
+
+- [ ] Enumerate the closure: every `pub fn *_native`, every `*Native*` type,
+      and their callers across `crates/`, `examples/`, and the book samples.
+      Record the count per crate as the ratchet baseline.
+- [ ] Draft the ADR. This supersedes ADR 0002's transitional naming, so revise
+      0002 in place with a dated note rather than adding a parallel record.
+- [ ] Increment 1: leaf format crates (`ritk-nifti`, `ritk-nrrd`,
+      `ritk-metaimage`, `ritk-mgh`, `ritk-analyze`, `ritk-minc`, `ritk-png`,
+      `ritk-tiff`, `ritk-jpeg`) — base name takes the Coeus signature, the old
+      one is deleted, every call site in the same commit.
+- [ ] Increment 2: `ritk-image`, `ritk-transform`, `ritk-interpolation`,
+      `ritk-tensor-ops`.
+- [ ] Increment 3: `ritk-filter` (129 `apply_native` methods) and
+      `ritk-morphology`, `ritk-segmentation`, `ritk-statistics`.
+- [ ] Increment 4: `ritk-registration`, `ritk-model`.
+- [ ] Increment 5: consumers — `ritk-io`, `ritk-cli`, `ritk-python`,
+      `ritk-snap`, examples, book samples, `.pyi` stubs.
+- [ ] Final: `grep -rn 'native' --include='*.rs' crates` shows no identifier
+      carrying the marker; CHANGELOG records the `[major]` mapping.
+
+### RITK-GAP-2026-08-20-02 — fuzz the parsers
+
+- [ ] Add a non-published `fuzz/` workspace member; confirm it stays out of
+      every published crate's dependency graph.
+- [ ] Seed corpora from existing `test_data/` headers: whole, truncated at each
+      field boundary, and bit-flipped.
+- [ ] Targets in dependency order: `ritk-trx`, `ritk-tck`, `ritk-trk`,
+      `ritk-mif` (smallest surface, and the four crates holding the production
+      `unwrap()` sites) — then `ritk-nifti`, `ritk-nrrd`, `ritk-metaimage`,
+      `ritk-analyze`, `ritk-mgh`, `ritk-minc` — then `ritk-tiff`, `ritk-png`,
+      `ritk-jpeg`, `ritk-codecs` — then `ritk-vtk` and `ritk-dicom`.
+- [ ] Every panic or unbounded allocation found becomes a typed error plus a
+      regression test carrying the offending bytes. Never widen a bound to make
+      a finding go away.
+- [ ] Convert the 39 proven-invariant `unwrap()` sites to
+      `expect("invariant: ...")` so the proof ships at the panic site.
+- [ ] Wire a scheduled CI job with a committed per-target time budget.
+
+### RITK-GAP-2026-08-20-03 — GPU naming and accelerator claims
+
+- [ ] Decide and record: wire a real accelerator `ComputeBackend` upstream in
+      Coeus, or retire the device vocabulary here. Draft the ADR with the
+      recommendation; do not pose it as a question.
+- [ ] If retiring: rename `GpuFieldSmoother` and `CpuOrGpu` for what they do
+      (pre-allocated staging versus in-place), update all callers.
+- [ ] Delete or replace the three unbacked performance paragraphs
+      (`smooth.rs:281-285`, `atlas/mod.rs:130-131`, `lddmm/geodesic.rs:137`).
+      A retained sentence cites a stored criterion baseline.
+- [ ] Confirm `README.md:19-21` and the type names agree afterwards.
+
+### RITK-GAP-2026-08-20-04 — evict the tracked payload
+
+- [ ] `git rm -r --cached dist output scratch/check_restart.exe`; add `output/`
+      and `dist/` to `.gitignore`; drop the four stale `target_*` entries.
+- [ ] Inventory `test_data/`: which files does a test actually open? Split into
+      small committed goldens and an on-demand checksummed set.
+- [ ] Move the on-demand set behind the existing `externals/` fetch harness;
+      re-point every consuming test and confirm each still resolves its input.
+- [ ] Record the committed-fixture budget so the next addition is measured
+      against it.
+
+### RITK-GAP-2026-08-20-05 — nextest budgets
+
+- [ ] Delete the two dead filters (`test(bspline_cr)`, `test(multires_cr)`) and
+      the stale "NdArray CPU time" comment.
+- [ ] Profile the six escalated groups. For each, decide: optimise the
+      production code until it fits 30 s / 60 s, or move it to a dedicated
+      profile with a derived, recorded budget.
+- [ ] Remove every override above the standard budget from `profile.default`
+      and `profile.ci`.
+- [ ] Verify every remaining filter expression matches at least one test.
+
+### RITK-GAP-2026-08-20-06 — lint and doc floor (sequence after 01)
+
+- [ ] Add `[workspace.lints]` and `lints.workspace = true` per member.
+- [ ] Record the per-crate `missing_docs` debt as a non-increasing baseline.
+- [ ] Add `#![deny(missing_docs)]` crate by crate, burning the baseline down.
+- [ ] Write `README.md` for the 15 publishable crates lacking one.
+
+### RITK-GAP-2026-08-20-07 — CHANGELOG version axis
+
+- [ ] Map each of the 167 `[Unreleased]` blocks to its landing version from
+      `git log` and the per-crate manifest history.
+- [ ] Fold, collapse completed entries to one line plus a commit link, leave
+      exactly one open `[Unreleased]`.
+
+### RITK-GAP-2026-08-20-08 — book chapters (sequence after 01)
+
+- [ ] For each of the twelve thin chapters: write the promised content, or
+      delete the promise. No placeholder prose.
+- [ ] Registration chapters get the MI expression, the gradient-descent update
+      rule, and the convergence criterion, with resolved citations.
+- [ ] Add `mdbook test` to the Pages workflow.
+
+### RITK-GAP-2026-08-20-09 — MI subsample stride
+
+- [ ] Derive the sample count from bin occupancy versus histogram variance, or
+      make it a caller parameter with a documented default.
+- [ ] Add a test showing MI is stable across volume sizes straddling the
+      threshold.
+- [ ] Refresh the stale Correlation-Ratio line in
+      `crates/ritk-registration/docs/REGISTRATION_OPTIMIZATION_ANALYSIS.md:12`.
