@@ -239,9 +239,9 @@ PACS-bound export pipeline.
 
 ### Registration (`ritk-registration`)
 
-**Metrics** — MSE, Mutual Information (Standard / Mattes / NMI), NCC, LNCC, Correlation Ratio, DL losses.
+**Metrics** — MSE, NCC, LNCC, NGF, and DL losses in `ritk-registration`; histogram Mutual Information (Standard / Mattes / NMI) in `ritk-statistics::information`, consumed by the classical engine and the Python bindings.
 
-**Optimizers** — Gradient Descent, Adam, Momentum, CMA-ES.
+**Optimizers** — the autodiff gradient-descent driver in `ritk-registration::metric::autodiff`, plus the Coeus optimizers (SGD with momentum, Adam, AdamW, AdaGrad, RMSProp).
 
 **Regularization** — Bending Energy, Curvature, Diffusion, Elastic, Total Variation.
 

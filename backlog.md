@@ -114,9 +114,11 @@
   accepted design retains `GradientFrame` in fitted maps and rejects `Lps` at
   `DtiVolume` construction because physical-to-index conversion requires image
   geometry that the volume does not own. Local `fmt`, diff, and locked
-  no-dependency metadata checks pass; locked Nextest is blocked before
-  compilation by the Atlas overlay requesting a lockfile rewrite for unused
-  local patches, so no local test result is inferred.
+  no-dependency metadata checks pass. An overlay-free locked Nextest run
+  passes 184/184 tests with 11 configured skips; the in-tree locked command
+  remains blocked before compilation by the Atlas overlay requesting a
+  lockfile rewrite for unused local patches. Provider Clippy/doctest and
+  hosted exact-head verification remain open.
 
 ## DTI-CONNECTOME-PARCELLATION [major] — weighted DTI, connectome measures, atlas parcellation
 
@@ -5812,3 +5814,212 @@ Close GAP-SCI-08: add `scipy.ndimage.value_indices` parity to `ritk-core` with t
 - GAP-SCI-11 (iterate_structure): generator-based, requires `Iterator` plumbing
 - GAP-SCI-15 (zoom): scipy.ndimage.zoom with spline interpolation order parameter; same complexity bucket as rotate
 ket as rotate
+
+## RITK-GAP-2026-08-20-01 [major][arch] — collapse the dual `X` / `X_native` surface
+
+- **Status:** todo; owner=unclaimed; last-update=2026-08-20;
+  source=`gap_audit.md` Finding 2026-08-20 F2.
+- **Outcome:** one public entry point per operation. The Coeus path takes the
+  base name; the `_native` marker is deleted from the API surface, since the
+  Burn path it distinguished no longer exists (ADR 0002 is complete).
+- **Scope:** every `pub fn *_native` and `*Native*` type in `crates/`, their
+  callers in `ritk-cli`, `ritk-python`, `ritk-snap`, the examples, the book
+  samples, and the affected Rustdoc. Migrate in dependency-ordered increments
+  (leaf format crates, then `ritk-filter`/`ritk-registration`, then `ritk-io`,
+  then the consumers), each increment converting a bounded scope completely.
+- **Non-goals:** changing any algorithm, tolerance, or numerical result; adding
+  a re-export bridge or `#[deprecated]` alias for either name.
+- **Acceptance oracle:** `grep -rn 'native' --include='*.rs' crates` returns no
+  identifier carrying the marker as a name element; no two public functions in
+  one impl block differ only by that suffix; the workspace gate is green; the
+  CHANGELOG records the rename as `[major]` with the migration mapping.
+- **Dependencies:** none. Blocks any crates.io release that would otherwise
+  publish both halves.
+- **Risk/change class:** `[major][arch]` — public API of every published crate.
+  Effort L. Measured surface: 129 `apply_native` definitions in `ritk-filter`
+  alone; 22 `*_native` functions with a same-named sibling; 354 identifiers
+  carrying the marker.
+
+## RITK-GAP-2026-08-20-02 [minor] — fuzz the sixteen format parsers
+
+- **Status:** todo; owner=unclaimed; last-update=2026-08-20;
+  source=`gap_audit.md` Finding 2026-08-20 F3.
+- **Outcome:** every parser that consumes an externally supplied byte stream
+  has a `cargo-fuzz` target over a malformed corpus, wired into a scheduled CI
+  job with a committed time budget.
+- **Scope:** `ritk-dicom`, `ritk-nifti`, `ritk-nrrd`, `ritk-metaimage`,
+  `ritk-analyze`, `ritk-mgh`, `ritk-minc`, `ritk-tiff`, `ritk-png`,
+  `ritk-jpeg`, `ritk-codecs` (JPEG-LS and JPEG 2000), `ritk-vtk`, `ritk-trk`,
+  `ritk-tck`, `ritk-trx`, `ritk-mif`. Seed corpora from the existing
+  `test_data/` headers, truncated and bit-flipped.
+- **Non-goals:** changing parser behaviour on well-formed input; adding a
+  dependency to any published crate (fuzz targets live in a non-published
+  `fuzz/` member).
+- **Acceptance oracle:** each listed crate has a fuzz target that runs clean for
+  its committed budget; any panic or unbounded allocation found is fixed as a
+  typed error and pinned by a regression test carrying the offending input.
+- **Dependencies:** requires the nightly verification toolchain
+  (`cargo +nightly fuzz`), invoked per run, with the stable build pin unchanged.
+- **Risk/change class:** `[minor]` (new non-published member, plus any typed
+  errors the findings force). Effort M.
+
+## RITK-GAP-2026-08-20-03 [patch] — retire the GPU naming and the unbacked accelerator claims
+
+- **Status:** todo; owner=unclaimed; last-update=2026-08-20;
+  source=`gap_audit.md` Finding 2026-08-20 F1.
+- **Outcome:** the field-smoothing API names what it does, not a device it
+  cannot reach, and no doc comment asserts accelerator timings that no
+  benchmark produced. Either the accelerator seam is wired (a real GPU
+  `ComputeBackend`, sourced upstream, not per-vendor code in this repo) or the
+  device vocabulary is removed.
+- **Scope:** `crates/ritk-registration/src/deformable_field_ops/smooth.rs`
+  (`GpuFieldSmoother`, and the RTX 3060 paragraph at lines 281-285),
+  `deformable_field_ops/mod.rs` (`CpuOrGpu`, lines 142-170),
+  `atlas/mod.rs:121-143`, `lddmm/geodesic.rs:137`, plus the callers of both
+  types.
+- **Non-goals:** deleting the pre-allocated-staging optimisation, which is real
+  and CPU-relevant; adding a `wgpu` compute path inside RITK (backend
+  ownership belongs upstream in Coeus).
+- **Acceptance oracle:** no type or variant in `ritk-registration` names a
+  device that `coeus_core`'s `Backend` impl set cannot supply; every retained
+  performance sentence cites a stored criterion baseline; `README.md:19-21`
+  and the type names agree.
+- **Dependencies:** if the decision is to wire an accelerator, this becomes an
+  upstream Coeus item first and an ADR here recording the seam.
+- **Risk/change class:** `[patch]` if the naming is retired, `[major][arch]`
+  plus an ADR if a real backend is wired. Effort M.
+
+## RITK-GAP-2026-08-20-04 [patch] — evict the 1.6 GB tracked binary payload
+
+- **Status:** todo; owner=unclaimed; last-update=2026-08-20;
+  source=`gap_audit.md` Finding 2026-08-20 F5.
+- **Outcome:** the repository tracks source, sanctioned small golden fixtures,
+  and nothing else. Large medical corpora are fetched on demand exactly as
+  `externals/` already is.
+- **Scope:** `dist/` (4 wheels, 60 MB — delete, they are build artifacts),
+  `output/` (4 run artifacts, 30 MB — delete and add to `.gitignore`),
+  `scratch/check_restart.exe` (delete; `scratch/` is already ignored),
+  `test_data/` (3 195 files, 1.55 GB — triage into small committed goldens
+  versus a checksummed on-demand download under the existing `externals/`
+  mechanism), and the stale `/target_check`, `/target_test`, `/target_ag`,
+  `/target_temp` entries in `.gitignore`.
+- **Non-goals:** rewriting git history (a separate, user-authorised decision);
+  removing any fixture a test actually reads without first re-pointing that
+  test at the download path.
+- **Acceptance oracle:** `git ls-files dist output scratch` is empty;
+  `git ls-files test_data` totals under an agreed committed-fixture budget;
+  every test that consumed an evicted fixture still resolves it, and the
+  fetch is checksummed.
+- **Dependencies:** the `externals/` download harness already exists and is the
+  reuse target — no new mechanism.
+- **Risk/change class:** `[patch]` (no source or API change). Effort M.
+
+## RITK-GAP-2026-08-20-05 [patch] — derive the escalated test budgets and sweep the dead filters
+
+- **Status:** todo; owner=unclaimed; last-update=2026-08-20;
+  source=`gap_audit.md` Finding 2026-08-20 F4.
+- **Outcome:** no 50-minute ceiling inside `profile.default`. Workloads with an
+  analytically irreducible longer bound move to a dedicated reviewed profile
+  whose budget is derived and recorded; everything else is profiled and
+  optimised until it fits the 30 s / 60 s default.
+- **Scope:** `.config/nextest.toml` — the six 600s/terminate-after-5 override
+  blocks (lines 30-36, 38-46, 56-71), the dead `test(bspline_cr)` /
+  `test(multires_cr)` filters (lines 36, 63) that match zero tests, and the
+  stale "NdArray CPU time" justification at line 33.
+- **Non-goals:** deleting, shrinking, or `#[ignore]`-ing any test to fit a
+  budget; that is the gaming the rule forbids.
+- **Acceptance oracle:** `profile.default` and `profile.ci` carry no override
+  above the standard budget; every filter expression in the file matches at
+  least one test function; each surviving escalation names its derivation and
+  the profile it lives in; every comment names a substrate the tree still uses.
+- **Dependencies:** profiling the registration and SSMMorph forward-pass tests
+  is the first increment and may itself surface optimisation items.
+- **Risk/change class:** `[patch]`. Effort M.
+
+## RITK-GAP-2026-08-20-06 [patch] — raise the lint and documentation floor
+
+- **Status:** todo; owner=unclaimed; last-update=2026-08-20;
+  source=`gap_audit.md` Finding 2026-08-20 F7.
+- **Outcome:** the workspace declares its lint floor once and every crate
+  inherits it; every published crate documents its public surface and carries
+  its own registry landing page.
+- **Scope:** add `[workspace.lints]` to the root `Cargo.toml` (`pedantic`,
+  `unwrap_used` with test-scoped exemption, selected `nursery`) with
+  `lints.workspace = true` in each member; add `#![deny(missing_docs)]` to the
+  34 crates that lack it, burning the resulting debt down as a non-increasing
+  ratchet rather than one sweep; write a `README.md` for the 15 publishable
+  crates that have none.
+- **Non-goals:** blanket `#[allow]` at crate level to make the floor pass; the
+  suppressions must be per-site `#[expect(..., reason = "...")]`.
+- **Acceptance oracle:** `cargo clippy --workspace --all-targets -- -D warnings`
+  is green under the raised floor; no crate's `src/lib.rs` lacks
+  `#![deny(missing_docs)]`; `ls crates/*/README.md` returns one per publishable
+  crate; the ratchet baseline is committed and only decreases.
+- **Dependencies:** RITK-GAP-2026-08-20-01 will churn many of the same files;
+  sequence this after the rename to avoid re-documenting names that change.
+- **Risk/change class:** `[patch]`. Effort L.
+
+## RITK-GAP-2026-08-20-07 [patch] — restore the CHANGELOG version axis
+
+- **Status:** todo; owner=unclaimed; last-update=2026-08-20;
+  source=`gap_audit.md` Finding 2026-08-20 F7.
+- **Outcome:** one `## [Unreleased]` section, and every shipped change filed
+  under the version that carried it, so a consumer can answer "what changed in
+  `ritk-registration` 0.54.0".
+- **Scope:** `CHANGELOG.md` — 424 `##` sections of which 167 are separate
+  `[Unreleased]` headings. Fold each historical `[Unreleased]` block under the
+  version its commits landed in (recoverable from `git log` and the per-crate
+  manifest versions), collapse completed entries to one line with a commit
+  link, and keep a single open `[Unreleased]`.
+- **Non-goals:** rewording historical entries; inventing a version for a block
+  whose landing version git cannot establish (mark those under a dated
+  pre-release heading instead).
+- **Acceptance oracle:** exactly one `## [Unreleased]` heading; every other
+  `##` section names a version; the file is navigable as an index rather than a
+  log.
+- **Dependencies:** none.
+- **Risk/change class:** `[patch]`. Effort M.
+
+## RITK-GAP-2026-08-20-08 [patch] — write the registration and dispatch book chapters
+
+- **Status:** todo; owner=unclaimed; last-update=2026-08-20;
+  source=`gap_audit.md` Finding 2026-08-20 F8.
+- **Outcome:** the twelve chapters that currently announce content they do not
+  contain either teach that content or stop promising it. Registration chapters
+  carry the mathematics before the API, per the domain-book contract.
+- **Scope:** `docs/book/optimization_registration.md`, `backend_dispatch.md`,
+  `classical_registration.md`, `registration_metrics.md`,
+  `multi_modal_registration.md`, `zero_copy_io.md`, `benchmarking.md`,
+  `validation_benchmarking.md`, `vtk_format.md`, `metaimage_format.md`,
+  `jpeg_format.md`, `png_format.md`. Add an `mdbook test` step to the Pages
+  workflow so samples cannot rot.
+- **Non-goals:** duplicating Rustdoc item contracts into the book; adding
+  placeholder prose to lengthen a chapter.
+- **Acceptance oracle:** no chapter promises a topic it does not cover; the MI
+  expression, the gradient-descent update rule, and the convergence criterion
+  appear in the registration chapters with resolved citations; `mdbook test`
+  passes in CI.
+- **Dependencies:** RITK-GAP-2026-08-20-01 changes API names the samples use;
+  sequence after it or write against the post-rename names.
+- **Risk/change class:** `[patch]`. Effort L.
+
+## RITK-GAP-2026-08-20-09 [patch] — derive or remove the MI subsample stride
+
+- **Status:** todo; owner=unclaimed; last-update=2026-08-20;
+  source=`gap_audit.md` Finding 2026-08-20 F6.
+- **Outcome:** the Mutual Information metric's sampling density is a documented
+  parameter with a derivation, not a bare literal that silently caps accuracy.
+- **Scope:** `crates/ritk-registration/src/classical/engine/metric.rs:39` —
+  `let step = std::cmp::max(1, fixed.size() / 10000);` — and the
+  `MutualInformationMetric` constructor surface. Also refresh the stale
+  Correlation-Ratio claim at
+  `crates/ritk-registration/docs/REGISTRATION_OPTIMIZATION_ANALYSIS.md:12`
+  (the top-level and crate READMEs were corrected on 2026-08-20).
+- **Non-goals:** replacing histogram MI with a different estimator.
+- **Acceptance oracle:** the sample count is either a named constant carrying
+  its statistical derivation (bin occupancy versus histogram variance) or a
+  caller-supplied parameter with a documented default; a test shows the MI
+  value is stable across volume sizes that straddle the threshold.
+- **Dependencies:** none.
+- **Risk/change class:** `[patch]`, `[minor]` if the parameter becomes public.
+  Effort S.
