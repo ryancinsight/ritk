@@ -9,6 +9,43 @@
   selected one hashless dependency artifact by directory order and failed the
   merged-default book gate with `E0460` for duplicate `rand_core` versions.
 
+## RITK-GPU-SMOOTHER-REACH [major][arch] — make the GPU smoother instantiable
+
+- **Status:** FILED; owner=unclaimed; last-update=2026-08-21;
+  scope=`GpuFieldSmoother`/`CpuOrGpu` in `ritk-registration`, the `Backend`
+  bound on `ritk_filter::GaussianFilter`, and the dev-dependency and
+  differential test that would exercise a real device;
+  non-goal=writing new GPU kernels, or re-bounding all 517 `Backend` sites in
+  one change.
+- **Evidence:** `GpuFieldSmoother<B: Backend>` resolves `Backend` to
+  `coeus_core::Backend`, which is `ComputeBackend + Default` plus
+  `parallel_for`. The only implementors in the stack are `SequentialBackend`
+  and `MoiraiBackend`, both CPU. `coeus_wgpu::WgpuBackend` implements
+  `ComputeBackend` and not `Backend`, so no GPU backend can be substituted:
+  the type is uninstantiable on a device. No RITK manifest declares
+  `coeus-wgpu`, no test constructs a `GpuFieldSmoother`, and its only doc
+  example is `ignore`d. Its Rustdoc nonetheless states "On an RTX 3060,
+  smoothing a 256 cubed field takes ~4 ms vs ~80 ms for the CPU `moirai`-based
+  path" — a measurement no reachable code path in this stack can produce.
+- **Root cause candidate:** the bound is stronger than the requirement.
+  `ritk-filter` never calls `parallel_for`; a workspace-wide grep finds zero
+  call sites in that crate. `ComputeBackend` is what the filter actually needs,
+  and `Backend` is what it asks for.
+- **Acceptance:** either (a) `GpuFieldSmoother` and the `GaussianFilter` path
+  beneath it are re-bounded to the trait they use, a `coeus-wgpu`
+  dev-dependency is added, and a differential test asserts value-semantic
+  agreement between the GPU and CPU smoothers at a derived tolerance; or (b) the
+  type is deleted along with its performance claim and callers updated in the
+  same change. A GPU-named surface must not remain that no GPU backend can
+  instantiate, and the RTX 3060 figure is removed or reproduced.
+- **Dependencies:** the device-side half needs
+  [Coeus PR #341](https://github.com/ryancinsight/Coeus/pull/341), without which
+  `coeus-wgpu` cannot acquire a device at all. If (a) instead requires
+  `WgpuBackend: Backend`, that impl belongs upstream in Coeus, not here.
+- **Sequencing:** decompose by crate rather than re-bounding 517 sites at once;
+  the first increment is `ritk-filter`'s `GaussianFilter` and its direct
+  consumers.
+
 ## ATLAS-RITK-WORKFLOW-PIN-2026-08-20 — Refresh shared book workflow pin [patch] — done 2026-08-20
 
 - Owner: Atlas integration. Scope is the Pages caller and this PM/changelog
