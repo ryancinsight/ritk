@@ -41,3 +41,6 @@ externals/
 
 
 scratch/
+
+# Local host toolchain overlay (machine-specific paths)
+.cargo/config.toml
