@@ -116,7 +116,7 @@ impl LevelSetMotionRegistration {
     /// Register `moving` to `fixed` with a pluggable [`FieldSmoother`].
     ///
     /// Accepts any [`FieldSmoother`] implementation — `CpuFieldSmoother` or
-    /// `GpuFieldSmoother` — so the smoothing backend is chosen at the call site.
+    /// implementation — so the smoother is chosen at the call site.
     ///
     /// # Errors
     /// Returns [`RegistrationError`] if lengths or dims are inconsistent.

@@ -20,7 +20,6 @@ mod smooth;
 mod validation;
 mod warp;
 
-use ritk_image::tensor::Backend;
 use ritk_spatial::VolumeDims;
 
 // Flat `flat` and `trilinear_interpolate` are defined here to avoid peer-module
@@ -37,7 +36,6 @@ pub(crate) use smooth::gaussian_smooth_with_scratch_per_axis;
 pub(crate) use smooth::{gaussian_smooth_field_with_kernel, gaussian_smooth_inplace};
 
 // ── GPU-accelerated smoothing  ─────────────────────────────
-pub use smooth::GpuFieldSmoother;
 pub(crate) use validation::{cc_converged, validate_image, validate_image_pair};
 pub(crate) use warp::{compute_mse_inplace, compute_mse_streaming, warp_image_into};
 pub use warp::{warp_image, WarpInterpolation};
@@ -46,10 +44,11 @@ pub use warp::{warp_image, WarpInterpolation};
 
 /// Smooth a 3-component displacement or velocity field in place.
 ///
-/// Implementations include [`CpuFieldSmoother`] (CPU `moirai` path) and
-/// [`GpuFieldSmoother`] (backend-dispatched GPU path).  Registration engines accept
-/// `impl FieldSmoother` so callers choose the backend at the call site
-/// without needing separate `register_with_gpu_smoother` entry points.
+/// [`CpuFieldSmoother`] is the implementation this crate ships. Registration
+/// engines are generic over `impl FieldSmoother`, so a caller supplies their own
+/// without needing a separate entry point per smoother; a device-backed
+/// implementation is added here rather than by widening a selection type
+/// (see ADR 0021).
 pub trait FieldSmoother {
     /// Smooth the three components of a vector field **in place**.
     ///
@@ -136,37 +135,6 @@ impl FieldSmoother for CpuFieldSmoother {
                 x: &mut self.smooth_tmp_x,
             },
         );
-    }
-}
-
-// ── CpuOrGpu enum — static dispatch without Box heap allocation ──────────────
-
-/// Static-dispatch union of [`CpuFieldSmoother`] and [`GpuFieldSmoother`].
-///
-/// Replaces `Box<dyn FieldSmoother>` in multi-resolution registration loops
-/// where a per-level smoother must be created. The enum is stack-allocated and
-/// selects by match arm rather than vtable, so the *dispatch* costs no
-/// allocation and no indirect call. The selected smoother allocates whatever
-/// its own path requires — the GPU one stages through device tensors.
-///
-/// # Type parameter
-///
-/// `B` is the compute backend used by the GPU variant. For CPU-only usage,
-/// the default sequential backend keeps the enum usable without
-/// selecting a concrete GPU provider.
-pub enum CpuOrGpu<B: Backend = coeus_core::SequentialBackend> {
-    /// CPU Gaussian smoother with pre-allocated scratch buffer.
-    Cpu(CpuFieldSmoother),
-    /// GPU Gaussian smoother with compute backend `B`.
-    Gpu(GpuFieldSmoother<B>),
-}
-
-impl<B: Backend> FieldSmoother for CpuOrGpu<B> {
-    fn smooth_field(&mut self, z: &mut [f32], y: &mut [f32], x: &mut [f32]) {
-        match self {
-            Self::Cpu(s) => s.smooth_field(z, y, x),
-            Self::Gpu(s) => s.smooth_field(z, y, x),
-        }
     }
 }
 
