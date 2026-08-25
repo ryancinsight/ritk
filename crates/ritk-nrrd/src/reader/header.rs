@@ -55,7 +55,12 @@ pub(super) fn parse_nrrd_header_map_from_reader<R: BufRead>(
         }
         if let Some(colon_pos) = trimmed.find(':') {
             let key = trimmed[..colon_pos].trim().to_lowercase();
-            let value = trimmed[colon_pos + 1..].trim().to_string();
+            let rest = &trimmed[colon_pos + 1..];
+            // NRRD distinguishes header fields (`key: value`) from key/value
+            // pairs (`key:=value`). Both are stored under the bare key, with
+            // the `=` consumed, so a caller reading a custom field does not
+            // have to strip it and cannot accidentally keep it as data.
+            let value = rest.strip_prefix('=').unwrap_or(rest).trim().to_string();
             headers.insert(key, value);
         }
     }

@@ -1,6 +1,7 @@
 use coeus_autograd::{sum, Var};
 use coeus_core::MoiraiBackend;
-use coeus_nn::Module;
+use coeus_nn::{Module, ModuleError};
+use coeus_ops::InterpolationError;
 use coeus_tensor::{StateDict, Tensor};
 use ritk_core::spatial::{Direction, Point, Spacing};
 use ritk_transform::{
@@ -113,6 +114,38 @@ fn state_load_rejects_missing_geometry() {
     ));
 }
 
+/// A non-finite coordinate is data, not a programmer error, so `Module::forward`
+/// must report it rather than abort. The trait already returns the error type
+/// the failure belongs in.
+#[test]
+fn module_forward_propagates_nonfinite_interpolation_errors() {
+    let backend = MoiraiBackend;
+    let field = DisplacementField::new(
+        vec![
+            Tensor::zeros_on([2, 2], &backend),
+            Tensor::zeros_on([2, 2], &backend),
+        ],
+        Point::origin(),
+        Spacing::new([1.0; 2]),
+        Direction::identity(),
+    )
+    .expect("valid field");
+    let transform = DisplacementFieldTransform::new(field);
+    let points = Var::new(
+        Tensor::from_slice_on([1, 2], &[f32::NAN, 0.5], &backend),
+        false,
+    );
+
+    match transform.forward(&points) {
+        Err(ModuleError::Interpolation(InterpolationError::NonFiniteCoordinate {
+            axis: 0,
+            point: 0,
+        })) => {}
+        Err(error) => panic!("unexpected displacement forward error: {error}"),
+        Ok(_) => panic!("NaN coordinate must be reported instead of returning a value"),
+    }
+}
+
 #[test]
 fn transform_rejects_wrong_point_dimension() {
     let backend = MoiraiBackend;
@@ -132,6 +165,28 @@ fn transform_rejects_wrong_point_dimension() {
         transform.transform_points(&wrong),
         Err(DisplacementTransformError::PointShape { dimension: 2, actual })
             if actual == [1, 3]
+    ));
+    // The same rejection, seen through the module boundary: a wrong extent is a
+    // shape mismatch and a wrong rank is an invalid rank, rather than both
+    // being a panic.
+    assert!(matches!(
+        transform.forward(&wrong),
+        Err(ModuleError::ShapeMismatch {
+            module: "DisplacementFieldTransform",
+            parameter: "points",
+            expected,
+            actual,
+        }) if expected == vec![1, 2] && actual == vec![1, 3]
+    ));
+
+    let wrong_rank = Var::new(Tensor::zeros_on([1, 2, 1], &backend), false);
+    assert!(matches!(
+        transform.forward(&wrong_rank),
+        Err(ModuleError::InvalidRank {
+            module: "DisplacementFieldTransform",
+            expected: "2",
+            actual: 3,
+        })
     ));
 }
 

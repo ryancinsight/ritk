@@ -409,43 +409,6 @@ pub fn label_set_morph<B: Backend>(
 /// buffer, optionally threshold labels (`last` pass). Ports
 /// `doOneDimensionErodeFirstPass`.
 #[allow(clippy::too_many_arguments, reason = "ratchet RITK-LINT-1")]
-fn erode_first_dim(
-    line_lab: &mut [f32],
-    line_dist: &mut [f64],
-    sigma: f64,
-    magnitude: f64,
-    base_sigma: f64,
-    last: bool,
-    line: &mut [f64],
-) {
-    let n = line_lab.len();
-    // lineBuf init: 1.0 at labels (per ITK), but the per-run distances overwrite.
-    for (l, &lab) in line.iter_mut().zip(line_lab.iter()) {
-        *l = if lab != 0.0 { 1.0 } else { 0.0 };
-    }
-    for (first, lastpos) in label_runs(line_lab) {
-        let sll = lastpos - first + 1;
-        let leftend = if first == 0 { sigma } else { 0.0 };
-        let rightend = if lastpos == n - 1 { sigma } else { 0.0 };
-        let mut seg = vec![0.0_f64; sll];
-        erode_first_run(sll, leftend, rightend, magnitude, sigma, &mut seg);
-        line[first..=lastpos].copy_from_slice(&seg);
-    }
-    line_dist.copy_from_slice(line);
-    if last {
-        for i in 0..n {
-            line_lab[i] = if line[i] == base_sigma {
-                line_lab[i]
-            } else {
-                0.0
-            };
-        }
-    }
-}
-
-/// Subsequent erosion dimension: run-length encode, erode padded runs, threshold
-/// on the last pass. Ports `doOneDimensionErode`.
-#[allow(clippy::too_many_arguments, reason = "ratchet RITK-LINT-1")]
 fn erode_subsequent_dim(
     line_lab: &mut [f32],
     line_dist: &mut [f64],

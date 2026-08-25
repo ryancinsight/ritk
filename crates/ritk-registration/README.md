@@ -16,10 +16,12 @@ for differentiable paths, deterministic CPU algorithms for classical paths.
 | Groupwise Atlas | Template building (iterative SyN) |
 | Joint Label Fusion (Wang 2013), Majority Voting | Multi-atlas label fusion |
 
-**Metrics** — MSE, Mutual Information (Standard / Mattes / NMI), NCC, LNCC,
-Correlation Ratio, and deep-learning losses.
+**Metrics** — MSE, NCC, LNCC, NGF, and deep-learning losses here; histogram
+Mutual Information (Standard / Mattes / NMI) lives in
+`ritk-statistics::information` and is consumed by the classical engine.
 
-**Optimizers** — Gradient descent, Adam, Momentum, CMA-ES.
+**Optimizers** — the autodiff gradient-descent driver, plus the Coeus
+optimizers (SGD with momentum, Adam, AdamW, AdaGrad, RMSProp).
 
 **Regularization** — Bending energy, curvature, diffusion, elastic, total
 variation.

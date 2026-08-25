@@ -10,6 +10,7 @@ use coeus_tensor::Tensor;
 use ritk_spatial::{CoordinateMap, Direction, Point, Spacing};
 
 use crate::test_support::{curvilinear_image, metadata_only_image, phased_array_image};
+use crate::types::Image;
 /// The single-point transform must honour the attached coordinate map.
 ///
 /// A curvilinear image indexes beams and samples, not a Cartesian raster,
@@ -236,4 +237,146 @@ fn curvilinear_map_is_rejected_on_a_one_dimensional_image() {
     assert!(img
         .with_coordinate_map(CoordinateMap::CurvilinearArray(geometry))
         .is_err());
+}
+
+// ── US-023-A2 P1 closure: origin/direction composition ────────────────────────
+
+/// A phased-array image with a non-zero origin must produce world points
+/// offset by that origin. With identity direction, boresight at depth d
+/// maps to world [origin[0] + d, origin[1], origin[2]].
+#[test]
+fn phased_array_composes_with_non_zero_origin() {
+    let geometry = ritk_spatial::PhasedArray3D::centred(
+        1.0e-4,
+        0.01,
+        0.75_f64.to_radians(),
+        1.5_f64.to_radians(),
+        9,
+        5,
+    )
+    .expect("valid geometry");
+
+    let origin = Point::new([0.1, 0.2, 0.3]);
+    let img: Image<f32, SequentialBackend, 3> = Image::from_flat_on(
+        vec![0.0_f32; 8 * 5 * 9],
+        [8, 5, 9],
+        origin,
+        Spacing::new([1.0, 1.0, 1.0]),
+        Direction::identity(),
+        &SequentialBackend,
+    )
+    .expect("image")
+    .with_coordinate_map(CoordinateMap::PhasedArray3D(geometry))
+    .expect("3-D image accepts a phased-array map");
+
+    // Boresight: axis-major indexing for single-point form.
+    // index[D-1]=index[2]=azimuth=4(centre), index[D-2]=index[1]=elevation=2(centre),
+    // index[D-3]=index[0]=sample=50. So Point = [sample=50, elev=2, azim=4].
+    let depth = 0.01 + 50.0 * 1.0e-4_f64;
+    let idx = Point::new([50.0, 2.0, 4.0]);
+    let world = img.continuous_index_to_physical_point(&idx);
+    // With identity direction, world = origin + [depth, 0, 0].
+    assert!(
+        (world[0] - (origin[0] + depth)).abs() < 1.0e-6,
+        "depth: expected {}, got {}",
+        origin[0] + depth,
+        world[0]
+    );
+    assert!((world[1] - origin[1]).abs() < 1.0e-6, "elev: {}", world[1]);
+    assert!((world[2] - origin[2]).abs() < 1.0e-6, "azim: {}", world[2]);
+}
+
+/// Round-trip through a phased-array image with non-zero origin.
+#[test]
+fn phased_array_with_origin_round_trips() {
+    let geometry = ritk_spatial::PhasedArray3D::centred(
+        1.0e-4,
+        0.01,
+        0.75_f64.to_radians(),
+        1.5_f64.to_radians(),
+        9,
+        5,
+    )
+    .expect("valid geometry");
+
+    let origin = Point::new([0.5, -0.3, 0.1]);
+    let img: Image<f32, SequentialBackend, 3> = Image::from_flat_on(
+        vec![0.0_f32; 8 * 5 * 9],
+        [8, 5, 9],
+        origin,
+        Spacing::new([1.0, 1.0, 1.0]),
+        Direction::identity(),
+        &SequentialBackend,
+    )
+    .expect("image")
+    .with_coordinate_map(CoordinateMap::PhasedArray3D(geometry))
+    .expect("3-D image accepts a phased-array map");
+
+    let indices: Vec<f32> = vec![
+        4.0, 2.0, 50.0, // boresight
+        0.0, 0.0, 30.0, // corner
+        8.0, 4.0, 75.0, // opposite corner
+    ];
+    let idx_t = Tensor::<f32, SequentialBackend>::from_slice([3, 3], &indices);
+    let world = img.index_to_world_native(&idx_t);
+    let back = img.world_to_index_native(&world);
+
+    for (row, chunk) in back.as_slice().chunks_exact(3).enumerate() {
+        for col in 0..3 {
+            let want = indices[row * 3 + col];
+            assert!(
+                (chunk[col] - want).abs() < 0.05,
+                "row {row} col {col}: {} != {want}",
+                chunk[col]
+            );
+        }
+    }
+}
+
+/// Batch and single-point paths agree when origin is non-zero.
+#[test]
+fn phased_array_batch_matches_single_point_with_origin() {
+    let geometry = ritk_spatial::PhasedArray3D::centred(
+        1.0e-4,
+        0.01,
+        0.75_f64.to_radians(),
+        1.5_f64.to_radians(),
+        9,
+        5,
+    )
+    .expect("valid geometry");
+
+    let origin = Point::new([0.3, -0.1, 0.2]);
+    let img: Image<f32, SequentialBackend, 3> = Image::from_flat_on(
+        vec![0.0_f32; 8 * 5 * 9],
+        [8, 5, 9],
+        origin,
+        Spacing::new([1.0, 1.0, 1.0]),
+        Direction::identity(),
+        &SequentialBackend,
+    )
+    .expect("image")
+    .with_coordinate_map(CoordinateMap::PhasedArray3D(geometry))
+    .expect("3-D image accepts a phased-array map");
+
+    // Single-point uses axis-major: [sample, elevation, azimuth].
+    // Batch uses innermost-first: [azimuth, elevation, sample].
+    // These are the test cases as [azimuth, elevation, sample] → batch form.
+    let batch_cases: &[[f32; 3]] = &[[4.0, 2.0, 50.0], [0.0, 0.0, 10.0], [6.0, 3.0, 80.0]];
+    for case in batch_cases {
+        // Convert to axis-major for single-point: [sample, elevation, azimuth]
+        let idx = Point::new([f64::from(case[2]), f64::from(case[1]), f64::from(case[0])]);
+        let single = img.continuous_index_to_physical_point(&idx);
+        let idx_t = Tensor::<f32, SequentialBackend>::from_slice([1, 3], case);
+        let batch = img.index_to_world_native(&idx_t);
+        let b = batch.as_slice();
+        for axis in 0..3 {
+            assert!(
+                (f64::from(b[axis]) - single[axis]).abs() < 1.0e-5,
+                "case {case:?} axis {axis}: batch={} single={}",
+                b[axis],
+                single[axis]
+            );
+        }
+    }
 }

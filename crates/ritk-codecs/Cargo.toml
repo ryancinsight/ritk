@@ -12,6 +12,8 @@ categories.workspace = true
 homepage.workspace = true
 readme.workspace = true
 
+[features]
+
 [dependencies]
 anyhow = { workspace = true }
 jpeg-decoder = { workspace = true }

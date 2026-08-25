@@ -8,6 +8,462 @@
 
 # RITK Gap Audit - Active
 
+## Finding 2026-08-20: ritk scope-vs-delivery audit
+
+Static audit only — no cargo build/check/test/clippy was run (shared
+`CARGO_TARGET_DIR`), so nothing here claims a suite passes. Every number below
+is a repeated command's output at HEAD `d06196b1`.
+
+### Measured baseline
+
+| Measure | Value | Source |
+| --- | --- | --- |
+| Workspace packages | 40 crates + `xtask` | `Cargo.toml` members |
+| Rust source lines | 357 903 across 1 863 `.rs` files | `find crates xtask -name '*.rs' -print0 \| xargs -0 cat \| wc -l` |
+| Test functions | 5 695 | `grep -rn '#[test]\|#[tokio::test]\|#[rstest]'` |
+| `todo!(` / `unimplemented!(` / TODO-FIXME-HACK | 0 / 0 / 0 | `grep -rn` over `crates xtask` |
+| Files over the 500-line target | 44 | `find ... -exec wc -l {} +` |
+| Crates with `#![deny(missing_docs)]` | 6 of 40 | per-crate `src/lib.rs` grep |
+| Crates with their own `README.md` | 18 of 40 | `ls crates/*/README.md` |
+| `#[allow(` / `#[expect(` sites | 34 / 137 | `grep -rn` |
+| `.unwrap()` outside test files and `#[cfg(test)]` | 39 | script over `crates/*/src`, `tests/` dirs excluded |
+| `dyn ` / `Box<dyn ` sites | 34 / 16 | `grep -rn` |
+| `pub use ... as ...` | 4 | `grep -rn` |
+| Book chapters | 78 (47 top-level + 31 examples); every `SUMMARY.md` link resolves | `ls docs/book` |
+| ADRs | 20, all `Accepted`, index generated | `docs/adr/README.md` |
+| burn / ndarray / nalgebra in manifests | none | `grep -rn --include=Cargo.toml` |
+
+The third-party residue check is clean. The only `ndarray` strings left in
+source are Python docstrings naming `numpy.ndarray` return types
+(`crates/ritk-python/src/diffusion/maps.rs:63`) and one historical note
+(`crates/ritk-nifti/src/lib.rs:7`). The burn to Coeus migration left no manifest
+edge and no live substrate reference.
+
+### F1 — GPU-named registration surface with no reachable GPU backend
+
+`GpuFieldSmoother<B: Backend>`
+(`crates/ritk-registration/src/deformable_field_ops/smooth.rs:287`) and
+`CpuOrGpu<B>` (`crates/ritk-registration/src/deformable_field_ops/mod.rs:157`)
+name a device dimension in the type, but both are generic over
+`coeus_core::Backend`, whose entire impl set at the pinned Coeus revision is
+two CPU backends:
+
+```
+$ grep -rn 'impl Backend for' coeus-core/src/backend/*.rs
+backend/moirai.rs:126:      unsafe impl Backend for MoiraiBackend
+backend/sequential.rs:94:   unsafe impl Backend for SequentialBackend
+```
+
+No instantiation can select an accelerator, so the `Gpu` arm and the `Cpu` arm
+run the same code on the same devices. Three doc comments state accelerator
+performance for that unreachable path:
+
+- `deformable_field_ops/smooth.rs:281-285` — "On an RTX 3060, smoothing a 256^3
+  field takes ~4 ms vs ~80 ms for the CPU `moirai`-based path."
+- `atlas/mod.rs:130-131` — "both run on the GPU — 10-50x faster than the CPU
+  path for typical 256^3 fields."
+- `lddmm/geodesic.rs:137` — "the per-step momentum and adjoint smoothing runs
+  on the GPU — 10-50x".
+
+No criterion baseline backs any of them, and `grep -rn hephaestus` over the
+whole repository (manifests, source, docs) returns nothing: the accelerator
+seam the stack owns is not wired here at all. `README.md:19-21` is the one
+honest statement — "current RITK entry points use deterministic sequential or
+Moirai-parallel CPU backends" — which the type names and these comments
+contradict.
+
+The `wgpu` dependency is real but confined to rendering: only `ritk-snap`
+(`src/render/gpu_mesh/`, `src/render/gpu_volume/`) imports it. The `wgpu`
+strings in `ritk-filter`, `ritk-image`, `ritk-interpolation`,
+`ritk-registration`, and `ritk-transform` manifests are the `ritk-wgpu-compat`
+path dependency, which contains only two dispatch-ceiling constants and a
+chunk-scheduling helper (`crates/ritk-wgpu-compat/src/lib.rs:16-36`).
+
+### F2 — Dual `X` / `X_native` public surface outlives the migration it served
+
+ADR 0002 introduced `_native` to distinguish the Coeus path from the Burn path.
+Burn is retired, the marker now distinguishes nothing, and both halves ship:
+
+```
+crates/ritk-filter/src/anti_alias_binary/mod.rs:67  pub fn apply<B: Backend>(...)
+crates/ritk-filter/src/anti_alias_binary/mod.rs:73  pub fn apply_native<B>(...)
+```
+
+`apply_native`'s own Rustdoc reads "Coeus-native counterpart to the legacy
+application method." Both bodies delegate to the same `self.run(...)` core and
+differ only in the extraction/rebuild helper and the bound (`Backend` vs
+`ComputeBackend`). `ritk-filter` alone defines 129 `apply_native` methods, and
+22 distinct `*_native` free functions across the workspace have a same-named
+sibling without the suffix — `read_image`/`read_image_native`,
+`write_image`/`write_image_native`, `normalize`/`normalize_native`,
+`resample_image`/`resample_image_native`, and 18 more. 354 identifiers carry a
+`Native`/`native` element.
+
+This is the pattern the naming rule and the compatibility-soup rule both name:
+a replacement built beside the original rather than taking its name. The
+completion work is mechanical but large, and it is the single biggest
+architectural debt in the repository.
+
+### F3 — No fuzz coverage on sixteen trust-boundary parsers
+
+`find . -name fuzz -o -name fuzz_targets` returns nothing, and no manifest
+references `cargo-fuzz`, `libfuzzer-sys`, or `arbitrary`. The repository parses
+DICOM, NIfTI, NRRD, MetaImage, Analyze 7.5, MGH/MGZ, MINC2, TIFF/BigTIFF, PNG,
+JPEG, JPEG-LS, JPEG 2000, VTK, TRK, TCK, and TRX — every one of them an
+externally supplied byte stream. `proptest` appears in only 5 of 40 crates
+(`ritk-codecs`, `ritk-core`, `ritk-dicom`, `ritk-mgh`, `ritk-registration`).
+
+Hand-written malformed-input coverage does exist (293 test lines mentioning
+malformed/truncated/corrupt input, concentrated in `ritk-codecs` and
+`ritk-io`), and the hardening quality where it was sampled is high:
+`crates/ritk-trx/src/parse.rs:65-103` performs checked multiplication on
+header-declared counts, validates the positions and offsets array lengths
+against them, and records in a comment exactly which overflow it is preventing.
+That is the standard a fuzz corpus should be defending, not a substitute for it.
+
+The 39 production `.unwrap()` sites sit in exactly these parsers — 16 in
+`crates/ritk-tck/src/io.rs`, 7 in `crates/ritk-trx/src/parse.rs`, 7 in
+`ritk-trk`, 5 in `crates/ritk-dicom/src/diffusion/vendor.rs`, 3 in
+`crates/ritk-mif/src/decode.rs`. Every sampled one is a `try_into()` on a
+fixed-width slice reached after a length check, so these are proven invariants
+written in the panicking form rather than reachable panics. They should carry
+`expect("invariant: ...")` so the proof ships at the panic site.
+
+### F4 — Test budgets raised inside the default profile
+
+`.config/nextest.toml` sets a 30 s / 60 s default, then adds 13 override blocks.
+Six set `slow-timeout = { period = "600s", terminate-after = 5 }` — a 50-minute
+ceiling per test — inside `profile.default` and `profile.ci` (lines 30-36,
+38-46, 56-71). That is a bound raise in the profile everyone runs, not the
+dedicated reviewed profile with a derived budget that an analytically
+irreducible workload is entitled to. Two of the escalated filters,
+`test(bspline_cr)` and `test(multires_cr)` (lines 36 and 63), match zero test
+functions in the workspace: they were written for the Correlation-Ratio tests
+that no longer exist (F6), and nothing has swept the config since. The
+justifying comment at line 33 cites "NdArray CPU time", a substrate ADR 0002
+retired.
+
+CI carries no `cargo-semver-checks` (every crate is versioned and nine publish
+to crates.io), no Miri, no `cargo-deny`/`cargo-audit`, no `cargo-machete`, and
+no `mdbook test`. `cargo clippy --workspace --all-targets --all-features --
+-D warnings` (`.github/workflows/ci.yml:79`) runs the default lint set only.
+The workspace has no `[workspace.lints]` table, so neither `pedantic` nor
+`unwrap_used` is in force anywhere.
+
+### F5 — 1.6 GB of tracked binary payload
+
+`git ls-files` over `test_data`, `dist`, `output`, and `scratch` totals
+1 599 565 010 bytes:
+
+- `test_data/` — 3 195 tracked files, the bulk of it. Largest single entries
+  `test_data/ants_example/visiblehuman.nii.gz` (16.8 MB) and
+  `test_data/registration/rire/training_001_ct.mha` (15.2 MB).
+- `dist/` — four committed Python wheels (`ritk-0.9.0`, `0.10.0`, `0.12.0`,
+  `0.12.12`; 60 MB combined). Build artifacts, and stale ones.
+- `output/` — four run artifacts including
+  `output/patient01_mri_registered.nii.gz` (15.1 MB) and
+  `output/rire_registration_comparison.png`. Run output belongs in the
+  gitignored output root; `output/` is not in `.gitignore`.
+- `scratch/check_restart.exe` — a committed Windows executable. `scratch/` is
+  in `.gitignore`, which does not untrack what was already added.
+
+`.gitignore` also carries `/target_check`, `/target_test`, `/target_ag`, and
+`/target_temp` — four forked build-cache names normalised into the ignore file.
+Only `target/` exists on disk now, so the entries are residue, but they record
+the cache-forking practice rather than preventing it.
+
+### F6 — README claimed two capabilities the source does not contain
+
+`grep -ril 'correlation_ratio|CorrelationRatio|cmaes|CMA-ES'` over every `.rs`
+and `.py` under `crates/` returns nothing outside a vendored Pygments lexer.
+`crates/ritk-registration/src/metric/` contains exactly `autodiff`,
+`dl_losses`, `lncc`, `mse`, `ncc`, `ngf` — no Correlation Ratio module — and
+the only optimizer type in the crate is `GradientDescentConfig`
+(`src/metric/autodiff/driver.rs:27`). Coeus supplies `SGD` (with a `momentum`
+field), `Adam`, `AdamW`, `AdaGrad`, `RMSProp`; it has no CMA-ES.
+
+`docs/archive.md:12098` and `docs/audit_optimization_sprint_350.md:480` show
+`correlation_ratio.rs` did exist, so this is deletion without doc sync, not
+invention. Corrected in this pass at `README.md:242,244` and
+`crates/ritk-registration/README.md:20,22`. Left as a backlog item because it
+is a crate-local design document rather than a top-level claim:
+`crates/ritk-registration/docs/REGISTRATION_OPTIMIZATION_ANALYSIS.md:12`.
+
+Mutual Information is real but was mislocated in the README's structure. The
+only implementations are `MutualInformationMetric`
+(`crates/ritk-registration/src/classical/engine/metric.rs:15`, histogram MI and
+NMI) and `ritk_statistics::information::mutual_information_mattes`, reached
+through `crates/ritk-python/src/metrics/mi.rs:29`. The README listed all three
+variants under `ritk-registration`; that is now attributed correctly.
+
+One further detail in that metric: `compute_joint_histogram` fixes its
+subsample stride at `step = max(1, fixed.size() / 10000)`
+(`classical/engine/metric.rs:39`) — a bare tuning literal with no derivation,
+silently capping MI accuracy at 10 000 samples regardless of volume size.
+
+### F7 — Documentation floor
+
+34 of 40 crates carry no `#![deny(missing_docs)]`. The six that do
+(`ritk-connectome`, `ritk-diffusion`, `ritk-diffusion-scheme`,
+`ritk-parcellation`, `ritk-tck`, `ritk-tractography`) are the most recently
+added. No crate uses `warn(missing_docs)` either, so the public surface of
+`ritk-core`, `ritk-image`, `ritk-io`, `ritk-registration`, and `ritk-filter` is
+undocumented by construction rather than by policy.
+
+22 of 40 crates have no `README.md`. Fifteen of those publish to crates.io
+(`ritk-analyze`, `ritk-annotation`, `ritk-diffusion-scheme`, `ritk-jpeg`,
+`ritk-metaimage`, `ritk-mgh`, `ritk-mif`, `ritk-minc`, `ritk-morphology`,
+`ritk-nifti`, `ritk-nrrd`, `ritk-png`, `ritk-tensor-ops`, `ritk-tiff`,
+`ritk-wgpu-compat`) and therefore land on the registry with a blank landing
+page. No crate declaring `readme.workspace = true` is missing its file, so this
+does not block `cargo package`; it is a quality gap, not a build break.
+
+`CHANGELOG.md` holds 424 `##` sections of which 167 are separate
+`## [Unreleased]` headings. Whatever version axis the file once had (versioned
+entries run to `## [0.102.54]`) is gone, and the file cannot answer "what
+shipped in ritk-registration 0.54.0".
+
+### F8 — Book chapters that announce content they do not contain
+
+Every `SUMMARY.md` link resolves and no chapter carries a TBD marker, but
+twelve top-level chapters are under 30 lines and several promise material they
+then skip:
+
+- `docs/book/optimization_registration.md:3` — "This chapter covers that seam:
+  parameterization, iteration budgets, tolerances, step sizes, and why
+  optimizer behavior must be read together with the chosen similarity metric."
+  The chapter ends at line 13 with an example table; none of those five topics
+  appears, and there is not one equation.
+- `docs/book/backend_dispatch.md:5` (12 lines) — "The chapter therefore covers
+  where dispatch is compile-time, where a host extraction is unavoidable..." It
+  does not.
+- `docs/book/zero_copy_io.md` (12 lines), `classical_registration.md` (18),
+  `vtk_format.md` (22), `metaimage_format.md` (23), `jpeg_format.md` (25),
+  `registration_metrics.md` (26), `multi_modal_registration.md` (26),
+  `benchmarking.md` (27), `validation_benchmarking.md` (27),
+  `png_format.md` (28).
+
+For a domain book whose job is teaching the field before the API, the
+registration chapters carrying no MI expression, no gradient-descent update
+rule, and no convergence criterion is the substantive gap. No workflow runs
+`mdbook test`, so the samples that do exist are unguarded against rot.
+
+### Where the repository is strong
+
+Recorded because it sets the denominator for the completeness estimate and
+because these are the patterns worth propagating.
+
+- Registration is verified against analytic ground truth, not smoke-tested.
+  `crates/ritk-registration/tests/deformable_recovery_test.rs` builds
+  `moving[p] = I(p)` and `fixed[p] = I(p + u(p))` from one continuous field so
+  `D = u` is exact by construction, then reports the best-fit amplitude ratio
+  `alpha = d.u / |u|^2`. `multires_recovery_test.rs:36-57` records the measured
+  answer in the module doc — single-resolution alpha 0.7177, 2-level pyramid
+  0.7704 — and states plainly that the pyramid "helps but does not close the
+  gap," attributing the residue to the rank-1 aperture structure of the Thirion
+  force rather than to convergence. Reporting a partial result honestly instead
+  of tuning until it looks complete is the behaviour the evidence rules ask for.
+  Rigid is covered by `test_rigid_landmark_known_rotation`
+  (`classical/engine/tests.rs:27`), B-spline FFD by
+  `test_bspline_ffd_mridir_ct_synthetic_shift_recovery`
+  (`tests/ct_mri_dicom_registration_test.rs:268`), and four RIRE CT/MR suites
+  exist behind `#[ignore]` for the downloaded corpus.
+- The axis convention is pinned by oracles that cannot self-cancel. ADR 0020's
+  verification section is explicit that the oblique fixtures are the
+  load-bearing ones: `CartesianGridGeometry`'s tests assert hand-computed
+  physical coordinates in both directions using an exact 3-4-5 rotation, the
+  displacement filters are verified by rigid-motion equivariance (a `R.A` grid
+  carrying `R.u` components must give exactly `R.v`) which a direction-blind
+  implementation fails, and "every one of these tests was confirmed to fail
+  against the pre-fix direction-free composition." The shared fixture
+  `rotated_metadata_3d` (`crates/ritk-image/src/test_support.rs:161`) is
+  anisotropic — spacing `[0.5, 1.25, 2.0]` — under a non-identity direction, so
+  a transposed or reversed axis order cannot survive it. The ADR also names
+  where the convention is deliberately not enforced
+  (`FodVolume::world_to_voxel` is direction-free, with the contract stated in
+  its Rustdoc).
+- Zero stubs. No `todo!(`, no `unimplemented!(`, no TODO/FIXME/HACK marker
+  anywhere in 357 903 lines.
+- ADR discipline. 20 records, all Accepted, index generated by
+  `scripts/adr-index.py` with a `check` mode, revision notes dated in place
+  (ADR 0020 carries its 2026-08-19 revision for RITK-PARITY-171).
+
+### Completeness
+
+77% of declared scope delivered and verified. Denominator: the README feature
+list plus its I/O read/write matrix and registration algorithm/metric/optimizer
+tables, the 20 Accepted ADRs, and the 78 `SUMMARY.md`-linked book chapters.
+Weighted per the audit rubric — capabilities-without-stubs 0.93 of 40,
+verification depth 0.75 of 25 (exceptional registration and geometry oracles
+against zero fuzz coverage on sixteen parsers), documentation 0.62 of 20,
+conformance floor 0.55 of 15.
+
+
+## FIX-DTI-VOLUME-FRAME audit (2026-08-20)
+
+- Finding: `DiffusionMaps` dropped the acquisition `GradientFrame`, so the
+  reusable `DtiVolume` and `ritk tract dti` path could not own or enforce the
+  FSL/MRtrix ImageAxis-to-RITK image-index convention. The book example held a
+  duplicate adapter, which made the example correct without making the public
+  integration boundary correct.
+- Resolution: `DiffusionMaps` now retains its frame; `DtiVolume` accepts only
+  `ImageAxis`, applies one `[column,row,depth]` to `[depth,row,column]`
+  permutation before nearest or interpolated queries, and rejects `Lps` with a
+  typed error because no image geometry is available at that boundary. The
+  example adapter and its duplicate test are deleted. ADR 0017 and the domain
+  book describe the contract.
+- Evidence: source commit `14a9c619`; `cargo +1.97.0 fmt --all -- --check`,
+  `git diff --check`, ADR index content review, and
+  `cargo +1.97.0 metadata --locked --no-deps --format-version 1` pass.
+  The overlay-free locked Nextest run
+  `39e59a64-6827-4555-a5c2-6b62b4058078` passes 184/184 `ritk-diffusion`
+  tests with 11 configured skips. The in-tree locked invocation remains
+  blocked before compilation because the Atlas development overlay has unused
+  local patches and Cargo requests a lockfile rewrite under `--locked`.
+  Provider Clippy/doctest and hosted exact-head verification remain residual;
+  no provider lockfile was modified.
+
+## DOC-HUMAN-CONNECTOME audit (2026-08-19)
+
+- Finding: the prior human diffusion example fitted only a bounded slab,
+  rendered no regional connectivity, and treated FSL `(column, row, depth)`
+  vector components as the image library's `[depth, row, column]` index axes.
+  The visual output therefore could not substantiate a whole-brain
+  tractography or connectomics result, and the axis mismatch shortened and
+  misdirected the displayed tracks.
+- Resolution: use the checksummed Stanford HARDI acquisition and aligned
+  reduced FreeSurfer parcellation, fit the complete tensor volume, reorder FSL
+  directions once at the scheme-to-image boundary, track deterministic
+  bidirectional streamlines from cerebral white matter, assign endpoints to
+  image-present grey-matter labels, and emit one inspected three-panel SVG plus
+  the complete JSON matrix. The book states the acquisition limitations and
+  separates reproducibility/accounting checks from anatomical or clinical
+  validation.
+- Evidence: 222,880 fitted voxels produce 9,737 streamlines with 70.0 mm median
+  physical length. Exact endpoint accounting is
+  `9,737 = 7,387 + 355 + 1,995`; 2,350 assigned streamlines equal the symmetric
+  matrix weight over 84 present regions and 368 non-zero undirected edges.
+  Six example tests and 29 diffusion-scheme tests pass, warning-denied Clippy
+  passes for both targets, and the corrected rasterized figure was inspected.
+  This establishes the implemented data and coordinate contracts, not a
+  biological axon count or population-level result.
+- The former residual is closed by `FIX-DTI-VOLUME-FRAME`: `DiffusionMaps`
+  retains `GradientFrame`, `DtiVolume` owns the ImageAxis permutation, and the
+  CLI/example callers consume that boundary directly. Hosted verification and
+  merge are tracked in the active item above; the local locked Nextest limit is
+  not source-side evidence.
+
+## BUILD-BLOCK-MATCHING-LOCK audit (2026-08-19)
+
+- Finding: merge `03809904` registered `crates/ritk-block-matching` as a
+  workspace member but omitted its path-package entry from `Cargo.lock`.
+  `cargo run --locked` and Clippy both stopped with “cannot update the lock
+  file” before compiling the tractography example.
+- Resolution: regenerate the lockfile through Cargo. The complete diff is one
+  seven-line `ritk-block-matching` entry with its existing `anyhow` dependency;
+  no version, checksum, source, or transitive package changed.
+- Evidence: locked example execution again reports a 0.00-degree ODF peak error
+  and five streamlines, and warning-denied example Clippy passes. This is a
+  reproducibility repair for the merged workspace topology, not a dependency
+  update.
+
+## DOC-TRACTOGRAPHY-VALIDATION audit (2026-08-19)
+
+- Finding: the tractography chapter documented the integrator and export
+  surfaces but left the complete create-and-validate workflow distributed
+  across a child example. It also described `FieldBoundary` as an anatomical
+  boundary even though the implementation can only establish that the
+  caller-defined direction field returned `None`.
+- Resolution: the authoritative chapter now defines an analytical physical
+  field and seeds, creates bidirectional streamlines through the public API,
+  and checks seed accounting, exact termination variants, and containment
+  before rendering. The termination text now names image extent, masks,
+  anisotropy thresholds, and model-fit failures as possible field boundaries.
+  A claim ladder separates executable numerical/geometric checks from format,
+  anatomical, and clinical validation, with the latter boundary grounded in
+  the resolved Maier-Hein et al. tractography-challenge paper.
+- Evidence: the locked runnable example reports a 0.00-degree ODF peak error
+  and five streamlines. Its regenerated SVG and `.trk`/`.tck`/`.tsf` outputs
+  match their tracked bytes; the SVG was rasterized and inspected at 1800 px.
+  Warning-denied Clippy passes for the example target. mdBook test/build and
+  strict checking of 77 files and 188 links pass. These checks establish the
+  documented synthetic contract, not anatomical or clinical validity.
+
+## ATLAS-RITK-ZERO-FLUX-PAD-STRUCTURE [patch] — operation-family split
+
+- Finding: `crates/ritk-filter/src/transform/pad.rs` carried the four padding
+  families in one implementation file; the zero-flux Neumann family occupied
+  a separate tail operation with its own CPU/native paths.
+- Resolution: move `ZeroFluxNeumannPadImageFilter` to the named
+  `transform/pad/zero_flux.rs` leaf and re-export it through the existing
+  `transform::pad` surface. Edge clamping, output shape, origin translation,
+  backend construction, and public signatures are unchanged.
+- Evidence: Rustfmt and `git diff --check` pass; the parent is 462 lines and
+  the new leaf is 122 lines. Locked all-target compilation passes outside the
+  Atlas overlay. The affected package reports 1073/1073 Nextest tests passed
+  in 64.227 seconds, warning-denied Clippy passes, and package doctests report
+  2/13 executed with 11 environment-only examples ignored. Hosted provider
+  Rust/Python checks pass at exact source head `805b7216`: Rustfmt, Clippy,
+  dependency alignment, Rust suites, Python 3.9–3.13 across Linux/macOS/Windows,
+  wheel smoke, and CodeRabbit pass; RecurseML remains report-only. No
+  performance or allocation claim is attached to this structural change.
+
+## ATLAS-RITK-RECURSIVE-GAUSSIAN-HESSIAN-STRUCTURE [patch] — operation-family split
+
+- Finding: `recursive_gaussian.rs` carried the recursive-Gaussian public API,
+  smoothing core, derivative helpers, and the separate six-component Hessian
+  operation family in one implementation file.
+- Resolution: move `compute_hessian_iir` to the named
+  `recursive_gaussian_hessian.rs` leaf and re-export it through the existing
+  `pub(crate)` module seam. Frangi and Sato callers remain unchanged; Deriche
+  pass ordering, spacing normalization, and packed output semantics are
+  unchanged.
+- Evidence: Rustfmt and `git diff --check` pass; the parent is 444 lines and
+  the new leaf is 79 lines. Locked all-target compilation passes outside the
+  Atlas overlay. The affected package reports 1073/1073 Nextest tests passed
+  in 45.308 seconds, warning-denied Clippy passes, and package doctests report
+  2/13 executed with 11 environment-only examples ignored. Hosted provider
+  Rust/Python checks pass at exact source head `9034af11` (Rustfmt, Clippy,
+  dependency alignment, Rust suites, Python 3.9–3.13 across Linux/macOS/Windows,
+  wheel smoke, and review checks); RecurseML remains report-only. No
+  performance or allocation claim is attached to this structural change.
+
+## ATLAS-RITK-BSPLINE-BASIS-STRUCTURE [patch] — operation-family split
+
+- Finding: `crates/ritk-registration/src/bspline_ffd/basis/evaluate.rs` was a
+  629-line implementation file containing control-grid initialization, dense
+  support-table construction, and sparse cache-based displacement evaluation.
+- Resolution: partition the implementation into `basis/grid.rs`,
+  `basis/dense.rs`, and `basis/sparse.rs`; retain `basis::evaluate` as the
+  stable internal path through curated re-exports. The evaluation loops,
+  output-buffer ownership, dense/sparse dispatch, and arithmetic order are
+  unchanged.
+- Evidence: Rustfmt and `git diff --check` pass. From outside the Atlas
+  overlay, locked `cargo check -p ritk-registration --all-targets` passes at
+  source `ff95022b`, and the package library gate reports 370/370 Nextest
+  tests passed in 19.076 seconds. Package Clippy with `-D warnings` and
+  package doctests also pass (2 executed, 7 environment-only examples
+  ignored). The hosted provider CI and Python matrix pass at exact source head
+  `ff95022b` (Rustfmt, Clippy, dependency alignment, Rust suites, Python
+  3.9–3.13 across Linux/macOS/Windows, wheel smoke, and CodeRabbit). No
+  performance or allocation claim is attached to this structural
+  change.
+
+## ATLAS-RITK-CONFORMANCE-101 — Diffusion binding structure ratchet
+
+- Finding: `crates/ritk-python/src/diffusion/mod.rs` became a 109-line
+  implementation-bearing manifest, increasing the committed
+  `manifest_implementation` count from 111 to 112.
+- Resolution: retain the manifest as module wiring and move the diffusion map
+  wrapper and tensor-fitting operation to `diffusion/maps.rs` and
+  `diffusion/fit.rs`.
+- Evidence: clean-lane scan at source `81f510f6` reports
+  `manifest_implementation=111`; the source merge is default `7ae4b69b`.
+  Provider-owned Rust, Python, wheel, Clippy, Rustfmt, and dependency-alignment
+  checks pass in runs `32026464996` and `32026464796`. The local locked package
+  check is limited by the shared Atlas overlay resolving to a peer-dirty
+  primary checkout; the external `recurseml/analysis` error is report-only.
+
 ## RITK-FLOATELEMENT-ROOTS-001 — powf root emulation → provider roots (closed 2026-08-13)
 
 RITK emulated scalar roots through `powf` fractional powers instead of the
@@ -5866,7 +6322,7 @@ None. All prior outstanding QA gaps closed in this sprint.
 ---
 
 
-> **Full audit history (Sprints 262-322)**: see [ARCHIVE.md](./ARCHIVE.md)
+> **Full audit history (Sprints 262-322)**: see [docs/archive.md](./docs/archive.md)
 
 
 
@@ -5893,7 +6349,7 @@ None. All prior outstanding QA gaps closed in this sprint.
 ---
 
 
-> **Full audit history (Sprints 262-322)**: see [ARCHIVE.md](./ARCHIVE.md)
+> **Full audit history (Sprints 262-322)**: see [docs/archive.md](./docs/archive.md)
 
 
 ## Sprint 384 Audit (2026-06-19) — Correctness Fixes, Perf Optimisation, cmake Parity Expansion
@@ -6701,12 +7157,12 @@ type-level proof.
 
 | Gap ID | Description | Module | Tests |
 |--------|-------------|--------|-------|
-| DOC-332-01 | Documentation compaction — 4 stale files removed, ARCHIVE.md created (18k lines), 3 root files compacted (18k→~400 lines), IMPLEMENTATION_SUMMARY.md updated | docs | N/A |
+| DOC-332-01 | Documentation compaction — 4 stale files removed, docs/archive.md created (18k lines), 3 root files compacted (18k→~400 lines), docs/implementation_summary.md updated | docs | N/A |
 | STR-332-02 | Structural audit — 3 violations (709, 670, 536 lines) partitioned into directory modules; ZERO files > 500 lines workspace-wide | `ritk-registration::direct` | 547 |
 
 ### Architecture
 
-1. **DOC-332-01**: Deleted stale `docs/backlog.md`, `docs/checklist.md`, `docs/CHANGELOG.md`, and `SPINT_293_PLAN.md`. Created `ARCHIVE.md` with all pre-Sprint 320 sprint history (18,150 lines). Compacted `backlog.md` (6,378→134), `checklist.md` (5,893→110), `gap_audit.md` (6,200→145). Updated `IMPLEMENTATION_SUMMARY.md` to v0.50.94.
+1. **DOC-332-01**: Deleted stale `docs/backlog.md`, `docs/checklist.md`, `docs/CHANGELOG.md`, and `SPINT_293_PLAN.md`. Created `docs/archive.md` with all pre-Sprint 320 sprint history (18,150 lines). Compacted `backlog.md` (6,378→134), `checklist.md` (5,893→110), `gap_audit.md` (6,200→145). Updated `docs/implementation_summary.md` to v0.50.94.
 
 2. **STR-332-02**: Structural audit of the entire workspace found 3 violations:
    - `direct_phase_fourteen_tests.rs` (709→dir) — split into `normalization.rs` (histogram sum/ratio assertions), `identity.rs` (identical-image symmetry tests), `size_and_end_to_end.rs` (regression guards).
@@ -6804,7 +7260,7 @@ type-level proof.
 | CLIPPY-331-01 | 28 clippy warnings → 0 across 6 crates | ritk-core, ritk-vtk, ritk-io, ritk-registration, ritk-snap, ritk-python | 2,099 |
 | ARCH-331-02 | Preemptive partition of 8 near-limit files (470–560 lines) | ritk-io (3), ritk-registration (3), ritk-core (2) | 2,099 |
 | FIX-331-03 | Flaky `translation_recovery_shifted_gaussian` hardened | ritk-registration | 547 |
-| DOC-331-04 | IMPLEMENTATION_SUMMARY.md, OPTIMIZATION.md, README.md updated | docs | N/A |
+| DOC-331-04 | docs/implementation_summary.md, docs/optimization.md, README.md updated | docs | N/A |
 | CLEANUP-331-05 | Orphan `tests_convolution.rs` removed | ritk-core | 1408 |
 
 ### Architecture
@@ -6961,6 +7417,23 @@ type-level proof.
 - Closed: GAP-SCI-03 (prewitt), GAP-SCI-07 (maximum_position/minimum_position), GAP-SCI-09 (histogram).
 - Open: GAP-SCI-01, 02, 05, 06, 08, 11, 12, 13, 14, 15 (10 remaining, target Sprints 336-337).
 - Out of scope [arch]: GAP-SCI-16/17/18 (5 functions requiring callback-based plugin system).
+
+## Finding 2026-08-19: RITK affine parity follow-up remains hosted-gated
+
+The first parity repair also required a second axis-boundary correction in
+`crates/ritk-python/src/filter/spatial/affine.rs`. Commit `18e5bc7f` routes
+rotation centers through direction-aware provider geometry, keeps Euler matrices
+in physical `(X,Y,Z)` order, and maps Python `[Z,Y,X]` shifts to physical
+translation. The focused affine parity set passes 9/9, and the local provider
+Rust gates remain green.
+
+The comprehensive local Python suite at this head reports `1236 passed, 8
+skipped, 1 xpassed, 1 failed` under local SimpleITK
+`3.0.0a1.post183-g61ffa`, outside the declared `>=2.5.5,<2.6` requirement. Its
+sole max-2-ULP denoising observation is therefore not supported-version
+evidence. The exact default-head hosted runs `32244582088` and `32244582089`
+pass, including the pinned-version wheel oracle, and no tolerance or assertion
+was weakened.
 
 ---
 

@@ -318,3 +318,49 @@ fn dpv_round_trips_through_write_dir_and_read_dir() {
     assert_eq!(read_back.streamlines.len(), 1);
     assert_eq!(read_back.streamlines[0].len(), 2);
 }
+
+/// A header count too large to size its arrays is rejected, not wrapped.
+///
+/// `nb_points` and `nb_streamlines` arrive as unbounded JSON numbers from
+/// `header.json`, and the length checks that would catch a nonsensical value
+/// run *after* the arithmetic deriving element counts from them. Unchecked,
+/// `nb_points` near `u64::MAX` overflows the multiply, and `nb_streamlines`
+/// at `u64::MAX` wraps `+ 1` to zero — which then agrees with an empty offsets
+/// buffer, passing the very check meant to catch it, before indexing with the
+/// unwrapped value.
+#[test]
+fn a_header_count_too_large_to_size_its_arrays_is_rejected() {
+    for (header, field) in [
+        (header_f32(1, u64::MAX), "nb_points"),
+        // nb_points = 0 so the positions check passes and the offsets
+        // arithmetic is actually reached.
+        (header_f32(u64::MAX, 0), "nb_streamlines"),
+    ] {
+        let err = TrxTractogram::from_raw(&header, &[], &[])
+            .expect_err("a count this large cannot describe real data");
+        assert!(
+            matches!(
+                err,
+                TrxError::HeaderCountOverflow { field: f, .. } if f == field
+            ),
+            "expected {field} to be reported as an overflowing count, got {err:?}"
+        );
+    }
+}
+
+/// The bound must not reject counts that describe real data.
+///
+/// Guards the checked arithmetic against being written as a tighter limit than
+/// overflow, which would reject conforming files while still passing the
+/// rejection test above.
+#[test]
+fn ordinary_header_counts_still_parse() {
+    let streamlines = vec![
+        vec![[0.0, 0.0, 0.0], [1.0, 0.0, 0.0]],
+        vec![[0.0, 1.0, 0.0], [1.0, 1.0, 0.0], [2.0, 1.0, 0.0]],
+    ];
+    let (pos, off) = encode_streamlines(&streamlines, "float32");
+    let header = header_f32(2, 5);
+    let tractogram = TrxTractogram::from_raw(&header, &pos, &off).expect("valid TRX");
+    assert_eq!(tractogram.streamlines.len(), 2);
+}

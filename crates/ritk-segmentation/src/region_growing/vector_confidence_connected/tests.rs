@@ -59,10 +59,13 @@ fn borrowed_core_matches_simpleitk_blob_exactly() {
     }
 }
 
-#[test]
-fn corner_seed_uses_simpleitk_zero_flux_neighborhood() {
-    // NumPy default_rng(0), shape (5, 5, 2), split by final component.
-    let channels = vec![
+/// The 2-channel 5x5 fixture: `default_rng(0).standard_normal((5, 5, 2))`,
+/// split by final component.
+///
+/// Shared by every test that compares against a captured SimpleITK reference,
+/// so the two cannot drift onto different inputs.
+fn corner_seed_channels() -> Vec<Vec<f32>> {
+    vec![
         vec![
             0.125_730_22,
             0.640_422_64,
@@ -117,7 +120,87 @@ fn corner_seed_uses_simpleitk_zero_flux_neighborhood() {
             1.960_258_4,
             1.315_103_8,
         ],
+    ]
+}
+
+/// Match SimpleITK's own output across the multiplier range, not just at one point.
+///
+/// The corner-seed case above pins one configuration; this pins the shape of
+/// the criterion. Reference masks come from SimpleITK 3.0's
+/// `VectorConfidenceConnectedImageFilter` run on the identical input
+/// (`default_rng(0).standard_normal((5, 5, 2))`, seed `(0, 0)`,
+/// `NumberOfIterations = 0`, `InitialNeighborhoodRadius = 1`) — captured by
+/// executing the filter, not derived from this implementation. Its covariance
+/// matches ours to every printed digit, so any divergence here is in the
+/// criterion rather than the statistics.
+///
+/// # What this does and does not pin
+///
+/// It pins the selected mask at five multipliers against the reference, which
+/// nothing did before: the fixture's expectations were previously calibrated
+/// against whatever the linked SVD produced.
+///
+/// It does **not** discriminate how seeds come to be included. ITK admits them
+/// unconditionally — at multiplier 1e-6 it still returns the seed, whose own
+/// Mahalanobis distance is 1.082 — while this crate admits them by widening
+/// the threshold to cover their distance. On this fixture the two agree at
+/// every multiplier tested, because widening only binds below 1.082 and no
+/// neighbour lies between the multiplier and that distance. A fixture where
+/// one does would separate them; see the board item on the divergence.
+#[test]
+fn multiplier_sweep_matches_the_simpleitk_reference_masks() {
+    let channels = corner_seed_channels();
+    // (multiplier, reference mask over the 5x5 grid)
+    let reference: [(f64, [u8; 25]); 5] = [
+        (
+            1e-6,
+            [
+                1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
+            ],
+        ),
+        (
+            0.5,
+            [
+                1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
+            ],
+        ),
+        (
+            1.09,
+            [
+                1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
+            ],
+        ),
+        (
+            2.0,
+            [
+                1, 1, 0, 0, 0, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
+            ],
+        ),
+        (
+            5.0,
+            [
+                1, 1, 1, 0, 0, 1, 1, 0, 0, 0, 0, 1, 1, 0, 0, 0, 0, 1, 1, 0, 0, 0, 1, 0, 0,
+            ],
+        ),
     ];
+
+    for (multiplier, expected_mask) in reference {
+        let config = VectorConfidenceConnectedConfig::new(multiplier, 0, 1, 1.0)
+            .expect("infallible: validated precondition");
+        let output = segment_values(&channels, [1, 5, 5], &[[0, 0, 0].into()], config)
+            .expect("infallible: validated precondition");
+        let expected: Vec<f32> = expected_mask.iter().map(|&v| f64::from(v) as f32).collect();
+        assert_eq!(
+            output, expected,
+            "multiplier {multiplier} diverges from the SimpleITK reference mask"
+        );
+    }
+}
+
+#[test]
+fn corner_seed_uses_simpleitk_zero_flux_neighborhood() {
+    // NumPy default_rng(0), shape (5, 5, 2), split by final component.
+    let channels = corner_seed_channels();
     let config = VectorConfidenceConnectedConfig::new(0.5, 0, 1, 1.0)
         .expect("infallible: validated precondition");
     let output = segment_values(&channels, [1, 5, 5], &[[0, 0, 0].into()], config)

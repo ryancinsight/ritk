@@ -88,7 +88,10 @@ fn test_series_writer_has_samples_per_pixel_one() {
 /// slope = 65535/65535 = 1.0, intercept = 0.0. The clamped path must keep
 /// all pixels <= 65535.
 #[test]
+<<<<<<< HEAD
 #[allow(unused_comparisons, reason = "ratchet RITK-LINT-1")]
+=======
+>>>>>>> origin/main
 fn test_series_pixel_clamp_unsigned_range() {
     let tmp = tempfile::tempdir().expect("tempdir");
     let out_path = tmp.path().join("clamp_series");
@@ -118,15 +121,19 @@ fn test_series_pixel_clamp_unsigned_range() {
         if let Ok(elem) = obj.element(dicom::core::Tag(0x7FE0, 0x0010)) {
             if let Ok(bytes) = elem.value().to_bytes() {
                 let mut has_non_zero = false;
+                let mut maximum = 0_u16;
                 for chunk in bytes.chunks_exact(2) {
                     let v = u16::from_le_bytes([chunk[0], chunk[1]]);
-                    if v > 0 {
-                        has_non_zero = true;
-                    }
+                    has_non_zero |= v > 0;
+                    maximum = maximum.max(v);
                 }
                 assert!(
-                    has_non_zero || bytes.is_empty(),
+                    bytes.is_empty() || has_non_zero,
                     "non-zero pixel data expected"
+                );
+                assert!(
+                    bytes.is_empty() || maximum == u16::MAX,
+                    "floating-point input at the upper bound must clamp to u16::MAX, got {maximum}"
                 );
             }
         }

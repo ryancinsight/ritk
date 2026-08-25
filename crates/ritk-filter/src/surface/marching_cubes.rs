@@ -11,12 +11,21 @@
 //! cut edge between the two corner physical positions.
 //!
 //! # Coordinate convention
-//! Vertices are emitted in physical mm space `[x, y, z]` where:
-//! - `x = origin[0] + ix * spacing[0]`
-//! - `y = origin[1] + iy * spacing[1]`
-//! - `z = origin[2] + iz * spacing[2]`
+//! Vertices are emitted in physical mm space `[x, y, z]` as
 //!
-//! and `(ix, iy, iz)` is the interpolated fractional voxel position on the cut edge.
+//! ```text
+//! vertex = origin + direction · (spacing ⊙ [ix, iy, iz])
+//! ```
+//!
+//! where `(ix, iy, iz)` is the interpolated fractional voxel position on the cut
+//! edge. With the default identity `direction` this reduces to the axis-aligned
+//! form `x = origin[0] + ix * spacing[0]`, and so on per axis.
+//!
+//! Both `spacing` and the *columns* of `direction` are indexed in
+//! `(ix, iy, iz)` order — the reverse of [`ritk_image::Image`], whose `spacing`
+//! and direction columns are indexed by tensor axis with axis 0 the
+//! slowest-varying. See [`MarchingCubesFilter::with_direction`] for the
+//! conversion a caller holding an `Image` must apply.
 //!
 //! # Mesh orientation
 //! Triangle winding follows the Lorensen convention: outward normals face away from
@@ -28,7 +37,7 @@
 //! Emission is streamed directly into the builder (no temporary global soup buffer),
 //! reducing peak memory to O(1) additional storage per active cube.
 
-use ritk_spatial::Point;
+use ritk_spatial::{Direction, Point, Vector};
 
 use super::mesh::{Mesh, MeshBuilder};
 
@@ -43,10 +52,16 @@ pub struct MarchingCubesFilter {
     ///
     /// Voxels with value > isovalue are considered "inside" (above the surface).
     pub isovalue: f32,
-    /// Physical origin of the first voxel in mm.
+    /// Physical origin of the first voxel in mm, in LPS component order.
     pub origin: Point<3>,
-    /// Voxel spacing `[sx, sy, sz]` in mm.
+    /// Voxel spacing `[sx, sy, sz]` in mm, indexed in `(ix, iy, iz)` order.
     pub spacing: [f64; 3],
+    /// Direction cosines mapping the scaled index offset into physical space.
+    ///
+    /// Column `j` is the physical direction of index axis `j` in `(ix, iy, iz)`
+    /// order, so column 0 is the direction the `ix` axis advances along. The
+    /// identity — the default — yields an axis-aligned volume.
+    pub direction: Direction<3>,
 }
 
 impl Default for MarchingCubesFilter {
@@ -55,6 +70,7 @@ impl Default for MarchingCubesFilter {
             isovalue: 0.5,
             origin: Point::origin(),
             spacing: [1.0; 3],
+            direction: Direction::identity(),
         }
     }
 }
@@ -90,6 +106,26 @@ impl MarchingCubesFilter {
             "all spacing components must be strictly positive"
         );
         self.spacing = spacing;
+        self
+    }
+
+    /// Set the direction cosines of the volume.
+    ///
+    /// Column `j` must be the physical direction of index axis `j` in
+    /// `(ix, iy, iz)` order. A caller holding a [`ritk_image::Image`] must
+    /// **reverse the column order**, because an `Image` indexes its direction
+    /// columns and its spacing by tensor axis with axis 0 the slowest-varying:
+    ///
+    /// ```text
+    /// filter_spacing[k]      == image.spacing()[2 - k]
+    /// filter_direction[(r,k)] == image.direction()[(r, 2 - k)]
+    /// ```
+    ///
+    /// Passing an `Image` direction unreversed transposes the x and z axes of
+    /// the emitted mesh.
+    #[must_use]
+    pub fn with_direction(mut self, direction: Direction<3>) -> Self {
+        self.direction = direction;
         self
     }
 
@@ -155,13 +191,16 @@ impl MarchingCubesFilter {
         // Stream triangle emission directly into gaia MeshBuilder.
         let mut builder = MeshBuilder::new();
 
-        // Physical position of a voxel corner (iz, iy, ix) in mm.
+        // Physical position of a voxel corner (iz, iy, ix) in mm:
+        // origin + direction · (spacing ⊙ [ix, iy, iz]).
         let phys = |iz: usize, iy: usize, ix: usize| -> [f64; 3] {
-            [
-                self.origin[0] + ix as f64 * self.spacing[0],
-                self.origin[1] + iy as f64 * self.spacing[1],
-                self.origin[2] + iz as f64 * self.spacing[2],
-            ]
+            let scaled = Vector::new([
+                ix as f64 * self.spacing[0],
+                iy as f64 * self.spacing[1],
+                iz as f64 * self.spacing[2],
+            ]);
+            let point = self.origin + self.direction * scaled;
+            [point[0], point[1], point[2]]
         };
 
         // Linear interpolation between physical positions pa and pb

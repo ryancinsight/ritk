@@ -655,3 +655,77 @@ fn test_detached_data_file() -> Result<()> {
     }
     Ok(())
 }
+
+/// Every truncation of a valid NRRD errors rather than panicking.
+///
+/// This crate had negative tests for individual malformed fields but none for
+/// a short file, so nothing exercised a cut landing mid-key, mid-value, or
+/// inside the binary payload. Sweeping every prefix covers all three without
+/// enumerating them.
+///
+/// Success is permitted only where it is genuinely correct: the header ends at
+/// a blank line, so a prefix carrying the whole header plus the whole payload
+/// is a complete file. Anything shorter must fail, and a returned image must
+/// have the shape its header declared.
+#[test]
+fn every_truncation_of_a_valid_nrrd_errors_or_reads_exactly() -> Result<()> {
+    let dir = tempdir()?;
+    let path = dir.path().join("full.nrrd");
+    let data: Vec<f32> = (0..2 * 3 * 4).map(|i| i as f32).collect();
+    write_inline_nrrd(&path, &data, 2, 3, 4, [1.0, 1.0, 1.0], [0.0, 0.0, 0.0]);
+    let complete = std::fs::read(&path)?;
+
+    let backend = SequentialBackend;
+    let truncated = dir.path().join("cut.nrrd");
+    for cut in 0..complete.len() {
+        std::fs::write(&truncated, &complete[..cut])?;
+        // A prefix is short by at least one byte, so it cannot carry both the
+        // header and the payload the header promises.
+        let result: Result<_> = crate::read_nrrd::<SequentialBackend, _>(&truncated, &backend);
+        assert!(
+            result.is_err(),
+            "prefix of {cut} bytes is short of the declared payload, but parsed"
+        );
+    }
+
+    let image = crate::read_nrrd::<SequentialBackend, _>(&path, &backend)
+        .expect("the intact file must read");
+    assert_eq!(image.shape(), [4, 3, 2]);
+    Ok(())
+}
+
+/// Single-byte corruption yields an error or a self-consistent image.
+///
+/// The header is text, so a substituted byte can turn a digit into another
+/// digit — producing a header that is well-formed but describes a different
+/// volume than the payload holds. That must be caught by the payload length
+/// check rather than producing a buffer inconsistent with its own shape.
+#[test]
+fn single_byte_corruption_of_a_nrrd_stays_self_consistent() -> Result<()> {
+    let dir = tempdir()?;
+    let path = dir.path().join("full.nrrd");
+    let data: Vec<f32> = (0..2 * 3 * 4).map(|i| i as f32).collect();
+    write_inline_nrrd(&path, &data, 2, 3, 4, [1.0, 1.0, 1.0], [0.0, 0.0, 0.0]);
+    let complete = std::fs::read(&path)?;
+
+    let backend = SequentialBackend;
+    let corrupt_path = dir.path().join("corrupt.nrrd");
+    for offset in 0..complete.len() {
+        for byte in [b'0', b'9', 0x00, 0xFF] {
+            let mut corrupt = complete.clone();
+            corrupt[offset] = byte;
+            std::fs::write(&corrupt_path, &corrupt)?;
+            let Ok(image) = crate::read_nrrd::<SequentialBackend, _>(&corrupt_path, &backend)
+            else {
+                continue;
+            };
+            let shape = image.shape();
+            assert_eq!(
+                image.data().shape(),
+                shape,
+                "byte {byte:#04X} at offset {offset} produced a tensor disagreeing with its shape"
+            );
+        }
+    }
+    Ok(())
+}

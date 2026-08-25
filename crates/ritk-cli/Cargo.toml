@@ -27,6 +27,9 @@ ritk-registration = { path = "../ritk-registration", version = "0.54.0" }
 ritk-diffusion = { path = "../ritk-diffusion", version = "0.1.0" }
 ritk-diffusion-scheme = { path = "../ritk-diffusion-scheme", version = "0.2.0" }
 ritk-tractography = { path = "../ritk-tractography", version = "0.1.0" }
+ritk-connectome = { path = "../ritk-connectome", version = "0.1.0" }
+ritk-parcellation = { path = "../ritk-parcellation", version = "0.1.0" }
+ritk-nifti = { path = "../ritk-nifti", version = "0.2.0" }
 ritk-tck = { path = "../ritk-tck", version = "0.1.0" }
 ritk-trk = { path = "../ritk-trk", version = "0.1.0" }
 ritk-trx = { path = "../ritk-trx", version = "0.1.0" }

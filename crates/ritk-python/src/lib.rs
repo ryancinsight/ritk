@@ -8,6 +8,8 @@
 
 pub(crate) mod array_utils;
 pub mod color;
+pub mod connectome;
+pub mod diffusion;
 pub mod errors;
 pub mod filter;
 pub mod image;
@@ -27,6 +29,8 @@ use pyo3::prelude::*;
 fn _ritk(m: &Bound<'_, PyModule>) -> PyResult<()> {
     m.add("__version__", env!("CARGO_PKG_VERSION"))?;
     image::register(m)?;
+    diffusion::register(m)?;
+    connectome::register(m)?;
     io::register(m)?;
     filter::register(m)?;
     metrics::register(m)?;

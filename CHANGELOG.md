@@ -8,7 +8,408 @@
 
 # CHANGELOG
 
-## [Unreleased] — JPEG 2000 scalar quality control (FEAT-692-01)
+## [Unreleased] — conformance cleanup and JPEG 2000 scalar quality control (FEAT-692-01)
+
+### Removed
+
+- **[major] `GpuFieldSmoother` and `CpuOrGpu`.** Neither could do what its name
+  said. `GpuFieldSmoother<B: Backend>` bound `coeus_core::Backend`, whose only
+  implementors are `SequentialBackend` and `MoiraiBackend` — both CPU — so no
+  GPU backend could be substituted; and the convolution beneath it ran on the
+  host anyway, downloading through `to_vec()`, convolving with a scalar loop,
+  and uploading through `from_slice`. Its documentation quoted an RTX 3060
+  timing no code path here can produce. `CpuOrGpu`'s `Gpu` variant was never
+  constructed at any site in the workspace.
+
+  The `FieldSmoother` trait remains as the extension seam, and the per-level
+  factory parameters are now generic over it rather than over a two-variant
+  enum — which admits any implementor rather than exactly two, at the same zero
+  allocation and zero indirect call. A genuine device smoother becomes a new
+  implementor rather than a widened enum. See
+  [ADR 0021](docs/adr/0021-retire-the-gpu-field-smoother.md).
+
+- [patch] Add the atlas-parcellation example and its book chapter. The
+  parcellation chapter taught a pipeline nothing ran, which for a pipeline whose
+  output always looks plausible is the gap that matters: the example synthesises
+  a subject whose correct parcellation is known and reports Dice against it, so
+  a mis-registration shows as a number rather than as a picture that looks fine.
+  Majority voting recovers all three structures exactly from atlases starting at
+  0.51-0.73 Dice, and the agreement map reads exactly two thirds where one atlas
+  dissents.
+
+  A second run with no atlas mislabelled marks the boundary of the chapter's
+  claim that voting is right when the atlases are interchangeable: there voting
+  reaches 1.00 and joint label fusion 0.88-0.95, because weighting needs the
+  atlases to differ in local registration quality and interchangeable ones do
+  not. That is the fixture, not a ranking of the two rules.
+
+- [minor] Add `ritk.registration.parcellate_with_atlases`, closing the same gap
+  on the Python surface that `ritk parcellate atlas` closed on the command
+  line. `ritk.connectome` could consume a parcellation but nothing in the
+  package produced one, so a caller had to bring their own label volume. The
+  binding returns an `AtlasParcellationResult` rather than a bare label volume,
+  because a parcellation without its agreement is not interpretable: the labels
+  look equally confident wherever the atlases split, which is exactly at the
+  parcel boundaries where streamline endpoints land. `ritk.connectome` also
+  gains the type stub it shipped without.
+
+- [patch] Consolidate the float-to-label conversion into
+  `ritk_parcellation::storage::label_from_stored`. Both new callers had grown
+  their own copy, and the second occurrence is where it becomes one home. The
+  shared reader additionally rejects NaN, which the copies let through to the
+  cast: every comparison against NaN is false, so a sign test alone does not
+  stop it.
+
+- [minor] Add `ritk parcellate atlas`, which closes the middle of the
+  connectomics pipeline from the command line. `tract dti` produced streamlines
+  and `tract connectome` consumed a label volume, but nothing produced that
+  volume: the library could parcellate a subject from labelled atlases and the
+  CLI could not. The command registers each atlas onto the subject, warps its
+  labels, and fuses the votes by majority or joint label fusion, optionally
+  writing the per-voxel agreement — which is lowest at the parcel boundaries
+  where streamline endpoints land, so it is the map to consult before trusting
+  an edge weight. An atlas off the subject's grid is rejected rather than
+  resampled silently, because a registration recovers a deformation and never a
+  resampling.
+
+- [patch] Consolidate the CLI's integration tests into one harness binary at
+  `tests/cli/`. Each `tests/*.rs` file is an independent binary that re-links
+  the whole stack, so a file per command pays that cost per command.
+
+- [major][arch] Retain `GradientFrame` in fitted `DiffusionMaps` and make
+  `DtiVolume` the single validated ImageAxis-to-image-index boundary. FSL and
+  MRtrix directions now reach reusable and CLI tractography in
+  `[depth,row,column]` order without an example-local adapter; LPS maps fail
+  explicitly because physical-to-index conversion requires image geometry.
+  PR #198 merged at `2d159850636a6539db61109533f399d31cc7c6f4`; exact post-
+  merge CI `32387951529`, Python CI `32387951635`, and Deploy mdBook
+  `32387952289` all pass.
+
+- Refresh the Pages caller to the current Atlas reusable workflow revision
+  while retaining the existing book output contract. PR #196 merged at
+  `aa48c471ac96eb81869437d84bab439e18d89038`; exact post-merge CI
+  `32344964253`, Python CI `32344964345`, Deploy mdBook `32344964522`, and
+  live Pages HTTP 200 pass.
+
+- [minor] Normalise the rich-club curve against a degree-preserving null model.
+  The raw curve was returned unnormalised because the ensemble size and rewiring
+  scheme belong to the caller's study design; that was a reason to make them
+  parameters, not to withhold the measure. `normalised_rich_club` builds the
+  ensemble by double-edge swaps, which preserve every degree exactly, and reports
+  the swap acceptance alongside the ratio — a graph too constrained to rewire
+  yields an ensemble that never left where it started. A degree sequence can
+  force the club's density, in which case a ratio of one is the true answer; that
+  case is documented and pinned.
+
+- [minor] Rasterise a surface annotation into a cortical ribbon.
+  `ritk-parcellation` reads the FreeSurfer binary triangle surface format and
+  fills the ribbon by walking each cortical column from the white surface to the
+  pial one. FreeSurfer stores surfaces in surface RAS, which differs from a
+  volume's scanner frame by its `c_ras`; the reader does not guess the offset,
+  and surfaces landing outside the grid are rejected rather than returned as an
+  empty parcellation. The report counts unfilled columns and contested voxels,
+  which are the two ways the fill falls short.
+
+- [minor] Expose parcellations and connectomes to Python as `ritk.connectome`:
+  a Parcellation from a `[Z, Y, X]` label array, connectome construction over
+  `[N, 3]` streamline arrays, the graph measures as arrays, and the normalised
+  rich club. The image-to-grid axis reversal moved into
+  `ParcellationGrid::from_image_order` rather than being written a second time,
+  so it now has exactly one implementation.
+
+- [patch] Report a bad points tensor from `DisplacementFieldTransform::forward`
+  instead of panicking. The tensor is the caller's, so a rank or extent the field
+  cannot accept is input rather than programmer error, and the `Module::forward`
+  signature already returns the error type it belongs in.
+
+- [patch] Hoist the Brandes betweenness scratch buffers out of the per-source
+  loop, which had been deferred. Results are unchanged.
+
+- [minor] Normalise the rich-club curve against a degree-preserving null model.
+  The raw curve was returned unnormalised because the ensemble size and rewiring
+  scheme belong to the caller's study design; that was a reason to make them
+  parameters, not to withhold the measure. `normalised_rich_club` builds the
+  ensemble by double-edge swaps, which preserve every degree exactly, and reports
+  the swap acceptance alongside the ratio — a graph too constrained to rewire
+  yields an ensemble that never left where it started. A degree sequence can
+  force the club's density, in which case a ratio of one is the true answer; that
+  case is documented and pinned.
+
+- [minor] Rasterise a surface annotation into a cortical ribbon.
+  `ritk-parcellation` reads the FreeSurfer binary triangle surface format and
+  fills the ribbon by walking each cortical column from the white surface to the
+  pial one. FreeSurfer stores surfaces in surface RAS, which differs from a
+  volume's scanner frame by its `c_ras`; the reader does not guess the offset,
+  and surfaces landing outside the grid are rejected rather than returned as an
+  empty parcellation. The report counts unfilled columns and contested voxels,
+  which are the two ways the fill falls short.
+
+- [minor] Expose parcellations and connectomes to Python as `ritk.connectome`:
+  a Parcellation from a `[Z, Y, X]` label array, connectome construction over
+  `[N, 3]` streamline arrays, the graph measures as arrays, and the normalised
+  rich club. The image-to-grid axis reversal moved into
+  `ParcellationGrid::from_image_order` rather than being written a second time,
+  so it now has exactly one implementation.
+
+- [patch] Report a bad points tensor from `DisplacementFieldTransform::forward`
+  instead of panicking. The tensor is the caller's, so a rank or extent the field
+  cannot accept is input rather than programmer error, and the `Module::forward`
+  signature already returns the error type it belongs in.
+
+- [patch] Hoist the Brandes betweenness scratch buffers out of the per-source
+  loop, which had been deferred. Results are unchanged.
+
+- [minor] Normalise the rich-club curve against a degree-preserving null model.
+  The raw curve was returned unnormalised because the ensemble size and rewiring
+  scheme belong to the caller's study design; that was a reason to make them
+  parameters, not to withhold the measure. `normalised_rich_club` builds the
+  ensemble by double-edge swaps, which preserve every degree exactly, and reports
+  the swap acceptance alongside the ratio — a graph too constrained to rewire
+  yields an ensemble that never left where it started. A degree sequence can
+  force the club's density, in which case a ratio of one is the true answer; that
+  case is documented and pinned.
+
+- [minor] Rasterise a surface annotation into a cortical ribbon.
+  `ritk-parcellation` reads the FreeSurfer binary triangle surface format and
+  fills the ribbon by walking each cortical column from the white surface to the
+  pial one. FreeSurfer stores surfaces in surface RAS, which differs from a
+  volume's scanner frame by its `c_ras`; the reader does not guess the offset,
+  and surfaces landing outside the grid are rejected rather than returned as an
+  empty parcellation. The report counts unfilled columns and contested voxels,
+  which are the two ways the fill falls short.
+
+- [minor] Expose parcellations and connectomes to Python as `ritk.connectome`:
+  a Parcellation from a `[Z, Y, X]` label array, connectome construction over
+  `[N, 3]` streamline arrays, the graph measures as arrays, and the normalised
+  rich club. The image-to-grid axis reversal moved into
+  `ParcellationGrid::from_image_order` rather than being written a second time,
+  so it now has exactly one implementation.
+
+- [patch] Report a bad points tensor from `DisplacementFieldTransform::forward`
+  instead of panicking. The tensor is the caller's, so a rank or extent the field
+  cannot accept is input rather than programmer error, and the `Module::forward`
+  signature already returns the error type it belongs in.
+
+- [patch] Hoist the Brandes betweenness scratch buffers out of the per-source
+  loop, which had been deferred. Results are unchanged.
+
+- [major] Return the truly nearest label from the parcellation search. Offsets
+  were ordered by distance between voxel centres while the compared distance is
+  from the query point, so an endpoint near a parcel boundary could be assigned
+  to the parcel across it; the neighbourhood also stopped short of voxels that
+  were genuinely within the radius of the point. Every candidate is now scored
+  and the nearest kept.
+
+- [major] Check decoded parcellations and connectivity matrices. Both derived
+  `Deserialize`, which skips the constructors that establish their invariants: a
+  short label array panicked on the first lookup, and unsorted labels answered
+  with the wrong region without failing. Both decode through a checked
+  representation, which also keeps derived state off the wire.
+
+- [patch] Return a typed error instead of panicking when the DKI refinement
+  leaves a non-positive diffusion tensor. The refinement is unconstrained, so a
+  voxel's own data could reach the panic.
+
+- [patch] Make the streamline accounting partition its input. The malformed
+  bucket is removed rather than reconciled: a `Polyline` cannot hold fewer than
+  two finite points, so the branch was unreachable and the field could never be
+  nonzero.
+
+- [patch] Correct the FSL unit tolerance's derivation, which documented a
+  six-decimal bound for a five-decimal value; reject a negative
+  `--assignment-radius` rather than silently mapping it to terminal assignment;
+  handle an empty tractogram before taking a median; stop the dataset script
+  suppressing failures on gradient files nothing downstream can run without; and
+  describe the persisted connectome as symmetric where the book still said
+  upper-triangular.
+
+- [minor] Weight the DTI tensor fit. The log transform that linearises the
+  tensor system does not preserve the noise model — `var(ln S) ∝ 1/S²` — so
+  ordinary least squares over-trusts the strongly attenuated measurements,
+  which are the least reliable. `TensorFit::Weighted` restores the
+  inverse-variance weights from a prior fit's predicted signal and is now the
+  default; noiseless data is a consistent system, so both estimators return the
+  identical exact solution and only noisy fits change. Over 400 seeded Rician
+  realisations at SNR 30 the weighted fit narrows the axial diffusivity's
+  spread by 18%. It does not reduce bias, and the tests assert that limit
+  rather than claiming otherwise.
+
+- [patch] Repair two accuracy defects in the 3×3 symmetric eigendecomposition.
+  Forming the characteristic invariants from the unshifted matrix subtracts two
+  quantities of order `‖D‖²` to produce one of order `(λ₁−λ₃)²`, losing a
+  near-isotropic voxel's entire eigenvalue spread into rounding; the
+  decomposition now runs on the deviatoric part. Taking all three roots from
+  the trigonometric form loses half their digits at a double root — `acos` has
+  infinite slope at ±1, and prolate and oblate tensors land exactly there — so
+  only the extremal root is read off the cosine and the other two are deflated
+  from the exact symmetric functions. The residual `√ε` limit on a repeated
+  root is intrinsic to any polynomial route and is recorded with its magnitude.
+
+- [minor] Complete the DTI invariants. The tensor and the volume now carry
+  relative anisotropy, Frobenius norm, the Westin linear/planar/spherical
+  measures, mode of anisotropy, direction-encoded colour, and the full
+  orthonormal eigenbasis alongside the existing FA/MD/AD/RD. Westin and mode
+  make the discrimination FA cannot: a prolate and an oblate tensor can share
+  an FA exactly, and only one of them is a coherent fibre. FA had two
+  definitions, on the tensor and again on the volume; it now has one.
+
+- [major] Extract `ritk-parcellation` from `ritk-connectome`. A label volume is
+  the vocabulary between whatever produces one and whatever consumes one, so it
+  no longer sits inside the connectome and no longer forces a consumer to build
+  a graph library to hold labels. The move also repairs a silent correctness
+  defect: the old lookup mapped a physical point with origin and spacing alone,
+  which is right only for an axis-aligned volume, and dropping the obliquity
+  returns the label of a different region without failing. The grid now carries
+  the full affine. New alongside it: per-region volume, centroid and extent in
+  one pass; label remapping and subsetting; and a prepared
+  nearest-labelled-voxel search.
+
+- [major] Rebuild the connectome around endpoint assignment, edge weighting, and
+  graph measures. Radial assignment recovers the streamlines that terminate in
+  white matter, which terminal assignment drops despite their ending exactly
+  where tracking should stop. Edge weighting gains inverse length and inverse
+  node volume, which divide out the two known geometric confounds, plus mean
+  length; none makes a count a measurement of connection strength. Streamline
+  accounting now partitions the tractogram across five buckets. The measures
+  are new: binary and Onnela-weighted clustering, Dijkstra all-pairs paths,
+  characteristic path length with its reachable fraction, global and local
+  efficiency, Brandes betweenness, deterministic Louvain communities with
+  weighted modularity, rich-club coefficients, and components.
+
+- [minor] Add `ritk tract connectome`, which reduces a tractogram and a label
+  volume to a connectivity matrix and, on request, its graph measures. The
+  label volume is read as an ordinary image so its affine comes with it, since
+  a parcellation without one cannot answer where a voxel sits. Streamline
+  accounting prints unconditionally, and the default assignment radius is 2 mm
+  rather than zero — an exact endpoint lookup drops most of a tractogram, and a
+  caller should not have to discover that from an empty matrix.
+
+- [minor] Parcellate a whole brain from labelled atlases. `ritk-registration`
+  composes its existing SyN registration, label warping, and fusion into a
+  subject parcellation with per-voxel agreement and per-atlas registration
+  quality. Resampling is nearest-neighbour throughout, because region 17 and
+  region 19 do not average to region 18. Two directional conventions are
+  established by test rather than assumed — the symmetric registration's
+  midpoint fields, and the image/grid axis-order bridge — since both produce a
+  plausible parcellation when reversed.
+
+- [patch] Expand the tractography book with a checksummed 160-volume Stanford
+  HARDI workflow that fits the full human acquisition, creates 9,737
+  streamlines, builds and publishes an 84-region endpoint connectome with
+  2,350 assigned streamlines, and checks spatial alignment, exact accounting,
+  and matrix symmetry. Accept FSL unit-vector rounding only within its derived
+  six-decimal error envelope.
+
+- [major] Repair SimpleITK parity for the Python thin-plate-spline and
+  iterative displacement-field inverters. NumPy `[Z,Y,X]` constructors now
+  carry the canonical tensor-to-physical permutation, and bindings pass
+  provider-owned physical `(x,y,z)` components rather than relying on an
+  identity-direction interpretation. The original three `<1e-4` regression
+  oracles pass after a fresh wheel build.
+
+- [major] Preserve physical-axis semantics in Python affine shift and Euler
+  rotation bindings. Centers now use the provider's direction-aware
+  index-to-physical conversion, matrices use physical `(X,Y,Z)` order, and
+  `[Z,Y,X]` shift arguments are translated at the binding boundary. Nine
+  focused SimpleITK affine parity cases pass at `18e5bc7f`; exact default-head
+  CI `32244582088` and Python CI `32244582089` pass at `065c4766`.
+
+- [major] Apply the direction cosines in the grid-sweeping filters' index/world
+  transforms (ADR
+  [0020](docs/adr/0020-direction-aware-grid-transforms.md)). Marching cubes and
+  both displacement-field inverters composed `origin` and `spacing` but dropped
+  the direction matrix, so an obliquely acquired volume produced plausible,
+  silently displaced geometry instead of an error. They now share one internal
+  transform pair that applies `origin + D S index` and its inverse, with the
+  direction inversion hoisted out of the per-voxel loops.
+
+  Output is unchanged for a conventionally axial volume — which is what these
+  filters previously hard-coded, rather than the identity direction their own
+  fixtures used — and changes for every other orientation.
+
+  Two adjacent defects went with it: `ritk-snap`'s surface export passed
+  tensor-order spacing into a filter that reads it in `(ix, iy, iz)` order,
+  transposing x and z on anisotropic volumes; and the thin-plate-spline inverter
+  indexed `origin` by tensor axis rather than LPS component (numerically inert,
+  since the spline is translation-equivariant and the offset cancelled).
+
+  `ritk-diffusion`'s `FodVolume` is deliberately left direction-free: it carries
+  no direction, has no production constructor, and defines the frame its own
+  queries are answered in. Its Rustdoc now states that contract.
+
+  **Breaking:** `InverseDisplacementField::apply` and
+  `IterativeInverseDisplacementField::apply` return `anyhow::Result`, reporting
+  a non-Cartesian coordinate map or a singular direction rather than computing a
+  wrong answer. `MarchingCubesFilter` gains a `direction` field, defaulting to
+  the identity so existing axis-aligned output is bit-identical. The Python
+  bindings are unaffected: both already call the `apply_native` forms.
+
+  ```rust
+  // before
+  let (ix, iy, iz) = InverseDisplacementField::default().apply(&dx, &dy, &dz);
+  // after
+  let (ix, iy, iz) = InverseDisplacementField::default().apply(&dx, &dy, &dz)?;
+  ```
+
+- [major] Add borrowed region views to `ritk-image` and migrate
+  `BoxSigmaImageFilter` onto them (ADR
+  [0019](docs/adr/0019-borrowed-region-views.md)). `Image::region()` returns a
+  `VoxelRegion<'_, T, D>` — a borrowed, possibly strided rectangular view
+  carrying its own origin-corrected physical metadata in fixed-size arrays, so
+  narrowing it with `subregion`, `clipped_window` or `subregions` allocates
+  nothing. `rows()` is a lending walker behind the `RowWalker` trait
+  (`type Item<'a>`): it lends direct borrows of the image buffer when the
+  innermost axis is unit-stride, and gathers into one reused scratch buffer when
+  it is not.
+
+  Unlike `data_slice`, `region()` accepts a strided image. A permuted or sliced
+  image previously had no read path except `data_cow`, which materialises the
+  whole volume.
+
+  **Breaking:** `BoxSigmaImageFilter::apply` gains a
+  `B::DeviceBuffer<f32>: CpuAddressableStorage<f32>` bound. Both in-repo call
+  patterns already satisfy it, so no call site changes:
+
+  ```rust
+  // before
+  pub fn apply<B: Backend>(&self, image: &Image<f32, B, 3>) -> Image<f32, B, 3>
+  // after
+  pub fn apply<B>(&self, image: &Image<f32, B, 3>) -> Image<f32, B, 3>
+  where
+      B: Backend,
+      B::DeviceBuffer<f32>: CpuAddressableStorage<f32>,
+  ```
+
+  A backend whose device buffer is not CPU-addressable could not have used this
+  filter regardless: the previous body extracted to host memory unconditionally.
+
+  Both of the filter's entry points carried byte-identical bodies, each preceded
+  by a whole-volume `Vec` copy; they now share one region-reading kernel. On a
+  64³ `f32` volume the filter allocates 3 blocks / 1 048 648 B against a
+  1 048 576 B output — 40 B above the parallel collect's own floor, where the
+  previous implementation added a further 1 048 576 B input copy. Measured by
+  `crates/ritk-filter/tests/box_sigma_allocation.rs`, which installs a counting
+  global allocator; the SimpleITK-pinned value tests are unchanged.
+
+- [patch] Move the architecture, archive, implementation, and optimization
+  documents under `docs/`, replace provider-local `#[allow]` suppressions with
+  checked `#[expect]` sites, and strengthen the invalid-MINC regression to
+  assert the reported HDF5-open failure.
+
+- [patch] Remove unfulfilled lint expectations and unconsumed phantom
+  ground-truth buffers exposed by the hosted all-target Clippy gate; retain
+  value-semantic DICOM clamp coverage.
+
+- [patch] Pin hosted Rust and Python CI jobs to the repository's Rust 1.97.0
+  toolchain so Clippy expectations and local verification use the same compiler.
+
+- [patch] Install the pinned Rust toolchain's declared `rustfmt` and `clippy`
+  components in every CI job, preventing Cargo from re-synchronizing components
+  during the Python wheel build.
+
+- [patch] Split the diffusion Python binding manifest into dedicated map and
+  tensor-fitting modules, restoring the conformance structure count at merged
+  default `7ae4b69b`.
 
 ### Added
 
@@ -4764,7 +5165,7 @@
 ## [0.89.0] — 2026-06-17 (Sprint 392: O(N) separable grayscale morphology)
 
 ### Performance
-- `ritk-filter`: grayscale erosion/dilation (and everything built on them — opening, closing, white/black top-hat, and the safe-border composed open/close) reimplemented from the naive O(N·(2r+1)³) cube scan to a **separable O(N) sliding-window** (monotonic-deque min/max along X, then Y, then Z). `min`/`max` over a box is separable, so the result is **bit-identical** to the cube scan and to `sitk.GrayscaleDilate/Erode` (box SE, maxdiff 0.0); all 81 morphology + 17 grayscale cmake parity cases unchanged. **Measured on a 128³ f32 volume: runtime is now ~105 ms constant in radius (r=1: 109→103, r=2: 435→108, r=3: 1225→109, r=5: 4842→107 ms — up to 45× at r=5)**. Memory: small per-line scratch (max-dim) + one working buffer, no extra full-volume allocations. OPTIMIZATION.md (Sprint 392).
+- `ritk-filter`: grayscale erosion/dilation (and everything built on them — opening, closing, white/black top-hat, and the safe-border composed open/close) reimplemented from the naive O(N·(2r+1)³) cube scan to a **separable O(N) sliding-window** (monotonic-deque min/max along X, then Y, then Z). `min`/`max` over a box is separable, so the result is **bit-identical** to the cube scan and to `sitk.GrayscaleDilate/Erode` (box SE, maxdiff 0.0); all 81 morphology + 17 grayscale cmake parity cases unchanged. **Measured on a 128³ f32 volume: runtime is now ~105 ms constant in radius (r=1: 109→103, r=2: 435→108, r=3: 1225→109, r=5: 4842→107 ms — up to 45× at r=5)**. Memory: small per-line scratch (max-dim) + one working buffer, no extra full-volume allocations. docs/optimization.md (Sprint 392).
 
 ## [0.88.1] — 2026-06-17 (Sprint 391b: hit-or-miss z=1 degenerate-axis fix)
 
@@ -4820,7 +5221,7 @@
 ## [0.83.0] — 2026-06-17 (Sprint 386: O(N) morphological reconstruction)
 
 ### Performance
-- `ritk-filter`: `MorphologicalReconstruction` (engine for geodesic dilation/erosion, the H-transform family, regional extrema, and grayscale opening/closing-by-reconstruction) reimplemented from **parallel-raster iteration (O(N·diameter))** to **Vincent's (1993) hybrid algorithm (O(N))** — one forward raster scan, one anti-raster scan seeding a FIFO queue, then queue-driven propagation. On a 64×64×128 volume with a 128-deep ramp: **4423 ms → 228 ms (~19×, same debug profile); 26 ms in release**. Output is **bit-identical** to the prior fixed point and to `sitk.ReconstructionBy{Dilation,Erosion}` (maxdiff 0.0); all 728 Rust + 100 cmake parity cases unchanged. Dilation/erosion polarity is a ZST `Polarity` strategy trait → one generic kernel monomorphised into two branch-free specialisations. **Memory**: one in-place working `Vec<f32>` + an N-bounded `VecDeque` index queue, versus the iterative version's two full `Vec<f32>` reallocated every pass. Removed the now-dead `max_iter`/`with_max_iter` API and the per-step `dilate1_scalar`/`erode1_scalar` full-volume scans. Detailed analysis in OPTIMIZATION.md (Sprint 386).
+- `ritk-filter`: `MorphologicalReconstruction` (engine for geodesic dilation/erosion, the H-transform family, regional extrema, and grayscale opening/closing-by-reconstruction) reimplemented from **parallel-raster iteration (O(N·diameter))** to **Vincent's (1993) hybrid algorithm (O(N))** — one forward raster scan, one anti-raster scan seeding a FIFO queue, then queue-driven propagation. On a 64×64×128 volume with a 128-deep ramp: **4423 ms → 228 ms (~19×, same debug profile); 26 ms in release**. Output is **bit-identical** to the prior fixed point and to `sitk.ReconstructionBy{Dilation,Erosion}` (maxdiff 0.0); all 728 Rust + 100 cmake parity cases unchanged. Dilation/erosion polarity is a ZST `Polarity` strategy trait → one generic kernel monomorphised into two branch-free specialisations. **Memory**: one in-place working `Vec<f32>` + an N-bounded `VecDeque` index queue, versus the iterative version's two full `Vec<f32>` reallocated every pass. Removed the now-dead `max_iter`/`with_max_iter` API and the per-step `dilate1_scalar`/`erode1_scalar` full-volume scans. Detailed analysis in docs/optimization.md (Sprint 386).
 
 ## [0.82.0] — 2026-06-17 (Sprint 385: regional-extrema family)
 
@@ -4881,7 +5282,7 @@ reduces to deinterleave → scalar filter per channel → reinterleave.
 ## [0.75.1] — 2026-06-17 (Sprint 379 Increment 9: Deriche recursive-Gaussian parallelism)
 
 ### Performance
-- `ritk-filter`: the recursive-Gaussian / gradient-magnitude / Laplacian-of-Gaussian path (`apply_deriche_1d`) now parallelises its X and Y 1-D passes across Z-slices via `moirai` (contiguous `nyx`-length output chunks, one scratch set per slice); the per-line Deriche IIR is factored into a shared `deriche_line` so the serial and parallel paths run identical arithmetic. Measured **1.50× (smooth), 1.71× (gradient-magnitude), 1.81× (Laplacian-of-Gaussian)** on a 128³ f32 volume (min-of-20). Output is **bit-identical** to the previous serial implementation (verified by exact array equality on a non-cube volume), so the float-exact SimpleITK parity is unchanged. The Z pass (strided across the whole volume) remains serial; analysis and the remaining headroom are recorded in OPTIMIZATION.md (PERF-379-01). Two earlier single-thread micro-optimizations (boundary branch-hoist, output-buffer recycling) were A/B-measured as 15–28% regressions and rejected — the inner loop is latency-bound on its 4th-order recurrence, so cross-line parallelism is the only real lever.
+- `ritk-filter`: the recursive-Gaussian / gradient-magnitude / Laplacian-of-Gaussian path (`apply_deriche_1d`) now parallelises its X and Y 1-D passes across Z-slices via `moirai` (contiguous `nyx`-length output chunks, one scratch set per slice); the per-line Deriche IIR is factored into a shared `deriche_line` so the serial and parallel paths run identical arithmetic. Measured **1.50× (smooth), 1.71× (gradient-magnitude), 1.81× (Laplacian-of-Gaussian)** on a 128³ f32 volume (min-of-20). Output is **bit-identical** to the previous serial implementation (verified by exact array equality on a non-cube volume), so the float-exact SimpleITK parity is unchanged. The Z pass (strided across the whole volume) remains serial; analysis and the remaining headroom are recorded in docs/optimization.md (PERF-379-01). Two earlier single-thread micro-optimizations (boundary branch-hoist, output-buffer recycling) were A/B-measured as 15–28% regressions and rejected — the inner loop is latency-bound on its 4th-order recurrence, so cross-line parallelism is the only real lever.
 
 ## [0.75.0] — 2026-06-17 (Sprint 379 Increment 8: auto-threshold ITK histogram parity)
 
@@ -5865,7 +6266,7 @@ reduces to deinterleave → scalar filter per channel → reinterleave.
 ## [0.50.95] - 2026-06-03
 
 ### Added
-- **DOC-332-01: Documentation audit, compaction, and cleanup** — 4 stale documentation files deleted (`docs/backlog.md`, `docs/checklist.md`, `docs/CHANGELOG.md`, `SPINT_293_PLAN.md`). Created `ARCHIVE.md` (18,150 lines) with all pre-Sprint 320 sprint history from `backlog.md`, `checklist.md`, and `gap_audit.md`. Compacted 3 root files: `backlog.md` (6,378→140 lines), `checklist.md` (5,893→120 lines), `gap_audit.md` (6,200→155 lines). Updated `IMPLEMENTATION_SUMMARY.md` to v0.50.94. All documentation files now reference `ARCHIVE.md` for historical context.
+- **DOC-332-01: Documentation audit, compaction, and cleanup** — 4 stale documentation files deleted (`docs/backlog.md`, `docs/checklist.md`, `docs/CHANGELOG.md`, `SPINT_293_PLAN.md`). Created `docs/archive.md` (18,150 lines) with all pre-Sprint 320 sprint history from `backlog.md`, `checklist.md`, and `gap_audit.md`. Compacted 3 root files: `backlog.md` (6,378→140 lines), `checklist.md` (5,893→120 lines), `gap_audit.md` (6,200→155 lines). Updated `docs/implementation_summary.md` to v0.50.94. All documentation files now reference `docs/archive.md` for historical context.
 - **STR-332-02: Structural audit and partition** — Full workspace scan for files > 500 lines. 3 violations found, all partitioned into directory modules:
   - `direct_phase_fourteen_tests.rs` (709→dir) → `direct_phase_fourteen_tests/{mod,normalization,identity,size_and_end_to_end}.rs`
   - `direct_phase_nine_tests.rs` (670→dir) → `direct_phase_nine_tests/{mod,config,sample_window,pool_and_boundary}.rs`
@@ -5874,8 +6275,8 @@ reduces to deinterleave → scalar filter per channel → reinterleave.
 
 ### Changed
 - All root documentation files (`backlog.md`, `checklist.md`, `gap_audit.md`) now contain only Sprint 328–current active history with archive references.
-- `IMPLEMENTATION_SUMMARY.md` updated to v0.50.94 with Sprint 331 details and corrected test counts.
-- `OPTIMIZATION.md` updated with Sprint 331 and 332 entries.
+- `docs/implementation_summary.md` updated to v0.50.94 with Sprint 331 details and corrected test counts.
+- `docs/optimization.md` updated with Sprint 331 and 332 entries.
 - `README.md` recent sprints section updated with Sprints 331–332.
 
 ### Verified
@@ -5898,7 +6299,7 @@ reduces to deinterleave → scalar filter per channel → reinterleave.
   - `ritk-core/filter/intensity/clahe.rs` (476→3 files) → `clahe/{mod,tile_cdf,interpolate}.rs`
   - `ritk-core/filter/fft/convolution/tests_convolution.rs` (472→3 files) → `tests_convolution/{mod,conv_2d,ncc_2d,conv_3d_ncc_3d}.rs`
 - **FIX-331-03: Flaky test hardening** — `translation_recovery_shifted_gaussian` stability improved: sampling_percentage 0.50→0.75, maximum_iterations 200→300, tolerance 0.5→0.8 voxels. Eliminates thread-contention flakiness reported since Sprint 328.
-- **DOC-331-04: Documentation overhaul** — IMPLEMENTATION_SUMMARY.md rewritten with accurate crate structures, current feature set, updated future work, and residual risks. OPTIMIZATION.md updated to v0.50.93 with Sprint 329/330 entries. README.md recent sprints section updated.
+- **DOC-331-04: Documentation overhaul** — docs/implementation_summary.md rewritten with accurate crate structures, current feature set, updated future work, and residual risks. docs/optimization.md updated to v0.50.93 with Sprint 329/330 entries. README.md recent sprints section updated.
 - **CLEANUP-331-05: Orphan test file removed** — `ritk-core/filter/fft/tests_convolution.rs` (duplicate of `convolution/tests_convolution.rs`) deleted.
 
 ### Changed
@@ -7311,7 +7712,7 @@ All registration methods diverge from identity without brain masking. TRE improv
   - `read_ply_indexed` / `write_indexed_ply` (delegate to `gaia::infrastructure::io::ply`).
   - `write_indexed_glb` (delegate to `gaia::infrastructure::io::gltf_export`).
 - `ritk-vtk/Cargo.toml`: added `gaia = { workspace = true }` and `nalgebra = { workspace = true }` dependencies.
-- `ARCHITECTURE.md §19 Gaia Meshing Boundary`: formal theorem, invariants, boundary surface, and proof obligation documenting the gaia-as-SSOT contract.
+- `docs/architecture.md §19 Gaia Meshing Boundary`: formal theorem, invariants, boundary surface, and proof obligation documenting the gaia-as-SSOT contract.
 - 13 new value-semantic tests: 7 in `domain::mesh_bridge::tests`, 6 in `io::mesh_indexed::tests`.
 
 ### Fixed [patch]

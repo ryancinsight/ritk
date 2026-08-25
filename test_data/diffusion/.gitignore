@@ -16,3 +16,6 @@
 
 # DataLad/git-annex working clones created by `download.sh`.
 ds*_repo/
+
+# Stanford HARDI acquisition and parcellation downloaded as one dataset.
+stanford_hardi/

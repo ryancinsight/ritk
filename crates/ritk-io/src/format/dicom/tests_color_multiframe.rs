@@ -23,7 +23,10 @@ fn write_multiframe(
     );
 }
 
+<<<<<<< HEAD
 #[allow(clippy::too_many_arguments, reason = "ratchet RITK-LINT-1")]
+=======
+>>>>>>> origin/main
 fn write_multiframe_with_dims(
     path: &Path,
     samples_per_pixel: u16,

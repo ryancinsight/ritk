@@ -155,7 +155,7 @@ pub fn metadata_2d() -> (Point<2>, Spacing<2>, Direction<2>) {
 
 // ── Batch point transforms ──────────────────────────────────────────────
 
-/// Rotation of 90° about the z-axis: rows [0,-1,0], [1,0,0], [0,0,1].
+/// Rotation of 90° about the z-axis: rows `[0,-1,0], [1,0,0], [0,0,1]`.
 /// Orthonormal (inverse = transpose), determinant 1 — exercises the
 /// direction terms and the axis-major ↔ innermost-first column reordering.
 pub fn rotated_metadata_3d() -> (Point<3>, Spacing<3>, Direction<3>) {

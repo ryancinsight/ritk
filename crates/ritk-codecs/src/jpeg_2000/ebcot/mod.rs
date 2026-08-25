@@ -204,8 +204,13 @@ pub(crate) fn cup_trace_take() -> Vec<(usize, u32)> {
 }
 
 #[inline(always)]
+<<<<<<< HEAD
 #[allow(unused_variables, reason = "ratchet RITK-LINT-1")]
+=======
+>>>>>>> origin/main
 pub(crate) fn trace(ctx: usize, bit: u32) {
     #[cfg(test)]
     CUP_TRACE.with(|t| t.borrow_mut().push((ctx, bit)));
+    #[cfg(not(test))]
+    let _ = (ctx, bit);
 }

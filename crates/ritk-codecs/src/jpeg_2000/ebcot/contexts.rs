@@ -5,7 +5,10 @@ pub(crate) const CTX_UNI: usize = 17; // uniform
 pub(crate) const CTX_AGG: usize = 18; // aggregation / run-length
 
 /// Subband orientation, used to select the significance context function.
+<<<<<<< HEAD
 #[allow(dead_code, reason = "ratchet RITK-LINT-1")] // Hl and Hh needed when DWT support is added (J2K-DECODE-DWT)
+=======
+>>>>>>> origin/main
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub enum SubbandOrientation {
     /// LL (lowest frequency) or LH (horizontal high-pass, vertical low-pass).

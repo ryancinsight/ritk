@@ -36,7 +36,8 @@ pub use diffusion::{
     ConductanceFunction, ConductanceKernel, CurvatureAnisotropicDiffusionFilter, CurvatureConfig,
     CurvatureFlowConfig, CurvatureFlowImageFilter, DiffusionConfig, ExponentialConductance,
     GradientAnisotropicDiffusionFilter, GradientDiffusionConfig, MinMaxCurvatureFlowConfig,
-    MinMaxCurvatureFlowImageFilter, QuadraticConductance,
+    MinMaxCurvatureFlowImageFilter, QuadraticConductance, SpeckleReducingDiffusionFilter,
+    SradConfig,
 };
 pub use discrete_gaussian::{DiscreteGaussianFilter, SpacingMode};
 pub use discrete_gaussian_derivative::DiscreteGaussianDerivativeFilter;
@@ -165,6 +166,7 @@ pub mod displacement;
 pub mod distance;
 pub mod fast_marching;
 pub mod fractal_dimension;
+pub(crate) mod grid_geometry;
 pub mod inverse_displacement;
 pub mod invert_displacement;
 pub mod iso_contour;
@@ -201,7 +203,7 @@ pub use invert_displacement::InvertDisplacementField;
 pub use iso_contour::IsoContourDistanceFilter;
 pub use iterative_inverse_displacement::IterativeInverseDisplacementField;
 pub use masked_fft_correlation::MaskedFftNormalizedCorrelationFilter;
-pub use native_displacement::NativeDisplacementField;
+pub use native_displacement::{DisplacementComponents, NativeDisplacementField};
 pub use normalized_correlation::normalized_correlation;
 pub use rank::{PercentileFilter, RankFilter};
 pub use reinitialize_level_set::ReinitializeLevelSetFilter;

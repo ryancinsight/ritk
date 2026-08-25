@@ -1,4 +1,418 @@
+## ATLAS-RITK-BOOK-STAGING-2026-08-20 — Adopt hash-preserving shared book gate [patch] — in progress
+
+- Owner: Atlas integration. Scope is the Pages caller and this PM record;
+  RITK implementation, lockfile, and book content remain unchanged.
+- Acceptance: pin the caller to Atlas `20c9398`, retain `mdbook-test: true` and
+  the `ritk-statistics` inputs, then pass exact hosted source and Pages checks
+  before advancing the Atlas gitlink.
+- Driver: Atlas `ATLAS-BOOK-STAGING-2026-08-20`; the prior shared workflow
+  selected one hashless dependency artifact by directory order and failed the
+  merged-default book gate with `E0460` for duplicate `rand_core` versions.
+
+## RITK-GPU-SMOOTHER-REACH [major][arch] — retire the GPU smoother — IMPLEMENTED 2026-08-21
+
+- **Status:** IMPLEMENTED; owner=current session, lane
+  `worktrees/ritk-gpu-smoother`; last-update=2026-08-21;
+  scope=`GpuFieldSmoother`/`CpuOrGpu` in `ritk-registration`, the `Backend`
+  bound on `ritk_filter::GaussianFilter`, and the dev-dependency and
+  differential test that would exercise a real device;
+  non-goal=writing new GPU kernels, or re-bounding all 517 `Backend` sites in
+  one change.
+- **Evidence:** `GpuFieldSmoother<B: Backend>` resolves `Backend` to
+  `coeus_core::Backend`, which is `ComputeBackend + Default` plus
+  `parallel_for`. The only implementors in the stack are `SequentialBackend`
+  and `MoiraiBackend`, both CPU. `coeus_wgpu::WgpuBackend` implements
+  `ComputeBackend` and not `Backend`, so no GPU backend can be substituted:
+  the type is uninstantiable on a device. No RITK manifest declares
+  `coeus-wgpu`, no test constructs a `GpuFieldSmoother`, and its only doc
+  example is `ignore`d. Its Rustdoc nonetheless states "On an RTX 3060,
+  smoothing a 256 cubed field takes ~4 ms vs ~80 ms for the CPU `moirai`-based
+  path" — a measurement no reachable code path in this stack can produce.
+- **Root cause candidate:** the bound is stronger than the requirement.
+  `ritk-filter` never calls `parallel_for`; a workspace-wide grep finds zero
+  call sites in that crate. `ComputeBackend` is what the filter actually needs,
+  and `Backend` is what it asks for.
+- **Second finding, which decided the outcome:** the convolution beneath the
+  type runs on the host regardless of backend. `GaussianFilter::apply_tensor`
+  calls `input.to_vec()`, runs a scalar loop over a `Vec<f32>`, and rebuilds
+  with `Tensor::from_slice`; no device kernel is dispatched. The sibling
+  `DiscreteGaussianFilter::apply_native` documents the same thing about itself.
+  Re-bounding to `ComputeBackend` would therefore have made the type
+  instantiable while leaving it a host convolution wrapped in two device
+  transfers — strictly slower than `CpuFieldSmoother`, with the false claim
+  preserved and harder to notice.
+- **Third finding:** `CpuOrGpu`'s second variant is dead. Every construction
+  site in the workspace — `atlas/mod.rs:121`,
+  `diffeomorphic/multires_syn/registration.rs:47`, `parcellation.rs:245` —
+  builds `CpuOrGpu::Cpu(..)`. `CpuOrGpu::Gpu` is never constructed.
+- **Delivered (option b):** `GpuFieldSmoother` and `CpuOrGpu` deleted; the
+  `FieldSmoother` trait kept as the extension seam; the three factory
+  parameters changed from `-> CpuOrGpu<B>` to a generic `S: FieldSmoother`,
+  which admits any implementor rather than exactly two and still costs no
+  allocation and no indirect call. Four unreproducible performance claims
+  removed (the RTX 3060 figure and three "10-50x faster" repetitions). The
+  `B: Backend` parameter is gone from signatures whose bodies never touched a
+  backend.
+- **Evidence:** `cargo nextest run --workspace` is `5675 passed, 0 failed` with
+  25 skips — the identical count to before the change, which is what shows the
+  deletion took no surviving test with it. `cargo clippy --workspace
+  --all-targets -- -D warnings` and `cargo fmt --check` are clean.
+- **Decision record:** `docs/adr/0021-retire-the-gpu-field-smoother.md`.
+- **Follow-up, not this item:** a genuine device smoother is now a new
+  `FieldSmoother` implementor with no enum to widen and no bound to relax. It
+  needs a device separable-convolution primitive and a differential test against
+  the CPU smoother at a derived tolerance, which is its own item with its own
+  acceptance.
+
+## ATLAS-RITK-WORKFLOW-PIN-2026-08-20 — Refresh shared book workflow pin [patch] — done 2026-08-20
+
+- Owner: Atlas integration. Scope is the Pages caller and this PM/changelog
+  record; RITK implementation, release work, and lockfile remain unchanged.
+- Acceptance: pin the caller to the current Atlas reusable workflow while
+  retaining the existing output path, then pass exact hosted source and Pages
+  checks before advancing the Atlas gitlink.
+- Evidence: provider source `20544b405f68e542364da77492ee7a7ffcc44ae9`, PR
+  [#196](https://github.com/ryancinsight/ritk/pull/196), and merged default
+  `aa48c471ac96eb81869437d84bab439e18d89038`. Exact PR Rust, Python, and
+  Pages checks pass; post-merge CI `32344964253`, Python CI `32344964345`, and
+  Deploy mdBook `32344964522` pass. Live Pages returns HTTP 200 with title
+  `Introduction - atlas/RITK: Medical Image Processing and Registration`.
+- Delivery: the caller pin and PM record are closed. No RITK implementation or
+  lockfile change was made.
+
+## DOC-HUMAN-CONNECTOME [patch] — human tractography and connectomics
+
+- **Status:** LOCAL GATES PASSED; owner=Codex; last-update=2026-08-19;
+  scope=Stanford HARDI download provenance, FSL rounding-safe parsing, the
+  runnable whole-brain tractography/connectome example, generated SVG/JSON,
+  book chapters, and synchronized PM/CHANGELOG entries;
+  non-goal=new tractography algorithms, biological ground truth, population
+  inference, or release. Acceptance requires checksummed public inputs, exact
+  DWI/parcellation alignment, value-semantic tracking/connectome invariants,
+  inspected visual output, local book/Rust gates, exact-head hosted gates,
+  merged delivery, and live Pages verification.
+
+## FIX-DTI-VOLUME-FRAME [major][arch] — preserve diffusion coordinate frames
+
+- **Status:** DONE; owner=Codex `/root`; last-update=2026-08-20;
+  source commit=`14a9c619`; merged as `2d159850636a6539db61109533f399d31cc7c6f4`
+  (PR #198); post-merge CI `32387951529`, Python CI `32387951635`, and Deploy
+  mdBook `32387952289` all pass; live Pages HTTP 200 with expected title.
+  implementation scope=retain `GradientFrame` in `DiffusionMaps`, make
+  `DtiVolume` consume only validated ImageAxis maps, centralize the
+  ImageAxis-to-image-index permutation, remove the book-example adapter, and
+  add coordinate-permutation regressions across the reusable field and CLI
+  path;
+  outcome=make the reusable DTI volume field and `ritk tract dti` path consume
+  gradient directions in the image-index convention without an example-local
+  axis reorder; scope=`DiffusionMaps`, `DtiVolume`, their construction sites,
+  CLI tracking, public contracts, and coordinate-permutation regressions;
+  non-goal=changing tensor estimation or tracking integration. Acceptance
+  requires a recorded frame contract, exhaustive caller migration, synthetic
+  axis-permutation and oblique-direction tests, unchanged correctly framed
+  behavior, warning-clean focused gates, and no compatibility path. The
+  accepted design retains `GradientFrame` in fitted maps and rejects `Lps` at
+  `DtiVolume` construction because physical-to-index conversion requires image
+  geometry that the volume does not own. Local `fmt`, diff, and locked
+  no-dependency metadata checks pass. An overlay-free locked Nextest run
+  passes 184/184 tests with 11 configured skips; the in-tree locked command
+  remains blocked before compilation by the Atlas overlay requesting a
+  lockfile rewrite for unused local patches. Provider Clippy/doctest and
+  hosted exact-head verification remain open.
+
+## DTI-CONNECTOME-PARCELLATION [major] — weighted DTI, connectome measures, atlas parcellation
+
+- **Status:** DONE; owner=Atlas coordinator; last-update=2026-08-20;
+  merged as `d2ff0b9d` (PR #195); meta gitlink advanced in atlas `02d42e0`;
+  scope=`crates/ritk-diffusion/src/{dti,dti/*,maps*,test_support}`,
+  `crates/ritk-parcellation/**` (new), `crates/ritk-connectome/**`,
+  `crates/ritk-registration/src/{lib,parcellation,parcellation/tests}.rs`,
+  `docs/book/{SUMMARY,parcellation,connectome}.md`, CHANGELOG, Cargo.lock;
+  non-goal=CLI or Python surfaces for the connectome, surface-annotation
+  rasterisation, rich-club null-model normalisation.
+- Delivered in five commits: weighted (Veraart-style IWLS) DTI fitting with the
+  full invariant set and two eigendecomposition accuracy repairs; extraction of
+  `ritk-parcellation` with the direction-aware affine, region statistics, and
+  radial label search; connectome rebuild with endpoint assignment, edge
+  weighting, streamline accounting, and the graph-measure family; and the
+  atlas-propagation parcellation pipeline in `ritk-registration`; and
+  `ritk tract connectome`, which makes the pipeline reachable from the command
+  line and is covered by integration tests driving the built binary against
+  real NIfTI and TCK files. A sixth commit repairs the image-to-grid axis
+  bridge, whose half-reversal placed voxels off their true positions while its
+  test made the same assumption and cancelled the error; the oracle is now an
+  independent entry point plus a hand-computed position, and reintroducing the
+  defect fails all three axis tests.
+- The unmerged `docs/human-tractography-connectome` branch was integrated in the
+  same series and its example migrated to the new API, so the break and its call
+  sites land together.
+- Local gates at `d7065b40`: workspace `cargo check --all-targets` clean,
+  warning-denied Clippy clean on the four touched packages, warning-denied
+  rustdoc clean, `mdbook build` and `mdbook test` pass, 713/713 Nextest across
+  ritk-diffusion/parcellation/connectome/registration, and package doctests pass.
+- Hosted CI passed every required check at `ef7c267c` (runs `32334966200`,
+  `32334966027`, `32334966588`): Clippy, Rustdoc, Rustfmt, test suites on
+  ubuntu/macos/windows, Python 3.9-3.13 across three platforms, wheel smoke,
+  dependency alignment, and the book build. `recurseml/analysis` errored during
+  analysis and is report-only.
+- CodeRabbit raised 16 findings; 14 accepted and fixed in `c63a77f1`, 2
+  rejected: the renderer's index-space axis use is correct as documented, and
+  the bracketed PM status labels are an established repo-wide convention.
+- Closed out: branch and the merged `docs/human-tractography-connectome` lane
+  deleted locally and on origin; the lane worktree removed, leaving ritk at the
+  one-tree baseline.
+- **All open items resolved.** `ritk.connectome` exposes parcellations,
+  connectome construction, and the graph measures to Python (21 tests against a
+  maturin-built wheel). The rich club is normalised against a degree-preserving
+  null model with the ensemble parameters explicit. Surface annotations convert
+  to volumetric parcellations through the FreeSurfer surface reader and ribbon
+  rasteriser. The deferred Brandes scratch-buffer hoist is done, results
+  unchanged.
+- **CLI closes the pipeline.** `ritk parcellate atlas` registers labelled
+  atlases onto a subject, warps their labels, and fuses the votes, so the
+  parcellation `tract connectome` consumes no longer has to be produced by
+  writing Rust. An atlas off the subject's grid is rejected with both sizes
+  named rather than silently resampled. PR #203, stacked on #201. Its
+  integration fixtures are anisotropic in shape and spacing on purpose: a cubic
+  volume on an isotropic grid cannot fail an axis-order test, which is the trap
+  the sixth commit above fell into.
+- **Needs release authority:** `ritk-parcellation` 0.1.0 is packaging-clean
+  (15 files, README and registry metadata complete) and its only dependency,
+  `ritk-spatial` 0.2.0, is published. It must reach crates.io before
+  `ritk-registration` 0.55, which now depends on it. Publishing is not an
+  inferred authority, so the release itself is held.
+- Stash triage: all seven cleared. One held a live defect — a panic on an
+  input-dependent path in `DisplacementFieldTransform::forward` — rescued as
+  PR #200. The rest were superseded (block-matching seams, VTK smoothing, the
+  Burn/Coeus terminology sweep, lockfile regenerations, a CI action since
+  deleted) or stale (a build-target workaround whose premise no longer holds).
+  Patches archived under the gitignored `scratch/stash-archive/`.
+
+## RITK-ULP-PATCH-DENOISE [patch] — a 1-ULP parity tolerance that holds only on CI
+
+- **Status:** todo; owner=unclaimed; last-update=2026-08-20;
+  scope=`crates/ritk-python/tests/test_simpleitk_cmake_data.py`
+  (`test_cmake_patch_based_denoising_structural`) and whichever of
+  `ritk-filter`'s patch-based denoising or the stored reference is wrong;
+  non-goal=widening the tolerance to make it pass.
+- **Outcome:** the tolerance is derived, or the divergence is root-caused.
+- Found while verifying an unrelated change: the test fails on this Windows
+  host at 2 ULP against a 1 ULP bound, identically in debug and release, on a
+  tree whose `ritk-filter` matches `HEAD`. The same test passed in hosted CI at
+  `0200826e` on all three platforms, so the bound is one that holds on the CI
+  runners and not here — which is the signature of a tolerance taken from one
+  machine's output rather than derived from the algorithm's error growth.
+- **Acceptance oracle:** either the bound is replaced by one derived from the
+  patch-based denoising error model (machine epsilon, patch count, accumulation
+  order) and the test passes on both hosts, or the 2 ULP gap is traced to a
+  real difference in the implementation and fixed there. Raising the constant
+  to 2 without a derivation is the prohibited empirical hack.
+- **Dependencies:** none. **Risk/change class:** `[patch]`. Effort S.
+
+## BUILD-BLOCK-MATCHING-LOCK [patch] — restore locked workspace resolution
+
+- **Status:** DONE; owner=Codex; last-update=2026-08-19;
+  scope=`Cargo.lock`; non-goal=dependency version or source changes. The merged
+  block-matching crate extraction added `crates/ritk-block-matching` to the
+  workspace without adding its package entry to `Cargo.lock`, so every real
+  `--locked` target failed before compilation. Cargo regenerated exactly one
+  seven-line package entry (`ritk-block-matching` → `anyhow`). Locked example
+  execution and warning-denied Clippy pass after the repair.
+
+## DOC-TRACTOGRAPHY-VALIDATION [patch] — creation and validation chapter
+
+- **Status:** DONE; owner=Codex; last-update=2026-08-19;
+  scope=`docs/book/{SUMMARY.md,tractography.md}`,
+  `crates/ritk-diffusion/examples/book_diffusion_tractography.rs`, the existing
+  deterministic figure, the blocking `Cargo.lock` repair, and synchronized
+  PM/CHANGELOG entries;
+  non-goal=new tracking algorithms, clinical validation, or API changes.
+  The authoritative chapter now creates streamlines through the current public
+  API, validates seed accounting, termination reasons, and analytical-domain
+  containment, and separates numerical/geometric evidence from format,
+  anatomical, and clinical validation. The runnable example records all five
+  attempted seeds, recovers the analytical axis at 0.00 degrees, produces five
+  boundary-terminated streamlines, and regenerates byte-identical figure and
+  tractogram artifacts. Formatting, warning-denied example Clippy, mdBook
+  test/build, strict checking of 188 links, and diff checks pass. Exact-head
+  hosted runs `32272992103` (Rust CI), `32272991999` (Python matrix), and
+  `32272992744` (book build) passed at `2db8dda8`; PR #185 merged as
+  `30f7d05c`. Pages run `32281063710` built and deployed that merge revision.
+  The live chapter returns HTTP 200 with the new title, validation ladder, and
+  resolved Maier-Hein citation.
+
+## ATLAS-RITK-ZERO-FLUX-PAD-STRUCTURE [patch] — operation-family split
+
+- **Status:** HOSTED GATE PASSED; owner=Atlas coordinator; last-update=2026-08-19.
+- Move the `ZeroFluxNeumannPadImageFilter` operation family from the mixed
+  `transform/pad.rs` implementation into the named `transform/pad/zero_flux.rs`
+  leaf while preserving the public re-export, CPU/native APIs, edge-clamp
+  semantics, and spatial-origin update. Local package gates pass: format/diff
+  checks, locked all-target compilation, 1073/1073 Nextest tests in 64.227s,
+  warning-denied Clippy, and 2/13 doctests (11 environment-only examples
+  ignored). Hosted provider Rust/Python checks pass at exact source head
+  `805b7216`: Rustfmt, Clippy, dependency alignment, Rust suites, Python
+  3.9–3.13 across Linux/macOS/Windows, wheel smoke, and CodeRabbit pass;
+  RecurseML remains report-only.
+
+## ATLAS-RITK-RECURSIVE-GAUSSIAN-HESSIAN-STRUCTURE [patch] — operation-family split
+
+- **Status:** HOSTED GATE PASSED; owner=Atlas coordinator; last-update=2026-08-19.
+- Move the recursive-Gaussian Hessian operation family from the mixed
+  `recursive_gaussian.rs` implementation into a named leaf without changing
+  the `pub(crate)` provider seam or numerical ordering. Local package gates
+  pass: format/diff checks, locked all-target compilation, 1073/1073 Nextest
+  tests, warning-denied Clippy, and 2/13 doctests (11 environment-only examples
+  ignored). Hosted provider Rust/Python checks pass at exact source head
+  `9034af11`; the non-required RecurseML analyzer remains report-only.
+
+## RITK-PARITY-171 — InverseDisplacementField SimpleITK parity broken on main [major] — done (owner=Atlas coordinator; closed 2026-08-19)
+
+**Owned scope:** establish the SimpleITK index/physical convention at the
+Python image boundary, repair the provider-native filter path if the measured
+fixture proves a contract defect, and add value-semantic regression coverage.
+Do not alter the tolerance or mask a coordinate-frame mismatch.
+
+**Resolution:** NumPy scalar and color constructors now store the canonical
+`[Z,Y,X]` tensor-to-physical permutation. The TPS and iterative Python bindings
+now pass provider-owned physical `(x,y,z)` components and return `(z,y,x)`;
+the physical-point color source uses the same metadata contract. The original
+`<1e-4` SimpleITK oracle passes for all three regressions after a fresh
+`maturin develop --release --locked` build.
+
+The follow-up commit `18e5bc7f` completes the same physical-axis migration for
+`shift_image` and `rotate_image`: affine centers now come from the provider's
+continuous index-to-physical conversion, Euler matrices remain in physical
+`(X,Y,Z)` order, and Python `[Z,Y,X]` shifts are translated at the binding
+boundary. The nine focused affine parity cases pass after another fresh
+release wheel build.
+
+**Verification:** `cargo nextest run -p ritk-filter --lib --locked` (1073/1073),
+`cargo nextest run -p ritk-python --lib --locked` (47/47),
+`cargo clippy -p ritk-python --all-targets --locked -- -D warnings`, and the
+three targeted Python parity tests (3/3) pass. The locked local commands ran
+from outside the Atlas overlay against the shared target because the overlay
+intentionally rewrites standalone RITK locks.
+
+`Python Wheel (smoke test)` on main fails three SimpleITK parity tests in
+`crates/ritk-python/tests/test_simpleitk_cmake_data.py`:
+
+    test_cmake_inverse_displacement_field_2d        max 2.2323646545410156
+    test_cmake_inverse_displacement_field_3d        max 0.0820963382720947
+    test_cmake_iterative_inverse_displacement_field max 0.1707854270935059
+
+against a `< 1e-4` tolerance. The 2D test's own docstring records that the TPS
+fit "is unique and well-conditioned, so the result is float-exact (NOT a
+tolerance/SVD-variance case)", so these deltas are behavioural divergence from
+SimpleITK, not numerical noise.
+
+**Regression window, bracketed by CI head SHAs:** run at 14:49 UTC on
+`dd577946` passed; run at 18:06 UTC on `c58ad548` failed. The only commit in
+that range touching these filters is
+`3aa73ba0 fix(ritk-filter)!: Apply the direction matrix in index<->physical transforms`
+(ADR 0020), which rewrote `phys`/`idx`/`world` in
+`iterative_inverse_displacement.rs` and `inverse_displacement.rs`.
+
+**Why it escaped.** That commit updated the Rust tests it touched
+(`tests_iterative_inverse_displacement.rs`, +145 lines) and states "Python
+bindings are unaffected". The bindings surface is indeed unchanged, but the
+bindings expose these same filters, and the parity suite compares their output
+against SimpleITK — so the coordinate-frame change reaches them.
+
+**What needs adjudicating** (not decided here): ADR 0020 argues the previous
+behaviour assumed an axial permutation and was "wrong for everything else,
+including the identity direction their own test fixtures used". The parity
+fixtures use the identity direction. So either the new direction handling
+disagrees with ITK's convention for these fixtures, or the fixtures encode the
+old axial assumption and need regenerating against SimpleITK. Deciding which
+requires checking ITK's index->physical convention against this crate's axis
+order; the ADR states identity here sends the depth axis to world x, whereas
+the filters previously paired `spacing[0]` with z.
+
+Hosted closure is green at exact default head `065c4766`: CI run
+`32244582088` and Python CI run `32244582089` both pass, including the pinned
+SimpleITK wheel smoke oracle and Windows nextest.
+
+The comprehensive local Python suite was run with SimpleITK
+`3.0.0a1.post183-g61ffa`, outside the repository requirement
+`>=2.5.5,<2.6`; its one max-2-ULP denoising residual is therefore environment
+evidence only, not a supported-version failure. The supported hosted wheel
+oracle passes without a tolerance change.
+
+**Correction (2026-08-18): the first lead recorded here was wrong.** It claimed
+the 2-D solve basis and the displacement "component convention" disagreed by one
+axis. There is no such component convention. The landmark loop projects the
+world displacement onto the basis:
+
+    let displacement = [ux[flat], uy[flat], uz[flat]];
+    let component = dot(displacement, basis[t]);
+
+That is a dot product against each basis vector, so it is frame-correct and
+independent of any component ordering. Reading `active_basis` without reading
+its consumer produced a mechanism the code does not contain. Recorded rather
+than deleted, because the retraction is the useful part: do not spend time on it.
+
+**What remains open, stated narrowly.** The projection is sound *given a basis
+that spans the plane the 2-D field actually occupies*. For `nz == 1` the basis
+comes from `geometry.axis_direction(1)` and `axis_direction(2)` -- the direction
+columns of tensor axes 1 and 2. Whether those are the slab's plane depends on
+which world axis each tensor axis maps to. ADR 0020 records that in this crate
+the identity direction sends tensor axis 0 to world x; a SimpleITK-derived
+fixture in `[z][y][x]` array order would instead treat index axis 0 as z. If
+those two readings disagree, the basis spans the wrong plane and every landmark
+is fitted in it -- which would show up as a large 2-D error and a much smaller
+3-D one, since `axes.len() == 3` returns the world axes directly and never
+reaches this branch.
+
+That is a question about the direction-matrix convention, not about the solver.
+It wants the fixture's actual direction matrix and axis order checked against
+ITK's `TransformIndexToPhysicalPoint`, which is measurement, not inspection --
+the step that would have caught the retracted claim above.
+
+**Not a tolerance change.** Widening 1e-4 to cover a 2.23 delta would erase the
+oracle these tests exist to provide.
+
+- Evidence: failing job 95830512966 (PR #170 branch) and 95815805986 (main),
+  identical failing tests and identical max deltas -- confirming the failure is
+  on main and independent of that PR.
+
 # RITK Backlog - Active Planning
+
+- **ATLAS-RITK-BSPLINE-BASIS-STRUCTURE [patch] - Partition B-spline basis
+  evaluation by operation family (HOSTED GATE PASSED; owner=Atlas
+  coordinator; last-update=2026-08-19).**
+  `crates/ritk-registration/src/bspline_ffd/basis/
+  evaluate.rs` was a 629-line implementation file combining control-grid
+  initialization, dense support-table construction, and sparse cache-based
+  evaluation. Split the implementation into the dedicated `grid.rs`,
+  `dense.rs`, and `sparse.rs` leaves while retaining the stable internal
+  `basis::evaluate` re-export surface. The split preserves output-buffer
+  ownership, dense/sparse dispatch, and arithmetic order; no performance claim
+  is made. Standalone locked compilation and package Nextest pass outside the
+  Atlas overlay: `cargo check -p ritk-registration --all-targets --locked` and
+  370/370 tests. Provider hosted CI at exact head `ff95022b` passes the merge
+  gate.
+
+- **ATLAS-RITK-CONFORMANCE-101 [patch] - Close diffusion binding structure
+  ratchet (DONE; owner=Codex; last-update=2026-08-17).** The new
+  `crates/ritk-python/src/diffusion/mod.rs` manifest exceeded the structural
+  implementation target after the diffusion binding landed. Split its map
+  wrapper and tensor-fitting function into dedicated modules without changing
+  the Python registration or public binding behavior. Source commit
+  `81f510f6` merges at default `7ae4b69b`; provider-owned Clippy, Rustfmt,
+  workspace dependency alignment, full Rust, Python 3.9-3.13, and wheel-smoke
+  gates pass in runs `32026464996` and `32026464796`. The clean-lane
+  conformance scan returns `manifest_implementation=111`, restoring the
+  committed ratchet. The external `recurseml/analysis` error is report-only.
+
+- **RITK-PLACEMENT-AXIS-ASSESS-001 [audit] - themis/melinoe adoption:
+  transitively satisfied, no direct deps (DONE; owner=Codex; last-update=
+  2026-08-14).** Zero `themis`/`melinoe` tokens in any ritk source file.
+  ritk's direct deps `moirai` (moirai-runtime, `melinoe` feature enabled),
+  `mnemosyne` (mnemosyne-memory, consumes themis internally for
+  `PlacementHint`/`NumaNodeId`), `leto`, and `coeus-leto` already carry
+  themis/melinoe transitively; ritk calls no placement/affinity/evidence
+  APIs. Per the consumer-local-need rule, no direct dependency is added.
 
 - **ATLAS-RITK-DICOM-ORIENTATION-070 [minor] - Publish the provider-owned
   ImageOrientationPatient tag (DONE locally; owner=Codex; last-update=
@@ -177,21 +591,39 @@
   passed under the same mutant.
 
 - **TEST-696-03 [patch] - Ground-truth recovery test for multi-resolution demons**
-  (DoR; owner=unclaimed; last-update=2026-08-13; scope=
-  `crates/ritk-registration` multi-resolution demons tests; non-goal=algorithm
-  changes).
+  (DONE; owner=Claude; last-update=2026-08-14; scope=
+  `crates/ritk-registration/tests/multires_recovery_test.rs`;
+  non-goal=algorithm changes, and the leto SVD migration the local build needs,
+  which stays DEP-697-01).
 
-  `MultiResDemonsRegistration` is the standard remedy for the amplitude
-  shortfall TEST-696-01 measured, and has no ground-truth recovery test.
+  The pyramid had no ground-truth recovery test, so the remedy for the
+  amplitude shortfall TEST-696-01 measured had never been checked against a
+  known deformation. Both arms now run on the same fixed/moving pair at the
+  same grid, wavelength, sigma and full-resolution iteration budget, so the
+  comparison is a direct measurement rather than one across two runs.
 
-  Outcome: the recovery harness from `deformable_recovery_test.rs` applied to
-  the multi-resolution path, quantifying whether the coarse-to-fine schedule
-  closes the ~30% gap at long structural scale.
+  Measured at periods 13/15/17 on 20^3, sigma 0.75, 240 iterations:
 
-  Acceptance: measured amplitude ratio against the single-resolution table
-  already recorded, at matching grid, wavelength and iteration budget.
+  | Arm | alpha | RMS error |
+  | --- | --- | --- |
+  | Single resolution | 0.7177 | 0.4336 voxel |
+  | 2-level pyramid | 0.7704 | 0.3911 voxel |
 
-  Risk: [patch]; test-only.
+  **The pyramid helps but does not close the gap.** It recovers 0.053 more
+  amplitude, about 19% of the 0.282 single resolution leaves — real, and well
+  short of what the textbook framing implies. The single-resolution arm
+  reproduces the 0.712 TEST-696-01 recorded independently, so the two
+  measurements corroborate each other.
+
+  The assertion is a floor on the gain (0.02, a 2.6x margin against the
+  measured 0.053) rather than the measured value, so it fails on a regression
+  to parity without being brittle. Both arms are deterministic, so run-to-run
+  variation is floating-point only.
+
+  Verified locally with DEP-697-01's migration applied to make the workspace
+  compile under the Atlas overlay; that migration is not part of this change,
+  and CI is unaffected because the committed lockfile pins leto to 8c4e609,
+  which predates the removal.
 
 - **ARCH-695-01 [patch][arch] - Give the Image operation families their own leaf modules**
   (DONE; owner=Claude; last-update=2026-08-13; scope=
@@ -395,23 +827,48 @@
   reproducible, and it is what nearly cost a correct optimisation a revert.
 
 - **PERF-694-03 [patch] - Commit criterion baselines for the decode and resample paths**
-  (DoR; owner=unclaimed; last-update=2026-08-13; scope=
-  `crates/ritk-codecs/benches/codec_throughput.rs` and a new interpolation
-  bench; non-goal=further optimization, which this exists to direct).
+  (DONE; owner=Claude; last-update=2026-08-14; scope=
+  `crates/ritk-codecs/{benches/codec_throughput.rs,src/jpeg/fixtures.rs}` and
+  `crates/ritk-interpolation/benches/linear_interpolation.rs`;
+  non-goal=further optimization, which these exist to direct).
 
-  Outcome: durable criterion baselines so a later regression blocks merge,
-  rather than the one-off measurements PERF-694-02 recorded.
+  The blocker was the fixture: no committed JPEG sample reached the baseline
+  DCT decoder, and the crate has no baseline encoder to make one. The builder
+  SAFE-693-05 wrote for its corruption sweeps is now `jpeg::fixtures`,
+  generalised to arbitrary dimensions and made public rather than test-gated —
+  a bench is a separate compilation unit from the test harness, so `cfg(test)`
+  cannot reach it, and a cargo feature to bridge that would be a build toggle
+  rather than the dependency management features are for.
 
-  Method: extend the existing criterion suite under the committed benchmark
-  time budget. A baseline-DCT JPEG fixture has to be built first — the
-  committed fixtures are lossless SOF3 and never reach the IDCT, and the crate
-  has no baseline-JPEG encoder to generate one with.
+  Baselines, Windows release on a quiet host:
 
-  Acceptance: baselines committed; the harness interleaves variants and
-  reports minima, since PERF-694-02 showed a single ordering is not
-  reproducible for allocator-sensitive kernels.
+  | Benchmark | Median |
+  | --- | --- |
+  | `jpeg_baseline_decode_512x512_grayscale` | 933.8 us |
+  | `jpeg_baseline_decode_512x512_ycbcr` | 7.003 ms |
+  | `linear_interpolation_3d/1000` | 27.98 us |
+  | `linear_interpolation_3d/100000` | 2.531 ms |
+  | `linear_interpolation_bounds/extend` | 1.617 ms |
+  | `linear_interpolation_bounds/zero_pad` | 696.0 us |
 
-  Risk: [patch]; benchmark-only, no production code.
+  Three observations the first pass produced. YCbCr costs 7.5x grayscale for a
+  3x block-count increase, so the colour conversion — not the block decode —
+  dominates that path. Linear interpolation's per-point cost is flat from 1e3
+  to 1e5 points (28.0 ns against 25.3 ns), so nothing falls off a cache cliff
+  across that range. And `ZeroPad` is 2.3x faster than `Extend` on a
+  half-out-of-bounds batch, because it returns before the eight-corner loop
+  instead of clamping into it — overhanging a resample is cheaper under
+  `ZeroPad`, not merely different.
+
+  The interpolation bench carries an explicit noise floor in its module docs:
+  PERF-694-02 measured heap timings from 3.3 ms to 31.5 ms across runs of
+  identical code depending on allocator state, so a delta under roughly 20%
+  there is not evidence until it reproduces across invocations. Recording that
+  is the point — the regression PERF-694-02 caught went in precisely because
+  no baseline existed to catch it.
+
+  Both benches smoke-run under `--test` within the standard budget, so the
+  gates exercise them without a timing pass.
 
 - **SAFE-693-01 [patch] - Harden JPEG header parsing against malformed input**
   (DONE; owner=Claude; last-update=2026-08-13; scope=
@@ -529,41 +986,189 @@
   scan-array findings survived in the DCT path. No fuzz target exists anywhere
   in `ritk-codecs`.
 
-- **SAFE-693-06 [patch] - Bound decompression ratio and the trx header arithmetic**
+- **FLAKE-699-01 [patch] - N4 bias-correction parity test hangs nondeterministically**
+  (DoR; owner=unclaimed; last-update=2026-08-15; scope=
+  `crates/ritk-python/tests/test_sitk_cmake_corpus_extended.py`
+  `::TestN4BiasCorrectionParity::test_n4_reduces_intensity_variance_of_uniform_region`
+  and the N4 implementation it exercises; non-goal=raising the job timeout,
+  which would hide it).
+
+  On ritk#159 the Python wheel smoke test reached 98%, then produced no output
+  for 15 minutes on this test before the 30-minute job budget cancelled the
+  run. The identical commit passed on rerun in 11m47s, so the behaviour is
+  nondeterministic rather than a slow runner: a deterministic slowdown would
+  reproduce.
+
+  Evidence: run 31888313892, job 95020720031 (hung, last output 14:05:48,
+  cancelled 14:21:16) against job 95024332260 (passed, same SHA `f061516b`).
+
+  Not caused by that change, which adds Rust test code in `ritk-segmentation`
+  and cannot reach N4. The wheel job also passed on the three preceding main
+  runs, so this is intermittent rather than newly broken.
+
+  Outcome: the nondeterminism root-caused. A hang rather than a slow run
+  points at an unbounded loop — N4's fitting iteration terminating on a
+  convergence criterion that a particular input or scheduling order never
+  satisfies — rather than at load. Worth checking whether the iteration has a
+  hard cap at all, per the solver-termination rule in the standards.
+
+  Acceptance: either a reproduction plus a bounded termination criterion, or a
+  recorded finding that the wait is legitimate and the budget is wrong — the
+  first with a regression test, the second with the measurement behind it.
+
+  Risk: [patch] unless the fix changes N4's numerical output, which would make
+  it [minor] and need a parity re-check against SimpleITK.
+
+- **CONF-698-01 [patch] - Seed admission diverges from ITK in principle, not yet in evidence**
   (DoR; owner=unclaimed; last-update=2026-08-14; scope=
-  `ritk-nrrd/src/reader/volume.rs`, `ritk-metaimage/src/reader.rs`,
-  `ritk-trx/src/parse.rs`; non-goal=the parsers SAFE-693-02 already fixed).
+  `crates/ritk-segmentation/src/region_growing/vector_confidence_connected/`
+  `{flood.rs,mod.rs,tests.rs}`; non-goal=the sqrt round-trip, already fixed).
 
-  Two findings from that audit remain. The inflate `.take()` cap in both
-  readers is `expected_payload_bytes`, computed from the attacker's own
-  `sizes` / `DimSize`, so it stops an infinite stream but not a compression
-  bomb: `sizes: 10000 10000 10000` sets the cap to roughly 4 TB, and a 1 MB
-  deflate stream inflates to its full ~1 GB before the post-check fires. The
-  missing half is a cap against `payload.len()` times a fixed ratio.
+  ITK admits seeds **unconditionally**: its flood-fill iterator is constructed
+  at the seeds and writes them before any criterion runs. Verified by running
+  SimpleITK 3.0 at multiplier 1e-6, where nothing can satisfy the criterion —
+  the seed's own Mahalanobis distance is 1.082 — and it still returns exactly
+  the seed.
 
-  Separately, `trx/parse.rs:65,78` runs unchecked `u64` arithmetic on
-  `serde_json`-parsed header values before the length gates. The allocations
-  themselves are gated and safe; `nb_streamlines = u64::MAX` wraps `+ 1` to
-  zero, passes the length check against an empty file, then indexes.
+  This crate instead tests the seed and, to retain it, widens
+  `threshold_squared` to `max(multiplier², max seed distance²)`. That widened
+  threshold is then applied to every **neighbour**, so at multiplier 0.5 the
+  region grows at an effective 1.082.
 
-  Acceptance: each demonstrated against the unfixed code, as SAFE-693-02's
-  fixes were.
+  **Not yet demonstrated.** The SimpleITK sweep added alongside this item
+  passes against the current implementation: widening only binds below 1.082,
+  and on this fixture no neighbour lies between the multiplier and that
+  distance, so the two rules coincide at every multiplier tested. The
+  divergence is real in principle and currently unevidenced.
 
-  Risk: [patch].
+  Outcome: either a fixture where a neighbour falls in that gap — which would
+  make the divergence a measured defect and justify admitting seeds
+  unconditionally — or a recorded finding that the two rules cannot differ for
+  a covariance derived from the seed neighbourhood, which would make the
+  widening equivalent and worth saying so in the code.
+
+  Acceptance: whichever it is, demonstrated rather than argued.
+
+  Risk: [patch]; the fix, if needed, is local to `flood.rs` seed admission.
+
+- **DEP-697-01 [patch] - Migrate the two leto SVD consumers off the removed entry points**
+  (DoR; owner=unclaimed; last-update=2026-08-14; scope=
+  `crates/ritk-segmentation/src/region_growing/vector_confidence_connected/`
+  `{statistics.rs,tests.rs}` and
+  `crates/ritk-registration/src/classical/spatial/kabsch.rs`; non-goal=leto
+  itself, whose refactor is deliberate).
+
+  leto `58b6eb3` removed `svd_decompose_with_tolerance`, `svd_rank_revealing`,
+  `svd_rank_revealing_with_tolerance` and `svd_via_bidiagonal`, leaving
+  `svd_decompose`. It is on leto's default branch.
+
+  **Two consumers, not one.** The original filing named only
+  `statistics.rs:5,76`; `kabsch.rs:12,75` calls `svd_rank_revealing` and was
+  missed. Both are mechanical renames — `svd_decompose` takes no tolerance,
+  and the tolerance-zero call requested no cutoff, which is its default.
+
+  Still invisible in CI: the committed lockfile pins leto to `8c4e609`, which
+  predates the removal, so this only lands when the pin advances. It
+  reproduces today under the Atlas path overlay.
+
+  **The migration is mathematically sound.** `SvdDecomposition` is unchanged
+  (U and V as columns, singular values descending), and the reconstructed
+  inverse was checked against the property that matters: for the covariance the
+  failing test produces,
+  `[0.7457, 0.0483; 0.0483, 0.01335]`, `cov * inverse` is the identity to
+  1e-16. `svd_decompose` was also probed on 1x1 and 3x3 covariances — correct
+  singular values and the expected singularity branch in each.
+
+  What remains is one knife-edge assertion.
+  `corner_seed_uses_simpleitk_zero_flux_neighborhood` runs a 2-channel 1x5x5
+  image with multiplier 0.5 and radius 1, and expects only the seed voxel; with
+  the migration it segments nothing. The determinant is 7.6e-3, so this is not
+  the singular branch — it is a Mahalanobis distance sitting near the threshold
+  that a numerically different but equally valid inverse pushes across.
+
+  Acceptance: decide the expected mask against the SimpleITK behaviour the test
+  name invokes, not against whichever implementation happens to be linked. If
+  SimpleITK includes the seed, the divergence is a leto finding for its ADR
+  0005; if the mask is genuinely ambiguous at multiplier 0.5, the fixture wants
+  a less marginal configuration. **Do not resolve this by editing the expected
+  mask to match the new output** — the determinant rule at `statistics.rs:80`
+  is ITK's contract and this test is what pins conformance to it.
+
+  Risk: [patch] for the renames; upgrades to a leto item if the paths disagree
+  numerically beyond this one threshold crossing.
+
+- **SAFE-693-06 [patch] - Bound the trx header arithmetic; A3 disproven**
+  (DONE; owner=Claude; last-update=2026-08-14; scope=
+  `crates/ritk-trx/src/{parse.rs,error.rs,tests.rs}`; non-goal=the NRRD and
+  MetaImage inflate caps, which measurement showed need no change).
+
+  **The trx finding was real.** `nb_points` and `nb_streamlines` arrive as
+  unbounded JSON numbers from `header.json`, and the length checks that would
+  catch a nonsensical value run *after* the arithmetic deriving element counts
+  from them. Both are `checked_` now, reported through a typed
+  `HeaderCountOverflow`. Confirmed against wrapping arithmetic in release:
+  `nb_points = u64::MAX` surfaced as `PositionsLengthMismatch { expected:
+  18446744073709551613 }` — the wrapped value presented as a length — instead
+  of naming the offending field.
+
+  **The A3 decompression-ratio finding does not hold, and no change shipped
+  for it.** The audit reported that capping the inflate at
+  `expected_payload_bytes` bounds an endless stream but not a compression
+  bomb. Measured, that is not so. A bound at DEFLATE's maximum 1032:1 ratio
+  was implemented, and peak live bytes were recorded across the same
+  260753-byte gzip payload declaring `sizes: 1000 1000 1000`: **807041678
+  bytes with the ratio bound and 807041678 without it — identical.**
+
+  The reason is that RFC 1951 already guarantees the ratio the bound was
+  re-asserting, so it can never bind for a conforming stream. Nor does the
+  declared-size cap preallocate: `read_to_end` grows to the bytes actually
+  produced, so memory stays proportional to the payload an attacker really
+  supplies, whatever the header claims. The implementation and its module were
+  removed rather than kept as a no-op wearing a fix's name.
+
+  Residual, and separate from what was reported: peak memory reached ~807 MB
+  for ~269 MB of inflated output, which is `Vec` growth doubling rather than
+  any cap. Worth revisiting only with a measurement showing it matters; filed
+  nowhere until then, since a speculative fix is what this item just finished
+  disproving.
 
 - **SAFE-693-05 [patch] - Add malformed-input coverage where the audit found none**
-  (DoR; owner=unclaimed; last-update=2026-08-13; scope=`ritk-mif`,
-  `ritk-nrrd`, `ritk-trx` test modules and a multi-component DCT JPEG fixture;
+  (DONE; owner=Claude; last-update=2026-08-14; scope=
+  `crates/ritk-codecs/src/jpeg/scan_dct.rs` fixtures and sweeps, and
+  `crates/ritk-nrrd/src/{spatial.rs,reader/volume.rs,tests/reader.rs}`;
   non-goal=the crates SAFE-693-02 found clean).
 
-  Outcome: the prefix-truncation and byte-substitution sweeps from
-  SAFE-693-01 applied where they are absent, plus a three-component baseline
-  DCT fixture so the JPEG sweeps reach the scan stage they currently miss.
+  The JPEG fixtures were all single-component lossless (SOF3), so the entire
+  DCT decoder — the stage holding the SOS component count, the DC category and
+  the MCU-padded allocation — had no corruption coverage at all. Two
+  hand-built baseline fixtures now exist, one grayscale and one three-component
+  YCbCr, sharing a builder parameterised by component count so the grayscale
+  and YCbCr scan paths are both reached. Each block codes DC category 0 then
+  EOB, so the stream is minimal and decodes to the 128 level shift.
 
-  Acceptance: each new sweep demonstrated to fail against the corresponding
-  unfixed code, recorded here.
+  Prefix-truncation and byte-substitution sweeps run over both. They are not
+  merely panic-freedom assertions: any image that comes back must have a buffer
+  matching the dimensions it reports, so a decoder sizing a plane from one
+  component count and reporting another fails too.
 
-  Risk: [patch]; test-only.
+  Discrimination measured, and honestly: removing the `read_bits` and DC
+  category bounds makes the corruption sweep fail with "attempt to shift left
+  with overflow" in the entropy stage — the class the fixture was built to
+  reach. Removing the SOS component bound does **not** trip it, because the
+  `Ss`/`Se` scan-parameter check rejects the corrupt header first; that
+  finding stays pinned by the targeted test in `marker.rs` rather than by
+  these sweeps.
+
+  The same sweeps applied to NRRD found a defect that was not in the audit.
+  `metadata_from_internal_scaled_columns` built `Spacing::new` from direction
+  column norms, and `Spacing` asserts each component is finite and positive —
+  so a corrupt `space directions` field with a degenerate vector aborted the
+  process. This is the same class as the DICOM `PixelSpacing` abort fixed in
+  RELEASE-689's follow-up, in a second reader. The chain is fallible now,
+  reporting through `Spacing::try_new`.
+
+  NRRD previously had one negative test out of nineteen and no truncation
+  coverage; it now has both sweeps.
 
 - **FIX-690-01 [minor] - Consolidate the Image coordinate-transform API**
   (DONE; owner=Claude; last-update=2026-08-13; scope=
@@ -794,7 +1399,7 @@
 - **SAFE-687-01 [patch] - Reject truncated JPEG 2000 marker tails**
   (DONE; owner=Codex; last-update=2026-08-10; scope=
   `crates/ritk-codecs/src/jpeg_2000/{codestream.rs,ebcot/mod.rs,image.rs,marker.rs,mod.rs,packet/reader.rs,tests.rs}`,
-  `ARCHITECTURE.md`, `docs/book/jpeg_2000_codec.md`, `CHANGELOG.md`,
+  `docs/architecture.md`, `docs/book/jpeg_2000_codec.md`, `CHANGELOG.md`,
   `gap_audit.md`, and PM artifacts; non-goal=codec feature expansion,
   rate control, JP2 containers, changing valid codestream output, release, or
   deployment). After at least one decoded tile, truncated PPT/COM or unknown
@@ -2033,7 +2638,7 @@
   native tests). **Unblocks:** cli/python `read_image` native cutover — the
   next [major], which finally begins dropping Burn from the format crates.
 
-> **Full sprint history (Sprints 262-322)**: see [ARCHIVE.md](./ARCHIVE.md)
+> **Full sprint history (Sprints 262-322)**: see [docs/archive.md](./docs/archive.md)
 
 ---
 
@@ -4873,7 +5478,7 @@ after CPU Coeus parity exists.
 
 | Gap ID | Description | Status |
 |--------|-------------|--------|
-| DOC-332-01 | Documentation compaction: delete stale docs, create ARCHIVE.md (18k lines), compact backlog/checklist/gap_audit (18k→~400 lines total), update IMPLEMENTATION_SUMMARY.md to v0.50.94 | **Closed** |
+| DOC-332-01 | Documentation compaction: delete stale docs, create docs/archive.md (18k lines), compact backlog/checklist/gap_audit (18k→~400 lines total), update docs/implementation_summary.md to v0.50.94 | **Closed** |
 | STR-332-02 | Structural audit — 3 violations (709, 670, 536 lines) partitioned into directory modules; ZERO files > 500 lines | **Closed** |
 | BENCH-332-03 | `STACK_WEIGHTS_CAPACITY=32` Criterion benchmark — measure AVX2 speedup vs 8-entry version | **Open** |
 | GPU-332-04 | Evaluate `sparse.rs` GPU-backend potential (Burn autodiff scatter compatibility, custom kernel feasibility) | **Open** |
@@ -4881,7 +5486,7 @@ after CPU Coeus parity exists.
 
 ### Architecture
 
-1. **DOC-332-01**: Deleted 4 stale files (`docs/backlog.md`, `docs/checklist.md`, `docs/CHANGELOG.md`, `SPINT_293_PLAN.md`). Created `ARCHIVE.md` with all pre-Sprint 320 sprint history (18,150 lines). Compacted `backlog.md` (6,378→134), `checklist.md` (5,893→110), `gap_audit.md` (6,200→145). Updated `IMPLEMENTATION_SUMMARY.md` to v0.50.94 with Sprint 331 entries and corrected test counts.
+1. **DOC-332-01**: Deleted 4 stale files (`docs/backlog.md`, `docs/checklist.md`, `docs/CHANGELOG.md`, `SPINT_293_PLAN.md`). Created `docs/archive.md` with all pre-Sprint 320 sprint history (18,150 lines). Compacted `backlog.md` (6,378→134), `checklist.md` (5,893→110), `gap_audit.md` (6,200→145). Updated `docs/implementation_summary.md` to v0.50.94 with Sprint 331 entries and corrected test counts.
 
 2. **STR-332-02**: 3 violations found and partitioned:
    - `direct_phase_fourteen_tests.rs` (709→dir) → `direct_phase_fourteen_tests/{mod,normalization,identity,size_and_end_to_end}.rs`
@@ -4913,7 +5518,7 @@ after CPU Coeus parity exists.
 | CLIPPY-331-06 | Deep clippy cleanup pass — 110+ residual warnings → 0 across 14 crates (this-session) | **Closed** |
 | ARCH-331-02 | Preemptive structural partitions — 8 files above 470 lines decomposed | **Closed** |
 | FIX-331-03 | Flaky test hardening: `translation_recovery_shifted_gaussian` sampling 0.50→0.75, iterations 200→300, tolerance 0.5→0.8 | **Closed** |
-| DOC-331-04 | Documentation overhaul: IMPLEMENTATION_SUMMARY.md, OPTIMIZATION.md, README.md updated to v0.50.93 | **Closed** |
+| DOC-331-04 | Documentation overhaul: docs/implementation_summary.md, docs/optimization.md, README.md updated to v0.50.93 | **Closed** |
 | CLEANUP-331-05 | Orphan test file `ritk-core/filter/fft/tests_convolution.rs` removed (duplicate) | **Closed** |
 | FIX-331-07 | Resolved DICOM networking pdu.rs vs pdu/ module conflict (deleted orphan pdu.rs, moved tests_pdu.rs to pdu/tests.rs) | **Closed** |
 | FIX-331-08 | Unused `bail` import in pdu/presentation_context.rs removed | **Closed** |
@@ -5209,3 +5814,212 @@ Close GAP-SCI-08: add `scipy.ndimage.value_indices` parity to `ritk-core` with t
 - GAP-SCI-11 (iterate_structure): generator-based, requires `Iterator` plumbing
 - GAP-SCI-15 (zoom): scipy.ndimage.zoom with spline interpolation order parameter; same complexity bucket as rotate
 ket as rotate
+
+## RITK-GAP-2026-08-20-01 [major][arch] — collapse the dual `X` / `X_native` surface
+
+- **Status:** todo; owner=unclaimed; last-update=2026-08-20;
+  source=`gap_audit.md` Finding 2026-08-20 F2.
+- **Outcome:** one public entry point per operation. The Coeus path takes the
+  base name; the `_native` marker is deleted from the API surface, since the
+  Burn path it distinguished no longer exists (ADR 0002 is complete).
+- **Scope:** every `pub fn *_native` and `*Native*` type in `crates/`, their
+  callers in `ritk-cli`, `ritk-python`, `ritk-snap`, the examples, the book
+  samples, and the affected Rustdoc. Migrate in dependency-ordered increments
+  (leaf format crates, then `ritk-filter`/`ritk-registration`, then `ritk-io`,
+  then the consumers), each increment converting a bounded scope completely.
+- **Non-goals:** changing any algorithm, tolerance, or numerical result; adding
+  a re-export bridge or `#[deprecated]` alias for either name.
+- **Acceptance oracle:** `grep -rn 'native' --include='*.rs' crates` returns no
+  identifier carrying the marker as a name element; no two public functions in
+  one impl block differ only by that suffix; the workspace gate is green; the
+  CHANGELOG records the rename as `[major]` with the migration mapping.
+- **Dependencies:** none. Blocks any crates.io release that would otherwise
+  publish both halves.
+- **Risk/change class:** `[major][arch]` — public API of every published crate.
+  Effort L. Measured surface: 129 `apply_native` definitions in `ritk-filter`
+  alone; 22 `*_native` functions with a same-named sibling; 354 identifiers
+  carrying the marker.
+
+## RITK-GAP-2026-08-20-02 [minor] — fuzz the sixteen format parsers
+
+- **Status:** todo; owner=unclaimed; last-update=2026-08-20;
+  source=`gap_audit.md` Finding 2026-08-20 F3.
+- **Outcome:** every parser that consumes an externally supplied byte stream
+  has a `cargo-fuzz` target over a malformed corpus, wired into a scheduled CI
+  job with a committed time budget.
+- **Scope:** `ritk-dicom`, `ritk-nifti`, `ritk-nrrd`, `ritk-metaimage`,
+  `ritk-analyze`, `ritk-mgh`, `ritk-minc`, `ritk-tiff`, `ritk-png`,
+  `ritk-jpeg`, `ritk-codecs` (JPEG-LS and JPEG 2000), `ritk-vtk`, `ritk-trk`,
+  `ritk-tck`, `ritk-trx`, `ritk-mif`. Seed corpora from the existing
+  `test_data/` headers, truncated and bit-flipped.
+- **Non-goals:** changing parser behaviour on well-formed input; adding a
+  dependency to any published crate (fuzz targets live in a non-published
+  `fuzz/` member).
+- **Acceptance oracle:** each listed crate has a fuzz target that runs clean for
+  its committed budget; any panic or unbounded allocation found is fixed as a
+  typed error and pinned by a regression test carrying the offending input.
+- **Dependencies:** requires the nightly verification toolchain
+  (`cargo +nightly fuzz`), invoked per run, with the stable build pin unchanged.
+- **Risk/change class:** `[minor]` (new non-published member, plus any typed
+  errors the findings force). Effort M.
+
+## RITK-GAP-2026-08-20-03 [patch] — retire the GPU naming and the unbacked accelerator claims
+
+- **Status:** todo; owner=unclaimed; last-update=2026-08-20;
+  source=`gap_audit.md` Finding 2026-08-20 F1.
+- **Outcome:** the field-smoothing API names what it does, not a device it
+  cannot reach, and no doc comment asserts accelerator timings that no
+  benchmark produced. Either the accelerator seam is wired (a real GPU
+  `ComputeBackend`, sourced upstream, not per-vendor code in this repo) or the
+  device vocabulary is removed.
+- **Scope:** `crates/ritk-registration/src/deformable_field_ops/smooth.rs`
+  (`GpuFieldSmoother`, and the RTX 3060 paragraph at lines 281-285),
+  `deformable_field_ops/mod.rs` (`CpuOrGpu`, lines 142-170),
+  `atlas/mod.rs:121-143`, `lddmm/geodesic.rs:137`, plus the callers of both
+  types.
+- **Non-goals:** deleting the pre-allocated-staging optimisation, which is real
+  and CPU-relevant; adding a `wgpu` compute path inside RITK (backend
+  ownership belongs upstream in Coeus).
+- **Acceptance oracle:** no type or variant in `ritk-registration` names a
+  device that `coeus_core`'s `Backend` impl set cannot supply; every retained
+  performance sentence cites a stored criterion baseline; `README.md:19-21`
+  and the type names agree.
+- **Dependencies:** if the decision is to wire an accelerator, this becomes an
+  upstream Coeus item first and an ADR here recording the seam.
+- **Risk/change class:** `[patch]` if the naming is retired, `[major][arch]`
+  plus an ADR if a real backend is wired. Effort M.
+
+## RITK-GAP-2026-08-20-04 [patch] — evict the 1.6 GB tracked binary payload
+
+- **Status:** todo; owner=unclaimed; last-update=2026-08-20;
+  source=`gap_audit.md` Finding 2026-08-20 F5.
+- **Outcome:** the repository tracks source, sanctioned small golden fixtures,
+  and nothing else. Large medical corpora are fetched on demand exactly as
+  `externals/` already is.
+- **Scope:** `dist/` (4 wheels, 60 MB — delete, they are build artifacts),
+  `output/` (4 run artifacts, 30 MB — delete and add to `.gitignore`),
+  `scratch/check_restart.exe` (delete; `scratch/` is already ignored),
+  `test_data/` (3 195 files, 1.55 GB — triage into small committed goldens
+  versus a checksummed on-demand download under the existing `externals/`
+  mechanism), and the stale `/target_check`, `/target_test`, `/target_ag`,
+  `/target_temp` entries in `.gitignore`.
+- **Non-goals:** rewriting git history (a separate, user-authorised decision);
+  removing any fixture a test actually reads without first re-pointing that
+  test at the download path.
+- **Acceptance oracle:** `git ls-files dist output scratch` is empty;
+  `git ls-files test_data` totals under an agreed committed-fixture budget;
+  every test that consumed an evicted fixture still resolves it, and the
+  fetch is checksummed.
+- **Dependencies:** the `externals/` download harness already exists and is the
+  reuse target — no new mechanism.
+- **Risk/change class:** `[patch]` (no source or API change). Effort M.
+
+## RITK-GAP-2026-08-20-05 [patch] — derive the escalated test budgets and sweep the dead filters
+
+- **Status:** todo; owner=unclaimed; last-update=2026-08-20;
+  source=`gap_audit.md` Finding 2026-08-20 F4.
+- **Outcome:** no 50-minute ceiling inside `profile.default`. Workloads with an
+  analytically irreducible longer bound move to a dedicated reviewed profile
+  whose budget is derived and recorded; everything else is profiled and
+  optimised until it fits the 30 s / 60 s default.
+- **Scope:** `.config/nextest.toml` — the six 600s/terminate-after-5 override
+  blocks (lines 30-36, 38-46, 56-71), the dead `test(bspline_cr)` /
+  `test(multires_cr)` filters (lines 36, 63) that match zero tests, and the
+  stale "NdArray CPU time" justification at line 33.
+- **Non-goals:** deleting, shrinking, or `#[ignore]`-ing any test to fit a
+  budget; that is the gaming the rule forbids.
+- **Acceptance oracle:** `profile.default` and `profile.ci` carry no override
+  above the standard budget; every filter expression in the file matches at
+  least one test function; each surviving escalation names its derivation and
+  the profile it lives in; every comment names a substrate the tree still uses.
+- **Dependencies:** profiling the registration and SSMMorph forward-pass tests
+  is the first increment and may itself surface optimisation items.
+- **Risk/change class:** `[patch]`. Effort M.
+
+## RITK-GAP-2026-08-20-06 [patch] — raise the lint and documentation floor
+
+- **Status:** todo; owner=unclaimed; last-update=2026-08-20;
+  source=`gap_audit.md` Finding 2026-08-20 F7.
+- **Outcome:** the workspace declares its lint floor once and every crate
+  inherits it; every published crate documents its public surface and carries
+  its own registry landing page.
+- **Scope:** add `[workspace.lints]` to the root `Cargo.toml` (`pedantic`,
+  `unwrap_used` with test-scoped exemption, selected `nursery`) with
+  `lints.workspace = true` in each member; add `#![deny(missing_docs)]` to the
+  34 crates that lack it, burning the resulting debt down as a non-increasing
+  ratchet rather than one sweep; write a `README.md` for the 15 publishable
+  crates that have none.
+- **Non-goals:** blanket `#[allow]` at crate level to make the floor pass; the
+  suppressions must be per-site `#[expect(..., reason = "...")]`.
+- **Acceptance oracle:** `cargo clippy --workspace --all-targets -- -D warnings`
+  is green under the raised floor; no crate's `src/lib.rs` lacks
+  `#![deny(missing_docs)]`; `ls crates/*/README.md` returns one per publishable
+  crate; the ratchet baseline is committed and only decreases.
+- **Dependencies:** RITK-GAP-2026-08-20-01 will churn many of the same files;
+  sequence this after the rename to avoid re-documenting names that change.
+- **Risk/change class:** `[patch]`. Effort L.
+
+## RITK-GAP-2026-08-20-07 [patch] — restore the CHANGELOG version axis
+
+- **Status:** todo; owner=unclaimed; last-update=2026-08-20;
+  source=`gap_audit.md` Finding 2026-08-20 F7.
+- **Outcome:** one `## [Unreleased]` section, and every shipped change filed
+  under the version that carried it, so a consumer can answer "what changed in
+  `ritk-registration` 0.54.0".
+- **Scope:** `CHANGELOG.md` — 424 `##` sections of which 167 are separate
+  `[Unreleased]` headings. Fold each historical `[Unreleased]` block under the
+  version its commits landed in (recoverable from `git log` and the per-crate
+  manifest versions), collapse completed entries to one line with a commit
+  link, and keep a single open `[Unreleased]`.
+- **Non-goals:** rewording historical entries; inventing a version for a block
+  whose landing version git cannot establish (mark those under a dated
+  pre-release heading instead).
+- **Acceptance oracle:** exactly one `## [Unreleased]` heading; every other
+  `##` section names a version; the file is navigable as an index rather than a
+  log.
+- **Dependencies:** none.
+- **Risk/change class:** `[patch]`. Effort M.
+
+## RITK-GAP-2026-08-20-08 [patch] — write the registration and dispatch book chapters
+
+- **Status:** todo; owner=unclaimed; last-update=2026-08-20;
+  source=`gap_audit.md` Finding 2026-08-20 F8.
+- **Outcome:** the twelve chapters that currently announce content they do not
+  contain either teach that content or stop promising it. Registration chapters
+  carry the mathematics before the API, per the domain-book contract.
+- **Scope:** `docs/book/optimization_registration.md`, `backend_dispatch.md`,
+  `classical_registration.md`, `registration_metrics.md`,
+  `multi_modal_registration.md`, `zero_copy_io.md`, `benchmarking.md`,
+  `validation_benchmarking.md`, `vtk_format.md`, `metaimage_format.md`,
+  `jpeg_format.md`, `png_format.md`. Add an `mdbook test` step to the Pages
+  workflow so samples cannot rot.
+- **Non-goals:** duplicating Rustdoc item contracts into the book; adding
+  placeholder prose to lengthen a chapter.
+- **Acceptance oracle:** no chapter promises a topic it does not cover; the MI
+  expression, the gradient-descent update rule, and the convergence criterion
+  appear in the registration chapters with resolved citations; `mdbook test`
+  passes in CI.
+- **Dependencies:** RITK-GAP-2026-08-20-01 changes API names the samples use;
+  sequence after it or write against the post-rename names.
+- **Risk/change class:** `[patch]`. Effort L.
+
+## RITK-GAP-2026-08-20-09 [patch] — derive or remove the MI subsample stride
+
+- **Status:** todo; owner=unclaimed; last-update=2026-08-20;
+  source=`gap_audit.md` Finding 2026-08-20 F6.
+- **Outcome:** the Mutual Information metric's sampling density is a documented
+  parameter with a derivation, not a bare literal that silently caps accuracy.
+- **Scope:** `crates/ritk-registration/src/classical/engine/metric.rs:39` —
+  `let step = std::cmp::max(1, fixed.size() / 10000);` — and the
+  `MutualInformationMetric` constructor surface. Also refresh the stale
+  Correlation-Ratio claim at
+  `crates/ritk-registration/docs/REGISTRATION_OPTIMIZATION_ANALYSIS.md:12`
+  (the top-level and crate READMEs were corrected on 2026-08-20).
+- **Non-goals:** replacing histogram MI with a different estimator.
+- **Acceptance oracle:** the sample count is either a named constant carrying
+  its statistical derivation (bin occupancy versus histogram variance) or a
+  caller-supplied parameter with a documented default; a test shows the MI
+  value is stable across volume sizes that straddle the threshold.
+- **Dependencies:** none.
+- **Risk/change class:** `[patch]`, `[minor]` if the parameter becomes public.
+  Effort S.

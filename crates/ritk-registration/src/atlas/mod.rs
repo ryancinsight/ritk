@@ -30,7 +30,7 @@
 pub mod label_fusion;
 
 use crate::deformable_field_ops::{
-    scaling_and_squaring, validate_image, warp_image, CpuFieldSmoother, CpuOrGpu, FieldSmoother,
+    scaling_and_squaring, validate_image, warp_image, CpuFieldSmoother, FieldSmoother,
     VelocityField, WarpInterpolation,
 };
 use crate::diffeomorphic::multires_syn::{MultiResSyNConfig, MultiResSyNRegistration};
@@ -117,30 +117,27 @@ impl AtlasRegistration {
         spacing: [f64; 3],
     ) -> Result<AtlasResult, RegistrationError> {
         let sigma = self.config.syn_config.sigma_smooth;
-        let mut factory =
-            |ld: [usize; 3]| -> CpuOrGpu { CpuOrGpu::Cpu(CpuFieldSmoother::new(ld, sigma)) };
+        let mut factory = |ld: [usize; 3]| CpuFieldSmoother::new(ld, sigma);
         self.build_atlas_with(subjects, dims, spacing, &mut factory)
     }
 
     /// Build a groupwise atlas from N subject images with a user-provided
-    /// [`CpuOrGpu`] factory.
+    /// [`FieldSmoother`] factory.
     ///
-    /// When the factory returns [`CpuOrGpu::Gpu`], the per-level
-    /// velocity-field smoothing in the inner SyN registrations and the
-    /// per-iteration template-sharpening smoothing both run on the GPU —
-    /// 10–50× faster than the CPU path for typical 256³ fields.
+    /// The factory's return type is a generic parameter rather than a selection
+    /// enum, so any implementor is admissible.
     ///
     /// # Arguments
     /// - `smoother_factory` — creates a smoother for a given `[nz, ny, nx]`
     ///   shape.  Called once per resolution level (the SyN multires
     ///   registration creates its own per-level smoothers) and once for the
     ///   full-resolution template sharpening.
-    pub fn build_atlas_with<B: ritk_image::tensor::Backend>(
+    pub fn build_atlas_with<S: FieldSmoother>(
         &self,
         subjects: &[&[f32]],
         dims: [usize; 3],
         spacing: [f64; 3],
-        smoother_factory: &mut impl FnMut([usize; 3]) -> CpuOrGpu<B>,
+        smoother_factory: &mut impl FnMut([usize; 3]) -> S,
     ) -> Result<AtlasResult, RegistrationError> {
         let n_subjects = subjects.len();
         if n_subjects == 0 {

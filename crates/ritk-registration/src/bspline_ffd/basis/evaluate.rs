@@ -1,30 +1,19 @@
-//! B-spline displacement field evaluation from control-point grids.
+//! Dispatch manifest for B-spline displacement evaluation.
 //!
-//! Implements two evaluation paths:
-//! - The cache-based sparse path ([`evaluate_bspline_displacement_fast_into`])
-//!   uses pre-computed per-axis basis tables; interior voxels skip all bounds
-//!   checks via [`BasisCache`].
-//! - The bounded dense support-matrix path
-//!   ([`evaluate_bspline_displacement_dense_into`]) replaces the per-axis
-//!   basis cache with a dense support table where control-point indices are
-//!   clamped to in-bounds positions *in advance*. The inner 4³ FMA is
-//!   branch-free: OOB cells contribute weight 0 via a precomputed `mask`,
-//!   so the compiler auto-vectorises the floating-point loop without
-//!   conditional hops per voxel.
+//! The public evaluation surface is partitioned by operation family while
+//! this module remains the stable internal path used by registration and its
+//! tests. Dense support tables and cache-based sparse evaluation therefore
+//! share one re-export surface without duplicating an algorithm.
 //!
-//! Selection between paths is done by [`should_use_dense_path`], dispatched
-//! in `BSplineFFDRegistration::register`'s inner loop. The dense path is
-//! preferred for small control lattices (`ctrl_dims.product() <=
-//! DENSE_LATTICE_CUTOFF`); the cache path wins on bandwidth and arithmetic
-//! reuse for larger ones.
-//!
-//! Both paths produce numerically identical outputs (verified by
-//! `bspline_dense_matches_sparse_on_small_lattice` in `tests/basis.rs`).
+//! Grid selection, dense support construction, and sparse cache evaluation
+//! live in [`grid`], [`dense`], and [`sparse`], respectively.
 
-use super::super::volume_dims::VolumeDims;
-use super::cache::BasisCache;
-use super::scalar::cubic_bspline_basis;
-use crate::deformable_field_ops::{flat, VelocityField};
+#[path = "dense.rs"]
+mod dense;
+#[path = "grid.rs"]
+mod grid;
+#[path = "sparse.rs"]
+mod sparse;
 
 /// Upper bound on the control-lattice product below which the bounded
 /// dense support-matrix path is advertised as preferable.

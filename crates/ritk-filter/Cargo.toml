@@ -38,6 +38,10 @@ coeus-tensor = { workspace = true }
 criterion = { workspace = true }
 base64 = { workspace = true }
 image = { workspace = true }
+# Integration tests cannot see the crate's own `[dependencies]`; the allocation
+# measurement needs the same parallel-collect entry point the kernels use in
+# order to subtract the scheduler's allocations from the kernel's.
+moirai = { workspace = true }
 
 [[bench]]
 name = "cpr_path"

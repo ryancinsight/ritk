@@ -22,6 +22,7 @@ use ritk_image::tensor::Backend;
 use ritk_image::Image;
 use ritk_tensor_ops::{extract_vec_infallible, rebuild};
 
+use crate::grid_geometry::CartesianGridGeometry;
 use crate::invert_displacement::interp_component;
 
 /// Parameters and entry point for iterative displacement-field inversion.
@@ -45,23 +46,37 @@ impl Default for IterativeInverseDisplacementField {
 impl IterativeInverseDisplacementField {
     /// Invert the field given as world components `(dx, dy, dz)`. Returns the
     /// inverted components `(dx, dy, dz)`.
+    ///
+    /// The search runs in physical space, so the grid's direction cosines
+    /// participate in every index/world conversion: a voxel's physical position
+    /// is `origin + D S index`, and a physical point's continuous index is
+    /// `S^-1 D^-1 (point - origin)`. An oblique acquisition therefore inverts
+    /// about its own axes rather than the index axes.
+    ///
+    /// # Errors
+    ///
+    /// Returns an error when `dx`'s coordinate map is not Cartesian, or when
+    /// its direction matrix is singular.
     pub fn apply<B: Backend>(
         &self,
         dx: &Image<f32, B, 3>,
         dy: &Image<f32, B, 3>,
         dz: &Image<f32, B, 3>,
-    ) -> (Image<f32, B, 3>, Image<f32, B, 3>, Image<f32, B, 3>) {
+    ) -> anyhow::Result<crate::DisplacementComponents<B>> {
         let (ux, dims) = extract_vec_infallible(dx);
         let (uy, _) = extract_vec_infallible(dy);
         let (uz, _) = extract_vec_infallible(dz);
         let [nz, ny, nx] = dims;
         let n = nz * ny * nx;
-        let sp = dx.spacing();
-        let og = dx.origin();
-        // world axes: x ↔ tensor axis 2, y ↔ 1, z ↔ 0.
-        let (sx, sy, sz) = (sp[2], sp[1], sp[0]);
-        let (ox, oy, oz) = (og[0], og[1], og[2]);
-        let step0 = sx; // ITK uses spacing[0] (the x axis) as the search step.
+        let geometry = CartesianGridGeometry::new(
+            dx.origin(),
+            dx.spacing(),
+            dx.direction(),
+            dx.coordinate_map(),
+        )?;
+        // ITK uses the x-axis spacing as the search step; spacing is indexed by
+        // tensor axis, so the x axis is index 2.
+        let step0 = dx.spacing()[2];
 
         let uxd: Vec<f64> = ux.iter().map(|&v| v as f64).collect();
         let uyd: Vec<f64> = uy.iter().map(|&v| v as f64).collect();
@@ -70,11 +85,16 @@ impl IterativeInverseDisplacementField {
         let negy: Vec<f64> = uyd.iter().map(|&v| -v).collect();
         let negz: Vec<f64> = uzd.iter().map(|&v| -v).collect();
 
-        // Physical point of a voxel and its index components.
+        // Physical point of a voxel and its continuous index components. Both
+        // honour the direction cosines; see `CartesianGridGeometry`.
         let phys = |z: usize, y: usize, x: usize| {
-            (ox + x as f64 * sx, oy + y as f64 * sy, oz + z as f64 * sz)
+            let p = geometry.point([z as f64, y as f64, x as f64]);
+            (p[0], p[1], p[2])
         };
-        let idx = |px: f64, py: f64, pz: f64| ((pz - oz) / sz, (py - oy) / sy, (px - ox) / sx);
+        let idx = |px: f64, py: f64, pz: f64| {
+            let i = geometry.index([px, py, pz]);
+            (i[0], i[1], i[2])
+        };
         // u(point) → world (cx-component, cy, cz) = (interp ux, interp uy, interp uz).
         let eval = |ud: (&[f64], &[f64], &[f64]), px: f64, py: f64, pz: f64| {
             let (cz, cy, cx) = idx(px, py, pz);
@@ -189,13 +209,20 @@ impl IterativeInverseDisplacementField {
         let rx: Vec<f32> = vx.iter().map(|&v| v as f32).collect();
         let ry: Vec<f32> = vy.iter().map(|&v| v as f32).collect();
         let rz: Vec<f32> = vz.iter().map(|&v| v as f32).collect();
-        (
+        Ok((
             rebuild(rx, dims, dx),
             rebuild(ry, dims, dy),
             rebuild(rz, dims, dz),
-        )
+        ))
     }
+
     /// Coeus-native counterpart to the legacy application method.
+    ///
+    /// # Errors
+    ///
+    /// Returns an error when `dx`'s coordinate map is not Cartesian, when its
+    /// direction matrix is singular, or when a device buffer cannot be read
+    /// back or rebuilt.
     pub fn apply_native<B>(
         &self,
         dx: &ritk_image::Image<f32, B, 3>,
@@ -212,12 +239,15 @@ impl IterativeInverseDisplacementField {
         let (uz, _) = ritk_tensor_ops::native::extract_image_vec(dz)?;
         let [nz, ny, nx] = dims;
         let n = nz * ny * nx;
-        let sp = dx.spacing();
-        let og = dx.origin();
-        // world axes: x ↔ tensor axis 2, y ↔ 1, z ↔ 0.
-        let (sx, sy, sz) = (sp[2], sp[1], sp[0]);
-        let (ox, oy, oz) = (og[0], og[1], og[2]);
-        let step0 = sx; // ITK uses spacing[0] (the x axis) as the search step.
+        let geometry = CartesianGridGeometry::new(
+            dx.origin(),
+            dx.spacing(),
+            dx.direction(),
+            dx.coordinate_map(),
+        )?;
+        // ITK uses the x-axis spacing as the search step; spacing is indexed by
+        // tensor axis, so the x axis is index 2.
+        let step0 = dx.spacing()[2];
 
         let uxd: Vec<f64> = ux.iter().map(|&v| v as f64).collect();
         let uyd: Vec<f64> = uy.iter().map(|&v| v as f64).collect();
@@ -226,11 +256,16 @@ impl IterativeInverseDisplacementField {
         let negy: Vec<f64> = uyd.iter().map(|&v| -v).collect();
         let negz: Vec<f64> = uzd.iter().map(|&v| -v).collect();
 
-        // Physical point of a voxel and its index components.
+        // Physical point of a voxel and its continuous index components. Both
+        // honour the direction cosines; see `CartesianGridGeometry`.
         let phys = |z: usize, y: usize, x: usize| {
-            (ox + x as f64 * sx, oy + y as f64 * sy, oz + z as f64 * sz)
+            let p = geometry.point([z as f64, y as f64, x as f64]);
+            (p[0], p[1], p[2])
         };
-        let idx = |px: f64, py: f64, pz: f64| ((pz - oz) / sz, (py - oy) / sy, (px - ox) / sx);
+        let idx = |px: f64, py: f64, pz: f64| {
+            let i = geometry.index([px, py, pz]);
+            (i[0], i[1], i[2])
+        };
         // u(point) → world (cx-component, cy, cz) = (interp ux, interp uy, interp uz).
         let eval = |ud: (&[f64], &[f64], &[f64]), px: f64, py: f64, pz: f64| {
             let (cz, cy, cx) = idx(px, py, pz);

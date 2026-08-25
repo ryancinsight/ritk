@@ -44,6 +44,7 @@ pub mod error;
 pub mod label_transfer;
 pub mod lddmm;
 pub mod metric;
+pub mod parcellation;
 pub mod regularization;
 pub mod series;
 pub mod types;
@@ -75,8 +76,7 @@ pub use bspline_ffd::{BSplineFFDConfig, BSplineFFDRegistration, BSplineFFDResult
 // Re-exports — SyN diffeomorphic registration
 // ============================================================================
 pub use deformable_field_ops::{
-    warp_image, CpuFieldSmoother, CpuOrGpu, FieldSmoother, GpuFieldSmoother, VelocityField,
-    WarpInterpolation,
+    warp_image, CpuFieldSmoother, FieldSmoother, VelocityField, WarpInterpolation,
 };
 pub use diffeomorphic::{SyNConfig, SyNRegistration, SyNResult};
 
@@ -113,6 +113,12 @@ pub use classical::{
 // Re-exports — atlas / label-map transfer (apply a transform to a label map)
 // ============================================================================
 pub use label_transfer::{label_centroids, warp_label_map};
+
+// ── Atlas-based full-brain parcellation ─────────────────────────────
+pub use parcellation::{
+    parcellate_with_atlas, parcellate_with_atlas_set, parcellation_from_labels,
+    AtlasParcellationConfig, LabelFusion, LabelledAtlas, ParcellationResult,
+};
 
 // ============================================================================
 // Re-exports — ANTs preprocessing pipeline

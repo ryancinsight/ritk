@@ -27,6 +27,8 @@ use tracing::info;
 
 use super::Backend;
 
+mod connectome;
+
 /// Streamline tractography.
 #[derive(clap::Args, Debug)]
 pub struct TractArgs {
@@ -38,6 +40,8 @@ pub struct TractArgs {
 pub enum TractCommand {
     /// Track streamlines through a diffusion tensor field.
     Dti(DtiArgs),
+    /// Reduce a tractogram and a parcellation to a region connectome.
+    Connectome(connectome::ConnectomeArgs),
 }
 
 /// Fit tensors, track through them, and write the streamlines.
@@ -161,6 +165,7 @@ impl From<Interpolation> for DirectionInterpolation {
 pub fn run(args: TractArgs) -> Result<()> {
     match args.command {
         TractCommand::Dti(args) => dti(args),
+        TractCommand::Connectome(args) => connectome::run(args),
     }
 }
 

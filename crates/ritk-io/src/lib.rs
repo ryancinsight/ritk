@@ -69,5 +69,6 @@ pub use format::vtk::{
 mod dispatch;
 pub use dispatch::{
     is_native_read_capable, is_native_write_capable, read_image_native, read_image_series_native,
-    write_image_native, ImageFormat, NativeBackend, NativeImage, NativeSeries,
+    write_image_native, write_image_series_native, ImageFormat, NativeBackend, NativeImage,
+    NativeSeries,
 };

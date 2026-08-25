@@ -11,6 +11,7 @@
 //! A_internal[:, col]   = A_nrrd[:, x]
 //! ```
 
+use anyhow::{Context, Result};
 use ritk_spatial::{Direction, Spacing, Vector};
 
 #[derive(Clone, Copy, Debug, PartialEq)]
@@ -21,9 +22,16 @@ pub(crate) struct InternalSpatialMetadata {
 
 /// Convert NRRD `[x,y,z]` space-direction vectors into RITK internal
 /// `[depth,row,col]` spacing and direction columns.
+///
+/// # Errors
+///
+/// Returns an error when a direction vector has zero or non-finite length.
+/// `Spacing` requires every component to be finite and strictly positive and
+/// asserts it, so a degenerate vector from a corrupt `space directions` field
+/// would abort the process rather than fail the read.
 pub(crate) fn metadata_from_file_space_directions(
     file_vectors: [[f64; 3]; 3],
-) -> InternalSpatialMetadata {
+) -> Result<InternalSpatialMetadata> {
     let scaled_columns = [
         vector_from_array(file_vectors[2]),
         vector_from_array(file_vectors[1]),
@@ -36,7 +44,13 @@ pub(crate) fn metadata_from_file_space_directions(
 /// Convert NRRD `[x,y,z]` scalar spacings into RITK internal
 /// `[depth,row,col]` spacing with the canonical axis-aligned direction
 /// columns `[z,y,x]`.
-pub(crate) fn metadata_from_file_spacings(file_spacing: [f64; 3]) -> InternalSpatialMetadata {
+///
+/// # Errors
+///
+/// Returns an error when a spacing is zero or non-finite.
+pub(crate) fn metadata_from_file_spacings(
+    file_spacing: [f64; 3],
+) -> Result<InternalSpatialMetadata> {
     metadata_from_file_space_directions([
         [file_spacing[0], 0.0, 0.0],
         [0.0, file_spacing[1], 0.0],
@@ -65,12 +79,13 @@ pub(crate) fn file_space_directions_from_internal(
 
 fn metadata_from_internal_scaled_columns(
     scaled_columns: [Vector<3>; 3],
-) -> InternalSpatialMetadata {
-    let spacing = Spacing::new([
+) -> Result<InternalSpatialMetadata> {
+    let spacing = Spacing::try_new([
         scaled_columns[0].norm(),
         scaled_columns[1].norm(),
         scaled_columns[2].norm(),
-    ]);
+    ])
+    .context("NRRD spatial metadata does not describe a physical grid")?;
 
     let direction_columns = [
         normalized_or_axis(scaled_columns[0], spacing[0], Vector::z_axis()),
@@ -78,10 +93,10 @@ fn metadata_from_internal_scaled_columns(
         normalized_or_axis(scaled_columns[2], spacing[2], Vector::x_axis()),
     ];
 
-    InternalSpatialMetadata {
+    Ok(InternalSpatialMetadata {
         spacing,
         direction: Direction::from_columns(direction_columns),
-    }
+    })
 }
 
 fn vector_from_array(value: [f64; 3]) -> Vector<3> {
@@ -127,7 +142,8 @@ mod tests {
             [4.0, 0.0, 0.0],
             [0.0, 3.0, 0.0],
             [0.0, 0.0, 2.0],
-        ]);
+        ])
+        .expect("valid direction vectors");
 
         assert_close(metadata.spacing[0], 2.0);
         assert_close(metadata.spacing[1], 3.0);

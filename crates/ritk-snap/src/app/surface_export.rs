@@ -43,16 +43,41 @@ fn binary_mask_from_labels(labels: &[u32]) -> Option<Vec<f32>> {
     }
 }
 
+/// Convert [`LoadedVolume`](crate::LoadedVolume) geometry into the
+/// [`MarchingCubesFilter`](ritk_filter::surface::MarchingCubesFilter)
+/// convention.
+///
+/// A `LoadedVolume` indexes `spacing` and the *columns* of its row-major
+/// `direction` by tensor axis, axis 0 the slowest-varying — the `Image`
+/// convention. The filter indexes both in `(ix, iy, iz)` order. The conversion
+/// is therefore a reversal of the spacing components and of the direction
+/// columns; passing either through unreversed transposes x and z.
+fn filter_geometry(
+    spacing: [f64; 3],
+    direction: [f64; 9],
+) -> ([f64; 3], ritk_spatial::Direction<3>) {
+    (
+        [spacing[2], spacing[1], spacing[0]],
+        ritk_spatial::Direction::from_rows([
+            [direction[2], direction[1], direction[0]],
+            [direction[5], direction[4], direction[3]],
+            [direction[8], direction[7], direction[6]],
+        ]),
+    )
+}
+
 fn build_label_surface_mesh(
     binary: &[f32],
     shape: [usize; 3],
     spacing: [f64; 3],
     origin: [f64; 3],
+    direction: ritk_spatial::Direction<3>,
 ) -> gaia::IndexedMesh<f64> {
     ritk_filter::surface::MarchingCubesFilter::new()
         .with_isovalue(0.5)
         .with_spacing(spacing)
         .with_origin(origin)
+        .with_direction(direction)
         .extract(binary, shape)
 }
 
@@ -79,9 +104,9 @@ impl SnapApp {
             return;
         };
 
-        let spacing = [vol.spacing[0], vol.spacing[1], vol.spacing[2]];
-        let origin = [vol.origin[0], vol.origin[1], vol.origin[2]];
-        let mesh = build_label_surface_mesh(&binary, map.shape.0, spacing, origin);
+        let (spacing, direction) = filter_geometry(vol.spacing, vol.direction);
+        let origin = vol.origin;
+        let mesh = build_label_surface_mesh(&binary, map.shape.0, spacing, origin, direction);
 
         match ritk_io::write_mesh_as_vtk(&path, &mesh) {
             Ok(()) => {

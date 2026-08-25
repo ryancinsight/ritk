@@ -20,8 +20,11 @@ thiserror.workspace = true
 
 [dev-dependencies]
 anyhow.workspace = true
+rand.workspace = true
 ritk-image.workspace = true
 ritk-io.workspace = true
+ritk-connectome.workspace = true
+ritk-parcellation.workspace = true
 ritk-tractography.workspace = true
 tempfile.workspace = true
 

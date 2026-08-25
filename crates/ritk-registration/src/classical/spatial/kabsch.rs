@@ -72,6 +72,7 @@ pub(crate) fn kabsch_algorithm(
         ],
     )
     .map_err(|err| SpatialError::SvdConvergence(format!("Kabsch covariance layout: {err}")))?;
+<<<<<<< HEAD
     // `svd_decompose` replaces the removed `svd_rank_revealing`. Kabsch reads
     // only `U` and `V`, and the substitution is strictly safer for a rotation:
     // the retired Jacobi path left the `U` column of a null-space direction
@@ -80,6 +81,8 @@ pub(crate) fn kabsch_algorithm(
     // Givens rotations, whose orthonormality does not depend on the singular
     // values being nonzero, so `U` and `V` stay orthonormal at every rank and
     // the determinant correction below remains meaningful.
+=======
+>>>>>>> origin/main
     let svd = svd_decompose(&h_array.view())
         .map_err(|err| SpatialError::SvdConvergence(format!("Kabsch SVD failed: {err}")))?;
 

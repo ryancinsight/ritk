@@ -15,6 +15,17 @@ pub type Backend = MoiraiBackend;
 /// Native 3-D scalar image carrier used by `PyImage`.
 pub type ScalarImage = NativeImage<f32, MoiraiBackend, 3>;
 
+/// Return the native direction for NumPy's `[Z, Y, X]` storage convention.
+///
+/// Native image metadata stores direction columns in tensor-axis order, while
+/// Python and SimpleITK expose physical coordinates in `(X, Y, Z)` order. The
+/// permutation makes tensor axis 0 advance physical Z and tensor axis 2
+/// advance physical X; [`PyImage::direction`] maps it back to the public
+/// SimpleITK layout.
+pub(crate) const fn numpy_array_direction() -> Direction<3> {
+    Direction::from_rows([[0.0, 0.0, 1.0], [0.0, 1.0, 0.0], [1.0, 0.0, 0.0]])
+}
+
 /// Medical image with physical-space metadata.
 #[pyclass(name = "Image")]
 pub struct PyImage {
@@ -43,7 +54,7 @@ impl PyImage {
             [z, y, x],
             Point::new([orig[2], orig[1], orig[0]]),
             Spacing::new(sp),
-            Direction::identity(),
+            numpy_array_direction(),
             &MoiraiBackend,
         )
         .map_err(|e| RitkPyError::runtime(e.to_string()))?;
@@ -243,5 +254,25 @@ mod tests {
             assert_eq!(first.as_ptr(), storage.as_ptr());
             assert_eq!(second.as_ptr(), storage.as_ptr());
         });
+    }
+
+    #[test]
+    fn numpy_array_direction_maps_tensor_axes_to_physical_axes() {
+        let image = vec_to_image(
+            vec![0.0; 8],
+            [2, 2, 2],
+            Point::origin(),
+            Spacing::uniform(1.0),
+            numpy_array_direction(),
+        );
+
+        assert_eq!(
+            image.continuous_index_to_physical_point(&Point::new([1.0, 0.0, 0.0])),
+            Point::new([0.0, 0.0, 1.0])
+        );
+        assert_eq!(
+            image.continuous_index_to_physical_point(&Point::new([0.0, 0.0, 1.0])),
+            Point::new([1.0, 0.0, 0.0])
+        );
     }
 }

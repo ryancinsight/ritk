@@ -44,6 +44,7 @@ where
         image.origin(),
         image.direction(),
         &voxels,
+        crate::coordinate_map::encode(image.coordinate_map()),
     )
 }
 
@@ -65,6 +66,7 @@ pub fn write_nrrd_with_data<B: ComputeBackend, P: AsRef<Path>>(
         image.origin(),
         image.direction(),
         f32_slice,
+        crate::coordinate_map::encode(image.coordinate_map()),
     )
 }
 
@@ -78,6 +80,7 @@ fn write_nrrd_flat(
     origin: &Point<3>,
     direction: &Direction<3>,
     f32_slice: &[f32],
+    coordinate_map: Option<String>,
 ) -> Result<()> {
     // shape is [nz, ny, nx] in RITK convention.
     let nz = shape[0];
@@ -128,6 +131,16 @@ fn write_nrrd_flat(
     writeln!(writer, "endian: little")?;
     writeln!(writer, "encoding: raw")?;
     writeln!(writer, "space origin: {}", space_origin)?;
+    // Acquisition geometry, as a NRRD key/value field. Cartesian is written by
+    // omission, so ordinary volumes are byte-identical to before.
+    if let Some(encoded) = coordinate_map {
+        writeln!(
+            writer,
+            "{}:={}",
+            crate::coordinate_map::COORDINATE_MAP_KEY,
+            encoded
+        )?;
+    }
     // Blank line terminates the header; binary data follows immediately.
     writeln!(writer)?;
 
@@ -212,7 +225,7 @@ fn write_nrrd_series_flat(
     // One volume has no acquisition axis to declare, so it takes the ordinary
     // rank-3 path and stays byte-identical to `write_nrrd`.
     if let [single] = payloads {
-        return write_nrrd_flat(path, shape, spacing, origin, direction, single);
+        return write_nrrd_flat(path, shape, spacing, origin, direction, single, None);
     }
 
     let [nz, ny, nx] = shape;

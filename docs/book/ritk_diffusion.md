@@ -410,7 +410,7 @@ for tractography. The direction-field helpers live in `ritk-tractography`
 
 | Model | Direction source | Tractography helper |
 |---|---|---|
-| DTI | `principal_eigenvector()` | `dti_pev_direction_field(tensor)` |
+| DTI | `DtiVolume::direction_at()` | `dti_volume_direction_field(volume)` |
 | DKI | `principal_eigenvector()` | (same PEV, richer kurtosis metrics) |
 | ODF | `OdField` peak | (manual peak extraction) |
 | CSD | `FodVolume::direction_at()` | `fod_volume_direction_field(volume)` |

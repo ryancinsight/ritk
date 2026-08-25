@@ -245,3 +245,94 @@ fn planar_interface_vertices_at_half_z() {
         );
     }
 }
+
+// ─── Direction cosines rotate vertex positions ────────────────────────────
+
+#[test]
+fn oblique_direction_rotates_vertex_positions() {
+    // Regression for ATLAS-RITK-TRANSFORM-DIRECTION-081: `extract` composed
+    // origin and spacing but dropped the direction matrix, so an obliquely
+    // acquired volume produced a plausible but displaced surface.
+    //
+    // Geometry: origin (10, 20, 30) mm, anisotropic spacing (2, 3, 4) mm in
+    // (ix, iy, iz) order, and a proper rotation of the (x, y) plane by the
+    // exact 3-4-5 angle (cos = 0.6, sin = 0.8):
+    //
+    //     D = [ 0.6  -0.8   0 ]     column 0 = physical direction of ix
+    //         [ 0.8   0.6   0 ]     column 1 = physical direction of iy
+    //         [ 0     0     1 ]     column 2 = physical direction of iz
+    //
+    // D is orthonormal with det = 0.36 + 0.64 = 1, so the mapping is a rigid
+    // rotation and the expected coordinates below are exact rationals.
+    //
+    // The 2x2x2 single-active-corner fixture cuts edges 0, 3 and 8, whose
+    // index-space midpoints are (ix, iy, iz) = (0.5, 0, 0), (0, 0.5, 0) and
+    // (0, 0, 0.5). Hand-computing vertex = origin + D * (spacing (.) index):
+    //
+    //   edge 0: scaled = (1.0, 0, 0) -> D*scaled = ( 0.6, 0.8, 0) -> (10.6, 20.8, 30.0)
+    //   edge 3: scaled = (0, 1.5, 0) -> D*scaled = (-1.2, 0.9, 0) -> ( 8.8, 20.9, 30.0)
+    //   edge 8: scaled = (0, 0, 2.0) -> D*scaled = ( 0,   0,   2) -> (10.0, 20.0, 32.0)
+    //
+    // Dropping D instead yields (11.0, 20.0, 30.0) and (10.0, 21.5, 30.0) for
+    // edges 0 and 3 — displaced by 0.89 mm and 2.28 mm respectively. Edge 8 is
+    // unchanged because column 2 is already the identity, which is exactly why
+    // an axis-aligned fixture cannot detect the defect.
+    let mut data = vec![0.0f32; 8];
+    data[0] = 1.0;
+
+    let direction = Direction::from_rows([[0.6, -0.8, 0.0], [0.8, 0.6, 0.0], [0.0, 0.0, 1.0]]);
+    assert!(
+        direction.is_orthogonal(),
+        "fixture direction must be orthonormal"
+    );
+
+    let mesh = MarchingCubesFilter::new()
+        .with_origin([10.0, 20.0, 30.0])
+        .with_spacing([2.0, 3.0, 4.0])
+        .with_direction(direction)
+        .extract(&data, [2, 2, 2]);
+
+    assert_eq!(mesh.face_count(), 1);
+    let verts = collect_vertices(&mesh);
+    assert_eq!(verts.len(), 3);
+
+    let expected = [[10.6, 20.8, 30.0], [8.8, 20.9, 30.0], [10.0, 20.0, 32.0]];
+    for want in expected {
+        let found = verts
+            .iter()
+            .any(|got| (0..3).all(|k| (got[k] - want[k]).abs() < 1e-9));
+        assert!(
+            found,
+            "expected an oblique vertex at {want:?}, got {verts:?}"
+        );
+    }
+}
+
+#[test]
+fn identity_direction_matches_the_direction_free_form() {
+    // The axis-aligned bit-identity guard: with the identity direction the
+    // emitted coordinates must be *exactly* the direction-free composition
+    // `origin + spacing (.) index`, bit for bit, not merely within a tolerance.
+    let mut data = vec![0.0f32; 8];
+    data[0] = 1.0;
+
+    let mesh = MarchingCubesFilter::new()
+        .with_origin([10.0, 20.0, 30.0])
+        .with_spacing([2.0, 3.0, 4.0])
+        .with_direction(Direction::identity())
+        .extract(&data, [2, 2, 2]);
+
+    let mut got = collect_vertices(&mesh);
+    let mut want = vec![
+        [10.0 + 0.5 * 2.0, 20.0, 30.0],
+        [10.0, 20.0 + 0.5 * 3.0, 30.0],
+        [10.0, 20.0, 30.0 + 0.5 * 4.0],
+    ];
+    let order = |a: &[f64; 3], b: &[f64; 3]| {
+        a.partial_cmp(b)
+            .expect("invariant: fixture coordinates are finite")
+    };
+    got.sort_by(order);
+    want.sort_by(order);
+    assert_eq!(got, want, "identity direction must be bit-identical");
+}

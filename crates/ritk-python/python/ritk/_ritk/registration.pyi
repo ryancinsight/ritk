@@ -1,12 +1,13 @@
 """Type stubs for the ``_ritk.registration`` submodule (PyO3/maturin).
 
-All signatures derived from ``ritk-python/src/registration.rs``.
+All signatures derived from ``ritk-python/src/registration/``.
 """
 
 from __future__ import annotations
 
 from typing import Any
 
+from ritk._ritk.connectome import Parcellation
 from ritk._ritk.image import Image
 
 class GlobalMiOptions:
@@ -140,6 +141,27 @@ def joint_label_fusion_py(
     patch_radius: int = 2,
     beta: float = 0.1,
 ) -> tuple[Image, Image]: ...
+
+# -- Atlas-driven subject parcellation -----------------------------------------
+
+class AtlasParcellationResult:
+    @property
+    def parcellation(self) -> Parcellation: ...
+    @property
+    def agreement(self) -> Any: ...
+    @property
+    def registration_quality(self) -> list[float]: ...
+
+def parcellate_with_atlases(
+    subject: Image,
+    atlas_intensities: list[Image],
+    atlas_labels: list[Image],
+    fusion: str = "majority",
+    iterations: list[int] | None = None,
+    patch_radius: int = 2,
+    beta: float = 0.1,
+    region_names: list[tuple[int, str]] | None = None,
+) -> AtlasParcellationResult: ...
 
 # -- Global affine/rigid Mutual Information registration -----------------------
 

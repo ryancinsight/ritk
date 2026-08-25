@@ -19,8 +19,8 @@ use super::entropy::{joint_entropy, joint_entropy_n, marginal_entropy, min_max};
 
 /// Standard bivariate mutual information I(X;Y) = H(X) + H(Y) − H(X,Y).
 ///
-/// Rounding noise around zero is collapsed to zero; see
-/// [`non_negative_information`] for why a larger negative is an error instead.
+/// Rounding noise around zero is collapsed to zero; a larger negative is an
+/// error because it indicates inconsistent entropy terms.
 ///
 /// # Errors
 /// Propagates errors from [`joint_entropy`] and [`marginal_entropy`], and
@@ -143,7 +143,7 @@ pub fn symmetric_uncertainty(a: &[f32], b: &[f32], num_bins: usize) -> Result<f6
 /// cost of ~4× more histogram updates per sample.
 ///
 /// Rounding noise around zero is collapsed to zero; a larger negative is an
-/// error, per [`non_negative_information`].
+/// error because it indicates inconsistent entropy terms.
 ///
 /// # Errors
 /// Returns an error when lengths differ, `a` is empty, or `num_bins < 2`.

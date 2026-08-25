@@ -873,6 +873,25 @@ fn build_deconvolution_matrix(
 /// [`crate::maps::DtiVolume`] uses the `Image` order instead, because it is
 /// queried with voxel indices rather than physical points. Neither order is
 /// arbitrary: each matches the frame its own queries arrive in.
+///
+/// # Orientation
+///
+/// This type carries no direction cosines, and its index/physical mapping is
+/// the axis-aligned affine `point = origin + spacing (.) index`. That is a
+/// property of the type's contract,
+/// not an unstated assumption about some upstream image: a `FodVolume` *defines*
+/// the frame its own queries are answered in, and every coordinate that crosses
+/// its API — the physical points passed to [`FodVolume::direction_at`], the
+/// peak directions it returns, and the streamline points a tractography pass
+/// accumulates from them — is expressed in that same frame. Nothing here reads
+/// an `Image`, so there is no direction matrix in scope to drop.
+///
+/// The consequence is a requirement on whoever eventually builds one from an
+/// obliquely acquired DWI series: the caller owns the resampling or the
+/// rotation into this frame, and must rotate the emitted directions back if it
+/// needs them in the scanner frame. Adding a direction matrix here — rather
+/// than at that boundary — is the change to make if a volume-level CSD pipeline
+/// is introduced.
 #[derive(Debug, Clone)]
 pub struct FodVolume {
     /// Flat coefficient array: `[z][y][x][coefficient_index]`.
@@ -990,6 +1009,13 @@ impl FodVolume {
     }
 
     /// Convert physical coordinates to continuous voxel indices.
+    ///
+    /// The mapping is the axis-aligned affine `(point - origin) ./ spacing`,
+    /// with no direction-cosine term, because a [`FodVolume`] carries no
+    /// direction: it defines its own frame and both the points it is queried
+    /// with and the directions it returns live in that frame. See the type's
+    /// *Orientation* section for what that requires of a caller holding an
+    /// oblique acquisition.
     ///
     /// Returns `None` when any component of `point` is non-finite.
     fn world_to_voxel(&self, point: &ritk_spatial::Point<3>) -> Option<[f64; 3]> {

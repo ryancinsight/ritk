@@ -81,6 +81,17 @@ nominal weighting, gradients, unsupported B-matrix/NEX compression, or the
 frame information required for a non-identity conversion is an explicit
 error; the reader does not invent zero weightings.
 
+### DTI volume placement
+
+`DiffusionMaps` retains the `GradientFrame` supplied by its
+`GradientScheme`. `DtiVolume` is an image-index-space consumer, so its
+constructor accepts only `ImageAxis` maps and performs the one convention
+conversion from external `[column, row, depth]` components to RITK's
+`[depth, row, column]` voxel-index components before nearest or interpolated
+queries. It rejects `Lps` maps because a physical-to-index transform requires
+image geometry that the volume does not own. This keeps codec provenance and
+grid placement explicit and removes the example-local reorder.
+
 ### Analytical Q-ball reconstruction
 
 The normalized signal is fitted in Apollo's real even-order spherical-
@@ -201,6 +212,12 @@ regenerates and diffs that artifact.
 ## Revision history
 
 - 2026-07-31: Initial accepted decision for FEAT-686-01.
+- 2026-08-20: Revised the accepted frame decision for `FIX-DTI-VOLUME-FRAME`:
+  retain the acquisition frame in `DiffusionMaps`, centralize ImageAxis grid
+  placement in `DtiVolume`, and classify the public error-enum change as
+  major. The driving evidence was the reusable volume and CLI path's inability
+  to enforce the conversion while the book example carried its own adapter;
+  focused permutation and LPS-rejection tests now pin the boundary.
 - 2026-07-31: Reclassified the release impact from major to minor after
   `cargo-semver-checks` found no break against `d3d3d811`; the architecture is
   new and the existing-crate surfaces are additive.

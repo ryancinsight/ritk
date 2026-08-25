@@ -1,112 +1,162 @@
-# Example: A Real Subject
+# Human Tractography and Connectomics
 
-The [previous example](diffusion_tractography.md) demonstrates the method on a
-synthetic single-fibre phantom, where the tensor that generated the signal is
-known and the recovered ODF peak can be asserted at exactly zero degrees of
-error. That is a statement about correctness.
+The analytical [signal-to-streamlines example](diffusion_tractography.md) can
+test recovery against a known fibre axis. Human diffusion MRI has no equivalent
+voxelwise ground truth. This workflow therefore makes a narrower claim: RITK
+can reproducibly fit a complete public human acquisition, create a whole-brain
+tractogram, assign endpoints to an aligned anatomical parcellation, and expose
+the validation evidence and residual limitations with the result.
 
-This one is a different claim. It runs the same estimators over a real
-acquisition, where no ground truth exists, and shows what they produce. The
-question it answers is not "is the method right" but "does the method, applied
-to scanner data, recover anatomy".
+![Directionally encoded fractional anisotropy, whole-brain streamlines, and endpoint connectome from Stanford HARDI](../figures/brain_tractography.svg)
 
-![Fractional anisotropy and deterministic streamlines from a real diffusion acquisition](../figures/brain_tractography.svg)
+## Data and provenance
 
-## The data
+The input is the [Stanford HARDI dataset](https://purl.stanford.edu/yx282xq2090):
+81 × 106 × 76 human diffusion MRI voxels, 150 directions at
+\(b=2000\) s/mm², 10 \(b=0\) volumes, and a DWI-aligned reduced FreeSurfer
+parcellation. The repository record states that the diffusion series was
+motion-corrected to the mean \(b=0\) image but was not eddy-current corrected.
 
-OpenNeuro [`ds002087`](https://openneuro.org/datasets/ds002087) sub-01, released
-under CC0. 104 × 104 × 72 voxels at 2 mm isotropic, 99 volumes at \(b = 0\) and
-\(b = 700\) s/mm², with FSL `bval`/`bvec` sidecars.
+The data use the [Open Data Commons PDDL 1.0](https://opendatacommons.org/licenses/pddl/1-0/)
+public-domain dedication. Stanford's record also prohibits attempts to identify
+participants or infringe their privacy. This example performs aggregate method
+demonstration only.
 
-The dataset is not committed — only its provenance is. Fetch it, then
-regenerate the figure:
+Imaging bytes are gitignored. The download script resolves each Stanford object
+directly and verifies the five MD5 digests published with the dataset fetcher:
 
 ```bash
 bash test_data/diffusion/download.sh
 cargo run --release -p ritk-diffusion --example book_brain_tractography
 ```
 
-The script clones the OpenNeuro DataLad repositories for the sidecars and pulls
-the DWI volume from the public S3 bucket. The clones carry git-annex *pointer*
-files rather than imaging data — a `.nii.gz` there is a few hundred bytes naming
-a key — so the volume is fetched directly instead of requiring git-annex. Re-runs
-skip files already present, judged by size rather than existence, since an
-existence check would happily accept the pointer.
+The executable exits without writing when the data are absent. A successful
+run replaces both the figure above and the complete
+[connectivity matrix JSON](../figures/brain_connectome.json).
 
-The example exits without writing when the data is absent, so it stays runnable
-where the dataset is not present.
+## Creation workflow
 
-## Reading the panels
+The example executes one deterministic path:
 
-Both panels are **directionally encoded**: red is left-right, green
-anterior-posterior, blue superior-inferior, following the standard diffusion
-convention. Colour comes from the absolute components of the local orientation —
-absolute because an eigenvector has no sign, so a fibre running left-to-right
-must not change colour against one running right-to-left.
+1. Parse all 160 FSL gradient entries. Six-decimal unit vectors are normalised
+   only when their norm error is within the derived \(10^{-5}\) rounding
+   envelope; larger errors remain invalid input.
+2. Read the DWI and reduced parcellation through RITK's native NIfTI boundary.
+   Their shape, origin, spacing, and direction matrix must match exactly.
+3. Fit a diffusion tensor at every valid voxel. Seed image labels 1 and 2
+   (cerebral white matter and corpus callosum) at fractional anisotropy
+   \(\mathrm{FA}\geq0.25\).
+4. Track bidirectionally with 0.5-voxel Euler steps, sign-invariant trilinear
+   orientation interpolation, a 60-degree turn limit, and a continuation floor
+   of \(\mathrm{FA}=0.15\). The fitted maps retain `GradientFrame`; `DtiVolume`
+   validates the FSL `ImageAxis` frame and performs the single
+   `(column,row,depth)` to `[depth,row,column]` permutation at its image-grid
+   boundary before integration. No example-local adapter is involved.
+5. Convert the tracker's `[depth,row,column]` coordinates to parcellation
+   `[x,y,z]`, then count each endpoint pair in the undirected regional matrix.
+   White-matter labels are background for endpoint assignment; only
+   grey-matter labels actually present in the image become graph nodes.
+6. Transform each streamline through the reference image geometry before
+   reporting its physical length in millimetres.
 
-That mapping is derived per volume rather than assumed. `resolve_colour_channels`
-reads the image's own direction cosines and works out which anatomical axis each
-gradient component actually points along, because the two orders involved are
-reversed: FSL `bvec` components are in image-axis order `(i, j, k)`, while RITK
-stores direction cosines as `[depth, row, column]` against LPS rows. It fails
-rather than guesses when an axis has no dominant anatomical direction, which is
-what an obliquely acquired volume looks like — colours would then name
-directions the data does not have. For this acquisition the sform is
-axis-aligned to within a few degrees, so the resolved channels are the identity.
+These are explicit method choices, not tuned claims of anatomical optimality.
+The source is
+[`book_brain_tractography.rs`](https://github.com/ryancinsight/ritk/blob/main/crates/ritk-diffusion/examples/book_brain_tractography.rs).
 
-**Panel 1 — fractional anisotropy.** One tensor is fitted per voxel from all 99
-volumes; FA is the rotationally invariant measure of how directional that
-tensor is, and here it sets the brightness while orientation sets the hue. The
-anatomy is the check, because it is not something a bug produces:
+## Computed result
 
-- the **corpus callosum** reads as a bright arc, genu anteriorly and splenium
-  posteriorly, which is the most coherent white matter in the brain;
-- the **ventricles** are dark, as they must be — cerebrospinal fluid diffuses
-  isotropically, so its FA is near zero;
-- **cortical grey matter** is dark at the periphery while the interior white
-  matter is bright;
-- the **internal capsule** is visible lateral to the ventricles.
+The committed artifacts are generated from the checksummed acquisition:
 
-**Panel 2 — streamlines.** Deterministic tracking follows the principal
-eigenvector through the fitted field, seeded in the most anisotropic voxels.
-Each segment is coloured by its own local direction rather than each track by a
-single colour, since a streamline changes orientation along its length and one
-stroke colour would average that away.
-Tracking is three-dimensional over a 29-slice slab; the tracks are projected
-onto the rendered plane for display. Their agreement with the bright structure
-underneath is the check — tracks straying onto dark tissue would mean the
-direction field and the FA map disagree.
+| Measure | Result |
+|---|---:|
+| Tensor-fitted voxels | 222,880 |
+| White-matter seeds | 9,737 |
+| Generated streamlines | 9,737 |
+| Median physical length | 70.0 mm |
+| Streamlines assigned to a region pair | 2,350 (24.1 %) |
+| Same-region assignments | 355 |
+| Inter-region assignments | 1,995 |
+| Image-present grey-matter regions | 84 |
+| Nonzero inter-region edges | 368 |
+| Graph density | 0.106 |
 
-Streamlines are `gaia::Polyline` values, not a RITK-local curve type, per
-[ADR 0036](https://github.com/ryancinsight/atlas/blob/main/docs/adr/0036-neuroimaging-and-mr-ownership.md).
+The strongest non-self edges are descriptive outputs of this tracking and
+endpoint policy:
 
-## Two choices the figure depends on
+| Source | Target | Streamlines |
+|---|---|---:|
+| left superior frontal | right superior frontal | 232 |
+| right inferior parietal | right superior parietal | 44 |
+| left precuneus | right precuneus | 43 |
+| left superior parietal | left thalamus proper | 39 |
+| left superior parietal | right precuneus | 38 |
 
-Both exist because a plausible-looking map is easy to produce by accident.
+The complete JSON preserves all 84 labels, the fully symmetric 84 × 84 weight
+array — both `(i, j)` and `(j, i)` carry the weight — and the streamline
+accounting: how many were supplied, how many produced an inter-region edge, how
+many stayed within one region, and how many could not be assigned. A table entry
+is a streamline count, not an axon count, connection probability, or effect
+size.
 
-**A background mask.** Outside the head the signal is noise, and a tensor
-fitted to noise is strongly anisotropic. Without masking, a bright rim traces
-the skull and dominates the FA range. Voxels below 12 % of the \(b = 0\)
-signal's 98th percentile are not fitted.
+## Reading the figure
 
-**Rejecting degenerate fits, not dim voxels.** Some voxels pass the intensity
-mask yet still yield a collapsed, rank-one tensor: one large eigenvalue with the
-other two near zero. Such a tensor is positive-definite, so a sign check accepts
-it, and its FA approaches 1. Fits are therefore rejected on physics — a smallest
-eigenvalue below 10⁻⁵ mm²/s, or a largest above free water at 3.2 × 10⁻³ mm²/s,
-is not a measurement.
+**1. Directionally encoded FA.** Brightness is fractional anisotropy. Hue is
+the absolute principal-eigenvector direction in anatomical axes: red
+left-right, green anterior-posterior, blue superior-inferior. The callosal arc,
+bilateral projection anatomy, dark ventricles, and darker cortical rim are
+visible. Colour channels are derived from the NIfTI direction matrix instead
+of assuming storage axes.
 
-## What this figure does not claim
+**2. Whole-brain streamlines.** The middle panel projects a bounded sample of
+the three-dimensional tractogram over the same axial plane. Each polyline's
+colour encodes its endpoint-to-endpoint direction. All 9,737 streamlines
+contribute to the reported measures and connectome even though at most 900 are
+drawn.
 
-Peak FA in the rendered slice is **0.972**. Coherent white matter measures
-roughly 0.85–0.90, so the highest values here are still fit artefacts rather
-than tissue — residual partial-volume voxels at boundaries, which single-shell
-DTI at \(b = 700\) does not resolve. The remedy is a better fit or proper brain
-extraction, not a tighter constant: tightening the eigenvalue floor until the
-peak looks physiological would tune a threshold to move a number rather than fix
-the estimate.
+**3. Endpoint connectome.** The symmetric heat map uses
+\(\log(1+w)\) colour scaling so both weak and strong nonzero edges remain
+visible. The upper-left and lower-right blocks are within-hemisphere edges; the
+off-diagonal blocks are inter-hemisphere edges. Empty cells are zero, not
+missing observations.
 
-No clinical or anatomical conclusion should be drawn from one subject, one
-slice, and an uncorrected acquisition. Motion, eddy-current, and susceptibility
-correction are all available in RITK and none is applied here — the figure shows
-the estimators, not a pipeline.
+## Validation evidence
+
+The workflow checks claims at distinct levels:
+
+| Level | Executed oracle | Established claim |
+|---|---|---|
+| Provenance | Exact MD5 for all five downloaded files | The run uses the identified public objects |
+| Gradient boundary | 160-entry count, finite values, and bounded unit-vector normalisation | FSL metadata enters the tensor model without accepting materially invalid directions |
+| Spatial alignment | Exact shape, origin, spacing, and direction equality | DWI index points and parcellation labels share one transform |
+| Tracking accounting | Seeds attempted = streamlines generated = 9,737 | Every selected seed produced one retained streamline |
+| Connectome accounting | \(9737=7387+355+1995\) and the matrix sum is 2,350 | Every streamline is classified exactly once; assigned weights are neither lost nor duplicated |
+| Matrix symmetry | `weight(a,b) == weight(b,a)` for every region pair | Undirected queries agree with the stored upper triangle |
+| Visual inspection | Generated anatomy, tracks, labels, and printed metrics inspected together | The figure depicts the computed acquisition and not placeholder geometry |
+
+These checks establish reproducibility and internal consistency. The
+[DIPY Stanford connectivity example](https://docs.dipy.org/1.12.0/examples_built/streamline_analysis/streamline_tools.html)
+uses the same aligned DWI/label relationship and endpoint-count interpretation,
+which supplies an independent convention check rather than a numeric oracle.
+
+## Limits of the result
+
+- The input is one subject and retains acquisition artefacts: no eddy-current
+  or susceptibility correction is applied here.
+- A tensor model uses one orientation per voxel even though the HARDI
+  acquisition can support multi-fibre modelling. Crossing fibres therefore
+  remain unresolved.
+- Tracking is deterministic and is not anatomically constrained. The 24.1 %
+  exact endpoint-assignment rate exposes that many tracks terminate in
+  white matter or background under this policy; the example does not dilate
+  labels or search nearby cortex to inflate the count.
+- Raw streamline counts depend on seeding, stopping, length, geometry, and
+  parcellation. No SIFT-class correction, null model, population normalisation,
+  or test-retest analysis is applied.
+- A coherent tractogram can contain false-positive bundles. The international
+  tractography challenge found this even among state-of-the-art pipelines
+  ([Maier-Hein et al., Nature Communications 8, 1349, 2017](https://doi.org/10.1038/s41467-017-01285-x)).
+
+Consequently this is method and software validation, not anatomical ground
+truth or clinical validation. Stronger biological evidence requires an
+independent reference such as physical phantoms, tracer or histological data,
+and a prospectively specified population protocol.

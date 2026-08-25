@@ -4,6 +4,7 @@ pub mod curvature_flow;
 pub mod gradient_anisotropic;
 pub mod min_max_curvature_flow;
 pub mod perona_malik;
+pub mod srad;
 
 // ── Shared finite-difference stencil helpers ──────────────────────────────────
 // Used by the ITK-matching anisotropic-diffusion functions (gradient + curvature),
@@ -51,3 +52,4 @@ pub use perona_malik::{
     AnisotropicDiffusionFilter, ConductanceFunction, ConductanceKernel, DiffusionConfig,
     ExponentialConductance, QuadraticConductance,
 };
+pub use srad::{SpeckleReducingDiffusionFilter, SradConfig};

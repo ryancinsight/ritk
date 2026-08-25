@@ -8,11 +8,11 @@
 
 use crate::array_utils::copy_array4_to_vec;
 use crate::errors::{RitkPyError, RitkResult};
-use crate::image::{image_to_vec, into_py_image, vec_to_image, PyImage};
+use crate::image::{image_to_vec, into_py_image, numpy_array_direction, vec_to_image, PyImage};
 use coeus_core::MoiraiBackend;
 use numpy::{PyArray1, PyArray4, PyArrayMethods, PyReadonlyArray4, PyUntypedArrayMethods};
 use pyo3::prelude::*;
-use ritk_core::spatial::{Direction, Point, Spacing};
+use ritk_core::spatial::{Point, Spacing};
 use ritk_filter::{
     map_color_components, physical_point_image_source as core_physical_point_image_source,
     Colormap, GradientImageFilter, GradientRecursiveGaussianImageFilter,
@@ -57,7 +57,7 @@ impl PyColorImage {
             [z, y, x],
             Point::new([orig[2], orig[1], orig[0]]),
             Spacing::new(sp),
-            Direction::identity(),
+            numpy_array_direction(),
             &MoiraiBackend,
         )
         .map_err(|e| RitkPyError::value(e.to_string()))?;
@@ -159,7 +159,7 @@ pub fn physical_point_image_source(
         dims,
         Point::new([origin.2, origin.1, origin.0]),
         Spacing::new([spacing.2, spacing.1, spacing.0]),
-        Direction::identity(),
+        numpy_array_direction(),
         &MoiraiBackend,
     )
     .map_err(|e| RitkPyError::runtime(e.to_string()))?;

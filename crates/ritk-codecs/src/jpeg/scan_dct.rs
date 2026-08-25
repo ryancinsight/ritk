@@ -344,3 +344,112 @@ fn decode_baseline_ycbcr(
         pixels,
     })
 }
+
+#[cfg(test)]
+pub(crate) mod tests {
+    use super::*;
+    use crate::jpeg::fixtures::{baseline_grayscale_fixture, baseline_ycbcr_fixture};
+    use crate::jpeg::marker::parse_jpeg;
+
+    /// Decode the fragment the way the public entry point does.
+    ///
+    /// Returns `None` for any stream the header stage rejects, so a sweep can
+    /// tell "refused at the header" from "reached the scan".
+    fn decode_fragment(fragment: &[u8]) -> Option<Result<JpegDecoded>> {
+        let frame = parse_jpeg(fragment).ok()?;
+        let entropy = fragment.get(frame.scan_data_start..)?;
+        match frame.sof.sof_marker {
+            SOF0 | SOF1 => Some(decode_baseline_scan(&frame, entropy)),
+            _ => None,
+        }
+    }
+
+    /// Every truncation of the baseline stream errors rather than panicking.
+    ///
+    /// The header sweeps in `marker.rs` cover their own stage thoroughly, but
+    /// their fixtures are single-component lossless, so nothing exercised the
+    /// entropy decoder against a short stream. The entropy stage pads with
+    /// 1-bits at end of data by design, so a truncated scan decodes to
+    /// *something*; what matters is that it stays inside its buffers.
+    #[test]
+    fn truncating_the_baseline_stream_never_panics() {
+        for fixture in [baseline_grayscale_fixture(), baseline_ycbcr_fixture()] {
+            for cut in 0..fixture.len() {
+                let Some(result) = decode_fragment(&fixture[..cut]) else {
+                    continue; // rejected at the header stage, which is its own sweep
+                };
+                if let Ok(decoded) = result {
+                    assert_eq!(
+                        decoded.pixels.len(),
+                        decoded.width * decoded.height * decoded.pixel_format.pixel_bytes(),
+                        "prefix of {cut} bytes produced a buffer inconsistent with its dimensions"
+                    );
+                }
+            }
+            assert!(
+                decode_fragment(&fixture)
+                    .expect("intact stream reaches the scan")
+                    .is_ok(),
+                "the intact fixture must decode"
+            );
+        }
+    }
+
+    /// Single-byte corruption either fails or yields a self-consistent image.
+    ///
+    /// The scan stage indexes plane buffers by MCU geometry derived from SOF
+    /// dimensions and sampling factors, and steps Huffman tables by decoded
+    /// symbols. Substituting the extremes at every offset reaches each of those
+    /// without needing a corpus.
+    ///
+    /// Both halves of the assertion matter. Arriving here at all requires no
+    /// panic, and any image that comes back must have a buffer matching the
+    /// dimensions it reports — so a decoder that sized a plane from one
+    /// component count and reported another fails here too.
+    #[test]
+    fn single_byte_corruption_of_the_baseline_stream_stays_self_consistent() {
+        for fixture in [baseline_grayscale_fixture(), baseline_ycbcr_fixture()] {
+            for offset in 0..fixture.len() {
+                for byte in [0x00u8, 0x0F, 0xF0, 0xFF] {
+                    let mut corrupt = fixture.clone();
+                    corrupt[offset] = byte;
+                    let Some(Ok(decoded)) = decode_fragment(&corrupt) else {
+                        continue;
+                    };
+                    assert_eq!(
+                        decoded.pixels.len(),
+                        decoded.width * decoded.height * decoded.pixel_format.pixel_bytes(),
+                        "byte {byte:#04X} at offset {offset} produced a buffer inconsistent                          with its {}x{} dimensions",
+                        decoded.width,
+                        decoded.height
+                    );
+                }
+            }
+        }
+    }
+
+    /// The fixture must decode, or every sweep built on it proves nothing.
+    #[test]
+    fn the_baseline_fixture_decodes_to_mid_grey() {
+        let fixture = baseline_ycbcr_fixture();
+        let frame = parse_jpeg(&fixture).expect("the fixture is a conforming baseline stream");
+        assert_eq!(frame.sof.sof_marker, SOF0);
+        assert_eq!(frame.sof.components.len(), 3);
+        assert_eq!(frame.sos.components.len(), 3);
+
+        let decoded = decode_baseline_scan(&frame, &fixture[frame.scan_data_start..])
+            .expect("all-zero coefficients decode");
+        assert_eq!(decoded.pixel_format, JpegPixelFormat::Rgb24);
+        assert_eq!(decoded.width, 8);
+        assert_eq!(decoded.height, 8);
+        assert_eq!(decoded.pixels.len(), 8 * 8 * 3);
+        // Y=Cb=Cr=128 is achromatic, so every RGB channel lands on the level
+        // shift. One off-by-one either way is the YCbCr rounding.
+        for (i, &sample) in decoded.pixels.iter().enumerate() {
+            assert!(
+                sample.abs_diff(128) <= 1,
+                "sample {i} is {sample}, expected the 128 level shift"
+            );
+        }
+    }
+}

@@ -6,7 +6,209 @@
 > wording unless touched by the current slice. Domain medical-atlas terms are
 > preserved.
 
+## ATLAS-RITK-BOOK-STAGING-2026-08-20 — current lane
+
+- [x] Rebase the clean lane from RITK `origin/main` `ad508525` and preserve
+      the existing package/crate inputs.
+- [x] Pin the caller to Atlas shared workflow commit `20c9398`.
+- [ ] Collect exact-head Rust and mdBook hosted checks, merge at terminal
+      success, verify the merged default, and close the Atlas residual.
+
 # RITK Sprint Checklist — Active
+
+## FIX-DTI-VOLUME-FRAME [major][arch] — Preserve diffusion coordinate frames
+
+- [x] Record the frame contract in ADR 0017 and retain `GradientFrame` in
+      `DiffusionMaps`.
+- [x] Validate `ImageAxis` at `DtiVolume` construction and centralize the
+      `[column,row,depth]` to `[depth,row,column]` conversion before lookup and
+      interpolation.
+- [x] Delete the book example's FSL adapter and update the CLI path to consume
+      the provider-owned volume contract directly.
+- [x] Add value-semantic axis, oblique-direction, interpolation, and LPS
+      rejection regressions; classify the public error-enum change as major.
+- [x] Pass Rustfmt, `git diff --check`, and locked no-dependency metadata at
+      source commit `14a9c619`.
+- [x] Run the focused locked `ritk-diffusion` Nextest outside the Atlas
+      overlay: run `39e59a64-6827-4555-a5c2-6b62b4058078` passes 184/184
+      tests with 11 configured skips.
+- [ ] Run the focused Clippy/doctest gates with the provider's MSVC toolchain,
+      collect exact-head hosted CI, merge, and advance the Atlas gitlink. The
+      in-tree locked command is still blocked by the Atlas overlay's unused
+      local patches; the overlay-free local lint attempt is separately blocked
+      by the host's unavailable MSVC linker context.
+
+## DOC-HUMAN-CONNECTOME [patch] — Human tractography and connectomics
+
+- [x] Select a public human HARDI acquisition with aligned anatomical labels,
+      durable provenance, and redistributable metadata.
+- [x] Verify all five input checksums and require exact DWI/parcellation shape
+      and spatial-transform agreement.
+- [x] Run whole-brain tensor fitting, white-matter seeding, deterministic
+      tracking, endpoint assignment, and physical-length measurement.
+- [x] Assert seed/streamline accounting, matrix-weight accounting, and
+      undirected query symmetry with value-semantic tests.
+- [x] Regenerate and inspect the three-panel human SVG and complete matrix JSON.
+- [x] Document exact quantitative results and separate reproducibility from
+      anatomical or clinical validation.
+- [x] Pass formatting, warning-denied Clippy, focused Nextest/doctest gates,
+      mdBook test/build, strict links, and diff checks.
+- [ ] Collect exact-head hosted gates, merge, verify Pages deployment, and
+      confirm live chapter and artifact HTTP responses.
+
+## BUILD-BLOCK-MATCHING-LOCK [patch] — Restore locked resolution
+
+- [x] Reproduce the post-merge `--locked` failure from the missing
+      `ritk-block-matching` package entry.
+- [x] Regenerate `Cargo.lock` mechanically and confirm the diff adds only the
+      new path package and its existing `anyhow` dependency.
+- [x] Pass locked tractography-example execution and warning-denied Clippy.
+
+## DOC-TRACTOGRAPHY-VALIDATION [patch] — Create and validate tractography
+
+- [x] Confirm the existing `tractography.md` chapter is the authoritative home
+      and avoid adding a competing tutorial page.
+- [x] Add one public-API creation workflow with executable analytical oracles.
+- [x] Separate numerical/geometric verification from anatomical and clinical
+      validation claims.
+- [x] Regenerate and inspect the existing deterministic tractography figure;
+      the 48 acquisition directions, attenuation curve, 0.00-degree ODF axis,
+      five seeds, field bounds, and five streamlines are legible, and the
+      tracked SVG remains byte-identical.
+- [x] Run formatting, warning-denied example Clippy, mdBook test/build, strict
+      checking of 188 links, and diff checks.
+- [x] Rebase onto current `origin/main`, preserve both intervening PM entries,
+      and repair its missing `ritk-block-matching` lock entry.
+- [x] Collect exact-head hosted runs `32272992103`, `32272991999`, and
+      `32272992744`; merge PR #185 as `30f7d05c`; pass Pages run
+      `32281063710`; and verify the live HTTP 200 chapter contains the new
+      title, validation ladder, and Maier-Hein citation.
+
+## ATLAS-RITK-ZERO-FLUX-PAD-STRUCTURE [patch] — Split zero-flux padding leaf
+
+- [x] Confirm `transform/pad.rs` contains a distinct zero-flux Neumann
+      operation family after the constant, mirror, and wrap implementations.
+- [x] Move `ZeroFluxNeumannPadImageFilter` to
+      `transform/pad/zero_flux.rs` and retain the public re-export from
+      `transform::pad`.
+- [x] Preserve edge-clamp indexing, CPU/native output construction, spatial
+      origin updates, and the existing public API; make no performance claim.
+- [x] Run Rustfmt and `git diff --check`; the parent is 462 lines and the
+      zero-flux leaf is 122 lines.
+- [x] Run locked all-target compilation outside the Atlas overlay.
+- [x] Run the strongest affected package gate: `ritk-filter` Nextest reports
+      1073/1073 passed in 64.227s.
+- [x] Run package Clippy with `--all-targets --locked -- -D warnings` and
+      package doctests: 2/13 execute successfully and 11 environment-only
+      examples remain intentionally ignored.
+- [x] Collect provider hosted Rust/Python checks at final source head
+      `805b7216`: Rustfmt, Clippy, dependency alignment, Rust suites, Python
+      3.9–3.13 across Linux/macOS/Windows, wheel smoke, and CodeRabbit pass;
+      RecurseML remains report-only.
+
+## ATLAS-RITK-RECURSIVE-GAUSSIAN-HESSIAN-STRUCTURE [patch] — Split Hessian leaf
+
+- [x] Confirm `recursive_gaussian.rs` contains a distinct Hessian operation
+      family after the recursive-Gaussian host core.
+- [x] Move `compute_hessian_iir` to
+      `recursive_gaussian_hessian.rs` and retain the `pub(crate)` seam used by
+      Frangi and Sato vesselness consumers.
+- [x] Preserve the Deriche pass order, physical-spacing scaling, packed
+      `[Hzz, Hzy, Hzx, Hyy, Hyx, Hxx]` output, and no performance claim.
+- [x] Run Rustfmt and `git diff --check`; the parent is 444 lines and the
+      Hessian leaf is 79 lines.
+- [x] Run locked all-target compilation outside the Atlas overlay.
+- [x] Run the strongest affected package gate: `ritk-filter` Nextest reports
+      1073/1073 passed in 45.308s.
+- [x] Run package Clippy with `--all-targets --locked -- -D warnings` and
+      package doctests: 2/13 execute successfully and 11 environment-only
+      examples remain intentionally ignored.
+- [x] Collect provider hosted Rust/Python checks at final source head
+      `9034af11`: Rustfmt, Clippy, dependency alignment, Rust suites, Python
+      3.9–3.13 across Linux/macOS/Windows, wheel smoke, and review checks pass;
+      RecurseML remains report-only.
+
+## ATLAS-RITK-BSPLINE-BASIS-STRUCTURE [patch] — Partition basis evaluation
+
+- [x] Confirm the 629-line `basis/evaluate.rs` mixed grid setup, dense support
+      construction, and sparse cache evaluation.
+- [x] Move those operation families to `basis/{grid,dense,sparse}.rs` and keep
+      `basis::evaluate` as the stable internal re-export surface.
+- [x] Preserve dense/sparse selection, output-buffer ownership, and arithmetic
+      order; do not claim a runtime or allocation improvement without a
+      controlled benchmark.
+- [x] Run Rustfmt and `git diff --check`.
+- [x] Run the standalone locked provider package compile outside the Atlas
+      overlay: `cargo check -p ritk-registration --all-targets --locked` passes
+      at source `ff95022b`; formatting and diff checks remain clean.
+- [x] Run the strongest local value-semantic gate: `cargo nextest run -p
+      ritk-registration --lib --locked` reports 370/370 passed in 19.076s.
+- [x] Run package Clippy with `--all-targets --locked -- -D warnings` and
+      package doctests via `cargo test --doc --locked`; both pass (2 doctests
+      run, 7 environment-only examples ignored).
+- [x] Collect the provider hosted CI and Python matrix at exact head
+      `ff95022b`; all required Rust and Python checks pass, including wheel
+      smoke and CodeRabbit. The shared Atlas overlay limitation is not
+      substituted for that hosted gate.
+
+## RITK-PARITY-171 [major] — InverseDisplacementField SimpleITK parity
+
+- [x] Measure SimpleITK's `[Z,Y,X]` NumPy index convention and physical
+      `(X,Y,Z)` mapping; retain the original `<1e-4` oracle.
+- [x] Store the canonical tensor-to-physical permutation at scalar, color,
+      and physical-point Python construction boundaries.
+- [x] Pass provider-owned physical displacement components through TPS and
+      iterative inversion and map results back to Python storage order.
+- [x] Verify 3 targeted Python parity tests, 1073 `ritk-filter` nextest tests,
+      47 `ritk-python` nextest tests, and clippy with `-D warnings`.
+- [x] Preserve physical axes in affine shift and Euler rotation bindings;
+      9 focused SimpleITK affine parity cases pass after a fresh release wheel
+      build at `18e5bc7f`.
+- [x] Collect hosted CI and Python CI at exact default head `065c4766`;
+      `32244582088` and `32244582089` pass, including the pinned SimpleITK
+      wheel oracle and Windows nextest. The local max-2-ULP observation came
+      from unsupported SimpleITK `3.0.0a1.post183-g61ffa` versus the declared
+      `>=2.5.5,<2.6` range and did not require a tolerance change.
+
+## ATLAS-RITK-CONFORMANCE-CLEANUP [patch]
+
+- [x] Move the four root documentation reports under `docs/` and update
+      current links and code comments.
+- [x] Replace 80 provider `#[allow]` sites with checked `#[expect]` sites;
+      exact-head conformance count is 80 → 0.
+- [x] Replace the new MINC existence-only assertion with an error-message
+      contract assertion; exact-head count is 176 → 175.
+- [x] Exact-head root-file conformance count is 4 → 0.
+- [x] Fix the hosted Clippy follow-up by removing stale expectations and
+      deleting unconsumed phantom PEV/fibre-direction fixtures; exact local
+      gates pass with workspace Clippy `--all-targets --all-features -D
+      warnings`, workspace check, and the two focused RITK I/O nextest cases.
+- [x] Pin all hosted Rust and Python CI toolchain installs to Rust 1.97.0 and
+      scope the Windows-only `missing_const_for_thread_local` expectation to
+      the generated scratch item; local Rustfmt, check, Clippy, and focused
+      nextest remain green.
+- [x] Reproduce the hosted wheel failure (`cargo-fmt` component conflict) and
+      install `rustfmt, clippy` alongside Rust 1.97.0 in every plain CI job so
+      Cargo does not perform a second component synchronization.
+
+## ATLAS-RITK-CONFORMANCE-101 — Diffusion binding structure ratchet [patch]
+
+- [x] Reproduce the exact-head increase: `diffusion/mod.rs` was a 109-line
+      implementation-bearing manifest and raised `manifest_implementation`
+      from 111 to 112.
+- [x] Move the `PyDiffusionMaps` wrapper and `fit_tensor_maps` operation into
+      dedicated `maps.rs` and `fit.rs` leaves while preserving registration and
+      public behavior.
+- [x] Run formatting and the clean-lane conformance scan; the structural count
+      returns to `manifest_implementation=111`.
+- [x] Merge source `81f510f6` at default `7ae4b69b`; provider-owned Clippy,
+      Rustfmt, dependency alignment, full Rust, Python 3.9-3.13, and wheel
+      smoke gates pass in `32026464996` and `32026464796`.
+
+The local locked package check remains blocked by the Atlas development
+overlay resolving first-party patches to the peer-dirty primary checkout; the
+hosted exact-head matrix is the compilation and behavior gate. The external
+`recurseml/analysis` error is report-only.
 
 ## ATLAS-RITK-DICOM-ORIENTATION-070 — Provider tag SSOT [minor] — local closure 2026-08-14
 
@@ -6524,7 +6726,7 @@ Subsequent parallel-agent commits since session start:
 - [x] BILAT-PERF-01 [minor]: `BilateralFilter::compute` rewritten with precomputed spatial-kernel lookup table `spatial_w[d²]` + clamped boundary iteration `z_lo..z_hi`. Per-neighbour cost reduced from 3 squarings + mul + `exp` to 1 lookup + 1 `exp`. Per-neighbour `as isize`/`as usize` casts and boundary branches eliminated. Verified bitwise identical vs brute-force reference (`max |Δ| = 0` on `5×6×7` deterministic volume).
 - [x] BILAT-REGRESSION-01 [patch]: `test_bilateral_matches_brute_force_reference` added — locks the kernel computation to the original mathematical formulation by comparing `apply` output against an explicit-arithmetic reference on a non-trivial volume.
 - [x] BILAT-BENCH-01 [patch]: criterion bench `benches/bilateral.rs` registered — measures `apply` over 16³/32³/64³ volumes at spatial σ = 1.5 (r ≈ 5). Baselines: 16³=14.4ms, 32³=152ms.
-- [x] DOC-376-01 [patch]: `OPTIMIZATION.md` updated with Sprint 376 BilateralFilter section documenting LUT, clamped iteration, equivalence evidence and measured timings.
+- [x] DOC-376-01 [patch]: `docs/optimization.md` updated with Sprint 376 BilateralFilter section documenting LUT, clamped iteration, equivalence evidence and measured timings.
 - [x] CPR-PERF-01 [patch]: `CprImageFilter::apply` rewritten with hoisted `direction.inverse()` (3×3 inverse computed once per call instead of once per cross-section sample) and a per-path-point index basis `(idx_p0, slope)` that collapses the inner loop to a linear-in-offset `idx_p[i,j] = idx_p0[i] + slope[i] * offset[j]`. New private helper `trilinear_sample_from_idx` accepts the precomputed voxel index; public `trilinear_sample` unchanged.
 - [x] CPR-REGRESSION-01 [patch]: `cpr_apply_matches_brute_force_reference` + `cpr_apply_matches_brute_force_reference_nonidentity_direction` brute-force differential tests — locks value semantics against the pre-optimisation form (`max |Δ| ≤ 1e-5`) on both identity and non-identity direction matrices.
 - [x] CPR-BENCH-01 [patch]: `benches/cpr_apply.rs` criterion bench — end-to-end `apply` on 16³/32³/64³ default config; head-to-head Δ vs reverted reference: 16³ 1.98×, 32³ 1.47×, 64³ 1.14×.
@@ -7169,3 +7371,132 @@ ritk-core: 0.8.0 → 0.9.0 | ritk-registration: 0.52.0 → 0.53.0
   Python lanes in `30686402102`, and Pages build `30686402101`; PR #80 merged
   as `4d5a076a`, post-merge Pages run `30686954077` succeeded, and all four
   live book resources return HTTP 200.
+
+## gap-audit-2026-08-20 (owner: atlas-gap-audit)
+
+Execution order for the items filed as `RITK-GAP-2026-08-20-0x` in
+`backlog.md`. Ordered by dependency, not by severity: the `_native` rename
+churns most of the files the later items touch, so it goes first even though
+the fuzz gap is the higher security risk. Items 02, 04, 05, 07 and 09 are
+independent of it and can run concurrently on disjoint scopes.
+
+### Audit pass itself (complete)
+
+- [x] Orient at HEAD `d06196b1`; record the four dirty PM files and leave peer
+      edits untouched.
+- [x] Read declared scope: `README.md`, `docs/adr/README.md` (20 ADRs), ADR
+      0002/0017/0018/0020 in full, `docs/book/SUMMARY.md` (78 linked chapters).
+- [x] Measure: LOC, test count, stubs, lint floor, `dyn`, unwrap, naming
+      markers, book coverage, tracked payload size, nextest budgets.
+- [x] Cross-check README capability claims against source; confirm
+      Correlation Ratio and CMA-ES are absent everywhere.
+- [x] Confirm the Coeus `Backend` impl set is CPU-only, so the GPU-named
+      registration types are unreachable.
+- [x] Confirm the axis convention is pinned by anisotropic, oblique,
+      hand-computed oracles (ADR 0020 verification section; `rotated_metadata_3d`).
+- [x] Fix the two unambiguous stale README claims; file the rest.
+- [x] Write the finding into `gap_audit.md` and the DoR items into `backlog.md`.
+
+### RITK-GAP-2026-08-20-01 — collapse `X` / `X_native`
+
+- [ ] Enumerate the closure: every `pub fn *_native`, every `*Native*` type,
+      and their callers across `crates/`, `examples/`, and the book samples.
+      Record the count per crate as the ratchet baseline.
+- [ ] Draft the ADR. This supersedes ADR 0002's transitional naming, so revise
+      0002 in place with a dated note rather than adding a parallel record.
+- [ ] Increment 1: leaf format crates (`ritk-nifti`, `ritk-nrrd`,
+      `ritk-metaimage`, `ritk-mgh`, `ritk-analyze`, `ritk-minc`, `ritk-png`,
+      `ritk-tiff`, `ritk-jpeg`) — base name takes the Coeus signature, the old
+      one is deleted, every call site in the same commit.
+- [ ] Increment 2: `ritk-image`, `ritk-transform`, `ritk-interpolation`,
+      `ritk-tensor-ops`.
+- [ ] Increment 3: `ritk-filter` (129 `apply_native` methods) and
+      `ritk-morphology`, `ritk-segmentation`, `ritk-statistics`.
+- [ ] Increment 4: `ritk-registration`, `ritk-model`.
+- [ ] Increment 5: consumers — `ritk-io`, `ritk-cli`, `ritk-python`,
+      `ritk-snap`, examples, book samples, `.pyi` stubs.
+- [ ] Final: `grep -rn 'native' --include='*.rs' crates` shows no identifier
+      carrying the marker; CHANGELOG records the `[major]` mapping.
+
+### RITK-GAP-2026-08-20-02 — fuzz the parsers
+
+- [ ] Add a non-published `fuzz/` workspace member; confirm it stays out of
+      every published crate's dependency graph.
+- [ ] Seed corpora from existing `test_data/` headers: whole, truncated at each
+      field boundary, and bit-flipped.
+- [ ] Targets in dependency order: `ritk-trx`, `ritk-tck`, `ritk-trk`,
+      `ritk-mif` (smallest surface, and the four crates holding the production
+      `unwrap()` sites) — then `ritk-nifti`, `ritk-nrrd`, `ritk-metaimage`,
+      `ritk-analyze`, `ritk-mgh`, `ritk-minc` — then `ritk-tiff`, `ritk-png`,
+      `ritk-jpeg`, `ritk-codecs` — then `ritk-vtk` and `ritk-dicom`.
+- [ ] Every panic or unbounded allocation found becomes a typed error plus a
+      regression test carrying the offending bytes. Never widen a bound to make
+      a finding go away.
+- [ ] Convert the 39 proven-invariant `unwrap()` sites to
+      `expect("invariant: ...")` so the proof ships at the panic site.
+- [ ] Wire a scheduled CI job with a committed per-target time budget.
+
+### RITK-GAP-2026-08-20-03 — GPU naming and accelerator claims
+
+- [ ] Decide and record: wire a real accelerator `ComputeBackend` upstream in
+      Coeus, or retire the device vocabulary here. Draft the ADR with the
+      recommendation; do not pose it as a question.
+- [ ] If retiring: rename `GpuFieldSmoother` and `CpuOrGpu` for what they do
+      (pre-allocated staging versus in-place), update all callers.
+- [ ] Delete or replace the three unbacked performance paragraphs
+      (`smooth.rs:281-285`, `atlas/mod.rs:130-131`, `lddmm/geodesic.rs:137`).
+      A retained sentence cites a stored criterion baseline.
+- [ ] Confirm `README.md:19-21` and the type names agree afterwards.
+
+### RITK-GAP-2026-08-20-04 — evict the tracked payload
+
+- [ ] `git rm -r --cached dist output scratch/check_restart.exe`; add `output/`
+      and `dist/` to `.gitignore`; drop the four stale `target_*` entries.
+- [ ] Inventory `test_data/`: which files does a test actually open? Split into
+      small committed goldens and an on-demand checksummed set.
+- [ ] Move the on-demand set behind the existing `externals/` fetch harness;
+      re-point every consuming test and confirm each still resolves its input.
+- [ ] Record the committed-fixture budget so the next addition is measured
+      against it.
+
+### RITK-GAP-2026-08-20-05 — nextest budgets
+
+- [ ] Delete the two dead filters (`test(bspline_cr)`, `test(multires_cr)`) and
+      the stale "NdArray CPU time" comment.
+- [ ] Profile the six escalated groups. For each, decide: optimise the
+      production code until it fits 30 s / 60 s, or move it to a dedicated
+      profile with a derived, recorded budget.
+- [ ] Remove every override above the standard budget from `profile.default`
+      and `profile.ci`.
+- [ ] Verify every remaining filter expression matches at least one test.
+
+### RITK-GAP-2026-08-20-06 — lint and doc floor (sequence after 01)
+
+- [ ] Add `[workspace.lints]` and `lints.workspace = true` per member.
+- [ ] Record the per-crate `missing_docs` debt as a non-increasing baseline.
+- [ ] Add `#![deny(missing_docs)]` crate by crate, burning the baseline down.
+- [ ] Write `README.md` for the 15 publishable crates lacking one.
+
+### RITK-GAP-2026-08-20-07 — CHANGELOG version axis
+
+- [ ] Map each of the 167 `[Unreleased]` blocks to its landing version from
+      `git log` and the per-crate manifest history.
+- [ ] Fold, collapse completed entries to one line plus a commit link, leave
+      exactly one open `[Unreleased]`.
+
+### RITK-GAP-2026-08-20-08 — book chapters (sequence after 01)
+
+- [ ] For each of the twelve thin chapters: write the promised content, or
+      delete the promise. No placeholder prose.
+- [ ] Registration chapters get the MI expression, the gradient-descent update
+      rule, and the convergence criterion, with resolved citations.
+- [ ] Add `mdbook test` to the Pages workflow.
+
+### RITK-GAP-2026-08-20-09 — MI subsample stride
+
+- [ ] Derive the sample count from bin occupancy versus histogram variance, or
+      make it a caller parameter with a documented default.
+- [ ] Add a test showing MI is stable across volume sizes straddling the
+      threshold.
+- [ ] Refresh the stale Correlation-Ratio line in
+      `crates/ritk-registration/docs/REGISTRATION_OPTIMIZATION_ANALYSIS.md:12`.

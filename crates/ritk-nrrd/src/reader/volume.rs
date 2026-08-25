@@ -22,6 +22,9 @@ struct DecodedNrrd {
     origin: Point<3>,
     spacing: Spacing<3>,
     direction: Direction<3>,
+    /// Acquisition geometry from the header's key/value field; `Cartesian`
+    /// when absent, which is what every pre-existing NRRD means.
+    coordinate_map: ritk_spatial::CoordinateMap,
 }
 
 impl DecodedNrrd {
@@ -42,13 +45,6 @@ impl DecodedNrrd {
         }
         self.volumes.truncate(1);
         Ok(self)
-    }
-
-    /// The sole volume's voxels, after [`Self::into_single_volume`].
-    fn single_volume_data(mut self) -> Vec<f32> {
-        self.volumes
-            .pop()
-            .expect("invariant: single_volume_data follows into_single_volume")
     }
 }
 
@@ -86,21 +82,26 @@ pub fn read_nrrd<B: ComputeBackend, P: AsRef<Path>>(
     backend: &B,
 ) -> Result<Image<f32, B, 3>> {
     let decoded = decode_nrrd(path)?.into_single_volume()?;
-    let (dims, origin, spacing, direction) = (
-        decoded.dims,
-        decoded.origin,
-        decoded.spacing,
-        decoded.direction,
-    );
-
+    let DecodedNrrd {
+        dims,
+        origin,
+        spacing,
+        direction,
+        coordinate_map,
+        volumes,
+    } = decoded;
     Image::from_flat_on(
-        decoded.single_volume_data(),
+        volumes
+            .into_iter()
+            .next()
+            .expect("single_volume guaranteed"),
         dims,
         origin,
         spacing,
         direction,
         backend,
-    )
+    )?
+    .with_coordinate_map(coordinate_map)
 }
 
 /// Read a NRRD acquisition series as one image per volume.
@@ -134,11 +135,15 @@ pub fn read_nrrd_series<B: ComputeBackend, P: AsRef<Path>>(
         origin,
         spacing,
         direction,
+        coordinate_map,
     } = decode_nrrd(path)?;
 
     volumes
         .into_iter()
-        .map(|data| Image::from_flat_on(data, dims, origin, spacing, direction, backend))
+        .map(|data| {
+            Image::from_flat_on(data, dims, origin, spacing, direction, backend)?
+                .with_coordinate_map(coordinate_map.clone())
+        })
         .collect()
 }
 
@@ -238,7 +243,7 @@ fn decode_nrrd<P: AsRef<Path>>(path: P) -> Result<DecodedNrrd> {
         } else {
             parse_space_directions(sd_str)?
         };
-        metadata_from_file_space_directions(dirs)
+        metadata_from_file_space_directions(dirs)?
     } else if let Some(sp_str) = headers.get("spacings") {
         let sp = parse_f64_vec(sp_str, "spacings", dimension)?;
         let sp: Vec<f64> = match acquisition {
@@ -247,9 +252,9 @@ fn decode_nrrd<P: AsRef<Path>>(path: P) -> Result<DecodedNrrd> {
             AcquisitionAxis::Slowest => sp[..3].to_vec(),
         };
         let sz = if sp.len() >= 3 { sp[2] } else { 1.0 };
-        metadata_from_file_spacings([sp[0], sp[1], sz])
+        metadata_from_file_spacings([sp[0], sp[1], sz])?
     } else {
-        metadata_from_file_spacings([1.0, 1.0, 1.0])
+        metadata_from_file_spacings([1.0, 1.0, 1.0])?
     };
 
     let origin = if let Some(so_str) = headers.get("space origin") {
@@ -349,6 +354,7 @@ fn decode_nrrd<P: AsRef<Path>>(path: P) -> Result<DecodedNrrd> {
         origin,
         spacing: spatial.spacing,
         direction: spatial.direction,
+        coordinate_map: crate::coordinate_map::from_header(&headers)?,
     })
 }
 

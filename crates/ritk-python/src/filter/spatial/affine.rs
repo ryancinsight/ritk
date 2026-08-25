@@ -1,6 +1,7 @@
 use crate::errors::{RitkPyError, RitkResult};
 use crate::image::{into_py_image, Backend, PyImage};
 use pyo3::prelude::*;
+use ritk_core::spatial::Point;
 use ritk_filter::ResampleImageFilter;
 use ritk_image::tensor::Tensor;
 use ritk_interpolation::LinearInterpolator;
@@ -55,28 +56,33 @@ pub fn rotate_image(
         let dir = *inner.direction();
         let device = Backend::default();
 
-        // Centre of rotation in physical coordinates:
-        //   c_d = origin_d + spacing_d * (shape_d - 1) / 2
-        // Note: stored in ZYX order (shape[0]=Z, shape[1]=Y, shape[2]=X)
-        let centre: Vec<f32> = (0..3)
-            .map(|d| orig[d] as f32 + sp[d] as f32 * (shape[d] as f32 - 1.0) / 2.0)
+        // The native image stores tensor axes as [Z, Y, X], while physical
+        // points are [X, Y, Z]. Let the image direction map the tensor
+        // midpoint instead of manually reversing the axes here.
+        let centre_point = inner.continuous_index_to_physical_point(&Point::new([
+            (shape[0] as f64 - 1.0) / 2.0,
+            (shape[1] as f64 - 1.0) / 2.0,
+            (shape[2] as f64 - 1.0) / 2.0,
+        ]));
+        let centre: Vec<f32> = centre_point
+            .as_slice()
+            .iter()
+            .map(|value| *value as f32)
             .collect();
         let centre_t = Tensor::<f32, Backend>::from_slice_on([3], &centre, &device);
         // Zero translation (pure rotation about centre).
         let translation = Tensor::<f32, Backend>::zeros_on([3], &device);
         // Build the rotation to match SimpleITK's `Euler3DTransform`
-        // (`ComputeZYX = false`, the default), whose matrix in physical [x, y, z]
-        // space is `M = R_z(angle_z) · R_x(angle_x) · R_y(angle_y)`. ritk's
-        // resample operates in tensor-axis [z, y, x] space — the reverse of the
-        // physical axes — so the applied matrix is `P · M · Páµ€` with `P` the
-        // axis-reversal permutation, i.e. `A[i][j] = M[2-i][2-j]`. Using the
-        // explicit matrix (instead of `RigidTransform`'s `R_z·R_y·R_x` Euler
-        // builder) reproduces SimpleITK's composition for simultaneous
-        // multi-axis rotations, not just one axis at a time.
+        // (`ComputeZYX = false`, the default), whose physical-space matrix is
+        // `M = R_z(angle_z) · R_x(angle_x) · R_y(angle_y)`. Resample consumes
+        // physical points in [X, Y, Z] order, so pass M without permutation.
+        // Using the explicit matrix instead of `RigidTransform`'s
+        // `R_z·R_y·R_x` Euler builder preserves SimpleITK's composition for
+        // simultaneous multi-axis rotations, not just one axis at a time.
         let m = euler_zxy_matrix(angle_x, angle_y, angle_z);
         let a: Vec<f32> = (0..3)
             .flat_map(|i| (0..3).map(move |j| (i, j)))
-            .map(|(i, j)| m[2 - i][2 - j] as f32)
+            .map(|(i, j)| m[i][j] as f32)
             .collect();
         let matrix =
             Tensor::<f32, Backend>::from_slice_on([3, 3], &a, &device);
@@ -153,12 +159,12 @@ pub fn shift_image(
         let dir = *inner.direction();
         let device = Backend::default();
 
-        // TranslationTransform shifts the OUTPUT→INPUT mapping, so we negate:
-        // to shift the image by (dz, dy, dx), the transform must map
-        // out_point → out_point - [dz, dy, dx] in physical space.
+        // TranslationTransform shifts the OUTPUT→INPUT mapping, so we negate.
+        // Its vector is in physical [X, Y, Z] order, while the Python API is
+        // intentionally named in NumPy [Z, Y, X] order.
         let translation = Tensor::<f32, Backend>::from_slice_on(
             [3],
-            &[-shift_z as f32, -shift_y as f32, -shift_x as f32],
+            &[-shift_x as f32, -shift_y as f32, -shift_z as f32],
             &device,
         );
         let transform = TranslationTransform::<Backend, 3>::new(translation);

@@ -16,3 +16,10 @@ pub struct NativeDisplacementField<B: ComputeBackend> {
     /// Physical z-axis displacement component.
     pub z: Image<f32, B, 3>,
 }
+
+/// The same three components as a positional `(x, y, z)` triple.
+///
+/// The shape the pre-native `apply` entry points return. This is a spelling
+/// convenience for that one signature, not a distinct domain type — the named
+/// form is [`NativeDisplacementField`].
+pub type DisplacementComponents<B> = (Image<f32, B, 3>, Image<f32, B, 3>, Image<f32, B, 3>);
