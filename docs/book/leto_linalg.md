@@ -155,11 +155,12 @@ let svd = svd_decompose(&matrix.view())?;
 
 ## Iterative solvers
 
-For large sparse systems, `leto-ops` provides iterative solvers including
-`ConjugateGradient`, `GMRES`, `BiCGSTAB`, and `LsqrSolver`, each
-parameterised by an `IterativeSolverConfig` and a `ConvergenceMonitor`.
-These are used by the non-diffusion solver pathways and are documented in
-the Leto book.
+`leto-ops` no longer ships Krylov recurrences: stack ownership of the
+iterative-solver layer moved to Athena (Atlas ADR 0033), which provides
+CG, BiCGSTAB, restarted GMRES, and damped LSQR over backend-generic
+operators. The diffusion pipeline documented here needs none of them —
+every solve routes through the direct dense layer in the table above
+(`solve_least_squares`, `nnls`, `cholesky_solve`).
 
 ## Relationship to the diffusion pipeline
 
