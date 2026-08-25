@@ -1,3 +1,4 @@
+#![expect(clippy::unwrap_used, reason = "ratchet RITK-UNWRAP-1")]
 use super::super::config::BSplineFFDConfig;
 use super::super::metric::compute_ncc;
 use super::super::registration::BSplineFFDRegistration;

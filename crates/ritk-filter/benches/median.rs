@@ -27,6 +27,7 @@
 //! threshold that an alternative implementation must beat before it can
 //! be considered a win — empirical-tier evidence per the evidence
 //! hierarchy.
+#![expect(clippy::unwrap_used, reason = "ratchet RITK-UNWRAP-1")]
 
 use coeus_core::SequentialBackend;
 use criterion::{criterion_group, criterion_main, BenchmarkId, Criterion};

@@ -23,3 +23,6 @@ coeus-leto = { workspace = true }
 
 [dev-dependencies]
 coeus-core = { workspace = true }
+
+[lints]
+workspace = true

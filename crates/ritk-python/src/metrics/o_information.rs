@@ -94,6 +94,7 @@ pub fn compute_o_information(images: Vec<PyRef<PyImage>>, num_bins: usize) -> Ri
 
 #[cfg(test)]
 mod tests {
+    #![expect(clippy::unwrap_used, reason = "ratchet RITK-UNWRAP-1")]
     use super::*;
     use ritk_statistics::information::o_information_direct as core_oi_direct;
 

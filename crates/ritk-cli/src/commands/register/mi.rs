@@ -1,3 +1,7 @@
+#![expect(
+    clippy::print_stdout,
+    reason = "RITK-LINT-1: ritk-cli is the application output layer"
+)]
 use super::*;
 use ritk_registration::classical::{image_to_leto_volume, leto_volume_to_image};
 
@@ -75,6 +79,7 @@ pub(super) fn run_mi_registration(args: &RegisterArgs) -> Result<()> {
 
 #[cfg(test)]
 mod tests {
+    #![expect(clippy::unwrap_used, reason = "ratchet RITK-UNWRAP-1")]
     use super::*;
     use coeus_core::SequentialBackend;
     use ritk_image::Image;

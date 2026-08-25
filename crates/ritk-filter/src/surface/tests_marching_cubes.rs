@@ -1,6 +1,5 @@
 //! Tests for marching_cubes
 //! Extracted to keep the 500-line structural limit.
-#![allow(clippy::identity_op, clippy::erasing_op)]
 use super::mc_tables::EDGE_TABLE;
 use super::*;
 use gaia::domain::core::index::VertexId;

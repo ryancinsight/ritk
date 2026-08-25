@@ -366,7 +366,7 @@ impl LineScratch {
 /// parameterised — so results are bit-identical regardless of how lines are
 /// scheduled across threads.
 #[inline]
-#[expect(clippy::too_many_arguments)]
+#[expect(clippy::too_many_arguments, reason = "ratchet RITK-LINT-1")]
 fn deriche_line(
     input: &[f32],
     in_off: usize,

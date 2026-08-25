@@ -337,7 +337,7 @@ pub fn anti_alias_binary(
 #[pyo3(signature = (initial_level_set, feature_image, number_of_iterations=20,
                     lambda1=1.0_f32, lambda2=1.0_f32, mu=1.0_f32,
                     nu=0.0_f32, epsilon=1.0_f32))]
-#[expect(clippy::too_many_arguments)]
+#[expect(clippy::too_many_arguments, reason = "ratchet RITK-LINT-1")]
 pub fn scalar_chan_and_vese_dense_level_set(
     py: Python<'_>,
     initial_level_set: &PyImage,

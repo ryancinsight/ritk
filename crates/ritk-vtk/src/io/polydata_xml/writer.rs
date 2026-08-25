@@ -118,6 +118,7 @@ fn write_cells(s: &mut String, tag: &str, cells: &[Vec<u32>]) {
 
 #[cfg(test)]
 mod tests {
+    #![expect(clippy::unwrap_used, reason = "ratchet RITK-UNWRAP-1")]
     use super::*;
     use crate::domain::vtk_data_object::{AttributeArray, VtkPolyData};
     use crate::io::polydata_xml::reader::parse_vtp;

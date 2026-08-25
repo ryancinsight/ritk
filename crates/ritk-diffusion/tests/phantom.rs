@@ -4,6 +4,7 @@
 //! a multi-shell gradient scheme, and analytically-computed ground-truth
 //! maps (FA, MD, PEV, fODF peaks).  Every integration test runs against
 //! known-oracle data so regressions are caught by value-level assertions.
+#![expect(clippy::unwrap_used, reason = "ratchet RITK-UNWRAP-1")]
 
 use ritk_diffusion_scheme::{DiffusionWeighting, GradientDirection, GradientFrame, GradientScheme};
 use ritk_spatial::Vector;
@@ -111,6 +112,21 @@ pub struct Phantom {
     pub fa_gt: Vec<f64>,
     /// Ground-truth MD per voxel.
     pub md_gt: Vec<f64>,
+    /// Ground-truth PEV per voxel: flat `[x, y, z, …]`.
+    // Computed but not yet asserted on. Kept rather than deleted so the
+    // assertions can be written without recomputing the phantom; the gap
+    // is tracked in atlas backlog.md#atlas-ritk-land-1.
+    // allow, not expect: this file is compiled into two test binaries and the
+    // fields are read in one of them, so an expectation would be unfulfilled
+    // there.
+    #[allow(dead_code, reason = "ratchet RITK-LINT-1")]
+    pub pev_gt: Vec<f64>,
+    /// Ground-truth fibre directions per voxel.
+    // allow, not expect: this file is compiled into two test binaries and the
+    // fields are read in one of them, so an expectation would be unfulfilled
+    // there.
+    #[allow(dead_code, reason = "ratchet RITK-LINT-1")]
+    pub fibre_dirs_gt: Vec<Vec<[f64; 3]>>,
 }
 
 impl Default for Phantom {
@@ -132,6 +148,8 @@ impl Phantom {
         let mut labels = vec![Tissue::Gray; n_vox];
         let mut fa_gt = vec![0.0; n_vox];
         let mut md_gt = vec![0.0; n_vox];
+        let mut pev_gt = vec![0.0_f64; n_vox];
+        let mut fibre_dirs_gt: Vec<Vec<[f64; 3]>> = vec![Vec::new(); n_vox];
         for iz in 0..nz {
             for iy in 0..ny {
                 for ix in 0..nx {
@@ -140,6 +158,24 @@ impl Phantom {
                     labels[idx] = label;
                     fa_gt[idx] = fa;
                     md_gt[idx] = md;
+                    // The same per-tissue orientations the DWI generator
+                    // applies, recorded so downstream assertions can compare
+                    // estimated directions against them without recomputing.
+                    match label {
+                        Tissue::Horizontal => {
+                            pev_gt[idx] = 1.0;
+                            fibre_dirs_gt[idx] = vec![[1.0, 0.0, 0.0]];
+                        }
+                        Tissue::Vertical => {
+                            pev_gt[idx] = 1.0;
+                            fibre_dirs_gt[idx] = vec![[0.0, 0.0, 1.0]];
+                        }
+                        Tissue::Crossing => {
+                            pev_gt[idx] = c30();
+                            fibre_dirs_gt[idx] = vec![[c30(), s30(), 0.0], [c30(), -s30(), 0.0]];
+                        }
+                        Tissue::Csf | Tissue::Gray => {}
+                    }
                 }
             }
         }
@@ -184,6 +220,8 @@ impl Phantom {
             labels,
             fa_gt,
             md_gt,
+            pev_gt,
+            fibre_dirs_gt,
         }
     }
 

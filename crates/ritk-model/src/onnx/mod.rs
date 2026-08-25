@@ -76,7 +76,7 @@ impl Default for OnnxMetadata {
 }
 
 #[cfg(test)]
-#[expect(clippy::field_reassign_with_default)]
+#[expect(clippy::field_reassign_with_default, reason = "ratchet RITK-LINT-1")]
 mod tests {
     use super::*;
 

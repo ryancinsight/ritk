@@ -48,7 +48,7 @@ pub fn gaussian_image_source(
 /// All `(x, y, z)` tuples are in sitk axis order. ITK Parity: GridImageSource.
 #[pyfunction]
 #[pyo3(signature = (size, spacing=(1.0, 1.0, 1.0), origin=(0.0, 0.0, 0.0), sigma=(0.5, 0.5, 0.5), grid_spacing=(4.0, 4.0, 4.0), grid_offset=(0.0, 0.0, 0.0), scale=255.0, which_dimensions=(true, true, true)))]
-#[expect(clippy::too_many_arguments)]
+#[expect(clippy::too_many_arguments, reason = "ratchet RITK-LINT-1")]
 pub fn grid_image_source(
     py: Python<'_>,
     size: (usize, usize, usize),

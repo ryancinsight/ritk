@@ -1,5 +1,4 @@
 //! Value-semantic 3-D tests for deconvolution filters (GAP-262-FLT-02).
-#![allow(clippy::identity_op, clippy::erasing_op)]
 //!
 //! Each test derives expected values analytically:
 //! - Dirac delta kernel in 3-D → identity: u_out ≈ u_in within tolerance

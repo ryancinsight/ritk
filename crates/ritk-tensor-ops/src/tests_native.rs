@@ -1,3 +1,4 @@
+#![expect(clippy::unwrap_used, reason = "ratchet RITK-UNWRAP-1")]
 use crate::native as coeus_tensor_ops;
 use coeus_core::MoiraiBackend;
 use coeus_tensor::Tensor as CoeusTensor;

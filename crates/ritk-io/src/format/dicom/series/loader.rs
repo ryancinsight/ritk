@@ -345,6 +345,7 @@ impl<B: Backend> ImageReader<Image<f32, B, 3>> for DicomReader<B> {
 
 #[cfg(test)]
 mod tests {
+    #![expect(clippy::unwrap_used, reason = "ratchet RITK-UNWRAP-1")]
     use super::{load_dicom_series, load_native_dicom_series};
     use coeus_core::SequentialBackend;
     use ritk_core::image::Image;

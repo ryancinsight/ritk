@@ -86,6 +86,7 @@ fn rebuild_image<B: Backend>(src: &Image<f32, B, 3>, vals: Vec<f32>) -> Result<I
 
 #[cfg(test)]
 mod tests {
+    #![expect(clippy::unwrap_used, reason = "ratchet RITK-UNWRAP-1")]
     use super::super::pipeline::PreprocessingPipeline;
     use crate::preprocessing::{IntensityRescaleMode, PreprocessingStep};
     use coeus_core::SequentialBackend;

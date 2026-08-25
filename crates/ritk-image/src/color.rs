@@ -263,6 +263,7 @@ where
 
 #[cfg(test)]
 mod tests {
+    #![expect(clippy::unwrap_used, reason = "ratchet RITK-UNWRAP-1")]
     use super::*;
     use coeus_core::SequentialBackend;
 

@@ -1,3 +1,4 @@
+#![expect(clippy::unwrap_used, reason = "ratchet RITK-UNWRAP-1")]
 use super::*;
 
 // ── decode_bytes_to_f32 full matrix (8 signed + 8 unsigned + 2 float) ──

@@ -8,6 +8,7 @@
 //! | 0 axial    | dy | dx |
 //! | 1 coronal  | dz | dx |
 //! | 2 sagittal | dz | dy |
+#![expect(clippy::unwrap_used, reason = "ratchet RITK-UNWRAP-1")]
 
 use super::*;
 use arrayvec::ArrayString;

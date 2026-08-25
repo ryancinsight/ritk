@@ -26,6 +26,7 @@
 //! Empirical: criterion with recorded baselines.  A statistically
 //! significant regression (criterion confidence interval) blocks merge
 //! per `performance_engineering`.
+#![expect(clippy::unwrap_used, reason = "ratchet RITK-UNWRAP-1")]
 
 use coeus_core::SequentialBackend;
 use criterion::{criterion_group, criterion_main, BenchmarkId, Criterion};

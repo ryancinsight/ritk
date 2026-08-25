@@ -16,6 +16,10 @@
 //! J. Michael Fitzpatrick, Vanderbilt University, Nashville TN.
 //! Data site: <https://rire.insight-journal.org/>
 //! License: Creative Commons Attribution 3.0 United States.
+#![expect(
+    clippy::print_stderr,
+    reason = "RITK-LINT-1: example/test diagnostic output"
+)]
 
 mod common;
 

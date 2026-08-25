@@ -1,3 +1,4 @@
+#![expect(clippy::unwrap_used, reason = "ratchet RITK-UNWRAP-1")]
 use super::*;
 use crate::PixelSignedness;
 use encoder::{encode_grayscale_j2k, Jpeg2000Encoding, QuantizationStep};

@@ -32,3 +32,6 @@ name = "book_mgh"
 [[bench]]
 name = "reader"
 harness = false
+
+[lints]
+workspace = true

@@ -4,6 +4,10 @@
 //! same-modality crop, applies a known translation, and registers the shifted
 //! volume with classic Thirion Demons. The figure is generated from the actual
 //! fixed, moving, warped, and displacement-field values.
+#![expect(
+    clippy::print_stdout,
+    reason = "RITK-LINT-1: example/test diagnostic output"
+)]
 
 use anyhow::{bail, Context, Result};
 use base64::{engine::general_purpose::STANDARD, Engine as _};

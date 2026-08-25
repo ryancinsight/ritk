@@ -3,6 +3,7 @@
 //! The pipeline is deliberately deterministic and uses one scalar phantom for
 //! every panel. Each stage runs through RITK's public Coeus-native image API;
 //! the SVG renderer only visualizes the resulting voxel values.
+#![expect(clippy::print_stdout, reason = "ratchet RITK-LINT-1")]
 
 use anyhow::{bail, Context, Result};
 use coeus_core::SequentialBackend;

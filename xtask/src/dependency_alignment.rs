@@ -1,4 +1,5 @@
 //! Workspace dependency-inheritance gate.
+#![expect(clippy::print_stdout, reason = "ratchet RITK-LINT-1")]
 
 use std::fs;
 use std::path::PathBuf;

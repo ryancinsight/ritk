@@ -1,3 +1,4 @@
+#![expect(clippy::unwrap_used, reason = "ratchet RITK-UNWRAP-1")]
 use super::super::{
     read_dicom_seg, write_dicom_seg, DicomSegmentInfo, DicomSegmentation, SegmentationType,
 };

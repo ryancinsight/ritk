@@ -1,5 +1,3 @@
-#![allow(clippy::needless_range_loop)]
-
 use super::*;
 use ritk_image::test_support::make_image;
 use ritk_image::Image;

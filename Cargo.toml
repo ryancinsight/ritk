@@ -184,3 +184,110 @@ arrayvec = "0.7"
 [profile.test]
 opt-level = 0
 debug = "line-tables-only"
+
+[workspace.lints.clippy]
+pedantic = { level = "deny", priority = -1 }
+
+# Pedantic floor ratchet: every class listed below already fires in this
+# workspace and is allowed at its measured baseline; every class NOT listed
+# is a hard error. Counts are `cargo clippy --all-targets` hits at the time
+# the floor was established (total / production, production excluding
+# `#[cfg(test)]` modules and test, bench and example targets). Burn a class
+# down to zero, then delete its line -- the floor tightens, never loosens.
+
+# --- Documentation debt (5875 sites, 5083 in production) ---
+doc_markdown = "allow"                         # 3686 (2923 prod)
+must_use_candidate = "allow"                   # 1073 (1055 prod)
+missing_errors_doc = "allow"                   # 821 (821 prod)
+return_self_not_must_use = "allow"             # 109 (109 prod)
+unnecessary_debug_formatting = "allow"         # 97 (95 prod)
+missing_panics_doc = "allow"                   # 84 (79 prod)
+should_panic_without_expect = "allow"          # 4 (0 prod)
+doc_comment_double_space_linebreaks = "allow"  # 1 (1 prod)
+
+# --- Numeric conversion debt (6656 sites, 4603 in production) ---
+cast_precision_loss = "allow"                  # 2183 (1030 prod)
+cast_possible_truncation = "allow"             # 1301 (1083 prod)
+cast_possible_wrap = "allow"                   # 1036 (926 prod)
+cast_lossless = "allow"                        # 964 (744 prod)
+cast_sign_loss = "allow"                       # 781 (696 prod)
+float_cmp = "allow"                            # 183 (53 prod)
+unreadable_literal = "allow"                   # 166 (50 prod)
+manual_midpoint = "allow"                      # 23 (16 prod)
+identity_op = "allow"                          # 13 (0 prod)
+verbose_bit_mask = "allow"                     # 2 (2 prod)
+decimal_bitwise_operands = "allow"             # 2 (1 prod)
+checked_conversions = "allow"                  # 1 (1 prod)
+range_plus_one = "allow"                       # 1 (1 prod)
+
+# --- Raw-pointer / layout debt (5 sites, 5 in production) ---
+ptr_as_ptr = "allow"                           # 2 (2 prod)
+borrow_as_ptr = "allow"                        # 2 (2 prod)
+unsafe_derive_deserialize = "allow"            # 1 (1 prod)
+
+# --- Signature and shape debt (427 sites, 319 in production) ---
+too_many_lines = "allow"                       # 138 (106 prod)
+needless_pass_by_value = "allow"               # 119 (90 prod)
+inline_always = "allow"                        # 59 (59 prod)
+field_reassign_with_default = "allow"          # 42 (5 prod)
+unnecessary_wraps = "allow"                    # 22 (21 prod)
+trivially_copy_pass_by_ref = "allow"           # 12 (6 prod)
+too_many_arguments = "allow"                   # 20 (18 prod)
+unused_self = "allow"                          # 11 (10 prod)
+struct_excessive_bools = "allow"               # 3 (3 prod)
+fn_params_excessive_bools = "allow"            # 1 (1 prod)
+
+# --- Style debt (2467 sites, 1457 in production) ---
+uninlined_format_args = "allow"                # 1087 (517 prod)
+similar_names = "allow"                        # 461 (343 prod)
+map_unwrap_or = "allow"                        # 98 (71 prod)
+many_single_char_names = "allow"               # 84 (76 prod)
+explicit_iter_loop = "allow"                   # 79 (48 prod)
+redundant_closure_for_method_calls = "allow"   # 80 (64 prod)
+items_after_statements = "allow"               # 57 (31 prod)
+cloned_instead_of_copied = "allow"             # 68 (12 prod)
+match_same_arms = "allow"                      # 38 (37 prod)
+assigning_clones = "allow"                     # 37 (37 prod)
+default_trait_access = "allow"                 # 119 (27 prod)
+manual_let_else = "allow"                      # 31 (22 prod)
+case_sensitive_file_extension_comparisons = "allow" # 38 (38 prod)
+single_match_else = "allow"                    # 20 (20 prod)
+elidable_lifetime_names = "allow"              # 18 (18 prod)
+if_not_else = "allow"                          # 14 (14 prod)
+bool_to_int_with_if = "allow"                  # 14 (12 prod)
+semicolon_if_nothing_returned = "allow"        # 20 (6 prod)
+needless_for_each = "allow"                    # 25 (24 prod)
+needless_range_loop = "allow"                  # 13 (1 prod)
+no_effect_underscore_binding = "allow"         # 11 (3 prod)
+index_refutable_slice = "allow"                # 8 (7 prod)
+format_push_string = "allow"                   # 7 (5 prod)
+wildcard_imports = "allow"                     # 10 (10 prod)
+single_char_pattern = "allow"                  # 5 (1 prod)
+duration_suboptimal_units = "allow"            # 3 (2 prod)
+manual_assert_eq = "allow"                     # 3 (1 prod)
+used_underscore_binding = "allow"              # 3 (2 prod)
+manual_string_new = "allow"                    # 3 (0 prod)
+implicit_clone = "allow"                       # 2 (1 prod)
+ignored_unit_patterns = "allow"                # 2 (0 prod)
+comparison_chain = "allow"                     # 1 (1 prod)
+unnested_or_patterns = "allow"                 # 2 (2 prod)
+stable_sort_primitive = "allow"                # 1 (1 prod)
+manual_assert = "allow"                        # 1 (0 prod)
+needless_continue = "allow"                    # 1 (1 prod)
+manual_is_variant_and = "allow"                # 1 (1 prod)
+needless_raw_string_hashes = "allow"           # 1 (0 prod)
+option_as_ref_cloned = "allow"                 # 1 (1 prod)
+
+# --- Restriction floor ---
+# `unwrap_used` is denied outright: no workspace-wide allow. The 1599 existing
+# sites (391 in production) are pinned per file by
+# `#![expect(clippy::unwrap_used, reason = "ratchet RITK-UNWRAP-1")]`, which
+# self-expires the moment a file's last unwrap goes.
+unwrap_used = "deny"
+# Library output belongs to `tracing` or the application layer. `ritk-cli` is
+# the application output layer; those sites, plus example, xtask and test
+# diagnostic output, carry per-file
+# `#![expect(..., reason = "ratchet RITK-LINT-1")]`.
+print_stdout = "deny"
+print_stderr = "deny"
+dbg_macro = "deny"

@@ -1,3 +1,4 @@
+#![expect(clippy::unwrap_used, reason = "ratchet RITK-UNWRAP-1")]
 use coeus_core::SequentialBackend;
 use ritk_filter::{
     Colormap, LabelMapContourOverlayFilter, LabelOverlayFilter, LabelToRGBFilter,

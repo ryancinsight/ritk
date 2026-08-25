@@ -37,3 +37,6 @@ ritk-connectome = { path = "../ritk-connectome", version = "0.1.0" }
 gaia = { workspace = true }
 leto = { workspace = true }
 anyhow = { workspace = true }
+
+[lints]
+workspace = true

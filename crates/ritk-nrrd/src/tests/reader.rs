@@ -1,3 +1,4 @@
+#![expect(clippy::unwrap_used, reason = "ratchet RITK-UNWRAP-1")]
 use anyhow::Result;
 use coeus_core::SequentialBackend;
 use ritk_spatial::{Direction, Point, Spacing};

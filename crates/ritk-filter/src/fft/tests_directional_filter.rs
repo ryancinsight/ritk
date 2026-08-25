@@ -2,6 +2,10 @@
 //!
 //! Each test is an analytical oracle — it recovers a known property from
 //! a constructed signal rather than asserting structural existence.
+#![expect(
+    clippy::unwrap_used,
+    reason = "fixture unwraps on well-formed in-memory filters; ratchet RITK-UNWRAP-1"
+)]
 
 use crate::fft::directional_filter::{
     apply_directional_filter, ButterworthBandpass, ButterworthHighpass, ButterworthLowpass,

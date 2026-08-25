@@ -1,3 +1,7 @@
+#![expect(
+    clippy::print_stdout,
+    reason = "RITK-LINT-1: ritk-cli is the application output layer"
+)]
 use anyhow::{anyhow, Context, Result};
 
 use tracing::info;

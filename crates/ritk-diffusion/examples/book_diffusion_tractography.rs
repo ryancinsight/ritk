@@ -5,6 +5,7 @@
 //! direction field into Gaia polylines. Assertions bind the rendered result to
 //! the known axis and tract boundary rather than treating a plausible picture
 //! as correctness evidence.
+#![expect(clippy::print_stdout, reason = "ratchet RITK-LINT-1")]
 
 use anyhow::{Context, Result, bail};
 use ritk_diffusion::odf::{OdField, OdfConfig, estimate_odf};

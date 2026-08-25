@@ -67,3 +67,6 @@ harness = false
 [[example]]
 name = "dl_registration"
 path = "examples/dl_registration.rs"
+
+[lints]
+workspace = true

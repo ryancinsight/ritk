@@ -10,3 +10,6 @@ description = "Structuring element types for mathematical morphology — ZST sha
 keywords.workspace = true
 categories.workspace = true
 homepage.workspace = true
+
+[lints]
+workspace = true

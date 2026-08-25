@@ -7,6 +7,8 @@
 //! `recursive_gaussian_directional` calls, each extracting + rebuilding an
 //! `Image`). Both compute the identical vector gradient; this measures only the
 //! per-pass `Image` alloc/rebuild overhead the refactor removed.
+#![expect(clippy::print_stdout, reason = "ratchet RITK-LINT-1")]
+#![expect(clippy::unwrap_used, reason = "ratchet RITK-UNWRAP-1")]
 
 use std::time::Instant;
 

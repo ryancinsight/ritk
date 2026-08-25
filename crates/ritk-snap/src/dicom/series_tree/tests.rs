@@ -1,3 +1,4 @@
+#![expect(clippy::print_stdout, reason = "ratchet RITK-LINT-1")]
 use super::*;
 use std::path::{Path, PathBuf};
 

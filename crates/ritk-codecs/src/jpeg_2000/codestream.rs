@@ -6,7 +6,7 @@
 //! [ITU-T T.800 (11/2015)](https://www.itu.int/rec/T-REC-T.800-201511-S),
 //! Annex B.3, Equations B-3 through B-11.
 
-#![allow(dead_code)] // All struct fields are spec-mandated; consumed when full parsing support is added.
+#![expect(dead_code, reason = "ratchet RITK-LINT-1")]
 
 use anyhow::{bail, Context, Result};
 

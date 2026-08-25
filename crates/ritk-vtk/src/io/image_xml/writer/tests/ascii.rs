@@ -1,3 +1,4 @@
+#![expect(clippy::unwrap_used, reason = "ratchet RITK-UNWRAP-1")]
 use crate::domain::vtk_data_object::{AttributeArray, VtkImageData};
 use crate::io::image_xml::writer::{write_vti_image_data, write_vti_str};
 use tempfile::NamedTempFile;

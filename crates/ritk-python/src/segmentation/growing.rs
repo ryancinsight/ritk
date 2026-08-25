@@ -131,7 +131,7 @@ pub fn connected_threshold_segment(
 #[pyo3(signature = (image, seed1, seed2, lower=0.0_f32, upper=1.0_f32,
                     replace_value=1.0_f32, isolated_value_tolerance=1.0_f64,
                     find_upper_threshold=true))]
-#[expect(clippy::too_many_arguments)]
+#[expect(clippy::too_many_arguments, reason = "ratchet RITK-LINT-1")]
 pub fn isolated_connected_segment(
     py: Python<'_>,
     image: &PyImage,

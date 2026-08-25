@@ -1,3 +1,4 @@
+#![expect(clippy::unwrap_used, reason = "ratchet RITK-UNWRAP-1")]
 use super::*;
 use crate::attribute::{tags, DicomTag};
 use crate::diffusion::extract_diffusion_pair;

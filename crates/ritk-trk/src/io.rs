@@ -1,5 +1,6 @@
 #![forbid(unsafe_code)]
 #![deny(missing_docs)]
+#![expect(clippy::unwrap_used, reason = "ratchet RITK-UNWRAP-1")]
 
 use std::io::{Read, Write};
 

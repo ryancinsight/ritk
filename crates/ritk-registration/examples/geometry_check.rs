@@ -1,5 +1,9 @@
 //! Report NIfTI geometry and index-to-world coordinates for a CT/MR pair.
 //! Pass the two NIfTI paths explicitly so the example is portable across datasets.
+#![expect(
+    clippy::print_stdout,
+    reason = "RITK-LINT-1: example/test diagnostic output"
+)]
 use anyhow::{Context, Result};
 use coeus_core::SequentialBackend;
 use ritk_image::{grid, Image};

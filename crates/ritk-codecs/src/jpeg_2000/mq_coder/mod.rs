@@ -3,7 +3,9 @@
 pub mod decoder;
 pub mod encoder;
 
+#[allow(unused_imports, reason = "ratchet RITK-LINT-1")]
 pub use decoder::MqDecoder;
+#[allow(unused_imports, reason = "ratchet RITK-LINT-1")]
 pub use encoder::MqEncoder;
 
 /// One entry of the MQ probability state table.

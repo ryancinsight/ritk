@@ -38,6 +38,7 @@ mod mi;
 
 use anyhow::{Context, Result};
 use clap::Args;
+#[cfg(test)]
 use leto::Array3;
 use ritk_image::tensor::Tensor;
 use std::path::PathBuf;
@@ -220,13 +221,7 @@ pub struct RegisterArgs {
 ///
 /// # Panics
 /// Panics if the tensor data cannot be extracted as `f32`.
-#[cfg_attr(
-    not(test),
-    expect(
-        dead_code,
-        reason = "registration conversion remains the CLI boundary seam"
-    )
-)]
+#[cfg(test)]
 pub(super) fn image_to_leto_volume(image: &Image<f32, Backend, 3>) -> Array3<f64> {
     let shape = image.shape();
     let slice = image
@@ -241,13 +236,7 @@ pub(super) fn image_to_leto_volume(image: &Image<f32, Backend, 3>) -> Array3<f64
 ///
 /// The spatial metadata (origin, spacing, direction) is copied from
 /// `reference` so the output image lives in the fixed image's frame.
-#[cfg_attr(
-    not(test),
-    expect(
-        dead_code,
-        reason = "registration conversion remains the CLI boundary seam"
-    )
-)]
+#[cfg(test)]
 pub(super) fn leto_volume_to_image(
     volume: Array3<f64>,
     reference: &Image<f32, Backend, 3>,
@@ -340,6 +329,7 @@ pub fn run(args: RegisterArgs) -> Result<()> {
 
 #[cfg(test)]
 mod tests {
+    #![expect(clippy::unwrap_used, reason = "ratchet RITK-UNWRAP-1")]
     use super::*;
     use ritk_core::image::Image;
     use ritk_image::tensor::Tensor;

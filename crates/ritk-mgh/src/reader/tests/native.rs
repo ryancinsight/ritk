@@ -1,4 +1,5 @@
 //! Value-semantic coverage for the Atlas-native MGH reader path.
+#![expect(clippy::unwrap_used, reason = "ratchet RITK-UNWRAP-1")]
 
 use crate::test_support::{build_mgh_bytes, IDENTITY_DIR};
 use crate::{MRI_FLOAT, SINGLE_FRAME};

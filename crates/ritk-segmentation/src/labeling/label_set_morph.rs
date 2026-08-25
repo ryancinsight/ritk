@@ -173,7 +173,7 @@ fn erode_line_run(buf: &mut [f64], magnitude: f64, extreme: f64) {
     let mut newcontact: isize = 0;
     // index-based: the inner loop reads `buf`/`tmp` at the computed contact
     // offset `pos + krange`, so a positional iterator does not apply.
-    #[expect(clippy::needless_range_loop)]
+    #[expect(clippy::needless_range_loop, reason = "ratchet RITK-LINT-1")]
     for pos in 0..n {
         let mut base_val = extreme;
         let mut krange = koffset;

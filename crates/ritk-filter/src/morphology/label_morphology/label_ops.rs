@@ -95,7 +95,7 @@ fn dilate_labels(data: &[f32], dims: [usize; 3], radius: usize) -> Vec<f32> {
                 "LabelDilation: radius {radius} exceeds buffer cap (max 31)"
             );
             let mut zz_buf = [0usize; BUF_CAP];
-            #[expect(clippy::needless_range_loop)]
+            #[expect(clippy::needless_range_loop, reason = "ratchet RITK-LINT-1")]
             for dz in 0..=(2 * radius) {
                 let z_raw = (iz as isize + dz as isize - r).clamp(0, nz_isize - 1);
                 zz_buf[dz] = z_raw as usize;
@@ -104,7 +104,7 @@ fn dilate_labels(data: &[f32], dims: [usize; 3], radius: usize) -> Vec<f32> {
             for (iy, out_row) in out_slice.chunks_exact_mut(nx).enumerate() {
                 // Clamp buffer for the Y axis, hoisted once per y-row.
                 let mut yy_buf = [0usize; BUF_CAP];
-                #[expect(clippy::needless_range_loop)]
+                #[expect(clippy::needless_range_loop, reason = "ratchet RITK-LINT-1")]
                 for dy in 0..=(2 * radius) {
                     let y_raw = (iy as isize + dy as isize - r).clamp(0, ny_isize - 1);
                     yy_buf[dy] = y_raw as usize;
@@ -121,10 +121,10 @@ fn dilate_labels(data: &[f32], dims: [usize; 3], radius: usize) -> Vec<f32> {
                     // background (since the voxel being processed is
                     // background), so duplicates never change min_label.
                     // Result is bit-identical to the original skip-OOB scan.
-                    #[expect(clippy::needless_range_loop)]
+                    #[expect(clippy::needless_range_loop, reason = "ratchet RITK-LINT-1")]
                     for dz in 0..=(2 * radius) {
                         let zz_base = zz_buf[dz] * ny * nx;
-                        #[expect(clippy::needless_range_loop)]
+                        #[expect(clippy::needless_range_loop, reason = "ratchet RITK-LINT-1")]
                         for dy in 0..=(2 * radius) {
                             let base = zz_base + yy_buf[dy] * nx;
                             for dx in 0..=(2 * radius) {

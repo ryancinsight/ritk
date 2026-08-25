@@ -2,6 +2,7 @@
 //!
 //! Expected label images are captured verbatim from `sitk.Toboggan` on the same
 //! 2-D reliefs — an external oracle, not a ritk self-comparison.
+#![expect(clippy::unwrap_used, reason = "ratchet RITK-UNWRAP-1")]
 
 use super::{validate_relief, TobogganFilter, MAX_SAMPLE_COUNT};
 use coeus_core::SequentialBackend;

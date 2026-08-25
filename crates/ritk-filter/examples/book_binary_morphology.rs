@@ -4,6 +4,7 @@
 //! thin protrusion for opening to remove, plus background holes for closing to
 //! fill. The example verifies the anti-extensive and extensive contracts before
 //! rendering data-derived change maps.
+#![expect(clippy::print_stdout, reason = "ratchet RITK-LINT-1")]
 
 use anyhow::{bail, Context, Result};
 use base64::{engine::general_purpose::STANDARD, Engine as _};

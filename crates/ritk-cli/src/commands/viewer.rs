@@ -7,6 +7,10 @@
 //! The command is intentionally headless. `ritk-snap` owns the viewer domain
 //! model and backend abstraction; a future GUI backend can consume the same
 //! core types without changing the import path or study-loading logic.
+#![expect(
+    clippy::print_stdout,
+    reason = "RITK-LINT-1: ritk-cli is the application output layer"
+)]
 
 use anyhow::{Context, Result};
 use clap::Parser;

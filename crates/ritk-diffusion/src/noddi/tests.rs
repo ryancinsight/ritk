@@ -1,4 +1,5 @@
 //! NODDI Watson-dispersion model verification against synthetic oracles.
+#![expect(clippy::unwrap_used, reason = "ratchet RITK-UNWRAP-1")]
 
 use super::*;
 use ritk_diffusion_scheme::{DiffusionWeighting, GradientDirection, GradientFrame, GradientScheme};

@@ -337,7 +337,11 @@ fn sample_linear(values: &[f64], position: f64) -> f64 {
     }
     let lower = position.floor();
     let weight = position - lower;
-    #[expect(clippy::cast_possible_truncation, clippy::cast_sign_loss)]
+    #[expect(
+        clippy::cast_possible_truncation,
+        clippy::cast_sign_loss,
+        reason = "ratchet RITK-LINT-1"
+    )]
     let lower_index = lower as usize;
     values[lower_index] * (1.0 - weight) + values[lower_index + 1] * weight
 }

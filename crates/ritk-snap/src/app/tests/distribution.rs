@@ -1,3 +1,4 @@
+#![expect(clippy::unwrap_used, reason = "ratchet RITK-UNWRAP-1")]
 use super::*;
 use crate::app::clinical_distribution::{
     build_clinical_distribution_report, report_path, summary_from_loaded_volume,

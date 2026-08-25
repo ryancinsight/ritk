@@ -397,6 +397,7 @@ fn parse_tile_header(data: &[u8], mut pos: usize, tile_end: usize) -> Result<usi
 
 #[cfg(test)]
 mod tests {
+    #![expect(clippy::unwrap_used, reason = "ratchet RITK-UNWRAP-1")]
     use super::*;
     use crate::PixelSignedness;
 

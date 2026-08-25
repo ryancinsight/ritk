@@ -158,6 +158,7 @@ fn require_nonzero_3d(shape: [usize; 3], context: &str, role: &str) -> Result<()
 
 #[cfg(test)]
 mod tests {
+    #![expect(clippy::unwrap_used, reason = "ratchet RITK-UNWRAP-1")]
     use super::{
         checked_edge_shape_2d, checked_edge_shape_3d, checked_fft_shape_2d, checked_fft_shape_3d,
         edge_source_index,

@@ -1,3 +1,4 @@
+#![expect(clippy::unwrap_used, reason = "ratchet RITK-UNWRAP-1")]
 use super::*; // ── Positive: Li threshold creates binary output ────────────────────────── /// Li thresholding on a bimodal image must produce a binary mask with the
 /// threshold between the two modes.
 #[test]

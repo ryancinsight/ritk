@@ -1,3 +1,4 @@
+#![expect(clippy::unwrap_used, reason = "ratchet RITK-UNWRAP-1")]
 use super::*;
 use dicom::core::smallvec::SmallVec;
 use dicom::core::{DataElement, PrimitiveValue, VR};
@@ -22,6 +23,7 @@ fn write_multiframe(
     );
 }
 
+#[allow(clippy::too_many_arguments, reason = "ratchet RITK-LINT-1")]
 fn write_multiframe_with_dims(
     path: &Path,
     samples_per_pixel: u16,

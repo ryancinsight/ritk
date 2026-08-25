@@ -28,3 +28,6 @@ image = { workspace = true }
 
 [[example]]
 name = "book_minc"
+
+[lints]
+workspace = true

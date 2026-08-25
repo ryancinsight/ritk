@@ -99,7 +99,7 @@ pub fn discrete_gaussian(
 /// Returns: derivative PyImage with identical shape and spatial metadata.
 #[pyfunction]
 #[pyo3(signature = (image, order_x, order_y, order_z, variance, maximum_error=0.01, use_image_spacing=false))]
-#[expect(clippy::too_many_arguments)]
+#[expect(clippy::too_many_arguments, reason = "ratchet RITK-LINT-1")]
 pub fn discrete_gaussian_derivative(
     py: Python<'_>,
     image: &PyImage,

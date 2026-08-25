@@ -322,7 +322,7 @@ impl LabelMapContourOverlayFilter {
 /// Computes `dilate(dil) − erode(thick)` over a clamped window around the label's
 /// bounding box: dilation treats out-of-image as background, erosion treats it as
 /// foreground (ITK `BinaryErode` default).  Sets `out[idx] = label` on the band.
-#[expect(clippy::too_many_arguments)]
+#[expect(clippy::too_many_arguments, reason = "ratchet RITK-LINT-1")]
 fn contour_band(
     coords: &[[usize; 3]],
     dims: [usize; 3],

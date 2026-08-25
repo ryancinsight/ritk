@@ -442,7 +442,7 @@ fn threshold_2d<F: Fn(isize, isize, isize) -> f64>(
 
 /// 3-D directional threshold (`Dispatch<3>`): average of the four neighbourhood
 /// samples perpendicular to the gradient at distance `R` (spherical angles).
-#[expect(clippy::too_many_arguments)]
+#[expect(clippy::too_many_arguments, reason = "ratchet RITK-LINT-1")]
 fn threshold_3d<F: Fn(isize, isize, isize) -> f64>(
     get: &F,
     z: isize,

@@ -50,7 +50,7 @@ use super::geometry::{
 /// - `series_path`: path to use in the returned `DicomSeriesInfo`
 /// - `sort_tiebreaker`: final comparator for slice sorting (filename vs SOP UID)
 /// - `empty_error_context`: context string for empty-series error messages
-#[expect(clippy::too_many_arguments)]
+#[expect(clippy::too_many_arguments, reason = "ratchet RITK-LINT-1")]
 pub(super) fn finalize_scanned_series(
     mut slices: Vec<DicomSliceMetadata>,
     part10_bytes_vec: Option<Vec<Vec<u8>>>,

@@ -1,3 +1,7 @@
+#![expect(
+    clippy::print_stdout,
+    reason = "RITK-LINT-1: ritk-cli is the application output layer"
+)]
 use anyhow::{anyhow, Result};
 use tracing::info;
 
@@ -282,6 +286,7 @@ pub(super) fn run_discrete_gaussian(args: &FilterArgs) -> Result<()> {
 // ── Tests ─────────────────────────────────────────────────────────────────────
 #[cfg(test)]
 mod tests {
+    #![expect(clippy::unwrap_used, reason = "ratchet RITK-UNWRAP-1")]
     use super::*;
     use crate::commands::filter::{default_args, make_test_image, FilterKind};
     use crate::commands::{read_image, write_image, Backend};

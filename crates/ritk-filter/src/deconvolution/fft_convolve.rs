@@ -185,7 +185,7 @@ pub(super) fn ifft_and_crop<const D: usize>(
 ///
 /// # Invariant
 /// Output length equals the product of `img_dims`.
-#[expect(dead_code)]
+#[expect(dead_code, reason = "ratchet RITK-LINT-1")]
 pub(super) fn convolve<const D: usize>(
     image: &[f32],
     img_dims: &[usize; D],

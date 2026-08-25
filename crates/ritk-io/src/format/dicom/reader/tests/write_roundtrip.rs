@@ -1,4 +1,5 @@
-#![allow(unused_imports)]
+#![expect(unused_imports, reason = "ratchet RITK-LINT-1")]
+#![expect(clippy::unwrap_used, reason = "ratchet RITK-UNWRAP-1")]
 
 use arrayvec::ArrayString;
 

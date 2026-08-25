@@ -4,6 +4,7 @@
 //! compares full-image and masked-foreground populations, verifies RITK's
 //! results against an independent sorted reference, and renders the source,
 //! mask, distributions, quartiles, mean, and median to one SVG.
+#![expect(clippy::print_stdout, reason = "ratchet RITK-LINT-1")]
 
 use anyhow::{bail, Context, Result};
 use ritk_statistics::{

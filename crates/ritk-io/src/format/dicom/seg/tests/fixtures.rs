@@ -7,7 +7,7 @@ use dicom::object::InMemDicomObject;
 use super::super::types::SEG_SOP_CLASS_UID;
 
 /// Build a minimal DICOM-SEG InMemDicomObject with given geometry and raw pixel bytes.
-#[expect(clippy::too_many_arguments)] // 8-arg test helper; collecting into a struct would add ceremony
+#[expect(clippy::too_many_arguments, reason = "ratchet RITK-LINT-1")] // 8-arg test helper; collecting into a struct would add ceremony
 pub(super) fn build_seg_obj(
     rows: u16,
     cols: u16,

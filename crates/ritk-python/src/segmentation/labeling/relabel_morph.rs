@@ -192,6 +192,10 @@ fn label_set_morph_py(
 /// Returns:
 ///     the remapped image (same shape and spatial metadata).
 #[pyfunction]
+#[expect(
+    clippy::implicit_hasher,
+    reason = "a #[pyfunction] cannot be generic, so the BuildHasher parameter clippy suggests is not expressible here"
+)]
 pub fn change_label(
     py: Python<'_>,
     label_image: &PyImage,

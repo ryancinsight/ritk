@@ -113,7 +113,7 @@ fn median_3d(data: &[f32], dims: [usize; 3], radius: usize) -> Vec<f32> {
                 "MedianFilter::median_3d: radius {radius} exceeds buffer cap (max 31)"
             );
             let mut zz_buf: [usize; BUF_CAP] = [0; BUF_CAP];
-            #[expect(clippy::needless_range_loop)]
+            #[expect(clippy::needless_range_loop, reason = "ratchet RITK-LINT-1")]
             for dz in 0..=(2 * radius) {
                 let z_raw = (iz as isize + dz as isize - r).clamp(0, nz_isize - 1);
                 zz_buf[dz] = z_raw as usize;
@@ -134,7 +134,7 @@ fn median_3d(data: &[f32], dims: [usize; 3], radius: usize) -> Vec<f32> {
                 // Pre-clamp the Y-row once per iy: `(2r+1)²`-fold redundant
                 // branch elimination when paired with the dz-hoist above.
                 let mut yy_buf: [usize; BUF_CAP] = [0; BUF_CAP];
-                #[expect(clippy::needless_range_loop)]
+                #[expect(clippy::needless_range_loop, reason = "ratchet RITK-LINT-1")]
                 for dy in 0..=(2 * radius) {
                     let y_raw = (iy as isize + dy as isize - r).clamp(0, ny_isize - 1);
                     yy_buf[dy] = y_raw as usize;
@@ -154,10 +154,10 @@ fn median_3d(data: &[f32], dims: [usize; 3], radius: usize) -> Vec<f32> {
                     // bounds-check on every tick without paying for the
                     // inner clamp hoist. Single block-level allow per the
                     // precedent set by morphology::window_1d.
-                    #[expect(clippy::needless_range_loop)]
+                    #[expect(clippy::needless_range_loop, reason = "ratchet RITK-LINT-1")]
                     for dz in 0..=(2 * radius) {
                         let zz_base = zz_buf[dz] * stride_yx;
-                        #[expect(clippy::needless_range_loop)]
+                        #[expect(clippy::needless_range_loop, reason = "ratchet RITK-LINT-1")]
                         for dy in 0..=(2 * radius) {
                             let yy_base = yy_buf[dy] * nx;
                             let base = zz_base + yy_base;
@@ -194,6 +194,7 @@ mod tests_native;
 
 #[cfg(test)]
 mod tests {
+    #![expect(clippy::unwrap_used, reason = "ratchet RITK-UNWRAP-1")]
     use super::*;
 
     use coeus_core::SequentialBackend;

@@ -1,5 +1,6 @@
 //! Tests for `scan_dicom_instances` and `scan_dicom_part10_bytes` — in-memory
 //! SCP-received instance scanning and Part 10 byte payload scanning.
+#![expect(clippy::unwrap_used, reason = "ratchet RITK-UNWRAP-1")]
 
 use arrayvec::ArrayString;
 

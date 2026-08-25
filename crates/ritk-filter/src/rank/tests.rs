@@ -1,4 +1,5 @@
 //! Tests for [`PercentileFilter`] and [`RankFilter`].
+#![expect(clippy::unwrap_used, reason = "ratchet RITK-UNWRAP-1")]
 
 use super::*;
 

@@ -451,23 +451,23 @@ fn trk(
     // origin. Rows 0 and 1 are negated to take LPS to RAS.
     let mut affine = [[0.0_f32; 4]; 4];
     affine[3][3] = 1.0;
-    for (row, target) in affine.iter_mut().take(3).enumerate() {
+    for row in 0..3 {
         let flip = if row < 2 { -1.0 } else { 1.0 };
-        for (column, slot) in target.iter_mut().take(3).enumerate() {
+        for column in 0..3 {
             let axis = ritk_axis(column);
             #[expect(
                 clippy::cast_possible_truncation,
                 reason = "direction cosines scaled by millimetre spacing are far inside f32"
             )]
             let value = (direction.0[(row, axis)] * spacing[axis]) as f32;
-            *slot = flip * value;
+            affine[row][column] = flip * value;
         }
         #[expect(
             clippy::cast_possible_truncation,
             reason = "millimetre origins are far inside f32"
         )]
         let offset = origin[row] as f32;
-        target[3] = flip * offset;
+        affine[row][3] = flip * offset;
     }
 
     tracks.to_trk_header(dim, voxel_size, Some(affine))

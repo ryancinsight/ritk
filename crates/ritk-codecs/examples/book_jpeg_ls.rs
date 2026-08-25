@@ -4,6 +4,7 @@
 //! RITK's public lossless and near-lossless paths, decodes both codestreams,
 //! verifies their exact analytical error contracts, and renders source,
 //! reconstructions, and a magnified near-lossless error panel.
+#![expect(clippy::print_stdout, reason = "ratchet RITK-LINT-1")]
 
 use anyhow::{bail, Context, Result};
 use base64::{engine::general_purpose::STANDARD, Engine as _};

@@ -59,6 +59,7 @@ pub(crate) fn checked_sample_count(pixels: usize, samples_per_pixel: usize) -> R
 
 #[cfg(test)]
 mod tests {
+    #![expect(clippy::unwrap_used, reason = "ratchet RITK-UNWRAP-1")]
     use super::*;
 
     #[test]

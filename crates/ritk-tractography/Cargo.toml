@@ -22,3 +22,6 @@ thiserror.workspace = true
 [dev-dependencies]
 apollo-sht = { workspace = true }
 ritk-diffusion-scheme = { workspace = true }
+
+[lints]
+workspace = true

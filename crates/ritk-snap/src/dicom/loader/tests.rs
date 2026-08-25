@@ -1,4 +1,6 @@
 //! Tests for the loader module.
+#![expect(clippy::print_stderr, reason = "ratchet RITK-LINT-1")]
+#![expect(clippy::unwrap_used, reason = "ratchet RITK-UNWRAP-1")]
 
 use super::*;
 use crate::dicom::series_tree::SeriesEntry;

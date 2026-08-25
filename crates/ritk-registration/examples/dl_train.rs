@@ -1,3 +1,7 @@
+#![expect(
+    clippy::print_stdout,
+    reason = "RITK-LINT-1: example/test diagnostic output"
+)]
 use coeus_autograd::{cat, mean, pow, sub, Var};
 use coeus_core::{Backend, CpuAddressableStorage, CpuAddressableStorageMut, SequentialBackend};
 use coeus_nn::Module;

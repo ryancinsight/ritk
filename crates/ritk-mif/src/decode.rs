@@ -1,4 +1,5 @@
 //! Byte decoding for MRtrix `.mif` binary payloads.
+#![expect(clippy::unwrap_used, reason = "ratchet RITK-UNWRAP-1")]
 
 use anyhow::{anyhow, Result};
 

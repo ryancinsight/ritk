@@ -70,3 +70,6 @@ zune-core = { workspace = true, default-features = false }
 [[example]]
 name = "dicom_to_nifti"
 path = "examples/dicom_to_nifti.rs"
+
+[lints]
+workspace = true

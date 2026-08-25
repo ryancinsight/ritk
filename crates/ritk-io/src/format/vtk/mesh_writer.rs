@@ -61,6 +61,7 @@ pub fn mesh_to_vtk_string(mesh: &Mesh) -> String {
 
 #[cfg(test)]
 mod tests {
+    #![expect(clippy::unwrap_used, reason = "ratchet RITK-UNWRAP-1")]
     use super::*;
     use gaia::MeshBuilder;
 

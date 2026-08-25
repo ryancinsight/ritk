@@ -47,6 +47,7 @@ pub fn packbits_decode(input: &[u8], expected_len: usize) -> Result<Vec<u8>> {
 
 #[cfg(test)]
 mod tests {
+    #![expect(clippy::unwrap_used, reason = "ratchet RITK-UNWRAP-1")]
     use super::*;
     use proptest::prelude::*;
 

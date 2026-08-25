@@ -1,3 +1,4 @@
+#![expect(clippy::unwrap_used, reason = "ratchet RITK-UNWRAP-1")]
 use super::super::decode_compressed_frame;
 use dicom::core::smallvec::SmallVec;
 use dicom::core::value::PixelFragmentSequence;

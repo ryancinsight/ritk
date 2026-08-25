@@ -7,6 +7,10 @@
 //! identity and registered overlays and shows the MR intensity change caused
 //! by resampling, rather than repeating the same transform call as a second
 //! duplicate reference panel.
+#![expect(
+    clippy::print_stdout,
+    reason = "RITK-LINT-1: example/test diagnostic output"
+)]
 
 use anyhow::{bail, Context, Result};
 use base64::{engine::general_purpose::STANDARD, Engine as _};

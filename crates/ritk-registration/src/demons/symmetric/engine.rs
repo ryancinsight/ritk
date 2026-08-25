@@ -176,7 +176,7 @@ impl SymmetricDemonsRegistration {
 
 // ── Private helpers ───────────────────────────────────────────────────────────
 
-#[expect(clippy::too_many_arguments)]
+#[expect(clippy::too_many_arguments, reason = "ratchet RITK-LINT-1")]
 fn symmetric_forces_into(
     fixed: &[f32],
     m_warped: &[f32],

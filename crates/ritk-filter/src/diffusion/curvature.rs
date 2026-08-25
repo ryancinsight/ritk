@@ -139,7 +139,7 @@ const MIN_NORM: f64 = 1.0e-10;
 /// gradient filter), then apply the conductance-weighted, gradient-normalised
 /// curvature flux multiplied by the upwind `√(propagation_gradient)`. Boundary
 /// conditions are ZeroFluxNeumann (index-clamp); derivatives are spacing-scaled.
-#[expect(clippy::needless_range_loop)]
+#[expect(clippy::needless_range_loop, reason = "ratchet RITK-LINT-1")]
 fn curvature_diffuse(
     data: &[f32],
     dims: [usize; 3],

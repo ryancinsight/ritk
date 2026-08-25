@@ -3,6 +3,10 @@
 //! The oracle for every value assertion here is the host row-major layout of
 //! the fixture, computed by hand in the test rather than by re-running the
 //! implementation's own index arithmetic.
+#![expect(
+    clippy::unwrap_used,
+    reason = "fixture unwraps on well-formed in-memory images; ratchet RITK-UNWRAP-1"
+)]
 
 use coeus_core::SequentialBackend;
 use ritk_spatial::{Direction, Point, Spacing};

@@ -6,12 +6,11 @@ pub mod writer;
 #[cfg(test)]
 mod tests;
 
-#[expect(
-    unused_imports,
-    reason = "re-exported packet types form the public JPEG 2000 reader surface"
-)]
+#[allow(unused_imports, reason = "ratchet RITK-LINT-1")]
 pub use reader::{decode_tile_part, BitReader, TileCodingParams, TileComponentSamples};
+#[allow(unused_imports, reason = "ratchet RITK-LINT-1")]
 pub(crate) use writer::encode_tile_part;
+#[allow(unused_imports, reason = "ratchet RITK-LINT-1")]
 pub(crate) use writer::BitWriter;
 
 use crate::jpeg_2000::subband::Subband;

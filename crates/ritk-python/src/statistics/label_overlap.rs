@@ -1,4 +1,8 @@
 //! Python bindings for per-label overlap measures.
+#![expect(
+    clippy::useless_conversion,
+    reason = "PyResult<T> is a type alias for Result<T, PyErr>, so the `?` conversion clippy flags inside the #[pyfunction] expansion is the identity"
+)]
 
 use crate::image::{with_image_slice, PyImage};
 use pyo3::prelude::*;

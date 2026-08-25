@@ -32,3 +32,6 @@ coeus-tensor = { workspace = true }
 proptest = { workspace = true }
 coeus-core = { workspace = true }
 coeus-tensor = { workspace = true }
+
+[lints]
+workspace = true

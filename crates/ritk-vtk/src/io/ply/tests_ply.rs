@@ -1,3 +1,4 @@
+#![expect(clippy::unwrap_used, reason = "ratchet RITK-UNWRAP-1")]
 use super::{read_ply_mesh, write_ply_ascii, write_ply_binary_le};
 use crate::domain::vtk_data_object::{AttributeArray, VtkPolyData};
 use crate::io::ply::reader::parse_ply;

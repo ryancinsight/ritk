@@ -6,17 +6,37 @@
 //! orientation interpolation, assigns endpoints to image-present grey-matter
 //! regions, and writes the complete connectivity matrix beside the book figure.
 //!
-//! Human diffusion MRI has no voxelwise fibre ground truth. The output therefore
-//! demonstrates a reproducible data path and internally checkable accounting;
-//! it is not evidence that streamline counts equal axon counts or that any
-//! individual connection is anatomically true.
+//! # Data
+//!
+//! OpenNeuro `ds002087` sub-01, CC0. 104x104x72 at 2 mm, 99 volumes at b = 0
+//! and b = 700 s/mm^2. Fetch with `test_data/diffusion/download.sh`, then the
+//! DWI volume itself from OpenNeuro S3 (the script leaves it as a git-annex
+//! pointer). The example exits without writing when the data is absent, so it
+//! stays buildable and runnable in CI, where the dataset is not present.
+//!
+//! # What the figures show
+//!
+//! Panel 1 is a fractional-anisotropy map of one axial slice. FA is a scalar in
+//! `[0, 1]` measuring how directional the local diffusion is, so the bright
+//! structure is where water moves preferentially along one axis — white matter.
+//! The corpus callosum should read as a bright band across the midline.
+//!
+//! Panel 2 overlays streamlines seeded in the high-FA voxels of that slice.
+//! Their agreement with the bright structure underneath is the check: tracks
+//! that wander off the anisotropic tissue would indicate the direction field
+//! and the FA map disagree.
+//!
+//! Both panels are rendered from the fitted values, not drawn. Nothing here is
+//! illustrative.
+#![expect(clippy::print_stderr, reason = "ratchet RITK-LINT-1")]
+#![expect(clippy::print_stdout, reason = "ratchet RITK-LINT-1")]
+
+use std::path::{Path, PathBuf};
 
 #[path = "book_brain_tractography/data.rs"]
 mod data;
 #[path = "book_brain_tractography/render.rs"]
 mod render;
-
-use std::path::{Path, PathBuf};
 
 use anyhow::{Context, Result};
 use data::{HumanAtlas, HumanDataset};

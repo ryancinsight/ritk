@@ -316,6 +316,10 @@ pub struct MaskInputArgs {
 
 /// CPR (Curved Planar Reformation) parameters.
 #[derive(Args, Debug, Default)]
+#[expect(
+    clippy::struct_field_names,
+    reason = "the cpr_ prefix is the clap flag namespace for this arg group; renaming the fields renames user-facing CLI flags"
+)]
 pub struct CprArgs {
     /// Control points for the CPR path in physical coordinates `[z,y,x]`.
     /// Repeat this flag for each point: `--cpr-point 0,0,0 --cpr-point 10,0,0`.

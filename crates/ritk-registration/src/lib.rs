@@ -1,10 +1,3 @@
-#![allow(
-    clippy::too_many_arguments,
-    clippy::type_complexity,
-    clippy::doc_overindented_list_items,  // sub-list continuations (a., b., etc.) don't match heuristic
-    clippy::field_reassign_with_default,  // stylistic; test code patterns
-)]
-
 //! ritk-registration: Unified image registration framework for the ritk toolkit.
 //!
 //! This crate provides differentiable Coeus operations and classical

@@ -23,6 +23,8 @@
 //!
 //! Example:
 //!   cargo run -p ritk-io --example anonymize_pacs_export -- "raw/study_001" "anon/study_001"
+#![expect(clippy::print_stderr, reason = "ratchet RITK-LINT-1")]
+#![expect(clippy::print_stdout, reason = "ratchet RITK-LINT-1")]
 
 use ritk_io::format::dicom::anonymize::verify::{verify_dicom_directory, VerifyOptions};
 use ritk_io::format::dicom::{

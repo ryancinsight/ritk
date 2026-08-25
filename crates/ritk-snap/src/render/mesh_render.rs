@@ -205,7 +205,7 @@ fn project(p: [f32; 3], mvp: &[f32; 16]) -> (f32, f32, f32, f32) {
 }
 
 /// Rasterize one triangle into the color/z buffers.
-#[expect(clippy::too_many_arguments)]
+#[expect(clippy::too_many_arguments, reason = "ratchet RITK-LINT-1")]
 fn rasterize_triangle(
     p0: [f32; 3],
     p1: [f32; 3],

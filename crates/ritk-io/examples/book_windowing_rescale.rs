@@ -5,6 +5,7 @@
 //! The histogram is computed from the same axial slice as the image panels so
 //! the clinical windows are visible as data-derived intervals rather than
 //! unexplained display settings.
+#![expect(clippy::print_stdout, reason = "ratchet RITK-LINT-1")]
 
 use anyhow::{bail, Context, Result};
 use base64::{engine::general_purpose::STANDARD, Engine as _};

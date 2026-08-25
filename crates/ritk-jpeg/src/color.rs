@@ -80,6 +80,7 @@ fn rgb_volume_from_flat_pixels<B: ComputeBackend>(
 
 #[cfg(test)]
 mod tests {
+    #![expect(clippy::unwrap_used, reason = "ratchet RITK-UNWRAP-1")]
     use super::*;
     use coeus_core::SequentialBackend;
     use image::codecs::jpeg::JpegEncoder;

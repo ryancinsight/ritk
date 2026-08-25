@@ -62,7 +62,7 @@ pub fn gaussian_image_source(
 /// 1-D `x=2` → `scale·(1 − 2·e⁻⁸)`; 2-D `(2,2)` → `scale·(1−p)²`). Grid lines
 /// beyond `8σ` of `p` are below `f32` epsilon and omitted. Parameters are in
 /// sitk `(x, y, z)` order; output buffer is `[z, y, x]`.
-#[expect(clippy::too_many_arguments)]
+#[expect(clippy::too_many_arguments, reason = "ratchet RITK-LINT-1")]
 pub fn grid_image_source(
     size_xyz: [usize; 3],
     spacing_xyz: [f64; 3],

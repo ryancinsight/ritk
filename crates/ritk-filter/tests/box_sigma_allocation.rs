@@ -42,6 +42,10 @@
 //! because it is not a dependency anywhere in this workspace and would add one
 //! for a measurement an exact counter already provides; the tradeoff is that
 //! this test reports totals rather than dhat's per-call-stack attribution.
+#![expect(
+    clippy::print_stdout,
+    reason = "allocation report is the test's output"
+)]
 
 use std::alloc::{GlobalAlloc, Layout, System};
 use std::sync::atomic::{AtomicUsize, Ordering};

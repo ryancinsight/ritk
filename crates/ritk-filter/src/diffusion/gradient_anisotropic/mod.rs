@@ -163,7 +163,7 @@ use super::{central_diff as central, clamp_at as at};
 ///
 /// Boundary conditions are ZeroFluxNeumann (index-clamp). Derivatives are scaled
 /// by the image spacing, matching ITK's default `UseImageSpacing = true`.
-#[expect(clippy::needless_range_loop)]
+#[expect(clippy::needless_range_loop, reason = "ratchet RITK-LINT-1")]
 fn diffuse(
     data: &[f32],
     dims: [usize; 3],

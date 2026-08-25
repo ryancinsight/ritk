@@ -1,3 +1,4 @@
+#![expect(clippy::unwrap_used, reason = "ratchet RITK-UNWRAP-1")]
 use super::*;
 use crate::test_support::{dti_signal, scheme, weighting};
 use ritk_diffusion_scheme::{GradientDirection, GradientFrame, GradientScheme};

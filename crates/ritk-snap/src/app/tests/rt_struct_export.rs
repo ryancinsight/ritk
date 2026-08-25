@@ -1,3 +1,4 @@
+#![expect(clippy::unwrap_used, reason = "ratchet RITK-UNWRAP-1")]
 use super::SnapApp;
 use crate::label::LabelEditor;
 use crate::LoadedVolume;

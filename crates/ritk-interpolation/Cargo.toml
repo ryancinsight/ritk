@@ -33,6 +33,5 @@ rand = { workspace = true }
 name = "bspline_interpolation"
 harness = false
 
-[[bench]]
-name = "linear_interpolation"
-harness = false
+[lints]
+workspace = true

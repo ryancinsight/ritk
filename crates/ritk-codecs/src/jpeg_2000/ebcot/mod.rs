@@ -5,9 +5,9 @@ pub mod decoder;
 pub mod encoder;
 
 pub use contexts::SubbandOrientation;
-#[expect(unused_imports)]
+#[expect(unused_imports, reason = "ratchet RITK-LINT-1")]
 pub use decoder::{decode_code_block, DecodedBlock};
-#[expect(unused_imports)]
+#[expect(unused_imports, reason = "ratchet RITK-LINT-1")]
 pub use encoder::{encode_code_block, EncodedBlock};
 
 #[cfg(test)]
@@ -204,6 +204,7 @@ pub(crate) fn cup_trace_take() -> Vec<(usize, u32)> {
 }
 
 #[inline(always)]
+#[allow(unused_variables, reason = "ratchet RITK-LINT-1")]
 pub(crate) fn trace(ctx: usize, bit: u32) {
     #[cfg(test)]
     CUP_TRACE.with(|t| t.borrow_mut().push((ctx, bit)));

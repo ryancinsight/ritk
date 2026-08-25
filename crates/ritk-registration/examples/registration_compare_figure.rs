@@ -7,6 +7,10 @@
 //!
 //! Usage: `cargo run --release -p ritk-registration --example registration_compare_figure`
 //! (paths default to the RIRE-109 pair + Elastix result under leoneuro/).
+#![expect(
+    clippy::print_stdout,
+    reason = "RITK-LINT-1: example/test diagnostic output"
+)]
 
 use anyhow::{bail, Context, Result};
 use coeus_core::SequentialBackend;

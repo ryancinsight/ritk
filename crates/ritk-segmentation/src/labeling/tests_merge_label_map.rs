@@ -3,6 +3,7 @@
 //! Expected vectors are the exact `sitk.LabelMapToLabel(sitk.MergeLabelMap(...))`
 //! results for two z=1 label images (see module docs); they are not derived from
 //! ritk and so constitute a genuine differential oracle.
+#![expect(clippy::unwrap_used, reason = "ratchet RITK-UNWRAP-1")]
 
 use super::{merge_label_maps, MergeLabelError, MergeLabelMethod};
 use ritk_image::test_support as ts;

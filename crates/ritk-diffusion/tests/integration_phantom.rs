@@ -8,6 +8,8 @@
 //!
 //! Each test generates a 4×4×4 phantom and asserts fitted model output
 //! against analytically-known ground truth.
+#![expect(clippy::print_stderr, reason = "ratchet RITK-LINT-1")]
+#![expect(clippy::unwrap_used, reason = "ratchet RITK-UNWRAP-1")]
 
 mod phantom;
 

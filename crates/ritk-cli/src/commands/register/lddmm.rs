@@ -1,3 +1,7 @@
+#![expect(
+    clippy::print_stdout,
+    reason = "RITK-LINT-1: ritk-cli is the application output layer"
+)]
 use super::*;
 
 // ── LDDMM registration ────────────────────────────────────────────────────
@@ -49,6 +53,7 @@ pub(super) fn run_lddmm(args: &RegisterArgs) -> Result<()> {
 
 #[cfg(test)]
 mod tests {
+    #![expect(clippy::unwrap_used, reason = "ratchet RITK-UNWRAP-1")]
     use super::*;
     use crate::commands::register::tests::make_ramp_image;
     use ritk_registration::demons::DemonsVariant;

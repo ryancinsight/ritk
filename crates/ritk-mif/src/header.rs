@@ -64,13 +64,7 @@ impl HeaderValue {
     }
 
     /// True when this is a multi-line block.
-    #[cfg_attr(
-        not(test),
-        expect(
-            dead_code,
-            reason = "public header inspection API is used by consumers"
-        )
-    )]
+    #[allow(dead_code, reason = "ratchet RITK-LINT-1")]
     pub fn is_block(&self) -> bool {
         matches!(self, Self::Block(_))
     }

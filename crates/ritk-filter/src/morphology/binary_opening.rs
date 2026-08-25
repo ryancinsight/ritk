@@ -109,9 +109,6 @@ impl Default for BinaryMorphologicalOpening {
 // ── Tests ─────────────────────────────────────────────────────────────────────
 
 #[cfg(test)]
-#[expect(
-    clippy::identity_op,
-    reason = "fixture indices retain explicit z/y/x stride terms"
-)]
+#[expect(clippy::identity_op, reason = "ratchet RITK-LINT-1")]
 #[path = "tests_binary_opening.rs"]
 mod tests_binary_opening;

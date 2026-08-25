@@ -14,6 +14,13 @@ use super::pyramid::{downsample, upsample_field};
 use super::InverseConsistency;
 use crate::diffeomorphic::local_cc::{bidirectional_cc_from_sats_into, CcSats};
 
+/// The forward and inverse velocity fields of one resolution level, flattened
+/// into their `z, y, x` components in that order: `(v₁z, v₁y, v₁x, v₂z, v₂y,
+/// v₂x)`. The components stay separate rather than nesting into two
+/// [`VelocityField`]s because they are consumed component-wise by the
+/// in-place field kernels.
+type VelocityFieldPair = (Vec<f32>, Vec<f32>, Vec<f32>, Vec<f32>, Vec<f32>, Vec<f32>);
+
 /// Velocity fields and dimensions carried between resolution levels.
 struct PrevLevelState {
     /// Forward velocity field v₁ (fixed→midpoint) from the previous level.
@@ -120,37 +127,31 @@ impl super::MultiResSyNRegistration {
                 Cow::Borrowed(moving)
             };
 
-            let (mut v1z, mut v1y, mut v1x, mut v2z, mut v2y, mut v2x): (
-                Vec<f32>,
-                Vec<f32>,
-                Vec<f32>,
-                Vec<f32>,
-                Vec<f32>,
-                Vec<f32>,
-            ) = if let Some(PrevLevelState {
-                forward: fwd,
-                inverse: inv,
-                dims: pd,
-            }) = prev.take()
-            {
-                (
-                    upsample_field(&fwd.z, pd, ld, 0),
-                    upsample_field(&fwd.y, pd, ld, 1),
-                    upsample_field(&fwd.x, pd, ld, 2),
-                    upsample_field(&inv.z, pd, ld, 0),
-                    upsample_field(&inv.y, pd, ld, 1),
-                    upsample_field(&inv.x, pd, ld, 2),
-                )
-            } else {
-                (
-                    vec![0.0_f32; ln],
-                    vec![0.0_f32; ln],
-                    vec![0.0_f32; ln],
-                    vec![0.0_f32; ln],
-                    vec![0.0_f32; ln],
-                    vec![0.0_f32; ln],
-                )
-            };
+            let (mut v1z, mut v1y, mut v1x, mut v2z, mut v2y, mut v2x): VelocityFieldPair =
+                if let Some(PrevLevelState {
+                    forward: fwd,
+                    inverse: inv,
+                    dims: pd,
+                }) = prev.take()
+                {
+                    (
+                        upsample_field(&fwd.z, pd, ld, 0),
+                        upsample_field(&fwd.y, pd, ld, 1),
+                        upsample_field(&fwd.x, pd, ld, 2),
+                        upsample_field(&inv.z, pd, ld, 0),
+                        upsample_field(&inv.y, pd, ld, 1),
+                        upsample_field(&inv.x, pd, ld, 2),
+                    )
+                } else {
+                    (
+                        vec![0.0_f32; ln],
+                        vec![0.0_f32; ln],
+                        vec![0.0_f32; ln],
+                        vec![0.0_f32; ln],
+                        vec![0.0_f32; ln],
+                        vec![0.0_f32; ln],
+                    )
+                };
 
             let mut cc_hist: VecDeque<f64> = VecDeque::new();
             let r = self.config.cc_window_radius;

@@ -1,5 +1,6 @@
 #[cfg(test)]
 mod tests {
+    #![expect(clippy::unwrap_used, reason = "ratchet RITK-UNWRAP-1")]
     use crate::format::dicomweb::qido::{build_qido_url, parse_qido_response, QidoSearchParams};
     use crate::format::dicomweb::stow::{
         build_multipart_body, build_stow_url, parse_stow_response, MULTIPART_BOUNDARY,

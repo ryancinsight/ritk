@@ -1,6 +1,5 @@
 //! Tests for confidence_connected
 //! Extracted to keep the 500-line structural limit.
-#![allow(clippy::identity_op, clippy::erasing_op)]
 use super::*;
 use coeus_core::SequentialBackend;
 use ritk_core::spatial::{Direction, Point, Spacing};

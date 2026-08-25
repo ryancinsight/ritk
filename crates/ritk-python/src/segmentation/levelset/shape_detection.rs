@@ -64,7 +64,7 @@ impl PyShapeDetectionOptions {
         max_iterations = 200,
         tolerance = 1e-3,
     ))]
-    #[expect(clippy::too_many_arguments)]
+    #[expect(clippy::too_many_arguments, reason = "ratchet RITK-LINT-1")]
     pub fn new(
         curvature_weight: f64,
         propagation_weight: f64,

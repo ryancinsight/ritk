@@ -1,3 +1,4 @@
+#![expect(clippy::unwrap_used, reason = "ratchet RITK-UNWRAP-1")]
 use super::super::write_dicom_series_with_metadata;
 use super::fixtures::{make_image_with_spatial, make_test_metadata};
 use dicom::core::Tag;

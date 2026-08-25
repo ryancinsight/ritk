@@ -1,10 +1,4 @@
-//! Shared graph fixtures, and tests of the matrix itself.
-//!
-//! The fixtures build matrices directly rather than through
-//! [`crate::build_connectivity_matrix`], so that a measure's test fails for a
-//! defect in the measure rather than in the builder. The builder has its own
-//! tests in [`crate::build`].
-
+#![expect(clippy::unwrap_used, reason = "ratchet RITK-UNWRAP-1")]
 use super::*;
 
 /// Assemble a matrix from an upper-triangular edge list.

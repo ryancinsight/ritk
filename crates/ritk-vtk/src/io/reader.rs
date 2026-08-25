@@ -117,7 +117,7 @@ struct VtkHeader {
 // element roles are pinned in the "Return convention" doc section above; a
 // wrapper struct would add a named type without improving call-site clarity,
 // since both consumers destructure all four fields immediately.
-#[expect(clippy::type_complexity)]
+#[expect(clippy::type_complexity, reason = "ratchet RITK-LINT-1")]
 pub fn read_vtk_flat<P: AsRef<Path>>(
     path: P,
 ) -> Result<(Vec<f32>, [usize; 3], [f64; 3], [f64; 3])> {

@@ -72,6 +72,7 @@ impl<T: PartialOrd + Copy + std::fmt::Display> std::fmt::Display for IntensityRa
 
 #[cfg(test)]
 mod tests {
+    #![expect(clippy::unwrap_used, reason = "ratchet RITK-UNWRAP-1")]
     use super::*;
 
     #[test]

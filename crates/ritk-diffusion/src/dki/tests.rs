@@ -3,6 +3,7 @@
 //! Every case uses noise-free signals generated from known D and W tensors.
 //! Tolerances account for the LM solver's `sqrt(ε)` convergence floor and
 //! conditioning of the multi-shell scheme.
+#![expect(clippy::unwrap_used, reason = "ratchet RITK-UNWRAP-1")]
 
 use super::*;
 use ritk_diffusion_scheme::{DiffusionWeighting, GradientDirection, GradientFrame, GradientScheme};
