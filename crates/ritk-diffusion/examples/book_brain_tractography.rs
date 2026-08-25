@@ -33,7 +33,9 @@
 
 use std::path::{Path, PathBuf};
 
+#[path = "book_brain_tractography/data.rs"]
 mod data;
+#[path = "book_brain_tractography/render.rs"]
 mod render;
 
 use anyhow::{Context, Result};
