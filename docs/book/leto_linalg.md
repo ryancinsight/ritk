@@ -158,7 +158,7 @@ let svd = svd_decompose(&matrix.view())?;
 `leto-ops` no longer ships Krylov recurrences: stack ownership of the
 iterative-solver layer moved to Athena (Atlas ADR 0033), which provides
 CG, BiCGSTAB, restarted GMRES, and damped LSQR over backend-generic
-operators. The diffusion pipeline documented here needs none of them —
+operators. The diffusion pipeline documented here needs none of them â€”
 every solve routes through the direct dense layer in the table above
 (`solve_least_squares`, `nnls`, `cholesky_solve`).
 
