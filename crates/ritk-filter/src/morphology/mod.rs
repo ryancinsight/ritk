@@ -235,9 +235,131 @@ pub(crate) enum Extremum {
 ///
 /// Output is **bit-identical** to the serial version — the passes are
 /// embarrassingly parallel with no data sharing within a pass.
-// Clippy 1.97.0 reports the const initializer; 1.97.1 reports an `expect`
-// for the same lint as unfulfilled.
-#[allow(clippy::missing_const_for_thread_local, reason = "ratchet RITK-LINT-1")]
+pub(crate) fn separable_box_3d(
+    data: &[f32],
+    dims: [usize; 3],
+    radius: usize,
+    ext: Extremum,
+) -> Vec<f32> {
+    if radius == 0 {
+        return data.to_vec();
+    }
+    let [nz, ny, nx] = dims;
+    let n_total = nz * ny * nx;
+
+    // One scratch tuple per OS thread: (output_buf, input_copy_buf, deque).
+    // `resize` grows the Vec on first use or when the dimension increases;
+    // it never shrinks the allocation, so steady-state is allocation-free.
+    // ── Pass 1: X-axis (contiguous nx-element rows) ──────────────────────────────
+    // nz z-slices × ny rows each; chunk = one z-slice (ny*nx elements).
+    // Thread-local (wout_t, tmp, deq) reused across all ny rows in the slice.
+    let mut buf = data.to_vec();
+    moirai::for_each_chunk_mut_enumerated_with::<moirai::Adaptive, _, _>(
+        &mut buf,
+        ny * nx,
+        |_iz, slice| {
+            SCRATCH.with_borrow_mut(|(wout_t, tmp, deq)| {
+                wout_t.resize(nx, 0.0f32);
+                tmp.resize(nx, 0.0f32);
+                for iy in 0..ny {
+                    let base = iy * nx;
+                    tmp.copy_from_slice(&slice[base..base + nx]);
+                    window_1d(tmp, radius, ext, wout_t, deq);
+                    slice[base..base + nx].copy_from_slice(&wout_t[..nx]);
+                }
+            });
+        },
+    );
+
+    // ── Pass 2: Y-axis (strided ny-element columns within each z-slice) ───────
+    // nz z-slices; each thread processes nx Y-columns for its slice.
+    // buf_x is the X-processed source, captured immutably; writes go to buf_y
+    // (a separate allocation). `buf_x: &[f32]` is Sync; `buf_y` is mutably
+    // borrowed by moirai — no aliasing.
+    let buf_x = buf;
+    let mut buf_y = vec![0.0f32; n_total];
+    moirai::for_each_chunk_mut_enumerated_with::<moirai::Adaptive, _, _>(
+        &mut buf_y,
+        ny * nx,
+        |iz, out_slice| {
+            let src = &buf_x[iz * ny * nx..(iz + 1) * ny * nx];
+            SCRATCH.with_borrow_mut(|(wout_t, col, deq)| {
+                wout_t.resize(ny, 0.0f32);
+                col.resize(ny, 0.0f32);
+                for ix in 0..nx {
+                    for iy in 0..ny {
+                        col[iy] = src[iy * nx + ix];
+                    }
+                    window_1d(&col[..ny], radius, ext, wout_t, deq);
+                    for iy in 0..ny {
+                        out_slice[iy * nx + ix] = wout_t[iy];
+                    }
+                }
+            });
+        },
+    );
+
+    // ── Pass 3: Z-axis (strided nz-element columns; transpose for contiguity) ─
+    // Transpose buf_y from [nz, ny, nx] to [n_cols, nz] layout so Z-columns
+    // are contiguous, run parallel window_1d over nz-element chunks, then
+    // scatter back to [nz, ny, nx].
+    let n_cols = ny * nx;
+    let mut buf_zt = vec![0.0f32; nz * n_cols];
+    // Forward transpose: buf_zt[col*nz + iz] = buf_y[iz*n_cols + col]
+    for iz in 0..nz {
+        for col in 0..n_cols {
+            buf_zt[col * nz + iz] = buf_y[iz * n_cols + col];
+        }
+    }
+    // Parallel window_1d over Z-columns (each nz contiguous elements).
+    // z_col: &mut [f32] coerces to &[f32] for the read argument; the immutable
+    // reborrow ends before copy_from_slice takes the mutable reborrow.
+    moirai::for_each_chunk_mut_enumerated_with::<moirai::Adaptive, _, _>(
+        &mut buf_zt,
+        nz,
+        |_col, z_col| {
+            SCRATCH.with_borrow_mut(|(wout_t, _, deq)| {
+                wout_t.resize(nz, 0.0f32);
+                window_1d(z_col, radius, ext, wout_t, deq);
+                z_col.copy_from_slice(&wout_t[..nz]);
+            });
+        },
+    );
+    // Inverse transpose: out[iz*n_cols + col] = buf_zt[col*nz + iz]
+    let mut out = vec![0.0f32; n_total];
+    for col in 0..n_cols {
+        for iz in 0..nz {
+            out[iz * n_cols + col] = buf_zt[col * nz + iz];
+        }
+    }
+    out
+}
+
+/// 1-D sliding-window extremum over the clamp-truncated window
+/// `[max(0,i−r), min(n−1,i+r)]`, computed in O(n) with a monotonic index deque.
+/// `out[0..n]` receives the result; `deque` is reused scratch (cleared on entry).
+#[inline]
+fn window_1d(
+    line: &[f32],
+    radius: usize,
+    ext: Extremum,
+    out: &mut [f32],
+    deque: &mut std::collections::VecDeque<usize>,
+) {
+    let n = line.len();
+    deque.clear();
+    // `dominates(a, b)` is true when `a` makes `b` redundant at the deque back.
+    let dominates = |a: f32, b: f32| match ext {
+        Extremum::Max => a >= b,
+        Extremum::Min => a <= b,
+    };
+    let mut next = 0usize; // next index to admit into the window
+                           // Index-based loop is required: `i` indexes into `out` and into slice windows
+                           // (`line[*deque.front()]`, `(i+radius).min(n-1)`, `i.saturating_sub(radius)`),
+                           // and the sliding-window algorithm mutates `next`/`deque` across steps. No
+                           // iterator form preserves the per-step window semantics; per the symmetry
+                           // with `diffusion/curvature.rs`, the inline allow is the idiomatic gesture.
+    #[expect(clippy::needless_range_loop)]
     for i in 0..n {
         let hi = (i + radius).min(n - 1);
         while next <= hi {
