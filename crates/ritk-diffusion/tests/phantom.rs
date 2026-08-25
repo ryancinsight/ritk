@@ -112,7 +112,6 @@ pub struct Phantom {
     pub fa_gt: Vec<f64>,
     /// Ground-truth MD per voxel.
     pub md_gt: Vec<f64>,
-<<<<<<< HEAD
     /// Ground-truth PEV per voxel: flat `[x, y, z, …]`.
     // Computed but not yet asserted on. Kept rather than deleted so the
     // assertions can be written without recomputing the phantom; the gap
@@ -128,8 +127,6 @@ pub struct Phantom {
     // there.
     #[allow(dead_code, reason = "ratchet RITK-LINT-1")]
     pub fibre_dirs_gt: Vec<Vec<[f64; 3]>>,
-=======
->>>>>>> origin/main
 }
 
 impl Default for Phantom {

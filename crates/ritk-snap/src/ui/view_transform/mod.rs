@@ -315,10 +315,7 @@ pub(crate) fn apply_to_image_into(
         // Identity: no flips, no rotation.
         // Unreachable (identity is caught by the early return above)
         // but required for exhaustive match.
-<<<<<<< HEAD
         #[allow(unreachable_code, reason = "ratchet RITK-LINT-1")]
-=======
->>>>>>> origin/main
         (false, false, RotationSteps::Zero) => {}
 
         // ── 90° CW rotation ────────────────────────────────────────────

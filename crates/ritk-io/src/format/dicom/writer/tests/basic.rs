@@ -88,10 +88,7 @@ fn test_series_writer_has_samples_per_pixel_one() {
 /// slope = 65535/65535 = 1.0, intercept = 0.0. The clamped path must keep
 /// all pixels <= 65535.
 #[test]
-<<<<<<< HEAD
 #[allow(unused_comparisons, reason = "ratchet RITK-LINT-1")]
-=======
->>>>>>> origin/main
 fn test_series_pixel_clamp_unsigned_range() {
     let tmp = tempfile::tempdir().expect("tempdir");
     let out_path = tmp.path().join("clamp_series");

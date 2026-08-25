@@ -116,7 +116,7 @@ fn radial_search_leaves_endpoints_already_inside_a_region_alone() {
 fn an_unusable_radius_is_rejected() {
     let config = ConnectomeConfig::new()
         .with_assignment(EndpointAssignment::RadialSearch { radius_mm: -1.0 });
-    let error = build_connectivity_matrix(&strip(), &[], &config).unwrap_err();
+    let error = build_connectivity_matrix(&strip(), &[], &config).expect_err("the rejected input must yield the typed error");
     assert!(matches!(error, ConnectomeError::Parcellation(_)));
 }
 

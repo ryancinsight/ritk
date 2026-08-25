@@ -260,10 +260,7 @@ impl PhasedArray3D {
     /// Returns an error when any parameter is non-finite, when
     /// `radius_sample_size` or either angular separation is not strictly
     /// positive, or when `first_sample_distance` is negative.
-<<<<<<< HEAD
     #[allow(clippy::too_many_arguments, reason = "ratchet RITK-LINT-1")]
-=======
->>>>>>> origin/main
     pub fn try_new(
         radius_sample_size: f64,
         first_sample_distance: f64,

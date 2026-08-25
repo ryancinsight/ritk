@@ -1,9 +1,6 @@
 //! Tests for the sidebar UI module.
 
-<<<<<<< HEAD
 #[allow(unused_imports, reason = "ratchet RITK-LINT-1")]
-=======
->>>>>>> origin/main
 use super::*;
 use crate::dicom::metadata_table::{MetadataRow, MetadataScope};
 use std::borrow::Cow;

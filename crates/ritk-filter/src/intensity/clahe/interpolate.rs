@@ -132,10 +132,7 @@ pub(super) fn clahe_2d_with_scratch(
 ///
 /// This is the legacy path preserved for the 2-D unit tests in `tests_clahe.rs`.
 /// The production path uses [`clahe_2d_with_scratch`] instead.
-<<<<<<< HEAD
 #[allow(clippy::too_many_arguments, reason = "ratchet RITK-LINT-1")]
-=======
->>>>>>> origin/main
 #[cfg(test)]
 pub(super) fn clahe_2d(
     pixels: &[f32],

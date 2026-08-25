@@ -356,7 +356,7 @@ fn an_empty_ensemble_is_rejected() {
             seed: 0,
         },
     )
-    .unwrap_err();
+    .expect_err("the rejected input must yield the typed error");
     assert!(matches!(
         error,
         ConnectomeError::InvalidRandomisation { .. }
@@ -376,7 +376,7 @@ fn a_zero_swap_count_is_rejected() {
             seed: 0,
         },
     )
-    .unwrap_err();
+    .expect_err("the rejected input must yield the typed error");
     assert!(matches!(
         error,
         ConnectomeError::InvalidRandomisation { .. }
