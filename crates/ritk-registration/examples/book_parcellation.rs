@@ -24,6 +24,10 @@
 //! ```text
 //! cargo run --release -p ritk-registration --example book_parcellation
 //! ```
+#![expect(
+    clippy::print_stdout,
+    reason = "a planning example reports its figures of merit to stdout"
+)]
 
 use std::fmt::Write as _;
 use std::path::PathBuf;

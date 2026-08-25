@@ -76,7 +76,7 @@ fn an_unrecognised_extension_is_rejected() {
     let path = directory.path().join("tracks.vtk");
     File::create(&path).expect("create");
 
-    let error = read_streamlines(&path).unwrap_err();
+    let error = read_streamlines(&path).expect_err("the rejected input must yield the typed error");
     assert!(
         error.to_string().contains("expected .tck or .trk"),
         "got {error}"
@@ -89,7 +89,7 @@ fn a_path_without_an_extension_is_rejected() {
     let path = directory.path().join("tracks");
     File::create(&path).expect("create");
 
-    let error = read_streamlines(&path).unwrap_err();
+    let error = read_streamlines(&path).expect_err("the rejected input must yield the typed error");
     assert!(
         error.to_string().contains("cannot infer a track format"),
         "got {error}"

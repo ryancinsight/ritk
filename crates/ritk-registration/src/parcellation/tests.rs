@@ -167,7 +167,7 @@ fn the_grid_bridge_survives_an_oblique_direction_matrix() {
 fn an_all_background_label_volume_is_rejected() {
     let reference = unit_image(&[0.0; 8], [2, 2, 2]);
     let error = parcellation_from_labels(vec![0; 8].into_boxed_slice(), &reference, Vec::new())
-        .unwrap_err();
+        .expect_err("the rejected input must yield the typed error");
     assert!(matches!(error, ParcellationError::EmptyParcellation));
 }
 
@@ -228,8 +228,8 @@ fn atlas(intensity: Vec<f32>, labels: Vec<u32>) -> LabelledAtlas {
 #[test]
 fn an_empty_atlas_set_is_rejected() {
     let subject = unit_image(&[0.0; 8], [2, 2, 2]);
-    let error =
-        parcellate_with_atlas_set(&subject, &[], &AtlasParcellationConfig::default()).unwrap_err();
+    let error = parcellate_with_atlas_set(&subject, &[], &AtlasParcellationConfig::default())
+        .expect_err("the rejected input must yield the typed error");
     assert!(matches!(error, RegistrationError::InvalidConfiguration(_)));
 }
 
@@ -242,7 +242,7 @@ fn an_atlas_on_a_different_grid_is_rejected() {
         std::slice::from_ref(&mismatched),
         &AtlasParcellationConfig::default(),
     )
-    .unwrap_err();
+    .expect_err("the rejected input must yield the typed error");
     assert!(matches!(error, RegistrationError::DimensionMismatch(_)));
 }
 

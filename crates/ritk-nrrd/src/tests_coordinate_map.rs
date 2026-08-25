@@ -1,5 +1,8 @@
 //! Coordinate-map persistence oracles.
-#![expect(clippy::unwrap_used, reason = "fixture unwraps on well-formed in-memory headers; ratchet RITK-UNWRAP-1")]
+#![expect(
+    clippy::unwrap_used,
+    reason = "fixture unwraps on well-formed in-memory headers; ratchet RITK-UNWRAP-1"
+)]
 
 use super::*;
 use ritk_spatial::{CoordinateMap, CurvilinearArray, PhasedArray3D};
