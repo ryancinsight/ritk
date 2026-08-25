@@ -176,6 +176,12 @@ impl<'a, T, const D: usize> VoxelRegion<'a, T, D> {
         self.subregion(bounds)
     }
 
+    /// Iterate the region's voxels as `(index, value)` pairs in row-major
+    /// region order.
+    ///
+    /// Provided as an inherent method for discoverability; [`IntoIterator`]
+    /// on `&VoxelRegion` forwards here so `for` loops and collection
+    /// adapters work directly.
     #[inline]
     #[must_use]
     pub fn iter(&self) -> VoxelIter<'a, T, D> {
@@ -245,5 +251,14 @@ pub(crate) fn advance<const D: usize>(index: &mut [usize; D], shape: &[usize; D]
             return;
         }
         index[axis] = 0;
+    }
+}
+
+impl<'a, T, const D: usize> IntoIterator for &'a VoxelRegion<'a, T, D> {
+    type Item = <VoxelIter<'a, T, D> as Iterator>::Item;
+    type IntoIter = VoxelIter<'a, T, D>;
+
+    fn into_iter(self) -> Self::IntoIter {
+        self.iter()
     }
 }

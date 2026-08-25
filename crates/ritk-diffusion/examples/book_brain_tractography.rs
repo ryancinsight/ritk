@@ -33,6 +33,9 @@
 
 use std::path::{Path, PathBuf};
 
+mod data;
+mod render;
+
 use anyhow::{Context, Result};
 use data::{HumanAtlas, HumanDataset};
 use render::{HumanMetrics, SlicePanel};

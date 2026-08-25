@@ -133,7 +133,9 @@ pub fn decode(value: &str) -> Result<CoordinateMap> {
 /// # Errors
 ///
 /// Propagates [`decode`] failures.
-pub fn from_header(headers: &std::collections::HashMap<String, String>) -> Result<CoordinateMap> {
+pub fn from_header<S: ::std::hash::BuildHasher>(
+    headers: &std::collections::HashMap<String, String, S>,
+) -> Result<CoordinateMap> {
     match headers.get(COORDINATE_MAP_KEY) {
         None => Ok(CoordinateMap::Cartesian),
         Some(value) => decode(value),

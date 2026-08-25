@@ -148,6 +148,8 @@ impl Phantom {
         let mut labels = vec![Tissue::Gray; n_vox];
         let mut fa_gt = vec![0.0; n_vox];
         let mut md_gt = vec![0.0; n_vox];
+        let mut pev_gt = vec![0.0_f64; n_vox];
+        let mut fibre_dirs_gt: Vec<Vec<[f64; 3]>> = vec![Vec::new(); n_vox];
         for iz in 0..nz {
             for iy in 0..ny {
                 for ix in 0..nx {
@@ -156,6 +158,24 @@ impl Phantom {
                     labels[idx] = label;
                     fa_gt[idx] = fa;
                     md_gt[idx] = md;
+                    // The same per-tissue orientations the DWI generator
+                    // applies, recorded so downstream assertions can compare
+                    // estimated directions against them without recomputing.
+                    match label {
+                        Tissue::Horizontal => {
+                            pev_gt[idx] = 1.0;
+                            fibre_dirs_gt[idx] = vec![[1.0, 0.0, 0.0]];
+                        }
+                        Tissue::Vertical => {
+                            pev_gt[idx] = 1.0;
+                            fibre_dirs_gt[idx] = vec![[0.0, 0.0, 1.0]];
+                        }
+                        Tissue::Crossing => {
+                            pev_gt[idx] = c30();
+                            fibre_dirs_gt[idx] = vec![[c30(), s30(), 0.0], [c30(), -s30(), 0.0]];
+                        }
+                        Tissue::Csf | Tissue::Gray => {}
+                    }
                 }
             }
         }
@@ -200,6 +220,8 @@ impl Phantom {
             labels,
             fa_gt,
             md_gt,
+            pev_gt,
+            fibre_dirs_gt,
         }
     }
 
