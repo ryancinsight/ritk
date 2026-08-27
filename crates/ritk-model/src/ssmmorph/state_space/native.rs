@@ -112,12 +112,13 @@ where
         let inner_dim = config.input_dim * config.expand_factor;
 
         let mut current = seed;
+        // Each projection used to be built and then re-initialized, because
+        // `Linear::new` left every weight at 1.0 (coeus ADR 0067). `with_seed`
+        // draws them directly and keeps the same per-projection seed walk.
         let mut make_linear = |in_features: usize, out_features: usize| {
-            let mut layer = Linear::<f32, B>::new(in_features, out_features, true);
             current = current.wrapping_add(SEED_STEP);
-            coeus_nn::init::kaiming_uniform_with_seed(&mut layer.weight, in_features, current)
-                .expect("invariant: SSM projection fan is positive");
-            layer
+            Linear::<f32, B>::with_seed(in_features, out_features, true, current)
+                .expect("invariant: SSM projection fan is positive")
         };
 
         let in_proj = make_linear(config.input_dim, inner_dim * 2);

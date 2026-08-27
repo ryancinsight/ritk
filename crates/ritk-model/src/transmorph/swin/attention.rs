@@ -72,15 +72,12 @@ where
             false,
         );
 
+        // Each projection used to be built and then re-initialized, because
+        // `Linear::new` left every weight at 1.0 and that made every head
+        // identical. `with_seed` does it directly now (coeus ADR 0067).
         let make_linear = |offset: u64| {
-            let mut layer = Linear::new(input_dim, input_dim, true);
-            coeus_nn::init::kaiming_uniform_with_seed(
-                &mut layer.weight,
-                input_dim,
-                seed.wrapping_add(offset),
-            )
-            .expect("invariant: attention projection fan is positive");
-            layer
+            Linear::with_seed(input_dim, input_dim, true, seed.wrapping_add(offset))
+                .expect("invariant: attention projection fan is positive")
         };
 
         WindowAttention {

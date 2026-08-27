@@ -81,8 +81,10 @@ where
             local_features: DepthwiseConv3d::new(config.dim, 3, 1, true),
             cross_scan: CrossScan::new(scan_config),
             state_space,
-            ffn_expand: Linear::new(config.dim, config.dim * 4, true),
-            ffn_project: Linear::new(config.dim * 4, config.dim, true),
+            ffn_expand: Linear::new(config.dim, config.dim * 4, true)
+                .expect("invariant: the configured layer dimensions are positive"),
+            ffn_project: Linear::new(config.dim * 4, config.dim, true)
+                .expect("invariant: the configured layer dimensions are positive"),
             channels: config.dim,
         };
         crate::initialization::depthwise_convolution(&mut block.local_features, 3, 401);
