@@ -44,12 +44,18 @@ where
             .map(|index| -((index % config.state_dim + 1) as f32).ln())
             .collect();
         let mut layer = Self {
-            input_projection: Linear::new(config.input_dim, inner_dim * 2, true),
-            output_projection: Linear::new(inner_dim, config.output_dim, true),
-            step_contraction: Linear::new(inner_dim, config.dt_rank, true),
-            step_expansion: Linear::new(config.dt_rank, inner_dim, true),
-            input_matrix_projection: Linear::new(inner_dim, config.state_dim, true),
-            output_matrix_projection: Linear::new(inner_dim, config.state_dim, true),
+            input_projection: Linear::new(config.input_dim, inner_dim * 2, true)
+                .expect("invariant: the configured layer dimensions are positive"),
+            output_projection: Linear::new(inner_dim, config.output_dim, true)
+                .expect("invariant: the configured layer dimensions are positive"),
+            step_contraction: Linear::new(inner_dim, config.dt_rank, true)
+                .expect("invariant: the configured layer dimensions are positive"),
+            step_expansion: Linear::new(config.dt_rank, inner_dim, true)
+                .expect("invariant: the configured layer dimensions are positive"),
+            input_matrix_projection: Linear::new(inner_dim, config.state_dim, true)
+                .expect("invariant: the configured layer dimensions are positive"),
+            output_matrix_projection: Linear::new(inner_dim, config.state_dim, true)
+                .expect("invariant: the configured layer dimensions are positive"),
             state_log: Var::new(
                 Tensor::from_slice_on(
                     [inner_dim * config.state_dim],

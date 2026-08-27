@@ -100,9 +100,10 @@ impl AffineNetworkConfig {
         let conv4 = make_conv(c[2], c[3]);
         let conv5 = make_conv(c[3], c[4]);
 
-        let mut fc = Linear::new(c[4], AFFINE_PARAMS, true);
+        // Built and then re-initialized until coeus ADR 0067 -- `Linear::new`
+        // left every weight at 1.0, which made the affine head degenerate.
         seed = seed.wrapping_add(SEED_STEP);
-        coeus_nn::init::kaiming_uniform_with_seed(&mut fc.weight, c[4], seed)
+        let fc = Linear::with_seed(c[4], AFFINE_PARAMS, true, seed)
             .expect("invariant: affine head fan is positive");
 
         AffineNetwork {

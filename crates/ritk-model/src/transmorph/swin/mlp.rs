@@ -27,14 +27,22 @@ where
     /// Construct an MLP mapping `input_dim → hidden_dim → input_dim`.
     ///
     /// Weights are Kaiming-uniform-initialized (fan-in of each layer), biases
-    /// zero — the non-degenerate scheme the original Coeus model relied on;
-    /// [`Linear::new`] alone leaves weights at ones.
+    /// zero.
+    ///
+    /// This used to build each layer and then re-initialize it, because
+    /// `Linear::new` left every weight at 1.0 and the model needs the
+    /// non-degenerate scheme. `Linear::with_seed` does it directly now
+    /// (coeus ADR 0067).
+    ///
+    /// # Panics
+    ///
+    /// Panics when a layer dimension is zero, matching
+    /// [`super::attention::WindowAttention::new`] -- both are constructed from
+    /// a config this crate validates before it reaches them.
     pub fn new(input_dim: usize, hidden_dim: usize, seed: u64) -> Self {
-        let mut fc1 = Linear::new(input_dim, hidden_dim, true);
-        coeus_nn::init::kaiming_uniform_with_seed(&mut fc1.weight, input_dim, seed)
+        let fc1 = Linear::with_seed(input_dim, hidden_dim, true, seed)
             .expect("invariant: MLP input fan is positive");
-        let mut fc2 = Linear::new(hidden_dim, input_dim, true);
-        coeus_nn::init::kaiming_uniform_with_seed(&mut fc2.weight, hidden_dim, seed ^ 0x5DEE_CE66)
+        let fc2 = Linear::with_seed(hidden_dim, input_dim, true, seed ^ 0x5DEE_CE66)
             .expect("invariant: MLP hidden fan is positive");
         Self { fc1, fc2 }
     }
