@@ -2,6 +2,15 @@
 //!
 //! Launches the eframe/egui DICOM viewer application.
 
+// Mnemosyne as the process-wide allocator. Not applicable on WASM where
+// the runtime provides its own allocator.
+#[cfg(not(target_arch = "wasm32"))]
+use mnemosyne::Mnemosyne;
+
+#[cfg(not(target_arch = "wasm32"))]
+#[global_allocator]
+static ALLOC: Mnemosyne = Mnemosyne;
+
 #[cfg(not(target_arch = "wasm32"))]
 use std::path::PathBuf;
 

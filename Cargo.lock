@@ -261,6 +261,7 @@ dependencies = [
  "apollo-leto-interop",
  "bytemuck",
  "eunomia",
+ "half",
  "hermes-simd",
  "leto",
  "leto-ops",
@@ -3898,7 +3899,6 @@ dependencies = [
 name = "mnemosyne-arena"
 version = "0.4.0"
 dependencies = [
- "bytemuck",
  "eunomia",
  "loom",
  "mnemosyne-backend",
@@ -5617,6 +5617,7 @@ dependencies = [
  "coeus-core",
  "gaia-mesh",
  "leto",
+ "mnemosyne-memory",
  "ritk-connectome",
  "ritk-core",
  "ritk-diffusion",
@@ -6112,6 +6113,7 @@ dependencies = [
  "image 0.24.9",
  "iris-viz",
  "js-sys",
+ "mnemosyne-memory",
  "moirai-runtime",
  "pollster",
  "rfd",
@@ -9047,55 +9049,19 @@ dependencies = [
 ]
 
 [[patch.unused]]
-name = "asclepius"
-version = "0.1.0"
-
-[[patch.unused]]
-name = "asclepius-coeus"
-version = "0.1.0"
-
-[[patch.unused]]
-name = "proteus-mat"
-version = "0.1.0"
-
-[[patch.unused]]
 name = "hyperion"
 version = "0.1.0"
-
-[[patch.unused]]
-name = "tyche-core"
-version = "0.2.0"
-
-[[patch.unused]]
-name = "moirai-gpu"
-version = "0.5.0"
 
 [[patch.unused]]
 name = "horae"
 version = "0.1.0"
 
 [[patch.unused]]
-name = "consus-npy"
-version = "0.1.0"
+name = "moirai-gpu"
+version = "0.5.0"
 
 [[patch.unused]]
-name = "consus-zarr"
-version = "0.1.0"
-
-[[patch.unused]]
-name = "apollo-nufft"
-version = "0.7.0"
-
-[[patch.unused]]
-name = "athena-core"
-version = "0.1.1"
-
-[[patch.unused]]
-name = "athena-leto"
-version = "0.1.1"
-
-[[patch.unused]]
-name = "harmonia"
+name = "proteus-mat"
 version = "0.1.0"
 
 [[patch.unused]]
@@ -9117,3 +9083,39 @@ version = "0.19.0"
 [[patch.unused]]
 name = "hephaestus-wgpu"
 version = "0.19.0"
+
+[[patch.unused]]
+name = "harmonia"
+version = "0.1.0"
+
+[[patch.unused]]
+name = "tyche-core"
+version = "0.2.0"
+
+[[patch.unused]]
+name = "asclepius"
+version = "0.1.0"
+
+[[patch.unused]]
+name = "asclepius-coeus"
+version = "0.1.0"
+
+[[patch.unused]]
+name = "apollo-nufft"
+version = "0.7.0"
+
+[[patch.unused]]
+name = "athena-core"
+version = "0.1.1"
+
+[[patch.unused]]
+name = "athena-leto"
+version = "0.1.1"
+
+[[patch.unused]]
+name = "consus-npy"
+version = "0.1.0"
+
+[[patch.unused]]
+name = "consus-zarr"
+version = "0.1.0"
