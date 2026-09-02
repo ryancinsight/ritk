@@ -136,7 +136,7 @@ fn render(
     }
 
     let mut svg = format!(
-        "<svg xmlns=\"http://www.w3.org/2000/svg\" viewBox=\"0 0 {} {FIGURE_HEIGHT}\"><style>.panel{{fill:#fff;stroke:#cbd5e1}}.title{{font:600 16px sans-serif;fill:#172033}}.label{{font:11px sans-serif;fill:#475569}}.axis{{stroke:#94a3b8;stroke-width:1}}.fa{{fill:#2563eb;fill-opacity:.75}}.seed{{fill:#f97316;stroke:#fff;stroke-width:1.5}}.streamline{{fill:none;stroke:#2563eb;stroke-width:2.5}}.boundary{{stroke:#dc2626;stroke-width:2;stroke-dasharray:5 4}}",
+        "<svg xmlns=\"http://www.w3.org/2000/svg\" viewBox=\"0 0 {} {FIGURE_HEIGHT}\"><style>.panel{{fill:#fff;stroke:#cbd5e1}}.title{{font:600 16px sans-serif;fill:#172033}}.label{{font:11px sans-serif;fill:#475569}}.axis{{stroke:#94a3b8;stroke-width:1}}.fa{{fill:#2563eb;fill-opacity:.75}}.seed{{fill:#f97316;stroke:#fff;stroke-width:1.5}}.streamline{{fill:none;stroke:#2563eb;stroke-width:2.5}}.boundary{{stroke:#dc2626;stroke-width:2;stroke-dasharray:5 4}}</style>",
         PANEL_WIDTH * 2.0
     );
     writeln!(
@@ -162,10 +162,16 @@ fn render(
         let y = 260.0 - height;
         writeln!(
             svg,
-            "<rect x=\"{x:.2}\" y=\"{y:.2}\" width=\"{:.2}\" height=\"{height:.2}\" class=\"fa\"/><text x=\"{:.2}\" y=\"278\" class=\"label\" text-anchor=\"middle\">{value:.2}</text>",
+            "<rect x=\"{x:.2}\" y=\"{y:.2}\" width=\"{:.2}\" height=\"{height:.2}\" class=\"fa\"/>",
             bar_width - 1.0,
-            x + (bar_width - 1.0) / 2.0
         )?;
+        if voxel.is_multiple_of(2) {
+            writeln!(
+                svg,
+                "<text x=\"{:.2}\" y=\"278\" class=\"label\" text-anchor=\"middle\">{value:.2}</text>",
+                x + (bar_width - 1.0) / 2.0
+            )?;
+        }
     }
     let threshold_y = 260.0 - 170.0 * SEED_THRESHOLD;
     writeln!(
@@ -205,6 +211,8 @@ fn render(
     svg.push_str("</svg>\n");
 
     assert_eq!(svg.matches("class=\"fa\"").count(), fa.len());
+    assert_eq!(svg.matches("<style>").count(), 1);
+    assert_eq!(svg.matches("</style>").count(), 1);
     assert_eq!(svg.matches("class=\"seed\"").count(), seeds.len());
     assert_eq!(
         svg.matches("class=\"streamline\"").count(),
