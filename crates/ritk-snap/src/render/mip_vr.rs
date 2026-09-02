@@ -137,5 +137,3 @@ pub(crate) fn render_vr_axial_with_scratch(
     }
     ColorImage::from_rgba_unmultiplied([cols, rows], scratch)
 }
-
-
