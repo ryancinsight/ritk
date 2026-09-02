@@ -1,4 +1,4 @@
-# ADR 0017 - Physically typed diffusion MRI pipeline
+# ADR 0017: Physically typed diffusion MRI pipeline
 
 - Status: Accepted
 - Date: 2026-07-31

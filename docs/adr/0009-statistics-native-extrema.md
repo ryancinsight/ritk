@@ -1,4 +1,4 @@
-# ADR 0009 — Native statistics extrema boundary
+# ADR 0009: Native statistics extrema boundary
 
 - Status: Accepted
 - Change class: [major]

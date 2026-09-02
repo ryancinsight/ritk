@@ -1,4 +1,4 @@
-# ADR 0015 — Fallible temporal synchronization
+# ADR 0015: Fallible temporal synchronization
 
 - Status: Accepted
 - Date: 2026-07-30

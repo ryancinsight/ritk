@@ -1,4 +1,4 @@
-# ADR 0002 — Core `Image` / tensor-substrate Burn→Coeus migration strategy
+# ADR 0002: Core `Image` / tensor-substrate Burn→Coeus migration strategy
 
 - Status: Accepted
 - Change class: [arch]
