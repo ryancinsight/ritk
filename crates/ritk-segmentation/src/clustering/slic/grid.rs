@@ -143,7 +143,6 @@ fn perturb_center<const D: usize>(
 }
 
 /// Recursively enumerate a 3^D neighbourhood, tracking the minimum gradient.
-#[allow(clippy::too_many_arguments, reason = "ratchet RITK-LINT-1")]
 fn find_min_gradient<const D: usize>(
     offset: &mut [isize; D],
     depth: usize,

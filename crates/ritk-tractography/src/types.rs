@@ -30,6 +30,62 @@ pub struct TractographyConfig {
     tracking_direction: TrackingDirection,
 }
 
+/// Validated seeding and integration policy for a fitted DTI volume.
+#[derive(Debug, Clone, Copy)]
+pub struct DtiTractographyConfig {
+    seed_anisotropy: f64,
+    max_seeds: usize,
+    tracking: TractographyConfig,
+}
+
+impl DtiTractographyConfig {
+    /// Construct a DTI-volume tractography policy.
+    ///
+    /// `seed_anisotropy` is inclusive: a voxel with exactly this fractional
+    /// anisotropy is selected. `max_seeds == 0` means that every qualifying
+    /// voxel is selected; otherwise the qualifying voxels are sampled at an
+    /// even stride through storage order.
+    ///
+    /// # Errors
+    ///
+    /// Returns [`TractographyError::InvalidSeedAnisotropy`] when the threshold
+    /// is not finite or is outside `[0, 1]`.
+    pub fn new(
+        seed_anisotropy: f64,
+        max_seeds: usize,
+        tracking: TractographyConfig,
+    ) -> Result<Self, TractographyError> {
+        if !seed_anisotropy.is_finite() || !(0.0..=1.0).contains(&seed_anisotropy) {
+            return Err(TractographyError::InvalidSeedAnisotropy {
+                value: seed_anisotropy,
+            });
+        }
+        Ok(Self {
+            seed_anisotropy,
+            max_seeds,
+            tracking,
+        })
+    }
+
+    /// Inclusive fractional-anisotropy threshold for seed selection.
+    #[must_use]
+    pub const fn seed_anisotropy(self) -> f64 {
+        self.seed_anisotropy
+    }
+
+    /// Maximum number of seeds, where zero means unlimited.
+    #[must_use]
+    pub const fn max_seeds(self) -> usize {
+        self.max_seeds
+    }
+
+    /// Euler integration policy applied after seeding.
+    #[must_use]
+    pub const fn tracking(self) -> TractographyConfig {
+        self.tracking
+    }
+}
+
 impl TractographyConfig {
     /// Construct a validated tracking configuration.
     ///
@@ -120,6 +176,22 @@ pub enum TractographyError {
     InvalidTurnLimit {
         /// Invalid angle in degrees.
         value: f64,
+    },
+    /// Seed fractional-anisotropy threshold is not in `[0, 1]`.
+    #[error("DTI seed anisotropy must be finite in [0, 1], got {value}")]
+    InvalidSeedAnisotropy {
+        /// Invalid fractional-anisotropy threshold.
+        value: f64,
+    },
+    /// No fitted voxel reached the configured seed threshold.
+    #[error(
+        "no fitted voxel reached FA {threshold}, so there is nothing to seed; the fitted peak was {maximum}"
+    )]
+    NoSeeds {
+        /// Inclusive threshold used during seed selection.
+        threshold: f64,
+        /// Largest finite FA among fitted voxels.
+        maximum: f64,
     },
     /// A direction-field sample is non-finite or not unit length.
     #[error("invalid direction at seed {seed_index}, step {step_index}: {reason}")]

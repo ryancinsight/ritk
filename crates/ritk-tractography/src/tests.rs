@@ -1,10 +1,92 @@
 #![expect(clippy::unwrap_used, reason = "ratchet RITK-UNWRAP-1")]
+use ritk_diffusion::maps::{DiffusionMapsConfig, DtiVolume, fit_diffusion_maps};
+use ritk_diffusion_scheme::{DiffusionWeighting, GradientDirection, GradientFrame, GradientScheme};
 use ritk_spatial::{Point, Vector};
 
 use super::*;
 
 fn horizontal(_: &Point<3>) -> Option<Vector<3>> {
     Some(Vector::new([1.0, 0.0, 0.0]))
+}
+
+fn image_axis_scheme() -> GradientScheme {
+    let count = 30_usize;
+    let mut entries = Vec::with_capacity(count + 1);
+    entries.push(
+        GradientDirection::new(
+            DiffusionWeighting::from_seconds_per_square_millimeter(0.0)
+                .expect("finite b0 weighting"),
+            Vector::new([0.0, 0.0, 0.0]),
+        )
+        .expect("valid b0 direction"),
+    );
+    let golden_angle = std::f64::consts::PI * (3.0 - 5.0_f64.sqrt());
+    for index in 0..count {
+        #[expect(
+            clippy::cast_precision_loss,
+            reason = "the synthetic scheme has only thirty directions"
+        )]
+        let z = 1.0 - 2.0 * (index as f64 + 0.5) / count as f64;
+        let radius = (1.0 - z * z).sqrt();
+        #[expect(
+            clippy::cast_precision_loss,
+            reason = "the synthetic scheme has only thirty directions"
+        )]
+        let phi = golden_angle * index as f64;
+        entries.push(
+            GradientDirection::new(
+                DiffusionWeighting::from_seconds_per_square_millimeter(1_000.0)
+                    .expect("finite diffusion weighting"),
+                Vector::new([radius * phi.cos(), radius * phi.sin(), z]),
+            )
+            .expect("unit Fibonacci direction"),
+        );
+    }
+    GradientScheme::new(entries, GradientFrame::ImageAxis).expect("valid image-axis scheme")
+}
+
+fn dti_signal(scheme: &GradientScheme, tensor: [f64; 6], baseline: f64) -> Vec<f64> {
+    let [dxx, dyy, dzz, dxy, dxz, dyz] = tensor;
+    scheme
+        .directions()
+        .iter()
+        .map(|entry| {
+            let b = entry.weighting().seconds_per_square_millimeter();
+            if b == 0.0 {
+                return baseline;
+            }
+            let [gx, gy, gz] = entry.direction().to_array();
+            let q = dxx * gx * gx
+                + dyy * gy * gy
+                + dzz * gz * gz
+                + 2.0 * dxy * gx * gy
+                + 2.0 * dxz * gx * gz
+                + 2.0 * dyz * gy * gz;
+            baseline * (-b * q).exp()
+        })
+        .collect()
+}
+
+fn dti_volume(tensors: &[[f64; 6]], shape: [usize; 3], floor: f64) -> DtiVolume {
+    let scheme = image_axis_scheme();
+    let per_voxel: Vec<Vec<f64>> = tensors
+        .iter()
+        .map(|tensor| dti_signal(&scheme, *tensor, 1_000.0))
+        .collect();
+    let volumes: Vec<Vec<f64>> = (0..scheme.len())
+        .map(|acquisition| per_voxel.iter().map(|voxel| voxel[acquisition]).collect())
+        .collect();
+    let borrowed: Vec<&[f64]> = volumes.iter().map(Vec::as_slice).collect();
+    let maps = fit_diffusion_maps(
+        &scheme,
+        &borrowed,
+        &DiffusionMapsConfig {
+            background_fraction: 0.0,
+            ..DiffusionMapsConfig::default()
+        },
+    )
+    .expect("synthetic DTI series fits");
+    DtiVolume::new(maps, shape, floor).expect("shape matches synthetic maps")
 }
 
 #[test]
@@ -971,4 +1053,85 @@ fn map_points_moves_geometry_without_changing_terminations() -> Result<(), Tract
     // one tracking run.
     assert!((result.streamlines()[0].geometry().points()[0].x - 0.0).abs() < 1e-9);
     Ok(())
+}
+
+#[test]
+fn dti_seed_selection_is_inclusive_and_evenly_strided() -> Result<(), TractographyError> {
+    let tensor = [1.7e-3, 3.0e-4, 3.0e-4, 0.0, 0.0, 0.0];
+    let volume = dti_volume(&[tensor; 8], [2, 2, 2], 0.2);
+    let seeds = dti_volume_seed_points(&volume, 0.25, 4)?;
+
+    assert_eq!(seeds.len(), 4);
+    let indices: Vec<[f64; 3]> = seeds.iter().map(Point::to_array).collect();
+    assert_eq!(
+        indices,
+        vec![
+            [0.0, 0.0, 0.0],
+            [0.0, 1.0, 0.0],
+            [1.0, 0.0, 0.0],
+            [1.0, 1.0, 0.0],
+        ]
+    );
+    Ok(())
+}
+
+#[test]
+fn dti_seed_selection_excludes_unfitted_voxels_at_zero_threshold() -> Result<(), TractographyError>
+{
+    let tensor = [1.7e-3, 3.0e-4, 3.0e-4, 0.0, 0.0, 0.0];
+    let scheme = image_axis_scheme();
+    let fitted = dti_signal(&scheme, tensor, 1_000.0);
+    let background = dti_signal(&scheme, tensor, 1.0);
+    let volumes: Vec<Vec<f64>> = (0..scheme.len())
+        .map(|acquisition| vec![fitted[acquisition], background[acquisition]])
+        .collect();
+    let borrowed: Vec<&[f64]> = volumes.iter().map(Vec::as_slice).collect();
+    let maps = fit_diffusion_maps(&scheme, &borrowed, &DiffusionMapsConfig::default())
+        .expect("synthetic series fits");
+    assert_eq!(maps.mask(), [true, false]);
+    let volume = DtiVolume::new(maps, [2, 1, 1], 0.0).expect("shape matches maps");
+
+    let seeds = dti_volume_seed_points(&volume, 0.0, 0)?;
+    assert_eq!(seeds.len(), 1);
+    assert_eq!(seeds[0].to_array(), [0.0, 0.0, 0.0]);
+    Ok(())
+}
+
+#[test]
+fn dti_volume_tractography_tracks_selected_seeds_and_reports_empty_selection() {
+    let tensor = [3.0e-4, 3.0e-4, 1.7e-3, 0.0, 0.0, 0.0];
+    let volume = dti_volume(&[tensor; 3], [3, 1, 1], 0.2);
+    let tracking = TractographyConfig::new(1.0, 2, 60.0, TrackingDirection::Bidirectional)
+        .expect("valid tracking policy");
+    let config = DtiTractographyConfig::new(0.25, 0, tracking).expect("valid DTI policy");
+    let result = dti_volume_tractography(&volume, config).expect("selected voxels track");
+
+    assert_eq!(result.seeds_attempted(), 3);
+    assert_eq!(result.streamlines_generated(), 3);
+    assert!(result.streamlines().iter().all(|line| {
+        line.forward_termination() == TerminationReason::FieldBoundary
+            || line.forward_termination() == TerminationReason::StepLimit
+    }));
+
+    let no_seeds = DtiTractographyConfig::new(1.0, 0, tracking).expect("valid threshold");
+    let error = dti_volume_tractography(&volume, no_seeds).expect_err("FA is below one");
+    assert!(matches!(
+        error,
+        TractographyError::NoSeeds {
+            threshold: 1.0,
+            maximum
+        } if maximum > 0.25
+    ));
+}
+
+#[test]
+fn dti_seed_configuration_rejects_non_fractional_thresholds() {
+    let tracking = TractographyConfig::new(1.0, 1, 60.0, TrackingDirection::Forward)
+        .expect("valid tracking policy");
+    for value in [-f64::EPSILON, 1.0 + f64::EPSILON, f64::NAN, f64::INFINITY] {
+        assert!(matches!(
+            DtiTractographyConfig::new(value, 1, tracking),
+            Err(TractographyError::InvalidSeedAnisotropy { .. })
+        ));
+    }
 }

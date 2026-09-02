@@ -30,7 +30,8 @@
 //! gigabytes. Choose a threshold orders of magnitude above the honest cost and
 //! orders below the defect's, and state the derivation at the assertion.
 
-use std::alloc::{GlobalAlloc, Layout, System};
+use mnemosyne::Mnemosyne;
+use std::alloc::{GlobalAlloc, Layout};
 use std::sync::atomic::{AtomicUsize, Ordering};
 
 /// Live heap bytes across the test binary.
@@ -47,13 +48,13 @@ static PEAK_BYTES: AtomicUsize = AtomicUsize::new(0);
 #[derive(Debug, Default, Clone, Copy)]
 pub struct PeakTrackingAllocator;
 
-// SAFETY: every method forwards to `System` with the caller's layout unchanged,
-// so the allocator contract is whatever `System` already guarantees. The
+// SAFETY: every method forwards to `Mnemosyne` with the caller's layout unchanged,
+// so the allocator contract is whatever `Mnemosyne` already guarantees. The
 // counters are side effects on atomics and affect no returned pointer.
 unsafe impl GlobalAlloc for PeakTrackingAllocator {
     unsafe fn alloc(&self, layout: Layout) -> *mut u8 {
         // SAFETY: `layout` is forwarded exactly as received.
-        let ptr = unsafe { System.alloc(layout) };
+        let ptr = unsafe { Mnemosyne.alloc(layout) };
         if !ptr.is_null() {
             let live = LIVE_BYTES.fetch_add(layout.size(), Ordering::Relaxed) + layout.size();
             PEAK_BYTES.fetch_max(live, Ordering::Relaxed);
@@ -64,7 +65,7 @@ unsafe impl GlobalAlloc for PeakTrackingAllocator {
     unsafe fn dealloc(&self, ptr: *mut u8, layout: Layout) {
         LIVE_BYTES.fetch_sub(layout.size(), Ordering::Relaxed);
         // SAFETY: `ptr` and `layout` are forwarded exactly as received.
-        unsafe { System.dealloc(ptr, layout) }
+        unsafe { Mnemosyne.dealloc(ptr, layout) }
     }
 }
 

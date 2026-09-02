@@ -58,6 +58,7 @@
 - [Diffusion MRI Acquisition and Q-ball ODFs](diffusion_mri.md)
 - [Creating and Validating Deterministic Tractography](tractography.md)
   - [Example: Signal to Streamlines](examples/diffusion_tractography.md)
+  - [Example: Reusable DTI-Volume Tracking](examples/dti_volume_tractography.md)
   - [Human Tractography and Connectomics](examples/brain_tractography.md)
 - [Anatomical Parcellation](parcellation.md)
   - [Example: Atlas Parcellation](examples/atlas_parcellation.md)

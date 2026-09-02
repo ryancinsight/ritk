@@ -10,6 +10,7 @@
 #![deny(missing_docs)]
 
 mod direction_fields;
+mod dti;
 mod export;
 mod tracking;
 mod types;
@@ -18,10 +19,11 @@ pub use direction_fields::{
     dti_pev_direction_field, dti_volume_direction_field, fod_peak_direction_field,
     fod_volume_direction_field, noddi_direction_field,
 };
+pub use dti::{dti_volume_seed_points, dti_volume_tractography};
 pub use tracking::euler_tractography;
 pub use types::{
-    Streamline, TerminationReason, TrackingDirection, TractographyConfig, TractographyError,
-    TractographyResult,
+    DtiTractographyConfig, Streamline, TerminationReason, TrackingDirection, TractographyConfig,
+    TractographyError, TractographyResult,
 };
 
 #[cfg(test)]

@@ -10,6 +10,23 @@
 
 ## [Unreleased] — conformance cleanup and JPEG 2000 scalar quality control (FEAT-692-01)
 
+### Added
+
+- [minor][arch] Add the reusable DTI-volume tractography boundary:
+  `DtiTractographyConfig`, inclusive FA-threshold seed selection with an
+  evenly strided cap, and `dti_volume_tractography`. `ritk-cli` now calls this
+  library surface instead of carrying a private copy of the policy. See
+  [ADR 0022](docs/adr/0022-reusable-dti-volume-tractography.md) and the
+  [reusable DTI-volume example](docs/book/examples/dti_volume_tractography.md).
+
+### Fixed
+
+- Removed 16 reintroduced production `#[allow]` sites. Test-only codec, MIF,
+  and curved-planar-reformation helpers now compile only for tests; internal MQ
+  coder re-exports use crate visibility; redundant operation-level Clippy
+  exceptions defer to the existing workspace ratchet. Runtime computation and
+  public behavior are unchanged.
+
 ### Removed
 
 - **[major] `GpuFieldSmoother` and `CpuOrGpu`.** Neither could do what its name

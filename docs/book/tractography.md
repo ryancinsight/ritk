@@ -186,6 +186,44 @@ let result = euler_tractography(&seeds, config, |point| {
 The integrator validates unit-norm at every sample; a non-unit direction
 is a typed error, not silently corrected.
 
+## Reusable DTI-volume pipeline
+
+`DtiVolume` already owns the validated image-index grid, fitted-voxel mask, and
+tracking anisotropy floor. `ritk-tractography` owns the remaining policy in
+`DtiTractographyConfig`: inclusive FA-threshold seed selection, an optional
+evenly strided seed cap, and Euler integration through the volume's direction
+field. This keeps downstream applications from reimplementing the policy at a
+CLI or application boundary.
+
+```rust,ignore
+use ritk_tractography::{
+    DtiTractographyConfig, TrackingDirection, TractographyConfig,
+    dti_volume_seed_points, dti_volume_tractography,
+};
+
+let tracking = TractographyConfig::new(
+    0.5,
+    1_000,
+    60.0,
+    TrackingDirection::Bidirectional,
+)?;
+let policy = DtiTractographyConfig::new(0.25, 10_000, tracking)?;
+let seeds = dti_volume_seed_points(&volume, policy.seed_anisotropy(), policy.max_seeds())?;
+let tracks = dti_volume_tractography(&volume, policy)?;
+```
+
+The seed threshold is inclusive and the volume mask is authoritative, so an
+unfitted voxel cannot become a seed at threshold zero. `max_seeds == 0` selects
+all qualifying voxels; a nonzero cap uses a stride through the qualifying
+storage order rather than truncating at the first cap-sized prefix. The
+orchestration function returns `NoSeeds` with the threshold and fitted FA peak
+instead of producing an apparently successful empty tractogram.
+
+The [reusable DTI-volume example](examples/dti_volume_tractography.md) fits a
+known two-regime synthetic volume, verifies the seed and streamline counts, and
+generates the figure used on that page. It verifies software behavior only; it
+does not claim anatomical or clinical validity.
+
 ## Create and validate a tractogram
 
 A smooth tractogram is not a correctness oracle. The strongest local check
