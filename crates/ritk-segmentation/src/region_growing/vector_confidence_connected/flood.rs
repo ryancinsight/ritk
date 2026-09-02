@@ -2,24 +2,25 @@
 
 use std::collections::VecDeque;
 
+use mnemosyne::AlignedVec;
 use ritk_core::spatial::VoxelIndex;
 
 use super::statistics::mahalanobis_squared;
 
 pub(super) struct FloodWorkspace {
-    mask: Vec<bool>,
+    mask: AlignedVec<bool>,
     queue: VecDeque<usize>,
-    visit_order: Vec<usize>,
-    delta: Vec<f64>,
+    visit_order: AlignedVec<usize>,
+    delta: AlignedVec<f64>,
 }
 
 impl FloodWorkspace {
     pub(super) fn new(voxel_count: usize, channel_count: usize) -> Self {
         Self {
-            mask: vec![false; voxel_count],
+            mask: AlignedVec::zeroed(voxel_count),
             queue: VecDeque::new(),
-            visit_order: Vec::new(),
-            delta: vec![0.0; channel_count],
+            visit_order: AlignedVec::with_capacity(voxel_count),
+            delta: AlignedVec::zeroed(channel_count),
         }
     }
 

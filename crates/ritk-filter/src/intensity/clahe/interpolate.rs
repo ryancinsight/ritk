@@ -88,8 +88,7 @@ pub(super) fn clahe_2d_with_scratch(
 
     // Map each pixel using bilinear interpolation between 4 surrounding tile CDFs.
     let span = v_max - v_min;
-    scratch.output.clear();
-    scratch.output.resize(pixels.len(), 0.0f32);
+    scratch.output.resize(pixels.len(), 0.0_f32);
 
     for y in 0..rows {
         for x in 0..cols {
@@ -123,7 +122,7 @@ pub(super) fn clahe_2d_with_scratch(
         }
     }
 
-    std::mem::take(&mut scratch.output)
+    scratch.output.as_slice().to_vec()
 }
 
 // ── Legacy allocating path (used by 2D unit tests) ──────────────────────────

@@ -61,6 +61,7 @@ pub mod tile_cdf;
 use interpolate::clahe_2d_with_scratch;
 
 use anyhow::Result;
+use mnemosyne::AlignedVec;
 use ritk_core::image::Image;
 use ritk_image::tensor::Backend;
 use ritk_tensor_ops::{extract_vec, rebuild};
@@ -99,9 +100,9 @@ pub struct ClaheFilter {
 /// elements; access tile `(ty, tx)` at offset `(ty * n_tiles_x + tx) * bins`.
 #[derive(Clone)]
 pub struct ClaheScratch {
-    pub(crate) cdfs: Vec<f32>,
-    pub(crate) histograms: Vec<u64>,
-    pub(crate) output: Vec<f32>,
+    pub(crate) cdfs: AlignedVec<f32>,
+    pub(crate) histograms: AlignedVec<u64>,
+    pub(crate) output: AlignedVec<f32>,
     n_tiles_y: usize,
     n_tiles_x: usize,
     bins: usize,
@@ -114,9 +115,9 @@ impl ClaheScratch {
         let ntx = n_tiles_x.max(1).min(cols).max(1);
         let n_tiles = nty * ntx;
         Self {
-            cdfs: vec![0.0f32; n_tiles * bins],
-            histograms: vec![0u64; n_tiles * bins],
-            output: vec![0.0f32; rows * cols],
+            cdfs: AlignedVec::zeroed(n_tiles * bins),
+            histograms: AlignedVec::zeroed(n_tiles * bins),
+            output: AlignedVec::zeroed(rows * cols),
             n_tiles_y: nty,
             n_tiles_x: ntx,
             bins,

@@ -28,6 +28,7 @@ apollo-fft = { workspace = true }
 eunomia = { workspace = true }
 gaia = { workspace = true }
 rand = { workspace = true }
+mnemosyne = { workspace = true }
 moirai = { workspace = true }
 serde = { workspace = true }
 coeus-core = { workspace = true }
