@@ -1,4 +1,4 @@
-# ADR 0022 — Reusable DTI-volume tractography boundary
+# ADR 0022: Reusable DTI-volume tractography boundary
 
 - **Status:** Accepted
 - **Board item:** `FEAT-686-01`
