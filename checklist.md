@@ -1,3 +1,19 @@
+## RITK-LINT-ALLOW-SITES-2026-08-31
+
+- [x] Attribute all 16 production allowance sites to exact introducing commit
+      `65befbcf` and enumerate their production/test consumers.
+- [x] Gate test-only helpers and fields, narrow internal codec re-exports, and
+      remove redundant local exceptions without changing runtime computation.
+- [x] Prove zero production allowance sites and run focused format, Clippy,
+      value-test, Rustdoc, and diff gates against the candidate: scanner=0;
+      Nextest=2,788/2,788 in 105.58 s; warning-denied Clippy and Rustdoc,
+      rustfmt, and `git diff --check` are green; doctests pass 8 with 13
+      environment/example ignores and no failures. Cargo commands used the
+      Atlas development overlay; the overlay-created lock drift remains
+      excluded.
+- [ ] Commit without `Cargo.lock`, obtain independent review, merge through the
+      repository workflow, and synchronize final closure evidence.
+
 > ## Vocabulary policy
 >
 > New migration text uses provider/native names directly (`Coeus`,

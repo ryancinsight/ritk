@@ -1,5 +1,6 @@
 //! CPR helper functions: Catmull-Rom spline, cross-section basis, coordinate transforms, trilinear interpolation.
 
+#[cfg(test)]
 use ritk_spatial::{Direction, Point, Spacing};
 
 // ── Catmull-Rom spline helpers ────────────────────────────────────────────
@@ -253,12 +254,10 @@ pub fn cross_section_basis(tangent: &[f64; 3]) -> ([f64; 3], [f64; 3]) {
 ///
 /// index = D⁻¹ · (point − origin) / spacing   (element-wise)
 ///
-/// Currently exercised by `tests_cpr.rs` only (the optimized CPR apply
-/// path uses [`trilinear_sample_from_idx`] with a precomputed inverse);
-/// kept as a public helper for external consumers that need the raw
-/// physical→index transform.
-#[allow(dead_code, reason = "ratchet RITK-LINT-1")]
-pub fn physical_to_index(
+/// The optimized CPR path uses [`trilinear_sample_from_idx`] with a
+/// precomputed inverse; this direct form supports the independent test oracle.
+#[cfg(test)]
+pub(super) fn physical_to_index(
     point: &[f64; 3],
     origin: &Point<3>,
     spacing: &Spacing<3>,
@@ -286,10 +285,10 @@ pub fn physical_to_index(
 /// Convenience wrapper around [`trilinear_sample_from_idx`] that re-runs
 /// the direction-inverse transform on every call. The optimized CPR apply
 /// path uses [`trilinear_sample_from_idx`] directly with a precomputed
-/// inverse to avoid the 3×3 matrix inverse per cross-section sample; this
-/// single-shot form is kept for external consumers and tests.
-#[allow(dead_code, reason = "ratchet RITK-LINT-1")]
-pub fn trilinear_sample(
+/// inverse to avoid the 3×3 matrix inverse per cross-section sample. This
+/// direct form supports the independent test oracle.
+#[cfg(test)]
+pub(super) fn trilinear_sample(
     vals: &[f32],
     dims: [usize; 3],
     origin: &Point<3>,

@@ -142,10 +142,11 @@ fn band_trees(bands: &[Subband]) -> Vec<Option<BandTrees>> {
 }
 
 /// Decoded samples for one complete component of one tile.
-#[allow(dead_code, reason = "ratchet RITK-LINT-1")]
 pub struct TileComponentSamples {
     pub samples: Vec<i32>,
+    #[cfg(test)]
     pub width: usize,
+    #[cfg(test)]
     pub height: usize,
 }
 
@@ -371,7 +372,9 @@ pub fn decode_tile_part(
 
     Ok(TileComponentSamples {
         samples: mallat,
+        #[cfg(test)]
         width,
+        #[cfg(test)]
         height,
     })
 }

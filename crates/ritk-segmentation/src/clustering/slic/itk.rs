@@ -65,7 +65,6 @@ struct Center {
 /// adjacent super-pixel (ITK `enforceConnectivity`). Returns a flat label buffer
 /// (`0..K−1` as `f32`) in centre scan order, matching `sitk.SLIC` with the
 /// corresponding flags.
-#[allow(clippy::too_many_arguments, reason = "ratchet RITK-LINT-1")]
 pub(crate) fn slic_itk_impl(
     data: &[f32],
     shape: &[usize],

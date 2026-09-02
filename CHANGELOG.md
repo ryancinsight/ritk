@@ -10,6 +10,14 @@
 
 ## [Unreleased] — conformance cleanup and JPEG 2000 scalar quality control (FEAT-692-01)
 
+### Fixed
+
+- Removed 16 reintroduced production `#[allow]` sites. Test-only codec, MIF,
+  and curved-planar-reformation helpers now compile only for tests; internal MQ
+  coder re-exports use crate visibility; redundant operation-level Clippy
+  exceptions defer to the existing workspace ratchet. Runtime computation and
+  public behavior are unchanged.
+
 ### Removed
 
 - **[major] `GpuFieldSmoother` and `CpuOrGpu`.** Neither could do what its name

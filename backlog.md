@@ -1,3 +1,18 @@
+## RITK-LINT-ALLOW-SITES-2026-08-31 — Remove reintroduced production allowances [patch] — in progress
+
+- **Status:** in progress; integrator=current Codex session; lease=the 13 affected
+  source files plus this item, `CHECKLIST.md`, and `CHANGELOG.md`; base=`81346473`.
+- **Outcome:** restore the production `allow_sites` conformance count from 16
+  to 0 by compiling test-only helpers only in tests, narrowing internal JPEG
+  2000 re-exports, and deleting local exceptions already owned by the workspace
+  lint ratchet. Numerical kernels and public behavior remain unchanged.
+- **Acceptance:** exact source enumeration reports zero production `#[allow]`
+  sites; warning-denied all-target Clippy and Rustdoc pass; affected Nextest is
+  2,788/2,788 in 105.58 s; diff and format checks pass. Cargo commands used the
+  Atlas development overlay; its unrelated `Cargo.lock` drift is excluded from
+  delivery. Commit, independent review, PR, merge, and post-merge closure remain
+  pending.
+
 ## ATLAS-RITK-BOOK-STAGING-2026-08-20 — Adopt hash-preserving shared book gate [patch] — in progress
 
 - Owner: Atlas integration. Scope is the Pages caller and this PM record;
