@@ -1,4 +1,4 @@
-# ADR 0013 — Fallible native JPEG-LS encoder and rolling reconstruction rows
+# ADR 0013: Fallible native JPEG-LS encoder and rolling reconstruction rows
 
 - Status: Accepted
 - Date: 2026-07-30

@@ -1,4 +1,4 @@
-# ADR 0001 — Coeus-native registration `Transform`/`Metric` trait surface
+# ADR 0001: Coeus-native registration `Transform`/`Metric` trait surface
 
 - Status: Accepted
 - Change class: [arch]

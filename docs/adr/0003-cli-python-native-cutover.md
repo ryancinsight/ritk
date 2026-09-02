@@ -1,4 +1,4 @@
-# ADR 0003 — CLI / Python consumer cutover to the native substrate
+# ADR 0003: CLI / Python consumer cutover to the native substrate
 
 - Status: Accepted
 - Change class: [arch] (umbrella; each command/crate slice is [minor] or [major])

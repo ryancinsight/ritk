@@ -1,4 +1,4 @@
-# ADR 0010 — Atlas-owned provider checkout
+# ADR 0010: Atlas-owned provider checkout
 
 - Status: Accepted
 - Change class: [arch] [patch]

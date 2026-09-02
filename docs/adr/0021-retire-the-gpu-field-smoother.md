@@ -1,4 +1,4 @@
-# ADR 0021 — Retire the GPU field smoother
+# ADR 0021: Retire the GPU field smoother
 
 - **Status:** Accepted
 - **Board item:** `RITK-GPU-SMOOTHER-REACH`

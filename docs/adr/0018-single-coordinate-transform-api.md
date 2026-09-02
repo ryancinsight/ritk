@@ -1,4 +1,4 @@
-# ADR 0018 - One coordinate-transform API on `Image`
+# ADR 0018: One coordinate-transform API on `Image`
 
 - Status: Accepted
 - Date: 2026-08-13

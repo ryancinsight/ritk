@@ -1,4 +1,4 @@
-# ADR 0004 — Trainable displacement-field native cutover
+# ADR 0004: Trainable displacement-field native cutover
 
 - Status: Accepted
 - Change class: [arch]

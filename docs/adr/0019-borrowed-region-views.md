@@ -1,4 +1,4 @@
-# ADR 0019 - Borrowed region views on `Image`
+# ADR 0019: Borrowed region views on `Image`
 
 - Status: Accepted
 - Date: 2026-08-17

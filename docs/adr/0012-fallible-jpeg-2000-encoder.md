@@ -1,4 +1,4 @@
-# ADR 0012 — Native JPEG 2000 encoding contract
+# ADR 0012: Native JPEG 2000 encoding contract
 
 - Status: Accepted
 - Date: 2026-07-29

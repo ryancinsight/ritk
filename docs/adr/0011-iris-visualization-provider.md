@@ -1,4 +1,4 @@
-# ADR 0011 — Iris visualization-provider boundary
+# ADR 0011: Iris visualization-provider boundary
 
 - Status: Accepted
 - Change class: [arch] [major]

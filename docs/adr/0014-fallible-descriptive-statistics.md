@@ -1,4 +1,4 @@
-# ADR 0014 — Fallible finite descriptive statistics
+# ADR 0014: Fallible finite descriptive statistics
 
 - Status: Accepted
 - Date: 2026-07-30

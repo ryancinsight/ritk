@@ -1,4 +1,4 @@
-# ADR 0005 — Static displacement and SSMMorph native boundary
+# ADR 0005: Static displacement and SSMMorph native boundary
 
 - Status: Accepted
 - Change class: [major]

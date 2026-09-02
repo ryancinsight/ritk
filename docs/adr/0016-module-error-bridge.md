@@ -1,4 +1,4 @@
-# ADR 0016 — Type-erased Coeus module-error bridge
+# ADR 0016: Type-erased Coeus module-error bridge
 
 - Status: Accepted
 - Date: 2026-07-30

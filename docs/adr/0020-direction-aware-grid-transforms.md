@@ -1,4 +1,4 @@
-# ADR 0020 - Direction-aware index/world transforms in grid-sweeping filters
+# ADR 0020: Direction-aware index/world transforms in grid-sweeping filters
 
 - Status: Accepted
 - Date: 2026-08-18
