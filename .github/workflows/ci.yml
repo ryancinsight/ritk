@@ -35,6 +35,19 @@ env:
   RUST_BACKTRACE: 1
 
 jobs:
+  # Public-surface compatibility, informational on pull requests: the
+  # detected change class is visible while the change is still in
+  # review. The blocking comparison runs on release.
+  # Atlas ATLAS-SEMVER-GATE-FLEETWIDE-2026-08-28.
+  semver:
+    name: SemVer gate
+    uses: ryancinsight/atlas/.github/workflows/semver-gate.yml@da9d549bc50dbb9c4e1d18dca8f37d17059098cb
+    with:
+      package: ritk-analyze,ritk-annotation,ritk-block-matching,ritk-codecs,ritk-core,ritk-dicom,ritk-diffusion-scheme,ritk-filter,ritk-image,ritk-interpolation,ritk-io,ritk-jpeg,ritk-metaimage,ritk-mgh,ritk-mif,ritk-minc,ritk-model,ritk-morphology,ritk-nifti,ritk-nrrd,ritk-parcellation,ritk-png,ritk-registration,ritk-segmentation,ritk-spatial,ritk-statistics,ritk-tensor-ops,ritk-tiff,ritk-transform,ritk-vtk,ritk-wgpu-compat
+      rust-toolchain: 1.97.0
+    permissions:
+      contents: read
+
   adr-index:
     name: ADR index is current
     # atlas owns the one generator (ATLAS-ADR-FORM-NORMALIZATION-2026-09-02); strict: the ADRs carry the canonical heading form and numbering.
