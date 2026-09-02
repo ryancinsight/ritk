@@ -1098,6 +1098,84 @@ fn dti_seed_selection_excludes_unfitted_voxels_at_zero_threshold() -> Result<(),
 }
 
 #[test]
+fn dti_seed_mask_filters_candidates_in_dti_grid_order() -> Result<(), TractographyError> {
+    let tensor = [1.7e-3, 3.0e-4, 3.0e-4, 0.0, 0.0, 0.0];
+    let volume = dti_volume(&[tensor; 8], [2, 2, 2], 0.2);
+
+    let unmasked = dti_volume_seed_points(&volume, 0.25, 0)?;
+    let all_true = [true; 8];
+    let selected = dti_volume_seed_points_with_mask(&volume, 0.25, 0, Some(&all_true))?;
+    assert_eq!(
+        selected.iter().map(Point::to_array).collect::<Vec<_>>(),
+        unmasked.iter().map(Point::to_array).collect::<Vec<_>>()
+    );
+
+    let all_false = [false; 8];
+    assert!(
+        dti_volume_seed_points_with_mask(&volume, 0.25, 0, Some(&all_false))?.is_empty(),
+        "an all-false region must select no seeds"
+    );
+
+    let sparse = [false, true, false, true, false, false, false, true];
+    let selected = dti_volume_seed_points_with_mask(&volume, 0.25, 0, Some(&sparse))?;
+    assert_eq!(
+        selected.iter().map(Point::to_array).collect::<Vec<_>>(),
+        vec![[0.0, 0.0, 1.0], [0.0, 1.0, 1.0], [1.0, 1.0, 1.0],]
+    );
+    Ok(())
+}
+
+#[test]
+fn dti_seed_mask_restricts_tracking_before_integration() {
+    let tensor = [3.0e-4, 3.0e-4, 1.7e-3, 0.0, 0.0, 0.0];
+    let volume = dti_volume(&[tensor; 4], [4, 1, 1], 0.2);
+    let tracking = TractographyConfig::new(1.0, 2, 60.0, TrackingDirection::Forward)
+        .expect("valid tracking policy");
+    let config = DtiTractographyConfig::new(0.25, 0, tracking).expect("valid DTI policy");
+
+    let sparse = [true, false, true, false];
+    let result = dti_volume_tractography_with_mask(&volume, config, Some(&sparse))
+        .expect("selected voxels track");
+    assert_eq!(result.seeds_attempted(), 2);
+    assert_eq!(result.streamlines_generated(), 2);
+
+    let all_false = [false; 4];
+    let error = dti_volume_tractography_with_mask(&volume, config, Some(&all_false))
+        .expect_err("an empty seed region must be reported");
+    assert!(matches!(
+        error,
+        TractographyError::NoSeeds {
+            threshold: 0.25,
+            maximum: 0.0
+        }
+    ));
+}
+
+#[test]
+fn dti_seed_mask_rejects_wrong_length_before_selection() {
+    let tensor = [1.7e-3, 3.0e-4, 3.0e-4, 0.0, 0.0, 0.0];
+    let volume = dti_volume(&[tensor; 2], [2, 1, 1], 0.2);
+
+    let error = dti_volume_seed_points_with_mask(&volume, 0.25, 0, Some(&[true]))
+        .expect_err("one flag cannot describe two DTI voxels");
+    assert!(matches!(
+        error,
+        TractographyError::InvalidSeedMaskLength {
+            actual: 1,
+            expected: 2
+        }
+    ));
+}
+
+#[test]
+fn dti_seed_mask_accepts_empty_volume_and_empty_mask() -> Result<(), TractographyError> {
+    let volume = dti_volume(&[], [0, 1, 1], 0.2);
+    let seeds = dti_volume_seed_points_with_mask(&volume, 0.0, 0, Some(&[]))?;
+    assert!(seeds.is_empty());
+    Ok(())
+}
+
+#[test]
 fn dti_volume_tractography_tracks_selected_seeds_and_reports_empty_selection() {
     let tensor = [3.0e-4, 3.0e-4, 1.7e-3, 0.0, 0.0, 0.0];
     let volume = dti_volume(&[tensor; 3], [3, 1, 1], 0.2);

@@ -183,6 +183,14 @@ pub enum TractographyError {
         /// Invalid fractional-anisotropy threshold.
         value: f64,
     },
+    /// Seed mask does not contain exactly one flag per DTI voxel.
+    #[error("DTI seed mask length {actual} does not match voxel count {expected}")]
+    InvalidSeedMaskLength {
+        /// Number of flags supplied by the caller.
+        actual: usize,
+        /// Number of voxels in the fitted DTI volume.
+        expected: usize,
+    },
     /// No fitted voxel reached the configured seed threshold.
     #[error(
         "no fitted voxel reached FA {threshold}, so there is nothing to seed; the fitted peak was {maximum}"

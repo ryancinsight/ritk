@@ -171,6 +171,64 @@ fn write_nifti_labels_single_voxel_label_7_round_trips() -> Result<()> {
     Ok(())
 }
 
+#[test]
+fn read_int32_label_map_preserves_nonnegative_voxels() -> Result<()> {
+    let dir = tempdir()?;
+    let path = dir.path().join("int32-labels.nii");
+    let header = NiftiHeader::new_volume(
+        HeaderDims {
+            nx: 2,
+            ny: 1,
+            nz: 1,
+        },
+        NiftiDatatype::Int32,
+        HeaderSpatial {
+            pixdim: [1.0; 8],
+            srow_x: [1.0, 0.0, 0.0, 0.0],
+            srow_y: [0.0, 1.0, 0.0, 0.0],
+            srow_z: [0.0, 0.0, 1.0, 0.0],
+        },
+    )?;
+    let bytes = write_single_file_bytes(&header, &[4, 0, 0, 0, 7, 0, 0, 0]);
+    std::fs::write(&path, bytes)?;
+
+    let (labels, shape) = read_nifti_labels(&path)?;
+
+    assert_eq!(shape, [1, 1, 2]);
+    assert_eq!(labels, vec![4, 7]);
+    Ok(())
+}
+
+#[test]
+fn read_int32_label_map_rejects_negative_voxels() -> Result<()> {
+    let dir = tempdir()?;
+    let path = dir.path().join("negative-int32-label.nii");
+    let header = NiftiHeader::new_volume(
+        HeaderDims {
+            nx: 1,
+            ny: 1,
+            nz: 1,
+        },
+        NiftiDatatype::Int32,
+        HeaderSpatial {
+            pixdim: [1.0; 8],
+            srow_x: [1.0, 0.0, 0.0, 0.0],
+            srow_y: [0.0, 1.0, 0.0, 0.0],
+            srow_z: [0.0, 0.0, 1.0, 0.0],
+        },
+    )?;
+    let bytes = write_single_file_bytes(&header, &(-1_i32).to_le_bytes());
+    std::fs::write(&path, bytes)?;
+
+    let error = read_nifti_labels(&path).expect_err("negative labels must fail");
+
+    assert!(
+        format!("{error:#}").contains("must be non-negative"),
+        "error should identify the label invariant: {error:#}"
+    );
+    Ok(())
+}
+
 /// Sform affine written by write_nifti_labels encodes internal LPS metadata
 /// as RAS rows in the NIfTI header. We verify by reading the raw header.
 #[test]

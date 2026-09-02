@@ -198,7 +198,7 @@ CLI or application boundary.
 ```rust,ignore
 use ritk_tractography::{
     DtiTractographyConfig, TrackingDirection, TractographyConfig,
-    dti_volume_seed_points, dti_volume_tractography,
+    dti_volume_seed_points_with_mask, dti_volume_tractography_with_mask,
 };
 
 let tracking = TractographyConfig::new(
@@ -208,16 +208,25 @@ let tracking = TractographyConfig::new(
     TrackingDirection::Bidirectional,
 )?;
 let policy = DtiTractographyConfig::new(0.25, 10_000, tracking)?;
-let seeds = dti_volume_seed_points(&volume, policy.seed_anisotropy(), policy.max_seeds())?;
-let tracks = dti_volume_tractography(&volume, policy)?;
+let seed_mask = vec![true; volume.maps().len()];
+let seeds = dti_volume_seed_points_with_mask(
+    &volume,
+    policy.seed_anisotropy(),
+    policy.max_seeds(),
+    Some(&seed_mask),
+)?;
+let tracks = dti_volume_tractography_with_mask(&volume, policy, Some(&seed_mask))?;
 ```
 
 The seed threshold is inclusive and the volume mask is authoritative, so an
 unfitted voxel cannot become a seed at threshold zero. `max_seeds == 0` selects
 all qualifying voxels; a nonzero cap uses a stride through the qualifying
 storage order rather than truncating at the first cap-sized prefix. The
-orchestration function returns `NoSeeds` with the threshold and fitted FA peak
-instead of producing an apparently successful empty tractogram.
+orchestration function returns `NoSeeds` with the threshold and eligible fitted
+FA peak instead of producing an apparently successful empty tractogram. The
+mask-aware entry points require one boolean per DTI voxel in `[depth, row,
+column]` order and apply it only to starting voxels; passing `None` preserves
+the unmasked entry points' behavior.
 
 The [reusable DTI-volume example](examples/dti_volume_tractography.md) fits a
 known two-regime synthetic volume, verifies the seed and streamline counts, and
