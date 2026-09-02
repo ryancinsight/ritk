@@ -1,0 +1,27 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 700 330"><style>.panel{fill:#fff;stroke:#cbd5e1}.title{font:600 16px sans-serif;fill:#172033}.label{font:11px sans-serif;fill:#475569}.axis{stroke:#94a3b8;stroke-width:1}.fa{fill:#2563eb;fill-opacity:.75}.seed{fill:#f97316;stroke:#fff;stroke-width:1.5}.streamline{fill:none;stroke:#2563eb;stroke-width:2.5}.boundary{stroke:#dc2626;stroke-width:2;stroke-dasharray:5 4}<rect width="350" height="330" class="panel"/><rect x="350" width="350" height="330" class="panel"/>
+<text x="175" y="28" class="title" text-anchor="middle">1. FA seeding policy</text>
+<text x="525" y="28" class="title" text-anchor="middle">2. DTI-volume tracking</text>
+<line x1="40" y1="260" x2="310" y2="260" class="axis"/><line x1="40" y1="65" x2="40" y2="260" class="axis"/>
+<rect x="45.00" y="124.17" width="18.17" height="135.83" class="fa"/><text x="54.08" y="278" class="label" text-anchor="middle">0.80</text>
+<rect x="64.17" y="124.17" width="18.17" height="135.83" class="fa"/><text x="73.25" y="278" class="label" text-anchor="middle">0.80</text>
+<rect x="83.33" y="124.17" width="18.17" height="135.83" class="fa"/><text x="92.42" y="278" class="label" text-anchor="middle">0.80</text>
+<rect x="102.50" y="124.17" width="18.17" height="135.83" class="fa"/><text x="111.58" y="278" class="label" text-anchor="middle">0.80</text>
+<rect x="121.67" y="124.17" width="18.17" height="135.83" class="fa"/><text x="130.75" y="278" class="label" text-anchor="middle">0.80</text>
+<rect x="140.83" y="124.17" width="18.17" height="135.83" class="fa"/><text x="149.92" y="278" class="label" text-anchor="middle">0.80</text>
+<rect x="160.00" y="124.17" width="18.17" height="135.83" class="fa"/><text x="169.08" y="278" class="label" text-anchor="middle">0.80</text>
+<rect x="179.17" y="124.17" width="18.17" height="135.83" class="fa"/><text x="188.25" y="278" class="label" text-anchor="middle">0.80</text>
+<rect x="198.33" y="260.00" width="18.17" height="0.00" class="fa"/><text x="207.42" y="278" class="label" text-anchor="middle">0.00</text>
+<rect x="217.50" y="260.00" width="18.17" height="0.00" class="fa"/><text x="226.58" y="278" class="label" text-anchor="middle">0.00</text>
+<rect x="236.67" y="260.00" width="18.17" height="0.00" class="fa"/><text x="245.75" y="278" class="label" text-anchor="middle">0.00</text>
+<rect x="255.83" y="260.00" width="18.17" height="0.00" class="fa"/><text x="264.92" y="278" class="label" text-anchor="middle">0.00</text>
+<line x1="40" y1="217.50" x2="310" y2="217.50" class="boundary"/><text x="45" y="211.50" class="label">seed FA ≥ 0.25</text>
+<circle cx="390.00" cy="90" r="4" class="seed"/>
+<circle cx="434.00" cy="90" r="4" class="seed"/>
+<circle cx="478.00" cy="90" r="4" class="seed"/>
+<circle cx="522.00" cy="90" r="4" class="seed"/>
+<path d="M 390.00,150.00L 401.00,150.00L 412.00,150.00L 423.00,150.00L 434.00,150.00L 445.00,150.00L 456.00,150.00L 467.00,150.00L 478.00,150.00L 489.00,150.00L 500.00,150.00L 511.00,150.00L 522.00,150.00L 533.00,150.00L 544.00,150.00" class="streamline"/>
+<path d="M 390.00,170.00L 401.00,170.00L 412.00,170.00L 423.00,170.00L 434.00,170.00L 445.00,170.00L 456.00,170.00L 467.00,170.00L 478.00,170.00L 489.00,170.00L 500.00,170.00L 511.00,170.00L 522.00,170.00L 533.00,170.00L 544.00,170.00" class="streamline"/>
+<path d="M 390.00,190.00L 401.00,190.00L 412.00,190.00L 423.00,190.00L 434.00,190.00L 445.00,190.00L 456.00,190.00L 467.00,190.00L 478.00,190.00L 489.00,190.00L 500.00,190.00L 511.00,190.00L 522.00,190.00L 533.00,190.00L 544.00,190.00" class="streamline"/>
+<path d="M 390.00,210.00L 401.00,210.00L 412.00,210.00L 423.00,210.00L 434.00,210.00L 445.00,210.00L 456.00,210.00L 467.00,210.00L 478.00,210.00L 489.00,210.00L 500.00,210.00L 511.00,210.00L 522.00,210.00L 533.00,210.00L 544.00,210.00" class="streamline"/>
+<line x1="566.00" y1="65" x2="566.00" y2="260" class="boundary"/><text x="525" y="285" class="label" text-anchor="middle">4 seeds → 4 streamlines</text>
+</svg>

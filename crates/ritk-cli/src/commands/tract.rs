@@ -2,8 +2,9 @@
 //!
 //! Fitting and the direction lookup are the library's
 //! ([`ritk_diffusion::maps`], [`ritk_tractography`]); this module parses
-//! arguments, seeds, converts the resulting streamlines into the image's
-//! physical frame, and writes them. It holds no tracking logic of its own.
+//! arguments, builds the validated DTI volume policy, converts the resulting
+//! streamlines into the image's physical frame, and writes them. It holds no
+//! seeding or tracking logic of its own.
 #![expect(
     clippy::print_stdout,
     reason = "RITK-LINT-1: ritk-cli is the application output layer"
@@ -18,9 +19,8 @@ use ritk_diffusion::maps::{
     fit_diffusion_maps, DiffusionMapsConfig, DirectionInterpolation, DtiVolume,
 };
 use ritk_image::Image;
-use ritk_spatial::Point;
 use ritk_tractography::{
-    dti_volume_direction_field, euler_tractography, TerminationReason, TrackingDirection,
+    dti_volume_tractography, DtiTractographyConfig, TerminationReason, TrackingDirection,
     TractographyConfig,
 };
 use tracing::info;
@@ -207,24 +207,9 @@ fn dti(args: DtiArgs) -> Result<()> {
     let maps = fit_diffusion_maps(&scheme, &voxels, &config).context("fitting the tensor field")?;
     info!("fitted {} of {} voxels", maps.fitted_count(), maps.len());
 
-    let anisotropy = maps.fractional_anisotropy();
     let volume = DtiVolume::new(maps, reference.shape(), args.track_anisotropy)
         .context("placing the tensor field on the image grid")?
         .with_interpolation(args.interpolation.into());
-
-    let seeds = seed(
-        &anisotropy,
-        volume.shape(),
-        args.seed_anisotropy,
-        args.max_seeds,
-    );
-    anyhow::ensure!(
-        !seeds.is_empty(),
-        "no voxel reached FA {}, so there is nothing to seed. The peak was {:.3}.",
-        args.seed_anisotropy,
-        anisotropy.iter().copied().fold(0.0_f64, f64::max)
-    );
-    info!("seeding {} voxels", seeds.len());
 
     let tracking = TractographyConfig::new(
         args.step_size,
@@ -234,8 +219,10 @@ fn dti(args: DtiArgs) -> Result<()> {
     )
     .context("validating the tracking configuration")?;
 
-    let tracks = euler_tractography(&seeds, tracking, dti_volume_direction_field(&volume))
-        .context("tracking through the tensor field")?;
+    let policy = DtiTractographyConfig::new(args.seed_anisotropy, args.max_seeds, tracking)
+        .context("validating the DTI seeding configuration")?;
+    let tracks = dti_volume_tractography(&volume, policy)
+        .context("seeding and tracking through the tensor field")?;
     // Why tracking stopped is the first thing to look at when a tractogram is
     // shorter than expected: a field boundary means the mask or anisotropy
     // floor ended it, a turning angle means the direction field is rougher than
@@ -271,46 +258,6 @@ fn dti(args: DtiArgs) -> Result<()> {
         tracks.seeds_attempted()
     );
     Ok(())
-}
-
-/// Voxel indices whose anisotropy qualifies them as seeds.
-///
-/// Qualifying voxels are taken at a stride rather than truncated at `limit`, so
-/// a cap thins the volume evenly. Truncating would seed only whichever end of
-/// the volume is stored first, which reads as a tractogram covering half a
-/// brain.
-fn seed(anisotropy: &[f64], shape: [usize; 3], floor: f64, limit: usize) -> Vec<Point<3>> {
-    let qualifying: Vec<usize> = anisotropy
-        .iter()
-        .enumerate()
-        .filter(|(_, value)| **value >= floor)
-        .map(|(voxel, _)| voxel)
-        .collect();
-
-    let stride = if limit == 0 || qualifying.len() <= limit {
-        1
-    } else {
-        qualifying.len().div_ceil(limit)
-    };
-
-    let [_, rows, columns] = shape;
-    let plane = rows * columns;
-    qualifying
-        .iter()
-        .step_by(stride)
-        .map(|voxel| {
-            #[expect(
-                clippy::cast_precision_loss,
-                reason = "voxel indices are far below f64's exact-integer range"
-            )]
-            let index = [
-                (voxel / plane) as f64,
-                ((voxel % plane) / columns) as f64,
-                (voxel % columns) as f64,
-            ];
-            Point::new(index)
-        })
-        .collect()
 }
 
 /// Track file formats `tract` can write.

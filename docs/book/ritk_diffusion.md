@@ -410,7 +410,7 @@ for tractography. The direction-field helpers live in `ritk-tractography`
 
 | Model | Direction source | Tractography helper |
 |---|---|---|
-| DTI | `DtiVolume::direction_at()` | `dti_volume_direction_field(volume)` |
+| DTI | `DtiVolume::direction_at()` | `dti_volume_direction_field(volume)` or `dti_volume_tractography(volume, policy)` |
 | DKI | `principal_eigenvector()` | (same PEV, richer kurtosis metrics) |
 | ODF | `OdField` peak | (manual peak extraction) |
 | CSD | `FodVolume::direction_at()` | `fod_volume_direction_field(volume)` |
@@ -418,6 +418,9 @@ for tractography. The direction-field helpers live in `ritk-tractography`
 
 The [Deterministic Streamline Tractography](tractography.md) chapter
 documents the integration algorithm that consumes these direction fields.
+For a complete DTI volume, the reusable `ritk-tractography` surface also
+selects FA-threshold seeds and applies the volume's mask and anisotropy floor
+through `DtiTractographyConfig`.
 The [signal-to-streamlines example](examples/diffusion_tractography.md)
 closes the loop end-to-end: known tensor → synthetic signals → model fit
 → direction field → streamlines.
