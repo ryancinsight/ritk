@@ -1128,18 +1128,18 @@ fn dti_seed_mask_filters_candidates_in_dti_grid_order() -> Result<(), Tractograp
 #[test]
 fn dti_seed_mask_restricts_tracking_before_integration() {
     let tensor = [3.0e-4, 3.0e-4, 1.7e-3, 0.0, 0.0, 0.0];
-    let volume = dti_volume(&[tensor; 3], [3, 1, 1], 0.2);
+    let volume = dti_volume(&[tensor; 4], [4, 1, 1], 0.2);
     let tracking = TractographyConfig::new(1.0, 2, 60.0, TrackingDirection::Forward)
         .expect("valid tracking policy");
     let config = DtiTractographyConfig::new(0.25, 0, tracking).expect("valid DTI policy");
 
-    let sparse = [true, false, true];
+    let sparse = [true, false, true, false];
     let result = dti_volume_tractography_with_mask(&volume, config, Some(&sparse))
         .expect("selected voxels track");
     assert_eq!(result.seeds_attempted(), 2);
     assert_eq!(result.streamlines_generated(), 2);
 
-    let all_false = [false; 3];
+    let all_false = [false; 4];
     let error = dti_volume_tractography_with_mask(&volume, config, Some(&all_false))
         .expect_err("an empty seed region must be reported");
     assert!(matches!(
