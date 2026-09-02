@@ -120,8 +120,8 @@ coeus-tensor = { version = "0.10.0", git = "https://github.com/ryancinsight/Coeu
 coeus-ops = { version = "0.10.0", git = "https://github.com/ryancinsight/Coeus.git" }
 coeus-leto = { version = "0.10.0", git = "https://github.com/ryancinsight/Coeus.git" }
 coeus-autograd = { version = "0.10.0", git = "https://github.com/ryancinsight/Coeus.git" }
-leto = { version = "0.42.0", git = "https://github.com/ryancinsight/leto.git" }
-leto-ops = { version = "0.42.0", git = "https://github.com/ryancinsight/leto.git" }
+leto = { version = "0.43.0", git = "https://github.com/ryancinsight/leto.git" }
+leto-ops = { version = "0.43.0", git = "https://github.com/ryancinsight/leto.git" }
 apollo-fft = { version = "0.27.0", git = "https://github.com/ryancinsight/apollo" }
 apollo-sht = { version = "0.7.0", git = "https://github.com/ryancinsight/apollo" }
 aequitas = { version = "0.2.0", git = "https://github.com/ryancinsight/aequitas" }
