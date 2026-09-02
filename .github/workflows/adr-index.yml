@@ -1,0 +1,41 @@
+name: ADR index
+
+# `ci.yml` carries `paths-ignore: docs/**`, so while this guard lived there a
+# change touching only `docs/adr` ran no check at all — the guard could not run
+# on the very files it guards. That is where both
+# of the failures this guards against live, so the check needs its own trigger.
+#
+# It needs no toolchain, no cache and no build: it reads `docs/adr/*.md` and
+# compares them to the committed index, so it costs a checkout and a second.
+on:
+  push:
+    branches: [main]
+    paths:
+      - 'docs/adr/**'
+      - '.github/workflows/adr-index.yml'
+  pull_request:
+    types: [opened, reopened, synchronize, ready_for_review, converted_to_draft]
+    paths:
+      - 'docs/adr/**'
+      - '.github/workflows/adr-index.yml'
+
+permissions:
+  contents: read
+
+concurrency:
+  # Pull requests share one group per ref and cancel superseded runs; default-
+  # branch runs get one group per commit, since GitHub supersedes a pending run
+  # in a shared group whatever `cancel-in-progress` says.
+  group: adr-index-${{ github.event_name == 'pull_request' && github.ref || github.sha }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
+
+jobs:
+  index:
+    if: ${{ github.event_name != 'pull_request' || github.event.pull_request.draft == false }}
+    name: ADR index is current
+    # atlas owns the one generator (ATLAS-ADR-FORM-NORMALIZATION-2026-09-02); strict: the ADRs carry the canonical heading form and numbering.
+    uses: ryancinsight/atlas/.github/workflows/adr-index-guard.yml@191617bffed5f78de9d840fee8755963fccaaa67
+    permissions:
+      contents: read
+    with:
+      strict: true
