@@ -64,7 +64,7 @@ categories = [
 # crates.io reserves `iris`, so the crate is published as `iris-viz`; the
 # import path stays `iris` via its `[lib] name`, so no source changes.
 iris = { package = "iris-viz", version = "0.1.0", git = "https://github.com/ryancinsight/iris" }
-ritk-filter = { path = "crates/ritk-filter", version = "0.3.0" }
+ritk-filter = { path = "crates/ritk-filter", version = "0.4.0" }
 ritk-segmentation = { path = "crates/ritk-segmentation", version = "0.3.0" }
 ritk-core = { path = "crates/ritk-core", version = "0.10.0" }
 ritk-dicom = { path = "crates/ritk-dicom", version = "0.2.0" }
@@ -103,7 +103,7 @@ ritk-trx = { path = "crates/ritk-trx", version = "0.1.0" }
 # The crates.io name `gaia` belongs to an unrelated third-party crate, so the
 # crate is published as `gaia-mesh`; the import path stays `gaia` via its
 # `[lib] name`, so no source changes.
-gaia = { package = "gaia-mesh", version = "0.4.0", git = "https://github.com/ryancinsight/gaia", default-features = false }
+gaia = { package = "gaia-mesh", version = "0.5.0", git = "https://github.com/ryancinsight/gaia", default-features = false }
 criterion = { version = "0.5", features = ["html_reports"] }
 coeus-nn = { version = "0.10.0", git = "https://github.com/ryancinsight/Coeus.git" }
 coeus-optim = { version = "0.10.0", git = "https://github.com/ryancinsight/Coeus.git" }
@@ -120,8 +120,8 @@ coeus-tensor = { version = "0.10.0", git = "https://github.com/ryancinsight/Coeu
 coeus-ops = { version = "0.10.0", git = "https://github.com/ryancinsight/Coeus.git" }
 coeus-leto = { version = "0.10.0", git = "https://github.com/ryancinsight/Coeus.git" }
 coeus-autograd = { version = "0.10.0", git = "https://github.com/ryancinsight/Coeus.git" }
-leto = { version = "0.42.0", git = "https://github.com/ryancinsight/leto.git" }
-leto-ops = { version = "0.42.0", git = "https://github.com/ryancinsight/leto.git" }
+leto = { version = "0.43.0", git = "https://github.com/ryancinsight/leto.git" }
+leto-ops = { version = "0.43.0", git = "https://github.com/ryancinsight/leto.git" }
 apollo-fft = { version = "0.27.0", git = "https://github.com/ryancinsight/apollo" }
 apollo-sht = { version = "0.7.0", git = "https://github.com/ryancinsight/apollo" }
 aequitas = { version = "0.2.0", git = "https://github.com/ryancinsight/aequitas" }

@@ -193,7 +193,7 @@ fn test_render_mip_with_scratch_pixel_identical() {
     let vol = make_volume(4, 5, 6);
     let wl = WindowLevel::new(12.0, 24.0);
     let expected = render_mip_axial(&vol, wl, NamedColorMap::Grayscale);
-    let mut scratch = Vec::new();
+    let mut scratch = mnemosyne::AlignedVec::default();
     let actual = render_mip_axial_with_scratch(&mut scratch, &vol, wl, NamedColorMap::Grayscale);
     assert_eq!(
         actual.size, expected.size,

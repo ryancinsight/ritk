@@ -26,7 +26,7 @@ ritk-spatial = { path = "../ritk-spatial", version = "0.2.0" }
 ritk-statistics = { path = "../ritk-statistics", version = "0.4.0" }
 ritk-interpolation = { path = "../ritk-interpolation", version = "0.5.0" }
 ritk-transform = { path = "../ritk-transform", version = "0.2.0" }
-ritk-filter = { path = "../ritk-filter", version = "0.3.0" }
+ritk-filter = { path = "../ritk-filter", version = "0.4.0" }
 ritk-segmentation = { path = "../ritk-segmentation", version = "0.3.0" }
 ritk-model = { path = "../ritk-model", version = "0.2.0" }
 ritk-tensor-ops = { path = "../ritk-tensor-ops", version = "0.2.0" }

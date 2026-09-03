@@ -19,7 +19,7 @@ ritk-core = { path = "../ritk-core", version = "0.10.0" }
 ritk-image = { path = "../ritk-image", version = "0.4.0" }
 ritk-spatial = { path = "../ritk-spatial", version = "0.2.0" }
 ritk-annotation = { path = "../ritk-annotation", version = "0.2.0" }
-ritk-filter = { path = "../ritk-filter", version = "0.3.0" }
+ritk-filter = { path = "../ritk-filter", version = "0.4.0" }
 ritk-dicom = { workspace = true }
 ritk-codecs = { workspace = true }
 ritk-nifti = { workspace = true }
