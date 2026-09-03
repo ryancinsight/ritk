@@ -13,6 +13,7 @@ name = "xtask"
 path = "src/main.rs"
 
 [dependencies]
+mnemosyne = { workspace = true }
 anyhow = { workspace = true }
 clap = { workspace = true, features = ["derive"] }
 reqwest = { workspace = true, features = ["blocking", "stream"] }

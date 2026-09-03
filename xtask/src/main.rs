@@ -1,4 +1,9 @@
 #![expect(clippy::print_stdout, reason = "ratchet RITK-LINT-1")]
+use mnemosyne::Mnemosyne;
+
+#[global_allocator]
+static ALLOC: Mnemosyne = Mnemosyne;
+
 use anyhow::Result;
 use clap::{Parser, Subcommand};
 use std::path::{Path, PathBuf};
