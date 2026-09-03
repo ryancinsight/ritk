@@ -52,7 +52,6 @@ fn test_missing_piece_tag_error() {
     let input = "<?xml version=\"1.0\"?>\
                  <VTKFile><UnstructuredGrid></UnstructuredGrid></VTKFile>";
     let r = parse_vtu(input);
-    assert!(r.is_err(), "missing <Piece> must return Err");
     let msg = r.unwrap_err().to_string();
     assert!(msg.contains("Piece"), "error must mention 'Piece': {}", msg);
 }
@@ -72,7 +71,6 @@ fn test_missing_cells_section_error() {
                </UnstructuredGrid>\n\
              </VTKFile>";
     let r = parse_vtu(s);
-    assert!(r.is_err(), "missing <Cells> must return Err");
     let msg = r.unwrap_err().to_string();
     assert!(
         msg.to_lowercase().contains("cell"),
@@ -86,7 +84,6 @@ fn test_wrong_coord_count_error() {
     // NumberOfPoints=4 but only 3 floats (need 12) provided.
     let s = minimal_vtu(4, 0, "0.0 0.0 0.0", "", "", "");
     let r = parse_vtu(&s);
-    assert!(r.is_err(), "coord count mismatch must return Err");
     let msg = r.unwrap_err().to_string();
     // Error contains the expected count (12) or actual count (3) or "coord".
     assert!(
@@ -108,7 +105,6 @@ fn test_offsets_count_mismatch_error() {
         "10",
     );
     let r = parse_vtu(&s);
-    assert!(r.is_err(), "offsets count mismatch must return Err");
     let msg = r.unwrap_err().to_string();
     assert!(
         msg.contains("offsets"),
@@ -122,7 +118,6 @@ fn test_offset_exceeds_connectivity_error() {
     // Offset 999 exceeds connectivity length 4.
     let s = minimal_vtu(4, 1, "0 0 0  1 0 0  0 1 0  0 0 1", "0 1 2 3", "999", "10");
     let r = parse_vtu(&s);
-    assert!(r.is_err(), "offset > connectivity length must return Err");
     let msg = r.unwrap_err().to_string();
     assert!(
         msg.contains("999") || msg.contains("offset") || msg.contains("connectivity"),
@@ -135,7 +130,6 @@ fn test_offset_exceeds_connectivity_error() {
 fn test_negative_connectivity_rejected() {
     let s = minimal_vtu(4, 1, "0 0 0  1 0 0  0 1 0  0 0 1", "-1 1 2", "3", "5");
     let r = parse_vtu(&s);
-    assert!(r.is_err(), "negative connectivity must return Err");
     let msg = r.unwrap_err().to_string();
     assert!(
         msg.contains("connectivity") && msg.contains("non-negative"),
@@ -148,7 +142,6 @@ fn test_negative_connectivity_rejected() {
 fn test_negative_offset_rejected() {
     let s = minimal_vtu(4, 1, "0 0 0  1 0 0  0 1 0  0 0 1", "0 1 2", "-1", "5");
     let r = parse_vtu(&s);
-    assert!(r.is_err(), "negative offset must return Err");
     let msg = r.unwrap_err().to_string();
     assert!(
         msg.contains("offsets") && msg.contains("non-negative"),
@@ -168,7 +161,6 @@ fn test_decreasing_offsets_rejected() {
         "5 5",
     );
     let r = parse_vtu(&s);
-    assert!(r.is_err(), "decreasing offsets must return Err");
     let msg = r.unwrap_err().to_string();
     assert!(
         msg.contains("offset") && msg.contains("previous"),
@@ -181,7 +173,6 @@ fn test_decreasing_offsets_rejected() {
 fn test_trailing_connectivity_rejected() {
     let s = minimal_vtu(4, 1, "0 0 0  1 0 0  0 1 0  0 0 1", "0 1 2 99", "3", "5");
     let r = parse_vtu(&s);
-    assert!(r.is_err(), "trailing connectivity must return Err");
     let msg = r.unwrap_err().to_string();
     assert!(
         msg.contains("final offset") && msg.contains("connectivity"),
@@ -194,7 +185,6 @@ fn test_trailing_connectivity_rejected() {
 fn test_negative_type_code_rejected() {
     let s = minimal_vtu(4, 1, "0 0 0  1 0 0  0 1 0  0 0 1", "0 1 2", "3", "-1");
     let r = parse_vtu(&s);
-    assert!(r.is_err(), "negative cell type code must return Err");
     let msg = r.unwrap_err().to_string();
     assert!(
         msg.contains("types") && msg.contains("UInt8"),
@@ -215,7 +205,6 @@ fn test_types_count_mismatch_error() {
         "5", // one type for two cells
     );
     let r = parse_vtu(&s);
-    assert!(r.is_err(), "types count mismatch must return Err");
     let msg = r.unwrap_err().to_string();
     assert!(
         msg.contains("types") || msg.contains("type"),
@@ -238,6 +227,11 @@ fn test_from_file_roundtrip() {
 
 #[test]
 fn test_nonexistent_file_error() {
-    let r = read_vtu_unstructured_grid("/nonexistent_dir_xyz/file.vtu");
-    assert!(r.is_err(), "nonexistent path must return Err");
+    let msg = read_vtu_unstructured_grid("/nonexistent_dir_xyz/file.vtu")
+        .expect_err("nonexistent path must return Err")
+        .to_string();
+    assert!(
+        msg.contains("cannot open VTU") && msg.contains("file.vtu"),
+        "error must name the open failure and path: {msg}"
+    );
 }
