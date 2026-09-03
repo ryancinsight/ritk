@@ -378,41 +378,28 @@ impl NiftiHeader {
         out
     }
 
-    pub(crate) fn read_f32_lane(&self, raw: [u8; 4]) -> f32 {
+    /// Decodes one lane of `N` raw bytes in the header's byte order.
+    ///
+    /// The byte order is a runtime property of the file and the datatype is a
+    /// runtime enum, so the scalar enters as a type parameter rather than as
+    /// four functions that differ only in which one they name.
+    pub(crate) fn read_lane<T, const N: usize>(&self, raw: [u8; N]) -> T
+    where
+        T: NiftiLane<N>,
+    {
         match self.endian {
-            Endian::Little => f32::from_le_bytes(raw),
-            Endian::Big => f32::from_be_bytes(raw),
-        }
-    }
-
-    pub(crate) fn read_u32_lane(&self, raw: [u8; 4]) -> u32 {
-        match self.endian {
-            Endian::Little => u32::from_le_bytes(raw),
-            Endian::Big => u32::from_be_bytes(raw),
-        }
-    }
-
-    pub(crate) fn read_i16_lane(&self, raw: [u8; 2]) -> i16 {
-        match self.endian {
-            Endian::Little => i16::from_le_bytes(raw),
-            Endian::Big => i16::from_be_bytes(raw),
-        }
-    }
-
-    pub(crate) fn read_i32_lane(&self, raw: [u8; 4]) -> i32 {
-        match self.endian {
-            Endian::Little => i32::from_le_bytes(raw),
-            Endian::Big => i32::from_be_bytes(raw),
+            Endian::Little => T::from_little_endian(raw),
+            Endian::Big => T::from_big_endian(raw),
         }
     }
 
     pub(crate) fn read_f32_voxel(&self, raw: &[u8]) -> Result<f32> {
         Ok(match self.datatype {
             NiftiDatatype::Uint8 => f32::from(raw[0]),
-            NiftiDatatype::Int16 => f32::from(self.read_i16_lane(checked_lane::<2>(raw)?)),
-            NiftiDatatype::Int32 => self.read_i32_lane(checked_lane::<4>(raw)?) as f32,
-            NiftiDatatype::Float32 => self.read_f32_lane(checked_lane::<4>(raw)?),
-            NiftiDatatype::Uint32 => self.read_u32_lane(checked_lane::<4>(raw)?) as f32,
+            NiftiDatatype::Int16 => f32::from(self.read_lane::<i16, 2>(checked_lane::<2>(raw)?)),
+            NiftiDatatype::Int32 => self.read_lane::<i32, 4>(checked_lane::<4>(raw)?) as f32,
+            NiftiDatatype::Float32 => self.read_lane::<f32, 4>(checked_lane::<4>(raw)?),
+            NiftiDatatype::Uint32 => self.read_lane::<u32, 4>(checked_lane::<4>(raw)?) as f32,
         })
     }
 
@@ -420,21 +407,22 @@ impl NiftiHeader {
         Ok(match self.datatype {
             NiftiDatatype::Uint8 => u32::from(raw[0]),
             NiftiDatatype::Int16 => {
-                let value = self.read_i16_lane(checked_lane::<2>(raw)?);
+                let value = self.read_lane::<i16, 2>(checked_lane::<2>(raw)?);
                 u32::try_from(value).with_context(|| {
                     format!("NIfTI label voxel must be non-negative, got {value}")
                 })?
             }
             NiftiDatatype::Int32 => {
-                let value = self.read_i32_lane(checked_lane::<4>(raw)?);
+                let value = self.read_lane::<i32, 4>(checked_lane::<4>(raw)?);
                 u32::try_from(value).with_context(|| {
                     format!("NIfTI label voxel must be non-negative, got {value}")
                 })?
             }
-            NiftiDatatype::Float32 => {
-                self.read_f32_lane(checked_lane::<4>(raw)?).max(0.0).round() as u32
-            }
-            NiftiDatatype::Uint32 => self.read_u32_lane(checked_lane::<4>(raw)?),
+            NiftiDatatype::Float32 => self
+                .read_lane::<f32, 4>(checked_lane::<4>(raw)?)
+                .max(0.0)
+                .round() as u32,
+            NiftiDatatype::Uint32 => self.read_lane::<u32, 4>(checked_lane::<4>(raw)?),
         })
     }
 
@@ -606,3 +594,36 @@ mod tests {
         );
     }
 }
+
+/// A NIfTI header scalar decodable from `N` raw bytes of either byte order.
+///
+/// Sealed by visibility: the set is exactly the scalars `NiftiDatatype` admits,
+/// and it grows here when that enum grows.
+pub(crate) trait NiftiLane<const N: usize>: Sized {
+    /// Decodes the value from little-endian bytes.
+    fn from_little_endian(raw: [u8; N]) -> Self;
+    /// Decodes the value from big-endian bytes.
+    fn from_big_endian(raw: [u8; N]) -> Self;
+}
+
+macro_rules! nifti_lane {
+    ($($scalar:ty => $width:literal),+ $(,)?) => {
+        $(impl NiftiLane<$width> for $scalar {
+            #[inline]
+            fn from_little_endian(raw: [u8; $width]) -> Self {
+                Self::from_le_bytes(raw)
+            }
+
+            #[inline]
+            fn from_big_endian(raw: [u8; $width]) -> Self {
+                Self::from_be_bytes(raw)
+            }
+        })+
+    };
+}
+
+// The impls are byte-for-byte identical past the scalar and its width, and the
+// bodies are the std constructors themselves; a declarative macro is the one
+// place this file needs to name each scalar, and it is generated once here
+// rather than written out four times.
+nifti_lane!(i16 => 2, i32 => 4, u32 => 4, f32 => 4);
