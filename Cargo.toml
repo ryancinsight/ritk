@@ -64,7 +64,7 @@ categories = [
 # crates.io reserves `iris`, so the crate is published as `iris-viz`; the
 # import path stays `iris` via its `[lib] name`, so no source changes.
 iris = { package = "iris-viz", version = "0.1.0", git = "https://github.com/ryancinsight/iris" }
-ritk-filter = { path = "crates/ritk-filter", version = "0.3.0" }
+ritk-filter = { path = "crates/ritk-filter", version = "0.4.0" }
 ritk-segmentation = { path = "crates/ritk-segmentation", version = "0.3.0" }
 ritk-core = { path = "crates/ritk-core", version = "0.10.0" }
 ritk-dicom = { path = "crates/ritk-dicom", version = "0.2.0" }
