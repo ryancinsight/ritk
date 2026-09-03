@@ -82,9 +82,7 @@ fn test_segment_shape_detection_missing_phi_returns_error() {
     let output = dir.path().join("mask.nii");
     ritk_io::write_nifti(&input, &make_sphere_image()).unwrap();
     let args = default_args(input.clone(), output.clone(), SegmentMethod::ShapeDetection);
-    let result = run(args);
-    assert!(result.is_err(), "--initial-phi missing must produce error");
-    let msg = result.unwrap_err().to_string();
+    let msg = run(args).unwrap_err().to_string();
     assert!(
         msg.contains("--initial-phi"),
         "error must mention --initial-phi, got: {msg}"
@@ -162,9 +160,7 @@ fn test_segment_threshold_level_set_missing_phi_returns_error() {
     );
     args.lower_threshold = Some(5.0);
     args.upper_threshold = Some(250.0);
-    let result = run(args);
-    assert!(result.is_err());
-    assert!(result.unwrap_err().to_string().contains("--initial-phi"));
+    assert!(run(args).unwrap_err().to_string().contains("--initial-phi"));
 }
 
 #[test]
@@ -182,9 +178,7 @@ fn test_segment_threshold_level_set_missing_lower_returns_error() {
     );
     args.initial_phi = Some(phi_path);
     args.upper_threshold = Some(250.0);
-    let result = run(args);
-    assert!(result.is_err());
-    assert!(result
+    assert!(run(args)
         .unwrap_err()
         .to_string()
         .contains("--lower-threshold"));
@@ -205,9 +199,7 @@ fn test_segment_threshold_level_set_missing_upper_returns_error() {
     );
     args.initial_phi = Some(phi_path);
     args.lower_threshold = Some(5.0);
-    let result = run(args);
-    assert!(result.is_err());
-    assert!(result
+    assert!(run(args)
         .unwrap_err()
         .to_string()
         .contains("--upper-threshold"));
@@ -229,9 +221,7 @@ fn test_segment_threshold_level_set_lower_gt_upper_returns_error() {
     args.initial_phi = Some(phi_path);
     args.lower_threshold = Some(250.0);
     args.upper_threshold = Some(5.0);
-    let result = run(args);
-    assert!(result.is_err());
-    let msg = result.unwrap_err().to_string();
+    let msg = run(args).unwrap_err().to_string();
     assert!(
         msg.contains("must be") && msg.contains("<="),
         "error must explain bound constraint, got: {msg}"
@@ -251,8 +241,7 @@ fn test_segment_chan_vese_creates_output_with_correct_shape() {
     let mut args = default_args(input.clone(), output.clone(), SegmentMethod::ChanVese);
     args.level_set_max_iterations = 10;
 
-    let result = run(args);
-    assert!(result.is_ok(), "chan-vese should succeed");
+    run(args).expect("chan-vese should succeed");
 
     let mask = ritk_io::read_nifti::<Backend, _>(&output, &Default::default()).unwrap();
     assert_eq!(mask.shape(), [5, 5, 5], "output shape must match input");
@@ -303,8 +292,7 @@ fn test_segment_geodesic_active_contour_creates_output_with_correct_shape() {
     args.initial_phi = Some(phi_path);
     args.level_set_max_iterations = 10;
 
-    let result = run(args);
-    assert!(result.is_ok(), "geodesic-active-contour should succeed");
+    run(args).expect("geodesic-active-contour should succeed");
 
     let mask = ritk_io::read_nifti::<Backend, _>(&output, &Default::default()).unwrap();
     assert_eq!(mask.shape(), [5, 5, 5], "output shape must match input");
@@ -355,9 +343,7 @@ fn test_segment_geodesic_active_contour_missing_phi_returns_error() {
         output.clone(),
         SegmentMethod::GeodesicActiveContour,
     );
-    let result = run(args);
-    assert!(result.is_err(), "--initial-phi missing must produce error");
-    let msg = result.unwrap_err().to_string();
+    let msg = run(args).unwrap_err().to_string();
     assert!(
         msg.contains("--initial-phi"),
         "error must mention --initial-phi, got: {msg}"
@@ -384,8 +370,7 @@ fn test_segment_laplacian_level_set_creates_output_with_correct_shape() {
     args.initial_phi = Some(phi_path);
     args.level_set_max_iterations = 10;
 
-    let result = run(args);
-    assert!(result.is_ok(), "laplacian-level-set should succeed");
+    run(args).expect("laplacian-level-set should succeed");
 
     let mask = ritk_io::read_nifti::<Backend, _>(&output, &Default::default()).unwrap();
     assert_eq!(mask.shape(), [5, 5, 5], "output shape must match input");
@@ -436,9 +421,7 @@ fn test_segment_laplacian_level_set_missing_phi_returns_error() {
         output.clone(),
         SegmentMethod::LaplacianLevelSet,
     );
-    let result = run(args);
-    assert!(result.is_err(), "--initial-phi missing must produce error");
-    let msg = result.unwrap_err().to_string();
+    let msg = run(args).unwrap_err().to_string();
     assert!(
         msg.contains("--initial-phi"),
         "error must mention --initial-phi, got: {msg}"
