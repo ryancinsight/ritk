@@ -33,14 +33,14 @@
 /// - `pixel_f32.len()` equals the most-recently-requested `f32` length.
 /// - `rgba_u8.len()` equals the most-recently-requested `u8` length.
 /// - `color32.len()` equals the most-recently-requested `Color32` length.
-/// - `Vec::capacity` is monotone non-decreasing; `Vec::resize` extends when
+/// - `AlignedVec::capacity` is monotone non-decreasing; `resize` extends when
 ///   needed and reuses without shrinking otherwise.
 #[derive(Debug, Default)]
 pub(crate) struct RenderBufferPool {
-    /// f32 scratch for `extract_slice_into` output.
-    pub(crate) pixel_f32: Vec<f32>,
-    /// u8 scratch for RGBA intermediate encoding.
-    pub(crate) rgba_u8: Vec<u8>,
+    /// f32 scratch for `extract_slice_into` output (64-byte cache-line aligned).
+    pub(crate) pixel_f32: mnemosyne::AlignedVec<f32>,
+    /// u8 scratch for RGBA intermediate encoding (64-byte cache-line aligned).
+    pub(crate) rgba_u8: mnemosyne::AlignedVec<u8>,
     /// Color32 scratch for viewport orientation transform output.
     pub(crate) color32: Vec<egui::Color32>,
 }

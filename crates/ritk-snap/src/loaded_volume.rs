@@ -150,7 +150,7 @@ impl LoadedVolume {
     /// Unknown axes clear `out` and return `(0, 0)`.
     pub fn extract_slice_into(
         &self,
-        out: &mut Vec<f32>,
+        out: &mut mnemosyne::AlignedVec<f32>,
         axis: usize,
         index: usize,
     ) -> (usize, usize) {

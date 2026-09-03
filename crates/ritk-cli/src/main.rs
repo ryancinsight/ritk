@@ -3,6 +3,11 @@
 //! Parses the command-line, initialises the `tracing` subscriber, and
 //! dispatches each subcommand to its dedicated handler module.
 
+use mnemosyne::Mnemosyne;
+
+#[global_allocator]
+static ALLOC: Mnemosyne = Mnemosyne;
+
 use clap::{Parser, Subcommand};
 
 mod commands;

@@ -39,7 +39,7 @@ pub fn render_mip_axial(
     wl: WindowLevel,
     colormap: NamedColorMap,
 ) -> ColorImage {
-    let mut scratch = Vec::new();
+    let mut scratch = mnemosyne::AlignedVec::default();
     render_mip_axial_with_scratch(&mut scratch, volume, wl, colormap)
 }
 
@@ -47,9 +47,9 @@ pub fn render_mip_axial(
 /// heap allocation on the hot render path.
 ///
 /// `scratch` is resized (never shrunk in capacity) to `rows × cols × 4` bytes
-/// before being filled. Callers may pass a `Vec` owned by a [`RenderBufferPool`].
+/// before being filled. Callers may pass the `AlignedVec` owned by a [`RenderBufferPool`].
 pub(crate) fn render_mip_axial_with_scratch(
-    scratch: &mut Vec<u8>,
+    scratch: &mut mnemosyne::AlignedVec<u8>,
     volume: &LoadedVolume,
     wl: WindowLevel,
     colormap: NamedColorMap,
@@ -91,7 +91,7 @@ pub fn render_vr_axial(
     colormap: NamedColorMap,
     alpha: f32,
 ) -> ColorImage {
-    let mut scratch = Vec::new();
+    let mut scratch = mnemosyne::AlignedVec::default();
     render_vr_axial_with_scratch(&mut scratch, volume, wl, colormap, alpha)
 }
 
@@ -99,9 +99,9 @@ pub fn render_vr_axial(
 /// heap allocation on the hot render path.
 ///
 /// `scratch` is resized (never shrunk in capacity) to `rows × cols × 4` bytes
-/// before being filled. Callers may pass a `Vec` owned by a [`RenderBufferPool`].
+/// before being filled. Callers may pass the `AlignedVec` owned by a [`RenderBufferPool`].
 pub(crate) fn render_vr_axial_with_scratch(
-    scratch: &mut Vec<u8>,
+    scratch: &mut mnemosyne::AlignedVec<u8>,
     volume: &LoadedVolume,
     wl: WindowLevel,
     colormap: NamedColorMap,

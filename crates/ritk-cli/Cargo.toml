@@ -41,6 +41,7 @@ tracing = { workspace = true }
 tracing-subscriber = { workspace = true }
 leto = { workspace = true }
 coeus-core = { workspace = true }
+mnemosyne = { workspace = true }
 
 [dev-dependencies]
 tempfile = { workspace = true }
