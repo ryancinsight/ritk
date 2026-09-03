@@ -11,16 +11,21 @@
 pub mod engine;
 pub mod error;
 pub mod native;
+pub mod rigid_search;
 pub mod spatial;
 pub mod temporal;
 pub mod translation;
 
 // Re-export core types for convenience
-pub use engine::{ImageRegistration, RegistrationResult};
+pub use engine::{
+    HistogramEstimator, ImageRegistration, IntensityRange, MutualInformationMetric,
+    NmiNormalization, RegistrationResult,
+};
 pub use error::{RegistrationError, Result};
 pub use native::{
     image_to_leto_volume, index_affine_to_physical, leto_volume_to_image, NativeConversionError,
 };
+pub use rigid_search::{search_rigid_pose, RigidSearchConfig, RigidSearchResult};
 pub use spatial::SpatialTransform;
 pub use temporal::{
     TemporalCorrelationSample, TemporalSignal, TemporalSync, TemporalSyncConfig, TemporalSyncError,

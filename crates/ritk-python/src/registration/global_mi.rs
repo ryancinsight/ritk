@@ -95,13 +95,15 @@ pub fn global_mi_register(
     let moving_volume = image_to_leto_volume(moving.inner.as_ref())
         .map_err(|error| RitkPyError::runtime(error.to_string()))?;
     let (minimum, maximum) = intensity_range(fixed, moving)?;
+    let metric = MutualInformationMetric::new(opts.num_mi_bins, minimum, maximum)
+        .map_err(|error| RitkPyError::value(error.to_string()))?;
     let engine = ImageRegistration::with_config(
         ClassicalConfig {
             max_iterations: opts.maximum_iterations,
             tolerance: opts.tolerance,
             step_multiplier: opts.step_multiplier,
         },
-        MutualInformationMetric::new(opts.num_mi_bins, minimum, maximum),
+        metric,
     );
     let transform_type = opts.transform_type.clone();
     let result = py

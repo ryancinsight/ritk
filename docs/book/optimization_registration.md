@@ -4,6 +4,24 @@ Metrics only become registration algorithms once ritk couples them to an optimiz
 
 Atlas integration is split but coherent. Coeus provides the autodiff graph, tensor execution, and backend flexibility for learning-style registration loops, while Leto supports the classical numeric path where predictable CPU array behavior is preferred. RITK keeps those implementation details behind a common image boundary so callers can reason about transforms, convergence, and output geometry without rewriting file I/O or preprocessing around each optimizer family.
 
+## Bounded rigid capture and refinement
+
+`search_rigid_pose` searches a six-degree-of-freedom rigid transform in physical
+millimetres. It starts from fixed and moving centroids, performs four
+coarse-to-fine coordinate-descent levels, and polishes the capture objective
+with bounded Nelder–Mead. A second structural objective can move only within one
+terminal capture cell. This separation supports multimodal registration where
+normalized mutual information (NMI) finds the broad basin and Normalized
+Gradient Fields (NGF) resolves local soft-tissue edges without allowing NGF to
+escape to an unrelated edge maximum.
+
+`RigidSearchResult::capture_saturated` and `structural_saturated` report when an
+optimum touches its permitted boundary. Saturation is a quality-control signal:
+it means the configured search region may have clipped the optimum, not that the
+transform is invalid. The caller still owns image sampling, fixed-domain
+support, overlap acceptance, and the final choice between the capture and
+structural candidates.
+
 ## Example Summary
 
 | Example | Status | Focus |

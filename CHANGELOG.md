@@ -12,6 +12,17 @@
 
 ### Added
 
+- [major][arch] Add modality-specific intensity ranges, masked borrowed-sample
+  evaluation, discrete and moving-linear partial-volume histogram estimators,
+  physical-radius binary-morphology support, and a bounded rigid NMI-capture / NGF-
+  refinement search. See [ADR 0023](docs/adr/0023-soft-tissue-multimodal-registration.md).
+
+  **Migration:** `MutualInformationMetric::new` and `compute` now return typed
+  `Result`s; propagate their errors. Replace direct `num_bins` access with
+  `bins()`. Use `with_ranges` with an explicit `NmiNormalization` and
+  `HistogramEstimator` when modality ranges or partial-volume estimation are
+  required.
+
 - [minor][arch] Add the reusable DTI-volume tractography boundary:
   `DtiTractographyConfig`, inclusive FA-threshold seed selection with an
   evenly strided cap, and `dti_volume_tractography`. `ritk-cli` now calls this

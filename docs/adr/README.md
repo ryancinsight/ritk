@@ -31,3 +31,4 @@
 | [0020](0020-direction-aware-grid-transforms.md) | Direction-aware index/world transforms in grid-sweeping filters | Accepted |
 | [0021](0021-retire-the-gpu-field-smoother.md) | Retire the GPU field smoother | Accepted |
 | [0022](0022-reusable-dti-volume-tractography.md) | Reusable DTI-volume tractography boundary | Accepted |
+| [0023](0023-soft-tissue-multimodal-registration.md) | Soft-tissue multimodal rigid registration | Accepted |

@@ -20,7 +20,10 @@ use image::{codecs::png::PngEncoder, ColorType, ImageEncoder};
 use ritk_filter::resample::native::{fixed_world_points, resample_moving_at_world};
 use ritk_image::Image;
 use ritk_io::{format::metaimage::native::MetaImageReader, ImageReader};
-use ritk_registration::classical::{engine::MutualInformationMetric, image_to_leto_volume};
+use ritk_registration::classical::{
+    engine::{HistogramEstimator, IntensityRange, MutualInformationMetric, NmiNormalization},
+    image_to_leto_volume,
+};
 use ritk_spatial::{Direction, Point, Spacing};
 use ritk_transform::transform::affine::AtlasAffineTransform;
 use std::fmt::Write as _;
@@ -440,14 +443,21 @@ fn main() -> Result<()> {
 
     let fixed_volume = image_to_leto_volume(&coarse_ct)?;
     let moving_volume = image_to_leto_volume(&coarse_mr)?;
-    let similarity = MutualInformationMetric::default();
-    let initial_mi = similarity.compute(&fixed_volume, &moving_volume);
+    let display_range = IntensityRange::try_new(0.0, 255.0)?;
+    let similarity = MutualInformationMetric::with_ranges(
+        48,
+        display_range,
+        display_range,
+        NmiNormalization::JointEntropy,
+        HistogramEstimator::MovingLinearPartialVolume,
+    )?;
+    let initial_mi = similarity.compute(&fixed_volume, &moving_volume)?;
     let ground_truth = ground_truth_transform()?;
     let registered_values = resample_moving_at_world(&fixed_world, &mr, &ground_truth)
         .context("resample MR with the RIRE fiducial transform on the coarse grid")?;
     let registered_mr = image_from_grid(window(&registered_values, mr_lower, mr_upper)?, &coarse)?;
     let registered_volume = image_to_leto_volume(&registered_mr)?;
-    let final_mi = similarity.compute(&fixed_volume, &registered_volume);
+    let final_mi = similarity.compute(&fixed_volume, &registered_volume)?;
     if final_mi <= initial_mi {
         bail!(
             "RIRE registration did not improve normalized mutual information on the {:?} coarse grid with CT [-1000, 1000] and MR p2/p98 [{mr_lower:.3}, {mr_upper:.3}] windows: {initial_mi:.6} -> {final_mi:.6}",

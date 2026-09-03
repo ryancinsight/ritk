@@ -136,7 +136,7 @@ fn smooth_volume(dims: [usize; 3], shift: [f64; 3]) -> Array3<f64> {
 fn nmi_of_a_non_constant_volume_with_itself_is_one() {
     let metric = MutualInformationMetric::default();
     let volume = smooth_volume([12, 12, 12], [0.0; 3]);
-    let nmi = metric.compute(&volume, &volume);
+    let nmi = metric.compute(&volume, &volume).expect("equal shapes");
 
     assert!(
         (nmi - 1.0).abs() < NMI_ROUNDING_TOLERANCE,
@@ -158,8 +158,8 @@ fn nmi_is_symmetric_in_its_arguments() {
     let a = smooth_volume(dims, [0.0; 3]);
     let b = smooth_volume(dims, [1.3, -0.7, 2.1]);
 
-    let forward = metric.compute(&a, &b);
-    let reverse = metric.compute(&b, &a);
+    let forward = metric.compute(&a, &b).expect("equal shapes");
+    let reverse = metric.compute(&b, &a).expect("equal shapes");
 
     assert!(
         (forward - reverse).abs() < NMI_ROUNDING_TOLERANCE,
@@ -197,7 +197,7 @@ fn nmi_is_invariant_under_a_bijective_intensity_remapping() {
     let inverted = Array3::from_vec(dims, bins.iter().map(|&b| bin_centre(31 - b)).collect())
         .expect("dimensions match the generated element count");
 
-    let nmi = metric.compute(&direct, &inverted);
+    let nmi = metric.compute(&direct, &inverted).expect("equal shapes");
 
     assert!(
         (nmi - 1.0).abs() < NMI_ROUNDING_TOLERANCE,
@@ -236,7 +236,7 @@ fn nmi_of_exactly_independent_fields_is_zero() {
     )
     .expect("dimensions match the generated element count");
 
-    let nmi = metric.compute(&a, &b);
+    let nmi = metric.compute(&a, &b).expect("equal shapes");
 
     assert!(
         nmi.abs() < NMI_ROUNDING_TOLERANCE,
@@ -268,7 +268,11 @@ fn nmi_decreases_as_misalignment_grows() {
     let shifts = [0.0_f64, 2.0, 4.0, 6.0];
     let scores: Vec<f64> = shifts
         .iter()
-        .map(|&shift| metric.compute(&reference, &smooth_volume(dims, [shift; 3])))
+        .map(|&shift| {
+            metric
+                .compute(&reference, &smooth_volume(dims, [shift; 3]))
+                .expect("equal shapes")
+        })
         .collect();
 
     assert!(
@@ -302,12 +306,12 @@ fn nmi_of_constant_volumes_takes_the_documented_degenerate_branch() {
     let high = Array3::from_elem([10, 10, 10], 200.0);
 
     assert_eq!(
-        metric.compute(&low, &low),
+        metric.compute(&low, &low).expect("equal shapes"),
         1.0,
         "equal constant volumes share a bin and must return exactly 1.0"
     );
     assert_eq!(
-        metric.compute(&low, &high),
+        metric.compute(&low, &high).expect("equal shapes"),
         0.0,
         "constant volumes in different bins must return exactly 0.0"
     );
@@ -327,8 +331,8 @@ fn intensity_registration_reports_final_transform_metric() {
     let metric = MutualInformationMetric::default();
     let registration = ImageRegistration::with_config(config, metric.clone());
     let transformed = crate::classical::spatial::apply_transform(&volume, &initial);
-    let expected = metric.compute(&transformed, &volume);
-    let untransformed = metric.compute(&volume, &volume);
+    let expected = metric.compute(&transformed, &volume).expect("equal shapes");
+    let untransformed = metric.compute(&volume, &volume).expect("equal shapes");
 
     let rigid = registration
         .rigid_registration_mutual_info(&volume, &volume, &initial)
@@ -396,8 +400,8 @@ fn translation_mutual_information_recovers_known_shift() {
         1.0, 0.0, 0.0, 1.0, 0.0, 1.0, 0.0, 0.0, 0.0, 0.0, 1.0, 0.0, 0.0, 0.0, 0.0, 1.0,
     ]);
     let moving = crate::classical::spatial::apply_transform(&fixed, &generating_transform);
-    let metric = MutualInformationMetric::new(16, 0.0, 60.0);
-    let initial_similarity = metric.compute(&moving, &fixed);
+    let metric = MutualInformationMetric::new(16, 0.0, 60.0).expect("valid metric");
+    let initial_similarity = metric.compute(&moving, &fixed).expect("equal shapes");
     let registration = ImageRegistration::with_config(
         ClassicalConfig {
             max_iterations: 4,

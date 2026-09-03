@@ -40,6 +40,26 @@ fn single_voxel_dilates_to_cube() {
     assert_eq!(flat(&out), vec![0.0, 1.0, 1.0, 1.0, 0.0]);
 }
 
+#[test]
+fn axis_radii_respect_anisotropic_physical_support() {
+    let mut values = vec![0.0; 27];
+    values[13] = 1.0;
+    let image = make_image(values, [3, 3, 3]);
+    let output = BinaryDilateFilter::new(0)
+        .with_axis_radii([0, 1, 1])
+        .apply(&image)
+        .expect("valid anisotropic dilation");
+    let values = flat(&output);
+    assert_eq!(values.iter().filter(|&&value| value == 1.0).count(), 9);
+    assert!(values[..9].iter().all(|&value| value == 0.0));
+    assert!(values[18..].iter().all(|&value| value == 0.0));
+
+    let spacing = Spacing::try_new([3.0, 0.4, 0.4]).expect("valid spacing");
+    let radii = crate::morphology::voxel_radii_for_physical_radius(3.2, &spacing)
+        .expect("representable radii");
+    assert_eq!(radii, [1, 8, 8]);
+}
+
 /// T3: r=1 on a 1×1×5 image, fg at index 0 — cannot dilate left (border).
 /// Expected: [fg, fg, 0, 0, 0].
 #[test]

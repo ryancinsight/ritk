@@ -13,7 +13,7 @@ which panel is pre-registration or post-registration.
 ## Description
 
 The example first samples both modalities onto a common coarse physical grid,
-evaluates the classical mutual-information metric before and after applying
+evaluates moving-linear partial-volume NMI before and after applying
 the RIRE fiducial transform, and then resamples the original MR volume onto
 the full CT grid. Because this fixture supplies a geometric registration
 standard, the example uses that transform for the reproducible output rather
