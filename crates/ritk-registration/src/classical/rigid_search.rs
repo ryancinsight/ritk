@@ -2,6 +2,7 @@
 
 use super::error::{RegistrationError, Result};
 use crate::types::AffineTransform;
+use std::num::NonZeroU8;
 
 const PARAMETER_COUNT: usize = 6;
 const SIMPLEX_VERTEX_COUNT: usize = PARAMETER_COUNT + 1;
@@ -16,6 +17,7 @@ pub struct RigidSearchConfig {
     translation_half_range_mm: f64,
     final_rotation_resolution_radians: f64,
     final_translation_resolution_mm: f64,
+    structural_half_range_cells: NonZeroU8,
     simplex_iteration_limit: usize,
 }
 
@@ -70,8 +72,39 @@ impl RigidSearchConfig {
             translation_half_range_mm,
             final_rotation_resolution_radians: final_rotation_resolution_deg.to_radians(),
             final_translation_resolution_mm,
+            structural_half_range_cells: NonZeroU8::MIN,
             simplex_iteration_limit,
         })
+    }
+
+    /// Set the structural-refinement half-range in terminal capture cells.
+    ///
+    /// The nonzero `u8` bound keeps the refinement finite. Global rigid-search
+    /// bounds remain authoritative and may clip the requested local range.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// use std::num::NonZeroU8;
+    /// use ritk_registration::RigidSearchConfig;
+    ///
+    /// let config = RigidSearchConfig::try_new(12.0, 8.0, 0.5, 0.75, 256)
+    ///     .expect("valid bounded search")
+    ///     .with_structural_half_range_cells(
+    ///         NonZeroU8::new(3).expect("invariant: three is nonzero"),
+    ///     );
+    /// assert_eq!(config.structural_half_range_cells().get(), 3);
+    /// ```
+    #[must_use]
+    pub const fn with_structural_half_range_cells(mut self, cells: NonZeroU8) -> Self {
+        self.structural_half_range_cells = cells;
+        self
+    }
+
+    /// Return the structural-refinement half-range in terminal capture cells.
+    #[must_use]
+    pub const fn structural_half_range_cells(self) -> NonZeroU8 {
+        self.structural_half_range_cells
     }
 
     fn global_bounds(self) -> [f64; PARAMETER_COUNT] {
@@ -103,7 +136,7 @@ impl RigidSearchConfig {
 pub struct RigidSearchResult {
     /// Transform at the capture objective's optimum.
     pub capture_transform: AffineTransform,
-    /// Transform after structural refinement inside the terminal capture cell.
+    /// Transform after structural refinement inside the configured local range.
     pub structural_transform: AffineTransform,
     /// Capture-objective value at [`Self::capture_transform`].
     pub capture_score: f64,
@@ -112,7 +145,7 @@ pub struct RigidSearchResult {
     /// Whether capture terminated within one resolution step of a global bound.
     pub capture_saturated: bool,
     /// Whether structural refinement terminated within one convergence width
-    /// of its local capture-cell bound.
+    /// of its effective local or global bound.
     pub structural_saturated: bool,
 }
 
@@ -121,16 +154,17 @@ pub struct RigidSearchResult {
 /// Parameters are ZYX Euler rotations in radians followed by residual `[z, y,
 /// x]` translations in millimetres. The capture objective runs coarse-to-fine
 /// coordinate descent and a bounded Nelder–Mead polish. The structural objective
-/// starts at that result and is confined to one terminal capture-resolution
-/// cell, preventing a local edge metric from escaping to a remote edge maximum.
+/// starts at that result and is confined to the configured nonzero number of
+/// terminal capture-resolution cells and the global bounds, preventing a local
+/// metric from escaping to an unbounded remote maximum.
 /// Returned matrices map fixed to moving coordinates in row-major `[z, y, x]`
 /// millimetres.
 ///
 /// # Errors
 ///
 /// Propagates an objective error and returns
-/// [`RegistrationError::NumericalFailure`] when either objective emits a
-/// non-finite value.
+/// [`RegistrationError::NumericalFailure`] when a candidate cannot form a
+/// finite transform or either objective emits a non-finite value.
 pub fn search_rigid_pose<C, S>(
     fixed_centroid_mm: [f64; 3],
     moving_centroid_mm: [f64; 3],
@@ -142,8 +176,8 @@ where
     C: FnMut(&AffineTransform) -> Result<f64>,
     S: FnMut(&AffineTransform) -> Result<f64>,
 {
-    let matrix = |parameters: &[f64; PARAMETER_COUNT]| {
-        rigid_about_centroid(
+    let matrix = |parameters: &[f64; PARAMETER_COUNT]| -> Result<AffineTransform> {
+        let transform = rigid_about_centroid(
             euler_zyx(parameters[0], parameters[1], parameters[2]),
             fixed_centroid_mm,
             [
@@ -151,7 +185,14 @@ where
                 moving_centroid_mm[1] + parameters[4],
                 moving_centroid_mm[2] + parameters[5],
             ],
-        )
+        );
+        if transform.as_array().iter().all(|value| value.is_finite()) {
+            Ok(transform)
+        } else {
+            Err(RegistrationError::NumericalFailure(
+                "rigid-search candidate produced a non-finite transform".to_owned(),
+            ))
+        }
     };
     let bounds = config.global_bounds();
     let in_global_range = |parameters: &[f64; PARAMETER_COUNT]| {
@@ -164,7 +205,7 @@ where
         if !in_global_range(parameters) {
             return Ok(f64::NEG_INFINITY);
         }
-        finite_score(capture_objective(&matrix(parameters))?, "capture")
+        finite_score(capture_objective(&matrix(parameters)?)?, "capture")
     };
 
     let resolution = config.terminal_resolution();
@@ -178,7 +219,11 @@ where
             for axis in 0..PARAMETER_COUNT {
                 for direction in [-1.0, 1.0] {
                     let mut candidate = parameters;
-                    candidate[axis] += direction * steps[axis];
+                    candidate[axis] = finite_offset(
+                        parameters[axis],
+                        direction * steps[axis],
+                        [-bounds[axis], bounds[axis]],
+                    );
                     let candidate_score = capture_score(&candidate)?;
                     if candidate_score > best_score {
                         parameters = candidate;
@@ -200,34 +245,39 @@ where
         capture_simplex_step,
         convergence_width,
         config.simplex_iteration_limit,
+        bounds.map(|bound| [-bound, bound]),
         &mut capture_score,
     )?;
-    let capture_transform = matrix(&capture_parameters);
+    let capture_transform = matrix(&capture_parameters)?;
     let capture_score_value = finite_score(capture_objective(&capture_transform)?, "capture")?;
 
+    let (structural_bounds, structural_step) = structural_interval_and_step(
+        capture_parameters,
+        bounds,
+        resolution,
+        config.structural_half_range_cells,
+    );
     let in_structural_range = |candidate: &[f64; PARAMETER_COUNT]| {
-        in_global_range(candidate)
-            && candidate
-                .iter()
-                .zip(capture_parameters.iter())
-                .zip(resolution.iter())
-                .all(|((&value, &center), &radius)| (value - center).abs() <= radius)
+        candidate
+            .iter()
+            .zip(structural_bounds.iter())
+            .all(|(&value, &[lower, upper])| value >= lower && value <= upper)
     };
     let mut structural_score = |candidate: &[f64; PARAMETER_COUNT]| -> Result<f64> {
         if !in_structural_range(candidate) {
             return Ok(f64::NEG_INFINITY);
         }
-        finite_score(structural_objective(&matrix(candidate))?, "structural")
+        finite_score(structural_objective(&matrix(candidate)?)?, "structural")
     };
-    let structural_step = resolution.map(|value| value / 2.0);
     let structural_parameters = nelder_mead_maximize(
         capture_parameters,
         structural_step,
         convergence_width,
         config.simplex_iteration_limit,
+        structural_bounds,
         &mut structural_score,
     )?;
-    let structural_transform = matrix(&structural_parameters);
+    let structural_transform = matrix(&structural_parameters)?;
     let structural_score_value =
         finite_score(structural_objective(&structural_transform)?, "structural")?;
     let capture_saturated = touches_bound(
@@ -236,12 +286,8 @@ where
         bounds,
         resolution,
     );
-    let structural_saturated = touches_bound(
-        structural_parameters,
-        capture_parameters,
-        resolution,
-        convergence_width,
-    );
+    let structural_saturated =
+        touches_interval_bound(structural_parameters, structural_bounds, convergence_width);
 
     Ok(RigidSearchResult {
         capture_transform,
@@ -251,6 +297,62 @@ where
         capture_saturated,
         structural_saturated,
     })
+}
+
+fn structural_interval_and_step(
+    center: [f64; PARAMETER_COUNT],
+    global_half_range: [f64; PARAMETER_COUNT],
+    resolution: [f64; PARAMETER_COUNT],
+    cells: NonZeroU8,
+) -> ([[f64; 2]; PARAMETER_COUNT], [f64; PARAMETER_COUNT]) {
+    let cell_count = f64::from(cells.get());
+    let intervals = std::array::from_fn(|axis| {
+        let requested_radius = resolution[axis] * cell_count;
+        [
+            (center[axis] - requested_radius).max(-global_half_range[axis]),
+            (center[axis] + requested_radius).min(global_half_range[axis]),
+        ]
+    });
+    let nominal_step = std::array::from_fn(|axis| {
+        (resolution[axis] * (cell_count / 2.0)).min(global_half_range[axis])
+    });
+    let steps = signed_simplex_step(center, intervals, nominal_step);
+    (intervals, steps)
+}
+
+fn signed_simplex_step(
+    center: [f64; PARAMETER_COUNT],
+    intervals: [[f64; 2]; PARAMETER_COUNT],
+    nominal_step: [f64; PARAMETER_COUNT],
+) -> [f64; PARAMETER_COUNT] {
+    std::array::from_fn(|axis| {
+        let [lower, upper] = intervals[axis];
+        let positive_room = upper - center[axis];
+        let negative_room = center[axis] - lower;
+        let step_magnitude = nominal_step[axis].min(positive_room.max(negative_room));
+        if positive_room >= negative_room {
+            step_magnitude
+        } else {
+            -step_magnitude
+        }
+    })
+}
+
+fn finite_offset(value: f64, offset: f64, [lower, upper]: [f64; 2]) -> f64 {
+    let candidate = value + offset;
+    if candidate.is_finite() {
+        candidate
+    } else {
+        debug_assert!(
+            !candidate.is_nan(),
+            "invariant: finite value plus signed infinite offset has a defined sign"
+        );
+        if candidate.is_sign_negative() {
+            lower
+        } else {
+            upper
+        }
+    }
 }
 
 fn touches_bound(
@@ -266,6 +368,20 @@ fn touches_bound(
         .zip(tolerance.iter())
         .any(|(((&value, &origin), &bound), &width)| {
             ((value - origin).abs() - bound).abs() <= width
+        })
+}
+
+fn touches_interval_bound(
+    parameters: [f64; PARAMETER_COUNT],
+    intervals: [[f64; 2]; PARAMETER_COUNT],
+    tolerance: [f64; PARAMETER_COUNT],
+) -> bool {
+    parameters
+        .iter()
+        .zip(intervals.iter())
+        .zip(tolerance.iter())
+        .any(|((&value, &[lower, upper]), &width)| {
+            (value - lower).abs() <= width || (upper - value).abs() <= width
         })
 }
 
@@ -359,6 +475,7 @@ fn nelder_mead_maximize<F>(
     step: [f64; PARAMETER_COUNT],
     convergence_width: [f64; PARAMETER_COUNT],
     iteration_limit: usize,
+    intervals: [[f64; 2]; PARAMETER_COUNT],
     objective: &mut F,
 ) -> Result<[f64; PARAMETER_COUNT]>
 where
@@ -366,7 +483,7 @@ where
 {
     let mut simplex = [start; SIMPLEX_VERTEX_COUNT];
     for axis in 0..PARAMETER_COUNT {
-        simplex[axis + 1][axis] += step[axis];
+        simplex[axis + 1][axis] = finite_offset(start[axis], step[axis], intervals[axis]);
     }
     let mut values = [0.0; SIMPLEX_VERTEX_COUNT];
     for (value, vertex) in values.iter_mut().zip(simplex.iter()) {
@@ -392,13 +509,13 @@ where
                 centroid[axis] += vertex[axis] / PARAMETER_COUNT as f64;
             }
         }
-        let reflected = along(centroid, simplex[worst], 1.0);
+        let reflected = along(centroid, simplex[worst], 1.0, intervals);
         let reflected_value = objective(&reflected)?;
         if reflected_value > values[second_worst] && reflected_value <= values[best] {
             simplex[worst] = reflected;
             values[worst] = reflected_value;
         } else if reflected_value > values[best] {
-            let expanded = along(centroid, simplex[worst], 2.0);
+            let expanded = along(centroid, simplex[worst], 2.0, intervals);
             let expanded_value = objective(&expanded)?;
             if expanded_value > reflected_value {
                 simplex[worst] = expanded;
@@ -413,7 +530,7 @@ where
             } else {
                 -0.5
             };
-            let contracted = along(centroid, simplex[worst], coefficient);
+            let contracted = along(centroid, simplex[worst], coefficient, intervals);
             let contracted_value = objective(&contracted)?;
             let threshold = if coefficient > 0.0 {
                 reflected_value
@@ -429,10 +546,8 @@ where
                     if vertex_index == best {
                         continue;
                     }
-                    for axis in 0..PARAMETER_COUNT {
-                        simplex[vertex_index][axis] = best_vertex[axis]
-                            + 0.5 * (simplex[vertex_index][axis] - best_vertex[axis]);
-                    }
+                    simplex[vertex_index] =
+                        towards(best_vertex, simplex[vertex_index], 0.5, intervals);
                     values[vertex_index] = objective(&simplex[vertex_index])?;
                 }
             }
@@ -449,12 +564,31 @@ fn along(
     centroid: [f64; PARAMETER_COUNT],
     worst: [f64; PARAMETER_COUNT],
     coefficient: f64,
+    intervals: [[f64; 2]; PARAMETER_COUNT],
 ) -> [f64; PARAMETER_COUNT] {
-    let mut candidate = [0.0; PARAMETER_COUNT];
-    for axis in 0..PARAMETER_COUNT {
-        candidate[axis] = centroid[axis] + coefficient * (centroid[axis] - worst[axis]);
-    }
-    candidate
+    let direction = std::array::from_fn(|axis| centroid[axis] - worst[axis]);
+    finite_affine_offset(centroid, direction, coefficient, intervals)
+}
+
+fn towards(
+    start: [f64; PARAMETER_COUNT],
+    target: [f64; PARAMETER_COUNT],
+    fraction: f64,
+    intervals: [[f64; 2]; PARAMETER_COUNT],
+) -> [f64; PARAMETER_COUNT] {
+    let direction = std::array::from_fn(|axis| target[axis] - start[axis]);
+    finite_affine_offset(start, direction, fraction, intervals)
+}
+
+fn finite_affine_offset(
+    start: [f64; PARAMETER_COUNT],
+    direction: [f64; PARAMETER_COUNT],
+    coefficient: f64,
+    intervals: [[f64; 2]; PARAMETER_COUNT],
+) -> [f64; PARAMETER_COUNT] {
+    std::array::from_fn(|axis| {
+        finite_offset(start[axis], coefficient * direction[axis], intervals[axis])
+    })
 }
 
 fn simplex_converged(

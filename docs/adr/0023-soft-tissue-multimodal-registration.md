@@ -6,6 +6,13 @@
 - **Date:** 2026-09-03
 - **Revision 2026-09-03:** Add the fixed-region conditioned metric after the
   downstream global-histogram RIRE result remained anatomically offset.
+- **Revision 2026-09-04:** Make the structural-refinement half-range a bounded
+  nonzero terminal-cell count after one cell proved too narrow for downstream
+  MIND-SSC investigation; preserve one cell as the default.
+- **Revision 2026-09-04:** Intersect the requested structural range with the
+  global bounds and orient each initial simplex edge toward available space, so
+  capture on a positive global bound can still refine inward. Bound arithmetic
+  remains finite when capture schedules or the requested cell product overflow.
 
 ## Context
 
@@ -46,8 +53,24 @@ accepts the image sampler and similarity measures as monomorphized closures.
 Objective closures are fallible, so invalid samples and allocation errors
 retain their registration failure instead of being replaced with a score.
 The first stage captures the multimodal basin with partial-volume NMI. The
-second stage refines NGF inside the final NMI resolution cell; it cannot perform
-a second global search. Callers retain explicit coverage and overlap gates.
+second stage refines a structural objective inside a local half-range measured
+in final NMI-resolution cells. `RigidSearchConfig::try_new` preserves a one-cell
+default; an additive `NonZeroU8` builder can widen that local range. The same
+radius defines an axis-wise interval intersected with the original global rigid
+bounds. The structural simplex starts toward the side with more available room
+on each axis, so a capture solution on a positive global bound does not create
+an infeasible outward vertex. The effective finite interval also caps an
+overflowing resolution-by-cell product. The second stage therefore cannot
+become an unbounded global search. Callers retain explicit coverage and overlap
+gates.
+Capture coordinate moves and every Nelder-Mead operation preserve ordinary
+finite proposals, including the existing rejection semantics outside a bound.
+Only arithmetic that would overflow is replaced by the finite endpoint in its
+direction before bound checking, so an accepted extreme finite configuration
+cannot expose a non-finite candidate to an objective or perturb established
+finite search trajectories. Transform construction is checked separately, so
+overflow while combining finite centroids and residual translation returns a
+typed numerical failure before objective evaluation.
 
 Morphological filters accept independent axis radii, and a physical-radius
 conversion derives those radii from image spacing. A caller can therefore keep
@@ -87,8 +110,15 @@ mass conservation and continuity, masking, invalid inputs, conditioned-entropy
 identities, workspace clearing, invalid region labels, a manufactured global-
 histogram ambiguity resolved by location conditioning, rigid centroid mapping,
 bound saturation, fallible objective propagation, and recovery of a coupled
-manufactured optimum. The downstream LeoNeuro RIRE oracle evaluates image-only
-registration against held-out fiducials: the 3×3×3 conditioned capture reaches
+manufactured optimum. Additional value tests prove implicit/explicit one-cell
+equivalence, recovery of a wider manufactured structural optimum, confinement
+to the original global bounds, inward refinement from simultaneous positive
+and negative global bounds, finite candidate evaluation under extreme accepted
+configuration, objective isolation from finite-centroid transform overflow,
+finite effective intervals under requested-radius overflow, and local/global
+saturation semantics. The
+downstream LeoNeuro RIRE oracle evaluates image-only registration against
+held-out fiducials: the 3×3×3 conditioned capture reaches
 0.8330 mm mean and 1.1324 mm maximum TRE, while an adversarial field-of-view
 crop loses support and scores below the fiducial pose. The selected pose reaches
 one search bound; wider trials select a remote histogram maximum and worsen

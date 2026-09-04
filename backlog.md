@@ -13,6 +13,12 @@
 - **Risk/verification:** public additive metric and registration-architecture change; ADR 0024, focused/full native gates, doctests/book example, memory accounting, consumer validation, and independent review.
 - **Dependencies:** RITK PR #227 and Leoneuro PR #19 are merged; Heinrich et al. 2012 defines the descriptor contract.
 
+<a id="RITK-STRUCTURAL-RADIUS-2026-09-04"></a>
+## RITK-STRUCTURAL-RADIUS-2026-09-04 — Bounded structural-refinement radius [minor] — done
+
+- **Status:** done; the commit containing this entry adds the bounded `NonZeroU8` radius and updates ADR 0023.
+- **Evidence:** 424 package tests and 9 focused rigid-search tests pass; Clippy, doctests, Rustdoc, examples, changed book chapters, and rendered book are green.
+
 ## RITK-LINT-ALLOW-SITES-2026-08-31 — Remove reintroduced production allowances [patch] — in progress
 
 - **Status:** in progress; integrator=current Codex session; lease=the 13 affected

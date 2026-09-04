@@ -9,18 +9,35 @@ Atlas integration is split but coherent. Coeus provides the autodiff graph, tens
 `search_rigid_pose` searches a six-degree-of-freedom rigid transform in physical
 millimetres. It starts from fixed and moving centroids, performs four
 coarse-to-fine coordinate-descent levels, and polishes the capture objective
-with bounded Nelder–Mead. A second structural objective can move only within one
-terminal capture cell. This separation supports multimodal registration where
-normalized mutual information (NMI) finds the broad basin and Normalized
-Gradient Fields (NGF) resolves local soft-tissue edges without allowing NGF to
-escape to an unrelated edge maximum.
+with bounded Nelder–Mead. A second structural objective defaults to a half-range
+of one terminal capture cell. `with_structural_half_range_cells` accepts a
+`NonZeroU8` when a consumer needs to test a wider local basin. The configured
+radius scales both the structural bounds and initial simplex, but the original
+global rigid bounds remain authoritative. The effective interval is their
+intersection. When capture ends on a global boundary, each simplex edge points
+toward the side with available room rather than constructing an invalid outward
+vertex. This separation supports multimodal
+registration where normalized mutual information (NMI) finds the broad basin
+and MIND-SSC or Normalized Gradient Fields (NGF) resolves local soft-tissue
+structure without enabling an unbounded second search. The tested Rustdoc on
+`RigidSearchConfig::with_structural_half_range_cells` is the copyable API
+example.
+
+The capture schedule and all simplex operations preserve finite proposals and
+their bounded-objective rejection semantics. If an otherwise valid finite
+resolution multiplied by a schedule factor would overflow, only that
+non-finite proposal is replaced by the finite endpoint in its direction before
+an objective sees it. A separate finite-transform check converts overflow from
+centroid and residual composition into a typed numerical failure before metric
+evaluation.
 
 `RigidSearchResult::capture_saturated` and `structural_saturated` report when an
-optimum touches its permitted boundary. Saturation is a quality-control signal:
-it means the configured search region may have clipped the optimum, not that the
-transform is invalid. The caller still owns image sampling, fixed-domain
-support, overlap acceptance, and the final choice between the capture and
-structural candidates.
+optimum touches its permitted boundary. Structural saturation covers either the
+configured local half-range or a tighter global bound. Saturation is a
+quality-control signal: it means the configured search region may have clipped
+the optimum, not that the transform is invalid. The caller still owns image
+sampling, fixed-domain support, overlap acceptance, and the final choice between
+the capture and structural candidates.
 
 Objective errors propagate through the search result. A malformed or empty
 metric sample set therefore cannot be converted into a plausible pose.
