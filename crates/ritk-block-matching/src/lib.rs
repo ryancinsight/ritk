@@ -38,6 +38,10 @@
 //!
 //! `track_volume` is deliberately a regular-grid primitive. It does not pad
 //! image edges, silently clamp a block, or claim a result for a partial block.
+//! [`MovingSamples`] carries an optional validity mask for partial fields of
+//! view. Every candidate block touching an invalid or non-finite moving sample
+//! is excluded from the metric surface. A non-finite sample in the fixed block
+//! is an input error because every candidate depends on it.
 //! [`MultiResolutionSearch`] adds an explicit coarse-to-fine execution seam;
 //! callers own the image pyramid and its resampling. Pyramid regularization is
 //! deliberately a post-process: it uses the finest peak confidence and leaves
@@ -120,6 +124,7 @@ impl Sample for f64 {
 
 #[cfg(feature = "fft")]
 mod fft;
+mod input;
 mod metric;
 mod radius;
 mod refine;
@@ -130,9 +135,13 @@ mod search;
 #[cfg(test)]
 #[path = "tests_block_matching.rs"]
 mod tests;
+#[cfg(test)]
+#[path = "tests_missing_data.rs"]
+mod tests_missing_data;
 
 #[cfg(feature = "fft")]
 pub use fft::{match_block_fft, metric_image_fft, FftPadding};
+pub use input::MovingSamples;
 pub use metric::{metric_image, BlockMetric, MetricImage};
 pub use radius::{radius_from_axial_autocorrelation, radius_from_bandwidth};
 pub use refine::SubpixelRefinement;
@@ -287,10 +296,13 @@ pub struct BlockDisplacement {
 /// match `dims`, or when the block around `centre` leaves the image — the
 /// caller chooses the block grid, so an out-of-bounds block is a caller error
 /// rather than something to silently clamp, which would compare a different
-/// block than the one requested.
+/// block than the one requested. A non-finite fixed-block sample is also an
+/// error. Candidate moving blocks containing a non-finite sample are excluded;
+/// when no candidate remains, the returned peak similarity is negative
+/// infinity.
 pub fn match_block<T: Sample>(
     fixed: &[T],
-    moving: &[T],
+    moving: MovingSamples<'_, T>,
     dims: [usize; 3],
     centre: [usize; 3],
     config: BlockMatchingConfig,
@@ -313,52 +325,13 @@ pub fn match_block<T: Sample>(
 /// private prevents callers from accidentally mixing coordinate systems.
 pub(crate) fn match_block_at<T: Sample>(
     fixed: &[T],
-    moving: &[T],
+    moving: MovingSamples<'_, T>,
     dims: [usize; 3],
     fixed_centre: [usize; 3],
     moving_centre: [usize; 3],
     config: BlockMatchingConfig,
     refinement: SubpixelRefinement,
 ) -> Result<BlockDisplacement> {
-    config.validate()?;
-    let expected = dims[0]
-        .checked_mul(dims[1])
-        .and_then(|v| v.checked_mul(dims[2]))
-        .ok_or_else(|| anyhow::anyhow!("dims {dims:?} overflow the buffer size calculation"))?;
-    if fixed.len() != expected || moving.len() != expected {
-        bail!(
-            "fixed ({}) and moving ({}) buffers must both hold {expected} voxels for dims {dims:?}",
-            fixed.len(),
-            moving.len()
-        );
-    }
-
-    for axis in 0..3 {
-        let radius = config.block_radius[axis];
-        let fixed_hi = fixed_centre[axis].checked_add(radius);
-        if fixed_centre[axis].checked_sub(radius).is_none()
-            || fixed_hi.is_none_or(|hi| hi >= dims[axis])
-        {
-            bail!(
-                "fixed block at {fixed_centre:?} with radius {:?} leaves the image on axis {axis} (extent {})",
-                config.block_radius,
-                dims[axis]
-            );
-        }
-        let moving_hi = moving_centre[axis].checked_add(config.block_radius[axis]);
-        if moving_centre[axis]
-            .checked_sub(config.block_radius[axis])
-            .is_none()
-            || moving_hi.is_none_or(|hi| hi >= dims[axis])
-        {
-            bail!(
-                "moving block at {moving_centre:?} with radius {:?} leaves the image on axis {axis} (extent {})",
-                config.block_radius,
-                dims[axis]
-            );
-        }
-    }
-
     let surface = metric::metric_image_at(
         fixed,
         moving,
@@ -597,7 +570,14 @@ pub fn track_volume<T: Sample>(
     let mut peak_similarities = vec![f64::NAN; n];
 
     for (i, &centre) in centres.iter().enumerate() {
-        if let Ok(bd) = match_block(fixed, moving, dims, centre, config, refinement) {
+        if let Ok(bd) = match_block(
+            fixed,
+            MovingSamples::complete(moving),
+            dims,
+            centre,
+            config,
+            refinement,
+        ) {
             displacements[i] = bd.displacement;
             peak_similarities[i] = bd.peak_similarity;
         }
@@ -1099,7 +1079,7 @@ fn track_volume_fft<T: Sample>(
     for (i, &centre) in centres.iter().enumerate() {
         if let Ok(bd) = match_block_fft(
             fixed,
-            moving,
+            MovingSamples::complete(moving),
             dims,
             centre,
             config,
