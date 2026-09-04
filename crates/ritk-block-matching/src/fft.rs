@@ -176,7 +176,11 @@ pub(crate) fn metric_image_fft_at<T: Sample>(
     ];
 
     // The logical ROI and the remaining FFT buffer are initialized to zero.
-    // Source samples are copied only where the logical ROI overlaps the image.
+    // Source samples are copied only where the logical ROI overlaps the image
+    // and the caller marks them available. Invalid finite sentinels must not
+    // enter the global FFT because they can contaminate correlations for
+    // otherwise disjoint valid candidates through finite-precision roundoff.
+    let moving_validity = moving.validity();
     for z in 0..roi_dims[0] {
         let source_z = roi_origin[0] + z as isize;
         for y in 0..roi_dims[1] {
@@ -195,7 +199,7 @@ pub(crate) fn metric_image_fft_at<T: Sample>(
                 let source =
                     (source_z as usize * dims[1] + source_y as usize) * dims[2] + source_x as usize;
                 let sample = moving.values()[source].to_f64();
-                if sample.is_finite() {
+                if moving_validity.is_none_or(|validity| validity[source]) && sample.is_finite() {
                     moving_spectrum[flat_index([z, y, x], fft_dims)] = Complex64::new(sample, 0.0);
                 }
             }

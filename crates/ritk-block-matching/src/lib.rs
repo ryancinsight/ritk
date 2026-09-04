@@ -278,7 +278,8 @@ pub struct BlockDisplacement {
     /// Displacement per axis `[z, y, x]`, in voxels. Fractional when a
     /// sub-voxel refinement is applied.
     pub displacement: [f64; 3],
-    /// Similarity at the peak, in `[-1, 1]` for normalized cross-correlation.
+    /// Similarity at the peak, in `[-1, 1]` for normalized cross-correlation,
+    /// or negative infinity when no candidate has complete valid support.
     ///
     /// Callers should treat a low peak as an unreliable displacement rather
     /// than a small one: decorrelated blocks still produce *some* maximum.

@@ -219,3 +219,44 @@ fn fft_matches_direct_with_internal_missing_data() {
         }
     }
 }
+
+#[cfg(feature = "fft")]
+#[test]
+fn masked_finite_sentinels_do_not_contaminate_fft_candidates() {
+    let (fixed, mut moving, validity) = pair_with_missing_slab();
+    for (sample, &valid) in moving.iter_mut().zip(&validity) {
+        if !valid {
+            *sample = f32::MAX;
+        }
+    }
+    let moving = MovingSamples::try_with_validity(&moving, &validity)
+        .expect("fixture validity matches moving samples");
+    let direct = metric_image(
+        &fixed,
+        moving,
+        DIMS,
+        [0, 20, 20],
+        config(),
+        BlockMetric::NormalizedCrossCorrelation,
+    )
+    .expect("direct metric");
+    let fft = metric_image_fft(
+        &fixed,
+        moving,
+        DIMS,
+        [0, 20, 20],
+        config(),
+        FftPadding::Zero,
+    )
+    .expect("FFT metric");
+    for (index, (&expected, &actual)) in direct.values.iter().zip(&fft.values).enumerate() {
+        match (expected.is_finite(), actual.is_finite()) {
+            (true, true) => assert!(
+                (expected - actual).abs() < 1.0e-9,
+                "masked finite sentinel contaminated FFT result {index}: {actual} vs {expected}"
+            ),
+            (false, false) => {}
+            _ => panic!("FFT/direct finite-sentinel support mismatch at {index}"),
+        }
+    }
+}

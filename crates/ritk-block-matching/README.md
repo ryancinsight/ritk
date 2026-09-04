@@ -11,7 +11,7 @@ depend on an image, tensor, or device backend.
 
 ```rust
 use ritk_block_matching::{
-    match_block, BlockMatchingConfig, SubpixelRefinement,
+    match_block, BlockMatchingConfig, MovingSamples, SubpixelRefinement,
 };
 
 fn main() -> Result<(), Box<dyn std::error::Error>> {
@@ -25,7 +25,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     };
     let displacement = match_block(
         &fixed,
-        &moving,
+        MovingSamples::complete(&moving),
         [1, 9, 9],
         [0, 4, 4],
         config,
