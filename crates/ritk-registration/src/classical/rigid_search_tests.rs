@@ -1,3 +1,4 @@
+use super::pose::{euler_zyx, multiply_3x3, rigid_about_centroid};
 use super::*;
 use std::cell::Cell;
 use std::num::NonZeroU8;
@@ -7,6 +8,11 @@ const TRANSLATION_RESOLUTION_MM: f64 = 0.75;
 fn config() -> RigidSearchConfig {
     RigidSearchConfig::try_new(12.0, 8.0, 0.5, TRANSLATION_RESOLUTION_MM, 256)
         .expect("valid search configuration")
+}
+
+fn anchor(fixed_center_mm: [f64; 3], moving_center_mm: [f64; 3]) -> RigidSearchAnchor {
+    RigidSearchAnchor::from_centers(fixed_center_mm, moving_center_mm)
+        .expect("finite rigid-search anchor")
 }
 
 fn pose_objective(target_translation_mm: f64) -> impl FnMut(&AffineTransform) -> Result<f64> {
@@ -79,7 +85,7 @@ fn search_recovers_coupled_translation_optimum() {
             + 0.75 * (residual[0] + residual[1]).powi(2)
             + 0.75 * (residual[1] + residual[2]).powi(2)))
     };
-    let result = search_rigid_pose([0.0; 3], [0.0; 3], config(), objective, objective)
+    let result = search_rigid_pose(anchor([0.0; 3], [0.0; 3]), config(), objective, objective)
         .expect("finite objective");
     let matrix = result.capture_transform.as_array();
     for (actual, expected) in [matrix[3], matrix[7], matrix[11]].into_iter().zip(target) {
@@ -100,7 +106,7 @@ fn structural_search_cannot_leave_terminal_capture_cell() {
         let translation = transform.as_array()[3];
         Ok(-(translation - 20.0).powi(2))
     };
-    let result = search_rigid_pose([0.0; 3], [0.0; 3], config(), capture, structural)
+    let result = search_rigid_pose(anchor([0.0; 3], [0.0; 3]), config(), capture, structural)
         .expect("finite objectives");
     assert!(result.structural_transform.as_array()[3].abs() <= 0.75);
     assert!(result.structural_saturated);
@@ -113,16 +119,14 @@ fn default_structural_radius_equals_explicit_one_cell() {
     let explicit = config().with_structural_half_range_cells(NonZeroU8::MIN);
 
     let implicit_result = search_rigid_pose(
-        [0.0; 3],
-        [0.0; 3],
+        anchor([0.0; 3], [0.0; 3]),
         implicit,
         pose_objective(0.0),
         pose_objective(0.5),
     )
     .expect("finite objectives");
     let explicit_result = search_rigid_pose(
-        [0.0; 3],
-        [0.0; 3],
+        anchor([0.0; 3], [0.0; 3]),
         explicit,
         pose_objective(0.0),
         pose_objective(0.5),
@@ -136,16 +140,14 @@ fn default_structural_radius_equals_explicit_one_cell() {
 fn wider_structural_radius_reaches_manufactured_optimum() {
     let target = 1.25;
     let one_cell = search_rigid_pose(
-        [0.0; 3],
-        [0.0; 3],
+        anchor([0.0; 3], [0.0; 3]),
         config(),
         pose_objective(0.0),
         pose_objective(target),
     )
     .expect("finite objectives");
     let two_cells = search_rigid_pose(
-        [0.0; 3],
-        [0.0; 3],
+        anchor([0.0; 3], [0.0; 3]),
         config().with_structural_half_range_cells(
             NonZeroU8::new(2).expect("invariant: two is nonzero"),
         ),
@@ -183,8 +185,13 @@ fn widened_structural_search_remains_inside_global_bounds() {
                 NonZeroU8::new(8).expect("invariant: eight is nonzero"),
             );
 
-    let result = search_rigid_pose([0.0; 3], [0.0; 3], bounded, pose_objective(0.0), structural)
-        .expect("finite objectives");
+    let result = search_rigid_pose(
+        anchor([0.0; 3], [0.0; 3]),
+        bounded,
+        pose_objective(0.0),
+        structural,
+    )
+    .expect("finite objectives");
     let translation = result.structural_transform.as_array()[3];
 
     assert!(observed_half_range.get() <= global_half_range_mm);
@@ -210,8 +217,7 @@ fn structural_simplex_moves_inward_from_signed_multiple_global_bounds() {
     for sign in [-1.0, 1.0] {
         let signed_bound = sign * global_half_range_mm;
         let result = search_rigid_pose(
-            [0.0; 3],
-            [0.0; 3],
+            anchor([0.0; 3], [0.0; 3]),
             bounded,
             finite_bounded_pose_objective([signed_bound, signed_bound, 0.0], global_half_range_mm),
             finite_bounded_pose_objective([0.0; 3], global_half_range_mm),
@@ -262,7 +268,7 @@ fn extreme_finite_configuration_never_evaluates_a_nonfinite_pose() {
         Ok(0.0)
     };
 
-    let result = search_rigid_pose([0.0; 3], [0.0; 3], extreme, capture, structural)
+    let result = search_rigid_pose(anchor([0.0; 3], [0.0; 3]), extreme, capture, structural)
         .expect("bounded extreme search");
 
     assert!(capture_evaluations.get() > SIMPLEX_VERTEX_COUNT);
@@ -293,8 +299,7 @@ fn extreme_finite_centroid_overflow_is_rejected_before_objective_evaluation() {
         };
 
         let error = search_rigid_pose(
-            [0.0; 3],
-            [sign * f64::MAX, 0.0, 0.0],
+            anchor([0.0; 3], [sign * f64::MAX, 0.0, 0.0]),
             extreme,
             capture,
             structural,
@@ -314,16 +319,14 @@ fn extreme_finite_centroid_overflow_is_rejected_before_objective_evaluation() {
 fn structural_saturation_uses_configured_half_range() {
     let radius = NonZeroU8::new(2).expect("invariant: two is nonzero");
     let interior = search_rigid_pose(
-        [0.0; 3],
-        [0.0; 3],
+        anchor([0.0; 3], [0.0; 3]),
         config().with_structural_half_range_cells(radius),
         pose_objective(0.0),
         pose_objective(0.75),
     )
     .expect("finite objectives");
     let clipped = search_rigid_pose(
-        [0.0; 3],
-        [0.0; 3],
+        anchor([0.0; 3], [0.0; 3]),
         config().with_structural_half_range_cells(radius),
         pose_objective(0.0),
         pose_objective(4.0),
@@ -370,10 +373,95 @@ fn search_propagates_objective_failure() {
             "fixture objective failure".to_owned(),
         ))
     };
-    let result = search_rigid_pose([0.0; 3], [0.0; 3], config(), failure, failure);
+    let result = search_rigid_pose(anchor([0.0; 3], [0.0; 3]), config(), failure, failure);
     assert!(matches!(
         result,
         Err(RegistrationError::InvalidInput(message))
             if message == "fixture objective failure"
     ));
+}
+
+#[test]
+fn noncommuting_residual_is_right_composed_about_the_anchor_center() {
+    let fixed_center = [12.0, -7.0, 5.0];
+    let anchor_moving_center = [-4.0, 18.0, 2.0];
+    let residual_translation = [1.5, -2.25, 0.75];
+    let anchor_rotation = euler_zyx(0.25, -0.18, 0.11);
+    let residual_rotation = euler_zyx(-0.08, 0.13, 0.07);
+    let expected_rotation = multiply_3x3(anchor_rotation, residual_rotation);
+    let reversed_rotation = multiply_3x3(residual_rotation, anchor_rotation);
+    assert_ne!(expected_rotation, reversed_rotation);
+    let anchor_transform =
+        rigid_about_centroid(anchor_rotation, fixed_center, anchor_moving_center);
+    let expected = rigid_about_centroid(
+        expected_rotation,
+        fixed_center,
+        std::array::from_fn(|axis| anchor_moving_center[axis] + residual_translation[axis]),
+    );
+    let search_anchor =
+        RigidSearchAnchor::try_new(anchor_transform, fixed_center).expect("proper rigid anchor");
+    let parameters = [
+        -0.08,
+        0.13,
+        0.07,
+        residual_translation[0],
+        residual_translation[1],
+        residual_translation[2],
+    ];
+
+    let actual = search_anchor
+        .with_residual(parameters)
+        .expect("finite noncommuting residual");
+
+    assert_eq!(actual, expected);
+    let reversed = rigid_about_centroid(
+        reversed_rotation,
+        fixed_center,
+        std::array::from_fn(|axis| anchor_moving_center[axis] + residual_translation[axis]),
+    );
+    assert_ne!(actual, reversed);
+}
+
+#[test]
+fn zero_residual_reproduces_full_rigid_anchor() {
+    let fixed_center = [12.0, -7.0, 5.0];
+    let moving_center = [-4.0, 18.0, 2.0];
+    let transform = rigid_about_centroid(euler_zyx(0.2, -0.1, 0.3), fixed_center, moving_center);
+    let search_anchor = RigidSearchAnchor::try_new(transform, fixed_center).expect("rigid anchor");
+    let objective = move |candidate: &AffineTransform| {
+        Ok(-candidate
+            .as_array()
+            .iter()
+            .zip(transform.as_array())
+            .map(|(actual, expected)| (actual - expected).powi(2))
+            .sum::<f64>())
+    };
+
+    let result = search_rigid_pose(search_anchor, config(), objective, objective)
+        .expect("finite anchored search");
+
+    assert_eq!(result.capture_transform, transform);
+    assert_eq!(result.structural_transform, transform);
+    assert!(!result.capture_saturated);
+    assert!(!result.structural_saturated);
+}
+
+#[test]
+fn rigid_anchor_rejects_reflection_and_nonfinite_matrix() {
+    let reflection = AffineTransform([
+        -1.0, 0.0, 0.0, 0.0, 0.0, 1.0, 0.0, 0.0, 0.0, 0.0, 1.0, 0.0, 0.0, 0.0, 0.0, 1.0,
+    ]);
+    let reflected = RigidSearchAnchor::try_new(reflection, [0.0; 3])
+        .expect_err("reflection is not a proper rigid transform");
+    assert!(
+        matches!(reflected, RegistrationError::InvalidInput(message) if message.contains("determinant +1"))
+    );
+
+    let mut nonfinite = AffineTransform::IDENTITY.0;
+    nonfinite[3] = f64::NAN;
+    let invalid = RigidSearchAnchor::try_new(AffineTransform(nonfinite), [0.0; 3])
+        .expect_err("non-finite matrix must fail closed");
+    assert!(
+        matches!(invalid, RegistrationError::InvalidInput(message) if message.contains("must be finite"))
+    );
 }

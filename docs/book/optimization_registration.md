@@ -7,7 +7,7 @@ Atlas integration is split but coherent. Coeus provides the autodiff graph, tens
 ## Bounded rigid capture and refinement
 
 `search_rigid_pose` searches a six-degree-of-freedom rigid transform in physical
-millimetres. It starts from fixed and moving centroids, performs four
+millimetres. It starts from a validated `RigidSearchAnchor`, performs four
 coarse-to-fine coordinate-descent levels, and polishes the capture objective
 with bounded Nelder–Mead. A second structural objective defaults to a half-range
 of one terminal capture cell. `with_structural_half_range_cells` accepts a
@@ -42,6 +42,18 @@ the capture and structural candidates.
 Objective errors propagate through the search result. A malformed or empty
 metric sample set therefore cannot be converted into a plausible pose.
 
+When centroids alone do not place the orientation inside this bounded search,
+`fit_symmetric_trimmed_rigid` estimates the complete anchor from direction-
+specific `FixedToMovingCorrespondence` and `MovingToFixedCorrespondence`
+physical-space matches. It normalizes reverse matches and retains the half with
+smallest Euclidean residual under a deterministic LTS fit. Exact endpoint pairs
+with conflicting directions are discarded because selecting either would make
+the sampled schedule depend on image-role ordering. The fit requires a strict
+majority supporting one non-collinear rigid consensus;
+exactly two equal half-population consensuses are not identifiable. See the
+[robust rigid capture initializer](examples/rigid_capture_initializer.md) for
+the executable known-transform and outlier case.
+
 ## Example Summary
 
 | Example | Status | Focus |
@@ -49,3 +61,4 @@ metric sample set therefore cannot be converted into a plausible pose.
 | [Deep Learning Registration](examples/dl_registration.md) | Available | End-to-end differentiable optimization of rigid parameters with Coeus autodiff. |
 | [Deep Learning Training](examples/dl_train.md) | Available | Extends the same optimization ideas to a learned registration model and training loop. |
 | [CT/MR Mutual-Information Registration](examples/registration_compare_figure.md) | Available | Validates multi-modal MI against the RIRE CT-to-MR transform and native resampling. |
+| [Robust Rigid Capture Initializer](examples/rigid_capture_initializer.md) | Available | Fits a full anchor from symmetric correspondences before bounded residual search. |

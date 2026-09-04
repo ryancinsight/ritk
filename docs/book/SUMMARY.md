@@ -79,6 +79,7 @@
 - [Temporal Signal Synchronization](temporal_synchronization.md)
   - [Example: Before and After Temporal Alignment](examples/temporal_synchronization.md)
 - [Multi-modal Registration](multi_modal_registration.md)
+  - [Example: Robust Rigid Capture Initializer](examples/rigid_capture_initializer.md)
   - [Example: CT/MR Mutual-Information Registration](examples/registration_compare_figure.md)
 - [Deformable Registration](demons_registration.md)
 - [Validation and Benchmarking](validation_benchmarking.md)

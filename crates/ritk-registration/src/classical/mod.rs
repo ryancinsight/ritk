@@ -12,6 +12,7 @@ pub mod engine;
 pub mod error;
 pub mod native;
 pub mod rigid_search;
+mod robust_rigid;
 pub mod spatial;
 pub mod temporal;
 pub mod translation;
@@ -26,7 +27,13 @@ pub use native::{
     image_to_leto_volume, index_affine_to_physical, leto_volume_to_image,
     rigid_physical_affine_to_native, NativeConversionError, RigidPhysicalAffineError,
 };
-pub use rigid_search::{search_rigid_pose, RigidSearchConfig, RigidSearchResult};
+pub use rigid_search::{
+    search_rigid_pose, RigidSearchAnchor, RigidSearchConfig, RigidSearchResult,
+};
+pub use robust_rigid::{
+    fit_symmetric_trimmed_rigid, FixedToMovingCorrespondence, MovingToFixedCorrespondence,
+    SymmetricRigidFit,
+};
 pub use spatial::SpatialTransform;
 pub use temporal::{
     TemporalCorrelationSample, TemporalSignal, TemporalSync, TemporalSyncConfig, TemporalSyncError,

@@ -8,6 +8,7 @@ for differentiable paths, deterministic CPU algorithms for classical paths.
 | Algorithm | Category |
 |---|---|
 | Kabsch SVD | Classical rigid alignment |
+| Symmetric 50%-trimmed rigid fitting | Robust block-correspondence initialization |
 | MI-based rigid / affine | Classical iterative |
 | Packed MIND-SSC | Multimodal rigid similarity |
 | Thirion / Diffeomorphic / Symmetric Demons | Deformable |
@@ -39,6 +40,12 @@ let similarity = prepared.eval(moving, &AffineTransform::IDENTITY)?;
 The default retains at most 8,192 deterministic, physically stratified fixed
 centers. Moving descriptors are evaluated at those centers on demand; no dense
 moving descriptor volume is built per pose.
+
+For rigid capture outside a centroid-anchored basin, use
+`fit_symmetric_trimmed_rigid` on direction-specific
+`FixedToMovingCorrespondence` and `MovingToFixedCorrespondence` block matches,
+then pass its transform through `RigidSearchAnchor`. The residual search remains
+bounded; the initializer retains only the best half of the joint match set.
 
 **Optimizers** — the autodiff gradient-descent driver, plus the Coeus
 optimizers (SGD with momentum, Adam, AdamW, AdaGrad, RMSProp).
