@@ -239,15 +239,17 @@ where
     let capture_transform = matrix(&capture_parameters);
     let capture_score_value = finite_score(capture_objective(&capture_transform)?, "capture")?;
 
-    let structural_half_range =
-        resolution.map(|value| value * f64::from(config.structural_half_range_cells.get()));
+    let (structural_bounds, structural_step) = structural_interval_and_step(
+        capture_parameters,
+        bounds,
+        resolution,
+        config.structural_half_range_cells,
+    );
     let in_structural_range = |candidate: &[f64; PARAMETER_COUNT]| {
-        in_global_range(candidate)
-            && candidate
-                .iter()
-                .zip(capture_parameters.iter())
-                .zip(structural_half_range.iter())
-                .all(|((&value, &center), &radius)| (value - center).abs() <= radius)
+        candidate
+            .iter()
+            .zip(structural_bounds.iter())
+            .all(|(&value, &[lower, upper])| value >= lower && value <= upper)
     };
     let mut structural_score = |candidate: &[f64; PARAMETER_COUNT]| -> Result<f64> {
         if !in_structural_range(candidate) {
@@ -255,7 +257,6 @@ where
         }
         finite_score(structural_objective(&matrix(candidate))?, "structural")
     };
-    let structural_step = structural_half_range.map(|value| value / 2.0);
     let structural_parameters = nelder_mead_maximize(
         capture_parameters,
         structural_step,
@@ -272,17 +273,8 @@ where
         bounds,
         resolution,
     );
-    let structural_saturated = touches_bound(
-        structural_parameters,
-        capture_parameters,
-        structural_half_range,
-        convergence_width,
-    ) || touches_bound(
-        structural_parameters,
-        [0.0; PARAMETER_COUNT],
-        bounds,
-        convergence_width,
-    );
+    let structural_saturated =
+        touches_interval_bound(structural_parameters, structural_bounds, convergence_width);
 
     Ok(RigidSearchResult {
         capture_transform,
@@ -292,6 +284,36 @@ where
         capture_saturated,
         structural_saturated,
     })
+}
+
+fn structural_interval_and_step(
+    center: [f64; PARAMETER_COUNT],
+    global_half_range: [f64; PARAMETER_COUNT],
+    resolution: [f64; PARAMETER_COUNT],
+    cells: NonZeroU8,
+) -> ([[f64; 2]; PARAMETER_COUNT], [f64; PARAMETER_COUNT]) {
+    let cell_count = f64::from(cells.get());
+    let intervals = std::array::from_fn(|axis| {
+        let requested_radius = resolution[axis] * cell_count;
+        [
+            (center[axis] - requested_radius).max(-global_half_range[axis]),
+            (center[axis] + requested_radius).min(global_half_range[axis]),
+        ]
+    });
+    let steps = std::array::from_fn(|axis| {
+        let [lower, upper] = intervals[axis];
+        let positive_room = upper - center[axis];
+        let negative_room = center[axis] - lower;
+        let step_magnitude = (resolution[axis] * (cell_count / 2.0))
+            .min(global_half_range[axis])
+            .min(positive_room.max(negative_room));
+        if positive_room >= negative_room {
+            step_magnitude
+        } else {
+            -step_magnitude
+        }
+    });
+    (intervals, steps)
 }
 
 fn touches_bound(
@@ -307,6 +329,20 @@ fn touches_bound(
         .zip(tolerance.iter())
         .any(|(((&value, &origin), &bound), &width)| {
             ((value - origin).abs() - bound).abs() <= width
+        })
+}
+
+fn touches_interval_bound(
+    parameters: [f64; PARAMETER_COUNT],
+    intervals: [[f64; 2]; PARAMETER_COUNT],
+    tolerance: [f64; PARAMETER_COUNT],
+) -> bool {
+    parameters
+        .iter()
+        .zip(intervals.iter())
+        .zip(tolerance.iter())
+        .any(|((&value, &[lower, upper]), &width)| {
+            (value - lower).abs() <= width || (upper - value).abs() <= width
         })
 }
 

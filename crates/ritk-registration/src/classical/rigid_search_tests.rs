@@ -10,6 +10,12 @@ fn config() -> RigidSearchConfig {
 }
 
 fn pose_objective(target_translation_mm: f64) -> impl FnMut(&AffineTransform) -> Result<f64> {
+    pose_objective_xyz([target_translation_mm, 0.0, 0.0])
+}
+
+fn pose_objective_xyz(
+    target_translation_mm: [f64; 3],
+) -> impl FnMut(&AffineTransform) -> Result<f64> {
     move |transform| {
         let matrix = transform.as_array();
         let identity_rotation = [1.0, 0.0, 0.0, 0.0, 1.0, 0.0, 0.0, 0.0, 1.0];
@@ -21,9 +27,9 @@ fn pose_objective(target_translation_mm: f64) -> impl FnMut(&AffineTransform) ->
         .zip(identity_rotation)
         .map(|(actual, expected)| (actual - expected).powi(2))
         .sum::<f64>();
-        Ok(-((matrix[3] - target_translation_mm).powi(2)
-            + matrix[7].powi(2)
-            + matrix[11].powi(2)
+        Ok(-((matrix[3] - target_translation_mm[0]).powi(2)
+            + (matrix[7] - target_translation_mm[1]).powi(2)
+            + (matrix[11] - target_translation_mm[2]).powi(2)
             + rotation_residual))
     }
 }
@@ -173,6 +179,52 @@ fn widened_structural_search_remains_inside_global_bounds() {
         "globally clipped translation {translation} did not reach {global_half_range_mm}"
     );
     assert!(result.structural_saturated);
+}
+
+#[test]
+fn structural_simplex_moves_inward_from_multiple_positive_global_bounds() {
+    let global_half_range_mm = 1.0;
+    let terminal_resolution_mm = 0.25;
+    let bounded =
+        RigidSearchConfig::try_new(2.0, global_half_range_mm, 0.25, terminal_resolution_mm, 256)
+            .expect("valid search configuration")
+            .with_structural_half_range_cells(
+                NonZeroU8::new(8).expect("invariant: eight is nonzero"),
+            );
+
+    let result = search_rigid_pose(
+        [0.0; 3],
+        [0.0; 3],
+        bounded,
+        pose_objective_xyz([global_half_range_mm, global_half_range_mm, 0.0]),
+        pose_objective_xyz([0.0; 3]),
+    )
+    .expect("finite objectives");
+    let capture = result.capture_transform.as_array();
+    let structural = result.structural_transform.as_array();
+
+    assert!((capture[3] - global_half_range_mm).abs() <= terminal_resolution_mm / 16.0);
+    assert!((capture[7] - global_half_range_mm).abs() <= terminal_resolution_mm / 16.0);
+    assert!(structural[3].abs() <= terminal_resolution_mm / 16.0);
+    assert!(structural[7].abs() <= terminal_resolution_mm / 16.0);
+}
+
+#[test]
+fn overflowing_requested_radius_produces_finite_effective_intervals_and_steps() {
+    let finite_bound = 1.0e307;
+    let cells = NonZeroU8::new(u8::MAX).expect("invariant: u8 maximum is nonzero");
+
+    let (intervals, steps) = structural_interval_and_step(
+        [0.0; PARAMETER_COUNT],
+        [finite_bound; PARAMETER_COUNT],
+        [finite_bound; PARAMETER_COUNT],
+        cells,
+    );
+
+    assert!(intervals.iter().flatten().all(|value| value.is_finite()));
+    assert!(steps.iter().all(|value| value.is_finite()));
+    assert_eq!(intervals, [[-finite_bound, finite_bound]; PARAMETER_COUNT]);
+    assert_eq!(steps, [finite_bound; PARAMETER_COUNT]);
 }
 
 #[test]

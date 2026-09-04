@@ -13,7 +13,10 @@ with bounded Nelder–Mead. A second structural objective defaults to a half-ran
 of one terminal capture cell. `with_structural_half_range_cells` accepts a
 `NonZeroU8` when a consumer needs to test a wider local basin. The configured
 radius scales both the structural bounds and initial simplex, but the original
-global rigid bounds remain authoritative. This separation supports multimodal
+global rigid bounds remain authoritative. The effective interval is their
+intersection. When capture ends on a global boundary, each simplex edge points
+toward the side with available room rather than constructing an invalid outward
+vertex. This separation supports multimodal
 registration where normalized mutual information (NMI) finds the broad basin
 and MIND-SSC or Normalized Gradient Fields (NGF) resolves local soft-tissue
 structure without enabling an unbounded second search. The tested Rustdoc on

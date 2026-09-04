@@ -9,6 +9,10 @@
 - **Revision 2026-09-04:** Make the structural-refinement half-range a bounded
   nonzero terminal-cell count after one cell proved too narrow for downstream
   MIND-SSC investigation; preserve one cell as the default.
+- **Revision 2026-09-04:** Intersect the requested structural range with the
+  global bounds and orient each initial simplex edge toward available space, so
+  capture on a positive global bound can still refine inward. Bound arithmetic
+  remains finite when the requested cell product overflows.
 
 ## Context
 
@@ -52,10 +56,13 @@ The first stage captures the multimodal basin with partial-volume NMI. The
 second stage refines a structural objective inside a local half-range measured
 in final NMI-resolution cells. `RigidSearchConfig::try_new` preserves a one-cell
 default; an additive `NonZeroU8` builder can widen that local range. The same
-radius scales the structural initial simplex and saturation boundary, while the
-original global rigid bounds still reject every out-of-range candidate. The
-second stage therefore cannot become an unbounded global search. Callers retain
-explicit coverage and overlap gates.
+radius defines an axis-wise interval intersected with the original global rigid
+bounds. The structural simplex starts toward the side with more available room
+on each axis, so a capture solution on a positive global bound does not create
+an infeasible outward vertex. The effective finite interval also caps an
+overflowing resolution-by-cell product. The second stage therefore cannot
+become an unbounded global search. Callers retain explicit coverage and overlap
+gates.
 
 Morphological filters accept independent axis radii, and a physical-radius
 conversion derives those radii from image spacing. A caller can therefore keep
@@ -97,7 +104,9 @@ histogram ambiguity resolved by location conditioning, rigid centroid mapping,
 bound saturation, fallible objective propagation, and recovery of a coupled
 manufactured optimum. Additional value tests prove implicit/explicit one-cell
 equivalence, recovery of a wider manufactured structural optimum, confinement
-to the original global bounds, and local/global saturation semantics. The
+to the original global bounds, inward refinement from simultaneous positive
+global bounds, finite effective intervals under requested-radius overflow, and
+local/global saturation semantics. The
 downstream LeoNeuro RIRE oracle evaluates image-only registration against
 held-out fiducials: the 3×3×3 conditioned capture reaches
 0.8330 mm mean and 1.1324 mm maximum TRE, while an adversarial field-of-view
