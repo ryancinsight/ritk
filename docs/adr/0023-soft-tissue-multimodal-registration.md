@@ -6,6 +6,9 @@
 - **Date:** 2026-09-03
 - **Revision 2026-09-03:** Add the fixed-region conditioned metric after the
   downstream global-histogram RIRE result remained anatomically offset.
+- **Revision 2026-09-04:** Make the structural-refinement half-range a bounded
+  nonzero terminal-cell count after one cell proved too narrow for downstream
+  MIND-SSC investigation; preserve one cell as the default.
 
 ## Context
 
@@ -46,8 +49,13 @@ accepts the image sampler and similarity measures as monomorphized closures.
 Objective closures are fallible, so invalid samples and allocation errors
 retain their registration failure instead of being replaced with a score.
 The first stage captures the multimodal basin with partial-volume NMI. The
-second stage refines NGF inside the final NMI resolution cell; it cannot perform
-a second global search. Callers retain explicit coverage and overlap gates.
+second stage refines a structural objective inside a local half-range measured
+in final NMI-resolution cells. `RigidSearchConfig::try_new` preserves a one-cell
+default; an additive `NonZeroU8` builder can widen that local range. The same
+radius scales the structural initial simplex and saturation boundary, while the
+original global rigid bounds still reject every out-of-range candidate. The
+second stage therefore cannot become an unbounded global search. Callers retain
+explicit coverage and overlap gates.
 
 Morphological filters accept independent axis radii, and a physical-radius
 conversion derives those radii from image spacing. A caller can therefore keep
@@ -87,8 +95,11 @@ mass conservation and continuity, masking, invalid inputs, conditioned-entropy
 identities, workspace clearing, invalid region labels, a manufactured global-
 histogram ambiguity resolved by location conditioning, rigid centroid mapping,
 bound saturation, fallible objective propagation, and recovery of a coupled
-manufactured optimum. The downstream LeoNeuro RIRE oracle evaluates image-only
-registration against held-out fiducials: the 3×3×3 conditioned capture reaches
+manufactured optimum. Additional value tests prove implicit/explicit one-cell
+equivalence, recovery of a wider manufactured structural optimum, confinement
+to the original global bounds, and local/global saturation semantics. The
+downstream LeoNeuro RIRE oracle evaluates image-only registration against
+held-out fiducials: the 3×3×3 conditioned capture reaches
 0.8330 mm mean and 1.1324 mm maximum TRE, while an adversarial field-of-view
 crop loses support and scores below the fiducial pose. The selected pose reaches
 one search bound; wider trials select a remote histogram maximum and worsen

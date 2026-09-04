@@ -2,6 +2,7 @@
 
 use super::error::{RegistrationError, Result};
 use crate::types::AffineTransform;
+use std::num::NonZeroU8;
 
 const PARAMETER_COUNT: usize = 6;
 const SIMPLEX_VERTEX_COUNT: usize = PARAMETER_COUNT + 1;
@@ -16,6 +17,7 @@ pub struct RigidSearchConfig {
     translation_half_range_mm: f64,
     final_rotation_resolution_radians: f64,
     final_translation_resolution_mm: f64,
+    structural_half_range_cells: NonZeroU8,
     simplex_iteration_limit: usize,
 }
 
@@ -70,8 +72,39 @@ impl RigidSearchConfig {
             translation_half_range_mm,
             final_rotation_resolution_radians: final_rotation_resolution_deg.to_radians(),
             final_translation_resolution_mm,
+            structural_half_range_cells: NonZeroU8::MIN,
             simplex_iteration_limit,
         })
+    }
+
+    /// Set the structural-refinement half-range in terminal capture cells.
+    ///
+    /// The nonzero `u8` bound keeps the refinement finite. Global rigid-search
+    /// bounds remain authoritative and may clip the requested local range.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// use std::num::NonZeroU8;
+    /// use ritk_registration::RigidSearchConfig;
+    ///
+    /// let config = RigidSearchConfig::try_new(12.0, 8.0, 0.5, 0.75, 256)
+    ///     .expect("valid bounded search")
+    ///     .with_structural_half_range_cells(
+    ///         NonZeroU8::new(3).expect("invariant: three is nonzero"),
+    ///     );
+    /// assert_eq!(config.structural_half_range_cells().get(), 3);
+    /// ```
+    #[must_use]
+    pub const fn with_structural_half_range_cells(mut self, cells: NonZeroU8) -> Self {
+        self.structural_half_range_cells = cells;
+        self
+    }
+
+    /// Return the structural-refinement half-range in terminal capture cells.
+    #[must_use]
+    pub const fn structural_half_range_cells(self) -> NonZeroU8 {
+        self.structural_half_range_cells
     }
 
     fn global_bounds(self) -> [f64; PARAMETER_COUNT] {
@@ -103,7 +136,7 @@ impl RigidSearchConfig {
 pub struct RigidSearchResult {
     /// Transform at the capture objective's optimum.
     pub capture_transform: AffineTransform,
-    /// Transform after structural refinement inside the terminal capture cell.
+    /// Transform after structural refinement inside the configured local range.
     pub structural_transform: AffineTransform,
     /// Capture-objective value at [`Self::capture_transform`].
     pub capture_score: f64,
@@ -112,7 +145,7 @@ pub struct RigidSearchResult {
     /// Whether capture terminated within one resolution step of a global bound.
     pub capture_saturated: bool,
     /// Whether structural refinement terminated within one convergence width
-    /// of its local capture-cell bound.
+    /// of its effective local or global bound.
     pub structural_saturated: bool,
 }
 
@@ -121,8 +154,9 @@ pub struct RigidSearchResult {
 /// Parameters are ZYX Euler rotations in radians followed by residual `[z, y,
 /// x]` translations in millimetres. The capture objective runs coarse-to-fine
 /// coordinate descent and a bounded Nelder–Mead polish. The structural objective
-/// starts at that result and is confined to one terminal capture-resolution
-/// cell, preventing a local edge metric from escaping to a remote edge maximum.
+/// starts at that result and is confined to the configured nonzero number of
+/// terminal capture-resolution cells and the global bounds, preventing a local
+/// metric from escaping to an unbounded remote maximum.
 /// Returned matrices map fixed to moving coordinates in row-major `[z, y, x]`
 /// millimetres.
 ///
@@ -205,12 +239,14 @@ where
     let capture_transform = matrix(&capture_parameters);
     let capture_score_value = finite_score(capture_objective(&capture_transform)?, "capture")?;
 
+    let structural_half_range =
+        resolution.map(|value| value * f64::from(config.structural_half_range_cells.get()));
     let in_structural_range = |candidate: &[f64; PARAMETER_COUNT]| {
         in_global_range(candidate)
             && candidate
                 .iter()
                 .zip(capture_parameters.iter())
-                .zip(resolution.iter())
+                .zip(structural_half_range.iter())
                 .all(|((&value, &center), &radius)| (value - center).abs() <= radius)
     };
     let mut structural_score = |candidate: &[f64; PARAMETER_COUNT]| -> Result<f64> {
@@ -219,7 +255,7 @@ where
         }
         finite_score(structural_objective(&matrix(candidate))?, "structural")
     };
-    let structural_step = resolution.map(|value| value / 2.0);
+    let structural_step = structural_half_range.map(|value| value / 2.0);
     let structural_parameters = nelder_mead_maximize(
         capture_parameters,
         structural_step,
@@ -239,7 +275,12 @@ where
     let structural_saturated = touches_bound(
         structural_parameters,
         capture_parameters,
-        resolution,
+        structural_half_range,
+        convergence_width,
+    ) || touches_bound(
+        structural_parameters,
+        [0.0; PARAMETER_COUNT],
+        bounds,
         convergence_width,
     );
 

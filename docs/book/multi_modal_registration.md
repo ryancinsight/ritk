@@ -46,9 +46,11 @@ this local-region formulation in section 3.2, equations 8–9
 (<https://doi.org/10.1007/978-3-642-02498-6_36>).
 
 For CT/MR soft tissue, a bounded two-stage search is preferable to a fitted
-weighted sum: NMI captures the multimodal basin, then NGF refines edge
-orientation inside one terminal NMI cell. A global NGF search can lock onto a
-remote skull or air boundary.
+weighted sum: NMI captures the multimodal basin, then a local structural metric
+refines anatomy. The structural half-range defaults to one terminal NMI cell;
+callers can select a larger nonzero number of cells while the original global
+rigid bounds continue to constrain every candidate. A global MIND-SSC or NGF
+search can lock onto remote anatomy, skull, or air boundaries.
 
 MIND-SSC provides a complementary local structural objective when corresponding
 soft-tissue patches retain self-similarity despite modality-dependent
