@@ -68,7 +68,9 @@ finite proposals, including the existing rejection semantics outside a bound.
 Only arithmetic that would overflow is replaced by the finite endpoint in its
 direction before bound checking, so an accepted extreme finite configuration
 cannot expose a non-finite candidate to an objective or perturb established
-finite search trajectories.
+finite search trajectories. Transform construction is checked separately, so
+overflow while combining finite centroids and residual translation returns a
+typed numerical failure before objective evaluation.
 
 Morphological filters accept independent axis radii, and a physical-radius
 conversion derives those radii from image spacing. A caller can therefore keep
@@ -112,8 +114,9 @@ manufactured optimum. Additional value tests prove implicit/explicit one-cell
 equivalence, recovery of a wider manufactured structural optimum, confinement
 to the original global bounds, inward refinement from simultaneous positive
 and negative global bounds, finite candidate evaluation under extreme accepted
-configuration, finite effective intervals under requested-radius overflow, and
-local/global saturation semantics. The
+configuration, objective isolation from finite-centroid transform overflow,
+finite effective intervals under requested-radius overflow, and local/global
+saturation semantics. The
 downstream LeoNeuro RIRE oracle evaluates image-only registration against
 held-out fiducials: the 3×3×3 conditioned capture reaches
 0.8330 mm mean and 1.1324 mm maximum TRE, while an adversarial field-of-view

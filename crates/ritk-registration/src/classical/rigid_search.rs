@@ -163,8 +163,8 @@ pub struct RigidSearchResult {
 /// # Errors
 ///
 /// Propagates an objective error and returns
-/// [`RegistrationError::NumericalFailure`] when either objective emits a
-/// non-finite value.
+/// [`RegistrationError::NumericalFailure`] when a candidate cannot form a
+/// finite transform or either objective emits a non-finite value.
 pub fn search_rigid_pose<C, S>(
     fixed_centroid_mm: [f64; 3],
     moving_centroid_mm: [f64; 3],
@@ -176,8 +176,8 @@ where
     C: FnMut(&AffineTransform) -> Result<f64>,
     S: FnMut(&AffineTransform) -> Result<f64>,
 {
-    let matrix = |parameters: &[f64; PARAMETER_COUNT]| {
-        rigid_about_centroid(
+    let matrix = |parameters: &[f64; PARAMETER_COUNT]| -> Result<AffineTransform> {
+        let transform = rigid_about_centroid(
             euler_zyx(parameters[0], parameters[1], parameters[2]),
             fixed_centroid_mm,
             [
@@ -185,7 +185,14 @@ where
                 moving_centroid_mm[1] + parameters[4],
                 moving_centroid_mm[2] + parameters[5],
             ],
-        )
+        );
+        if transform.as_array().iter().all(|value| value.is_finite()) {
+            Ok(transform)
+        } else {
+            Err(RegistrationError::NumericalFailure(
+                "rigid-search candidate produced a non-finite transform".to_owned(),
+            ))
+        }
     };
     let bounds = config.global_bounds();
     let in_global_range = |parameters: &[f64; PARAMETER_COUNT]| {
@@ -198,7 +205,7 @@ where
         if !in_global_range(parameters) {
             return Ok(f64::NEG_INFINITY);
         }
-        finite_score(capture_objective(&matrix(parameters))?, "capture")
+        finite_score(capture_objective(&matrix(parameters)?)?, "capture")
     };
 
     let resolution = config.terminal_resolution();
@@ -241,7 +248,7 @@ where
         bounds.map(|bound| [-bound, bound]),
         &mut capture_score,
     )?;
-    let capture_transform = matrix(&capture_parameters);
+    let capture_transform = matrix(&capture_parameters)?;
     let capture_score_value = finite_score(capture_objective(&capture_transform)?, "capture")?;
 
     let (structural_bounds, structural_step) = structural_interval_and_step(
@@ -260,7 +267,7 @@ where
         if !in_structural_range(candidate) {
             return Ok(f64::NEG_INFINITY);
         }
-        finite_score(structural_objective(&matrix(candidate))?, "structural")
+        finite_score(structural_objective(&matrix(candidate)?)?, "structural")
     };
     let structural_parameters = nelder_mead_maximize(
         capture_parameters,
@@ -270,7 +277,7 @@ where
         structural_bounds,
         &mut structural_score,
     )?;
-    let structural_transform = matrix(&structural_parameters);
+    let structural_transform = matrix(&structural_parameters)?;
     let structural_score_value =
         finite_score(structural_objective(&structural_transform)?, "structural")?;
     let capture_saturated = touches_bound(

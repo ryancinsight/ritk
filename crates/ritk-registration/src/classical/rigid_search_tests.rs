@@ -276,6 +276,41 @@ fn extreme_finite_configuration_never_evaluates_a_nonfinite_pose() {
 }
 
 #[test]
+fn extreme_finite_centroid_overflow_is_rejected_before_objective_evaluation() {
+    let extreme = RigidSearchConfig::try_new(2.0, f64::MAX, 0.25, f64::MAX, 32)
+        .expect("finite extreme configuration");
+
+    for sign in [-1.0, 1.0] {
+        let capture_evaluations = Cell::new(0_usize);
+        let capture = |transform: &AffineTransform| {
+            assert!(transform.as_array().iter().all(|value| value.is_finite()));
+            capture_evaluations.set(capture_evaluations.get() + 1);
+            Ok(0.0)
+        };
+        let structural = |transform: &AffineTransform| {
+            assert!(transform.as_array().iter().all(|value| value.is_finite()));
+            Ok(0.0)
+        };
+
+        let error = search_rigid_pose(
+            [0.0; 3],
+            [sign * f64::MAX, 0.0, 0.0],
+            extreme,
+            capture,
+            structural,
+        )
+        .expect_err("centroid-plus-residual overflow must fail before the objective");
+
+        assert!(capture_evaluations.get() > 0);
+        assert!(matches!(
+            error,
+            RegistrationError::NumericalFailure(message)
+                if message == "rigid-search candidate produced a non-finite transform"
+        ));
+    }
+}
+
+#[test]
 fn structural_saturation_uses_configured_half_range() {
     let radius = NonZeroU8::new(2).expect("invariant: two is nonzero");
     let interior = search_rigid_pose(

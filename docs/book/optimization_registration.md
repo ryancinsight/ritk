@@ -27,7 +27,9 @@ The capture schedule and all simplex operations preserve finite proposals and
 their bounded-objective rejection semantics. If an otherwise valid finite
 resolution multiplied by a schedule factor would overflow, only that
 non-finite proposal is replaced by the finite endpoint in its direction before
-an objective sees it.
+an objective sees it. A separate finite-transform check converts overflow from
+centroid and residual composition into a typed numerical failure before metric
+evaluation.
 
 `RigidSearchResult::capture_saturated` and `structural_saturated` report when an
 optimum touches its permitted boundary. Structural saturation covers either the
