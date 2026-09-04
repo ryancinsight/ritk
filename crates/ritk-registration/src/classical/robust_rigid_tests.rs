@@ -209,6 +209,16 @@ fn sampled_candidate_schedule_is_symmetric_for_independent_directions() {
             .expect("finite independent reverse outlier"),
         );
     }
+    let collision_a = [310.0, -15.0, 44.0];
+    let collision_b = [-75.0, 125.0, 83.0];
+    forward.push(
+        FixedToMovingCorrespondence::try_new(collision_a, collision_b)
+            .expect("finite conflicting forward pair"),
+    );
+    reverse.push(
+        MovingToFixedCorrespondence::try_new(collision_a, collision_b)
+            .expect("finite conflicting reverse pair"),
+    );
     forward.rotate_left(11);
     reverse.reverse();
 
@@ -230,6 +240,24 @@ fn sampled_candidate_schedule_is_symmetric_for_independent_directions() {
         .collect();
     let swapped = fit_symmetric_trimmed_rigid(&swapped_forward, &swapped_reverse)
         .expect("sampled swapped fit");
+    let direct_schedule =
+        normalize_correspondences(&forward, &reverse).expect("normalize direct schedule");
+    let swapped_schedule = normalize_correspondences(&swapped_forward, &swapped_reverse)
+        .expect("normalize swapped schedule");
+    assert_eq!(direct_schedule.len(), 118);
+    assert_eq!(swapped_schedule.len(), direct_schedule.len());
+    for candidate in 0..SAMPLED_CANDIDATE_LIMIT {
+        for index in sampled_triplet(direct_schedule.len(), candidate) {
+            assert_eq!(
+                direct_schedule[index].fixed_mm,
+                swapped_schedule[index].moving_mm
+            );
+            assert_eq!(
+                direct_schedule[index].moving_mm,
+                swapped_schedule[index].fixed_mm
+            );
+        }
+    }
     let product = multiply(direct.transform.as_array(), swapped.transform.as_array());
     let gamma_2048 = 2048.0 * f64::EPSILON / (1.0 - 2048.0 * f64::EPSILON);
     for (actual, expected) in product.into_iter().zip(AffineTransform::IDENTITY.0) {

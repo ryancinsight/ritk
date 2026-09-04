@@ -22,7 +22,7 @@
 <a id="RITK-RIGID-CAPTURE-INITIALIZER-2026-09-04"></a>
 ## RITK-RIGID-CAPTURE-INITIALIZER-2026-09-04 — Robust rigid capture initializer [major] [arch] — in-progress
 
-- **Status:** in-progress; integrator=Codex; last-update=2026-09-04T18:42:29-04:00.
+- **Status:** in-progress; integrator=Codex; last-update=2026-09-04T18:47:36-04:00.
 - **Lease:** `ritk-registration` rigid search/fitting, ADR 0025, registration example/book, and this item.
 - **Outcome:** fit a deterministic symmetric least-trimmed-squares rigid anchor from bidirectional block correspondences and refine around that full transform.
 - **Scope/non-goals:** RITK fitting/search contracts and validation; no image-format policy, subject-tuned constants, deformable correction, or fiducials in optimization.

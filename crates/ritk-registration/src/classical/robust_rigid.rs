@@ -179,32 +179,7 @@ pub fn fit_symmetric_trimmed_rigid(
         )));
     }
 
-    let correspondence_count = fixed_to_moving
-        .len()
-        .checked_add(moving_to_fixed.len())
-        .ok_or_else(|| {
-            RegistrationError::InvalidInput(
-                "bidirectional correspondence count overflows usize".to_owned(),
-            )
-        })?;
-    let mut correspondences = Vec::new();
-    correspondences
-        .try_reserve_exact(correspondence_count)
-        .map_err(|error| {
-            RegistrationError::InvalidInput(format!(
-                "cannot allocate {correspondence_count} rigid correspondences: {error}"
-            ))
-        })?;
-    correspondences.extend(fixed_to_moving.iter().map(|pair| RigidCorrespondence {
-        fixed_mm: pair.fixed_mm,
-        moving_mm: pair.moving_mm,
-    }));
-    correspondences.extend(moving_to_fixed.iter().map(|pair| RigidCorrespondence {
-        fixed_mm: pair.fixed_mm,
-        moving_mm: pair.moving_mm,
-    }));
-    correspondences.sort_by(compare_correspondences);
-    discard_ambiguous_endpoint_groups(&mut correspondences);
+    let correspondences = normalize_correspondences(fixed_to_moving, moving_to_fixed)?;
     let correspondence_count = correspondences.len();
     if correspondence_count < 3 {
         return Err(RegistrationError::InvalidInput(format!(
@@ -240,6 +215,39 @@ pub fn fit_symmetric_trimmed_rigid(
         inlier_count: active.len(),
         inlier_rms_mm: mean_squared.sqrt(),
     })
+}
+
+fn normalize_correspondences(
+    fixed_to_moving: &[FixedToMovingCorrespondence],
+    moving_to_fixed: &[MovingToFixedCorrespondence],
+) -> Result<Vec<RigidCorrespondence>> {
+    let supplied_count = fixed_to_moving
+        .len()
+        .checked_add(moving_to_fixed.len())
+        .ok_or_else(|| {
+            RegistrationError::InvalidInput(
+                "bidirectional correspondence count overflows usize".to_owned(),
+            )
+        })?;
+    let mut correspondences = Vec::new();
+    correspondences
+        .try_reserve_exact(supplied_count)
+        .map_err(|error| {
+            RegistrationError::InvalidInput(format!(
+                "cannot allocate {supplied_count} rigid correspondences: {error}"
+            ))
+        })?;
+    correspondences.extend(fixed_to_moving.iter().map(|pair| RigidCorrespondence {
+        fixed_mm: pair.fixed_mm,
+        moving_mm: pair.moving_mm,
+    }));
+    correspondences.extend(moving_to_fixed.iter().map(|pair| RigidCorrespondence {
+        fixed_mm: pair.fixed_mm,
+        moving_mm: pair.moving_mm,
+    }));
+    correspondences.sort_by(compare_correspondences);
+    discard_ambiguous_endpoint_groups(&mut correspondences);
+    Ok(correspondences)
 }
 
 fn compare_correspondences(

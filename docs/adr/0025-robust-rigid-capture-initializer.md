@@ -81,7 +81,8 @@ criteria.
 
 Analytical tests cover a known 20-degree transform with 40% coherent outliers,
 direction swapping and inverse composition on both exhaustive and sampled
-candidate paths, sampled fitting with independent directional outliers,
+candidate paths, positional candidate-identity reversal across all 1,024
+sampled triplets with independent directional outliers,
 rejection of conflicting unordered-endpoint directions, input-order
 normalization, non-finite points, collinear points, rejection of reflection
 anchors, exact zero-residual anchoring, and right composition of noncommuting
