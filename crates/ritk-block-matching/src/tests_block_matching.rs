@@ -60,7 +60,7 @@ fn recovers_an_exact_integer_translation() {
         let moving = shifted_image(shift);
         let result = match_block(
             &fixed,
-            &moving,
+            MovingSamples::complete(&moving),
             DIMS,
             [0, 20, 20],
             config(),
@@ -100,8 +100,15 @@ fn refinement_does_not_disturb_an_exact_match() {
     let fixed = shifted_image([0, 0, 0]);
     let moving = shifted_image([0, 2, -3]);
     for refinement in [SubpixelRefinement::Parabolic, SubpixelRefinement::Cosine] {
-        let result =
-            match_block(&fixed, &moving, DIMS, [0, 20, 20], config(), refinement).expect("match");
+        let result = match_block(
+            &fixed,
+            MovingSamples::complete(&moving),
+            DIMS,
+            [0, 20, 20],
+            config(),
+            refinement,
+        )
+        .expect("match");
         assert!(
             (result.displacement[1] - 2.0).abs() < 0.05
                 && (result.displacement[2] + 3.0).abs() < 0.05,
@@ -135,7 +142,7 @@ fn subvoxel_shift_lands_between_the_integers() {
 
     let integer = match_block(
         &fixed,
-        &moving,
+        MovingSamples::complete(&moving),
         DIMS,
         [0, 20, 20],
         config(),
@@ -144,7 +151,7 @@ fn subvoxel_shift_lands_between_the_integers() {
     .expect("match");
     let refined = match_block(
         &fixed,
-        &moving,
+        MovingSamples::complete(&moving),
         DIMS,
         [0, 20, 20],
         config(),
@@ -176,7 +183,7 @@ fn metric_image_centre_is_the_null_displacement() {
     let fixed = shifted_image([0, 0, 0]);
     let surface = metric_image(
         &fixed,
-        &fixed,
+        MovingSamples::complete(&fixed),
         DIMS,
         [0, 20, 20],
         config(),
@@ -199,15 +206,22 @@ fn assert_fft_matches_direct(centre: [usize; 3]) {
     let moving = shifted_image([0, 3, -2]);
     let direct = metric_image(
         &fixed,
-        &moving,
+        MovingSamples::complete(&moving),
         DIMS,
         centre,
         config(),
         BlockMetric::NormalizedCrossCorrelation,
     )
     .expect("direct metric image");
-    let fft = metric_image_fft(&fixed, &moving, DIMS, centre, config(), FftPadding::Zero)
-        .expect("FFT metric image");
+    let fft = metric_image_fft(
+        &fixed,
+        MovingSamples::complete(&moving),
+        DIMS,
+        centre,
+        config(),
+        FftPadding::Zero,
+    )
+    .expect("FFT metric image");
 
     assert_eq!(direct.extent, fft.extent);
     assert_eq!(direct.search_radius, fft.search_radius);
@@ -249,7 +263,7 @@ fn fft_match_recovers_integer_translation() {
     let moving = shifted_image([0, 3, -2]);
     let direct = match_block(
         &fixed,
-        &moving,
+        MovingSamples::complete(&moving),
         DIMS,
         [0, 20, 20],
         config(),
@@ -258,7 +272,7 @@ fn fft_match_recovers_integer_translation() {
     .expect("direct match");
     let fft = match_block_fft(
         &fixed,
-        &moving,
+        MovingSamples::complete(&moving),
         DIMS,
         [0, 20, 20],
         config(),
@@ -276,12 +290,18 @@ fn fft_match_recovers_integer_translation() {
 #[test]
 fn fft_ncc_rejects_featureless_and_mismatched_inputs() {
     let flat = vec![1.0_f32; DIMS[0] * DIMS[1] * DIMS[2]];
-    assert!(
-        metric_image_fft(&flat, &flat, DIMS, [0, 20, 20], config(), FftPadding::Zero,).is_err()
-    );
     assert!(metric_image_fft(
         &flat,
-        &flat[..10],
+        MovingSamples::complete(&flat),
+        DIMS,
+        [0, 20, 20],
+        config(),
+        FftPadding::Zero,
+    )
+    .is_err());
+    assert!(metric_image_fft(
+        &flat,
+        MovingSamples::complete(&flat[..10]),
         DIMS,
         [0, 20, 20],
         config(),
@@ -302,7 +322,7 @@ fn correlation_is_invariant_to_gain_and_offset() {
 
     let result = match_block(
         &fixed,
-        &moving,
+        MovingSamples::complete(&moving),
         DIMS,
         [0, 20, 20],
         config(),
@@ -324,7 +344,7 @@ fn refuses_a_featureless_block() {
     let flat = vec![4.0_f32; DIMS[0] * DIMS[1] * DIMS[2]];
     assert!(match_block(
         &flat,
-        &flat,
+        MovingSamples::complete(&flat),
         DIMS,
         [0, 20, 20],
         config(),
@@ -360,7 +380,7 @@ fn rejects_invalid_geometry_and_out_of_bounds_blocks() {
     // A block whose extent leaves the image is the caller's error.
     assert!(match_block(
         &fixed,
-        &fixed,
+        MovingSamples::complete(&fixed),
         DIMS,
         [0, 1, 20],
         config(),
@@ -371,7 +391,7 @@ fn rejects_invalid_geometry_and_out_of_bounds_blocks() {
     // Mismatched buffer length.
     assert!(match_block(
         &fixed,
-        &fixed[..10],
+        MovingSamples::complete(&fixed[..10]),
         DIMS,
         [0, 20, 20],
         config(),
@@ -399,10 +419,24 @@ fn matches_identically_in_f32_and_f64() {
         SubpixelRefinement::Parabolic,
         SubpixelRefinement::Cosine,
     ] {
-        let a = match_block(&fixed32, &moving32, DIMS, [0, 20, 20], config(), refinement)
-            .expect("f32 match");
-        let b = match_block(&fixed64, &moving64, DIMS, [0, 20, 20], config(), refinement)
-            .expect("f64 match");
+        let a = match_block(
+            &fixed32,
+            MovingSamples::complete(&moving32),
+            DIMS,
+            [0, 20, 20],
+            config(),
+            refinement,
+        )
+        .expect("f32 match");
+        let b = match_block(
+            &fixed64,
+            MovingSamples::complete(&moving64),
+            DIMS,
+            [0, 20, 20],
+            config(),
+            refinement,
+        )
+        .expect("f64 match");
         assert_eq!(
             a.displacement, b.displacement,
             "{refinement:?} must agree across stored precision"
@@ -432,7 +466,7 @@ fn tracks_a_one_dimensional_line() {
     };
     let result = match_block(
         &line,
-        &shifted,
+        MovingSamples::complete(&shifted),
         dims,
         [0, 0, 32],
         config,

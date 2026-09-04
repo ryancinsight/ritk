@@ -3,13 +3,15 @@
 //! This path computes a linear correlation, not a circular one. The logical
 //! moving-image ROI is explicitly zero-padded for the FFT, while candidate
 //! means and energies come only from valid source samples. Candidates whose
-//! complete block leaves the finite image remain `-∞`, matching the direct
-//! metric's boundary contract.
+//! complete block leaves the finite image or touches an unavailable validity
+//! entry remains `-∞`, matching the direct metric's boundary contract.
 
 use anyhow::{bail, Result};
 use eunomia::Complex64;
 
-use super::{BlockDisplacement, BlockMatchingConfig, MetricImage, Sample, SubpixelRefinement};
+use super::{
+    BlockDisplacement, BlockMatchingConfig, MetricImage, MovingSamples, Sample, SubpixelRefinement,
+};
 
 /// Boundary padding policy for the FFT correlation path.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -28,10 +30,12 @@ pub enum FftPadding {
 /// # Errors
 ///
 /// Returns an error for invalid geometry, mismatched buffers, arithmetic
-/// overflow in the padded work shape, or a featureless fixed block.
+/// overflow in the padded work shape, or a non-finite or featureless fixed
+/// block. Moving candidates touching unavailable [`MovingSamples`] entries are
+/// left at negative infinity.
 pub fn metric_image_fft<T: Sample>(
     fixed: &[T],
-    moving: &[T],
+    moving: MovingSamples<'_, T>,
     dims: [usize; 3],
     centre: [usize; 3],
     config: BlockMatchingConfig,
@@ -47,7 +51,7 @@ pub fn metric_image_fft<T: Sample>(
 /// into that policy layer.
 pub fn match_block_fft<T: Sample>(
     fixed: &[T],
-    moving: &[T],
+    moving: MovingSamples<'_, T>,
     dims: [usize; 3],
     centre: [usize; 3],
     config: BlockMatchingConfig,
@@ -71,7 +75,7 @@ pub fn match_block_fft<T: Sample>(
 )]
 pub(crate) fn match_block_fft_at<T: Sample>(
     fixed: &[T],
-    moving: &[T],
+    moving: MovingSamples<'_, T>,
     dims: [usize; 3],
     fixed_centre: [usize; 3],
     moving_centre: [usize; 3],
@@ -99,7 +103,7 @@ pub(crate) fn match_block_fft_at<T: Sample>(
 /// `fixed_centre`.
 pub(crate) fn metric_image_fft_at<T: Sample>(
     fixed: &[T],
-    moving: &[T],
+    moving: MovingSamples<'_, T>,
     dims: [usize; 3],
     fixed_centre: [usize; 3],
     moving_centre: [usize; 3],
@@ -144,6 +148,11 @@ pub(crate) fn metric_image_fft_at<T: Sample>(
     let fft_len = checked_product(fft_dims, "FFT buffer")?;
 
     let fixed_values = gather_fixed_block(fixed, dims, fixed_centre, config.block_radius);
+    if fixed_values.iter().any(|value| !value.is_finite()) {
+        bail!(
+            "fixed block at {fixed_centre:?} contains a non-finite sample; every candidate would depend on unavailable data"
+        );
+    }
     let fixed_mean = fixed_values.iter().sum::<f64>() / fixed_values.len() as f64;
     let fixed_energy = fixed_values
         .iter()
@@ -167,7 +176,11 @@ pub(crate) fn metric_image_fft_at<T: Sample>(
     ];
 
     // The logical ROI and the remaining FFT buffer are initialized to zero.
-    // Source samples are copied only where the logical ROI overlaps the image.
+    // Source samples are copied only where the logical ROI overlaps the image
+    // and the caller marks them available. Invalid finite sentinels must not
+    // enter the global FFT because they can contaminate correlations for
+    // otherwise disjoint valid candidates through finite-precision roundoff.
+    let moving_validity = moving.validity();
     for z in 0..roi_dims[0] {
         let source_z = roi_origin[0] + z as isize;
         for y in 0..roi_dims[1] {
@@ -185,8 +198,10 @@ pub(crate) fn metric_image_fft_at<T: Sample>(
                 }
                 let source =
                     (source_z as usize * dims[1] + source_y as usize) * dims[2] + source_x as usize;
-                moving_spectrum[flat_index([z, y, x], fft_dims)] =
-                    Complex64::new(moving[source].to_f64(), 0.0);
+                let sample = moving.values()[source].to_f64();
+                if moving_validity.is_none_or(|validity| validity[source]) && sample.is_finite() {
+                    moving_spectrum[flat_index([z, y, x], fft_dims)] = Complex64::new(sample, 0.0);
+                }
             }
         }
     }
@@ -235,14 +250,31 @@ pub(crate) fn metric_image_fft_at<T: Sample>(
                     continue;
                 }
 
+                let candidate_centre = [
+                    (moving_centre[0] as isize + dz) as usize,
+                    (moving_centre[1] as isize + dy) as usize,
+                    (moving_centre[2] as isize + dx) as usize,
+                ];
+                if !super::metric::candidate_is_valid(
+                    moving.validity(),
+                    dims,
+                    candidate_centre,
+                    config.block_radius,
+                ) {
+                    continue;
+                }
+
                 gather_candidate(
-                    moving,
+                    moving.values(),
                     dims,
                     moving_centre,
                     offset,
                     config.block_radius,
                     &mut candidate,
                 );
+                if candidate.iter().any(|value| !value.is_finite()) {
+                    continue;
+                }
                 let sum = candidate.iter().sum::<f64>();
                 let sum_squared = candidate.iter().map(|&value| value * value).sum::<f64>();
                 let variance_sum = sum_squared - sum * sum / fixed_values.len() as f64;
@@ -273,7 +305,7 @@ pub(crate) fn metric_image_fft_at<T: Sample>(
 
 fn validate_inputs<T: Sample>(
     fixed: &[T],
-    moving: &[T],
+    moving: MovingSamples<'_, T>,
     dims: [usize; 3],
     fixed_centre: [usize; 3],
     moving_centre: [usize; 3],
@@ -281,11 +313,11 @@ fn validate_inputs<T: Sample>(
 ) -> Result<()> {
     config.validate()?;
     let expected = checked_product(dims, "image")?;
-    if fixed.len() != expected || moving.len() != expected {
+    if fixed.len() != expected || moving.values().len() != expected {
         bail!(
             "fixed ({}) and moving ({}) buffers must both hold {expected} voxels for dims {dims:?}",
             fixed.len(),
-            moving.len()
+            moving.values().len()
         );
     }
     for &dimension in &dims {

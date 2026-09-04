@@ -2,7 +2,7 @@
 
 use anyhow::{bail, Result};
 
-use super::{BlockMatchingConfig, Sample};
+use super::{BlockMatchingConfig, MovingSamples, Sample};
 
 /// Similarity measure evaluated between the fixed block and a candidate moving
 /// block.
@@ -51,13 +51,21 @@ impl MetricImage {
 
 /// Evaluate `metric` at every integer offset in a same-centre search region.
 ///
-/// This compatibility wrapper searches around `centre` in both images. For a
-/// propagated coarse-to-fine search, use the crate's centre-aware execution
-/// path instead; it keeps the fixed block centre and moving search centre
-/// distinct.
+/// `centre` locates both the fixed block and the moving search. The
+/// coarse-to-fine search keeps those centres distinct internally after
+/// propagating displacement from a coarser level.
+///
+/// Moving candidates touching unavailable [`MovingSamples`] entries are left
+/// at negative infinity.
+///
+/// # Errors
+///
+/// Returns an error for invalid configuration, mismatched buffer geometry, a
+/// fixed or moving centre whose block leaves the image, or a non-finite or
+/// featureless fixed block.
 pub fn metric_image<T: Sample>(
     fixed: &[T],
-    moving: &[T],
+    moving: MovingSamples<'_, T>,
     dims: [usize; 3],
     centre: [usize; 3],
     config: BlockMatchingConfig,
@@ -74,13 +82,14 @@ pub fn metric_image<T: Sample>(
 /// padding values from becoming correlation evidence.
 pub(crate) fn metric_image_at<T: Sample>(
     fixed: &[T],
-    moving: &[T],
+    moving: MovingSamples<'_, T>,
     dims: [usize; 3],
     fixed_centre: [usize; 3],
     moving_centre: [usize; 3],
     config: BlockMatchingConfig,
     _metric: BlockMetric,
 ) -> Result<MetricImage> {
+    validate_inputs(fixed, moving, dims, fixed_centre, moving_centre, config)?;
     let radius = config.block_radius;
     let search = config.search_radius;
     let extent = [
@@ -104,6 +113,11 @@ pub(crate) fn metric_image_at<T: Sample>(
 
     // Fixed block, mean-subtracted once: it is reused for every candidate.
     let block = gather_block(fixed, dims, fixed_centre, radius);
+    if block.iter().any(|value| !value.is_finite()) {
+        bail!(
+            "fixed block at {fixed_centre:?} contains a non-finite sample; every candidate would depend on unavailable data"
+        );
+    }
     let block_mean = block.iter().sum::<f64>() / block.len() as f64;
     let fixed_centred: Vec<f64> = block.iter().map(|&v| v - block_mean).collect();
     let fixed_energy: f64 = fixed_centred.iter().map(|v| v * v).sum();
@@ -141,17 +155,24 @@ pub(crate) fn metric_image_at<T: Sample>(
                 if !inside {
                     continue;
                 }
+                let candidate_centre = [
+                    shifted[0] as usize,
+                    shifted[1] as usize,
+                    shifted[2] as usize,
+                ];
+                if !candidate_is_valid(moving.validity(), dims, candidate_centre, radius) {
+                    continue;
+                }
                 gather_block_into(
-                    moving,
+                    moving.values(),
                     dims,
-                    [
-                        shifted[0] as usize,
-                        shifted[1] as usize,
-                        shifted[2] as usize,
-                    ],
+                    candidate_centre,
                     radius,
                     &mut candidate,
                 );
+                if candidate.iter().any(|value| !value.is_finite()) {
+                    continue;
+                }
                 let mean = candidate.iter().sum::<f64>() / candidate.len() as f64;
                 let mut cross = 0.0;
                 let mut energy = 0.0;
@@ -176,6 +197,65 @@ pub(crate) fn metric_image_at<T: Sample>(
         extent,
         search_radius: search,
     })
+}
+
+fn validate_inputs<T: Sample>(
+    fixed: &[T],
+    moving: MovingSamples<'_, T>,
+    dims: [usize; 3],
+    fixed_centre: [usize; 3],
+    moving_centre: [usize; 3],
+    config: BlockMatchingConfig,
+) -> Result<()> {
+    config.validate()?;
+    let expected = dims[0]
+        .checked_mul(dims[1])
+        .and_then(|value| value.checked_mul(dims[2]))
+        .ok_or_else(|| anyhow::anyhow!("dims {dims:?} overflow the buffer size calculation"))?;
+    if fixed.len() != expected || moving.values().len() != expected {
+        bail!(
+            "fixed ({}) and moving ({}) buffers must both hold {expected} voxels for dims {dims:?}",
+            fixed.len(),
+            moving.values().len()
+        );
+    }
+    for axis in 0..3 {
+        for (label, centre) in [("fixed", fixed_centre), ("moving", moving_centre)] {
+            let radius = config.block_radius[axis];
+            let high = centre[axis].checked_add(radius);
+            if centre[axis].checked_sub(radius).is_none()
+                || high.is_none_or(|value| value >= dims[axis])
+            {
+                bail!(
+                    "{label} block at {centre:?} with radius {:?} leaves the image on axis {axis} (extent {})",
+                    config.block_radius,
+                    dims[axis]
+                );
+            }
+        }
+    }
+    Ok(())
+}
+
+pub(crate) fn candidate_is_valid(
+    validity: Option<&[bool]>,
+    dims: [usize; 3],
+    centre: [usize; 3],
+    radius: [usize; 3],
+) -> bool {
+    let Some(validity) = validity else {
+        return true;
+    };
+    for z in centre[0] - radius[0]..=centre[0] + radius[0] {
+        for y in centre[1] - radius[1]..=centre[1] + radius[1] {
+            for x in centre[2] - radius[2]..=centre[2] + radius[2] {
+                if !validity[(z * dims[1] + y) * dims[2] + x] {
+                    return false;
+                }
+            }
+        }
+    }
+    true
 }
 
 /// Copy the block centred at `centre` into a fresh buffer.

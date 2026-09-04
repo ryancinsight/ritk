@@ -7,7 +7,7 @@
 use anyhow::{bail, Result};
 
 use super::{
-    match_block_at, BayesianDisplacementPrior, BlockGrid, DisplacementField, Sample,
+    match_block_at, BayesianDisplacementPrior, BlockGrid, DisplacementField, MovingSamples, Sample,
     SubpixelRefinement,
 };
 
@@ -118,7 +118,7 @@ impl MultiResolutionSearch {
             |level, fixed_centre, moving_centre, config| {
                 match_block_at(
                     level.fixed,
-                    level.moving,
+                    MovingSamples::complete(level.moving),
                     level.dims,
                     fixed_centre,
                     moving_centre,
@@ -334,7 +334,7 @@ impl MultiResolutionSearch {
             |level, fixed_centre, moving_centre, config| {
                 crate::fft::match_block_fft_at(
                     level.fixed,
-                    level.moving,
+                    MovingSamples::complete(level.moving),
                     level.dims,
                     fixed_centre,
                     moving_centre,
