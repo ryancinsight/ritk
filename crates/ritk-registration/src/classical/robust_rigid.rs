@@ -131,7 +131,8 @@ struct RigidCorrespondence {
 pub struct SymmetricRigidFit {
     /// Rigid transform mapping fixed to moving physical coordinates.
     pub transform: AffineTransform,
-    /// Total number of forward and reverse correspondences considered.
+    /// Total number of forward and reverse correspondences considered after
+    /// removing exact unordered-endpoint groups with conflicting directions.
     pub correspondence_count: usize,
     /// Number of correspondences retained by the 50% LTS rule.
     pub inlier_count: usize,
@@ -146,6 +147,9 @@ pub struct SymmetricRigidFit {
 /// this function reverses those pairs before fitting. At each iteration the
 /// half with the smallest squared residual is retained, matching the 50% block
 /// and inlier policy used by Modat et al. and NiftyReg `reg_aladin`.
+/// Exact unordered-endpoint groups containing both possible directions are
+/// discarded because neither orientation is invariant under swapping image
+/// roles. Repeated pairs with one consistent direction retain their weight.
 ///
 /// The implementation stores one correspondence vector, one index vector, and
 /// one residual vector, so auxiliary memory is linear in the supplied match
@@ -200,6 +204,13 @@ pub fn fit_symmetric_trimmed_rigid(
         moving_mm: pair.moving_mm,
     }));
     correspondences.sort_by(compare_correspondences);
+    discard_ambiguous_endpoint_groups(&mut correspondences);
+    let correspondence_count = correspondences.len();
+    if correspondence_count < 3 {
+        return Err(RegistrationError::InvalidInput(format!(
+            "symmetric rigid fitting retained only {correspondence_count} correspondences after rejecting ambiguous endpoint directions; at least three are required"
+        )));
+    }
 
     let inlier_count = correspondence_count / 2;
     let mut active = initial_trimmed_subset(&correspondences, inlier_count)?;
@@ -264,6 +275,34 @@ fn compare_points(left: [f64; 3], right: [f64; 3]) -> std::cmp::Ordering {
             (ordering != std::cmp::Ordering::Equal).then_some(ordering)
         })
         .unwrap_or(std::cmp::Ordering::Equal)
+}
+
+fn discard_ambiguous_endpoint_groups(correspondences: &mut Vec<RigidCorrespondence>) {
+    let mut read = 0;
+    let mut write = 0;
+    while read < correspondences.len() {
+        let mut end = read + 1;
+        while end < correspondences.len()
+            && compare_correspondences(&correspondences[read], &correspondences[end]).is_eq()
+        {
+            end += 1;
+        }
+        let orientation = compare_points(
+            correspondences[read].fixed_mm,
+            correspondences[read].moving_mm,
+        );
+        let ambiguous = correspondences[read + 1..end]
+            .iter()
+            .any(|pair| compare_points(pair.fixed_mm, pair.moving_mm) != orientation);
+        if !ambiguous {
+            for source in read..end {
+                correspondences[write] = correspondences[source];
+                write += 1;
+            }
+        }
+        read = end;
+    }
+    correspondences.truncate(write);
 }
 
 fn initial_trimmed_subset(

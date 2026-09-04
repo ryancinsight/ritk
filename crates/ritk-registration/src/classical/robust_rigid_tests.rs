@@ -189,11 +189,31 @@ fn sampled_candidate_schedule_is_symmetric_for_independent_directions() {
             MovingToFixedCorrespondence::try_new(moving, fixed).expect("finite reverse fixture"),
         );
     }
+    for index in 0_u32..18 {
+        let offset = f64::from(index);
+        forward.push(
+            FixedToMovingCorrespondence::try_new(
+                [100.0 + offset, -70.0 + 0.3 * offset, 35.0],
+                [-80.0 + 0.2 * offset, 65.0 + offset, -40.0],
+            )
+            .expect("finite independent forward outlier"),
+        );
+    }
+    for index in 0_u32..19 {
+        let offset = f64::from(index);
+        reverse.push(
+            MovingToFixedCorrespondence::try_new(
+                [210.0 + 0.4 * offset, 55.0 - offset, -90.0],
+                [-120.0, 95.0 + 0.6 * offset, 70.0 + offset],
+            )
+            .expect("finite independent reverse outlier"),
+        );
+    }
     forward.rotate_left(11);
     reverse.reverse();
 
     let direct = fit_symmetric_trimmed_rigid(&forward, &reverse).expect("sampled direct fit");
-    assert_eq!(direct.correspondence_count, 81);
+    assert_eq!(direct.correspondence_count, 118);
     let swapped_forward: Vec<_> = reverse
         .iter()
         .map(|pair| {
@@ -214,6 +234,55 @@ fn sampled_candidate_schedule_is_symmetric_for_independent_directions() {
     let gamma_2048 = 2048.0 * f64::EPSILON / (1.0 - 2048.0 * f64::EPSILON);
     for (actual, expected) in product.into_iter().zip(AffineTransform::IDENTITY.0) {
         assert!((actual - expected).abs() <= gamma_2048);
+    }
+}
+
+#[test]
+fn conflicting_endpoint_directions_are_discarded_symmetrically() {
+    let mut forward = clean_pairs();
+    let mut reverse: Vec<_> = forward
+        .iter()
+        .map(|pair| {
+            MovingToFixedCorrespondence::try_new(pair.moving_mm(), pair.fixed_mm())
+                .expect("finite reverse fixture")
+        })
+        .collect();
+    let first = [200.0, -10.0, 30.0];
+    let second = [-50.0, 80.0, 60.0];
+    forward.push(
+        FixedToMovingCorrespondence::try_new(first, second)
+            .expect("finite conflicting forward pair"),
+    );
+    reverse.push(
+        MovingToFixedCorrespondence::try_new(first, second)
+            .expect("finite conflicting reverse pair"),
+    );
+
+    let direct = fit_symmetric_trimmed_rigid(&forward, &reverse).expect("direct fit");
+    assert_eq!(direct.correspondence_count, 12);
+    assert_maps_fixture(&direct.transform);
+
+    let swapped_forward: Vec<_> = reverse
+        .iter()
+        .map(|pair| {
+            FixedToMovingCorrespondence::try_new(pair.moving_mm(), pair.fixed_mm())
+                .expect("finite swapped forward")
+        })
+        .collect();
+    let swapped_reverse: Vec<_> = forward
+        .iter()
+        .map(|pair| {
+            MovingToFixedCorrespondence::try_new(pair.fixed_mm(), pair.moving_mm())
+                .expect("finite swapped reverse")
+        })
+        .collect();
+    let swapped =
+        fit_symmetric_trimmed_rigid(&swapped_forward, &swapped_reverse).expect("swapped fit");
+    assert_eq!(swapped.correspondence_count, 12);
+    let product = multiply(direct.transform.as_array(), swapped.transform.as_array());
+    let gamma_1024 = 1024.0 * f64::EPSILON / (1.0 - 1024.0 * f64::EPSILON);
+    for (actual, expected) in product.into_iter().zip(AffineTransform::IDENTITY.0) {
+        assert!((actual - expected).abs() <= gamma_1024);
     }
 }
 

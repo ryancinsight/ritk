@@ -50,6 +50,12 @@ independent three-point draws would miss an all-inlier subset with probability
 `(7/8)^1024`, below `f64::EPSILON^2`; the deterministic sequence provides
 reproducibility, not a probabilistic guarantee against adversarially arranged
 correspondence values.
+
+Repeated correspondences with the same unordered endpoint key retain their
+directional weight when every copy has one orientation. A key containing both
+orientations is discarded as ambiguous: selecting either orientation would
+change which correspondence identity occupies a sampled position after image
+roles swap.
 Auxiliary storage remains linear in correspondence count and does not allocate
 a pairwise-consistency matrix.
 
@@ -75,11 +81,12 @@ criteria.
 
 Analytical tests cover a known 20-degree transform with 40% coherent outliers,
 direction swapping and inverse composition on both exhaustive and sampled
-candidate paths, input-order normalization, non-finite points, collinear
-points, rejection of reflection anchors, exact zero-residual anchoring, and
-right composition of noncommuting anchor/residual rotations. Existing capture
-and refinement bounds remain covered. The runnable book example executes the
-same known-transform workflow.
+candidate paths, sampled fitting with independent directional outliers,
+rejection of conflicting unordered-endpoint directions, input-order
+normalization, non-finite points, collinear points, rejection of reflection
+anchors, exact zero-residual anchoring, and right composition of noncommuting
+anchor/residual rotations. Existing capture and refinement bounds remain
+covered. The runnable book example executes the same known-transform workflow.
 
 The fit assumes strictly more than half of the supplied correspondences support
 one identifiable non-collinear rigid transform. Exactly half is intrinsically
