@@ -71,13 +71,28 @@ fn invalid_region_inputs_are_typed_errors() {
         NonZeroU8::new(2).expect("two is nonzero"),
     )
     .expect("valid conditioned metric");
-    assert!(conditioned
+    let error = conditioned
         .compute_masked_samples(&[0.0], &[0.0], &[], None)
-        .is_err());
-    assert!(conditioned
+        .expect_err("mismatched region lengths must be rejected");
+    assert!(matches!(
+        error,
+        RegistrationError::InvalidInput(message)
+            if message == "conditioned mutual-information lengths differ: fixed=1, moving=1, regions=0"
+    ));
+    let error = conditioned
         .compute_masked_samples(&[0.0], &[0.0], &[2], None)
-        .is_err());
-    assert!(conditioned
+        .expect_err("out-of-range region labels must be rejected");
+    assert!(matches!(
+        error,
+        RegistrationError::InvalidInput(message)
+            if message == "spatial-region label 2 at sample 0 exceeds region count 2"
+    ));
+    let error = conditioned
         .compute_masked_samples(&[0.0], &[0.0], &[0], Some(&[]))
-        .is_err());
+        .expect_err("mismatched mask length must be rejected");
+    assert!(matches!(
+        error,
+        RegistrationError::InvalidInput(message)
+            if message == "mutual-information mask length 0 differs from sample length 1"
+    ));
 }

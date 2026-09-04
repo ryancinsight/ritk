@@ -63,9 +63,27 @@ fn structural_search_cannot_leave_terminal_capture_cell() {
 
 #[test]
 fn configuration_rejects_invalid_resource_bounds() {
-    assert!(RigidSearchConfig::try_new(0.0, 8.0, 0.5, 0.75, 256).is_err());
-    assert!(RigidSearchConfig::try_new(12.0, 8.0, 13.0, 0.75, 256).is_err());
-    assert!(RigidSearchConfig::try_new(12.0, 8.0, 0.5, 0.75, 0).is_err());
+    let error = RigidSearchConfig::try_new(0.0, 8.0, 0.5, 0.75, 256)
+        .expect_err("zero rotation range must be rejected");
+    assert!(matches!(
+        error,
+        RegistrationError::InvalidInput(message)
+            if message == "rigid-search ranges and resolutions must be finite and positive, got [0.0, 8.0, 0.5, 0.75]"
+    ));
+    let error = RigidSearchConfig::try_new(12.0, 8.0, 13.0, 0.75, 256)
+        .expect_err("terminal resolution beyond the range must be rejected");
+    assert!(matches!(
+        error,
+        RegistrationError::InvalidInput(message)
+            if message == "rigid-search terminal resolution [13 deg, 0.75 mm] exceeds half-range [12 deg, 8 mm]"
+    ));
+    let error = RigidSearchConfig::try_new(12.0, 8.0, 0.5, 0.75, 0)
+        .expect_err("zero iteration limit must be rejected");
+    assert!(matches!(
+        error,
+        RegistrationError::InvalidInput(message)
+            if message == "rigid-search simplex iteration limit must be positive"
+    ));
 }
 
 #[test]

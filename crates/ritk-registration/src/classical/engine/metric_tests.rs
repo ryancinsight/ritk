@@ -83,17 +83,46 @@ fn mask_changes_the_selected_value_semantics() {
 
 #[test]
 fn invalid_inputs_are_typed_errors() {
-    assert!(MutualInformationMetric::new(1, 0.0, 1.0).is_err());
-    assert!(IntensityRange::try_new(1.0, 1.0).is_err());
+    let error =
+        MutualInformationMetric::new(1, 0.0, 1.0).expect_err("one histogram bin must be rejected");
+    assert!(matches!(
+        error,
+        RegistrationError::InvalidInput(message)
+            if message == "mutual-information histogram requires at least two bins, got 1"
+    ));
+    let error = IntensityRange::try_new(1.0, 1.0)
+        .expect_err("a degenerate intensity range must be rejected");
+    assert!(matches!(
+        error,
+        RegistrationError::InvalidInput(message)
+            if message == "intensity range must be finite and increasing, got [1, 1]"
+    ));
     let metric = metric(
         NmiNormalization::MeanEntropy,
         HistogramEstimator::MovingLinearPartialVolume,
     );
-    assert!(metric.compute_masked_samples(&[0.0], &[], None).is_err());
-    assert!(metric
+    let error = metric
+        .compute_masked_samples(&[0.0], &[], None)
+        .expect_err("mismatched sample lengths must be rejected");
+    assert!(matches!(
+        error,
+        RegistrationError::InvalidInput(message)
+            if message == "mutual-information sample lengths differ: 1 versus 0"
+    ));
+    let error = metric
         .compute_masked_samples(&[0.0], &[-1.0], Some(&[]))
-        .is_err());
-    assert!(metric
+        .expect_err("mismatched mask length must be rejected");
+    assert!(matches!(
+        error,
+        RegistrationError::InvalidInput(message)
+            if message == "mutual-information mask length 0 differs from sample length 1"
+    ));
+    let error = metric
         .compute_masked_samples(&[f64::NAN], &[-1.0], None)
-        .is_err());
+        .expect_err("non-finite samples must be rejected");
+    assert!(matches!(
+        error,
+        RegistrationError::InvalidInput(message)
+            if message == "mutual-information sample 0 is not finite: fixed=NaN, moving=-1"
+    ));
 }
