@@ -22,11 +22,11 @@
 <a id="RITK-RIGID-CAPTURE-INITIALIZER-2026-09-04"></a>
 ## RITK-RIGID-CAPTURE-INITIALIZER-2026-09-04 — Robust rigid capture initializer [major] [arch] — in-progress
 
-- **Status:** in-progress; integrator=Codex; last-update=2026-09-04T18:47:36-04:00.
-- **Lease:** `ritk-registration` rigid search/fitting, ADR 0025, registration example/book, and this item.
+- **Status:** in-progress; integrator=Codex; last-update=2026-09-04T18:58:31-04:00.
+- **Lease:** `ritk-block-matching` partial-FOV validity, downstream rigid validation, and this item.
 - **Outcome:** fit a deterministic symmetric least-trimmed-squares rigid anchor from bidirectional block correspondences and refine around that full transform.
 - **Scope/non-goals:** RITK fitting/search contracts and validation; no image-format policy, subject-tuned constants, deformable correction, or fiducials in optimization.
-- **Acceptance:** analytical rigid recovery below the 50% breakdown boundary, forward/reverse invariance, finite/malformed-input failure, bounded memory, focused/full gates, example/book, downstream RIRE validation, and independent review.
+- **Acceptance:** analytical rigid recovery below the 50% breakdown boundary, forward/reverse invariance, finite/malformed-input failure, partial-FOV candidate rejection without padding evidence, bounded memory, focused/full gates, example/book, downstream RIRE validation, and independent review.
 - **Dependency:** LeoNeuro `M20`; Modat et al. 2014 sections 2.1–2.3 and 3 define the method and RIRE oracle.
 
 ## RITK-LINT-ALLOW-SITES-2026-08-31 — Remove reintroduced production allowances [patch] — in progress
