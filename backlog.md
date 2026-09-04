@@ -1,16 +1,7 @@
 <a id="RITK-SOFT-TISSUE-REGISTRATION-2026-09-03"></a>
-## RITK-SOFT-TISSUE-REGISTRATION-2026-09-03 — Soft-tissue multimodal registration [major] [arch] — review
+## RITK-SOFT-TISSUE-REGISTRATION-2026-09-03 — Soft-tissue multimodal registration [major] [arch] — done
 
-- **Status:** review; integrator=Codex; last-update=2026-09-03T23:36:00-04:00.
-- **Outcome:** add masked moving-linear partial-volume NMI, physical-radius mask
-  morphology, and bounded NMI-capture/NGF-refinement reusable by downstream
-  CT/MRI registration while preserving discrete NMI as the default estimator.
-- **Scope/non-goals:** rigid same-patient multimodal registration; no deformable
-  correction, fiducial-informed optimization, clinical claim, or tolerance tuning.
-- **Acceptance:** analytical metric/search laws pass; RIRE Patient-001 image-only
-  mean/max TRE improve from 1.89/3.33 mm without optimizer access to fiducials;
-  generated overlays are inspected; focused Rust/docs gates pass.
-- **Decision:** `docs/adr/0023-soft-tissue-multimodal-registration.md`.
+- **Status:** done; delivered by [RITK PR #227](https://github.com/ryancinsight/ritk/pull/227) and integrated by [LeoNeuro PR #19](https://github.com/LeoNeuro-INC/leoneuro-rs/pull/19); decision: `docs/adr/0023-soft-tissue-multimodal-registration.md`.
 
 ## RITK-LINT-ALLOW-SITES-2026-08-31 — Remove reintroduced production allowances [patch] — in progress
 
