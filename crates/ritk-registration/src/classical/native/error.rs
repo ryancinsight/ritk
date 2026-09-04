@@ -30,3 +30,26 @@ pub enum NativeConversionError {
     #[error("native physical affine construction failed: {0}")]
     PhysicalAffineConstruction(#[source] ritk_transform::transform::affine::AtlasAffineError),
 }
+
+/// Failure converting a classical physical rigid affine into the native frame.
+#[derive(Debug, Error)]
+#[non_exhaustive]
+pub enum RigidPhysicalAffineError {
+    /// The affine does not have the canonical homogeneous final row.
+    #[error("physical affine homogeneous row must be [0, 0, 0, 1], got {actual:?}")]
+    InvalidHomogeneousRow {
+        /// Observed final row.
+        actual: [f64; 4],
+    },
+    /// A component cannot be represented by the native `f32` transform.
+    #[error("{role} contains non-representable f64 value {value}")]
+    NonRepresentable {
+        /// Matrix or translation component family.
+        role: &'static str,
+        /// Failing value before conversion to `f32`.
+        value: f64,
+    },
+    /// Native affine construction rejected the checked shape.
+    #[error("native rigid affine construction failed: {0}")]
+    Construction(#[source] ritk_transform::transform::affine::AtlasAffineError),
+}

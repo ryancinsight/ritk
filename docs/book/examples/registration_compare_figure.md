@@ -14,8 +14,11 @@ which panel is pre-registration or post-registration.
 
 The example first samples both modalities onto a common coarse physical grid,
 evaluates moving-linear partial-volume NMI before and after applying the RIRE
-fiducial transform, and then resamples the original MR volume onto the full CT
-grid. Because this fixture supplies a geometric registration
+fiducial transform, prepares packed MIND-SSC descriptors on at most 8,192
+deterministically selected complete-support CT centers within a conventional
+`[-200, 200]` HU soft-tissue mask, and scores MR directly at those centers
+before and after the transform. It then resamples the original MR volume onto
+the full CT grid. Because this fixture supplies a geometric registration
 standard, the example uses that transform for the reproducible output rather
 than publishing a blind optimizer result that can stop in a wrong MI basin.
 The generated SVG contains four labeled panels:
@@ -28,6 +31,10 @@ The generated SVG contains four labeled panels:
 
 In the overlay panels, red is CT and green is MR. Correctly coincident
 anatomy appears yellow; red or green fringes identify residual misalignment.
+Their subtitles report fixed-denominator MIND-SSC similarity. The score uses
+the classical physical `[z,y,x]` affine through RITK's axis-convention bridge,
+then samples native `[x,y,z]` image geometry; the example does not reinterpret
+an already-physical affine as an index transform.
 The fourth panel is not a second registration result: it is a data-derived
 diagnostic showing where the transform changes the sampled MR values. Its
 subtitle reports the maximum and mean absolute change for the displayed slice.
@@ -44,6 +51,10 @@ cargo run -p ritk-registration --example book_registration -- \
 - Loads the in-tree CT/MR pair from `test_data/registration/rire/`.
 - Requires normalized mutual information to improve from identity to the
   dataset transform.
+- Reports fixed-denominator MIND-SSC at identity and at the dataset transform,
+  together with its deterministic center count and exact retained heap
+  payload. The metric is an independent diagnostic here; this fixture does not
+  assert that one raw CT soft-tissue mask validates MIND-SSC across modalities.
 - Produces the registered MR on the full CT physical grid.
 - Uses one parsed RIRE transform and one native resampling call for the
   registered panel, avoiding a duplicate reference panel.

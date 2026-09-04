@@ -32,3 +32,4 @@
 | [0021](0021-retire-the-gpu-field-smoother.md) | Retire the GPU field smoother | Accepted |
 | [0022](0022-reusable-dti-volume-tractography.md) | Reusable DTI-volume tractography boundary | Accepted |
 | [0023](0023-soft-tissue-multimodal-registration.md) | Soft-tissue multimodal rigid registration | Accepted |
+| [0024](0024-packed-fixed-domain-mind-ssc.md) | Packed fixed-domain MIND-SSC similarity | Accepted |

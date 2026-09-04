@@ -64,6 +64,10 @@ ritk-image = { path = "../ritk-image", features = ["test-helpers"], version = "0
 name = "lddmm_smoothing"
 harness = false
 
+[[bench]]
+name = "mind_ssc"
+harness = false
+
 [[example]]
 name = "dl_registration"
 path = "examples/dl_registration.rs"
