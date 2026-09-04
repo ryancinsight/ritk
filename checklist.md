@@ -1,14 +1,3 @@
-## RITK-SOFT-TISSUE-REGISTRATION-2026-09-03
-
-- [x] Reproduce the RIRE soft-tissue failure and record NMI, NGF, and TRE at
-      identity, the image-only optimum, and the independent fiducial reference.
-- [x] Add explicit discrete/moving-linear histogram estimation, physical-radius
-      morphology, and a bounded rigid-pose NMI capture/NGF refinement seam.
-- [x] Integrate the provider API in LeoNeuro and tighten the real-data TRE oracle.
-- [x] Regenerate and inspect the registration figure and synchronize both books.
-- [ ] Pass focused/full gates, independent review, commit, push, merge, and
-      provider-pin integration.
-
 ## RITK-LINT-ALLOW-SITES-2026-08-31
 
 - [x] Attribute all 16 production allowance sites to exact introducing commit
