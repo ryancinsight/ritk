@@ -2,13 +2,14 @@
 //!
 //! # Mathematical Specification
 //!
-//! Binary dilation with a flat cubic structuring element B of half-width r:
+//! Binary dilation with a flat rectangular structuring element B whose
+//! `[z, y, x]` half-widths are `r_i`:
 //!
 //!   (D_B f)(x) = fg  iff  ∃ b ∈ B: f(x − b) = fg
 //!             = bg  otherwise
 //!
 //! Equivalently: a voxel x is foreground in the output iff any voxel in its
-//! `(2r+1)³` cubic neighbourhood is foreground in the input.
+//! `Π_i(2r_i+1)` neighbourhood is foreground in the input.
 //!
 //! # Boundary Handling
 //!
@@ -22,11 +23,11 @@
 //! - `SetForegroundValue(foreground_value)` (default 1.0)
 //! - `SetBackgroundValue(0.0)`
 //! - `SetBoundaryToForeground(false)` (default)
-//! - Flat ball structuring element of radius r.
+//! - Flat rectangular structuring element with the configured axis radii.
 //!
 //! # Complexity
 //!
-//! O(N) where N is the total voxel count, independent of the radius `r`.
+//! O(N) where N is the total voxel count, independent of the radii.
 //! A flat cubic structuring element is the Minkowski sum of three orthogonal
 //! line segments, and dilation distributes over the Minkowski sum
 //! (`D_{A⊕B} = D_A ∘ D_B`), so the `(2r+1)³` cube is computed as three separable
@@ -48,16 +49,16 @@ use ritk_tensor_ops::{extract_vec, rebuild};
 
 /// Binary dilation filter for 3-D images.
 ///
-/// Grows foreground regions by one layer of `radius` voxels.  Each voxel is
-/// foreground in the output iff at least one voxel in its `(2r+1)³` cubic
+/// Grows foreground regions by the configured `[z, y, x]` voxel radii. Each
+/// voxel is foreground in the output iff at least one voxel in its rectangular
 /// neighbourhood is foreground in the input.
 ///
 /// Out-of-bounds positions are treated as background, so the foreground
 /// region cannot grow beyond the image boundary.
 #[derive(Debug, Clone)]
 pub struct BinaryDilateFilter {
-    /// Structuring element half-width in voxels.
-    radius: usize,
+    /// Structuring-element half-width in `[z, y, x]` voxels.
+    radii: [usize; 3],
     /// Voxel value treated as foreground. Default: 1.0.
     foreground_value: ForegroundValue,
 }
@@ -66,9 +67,19 @@ impl BinaryDilateFilter {
     /// Create a binary dilation filter with `radius` and default `foreground_value = 1.0`.
     pub fn new(radius: usize) -> Self {
         Self {
-            radius,
+            radii: [radius; 3],
             foreground_value: ForegroundValue::ONE,
         }
+    }
+
+    /// Set independent `[z, y, x]` voxel radii.
+    ///
+    /// This represents a rectangular physical neighbourhood when each radius
+    /// is derived from one physical distance divided by that axis's spacing.
+    #[must_use]
+    pub fn with_axis_radii(mut self, radii: [usize; 3]) -> Self {
+        self.radii = radii;
+        self
     }
 
     /// Set the foreground value (ITK `SetForegroundValue`).
@@ -84,7 +95,7 @@ impl BinaryDilateFilter {
     pub fn apply<B: Backend>(&self, image: &Image<f32, B, 3>) -> anyhow::Result<Image<f32, B, 3>> {
         let (vals, dims) = extract_vec(image)?;
 
-        let result = dilate_binary_3d(&vals, dims, self.radius, self.foreground_value);
+        let result = dilate_binary_3d_with_radii(&vals, dims, self.radii, self.foreground_value);
 
         Ok(rebuild(result, dims, image))
     }
@@ -100,7 +111,7 @@ impl BinaryDilateFilter {
     {
         let (vals, dims) = ritk_tensor_ops::native::extract_image_vec(image)?;
 
-        let result = dilate_binary_3d(&vals, dims, self.radius, self.foreground_value);
+        let result = dilate_binary_3d_with_radii(&vals, dims, self.radii, self.foreground_value);
 
         crate::native_support::rebuild_image(result, dims, image, backend)
     }
@@ -127,6 +138,16 @@ pub(crate) fn dilate_binary_3d(
     radius: usize,
     fg: ForegroundValue,
 ) -> Vec<f32> {
+    dilate_binary_3d_with_radii(data, dims, [radius; 3], fg)
+}
+
+/// Binary dilation with independent `[z, y, x]` voxel radii.
+pub(crate) fn dilate_binary_3d_with_radii(
+    data: &[f32],
+    dims: [usize; 3],
+    radii: [usize; 3],
+    fg: ForegroundValue,
+) -> Vec<f32> {
     let [nz, ny, nx] = dims;
     let n = nz * ny * nx;
     let fg: f32 = fg.into();
@@ -144,19 +165,19 @@ pub(crate) fn dilate_binary_3d(
 
     // X axis: contiguous runs of length nx, stride 1.
     for line in 0..(nz * ny) {
-        dilate_line(&mut buf, line * nx, 1, nx, radius, &mut scratch);
+        dilate_line(&mut buf, line * nx, 1, nx, radii[2], &mut scratch);
     }
     // Y axis: runs of length ny, stride nx.
     for iz in 0..nz {
         for ix in 0..nx {
-            dilate_line(&mut buf, iz * ny * nx + ix, nx, ny, radius, &mut scratch);
+            dilate_line(&mut buf, iz * ny * nx + ix, nx, ny, radii[1], &mut scratch);
         }
     }
     // Z axis: runs of length nz, stride ny*nx.
     let plane = ny * nx;
     for iy in 0..ny {
         for ix in 0..nx {
-            dilate_line(&mut buf, iy * nx + ix, plane, nz, radius, &mut scratch);
+            dilate_line(&mut buf, iy * nx + ix, plane, nz, radii[0], &mut scratch);
         }
     }
 

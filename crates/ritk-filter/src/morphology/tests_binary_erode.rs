@@ -5,7 +5,7 @@ use ritk_image::Image;
 use ritk_spatial::{Direction, Point, Spacing};
 
 use super::erode_binary_3d;
-use crate::morphology::{native::binary_erode, ForegroundValue};
+use crate::morphology::{native::binary_erode, BinaryErodeFilter, ForegroundValue};
 
 type Backend = MoiraiBackend;
 
@@ -28,6 +28,20 @@ fn flat(image: &Image<f32, Backend, 3>) -> Vec<f32> {
         .data_slice()
         .expect("invariant: from_flat_on constructs contiguous image storage")
         .to_vec()
+}
+
+#[test]
+fn axis_radii_do_not_erode_across_thick_slice_axis() {
+    let (image, _) = make_image(vec![1.0; 27], [3, 3, 3]);
+    let output = BinaryErodeFilter::new(0)
+        .with_axis_radii([0, 1, 1])
+        .apply(&image)
+        .expect("valid anisotropic erosion");
+    let values = flat(&output);
+    assert_eq!(values.iter().filter(|&&value| value == 1.0).count(), 3);
+    assert_eq!(values[4], 1.0);
+    assert_eq!(values[13], 1.0);
+    assert_eq!(values[22], 1.0);
 }
 
 fn apply(

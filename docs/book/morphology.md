@@ -11,11 +11,19 @@ boundaries); grayscale operations preserve spatial metadata.
 
 ## Binary Morphology
 
-- `BinaryErodeFilter`, `BinaryDilateFilter` — structuring element via
-  connectivity (6-connectivity for 3D)
+- `BinaryErodeFilter`, `BinaryDilateFilter` — flat rectangular structuring
+  elements with one voxel radius per axis
 - `BinaryFillholeFilter` — flood-fill based hole filling
 - `BinaryMorphologicalClosing`, `BinaryMorphologicalOpening` —
   dilation followed by erosion (closing) or erosion followed by dilation (opening)
+
+For anisotropic volumes, a voxel radius does not represent one physical
+distance. `voxel_radii_for_physical_radius` converts a millimetre radius to
+independent `[z, y, x]` radii using `floor(radius / spacing_i)`. Pass the result
+to `with_axis_radii`; for 3.0 mm slices and 0.4 mm in-plane spacing, a 3.2 mm
+support becomes `[1, 8, 8]` rather than `[8, 8, 8]`. The latter would span 24 mm
+through-plane and can corrupt registration masks even though its axial view
+looks plausible.
 
 ## Grayscale Morphology
 

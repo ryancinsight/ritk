@@ -103,8 +103,10 @@ pub use atlas::{AtlasConfig, AtlasRegistration, AtlasResult, SubjectResult};
 // Re-exports — Classical (non-ML) registration
 // ============================================================================
 pub use classical::{
-    register_translation, ImageRegistration, MeanSquaredDifference, NormalizedCrossCorrelation,
-    RegistrationQualityMetrics, RegistrationResult, SpatialTransform, TemporalCorrelationSample,
+    register_translation, search_rigid_pose, HistogramEstimator, ImageRegistration, IntensityRange,
+    MeanSquaredDifference, MutualInformationMetric, NmiNormalization, NormalizedCrossCorrelation,
+    RegistrationQualityMetrics, RegistrationResult, RigidSearchConfig, RigidSearchResult,
+    SpatialTransform, SpatiallyConditionedMutualInformationMetric, TemporalCorrelationSample,
     TemporalSignal, TemporalSync, TemporalSyncConfig, TemporalSyncError, TemporalSyncResult,
     TemporalSyncStatus, TranslationMetric, TranslationRegistrationError,
 };

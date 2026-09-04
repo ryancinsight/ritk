@@ -112,6 +112,46 @@ pub use iterate_structure::{iterate_structure, iterate_structure_with_origin, Bo
 pub mod types;
 pub use types::ForegroundValue;
 
+/// Convert one physical radius to independent `[z, y, x]` voxel radii.
+///
+/// Each axis uses `floor(radius / spacing)`, selecting exactly the voxel-centre
+/// offsets whose physical distance along that axis does not exceed `radius`.
+/// Passing the result to [`BinaryDilateFilter::with_axis_radii`] or
+/// [`BinaryErodeFilter::with_axis_radii`] avoids anisotropic images applying a
+/// much larger physical neighbourhood through thick slices.
+///
+/// # Errors
+///
+/// Returns an error when `radius` is negative or non-finite, or when a quotient
+/// exceeds the largest integer represented exactly by `f64`.
+pub fn voxel_radii_for_physical_radius(
+    radius: f64,
+    spacing: &ritk_spatial::Spacing<3>,
+) -> anyhow::Result<[usize; 3]> {
+    const MAX_EXACT_INTEGER: f64 = 9_007_199_254_740_992.0;
+    if !radius.is_finite() || radius < 0.0 {
+        anyhow::bail!("physical morphology radius must be finite and non-negative, got {radius}");
+    }
+    let mut radii = [0; 3];
+    for axis in 0..3 {
+        let quotient = radius / spacing[axis];
+        if quotient > MAX_EXACT_INTEGER || quotient > usize::MAX as f64 {
+            anyhow::bail!(
+                "physical morphology radius {radius} produces an unrepresentable voxel radius \
+                 on axis {axis} with spacing {}",
+                spacing[axis]
+            );
+        }
+        #[expect(
+            clippy::cast_possible_truncation,
+            reason = "floor is the physical support definition and the value is range-checked above"
+        )]
+        let voxel_radius = quotient.floor() as usize;
+        radii[axis] = voxel_radius;
+    }
+    Ok(radii)
+}
+
 thread_local! {
     #[cfg_attr(
         all(windows, target_env = "gnu"),

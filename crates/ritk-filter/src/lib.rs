@@ -85,18 +85,18 @@ pub use intensity::{
 pub mod morphology;
 
 pub use morphology::{
-    BinaryContourImageFilter, BinaryDilateFilter, BinaryErodeFilter, BinaryFillholeFilter,
-    BinaryMorphologicalClosing, BinaryMorphologicalOpening, BinaryPruningFilter,
-    BinaryThinningFilter, BlackTopHatFilter, ClosingByReconstructionFilter, Connectivity,
-    ErodeObjectMorphologyFilter, ForegroundValue, GrayscaleClosingFilter, GrayscaleDilation,
-    GrayscaleErosion, GrayscaleFillholeFilter, GrayscaleGeodesicDilationFilter,
-    GrayscaleGeodesicErosionFilter, GrayscaleGrindPeakFilter, GrayscaleMorphologicalGradientFilter,
-    GrayscaleOpeningFilter, HConcaveFilter, HConvexFilter, HMaximaFilter, HMinimaFilter,
-    HitOrMissTransform, LabelClosing, LabelContourImageFilter, LabelDilation, LabelErosion,
-    LabelOpening, MorphologicalReconstruction, OpeningByReconstructionFilter, ReconstructionMode,
-    RegionalMaximaFilter, RegionalMinimaFilter, ValuedRegionalMaximaFilter,
-    ValuedRegionalMinimaFilter, VotingBinaryHoleFillingImageFilter, VotingBinaryImageFilter,
-    WhiteTopHatFilter,
+    voxel_radii_for_physical_radius, BinaryContourImageFilter, BinaryDilateFilter,
+    BinaryErodeFilter, BinaryFillholeFilter, BinaryMorphologicalClosing,
+    BinaryMorphologicalOpening, BinaryPruningFilter, BinaryThinningFilter, BlackTopHatFilter,
+    ClosingByReconstructionFilter, Connectivity, ErodeObjectMorphologyFilter, ForegroundValue,
+    GrayscaleClosingFilter, GrayscaleDilation, GrayscaleErosion, GrayscaleFillholeFilter,
+    GrayscaleGeodesicDilationFilter, GrayscaleGeodesicErosionFilter, GrayscaleGrindPeakFilter,
+    GrayscaleMorphologicalGradientFilter, GrayscaleOpeningFilter, HConcaveFilter, HConvexFilter,
+    HMaximaFilter, HMinimaFilter, HitOrMissTransform, LabelClosing, LabelContourImageFilter,
+    LabelDilation, LabelErosion, LabelOpening, MorphologicalReconstruction,
+    OpeningByReconstructionFilter, ReconstructionMode, RegionalMaximaFilter, RegionalMinimaFilter,
+    ValuedRegionalMaximaFilter, ValuedRegionalMinimaFilter, VotingBinaryHoleFillingImageFilter,
+    VotingBinaryImageFilter, WhiteTopHatFilter,
 };
 
 // ── Edge detection & vesselness ──────────────────────────────────────────────

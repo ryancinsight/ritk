@@ -13,9 +13,9 @@ which panel is pre-registration or post-registration.
 ## Description
 
 The example first samples both modalities onto a common coarse physical grid,
-evaluates the classical mutual-information metric before and after applying
-the RIRE fiducial transform, and then resamples the original MR volume onto
-the full CT grid. Because this fixture supplies a geometric registration
+evaluates moving-linear partial-volume NMI before and after applying the RIRE
+fiducial transform, and then resamples the original MR volume onto the full CT
+grid. Because this fixture supplies a geometric registration
 standard, the example uses that transform for the reproducible output rather
 than publishing a blind optimizer result that can stop in a wrong MI basin.
 The generated SVG contains four labeled panels:

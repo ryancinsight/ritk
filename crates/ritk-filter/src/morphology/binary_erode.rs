@@ -2,12 +2,13 @@
 //!
 //! # Mathematical Specification
 //!
-//! Binary erosion with a flat cubic structuring element B of half-width r:
+//! Binary erosion with a flat rectangular structuring element B whose
+//! `[z, y, x]` half-widths are `r_i`:
 //!
 //!   (E_B f)(x) = fg  iff  ∀ b ∈ B: f(x + b) = fg
 //!             = bg  otherwise
 //!
-//! where B = { b ∈ ℤ³ : |b_i| ≤ r  for i ∈ {0, 1, 2} }.
+//! where B = { b ∈ ℤ³ : |b_i| ≤ r_i for i ∈ {0, 1, 2} }.
 //!
 //! # Boundary Handling
 //!
@@ -22,11 +23,11 @@
 //! - `SetForegroundValue(foreground_value)` (default 1.0)
 //! - `SetBackgroundValue(0.0)`
 //! - `SetBoundaryToForeground(false)` (default)
-//! - Flat ball structuring element of radius r.
+//! - Flat rectangular structuring element with the configured axis radii.
 //!
 //! # Complexity
 //!
-//! O(N · (2r + 1)³) where N is the total voxel count.
+//! O(N · Π_i(2r_i + 1)) where N is the total voxel count.
 //!
 //! # References
 //!
@@ -44,16 +45,16 @@ use ritk_tensor_ops::{extract_vec, rebuild};
 
 /// Binary erosion filter for 3-D images.
 ///
-/// Shrinks foreground regions by eroding their boundaries.  Each voxel is
-/// foreground in the output iff every voxel in its `(2r+1)³` cubic
+/// Shrinks foreground regions by the configured `[z, y, x]` voxel radii. Each
+/// voxel is foreground in the output iff every voxel in its rectangular
 /// neighbourhood is foreground in the input.
 ///
 /// Out-of-bounds neighbours are treated as background, so foreground regions
 /// touching the image border are eroded to background (ITK default behaviour).
 #[derive(Debug, Clone)]
 pub struct BinaryErodeFilter {
-    /// Structuring element half-width in voxels.
-    radius: usize,
+    /// Structuring-element half-width in `[z, y, x]` voxels.
+    radii: [usize; 3],
     /// Voxel value treated as foreground. Default: 1.0.
     foreground_value: ForegroundValue,
 }
@@ -62,9 +63,19 @@ impl BinaryErodeFilter {
     /// Create a binary erosion filter with `radius` and default `foreground_value = 1.0`.
     pub fn new(radius: usize) -> Self {
         Self {
-            radius,
+            radii: [radius; 3],
             foreground_value: ForegroundValue::ONE,
         }
+    }
+
+    /// Set independent `[z, y, x]` voxel radii.
+    ///
+    /// This represents a rectangular physical neighbourhood when each radius
+    /// is derived from one physical distance divided by that axis's spacing.
+    #[must_use]
+    pub fn with_axis_radii(mut self, radii: [usize; 3]) -> Self {
+        self.radii = radii;
+        self
     }
 
     /// Set the foreground value (ITK `SetForegroundValue`).
@@ -80,7 +91,7 @@ impl BinaryErodeFilter {
     pub fn apply<B: Backend>(&self, image: &Image<f32, B, 3>) -> anyhow::Result<Image<f32, B, 3>> {
         let (vals, dims) = extract_vec(image)?;
 
-        let result = erode_binary_3d(&vals, dims, self.radius, self.foreground_value);
+        let result = erode_binary_3d_with_radii(&vals, dims, self.radii, self.foreground_value);
 
         Ok(rebuild(result, dims, image))
     }
@@ -96,7 +107,7 @@ impl BinaryErodeFilter {
     {
         let (vals, dims) = ritk_tensor_ops::native::extract_image_vec(image)?;
 
-        let result = erode_binary_3d(&vals, dims, self.radius, self.foreground_value);
+        let result = erode_binary_3d_with_radii(&vals, dims, self.radii, self.foreground_value);
 
         crate::native_support::rebuild_image(result, dims, image, backend)
     }
@@ -123,6 +134,16 @@ pub(crate) fn erode_binary_3d(
     radius: usize,
     fg: ForegroundValue,
 ) -> Vec<f32> {
+    erode_binary_3d_with_radii(data, dims, [radius; 3], fg)
+}
+
+/// Binary erosion with independent `[z, y, x]` voxel radii.
+pub(crate) fn erode_binary_3d_with_radii(
+    data: &[f32],
+    dims: [usize; 3],
+    radii: [usize; 3],
+    fg: ForegroundValue,
+) -> Vec<f32> {
     let [nz, ny, nx] = dims;
     let fg: f32 = fg.into();
     let n = nz * ny * nx;
@@ -131,9 +152,12 @@ pub(crate) fn erode_binary_3d(
         let iz = flat / (ny * nx);
         let iy = (flat / nx) % ny;
         let ix = flat % nx;
-        let r = radius as isize;
-        let all_fg = (-r..=r)
-            .flat_map(|dz| (-r..=r).flat_map(move |dy| (-r..=r).map(move |dx| (dz, dy, dx))))
+        let [radius_z, radius_y, radius_x] = radii.map(|radius| radius as isize);
+        let all_fg = (-radius_z..=radius_z)
+            .flat_map(|dz| {
+                (-radius_y..=radius_y)
+                    .flat_map(move |dy| (-radius_x..=radius_x).map(move |dx| (dz, dy, dx)))
+            })
             .all(|(dz, dy, dx)| {
                 let zz = iz as isize + dz;
                 let yy = iy as isize + dy;

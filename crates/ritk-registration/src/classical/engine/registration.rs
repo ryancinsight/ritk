@@ -125,7 +125,7 @@ impl ImageRegistration {
 
         while iteration < self.config.max_iterations {
             let current_volume = super::super::spatial::apply_transform(volume, &current_transform);
-            let current_loss = -self.similarity.compute(&current_volume, reference);
+            let current_loss = -self.similarity.compute(&current_volume, reference)?;
 
             // Convergence check
             if (prev_loss - current_loss).abs() < self.config.tolerance {
@@ -143,7 +143,7 @@ impl ImageRegistration {
                 let perturb = perturb.map(|value| value * self.config.step_multiplier);
                 let perturbed = apply_transform_perturbation(&current_transform, &perturb);
                 let transformed = super::super::spatial::apply_transform(volume, &perturbed);
-                let loss = -self.similarity.compute(&transformed, reference);
+                let loss = -self.similarity.compute(&transformed, reference)?;
 
                 if loss < best_loss {
                     best_loss = loss;
@@ -169,7 +169,7 @@ impl ImageRegistration {
             quality: RegistrationQualityMetrics {
                 fre: None,
                 tre: None,
-                mutual_information: self.similarity.compute(&transformed, reference),
+                mutual_information: self.similarity.compute(&transformed, reference)?,
                 correlation_coefficient: 0.0,
                 normalized_cross_correlation: 0.0,
                 convergence: if iteration < self.config.max_iterations {
@@ -205,7 +205,7 @@ impl ImageRegistration {
 
         let mut current_transform = *initial_transform;
         let initial_volume = super::super::spatial::apply_transform(volume, &current_transform);
-        let mut current_similarity = self.similarity.compute(&initial_volume, reference);
+        let mut current_similarity = self.similarity.compute(&initial_volume, reference)?;
         let mut iteration = 0;
 
         while iteration < self.config.max_iterations {
@@ -215,7 +215,7 @@ impl ImageRegistration {
                     let mut candidate = current_transform;
                     candidate.0[axis * 4 + 3] += direction * self.config.step_multiplier;
                     let transformed = super::super::spatial::apply_transform(volume, &candidate);
-                    let similarity = self.similarity.compute(&transformed, reference);
+                    let similarity = self.similarity.compute(&transformed, reference)?;
                     if similarity > current_similarity
                         && best
                             .as_ref()
@@ -281,7 +281,7 @@ impl ImageRegistration {
 
         while iteration < self.config.max_iterations {
             let current_volume = super::super::spatial::apply_transform(volume, &current_transform);
-            let current_loss = -self.similarity.compute(&current_volume, reference);
+            let current_loss = -self.similarity.compute(&current_volume, reference)?;
 
             // Convergence check
             if (prev_loss - current_loss).abs() < self.config.tolerance {
@@ -299,7 +299,7 @@ impl ImageRegistration {
                 let perturb = perturb.map(|value| value * self.config.step_multiplier);
                 let perturbed = apply_affine_perturbation(&current_transform, &perturb);
                 let transformed = super::super::spatial::apply_transform(volume, &perturbed);
-                let loss = -self.similarity.compute(&transformed, reference);
+                let loss = -self.similarity.compute(&transformed, reference)?;
 
                 if loss < best_loss {
                     best_loss = loss;
@@ -325,7 +325,7 @@ impl ImageRegistration {
             quality: RegistrationQualityMetrics {
                 fre: None,
                 tre: None,
-                mutual_information: self.similarity.compute(&transformed, reference),
+                mutual_information: self.similarity.compute(&transformed, reference)?,
                 correlation_coefficient: 0.0,
                 normalized_cross_correlation: 0.0,
                 convergence: if iteration < self.config.max_iterations {
