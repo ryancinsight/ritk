@@ -19,6 +19,16 @@
 - **Status:** done; the commit containing this entry adds the bounded `NonZeroU8` radius and updates ADR 0023.
 - **Evidence:** 424 package tests and 9 focused rigid-search tests pass; Clippy, doctests, Rustdoc, examples, changed book chapters, and rendered book are green.
 
+<a id="RITK-RIGID-CAPTURE-INITIALIZER-2026-09-04"></a>
+## RITK-RIGID-CAPTURE-INITIALIZER-2026-09-04 — Robust rigid capture initializer [major] [arch] — in-progress
+
+- **Status:** in-progress; integrator=Codex; last-update=2026-09-04T17:36:52-04:00.
+- **Lease:** `ritk-registration` rigid search/fitting, ADR 0025, registration example/book, and this item.
+- **Outcome:** fit a deterministic symmetric least-trimmed-squares rigid anchor from bidirectional block correspondences and refine around that full transform.
+- **Scope/non-goals:** RITK fitting/search contracts and validation; no image-format policy, subject-tuned constants, deformable correction, or fiducials in optimization.
+- **Acceptance:** analytical rigid recovery, 50% outlier robustness boundary, forward/reverse invariance, finite/malformed-input failure, bounded memory, focused/full gates, example/book, downstream RIRE validation, and independent review.
+- **Dependency:** LeoNeuro `M20`; Modat et al. 2014 sections 2.1–2.3 and 3 define the method and RIRE oracle.
+
 ## RITK-LINT-ALLOW-SITES-2026-08-31 — Remove reintroduced production allowances [patch] — in progress
 
 - **Status:** in progress; integrator=current Codex session; lease=the 13 affected
