@@ -23,10 +23,11 @@ structure without enabling an unbounded second search. The tested Rustdoc on
 `RigidSearchConfig::with_structural_half_range_cells` is the copyable API
 example.
 
-The capture schedule and all simplex operations are clipped to the same finite
-axis intervals before an objective sees a candidate. This remains true when an
-otherwise valid finite resolution multiplied by a schedule factor would
-overflow.
+The capture schedule and all simplex operations preserve finite proposals and
+their bounded-objective rejection semantics. If an otherwise valid finite
+resolution multiplied by a schedule factor would overflow, only that
+non-finite proposal is replaced by the finite endpoint in its direction before
+an objective sees it.
 
 `RigidSearchResult::capture_saturated` and `structural_saturated` report when an
 optimum touches its permitted boundary. Structural saturation covers either the

@@ -63,10 +63,12 @@ an infeasible outward vertex. The effective finite interval also caps an
 overflowing resolution-by-cell product. The second stage therefore cannot
 become an unbounded global search. Callers retain explicit coverage and overlap
 gates.
-Capture coordinate moves and every Nelder-Mead operation are clipped to their
-finite effective interval before objective evaluation. Nominal steps are capped
-by the corresponding global half-range, so an accepted extreme finite
-configuration cannot construct a non-finite candidate.
+Capture coordinate moves and every Nelder-Mead operation preserve ordinary
+finite proposals, including the existing rejection semantics outside a bound.
+Only arithmetic that would overflow is replaced by the finite endpoint in its
+direction before bound checking, so an accepted extreme finite configuration
+cannot expose a non-finite candidate to an objective or perturb established
+finite search trajectories.
 
 Morphological filters accept independent axis radii, and a physical-radius
 conversion derives those radii from image spacing. A caller can therefore keep

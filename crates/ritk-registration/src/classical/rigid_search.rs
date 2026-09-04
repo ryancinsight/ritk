@@ -188,7 +188,6 @@ where
         )
     };
     let bounds = config.global_bounds();
-    let global_intervals = bounds.map(|bound| [-bound, bound]);
     let in_global_range = |parameters: &[f64; PARAMETER_COUNT]| {
         parameters
             .iter()
@@ -207,17 +206,16 @@ where
     let mut best_score = capture_score(&parameters)?;
     for level in (0..CAPTURE_LEVELS).rev() {
         let scale = f64::from(1_u32 << level);
-        let steps: [f64; PARAMETER_COUNT] =
-            std::array::from_fn(|axis| (resolution[axis] * scale).min(bounds[axis]));
+        let steps = resolution.map(|value| value * scale);
         loop {
             let mut improved = false;
             for axis in 0..PARAMETER_COUNT {
                 for direction in [-1.0, 1.0] {
                     let mut candidate = parameters;
-                    candidate[axis] = offset_within_interval(
+                    candidate[axis] = finite_offset(
                         parameters[axis],
                         direction * steps[axis],
-                        global_intervals[axis],
+                        [-bounds[axis], bounds[axis]],
                     );
                     let candidate_score = capture_score(&candidate)?;
                     if candidate_score > best_score {
@@ -233,17 +231,14 @@ where
         }
     }
 
-    let capture_nominal_step =
-        std::array::from_fn(|axis| (resolution[axis] * 4.0).min(bounds[axis]));
-    let capture_simplex_step =
-        signed_simplex_step(parameters, global_intervals, capture_nominal_step);
+    let capture_simplex_step = resolution.map(|value| value * 4.0);
     let convergence_width = resolution.map(|value| value / 16.0);
     let capture_parameters = nelder_mead_maximize(
         parameters,
         capture_simplex_step,
         convergence_width,
         config.simplex_iteration_limit,
-        global_intervals,
+        bounds.map(|bound| [-bound, bound]),
         &mut capture_score,
     )?;
     let capture_transform = matrix(&capture_parameters);
@@ -336,27 +331,19 @@ fn signed_simplex_step(
     })
 }
 
-fn offset_within_interval(value: f64, offset: f64, [lower, upper]: [f64; 2]) -> f64 {
-    if offset >= 0.0 {
-        if offset.is_infinite() {
-            upper
-        } else {
-            let room = upper - value;
-            if offset <= room {
-                value + offset
-            } else {
-                upper
-            }
-        }
-    } else if offset.is_infinite() {
-        lower
+fn finite_offset(value: f64, offset: f64, [lower, upper]: [f64; 2]) -> f64 {
+    let candidate = value + offset;
+    if candidate.is_finite() {
+        candidate
     } else {
-        let room = value - lower;
-        let magnitude = -offset;
-        if magnitude <= room {
-            value - magnitude
-        } else {
+        debug_assert!(
+            !candidate.is_nan(),
+            "invariant: finite value plus signed infinite offset has a defined sign"
+        );
+        if candidate.is_sign_negative() {
             lower
+        } else {
+            upper
         }
     }
 }
@@ -489,7 +476,7 @@ where
 {
     let mut simplex = [start; SIMPLEX_VERTEX_COUNT];
     for axis in 0..PARAMETER_COUNT {
-        simplex[axis + 1][axis] = offset_within_interval(start[axis], step[axis], intervals[axis]);
+        simplex[axis + 1][axis] = finite_offset(start[axis], step[axis], intervals[axis]);
     }
     let mut values = [0.0; SIMPLEX_VERTEX_COUNT];
     for (value, vertex) in values.iter_mut().zip(simplex.iter()) {
@@ -573,7 +560,7 @@ fn along(
     intervals: [[f64; 2]; PARAMETER_COUNT],
 ) -> [f64; PARAMETER_COUNT] {
     let direction = std::array::from_fn(|axis| centroid[axis] - worst[axis]);
-    bounded_offset(centroid, direction, coefficient, intervals)
+    finite_affine_offset(centroid, direction, coefficient, intervals)
 }
 
 fn towards(
@@ -583,17 +570,17 @@ fn towards(
     intervals: [[f64; 2]; PARAMETER_COUNT],
 ) -> [f64; PARAMETER_COUNT] {
     let direction = std::array::from_fn(|axis| target[axis] - start[axis]);
-    bounded_offset(start, direction, fraction, intervals)
+    finite_affine_offset(start, direction, fraction, intervals)
 }
 
-fn bounded_offset(
+fn finite_affine_offset(
     start: [f64; PARAMETER_COUNT],
     direction: [f64; PARAMETER_COUNT],
     coefficient: f64,
     intervals: [[f64; 2]; PARAMETER_COUNT],
 ) -> [f64; PARAMETER_COUNT] {
     std::array::from_fn(|axis| {
-        offset_within_interval(start[axis], coefficient * direction[axis], intervals[axis])
+        finite_offset(start[axis], coefficient * direction[axis], intervals[axis])
     })
 }
 
