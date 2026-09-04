@@ -188,6 +188,7 @@ where
         )
     };
     let bounds = config.global_bounds();
+    let global_intervals = bounds.map(|bound| [-bound, bound]);
     let in_global_range = |parameters: &[f64; PARAMETER_COUNT]| {
         parameters
             .iter()
@@ -206,13 +207,18 @@ where
     let mut best_score = capture_score(&parameters)?;
     for level in (0..CAPTURE_LEVELS).rev() {
         let scale = f64::from(1_u32 << level);
-        let steps = resolution.map(|value| value * scale);
+        let steps: [f64; PARAMETER_COUNT] =
+            std::array::from_fn(|axis| (resolution[axis] * scale).min(bounds[axis]));
         loop {
             let mut improved = false;
             for axis in 0..PARAMETER_COUNT {
                 for direction in [-1.0, 1.0] {
                     let mut candidate = parameters;
-                    candidate[axis] += direction * steps[axis];
+                    candidate[axis] = offset_within_interval(
+                        parameters[axis],
+                        direction * steps[axis],
+                        global_intervals[axis],
+                    );
                     let candidate_score = capture_score(&candidate)?;
                     if candidate_score > best_score {
                         parameters = candidate;
@@ -227,13 +233,17 @@ where
         }
     }
 
-    let capture_simplex_step = resolution.map(|value| value * 4.0);
+    let capture_nominal_step =
+        std::array::from_fn(|axis| (resolution[axis] * 4.0).min(bounds[axis]));
+    let capture_simplex_step =
+        signed_simplex_step(parameters, global_intervals, capture_nominal_step);
     let convergence_width = resolution.map(|value| value / 16.0);
     let capture_parameters = nelder_mead_maximize(
         parameters,
         capture_simplex_step,
         convergence_width,
         config.simplex_iteration_limit,
+        global_intervals,
         &mut capture_score,
     )?;
     let capture_transform = matrix(&capture_parameters);
@@ -262,6 +272,7 @@ where
         structural_step,
         convergence_width,
         config.simplex_iteration_limit,
+        structural_bounds,
         &mut structural_score,
     )?;
     let structural_transform = matrix(&structural_parameters);
@@ -300,20 +311,54 @@ fn structural_interval_and_step(
             (center[axis] + requested_radius).min(global_half_range[axis]),
         ]
     });
-    let steps = std::array::from_fn(|axis| {
+    let nominal_step = std::array::from_fn(|axis| {
+        (resolution[axis] * (cell_count / 2.0)).min(global_half_range[axis])
+    });
+    let steps = signed_simplex_step(center, intervals, nominal_step);
+    (intervals, steps)
+}
+
+fn signed_simplex_step(
+    center: [f64; PARAMETER_COUNT],
+    intervals: [[f64; 2]; PARAMETER_COUNT],
+    nominal_step: [f64; PARAMETER_COUNT],
+) -> [f64; PARAMETER_COUNT] {
+    std::array::from_fn(|axis| {
         let [lower, upper] = intervals[axis];
         let positive_room = upper - center[axis];
         let negative_room = center[axis] - lower;
-        let step_magnitude = (resolution[axis] * (cell_count / 2.0))
-            .min(global_half_range[axis])
-            .min(positive_room.max(negative_room));
+        let step_magnitude = nominal_step[axis].min(positive_room.max(negative_room));
         if positive_room >= negative_room {
             step_magnitude
         } else {
             -step_magnitude
         }
-    });
-    (intervals, steps)
+    })
+}
+
+fn offset_within_interval(value: f64, offset: f64, [lower, upper]: [f64; 2]) -> f64 {
+    if offset >= 0.0 {
+        if offset.is_infinite() {
+            upper
+        } else {
+            let room = upper - value;
+            if offset <= room {
+                value + offset
+            } else {
+                upper
+            }
+        }
+    } else if offset.is_infinite() {
+        lower
+    } else {
+        let room = value - lower;
+        let magnitude = -offset;
+        if magnitude <= room {
+            value - magnitude
+        } else {
+            lower
+        }
+    }
 }
 
 fn touches_bound(
@@ -436,6 +481,7 @@ fn nelder_mead_maximize<F>(
     step: [f64; PARAMETER_COUNT],
     convergence_width: [f64; PARAMETER_COUNT],
     iteration_limit: usize,
+    intervals: [[f64; 2]; PARAMETER_COUNT],
     objective: &mut F,
 ) -> Result<[f64; PARAMETER_COUNT]>
 where
@@ -443,7 +489,7 @@ where
 {
     let mut simplex = [start; SIMPLEX_VERTEX_COUNT];
     for axis in 0..PARAMETER_COUNT {
-        simplex[axis + 1][axis] += step[axis];
+        simplex[axis + 1][axis] = offset_within_interval(start[axis], step[axis], intervals[axis]);
     }
     let mut values = [0.0; SIMPLEX_VERTEX_COUNT];
     for (value, vertex) in values.iter_mut().zip(simplex.iter()) {
@@ -469,13 +515,13 @@ where
                 centroid[axis] += vertex[axis] / PARAMETER_COUNT as f64;
             }
         }
-        let reflected = along(centroid, simplex[worst], 1.0);
+        let reflected = along(centroid, simplex[worst], 1.0, intervals);
         let reflected_value = objective(&reflected)?;
         if reflected_value > values[second_worst] && reflected_value <= values[best] {
             simplex[worst] = reflected;
             values[worst] = reflected_value;
         } else if reflected_value > values[best] {
-            let expanded = along(centroid, simplex[worst], 2.0);
+            let expanded = along(centroid, simplex[worst], 2.0, intervals);
             let expanded_value = objective(&expanded)?;
             if expanded_value > reflected_value {
                 simplex[worst] = expanded;
@@ -490,7 +536,7 @@ where
             } else {
                 -0.5
             };
-            let contracted = along(centroid, simplex[worst], coefficient);
+            let contracted = along(centroid, simplex[worst], coefficient, intervals);
             let contracted_value = objective(&contracted)?;
             let threshold = if coefficient > 0.0 {
                 reflected_value
@@ -506,10 +552,8 @@ where
                     if vertex_index == best {
                         continue;
                     }
-                    for axis in 0..PARAMETER_COUNT {
-                        simplex[vertex_index][axis] = best_vertex[axis]
-                            + 0.5 * (simplex[vertex_index][axis] - best_vertex[axis]);
-                    }
+                    simplex[vertex_index] =
+                        towards(best_vertex, simplex[vertex_index], 0.5, intervals);
                     values[vertex_index] = objective(&simplex[vertex_index])?;
                 }
             }
@@ -526,12 +570,31 @@ fn along(
     centroid: [f64; PARAMETER_COUNT],
     worst: [f64; PARAMETER_COUNT],
     coefficient: f64,
+    intervals: [[f64; 2]; PARAMETER_COUNT],
 ) -> [f64; PARAMETER_COUNT] {
-    let mut candidate = [0.0; PARAMETER_COUNT];
-    for axis in 0..PARAMETER_COUNT {
-        candidate[axis] = centroid[axis] + coefficient * (centroid[axis] - worst[axis]);
-    }
-    candidate
+    let direction = std::array::from_fn(|axis| centroid[axis] - worst[axis]);
+    bounded_offset(centroid, direction, coefficient, intervals)
+}
+
+fn towards(
+    start: [f64; PARAMETER_COUNT],
+    target: [f64; PARAMETER_COUNT],
+    fraction: f64,
+    intervals: [[f64; 2]; PARAMETER_COUNT],
+) -> [f64; PARAMETER_COUNT] {
+    let direction = std::array::from_fn(|axis| target[axis] - start[axis]);
+    bounded_offset(start, direction, fraction, intervals)
+}
+
+fn bounded_offset(
+    start: [f64; PARAMETER_COUNT],
+    direction: [f64; PARAMETER_COUNT],
+    coefficient: f64,
+    intervals: [[f64; 2]; PARAMETER_COUNT],
+) -> [f64; PARAMETER_COUNT] {
+    std::array::from_fn(|axis| {
+        offset_within_interval(start[axis], coefficient * direction[axis], intervals[axis])
+    })
 }
 
 fn simplex_converged(

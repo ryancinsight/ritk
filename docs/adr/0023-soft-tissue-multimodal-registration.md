@@ -12,7 +12,7 @@
 - **Revision 2026-09-04:** Intersect the requested structural range with the
   global bounds and orient each initial simplex edge toward available space, so
   capture on a positive global bound can still refine inward. Bound arithmetic
-  remains finite when the requested cell product overflows.
+  remains finite when capture schedules or the requested cell product overflow.
 
 ## Context
 
@@ -63,6 +63,10 @@ an infeasible outward vertex. The effective finite interval also caps an
 overflowing resolution-by-cell product. The second stage therefore cannot
 become an unbounded global search. Callers retain explicit coverage and overlap
 gates.
+Capture coordinate moves and every Nelder-Mead operation are clipped to their
+finite effective interval before objective evaluation. Nominal steps are capped
+by the corresponding global half-range, so an accepted extreme finite
+configuration cannot construct a non-finite candidate.
 
 Morphological filters accept independent axis radii, and a physical-radius
 conversion derives those radii from image spacing. A caller can therefore keep
@@ -105,7 +109,8 @@ bound saturation, fallible objective propagation, and recovery of a coupled
 manufactured optimum. Additional value tests prove implicit/explicit one-cell
 equivalence, recovery of a wider manufactured structural optimum, confinement
 to the original global bounds, inward refinement from simultaneous positive
-global bounds, finite effective intervals under requested-radius overflow, and
+and negative global bounds, finite candidate evaluation under extreme accepted
+configuration, finite effective intervals under requested-radius overflow, and
 local/global saturation semantics. The
 downstream LeoNeuro RIRE oracle evaluates image-only registration against
 held-out fiducials: the 3×3×3 conditioned capture reaches

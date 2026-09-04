@@ -23,6 +23,11 @@ structure without enabling an unbounded second search. The tested Rustdoc on
 `RigidSearchConfig::with_structural_half_range_cells` is the copyable API
 example.
 
+The capture schedule and all simplex operations are clipped to the same finite
+axis intervals before an objective sees a candidate. This remains true when an
+otherwise valid finite resolution multiplied by a schedule factor would
+overflow.
+
 `RigidSearchResult::capture_saturated` and `structural_saturated` report when an
 optimum touches its permitted boundary. Structural saturation covers either the
 configured local half-range or a tighter global bound. Saturation is a

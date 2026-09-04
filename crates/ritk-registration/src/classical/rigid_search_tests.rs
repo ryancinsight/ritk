@@ -34,6 +34,21 @@ fn pose_objective_xyz(
     }
 }
 
+fn finite_bounded_pose_objective(
+    target_translation_mm: [f64; 3],
+    half_range_mm: f64,
+) -> impl FnMut(&AffineTransform) -> Result<f64> {
+    let mut objective = pose_objective_xyz(target_translation_mm);
+    move |transform| {
+        let matrix = transform.as_array();
+        assert!(matrix.iter().all(|value| value.is_finite()));
+        assert!([matrix[3], matrix[7], matrix[11]]
+            .iter()
+            .all(|value| value.abs() <= half_range_mm));
+        objective(transform)
+    }
+}
+
 #[test]
 fn centroid_transform_maps_fixed_centroid_to_moving_centroid() {
     let fixed = [20.0, -10.0, 4.0];
@@ -182,7 +197,7 @@ fn widened_structural_search_remains_inside_global_bounds() {
 }
 
 #[test]
-fn structural_simplex_moves_inward_from_multiple_positive_global_bounds() {
+fn structural_simplex_moves_inward_from_signed_multiple_global_bounds() {
     let global_half_range_mm = 1.0;
     let terminal_resolution_mm = 0.25;
     let bounded =
@@ -192,21 +207,24 @@ fn structural_simplex_moves_inward_from_multiple_positive_global_bounds() {
                 NonZeroU8::new(8).expect("invariant: eight is nonzero"),
             );
 
-    let result = search_rigid_pose(
-        [0.0; 3],
-        [0.0; 3],
-        bounded,
-        pose_objective_xyz([global_half_range_mm, global_half_range_mm, 0.0]),
-        pose_objective_xyz([0.0; 3]),
-    )
-    .expect("finite objectives");
-    let capture = result.capture_transform.as_array();
-    let structural = result.structural_transform.as_array();
+    for sign in [-1.0, 1.0] {
+        let signed_bound = sign * global_half_range_mm;
+        let result = search_rigid_pose(
+            [0.0; 3],
+            [0.0; 3],
+            bounded,
+            finite_bounded_pose_objective([signed_bound, signed_bound, 0.0], global_half_range_mm),
+            finite_bounded_pose_objective([0.0; 3], global_half_range_mm),
+        )
+        .expect("finite objectives");
+        let capture = result.capture_transform.as_array();
+        let structural = result.structural_transform.as_array();
 
-    assert!((capture[3] - global_half_range_mm).abs() <= terminal_resolution_mm / 16.0);
-    assert!((capture[7] - global_half_range_mm).abs() <= terminal_resolution_mm / 16.0);
-    assert!(structural[3].abs() <= terminal_resolution_mm / 16.0);
-    assert!(structural[7].abs() <= terminal_resolution_mm / 16.0);
+        assert!((capture[3] - signed_bound).abs() <= terminal_resolution_mm / 16.0);
+        assert!((capture[7] - signed_bound).abs() <= terminal_resolution_mm / 16.0);
+        assert!(structural[3].abs() <= terminal_resolution_mm / 16.0);
+        assert!(structural[7].abs() <= terminal_resolution_mm / 16.0);
+    }
 }
 
 #[test]
@@ -225,6 +243,36 @@ fn overflowing_requested_radius_produces_finite_effective_intervals_and_steps() 
     assert!(steps.iter().all(|value| value.is_finite()));
     assert_eq!(intervals, [[-finite_bound, finite_bound]; PARAMETER_COUNT]);
     assert_eq!(steps, [finite_bound; PARAMETER_COUNT]);
+}
+
+#[test]
+fn extreme_finite_configuration_never_evaluates_a_nonfinite_pose() {
+    let extreme = RigidSearchConfig::try_new(2.0, f64::MAX, 0.25, f64::MAX, 32)
+        .expect("finite extreme configuration");
+    let capture_evaluations = Cell::new(0_usize);
+    let structural_evaluations = Cell::new(0_usize);
+    let capture = |transform: &AffineTransform| {
+        assert!(transform.as_array().iter().all(|value| value.is_finite()));
+        capture_evaluations.set(capture_evaluations.get() + 1);
+        Ok(0.0)
+    };
+    let structural = |transform: &AffineTransform| {
+        assert!(transform.as_array().iter().all(|value| value.is_finite()));
+        structural_evaluations.set(structural_evaluations.get() + 1);
+        Ok(0.0)
+    };
+
+    let result = search_rigid_pose([0.0; 3], [0.0; 3], extreme, capture, structural)
+        .expect("bounded extreme search");
+
+    assert!(capture_evaluations.get() > SIMPLEX_VERTEX_COUNT);
+    assert!(structural_evaluations.get() > SIMPLEX_VERTEX_COUNT);
+    assert!(result
+        .capture_transform
+        .as_array()
+        .iter()
+        .chain(result.structural_transform.as_array().iter())
+        .all(|value| value.is_finite()));
 }
 
 #[test]
