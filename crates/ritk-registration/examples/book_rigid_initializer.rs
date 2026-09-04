@@ -6,8 +6,8 @@
 
 use anyhow::{ensure, Result};
 use ritk_registration::{
-    fit_symmetric_trimmed_rigid, search_rigid_pose, AffineTransform, RigidCorrespondence,
-    RigidSearchAnchor, RigidSearchConfig,
+    fit_symmetric_trimmed_rigid, search_rigid_pose, AffineTransform, FixedToMovingCorrespondence,
+    MovingToFixedCorrespondence, RigidSearchAnchor, RigidSearchConfig,
 };
 
 fn transform_point(point: [f64; 3]) -> [f64; 3] {
@@ -43,8 +43,8 @@ fn main() -> Result<()> {
     let mut reverse = Vec::new();
     for fixed in fixed_points {
         let moving = transform_point(fixed);
-        forward.push(RigidCorrespondence::try_new(fixed, moving)?);
-        reverse.push(RigidCorrespondence::try_new(moving, fixed)?);
+        forward.push(FixedToMovingCorrespondence::try_new(fixed, moving)?);
+        reverse.push(MovingToFixedCorrespondence::try_new(moving, fixed)?);
     }
     // Forty percent of each direction is deliberately inconsistent. The fit
     // retains the best half, so the correct 60% consensus remains identifiable.
@@ -52,8 +52,8 @@ fn main() -> Result<()> {
         let offset = f64::from(index);
         let fixed = [50.0 + offset, -80.0, 20.0];
         let moving = [-70.0, 40.0 + offset, -30.0];
-        forward.push(RigidCorrespondence::try_new(fixed, moving)?);
-        reverse.push(RigidCorrespondence::try_new(moving, fixed)?);
+        forward.push(FixedToMovingCorrespondence::try_new(fixed, moving)?);
+        reverse.push(MovingToFixedCorrespondence::try_new(moving, fixed)?);
     }
 
     let fitted = fit_symmetric_trimmed_rigid(&forward, &reverse)?;

@@ -30,31 +30,23 @@ const SAMPLED_CANDIDATE_LIMIT: usize = 1_024;
 /// `sqrt(f64::EPSILON)`, used as a relative rank threshold for 3-D point sets.
 const RANK_TOLERANCE: f64 = 1.490_116_119_384_765_6e-8;
 
-/// One finite physical-space correspondence.
+/// One finite fixed-to-moving physical-space correspondence.
 #[derive(Debug, Clone, Copy, PartialEq)]
 #[non_exhaustive]
-pub struct RigidCorrespondence {
+pub struct FixedToMovingCorrespondence {
     fixed_mm: [f64; 3],
     moving_mm: [f64; 3],
 }
 
-impl RigidCorrespondence {
-    /// Construct a correspondence in millimetres.
+impl FixedToMovingCorrespondence {
+    /// Construct a correspondence from fixed to moving millimetres.
     ///
     /// # Errors
     ///
     /// Returns [`RegistrationError::InvalidInput`] when either point contains
     /// a non-finite coordinate.
     pub fn try_new(fixed_mm: [f64; 3], moving_mm: [f64; 3]) -> Result<Self> {
-        if fixed_mm
-            .iter()
-            .chain(moving_mm.iter())
-            .any(|value| !value.is_finite())
-        {
-            return Err(RegistrationError::InvalidInput(format!(
-                "rigid correspondence must be finite, got fixed {fixed_mm:?}, moving {moving_mm:?}"
-            )));
-        }
+        validate_points(fixed_mm, moving_mm, "fixed-to-moving")?;
         Ok(Self {
             fixed_mm,
             moving_mm,
@@ -72,6 +64,64 @@ impl RigidCorrespondence {
     pub const fn moving_mm(self) -> [f64; 3] {
         self.moving_mm
     }
+}
+
+/// One finite moving-to-fixed physical-space correspondence.
+#[derive(Debug, Clone, Copy, PartialEq)]
+#[non_exhaustive]
+pub struct MovingToFixedCorrespondence {
+    moving_mm: [f64; 3],
+    fixed_mm: [f64; 3],
+}
+
+impl MovingToFixedCorrespondence {
+    /// Construct a correspondence from moving to fixed millimetres.
+    ///
+    /// The argument order follows the measured direction and therefore differs
+    /// intentionally from [`FixedToMovingCorrespondence::try_new`].
+    ///
+    /// # Errors
+    ///
+    /// Returns [`RegistrationError::InvalidInput`] when either point contains
+    /// a non-finite coordinate.
+    pub fn try_new(moving_mm: [f64; 3], fixed_mm: [f64; 3]) -> Result<Self> {
+        validate_points(moving_mm, fixed_mm, "moving-to-fixed")?;
+        Ok(Self {
+            moving_mm,
+            fixed_mm,
+        })
+    }
+
+    /// Return the point in moving-image physical coordinates.
+    #[must_use]
+    pub const fn moving_mm(self) -> [f64; 3] {
+        self.moving_mm
+    }
+
+    /// Return the corresponding point in fixed-image physical coordinates.
+    #[must_use]
+    pub const fn fixed_mm(self) -> [f64; 3] {
+        self.fixed_mm
+    }
+}
+
+fn validate_points(first_mm: [f64; 3], second_mm: [f64; 3], direction: &str) -> Result<()> {
+    if first_mm
+        .iter()
+        .chain(second_mm.iter())
+        .any(|value| !value.is_finite())
+    {
+        return Err(RegistrationError::InvalidInput(format!(
+            "{direction} rigid correspondence must be finite, got source {first_mm:?}, target {second_mm:?}"
+        )));
+    }
+    Ok(())
+}
+
+#[derive(Debug, Clone, Copy, PartialEq)]
+struct RigidCorrespondence {
+    fixed_mm: [f64; 3],
+    moving_mm: [f64; 3],
 }
 
 /// Result of a symmetric 50%-trimmed rigid fit.
@@ -114,8 +164,8 @@ pub struct SymmetricRigidFit {
 /// approach.” *Journal of Medical Imaging* 1(2), 2014, sections 2.1–2.3.
 /// <https://doi.org/10.1117/1.JMI.1.2.024003>
 pub fn fit_symmetric_trimmed_rigid(
-    fixed_to_moving: &[RigidCorrespondence],
-    moving_to_fixed: &[RigidCorrespondence],
+    fixed_to_moving: &[FixedToMovingCorrespondence],
+    moving_to_fixed: &[MovingToFixedCorrespondence],
 ) -> Result<SymmetricRigidFit> {
     if fixed_to_moving.len() < 3 || moving_to_fixed.len() < 3 {
         return Err(RegistrationError::InvalidInput(format!(
@@ -141,10 +191,13 @@ pub fn fit_symmetric_trimmed_rigid(
                 "cannot allocate {correspondence_count} rigid correspondences: {error}"
             ))
         })?;
-    correspondences.extend_from_slice(fixed_to_moving);
+    correspondences.extend(fixed_to_moving.iter().map(|pair| RigidCorrespondence {
+        fixed_mm: pair.fixed_mm,
+        moving_mm: pair.moving_mm,
+    }));
     correspondences.extend(moving_to_fixed.iter().map(|pair| RigidCorrespondence {
-        fixed_mm: pair.moving_mm,
-        moving_mm: pair.fixed_mm,
+        fixed_mm: pair.fixed_mm,
+        moving_mm: pair.moving_mm,
     }));
     correspondences.sort_by(compare_correspondences);
 
@@ -182,10 +235,30 @@ fn compare_correspondences(
     left: &RigidCorrespondence,
     right: &RigidCorrespondence,
 ) -> std::cmp::Ordering {
-    left.fixed_mm
+    let left = canonical_endpoints(left);
+    let right = canonical_endpoints(right);
+    left.0
         .into_iter()
-        .chain(left.moving_mm)
-        .zip(right.fixed_mm.into_iter().chain(right.moving_mm))
+        .chain(left.1)
+        .zip(right.0.into_iter().chain(right.1))
+        .find_map(|(left, right)| {
+            let ordering = left.total_cmp(&right);
+            (ordering != std::cmp::Ordering::Equal).then_some(ordering)
+        })
+        .unwrap_or(std::cmp::Ordering::Equal)
+}
+
+fn canonical_endpoints(pair: &RigidCorrespondence) -> ([f64; 3], [f64; 3]) {
+    if compare_points(pair.fixed_mm, pair.moving_mm).is_gt() {
+        (pair.moving_mm, pair.fixed_mm)
+    } else {
+        (pair.fixed_mm, pair.moving_mm)
+    }
+}
+
+fn compare_points(left: [f64; 3], right: [f64; 3]) -> std::cmp::Ordering {
+    left.into_iter()
+        .zip(right)
         .find_map(|(left, right)| {
             let ordering = left.total_cmp(&right);
             (ordering != std::cmp::Ordering::Equal).then_some(ordering)

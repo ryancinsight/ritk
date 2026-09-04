@@ -10,7 +10,7 @@ fn transformed(point: [f64; 3]) -> [f64; 3] {
     ]
 }
 
-fn clean_pairs() -> Vec<RigidCorrespondence> {
+fn clean_pairs() -> Vec<FixedToMovingCorrespondence> {
     [
         [-2.0, -1.0, 0.0],
         [3.0, -1.0, 1.0],
@@ -20,14 +20,20 @@ fn clean_pairs() -> Vec<RigidCorrespondence> {
         [4.0, 2.0, 3.0],
     ]
     .into_iter()
-    .map(|fixed| RigidCorrespondence::try_new(fixed, transformed(fixed)).expect("finite fixture"))
+    .map(|fixed| {
+        FixedToMovingCorrespondence::try_new(fixed, transformed(fixed)).expect("finite fixture")
+    })
     .collect()
 }
 
 fn assert_maps_fixture(transform: &AffineTransform) {
     let gamma_512 = 512.0 * f64::EPSILON / (1.0 - 512.0 * f64::EPSILON);
     for pair in clean_pairs() {
-        let residual = squared_residual(transform, &pair).sqrt();
+        let normalized = RigidCorrespondence {
+            fixed_mm: pair.fixed_mm(),
+            moving_mm: pair.moving_mm(),
+        };
+        let residual = squared_residual(transform, &normalized).sqrt();
         let scale = pair
             .moving_mm()
             .into_iter()
@@ -47,14 +53,17 @@ fn symmetric_trim_recovers_rigid_pose_with_sub_half_outliers() {
     let mut reverse: Vec<_> = clean
         .iter()
         .map(|pair| {
-            RigidCorrespondence::try_new(pair.moving_mm(), pair.fixed_mm()).expect("finite reverse")
+            MovingToFixedCorrespondence::try_new(pair.moving_mm(), pair.fixed_mm())
+                .expect("finite reverse")
         })
         .collect();
     for index in 0..4 {
         let fixed = [50.0 + index as f64, -80.0, 20.0];
         let moving = [-70.0, 40.0 + index as f64, -30.0];
-        forward.push(RigidCorrespondence::try_new(fixed, moving).expect("finite outlier"));
-        reverse.push(RigidCorrespondence::try_new(moving, fixed).expect("finite reverse outlier"));
+        forward.push(FixedToMovingCorrespondence::try_new(fixed, moving).expect("finite outlier"));
+        reverse.push(
+            MovingToFixedCorrespondence::try_new(moving, fixed).expect("finite reverse outlier"),
+        );
     }
 
     let result = fit_symmetric_trimmed_rigid(&forward, &reverse).expect("robust rigid fit");
@@ -70,11 +79,27 @@ fn swapping_directions_returns_the_inverse_pose() {
     let reverse: Vec<_> = forward
         .iter()
         .map(|pair| {
-            RigidCorrespondence::try_new(pair.moving_mm(), pair.fixed_mm()).expect("finite reverse")
+            MovingToFixedCorrespondence::try_new(pair.moving_mm(), pair.fixed_mm())
+                .expect("finite reverse")
         })
         .collect();
     let direct = fit_symmetric_trimmed_rigid(&forward, &reverse).expect("direct fit");
-    let swapped = fit_symmetric_trimmed_rigid(&reverse, &forward).expect("swapped fit");
+    let swapped_forward: Vec<_> = reverse
+        .iter()
+        .map(|pair| {
+            FixedToMovingCorrespondence::try_new(pair.moving_mm(), pair.fixed_mm())
+                .expect("finite swapped forward")
+        })
+        .collect();
+    let swapped_reverse: Vec<_> = forward
+        .iter()
+        .map(|pair| {
+            MovingToFixedCorrespondence::try_new(pair.fixed_mm(), pair.moving_mm())
+                .expect("finite swapped reverse")
+        })
+        .collect();
+    let swapped =
+        fit_symmetric_trimmed_rigid(&swapped_forward, &swapped_reverse).expect("swapped fit");
     let product = multiply(direct.transform.as_array(), swapped.transform.as_array());
     let gamma_1024 = 1024.0 * f64::EPSILON / (1.0 - 1024.0 * f64::EPSILON);
     for (actual, expected) in product.into_iter().zip(AffineTransform::IDENTITY.0) {
@@ -88,7 +113,8 @@ fn correspondence_order_does_not_change_the_fit() {
     let reverse: Vec<_> = forward
         .iter()
         .map(|pair| {
-            RigidCorrespondence::try_new(pair.moving_mm(), pair.fixed_mm()).expect("finite reverse")
+            MovingToFixedCorrespondence::try_new(pair.moving_mm(), pair.fixed_mm())
+                .expect("finite reverse")
         })
         .collect();
     let expected = fit_symmetric_trimmed_rigid(&forward, &reverse).expect("ordered fit");
@@ -115,15 +141,19 @@ fn sampled_candidate_schedule_recovers_large_consensus() {
             layer * 2.0 - 2.0,
         ];
         let moving = transformed(fixed);
-        forward.push(RigidCorrespondence::try_new(fixed, moving).expect("finite fixture"));
-        reverse.push(RigidCorrespondence::try_new(moving, fixed).expect("finite reverse fixture"));
+        forward.push(FixedToMovingCorrespondence::try_new(fixed, moving).expect("finite fixture"));
+        reverse.push(
+            MovingToFixedCorrespondence::try_new(moving, fixed).expect("finite reverse fixture"),
+        );
     }
     for index in 0_u32..20 {
         let offset = f64::from(index);
         let fixed = [70.0 + offset, -30.0 + offset * 0.5, 40.0];
         let moving = [-50.0, 60.0 + offset, -20.0 + offset * 0.25];
-        forward.push(RigidCorrespondence::try_new(fixed, moving).expect("finite outlier"));
-        reverse.push(RigidCorrespondence::try_new(moving, fixed).expect("finite reverse outlier"));
+        forward.push(FixedToMovingCorrespondence::try_new(fixed, moving).expect("finite outlier"));
+        reverse.push(
+            MovingToFixedCorrespondence::try_new(moving, fixed).expect("finite reverse outlier"),
+        );
     }
 
     let result = fit_symmetric_trimmed_rigid(&forward, &reverse).expect("sampled robust fit");
@@ -134,18 +164,79 @@ fn sampled_candidate_schedule_recovers_large_consensus() {
 }
 
 #[test]
+fn sampled_candidate_schedule_is_symmetric_for_independent_directions() {
+    let mut forward = Vec::new();
+    for index in 0_u32..40 {
+        let fixed = [
+            f64::from(index % 7) - 3.0,
+            f64::from((index / 7) % 3) * 2.5 - 2.5,
+            f64::from(index / 21) * 4.0 - 2.0 + f64::from(index % 2) * 0.25,
+        ];
+        forward.push(
+            FixedToMovingCorrespondence::try_new(fixed, transformed(fixed))
+                .expect("finite forward fixture"),
+        );
+    }
+    let mut reverse = Vec::new();
+    for index in 0_u32..41 {
+        let fixed = [
+            f64::from(index % 5) * 1.75 - 3.5,
+            f64::from((index / 5) % 4) * 2.0 - 3.0,
+            f64::from(index / 20) * 3.5 - 1.75 + f64::from(index % 3) * 0.2,
+        ];
+        let moving = transformed(fixed);
+        reverse.push(
+            MovingToFixedCorrespondence::try_new(moving, fixed).expect("finite reverse fixture"),
+        );
+    }
+    forward.rotate_left(11);
+    reverse.reverse();
+
+    let direct = fit_symmetric_trimmed_rigid(&forward, &reverse).expect("sampled direct fit");
+    assert_eq!(direct.correspondence_count, 81);
+    let swapped_forward: Vec<_> = reverse
+        .iter()
+        .map(|pair| {
+            FixedToMovingCorrespondence::try_new(pair.moving_mm(), pair.fixed_mm())
+                .expect("finite swapped forward")
+        })
+        .collect();
+    let swapped_reverse: Vec<_> = forward
+        .iter()
+        .map(|pair| {
+            MovingToFixedCorrespondence::try_new(pair.fixed_mm(), pair.moving_mm())
+                .expect("finite swapped reverse")
+        })
+        .collect();
+    let swapped = fit_symmetric_trimmed_rigid(&swapped_forward, &swapped_reverse)
+        .expect("sampled swapped fit");
+    let product = multiply(direct.transform.as_array(), swapped.transform.as_array());
+    let gamma_2048 = 2048.0 * f64::EPSILON / (1.0 - 2048.0 * f64::EPSILON);
+    for (actual, expected) in product.into_iter().zip(AffineTransform::IDENTITY.0) {
+        assert!((actual - expected).abs() <= gamma_2048);
+    }
+}
+
+#[test]
 fn invalid_and_rank_deficient_inputs_fail_closed() {
-    let nonfinite = RigidCorrespondence::try_new([f64::NAN, 0.0, 0.0], [0.0; 3])
+    let nonfinite = FixedToMovingCorrespondence::try_new([f64::NAN, 0.0, 0.0], [0.0; 3])
         .expect_err("non-finite coordinates must fail");
     assert!(matches!(nonfinite, RegistrationError::InvalidInput(_)));
 
     let line: Vec<_> = (0..4)
         .map(|index| {
             let point = [index as f64, 0.0, 0.0];
-            RigidCorrespondence::try_new(point, point).expect("finite line")
+            FixedToMovingCorrespondence::try_new(point, point).expect("finite line")
         })
         .collect();
-    let error = fit_symmetric_trimmed_rigid(&line, &line)
+    let reverse_line: Vec<_> = line
+        .iter()
+        .map(|pair| {
+            MovingToFixedCorrespondence::try_new(pair.moving_mm(), pair.fixed_mm())
+                .expect("finite reverse line")
+        })
+        .collect();
+    let error = fit_symmetric_trimmed_rigid(&line, &reverse_line)
         .expect_err("collinear correspondences cannot determine a rigid pose");
     assert!(
         matches!(error, RegistrationError::InvalidInput(message) if message == "rigid correspondences contain no non-collinear elemental subset")

@@ -30,7 +30,10 @@ pub use native::{
 pub use rigid_search::{
     search_rigid_pose, RigidSearchAnchor, RigidSearchConfig, RigidSearchResult,
 };
-pub use robust_rigid::{fit_symmetric_trimmed_rigid, RigidCorrespondence, SymmetricRigidFit};
+pub use robust_rigid::{
+    fit_symmetric_trimmed_rigid, FixedToMovingCorrespondence, MovingToFixedCorrespondence,
+    SymmetricRigidFit,
+};
 pub use spatial::SpatialTransform;
 pub use temporal::{
     TemporalCorrelationSample, TemporalSignal, TemporalSync, TemporalSyncConfig, TemporalSyncError,

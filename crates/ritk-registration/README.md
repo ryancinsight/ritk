@@ -42,8 +42,9 @@ centers. Moving descriptors are evaluated at those centers on demand; no dense
 moving descriptor volume is built per pose.
 
 For rigid capture outside a centroid-anchored basin, use
-`fit_symmetric_trimmed_rigid` on bidirectional physical-space block matches and
-pass its transform through `RigidSearchAnchor`. The residual search remains
+`fit_symmetric_trimmed_rigid` on direction-specific
+`FixedToMovingCorrespondence` and `MovingToFixedCorrespondence` block matches,
+then pass its transform through `RigidSearchAnchor`. The residual search remains
 bounded; the initializer retains only the best half of the joint match set.
 
 **Optimizers** — the autodiff gradient-descent driver, plus the Coeus

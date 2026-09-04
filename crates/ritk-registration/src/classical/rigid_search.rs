@@ -7,7 +7,6 @@ mod pose;
 pub use anchor::RigidSearchAnchor;
 pub use config::{RigidSearchConfig, RigidSearchResult};
 
-use self::pose::{euler_zyx, multiply_3x3, rigid_about_centroid};
 use super::error::{RegistrationError, Result};
 use crate::types::AffineTransform;
 use std::num::NonZeroU8;
@@ -43,34 +42,7 @@ where
     C: FnMut(&AffineTransform) -> Result<f64>,
     S: FnMut(&AffineTransform) -> Result<f64>,
 {
-    let anchor_matrix = anchor.transform.as_array();
-    let anchor_rotation = [
-        [anchor_matrix[0], anchor_matrix[1], anchor_matrix[2]],
-        [anchor_matrix[4], anchor_matrix[5], anchor_matrix[6]],
-        [anchor_matrix[8], anchor_matrix[9], anchor_matrix[10]],
-    ];
-    let matrix = |parameters: &[f64; PARAMETER_COUNT]| -> Result<AffineTransform> {
-        if parameters.iter().all(|&parameter| parameter == 0.0) {
-            return Ok(anchor.transform);
-        }
-        let residual_rotation = euler_zyx(parameters[0], parameters[1], parameters[2]);
-        let transform = rigid_about_centroid(
-            multiply_3x3(anchor_rotation, residual_rotation),
-            anchor.fixed_center_mm,
-            [
-                anchor.moving_center_mm[0] + parameters[3],
-                anchor.moving_center_mm[1] + parameters[4],
-                anchor.moving_center_mm[2] + parameters[5],
-            ],
-        );
-        if transform.as_array().iter().all(|value| value.is_finite()) {
-            Ok(transform)
-        } else {
-            Err(RegistrationError::NumericalFailure(
-                "rigid-search candidate produced a non-finite transform".to_owned(),
-            ))
-        }
-    };
+    let matrix = |parameters: &[f64; PARAMETER_COUNT]| anchor.with_residual(*parameters);
     let bounds = config.global_bounds();
     let in_global_range = |parameters: &[f64; PARAMETER_COUNT]| {
         parameters

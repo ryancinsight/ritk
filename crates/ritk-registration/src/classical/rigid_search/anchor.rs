@@ -1,5 +1,6 @@
 use super::super::error::{RegistrationError, Result};
-use super::pose::{multiply_3x3, rigid_about_centroid};
+use super::pose::{euler_zyx, multiply_3x3, rigid_about_centroid};
+use super::PARAMETER_COUNT;
 use crate::types::AffineTransform;
 
 /// `sqrt(f64::EPSILON)`, balancing roundoff and perturbation in 3×3 rigid checks.
@@ -92,6 +93,39 @@ impl RigidSearchAnchor {
     #[must_use]
     pub const fn moving_center_mm(self) -> [f64; 3] {
         self.moving_center_mm
+    }
+
+    /// Apply one fixed-frame rotational and moving-frame translational residual.
+    pub(super) fn with_residual(
+        self,
+        parameters: [f64; PARAMETER_COUNT],
+    ) -> Result<AffineTransform> {
+        if parameters.iter().all(|&parameter| parameter == 0.0) {
+            return Ok(self.transform);
+        }
+        let anchor_matrix = self.transform.as_array();
+        let anchor_rotation = [
+            [anchor_matrix[0], anchor_matrix[1], anchor_matrix[2]],
+            [anchor_matrix[4], anchor_matrix[5], anchor_matrix[6]],
+            [anchor_matrix[8], anchor_matrix[9], anchor_matrix[10]],
+        ];
+        let residual_rotation = euler_zyx(parameters[0], parameters[1], parameters[2]);
+        let transform = rigid_about_centroid(
+            multiply_3x3(anchor_rotation, residual_rotation),
+            self.fixed_center_mm,
+            [
+                self.moving_center_mm[0] + parameters[3],
+                self.moving_center_mm[1] + parameters[4],
+                self.moving_center_mm[2] + parameters[5],
+            ],
+        );
+        if transform.as_array().iter().all(|value| value.is_finite()) {
+            Ok(transform)
+        } else {
+            Err(RegistrationError::NumericalFailure(
+                "rigid-search candidate produced a non-finite transform".to_owned(),
+            ))
+        }
     }
 }
 

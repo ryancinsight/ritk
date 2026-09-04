@@ -1,3 +1,4 @@
+use super::pose::{euler_zyx, multiply_3x3, rigid_about_centroid};
 use super::*;
 use std::cell::Cell;
 use std::num::NonZeroU8;
@@ -378,6 +379,47 @@ fn search_propagates_objective_failure() {
         Err(RegistrationError::InvalidInput(message))
             if message == "fixture objective failure"
     ));
+}
+
+#[test]
+fn noncommuting_residual_is_right_composed_about_the_anchor_center() {
+    let fixed_center = [12.0, -7.0, 5.0];
+    let anchor_moving_center = [-4.0, 18.0, 2.0];
+    let residual_translation = [1.5, -2.25, 0.75];
+    let anchor_rotation = euler_zyx(0.25, -0.18, 0.11);
+    let residual_rotation = euler_zyx(-0.08, 0.13, 0.07);
+    let expected_rotation = multiply_3x3(anchor_rotation, residual_rotation);
+    let reversed_rotation = multiply_3x3(residual_rotation, anchor_rotation);
+    assert_ne!(expected_rotation, reversed_rotation);
+    let anchor_transform =
+        rigid_about_centroid(anchor_rotation, fixed_center, anchor_moving_center);
+    let expected = rigid_about_centroid(
+        expected_rotation,
+        fixed_center,
+        std::array::from_fn(|axis| anchor_moving_center[axis] + residual_translation[axis]),
+    );
+    let search_anchor =
+        RigidSearchAnchor::try_new(anchor_transform, fixed_center).expect("proper rigid anchor");
+    let parameters = [
+        -0.08,
+        0.13,
+        0.07,
+        residual_translation[0],
+        residual_translation[1],
+        residual_translation[2],
+    ];
+
+    let actual = search_anchor
+        .with_residual(parameters)
+        .expect("finite noncommuting residual");
+
+    assert_eq!(actual, expected);
+    let reversed = rigid_about_centroid(
+        reversed_rotation,
+        fixed_center,
+        std::array::from_fn(|axis| anchor_moving_center[axis] + residual_translation[axis]),
+    );
+    assert_ne!(actual, reversed);
 }
 
 #[test]

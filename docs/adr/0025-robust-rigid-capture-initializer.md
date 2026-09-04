@@ -27,13 +27,15 @@ subjects and 704 landmarks [1, section 3 and table 1].
 
 RITK owns two reusable registration primitives:
 
-1. `fit_symmetric_trimmed_rigid` accepts physical-space correspondences in both
-   directions, normalizes reverse pairs to fixed-to-moving order, and fits one
-   rigid transform to the joint set. This is the rigid-specific algebraic form
-   of symmetry: applying the inverse direction does not change Euclidean
-   residual ranking because a rigid rotation is an isometry. It avoids two
-   separately fitted matrices and matrix logarithm/exponential averaging,
-   which Modat et al. require for their affine update.
+1. `fit_symmetric_trimmed_rigid` accepts direction-specific
+   `FixedToMovingCorrespondence` and `MovingToFixedCorrespondence` values,
+   normalizes reverse pairs to fixed-to-moving order, and fits one rigid
+   transform to the joint set. The distinct types make source/target order a
+   checked API contract. This is the rigid-specific algebraic form of symmetry:
+   applying the inverse direction does not change Euclidean residual ranking
+   because a rigid rotation is an isometry. It avoids two separately fitted
+   matrices and matrix logarithm/exponential averaging, which Modat et al.
+   require for their affine update.
 2. `RigidSearchAnchor` replaces the two-centroid `search_rigid_pose` arguments.
    It validates a full proper rigid transform and a fixed-frame center. Search
    rotations right-compose in the fixed frame and translations act in moving-
@@ -41,11 +43,13 @@ RITK owns two reusable registration primitives:
 
 The LTS initializer evaluates every non-collinear three-pair elemental subset
 while there are at most 4,096 combinations. Larger inputs evaluate 1,024
-deterministically sampled subsets, then all paths perform at most five LTS
-concentration refits. At a 50% inlier fraction, 1,024 independent three-point
-draws would miss an all-inlier subset with probability `(7/8)^1024`, below
-`f64::EPSILON^2`; the deterministic sequence provides reproducibility, not a
-probabilistic guarantee against adversarially arranged correspondence values.
+deterministically sampled subsets, ordered by each pair's unordered endpoint
+key so swapping fixed and moving selects the same candidate schedule. All paths
+perform at most five LTS concentration refits. At a 50% inlier fraction, 1,024
+independent three-point draws would miss an all-inlier subset with probability
+`(7/8)^1024`, below `f64::EPSILON^2`; the deterministic sequence provides
+reproducibility, not a probabilistic guarantee against adversarially arranged
+correspondence values.
 Auxiliary storage remains linear in correspondence count and does not allocate
 a pairwise-consistency matrix.
 
@@ -70,10 +74,12 @@ criteria.
 ## Verification and limits
 
 Analytical tests cover a known 20-degree transform with 40% coherent outliers,
-direction swapping and inverse composition, input-order normalization,
-non-finite points, collinear points, rejection of reflection anchors, exact
-zero-residual anchoring, and existing capture/refinement bounds. The runnable
-book example executes the same known-transform workflow.
+direction swapping and inverse composition on both exhaustive and sampled
+candidate paths, input-order normalization, non-finite points, collinear
+points, rejection of reflection anchors, exact zero-residual anchoring, and
+right composition of noncommuting anchor/residual rotations. Existing capture
+and refinement bounds remain covered. The runnable book example executes the
+same known-transform workflow.
 
 The fit assumes strictly more than half of the supplied correspondences support
 one identifiable non-collinear rigid transform. Exactly half is intrinsically
