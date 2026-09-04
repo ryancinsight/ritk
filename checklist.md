@@ -2,10 +2,10 @@
 
 - [x] Reproduce the RIRE soft-tissue failure and record NMI, NGF, and TRE at
       identity, the image-only optimum, and the independent fiducial reference.
-- [ ] Add explicit discrete/moving-linear histogram estimation, physical-radius
+- [x] Add explicit discrete/moving-linear histogram estimation, physical-radius
       morphology, and a bounded rigid-pose NMI capture/NGF refinement seam.
-- [ ] Integrate the provider API in LeoNeuro and tighten the real-data TRE oracle.
-- [ ] Regenerate and inspect the registration figure and synchronize both books.
+- [x] Integrate the provider API in LeoNeuro and tighten the real-data TRE oracle.
+- [x] Regenerate and inspect the registration figure and synchronize both books.
 - [ ] Pass focused/full gates, independent review, commit, push, merge, and
       provider-pin integration.
 

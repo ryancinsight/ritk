@@ -1,10 +1,7 @@
 <a id="RITK-SOFT-TISSUE-REGISTRATION-2026-09-03"></a>
-## RITK-SOFT-TISSUE-REGISTRATION-2026-09-03 — Soft-tissue multimodal registration [major] [arch] — in progress
+## RITK-SOFT-TISSUE-REGISTRATION-2026-09-03 — Soft-tissue multimodal registration [major] [arch] — review
 
-- **Status:** in-progress; integrator=Codex; last-update=2026-09-03T19:16:14-04:00;
-  lease=`crates/ritk-registration/src/classical/{engine/metric.rs,rigid_search/**,mod.rs}`,
-  `crates/ritk-filter/src/morphology/{binary_dilate.rs,binary_erode.rs,tests_binary_*}`,
-  registration tests/docs, ADR 0023, this item, and its checklist section.
+- **Status:** review; integrator=Codex; last-update=2026-09-03T23:36:00-04:00.
 - **Outcome:** add masked moving-linear partial-volume NMI, physical-radius mask
   morphology, and bounded NMI-capture/NGF-refinement reusable by downstream
   CT/MRI registration while preserving discrete NMI as the default estimator.
