@@ -12,7 +12,10 @@ mod registration;
 pub mod result;
 
 pub use config::ClassicalConfig;
-pub use metric::{HistogramEstimator, IntensityRange, MutualInformationMetric, NmiNormalization};
+pub use metric::{
+    HistogramEstimator, IntensityRange, MutualInformationMetric, NmiNormalization,
+    SpatiallyConditionedMutualInformationMetric,
+};
 pub use registration::ImageRegistration;
 pub use result::RegistrationResult;
 

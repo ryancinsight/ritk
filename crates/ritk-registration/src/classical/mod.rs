@@ -19,7 +19,7 @@ pub mod translation;
 // Re-export core types for convenience
 pub use engine::{
     HistogramEstimator, ImageRegistration, IntensityRange, MutualInformationMetric,
-    NmiNormalization, RegistrationResult,
+    NmiNormalization, RegistrationResult, SpatiallyConditionedMutualInformationMetric,
 };
 pub use error::{RegistrationError, Result};
 pub use native::{

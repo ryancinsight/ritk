@@ -106,9 +106,9 @@ pub use classical::{
     register_translation, search_rigid_pose, HistogramEstimator, ImageRegistration, IntensityRange,
     MeanSquaredDifference, MutualInformationMetric, NmiNormalization, NormalizedCrossCorrelation,
     RegistrationQualityMetrics, RegistrationResult, RigidSearchConfig, RigidSearchResult,
-    SpatialTransform, TemporalCorrelationSample, TemporalSignal, TemporalSync, TemporalSyncConfig,
-    TemporalSyncError, TemporalSyncResult, TemporalSyncStatus, TranslationMetric,
-    TranslationRegistrationError,
+    SpatialTransform, SpatiallyConditionedMutualInformationMetric, TemporalCorrelationSample,
+    TemporalSignal, TemporalSync, TemporalSyncConfig, TemporalSyncError, TemporalSyncResult,
+    TemporalSyncStatus, TranslationMetric, TranslationRegistrationError,
 };
 
 // ============================================================================
