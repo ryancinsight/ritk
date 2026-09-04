@@ -22,6 +22,9 @@ transform is invalid. The caller still owns image sampling, fixed-domain
 support, overlap acceptance, and the final choice between the capture and
 structural candidates.
 
+Objective errors propagate through the search result. A malformed or empty
+metric sample set therefore cannot be converted into a plausible pose.
+
 ## Example Summary
 
 | Example | Status | Focus |

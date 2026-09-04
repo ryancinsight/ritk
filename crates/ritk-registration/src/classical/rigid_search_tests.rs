@@ -28,11 +28,11 @@ fn search_recovers_coupled_translation_optimum() {
             matrix[7] - target[1],
             matrix[11] - target[2],
         ];
-        -(residual[0] * residual[0]
+        Ok(-(residual[0] * residual[0]
             + residual[1] * residual[1]
             + residual[2] * residual[2]
             + 0.75 * (residual[0] + residual[1]).powi(2)
-            + 0.75 * (residual[1] + residual[2]).powi(2))
+            + 0.75 * (residual[1] + residual[2]).powi(2)))
     };
     let result = search_rigid_pose([0.0; 3], [0.0; 3], config(), objective, objective)
         .expect("finite objective");
@@ -49,11 +49,11 @@ fn search_recovers_coupled_translation_optimum() {
 fn structural_search_cannot_leave_terminal_capture_cell() {
     let capture = |transform: &AffineTransform| {
         let matrix = transform.as_array();
-        -(matrix[3].powi(2) + matrix[7].powi(2) + matrix[11].powi(2))
+        Ok(-(matrix[3].powi(2) + matrix[7].powi(2) + matrix[11].powi(2)))
     };
     let structural = |transform: &AffineTransform| {
         let translation = transform.as_array()[3];
-        -(translation - 20.0).powi(2)
+        Ok(-(translation - 20.0).powi(2))
     };
     let result = search_rigid_pose([0.0; 3], [0.0; 3], config(), capture, structural)
         .expect("finite objectives");
@@ -66,4 +66,19 @@ fn configuration_rejects_invalid_resource_bounds() {
     assert!(RigidSearchConfig::try_new(0.0, 8.0, 0.5, 0.75, 256).is_err());
     assert!(RigidSearchConfig::try_new(12.0, 8.0, 13.0, 0.75, 256).is_err());
     assert!(RigidSearchConfig::try_new(12.0, 8.0, 0.5, 0.75, 0).is_err());
+}
+
+#[test]
+fn search_propagates_objective_failure() {
+    let failure = |_transform: &AffineTransform| {
+        Err(RegistrationError::InvalidInput(
+            "fixture objective failure".to_owned(),
+        ))
+    };
+    let result = search_rigid_pose([0.0; 3], [0.0; 3], config(), failure, failure);
+    assert!(matches!(
+        result,
+        Err(RegistrationError::InvalidInput(message))
+            if message == "fixture objective failure"
+    ));
 }

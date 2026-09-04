@@ -128,8 +128,9 @@ pub struct RigidSearchResult {
 ///
 /// # Errors
 ///
-/// Returns [`RegistrationError::NumericalFailure`] when either objective emits
-/// a non-finite value.
+/// Propagates an objective error and returns
+/// [`RegistrationError::NumericalFailure`] when either objective emits a
+/// non-finite value.
 pub fn search_rigid_pose<C, S>(
     fixed_centroid_mm: [f64; 3],
     moving_centroid_mm: [f64; 3],
@@ -138,8 +139,8 @@ pub fn search_rigid_pose<C, S>(
     mut structural_objective: S,
 ) -> Result<RigidSearchResult>
 where
-    C: FnMut(&AffineTransform) -> f64,
-    S: FnMut(&AffineTransform) -> f64,
+    C: FnMut(&AffineTransform) -> Result<f64>,
+    S: FnMut(&AffineTransform) -> Result<f64>,
 {
     let matrix = |parameters: &[f64; PARAMETER_COUNT]| {
         rigid_about_centroid(
@@ -163,7 +164,7 @@ where
         if !in_global_range(parameters) {
             return Ok(f64::NEG_INFINITY);
         }
-        finite_score(capture_objective(&matrix(parameters)), "capture")
+        finite_score(capture_objective(&matrix(parameters))?, "capture")
     };
 
     let resolution = config.terminal_resolution();
@@ -202,7 +203,7 @@ where
         &mut capture_score,
     )?;
     let capture_transform = matrix(&capture_parameters);
-    let capture_score_value = finite_score(capture_objective(&capture_transform), "capture")?;
+    let capture_score_value = finite_score(capture_objective(&capture_transform)?, "capture")?;
 
     let in_structural_range = |candidate: &[f64; PARAMETER_COUNT]| {
         in_global_range(candidate)
@@ -216,7 +217,7 @@ where
         if !in_structural_range(candidate) {
             return Ok(f64::NEG_INFINITY);
         }
-        finite_score(structural_objective(&matrix(candidate)), "structural")
+        finite_score(structural_objective(&matrix(candidate))?, "structural")
     };
     let structural_step = resolution.map(|value| value / 2.0);
     let structural_parameters = nelder_mead_maximize(
@@ -228,7 +229,7 @@ where
     )?;
     let structural_transform = matrix(&structural_parameters);
     let structural_score_value =
-        finite_score(structural_objective(&structural_transform), "structural")?;
+        finite_score(structural_objective(&structural_transform)?, "structural")?;
     let capture_saturated = touches_bound(
         capture_parameters,
         [0.0; PARAMETER_COUNT],
