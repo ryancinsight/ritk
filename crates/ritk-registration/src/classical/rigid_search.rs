@@ -1,155 +1,23 @@
 //! Bounded multimodal rigid-pose search in physical coordinates.
 
+mod anchor;
+mod config;
+mod pose;
+
+pub use anchor::RigidSearchAnchor;
+pub use config::{RigidSearchConfig, RigidSearchResult};
+
+use self::pose::{euler_zyx, multiply_3x3, rigid_about_centroid};
 use super::error::{RegistrationError, Result};
 use crate::types::AffineTransform;
 use std::num::NonZeroU8;
 
-const PARAMETER_COUNT: usize = 6;
+pub(super) const PARAMETER_COUNT: usize = 6;
 const SIMPLEX_VERTEX_COUNT: usize = PARAMETER_COUNT + 1;
 // Four levels span an eightfold coarse cell followed by three bisections to the
 // requested terminal resolution.
 const CAPTURE_LEVELS: u32 = 4;
-
-/// Bounds and terminal resolution for centroid-anchored rigid registration.
-#[derive(Debug, Clone, Copy, PartialEq)]
-pub struct RigidSearchConfig {
-    rotation_half_range_radians: f64,
-    translation_half_range_mm: f64,
-    final_rotation_resolution_radians: f64,
-    final_translation_resolution_mm: f64,
-    structural_half_range_cells: NonZeroU8,
-    simplex_iteration_limit: usize,
-}
-
-impl RigidSearchConfig {
-    /// Validate a bounded rigid-search configuration.
-    ///
-    /// Rotation values are degrees and translations are millimetres. The final
-    /// resolution must not exceed its corresponding search half-range.
-    ///
-    /// # Errors
-    ///
-    /// Returns [`RegistrationError::InvalidInput`] when a value is non-finite,
-    /// non-positive, the terminal resolution exceeds its half-range, or the
-    /// simplex iteration limit is zero.
-    pub fn try_new(
-        rotation_half_range_deg: f64,
-        translation_half_range_mm: f64,
-        final_rotation_resolution_deg: f64,
-        final_translation_resolution_mm: f64,
-        simplex_iteration_limit: usize,
-    ) -> Result<Self> {
-        let values = [
-            rotation_half_range_deg,
-            translation_half_range_mm,
-            final_rotation_resolution_deg,
-            final_translation_resolution_mm,
-        ];
-        if values
-            .iter()
-            .any(|value| !value.is_finite() || *value <= 0.0)
-        {
-            return Err(RegistrationError::InvalidInput(format!(
-                "rigid-search ranges and resolutions must be finite and positive, got {values:?}"
-            )));
-        }
-        if final_rotation_resolution_deg > rotation_half_range_deg
-            || final_translation_resolution_mm > translation_half_range_mm
-        {
-            return Err(RegistrationError::InvalidInput(format!(
-                "rigid-search terminal resolution [{final_rotation_resolution_deg} deg, \
-                 {final_translation_resolution_mm} mm] exceeds half-range \
-                 [{rotation_half_range_deg} deg, {translation_half_range_mm} mm]"
-            )));
-        }
-        if simplex_iteration_limit == 0 {
-            return Err(RegistrationError::InvalidInput(
-                "rigid-search simplex iteration limit must be positive".to_owned(),
-            ));
-        }
-        Ok(Self {
-            rotation_half_range_radians: rotation_half_range_deg.to_radians(),
-            translation_half_range_mm,
-            final_rotation_resolution_radians: final_rotation_resolution_deg.to_radians(),
-            final_translation_resolution_mm,
-            structural_half_range_cells: NonZeroU8::MIN,
-            simplex_iteration_limit,
-        })
-    }
-
-    /// Set the structural-refinement half-range in terminal capture cells.
-    ///
-    /// The nonzero `u8` bound keeps the refinement finite. Global rigid-search
-    /// bounds remain authoritative and may clip the requested local range.
-    ///
-    /// # Examples
-    ///
-    /// ```
-    /// use std::num::NonZeroU8;
-    /// use ritk_registration::RigidSearchConfig;
-    ///
-    /// let config = RigidSearchConfig::try_new(12.0, 8.0, 0.5, 0.75, 256)
-    ///     .expect("valid bounded search")
-    ///     .with_structural_half_range_cells(
-    ///         NonZeroU8::new(3).expect("invariant: three is nonzero"),
-    ///     );
-    /// assert_eq!(config.structural_half_range_cells().get(), 3);
-    /// ```
-    #[must_use]
-    pub const fn with_structural_half_range_cells(mut self, cells: NonZeroU8) -> Self {
-        self.structural_half_range_cells = cells;
-        self
-    }
-
-    /// Return the structural-refinement half-range in terminal capture cells.
-    #[must_use]
-    pub const fn structural_half_range_cells(self) -> NonZeroU8 {
-        self.structural_half_range_cells
-    }
-
-    fn global_bounds(self) -> [f64; PARAMETER_COUNT] {
-        [
-            self.rotation_half_range_radians,
-            self.rotation_half_range_radians,
-            self.rotation_half_range_radians,
-            self.translation_half_range_mm,
-            self.translation_half_range_mm,
-            self.translation_half_range_mm,
-        ]
-    }
-
-    fn terminal_resolution(self) -> [f64; PARAMETER_COUNT] {
-        [
-            self.final_rotation_resolution_radians,
-            self.final_rotation_resolution_radians,
-            self.final_rotation_resolution_radians,
-            self.final_translation_resolution_mm,
-            self.final_translation_resolution_mm,
-            self.final_translation_resolution_mm,
-        ]
-    }
-}
-
-/// NMI-capture and local structural-refinement candidates.
-#[derive(Debug, Clone, Copy, PartialEq)]
-#[must_use]
-pub struct RigidSearchResult {
-    /// Transform at the capture objective's optimum.
-    pub capture_transform: AffineTransform,
-    /// Transform after structural refinement inside the configured local range.
-    pub structural_transform: AffineTransform,
-    /// Capture-objective value at [`Self::capture_transform`].
-    pub capture_score: f64,
-    /// Structural-objective value at [`Self::structural_transform`].
-    pub structural_score: f64,
-    /// Whether capture terminated within one resolution step of a global bound.
-    pub capture_saturated: bool,
-    /// Whether structural refinement terminated within one convergence width
-    /// of its effective local or global bound.
-    pub structural_saturated: bool,
-}
-
-/// Search a centroid-anchored six-degree-of-freedom rigid pose.
+/// Search a six-degree-of-freedom residual around a full rigid anchor.
 ///
 /// Parameters are ZYX Euler rotations in radians followed by residual `[z, y,
 /// x]` translations in millimetres. The capture objective runs coarse-to-fine
@@ -166,8 +34,7 @@ pub struct RigidSearchResult {
 /// [`RegistrationError::NumericalFailure`] when a candidate cannot form a
 /// finite transform or either objective emits a non-finite value.
 pub fn search_rigid_pose<C, S>(
-    fixed_centroid_mm: [f64; 3],
-    moving_centroid_mm: [f64; 3],
+    anchor: RigidSearchAnchor,
     config: RigidSearchConfig,
     mut capture_objective: C,
     mut structural_objective: S,
@@ -176,14 +43,24 @@ where
     C: FnMut(&AffineTransform) -> Result<f64>,
     S: FnMut(&AffineTransform) -> Result<f64>,
 {
+    let anchor_matrix = anchor.transform.as_array();
+    let anchor_rotation = [
+        [anchor_matrix[0], anchor_matrix[1], anchor_matrix[2]],
+        [anchor_matrix[4], anchor_matrix[5], anchor_matrix[6]],
+        [anchor_matrix[8], anchor_matrix[9], anchor_matrix[10]],
+    ];
     let matrix = |parameters: &[f64; PARAMETER_COUNT]| -> Result<AffineTransform> {
+        if parameters.iter().all(|&parameter| parameter == 0.0) {
+            return Ok(anchor.transform);
+        }
+        let residual_rotation = euler_zyx(parameters[0], parameters[1], parameters[2]);
         let transform = rigid_about_centroid(
-            euler_zyx(parameters[0], parameters[1], parameters[2]),
-            fixed_centroid_mm,
+            multiply_3x3(anchor_rotation, residual_rotation),
+            anchor.fixed_center_mm,
             [
-                moving_centroid_mm[0] + parameters[3],
-                moving_centroid_mm[1] + parameters[4],
-                moving_centroid_mm[2] + parameters[5],
+                anchor.moving_center_mm[0] + parameters[3],
+                anchor.moving_center_mm[1] + parameters[4],
+                anchor.moving_center_mm[2] + parameters[5],
             ],
         );
         if transform.as_array().iter().all(|value| value.is_finite()) {
@@ -393,81 +270,6 @@ fn finite_score(score: f64, objective: &str) -> Result<f64> {
             "{objective} rigid-search objective returned {score}"
         )))
     }
-}
-
-fn euler_zyx(alpha: f64, beta: f64, gamma: f64) -> [[f64; 3]; 3] {
-    let (sin_alpha, cos_alpha) = alpha.sin_cos();
-    let (sin_beta, cos_beta) = beta.sin_cos();
-    let (sin_gamma, cos_gamma) = gamma.sin_cos();
-    let z = [
-        [1.0, 0.0, 0.0],
-        [0.0, cos_alpha, -sin_alpha],
-        [0.0, sin_alpha, cos_alpha],
-    ];
-    let y = [
-        [cos_beta, 0.0, sin_beta],
-        [0.0, 1.0, 0.0],
-        [-sin_beta, 0.0, cos_beta],
-    ];
-    let x = [
-        [cos_gamma, -sin_gamma, 0.0],
-        [sin_gamma, cos_gamma, 0.0],
-        [0.0, 0.0, 1.0],
-    ];
-    multiply_3x3(multiply_3x3(z, y), x)
-}
-
-fn multiply_3x3(left: [[f64; 3]; 3], right: [[f64; 3]; 3]) -> [[f64; 3]; 3] {
-    let mut product = [[0.0; 3]; 3];
-    for row in 0..3 {
-        for column in 0..3 {
-            product[row][column] = (0..3)
-                .map(|inner| left[row][inner] * right[inner][column])
-                .sum();
-        }
-    }
-    product
-}
-
-fn rigid_about_centroid(
-    rotation: [[f64; 3]; 3],
-    fixed_centroid: [f64; 3],
-    moving_centroid: [f64; 3],
-) -> AffineTransform {
-    let rotated_centroid = [
-        rotation[0][0] * fixed_centroid[0]
-            + rotation[0][1] * fixed_centroid[1]
-            + rotation[0][2] * fixed_centroid[2],
-        rotation[1][0] * fixed_centroid[0]
-            + rotation[1][1] * fixed_centroid[1]
-            + rotation[1][2] * fixed_centroid[2],
-        rotation[2][0] * fixed_centroid[0]
-            + rotation[2][1] * fixed_centroid[1]
-            + rotation[2][2] * fixed_centroid[2],
-    ];
-    let translation = [
-        moving_centroid[0] - rotated_centroid[0],
-        moving_centroid[1] - rotated_centroid[1],
-        moving_centroid[2] - rotated_centroid[2],
-    ];
-    AffineTransform::new([
-        rotation[0][0],
-        rotation[0][1],
-        rotation[0][2],
-        translation[0],
-        rotation[1][0],
-        rotation[1][1],
-        rotation[1][2],
-        translation[1],
-        rotation[2][0],
-        rotation[2][1],
-        rotation[2][2],
-        translation[2],
-        0.0,
-        0.0,
-        0.0,
-        1.0,
-    ])
 }
 
 fn nelder_mead_maximize<F>(

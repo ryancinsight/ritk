@@ -52,6 +52,15 @@ callers can select a larger nonzero number of cells while the original global
 rigid bounds continue to constrain every candidate. A global MIND-SSC or NGF
 search can lock onto remote anatomy, skull, or air boundaries.
 
+Those bounds are refinement limits, not a substitute for orientation capture.
+For a larger initial mismatch, generate normalized-cross-correlation block
+matches in both directions, convert both sets to physical fixed-to-moving
+correspondences, and pass them to `fit_symmetric_trimmed_rigid`. The resulting
+full transform enters `search_rigid_pose` through `RigidSearchAnchor`; residual
+parameters remain subject to the same finite bounds. This follows the rigid
+subset of Modat et al.'s symmetric block-matching design
+(<https://doi.org/10.1117/1.JMI.1.2.024003>, sections 2.1–2.3).
+
 MIND-SSC provides a complementary local structural objective when corresponding
 soft-tissue patches retain self-similarity despite modality-dependent
 intensity. Prepare fixed descriptors once at complete-support centers. For each
@@ -76,4 +85,5 @@ where resampling actually changed the sampled values.
 | Example | Status | Focus |
 | --- | --- | --- |
 | [CT/MR Mutual-Information Registration](examples/registration_compare_figure.md) | Available | Labeled RIRE CT-to-MR overlays with identity, registered, and MR-change diagnostic panels. |
+| [Robust Rigid Capture Initializer](examples/rigid_capture_initializer.md) | Available | Symmetric 50%-trimmed rigid fitting and bounded full-anchor refinement. |
 | [Validation Suite](examples/validation_suite.md) | Available | Geometry, metric, overlap, convergence, and visible pre/post checks. |
