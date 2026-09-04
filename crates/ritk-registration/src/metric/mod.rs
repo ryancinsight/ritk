@@ -3,6 +3,7 @@
 pub mod autodiff;
 pub mod dl_losses;
 pub mod lncc;
+pub mod mind;
 pub mod mse;
 pub mod ncc;
 pub mod ngf;

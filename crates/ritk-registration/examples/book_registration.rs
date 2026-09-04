@@ -22,8 +22,10 @@ use ritk_image::Image;
 use ritk_io::{format::metaimage::native::MetaImageReader, ImageReader};
 use ritk_registration::classical::{
     engine::{HistogramEstimator, IntensityRange, MutualInformationMetric, NmiNormalization},
-    image_to_leto_volume,
+    image_to_leto_volume, rigid_physical_affine_to_native,
 };
+use ritk_registration::metric::mind::{MindSscConfig, MindSscFixedPrep};
+use ritk_registration::AffineTransform;
 use ritk_spatial::{Direction, Point, Spacing};
 use ritk_transform::transform::affine::AtlasAffineTransform;
 use std::fmt::Write as _;
@@ -42,6 +44,8 @@ const DISPLAY_SIDE: usize = 256;
 const PANEL_WIDTH: u32 = 320;
 const PANEL_HEIGHT: u32 = 330;
 const PANEL_GAP: u32 = 16;
+const CT_SOFT_TISSUE_LOWER_HU: f32 = -200.0;
+const CT_SOFT_TISSUE_UPPER_HU: f32 = 200.0;
 
 fn read_inputs() -> Result<(Image<f32, Backend, 3>, Image<f32, Backend, 3>)> {
     let reader = MetaImageReader::new(Backend::default());
@@ -116,7 +120,7 @@ fn window(values: &[f32], lower: f32, upper: f32) -> Result<Vec<f32>> {
         .collect())
 }
 
-fn ground_truth_transform() -> Result<AtlasAffineTransform<Backend, 3>> {
+fn ground_truth_transform() -> Result<AffineTransform> {
     let source = std::fs::read_to_string(GROUND_TRUTH_PATH)
         .with_context(|| format!("read RIRE ground-truth transform {GROUND_TRUTH_PATH}"))?;
     let parameters = source
@@ -153,10 +157,15 @@ fn ground_truth_transform() -> Result<AtlasAffineTransform<Backend, 3>> {
                 .sum::<f32>()
         })
     });
-    let matrix = matrix.into_iter().flatten().collect::<Vec<_>>();
     let translation = [*tx, *ty, *tz];
-    AtlasAffineTransform::try_new(&matrix, &translation, &[0.0; 3])
-        .map_err(|error| anyhow::anyhow!("construct RIRE ground-truth transform: {error}"))
+    let mut classical = AffineTransform::IDENTITY;
+    for row in 0..3 {
+        for column in 0..3 {
+            classical.as_array_mut()[row * 4 + column] = f64::from(matrix[2 - row][2 - column]);
+        }
+        classical.as_array_mut()[row * 4 + 3] = f64::from(translation[2 - row]);
+    }
+    Ok(classical)
 }
 
 fn slice(values: &[f32], shape: [usize; 3], z: usize) -> Result<&[f32]> {
@@ -333,6 +342,8 @@ fn write_figure(
     shape: [usize; 3],
     mr_lower: f32,
     mr_upper: f32,
+    initial_mind: f32,
+    final_mind: f32,
 ) -> Result<(f32, f32)> {
     let axial_slice = shape[0] / 2;
     let fixed = normalized_ct_slice(fixed, shape, axial_slice)?;
@@ -349,6 +360,8 @@ fn write_figure(
         .context("registration figure height overflows u32")?;
     let mut svg = String::from("<svg xmlns=\"http://www.w3.org/2000/svg\" viewBox=\"0 0 ");
     writeln!(svg, "{figure_width} {figure_height}\">\n<style>.title{{font:600 16px sans-serif;fill:#172033}}.subtitle{{font:12px sans-serif;fill:#475569}}</style>")?;
+    let identity_subtitle = format!("R=CT, G=MR; MIND-SSC {initial_mind:.4}");
+    let registered_subtitle = format!("RIRE transform; MIND-SSC {final_mind:.4}");
     let plane_shape = [1, shape[1], shape[2]];
     draw_panel(
         &mut svg,
@@ -367,7 +380,7 @@ fn write_figure(
             offset_x: PANEL_WIDTH + PANEL_GAP,
             offset_y: 0,
             title: "Identity overlay",
-            subtitle: "R=CT, G=MR; no transform",
+            subtitle: &identity_subtitle,
             content: PanelContent::Overlay {
                 fixed: &fixed,
                 moving: &identity,
@@ -381,7 +394,7 @@ fn write_figure(
             offset_x: 0,
             offset_y: PANEL_HEIGHT + PANEL_GAP,
             title: "Registered overlay",
-            subtitle: "R=CT, G=MR; RIRE rigid transform",
+            subtitle: &registered_subtitle,
             content: PanelContent::Overlay {
                 fixed: &fixed,
                 moving: &registered,
@@ -453,7 +466,17 @@ fn main() -> Result<()> {
     )?;
     let initial_mi = similarity.compute(&fixed_volume, &moving_volume)?;
     let ground_truth = ground_truth_transform()?;
-    let registered_values = resample_moving_at_world(&fixed_world, &mr, &ground_truth)
+    let ground_truth_native = rigid_physical_affine_to_native::<Backend>(&ground_truth)?;
+    let soft_tissue_mask = ct
+        .data_slice()?
+        .iter()
+        .map(|value| (CT_SOFT_TISSUE_LOWER_HU..=CT_SOFT_TISSUE_UPPER_HU).contains(value))
+        .collect::<Vec<_>>();
+    let mind =
+        MindSscFixedPrep::try_new(&ct, MindSscConfig::default(), Some(&soft_tissue_mask), None)?;
+    let initial_mind = mind.eval(&mr, &AffineTransform::IDENTITY)?;
+    let final_mind = mind.eval(&mr, &ground_truth)?;
+    let registered_values = resample_moving_at_world(&fixed_world, &mr, &ground_truth_native)
         .context("resample MR with the RIRE fiducial transform on the coarse grid")?;
     let registered_mr = image_from_grid(window(&registered_values, mr_lower, mr_upper)?, &coarse)?;
     let registered_volume = image_to_leto_volume(&registered_mr)?;
@@ -468,7 +491,7 @@ fn main() -> Result<()> {
     let full_fixed_world = fixed_world_points(&ct);
     let mr_identity = resample_moving_at_world(&full_fixed_world, &mr, &identity)
         .context("resample identity MR onto the full CT grid")?;
-    let mr_registered = resample_moving_at_world(&full_fixed_world, &mr, &ground_truth)
+    let mr_registered = resample_moving_at_world(&full_fixed_world, &mr, &ground_truth_native)
         .context("resample registered MR onto the full CT grid")?;
     let (maximum_change, mean_change) = write_figure(
         &output,
@@ -478,10 +501,15 @@ fn main() -> Result<()> {
         ct.shape(),
         mr_lower,
         mr_upper,
+        initial_mind,
+        final_mind,
     )?;
+    let memory = mind.memory_usage();
     println!(
-        "wrote {} (R=CT, G=MR; NMI {initial_mi:.6} -> {final_mi:.6}; MR change max {maximum_change:.2}, mean {mean_change:.2}; axial slice {})",
+        "wrote {} (R=CT, G=MR; NMI {initial_mi:.6} -> {final_mi:.6}; MIND-SSC {initial_mind:.6} -> {final_mind:.6}; MIND centers {}, heap {} bytes; MR change max {maximum_change:.2}, mean {mean_change:.2}; axial slice {})",
         output.display(),
+        memory.selected_centers,
+        memory.heap_payload_bytes,
         ct.shape()[0] / 2,
     );
     Ok(())

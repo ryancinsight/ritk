@@ -7,7 +7,7 @@ objective, trustworthy physical metadata, and visual validation.
 The minimum workflow is:
 
 1. load both volumes and inspect their physical frames;
-2. choose mutual information, LNCC, or NGF rather than assuming MSE is valid;
+2. choose mutual information, MIND-SSC, LNCC, or NGF rather than assuming MSE is valid;
 3. resample the moving image in the fixed frame;
 4. compare identity and candidate transforms; and
 5. retain a numerical change map and a labeled overlay.
@@ -49,6 +49,17 @@ For CT/MR soft tissue, a bounded two-stage search is preferable to a fitted
 weighted sum: NMI captures the multimodal basin, then NGF refines edge
 orientation inside one terminal NMI cell. A global NGF search can lock onto a
 remote skull or air boundary.
+
+MIND-SSC provides a complementary local structural objective when corresponding
+soft-tissue patches retain self-similarity despite modality-dependent
+intensity. Prepare fixed descriptors once at complete-support centers. For each
+candidate pose, only the six moving patch neighbourhoods at those centers are
+sampled. The default deterministic 8,192-center cap bounds memory and runtime;
+use caller-provided indices when an anatomical mask or validation protocol
+defines the exact population. The image field follows ITK's half-voxel
+`[-0.5,size-0.5)` convention: support inside it uses replicate-edge trilinear
+interpolation, while support outside it is explicit zero background and stays
+in the fixed denominator.
 
 The CT/MR fixture uses moving-linear partial-volume NMI plus a reference
 transform so the example is reproducible rather than optimizer-seed dependent.

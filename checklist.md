@@ -1,3 +1,11 @@
+## RITK-MIND-REGISTRATION-2026-09-04
+
+- [ ] Specify descriptor equations, boundary behavior, storage bounds, and API in ADR 0024.
+- [ ] Implement the canonical MIND descriptor and fixed-domain metric with value-semantic and differential tests.
+- [ ] Add a runnable example and synchronized registration book material.
+- [ ] Integrate the metric in Leoneuro and retain it only if RIRE and Patient109 validation pass.
+- [ ] Run risk-scaled RITK and consumer gates, obtain independent review, and merge both repositories.
+
 ## RITK-LINT-ALLOW-SITES-2026-08-31
 
 - [x] Attribute all 16 production allowance sites to exact introducing commit

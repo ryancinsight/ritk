@@ -8,6 +8,6 @@ mod error;
 mod transform;
 mod volume;
 
-pub use error::NativeConversionError;
-pub use transform::index_affine_to_physical;
+pub use error::{NativeConversionError, RigidPhysicalAffineError};
+pub use transform::{index_affine_to_physical, rigid_physical_affine_to_native};
 pub use volume::{image_to_leto_volume, leto_volume_to_image};

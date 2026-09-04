@@ -3,6 +3,16 @@
 
 - **Status:** done; delivered by [RITK PR #227](https://github.com/ryancinsight/ritk/pull/227) and integrated by [LeoNeuro PR #19](https://github.com/LeoNeuro-INC/leoneuro-rs/pull/19); decision: `docs/adr/0023-soft-tissue-multimodal-registration.md`.
 
+<a id="RITK-MIND-REGISTRATION-2026-09-04"></a>
+## RITK-MIND-REGISTRATION-2026-09-04 — Modality-independent neighborhood metric [minor] [arch] — done
+
+- **Status:** done; independent review approved the bounded-memory implementation and corrected boundary/error contracts.
+- **Outcome:** provide one bounded-memory MIND metric for CT/MRI soft-tissue rigid registration, owned by RITK and consumable without GUI dependencies.
+- **Scope/non-goals:** descriptor construction and fixed-domain transform scoring; no optimizer widening, deformable correction, learned model, or fiducial input.
+- **Acceptance:** analytical invariance, boundary, malformed-input, and naive-vs-optimized differential tests pass; a Leoneuro RIRE consumer does not regress its 0.8330/1.1324 mm TRE oracle and Patient109 remains review-gated.
+- **Risk/verification:** public additive metric and registration-architecture change; ADR 0024, focused/full native gates, doctests/book example, memory accounting, consumer validation, and independent review.
+- **Dependencies:** RITK PR #227 and Leoneuro PR #19 are merged; Heinrich et al. 2012 defines the descriptor contract.
+
 ## RITK-LINT-ALLOW-SITES-2026-08-31 — Remove reintroduced production allowances [patch] — in progress
 
 - **Status:** in progress; integrator=current Codex session; lease=the 13 affected

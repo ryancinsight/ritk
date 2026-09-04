@@ -23,7 +23,8 @@ pub use engine::{
 };
 pub use error::{RegistrationError, Result};
 pub use native::{
-    image_to_leto_volume, index_affine_to_physical, leto_volume_to_image, NativeConversionError,
+    image_to_leto_volume, index_affine_to_physical, leto_volume_to_image,
+    rigid_physical_affine_to_native, NativeConversionError, RigidPhysicalAffineError,
 };
 pub use rigid_search::{search_rigid_pose, RigidSearchConfig, RigidSearchResult};
 pub use spatial::SpatialTransform;

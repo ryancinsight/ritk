@@ -8,9 +8,58 @@ use ritk_transform::transform::affine::AtlasAffineTransform;
 
 use crate::types::AffineTransform;
 
-use super::NativeConversionError;
+use super::{NativeConversionError, RigidPhysicalAffineError};
 
 type Matrix3 = FixedMatrix<f64, 3, 3>;
+
+/// Convert a classical physical `[z, y, x]` affine to native `[x, y, z]`.
+///
+/// [`crate::classical::search_rigid_pose`] returns a physical affine whose
+/// axes follow volume storage order. Native [`Image`] world coordinates follow
+/// metadata axis order. If `P` reverses three axes, this conversion applies
+/// `A_native = P A_classical P` and `t_native = P t_classical`. It does not
+/// use image spacing, origin, or direction because both sides are already
+/// physical-coordinate transforms.
+///
+/// # Errors
+///
+/// Returns [`RigidPhysicalAffineError::InvalidHomogeneousRow`] when
+/// the final row is not `[0, 0, 0, 1]`, and
+/// [`RigidPhysicalAffineError::NonRepresentable`] when a component
+/// is non-finite or outside the native `f32` range.
+pub fn rigid_physical_affine_to_native<B>(
+    physical_affine: &AffineTransform,
+) -> std::result::Result<AtlasAffineTransform<B, 3>, RigidPhysicalAffineError>
+where
+    B: ComputeBackend,
+{
+    let source = physical_affine.as_array();
+    let homogeneous_row = [source[12], source[13], source[14], source[15]];
+    if homogeneous_row != [0.0, 0.0, 0.0, 1.0] {
+        return Err(RigidPhysicalAffineError::InvalidHomogeneousRow {
+            actual: homogeneous_row,
+        });
+    }
+
+    let mut matrix = [0.0_f32; 9];
+    for native_row in 0..3 {
+        for native_column in 0..3 {
+            let classical_row = 2 - native_row;
+            let classical_column = 2 - native_column;
+            matrix[native_row * 3 + native_column] = narrow_rigid(
+                source[classical_row * 4 + classical_column],
+                "physical affine matrix",
+            )?;
+        }
+    }
+    let translation = [
+        narrow_rigid(source[11], "physical affine translation")?,
+        narrow_rigid(source[7], "physical affine translation")?,
+        narrow_rigid(source[3], "physical affine translation")?,
+    ];
+    AtlasAffineTransform::try_new(&matrix, &translation, &[0.0; 3])
+        .map_err(RigidPhysicalAffineError::Construction)
+}
 
 /// Convert a classical index-space affine into a physical-space native affine.
 ///
@@ -101,6 +150,16 @@ fn narrow(value: f64, role: &'static str) -> std::result::Result<f32, NativeConv
     Ok(f32::cast_from(value))
 }
 
+fn narrow_rigid(
+    value: f64,
+    role: &'static str,
+) -> std::result::Result<f32, RigidPhysicalAffineError> {
+    if !value.is_finite() || value.abs() > f64::from(f32::MAX) {
+        return Err(RigidPhysicalAffineError::NonRepresentable { role, value });
+    }
+    Ok(f32::cast_from(value))
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -155,5 +214,30 @@ mod tests {
             );
         }
         Ok(())
+    }
+
+    #[test]
+    fn rigid_physical_affine_reverses_axes_on_both_sides() -> Result<()> {
+        let classical = AffineTransform::new([
+            1.0, 2.0, 3.0, 4.0, 5.0, 6.0, 7.0, 8.0, 9.0, 10.0, 11.0, 12.0, 0.0, 0.0, 0.0, 1.0,
+        ]);
+        let native = rigid_physical_affine_to_native::<SequentialBackend>(&classical)?;
+        assert_eq!(
+            native.matrix(),
+            &[11.0, 10.0, 9.0, 7.0, 6.0, 5.0, 3.0, 2.0, 1.0]
+        );
+        assert_eq!(native.translation(), &[12.0, 8.0, 4.0]);
+        assert_eq!(native.center(), &[0.0; 3]);
+        Ok(())
+    }
+
+    #[test]
+    fn rigid_physical_affine_rejects_non_homogeneous_input() {
+        let mut source = AffineTransform::IDENTITY;
+        source.as_array_mut()[15] = 2.0;
+        assert!(matches!(
+            rigid_physical_affine_to_native::<SequentialBackend>(&source),
+            Err(RigidPhysicalAffineError::InvalidHomogeneousRow { .. })
+        ));
     }
 }
