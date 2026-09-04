@@ -38,9 +38,9 @@ const GROUND_TRUTH_PATH: &str =
 const COARSE_ORIGIN: [f64; 3] = [35.0, 40.0, 40.0];
 const COARSE_EXTENT: [f64; 3] = [65.0, 240.0, 240.0];
 const COARSE_SHAPE: [usize; 3] = [8, 64, 64];
-const DISPLAY_SIDE: usize = 160;
+const DISPLAY_SIDE: usize = 256;
 const PANEL_WIDTH: u32 = 320;
-const PANEL_HEIGHT: u32 = 250;
+const PANEL_HEIGHT: u32 = 330;
 const PANEL_GAP: u32 = 16;
 
 fn read_inputs() -> Result<(Image<f32, Backend, 3>, Image<f32, Backend, 3>)> {
@@ -319,7 +319,7 @@ fn draw_panel(svg: &mut String, panel: SvgPanel<'_>, shape: [usize; 3]) -> Resul
     )?;
     writeln!(
         svg,
-        "<image x=\"{image_offset_x}\" y=\"{image_offset_y}\" width=\"{display_side}\" height=\"{display_side}\" href=\"data:image/png;base64,{encoded}\" image-rendering=\"pixelated\"/>"
+        "<image x=\"{image_offset_x}\" y=\"{image_offset_y}\" width=\"{display_side}\" height=\"{display_side}\" href=\"data:image/png;base64,{encoded}\" image-rendering=\"auto\"/>"
     )?;
     svg.push_str("</g>\n");
     Ok(())

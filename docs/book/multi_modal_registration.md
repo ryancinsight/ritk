@@ -29,16 +29,34 @@ across candidate poses. Recomputing the support from each candidate lets a bad
 pose improve its score by cropping difficult anatomy. Report overlap separately
 and reject candidates that violate the application-derived support floor.
 
+`SpatiallyConditionedMutualInformationMetric` additionally associates every
+sample with a fixed zero-based region label. It computes
+
+\[
+H(F\mid R)=\sum_r p(r)H(F\mid r),\qquad
+H(F,M\mid R)=\sum_r p(r)H(F,M\mid r),
+\]
+
+and applies the chosen NMI normalization to the conditional fixed, moving, and
+joint entropies. This preserves coarse location information that one global
+histogram discards. Region labels belong to the fixed frame and must not change
+with the candidate pose. The reusable workspace allocates its regional
+histograms once and clears them between evaluations. Toews and Wells derive
+this local-region formulation in section 3.2, equations 8–9
+(<https://doi.org/10.1007/978-3-642-02498-6_36>).
+
 For CT/MR soft tissue, a bounded two-stage search is preferable to a fitted
 weighted sum: NMI captures the multimodal basin, then NGF refines edge
 orientation inside one terminal NMI cell. A global NGF search can lock onto a
 remote skull or air boundary.
 
-The CT/MR fixture uses moving-linear partial-volume NMI plus a reference transform so the
-example is reproducible rather than optimizer-seed dependent. The registered
-overlay is visibly different from identity because red and green fringes expose
-residual misalignment, while the MR change panel exposes where resampling
-actually changed the sampled values.
+The CT/MR fixture uses moving-linear partial-volume NMI plus a reference
+transform so the example is reproducible rather than optimizer-seed dependent.
+The coarse figure grid is intentionally not used to demonstrate spatial
+conditioning: its shallow axis leaves too little entropy per local region.
+The registered overlay is visibly different from identity because red and
+green fringes expose residual misalignment, while the MR change panel exposes
+where resampling actually changed the sampled values.
 
 ## Example Summary
 

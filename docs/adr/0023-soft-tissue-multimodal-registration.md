@@ -4,25 +4,29 @@
 - **Board item:** `RITK-SOFT-TISSUE-REGISTRATION-2026-09-03`
 - **Class:** [major] [arch]
 - **Date:** 2026-09-03
+- **Revision 2026-09-03:** Add the fixed-region conditioned metric after the
+  downstream global-histogram RIRE result remained anatomically offset.
 
 ## Context
 
 The classical mutual-information path assigns each sample to one discrete
 histogram bin and uses one intensity range for both modalities. The downstream
 CT/MR registration duplicates this estimator and a six-parameter search because
-the images have different physical grids. On RIRE Patient-001, the image-only
-optimum reaches 1.89 mm mean and 3.33 mm maximum target registration error
-(TRE), but its NMI is slightly higher than the independent fiducial pose while
-its Normalized Gradient Fields (NGF) score is lower. The estimator therefore
-selects a visible soft-tissue offset; more iterations optimize the wrong local
-ordering.
+the images have different physical grids. On RIRE Patient-001, the earlier
+downstream image-only optimum reached 1.89 mm mean and 3.33 mm maximum target
+registration error (TRE), but its global NMI was slightly higher than the
+independent fiducial pose while its Normalized Gradient Fields (NGF) score was
+lower. The estimator therefore selected a visible soft-tissue offset; more
+iterations optimized the wrong local ordering.
 
 Maes et al. report that multimodal mutual-information registration is sensitive
 to interpolation, optimization, and changing overlap [1]. Ikeda et al. identify
 the discontinuity of discrete histogram estimation and use Parzen windows to
 obtain a continuous mutual-information objective [2]. Haber and Modersitzki
 describe the local-maxima problem for mutual information and formulate NGF as
-an edge-orientation measure for multimodal registration [3].
+an edge-orientation measure for multimodal registration [3]. Toews and Wells
+condition image entropies on local regions to retain coarse spatial
+correspondence that a global histogram discards [4].
 
 ## Decision
 
@@ -39,6 +43,8 @@ without copying full volumes into a RITK image type.
 Add one bounded six-parameter rigid-pose optimizer in `classical::rigid_search`.
 It owns centroid-anchored ZYX pose construction and derivative-free search but
 accepts the image sampler and similarity measures as monomorphized closures.
+Objective closures are fallible, so invalid samples and allocation errors
+retain their registration failure instead of being replaced with a score.
 The first stage captures the multimodal basin with partial-volume NMI. The
 second stage refines NGF inside the final NMI resolution cell; it cannot perform
 a second global search. Callers retain explicit coverage and overlap gates.
@@ -48,15 +54,24 @@ conversion derives those radii from image spacing. A caller can therefore keep
 mask support physically bounded on anisotropic acquisitions rather than making
 thick slices dominate the registration region.
 
+Add `SpatiallyConditionedMutualInformationMetric` as a reusable workspace over
+`MutualInformationMetric`. Every selected sample carries a fixed zero-based
+region label. The workspace computes `H(F|R)`, `H(M|R)`, and `H(F,M|R)` and then
+applies the configured normalization. Its regional joint and marginal
+histograms allocate once and are cleared between poses. Fixed masks and labels
+must remain constant during optimization; callers represent out-of-field
+moving samples explicitly rather than deleting them from the sample population.
+
 The transform convention is row-major fixed-to-moving `[z, y, x]` millimetres.
-The implementation is deterministic and allocation-free per optimizer state;
-metric histograms allocate once per evaluation until profile evidence justifies
-caller-owned scratch storage.
+The implementation is deterministic. The conditioned metric performs no
+per-pose allocation after construction.
 
 ## Alternatives rejected
 
 - Continue optimizing hard-bin NMI: rejected because the RIRE reference scores
   below the displaced optimum under that estimator.
+- Continue using one global partial-volume histogram: rejected because it
+  preserves intensity co-occurrence but not coarse anatomical location.
 - Optimize NGF globally: rejected because the RIRE objective has remote edge
   maxima and a global NGF trial increased mean TRE to 8.07 mm.
 - Combine NMI and NGF with a fitted scalar weight: rejected because no physical
@@ -68,11 +83,17 @@ caller-owned scratch storage.
 ## Verification and limits
 
 Analytical tests cover the discrete estimator's exact identities, partial-volume
-mass conservation and continuity, masking, invalid inputs, rigid centroid
-mapping, bound saturation, and recovery of a coupled manufactured optimum.
-The RIRE test evaluates image-only registration against held-out fiducials and
-renders CT/MR overlays for inspection. One public subject validates this
-regression but does not estimate population, clinical, or FDA performance.
+mass conservation and continuity, masking, invalid inputs, conditioned-entropy
+identities, workspace clearing, invalid region labels, a manufactured global-
+histogram ambiguity resolved by location conditioning, rigid centroid mapping,
+bound saturation, fallible objective propagation, and recovery of a coupled
+manufactured optimum. The downstream LeoNeuro RIRE oracle evaluates image-only
+registration against held-out fiducials: the 3×3×3 conditioned capture reaches
+0.8330 mm mean and 1.1324 mm maximum TRE, while an adversarial field-of-view
+crop loses support and scores below the fiducial pose. The selected pose reaches
+one search bound; wider trials select a remote histogram maximum and worsen
+TRE. One public subject validates this regression but does not estimate
+population, clinical, or FDA performance.
 
 ## References
 
@@ -85,3 +106,6 @@ regression but does not estimate population, clinical, or FDA performance.
 3. Haber E, Modersitzki J. “Intensity Gradient Based Registration and Fusion of
    Multi-modal Images.” *MICCAI 2006*. DOI:
    <https://doi.org/10.1007/11866763_89>.
+4. Toews M, Wells WM. “Bayesian Registration via Local Image Regions.”
+   *Information Processing in Medical Imaging*, 2009, section 3.2, equations
+   8–9. DOI: <https://doi.org/10.1007/978-3-642-02498-6_36>.

@@ -19,6 +19,37 @@ use crate::classical::error::{RegistrationError, Result};
 /// `H(F|R) = Σ p(r) H(F|r)` and likewise for the moving and joint histograms.
 /// The configured [`NmiNormalization`] is then applied to those three
 /// conditional entropies. See <https://doi.org/10.1007/978-3-642-02498-6_36>.
+///
+/// # Examples
+///
+/// ```
+/// use std::num::NonZeroU8;
+/// use ritk_registration::classical::{
+///     HistogramEstimator, IntensityRange, MutualInformationMetric,
+///     NmiNormalization, SpatiallyConditionedMutualInformationMetric,
+/// };
+///
+/// let range = IntensityRange::try_new(0.0, 1.0)?;
+/// let base = MutualInformationMetric::with_ranges(
+///     2,
+///     range,
+///     range,
+///     NmiNormalization::JointEntropy,
+///     HistogramEstimator::Discrete,
+/// )?;
+/// let mut metric = SpatiallyConditionedMutualInformationMetric::try_new(
+///     base,
+///     NonZeroU8::new(2).expect("two regions are nonzero"),
+/// )?;
+/// let nmi = metric.compute_masked_samples(
+///     &[0.0, 1.0, 0.0, 1.0],
+///     &[0.0, 1.0, 0.0, 1.0],
+///     &[0, 0, 1, 1],
+///     None,
+/// )?;
+/// assert_eq!(nmi, 2.0);
+/// # Ok::<(), ritk_registration::classical::RegistrationError>(())
+/// ```
 #[derive(Debug)]
 pub struct SpatiallyConditionedMutualInformationMetric {
     metric: MutualInformationMetric,
