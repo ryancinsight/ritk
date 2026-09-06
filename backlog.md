@@ -4,7 +4,7 @@
 
 <a id="RITK-SNAP-OPEN-001"></a>
 ## RITK-SNAP-OPEN-001 — Selected DICOM input and series identity [major] [arch]
-- Status: done; the commit containing this entry preserves exact acquisitions through opening and restore, with verified [native capture](docs/manual/dicom-workflow.md) and [caller migration](docs/migration_selected_dicom.md).
+- Status: done; `4a9f6eb1`, [PR 236](https://github.com/ryancinsight/ritk/pull/236); exact acquisition opening/restore and verified [native capture](docs/manual/dicom-workflow.md).
 
 <a id="RITK-SNAP-RESOURCES-001"></a>
 ## RITK-SNAP-RESOURCES-001 — Confined and bounded study ingestion [arch] [minor]
@@ -25,7 +25,8 @@
 
 <a id="RITK-SNAP-ASPECT-001"></a>
 ## RITK-SNAP-ASPECT-001 — Preserve physical image aspect ratios [patch]
-- Status: todo; priority: P0; owner: RITK viewer; dependencies: RITK-SNAP-OPEN-001; risk: geometrically distorted display.
+- Status: in-progress; integrator: root; branch: codex/ritk-snap-physical-aspect; last-update: 2026-09-06; priority: P0; owner: RITK viewer; dependencies: RITK-SNAP-OPEN-001; risk: geometrically distorted display.
+- Lease: dicom_fixture_design crates/ritk-snap/src/app/viewport_render.rs, crates/ritk-snap/src/app/tests/; root docs/manual/dicom-workflow.md and docs/manual/images/dicom-window.png; 2026-09-06.
 - Scope: use voxel spacing for image placement in multi-planar, dual-plane and side-by-side layouts; keep image, overlays and cursor mapping on the same rectangle.
 - Evidence: `app/viewport_render.rs` enables pixel-uniform fitting in those layouts; the synthetic native capture shows pixel-count ratios instead of anisotropic physical dimensions.
 - Acceptance: each slice's displayed width/height equals column-count × column-spacing divided by row-count × row-spacing; layout choice cannot change that ratio.
