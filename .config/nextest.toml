@@ -21,6 +21,7 @@ filter = 'package(ritk-snap)'
 test-group = 'ritk-snap-native-serial'
 
 [profile.default]
+retries = 0
 # Mark tests slow after 30 seconds and terminate hangs after 60 seconds.
 slow-timeout = { period = "30s", terminate-after = 2 }
 
@@ -46,10 +47,11 @@ slow-timeout = { period = "600s", terminate-after = 5 }
 
 # DICOM full-scan tests over the 303-slice skull-CT fixture: I/O-heavy.
 [[profile.default.overrides]]
-filter = 'test(test_scan_skull_ct) | test(test_load_dicom_volume_shape)'
+filter = 'test(test_scan_skull_ct)'
 slow-timeout = { period = "60s", terminate-after = 1 }
 
 [profile.ci]
+retries = 0
 slow-timeout = { period = "60s", terminate-after = 2 }
 
 [[profile.ci.overrides]]
@@ -65,7 +67,7 @@ filter = 'test(test_encoder_forward) | test(test_encoder_stage_forward) | test(t
 slow-timeout = { period = "600s", terminate-after = 5 }
 
 [[profile.ci.overrides]]
-filter = 'test(test_scan_skull_ct) | test(test_load_dicom_volume_shape)'
+filter = 'test(test_scan_skull_ct)'
 slow-timeout = { period = "600s", terminate-after = 5 }
 
 # Otsu K=4 and K=5 tests (long-running in unoptimized debug build).
