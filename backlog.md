@@ -1,16 +1,15 @@
 <a id="RITK-SNAP-FIXTURES-001"></a>
 ## RITK-SNAP-FIXTURES-001 — Required synthetic study workflows [patch]
-- Status: review; integrator: root; branch: codex/ritk-snap-dicom-workflows; last-update: 2026-09-05.
-- Acceptance: real Part 10/NIfTI file and byte loading, exact voxels/geometry, malformed rejection and three rendered pixel oracles; [manual](docs/manual/dicom-workflow.md).
-- Evidence: 691 debug tests (f640bde9), 7 release loader tests (b8cd25c3), warning-denied all-target Clippy/Rustdoc, doctests, exact PNG golden checks and independent review pass; standalone locked Rust 1.97.0 with shared Atlas cache. Actual window/browser and complete acquisition-IOD conformance remain outside this fixture increment.
+- Status: done; [PR 235](https://github.com/ryancinsight/ritk/pull/235), `c38ca276`; real file/byte oracles and reproducible [manual captures](docs/manual/dicom-workflow.md).
 
 <a id="RITK-SNAP-OPEN-001"></a>
 ## RITK-SNAP-OPEN-001 — Selected DICOM input and series identity [patch]
-- Status: todo; priority: P0; owner: RITK viewer/IO; dependencies: RITK-SNAP-FIXTURES-001; risk: wrong or rejected study.
+- Status: in-progress; integrator: root; branch: codex/ritk-snap-series-identity; last-update: 2026-09-05; priority: P0; owner: RITK viewer/IO; dependencies: RITK-SNAP-FIXTURES-001; risk: wrong or rejected study.
 - Scope: file, directory, DICOMDIR and byte-batch dispatch; preserve the selected SeriesInstanceUID and reject or present ambiguous series choices.
 - Evidence: `loader/mod.rs` passes a recognized file path to the directory-only reader; `reader/scan/finalize.rs` filters multiple series only when one has a unique maximum count. Caller/callee inspection at `341228e`; folder UI paths may normalize separately.
 - Acceptance: same-series inputs yield identical known voxels and geometry; equally populated mixed series never combine; a selected file cannot silently open another series. DICOMDIR references resolve through its reader, not a blind parent-directory guess.
 - Verification: synthetic two-series directory, selected-file/DICOMDIR/pathless traces, invalid references and failed-replacement state; actual opening plus displayed series identity.
+- Decision: revise [ADR 0026](docs/adr/0026-viewer-presentation-migration.md) for explicit series selection before geometry; recorded caller audit confirms folder-only selection, majority/tied UID filtering, cross-series metadata accumulation and invalid-index fallback.
 
 <a id="RITK-SNAP-FRAMES-001"></a>
 ## RITK-SNAP-FRAMES-001 — Complete multiframe opening [patch]
