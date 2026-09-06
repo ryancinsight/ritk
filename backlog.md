@@ -25,12 +25,7 @@
 
 <a id="RITK-SNAP-ASPECT-001"></a>
 ## RITK-SNAP-ASPECT-001 — Preserve physical image aspect ratios [patch]
-- Status: in-progress; integrator: root; branch: codex/ritk-snap-physical-aspect; last-update: 2026-09-06; priority: P0; owner: RITK viewer; dependencies: RITK-SNAP-OPEN-001; risk: geometrically distorted display.
-- Lease: dicom_fixture_design crates/ritk-snap/src/app/viewport_render.rs, crates/ritk-snap/src/app/tests/; root docs/manual/dicom-workflow.md and docs/manual/images/dicom-window.png; 2026-09-06.
-- Scope: use voxel spacing for image placement in multi-planar, dual-plane and side-by-side layouts; keep image, overlays and cursor mapping on the same rectangle.
-- Evidence: `app/viewport_render.rs` enables pixel-uniform fitting in those layouts; the synthetic native capture shows pixel-count ratios instead of anisotropic physical dimensions.
-- Acceptance: each slice's displayed width/height equals column-count × column-spacing divided by row-count × row-spacing; layout choice cannot change that ratio.
-- Verification: analytical anisotropic fixtures across all three axes and layout modes, cursor mapping checks, regenerate and inspect the native manual capture.
+- Status: done; [PR 237](https://github.com/ryancinsight/ritk/pull/237); shared physical image/hit rectangles, 710 debug/release tests and verified [native capture](docs/manual/dicom-workflow.md).
 
 <a id="RITK-SNAP-FRAMES-001"></a>
 ## RITK-SNAP-FRAMES-001 — Complete multiframe opening [patch]
@@ -39,6 +34,22 @@
 - Evidence: series `reader/pixel.rs` decodes frame zero; the separate `dicom/multiframe/reader.rs` path is not called by inspected SNAP loaders at `341228e`.
 - Acceptance: every expected frame is reachable with distinct known pixels and physical coordinates; temporal frames are not silently stacked as spatial slices; no missing or duplicated frames.
 - Verification: single-frame and multiframe Part 10 fixtures, per-frame overrides, invalid counts/lengths and actual frame navigation captures.
+
+<a id="RITK-SNAP-FUSION-001"></a>
+## RITK-SNAP-FUSION-001 — Compare volumes in patient coordinates [patch]
+- Status: todo; priority: P0; owner: RITK viewer/rendering; dependencies: RITK-SNAP-OPEN-001; risk: misleading spatial correspondence.
+- Scope: map secondary samples into the primary patient-coordinate grid for fused viewing; define out-of-field and incompatible-reference-frame handling explicitly.
+- Evidence: `render/fusion.rs` samples secondary pixels by normalized slice coordinates, ignoring origin, spacing and direction; physical display size alone cannot establish alignment.
+- Acceptance: analytic landmarks coincide for translated/rotated/anisotropic sampling grids; incompatible frame-of-reference identities fail or require explicit alignment; no normalized-coordinate blend is presented as registered anatomy.
+- Verification: manufactured volumes sampled from one patient-coordinate field, off-grid and identity mismatch cases, actual compare/fusion captures with coordinate labels.
+
+<a id="RITK-SNAP-COORDINATES-001"></a>
+## RITK-SNAP-COORDINATES-001 — Preserve transformed measurement coordinates [patch]
+- Status: todo; priority: P0; owner: RITK viewer; dependencies: RITK-SNAP-ASPECT-001; risk: misleading cursor and measurement readouts.
+- Scope: reconcile texture rotation/flip, source voxel coordinates, orientation labels and annotation coordinates; validate the physical measurement representation at its boundary.
+- Evidence: aspect tests establish unrotated cursor hits, not inverse-transformed source hits; annotation APIs narrow physical spacing to `f32`, which can become zero or infinity for admitted finite `f64` geometry.
+- Acceptance: all admitted transforms preserve known patient-coordinate landmarks and measured distances; unrepresentable measurement values reject explicitly rather than display zero, infinity or NaN.
+- Verification: analytic landmarks and distances through actual pointer/annotation events for every transform, plus numeric-range boundary cases.
 
 <a id="RITK-SNAP-COLOR-001"></a>
 ## RITK-SNAP-COLOR-001 — Preserve decoded DICOM color in display [patch]
@@ -60,7 +71,7 @@
 ## RITK-SNAP-METIS-001 — Migrate the viewer shell to Métis [arch] [minor]
 - Status: todo; priority: P1; owner: RITK viewer + Métis framework; risk: lost viewer behavior; decision: [ADR 0026](docs/adr/0026-viewer-presentation-migration.md).
 - Driver: user's named application; framework work: [METIS-MIGRATION-001](../metis/backlog.md#METIS-MIGRATION-001), [V09](../metis/docs/VERIFICATION.md#V09).
-- Dependencies: RITK-SNAP-FIXTURES-001, RITK-SNAP-OPEN-001, RITK-SNAP-DIRECTORY-001, RITK-SNAP-ASPECT-001, RITK-SNAP-RESOURCES-001, RITK-SNAP-FRAMES-001, RITK-SNAP-COLOR-001, RITK-SNAP-GRAYSCALE-001; working Métis host/input/image/async/file capabilities.
+- Dependencies: RITK-SNAP-FIXTURES-001, RITK-SNAP-OPEN-001, RITK-SNAP-DIRECTORY-001, RITK-SNAP-ASPECT-001, RITK-SNAP-RESOURCES-001, RITK-SNAP-FRAMES-001, RITK-SNAP-FUSION-001, RITK-SNAP-COORDINATES-001, RITK-SNAP-COLOR-001, RITK-SNAP-GRAYSCALE-001; working Métis host/input/image/async/file capabilities.
 - Scope: inventory and replace egui/eframe shell and GUI-specific carriers in `ritk-snap`; retain RITK decoding, geometry and viewer semantics, Iris visualization contracts and Moirai execution. Tauri is a framework comparison target, not a dependency found in this app.
 - Acceptance: complete pinned viewer inventory and all admitted DICOM opening/display journeys pass in real Métis hosts; old framework dependencies disappear from the viewer's active graph without forwarding shims. Existing defects are corrected, not copied as parity.
 - Demonstration: same synthetic studies and user actions before/after migration, all three orthogonal views, known voxel/physical-coordinate checks, cancellation/recovery and public manual captures; matched memory measurements before any improvement claim.

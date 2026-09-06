@@ -15,6 +15,7 @@
 
 pub(crate) mod clinical_distribution;
 mod filter;
+mod image_placement;
 mod io_ops;
 mod menu;
 mod mesh_ops;

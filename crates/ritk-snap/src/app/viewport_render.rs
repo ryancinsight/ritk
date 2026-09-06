@@ -5,6 +5,7 @@
 //! pointer / wheel events to the active tool.
 //
 //! The secondary / fused-compare viewport lives in [`super::viewport_compare`].
+use super::image_placement::ImagePlacement;
 use super::state::SnapApp;
 use crate::render::slice_render::WindowLevel;
 use crate::tools::kind::ToolKind;
@@ -30,7 +31,7 @@ impl SnapApp {
     /// # Responsibilities
     ///
     /// 1. Rebuild the texture for this axis if dirty or absent.
-    /// 2. Compute fit scale: `min(avail_w / tex_w, avail_h / tex_h) × zoom`.
+    /// 2. Fit physical slice extents to available space, then apply zoom.
     /// 3. Display the image widget with click-and-drag sensing.
     /// 4. Draw compact axis and slice labels when the full overlay is disabled.
     /// 5. Draw the DICOM 4-corner overlay when `show_overlay` is set.
@@ -78,52 +79,31 @@ impl SnapApp {
         };
 
         // ── 3. Compute spacing-aware fit and render image ─────────────────────
-        let tex_w = tex_w_usize as f32;
-        let tex_h = tex_h_usize as f32;
-        let available = ui.available_size();
-
-        let (row_mm, col_mm) = if let Some(vol) = &self.loaded {
-            let [dz, dy, dx] = vol.spacing.map(|s| s as f32);
-            match axis {
-                0 => (dy.max(1e-6), dx.max(1e-6)),
-                1 => (dz.max(1e-6), dx.max(1e-6)),
-                _ => (dz.max(1e-6), dy.max(1e-6)),
+        let Some(volume) = self.loaded.as_ref() else {
+            return;
+        };
+        let placement = match ImagePlacement::show(
+            ui,
+            egui::load::SizedTexture::new(
+                tex_id,
+                egui::vec2(tex_w_usize as f32, tex_h_usize as f32),
+            ),
+            volume,
+            axis,
+            self.view_transform,
+            self.zoom,
+            egui::Sense::click_and_drag(),
+        ) {
+            Ok(placement) => placement,
+            Err(error) => {
+                self.status_message = format!("Image placement failed: {error}");
+                ui.label(&self.status_message);
+                return;
             }
-        } else {
-            (1.0, 1.0)
         };
-
-        let phys_w = tex_w * col_mm;
-        let phys_h = tex_h * row_mm;
-
-        let use_uniform_fit = self.multi_planar || self.dual_plane || self.compare_side_by_side;
-
-        let fit_scale = if use_uniform_fit {
-            if tex_w > 0.0 && tex_h > 0.0 {
-                (available.x / tex_w).min(available.y / tex_h)
-            } else {
-                1.0
-            }
-        } else if phys_w > 0.0 && phys_h > 0.0 {
-            (available.x / phys_w).min(available.y / phys_h)
-        } else {
-            1.0
-        };
-
-        let (scale_x, scale_y) = if use_uniform_fit {
-            let s = fit_scale * self.zoom;
-            (s, s)
-        } else {
-            (
-                fit_scale * self.zoom * col_mm,
-                fit_scale * self.zoom * row_mm,
-            )
-        };
-
-        let display_size = egui::vec2(tex_w * scale_x, tex_h * scale_y);
-        let image_widget = egui::Image::new(egui::load::SizedTexture::new(tex_id, display_size))
-            .sense(egui::Sense::click_and_drag());
-        let response = ui.add(image_widget);
+        let scale_x = placement.texel_size.x;
+        let scale_y = placement.texel_size.y;
+        let response = placement.response;
 
         // Track which axis is currently hovered for status/info display
         if response.hovered() || response.has_focus() || response.clicked() {
@@ -228,7 +208,8 @@ impl SnapApp {
         //   screen_px = rect.min + img_px × scale
         //   img_px    = (screen_px − rect.min) / scale
         //
-        // `scale = fit_scale × zoom` where fit_scale = min(avail_w/tex_w, avail_h/tex_h).
+        // Each texture axis uses its physical sample distance times the shared
+        // physical fit scale and zoom.
         // The image widget occupies exactly response.rect (egui places it top-left).
         {
             // img_to_screen: image-pixel Pos2 { x: col, y: row } → screen Pos2
@@ -236,20 +217,7 @@ impl SnapApp {
             let img_to_screen =
                 |p: egui::Pos2| egui::pos2(origin.x + p.x * scale_x, origin.y + p.y * scale_y);
 
-            // Per-axis 2-D spacing: [row_mm_per_px, col_mm_per_px]
-            //   axis 0 axial  → dy, dx
-            //   axis 1 coronal → dz, dx
-            //   axis 2 sagittal→ dz, dy
-            let spacing_2d: [f32; 2] = if let Some(vol) = &self.loaded {
-                let [dz, dy, dx] = vol.spacing.map(|s| s as f32);
-                match axis {
-                    0 => [dy, dx],
-                    1 => [dz, dx],
-                    _ => [dz, dy],
-                }
-            } else {
-                [1.0, 1.0]
-            };
+            let spacing_2d = placement.row_col_spacing;
 
             // Cursor in image-pixel coords for live preview labels.
             let cursor_img_opt = if scale_x > 0.0 && scale_y > 0.0 {

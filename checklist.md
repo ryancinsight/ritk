@@ -1,8 +1,3 @@
-## root — [RITK-SNAP-ASPECT-001](backlog.md#RITK-SNAP-ASPECT-001)
-
-- [ ] Reproduce physical-aspect mismatch through actual image shapes across axes/layouts, then correct shared placement.
-- [ ] Verify cursor mapping and regenerate the native manual capture; run focused gates, review and integrate.
-
 ## RITK-MIND-REGISTRATION-2026-09-04
 
 - [ ] Specify descriptor equations, boundary behavior, storage bounds, and API in ADR 0024.
