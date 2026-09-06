@@ -14,13 +14,16 @@ fn make_entry<'a>(
     num_slices: usize,
 ) -> SeriesEntry<'a> {
     SeriesEntry {
-        series_uid: Cow::Borrowed(series_uid),
-        folder: Cow::Borrowed(Path::new(folder)),
+        acquisition: Arc::new(DicomSeriesInfo::new(
+            series_uid,
+            format!("{modality} series"),
+            modality,
+            patient_id.to_owned(),
+            (0..num_slices)
+                .map(|index| Path::new(folder).join(format!("{index}.dcm")))
+                .collect(),
+        )),
         patient_name: Cow::Borrowed(patient_name),
-        patient_id: Cow::Borrowed(patient_id),
-        modality: Cow::Borrowed(modality),
-        series_description: Cow::Owned(format!("{modality} series")),
-        num_slices,
         study_date: study_date.map(Cow::Borrowed),
         study_uid: study_uid.map(Cow::Borrowed),
     }
@@ -135,9 +138,9 @@ fn test_from_entries_empty_input() {
     );
 }
 
-/// `find_by_folder` must locate an entry by its exact folder path.
+/// `find_by_uid` must locate an entry by its exact folder path.
 #[test]
-fn test_find_by_folder_found() {
+fn test_find_by_uid_found() {
     let entries = vec![
         make_entry(
             "P1",
@@ -161,20 +164,20 @@ fn test_find_by_folder_found() {
         ),
     ];
     let tree = SeriesTree::from_entries(entries);
-    let found = tree.find_by_folder(Path::new("/data/scan2"));
-    assert!(found.is_some(), "find_by_folder must find '/data/scan2'");
+    let found = tree.find_by_uid("S2");
+    assert!(found.is_some(), "find_by_uid must find '/data/scan2'");
     assert_eq!(
         found
             .expect("infallible: validated precondition")
-            .series_uid,
+            .series_uid(),
         "S2",
         "found entry must be the MR series with uid S2"
     );
 }
 
-/// `find_by_folder` must return `None` for a path not in the tree.
+/// `find_by_uid` must return `None` for a path not in the tree.
 #[test]
-fn test_find_by_folder_not_found() {
+fn test_find_by_uid_not_found() {
     let tree = SeriesTree::from_entries(vec![make_entry(
         "P1",
         "Alice",
@@ -186,9 +189,8 @@ fn test_find_by_folder_not_found() {
         10,
     )]);
     assert!(
-        tree.find_by_folder(Path::new("/data/nonexistent"))
-            .is_none(),
-        "find_by_folder must return None for an absent path"
+        tree.find_by_uid("absent").is_none(),
+        "find_by_uid must return None for an absent path"
     );
 }
 
@@ -217,12 +219,12 @@ fn test_series_entry_from_dicom_series_info_uses_file_parent_and_slice_count() {
         ],
     );
     let entry = SeriesEntry::from_dicom_series_info(info);
-    assert_eq!(entry.series_uid, "1.2.3");
-    assert_eq!(entry.folder.as_ref(), Path::new("C:/study/series"));
-    assert_eq!(entry.patient_id, "P001");
-    assert_eq!(entry.modality, "CT");
-    assert_eq!(entry.series_description, "Axial CT");
-    assert_eq!(entry.num_slices, 2);
+    assert_eq!(entry.series_uid(), "1.2.3");
+    assert_eq!(entry.folder(), Path::new("C:/study/series"));
+    assert_eq!(entry.acquisition.patient_id, "P001");
+    assert_eq!(entry.modality(), "CT");
+    assert_eq!(entry.series_description(), "Axial CT");
+    assert_eq!(entry.num_slices(), 2);
 }
 
 /// `modality_icon()` must return a non-empty string for every supported
@@ -273,11 +275,7 @@ fn test_from_entries_splits_different_studies() {
 fn test_gat_series_entry_view() {
     let entry = make_entry("P1", "Alice", None, None, "S1", "/s1", "CT", 10);
     let node = SeriesNode {
-        series_uid: Cow::Borrowed("S1"),
-        folder: Cow::Borrowed(Path::new("/s1")),
-        modality: Cow::Borrowed("CT"),
-        series_description: Cow::Borrowed("CT series"),
-        num_slices: 10,
+        acquisition: Arc::clone(&entry.acquisition),
     };
 
     fn check_gat<V: SeriesEntryView>(view: &V) {
@@ -319,17 +317,11 @@ fn test_monomorphized_format_series_label() {
     assert_eq!(label, "🫁 [CT] CT series (123 slices)");
 
     // Test fallback when description is empty
-    let empty_desc_entry = SeriesEntry {
-        series_uid: Cow::Borrowed("S1"),
-        folder: Cow::Borrowed(Path::new("/path/to/my_folder")),
-        patient_name: Cow::Borrowed(""),
-        patient_id: Cow::Borrowed(""),
-        modality: Cow::Borrowed("MR"),
-        series_description: Cow::Borrowed(""),
-        num_slices: 15,
-        study_date: None,
-        study_uid: None,
-    };
+    let mut empty_desc_entry = make_entry("", "", None, None, "S1", "/path/to/my_folder", "MR", 15);
+    Arc::get_mut(&mut empty_desc_entry.acquisition)
+        .expect("new entry owns its descriptor")
+        .series_description
+        .clear();
     let label2 = format_series_label(&empty_desc_entry, &DEFAULT_MODALITY_MAPPER);
     assert_eq!(label2, "🧠 [MR] my_folder (15 slices)");
 }
@@ -347,13 +339,16 @@ fn test_bench_tree_construction() {
         let series_uid = format!("S{}", i);
         let folder = format!("/path/to/patient_{}/study_{}/series_{}", i % 50, i % 250, i);
         entries.push(SeriesEntry {
-            series_uid: Cow::Owned(series_uid),
-            folder: Cow::Owned(PathBuf::from(folder)),
+            acquisition: Arc::new(DicomSeriesInfo::new(
+                &series_uid,
+                "Bench CT".to_owned(),
+                "CT",
+                patient_id,
+                (0..100)
+                    .map(|slice| Path::new(&folder).join(format!("{slice}.dcm")))
+                    .collect(),
+            )),
             patient_name: Cow::Owned(format!("Patient {}", i % 50)),
-            patient_id: Cow::Owned(patient_id),
-            modality: Cow::Borrowed("CT"),
-            series_description: Cow::Borrowed("Bench CT"),
-            num_slices: 100,
             study_date: Some(Cow::Borrowed("20260615")),
             study_uid: Some(Cow::Owned(study_uid)),
         });

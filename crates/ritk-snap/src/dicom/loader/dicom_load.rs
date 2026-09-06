@@ -5,10 +5,7 @@ use std::sync::Arc;
 
 use anyhow::{Context, Result};
 use coeus_core::SequentialBackend;
-use ritk_io::{
-    is_rgb_dicom_series, load_color_volume_flat, load_color_volume_flat_from_path,
-    load_dicom_from_series, load_dicom_series_with_metadata,
-};
+use ritk_io::{load_color_volume_flat, load_dicom_from_series};
 use tracing::info;
 
 use crate::LoadedVolume;
@@ -155,51 +152,19 @@ fn load_dicom_color_volume_from_scanned_series(
     Ok(loaded_volume_from_color_flat(flat, dims, meta, None))
 }
 
-/// Load a DICOM series from `folder` into a [`LoadedVolume`].
+/// Load an unambiguous DICOM directory, indexed DICOMDIR, or explicitly selected file.
 ///
-/// # Algorithm
-/// 1. Detects whether the series is RGB via [`is_rgb_dicom_series`].
-/// 2. For RGB series: calls [`ritk_io::load_color_volume_flat_from_path`] and
-///    builds a [`LoadedVolume`] with `channels: 3` from the flat RGB buffer.
-/// 3. For scalar series: calls `load_dicom_series_with_metadata`.
-/// 4. Extracts spatial metadata (spacing, origin, direction) from the image.
-/// 5. Populates optional DICOM-specific fields from `DicomReadMetadata`.
+/// The provider scans once and applies series identity before pixel decoding.
+/// Unsupported or ambiguous inputs return the provider error without a color-probe fallback.
 ///
 /// # Errors
-/// Propagates any error returned by `ritk_io`.
-pub fn load_dicom_volume<P: AsRef<Path>>(folder: P) -> Result<LoadedVolume> {
-    let folder = folder.as_ref();
-    info!(path = %folder.display(), "loading DICOM volume");
-
-    // Detect RGB colour series and route to the colour-volume loader.
-    if is_rgb_dicom_series(folder).unwrap_or(false) {
-        return load_dicom_color_volume(folder);
-    }
-
-    let backend = SequentialBackend;
-    let (image, meta) = load_dicom_series_with_metadata(folder, &backend)
-        .with_context(|| format!("failed to load DICOM series from '{}'", folder.display()))?;
-    loaded_volume_from_scalar_image(image, meta, Some(folder.to_path_buf()), &backend)
-}
-
-/// Load an RGB DICOM colour series into a [`LoadedVolume`] with `channels: 3`.
-///
-/// Routes through the substrate-free [`ritk_io::load_color_volume_flat_from_path`]
-/// core: no tensor backend is constructed on this path.
-fn load_dicom_color_volume(folder: &Path) -> Result<LoadedVolume> {
-    info!(path = %folder.display(), "loading DICOM RGB colour volume");
-
-    let (flat, dims, meta) = load_color_volume_flat_from_path(folder).with_context(|| {
-        format!(
-            "failed to load DICOM RGB series from '{}'",
-            folder.display()
-        )
-    })?;
-
-    Ok(loaded_volume_from_color_flat(
-        flat,
-        dims,
-        meta,
-        Some(folder.to_path_buf()),
-    ))
+/// Returns scan, decode, or geometry errors from the DICOM provider.
+pub fn load_dicom_volume<P: AsRef<Path>>(path: P) -> Result<LoadedVolume> {
+    let path = path.as_ref();
+    info!(path = %path.display(), "loading DICOM volume");
+    let series = ritk_io::scan_dicom_path(path)
+        .with_context(|| format!("failed to scan DICOM input '{}'", path.display()))?;
+    let mut volume = load_volume_from_scanned_series(series)?;
+    volume.source = Some(path.to_path_buf());
+    Ok(volume)
 }

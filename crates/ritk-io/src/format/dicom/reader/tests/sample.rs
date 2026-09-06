@@ -1,91 +1,9 @@
-#![expect(unused_imports, reason = "ratchet RITK-LINT-1")]
-#![expect(clippy::print_stdout, reason = "ratchet RITK-LINT-1")]
-#![expect(clippy::unwrap_used, reason = "ratchet RITK-UNWRAP-1")]
-
-use super::super::detection::is_likely_dicom_file;
-use super::super::geometry::{
-    analyze_slice_spacing, dot, normalize, resample_frames_linear, slice_normal_from_iop,
-};
-use super::super::loader::{
-    load_dicom_series_with_metadata, load_from_series, read_dicom_series_with_metadata,
-};
-use super::super::pixel::{decode_pixel_bytes, read_slice_pixels};
+//! Series ambiguity regression with unequal acquisition populations.
+#![expect(clippy::unwrap_used, reason = "test fixture setup")]
 use super::super::scan::scan_dicom_directory;
-use super::super::types::{
-    DicomReadMetadata, DicomSeriesInfo, DicomSliceMetadata, PatientPosition,
-};
 use super::support::*;
-use crate::format::dicom::{
-    DicomObjectNode, DicomPreservationSet, DicomPreservedElement, DicomTag, DicomValue,
-};
-use ritk_core::image::Image;
-use ritk_dicom::TransferSyntaxKind;
-use ritk_spatial::{Direction, Point, Spacing};
 #[test]
-fn test_scan_skull_ct_folder_with_dicomdir_loads_series() {
-    println!("START test_scan_skull_ct_folder_with_dicomdir_loads_series");
-    let device = coeus_core::SequentialBackend;
-    let series_path =
-        std::path::Path::new(env!("CARGO_MANIFEST_DIR")).join("../../test_data/2_skull_ct");
-    let series_path = series_path.as_path();
-    println!("Path: {:?}", series_path);
-    println!("Before scan_dicom_directory");
-    let info = scan_dicom_directory(series_path).expect("scan_dicom_directory must succeed");
-    println!(
-        "After scan_dicom_directory, num_slices: {}",
-        info.num_slices
-    );
-    assert!(
-        info.num_slices > 0,
-        "expected at least one slice from skull CT sample"
-    );
-    assert_eq!(
-        info.metadata.dimensions[2], info.num_slices,
-        "depth must match scanned slice count"
-    );
-    println!("Before read_dicom_series_with_metadata");
-    let (image, _) =
-        read_dicom_series_with_metadata::<coeus_core::SequentialBackend, _>(series_path, &device)
-            .expect("read_dicom_series_with_metadata must succeed");
-    println!("After read_dicom_series_with_metadata");
-    assert_eq!(
-        image.shape()[0],
-        info.num_slices,
-        "loaded image depth must match scan result"
-    );
-    assert!(
-        image.shape()[1] > 0 && image.shape()[2] > 0,
-        "loaded image must have nonzero in-plane dimensions"
-    );
-}
-
-#[test]
-fn test_scan_skull_ct_dicomdir_and_folder_agree_on_series() {
-    let device = coeus_core::SequentialBackend;
-    let series_path =
-        std::path::Path::new(env!("CARGO_MANIFEST_DIR")).join("../../test_data/2_skull_ct");
-    let series_path = series_path.as_path();
-    let info = scan_dicom_directory(series_path).expect("scan_dicom_directory must succeed");
-    let (image, _) =
-        read_dicom_series_with_metadata::<coeus_core::SequentialBackend, _>(series_path, &device)
-            .expect("read_dicom_series_with_metadata must succeed");
-    let spatial = image.spacing();
-    assert!(
-        spatial[0] > 0.0 && spatial[1] > 0.0 && spatial[2] > 0.0,
-        "all spacing axes must be positive"
-    );
-    assert!(
-        info.metadata.direction.iter().all(|v| v.is_finite()),
-        "direction matrix must contain finite values"
-    );
-    assert!(
-        image.direction().0.determinant().abs() > 0.0,
-        "direction matrix must be invertible"
-    );
-}
-
-#[test]
-fn test_scan_directory_selects_most_populated_series_when_same_dimensions() {
+fn test_scan_directory_rejects_ambiguous_series_regardless_of_population() {
     use dicom::core::smallvec::SmallVec;
 
     let dir = tempfile::tempdir().unwrap();
@@ -209,25 +127,21 @@ fn test_scan_directory_selects_most_populated_series_when_same_dimensions() {
     };
 
     // Series A: 3 slices — the most-populated series.
-    write_ct_slice(&dir.path().join("A1.dcm"), "2.25.A", 1, 0.0);
-    write_ct_slice(&dir.path().join("A2.dcm"), "2.25.A", 2, 1.0);
-    write_ct_slice(&dir.path().join("A3.dcm"), "2.25.A", 3, 2.0);
-    // Series B: 1 slice — must be excluded by plurality selection.
-    write_ct_slice(&dir.path().join("B1.dcm"), "2.25.B", 1, 5.0);
+    write_ct_slice(&dir.path().join("A1.dcm"), "2.25.71001", 1, 0.0);
+    write_ct_slice(&dir.path().join("A2.dcm"), "2.25.71001", 2, 1.0);
+    write_ct_slice(&dir.path().join("A3.dcm"), "2.25.71001", 3, 2.0);
+    // A directory is not an acquisition identity, even with unequal counts.
+    write_ct_slice(&dir.path().join("B1.dcm"), "2.25.71002", 1, 5.0);
 
-    let result = scan_dicom_directory(dir.path())
-        .expect("scan_dicom_directory must succeed with valid CT slices");
-
+    // Population is not a selection instruction (RITK-SNAP-OPEN-001).
+    let error = scan_dicom_directory(dir.path()).expect_err("multiple UIDs must reject");
+    assert!(error.to_string().contains("ambiguous DICOM input"));
+    let selected = super::super::scan::scan_dicom_path(dir.path().join("B1.dcm"))
+        .expect("selected minority acquisition");
     assert_eq!(
-        result.metadata.series_instance_uid.as_deref(),
-        Some("2.25.A"),
-        "series_instance_uid must be the most-populated series (2.25.A, 3 slices); \
-         got {:?}",
-        result.metadata.series_instance_uid
+        selected.metadata.series_instance_uid.as_deref(),
+        Some("2.25.71002")
     );
-    assert_eq!(
-        result.num_slices, 3,
-        "num_slices must be 3 (Series A only); got {}",
-        result.num_slices
-    );
+    assert_eq!(selected.num_slices, 1);
+    assert_eq!(selected.metadata.origin, [0.0, 0.0, 5.0]);
 }

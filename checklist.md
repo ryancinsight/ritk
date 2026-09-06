@@ -1,10 +1,3 @@
-## root — [RITK-SNAP-OPEN-001](backlog.md#RITK-SNAP-OPEN-001)
-
-- [x] Audit selected-file, sidebar, byte-batch and DICOMDIR caller/provider closure.
-- [ ] Add explicit provider selection before metadata/geometry and authoritative DICOMDIR validation.
-- [ ] Preserve selected members through primary/secondary viewer loads and reload; verify failure leaves prior study intact.
-- [ ] Test mixed-series permutations, selected minority and invalid index paths, then capture/manual/gate/review/integrate.
-
 ## RITK-MIND-REGISTRATION-2026-09-04
 
 - [ ] Specify descriptor equations, boundary behavior, storage bounds, and API in ADR 0024.

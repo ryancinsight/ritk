@@ -41,7 +41,10 @@ pub struct DicomSliceMetadata {
     /// GantryDetectorTilt (0018,1120) in degrees.
     pub gantry_tilt: Option<f64>,
     pub patient_position: Option<PatientPosition>,
-    /// In-memory Part 10 bytes for zero-disk pixel decode (SCP-received instances).
+    /// Exact Part 10 bytes validated by the scanner, retained for pixel decode.
+    /// Filesystem, dropped-byte, and SCP scans populate this field so decoding
+    /// never substitutes a file changed after metadata validation. Manually
+    /// constructed descriptors may omit it to request path-based decoding.
     pub part10_bytes: Option<Vec<u8>>,
 }
 
@@ -280,7 +283,19 @@ pub fn literal_arraystring<const N: usize>(s: &'static str) -> ArrayString<N> {
 /// This is the DRY helper for the `ArrayString::from(s).unwrap_or_else(|_| ...)` pattern
 /// used when converting DICOM VR fields that may exceed their maximum length.
 pub(crate) fn truncate_arraystring<const N: usize>(s: &str) -> ArrayString<N> {
-    let truncated = &s[..N.min(s.len())];
+    let mut end = N.min(s.len());
+    while !s.is_char_boundary(end) {
+        // Zero is always a character boundary, so this cannot underflow.
+        end -= 1;
+    }
+    if end < s.len() {
+        tracing::warn!(
+            capacity_bytes = N,
+            input_bytes = s.len(),
+            "DICOM text exceeds fixed capacity; truncating at a UTF-8 boundary"
+        );
+    }
+    let truncated = &s[..end];
     ArrayString::from(truncated).expect("truncated string fits ArrayString by construction")
 }
 
@@ -290,13 +305,7 @@ pub(crate) fn truncate_arraystring<const N: usize>(s: &str) -> ArrayString<N> {
 /// If a UID exceeds this length (non-conformant), a warning is emitted
 /// and the value is truncated to 64 chars.
 pub(crate) fn uid_to_arraystring(s: &str) -> Option<ArrayString<64>> {
-    match ArrayString::from(s) {
-        Ok(v) => Some(v),
-        Err(_) => {
-            tracing::warn!("UID exceeds 64 chars, truncating: {}", &s[..64]);
-            Some(truncate_arraystring::<64>(s))
-        }
-    }
+    Some(truncate_arraystring::<64>(s))
 }
 
 /// Convert a CS (Code String) value to `ArrayString<16>`.
@@ -305,13 +314,7 @@ pub(crate) fn uid_to_arraystring(s: &str) -> Option<ArrayString<64>> {
 /// If a value exceeds this length (non-conformant), a warning is emitted
 /// and the value is truncated to 16 chars.
 pub(crate) fn cs_to_arraystring(s: &str) -> ArrayString<16> {
-    match ArrayString::from(s) {
-        Ok(v) => v,
-        Err(_) => {
-            tracing::warn!("CS value exceeds 16 chars, truncating: {}", &s[..16]);
-            truncate_arraystring::<16>(s)
-        }
-    }
+    truncate_arraystring::<16>(s)
 }
 
 /// Convert a DA (Date) value to `ArrayString<8>`.
@@ -320,13 +323,7 @@ pub(crate) fn cs_to_arraystring(s: &str) -> ArrayString<16> {
 /// If a value exceeds this length (non-conformant), a warning is emitted
 /// and the value is truncated to 8 chars.
 pub(crate) fn da_to_arraystring(s: &str) -> ArrayString<8> {
-    match ArrayString::from(s) {
-        Ok(v) => v,
-        Err(_) => {
-            tracing::warn!("DA value exceeds 8 chars, truncating: {}", &s[..8]);
-            truncate_arraystring::<8>(s)
-        }
-    }
+    truncate_arraystring::<8>(s)
 }
 
 /// Convert a TM (Time) value to `ArrayString<16>`.
@@ -335,13 +332,7 @@ pub(crate) fn da_to_arraystring(s: &str) -> ArrayString<8> {
 /// If a value exceeds this length (non-conformant), a warning is emitted
 /// and the value is truncated to 16 chars.
 pub(crate) fn tm_to_arraystring(s: &str) -> ArrayString<16> {
-    match ArrayString::from(s) {
-        Ok(v) => v,
-        Err(_) => {
-            tracing::warn!("TM value exceeds 16 chars, truncating: {}", &s[..16]);
-            truncate_arraystring::<16>(s)
-        }
-    }
+    truncate_arraystring::<16>(s)
 }
 
 /// Assemble a [`DicomReadMetadata`] from a [`SeriesFirstSeen`] accumulator, sorted slices,

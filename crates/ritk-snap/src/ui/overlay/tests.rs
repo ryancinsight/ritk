@@ -1,7 +1,6 @@
 //! Overlay renderer unit tests.
 //!
-//! egui painter methods require a GPU context, so only pure-computation
-//! helpers are tested here.
+//! Painter shapes are inspected without a GPU; native capture verifies raster output.
 
 use super::*;
 
@@ -95,8 +94,8 @@ fn format_pointer_str_zero_intensity_no_suv_returns_empty() {
 }
 
 #[test]
-fn format_pointer_str_nonzero_intensity_no_suv_shows_hu() {
-    assert_eq!(format_pointer_str(512.0, None), "Pointer HU: 512");
+fn format_pointer_str_nonzero_intensity_no_suv_shows_value() {
+    assert_eq!(format_pointer_str(512.0, None), "Pointer value: 512");
 }
 
 #[test]
@@ -120,14 +119,130 @@ fn format_cursor_str_none_cursor_none_suv_returns_empty() {
 }
 
 #[test]
-fn format_cursor_str_cursor_only_shows_hu() {
-    assert_eq!(format_cursor_str(Some(100.0), None), "Cursor HU: 100");
+fn format_cursor_str_cursor_only_shows_value() {
+    assert_eq!(format_cursor_str(Some(100.0), None), "Cursor value: 100");
 }
 
 #[test]
-fn format_cursor_str_suv_takes_priority_over_cursor_hu() {
+fn format_cursor_str_suv_takes_priority_over_cursor_value() {
     assert_eq!(
         format_cursor_str(Some(5000.0), Some(1.89_f32)),
         "Cursor SUV: 1.89"
     );
 }
+
+#[test]
+fn overlay_fits_or_discloses_complete_metadata_at_small_sizes() {
+    use crate::dicom::loader::{load_volume_from_path, tests::fixtures};
+
+    let root = tempfile::tempdir().expect("study root");
+    fixtures::write_study(root.path(), "CT", fixtures::SERIES_UID).expect("write study");
+    let mut volume = load_volume_from_path(root.path()).expect("load study");
+    for (width, height, patient, series, overflow) in [
+        (176.0, 88.0, "Example Patient", "Acquisition", true),
+        (176.0, 264.0, "Example Patient", "Acquisition", false),
+        (352.0, 264.0, "Example Patient", "Acquisition", false),
+        (
+            352.0,
+            264.0,
+            &"Patient component ".repeat(32),
+            &"Series component ".repeat(32),
+            true,
+        ),
+        (8.0, 8.0, "Example Patient", "Acquisition", true),
+    ] {
+        volume.patient_name = Some(patient.to_owned());
+        volume.series_description = Some(series.to_owned());
+        let context = egui::Context::default();
+        let rect = Rect::from_min_size(Pos2::new(20.0, 20.0), egui::vec2(width, height));
+        let mut disclosure = None;
+        let output = context.run(egui::RawInput::default(), |context| {
+            egui::CentralPanel::default().show(context, |ui| {
+                let painter = ui.painter().clone();
+                disclosure = OverlayRenderer::draw(
+                    &painter,
+                    rect,
+                    &volume,
+                    OverlayContext {
+                        axis: 0,
+                        slice_index: 1,
+                        wl: WindowLevel::new(60.0, 400.0),
+                        zoom: 1.0,
+                        cursor_value: Some(260.0),
+                        pointer_intensity: 40.0,
+                        pointer_suv: None,
+                        cursor_suv: None,
+                    },
+                );
+                if let Some(details) = &disclosure {
+                    OverlayRenderer::show_details(ui, rect, details);
+                }
+            });
+        });
+        let texts: Vec<_> = output
+            .shapes
+            .iter()
+            .filter_map(|shape| match &shape.shape {
+                egui::Shape::Text(text) => Some(text),
+                _ => None,
+            })
+            .collect();
+        if overflow {
+            let details = disclosure.expect("overflow must disclose metadata");
+            for expected in [
+                patient,
+                series,
+                "Spacing:",
+                "Dims:",
+                "W:400 C:60",
+                "Zoom: 100%",
+                "Cursor value: 260",
+                "Pointer value: 40",
+                "Orientation: left",
+            ] {
+                assert!(details.contains(expected), "missing disclosure {expected}");
+            }
+            assert_eq!(texts.len(), 1);
+            assert_eq!(texts[0].galley.text(), "Details");
+            let bounds = Rect::from_min_size(texts[0].pos, texts[0].galley.size());
+            if width > 8.0 {
+                assert!(rect.contains_rect(bounds));
+            } else {
+                assert!(
+                    !rect.contains_rect(bounds),
+                    "tiny images use surrounding UI control"
+                );
+            }
+        } else {
+            assert_eq!(disclosure, None);
+            assert_eq!(texts.len(), 8);
+            assert_eq!(texts[0].galley.text(), patient);
+            assert!(texts[1].galley.text().contains(series));
+            let backings: Vec<_> = output
+                .shapes
+                .iter()
+                .filter_map(|shape| match &shape.shape {
+                    egui::Shape::Rect(backing) if backing.fill == Color32::BLACK => {
+                        Some(backing.rect)
+                    }
+                    _ => None,
+                })
+                .collect();
+            assert_eq!(backings.len(), 8);
+            for (index, (text, backing)) in texts.iter().zip(&backings).enumerate() {
+                let bounds = Rect::from_min_size(text.pos, text.galley.size());
+                assert!(backing.contains_rect(bounds));
+                assert!(rect.contains_rect(*backing));
+                assert!(text.galley.job.sections.iter().all(|section| {
+                    section.format.color == OVERLAY_TEXT_COLOR
+                        || section.format.color == ORIENT_LABEL_COLOR
+                }));
+                for other in &backings[index + 1..] {
+                    assert!(!backing.intersects(*other));
+                }
+            }
+        }
+    }
+}
+
+mod details;

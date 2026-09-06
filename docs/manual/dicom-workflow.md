@@ -18,7 +18,7 @@ development overlay changes dependency resolution; verification against the
 committed standalone lock must run outside that overlay while retaining the
 shared target and build settings.
 
-The runner requires Python 3.11 or newer, enforces a 60-second execution deadline and replaces the fixed
+The runner requires Python 3.11 or newer, enforces a 60-second deadline per process and replaces the fixed
 artifact set in `scratch/viewer/`. Its `workflow.json` records the actual
 decoded voxels, geometry, capture dimensions and SHA-256 hashes of the binary
 and images. A failed run invalidates its previous success report.
@@ -75,8 +75,83 @@ equals its stored sample. The tests also check the scratch-buffer rendering
 path and reject malformed and truncated byte inputs. They separately verify
 exact NIfTI file/byte roundtrips for `.nii` and `.nii.gz`.
 
-Selected-file/DICOMDIR identity, multiframe organization, color, default DICOM
-LINEAR/VOI semantics, and actual native/browser host interaction remain
-separate acceptance items in the [viewer backlog](../../backlog.md#RITK-SNAP-OPEN-001).
-This baseline supplies reproducible input and image oracles for the Métis
-migration; it does not establish those remaining capabilities.
+## Open, select, and restore a study
+
+Use **File → Open DICOM file…** to select a particular acquisition in a folder
+containing several series. The selected instance's SeriesInstanceUID determines
+which neighbouring image files load. **Open DICOM folder…** discovers the series
+browser; if the folder contains several series, choose a series there instead of
+accepting an arbitrary largest series. The highlighted series changes after
+successful loading. Selecting a secondary series retains its own exact files.
+
+**Open DICOMDIR…** uses the index's referenced image set. Missing references or
+an invalid index report an error; unreferenced subdirectories do not supply a
+replacement study. Dropped byte batches must identify one image series.
+
+Saving a session records the primary study's UID and exact files along with the
+presentation controls. Restore validates those members before replacing the
+current volume or controls. A missing member, changed UID, or member that is no
+longer an image fails explicitly and leaves the current study displayed.
+Older path-based sessions remain readable, but an ambiguous folder requires
+selection. See the [public API migration guide](../migration_selected_dicom.md).
+This session format does not persist the secondary comparison acquisition.
+
+Native tests exercise actual egui series-row pointer events, primary/secondary
+loads, failed replacement, and session restore with deterministic Part 10 files.
+The DICOMDIR fixture covers IMAGE references and membership; it does not establish
+complete media-directory IOD or linked-record-offset conformance.
+The current reader enumerates IMAGE records; filtering inactive records and
+validating their linked tree and referenced SOP identities remain in the
+[media-directory item](../../backlog.md#RITK-SNAP-DIRECTORY-001).
+The IO tests separately load a complete synthetic linked PATIENT/STUDY/SERIES/IMAGE
+index and compare its exact pixel values and geometry with explicit member loading.
+
+## Capture the native application
+
+Build the binary alongside the example and run:
+
+```console
+cargo build --locked -p ritk-snap --bins --example dicom_workflow
+python scripts/viewer.py target/debug/examples/dicom_workflow --native-binary target/debug/ritk-snap
+```
+
+Use `.exe` suffixes on Windows and the shared Atlas target paths when applicable.
+The optional native workflow launches the real viewer with the generated study,
+saves its rendered root viewport to `scratch/viewer/window.png`, and exits. It
+then launches with a missing study and requires an explicit failure without a
+screenshot. Each of the three processes has a 60-second limit; the complete
+native workflow therefore has a maximum 180-second subprocess budget.
+
+Capture uses the normal viewer update and egui/eframe screenshot response.
+For your own local study, run `ritk-snap path/to/study --capture window.png`.
+The supplied study must load and the PNG must save before success is reported.
+Native window images depend on the host renderer and fonts; the exact pixel
+goldens above remain the deterministic software-rendering check.
+
+![Running native viewer with the synthetic DICOM study](images/dicom-window.png)
+
+This egui/eframe capture runs on Windows at 125% display scale, producing a
+1600 × 1000 root viewport. The viewer's current hanging protocol selects width
+400 and center 60, unlike the software-grid oracle's width 510 and center 235.
+This baseline's multi-planar layout fits texture pixels uniformly, so its image
+aspect ratios do not yet reflect anisotropic spacing; the
+[physical display item](../../backlog.md#RITK-SNAP-ASPECT-001) tracks that defect.
+The status bar's
+cursor `[1, 1, 2]` maps to LPS `[12, 21, 31.5]` mm by the equation above, and
+the decoded cursor value is 260. The capture demonstrates the existing viewer
+baseline; it is not a Métis application screenshot.
+
+Scalar readouts use “value” because this carrier does not establish physical
+intensity units; PET SUV readouts retain their explicit SUV label.
+Annotations use opaque backings for contrast. When the viewport cannot fit all
+annotations without overlap, activate **Details** to read the complete metadata
+in a scrollable popup. Press Escape or click outside the popup to close it.
+With Details focused, press Enter or Space to open it. Arrow keys scroll by a
+line, Page Up/Down by a page, and Home/End reach the content boundaries without
+changing the study slice.
+
+Multiframe organization, color presentation, default DICOM LINEAR/VOI semantics,
+and browser host interaction remain separate acceptance items in the
+[viewer backlog](../../backlog.md#RITK-SNAP-FRAMES-001). These workflows prepare
+the egui baseline for the Métis migration; they do not demonstrate a Métis host
+or establish those remaining capabilities.

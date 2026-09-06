@@ -16,7 +16,7 @@ fn main() -> Result<()> {
             .context("expected output directory")?,
     );
     let study = output.join("study");
-    let files = fixtures::write_study(&study, "CT")?;
+    let files = fixtures::write_study(&study, "CT", fixtures::SERIES_UID)?;
     let volume = load_volume_from_path(&study)?;
     let borrowed: Vec<_> = files
         .iter()

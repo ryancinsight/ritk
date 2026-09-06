@@ -6,17 +6,17 @@ use anyhow::{Context, Result};
 use ritk_io::{DicomObjectModel, DicomObjectNode, DicomTag};
 
 /// Study shape in depth, row, column order.
-pub(super) const SHAPE: [usize; 3] = [3, 2, 4];
+pub(crate) const SHAPE: [usize; 3] = [3, 2, 4];
 /// Physical voxel pitch in depth, row, column order, in millimetres.
-pub(super) const SPACING: [f64; 3] = [2.0, 1.5, 0.5];
+pub(crate) const SPACING: [f64; 3] = [2.0, 1.5, 0.5];
 /// First voxel's LPS position, in millimetres.
-pub(super) const ORIGIN: [f64; 3] = [10.0, 20.0, 30.0];
+pub(crate) const ORIGIN: [f64; 3] = [10.0, 20.0, 30.0];
 /// Row-major direction matrix whose columns correspond to depth, row, column.
-pub(super) const DIRECTION: [f64; 9] = [1.0, 0.0, 0.0, 0.0, 0.0, 1.0, 0.0, 1.0, 0.0];
+pub(crate) const DIRECTION: [f64; 9] = [1.0, 0.0, 0.0, 0.0, 0.0, 1.0, 0.0, 1.0, 0.0];
 /// Fixed synthetic series identity; this contains no patient information.
-pub(super) const SERIES_UID: &str = "2.25.20260905001";
+pub(crate) const SERIES_UID: &str = "2.25.20260905001";
 /// Stored samples, in spatial order, before slope 2 and intercept -20.
-pub(super) const SAMPLES: [u8; 24] = [
+pub(crate) const SAMPLES: [u8; 24] = [
     0, 10, 20, 30, 40, 50, 60, 70, 80, 90, 100, 110, 120, 130, 140, 150, 160, 170, 180, 190, 200,
     210, 220, 230,
 ];
@@ -26,12 +26,16 @@ pub(super) const SAMPLES: [u8; 24] = [
 /// Filenames, instance numbers, and returned batch order oppose the spatial
 /// order so the decoder must sort by ImagePositionPatient. Eight-bit samples
 /// use the object writer's OB representation without per-slice quantization.
-pub(super) fn write_study(root: &Path, modality: &str) -> Result<Vec<(String, Vec<u8>)>> {
+pub(crate) fn write_study(
+    root: &Path,
+    modality: &str,
+    series_uid: &str,
+) -> Result<Vec<(String, Vec<u8>)>> {
     std::fs::create_dir_all(root).context("create synthetic study directory")?;
     let mut files = Vec::with_capacity(SHAPE[0]);
     for (depth, filename, instance) in [(2_u16, "a.dcm", 1), (1, "b.dcm", 2), (0, "c.dcm", 3)] {
         let mut model = DicomObjectModel::new();
-        let sop_uid = format!("{SERIES_UID}.{instance}");
+        let sop_uid = format!("{series_uid}.{instance}");
         let position = format!("{}\\20\\30", 10 + 2 * depth);
         for (group, element, vr, value) in [
             (0x0008, 0x0016, "UI", "1.2.840.10008.5.1.4.1.1.7"),
@@ -39,7 +43,7 @@ pub(super) fn write_study(root: &Path, modality: &str) -> Result<Vec<(String, Ve
             (0x0008, 0x0060, "CS", modality),
             (0x0008, 0x0064, "CS", "WSD"),
             (0x0020, 0x000D, "UI", "2.25.20260905"),
-            (0x0020, 0x000E, "UI", SERIES_UID),
+            (0x0020, 0x000E, "UI", series_uid),
             (0x0020, 0x0032, "DS", position.as_str()),
             (0x0020, 0x0037, "DS", "0\\1\\0\\0\\0\\1"),
             (0x0028, 0x0004, "CS", "MONOCHROME2"),
@@ -80,7 +84,8 @@ pub(super) fn write_study(root: &Path, modality: &str) -> Result<Vec<(String, Ve
             "OB",
             SAMPLES[start..start + 8].to_vec(),
         ));
-        let path = root.join(filename);
+        let filename = format!("{series_uid}_{filename}");
+        let path = root.join(&filename);
         ritk_io::write_dicom_object(&model, &path).context("write synthetic Part 10 instance")?;
         files.push((
             filename.to_owned(),

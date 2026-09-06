@@ -272,9 +272,14 @@ impl SnapApp {
             return;
         };
 
-        match crate::session::load_from_file(&path) {
-            Ok(snapshot) => {
-                self.apply_session_snapshot(snapshot);
+        self.load_session_from_path(&path);
+    }
+
+    pub(crate) fn load_session_from_path(&mut self, path: &Path) {
+        match crate::session::load_from_file(path)
+            .and_then(|snapshot| self.apply_session_snapshot(snapshot))
+        {
+            Ok(()) => {
                 self.status_message = format!("Loaded session from {}", path.display());
                 info!("{}", self.status_message);
             }

@@ -191,19 +191,7 @@ fn tag_uid(obj: &FileDicomObject<InMemDicomObject>, tag: Tag) -> Option<String> 
         .filter(|s| !s.is_empty())
 }
 
-/// DICOM UID validity: components of 1–64 chars, digits and dots only, no
-/// leading zeros per component (PS 3.5 Section 9.1).
-fn uid_is_valid(uid: &str) -> bool {
-    if uid.is_empty() || uid.len() > 64 {
-        return false;
-    }
-    uid.split('.').all(|comp| {
-        !comp.is_empty()
-            && comp.len() <= 64
-            && comp.bytes().all(|b| b.is_ascii_digit())
-            && !(comp.len() > 1 && comp.starts_with('0'))
-    })
-}
+use super::super::identity::uid_is_valid;
 
 // ─── Per-file verification ─────────────────────────────────────────────────────
 

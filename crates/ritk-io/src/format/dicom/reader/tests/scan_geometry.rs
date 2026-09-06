@@ -95,7 +95,7 @@ fn test_scan_directory_warns_on_inconsistent_iop() {
         )
         .expect("invariant: fixture tensor has the declared rank");
         let meta = DicomReadMetadata {
-            series_instance_uid: Some("2.25.62003".try_into().unwrap()),
+            series_instance_uid: Some("2.25.62001".try_into().unwrap()),
             study_instance_uid: Some("2.25.62004".try_into().unwrap()),
             frame_of_reference_uid: None,
             series_description: None,
@@ -236,7 +236,7 @@ fn test_scan_directory_warns_on_inconsistent_pixel_spacing() {
         )
         .expect("invariant: fixture tensor has the declared rank");
         let meta = DicomReadMetadata {
-            series_instance_uid: Some("2.25.63003".try_into().unwrap()),
+            series_instance_uid: Some("2.25.63001".try_into().unwrap()),
             study_instance_uid: Some("2.25.63004".try_into().unwrap()),
             frame_of_reference_uid: None,
             series_description: None,

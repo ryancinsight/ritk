@@ -3,13 +3,33 @@
 - Status: done; [PR 235](https://github.com/ryancinsight/ritk/pull/235), `c38ca276`; real file/byte oracles and reproducible [manual captures](docs/manual/dicom-workflow.md).
 
 <a id="RITK-SNAP-OPEN-001"></a>
-## RITK-SNAP-OPEN-001 — Selected DICOM input and series identity [patch]
-- Status: in-progress; integrator: root; branch: codex/ritk-snap-series-identity; last-update: 2026-09-05; priority: P0; owner: RITK viewer/IO; dependencies: RITK-SNAP-FIXTURES-001; risk: wrong or rejected study.
-- Scope: file, directory, DICOMDIR and byte-batch dispatch; preserve the selected SeriesInstanceUID and reject or present ambiguous series choices.
-- Evidence: `loader/mod.rs` passes a recognized file path to the directory-only reader; `reader/scan/finalize.rs` filters multiple series only when one has a unique maximum count. Caller/callee inspection at `341228e`; folder UI paths may normalize separately.
-- Acceptance: same-series inputs yield identical known voxels and geometry; equally populated mixed series never combine; a selected file cannot silently open another series. DICOMDIR references resolve through its reader, not a blind parent-directory guess.
-- Verification: synthetic two-series directory, selected-file/DICOMDIR/pathless traces, invalid references and failed-replacement state; actual opening plus displayed series identity.
-- Decision: revise [ADR 0026](docs/adr/0026-viewer-presentation-migration.md) for explicit series selection before geometry; recorded caller audit confirms folder-only selection, majority/tied UID filtering, cross-series metadata accumulation and invalid-index fallback.
+## RITK-SNAP-OPEN-001 — Selected DICOM input and series identity [major] [arch]
+- Status: done; the commit containing this entry preserves exact acquisitions through opening and restore, with verified [native capture](docs/manual/dicom-workflow.md) and [caller migration](docs/migration_selected_dicom.md).
+
+<a id="RITK-SNAP-RESOURCES-001"></a>
+## RITK-SNAP-RESOURCES-001 — Confined and bounded study ingestion [arch] [minor]
+- Status: todo; priority: P0; owner: RITK IO; dependencies: RITK-SNAP-OPEN-001; risk: filesystem race and input-driven memory exhaustion.
+- Scope: handle-based file-set access and explicit per-instance/per-study parser and decoded-buffer budgets; preserve validated-byte identity without unbounded retained study storage.
+- Evidence: `reader/dicomdir.rs` canonicalizes references before a later open; `reader/scan/mod.rs` retains whole Part 10 buffers, and the current reader exposes no ingestion resource policy.
+- Acceptance: concurrent reference replacement cannot read outside the selected file-set authority; malformed lengths and over-budget inputs return errors before allocation; bounded peak storage under repeated study replacement.
+- Verification: deterministic filesystem mutation probes, malformed corpus/property tests, allocation instrumentation under fixed study inputs; no security or memory-improvement claim from path checks alone.
+- Decision: use owning RITK/Atlas filesystem and storage capabilities; record the platform contract in ADR 0026 before implementation.
+
+<a id="RITK-SNAP-DIRECTORY-001"></a>
+## RITK-SNAP-DIRECTORY-001 — Validate media-directory record semantics [patch]
+- Status: todo; priority: P0; owner: RITK IO; dependencies: RITK-SNAP-OPEN-001; risk: inactive or unreachable records alter the selected file set.
+- Scope: enforce admitted DICOMDIR record activity, linked-record offsets and referenced SOP/transfer-syntax agreement; retain authoritative membership and explicit errors.
+- Evidence: `reader/dicomdir.rs` iterates IMAGE items without following offsets or checking RecordInUseFlag; successful linked fixtures establish their loaded values, not complete index validation.
+- Acceptance: inactive/deleted and unreachable records do not add files; malformed links fail without loops or unbounded traversal; active references agree with actual instance identities.
+- Verification: PS3.3 F.3.2.2 record-tree fixtures, deleted records, cycles, invalid offsets and mismatched referenced identities; compare expected active member paths and decoded voxels.
+
+<a id="RITK-SNAP-ASPECT-001"></a>
+## RITK-SNAP-ASPECT-001 — Preserve physical image aspect ratios [patch]
+- Status: todo; priority: P0; owner: RITK viewer; dependencies: RITK-SNAP-OPEN-001; risk: geometrically distorted display.
+- Scope: use voxel spacing for image placement in multi-planar, dual-plane and side-by-side layouts; keep image, overlays and cursor mapping on the same rectangle.
+- Evidence: `app/viewport_render.rs` enables pixel-uniform fitting in those layouts; the synthetic native capture shows pixel-count ratios instead of anisotropic physical dimensions.
+- Acceptance: each slice's displayed width/height equals column-count × column-spacing divided by row-count × row-spacing; layout choice cannot change that ratio.
+- Verification: analytical anisotropic fixtures across all three axes and layout modes, cursor mapping checks, regenerate and inspect the native manual capture.
 
 <a id="RITK-SNAP-FRAMES-001"></a>
 ## RITK-SNAP-FRAMES-001 — Complete multiframe opening [patch]
@@ -39,7 +59,7 @@
 ## RITK-SNAP-METIS-001 — Migrate the viewer shell to Métis [arch] [minor]
 - Status: todo; priority: P1; owner: RITK viewer + Métis framework; risk: lost viewer behavior; decision: [ADR 0026](docs/adr/0026-viewer-presentation-migration.md).
 - Driver: user's named application; framework work: [METIS-MIGRATION-001](../metis/backlog.md#METIS-MIGRATION-001), [V09](../metis/docs/VERIFICATION.md#V09).
-- Dependencies: RITK-SNAP-FIXTURES-001, RITK-SNAP-OPEN-001, RITK-SNAP-FRAMES-001, RITK-SNAP-COLOR-001, RITK-SNAP-GRAYSCALE-001; working Métis host/input/image/async/file capabilities.
+- Dependencies: RITK-SNAP-FIXTURES-001, RITK-SNAP-OPEN-001, RITK-SNAP-DIRECTORY-001, RITK-SNAP-ASPECT-001, RITK-SNAP-RESOURCES-001, RITK-SNAP-FRAMES-001, RITK-SNAP-COLOR-001, RITK-SNAP-GRAYSCALE-001; working Métis host/input/image/async/file capabilities.
 - Scope: inventory and replace egui/eframe shell and GUI-specific carriers in `ritk-snap`; retain RITK decoding, geometry and viewer semantics, Iris visualization contracts and Moirai execution. Tauri is a framework comparison target, not a dependency found in this app.
 - Acceptance: complete pinned viewer inventory and all admitted DICOM opening/display journeys pass in real Métis hosts; old framework dependencies disappear from the viewer's active graph without forwarding shims. Existing defects are corrected, not copied as parity.
 - Demonstration: same synthetic studies and user actions before/after migration, all three orthogonal views, known voxel/physical-coordinate checks, cancellation/recovery and public manual captures; matched memory measurements before any improvement claim.

@@ -1,12 +1,14 @@
 #![expect(clippy::unwrap_used, reason = "ratchet RITK-UNWRAP-1")]
 use super::*;
 use crate::tools::interaction::Annotation;
+use std::path::PathBuf;
 
 // ─── Helper: build a canonical snapshot with known values ─────────────────────
 
 fn canonical_snapshot_no_annotations() -> ViewerSessionSnapshot {
     ViewerSessionSnapshot {
-        source: Some(PathBuf::from("C:/studies/DICOMDIR")),
+        format: SessionFormat,
+        source: Some(StudySource::Path(PathBuf::from("C:/studies/DICOMDIR"))),
         viewer_state: ViewerState {
             slice_index: 12,
             window_center: Some(40.0),
@@ -301,4 +303,24 @@ fn unique_temp_path(stem: &str, extension: &str) -> std::path::PathBuf {
     let pid = std::process::id();
     let seq = SEQ.fetch_add(1, Ordering::Relaxed);
     std::env::temp_dir().join(format!("{stem}_{pid}_{nanos:016x}_{seq}.{extension}"))
+}
+
+#[test]
+fn session_source_migrates_legacy_paths_and_rejects_unknown_formats() {
+    let snapshot = canonical_snapshot_no_annotations();
+    let mut json = serde_json::to_value(&snapshot).expect("serialize session");
+    json.as_object_mut()
+        .expect("session object")
+        .remove("format");
+    let migrated: ViewerSessionSnapshot =
+        serde_json::from_value(json.clone()).expect("legacy source migrates");
+    assert_eq!(migrated.source, snapshot.source);
+    let current = serde_json::to_value(migrated).expect("serialize current session");
+    assert_eq!(current["format"], 2);
+    json["format"] = serde_json::json!(3);
+    let error =
+        serde_json::from_value::<ViewerSessionSnapshot>(json).expect_err("unknown version rejects");
+    assert!(error
+        .to_string()
+        .contains("unsupported viewer session format version"));
 }

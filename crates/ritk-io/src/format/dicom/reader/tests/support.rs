@@ -9,6 +9,12 @@ pub(super) fn write_stub_dicom(
     sop_instance_uid: &str,
 ) {
     let mut obj = InMemDicomObject::new_empty();
+    // Successful image-scan fixtures carry the required acquisition identity.
+    obj.put(DataElement::new(
+        Tag(0x0020, 0x000E),
+        VR::UI,
+        PrimitiveValue::from("2.25.72001"),
+    ));
     obj.put(DataElement::new(
         Tag(0x0008, 0x0016),
         VR::UI,

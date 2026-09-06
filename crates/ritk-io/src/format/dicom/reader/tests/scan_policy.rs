@@ -88,6 +88,12 @@ fn test_scan_mixed_non_image_and_ct_retains_image_slice() {
     // Image-bearing: CT Image Storage -- include Rows/Cols so metadata is populated
     {
         let mut obj = InMemDicomObject::new_empty();
+        // Successful image-scan fixtures carry the required acquisition identity.
+        obj.put(DataElement::new(
+            Tag(0x0020, 0x000E),
+            VR::UI,
+            PrimitiveValue::from("2.25.72001"),
+        ));
         obj.put(DataElement::new(
             Tag(0x0008, 0x0016),
             VR::UI,
@@ -199,6 +205,12 @@ fn test_scan_private_sequence_is_preserved_in_object_model() {
     let seq_value = dicom::core::value::Value::from(seq);
 
     let mut obj = InMemDicomObject::new_empty();
+    // Successful image-scan fixtures carry the required acquisition identity.
+    obj.put(DataElement::new(
+        Tag(0x0020, 0x000E),
+        VR::UI,
+        PrimitiveValue::from("2.25.72001"),
+    ));
     obj.put(DataElement::new(
         Tag(0x0008, 0x0016),
         VR::UI,

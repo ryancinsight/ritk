@@ -1,3 +1,4 @@
+use super::volume_input::VolumeInput;
 use crate::label::LabelEditor;
 use crate::render::NamedColorMap;
 use crate::render::RenderBufferPool;
@@ -194,7 +195,7 @@ pub(crate) struct SnapApp {
     /// Hierarchical DICOM series tree.
     pub(crate) series_tree: crate::dicom::series_tree::SeriesTree<'static>,
     /// The folder path currently highlighted in the series browser.
-    pub(crate) selected_series: Option<std::path::PathBuf>,
+    pub(crate) selected_series: Option<std::sync::Arc<ritk_io::DicomSeriesInfo>>,
     /// Which tab is active in the series browser sidebar.
     pub(crate) sidebar_tab: crate::ui::sidebar::SidebarTab,
     /// Active load target for series selection.
@@ -204,9 +205,9 @@ pub(crate) struct SnapApp {
     /// Message shown in the bottom status bar.
     pub(crate) status_message: String,
     /// Path queued for loading on the next [`eframe::App::update`] cycle.
-    pub(crate) pending_load: Option<std::path::PathBuf>,
+    pub(crate) pending_load: Option<VolumeInput>,
     /// Secondary path queued for load on next update cycle.
-    pub(crate) pending_secondary_load: Option<std::path::PathBuf>,
+    pub(crate) pending_secondary_load: Option<VolumeInput>,
 
     // ── PACS panel ────────────────────────────────────────────────────────────
     /// PACS server connection configuration.
@@ -374,7 +375,7 @@ impl SnapApp {
             app.scan_for_series(path.clone());
         }
         app.status_message = format!("Queued initial load: {}", path.display());
-        app.pending_load = Some(path);
+        app.pending_load = Some(VolumeInput::Path(path));
         app
     }
 }
@@ -389,12 +390,7 @@ impl eframe::App for SnapApp {
 
         // Process any pending file load queued in the previous frame so that
         // the file-dialog result is always acted on with a full UI repaint.
-        if let Some(path) = self.pending_load.take() {
-            self.load_from_path(path);
-        }
-        if let Some(path) = self.pending_secondary_load.take() {
-            self.load_secondary_from_path(path);
-        }
+        self.process_pending_loads();
 
         // Poll background PACS worker on every frame (must run even when the
         // PACS panel is closed so responses are applied promptly).
