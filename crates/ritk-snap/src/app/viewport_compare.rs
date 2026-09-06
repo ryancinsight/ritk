@@ -4,6 +4,7 @@
 //! displays a secondary volume against the primary, including fused-slice
 //! rendering via [`render_fused_slice`] and standard fit-scale / zoom logic.
 
+use super::image_placement::ImagePlacement;
 use super::state::SnapApp;
 use super::viewport_render::{OVERLAY_LABEL_COLOR, OVERLAY_LABEL_FONT_SIZE, OVERLAY_LABEL_INSET};
 use crate::render::fusion::{render_fused_slice, FusedSliceParams};
@@ -108,21 +109,35 @@ impl SnapApp {
         let Some(tex) = self.secondary_texture.as_ref() else {
             return;
         };
-        let [w, h] = tex.size();
-        let tex_w = w as f32;
-        let tex_h = h as f32;
-        let avail = ui.available_size();
-        let fit = if tex_w > 0.0 && tex_h > 0.0 {
-            (avail.x / tex_w).min(avail.y / tex_h)
-        } else {
-            1.0
+        // Fusion emits the primary sampling grid; independent comparison emits
+        // the selected secondary grid. Placement follows that output contract.
+        let (volume, axis) = match (
+            self.compare_fused_overlay,
+            self.loaded.as_ref(),
+            self.loaded_secondary.as_ref(),
+        ) {
+            (true, Some(primary), _) => (primary, primary_axis),
+            (false, _, Some(secondary)) => (secondary, secondary_axis),
+            _ => return,
         };
-        let size = egui::vec2(tex_w * fit * self.zoom, tex_h * fit * self.zoom);
+        let placement = match ImagePlacement::show(
+            ui,
+            egui::load::SizedTexture::from_handle(tex),
+            volume,
+            axis,
+            self.view_transform,
+            self.zoom,
+            egui::Sense::hover(),
+        ) {
+            Ok(placement) => placement,
+            Err(error) => {
+                self.status_message = format!("Image placement failed: {error}");
+                ui.label(&self.status_message);
+                return;
+            }
+        };
 
-        let response = ui.add(
-            egui::Image::new(egui::load::SizedTexture::new(tex.id(), size))
-                .sense(egui::Sense::hover()),
-        );
+        let response = placement.response;
 
         let painter = ui.painter_at(response.rect);
         painter.text(

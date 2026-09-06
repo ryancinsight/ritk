@@ -24,6 +24,8 @@ mod measurement;
 #[cfg(test)]
 mod navigation;
 #[cfg(test)]
+mod physical_aspect;
+#[cfg(test)]
 mod rt;
 #[cfg(test)]
 mod seg_load;

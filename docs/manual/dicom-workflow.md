@@ -133,9 +133,13 @@ goldens above remain the deterministic software-rendering check.
 This egui/eframe capture runs on Windows at 125% display scale, producing a
 1600 × 1000 root viewport. The viewer's current hanging protocol selects width
 400 and center 60, unlike the software-grid oracle's width 510 and center 235.
-This baseline's multi-planar layout fits texture pixels uniformly, so its image
-aspect ratios do not yet reflect anisotropic spacing; the
-[physical display item](../../backlog.md#RITK-SNAP-ASPECT-001) tracks that defect.
+Image placement preserves physical proportions in every layout. For this
+fixture, displayed width/height is 2/3 for the depth slice, 1/3 for the row
+slice, and 1/2 for the column slice: pixel count times sample spacing on each
+axis. A quarter turn exchanges the two extents. The same placement determines
+image bounds and cursor hit coordinates; tests inspect the actual egui image
+shapes across layouts and rotations. Geometry that cannot be represented in
+positive finite screen coordinates reports an explicit placement error.
 The status bar's
 cursor `[1, 1, 2]` maps to LPS `[12, 21, 31.5]` mm by the equation above, and
 the decoded cursor value is 260. The capture demonstrates the existing viewer
@@ -149,6 +153,15 @@ in a scrollable popup. Press Escape or click outside the popup to close it.
 With Details focused, press Enter or Space to open it. Arrow keys scroll by a
 line, Page Up/Down by a page, and Home/End reach the content boundaries without
 changing the study slice.
+
+Secondary images use their own sampling distances. A fused image uses the
+primary output grid's proportions, but this does not establish anatomical
+alignment: the current fusion sampler uses normalized slice coordinates.
+[Patient-coordinate fusion](../../backlog.md#RITK-SNAP-FUSION-001) remains
+required before comparing spatial correspondence across different grids.
+These aspect tests do not establish rotated cursor/orientation semantics or
+physical measurement accuracy outside the annotation APIs' numeric range;
+the [coordinate item](../../backlog.md#RITK-SNAP-COORDINATES-001) owns those checks.
 
 Multiframe organization, color presentation, default DICOM LINEAR/VOI semantics,
 and browser host interaction remain separate acceptance items in the
