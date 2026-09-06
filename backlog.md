@@ -1,3 +1,52 @@
+<a id="RITK-SNAP-FIXTURES-001"></a>
+## RITK-SNAP-FIXTURES-001 — Reproducible DICOM opening evidence [patch]
+- Status: todo; priority: P0; owner: RITK viewer/IO; risk: false-green loading tests; driver: [Métis migration](#RITK-SNAP-METIS-001).
+- Scope: replace absence-success external-fixture branches in SNAP loader tests with tiny deterministic Part 10 studies; optional external datasets remain separately identified experiments.
+- Evidence: `crates/ritk-snap/src/dicom/loader/tests.rs` returns success when `test_data/2_head_mri_t2/DICOM` is missing; inspection at `341228e`, no tests run.
+- Acceptance: normal gate always decodes real bytes and asserts known voxel values, dimensions and physical landmarks; malformed/truncated fixtures fail explicitly. Fixture absence cannot pass a required test.
+- Verification: committed nextest budgets, all admitted opening paths and actual rendered output; no patient data in fixtures, logs or public captures.
+
+<a id="RITK-SNAP-OPEN-001"></a>
+## RITK-SNAP-OPEN-001 — Selected DICOM input and series identity [patch]
+- Status: todo; priority: P0; owner: RITK viewer/IO; dependencies: RITK-SNAP-FIXTURES-001; risk: wrong or rejected study.
+- Scope: file, directory, DICOMDIR and byte-batch dispatch; preserve the selected SeriesInstanceUID and reject or present ambiguous series choices.
+- Evidence: `loader/mod.rs` passes a recognized file path to the directory-only reader; `reader/scan/finalize.rs` filters multiple series only when one has a unique maximum count. Caller/callee inspection at `341228e`; folder UI paths may normalize separately.
+- Acceptance: same-series inputs yield identical known voxels and geometry; equally populated mixed series never combine; a selected file cannot silently open another series. DICOMDIR references resolve through its reader, not a blind parent-directory guess.
+- Verification: synthetic two-series directory, selected-file/DICOMDIR/pathless traces, invalid references and failed-replacement state; actual opening plus displayed series identity.
+
+<a id="RITK-SNAP-FRAMES-001"></a>
+## RITK-SNAP-FRAMES-001 — Complete multiframe opening [patch]
+- Status: todo; priority: P0; owner: RITK viewer/IO; dependencies: RITK-SNAP-FIXTURES-001; risk: dropped frames or wrong geometry.
+- Scope: route admitted multiframe objects through the existing RITK multiframe reader; preserve frame identity and functional-group geometry; reject unsupported dimensional organizations explicitly.
+- Evidence: series `reader/pixel.rs` decodes frame zero; the separate `dicom/multiframe/reader.rs` path is not called by inspected SNAP loaders at `341228e`.
+- Acceptance: every expected frame is reachable with distinct known pixels and physical coordinates; temporal frames are not silently stacked as spatial slices; no missing or duplicated frames.
+- Verification: single-frame and multiframe Part 10 fixtures, per-frame overrides, invalid counts/lengths and actual frame navigation captures.
+
+<a id="RITK-SNAP-COLOR-001"></a>
+## RITK-SNAP-COLOR-001 — Preserve decoded DICOM color in display [patch]
+- Status: todo; priority: P0; owner: RITK viewer/rendering; dependencies: RITK-SNAP-FIXTURES-001; risk: misleading color display.
+- Scope: carry admitted color channels through slice extraction, viewport transforms and texture submission without passing RGB through scalar windowing.
+- Evidence: `app/render_cache.rs` uses scalar `SliceRenderer`; `LoadedVolume::extract_slice_into` selects the first channel although the RGB loader retains three channels; source inspection at `341228e`.
+- Acceptance: known red/green/blue/neutral pixels retain exact channel identity in axial/coronal/sagittal views; unsupported photometric/planar/codec combinations reject rather than silently degrade.
+- Verification: real RGB DICOM decode through the displayed image, orientation transforms and channel-level expected pixels; source and captures in the manual.
+
+<a id="RITK-SNAP-GRAYSCALE-001"></a>
+## RITK-SNAP-GRAYSCALE-001 — DICOM grayscale presentation semantics [patch]
+- Status: todo; priority: P0; owner: RITK viewer/IO; dependencies: RITK-SNAP-FIXTURES-001; risk: incorrect displayed intensity.
+- Scope: preserve signed stored samples, modality rescale, admitted VOI LUT/function semantics and MONOCHROME1/2 presentation through the viewer.
+- Evidence: `render/slice_render.rs` uses center ± width/2 without VOI-function selection; MONOCHROME1 inversion was not found on the inspected rendering path at `341228e`. Reproduce against standard boundary values before modifying it.
+- Acceptance: independent DICOM PS3.3 C.11.2 boundary oracles distinguish default LINEAR, LINEAR_EXACT and SIGMOID; apply inversion once and rescale once; unsupported LUT forms fail explicitly until implemented.
+- Verification: signed/rescaled synthetic pixels, width-one and function boundaries, invalid metadata and actual grayscale captures; current presets are not correctness oracles.
+
+<a id="RITK-SNAP-METIS-001"></a>
+## RITK-SNAP-METIS-001 — Migrate the viewer shell to Métis [arch] [minor]
+- Status: todo; priority: P1; owner: RITK viewer + Métis framework; risk: lost viewer behavior; decision: [ADR 0026](docs/adr/0026-viewer-presentation-migration.md).
+- Driver: user's named application; framework work: [METIS-MIGRATION-001](../metis/backlog.md#METIS-MIGRATION-001), [V09](../metis/docs/VERIFICATION.md#V09).
+- Dependencies: RITK-SNAP-FIXTURES-001, RITK-SNAP-OPEN-001, RITK-SNAP-FRAMES-001, RITK-SNAP-COLOR-001, RITK-SNAP-GRAYSCALE-001; working Métis host/input/image/async/file capabilities.
+- Scope: inventory and replace egui/eframe shell and GUI-specific carriers in `ritk-snap`; retain RITK decoding, geometry and viewer semantics, Iris visualization contracts and Moirai execution. Tauri is a framework comparison target, not a dependency found in this app.
+- Acceptance: complete pinned viewer inventory and all admitted DICOM opening/display journeys pass in real Métis hosts; old framework dependencies disappear from the viewer's active graph without forwarding shims. Existing defects are corrected, not copied as parity.
+- Demonstration: same synthetic studies and user actions before/after migration, all three orthogonal views, known voxel/physical-coordinate checks, cancellation/recovery and public manual captures; matched memory measurements before any improvement claim.
+
 <a id="RITK-SOFT-TISSUE-REGISTRATION-2026-09-03"></a>
 ## RITK-SOFT-TISSUE-REGISTRATION-2026-09-03 — Soft-tissue multimodal registration [major] [arch] — done
 
