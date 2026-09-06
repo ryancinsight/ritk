@@ -217,6 +217,19 @@ jobs:
       - name: Run tests with nextest
         run: cargo nextest run --workspace --lib --tests
 
+      - name: Set up Python for viewer captures
+        uses: actions/setup-python@ece7cb06caefa5fff74198d8649806c4678c61a1
+        with:
+          python-version: "3.11"
+
+      - name: Verify synthetic DICOM workflow images
+        shell: bash
+        env:
+          EXAMPLE_SUFFIX: ${{ runner.os == 'Windows' && '.exe' || '' }}
+        run: |
+          cargo build --locked -p ritk-snap --example dicom_workflow
+          python scripts/viewer.py "target/debug/examples/dicom_workflow${EXAMPLE_SUFFIX}"
+
   python-wheel:
     name: Python Wheel (smoke test)
     runs-on: ubuntu-latest

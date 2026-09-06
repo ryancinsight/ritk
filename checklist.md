@@ -1,9 +1,3 @@
-## root — [RITK-SNAP-FIXTURES-001](backlog.md#RITK-SNAP-FIXTURES-001)
-
-- [ ] Replace optional fixture loader checks with generated Part 10 and NIfTI value/geometry tests.
-- [ ] Verify decoded slices through the renderer and publish a reproducible synthetic demonstration.
-- [ ] Run focused debug/release Nextest, formatting, Clippy, docs and independent review; integrate.
-
 ## RITK-MIND-REGISTRATION-2026-09-04
 
 - [ ] Specify descriptor equations, boundary behavior, storage bounds, and API in ADR 0024.

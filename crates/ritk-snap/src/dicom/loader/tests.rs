@@ -1,6 +1,6 @@
 //! Tests for the loader module.
-#![expect(clippy::print_stderr, reason = "ratchet RITK-LINT-1")]
-#![expect(clippy::unwrap_used, reason = "ratchet RITK-UNWRAP-1")]
+
+mod fixtures;
 
 use super::*;
 use crate::dicom::series_tree::SeriesEntry;
@@ -50,241 +50,187 @@ fn sort_series_entries_is_deterministic() {
     assert_eq!(ordered_uids, vec!["UID-A1", "UID-A2", "UID-B"]);
 }
 
-/// Load the OpenNeuro T1w NIfTI file when it is present on disk and verify
-/// that shape, spacing, and pixel data satisfy basic sanity invariants.
-///
-/// Skip the test when the file does not exist (CI environments without
-/// large test data).
-///
-/// # Mathematical specification
-/// - `shape[i] > 0` for all i (no zero-extent dimension).
-/// - `spacing[i] > 0.0` for all i (positive voxel pitch).
-/// - `pixels.len() == shape[0] * shape[1] * shape[2]`.
+/// Both file and byte entry points preserve binary-exact NIfTI values and geometry.
 #[test]
-fn test_load_nifti_volume_shape() {
-    let path_buf = std::path::Path::new(env!("CARGO_MANIFEST_DIR"))
-        .join("..")
-        .join("..")
-        .join("test_data")
-        .join("openneuro")
-        .join("sub-01_T1w.nii.gz");
-    let path = path_buf.as_path();
-    if !path.exists() {
-        eprintln!(
-            "SKIP test_load_nifti_volume_shape: test data absent at {:?}",
-            path
-        );
-        return;
-    }
-    let vol =
-        load_nifti_volume(path).expect("load_nifti_volume must succeed on a valid NIfTI file");
-    // Shape invariant: every dimension must be > 0.
-    let [d, r, c] = vol.shape;
-    assert!(d > 0, "depth dimension must be > 0, got {d}");
-    assert!(r > 0, "rows dimension must be > 0, got {r}");
-    assert!(c > 0, "cols dimension must be > 0, got {c}");
-    // Spacing invariant: all spacing values must be positive (mm/voxel).
-    for (i, &sp) in vol.spacing.iter().enumerate() {
-        assert!(sp > 0.0, "spacing[{i}] must be > 0.0 mm/voxel, got {sp}");
-    }
-    // Pixel count must exactly match the declared shape.
-    let expected_len = d * r * c;
-    assert_eq!(
-        vol.data.len(),
-        expected_len,
-        "pixel data length {actual} must equal depth×rows×cols = {expected_len}",
-        actual = vol.data.len(),
-    );
-    // Source path must be recorded.
-    assert_eq!(
-        vol.source.as_deref(),
-        Some(path_buf.as_path()),
-        "source path must be recorded in LoadedVolume"
-    );
-}
-
-#[test]
-fn test_load_volume_from_bytes_nifti_roundtrip_shape() {
-    let dir = tempdir().expect("create temp dir");
-    let path = dir.path().join("drop_test.nii");
+fn nifti_file_and_bytes_preserve_values_and_geometry() {
+    let dir = tempdir().expect("create NIfTI fixture directory");
     let backend = coeus_core::SequentialBackend;
+    let pixels: Vec<f32> = (0_u8..24)
+        .map(|value| f32::from(value) * 0.5 - 4.0)
+        .collect();
+    let origin = [1.25, -2.5, 3.75];
+    let spacing = [0.5, 1.5, 2.0];
     let image = ritk_image::Image::from_flat_on(
-        (0..24).map(|v| v as f32).collect(),
-        [3, 2, 4],
-        Point::new([1.0, 2.0, 3.0]),
-        Spacing::new([0.8, 0.9, 1.7]),
+        pixels.clone(),
+        fixtures::SHAPE,
+        Point::new(origin),
+        Spacing::new(spacing),
         Direction::identity(),
         &backend,
     )
-    .expect("construct synthetic native image");
-    ritk_io::write_image_native(&path, &image).expect("write synthetic nifti");
-    let bytes = std::fs::read(&path).expect("read written nifti bytes");
-    let vol = load_volume_from_bytes("dropped.nii", &bytes)
-        .expect("load_volume_from_bytes should load valid nifti bytes");
-    assert_eq!(vol.shape, [3, 2, 4]);
-    assert_eq!(vol.data.len(), 24);
-    assert!(vol.spacing[0] > 0.0 && vol.spacing[1] > 0.0 && vol.spacing[2] > 0.0);
+    .expect("construct NIfTI fixture image");
+    for filename in ["study.nii", "study.nii.gz"] {
+        let path = dir.path().join(filename);
+        ritk_io::write_image_native(&path, &image).expect("write NIfTI fixture");
+        let bytes = std::fs::read(&path).expect("read NIfTI fixture bytes");
+        let from_file = load_nifti_volume(&path).expect("load NIfTI file");
+        let from_bytes = load_volume_from_bytes(filename, &bytes).expect("load NIfTI bytes");
+        for volume in [&from_file, &from_bytes] {
+            assert_eq!(volume.shape, fixtures::SHAPE);
+            assert_eq!(volume.data.as_slice(), pixels);
+            assert_eq!(volume.spacing, spacing);
+            assert_eq!(volume.origin, origin);
+            assert_eq!(
+                volume.direction,
+                [1.0, 0.0, 0.0, 0.0, 1.0, 0.0, 0.0, 0.0, 1.0]
+            );
+            assert_eq!(volume.channels, 1);
+            assert!(volume.metadata.is_none(), "NIfTI carries no DICOM metadata");
+        }
+        assert_eq!(from_file.source.as_deref(), Some(path.as_path()));
+    }
 }
 
-#[test]
-fn test_load_dicom_series_from_named_bytes_batch() {
-    let dir_buf = std::path::Path::new(env!("CARGO_MANIFEST_DIR"))
-        .join("..")
-        .join("..")
-        .join("test_data")
-        .join("2_head_mri_t2")
-        .join("DICOM");
-    let dir = dir_buf.as_path();
-    if !dir.exists() {
-        eprintln!(
-            "SKIP test_load_dicom_series_from_named_bytes_batch: fixture absent at {:?}",
-            dir
-        );
-        return;
-    }
-    let mut owned_files: Vec<(String, Vec<u8>)> = std::fs::read_dir(dir)
-        .expect("read DICOM fixture directory")
-        .filter_map(|entry| entry.ok())
-        .map(|entry| entry.path())
-        .filter(|path| path.is_file())
-        .map(|path| {
-            let name = path
-                .file_name()
-                .and_then(|s| s.to_str())
-                .unwrap_or("slice.dcm")
-                .to_owned();
-            let bytes = std::fs::read(&path).expect("read DICOM fixture file bytes");
-            (name, bytes)
-        })
-        .collect();
-    owned_files.sort_by(|a, b| a.0.cmp(&b.0));
-    let borrowed: Vec<(String, &[u8])> = owned_files
+fn assert_study(volume: &crate::LoadedVolume, modality: &str) {
+    // Integer samples and powers-of-two rescale coefficients are exact in f32.
+    let expected: Vec<f32> = fixtures::SAMPLES
         .iter()
-        .map(|(name, bytes)| (name.clone(), bytes.as_slice()))
+        .map(|&raw| 2.0 * f32::from(raw) - 20.0)
         .collect();
-    let vol = load_dicom_series_from_named_bytes(&borrowed)
-        .expect("load_dicom_series_from_named_bytes should load valid DICOM batch");
-    let [d, r, c] = vol.shape;
-    assert!(
-        d > 0 && r > 0 && c > 0,
-        "loaded DICOM shape must be non-zero"
+    assert_eq!(volume.data.as_slice(), expected);
+    assert_eq!(volume.shape, fixtures::SHAPE);
+    assert_eq!(volume.channels, 1);
+    assert_eq!(volume.spacing, fixtures::SPACING);
+    assert_eq!(volume.origin, fixtures::ORIGIN);
+    assert_eq!(volume.direction, fixtures::DIRECTION);
+    assert_eq!(volume.modality.as_deref(), Some(modality));
+    let metadata = volume.metadata.as_ref().expect("DICOM metadata retained");
+    assert_eq!(
+        metadata.series_instance_uid.as_deref(),
+        Some(fixtures::SERIES_UID)
     );
-    assert_eq!(vol.data.len(), d * r * c);
+    assert_eq!(
+        metadata.study_instance_uid.as_deref(),
+        Some("2.25.20260905")
+    );
+    // P(d,r,c) = (10+2d, 20+0.5c, 30+1.5r), independently from the encoded IOP/IPP.
+    assert_eq!(
+        crate::ui::voxel_to_lps([2, 1, 3], volume.origin, volume.direction, volume.spacing),
+        [14.0, 21.5, 31.5]
+    );
 }
 
-/// Load the skull CT DICOM series when it is present and verify basic
-/// structural invariants on the returned volume.
-///
-/// # Mathematical specification
-/// - `shape[0] > 0` (depth, i.e. number of slices, must be positive).
-/// - `shape[1] > 0` and `shape[2] > 0` (rows and cols must be positive).
-/// - `spacing[i] > 0.0` for all i.
-/// - `data.len() == shape[0] * shape[1] * shape[2]`.
+/// Spatial sorting must override reversed names, instance numbers, and byte order.
 #[test]
-fn test_load_dicom_volume_shape() {
-    let path_buf = std::path::Path::new(env!("CARGO_MANIFEST_DIR"))
-        .join("..")
-        .join("..")
-        .join("test_data")
-        .join("2_skull_ct")
-        .join("DICOM");
-    let path = path_buf.as_path();
-    if !path.exists() {
-        eprintln!(
-            "SKIP test_load_dicom_volume_shape: test data absent at {:?}",
-            path
-        );
-        return;
+fn dicom_file_bytes_and_scanned_studies_preserve_values_and_geometry() {
+    for modality in ["CT", "MR"] {
+        let dir = tempdir().expect("create DICOM fixture directory");
+        let files = fixtures::write_study(dir.path(), modality).expect("write synthetic study");
+        let from_file = load_dicom_volume(dir.path()).expect("load DICOM directory");
+        let named: Vec<(String, &[u8])> = files
+            .iter()
+            .map(|(name, bytes)| (name.clone(), bytes.as_slice()))
+            .collect();
+        let from_bytes = load_dicom_series_from_named_bytes(&named).expect("load DICOM byte batch");
+        let scan_input: Vec<(&str, &[u8])> = files
+            .iter()
+            .rev()
+            .map(|(name, bytes)| (name.as_str(), bytes.as_slice()))
+            .collect();
+        let scanned = ritk_io::scan_dicom_part10_bytes(&scan_input).expect("scan DICOM byte batch");
+        let from_scanned =
+            dicom_load::load_volume_from_scanned_series(scanned).expect("load scanned DICOM study");
+        for volume in [&from_file, &from_bytes, &from_scanned] {
+            assert_study(volume, modality);
+        }
+        assert_eq!(from_file.source.as_deref(), Some(dir.path()));
+        assert_eq!(from_bytes.source, None);
+        assert_eq!(from_scanned.source, None);
     }
-    let vol =
-        load_dicom_volume(path).expect("load_dicom_volume must succeed on a valid DICOM directory");
-    let [depth, rows, cols] = vol.shape;
-    assert!(depth > 0, "depth (num slices) must be > 0, got {depth}");
-    assert!(rows > 0, "rows must be > 0, got {rows}");
-    assert!(cols > 0, "cols must be > 0, got {cols}");
-    for (i, &sp) in vol.spacing.iter().enumerate() {
-        assert!(sp > 0.0, "spacing[{i}] must be > 0.0, got {sp}");
-    }
-    assert_eq!(
-        vol.data.len(),
-        depth * rows * cols,
-        "pixel buffer length must equal depth×rows×cols"
-    );
 }
 
-/// Load the head T2 MRI DICOM series (MRI-DIR porcine phantom, CC BY 4.0)
-/// when present and verify basic structural invariants.
-///
-/// # Mathematical specification
-/// - `shape[0] > 0` (depth / number of slices must be positive).
-/// - `spacing[i] > 0.0` for all i.
-/// - `modality == Some("MR")`.
-/// - `data.len() == shape[0] * shape[1] * shape[2]`.
+/// Image pixels follow the loaded data on all three storage axes.
+/// This pins the current linear-exact display formula, not default DICOM LINEAR.
 #[test]
-fn test_load_head_mri_t2_volume_shape() {
-    let path_buf = std::path::Path::new(env!("CARGO_MANIFEST_DIR"))
-        .join("..")
-        .join("..")
-        .join("test_data")
-        .join("2_head_mri_t2")
-        .join("DICOM");
-    let path = path_buf.as_path();
-    if !path.exists() {
-        eprintln!(
-            "SKIP test_load_head_mri_t2_volume_shape: test data absent at {:?}",
-            path
+fn dicom_study_renders_independent_grayscale_oracles_on_all_axes() {
+    use crate::render::{NamedColorMap, RenderBufferPool, SliceRenderer, WindowLevel};
+    let dir = tempdir().expect("create render fixture directory");
+    fixtures::write_study(dir.path(), "CT").expect("write render study");
+    let volume = load_dicom_volume(dir.path()).expect("load render study");
+    let mut pool = RenderBufferPool::default();
+    // L=-20, U=490 maps decoded (2*raw-20) to byte raw exactly.
+    let window = WindowLevel::new(235.0, 510.0);
+    let cases: [(usize, usize, [usize; 2], &[u8]); 3] = [
+        (0, 1, [4, 2], &[80, 90, 100, 110, 120, 130, 140, 150]),
+        (
+            1,
+            1,
+            [4, 3],
+            &[40, 50, 60, 70, 120, 130, 140, 150, 200, 210, 220, 230],
+        ),
+        (2, 2, [2, 3], &[20, 60, 100, 140, 180, 220]),
+    ];
+    for (axis, index, size, expected) in cases {
+        let allocating =
+            SliceRenderer::render(&volume, axis, index, window, NamedColorMap::Grayscale);
+        let scratch = SliceRenderer::render_with_scratch(
+            &mut pool,
+            &volume,
+            axis,
+            index,
+            window,
+            NamedColorMap::Grayscale,
         );
-        return;
+        for image in [&allocating, &scratch] {
+            assert_eq!(image.size, size);
+            let actual: Vec<[u8; 4]> = image.pixels.iter().map(egui::Color32::to_array).collect();
+            let rgba: Vec<[u8; 4]> = expected
+                .iter()
+                .map(|&value| [value, value, value, 255])
+                .collect();
+            assert_eq!(actual, rgba, "axis {axis}");
+        }
     }
-    let vol = load_dicom_volume(path)
-        .expect("load_dicom_volume must succeed on the head T2 MRI DICOM directory");
-    let [depth, rows, cols] = vol.shape;
-    assert!(depth > 0, "depth must be > 0, got {depth}");
-    assert!(rows > 0, "rows must be > 0, got {rows}");
-    assert!(cols > 0, "cols must be > 0, got {cols}");
-    for (i, &sp) in vol.spacing.iter().enumerate() {
-        assert!(sp > 0.0, "spacing[{i}] must be > 0.0 mm/voxel, got {sp}");
-    }
-    assert_eq!(
-        vol.data.len(),
-        depth * rows * cols,
-        "pixel buffer length must equal depth×rows×cols"
-    );
-    // Modality must be MR.
-    assert_eq!(
-        vol.modality.as_deref(),
-        Some("MR"),
-        "modality must be MR for the T2 head series"
-    );
 }
 
-/// `scan_folder_for_series` must return an empty [`SeriesTree`] — not an
-/// error — when the target directory contains no DICOM files.
+#[test]
+fn dicom_byte_loader_rejects_malformed_and_truncated_instances() {
+    let dir = tempdir().expect("create malformed fixture directory");
+    let files = fixtures::write_study(dir.path(), "CT").expect("write truncation source");
+    let (_, bytes) = files.first().expect("fixture includes a slice");
+    // Header-only and mid-pixel truncation both reject; neither may produce a partial volume.
+    let short_pixels = bytes
+        .len()
+        .checked_sub(3)
+        .expect("fixture has pixel payload");
+    for malformed in [
+        &b"not a DICOM object"[..],
+        &bytes[..132],
+        &bytes[..short_pixels],
+    ] {
+        let error = load_dicom_series_from_named_bytes(&[("broken.dcm".to_owned(), malformed)])
+            .expect_err("malformed DICOM instance must reject");
+        let diagnostic = format!("{error:#}");
+        assert!(
+            diagnostic.contains("DICOM"),
+            "failure retains format context: {diagnostic}"
+        );
+    }
+    let error = load_dicom_series_from_named_bytes(&[]).expect_err("empty byte batch must reject");
+    assert_eq!(error.to_string(), "empty DICOM byte batch");
+}
+
 #[test]
 fn test_scan_folder_for_series_empty_dir() {
-    let dir = tempfile::tempdir().expect("tempdir must be created");
-    let tree = scan_folder_for_series(dir.path())
-        .expect("scan_folder_for_series must not error on an empty directory");
-    assert_eq!(
-        tree.total_series(),
-        0,
-        "empty directory must produce an empty SeriesTree"
-    );
+    let dir = tempdir().expect("create empty study directory");
+    let tree = scan_folder_for_series(dir.path()).expect("scan empty directory");
+    assert_eq!(tree.total_series(), 0);
 }
 
-/// `load_dicom_series_from_stored_instances` must reject an empty input slice.
-///
-/// Analytical basis: the function's contract requires at least one instance
-/// to construct a DICOM series. An empty slice produces a descriptive error
-/// rather than silently succeeding or panicking.
 #[cfg(not(target_arch = "wasm32"))]
 #[test]
 fn test_load_dicom_series_from_stored_instances_empty_input_errors() {
-    let result = load_dicom_series_from_stored_instances(&[]);
-    assert!(result.is_err());
-    let msg = format!("{:#}", result.unwrap_err());
-    assert!(
-        msg.contains("no SCP-received DICOM instances"),
-        "error must describe empty input, got: {msg}"
-    );
+    let error =
+        load_dicom_series_from_stored_instances(&[]).expect_err("empty SCP batch must reject");
+    assert_eq!(error.to_string(), "no SCP-received DICOM instances to load");
 }
