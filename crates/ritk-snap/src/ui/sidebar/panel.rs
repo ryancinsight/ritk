@@ -12,20 +12,17 @@
 //! - **"PET SUV" tab**: PET quantification panel with SUVbw readouts and
 //!   acquisition parameters.
 //!
-//! # Borrow strategy
-//!
-//! [`SidebarPanel`] holds short-lived references into the caller's state.
-//! `show_series_tab` copies the `&'a SeriesTree` (a `Copy` reference), clones
-//! the current selection once, and updates `selected_path` only after the
-//! `ScrollArea` closure has released all other borrows. This avoids
-//! simultaneous mutable and immutable borrows of the same field inside a
-//! closure.
+//! The highlighted acquisition is borrowed from the last successful load.
+//! A click returns its discovery descriptor; the application updates selection
+//! only after the corresponding volume has decoded successfully.
 
 use egui::{CollapsingHeader, ScrollArea, Ui};
 
 use crate::dicom::metadata_table::build_metadata_rows;
-use crate::dicom::series_tree::SeriesTree;
+use crate::dicom::series_tree::{SeriesEntryView, SeriesTree};
 use crate::LoadedVolume;
+use ritk_io::DicomSeriesInfo;
+use std::sync::Arc;
 
 // ── SidebarTab ────────────────────────────────────────────────────────────────
 
@@ -51,22 +48,22 @@ pub enum SidebarTab {
 /// and a PET SUV quantification panel.
 ///
 /// Constructed via [`SidebarPanel::new`] and consumed by a single call to
-/// [`SidebarPanel::show`], which returns the folder path of the series the
+/// [`SidebarPanel::show`], which returns the acquisition descriptor of the series the
 /// user selected (if any).
 ///
 /// # Lifetime
 ///
 /// The lifetime `'a` covers all references:
 /// - `tree` — the series hierarchy model (immutable).
-/// - `selected_path` — the currently highlighted series folder (mutable).
+/// - `selected_acquisition` — the currently highlighted acquisition (shared).
 /// - `active_tab` — which tab is displayed (mutable).
 /// - `metadata_volume` — the currently loaded volume for the Tags tab
 ///   (shared, optional).
 pub struct SidebarPanel<'a> {
     /// Hierarchical series tree to render in the Series tab.
     pub tree: &'a SeriesTree<'static>,
-    /// The series folder path that is currently selected/highlighted.
-    pub selected_path: &'a mut Option<std::path::PathBuf>,
+    /// The successfully loaded acquisition that is currently highlighted.
+    pub selected_acquisition: Option<&'a DicomSeriesInfo>,
     /// Which tab is currently active.
     pub active_tab: &'a mut SidebarTab,
     /// Volume whose metadata populates the Tags tab; `None` when no volume is
@@ -84,7 +81,7 @@ impl<'a> SidebarPanel<'a> {
     /// All parameters map directly to the corresponding public fields.
     pub fn new(
         tree: &'a SeriesTree<'static>,
-        selected_path: &'a mut Option<std::path::PathBuf>,
+        selected_acquisition: Option<&'a DicomSeriesInfo>,
         active_tab: &'a mut SidebarTab,
         metadata_volume: Option<&'a LoadedVolume>,
         pointer_suv: Option<f32>,
@@ -92,32 +89,12 @@ impl<'a> SidebarPanel<'a> {
     ) -> Self {
         Self {
             tree,
-            selected_path,
+            selected_acquisition,
             active_tab,
             metadata_volume,
             pointer_suv,
             cursor_suv,
         }
-    }
-
-    /// Construct the panel with an explicit tag search string (backwards-compat alias).
-    pub fn with_tag_search(
-        tree: &'a SeriesTree<'static>,
-        selected_path: &'a mut Option<std::path::PathBuf>,
-        active_tab: &'a mut SidebarTab,
-        metadata_volume: Option<&'a LoadedVolume>,
-        _tag_search: Option<&'a mut String>,
-        pointer_suv: Option<f32>,
-        cursor_suv: Option<f32>,
-    ) -> Self {
-        Self::new(
-            tree,
-            selected_path,
-            active_tab,
-            metadata_volume,
-            pointer_suv,
-            cursor_suv,
-        )
     }
 
     /// Render the panel into `ui`.
@@ -126,9 +103,9 @@ impl<'a> SidebarPanel<'a> {
     ///
     /// # Returns
     ///
-    /// `Some(folder_path)` when the user clicks a series entry in the Series
+    /// `Some(acquisition)` when the user clicks a series entry in the Series
     /// tab, requesting that series to be loaded. `None` on all other frames.
-    pub fn show(&mut self, ui: &mut Ui) -> Option<std::path::PathBuf> {
+    pub fn show(&mut self, ui: &mut Ui) -> Option<Arc<DicomSeriesInfo>> {
         // ── Tab selector row ──────────────────────────────────────────────────
         ui.horizontal(|ui| {
             if ui
@@ -168,20 +145,10 @@ impl<'a> SidebarPanel<'a> {
 
     /// Render the Patient → Study → Series collapsible hierarchy.
     ///
-    /// # Borrow invariant
-    ///
-    /// `tree` is copied out of `self` (it is a `Copy` reference) before the
-    /// `ScrollArea` closure begins; `selected_path` is not accessed inside the
-    /// closure body. After the closure exits, a single write to
-    /// `*self.selected_path` records the newly selected path when the user
-    /// clicked an entry.
-    fn show_series_tab(&mut self, ui: &mut Ui) -> Option<std::path::PathBuf> {
-        // Copy the &'a SeriesTree reference — &T: Copy, releases borrow on self.
+    fn show_series_tab(&mut self, ui: &mut Ui) -> Option<Arc<DicomSeriesInfo>> {
         let tree: &'a SeriesTree<'static> = self.tree;
-        // Clone current selection for inside-closure comparison without holding
-        // a borrow on self.selected_path during the closure.
-        let current_path: Option<std::path::PathBuf> = self.selected_path.as_ref().cloned();
-        let mut new_selection: Option<std::path::PathBuf> = None;
+        let current_acquisition = self.selected_acquisition;
+        let mut new_selection: Option<Arc<DicomSeriesInfo>> = None;
 
         ScrollArea::vertical()
             .id_source("series_scroll")
@@ -226,15 +193,20 @@ impl<'a> SidebarPanel<'a> {
                                         for (series_idx, series) in study.series.iter().enumerate()
                                         {
                                             // ── Series entry ──────────────────
-                                            let is_selected = current_path
+                                            let is_selected = current_acquisition
                                                 .as_ref()
-                                                .map(|p| p == series.folder.as_ref())
+                                                .map(|selected| {
+                                                    selected.series_instance_uid()
+                                                        == series.acquisition.series_instance_uid()
+                                                        && selected.file_paths
+                                                            == series.acquisition.file_paths
+                                                })
                                                 .unwrap_or(false);
                                             let hover_text = format!(
                                                 "Folder: {}\nUID: {}\nSlices: {}",
-                                                series.folder.as_ref().display(),
-                                                series.series_uid,
-                                                series.num_slices,
+                                                series.folder().display(),
+                                                series.series_uid(),
+                                                series.num_slices(),
                                             );
                                             let series_label = series.display_label();
                                             let resp = ui
@@ -244,8 +216,8 @@ impl<'a> SidebarPanel<'a> {
                                                         patient_idx,
                                                         study_idx,
                                                         series_idx,
-                                                        series.series_uid.as_ref(),
-                                                        series.folder.as_ref().to_string_lossy(),
+                                                        series.series_uid(),
+                                                        series.folder().to_string_lossy(),
                                                     ),
                                                     |ui| {
                                                         ui.selectable_label(
@@ -258,7 +230,7 @@ impl<'a> SidebarPanel<'a> {
                                                 .on_hover_text(hover_text);
                                             if resp.clicked() {
                                                 new_selection =
-                                                    Some(series.folder.as_ref().to_path_buf());
+                                                    Some(Arc::clone(&series.acquisition));
                                             }
                                         }
                                     });
@@ -267,10 +239,6 @@ impl<'a> SidebarPanel<'a> {
                 }
             });
 
-        // Update selected_path after the closure has released all other borrows.
-        if let Some(ref path) = new_selection {
-            *self.selected_path = Some(path.clone());
-        }
         new_selection
     }
 

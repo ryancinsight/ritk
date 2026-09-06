@@ -16,6 +16,8 @@ mod colormap;
 #[cfg(test)]
 mod cursor;
 #[cfg(test)]
+mod dicom_workflows;
+#[cfg(test)]
 mod distribution;
 #[cfg(test)]
 mod measurement;

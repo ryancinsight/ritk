@@ -31,6 +31,7 @@ impl SnapApp {
         state.slice_index = shape[0] / 2;
 
         self.cine.stop();
+        self.selected_series = super::volume_input::VolumeInput::acquisition(&vol);
         self.loaded = Some(vol);
         self.viewer_state = state;
         self.axis = protocol.preferred_axis.min(2);

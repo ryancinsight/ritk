@@ -1,4 +1,5 @@
 use super::state::SnapApp;
+use super::volume_input::VolumeInput;
 use crate::render::NamedColorMap;
 use crate::ui::window_presets::WindowPreset;
 use crate::ui::AnatomicalPlane;
@@ -51,7 +52,7 @@ impl SnapApp {
                         ui.close_menu();
                         if let Some(folder) = FileDialog::new().pick_folder() {
                             self.scan_for_series(folder.clone());
-                            self.pending_load = Some(folder);
+                            self.pending_load = Some(VolumeInput::Path(folder));
                         }
                     }
 
@@ -60,7 +61,7 @@ impl SnapApp {
                         if let Some(path) = FileDialog::new().set_file_name("DICOMDIR").pick_file()
                         {
                             self.scan_for_series(path.clone());
-                            self.pending_load = Some(path);
+                            self.pending_load = Some(VolumeInput::Path(path));
                         }
                     }
 
@@ -71,7 +72,7 @@ impl SnapApp {
                             .pick_file()
                         {
                             self.scan_for_series(path.clone());
-                            self.pending_load = Some(path);
+                            self.pending_load = Some(VolumeInput::Path(path));
                         }
                     }
 

@@ -1,5 +1,6 @@
 use super::state::SeriesLoadTarget;
 use super::state::SnapApp;
+use super::volume_input::VolumeInput;
 use crate::tools::interaction::ToolState;
 use crate::tools::kind::ToolKind;
 use crate::viewer::{DEFAULT_WINDOW_CENTER, DEFAULT_WINDOW_WIDTH};
@@ -39,14 +40,14 @@ impl SnapApp {
                             ui.close_menu();
                             if let Some(folder) = FileDialog::new().pick_folder() {
                                 self.scan_for_series(folder.clone());
-                                self.pending_load = Some(folder);
+                                self.pending_load = Some(VolumeInput::Path(folder));
                             }
                         }
                         if ui.button("Open Secondary Series").clicked() {
                             ui.close_menu();
                             if let Some(folder) = FileDialog::new().pick_folder() {
                                 self.scan_for_series(folder.clone());
-                                self.pending_secondary_load = Some(folder);
+                                self.pending_secondary_load = Some(VolumeInput::Path(folder));
                             }
                         }
                         ui.separator();

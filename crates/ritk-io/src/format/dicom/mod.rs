@@ -3,6 +3,7 @@ mod codec;
 mod color;
 mod color_common;
 mod color_multiframe;
+mod identity;
 mod multiframe;
 pub mod networking;
 mod object_model;
@@ -49,8 +50,9 @@ pub use object_model::{
 };
 pub use reader::{
     literal_arraystring, load_dicom_from_series, load_dicom_series_with_metadata,
-    read_dicom_series_with_metadata, scan_dicom_instances, scan_dicom_part10_bytes,
-    DicomReadMetadata, DicomSliceMetadata, PatientPosition, ScannedDicomSeries,
+    read_dicom_series_with_metadata, scan_dicom_files, scan_dicom_instances,
+    scan_dicom_part10_bytes, scan_dicom_path, DicomReadMetadata, DicomSliceMetadata,
+    PatientPosition, ScannedDicomSeries,
 };
 pub use rt_dose::{
     read_rt_dose, write_rt_dose, RtDoseGrid, RtDoseSummationType, RtDoseType, RT_DOSE_SOP_CLASS_UID,

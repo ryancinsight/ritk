@@ -1,17 +1,17 @@
-//! DICOM series directory scanner.
-//!
-//! `scan_dicom_directory` scans a directory for DICOM files, parses per-slice
-//! and series-level metadata, filters to the most-populated series, and
-//! returns a `DicomSeriesInfo` with typed metadata and geometry.
+//! Single-series scanning with explicit input identity.
 
 use std::path::{Path, PathBuf};
 
 use anyhow::{bail, Context, Result};
+use arrayvec::ArrayString;
+use dicom::core::Tag;
+use dicom::object::DefaultDicomObject;
+use ritk_dicom::{parse_bytes_with, DicomRsBackend};
 
-use super::detection::is_likely_dicom_file;
-use super::dicomdir::try_read_dicomdir;
-use super::parse::{parse_dicom_bytes, parse_dicom_file, parse_dicom_file_bytes};
+use super::dicomdir::{discover_files, is_dicomdir};
+use super::parse::extract_dicom_metadata;
 use super::types::{DicomSeriesInfo, DicomSliceMetadata, SeriesFirstSeen};
+use crate::format::dicom::identity::image_series_uid;
 use crate::format::dicom::networking::scp::StoredInstance;
 use crate::format::dicom::object_model::{DicomObjectModel, DicomObjectNode, DicomTag};
 
@@ -21,177 +21,249 @@ mod thresholds;
 
 use finalize::finalize_scanned_series;
 
-/// Scan a directory for DICOM files, extract metadata, and return a typed series descriptor.
+/// Scan a directory containing exactly one image series.
 ///
-/// # Invariants
-/// - `path` must be a directory.
-/// - At least one DICOM file must be discoverable (directly or via DICOMDIR).
-/// - All returned slices belong to the most-populated SeriesInstanceUID when
-///   the directory contains multiple series with the same image dimensions.
+/// # Errors
+/// Rejects malformed files, missing identity, and multiple series. An existing
+/// DICOMDIR is authoritative; invalid references never trigger folder fallback.
 pub fn scan_dicom_directory<P: AsRef<Path>>(path: P) -> Result<DicomSeriesInfo> {
     let path = path.as_ref();
-    if !path.is_dir() {
+    if !path.is_dir() && !is_dicomdir(path) {
         bail!("DICOM input path is not a directory");
     }
+    scan_dicom_files(&discover_files(path)?)
+}
 
-    // File discovery: prefer DICOMDIR; fall back to flat-folder scan.
-    let mut raw_paths: Vec<PathBuf> = Vec::new();
-    if let Ok(dicomdir_paths) = try_read_dicomdir(path) {
-        raw_paths = dicomdir_paths;
-        raw_paths.sort();
-        raw_paths.dedup();
-    } else {
-        for entry in std::fs::read_dir(path).with_context(|| "failed to read DICOM directory")? {
-            let entry = entry.with_context(|| "failed to read DICOM directory entry")?;
-            let entry_path = entry.path();
-            if entry_path.is_file() && is_likely_dicom_file(&entry_path) {
-                raw_paths.push(entry_path);
-            }
-        }
-        raw_paths.sort();
-        raw_paths.dedup();
-    }
-    if raw_paths.is_empty() {
-        bail!("no DICOM files were discovered in the directory");
-    }
+/// Scan the exact members of one image series.
+///
+/// Paths may span directories. Duplicate paths are rejected rather than
+/// duplicating slices. Non-image SOP classes do not contribute metadata.
+/// Each retained slice owns the exact bytes validated during scanning, so
+/// subsequent decoding does not reopen a potentially replaced file.
+///
+/// # Examples
+/// ```no_run
+/// # use std::path::PathBuf;
+/// let series = ritk_io::scan_dicom_files(&[PathBuf::from("study/slice.dcm")])?;
+/// assert_eq!(series.num_slices, 1);
+/// # Ok::<(), anyhow::Error>(())
+/// ```
+///
+/// # Errors
+/// Rejects empty input, unreadable or malformed members, missing or invalid
+/// SeriesInstanceUID, multiple series, and inconsistent image dimensions.
+pub fn scan_dicom_files(paths: &[PathBuf]) -> Result<DicomSeriesInfo> {
+    scan_files(paths, None)
+}
 
-    // Parse metadata from each DICOM file.
-    let mut slices: Vec<DicomSliceMetadata> = Vec::with_capacity(raw_paths.len());
-    let mut first = SeriesFirstSeen::default();
-    let mut per_file_dims: Vec<(u32, u32)> = Vec::with_capacity(raw_paths.len());
-    let mut per_file_series_uids: Vec<Option<String>> = Vec::with_capacity(raw_paths.len());
-    for file_path in &raw_paths {
-        if let Some((slice_meta, file_dim, file_series_uid)) =
-            parse_dicom_file(file_path, &mut first)
-        {
-            per_file_dims.push(file_dim);
-            per_file_series_uids.push(file_series_uid);
-            slices.push(slice_meta);
-        }
+/// Scan a directory, a selected DICOM instance, or an explicit DICOMDIR.
+///
+/// A selected instance determines the SeriesInstanceUID before collecting
+/// matching members from its containing file set. A directory or DICOMDIR
+/// containing multiple image series requires explicit member selection.
+///
+/// # Examples
+/// ```no_run
+/// let series = ritk_io::scan_dicom_path("study/selected.dcm")?;
+/// let (image, metadata) = ritk_io::load_dicom_from_series(
+///     series, &coeus_core::SequentialBackend,
+/// )?;
+/// assert_eq!(image.shape()[0], metadata.slices.len());
+/// # Ok::<(), anyhow::Error>(())
+/// ```
+///
+/// # Errors
+/// Rejects malformed selected input, ambiguous series, or invalid DICOMDIR
+/// references. A selected file cannot silently load a neighboring acquisition.
+pub fn scan_dicom_path(path: impl AsRef<Path>) -> Result<DicomSeriesInfo> {
+    let path = path.as_ref();
+    if path.is_dir() || is_dicomdir(path) {
+        return scan_dicom_directory(path);
     }
-
-    finalize_scanned_series(
-        slices,
-        None,
-        per_file_dims,
-        per_file_series_uids,
-        first,
-        path.to_path_buf(),
-        |a, b| a.path.file_name().cmp(&b.path.file_name()),
-        &format!("{:?}", path),
+    let bytes = std::fs::read(path).context("failed to read selected DICOM instance")?;
+    let object = parse_bytes_with::<DicomRsBackend>(&bytes)
+        .context("failed to parse selected DICOM instance")?;
+    let uid = image_series_uid(&object)?.context("selected DICOM instance is not image-bearing")?;
+    let root = path
+        .parent()
+        .filter(|parent| !parent.as_os_str().is_empty())
+        .unwrap_or_else(|| Path::new("."));
+    let paths = discover_files(root)?;
+    let resolved = path
+        .canonicalize()
+        .context("failed to resolve selected DICOM instance")?;
+    scan_files(
+        &paths,
+        Some(SelectedInstance {
+            resolved,
+            uid,
+            object,
+            bytes,
+        }),
     )
 }
 
-/// Scan in-memory SCP-received [`StoredInstance`] values, extract metadata, and
-/// return a typed series descriptor.
+struct SelectedInstance {
+    resolved: PathBuf,
+    uid: ArrayString<64>,
+    object: DefaultDicomObject,
+    bytes: Vec<u8>,
+}
+
+fn scan_files(
+    paths: &[PathBuf],
+    mut selected: Option<SelectedInstance>,
+) -> Result<DicomSeriesInfo> {
+    let source = paths
+        .first()
+        .context("no DICOM files provided for scanning")?;
+    let mut accumulator = SeriesScan::default();
+    let mut seen = std::collections::HashSet::with_capacity(paths.len());
+    let selected_uid = selected.as_ref().map(|instance| instance.uid);
+    let mut ordered: Vec<_> = paths.iter().collect();
+    ordered.sort();
+    for path in ordered {
+        let resolved = path
+            .canonicalize()
+            .context("DICOM member is missing or inaccessible")?;
+        let is_selected = selected
+            .as_ref()
+            .is_some_and(|instance| instance.resolved == resolved);
+        if !seen.insert(resolved) {
+            bail!("duplicate DICOM file in selected member set");
+        }
+        let (object, bytes) = if is_selected {
+            let instance = selected
+                .take()
+                .expect("invariant: selected instance matches this member");
+            (instance.object, instance.bytes)
+        } else {
+            let bytes = std::fs::read(path).context("failed to read DICOM member")?;
+            let object = parse_bytes_with::<DicomRsBackend>(&bytes)
+                .context("failed to parse DICOM member")?;
+            (object, bytes)
+        };
+        accumulator.push(
+            &object,
+            path.clone(),
+            bytes,
+            selected_uid.as_ref().map(ArrayString::as_str),
+        )?;
+    }
+    if selected.is_some() {
+        bail!("selected DICOM instance is not a member of the containing file set");
+    }
+    accumulator.finish(
+        source
+            .parent()
+            .unwrap_or_else(|| Path::new("."))
+            .to_path_buf(),
+    )
+}
+
+/// Scan SCP-received instances as one image series without writing files.
 ///
-/// This is the zero-disk counterpart to `scan_dicom_directory`: instead of
-/// scanning a filesystem directory, it parses Part 10 bytes constructed from
-/// each `StoredInstance`, applies the same canonical-dimension filtering and
-/// SeriesInstanceUID grouping, sorts slices spatially, and assembles geometry.
-///
-/// Each slice's `part10_bytes` field is populated so that pixel decoding can
-/// proceed without re-opening a file.
-///
-/// # Invariants
-/// - `instances` must be non-empty.
-/// - All returned slices belong to the most-populated SeriesInstanceUID when
-///   the input contains multiple series with the same image dimensions.
+/// # Errors
+/// Rejects empty, malformed, unidentified, or mixed-series inputs.
 pub fn scan_dicom_instances(instances: &[StoredInstance]) -> Result<DicomSeriesInfo> {
-    if instances.is_empty() {
-        bail!("no DICOM instances provided for scanning");
+    let mut accumulator = SeriesScan::default();
+    for instance in instances {
+        let bytes = instance.make_part10_bytes();
+        let object = parse_bytes_with::<DicomRsBackend>(&bytes)
+            .context("failed to parse SCP DICOM instance")?;
+        accumulator.push(
+            &object,
+            PathBuf::from(format!("scp://{}", instance.sop_instance_uid)),
+            bytes,
+            None,
+        )?;
     }
-
-    // Parse metadata from each instance's Part 10 bytes.
-    let mut slices: Vec<DicomSliceMetadata> = Vec::with_capacity(instances.len());
-    let mut first = SeriesFirstSeen::default();
-    let mut per_file_dims: Vec<(u32, u32)> = Vec::with_capacity(instances.len());
-    let mut per_file_series_uids: Vec<Option<String>> = Vec::with_capacity(instances.len());
-    let mut part10_bytes_vec: Vec<Vec<u8>> = Vec::with_capacity(instances.len());
-    for inst in instances {
-        let part10_bytes = inst.make_part10_bytes();
-        if let Some((slice_meta, file_dim, file_series_uid)) =
-            parse_dicom_bytes(&part10_bytes, &inst.sop_instance_uid, &mut first)
-        {
-            per_file_dims.push(file_dim);
-            per_file_series_uids.push(file_series_uid);
-            part10_bytes_vec.push(part10_bytes);
-            slices.push(slice_meta);
-        }
-    }
-    if slices.is_empty() {
-        bail!("no DICOM instances could be parsed from the provided stored instances");
-    }
-
-    finalize_scanned_series(
-        slices,
-        Some(part10_bytes_vec),
-        per_file_dims,
-        per_file_series_uids,
-        first,
-        PathBuf::from("scp://series"),
-        |a, b| a.sop_instance_uid.cmp(&b.sop_instance_uid),
-        "SCP instances",
-    )
+    accumulator.finish(PathBuf::from("scp://series"))
 }
 
-/// Scan in-memory DICOM Part 10 byte payloads (e.g. from drag-and-drop),
-/// extract metadata, and return a typed series descriptor.
+/// Scan named Part 10 payloads as one image series without writing files.
 ///
-/// This is the zero-disk counterpart to both `scan_dicom_directory` and
-/// [`scan_dicom_instances`]: instead of scanning a filesystem directory or
-/// constructing Part 10 bytes from `StoredInstance` values, it accepts
-/// pre-existing Part 10 DICOM byte payloads directly.
+/// Names are diagnostic identities, never filesystem paths to open.
 ///
-/// Each slice's `part10_bytes` field is populated so that pixel decoding can
-/// proceed without writing to disk.
-///
-/// # Invariants
-/// - `files` must be non-empty.
-/// - Each `(&str, &[u8])` pair is a `(name_hint, part10_bytes)` — the name
-///   is used for diagnostics and as a synthetic path; the bytes must be a
-///   valid DICOM Part 10 file (128-byte preamble + DICM magic + FMI + dataset).
-/// - All returned slices belong to the most-populated SeriesInstanceUID when
-///   the input contains multiple series with the same image dimensions.
+/// # Errors
+/// Rejects empty, malformed, unidentified, or mixed-series inputs. A pathless
+/// DICOMDIR cannot resolve filesystem references and is rejected.
 pub fn scan_dicom_part10_bytes(files: &[(&str, &[u8])]) -> Result<DicomSeriesInfo> {
-    if files.is_empty() {
-        bail!("no DICOM byte payloads provided for scanning");
-    }
-
-    // Parse metadata from each Part 10 byte payload.
-    let mut slices: Vec<DicomSliceMetadata> = Vec::with_capacity(files.len());
-    let mut first = SeriesFirstSeen::default();
-    let mut per_file_dims: Vec<(u32, u32)> = Vec::with_capacity(files.len());
-    let mut per_file_series_uids: Vec<Option<String>> = Vec::with_capacity(files.len());
-    let mut part10_bytes_vec: Vec<Vec<u8>> = Vec::with_capacity(files.len());
+    let mut accumulator = SeriesScan::default();
     for (name, bytes) in files {
-        // Use a synthetic path based on the name hint.
-        let synthetic_path = PathBuf::from(format!("dropped://{}", name));
-        if let Some((slice_meta, file_dim, file_series_uid)) =
-            parse_dicom_file_bytes(bytes, &synthetic_path, &mut first)
-        {
-            per_file_dims.push(file_dim);
-            per_file_series_uids.push(file_series_uid);
-            part10_bytes_vec.push(bytes.to_vec());
-            slices.push(slice_meta);
+        if is_dicomdir(Path::new(name)) {
+            bail!("pathless DICOMDIR references cannot be resolved");
         }
+        let object = parse_bytes_with::<DicomRsBackend>(bytes)
+            .context("failed to parse DICOM byte payload")?;
+        accumulator.push(
+            &object,
+            PathBuf::from(format!("dropped://{name}")),
+            bytes.to_vec(),
+            None,
+        )?;
     }
-    if slices.is_empty() {
-        bail!("no DICOM byte payloads could be parsed from the provided files");
-    }
-
-    finalize_scanned_series(
-        slices,
-        Some(part10_bytes_vec),
-        per_file_dims,
-        per_file_series_uids,
-        first,
-        PathBuf::from("dropped://series"),
-        |a, b| a.sop_instance_uid.cmp(&b.sop_instance_uid),
-        "dropped byte payloads",
-    )
+    accumulator.finish(PathBuf::from("dropped://series"))
 }
 
+#[derive(Default)]
+struct SeriesScan {
+    slices: Vec<DicomSliceMetadata>,
+    first: SeriesFirstSeen,
+    uid: Option<ArrayString<64>>,
+    dimensions: Option<(u32, u32)>,
+    rejected_sop_classes: Vec<String>,
+}
+
+impl SeriesScan {
+    fn push(
+        &mut self,
+        object: &DefaultDicomObject,
+        path: PathBuf,
+        bytes: Vec<u8>,
+        selected_uid: Option<&str>,
+    ) -> Result<()> {
+        let Some(uid) = image_series_uid(object)? else {
+            let sop = object.element(Tag(0x0008, 0x0016))?.to_str()?.into_owned();
+            self.rejected_sop_classes.push(sop);
+            return Ok(());
+        };
+        if selected_uid.is_some_and(|selected| selected != uid.as_str()) {
+            return Ok(());
+        }
+        if self.uid.as_ref().is_some_and(|previous| previous != &uid) {
+            bail!("ambiguous DICOM input: multiple SeriesInstanceUID values require explicit selection");
+        }
+        self.uid = Some(uid);
+        let (mut slice, dimensions) = extract_dicom_metadata(object, path, &mut self.first);
+        if self
+            .dimensions
+            .is_some_and(|previous| previous != dimensions)
+        {
+            bail!("inconsistent image dimensions within selected DICOM series");
+        }
+        self.dimensions = Some(dimensions);
+        slice.part10_bytes = Some(bytes);
+        self.slices.push(slice);
+        Ok(())
+    }
+
+    fn finish(self, path: PathBuf) -> Result<DicomSeriesInfo> {
+        if self.slices.is_empty() {
+            bail!("no DICOM image instances: none are image-bearing SOP classes; rejected SOP class UIDs: [{}]", self.rejected_sop_classes.join(", "));
+        }
+        Ok(finalize_scanned_series(
+            self.slices,
+            self.first,
+            path,
+            |a, b| {
+                a.sop_instance_uid
+                    .cmp(&b.sop_instance_uid)
+                    .then_with(|| a.path.cmp(&b.path))
+            },
+        ))
+    }
+}
 /// Build a `DicomObjectModel` from the slice metadata for a series.
 ///
 /// This constructs a lightweight object model populated with the key

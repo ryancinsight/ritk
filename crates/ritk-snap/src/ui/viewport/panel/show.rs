@@ -117,24 +117,14 @@ impl<'a> ViewportPanel<'a> {
                 );
             }
 
-            // ── orientation labels ────────────────────────────────────────
-            if self.state.show_overlay {
-                OverlayRenderer::draw_orientation_labels(
-                    &painter,
-                    rect,
-                    self.state.axis,
-                    &volume.direction,
-                );
-            }
-
             // ── DICOM 4-corner overlay ────────────────────────────────────
             if self.state.show_overlay {
-                // Compute cursor HU value if the cursor is inside the viewport.
-                let cursor_hu = response
+                // Compute cursor value if the cursor is inside the viewport.
+                let cursor_value = response
                     .hover_pos()
                     .and_then(|cursor| screen_to_img(cursor, offset, scale, img_w, img_h))
                     .map(|(col, row)| volume.pixel_at(self.state.slice_index, row, col));
-                OverlayRenderer::draw(
+                let details = OverlayRenderer::draw(
                     &painter,
                     rect,
                     volume,
@@ -143,12 +133,15 @@ impl<'a> ViewportPanel<'a> {
                         slice_index: self.state.slice_index,
                         wl: self.state.wl,
                         zoom: self.state.zoom,
-                        cursor_value: cursor_hu,
+                        cursor_value,
                         pointer_intensity,
                         cursor_suv: None,
                         pointer_suv: None,
                     },
                 );
+                if let Some(details) = details {
+                    OverlayRenderer::show_details(ui, rect, &details);
+                }
             }
 
             // ── crosshair ─────────────────────────────────────────────────

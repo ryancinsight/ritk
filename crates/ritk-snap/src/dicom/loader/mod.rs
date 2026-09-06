@@ -33,9 +33,9 @@ mod dicom_load;
 mod nifti_load;
 mod scan;
 #[cfg(test)]
-mod tests;
+pub(crate) mod tests;
 
-pub use dicom_load::load_dicom_volume;
+pub use dicom_load::{load_dicom_volume, load_volume_from_scanned_series};
 pub use nifti_load::load_nifti_volume;
 pub use scan::scan_folder_for_series;
 

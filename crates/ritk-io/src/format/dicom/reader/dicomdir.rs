@@ -1,71 +1,104 @@
+//! Authoritative DICOM file-set discovery shared by browsing and loading.
+
 use anyhow::{bail, Context, Result};
 use dicom::core::Tag;
-use std::path::{Path, PathBuf};
+use std::path::{Component, Path, PathBuf};
 
 use ritk_dicom::{parse_file_with, DicomRsBackend};
 
-/// Attempt to read file paths from a DICOMDIR file in the given directory.
-/// Returns Ok(`Vec<PathBuf>`) with resolved absolute paths, or Err if DICOMDIR
-/// is absent or cannot be parsed. Paths are verified to exist as files.
-pub(super) fn try_read_dicomdir(dir: &Path) -> Result<Vec<PathBuf>> {
-    let dicomdir_path = dir.join("DICOMDIR");
+use super::detection::is_likely_dicom_file;
 
-    if !dicomdir_path.is_file() {
-        bail!("no DICOMDIR found");
+pub(super) fn is_dicomdir(path: &Path) -> bool {
+    path.file_name()
+        .and_then(|name| name.to_str())
+        .is_some_and(|name| name.eq_ignore_ascii_case("DICOMDIR"))
+}
+
+/// Resolve a directory or an explicitly selected index to its exact file set.
+/// An existing index is authoritative: malformed or missing references fail.
+pub(in crate::format::dicom) fn discover_files(path: &Path) -> Result<Vec<PathBuf>> {
+    if is_dicomdir(path) && !path.is_dir() {
+        return read_dicomdir(path);
     }
-
-    let obj = parse_file_with::<DicomRsBackend, _>(&dicomdir_path)
-        .with_context(|| format!("failed to open DICOMDIR {:?}", dicomdir_path))?;
-
-    // DirectoryRecordSequence (0004,1220) contains all records as a flat SQ.
-    let drs = obj
-        .element(Tag(0x0004, 0x1220))
-        .with_context(|| "DICOMDIR missing DirectoryRecordSequence (0004,1220)")?;
-
-    let mut paths = if let Some(items) = drs.value().items() {
-        Vec::with_capacity(items.len())
-    } else {
-        Vec::new()
-    };
-
-    if let Some(items) = drs.value().items() {
-        for item in items {
-            // Only process IMAGE-type directory records (excludes PATIENT, STUDY, SERIES, etc.)
-            let record_type = item
-                .element(Tag(0x0004, 0x1430))
-                .ok()
-                .and_then(|e| e.to_str().ok().map(|s| s.trim().to_uppercase()));
-
-            if record_type.as_deref() != Some("IMAGE") {
-                continue;
-            }
-
-            // ReferencedFileID (0004,1500): multi-value CS, components separated by '\'.
-            if let Ok(file_id_elem) = item.element(Tag(0x0004, 0x1500)) {
-                if let Ok(s) = file_id_elem.to_str() {
-                    let s = s.trim();
-                    if s.is_empty() {
-                        continue;
-                    }
-                    // Components separated by '\' in DICOM CS multi-value convention.
-                    let mut file_path = dir.to_path_buf();
-                    for component in s.split('\\') {
-                        let comp = component.trim();
-                        if !comp.is_empty() {
-                            file_path.push(comp);
-                        }
-                    }
-                    if file_path.is_file() {
-                        paths.push(file_path);
-                    }
-                }
-            }
+    let entries = std::fs::read_dir(path)
+        .context("failed to read DICOM directory")?
+        .map(|entry| entry.map(|entry| entry.path()))
+        .collect::<std::io::Result<Vec<_>>>()?;
+    let indexes: Vec<_> = entries.iter().filter(|entry| is_dicomdir(entry)).collect();
+    match indexes.as_slice() {
+        [] => {
+            let mut paths: Vec<_> = entries
+                .into_iter()
+                .filter(|entry| entry.is_file() && is_likely_dicom_file(entry))
+                .collect();
+            paths.sort();
+            Ok(paths)
         }
+        [index] => read_dicomdir(index),
+        _ => bail!("multiple DICOMDIR indexes in one directory"),
     }
+}
 
+fn read_dicomdir(index: &Path) -> Result<Vec<PathBuf>> {
+    let root = index
+        .parent()
+        .filter(|path| !path.as_os_str().is_empty())
+        .unwrap_or_else(|| Path::new("."))
+        .canonicalize()
+        .context("failed to resolve DICOMDIR root")?;
+    let obj = parse_file_with::<DicomRsBackend, _>(index).context("failed to open DICOMDIR")?;
+    let sequence = obj
+        .element(Tag(0x0004, 0x1220))
+        .context("DICOMDIR missing DirectoryRecordSequence (0004,1220)")?;
+    let items = sequence
+        .value()
+        .items()
+        .context("DICOMDIR DirectoryRecordSequence is not a sequence")?;
+    let mut paths = Vec::with_capacity(items.len());
+    for item in items {
+        let record_type = item
+            .element(Tag(0x0004, 0x1430))
+            .context("DICOMDIR record missing DirectoryRecordType")?
+            .to_str()
+            .context("invalid DICOMDIR DirectoryRecordType")?;
+        if !record_type.trim().eq_ignore_ascii_case("IMAGE") {
+            continue;
+        }
+        let reference = item
+            .element(Tag(0x0004, 0x1500))
+            .context("DICOMDIR image record missing ReferencedFileID")?
+            .to_str()
+            .context("invalid DICOMDIR ReferencedFileID")?;
+        let mut relative = PathBuf::new();
+        for component in reference.trim().split('\\') {
+            // DICOM File IDs cannot contain host path syntax. Check both
+            // separators and drive syntax independently of the current OS.
+            let mut components = Path::new(component).components();
+            if component.is_empty()
+                || component.contains(['/', ':'])
+                || !matches!(components.next(), Some(Component::Normal(_)))
+                || components.next().is_some()
+            {
+                bail!("invalid DICOMDIR ReferencedFileID path component");
+            }
+            relative.push(component);
+        }
+        let resolved = root
+            .join(relative)
+            .canonicalize()
+            .context("DICOMDIR referenced file is missing or inaccessible")?;
+        if !resolved.starts_with(&root) {
+            bail!("DICOMDIR referenced file escapes the file-set root");
+        }
+        if !resolved.is_file() {
+            bail!("DICOMDIR reference is not a file");
+        }
+        paths.push(resolved);
+    }
     if paths.is_empty() {
-        bail!("DICOMDIR contained no valid ReferencedFileID entries");
+        bail!("DICOMDIR contained no image ReferencedFileID entries");
     }
-
+    paths.sort();
+    paths.dedup();
     Ok(paths)
 }

@@ -1,8 +1,8 @@
 //! Viewer session snapshot persistence.
 //!
-//! A session snapshot captures complete presentation state including
-//! navigation, window/level, colormap, annotations, and tool selections.
-//! Pixel data, DICOM metadata, and filesystem caches are not persisted.
+//! A session snapshot captures the primary study reference and presentation
+//! state including navigation, window/level, colormap, annotations, and tools.
+//! Secondary studies, pixel data, DICOM metadata, and caches are not persisted.
 //!
 //! # SSOT file I/O
 //!
@@ -17,7 +17,9 @@ use crate::ui::sidebar::SidebarTab;
 use crate::ViewerState;
 use anyhow::{Context, Result};
 use serde::{Deserialize, Serialize};
-use std::path::{Path, PathBuf};
+use std::path::Path;
+mod source;
+pub use source::{SessionFormat, StudySource};
 
 /// Serializable viewer state used for save/load session workflows.
 ///
@@ -31,8 +33,11 @@ use std::path::{Path, PathBuf};
 ///   gesture state is never captured.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct ViewerSessionSnapshot {
-    /// Optional source path for the loaded study.
-    pub source: Option<PathBuf>,
+    /// Format version; legacy unversioned snapshots migrate on deserialization.
+    #[serde(default)]
+    pub format: SessionFormat,
+    /// Primary study reference, revalidated before session restoration.
+    pub source: Option<StudySource>,
     /// Primary viewer navigation and window/level state.
     pub viewer_state: ViewerState,
     /// Active colormap.
@@ -84,6 +89,7 @@ impl ViewerSessionSnapshot {
     /// Construct an empty default snapshot.
     pub fn empty() -> Self {
         Self {
+            format: SessionFormat,
             source: None,
             viewer_state: ViewerState::new(),
             colormap: NamedColorMap::Grayscale,

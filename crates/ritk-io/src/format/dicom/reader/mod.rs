@@ -15,7 +15,7 @@
 //! - Pixel transfer syntax handling is centralized in `ritk-dicom`.
 
 pub(super) mod detection;
-mod dicomdir;
+pub(super) mod dicomdir;
 pub(super) mod geometry;
 pub(super) mod loader;
 mod parse;
@@ -30,7 +30,7 @@ mod tests;
 pub use loader::{
     load_dicom_from_series, load_dicom_series_with_metadata, read_dicom_series_with_metadata,
 };
-pub use scan::{scan_dicom_instances, scan_dicom_part10_bytes};
+pub use scan::{scan_dicom_files, scan_dicom_instances, scan_dicom_part10_bytes, scan_dicom_path};
 // scan::scan_dicom_directory is accessed directly via `reader::scan::scan_dicom_directory`
 // by sibling modules (color.rs). No re-export needed.
 pub use types::literal_arraystring;

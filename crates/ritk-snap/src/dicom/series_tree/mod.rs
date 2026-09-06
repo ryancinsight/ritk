@@ -8,7 +8,7 @@
 //! SeriesTree
 //! └── PatientNode (keyed by patient_id)
 //!     └── StudyNode (keyed by study_uid or study_date)
-//!         └── SeriesNode (one per DICOM series folder)
+//!         └── SeriesNode (one per discovered DICOM acquisition)
 //! ```
 //!
 //! [`SeriesTree::from_entries`] builds this hierarchy from a flat
@@ -22,12 +22,13 @@
 //! # Invariants
 //! - [`SeriesTree::total_series`] equals the number of entries passed to
 //!   [`SeriesTree::from_entries`].
-//! - [`SeriesTree::find_by_folder`] returns `Some` for every folder that
+//! - [`SeriesTree::find_by_uid`] returns `Some` for every Series Instance UID that
 //!   appears in any series stored in the tree.
 
 use ritk_io::DicomSeriesInfo;
 use std::borrow::Cow;
 use std::path::Path;
+use std::sync::Arc;
 
 // ── SeriesEntryView ──────────────────────────────────────────────────────────
 
@@ -127,27 +128,17 @@ pub fn format_series_label<S: SeriesEntryView, const N: usize>(
 /// A single flat DICOM series representation as populated by directory scanning.
 #[derive(Debug, Clone)]
 pub struct SeriesEntry<'a> {
-    /// Series Instance UID (may be empty when absent from metadata).
-    pub series_uid: Cow<'a, str>,
-    /// Absolute path to the folder containing the DICOM slice files.
-    pub folder: Cow<'a, Path>,
+    /// Canonical discovery descriptor, retaining exact files and series identity.
+    pub acquisition: Arc<DicomSeriesInfo>,
     /// Patient name extracted from series metadata.
     pub patient_name: Cow<'a, str>,
-    /// Patient ID extracted from series metadata.
-    pub patient_id: Cow<'a, str>,
-    /// DICOM modality string (e.g. `"CT"`, `"MR"`, `"PT"`).
-    pub modality: Cow<'a, str>,
-    /// Series description from tag (0008,103E).
-    pub series_description: Cow<'a, str>,
-    /// Number of image slices in the series.
-    pub num_slices: usize,
-    /// Study date in `YYYYMMDD` format, if present.
+    /// Study date, when known.
     pub study_date: Option<Cow<'a, str>>,
-    /// Study Instance UID, if present.
+    /// Study Instance UID, when known.
     pub study_uid: Option<Cow<'a, str>>,
 }
 
-impl<'a> SeriesEntryView for SeriesEntry<'a> {
+impl SeriesEntryView for SeriesEntry<'_> {
     type Str<'b>
         = &'b str
     where
@@ -156,58 +147,45 @@ impl<'a> SeriesEntryView for SeriesEntry<'a> {
         = &'b Path
     where
         Self: 'b;
-
-    fn series_uid(&self) -> Self::Str<'_> {
-        self.series_uid.as_ref()
+    fn series_uid(&self) -> &str {
+        self.acquisition.series_instance_uid()
     }
-    fn folder(&self) -> Self::Path<'_> {
-        self.folder.as_ref()
-    }
-    fn modality(&self) -> Self::Str<'_> {
-        self.modality.as_ref()
-    }
-    fn series_description(&self) -> Self::Str<'_> {
-        self.series_description.as_ref()
-    }
-    fn num_slices(&self) -> usize {
-        self.num_slices
-    }
-}
-
-impl<'a> SeriesEntry<'a> {
-    /// Construct a [`SeriesEntry`] from a [`DicomSeriesInfo`] returned by
-    /// `ritk_io::scan_dicom_directory`.
-    pub fn from_dicom_series_info(info: DicomSeriesInfo) -> Self {
-        let series_uid = info.series_instance_uid().to_string();
-        let modality = info.modality().to_string();
-        let folder = info
+    fn folder(&self) -> &Path {
+        self.acquisition
             .file_paths
             .first()
             .and_then(|path| path.parent())
-            .map(Path::to_path_buf)
-            .unwrap_or_default();
-        let num_slices = info.file_paths.len();
+            .unwrap_or_else(|| Path::new(""))
+    }
+    fn modality(&self) -> &str {
+        self.acquisition.modality()
+    }
+    fn series_description(&self) -> &str {
+        &self.acquisition.series_description
+    }
+    fn num_slices(&self) -> usize {
+        self.acquisition.file_paths.len()
+    }
+}
+
+impl SeriesEntry<'_> {
+    /// Retain a discovered acquisition without losing its file selection.
+    pub fn from_dicom_series_info(mut info: DicomSeriesInfo) -> Self {
+        info.file_paths.sort();
         Self {
-            series_uid: Cow::Owned(series_uid),
-            folder: Cow::Owned(folder),
+            acquisition: Arc::new(info),
             patient_name: Cow::Borrowed(""),
-            patient_id: Cow::Owned(info.patient_id),
-            modality: Cow::Owned(modality),
-            series_description: Cow::Owned(info.series_description),
-            num_slices,
             study_date: None,
             study_uid: None,
         }
     }
-
-    /// Short display label used in the series browser tree.
+    /// Display the series description, modality and slice count.
     pub fn display_label(&self) -> String {
         format_series_label(self, &DEFAULT_MODALITY_MAPPER)
     }
-
-    /// Short modality icon string (emoji or abbreviated text) for display.
+    /// Display the modality's icon.
     pub fn modality_icon(&self) -> &'static str {
-        DEFAULT_MODALITY_MAPPER.get_icon(self.modality.as_ref())
+        DEFAULT_MODALITY_MAPPER.get_icon(self.modality())
     }
 }
 
@@ -218,20 +196,12 @@ impl<'a> SeriesEntry<'a> {
 /// Patient and study details are stored strictly in parent nodes (`PatientNode`
 /// and `StudyNode`), enforcing DRY and SSOT.
 #[derive(Debug, Clone)]
-pub struct SeriesNode<'a> {
-    /// Series Instance UID.
-    pub series_uid: Cow<'a, str>,
-    /// Absolute path to the folder containing the DICOM slice files.
-    pub folder: Cow<'a, Path>,
-    /// DICOM modality string.
-    pub modality: Cow<'a, str>,
-    /// Series description.
-    pub series_description: Cow<'a, str>,
-    /// Number of image slices.
-    pub num_slices: usize,
+pub struct SeriesNode {
+    /// Canonical acquisition descriptor shared by browser, loading and selection.
+    pub acquisition: Arc<DicomSeriesInfo>,
 }
 
-impl<'a> SeriesEntryView for SeriesNode<'a> {
+impl SeriesEntryView for SeriesNode {
     type Str<'b>
         = &'b str
     where
@@ -240,33 +210,35 @@ impl<'a> SeriesEntryView for SeriesNode<'a> {
         = &'b Path
     where
         Self: 'b;
-
-    fn series_uid(&self) -> Self::Str<'_> {
-        self.series_uid.as_ref()
+    fn series_uid(&self) -> &str {
+        self.acquisition.series_instance_uid()
     }
-    fn folder(&self) -> Self::Path<'_> {
-        self.folder.as_ref()
+    fn folder(&self) -> &Path {
+        self.acquisition
+            .file_paths
+            .first()
+            .and_then(|path| path.parent())
+            .unwrap_or_else(|| Path::new(""))
     }
-    fn modality(&self) -> Self::Str<'_> {
-        self.modality.as_ref()
+    fn modality(&self) -> &str {
+        self.acquisition.modality()
     }
-    fn series_description(&self) -> Self::Str<'_> {
-        self.series_description.as_ref()
+    fn series_description(&self) -> &str {
+        &self.acquisition.series_description
     }
     fn num_slices(&self) -> usize {
-        self.num_slices
+        self.acquisition.file_paths.len()
     }
 }
 
-impl<'a> SeriesNode<'a> {
-    /// Short display label used in the series browser tree.
+impl SeriesNode {
+    /// Display the series description, modality and slice count.
     pub fn display_label(&self) -> String {
         format_series_label(self, &DEFAULT_MODALITY_MAPPER)
     }
-
-    /// Short modality icon string (emoji or abbreviated text) for display.
+    /// Display the modality's icon.
     pub fn modality_icon(&self) -> &'static str {
-        DEFAULT_MODALITY_MAPPER.get_icon(self.modality.as_ref())
+        DEFAULT_MODALITY_MAPPER.get_icon(self.modality())
     }
 }
 
@@ -280,7 +252,7 @@ pub struct StudyNode<'a> {
     /// Study date in `YYYYMMDD` format — `None` when absent.
     pub study_date: Option<Cow<'a, str>>,
     /// Series belonging to this study, in insertion order.
-    pub series: Vec<SeriesNode<'a>>,
+    pub series: Vec<SeriesNode>,
 }
 
 impl<'a> StudyNode<'a> {
@@ -331,16 +303,12 @@ impl<'a> SeriesTree<'a> {
 
         for entry in entries {
             let SeriesEntry {
-                series_uid,
-                folder,
+                acquisition,
                 patient_name,
-                patient_id,
-                modality,
-                series_description,
-                num_slices,
                 study_date,
                 study_uid,
             } = entry;
+            let patient_id: Cow<'_, str> = Cow::Owned(acquisition.patient_id.clone());
 
             let patient_idx = if patient_id.is_empty() {
                 // Anonymous patients each get their own node.
@@ -403,13 +371,9 @@ impl<'a> SeriesTree<'a> {
                 },
             };
 
-            patient.studies[study_idx].series.push(SeriesNode {
-                series_uid,
-                folder,
-                modality,
-                series_description,
-                num_slices,
-            });
+            patient.studies[study_idx]
+                .series
+                .push(SeriesNode { acquisition });
         }
         tree
     }
@@ -423,17 +387,17 @@ impl<'a> SeriesTree<'a> {
             .sum()
     }
 
-    /// Find the first [`SeriesNode`] whose `folder` equals `folder`.
-    pub fn find_by_folder(&self, folder: &Path) -> Option<&SeriesNode<'a>> {
+    /// Find the first [`SeriesNode`] with the requested Series Instance UID.
+    pub fn find_by_uid(&self, uid: &str) -> Option<&SeriesNode> {
         self.patients
             .iter()
             .flat_map(|p| p.studies.iter())
             .flat_map(|s| s.series.iter())
-            .find(|e| e.folder.as_ref() == folder)
+            .find(|entry| entry.series_uid() == uid)
     }
 
     /// Iterate over every [`SeriesNode`] in the tree in insertion order.
-    pub fn iter_series(&self) -> impl Iterator<Item = &SeriesNode<'a>> {
+    pub fn iter_series(&self) -> impl Iterator<Item = &SeriesNode> {
         self.patients
             .iter()
             .flat_map(|p| p.studies.iter())

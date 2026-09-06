@@ -32,7 +32,7 @@ impl SnapApp {
     /// 1. Rebuild the texture for this axis if dirty or absent.
     /// 2. Compute fit scale: `min(avail_w / tex_w, avail_h / tex_h) × zoom`.
     /// 3. Display the image widget with click-and-drag sensing.
-    /// 4. Draw the axis label and slice counter as overlay text.
+    /// 4. Draw compact axis and slice labels when the full overlay is disabled.
     /// 5. Draw the DICOM 4-corner overlay when `show_overlay` is set.
     /// 6. Draw crosshair lines when `show_crosshair` is set.
     /// 7. Handle wheel input: Ctrl/Cmd+wheel zooms, plain wheel steps slices.
@@ -134,25 +134,23 @@ impl SnapApp {
         // Painter::new clones the Arc<Context>; it does not hold a borrow on ui.
         let painter = ui.painter_at(response.rect);
 
-        let axis_name = self.axis_label(axis);
-        let label_color = OVERLAY_LABEL_COLOR;
-
-        painter.text(
-            response.rect.min + egui::vec2(OVERLAY_LABEL_INSET, OVERLAY_LABEL_INSET),
-            egui::Align2::LEFT_TOP,
-            axis_name,
-            egui::FontId::proportional(OVERLAY_LABEL_FONT_SIZE),
-            label_color,
-        );
-
         let (slice_idx, total) = self.axis_slice_info(axis);
-        painter.text(
-            egui::pos2(response.rect.max.x - 6.0, response.rect.min.y + 6.0),
-            egui::Align2::RIGHT_TOP,
-            format!("{}/{}", slice_idx + 1, total),
-            egui::FontId::proportional(11.0),
-            label_color,
-        );
+        if !self.show_overlay {
+            OverlayRenderer::draw_text_anchored(
+                &painter,
+                response.rect,
+                egui::Align2::LEFT_TOP,
+                self.axis_label(axis),
+                OVERLAY_LABEL_COLOR,
+            );
+            OverlayRenderer::draw_text_anchored(
+                &painter,
+                response.rect,
+                egui::Align2::RIGHT_TOP,
+                &format!("{}/{}", slice_idx + 1, total),
+                OVERLAY_LABEL_COLOR,
+            );
+        }
 
         // DICOM 4-corner overlay.
         if self.show_overlay {
@@ -170,7 +168,7 @@ impl SnapApp {
 
                 let cursor_value = self.current_cursor_value();
 
-                OverlayRenderer::draw(
+                let details = OverlayRenderer::draw(
                     &painter,
                     response.rect,
                     vol,
@@ -185,12 +183,9 @@ impl SnapApp {
                         pointer_suv: self.pointer_suv,
                     },
                 );
-                OverlayRenderer::draw_orientation_labels(
-                    &painter,
-                    response.rect,
-                    axis,
-                    &vol.direction,
-                );
+                if let Some(details) = details {
+                    OverlayRenderer::show_details(ui, response.rect, &details);
+                }
             }
         }
 

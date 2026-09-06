@@ -1,4 +1,5 @@
 use super::state::{SeriesLoadTarget, SnapApp};
+use super::volume_input::VolumeInput;
 use crate::session::ViewerSessionSnapshot;
 use crate::tools::interaction::ToolState;
 use crate::ui::window_presets::WindowPreset;
@@ -47,7 +48,17 @@ impl SnapApp {
 
     pub(crate) fn session_snapshot(&self) -> ViewerSessionSnapshot {
         ViewerSessionSnapshot {
-            source: self.loaded.as_ref().and_then(|vol| vol.source.clone()),
+            format: crate::session::SessionFormat,
+            source: self.loaded.as_ref().and_then(|volume| {
+                if let Some(acquisition) = VolumeInput::acquisition(volume) {
+                    Some(crate::session::StudySource::Dicom {
+                        series_uid: acquisition.series_instance_uid().to_owned(),
+                        files: acquisition.file_paths.clone(),
+                    })
+                } else {
+                    volume.source.clone().map(crate::session::StudySource::Path)
+                }
+            }),
             viewer_state: self.viewer_state,
             colormap: self.colormap,
             axis: self.axis,
@@ -70,7 +81,15 @@ impl SnapApp {
         }
     }
 
-    pub(crate) fn apply_session_snapshot(&mut self, snapshot: ViewerSessionSnapshot) {
+    pub(crate) fn apply_session_snapshot(
+        &mut self,
+        mut snapshot: ViewerSessionSnapshot,
+    ) -> anyhow::Result<()> {
+        // Decode and validate before changing either presentation or loaded state.
+        if let Some(source) = snapshot.source.take() {
+            let volume = VolumeInput::restore(source)?.load()?;
+            self.load_volume(volume, "Restored session acquisition".to_owned());
+        }
         self.viewer_state = snapshot.viewer_state;
         self.colormap = snapshot.colormap;
         self.axis = snapshot.axis.min(2);
@@ -102,9 +121,7 @@ impl SnapApp {
                 self.sagittal_slice,
             )
         });
-        if let Some(source) = snapshot.source {
-            self.pending_load = Some(source);
-        }
+        Ok(())
     }
 
     /// Ingest shell-dropped inputs (desktop) or browser-dropped file handles.
@@ -117,7 +134,7 @@ impl SnapApp {
         match decide_dropped_input_action(&dropped) {
             DroppedInputAction::QueueDicom(path) => {
                 self.scan_for_series(path.clone());
-                self.pending_load = Some(path.clone());
+                self.pending_load = Some(VolumeInput::Path(path.clone()));
                 self.status_message = format!("Queued dropped DICOM input: {}", path.display());
             }
             DroppedInputAction::LoadVolume(path) => {
@@ -171,7 +188,7 @@ impl SnapApp {
                     let pointer_suv = self.pointer_suv;
                     let cursor_suv = self.current_cursor_suv();
                     let tree_ref = &self.series_tree;
-                    let sel_ref = &mut self.selected_series;
+                    let sel_ref = self.selected_series.as_deref();
                     let tab_ref = &mut self.sidebar_tab;
                     let vol_ref = self.loaded.as_ref();
                     let mut panel = crate::ui::sidebar::SidebarPanel::new(
@@ -185,10 +202,14 @@ impl SnapApp {
                     panel.show(ui)
                 };
 
-                if let Some(folder) = sidebar_result {
+                if let Some(acquisition) = sidebar_result {
                     match self.series_load_target {
-                        SeriesLoadTarget::Primary => self.pending_load = Some(folder),
-                        SeriesLoadTarget::Secondary => self.pending_secondary_load = Some(folder),
+                        SeriesLoadTarget::Primary => {
+                            self.pending_load = Some(VolumeInput::Series(acquisition))
+                        }
+                        SeriesLoadTarget::Secondary => {
+                            self.pending_secondary_load = Some(VolumeInput::Series(acquisition))
+                        }
                     }
                 }
             });

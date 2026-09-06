@@ -17,7 +17,7 @@ use super::geometry::{
     SpacingUniformity,
 };
 use super::pixel::{read_slice_pixels, read_slice_pixels_from_bytes};
-use super::scan::scan_dicom_directory;
+use super::scan::scan_dicom_path;
 use super::types::{DicomReadMetadata, DicomSeriesInfo};
 
 /// Read a DICOM series and return both the image and metadata.
@@ -25,7 +25,7 @@ pub fn read_dicom_series_with_metadata<B: ComputeBackend, P: AsRef<Path>>(
     path: P,
     backend: &B,
 ) -> Result<(Image<f32, B, 3>, DicomReadMetadata)> {
-    let series = scan_dicom_directory(path)?;
+    let series = scan_dicom_path(path)?;
     load_from_series(series, backend)
 }
 
@@ -137,7 +137,9 @@ fn decode_series(series: DicomSeriesInfo) -> Result<DecodedDicomSeries> {
                 slices.len()
             );
         }
-        if proj.iter().all(|p| p.is_some()) {
+        // Inter-slice spacing requires a pair of positions. A single-frame
+        // image keeps its declared spacing; it has no interval to estimate.
+        if proj.len() >= 2 && proj.iter().all(|p| p.is_some()) {
             let positions: Vec<f64> = proj
                 .into_iter()
                 .map(|p| p.expect("all slice positions verified non-None above"))

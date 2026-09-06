@@ -3,6 +3,10 @@ use crate::ui::{fit_view_transform, tool_kind_for_key};
 
 impl SnapApp {
     pub(crate) fn consume_global_shortcuts(&mut self, ctx: &egui::Context) {
+        // Popups own keyboard navigation before the viewport processes a frame.
+        if ctx.memory(egui::Memory::any_popup_open) {
+            return;
+        }
         let zoom_to_fit = egui::KeyboardShortcut::new(egui::Modifiers::COMMAND, egui::Key::Num0);
         let redo_shift_z = egui::KeyboardShortcut::new(
             egui::Modifiers {

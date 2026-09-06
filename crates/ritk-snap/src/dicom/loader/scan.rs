@@ -1,91 +1,66 @@
-//! Directory scanning for DICOM series and deterministic sorting.
-
-use std::collections::HashSet;
-use std::path::{Path, PathBuf};
-
-use anyhow::Result;
+//! DICOM discovery preserves authoritative file-set indexes.
+use crate::dicom::input_path::classify_dicom_input_path;
+use crate::dicom::series_tree::{SeriesEntry, SeriesEntryView, SeriesTree};
+use anyhow::{Context, Result};
 use ritk_io::scan_dicom_directory;
-use tracing::{info, warn};
+use std::path::{Path, PathBuf};
 use walkdir::WalkDir;
 
-use crate::dicom::input_path::classify_dicom_input_path;
-use crate::dicom::series_tree::{SeriesEntry, SeriesTree};
-
-/// Walk `folder` and its immediate subdirectories, attempting to scan each
-/// directory for DICOM files.
+/// Discover acquisitions beneath a directory, stopping at each DICOMDIR boundary.
 ///
-/// # Algorithm
-/// 1. Try `scan_dicom_directory(folder)` first; add the result when successful.
-/// 2. Walk all subdirectories up to depth 5. For each subdirectory, try
-///    `scan_dicom_directory`; skip silently on failure.
-/// 3. Deduplicate by folder path so multi-level discovery never double-counts.
-/// 4. Build and return a [`SeriesTree`] from the collected [`SeriesEntry`] list.
-///
-/// This heuristic covers both flat DICOM folders and patient/study/series
-/// hierarchies without requiring a DICOMDIR index file.
+/// Traversal is deterministic and bounded to five directory levels. An index
+/// owns its file set: unreferenced descendants are never scanned independently.
 ///
 /// # Errors
-/// Returns an error only when `folder` itself cannot be read as a directory.
+/// Propagates unreadable directories, invalid DICOM instances, and malformed or
+/// missing DICOMDIR references; failed discovery never yields a partial tree.
 pub fn scan_folder_for_series<P: AsRef<Path>>(folder: P) -> Result<SeriesTree<'static>> {
     let requested = folder.as_ref();
-    let folder = classify_dicom_input_path(requested)
-        .dicom_root()
-        .map(Path::to_path_buf)
-        .unwrap_or_else(|| requested.to_path_buf());
-    info!(path = %folder.display(), "scanning folder for DICOM series");
-
     let mut entries: Vec<SeriesEntry> = Vec::new();
-    let mut seen_folders: HashSet<PathBuf> = HashSet::new();
-
-    // Try to scan `dir` for DICOM content and append to `entries` if not
-    // already seen.
-    let try_add = |dir: &Path, entries: &mut Vec<SeriesEntry>, seen: &mut HashSet<PathBuf>| {
-        let canonical = dir.canonicalize().unwrap_or_else(|_| dir.to_path_buf());
-        if seen.contains(&canonical) {
-            return;
-        }
-        seen.insert(canonical);
-        match scan_dicom_directory(dir) {
-            Ok(series_list) => {
-                entries.extend(
-                    series_list
-                        .into_iter()
-                        .map(SeriesEntry::from_dicom_series_info),
-                );
+    if is_index(requested) && !requested.is_dir() {
+        entries.extend(
+            scan_dicom_directory(requested)?
+                .into_iter()
+                .map(SeriesEntry::from_dicom_series_info),
+        );
+    } else {
+        let root = classify_dicom_input_path(requested)
+            .dicom_root()
+            .unwrap_or(requested)
+            .to_path_buf();
+        let mut directories = WalkDir::new(root)
+            .max_depth(5)
+            .follow_links(false)
+            .sort_by_file_name()
+            .into_iter();
+        while let Some(entry) = directories.next() {
+            let entry = entry.context("failed to traverse DICOM discovery directory")?;
+            if !entry.file_type().is_dir() {
+                continue;
             }
-            Err(e) => {
-                warn!(path = %dir.display(), error = %e, "skipping directory (not a DICOM series)");
+            let children: Vec<PathBuf> = std::fs::read_dir(entry.path())
+                .context("failed to inspect DICOM discovery directory")?
+                .map(|child| child.map(|child| child.path()))
+                .collect::<std::io::Result<_>>()?;
+            let indexed = children.iter().any(|child| is_index(child));
+            entries.extend(
+                scan_dicom_directory(entry.path())?
+                    .into_iter()
+                    .map(SeriesEntry::from_dicom_series_info),
+            );
+            if indexed {
+                directories.skip_current_dir();
             }
         }
-    };
-
-    // Scan the root folder itself.
-    try_add(&folder, &mut entries, &mut seen_folders);
-
-    // Walk subdirectories up to depth 5 with deterministic lexical ordering.
-    let mut subdirs: Vec<PathBuf> = WalkDir::new(&folder)
-        .min_depth(1)
-        .max_depth(5)
-        .follow_links(false)
-        .into_iter()
-        .filter_map(|e| e.ok())
-        .filter(|e| e.file_type().is_dir())
-        .map(|e| e.path().to_path_buf())
-        .collect();
-    subdirs.sort();
-
-    for dir in subdirs {
-        try_add(&dir, &mut entries, &mut seen_folders);
     }
-
     sort_series_entries_deterministically(&mut entries);
-
-    info!(
-        root = %folder.display(),
-        series_found = entries.len(),
-        "scan complete"
-    );
     Ok(SeriesTree::from_entries(entries))
+}
+
+fn is_index(path: &Path) -> bool {
+    path.file_name()
+        .and_then(|name| name.to_str())
+        .is_some_and(|name| name.eq_ignore_ascii_case("DICOMDIR"))
 }
 
 /// Sort series entries by a deterministic multi-key order.
@@ -94,8 +69,9 @@ pub fn scan_folder_for_series<P: AsRef<Path>>(folder: P) -> Result<SeriesTree<'s
 /// → `series_description` → `series_uid` → `folder` path string.
 pub(super) fn sort_series_entries_deterministically(entries: &mut [SeriesEntry]) {
     entries.sort_by(|a, b| {
-        a.patient_id
-            .cmp(&b.patient_id)
+        a.acquisition
+            .patient_id
+            .cmp(&b.acquisition.patient_id)
             .then_with(|| {
                 a.study_uid
                     .as_deref()
@@ -108,9 +84,9 @@ pub(super) fn sort_series_entries_deterministically(entries: &mut [SeriesEntry])
                     .unwrap_or("")
                     .cmp(b.study_date.as_deref().unwrap_or(""))
             })
-            .then_with(|| a.modality.cmp(&b.modality))
-            .then_with(|| a.series_description.cmp(&b.series_description))
-            .then_with(|| a.series_uid.cmp(&b.series_uid))
-            .then_with(|| a.folder.cmp(&b.folder))
+            .then_with(|| a.modality().cmp(b.modality()))
+            .then_with(|| a.series_description().cmp(b.series_description()))
+            .then_with(|| a.series_uid().cmp(b.series_uid()))
+            .then_with(|| a.folder().cmp(b.folder()))
     });
 }

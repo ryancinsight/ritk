@@ -31,6 +31,12 @@ fn test_load_series_compressed_ts_errors() {
     // Write a single-slice DICOM declaring JPEG Baseline TS (compressed).
     let slice_path = series_dir.join("slice_0000.dcm");
     let mut obj = InMemDicomObject::new_empty();
+    // Successful image-scan fixtures carry the required acquisition identity.
+    obj.put(DataElement::new(
+        Tag(0x0020, 0x000E),
+        VR::UI,
+        PrimitiveValue::from("2.25.72001"),
+    ));
     obj.put(DataElement::new(
         Tag(0x0008, 0x0016),
         VR::UI,
@@ -232,6 +238,12 @@ fn test_load_series_jpeg_baseline_codec_round_trip() {
 
     // Build a Secondary Capture DICOM slice with JPEG Baseline TS.
     let mut obj = InMemDicomObject::new_empty();
+    // Successful image-scan fixtures carry the required acquisition identity.
+    obj.put(DataElement::new(
+        Tag(0x0020, 0x000E),
+        VR::UI,
+        PrimitiveValue::from("2.25.72001"),
+    ));
     obj.put(DataElement::new(
         Tag(0x0008, 0x0016),
         VR::UI,

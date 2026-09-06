@@ -9,5 +9,6 @@ mod scan_geometry;
 mod scan_instances;
 mod scan_metadata;
 mod scan_policy;
+mod selection;
 mod support;
 mod write_roundtrip;

@@ -1,14 +1,15 @@
 //! Directory scanning and series discovery.
 
+use crate::format::dicom::reader::dicomdir::discover_files;
 use anyhow::{Context, Result};
 use arrayvec::ArrayString;
 use dicom::dictionary_std::tags;
 use dicom::object::{FileDicomObject, InMemDicomObject};
 use ritk_dicom::{parse_file_with, DicomRsBackend};
 use std::collections::HashMap;
-use std::fs;
 use std::path::{Path, PathBuf};
 
+use crate::format::dicom::identity::image_series_uid;
 use crate::format::dicom::reader::types::{literal_arraystring, truncate_arraystring};
 
 use super::types::DicomSeriesInfo;
@@ -33,13 +34,7 @@ pub(crate) fn sort_discovered_series(series_list: &mut [DicomSeriesInfo]) {
 pub fn scan_dicom_directory<P: AsRef<Path>>(path: P) -> Result<Vec<DicomSeriesInfo>> {
     let path = path.as_ref();
 
-    // Collect all file paths first.
-    let entries: Vec<PathBuf> = fs::read_dir(path)
-        .context("Failed to read directory")?
-        .filter_map(|e| e.ok())
-        .map(|e| e.path())
-        .filter(|p| p.is_file())
-        .collect();
+    let entries = discover_files(path)?;
 
     if entries.is_empty() {
         return Ok(Vec::new());
@@ -50,40 +45,15 @@ pub fn scan_dicom_directory<P: AsRef<Path>>(path: P) -> Result<Vec<DicomSeriesIn
         entries.len(),
         |i| -> anyhow::Result<Option<ScannedEntry>> {
             let file_path = &entries[i];
-            let Ok(obj) = parse_file_with::<DicomRsBackend, _>(file_path) else {
+            let obj = parse_file_with::<DicomRsBackend, _>(file_path)
+                .context("failed to parse discovered DICOM member")?;
+            let Some(uid) = image_series_uid(&obj)? else {
                 return Ok(None);
-            };
-
-            let uid_raw = match get_string(&obj, tags::SERIES_INSTANCE_UID) {
-                Some(u) => u,
-                None => return Ok(None),
-            };
-            let uid = match ArrayString::<64>::from(uid_raw.trim()) {
-                Ok(v) => v,
-                Err(_) => {
-                    tracing::warn!(
-                        "SeriesInstanceUID exceeds 64 chars, truncating: {}",
-                        &uid_raw.trim()[..64]
-                    );
-                    truncate_arraystring::<64>(uid_raw.trim())
-                }
             };
 
             let description = get_string(&obj, tags::SERIES_DESCRIPTION).unwrap_or_default();
             let modality = get_string(&obj, tags::MODALITY)
-                .map(|s| {
-                    let trimmed = s.trim().to_owned();
-                    match ArrayString::<16>::from(trimmed.as_str()) {
-                        Ok(v) => v,
-                        Err(_) => {
-                            tracing::warn!(
-                                "Modality exceeds 16 chars, truncating: {}",
-                                &trimmed[..16]
-                            );
-                            truncate_arraystring::<16>(trimmed.as_str())
-                        }
-                    }
-                })
+                .map(|s| truncate_arraystring::<16>(s.trim()))
                 .unwrap_or_else(|| literal_arraystring("OT"));
             let patient_id = get_string(&obj, tags::PATIENT_ID).unwrap_or_default();
 
@@ -97,7 +67,9 @@ pub fn scan_dicom_directory<P: AsRef<Path>>(path: P) -> Result<Vec<DicomSeriesIn
         },
     )
     .into_iter()
-    .filter_map(|r| r.ok().flatten())
+    .collect::<Result<Vec<_>>>()?
+    .into_iter()
+    .flatten()
     .collect();
 
     // 2. Sequential merge — no Mutex required.

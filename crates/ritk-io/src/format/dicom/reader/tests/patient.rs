@@ -75,6 +75,12 @@ fn test_patient_position_is_captured_from_dicom_tag() {
 
     let slice_path = dir.join("slice_0000.dcm");
     let mut obj = InMemDicomObject::new_empty();
+    // Successful image-scan fixtures carry the required acquisition identity.
+    obj.put(DataElement::new(
+        Tag(0x0020, 0x000E),
+        VR::UI,
+        PrimitiveValue::from("2.25.72001"),
+    ));
     obj.put(dicom::core::DataElement::new(
         Tag(0x0008, 0x0016),
         VR::UI,

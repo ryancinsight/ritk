@@ -25,6 +25,9 @@ struct Args {
     /// Optional DICOM folder or medical image file loaded at startup.
     #[arg(value_name = "PATH")]
     initial_path: Option<PathBuf>,
+    /// Save the rendered application window as PNG and exit.
+    #[arg(long, value_name = "PNG")]
+    capture: Option<PathBuf>,
 }
 
 #[cfg(not(target_arch = "wasm32"))]
@@ -32,6 +35,7 @@ fn main() -> anyhow::Result<()> {
     let args = Args::parse();
     ritk_snap::run_app_with_options(ritk_snap::AppLaunchOptions {
         initial_path: args.initial_path,
+        capture: args.capture,
     })
 }
 

@@ -15,7 +15,9 @@ fn session_snapshot_round_trip_preserves_cine_state() {
     assert_eq!(snapshot.cine_fps, 18.0);
 
     let mut recovered = SnapApp::default();
-    recovered.apply_session_snapshot(snapshot);
+    recovered
+        .apply_session_snapshot(snapshot)
+        .expect("restore presentation");
     assert!(recovered.cine.enabled);
     assert_eq!(recovered.cine.fps, 18.0);
 }
@@ -55,7 +57,13 @@ fn close_study_clears_loaded_and_cached_state() {
     app.pan_offset = egui::vec2(8.0, -4.0);
     app.zoom = 3.0;
     app.cached_histogram = Some(compute_histogram(&[0.0, 1.0, 1.0, 2.0], 0.0, 2.0, 4));
-    app.selected_series = Some(std::path::PathBuf::from("series"));
+    app.selected_series = Some(std::sync::Arc::new(ritk_io::DicomSeriesInfo::new(
+        "1.2.3",
+        String::new(),
+        "CT",
+        String::new(),
+        vec![std::path::PathBuf::from("series/slice.dcm")],
+    )));
     app.projection_mode = ProjectionMode::Vr;
 
     app.close_study();

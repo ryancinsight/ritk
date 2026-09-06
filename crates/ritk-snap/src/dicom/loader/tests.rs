@@ -1,52 +1,38 @@
 //! Tests for the loader module.
 
-mod fixtures;
+pub(crate) mod fixtures;
 
 use super::*;
-use crate::dicom::series_tree::SeriesEntry;
+use crate::dicom::series_tree::{SeriesEntry, SeriesEntryView};
 use ritk_spatial::{Direction, Point, Spacing};
 use std::borrow::Cow;
 use tempfile::tempdir;
 
 #[test]
 fn sort_series_entries_is_deterministic() {
-    let mut entries = vec![
-        SeriesEntry {
-            series_uid: Cow::Borrowed("UID-B"),
-            folder: Cow::Borrowed(std::path::Path::new("z/path")),
-            patient_name: Cow::Borrowed("B"),
-            patient_id: Cow::Borrowed("P2"),
-            modality: Cow::Borrowed("MR"),
-            series_description: Cow::Borrowed("S2"),
-            num_slices: 1,
-            study_date: Some(Cow::Borrowed("20260102")),
-            study_uid: Some(Cow::Borrowed("ST2")),
+    let mut entries: Vec<SeriesEntry> = [
+        ("UID-B", "z/path", "B", "P2", "MR", "S2", "20260102", "ST2"),
+        ("UID-A2", "b/path", "A", "P1", "CT", "S1", "20260101", "ST1"),
+        ("UID-A1", "a/path", "A", "P1", "CT", "S1", "20260101", "ST1"),
+    ]
+    .into_iter()
+    .map(
+        |(uid, folder, name, patient, modality, description, date, study)| SeriesEntry {
+            acquisition: std::sync::Arc::new(ritk_io::DicomSeriesInfo::new(
+                uid,
+                description.to_owned(),
+                modality,
+                patient.to_owned(),
+                vec![std::path::Path::new(folder).join("slice.dcm")],
+            )),
+            patient_name: Cow::Borrowed(name),
+            study_date: Some(Cow::Borrowed(date)),
+            study_uid: Some(Cow::Borrowed(study)),
         },
-        SeriesEntry {
-            series_uid: Cow::Borrowed("UID-A2"),
-            folder: Cow::Borrowed(std::path::Path::new("b/path")),
-            patient_name: Cow::Borrowed("A"),
-            patient_id: Cow::Borrowed("P1"),
-            modality: Cow::Borrowed("CT"),
-            series_description: Cow::Borrowed("S1"),
-            num_slices: 1,
-            study_date: Some(Cow::Borrowed("20260101")),
-            study_uid: Some(Cow::Borrowed("ST1")),
-        },
-        SeriesEntry {
-            series_uid: Cow::Borrowed("UID-A1"),
-            folder: Cow::Borrowed(std::path::Path::new("a/path")),
-            patient_name: Cow::Borrowed("A"),
-            patient_id: Cow::Borrowed("P1"),
-            modality: Cow::Borrowed("CT"),
-            series_description: Cow::Borrowed("S1"),
-            num_slices: 1,
-            study_date: Some(Cow::Borrowed("20260101")),
-            study_uid: Some(Cow::Borrowed("ST1")),
-        },
-    ];
+    )
+    .collect();
     scan::sort_series_entries_deterministically(&mut entries);
-    let ordered_uids: Vec<&str> = entries.iter().map(|e| e.series_uid.as_ref()).collect();
+    let ordered_uids: Vec<&str> = entries.iter().map(|e| e.series_uid()).collect();
     assert_eq!(ordered_uids, vec!["UID-A1", "UID-A2", "UID-B"]);
 }
 
@@ -125,7 +111,8 @@ fn assert_study(volume: &crate::LoadedVolume, modality: &str) {
 fn dicom_file_bytes_and_scanned_studies_preserve_values_and_geometry() {
     for modality in ["CT", "MR"] {
         let dir = tempdir().expect("create DICOM fixture directory");
-        let files = fixtures::write_study(dir.path(), modality).expect("write synthetic study");
+        let files = fixtures::write_study(dir.path(), modality, fixtures::SERIES_UID)
+            .expect("write synthetic study");
         let from_file = load_dicom_volume(dir.path()).expect("load DICOM directory");
         let named: Vec<(String, &[u8])> = files
             .iter()
@@ -155,7 +142,7 @@ fn dicom_file_bytes_and_scanned_studies_preserve_values_and_geometry() {
 fn dicom_study_renders_independent_grayscale_oracles_on_all_axes() {
     use crate::render::{NamedColorMap, RenderBufferPool, SliceRenderer, WindowLevel};
     let dir = tempdir().expect("create render fixture directory");
-    fixtures::write_study(dir.path(), "CT").expect("write render study");
+    fixtures::write_study(dir.path(), "CT", fixtures::SERIES_UID).expect("write render study");
     let volume = load_dicom_volume(dir.path()).expect("load render study");
     let mut pool = RenderBufferPool::default();
     // L=-20, U=490 maps decoded (2*raw-20) to byte raw exactly.
@@ -196,7 +183,8 @@ fn dicom_study_renders_independent_grayscale_oracles_on_all_axes() {
 #[test]
 fn dicom_byte_loader_rejects_malformed_and_truncated_instances() {
     let dir = tempdir().expect("create malformed fixture directory");
-    let files = fixtures::write_study(dir.path(), "CT").expect("write truncation source");
+    let files = fixtures::write_study(dir.path(), "CT", fixtures::SERIES_UID)
+        .expect("write truncation source");
     let (_, bytes) = files.first().expect("fixture includes a slice");
     // Header-only and mid-pixel truncation both reject; neither may produce a partial volume.
     let short_pixels = bytes
@@ -233,4 +221,62 @@ fn test_load_dicom_series_from_stored_instances_empty_input_errors() {
     let error =
         load_dicom_series_from_stored_instances(&[]).expect_err("empty SCP batch must reject");
     assert_eq!(error.to_string(), "no SCP-received DICOM instances to load");
+}
+
+#[test]
+fn explicit_file_selects_minority_series_while_mixed_batches_reject() {
+    let root = tempdir().expect("mixed study root");
+    let primary = fixtures::write_study(root.path(), "CT", fixtures::SERIES_UID)
+        .expect("write primary acquisition");
+    let secondary_uid = "2.25.20260905002";
+    let mut secondary = fixtures::write_study(root.path(), "MR", secondary_uid)
+        .expect("write secondary acquisition");
+
+    for expected_counts in [[3, 3], [3, 2]] {
+        let named: Vec<(String, &[u8])> = primary
+            .iter()
+            .chain(&secondary)
+            .map(|(name, bytes)| (name.clone(), bytes.as_slice()))
+            .collect();
+        let directory_error = load_dicom_volume(root.path())
+            .expect_err("mixed folder must require explicit acquisition selection");
+        let bytes_error = load_dicom_series_from_named_bytes(&named)
+            .expect_err("mixed byte batch must require explicit acquisition selection");
+        for error in [directory_error, bytes_error] {
+            let diagnostic = format!("{error:#}");
+            assert!(
+                diagnostic.contains("SeriesInstanceUID"),
+                "ambiguity must identify the selection dimension: {diagnostic}"
+            );
+        }
+        assert_eq!([primary.len(), secondary.len()], expected_counts);
+        if secondary.len() == 3 {
+            let (removed, _) = secondary.remove(0);
+            std::fs::remove_file(root.path().join(removed))
+                .expect("construct two-slice minority acquisition");
+        }
+    }
+
+    let selected = root
+        .path()
+        .join(&secondary.first().expect("minority slice").0);
+    let volume =
+        load_volume_from_path(&selected).expect("open explicitly selected minority acquisition");
+    assert_eq!(volume.shape, [2, 2, 4]);
+    let expected: Vec<_> = fixtures::SAMPLES[..16]
+        .iter()
+        .map(|&raw| 2.0 * f32::from(raw) - 20.0)
+        .collect();
+    assert_eq!(volume.data.as_slice(), expected);
+    assert_eq!(
+        volume
+            .metadata
+            .as_ref()
+            .expect("metadata retained")
+            .series_instance_uid
+            .as_deref(),
+        Some(secondary_uid)
+    );
+    assert_eq!(volume.modality.as_deref(), Some("MR"));
+    assert_eq!(volume.source.as_deref(), Some(selected.as_path()));
 }

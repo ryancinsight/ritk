@@ -10,7 +10,7 @@
 //! │                                         │
 //! │ Slice N/M             W: WWWW C: CCCC   │
 //! │ Spacing               Zoom: ZZZ%        │
-//! │ Dimensions            HU: VVVV          │
+//! │ Dimensions            Value: VVVV          │
 //! └─────────────────────────────────────────┘
 //! ```
 //!
@@ -30,6 +30,8 @@
 
 use egui::{Align2, Color32, FontId, Painter, Pos2, Rect};
 
+mod details;
+
 use super::anatomical_label_for_axis;
 use crate::render::slice_render::WindowLevel;
 use crate::LoadedVolume;
@@ -47,6 +49,10 @@ const ORIENT_LABEL_COLOR: Color32 = Color32::WHITE;
 
 /// Margin from the viewport edge (pixels).
 const MARGIN: f32 = 6.0;
+
+/// Backing inset keeps antialiased glyph edges away from image pixels.
+const TEXT_PADDING: f32 = 2.0;
+const ORIENTATION_FONT_SIZE: f32 = 14.0;
 
 // ── OverlayRenderer ───────────────────────────────────────────────────────────
 
@@ -83,20 +89,25 @@ impl OverlayRenderer {
     /// | Top-left    | Patient Name, Patient ID                         |
     /// | Top-right   | Series description, Modality, Study date         |
     /// | Bottom-left | Slice N/M, Voxel spacing, Image dimensions       |
-    /// | Bottom-right| Window width/centre, Zoom %, cursor HU value    |
+    /// | Bottom-right| Window width/centre, Zoom %, cursor value    |
     ///
     /// # Parameters
     /// - `painter`      — egui painter for the viewport.
     /// - `rect`         — viewport rectangle in screen coordinates.
     /// - `volume`       — loaded volume supplying metadata.
-    /// - `axis`         — current MPR axis (0=axial, 1=coronal, 2=sagittal).
-    /// - `slice_index`  — currently displayed slice index.
-    /// - `wl`           — current window/level settings.
-    /// - `zoom`         — current zoom factor (1.0 = fit-to-viewport).
-    /// - `cursor_value` — pixel value (HU) at the cursor position, or `None`.
-    /// - `pointer_suv`  — SUVbw value under the pointer (PT only), or `None`.
-    /// - `cursor_suv`   — SUVbw value at the linked-cursor voxel (PT only), or `None`.
-    pub fn draw(painter: &Painter, rect: Rect, volume: &LoadedVolume, ctx: OverlayContext) {
+    /// - `ctx`          — axis, slice, presentation and sampled-value context.
+    ///
+    /// Returns all annotation text when the measured layout cannot fit without
+    /// overlap. The caller must expose it with [`Self::show_details`]. Orientation
+    /// labels participate in this same layout, rather than painting independently.
+    #[must_use]
+    pub fn draw(
+        painter: &Painter,
+        rect: Rect,
+        volume: &LoadedVolume,
+        ctx: OverlayContext,
+    ) -> Option<String> {
+        let rect = rect.intersect(painter.clip_rect());
         let OverlayContext {
             axis,
             slice_index,
@@ -122,14 +133,6 @@ impl OverlayRenderer {
         } else {
             format!("{}\nID: {}", patient_name, patient_id)
         };
-        Self::draw_text_anchored(
-            painter,
-            rect,
-            Align2::LEFT_TOP,
-            &tl_text,
-            OVERLAY_TEXT_COLOR,
-        );
-
         // ── Top-right: series / modality / date ────────────────────────────
         let series_desc = volume
             .series_description
@@ -149,16 +152,6 @@ impl OverlayRenderer {
         if !study_date.is_empty() {
             tr_lines.push(format!("Date: {}", study_date));
         }
-        if !tr_lines.is_empty() {
-            Self::draw_text_anchored(
-                painter,
-                rect,
-                Align2::RIGHT_TOP,
-                &tr_lines.join("\n"),
-                OVERLAY_TEXT_COLOR,
-            );
-        }
-
         // ── Bottom-left: slice, spacing, dimensions ────────────────────────
         let (total_slices, dim_w, dim_h) = match axis {
             0 => (depth, cols, rows),
@@ -182,14 +175,6 @@ impl OverlayRenderer {
             "{}\nSpacing: {}\nDims: {}",
             slice_str, spacing_str, dims_str
         );
-        Self::draw_text_anchored(
-            painter,
-            rect,
-            Align2::LEFT_BOTTOM,
-            &bl_text,
-            OVERLAY_TEXT_COLOR,
-        );
-
         // ── Bottom-right: W/L, zoom, cursor, pointer ──────────────────────
         let wl_str = format!("W:{:.0} C:{:.0}", wl.width, wl.center);
         let zoom_str = format!("Zoom: {:.0}%", zoom * 100.0);
@@ -205,96 +190,68 @@ impl OverlayRenderer {
         .filter(|s| !s.is_empty())
         .copied()
         .collect();
-        Self::draw_text_anchored(
-            painter,
-            rect,
-            Align2::RIGHT_BOTTOM,
-            &br_lines.join("\n"),
-            OVERLAY_TEXT_COLOR,
-        );
+        let labels = orientation_labels(axis, &volume.direction);
+        let blocks = [
+            (Align2::LEFT_TOP, tl_text),
+            (Align2::RIGHT_TOP, tr_lines.join("\n")),
+            (Align2::LEFT_BOTTOM, bl_text),
+            (Align2::RIGHT_BOTTOM, br_lines.join("\n")),
+        ];
+        let mut layout = Vec::with_capacity(8);
+        for (anchor, text) in &blocks {
+            if !text.is_empty() {
+                let galley = Self::layout_corner(painter, rect, text, OVERLAY_TEXT_COLOR);
+                let bounds = anchor.anchor_size(Self::anchor_pos(rect, *anchor), galley.size());
+                layout.push((bounds, galley, OVERLAY_TEXT_COLOR));
+            }
+        }
+        for (anchor, label) in [
+            (Align2::LEFT_CENTER, labels.left),
+            (Align2::RIGHT_CENTER, labels.right),
+            (Align2::CENTER_TOP, labels.top),
+            (Align2::CENTER_BOTTOM, labels.bottom),
+        ] {
+            let galley = painter.layout_no_wrap(
+                label.to_owned(),
+                FontId::proportional(ORIENTATION_FONT_SIZE),
+                ORIENT_LABEL_COLOR,
+            );
+            let bounds = anchor.anchor_size(Self::anchor_pos(rect, anchor), galley.size());
+            layout.push((bounds, galley, ORIENT_LABEL_COLOR));
+        }
+        let fits = layout.iter().enumerate().all(|(index, (bounds, _, _))| {
+            let backing = bounds.expand(TEXT_PADDING);
+            rect.contains_rect(backing)
+                && layout[index + 1..]
+                    .iter()
+                    .all(|(other, _, _)| !backing.intersects(other.expand(TEXT_PADDING)))
+        });
+        if !fits {
+            return Some(format!(
+                "{}\n\nOrientation: left {}, right {}, top {}, bottom {}",
+                blocks
+                    .iter()
+                    .map(|(_, text)| text.as_str())
+                    .collect::<Vec<_>>()
+                    .join("\n\n"),
+                labels.left,
+                labels.right,
+                labels.top,
+                labels.bottom
+            ));
+        }
+        for (bounds, galley, color) in layout {
+            Self::paint_bounds(painter, bounds, galley, color);
+        }
+        None
     }
-
-    /// Draw patient orientation labels on the four edges of the viewport.
-    ///
-    /// The label placed on each edge is determined by projecting the display
-    /// axes onto the LPS (Left-Posterior-Superior) anatomical frame using the
-    /// direction cosine matrix.
-    ///
-    /// # Direction matrix convention (RITK)
-    ///
-    /// `direction` is a row-major 3×3 matrix stored as 9 f64 values.
-    /// Column 0 = depth axis (NÌ‚), column 1 = row axis, column 2 = column axis.
-    ///
-    /// For display purposes:
-    /// - `axis = 0` (axial): horizontal = column axis (col 2),
-    ///   vertical   = row axis (col 1).
-    /// - `axis = 1` (coronal): horizontal = column axis (col 2),
-    ///   vertical   = depth axis (col 0).
-    /// - `axis = 2` (sagittal): horizontal = row axis (col 1),
-    ///   vertical   = depth axis (col 0).
-    ///
-    /// # Parameters
-    /// - `painter`   — egui painter for the viewport.
-    /// - `rect`      — viewport rectangle in screen coordinates.
-    /// - `axis`      — current MPR axis.
-    /// - `direction` — 3×3 direction cosine matrix (row-major, 9 elements).
-    pub fn draw_orientation_labels(
-        painter: &Painter,
-        rect: Rect,
-        axis: usize,
-        direction: &[f64; 9],
-    ) {
-        let OrientationLabels {
-            left: label_left,
-            right: label_right,
-            top: label_top,
-            bottom: label_bottom,
-        } = orientation_labels(axis, direction);
-
-        let font = FontId::proportional(14.0);
-        let cx = rect.center().x;
-        let cy = rect.center().y;
-
-        // Left edge: vertically centred, left-aligned.
-        painter.text(
-            Pos2::new(rect.min.x + MARGIN, cy),
-            Align2::LEFT_CENTER,
-            label_left,
-            font.clone(),
-            ORIENT_LABEL_COLOR,
-        );
-        // Right edge: vertically centred, right-aligned.
-        painter.text(
-            Pos2::new(rect.max.x - MARGIN, cy),
-            Align2::RIGHT_CENTER,
-            label_right,
-            font.clone(),
-            ORIENT_LABEL_COLOR,
-        );
-        // Top edge: horizontally centred, top-aligned.
-        painter.text(
-            Pos2::new(cx, rect.min.y + MARGIN),
-            Align2::CENTER_TOP,
-            label_top,
-            font.clone(),
-            ORIENT_LABEL_COLOR,
-        );
-        // Bottom edge: horizontally centred, bottom-aligned.
-        painter.text(
-            Pos2::new(cx, rect.max.y - MARGIN),
-            Align2::CENTER_BOTTOM,
-            label_bottom,
-            font.clone(),
-            ORIENT_LABEL_COLOR,
-        );
-    }
-
-    // ── Private helpers ───────────────────────────────────────────────────────
 
     /// Draw `text` anchored at the given corner of `rect`.
     ///
     /// `anchor` controls both which corner is used as the anchor point and
-    /// how the text is aligned relative to that point.
+    /// how the text is aligned relative to that point. Text wraps within its
+    /// half of the viewport, with a central orientation-label lane reserved.
+    /// An opaque dark backing preserves contrast across the grayscale range.
     pub fn draw_text_anchored(
         painter: &Painter,
         rect: Rect,
@@ -302,15 +259,62 @@ impl OverlayRenderer {
         text: &str,
         color: Color32,
     ) {
-        // Compute the anchor position including the margin offset.
-        let pos = Self::anchor_pos(rect, anchor);
-        painter.text(
-            pos,
-            anchor,
-            text,
+        let rect = rect.intersect(painter.clip_rect());
+        let galley = Self::layout_corner(painter, rect, text, color);
+        Self::paint_galley(painter, rect, anchor, galley, color);
+    }
+
+    fn layout_corner(
+        painter: &Painter,
+        rect: Rect,
+        text: &str,
+        color: Color32,
+    ) -> std::sync::Arc<egui::Galley> {
+        // Separate columns leave a measured central lane for orientation labels.
+        // Wrapping preserves every character, including long identifiers.
+        let orientation_width = ["L", "R", "P", "A", "S", "I"]
+            .into_iter()
+            .map(|label| {
+                painter
+                    .layout_no_wrap(
+                        label.to_owned(),
+                        FontId::proportional(ORIENTATION_FONT_SIZE),
+                        ORIENT_LABEL_COLOR,
+                    )
+                    .size()
+                    .x
+            })
+            .fold(0.0_f32, f32::max);
+        let center_lane = orientation_width + 2.0 * (TEXT_PADDING + MARGIN);
+        let column_width = (rect.width() - 2.0 * MARGIN - center_lane) * 0.5;
+        let wrap_width = (column_width - 2.0 * TEXT_PADDING).max(1.0);
+        painter.layout(
+            text.to_owned(),
             FontId::proportional(OVERLAY_FONT_SIZE),
             color,
-        );
+            wrap_width,
+        )
+    }
+
+    fn paint_galley(
+        painter: &Painter,
+        rect: Rect,
+        anchor: Align2,
+        galley: std::sync::Arc<egui::Galley>,
+        color: Color32,
+    ) {
+        let bounds = anchor.anchor_size(Self::anchor_pos(rect, anchor), galley.size());
+        Self::paint_bounds(painter, bounds, galley, color);
+    }
+
+    fn paint_bounds(
+        painter: &Painter,
+        bounds: Rect,
+        galley: std::sync::Arc<egui::Galley>,
+        color: Color32,
+    ) {
+        painter.rect_filled(bounds.expand(TEXT_PADDING), 2.0, Color32::BLACK);
+        painter.galley(bounds.min, galley, color);
     }
 
     /// Compute the screen position for the given anchor within `rect`,
@@ -384,11 +388,11 @@ fn lps_label(v: [f64; 3], positive: bool) -> &'static str {
 /// Format the pointer-position intensity label.
 ///
 /// Returns `"Pointer SUV: {:.2}"` when `pointer_suv` is `Some`,
-/// `"Pointer HU: {:.0}"` when `pointer_intensity != 0.0`, or `""` otherwise.
+/// `"Pointer value: {:.0}"` when `pointer_intensity != 0.0`, or `""` otherwise.
 pub(crate) fn format_pointer_str(pointer_intensity: f32, pointer_suv: Option<f32>) -> String {
     match pointer_suv {
         Some(s) => format!("Pointer SUV: {:.2}", s),
-        None if pointer_intensity != 0.0 => format!("Pointer HU: {:.0}", pointer_intensity),
+        None if pointer_intensity != 0.0 => format!("Pointer value: {:.0}", pointer_intensity),
         _ => String::new(),
     }
 }
@@ -396,11 +400,11 @@ pub(crate) fn format_pointer_str(pointer_intensity: f32, pointer_suv: Option<f32
 /// Format the cursor-position intensity label.
 ///
 /// Returns `"Cursor SUV: {:.2}"` when `cursor_suv` is `Some`,
-/// `"Cursor HU: {:.0}"` when `cursor_value` is `Some`, or `""` otherwise.
+/// `"Cursor value: {:.0}"` when `cursor_value` is `Some`, or `""` otherwise.
 pub(crate) fn format_cursor_str(cursor_value: Option<f32>, cursor_suv: Option<f32>) -> String {
     match (cursor_suv, cursor_value) {
         (Some(s), _) => format!("Cursor SUV: {:.2}", s),
-        (None, Some(v)) => format!("Cursor HU: {:.0}", v),
+        (None, Some(v)) => format!("Cursor value: {:.0}", v),
         _ => String::new(),
     }
 }
