@@ -1,3 +1,8 @@
+## root — [RITK-SNAP-RESOURCES-001](backlog.md#RITK-SNAP-RESOURCES-001)
+
+- [ ] Execute malformed-span/delimiter probes and derive materialization allocation bounds against the locked parser before choosing the budget API.
+- [ ] Implement the parser-boundary increment and its complete caller closure, then verify aggregate study and confined-open increments separately.
+
 ## RITK-MIND-REGISTRATION-2026-09-04
 
 - [ ] Specify descriptor equations, boundary behavior, storage bounds, and API in ADR 0024.

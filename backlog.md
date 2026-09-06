@@ -8,12 +8,12 @@
 
 <a id="RITK-SNAP-RESOURCES-001"></a>
 ## RITK-SNAP-RESOURCES-001 — Confined and bounded study ingestion [arch] [minor]
-- Status: todo; priority: P0; owner: RITK IO; dependencies: RITK-SNAP-OPEN-001; risk: filesystem race and input-driven memory exhaustion.
+- Status: in-progress; integrator: root; branch: codex/ritk-dicom-ingestion-budget; last-update: 2026-09-06; priority: P0; owner: RITK IO; dependencies: RITK-SNAP-OPEN-001; risk: filesystem race and input-driven memory exhaustion.
 - Scope: handle-based file-set access and explicit per-instance/per-study parser and decoded-buffer budgets; preserve validated-byte identity without unbounded retained study storage.
 - Evidence: `reader/dicomdir.rs` canonicalizes references before a later open; `reader/scan/mod.rs` retains whole Part 10 buffers, and the current reader exposes no ingestion resource policy.
 - Acceptance: concurrent reference replacement cannot read outside the selected file-set authority; malformed lengths and over-budget inputs return errors before allocation; bounded peak storage under repeated study replacement.
 - Verification: deterministic filesystem mutation probes, malformed corpus/property tests, allocation instrumentation under fixed study inputs; no security or memory-improvement claim from path checks alone.
-- Decision: use owning RITK/Atlas filesystem and storage capabilities; record the platform contract in ADR 0026 before implementation.
+- Decision: [ADR 0026](docs/adr/0026-viewer-presentation-migration.md#ingestion-resource-contract); source audit identifies lazy-header preflight seams and unresolved allocation envelopes; implement and verify those before any bounded-memory claim.
 
 <a id="RITK-SNAP-DIRECTORY-001"></a>
 ## RITK-SNAP-DIRECTORY-001 — Validate media-directory record semantics [patch]

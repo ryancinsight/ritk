@@ -136,6 +136,31 @@ validated Part 10 bytes prevents scan/decode replacement but does not close the
 earlier canonicalize/open race. These are required follow-on implementations,
 not properties established by acquisition selection.
 
+Design revision 2026-09-06, source audit at RITK `8152f483`: dicom-rs 0.10
+exposes header decoding and `LazyDataSetReader` tokens before value
+materialization, but no parser-budget option. A RITK preflight can reuse these
+decoders, then feed the same validated dataset to `InMemDicomObject::read_dataset`.
+Ordinary datasets remain borrowed; deflated data requires one bounded inflated
+buffer reused by validation and construction. This is a proposed implementation
+route, not an established resource guarantee.
+
+The preflight must validate actual remaining spans before skipping: the locked
+decoder's `skip_bytes` ignores the copied byte count and advances by the declared
+length. Count every header, duplicate tag, item and fragment; enforce nesting,
+matched delimiters and exact completion under the same odd-length policy as
+construction. Required probes include truncated/oversized values and file-meta,
+root item delimiters, defined/undefined sequence boundaries, fragment tables,
+and deflated inputs at each budget boundary. Valid explicit/implicit endian,
+charset and encapsulated-pixel cases must retain their exact admitted values.
+
+An encoded-byte budget does not bound the constructed representation: text
+conversion, value multiplicity and collection capacity can expand allocations.
+The next execution step must derive and instrument those bounds or add budgeted
+allocation support upstream. An unexplained expansion factor, catching parser
+panics, or a successful bounded read cannot establish this guarantee. An explicit
+budget parameter on the existing public backend seam would be a breaking API
+change and must include its complete caller migration and SemVer classification.
+
 ## Alternatives and validation
 
 Retaining egui indefinitely contradicts the requested framework target. Removing
