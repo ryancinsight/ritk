@@ -1,6 +1,6 @@
 <a id="RITK-SNAP-FIXTURES-001"></a>
 ## RITK-SNAP-FIXTURES-001 — Reproducible DICOM opening evidence [patch]
-- Status: todo; priority: P0; owner: RITK viewer/IO; risk: false-green loading tests; driver: [Métis migration](#RITK-SNAP-METIS-001).
+- Status: in-progress; integrator: root; last-update: 2026-09-05; branch: codex/ritk-snap-dicom-workflows; priority: P0; owner: RITK viewer/IO; risk: false-green loading tests; driver: [Métis migration](#RITK-SNAP-METIS-001).
 - Scope: replace absence-success external-fixture branches in SNAP loader tests with tiny deterministic Part 10 studies; optional external datasets remain separately identified experiments.
 - Evidence: `crates/ritk-snap/src/dicom/loader/tests.rs` returns success when `test_data/2_head_mri_t2/DICOM` is missing; inspection at `341228e`, no tests run.
 - Acceptance: normal gate always decodes real bytes and asserts known voxel values, dimensions and physical landmarks; malformed/truncated fixtures fail explicitly. Fixture absence cannot pass a required test.
