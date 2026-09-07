@@ -74,7 +74,7 @@ impl AffineNetworkConfig {
     /// Panics if `channels` does not contain exactly five entries.
     pub fn init<T, B>(&self) -> AffineNetwork<T, B>
     where
-        T: Float + coeus_leto::RandomScalar,
+        T: Float + leto_ops::RealScalar,
         B: BackendOps<T> + CpuBackend + Default,
         B::DeviceBuffer<T>: CpuAddressableStorageMut<T>,
     {
