@@ -40,6 +40,19 @@
 
 # RITK Sprint Checklist — Active
 
+## RITK-SNAP-RESOURCES-001 [arch][minor] — Bound DICOM parser ingress
+
+- [ ] Add a parser-boundary budget using the existing Consus `ParseBudget`;
+      reject malformed spans, element-count/depth overflow, and declared
+      values beyond the byte ceiling before dicom-rs materializes them.
+- [ ] Route the selected-instance and retained-byte scan paths through the
+      budgeted backend entry point; keep exact validated bytes for decoding.
+- [ ] Add deterministic valid, truncation, oversized-length, sequence-depth,
+      and element-count cases with value-semantic error assertions.
+- [ ] Run focused format, warning-denied Clippy, Nextest, Rustdoc, and diff
+      gates against the exact revision; record residual handle and decoded
+      buffer work in the backlog.
+
 ## FIX-DTI-VOLUME-FRAME [major][arch] — Preserve diffusion coordinate frames
 
 - [x] Record the frame contract in ADR 0017 and retain `GradientFrame` in
