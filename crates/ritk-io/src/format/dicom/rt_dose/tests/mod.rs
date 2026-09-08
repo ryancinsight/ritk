@@ -123,7 +123,6 @@ fn build_rt_dose_obj(
 #[test]
 fn test_read_rt_dose_missing_file_returns_error() {
     let result = read_rt_dose("/nonexistent/path.dcm");
-    assert!(result.is_err(), "nonexistent path must return Err");
     let msg = result.unwrap_err().to_string();
     assert!(
         msg.contains("nonexistent") || msg.contains("open"),
@@ -142,7 +141,6 @@ fn test_read_rt_dose_wrong_sop_class_returns_error() {
     write_wrong_sop_file("1.2.840.10008.5.1.4.1.1.2", &path);
 
     let result = read_rt_dose(&path);
-    assert!(result.is_err(), "wrong SOP class must return Err");
     let msg = result.unwrap_err().to_string();
     assert!(
         msg.contains("1.2.840.10008.5.1.4.1.1.2"),
@@ -210,7 +208,6 @@ fn test_read_rt_dose_rejects_invalid_frame_offset() {
     write_rt_dose_file(obj, &path);
 
     let result = read_rt_dose(&path);
-    assert!(result.is_err(), "invalid frame offset must fail");
     let msg = format!("{:#}", result.unwrap_err());
     assert!(
         msg.contains("GridFrameOffsetVector") && msg.contains("not-a-number"),
@@ -233,7 +230,6 @@ fn test_read_rt_dose_rejects_frame_offset_count_mismatch() {
     write_rt_dose_file(obj, &path);
 
     let result = read_rt_dose(&path);
-    assert!(result.is_err(), "frame-offset count mismatch must fail");
     let msg = format!("{:#}", result.unwrap_err());
     assert!(
         msg.contains("GridFrameOffsetVector") && msg.contains("exactly 2"),
@@ -262,7 +258,6 @@ fn test_read_rt_dose_rejects_extra_pixel_bytes() {
     write_rt_dose_file(obj, &path);
 
     let result = read_rt_dose(&path);
-    assert!(result.is_err(), "extra PixelData bytes must fail");
     let msg = result.unwrap_err().to_string();
     assert!(
         msg.contains("PixelData length mismatch") && msg.contains("expected 16"),
@@ -292,7 +287,6 @@ fn test_write_rt_dose_rejects_mismatched_voxel_count() {
         referenced_rt_plan_sop_instance_uid: None,
     };
     let result = write_rt_dose(&path, &grid);
-    assert!(result.is_err(), "mismatched voxel count must return Err");
     let msg = result.unwrap_err().to_string();
     assert!(
         msg.contains("dose_gy") || msg.contains("voxel") || msg.contains('5') || msg.contains('4'),

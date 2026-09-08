@@ -175,7 +175,15 @@ mod tests {
         let handle = std::fs::File::open(&path).unwrap();
         let handle_metadata = handle.metadata().unwrap();
 
-        std::fs::write(&path, [1_u8, 2_u8]).unwrap();
+        // Replace the path, rather than rewriting the file behind it. Writing
+        // to an existing path truncates in place and keeps the same inode, so
+        // on Unix -- where identity is `(dev, ino)` -- the guard would
+        // correctly report the *same* file and this test would fail. Renaming
+        // a sibling over the path is both the real substitution and the
+        // TOCTOU sequence the guard exists to catch.
+        let replacement = directory.path().join("other.dcm");
+        std::fs::write(&replacement, [1_u8, 2_u8]).unwrap();
+        std::fs::rename(&replacement, &path).unwrap();
         let path_metadata = std::fs::metadata(&path).unwrap();
 
         assert!(
