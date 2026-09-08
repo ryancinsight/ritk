@@ -3,6 +3,12 @@ mod codec;
 mod color;
 mod color_common;
 mod color_multiframe;
+/// Conformant Part 10 file-set index construction for consumers' tests.
+///
+/// Always available to this crate's own tests; consumers opt in through
+/// `test-util` so nothing enters a default build.
+#[cfg(any(test, feature = "test-util"))]
+pub mod file_set_index_fixture;
 mod identity;
 mod multiframe;
 pub mod networking;
