@@ -11,7 +11,8 @@
 - Status: in-progress; priority: P0; owner: RITK IO; integrator: root; last-update: 2026-09-08; branch: `feat/ritk-dicom-parse-budget`; dependencies: RITK-SNAP-OPEN-001; risk: filesystem race and input-driven memory exhaustion.
 - Lease: root — `crates/ritk-dicom/src/backend/`, `crates/ritk-io/src/format/dicom/reader/`, tests and this item — 2026-09-08.
 - Scope: handle-based file-set access and explicit per-instance/per-study parser and decoded-buffer budgets; preserve validated-byte identity without unbounded retained study storage.
-- Evidence: `reader/dicomdir.rs` canonicalizes references before a later open; `reader/scan/mod.rs` retains whole Part 10 buffers, and the current reader exposes no ingestion resource policy.
+- Evidence: parser preflight now uses Consus `ParseBudget` for selected, exact-member, SCP, and named-byte scans; `reader/dicomdir.rs` still canonicalizes references before a later open, and `reader/scan/mod.rs` retains whole Part 10 buffers.
+- Current increment: `ritk-dicom` validates Part 10 spans, sequence/item structure, compressed pixel fragments, element count, and nesting before dicom-rs materialization; focused package gates pass. Residuals are handle confinement, cumulative retained-study accounting, and decoded-volume allocation.
 - Acceptance: concurrent reference replacement cannot read outside the selected file-set authority; malformed lengths and over-budget inputs return errors before allocation; bounded peak storage under repeated study replacement.
 - Verification: deterministic filesystem mutation probes, malformed corpus/property tests, allocation instrumentation under fixed study inputs; no security or memory-improvement claim from path checks alone.
 - Decision: use owning RITK/Atlas filesystem and storage capabilities; record the platform contract in ADR 0026 before implementation.

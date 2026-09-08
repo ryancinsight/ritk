@@ -106,6 +106,24 @@ validating their linked tree and referenced SOP identities remain in the
 The IO tests separately load a complete synthetic linked PATIENT/STUDY/SERIES/IMAGE
 index and compare its exact pixel values and geometry with explicit member loading.
 
+## Resource-bounded DICOM ingress
+
+The RITK DICOM boundary runs a structural Part 10 preflight before dicom-rs
+materializes an object. `ritk_dicom::ParseBudget` limits the encoded byte span,
+structural element count, and sequence nesting depth. The scanner checks
+declared value spans, sequence and item delimiters, implicit sequence tags, and
+encapsulated pixel fragments without copying their values. The reader exposes
+matching `scan_dicom_*_with_budget` entry points; the default scan functions use
+the shared default budget.
+
+The preflight accepts implicit little-endian, explicit little-endian, and
+explicit big-endian datasets, plus the encapsulated pixel syntaxes used by the
+native RITK codecs. Deflated dataset input is rejected with an explicit error
+because the locked dicom-rs registry does not provide a bounded deflate decoder.
+This slice bounds malformed encoded input before object construction; the
+remaining handle-confinement, retained-study, and decoded-volume budgets stay
+tracked in [RITK-SNAP-RESOURCES-001](../../backlog.md#RITK-SNAP-RESOURCES-001).
+
 ## Capture the native application
 
 Build the binary alongside the example and run:

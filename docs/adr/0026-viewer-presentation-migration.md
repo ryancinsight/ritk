@@ -6,6 +6,17 @@ Date: 2026-09-06
 
 Driver: [RITK-SNAP-METIS-001](../../backlog.md#RITK-SNAP-METIS-001).
 
+Revision 2026-09-08: [RITK-SNAP-RESOURCES-001](../../backlog.md#RITK-SNAP-RESOURCES-001)
+now has a `ritk-dicom` structural Part 10 preflight backed by the existing
+Consus `ParseBudget`. All selected, exact-member, SCP, and named-byte scan
+entry points route through it before dicom-rs object construction. The tested
+syntax set includes implicit little-endian, explicit little-endian, explicit
+big-endian, and encapsulated pixel data. Deflated datasets remain an explicit
+unsupported case because the locked dicom-rs registry has no bounded deflate
+decoder. This revision closes the parser-preflight portion only; filesystem
+handle confinement, retained-study accounting, and decoded-volume budgets
+remain open on the same item.
+
 Revision 2026-09-06: [RITK-SNAP-OPEN-001](../../backlog.md#RITK-SNAP-OPEN-001)
 requires explicit acquisition selection. Inspection of `d3cbd8eb` finds that
 the sidebar discards discovered file membership, the reader selects a majority

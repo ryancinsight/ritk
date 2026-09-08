@@ -41,6 +41,13 @@ batches use the same single-series contract. Scanned slices retain the bytes
 whose identity and metadata were validated. Pixel decoding consumes those
 bytes, so replacing a path after scanning cannot substitute another image.
 
+Every DICOM scan entry point has a `*_with_budget` form accepting the Atlas
+`ritk_dicom::ParseBudget`. The default forms use the shared default budget;
+explicit forms let a host choose smaller byte, structural-element, or nesting
+ceilings for untrusted drops and PACS batches. Structural validation runs before
+dicom-rs object materialization. Study-retained bytes and decoded volume
+allocation remain separate resource contracts owned by the reader and loader.
+
 An existing DICOMDIR is authoritative. Invalid or missing references fail
 instead of falling back to unrelated folder contents. Reference checks reject
 absolute paths, traversal, and canonical paths outside the file-set root.
