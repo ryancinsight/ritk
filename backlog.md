@@ -11,7 +11,7 @@
 - Status: in-progress; priority: P0; owner: RITK IO; integrator: root; last-update: 2026-09-08; branch: `feat/ritk-dicom-parse-budget`; dependencies: RITK-SNAP-OPEN-001; risk: filesystem race and input-driven memory exhaustion.
 - Scope: handle-based file-set access and explicit per-instance/per-study parser and decoded-buffer budgets; preserve validated-byte identity without unbounded retained study storage.
 - Evidence: parser preflight now uses Consus `ParseBudget` for selected, exact-member, SCP, named-byte, and DICOMDIR-index reads; budgeted reads compare the opened handle with resolved path metadata, and scanned slices retain validated bytes.
-- Current increment: `DicomReadBudget` separates parser, retained-study, and decoded-workspace ceilings. Retained bytes are charged before each slice is stored, and the loader rejects the planned peak frame/resample/volume workspace before allocation. Final-component no-follow opens now reject Unix symlinks and Windows reparse points; parent-directory confinement and complete media-directory record validation remain open.
+- Current increment: `DicomReadBudget` separates parser, retained-study, and decoded-workspace ceilings. Retained bytes are charged before each slice is stored, and the loader rejects the planned peak frame/resample/volume workspace before allocation. Final-component no-follow opens reject Unix symlinks and Windows reparse points; parent-directory confinement remains open, while DICOMDIR record semantics are delivered by RITK-SNAP-DIRECTORY-001.
 - Acceptance: concurrent reference replacement cannot read outside the selected file-set authority; malformed lengths and over-budget inputs return errors before allocation; bounded peak storage under repeated study replacement.
 - Verification: deterministic replacement-identity and validated-byte probes, DICOMDIR-budget and malformed corpus tests, retained-byte and peak-workspace rejection tests, Linux-target compilation, and native warning-denied Clippy/Nextest; final-component no-follow is covered by platform-specific open flags, while parent-directory confinement remains unverified.
 - Decision: use owning RITK/Atlas filesystem and storage capabilities; record the platform contract in ADR 0026 before implementation.
@@ -19,11 +19,11 @@
 <a id="RITK-SNAP-DIRECTORY-001"></a>
 ## RITK-SNAP-DIRECTORY-001 — Validate media-directory record semantics [patch]
 - Status: in-progress; priority: P0; owner: RITK IO; integrator: root; last-update: 2026-09-08; branch: `feat/ritk-dicom-parse-budget`; dependencies: RITK-SNAP-OPEN-001; risk: inactive or unreachable records alter the selected file set.
-- Lease: root — `crates/ritk-io/src/format/dicom/reader/dicomdir.rs`, selection fixtures/tests, and this item — 2026-09-08.
 - Scope: enforce admitted DICOMDIR record activity, linked-record offsets and referenced SOP/transfer-syntax agreement; retain authoritative membership and explicit errors.
-- Evidence: `reader/dicomdir.rs` iterates IMAGE items without following offsets or checking RecordInUseFlag; successful linked fixtures establish their loaded values, not complete index validation.
+- Evidence: `reader/dicomdir.rs` parses the Explicit VR Little Endian record sequence through bounded byte offsets, validates RecordInUseFlag, links, root-chain termination, and active reachability, then compares each admitted IMAGE record's SOP class, SOP instance, and transfer syntax with the referenced Part 10 file.
+- Current increment: `reader/dicomdir_bytes.rs` isolates the bounded record-sequence scanner; active IMAGE membership preserves lexical paths for final-component no-follow opens. Focused selection tests cover inactive records, unreachable records, cycles, out-of-sequence links, identity mismatch, and final symlinks on Unix.
 - Acceptance: inactive/deleted and unreachable records do not add files; malformed links fail without loops or unbounded traversal; active references agree with actual instance identities.
-- Verification: PS3.3 F.3.2.2 record-tree fixtures, deleted records, cycles, invalid offsets and mismatched referenced identities; compare expected active member paths and decoded voxels.
+- Verification: synthetic PS3.3 F.3.2.2 record-tree fixtures, deleted records, cycles, invalid offsets, final symlinks, and mismatched referenced identities; 16 focused selection tests and warning-denied Clippy pass, with the full `ritk-io` package gate required before closure.
 
 <a id="RITK-SNAP-ASPECT-001"></a>
 ## RITK-SNAP-ASPECT-001 — Preserve physical image aspect ratios [patch]

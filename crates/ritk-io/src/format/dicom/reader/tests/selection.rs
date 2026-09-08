@@ -6,7 +6,9 @@ use super::super::scan::{
 };
 use super::super::types::DicomReadBudget;
 mod fixtures;
-use fixtures::{index, instance, OTHER, SERIES};
+use fixtures::{
+    index, instance, set_record_in_use, set_record_next, set_record_sop_instance, OTHER, SERIES,
+};
 use ritk_dicom::ParseBudget;
 
 #[test]
@@ -261,6 +263,19 @@ fn index_rejects_symlink_outside_root() {
     assert!(error.to_string().contains("escapes"));
 }
 
+#[cfg(unix)]
+#[test]
+fn index_rejects_final_symlink_inside_root() {
+    let directory = fixtures::indexed_study();
+    let target = directory.path().join("IMAGES").join("ONE");
+    std::os::unix::fs::symlink(&target, directory.path().join("LINK")).expect("symlink");
+    let selected = directory.path().join("DICOMDIR");
+    index(&selected, &["LINK"]);
+
+    let error = scan_dicom_path(selected).expect_err("final symlink");
+    assert!(format!("{error:#}").contains("DICOMDIR referenced file"));
+}
+
 #[test]
 fn indexed_folder_loads_complete_known_series() {
     let directory = fixtures::indexed_study();
@@ -276,6 +291,91 @@ fn indexed_folder_loads_complete_known_series() {
         image.data_cow_on(&backend).as_ref(),
         &[11.0, 11.0, 11.0, 11.0, 13.0, 13.0, 13.0, 13.0, 17.0, 17.0, 17.0, 17.0]
     );
+}
+
+#[test]
+fn inactive_image_records_are_excluded_from_authoritative_membership() {
+    let directory = fixtures::indexed_study();
+    let index = directory.path().join("DICOMDIR");
+    set_record_in_use(&index, 3, 0);
+
+    let series = scan_dicom_path(&index).expect("active image records");
+    assert_eq!(series.num_slices, 2);
+    assert_eq!(
+        series
+            .metadata
+            .slices
+            .iter()
+            .filter_map(|slice| slice.instance_number)
+            .collect::<Vec<_>>(),
+        vec![2, 3]
+    );
+}
+
+#[test]
+fn unreachable_image_records_do_not_enter_authoritative_membership() {
+    let directory = fixtures::indexed_study();
+    let index = directory.path().join("DICOMDIR");
+    let bytes = std::fs::read(&index).expect("read linked index");
+    let item_offsets: Vec<_> = bytes
+        .windows(4)
+        .enumerate()
+        .filter(|(_, tag)| *tag == [0xfe, 0xff, 0x00, 0xe0])
+        .map(|(offset, _)| u32::try_from(offset).expect("fixture offset"))
+        .collect();
+    assert_eq!(item_offsets.len(), 6);
+    set_record_next(&index, 4, 0);
+    set_record_next(&index, 3, item_offsets[5]);
+
+    let series = scan_dicom_path(&index).expect("reachable image records");
+    assert_eq!(series.num_slices, 2);
+    assert_eq!(
+        series
+            .metadata
+            .slices
+            .iter()
+            .filter_map(|slice| slice.instance_number)
+            .collect::<Vec<_>>(),
+        vec![1, 3]
+    );
+}
+
+#[test]
+fn directory_record_cycles_are_rejected_before_membership() {
+    let directory = fixtures::indexed_study();
+    let index = directory.path().join("DICOMDIR");
+    let bytes = std::fs::read(&index).expect("read linked index");
+    let item_offsets: Vec<_> = bytes
+        .windows(4)
+        .enumerate()
+        .filter(|(_, tag)| *tag == [0xfe, 0xff, 0x00, 0xe0])
+        .map(|(offset, _)| u32::try_from(offset).expect("fixture offset"))
+        .collect();
+    set_record_next(&index, 5, item_offsets[3]);
+
+    let error = scan_dicom_path(&index).expect_err("record cycle");
+    let message = format!("{error:#}");
+    assert!(message.contains("cycle") || message.contains("multiple incoming"));
+}
+
+#[test]
+fn directory_record_offsets_must_stay_inside_the_sequence() {
+    let directory = fixtures::indexed_study();
+    let index = directory.path().join("DICOMDIR");
+    set_record_next(&index, 3, u32::MAX - 1);
+
+    let error = scan_dicom_path(index).expect_err("out-of-sequence directory link");
+    assert!(format!("{error:#}").contains("outside DirectoryRecordSequence"));
+}
+
+#[test]
+fn directory_record_identity_mismatch_is_rejected() {
+    let directory = fixtures::indexed_study();
+    let index = directory.path().join("DICOMDIR");
+    set_record_sop_instance(&index, 3, "2.25.74001.2");
+
+    let error = scan_dicom_path(&index).expect_err("mismatched SOP instance");
+    assert!(format!("{error:#}").contains("ReferencedSOPInstanceUID"));
 }
 
 #[test]

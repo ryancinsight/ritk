@@ -16,6 +16,7 @@
 
 pub(super) mod detection;
 pub(super) mod dicomdir;
+mod dicomdir_bytes;
 pub(super) mod geometry;
 pub(super) mod loader;
 mod parse;
