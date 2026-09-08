@@ -12,6 +12,11 @@ publish = true
 edition = "2021"
 license.workspace = true
 
+[features]
+# Exposes `format::dicom::file_set_index_fixture` so consumers can build a
+# DICOMDIR the reader accepts instead of hand-rolling one.
+test-util = []
+
 [dependencies]
 coeus-core = { workspace = true }
 coeus-tensor = { workspace = true }
