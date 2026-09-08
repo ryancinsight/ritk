@@ -1,5 +1,6 @@
 #![expect(clippy::unwrap_used, reason = "ratchet RITK-UNWRAP-1")]
 use super::*;
+use ritk_core::rejection::assert_rejects;
 
 #[test]
 fn test_read_invalid_version() {
@@ -19,7 +20,6 @@ fn test_read_invalid_version() {
     std::fs::write(&path, &mgh).unwrap();
 
     let result = read_mgh::<TestBackend, _>(&path, &backend);
-    assert!(result.is_err(), "Reading invalid version must fail");
     let msg = format!("{:#}", result.unwrap_err());
     assert!(
         msg.contains("version"),
@@ -45,7 +45,6 @@ fn test_read_unsupported_type_code() {
     std::fs::write(&path, &mgh).unwrap();
 
     let result = read_mgh::<TestBackend, _>(&path, &backend);
-    assert!(result.is_err(), "Unsupported type code must fail");
     let msg = format!("{:#}", result.unwrap_err());
     assert!(
         msg.contains("data type"),
@@ -68,7 +67,7 @@ fn test_read_truncated_file() {
     std::fs::write(&path, &buf).unwrap();
 
     let result = read_mgh::<TestBackend, _>(&path, &backend);
-    assert!(result.is_err(), "Truncated file must fail");
+    assert_rejects(result, "Failed to parse MGH file");
 }
 
 #[test]
@@ -159,5 +158,5 @@ fn test_read_hostile_dims_does_not_oom() {
     std::fs::write(&path, &mgh).unwrap();
 
     let result = read_mgh::<TestBackend, _>(&path, &backend);
-    assert!(result.is_err(), "Hostile dimensions must fail, not OOM");
+    assert_rejects(result, "Failed to parse MGH file");
 }

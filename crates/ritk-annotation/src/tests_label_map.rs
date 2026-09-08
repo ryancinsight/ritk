@@ -1,4 +1,3 @@
-#![expect(clippy::unwrap_used, reason = "ratchet RITK-UNWRAP-1")]
 use super::*;
 
 fn empty_table() -> LabelTable {
@@ -36,8 +35,7 @@ fn test_label_map_from_data_valid() {
 fn test_label_map_from_data_wrong_len() {
     let data = vec![0u32; 10];
     let result = LabelMap::from_data([3, 4, 5], data, empty_table());
-    assert!(result.is_err());
-    let msg = result.unwrap_err();
+    let msg = result.expect_err("the call must be rejected");
     assert!(msg.contains("10") && msg.contains("60"), "{}", msg);
 }
 

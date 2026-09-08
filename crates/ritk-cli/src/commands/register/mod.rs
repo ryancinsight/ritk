@@ -332,6 +332,7 @@ mod tests {
     #![expect(clippy::unwrap_used, reason = "ratchet RITK-UNWRAP-1")]
     use super::*;
     use ritk_core::image::Image;
+    use ritk_core::rejection::assert_rejects;
     use ritk_image::tensor::Tensor;
     use ritk_registration::demons::DemonsVariant;
     use ritk_spatial::{Direction, Point, Spacing};
@@ -393,6 +394,6 @@ mod tests {
             convergence_threshold: 1e-5,
         });
 
-        assert!(result.is_err(), "missing fixed image must yield an error");
+        assert_rejects(result, "Failed to read NIfTI file");
     }
 }

@@ -165,9 +165,8 @@ fn test_screen_to_img_out_of_bounds() {
 #[test]
 fn test_screen_to_img_in_bounds() {
     let offset = Vec2::new(0.0, 0.0);
-    let result = screen_to_img(pos2(7.9, 5.0), offset, 2.0, 10, 10);
-    assert!(result.is_some(), "position must be in bounds");
-    let (col, row) = result.expect("infallible: validated precondition");
+    let (col, row) =
+        screen_to_img(pos2(7.9, 5.0), offset, 2.0, 10, 10).expect("position must be in bounds");
     assert_eq!(col, 3, "col must be floor(7.9 / 2.0) = 3");
     assert_eq!(row, 2, "row must be floor(5.0 / 2.0) = 2");
 }

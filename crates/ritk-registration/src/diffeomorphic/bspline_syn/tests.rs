@@ -333,7 +333,6 @@ fn mismatched_fixed_length_returns_error() {
     let cfg = make_default_config();
     let reg = BSplineSyNRegistration::new(cfg);
     let err = reg.register(&fixed, &moving, dims, [1.0, 1.0, 1.0]);
-    assert!(err.is_err(), "should error for mismatched fixed length");
     let msg = format!("{}", err.unwrap_err());
     assert!(
         msg.contains("fixed length"),
@@ -350,7 +349,6 @@ fn mismatched_moving_length_returns_error() {
     let cfg = make_default_config();
     let reg = BSplineSyNRegistration::new(cfg);
     let err = reg.register(&fixed, &moving, dims, [1.0, 1.0, 1.0]);
-    assert!(err.is_err(), "should error for mismatched moving length");
     let msg = format!("{}", err.unwrap_err());
     assert!(
         msg.contains("moving length"),
@@ -367,7 +365,6 @@ fn zero_control_spacing_returns_error() {
     cfg.control_spacing = [0, 3, 3];
     let reg = BSplineSyNRegistration::new(cfg);
     let err = reg.register(&image, &image, dims, [1.0, 1.0, 1.0]);
-    assert!(err.is_err(), "should error for zero control spacing");
     let msg = format!("{}", err.unwrap_err());
     assert!(
         msg.contains("control_spacing"),

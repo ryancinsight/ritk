@@ -1,4 +1,3 @@
-#![expect(clippy::unwrap_used, reason = "ratchet RITK-UNWRAP-1")]
 use super::*;
 use coeus_core::SequentialBackend;
 use ritk_core::spatial::{Point, Spacing};
@@ -352,8 +351,9 @@ fn test_shape_mismatch_returns_error() {
 
     let gac = GeodesicActiveContourSegmentation::new();
     let result = gac.apply(&image, &phi_image);
-    assert!(result.is_err(), "shape mismatch must produce an error");
-    let err_msg = result.unwrap_err().to_string();
+    let err_msg = result
+        .expect_err("shape mismatch must produce an error")
+        .to_string();
     assert!(
         err_msg.contains("must match"),
         "error message must mention shape mismatch, got: {}",

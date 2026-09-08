@@ -72,14 +72,11 @@ impl<T: PartialOrd + Copy + std::fmt::Display> std::fmt::Display for IntensityRa
 
 #[cfg(test)]
 mod tests {
-    #![expect(clippy::unwrap_used, reason = "ratchet RITK-UNWRAP-1")]
     use super::*;
 
     #[test]
     fn test_new_valid_range_returns_some() {
-        let r = IntensityRange::new(0.0_f32, 1.0);
-        assert!(r.is_some(), "valid range must return Some");
-        let r = r.unwrap();
+        let r = IntensityRange::new(0.0_f32, 1.0).expect("valid range must return Some");
         assert_eq!(r.min(), 0.0);
         assert_eq!(r.max(), 1.0);
     }

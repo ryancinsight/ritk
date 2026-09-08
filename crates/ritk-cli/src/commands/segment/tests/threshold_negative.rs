@@ -73,8 +73,9 @@ fn test_segment_multi_otsu_classes_lt_2_returns_error() {
         multiplier: 2.5,
         ..Default::default()
     });
-    assert!(result.is_err(), "classes < 2 must yield an error");
-    let msg = result.unwrap_err().to_string();
+    let msg = result
+        .expect_err("classes < 2 must yield an error")
+        .to_string();
     assert!(
         msg.contains(">= 2"),
         "error must state the minimum class count, got: {msg}"

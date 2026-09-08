@@ -1,6 +1,7 @@
 #![expect(clippy::unwrap_used, reason = "ratchet RITK-UNWRAP-1")]
 use anyhow::Result;
 use coeus_core::SequentialBackend;
+use ritk_core::rejection::assert_rejects;
 use ritk_spatial::{Direction, Point, Spacing};
 use tempfile::tempdir;
 
@@ -98,9 +99,9 @@ fn test_compressed_hostile_dimsize_errors_without_oom() {
 
     let backend = SequentialBackend;
     let result = crate::read_metaimage(&path, &backend);
-    assert!(
-        result.is_err(),
-        "Hostile compressed DimSize must fail, not OOM"
+    assert_rejects(
+        result,
+        "MetaImage payload length mismatch: expected 4294967296",
     );
 }
 
@@ -313,7 +314,6 @@ fn test_unsupported_element_type_returns_error() -> Result<()> {
     }
     let backend = SequentialBackend;
     let result = crate::read_metaimage(&path, &backend);
-    assert!(result.is_err(), "Expected Err for unsupported ElementType");
     let msg = format!("{:?}", result.unwrap_err());
     assert!(
         msg.contains("MET_LONG"),
@@ -349,8 +349,9 @@ fn test_extra_payload_bytes_return_error() -> Result<()> {
 
     let backend = SequentialBackend;
     let result = crate::read_metaimage(&path, &backend);
-    assert!(result.is_err(), "extra payload bytes must fail");
-    let msg = result.unwrap_err().to_string();
+    let msg = result
+        .expect_err("extra payload bytes must fail")
+        .to_string();
     assert!(
         msg.contains("payload length mismatch") && msg.contains("expected") && msg.contains("16"),
         "error must name the exact payload length violation; got: {msg}"
@@ -382,8 +383,9 @@ fn test_dim_size_overflow_returns_error() -> Result<()> {
 
     let backend = SequentialBackend;
     let result = crate::read_metaimage(&path, &backend);
-    assert!(result.is_err(), "overflowing DimSize must fail");
-    let msg = result.unwrap_err().to_string();
+    let msg = result
+        .expect_err("overflowing DimSize must fail")
+        .to_string();
     assert!(
         msg.contains("voxel count overflow") && msg.contains("DimSize"),
         "error must name the DimSize overflow; got: {msg}"

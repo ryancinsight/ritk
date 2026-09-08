@@ -366,7 +366,6 @@ fn dicom_rs_backend_parse_bytes_round_trips_in_memory_object() {
 #[test]
 fn dicom_rs_backend_parse_bytes_rejects_garbage_input() {
     let result = parse_bytes_with::<DicomRsBackend>(&[0xDE, 0xAD, 0xBE, 0xEF]);
-    assert!(result.is_err(), "parse_bytes must reject non-DICOM bytes");
     let msg = format!("{:#}", result.unwrap_err());
     assert!(
         msg.to_lowercase().contains("dicom")

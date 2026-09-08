@@ -24,6 +24,8 @@ serde_json = { workspace = true }
 gaia = { workspace = true }
 
 [dev-dependencies]
+# Rejection assertions shared across the workspace's test modules.
+ritk-core = { path = "../ritk-core", features = ["test-helpers"] }
 tempfile = { workspace = true }
 criterion = { workspace = true }
 

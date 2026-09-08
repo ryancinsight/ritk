@@ -1,4 +1,3 @@
-#![expect(clippy::unwrap_used, reason = "ratchet RITK-UNWRAP-1")]
 use super::*;
 
 // Test 1a – correct length ok
@@ -35,8 +34,7 @@ fn test_contour_overlay_add_contour_valid() {
 fn test_contour_overlay_add_contour_single_point_returns_err() {
     let mut c = ContourOverlay::new("c", 1);
     let r = c.add_contour(vec![[0.0f64, 0.0, 0.0]]);
-    assert!(r.is_err());
-    let msg = r.unwrap_err();
+    let msg = r.expect_err("the call must be rejected");
     assert!(msg.contains("got 1"), "msg: {}", msg);
 }
 

@@ -1,4 +1,3 @@
-#![expect(clippy::unwrap_used, reason = "ratchet RITK-UNWRAP-1")]
 use super::*;
 use crate::domain::vtk_data_object::{VtkDataObject, VtkPolyData};
 
@@ -103,8 +102,9 @@ fn wrong_input_type_returns_err() {
     use crate::domain::vtk_data_object::VtkImageData;
     let f = ComputeNormalsFilter;
     let result = f.execute(VtkDataObject::ImageData(VtkImageData::default()));
-    assert!(result.is_err(), "non-PolyData input must return Err");
-    let msg = result.unwrap_err().to_string();
+    let msg = result
+        .expect_err("non-PolyData input must return Err")
+        .to_string();
     assert!(msg.contains("ImageData"), "error must name the actual type");
 }
 

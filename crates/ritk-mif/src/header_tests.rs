@@ -1,6 +1,7 @@
 //! Tests for the `.mif` header parser.
 #![expect(clippy::unwrap_used, reason = "ratchet RITK-UNWRAP-1")]
 
+use ritk_core::rejection::assert_rejects;
 use std::io::Cursor;
 
 use super::*;
@@ -106,7 +107,6 @@ fn eof_before_end_is_error() {
     let input = "mrtrix image: version 3.0\ndim: 10 10 10\n";
     let mut reader = Cursor::new(input.as_bytes());
     let result = parse_mif_header(&mut reader);
-    assert!(result.is_err());
     assert!(result
         .unwrap_err()
         .to_string()
@@ -128,7 +128,10 @@ fn parse_dim() {
 #[test]
 fn parse_dim_too_few_components() {
     let result = super::parse_dim("128 128", 3);
-    assert!(result.is_err());
+    assert_rejects(
+        result,
+        "dim: expected at least 3 values, got 2 ([128, 128])",
+    );
 }
 
 #[test]

@@ -1,4 +1,3 @@
-#![expect(clippy::unwrap_used, reason = "ratchet RITK-UNWRAP-1")]
 use super::super::read_dicom_seg;
 use super::fixtures::{build_seg_obj, make_per_frame_item, make_segment_item, write_seg_file};
 use dicom::core::header::Length;

@@ -258,8 +258,7 @@ mod tests {
             interpolation: InterpolationMode::Linear,
         };
         let result = run(args);
-        assert!(result.is_err());
-        let msg = result.unwrap_err().to_string();
+        let msg = result.expect_err("the call must be rejected").to_string();
         assert!(msg.contains("3"), "error must mention 3 values: {msg}");
     }
 }

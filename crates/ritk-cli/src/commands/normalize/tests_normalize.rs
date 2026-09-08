@@ -1,5 +1,4 @@
 //! Tests for the `normalize` command.
-#![expect(clippy::unwrap_used, reason = "ratchet RITK-UNWRAP-1")]
 use super::*;
 use crate::commands::Backend;
 use ritk_image::Image;
@@ -115,8 +114,7 @@ fn test_normalize_histogram_match_without_reference_returns_error() {
     write_ramp_image(&input);
     let args = default_args(NormalizeMethod::HistogramMatch, input, output);
     let result = run(args);
-    assert!(result.is_err());
-    let msg = result.unwrap_err().to_string();
+    let msg = result.expect_err("the call must be rejected").to_string();
     assert!(
         msg.contains("reference"),
         "error must mention 'reference', got: {msg}"

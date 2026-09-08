@@ -22,6 +22,8 @@ bytemuck = { workspace = true }
 flate2 = { workspace = true }
 
 [dev-dependencies]
+# Rejection assertions shared across the workspace's test modules.
+ritk-core = { path = "../ritk-core", features = ["test-helpers"] }
 tempfile = { workspace = true }
 
 [lints]

@@ -1,5 +1,3 @@
-#![expect(clippy::unwrap_used, reason = "ratchet RITK-UNWRAP-1")]
-
 use super::*;
 use crate::domain::vtk_data_object::{AttributeArray, VtkStructuredGrid};
 use tempfile::NamedTempFile;
@@ -72,11 +70,9 @@ fn test_structured_grid_validate_rejects_wrong_point_count() {
     grid.points = vec![[0.0f32; 3]; 5];
     let tmp = NamedTempFile::new().expect("temp file");
     let result = write_vtk_structured_grid(tmp.path(), &grid);
-    assert!(
-        result.is_err(),
-        "write must fail when point count mismatches dimensions"
-    );
-    let msg = result.unwrap_err().to_string();
+    let msg = result
+        .expect_err("write must fail when point count mismatches dimensions")
+        .to_string();
     assert!(
         msg.contains("n_points") || msg.contains("points"),
         "error message must reference point count: got {}",

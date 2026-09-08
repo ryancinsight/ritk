@@ -1,4 +1,5 @@
 use super::*;
+use ritk_core::rejection::assert_rejects;
 use tempfile::tempdir;
 
 // ── Boundary: missing input file returns error ────────────────────────────
@@ -9,5 +10,5 @@ fn test_filter_missing_input_returns_error() {
     let output = dir.path().join("out.nii");
 
     let result = run(default_args(input, output, FilterKind::Gaussian));
-    assert!(result.is_err(), "missing input must yield an error");
+    assert_rejects(result, "Failed to read NIfTI file");
 }

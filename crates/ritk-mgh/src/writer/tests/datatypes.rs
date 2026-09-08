@@ -110,7 +110,6 @@ fn test_invalid_version_rejected() {
     std::fs::write(&path, &mgh).unwrap();
 
     let result = crate::read_mgh::<TestBackend, _>(&path, &backend);
-    assert!(result.is_err(), "Reading invalid version must fail");
     let msg = format!("{:#}", result.unwrap_err());
     assert!(
         msg.contains("version"),

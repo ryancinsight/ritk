@@ -150,6 +150,7 @@ pub fn run(args: ConvertArgs) -> Result<()> {
 mod tests {
     #![expect(clippy::unwrap_used, reason = "ratchet RITK-UNWRAP-1")]
     use super::*;
+    use ritk_core::rejection::assert_rejects;
     use ritk_image::Image;
     use ritk_spatial::{Direction, Point, Spacing};
     use tempfile::tempdir;
@@ -295,11 +296,9 @@ mod tests {
             output,
             format: None,
         });
-        assert!(
-            result.is_err(),
-            "unknown output extension must yield an error"
-        );
-        let msg = result.unwrap_err().to_string();
+        let msg = result
+            .expect_err("unknown output extension must yield an error")
+            .to_string();
         assert!(
             msg.contains("Cannot infer output format"),
             "error must explain the problem, got: {msg}"
@@ -320,7 +319,7 @@ mod tests {
             output,
             format: None,
         });
-        assert!(result.is_err(), "missing input must yield an error");
+        assert_rejects(result, "Failed to read NIfTI file");
     }
 
     // ── Boundary: MetaImage round-trip ────────────────────────────────────────

@@ -506,8 +506,12 @@ mod tests {
         assert_eq!(frame.sof.components.len(), 1);
         assert_eq!(frame.sos.ss, 1); // predictor Ra
         assert_eq!(frame.sos.al, 0); // no point transform
-                                     // DC table 0 must be present, AC table not needed for lossless
-        assert!(frame.dc_huff[0].is_some());
+                                     // Lossless needs DC table 0 and no AC table: asserting only that a DC
+                                     // table exists would also hold for a baseline parse of this fixture.
+        frame.dc_huff[0]
+            .as_ref()
+            .expect("lossless SOF3 needs DC table 0");
+        assert!(frame.ac_huff.iter().all(Option::is_none));
     }
 
     /// The lossless 16-bit fixture must parse to a 1×1 SOF3 frame with precision 16.

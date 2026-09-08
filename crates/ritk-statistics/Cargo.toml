@@ -23,7 +23,5 @@ coeus-core = { workspace = true }
 coeus-tensor = { workspace = true }
 
 
-[dev-dependencies]
-
 [lints]
 workspace = true

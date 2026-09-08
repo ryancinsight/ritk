@@ -1,6 +1,7 @@
 #![expect(clippy::unwrap_used, reason = "ratchet RITK-UNWRAP-1")]
 use super::*;
 use crate::tools::interaction::Annotation;
+use ritk_core::rejection::assert_rejects;
 use std::path::PathBuf;
 
 // ─── Helper: build a canonical snapshot with known values ─────────────────────
@@ -268,10 +269,6 @@ fn save_to_file_produces_valid_json_with_annotations_key() {
 fn load_from_file_returns_error_for_nonexistent_path() {
     let path = PathBuf::from("/nonexistent/path/session.json");
     let result = load_from_file(&path);
-    assert!(
-        result.is_err(),
-        "load_from_file must fail for nonexistent path"
-    );
     let msg = format!("{:#}", result.unwrap_err());
     assert!(
         msg.contains("session") || msg.contains("nonexistent") || msg.contains("No such"),
@@ -286,7 +283,7 @@ fn load_from_file_returns_error_for_invalid_json() {
     std::fs::write(&path, b"not valid json {{{{").expect("write invalid file");
 
     let result = load_from_file(&path);
-    assert!(result.is_err(), "load_from_file must fail for invalid JSON");
+    assert_rejects(result, "expected ident at line 1 column 2");
 
     let _ = std::fs::remove_file(&path);
 }

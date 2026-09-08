@@ -1,4 +1,5 @@
 use super::*;
+use ritk_core::rejection::assert_rejects;
 use ritk_core::spatial::{Direction, Point, Spacing};
 use ritk_image::test_support::make_image_with;
 
@@ -196,7 +197,10 @@ fn test_shape_mismatch_returns_error() {
     let image = make_image([5, 5, 5], 128.0);
     let phi = sphere_phi([3, 3, 3], [1.0, 1.0, 1.0], 1.0);
     let result = ShapeDetectionSegmentation::new().apply(&image, &phi);
-    assert!(result.is_err());
+    assert_rejects(
+        result,
+        "image shape [5, 5, 5] and initial_phi shape [3, 3, 3] must",
+    );
 }
 
 #[test]

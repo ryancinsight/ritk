@@ -1,4 +1,3 @@
-#![expect(clippy::unwrap_used, reason = "ratchet RITK-UNWRAP-1")]
 use super::*;
 use crate::attribute::{tags, DicomTag};
 use crate::diffusion::extract_diffusion_pair;
@@ -127,12 +126,8 @@ fn csa_parser_extracts_b_value_and_direction_from_sv10_blob() {
         ("DiffusionGradientDirection", "FD", &dir_bytes),
     ]);
 
-    let result = parse_csa_blob(&blob);
-    assert!(
-        result.is_some(),
-        "must extract B_value and direction from valid SV10 blob"
-    );
-    let (b, dir) = result.unwrap();
+    let (b, dir) =
+        parse_csa_blob(&blob).expect("must extract B_value and direction from valid SV10 blob");
     assert!((b - 1000.0).abs() < 1e-9, "b-value must be 1000, got {b}");
     assert!(
         (dir.to_array()[0] - 0.6).abs() < 1e-9
@@ -148,9 +143,7 @@ fn csa_blob_with_b0_and_no_direction_is_valid_b0() {
     let b_value = 0.0f64.to_le_bytes();
     let blob = make_sv10_blob(&[("B_value", "FD", &b_value)]);
 
-    let result = parse_csa_blob(&blob);
-    assert!(result.is_some());
-    let (b, dir) = result.unwrap();
+    let (b, dir) = parse_csa_blob(&blob).expect("a b=0 blob without a direction is still valid");
     assert_eq!(b, 0.0);
     assert_eq!(dir, Vector::new([0.0, 0.0, 0.0]));
 }
@@ -189,9 +182,8 @@ fn vendor_fallback_extracts_from_csa_when_standard_tags_absent() -> anyhow::Resu
     let object = object_with_bytes(crate::diffusion::vendor::SIEMENS_CSA_SERIES, csa_blob);
 
     // extract_diffusion_pair should fall back to vendor extraction.
-    let pair = extract_diffusion_pair(&object)?;
-    assert!(pair.is_some(), "vendor fallback must find the CSA data");
-    let (b, dir) = pair.unwrap();
+    let (b, dir) =
+        extract_diffusion_pair(&object)?.expect("vendor fallback must find the CSA data");
     assert!((b - 1000.0).abs() < 1e-9);
     assert!(
         (dir.to_array()[0] - 0.6).abs() < 1e-9
@@ -227,8 +219,7 @@ fn standard_tags_take_priority_over_vendor_blocks() -> anyhow::Result<()> {
 
     // Standard tags must win.
     let pair = extract_diffusion_pair(&object)?;
-    assert!(pair.is_some());
-    let (b, dir) = pair.unwrap();
+    let (b, dir) = pair.expect("the vendor blob carries a b-value and direction");
     assert!((b - 1_000.0).abs() < 1e-9);
     assert_eq!(dir, Vector::new([1.0, 0.0, 0.0]));
     Ok(())

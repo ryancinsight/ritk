@@ -488,7 +488,6 @@ mod tests {
         );
         args.mask_input.mask = None;
         let result = run_morphological_reconstruction(&args);
-        assert!(result.is_err(), "missing mask must return Err");
         assert!(result.unwrap_err().to_string().contains("mask"));
     }
 }

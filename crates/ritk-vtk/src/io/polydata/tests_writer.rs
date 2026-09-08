@@ -1,6 +1,7 @@
 use super::*;
 use crate::domain::vtk_data_object::{AttributeArray, VtkPolyData};
 use crate::io::polydata::reader::parse_polydata;
+use ritk_core::rejection::assert_rejects;
 use std::io::Cursor;
 use tempfile::NamedTempFile;
 
@@ -83,7 +84,7 @@ fn test_write_preserves_all_cell_types() {
 fn test_write_error_bad_path() {
     let poly = VtkPolyData::default();
     let result = write_vtk_polydata("/nonexistent_dir/output.vtk", &poly);
-    assert!(result.is_err(), "write to nonexistent path must fail");
+    assert_rejects(result, "cannot create VTK polydata file");
 }
 
 #[test]

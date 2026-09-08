@@ -1,6 +1,6 @@
-#![expect(clippy::unwrap_used, reason = "ratchet RITK-UNWRAP-1")]
 use super::*;
 use crate::domain::vtk_data_object::{AttributeArray, VtkDataObject, VtkImageData};
+use ritk_core::rejection::assert_rejects;
 
 fn image_2x2x1(values: [f32; 4]) -> VtkImageData {
     let mut img = VtkImageData {
@@ -126,8 +126,9 @@ fn missing_scalar_name_returns_err() {
     let f = ThresholdFilter::new("nonexistent_field", 0.0, 1.0);
     let img = image_2x2x1([0.1, 0.2, 0.3, 0.4]);
     let result = f.execute(VtkDataObject::ImageData(img));
-    assert!(result.is_err(), "missing scalar field must return Err");
-    let msg = result.unwrap_err().to_string();
+    let msg = result
+        .expect_err("missing scalar field must return Err")
+        .to_string();
     assert!(
         msg.contains("nonexistent_field"),
         "error must name the missing field"
@@ -139,7 +140,10 @@ fn wrong_input_type_returns_err() {
     use crate::domain::vtk_data_object::VtkPolyData;
     let f = ThresholdFilter::new("s", 0.0, 1.0);
     let result = f.execute(VtkDataObject::PolyData(VtkPolyData::default()));
-    assert!(result.is_err(), "PolyData input must return Err");
+    assert_rejects(
+        result,
+        "ThresholdFilter requires ImageData or UnstructuredGrid",
+    );
 }
 
 #[test]
