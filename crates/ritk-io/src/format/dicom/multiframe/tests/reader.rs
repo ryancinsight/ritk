@@ -1,16 +1,17 @@
 #![expect(clippy::unwrap_used, reason = "ratchet RITK-UNWRAP-1")]
 use super::*;
+use ritk_core::rejection::assert_rejects;
 
 #[test]
 fn test_read_multiframe_info_missing_file_returns_error() {
     let result = read_multiframe_info("/nonexistent/path/file.dcm");
-    assert!(result.is_err(), "expected Err for missing file");
+    assert_rejects(result, "failed to open DICOM file");
 }
 
 #[test]
 fn test_load_multiframe_missing_file_returns_error() {
     let result = load_dicom_multiframe_native("/nonexistent/path/file.dcm");
-    assert!(result.is_err(), "expected Err for missing file");
+    assert_rejects(result, "failed to open DICOM file");
 }
 
 #[test]
@@ -451,11 +452,7 @@ fn test_multiframe_rejects_big_endian_ts() {
     file_obj.write_to_file(&path).expect("write must succeed");
 
     let result = load_dicom_multiframe_native(&path);
-    assert!(
-        result.is_err(),
-        "load_dicom_multiframe must reject ExplicitVrBigEndian TS"
-    );
-    let err_msg = format!("{:?}", result.unwrap_err());
+    let err_msg = format!("{:?}", result.expect_err("big-endian is not decodable"));
     assert!(
         err_msg.contains("big-endian"),
         "error message must mention big-endian; got: {err_msg}"

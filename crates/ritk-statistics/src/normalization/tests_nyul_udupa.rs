@@ -357,10 +357,6 @@ fn test_apply_before_learn_returns_error() {
     let image: Image<f32, TestBackend, 1> = make_image(data, [10]);
 
     let result = normalizer.apply(&image);
-    assert!(
-        result.is_err(),
-        "apply before learn_standard must return Err"
-    );
     let err_msg = format!("{}", result.unwrap_err());
     assert!(
         err_msg.contains("standard landmarks not learned"),

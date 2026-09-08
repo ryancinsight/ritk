@@ -1,6 +1,7 @@
 //! Tests for paste
 //! Extracted to keep the 500-line structural limit.
 use super::*;
+use ritk_core::rejection::assert_rejects;
 use ritk_image::test_support as ts;
 use ritk_image::Image;
 use ritk_tensor_ops::extract_vec_infallible;
@@ -73,7 +74,7 @@ fn paste_out_of_bounds_returns_error() {
     // dest_start=[1,0,0]: Z extent [1..2) OK, but source is [1,2,2] → Z [1..2) OK
     // Increase to [1,1,0] → Y extent [1..3) exceeds height 2 → error
     let r = PasteImageFilter::new([1, 1, 0]).apply(&dest, &src);
-    assert!(r.is_err(), "out-of-bounds paste must return Err");
+    assert_rejects(r, "PasteImageFilter: source Y extent [1..3) exceeds dest");
 }
 
 #[test]

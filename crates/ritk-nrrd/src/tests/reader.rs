@@ -1,6 +1,7 @@
 #![expect(clippy::unwrap_used, reason = "ratchet RITK-UNWRAP-1")]
 use anyhow::Result;
 use coeus_core::SequentialBackend;
+use ritk_core::rejection::assert_rejects;
 use ritk_spatial::{Direction, Point, Spacing};
 use tempfile::tempdir;
 
@@ -500,7 +501,7 @@ fn test_round_trip_nrrd() -> Result<()> {
 fn test_missing_file_returns_error() {
     let backend = SequentialBackend;
     let result = crate::read_nrrd("/nonexistent/path/file.nrrd", &backend);
-    assert!(result.is_err(), "Expected Err for missing file");
+    assert_rejects(result, "Cannot open NRRD file");
 }
 
 /// A file without the NRRD magic line must return an error.
@@ -517,7 +518,10 @@ fn test_invalid_magic_returns_error() -> Result<()> {
 
     let backend = SequentialBackend;
     let result = crate::read_nrrd(&path, &backend);
-    assert!(result.is_err(), "Expected Err for invalid magic");
+    assert_rejects(
+        result,
+        "Not a valid NRRD file: magic line does not start with",
+    );
     Ok(())
 }
 
@@ -540,7 +544,6 @@ fn test_gzip_encoding_returns_helpful_error() -> Result<()> {
 
     let backend = SequentialBackend;
     let result = crate::read_nrrd(&path, &backend);
-    assert!(result.is_err(), "Expected Err for gzip encoding");
     let msg = format!("{}", result.unwrap_err());
     assert!(
         msg.contains("gzip") || msg.contains("encoding"),
@@ -569,7 +572,7 @@ fn test_missing_dimension_field_returns_error() -> Result<()> {
 
     let backend = SequentialBackend;
     let result = crate::read_nrrd(&path, &backend);
-    assert!(result.is_err(), "Expected Err for missing dimension");
+    assert_rejects(result, "Missing 'dimension' in NRRD header");
     Ok(())
 }
 
@@ -593,7 +596,6 @@ fn test_unsupported_type_returns_error() -> Result<()> {
 
     let backend = SequentialBackend;
     let result = crate::read_nrrd(&path, &backend);
-    assert!(result.is_err(), "Expected Err for unsupported type");
     let msg = format!("{:?}", result.unwrap_err());
     assert!(
         msg.contains("long double"),
@@ -682,10 +684,18 @@ fn every_truncation_of_a_valid_nrrd_errors_or_reads_exactly() -> Result<()> {
         // A prefix is short by at least one byte, so it cannot carry both the
         // header and the payload the header promises.
         let result: Result<_> = crate::read_nrrd::<SequentialBackend, _>(&truncated, &backend);
-        assert!(
-            result.is_err(),
-            "prefix of {cut} bytes is short of the declared payload, but parsed"
-        );
+        // Which rule a prefix breaks depends on where it was cut -- magic, a
+        // missing or unparsable header field, a short payload -- so no single
+        // cause holds across the sweep. The property under test is that no cut
+        // reads: a prefix must never yield an image, which is what a silent
+        // truncation would look like.
+        if let Ok(image) = result {
+            panic!(
+                "cut {cut} of {} bytes read a {:?} image from a truncated file",
+                complete.len(),
+                image.shape()
+            );
+        }
     }
 
     let image = crate::read_nrrd::<SequentialBackend, _>(&path, &backend)

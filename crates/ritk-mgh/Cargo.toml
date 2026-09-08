@@ -20,6 +20,8 @@ tracing = { workspace = true }
 coeus-core = { workspace = true }
 
 [dev-dependencies]
+# Rejection assertions shared across the workspace's test modules.
+ritk-core = { path = "../ritk-core", features = ["test-helpers"] }
 base64 = { workspace = true }
 criterion = { workspace = true }
 image = { workspace = true }

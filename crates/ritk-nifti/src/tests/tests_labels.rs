@@ -122,7 +122,6 @@ fn write_nifti_labels_length_mismatch_returns_err() {
     // Provide 1 label but declare shape 2×2×2 = 8.
     let result = write_nifti_labels(&path, &[42u32], [2, 2, 2], [0.0; 3], [1.0; 3], direction);
 
-    assert!(result.is_err(), "length mismatch must return Err");
     let msg = format!("{:#}", result.unwrap_err());
     assert!(
         msg.contains("labels.len()"),

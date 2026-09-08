@@ -1,4 +1,5 @@
 use super::OrientImageFilter;
+use ritk_core::rejection::assert_rejects;
 use ritk_image::test_support as ts;
 use ritk_image::Image;
 use ritk_tensor_ops::extract_vec_infallible;
@@ -73,14 +74,14 @@ fn orient_permutation_preserves_multiset() {
 fn orient_invalid_codes_error() {
     let img = make(vec![0.0; 6], [1, 2, 3]);
     let f = OrientImageFilter::from_code("XYZ");
-    assert!(f.is_err(), "unknown letters must error");
+    assert_rejects(f, "invalid orientation letter 'X' in");
     assert!(
         OrientImageFilter::from_code("LL").is_err(),
         "wrong length must error"
     );
     // Repeated anatomical axis (two letters on the L/R axis).
     let dup = OrientImageFilter::from_code("LRP");
-    assert!(dup.is_err(), "repeated anatomical axis must error");
+    assert_rejects(dup, "repeats an anatomical axis");
     // A valid filter still applies cleanly.
     assert!(OrientImageFilter::from_code("SPL")
         .expect("infallible: validated precondition")

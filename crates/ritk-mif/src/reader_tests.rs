@@ -2,7 +2,6 @@
 //!
 //! These tests round-trip images through the writer and reader to verify
 //! voxel fidelity, spatial metadata preservation, and frame handling.
-#![expect(clippy::unwrap_used, reason = "ratchet RITK-UNWRAP-1")]
 
 use std::path::PathBuf;
 
@@ -208,8 +207,7 @@ fn single_volume_reader_rejects_multi_frame_file() {
     let result: Result<Image<f32, SequentialBackend, 3>, _> = read_mif(&path, &backend);
     let _ = std::fs::remove_file(&path);
 
-    assert!(result.is_err());
-    let msg = result.unwrap_err().to_string();
+    let msg = result.expect_err("the call must be rejected").to_string();
     assert!(
         msg.contains("3 frames"),
         "should mention frame count, got: {msg}"

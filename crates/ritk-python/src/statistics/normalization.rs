@@ -298,14 +298,12 @@ pub fn nyul_udupa_normalize(
 
 #[cfg(test)]
 mod tests {
-    #![expect(clippy::unwrap_used, reason = "ratchet RITK-UNWRAP-1")]
     use super::{validate_percentiles, validate_range};
 
     #[test]
     fn test_validate_percentiles_empty_returns_error() {
         let result = validate_percentiles(&[]);
-        assert!(result.is_err(), "empty slice must be rejected");
-        let msg = result.unwrap_err();
+        let msg = result.expect_err("empty slice must be rejected");
         assert!(
             msg.contains("≥ 2"),
             "error must mention ≥ 2 values, got: {msg}"
@@ -315,8 +313,7 @@ mod tests {
     #[test]
     fn test_validate_percentiles_single_element_returns_error() {
         let result = validate_percentiles(&[0.5]);
-        assert!(result.is_err(), "single element must be rejected");
-        let msg = result.unwrap_err();
+        let msg = result.expect_err("single element must be rejected");
         assert!(
             msg.contains("≥ 2"),
             "error must mention ≥ 2 values, got: {msg}"
@@ -326,8 +323,7 @@ mod tests {
     #[test]
     fn test_validate_percentiles_equal_elements_returns_error() {
         let result = validate_percentiles(&[0.1, 0.1]);
-        assert!(result.is_err(), "equal elements must be rejected");
-        let msg = result.unwrap_err();
+        let msg = result.expect_err("equal elements must be rejected");
         assert!(
             msg.contains("strictly ascending"),
             "error must mention strictly ascending, got: {msg}"
@@ -337,8 +333,7 @@ mod tests {
     #[test]
     fn test_validate_percentiles_descending_elements_returns_error() {
         let result = validate_percentiles(&[0.5, 0.1, 0.9]);
-        assert!(result.is_err(), "descending pair must be rejected");
-        let msg = result.unwrap_err();
+        let msg = result.expect_err("descending pair must be rejected");
         assert!(
             msg.contains("strictly ascending"),
             "error must mention strictly ascending, got: {msg}"
@@ -362,8 +357,7 @@ mod tests {
     #[test]
     fn test_validate_range_equal_bounds_returns_error() {
         let result = validate_range(0.5, 0.5);
-        assert!(result.is_err());
-        let msg = result.unwrap_err();
+        let msg = result.expect_err("the call must be rejected");
         assert!(
             msg.contains("strictly less than"),
             "error must mention 'strictly less than', got: {msg}"
@@ -373,8 +367,7 @@ mod tests {
     #[test]
     fn test_validate_range_inverted_bounds_returns_error() {
         let result = validate_range(1.0, 0.0);
-        assert!(result.is_err());
-        let msg = result.unwrap_err();
+        let msg = result.expect_err("the call must be rejected");
         assert!(
             msg.contains("strictly less than"),
             "error must mention 'strictly less than', got: {msg}"

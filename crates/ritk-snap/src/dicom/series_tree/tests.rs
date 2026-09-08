@@ -164,12 +164,11 @@ fn test_find_by_uid_found() {
         ),
     ];
     let tree = SeriesTree::from_entries(entries);
-    let found = tree.find_by_uid("S2");
-    assert!(found.is_some(), "find_by_uid must find '/data/scan2'");
+    let found = tree
+        .find_by_uid("S2")
+        .expect("find_by_uid must find '/data/scan2'");
     assert_eq!(
-        found
-            .expect("infallible: validated precondition")
-            .series_uid(),
+        found.series_uid(),
         "S2",
         "found entry must be the MR series with uid S2"
     );

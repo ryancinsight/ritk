@@ -1,4 +1,3 @@
-#![expect(clippy::unwrap_used, reason = "ratchet RITK-UNWRAP-1")]
 use super::{read_ply_mesh, write_ply_ascii, write_ply_binary_le};
 use crate::domain::vtk_data_object::{AttributeArray, VtkPolyData};
 use crate::io::ply::reader::parse_ply;
@@ -197,8 +196,9 @@ fn test_ply_binary_le_empty_roundtrip() {
 fn test_ply_big_endian_rejected() {
     let ply_be = b"ply\nformat binary_big_endian 1.0\nelement vertex 0\nproperty float x\nproperty float y\nproperty float z\nelement face 0\nproperty list uchar int vertex_indices\nend_header\n";
     let result = parse_ply(ply_be);
-    assert!(result.is_err(), "big-endian PLY must return Err");
-    let msg = result.unwrap_err().to_string();
+    let msg = result
+        .expect_err("big-endian PLY must return Err")
+        .to_string();
     assert!(
         msg.contains("big-endian"),
         "error must mention 'big-endian', got: {msg}"

@@ -1,3 +1,13 @@
+<a id="RITK-VALUE-ASSERTIONS-2026-09-08"></a>
+## RITK-VALUE-ASSERTIONS-2026-09-08 — Tests that cannot fail on the defect they name [patch]
+- Status: done; 141 → 0 by the atlas conformance detector; `assert_rejects` lands in `ritk-core` behind `test-helpers`.
+- Method: each rejection message was harvested by running the test with its assertion replaced by a probe, not inferred from the call site. Probing was necessary: the anyhow chains here read `outer context: <path>: inner cause`, and the outer context is shared by every failure of that entry point, so a fragment taken from the wrapper distinguishes nothing.
+- Finding: five `ritk-mgh` reader tests — invalid version, unsupported type code, truncated file, hostile dimensions, bad writer version — all failed with the same wrapper. Any one of them passed against any of the others' defects. They now name the inner cause.
+- Finding: 26 sites were redundant rather than weak. The test already bound `unwrap_err()` and checked the message on the next line, so the `is_err` call was a second, weaker assertion of the same fact; those collapse into the existing `expect_err`.
+- Two production changes fell out. `NRRD 'dimension' is not a valid integer` did not name its format, so a caller reading the chain could not tell which reader rejected the input. And `every_truncation_of_a_valid_nrrd_errors_or_reads_exactly` cannot assert a single cause — which rule a prefix breaks depends on where it was cut — so it now asserts the property it is named for: no cut yields an image, reported with the shape a silent truncation would have produced.
+- 19 `#[expect(clippy::unwrap_used, reason = "ratchet RITK-UNWRAP-1")]` attributes became unfulfilled once the conversions removed their last `unwrap`, and are deleted. That is the ratchet expiring as designed.
+- Verification: workspace nextest green; `cargo clippy --workspace --all-targets --all-features -D warnings` clean; fmt clean.
+
 <a id="RITK-SNAP-FIXTURES-001"></a>
 ## RITK-SNAP-FIXTURES-001 — Required synthetic study workflows [patch]
 - Status: done; [PR 235](https://github.com/ryancinsight/ritk/pull/235), `c38ca276`; real file/byte oracles and reproducible [manual captures](docs/manual/dicom-workflow.md).

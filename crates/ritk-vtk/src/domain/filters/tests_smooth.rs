@@ -1,6 +1,7 @@
 #![expect(clippy::unwrap_used, reason = "ratchet RITK-UNWRAP-1")]
 use super::*;
 use crate::domain::vtk_data_object::{VtkDataObject, VtkPolyData};
+use ritk_core::rejection::assert_rejects;
 
 /// Triangle: [0,0,0], [1,0,0], [0.5,1,0]
 fn triangle() -> VtkPolyData {
@@ -98,7 +99,10 @@ fn wrong_input_type_returns_err() {
     use crate::domain::vtk_data_object::VtkImageData;
     let f = SmoothFilter::default();
     let result = f.execute(VtkDataObject::ImageData(VtkImageData::default()));
-    assert!(result.is_err(), "non-PolyData input must return Err");
+    assert_rejects(
+        result,
+        "SmoothFilter requires PolyData input; received ImageData",
+    );
 }
 
 #[test]

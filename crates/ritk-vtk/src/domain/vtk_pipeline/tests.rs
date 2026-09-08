@@ -3,6 +3,7 @@
 use super::*;
 use crate::domain::mtime::{Modifiable, ModifiedTime};
 use crate::domain::vtk_data_object::{VtkDataObject, VtkPolyData};
+use ritk_core::rejection::assert_rejects;
 use std::sync::atomic::{AtomicU64, AtomicUsize, Ordering};
 use std::sync::Arc;
 
@@ -267,7 +268,7 @@ fn test_pipeline_observable_fires_error_event_on_failure() {
     );
 
     let result = pipeline.execute();
-    assert!(result.is_err(), "failing source must produce an error");
+    assert_rejects(result, "source production failed");
     assert_eq!(
         start_count.load(Ordering::SeqCst),
         1,
@@ -430,11 +431,14 @@ fn test_pipeline_source_mtime_change_triggers_rerun() {
     // which bumps the source mtime. Now source.mtime > pipeline_mtime.
     let result2 = pipeline
         .execute_if_needed()
-        .expect("infallible: validated precondition");
-    assert!(
-        result2.is_some(),
-        "execute_if_needed must re-execute when source mtime advances beyond pipeline mtime"
-    );
+        .expect("infallible: validated precondition")
+        .expect(
+            "execute_if_needed must re-execute when source mtime advances beyond pipeline mtime",
+        );
+    // Re-execution must produce the source's own dataset and stamp the
+    // pipeline past the mtime it held: a bare `is_some` sees neither.
+    assert!(matches!(result2, VtkDataObject::PolyData(_)));
+    assert!(pipeline.get_mtime().value() > pipeline_mtime.value());
 }
 
 /// When a boxed filter's parameters change after the pipeline has executed,

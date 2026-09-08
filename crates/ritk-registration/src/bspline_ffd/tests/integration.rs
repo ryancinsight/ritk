@@ -62,8 +62,7 @@ fn mismatched_fixed_length_returns_error() {
     let moving = vec![0.0_f32; 8];
     let result =
         BSplineFFDRegistration::register(&fixed, &moving, VolumeDims([2, 2, 2]), [1.0; 3], &config);
-    assert!(result.is_err());
-    let err = result.unwrap_err();
+    let err = result.expect_err("the call must be rejected");
     assert!(
         matches!(err, RegistrationError::DimensionMismatch(_)),
         "expected DimensionMismatch, got {:?}",
@@ -78,8 +77,7 @@ fn mismatched_moving_length_returns_error() {
     let moving = vec![0.0_f32; 100];
     let result =
         BSplineFFDRegistration::register(&fixed, &moving, VolumeDims([2, 2, 2]), [1.0; 3], &config);
-    assert!(result.is_err());
-    let err = result.unwrap_err();
+    let err = result.expect_err("the call must be rejected");
     assert!(
         matches!(err, RegistrationError::DimensionMismatch(_)),
         "expected DimensionMismatch, got {:?}",
@@ -96,7 +94,6 @@ fn zero_levels_returns_invalid_configuration() {
     let img = vec![0.0_f32; 8];
     let result =
         BSplineFFDRegistration::register(&img, &img, VolumeDims([2, 2, 2]), [1.0; 3], &config);
-    assert!(result.is_err());
     assert!(matches!(
         result.unwrap_err(),
         RegistrationError::InvalidConfiguration(_)
@@ -112,7 +109,6 @@ fn zero_spacing_returns_invalid_configuration() {
     let img = vec![0.0_f32; 8];
     let result =
         BSplineFFDRegistration::register(&img, &img, VolumeDims([2, 2, 2]), [1.0; 3], &config);
-    assert!(result.is_err());
     assert!(matches!(
         result.unwrap_err(),
         RegistrationError::InvalidConfiguration(_)

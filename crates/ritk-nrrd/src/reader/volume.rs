@@ -165,7 +165,7 @@ fn decode_nrrd<P: AsRef<Path>>(path: P) -> Result<DecodedNrrd> {
         .get("dimension")
         .ok_or_else(|| anyhow!("Missing 'dimension' in NRRD header"))?
         .parse()
-        .context("'dimension' is not a valid integer")?;
+        .context("NRRD 'dimension' is not a valid integer")?;
 
     if !(2..=4).contains(&dimension) {
         return Err(anyhow!(

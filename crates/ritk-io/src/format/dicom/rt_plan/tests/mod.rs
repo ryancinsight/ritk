@@ -129,8 +129,9 @@ fn make_fraction_group_item(
 #[test]
 fn test_read_rt_plan_missing_file_returns_error() {
     let result = read_rt_plan("/nonexistent/plan.dcm");
-    assert!(result.is_err(), "nonexistent path must return Err");
-    let msg = result.unwrap_err().to_string();
+    let msg = result
+        .expect_err("dicom-rs backend failed to parse")
+        .to_string();
     assert!(
         msg.contains("nonexistent") || msg.contains("open"),
         "error must mention path or open failure; got: {msg}"
@@ -148,8 +149,7 @@ fn test_read_rt_plan_wrong_sop_class_returns_error() {
     write_wrong_sop_file("1.2.840.10008.5.1.4.1.1.2", &path);
 
     let result = read_rt_plan(&path);
-    assert!(result.is_err(), "wrong SOP class must return Err");
-    let msg = result.unwrap_err().to_string();
+    let msg = result.expect_err("is not RT Plan Storage").to_string();
     assert!(
         msg.contains("1.2.840.10008.5.1.4.1.1.2"),
         "error must contain the rejected SOP UID; got: {msg}"
@@ -278,8 +278,7 @@ fn test_read_rt_plan_rejects_invalid_beam_number() {
     write_rt_plan_file(obj, &path);
 
     let result = read_rt_plan(&path);
-    assert!(result.is_err(), "invalid BeamNumber must fail");
-    let msg = format!("{:#}", result.unwrap_err());
+    let msg = format!("{:#}", result.expect_err("Invalid BeamNumber (300A,00C0)"));
     assert!(
         msg.contains("BeamNumber") && msg.contains("not-a-number"),
         "error must name the invalid BeamNumber component; got: {msg}"
@@ -307,8 +306,9 @@ fn test_read_rt_plan_rejects_non_sequence_beam_sequence() {
     write_rt_plan_file(obj, &path);
 
     let result = read_rt_plan(&path);
-    assert!(result.is_err(), "non-sequence BeamSequence must fail");
-    let msg = result.unwrap_err().to_string();
+    let msg = result
+        .expect_err("BeamSequence (300A,00B0) is present but is not a sequence")
+        .to_string();
     assert!(
         msg.contains("BeamSequence") && msg.contains("not a sequence"),
         "error must name the non-sequence BeamSequence violation; got: {msg}"
@@ -372,8 +372,10 @@ fn test_read_rt_plan_rejects_invalid_referenced_beam_number() {
     write_rt_plan_file(obj, &path);
 
     let result = read_rt_plan(&path);
-    assert!(result.is_err(), "invalid ReferencedBeamNumber must fail");
-    let msg = format!("{:#}", result.unwrap_err());
+    let msg = format!(
+        "{:#}",
+        result.expect_err("Invalid ReferencedBeamNumber (300A,00C0)")
+    );
     assert!(
         msg.contains("ReferencedBeamNumber") && msg.contains("bad-ref"),
         "error must name the invalid ReferencedBeamNumber component; got: {msg}"
@@ -427,11 +429,9 @@ fn test_read_rt_plan_rejects_non_sequence_referenced_beam_sequence() {
     write_rt_plan_file(obj, &path);
 
     let result = read_rt_plan(&path);
-    assert!(
-        result.is_err(),
-        "non-sequence ReferencedBeamSequence must fail"
-    );
-    let msg = result.unwrap_err().to_string();
+    let msg = result
+        .expect_err("ReferencedBeamSequence (300A,00B6) is present but is not a sequence")
+        .to_string();
     assert!(
         msg.contains("ReferencedBeamSequence") && msg.contains("not a sequence"),
         "error must name the non-sequence ReferencedBeamSequence violation; got: {msg}"

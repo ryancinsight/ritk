@@ -4,6 +4,7 @@ use super::super::{
     DicomSegmentInfo, DicomSegmentation, SegEncoding, SegmentationType,
 };
 use ritk_annotation::RgbaBytes;
+use ritk_core::rejection::assert_rejects;
 
 #[test]
 fn test_dicom_seg_to_label_map_roundtrip_single_label() {
@@ -85,7 +86,7 @@ fn test_dicom_seg_to_label_map_error_bad_frame_lengths() {
     };
 
     let result = dicom_seg_to_label_map(&seg);
-    assert!(result.is_err(), "invalid frame length must fail");
+    assert_rejects(result, "length 3 != rows*cols 4");
 }
 
 #[test]

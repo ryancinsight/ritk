@@ -3,6 +3,7 @@
 
 use anyhow::Result;
 use coeus_core::SequentialBackend;
+use ritk_core::rejection::assert_rejects;
 use ritk_image::Image;
 use ritk_spatial::{Direction, Point, Spacing};
 use tempfile::tempdir;
@@ -134,7 +135,6 @@ fn write_rejects_nz_not_one() {
     let path = dir.path().join("bad.jpg");
 
     let result = crate::write_jpeg(&path, &image, &backend);
-    assert!(result.is_err(), "write_jpeg should reject nz=2");
     let msg = format!("{}", result.unwrap_err());
     assert!(
         msg.contains("nz=2") || msg.contains("depth=2"),
@@ -147,7 +147,7 @@ fn write_rejects_nz_not_one() {
 fn read_nonexistent_file_errors() {
     let backend = SequentialBackend;
     let result = crate::read_jpeg("/nonexistent/path/to/image.jpg", &backend);
-    assert!(result.is_err(), "read_jpeg should fail for missing file");
+    assert_rejects(result, "failed to open JPEG file");
 }
 
 #[test]

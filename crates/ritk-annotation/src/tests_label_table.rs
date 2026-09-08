@@ -1,4 +1,3 @@
-#![expect(clippy::unwrap_used, reason = "ratchet RITK-UNWRAP-1")]
 use super::*;
 use crate::overlay::Visibility;
 
@@ -22,8 +21,7 @@ fn test_label_table_duplicate_id_error() {
         .add_label(1, "Brain", RgbaBytes::new(255, 0, 0, 255))
         .expect("infallible: validated precondition");
     let result = table.add_label(1, "Duplicate", RgbaBytes::new(0, 0, 0, 255));
-    assert!(result.is_err(), "duplicate id must return Err");
-    let msg = result.unwrap_err();
+    let msg = result.expect_err("duplicate id must return Err");
     assert!(msg.contains("1"), "error message must mention the id");
 }
 

@@ -1,8 +1,7 @@
-#![expect(clippy::unwrap_used, reason = "ratchet RITK-UNWRAP-1")]
-
 use crate::domain::vtk_data_object::{AttributeArray, VtkImageData};
 use crate::io::image_xml::reader::parse_vti;
 use crate::io::image_xml::writer::{write_vti_image_data, write_vti_str};
+use ritk_core::rejection::assert_rejects;
 use tempfile::NamedTempFile;
 
 /// Build a minimal valid VTI XML string with the given extent, origin, spacing,
@@ -316,8 +315,9 @@ fn test_missing_piece_tag_error() {
         "</VTKFile>\n"
     );
     let result = parse_vti(vti);
-    assert!(result.is_err(), "missing Piece tag must return Err");
-    let msg = result.unwrap_err().to_string();
+    let msg = result
+        .expect_err("missing Piece tag must return Err")
+        .to_string();
     assert!(
         msg.contains("Piece"),
         "error message must mention Piece, got: {msg}"
@@ -328,5 +328,5 @@ fn test_missing_piece_tag_error() {
 fn test_nonexistent_file_error() {
     use crate::io::image_xml::reader::read_vti_image_data;
     let result = read_vti_image_data("/nonexistent/path/that/does/not/exist.vti");
-    assert!(result.is_err(), "nonexistent file must return Err");
+    assert_rejects(result, "cannot open VTI");
 }

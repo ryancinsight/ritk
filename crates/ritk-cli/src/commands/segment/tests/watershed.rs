@@ -118,10 +118,6 @@ fn test_segment_marker_watershed_missing_markers_returns_error() {
         SegmentMethod::MarkerWatershed,
     );
     let result = run(args);
-    assert!(
-        result.is_err(),
-        "marker-watershed without markers path must return error"
-    );
     let msg = format!("{}", result.unwrap_err());
     assert!(
         msg.contains("marker"),

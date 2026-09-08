@@ -243,7 +243,8 @@ fn header_json_round_trips() {
     assert_eq!(parsed.nb_streamlines, 42);
     assert_eq!(parsed.nb_points, 1024);
     assert_eq!(parsed.dtype, "float64");
-    assert!(parsed.reference.is_some());
+    // A round trip must carry the reference through, not merely produce one.
+    assert_eq!(parsed.reference, original.reference);
 }
 
 #[test]

@@ -58,9 +58,9 @@ fn test_scan_all_non_image_sop_returns_error_with_rejected_uids() {
     );
 
     let result = scan_dicom_directory(temp.path());
-    assert!(result.is_err(), "all-non-image directory must return Err");
-
-    let msg = result.unwrap_err().to_string();
+    let msg = result
+        .expect_err("a directory of non-image SOP classes has nothing to load")
+        .to_string();
     assert!(
         msg.contains("none are image-bearing SOP classes"),
         "error must state none are image-bearing; got: {msg}"
@@ -168,9 +168,9 @@ fn test_scan_rt_plan_and_waveform_returns_error_with_two_uids() {
     );
 
     let result = scan_dicom_directory(temp.path());
-    assert!(result.is_err(), "all-non-image directory must return Err");
-
-    let msg = result.unwrap_err().to_string();
+    let msg = result
+        .expect_err("a directory of non-image SOP classes has nothing to load")
+        .to_string();
     assert!(
         msg.contains("1.2.840.10008.5.1.4.1.1.481.5"),
         "error must list RT Plan UID; got: {msg}"

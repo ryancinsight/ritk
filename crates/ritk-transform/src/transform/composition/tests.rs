@@ -1,7 +1,7 @@
 //! Tests for composite_io
 //! Extracted to keep the 500-line structural limit.
-#![expect(clippy::unwrap_used, reason = "ratchet RITK-UNWRAP-1")]
 use super::io::{CompositeTransform, TransformDescription};
+use ritk_core::rejection::assert_rejects;
 
 // -- helpers ----------------------------------------------------------
 
@@ -329,8 +329,7 @@ fn composite_file_io_roundtrip() {
 #[test]
 fn load_json_nonexistent_file_returns_io_error() {
     let result = CompositeTransform::load_json("/nonexistent/path/composite.json");
-    assert!(result.is_err());
-    let err = result.unwrap_err();
+    let err = result.expect_err("the call must be rejected");
     assert_eq!(err.kind(), std::io::ErrorKind::NotFound);
 }
 
@@ -340,14 +339,14 @@ fn load_json_nonexistent_file_returns_io_error() {
 fn from_json_invalid_json_returns_error() {
     let bad_json = r#"{"dimensionality": 3, "transforms": [{"Translation": {}}]}"#;
     let result = CompositeTransform::from_json(bad_json);
-    assert!(result.is_err());
+    assert_rejects(result, "missing field `offset` at line 1 column 55");
 }
 
 #[test]
 fn from_json_truncated_payload_returns_error() {
     let truncated = r#"{"dimensionality": 3, "transf"#;
     let result = CompositeTransform::from_json(truncated);
-    assert!(result.is_err());
+    assert_rejects(result, "EOF while parsing a string at line 1 column 29");
 }
 
 #[test]
@@ -355,7 +354,7 @@ fn from_json_wrong_type_returns_error() {
     // `dimensionality` must be an integer, not a string.
     let bad = r#"{"dimensionality": "three", "transforms": []}"#;
     let result = CompositeTransform::from_json(bad);
-    assert!(result.is_err());
+    assert_rejects(result, "invalid type: string");
 }
 
 // -- dimensionality validation ---------------------------------------

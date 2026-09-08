@@ -1,4 +1,3 @@
-#![expect(clippy::unwrap_used, reason = "ratchet RITK-UNWRAP-1")]
 use super::*;
 
 #[test]
@@ -39,8 +38,7 @@ fn test_add_contour_valid() {
 fn test_add_contour_too_short() {
     let mut state = AnnotationState::new();
     let result = state.add_contour(vec![Point::new([0.0, 0.0, 0.0])]);
-    assert!(result.is_err());
-    let err = result.unwrap_err();
+    let err = result.expect_err("the call must be rejected");
     assert!(
         matches!(
             err,
@@ -74,8 +72,7 @@ fn test_add_polyline_valid() {
 fn test_add_polyline_too_short() {
     let mut state = AnnotationState::new();
     let result = state.add_polyline(vec![Point::new([0.0, 0.0, 0.0])]);
-    assert!(result.is_err());
-    let err = result.unwrap_err();
+    let err = result.expect_err("the call must be rejected");
     assert!(
         matches!(
             err,

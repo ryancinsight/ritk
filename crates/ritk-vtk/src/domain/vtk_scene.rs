@@ -104,7 +104,6 @@ impl VtkScene {
 
 #[cfg(test)]
 mod tests {
-    #![expect(clippy::unwrap_used, reason = "ratchet RITK-UNWRAP-1")]
     use super::*;
     use crate::domain::vtk_data_object::{VtkDataObject, VtkPolyData};
 
@@ -128,9 +127,10 @@ mod tests {
     fn test_actor_by_name_found() {
         let mut s = VtkScene::new();
         s.add_actor(dummy_actor("mesh"));
-        let a = s.actor_by_name("mesh");
-        assert!(a.is_some());
-        assert_eq!(a.unwrap().name, "mesh");
+        let a = s
+            .actor_by_name("mesh")
+            .expect("the added actor is findable");
+        assert_eq!(a.name, "mesh");
     }
     #[test]
     fn test_actor_by_name_missing() {

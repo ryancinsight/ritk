@@ -522,8 +522,7 @@ fn test_segment_connected_components_creates_output_with_correct_shape() {
         output.clone(),
         SegmentMethod::ConnectedComponents,
     );
-    let result = run(args);
-    assert!(result.is_ok(), "connected-components should succeed");
+    run(args).expect("connected-components should succeed");
 
     let labels = ritk_io::read_nifti::<Backend, _>(&output, &Default::default()).unwrap();
     assert_eq!(labels.shape(), [8, 8, 8], "output shape must match input");

@@ -306,12 +306,9 @@ fn test_stats_hausdorff_without_reference_returns_error() {
         metric: StatMetric::Hausdorff,
         max_val: 255.0,
     });
-    assert!(
-        result.is_err(),
-        "hausdorff without --reference must return Err"
-    );
-
-    let msg = result.unwrap_err().to_string();
+    let msg = result
+        .expect_err("hausdorff without --reference must return Err")
+        .to_string();
     assert!(
         msg.contains("--reference is required"),
         "error must explain the missing argument, got: {msg}"

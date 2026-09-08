@@ -1,5 +1,6 @@
 use super::*;
 use ritk_annotation::{LabelId, RgbaBytes, Visibility};
+use ritk_core::rejection::assert_rejects;
 
 #[test]
 fn new_editor_has_default_foreground_label_and_background_volume() {
@@ -148,7 +149,10 @@ fn out_of_bounds_paint_returns_error_without_history_change() {
 
     let result = editor.paint_voxel([2, 0, 0]);
 
-    assert!(result.is_err());
+    assert_rejects(
+        result,
+        "label index [2,0,0] out of bounds for shape [2, 2, 2]",
+    );
     assert_eq!(editor.history_depth(), depth_before);
     assert_eq!(editor.current_map().count_label(LabelId(1)), 0);
     assert_eq!(editor.current_map().count_label(LabelId(0)), 8);

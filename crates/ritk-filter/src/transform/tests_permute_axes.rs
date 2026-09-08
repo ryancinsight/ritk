@@ -1,6 +1,7 @@
 //! Tests for permute_axes
 //! Extracted to keep the 500-line structural limit.
 use super::*;
+use ritk_core::rejection::assert_rejects;
 use ritk_image::test_support as ts;
 use ritk_image::Image;
 use ritk_spatial::{Point, Spacing};
@@ -88,10 +89,10 @@ fn permute_axes_invalid_order_returns_error() {
     let img = make_image(vec![1.0; 8], [2, 2, 2]);
     // Duplicate axis
     let r = PermuteAxesImageFilter::new([0, 0, 1]).apply(&img);
-    assert!(r.is_err(), "duplicate axis should return Err");
+    assert_rejects(r, "PermuteAxesImageFilter: duplicate axis 0 in order");
     // Out-of-range axis
     let r2 = PermuteAxesImageFilter::new([0, 1, 3]).apply(&img);
-    assert!(r2.is_err(), "out-of-range axis should return Err");
+    assert_rejects(r2, "axis index 3 out of range [0,2]");
 }
 
 #[test]

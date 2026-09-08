@@ -335,13 +335,8 @@ fn gpu_mip_empty_volume_no_panic() {
     let vol = make_test_volume(1, 4, 4);
     let wl = WindowLevel::new(0.0, 1.0);
 
-    let img = render_mip_sync(&mut renderer, &vol, wl, NamedColorMap::Grayscale);
-    assert!(
-        img.is_some(),
-        "Single-slice volume must produce a valid MIP"
-    );
-
-    let img = img.expect("infallible: validated precondition");
+    let img = render_mip_sync(&mut renderer, &vol, wl, NamedColorMap::Grayscale)
+        .expect("single-slice volume must produce a valid MIP");
     assert_eq!(
         img.size,
         [4, 4],

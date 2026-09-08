@@ -32,7 +32,6 @@ fn write_mif_series_rejects_empty_volumes() {
         &backend,
     );
     let _ = std::fs::remove_file(&path);
-    assert!(result.is_err());
     assert!(result
         .unwrap_err()
         .to_string()
@@ -68,7 +67,6 @@ fn write_mif_series_rejects_heterogeneous_shapes() {
     let path = unique_temp_path("hetero_series_test", "mif");
     let result = crate::write_mif_series(&path, &[img1, img2], &backend);
     let _ = std::fs::remove_file(&path);
-    assert!(result.is_err());
     assert!(
         result.unwrap_err().to_string().contains("differs"),
         "error should mention shape difference"

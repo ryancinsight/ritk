@@ -37,7 +37,6 @@ fn test_filter_cpr_insufficient_points_errors() {
     args.cpr.cpr_points = vec!["0,0,0".to_string()];
 
     let result = run_cpr(&args);
-    assert!(result.is_err(), "CPR with 1 point must fail");
     let msg = format!("{:#}", result.unwrap_err());
     assert!(
         msg.contains("at least 2"),
@@ -56,7 +55,6 @@ fn test_filter_cpr_malformed_point_errors() {
     args.cpr.cpr_points = vec!["0,0".to_string(), "1,1,1".to_string()];
 
     let result = run_cpr(&args);
-    assert!(result.is_err(), "CPR with malformed point must fail");
     let msg = format!("{:#}", result.unwrap_err());
     assert!(
         msg.contains("--cpr-point"),

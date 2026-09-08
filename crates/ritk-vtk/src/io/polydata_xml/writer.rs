@@ -122,6 +122,7 @@ mod tests {
     use super::*;
     use crate::domain::vtk_data_object::{AttributeArray, VtkPolyData};
     use crate::io::polydata_xml::reader::parse_vtp;
+    use ritk_core::rejection::assert_rejects;
 
     fn triangle() -> VtkPolyData {
         let mut p = VtkPolyData::default();
@@ -197,6 +198,6 @@ mod tests {
     #[test]
     fn test_bad_path_error() {
         let result = write_vtp_polydata("/nonexistent_xyz/f.vtp", &VtkPolyData::default());
-        assert!(result.is_err());
+        assert_rejects(result, "cannot write VTP");
     }
 }

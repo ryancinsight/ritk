@@ -188,7 +188,6 @@ fn mismatched_fixed_length_returns_error() {
     let dims = [4, 4, 4];
     let reg = MultiResSyNRegistration::new(make_config(1, vec![5], false));
     let err = reg.register(&vec![0.0_f32; 80], &vec![0.0_f32; 64], dims, [1.0; 3]);
-    assert!(err.is_err());
     assert!(format!("{}", err.unwrap_err()).contains("fixed length"));
 }
 
@@ -197,7 +196,6 @@ fn mismatched_moving_length_returns_error() {
     let dims = [4, 4, 4];
     let reg = MultiResSyNRegistration::new(make_config(1, vec![5], false));
     let err = reg.register(&vec![0.0_f32; 64], &vec![0.0_f32; 80], dims, [1.0; 3]);
-    assert!(err.is_err());
     assert!(format!("{}", err.unwrap_err()).contains("moving length"));
 }
 
@@ -207,7 +205,6 @@ fn invalid_iterations_per_level_returns_error() {
     let img = vec![0.0_f32; 64];
     let reg = MultiResSyNRegistration::new(make_config(3, vec![5, 5], false));
     let err = reg.register(&img, &img, dims, [1.0; 3]);
-    assert!(err.is_err());
     assert!(format!("{}", err.unwrap_err()).contains("iterations_per_level"));
 }
 

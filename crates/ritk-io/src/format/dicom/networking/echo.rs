@@ -144,6 +144,7 @@ pub(super) fn receive_data_pdv(
 #[cfg(test)]
 mod tests {
     use super::*;
+    use ritk_core::rejection::assert_rejects;
     use std::net::TcpListener;
     use std::time::Duration;
 
@@ -174,9 +175,6 @@ mod tests {
         };
 
         let result = echo(&config);
-        assert!(
-            result.is_err(),
-            "C-ECHO to a refused port must return a typed Err, got Ok"
-        );
+        assert_rejects(result, "could not connect to server");
     }
 }

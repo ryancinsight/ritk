@@ -4,6 +4,7 @@ use super::engine::InverseConsistentDiffeomorphicDemonsRegistration;
 use super::types::InverseConsistentDemonsConfig;
 use crate::demons::config::DemonsConfig;
 use crate::demons::diffeomorphic::DiffeomorphicDemonsRegistration;
+use ritk_core::rejection::assert_rejects;
 use ritk_filter::GaussianSigma;
 
 fn default_config() -> InverseConsistentDemonsConfig {
@@ -238,7 +239,10 @@ fn test_shape_mismatch_returns_error() {
     let moving = vec![0.0_f32; 200];
     let reg = InverseConsistentDiffeomorphicDemonsRegistration::new(default_config());
     let result = reg.register(&fixed, &moving, [4, 5, 5], [1.0, 1.0, 1.0]);
-    assert!(result.is_err(), "shape mismatch must return Err");
+    assert_rejects(
+        result,
+        "Dimension mismatch: moving length 200 != dims product 100",
+    );
 }
 
 #[test]
@@ -247,5 +251,8 @@ fn test_fixed_mismatch_returns_error() {
     let moving = vec![0.0_f32; 125];
     let reg = InverseConsistentDiffeomorphicDemonsRegistration::new(default_config());
     let result = reg.register(&fixed, &moving, [5, 5, 5], [1.0, 1.0, 1.0]);
-    assert!(result.is_err(), "fixed length mismatch must return Err");
+    assert_rejects(
+        result,
+        "Dimension mismatch: fixed length 50 != dims product 125",
+    );
 }

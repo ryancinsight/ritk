@@ -156,13 +156,9 @@ fn gpu_mesh_async_yields_image_after_poll() {
     // Block until GPU completes.
     r.poll_blocking();
     // Collect via second call.
-    let result = r.render(&mesh, &camera, &mat, &lights, 64, 64, &cfg);
-    assert!(
-        result.is_some(),
-        "second call after blocking poll must return Some"
-    );
-
-    let img = result.expect("infallible: validated precondition");
+    let img = r
+        .render(&mesh, &camera, &mat, &lights, 64, 64, &cfg)
+        .expect("second call after blocking poll must return the completed frame");
     assert_eq!(img.size, [64, 64], "image dimensions must match viewport");
     assert_eq!(
         img.pixels.len(),

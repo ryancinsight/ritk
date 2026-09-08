@@ -2,6 +2,7 @@ use super::{read_obj_mesh, write_obj_mesh};
 use crate::domain::vtk_data_object::{AttributeArray, VtkPolyData};
 use crate::io::obj::reader::parse_obj;
 use crate::io::obj::writer::write_obj_to_writer;
+use ritk_core::rejection::assert_rejects;
 use tempfile::NamedTempFile;
 
 // ── Test fixtures ─────────────────────────────────────────────────────────────
@@ -128,9 +129,9 @@ fn test_obj_malformed_vertex_too_few_coords() {
     // Two coordinates instead of three → parse_vec3 must fail.
     let src = b"v 1.0 2.0\n" as &[u8];
     let result = parse_obj(src);
-    assert!(
-        result.is_err(),
-        "expected Err for vertex with only 2 coordinates"
+    assert_rejects(
+        result,
+        "line 1: malformed vertex '1.0 2.0': missing z coordinate",
     );
 }
 
@@ -138,7 +139,10 @@ fn test_obj_malformed_vertex_too_few_coords() {
 fn test_obj_malformed_face_non_numeric_index() {
     let src = b"v 0 0 0\nv 1 0 0\nv 0 1 0\nf 1 2 abc\n" as &[u8];
     let result = parse_obj(src);
-    assert!(result.is_err(), "expected Err for non-numeric face index");
+    assert_rejects(
+        result,
+        "line 4: invalid vertex index 'abc': invalid digit found in",
+    );
 }
 
 #[test]
@@ -146,7 +150,10 @@ fn test_obj_malformed_face_zero_index() {
     // OBJ indices start at 1; index 0 is invalid.
     let src = b"v 0 0 0\nv 1 0 0\nv 0 1 0\nf 0 1 2\n" as &[u8];
     let result = parse_obj(src);
-    assert!(result.is_err(), "expected Err for zero face index");
+    assert_rejects(
+        result,
+        "line 4: vertex index 0 must be >= 1 (OBJ is 1-based)",
+    );
 }
 
 #[test]

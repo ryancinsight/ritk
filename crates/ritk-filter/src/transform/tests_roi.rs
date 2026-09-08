@@ -1,6 +1,7 @@
 //! Tests for roi
 //! Extracted to keep the 500-line structural limit.
 use super::*;
+use ritk_core::rejection::assert_rejects;
 use ritk_image::test_support as ts;
 use ritk_image::Image;
 use ritk_spatial::{Direction, Point, Spacing};
@@ -102,7 +103,7 @@ fn roi_out_of_bounds_returns_error() {
     let img = make_image(vec![1.0; 8], [2, 2, 2]);
     // start=[0,0,0], size=[3,2,2] → Z range [0..3) exceeds depth 2
     let result = RegionOfInterestImageFilter::new([0, 0, 0], [3, 2, 2]).apply(&img);
-    assert!(result.is_err(), "out-of-bounds ROI must return Err");
+    assert_rejects(result, "ROI range exceeds image bounds");
 }
 
 #[test]

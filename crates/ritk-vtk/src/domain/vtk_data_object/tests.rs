@@ -44,7 +44,6 @@ fn test_vtk_poly_data_validate_scalar_length() {
         },
     );
     let result = p.validate();
-    assert!(result.is_err());
     assert!(result.unwrap_err().contains("intensity"));
 }
 
@@ -259,7 +258,6 @@ fn test_vtk_image_data_validate_wrong_scalar_len() {
         },
     );
     let r = img.validate();
-    assert!(r.is_err(), "mismatched scalar length must return Err");
     assert!(
         r.unwrap_err().contains("s"),
         "error message must name the field"
