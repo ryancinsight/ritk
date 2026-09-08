@@ -1,6 +1,7 @@
 #![expect(clippy::unwrap_used, reason = "ratchet RITK-UNWRAP-1")]
 use super::super::{label_map_to_dicom_seg, SegEncoding};
 use ritk_annotation::RgbaBytes;
+use ritk_core::rejection::assert_rejects;
 
 #[test]
 fn test_label_map_to_dicom_seg_identity_single_label() {
@@ -116,7 +117,7 @@ fn test_label_map_to_dicom_seg_error_empty_geometry() {
     let direction = [1.0, 0.0, 0.0, 0.0, 1.0, 0.0, 0.0, 0.0, 1.0];
 
     let result = label_map_to_dicom_seg(&map, origin, spacing, direction, SegEncoding::Binary);
-    assert!(result.is_err(), "all-background map should return Err");
+    assert_rejects(result, "no foreground labels found in label_map");
 }
 
 #[test]
@@ -131,5 +132,5 @@ fn test_label_map_to_dicom_seg_error_no_foreground() {
     let direction = [1.0, 0.0, 0.0, 0.0, 1.0, 0.0, 0.0, 0.0, 1.0];
 
     let result = label_map_to_dicom_seg(&map, origin, spacing, direction, SegEncoding::Binary);
-    assert!(result.is_err(), "all-background map should return Err");
+    assert_rejects(result, "no foreground labels found in label_map");
 }

@@ -3,6 +3,7 @@ use super::super::write_dicom_series_with_metadata;
 use super::fixtures::{make_image_with_spatial, make_test_metadata};
 use dicom::core::Tag;
 use dicom::object::open_file;
+use ritk_core::rejection::assert_rejects;
 
 #[test]
 fn test_metadata_writer_spatial_tags_first_slice() {
@@ -157,7 +158,7 @@ fn test_metadata_writer_rejects_zero_dimension() {
     let temp = tempfile::tempdir().unwrap();
     let path = temp.path().join("zero_series");
     let result = write_dicom_series_with_metadata(&path, &image, Some(&meta));
-    assert!(result.is_err(), "zero depth must be rejected");
+    assert_rejects(result, "depth=0 rows=4 cols=4 must be >0");
 }
 
 #[test]

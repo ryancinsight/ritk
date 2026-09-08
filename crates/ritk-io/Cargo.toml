@@ -66,6 +66,8 @@ dicom-transfer-syntax-registry = { workspace = true }
 
 [dev-dependencies]
 ritk-codecs = { path = "../ritk-codecs" }  # path-only: dev-deps form a publish cycle
+# Rejection assertions shared across the workspace's test modules.
+ritk-core = { path = "../ritk-core", features = ["test-helpers"] }
 tempfile = { workspace = true }
 base64 = { workspace = true }
 eunomia = { workspace = true }

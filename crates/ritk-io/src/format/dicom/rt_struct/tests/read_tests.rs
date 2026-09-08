@@ -8,8 +8,9 @@ fn test_read_rt_struct_missing_file_returns_error() {
     let tmp = tempfile::tempdir().unwrap();
     let path = tmp.path().join("nonexistent.dcm");
     let result = read_rt_struct(&path);
-    assert!(result.is_err(), "nonexistent path must return Err");
-    let msg = result.unwrap_err().to_string();
+    let msg = result
+        .expect_err("dicom-rs backend failed to parse")
+        .to_string();
     assert!(
         msg.contains("nonexistent") || msg.contains("open") || msg.contains("No such"),
         "error must mention the open failure; got: {msg}"
@@ -25,8 +26,9 @@ fn test_read_rt_struct_wrong_sop_class_returns_error() {
     write_wrong_sop_file("1.2.840.10008.5.1.4.1.1.2", &path);
 
     let result = read_rt_struct(&path);
-    assert!(result.is_err(), "wrong SOP class must return Err");
-    let msg = result.unwrap_err().to_string();
+    let msg = result
+        .expect_err("is not RT Structure Set Storage")
+        .to_string();
     assert!(
         msg.contains("1.2.840.10008.5.1.4.1.1.2"),
         "error must contain the rejected SOP UID; got: {msg}"
@@ -77,8 +79,10 @@ fn test_read_rt_struct_rejects_partial_contour_triple() {
     );
 
     let result = read_rt_struct(&path);
-    assert!(result.is_err(), "partial ContourData triple must fail");
-    let msg = format!("{:#}", result.unwrap_err());
+    let msg = format!(
+        "{:#}",
+        result.expect_err("ContourData component count must be divisible by 3")
+    );
     assert!(
         msg.contains("ContourData") && msg.contains("divisible by 3"),
         "error must name the exact ContourData cardinality violation; got: {msg}"
@@ -97,8 +101,7 @@ fn test_read_rt_struct_rejects_invalid_contour_component() {
     );
 
     let result = read_rt_struct(&path);
-    assert!(result.is_err(), "invalid ContourData component must fail");
-    let msg = format!("{:#}", result.unwrap_err());
+    let msg = format!("{:#}", result.expect_err("Invalid ContourData component 1"));
     assert!(
         msg.contains("Invalid ContourData"),
         "error must name the invalid ContourData component; got: {msg}"

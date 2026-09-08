@@ -1,4 +1,5 @@
 use super::*;
+use ritk_core::rejection::assert_rejects;
 use ritk_dicom::TransferSyntaxKind;
 use ritk_dicom::{parse_file_with, DicomRsBackend};
 
@@ -8,10 +9,7 @@ fn test_write_multiframe_rejects_zero_dimension() {
     let out_path = tmp.path().join("zero.dcm");
     let image = native_image(vec![], [1, 0, 5], [0.0; 3], [1.0; 3]);
     let result = write_dicom_multiframe_native(&out_path, &image);
-    assert!(
-        result.is_err(),
-        "write_dicom_multiframe_native must return Err for zero-row image"
-    );
+    assert_rejects(result, "rows=0 cols=5 must all be >0");
 }
 
 #[test]

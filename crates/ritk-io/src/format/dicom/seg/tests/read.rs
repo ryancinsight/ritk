@@ -10,8 +10,10 @@ use dicom::object::InMemDicomObject;
 #[test]
 fn test_read_seg_missing_file_returns_error() {
     let result = read_dicom_seg("/nonexistent/path/seg.dcm");
-    assert!(result.is_err(), "expected Err for missing file");
-    let msg = format!("{:#}", result.unwrap_err());
+    let msg = format!(
+        "{:#}",
+        result.expect_err("dicom-rs backend failed to parse")
+    );
     assert!(
         msg.contains("nonexistent") || msg.contains("open DICOM"),
         "error must mention file path or open action; got: {msg}"
@@ -50,8 +52,7 @@ fn test_read_seg_wrong_sop_class_returns_error() {
     .expect("write CT stub");
 
     let result = read_dicom_seg(&path);
-    assert!(result.is_err(), "expected Err for wrong SOP class");
-    let msg = format!("{:#}", result.unwrap_err());
+    let msg = format!("{:#}", result.expect_err("is not Segmentation Storage"));
     assert!(
         msg.contains("SOP"),
         "error message must contain 'SOP'; got: {msg}"

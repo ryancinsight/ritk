@@ -78,9 +78,13 @@ fn test_read_analyze_path_leak() {
     let non_existent_path = PathBuf::from("/non/existent/path/file.hdr");
     let result = read_analyze::<TestBackend, _>(&non_existent_path, &device);
 
-    assert!(result.is_err());
-    let err_msg = result.unwrap_err().to_string();
-
+    let err_msg = result
+        .expect_err("a missing Analyze header cannot be read")
+        .to_string();
+    assert!(
+        err_msg.contains("Cannot open Analyze header"),
+        "the rejection must name its cause: {err_msg}"
+    );
     assert!(
         !err_msg.contains(non_existent_path.to_string_lossy().as_ref()),
         "Error message leaks path: {}",
@@ -216,9 +220,13 @@ fn test_write_analyze_path_leak() {
 
     let result = write_analyze(&non_existent_path, &image);
 
-    assert!(result.is_err());
-    let err_msg = result.unwrap_err().to_string();
-
+    let err_msg = result
+        .expect_err("a data file under a missing directory cannot be created")
+        .to_string();
+    assert!(
+        err_msg.contains("Failed to create Analyze data file"),
+        "the rejection must name its cause: {err_msg}"
+    );
     assert!(
         !err_msg.contains(non_existent_path.to_string_lossy().as_ref()),
         "Error message leaks path: {}",

@@ -183,8 +183,9 @@ fn test_write_dicom_seg_rejects_mismatched_frame_count() {
     };
 
     let result = write_dicom_seg(&path, &seg);
-    assert!(result.is_err(), "mismatched frame count must return Err");
-    let msg = result.unwrap_err().to_string();
+    let msg = result
+        .expect_err("pixel_data.len()=1 != n_frames=2")
+        .to_string();
     assert!(
         msg.contains("pixel_data") || msg.contains("n_frames"),
         "error must identify the frame-count mismatch; got: {msg}"
@@ -217,11 +218,9 @@ fn test_write_dicom_seg_rejects_mismatched_frame_segment_numbers() {
     };
 
     let result = write_dicom_seg(&path, &seg);
-    assert!(
-        result.is_err(),
-        "expected frame segment count mismatch error"
-    );
-    let msg = result.unwrap_err().to_string();
+    let msg = result
+        .expect_err("frame_segment_numbers.len()=1 != n_frames=2")
+        .to_string();
     assert!(
         msg.contains("frame_segment_numbers") || msg.contains("n_frames"),
         "error must identify frame_segment_numbers/n_frames mismatch; got: {msg}"

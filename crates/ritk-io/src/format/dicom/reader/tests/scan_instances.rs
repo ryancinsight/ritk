@@ -3,6 +3,7 @@
 #![expect(clippy::unwrap_used, reason = "ratchet RITK-UNWRAP-1")]
 
 use arrayvec::ArrayString;
+use ritk_core::rejection::assert_rejects;
 
 use super::super::scan::{
     scan_dicom_instances, scan_dicom_part10_bytes, scan_dicom_part10_bytes_with_budget,
@@ -96,10 +97,7 @@ fn test_scan_dicom_part10_bytes_all_unparseable_errors() {
     let garbage2: &[u8] = &[0xFF; 8];
     let files: Vec<(&str, &[u8])> = vec![("bad1.dcm", garbage1), ("bad2.dcm", garbage2)];
     let result = scan_dicom_part10_bytes(&files);
-    assert!(
-        result.is_err(),
-        "scan_dicom_part10_bytes must fail when all inputs are unparseable"
-    );
+    assert_rejects(result, "Part 10 preamble and DICM marker are missing");
 }
 
 /// The public byte-batch entry point applies the same byte ceiling as the

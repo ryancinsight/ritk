@@ -4,6 +4,7 @@ use super::fixtures::{make_image, Backend};
 use dicom::core::Tag;
 use dicom::object::open_file;
 use ritk_core::image::Image;
+use ritk_core::rejection::assert_rejects;
 use ritk_image::tensor::Tensor;
 use ritk_spatial::{Direction, Point, Spacing};
 
@@ -13,7 +14,7 @@ fn test_writer_rejects_zero_dimension() {
     let temp = tempfile::tempdir().unwrap();
     let path = temp.path().join("series");
     let result = write_dicom_series(&path, &image);
-    assert!(result.is_err(), "zero depth must be rejected");
+    assert_rejects(result, "depth=0 rows=4 cols=4 must be >0");
 }
 
 #[test]

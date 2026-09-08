@@ -1,5 +1,6 @@
 #![expect(clippy::unwrap_used, reason = "ratchet RITK-UNWRAP-1")]
 use super::*;
+use ritk_core::rejection::assert_rejects;
 
 // ── trace_closed_contour ─────────────────────────────────────────────
 
@@ -131,7 +132,7 @@ fn label_map_to_rt_struct_zero_dim_returns_err() {
         [1.0; 3],
         [1.0, 0.0, 0.0, 0.0, 1.0, 0.0, 0.0, 0.0, 1.0],
     );
-    assert!(result.is_err());
+    assert_rejects(result, "label_map has zero dimension");
 }
 
 #[test]
@@ -144,7 +145,7 @@ fn label_map_to_rt_struct_no_foreground_returns_err() {
         [1.0; 3],
         [1.0, 0.0, 0.0, 0.0, 1.0, 0.0, 0.0, 0.0, 1.0],
     );
-    assert!(result.is_err());
+    assert_rejects(result, "no foreground labels found in label_map");
 }
 
 #[test]
@@ -194,8 +195,10 @@ fn label_map_to_rt_struct_contour_physical_positions() {
     let origin = [0.0; 3];
     let spacing = [1.0, 1.0, 1.0]; // [dz, dy, dx]
     let direction = [1.0, 0.0, 0.0, 0.0, 1.0, 0.0, 0.0, 0.0, 1.0];
-    let result = label_map_to_rt_struct(&lm, origin, spacing, direction);
-    // Single isolated voxel -> boundary trace may give < 3 points -> no contour
-    // Check that it still produces an ROI (just may have 0 contours)
-    assert!(result.is_ok());
+    // A single isolated voxel traces fewer than three boundary points, so the
+    // ROI is emitted with no contours rather than dropped -- which is the
+    // claim: the structure set still describes the label.
+    let structure_set = label_map_to_rt_struct(&lm, origin, spacing, direction)
+        .expect("an isolated voxel still yields a structure set");
+    assert_eq!(structure_set.rois.len(), 1);
 }

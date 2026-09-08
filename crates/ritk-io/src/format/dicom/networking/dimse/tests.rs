@@ -24,9 +24,11 @@ fn test_c_echo_rsp_status() {
 #[test]
 fn test_c_find_rq_has_data_set() {
     let identifier = vec![0x08, 0x00, 0x52, 0x00];
-    let msg = DimseMessage::c_find_rq(1, sop_class::FIND_STUDY, identifier);
+    let msg = DimseMessage::c_find_rq(1, sop_class::FIND_STUDY, identifier.clone());
     assert_eq!(msg.command_data_set_type(), Some(HAS_DATASET));
-    assert!(msg.data_set.is_some());
+    // The identifier must survive construction verbatim: `is_some` would hold
+    // for an empty or substituted data set while the command still claims one.
+    assert_eq!(msg.data_set.as_deref(), Some(identifier.as_slice()));
     let encoded = msg.encode_command_set();
     let decoded =
         DimseMessage::decode_command_set(&encoded).expect("infallible: validated precondition");
@@ -51,10 +53,10 @@ fn test_c_store_rq_round_trip() {
 #[test]
 fn test_c_move_rq_encode() {
     let identifier = vec![0x00, 0x01, 0x02];
-    let msg = DimseMessage::c_move_rq(5, sop_class::MOVE_STUDY, "PACS_SCP", identifier);
+    let msg = DimseMessage::c_move_rq(5, sop_class::MOVE_STUDY, "PACS_SCP", identifier.clone());
     assert_eq!(msg.move_destination().as_deref(), Some("PACS_SCP"));
     assert_eq!(msg.command_field(), Some(CommandField::CMoveRq));
-    assert!(msg.data_set.is_some());
+    assert_eq!(msg.data_set.as_deref(), Some(identifier.as_slice()));
 }
 
 #[test]
