@@ -60,13 +60,34 @@ fn test_stats_summary_constant_image() {
     let image = make_constant_image(42.0);
     let input = write_nifti_tmp(dir.path(), "const.nii", &image);
 
-    let result = run(StatsArgs {
+    run(StatsArgs {
         input,
         reference: None,
         metric: StatMetric::Summary,
         max_val: 255.0,
-    });
-    assert!(result.is_ok(), "summary must succeed: {:?}", result.err());
+    })
+    .expect("summary must succeed on a constant image");
+
+    // The CLI prints its summary and returns `()`, so the values it reports are
+    // only assertable through the function that computes them. A constant image
+    // pins every one of them at once: the spread statistics must collapse.
+    let s = compute_native_statistics(&image).expect("native statistics succeeds");
+    assert!(
+        (s.min - 42.0).abs() < 1e-4,
+        "min must be 42.0, got {}",
+        s.min
+    );
+    assert!(
+        (s.max - 42.0).abs() < 1e-4,
+        "max must be 42.0, got {}",
+        s.max
+    );
+    assert!(
+        (s.mean - 42.0).abs() < 1e-4,
+        "mean must be 42.0, got {}",
+        s.mean
+    );
+    assert!(s.std.abs() < 1e-4, "std must be 0.0, got {}", s.std);
 }
 
 /// Summary on a ramp image must report correct min and max.
@@ -105,7 +126,7 @@ fn test_stats_dice_identical_masks_returns_one() {
         metric: StatMetric::Dice,
         max_val: 255.0,
     });
-    assert!(result.is_ok(), "dice must succeed: {:?}", result.err());
+    result.expect("dice must succeed");
 
     // Verify the value directly via the library function.
     let img = read_image(&input).expect("read native Dice fixture");
@@ -148,7 +169,7 @@ fn test_stats_psnr_identical_images_returns_inf() {
         metric: StatMetric::Psnr,
         max_val: 63.0,
     });
-    assert!(result.is_ok(), "psnr must succeed: {:?}", result.err());
+    result.expect("psnr must succeed");
 
     let img = read_image(&input).expect("read native PSNR fixture");
     let value = psnr_native(&img, &img, 63.0).expect("native PSNR succeeds");
@@ -173,7 +194,7 @@ fn test_stats_ssim_identical_images_returns_one() {
         metric: StatMetric::Ssim,
         max_val: 63.0,
     });
-    assert!(result.is_ok(), "ssim must succeed: {:?}", result.err());
+    result.expect("ssim must succeed");
 
     let img = read_image(&input).expect("read native SSIM fixture");
     let value = ssim_native(&img, &img, 63.0).expect("native SSIM succeeds");
@@ -198,7 +219,7 @@ fn test_stats_hausdorff_identical_masks_returns_zero() {
         metric: StatMetric::Hausdorff,
         max_val: 255.0,
     });
-    assert!(result.is_ok(), "hausdorff must succeed: {:?}", result.err());
+    result.expect("hausdorff must succeed");
 
     let img = read_image(&input).expect("read native Hausdorff fixture");
     let sp = img.spacing();
@@ -228,8 +249,6 @@ fn test_stats_dice_without_reference_returns_error() {
         metric: StatMetric::Dice,
         max_val: 255.0,
     });
-    assert!(result.is_err(), "dice without --reference must return Err");
-
     let msg = result.unwrap_err().to_string();
     assert!(
         msg.contains("--reference is required"),
@@ -249,8 +268,6 @@ fn test_stats_psnr_without_reference_returns_error() {
         metric: StatMetric::Psnr,
         max_val: 255.0,
     });
-    assert!(result.is_err(), "psnr without --reference must return Err");
-
     let msg = result.unwrap_err().to_string();
     assert!(
         msg.contains("--reference is required"),
@@ -270,8 +287,6 @@ fn test_stats_ssim_without_reference_returns_error() {
         metric: StatMetric::Ssim,
         max_val: 255.0,
     });
-    assert!(result.is_err(), "ssim without --reference must return Err");
-
     let msg = result.unwrap_err().to_string();
     assert!(
         msg.contains("--reference is required"),
@@ -316,7 +331,11 @@ fn test_stats_missing_input_returns_error() {
         metric: StatMetric::Summary,
         max_val: 255.0,
     });
-    assert!(result.is_err(), "missing input must yield an error");
+    let msg = format!("{:#}", result.unwrap_err());
+    assert!(
+        msg.contains("does_not_exist.nii"),
+        "error must name the unreadable path, got: {msg}"
+    );
 }
 
 // ── Positive: mean-surface-distance identical masks returns 0.0 ──────

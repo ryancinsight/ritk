@@ -205,7 +205,6 @@ fn test_segment_connected_threshold_missing_lower_returns_error() {
         ..Default::default()
     });
 
-    assert!(result.is_err(), "missing --lower must yield an error");
     let msg = result.unwrap_err().to_string();
     assert!(
         msg.contains("--lower is required"),
@@ -234,7 +233,6 @@ fn test_segment_connected_threshold_missing_upper_returns_error() {
         ..Default::default()
     });
 
-    assert!(result.is_err(), "missing --upper must yield an error");
     let msg = result.unwrap_err().to_string();
     assert!(
         msg.contains("--upper is required"),
@@ -263,7 +261,6 @@ fn test_segment_connected_threshold_missing_seed_returns_error() {
         ..Default::default()
     });
 
-    assert!(result.is_err(), "missing --seed must yield an error");
     let msg = result.unwrap_err().to_string();
     assert!(
         msg.contains("--seed is required"),
@@ -292,7 +289,6 @@ fn test_segment_connected_threshold_lower_gt_upper_returns_error() {
         ..Default::default()
     });
 
-    assert!(result.is_err(), "lower > upper must yield an error");
     let msg = result.unwrap_err().to_string();
     assert!(
         msg.contains("must be \u{2264}") || msg.contains("must be <=") || msg.contains('\u{2264}'),
@@ -321,7 +317,6 @@ fn test_segment_connected_threshold_out_of_bounds_seed_returns_error() {
         ..Default::default()
     });
 
-    assert!(result.is_err(), "out-of-bounds seed must yield an error");
     let msg = result.unwrap_err().to_string();
     assert!(
         msg.contains("out of bounds"),
@@ -350,7 +345,6 @@ fn test_segment_malformed_seed_returns_error() {
         ..Default::default()
     });
 
-    assert!(result.is_err(), "malformed seed must yield an error");
     let msg = result.unwrap_err().to_string();
     assert!(
         msg.contains("Z,Y,X"),
@@ -425,7 +419,6 @@ fn test_segment_confidence_connected_missing_lower_returns_error() {
     args.upper = Some(1.5);
     args.seed = Some("2,2,2".to_string());
     let result = run(args);
-    assert!(result.is_err(), "--lower missing must produce an error");
     let msg = result.unwrap_err().to_string();
     assert!(
         msg.contains("--lower"),
@@ -443,7 +436,11 @@ fn test_segment_confidence_connected_missing_upper_returns_error() {
     args.lower = Some(0.5);
     args.seed = Some("2,2,2".to_string());
     let result = run(args);
-    assert!(result.is_err(), "--upper missing must produce an error");
+    let msg = result.unwrap_err().to_string();
+    assert!(
+        msg.contains("--upper is required"),
+        "error must name the missing argument, got: {msg}"
+    );
 }
 
 #[test]
@@ -456,7 +453,11 @@ fn test_segment_confidence_connected_missing_seed_returns_error() {
     args.lower = Some(0.5);
     args.upper = Some(1.5);
     let result = run(args);
-    assert!(result.is_err(), "--seed missing must produce an error");
+    let msg = result.unwrap_err().to_string();
+    assert!(
+        msg.contains("--seed is required"),
+        "error must name the missing argument, got: {msg}"
+    );
 }
 
 // -- neighborhood-connected: positive -------------------------------------
