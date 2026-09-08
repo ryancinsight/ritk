@@ -8,6 +8,9 @@ pub use domain::{
     VtkStructuredGrid, VtkUnstructuredGrid,
 };
 pub use format::analyze::{read_analyze, write_analyze, AnalyzeReader, AnalyzeWriter};
+/// Conformant Part 10 file-set index construction for consumers' tests.
+#[cfg(feature = "test-util")]
+pub use format::dicom::file_set_index_fixture;
 pub use format::dicom::{
     anonymize_dicom_directory, anonymize_dicom_directory_verified, anonymize_dicom_file,
     anonymize_dicom_file_verified, anonymize_object, dicom_echo, dicom_find, dicom_retrieve,

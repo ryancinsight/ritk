@@ -215,7 +215,7 @@ fn session_restores_exact_acquisition_and_presentation_after_decode() {
 /// not the full media-directory IOD's linked-record offset constraints.
 #[test]
 fn dicomdir_index_opens_referenced_pixels_and_excludes_unreferenced_acquisition() {
-    use ritk_io::{DicomObjectModel, DicomObjectNode, DicomSequenceItem, DicomTag};
+    use ritk_io::file_set_index_fixture::{write_file_set_index, FileSetIdentity, FileSetMember};
 
     let root = tempfile::tempdir().expect("indexed study root");
     let images = root.path().join("IMAGES");
@@ -223,52 +223,37 @@ fn dicomdir_index_opens_referenced_pixels_and_excludes_unreferenced_acquisition(
         .expect("write indexed acquisition");
     fixtures::write_study(&images, "MR", SECONDARY_UID)
         .expect("write unreferenced distractor acquisition");
-    let mut records = Vec::new();
     let mut referenced_paths = Vec::new();
+    let mut file_ids = Vec::new();
+    let mut sop_instance_uids = Vec::new();
     for ((_, bytes), index) in slices.iter().zip(1..=3) {
         let file_id = format!("SLICE{index:03}");
         let path = images.join(&file_id);
         std::fs::write(&path, bytes).expect("write DICOM file-set member");
         referenced_paths.push(path.canonicalize().expect("resolve written member"));
-        records.push(DicomSequenceItem::from_elements(vec![
-            DicomObjectNode::text(DicomTag::new(0x0004, 0x1430), "CS", "IMAGE"),
-            DicomObjectNode::text(
-                DicomTag::new(0x0004, 0x1500),
-                "CS",
-                format!("IMAGES\\{file_id}"),
-            ),
-            DicomObjectNode::text(
-                DicomTag::new(0x0004, 0x1510),
-                "UI",
-                "1.2.840.10008.5.1.4.1.1.7",
-            ),
-            DicomObjectNode::text(
-                DicomTag::new(0x0004, 0x1511),
-                "UI",
-                format!("{}.{index}", fixtures::SERIES_UID),
-            ),
-            DicomObjectNode::text(DicomTag::new(0x0004, 0x1512), "UI", "1.2.840.10008.1.2.1"),
-        ]));
+        file_ids.push(format!("IMAGES\\{file_id}"));
+        sop_instance_uids.push(format!("{}.{index}", fixtures::SERIES_UID));
     }
-    let mut model = DicomObjectModel::new();
-    for (group, element, vr, value) in [
-        (0x0008, 0x0016, "UI", "1.2.840.10008.1.3.10"),
-        (0x0008, 0x0018, "UI", "2.25.20260905999"),
-        (0x0004, 0x1130, "CS", "SNAPTEST"),
-    ] {
-        model.insert(DicomObjectNode::text(
-            DicomTag::new(group, element),
-            vr,
-            value,
-        ));
-    }
-    model.insert(DicomObjectNode::sequence(
-        DicomTag::new(0x0004, 0x1220),
-        "SQ",
-        records,
-    ));
+    // The reader validates the full media-directory record tree -- in-use
+    // flags, root chain, and lower-level offsets -- so the index is built by
+    // the format crate rather than assembled here.
+    let members: Vec<_> = file_ids
+        .iter()
+        .zip(&sop_instance_uids)
+        .map(|(file_id, sop_instance_uid)| FileSetMember {
+            file_id,
+            sop_class_uid: "1.2.840.10008.5.1.4.1.1.7",
+            sop_instance_uid,
+            transfer_syntax_uid: "1.2.840.10008.1.2.1",
+        })
+        .collect();
+    let identity = FileSetIdentity {
+        study_instance_uid: "2.25.20260905",
+        series_instance_uid: fixtures::SERIES_UID,
+        modality: "CT",
+    };
     let index = root.path().join("DICOMDIR");
-    ritk_io::write_dicom_object(&model, &index).expect("write Part 10 file-set index");
+    write_file_set_index(&index, identity, &members);
 
     let mut app = SnapApp::default();
     app.pending_load = Some(VolumeInput::Path(index.clone()));
@@ -302,7 +287,7 @@ fn dicomdir_index_opens_referenced_pixels_and_excludes_unreferenced_acquisition(
     app.scan_for_series(root.path().to_path_buf());
     assert!(app.status_message.starts_with("Scan failed"));
     assert_eq!(app.series_tree.total_series(), 1);
-    ritk_io::write_dicom_object(&model, &index).expect("restore index");
+    write_file_set_index(&index, identity, &members);
     std::fs::remove_file(&referenced_paths[0]).expect("remove referenced member");
     app.scan_for_series(root.path().to_path_buf());
     assert!(app.status_message.starts_with("Scan failed"));

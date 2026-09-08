@@ -52,6 +52,9 @@ getrandom_02 = { workspace = true, features = ["js"] }
 
 [dev-dependencies]
 tempfile = { workspace = true }
+# The DICOMDIR reader validates the full record tree, so tests build indices
+# through the format crate rather than hand-rolling one.
+ritk-io = { workspace = true, features = ["test-util"] }
 
 [lints]
 workspace = true
