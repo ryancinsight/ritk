@@ -30,7 +30,11 @@ mod tests;
 pub use loader::{
     load_dicom_from_series, load_dicom_series_with_metadata, read_dicom_series_with_metadata,
 };
-pub use scan::{scan_dicom_files, scan_dicom_instances, scan_dicom_part10_bytes, scan_dicom_path};
+pub use scan::{
+    scan_dicom_directory_with_budget, scan_dicom_files, scan_dicom_files_with_budget,
+    scan_dicom_instances, scan_dicom_instances_with_budget, scan_dicom_part10_bytes,
+    scan_dicom_part10_bytes_with_budget, scan_dicom_path, scan_dicom_path_with_budget,
+};
 // scan::scan_dicom_directory is accessed directly via `reader::scan::scan_dicom_directory`
 // by sibling modules (color.rs). No re-export needed.
 pub use types::literal_arraystring;

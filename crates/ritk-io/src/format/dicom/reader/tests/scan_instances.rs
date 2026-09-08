@@ -4,8 +4,11 @@
 
 use arrayvec::ArrayString;
 
-use super::super::scan::{scan_dicom_instances, scan_dicom_part10_bytes};
+use super::super::scan::{
+    scan_dicom_instances, scan_dicom_part10_bytes, scan_dicom_part10_bytes_with_budget,
+};
 use crate::format::dicom::networking::scp::StoredInstance;
+use ritk_dicom::ParseBudget;
 
 /// `scan_dicom_instances` must reject an empty slice with a descriptive error.
 ///
@@ -95,5 +98,25 @@ fn test_scan_dicom_part10_bytes_all_unparseable_errors() {
     assert!(
         result.is_err(),
         "scan_dicom_part10_bytes must fail when all inputs are unparseable"
+    );
+}
+
+/// The public byte-batch entry point applies the same byte ceiling as the
+/// backend before it builds a series descriptor.
+#[test]
+fn test_scan_dicom_part10_bytes_budget_rejects_oversized_input() {
+    let dir = tempfile::tempdir().unwrap();
+    let path = dir.path().join("slice.dcm");
+    super::support::write_stub_dicom(&path, "1.2.840.10008.5.1.4.1.1.2", "2.25.72001.1");
+    let bytes = std::fs::read(path).unwrap();
+    let budget = ParseBudget::new(bytes.len() - 1, 100, 8);
+
+    let error = scan_dicom_part10_bytes_with_budget(&[("slice.dcm", &bytes)], &budget)
+        .expect_err("the explicit byte budget must reject the input");
+
+    let message = format!("{error:#}");
+    assert!(
+        message.contains("input exceeds parse budget"),
+        "unexpected budget error: {message}"
     );
 }

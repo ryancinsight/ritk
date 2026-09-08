@@ -4,10 +4,12 @@
 #![expect(clippy::unwrap_used, reason = "ratchet RITK-UNWRAP-1")]
 
 use super::*;
+use crate::backend::parse_budget::{parse_bytes_with_budget, parse_file_with_budget};
 use crate::backend::{
     decode_frame_with, parse_bytes_with, parse_file_with, write_bytes_with, write_file_with,
 };
 use crate::pixel::{PixelLayout, PixelSignedness};
+use crate::ParseBudget;
 use dicom::core::smallvec::SmallVec;
 use dicom::core::value::PixelFragmentSequence;
 use dicom::core::{DataElement, PrimitiveValue, VR};
@@ -74,6 +76,34 @@ fn dicom_rs_backend_parses_file_and_decodes_uncompressed_frame() {
     .expect("DICOM file must be written");
 
     let parsed = parse_file_with::<DicomRsBackend, _>(&path).expect("parse must succeed");
+    let encoded = std::fs::read(&path).expect("written DICOM must be readable");
+    let bounded = parse_bytes_with_budget::<DicomRsBackend>(&encoded, &ParseBudget::DEFAULT)
+        .expect("budgeted parse must succeed");
+    let bounded_file = parse_file_with_budget::<DicomRsBackend, _>(&path, &ParseBudget::DEFAULT)
+        .expect("budgeted file parse must succeed");
+    assert_eq!(
+        bounded
+            .element(Tag(0x0008, 0x0018))
+            .expect("SOP Instance UID must exist")
+            .to_str()
+            .expect("SOP Instance UID must be text"),
+        "2.25.1001"
+    );
+    assert_eq!(
+        bounded_file
+            .element(Tag(0x0008, 0x0018))
+            .expect("SOP Instance UID must exist")
+            .to_str()
+            .expect("SOP Instance UID must be text"),
+        "2.25.1001"
+    );
+    let budget = ParseBudget::new(encoded.len() - 1, 100, 8);
+    let error = parse_file_with_budget::<DicomRsBackend, _>(&path, &budget)
+        .expect_err("file byte budget must reject before parsing");
+    assert!(
+        format!("{error:#}").contains("DICOM file exceeds parse budget"),
+        "unexpected budget error: {error:#}"
+    );
 
     let decoded = decode_frame_with::<DicomRsBackend>(
         &parsed,

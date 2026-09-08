@@ -15,6 +15,7 @@ license.workspace = true
 [dependencies]
 anyhow = { workspace = true }
 arrayvec = { workspace = true }
+consus-core = { workspace = true }
 dicom = { workspace = true }
 ritk-codecs = { workspace = true }
 ritk-diffusion-scheme = { path = "../ritk-diffusion-scheme", version = "0.2.0" }
