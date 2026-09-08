@@ -18,7 +18,8 @@
 
 <a id="RITK-SNAP-DIRECTORY-001"></a>
 ## RITK-SNAP-DIRECTORY-001 — Validate media-directory record semantics [patch]
-- Status: todo; priority: P0; owner: RITK IO; dependencies: RITK-SNAP-OPEN-001; risk: inactive or unreachable records alter the selected file set.
+- Status: in-progress; priority: P0; owner: RITK IO; integrator: root; last-update: 2026-09-08; branch: `feat/ritk-dicom-parse-budget`; dependencies: RITK-SNAP-OPEN-001; risk: inactive or unreachable records alter the selected file set.
+- Lease: root — `crates/ritk-io/src/format/dicom/reader/dicomdir.rs`, selection fixtures/tests, and this item — 2026-09-08.
 - Scope: enforce admitted DICOMDIR record activity, linked-record offsets and referenced SOP/transfer-syntax agreement; retain authoritative membership and explicit errors.
 - Evidence: `reader/dicomdir.rs` iterates IMAGE items without following offsets or checking RecordInUseFlag; successful linked fixtures establish their loaded values, not complete index validation.
 - Acceptance: inactive/deleted and unreachable records do not add files; malformed links fail without loops or unbounded traversal; active references agree with actual instance identities.
