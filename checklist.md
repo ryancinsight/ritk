@@ -47,11 +47,20 @@
       values beyond the byte ceiling before dicom-rs materializes them.
 - [x] Route the selected-instance and retained-byte scan paths through the
       budgeted backend entry point; keep exact validated bytes for decoding.
+- [x] Add `DicomReadBudget` and explicit scan/load APIs with independent parser,
+      retained-study, and decoded-workspace ceilings.
+- [x] Charge retained study bytes before storing each validated Part-10 member;
+      apply the parser budget to DICOMDIR index reads as well.
+- [x] Plan peak decoded frame/resample/volume workspace before allocation and
+      route path-based pixel fallback through the bounded reader.
 - [x] Add deterministic valid, truncation, oversized-length, sequence-depth,
       and element-count cases with value-semantic error assertions.
-- [x] Run focused format, warning-denied Clippy, Nextest, Rustdoc, and diff
-      gates against the exact revision; record residual handle, retained-study,
-      and decoded-buffer work in the backlog.
+- [x] Add replacement-identity, retained-byte, DICOMDIR-budget, and decoded-
+      workspace regressions; run focused format, warning-denied Clippy, Nextest,
+      Rustdoc, and diff gates against the exact revision.
+- [ ] Complete OS-specific no-follow handle confinement and media-directory
+      record-tree validation; retain this item open until the platform contract
+      is verified on the supported viewer hosts.
 
 ## FIX-DTI-VOLUME-FRAME [major][arch] — Preserve diffusion coordinate frames
 

@@ -113,16 +113,27 @@ materializes an object. `ritk_dicom::ParseBudget` limits the encoded byte span,
 structural element count, and sequence nesting depth. The scanner checks
 declared value spans, sequence and item delimiters, implicit sequence tags, and
 encapsulated pixel fragments without copying their values. The reader exposes
-matching `scan_dicom_*_with_budget` entry points; the default scan functions use
-the shared default budget.
+matching `scan_dicom_*_with_budget` entry points and the series loaders expose
+`load_*_with_budget` counterparts. They accept the typed `DicomReadBudget`,
+which combines the parser budget with separate retained-study and
+decoded-workspace ceilings. The default forms use finite shared ceilings;
+constrained hosts can construct a smaller budget with
+`DicomReadBudget::try_new(ParseBudget::new(...), retained_bytes, decoded_bytes)`.
 
 The preflight accepts implicit little-endian, explicit little-endian, and
 explicit big-endian datasets, plus the encapsulated pixel syntaxes used by the
 native RITK codecs. Deflated dataset input is rejected with an explicit error
 because the locked dicom-rs registry does not provide a bounded deflate decoder.
-This slice bounds malformed encoded input before object construction; the
-remaining handle-confinement, retained-study, and decoded-volume budgets stay
-tracked in [RITK-SNAP-RESOURCES-001](../../backlog.md#RITK-SNAP-RESOURCES-001).
+The DICOMDIR index uses the same parser preflight. Filesystem reads resolve and
+open one path handle, compare its metadata with the resolved path, and read from
+that handle; scanned slices retain the exact validated bytes for pixel decode.
+The reader charges retained bytes before storing each member. The loader plans
+the peak decoded frame, resample, and contiguous-volume workspace before any of
+those buffers are allocated, including the temporary frame-vector handles.
+Deterministic tests cover parser, DICOMDIR, retained-byte, decoded-workspace,
+and replacement cases. Operating-system no-follow behavior remains a platform
+integration boundary; [RITK-SNAP-DIRECTORY-001](../../backlog.md#RITK-SNAP-DIRECTORY-001)
+still owns complete media-directory record semantics.
 
 ## Capture the native application
 

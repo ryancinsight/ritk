@@ -8,14 +8,20 @@ Driver: [RITK-SNAP-METIS-001](../../backlog.md#RITK-SNAP-METIS-001).
 
 Revision 2026-09-08: [RITK-SNAP-RESOURCES-001](../../backlog.md#RITK-SNAP-RESOURCES-001)
 now has a `ritk-dicom` structural Part 10 preflight backed by the existing
-Consus `ParseBudget`. All selected, exact-member, SCP, and named-byte scan
-entry points route through it before dicom-rs object construction. The tested
-syntax set includes implicit little-endian, explicit little-endian, explicit
-big-endian, and encapsulated pixel data. Deflated datasets remain an explicit
-unsupported case because the locked dicom-rs registry has no bounded deflate
-decoder. This revision closes the parser-preflight portion only; filesystem
-handle confinement, retained-study accounting, and decoded-volume budgets
-remain open on the same item.
+Consus `ParseBudget`. All selected, exact-member, SCP, named-byte, and
+DICOMDIR-index reads route through it before dicom-rs object construction. The
+tested syntax set includes implicit little-endian, explicit little-endian,
+explicit big-endian, and encapsulated pixel data. Deflated datasets remain an
+explicit unsupported case because the locked dicom-rs registry has no bounded
+deflate decoder. `DicomReadBudget` now separates parser, retained-study, and
+decoded-workspace ceilings; retained bytes are charged before storage and the
+loader rejects the planned peak frame/resample/volume workspace before
+allocation. Budgeted reads compare the opened handle with resolved path
+metadata and consume that handle, while scanned slices retain the validated
+bytes for later decode. The portable implementation detects replacement during
+the resolution/inspection window; operating-system no-follow guarantees remain
+a platform boundary, and complete DICOMDIR record-tree validation stays in
+RITK-SNAP-DIRECTORY-001.
 
 Revision 2026-09-06: [RITK-SNAP-OPEN-001](../../backlog.md#RITK-SNAP-OPEN-001)
 requires explicit acquisition selection. Inspection of `d3cbd8eb` finds that
