@@ -86,7 +86,11 @@ successful loading. Selecting a secondary series retains its own exact files.
 
 **Open DICOMDIR…** uses the index's referenced image set. Missing references or
 an invalid index report an error; unreferenced subdirectories do not supply a
-replacement study. Dropped byte batches must identify one image series.
+replacement study. The reader follows the linked PATIENT/STUDY/SERIES/IMAGE
+record tree, excludes inactive or unreachable records, rejects cycles and
+out-of-sequence offsets, and verifies each IMAGE record's SOP class, SOP
+instance, and transfer syntax against its referenced file. Dropped byte batches
+must identify one image series.
 
 Saving a session records the primary study's UID and exact files along with the
 presentation controls. Restore validates those members before replacing the
@@ -98,13 +102,12 @@ This session format does not persist the secondary comparison acquisition.
 
 Native tests exercise actual egui series-row pointer events, primary/secondary
 loads, failed replacement, and session restore with deterministic Part 10 files.
-The DICOMDIR fixture covers IMAGE references and membership; it does not establish
-complete media-directory IOD or linked-record-offset conformance.
-The current reader enumerates IMAGE records; filtering inactive records and
-validating their linked tree and referenced SOP identities remain in the
-[media-directory item](../../backlog.md#RITK-SNAP-DIRECTORY-001).
-The IO tests separately load a complete synthetic linked PATIENT/STUDY/SERIES/IMAGE
-index and compare its exact pixel values and geometry with explicit member loading.
+The IO tests load a complete synthetic linked PATIENT/STUDY/SERIES/IMAGE index,
+then exercise inactive and unreachable records, malformed links, identity
+mismatches, and final-component symlinks. They compare active member paths and
+exact pixel values and geometry with explicit member loading. The remaining
+filesystem boundary is parent-directory handle traversal; it is tracked in
+[RITK-SNAP-RESOURCES-001](../../backlog.md#RITK-SNAP-RESOURCES-001).
 
 ## Resource-bounded DICOM ingress
 
@@ -134,8 +137,8 @@ Deterministic tests cover parser, DICOMDIR, retained-byte, decoded-workspace,
 and replacement cases. Unix reads reject a final symlink with `O_NOFOLLOW`;
 Windows reads request a reparse-point handle and reject a final reparse point.
 Parent-directory traversal through directory handles remains a platform
-integration boundary. [RITK-SNAP-DIRECTORY-001](../../backlog.md#RITK-SNAP-DIRECTORY-001)
-still owns complete media-directory record semantics.
+integration boundary. The DICOMDIR record-tree and referenced-identity contract
+is delivered by [RITK-SNAP-DIRECTORY-001](../../backlog.md#RITK-SNAP-DIRECTORY-001).
 
 ## Capture the native application
 

@@ -17,13 +17,9 @@
 - Decision: use owning RITK/Atlas filesystem and storage capabilities; record the platform contract in ADR 0026 before implementation.
 
 <a id="RITK-SNAP-DIRECTORY-001"></a>
-## RITK-SNAP-DIRECTORY-001 — Validate media-directory record semantics [patch]
-- Status: in-progress; priority: P0; owner: RITK IO; integrator: root; last-update: 2026-09-08; branch: `feat/ritk-dicom-parse-budget`; dependencies: RITK-SNAP-OPEN-001; risk: inactive or unreachable records alter the selected file set.
-- Scope: enforce admitted DICOMDIR record activity, linked-record offsets and referenced SOP/transfer-syntax agreement; retain authoritative membership and explicit errors.
-- Evidence: `reader/dicomdir.rs` parses the Explicit VR Little Endian record sequence through bounded byte offsets, validates RecordInUseFlag, links, root-chain termination, and active reachability, then compares each admitted IMAGE record's SOP class, SOP instance, and transfer syntax with the referenced Part 10 file.
-- Current increment: `reader/dicomdir_bytes.rs` isolates the bounded record-sequence scanner; active IMAGE membership preserves lexical paths for final-component no-follow opens. Focused selection tests cover inactive records, unreachable records, cycles, out-of-sequence links, identity mismatch, and final symlinks on Unix.
-- Acceptance: inactive/deleted and unreachable records do not add files; malformed links fail without loops or unbounded traversal; active references agree with actual instance identities.
-- Verification: synthetic PS3.3 F.3.2.2 record-tree fixtures, deleted records, cycles, invalid offsets, final symlinks, and mismatched referenced identities; 16 focused selection tests and warning-denied Clippy pass, with the full `ritk-io` package gate required before closure.
+## RITK-SNAP-DIRECTORY-001 — Validate media-directory record semantics [patch] — done
+- Status: done; commit `0a8367ab`; Explicit VR Little Endian record links, activity, reachability, and referenced SOP identity are validated before membership.
+- Verification: locked `ritk-io` Nextest 430/430, warning-denied Clippy, focused selection 16/16, formatting, doctests, and docs pass; `ritk-dicom` Linux-target compilation passes, while a full `ritk-io` cross-target check is blocked by host C headers and target-specific dependency support. Final-component symlink coverage is Unix-only on this host.
 
 <a id="RITK-SNAP-ASPECT-001"></a>
 ## RITK-SNAP-ASPECT-001 — Preserve physical image aspect ratios [patch]

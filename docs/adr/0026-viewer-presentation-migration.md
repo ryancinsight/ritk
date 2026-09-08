@@ -24,6 +24,15 @@ and Windows respectively. Parent-directory traversal through directory handles
 remains a platform boundary, and complete DICOMDIR record-tree validation stays
 in RITK-SNAP-DIRECTORY-001.
 
+Revision 2026-09-08: [RITK-SNAP-DIRECTORY-001](../../backlog.md#RITK-SNAP-DIRECTORY-001)
+now validates the Explicit VR Little Endian DICOMDIR record sequence before
+membership is admitted. RecordInUseFlag, next/lower offsets, incoming-link
+uniqueness, cycles, and first/last root-chain termination are checked; only
+reachable active IMAGE records are followed. Each admitted reference is opened
+through the bounded no-follow path and its SOP class, SOP instance, and transfer
+syntax are compared with the record. Synthetic selection tests cover inactive,
+unreachable, malformed-link, identity-mismatch, and final-symlink cases.
+
 Revision 2026-09-06: [RITK-SNAP-OPEN-001](../../backlog.md#RITK-SNAP-OPEN-001)
 requires explicit acquisition selection. Inspection of `d3cbd8eb` finds that
 the sidebar discards discovered file membership, the reader selects a majority

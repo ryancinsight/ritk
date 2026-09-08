@@ -61,9 +61,9 @@
 - [x] Add final-component no-follow opens: Unix uses `O_NOFOLLOW`; Windows
       requests a reparse-point handle and rejects a final reparse point. Linux,
       Windows-target, native warning-denied Clippy, Nextest, and docs checks pass.
-- [ ] Complete parent-directory handle confinement and media-directory record-tree
-      validation; retain this item open until the platform contract is verified on
-      the supported viewer hosts.
+- [ ] Complete parent-directory handle confinement; retain this item open until
+      the platform contract is verified on the supported viewer hosts. DICOMDIR
+      record-tree validation is tracked in RITK-SNAP-DIRECTORY-001 below.
 
 ## FIX-DTI-VOLUME-FRAME [major][arch] — Preserve diffusion coordinate frames
 

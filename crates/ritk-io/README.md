@@ -55,11 +55,15 @@ handle. Scanned slices retain those validated bytes for later decoding.
 
 An existing DICOMDIR is authoritative. Its index is subject to the parser
 budget, and invalid or missing references fail instead of falling back to
-unrelated folder contents. Reference checks reject absolute paths, traversal,
-and canonical paths outside the file-set root. The reader retains validated
-member bytes, so replacing a path after scanning cannot substitute another
-image during decode. The handle metadata check detects replacement between path
-resolution and handle inspection. On Unix, the final open uses `O_NOFOLLOW`; on
-Windows, it requests a reparse-point handle and rejects a final reparse point.
+unrelated folder contents. The reader validates RecordInUseFlag, linked
+next/lower record offsets, root-chain termination, cycles, and active
+reachability. Only reachable active IMAGE records contribute members, and each
+record's referenced SOP class, SOP instance, and transfer syntax must match the
+referenced Part 10 file. Reference checks reject absolute paths, traversal, and
+canonical paths outside the file-set root. The reader retains validated member
+bytes, so replacing a path after scanning cannot substitute another image during
+decode. The handle metadata check detects replacement between path resolution and
+handle inspection. On Unix, the final open uses `O_NOFOLLOW`; on Windows, it
+requests a reparse-point handle and rejects a final reparse point.
 Parent-directory traversal through directory handles remains a platform
 integration boundary.
