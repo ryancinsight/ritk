@@ -18,23 +18,23 @@ pub use scan::{validate_part10, DicomParseSummary};
 
 /// Read one DICOM file through the supplied byte ceiling.
 ///
-/// The path is resolved once, the handle identity is checked against that
-/// resolved path, and the returned bytes are read from that same handle. This
-/// bounds the allocation before any parser sees the input and detects a file
-/// replacement between path resolution and handle inspection. Callers should
-/// retain the returned bytes across later decode stages.
+/// The requested path is opened once with the platform's final-component
+/// policy, the handle identity is checked against its resolved path, and the
+/// returned bytes are read from that same handle. This bounds the allocation
+/// before any parser sees the input and detects a file replacement between
+/// opening and handle inspection. Callers should retain the returned bytes
+/// across later decode stages.
 ///
 /// # Errors
 ///
 /// Returns an error when the path cannot be opened or inspected, its length
 /// exceeds the byte ceiling, or the bounded read fails.
 pub fn read_file_with_budget<P: AsRef<Path>>(path: P, budget: &ParseBudget) -> Result<Vec<u8>> {
-    let path = path
-        .as_ref()
+    let requested_path = path.as_ref();
+    let mut file = open_read_handle(requested_path)?;
+    let path = requested_path
         .canonicalize()
-        .with_context(|| format!("failed to resolve DICOM file path {:?}", path.as_ref()))?;
-    let mut file =
-        File::open(&path).with_context(|| format!("failed to open DICOM file {:?}", path))?;
+        .with_context(|| format!("failed to resolve DICOM file path {:?}", requested_path))?;
     let handle_metadata = file
         .metadata()
         .with_context(|| format!("failed to inspect DICOM file handle {:?}", path))?;
@@ -48,6 +48,46 @@ pub fn read_file_with_budget<P: AsRef<Path>>(path: P, budget: &ParseBudget) -> R
     budget
         .read_bounded(&mut file, file_length, "DICOM file bytes")
         .map_err(|error| anyhow::anyhow!("DICOM file exceeds parse budget: {error}"))
+}
+
+#[cfg(windows)]
+fn open_read_handle(path: &Path) -> Result<File> {
+    let mut options = std::fs::OpenOptions::new();
+    options.read(true);
+
+    use std::os::windows::fs::{MetadataExt, OpenOptionsExt};
+
+    // CreateFileW's OPEN_REPARSE_POINT flag prevents following a final
+    // reparse point. The handle is rejected if the opened object is one.
+    const FILE_ATTRIBUTE_REPARSE_POINT: u32 = 0x0000_0400;
+    const FILE_FLAG_OPEN_REPARSE_POINT: u32 = 0x0020_0000;
+    options.custom_flags(FILE_FLAG_OPEN_REPARSE_POINT);
+    let file = options
+        .open(path)
+        .with_context(|| format!("failed to open DICOM file {:?}", path))?;
+    if file.metadata()?.file_attributes() & FILE_ATTRIBUTE_REPARSE_POINT != 0 {
+        return Err(anyhow::anyhow!(
+            "DICOM file path resolves to a Windows reparse point: {:?}",
+            path
+        ));
+    }
+    Ok(file)
+}
+
+#[cfg(not(windows))]
+fn open_read_handle(path: &Path) -> Result<File> {
+    let mut options = std::fs::OpenOptions::new();
+    options.read(true);
+
+    #[cfg(unix)]
+    {
+        use std::os::unix::fs::OpenOptionsExt;
+        options.custom_flags(libc::O_CLOEXEC | libc::O_NOFOLLOW);
+    }
+
+    options
+        .open(path)
+        .with_context(|| format!("failed to open DICOM file {:?}", path))
 }
 
 #[cfg(unix)]
@@ -122,6 +162,11 @@ mod tests {
 
     use super::same_file_identity;
 
+    #[cfg(unix)]
+    use super::read_file_with_budget;
+    #[cfg(unix)]
+    use consus_core::ParseBudget;
+
     #[test]
     fn file_identity_detects_replaced_path() {
         let directory = tempfile::tempdir().unwrap();
@@ -136,6 +181,24 @@ mod tests {
         assert!(
             !same_file_identity(&handle_metadata, &path_metadata),
             "a replaced path must not match the original open handle"
+        );
+    }
+
+    #[cfg(unix)]
+    #[test]
+    fn rejects_final_symlink_before_canonicalization() {
+        use std::os::unix::fs::symlink;
+
+        let directory = tempfile::tempdir().unwrap();
+        let target = directory.path().join("slice.dcm");
+        let link = directory.path().join("selected.dcm");
+        std::fs::write(&target, [1_u8, 2_u8, 3_u8]).unwrap();
+        symlink(&target, &link).unwrap();
+
+        let error = read_file_with_budget(&link, &ParseBudget::DEFAULT).unwrap_err();
+        assert!(
+            error.to_string().contains("failed to open DICOM file"),
+            "final symlink must be rejected by the no-follow open: {error}"
         );
     }
 }
