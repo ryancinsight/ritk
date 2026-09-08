@@ -3,8 +3,8 @@
 
 use super::super::detection::is_likely_dicom_file;
 use super::super::geometry::{
-    analyze_slice_spacing, dot, normalize, resample_frames_linear, slice_normal_from_iop,
-    SliceCoverage, SpacingUniformity,
+    analyze_slice_spacing, dot, normalize, resample_frames_linear, resampled_frame_count,
+    slice_normal_from_iop, SliceCoverage, SpacingUniformity,
 };
 use super::super::loader::{
     load_dicom_series_with_metadata, load_from_series, read_dicom_series_with_metadata,
@@ -169,6 +169,15 @@ fn test_resample_frames_linear_nonuniform_interpolation() {
         expected,
         resampled[2][0]
     );
+}
+
+#[test]
+fn test_resampled_frame_count_matches_grid_and_handles_invalid_spacing() {
+    let positions = [0.0_f64, 1.0, 3.0, 4.0];
+    assert_eq!(resampled_frame_count(&positions, 1.0), 5);
+    assert_eq!(resampled_frame_count(&positions, 0.0), positions.len());
+    assert_eq!(resampled_frame_count(&positions, f64::NAN), positions.len());
+    assert_eq!(resampled_frame_count(&[], 1.0), 0);
 }
 
 #[test]

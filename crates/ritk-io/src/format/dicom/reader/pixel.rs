@@ -8,8 +8,8 @@ use dicom::object::DefaultDicomObject;
 #[cfg(test)]
 use ritk_dicom::PixelSignedness;
 use ritk_dicom::{
-    decode_frame_with, parse_bytes_with, parse_file_with, DecodeFrameRequest, DicomRsBackend,
-    PixelLayout, TransferSyntaxKind,
+    decode_frame_with, parse_bytes_with_budget, parse_file_with_budget, DecodeFrameRequest,
+    DicomRsBackend, ParseBudget, PixelLayout, TransferSyntaxKind,
 };
 
 use super::types::DicomSliceMetadata;
@@ -65,8 +65,11 @@ pub(super) fn ensure_scalar_samples_per_pixel(
     )
 }
 
-pub(super) fn read_slice_pixels(slice: &DicomSliceMetadata) -> Result<Vec<f32>> {
-    let obj = parse_file_with::<DicomRsBackend, _>(&slice.path)
+pub(super) fn read_slice_pixels(
+    slice: &DicomSliceMetadata,
+    budget: &ParseBudget,
+) -> Result<Vec<f32>> {
+    let obj = parse_file_with_budget::<DicomRsBackend, _>(&slice.path, budget)
         .with_context(|| format!("failed to open DICOM slice {:?}", slice.path))?;
     decode_pixels_from_object(&obj, slice)
 }
@@ -75,8 +78,9 @@ pub(super) fn read_slice_pixels(slice: &DicomSliceMetadata) -> Result<Vec<f32>> 
 pub(super) fn read_slice_pixels_from_bytes(
     part10_bytes: &[u8],
     slice: &DicomSliceMetadata,
+    budget: &ParseBudget,
 ) -> Result<Vec<f32>> {
-    let obj = parse_bytes_with::<DicomRsBackend>(part10_bytes)
+    let obj = parse_bytes_with_budget::<DicomRsBackend>(part10_bytes, budget)
         .with_context(|| format!("failed to parse DICOM bytes for {:?}", slice.path))?;
     decode_pixels_from_object(&obj, slice)
 }

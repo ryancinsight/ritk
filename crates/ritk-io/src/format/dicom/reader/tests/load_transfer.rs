@@ -6,18 +6,20 @@ use super::super::geometry::{
     analyze_slice_spacing, dot, normalize, resample_frames_linear, slice_normal_from_iop,
 };
 use super::super::loader::{
-    load_dicom_series_with_metadata, load_from_series, read_dicom_series_with_metadata,
+    load_dicom_series_with_metadata, load_from_series, load_from_series_with_budget,
+    read_dicom_series_with_metadata,
 };
 use super::super::pixel::{decode_pixel_bytes, read_slice_pixels};
 use super::super::scan::scan_dicom_directory;
 use super::super::types::{
-    DicomReadMetadata, DicomSeriesInfo, DicomSliceMetadata, PatientPosition,
+    DicomReadBudget, DicomReadMetadata, DicomSeriesInfo, DicomSliceMetadata, PatientPosition,
 };
 use super::support::*;
 use crate::format::dicom::{
     DicomObjectNode, DicomPreservationSet, DicomPreservedElement, DicomTag, DicomValue,
 };
 use ritk_core::image::Image;
+use ritk_dicom::ParseBudget;
 use ritk_dicom::TransferSyntaxKind;
 use ritk_spatial::{Direction, Point, Spacing};
 #[test]
@@ -185,6 +187,24 @@ fn test_load_from_series_rejects_volume_pixel_count_overflow() {
             && msg.contains("frame_len=2")
             && msg.contains("depth="),
         "volume overflow error must name dimensions; got {err:#}"
+    );
+}
+
+#[test]
+fn test_load_from_series_rejects_peak_decoded_workspace_over_budget() {
+    type B = coeus_core::SequentialBackend;
+
+    let series = overflow_test_series([1, 2, 1]);
+    let device = B::default();
+    let budget = DicomReadBudget::try_new(ParseBudget::DEFAULT, 1, 1)
+        .expect("workflow ceilings must be nonzero");
+
+    let err = load_from_series_with_budget(series, &device, &budget)
+        .expect_err("decoded workspace must be rejected before pixel I/O");
+    let message = format!("{err:#}");
+    assert!(
+        message.contains("peak decoded workspace") && message.contains("budget"),
+        "unexpected decoded-workspace error: {message}"
     );
 }
 

@@ -6,6 +6,7 @@
 
 mod scan;
 
+use std::fs::{self, File, Metadata};
 use std::path::Path;
 
 use anyhow::{Context, Result};
@@ -17,30 +18,59 @@ pub use scan::{validate_part10, DicomParseSummary};
 
 /// Read one DICOM file through the supplied byte ceiling.
 ///
-/// The file is opened before metadata is queried and the returned bytes are
-/// the only source passed to subsequent parsing. This bounds the allocation
-/// before any parser sees the input; identity and replacement checks remain a
-/// responsibility of the caller that selected the file-set member.
+/// The path is resolved once, the handle identity is checked against that
+/// resolved path, and the returned bytes are read from that same handle. This
+/// bounds the allocation before any parser sees the input and detects a file
+/// replacement between path resolution and handle inspection. Callers should
+/// retain the returned bytes across later decode stages.
 ///
 /// # Errors
 ///
 /// Returns an error when the path cannot be opened or inspected, its length
 /// exceeds the byte ceiling, or the bounded read fails.
 pub fn read_file_with_budget<P: AsRef<Path>>(path: P, budget: &ParseBudget) -> Result<Vec<u8>> {
-    use std::fs::File;
-
-    let path = path.as_ref();
+    let path = path
+        .as_ref()
+        .canonicalize()
+        .with_context(|| format!("failed to resolve DICOM file path {:?}", path.as_ref()))?;
     let mut file =
-        File::open(path).with_context(|| format!("failed to open DICOM file {:?}", path))?;
-    let file_length = usize::try_from(
-        file.metadata()
-            .with_context(|| format!("failed to inspect DICOM file {:?}", path))?
-            .len(),
-    )
-    .context("DICOM file length does not fit usize")?;
+        File::open(&path).with_context(|| format!("failed to open DICOM file {:?}", path))?;
+    let handle_metadata = file
+        .metadata()
+        .with_context(|| format!("failed to inspect DICOM file handle {:?}", path))?;
+    let path_metadata = fs::metadata(&path)
+        .with_context(|| format!("failed to inspect resolved DICOM file {:?}", path))?;
+    if !same_file_identity(&handle_metadata, &path_metadata) {
+        anyhow::bail!("DICOM file identity changed while opening {:?}", path);
+    }
+    let file_length =
+        usize::try_from(handle_metadata.len()).context("DICOM file length does not fit usize")?;
     budget
         .read_bounded(&mut file, file_length, "DICOM file bytes")
         .map_err(|error| anyhow::anyhow!("DICOM file exceeds parse budget: {error}"))
+}
+
+#[cfg(unix)]
+fn same_file_identity(handle: &Metadata, path: &Metadata) -> bool {
+    use std::os::unix::fs::MetadataExt;
+    handle.dev() == path.dev() && handle.ino() == path.ino()
+}
+
+#[cfg(windows)]
+fn same_file_identity(handle: &Metadata, path: &Metadata) -> bool {
+    use std::os::windows::fs::MetadataExt;
+    handle.file_type() == path.file_type()
+        && handle.file_size() == path.file_size()
+        && handle.creation_time() == path.creation_time()
+        && handle.last_write_time() == path.last_write_time()
+        && handle.file_attributes() == path.file_attributes()
+}
+
+#[cfg(not(any(unix, windows)))]
+fn same_file_identity(handle: &Metadata, path: &Metadata) -> bool {
+    handle.file_type() == path.file_type()
+        && handle.len() == path.len()
+        && handle.modified().ok() == path.modified().ok()
 }
 
 /// Parsing backend which can enforce a [`ParseBudget`] before materialization.
@@ -84,4 +114,28 @@ where
     B: BoundedDicomParseBackend,
 {
     B::parse_bytes_with_budget(data, budget)
+}
+
+#[cfg(test)]
+mod tests {
+    #![expect(clippy::unwrap_used, reason = "ratchet RITK-UNWRAP-1")]
+
+    use super::same_file_identity;
+
+    #[test]
+    fn file_identity_detects_replaced_path() {
+        let directory = tempfile::tempdir().unwrap();
+        let path = directory.path().join("slice.dcm");
+        std::fs::write(&path, [1_u8]).unwrap();
+        let handle = std::fs::File::open(&path).unwrap();
+        let handle_metadata = handle.metadata().unwrap();
+
+        std::fs::write(&path, [1_u8, 2_u8]).unwrap();
+        let path_metadata = std::fs::metadata(&path).unwrap();
+
+        assert!(
+            !same_file_identity(&handle_metadata, &path_metadata),
+            "a replaced path must not match the original open handle"
+        );
+    }
 }

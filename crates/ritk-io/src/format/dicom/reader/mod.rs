@@ -28,7 +28,9 @@ pub(crate) mod types;
 mod tests;
 
 pub use loader::{
-    load_dicom_from_series, load_dicom_series_with_metadata, read_dicom_series_with_metadata,
+    load_dicom_from_series, load_dicom_from_series_with_budget, load_dicom_series_with_metadata,
+    load_dicom_series_with_metadata_with_budget, read_dicom_series_with_metadata,
+    read_dicom_series_with_metadata_with_budget,
 };
 pub use scan::{
     scan_dicom_directory_with_budget, scan_dicom_files, scan_dicom_files_with_budget,
@@ -37,7 +39,7 @@ pub use scan::{
 };
 // scan::scan_dicom_directory is accessed directly via `reader::scan::scan_dicom_directory`
 // by sibling modules (color.rs). No re-export needed.
-pub use types::literal_arraystring;
+pub use types::{literal_arraystring, DicomReadBudget};
 pub use types::{
     DicomReadMetadata, DicomSeriesInfo as ScannedDicomSeries, DicomSliceMetadata, PatientPosition,
 };

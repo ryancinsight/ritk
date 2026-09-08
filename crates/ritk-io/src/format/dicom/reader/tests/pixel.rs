@@ -204,7 +204,8 @@ fn test_read_slice_pixels_signed_short_roundtrip() {
         ..DicomSliceMetadata::default()
     };
 
-    let result = read_slice_pixels(&slice_meta).expect("read_slice_pixels must succeed");
+    let result = read_slice_pixels(&slice_meta, &ritk_dicom::ParseBudget::DEFAULT)
+        .expect("read_slice_pixels must succeed");
     assert_eq!(result.len(), 3, "pixel count must be 3");
     assert_eq!(result[0], -1000.0f32, "pixel[0] must be -1000.0");
     assert_eq!(result[1], 0.0f32, "pixel[1] must be 0.0");
@@ -288,7 +289,7 @@ fn test_read_slice_pixels_rejects_rgb_scalar_volume() {
         ..DicomSliceMetadata::default()
     };
 
-    let err = read_slice_pixels(&slice_meta).unwrap_err();
+    let err = read_slice_pixels(&slice_meta, &ritk_dicom::ParseBudget::DEFAULT).unwrap_err();
     let msg = err.to_string();
     assert!(
         msg.contains("SamplesPerPixel=3") && msg.contains("scalar volume loader"),

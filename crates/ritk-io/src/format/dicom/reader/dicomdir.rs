@@ -4,7 +4,7 @@ use anyhow::{bail, Context, Result};
 use dicom::core::Tag;
 use std::path::{Component, Path, PathBuf};
 
-use ritk_dicom::{parse_file_with, DicomRsBackend};
+use ritk_dicom::{parse_file_with_budget, DicomRsBackend, ParseBudget};
 
 use super::detection::is_likely_dicom_file;
 
@@ -17,8 +17,15 @@ pub(super) fn is_dicomdir(path: &Path) -> bool {
 /// Resolve a directory or an explicitly selected index to its exact file set.
 /// An existing index is authoritative: malformed or missing references fail.
 pub(in crate::format::dicom) fn discover_files(path: &Path) -> Result<Vec<PathBuf>> {
+    discover_files_with_budget(path, &ParseBudget::DEFAULT)
+}
+
+pub(in crate::format::dicom) fn discover_files_with_budget(
+    path: &Path,
+    budget: &ParseBudget,
+) -> Result<Vec<PathBuf>> {
     if is_dicomdir(path) && !path.is_dir() {
-        return read_dicomdir(path);
+        return read_dicomdir(path, budget);
     }
     let entries = std::fs::read_dir(path)
         .context("failed to read DICOM directory")?
@@ -34,19 +41,20 @@ pub(in crate::format::dicom) fn discover_files(path: &Path) -> Result<Vec<PathBu
             paths.sort();
             Ok(paths)
         }
-        [index] => read_dicomdir(index),
+        [index] => read_dicomdir(index, budget),
         _ => bail!("multiple DICOMDIR indexes in one directory"),
     }
 }
 
-fn read_dicomdir(index: &Path) -> Result<Vec<PathBuf>> {
+fn read_dicomdir(index: &Path, budget: &ParseBudget) -> Result<Vec<PathBuf>> {
     let root = index
         .parent()
         .filter(|path| !path.as_os_str().is_empty())
         .unwrap_or_else(|| Path::new("."))
         .canonicalize()
         .context("failed to resolve DICOMDIR root")?;
-    let obj = parse_file_with::<DicomRsBackend, _>(index).context("failed to open DICOMDIR")?;
+    let obj = parse_file_with_budget::<DicomRsBackend, _>(index, budget)
+        .context("failed to open DICOMDIR")?;
     let sequence = obj
         .element(Tag(0x0004, 0x1220))
         .context("DICOMDIR missing DirectoryRecordSequence (0004,1220)")?;

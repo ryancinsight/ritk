@@ -13,20 +13,29 @@ use ritk_image::Image;
 use ritk_spatial::{Direction, Point, Spacing};
 
 use super::geometry::{
-    analyze_slice_spacing, dot, resample_frames_linear, slice_normal_from_iop, SliceCoverage,
-    SpacingUniformity,
+    analyze_slice_spacing, dot, resample_frames_linear, resampled_frame_count,
+    slice_normal_from_iop, SliceCoverage, SpacingUniformity,
 };
 use super::pixel::{read_slice_pixels, read_slice_pixels_from_bytes};
-use super::scan::scan_dicom_path;
-use super::types::{DicomReadMetadata, DicomSeriesInfo};
+use super::scan::scan_dicom_path_with_budget;
+use super::types::{DicomReadBudget, DicomReadMetadata, DicomSeriesInfo};
 
 /// Read a DICOM series and return both the image and metadata.
 pub fn read_dicom_series_with_metadata<B: ComputeBackend, P: AsRef<Path>>(
     path: P,
     backend: &B,
 ) -> Result<(Image<f32, B, 3>, DicomReadMetadata)> {
-    let series = scan_dicom_path(path)?;
-    load_from_series(series, backend)
+    read_dicom_series_with_metadata_with_budget(path, backend, &DicomReadBudget::DEFAULT)
+}
+
+/// Read a DICOM series with explicit parser, retained-byte, and decoded-buffer ceilings.
+pub fn read_dicom_series_with_metadata_with_budget<B: ComputeBackend, P: AsRef<Path>>(
+    path: P,
+    backend: &B,
+    budget: &DicomReadBudget,
+) -> Result<(Image<f32, B, 3>, DicomReadMetadata)> {
+    let series = scan_dicom_path_with_budget(path, budget)?;
+    load_from_series_with_budget(series, backend, budget)
 }
 
 /// Load a DICOM series from a pre-scanned descriptor and return image plus metadata.
@@ -34,7 +43,16 @@ pub fn load_dicom_series_with_metadata<B: ComputeBackend, P: AsRef<Path>>(
     path: P,
     backend: &B,
 ) -> Result<(Image<f32, B, 3>, DicomReadMetadata)> {
-    read_dicom_series_with_metadata(path, backend)
+    load_dicom_series_with_metadata_with_budget(path, backend, &DicomReadBudget::DEFAULT)
+}
+
+/// Load a DICOM series with explicit parser, retained-byte, and decoded-buffer ceilings.
+pub fn load_dicom_series_with_metadata_with_budget<B: ComputeBackend, P: AsRef<Path>>(
+    path: P,
+    backend: &B,
+    budget: &DicomReadBudget,
+) -> Result<(Image<f32, B, 3>, DicomReadMetadata)> {
+    read_dicom_series_with_metadata_with_budget(path, backend, budget)
 }
 
 /// Load a DICOM series from a pre-scanned [`DicomSeriesInfo`] and return image plus metadata.
@@ -51,11 +69,28 @@ pub fn load_dicom_from_series<B: ComputeBackend>(
     load_from_series(series, backend)
 }
 
+/// Load a pre-scanned DICOM series with explicit decoded-buffer ceilings.
+pub fn load_dicom_from_series_with_budget<B: ComputeBackend>(
+    series: DicomSeriesInfo,
+    backend: &B,
+    budget: &DicomReadBudget,
+) -> Result<(Image<f32, B, 3>, DicomReadMetadata)> {
+    load_from_series_with_budget(series, backend, budget)
+}
+
 pub(crate) fn load_from_series<B: ComputeBackend>(
     series: DicomSeriesInfo,
     backend: &B,
 ) -> Result<(Image<f32, B, 3>, DicomReadMetadata)> {
-    let decoded = decode_series(series)?;
+    load_from_series_with_budget(series, backend, &DicomReadBudget::DEFAULT)
+}
+
+pub(crate) fn load_from_series_with_budget<B: ComputeBackend>(
+    series: DicomSeriesInfo,
+    backend: &B,
+    budget: &DicomReadBudget,
+) -> Result<(Image<f32, B, 3>, DicomReadMetadata)> {
+    let decoded = decode_series(series, budget)?;
     let image = Image::from_flat_on(
         decoded.volume,
         decoded.shape,
@@ -77,9 +112,10 @@ struct DecodedDicomSeries {
     metadata: DicomReadMetadata,
 }
 
-fn decode_series(series: DicomSeriesInfo) -> Result<DecodedDicomSeries> {
+fn decode_series(series: DicomSeriesInfo, budget: &DicomReadBudget) -> Result<DecodedDicomSeries> {
     let mut metadata = series.metadata;
     let slices = std::mem::take(&mut metadata.slices);
+    let parser_budget = budget.parser();
 
     slices
         .first()
@@ -182,6 +218,29 @@ fn decode_series(series: DicomSeriesInfo) -> Result<DecodedDicomSeries> {
     };
 
     let frame_len = dicom_frame_pixel_count(rows, cols)?;
+    let target_depth = if needs_resample {
+        let positions = resample_positions.as_ref().ok_or_else(|| {
+            anyhow!("resample positions missing despite resample-required series")
+        })?;
+        resampled_frame_count(positions, final_spacing_z)
+    } else {
+        depth
+    };
+    let volume_len = dicom_volume_pixel_count(frame_len, target_depth)?;
+    let source_workspace = decoded_source_workspace_bytes(frame_len, slices.len())?;
+    let resampled_workspace = if needs_resample {
+        decoded_frame_set_workspace_bytes(frame_len, target_depth)?
+    } else {
+        0
+    };
+    let volume_bytes = decoded_buffer_bytes(volume_len)?;
+    let peak_workspace = source_workspace
+        .checked_add(resampled_workspace)
+        .and_then(|bytes| bytes.checked_add(volume_bytes))
+        .context("DICOM decoded workspace byte count overflow")?;
+    budget
+        .checked_decoded_bytes(peak_workspace)
+        .context("DICOM peak decoded workspace exceeds budget")?;
     let (volume, final_depth) = if needs_resample {
         // Irregular z-spacing: decode to frame vectors then resample to uniform grid.
         #[cfg(not(target_arch = "wasm32"))]
@@ -190,9 +249,9 @@ fn decode_series(series: DicomSeriesInfo) -> Result<DecodedDicomSeries> {
                 moirai::map_collect_index_with::<moirai::Adaptive, _, _>(slices.len(), |z| {
                     let slice = &slices[z];
                     let data = if let Some(ref bytes) = slice.part10_bytes {
-                        read_slice_pixels_from_bytes(bytes, slice)
+                        read_slice_pixels_from_bytes(bytes, slice, &parser_budget)
                     } else {
-                        read_slice_pixels(slice)
+                        read_slice_pixels(slice, &parser_budget)
                     }
                     .with_context(|| format!("failed to decode DICOM slice {:?}", slice.path))?;
                     if data.len() != frame_len {
@@ -214,9 +273,9 @@ fn decode_series(series: DicomSeriesInfo) -> Result<DecodedDicomSeries> {
             let mut decoded = Vec::with_capacity(depth);
             for slice in slices.iter() {
                 let data = if let Some(ref bytes) = slice.part10_bytes {
-                    read_slice_pixels_from_bytes(bytes, slice)
+                    read_slice_pixels_from_bytes(bytes, slice, &parser_budget)
                 } else {
-                    read_slice_pixels(slice)
+                    read_slice_pixels(slice, &parser_budget)
                 }
                 .with_context(|| format!("failed to decode DICOM slice {:?}", slice.path))?;
                 if data.len() != frame_len {
@@ -236,8 +295,8 @@ fn decode_series(series: DicomSeriesInfo) -> Result<DecodedDicomSeries> {
         })?;
         let resampled = resample_frames_linear(&decoded, positions, final_spacing_z);
         let new_depth = resampled.len();
-        let volume_len = dicom_volume_pixel_count(frame_len, new_depth)?;
-        let mut volume = vec![0f32; volume_len];
+        debug_assert_eq!(new_depth, target_depth);
+        let mut volume = allocate_decoded_buffer(volume_len, budget, "DICOM resampled volume")?;
         for (z, frame) in resampled.iter().enumerate() {
             let offset = z * frame_len;
             volume[offset..offset + frame_len].copy_from_slice(frame);
@@ -245,8 +304,7 @@ fn decode_series(series: DicomSeriesInfo) -> Result<DecodedDicomSeries> {
         (volume, new_depth)
     } else {
         // Uniform z-spacing: decode directly into a preallocated contiguous volume.
-        let volume_len = dicom_volume_pixel_count(frame_len, depth)?;
-        let mut volume = vec![0f32; volume_len];
+        let mut volume = allocate_decoded_buffer(volume_len, budget, "DICOM decoded volume")?;
 
         #[cfg(not(target_arch = "wasm32"))]
         {
@@ -256,9 +314,9 @@ fn decode_series(series: DicomSeriesInfo) -> Result<DecodedDicomSeries> {
                 moirai::map_collect_index_with::<moirai::Adaptive, _, _>(slices.len(), |z| {
                     let slice = &slices[z];
                     let data = if let Some(ref bytes) = slice.part10_bytes {
-                        read_slice_pixels_from_bytes(bytes, slice)
+                        read_slice_pixels_from_bytes(bytes, slice, &parser_budget)
                     } else {
-                        read_slice_pixels(slice)
+                        read_slice_pixels(slice, &parser_budget)
                     }
                     .with_context(|| format!("failed to decode DICOM slice {:?}", slice.path))?;
                     if data.len() != frame_len {
@@ -281,9 +339,9 @@ fn decode_series(series: DicomSeriesInfo) -> Result<DecodedDicomSeries> {
         {
             for (z, slice) in slices.iter().enumerate() {
                 let data = if let Some(ref bytes) = slice.part10_bytes {
-                    read_slice_pixels_from_bytes(bytes, slice)
+                    read_slice_pixels_from_bytes(bytes, slice, &parser_budget)
                 } else {
-                    read_slice_pixels(slice)
+                    read_slice_pixels(slice, &parser_budget)
                 }
                 .with_context(|| format!("failed to decode DICOM slice {:?}", slice.path))?;
                 if data.len() != frame_len {
@@ -328,4 +386,57 @@ fn dicom_volume_pixel_count(frame_len: usize, depth: usize) -> Result<usize> {
     frame_len.checked_mul(depth).ok_or_else(|| {
         anyhow!("DICOM volume pixel count overflow: frame_len={frame_len}, depth={depth}")
     })
+}
+
+fn decoded_source_workspace_bytes(frame_len: usize, frame_count: usize) -> Result<usize> {
+    let pixel_bytes = decoded_buffer_bytes(
+        frame_len
+            .checked_mul(frame_count)
+            .context("DICOM decoded frame count overflow")?,
+    )?;
+    let frame_handles = frame_count
+        .checked_mul(std::mem::size_of::<Vec<f32>>())
+        .context("DICOM decoded frame handle count overflow")?;
+    let result_handles = frame_count
+        .checked_mul(std::mem::size_of::<Result<Vec<f32>>>())
+        .context("DICOM decoded result handle count overflow")?;
+    pixel_bytes
+        .checked_add(frame_handles)
+        .and_then(|bytes| bytes.checked_add(result_handles))
+        .context("DICOM decoded source workspace byte count overflow")
+}
+
+fn decoded_frame_set_workspace_bytes(frame_len: usize, frame_count: usize) -> Result<usize> {
+    let pixel_bytes = decoded_buffer_bytes(
+        frame_len
+            .checked_mul(frame_count)
+            .context("DICOM resampled frame count overflow")?,
+    )?;
+    let frame_handles = frame_count
+        .checked_mul(std::mem::size_of::<Vec<f32>>())
+        .context("DICOM resampled frame handle count overflow")?;
+    pixel_bytes
+        .checked_add(frame_handles)
+        .context("DICOM resampled workspace byte count overflow")
+}
+
+fn decoded_buffer_bytes(elements: usize) -> Result<usize> {
+    elements
+        .checked_mul(std::mem::size_of::<f32>())
+        .context("DICOM decoded buffer byte count overflow")
+}
+
+fn allocate_decoded_buffer(
+    elements: usize,
+    budget: &DicomReadBudget,
+    what: &'static str,
+) -> Result<Vec<f32>> {
+    let bytes = decoded_buffer_bytes(elements)?;
+    budget.checked_decoded_bytes(bytes)?;
+    let mut buffer = Vec::new();
+    buffer.try_reserve_exact(elements).map_err(|_| {
+        anyhow!("DICOM decoded buffer allocation for {what} requires {bytes} bytes")
+    })?;
+    buffer.resize(elements, 0.0);
+    Ok(buffer)
 }

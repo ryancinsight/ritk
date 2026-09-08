@@ -1,9 +1,13 @@
 //! Synthetic acquisition identity and authoritative file-set regressions.
 
 use super::super::loader::load_dicom_from_series;
-use super::super::scan::{scan_dicom_files, scan_dicom_part10_bytes, scan_dicom_path};
+use super::super::scan::{
+    scan_dicom_files, scan_dicom_part10_bytes, scan_dicom_path, scan_dicom_path_with_budget,
+};
+use super::super::types::DicomReadBudget;
 mod fixtures;
 use fixtures::{index, instance, OTHER, SERIES};
+use ritk_dicom::ParseBudget;
 
 #[test]
 fn decoded_pixels_are_the_validated_bytes_after_file_replacement() {
@@ -203,6 +207,32 @@ fn invalid_index_references_never_fall_back_to_neighbors() {
         scan_dicom_path(&selected).expect_err("corrupt index")
     )
     .contains("DICOMDIR"));
+}
+
+#[test]
+fn indexed_scan_applies_budget_to_dicomdir_before_materialization() {
+    let directory = fixtures::indexed_study();
+    let index = directory.path().join("DICOMDIR");
+    let index_length = std::fs::metadata(&index).expect("index metadata").len();
+    let budget = DicomReadBudget::try_new(
+        ParseBudget::new(
+            usize::try_from(index_length)
+                .expect("fixture index length fits usize")
+                .saturating_sub(1),
+            100,
+            100,
+        ),
+        usize::try_from(index_length).expect("fixture index length fits usize"),
+        100,
+    )
+    .expect("workflow ceilings must be nonzero");
+
+    let error = scan_dicom_path_with_budget(&index, &budget)
+        .expect_err("DICOMDIR must be rejected before parser materialization");
+    assert!(
+        format!("{error:#}").contains("DICOM file exceeds parse budget"),
+        "unexpected DICOMDIR budget error: {error:#}"
+    );
 }
 
 #[test]
