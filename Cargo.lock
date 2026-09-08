@@ -6238,9 +6238,11 @@ version = "0.2.0"
 dependencies = [
  "anyhow",
  "arrayvec",
+ "consus-core",
  "dicom",
  "dicom-pixeldata",
  "image 0.24.9",
+ "libc",
  "proptest",
  "ritk-codecs",
  "ritk-diffusion-scheme",

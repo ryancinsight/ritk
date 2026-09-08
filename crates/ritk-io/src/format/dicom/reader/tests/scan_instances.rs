@@ -4,8 +4,12 @@
 
 use arrayvec::ArrayString;
 
-use super::super::scan::{scan_dicom_instances, scan_dicom_part10_bytes};
+use super::super::scan::{
+    scan_dicom_instances, scan_dicom_part10_bytes, scan_dicom_part10_bytes_with_budget,
+};
 use crate::format::dicom::networking::scp::StoredInstance;
+use crate::format::dicom::reader::DicomReadBudget;
+use ritk_dicom::ParseBudget;
 
 /// `scan_dicom_instances` must reject an empty slice with a descriptive error.
 ///
@@ -95,5 +99,70 @@ fn test_scan_dicom_part10_bytes_all_unparseable_errors() {
     assert!(
         result.is_err(),
         "scan_dicom_part10_bytes must fail when all inputs are unparseable"
+    );
+}
+
+/// The public byte-batch entry point applies the same byte ceiling as the
+/// backend before it builds a series descriptor.
+#[test]
+fn test_scan_dicom_part10_bytes_budget_rejects_oversized_input() {
+    let dir = tempfile::tempdir().unwrap();
+    let path = dir.path().join("slice.dcm");
+    super::support::write_stub_dicom(&path, "1.2.840.10008.5.1.4.1.1.2", "2.25.72001.1");
+    let bytes = std::fs::read(path).unwrap();
+    let budget = DicomReadBudget::try_new(
+        ParseBudget::new(bytes.len() - 1, 100, 8),
+        bytes.len(),
+        bytes.len(),
+    )
+    .expect("workflow ceilings must be nonzero");
+
+    let error = scan_dicom_part10_bytes_with_budget(&[("slice.dcm", &bytes)], &budget)
+        .expect_err("the explicit byte budget must reject the input");
+
+    let message = format!("{error:#}");
+    assert!(
+        message.contains("input exceeds parse budget"),
+        "unexpected budget error: {message}"
+    );
+}
+
+#[test]
+fn test_scan_dicom_part10_bytes_budget_rejects_retained_study_overflow() {
+    let dir = tempfile::tempdir().unwrap();
+    let path = dir.path().join("slice.dcm");
+    super::support::write_stub_dicom(&path, "1.2.840.10008.5.1.4.1.1.2", "2.25.72001.1");
+    let bytes = std::fs::read(path).unwrap();
+    let budget = DicomReadBudget::try_new(
+        ParseBudget::new(bytes.len() + 1, 100, 8),
+        bytes.len() - 1,
+        bytes.len(),
+    )
+    .expect("workflow ceilings must be nonzero");
+
+    let error = scan_dicom_part10_bytes_with_budget(&[("slice.dcm", &bytes)], &budget)
+        .expect_err("the retained-study ceiling must reject the input");
+
+    let message = format!("{error:#}");
+    assert!(
+        message.contains("retained study bytes"),
+        "unexpected retained-byte error: {message}"
+    );
+}
+
+#[test]
+fn test_dicom_read_budget_rejects_zero_workflow_ceiling() {
+    let retained_error = DicomReadBudget::try_new(ParseBudget::DEFAULT, 0, 1)
+        .expect_err("zero retained bytes must be rejected");
+    assert!(
+        retained_error.to_string().contains("retained-byte"),
+        "unexpected retained ceiling error: {retained_error}"
+    );
+
+    let decoded_error = DicomReadBudget::try_new(ParseBudget::DEFAULT, 1, 0)
+        .expect_err("zero decoded bytes must be rejected");
+    assert!(
+        decoded_error.to_string().contains("decoded-byte"),
+        "unexpected decoded ceiling error: {decoded_error}"
     );
 }

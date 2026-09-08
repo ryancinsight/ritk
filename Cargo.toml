@@ -126,6 +126,7 @@ apollo-fft = { version = "0.27.0", git = "https://github.com/ryancinsight/apollo
 apollo-sht = { version = "0.7.0", git = "https://github.com/ryancinsight/apollo" }
 aequitas = { version = "0.2.0", git = "https://github.com/ryancinsight/aequitas" }
 anyhow = "1.0"
+libc = "0.2"
 thiserror = "2.0"
 tracing = "0.1"
 tracing-subscriber = { version = "0.3", features = ["env-filter"] }

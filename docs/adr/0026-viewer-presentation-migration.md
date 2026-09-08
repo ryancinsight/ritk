@@ -6,6 +6,33 @@ Date: 2026-09-06
 
 Driver: [RITK-SNAP-METIS-001](../../backlog.md#RITK-SNAP-METIS-001).
 
+Revision 2026-09-08: [RITK-SNAP-RESOURCES-001](../../backlog.md#RITK-SNAP-RESOURCES-001)
+now has a `ritk-dicom` structural Part 10 preflight backed by the existing
+Consus `ParseBudget`. All selected, exact-member, SCP, named-byte, and
+DICOMDIR-index reads route through it before dicom-rs object construction. The
+tested syntax set includes implicit little-endian, explicit little-endian,
+explicit big-endian, and encapsulated pixel data. Deflated datasets remain an
+explicit unsupported case because the locked dicom-rs registry has no bounded
+deflate decoder. `DicomReadBudget` now separates parser, retained-study, and
+decoded-workspace ceilings; retained bytes are charged before storage and the
+loader rejects the planned peak frame/resample/volume workspace before
+allocation. Budgeted reads compare the opened handle with resolved path
+metadata and consume that handle, while scanned slices retain the validated
+bytes for later decode. The implementation detects replacement during the
+resolution/inspection window and rejects a final symlink/reparse point on Unix
+and Windows respectively. Parent-directory traversal through directory handles
+remains a platform boundary, and complete DICOMDIR record-tree validation stays
+in RITK-SNAP-DIRECTORY-001.
+
+Revision 2026-09-08: [RITK-SNAP-DIRECTORY-001](../../backlog.md#RITK-SNAP-DIRECTORY-001)
+now validates the Explicit VR Little Endian DICOMDIR record sequence before
+membership is admitted. RecordInUseFlag, next/lower offsets, incoming-link
+uniqueness, cycles, and first/last root-chain termination are checked; only
+reachable active IMAGE records are followed. Each admitted reference is opened
+through the bounded no-follow path and its SOP class, SOP instance, and transfer
+syntax are compared with the record. Synthetic selection tests cover inactive,
+unreachable, malformed-link, identity-mismatch, and final-symlink cases.
+
 Revision 2026-09-06: [RITK-SNAP-OPEN-001](../../backlog.md#RITK-SNAP-OPEN-001)
 requires explicit acquisition selection. Inspection of `d3cbd8eb` finds that
 the sidebar discards discovered file membership, the reader selects a majority

@@ -152,24 +152,43 @@ pub(in crate::format::dicom) fn analyze_slice_spacing(positions: &[f64]) -> Slic
 ///   `output[k][j] = (1 - t) × src[lo][j] + t × src[hi][j]`
 ///
 /// Edge cases: clamp to first/last frame; degenerate gap uses frame lo.
+pub(in crate::format::dicom) fn resampled_frame_count(
+    src_positions: &[f64],
+    target_spacing: f64,
+) -> usize {
+    if src_positions.is_empty() || target_spacing <= 0.0 || !target_spacing.is_finite() {
+        return src_positions.len();
+    }
+    let first = src_positions[0];
+    let Some(&last) = src_positions.last() else {
+        return src_positions.len();
+    };
+    let span = last - first;
+    if span <= 0.0 || !span.is_finite() {
+        return src_positions.len();
+    }
+    ((span / target_spacing).round() as usize).saturating_add(1)
+}
+
 pub(in crate::format::dicom) fn resample_frames_linear(
     decoded_frames: &[Vec<f32>],
     src_positions: &[f64],
     target_spacing: f64,
 ) -> Vec<Vec<f32>> {
     debug_assert_eq!(decoded_frames.len(), src_positions.len());
-    if decoded_frames.is_empty() || target_spacing <= 0.0 {
+    if decoded_frames.is_empty() || target_spacing <= 0.0 || !target_spacing.is_finite() {
         return decoded_frames.to_vec();
     }
-    let first = src_positions[0];
-    let last = *src_positions
-        .last()
-        .expect("source positions must not be empty");
-    let span = last - first;
-    if span <= 0.0 || !span.is_finite() {
+    let Some(&first) = src_positions.first() else {
+        return decoded_frames.to_vec();
+    };
+    let Some(&last) = src_positions.last() else {
+        return decoded_frames.to_vec();
+    };
+    if last - first <= 0.0 || !(last - first).is_finite() {
         return decoded_frames.to_vec();
     }
-    let n_target = (span / target_spacing).round() as usize + 1;
+    let n_target = resampled_frame_count(src_positions, target_spacing);
     let mut output = Vec::with_capacity(n_target);
 
     for k in 0..n_target {

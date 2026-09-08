@@ -5,6 +5,7 @@
 
 pub mod dicom_rs;
 pub mod native;
+pub mod parse_budget;
 
 use anyhow::Result;
 use std::path::Path;

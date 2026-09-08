@@ -189,6 +189,75 @@ fn write_offsets(bytes: &mut [u8], element: u16, offsets: &[u32]) {
     }
 }
 
+fn item_offsets(bytes: &[u8]) -> Vec<usize> {
+    bytes
+        .windows(4)
+        .enumerate()
+        .filter(|(_, tag)| *tag == [0xfe, 0xff, 0x00, 0xe0])
+        .map(|(offset, _)| offset)
+        .collect()
+}
+
+pub(super) fn set_record_in_use(path: &Path, record_index: usize, value: u16) {
+    let mut bytes = std::fs::read(path).expect("read linked index");
+    let offsets = item_offsets(&bytes);
+    let start = *offsets.get(record_index).expect("record index");
+    let end = offsets
+        .get(record_index + 1)
+        .copied()
+        .unwrap_or(bytes.len());
+    write_record_value(&mut bytes[start..end], 0x1410, b"US", &value.to_le_bytes());
+    std::fs::write(path, bytes).expect("write linked index");
+}
+
+pub(super) fn set_record_next(path: &Path, record_index: usize, value: u32) {
+    let mut bytes = std::fs::read(path).expect("read linked index");
+    let offsets = item_offsets(&bytes);
+    let start = *offsets.get(record_index).expect("record index");
+    let end = offsets
+        .get(record_index + 1)
+        .copied()
+        .unwrap_or(bytes.len());
+    write_record_value(&mut bytes[start..end], 0x1400, b"UL", &value.to_le_bytes());
+    std::fs::write(path, bytes).expect("write linked index");
+}
+
+pub(super) fn set_record_sop_instance(path: &Path, record_index: usize, value: &str) {
+    let mut bytes = std::fs::read(path).expect("read linked index");
+    let offsets = item_offsets(&bytes);
+    let start = *offsets.get(record_index).expect("record index");
+    let end = offsets
+        .get(record_index + 1)
+        .copied()
+        .unwrap_or(bytes.len());
+    write_record_value(&mut bytes[start..end], 0x1511, b"UI", value.as_bytes());
+    std::fs::write(path, bytes).expect("write linked index");
+}
+
+fn write_record_value(item: &mut [u8], element: u16, vr: &[u8; 2], value: &[u8]) {
+    let [lo, hi] = element.to_le_bytes();
+    let header = [4, 0, lo, hi, vr[0], vr[1]];
+    let header_offset = item
+        .windows(8)
+        .position(|candidate| {
+            candidate[..6] == header
+                && candidate[6..8]
+                    == [
+                        u8::try_from(value.len()).expect("fixture value length fits u8"),
+                        0,
+                    ]
+        })
+        .expect("record element header");
+    let value_start = header_offset + 8;
+    let value_end = value_start + value.len();
+    assert_eq!(
+        item[value_start..value_end].len(),
+        value.len(),
+        "fixture replacement must preserve encoded length"
+    );
+    item[value_start..value_end].copy_from_slice(value);
+}
+
 pub(super) fn indexed_study() -> tempfile::TempDir {
     let directory = tempfile::tempdir().expect("indexed study");
     let images = directory.path().join("IMAGES");

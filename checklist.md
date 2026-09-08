@@ -40,6 +40,31 @@
 
 # RITK Sprint Checklist — Active
 
+## RITK-SNAP-RESOURCES-001 [arch][minor] — Bound DICOM parser ingress
+
+- [x] Add a parser-boundary budget using the existing Consus `ParseBudget`;
+      reject malformed spans, element-count/depth overflow, and declared
+      values beyond the byte ceiling before dicom-rs materializes them.
+- [x] Route the selected-instance and retained-byte scan paths through the
+      budgeted backend entry point; keep exact validated bytes for decoding.
+- [x] Add `DicomReadBudget` and explicit scan/load APIs with independent parser,
+      retained-study, and decoded-workspace ceilings.
+- [x] Charge retained study bytes before storing each validated Part-10 member;
+      apply the parser budget to DICOMDIR index reads as well.
+- [x] Plan peak decoded frame/resample/volume workspace before allocation and
+      route path-based pixel fallback through the bounded reader.
+- [x] Add deterministic valid, truncation, oversized-length, sequence-depth,
+      and element-count cases with value-semantic error assertions.
+- [x] Add replacement-identity, retained-byte, DICOMDIR-budget, and decoded-
+      workspace regressions; run focused format, warning-denied Clippy, Nextest,
+      Rustdoc, and diff gates against the exact revision.
+- [x] Add final-component no-follow opens: Unix uses `O_NOFOLLOW`; Windows
+      requests a reparse-point handle and rejects a final reparse point. Linux,
+      Windows-target, native warning-denied Clippy, Nextest, and docs checks pass.
+- [ ] Complete parent-directory handle confinement; retain this item open until
+      the platform contract is verified on the supported viewer hosts. DICOMDIR
+      record-tree validation is tracked in RITK-SNAP-DIRECTORY-001 below.
+
 ## FIX-DTI-VOLUME-FRAME [major][arch] — Preserve diffusion coordinate frames
 
 - [x] Record the frame contract in ADR 0017 and retain `GradientFrame` in

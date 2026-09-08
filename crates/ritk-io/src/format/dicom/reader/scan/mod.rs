@@ -6,11 +6,11 @@ use anyhow::{bail, Context, Result};
 use arrayvec::ArrayString;
 use dicom::core::Tag;
 use dicom::object::DefaultDicomObject;
-use ritk_dicom::{parse_bytes_with, DicomRsBackend};
+use ritk_dicom::{parse_bytes_with_budget, read_file_with_budget, DicomRsBackend};
 
-use super::dicomdir::{discover_files, is_dicomdir};
+use super::dicomdir::{discover_files_with_budget, is_dicomdir};
 use super::parse::extract_dicom_metadata;
-use super::types::{DicomSeriesInfo, DicomSliceMetadata, SeriesFirstSeen};
+use super::types::{DicomReadBudget, DicomSeriesInfo, DicomSliceMetadata, SeriesFirstSeen};
 use crate::format::dicom::identity::image_series_uid;
 use crate::format::dicom::networking::scp::StoredInstance;
 use crate::format::dicom::object_model::{DicomObjectModel, DicomObjectNode, DicomTag};
@@ -27,11 +27,20 @@ use finalize::finalize_scanned_series;
 /// Rejects malformed files, missing identity, and multiple series. An existing
 /// DICOMDIR is authoritative; invalid references never trigger folder fallback.
 pub fn scan_dicom_directory<P: AsRef<Path>>(path: P) -> Result<DicomSeriesInfo> {
+    scan_dicom_directory_with_budget(path, &DicomReadBudget::DEFAULT)
+}
+
+/// Scan a directory using an explicit parser resource budget.
+pub fn scan_dicom_directory_with_budget<P: AsRef<Path>>(
+    path: P,
+    budget: &DicomReadBudget,
+) -> Result<DicomSeriesInfo> {
     let path = path.as_ref();
     if !path.is_dir() && !is_dicomdir(path) {
         bail!("DICOM input path is not a directory");
     }
-    scan_dicom_files(&discover_files(path)?)
+    let parser_budget = budget.parser();
+    scan_dicom_files_with_budget(&discover_files_with_budget(path, &parser_budget)?, budget)
 }
 
 /// Scan the exact members of one image series.
@@ -53,7 +62,15 @@ pub fn scan_dicom_directory<P: AsRef<Path>>(path: P) -> Result<DicomSeriesInfo> 
 /// Rejects empty input, unreadable or malformed members, missing or invalid
 /// SeriesInstanceUID, multiple series, and inconsistent image dimensions.
 pub fn scan_dicom_files(paths: &[PathBuf]) -> Result<DicomSeriesInfo> {
-    scan_files(paths, None)
+    scan_dicom_files_with_budget(paths, &DicomReadBudget::DEFAULT)
+}
+
+/// Scan exact DICOM members using an explicit parser resource budget.
+pub fn scan_dicom_files_with_budget(
+    paths: &[PathBuf],
+    budget: &DicomReadBudget,
+) -> Result<DicomSeriesInfo> {
+    scan_files(paths, None, budget)
 }
 
 /// Scan a directory, a selected DICOM instance, or an explicit DICOMDIR.
@@ -76,19 +93,29 @@ pub fn scan_dicom_files(paths: &[PathBuf]) -> Result<DicomSeriesInfo> {
 /// Rejects malformed selected input, ambiguous series, or invalid DICOMDIR
 /// references. A selected file cannot silently load a neighboring acquisition.
 pub fn scan_dicom_path(path: impl AsRef<Path>) -> Result<DicomSeriesInfo> {
+    scan_dicom_path_with_budget(path, &DicomReadBudget::DEFAULT)
+}
+
+/// Scan a selected DICOM path using an explicit parser resource budget.
+pub fn scan_dicom_path_with_budget(
+    path: impl AsRef<Path>,
+    budget: &DicomReadBudget,
+) -> Result<DicomSeriesInfo> {
     let path = path.as_ref();
     if path.is_dir() || is_dicomdir(path) {
-        return scan_dicom_directory(path);
+        return scan_dicom_directory_with_budget(path, budget);
     }
-    let bytes = std::fs::read(path).context("failed to read selected DICOM instance")?;
-    let object = parse_bytes_with::<DicomRsBackend>(&bytes)
+    let parser_budget = budget.parser();
+    let bytes = read_file_with_budget(path, &parser_budget)
+        .context("failed to read selected DICOM instance")?;
+    let object = parse_bytes_with_budget::<DicomRsBackend>(&bytes, &parser_budget)
         .context("failed to parse selected DICOM instance")?;
     let uid = image_series_uid(&object)?.context("selected DICOM instance is not image-bearing")?;
     let root = path
         .parent()
         .filter(|parent| !parent.as_os_str().is_empty())
         .unwrap_or_else(|| Path::new("."));
-    let paths = discover_files(root)?;
+    let paths = discover_files_with_budget(root, &parser_budget)?;
     let resolved = path
         .canonicalize()
         .context("failed to resolve selected DICOM instance")?;
@@ -100,6 +127,7 @@ pub fn scan_dicom_path(path: impl AsRef<Path>) -> Result<DicomSeriesInfo> {
             object,
             bytes,
         }),
+        budget,
     )
 }
 
@@ -113,6 +141,7 @@ struct SelectedInstance {
 fn scan_files(
     paths: &[PathBuf],
     mut selected: Option<SelectedInstance>,
+    budget: &DicomReadBudget,
 ) -> Result<DicomSeriesInfo> {
     let source = paths
         .first()
@@ -120,6 +149,7 @@ fn scan_files(
     let mut accumulator = SeriesScan::default();
     let mut seen = std::collections::HashSet::with_capacity(paths.len());
     let selected_uid = selected.as_ref().map(|instance| instance.uid);
+    let parser_budget = budget.parser();
     let mut ordered: Vec<_> = paths.iter().collect();
     ordered.sort();
     for path in ordered {
@@ -138,8 +168,9 @@ fn scan_files(
                 .expect("invariant: selected instance matches this member");
             (instance.object, instance.bytes)
         } else {
-            let bytes = std::fs::read(path).context("failed to read DICOM member")?;
-            let object = parse_bytes_with::<DicomRsBackend>(&bytes)
+            let bytes = read_file_with_budget(path, &parser_budget)
+                .context("failed to read DICOM member")?;
+            let object = parse_bytes_with_budget::<DicomRsBackend>(&bytes, &parser_budget)
                 .context("failed to parse DICOM member")?;
             (object, bytes)
         };
@@ -148,6 +179,7 @@ fn scan_files(
             path.clone(),
             bytes,
             selected_uid.as_ref().map(ArrayString::as_str),
+            budget,
         )?;
     }
     if selected.is_some() {
@@ -166,16 +198,26 @@ fn scan_files(
 /// # Errors
 /// Rejects empty, malformed, unidentified, or mixed-series inputs.
 pub fn scan_dicom_instances(instances: &[StoredInstance]) -> Result<DicomSeriesInfo> {
+    scan_dicom_instances_with_budget(instances, &DicomReadBudget::DEFAULT)
+}
+
+/// Scan SCP-received instances using an explicit parser resource budget.
+pub fn scan_dicom_instances_with_budget(
+    instances: &[StoredInstance],
+    budget: &DicomReadBudget,
+) -> Result<DicomSeriesInfo> {
     let mut accumulator = SeriesScan::default();
+    let parser_budget = budget.parser();
     for instance in instances {
         let bytes = instance.make_part10_bytes();
-        let object = parse_bytes_with::<DicomRsBackend>(&bytes)
+        let object = parse_bytes_with_budget::<DicomRsBackend>(&bytes, &parser_budget)
             .context("failed to parse SCP DICOM instance")?;
         accumulator.push(
             &object,
             PathBuf::from(format!("scp://{}", instance.sop_instance_uid)),
             bytes,
             None,
+            budget,
         )?;
     }
     accumulator.finish(PathBuf::from("scp://series"))
@@ -189,18 +231,28 @@ pub fn scan_dicom_instances(instances: &[StoredInstance]) -> Result<DicomSeriesI
 /// Rejects empty, malformed, unidentified, or mixed-series inputs. A pathless
 /// DICOMDIR cannot resolve filesystem references and is rejected.
 pub fn scan_dicom_part10_bytes(files: &[(&str, &[u8])]) -> Result<DicomSeriesInfo> {
+    scan_dicom_part10_bytes_with_budget(files, &DicomReadBudget::DEFAULT)
+}
+
+/// Scan named Part 10 payloads using an explicit parser resource budget.
+pub fn scan_dicom_part10_bytes_with_budget(
+    files: &[(&str, &[u8])],
+    budget: &DicomReadBudget,
+) -> Result<DicomSeriesInfo> {
     let mut accumulator = SeriesScan::default();
+    let parser_budget = budget.parser();
     for (name, bytes) in files {
         if is_dicomdir(Path::new(name)) {
             bail!("pathless DICOMDIR references cannot be resolved");
         }
-        let object = parse_bytes_with::<DicomRsBackend>(bytes)
+        let object = parse_bytes_with_budget::<DicomRsBackend>(bytes, &parser_budget)
             .context("failed to parse DICOM byte payload")?;
         accumulator.push(
             &object,
             PathBuf::from(format!("dropped://{name}")),
             bytes.to_vec(),
             None,
+            budget,
         )?;
     }
     accumulator.finish(PathBuf::from("dropped://series"))
@@ -213,6 +265,7 @@ struct SeriesScan {
     uid: Option<ArrayString<64>>,
     dimensions: Option<(u32, u32)>,
     rejected_sop_classes: Vec<String>,
+    retained_bytes: usize,
 }
 
 impl SeriesScan {
@@ -222,6 +275,7 @@ impl SeriesScan {
         path: PathBuf,
         bytes: Vec<u8>,
         selected_uid: Option<&str>,
+        budget: &DicomReadBudget,
     ) -> Result<()> {
         let Some(uid) = image_series_uid(object)? else {
             let sop = object.element(Tag(0x0008, 0x0016))?.to_str()?.into_owned();
@@ -243,6 +297,12 @@ impl SeriesScan {
             bail!("inconsistent image dimensions within selected DICOM series");
         }
         self.dimensions = Some(dimensions);
+        let retained_bytes = self
+            .retained_bytes
+            .checked_add(bytes.len())
+            .context("DICOM retained study byte total overflow")?;
+        budget.checked_retained_bytes(retained_bytes)?;
+        self.retained_bytes = retained_bytes;
         slice.part10_bytes = Some(bytes);
         self.slices.push(slice);
         Ok(())

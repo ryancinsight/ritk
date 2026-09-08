@@ -8,20 +8,18 @@
 
 <a id="RITK-SNAP-RESOURCES-001"></a>
 ## RITK-SNAP-RESOURCES-001 — Confined and bounded study ingestion [arch] [minor]
-- Status: todo; priority: P0; owner: RITK IO; dependencies: RITK-SNAP-OPEN-001; risk: filesystem race and input-driven memory exhaustion.
+- Status: in-progress; priority: P0; owner: RITK IO; integrator: root; last-update: 2026-09-08; branch: `feat/ritk-dicom-parse-budget`; dependencies: RITK-SNAP-OPEN-001; risk: filesystem race and input-driven memory exhaustion.
 - Scope: handle-based file-set access and explicit per-instance/per-study parser and decoded-buffer budgets; preserve validated-byte identity without unbounded retained study storage.
-- Evidence: `reader/dicomdir.rs` canonicalizes references before a later open; `reader/scan/mod.rs` retains whole Part 10 buffers, and the current reader exposes no ingestion resource policy.
+- Evidence: parser preflight now uses Consus `ParseBudget` for selected, exact-member, SCP, named-byte, and DICOMDIR-index reads; budgeted reads compare the opened handle with resolved path metadata, and scanned slices retain validated bytes.
+- Current increment: `DicomReadBudget` separates parser, retained-study, and decoded-workspace ceilings. Retained bytes are charged before each slice is stored, and the loader rejects the planned peak frame/resample/volume workspace before allocation. Final-component no-follow opens reject Unix symlinks and Windows reparse points; parent-directory confinement remains open, while DICOMDIR record semantics are delivered by RITK-SNAP-DIRECTORY-001.
 - Acceptance: concurrent reference replacement cannot read outside the selected file-set authority; malformed lengths and over-budget inputs return errors before allocation; bounded peak storage under repeated study replacement.
-- Verification: deterministic filesystem mutation probes, malformed corpus/property tests, allocation instrumentation under fixed study inputs; no security or memory-improvement claim from path checks alone.
+- Verification: deterministic replacement-identity and validated-byte probes, DICOMDIR-budget and malformed corpus tests, retained-byte and peak-workspace rejection tests, Linux-target compilation, and native warning-denied Clippy/Nextest; final-component no-follow is covered by platform-specific open flags, while parent-directory confinement remains unverified.
 - Decision: use owning RITK/Atlas filesystem and storage capabilities; record the platform contract in ADR 0026 before implementation.
 
 <a id="RITK-SNAP-DIRECTORY-001"></a>
-## RITK-SNAP-DIRECTORY-001 — Validate media-directory record semantics [patch]
-- Status: todo; priority: P0; owner: RITK IO; dependencies: RITK-SNAP-OPEN-001; risk: inactive or unreachable records alter the selected file set.
-- Scope: enforce admitted DICOMDIR record activity, linked-record offsets and referenced SOP/transfer-syntax agreement; retain authoritative membership and explicit errors.
-- Evidence: `reader/dicomdir.rs` iterates IMAGE items without following offsets or checking RecordInUseFlag; successful linked fixtures establish their loaded values, not complete index validation.
-- Acceptance: inactive/deleted and unreachable records do not add files; malformed links fail without loops or unbounded traversal; active references agree with actual instance identities.
-- Verification: PS3.3 F.3.2.2 record-tree fixtures, deleted records, cycles, invalid offsets and mismatched referenced identities; compare expected active member paths and decoded voxels.
+## RITK-SNAP-DIRECTORY-001 — Validate media-directory record semantics [patch] — done
+- Status: done; commit `0a8367ab`; Explicit VR Little Endian record links, activity, reachability, and referenced SOP identity are validated before membership.
+- Verification: locked `ritk-io` Nextest 430/430, warning-denied Clippy, focused selection 16/16, formatting, doctests, and docs pass; `ritk-dicom` Linux-target compilation passes, while a full `ritk-io` cross-target check is blocked by host C headers and target-specific dependency support. Final-component symlink coverage is Unix-only on this host.
 
 <a id="RITK-SNAP-ASPECT-001"></a>
 ## RITK-SNAP-ASPECT-001 — Preserve physical image aspect ratios [patch]

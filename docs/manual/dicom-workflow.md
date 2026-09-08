@@ -86,7 +86,11 @@ successful loading. Selecting a secondary series retains its own exact files.
 
 **Open DICOMDIR…** uses the index's referenced image set. Missing references or
 an invalid index report an error; unreferenced subdirectories do not supply a
-replacement study. Dropped byte batches must identify one image series.
+replacement study. The reader follows the linked PATIENT/STUDY/SERIES/IMAGE
+record tree, excludes inactive or unreachable records, rejects cycles and
+out-of-sequence offsets, and verifies each IMAGE record's SOP class, SOP
+instance, and transfer syntax against its referenced file. Dropped byte batches
+must identify one image series.
 
 Saving a session records the primary study's UID and exact files along with the
 presentation controls. Restore validates those members before replacing the
@@ -98,13 +102,43 @@ This session format does not persist the secondary comparison acquisition.
 
 Native tests exercise actual egui series-row pointer events, primary/secondary
 loads, failed replacement, and session restore with deterministic Part 10 files.
-The DICOMDIR fixture covers IMAGE references and membership; it does not establish
-complete media-directory IOD or linked-record-offset conformance.
-The current reader enumerates IMAGE records; filtering inactive records and
-validating their linked tree and referenced SOP identities remain in the
-[media-directory item](../../backlog.md#RITK-SNAP-DIRECTORY-001).
-The IO tests separately load a complete synthetic linked PATIENT/STUDY/SERIES/IMAGE
-index and compare its exact pixel values and geometry with explicit member loading.
+The IO tests load a complete synthetic linked PATIENT/STUDY/SERIES/IMAGE index,
+then exercise inactive and unreachable records, malformed links, identity
+mismatches, and final-component symlinks. They compare active member paths and
+exact pixel values and geometry with explicit member loading. The remaining
+filesystem boundary is parent-directory handle traversal; it is tracked in
+[RITK-SNAP-RESOURCES-001](../../backlog.md#RITK-SNAP-RESOURCES-001).
+
+## Resource-bounded DICOM ingress
+
+The RITK DICOM boundary runs a structural Part 10 preflight before dicom-rs
+materializes an object. `ritk_dicom::ParseBudget` limits the encoded byte span,
+structural element count, and sequence nesting depth. The scanner checks
+declared value spans, sequence and item delimiters, implicit sequence tags, and
+encapsulated pixel fragments without copying their values. The reader exposes
+matching `scan_dicom_*_with_budget` entry points and the series loaders expose
+`load_*_with_budget` counterparts. They accept the typed `DicomReadBudget`,
+which combines the parser budget with separate retained-study and
+decoded-workspace ceilings. The default forms use finite shared ceilings;
+constrained hosts can construct a smaller budget with
+`DicomReadBudget::try_new(ParseBudget::new(...), retained_bytes, decoded_bytes)`.
+
+The preflight accepts implicit little-endian, explicit little-endian, and
+explicit big-endian datasets, plus the encapsulated pixel syntaxes used by the
+native RITK codecs. Deflated dataset input is rejected with an explicit error
+because the locked dicom-rs registry does not provide a bounded deflate decoder.
+The DICOMDIR index uses the same parser preflight. Filesystem reads resolve and
+open one path handle, compare its metadata with the resolved path, and read from
+that handle; scanned slices retain the exact validated bytes for pixel decode.
+The reader charges retained bytes before storing each member. The loader plans
+the peak decoded frame, resample, and contiguous-volume workspace before any of
+those buffers are allocated, including the temporary frame-vector handles.
+Deterministic tests cover parser, DICOMDIR, retained-byte, decoded-workspace,
+and replacement cases. Unix reads reject a final symlink with `O_NOFOLLOW`;
+Windows reads request a reparse-point handle and reject a final reparse point.
+Parent-directory traversal through directory handles remains a platform
+integration boundary. The DICOMDIR record-tree and referenced-identity contract
+is delivered by [RITK-SNAP-DIRECTORY-001](../../backlog.md#RITK-SNAP-DIRECTORY-001).
 
 ## Capture the native application
 

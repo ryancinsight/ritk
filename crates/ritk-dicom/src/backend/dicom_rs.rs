@@ -4,12 +4,14 @@
 //! to the RITK DICOM domain boundary.
 
 use anyhow::{bail, Context, Result};
+use consus_core::ParseBudget;
 use dicom::core::value::Value;
 use dicom::core::Tag;
 use dicom::object::DefaultDicomObject;
 use dicom_pixeldata::PixelDecoder;
 use std::path::Path;
 
+use crate::backend::parse_budget::BoundedDicomParseBackend;
 use crate::backend::{
     DecodeFrameRequest, DecodedFrame, DicomParseBackend, DicomWriteBackend,
     EncapsulatedFrameSource, NativeCodecBackend, PixelDecodeBackend,
@@ -54,6 +56,30 @@ impl DicomParseBackend for DicomRsBackend {
         use std::io::Cursor;
         dicom::object::from_reader(Cursor::new(data))
             .with_context(|| "dicom-rs backend failed to parse DICOM bytes")
+    }
+}
+
+impl BoundedDicomParseBackend for DicomRsBackend {
+    fn parse_file_with_budget(path: &Path, budget: &ParseBudget) -> Result<Self::Object> {
+        let bytes = crate::backend::parse_budget::read_file_with_budget(path, budget)?;
+        Self::parse_bytes_with_budget(&bytes, budget)
+            .with_context(|| format!("dicom-rs backend failed to parse {:?}", path))
+    }
+
+    fn parse_bytes_with_budget(data: &[u8], budget: &ParseBudget) -> Result<Self::Object> {
+        let summary = crate::backend::parse_budget::validate_part10(data, budget)?;
+        if matches!(
+            summary.transfer_syntax,
+            crate::syntax::TransferSyntaxKind::DeflatedExplicitVrLittleEndian
+        ) {
+            bail!(
+                "DICOM transfer syntax {} is recognized but deflated dataset support is not enabled in this lock",
+                summary.transfer_syntax.uid()
+            )
+        }
+        use std::io::Cursor;
+        dicom::object::from_reader(Cursor::new(data))
+            .with_context(|| "dicom-rs backend failed to parse budget-validated DICOM bytes")
     }
 }
 
