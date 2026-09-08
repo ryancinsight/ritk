@@ -58,6 +58,8 @@ budget, and invalid or missing references fail instead of falling back to
 unrelated folder contents. Reference checks reject absolute paths, traversal,
 and canonical paths outside the file-set root. The reader retains validated
 member bytes, so replacing a path after scanning cannot substitute another
-image during decode. The handle metadata check detects replacement between
-path resolution and handle inspection; operating-system no-follow guarantees
-remain outside this portable standard-library boundary.
+image during decode. The handle metadata check detects replacement between path
+resolution and handle inspection. On Unix, the final open uses `O_NOFOLLOW`; on
+Windows, it requests a reparse-point handle and rejects a final reparse point.
+Parent-directory traversal through directory handles remains a platform
+integration boundary.

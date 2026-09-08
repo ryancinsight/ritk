@@ -18,10 +18,11 @@ decoded-workspace ceilings; retained bytes are charged before storage and the
 loader rejects the planned peak frame/resample/volume workspace before
 allocation. Budgeted reads compare the opened handle with resolved path
 metadata and consume that handle, while scanned slices retain the validated
-bytes for later decode. The portable implementation detects replacement during
-the resolution/inspection window; operating-system no-follow guarantees remain
-a platform boundary, and complete DICOMDIR record-tree validation stays in
-RITK-SNAP-DIRECTORY-001.
+bytes for later decode. The implementation detects replacement during the
+resolution/inspection window and rejects a final symlink/reparse point on Unix
+and Windows respectively. Parent-directory traversal through directory handles
+remains a platform boundary, and complete DICOMDIR record-tree validation stays
+in RITK-SNAP-DIRECTORY-001.
 
 Revision 2026-09-06: [RITK-SNAP-OPEN-001](../../backlog.md#RITK-SNAP-OPEN-001)
 requires explicit acquisition selection. Inspection of `d3cbd8eb` finds that

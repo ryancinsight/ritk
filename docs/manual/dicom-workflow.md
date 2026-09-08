@@ -131,8 +131,10 @@ The reader charges retained bytes before storing each member. The loader plans
 the peak decoded frame, resample, and contiguous-volume workspace before any of
 those buffers are allocated, including the temporary frame-vector handles.
 Deterministic tests cover parser, DICOMDIR, retained-byte, decoded-workspace,
-and replacement cases. Operating-system no-follow behavior remains a platform
-integration boundary; [RITK-SNAP-DIRECTORY-001](../../backlog.md#RITK-SNAP-DIRECTORY-001)
+and replacement cases. Unix reads reject a final symlink with `O_NOFOLLOW`;
+Windows reads request a reparse-point handle and reject a final reparse point.
+Parent-directory traversal through directory handles remains a platform
+integration boundary. [RITK-SNAP-DIRECTORY-001](../../backlog.md#RITK-SNAP-DIRECTORY-001)
 still owns complete media-directory record semantics.
 
 ## Capture the native application

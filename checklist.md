@@ -58,9 +58,12 @@
 - [x] Add replacement-identity, retained-byte, DICOMDIR-budget, and decoded-
       workspace regressions; run focused format, warning-denied Clippy, Nextest,
       Rustdoc, and diff gates against the exact revision.
-- [ ] Complete OS-specific no-follow handle confinement and media-directory
-      record-tree validation; retain this item open until the platform contract
-      is verified on the supported viewer hosts.
+- [x] Add final-component no-follow opens: Unix uses `O_NOFOLLOW`; Windows
+      requests a reparse-point handle and rejects a final reparse point. Linux,
+      Windows-target, native warning-denied Clippy, Nextest, and docs checks pass.
+- [ ] Complete parent-directory handle confinement and media-directory record-tree
+      validation; retain this item open until the platform contract is verified on
+      the supported viewer hosts.
 
 ## FIX-DTI-VOLUME-FRAME [major][arch] — Preserve diffusion coordinate frames
 
