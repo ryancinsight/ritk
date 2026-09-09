@@ -40,6 +40,9 @@ UIDs and inconsistent dimensions fail before geometry assembly. Named byte
 batches use the same single-series contract. Scanned slices retain the bytes
 whose identity and metadata were validated. Pixel decoding consumes those
 bytes, so replacing a path after scanning cannot substitute another image.
+Presentation hosts, including browser or desktop shells, call this public
+byte-batch API and receive an RITK `Image` plus `DicomReadMetadata`; they do not
+own a second DICOM decoder or volume model.
 
 The bounded DICOM reader scan and series-load entry points have a `*_with_budget`
 form accepting the typed `DicomReadBudget`. Its parser component is the Atlas

@@ -33,6 +33,13 @@ through the bounded no-follow path and its SOP class, SOP instance, and transfer
 syntax are compared with the record. Synthetic selection tests cover inactive,
 unreachable, malformed-link, identity-mismatch, and final-symlink cases.
 
+Revision 2026-09-09: [RITK-SNAP-DICOM-SUBSTRATE-001](../../backlog.md#RITK-SNAP-DICOM-SUBSTRATE-001)
+reaffirms the ownership boundary after an attempted GUI-side opening slice was
+reviewed. RITK's existing `ritk-io` named-byte scanner, bounded series loader,
+image/metadata result, tests, and visual workflow remain the single DICOM
+implementation. Métis receives validated RITK results through a presentation
+adapter; it does not define a parallel DICOM volume or decoder.
+
 Revision 2026-09-06: [RITK-SNAP-OPEN-001](../../backlog.md#RITK-SNAP-OPEN-001)
 requires explicit acquisition selection. Inspection of `d3cbd8eb` finds that
 the sidebar discards discovered file membership, the reader selects a majority

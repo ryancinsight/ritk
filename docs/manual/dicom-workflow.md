@@ -5,6 +5,20 @@ the viewer's directory and dropped-byte loaders, checks their decoded values
 and physical coordinates, and captures three orthogonal slice buffers.
 It needs no downloaded datasets or patient information.
 
+RITK owns the DICOM boundary used by presentation hosts. A host that receives
+files or browser drops passes the named Part 10 byte batch to
+`ritk_io::scan_dicom_part10_bytes` (or its budgeted form), then passes the
+validated descriptor to `ritk_io::load_dicom_from_series`. The scanner and
+loader retain the validated bytes, enforce the parser, retained-study, and
+decoded-workspace budgets, and return the RITK `Image` plus
+`DicomReadMetadata`. No GUI framework type or parser object crosses this
+boundary; the host owns only input and presentation lifecycle.
+
+This workflow is the DICOM opening demonstration for both the current viewer
+shell and the planned Métis shell. The code, fixtures, visual goldens, and
+rejection tests remain in RITK so a framework migration cannot fork
+medical-data semantics.
+
 Build from a standalone RITK checkout, then run the bounded demonstration:
 
 ```console

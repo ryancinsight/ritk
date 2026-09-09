@@ -18,8 +18,8 @@
 
 <a id="RITK-SNAP-DICOM-SUBSTRATE-001"></a>
 ## RITK-SNAP-DICOM-SUBSTRATE-001 — Keep DICOM opening in RITK [arch] [minor]
-- Status: in-progress; priority: P0; owner: RITK IO; integrator: root; last-update: 2026-09-09; branch: `main`; dependencies: RITK-SNAP-OPEN-001; risk: duplicated decoder and volume contracts across GUI and domain repositories; ADR: 0027 (claimed).
-- Lease: root — `backlog.md`, `docs/adr/README.md`, `docs/adr/0027-ritk-dicom-substrate.md`, `crates/ritk-io/`, `docs/manual/dicom-workflow.md` — 2026-09-09T14:00:00-04:00
+- Status: in-progress; priority: P0; owner: RITK IO; integrator: root; last-update: 2026-09-09; branch: `arch/ritk-dicom-substrate-001`; dependencies: RITK-SNAP-OPEN-001; risk: duplicated decoder and volume contracts across GUI and domain repositories; ADR: 0026.
+- Lease: root — `backlog.md`, `docs/adr/0026-viewer-presentation-migration.md`, `crates/ritk-io/`, `docs/manual/dicom-workflow.md` — 2026-09-09T14:00:00-04:00
 - Scope: make RITK's existing bounded scanner, byte loader, image, metadata, tests, and visual workflow the canonical DICOM opening surface; remove the duplicate Metis domain crate and point Metis documentation at RITK.
 - Acceptance: RITK owns the real byte and filesystem opening behavior with value-semantic tests and a reproducible visual demonstration; Metis has no DICOM decoder or volume model and its docs state the boundary without duplicate APIs.
 - Verification: locked RITK IO format, Clippy, Nextest, doctest, example/manual capture checks plus Metis structural and focused gates; no clinical parity claim.
