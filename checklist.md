@@ -40,7 +40,7 @@
 
 # RITK Sprint Checklist — Active
 
-## RITK-SNAP-RESOURCES-001 [arch][minor] — Bound DICOM parser ingress
+## RITK-SNAP-RESOURCES-001 [arch][minor] — Bound DICOM parser ingress (takeover)
 
 - [x] Add a parser-boundary budget using the existing Consus `ParseBudget`;
       reject malformed spans, element-count/depth overflow, and declared

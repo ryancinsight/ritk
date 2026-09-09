@@ -22,7 +22,7 @@
 - Outcome: RITK owns the bounded DICOM scanner, loader, geometry, tests, and visual workflow; Metis retains only the parser-free presentation handoff. Verification: RITK IO 430/430 plus visual workflow and the Metis full gate pass.
 <a id="RITK-SNAP-RESOURCES-001"></a>
 ## RITK-SNAP-RESOURCES-001 — Confined and bounded study ingestion [arch] [minor]
-- Status: in-progress; priority: P0; owner: RITK IO; integrator: root; last-update: 2026-09-08; branch: `feat/ritk-dicom-parse-budget`; dependencies: RITK-SNAP-OPEN-001; risk: filesystem race and input-driven memory exhaustion.
+- Status: in-progress; priority: P0; owner: RITK IO; integrator: root; last-update: 2026-09-09; branch: `fix/dicom-parent-confinement-resources-001`; takeover: stale parser-budget claim; dependencies: RITK-SNAP-OPEN-001; risk: filesystem race and input-driven memory exhaustion.
 - Scope: handle-based file-set access and explicit per-instance/per-study parser and decoded-buffer budgets; preserve validated-byte identity without unbounded retained study storage.
 - Evidence: parser preflight now uses Consus `ParseBudget` for selected, exact-member, SCP, named-byte, and DICOMDIR-index reads; budgeted reads compare the opened handle with resolved path metadata, and scanned slices retain validated bytes.
 - Current increment: `DicomReadBudget` separates parser, retained-study, and decoded-workspace ceilings. Retained bytes are charged before each slice is stored, and the loader rejects the planned peak frame/resample/volume workspace before allocation. Final-component no-follow opens reject Unix symlinks and Windows reparse points; parent-directory confinement remains open, while DICOMDIR record semantics are delivered by RITK-SNAP-DIRECTORY-001.
