@@ -22,13 +22,9 @@
 - Outcome: RITK owns the bounded DICOM scanner, loader, geometry, tests, and visual workflow; Metis retains only the parser-free presentation handoff. Verification: RITK IO 430/430 plus visual workflow and the Metis full gate pass.
 <a id="RITK-SNAP-RESOURCES-001"></a>
 ## RITK-SNAP-RESOURCES-001 — Confined and bounded study ingestion [arch] [minor]
-- Status: review; priority: P0; owner: RITK IO; integrator: root; last-update: 2026-09-09; branch: `fix/dicom-parent-confinement-resources-001`; takeover: stale parser-budget claim; dependencies: RITK-SNAP-OPEN-001, Moirai PR 303; risk: filesystem race and input-driven memory exhaustion.
-- Scope: handle-based file-set access and explicit per-instance/per-study parser and decoded-buffer budgets; preserve validated-byte identity without unbounded retained study storage.
-- Evidence: parser preflight now uses Consus `ParseBudget` for selected, exact-member, SCP, named-byte, and DICOMDIR-index reads; budgeted reads compare the opened handle with resolved path metadata, and scanned slices retain validated bytes.
-- Current increment: `DicomReadBudget` separates parser, retained-study, and decoded-workspace ceilings. Retained bytes are charged before each slice is stored, and the loader rejects the planned peak frame/resample/volume workspace before allocation. RITK now delegates root-confined member opening to merged Moirai PAL PR 303 (`b1fe7ad5`); DICOMDIR record semantics remain in RITK-SNAP-DIRECTORY-001.
-- Acceptance: concurrent reference replacement cannot read outside the selected file-set authority; malformed lengths and over-budget inputs return errors before allocation; bounded peak storage under repeated study replacement.
-- Verification: deterministic replacement-identity and validated-byte probes, DICOMDIR-budget and malformed corpus tests, retained-byte and peak-workspace rejection tests, Linux-target compilation, and native warning-denied Clippy/Nextest; Moirai PAL PR 303 covers nested handle opening plus traversal and intermediate/final link rejection on native and Unix-target builds.
-- Decision: use Moirai PAL for the platform filesystem contract and keep DICOM parsing, selection, and budgets in RITK; ADR 0026 records the completed boundary.
+- Status: done; priority: P0; owner: RITK IO; last-update: 2026-09-09; delivered by [RITK PR #251](https://github.com/ryancinsight/ritk/pull/251) (`83a562b1e`).
+- Outcome: RITK retains DICOM parsing, selection, and budgets while Moirai PAL supplies root-confined handle opening; ADR 0026 and the user manual record the boundary.
+- Verification: workspace gates, 5,788 nextest tests, focused DICOM workflow, and Moirai native/Unix-target traversal and link rejection tests passed.
 
 <a id="RITK-SNAP-DIRECTORY-001"></a>
 ## RITK-SNAP-DIRECTORY-001 — Validate media-directory record semantics [patch] — done
