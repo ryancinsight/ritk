@@ -6,7 +6,10 @@ use anyhow::{bail, Context, Result};
 use arrayvec::ArrayString;
 use dicom::core::Tag;
 use dicom::object::DefaultDicomObject;
-use ritk_dicom::{parse_bytes_with_budget, read_file_with_budget, DicomRsBackend};
+use ritk_dicom::{
+    parse_bytes_with_budget, read_file_with_budget, read_file_within_root_with_budget,
+    DicomRsBackend,
+};
 
 use super::dicomdir::{discover_files_with_budget, is_dicomdir};
 use super::parse::extract_dicom_metadata;
@@ -40,7 +43,10 @@ pub fn scan_dicom_directory_with_budget<P: AsRef<Path>>(
         bail!("DICOM input path is not a directory");
     }
     let parser_budget = budget.parser();
-    scan_dicom_files_with_budget(&discover_files_with_budget(path, &parser_budget)?, budget)
+    let root = file_set_root(path)?;
+    let discovery_path = if path.is_dir() { root.as_path() } else { path };
+    let paths = discover_files_with_budget(discovery_path, &parser_budget)?;
+    scan_files(&paths, None, budget, Some(&root))
 }
 
 /// Scan the exact members of one image series.
@@ -70,7 +76,7 @@ pub fn scan_dicom_files_with_budget(
     paths: &[PathBuf],
     budget: &DicomReadBudget,
 ) -> Result<DicomSeriesInfo> {
-    scan_files(paths, None, budget)
+    scan_files(paths, None, budget, None)
 }
 
 /// Scan a directory, a selected DICOM instance, or an explicit DICOMDIR.
@@ -106,17 +112,18 @@ pub fn scan_dicom_path_with_budget(
         return scan_dicom_directory_with_budget(path, budget);
     }
     let parser_budget = budget.parser();
-    let bytes = read_file_with_budget(path, &parser_budget)
+    let root = file_set_root(path)?;
+    let name = path
+        .file_name()
+        .context("selected DICOM path has no final component")?;
+    let selected_path = root.join(name);
+    let bytes = read_file_within_root_with_budget(&selected_path, &root, &parser_budget)
         .context("failed to read selected DICOM instance")?;
     let object = parse_bytes_with_budget::<DicomRsBackend>(&bytes, &parser_budget)
         .context("failed to parse selected DICOM instance")?;
     let uid = image_series_uid(&object)?.context("selected DICOM instance is not image-bearing")?;
-    let root = path
-        .parent()
-        .filter(|parent| !parent.as_os_str().is_empty())
-        .unwrap_or_else(|| Path::new("."));
-    let paths = discover_files_with_budget(root, &parser_budget)?;
-    let resolved = path
+    let paths = discover_files_with_budget(&root, &parser_budget)?;
+    let resolved = selected_path
         .canonicalize()
         .context("failed to resolve selected DICOM instance")?;
     scan_files(
@@ -128,7 +135,21 @@ pub fn scan_dicom_path_with_budget(
             bytes,
         }),
         budget,
+        Some(&root),
     )
+}
+
+fn file_set_root(path: &Path) -> Result<PathBuf> {
+    let source = if path.is_dir() {
+        path
+    } else {
+        path.parent()
+            .filter(|parent| !parent.as_os_str().is_empty())
+            .unwrap_or_else(|| Path::new("."))
+    };
+    source
+        .canonicalize()
+        .with_context(|| format!("failed to resolve DICOM file-set root {:?}", source))
 }
 
 struct SelectedInstance {
@@ -142,6 +163,7 @@ fn scan_files(
     paths: &[PathBuf],
     mut selected: Option<SelectedInstance>,
     budget: &DicomReadBudget,
+    confined_root: Option<&Path>,
 ) -> Result<DicomSeriesInfo> {
     let source = paths
         .first()
@@ -168,8 +190,11 @@ fn scan_files(
                 .expect("invariant: selected instance matches this member");
             (instance.object, instance.bytes)
         } else {
-            let bytes = read_file_with_budget(path, &parser_budget)
-                .context("failed to read DICOM member")?;
+            let bytes = match confined_root {
+                Some(root) => read_file_within_root_with_budget(path, root, &parser_budget),
+                None => read_file_with_budget(path, &parser_budget),
+            }
+            .context("failed to read DICOM member")?;
             let object = parse_bytes_with_budget::<DicomRsBackend>(&bytes, &parser_budget)
                 .context("failed to parse DICOM member")?;
             (object, bytes)

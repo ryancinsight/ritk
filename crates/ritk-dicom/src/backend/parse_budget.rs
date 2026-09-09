@@ -11,6 +11,7 @@ use std::path::Path;
 
 use anyhow::{Context, Result};
 use consus_core::ParseBudget;
+use moirai_pal::fs::open_file_within_root;
 
 use super::DicomParseBackend;
 
@@ -31,7 +32,7 @@ pub use scan::{validate_part10, DicomParseSummary};
 /// exceeds the byte ceiling, or the bounded read fails.
 pub fn read_file_with_budget<P: AsRef<Path>>(path: P, budget: &ParseBudget) -> Result<Vec<u8>> {
     let requested_path = path.as_ref();
-    let mut file = open_read_handle(requested_path)?;
+    let file = open_read_handle(requested_path)?;
     let path = requested_path
         .canonicalize()
         .with_context(|| format!("failed to resolve DICOM file path {:?}", requested_path))?;
@@ -43,10 +44,48 @@ pub fn read_file_with_budget<P: AsRef<Path>>(path: P, budget: &ParseBudget) -> R
     if !same_file_identity(&handle_metadata, &path_metadata) {
         anyhow::bail!("DICOM file identity changed while opening {:?}", path);
     }
+    read_open_file(file, budget, "DICOM file bytes")
+}
+
+/// Open and read one DICOM file beneath a selected root with a byte ceiling.
+///
+/// Moirai PAL resolves every path component from directory handles and returns
+/// the handle that this function reads. RITK owns the DICOM parse budget and
+/// consumes the bytes after the filesystem contract has been established.
+///
+/// # Errors
+///
+/// Returns an error when the path is outside the root, a path component is a
+/// link or has the wrong kind, the file cannot be read, or the byte ceiling is
+/// exceeded.
+pub fn read_file_within_root_with_budget<P, R>(
+    path: P,
+    root: R,
+    budget: &ParseBudget,
+) -> Result<Vec<u8>>
+where
+    P: AsRef<Path>,
+    R: AsRef<Path>,
+{
+    let file = open_file_within_root(path.as_ref(), root.as_ref()).with_context(|| {
+        format!(
+            "failed to open DICOM file {} below {}",
+            path.as_ref().display(),
+            root.as_ref().display()
+        )
+    })?;
+    read_open_file(file, budget, "confined DICOM file bytes")
+}
+
+pub(super) fn read_open_file(
+    mut file: File,
+    budget: &ParseBudget,
+    what: &'static str,
+) -> Result<Vec<u8>> {
     let file_length =
-        usize::try_from(handle_metadata.len()).context("DICOM file length does not fit usize")?;
+        usize::try_from(file.metadata()?.len()).context("DICOM file length does not fit usize")?;
     budget
-        .read_bounded(&mut file, file_length, "DICOM file bytes")
+        .read_bounded(&mut file, file_length, what)
         .map_err(|error| anyhow::anyhow!("DICOM file exceeds parse budget: {error}"))
 }
 

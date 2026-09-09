@@ -20,9 +20,20 @@ allocation. Budgeted reads compare the opened handle with resolved path
 metadata and consume that handle, while scanned slices retain the validated
 bytes for later decode. The implementation detects replacement during the
 resolution/inspection window and rejects a final symlink/reparse point on Unix
-and Windows respectively. Parent-directory traversal through directory handles
-remains a platform boundary, and complete DICOMDIR record-tree validation stays
-in RITK-SNAP-DIRECTORY-001.
+and Windows respectively. At that revision, parent-directory traversal through
+directory handles remained a platform boundary; complete DICOMDIR record-tree
+validation stays in RITK-SNAP-DIRECTORY-001.
+
+Revision 2026-09-09: [RITK-SNAP-RESOURCES-001](../../backlog.md#RITK-SNAP-RESOURCES-001)
+closes the parent-directory boundary through the owning Moirai PAL filesystem
+layer. `moirai_pal::fs::open_file_within_root` validates normal relative
+components, walks from directory handles with Unix `openat` or Windows
+relative `NtCreateFile`, rejects traversal and link components, and returns the
+handle that the caller reads. WebAssembly reports an explicit unsupported
+error. `ritk-dicom::read_file_within_root_with_budget` composes that handle with
+the existing Consus `ParseBudget`; DICOM parsing and member policy remain in
+RITK. Native and Unix-target gates cover the consumer and the Moirai API covers
+the handle walk with value-semantic link and traversal tests.
 
 Revision 2026-09-08: [RITK-SNAP-DIRECTORY-001](../../backlog.md#RITK-SNAP-DIRECTORY-001)
 now validates the Explicit VR Little Endian DICOMDIR record sequence before
@@ -164,11 +175,12 @@ budget. Consus's current bounded reader limits logical length, not all reserved
 capacity, so its successful return is not a peak-memory oracle. Test allocation
 requests at boundary values and malformed declared lengths.
 
-Root-confined open operations belong in Moirai's filesystem layer. Its current
-path-based open/read APIs do not establish that contract. Retaining the exact
-validated Part 10 bytes prevents scan/decode replacement but does not close the
-earlier canonicalize/open race. These are required follow-on implementations,
-not properties established by acquisition selection.
+Root-confined open operations belong in Moirai's filesystem layer. The merged
+`moirai-pal::fs::open_file_within_root` contract resolves every component from
+the selected root handle and returns that handle for reading, so RITK no longer
+recreates platform traversal. Retaining the exact validated Part 10 bytes and
+the RITK parser budgets remains a consumer responsibility; the filesystem race
+is covered by the Moirai implementation and its platform tests.
 
 ## Alternatives and validation
 

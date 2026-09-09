@@ -2,7 +2,7 @@
 
 use anyhow::{bail, Context, Result};
 use dicom::core::Tag;
-use ritk_dicom::{parse_bytes_with_budget, read_file_with_budget, DicomRsBackend};
+use ritk_dicom::{parse_bytes_with_budget, read_file_within_root_with_budget, DicomRsBackend};
 use std::collections::{HashMap, HashSet};
 use std::path::{Component, Path, PathBuf};
 
@@ -56,7 +56,12 @@ fn read_dicomdir(index: &Path, budget: &ParseBudget) -> Result<Vec<PathBuf>> {
         .unwrap_or_else(|| Path::new("."))
         .canonicalize()
         .context("failed to resolve DICOMDIR root")?;
-    let bytes = read_file_with_budget(index, budget).context("failed to open DICOMDIR")?;
+    let index_name = index
+        .file_name()
+        .context("DICOMDIR path has no final component")?;
+    let index_path = root.join(index_name);
+    let bytes = read_file_within_root_with_budget(&index_path, &root, budget)
+        .context("failed to open DICOMDIR")?;
     let obj = parse_bytes_with_budget::<DicomRsBackend>(&bytes, budget)
         .context("failed to parse DICOMDIR")?;
     if obj.meta().transfer_syntax.trim_end_matches('\0').trim() != "1.2.840.10008.1.2.1" {
@@ -109,7 +114,7 @@ fn read_dicomdir(index: &Path, budget: &ParseBudget) -> Result<Vec<PathBuf>> {
         if !resolved.is_file() {
             bail!("DICOMDIR reference is not a file");
         }
-        verify_record_identity(record, &candidate, budget)?;
+        verify_record_identity(record, &candidate, &root, budget)?;
         paths.push(candidate);
     }
     if paths.is_empty() {
@@ -400,6 +405,7 @@ fn reachable_records(
 fn verify_record_identity(
     record: &DirectoryRecord,
     path: &Path,
+    root: &Path,
     budget: &ParseBudget,
 ) -> Result<()> {
     let expected_class = record
@@ -414,8 +420,8 @@ fn verify_record_identity(
         .referenced_transfer_syntax_uid
         .as_deref()
         .context("DICOMDIR image record missing ReferencedTransferSyntaxUID")?;
-    let bytes =
-        read_file_with_budget(path, budget).context("failed to read DICOMDIR referenced file")?;
+    let bytes = read_file_within_root_with_budget(path, root, budget)
+        .context("failed to read DICOMDIR referenced file")?;
     let object = parse_bytes_with_budget::<DicomRsBackend>(&bytes, budget)
         .context("failed to parse DICOMDIR referenced file")?;
     let actual_class = required_text(&object, Tag(0x0008, 0x0016), "SOPClassUID")?;

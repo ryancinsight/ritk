@@ -17,6 +17,7 @@ anyhow = { workspace = true }
 arrayvec = { workspace = true }
 consus-core = { workspace = true }
 dicom = { workspace = true }
+moirai-pal = { workspace = true }
 ritk-codecs = { workspace = true }
 ritk-diffusion-scheme = { path = "../ritk-diffusion-scheme", version = "0.2.0" }
 ritk-spatial = { path = "../ritk-spatial", version = "0.2.0" }

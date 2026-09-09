@@ -112,6 +112,7 @@ pyo3 = { version = "0.22", features = ["abi3-py39"] }
 numpy = "0.22"
 dicom = { version = "0.10.0", default-features = false }
 moirai = { package = "moirai-runtime", version = "0.6.0", git = "https://github.com/ryancinsight/Moirai.git", features = ["melinoe"] }
+moirai-pal = { package = "moirai-pal", version = "0.6.0", git = "https://github.com/ryancinsight/Moirai.git", default-features = false }
 # Apollo FFT scratch caches use Eunomia complex values through Mnemosyne.
 mnemosyne = { package = "mnemosyne-memory", version = "0.7.0", git = "https://github.com/ryancinsight/Mnemosyne.git", rev = "f532b0e", default-features = false, features = ["std_tls", "eunomia"] }
 eunomia = { version = "0.8.0", git = "https://github.com/ryancinsight/eunomia", default-features = false }
@@ -292,5 +293,4 @@ unwrap_used = "deny"
 print_stdout = "deny"
 print_stderr = "deny"
 dbg_macro = "deny"
-
 
