@@ -196,20 +196,20 @@ pub fn fit_symmetric_trimmed_rigid(
         )));
     }
 
-    let forward = forward_correspondences(fixed_to_moving)?;
-    let reverse = reverse_correspondences(moving_to_fixed)?;
+    let mut forward = forward_correspondences(fixed_to_moving)?;
+    let mut reverse = reverse_correspondences(moving_to_fixed)?;
+    discard_conflicting_endpoint_pairs(&mut forward, &mut reverse);
     let forward_fit = fit_trimmed_direction(&forward)?;
     let reverse_fit = fit_trimmed_direction(&reverse)?;
     let reverse_inverse = invert_rigid(&reverse_fit.transform)?;
     let transform = log_euclidean_mean(&forward_fit.transform, &reverse_inverse)?;
-    let correspondence_count = fixed_to_moving
-        .len()
-        .checked_add(moving_to_fixed.len())
-        .ok_or_else(|| {
-            RegistrationError::InvalidInput(
-                "bidirectional correspondence count overflows usize".to_owned(),
-            )
-        })?;
+    // Retained pairs, not supplied ones: a discarded conflict contributed to
+    // neither fit and must not be reported as though it had.
+    let correspondence_count = forward.len().checked_add(reverse.len()).ok_or_else(|| {
+        RegistrationError::InvalidInput(
+            "bidirectional correspondence count overflows usize".to_owned(),
+        )
+    })?;
     let inlier_count = forward_fit
         .inlier_count
         .checked_add(reverse_fit.inlier_count)
@@ -279,6 +279,107 @@ fn compare_correspondences(
             (ordering != std::cmp::Ordering::Equal).then_some(ordering)
         })
         .unwrap_or(std::cmp::Ordering::Equal)
+}
+
+/// Total order over one point, so endpoint comparison never depends on NaN.
+fn compare_points(left: [f64; 3], right: [f64; 3]) -> std::cmp::Ordering {
+    left.into_iter()
+        .zip(right)
+        .find_map(|(left, right)| {
+            let ordering = left.total_cmp(&right);
+            (ordering != std::cmp::Ordering::Equal).then_some(ordering)
+        })
+        .unwrap_or(std::cmp::Ordering::Equal)
+}
+
+/// The correspondence read back as (fixed, moving), whichever direction built
+/// it. A forward schedule stores source = fixed; a reverse schedule stores
+/// source = moving, so reading a reverse entry in this frame swaps it.
+const fn as_fixed_moving(pair: &RigidCorrespondence, reversed: bool) -> Endpoints {
+    if reversed {
+        (pair.target_mm, pair.source_mm)
+    } else {
+        (pair.source_mm, pair.target_mm)
+    }
+}
+
+/// Two endpoints in a fixed order: one endpoint pair's identity, whichever
+/// direction states it.
+type Endpoints = ([f64; 3], [f64; 3]);
+
+/// What conflict detection needs from one correspondence: which endpoint pair
+/// it is about, and which of the two endpoints it calls fixed.
+struct EndpointClaim {
+    endpoints: Endpoints,
+    orientation: std::cmp::Ordering,
+}
+
+/// The two endpoints in a fixed order, so one endpoint pair has one identity
+/// whichever direction states it.
+fn canonical_endpoints(pair: &RigidCorrespondence) -> Endpoints {
+    if compare_points(pair.source_mm, pair.target_mm).is_gt() {
+        (pair.target_mm, pair.source_mm)
+    } else {
+        (pair.source_mm, pair.target_mm)
+    }
+}
+
+fn compare_endpoints(left: &Endpoints, right: &Endpoints) -> std::cmp::Ordering {
+    compare_points(left.0, right.0).then_with(|| compare_points(left.1, right.1))
+}
+
+/// Drop every endpoint pair the two directions disagree about.
+///
+/// Read in the fixed-to-moving frame, a forward and a reverse correspondence
+/// over the same two points must agree on which endpoint is fixed. When they
+/// do not, both cannot hold and neither is the more credible, so the pair
+/// leaves both schedules rather than one being chosen — the symmetry the fit
+/// depends on is exactly what a one-sided choice would break.
+fn discard_conflicting_endpoint_pairs(
+    forward: &mut Vec<RigidCorrespondence>,
+    reverse: &mut Vec<RigidCorrespondence>,
+) {
+    let mut claims: Vec<EndpointClaim> = forward
+        .iter()
+        .map(|pair| (pair, false))
+        .chain(reverse.iter().map(|pair| (pair, true)))
+        .map(|(pair, reversed)| {
+            let (fixed, moving) = as_fixed_moving(pair, reversed);
+            EndpointClaim {
+                endpoints: canonical_endpoints(pair),
+                orientation: compare_points(fixed, moving),
+            }
+        })
+        .collect();
+    claims.sort_by(|left, right| compare_endpoints(&left.endpoints, &right.endpoints));
+
+    let mut conflicting: Vec<Endpoints> = Vec::new();
+    let mut start = 0;
+    while start < claims.len() {
+        let mut end = start + 1;
+        while end < claims.len()
+            && compare_endpoints(&claims[start].endpoints, &claims[end].endpoints).is_eq()
+        {
+            end += 1;
+        }
+        if claims[start + 1..end]
+            .iter()
+            .any(|claim| claim.orientation != claims[start].orientation)
+        {
+            conflicting.push(claims[start].endpoints);
+        }
+        start = end;
+    }
+    if conflicting.is_empty() {
+        return;
+    }
+    let retain = |pair: &RigidCorrespondence| {
+        conflicting
+            .binary_search_by(|probe| compare_endpoints(probe, &canonical_endpoints(pair)))
+            .is_err()
+    };
+    forward.retain(retain);
+    reverse.retain(retain);
 }
 
 fn fit_trimmed_direction(correspondences: &[RigidCorrespondence]) -> Result<DirectionalFit> {

@@ -29,11 +29,11 @@ fn clean_pairs() -> Vec<FixedToMovingCorrespondence> {
 fn assert_maps_fixture(transform: &AffineTransform) {
     let gamma_512 = 512.0 * f64::EPSILON / (1.0 - 512.0 * f64::EPSILON);
     for pair in clean_pairs() {
-        let normalized = RigidCorrespondence {
-            fixed_mm: pair.fixed_mm(),
-            moving_mm: pair.moving_mm(),
+        let correspondence = RigidCorrespondence {
+            source_mm: pair.fixed_mm(),
+            target_mm: pair.moving_mm(),
         };
-        let residual = squared_residual(transform, &normalized).sqrt();
+        let residual = squared_residual(transform, &correspondence).sqrt();
         let scale = pair
             .moving_mm()
             .into_iter()
@@ -240,24 +240,31 @@ fn sampled_candidate_schedule_is_symmetric_for_independent_directions() {
         .collect();
     let swapped = fit_symmetric_trimmed_rigid(&swapped_forward, &swapped_reverse)
         .expect("sampled swapped fit");
-    let direct_schedule =
-        normalize_correspondences(&forward, &reverse).expect("normalize direct schedule");
-    let swapped_schedule = normalize_correspondences(&swapped_forward, &swapped_reverse)
-        .expect("normalize swapped schedule");
-    assert_eq!(direct_schedule.len(), 118);
-    assert_eq!(swapped_schedule.len(), direct_schedule.len());
-    for candidate in 0..SAMPLED_CANDIDATE_LIMIT {
-        for index in sampled_triplet(direct_schedule.len(), candidate) {
-            assert_eq!(
-                direct_schedule[index].fixed_mm,
-                swapped_schedule[index].moving_mm
-            );
-            assert_eq!(
-                direct_schedule[index].moving_mm,
-                swapped_schedule[index].fixed_mm
-            );
-        }
-    }
+    // Exchanging the fixed and moving roles exchanges the two direction
+    // schedules exactly. `forward_correspondences` orients a pair as
+    // source = fixed, target = moving; `reverse_correspondences` orients it as
+    // source = moving, target = fixed. So feeding the swapped inputs to one
+    // direction must reproduce the other direction's schedule term for term.
+    // The predecessor of this check sampled index triplets out of a single
+    // combined schedule; splitting the fit into per-direction schedules makes
+    // the same symmetry exact rather than sampled.
+    let schedules = |forward: &[FixedToMovingCorrespondence],
+                     reverse: &[MovingToFixedCorrespondence]| {
+        let mut forward = forward_correspondences(forward).expect("forward schedule");
+        let mut reverse = reverse_correspondences(reverse).expect("reverse schedule");
+        discard_conflicting_endpoint_pairs(&mut forward, &mut reverse);
+        (forward, reverse)
+    };
+    let (direct_forward, direct_reverse) = schedules(&forward, &reverse);
+    let (swapped_forward_schedule, swapped_reverse_schedule) =
+        schedules(&swapped_forward, &swapped_reverse);
+    assert_eq!(
+        direct_forward.len() + direct_reverse.len(),
+        118,
+        "the fixture supplies 120 pairs and one conflicting endpoint pair leaves both directions"
+    );
+    assert_eq!(swapped_forward_schedule, direct_reverse);
+    assert_eq!(swapped_reverse_schedule, direct_forward);
     let product = multiply(direct.transform.as_array(), swapped.transform.as_array());
     let gamma_2048 = 2048.0 * f64::EPSILON / (1.0 - 2048.0 * f64::EPSILON);
     for (actual, expected) in product.into_iter().zip(AffineTransform::IDENTITY.0) {
@@ -320,7 +327,10 @@ fn invalid_and_rank_deficient_inputs_fail_closed() {
         .expect_err("non-finite coordinates must fail");
     assert!(matches!(nonfinite, RegistrationError::InvalidInput(_)));
 
-    let line: Vec<_> = (0..4)
+    // Six per direction is the documented arity floor for the symmetric fit,
+    // so a shorter fixture would fail on arity and never reach the property
+    // under test: that collinear inputs fail closed on collinearity.
+    let line: Vec<_> = (0..6)
         .map(|index| {
             let point = [index as f64, 0.0, 0.0];
             FixedToMovingCorrespondence::try_new(point, point).expect("finite line")
