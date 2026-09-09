@@ -58,6 +58,7 @@ rand = { workspace = true }
 proptest = { workspace = true }
 tempfile = { workspace = true }
 ritk-image = { path = "../ritk-image", features = ["test-helpers"], version = "0.4.0" }
+ritk-core = { path = "../ritk-core", features = ["test-helpers"], version = "0.10.0" }
 
 
 [[bench]]
