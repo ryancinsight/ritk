@@ -61,9 +61,10 @@
 - [x] Add final-component no-follow opens: Unix uses `O_NOFOLLOW`; Windows
       requests a reparse-point handle and rejects a final reparse point. Linux,
       Windows-target, native warning-denied Clippy, Nextest, and docs checks pass.
-- [ ] Complete parent-directory handle confinement; retain this item open until
-      the platform contract is verified on the supported viewer hosts. DICOMDIR
-      record-tree validation is tracked in RITK-SNAP-DIRECTORY-001 below.
+- [x] Complete parent-directory handle confinement through Moirai PAL PR 303
+      (`b1fe7ad5`); its native and Unix-target tests cover nested handles,
+      traversal, and intermediate/final link rejection. DICOMDIR record-tree
+      validation remains in RITK-SNAP-DIRECTORY-001 below.
 
 ## FIX-DTI-VOLUME-FRAME [major][arch] — Preserve diffusion coordinate frames
 

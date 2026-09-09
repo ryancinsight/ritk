@@ -119,9 +119,11 @@ loads, failed replacement, and session restore with deterministic Part 10 files.
 The IO tests load a complete synthetic linked PATIENT/STUDY/SERIES/IMAGE index,
 then exercise inactive and unreachable records, malformed links, identity
 mismatches, and final-component symlinks. They compare active member paths and
-exact pixel values and geometry with explicit member loading. The remaining
-filesystem boundary is parent-directory handle traversal; it is tracked in
-[RITK-SNAP-RESOURCES-001](../../backlog.md#RITK-SNAP-RESOURCES-001).
+exact pixel values and geometry with explicit member loading. DICOMDIR member
+reads use `moirai_pal::fs::open_file_within_root`, which walks from the selected
+root directory handle and returns the handle RITK reads. The Moirai PAL tests
+reject parent traversal and intermediate/final links; browser file entries use
+the DOM provider because the native path contract is unsupported on WebAssembly.
 
 ## Resource-bounded DICOM ingress
 
@@ -143,16 +145,17 @@ native RITK codecs. Deflated dataset input is rejected with an explicit error
 because the locked dicom-rs registry does not provide a bounded deflate decoder.
 The DICOMDIR index uses the same parser preflight. Filesystem reads resolve and
 open one path handle, compare its metadata with the resolved path, and read from
-that handle; scanned slices retain the exact validated bytes for pixel decode.
+that handle; DICOMDIR member reads additionally use Moirai PAL's root-confined
+directory-handle walk. Scanned slices retain the exact validated bytes for pixel decode.
 The reader charges retained bytes before storing each member. The loader plans
 the peak decoded frame, resample, and contiguous-volume workspace before any of
 those buffers are allocated, including the temporary frame-vector handles.
 Deterministic tests cover parser, DICOMDIR, retained-byte, decoded-workspace,
 and replacement cases. Unix reads reject a final symlink with `O_NOFOLLOW`;
 Windows reads request a reparse-point handle and reject a final reparse point.
-Parent-directory traversal through directory handles remains a platform
-integration boundary. The DICOMDIR record-tree and referenced-identity contract
-is delivered by [RITK-SNAP-DIRECTORY-001](../../backlog.md#RITK-SNAP-DIRECTORY-001).
+The DICOMDIR record-tree and referenced-identity contract is delivered by
+[RITK-SNAP-DIRECTORY-001](../../backlog.md#RITK-SNAP-DIRECTORY-001); the
+root-confined filesystem contract is provided by Moirai PAL.
 
 ## Capture the native application
 

@@ -13,13 +13,14 @@ pub mod syntax;
 
 pub use attribute::{tags, DicomAttributeRead, DicomTag};
 pub use backend::parse_budget::{
-    parse_bytes_with_budget, parse_file_with_budget, read_file_with_budget, validate_part10,
-    BoundedDicomParseBackend, DicomParseSummary,
+    parse_bytes_with_budget, parse_file_with_budget, read_file_with_budget,
+    read_file_within_root_with_budget, validate_part10, BoundedDicomParseBackend,
+    DicomParseSummary,
 };
 pub use backend::{
     decode_frame_with, parse_bytes_with, parse_file_with, write_bytes_with, write_file_with,
-    DecodeFrameRequest, DecodedFrame, DicomBackend, DicomParseBackend, DicomRsBackend,
-    DicomWriteBackend, EncapsulatedFrameSource, NativeCodecBackend, PixelDecodeBackend,
+    DecodeFrameRequest, DicomBackend, DicomParseBackend, DicomRsBackend, DicomWriteBackend,
+    EncapsulatedFrameSource, NativeCodecBackend, PixelDecodeBackend,
 };
 pub use codec::{decode_jpeg_fragment, decode_rle_lossless_fragment, packbits_decode};
 pub use consus_core::ParseBudget;
