@@ -1,3 +1,12 @@
+<a id="RITK-SNAP-FILE-TARGETS-2026-09-10"></a>
+## RITK-SNAP-FILE-TARGETS-2026-09-10 — Four ritk-snap files past the 500-line target [patch]
+- Status: in-progress; integrator: claude-opus-5; lane: `worktrees/ritk-snap-file-targets` on `refactor/ritk-snap-file-targets`; last-update: 2026-09-10.
+- Regions: `crates/ritk-snap/src/app/io_ops.rs`, `crates/ritk-snap/src/app/tests/action_adapter.rs`, `crates/ritk-snap/src/dicom/loader/tests.rs`, `crates/ritk-snap/src/render/fusion.rs`.
+- Outcome: each of the four lands under the target as coherent leaves; `oversized_files` returns to the recorded baseline so the atlas `repos/ritk` pin can advance.
+- Oracle: the atlas conformance scan measures `ritk/oversized_files` at 45 or below (recorded baseline 45; the current pin measures 49), with workspace clippy, nextest, and fmt green.
+- Basis: the four crossed between atlas pins `7f9b0ce0c` and `00ad74875`, measured with the scan's own prune set and line arithmetic.
+- Non-goals: the 45 files already over the target at the recorded baseline; those are the standing ratchet, not this regression.
+
 <a id="RITK-VALUE-ASSERTIONS-2026-09-08"></a>
 ## RITK-VALUE-ASSERTIONS-2026-09-08 — Tests that cannot fail on the defect they name [patch]
 - Status: done; 141 → 0 by the atlas conformance detector; `assert_rejects` lands in `ritk-core` behind `test-helpers`.
