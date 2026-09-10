@@ -250,6 +250,25 @@ The supplied study must load and the PNG must save before success is reported.
 Native window images depend on the host renderer and fonts; the exact pixel
 goldens above remain the deterministic software-rendering check.
 
+## Present a validated frame through Métis
+
+RITK remains the only DICOM owner. After RITK has opened the study, decoded the
+selected frame, applied modality rescale, window/level, and colormap rules, the
+`ritk-snap::presentation::PresentationFrame` boundary copies one bounded,
+row-major RGBA slice. It carries only dimensions and pixels; DICOM identifiers,
+paths, codec state, geometry, and volume storage stay in RITK.
+
+On Windows, `run_native_frame` passes that frame to Métis's native surface,
+presents it once, and closes the host. The focused presentation suite checks
+the RITK slice-display oracle, rejects inconsistent pixel storage, preserves
+the frame channels, and exercises the real hidden-window present/close path.
+The test proves the host boundary, not a new DICOM implementation. Browser
+handoff and the full three-view/GPU event adapter remain migration work.
+
+The existing `dicom-window.png` below is intentionally labeled as the
+egui/eframe baseline. It is not relabeled as a Métis capture until the complete
+viewer event and screenshot workflow runs through Métis.
+
 ![Running native viewer with the synthetic DICOM study](images/dicom-window.png)
 
 This egui/eframe capture runs on Windows at 125% display scale, producing a
