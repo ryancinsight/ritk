@@ -354,6 +354,10 @@ recomposes the three panels, so the next Métis framebuffer reflects the drag as
 well as the updated viewer state. This is a state-and-pixels check; it does not
 move DICOM parsing or geometry ownership into Métis.
 
+Keyboard page navigation follows the same RITK-owned action path. Page Down
+advances the active slice and recomposes the native Métis framebuffer; the
+native session test verifies both the slice index and changed pixels.
+
 Wheel input is now reduced and applied by RITK for every host. The native
 Moirai `ModifierState` is translated into the format-neutral
 `PresentationModifiers`; the current egui producer emits the same

@@ -38,6 +38,28 @@ fn native_session_renders_and_steps_the_loaded_slice() {
 }
 
 #[test]
+fn native_session_keyboard_navigation_updates_presented_frame() {
+    let (mut session, _root) = session();
+    let initial_frame = session.framebuffer.clone();
+    let initial_slice = session.app.viewer_state.slice_index;
+    session
+        .handle_events(&[WindowEvent::KeyDown {
+            virtual_key: 0x22,
+            repeated: false,
+        }])
+        .expect("page-down transition");
+    assert_eq!(session.app.viewer_state.slice_index, initial_slice + 1);
+    assert_ne!(session.framebuffer.pixels(), initial_frame.pixels());
+    assert!(
+        session
+            .observation
+            .frame_generations
+            .load(Ordering::Relaxed)
+            > 1
+    );
+}
+
+#[test]
 fn native_session_drag_updates_pan_and_presented_frame() {
     let (mut session, _root) = session();
     session.app.active_tool = crate::tools::kind::ToolKind::Pan;
