@@ -40,8 +40,11 @@ completes the pinned presentation inventory. The current RITK shell is the
 `eframe::App` implementation in `crates/ritk-snap/src/app/state.rs`, launched
 by `crates/ritk-snap/src/launch.rs` for native and browser targets. Its
 format-aware state, loaders, renderers and DICOM workflows remain in RITK.
-The inventory below records the exact replacement seams and the host gaps that
-must close before the shell can be removed.
+The inspected source snapshots are RITK
+`8e53327c53d14afcec64a92b563e6b48db85eb15` and Métis
+`2711454493747d373e4b09ac4e42e6b828a1e18e`; both provider trees were clean at
+inventory time. The inventory below records the exact replacement seams and
+the host gaps that must close before the shell can be removed.
 
 Revision 2026-09-08: [RITK-SNAP-DIRECTORY-001](../../backlog.md#RITK-SNAP-DIRECTORY-001)
 now validates the Explicit VR Little Endian DICOMDIR record sequence before
@@ -198,14 +201,16 @@ boundary.
 
 | Current RITK surface | RITK responsibility retained | Métis/Moirai seam | Gap before cutover |
 | --- | --- | --- | --- |
-| `SnapApp::update` in `app/state.rs`; `run_app_with_options` and `start_web` in `launch.rs` | Frame ordering, load/recovery decisions, viewer state and DICOM policy | `metis-platform::NativeSurface::{poll_events,wait_events,present,close}`; `metis-web::{metis_start,metis_stop}` | A reusable application loop must connect host events, bounded repaint/present and shutdown for an arbitrary RITK app. |
-| `SnapApp` fields and `app/*_ops.rs` transitions | Volume identity, series selection, navigation, measurements, overlays, PACS and persistence | RITK typed commands remain the model; Métis IPC/fragment actions are transport seams only | The viewer needs a typed command/event adapter with cancellation and stale-completion guards; no DICOM state may cross into a Métis crate. |
+| `SnapApp::update` in `app/state.rs`; `run_app_with_options` and `start_web` in `launch.rs` | Frame ordering, load/recovery decisions, viewer state and DICOM policy | Windows-first `metis_platform::native::NativeSurface::{poll_events,wait_events,present,close}`; browser `metis-web::{metis_start,metis_stop}` | A reusable application loop must connect host events, bounded repaint/present and shutdown for an arbitrary RITK app; `NativeSurface` is Windows-only and the first native slice must state that scope. |
+| `SnapApp` fields and `app/*_ops.rs` transitions | Volume identity, series selection, navigation, measurements, overlays, PACS and persistence | RITK viewer transitions remain the model; Métis IPC/fragment actions are transport seams only | The viewer needs a typed command/event adapter with cancellation and stale-completion guards; no DICOM state may cross into a Métis crate. |
 | `egui::Context`, `RawInput`, `Event`, `DroppedFile`, and pointer handling in `ui/*` | Pointer/keyboard semantics are translated into RITK actions | `metis-platform::PlatformEvent`; native Moirai `WindowEvent`; browser `FileDropBatch`/`take_file_drop` | Event normalization, file-picker grants, focus/text/IME and trusted native file ingress are incomplete for the viewer. |
+| `ToolState`'s `egui::Pos2` carriers in `tools/interaction/tool_state.rs` | In-progress pan, zoom, window/level and measurement coordinates | Format-neutral integer/floating pointer coordinates in the host event contract | Replace the egui coordinate carrier without changing image-space versus screen-space semantics or measurement geometry. |
 | `egui::ColorImage`, `TextureHandle`, `render::{slice_render,mip_vr,gpu_*}` | Scalar/RGB presentation, W/L, colormap, MPR, MIP/VR and GPU numerical behavior | `metis-ui-lang::RasterImage`, `DisplayList`, and `metis-platform::Framebuffer`; Iris remains the visualization contract | A bounded image upload/texture cache and GPU-capable presentation path must support three orthogonal views and projections without copying DICOM or replacing Iris render contracts. |
 | `rfd::FileDialog` and `app/io_ops.rs` | User-selected paths, selected-study identity, export/session semantics | Moirai filesystem grants; Métis browser byte batches | Native dialog and browser byte-batch adapters must preserve exact selection intent and return typed failures to RITK. |
 | `process_pending_loads`, `pacs_worker`, `tick_cine`, and repaint requests | Decode/PACS/cine scheduling, cancellation and result publication | Moirai bounded tasks and host pump; `metis-frontend::AsyncFrontendApp` is an IPC pattern | A viewer-specific bounded task bridge is absent; it must never publish a stale or cancelled study. |
 | Menus, panels, overlays, annotations and accessibility behavior in `ui/*` | Medical labels, physical-coordinate overlays, measurements and actions | Métis UI language DOM/CSS layout plus format-neutral display commands | Widget, text, clipboard, context-menu, accessibility and overlay primitives need a conformance slice before porting the complete shell. |
-| `clap` binary options and eframe packaging in `main.rs` | RITK viewer arguments and capture workflow | `metis-cli` build/init/dev/install packaging and `metis-platform` native surface | An application manifest and installer workflow must carry the RITK binary, assets and permissions as one distributable app. |
+| `CaptureApp` in `launch/capture.rs` (`ViewportCommand::Screenshot`, `Event::Screenshot`, completion and close) | Finite native PNG capture, study-load requirement and failure reporting | Métis framebuffer readback plus host close/present result | Capture must be a first-class host contract; a successful process or displayed frame alone does not prove a saved image. |
+| `clap` binary options and eframe packaging in `main.rs` | RITK viewer arguments and capture workflow | `metis-cli` `init`, `dev`, `build`, `package`, `completions`; `package` produces the Windows MSI; `metis-platform` native surface | An application manifest and installer workflow must carry the RITK binary, assets and permissions as one distributable app; MSI installation is the packaged artifact workflow, not a separate `install` command. |
 
 The first implementation slice after this inventory is a format-neutral RITK
 viewer host contract: accept a RITK-produced presentation frame and typed host
