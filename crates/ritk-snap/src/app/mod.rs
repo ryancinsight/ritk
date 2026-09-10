@@ -1,10 +1,10 @@
-//! ritk-snap native application shell (eframe/egui backend).
+//! ritk-snap viewer application state and desktop-shell adapters.
 //!
-//! Owns the top-level `SnapApp` struct and its [`eframe::App`]
-//! implementation. All domain logic (intensity mapping, slice extraction,
-//! annotation computation) lives in the `render` and `tools` sub-modules;
-//! this module wires events, drives state transitions, and builds the egui
-//! widget tree.
+//! Owns the top-level `SnapApp` struct and its eframe implementation. All
+//! domain logic (intensity mapping, slice extraction, annotation computation)
+//! lives in the `render` and `tools` sub-modules; this module wires events and
+//! drives state transitions. The format-neutral presentation module supplies
+//! the Métis native host without moving DICOM or viewer state into that host.
 //!
 //! # Layout modes
 //!

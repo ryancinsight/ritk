@@ -15,9 +15,9 @@ decoded-workspace budgets, and return the RITK `Image` plus
 `DicomReadMetadata`. No GUI framework type or parser object crosses this
 boundary; the host owns only input and presentation lifecycle.
 
-This workflow is the DICOM opening demonstration for both the current viewer
-shell and the planned Métis shell. The code, fixtures, visual goldens, and
-rejection tests remain in RITK so a framework migration cannot fork
+This workflow is the DICOM opening demonstration for both the current eframe
+shell and the migrated Windows Métis shell. The code, fixtures, visual goldens,
+and rejection tests remain in RITK so a framework migration cannot fork
 medical-data semantics.
 
 Build from a standalone RITK checkout, then run the bounded demonstration:
@@ -228,7 +228,7 @@ The DICOMDIR record-tree and referenced-identity contract is delivered by
 [RITK-SNAP-DIRECTORY-001](../../backlog.md#RITK-SNAP-DIRECTORY-001); the
 root-confined filesystem contract is provided by Moirai PAL.
 
-## Capture the native application
+## Capture the eframe application
 
 Build the binary alongside the example and run:
 
@@ -238,7 +238,7 @@ python scripts/viewer.py target/debug/examples/dicom_workflow --native-binary ta
 ```
 
 Use `.exe` suffixes on Windows and the shared Atlas target paths when applicable.
-The optional native workflow launches the real viewer with the generated study,
+The optional eframe workflow launches the real viewer with the generated study,
 saves its rendered root viewport to `scratch/viewer/window.png`, and exits. It
 then launches with a missing study and requires an explicit failure without a
 screenshot. Each of the three processes has a 60-second limit; the complete
@@ -250,6 +250,40 @@ The supplied study must load and the PNG must save before success is reported.
 Native window images depend on the host renderer and fonts; the exact pixel
 goldens above remain the deterministic software-rendering check.
 
+For the migrated Windows host, run the same generated study through Métis:
+
+```console
+target/debug/ritk-snap.exe scratch/viewer/study --metis-native
+```
+
+The Métis host owns the window handle, finite event wait, retained framebuffer,
+resize/minimize handling, DPI updates and terminal cleanup. RITK owns the file
+open, DICOM decode, selected volume, window/level, colormap, slice navigation
+and action reduction. The host receives only a bounded RGBA
+`PresentationFrame`; no DICOM identifier, path, parser object or decoded volume
+crosses the seam. Plain vertical wheel input steps the active slice, and
+Ctrl/Command plus vertical wheel applies the existing zoom policy. Focus loss
+cancels an in-progress pointer gesture.
+
+The deterministic Métis capture path is hidden and bounded: it exits after the
+first idle event batch and writes the final RITK source frame as PNG.
+
+```console
+target/debug/ritk-snap.exe scratch/viewer/study --metis-native --capture scratch/viewer/metis-frame.png
+```
+
+This capture checks real DICOM opening, RITK rendering and Métis framebuffer
+transfer. It does not claim a full application-window golden; fonts, display
+scale and the three-view layout remain part of the migration work.
+
+The complete synthetic workflow can run this Métis check; it records the
+executable hash, invalid-study rejection and `metis-frame.png` hash in
+`scratch/viewer/workflow.json`:
+
+```console
+python scripts/viewer.py target/debug/examples/dicom_workflow.exe --native-binary target/debug/ritk-snap.exe --metis-native
+```
+
 ## Present a validated frame through Métis
 
 RITK remains the only DICOM owner. After RITK has opened the study, decoded the
@@ -258,14 +292,14 @@ selected frame, applied modality rescale, window/level, and colormap rules, the
 row-major RGBA slice. It carries only dimensions and pixels; DICOM identifiers,
 paths, codec state, geometry, and volume storage stay in RITK.
 
-On Windows, `run_native_frame` passes that frame to Métis's native surface,
-presents it once, translates the bounded native event batch to
-`PresentationEvent`, and closes the host. The focused presentation suite checks
-the RITK slice-display oracle, rejects inconsistent pixel storage, preserves
-the frame channels and every provider event value, and exercises the real
-hidden-window present/close path. The test proves the host boundary, not a new
-DICOM implementation. Binding those events to viewer actions, browser
-handoff, and the full three-view/GPU adapter remain migration work.
+On Windows, `run_native_viewer` loads the selected study in RITK, presents the
+active slice through Métis's native surface, translates each bounded native
+event batch to `PresentationEvent`, and applies the resulting actions to RITK
+viewer state. The focused suite checks slice pixels, resize/minimize, DPI,
+focus-loss cancellation, close, and bounded hidden capture. The test proves the
+host boundary and the existing DICOM workflow; it does not add a DICOM parser
+to Métis. Browser handoff, three-view presentation, GPU upload and packaged
+installer artifacts remain migration work.
 
 Wheel input is now reduced and applied by RITK for every host. The native
 Moirai `ModifierState` is translated into the format-neutral
@@ -277,9 +311,9 @@ ignored before viewer state changes. Métis carries the event snapshot only; it
 does not parse DICOM, retain a decoded volume, choose a series, or apply a
 clinical display transform.
 
-The existing `dicom-window.png` below is intentionally labeled as the
-egui/eframe baseline. It is not relabeled as a Métis capture until the complete
-viewer event and screenshot workflow runs through Métis.
+The existing `dicom-window.png` below remains the egui/eframe baseline. The
+`metis-frame.png` output is a source-frame capture and is not relabeled as a
+Métis application-window golden.
 
 ![Running native viewer with the synthetic DICOM study](images/dicom-window.png)
 

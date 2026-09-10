@@ -1,8 +1,8 @@
 # ritk-snap
 
 `ritk-snap` is the RITK medical-image viewer. The current desktop shell uses
-egui/eframe; Métis is the planned replacement described in
-[ADR 0026](../../docs/adr/0026-viewer-presentation-migration.md).
+egui/eframe, and the Windows Métis host is available for the migrated native
+session described in [ADR 0026](../../docs/adr/0026-viewer-presentation-migration.md).
 
 RITK owns DICOM opening, decoding, geometry, and medical display semantics.
 The `presentation` module exposes a validated format-neutral RGBA frame for a
@@ -27,7 +27,24 @@ selected UID and files and validates them before replacing the current study.
 Public caller changes are in the
 [selection migration guide](../../docs/migration_selected_dicom.md).
 
-To capture the rendered native window and exit, append `--capture window.png`.
-A supplied study must load successfully; capture failure returns an error.
+To capture the rendered eframe window and exit, append `--capture window.png`.
+A supplied study must load successfully; capture failure returns an error. To
+run the same loaded study through the Windows Métis host, use:
+
+```console
+cargo run --locked -p ritk-snap -- path/to/study --metis-native
+```
+
+The Métis session owns the HWND, bounded event wait, framebuffer presentation,
+resize/minimize and terminal cleanup. RITK owns DICOM opening, decoded volume
+state, slice rendering, window/level and viewer actions. A deterministic hidden
+host capture closes after its first idle event batch:
+
+```console
+cargo run --locked -p ritk-snap -- path/to/study --metis-native --capture window.png
+```
+
+The PNG is the final RITK source frame after host initialization; the visible
+session remains open until the user closes it.
 
 API reference: `cargo doc --locked -p ritk-snap --no-deps`.

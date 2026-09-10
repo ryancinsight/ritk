@@ -40,6 +40,18 @@
 
 # RITK Sprint Checklist — Active
 
+## RITK-SNAP-METIS-001 — Native Métis viewer session
+
+- [x] Build a bounded native session that loads one selected RITK study,
+      renders the active orthogonal slice through `PresentationFrame`, and
+      applies translated host events through the existing action adapter.
+- [x] Handle resize, DPI, focus-loss cancellation, close, and missing-study
+      failure without partial state replacement or unbounded allocation.
+- [x] Add value-semantic session tests and a Windows visual workflow capture;
+      update ADR 0026 and the DICOM manual with the host evidence.
+- [ ] Run focused/full RITK gates, collect exact-head hosted checks, merge the
+      increment, and synchronize the Atlas dependency lock.
+
 ## FIX-DTI-VOLUME-FRAME [major][arch] — Preserve diffusion coordinate frames
 
 - [x] Record the frame contract in ADR 0017 and retain `GradientFrame` in

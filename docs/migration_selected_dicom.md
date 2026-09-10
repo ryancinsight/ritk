@@ -27,7 +27,7 @@ parent directory. Invalid indices fail instead of enabling folder fallback.
 | `SidebarPanel::with_tag_search` | Use `new`; the removed alias ignored its tag-search argument. Struct literals use `selected_acquisition` instead of `selected_path`. |
 | `SidebarPanel::show` | Consume the returned `Arc<DicomSeriesInfo>`, keeping both UID and files. Update highlighting only after successful loading. |
 | `ViewerSessionSnapshot` struct construction | Supply `SessionFormat::default()` and `Option<StudySource>`; filesystem sources use `StudySource::Path`, selected series use `StudySource::Dicom { series_uid, files }`. |
-| `AppLaunchOptions` struct construction | Supply `capture: None` for normal operation, or a PNG path for capture and exit. `Default` keeps capture disabled. |
+| `AppLaunchOptions` struct construction | Supply `capture: None` and `metis_native: false` for the eframe shell, or set `metis_native: true` with an initial path to use the Windows Métis host. `Default` keeps both disabled. |
 | `OverlayRenderer::draw` | Consume its `Option<String>` result. Pass returned overflow metadata to `OverlayRenderer::show_details` with the viewport UI and rectangle. |
 | `OverlayRenderer::draw_orientation_labels` | Remove the separate call; `draw` now lays out orientation and corner annotations together. |
 
@@ -41,3 +41,8 @@ study or presentation controls; a failure preserves the current viewer state.
 The [user workflow](manual/dicom-workflow.md) contains runnable commands,
 synthetic pixel/coordinate oracles, and the distinction between software
 slice captures and the rendered application window.
+
+The Métis native-host increment adds `metis_native` to `AppLaunchOptions` and
+is therefore a breaking public-struct change. Downstream struct literals must
+set `metis_native: false` for the eframe shell or `true` with an initial path
+for the Windows Métis shell; callers that use `Default` need no source change.

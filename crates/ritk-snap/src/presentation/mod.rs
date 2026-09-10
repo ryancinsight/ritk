@@ -10,6 +10,8 @@ mod frame;
 
 #[cfg(windows)]
 mod native;
+#[cfg(windows)]
+mod native_session;
 
 pub use actions::{
     ActionDispatchError, PointerDelta, PointerGesture, PresentationDispatcher, ViewerAction,
@@ -23,3 +25,5 @@ pub use frame::PresentationFrame;
 
 #[cfg(windows)]
 pub use native::{run_native_frame, translate_native_events, NativeFrameOutcome};
+#[cfg(windows)]
+pub use native_session::{run_native_viewer, NativeViewerOutcome};
