@@ -49,8 +49,9 @@
       failure without partial state replacement or unbounded allocation.
 - [x] Add value-semantic session tests and a Windows visual workflow capture;
       update ADR 0026 and the DICOM manual with the host evidence.
-- [ ] Run focused/full RITK gates, collect exact-head hosted checks, merge the
-      increment, and synchronize the Atlas dependency lock.
+- [x] Run focused/full RITK gates, collect exact-head hosted checks, merge the
+      increment as [PR #267](https://github.com/ryancinsight/ritk/pull/267),
+      and synchronize the Atlas dependency lock.
 
 ## FIX-DTI-VOLUME-FRAME [major][arch] — Preserve diffusion coordinate frames
 
