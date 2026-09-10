@@ -36,6 +36,14 @@ pub enum FusionError {
         /// The side of the comparison with invalid geometry.
         volume: &'static str,
     },
+    /// Fused compare currently operates on scalar presentation values only.
+    #[error("{volume} fused rendering requires a scalar volume; received {channels} channels")]
+    UnsupportedChannelCount {
+        /// The side of the comparison with an unsupported channel layout.
+        volume: &'static str,
+        /// Number of interleaved channels declared by the volume.
+        channels: u8,
+    },
     /// The volume's shape and channel count overflow the sample index space.
     #[error("{volume} volume has an overflowing sample layout")]
     InvalidVolumeLayout {
@@ -307,6 +315,12 @@ fn validate_volume(
     let channels = usize::from(volume.channels);
     if channels == 0 {
         return Err(FusionError::InvalidChannelCount { volume: name });
+    }
+    if channels != 1 {
+        return Err(FusionError::UnsupportedChannelCount {
+            volume: name,
+            channels: volume.channels,
+        });
     }
     let voxel_count = volume
         .shape

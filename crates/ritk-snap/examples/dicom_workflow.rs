@@ -86,6 +86,56 @@ fn main() -> Result<()> {
         captures.push(serde_json::json!({"axis": axis, "index": index, "image": format!("{name}.png"), "size": rendered.size}));
     }
 
+    let color_study = output.join("color-study");
+    let (color_filename, color_bytes) = fixtures::write_color_multiframe(&color_study)?;
+    let color_volume = load_volume_from_path(&color_study)?;
+    let color_borrowed = [(color_filename.clone(), color_bytes.as_slice())];
+    let color_dropped = load_dicom_series_from_named_bytes(&color_borrowed)?;
+    let expected_color: Vec<f32> = fixtures::COLOR_MULTIFRAME_RAW
+        .iter()
+        .map(|&sample| f32::from(sample))
+        .collect();
+    ensure!(
+        color_volume.channels == 3
+            && color_dropped.channels == 3
+            && color_volume.data.as_slice() == expected_color.as_slice()
+            && color_dropped.data.as_slice() == expected_color.as_slice(),
+        "RGB DICOM path and byte-batch channel oracle"
+    );
+    for (axis, name) in [(0, "color-depth"), (1, "color-row"), (2, "color-column")] {
+        let rendered = SliceRenderer::render(
+            &color_volume,
+            axis,
+            0,
+            WindowLevel::new(-10_000.0, 1.0),
+            NamedColorMap::Hot,
+        );
+        let rgba: Vec<_> = rendered
+            .pixels
+            .iter()
+            .flat_map(|pixel| pixel.to_array())
+            .collect();
+        let width = u32::try_from(rendered.size[0])?;
+        let height = u32::try_from(rendered.size[1])?;
+        let pixels = image::RgbaImage::from_raw(width, height, rgba)
+            .context("rendered RGB RGBA dimensions")?;
+        pixels.save(output.join(format!("{name}.png")))?;
+        image::imageops::resize(
+            &pixels,
+            width * 64,
+            height * 64,
+            image::imageops::FilterType::Nearest,
+        )
+        .save(output.join(format!("{name}-grid.png")))?;
+        captures.push(serde_json::json!({
+            "axis": axis,
+            "index": 0,
+            "image": format!("{name}.png"),
+            "size": rendered.size,
+            "display": "decoded RGB channels bypass scalar windowing"
+        }));
+    }
+
     let transformed = SliceRenderer::render(
         &volume,
         0,
@@ -232,6 +282,13 @@ fn main() -> Result<()> {
             "secondary_origin_lps_mm": fusion_secondary.origin,
             "secondary_slice": secondary_slice,
             "sampling": "patient-coordinate nearest-neighbour with primary out-of-field retention"
+        },
+        "color": {
+            "shape": color_volume.shape,
+            "channels": color_volume.channels,
+            "samples": color_volume.data.as_ref(),
+            "photometric": "RGB",
+            "sampling": "interleaved channel-preserving orthogonal slices"
         }
     });
     std::fs::write(

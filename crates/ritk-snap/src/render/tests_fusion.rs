@@ -261,6 +261,38 @@ fn frame_mismatch_is_rejected_before_sampling() {
 }
 
 #[test]
+fn rgb_fusion_is_rejected_without_channel_reduction() {
+    let mut primary = test_volume([1, 1, 1], 1.0);
+    primary.channels = 3;
+    primary.data = std::sync::Arc::new(vec![255.0, 0.0, 0.0]);
+    let secondary = test_volume([1, 1, 1], 1.0);
+    let result = render_fused_slice(
+        FusedSliceParams {
+            volume: &primary,
+            axis: 0,
+            slice: 0,
+            wl: WindowLevel::new(0.0, 1.0),
+            colormap: NamedColorMap::Grayscale,
+        },
+        FusedSliceParams {
+            volume: &secondary,
+            axis: 0,
+            slice: 0,
+            wl: WindowLevel::new(0.0, 1.0),
+            colormap: NamedColorMap::Grayscale,
+        },
+        0.5,
+    );
+    assert_eq!(
+        result,
+        Err(FusionError::UnsupportedChannelCount {
+            volume: "primary",
+            channels: 3,
+        })
+    );
+}
+
+#[test]
 fn differing_unknown_frames_are_rejected() {
     let primary = test_volume([1, 1, 1], 1.0);
     let mut secondary = test_volume([1, 1, 1], 1.0);

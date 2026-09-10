@@ -231,6 +231,22 @@ fn volume_renderers_map_non_finite_voxels_to_window_endpoints() {
     assert_eq!(vr.pixels, expected_vr);
 }
 
+/// Scalar projection paths reject RGB input instead of silently selecting the
+/// first channel for MIP or volume rendering.
+#[test]
+fn volume_renderers_reject_rgb_input() {
+    let mut volume = make_volume(1, 1, 1);
+    volume.channels = 3;
+    volume.data = Arc::new(vec![255.0, 0.0, 0.0]);
+    let wl = WindowLevel::new(0.0, 1.0);
+
+    let mip = render_mip_axial(&volume, wl, NamedColorMap::Grayscale);
+    let vr = render_vr_axial(&volume, wl, NamedColorMap::Grayscale, 1.0);
+    let rejected = egui::Color32::from_rgb(255, 0, 255);
+    assert_eq!(mip.pixels, [rejected]);
+    assert_eq!(vr.pixels, [rejected]);
+}
+
 /// `resize_color32` must preserve monotone capacity invariant.
 ///
 /// Analytical: after resize(200), capacity ≥ 200 → subsequent resize(50)

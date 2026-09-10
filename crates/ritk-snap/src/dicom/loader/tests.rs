@@ -203,6 +203,79 @@ fn dicom_multiframe_render_uses_each_frame() {
     assert_eq!(second_values, expected(&[196, 216, 235, 255]));
 }
 
+/// The real RITK RGB multi-frame decoder and both viewer-facing ingress paths
+/// preserve every color channel through all three orthogonal slice views.
+#[test]
+fn dicom_color_multiframe_preserves_channels_and_display() {
+    use crate::render::{NamedColorMap, SliceRenderer, WindowLevel};
+
+    let dir = tempdir().expect("create RGB multiframe fixture directory");
+    let (filename, bytes) =
+        fixtures::write_color_multiframe(dir.path()).expect("write RGB multiframe fixture");
+    let path = dir.path().join(&filename);
+    let from_file = load_dicom_volume(&path).expect("load RGB multiframe file");
+    let from_bytes = load_volume_from_bytes(&filename, &bytes).expect("load RGB multiframe bytes");
+    let expected_data: Vec<f32> = fixtures::COLOR_MULTIFRAME_RAW
+        .iter()
+        .map(|&sample| f32::from(sample))
+        .collect();
+
+    for volume in [&from_file, &from_bytes] {
+        assert_eq!(volume.shape, fixtures::COLOR_MULTIFRAME_SHAPE);
+        assert_eq!(volume.channels, 3);
+        assert_eq!(volume.data.as_slice(), expected_data.as_slice());
+        assert_eq!(volume.pixel_channels(0, 0, 0), &[255.0, 0.0, 0.0]);
+        assert_eq!(volume.pixel_channels(1, 1, 1), &[64.0, 64.0, 64.0]);
+        let window = WindowLevel::new(-10_000.0, 1.0);
+        let expected = [
+            (
+                0,
+                0,
+                vec![
+                    [255, 0, 0, 255],
+                    [0, 255, 0, 255],
+                    [0, 0, 255, 255],
+                    [255, 255, 255, 255],
+                ],
+            ),
+            (
+                1,
+                0,
+                vec![
+                    [255, 0, 0, 255],
+                    [0, 255, 0, 255],
+                    [0, 255, 255, 255],
+                    [255, 0, 255, 255],
+                ],
+            ),
+            (
+                2,
+                0,
+                vec![
+                    [255, 0, 0, 255],
+                    [0, 0, 255, 255],
+                    [0, 255, 255, 255],
+                    [255, 255, 0, 255],
+                ],
+            ),
+        ];
+        for (axis, index, expected_pixels) in expected {
+            let rendered = SliceRenderer::render(volume, axis, index, window, NamedColorMap::Hot);
+            let actual: Vec<[u8; 4]> = rendered
+                .pixels
+                .iter()
+                .map(egui::Color32::to_array)
+                .collect();
+            assert_eq!(
+                actual, expected_pixels,
+                "RGB display channels for axis {axis}"
+            );
+        }
+    }
+    assert_eq!(from_file.source.as_deref(), Some(path.as_path()));
+    assert_eq!(from_bytes.source, None);
+}
+
 #[test]
 fn dicom_multiframe_rejects_temporal_organization() {
     let dir = tempdir().expect("create temporal fixture directory");

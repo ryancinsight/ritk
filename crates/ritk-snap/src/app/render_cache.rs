@@ -61,6 +61,18 @@ impl SnapApp {
         let Some(vol) = self.loaded.clone() else {
             return;
         };
+        if vol.channels != 1 {
+            self.mip_tex = None;
+            self.status_message = format!(
+                "3D projection unavailable: scalar volume required (received {} channels).",
+                vol.channels
+            );
+            tracing::warn!(
+                channels = vol.channels,
+                "skipping 3D projection for color volume"
+            );
+            return;
+        }
         let wc = self
             .viewer_state
             .window_center
@@ -129,7 +141,15 @@ impl SnapApp {
             self.mip_tex.as_ref().map(|t| (t.id(), t.size()))
         else {
             ui.centered_and_justified(|ui| {
-                ui.label("3D MIP — open a volume to begin");
+                if self
+                    .loaded
+                    .as_ref()
+                    .is_some_and(|volume| volume.channels != 1)
+                {
+                    ui.label("3D projection requires a scalar volume");
+                } else {
+                    ui.label("3D MIP — open a volume to begin");
+                }
             });
             return;
         };

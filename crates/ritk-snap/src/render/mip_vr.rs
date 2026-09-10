@@ -3,7 +3,7 @@
 //! Provides canonical maximum intensity projection (MIP) and simple volume rendering (VR)
 //! for the MIP viewport slot. This module is SRP/SoC/SSOT and does not depend on UI code.
 //!
-//! - Input: 3D volume, window/level, colormap
+//! - Input: scalar 3D volume, window/level, colormap
 //! - Output: 2D egui::ColorImage for display
 //!
 //! # Zero-allocation variants
@@ -54,6 +54,9 @@ pub(crate) fn render_mip_axial_with_scratch(
     wl: WindowLevel,
     colormap: NamedColorMap,
 ) -> ColorImage {
+    if volume.channels != 1 {
+        return unsupported_projection_image(volume.channels);
+    }
     let shape = volume.shape;
     let (depth, rows, cols) = (shape[0], shape[1], shape[2]);
     let len = rows * cols * 4;
@@ -107,6 +110,9 @@ pub(crate) fn render_vr_axial_with_scratch(
     colormap: NamedColorMap,
     alpha: f32,
 ) -> ColorImage {
+    if volume.channels != 1 {
+        return unsupported_projection_image(volume.channels);
+    }
     let shape = volume.shape;
     let (depth, rows, cols) = (shape[0], shape[1], shape[2]);
     let len = rows * cols * 4;
@@ -136,4 +142,9 @@ pub(crate) fn render_vr_axial_with_scratch(
         }
     }
     ColorImage::from_rgba_unmultiplied([cols, rows], scratch)
+}
+
+fn unsupported_projection_image(channels: u8) -> ColorImage {
+    tracing::error!(channels, "3D projection requires a scalar volume");
+    ColorImage::from_rgb([1, 1], &[255_u8, 0, 255])
 }
