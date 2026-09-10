@@ -12,6 +12,7 @@ use ritk_io::{
 };
 use tracing::info;
 
+use crate::render::GrayscalePresentation;
 use crate::LoadedVolume;
 
 /// Load a DICOM series from a pre-scanned series descriptor into a [`LoadedVolume`].
@@ -120,7 +121,7 @@ fn loaded_volume_from_scalar_data(
     let patient_id = meta.patient_id.clone();
     let study_date = meta.study_date;
     let series_description = meta.series_description.clone();
-    Ok(LoadedVolume {
+    let volume = LoadedVolume {
         data: Arc::new(pixels),
         shape,
         channels: 1,
@@ -140,7 +141,10 @@ fn loaded_volume_from_scalar_data(
         radionuclide_half_life_s: None,
         radiopharmaceutical_start_time: None,
         decay_correction: None,
-    })
+    };
+    GrayscalePresentation::for_volume(&volume)
+        .map_err(|error| anyhow::anyhow!("invalid DICOM grayscale presentation: {error}"))?;
+    Ok(volume)
 }
 
 /// Load one scalar multi-frame object through the RITK multi-frame reader.

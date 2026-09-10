@@ -2,18 +2,18 @@
 //!
 //! # Mathematical specification
 //!
-//! ## Window/Level (DICOM PS 3.3 §C.7.6.3.1.5)
+//! ## Window/Level (DICOM PS 3.3 C.11.2)
 //!
 //! Given centre `c` and width `w`, define:
 //! ```text
-//! L = c − w/2        (lower bound)
-//! U = c + w/2        (upper bound)
+//! L = c − 0.5 − (w − 1)/2        (lower bound)
+//! U = c − 0.5 + (w − 1)/2        (upper bound)
 //! ```
 //! For pixel value `v`:
 //! ```text
-//! output = 0                              if v ≤ L
-//! output = 255                            if v ≥ U
-//! output = round((v − L) / (U − L) × 255) otherwise
+//! output = 0                                      if v ≤ L
+//! output = 255                                    if v > U
+//! output = round(((v − (c − 0.5))/(w − 1) + 0.5) × 255) otherwise
 //! ```
 //!
 //! ## Slice extraction (row-major [D, R, C] volume)
@@ -30,72 +30,9 @@
 //! `[width, height]` = `[cols, rows]` in egui convention.
 
 use super::buffer_pool::RenderBufferPool;
-use super::NamedColorMap;
+use super::{GrayscalePresentation, NamedColorMap, WindowLevel};
 use crate::LoadedVolume;
 use iris::color::{ColorMap, Normalized};
-
-// ── WindowLevel ───────────────────────────────────────────────────────────────
-
-/// Window/Level lookup table for linear DICOM intensity windowing.
-///
-/// # Invariants
-/// - The mapping is monotone non-decreasing in `v`.
-/// - Output is always in `[0, 255]` regardless of input magnitude.
-///
-/// # Mathematical specification (DICOM PS 3.3 §C.7.6.3.1.5)
-///
-/// Let `L = center − width/2`,  `U = center + width/2`.
-///
-/// For pixel value `v`:
-/// ```text
-/// output = 0                               if v ≤ L
-/// output = 255                             if v ≥ U
-/// output = round((v − L) / (U − L) × 255) otherwise
-/// ```
-#[derive(Debug, Clone, Copy)]
-pub struct WindowLevel {
-    /// Display window centre — the midpoint of the visible intensity range.
-    pub center: f64,
-    /// Display window width — the span of the visible intensity range.
-    ///
-    /// A width of zero or a negative value causes all inputs to saturate:
-    /// values equal to or below `center` clamp to 0, values above clamp to 255.
-    pub width: f64,
-}
-
-impl WindowLevel {
-    /// Construct a `WindowLevel` with the given centre and width.
-    pub fn new(center: f64, width: f64) -> Self {
-        Self { center, width }
-    }
-
-    /// Apply the WL LUT to a single pixel value `v`, returning the u8 display value.
-    ///
-    /// # Safety comment
-    /// Division by `(u − l)` is guarded by the branch structure: the division
-    /// executes only when `l < v < u`, which implies `u − l = width > 0`.
-    #[inline]
-    pub fn apply(&self, v: f64) -> u8 {
-        let l = self.center - self.width * 0.5;
-        let u = self.center + self.width * 0.5;
-        if v <= l {
-            0
-        } else if v >= u {
-            255
-        } else {
-            // SAFETY: l < v < u ⟹ u − l = width > 0, no division by zero.
-            ((v - l) / (u - l) * super::U8_MAX_F32 as f64).round() as u8
-        }
-    }
-
-    /// Apply the WL LUT to every element of `pixels`, returning `Vec<u8>`.
-    ///
-    /// Each `f32` is widened to `f64` before applying the formula to preserve
-    /// arithmetic precision across the full HU range (≈ −32 768 … +32 767).
-    pub fn apply_slice(&self, pixels: &[f32]) -> Vec<u8> {
-        pixels.iter().map(|&p| self.apply(p as f64)).collect()
-    }
-}
 
 // ── SliceRenderer ─────────────────────────────────────────────────────────────
 
@@ -146,6 +83,13 @@ impl SliceRenderer {
             return invalid_channel_image(volume.channels);
         }
 
+        let presentation = match GrayscalePresentation::for_volume(volume) {
+            Ok(presentation) => presentation,
+            Err(error) => {
+                tracing::error!(%error, "invalid DICOM grayscale presentation metadata");
+                return invalid_image();
+            }
+        };
         let (pixels, width, height) = volume.extract_slice(axis, index);
         if width == 0 || height == 0 {
             // Return a minimal valid image rather than panic; callers can detect
@@ -158,7 +102,7 @@ impl SliceRenderer {
         // the intermediate `wl_bytes` allocation.
         let mut rgba = Vec::with_capacity(width * height * 4);
         for &p in &pixels {
-            let byte = wl.apply(p as f64);
+            let byte = presentation.apply(wl, f64::from(p));
             let value = Normalized::from_u8(byte);
             rgba.extend_from_slice(&colormap.sample(value).to_rgba8());
         }
@@ -207,6 +151,13 @@ impl SliceRenderer {
             return invalid_channel_image(volume.channels);
         }
 
+        let presentation = match GrayscalePresentation::for_volume(volume) {
+            Ok(presentation) => presentation,
+            Err(error) => {
+                tracing::error!(%error, "invalid DICOM grayscale presentation metadata");
+                return invalid_image();
+            }
+        };
         let (width, height) = volume.extract_slice_into(&mut pool.pixel_f32, axis, index);
         if width == 0 || height == 0 {
             return egui::ColorImage::from_rgb([1, 1], &[0u8, 0, 0]);
@@ -217,7 +168,7 @@ impl SliceRenderer {
         let pixels = pool.pixel_f32.as_slice();
         let rgba = pool.rgba_u8.as_mut_slice();
         for (i, &p) in pixels.iter().enumerate() {
-            let byte = wl.apply(p as f64);
+            let byte = presentation.apply(wl, f64::from(p));
             let value = Normalized::from_u8(byte);
             let [r, g, b, alpha] = colormap.sample(value).to_rgba8();
             let base = i * 4;
@@ -273,6 +224,10 @@ fn rgb_component(value: f32) -> Option<u8> {
 
 fn invalid_channel_image(channels: u8) -> egui::ColorImage {
     tracing::error!(channels, "slice rendering requires scalar or RGB channels");
+    invalid_image()
+}
+
+fn invalid_image() -> egui::ColorImage {
     egui::ColorImage::from_rgb([1, 1], &[255_u8, 0, 255])
 }
 

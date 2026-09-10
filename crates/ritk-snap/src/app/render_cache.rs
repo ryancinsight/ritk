@@ -5,7 +5,7 @@ const DEFAULT_VR_ALPHA: f32 = 0.06;
 use super::state::SnapApp;
 use super::viewport_render::{OVERLAY_LABEL_COLOR, OVERLAY_LABEL_FONT_SIZE, OVERLAY_LABEL_INSET};
 use crate::render::mip_vr::{render_mip_axial_with_scratch, render_vr_axial_with_scratch};
-use crate::render::slice_render::{SliceRenderer, WindowLevel};
+use crate::render::{SliceRenderer, WindowLevel};
 use crate::ui::apply_to_image_into;
 use crate::viewer::{DEFAULT_WINDOW_CENTER, DEFAULT_WINDOW_WIDTH};
 

@@ -49,7 +49,7 @@
 //! Out-of-range indices are silently clamped by [`ViewportState::clamp_slice_index`].
 
 use crate::{
-    render::{slice_render::WindowLevel, NamedColorMap},
+    render::{NamedColorMap, WindowLevel},
     tools::{
         interaction::{Annotation, ToolState},
         kind::ToolKind,

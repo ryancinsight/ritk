@@ -5,7 +5,7 @@ use super::clinical_distribution::{
 use super::state::SnapApp;
 use crate::viewer::{DEFAULT_WINDOW_CENTER, DEFAULT_WINDOW_WIDTH};
 
-use crate::render::slice_render::{SliceRenderer, WindowLevel};
+use crate::render::{SliceRenderer, WindowLevel};
 use crate::ui::{apply_to_image, plan_all_mpr_exports};
 use crate::LoadedVolume;
 use tracing::{error, info};

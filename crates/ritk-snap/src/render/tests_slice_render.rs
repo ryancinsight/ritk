@@ -126,32 +126,32 @@ fn test_window_level_midpoint() {
     );
 }
 
-/// Verify the full 9-voxel axial slice d=0 of a [2,3,3] volume against
-/// the analytically derived WL formula.
+/// Verify the full 9-voxel axial slice d=0 of a [2,3,3] volume against the
+/// DICOM default `LINEAR` formula.
 ///
-/// Pixel values 0..=8 with WL(centre=4, width=8): L=0, U=8.
-///   i=0 → 0 (v ≤ L),  i=1..7 → round(i/8×255),  i=8 → 255 (v ≥ U).
+/// Pixel values 0..=8 with WL(centre=4, width=8): the half-sample lower and
+/// upper thresholds are 0 and 7.
 #[test]
 fn test_window_level_apply_slice_analytic() {
     let wl = WindowLevel::new(4.0, 8.0);
-    // L = 0, U = 8.
+    // L = 0, U = 7.
     let pixels: Vec<f32> = (0..9u32).map(|i| i as f32).collect();
     let out = wl.apply_slice(&pixels);
-    // Analytically derived expected values.
+    // DICOM PS3.3 C.11.2.1.2 values, including the exclusive upper threshold.
     let expected: Vec<u8> = vec![
-        0u8,                                   // i=0, v=L → 0
-        (1.0_f64 / 8.0 * 255.0).round() as u8, // i=1 → 32
-        (2.0_f64 / 8.0 * 255.0).round() as u8, // i=2 → 64
-        (3.0_f64 / 8.0 * 255.0).round() as u8, // i=3 → 96
-        (4.0_f64 / 8.0 * 255.0).round() as u8, // i=4 → 128
-        (5.0_f64 / 8.0 * 255.0).round() as u8, // i=5 → 159
-        (6.0_f64 / 8.0 * 255.0).round() as u8, // i=6 → 191
-        (7.0_f64 / 8.0 * 255.0).round() as u8, // i=7 → 223
-        255u8,                                 // i=8, v=U → 255
+        0u8,   // i=0, v=L → 0
+        36u8,  // i=1
+        73u8,  // i=2
+        109u8, // i=3
+        146u8, // i=4
+        182u8, // i=5
+        219u8, // i=6
+        255u8, // i=7, v=U → 255 (the upper threshold is exclusive)
+        255u8, // i=8, above U → 255
     ];
     assert_eq!(
         out, expected,
-        "apply_slice output must match DICOM PS 3.3 §C.7.6.3.1.5 formula"
+        "apply_slice output must match DICOM PS 3.3 C.11.2.1.2"
     );
 }
 
@@ -236,18 +236,8 @@ fn test_slice_render_axial_pixel_values() {
     let img = SliceRenderer::render(&vol, 0, 0, wl, NamedColorMap::Grayscale);
     // Extract the red channel (= green = blue for Grayscale).
     let actual: Vec<u8> = img.pixels.iter().map(|p| p.r()).collect();
-    // Analytically derived expected values (see test_window_level_apply_slice_analytic).
-    let expected: Vec<u8> = vec![
-        0,
-        (1.0_f64 / 8.0 * 255.0).round() as u8,
-        (2.0_f64 / 8.0 * 255.0).round() as u8,
-        (3.0_f64 / 8.0 * 255.0).round() as u8,
-        (4.0_f64 / 8.0 * 255.0).round() as u8,
-        (5.0_f64 / 8.0 * 255.0).round() as u8,
-        (6.0_f64 / 8.0 * 255.0).round() as u8,
-        (7.0_f64 / 8.0 * 255.0).round() as u8,
-        255,
-    ];
+    // DICOM default LINEAR values (see test_window_level_apply_slice_analytic).
+    let expected: Vec<u8> = vec![0, 36, 73, 109, 146, 182, 219, 255, 255];
     assert_eq!(
         actual, expected,
         "axial slice d=0 pixel values must match WL formula output"

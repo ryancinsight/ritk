@@ -3,6 +3,7 @@
 use tracing::{error, info};
 
 use super::state::SnapApp;
+use super::volume_state::metadata_window_level;
 use crate::dicom::select_hanging_protocol;
 
 impl SnapApp {
@@ -55,11 +56,13 @@ impl SnapApp {
                     volume.series_description.as_deref(),
                     shape,
                 );
+                let (window_center, window_width) = metadata_window_level(&volume)
+                    .unwrap_or((protocol.window_center, protocol.window_width));
                 let modality = volume.modality;
                 self.selected_series = super::volume_input::VolumeInput::acquisition(&volume);
                 self.loaded_secondary = Some(volume);
-                self.secondary_window_center = Some(protocol.window_center);
-                self.secondary_window_width = Some(protocol.window_width);
+                self.secondary_window_center = Some(window_center);
+                self.secondary_window_width = Some(window_width);
                 self.secondary_texture = None;
                 self.secondary_texture_dirty = true;
                 self.secondary_colormap = Self::colormap_for_modality(modality.as_deref());

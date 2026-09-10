@@ -8,7 +8,7 @@ use super::image_placement::ImagePlacement;
 use super::state::SnapApp;
 use super::viewport_render::{OVERLAY_LABEL_COLOR, OVERLAY_LABEL_FONT_SIZE, OVERLAY_LABEL_INSET};
 use crate::render::fusion::{render_fused_slice, secondary_slice_for_primary, FusedSliceParams};
-use crate::render::slice_render::WindowLevel;
+use crate::render::WindowLevel;
 use crate::ui::apply_to_image_into;
 use crate::viewer::{DEFAULT_WINDOW_CENTER, DEFAULT_WINDOW_WIDTH};
 

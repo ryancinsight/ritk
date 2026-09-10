@@ -199,8 +199,8 @@ fn dicom_multiframe_render_uses_each_frame() {
             .map(|&value| [value, value, value, 255])
             .collect::<Vec<_>>()
     };
-    assert_eq!(first_values, expected(&[0, 20, 39, 59]));
-    assert_eq!(second_values, expected(&[196, 216, 235, 255]));
+    assert_eq!(first_values, expected(&[0, 20, 41, 61]));
+    assert_eq!(second_values, expected(&[204, 224, 245, 255]));
 }
 
 /// The real RITK RGB multi-frame decoder and both viewer-facing ingress paths
@@ -276,6 +276,88 @@ fn dicom_color_multiframe_preserves_channels_and_display() {
     assert_eq!(from_bytes.source, None);
 }
 
+/// Signed stored samples, modality rescale, preserved VOI metadata, and
+/// MONOCHROME1 inversion survive both filesystem and byte-batch ingress.
+#[test]
+fn dicom_grayscale_presentation_preserves_signed_rescale_and_inversion() {
+    use crate::render::{GrayscalePresentation, NamedColorMap, SliceRenderer, WindowLevel};
+    use ritk_io::DicomTag;
+
+    let dir = tempdir().expect("create grayscale presentation directory");
+    let (filename, bytes) =
+        fixtures::write_grayscale_presentation(dir.path(), "MONOCHROME1", Some("LINEAR_EXACT"))
+            .expect("write grayscale presentation fixture");
+    let path = dir.path().join(&filename);
+    let from_file = load_dicom_volume(&path).expect("load grayscale presentation file");
+    let from_bytes = load_volume_from_bytes(&filename, &bytes).expect("load grayscale bytes");
+
+    for volume in [&from_file, &from_bytes] {
+        assert_eq!(volume.data.as_slice(), &[-30.0, -10.0, 10.0, 30.0]);
+        assert_eq!(volume.shape, [1, 1, 4]);
+        let metadata = volume.metadata.as_ref().expect("DICOM metadata retained");
+        assert_eq!(
+            metadata.photometric_interpretation.as_deref(),
+            Some("MONOCHROME1")
+        );
+        let function = metadata.slices[0]
+            .preservation
+            .object
+            .get(DicomTag::new(0x0028, 0x1056))
+            .and_then(|node| node.value.as_text());
+        assert_eq!(function, Some("LINEAR_EXACT"));
+
+        let presentation = GrayscalePresentation::for_volume(volume)
+            .expect("grayscale presentation metadata is admitted");
+        assert_eq!(
+            presentation.voi_function,
+            crate::render::VoiLutFunction::LinearExact
+        );
+        assert!(presentation.invert);
+        let rendered = SliceRenderer::render(
+            volume,
+            0,
+            0,
+            WindowLevel::new(0.0, 40.0),
+            NamedColorMap::Grayscale,
+        );
+        let actual: Vec<[u8; 4]> = rendered
+            .pixels
+            .iter()
+            .map(egui::Color32::to_array)
+            .collect();
+        assert_eq!(
+            actual,
+            [
+                [255, 255, 255, 255],
+                [191, 191, 191, 255],
+                [64, 64, 64, 255],
+                [0, 0, 0, 255]
+            ]
+        );
+    }
+    assert_eq!(from_file.source.as_deref(), Some(path.as_path()));
+    assert_eq!(from_bytes.source, None);
+}
+
+#[test]
+fn dicom_grayscale_presentation_rejects_unknown_voi_function() {
+    let dir = tempdir().expect("create invalid grayscale presentation directory");
+    let (filename, bytes) =
+        fixtures::write_grayscale_presentation(dir.path(), "MONOCHROME2", Some("POLYNOMIAL"))
+            .expect("write invalid grayscale presentation fixture");
+    let path = dir.path().join(&filename);
+    let file_error = load_dicom_volume(&path).expect_err("unsupported VOI function must reject");
+    let byte_error = load_volume_from_bytes(&filename, &bytes)
+        .expect_err("unsupported VOI function bytes must reject");
+    for error in [file_error, byte_error] {
+        let diagnostic = format!("{error:#}");
+        assert!(
+            diagnostic.contains("POLYNOMIAL"),
+            "unsupported function remains visible: {diagnostic}"
+        );
+    }
+}
+
 #[test]
 fn dicom_multiframe_rejects_temporal_organization() {
     let dir = tempdir().expect("create temporal fixture directory");
@@ -312,7 +394,7 @@ fn dicom_multiframe_rejects_declared_frame_count_mismatch() {
 }
 
 /// Image pixels follow the loaded data on all three storage axes.
-/// This pins the current linear-exact display formula, not default DICOM LINEAR.
+/// This uses an explicit window that preserves the fixture's stored samples.
 #[test]
 fn dicom_study_renders_independent_grayscale_oracles_on_all_axes() {
     use crate::render::{NamedColorMap, RenderBufferPool, SliceRenderer, WindowLevel};

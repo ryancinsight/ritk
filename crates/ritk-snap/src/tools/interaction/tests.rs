@@ -1,6 +1,6 @@
 use super::*;
-use crate::render::slice_render::WindowLevel;
 use crate::render::NamedColorMap;
+use crate::render::WindowLevel;
 use crate::tools::ToolKind;
 use egui::Pos2;
 use iris::color::{ColorMap, Normalized};
@@ -221,7 +221,7 @@ fn test_tool_state_non_idle_variants() {
     }
 }
 
-// ── WindowLevel monotone (cross-module, uses slice_render::WindowLevel) ───
+// ── WindowLevel monotone (cross-module) ───────────────────────────────────
 
 /// [`WindowLevel::apply`] must produce monotonically non-decreasing output
 /// over 100 uniformly spaced input values in [0, 1000].

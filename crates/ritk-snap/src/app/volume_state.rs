@@ -12,6 +12,33 @@ use crate::ui::LinkedCursor;
 use crate::LoadedVolume;
 use crate::ViewerState;
 
+/// Return the first valid DICOM window/width pair for a loaded volume.
+///
+/// The viewer keeps later W/L edits in [`ViewerState`]; this helper supplies
+/// only the initial value when the DICOM object provides one.
+pub(crate) fn metadata_window_level(volume: &LoadedVolume) -> Option<(f32, f32)> {
+    let slice = volume.metadata.as_deref()?.slices.first()?;
+    let center = slice.window_center?;
+    let width = slice.window_width?;
+    if !center.is_finite() || !width.is_finite() || width < 1.0 {
+        return None;
+    }
+    #[expect(
+        clippy::cast_possible_truncation,
+        reason = "viewer state stores f32 W/L"
+    )]
+    let center = center as f32;
+    #[expect(
+        clippy::cast_possible_truncation,
+        reason = "viewer state stores f32 W/L"
+    )]
+    let width = width as f32;
+    if !center.is_finite() || !width.is_finite() || width < 1.0 {
+        return None;
+    }
+    Some((center, width))
+}
+
 impl SnapApp {
     /// Apply a newly loaded [`LoadedVolume`] to the viewer state.
     ///
@@ -26,8 +53,10 @@ impl SnapApp {
         );
 
         let mut state = ViewerState::new();
-        state.window_center = Some(protocol.window_center);
-        state.window_width = Some(protocol.window_width);
+        let (window_center, window_width) =
+            metadata_window_level(&vol).unwrap_or((protocol.window_center, protocol.window_width));
+        state.window_center = Some(window_center);
+        state.window_width = Some(window_width);
         state.slice_index = shape[0] / 2;
 
         self.cine.stop();

@@ -1,4 +1,4 @@
-"""Verify synthetic DICOM, RGB display, and patient-coordinate workflows."""
+"""Verify synthetic DICOM grayscale, RGB, and patient-coordinate workflows."""
 import argparse
 import hashlib
 import json
@@ -30,6 +30,7 @@ def main():
         for axis in ("depth", "row", "column")
         for suffix in ("", "-grid")
     )
+    images.extend(("grayscale.png", "grayscale-grid.png"))
     for path in (destination.parent, destination):
         if linked(path):
             raise ValueError(f"refusing linked output directory: {path}")
@@ -98,6 +99,14 @@ def main():
                 golden.write_bytes(actual)
             elif golden.read_bytes() != actual:
                 raise ValueError(f"render differs from reviewed manual image: {golden}")
+        golden = golden_root / "dicom-grayscale.png"
+        if linked(golden) or (golden.exists() and golden.stat().st_nlink != 1):
+            raise ValueError(f"refusing linked golden file: {golden}")
+        actual = (output / "grayscale-grid.png").read_bytes()
+        if arguments.update_goldens:
+            golden.write_bytes(actual)
+        elif golden.read_bytes() != actual:
+            raise ValueError(f"render differs from reviewed manual image: {golden}")
         (destination / "workflow.json").write_text(json.dumps(report, indent=2) + "\n", encoding="utf-8")
         print(destination / "workflow.json")
 

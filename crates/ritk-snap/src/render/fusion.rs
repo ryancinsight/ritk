@@ -18,11 +18,11 @@ use thiserror::Error;
 
 use crate::dicom::pet::PetAcquisitionParams;
 use crate::geometry::affine::{AffineError, AffineTransform};
-use crate::render::{NamedColorMap, WindowLevel};
+use crate::render::{GrayscalePresentation, NamedColorMap, WindowLevel};
 use crate::LoadedVolume;
 
 /// Failure while validating or rendering a fused compare slice.
-#[derive(Debug, Clone, Copy, PartialEq, Error)]
+#[derive(Debug, Clone, PartialEq, Error)]
 pub enum FusionError {
     /// A volume has a zero spatial dimension.
     #[error("{volume} volume has no voxels")]
@@ -43,6 +43,16 @@ pub enum FusionError {
         volume: &'static str,
         /// Number of interleaved channels declared by the volume.
         channels: u8,
+    },
+    /// A volume declares grayscale presentation metadata the renderer cannot
+    /// resolve to an admitted DICOM function.
+    #[error("{volume} volume has invalid grayscale presentation metadata: {source}")]
+    InvalidPresentation {
+        /// The side of the comparison with invalid presentation metadata.
+        volume: &'static str,
+        /// Presentation metadata failure.
+        #[source]
+        source: crate::render::GrayscalePresentationError,
     },
     /// The volume's shape and channel count overflow the sample index space.
     #[error("{volume} volume has an overflowing sample layout")]
@@ -161,6 +171,21 @@ pub fn render_fused_slice(
         secondary.axis,
     )?;
 
+    let primary_presentation =
+        GrayscalePresentation::for_volume(primary.volume).map_err(|source| {
+            FusionError::InvalidPresentation {
+                volume: "primary",
+                source,
+            }
+        })?;
+    let secondary_presentation =
+        GrayscalePresentation::for_volume(secondary.volume).map_err(|source| {
+            FusionError::InvalidPresentation {
+                volume: "secondary",
+                source,
+            }
+        })?;
+
     let primary_center = slice_center_voxel(primary.axis, primary.slice, primary.volume.shape);
     let secondary_center =
         secondary_transform.patient_to_voxel(primary_transform.voxel_to_patient(primary_center));
@@ -202,12 +227,16 @@ pub fn render_fused_slice(
             .map(|value| secondary_value_transform.apply(value));
             let p_rgb = primary
                 .colormap
-                .sample(Normalized::from_u8(primary.wl.apply(p)))
+                .sample(Normalized::from_u8(
+                    primary_presentation.apply(primary.wl, p),
+                ))
                 .to_rgba8();
             let s_rgb = s.map_or([0, 0, 0, 0], |value| {
                 secondary
                     .colormap
-                    .sample(Normalized::from_u8(secondary.wl.apply(value)))
+                    .sample(Normalized::from_u8(
+                        secondary_presentation.apply(secondary.wl, value),
+                    ))
                     .to_rgba8()
             });
             let out_idx = (row * width + col) * 3;

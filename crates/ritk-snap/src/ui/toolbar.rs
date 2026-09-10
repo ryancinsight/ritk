@@ -57,7 +57,7 @@
 use egui::Ui;
 
 use crate::{
-    render::{slice_render::WindowLevel, NamedColorMap},
+    render::{NamedColorMap, WindowLevel},
     tools::kind::ToolKind,
     ui::{layout::LayoutMode, window_presets::WindowPreset},
 };
