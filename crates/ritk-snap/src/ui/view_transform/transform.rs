@@ -143,14 +143,31 @@ impl ViewTransform {
     /// transform and source size, including non-square images.
     #[must_use]
     pub fn output_to_source(self, point: Pos2, source_size: [usize; 2]) -> Pos2 {
+        let [x, y] = self
+            .output_to_source_coordinates([f64::from(point.x), f64::from(point.y)], source_size);
+        Pos2::new(x as f32, y as f32)
+    }
+
+    /// Map a display image-edge point back to source coordinates without
+    /// narrowing the coordinate arithmetic.
+    ///
+    /// The returned array uses `f64` so a host can subtract a large viewport
+    /// origin and apply its scale before the viewer's `f32` image-space model
+    /// is reached. The caller must provide finite image-edge coordinates.
+    #[must_use]
+    pub fn output_to_source_coordinates(
+        self,
+        point: [f64; 2],
+        source_size: [usize; 2],
+    ) -> [f64; 2] {
         let [width, height] = source_size;
-        let width = width as f32;
-        let height = height as f32;
+        let width = width as f64;
+        let height = height as f64;
         let (mut x, mut y) = match self.rotation {
-            RotationSteps::Zero => (point.x, point.y),
-            RotationSteps::Ninety => (point.y, height - point.x),
-            RotationSteps::OneEighty => (width - point.x, height - point.y),
-            RotationSteps::TwoSeventy => (width - point.y, point.x),
+            RotationSteps::Zero => (point[0], point[1]),
+            RotationSteps::Ninety => (point[1], height - point[0]),
+            RotationSteps::OneEighty => (width - point[0], height - point[1]),
+            RotationSteps::TwoSeventy => (width - point[1], point[0]),
         };
         if self.flip_h {
             x = width - x;
@@ -158,6 +175,6 @@ impl ViewTransform {
         if self.flip_v {
             y = height - y;
         }
-        Pos2::new(x, y)
+        [x, y]
     }
 }

@@ -99,6 +99,13 @@ The RITK package gate passes 774/774 nextest tests, strict Clippy, formatting an
 locked package checks; the correction remains inside RITK and does not move
 DICOM parsing, volume state or clinical semantics into Métis.
 
+Revision 2026-09-10 (viewport transform correction): the viewport now subtracts
+its display origin and applies the source transform in `f64` before narrowing
+to the viewer's image-space representation. This preserves one-pixel mapping
+when a native surface coordinate is above `f32` integer precision. The RITK
+package gate passes 775/775 nextest tests; DICOM parsing, volume state and
+clinical semantics remain in RITK.
+
 Revision 2026-09-08: [RITK-SNAP-DIRECTORY-001](../../backlog.md#RITK-SNAP-DIRECTORY-001)
 now validates the Explicit VR Little Endian DICOMDIR record sequence before
 membership is admitted. RecordInUseFlag, next/lower offsets, incoming-link

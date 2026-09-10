@@ -82,33 +82,55 @@ impl ViewerViewport {
         )
     }
 
+    fn screen_bounds(self) -> Option<[f64; 4]> {
+        let [width, height] = self.transform.output_size(self.source_size);
+        let min_x = f64::from(self.origin.x);
+        let min_y = f64::from(self.origin.y);
+        let extent_x = f64::from(self.texel_size.x) * width as f64;
+        let extent_y = f64::from(self.texel_size.y) * height as f64;
+        let max_x = min_x + extent_x;
+        let max_y = min_y + extent_y;
+        if !extent_x.is_finite()
+            || !extent_y.is_finite()
+            || !max_x.is_finite()
+            || !max_y.is_finite()
+        {
+            return None;
+        }
+        Some([min_x, max_x, min_y, max_y])
+    }
+
     fn map(self, point: ViewportPoint) -> Option<(egui::Pos2, ImagePoint)> {
-        let rect = self.screen_rect();
         let x = point.x();
         let y = point.y();
         if !x.is_finite() || !y.is_finite() {
             return None;
         }
-        let min_x = f64::from(rect.min.x);
-        let max_x = f64::from(rect.max.x);
-        let min_y = f64::from(rect.min.y);
-        let max_y = f64::from(rect.max.y);
+        let [min_x, max_x, min_y, max_y] = self.screen_bounds()?;
         if x < min_x || x > max_x || y < min_y || y > max_y {
             return None;
         }
         let screen = egui::pos2(x as f32, y as f32);
-        if !rect.contains(screen) {
+        let output_size = self.transform.output_size(self.source_size);
+        let output = [
+            ((x - min_x) / f64::from(self.texel_size.x))
+                .clamp(0.0, output_size[0] as f64 * 0.999_999),
+            ((y - min_y) / f64::from(self.texel_size.y))
+                .clamp(0.0, output_size[1] as f64 * 0.999_999),
+        ];
+        let [source_x, source_y] = self
+            .transform
+            .output_to_source_coordinates(output, self.source_size);
+        if !source_x.is_finite()
+            || !source_y.is_finite()
+            || source_x < f64::from(f32::MIN)
+            || source_x > f64::from(f32::MAX)
+            || source_y < f64::from(f32::MIN)
+            || source_y > f64::from(f32::MAX)
+        {
             return None;
         }
-        let output_size = self.transform.output_size(self.source_size);
-        let output = egui::pos2(
-            ((screen.x - self.origin.x) / self.texel_size.x)
-                .clamp(0.0, output_size[0] as f32 * 0.999_999),
-            ((screen.y - self.origin.y) / self.texel_size.y)
-                .clamp(0.0, output_size[1] as f32 * 0.999_999),
-        );
-        let source = self.transform.output_to_source(output, self.source_size);
-        Some((screen, ImagePoint::new(source.x, source.y)))
+        Some((screen, ImagePoint::new(source_x as f32, source_y as f32)))
     }
 }
 

@@ -324,6 +324,46 @@ fn fractional_client_coordinates_reach_image_mapping_unchanged() {
 }
 
 #[test]
+fn large_client_coordinates_subtract_before_image_narrowing() {
+    let mut app = SnapApp::default();
+    app.loaded = Some(test_volume([4, 4, 1]));
+    app.active_tool = ToolKind::PointHu;
+    let viewport = ViewerViewport::new(
+        0,
+        egui::Pos2::new(16_777_216.0, 0.0),
+        egui::vec2(1.0, 1.0),
+        [4, 4],
+        ViewTransform::default(),
+    )
+    .expect("large viewport geometry is valid");
+
+    apply_app_event(
+        &mut app,
+        &viewport,
+        PresentationEvent::PointerDown {
+            x: 16_777_217.0,
+            y: 1.0,
+            button: PointerButton::Left,
+        },
+    );
+    apply_app_event(
+        &mut app,
+        &viewport,
+        PresentationEvent::PointerUp {
+            x: 16_777_217.0,
+            y: 1.0,
+            button: PointerButton::Left,
+        },
+    );
+
+    assert!(matches!(
+        app.annotations.as_slice(),
+        [crate::tools::interaction::Annotation::HuPoint { pos, .. }]
+            if *pos == [1.0, 1.0]
+    ));
+}
+
+#[test]
 fn focus_loss_cancels_a_gesture_and_lifecycle_actions_exit() {
     let mut app = SnapApp::default();
     app.active_tool = ToolKind::Pan;
