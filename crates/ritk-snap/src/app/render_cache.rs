@@ -1,6 +1,7 @@
 use super::state::ProjectionMode;
 
 /// Per-voxel opacity scale for volume rendering. Canonical value per GPU VR spec.
+#[cfg(not(target_arch = "wasm32"))]
 const DEFAULT_VR_ALPHA: f32 = 0.06;
 use super::state::SnapApp;
 use super::viewport_render::{OVERLAY_LABEL_COLOR, OVERLAY_LABEL_FONT_SIZE, OVERLAY_LABEL_INSET};

@@ -125,6 +125,11 @@ pub fn run_app_with_options(_options: AppLaunchOptions) -> anyhow::Result<()> {
 pub async fn start_web(canvas_id: String) -> Result<(), wasm_bindgen::JsValue> {
     use wasm_bindgen_futures::JsFuture;
 
+    // Mount the generic Métis HTML5/CSS host first. Its bounded file handoff
+    // feeds RITK's existing DICOM routing; no format classification occurs in
+    // the host crate.
+    metis_web::metis_start();
+
     let web_options = eframe::WebOptions::default();
 
     let runner = eframe::WebRunner::new();

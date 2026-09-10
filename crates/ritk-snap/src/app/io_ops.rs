@@ -15,6 +15,36 @@ use std::path::Path;
 #[cfg(not(target_arch = "wasm32"))]
 use rfd::FileDialog;
 
+#[cfg(target_arch = "wasm32")]
+struct FileDialog;
+
+#[cfg(target_arch = "wasm32")]
+impl FileDialog {
+    fn new() -> Self {
+        Self
+    }
+
+    fn set_file_name(self, _name: &str) -> Self {
+        self
+    }
+
+    fn add_filter(self, _name: &str, _extensions: &[&str]) -> Self {
+        self
+    }
+
+    fn pick_file(self) -> Option<std::path::PathBuf> {
+        None
+    }
+
+    fn pick_folder(self) -> Option<std::path::PathBuf> {
+        None
+    }
+
+    fn save_file(self) -> Option<std::path::PathBuf> {
+        None
+    }
+}
+
 fn color_image_to_rgb_bytes(color_image: &egui::ColorImage) -> Vec<u8> {
     let mut rgb_bytes = Vec::with_capacity(color_image.pixels.len() * 3);
     for pixel in &color_image.pixels {

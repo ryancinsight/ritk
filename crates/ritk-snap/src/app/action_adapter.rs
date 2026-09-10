@@ -39,6 +39,7 @@ pub(crate) struct ViewerViewport {
 }
 
 impl ViewerViewport {
+    #[cfg(not(target_arch = "wasm32"))]
     pub(crate) const fn axis(self) -> usize {
         self.axis
     }

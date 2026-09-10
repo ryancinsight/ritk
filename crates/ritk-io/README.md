@@ -20,9 +20,12 @@ byte-level parsing lives in the per-format crates.
 | JPEG | yes | 2-D grayscale only |
 
 `read_image_native` and `write_image_native` select the format by path and
-content. The crate also ships a DICOMweb client (QIDO / STOW) and a PS 3.15
-Annex E de-identification toolset with an export-time metadata integrity gate —
-see `examples/anonymize_pacs_export.rs`.
+content. The crate also ships a native-only DICOMweb client (QIDO / WADO /
+STOW), backed by a blocking desktop transport, and a PS 3.15 Annex E
+de-identification toolset with an export-time metadata integrity gate — see
+`examples/anonymize_pacs_export.rs`. Browser hosts use their platform fetch
+implementation and pass completed, bounded DICOM bytes to the same RITK byte
+reader; no second decoder or browser-specific volume model is introduced.
 
 ## Usage
 

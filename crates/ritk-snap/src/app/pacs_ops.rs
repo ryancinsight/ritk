@@ -4,7 +4,9 @@
 //! and apply worker responses to the viewer state.
 
 use super::state::SnapApp;
-use crate::pacs::query::{PacsRequest, PacsResponse, QueryState};
+#[cfg(not(target_arch = "wasm32"))]
+use crate::pacs::query::PacsRequest;
+use crate::pacs::query::{PacsResponse, QueryState};
 use crate::ui::pacs_panel::PacsPanelAction;
 use tracing::{error, info};
 
