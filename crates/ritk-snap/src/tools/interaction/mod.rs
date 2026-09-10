@@ -11,10 +11,12 @@
 //! See sub-module documentation for mathematical specifications.
 
 mod annotation;
+mod point;
 mod tool_state;
 
 #[cfg(test)]
 mod tests;
 
 pub use annotation::{Annotation, MeasurementError};
+pub use point::{ImagePoint, ViewportOffset};
 pub use tool_state::{RoiKind, ToolState};

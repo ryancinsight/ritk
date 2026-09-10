@@ -1,7 +1,7 @@
 //! In-progress tool interaction state and ROI shape discriminant.
 
 use super::super::kind::ToolKind;
-use egui::Pos2;
+use super::{ImagePoint, ViewportOffset};
 
 // ── In-progress tool state ────────────────────────────────────────────────────
 
@@ -16,27 +16,27 @@ pub enum ToolState {
     /// No gesture in progress.
     Idle,
 
-    /// Pan drag in progress: stores the pointer start position in screen space
-    /// and the viewport origin at the time the drag began.
+    /// Pan drag in progress: stores the pointer start position and viewport
+    /// offset at the time the drag began.
     Panning {
-        /// Pointer position (screen pixels) where the drag started.
-        start: Pos2,
-        /// Viewport pan offset at the moment the drag started.
-        viewport_origin: Pos2,
+        /// Pointer position in display pixel coordinates where the drag started.
+        start: ImagePoint,
+        /// Viewport pan offset in screen pixels at the moment the drag started.
+        viewport_origin: ViewportOffset,
     },
 
     /// Zoom drag in progress.
     Zooming {
-        /// Pointer position (screen pixels) where the drag started.
-        start: Pos2,
+        /// Pointer position in display pixel coordinates where the drag started.
+        start: ImagePoint,
         /// Zoom multiplier at the moment the drag started.
         original_zoom: f32,
     },
 
     /// Window/Level drag in progress.
     WindowLevelDrag {
-        /// Pointer position (screen pixels) where the drag started.
-        start: Pos2,
+        /// Pointer position in display pixel coordinates where the drag started.
+        start: ImagePoint,
         /// Window centre at the moment the drag started.
         original_center: f64,
         /// Window width at the moment the drag started.
@@ -46,23 +46,23 @@ pub enum ToolState {
     /// First point of a two-click length measurement has been placed.
     MeasureLength1 {
         /// First measurement point in image pixel coordinates `[row, col]`.
-        p1: Pos2,
+        p1: ImagePoint,
     },
 
     /// First two points of a three-click angle measurement have been placed.
     MeasureAngle2 {
         /// First point in image pixel coordinates `[row, col]`.
-        p1: Pos2,
+        p1: ImagePoint,
         /// Second point (vertex) in image pixel coordinates `[row, col]`.
-        p2: Pos2,
+        p2: ImagePoint,
     },
 
     /// ROI drag in progress.
     RoiDrag {
         /// Drag start in image pixel coordinates `[row, col]`.
-        start: Pos2,
+        start: ImagePoint,
         /// Current pointer position in image pixel coordinates `[row, col]`.
-        current: Pos2,
+        current: ImagePoint,
         /// Whether the ROI is rectangular or elliptical.
         kind: RoiKind,
     },

@@ -74,9 +74,20 @@ classifies clicks versus drags; focus loss emits cancellation actions; and
 malformed sequences, coordinate overflow, overlong composition and allocation
 failures leave dispatcher state unchanged. Keyboard, text, resize and DPI
 values remain format-neutral. The action contract closes the event-to-viewer
-boundary; mapping actions into the existing `SnapApp` transitions, browser
-handoff, three-view presentation, GPU presentation and capture evidence remain
-open migration increments.
+boundary.
+
+Revision 2026-09-10 (viewer action adapter increment): RITK now maps the
+validated viewport placement into `ViewerViewport` and applies reduced actions
+to the existing `SnapApp` transitions. The eframe shell feeds its bounded
+pointer response into the same presentation event dispatcher used by native
+and browser hosts, so pan, zoom, window/level, labels, measurements, linked
+cursor updates, keyboard tool selection, slice navigation and focus
+cancellation share one RITK-owned transition path. `ImagePoint` and
+`ViewportOffset` remove egui point values from in-progress tool state. Wheel
+modifier semantics, browser handoff, three-view presentation, GPU
+presentation, native host loop integration and capture evidence remain open
+increments. DICOM parsing, decoded volume state and clinical semantics remain
+in RITK; no DICOM value crosses the Métis seam.
 
 Revision 2026-09-08: [RITK-SNAP-DIRECTORY-001](../../backlog.md#RITK-SNAP-DIRECTORY-001)
 now validates the Explicit VR Little Endian DICOMDIR record sequence before
@@ -234,9 +245,9 @@ boundary.
 | Current RITK surface | RITK responsibility retained | Métis/Moirai seam | Gap before cutover |
 | --- | --- | --- | --- |
 | `SnapApp::update` in `app/state.rs`; `run_app_with_options` and `start_web` in `launch.rs` | Frame ordering, load/recovery decisions, viewer state and DICOM policy | Windows-first `metis_platform::native::NativeSurface::{poll_events,wait_events,present,close}`; browser `metis-web::{metis_start,metis_stop}` | A reusable application loop must connect host events, bounded repaint/present and shutdown for an arbitrary RITK app; `NativeSurface` is Windows-only and the first native slice must state that scope. |
-| `SnapApp` fields and `app/*_ops.rs` transitions | Volume identity, series selection, navigation, measurements, overlays, PACS and persistence | `ritk_snap::presentation::PresentationDispatcher` and `ViewerAction`; Métis IPC/fragment actions are transport seams only | The action boundary is present; an adapter still needs to apply actions to `SnapApp` transitions with cancellation and stale-completion guards; no DICOM state may cross into a Métis crate. |
+| `SnapApp` fields and `app/*_ops.rs` transitions | Volume identity, series selection, navigation, measurements, overlays, PACS and persistence | `ritk_snap::presentation::PresentationDispatcher` and `ViewerAction`; Métis IPC/fragment actions are transport seams only | RITK's `ViewerViewport` adapter applies the actions on the current eframe path. A reusable native/browser host loop, stale-completion guards and multi-viewport dispatch remain before shell cutover; no DICOM state may cross into a Métis crate. |
 | `egui::Context`, `RawInput`, `Event`, `DroppedFile`, and pointer handling in `ui/*` | Pointer/keyboard semantics are translated into RITK actions | `metis-platform::PlatformEvent`; native Moirai `WindowEvent`; browser `FileDropBatch`/`take_file_drop` | Event normalization, file-picker grants, focus/text/IME and trusted native file ingress are incomplete for the viewer. |
-| `ToolState`'s `egui::Pos2` carriers in `tools/interaction/tool_state.rs` | In-progress pan, zoom, window/level and measurement coordinates | Format-neutral integer/floating pointer coordinates in the host event contract | Replace the egui coordinate carrier without changing image-space versus screen-space semantics or measurement geometry. |
+| `ToolState`'s `egui::Pos2` carriers in `tools/interaction/tool_state.rs` | In-progress pan, zoom, window/level and measurement coordinates | `ImagePoint` and `ViewportOffset` plus the format-neutral action contract | Closed in the adapter increment; transformed image coordinates and screen-space pan offsets retain their existing semantics. |
 | `egui::ColorImage`, `TextureHandle`, `render::{slice_render,mip_vr,gpu_*}` | Scalar/RGB presentation, W/L, colormap, MPR, MIP/VR and GPU numerical behavior | `metis-ui-lang::RasterImage`, `DisplayList`, and `metis-platform::Framebuffer`; Iris remains the visualization contract | A bounded image upload/texture cache and GPU-capable presentation path must support three orthogonal views and projections without copying DICOM or replacing Iris render contracts. |
 | `rfd::FileDialog` and `app/io_ops.rs` | User-selected paths, selected-study identity, export/session semantics | Moirai filesystem grants; Métis browser byte batches | Native dialog and browser byte-batch adapters must preserve exact selection intent and return typed failures to RITK. |
 | `process_pending_loads`, `pacs_worker`, `tick_cine`, and repaint requests | Decode/PACS/cine scheduling, cancellation and result publication | Moirai bounded tasks and host pump; `metis-frontend::AsyncFrontendApp` is an IPC pattern | A viewer-specific bounded task bridge is absent; it must never publish a stale or cancelled study. |
@@ -246,12 +257,13 @@ boundary.
 
 The initial implementation slices after this inventory are a format-neutral
 RITK viewer host contract: accept a RITK-produced presentation frame, translate
-typed host events, and reduce them to viewer actions on a native Métis surface.
-The frame and event slices are complete, and the action reducer now proves a
-single gesture/lifecycle contract before the `SnapApp` adapter, browser handoff,
-three-view and GPU cutover. DICOM opening remains exercised by RITK's existing
-file and byte loaders; Métis receives only validated presentation data and
-user actions.
+typed host events, reduce them to viewer actions, and apply them to the
+existing viewer transitions on a native Métis surface. The frame, event,
+action-reducer and current eframe adapter slices are complete. Browser/native
+host-loop reuse, wheel/modifier parity, three-view and GPU presentation, and
+capture evidence remain before shell cutover. DICOM opening remains exercised
+by RITK's existing file and byte loaders; Métis receives only validated
+presentation data and user actions.
 
 ## Alternatives and validation
 

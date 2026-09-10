@@ -9,9 +9,12 @@ use super::image_placement::ImagePlacement;
 use super::state::SnapApp;
 use crate::render::WindowLevel;
 use crate::tools::interaction::Annotation;
-use crate::tools::kind::ToolKind;
 use crate::ui::overlay::{OverlayContext, OverlayRenderer};
 use crate::viewer::{DEFAULT_WINDOW_CENTER, DEFAULT_WINDOW_WIDTH};
+use crate::{
+    app::action_adapter::ViewerViewport,
+    presentation::{PointerButton, PresentationEvent, ViewportPoint},
+};
 // ── Overlay label constants ──────────────────────────────────────────────────
 
 /// Pixel inset from the viewport corner for overlay text labels.
@@ -53,6 +56,18 @@ fn screen_point_to_source(
         ((point.y - origin.y) / texel_size.y).clamp(0.0, output_size[1] as f32 * 0.999_999),
     );
     transform.output_to_source(output, source_size)
+}
+
+fn client_point(point: egui::Pos2) -> Option<ViewportPoint> {
+    if !point.x.is_finite() || !point.y.is_finite() {
+        return None;
+    }
+    let x = point.x.round();
+    let y = point.y.round();
+    if x < i32::MIN as f32 || x > i32::MAX as f32 || y < i32::MIN as f32 || y > i32::MAX as f32 {
+        return None;
+    }
+    Some(ViewportPoint::new(x as i32, y as i32))
 }
 
 impl SnapApp {
@@ -324,51 +339,71 @@ impl SnapApp {
         }
 
         // ── 8. Pointer events ──────────────────────────────────────────────────
-        // Update pointer intensity whenever pointer is over the viewport
-        if response.hovered() || response.dragged() || response.interact_pointer_pos().is_some() {
-            self.update_pointer_intensity(axis, response.interact_pointer_pos(), response.rect);
-        }
-
-        if response.drag_started() {
-            if self.active_tool == ToolKind::LabelPaint || self.active_tool == ToolKind::LabelErase
-            {
-                self.apply_label_at_pointer(axis, response.interact_pointer_pos(), response.rect);
+        // The egui response is translated into the same bounded presentation
+        // event sequence used by native and browser hosts. RITK then reduces
+        // and applies it through the action adapter, so the viewer state does
+        // not depend on egui's response methods.
+        let action_viewport = match ViewerViewport::new(
+            axis,
+            origin,
+            egui::vec2(scale_x, scale_y),
+            source_size,
+            view_transform,
+        ) {
+            Ok(viewport) => viewport,
+            Err(error) => {
+                self.status_message = format!("Presentation viewport rejected: {error}");
+                return;
             }
-
-            // Map screen to image-pixel coordinates for tool event
-            let img_pos = response.interact_pointer_pos().map(screen_to_source);
-            self.on_drag_start(img_pos);
-        }
-
-        if response.dragged() {
-            if self.active_tool == ToolKind::LabelPaint || self.active_tool == ToolKind::LabelErase
-            {
-                self.apply_label_at_pointer(axis, response.interact_pointer_pos(), response.rect);
+        };
+        let pointer = response
+            .interact_pointer_pos()
+            .or_else(|| response.hover_pos());
+        if let Some(pointer) = pointer.and_then(client_point) {
+            let mut events = arrayvec::ArrayVec::<PresentationEvent, 3>::new();
+            if response.drag_started() {
+                events.push(PresentationEvent::PointerDown {
+                    x: pointer.x(),
+                    y: pointer.y(),
+                    button: PointerButton::Left,
+                });
             }
-
-            let img_pos = response.interact_pointer_pos().map(screen_to_source);
-            self.on_drag(img_pos);
-        }
-
-        if response.drag_stopped() {
-            let img_pos = response.interact_pointer_pos().map(screen_to_source);
-            self.on_drag_end(img_pos);
-        }
-
-        if response.clicked() {
-            self.update_linked_cursor_from_pointer(
-                axis,
-                response.interact_pointer_pos(),
-                response.rect,
-            );
-
-            if self.active_tool == ToolKind::LabelPaint || self.active_tool == ToolKind::LabelErase
-            {
-                self.apply_label_at_pointer(axis, response.interact_pointer_pos(), response.rect);
+            if response.dragged() {
+                events.push(PresentationEvent::PointerMove {
+                    x: pointer.x(),
+                    y: pointer.y(),
+                });
             }
-
-            let img_pos = response.interact_pointer_pos().map(screen_to_source);
-            self.on_click(img_pos);
+            if response.drag_stopped() {
+                events.push(PresentationEvent::PointerUp {
+                    x: pointer.x(),
+                    y: pointer.y(),
+                    button: PointerButton::Left,
+                });
+            } else if response.clicked() && !response.drag_started() {
+                events.push(PresentationEvent::PointerDown {
+                    x: pointer.x(),
+                    y: pointer.y(),
+                    button: PointerButton::Left,
+                });
+                events.push(PresentationEvent::PointerUp {
+                    x: pointer.x(),
+                    y: pointer.y(),
+                    button: PointerButton::Left,
+                });
+            } else if events.is_empty() && response.hovered() {
+                events.push(PresentationEvent::PointerMove {
+                    x: pointer.x(),
+                    y: pointer.y(),
+                });
+            }
+            if !events.is_empty() {
+                if let Err(error) = self.apply_presentation_events(&events, Some(&action_viewport))
+                {
+                    self.status_message = format!("Presentation input rejected: {error}");
+                    tracing::error!(error = %error, "RITK presentation event batch rejected");
+                }
+            }
         }
     }
 }

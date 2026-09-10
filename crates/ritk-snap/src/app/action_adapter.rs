@@ -1,0 +1,360 @@
+//! Apply format-neutral presentation actions to RITK viewer state.
+//!
+//! The adapter is the RITK-owned side of the Métis host seam. Host coordinates
+//! are mapped to image coordinates at the viewport boundary, then the existing
+//! viewer transitions perform all domain work. No DICOM value or parser state
+//! is part of this contract.
+
+use super::state::SnapApp;
+use crate::presentation::{
+    ActionDispatchError, PointerButton, PointerGesture, PresentationEvent, ViewerAction,
+    ViewportPoint,
+};
+use crate::tools::interaction::ImagePoint;
+use crate::ui::{tool_kind_for_virtual_key, ViewTransform};
+use thiserror::Error;
+
+const PRIMARY_BUTTON: PointerButton = PointerButton::Left;
+const VIRTUAL_KEY_PAGE_UP: u32 = 0x21;
+const VIRTUAL_KEY_PAGE_DOWN: u32 = 0x22;
+const VIRTUAL_KEY_END: u32 = 0x23;
+const VIRTUAL_KEY_HOME: u32 = 0x24;
+const VIRTUAL_KEY_ARROW_UP: u32 = 0x26;
+const VIRTUAL_KEY_ARROW_DOWN: u32 = 0x28;
+
+/// Geometry needed to map host client coordinates into one displayed slice.
+///
+/// The values are copied from the host's current image placement. Keeping the
+/// mapping as a value lets native and browser hosts apply the same action
+/// sequence without storing a GUI response or texture handle in viewer state.
+#[derive(Debug, Clone, Copy, PartialEq)]
+pub(crate) struct ViewerViewport {
+    axis: usize,
+    origin: egui::Pos2,
+    texel_size: egui::Vec2,
+    source_size: [usize; 2],
+    transform: ViewTransform,
+}
+
+impl ViewerViewport {
+    /// Construct a viewport mapping from validated image placement values.
+    ///
+    /// # Errors
+    /// Returns an error when the axis, image dimensions or screen geometry is
+    /// outside the finite positive range required by the inverse mapping.
+    pub(crate) fn new(
+        axis: usize,
+        origin: egui::Pos2,
+        texel_size: egui::Vec2,
+        source_size: [usize; 2],
+        transform: ViewTransform,
+    ) -> Result<Self, ViewerViewportError> {
+        if axis > 2 {
+            return Err(ViewerViewportError::Axis { axis });
+        }
+        if source_size.contains(&0) {
+            return Err(ViewerViewportError::EmptyImage { source_size });
+        }
+        if !origin.is_finite()
+            || !texel_size.is_finite()
+            || texel_size.x <= 0.0
+            || texel_size.y <= 0.0
+        {
+            return Err(ViewerViewportError::InvalidScreenGeometry);
+        }
+        Ok(Self {
+            axis,
+            origin,
+            texel_size,
+            source_size,
+            transform,
+        })
+    }
+
+    fn screen_rect(self) -> egui::Rect {
+        let [width, height] = self.transform.output_size(self.source_size);
+        egui::Rect::from_min_size(
+            self.origin,
+            egui::vec2(
+                self.texel_size.x * width as f32,
+                self.texel_size.y * height as f32,
+            ),
+        )
+    }
+
+    fn map(self, point: ViewportPoint) -> Option<(egui::Pos2, ImagePoint)> {
+        let screen = egui::pos2(point.x() as f32, point.y() as f32);
+        let rect = self.screen_rect();
+        if !rect.contains(screen) {
+            return None;
+        }
+        let output_size = self.transform.output_size(self.source_size);
+        let output = egui::pos2(
+            ((screen.x - self.origin.x) / self.texel_size.x)
+                .clamp(0.0, output_size[0] as f32 * 0.999_999),
+            ((screen.y - self.origin.y) / self.texel_size.y)
+                .clamp(0.0, output_size[1] as f32 * 0.999_999),
+        );
+        let source = self.transform.output_to_source(output, self.source_size);
+        Some((screen, ImagePoint::new(source.x, source.y)))
+    }
+}
+
+/// Error raised while validating a viewport action mapping.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Error)]
+pub(crate) enum ViewerViewportError {
+    /// The viewport axis is outside the three orthogonal viewer axes.
+    #[error("viewport axis {axis} is outside the supported range 0..=2")]
+    Axis {
+        /// Invalid axis value.
+        axis: usize,
+    },
+    /// The source image has a zero dimension.
+    #[error("viewport source dimensions {source_size:?} contain an empty axis")]
+    EmptyImage {
+        /// Invalid source dimensions.
+        source_size: [usize; 2],
+    },
+    /// Origin or texel scale cannot represent a positive finite rectangle.
+    #[error("viewport screen geometry must be finite with positive texel sizes")]
+    InvalidScreenGeometry,
+}
+
+/// Result of applying one viewer action to the RITK application.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub(crate) enum ViewerActionDisposition {
+    /// Continue the host loop and optionally repaint the surface.
+    Continue {
+        /// Whether the caller should present a new frame.
+        repaint: bool,
+    },
+    /// The host requested terminal surface teardown.
+    Exit,
+}
+
+/// Failure applying a host action at the RITK boundary.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Error)]
+pub(crate) enum ViewerActionError {
+    /// A non-primary pointer button has no RITK-SNAP transition yet.
+    #[error("pointer button {button:?} is not supported by the SnapApp adapter")]
+    UnsupportedPointerButton {
+        /// Button reported by the host.
+        button: PointerButton,
+    },
+}
+
+impl SnapApp {
+    /// Reduce and apply a bounded batch of format-neutral host events.
+    ///
+    /// The dispatcher commits pointer state only after the whole batch is
+    /// accepted. The action preflight below then rejects unsupported buttons
+    /// before mutating [`SnapApp`], preserving the batch boundary at both
+    /// presentation stages.
+    ///
+    /// # Errors
+    /// Returns [`ViewerInputError`] when the host batch is malformed or an
+    /// action uses a pointer button without a corresponding viewer transition.
+    pub(crate) fn apply_presentation_events(
+        &mut self,
+        events: &[PresentationEvent],
+        viewport: Option<&ViewerViewport>,
+    ) -> Result<ViewerActionDisposition, ViewerInputError> {
+        for event in events {
+            if let Some(button) = event_button(event) {
+                ensure_primary(button)?;
+            }
+        }
+        let actions = self.presentation_dispatcher.dispatch(events)?;
+        for action in actions.iter() {
+            if let Some(button) = pointer_button(action) {
+                ensure_primary(button)?;
+            }
+        }
+        let mut disposition = ViewerActionDisposition::Continue { repaint: false };
+        for action in actions.iter() {
+            disposition = self.apply_viewer_action(action, viewport)?;
+            if disposition == ViewerActionDisposition::Exit {
+                break;
+            }
+        }
+        Ok(disposition)
+    }
+
+    /// Apply one reduced host action to the RITK viewer state.
+    ///
+    /// Pointer actions require the viewport they target. Actions outside that
+    /// rectangle are ignored just as a host widget ignores a pointer outside
+    /// its hit region. Lifecycle actions do not alter loaded study state; the
+    /// host loop owns surface teardown.
+    ///
+    /// # Errors
+    /// Returns [`ViewerActionError::UnsupportedPointerButton`] when a pointer
+    /// action uses a button without a corresponding viewer transition.
+    pub(crate) fn apply_viewer_action(
+        &mut self,
+        action: &ViewerAction,
+        viewport: Option<&ViewerViewport>,
+    ) -> Result<ViewerActionDisposition, ViewerActionError> {
+        match action {
+            ViewerAction::CloseRequested | ViewerAction::Destroyed => {
+                Ok(ViewerActionDisposition::Exit)
+            }
+            ViewerAction::FocusChanged { focused: false } => {
+                self.on_drag_end(None);
+                Ok(ViewerActionDisposition::Continue { repaint: true })
+            }
+            ViewerAction::FocusChanged { focused: true } => {
+                Ok(ViewerActionDisposition::Continue { repaint: false })
+            }
+            ViewerAction::PointerMoved { position } => {
+                let Some(viewport) = viewport else {
+                    return Ok(ViewerActionDisposition::Continue { repaint: false });
+                };
+                let Some((screen, _)) = viewport.map(*position) else {
+                    self.update_pointer_intensity(viewport.axis, None, viewport.screen_rect());
+                    return Ok(ViewerActionDisposition::Continue { repaint: true });
+                };
+                self.update_pointer_intensity(viewport.axis, Some(screen), viewport.screen_rect());
+                Ok(ViewerActionDisposition::Continue { repaint: true })
+            }
+            ViewerAction::PointerPressed { button, position } => {
+                ensure_primary(*button)?;
+                let Some(viewport) = viewport else {
+                    return Ok(ViewerActionDisposition::Continue { repaint: false });
+                };
+                let Some((screen, image)) = viewport.map(*position) else {
+                    return Ok(ViewerActionDisposition::Continue { repaint: false });
+                };
+                if matches!(
+                    self.active_tool,
+                    crate::tools::kind::ToolKind::LabelPaint
+                        | crate::tools::kind::ToolKind::LabelErase
+                ) {
+                    self.apply_label_at_pointer(
+                        viewport.axis,
+                        Some(screen),
+                        viewport.screen_rect(),
+                    );
+                }
+                self.on_drag_start(Some(image));
+                Ok(ViewerActionDisposition::Continue { repaint: true })
+            }
+            ViewerAction::PointerDragged {
+                button, current, ..
+            } => {
+                ensure_primary(*button)?;
+                let Some(viewport) = viewport else {
+                    return Ok(ViewerActionDisposition::Continue { repaint: false });
+                };
+                let Some((screen, image)) = viewport.map(*current) else {
+                    return Ok(ViewerActionDisposition::Continue { repaint: false });
+                };
+                if matches!(
+                    self.active_tool,
+                    crate::tools::kind::ToolKind::LabelPaint
+                        | crate::tools::kind::ToolKind::LabelErase
+                ) {
+                    self.apply_label_at_pointer(
+                        viewport.axis,
+                        Some(screen),
+                        viewport.screen_rect(),
+                    );
+                }
+                self.on_drag(Some(image));
+                Ok(ViewerActionDisposition::Continue { repaint: true })
+            }
+            ViewerAction::PointerReleased {
+                button,
+                position,
+                gesture,
+            } => {
+                ensure_primary(*button)?;
+                let mapped = viewport.and_then(|viewport| viewport.map(*position));
+                self.on_drag_end(mapped.map(|(_, image)| image));
+                if *gesture == PointerGesture::Click {
+                    if let Some(viewport) = viewport {
+                        if let Some((screen, _)) = mapped {
+                            self.update_linked_cursor_from_pointer(
+                                viewport.axis,
+                                Some(screen),
+                                viewport.screen_rect(),
+                            );
+                        }
+                    }
+                    self.on_click(mapped.map(|(_, image)| image));
+                }
+                Ok(ViewerActionDisposition::Continue { repaint: true })
+            }
+            ViewerAction::PointerCancelled { button, .. } => {
+                ensure_primary(*button)?;
+                self.on_drag_end(None);
+                Ok(ViewerActionDisposition::Continue { repaint: true })
+            }
+            ViewerAction::KeyPressed { virtual_key, .. } => {
+                Ok(self.apply_virtual_key(*virtual_key))
+            }
+            ViewerAction::KeyReleased { .. }
+            | ViewerAction::TextInput { .. }
+            | ViewerAction::TextComposition { .. }
+            | ViewerAction::Resized { .. }
+            | ViewerAction::DpiChanged { .. } => {
+                Ok(ViewerActionDisposition::Continue { repaint: false })
+            }
+        }
+    }
+
+    fn apply_virtual_key(&mut self, virtual_key: u32) -> ViewerActionDisposition {
+        if let Some(tool) = tool_kind_for_virtual_key(virtual_key) {
+            self.active_tool = tool;
+            return ViewerActionDisposition::Continue { repaint: true };
+        }
+        let (arrow_up, arrow_down, page_up, page_down, home, end) = match virtual_key {
+            VIRTUAL_KEY_PAGE_UP => (false, false, true, false, false, false),
+            VIRTUAL_KEY_PAGE_DOWN => (false, false, false, true, false, false),
+            VIRTUAL_KEY_END => (false, false, false, false, false, true),
+            VIRTUAL_KEY_HOME => (false, false, false, false, true, false),
+            VIRTUAL_KEY_ARROW_UP => (true, false, false, false, false, false),
+            VIRTUAL_KEY_ARROW_DOWN => (false, true, false, false, false, false),
+            _ => return ViewerActionDisposition::Continue { repaint: false },
+        };
+        self.apply_slice_navigation_shortcuts(arrow_up, arrow_down, page_up, page_down, home, end);
+        ViewerActionDisposition::Continue { repaint: true }
+    }
+}
+
+/// Failure while reducing or applying one host event batch.
+#[derive(Debug, Error)]
+pub(crate) enum ViewerInputError {
+    /// The presentation event sequence violated its bounded contract.
+    #[error("presentation event dispatch failed: {0}")]
+    Dispatch(#[from] ActionDispatchError),
+    /// The reduced action had no corresponding RITK transition.
+    #[error("viewer action application failed: {0}")]
+    Action(#[from] ViewerActionError),
+}
+
+fn pointer_button(action: &ViewerAction) -> Option<PointerButton> {
+    match action {
+        ViewerAction::PointerPressed { button, .. }
+        | ViewerAction::PointerDragged { button, .. }
+        | ViewerAction::PointerReleased { button, .. }
+        | ViewerAction::PointerCancelled { button, .. } => Some(*button),
+        _ => None,
+    }
+}
+
+fn event_button(event: &PresentationEvent) -> Option<PointerButton> {
+    match event {
+        PresentationEvent::PointerDown { button, .. }
+        | PresentationEvent::PointerUp { button, .. } => Some(*button),
+        _ => None,
+    }
+}
+
+fn ensure_primary(button: PointerButton) -> Result<(), ViewerActionError> {
+    if button == PRIMARY_BUTTON {
+        Ok(())
+    } else {
+        Err(ViewerActionError::UnsupportedPointerButton { button })
+    }
+}

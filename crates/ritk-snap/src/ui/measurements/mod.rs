@@ -19,7 +19,7 @@
 
 use egui::{Color32, FontId, Painter, Pos2, Rect, Stroke, Vec2};
 
-use crate::tools::interaction::{Annotation, RoiKind, ToolState};
+use crate::tools::interaction::{Annotation, ImagePoint, RoiKind, ToolState};
 use crate::ui::live_preview::{live_angle_deg, live_length_mm};
 
 // ── colour / style constants ──────────────────────────────────────────────────
@@ -36,6 +36,10 @@ fn label_font() -> FontId {
     FontId::proportional(FONT_SIZE)
 }
 
+fn egui_point(point: ImagePoint) -> Pos2 {
+    Pos2::new(point.x(), point.y())
+}
+
 // ── MeasurementLayer ──────────────────────────────────────────────────────────
 
 /// Stateless annotation rendering helpers.
@@ -48,8 +52,8 @@ pub struct MeasurementLayer;
 impl MeasurementLayer {
     /// Draw all completed [`Annotation`]s stored in `annotations`.
     ///
-    /// `img_to_screen` converts image-pixel coordinates `(col, row)` (stored
-    /// in Pos2 as `Pos2 { x: col, y: row }`) to screen coordinates.
+    /// `img_to_screen` converts image-pixel coordinates `(col, row)` stored in
+    /// annotations as `[row, col]` to screen coordinates.
     ///
     /// Annotations whose geometric positions lie outside the current viewport
     /// are still passed to the underlying drawing routines; egui clips them
@@ -130,8 +134,8 @@ impl MeasurementLayer {
     ///
     /// # Parameters
     /// - `cursor_screen`: current cursor position in *screen* coordinates.
-    /// - `cursor_img`: cursor in *image* pixel coordinates `Pos2 { x: col, y: row }`;
-    ///   `None` when the cursor is outside the viewport.
+    /// - `cursor_img`: cursor in *image* pixel coordinates as `Pos2 { x: col,
+    ///   y: row }`; `None` when the cursor is outside the viewport.
     /// - `spacing`: validated `[row_mm_per_px, col_mm_per_px]`, or `None` when
     ///   the physical value cannot be represented.
     /// - `img_to_screen`: converts image-pixel coordinates to screen coordinates.
@@ -147,13 +151,13 @@ impl MeasurementLayer {
             ToolState::Idle => {}
             ToolState::MeasureLength1 { p1 } => {
                 // Rubber-band line from anchor to cursor with live distance label.
-                let sp1 = img_to_screen(*p1);
+                let sp1 = img_to_screen(egui_point(*p1));
                 painter.circle_filled(sp1, HANDLE_RADIUS, COLOR_MEASURE);
                 if let Some(cursor) = cursor_screen {
                     painter.line_segment([sp1, cursor], Stroke::new(LINE_WIDTH, COLOR_MEASURE));
                     // Live distance label at midpoint, offset 12 px upward.
                     if let (Some(cimg), Some(spacing)) = (cursor_img, spacing) {
-                        let mm = live_length_mm([p1.y, p1.x], [cimg.y, cimg.x], spacing);
+                        let mm = live_length_mm([p1.y(), p1.x()], [cimg.y, cimg.x], spacing);
                         if mm.is_finite() {
                             let label = format!("{:.1} mm", mm);
                             let mid = Pos2::new((sp1.x + cursor.x) * 0.5, (sp1.y + cursor.y) * 0.5);
@@ -170,8 +174,8 @@ impl MeasurementLayer {
             }
             ToolState::MeasureAngle2 { p1, p2 } => {
                 // Two anchor handles, p1→p2 line, rubber-band p2→cursor with live angle.
-                let sp1 = img_to_screen(*p1);
-                let sp2 = img_to_screen(*p2);
+                let sp1 = img_to_screen(egui_point(*p1));
+                let sp2 = img_to_screen(egui_point(*p2));
                 painter.circle_filled(sp1, HANDLE_RADIUS, COLOR_MEASURE);
                 painter.circle_filled(sp2, HANDLE_RADIUS, COLOR_MEASURE);
                 painter.line_segment([sp1, sp2], Stroke::new(LINE_WIDTH, COLOR_MEASURE));
@@ -179,7 +183,8 @@ impl MeasurementLayer {
                     painter.line_segment([sp2, cursor], Stroke::new(LINE_WIDTH, COLOR_MEASURE));
                     // Live angle label at the vertex (p2), offset 12 px up-right.
                     if let Some(cimg) = cursor_img {
-                        let deg = live_angle_deg([p1.y, p1.x], [p2.y, p2.x], [cimg.y, cimg.x]);
+                        let deg =
+                            live_angle_deg([p1.y(), p1.x()], [p2.y(), p2.x()], [cimg.y, cimg.x]);
                         let label = format!("{:.1}°", deg);
                         painter.text(
                             sp2 + Vec2::new(8.0, -12.0),
@@ -196,8 +201,8 @@ impl MeasurementLayer {
                 current,
                 kind,
             } => {
-                let ss = img_to_screen(*start);
-                let sc = img_to_screen(*current);
+                let ss = img_to_screen(egui_point(*start));
+                let sc = img_to_screen(egui_point(*current));
                 match kind {
                     RoiKind::Rect => {
                         let tl = Pos2::new(ss.x.min(sc.x), ss.y.min(sc.y));

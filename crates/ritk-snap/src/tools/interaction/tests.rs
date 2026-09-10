@@ -2,7 +2,6 @@ use super::*;
 use crate::render::NamedColorMap;
 use crate::render::WindowLevel;
 use crate::tools::ToolKind;
-use egui::Pos2;
 use iris::color::{ColorMap, Normalized};
 
 // ── compute_length ────────────────────────────────────────────────────────
@@ -161,49 +160,51 @@ fn test_tool_state_non_idle_variants() {
     let cases: &[(ToolState, ToolKind)] = &[
         (
             ToolState::Panning {
-                start: Pos2::ZERO,
-                viewport_origin: Pos2::ZERO,
+                start: ImagePoint::new(0.0, 0.0),
+                viewport_origin: ViewportOffset::new(0.0, 0.0),
             },
             ToolKind::Pan,
         ),
         (
             ToolState::Zooming {
-                start: Pos2::ZERO,
+                start: ImagePoint::new(0.0, 0.0),
                 original_zoom: 1.0,
             },
             ToolKind::Zoom,
         ),
         (
             ToolState::WindowLevelDrag {
-                start: Pos2::ZERO,
+                start: ImagePoint::new(0.0, 0.0),
                 original_center: 0.0,
                 original_width: 1.0,
             },
             ToolKind::WindowLevel,
         ),
         (
-            ToolState::MeasureLength1 { p1: Pos2::ZERO },
+            ToolState::MeasureLength1 {
+                p1: ImagePoint::new(0.0, 0.0),
+            },
             ToolKind::MeasureLength,
         ),
         (
             ToolState::MeasureAngle2 {
-                p1: Pos2::ZERO,
-                p2: Pos2::new(1.0, 0.0),
+                p1: ImagePoint::new(0.0, 0.0),
+                p2: ImagePoint::new(1.0, 0.0),
             },
             ToolKind::MeasureAngle,
         ),
         (
             ToolState::RoiDrag {
-                start: Pos2::ZERO,
-                current: Pos2::new(1.0, 1.0),
+                start: ImagePoint::new(0.0, 0.0),
+                current: ImagePoint::new(1.0, 1.0),
                 kind: RoiKind::Rect,
             },
             ToolKind::RoiRect,
         ),
         (
             ToolState::RoiDrag {
-                start: Pos2::ZERO,
-                current: Pos2::new(1.0, 1.0),
+                start: ImagePoint::new(0.0, 0.0),
+                current: ImagePoint::new(1.0, 1.0),
                 kind: RoiKind::Ellipse,
             },
             ToolKind::RoiEllipse,

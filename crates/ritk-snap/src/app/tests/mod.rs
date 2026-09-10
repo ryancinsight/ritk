@@ -12,6 +12,8 @@ use arrayvec::ArrayString;
 use std::sync::Arc;
 
 #[cfg(test)]
+mod action_adapter;
+#[cfg(test)]
 mod colormap;
 #[cfg(test)]
 mod cursor;

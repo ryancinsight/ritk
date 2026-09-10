@@ -1,5 +1,6 @@
 use super::volume_input::VolumeInput;
 use crate::label::LabelEditor;
+use crate::presentation::PresentationDispatcher;
 use crate::render::NamedColorMap;
 use crate::render::RenderBufferPool;
 use crate::tools::interaction::{Annotation, ToolState};
@@ -62,6 +63,8 @@ pub(crate) struct SnapApp {
     pub(crate) active_tool: ToolKind,
     /// In-progress gesture state for the active tool.
     pub(crate) tool_state: ToolState,
+    /// Stateful reducer for host pointer gestures at the presentation seam.
+    pub(crate) presentation_dispatcher: PresentationDispatcher,
     /// Completed measurement annotations.
     pub(crate) annotations: Vec<Annotation>,
     /// Last hovered or interacted axis for status/info display.
@@ -273,6 +276,7 @@ impl Default for SnapApp {
             axis: 0,
             active_tool: ToolKind::WindowLevel,
             tool_state: ToolState::Idle,
+            presentation_dispatcher: PresentationDispatcher::new(),
             annotations: Vec::new(),
             label_editor: None,
             label_brush_radius: 1,
