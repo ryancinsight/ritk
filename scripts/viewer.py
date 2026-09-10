@@ -45,8 +45,9 @@ def main():
             raise ValueError(f"refusing linked output file: {path}")
     # Invalidate previous evidence before resolving or executing the new binary.
     (destination / "workflow.json").write_text('{"schema":1,"status":"failed"}\n', encoding="utf-8")
-    # A headless run must not retain a native capture from an earlier run.
+    # A run without a native host must not retain captures from an earlier run.
     (destination / "window.png").unlink(missing_ok=True)
+    (destination / "metis-frame.png").unlink(missing_ok=True)
     binary = arguments.binary.resolve(strict=True)
     # A fresh directory prevents old images from becoming evidence for this run.
     # Keep only the fixed, small artifact set; temporary study bytes are removed
@@ -126,6 +127,15 @@ def main():
             golden.write_bytes(actual)
         elif golden.read_bytes() != actual:
             raise ValueError(f"render differs from reviewed manual image: {golden}")
+        if arguments.metis_native:
+            golden = golden_root / "dicom-metis-native.png"
+            if linked(golden) or (golden.exists() and golden.stat().st_nlink != 1):
+                raise ValueError(f"refusing linked golden file: {golden}")
+            actual = (output / "metis-frame.png").read_bytes()
+            if arguments.update_goldens:
+                golden.write_bytes(actual)
+            elif golden.read_bytes() != actual:
+                raise ValueError(f"native render differs from reviewed manual image: {golden}")
         (destination / "workflow.json").write_text(json.dumps(report, indent=2) + "\n", encoding="utf-8")
         print(destination / "workflow.json")
 

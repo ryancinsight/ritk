@@ -39,6 +39,10 @@ pub(crate) struct ViewerViewport {
 }
 
 impl ViewerViewport {
+    pub(crate) const fn axis(self) -> usize {
+        self.axis
+    }
+
     /// Construct a viewport mapping from validated image placement values.
     ///
     /// # Errors

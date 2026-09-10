@@ -19,11 +19,12 @@ fn session() -> (NativeViewerSession, tempfile::TempDir) {
 #[test]
 fn native_session_renders_and_steps_the_loaded_slice() {
     let (mut session, _root) = session();
-    let initial = session.source_frame.clone();
+    let initial = session.views[0].frame().clone();
+    let (x, y) = session.viewports[0].center();
     let flow = session
         .handle_events(&[WindowEvent::PointerWheel {
-            x: 640,
-            y: 400,
+            x,
+            y,
             delta_x: 0,
             delta_y: -120,
             modifiers: ModifierState::NONE,
@@ -31,9 +32,37 @@ fn native_session_renders_and_steps_the_loaded_slice() {
         .expect("wheel transition");
     assert_eq!(flow, NativeFlow::Continue { repaint: false });
     assert_eq!(session.app.viewer_state.slice_index, 2);
-    assert_ne!(session.source_frame, initial);
-    assert_eq!(session.source_frame.width(), 4);
-    assert_eq!(session.source_frame.height(), 2);
+    assert_ne!(session.views[0].frame(), &initial);
+    assert_eq!(session.views[0].frame().width(), 4);
+    assert_eq!(session.views[0].frame().height(), 2);
+}
+
+#[test]
+fn native_session_composes_three_views_and_routes_wheels_by_panel() {
+    let (mut session, _root) = session();
+    assert_eq!(session.views.len(), 3);
+    assert_eq!(
+        session
+            .viewports
+            .iter()
+            .map(|viewport| viewport.axis())
+            .collect::<Vec<_>>(),
+        vec![0, 1, 2]
+    );
+    assert_eq!(session.framebuffer.width(), INITIAL_WIDTH);
+    assert_eq!(session.framebuffer.height(), INITIAL_HEIGHT);
+    let (x, y) = session.viewports[1].center();
+    session
+        .handle_events(&[WindowEvent::PointerWheel {
+            x,
+            y,
+            delta_x: 0,
+            delta_y: -120,
+            modifiers: ModifierState::NONE,
+        }])
+        .expect("coronal wheel transition");
+    assert_eq!(session.app.axis, 1);
+    assert_eq!(session.app.coronal_slice, 1);
 }
 
 #[test]
@@ -67,28 +96,31 @@ fn native_session_zoom_resize_and_minimize_are_bounded() {
 #[test]
 fn native_session_focus_loss_cancels_pointer_gesture() {
     let (mut session, _root) = session();
+    let (x, y) = session.viewports[0].center();
     session
         .handle_events(&[
             WindowEvent::PointerDown {
-                x: 640,
-                y: 400,
+                x,
+                y,
                 button: metis_platform::native::MouseButton::Left,
             },
             WindowEvent::FocusLost,
         ])
         .expect("focus cancellation");
     assert!(session.app.tool_state.is_idle());
+    assert!(session.active_view.is_none());
 }
 
 #[test]
 fn native_session_rejects_zero_dpi_and_records_close() {
     let (mut session, _root) = session();
     let initial_slice = session.app.viewer_state.slice_index;
+    let (x, y) = session.viewports[0].center();
     let error = session
         .handle_events(&[
             WindowEvent::PointerWheel {
-                x: 640,
-                y: 400,
+                x,
+                y,
                 delta_x: 0,
                 delta_y: -120,
                 modifiers: ModifierState::NONE,
@@ -119,5 +151,8 @@ fn native_session_capture_closes_after_one_idle_batch() {
         .final_frame
         .lock()
         .expect("capture observation")
-        .is_some());
+        .as_ref()
+        .is_some_and(|frame| {
+            frame.width() == INITIAL_WIDTH && frame.height() == INITIAL_HEIGHT
+        }));
 }
