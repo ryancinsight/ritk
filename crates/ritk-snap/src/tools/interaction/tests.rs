@@ -57,6 +57,39 @@ fn test_compute_length_anisotropic_spacing() {
     );
 }
 
+#[test]
+fn checked_measurements_reject_unrepresentable_spacing() {
+    assert!(matches!(
+        Annotation::validate_spacing([0.0, 1.0]),
+        Err(MeasurementError::InvalidSpacing { index: 0, .. })
+    ));
+    assert!(matches!(
+        Annotation::validate_spacing([f64::MAX, 1.0]),
+        Err(MeasurementError::UnrepresentableSpacing { index: 0, .. })
+    ));
+}
+
+#[test]
+fn checked_measurements_reject_nonfinite_derived_values() {
+    assert!(matches!(
+        Annotation::compute_length_checked([0.0, 0.0], [f32::MAX, 0.0], [1.0, 1.0]),
+        Err(MeasurementError::NonFiniteResult { kind: "length" })
+    ));
+    assert!(matches!(
+        Annotation::compute_roi_rect_stats_checked(
+            [0.0, 0.0],
+            [0.0, 0.0],
+            &[f32::NAN],
+            1,
+            1,
+            [1.0, 1.0],
+        ),
+        Err(MeasurementError::NonFiniteResult {
+            kind: "rectangle ROI"
+        })
+    ));
+}
+
 // ── compute_angle ─────────────────────────────────────────────────────────
 
 /// Three points forming a right angle (90°) at the vertex.

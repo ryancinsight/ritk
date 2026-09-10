@@ -1,6 +1,6 @@
 use super::state::SnapApp;
 use crate::render::NamedColorMap;
-use crate::tools::interaction::{Annotation, RoiKind, ToolState};
+use crate::tools::interaction::{Annotation, MeasurementError, RoiKind, ToolState};
 use crate::tools::kind::ToolKind;
 use crate::ui::{
     anatomical_label_for_axis, axis_for_plane_in_volume, intensity_at_voxel, pan_from_drag_delta,
@@ -137,8 +137,23 @@ impl SnapApp {
                 ToolState::MeasureLength1 { p1 } => {
                     let p1_arr = [p1.y, p1.x];
                     let p2_arr = [pos.y, pos.x];
-                    let spacing = self.slice_plane_spacing();
-                    let length_mm = Annotation::compute_length(p1_arr, p2_arr, spacing);
+                    let spacing = match self.slice_plane_spacing() {
+                        Ok(spacing) => spacing,
+                        Err(error) => {
+                            self.status_message = format!("Measurement rejected: {error}");
+                            self.tool_state = ToolState::Idle;
+                            return;
+                        }
+                    };
+                    let length_mm =
+                        match Annotation::compute_length_checked(p1_arr, p2_arr, spacing) {
+                            Ok(length) => length,
+                            Err(error) => {
+                                self.status_message = format!("Measurement rejected: {error}");
+                                self.tool_state = ToolState::Idle;
+                                return;
+                            }
+                        };
                     self.annotations.push(Annotation::Length {
                         p1: p1_arr,
                         p2: p2_arr,
@@ -196,13 +211,26 @@ impl SnapApp {
     /// Compute ROI rect statistics for the pixel region between `start` and
     /// `end` (screen-space corners) on the current primary-axis slice.
     fn finalise_roi_rect(&mut self, start: egui::Pos2, end: egui::Pos2) {
+        let spacing = match self.slice_plane_spacing() {
+            Ok(spacing) => spacing,
+            Err(error) => {
+                self.status_message = format!("Measurement rejected: {error}");
+                return;
+            }
+        };
         let Some(vol) = &self.loaded else { return };
         let p1 = [start.y, start.x];
         let p2 = [end.y, end.x];
-        let spacing = self.slice_plane_spacing();
         let (pixels, width, height) = vol.extract_slice(self.axis, self.viewer_state.slice_index);
-        let (mean, std_dev, min, max, area_mm2) =
-            Annotation::compute_roi_rect_stats(p1, p2, &pixels, width, height, spacing);
+        let (mean, std_dev, min, max, area_mm2) = match Annotation::compute_roi_rect_stats_checked(
+            p1, p2, &pixels, width, height, spacing,
+        ) {
+            Ok(stats) => stats,
+            Err(error) => {
+                self.status_message = format!("Measurement rejected: {error}");
+                return;
+            }
+        };
         self.annotations.push(Annotation::RoiRect {
             top_left: [p1[0].min(p2[0]), p1[1].min(p2[1])],
             bottom_right: [p1[0].max(p2[0]), p1[1].max(p2[1])],
@@ -217,13 +245,27 @@ impl SnapApp {
     }
 
     fn finalise_roi_ellipse(&mut self, start: egui::Pos2, end: egui::Pos2) {
+        let spacing = match self.slice_plane_spacing() {
+            Ok(spacing) => spacing,
+            Err(error) => {
+                self.status_message = format!("Measurement rejected: {error}");
+                return;
+            }
+        };
         let Some(vol) = &self.loaded else { return };
         let p1 = [start.y, start.x];
         let p2 = [end.y, end.x];
-        let spacing = self.slice_plane_spacing();
         let (pixels, width, height) = vol.extract_slice(self.axis, self.viewer_state.slice_index);
         let (center, radii, mean, std_dev, min, max, area_mm2) =
-            Annotation::compute_roi_ellipse_stats(p1, p2, &pixels, width, height, spacing);
+            match Annotation::compute_roi_ellipse_stats_checked(
+                p1, p2, &pixels, width, height, spacing,
+            ) {
+                Ok(stats) => stats,
+                Err(error) => {
+                    self.status_message = format!("Measurement rejected: {error}");
+                    return;
+                }
+            };
         self.annotations.push(Annotation::RoiEllipse {
             center,
             radii,
@@ -245,16 +287,18 @@ impl SnapApp {
     /// | 0 axial   | dy | dx |
     /// | 1 coronal | dz | dx |
     /// | 2 sagittal| dz | dy |
-    pub(crate) fn slice_plane_spacing(&self) -> [f32; 2] {
+    pub(crate) fn slice_plane_spacing(&self) -> Result<[f64; 2], MeasurementError> {
         let Some(vol) = &self.loaded else {
-            return [1.0, 1.0];
+            return Err(MeasurementError::MissingVolume);
         };
-        let [dz, dy, dx] = vol.spacing.map(|s| s as f32);
-        match self.axis {
+        let [dz, dy, dx] = vol.spacing;
+        let spacing = match self.axis {
             0 => [dy, dx],
             1 => [dz, dx],
             _ => [dz, dy],
-        }
+        };
+        Annotation::validate_spacing(spacing)?;
+        Ok(spacing)
     }
 
     pub(crate) fn apply_label_at_pointer(
@@ -271,6 +315,7 @@ impl SnapApp {
             self.axis_slice_info(axis).0,
             point,
             rect,
+            self.view_transform,
         ) else {
             return;
         };
@@ -308,9 +353,14 @@ impl SnapApp {
         let Some(cursor) = self.linked_cursor.as_mut() else {
             return;
         };
-        let Some(voxel) =
-            cursor.update_from_viewport_point(volume.shape, axis, slice_index, point, rect)
-        else {
+        let Some(voxel) = cursor.update_from_viewport_point(
+            volume.shape,
+            axis,
+            slice_index,
+            point,
+            rect,
+            self.view_transform,
+        ) else {
             return;
         };
         self.viewer_state.slice_index = voxel[0];
@@ -344,8 +394,14 @@ impl SnapApp {
             return;
         };
         let slice_index = self.axis_slice_info(axis).0;
-        let Some(voxel) = viewport_point_to_voxel(volume.shape, axis, slice_index, point, rect)
-        else {
+        let Some(voxel) = viewport_point_to_voxel(
+            volume.shape,
+            axis,
+            slice_index,
+            point,
+            rect,
+            self.view_transform,
+        ) else {
             self.pointer_intensity = 0.0;
             self.pointer_suv = None;
             return;

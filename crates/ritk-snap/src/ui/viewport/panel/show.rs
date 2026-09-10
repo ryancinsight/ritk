@@ -11,11 +11,12 @@ use crate::{
         mip_vr::{render_mip_axial, render_vr_axial},
         slice_render::SliceRenderer,
     },
-    tools::interaction::ToolState,
+    tools::interaction::{Annotation, ToolState},
     ui::{
         measurements::MeasurementLayer,
         overlay::{OverlayContext, OverlayRenderer},
         zoom::fit_view_transform,
+        ViewTransform,
     },
     LoadedVolume,
 };
@@ -137,6 +138,7 @@ impl<'a> ViewportPanel<'a> {
                         pointer_intensity,
                         cursor_suv: None,
                         pointer_suv: None,
+                        view_transform: ViewTransform::default(),
                     },
                 );
                 if let Some(details) = details {
@@ -162,11 +164,12 @@ impl<'a> ViewportPanel<'a> {
                 .and_then(|s| screen_to_img_exact(s, offset, scale))
                 .map(|(col, row)| egui::pos2(col, row));
             let sp = volume.spacing;
-            let spacing_2d: [f32; 2] = match self.state.axis {
-                0 => [sp[1] as f32, sp[2] as f32],
-                1 => [sp[0] as f32, sp[2] as f32],
-                _ => [sp[0] as f32, sp[1] as f32],
+            let spacing_2d = match self.state.axis {
+                0 => [sp[1], sp[2]],
+                1 => [sp[0], sp[2]],
+                _ => [sp[0], sp[1]],
             };
+            let spacing_2d = Annotation::validate_spacing(spacing_2d).ok();
             MeasurementLayer::draw_in_progress(
                 &painter,
                 &self.state.tool_state,

@@ -2,8 +2,9 @@ use super::state::{RtDoseOverlayCacheEntry, SnapApp};
 use crate::ui::rtdose_overlay::extract_dose_slice_for_volume;
 use crate::ui::rtdose_texture::{build_overlay_image, overlay_alpha, positive_finite_dose_range};
 use crate::ui::{
-    axis_slice_dimensions, compute_roi_dose_analytics, map_view_row_col_to_voxel,
-    project_rt_struct_contours_for_slice, rt_dose_analytics::VolumeGeometry,
+    apply_to_image_into, axis_slice_dimensions, compute_roi_dose_analytics,
+    map_view_row_col_to_voxel, project_rt_struct_contours_for_slice,
+    rt_dose_analytics::VolumeGeometry, ViewTransform,
 };
 use ritk_annotation::Visibility;
 use tracing::{error, info};
@@ -162,12 +163,14 @@ impl SnapApp {
         let vol_shape = vol.shape;
         let dose_dims = [rt_dose.n_frames, rt_dose.rows, rt_dose.cols];
         let opacity_alpha = overlay_alpha(self.rt_dose_opacity);
+        let view_transform = self.view_transform;
 
         if let Some(entry) = self.rt_dose_overlay_cache[axis_slot].as_ref() {
             if entry.slice_idx == slice_idx
                 && entry.vol_shape == vol_shape
                 && entry.dose_dims == dose_dims
                 && entry.opacity_alpha == opacity_alpha
+                && entry.view_transform == view_transform
             {
                 painter.image(
                     entry.texture.id(),
@@ -195,7 +198,6 @@ impl SnapApp {
         ) else {
             return;
         };
-
         let Some((min_dose, max_dose)) = positive_finite_dose_range(&dose_map) else {
             return;
         };
@@ -221,6 +223,9 @@ impl SnapApp {
             return;
         };
 
+        let color_image =
+            apply_to_image_into(&mut self.render_buffer_pool, &color_image, view_transform);
+
         let tex_name = format!("rtdose_overlay_axis{}_slice{}", axis_slot, slice_idx);
         let texture =
             painter
@@ -233,6 +238,7 @@ impl SnapApp {
             vol_shape,
             dose_dims,
             opacity_alpha,
+            view_transform,
             texture,
         });
 
@@ -249,6 +255,7 @@ impl SnapApp {
         painter: &egui::Painter,
         rect: egui::Rect,
         axis: usize,
+        transform: ViewTransform,
     ) {
         let Some(editor) = &self.label_editor else {
             return;
@@ -264,8 +271,10 @@ impl SnapApp {
         }
 
         let slice_index = self.axis_slice_info(axis).0;
-        let cell_w = rect.width() / width as f32;
-        let cell_h = rect.height() / height as f32;
+        let source_size = [width, height];
+        let output_size = transform.output_size(source_size);
+        let scale_x = rect.width() / output_size[0] as f32;
+        let scale_y = rect.height() / output_size[1] as f32;
 
         for row in 0..height {
             for col in 0..width {
@@ -280,8 +289,37 @@ impl SnapApp {
                 if entry.visible == Visibility::Hidden {
                     continue;
                 }
-                let x0 = rect.min.x + col as f32 * cell_w;
-                let y0 = rect.min.y + row as f32 * cell_h;
+                let corners = [
+                    transform.source_to_output(egui::pos2(col as f32, row as f32), source_size),
+                    transform
+                        .source_to_output(egui::pos2(col as f32 + 1.0, row as f32), source_size),
+                    transform
+                        .source_to_output(egui::pos2(col as f32, row as f32 + 1.0), source_size),
+                    transform.source_to_output(
+                        egui::pos2(col as f32 + 1.0, row as f32 + 1.0),
+                        source_size,
+                    ),
+                ];
+                let min_x = corners
+                    .iter()
+                    .map(|point| point.x)
+                    .fold(f32::INFINITY, f32::min);
+                let max_x = corners
+                    .iter()
+                    .map(|point| point.x)
+                    .fold(f32::NEG_INFINITY, f32::max);
+                let min_y = corners
+                    .iter()
+                    .map(|point| point.y)
+                    .fold(f32::INFINITY, f32::min);
+                let max_y = corners
+                    .iter()
+                    .map(|point| point.y)
+                    .fold(f32::NEG_INFINITY, f32::max);
+                let x0 = rect.min.x + min_x * scale_x;
+                let y0 = rect.min.y + min_y * scale_y;
+                let cell_w = (max_x - min_x) * scale_x;
+                let cell_h = (max_y - min_y) * scale_y;
                 painter.rect_filled(
                     egui::Rect::from_min_size(egui::pos2(x0, y0), egui::vec2(cell_w, cell_h)),
                     0.0,
@@ -301,8 +339,7 @@ impl SnapApp {
         painter: &egui::Painter,
         rect: egui::Rect,
         axis: usize,
-        image_h: usize,
-        image_w: usize,
+        transform: ViewTransform,
     ) {
         let Some(volume) = &self.loaded else {
             return;
@@ -310,9 +347,14 @@ impl SnapApp {
         let Some(rt) = &self.rt_struct else {
             return;
         };
-        if image_h == 0 || image_w == 0 {
+        let Some((source_width, source_height)) = axis_slice_dimensions(volume.shape, axis) else {
+            return;
+        };
+        if source_width == 0 || source_height == 0 {
             return;
         }
+        let source_size = [source_width, source_height];
+        let output_size = transform.output_size(source_size);
 
         let (slice_index, _) = self.axis_slice_info(axis);
 
@@ -327,9 +369,10 @@ impl SnapApp {
         );
 
         let to_screen = |row: f32, col: f32| -> egui::Pos2 {
+            let output = transform.source_to_output(egui::pos2(col + 0.5, row + 0.5), source_size);
             egui::pos2(
-                rect.min.x + ((col + 0.5) / image_w as f32) * rect.width(),
-                rect.min.y + ((row + 0.5) / image_h as f32) * rect.height(),
+                rect.min.x + (output.x / output_size[0] as f32) * rect.width(),
+                rect.min.y + (output.y / output_size[1] as f32) * rect.height(),
             )
         };
 

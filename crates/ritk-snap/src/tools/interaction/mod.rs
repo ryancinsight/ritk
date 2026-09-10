@@ -16,5 +16,5 @@ mod tool_state;
 #[cfg(test)]
 mod tests;
 
-pub use annotation::Annotation;
+pub use annotation::{Annotation, MeasurementError};
 pub use tool_state::{RoiKind, ToolState};

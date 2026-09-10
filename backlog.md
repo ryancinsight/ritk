@@ -47,7 +47,8 @@
 
 <a id="RITK-SNAP-COORDINATES-001"></a>
 ## RITK-SNAP-COORDINATES-001 — Preserve transformed measurement coordinates [patch]
-- Status: todo; priority: P0; owner: RITK viewer; dependencies: RITK-SNAP-ASPECT-001; risk: misleading cursor and measurement readouts.
+- Status: in-progress; priority: P0; owner: RITK viewer; integrator: root; last-update: 2026-09-09; branch: `feat/snap-coordinates-001`; regions: `crates/ritk-snap/src/app`, `crates/ritk-snap/src/ui/cursor_info.rs`, `crates/ritk-snap/src/ui/measurements`, `crates/ritk-snap/src/ui/rtstruct_overlay.rs`, `crates/ritk-snap/src/app/tests`, `docs/adr`, `docs/manual`; dependencies: RITK-SNAP-ASPECT-001; risk: misleading cursor and measurement readouts.
+- Lease: root — transformed image hit-testing, coordinate/measurement projection, focused tests, and synchronized ADR/manual evidence — 2026-09-09.
 - Scope: reconcile texture rotation/flip, source voxel coordinates, orientation labels and annotation coordinates; validate the physical measurement representation at its boundary.
 - Evidence: aspect tests establish unrotated cursor hits, not inverse-transformed source hits; annotation APIs narrow physical spacing to `f32`, which can become zero or infinity for admitted finite `f64` geometry.
 - Acceptance: all admitted transforms preserve known patient-coordinate landmarks and measured distances; unrepresentable measurement values reject explicitly rather than display zero, infinity or NaN.

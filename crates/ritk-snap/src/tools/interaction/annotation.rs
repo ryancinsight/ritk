@@ -39,6 +39,26 @@
 //! area = (max_r − min_r + 1) · s_r × (max_c − min_c + 1) · s_c [mm²]
 //! ```
 
+/// Failure raised when physical measurement inputs or results cannot be
+/// represented without changing their meaning.
+#[derive(Debug, Clone, Copy, PartialEq, thiserror::Error)]
+#[non_exhaustive]
+pub enum MeasurementError {
+    /// A spacing component is not finite and strictly positive.
+    #[error("voxel spacing component {index} is not finite and positive: {value}")]
+    InvalidSpacing { index: usize, value: f64 },
+    /// A valid physical spacing component cannot be represented by the
+    /// f32-backed annotation storage used by the viewer.
+    #[error("voxel spacing component {index} cannot be represented as f32: {value}")]
+    UnrepresentableSpacing { index: usize, value: f64 },
+    /// A computed physical value overflowed or became non-finite.
+    #[error("{kind} measurement result is not finite")]
+    NonFiniteResult { kind: &'static str },
+    /// A measurement was requested without a loaded volume.
+    #[error("measurement requires a loaded volume")]
+    MissingVolume,
+}
+
 // ── Completed annotations ─────────────────────────────────────────────────────
 
 /// A completed measurement annotation stored on a viewport.
@@ -135,6 +155,40 @@ pub enum Annotation {
 }
 
 impl Annotation {
+    /// Validate physical spacing and its conversion to annotation storage.
+    ///
+    /// The viewer persists derived values as `f32`; accepting a finite `f64`
+    /// that narrows to zero or infinity would create an invalid displayed
+    /// measurement, so the boundary rejects it explicitly.
+    pub fn validate_spacing(spacing: [f64; 2]) -> Result<[f32; 2], MeasurementError> {
+        let mut converted = [0.0_f32; 2];
+        for (index, value) in spacing.into_iter().enumerate() {
+            if !value.is_finite() || value <= 0.0 {
+                return Err(MeasurementError::InvalidSpacing { index, value });
+            }
+            let narrowed = value as f32;
+            if !narrowed.is_finite() || narrowed <= 0.0 {
+                return Err(MeasurementError::UnrepresentableSpacing { index, value });
+            }
+            converted[index] = narrowed;
+        }
+        Ok(converted)
+    }
+
+    /// Compute a finite length after validating physical spacing.
+    pub fn compute_length_checked(
+        p1: [f32; 2],
+        p2: [f32; 2],
+        spacing: [f64; 2],
+    ) -> Result<f32, MeasurementError> {
+        let spacing = Self::validate_spacing(spacing)?;
+        let result = Self::compute_length(p1, p2, spacing);
+        result
+            .is_finite()
+            .then_some(result)
+            .ok_or(MeasurementError::NonFiniteResult { kind: "length" })
+    }
+
     /// Compute the Euclidean distance between two image points in physical space.
     ///
     /// # Parameters
@@ -255,6 +309,30 @@ impl Annotation {
         (mean, std_dev, min, max, area_mm2)
     }
 
+    /// Compute rectangle statistics after validating physical spacing and the
+    /// f32-backed derived area.
+    pub fn compute_roi_rect_stats_checked(
+        p1: [f32; 2],
+        p2: [f32; 2],
+        pixels: &[f32],
+        width: usize,
+        height: usize,
+        spacing: [f64; 2],
+    ) -> Result<(f32, f32, f32, f32, f32), MeasurementError> {
+        let spacing = Self::validate_spacing(spacing)?;
+        let result = Self::compute_roi_rect_stats(p1, p2, pixels, width, height, spacing);
+        let finite = result.0.is_finite()
+            && result.1.is_finite()
+            && result.2.is_finite()
+            && result.3.is_finite()
+            && result.4.is_finite();
+        finite
+            .then_some(result)
+            .ok_or(MeasurementError::NonFiniteResult {
+                kind: "rectangle ROI",
+            })
+    }
+
     /// Compute intensity statistics for pixels whose centres lie inside the
     /// ellipse defined by two opposite corners `p1` and `p2`.
     ///
@@ -339,5 +417,38 @@ impl Annotation {
         let area_mm2 = std::f32::consts::PI * a * spacing[0] * b * spacing[1];
 
         (center, radii, mean, std_dev, min, max, area_mm2)
+    }
+
+    /// Compute ellipse statistics after validating physical spacing and the
+    /// f32-backed derived area.
+    #[expect(
+        clippy::type_complexity,
+        reason = "the checked API mirrors the established ellipse statistics tuple"
+    )]
+    pub fn compute_roi_ellipse_stats_checked(
+        p1: [f32; 2],
+        p2: [f32; 2],
+        pixels: &[f32],
+        width: usize,
+        height: usize,
+        spacing: [f64; 2],
+    ) -> Result<([f32; 2], [f32; 2], f32, f32, f32, f32, f32), MeasurementError> {
+        let spacing = Self::validate_spacing(spacing)?;
+        let result = Self::compute_roi_ellipse_stats(p1, p2, pixels, width, height, spacing);
+        let finite = result
+            .0
+            .iter()
+            .chain(result.1.iter())
+            .all(|value| value.is_finite())
+            && result.2.is_finite()
+            && result.3.is_finite()
+            && result.4.is_finite()
+            && result.5.is_finite()
+            && result.6.is_finite();
+        finite
+            .then_some(result)
+            .ok_or(MeasurementError::NonFiniteResult {
+                kind: "ellipse ROI",
+            })
     }
 }

@@ -3,6 +3,7 @@
 //! Painter shapes are inspected without a GPU; native capture verifies raster output.
 
 use super::*;
+use crate::ui::{RotationSteps, ViewTransform};
 
 /// `anchor_pos` for LEFT_TOP must return (min.x + MARGIN, min.y + MARGIN).
 #[test]
@@ -84,6 +85,50 @@ fn test_orientation_labels_sagittal_standard_axes() {
     assert_eq!(labels.right, "P");
     assert_eq!(labels.top, "I");
     assert_eq!(labels.bottom, "S");
+}
+
+#[test]
+fn transformed_orientation_labels_follow_displayed_edges() {
+    let direction = [0.0, 0.0, 1.0, 0.0, 1.0, 0.0, 1.0, 0.0, 0.0];
+    let flipped = orientation_labels_for_transform(
+        0,
+        &direction,
+        [4, 6, 8],
+        ViewTransform {
+            flip_h: true,
+            flip_v: false,
+            rotation: RotationSteps::Zero,
+        },
+    );
+    assert_eq!(
+        flipped,
+        OrientationLabels {
+            left: "L",
+            right: "R",
+            top: "A",
+            bottom: "P",
+        }
+    );
+
+    let rotated = orientation_labels_for_transform(
+        0,
+        &direction,
+        [4, 6, 8],
+        ViewTransform {
+            flip_h: false,
+            flip_v: false,
+            rotation: RotationSteps::Ninety,
+        },
+    );
+    assert_eq!(
+        rotated,
+        OrientationLabels {
+            left: "P",
+            right: "A",
+            top: "R",
+            bottom: "L",
+        }
+    );
 }
 
 // ── format_pointer_str ────────────────────────────────────────────────────────
@@ -172,6 +217,7 @@ fn overlay_fits_or_discloses_complete_metadata_at_small_sizes() {
                         pointer_intensity: 40.0,
                         pointer_suv: None,
                         cursor_suv: None,
+                        view_transform: ViewTransform::default(),
                     },
                 );
                 if let Some(details) = &disclosure {

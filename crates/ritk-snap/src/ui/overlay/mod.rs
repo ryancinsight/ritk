@@ -34,6 +34,7 @@ mod details;
 
 use super::anatomical_label_for_axis;
 use crate::render::slice_render::WindowLevel;
+use crate::ui::{axis_slice_dimensions, ViewTransform};
 use crate::LoadedVolume;
 
 // ── constants ──────────────────────────────────────────────────────────────────
@@ -69,6 +70,8 @@ pub struct OverlayContext {
     pub pointer_intensity: f32,
     pub pointer_suv: Option<f32>,
     pub cursor_suv: Option<f32>,
+    /// Transform applied to the source slice before it is displayed.
+    pub view_transform: ViewTransform,
 }
 
 /// Renders DICOM-style information overlays on a viewport rectangle.
@@ -117,6 +120,7 @@ impl OverlayRenderer {
             pointer_intensity,
             pointer_suv,
             cursor_suv,
+            view_transform,
         } = ctx;
         let [depth, rows, cols] = volume.shape;
 
@@ -190,7 +194,8 @@ impl OverlayRenderer {
         .filter(|s| !s.is_empty())
         .copied()
         .collect();
-        let labels = orientation_labels(axis, &volume.direction);
+        let labels =
+            orientation_labels_for_transform(axis, &volume.direction, volume.shape, view_transform);
         let blocks = [
             (Align2::LEFT_TOP, tl_text),
             (Align2::RIGHT_TOP, tr_lines.join("\n")),
@@ -360,6 +365,49 @@ fn orientation_labels(axis: usize, direction: &[f64; 9]) -> OrientationLabels {
         right: lps_label(horiz, true),
         top: lps_label(vert, false),
         bottom: lps_label(vert, true),
+    }
+}
+
+fn orientation_labels_for_transform(
+    axis: usize,
+    direction: &[f64; 9],
+    volume_shape: [usize; 3],
+    transform: ViewTransform,
+) -> OrientationLabels {
+    let labels = orientation_labels(axis, direction);
+    let Some((width, height)) = axis_slice_dimensions(volume_shape, axis) else {
+        return labels;
+    };
+    if width == 0 || height == 0 || transform.is_identity() {
+        return labels;
+    }
+    let source_size = [width, height];
+    let output_size = transform.output_size(source_size);
+    let source_edges = [
+        (labels.left, egui::pos2(0.0, height as f32 * 0.5)),
+        (labels.right, egui::pos2(width as f32, height as f32 * 0.5)),
+        (labels.top, egui::pos2(width as f32 * 0.5, 0.0)),
+        (labels.bottom, egui::pos2(width as f32 * 0.5, height as f32)),
+    ];
+    let mut mapped = [None; 4];
+    for (label, point) in source_edges {
+        let output = transform.source_to_output(point, source_size);
+        let slot = if output.x <= 0.5 {
+            0
+        } else if output.x >= output_size[0] as f32 - 0.5 {
+            1
+        } else if output.y <= 0.5 {
+            2
+        } else {
+            3
+        };
+        mapped[slot] = Some(label);
+    }
+    OrientationLabels {
+        left: mapped[0].unwrap_or(labels.left),
+        right: mapped[1].unwrap_or(labels.right),
+        top: mapped[2].unwrap_or(labels.top),
+        bottom: mapped[3].unwrap_or(labels.bottom),
     }
 }
 

@@ -7,7 +7,6 @@ use egui::Vec2;
 pub(super) struct ImagePlacement {
     pub(super) response: egui::Response,
     pub(super) texel_size: Vec2,
-    pub(super) row_col_spacing: [f32; 2],
 }
 
 impl ImagePlacement {
@@ -31,17 +30,22 @@ impl ImagePlacement {
         sense: egui::Sense,
     ) -> anyhow::Result<Self> {
         let [dz, dy, dx] = volume.spacing;
-        let [row_mm, col_mm] = match axis {
+        let source_spacing = match axis {
             0 => [dy, dx],
             1 => [dz, dx],
             _ => [dz, dy],
         };
-        let [row_mm, col_mm] = match transform.rotation {
-            RotationSteps::Ninety | RotationSteps::TwoSeventy => [col_mm, row_mm],
-            RotationSteps::Zero | RotationSteps::OneEighty => [row_mm, col_mm],
+        let display_spacing = match transform.rotation {
+            RotationSteps::Ninety | RotationSteps::TwoSeventy => {
+                [source_spacing[1], source_spacing[0]]
+            }
+            RotationSteps::Zero | RotationSteps::OneEighty => source_spacing,
         };
         anyhow::ensure!(
-            row_mm.is_finite() && col_mm.is_finite() && row_mm > 0.0 && col_mm > 0.0,
+            source_spacing
+                .iter()
+                .chain(display_spacing.iter())
+                .all(|spacing| spacing.is_finite() && *spacing > 0.0),
             "slice sample distances must be positive and finite"
         );
         let pixels = texture.size;
@@ -49,10 +53,10 @@ impl ImagePlacement {
         // A common distance unit cancels from the fit. Normalize before the
         // f64 geometry crosses into egui's f32 coordinate space, preserving
         // aspect even when all sample distances exceed f32's exponent range.
-        let reference_mm = row_mm.max(col_mm);
+        let reference_mm = display_spacing[0].max(display_spacing[1]);
         let relative_spacing = Vec2::new(
-            (col_mm / reference_mm) as f32,
-            (row_mm / reference_mm) as f32,
+            (display_spacing[1] / reference_mm) as f32,
+            (display_spacing[0] / reference_mm) as f32,
         );
         let physical = pixels * relative_spacing;
         let fit = (available.x / physical.x).min(available.y / physical.y);
@@ -89,7 +93,6 @@ impl ImagePlacement {
         Ok(Self {
             response,
             texel_size,
-            row_col_spacing: [row_mm as f32, col_mm as f32],
         })
     }
 }

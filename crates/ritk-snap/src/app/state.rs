@@ -19,6 +19,7 @@ pub(crate) struct RtDoseOverlayCacheEntry {
     pub(crate) vol_shape: [usize; 3],
     pub(crate) dose_dims: [usize; 3],
     pub(crate) opacity_alpha: u8,
+    pub(crate) view_transform: ViewTransform,
     pub(crate) texture: egui::TextureHandle,
 }
 
