@@ -38,6 +38,36 @@ fn native_session_renders_and_steps_the_loaded_slice() {
 }
 
 #[test]
+fn native_session_drag_updates_pan_and_presented_frame() {
+    let (mut session, _root) = session();
+    session.app.active_tool = crate::tools::kind::ToolKind::Pan;
+    let initial_frame = session.framebuffer.clone();
+    let (start_x, start_y) = session.viewports[0].center();
+    session
+        .handle_events(&[
+            WindowEvent::PointerDown {
+                x: start_x,
+                y: start_y,
+                button: metis_platform::native::MouseButton::Left,
+            },
+            WindowEvent::PointerMove {
+                x: start_x + 24,
+                y: start_y + 12,
+            },
+            WindowEvent::PointerUp {
+                x: start_x + 24,
+                y: start_y + 12,
+                button: metis_platform::native::MouseButton::Left,
+            },
+        ])
+        .expect("pan transition");
+    assert!(session.app.pan_offset.x > 0.0);
+    assert!(session.app.pan_offset.y > 0.0);
+    assert_ne!(session.framebuffer.pixels(), initial_frame.pixels());
+    assert!(session.observation.frame_generations.load(Ordering::Relaxed) > 1);
+}
+
+#[test]
 fn native_session_composes_three_views_and_routes_wheels_by_panel() {
     let (mut session, _root) = session();
     assert_eq!(session.views.len(), 3);

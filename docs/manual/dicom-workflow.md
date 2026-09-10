@@ -348,6 +348,12 @@ hidden capture. The test proves the host boundary and the existing DICOM
 workflow; it does not add a DICOM parser to Métis. Browser handoff, GPU upload
 and packaged installer artifacts remain migration work.
 
+Primary-button drags follow the selected RITK tool through the same event path.
+For the Pan tool, the resulting image-space offset is applied while RITK
+recomposes the three panels, so the next Métis framebuffer reflects the drag as
+well as the updated viewer state. This is a state-and-pixels check; it does not
+move DICOM parsing or geometry ownership into Métis.
+
 Wheel input is now reduced and applied by RITK for every host. The native
 Moirai `ModifierState` is translated into the format-neutral
 `PresentationModifiers`; the current egui producer emits the same
