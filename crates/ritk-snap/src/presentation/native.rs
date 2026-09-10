@@ -1,8 +1,8 @@
 //! Windows host adapter for one RITK presentation frame.
 
 use super::{
-    CompositionPhase, PointerButton, PresentationEvent, PresentationFrame, MAX_COMPOSITION_UNITS,
-    MAX_PRESENTATION_EVENTS,
+    CompositionPhase, PointerButton, PresentationEvent, PresentationFrame, PresentationModifiers,
+    MAX_COMPOSITION_UNITS, MAX_PRESENTATION_EVENTS,
 };
 use anyhow::{anyhow, bail, Result};
 use metis_platform::native::{
@@ -114,6 +114,19 @@ pub fn translate_native_events(events: &[WindowEvent]) -> Result<Box<[Presentati
                 y: f64::from(*y),
                 button: translate_pointer_button(*button),
             },
+            WindowEvent::PointerWheel {
+                x,
+                y,
+                delta_x,
+                delta_y,
+                modifiers,
+            } => PresentationEvent::PointerWheel {
+                x: f64::from(*x),
+                y: f64::from(*y),
+                delta_x: f64::from(*delta_x),
+                delta_y: f64::from(*delta_y),
+                modifiers: translate_modifiers(*modifiers),
+            },
             WindowEvent::KeyDown {
                 virtual_key,
                 repeated,
@@ -149,6 +162,15 @@ fn translate_pointer_button(button: metis_platform::native::MouseButton) -> Poin
         metis_platform::native::MouseButton::X1 => PointerButton::X1,
         metis_platform::native::MouseButton::X2 => PointerButton::X2,
     }
+}
+
+fn translate_modifiers(modifiers: metis_platform::native::ModifierState) -> PresentationModifiers {
+    PresentationModifiers::new(
+        modifiers.ctrl(),
+        modifiers.shift(),
+        modifiers.alt(),
+        modifiers.meta(),
+    )
 }
 
 fn translate_composition_phase(
@@ -313,6 +335,13 @@ mod tests {
                 y: 4,
                 button: metis_platform::native::MouseButton::Right,
             },
+            WindowEvent::PointerWheel {
+                x: -5,
+                y: 6,
+                delta_x: -240,
+                delta_y: 120,
+                modifiers: metis_platform::native::ModifierState::NONE,
+            },
             WindowEvent::KeyDown {
                 virtual_key: 0x41,
                 repeated: true,
@@ -348,6 +377,13 @@ mod tests {
                     x: 3.0,
                     y: 4.0,
                     button: PointerButton::Right,
+                },
+                PresentationEvent::PointerWheel {
+                    x: -5.0,
+                    y: 6.0,
+                    delta_x: -240.0,
+                    delta_y: 120.0,
+                    modifiers: PresentationModifiers::NONE,
                 },
                 PresentationEvent::KeyDown {
                     virtual_key: 0x41,

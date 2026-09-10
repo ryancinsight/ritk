@@ -95,6 +95,31 @@ impl PresentationDispatcher {
                     action_limit,
                 )
             }
+            PresentationEvent::PointerWheel {
+                x,
+                y,
+                delta_x,
+                delta_y,
+                modifiers,
+            } => {
+                let position = viewport_point(*x, *y)?;
+                let delta = WheelDelta::new(*delta_x, *delta_y);
+                if !delta.is_finite() {
+                    return Err(ActionDispatchError::NonFiniteWheelDelta {
+                        delta_x: *delta_x,
+                        delta_y: *delta_y,
+                    });
+                }
+                Self::push_action(
+                    actions,
+                    ViewerAction::PointerWheel {
+                        position,
+                        delta,
+                        modifiers: *modifiers,
+                    },
+                    action_limit,
+                )
+            }
             PresentationEvent::PointerUp { x, y, button } => {
                 let slot = button_slot(*button);
                 let Some(press) = self.pointers[slot].take() else {

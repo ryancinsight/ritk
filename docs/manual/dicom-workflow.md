@@ -267,6 +267,16 @@ hidden-window present/close path. The test proves the host boundary, not a new
 DICOM implementation. Binding those events to viewer actions, browser
 handoff, and the full three-view/GPU adapter remain migration work.
 
+Wheel input is now reduced and applied by RITK for every host. The native
+Moirai `ModifierState` is translated into the format-neutral
+`PresentationModifiers`; the current egui producer emits the same
+`PresentationEvent::PointerWheel` shape. Ctrl/Command plus a vertical delta
+uses the existing zoom policy, while an unmodified vertical delta steps the
+active slice. Non-finite deltas and events outside a viewport are rejected or
+ignored before viewer state changes. Métis carries the event snapshot only; it
+does not parse DICOM, retain a decoded volume, choose a series, or apply a
+clinical display transform.
+
 The existing `dicom-window.png` below is intentionally labeled as the
 egui/eframe baseline. It is not relabeled as a Métis capture until the complete
 viewer event and screenshot workflow runs through Métis.

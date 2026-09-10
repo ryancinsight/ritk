@@ -113,6 +113,17 @@ coordinates from a narrowed presentation point. The RITK package gate passes
 776/776 nextest tests; DICOM parsing, volume state and clinical semantics
 remain in RITK.
 
+Revision 2026-09-10 (wheel and modifier ownership correction): RITK now carries
+the provider-neutral `PresentationModifiers` and `PointerWheel` event values,
+reduces finite wheel deltas into `ViewerAction::PointerWheel`, and applies the
+existing Ctrl/Command zoom and plain vertical slice-step policies in the RITK
+action adapter. The native producer translates Moirai's `ModifierState`; the
+egui producer feeds the same event path. Métis only transports the modifier
+snapshot through its native surface. RITK owns all wheel behavior, DICOM
+opening, decoded volume state and clinical semantics; no DICOM value or parser
+crosses the Métis seam. The focused action, native translation and adapter
+tests are the acceptance oracle for this increment.
+
 Revision 2026-09-08: [RITK-SNAP-DIRECTORY-001](../../backlog.md#RITK-SNAP-DIRECTORY-001)
 now validates the Explicit VR Little Endian DICOMDIR record sequence before
 membership is admitted. RecordInUseFlag, next/lower offsets, incoming-link

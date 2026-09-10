@@ -211,6 +211,60 @@ fn malformed_batch_is_atomic_and_composition_is_bounded() {
 }
 
 #[test]
+fn wheel_actions_preserve_signed_values_and_modifiers() {
+    let mut dispatcher = PresentationDispatcher::new();
+    let modifiers = PresentationModifiers::new(true, false, false, true);
+    let actions = dispatcher
+        .dispatch(&[PresentationEvent::PointerWheel {
+            x: 12.5,
+            y: -3.25,
+            delta_x: -240.0,
+            delta_y: 120.0,
+            modifiers,
+        }])
+        .expect("wheel event");
+    assert_eq!(
+        actions.as_ref(),
+        &[ViewerAction::PointerWheel {
+            position: ViewportPoint::new(12.5, -3.25),
+            delta: WheelDelta::new(-240.0, 120.0),
+            modifiers,
+        }]
+    );
+}
+
+#[test]
+fn wheel_actions_reject_non_finite_deltas_without_state_changes() {
+    let mut dispatcher = PresentationDispatcher::new();
+    let error = dispatcher
+        .dispatch(&[PresentationEvent::PointerWheel {
+            x: 1.0,
+            y: 2.0,
+            delta_x: f64::NAN,
+            delta_y: 1.0,
+            modifiers: PresentationModifiers::NONE,
+        }])
+        .expect_err("non-finite wheel delta");
+    assert!(matches!(
+        error,
+        ActionDispatchError::NonFiniteWheelDelta { .. }
+    ));
+    let actions = dispatcher
+        .dispatch(&[PresentationEvent::PointerUp {
+            x: 1.0,
+            y: 2.0,
+            button: PointerButton::Left,
+        }])
+        .expect_err("failed wheel batch must not alter pointer state");
+    assert!(matches!(
+        actions,
+        ActionDispatchError::PointerReleaseWithoutPress {
+            button: PointerButton::Left
+        }
+    ));
+}
+
+#[test]
 fn non_pointer_actions_preserve_all_values() {
     let mut dispatcher = PresentationDispatcher::new();
     let actions = dispatcher
