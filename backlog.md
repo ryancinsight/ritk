@@ -41,13 +41,9 @@
 - Verification: full `ritk-snap` nextest 714/714, focused RITK I/O/SNAP multiframe tests 6/6, Clippy, check, fmt, docs, and doctests pass.
 
 <a id="RITK-SNAP-FUSION-001"></a>
-## RITK-SNAP-FUSION-001 — Compare volumes in patient coordinates [patch]
-- Status: review; priority: P0; owner: RITK viewer/rendering; integrator: root; last-update: 2026-09-09; branch: `feat/snap-fusion-001`; regions: `crates/ritk-snap/src/geometry.rs`, `crates/ritk-snap/src/geometry/affine.rs`, `crates/ritk-snap/src/render/fusion.rs`, `crates/ritk-snap/src/render/tests_fusion.rs`, `crates/ritk-snap/src/app/viewport_compare.rs`, `crates/ritk-snap/src/ui/rtstruct_overlay.rs`, `crates/ritk-snap/examples/dicom_workflow.rs`, `scripts/viewer.py`, `docs/adr/0027-patient-coordinate-fusion.md`, `docs/adr/README.md`, `docs/manual/dicom-workflow.md`, `docs/manual/images/dicom-fusion.png`; dependencies: RITK-SNAP-OPEN-001; risk: misleading spatial correspondence.
-- Scope: map secondary samples into the primary patient-coordinate grid for fused viewing; define out-of-field and incompatible-reference-frame handling explicitly.
-- Decision: [ADR 0027](docs/adr/0027-patient-coordinate-fusion.md) owns the affine, frame-identity, plane, and out-of-field contract.
-- Evidence: `render/fusion.rs` now validates both affine grids and maps every primary voxel centre through patient space; the previous normalized-coordinate sampler is deleted.
-- Acceptance: analytic landmarks coincide for translated/rotated/anisotropic sampling grids; incompatible frame-of-reference identities fail or require explicit alignment; no normalized-coordinate blend is presented as registered anatomy.
-- Verification: 723/723 SNAP nextest, strict clippy, fmt, rustdoc, doctests, and viewer script against generated `dicom-fusion.png` with coordinate labels in `workflow.json`.
+## RITK-SNAP-FUSION-001 — Compare volumes in patient coordinates [patch] — done
+- Status: done; delivery: [`e5815378a`](https://github.com/ryancinsight/ritk/commit/e5815378a), merged by [PR #254](https://github.com/ryancinsight/ritk/pull/254); ADR: [0027](docs/adr/0027-patient-coordinate-fusion.md); RITK SNAP now samples secondary volumes through validated patient-coordinate affines.
+- Verification: 723/723 SNAP nextest, strict clippy, fmt, rustdoc, doctests, ADR index check, and the rebuilt DICOM fusion workflow/golden pass.
 
 <a id="RITK-SNAP-COORDINATES-001"></a>
 ## RITK-SNAP-COORDINATES-001 — Preserve transformed measurement coordinates [patch]
