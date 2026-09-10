@@ -24,8 +24,9 @@
 //! | 1      | r (coronal) | data[depth×R×C + r×C + col]         | (rows=D, cols=C)  |
 //! | 2      | c (sagittal)| data[depth×R×C + row×C + c]         | (rows=D, cols=R)  |
 //!
-//! The `SliceRenderer` converts extracted pixels through the WL LUT and then
-//! through a [`NamedColorMap`], producing an [`egui::ColorImage`] of size
+//! Scalar slices are converted through the WL LUT and then through a
+//! [`NamedColorMap`]. RGB slices preserve their three decoded channels and
+//! bypass scalar windowing, producing an [`egui::ColorImage`] of size
 //! `[width, height]` = `[cols, rows]` in egui convention.
 
 use super::buffer_pool::RenderBufferPool;
@@ -100,6 +101,10 @@ impl WindowLevel {
 
 /// Renders a single 2-D slice from a [`LoadedVolume`] to an [`egui::ColorImage`].
 ///
+/// Scalar volumes use DICOM window/level and the selected Iris colormap. RGB
+/// volumes preserve decoded red, green, and blue channels without scalar
+/// windowing or colormap mapping.
+///
 /// # Coordinate conventions
 ///
 /// | `axis` | Name     | Fixed index | Output: `[width, height]` in egui |
@@ -120,8 +125,8 @@ impl SliceRenderer {
     /// - `axis`     — 0 = axial (fixed depth), 1 = coronal (fixed row),
     ///   2 = sagittal (fixed column).
     /// - `index`    — position along `axis`; clamped to the valid range silently.
-    /// - `wl`       — DICOM window/level parameters for intensity mapping.
-    /// - `colormap` — colormap applied after WL normalisation.
+    /// - `wl`       — DICOM window/level parameters for scalar intensity mapping.
+    /// - `colormap` — colormap applied after scalar WL normalisation; ignored for RGB.
     ///
     /// # Returns
     /// An [`egui::ColorImage`] of size `[width, height]` (see table above)
@@ -133,6 +138,14 @@ impl SliceRenderer {
         wl: WindowLevel,
         colormap: NamedColorMap,
     ) -> egui::ColorImage {
+        if volume.channels == 3 {
+            let (samples, width, height) = volume.extract_slice_channels(axis, index);
+            return render_rgb_slice(&samples, width, height);
+        }
+        if volume.channels != 1 {
+            return invalid_channel_image(volume.channels);
+        }
+
         let (pixels, width, height) = volume.extract_slice(axis, index);
         if width == 0 || height == 0 {
             // Return a minimal valid image rather than panic; callers can detect
@@ -177,6 +190,23 @@ impl SliceRenderer {
         wl: WindowLevel,
         colormap: NamedColorMap,
     ) -> egui::ColorImage {
+        if volume.channels == 3 {
+            let (width, height) =
+                volume.extract_slice_channels_into(&mut pool.pixel_f32, axis, index);
+            if width == 0 || height == 0 {
+                return egui::ColorImage::from_rgb([1, 1], &[0_u8, 0, 0]);
+            }
+            pool.resize_pixel_bytes(width * height * 4);
+            let valid = write_rgb_rgba(&pool.pixel_f32, &mut pool.rgba_u8);
+            if !valid {
+                return invalid_channel_image(volume.channels);
+            }
+            return egui::ColorImage::from_rgba_unmultiplied([width, height], &pool.rgba_u8);
+        }
+        if volume.channels != 1 {
+            return invalid_channel_image(volume.channels);
+        }
+
         let (width, height) = volume.extract_slice_into(&mut pool.pixel_f32, axis, index);
         if width == 0 || height == 0 {
             return egui::ColorImage::from_rgb([1, 1], &[0u8, 0, 0]);
@@ -198,6 +228,52 @@ impl SliceRenderer {
         }
         egui::ColorImage::from_rgba_unmultiplied([width, height], &pool.rgba_u8)
     }
+}
+
+fn render_rgb_slice(samples: &[f32], width: usize, height: usize) -> egui::ColorImage {
+    if width == 0 || height == 0 {
+        return egui::ColorImage::from_rgb([1, 1], &[0_u8, 0, 0]);
+    }
+    let mut rgba = vec![0_u8; width * height * 4];
+    if !write_rgb_rgba(samples, &mut rgba) {
+        return invalid_channel_image(3);
+    }
+    egui::ColorImage::from_rgba_unmultiplied([width, height], &rgba)
+}
+
+fn write_rgb_rgba(samples: &[f32], rgba: &mut [u8]) -> bool {
+    let mut valid = samples.len() == rgba.len() / 4 * 3;
+    for (channels, pixel) in samples.chunks_exact(3).zip(rgba.chunks_exact_mut(4)) {
+        let Some(red) = rgb_component(channels[0]) else {
+            valid = false;
+            break;
+        };
+        let Some(green) = rgb_component(channels[1]) else {
+            valid = false;
+            break;
+        };
+        let Some(blue) = rgb_component(channels[2]) else {
+            valid = false;
+            break;
+        };
+        pixel.copy_from_slice(&[red, green, blue, 255]);
+    }
+    valid && samples.chunks_exact(3).remainder().is_empty()
+}
+
+fn rgb_component(value: f32) -> Option<u8> {
+    if !value.is_finite() || !(0.0..=255.0).contains(&value) || value.fract() != 0.0 {
+        return None;
+    }
+    // DICOM RGB decoding admits unsigned 8-bit integer samples, represented
+    // exactly as f32 by the IO boundary; this narrowing preserves that value.
+    #[expect(clippy::cast_possible_truncation, reason = "validated DICOM RGB byte")]
+    Some(value as u8)
+}
+
+fn invalid_channel_image(channels: u8) -> egui::ColorImage {
+    tracing::error!(channels, "slice rendering requires scalar or RGB channels");
+    egui::ColorImage::from_rgb([1, 1], &[255_u8, 0, 255])
 }
 
 #[cfg(test)]

@@ -290,6 +290,13 @@ impl GpuVolumeRenderer {
         wl: WindowLevel,
         colormap: NamedColorMap,
     ) -> Option<ColorImage> {
+        if volume.channels != 1 {
+            tracing::error!(
+                channels = volume.channels,
+                "GPU MIP requires a scalar volume"
+            );
+            return None;
+        }
         self.ensure_volume_uploaded(volume);
         let [_, rows, cols] = volume.shape;
 
@@ -381,6 +388,13 @@ impl GpuVolumeRenderer {
         colormap: NamedColorMap,
         alpha_scale: f32,
     ) -> Option<ColorImage> {
+        if volume.channels != 1 {
+            tracing::error!(
+                channels = volume.channels,
+                "GPU VR requires a scalar volume"
+            );
+            return None;
+        }
         self.ensure_volume_uploaded(volume);
         let [_, rows, cols] = volume.shape;
 

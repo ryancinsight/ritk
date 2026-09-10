@@ -31,6 +31,14 @@ pub(crate) const MULTIFRAME_RAW: [u8; 8] = [1, 2, 3, 4, 11, 12, 13, 14];
 #[cfg(test)]
 pub(crate) const MULTIFRAME_SERIES_UID: &str = "2.25.20260905003";
 
+/// Two-frame RGB multi-frame fixture geometry in `[frames, rows, cols]` order.
+pub(crate) const COLOR_MULTIFRAME_SHAPE: [usize; 3] = [2, 2, 2];
+/// Red, green, blue, white followed by cyan, magenta, yellow, and neutral.
+pub(crate) const COLOR_MULTIFRAME_RAW: [u8; 24] = [
+    255, 0, 0, 0, 255, 0, 0, 0, 255, 255, 255, 255, 0, 255, 255, 255, 0, 255, 255, 255, 0, 64, 64,
+    64,
+];
+
 /// Write one scalar Part 10 multi-frame object and return its name and bytes.
 ///
 /// `declared_frames` deliberately remains a parameter so malformed frame
@@ -105,6 +113,65 @@ pub(crate) fn write_multiframe(
     Ok((
         filename,
         std::fs::read(path).context("read synthetic multiframe object")?,
+    ))
+}
+
+/// Write a two-frame, interleaved unsigned RGB Part 10 object.
+pub(crate) fn write_color_multiframe(root: &Path) -> Result<(String, Vec<u8>)> {
+    std::fs::create_dir_all(root).context("create synthetic RGB multiframe directory")?;
+    let mut model = DicomObjectModel::new();
+    for (group, element, vr, value) in [
+        (0x0008, 0x0016, "UI", "1.2.840.10008.5.1.4.1.1.7.4"),
+        (0x0008, 0x0018, "UI", "2.25.20260905003.1"),
+        (0x0008, 0x0060, "CS", "OT"),
+        (0x0008, 0x0064, "CS", "WSD"),
+        (0x0020, 0x000D, "UI", "2.25.20260905004"),
+        (0x0020, 0x000E, "UI", "2.25.20260905003"),
+        (0x0020, 0x0032, "DS", "1\\2\\3"),
+        (0x0020, 0x0037, "DS", "1\\0\\0\\0\\1\\0"),
+        (0x0028, 0x0004, "CS", "RGB"),
+        (0x0028, 0x0030, "DS", "0.5\\0.25"),
+        (0x0018, 0x0050, "DS", "2.0"),
+    ] {
+        model.insert(DicomObjectNode::text(
+            DicomTag::new(group, element),
+            vr,
+            value,
+        ));
+    }
+    model.insert(DicomObjectNode::text(
+        DicomTag::new(0x0028, 0x0008),
+        "IS",
+        COLOR_MULTIFRAME_SHAPE[0].to_string(),
+    ));
+    for (element, value) in [
+        (0x0002, 3_u16),
+        (0x0006, 0_u16),
+        (0x0010, 2),
+        (0x0011, 2),
+        (0x0100, 8),
+        (0x0101, 8),
+        (0x0102, 7),
+        (0x0103, 0),
+    ] {
+        model.insert(DicomObjectNode::with_value(
+            DicomTag::new(0x0028, element),
+            "US",
+            value,
+        ));
+    }
+    model.insert(DicomObjectNode::bytes(
+        DicomTag::new(0x7FE0, 0x0010),
+        "OB",
+        COLOR_MULTIFRAME_RAW.to_vec(),
+    ));
+
+    let filename = "rgb-multiframe.dcm".to_owned();
+    let path = root.join(&filename);
+    ritk_io::write_dicom_object(&model, &path).context("write synthetic RGB multiframe object")?;
+    Ok((
+        filename,
+        std::fs::read(path).context("read synthetic RGB multiframe object")?,
     ))
 }
 

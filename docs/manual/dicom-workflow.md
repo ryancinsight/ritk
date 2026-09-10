@@ -2,8 +2,8 @@
 
 This workflow generates three small Part 10 instances, opens them through
 the viewer's directory and dropped-byte loaders, checks their decoded values
-and physical coordinates, and captures three orthogonal slice buffers plus a
-patient-coordinate fusion buffer.
+and physical coordinates, and captures three orthogonal scalar and RGB slice
+buffers plus a patient-coordinate fusion buffer.
 It needs no downloaded datasets or patient information.
 
 RITK owns the DICOM boundary used by presentation hosts. A host that receives
@@ -84,6 +84,34 @@ The regression fixtures use two distinct 2 × 2 frames with decoded values
 render each axial frame through `SliceRenderer` with independent pixel
 oracles. A declared three-frame object with only two frames is rejected during
 decode.
+
+## Preserve RGB presentation
+
+The same workflow writes a two-frame RGB object with interleaved unsigned
+8-bit samples. RITK's color reader admits only `PhotometricInterpretation=RGB`,
+`SamplesPerPixel=3`, `PlanarConfiguration=0`, and supported uncompressed or
+codec-backed transfer syntaxes. Scalar, palette, YBR, CMYK, planar, signed, or
+unsupported codec inputs fail at the DICOM boundary; they are never reduced to
+the first channel.
+
+The color object has shape `[depth, rows, columns] = [2, 2, 2]` and channel
+samples `[red, green, blue, white]` in frame zero followed by
+`[cyan, magenta, yellow, neutral]` in frame one. The filesystem and dropped-byte
+loaders must return the same interleaved samples. `SliceRenderer` copies these
+decoded channels directly into the display image for axial, coronal, and
+sagittal views. Scalar window/level and colormap parameters are intentionally
+not applied to RGB data, so a red source voxel remains red in the submitted
+texture.
+
+The images below are the actual RGB slice buffers enlarged with nearest-neighbor
+sampling. The color-channel tests compare every RGBA pixel, and `viewer.py`
+compares these grid bytes with the reviewed manual images.
+
+![RGB axial slice pixel grid](images/dicom-color-depth.png)
+
+![RGB coronal slice pixel grid](images/dicom-color-row.png)
+
+![RGB sagittal slice pixel grid](images/dicom-color-column.png)
 
 The images below come from `SliceRenderer`, which uses Iris's grayscale map.
 They show the decoded pixel grid enlarged by nearest-neighbour sampling.

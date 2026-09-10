@@ -1,4 +1,4 @@
-"""Verify synthetic DICOM and patient-coordinate fusion workflows."""
+"""Verify synthetic DICOM, RGB display, and patient-coordinate workflows."""
 import argparse
 import hashlib
 import json
@@ -25,6 +25,11 @@ def main():
     destination = ROOT / "scratch" / "viewer"
     images = [f"{axis}{suffix}.png" for axis in ("depth", "row", "column", "fusion", "orientation")
               for suffix in ("", "-grid")]
+    images.extend(
+        f"color-{axis}{suffix}.png"
+        for axis in ("depth", "row", "column")
+        for suffix in ("", "-grid")
+    )
     for path in (destination.parent, destination):
         if linked(path):
             raise ValueError(f"refusing linked output directory: {path}")
@@ -80,6 +85,15 @@ def main():
             if linked(golden) or (golden.exists() and golden.stat().st_nlink != 1):
                 raise ValueError(f"refusing linked golden file: {golden}")
             actual = (output / f"{axis}-grid.png").read_bytes()
+            if arguments.update_goldens:
+                golden.write_bytes(actual)
+            elif golden.read_bytes() != actual:
+                raise ValueError(f"render differs from reviewed manual image: {golden}")
+        for axis in ("depth", "row", "column"):
+            golden = golden_root / f"dicom-color-{axis}.png"
+            if linked(golden) or (golden.exists() and golden.stat().st_nlink != 1):
+                raise ValueError(f"refusing linked golden file: {golden}")
+            actual = (output / f"color-{axis}-grid.png").read_bytes()
             if arguments.update_goldens:
                 golden.write_bytes(actual)
             elif golden.read_bytes() != actual:

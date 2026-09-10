@@ -15,7 +15,7 @@
 //!
 //! | Call site | Eliminated scratch alloc |
 //! |----------------------------------|---------------------------------|
-//! | `SliceRenderer::render_with_scratch` | `Vec<f32>` from `extract_slice` |
+//! | `SliceRenderer::render_with_scratch` | `Vec<f32>` from slice extraction |
 //! | `SliceRenderer::render_with_scratch` | `Vec<u8>` RGBA intermediate |
 //! | `render_mip_axial_with_scratch` | `Vec<u8>` RGBA intermediate |
 //! | `render_vr_axial_with_scratch` | `Vec<u8>` RGBA intermediate |
@@ -37,7 +37,8 @@
 ///   needed and reuses without shrinking otherwise.
 #[derive(Debug, Default)]
 pub(crate) struct RenderBufferPool {
-    /// f32 scratch for `extract_slice_into` output (64-byte cache-line aligned).
+    /// f32 scratch for scalar or interleaved RGB slice extraction
+    /// (64-byte cache-line aligned).
     pub(crate) pixel_f32: mnemosyne::AlignedVec<f32>,
     /// u8 scratch for RGBA intermediate encoding (64-byte cache-line aligned).
     pub(crate) rgba_u8: mnemosyne::AlignedVec<u8>,

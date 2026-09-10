@@ -30,6 +30,43 @@ fn make_volume(depth: usize, rows: usize, cols: usize) -> LoadedVolume {
     }
 }
 
+/// Construct a two-frame RGB volume whose channel identity is unique at every
+/// voxel. Samples are interleaved in `[depth, row, column, channel]` order.
+fn make_rgb_volume() -> LoadedVolume {
+    let colors = [
+        [255.0, 0.0, 0.0],
+        [0.0, 255.0, 0.0],
+        [0.0, 0.0, 255.0],
+        [255.0, 255.0, 255.0],
+        [0.0, 255.0, 255.0],
+        [255.0, 0.0, 255.0],
+        [255.0, 255.0, 0.0],
+        [64.0, 64.0, 64.0],
+    ];
+    let data = colors.into_iter().flatten().collect();
+    LoadedVolume {
+        data: std::sync::Arc::new(data),
+        shape: [2, 2, 2],
+        channels: 3,
+        spacing: [1.0, 1.0, 1.0],
+        origin: [0.0, 0.0, 0.0],
+        direction: [1.0, 0.0, 0.0, 0.0, 1.0, 0.0, 0.0, 0.0, 1.0],
+        metadata: None,
+        source: None,
+        modality: None,
+        patient_name: None,
+        patient_id: None,
+        study_date: None,
+        series_description: None,
+        series_time: None,
+        patient_weight_kg: None,
+        injected_dose_bq: None,
+        radionuclide_half_life_s: None,
+        radiopharmaceutical_start_time: None,
+        decay_correction: None,
+    }
+}
+
 // ── WindowLevel ───────────────────────────────────────────────────────────
 
 /// v ≤ L must map to 0 (lower saturation).
@@ -215,4 +252,78 @@ fn test_slice_render_axial_pixel_values() {
         actual, expected,
         "axial slice d=0 pixel values must match WL formula output"
     );
+}
+
+/// RGB axial, coronal, and sagittal slices preserve channel identity and do
+/// not apply scalar window/level or colormap transforms.
+#[test]
+fn test_slice_render_rgb_preserves_channels_in_all_axes() {
+    let volume = make_rgb_volume();
+    let wl = WindowLevel::new(-10_000.0, 1.0);
+    let expected = [
+        (
+            0,
+            0,
+            vec![
+                [255, 0, 0, 255],
+                [0, 255, 0, 255],
+                [0, 0, 255, 255],
+                [255, 255, 255, 255],
+            ],
+        ),
+        (
+            1,
+            0,
+            vec![
+                [255, 0, 0, 255],
+                [0, 255, 0, 255],
+                [0, 255, 255, 255],
+                [255, 0, 255, 255],
+            ],
+        ),
+        (
+            2,
+            0,
+            vec![
+                [255, 0, 0, 255],
+                [0, 0, 255, 255],
+                [0, 255, 255, 255],
+                [255, 255, 0, 255],
+            ],
+        ),
+    ];
+
+    for (axis, index, expected_pixels) in expected {
+        let image = SliceRenderer::render(&volume, axis, index, wl, NamedColorMap::Hot);
+        let actual: Vec<[u8; 4]> = image.pixels.iter().map(egui::Color32::to_array).collect();
+        assert_eq!(actual, expected_pixels, "RGB channel order for axis {axis}");
+    }
+}
+
+/// The preallocated RGB path is pixel-identical to the allocating path for
+/// every orthogonal view.
+#[test]
+fn test_slice_render_rgb_scratch_matches_allocating_path() {
+    let volume = make_rgb_volume();
+    let wl = WindowLevel::new(123.0, 0.5);
+    let mut pool = RenderBufferPool::default();
+    for (axis, index) in [(0, 1), (1, 1), (2, 1)] {
+        let allocating = SliceRenderer::render(&volume, axis, index, wl, NamedColorMap::Viridis);
+        let scratch = SliceRenderer::render_with_scratch(
+            &mut pool,
+            &volume,
+            axis,
+            index,
+            wl,
+            NamedColorMap::Viridis,
+        );
+        assert_eq!(
+            scratch.size, allocating.size,
+            "RGB scratch size for axis {axis}"
+        );
+        assert_eq!(
+            scratch.pixels, allocating.pixels,
+            "RGB scratch output for axis {axis}"
+        );
+    }
 }

@@ -90,46 +90,40 @@ impl LoadedVolume {
     /// An out-of-range `index` is silently clamped to the last valid position.
     /// An unknown `axis` returns an empty result `(vec![], 0, 0)`.
     pub fn extract_slice(&self, axis: usize, index: usize) -> (Vec<f32>, usize, usize) {
-        let [depth, rows, cols] = self.shape;
-        let ch = self.channels as usize;
-        match axis {
-            0 => {
-                // Axial: fixed d, contiguous rows×cols×channels slice;
-                // take only the first channel of each voxel.
-                let d = index.min(depth.saturating_sub(1));
-                let stride = rows * cols * ch;
-                let offset = d * stride;
-                let mut pixels = Vec::with_capacity(rows * cols);
-                for voxel in 0..rows * cols {
-                    pixels.push(self.data[offset + voxel * ch]);
-                }
-                (pixels, cols, rows)
-            }
-            1 => {
-                // Coronal: fixed r, strided per-depth access.
-                let r = index.min(rows.saturating_sub(1));
-                let mut pixels = Vec::with_capacity(depth * cols);
-                for d in 0..depth {
-                    let base = d * rows * cols * ch + r * cols * ch;
-                    for c in 0..cols {
-                        pixels.push(self.data[base + c * ch]);
-                    }
-                }
-                (pixels, cols, depth)
-            }
-            2 => {
-                // Sagittal: fixed c, strided access.
-                let c = index.min(cols.saturating_sub(1));
-                let mut pixels = Vec::with_capacity(depth * rows);
-                for d in 0..depth {
-                    for r in 0..rows {
-                        pixels.push(self.data[(d * rows + r) * cols * ch + c * ch]);
-                    }
-                }
-                (pixels, rows, depth)
-            }
-            _ => (vec![], 0, 0),
+        if self.channels == 0 {
+            return (Vec::new(), 0, 0);
         }
+        let (width, height) = self.slice_dimensions(axis);
+        let mut pixels = Vec::with_capacity(width * height);
+        self.visit_slice_offsets(axis, index, |offset| {
+            pixels.push(self.data[offset]);
+        });
+        (pixels, width, height)
+    }
+
+    /// Extract a 2-D slice while retaining every interleaved channel.
+    ///
+    /// The returned samples use row-major pixel order with channel-fastest
+    /// storage: `[pixel_0_channel_0, ..., pixel_0_channel_n, pixel_1_channel_0, ...]`.
+    /// RGB DICOM slices therefore retain the decoded red, green, and blue
+    /// samples for every axial, coronal, and sagittal view.
+    ///
+    /// # Axis semantics
+    ///
+    /// The dimensions and clamping rules are identical to [`Self::extract_slice`].
+    pub fn extract_slice_channels(&self, axis: usize, index: usize) -> (Vec<f32>, usize, usize) {
+        if self.channels == 0 {
+            return (Vec::new(), 0, 0);
+        }
+        let (width, height) = self.slice_dimensions(axis);
+        let channels = usize::from(self.channels);
+        let mut samples = Vec::with_capacity(width * height * channels);
+        if channels != 0 {
+            self.visit_slice_offsets(axis, index, |offset| {
+                samples.extend_from_slice(&self.data[offset..offset + channels]);
+            });
+        }
+        (samples, width, height)
     }
 
     /// Extract a 2-D slice into a pre-allocated buffer, returning `(width, height)`.
@@ -154,51 +148,88 @@ impl LoadedVolume {
         axis: usize,
         index: usize,
     ) -> (usize, usize) {
+        if self.channels == 0 {
+            out.clear();
+            return (0, 0);
+        }
+        let (width, height) = self.slice_dimensions(axis);
+        out.resize(width * height, 0.0);
+        let mut position = 0;
+        self.visit_slice_offsets(axis, index, |offset| {
+            out[position] = self.data[offset];
+            position += 1;
+        });
+        (width, height)
+    }
+
+    /// Extract every channel into a caller-supplied scratch buffer.
+    ///
+    /// The output layout matches [`Self::extract_slice_channels`]. The buffer
+    /// is resized to `width × height × channels`, preserving capacity between
+    /// frames so RGB rendering does not allocate in its hot path.
+    pub fn extract_slice_channels_into(
+        &self,
+        out: &mut mnemosyne::AlignedVec<f32>,
+        axis: usize,
+        index: usize,
+    ) -> (usize, usize) {
+        if self.channels == 0 {
+            out.clear();
+            return (0, 0);
+        }
+        let (width, height) = self.slice_dimensions(axis);
+        let channels = usize::from(self.channels);
+        out.resize(width * height * channels, 0.0);
+        let mut position = 0;
+        self.visit_slice_offsets(axis, index, |offset| {
+            out[position..position + channels]
+                .copy_from_slice(&self.data[offset..offset + channels]);
+            position += channels;
+        });
+        (width, height)
+    }
+
+    fn slice_dimensions(&self, axis: usize) -> (usize, usize) {
+        match axis {
+            0 => (self.shape[2], self.shape[1]),
+            1 => (self.shape[2], self.shape[0]),
+            2 => (self.shape[1], self.shape[0]),
+            _ => (0, 0),
+        }
+    }
+
+    fn visit_slice_offsets<F>(&self, axis: usize, index: usize, mut visit: F)
+    where
+        F: FnMut(usize),
+    {
         let [depth, rows, cols] = self.shape;
-        let ch = self.channels as usize;
+        let channels = usize::from(self.channels);
         match axis {
             0 => {
-                let d = index.min(depth.saturating_sub(1));
-                let n = rows * cols;
-                let stride = rows * cols * ch;
-                let offset = d * stride;
-                out.resize(n, 0.0);
-                for (i, dst) in out.iter_mut().enumerate() {
-                    *dst = self.data[offset + i * ch];
+                let depth_index = index.min(depth.saturating_sub(1));
+                let offset = depth_index * rows * cols * channels;
+                for voxel in 0..rows * cols {
+                    visit(offset + voxel * channels);
                 }
-                (cols, rows)
             }
             1 => {
-                let r = index.min(rows.saturating_sub(1));
-                let n = depth * cols;
-                out.resize(n, 0.0);
-                let mut pos = 0;
-                for d in 0..depth {
-                    let base = d * rows * cols * ch + r * cols * ch;
-                    for c in 0..cols {
-                        out[pos] = self.data[base + c * ch];
-                        pos += 1;
+                let row = index.min(rows.saturating_sub(1));
+                for depth_index in 0..depth {
+                    let base = depth_index * rows * cols * channels + row * cols * channels;
+                    for column in 0..cols {
+                        visit(base + column * channels);
                     }
                 }
-                (cols, depth)
             }
             2 => {
-                let c = index.min(cols.saturating_sub(1));
-                let n = depth * rows;
-                out.resize(n, 0.0);
-                let mut pos = 0;
-                for d in 0..depth {
-                    for r in 0..rows {
-                        out[pos] = self.data[(d * rows + r) * cols * ch + c * ch];
-                        pos += 1;
+                let column = index.min(cols.saturating_sub(1));
+                for depth_index in 0..depth {
+                    for row in 0..rows {
+                        visit((depth_index * rows + row) * cols * channels + column * channels);
                     }
                 }
-                (rows, depth)
             }
-            _ => {
-                out.clear();
-                (0, 0)
-            }
+            _ => {}
         }
     }
 }
