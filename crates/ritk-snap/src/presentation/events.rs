@@ -14,6 +14,65 @@ pub const MAX_PRESENTATION_EVENTS: usize = 1_024;
 /// bound by constructing a presentation event directly.
 pub const MAX_COMPOSITION_UNITS: usize = 4_096;
 
+const MODIFIER_CTRL: u8 = 0b0001;
+const MODIFIER_SHIFT: u8 = 0b0010;
+const MODIFIER_ALT: u8 = 0b0100;
+const MODIFIER_META: u8 = 0b1000;
+
+/// Modifier-key state captured with one presentation event.
+#[derive(Debug, Clone, Copy, Default, PartialEq, Eq)]
+pub struct PresentationModifiers {
+    bits: u8,
+}
+
+impl PresentationModifiers {
+    /// No modifier keys are pressed.
+    pub const NONE: Self = Self { bits: 0 };
+
+    /// Construct a modifier snapshot from its logical key states.
+    #[must_use]
+    pub const fn new(ctrl: bool, shift: bool, alt: bool, meta: bool) -> Self {
+        let mut bits = 0;
+        if ctrl {
+            bits |= MODIFIER_CTRL;
+        }
+        if shift {
+            bits |= MODIFIER_SHIFT;
+        }
+        if alt {
+            bits |= MODIFIER_ALT;
+        }
+        if meta {
+            bits |= MODIFIER_META;
+        }
+        Self { bits }
+    }
+
+    /// Returns whether Control was held for the event.
+    #[must_use]
+    pub const fn ctrl(self) -> bool {
+        self.bits & MODIFIER_CTRL != 0
+    }
+
+    /// Returns whether Shift was held for the event.
+    #[must_use]
+    pub const fn shift(self) -> bool {
+        self.bits & MODIFIER_SHIFT != 0
+    }
+
+    /// Returns whether Alt was held for the event.
+    #[must_use]
+    pub const fn alt(self) -> bool {
+        self.bits & MODIFIER_ALT != 0
+    }
+
+    /// Returns whether the platform meta key was held for the event.
+    #[must_use]
+    pub const fn meta(self) -> bool {
+        self.bits & MODIFIER_META != 0
+    }
+}
+
 /// Mouse button carried by a host pointer event.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 #[non_exhaustive]
@@ -86,6 +145,23 @@ pub enum PresentationEvent {
         y: f64,
         /// Released button.
         button: PointerButton,
+    },
+    /// A wheel rotated at client coordinates.
+    ///
+    /// The deltas retain the host's signed units as finite `f64` values. A
+    /// native Win32 detent is represented exactly; browser hosts may pass
+    /// pixel, line or page values after applying their own unit policy.
+    PointerWheel {
+        /// Horizontal client coordinate in display pixels.
+        x: f64,
+        /// Vertical client coordinate in display pixels.
+        y: f64,
+        /// Signed horizontal wheel delta in host units.
+        delta_x: f64,
+        /// Signed vertical wheel delta in host units.
+        delta_y: f64,
+        /// Modifier keys held when the wheel event was received.
+        modifiers: PresentationModifiers,
     },
     /// A virtual key was pressed.
     KeyDown {

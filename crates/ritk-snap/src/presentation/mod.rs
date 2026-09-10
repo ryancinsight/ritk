@@ -13,11 +13,11 @@ mod native;
 
 pub use actions::{
     ActionDispatchError, PointerDelta, PointerGesture, PresentationDispatcher, ViewerAction,
-    ViewportPoint,
+    ViewportPoint, WheelDelta,
 };
 pub use events::{
-    CompositionPhase, PointerButton, PresentationEvent, MAX_COMPOSITION_UNITS,
-    MAX_PRESENTATION_EVENTS,
+    CompositionPhase, PointerButton, PresentationEvent, PresentationModifiers,
+    MAX_COMPOSITION_UNITS, MAX_PRESENTATION_EVENTS,
 };
 pub use frame::PresentationFrame;
 

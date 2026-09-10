@@ -7,8 +7,8 @@
 //! after a complete bounded batch succeeds.
 
 use super::{
-    CompositionPhase, PointerButton, PresentationEvent, MAX_COMPOSITION_UNITS,
-    MAX_PRESENTATION_EVENTS,
+    CompositionPhase, PointerButton, PresentationEvent, PresentationModifiers,
+    MAX_COMPOSITION_UNITS, MAX_PRESENTATION_EVENTS,
 };
 use thiserror::Error;
 
@@ -73,6 +73,37 @@ impl ViewportPoint {
 pub struct PointerDelta {
     x: f64,
     y: f64,
+}
+
+/// A signed wheel displacement in host units.
+#[derive(Debug, Clone, Copy, PartialEq)]
+pub struct WheelDelta {
+    x: f64,
+    y: f64,
+}
+
+impl WheelDelta {
+    /// Construct a wheel displacement.
+    #[must_use]
+    pub const fn new(x: f64, y: f64) -> Self {
+        Self { x, y }
+    }
+
+    /// Signed horizontal wheel displacement.
+    #[must_use]
+    pub const fn x(self) -> f64 {
+        self.x
+    }
+
+    /// Signed vertical wheel displacement.
+    #[must_use]
+    pub const fn y(self) -> f64 {
+        self.y
+    }
+
+    fn is_finite(self) -> bool {
+        self.x.is_finite() && self.y.is_finite()
+    }
 }
 
 impl PointerDelta {
@@ -160,6 +191,15 @@ pub enum ViewerAction {
         /// Last position known for the gesture.
         position: ViewportPoint,
     },
+    /// A wheel rotated over a client-space viewport.
+    PointerWheel {
+        /// Client position where the wheel event occurred.
+        position: ViewportPoint,
+        /// Signed wheel displacement in host units.
+        delta: WheelDelta,
+        /// Modifier keys held when the wheel event was received.
+        modifiers: PresentationModifiers,
+    },
     /// A virtual key was pressed.
     KeyPressed {
         /// Host virtual-key value.
@@ -241,6 +281,14 @@ pub enum ActionDispatchError {
     NonFiniteCoordinate {
         /// Coordinate that failed finite-value validation.
         point: ViewportPoint,
+    },
+    /// A wheel displacement contains a non-finite value.
+    #[error("wheel displacement ({delta_x}, {delta_y}) is not finite")]
+    NonFiniteWheelDelta {
+        /// Signed horizontal wheel displacement.
+        delta_x: f64,
+        /// Signed vertical wheel displacement.
+        delta_y: f64,
     },
     /// A text-composition update exceeds the shared UTF-16 bound.
     #[error("text composition length {actual} exceeds limit {limit} UTF-16 units")]

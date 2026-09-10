@@ -11,7 +11,9 @@ use crate::presentation::{
     ViewportPoint,
 };
 use crate::tools::interaction::ImagePoint;
-use crate::ui::{tool_kind_for_virtual_key, ViewTransform};
+use crate::ui::{
+    should_zoom_with_scroll, tool_kind_for_virtual_key, zoom_from_scroll, ViewTransform,
+};
 use thiserror::Error;
 
 const PRIMARY_BUTTON: PointerButton = PointerButton::Left;
@@ -155,13 +157,19 @@ pub(crate) enum ViewerActionDisposition {
 }
 
 /// Failure applying a host action at the RITK boundary.
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Error)]
+#[derive(Debug, Clone, Copy, PartialEq, Error)]
 pub(crate) enum ViewerActionError {
     /// A non-primary pointer button has no RITK-SNAP transition yet.
     #[error("pointer button {button:?} is not supported by the SnapApp adapter")]
     UnsupportedPointerButton {
         /// Button reported by the host.
         button: PointerButton,
+    },
+    /// A wheel delta cannot be represented by the viewer's `f32` zoom policy.
+    #[error("wheel vertical delta {delta_y} exceeds the viewer precision range")]
+    WheelDeltaOutOfRange {
+        /// Signed vertical wheel displacement from the host.
+        delta_y: f64,
     },
 }
 
@@ -174,23 +182,20 @@ impl SnapApp {
     /// presentation stages.
     ///
     /// # Errors
-    /// Returns [`ViewerInputError`] when the host batch is malformed or an
-    /// action uses a pointer button without a corresponding viewer transition.
+    /// Returns [`ViewerInputError`] when the host batch is malformed, an action
+    /// uses an unsupported pointer button, or a zoom wheel delta exceeds the
+    /// viewer's finite `f32` input range.
     pub(crate) fn apply_presentation_events(
         &mut self,
         events: &[PresentationEvent],
         viewport: Option<&ViewerViewport>,
     ) -> Result<ViewerActionDisposition, ViewerInputError> {
         for event in events {
-            if let Some(button) = event_button(event) {
-                ensure_primary(button)?;
-            }
+            validate_presentation_event(event)?;
         }
         let actions = self.presentation_dispatcher.dispatch(events)?;
         for action in actions.iter() {
-            if let Some(button) = pointer_button(action) {
-                ensure_primary(button)?;
-            }
+            validate_viewer_action(action)?;
         }
         let mut repaint = false;
         for action in actions.iter() {
@@ -316,6 +321,33 @@ impl SnapApp {
                 self.on_drag_end(None);
                 Ok(ViewerActionDisposition::Continue { repaint: true })
             }
+            ViewerAction::PointerWheel {
+                position,
+                delta,
+                modifiers,
+            } => {
+                let Some(viewport) = viewport else {
+                    return Ok(ViewerActionDisposition::Continue { repaint: false });
+                };
+                if viewport.map(*position).is_none() {
+                    return Ok(ViewerActionDisposition::Continue { repaint: false });
+                }
+                if delta.x() == 0.0 && delta.y() == 0.0 {
+                    return Ok(ViewerActionDisposition::Continue { repaint: false });
+                }
+                if should_zoom_with_scroll(modifiers.ctrl() || modifiers.meta()) {
+                    let scroll_y = viewer_scroll_value(delta.y())?;
+                    self.zoom = zoom_from_scroll(self.zoom, scroll_y);
+                    self.status_message = format!("Zoom: {:.0}%", self.zoom * 100.0);
+                    Ok(ViewerActionDisposition::Continue { repaint: true })
+                } else if delta.y() != 0.0 {
+                    let step = if delta.y() > 0.0 { -1_i32 } else { 1 };
+                    self.step_slice_for_axis(viewport.axis, step);
+                    Ok(ViewerActionDisposition::Continue { repaint: true })
+                } else {
+                    Ok(ViewerActionDisposition::Continue { repaint: false })
+                }
+            }
             ViewerAction::KeyPressed { virtual_key, .. } => {
                 Ok(self.apply_virtual_key(*virtual_key))
             }
@@ -359,13 +391,33 @@ pub(crate) enum ViewerInputError {
     Action(#[from] ViewerActionError),
 }
 
-fn pointer_button(action: &ViewerAction) -> Option<PointerButton> {
+fn validate_presentation_event(event: &PresentationEvent) -> Result<(), ViewerActionError> {
+    if let Some(button) = event_button(event) {
+        ensure_primary(button)?;
+    }
+    if let PresentationEvent::PointerWheel {
+        delta_y, modifiers, ..
+    } = event
+    {
+        if delta_y.is_finite() && should_zoom_with_scroll(modifiers.ctrl() || modifiers.meta()) {
+            viewer_scroll_value(*delta_y)?;
+        }
+    }
+    Ok(())
+}
+
+fn validate_viewer_action(action: &ViewerAction) -> Result<(), ViewerActionError> {
     match action {
         ViewerAction::PointerPressed { button, .. }
         | ViewerAction::PointerDragged { button, .. }
         | ViewerAction::PointerReleased { button, .. }
-        | ViewerAction::PointerCancelled { button, .. } => Some(*button),
-        _ => None,
+        | ViewerAction::PointerCancelled { button, .. } => ensure_primary(*button),
+        ViewerAction::PointerWheel {
+            delta, modifiers, ..
+        } if should_zoom_with_scroll(modifiers.ctrl() || modifiers.meta()) => {
+            viewer_scroll_value(delta.y()).map(|_| ())
+        }
+        _ => Ok(()),
     }
 }
 
@@ -383,4 +435,16 @@ fn ensure_primary(button: PointerButton) -> Result<(), ViewerActionError> {
     } else {
         Err(ViewerActionError::UnsupportedPointerButton { button })
     }
+}
+
+fn viewer_scroll_value(value: f64) -> Result<f32, ViewerActionError> {
+    if !value.is_finite() || value < f64::from(f32::MIN) || value > f64::from(f32::MAX) {
+        return Err(ViewerActionError::WheelDeltaOutOfRange { delta_y: value });
+    }
+    #[expect(
+        clippy::cast_possible_truncation,
+        reason = "the existing RITK zoom policy is f32; the finite host delta is checked against that contract before conversion"
+    )]
+    let value = value as f32;
+    Ok(value)
 }

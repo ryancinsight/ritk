@@ -13,7 +13,7 @@ use crate::ui::overlay::{OverlayContext, OverlayRenderer};
 use crate::viewer::{DEFAULT_WINDOW_CENTER, DEFAULT_WINDOW_WIDTH};
 use crate::{
     app::action_adapter::ViewerViewport,
-    presentation::{PointerButton, PresentationEvent, ViewportPoint},
+    presentation::{PointerButton, PresentationEvent, PresentationModifiers, ViewportPoint},
 };
 // ── Overlay label constants ──────────────────────────────────────────────────
 
@@ -27,7 +27,7 @@ pub(crate) const OVERLAY_LABEL_FONT_SIZE: f32 = 12.0;
 pub(crate) const OVERLAY_LABEL_COLOR: egui::Color32 =
     egui::Color32::from_rgba_premultiplied(210, 210, 210, 210);
 
-use crate::ui::{axis_slice_dimensions, should_zoom_with_scroll, zoom_from_scroll, ViewTransform};
+use crate::ui::{axis_slice_dimensions, ViewTransform};
 
 fn source_point_to_screen(
     point: egui::Pos2,
@@ -76,8 +76,7 @@ impl SnapApp {
     /// 4. Draw compact axis and slice labels when the full overlay is disabled.
     /// 5. Draw the DICOM 4-corner overlay when `show_overlay` is set.
     /// 6. Draw crosshair lines when `show_crosshair` is set.
-    /// 7. Handle wheel input: Ctrl/Cmd+wheel zooms, plain wheel steps slices.
-    /// 8. Dispatch pointer events to the active tool handler.
+    /// 7. Dispatch pointer and wheel events through the shared action adapter.
     pub(crate) fn render_axis_viewport(
         &mut self,
         ui: &mut egui::Ui,
@@ -315,25 +314,7 @@ impl SnapApp {
         } // painter is dropped here; no longer borrows ui.
         drop(painter);
 
-        // ── 7. Wheel input: zoom or slice navigation ───────────────────────────
-        let (scroll_y, ctrl_or_cmd) = ctx.input(|i| {
-            (
-                i.smooth_scroll_delta.y,
-                i.modifiers.ctrl || i.modifiers.command,
-            )
-        });
-
-        if response.hovered() && scroll_y != 0.0 {
-            if should_zoom_with_scroll(ctrl_or_cmd) {
-                self.zoom = zoom_from_scroll(self.zoom, scroll_y);
-                self.status_message = format!("Zoom: {:.0}%", self.zoom * 100.0);
-            } else {
-                let step = if scroll_y > 0.0 { -1i32 } else { 1 };
-                self.step_slice_for_axis(axis, step);
-            }
-        }
-
-        // ── 8. Pointer events ──────────────────────────────────────────────────
+        // ── 7. Pointer and wheel events ────────────────────────────────────────
         // The egui response is translated into the same bounded presentation
         // event sequence used by native and browser hosts. RITK then reduces
         // and applies it through the action adapter, so the viewer state does
@@ -355,7 +336,23 @@ impl SnapApp {
             .interact_pointer_pos()
             .or_else(|| response.hover_pos());
         if let Some(pointer) = pointer.and_then(client_point) {
-            let mut events = arrayvec::ArrayVec::<PresentationEvent, 3>::new();
+            let (scroll_delta, input_modifiers) =
+                ctx.input(|input| (input.smooth_scroll_delta, input.modifiers));
+            let mut events = arrayvec::ArrayVec::<PresentationEvent, 4>::new();
+            if response.hovered() && (scroll_delta.x != 0.0 || scroll_delta.y != 0.0) {
+                events.push(PresentationEvent::PointerWheel {
+                    x: pointer.x(),
+                    y: pointer.y(),
+                    delta_x: f64::from(scroll_delta.x),
+                    delta_y: f64::from(scroll_delta.y),
+                    modifiers: PresentationModifiers::new(
+                        input_modifiers.ctrl,
+                        input_modifiers.shift,
+                        input_modifiers.alt,
+                        input_modifiers.command,
+                    ),
+                });
+            }
             if response.drag_started() {
                 events.push(PresentationEvent::PointerDown {
                     x: pointer.x(),
