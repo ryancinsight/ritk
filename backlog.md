@@ -69,6 +69,8 @@
 - Scope: inventory and replace egui/eframe shell and GUI-specific carriers in `ritk-snap`; retain RITK decoding, geometry and viewer semantics, Iris visualization contracts and Moirai execution. Tauri is a framework comparison target, not a dependency found in this app.
 - Acceptance: complete pinned viewer inventory and all admitted DICOM opening/display journeys pass in real Métis hosts; old framework dependencies disappear from the viewer's active graph without forwarding shims. Existing defects are corrected, not copied as parity.
 - Demonstration: same synthetic studies and user actions before/after migration, all three orthogonal views, known voxel/physical-coordinate checks, cancellation/recovery and public manual captures; matched memory measurements before any improvement claim.
+- Inventory increment: ADR 0026 now maps every egui/eframe, rfd, texture, event, task, and packaging surface to the required Métis/Moirai seam; DICOM parsing and presentation remain RITK-owned.
+- Remaining host gap: implement the format-neutral frame/event contract and prove one native slice plus the browser handoff before three-view and GPU cutover.
 
 <a id="RITK-SOFT-TISSUE-REGISTRATION-2026-09-03"></a>
 ## RITK-SOFT-TISSUE-REGISTRATION-2026-09-03 — Soft-tissue multimodal registration [major] [arch] — done
