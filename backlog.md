@@ -70,8 +70,8 @@
 - Acceptance: complete pinned viewer inventory and all admitted DICOM opening/display journeys pass in real Métis hosts; old framework dependencies disappear from the viewer's active graph without forwarding shims. Existing defects are corrected, not copied as parity.
 - Demonstration: same synthetic studies and user actions before/after migration, all three orthogonal views, known voxel/physical-coordinate checks, cancellation/recovery and public manual captures; matched memory measurements before any improvement claim.
 - Inventory increment: ADR 0026 now maps every egui/eframe, rfd, texture, event, task, and packaging surface to the required Métis/Moirai seam; DICOM parsing and presentation remain RITK-owned.
-- Lease: root owns `crates/ritk-snap/src/presentation`, its focused tests, the launch adapter and this item through the first format-neutral frame increment; 2026-09-10.
-- Remaining host gap: implement the format-neutral frame/event contract and prove one native slice plus the browser handoff before three-view and GPU cutover.
+- Completed increment: RITK `PresentationFrame` preserves the existing slice-display semantics and the Windows Métis adapter presents one validated frame on a real hidden native surface; focused/full nextest, locked standalone checks, and the synthetic DICOM visual workflow pass. DICOM state remains in RITK.
+- Remaining host gap: typed event/input bridge, browser handoff, three orthogonal views, GPU presentation, and complete capture/manual snapshots through Métis.
 
 <a id="RITK-SOFT-TISSUE-REGISTRATION-2026-09-03"></a>
 ## RITK-SOFT-TISSUE-REGISTRATION-2026-09-03 — Soft-tissue multimodal registration [major] [arch] — done

@@ -25,6 +25,7 @@ pub mod label;
 pub mod launch;
 pub mod loaded_volume;
 pub mod pacs;
+pub mod presentation;
 pub mod render;
 pub mod session;
 pub mod tools;

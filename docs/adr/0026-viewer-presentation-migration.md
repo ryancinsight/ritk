@@ -46,6 +46,17 @@ The inspected source snapshots are RITK
 inventory time. The inventory below records the exact replacement seams and
 the host gaps that must close before the shell can be removed.
 
+Revision 2026-09-10 (first presentation increment): RITK now exposes
+`ritk_snap::presentation::PresentationFrame`, a validated row-major RGBA value
+constructed from the existing RITK `SliceRenderer` output. The Windows adapter
+`run_native_frame` converts that value to a Métis `Framebuffer`, presents it on
+the real hidden native surface, and closes the host after one event batch.
+Focused nextest coverage proves frame dimensions and storage validation,
+RITK grayscale display semantics, channel transfer, and the native
+present/close transition. No DICOM parser, metadata, path, or geometry state
+crosses into the Métis dependency. The browser handoff, typed event adapter,
+three-view presentation, and GPU path remain open gaps in this migration.
+
 Revision 2026-09-08: [RITK-SNAP-DIRECTORY-001](../../backlog.md#RITK-SNAP-DIRECTORY-001)
 now validates the Explicit VR Little Endian DICOMDIR record sequence before
 membership is admitted. RecordInUseFlag, next/lower offsets, incoming-link

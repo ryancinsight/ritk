@@ -1851,6 +1851,7 @@ checksum = "9ed9a281f7bc9b7576e61468ba615a66a5c8cfdff42420a70aa82701a3b1e292"
 dependencies = [
  "block-buffer",
  "crypto-common",
+ "subtle",
 ]
 
 [[package]]
@@ -2972,6 +2973,15 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "dfa686283ad6dd069f105e5ab091b04c62850d3e4cf5d67debad1933f55023df"
 
 [[package]]
+name = "hmac"
+version = "0.12.1"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "6c49c37c09c17a53d937dfbb742eb3a961d65a994e6bcdcf37e7399d0cc8ab5e"
+dependencies = [
+ "digest",
+]
+
+[[package]]
 name = "home"
 version = "0.5.12"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -3901,6 +3911,23 @@ dependencies = [
 ]
 
 [[package]]
+name = "metis-core"
+version = "0.1.0"
+source = "git+https://github.com/ryancinsight/metis.git#a0cb1f830d69caa5b0f257de4e04fdd71b52a5dc"
+dependencies = [
+ "moirai-crypto",
+]
+
+[[package]]
+name = "metis-platform"
+version = "0.1.0"
+source = "git+https://github.com/ryancinsight/metis.git#a0cb1f830d69caa5b0f257de4e04fdd71b52a5dc"
+dependencies = [
+ "metis-core",
+ "moirai-pal 0.6.0",
+]
+
+[[package]]
 name = "miniz_oxide"
 version = "0.8.9"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -4384,6 +4411,15 @@ dependencies = [
  "mnemosyne-memory 0.7.0 (git+https://github.com/ryancinsight/Mnemosyne.git)",
  "moirai-utils 0.6.0",
  "themis-topology",
+]
+
+[[package]]
+name = "moirai-crypto"
+version = "0.6.0"
+source = "git+https://github.com/ryancinsight/Moirai.git#8d0fbf99f7be279b0dfc8b2f7073ee7798286cca"
+dependencies = [
+ "hmac",
+ "sha2",
 ]
 
 [[package]]
@@ -6586,6 +6622,7 @@ dependencies = [
  "image 0.24.9",
  "iris-viz",
  "js-sys",
+ "metis-platform",
  "mnemosyne-memory 0.7.0 (git+https://github.com/ryancinsight/Mnemosyne.git?rev=f532b0e)",
  "moirai-runtime 0.6.0",
  "pollster",
