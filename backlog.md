@@ -52,11 +52,12 @@
 
 <a id="RITK-SNAP-COLOR-001"></a>
 ## RITK-SNAP-COLOR-001 — Preserve decoded DICOM color in display [patch]
-- Status: todo; priority: P0; owner: RITK viewer/rendering; dependencies: RITK-SNAP-FIXTURES-001; risk: misleading color display.
+- Status: in-progress; priority: P0; owner: RITK viewer/rendering; integrator: root; branch: feat/snap-color-001; last-update: 2026-09-10; dependencies: RITK-SNAP-FIXTURES-001; risk: misleading color display.
 - Scope: carry admitted color channels through slice extraction, viewport transforms and texture submission without passing RGB through scalar windowing.
 - Evidence: `app/render_cache.rs` uses scalar `SliceRenderer`; `LoadedVolume::extract_slice_into` selects the first channel although the RGB loader retains three channels; source inspection at `341228e`.
 - Acceptance: known red/green/blue/neutral pixels retain exact channel identity in axial/coronal/sagittal views; unsupported photometric/planar/codec combinations reject rather than silently degrade.
 - Verification: real RGB DICOM decode through the displayed image, orientation transforms and channel-level expected pixels; source and captures in the manual.
+- Lease: root — `crates/ritk-snap/src/loaded_volume.rs`, `crates/ritk-snap/src/render/`, `crates/ritk-snap/src/app/render_cache.rs`, RGB workflow tests/docs — 2026-09-10.
 
 <a id="RITK-SNAP-GRAYSCALE-001"></a>
 ## RITK-SNAP-GRAYSCALE-001 — DICOM grayscale presentation semantics [patch]
