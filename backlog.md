@@ -47,12 +47,8 @@
 
 <a id="RITK-SNAP-COORDINATES-001"></a>
 ## RITK-SNAP-COORDINATES-001 — Preserve transformed measurement coordinates [patch]
-- Status: in-progress; priority: P0; owner: RITK viewer; integrator: root; last-update: 2026-09-09; branch: `feat/snap-coordinates-001`; regions: `crates/ritk-snap/src/app`, `crates/ritk-snap/src/ui/cursor_info.rs`, `crates/ritk-snap/src/ui/measurements`, `crates/ritk-snap/src/ui/rtstruct_overlay.rs`, `crates/ritk-snap/src/app/tests`, `docs/adr`, `docs/manual`; dependencies: RITK-SNAP-ASPECT-001; risk: misleading cursor and measurement readouts.
-- Lease: root — transformed image hit-testing, coordinate/measurement projection, focused tests, and synchronized ADR/manual evidence — 2026-09-09.
-- Scope: reconcile texture rotation/flip, source voxel coordinates, orientation labels and annotation coordinates; validate the physical measurement representation at its boundary.
-- Evidence: aspect tests establish unrotated cursor hits, not inverse-transformed source hits; annotation APIs narrow physical spacing to `f32`, which can become zero or infinity for admitted finite `f64` geometry.
-- Acceptance: all admitted transforms preserve known patient-coordinate landmarks and measured distances; unrepresentable measurement values reject explicitly rather than display zero, infinity or NaN.
-- Verification: analytic landmarks and distances through actual pointer/annotation events for every transform, plus numeric-range boundary cases.
+- Status: done; delivery: [RITK PR #255](https://github.com/ryancinsight/ritk/pull/255), merge `f60057b47`; decision: `docs/adr/0028-transformed-viewport-coordinate-fidelity.md`.
+- Outcome: source/display edge-coordinate transforms now drive cursor, overlays, measurements and the transformed DICOM workflow capture; checked physical measurements reject unrepresentable or non-finite values. Verification: 730/730 nextest, strict clippy, fmt, doctests, rustdoc, ADR index and byte-equal workflow capture.
 
 <a id="RITK-SNAP-COLOR-001"></a>
 ## RITK-SNAP-COLOR-001 — Preserve decoded DICOM color in display [patch]
