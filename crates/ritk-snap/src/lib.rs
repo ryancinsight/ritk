@@ -37,7 +37,10 @@ pub use filter::{BedSeparationConfigSerde, FilterKind};
 pub use geometry::{GeometrySummary, ModalityDisplay, ViewerResult, ViewerStatus};
 #[cfg(target_arch = "wasm32")]
 pub use launch::start_web;
+#[cfg(not(target_arch = "wasm32"))]
 pub use launch::{run_app, run_app_with_options, AppLaunchOptions};
+#[cfg(target_arch = "wasm32")]
+pub use launch::{run_app_with_options, AppLaunchOptions};
 pub use loaded_volume::LoadedVolume;
 pub use viewer::ViewerState;
 

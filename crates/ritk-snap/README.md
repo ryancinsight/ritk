@@ -53,3 +53,22 @@ open until the user closes it.
 The reviewed capture is shown in the [DICOM workflow manual](../../docs/manual/dicom-workflow.md#present-validated-ritk-views-through-metis).
 
 API reference: `cargo doc --locked -p ritk-snap --no-deps`.
+
+## Browser host
+
+The WASM entrypoint composes the generic Métis HTML5/CSS host with the RITK
+eframe canvas. The page must provide both a `#metis-app` element for the
+Métis host and the canvas element whose ID is passed to `start_web`. Métis owns
+the browser `File` handles and transfers one bounded named-byte batch; RITK
+then classifies, scans and decodes those bytes through its DICOM loader.
+
+```javascript
+import init, { start_web } from "./ritk_snap.js";
+
+await init();
+await start_web("ritk-canvas");
+```
+
+This keeps browser DICOM opening on the same RITK path as desktop pathless
+input. The host never receives a filesystem path and never decides whether a
+payload is DICOM.

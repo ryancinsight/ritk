@@ -51,6 +51,7 @@ wasm-bindgen-futures = { workspace = true }
 js-sys = { workspace = true }
 getrandom = { workspace = true, features = ["wasm_js"] }
 getrandom_02 = { workspace = true, features = ["js"] }
+metis-web = { workspace = true }
 
 [dev-dependencies]
 tempfile = { workspace = true }

@@ -26,8 +26,11 @@
 
 use std::sync::mpsc;
 
+#[cfg(not(target_arch = "wasm32"))]
 use super::config::PacsConfig;
-use super::query::{FindResultRow, FindResultRowSeries, PacsRequest, PacsResponse};
+use super::query::PacsResponse;
+#[cfg(not(target_arch = "wasm32"))]
+use super::query::{FindResultRow, FindResultRowSeries, PacsRequest};
 
 // ── PacsWorkerHandle ──────────────────────────────────────────────────────────
 

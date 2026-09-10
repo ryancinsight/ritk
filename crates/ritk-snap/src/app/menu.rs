@@ -28,9 +28,6 @@ impl FileDialog {
     fn pick_folder(self) -> Option<std::path::PathBuf> {
         None
     }
-    fn save_file(self) -> Option<std::path::PathBuf> {
-        None
-    }
 }
 
 impl SnapApp {

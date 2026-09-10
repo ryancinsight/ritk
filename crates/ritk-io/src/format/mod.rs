@@ -1,5 +1,10 @@
 pub mod analyze;
 pub mod dicom;
+/// Native DICOMweb transport backed by the blocking HTTP client.
+///
+/// Browser hosts use their platform fetch implementation and pass the
+/// completed, bounded DICOM bytes through the byte-reader API instead.
+#[cfg(not(target_arch = "wasm32"))]
 pub mod dicomweb;
 pub mod jpeg;
 pub mod metaimage;

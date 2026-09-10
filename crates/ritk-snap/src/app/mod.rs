@@ -38,6 +38,9 @@ mod volume_input;
 mod volume_ops;
 mod volume_state;
 
+#[cfg(target_arch = "wasm32")]
+mod browser_input;
+
 #[cfg(test)]
 mod tests;
 

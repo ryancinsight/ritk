@@ -124,13 +124,19 @@ impl SnapApp {
         Ok(())
     }
 
-    /// Ingest shell-dropped inputs (desktop) or browser-dropped file handles.
+    /// Ingest shell-dropped inputs (desktop) or browser-dropped file payloads.
     ///
     /// Files with filesystem paths are routed to the same code paths as File-menu
-    /// actions. Browser-provided handles without paths are acknowledged with a
-    /// deterministic status message.
+    /// actions. The browser host supplies bounded named bytes, which enter the
+    /// same RITK DICOM and volume classifiers as native pathless drops.
     pub(crate) fn handle_dropped_inputs(&mut self, ctx: &egui::Context) {
         let dropped = ctx.input_mut(|i| std::mem::take(&mut i.raw.dropped_files));
+        #[cfg(target_arch = "wasm32")]
+        let dropped = {
+            let mut dropped = dropped;
+            super::browser_input::extend_dropped_files(&mut dropped);
+            dropped
+        };
         match decide_dropped_input_action(&dropped) {
             DroppedInputAction::QueueDicom(path) => {
                 self.scan_for_series(path.clone());

@@ -4,6 +4,28 @@ use tracing::{error, info};
 #[cfg(not(target_arch = "wasm32"))]
 use rfd::FileDialog;
 
+#[cfg(target_arch = "wasm32")]
+struct FileDialog;
+
+#[cfg(target_arch = "wasm32")]
+impl FileDialog {
+    fn new() -> Self {
+        Self
+    }
+
+    fn set_file_name(self, _name: &str) -> Self {
+        self
+    }
+
+    fn add_filter(self, _name: &str, _extensions: &[&str]) -> Self {
+        self
+    }
+
+    fn save_file(self) -> Option<std::path::PathBuf> {
+        None
+    }
+}
+
 impl SnapApp {
     pub(super) fn save_rt_struct_dialog(&mut self) {
         let (Some(vol), Some(editor)) = (self.loaded.as_ref(), self.label_editor.as_ref()) else {
