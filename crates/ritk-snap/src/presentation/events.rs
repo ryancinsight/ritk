@@ -1,5 +1,19 @@
 //! Format-neutral input and lifecycle events for viewer hosts.
 
+/// Maximum number of presentation events accepted in one host batch.
+///
+/// The value matches the bounded event queues in the Métis virtual and native
+/// surfaces. Keeping the bound on the RITK contract lets browser and native
+/// hosts share the same action-dispatch allocation limit.
+pub const MAX_PRESENTATION_EVENTS: usize = 1_024;
+
+/// Maximum UTF-16 code units retained for one text-composition update.
+///
+/// Native Métis input applies the same limit before translation. The shared
+/// contract also applies it to browser events so a host cannot bypass the
+/// bound by constructing a presentation event directly.
+pub const MAX_COMPOSITION_UNITS: usize = 4_096;
+
 /// Mouse button carried by a host pointer event.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 #[non_exhaustive]
@@ -34,7 +48,10 @@ pub enum CompositionPhase {
 ///
 /// The event carries coordinates, controls and lifecycle state only. It never
 /// carries a path, DICOM object, volume, metadata record or host authority.
-#[derive(Debug, Clone, PartialEq, Eq)]
+/// Pointer coordinates use `f64` so native `i32` positions and browser client
+/// coordinates share one lossless host representation; the action reducer
+/// rejects non-finite values.
+#[derive(Debug, Clone, PartialEq)]
 #[non_exhaustive]
 pub enum PresentationEvent {
     /// The host requested application shutdown.
@@ -47,26 +64,26 @@ pub enum PresentationEvent {
     FocusLost,
     /// The pointer moved in client coordinates.
     PointerMove {
-        /// Horizontal client coordinate.
-        x: i32,
-        /// Vertical client coordinate.
-        y: i32,
+        /// Horizontal client coordinate in display pixels.
+        x: f64,
+        /// Vertical client coordinate in display pixels.
+        y: f64,
     },
     /// A pointer button was pressed in client coordinates.
     PointerDown {
-        /// Horizontal client coordinate.
-        x: i32,
-        /// Vertical client coordinate.
-        y: i32,
+        /// Horizontal client coordinate in display pixels.
+        x: f64,
+        /// Vertical client coordinate in display pixels.
+        y: f64,
         /// Pressed button.
         button: PointerButton,
     },
     /// A pointer button was released in client coordinates.
     PointerUp {
-        /// Horizontal client coordinate.
-        x: i32,
-        /// Vertical client coordinate.
-        y: i32,
+        /// Horizontal client coordinate in display pixels.
+        x: f64,
+        /// Vertical client coordinate in display pixels.
+        y: f64,
         /// Released button.
         button: PointerButton,
     },

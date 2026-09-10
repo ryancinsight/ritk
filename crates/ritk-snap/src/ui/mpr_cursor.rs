@@ -23,6 +23,7 @@
 //!   `(row,col)` from the two non-slice coordinates.
 
 use super::ViewTransform;
+use crate::tools::interaction::ImagePoint;
 
 /// Linked crosshair cursor stored in voxel coordinates `[z, y, x]`.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -84,6 +85,23 @@ impl LinkedCursor {
         transform: ViewTransform,
     ) -> Option<[usize; 3]> {
         let voxel = viewport_point_to_voxel(shape, axis, slice_index, point, rect, transform)?;
+        self.set_voxel(shape, voxel);
+        Some(self.voxel)
+    }
+
+    /// Update the cursor from a source-image point already mapped by a host.
+    ///
+    /// The caller supplies coordinates in the displayed slice's source-image
+    /// space. This path keeps native/browser viewport arithmetic out of the
+    /// cursor and avoids re-mapping through a presentation point.
+    pub fn update_from_image_point(
+        &mut self,
+        shape: [usize; 3],
+        axis: usize,
+        slice_index: usize,
+        point: ImagePoint,
+    ) -> Option<[usize; 3]> {
+        let voxel = image_point_to_voxel(shape, axis, slice_index, point)?;
         self.set_voxel(shape, voxel);
         Some(self.voxel)
     }
@@ -162,6 +180,22 @@ pub fn viewport_point_to_voxel(
     let source_point = transform.output_to_source(output_point, [width, height]);
     let col = source_point.x.floor().clamp(0.0, (width - 1) as f32) as usize;
     let row = source_point.y.floor().clamp(0.0, (height - 1) as f32) as usize;
+    Some(map_view_row_col_to_voxel(axis, slice_index, row, col))
+}
+
+/// Map a source-image point into a voxel on the currently displayed slice.
+pub fn image_point_to_voxel(
+    shape: [usize; 3],
+    axis: usize,
+    slice_index: usize,
+    point: ImagePoint,
+) -> Option<[usize; 3]> {
+    let (width, height) = axis_slice_dimensions(shape, axis)?;
+    if width == 0 || height == 0 || !point.x().is_finite() || !point.y().is_finite() {
+        return None;
+    }
+    let col = point.x().floor().clamp(0.0, (width - 1) as f32) as usize;
+    let row = point.y().floor().clamp(0.0, (height - 1) as f32) as usize;
     Some(map_view_row_col_to_voxel(axis, slice_index, row, col))
 }
 

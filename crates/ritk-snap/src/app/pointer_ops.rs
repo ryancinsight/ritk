@@ -1,10 +1,12 @@
 use super::state::SnapApp;
 use crate::render::NamedColorMap;
-use crate::tools::interaction::{Annotation, MeasurementError, RoiKind, ToolState};
+use crate::tools::interaction::{
+    Annotation, ImagePoint, MeasurementError, RoiKind, ToolState, ViewportOffset,
+};
 use crate::tools::kind::ToolKind;
 use crate::ui::{
-    anatomical_label_for_axis, axis_for_plane_in_volume, intensity_at_voxel, pan_from_drag_delta,
-    viewport_point_to_voxel, window_level_from_drag_delta, zoom_from_drag_delta, AnatomicalPlane,
+    anatomical_label_for_axis, axis_for_plane_in_volume, image_point_to_voxel, intensity_at_voxel,
+    pan_from_drag_delta, window_level_from_drag_delta, zoom_from_drag_delta, AnatomicalPlane,
     WINDOW_LEVEL_SENSITIVITY,
 };
 use crate::viewer::{DEFAULT_WINDOW_CENTER, DEFAULT_WINDOW_WIDTH};
@@ -12,13 +14,13 @@ use crate::viewer::{DEFAULT_WINDOW_CENTER, DEFAULT_WINDOW_WIDTH};
 // ── Pointer / interaction event handlers ───────────────────────────────────
 
 impl SnapApp {
-    pub(crate) fn on_drag_start(&mut self, pos: Option<egui::Pos2>) {
+    pub(crate) fn on_drag_start(&mut self, pos: Option<ImagePoint>) {
         let Some(pos) = pos else { return };
         match self.active_tool {
             ToolKind::Pan => {
                 self.tool_state = ToolState::Panning {
                     start: pos,
-                    viewport_origin: egui::Pos2::new(self.pan_offset.x, self.pan_offset.y),
+                    viewport_origin: ViewportOffset::new(self.pan_offset.x, self.pan_offset.y),
                 };
             }
             ToolKind::Zoom => {
@@ -60,20 +62,21 @@ impl SnapApp {
         }
     }
 
-    pub(crate) fn on_drag(&mut self, pos: Option<egui::Pos2>) {
+    pub(crate) fn on_drag(&mut self, pos: Option<ImagePoint>) {
         let Some(pos) = pos else { return };
         match self.tool_state.clone() {
             ToolState::Panning {
                 start,
                 viewport_origin,
             } => {
-                self.pan_offset = pan_from_drag_delta(viewport_origin, start, pos);
+                let offset = pan_from_drag_delta(viewport_origin, start, pos);
+                self.pan_offset = egui::vec2(offset.x(), offset.y());
             }
             ToolState::Zooming {
                 start,
                 original_zoom,
             } => {
-                let drag_delta_y = pos.y - start.y;
+                let drag_delta_y = pos.y() - start.y();
                 self.zoom = zoom_from_drag_delta(original_zoom, drag_delta_y);
                 self.status_message = format!("Zoom: {:.0}%", self.zoom * 100.0);
             }
@@ -85,8 +88,8 @@ impl SnapApp {
                 let (new_center, new_width) = window_level_from_drag_delta(
                     original_center,
                     original_width,
-                    pos.x - start.x,
-                    pos.y - start.y,
+                    pos.x() - start.x(),
+                    pos.y() - start.y(),
                     WINDOW_LEVEL_SENSITIVITY,
                 );
                 self.viewer_state.window_center = Some(new_center as f32);
@@ -107,7 +110,7 @@ impl SnapApp {
         }
     }
 
-    pub(crate) fn on_drag_end(&mut self, pos: Option<egui::Pos2>) {
+    pub(crate) fn on_drag_end(&mut self, pos: Option<ImagePoint>) {
         if pos.is_some() {
             match self.tool_state.clone() {
                 ToolState::RoiDrag {
@@ -130,13 +133,31 @@ impl SnapApp {
         self.tool_state = ToolState::Idle;
     }
 
-    pub(crate) fn on_click(&mut self, pos: Option<egui::Pos2>) {
+    /// End a click without discarding a multi-click measurement anchor.
+    ///
+    /// A click is also the release of a press that may have initialized a
+    /// transient drag state. Measurement tools use the release itself to
+    /// advance their anchors, so they must be allowed to observe their prior
+    /// state before the transient gesture is cleared.
+    pub(crate) fn on_click_end(&mut self) {
+        if matches!(
+            self.tool_state,
+            ToolState::Panning { .. }
+                | ToolState::Zooming { .. }
+                | ToolState::WindowLevelDrag { .. }
+                | ToolState::RoiDrag { .. }
+        ) {
+            self.tool_state = ToolState::Idle;
+        }
+    }
+
+    pub(crate) fn on_click(&mut self, pos: Option<ImagePoint>) {
         let Some(pos) = pos else { return };
         match self.active_tool {
             ToolKind::MeasureLength => match self.tool_state.clone() {
                 ToolState::MeasureLength1 { p1 } => {
-                    let p1_arr = [p1.y, p1.x];
-                    let p2_arr = [pos.y, pos.x];
+                    let p1_arr = [p1.y(), p1.x()];
+                    let p2_arr = [pos.y(), pos.x()];
                     let spacing = match self.slice_plane_spacing() {
                         Ok(spacing) => spacing,
                         Err(error) => {
@@ -167,9 +188,9 @@ impl SnapApp {
             },
             ToolKind::MeasureAngle => match self.tool_state.clone() {
                 ToolState::MeasureAngle2 { p1, p2 } => {
-                    let a = [p1.y, p1.x];
-                    let b = [p2.y, p2.x];
-                    let c = [pos.y, pos.x];
+                    let a = [p1.y(), p1.x()];
+                    let b = [p2.y(), p2.x()];
+                    let c = [pos.y(), pos.x()];
                     let angle_deg = Annotation::compute_angle(a, b, c);
                     self.annotations.push(Annotation::Angle {
                         p1: a,
@@ -188,14 +209,14 @@ impl SnapApp {
             },
             ToolKind::PointHu => {
                 if let Some(vol) = &self.loaded {
-                    let row = pos.y as usize;
-                    let col = pos.x as usize;
+                    let row = pos.y() as usize;
+                    let col = pos.x() as usize;
                     let (pixels, width, _height) =
                         vol.extract_slice(self.axis, self.viewer_state.slice_index);
                     let idx = row * width + col;
                     let value = if idx < pixels.len() { pixels[idx] } else { 0.0 };
                     self.annotations.push(Annotation::HuPoint {
-                        pos: [pos.y, pos.x],
+                        pos: [pos.y(), pos.x()],
                         value,
                     });
                     self.status_message = format!("HU at col={col} row={row}: {value:.0}");
@@ -210,7 +231,7 @@ impl SnapApp {
 
     /// Compute ROI rect statistics for the pixel region between `start` and
     /// `end` (screen-space corners) on the current primary-axis slice.
-    fn finalise_roi_rect(&mut self, start: egui::Pos2, end: egui::Pos2) {
+    fn finalise_roi_rect(&mut self, start: ImagePoint, end: ImagePoint) {
         let spacing = match self.slice_plane_spacing() {
             Ok(spacing) => spacing,
             Err(error) => {
@@ -219,8 +240,8 @@ impl SnapApp {
             }
         };
         let Some(vol) = &self.loaded else { return };
-        let p1 = [start.y, start.x];
-        let p2 = [end.y, end.x];
+        let p1 = [start.y(), start.x()];
+        let p2 = [end.y(), end.x()];
         let (pixels, width, height) = vol.extract_slice(self.axis, self.viewer_state.slice_index);
         let (mean, std_dev, min, max, area_mm2) = match Annotation::compute_roi_rect_stats_checked(
             p1, p2, &pixels, width, height, spacing,
@@ -244,7 +265,7 @@ impl SnapApp {
             format!("ROI: \u{03bc}={mean:.1} \u{03c3}={std_dev:.1} [{min:.0}, {max:.0}] {area_mm2:.1} mm\u{b2}");
     }
 
-    fn finalise_roi_ellipse(&mut self, start: egui::Pos2, end: egui::Pos2) {
+    fn finalise_roi_ellipse(&mut self, start: ImagePoint, end: ImagePoint) {
         let spacing = match self.slice_plane_spacing() {
             Ok(spacing) => spacing,
             Err(error) => {
@@ -253,8 +274,8 @@ impl SnapApp {
             }
         };
         let Some(vol) = &self.loaded else { return };
-        let p1 = [start.y, start.x];
-        let p2 = [end.y, end.x];
+        let p1 = [start.y(), start.x()];
+        let p2 = [end.y(), end.x()];
         let (pixels, width, height) = vol.extract_slice(self.axis, self.viewer_state.slice_index);
         let (center, radii, mean, std_dev, min, max, area_mm2) =
             match Annotation::compute_roi_ellipse_stats_checked(
@@ -301,22 +322,12 @@ impl SnapApp {
         Ok(spacing)
     }
 
-    pub(crate) fn apply_label_at_pointer(
-        &mut self,
-        axis: usize,
-        pos: Option<egui::Pos2>,
-        rect: egui::Rect,
-    ) {
+    pub(crate) fn apply_label_at_pointer(&mut self, axis: usize, pos: Option<ImagePoint>) {
         let Some(point) = pos else { return };
         let Some(volume) = &self.loaded else { return };
-        let Some(voxel) = viewport_point_to_voxel(
-            volume.shape,
-            axis,
-            self.axis_slice_info(axis).0,
-            point,
-            rect,
-            self.view_transform,
-        ) else {
+        let Some(voxel) =
+            image_point_to_voxel(volume.shape, axis, self.axis_slice_info(axis).0, point)
+        else {
             return;
         };
         let Some(editor) = self.label_editor.as_mut() else {
@@ -344,8 +355,7 @@ impl SnapApp {
     pub(crate) fn update_linked_cursor_from_pointer(
         &mut self,
         axis: usize,
-        pos: Option<egui::Pos2>,
-        rect: egui::Rect,
+        pos: Option<ImagePoint>,
     ) {
         let Some(point) = pos else { return };
         let slice_index = self.axis_slice_info(axis).0;
@@ -353,14 +363,8 @@ impl SnapApp {
         let Some(cursor) = self.linked_cursor.as_mut() else {
             return;
         };
-        let Some(voxel) = cursor.update_from_viewport_point(
-            volume.shape,
-            axis,
-            slice_index,
-            point,
-            rect,
-            self.view_transform,
-        ) else {
+        let Some(voxel) = cursor.update_from_image_point(volume.shape, axis, slice_index, point)
+        else {
             return;
         };
         self.viewer_state.slice_index = voxel[0];
@@ -377,12 +381,7 @@ impl SnapApp {
         );
     }
 
-    pub(crate) fn update_pointer_intensity(
-        &mut self,
-        axis: usize,
-        pos: Option<egui::Pos2>,
-        rect: egui::Rect,
-    ) {
+    pub(crate) fn update_pointer_intensity(&mut self, axis: usize, pos: Option<ImagePoint>) {
         let Some(point) = pos else {
             self.pointer_intensity = 0.0;
             self.pointer_suv = None;
@@ -394,14 +393,7 @@ impl SnapApp {
             return;
         };
         let slice_index = self.axis_slice_info(axis).0;
-        let Some(voxel) = viewport_point_to_voxel(
-            volume.shape,
-            axis,
-            slice_index,
-            point,
-            rect,
-            self.view_transform,
-        ) else {
+        let Some(voxel) = image_point_to_voxel(volume.shape, axis, slice_index, point) else {
             self.pointer_intensity = 0.0;
             self.pointer_suv = None;
             return;

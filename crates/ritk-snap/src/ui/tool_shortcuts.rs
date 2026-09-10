@@ -23,7 +23,8 @@
 //!
 //! # Implementation
 //!
-//! [`tool_kind_for_key`] is the SSOT that maps egui::Key to optional ToolKind.
+//! [`tool_kind_for_key`] and [`tool_kind_for_virtual_key`] are the SSOTs that
+//! map host keyboard values to optional [`ToolKind`] values.
 //! Return value is `Some(ToolKind)` if the key corresponds to a shortcut,
 //! or `None` if the key has no tool binding.
 //!
@@ -62,9 +63,60 @@ pub const KEY_WINDOW_LEVEL: Key = Key::W;
 /// Single-key shortcut for Label Paint tool.
 pub const KEY_LABEL_PAINT: Key = Key::B;
 
+/// Host virtual-key value for the Measure Length shortcut.
+pub const VIRTUAL_KEY_MEASURE_LENGTH: u32 = 0x4c;
+
+/// Host virtual-key value for the Measure Angle shortcut.
+pub const VIRTUAL_KEY_MEASURE_ANGLE: u32 = 0x41;
+
+/// Host virtual-key value for the ROI Rectangle shortcut.
+pub const VIRTUAL_KEY_ROI_RECT: u32 = 0x52;
+
+/// Host virtual-key value for the ROI Ellipse shortcut.
+pub const VIRTUAL_KEY_ROI_ELLIPSE: u32 = 0x45;
+
+/// Host virtual-key value for the HU Point shortcut.
+pub const VIRTUAL_KEY_HU_POINT: u32 = 0x48;
+
+/// Host virtual-key value for the Pan shortcut.
+pub const VIRTUAL_KEY_PAN: u32 = 0x50;
+
+/// Host virtual-key value for the Zoom shortcut.
+pub const VIRTUAL_KEY_ZOOM: u32 = 0x5a;
+
+/// Host virtual-key value for the Window/Level shortcut.
+pub const VIRTUAL_KEY_WINDOW_LEVEL: u32 = 0x57;
+
+/// Host virtual-key value for the Label Paint shortcut.
+pub const VIRTUAL_KEY_LABEL_PAINT: u32 = 0x42;
+
 // ── SSOT function ────────────────────────────────────────────────────────────
 
-/// Map a key press to an optional tool kind.
+/// Map a host virtual-key value to an optional tool kind.
+///
+/// The values are the stable ASCII virtual-key values used by the native
+/// presentation contract. Browser and native hosts can therefore select the
+/// same RITK tool without depending on egui's key type.
+///
+/// Returns `Some(ToolKind)` if the value corresponds to a tool shortcut, or
+/// `None` if it has no binding.
+#[inline]
+pub fn tool_kind_for_virtual_key(virtual_key: u32) -> Option<ToolKind> {
+    match virtual_key {
+        VIRTUAL_KEY_MEASURE_LENGTH => Some(ToolKind::MeasureLength),
+        VIRTUAL_KEY_MEASURE_ANGLE => Some(ToolKind::MeasureAngle),
+        VIRTUAL_KEY_ROI_RECT => Some(ToolKind::RoiRect),
+        VIRTUAL_KEY_ROI_ELLIPSE => Some(ToolKind::RoiEllipse),
+        VIRTUAL_KEY_HU_POINT => Some(ToolKind::PointHu),
+        VIRTUAL_KEY_PAN => Some(ToolKind::Pan),
+        VIRTUAL_KEY_ZOOM => Some(ToolKind::Zoom),
+        VIRTUAL_KEY_WINDOW_LEVEL => Some(ToolKind::WindowLevel),
+        VIRTUAL_KEY_LABEL_PAINT => Some(ToolKind::LabelPaint),
+        _ => None,
+    }
+}
+
+/// Map an egui key press to an optional tool kind.
 ///
 /// Returns `Some(ToolKind)` if the key corresponds to a tool shortcut,
 /// or `None` if the key has no binding.
@@ -89,15 +141,15 @@ pub const KEY_LABEL_PAINT: Key = Key::B;
 #[inline]
 pub fn tool_kind_for_key(key: Key) -> Option<ToolKind> {
     match key {
-        KEY_MEASURE_LENGTH => Some(ToolKind::MeasureLength),
-        KEY_MEASURE_ANGLE => Some(ToolKind::MeasureAngle),
-        KEY_ROI_RECT => Some(ToolKind::RoiRect),
-        KEY_ROI_ELLIPSE => Some(ToolKind::RoiEllipse),
-        KEY_HU_POINT => Some(ToolKind::PointHu),
-        KEY_PAN => Some(ToolKind::Pan),
-        KEY_ZOOM => Some(ToolKind::Zoom),
-        KEY_WINDOW_LEVEL => Some(ToolKind::WindowLevel),
-        KEY_LABEL_PAINT => Some(ToolKind::LabelPaint),
+        KEY_MEASURE_LENGTH => tool_kind_for_virtual_key(VIRTUAL_KEY_MEASURE_LENGTH),
+        KEY_MEASURE_ANGLE => tool_kind_for_virtual_key(VIRTUAL_KEY_MEASURE_ANGLE),
+        KEY_ROI_RECT => tool_kind_for_virtual_key(VIRTUAL_KEY_ROI_RECT),
+        KEY_ROI_ELLIPSE => tool_kind_for_virtual_key(VIRTUAL_KEY_ROI_ELLIPSE),
+        KEY_HU_POINT => tool_kind_for_virtual_key(VIRTUAL_KEY_HU_POINT),
+        KEY_PAN => tool_kind_for_virtual_key(VIRTUAL_KEY_PAN),
+        KEY_ZOOM => tool_kind_for_virtual_key(VIRTUAL_KEY_ZOOM),
+        KEY_WINDOW_LEVEL => tool_kind_for_virtual_key(VIRTUAL_KEY_WINDOW_LEVEL),
+        KEY_LABEL_PAINT => tool_kind_for_virtual_key(VIRTUAL_KEY_LABEL_PAINT),
         _ => None,
     }
 }

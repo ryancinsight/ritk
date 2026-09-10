@@ -1,15 +1,28 @@
 //! Windows host adapter for one RITK presentation frame.
 
-use super::{CompositionPhase, PointerButton, PresentationEvent, PresentationFrame};
+use super::{
+    CompositionPhase, PointerButton, PresentationEvent, PresentationFrame, MAX_COMPOSITION_UNITS,
+    MAX_PRESENTATION_EVENTS,
+};
 use anyhow::{anyhow, bail, Result};
 use metis_platform::native::{
     run_native_application, NativeApplication, NativeFlow, WindowConfig, WindowEvent,
-    WindowVisibility, MAX_COMPOSITION_UNITS, MAX_WINDOW_EVENTS,
+    WindowVisibility, MAX_COMPOSITION_UNITS as PROVIDER_MAX_COMPOSITION_UNITS,
+    MAX_WINDOW_EVENTS as PROVIDER_MAX_WINDOW_EVENTS,
 };
 use metis_platform::{Color, Framebuffer};
 use std::sync::atomic::{AtomicBool, AtomicUsize, Ordering};
 use std::sync::Arc;
 use std::time::Duration;
+
+const _: () = assert!(
+    MAX_PRESENTATION_EVENTS == PROVIDER_MAX_WINDOW_EVENTS,
+    "RITK presentation batch bound must match the Métis native queue bound"
+);
+const _: () = assert!(
+    MAX_COMPOSITION_UNITS == PROVIDER_MAX_COMPOSITION_UNITS,
+    "RITK composition bound must match the Métis native input bound"
+);
 
 /// Observable result of one native frame presentation.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -70,11 +83,11 @@ impl NativeFrameOutcome {
 /// Returns an error when the provider batch exceeds its declared event bound or
 /// when the translated event storage cannot be reserved.
 pub fn translate_native_events(events: &[WindowEvent]) -> Result<Box<[PresentationEvent]>> {
-    if events.len() > MAX_WINDOW_EVENTS {
+    if events.len() > MAX_PRESENTATION_EVENTS {
         bail!(
             "native event batch length {} exceeds host limit {}",
             events.len(),
-            MAX_WINDOW_EVENTS
+            MAX_PRESENTATION_EVENTS
         );
     }
     let mut translated = Vec::new();
@@ -87,15 +100,18 @@ pub fn translate_native_events(events: &[WindowEvent]) -> Result<Box<[Presentati
             WindowEvent::Destroyed => PresentationEvent::Destroyed,
             WindowEvent::FocusGained => PresentationEvent::FocusGained,
             WindowEvent::FocusLost => PresentationEvent::FocusLost,
-            WindowEvent::PointerMove { x, y } => PresentationEvent::PointerMove { x: *x, y: *y },
+            WindowEvent::PointerMove { x, y } => PresentationEvent::PointerMove {
+                x: f64::from(*x),
+                y: f64::from(*y),
+            },
             WindowEvent::PointerDown { x, y, button } => PresentationEvent::PointerDown {
-                x: *x,
-                y: *y,
+                x: f64::from(*x),
+                y: f64::from(*y),
                 button: translate_pointer_button(*button),
             },
             WindowEvent::PointerUp { x, y, button } => PresentationEvent::PointerUp {
-                x: *x,
-                y: *y,
+                x: f64::from(*x),
+                y: f64::from(*y),
                 button: translate_pointer_button(*button),
             },
             WindowEvent::KeyDown {
@@ -322,15 +338,15 @@ mod tests {
                 PresentationEvent::Destroyed,
                 PresentationEvent::FocusGained,
                 PresentationEvent::FocusLost,
-                PresentationEvent::PointerMove { x: -4, y: 8 },
+                PresentationEvent::PointerMove { x: -4.0, y: 8.0 },
                 PresentationEvent::PointerDown {
-                    x: 1,
-                    y: 2,
+                    x: 1.0,
+                    y: 2.0,
                     button: PointerButton::X1,
                 },
                 PresentationEvent::PointerUp {
-                    x: 3,
-                    y: 4,
+                    x: 3.0,
+                    y: 4.0,
                     button: PointerButton::Right,
                 },
                 PresentationEvent::KeyDown {
@@ -353,8 +369,24 @@ mod tests {
     }
 
     #[test]
+    fn native_coordinates_preserve_values_above_f32_integer_precision() {
+        let events = [WindowEvent::PointerMove {
+            x: 16_777_217,
+            y: -16_777_217,
+        }];
+        let translated = translate_native_events(&events).expect("translated events");
+        assert_eq!(
+            translated.as_ref(),
+            &[PresentationEvent::PointerMove {
+                x: 16_777_217.0,
+                y: -16_777_217.0,
+            }]
+        );
+    }
+
+    #[test]
     fn native_events_reject_oversized_batch() {
-        let events = vec![WindowEvent::FocusGained; MAX_WINDOW_EVENTS + 1];
+        let events = vec![WindowEvent::FocusGained; MAX_PRESENTATION_EVENTS + 1];
         let error = translate_native_events(&events).expect_err("oversized batch");
         assert!(error.to_string().contains("exceeds host limit"));
     }

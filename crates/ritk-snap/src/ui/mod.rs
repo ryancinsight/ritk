@@ -85,8 +85,8 @@ pub use export_plan::{
 pub use layout::{LayoutMode, ViewportId};
 pub use measurements::MeasurementLayer;
 pub use mpr_cursor::{
-    axis_slice_dimensions, map_view_row_col_to_voxel, map_voxel_to_view_row_col,
-    viewport_point_to_voxel, LinkedCursor,
+    axis_slice_dimensions, image_point_to_voxel, map_view_row_col_to_voxel,
+    map_voxel_to_view_row_col, viewport_point_to_voxel, LinkedCursor,
 };
 pub use overlay::OverlayRenderer;
 pub use pan::pan_from_drag_delta;
@@ -99,7 +99,7 @@ pub use rt_dose_analytics::{
 pub use rtstruct_overlay::{project_rt_struct_contours_for_slice, ProjectedRtContour};
 pub use sidebar::SidebarPanel;
 pub use slice_navigation::{advance_wrapped, axis_total, clamp_index, step_clamped};
-pub use tool_shortcuts::tool_kind_for_key;
+pub use tool_shortcuts::{tool_kind_for_key, tool_kind_for_virtual_key};
 pub use toolbar::{ToolbarPanel, ToolbarState};
 pub(crate) use view_transform::apply_to_image_into;
 pub use view_transform::{

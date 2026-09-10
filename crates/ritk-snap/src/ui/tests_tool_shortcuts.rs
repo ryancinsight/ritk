@@ -63,6 +63,30 @@ fn unmapped_key_returns_none() {
     assert_eq!(tool_kind_for_key(Key::X), None);
 }
 
+/// Native virtual-key values and egui keys use the same shortcut mapping.
+#[test]
+fn virtual_key_shortcuts_match_egui_shortcuts() {
+    let pairs = [
+        (VIRTUAL_KEY_MEASURE_LENGTH, Key::L),
+        (VIRTUAL_KEY_MEASURE_ANGLE, Key::A),
+        (VIRTUAL_KEY_ROI_RECT, Key::R),
+        (VIRTUAL_KEY_ROI_ELLIPSE, Key::E),
+        (VIRTUAL_KEY_HU_POINT, Key::H),
+        (VIRTUAL_KEY_PAN, Key::P),
+        (VIRTUAL_KEY_ZOOM, Key::Z),
+        (VIRTUAL_KEY_WINDOW_LEVEL, Key::W),
+        (VIRTUAL_KEY_LABEL_PAINT, Key::B),
+    ];
+    for (virtual_key, key) in pairs {
+        assert_eq!(
+            tool_kind_for_virtual_key(virtual_key),
+            tool_kind_for_key(key),
+            "virtual key {virtual_key:#x} must match egui key {key:?}",
+        );
+    }
+    assert_eq!(tool_kind_for_virtual_key(0), None);
+}
+
 /// All mapped shortcuts are distinct (no accidental duplication).
 #[test]
 fn all_shortcuts_distinct() {

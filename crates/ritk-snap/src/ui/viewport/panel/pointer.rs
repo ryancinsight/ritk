@@ -1,11 +1,11 @@
 //! ViewportPanel pointer event handling.
 
-use egui::{Pos2, Rect, Response, Vec2};
+use egui::{Rect, Response, Vec2};
 
 use super::super::state::{img_to_volume, screen_to_img, screen_to_img_exact, ViewportPanel};
 use crate::{
     tools::{
-        interaction::{Annotation, RoiKind, ToolState},
+        interaction::{Annotation, ImagePoint, RoiKind, ToolState, ViewportOffset},
         kind::ToolKind,
     },
     LoadedVolume,
@@ -56,8 +56,8 @@ impl<'a> ViewportPanel<'a> {
                 ToolKind::Pan => {
                     if let Some(pos) = response.interact_pointer_pos() {
                         self.state.tool_state = ToolState::Panning {
-                            start: pos,
-                            viewport_origin: egui::pos2(
+                            start: ImagePoint::new(pos.x, pos.y),
+                            viewport_origin: ViewportOffset::new(
                                 self.state.pan_offset.x,
                                 self.state.pan_offset.y,
                             ),
@@ -67,7 +67,7 @@ impl<'a> ViewportPanel<'a> {
                 ToolKind::WindowLevel => {
                     if let Some(pos) = response.interact_pointer_pos() {
                         self.state.tool_state = ToolState::WindowLevelDrag {
-                            start: pos,
+                            start: ImagePoint::new(pos.x, pos.y),
                             original_center: self.state.wl.center,
                             original_width: self.state.wl.width,
                         };
@@ -80,15 +80,15 @@ impl<'a> ViewportPanel<'a> {
                             match &self.state.tool_state {
                                 ToolState::Idle => {
                                     self.state.tool_state = ToolState::MeasureLength1 {
-                                        p1: Pos2::new(col, row),
+                                        p1: ImagePoint::new(col, row),
                                     };
                                 }
                                 ToolState::MeasureLength1 { p1 } => {
                                     let p1 = *p1;
-                                    let p2 = Pos2::new(col, row);
-                                    // Convert Pos2{x=col, y=row} → [row, col]
-                                    let p1_arr = [p1.y, p1.x];
-                                    let p2_arr = [p2.y, p2.x];
+                                    let p2 = ImagePoint::new(col, row);
+                                    // Convert display point {x=col, y=row} → [row, col]
+                                    let p1_arr = [p1.y(), p1.x()];
+                                    let p2_arr = [p2.y(), p2.x()];
                                     let sp = volume.spacing;
                                     let spacing_2d = match self.state.axis {
                                         0 => [sp[1], sp[2]],
@@ -118,7 +118,7 @@ impl<'a> ViewportPanel<'a> {
                 ToolKind::MeasureAngle => {
                     if let Some(cursor) = response.interact_pointer_pos() {
                         if let Some((col, row)) = screen_to_img_exact(cursor, offset, scale) {
-                            let pt = Pos2::new(col, row);
+                            let pt = ImagePoint::new(col, row);
                             match &self.state.tool_state {
                                 ToolState::Idle => {
                                     self.state.tool_state = ToolState::MeasureLength1 { p1: pt };
@@ -130,10 +130,10 @@ impl<'a> ViewportPanel<'a> {
                                 ToolState::MeasureAngle2 { p1, p2 } => {
                                     let p1 = *p1;
                                     let p2 = *p2;
-                                    // Convert Pos2{x=col, y=row} → [row, col]
-                                    let p1_arr = [p1.y, p1.x];
-                                    let p2_arr = [p2.y, p2.x];
-                                    let p3_arr = [pt.y, pt.x];
+                                    // Convert display point {x=col, y=row} → [row, col]
+                                    let p1_arr = [p1.y(), p1.x()];
+                                    let p2_arr = [p2.y(), p2.x()];
+                                    let p3_arr = [pt.y(), pt.x()];
                                     let angle = Annotation::compute_angle(p1_arr, p2_arr, p3_arr);
                                     self.state.annotations.push(Annotation::Angle {
                                         p1: p1_arr,
@@ -159,8 +159,8 @@ impl<'a> ViewportPanel<'a> {
                                 RoiKind::Ellipse
                             };
                             self.state.tool_state = ToolState::RoiDrag {
-                                start: Pos2::new(col, row),
-                                current: Pos2::new(col, row),
+                                start: ImagePoint::new(col, row),
+                                current: ImagePoint::new(col, row),
                                 kind,
                             };
                         }
@@ -195,7 +195,10 @@ impl<'a> ViewportPanel<'a> {
                     viewport_origin,
                 } => {
                     if let Some(current_pos) = response.interact_pointer_pos() {
-                        self.state.pan_offset = (viewport_origin + (current_pos - start)).to_vec2();
+                        self.state.pan_offset = egui::vec2(
+                            viewport_origin.x() + current_pos.x - start.x(),
+                            viewport_origin.y() + current_pos.y - start.y(),
+                        );
                     }
                 }
                 ToolState::WindowLevelDrag {
@@ -204,11 +207,12 @@ impl<'a> ViewportPanel<'a> {
                     original_width,
                 } => {
                     if let Some(current_pos) = response.interact_pointer_pos() {
-                        let delta = current_pos - start;
+                        let delta_x = current_pos.x - start.x();
+                        let delta_y = current_pos.y - start.y();
                         // Horizontal drag → window width; vertical drag → centre.
                         // 2 HU per pixel is a clinically comfortable sensitivity.
-                        self.state.wl.width = (original_width + delta.x as f64 * 2.0).max(1.0);
-                        self.state.wl.center = original_center - delta.y as f64 * 2.0;
+                        self.state.wl.width = (original_width + f64::from(delta_x) * 2.0).max(1.0);
+                        self.state.wl.center = original_center - f64::from(delta_y) * 2.0;
                         self.state.invalidate_texture();
                     }
                 }
@@ -217,7 +221,7 @@ impl<'a> ViewportPanel<'a> {
                         if let Some((col, row)) = screen_to_img_exact(cursor, offset, scale) {
                             self.state.tool_state = ToolState::RoiDrag {
                                 start,
-                                current: Pos2::new(col, row),
+                                current: ImagePoint::new(col, row),
                                 kind,
                             };
                         }
@@ -241,12 +245,14 @@ impl<'a> ViewportPanel<'a> {
                     current,
                     kind: RoiKind::Rect,
                 } => {
-                    let tl = Pos2::new(start.x.min(current.x), start.y.min(current.y));
-                    let br = Pos2::new(start.x.max(current.x), start.y.max(current.y));
-                    if (br.x - tl.x) > 0.5 && (br.y - tl.y) > 0.5 {
-                        // Convert Pos2{x=col,y=row} → [row, col]
-                        let tl_arr = [tl.y, tl.x];
-                        let br_arr = [br.y, br.x];
+                    let tl =
+                        ImagePoint::new(start.x().min(current.x()), start.y().min(current.y()));
+                    let br =
+                        ImagePoint::new(start.x().max(current.x()), start.y().max(current.y()));
+                    if (br.x() - tl.x()) > 0.5 && (br.y() - tl.y()) > 0.5 {
+                        // Convert display point {x=col,y=row} → [row, col]
+                        let tl_arr = [tl.y(), tl.x()];
+                        let br_arr = [br.y(), br.x()];
                         let sp = volume.spacing;
                         let spacing_2d = match self.state.axis {
                             0 => [sp[1], sp[2]],
@@ -279,11 +285,13 @@ impl<'a> ViewportPanel<'a> {
                     kind: RoiKind::Ellipse,
                 } => {
                     // Use compute_roi_ellipse_stats for correct ellipse pixel-mask statistics.
-                    let tl = Pos2::new(start.x.min(current.x), start.y.min(current.y));
-                    let br = Pos2::new(start.x.max(current.x), start.y.max(current.y));
-                    if (br.x - tl.x) > 0.5 && (br.y - tl.y) > 0.5 {
-                        let tl_arr = [tl.y, tl.x];
-                        let br_arr = [br.y, br.x];
+                    let tl =
+                        ImagePoint::new(start.x().min(current.x()), start.y().min(current.y()));
+                    let br =
+                        ImagePoint::new(start.x().max(current.x()), start.y().max(current.y()));
+                    if (br.x() - tl.x()) > 0.5 && (br.y() - tl.y()) > 0.5 {
+                        let tl_arr = [tl.y(), tl.x()];
+                        let br_arr = [br.y(), br.x()];
                         let sp = volume.spacing;
                         let spacing_2d = match self.state.axis {
                             0 => [sp[1], sp[2]],
