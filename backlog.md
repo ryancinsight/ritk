@@ -63,8 +63,7 @@
 
 <a id="RITK-SNAP-METIS-001"></a>
 ## RITK-SNAP-METIS-001 — Migrate the viewer shell to Métis [arch] [minor]
-- Status: in-progress; priority: P1; owner: RITK viewer + Métis framework; integrator: root; branch: feat/ritk-snap-metis-events; last-update: 2026-09-10; risk: lost viewer behavior; decision: [ADR 0026](docs/adr/0026-viewer-presentation-migration.md).
-- Lease: root — `crates/ritk-snap/src/presentation/events.rs`, `crates/ritk-snap/src/presentation/native.rs`, their tests and this item; 2026-09-10T04:10:00-04:00.
+- Status: in-progress; priority: P1; owner: RITK viewer + Métis framework; integrator: root; branch: main; last-update: 2026-09-10; risk: lost viewer behavior; decision: [ADR 0026](docs/adr/0026-viewer-presentation-migration.md).
 - Driver: user's named application; framework work: [METIS-MIGRATION-001](../metis/backlog.md#METIS-MIGRATION-001), [V09](../metis/docs/VERIFICATION.md#V09).
 - Dependencies: RITK-SNAP-FIXTURES-001, RITK-SNAP-OPEN-001, RITK-SNAP-DIRECTORY-001, RITK-SNAP-ASPECT-001, RITK-SNAP-RESOURCES-001, RITK-SNAP-FRAMES-001, RITK-SNAP-FUSION-001, RITK-SNAP-COORDINATES-001, RITK-SNAP-COLOR-001, RITK-SNAP-GRAYSCALE-001; working Métis host/input/image/async/file capabilities.
 - Scope: inventory and replace egui/eframe shell and GUI-specific carriers in `ritk-snap`; retain RITK decoding, geometry and viewer semantics, Iris visualization contracts and Moirai execution. Tauri is a framework comparison target, not a dependency found in this app.
@@ -72,7 +71,7 @@
 - Demonstration: same synthetic studies and user actions before/after migration, all three orthogonal views, known voxel/physical-coordinate checks, cancellation/recovery and public manual captures; matched memory measurements before any improvement claim.
 - Inventory increment: ADR 0026 now maps every egui/eframe, rfd, texture, event, task, and packaging surface to the required Métis/Moirai seam; DICOM parsing and presentation remain RITK-owned.
 - Completed increment: [RITK PR #261](https://github.com/ryancinsight/ritk/pull/261), merge `ad8ad7046`, adds `PresentationFrame` with the existing slice-display semantics and a Windows Métis adapter that presents one validated frame on a real hidden native surface; focused/full nextest, locked standalone checks, and the synthetic DICOM visual workflow pass. DICOM state remains in RITK.
-- Completed increment: the Windows adapter translates every bounded Moirai native event into RITK's format-neutral `PresentationEvent` contract, preserving pointer, keyboard, text/IME, resize, DPI, focus and lifecycle values; value-semantic translation and oversize rejection tests pass.
+- Completed increment: [RITK PR #263](https://github.com/ryancinsight/ritk/pull/263), merge `36980caea`, adds the Windows adapter that translates every bounded Moirai native event into RITK's format-neutral `PresentationEvent` contract, preserving pointer, keyboard, text/IME, resize, DPI, focus and lifecycle values; value-semantic translation, UTF-16 boundary and oversize rejection tests pass.
 - Remaining host gap: dispatch translated events into viewer actions, browser handoff, three orthogonal views, GPU presentation, and complete capture/manual snapshots through Métis.
 
 <a id="RITK-SOFT-TISSUE-REGISTRATION-2026-09-03"></a>
