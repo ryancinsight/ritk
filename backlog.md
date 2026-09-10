@@ -1,9 +1,9 @@
 <a id="RITK-SNAP-FILE-TARGETS-2026-09-10"></a>
 ## RITK-SNAP-FILE-TARGETS-2026-09-10 — Four ritk-snap files past the 500-line target [patch]
-- Status: in-progress; integrator: claude-opus-5; lane: `worktrees/ritk-snap-file-targets` on `refactor/ritk-snap-file-targets`; last-update: 2026-09-10.
+- Status: done; delivery: [PR #276](https://github.com/ryancinsight/ritk/pull/276), merge `58d42b87b`; atlas pin advanced in [atlas#166](https://github.com/ryancinsight/atlas/pull/166).
 - Regions: `crates/ritk-snap/src/app/io_ops.rs`, `crates/ritk-snap/src/app/tests/action_adapter.rs`, `crates/ritk-snap/src/dicom/loader/tests.rs`, `crates/ritk-snap/src/render/fusion.rs`.
 - Outcome: each of the four lands under the target as coherent leaves; `oversized_files` returns to the recorded baseline so the atlas `repos/ritk` pin can advance.
-- Oracle: the atlas conformance scan measures `ritk/oversized_files` at 45 or below (recorded baseline 45; the current pin measures 49), with workspace clippy, nextest, and fmt green.
+- Verification: `oversized_files` 49 -> 45 at `58d42b87b`, the recorded baseline; `ritk-snap` 793/793 nextest, clippy `-D warnings` over `--all-targets` clean, fmt clean. The 32 test names in the two split suites are identical to the 32 before, compared as sets.
 - Basis: the four crossed between atlas pins `7f9b0ce0c` and `00ad74875`, measured with the scan's own prune set and line arithmetic.
 - Non-goals: the 45 files already over the target at the recorded baseline; those are the standing ratchet, not this regression.
 
