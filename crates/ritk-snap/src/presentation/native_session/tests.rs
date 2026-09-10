@@ -64,7 +64,13 @@ fn native_session_drag_updates_pan_and_presented_frame() {
     assert!(session.app.pan_offset.x > 0.0);
     assert!(session.app.pan_offset.y > 0.0);
     assert_ne!(session.framebuffer.pixels(), initial_frame.pixels());
-    assert!(session.observation.frame_generations.load(Ordering::Relaxed) > 1);
+    assert!(
+        session
+            .observation
+            .frame_generations
+            .load(Ordering::Relaxed)
+            > 1
+    );
 }
 
 #[test]
