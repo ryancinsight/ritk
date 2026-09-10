@@ -37,7 +37,7 @@
 
 <a id="RITK-SNAP-FRAMES-001"></a>
 ## RITK-SNAP-FRAMES-001 — Complete multiframe opening [patch]
-- Status: todo; priority: P0; owner: RITK viewer/IO; dependencies: RITK-SNAP-FIXTURES-001; risk: dropped frames or wrong geometry.
+- Status: in-progress; priority: P0; owner: RITK viewer/IO; integrator: root; branch: `codex/ritk-snap-frames-001`; last-update: 2026-09-09; dependencies: RITK-SNAP-FIXTURES-001; risk: dropped frames or wrong geometry.
 - Scope: route admitted multiframe objects through the existing RITK multiframe reader; preserve frame identity and functional-group geometry; reject unsupported dimensional organizations explicitly.
 - Evidence: series `reader/pixel.rs` decodes frame zero; the separate `dicom/multiframe/reader.rs` path is not called by inspected SNAP loaders at `341228e`.
 - Acceptance: every expected frame is reachable with distinct known pixels and physical coordinates; temporal frames are not silently stacked as spatial slices; no missing or duplicated frames.
