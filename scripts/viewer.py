@@ -1,4 +1,4 @@
-"""Verify synthetic DICOM workflows with a 60-second budget per process."""
+"""Verify synthetic DICOM and patient-coordinate fusion workflows."""
 import argparse
 import hashlib
 import json
@@ -23,7 +23,7 @@ def main():
     parser.add_argument("--native-binary", type=Path, help="also open and capture the real desktop viewer")
     arguments = parser.parse_args()
     destination = ROOT / "scratch" / "viewer"
-    images = [f"{axis}{suffix}.png" for axis in ("depth", "row", "column")
+    images = [f"{axis}{suffix}.png" for axis in ("depth", "row", "column", "fusion")
               for suffix in ("", "-grid")]
     for path in (destination.parent, destination):
         if linked(path):
@@ -75,7 +75,7 @@ def main():
             if linked(path):
                 raise ValueError(f"refusing linked golden directory: {path}")
         golden_root.mkdir(parents=True, exist_ok=True)
-        for axis in ("depth", "row", "column"):
+        for axis in ("depth", "row", "column", "fusion"):
             golden = golden_root / f"dicom-{axis}.png"
             if linked(golden) or (golden.exists() and golden.stat().st_nlink != 1):
                 raise ValueError(f"refusing linked golden file: {golden}")

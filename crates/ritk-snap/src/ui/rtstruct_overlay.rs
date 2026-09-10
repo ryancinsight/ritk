@@ -5,6 +5,8 @@
 
 use ritk_io::{ContourGeometricType, RtStructureSet};
 
+use crate::geometry::affine::AffineTransform;
+
 /// One projected RT contour ready for viewport-space raster mapping.
 #[derive(Debug, Clone, PartialEq)]
 pub struct ProjectedRtContour {
@@ -29,7 +31,7 @@ pub fn project_rt_struct_contours_for_slice(
     direction: [f64; 9],
     spacing: [f64; 3],
 ) -> Vec<ProjectedRtContour> {
-    let Some(inv_phys_to_voxel) = inverse_phys_to_voxel(direction, spacing) else {
+    let Ok(transform) = AffineTransform::from_parts(origin, direction, spacing) else {
         return Vec::new();
     };
 
@@ -50,7 +52,7 @@ pub fn project_rt_struct_contours_for_slice(
             let voxels: Vec<[f64; 3]> = contour
                 .points
                 .iter()
-                .map(|p| patient_to_voxel(*p, origin, inv_phys_to_voxel))
+                .map(|p| transform.patient_to_voxel(*p))
                 .collect();
 
             let on_slice = voxels
@@ -104,55 +106,6 @@ fn row_col_from_voxel(voxel: [f64; 3], axis: usize) -> (f64, f64) {
         1 => (voxel[0], voxel[2]),
         _ => (voxel[0], voxel[1]),
     }
-}
-
-fn patient_to_voxel(point_mm: [f64; 3], origin: [f64; 3], inv_phys_to_voxel: [f64; 9]) -> [f64; 3] {
-    let d = [
-        point_mm[0] - origin[0],
-        point_mm[1] - origin[1],
-        point_mm[2] - origin[2],
-    ];
-    [
-        inv_phys_to_voxel[0] * d[0] + inv_phys_to_voxel[1] * d[1] + inv_phys_to_voxel[2] * d[2],
-        inv_phys_to_voxel[3] * d[0] + inv_phys_to_voxel[4] * d[1] + inv_phys_to_voxel[5] * d[2],
-        inv_phys_to_voxel[6] * d[0] + inv_phys_to_voxel[7] * d[1] + inv_phys_to_voxel[8] * d[2],
-    ]
-}
-
-fn inverse_phys_to_voxel(direction: [f64; 9], spacing: [f64; 3]) -> Option<[f64; 9]> {
-    let m = [
-        direction[0] * spacing[0],
-        direction[1] * spacing[1],
-        direction[2] * spacing[2],
-        direction[3] * spacing[0],
-        direction[4] * spacing[1],
-        direction[5] * spacing[2],
-        direction[6] * spacing[0],
-        direction[7] * spacing[1],
-        direction[8] * spacing[2],
-    ];
-    invert_3x3(m)
-}
-
-fn invert_3x3(m: [f64; 9]) -> Option<[f64; 9]> {
-    let det = m[0] * (m[4] * m[8] - m[5] * m[7]) - m[1] * (m[3] * m[8] - m[5] * m[6])
-        + m[2] * (m[3] * m[7] - m[4] * m[6]);
-    if det.abs() < 1e-12 {
-        return None;
-    }
-
-    let inv_det = 1.0 / det;
-    Some([
-        (m[4] * m[8] - m[5] * m[7]) * inv_det,
-        (m[2] * m[7] - m[1] * m[8]) * inv_det,
-        (m[1] * m[5] - m[2] * m[4]) * inv_det,
-        (m[5] * m[6] - m[3] * m[8]) * inv_det,
-        (m[0] * m[8] - m[2] * m[6]) * inv_det,
-        (m[2] * m[3] - m[0] * m[5]) * inv_det,
-        (m[3] * m[7] - m[4] * m[6]) * inv_det,
-        (m[1] * m[6] - m[0] * m[7]) * inv_det,
-        (m[0] * m[4] - m[1] * m[3]) * inv_det,
-    ])
 }
 
 #[cfg(test)]

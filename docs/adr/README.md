@@ -35,3 +35,4 @@
 | [0024](0024-packed-fixed-domain-mind-ssc.md) | Packed fixed-domain MIND-SSC similarity | Accepted |
 | [0025](0025-robust-rigid-capture-initializer.md) | Robust rigid capture initializer | Accepted |
 | [0026](0026-viewer-presentation-migration.md) | Viewer presentation migration to Métis | Accepted |
+| [0027](0027-patient-coordinate-fusion.md) | Patient-coordinate fusion for viewer comparison | Accepted |
