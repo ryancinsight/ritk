@@ -264,8 +264,7 @@ fn placement(
     let origin_x = f64::from(panel_x)
         + (f64::from(panel_width) - rendered_width) * 0.5
         + f64::from(pan_offset.x);
-    let origin_y = (f64::from(surface_height) - rendered_height) * 0.5
-        + f64::from(pan_offset.y);
+    let origin_y = (f64::from(surface_height) - rendered_height) * 0.5 + f64::from(pan_offset.y);
     if ![
         texel_x,
         texel_y,
