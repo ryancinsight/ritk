@@ -150,6 +150,11 @@ the presented Métis framebuffer; the native-session regression test checks both
 observable values. The offset remains viewer state and no DICOM value crosses
 the host boundary.
 
+The native session also applies keyboard slice navigation through the same
+RITK action adapter. A page-down event advances the active slice and triggers a
+new composed framebuffer; the regression test checks the state and pixel
+results together.
+
 Revision 2026-09-10 (browser handoff increment): the WASM launcher mounts
 Métis's generic HTML5/CSS host before starting the eframe canvas runner. The
 RITK `browser_input` adapter drains the host's bounded named-byte batch into the
