@@ -1,0 +1,110 @@
+name: RITK SNAP Métis Package
+
+on:
+  workflow_dispatch:
+    inputs:
+      metis_revision:
+        description: Exact Métis commit resolved by Cargo.lock
+        required: true
+        default: 2e21146c6a9de73666396705c25dfa7555eb172c
+        type: string
+
+permissions:
+  contents: read
+
+env:
+  CARGO_INCREMENTAL: 0
+  RUST_BACKTRACE: 1
+
+concurrency:
+  group: ritk-snap-package-${{ github.ref }}
+  cancel-in-progress: false
+
+jobs:
+  package:
+    name: Package RITK SNAP
+    runs-on: windows-latest
+    timeout-minutes: 30
+    steps:
+      - name: Check out RITK
+        uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803
+        with:
+          path: ritk
+          persist-credentials: false
+
+      - name: Check out the pinned Métis revision
+        uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803
+        with:
+          repository: ryancinsight/metis
+          ref: ${{ inputs.metis_revision }}
+          path: metis
+          persist-credentials: false
+
+      - name: Install the pinned Rust toolchain
+        uses: dtolnay/rust-toolchain@4360b52568e2003a75bf9bc1d59f33a8e3fc893c
+        with:
+          toolchain: 1.97.0
+
+      - name: Confirm the framework revision is locked
+        shell: pwsh
+        run: |
+          $revision = "${{ inputs.metis_revision }}"
+          if ($revision -notmatch '^[0-9a-f]{40}$') {
+            throw "metis_revision must be a 40-character commit SHA"
+          }
+          $lock = Get-Content ritk/Cargo.lock -Raw
+          if (-not $lock.Contains("#$revision")) {
+            throw "RITK Cargo.lock does not resolve Métis at $revision"
+          }
+
+      - name: Build the Métis packager
+        working-directory: metis
+        run: cargo build --release --locked --package metis-cli
+
+      - name: Create the RITK SNAP package
+        shell: pwsh
+        run: |
+          New-Item -ItemType Directory -Path "$PWD/output" -Force | Out-Null
+          & "$PWD/metis/target/release/metis.exe" package `
+            "$PWD/ritk/metis.json" "$PWD/output/ritk-snap"
+          if ($LASTEXITCODE -ne 0) {
+            exit $LASTEXITCODE
+          }
+
+      - name: Verify the executable and installer inventory
+        shell: pwsh
+        run: |
+          $root = Join-Path $PWD "output/ritk-snap"
+          $inventory = Get-Content (Join-Path $root "inventory.json") -Raw | ConvertFrom-Json
+          $files = @($inventory.files)
+          if ($files.Count -ne 1 -or $files[0].destination -ne "ritk-snap.exe") {
+            throw "package inventory must contain exactly the RITK SNAP executable"
+          }
+          if (@($inventory.application.resources).Count -ne 0) {
+            throw "RITK SNAP package must not carry DICOM or patient-data resources"
+          }
+          if ($inventory.installer.file -ne "org.ritk.snap.msi") {
+            throw "unexpected installer name"
+          }
+          $exe = Join-Path $root "app/ritk-snap.exe"
+          $msi = Join-Path $root "org.ritk.snap.msi"
+          $exeHash = (Get-FileHash $exe -Algorithm SHA256).Hash.ToLowerInvariant()
+          $msiHash = (Get-FileHash $msi -Algorithm SHA256).Hash.ToLowerInvariant()
+          if ($exeHash -ne $files[0].sha256) {
+            throw "executable hash differs from inventory"
+          }
+          if ($msiHash -ne $inventory.installer.sha256) {
+            throw "installer hash differs from inventory"
+          }
+          & $exe --help
+          if ($LASTEXITCODE -ne 0) {
+            exit $LASTEXITCODE
+          }
+
+      - name: Upload the package artifact
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
+        with:
+          name: ritk-snap-package
+          path: output/ritk-snap
+          if-no-files-found: error
+          retention-days: 14
