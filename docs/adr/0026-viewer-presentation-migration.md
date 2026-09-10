@@ -170,6 +170,25 @@ Clippy now pass after the merged [Mnemosyne #141](https://github.com/ryancinsigh
 browser runtime bundle and visual capture remain open because this checkout
 does not include a wasm-bindgen packaging tool.
 
+Revision 2026-09-10 (application packaging increment): RITK now carries the
+root application manifest at `metis.json`. The manifest declares
+one `ritk-snap` Cargo binary and no DICOM or patient-data resources. Métis's
+manifest-driven `package` command therefore produces the RITK executable,
+inventory, and Windows per-user MSI while RITK retains DICOM parsing, decoded
+volume state, geometry, and clinical display semantics. The package workflow
+is a release artifact path; it does not grant registry publication, signing, or
+patient-data inclusion. The local Windows x64 smoke exited 0 with 793/793
+RITK tests already green; `inventory.json` recorded a 24,283,136-byte
+`ritk-snap.exe` with SHA-256
+`b03b940927e3c2f86f4b4e773a0f0235c6e7e5ac6728c60753825f42a9ab0bb7` and a
+9,273,344-byte `org.ritk.snap.msi` with SHA-256
+`5f4a7d434d934be29986c8db92a0a9cbe99b3596e3b5e34da112ff9a0a93c0bc`;
+`ritk-snap.exe --help` exited 0. The committed
+`.github/workflows/metis-package.yml` reproduces this package path on a
+manual Windows dispatch with the `2e21146c6a9de73666396705c25dfa7555eb172c`
+revision recorded in `Cargo.lock`; hosted artifact collection is evidence only
+and does not publish or sign the release.
+
 Revision 2026-09-08: [RITK-SNAP-DIRECTORY-001](../../backlog.md#RITK-SNAP-DIRECTORY-001)
 now validates the Explicit VR Little Endian DICOMDIR record sequence before
 membership is admitted. RecordInUseFlag, next/lower offsets, incoming-link
