@@ -54,8 +54,17 @@ the real hidden native surface, and closes the host after one event batch.
 Focused nextest coverage proves frame dimensions and storage validation,
 RITK grayscale display semantics, channel transfer, and the native
 present/close transition. No DICOM parser, metadata, path, or geometry state
-crosses into the Métis dependency. The browser handoff, typed event adapter,
+crosses into the Métis dependency. The browser handoff, viewer action dispatch,
 three-view presentation, and GPU path remain open gaps in this migration.
+
+Revision 2026-09-10 (native event increment): RITK now translates the bounded
+Moirai `WindowEvent` batch into the public format-neutral
+`PresentationEvent` contract. Pointer buttons, coordinates, key repeat state,
+Unicode text, IME phases, resize, DPI, focus and lifecycle values are preserved
+with provider limits and allocation errors surfaced. The native presentation
+probe observes that translation during the real hidden host run; the remaining
+work is dispatching those events into `SnapApp` actions without reintroducing
+egui carriers or moving DICOM state into Métis.
 
 Revision 2026-09-08: [RITK-SNAP-DIRECTORY-001](../../backlog.md#RITK-SNAP-DIRECTORY-001)
 now validates the Explicit VR Little Endian DICOMDIR record sequence before

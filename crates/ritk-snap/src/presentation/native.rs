@@ -1,10 +1,10 @@
 //! Windows host adapter for one RITK presentation frame.
 
-use super::PresentationFrame;
+use super::{CompositionPhase, PointerButton, PresentationEvent, PresentationFrame};
 use anyhow::{anyhow, bail, Result};
 use metis_platform::native::{
     run_native_application, NativeApplication, NativeFlow, WindowConfig, WindowEvent,
-    WindowVisibility,
+    WindowVisibility, MAX_COMPOSITION_UNITS, MAX_WINDOW_EVENTS,
 };
 use metis_platform::{Color, Framebuffer};
 use std::sync::atomic::{AtomicBool, AtomicUsize, Ordering};
@@ -19,6 +19,7 @@ pub struct NativeFrameOutcome {
     pixel_count: usize,
     frame_requests: usize,
     event_batches: usize,
+    translated_events: usize,
 }
 
 impl NativeFrameOutcome {
@@ -51,6 +52,115 @@ impl NativeFrameOutcome {
     pub const fn event_batches(self) -> usize {
         self.event_batches
     }
+
+    /// Number of native events translated at the RITK boundary.
+    #[must_use]
+    pub const fn translated_events(self) -> usize {
+        self.translated_events
+    }
+}
+
+/// Translates one bounded Métis/Moirai native event batch into viewer events.
+///
+/// The translation preserves all provider values while removing the host
+/// provider types from the RITK-facing contract. It does not interpret paths,
+/// DICOM metadata, volume state or application authority.
+///
+/// # Errors
+/// Returns an error when the provider batch exceeds its declared event bound or
+/// when the translated event storage cannot be reserved.
+pub fn translate_native_events(events: &[WindowEvent]) -> Result<Box<[PresentationEvent]>> {
+    if events.len() > MAX_WINDOW_EVENTS {
+        bail!(
+            "native event batch length {} exceeds host limit {}",
+            events.len(),
+            MAX_WINDOW_EVENTS
+        );
+    }
+    let mut translated = Vec::new();
+    translated
+        .try_reserve_exact(events.len())
+        .map_err(|_| anyhow!("unable to reserve translated native events"))?;
+    for event in events {
+        translated.push(match event {
+            WindowEvent::CloseRequested => PresentationEvent::CloseRequested,
+            WindowEvent::Destroyed => PresentationEvent::Destroyed,
+            WindowEvent::FocusGained => PresentationEvent::FocusGained,
+            WindowEvent::FocusLost => PresentationEvent::FocusLost,
+            WindowEvent::PointerMove { x, y } => PresentationEvent::PointerMove { x: *x, y: *y },
+            WindowEvent::PointerDown { x, y, button } => PresentationEvent::PointerDown {
+                x: *x,
+                y: *y,
+                button: translate_pointer_button(*button),
+            },
+            WindowEvent::PointerUp { x, y, button } => PresentationEvent::PointerUp {
+                x: *x,
+                y: *y,
+                button: translate_pointer_button(*button),
+            },
+            WindowEvent::KeyDown {
+                virtual_key,
+                repeated,
+            } => PresentationEvent::KeyDown {
+                virtual_key: *virtual_key,
+                repeated: *repeated,
+            },
+            WindowEvent::KeyUp { virtual_key } => PresentationEvent::KeyUp {
+                virtual_key: *virtual_key,
+            },
+            WindowEvent::TextInput { character } => PresentationEvent::TextInput {
+                character: *character,
+            },
+            WindowEvent::TextComposition { phase, text } => PresentationEvent::TextComposition {
+                phase: translate_composition_phase(*phase),
+                text: translate_composition_text(text)?,
+            },
+            WindowEvent::Resized { width, height } => PresentationEvent::Resized {
+                width: *width,
+                height: *height,
+            },
+            WindowEvent::DpiChanged { dpi } => PresentationEvent::DpiChanged { dpi: *dpi },
+        });
+    }
+    Ok(translated.into_boxed_slice())
+}
+
+fn translate_pointer_button(button: metis_platform::native::MouseButton) -> PointerButton {
+    match button {
+        metis_platform::native::MouseButton::Left => PointerButton::Left,
+        metis_platform::native::MouseButton::Right => PointerButton::Right,
+        metis_platform::native::MouseButton::Middle => PointerButton::Middle,
+        metis_platform::native::MouseButton::X1 => PointerButton::X1,
+        metis_platform::native::MouseButton::X2 => PointerButton::X2,
+    }
+}
+
+fn translate_composition_phase(
+    phase: metis_platform::native::CompositionPhase,
+) -> CompositionPhase {
+    match phase {
+        metis_platform::native::CompositionPhase::Started => CompositionPhase::Started,
+        metis_platform::native::CompositionPhase::Updated => CompositionPhase::Updated,
+        metis_platform::native::CompositionPhase::Committed => CompositionPhase::Committed,
+        metis_platform::native::CompositionPhase::Canceled => CompositionPhase::Canceled,
+    }
+}
+
+fn translate_composition_text(text: &str) -> Result<Box<str>> {
+    let utf16_units = text.encode_utf16().count();
+    if utf16_units > MAX_COMPOSITION_UNITS {
+        bail!(
+            "native composition length {} exceeds host limit {} UTF-16 units",
+            utf16_units,
+            MAX_COMPOSITION_UNITS
+        );
+    }
+    let mut owned = String::new();
+    owned
+        .try_reserve_exact(text.len())
+        .map_err(|_| anyhow!("unable to reserve translated composition text"))?;
+    owned.push_str(text);
+    Ok(owned.into_boxed_str())
 }
 
 /// Presents one RITK frame through the bounded native host and exits.
@@ -80,6 +190,7 @@ pub fn run_native_frame(frame: PresentationFrame, title: &str) -> Result<NativeF
     .map_err(|error| anyhow!("RITK presentation host failed: {error}"))?;
     let frame_requests = observation.frame_requests.load(Ordering::Relaxed);
     let event_batches = observation.event_batches.load(Ordering::Relaxed);
+    let translated_events = observation.translated_events.load(Ordering::Relaxed);
     if observation.destroyed.load(Ordering::Relaxed) {
         bail!("native presentation surface was destroyed before close");
     }
@@ -90,12 +201,16 @@ pub fn run_native_frame(frame: PresentationFrame, title: &str) -> Result<NativeF
             event_batches
         );
     }
+    if translated_events == 0 {
+        bail!("native host completed without a translated event");
+    }
     Ok(NativeFrameOutcome {
         width: frame.width(),
         height: frame.height(),
         pixel_count: frame.rgba().len() / 4,
         frame_requests,
         event_batches,
+        translated_events,
     })
 }
 
@@ -123,11 +238,12 @@ struct SingleFrameApplication {
 struct HostObservation {
     frame_requests: AtomicUsize,
     event_batches: AtomicUsize,
+    translated_events: AtomicUsize,
     destroyed: AtomicBool,
 }
 
 impl NativeApplication for SingleFrameApplication {
-    type Error = std::convert::Infallible;
+    type Error = std::io::Error;
 
     fn framebuffer(&self) -> &Framebuffer {
         self.observation
@@ -140,12 +256,18 @@ impl NativeApplication for SingleFrameApplication {
         &mut self,
         events: &[WindowEvent],
     ) -> std::result::Result<NativeFlow, Self::Error> {
+        let translated = translate_native_events(events).map_err(|error| {
+            std::io::Error::new(std::io::ErrorKind::InvalidData, error.to_string())
+        })?;
         self.observation
             .event_batches
             .fetch_add(1, Ordering::Relaxed);
-        if events
+        self.observation
+            .translated_events
+            .fetch_add(translated.len(), Ordering::Relaxed);
+        if translated
             .iter()
-            .any(|event| matches!(event, WindowEvent::Destroyed))
+            .any(|event| matches!(event, PresentationEvent::Destroyed))
         {
             self.observation.destroyed.store(true, Ordering::Relaxed);
         }
@@ -156,6 +278,111 @@ impl NativeApplication for SingleFrameApplication {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn native_events_preserve_provider_values() {
+        let events = [
+            WindowEvent::CloseRequested,
+            WindowEvent::Destroyed,
+            WindowEvent::FocusGained,
+            WindowEvent::FocusLost,
+            WindowEvent::PointerMove { x: -4, y: 8 },
+            WindowEvent::PointerDown {
+                x: 1,
+                y: 2,
+                button: metis_platform::native::MouseButton::X1,
+            },
+            WindowEvent::PointerUp {
+                x: 3,
+                y: 4,
+                button: metis_platform::native::MouseButton::Right,
+            },
+            WindowEvent::KeyDown {
+                virtual_key: 0x41,
+                repeated: true,
+            },
+            WindowEvent::KeyUp { virtual_key: 0x41 },
+            WindowEvent::TextInput { character: '中' },
+            WindowEvent::TextComposition {
+                phase: metis_platform::native::CompositionPhase::Updated,
+                text: "A😀".to_owned(),
+            },
+            WindowEvent::Resized {
+                width: 800,
+                height: 600,
+            },
+            WindowEvent::DpiChanged { dpi: 144 },
+        ];
+        let translated = translate_native_events(&events).expect("translated events");
+        assert_eq!(translated.len(), events.len());
+        assert_eq!(
+            translated.as_ref(),
+            &[
+                PresentationEvent::CloseRequested,
+                PresentationEvent::Destroyed,
+                PresentationEvent::FocusGained,
+                PresentationEvent::FocusLost,
+                PresentationEvent::PointerMove { x: -4, y: 8 },
+                PresentationEvent::PointerDown {
+                    x: 1,
+                    y: 2,
+                    button: PointerButton::X1,
+                },
+                PresentationEvent::PointerUp {
+                    x: 3,
+                    y: 4,
+                    button: PointerButton::Right,
+                },
+                PresentationEvent::KeyDown {
+                    virtual_key: 0x41,
+                    repeated: true,
+                },
+                PresentationEvent::KeyUp { virtual_key: 0x41 },
+                PresentationEvent::TextInput { character: '中' },
+                PresentationEvent::TextComposition {
+                    phase: CompositionPhase::Updated,
+                    text: "A😀".into(),
+                },
+                PresentationEvent::Resized {
+                    width: 800,
+                    height: 600,
+                },
+                PresentationEvent::DpiChanged { dpi: 144 },
+            ]
+        );
+    }
+
+    #[test]
+    fn native_events_reject_oversized_batch() {
+        let events = vec![WindowEvent::FocusGained; MAX_WINDOW_EVENTS + 1];
+        let error = translate_native_events(&events).expect_err("oversized batch");
+        assert!(error.to_string().contains("exceeds host limit"));
+    }
+
+    #[test]
+    fn native_events_bound_composition_utf16_units_and_preserve_supplementary_text() {
+        let valid_text = "😀".repeat(MAX_COMPOSITION_UNITS / 2);
+        let valid = [WindowEvent::TextComposition {
+            phase: metis_platform::native::CompositionPhase::Updated,
+            text: valid_text.clone(),
+        }];
+        let translated = translate_native_events(&valid).expect("boundary composition");
+        assert_eq!(translated.len(), 1);
+        assert_eq!(
+            translated.as_ref(),
+            &[PresentationEvent::TextComposition {
+                phase: CompositionPhase::Updated,
+                text: valid_text.into_boxed_str(),
+            }]
+        );
+
+        let invalid = [WindowEvent::TextComposition {
+            phase: metis_platform::native::CompositionPhase::Updated,
+            text: format!("{}A", "😀".repeat(MAX_COMPOSITION_UNITS / 2)),
+        }];
+        let error = translate_native_events(&invalid).expect_err("over-budget composition");
+        assert!(error.to_string().contains("UTF-16 units"));
+    }
 
     #[test]
     fn frame_conversion_preserves_rgba_channels() {
@@ -177,5 +404,6 @@ mod tests {
         assert_eq!(outcome.pixel_count(), 1);
         assert_eq!(outcome.frame_requests(), 1);
         assert_eq!(outcome.event_batches(), 1);
+        assert!(outcome.translated_events() >= 1);
     }
 }

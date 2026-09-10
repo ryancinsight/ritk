@@ -259,11 +259,13 @@ row-major RGBA slice. It carries only dimensions and pixels; DICOM identifiers,
 paths, codec state, geometry, and volume storage stay in RITK.
 
 On Windows, `run_native_frame` passes that frame to Métis's native surface,
-presents it once, and closes the host. The focused presentation suite checks
+presents it once, translates the bounded native event batch to
+`PresentationEvent`, and closes the host. The focused presentation suite checks
 the RITK slice-display oracle, rejects inconsistent pixel storage, preserves
-the frame channels, and exercises the real hidden-window present/close path.
-The test proves the host boundary, not a new DICOM implementation. Browser
-handoff and the full three-view/GPU event adapter remain migration work.
+the frame channels and every provider event value, and exercises the real
+hidden-window present/close path. The test proves the host boundary, not a new
+DICOM implementation. Binding those events to viewer actions, browser
+handoff, and the full three-view/GPU adapter remain migration work.
 
 The existing `dicom-window.png` below is intentionally labeled as the
 egui/eframe baseline. It is not relabeled as a Métis capture until the complete
