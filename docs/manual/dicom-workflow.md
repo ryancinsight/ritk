@@ -64,6 +64,26 @@ Position and orientation give the independent coordinate equation
 spacing and orientation mapping in
 [PS3.3 C.7.6.2.1.1, Equation C.7.6.2.1-1](https://dicom.nema.org/medical/dicom/current/output/chtml/part03/sect_C.7.6.2.html#sect_C.7.6.2.1.1).
 
+## Open a multi-frame object
+
+RITK inspects `NumberOfFrames` on each scanned member before choosing the
+single-frame series decoder. A multi-frame object is decoded through
+`ritk_io::load_dicom_multiframe_flat` (or its byte-payload counterpart), so
+the resulting `LoadedVolume` has one depth entry for every decoded frame.
+The path and dropped-byte entry points share the same frame buffer, modality
+rescale, spatial orientation, and spacing checks. RGB multi-frame objects use
+RITK's interleaved color reader and retain three channels per voxel.
+
+The viewer rejects a multi-frame object that declares more than one temporal
+position or names `TemporalPositionIndex` in its dimension organization. It
+also rejects a batch that mixes a multi-frame object with conventional
+single-frame members; neither case is silently presented as a spatial stack.
+The regression fixtures use two distinct 2 × 2 frames with decoded values
+`[-8,-6,-4,-2]` and `[12,14,16,18]`, assert both file and byte workflows, and
+render each axial frame through `SliceRenderer` with independent pixel
+oracles. A declared three-frame object with only two frames is rejected during
+decode.
+
 The images below come from `SliceRenderer`, which uses Iris's grayscale map.
 They show the decoded pixel grid enlarged by nearest-neighbour sampling.
 These are software slice-buffer captures before texture upload; they do not
@@ -214,8 +234,8 @@ These aspect tests do not establish rotated cursor/orientation semantics or
 physical measurement accuracy outside the annotation APIs' numeric range;
 the [coordinate item](../../backlog.md#RITK-SNAP-COORDINATES-001) owns those checks.
 
-Multiframe organization, color presentation, default DICOM LINEAR/VOI semantics,
-and browser host interaction remain separate acceptance items in the
-[viewer backlog](../../backlog.md#RITK-SNAP-FRAMES-001). These workflows prepare
-the egui baseline for the Métis migration; they do not demonstrate a Métis host
-or establish those remaining capabilities.
+Temporal multiframe organization, default DICOM LINEAR/VOI semantics, and
+browser host interaction remain separate acceptance items in the [viewer
+backlog](../../backlog.md#RITK-SNAP-FRAMES-001). These workflows prepare the
+egui baseline for the Métis migration; they do not demonstrate a Métis host or
+establish those remaining capabilities.

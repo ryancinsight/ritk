@@ -3,10 +3,10 @@
 use anyhow::{bail, Context, Result};
 use coeus_core::MoiraiBackend;
 use dicom::core::Tag;
-use dicom::object::InMemDicomObject;
+use dicom::object::{DefaultDicomObject, InMemDicomObject};
 use ritk_core::image::Image;
 use ritk_dicom::{
-    decode_frame_with, parse_file_with, DecodeFrameRequest, DicomRsBackend, PixelLayout,
+    decode_frame_with, parse_file_with_budget, DecodeFrameRequest, DicomRsBackend, PixelLayout,
     PixelSignedness, TransferSyntaxKind,
 };
 use ritk_image::tensor::Backend;
@@ -15,6 +15,8 @@ use ritk_image::Image as NativeImage;
 use ritk_image::tensor::Tensor;
 use ritk_spatial::{Direction, Point, Spacing};
 use std::path::Path;
+
+use crate::format::dicom::reader::DicomReadBudget;
 
 /// Substrate-agnostic decoded multi-frame volume: a flat row-major `f32` buffer
 /// in `[frames, rows, cols]` order plus the resolved spatial metadata.
@@ -39,6 +41,7 @@ pub struct MultiFrameVolume {
 }
 
 use super::per_frame::extract_functional_groups;
+use super::temporal::reject_temporal_organization;
 use super::types::MultiFrameInfo;
 use crate::format::dicom::reader::geometry::{SliceCoverage, SpacingUniformity};
 use crate::format::dicom::reader::types::{cs_to_arraystring, uid_to_arraystring};
@@ -72,12 +75,14 @@ pub(crate) fn parse_ds_backslash<const N: usize>(s: &str) -> Option<[f64; N]> {
 /// - rescale_slope defaults to 1.0, rescale_intercept to 0.0 when absent.
 /// - per_frame is always Vec::new(); call extract_functional_groups separately.
 pub(crate) fn extract_multiframe_header(path: &Path, obj: &InMemDicomObject) -> MultiFrameInfo {
-    let n_frames: usize = obj
-        .element(Tag(0x0028, 0x0008))
-        .ok()
-        .and_then(|e| e.to_str().ok())
-        .and_then(|s| s.trim().parse().ok())
-        .unwrap_or(1);
+    let n_frames: usize = match obj.element(Tag(0x0028, 0x0008)) {
+        Ok(element) => element
+            .to_str()
+            .ok()
+            .and_then(|value| value.trim().parse().ok())
+            .unwrap_or(0),
+        Err(_) => 1,
+    };
 
     let rows: usize = obj
         .element(Tag(0x0028, 0x0010))
@@ -182,14 +187,22 @@ pub(crate) fn extract_multiframe_header(path: &Path, obj: &InMemDicomObject) -> 
     }
 }
 
+pub(super) fn read_multiframe_info_from_object(
+    path: &Path,
+    obj: &InMemDicomObject,
+) -> Result<MultiFrameInfo> {
+    reject_temporal_organization(path, obj)?;
+    let mut info = extract_multiframe_header(path, obj);
+    info.per_frame = extract_functional_groups(obj, info.n_frames);
+    Ok(info)
+}
+
 /// Read summary information from a multi-frame DICOM file without pixel data.
 pub fn read_multiframe_info(path: impl AsRef<Path>) -> Result<MultiFrameInfo> {
     let path = path.as_ref();
-    let obj = parse_file_with::<DicomRsBackend, _>(path)
+    let obj = parse_file_with_budget::<DicomRsBackend, _>(path, &DicomReadBudget::DEFAULT.parser())
         .with_context(|| format!("failed to open DICOM file {:?}", path))?;
-    let mut info = extract_multiframe_header(path, &obj);
-    info.per_frame = extract_functional_groups(&obj, info.n_frames);
-    Ok(info)
+    read_multiframe_info_from_object(path, &obj)
 }
 
 /// Load a multi-frame DICOM file as a 3-D image with shape [n_frames, rows, cols].
@@ -246,8 +259,18 @@ pub fn load_dicom_multiframe_native<P: AsRef<Path>>(
 /// [`load_dicom_multiframe`] for the full decode contract.
 pub fn load_dicom_multiframe_flat<P: AsRef<Path>>(path: P) -> Result<MultiFrameVolume> {
     let path = path.as_ref();
-    let obj = parse_file_with::<DicomRsBackend, _>(path)
+    let obj = parse_file_with_budget::<DicomRsBackend, _>(path, &DicomReadBudget::DEFAULT.parser())
         .with_context(|| format!("failed to open DICOM file {:?}", path))?;
+
+    load_multiframe_flat_from_object(path, &obj, &DicomReadBudget::DEFAULT)
+}
+
+pub(super) fn load_multiframe_flat_from_object(
+    path: &Path,
+    obj: &DefaultDicomObject,
+    budget: &DicomReadBudget,
+) -> Result<MultiFrameVolume> {
+    reject_temporal_organization(path, obj)?;
 
     // Guard: compressed transfer syntaxes are not natively decodable by ritk-io.
     // Pixel data from compressed objects cannot be interpreted as raw u16/u8 samples.
@@ -271,7 +294,7 @@ pub fn load_dicom_multiframe_flat<P: AsRef<Path>>(path: P) -> Result<MultiFrameV
         );
     }
 
-    let info = extract_multiframe_header(path, &obj);
+    let info = extract_multiframe_header(path, obj);
     if info.rows == 0 || info.cols == 0 {
         bail!(
             "DICOM multiframe: rows={} cols={} must be >0 in {:?}",
@@ -290,7 +313,14 @@ pub fn load_dicom_multiframe_flat<P: AsRef<Path>>(path: P) -> Result<MultiFrameV
         );
     }
 
-    let per_frame = extract_functional_groups(&obj, info.n_frames);
+    if info.n_frames == 0 {
+        bail!(
+            "DICOM multiframe: NumberOfFrames must be greater than zero in {:?}",
+            path
+        );
+    }
+
+    let per_frame = extract_functional_groups(obj, info.n_frames);
     tracing::debug!(
         n_frames = info.n_frames,
         per_frame_len = per_frame.len(),
@@ -301,6 +331,16 @@ pub fn load_dicom_multiframe_flat<P: AsRef<Path>>(path: P) -> Result<MultiFrameV
         .rows
         .checked_mul(info.cols)
         .context("DICOM multiframe frame pixel count overflows usize")?;
+    let decoded_elements = info
+        .n_frames
+        .checked_mul(frame_pixels)
+        .context("DICOM multiframe decoded element count overflows usize")?;
+    let decoded_bytes = decoded_elements
+        .checked_mul(std::mem::size_of::<f32>())
+        .context("DICOM multiframe decoded byte count overflows usize")?;
+    budget
+        .checked_decoded_bytes(decoded_bytes)
+        .context("DICOM multiframe decoded volume exceeds budget")?;
     // Cap the speculative reservation: `n_frames` and `frame_pixels` are
     // header-derived, so a hostile file could otherwise abort on a huge
     // `Vec::with_capacity`. The buffer still grows to its true size as frames
@@ -320,7 +360,7 @@ pub fn load_dicom_multiframe_flat<P: AsRef<Path>>(path: P) -> Result<MultiFrameV
             .unwrap_or(info.rescale_intercept) as f32;
 
         let frame = decode_frame_with::<DicomRsBackend>(
-            &obj,
+            obj,
             DecodeFrameRequest {
                 frame_index: u32::try_from(frame_idx)
                     .context("DICOM multiframe frame index exceeds u32")?,

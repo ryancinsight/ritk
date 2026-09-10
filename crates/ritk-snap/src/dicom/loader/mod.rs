@@ -87,8 +87,10 @@ pub fn load_volume_from_path<P: AsRef<Path>>(path: P) -> Result<LoadedVolume> {
 
 /// Load a pathless in-memory medical payload.
 ///
-/// Currently supports NIfTI byte payloads identified by `name_hint`
-/// (`.nii` / `.nii.gz`).
+/// Supports DICOM Part 10 payloads and NIfTI byte payloads identified by
+/// `name_hint` (`.nii` / `.nii.gz`). DICOM payloads are scanned and then
+/// dispatched through the RITK scalar or RGB multi-frame reader when the
+/// object declares more than one frame.
 pub fn load_volume_from_bytes(name_hint: &str, bytes: &[u8]) -> Result<LoadedVolume> {
     let name = name_hint.to_ascii_lowercase();
 
@@ -112,10 +114,11 @@ pub fn load_volume_from_bytes(name_hint: &str, bytes: &[u8]) -> Result<LoadedVol
 /// Load a DICOM series from a pathless dropped in-memory byte batch.
 ///
 /// Zero-disk implementation: the batch is scanned in-memory via
-/// [`ritk_io::scan_dicom_part10_bytes`] and loaded via
-/// [`ritk_io::load_dicom_from_series`], which decodes pixel data from
-/// `part10_bytes` stored in each slice's metadata — no temporary files
-/// are written to disk.
+/// [`ritk_io::scan_dicom_part10_bytes`] and loaded via the RITK DICOM loader
+/// boundary. Conventional series use `ritk_io::load_dicom_from_series`; a
+/// single multi-frame object uses the RITK multi-frame reader so no frame is
+/// silently reduced to frame zero. Pixel data is decoded from `part10_bytes`
+/// stored in each slice's metadata — no temporary files are written to disk.
 pub fn load_dicom_series_from_named_bytes(files: &[(String, &[u8])]) -> Result<LoadedVolume> {
     if files.is_empty() {
         anyhow::bail!("empty DICOM byte batch")
