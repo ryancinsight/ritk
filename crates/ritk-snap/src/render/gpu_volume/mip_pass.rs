@@ -31,7 +31,7 @@ use std::sync::mpsc;
 
 use egui::ColorImage;
 
-use crate::render::{NamedColorMap, WindowLevel};
+use crate::render::{GrayscalePresentation, NamedColorMap, WindowLevel};
 
 use super::build_colormap_lut;
 use super::context::GpuContext;
@@ -65,6 +65,7 @@ pub(super) fn submit_mip_async(
     cache: &GpuFrameCache,
     vol_shape: [usize; 3],
     wl: WindowLevel,
+    presentation: GrayscalePresentation,
     colormap: NamedColorMap,
 ) -> mpsc::Receiver<Result<(), wgpu::BufferAsyncError>> {
     let [depth, rows, cols] = vol_shape;
@@ -72,17 +73,16 @@ pub(super) fn submit_mip_async(
 
     let center = wl.center as f32;
     let width = (wl.width as f32).max(1.0);
-    let wl_lo = center - 0.5 * width;
 
     let params = RenderParams {
         depth: depth as u32,
         rows: rows as u32,
         cols: cols as u32,
         _pad0: 0,
-        wl_lo,
-        wl_range: width,
-        _pad2: 0.0,
-        _pad3: 0.0,
+        center,
+        width,
+        presentation: presentation.gpu_code(),
+        _pad2: 0,
     };
 
     // Update cached uniform and LUT buffers without re-allocation.

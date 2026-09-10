@@ -1,7 +1,7 @@
 use super::RenderBufferPool;
 use crate::render::mip_vr::{render_mip_axial, render_mip_axial_with_scratch, render_vr_axial};
-use crate::render::slice_render::{SliceRenderer, WindowLevel};
 use crate::render::NamedColorMap;
+use crate::render::{SliceRenderer, WindowLevel};
 use crate::LoadedVolume;
 use std::sync::Arc;
 

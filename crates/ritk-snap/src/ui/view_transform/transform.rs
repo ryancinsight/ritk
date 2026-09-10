@@ -113,7 +113,8 @@ impl ViewTransform {
     /// Coordinates are measured from the outer image edges, so a source image
     /// of size `[width, height]` occupies `[0,width] × [0,height]`. This is the
     /// continuous counterpart of the pixel mapping used by
-    /// [`apply_to_image`], and therefore maps annotation geometry without a
+    /// [`crate::ui::view_transform::apply_to_image`], and therefore maps
+    /// annotation geometry without a
     /// half-pixel drift.
     #[must_use]
     pub fn source_to_output(self, point: Pos2, source_size: [usize; 2]) -> Pos2 {

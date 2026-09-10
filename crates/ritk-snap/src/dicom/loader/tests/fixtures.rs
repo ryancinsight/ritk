@@ -39,6 +39,84 @@ pub(crate) const COLOR_MULTIFRAME_RAW: [u8; 24] = [
     64,
 ];
 
+/// Stored signed samples used to exercise modality rescale and grayscale
+/// presentation. The loader applies slope `2` and intercept `-10`.
+pub(crate) const PRESENTATION_STORED: [i16; 4] = [-10, 0, 10, 20];
+
+/// Write a one-frame signed monochrome Part 10 object with optional VOI
+/// function metadata and return its name and exact bytes.
+pub(crate) fn write_grayscale_presentation(
+    root: &Path,
+    photometric: &str,
+    voi_function: Option<&str>,
+) -> Result<(String, Vec<u8>)> {
+    std::fs::create_dir_all(root).context("create grayscale presentation directory")?;
+    let mut model = DicomObjectModel::new();
+    for (group, element, vr, value) in [
+        (0x0008, 0x0016, "UI", "1.2.840.10008.5.1.4.1.1.7.5"),
+        (0x0008, 0x0018, "UI", "2.25.20260905005.1"),
+        (0x0008, 0x0060, "CS", "CT"),
+        (0x0008, 0x0064, "CS", "WSD"),
+        (0x0020, 0x000D, "UI", "2.25.20260905006"),
+        (0x0020, 0x000E, "UI", "2.25.20260905005"),
+        (0x0020, 0x0032, "DS", "0\\0\\0"),
+        (0x0020, 0x0037, "DS", "1\\0\\0\\0\\1\\0"),
+        (0x0028, 0x0004, "CS", photometric),
+        (0x0028, 0x0030, "DS", "1\\1"),
+        (0x0018, 0x0050, "DS", "1"),
+        (0x0028, 0x1052, "DS", "-10"),
+        (0x0028, 0x1053, "DS", "2"),
+        (0x0028, 0x1050, "DS", "0"),
+        (0x0028, 0x1051, "DS", "40"),
+    ] {
+        model.insert(DicomObjectNode::text(
+            DicomTag::new(group, element),
+            vr,
+            value,
+        ));
+    }
+    if let Some(function) = voi_function {
+        model.insert(DicomObjectNode::text(
+            DicomTag::new(0x0028, 0x1056),
+            "CS",
+            function,
+        ));
+    }
+    for (element, value) in [
+        (0x0002, 1_u16),
+        (0x0010, 1),
+        (0x0011, 4),
+        (0x0100, 16),
+        (0x0101, 16),
+        (0x0102, 15),
+        (0x0103, 1),
+    ] {
+        model.insert(DicomObjectNode::with_value(
+            DicomTag::new(0x0028, element),
+            "US",
+            value,
+        ));
+    }
+    let pixels = PRESENTATION_STORED
+        .into_iter()
+        .flat_map(i16::to_le_bytes)
+        .collect::<Vec<_>>();
+    model.insert(DicomObjectNode::bytes(
+        DicomTag::new(0x7FE0, 0x0010),
+        "OW",
+        pixels,
+    ));
+
+    let filename = "grayscale-presentation.dcm".to_owned();
+    let path = root.join(&filename);
+    ritk_io::write_dicom_object(&model, &path)
+        .context("write synthetic grayscale presentation object")?;
+    Ok((
+        filename,
+        std::fs::read(path).context("read synthetic grayscale presentation object")?,
+    ))
+}
+
 /// Write one scalar Part 10 multi-frame object and return its name and bytes.
 ///
 /// `declared_frames` deliberately remains a parameter so malformed frame

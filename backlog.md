@@ -57,11 +57,12 @@
 
 <a id="RITK-SNAP-GRAYSCALE-001"></a>
 ## RITK-SNAP-GRAYSCALE-001 — DICOM grayscale presentation semantics [patch]
-- Status: todo; priority: P0; owner: RITK viewer/IO; dependencies: RITK-SNAP-FIXTURES-001; risk: incorrect displayed intensity.
+- Status: in-progress; priority: P0; owner: RITK viewer/IO; integrator: root; branch: feat/snap-grayscale-001; last-update: 2026-09-10; dependencies: RITK-SNAP-FIXTURES-001; risk: incorrect displayed intensity; decision: `docs/adr/0030-dicom-grayscale-presentation.md`.
 - Scope: preserve signed stored samples, modality rescale, admitted VOI LUT/function semantics and MONOCHROME1/2 presentation through the viewer.
 - Evidence: `render/slice_render.rs` uses center ± width/2 without VOI-function selection; MONOCHROME1 inversion was not found on the inspected rendering path at `341228e`. Reproduce against standard boundary values before modifying it.
 - Acceptance: independent DICOM PS3.3 C.11.2 boundary oracles distinguish default LINEAR, LINEAR_EXACT and SIGMOID; apply inversion once and rescale once; unsupported LUT forms fail explicitly until implemented.
 - Verification: signed/rescaled synthetic pixels, width-one and function boundaries, invalid metadata and actual grayscale captures; current presets are not correctness oracles.
+- Lease: root — `crates/ritk-snap/src/render/slice_render.rs`, `crates/ritk-snap/src/dicom/loader/`, grayscale workflow tests/docs — 2026-09-10.
 
 <a id="RITK-SNAP-METIS-001"></a>
 ## RITK-SNAP-METIS-001 — Migrate the viewer shell to Métis [arch] [minor]

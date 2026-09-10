@@ -24,7 +24,7 @@ use std::sync::mpsc;
 
 use egui::ColorImage;
 
-use crate::render::{NamedColorMap, WindowLevel};
+use crate::render::{GrayscalePresentation, NamedColorMap, WindowLevel};
 
 use super::build_colormap_lut;
 use super::context::GpuContext;
@@ -57,6 +57,7 @@ pub(super) fn submit_vr_async(
     cache: &GpuFrameCache,
     vol_shape: [usize; 3],
     wl: WindowLevel,
+    presentation: GrayscalePresentation,
     colormap: NamedColorMap,
     alpha_scale: f32,
 ) -> mpsc::Receiver<Result<(), wgpu::BufferAsyncError>> {
@@ -66,17 +67,16 @@ pub(super) fn submit_vr_async(
 
     let center = wl.center as f32;
     let width = (wl.width as f32).max(1.0);
-    let wl_lo = center - 0.5 * width;
 
     let params = VrParams {
         depth: depth as u32,
         rows: rows as u32,
         cols: cols as u32,
         _pad0: 0,
-        wl_lo,
-        wl_range: width,
+        center,
+        width,
         alpha_scale,
-        _pad1: 0.0,
+        presentation: presentation.gpu_code(),
     };
 
     // Update cached uniform and LUT buffers without re-allocation.

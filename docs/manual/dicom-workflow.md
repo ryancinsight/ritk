@@ -113,6 +113,28 @@ compares these grid bytes with the reviewed manual images.
 
 ![RGB sagittal slice pixel grid](images/dicom-color-column.png)
 
+## Present signed grayscale data
+
+The scalar viewer follows the DICOM grayscale presentation contract after RITK
+IO has decoded the stored samples and applied modality rescale. `MONOCHROME2`
+keeps the mapped value and `MONOCHROME1` inverts it once after the VOI mapping.
+When `VOI LUT Function (0028,1056)` is absent, the viewer uses DICOM's default
+`LINEAR` function. Explicit `LINEAR_EXACT` and `SIGMOID` values select their
+specified equations; an unsupported value or table-based `VOI LUT Sequence`
+fails at load instead of being approximated as a window.
+
+The workflow fixture stores signed samples `−10, 0, 10, 20`, applies slope `2`
+and intercept `−10`, and declares `MONOCHROME1` with `LINEAR_EXACT`. The
+decoded modality values are therefore `−30, −10, 10, 30`; with centre `0` and
+width `40`, the displayed bytes are `255, 191, 64, 0`. The image is generated
+by `SliceRenderer` and checked byte-for-byte by `scripts/viewer.py`.
+
+![Signed grayscale presentation pixel grid](images/dicom-grayscale.png)
+
+The same presentation value is shared by scalar slices, MIP, volume rendering,
+fused comparison, and native GPU paths. This keeps CPU and GPU output aligned
+and prevents a second inversion or a renderer-specific window equation.
+
 The images below come from `SliceRenderer`, which uses Iris's grayscale map.
 They show the decoded pixel grid enlarged by nearest-neighbour sampling.
 These are software slice-buffer captures before texture upload; they do not
@@ -132,9 +154,9 @@ Column index 2, size 2 × 3: expected bytes `20,60 / 100,140 / 180,220`.
 
 ![Column slice pixel grid](images/dicom-column.png)
 
-The chosen center 235 and width 510 cancel the fixture's modality rescale
-under the renderer's current LINEAR_EXACT equation, so each grayscale byte
-equals its stored sample. The tests also check the scratch-buffer rendering
+The chosen center 235 and width 510 cancel the fixture's modality rescale under
+explicit `LINEAR_EXACT` metadata, so each grayscale byte equals its stored
+sample. The tests also check the scratch-buffer rendering
 path and reject malformed and truncated byte inputs. They separately verify
 exact NIfTI file/byte roundtrips for `.nii` and `.nii.gz`.
 

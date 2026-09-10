@@ -23,7 +23,7 @@
 //!   == render_vr_axial_with_scratch(&mut s, v, wl, cm, a).pixels
 //! ```
 
-use crate::render::{NamedColorMap, WindowLevel};
+use crate::render::{GrayscalePresentation, NamedColorMap, WindowLevel};
 use crate::LoadedVolume;
 use egui::ColorImage;
 use iris::color::{ColorMap, Normalized};
@@ -57,6 +57,13 @@ pub(crate) fn render_mip_axial_with_scratch(
     if volume.channels != 1 {
         return unsupported_projection_image(volume.channels);
     }
+    let presentation = match GrayscalePresentation::for_volume(volume) {
+        Ok(presentation) => presentation,
+        Err(error) => {
+            tracing::error!(%error, "invalid DICOM grayscale presentation metadata");
+            return invalid_image();
+        }
+    };
     let shape = volume.shape;
     let (depth, rows, cols) = (shape[0], shape[1], shape[2]);
     let len = rows * cols * 4;
@@ -70,7 +77,7 @@ pub(crate) fn render_mip_axial_with_scratch(
                     max_val = v;
                 }
             }
-            let norm = Normalized::from_u8(wl.apply(f64::from(max_val)));
+            let norm = Normalized::from_u8(presentation.apply(wl, f64::from(max_val)));
             let rgb = colormap.sample(norm).to_rgba8();
             let idx = (row * cols + col) * 4;
             scratch[idx] = rgb[0];
@@ -113,6 +120,13 @@ pub(crate) fn render_vr_axial_with_scratch(
     if volume.channels != 1 {
         return unsupported_projection_image(volume.channels);
     }
+    let presentation = match GrayscalePresentation::for_volume(volume) {
+        Ok(presentation) => presentation,
+        Err(error) => {
+            tracing::error!(%error, "invalid DICOM grayscale presentation metadata");
+            return invalid_image();
+        }
+    };
     let shape = volume.shape;
     let (depth, rows, cols) = (shape[0], shape[1], shape[2]);
     let len = rows * cols * 4;
@@ -123,7 +137,7 @@ pub(crate) fn render_vr_axial_with_scratch(
             let mut accum_alpha = 0.0f32;
             for z in 0..depth {
                 let v = volume.pixel_at(z, row, col);
-                let norm = Normalized::from_u8(wl.apply(f64::from(v)));
+                let norm = Normalized::from_u8(presentation.apply(wl, f64::from(v)));
                 let rgb = colormap.sample(norm).to_rgba8();
                 let a = alpha * norm.get();
                 for i in 0..3 {
@@ -146,5 +160,9 @@ pub(crate) fn render_vr_axial_with_scratch(
 
 fn unsupported_projection_image(channels: u8) -> ColorImage {
     tracing::error!(channels, "3D projection requires a scalar volume");
+    invalid_image()
+}
+
+fn invalid_image() -> ColorImage {
     ColorImage::from_rgb([1, 1], &[255_u8, 0, 255])
 }

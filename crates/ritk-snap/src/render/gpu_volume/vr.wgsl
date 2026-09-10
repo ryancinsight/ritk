@@ -3,7 +3,7 @@
 // For each output pixel (row, col) iterates the depth axis accumulating colour
 // and opacity with the front-to-back compositing equation:
 //
-//   norm    = clamp((volume[d,r,c] - wl_lo) / wl_range, 0, 1)
+//   norm    = DICOM VOI mapping selected by the presentation bitfield
 //   a       = alpha_scale * norm
 //   rgb     = lut[floor(norm * 255)]           (256-entry f32 RGBA colormap LUT)
 //   contrib = (1 - acc_alpha) * a
@@ -28,16 +28,54 @@ struct VrParams {
     rows        : u32,
     cols        : u32,
     _pad0       : u32,
-    wl_lo       : f32,
-    wl_range    : f32,
-    alpha_scale : f32,
-    _pad1       : f32,
+    center       : f32,
+    width        : f32,
+    alpha_scale  : f32,
+    presentation : u32,
 }
 
 @group(0) @binding(0) var<storage, read>       volume : array<f32>;
 @group(0) @binding(1) var<storage, read_write> vr_out : array<u32>;  // 1 packed u32 per pixel
 @group(0) @binding(2) var<uniform>             params : VrParams;
 @group(0) @binding(3) var<storage, read>       lut    : array<f32>;  // 256 * 4 f32 RGBA
+
+fn window_norm(value: f32) -> f32 {
+    // NaN has no ordered DICOM display value; match the CPU presentation
+    // path's lower endpoint while preserving +/-infinity endpoint behavior.
+    if value != value {
+        return 0.0;
+    }
+    let function = params.presentation & 3u;
+    var norm: f32;
+    if function == 0u {
+        let lower = params.center - 0.5 - (params.width - 1.0) * 0.5;
+        let upper = params.center - 0.5 + (params.width - 1.0) * 0.5;
+        if value <= lower {
+            norm = 0.0;
+        } else if value > upper {
+            norm = 1.0;
+        } else {
+            norm = (value - (params.center - 0.5)) / (params.width - 1.0) + 0.5;
+        }
+    } else if function == 1u {
+        let lower = params.center - 0.5 * params.width;
+        let upper = params.center + 0.5 * params.width;
+        if value <= lower {
+            norm = 0.0;
+        } else if value > upper {
+            norm = 1.0;
+        } else {
+            norm = (value - params.center) / params.width + 0.5;
+        }
+    } else {
+        norm = 1.0 / (1.0 + exp(4.0 * (params.center - value) / params.width));
+    }
+    norm = clamp(norm, 0.0, 1.0);
+    if (params.presentation & 4u) != 0u {
+        norm = 1.0 - norm;
+    }
+    return norm;
+}
 
 @compute @workgroup_size(8, 8, 1)
 fn vr_main(@builtin(global_invocation_id) id: vec3<u32>) {
@@ -58,7 +96,7 @@ fn vr_main(@builtin(global_invocation_id) id: vec3<u32>) {
 
     for (var d: u32 = 0u; d < params.depth; d = d + 1u) {
         let v    = volume[d * stride_d + row_offset + col];
-        let norm = clamp((v - params.wl_lo) / params.wl_range, 0.0, 1.0);
+        let norm = window_norm(v);
         let a    = params.alpha_scale * norm;
 
         // 256-entry RGBA LUT: 4 f32 per entry (R, G, B, A_unused).

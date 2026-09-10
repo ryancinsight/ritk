@@ -7,7 +7,7 @@
 //! The secondary / fused-compare viewport lives in [`super::viewport_compare`].
 use super::image_placement::ImagePlacement;
 use super::state::SnapApp;
-use crate::render::slice_render::WindowLevel;
+use crate::render::WindowLevel;
 use crate::tools::interaction::Annotation;
 use crate::tools::kind::ToolKind;
 use crate::ui::overlay::{OverlayContext, OverlayRenderer};

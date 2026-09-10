@@ -409,8 +409,13 @@ impl SnapApp {
                     if ui.button("Reset W/L").clicked() {
                         ui.close_menu();
                         let (wc, ww) = if let Some(vol) = &self.loaded {
-                            let d = ModalityDisplay::for_modality(vol.modality.as_deref());
-                            (d.window_center as f32, d.window_width as f32)
+                            if let Some((wc, ww)) = super::volume_state::metadata_window_level(vol)
+                            {
+                                (wc, ww)
+                            } else {
+                                let d = ModalityDisplay::for_modality(vol.modality.as_deref());
+                                (d.window_center as f32, d.window_width as f32)
+                            }
                         } else {
                             (128.0, 256.0)
                         };

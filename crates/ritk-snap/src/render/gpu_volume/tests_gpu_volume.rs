@@ -207,8 +207,8 @@ fn gpu_mip_cache_invalidated_on_volume_change() {
         }
     };
 
-    // wl_lo = 100 - 0.5*200 = 0; wl_range = 200.
-    // vol_b norm = (0 - 0) / 200 = 0 → black; alpha always 255 (MIP).
+    // DICOM LINEAR maps the zero sample below this window to black; alpha is
+    // always 255 for MIP.
     let wl = WindowLevel::new(100.0, 200.0);
     let cm = NamedColorMap::Grayscale;
 
@@ -235,8 +235,7 @@ fn gpu_mip_cache_invalidated_on_volume_change() {
 ///
 /// # Derivation
 ///
-/// wl_lo = 128 - 0.5*256 = 0; wl_range = 256.
-/// voxel = -100.0 → norm = clamp((-100 - 0)/256, 0, 1) = 0 → LUT[0] = black.
+/// DICOM LINEAR places -100 below the window and therefore selects LUT[0].
 /// Alpha always 255 for MIP (pack4x8unorm(*, *, *, 1.0)).
 #[test]
 fn gpu_mip_wl_clamps_below_floor_all_black() {
@@ -266,8 +265,7 @@ fn gpu_mip_wl_clamps_below_floor_all_black() {
 ///
 /// # Derivation
 ///
-/// wl_lo = 128 - 0.5*256 = 0; wl_range = 256.
-/// voxel = 5000.0 → norm = clamp((5000 - 0)/256, 0, 1) = 1.0 → LUT[255].
+/// DICOM LINEAR places 5000 above the window and therefore selects LUT[255].
 /// Grayscale LUT[255] = [255/255, 255/255, 255/255] → pack4x8unorm gives white.
 #[test]
 fn gpu_mip_wl_clamps_above_ceiling_all_white() {

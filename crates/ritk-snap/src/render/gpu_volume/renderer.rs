@@ -9,7 +9,7 @@ use std::sync::Arc;
 use egui::ColorImage;
 use wgpu::util::DeviceExt as _;
 
-use crate::render::{NamedColorMap, WindowLevel};
+use crate::render::{GrayscalePresentation, NamedColorMap, WindowLevel};
 use crate::LoadedVolume;
 
 use super::context::GpuContext;
@@ -297,6 +297,13 @@ impl GpuVolumeRenderer {
             );
             return None;
         }
+        let presentation = match GrayscalePresentation::for_volume(volume) {
+            Ok(presentation) => presentation,
+            Err(error) => {
+                tracing::error!(%error, "invalid DICOM grayscale presentation metadata");
+                return None;
+            }
+        };
         self.ensure_volume_uploaded(volume);
         let [_, rows, cols] = volume.shape;
 
@@ -360,6 +367,7 @@ impl GpuVolumeRenderer {
                     cache,
                     volume.shape,
                     wl,
+                    presentation,
                     colormap,
                 )
             };
@@ -395,6 +403,13 @@ impl GpuVolumeRenderer {
             );
             return None;
         }
+        let presentation = match GrayscalePresentation::for_volume(volume) {
+            Ok(presentation) => presentation,
+            Err(error) => {
+                tracing::error!(%error, "invalid DICOM grayscale presentation metadata");
+                return None;
+            }
+        };
         self.ensure_volume_uploaded(volume);
         let [_, rows, cols] = volume.shape;
 
@@ -453,6 +468,7 @@ impl GpuVolumeRenderer {
                     cache,
                     volume.shape,
                     wl,
+                    presentation,
                     colormap,
                     alpha_scale,
                 )

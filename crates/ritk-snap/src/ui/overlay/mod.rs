@@ -33,7 +33,7 @@ use egui::{Align2, Color32, FontId, Painter, Pos2, Rect};
 mod details;
 
 use super::anatomical_label_for_axis;
-use crate::render::slice_render::WindowLevel;
+use crate::render::WindowLevel;
 use crate::ui::{axis_slice_dimensions, ViewTransform};
 use crate::LoadedVolume;
 

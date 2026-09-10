@@ -5,7 +5,8 @@
 //!
 //! - [`NamedColorMap`] — Iris-owned normalized intensity-to-RGBA mappings.
 //! - [`fusion`] — primary/secondary fused compare rendering.
-//! - [`slice_render`] — DICOM window/level LUT and 2-D slice extraction.
+//! - [`grayscale`] — DICOM scalar presentation semantics.
+//! - [`slice_render`] — 2-D slice extraction and pixel-buffer assembly.
 //! - [`histogram`] — voxel intensity histogram computation SSOT.
 //! - [`mip_vr`] — multi-resolution image rendering.
 
@@ -15,6 +16,7 @@ pub mod fusion;
 pub mod gpu_mesh;
 #[cfg(not(target_arch = "wasm32"))]
 pub mod gpu_volume;
+pub mod grayscale;
 pub mod histogram;
 pub mod mesh_render;
 pub mod mip_vr;
@@ -26,11 +28,14 @@ pub(crate) const U8_MAX_F32: f32 = 255.0;
 pub use fusion::{render_fused_slice, secondary_slice_for_primary, FusedSliceParams, FusionError};
 #[cfg(not(target_arch = "wasm32"))]
 pub use gpu_mesh::{GpuMeshRenderer, MeshRenderConfig, SsaoConfig};
+pub use grayscale::{
+    GrayscalePresentation, GrayscalePresentationError, VoiLutFunction, WindowLevel,
+};
 pub use histogram::{compute_histogram, histogram_bin_center, histogram_peak_count, Histogram};
 pub use iris::color::NamedColorMap;
 pub use mesh_render::{DirectionalLight, MeshCamera, MeshRenderer, PhongMaterial};
 pub use mip_vr::{render_mip_axial, render_vr_axial};
-pub use slice_render::{SliceRenderer, WindowLevel};
+pub use slice_render::SliceRenderer;
 
 #[cfg(test)]
 #[path = "tests_colormap.rs"]

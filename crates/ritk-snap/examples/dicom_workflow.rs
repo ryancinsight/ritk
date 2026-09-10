@@ -2,10 +2,13 @@
 
 use anyhow::{ensure, Context, Result};
 use ritk_io::{literal_arraystring, DicomReadMetadata};
-use ritk_snap::dicom::loader::{load_dicom_series_from_named_bytes, load_volume_from_path};
+use ritk_snap::dicom::loader::{
+    load_dicom_series_from_named_bytes, load_volume_from_bytes, load_volume_from_path,
+};
 use ritk_snap::geometry::affine::AffineTransform;
 use ritk_snap::render::{
-    render_fused_slice, FusedSliceParams, NamedColorMap, SliceRenderer, WindowLevel,
+    render_fused_slice, FusedSliceParams, GrayscalePresentation, NamedColorMap, SliceRenderer,
+    VoiLutFunction, WindowLevel,
 };
 use ritk_snap::ui::{apply_to_image, voxel_to_lps, RotationSteps, ViewTransform};
 use std::path::PathBuf;
@@ -54,8 +57,8 @@ fn main() -> Result<()> {
     let landmark = voxel_to_lps([2, 1, 3], volume.origin, volume.direction, volume.spacing);
     ensure!(landmark == [14.0, 21.5, 31.5], "physical landmark oracle");
     let mut captures = Vec::new();
-    // These parameters invert the fixture rescale under the current renderer's
-    // LINEAR_EXACT equation. Default DICOM LINEAR conformance is a separate gate.
+    // These parameters cancel the fixture's modality rescale under explicit
+    // LINEAR_EXACT metadata, preserving the stored sample values.
     for (axis, index, name) in [(0, 1, "depth"), (1, 1, "row"), (2, 2, "column")] {
         let rendered = SliceRenderer::render(
             &volume,
@@ -135,6 +138,62 @@ fn main() -> Result<()> {
             "display": "decoded RGB channels bypass scalar windowing"
         }));
     }
+
+    let grayscale_study = output.join("grayscale-study");
+    let (grayscale_filename, grayscale_bytes) = fixtures::write_grayscale_presentation(
+        &grayscale_study,
+        "MONOCHROME1",
+        Some("LINEAR_EXACT"),
+    )?;
+    let grayscale_volume = load_volume_from_path(&grayscale_study)?;
+    let grayscale_dropped = load_volume_from_bytes(&grayscale_filename, &grayscale_bytes)?;
+    ensure!(
+        grayscale_volume.data.as_slice() == [-30.0, -10.0, 10.0, 30.0]
+            && grayscale_dropped.data == grayscale_volume.data,
+        "signed grayscale and modality-rescale oracle"
+    );
+    let grayscale_presentation = GrayscalePresentation::for_volume(&grayscale_volume)
+        .map_err(|error| anyhow::anyhow!("resolve grayscale presentation: {error}"))?;
+    ensure!(
+        grayscale_presentation.voi_function == VoiLutFunction::LinearExact
+            && grayscale_presentation.invert,
+        "MONOCHROME1 and VOI LUT Function metadata oracle"
+    );
+    let grayscale_rendered = SliceRenderer::render(
+        &grayscale_volume,
+        0,
+        0,
+        WindowLevel::new(0.0, 40.0),
+        NamedColorMap::Grayscale,
+    );
+    let grayscale_rgba: Vec<_> = grayscale_rendered
+        .pixels
+        .iter()
+        .flat_map(|pixel| pixel.to_array())
+        .collect();
+    let grayscale_width = u32::try_from(grayscale_rendered.size[0])?;
+    let grayscale_height = u32::try_from(grayscale_rendered.size[1])?;
+    let grayscale_pixels =
+        image::RgbaImage::from_raw(grayscale_width, grayscale_height, grayscale_rgba)
+            .context("rendered grayscale RGBA dimensions")?;
+    grayscale_pixels.save(output.join("grayscale.png"))?;
+    image::imageops::resize(
+        &grayscale_pixels,
+        grayscale_width * 64,
+        grayscale_height * 64,
+        image::imageops::FilterType::Nearest,
+    )
+    .save(output.join("grayscale-grid.png"))?;
+    captures.push(serde_json::json!({
+        "axis": 0,
+        "index": 0,
+        "image": "grayscale.png",
+        "size": grayscale_rendered.size,
+        "photometric": "MONOCHROME1",
+        "voi_function": "LINEAR_EXACT",
+        "decoded_values": grayscale_volume.data.as_ref(),
+        "display_values": [255, 191, 64, 0]
+    }));
 
     let transformed = SliceRenderer::render(
         &volume,
@@ -276,7 +335,7 @@ fn main() -> Result<()> {
         "spacing_mm": volume.spacing, "origin_lps_mm": volume.origin,
         "direction": volume.direction, "voxels": volume.data.as_ref(),
         "landmark_index": [2, 1, 3], "landmark_lps_mm": landmark, "captures": captures,
-        "rendering": "current LINEAR_EXACT equation; software slice buffers before texture upload",
+        "rendering": "DICOM VOI presentation; software slice buffers before texture upload",
         "fusion": {
             "frame_of_reference_uid": frame_uid.as_str(),
             "secondary_origin_lps_mm": fusion_secondary.origin,
@@ -289,6 +348,16 @@ fn main() -> Result<()> {
             "samples": color_volume.data.as_ref(),
             "photometric": "RGB",
             "sampling": "interleaved channel-preserving orthogonal slices"
+        },
+        "grayscale": {
+            "shape": grayscale_volume.shape,
+            "channels": grayscale_volume.channels,
+            "stored_samples": fixtures::PRESENTATION_STORED,
+            "decoded_values": grayscale_volume.data.as_ref(),
+            "photometric": "MONOCHROME1",
+            "voi_function": "LINEAR_EXACT",
+            "display_values": [255, 191, 64, 0],
+            "sampling": "signed modality-rescaled values with one presentation inversion"
         }
     });
     std::fs::write(

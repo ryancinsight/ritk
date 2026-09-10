@@ -2,7 +2,7 @@
 
 use super::state::{img_to_screen, img_to_volume, screen_to_img, screen_to_img_exact, slice_dims};
 use super::*;
-use crate::render::slice_render::WindowLevel;
+use crate::render::WindowLevel;
 use crate::LoadedVolume;
 use egui::{pos2, vec2, Rect, Vec2};
 

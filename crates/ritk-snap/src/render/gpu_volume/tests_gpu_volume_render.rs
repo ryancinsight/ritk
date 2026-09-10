@@ -144,7 +144,7 @@ fn gpu_vr_matches_cpu_vr_grayscale() {
 ///
 /// # Derivation
 ///
-/// wl_lo = 0; wl_range = 256. voxel = 0.0 → norm = 0 → a = 0.06 × 0 = 0.
+/// DICOM LINEAR maps this zero sample to norm 0, so a = 0.06 × 0 = 0.
 /// No accumulation → acc_r=0, acc_g=0, acc_b=0, acc_alpha=0.
 /// pack4x8unorm(0,0,0,0) → bytes [0,0,0,0] → from_rgba_unmultiplied(0,0,0,0)
 /// → Color32::TRANSPARENT.

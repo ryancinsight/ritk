@@ -17,6 +17,20 @@ fn study_app() -> SnapApp {
     app
 }
 
+#[test]
+fn dicom_window_metadata_drives_initial_viewer_state() {
+    let root = tempfile::tempdir().expect("window metadata fixture root");
+    let (filename, _) =
+        fixtures::write_grayscale_presentation(root.path(), "MONOCHROME2", Some("LINEAR"))
+            .expect("write window metadata fixture");
+    let volume = load_volume_from_path(root.path().join(filename).as_path())
+        .expect("decode window metadata fixture");
+    let mut app = SnapApp::default();
+    app.load_volume(volume, "Loaded".to_owned());
+    assert_eq!(app.viewer_state.window_center, Some(0.0));
+    assert_eq!(app.viewer_state.window_width, Some(40.0));
+}
+
 fn image_bounds(output: &egui::FullOutput, id: egui::TextureId) -> egui::Rect {
     output
         .shapes
