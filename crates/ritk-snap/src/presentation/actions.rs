@@ -22,64 +22,70 @@ const POINTER_BUTTONS: [PointerButton; 5] = [
 const MAX_ACTIONS_PER_EVENT: usize = 6;
 
 /// A client-space point carried by a viewer action.
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+#[derive(Debug, Clone, Copy, PartialEq)]
 pub struct ViewportPoint {
-    x: i32,
-    y: i32,
+    x: f32,
+    y: f32,
 }
 
 impl ViewportPoint {
-    /// Construct a point from signed client coordinates.
+    /// Construct a point from client display coordinates.
     #[must_use]
-    pub const fn new(x: i32, y: i32) -> Self {
+    pub const fn new(x: f32, y: f32) -> Self {
         Self { x, y }
     }
 
-    /// Horizontal client coordinate.
+    /// Horizontal client coordinate in display pixels.
     #[must_use]
-    pub const fn x(self) -> i32 {
+    pub const fn x(self) -> f32 {
         self.x
     }
 
-    /// Vertical client coordinate.
+    /// Vertical client coordinate in display pixels.
     #[must_use]
-    pub const fn y(self) -> i32 {
+    pub const fn y(self) -> f32 {
         self.y
     }
 
     fn delta_to(self, to: Self) -> Result<PointerDelta, ActionDispatchError> {
-        let x =
-            to.x.checked_sub(self.x)
-                .ok_or(ActionDispatchError::CoordinateDeltaOverflow { from: self, to })?;
-        let y =
-            to.y.checked_sub(self.y)
-                .ok_or(ActionDispatchError::CoordinateDeltaOverflow { from: self, to })?;
+        if !self.is_finite() || !to.is_finite() {
+            return Err(ActionDispatchError::NonFiniteCoordinate { point: to });
+        }
+        let x = to.x - self.x;
+        let y = to.y - self.y;
+        if !x.is_finite() || !y.is_finite() {
+            return Err(ActionDispatchError::NonFiniteCoordinate { point: to });
+        }
         Ok(PointerDelta { x, y })
+    }
+
+    fn is_finite(self) -> bool {
+        self.x.is_finite() && self.y.is_finite()
     }
 }
 
 /// A checked client-space displacement between two pointer positions.
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+#[derive(Debug, Clone, Copy, PartialEq)]
 pub struct PointerDelta {
-    x: i32,
-    y: i32,
+    x: f32,
+    y: f32,
 }
 
 impl PointerDelta {
     /// Horizontal displacement.
     #[must_use]
-    pub const fn x(self) -> i32 {
+    pub const fn x(self) -> f32 {
         self.x
     }
 
     /// Vertical displacement.
     #[must_use]
-    pub const fn y(self) -> i32 {
+    pub const fn y(self) -> f32 {
         self.y
     }
 
     fn is_zero(self) -> bool {
-        self.x == 0 && self.y == 0
+        self.x == 0.0 && self.y == 0.0
     }
 }
 
@@ -99,7 +105,7 @@ pub enum PointerGesture {
 /// action for each non-zero movement, in the fixed [`PointerButton`] order.
 /// Release emits one action with a [`PointerGesture`] classification, so a
 /// viewer does not have to infer clicks from a second event stream.
-#[derive(Debug, Clone, PartialEq, Eq)]
+#[derive(Debug, Clone, PartialEq)]
 #[non_exhaustive]
 pub enum ViewerAction {
     /// The host requested application shutdown.
@@ -189,7 +195,7 @@ pub enum ViewerAction {
 }
 
 /// Failure while reducing a bounded presentation event batch.
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Error)]
+#[derive(Debug, Clone, Copy, PartialEq, Error)]
 #[non_exhaustive]
 pub enum ActionDispatchError {
     /// The input batch exceeds the shared host bound.
@@ -226,13 +232,11 @@ pub enum ActionDispatchError {
         /// Button whose state is absent.
         button: PointerButton,
     },
-    /// A checked movement cannot be represented by signed client coordinates.
-    #[error("pointer delta from {from:?} to {to:?} overflows i32")]
-    CoordinateDeltaOverflow {
-        /// Previous pointer position.
-        from: ViewportPoint,
-        /// New pointer position.
-        to: ViewportPoint,
+    /// A pointer coordinate or displacement is not finite.
+    #[error("pointer coordinate {point:?} is not finite")]
+    NonFiniteCoordinate {
+        /// Coordinate that failed finite-value validation.
+        point: ViewportPoint,
     },
     /// A text-composition update exceeds the shared UTF-16 bound.
     #[error("text composition length {actual} exceeds limit {limit} UTF-16 units")]
@@ -274,8 +278,8 @@ impl PresentationDispatcher {
     ///
     /// # Errors
     /// Returns [`ActionDispatchError`] for an oversized batch, malformed
-    /// pointer sequence, overflowing coordinate delta, overlong composition,
-    /// or bounded allocation failure.
+    /// pointer sequence, non-finite coordinate or displacement, overlong
+    /// composition, or bounded allocation failure.
     pub fn dispatch(
         &mut self,
         events: &[PresentationEvent],
@@ -303,6 +307,12 @@ impl PresentationDispatcher {
         }
         *self = next;
         Ok(actions.into_boxed_slice())
+    }
+
+    /// Clear pressed-button state after a host terminates a gesture without a
+    /// final pointer coordinate.
+    pub(crate) fn cancel_pointers(&mut self) {
+        self.pointers = [None; POINTER_BUTTONS.len()];
     }
 }
 

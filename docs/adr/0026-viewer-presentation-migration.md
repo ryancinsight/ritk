@@ -89,6 +89,16 @@ presentation, native host loop integration and capture evidence remain open
 increments. DICOM parsing, decoded volume state and clinical semantics remain
 in RITK; no DICOM value crosses the Métis seam.
 
+Revision 2026-09-10 (viewer action correction): the adapter now preserves
+multi-click measurement anchors across click releases, accumulates repaint
+requests across one event batch, and clears both reducer and viewer gesture
+state when a host loses its final pointer coordinate. Presentation coordinates
+and checked deltas use finite display-pixel `f32` values so fractional browser
+and scaled-native positions reach RITK image mapping without rounding. The
+RITK package gate passes 773/773 nextest tests, strict Clippy, formatting and
+locked package checks; the correction remains inside RITK and does not move
+DICOM parsing, volume state or clinical semantics into Métis.
+
 Revision 2026-09-08: [RITK-SNAP-DIRECTORY-001](../../backlog.md#RITK-SNAP-DIRECTORY-001)
 now validates the Explicit VR Little Endian DICOMDIR record sequence before
 membership is admitted. RecordInUseFlag, next/lower offsets, incoming-link

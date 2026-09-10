@@ -45,7 +45,7 @@ impl PresentationDispatcher {
                 Ok(())
             }
             PresentationEvent::PointerMove { x, y } => {
-                let position = ViewportPoint::new(*x, *y);
+                let position = viewport_point(*x, *y)?;
                 Self::push_action(
                     actions,
                     ViewerAction::PointerMoved { position },
@@ -80,7 +80,7 @@ impl PresentationDispatcher {
                 if self.pointers[slot].is_some() {
                     return Err(ActionDispatchError::DuplicatePointerPress { button: *button });
                 }
-                let position = ViewportPoint::new(*x, *y);
+                let position = viewport_point(*x, *y)?;
                 self.pointers[slot] = Some(PointerPress {
                     origin: position,
                     last: position,
@@ -102,7 +102,7 @@ impl PresentationDispatcher {
                         button: *button,
                     });
                 };
-                let position = ViewportPoint::new(*x, *y);
+                let position = viewport_point(*x, *y)?;
                 let gesture = if press.moved || position != press.origin {
                     PointerGesture::Drag
                 } else {
@@ -210,5 +210,14 @@ fn button_slot(button: PointerButton) -> usize {
         PointerButton::Middle => 2,
         PointerButton::X1 => 3,
         PointerButton::X2 => 4,
+    }
+}
+
+fn viewport_point(x: f32, y: f32) -> Result<ViewportPoint, ActionDispatchError> {
+    let point = ViewportPoint::new(x, y);
+    if point.is_finite() {
+        Ok(point)
+    } else {
+        Err(ActionDispatchError::NonFiniteCoordinate { point })
     }
 }

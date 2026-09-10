@@ -100,15 +100,18 @@ pub fn translate_native_events(events: &[WindowEvent]) -> Result<Box<[Presentati
             WindowEvent::Destroyed => PresentationEvent::Destroyed,
             WindowEvent::FocusGained => PresentationEvent::FocusGained,
             WindowEvent::FocusLost => PresentationEvent::FocusLost,
-            WindowEvent::PointerMove { x, y } => PresentationEvent::PointerMove { x: *x, y: *y },
+            WindowEvent::PointerMove { x, y } => PresentationEvent::PointerMove {
+                x: *x as f32,
+                y: *y as f32,
+            },
             WindowEvent::PointerDown { x, y, button } => PresentationEvent::PointerDown {
-                x: *x,
-                y: *y,
+                x: *x as f32,
+                y: *y as f32,
                 button: translate_pointer_button(*button),
             },
             WindowEvent::PointerUp { x, y, button } => PresentationEvent::PointerUp {
-                x: *x,
-                y: *y,
+                x: *x as f32,
+                y: *y as f32,
                 button: translate_pointer_button(*button),
             },
             WindowEvent::KeyDown {
@@ -335,15 +338,15 @@ mod tests {
                 PresentationEvent::Destroyed,
                 PresentationEvent::FocusGained,
                 PresentationEvent::FocusLost,
-                PresentationEvent::PointerMove { x: -4, y: 8 },
+                PresentationEvent::PointerMove { x: -4.0, y: 8.0 },
                 PresentationEvent::PointerDown {
-                    x: 1,
-                    y: 2,
+                    x: 1.0,
+                    y: 2.0,
                     button: PointerButton::X1,
                 },
                 PresentationEvent::PointerUp {
-                    x: 3,
-                    y: 4,
+                    x: 3.0,
+                    y: 4.0,
                     button: PointerButton::Right,
                 },
                 PresentationEvent::KeyDown {

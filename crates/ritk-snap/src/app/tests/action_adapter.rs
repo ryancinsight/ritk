@@ -38,6 +38,11 @@ fn apply_events(
     }
 }
 
+fn apply_app_event(app: &mut SnapApp, viewport: &ViewerViewport, event: PresentationEvent) {
+    app.apply_presentation_events(&[event], Some(viewport))
+        .expect("test presentation event is supported");
+}
+
 #[test]
 fn pan_actions_update_viewer_state_without_gui_coordinates() {
     let mut app = SnapApp::default();
@@ -50,8 +55,8 @@ fn pan_actions_update_viewer_state_without_gui_coordinates() {
         &mut dispatcher,
         &viewport,
         PresentationEvent::PointerDown {
-            x: 10,
-            y: 10,
+            x: 10.0,
+            y: 10.0,
             button: PointerButton::Left,
         },
     );
@@ -59,15 +64,15 @@ fn pan_actions_update_viewer_state_without_gui_coordinates() {
         &mut app,
         &mut dispatcher,
         &viewport,
-        PresentationEvent::PointerMove { x: 30, y: 0 },
+        PresentationEvent::PointerMove { x: 30.0, y: 0.0 },
     );
     apply_events(
         &mut app,
         &mut dispatcher,
         &viewport,
         PresentationEvent::PointerUp {
-            x: 30,
-            y: 0,
+            x: 30.0,
+            y: 0.0,
             button: PointerButton::Left,
         },
     );
@@ -90,8 +95,8 @@ fn window_level_actions_use_the_existing_sensitivity_mapping() {
         &mut dispatcher,
         &viewport,
         PresentationEvent::PointerDown {
-            x: 20,
-            y: 20,
+            x: 20.0,
+            y: 20.0,
             button: PointerButton::Left,
         },
     );
@@ -99,7 +104,7 @@ fn window_level_actions_use_the_existing_sensitivity_mapping() {
         &mut app,
         &mut dispatcher,
         &viewport,
-        PresentationEvent::PointerMove { x: 30, y: 15 },
+        PresentationEvent::PointerMove { x: 30.0, y: 15.0 },
     );
 
     assert_eq!(app.viewer_state.window_center, Some(60.0));
@@ -123,8 +128,8 @@ fn point_click_actions_record_a_ritk_annotation() {
         &mut dispatcher,
         &viewport,
         PresentationEvent::PointerDown {
-            x: 1,
-            y: 2,
+            x: 1.0,
+            y: 2.0,
             button: PointerButton::Left,
         },
     );
@@ -133,8 +138,8 @@ fn point_click_actions_record_a_ritk_annotation() {
         &mut dispatcher,
         &viewport,
         PresentationEvent::PointerUp {
-            x: 1,
-            y: 2,
+            x: 1.0,
+            y: 2.0,
             button: PointerButton::Left,
         },
     );
@@ -143,6 +148,178 @@ fn point_click_actions_record_a_ritk_annotation() {
         app.annotations.as_slice(),
         [crate::tools::interaction::Annotation::HuPoint { pos, value }]
             if *pos == [2.0, 1.0] && *value == 0.0
+    ));
+}
+
+#[test]
+fn length_measurement_clicks_advance_and_complete_through_the_adapter() {
+    let mut app = SnapApp::default();
+    app.loaded = Some(test_volume([4, 4, 1]));
+    app.active_tool = ToolKind::MeasureLength;
+    let viewport = viewport([4, 4]);
+
+    for (x, y) in [(0.5, 0.5), (3.25, 0.5)] {
+        apply_app_event(
+            &mut app,
+            &viewport,
+            PresentationEvent::PointerDown {
+                x,
+                y,
+                button: PointerButton::Left,
+            },
+        );
+        apply_app_event(
+            &mut app,
+            &viewport,
+            PresentationEvent::PointerUp {
+                x,
+                y,
+                button: PointerButton::Left,
+            },
+        );
+    }
+
+    assert!(app.tool_state.is_idle());
+    assert!(matches!(
+        app.annotations.as_slice(),
+        [crate::tools::interaction::Annotation::Length {
+            p1,
+            p2,
+            length_mm,
+        }] if *p1 == [0.5, 0.5]
+            && *p2 == [0.5, 3.25]
+            && (*length_mm - 2.75).abs() < 1e-6
+    ));
+}
+
+#[test]
+fn angle_measurement_clicks_advance_and_complete_through_the_adapter() {
+    let mut app = SnapApp::default();
+    app.loaded = Some(test_volume([4, 4, 1]));
+    app.active_tool = ToolKind::MeasureAngle;
+    let viewport = viewport([4, 4]);
+
+    for (x, y) in [(0.5, 0.5), (2.5, 0.5), (2.5, 2.5)] {
+        apply_app_event(
+            &mut app,
+            &viewport,
+            PresentationEvent::PointerDown {
+                x,
+                y,
+                button: PointerButton::Left,
+            },
+        );
+        apply_app_event(
+            &mut app,
+            &viewport,
+            PresentationEvent::PointerUp {
+                x,
+                y,
+                button: PointerButton::Left,
+            },
+        );
+    }
+
+    assert!(app.tool_state.is_idle());
+    assert!(matches!(
+        app.annotations.as_slice(),
+        [crate::tools::interaction::Annotation::Angle { angle_deg, .. }]
+            if (*angle_deg - 90.0).abs() < 1e-5
+    ));
+}
+
+#[test]
+fn adapter_accumulates_repaint_across_actions_in_one_batch() {
+    let mut app = SnapApp::default();
+    app.loaded = Some(test_volume([4, 4, 3]));
+    app.texture_dirty = false;
+    let viewport = viewport([4, 4]);
+    let disposition = app
+        .apply_presentation_events(
+            &[
+                PresentationEvent::KeyDown {
+                    virtual_key: 0x22,
+                    repeated: false,
+                },
+                PresentationEvent::KeyUp { virtual_key: 0x22 },
+            ],
+            Some(&viewport),
+        )
+        .expect("navigation batch is supported");
+
+    assert_eq!(app.viewer_state.slice_index, 1);
+    assert_eq!(
+        disposition,
+        ViewerActionDisposition::Continue { repaint: true }
+    );
+}
+
+#[test]
+fn lost_pointer_cancellation_releases_dispatcher_for_the_next_press() {
+    let mut app = SnapApp::default();
+    app.active_tool = ToolKind::Pan;
+    let viewport = viewport([16, 16]);
+    apply_app_event(
+        &mut app,
+        &viewport,
+        PresentationEvent::PointerDown {
+            x: 2.25,
+            y: 2.75,
+            button: PointerButton::Left,
+        },
+    );
+    app.cancel_presentation_gesture();
+    assert!(app.tool_state.is_idle());
+
+    apply_app_event(
+        &mut app,
+        &viewport,
+        PresentationEvent::PointerDown {
+            x: 3.5,
+            y: 3.5,
+            button: PointerButton::Left,
+        },
+    );
+    assert!(matches!(app.tool_state, ToolState::Panning { .. }));
+}
+
+#[test]
+fn fractional_client_coordinates_reach_image_mapping_unchanged() {
+    let mut app = SnapApp::default();
+    app.loaded = Some(test_volume([8, 8, 1]));
+    app.active_tool = ToolKind::PointHu;
+    let viewport = ViewerViewport::new(
+        0,
+        egui::Pos2::new(10.25, 20.5),
+        egui::vec2(0.25, 0.5),
+        [8, 8],
+        ViewTransform::default(),
+    )
+    .expect("fractional viewport geometry is valid");
+
+    apply_app_event(
+        &mut app,
+        &viewport,
+        PresentationEvent::PointerDown {
+            x: 10.625,
+            y: 21.25,
+            button: PointerButton::Left,
+        },
+    );
+    apply_app_event(
+        &mut app,
+        &viewport,
+        PresentationEvent::PointerUp {
+            x: 10.625,
+            y: 21.25,
+            button: PointerButton::Left,
+        },
+    );
+
+    assert!(matches!(
+        app.annotations.as_slice(),
+        [crate::tools::interaction::Annotation::HuPoint { pos, .. }]
+            if *pos == [1.5, 1.5]
     ));
 }
 
@@ -157,8 +334,8 @@ fn focus_loss_cancels_a_gesture_and_lifecycle_actions_exit() {
         &mut dispatcher,
         &viewport,
         PresentationEvent::PointerDown {
-            x: 2,
-            y: 2,
+            x: 2.0,
+            y: 2.0,
             button: PointerButton::Left,
         },
     );
@@ -212,7 +389,7 @@ fn unsupported_buttons_and_invalid_viewports_are_typed_failures() {
     let viewport = viewport([4, 4]);
     let right_press = ViewerAction::PointerPressed {
         button: PointerButton::Right,
-        position: ViewportPoint::new(1, 1),
+        position: ViewportPoint::new(1.0, 1.0),
     };
     assert!(matches!(
         app.apply_viewer_action(&right_press, Some(&viewport)),
@@ -224,8 +401,8 @@ fn unsupported_buttons_and_invalid_viewports_are_typed_failures() {
     let mut app = SnapApp::default();
     let result = app.apply_presentation_events(
         &[PresentationEvent::PointerDown {
-            x: 1,
-            y: 1,
+            x: 1.0,
+            y: 1.0,
             button: PointerButton::Right,
         }],
         Some(&viewport),
@@ -241,8 +418,8 @@ fn unsupported_buttons_and_invalid_viewports_are_typed_failures() {
     assert!(matches!(
         app.presentation_dispatcher
             .dispatch(&[PresentationEvent::PointerUp {
-                x: 1,
-                y: 1,
+                x: 1.0,
+                y: 1.0,
                 button: PointerButton::Right,
             }]),
         Err(

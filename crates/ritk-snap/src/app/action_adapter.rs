@@ -83,7 +83,7 @@ impl ViewerViewport {
     }
 
     fn map(self, point: ViewportPoint) -> Option<(egui::Pos2, ImagePoint)> {
-        let screen = egui::pos2(point.x() as f32, point.y() as f32);
+        let screen = egui::pos2(point.x(), point.y());
         let rect = self.screen_rect();
         if !rect.contains(screen) {
             return None;
@@ -170,14 +170,28 @@ impl SnapApp {
                 ensure_primary(button)?;
             }
         }
-        let mut disposition = ViewerActionDisposition::Continue { repaint: false };
+        let mut repaint = false;
         for action in actions.iter() {
-            disposition = self.apply_viewer_action(action, viewport)?;
-            if disposition == ViewerActionDisposition::Exit {
-                break;
+            match self.apply_viewer_action(action, viewport)? {
+                ViewerActionDisposition::Continue { repaint: needed } => {
+                    repaint |= needed;
+                }
+                ViewerActionDisposition::Exit => {
+                    return Ok(ViewerActionDisposition::Exit);
+                }
             }
         }
-        Ok(disposition)
+        Ok(ViewerActionDisposition::Continue { repaint })
+    }
+
+    /// Cancel the active presentation gesture after a host loses its pointer.
+    ///
+    /// A native or browser host can terminate a drag without a final client
+    /// coordinate. Clearing both reducer and viewer gesture state keeps the
+    /// next press admissible and mirrors the focus-loss cancellation path.
+    pub(crate) fn cancel_presentation_gesture(&mut self) {
+        self.presentation_dispatcher.cancel_pointers();
+        self.on_drag_end(None);
     }
 
     /// Apply one reduced host action to the RITK viewer state.
@@ -270,7 +284,6 @@ impl SnapApp {
             } => {
                 ensure_primary(*button)?;
                 let mapped = viewport.and_then(|viewport| viewport.map(*position));
-                self.on_drag_end(mapped.map(|(_, image)| image));
                 if *gesture == PointerGesture::Click {
                     if let Some(viewport) = viewport {
                         if let Some((screen, _)) = mapped {
@@ -282,6 +295,9 @@ impl SnapApp {
                         }
                     }
                     self.on_click(mapped.map(|(_, image)| image));
+                    self.on_click_end();
+                } else {
+                    self.on_drag_end(mapped.map(|(_, image)| image));
                 }
                 Ok(ViewerActionDisposition::Continue { repaint: true })
             }

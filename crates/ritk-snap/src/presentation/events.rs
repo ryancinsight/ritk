@@ -48,7 +48,7 @@ pub enum CompositionPhase {
 ///
 /// The event carries coordinates, controls and lifecycle state only. It never
 /// carries a path, DICOM object, volume, metadata record or host authority.
-#[derive(Debug, Clone, PartialEq, Eq)]
+#[derive(Debug, Clone, PartialEq)]
 #[non_exhaustive]
 pub enum PresentationEvent {
     /// The host requested application shutdown.
@@ -61,26 +61,26 @@ pub enum PresentationEvent {
     FocusLost,
     /// The pointer moved in client coordinates.
     PointerMove {
-        /// Horizontal client coordinate.
-        x: i32,
-        /// Vertical client coordinate.
-        y: i32,
+        /// Horizontal client coordinate in display pixels.
+        x: f32,
+        /// Vertical client coordinate in display pixels.
+        y: f32,
     },
     /// A pointer button was pressed in client coordinates.
     PointerDown {
-        /// Horizontal client coordinate.
-        x: i32,
-        /// Vertical client coordinate.
-        y: i32,
+        /// Horizontal client coordinate in display pixels.
+        x: f32,
+        /// Vertical client coordinate in display pixels.
+        y: f32,
         /// Pressed button.
         button: PointerButton,
     },
     /// A pointer button was released in client coordinates.
     PointerUp {
-        /// Horizontal client coordinate.
-        x: i32,
-        /// Vertical client coordinate.
-        y: i32,
+        /// Horizontal client coordinate in display pixels.
+        x: f32,
+        /// Vertical client coordinate in display pixels.
+        y: f32,
         /// Released button.
         button: PointerButton,
     },

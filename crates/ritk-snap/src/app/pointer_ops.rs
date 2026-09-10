@@ -133,6 +133,24 @@ impl SnapApp {
         self.tool_state = ToolState::Idle;
     }
 
+    /// End a click without discarding a multi-click measurement anchor.
+    ///
+    /// A click is also the release of a press that may have initialized a
+    /// transient drag state. Measurement tools use the release itself to
+    /// advance their anchors, so they must be allowed to observe their prior
+    /// state before the transient gesture is cleared.
+    pub(crate) fn on_click_end(&mut self) {
+        if matches!(
+            self.tool_state,
+            ToolState::Panning { .. }
+                | ToolState::Zooming { .. }
+                | ToolState::WindowLevelDrag { .. }
+                | ToolState::RoiDrag { .. }
+        ) {
+            self.tool_state = ToolState::Idle;
+        }
+    }
+
     pub(crate) fn on_click(&mut self, pos: Option<ImagePoint>) {
         let Some(pos) = pos else { return };
         match self.active_tool {

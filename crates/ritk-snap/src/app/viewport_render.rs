@@ -62,12 +62,7 @@ fn client_point(point: egui::Pos2) -> Option<ViewportPoint> {
     if !point.x.is_finite() || !point.y.is_finite() {
         return None;
     }
-    let x = point.x.round();
-    let y = point.y.round();
-    if x < i32::MIN as f32 || x > i32::MAX as f32 || y < i32::MIN as f32 || y > i32::MAX as f32 {
-        return None;
-    }
-    Some(ViewportPoint::new(x as i32, y as i32))
+    Some(ViewportPoint::new(point.x, point.y))
 }
 
 impl SnapApp {
@@ -404,6 +399,11 @@ impl SnapApp {
                     tracing::error!(error = %error, "RITK presentation event batch rejected");
                 }
             }
+        } else if response.drag_stopped() {
+            // A host can end a drag after its final pointer coordinate has
+            // disappeared. Clear the reducer and viewer gesture state so a
+            // later press is not rejected as a duplicate pointer.
+            self.cancel_presentation_gesture();
         }
     }
 }

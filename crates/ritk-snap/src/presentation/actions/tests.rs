@@ -6,13 +6,13 @@ fn click_and_drag_actions_preserve_positions_and_gesture() {
     let click = dispatcher
         .dispatch(&[
             PresentationEvent::PointerDown {
-                x: 10,
-                y: 20,
+                x: 10.0,
+                y: 20.0,
                 button: PointerButton::Left,
             },
             PresentationEvent::PointerUp {
-                x: 10,
-                y: 20,
+                x: 10.0,
+                y: 20.0,
                 button: PointerButton::Left,
             },
         ])
@@ -22,11 +22,11 @@ fn click_and_drag_actions_preserve_positions_and_gesture() {
         &[
             ViewerAction::PointerPressed {
                 button: PointerButton::Left,
-                position: ViewportPoint::new(10, 20),
+                position: ViewportPoint::new(10.0, 20.0),
             },
             ViewerAction::PointerReleased {
                 button: PointerButton::Left,
-                position: ViewportPoint::new(10, 20),
+                position: ViewportPoint::new(10.0, 20.0),
                 gesture: PointerGesture::Click,
             },
         ]
@@ -35,14 +35,14 @@ fn click_and_drag_actions_preserve_positions_and_gesture() {
     let drag = dispatcher
         .dispatch(&[
             PresentationEvent::PointerDown {
-                x: 1,
-                y: 2,
+                x: 1.0,
+                y: 2.0,
                 button: PointerButton::Right,
             },
-            PresentationEvent::PointerMove { x: 4, y: 7 },
+            PresentationEvent::PointerMove { x: 4.0, y: 7.0 },
             PresentationEvent::PointerUp {
-                x: 4,
-                y: 7,
+                x: 4.0,
+                y: 7.0,
                 button: PointerButton::Right,
             },
         ])
@@ -52,20 +52,20 @@ fn click_and_drag_actions_preserve_positions_and_gesture() {
         &[
             ViewerAction::PointerPressed {
                 button: PointerButton::Right,
-                position: ViewportPoint::new(1, 2),
+                position: ViewportPoint::new(1.0, 2.0),
             },
             ViewerAction::PointerMoved {
-                position: ViewportPoint::new(4, 7),
+                position: ViewportPoint::new(4.0, 7.0),
             },
             ViewerAction::PointerDragged {
                 button: PointerButton::Right,
-                start: ViewportPoint::new(1, 2),
-                current: ViewportPoint::new(4, 7),
-                delta: PointerDelta { x: 3, y: 5 },
+                start: ViewportPoint::new(1.0, 2.0),
+                current: ViewportPoint::new(4.0, 7.0),
+                delta: PointerDelta { x: 3.0, y: 5.0 },
             },
             ViewerAction::PointerReleased {
                 button: PointerButton::Right,
-                position: ViewportPoint::new(4, 7),
+                position: ViewportPoint::new(4.0, 7.0),
                 gesture: PointerGesture::Drag,
             },
         ]
@@ -78,16 +78,16 @@ fn simultaneous_button_drags_have_fixed_order() {
     let actions = dispatcher
         .dispatch(&[
             PresentationEvent::PointerDown {
-                x: 0,
-                y: 0,
+                x: 0.0,
+                y: 0.0,
                 button: PointerButton::Right,
             },
             PresentationEvent::PointerDown {
-                x: 0,
-                y: 0,
+                x: 0.0,
+                y: 0.0,
                 button: PointerButton::Left,
             },
-            PresentationEvent::PointerMove { x: 2, y: 3 },
+            PresentationEvent::PointerMove { x: 2.0, y: 3.0 },
         ])
         .expect("multi-button drag");
     assert_eq!(
@@ -95,15 +95,15 @@ fn simultaneous_button_drags_have_fixed_order() {
         [
             ViewerAction::PointerDragged {
                 button: PointerButton::Left,
-                start: ViewportPoint::new(0, 0),
-                current: ViewportPoint::new(2, 3),
-                delta: PointerDelta { x: 2, y: 3 },
+                start: ViewportPoint::new(0.0, 0.0),
+                current: ViewportPoint::new(2.0, 3.0),
+                delta: PointerDelta { x: 2.0, y: 3.0 },
             },
             ViewerAction::PointerDragged {
                 button: PointerButton::Right,
-                start: ViewportPoint::new(0, 0),
-                current: ViewportPoint::new(2, 3),
-                delta: PointerDelta { x: 2, y: 3 },
+                start: ViewportPoint::new(0.0, 0.0),
+                current: ViewportPoint::new(2.0, 3.0),
+                delta: PointerDelta { x: 2.0, y: 3.0 },
             },
         ]
     );
@@ -115,8 +115,8 @@ fn focus_loss_cancels_pressed_buttons_and_clears_state() {
     let actions = dispatcher
         .dispatch(&[
             PresentationEvent::PointerDown {
-                x: 5,
-                y: 6,
+                x: 5.0,
+                y: 6.0,
                 button: PointerButton::X2,
             },
             PresentationEvent::FocusLost,
@@ -127,18 +127,18 @@ fn focus_loss_cancels_pressed_buttons_and_clears_state() {
         &[
             ViewerAction::PointerPressed {
                 button: PointerButton::X2,
-                position: ViewportPoint::new(5, 6),
+                position: ViewportPoint::new(5.0, 6.0),
             },
             ViewerAction::FocusChanged { focused: false },
             ViewerAction::PointerCancelled {
                 button: PointerButton::X2,
-                position: ViewportPoint::new(5, 6),
+                position: ViewportPoint::new(5.0, 6.0),
             },
         ]
     );
     let release = dispatcher.dispatch(&[PresentationEvent::PointerUp {
-        x: 5,
-        y: 6,
+        x: 5.0,
+        y: 6.0,
         button: PointerButton::X2,
     }]);
     assert!(matches!(
@@ -154,19 +154,22 @@ fn malformed_batch_is_atomic_and_composition_is_bounded() {
     let mut dispatcher = PresentationDispatcher::new();
     let malformed = dispatcher.dispatch(&[
         PresentationEvent::PointerDown {
-            x: i32::MIN,
-            y: 0,
+            x: f32::MIN,
+            y: 0.0,
             button: PointerButton::Left,
         },
-        PresentationEvent::PointerMove { x: i32::MAX, y: 0 },
+        PresentationEvent::PointerMove {
+            x: f32::MAX,
+            y: 0.0,
+        },
     ]);
     assert!(matches!(
         malformed,
-        Err(ActionDispatchError::CoordinateDeltaOverflow { .. })
+        Err(ActionDispatchError::NonFiniteCoordinate { .. })
     ));
     let release = dispatcher.dispatch(&[PresentationEvent::PointerUp {
-        x: i32::MIN,
-        y: 0,
+        x: f32::MIN,
+        y: 0.0,
         button: PointerButton::Left,
     }]);
     assert!(matches!(
@@ -178,13 +181,13 @@ fn malformed_batch_is_atomic_and_composition_is_bounded() {
 
     let duplicate = dispatcher.dispatch(&[
         PresentationEvent::PointerDown {
-            x: 1,
-            y: 1,
+            x: 1.0,
+            y: 1.0,
             button: PointerButton::Middle,
         },
         PresentationEvent::PointerDown {
-            x: 2,
-            y: 2,
+            x: 2.0,
+            y: 2.0,
             button: PointerButton::Middle,
         },
     ]);
