@@ -335,17 +335,18 @@ impl SnapApp {
                 if delta.x() == 0.0 && delta.y() == 0.0 {
                     return Ok(ViewerActionDisposition::Continue { repaint: false });
                 }
+                if delta.y() == 0.0 {
+                    return Ok(ViewerActionDisposition::Continue { repaint: false });
+                }
                 if should_zoom_with_scroll(modifiers.ctrl() || modifiers.meta()) {
                     let scroll_y = viewer_scroll_value(delta.y())?;
                     self.zoom = zoom_from_scroll(self.zoom, scroll_y);
                     self.status_message = format!("Zoom: {:.0}%", self.zoom * 100.0);
                     Ok(ViewerActionDisposition::Continue { repaint: true })
-                } else if delta.y() != 0.0 {
+                } else {
                     let step = if delta.y() > 0.0 { -1_i32 } else { 1 };
                     self.step_slice_for_axis(viewport.axis, step);
                     Ok(ViewerActionDisposition::Continue { repaint: true })
-                } else {
-                    Ok(ViewerActionDisposition::Continue { repaint: false })
                 }
             }
             ViewerAction::KeyPressed { virtual_key, .. } => {

@@ -316,6 +316,46 @@ fn wheel_actions_use_meta_as_the_platform_zoom_modifier() {
 }
 
 #[test]
+fn horizontal_wheel_does_not_change_viewer_state() {
+    for modifiers in [
+        PresentationModifiers::new(true, false, false, false),
+        PresentationModifiers::new(false, false, false, true),
+    ] {
+        let mut app = SnapApp::default();
+        app.loaded = Some(test_volume([4, 4, 3]));
+        app.status_message = "steady".to_owned();
+        let viewport = viewport([4, 4]);
+        let before = (
+            app.zoom,
+            app.viewer_state.slice_index,
+            app.status_message.clone(),
+        );
+
+        let disposition = app
+            .apply_presentation_events(
+                &[PresentationEvent::PointerWheel {
+                    x: 2.0,
+                    y: 2.0,
+                    delta_x: 120.0,
+                    delta_y: 0.0,
+                    modifiers,
+                }],
+                Some(&viewport),
+            )
+            .expect("horizontal wheel is a supported no-op");
+
+        assert_eq!(
+            disposition,
+            ViewerActionDisposition::Continue { repaint: false }
+        );
+        assert_eq!(
+            (app.zoom, app.viewer_state.slice_index, app.status_message),
+            before
+        );
+    }
+}
+
+#[test]
 fn wheel_actions_ignore_events_outside_the_viewport() {
     let mut app = SnapApp::default();
     app.loaded = Some(test_volume([4, 4, 3]));

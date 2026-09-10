@@ -65,6 +65,13 @@ fn client_point(point: egui::Pos2) -> Option<ViewportPoint> {
     Some(ViewportPoint::new(f64::from(point.x), f64::from(point.y)))
 }
 
+fn map_input_modifiers(input: egui::Modifiers) -> PresentationModifiers {
+    // `command` is egui's logical shortcut alias: it mirrors Ctrl on
+    // Windows/Linux and Command on macOS. The RITK contract carries the
+    // physical Meta state separately, so only `mac_cmd` maps to `meta`.
+    PresentationModifiers::new(input.ctrl, input.shift, input.alt, input.mac_cmd)
+}
+
 impl SnapApp {
     /// Render one MPR viewport for the given `axis` into `ui`.
     ///
@@ -345,12 +352,7 @@ impl SnapApp {
                     y: pointer.y(),
                     delta_x: f64::from(scroll_delta.x),
                     delta_y: f64::from(scroll_delta.y),
-                    modifiers: PresentationModifiers::new(
-                        input_modifiers.ctrl,
-                        input_modifiers.shift,
-                        input_modifiers.alt,
-                        input_modifiers.command,
-                    ),
+                    modifiers: map_input_modifiers(input_modifiers),
                 });
             }
             if response.drag_started() {
@@ -402,5 +404,39 @@ impl SnapApp {
             // later press is not rejected as a duplicate pointer.
             self.cancel_presentation_gesture();
         }
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::map_input_modifiers;
+    use crate::presentation::PresentationModifiers;
+
+    #[test]
+    fn maps_logical_shortcut_alias_without_physical_meta() {
+        let input = egui::Modifiers {
+            ctrl: true,
+            command: true,
+            ..egui::Modifiers::NONE
+        };
+
+        assert_eq!(
+            map_input_modifiers(input),
+            PresentationModifiers::new(true, false, false, false)
+        );
+    }
+
+    #[test]
+    fn preserves_physical_command_state() {
+        let input = egui::Modifiers {
+            mac_cmd: true,
+            command: true,
+            ..egui::Modifiers::NONE
+        };
+
+        assert_eq!(
+            map_input_modifiers(input),
+            PresentationModifiers::new(false, false, false, true)
+        );
     }
 }
