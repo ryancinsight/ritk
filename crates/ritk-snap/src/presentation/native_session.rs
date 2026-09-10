@@ -261,7 +261,13 @@ impl NativeViewerSession {
     ) -> Result<Self> {
         let views = render_orthogonal_views(&app)?;
         let (framebuffer, viewports) =
-            surface_frames(&views, INITIAL_WIDTH, INITIAL_HEIGHT, app.zoom)?;
+            surface_frames(
+                &views,
+                INITIAL_WIDTH,
+                INITIAL_HEIGHT,
+                app.zoom,
+                app.pan_offset,
+            )?;
         observation
             .initial_frame_width
             .store(views[0].frame().width(), Ordering::Relaxed);
@@ -298,6 +304,7 @@ impl NativeViewerSession {
             self.surface_width,
             self.surface_height,
             self.app.zoom,
+            self.app.pan_offset,
         )?;
         self.views = views;
         self.framebuffer = framebuffer;

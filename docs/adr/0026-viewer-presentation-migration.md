@@ -143,6 +143,13 @@ struct literals must add the field; this increment is classified as a breaking
 public change and follows the migration note in
 `docs/migration_selected_dicom.md`.
 
+Revision 2026-09-10 (native interaction rendering correction): the native
+compositor now applies RITK's pan offset when placing each orthogonal frame.
+Consequently a primary-button drag changes both the RITK interaction state and
+the presented Métis framebuffer; the native-session regression test checks both
+observable values. The offset remains viewer state and no DICOM value crosses
+the host boundary.
+
 Revision 2026-09-10 (browser handoff increment): the WASM launcher mounts
 Métis's generic HTML5/CSS host before starting the eframe canvas runner. The
 RITK `browser_input` adapter drains the host's bounded named-byte batch into the

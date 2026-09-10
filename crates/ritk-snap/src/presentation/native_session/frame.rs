@@ -167,6 +167,7 @@ pub(super) fn surface_frames(
     surface_width: u32,
     surface_height: u32,
     zoom: f32,
+    pan_offset: egui::Vec2,
 ) -> Result<(Framebuffer, [NativeViewport; 3])> {
     if surface_width == 0 || surface_height == 0 {
         bail!("native surface dimensions must be nonzero while rendering");
@@ -194,13 +195,21 @@ pub(super) fn surface_frames(
         .map_err(|error| anyhow!("allocate native viewer framebuffer: {error}"))?;
     framebuffer.clear(Color::BLACK);
     let viewports = [
-        placement(&views[0], 0, panel_widths[0], surface_height, zoom)?,
+        placement(
+            &views[0],
+            0,
+            panel_widths[0],
+            surface_height,
+            zoom,
+            pan_offset,
+        )?,
         placement(
             &views[1],
             panel_widths[0] + VIEW_GAP_PIXELS,
             panel_widths[1],
             surface_height,
             zoom,
+            pan_offset,
         )?,
         placement(
             &views[2],
@@ -208,6 +217,7 @@ pub(super) fn surface_frames(
             panel_widths[2],
             surface_height,
             zoom,
+            pan_offset,
         )?,
     ];
     for (view, viewport) in views.iter().zip(viewports) {
@@ -228,6 +238,7 @@ fn placement(
     panel_width: u32,
     surface_height: u32,
     zoom: f32,
+    pan_offset: egui::Vec2,
 ) -> Result<NativeViewport> {
     let frame_width = f64::from(view.frame.width());
     let frame_height = f64::from(view.frame.height());
@@ -250,8 +261,11 @@ fn placement(
     let texel_y = relative_y * fit * zoom;
     let rendered_width = frame_width * texel_x;
     let rendered_height = frame_height * texel_y;
-    let origin_x = f64::from(panel_x) + (f64::from(panel_width) - rendered_width) * 0.5;
-    let origin_y = (f64::from(surface_height) - rendered_height) * 0.5;
+    let origin_x = f64::from(panel_x)
+        + (f64::from(panel_width) - rendered_width) * 0.5
+        + f64::from(pan_offset.x);
+    let origin_y = (f64::from(surface_height) - rendered_height) * 0.5
+        + f64::from(pan_offset.y);
     if ![
         texel_x,
         texel_y,
