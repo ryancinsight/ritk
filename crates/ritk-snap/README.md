@@ -6,7 +6,8 @@ egui/eframe; Métis is the planned replacement described in
 
 RITK owns DICOM opening, decoding, geometry, and medical display semantics.
 The `presentation` module exposes a validated format-neutral RGBA frame for a
-Métis host; the host does not parse DICOM or retain viewer state.
+Métis host and translates native input into format-neutral events; the host
+does not parse DICOM or retain viewer state.
 
 From a standalone RITK checkout, open a study directory with:
 

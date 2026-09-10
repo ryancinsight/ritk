@@ -72,7 +72,8 @@
 - Demonstration: same synthetic studies and user actions before/after migration, all three orthogonal views, known voxel/physical-coordinate checks, cancellation/recovery and public manual captures; matched memory measurements before any improvement claim.
 - Inventory increment: ADR 0026 now maps every egui/eframe, rfd, texture, event, task, and packaging surface to the required Métis/Moirai seam; DICOM parsing and presentation remain RITK-owned.
 - Completed increment: [RITK PR #261](https://github.com/ryancinsight/ritk/pull/261), merge `ad8ad7046`, adds `PresentationFrame` with the existing slice-display semantics and a Windows Métis adapter that presents one validated frame on a real hidden native surface; focused/full nextest, locked standalone checks, and the synthetic DICOM visual workflow pass. DICOM state remains in RITK.
-- Remaining host gap: typed event/input bridge, browser handoff, three orthogonal views, GPU presentation, and complete capture/manual snapshots through Métis.
+- Completed increment: the Windows adapter translates every bounded Moirai native event into RITK's format-neutral `PresentationEvent` contract, preserving pointer, keyboard, text/IME, resize, DPI, focus and lifecycle values; value-semantic translation and oversize rejection tests pass.
+- Remaining host gap: dispatch translated events into viewer actions, browser handoff, three orthogonal views, GPU presentation, and complete capture/manual snapshots through Métis.
 
 <a id="RITK-SOFT-TISSUE-REGISTRATION-2026-09-03"></a>
 ## RITK-SOFT-TISSUE-REGISTRATION-2026-09-03 — Soft-tissue multimodal registration [major] [arch] — done
