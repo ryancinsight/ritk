@@ -7,7 +7,7 @@
 use super::image_placement::ImagePlacement;
 use super::state::SnapApp;
 use super::viewport_render::{OVERLAY_LABEL_COLOR, OVERLAY_LABEL_FONT_SIZE, OVERLAY_LABEL_INSET};
-use crate::render::fusion::{render_fused_slice, FusedSliceParams};
+use crate::render::fusion::{render_fused_slice, secondary_slice_for_primary, FusedSliceParams};
 use crate::render::slice_render::WindowLevel;
 use crate::ui::apply_to_image_into;
 use crate::viewer::{DEFAULT_WINDOW_CENTER, DEFAULT_WINDOW_WIDTH};
@@ -35,8 +35,31 @@ impl SnapApp {
         let primary_total = self.axis_slice_info(primary_axis).1.max(1);
         let primary_idx = self.axis_slice_info(primary_axis).0;
         let secondary_total = Self::axis_extent_for_volume(secondary, secondary_axis).max(1);
-        let secondary_idx =
-            Self::map_slice_index_between_volumes(primary_idx, primary_total, secondary_total);
+        let secondary_idx = if self.compare_fused_overlay {
+            let mapped = match (self.loaded.as_ref(), self.loaded_secondary.as_ref()) {
+                (Some(primary), Some(secondary)) => secondary_slice_for_primary(
+                    primary,
+                    primary_axis,
+                    primary_idx,
+                    secondary,
+                    secondary_axis,
+                ),
+                _ => return,
+            };
+            match mapped {
+                Ok(index) => index,
+                Err(error) => {
+                    self.secondary_texture = None;
+                    self.status_message = format!("Fused comparison unavailable: {error}");
+                    ui.centered_and_justified(|ui| {
+                        ui.label(&self.status_message);
+                    });
+                    return;
+                }
+            }
+        } else {
+            Self::map_slice_index_between_volumes(primary_idx, primary_total, secondary_total)
+        };
 
         let needs_rebuild = if self.compare_fused_overlay {
             true
@@ -71,7 +94,7 @@ impl SnapApp {
                         .unwrap_or(DEFAULT_WINDOW_WIDTH)
                         .max(1.0) as f64;
 
-                    let color_image = render_fused_slice(
+                    let color_image = match render_fused_slice(
                         FusedSliceParams {
                             volume: primary,
                             axis: primary_axis,
@@ -87,7 +110,17 @@ impl SnapApp {
                             colormap: self.secondary_colormap,
                         },
                         self.compare_fusion_alpha,
-                    );
+                    ) {
+                        Ok(image) => image,
+                        Err(error) => {
+                            self.secondary_texture = None;
+                            self.status_message = format!("Fused comparison unavailable: {error}");
+                            ui.centered_and_justified(|ui| {
+                                ui.label(&self.status_message);
+                            });
+                            return;
+                        }
+                    };
                     let color_image = apply_to_image_into(
                         &mut self.render_buffer_pool,
                         &color_image,

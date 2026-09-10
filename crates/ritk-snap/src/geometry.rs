@@ -1,3 +1,5 @@
+pub mod affine;
+
 use ritk_io::DicomReadMetadata;
 use serde::{Deserialize, Serialize};
 

@@ -139,6 +139,17 @@ fn comparison_physical_aspect_uses_the_output_sampling_grid() {
                             });
                         },
                     );
+                    if fused && primary_axis != secondary_axis {
+                        assert!(
+                            app.secondary_texture.is_none(),
+                            "non-parallel fused planes must not retain a stale texture"
+                        );
+                        assert!(
+                            app.status_message.contains("not parallel"),
+                            "non-parallel fused planes must report the physical failure"
+                        );
+                        continue;
+                    }
                     let texture = app.secondary_texture.as_ref().expect("comparison texture");
                     assert_physical_ratio(
                         image_bounds(&output, texture.id()),
