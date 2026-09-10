@@ -71,17 +71,6 @@ impl ViewerViewport {
         })
     }
 
-    fn screen_rect(self) -> egui::Rect {
-        let [width, height] = self.transform.output_size(self.source_size);
-        egui::Rect::from_min_size(
-            self.origin,
-            egui::vec2(
-                self.texel_size.x * width as f32,
-                self.texel_size.y * height as f32,
-            ),
-        )
-    }
-
     fn screen_bounds(self) -> Option<[f64; 4]> {
         let [width, height] = self.transform.output_size(self.source_size);
         let min_x = f64::from(self.origin.x);
@@ -100,7 +89,7 @@ impl ViewerViewport {
         Some([min_x, max_x, min_y, max_y])
     }
 
-    fn map(self, point: ViewportPoint) -> Option<(egui::Pos2, ImagePoint)> {
+    fn map(self, point: ViewportPoint) -> Option<ImagePoint> {
         let x = point.x();
         let y = point.y();
         if !x.is_finite() || !y.is_finite() {
@@ -110,7 +99,6 @@ impl ViewerViewport {
         if x < min_x || x > max_x || y < min_y || y > max_y {
             return None;
         }
-        let screen = egui::pos2(x as f32, y as f32);
         let output_size = self.transform.output_size(self.source_size);
         let output = [
             ((x - min_x) / f64::from(self.texel_size.x))
@@ -130,7 +118,7 @@ impl ViewerViewport {
         {
             return None;
         }
-        Some((screen, ImagePoint::new(source_x as f32, source_y as f32)))
+        Some(ImagePoint::new(source_x as f32, source_y as f32))
     }
 }
 
@@ -258,11 +246,11 @@ impl SnapApp {
                 let Some(viewport) = viewport else {
                     return Ok(ViewerActionDisposition::Continue { repaint: false });
                 };
-                let Some((screen, _)) = viewport.map(*position) else {
-                    self.update_pointer_intensity(viewport.axis, None, viewport.screen_rect());
+                let Some(image) = viewport.map(*position) else {
+                    self.update_pointer_intensity(viewport.axis, None);
                     return Ok(ViewerActionDisposition::Continue { repaint: true });
                 };
-                self.update_pointer_intensity(viewport.axis, Some(screen), viewport.screen_rect());
+                self.update_pointer_intensity(viewport.axis, Some(image));
                 Ok(ViewerActionDisposition::Continue { repaint: true })
             }
             ViewerAction::PointerPressed { button, position } => {
@@ -270,7 +258,7 @@ impl SnapApp {
                 let Some(viewport) = viewport else {
                     return Ok(ViewerActionDisposition::Continue { repaint: false });
                 };
-                let Some((screen, image)) = viewport.map(*position) else {
+                let Some(image) = viewport.map(*position) else {
                     return Ok(ViewerActionDisposition::Continue { repaint: false });
                 };
                 if matches!(
@@ -278,11 +266,7 @@ impl SnapApp {
                     crate::tools::kind::ToolKind::LabelPaint
                         | crate::tools::kind::ToolKind::LabelErase
                 ) {
-                    self.apply_label_at_pointer(
-                        viewport.axis,
-                        Some(screen),
-                        viewport.screen_rect(),
-                    );
+                    self.apply_label_at_pointer(viewport.axis, Some(image));
                 }
                 self.on_drag_start(Some(image));
                 Ok(ViewerActionDisposition::Continue { repaint: true })
@@ -294,7 +278,7 @@ impl SnapApp {
                 let Some(viewport) = viewport else {
                     return Ok(ViewerActionDisposition::Continue { repaint: false });
                 };
-                let Some((screen, image)) = viewport.map(*current) else {
+                let Some(image) = viewport.map(*current) else {
                     return Ok(ViewerActionDisposition::Continue { repaint: false });
                 };
                 if matches!(
@@ -302,11 +286,7 @@ impl SnapApp {
                     crate::tools::kind::ToolKind::LabelPaint
                         | crate::tools::kind::ToolKind::LabelErase
                 ) {
-                    self.apply_label_at_pointer(
-                        viewport.axis,
-                        Some(screen),
-                        viewport.screen_rect(),
-                    );
+                    self.apply_label_at_pointer(viewport.axis, Some(image));
                 }
                 self.on_drag(Some(image));
                 Ok(ViewerActionDisposition::Continue { repaint: true })
@@ -320,18 +300,14 @@ impl SnapApp {
                 let mapped = viewport.and_then(|viewport| viewport.map(*position));
                 if *gesture == PointerGesture::Click {
                     if let Some(viewport) = viewport {
-                        if let Some((screen, _)) = mapped {
-                            self.update_linked_cursor_from_pointer(
-                                viewport.axis,
-                                Some(screen),
-                                viewport.screen_rect(),
-                            );
+                        if let Some(image) = mapped {
+                            self.update_linked_cursor_from_pointer(viewport.axis, Some(image));
                         }
                     }
-                    self.on_click(mapped.map(|(_, image)| image));
+                    self.on_click(mapped);
                     self.on_click_end();
                 } else {
-                    self.on_drag_end(mapped.map(|(_, image)| image));
+                    self.on_drag_end(mapped);
                 }
                 Ok(ViewerActionDisposition::Continue { repaint: true })
             }

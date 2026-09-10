@@ -1,6 +1,7 @@
 //! Cursor and voxel-value interaction tests.
 
 use super::*;
+use crate::tools::interaction::ImagePoint;
 use crate::ui::{LinkedCursor, RotationSteps, ViewTransform};
 
 #[test]
@@ -13,8 +14,7 @@ fn linked_cursor_click_updates_all_slices() {
     app.sagittal_slice = 9;
     app.linked_cursor = Some(LinkedCursor::from_slices(shape, 3, 5, 9));
 
-    let rect = egui::Rect::from_min_size(egui::pos2(0.0, 0.0), egui::vec2(200.0, 100.0));
-    app.update_linked_cursor_from_pointer(0, Some(egui::pos2(150.0, 20.0)), rect);
+    app.update_linked_cursor_from_pointer(0, Some(ImagePoint::new(15.0, 2.0)));
 
     assert_eq!(app.viewer_state.slice_index, 3);
     assert_eq!(app.coronal_slice, 2);
@@ -58,7 +58,20 @@ fn linked_cursor_pointer_events_follow_all_display_transforms() {
                     .as_ref()
                     .and_then(|cursor| cursor.viewport_crosshair(shape, axis, rect, transform))
                     .expect("target voxel must project into the viewport");
-                app.update_linked_cursor_from_pointer(axis, Some(point), rect);
+                let (width, height) =
+                    crate::ui::axis_slice_dimensions(shape, axis).expect("axis dimensions");
+                let output_size = transform.output_size([width, height]);
+                let output = egui::pos2(
+                    ((point.x - rect.min.x) / rect.width()).clamp(0.0, 0.999_999)
+                        * output_size[0] as f32,
+                    ((point.y - rect.min.y) / rect.height()).clamp(0.0, 0.999_999)
+                        * output_size[1] as f32,
+                );
+                let source = transform.output_to_source(output, [width, height]);
+                app.update_linked_cursor_from_pointer(
+                    axis,
+                    Some(ImagePoint::new(source.x, source.y)),
+                );
                 assert_eq!(
                     app.linked_cursor.expect("cursor").voxel(),
                     target,

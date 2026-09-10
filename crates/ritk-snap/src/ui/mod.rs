@@ -85,8 +85,8 @@ pub use export_plan::{
 pub use layout::{LayoutMode, ViewportId};
 pub use measurements::MeasurementLayer;
 pub use mpr_cursor::{
-    axis_slice_dimensions, map_view_row_col_to_voxel, map_voxel_to_view_row_col,
-    viewport_point_to_voxel, LinkedCursor,
+    axis_slice_dimensions, image_point_to_voxel, map_view_row_col_to_voxel,
+    map_voxel_to_view_row_col, viewport_point_to_voxel, LinkedCursor,
 };
 pub use overlay::OverlayRenderer;
 pub use pan::pan_from_drag_delta;

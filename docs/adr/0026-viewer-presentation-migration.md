@@ -106,6 +106,13 @@ when a native surface coordinate is above `f32` integer precision. The RITK
 package gate passes 775/775 nextest tests; DICOM parsing, volume state and
 clinical semantics remain in RITK.
 
+Revision 2026-09-10 (consumer mapping correction): label painting, linked
+cursor updates, and pointer-intensity sampling now consume the mapped
+format-neutral image point directly. They no longer reconstruct image
+coordinates from a narrowed presentation point. The RITK package gate passes
+776/776 nextest tests; DICOM parsing, volume state and clinical semantics
+remain in RITK.
+
 Revision 2026-09-08: [RITK-SNAP-DIRECTORY-001](../../backlog.md#RITK-SNAP-DIRECTORY-001)
 now validates the Explicit VR Little Endian DICOMDIR record sequence before
 membership is admitted. RecordInUseFlag, next/lower offsets, incoming-link

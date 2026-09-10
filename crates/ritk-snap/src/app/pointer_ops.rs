@@ -5,8 +5,8 @@ use crate::tools::interaction::{
 };
 use crate::tools::kind::ToolKind;
 use crate::ui::{
-    anatomical_label_for_axis, axis_for_plane_in_volume, intensity_at_voxel, pan_from_drag_delta,
-    viewport_point_to_voxel, window_level_from_drag_delta, zoom_from_drag_delta, AnatomicalPlane,
+    anatomical_label_for_axis, axis_for_plane_in_volume, image_point_to_voxel, intensity_at_voxel,
+    pan_from_drag_delta, window_level_from_drag_delta, zoom_from_drag_delta, AnatomicalPlane,
     WINDOW_LEVEL_SENSITIVITY,
 };
 use crate::viewer::{DEFAULT_WINDOW_CENTER, DEFAULT_WINDOW_WIDTH};
@@ -322,22 +322,12 @@ impl SnapApp {
         Ok(spacing)
     }
 
-    pub(crate) fn apply_label_at_pointer(
-        &mut self,
-        axis: usize,
-        pos: Option<egui::Pos2>,
-        rect: egui::Rect,
-    ) {
+    pub(crate) fn apply_label_at_pointer(&mut self, axis: usize, pos: Option<ImagePoint>) {
         let Some(point) = pos else { return };
         let Some(volume) = &self.loaded else { return };
-        let Some(voxel) = viewport_point_to_voxel(
-            volume.shape,
-            axis,
-            self.axis_slice_info(axis).0,
-            point,
-            rect,
-            self.view_transform,
-        ) else {
+        let Some(voxel) =
+            image_point_to_voxel(volume.shape, axis, self.axis_slice_info(axis).0, point)
+        else {
             return;
         };
         let Some(editor) = self.label_editor.as_mut() else {
@@ -365,8 +355,7 @@ impl SnapApp {
     pub(crate) fn update_linked_cursor_from_pointer(
         &mut self,
         axis: usize,
-        pos: Option<egui::Pos2>,
-        rect: egui::Rect,
+        pos: Option<ImagePoint>,
     ) {
         let Some(point) = pos else { return };
         let slice_index = self.axis_slice_info(axis).0;
@@ -374,14 +363,8 @@ impl SnapApp {
         let Some(cursor) = self.linked_cursor.as_mut() else {
             return;
         };
-        let Some(voxel) = cursor.update_from_viewport_point(
-            volume.shape,
-            axis,
-            slice_index,
-            point,
-            rect,
-            self.view_transform,
-        ) else {
+        let Some(voxel) = cursor.update_from_image_point(volume.shape, axis, slice_index, point)
+        else {
             return;
         };
         self.viewer_state.slice_index = voxel[0];
@@ -398,12 +381,7 @@ impl SnapApp {
         );
     }
 
-    pub(crate) fn update_pointer_intensity(
-        &mut self,
-        axis: usize,
-        pos: Option<egui::Pos2>,
-        rect: egui::Rect,
-    ) {
+    pub(crate) fn update_pointer_intensity(&mut self, axis: usize, pos: Option<ImagePoint>) {
         let Some(point) = pos else {
             self.pointer_intensity = 0.0;
             self.pointer_suv = None;
@@ -415,14 +393,7 @@ impl SnapApp {
             return;
         };
         let slice_index = self.axis_slice_info(axis).0;
-        let Some(voxel) = viewport_point_to_voxel(
-            volume.shape,
-            axis,
-            slice_index,
-            point,
-            rect,
-            self.view_transform,
-        ) else {
+        let Some(voxel) = image_point_to_voxel(volume.shape, axis, slice_index, point) else {
             self.pointer_intensity = 0.0;
             self.pointer_suv = None;
             return;
