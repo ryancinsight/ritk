@@ -211,12 +211,15 @@ fn read_dicom_color_multiframe_rejects_planar_rgb() {
 
 #[test]
 fn read_dicom_color_multiframe_rejects_hostile_dimensions_without_oom() {
-    // Rows=60000, Columns=60000, NumberOfFrames=2 (declares ~21.6 billion RGB
-    // samples / ~86 GiB as f32) but the PixelData element supplies only 12
-    // bytes. Since the eager `vec![0.0; total_samples]` zero-fill was replaced
-    // by a capped, incrementally-grown buffer, the native decode must fail with
-    // a typed "out of range" error at the first frame rather than attempting
-    // a multi-gigabyte allocation.
+    // Rows=60000, Columns=60000, NumberOfFrames=2 declares 60000 * 60000 * 3
+    // RGB samples over 2 frames -- 86,400,000,000 bytes as `f32` -- while the
+    // PixelData element supplies 12. The property is that this is refused
+    // without an OOM, and the refusal now comes from the workspace budget,
+    // which reads the declared dimensions and so rejects before any frame is
+    // decoded or any buffer grown. That is strictly earlier than the
+    // per-frame "out of range" this previously asserted, and the declared
+    // byte count in the message is what proves the guard did its arithmetic
+    // on the header rather than on anything allocated.
     let dir = tempfile::tempdir().expect("tempdir");
     let path = dir.path().join("hostile_mf.dcm");
     write_multiframe_with_dims(&path, 3, "RGB", Some(0), 60000, 60000, vec![0u8; 12]);
@@ -224,7 +227,7 @@ fn read_dicom_color_multiframe_rejects_hostile_dimensions_without_oom() {
         .expect_err("hostile multiframe dimensions must error, not OOM");
     let msg = format!("{err:#}");
     assert!(
-        msg.contains("out of range"),
-        "expected a bounds error, got: {msg}"
+        msg.contains("exceeds budget") && msg.contains("86400000000"),
+        "expected the declared-size workspace budget rejection, got: {msg}"
     );
 }
