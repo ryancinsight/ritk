@@ -32,14 +32,18 @@ pub use anonymize::{
 };
 pub use color::{is_rgb_dicom_series, load_color_volume_flat, load_color_volume_flat_from_path};
 pub use color_multiframe::{
-    load_atlas_color_multiframe, load_color_multiframe_flat, ColorMultiFrameVolume,
+    load_atlas_color_multiframe, load_color_multiframe_flat, load_color_multiframe_flat_from_bytes,
+    load_color_multiframe_flat_from_bytes_with_budget, ColorMultiFrameVolume,
 };
 pub use multiframe::{
-    load_dicom_multiframe, load_dicom_multiframe_flat, load_dicom_multiframe_native,
-    read_multiframe_info, write_dicom_multiframe, write_dicom_multiframe_native,
-    write_dicom_multiframe_native_with_config, write_dicom_multiframe_native_with_options,
-    write_dicom_multiframe_with_config, write_dicom_multiframe_with_options, MultiFrameInfo,
-    MultiFrameSpatialMetadata, MultiFrameVolume, MultiFrameWriterConfig,
+    load_dicom_multiframe, load_dicom_multiframe_flat, load_dicom_multiframe_flat_from_bytes,
+    load_dicom_multiframe_flat_from_bytes_with_budget, load_dicom_multiframe_native,
+    read_multiframe_info, read_multiframe_info_from_bytes,
+    read_multiframe_info_from_bytes_with_budget, write_dicom_multiframe,
+    write_dicom_multiframe_native, write_dicom_multiframe_native_with_config,
+    write_dicom_multiframe_native_with_options, write_dicom_multiframe_with_config,
+    write_dicom_multiframe_with_options, MultiFrameInfo, MultiFrameSpatialMetadata,
+    MultiFrameVolume, MultiFrameWriterConfig,
 };
 pub use networking::dimse::{CommandField, DimseMessage, DimseStatus};
 pub use networking::pdu::{AssociateAcPdu, AssociateRqPdu, Pdu};

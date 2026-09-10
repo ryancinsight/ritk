@@ -160,6 +160,30 @@ fn read_dicom_color_multiframe_preserves_interleaved_rgb_samples() {
 }
 
 #[test]
+fn read_dicom_color_multiframe_bytes_preserve_interleaved_rgb_samples() {
+    let dir = tempfile::tempdir().expect("tempdir");
+    let path = dir.path().join("rgb_mf_bytes.dcm");
+    let expected = vec![
+        255.0, 0.0, 0.0, 0.0, 255.0, 0.0, 0.0, 0.0, 255.0, 255.0, 255.0, 255.0,
+    ];
+    write_multiframe(
+        &path,
+        3,
+        "RGB",
+        Some(0),
+        expected.iter().map(|v| *v as u8).collect(),
+    );
+    let bytes = std::fs::read(&path).expect("read RGB multiframe bytes");
+
+    let volume = load_color_multiframe_flat_from_bytes("rgb_mf_bytes.dcm", &bytes)
+        .expect("load RGB multiframe bytes");
+    assert_eq!(volume.shape, [2, 1, 2, 3]);
+    assert_eq!(volume.data, expected);
+    assert_eq!(volume.origin, Point::new([1.0, 2.0, 3.0]));
+    assert_eq!(volume.spacing, Spacing::new([2.0, 0.5, 0.25]));
+}
+
+#[test]
 fn read_dicom_color_multiframe_rejects_scalar_samples() {
     let dir = tempfile::tempdir().expect("tempdir");
     let path = dir.path().join("scalar_mf.dcm");

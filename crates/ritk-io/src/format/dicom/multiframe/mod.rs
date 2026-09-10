@@ -15,6 +15,10 @@
 //! - ImagePositionPatient (0020,0032) sets the image origin when present.
 //! - ImageOrientationPatient (0020,0037) sets the direction matrix when present;
 //!   the normal vector is computed as the cross product of the row and column cosines.
+//! - Temporal organizations are rejected before a temporal axis can be shown as
+//!   spatial anatomy frames.
+//! - `load_dicom_multiframe_flat_from_bytes` provides the same bounded decode
+//!   for browser and dropped-file hosts without a temporary path.
 //!
 //! # Writer specification (`write_dicom_multiframe`)
 //!
@@ -52,11 +56,17 @@
 //!   but does NOT carry a conformance statement or General Series / Frame Of
 //!   Reference modules required for Enhanced Multi-Frame objects.
 
+mod bytes;
 mod per_frame;
 mod reader;
+mod temporal;
 mod types;
 mod writer;
 
+pub use bytes::{
+    load_dicom_multiframe_flat_from_bytes, load_dicom_multiframe_flat_from_bytes_with_budget,
+    read_multiframe_info_from_bytes, read_multiframe_info_from_bytes_with_budget,
+};
 pub use reader::{
     load_dicom_multiframe, load_dicom_multiframe_flat, load_dicom_multiframe_native,
     read_multiframe_info, MultiFrameVolume,

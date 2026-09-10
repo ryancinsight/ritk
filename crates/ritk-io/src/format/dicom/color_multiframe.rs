@@ -8,9 +8,10 @@ use std::path::Path;
 use anyhow::{bail, Context, Result};
 use coeus_core::MoiraiBackend;
 use dicom::core::Tag;
+use dicom::object::DefaultDicomObject;
 use ritk_dicom::{
-    decode_frame_with, parse_file_with, DecodeFrameRequest, DicomRsBackend, PixelLayout,
-    PixelSignedness, TransferSyntaxKind,
+    decode_frame_with, parse_bytes_with_budget, parse_file_with_budget, DecodeFrameRequest,
+    DicomRsBackend, PixelLayout, PixelSignedness, TransferSyntaxKind,
 };
 use ritk_image::Image as NativeImage;
 use ritk_spatial::{Direction, Point, Spacing};
@@ -38,12 +39,13 @@ pub struct ColorMultiFrameVolume {
 use super::color_common::{read_optional, required_string, RGB_CHANNELS};
 use super::multiframe::{read_multiframe_info, MultiFrameInfo};
 use super::reader::geometry::{SliceCoverage, SpacingUniformity};
+use super::reader::DicomReadBudget;
 
 /// Read an interleaved RGB DICOM multiframe object into a native rank-4 colour
 /// volume.
 ///
-/// Native counterpart of `read_dicom_color_multiframe`: identical decode
-/// (both route through [`load_color_multiframe_flat`]). Returns
+/// Native counterpart of [`load_color_multiframe_flat`]: identical decode
+/// (both route through the same flat RGB core). Returns
 /// `Image<f32, MoiraiBackend, 4>` with shape `[frames, rows, cols, 3]`,
 /// interleaved RGB samples in the channel axis. The three physical axes carry
 /// the frame origin/spacing/direction; the channel axis is a non-spatial
@@ -78,11 +80,46 @@ pub fn load_atlas_color_multiframe<P: AsRef<Path>>(
 pub fn load_color_multiframe_flat<P: AsRef<Path>>(path: P) -> Result<ColorMultiFrameVolume> {
     let path = path.as_ref();
     let info = read_multiframe_info(path)?;
-    let obj = parse_file_with::<DicomRsBackend, _>(path)
+    let obj = parse_file_with_budget::<DicomRsBackend, _>(path, &DicomReadBudget::DEFAULT.parser())
         .with_context(|| format!("failed to open DICOM RGB multiframe {:?}", path))?;
+    load_color_multiframe_flat_from_object(path, &obj, &info, &DicomReadBudget::DEFAULT)
+}
+
+/// Decode a named Part 10 RGB multi-frame payload without writing it to disk.
+///
+/// The name is retained only for diagnostics. Parsing uses the same bounded
+/// byte budget as the DICOM scanner, and every frame is decoded through the
+/// RITK codec boundary before the viewer receives the interleaved buffer.
+pub fn load_color_multiframe_flat_from_bytes(
+    name: impl AsRef<Path>,
+    bytes: &[u8],
+) -> Result<ColorMultiFrameVolume> {
+    load_color_multiframe_flat_from_bytes_with_budget(name, bytes, &DicomReadBudget::DEFAULT)
+}
+
+/// Decode a named Part 10 RGB multi-frame payload under an explicit DICOM
+/// resource budget.
+pub fn load_color_multiframe_flat_from_bytes_with_budget(
+    name: impl AsRef<Path>,
+    bytes: &[u8],
+    budget: &DicomReadBudget,
+) -> Result<ColorMultiFrameVolume> {
+    let name = name.as_ref();
+    let info = super::multiframe::read_multiframe_info_from_bytes_with_budget(name, bytes, budget)?;
+    let obj = parse_bytes_with_budget::<DicomRsBackend>(bytes, &budget.parser())
+        .with_context(|| format!("failed to parse DICOM RGB multiframe bytes {:?}", name))?;
+    load_color_multiframe_flat_from_object(name, &obj, &info, budget)
+}
+
+fn load_color_multiframe_flat_from_object(
+    path: &Path,
+    obj: &DefaultDicomObject,
+    info: &MultiFrameInfo,
+    budget: &DicomReadBudget,
+) -> Result<ColorMultiFrameVolume> {
     let ts_uid = obj.meta().transfer_syntax();
     let transfer_syntax = TransferSyntaxKind::from_uid(ts_uid);
-    validate_rgb_multiframe(path, &obj, &info, ts_uid, &transfer_syntax)?;
+    validate_rgb_multiframe(path, obj, info, ts_uid, &transfer_syntax)?;
 
     let frame_samples = info
         .rows
@@ -92,6 +129,12 @@ pub fn load_color_multiframe_flat<P: AsRef<Path>>(path: P) -> Result<ColorMultiF
     let total_samples = frame_samples
         .checked_mul(info.n_frames)
         .context("DICOM RGB multiframe volume sample count overflow")?;
+    let decoded_bytes = total_samples
+        .checked_mul(std::mem::size_of::<f32>())
+        .context("DICOM RGB multiframe decoded byte count overflow")?;
+    budget
+        .checked_decoded_bytes(decoded_bytes)
+        .context("DICOM RGB multiframe decoded volume exceeds budget")?;
     // `rows`/`cols`/`n_frames` are header-derived, so a hostile or corrupt file
     // could otherwise force an up-front multi-gigabyte zero-fill before any
     // frame is decoded. Cap the speculative reservation and grow the buffer by
@@ -104,7 +147,7 @@ pub fn load_color_multiframe_flat<P: AsRef<Path>>(path: P) -> Result<ColorMultiF
 
     for frame_index in 0..info.n_frames {
         let frame = decode_frame_with::<DicomRsBackend>(
-            &obj,
+            obj,
             DecodeFrameRequest {
                 frame_index: u32::try_from(frame_index)
                     .context("DICOM RGB multiframe frame index exceeds u32")?,
@@ -142,9 +185,9 @@ pub fn load_color_multiframe_flat<P: AsRef<Path>>(path: P) -> Result<ColorMultiF
     Ok(ColorMultiFrameVolume {
         data: volume,
         shape: [info.n_frames, info.rows, info.cols, RGB_CHANNELS],
-        origin: Point::new(origin_from_info(&info)),
-        spacing: spacing_from_info(&info)?,
-        direction: direction_from_info(&info),
+        origin: Point::new(origin_from_info(info)),
+        spacing: spacing_from_info(info)?,
+        direction: direction_from_info(info),
     })
 }
 

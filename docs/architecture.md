@@ -272,8 +272,8 @@ For any PET voxel value `p` in Bq/mL, patient mass `m_kg`, injected dose `d_bq`,
 **Boundary surface**:
 - `ritk-core::image::ColorVolume<B, C>` is the SSOT for channel-explicit 3-D volumes, backed by tensor shape `[depth, rows, cols, C]`.
 - `ritk-core::image::RgbVolume<B>` is the `C = 3` specialization for interleaved RGB volume data.
-- `ritk-io::format::dicom::read_dicom_color_series` loads validated interleaved RGB DICOM series into `RgbVolume<B>` while preserving spatial metadata from the scalar DICOM series scanner.
-- `ritk-io::format::dicom::read_dicom_color_multiframe` loads validated interleaved RGB DICOM multiframe objects into `RgbVolume<B>` while preserving multiframe origin, spacing, and direction metadata.
+- `ritk-io::format::dicom::load_color_volume_flat` loads validated interleaved RGB DICOM series into a channel-explicit flat buffer while preserving spatial metadata from the scalar DICOM series scanner.
+- `ritk-io::format::dicom::load_color_multiframe_flat` loads validated interleaved RGB DICOM multiframe objects into `ColorMultiFrameVolume` while preserving multiframe origin, spacing, and direction metadata; its byte-payload counterpart serves browser or dropped-file hosts.
 - `ritk-png::read_png_color_to_volume` and `ritk-png::read_png_color_series` load only decoded `Rgb8` PNG inputs into `RgbVolume<B>` with default PNG spatial metadata.
 - `ritk-jpeg::read_jpeg_color_to_volume` loads only decoded `Rgb8` JPEG inputs into `RgbVolume<B>` with default JPEG spatial metadata.
 - `ritk-tiff::read_tiff_color_to_volume` loads only TIFF `ColorType::RGB(_)` page stacks into `RgbVolume<B>` with default TIFF spatial metadata.
