@@ -83,8 +83,20 @@ impl ViewerViewport {
     }
 
     fn map(self, point: ViewportPoint) -> Option<(egui::Pos2, ImagePoint)> {
-        let screen = egui::pos2(point.x(), point.y());
         let rect = self.screen_rect();
+        let x = point.x();
+        let y = point.y();
+        if !x.is_finite() || !y.is_finite() {
+            return None;
+        }
+        let min_x = f64::from(rect.min.x);
+        let max_x = f64::from(rect.max.x);
+        let min_y = f64::from(rect.min.y);
+        let max_y = f64::from(rect.max.y);
+        if x < min_x || x > max_x || y < min_y || y > max_y {
+            return None;
+        }
+        let screen = egui::pos2(x as f32, y as f32);
         if !rect.contains(screen) {
             return None;
         }

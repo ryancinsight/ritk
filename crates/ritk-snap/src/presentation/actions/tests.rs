@@ -154,12 +154,12 @@ fn malformed_batch_is_atomic_and_composition_is_bounded() {
     let mut dispatcher = PresentationDispatcher::new();
     let malformed = dispatcher.dispatch(&[
         PresentationEvent::PointerDown {
-            x: f32::MIN,
+            x: f64::MIN,
             y: 0.0,
             button: PointerButton::Left,
         },
         PresentationEvent::PointerMove {
-            x: f32::MAX,
+            x: f64::MAX,
             y: 0.0,
         },
     ]);
@@ -168,7 +168,7 @@ fn malformed_batch_is_atomic_and_composition_is_bounded() {
         Err(ActionDispatchError::NonFiniteCoordinate { .. })
     ));
     let release = dispatcher.dispatch(&[PresentationEvent::PointerUp {
-        x: f32::MIN,
+        x: f64::MIN,
         y: 0.0,
         button: PointerButton::Left,
     }]);

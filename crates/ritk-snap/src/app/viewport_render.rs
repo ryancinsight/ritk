@@ -62,7 +62,7 @@ fn client_point(point: egui::Pos2) -> Option<ViewportPoint> {
     if !point.x.is_finite() || !point.y.is_finite() {
         return None;
     }
-    Some(ViewportPoint::new(point.x, point.y))
+    Some(ViewportPoint::new(f64::from(point.x), f64::from(point.y)))
 }
 
 impl SnapApp {

@@ -48,6 +48,9 @@ pub enum CompositionPhase {
 ///
 /// The event carries coordinates, controls and lifecycle state only. It never
 /// carries a path, DICOM object, volume, metadata record or host authority.
+/// Pointer coordinates use `f64` so native `i32` positions and browser client
+/// coordinates share one lossless host representation; the action reducer
+/// rejects non-finite values.
 #[derive(Debug, Clone, PartialEq)]
 #[non_exhaustive]
 pub enum PresentationEvent {
@@ -62,25 +65,25 @@ pub enum PresentationEvent {
     /// The pointer moved in client coordinates.
     PointerMove {
         /// Horizontal client coordinate in display pixels.
-        x: f32,
+        x: f64,
         /// Vertical client coordinate in display pixels.
-        y: f32,
+        y: f64,
     },
     /// A pointer button was pressed in client coordinates.
     PointerDown {
         /// Horizontal client coordinate in display pixels.
-        x: f32,
+        x: f64,
         /// Vertical client coordinate in display pixels.
-        y: f32,
+        y: f64,
         /// Pressed button.
         button: PointerButton,
     },
     /// A pointer button was released in client coordinates.
     PointerUp {
         /// Horizontal client coordinate in display pixels.
-        x: f32,
+        x: f64,
         /// Vertical client coordinate in display pixels.
-        y: f32,
+        y: f64,
         /// Released button.
         button: PointerButton,
     },

@@ -213,7 +213,7 @@ fn button_slot(button: PointerButton) -> usize {
     }
 }
 
-fn viewport_point(x: f32, y: f32) -> Result<ViewportPoint, ActionDispatchError> {
+fn viewport_point(x: f64, y: f64) -> Result<ViewportPoint, ActionDispatchError> {
     let point = ViewportPoint::new(x, y);
     if point.is_finite() {
         Ok(point)

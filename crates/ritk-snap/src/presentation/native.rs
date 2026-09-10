@@ -101,17 +101,17 @@ pub fn translate_native_events(events: &[WindowEvent]) -> Result<Box<[Presentati
             WindowEvent::FocusGained => PresentationEvent::FocusGained,
             WindowEvent::FocusLost => PresentationEvent::FocusLost,
             WindowEvent::PointerMove { x, y } => PresentationEvent::PointerMove {
-                x: *x as f32,
-                y: *y as f32,
+                x: f64::from(*x),
+                y: f64::from(*y),
             },
             WindowEvent::PointerDown { x, y, button } => PresentationEvent::PointerDown {
-                x: *x as f32,
-                y: *y as f32,
+                x: f64::from(*x),
+                y: f64::from(*y),
                 button: translate_pointer_button(*button),
             },
             WindowEvent::PointerUp { x, y, button } => PresentationEvent::PointerUp {
-                x: *x as f32,
-                y: *y as f32,
+                x: f64::from(*x),
+                y: f64::from(*y),
                 button: translate_pointer_button(*button),
             },
             WindowEvent::KeyDown {
@@ -365,6 +365,22 @@ mod tests {
                 },
                 PresentationEvent::DpiChanged { dpi: 144 },
             ]
+        );
+    }
+
+    #[test]
+    fn native_coordinates_preserve_values_above_f32_integer_precision() {
+        let events = [WindowEvent::PointerMove {
+            x: 16_777_217,
+            y: -16_777_217,
+        }];
+        let translated = translate_native_events(&events).expect("translated events");
+        assert_eq!(
+            translated.as_ref(),
+            &[PresentationEvent::PointerMove {
+                x: 16_777_217.0,
+                y: -16_777_217.0,
+            }]
         );
     }
 

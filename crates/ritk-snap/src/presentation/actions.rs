@@ -22,28 +22,32 @@ const POINTER_BUTTONS: [PointerButton; 5] = [
 const MAX_ACTIONS_PER_EVENT: usize = 6;
 
 /// A client-space point carried by a viewer action.
+///
+/// The `f64` representation is exact for native signed 32-bit coordinates
+/// and for browser client coordinates, so host translation does not round
+/// before the viewer applies its viewport transform.
 #[derive(Debug, Clone, Copy, PartialEq)]
 pub struct ViewportPoint {
-    x: f32,
-    y: f32,
+    x: f64,
+    y: f64,
 }
 
 impl ViewportPoint {
     /// Construct a point from client display coordinates.
     #[must_use]
-    pub const fn new(x: f32, y: f32) -> Self {
+    pub const fn new(x: f64, y: f64) -> Self {
         Self { x, y }
     }
 
     /// Horizontal client coordinate in display pixels.
     #[must_use]
-    pub const fn x(self) -> f32 {
+    pub const fn x(self) -> f64 {
         self.x
     }
 
     /// Vertical client coordinate in display pixels.
     #[must_use]
-    pub const fn y(self) -> f32 {
+    pub const fn y(self) -> f64 {
         self.y
     }
 
@@ -67,20 +71,20 @@ impl ViewportPoint {
 /// A checked client-space displacement between two pointer positions.
 #[derive(Debug, Clone, Copy, PartialEq)]
 pub struct PointerDelta {
-    x: f32,
-    y: f32,
+    x: f64,
+    y: f64,
 }
 
 impl PointerDelta {
     /// Horizontal displacement.
     #[must_use]
-    pub const fn x(self) -> f32 {
+    pub const fn x(self) -> f64 {
         self.x
     }
 
     /// Vertical displacement.
     #[must_use]
-    pub const fn y(self) -> f32 {
+    pub const fn y(self) -> f64 {
         self.y
     }
 
