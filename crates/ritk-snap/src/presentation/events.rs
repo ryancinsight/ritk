@@ -1,5 +1,19 @@
 //! Format-neutral input and lifecycle events for viewer hosts.
 
+/// Maximum number of presentation events accepted in one host batch.
+///
+/// The value matches the bounded event queues in the Métis virtual and native
+/// surfaces. Keeping the bound on the RITK contract lets browser and native
+/// hosts share the same action-dispatch allocation limit.
+pub const MAX_PRESENTATION_EVENTS: usize = 1_024;
+
+/// Maximum UTF-16 code units retained for one text-composition update.
+///
+/// Native Métis input applies the same limit before translation. The shared
+/// contract also applies it to browser events so a host cannot bypass the
+/// bound by constructing a presentation event directly.
+pub const MAX_COMPOSITION_UNITS: usize = 4_096;
+
 /// Mouse button carried by a host pointer event.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 #[non_exhaustive]

@@ -4,13 +4,21 @@
 //! converts those validated results into bounded pixels and translates host
 //! input into typed events that Métis can use without receiving DICOM state.
 
+mod actions;
 mod events;
 mod frame;
 
 #[cfg(windows)]
 mod native;
 
-pub use events::{CompositionPhase, PointerButton, PresentationEvent};
+pub use actions::{
+    ActionDispatchError, PointerDelta, PointerGesture, PresentationDispatcher, ViewerAction,
+    ViewportPoint,
+};
+pub use events::{
+    CompositionPhase, PointerButton, PresentationEvent, MAX_COMPOSITION_UNITS,
+    MAX_PRESENTATION_EVENTS,
+};
 pub use frame::PresentationFrame;
 
 #[cfg(windows)]

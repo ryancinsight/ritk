@@ -1,15 +1,28 @@
 //! Windows host adapter for one RITK presentation frame.
 
-use super::{CompositionPhase, PointerButton, PresentationEvent, PresentationFrame};
+use super::{
+    CompositionPhase, PointerButton, PresentationEvent, PresentationFrame, MAX_COMPOSITION_UNITS,
+    MAX_PRESENTATION_EVENTS,
+};
 use anyhow::{anyhow, bail, Result};
 use metis_platform::native::{
     run_native_application, NativeApplication, NativeFlow, WindowConfig, WindowEvent,
-    WindowVisibility, MAX_COMPOSITION_UNITS, MAX_WINDOW_EVENTS,
+    WindowVisibility, MAX_COMPOSITION_UNITS as PROVIDER_MAX_COMPOSITION_UNITS,
+    MAX_WINDOW_EVENTS as PROVIDER_MAX_WINDOW_EVENTS,
 };
 use metis_platform::{Color, Framebuffer};
 use std::sync::atomic::{AtomicBool, AtomicUsize, Ordering};
 use std::sync::Arc;
 use std::time::Duration;
+
+const _: () = assert!(
+    MAX_PRESENTATION_EVENTS == PROVIDER_MAX_WINDOW_EVENTS,
+    "RITK presentation batch bound must match the Métis native queue bound"
+);
+const _: () = assert!(
+    MAX_COMPOSITION_UNITS == PROVIDER_MAX_COMPOSITION_UNITS,
+    "RITK composition bound must match the Métis native input bound"
+);
 
 /// Observable result of one native frame presentation.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -70,11 +83,11 @@ impl NativeFrameOutcome {
 /// Returns an error when the provider batch exceeds its declared event bound or
 /// when the translated event storage cannot be reserved.
 pub fn translate_native_events(events: &[WindowEvent]) -> Result<Box<[PresentationEvent]>> {
-    if events.len() > MAX_WINDOW_EVENTS {
+    if events.len() > MAX_PRESENTATION_EVENTS {
         bail!(
             "native event batch length {} exceeds host limit {}",
             events.len(),
-            MAX_WINDOW_EVENTS
+            MAX_PRESENTATION_EVENTS
         );
     }
     let mut translated = Vec::new();
@@ -354,7 +367,7 @@ mod tests {
 
     #[test]
     fn native_events_reject_oversized_batch() {
-        let events = vec![WindowEvent::FocusGained; MAX_WINDOW_EVENTS + 1];
+        let events = vec![WindowEvent::FocusGained; MAX_PRESENTATION_EVENTS + 1];
         let error = translate_native_events(&events).expect_err("oversized batch");
         assert!(error.to_string().contains("exceeds host limit"));
     }
