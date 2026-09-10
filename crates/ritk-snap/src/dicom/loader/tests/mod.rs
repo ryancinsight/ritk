@@ -2,7 +2,6 @@
 
 pub(crate) mod fixtures;
 
-
 mod multiframe;
 mod presentation;
 mod selection;
