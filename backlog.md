@@ -42,7 +42,8 @@
 
 <a id="RITK-SNAP-FUSION-001"></a>
 ## RITK-SNAP-FUSION-001 — Compare volumes in patient coordinates [patch]
-- Status: todo; priority: P0; owner: RITK viewer/rendering; dependencies: RITK-SNAP-OPEN-001; risk: misleading spatial correspondence.
+- Status: in-progress; priority: P0; owner: RITK viewer/rendering; integrator: root; last-update: 2026-09-09; branch: `feat/snap-fusion-001`; regions: `crates/ritk-snap/src/geometry.rs`, `crates/ritk-snap/src/geometry/affine.rs`, `crates/ritk-snap/src/render/fusion.rs`, `crates/ritk-snap/src/render/tests_fusion.rs`, `crates/ritk-snap/src/app/viewport_compare.rs`, `crates/ritk-snap/src/ui/rtstruct_overlay.rs`, `docs/adr/0027-patient-coordinate-fusion.md`, `docs/adr/README.md`, `docs/manual/dicom-workflow.md`, `docs/VERIFICATION.md`; dependencies: RITK-SNAP-OPEN-001; risk: misleading spatial correspondence.
+- Lease: root — patient affine, fused renderer, focused tests, and synchronized DICOM manual/evidence — 2026-09-09.
 - Scope: map secondary samples into the primary patient-coordinate grid for fused viewing; define out-of-field and incompatible-reference-frame handling explicitly.
 - Evidence: `render/fusion.rs` samples secondary pixels by normalized slice coordinates, ignoring origin, spacing and direction; physical display size alone cannot establish alignment.
 - Acceptance: analytic landmarks coincide for translated/rotated/anisotropic sampling grids; incompatible frame-of-reference identities fail or require explicit alignment; no normalized-coordinate blend is presented as registered anatomy.
