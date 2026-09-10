@@ -7,7 +7,7 @@ use ritk_snap::geometry::affine::AffineTransform;
 use ritk_snap::render::{
     render_fused_slice, FusedSliceParams, NamedColorMap, SliceRenderer, WindowLevel,
 };
-use ritk_snap::ui::voxel_to_lps;
+use ritk_snap::ui::{apply_to_image, voxel_to_lps, RotationSteps, ViewTransform};
 use std::path::PathBuf;
 
 #[path = "../src/dicom/loader/tests/fixtures.rs"]
@@ -85,6 +85,47 @@ fn main() -> Result<()> {
         .save(output.join(format!("{name}-grid.png")))?;
         captures.push(serde_json::json!({"axis": axis, "index": index, "image": format!("{name}.png"), "size": rendered.size}));
     }
+
+    let transformed = SliceRenderer::render(
+        &volume,
+        0,
+        1,
+        WindowLevel::new(235.0, 510.0),
+        NamedColorMap::Grayscale,
+    );
+    let transformed = apply_to_image(
+        &transformed,
+        ViewTransform {
+            flip_h: true,
+            flip_v: false,
+            rotation: RotationSteps::Ninety,
+        },
+    );
+    let transformed_rgba: Vec<_> = transformed
+        .pixels
+        .iter()
+        .flat_map(|pixel| pixel.to_array())
+        .collect();
+    let transformed_width = u32::try_from(transformed.size[0])?;
+    let transformed_height = u32::try_from(transformed.size[1])?;
+    let transformed_pixels =
+        image::RgbaImage::from_raw(transformed_width, transformed_height, transformed_rgba)
+            .context("transformed RGBA dimensions")?;
+    transformed_pixels.save(output.join("orientation.png"))?;
+    image::imageops::resize(
+        &transformed_pixels,
+        transformed_width * 64,
+        transformed_height * 64,
+        image::imageops::FilterType::Nearest,
+    )
+    .save(output.join("orientation-grid.png"))?;
+    captures.push(serde_json::json!({
+        "axis": 0,
+        "index": 1,
+        "image": "orientation.png",
+        "size": transformed.size,
+        "transform": "flip_h then rotate clockwise 90 degrees"
+    }));
 
     let mut fusion_primary = volume.clone();
     let mut fusion_secondary = volume.clone();

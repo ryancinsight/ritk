@@ -8,6 +8,7 @@
 use super::image_placement::ImagePlacement;
 use super::state::SnapApp;
 use crate::render::slice_render::WindowLevel;
+use crate::tools::interaction::Annotation;
 use crate::tools::kind::ToolKind;
 use crate::ui::overlay::{OverlayContext, OverlayRenderer};
 use crate::viewer::{DEFAULT_WINDOW_CENTER, DEFAULT_WINDOW_WIDTH};
@@ -23,7 +24,36 @@ pub(crate) const OVERLAY_LABEL_FONT_SIZE: f32 = 12.0;
 pub(crate) const OVERLAY_LABEL_COLOR: egui::Color32 =
     egui::Color32::from_rgba_premultiplied(210, 210, 210, 210);
 
-use crate::ui::{should_zoom_with_scroll, zoom_from_scroll};
+use crate::ui::{axis_slice_dimensions, should_zoom_with_scroll, zoom_from_scroll, ViewTransform};
+
+fn source_point_to_screen(
+    point: egui::Pos2,
+    origin: egui::Pos2,
+    texel_size: egui::Vec2,
+    transform: ViewTransform,
+    source_size: [usize; 2],
+) -> egui::Pos2 {
+    let output = transform.source_to_output(point, source_size);
+    egui::pos2(
+        origin.x + output.x * texel_size.x,
+        origin.y + output.y * texel_size.y,
+    )
+}
+
+fn screen_point_to_source(
+    point: egui::Pos2,
+    origin: egui::Pos2,
+    texel_size: egui::Vec2,
+    transform: ViewTransform,
+    source_size: [usize; 2],
+    output_size: [usize; 2],
+) -> egui::Pos2 {
+    let output = egui::pos2(
+        ((point.x - origin.x) / texel_size.x).clamp(0.0, output_size[0] as f32 * 0.999_999),
+        ((point.y - origin.y) / texel_size.y).clamp(0.0, output_size[1] as f32 * 0.999_999),
+    );
+    transform.output_to_source(output, source_size)
+}
 
 impl SnapApp {
     /// Render one MPR viewport for the given `axis` into `ui`.
@@ -104,6 +134,33 @@ impl SnapApp {
         let scale_x = placement.texel_size.x;
         let scale_y = placement.texel_size.y;
         let response = placement.response;
+        let Some((source_width, source_height)) = axis_slice_dimensions(volume.shape, axis) else {
+            return;
+        };
+        let source_size = [source_width, source_height];
+        let view_transform = self.view_transform;
+        let output_size = view_transform.output_size(source_size);
+        debug_assert_eq!(output_size, [tex_w_usize, tex_h_usize]);
+        let origin = response.rect.min;
+        let source_to_screen = |point| {
+            source_point_to_screen(
+                point,
+                origin,
+                egui::vec2(scale_x, scale_y),
+                view_transform,
+                source_size,
+            )
+        };
+        let screen_to_source = |point| {
+            screen_point_to_source(
+                point,
+                origin,
+                egui::vec2(scale_x, scale_y),
+                view_transform,
+                source_size,
+                output_size,
+            )
+        };
 
         // Track which axis is currently hovered for status/info display
         if response.hovered() || response.has_focus() || response.clicked() {
@@ -161,6 +218,7 @@ impl SnapApp {
                         pointer_intensity: self.pointer_intensity,
                         cursor_suv: self.current_cursor_suv(),
                         pointer_suv: self.pointer_suv,
+                        view_transform,
                     },
                 );
                 if let Some(details) = details {
@@ -170,10 +228,10 @@ impl SnapApp {
         }
 
         if self.show_label_overlay {
-            self.draw_label_overlay(&painter, response.rect, axis);
+            self.draw_label_overlay(&painter, response.rect, axis, view_transform);
         }
         if self.show_rt_struct_overlay {
-            self.draw_rt_struct_overlay(&painter, response.rect, axis, tex_h_usize, tex_w_usize);
+            self.draw_rt_struct_overlay(&painter, response.rect, axis, view_transform);
         }
         if self.show_rt_dose_overlay {
             self.draw_rt_dose_overlay(&painter, response.rect, axis, slice_idx);
@@ -182,7 +240,9 @@ impl SnapApp {
         // Crosshair at the linked study-coordinate cursor.
         if self.show_crosshair {
             if let (Some(vol), Some(cursor)) = (&self.loaded, self.linked_cursor) {
-                if let Some(crosshair) = cursor.viewport_crosshair(vol.shape, axis, response.rect) {
+                if let Some(crosshair) =
+                    cursor.viewport_crosshair(vol.shape, axis, response.rect, view_transform)
+                {
                     let color = egui::Color32::from_rgba_unmultiplied(255, 255, 0, 120);
                     painter.line_segment(
                         [
@@ -204,26 +264,23 @@ impl SnapApp {
 
         // ── 7. Measurement annotations and live tool preview ───────────────────
         //
-        // Mathematical mapping:
-        //   screen_px = rect.min + img_px × scale
-        //   img_px    = (screen_px − rect.min) / scale
+        // Source image points are mapped through the same discrete transform
+        // used to build the texture. Measurements remain in source voxel
+        // coordinates while their screen projection follows the displayed
+        // orientation.
         //
         // Each texture axis uses its physical sample distance times the shared
         // physical fit scale and zoom.
         // The image widget occupies exactly response.rect (egui places it top-left).
         {
-            // img_to_screen: image-pixel Pos2 { x: col, y: row } → screen Pos2
-            let origin = response.rect.min;
-            let img_to_screen =
-                |p: egui::Pos2| egui::pos2(origin.x + p.x * scale_x, origin.y + p.y * scale_y);
-
-            let spacing_2d = placement.row_col_spacing;
+            let spacing_2d = self
+                .slice_plane_spacing()
+                .ok()
+                .and_then(|spacing| Annotation::validate_spacing(spacing).ok());
 
             // Cursor in image-pixel coords for live preview labels.
             let cursor_img_opt = if scale_x > 0.0 && scale_y > 0.0 {
-                response
-                    .hover_pos()
-                    .map(|s| egui::pos2((s.x - origin.x) / scale_x, (s.y - origin.y) / scale_y))
+                response.hover_pos().map(screen_to_source)
             } else {
                 None
             };
@@ -235,7 +292,7 @@ impl SnapApp {
             crate::ui::measurements::MeasurementLayer::draw_annotations(
                 &meas_painter,
                 &self.annotations,
-                img_to_screen,
+                source_to_screen,
             );
             crate::ui::measurements::MeasurementLayer::draw_in_progress(
                 &meas_painter,
@@ -243,7 +300,7 @@ impl SnapApp {
                 response.hover_pos(),
                 cursor_img_opt,
                 spacing_2d,
-                img_to_screen,
+                source_to_screen,
             );
         } // painter is dropped here; no longer borrows ui.
         drop(painter);
@@ -279,12 +336,7 @@ impl SnapApp {
             }
 
             // Map screen to image-pixel coordinates for tool event
-            let img_pos = response.interact_pointer_pos().map(|s| {
-                egui::pos2(
-                    (s.x - response.rect.min.x) / scale_x,
-                    (s.y - response.rect.min.y) / scale_y,
-                )
-            });
+            let img_pos = response.interact_pointer_pos().map(screen_to_source);
             self.on_drag_start(img_pos);
         }
 
@@ -294,22 +346,12 @@ impl SnapApp {
                 self.apply_label_at_pointer(axis, response.interact_pointer_pos(), response.rect);
             }
 
-            let img_pos = response.interact_pointer_pos().map(|s| {
-                egui::pos2(
-                    (s.x - response.rect.min.x) / scale_x,
-                    (s.y - response.rect.min.y) / scale_y,
-                )
-            });
+            let img_pos = response.interact_pointer_pos().map(screen_to_source);
             self.on_drag(img_pos);
         }
 
         if response.drag_stopped() {
-            let img_pos = response.interact_pointer_pos().map(|s| {
-                egui::pos2(
-                    (s.x - response.rect.min.x) / scale_x,
-                    (s.y - response.rect.min.y) / scale_y,
-                )
-            });
+            let img_pos = response.interact_pointer_pos().map(screen_to_source);
             self.on_drag_end(img_pos);
         }
 
@@ -325,12 +367,7 @@ impl SnapApp {
                 self.apply_label_at_pointer(axis, response.interact_pointer_pos(), response.rect);
             }
 
-            let img_pos = response.interact_pointer_pos().map(|s| {
-                egui::pos2(
-                    (s.x - response.rect.min.x) / scale_x,
-                    (s.y - response.rect.min.y) / scale_y,
-                )
-            });
+            let img_pos = response.interact_pointer_pos().map(screen_to_source);
             self.on_click(img_pos);
         }
     }

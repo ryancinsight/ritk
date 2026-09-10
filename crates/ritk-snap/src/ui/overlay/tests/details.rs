@@ -145,6 +145,7 @@ fn zoom_clipped_overlay_discloses_details_inside_visible_image() {
                     pointer_intensity: 40.0,
                     pointer_suv: None,
                     cursor_suv: None,
+                    view_transform: ViewTransform::default(),
                 },
             )
             .expect("visible region cannot fit full metadata");
@@ -276,6 +277,7 @@ fn omitted_details_owner_closes_popup_and_restores_viewer_navigation() {
                             pointer_intensity: 40.0,
                             pointer_suv: None,
                             cursor_suv: None,
+                            view_transform: ViewTransform::default(),
                         },
                     );
                     match layout {

@@ -26,7 +26,7 @@
 //! - Two flip_h applications compose to the identity.
 
 use crate::render::buffer_pool::RenderBufferPool;
-use egui::ColorImage;
+use egui::{ColorImage, Pos2};
 
 /// Number of 90° clockwise rotation steps (0=0°, 1=90°, 2=180°, 3=270°).
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Default, serde::Serialize, serde::Deserialize)]
@@ -116,6 +116,71 @@ impl ViewTransform {
     /// Reset to identity.
     pub fn reset(self) -> Self {
         Self::default()
+    }
+
+    /// Return the displayed `(width, height)` for a source image size.
+    ///
+    /// Pixel transforms use source coordinates at pixel centres, while the
+    /// continuous point methods below use image-edge coordinates. Keeping the
+    /// dimensions here makes both paths share the same rotation contract.
+    #[must_use]
+    pub fn output_size(self, source_size: [usize; 2]) -> [usize; 2] {
+        match self.rotation {
+            RotationSteps::Zero | RotationSteps::OneEighty => source_size,
+            RotationSteps::Ninety | RotationSteps::TwoSeventy => [source_size[1], source_size[0]],
+        }
+    }
+
+    /// Map a source image-edge point `(x=column, y=row)` to display space.
+    ///
+    /// Coordinates are measured from the outer image edges, so a source image
+    /// of size `[width, height]` occupies `[0,width] × [0,height]`. This is the
+    /// continuous counterpart of the pixel mapping used by
+    /// [`apply_to_image`], and therefore maps annotation geometry without a
+    /// half-pixel drift.
+    #[must_use]
+    pub fn source_to_output(self, point: Pos2, source_size: [usize; 2]) -> Pos2 {
+        let [width, height] = source_size;
+        let width = width as f32;
+        let height = height as f32;
+        let mut x = point.x;
+        let mut y = point.y;
+        if self.flip_h {
+            x = width - x;
+        }
+        if self.flip_v {
+            y = height - y;
+        }
+        match self.rotation {
+            RotationSteps::Zero => Pos2::new(x, y),
+            RotationSteps::Ninety => Pos2::new(height - y, x),
+            RotationSteps::OneEighty => Pos2::new(width - x, height - y),
+            RotationSteps::TwoSeventy => Pos2::new(y, width - x),
+        }
+    }
+
+    /// Map a display image-edge point back to source coordinates.
+    ///
+    /// This is the exact inverse of [`Self::source_to_output`] for every
+    /// transform and source size, including non-square images.
+    #[must_use]
+    pub fn output_to_source(self, point: Pos2, source_size: [usize; 2]) -> Pos2 {
+        let [width, height] = source_size;
+        let width = width as f32;
+        let height = height as f32;
+        let (mut x, mut y) = match self.rotation {
+            RotationSteps::Zero => (point.x, point.y),
+            RotationSteps::Ninety => (point.y, height - point.x),
+            RotationSteps::OneEighty => (width - point.x, height - point.y),
+            RotationSteps::TwoSeventy => (width - point.y, point.x),
+        };
+        if self.flip_h {
+            x = width - x;
+        }
+        if self.flip_v {
+            y = height - y;
+        }
+        Pos2::new(x, y)
     }
 }
 

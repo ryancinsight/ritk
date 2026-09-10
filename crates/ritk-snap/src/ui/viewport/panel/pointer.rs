@@ -91,12 +91,16 @@ impl<'a> ViewportPanel<'a> {
                                     let p2_arr = [p2.y, p2.x];
                                     let sp = volume.spacing;
                                     let spacing_2d = match self.state.axis {
-                                        0 => [sp[1] as f32, sp[2] as f32],
-                                        1 => [sp[0] as f32, sp[2] as f32],
-                                        _ => [sp[0] as f32, sp[1] as f32],
+                                        0 => [sp[1], sp[2]],
+                                        1 => [sp[0], sp[2]],
+                                        _ => [sp[0], sp[1]],
                                     };
-                                    let length_mm =
-                                        Annotation::compute_length(p1_arr, p2_arr, spacing_2d);
+                                    let Ok(length_mm) = Annotation::compute_length_checked(
+                                        p1_arr, p2_arr, spacing_2d,
+                                    ) else {
+                                        self.state.tool_state = ToolState::Idle;
+                                        return None;
+                                    };
                                     self.state.annotations.push(Annotation::Length {
                                         p1: p1_arr,
                                         p2: p2_arr,
@@ -245,19 +249,18 @@ impl<'a> ViewportPanel<'a> {
                         let br_arr = [br.y, br.x];
                         let sp = volume.spacing;
                         let spacing_2d = match self.state.axis {
-                            0 => [sp[1] as f32, sp[2] as f32],
-                            1 => [sp[0] as f32, sp[2] as f32],
-                            _ => [sp[0] as f32, sp[1] as f32],
+                            0 => [sp[1], sp[2]],
+                            1 => [sp[0], sp[2]],
+                            _ => [sp[0], sp[1]],
                         };
                         let (pixels, pix_w, pix_h) =
                             volume.extract_slice(self.state.axis, self.state.slice_index);
-                        let area_mm2 = (br.x - tl.x).abs()
-                            * spacing_2d[1]
-                            * (br.y - tl.y).abs()
-                            * spacing_2d[0];
-                        let stats = Annotation::compute_roi_rect_stats(
+                        let Ok(stats) = Annotation::compute_roi_rect_stats_checked(
                             tl_arr, br_arr, &pixels, pix_w, pix_h, spacing_2d,
-                        );
+                        ) else {
+                            self.state.tool_state = ToolState::Idle;
+                            return None;
+                        };
                         self.state.annotations.push(Annotation::RoiRect {
                             top_left: tl_arr,
                             bottom_right: br_arr,
@@ -265,7 +268,7 @@ impl<'a> ViewportPanel<'a> {
                             std_dev: stats.1,
                             min: stats.2,
                             max: stats.3,
-                            area_mm2,
+                            area_mm2: stats.4,
                         });
                     }
                     self.state.tool_state = ToolState::Idle;
@@ -283,16 +286,20 @@ impl<'a> ViewportPanel<'a> {
                         let br_arr = [br.y, br.x];
                         let sp = volume.spacing;
                         let spacing_2d = match self.state.axis {
-                            0 => [sp[1] as f32, sp[2] as f32],
-                            1 => [sp[0] as f32, sp[2] as f32],
-                            _ => [sp[0] as f32, sp[1] as f32],
+                            0 => [sp[1], sp[2]],
+                            1 => [sp[0], sp[2]],
+                            _ => [sp[0], sp[1]],
                         };
                         let (pixels, pix_w, pix_h) =
                             volume.extract_slice(self.state.axis, self.state.slice_index);
-                        let (center, radii, mean, std_dev, min, max, area_mm2) =
-                            Annotation::compute_roi_ellipse_stats(
+                        let Ok((center, radii, mean, std_dev, min, max, area_mm2)) =
+                            Annotation::compute_roi_ellipse_stats_checked(
                                 tl_arr, br_arr, &pixels, pix_w, pix_h, spacing_2d,
-                            );
+                            )
+                        else {
+                            self.state.tool_state = ToolState::Idle;
+                            return None;
+                        };
                         self.state.annotations.push(Annotation::RoiEllipse {
                             center,
                             radii,

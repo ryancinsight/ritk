@@ -170,6 +170,54 @@ fn test_rotate_cw_four_times_is_identity() {
     assert!(t.is_identity());
 }
 
+#[test]
+fn test_continuous_point_mapping_round_trips_all_transforms() {
+    let source_size = [7, 4];
+    let points = [
+        egui::pos2(0.0, 0.0),
+        egui::pos2(7.0, 0.0),
+        egui::pos2(0.0, 4.0),
+        egui::pos2(7.0, 4.0),
+        egui::pos2(2.25, 1.75),
+    ];
+
+    for transform in all_transforms() {
+        let output = transform.output_size(source_size);
+        let expected = if matches!(
+            transform.rotation,
+            RotationSteps::Ninety | RotationSteps::TwoSeventy
+        ) {
+            [4, 7]
+        } else {
+            source_size
+        };
+        assert_eq!(output, expected, "output dimensions for {transform:?}");
+        for point in points {
+            let mapped = transform.source_to_output(point, source_size);
+            let recovered = transform.output_to_source(mapped, source_size);
+            assert!((recovered.x - point.x).abs() < 1e-5);
+            assert!((recovered.y - point.y).abs() < 1e-5);
+            assert!(mapped.x >= -1e-5 && mapped.x <= output[0] as f32 + 1e-5);
+            assert!(mapped.y >= -1e-5 && mapped.y <= output[1] as f32 + 1e-5);
+        }
+    }
+}
+
+#[test]
+fn test_continuous_point_mapping_matches_pixel_centres() {
+    let source_size = [3, 2];
+    let source = egui::pos2(0.5, 0.5);
+    let transform = ViewTransform {
+        flip_h: true,
+        flip_v: false,
+        rotation: RotationSteps::Ninety,
+    };
+    let output = transform.source_to_output(source, source_size);
+    assert_eq!(output, egui::pos2(1.5, 2.5));
+    let recovered = transform.output_to_source(output, source_size);
+    assert_eq!(recovered, source);
+}
+
 // ── Differential equivalence: apply_to_image_into vs apply_to_image ────
 //
 // For every (flip_h, flip_v, rotation) combination (2×2×4 = 16), verify

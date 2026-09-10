@@ -22,6 +22,8 @@
 //! - Surjective: every voxel on the fixed slice has uniquely recoverable
 //!   `(row,col)` from the two non-slice coordinates.
 
+use super::ViewTransform;
+
 /// Linked crosshair cursor stored in voxel coordinates `[z, y, x]`.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub struct LinkedCursor {
@@ -79,8 +81,9 @@ impl LinkedCursor {
         slice_index: usize,
         point: egui::Pos2,
         rect: egui::Rect,
+        transform: ViewTransform,
     ) -> Option<[usize; 3]> {
-        let voxel = viewport_point_to_voxel(shape, axis, slice_index, point, rect)?;
+        let voxel = viewport_point_to_voxel(shape, axis, slice_index, point, rect, transform)?;
         self.set_voxel(shape, voxel);
         Some(self.voxel)
     }
@@ -91,8 +94,9 @@ impl LinkedCursor {
         shape: [usize; 3],
         axis: usize,
         rect: egui::Rect,
+        transform: ViewTransform,
     ) -> Option<egui::Pos2> {
-        voxel_to_viewport_point(shape, axis, self.voxel, rect)
+        voxel_to_viewport_point(shape, axis, self.voxel, rect, transform)
     }
 }
 
@@ -141,6 +145,7 @@ pub fn viewport_point_to_voxel(
     slice_index: usize,
     point: egui::Pos2,
     rect: egui::Rect,
+    transform: ViewTransform,
 ) -> Option<[usize; 3]> {
     let (width, height) = axis_slice_dimensions(shape, axis)?;
     if width == 0 || height == 0 || rect.width() <= 0.0 || rect.height() <= 0.0 {
@@ -150,10 +155,13 @@ pub fn viewport_point_to_voxel(
         return None;
     }
 
+    let output_size = transform.output_size([width, height]);
     let x = ((point.x - rect.min.x) / rect.width()).clamp(0.0, 0.999_999);
     let y = ((point.y - rect.min.y) / rect.height()).clamp(0.0, 0.999_999);
-    let col = (x * width as f32).floor() as usize;
-    let row = (y * height as f32).floor() as usize;
+    let output_point = egui::pos2(x * output_size[0] as f32, y * output_size[1] as f32);
+    let source_point = transform.output_to_source(output_point, [width, height]);
+    let col = source_point.x.floor().clamp(0.0, (width - 1) as f32) as usize;
+    let row = source_point.y.floor().clamp(0.0, (height - 1) as f32) as usize;
     Some(map_view_row_col_to_voxel(axis, slice_index, row, col))
 }
 
@@ -163,6 +171,7 @@ pub fn voxel_to_viewport_point(
     axis: usize,
     voxel: [usize; 3],
     rect: egui::Rect,
+    transform: ViewTransform,
 ) -> Option<egui::Pos2> {
     let (width, height) = axis_slice_dimensions(shape, axis)?;
     if width == 0 || height == 0 || rect.width() <= 0.0 || rect.height() <= 0.0 {
@@ -174,8 +183,13 @@ pub fn voxel_to_viewport_point(
         return None;
     }
 
-    let x = rect.min.x + ((col as f32 + 0.5) / width as f32) * rect.width();
-    let y = rect.min.y + ((row as f32 + 0.5) / height as f32) * rect.height();
+    let output_size = transform.output_size([width, height]);
+    let output_point = transform.source_to_output(
+        egui::pos2(col as f32 + 0.5, row as f32 + 0.5),
+        [width, height],
+    );
+    let x = rect.min.x + (output_point.x / output_size[0] as f32) * rect.width();
+    let y = rect.min.y + (output_point.y / output_size[1] as f32) * rect.height();
     Some(egui::pos2(x, y))
 }
 

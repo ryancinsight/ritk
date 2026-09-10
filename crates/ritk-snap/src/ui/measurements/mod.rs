@@ -132,14 +132,15 @@ impl MeasurementLayer {
     /// - `cursor_screen`: current cursor position in *screen* coordinates.
     /// - `cursor_img`: cursor in *image* pixel coordinates `Pos2 { x: col, y: row }`;
     ///   `None` when the cursor is outside the viewport.
-    /// - `spacing`: `[row_mm_per_px, col_mm_per_px]` used to compute live mm labels.
+    /// - `spacing`: validated `[row_mm_per_px, col_mm_per_px]`, or `None` when
+    ///   the physical value cannot be represented.
     /// - `img_to_screen`: converts image-pixel coordinates to screen coordinates.
     pub fn draw_in_progress(
         painter: &Painter,
         tool_state: &ToolState,
         cursor_screen: Option<Pos2>,
         cursor_img: Option<Pos2>,
-        spacing: [f32; 2],
+        spacing: Option<[f32; 2]>,
         img_to_screen: impl Fn(Pos2) -> Pos2,
     ) {
         match tool_state {
@@ -151,17 +152,19 @@ impl MeasurementLayer {
                 if let Some(cursor) = cursor_screen {
                     painter.line_segment([sp1, cursor], Stroke::new(LINE_WIDTH, COLOR_MEASURE));
                     // Live distance label at midpoint, offset 12 px upward.
-                    if let Some(cimg) = cursor_img {
+                    if let (Some(cimg), Some(spacing)) = (cursor_img, spacing) {
                         let mm = live_length_mm([p1.y, p1.x], [cimg.y, cimg.x], spacing);
-                        let label = format!("{:.1} mm", mm);
-                        let mid = Pos2::new((sp1.x + cursor.x) * 0.5, (sp1.y + cursor.y) * 0.5);
-                        painter.text(
-                            mid + Vec2::new(0.0, -12.0),
-                            egui::Align2::CENTER_CENTER,
-                            label,
-                            label_font(),
-                            COLOR_LABEL,
-                        );
+                        if mm.is_finite() {
+                            let label = format!("{:.1} mm", mm);
+                            let mid = Pos2::new((sp1.x + cursor.x) * 0.5, (sp1.y + cursor.y) * 0.5);
+                            painter.text(
+                                mid + Vec2::new(0.0, -12.0),
+                                egui::Align2::CENTER_CENTER,
+                                label,
+                                label_font(),
+                                COLOR_LABEL,
+                            );
+                        }
                     }
                 }
             }
