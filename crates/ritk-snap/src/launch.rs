@@ -9,19 +9,23 @@ mod capture;
 pub struct AppLaunchOptions {
     /// Optional DICOM folder or medical image file to load at startup.
     pub initial_path: Option<PathBuf>,
-    /// Save the first rendered application window as PNG and exit.
+    /// Save the rendered application frame as PNG and exit.
     ///
     /// A supplied initial study must load successfully. Capture failure is
     /// returned to the caller; closing the window early does not report success.
     #[serde(default)]
     pub capture: Option<PathBuf>,
+    /// Use the Métis native host instead of the eframe shell. This requires a
+    /// startup path and is currently available on Windows.
+    #[serde(default)]
+    pub metis_native: bool,
 }
 
 /// Launch the `ritk-snap` native GUI application.
 ///
-/// Initialises `eframe` with a 1280×800 viewport, constructs a `app::SnapApp`,
-/// via [`Default`], and enters the platform event loop. This function blocks
-/// until the window is closed.
+/// Initialises the selected desktop shell with a 1280×800 viewport, constructs
+/// the default viewer state, and enters the platform event loop. This function
+/// blocks until the window is closed.
 ///
 /// # Errors
 /// Returns an error if `eframe` cannot create a window or encounters a fatal
@@ -33,9 +37,10 @@ pub fn run_app() -> anyhow::Result<()> {
 
 /// Launch the `ritk-snap` native GUI application with startup options.
 ///
-/// When `initial_path` is present, the app queues that path for loading on the
-/// first UI update. Directory paths are also scanned for the DICOM series
-/// browser before the first frame.
+/// With `metis_native`, `initial_path` is opened by RITK before the interactive
+/// Métis host starts. With the default eframe shell, `initial_path` is queued
+/// for loading on the first UI update. Directory paths are also scanned for the
+/// DICOM series browser before the first frame.
 ///
 /// # Errors
 /// Returns a host creation/event-loop error. With capture requested, also
@@ -43,6 +48,23 @@ pub fn run_app() -> anyhow::Result<()> {
 /// screenshot response exceeds its deadline, or the window closes early.
 #[cfg(not(target_arch = "wasm32"))]
 pub fn run_app_with_options(options: AppLaunchOptions) -> anyhow::Result<()> {
+    if options.metis_native {
+        let path = options
+            .initial_path
+            .as_ref()
+            .ok_or_else(|| anyhow::anyhow!("--metis-native requires an initial DICOM path"))?;
+        #[cfg(windows)]
+        {
+            crate::presentation::run_native_viewer(path, options.capture.as_deref())?;
+            return Ok(());
+        }
+        #[cfg(not(windows))]
+        {
+            let _ = path;
+            let _ = options.capture;
+            anyhow::bail!("--metis-native requires a Windows Métis native host");
+        }
+    }
     use std::cell::Cell;
     use std::rc::Rc;
 
