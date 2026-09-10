@@ -2,12 +2,11 @@
 //!
 //! RITK owns the loaded volume, display policy and input transitions. Métis
 //! receives only the retained framebuffer and reports bounded native events.
-//! This module is the first interactive migration slice; it deliberately
-//! presents one active orthogonal plane while the three-view composition is
-//! completed in a later increment.
+//! The session composes all three orthogonal RITK planes into one bounded
+//! framebuffer. RITK owns DICOM decoding, display policy and input state;
+//! Métis owns the native surface and receives only that framebuffer.
 
-use super::{translate_native_events, PresentationEvent, PresentationFrame};
-use crate::app::action_adapter::ViewerViewport;
+use super::{translate_native_events, PresentationEvent};
 use crate::app::SnapApp;
 use crate::dicom::loader::load_volume_from_path;
 use anyhow::{anyhow, Context, Result};
@@ -23,7 +22,8 @@ use std::sync::{Arc, Mutex};
 use std::time::Duration;
 
 mod frame;
-use frame::{render_current_slice, surface_frame};
+use frame::{render_orthogonal_views, surface_frames, NativeViewport, RenderedView};
+mod routing;
 
 const INITIAL_WIDTH: u32 = 1_280;
 const INITIAL_HEIGHT: u32 = 800;
@@ -37,6 +37,7 @@ pub struct NativeViewerOutcome {
     surface_height: u32,
     initial_frame_width: u32,
     initial_frame_height: u32,
+    view_count: usize,
     presented_frames: usize,
     event_batches: usize,
     translated_events: usize,
@@ -71,6 +72,12 @@ impl NativeViewerOutcome {
     #[must_use]
     pub const fn initial_frame_height(self) -> u32 {
         self.initial_frame_height
+    }
+
+    /// Number of orthogonal RITK views composed into each native frame.
+    #[must_use]
+    pub const fn view_count(self) -> usize {
+        self.view_count
     }
 
     /// Number of framebuffer presentations requested by the host loop.
@@ -131,11 +138,11 @@ impl NativeViewerOutcome {
 /// Run one loaded DICOM study through the interactive Métis native host.
 ///
 /// RITK opens and decodes `initial_path`, applies its existing hanging
-/// protocol and window/level rules, and renders the active orthogonal slice.
+/// protocol and window/level rules, and renders the three orthogonal slices.
 /// The Métis host owns the visible window, finite event wait, framebuffer
 /// presentation and terminal cleanup. When `capture` is supplied, the window
 /// is hidden and the session closes after its first idle event batch, then
-/// writes the final RITK frame.
+/// writes the final composed RITK framebuffer.
 ///
 /// # Errors
 /// Returns a DICOM load, frame conversion, native-host, or capture error. A
@@ -193,6 +200,7 @@ pub fn run_native_viewer(
         surface_height: observation.surface_height.load(Ordering::Relaxed),
         initial_frame_width: observation.initial_frame_width.load(Ordering::Relaxed),
         initial_frame_height: observation.initial_frame_height.load(Ordering::Relaxed),
+        view_count: 3,
         presented_frames: observation.presented_frames.load(Ordering::Relaxed),
         event_batches: observation.event_batches.load(Ordering::Relaxed),
         translated_events: observation.translated_events.load(Ordering::Relaxed),
@@ -205,9 +213,27 @@ pub fn run_native_viewer(
     })
 }
 
-fn save_capture(frame: &PresentationFrame, output: &Path) -> Result<()> {
-    let pixels = image::RgbaImage::from_raw(frame.width(), frame.height(), frame.rgba().to_vec())
-        .ok_or_else(|| anyhow!("native capture RGBA dimensions do not match the frame"))?;
+fn save_capture(framebuffer: &Framebuffer, output: &Path) -> Result<()> {
+    let pixel_count =
+        usize::try_from(u64::from(framebuffer.width()) * u64::from(framebuffer.height()))
+            .map_err(|_| anyhow!("native capture pixel count exceeds usize"))?;
+    if framebuffer.pixels().len() != pixel_count {
+        return Err(anyhow!(
+            "native capture framebuffer storage is inconsistent"
+        ));
+    }
+    let byte_count = pixel_count
+        .checked_mul(4)
+        .ok_or_else(|| anyhow!("native capture byte count overflows usize"))?;
+    let mut rgba = Vec::new();
+    rgba.try_reserve_exact(byte_count)
+        .map_err(|_| anyhow!("unable to reserve native capture bytes"))?;
+    for packed in framebuffer.pixels() {
+        let [alpha, red, green, blue] = packed.to_be_bytes();
+        rgba.extend_from_slice(&[red, green, blue, alpha]);
+    }
+    let pixels = image::RgbaImage::from_raw(framebuffer.width(), framebuffer.height(), rgba)
+        .ok_or_else(|| anyhow!("native capture RGBA dimensions do not match the framebuffer"))?;
     pixels
         .save_with_format(output, image::ImageFormat::Png)
         .with_context(|| format!("write native Métis capture to {}", output.display()))
@@ -215,9 +241,10 @@ fn save_capture(frame: &PresentationFrame, output: &Path) -> Result<()> {
 
 struct NativeViewerSession {
     app: SnapApp,
-    source_frame: PresentationFrame,
+    views: [RenderedView; 3],
     framebuffer: Framebuffer,
-    viewport: ViewerViewport,
+    viewports: [NativeViewport; 3],
+    active_view: Option<usize>,
     surface_width: u32,
     surface_height: u32,
     dpi: u32,
@@ -232,22 +259,15 @@ impl NativeViewerSession {
         observation: Arc<NativeViewerObservation>,
         capture_after_idle: bool,
     ) -> Result<Self> {
-        let (source_frame, source_size, transform) = render_current_slice(&app)?;
-        let (framebuffer, viewport) = surface_frame(
-            &source_frame,
-            source_size,
-            transform,
-            app.axis,
-            INITIAL_WIDTH,
-            INITIAL_HEIGHT,
-            app.zoom,
-        )?;
+        let views = render_orthogonal_views(&app)?;
+        let (framebuffer, viewports) =
+            surface_frames(&views, INITIAL_WIDTH, INITIAL_HEIGHT, app.zoom)?;
         observation
             .initial_frame_width
-            .store(source_frame.width(), Ordering::Relaxed);
+            .store(views[0].frame().width(), Ordering::Relaxed);
         observation
             .initial_frame_height
-            .store(source_frame.height(), Ordering::Relaxed);
+            .store(views[0].frame().height(), Ordering::Relaxed);
         observation
             .surface_width
             .store(INITIAL_WIDTH, Ordering::Relaxed);
@@ -258,9 +278,10 @@ impl NativeViewerSession {
         record_state(&observation, &app, 96, false);
         Ok(Self {
             app,
-            source_frame,
+            views,
             framebuffer,
-            viewport,
+            viewports,
+            active_view: None,
             surface_width: INITIAL_WIDTH,
             surface_height: INITIAL_HEIGHT,
             dpi: 96,
@@ -271,19 +292,16 @@ impl NativeViewerSession {
     }
 
     fn refresh_frame(&mut self) -> Result<()> {
-        let (source_frame, source_size, transform) = render_current_slice(&self.app)?;
-        let (framebuffer, viewport) = surface_frame(
-            &source_frame,
-            source_size,
-            transform,
-            self.app.axis,
+        let views = render_orthogonal_views(&self.app)?;
+        let (framebuffer, viewports) = surface_frames(
+            &views,
             self.surface_width,
             self.surface_height,
             self.app.zoom,
         )?;
-        self.source_frame = source_frame;
+        self.views = views;
         self.framebuffer = framebuffer;
-        self.viewport = viewport;
+        self.viewports = viewports;
         self.observation
             .frame_generations
             .fetch_add(1, Ordering::Relaxed);
@@ -301,7 +319,7 @@ impl NativeViewerSession {
             .lock()
             .map_err(|_| anyhow!("native viewer observation lock was poisoned"))?;
         if final_frame.is_none() {
-            *final_frame = Some(self.source_frame.clone());
+            *final_frame = Some(self.framebuffer.clone());
         }
         Ok(())
     }
@@ -385,13 +403,7 @@ impl NativeApplication for NativeViewerSession {
         } else {
             false
         };
-        let viewport = (!self.minimized).then_some(&self.viewport);
-        let disposition = self
-            .app
-            .apply_presentation_events(&translated, viewport)
-            .map_err(|error| {
-                NativeViewerError::new(format!("apply RITK presentation events: {error}"))
-            })?;
+        let disposition = self.apply_events(&translated)?;
 
         let repaint = matches!(
             disposition,
@@ -464,7 +476,7 @@ struct NativeViewerObservation {
     dpi: AtomicU32,
     minimized: AtomicBool,
     destroyed: AtomicBool,
-    final_frame: Mutex<Option<PresentationFrame>>,
+    final_frame: Mutex<Option<Framebuffer>>,
 }
 
 fn record_state(observation: &NativeViewerObservation, app: &SnapApp, dpi: u32, minimized: bool) {

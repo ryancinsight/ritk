@@ -44,7 +44,12 @@ host capture closes after its first idle event batch:
 cargo run --locked -p ritk-snap -- path/to/study --metis-native --capture window.png
 ```
 
-The PNG is the final RITK source frame after host initialization; the visible
-session remains open until the user closes it.
+The PNG is the complete 1280 × 800 RITK content framebuffer: axial, coronal,
+and sagittal panels from left to right. RITK performs DICOM opening, slice
+rendering, physical-aspect placement, and input routing; Métis owns the native
+surface and receives only the bounded framebuffer. The visible session remains
+open until the user closes it.
+
+The reviewed capture is shown in the [DICOM workflow manual](../../docs/manual/dicom-workflow.md#present-validated-ritk-views-through-metis).
 
 API reference: `cargo doc --locked -p ritk-snap --no-deps`.
