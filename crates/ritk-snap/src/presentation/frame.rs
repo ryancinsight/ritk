@@ -1,6 +1,6 @@
 //! Validated RGBA frame produced by the RITK presentation boundary.
 
-use crate::render::{NamedColorMap, SliceRenderer, WindowLevel};
+use crate::render::{NamedColorMap, RgbaImage, SliceRenderer, WindowLevel};
 use crate::LoadedVolume;
 use anyhow::{anyhow, bail, Result};
 use metis_platform::framebuffer::MAX_PIXELS;
@@ -34,8 +34,8 @@ impl PresentationFrame {
         window_level: WindowLevel,
         colormap: NamedColorMap,
     ) -> Result<Self> {
-        let image = SliceRenderer::render(volume, axis, index, window_level, colormap);
-        Self::from_color_image(&image)
+        let image = SliceRenderer::render_rgba(volume, axis, index, window_level, colormap);
+        Self::from_rgba_image(image)
     }
 
     /// Renders the three orthogonal volume slices for a multi-viewport host.
@@ -60,7 +60,7 @@ impl PresentationFrame {
         Ok([axial, coronal, sagittal])
     }
 
-    /// Copies an egui image into the format-neutral RGBA representation.
+    /// Copies validated row-major RGBA bytes into the presentation boundary.
     ///
     /// This is a presentation adapter only. It does not inspect or retain the
     /// source image's viewer metadata.
@@ -69,10 +69,60 @@ impl PresentationFrame {
     /// Returns an error for zero dimensions, dimensions outside the host's
     /// signed-coordinate range, inconsistent pixel storage, or allocation
     /// failure.
-    pub fn from_color_image(image: &egui::ColorImage) -> Result<Self> {
-        let [width, height] = image.size;
+    pub fn from_rgba(width: u32, height: u32, rgba: &[u8]) -> Result<Self> {
+        let pixel_count = Self::validate_dimensions(width, height)?;
+        let byte_count = pixel_count
+            .checked_mul(4)
+            .ok_or_else(|| anyhow!("presentation frame byte count overflows usize"))?;
+        if rgba.len() != byte_count {
+            bail!(
+                "presentation frame byte count {} does not match {}x{} RGBA storage",
+                rgba.len(),
+                width,
+                height
+            );
+        }
+        let mut owned = Vec::new();
+        owned
+            .try_reserve_exact(byte_count)
+            .map_err(|_| anyhow!("unable to reserve presentation frame bytes"))?;
+        owned.extend_from_slice(rgba);
+        Self::from_rgba_storage(width, height, owned.into_boxed_slice())
+    }
+
+    fn from_rgba_image(image: RgbaImage) -> Result<Self> {
+        let [width, height] = image.size();
         let width = u32::try_from(width).map_err(|_| anyhow!("frame width exceeds u32"))?;
         let height = u32::try_from(height).map_err(|_| anyhow!("frame height exceeds u32"))?;
+        let (_, rgba) = image.into_parts();
+        Self::from_rgba_storage(width, height, rgba)
+    }
+
+    pub(crate) fn from_rgba_storage(width: u32, height: u32, rgba: Box<[u8]>) -> Result<Self> {
+        let pixel_count = Self::validate_dimensions(width, height)?;
+        let byte_count = pixel_count
+            .checked_mul(4)
+            .ok_or_else(|| anyhow!("presentation frame byte count overflows usize"))?;
+        if rgba.len() != byte_count {
+            bail!(
+                "presentation frame byte count {} does not match {}x{} RGBA storage",
+                rgba.len(),
+                width,
+                height
+            );
+        }
+        Ok(Self {
+            width,
+            height,
+            rgba,
+        })
+    }
+
+    pub(crate) fn into_rgba_parts(self) -> (u32, u32, Box<[u8]>) {
+        (self.width, self.height, self.rgba)
+    }
+
+    fn validate_dimensions(width: u32, height: u32) -> Result<usize> {
         if width == 0 || height == 0 {
             bail!("presentation frame dimensions must be nonzero");
         }
@@ -88,28 +138,7 @@ impl PresentationFrame {
                 MAX_PIXELS
             );
         }
-        if image.pixels.len() != pixel_count {
-            bail!(
-                "presentation frame pixel count {} does not match {}x{}",
-                image.pixels.len(),
-                width,
-                height
-            );
-        }
-        let byte_count = pixel_count
-            .checked_mul(4)
-            .ok_or_else(|| anyhow!("presentation frame byte count overflows usize"))?;
-        let mut rgba = Vec::new();
-        rgba.try_reserve_exact(byte_count)
-            .map_err(|_| anyhow!("unable to reserve presentation frame bytes"))?;
-        for pixel in &image.pixels {
-            rgba.extend_from_slice(&pixel.to_srgba_unmultiplied());
-        }
-        Ok(Self {
-            width,
-            height,
-            rgba: rgba.into_boxed_slice(),
-        })
+        Ok(pixel_count)
     }
 
     /// Horizontal pixel count.
@@ -163,41 +192,29 @@ mod tests {
 
     #[test]
     fn frame_preserves_rendered_pixel_order_and_alpha() {
-        let image =
-            egui::ColorImage::from_rgba_unmultiplied([2, 1], &[0, 0, 0, 0, 200, 150, 100, 255]);
-        let frame = PresentationFrame::from_color_image(&image).expect("valid frame");
+        let frame = PresentationFrame::from_rgba(2, 1, &[0, 0, 0, 0, 200, 150, 100, 255])
+            .expect("valid frame");
         assert_eq!(frame.width(), 2);
         assert_eq!(frame.height(), 1);
         assert_eq!(frame.rgba(), &[0, 0, 0, 0, 200, 150, 100, 255]);
     }
 
     #[test]
-    fn frame_rejects_inconsistent_image_storage() {
-        let image = egui::ColorImage {
-            size: [2, 1],
-            pixels: vec![egui::Color32::WHITE],
-        };
-        let error = PresentationFrame::from_color_image(&image).expect_err("mismatched pixels");
-        assert!(error.to_string().contains("pixel count"));
+    fn frame_rejects_inconsistent_rgba_storage() {
+        let error = PresentationFrame::from_rgba(2, 1, &[255; 4]).expect_err("mismatched bytes");
+        assert!(error.to_string().contains("byte count"));
     }
 
     #[test]
     fn frame_rejects_zero_dimensions() {
-        let image = egui::ColorImage {
-            size: [0, 1],
-            pixels: Vec::new(),
-        };
-        let error = PresentationFrame::from_color_image(&image).expect_err("zero width");
+        let error = PresentationFrame::from_rgba(0, 1, &[]).expect_err("zero width");
         assert!(error.to_string().contains("dimensions must be nonzero"));
     }
 
     #[test]
     fn frame_rejects_host_oversized_storage_before_copying_pixels() {
-        let image = egui::ColorImage {
-            size: [MAX_PIXELS + 1, 1],
-            pixels: Vec::new(),
-        };
-        let error = PresentationFrame::from_color_image(&image).expect_err("oversized frame");
+        let width = u32::try_from(MAX_PIXELS + 1).expect("test width fits u32");
+        let error = PresentationFrame::from_rgba(width, 1, &[]).expect_err("oversized frame");
         assert!(error.to_string().contains("exceeds host limit"));
     }
 

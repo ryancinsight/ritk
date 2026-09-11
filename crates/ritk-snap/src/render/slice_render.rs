@@ -26,8 +26,8 @@
 //!
 //! Scalar slices are converted through the WL LUT and then through a
 //! [`NamedColorMap`]. RGB slices preserve their three decoded channels and
-//! bypass scalar windowing, producing an [`egui::ColorImage`] of size
-//! `[width, height]` = `[cols, rows]` in egui convention.
+//! bypass scalar windowing. The canonical output is a bounded RGBA image;
+//! the eframe host adapts it to `egui::ColorImage` at its own boundary.
 
 use super::buffer_pool::RenderBufferPool;
 use super::{GrayscalePresentation, NamedColorMap, WindowLevel};
@@ -36,7 +36,40 @@ use iris::color::{ColorMap, Normalized};
 
 // ── SliceRenderer ─────────────────────────────────────────────────────────────
 
-/// Renders a single 2-D slice from a [`LoadedVolume`] to an [`egui::ColorImage`].
+/// A bounded row-major RGBA image produced by the RITK display pipeline.
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub(crate) struct RgbaImage {
+    size: [usize; 2],
+    pixels: Box<[u8]>,
+}
+
+impl RgbaImage {
+    fn new(size: [usize; 2], pixels: Vec<u8>) -> Self {
+        debug_assert_eq!(
+            pixels.len(),
+            size[0].saturating_mul(size[1]).saturating_mul(4)
+        );
+        Self {
+            size,
+            pixels: pixels.into_boxed_slice(),
+        }
+    }
+
+    pub(crate) const fn size(&self) -> [usize; 2] {
+        self.size
+    }
+
+    pub(crate) fn into_parts(self) -> ([usize; 2], Box<[u8]>) {
+        (self.size, self.pixels)
+    }
+
+    /// Converts the neutral image for the legacy eframe host.
+    pub(crate) fn to_color_image(&self) -> egui::ColorImage {
+        egui::ColorImage::from_rgba_unmultiplied(self.size, &self.pixels)
+    }
+}
+
+/// Renders a single 2-D slice from a [`LoadedVolume`].
 ///
 /// Scalar volumes use DICOM window/level and the selected Iris colormap. RGB
 /// volumes preserve decoded red, green, and blue channels without scalar
@@ -66,8 +99,9 @@ impl SliceRenderer {
     /// - `colormap` — colormap applied after scalar WL normalisation; ignored for RGB.
     ///
     /// # Returns
-    /// An [`egui::ColorImage`] of size `[width, height]` (see table above)
-    /// containing RGB pixels ready for GPU upload.
+    /// An [`egui::ColorImage`] of size `[width, height]` (see table above).
+    /// This adapter is retained for the eframe host; Métis-facing consumers
+    /// use [`Self::render_rgba`] and receive no egui carrier.
     pub fn render(
         volume: &LoadedVolume,
         axis: usize,
@@ -75,6 +109,18 @@ impl SliceRenderer {
         wl: WindowLevel,
         colormap: NamedColorMap,
     ) -> egui::ColorImage {
+        Self::render_rgba(volume, axis, index, wl, colormap).to_color_image()
+    }
+
+    /// Extracts and renders one slice into the neutral RGBA carrier used by
+    /// Métis and other non-egui hosts.
+    pub(crate) fn render_rgba(
+        volume: &LoadedVolume,
+        axis: usize,
+        index: usize,
+        wl: WindowLevel,
+        colormap: NamedColorMap,
+    ) -> RgbaImage {
         if volume.channels == 3 {
             let (samples, width, height) = volume.extract_slice_channels(axis, index);
             return render_rgb_slice(&samples, width, height);
@@ -94,7 +140,7 @@ impl SliceRenderer {
         if width == 0 || height == 0 {
             // Return a minimal valid image rather than panic; callers can detect
             // the degenerate case by checking image.size.
-            return egui::ColorImage::from_rgb([1, 1], &[0u8, 0, 0]);
+            return RgbaImage::new([1, 1], vec![0, 0, 0, 255]);
         }
 
         // Fused WL+colormap single pass: apply window/level per pixel, then
@@ -107,7 +153,7 @@ impl SliceRenderer {
             rgba.extend_from_slice(&colormap.sample(value).to_rgba8());
         }
 
-        egui::ColorImage::from_rgba_unmultiplied([width, height], &rgba)
+        RgbaImage::new([width, height], rgba)
     }
 
     /// Extract and render a single slice using pre-allocated scratch buffers.
@@ -143,19 +189,19 @@ impl SliceRenderer {
             pool.resize_pixel_bytes(width * height * 4);
             let valid = write_rgb_rgba(&pool.pixel_f32, &mut pool.rgba_u8);
             if !valid {
-                return invalid_channel_image(volume.channels);
+                return invalid_color_image(volume.channels);
             }
             return egui::ColorImage::from_rgba_unmultiplied([width, height], &pool.rgba_u8);
         }
         if volume.channels != 1 {
-            return invalid_channel_image(volume.channels);
+            return invalid_color_image(volume.channels);
         }
 
         let presentation = match GrayscalePresentation::for_volume(volume) {
             Ok(presentation) => presentation,
             Err(error) => {
                 tracing::error!(%error, "invalid DICOM grayscale presentation metadata");
-                return invalid_image();
+                return invalid_color_image(volume.channels);
             }
         };
         let (width, height) = volume.extract_slice_into(&mut pool.pixel_f32, axis, index);
@@ -181,15 +227,15 @@ impl SliceRenderer {
     }
 }
 
-fn render_rgb_slice(samples: &[f32], width: usize, height: usize) -> egui::ColorImage {
+fn render_rgb_slice(samples: &[f32], width: usize, height: usize) -> RgbaImage {
     if width == 0 || height == 0 {
-        return egui::ColorImage::from_rgb([1, 1], &[0_u8, 0, 0]);
+        return RgbaImage::new([1, 1], vec![0, 0, 0, 255]);
     }
     let mut rgba = vec![0_u8; width * height * 4];
     if !write_rgb_rgba(samples, &mut rgba) {
         return invalid_channel_image(3);
     }
-    egui::ColorImage::from_rgba_unmultiplied([width, height], &rgba)
+    RgbaImage::new([width, height], rgba)
 }
 
 fn write_rgb_rgba(samples: &[f32], rgba: &mut [u8]) -> bool {
@@ -222,13 +268,17 @@ fn rgb_component(value: f32) -> Option<u8> {
     Some(value as u8)
 }
 
-fn invalid_channel_image(channels: u8) -> egui::ColorImage {
+fn invalid_channel_image(channels: u8) -> RgbaImage {
     tracing::error!(channels, "slice rendering requires scalar or RGB channels");
     invalid_image()
 }
 
-fn invalid_image() -> egui::ColorImage {
-    egui::ColorImage::from_rgb([1, 1], &[255_u8, 0, 255])
+fn invalid_color_image(channels: u8) -> egui::ColorImage {
+    invalid_channel_image(channels).to_color_image()
+}
+
+fn invalid_image() -> RgbaImage {
+    RgbaImage::new([1, 1], vec![255, 0, 255, 255])
 }
 
 #[cfg(test)]

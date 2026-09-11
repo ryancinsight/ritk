@@ -3,8 +3,8 @@
 use crate::app::action_adapter::ViewerViewport;
 use crate::app::SnapApp;
 use crate::presentation::PresentationFrame;
-use crate::render::{SliceRenderer, WindowLevel};
-use crate::ui::{apply_to_image, RotationSteps, ViewTransform};
+use crate::render::WindowLevel;
+use crate::ui::{apply_to_rgba, RotationSteps, ViewTransform};
 use crate::viewer::{DEFAULT_WINDOW_CENTER, DEFAULT_WINDOW_WIDTH};
 use anyhow::{anyhow, bail, Context, Result};
 use metis_platform::{Color, Framebuffer};
@@ -111,14 +111,23 @@ fn render_view(app: &SnapApp, axis: usize) -> Result<RenderedView> {
             .map_or(f64::from(DEFAULT_WINDOW_WIDTH), f64::from)
             .max(1.0),
     );
-    let image = SliceRenderer::render(volume, axis, index, window_level, app.colormap);
-    let source_size = image.size;
+    let frame = PresentationFrame::from_slice(volume, axis, index, window_level, app.colormap)
+        .context("render RITK slice into a bounded presentation frame")?;
+    let (width, height, rgba) = frame.into_rgba_parts();
+    let source_size = [
+        usize::try_from(width).map_err(|_| anyhow!("native source width exceeds usize"))?,
+        usize::try_from(height).map_err(|_| anyhow!("native source height exceeds usize"))?,
+    ];
     let transform = app.view_transform;
     let display_spacing = display_spacing(volume.spacing, axis, transform)?;
-    let image = apply_to_image(&image, transform);
-    let frame = PresentationFrame::from_color_image(&image)
-        .context("convert RITK slice to a bounded presentation frame")?;
-    let output_size = transform.output_size(source_size);
+    let (output_size, rgba) = apply_to_rgba(source_size, rgba, transform)
+        .context("apply RITK viewport orientation to RGBA storage")?;
+    let output_width =
+        u32::try_from(output_size[0]).map_err(|_| anyhow!("native frame width exceeds u32"))?;
+    let output_height =
+        u32::try_from(output_size[1]).map_err(|_| anyhow!("native frame height exceeds u32"))?;
+    let frame = PresentationFrame::from_rgba_storage(output_width, output_height, rgba)
+        .context("validate transformed RITK presentation frame")?;
     let frame_size = [
         usize::try_from(frame.width()).map_err(|_| anyhow!("native frame width exceeds usize"))?,
         usize::try_from(frame.height())

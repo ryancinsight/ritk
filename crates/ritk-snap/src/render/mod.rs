@@ -35,6 +35,7 @@ pub use histogram::{compute_histogram, histogram_bin_center, histogram_peak_coun
 pub use iris::color::NamedColorMap;
 pub use mesh_render::{DirectionalLight, MeshCamera, MeshRenderer, PhongMaterial};
 pub use mip_vr::{render_mip_axial, render_vr_axial};
+pub(crate) use slice_render::RgbaImage;
 pub use slice_render::SliceRenderer;
 
 #[cfg(test)]

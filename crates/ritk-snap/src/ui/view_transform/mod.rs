@@ -27,8 +27,8 @@
 mod image_ops;
 mod transform;
 
-pub(crate) use image_ops::apply_to_image_into;
 pub use image_ops::{apply_to_image, flip_h_image, flip_v_image, rotate_90_cw_image};
+pub(crate) use image_ops::{apply_to_image_into, apply_to_rgba};
 pub use transform::{RotationSteps, ViewTransform};
 
 #[cfg(test)]

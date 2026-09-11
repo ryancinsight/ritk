@@ -8,6 +8,9 @@ RITK owns DICOM opening, decoding, geometry, and medical display semantics.
 The `presentation` module exposes a validated format-neutral RGBA frame for a
 Métis host and translates native input into format-neutral events; the host
 does not parse DICOM or retain viewer state.
+The Métis-facing path renders through RITK's neutral RGBA carrier and applies
+orientation before the host boundary; `egui::ColorImage` remains only the
+legacy eframe slice adapter.
 
 From a standalone RITK checkout, open a study directory with:
 
