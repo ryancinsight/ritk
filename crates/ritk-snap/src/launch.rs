@@ -161,8 +161,10 @@ pub async fn start_web(canvas_id: String) -> Result<(), wasm_bindgen::JsValue> {
 ///
 /// The workflow receives bounded browser file bytes from Métis, lets RITK
 /// classify and decode them, and presents the selected RITK frame through the
-/// named HTML5 canvas. The existing [`start_web`] eframe entrypoint remains
-/// available while the full multi-view browser shell is migrated.
+/// named HTML5 canvas. [`start_web_orthogonal_canvases`] presents the three
+/// RITK orthogonal frames through three named canvases; the existing
+/// [`start_web`] eframe entrypoint remains available while the full browser
+/// shell is migrated.
 #[cfg(target_arch = "wasm32")]
 #[wasm_bindgen::prelude::wasm_bindgen]
 pub fn start_web_canvas(canvas_id: String) -> Result<(), wasm_bindgen::JsValue> {

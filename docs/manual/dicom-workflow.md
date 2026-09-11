@@ -369,8 +369,9 @@ The package contains `ritk_snap.js`, `ritk_snap_bg.wasm`, and TypeScript
 declarations. Run those commands from a standalone checkout or CI; the local
 Atlas development overlay resolves first-party crates to working trees and is
 therefore verified with the equivalent unlocked release build. The generated
-module exports `start_web` and `start_web_canvas`; packaging proves the
-consumer artifact boundary. The local browser visual smoke below exercises the
+module exports `start_web`, `start_web_canvas` and
+`start_web_orthogonal_canvases`; packaging proves the consumer artifact
+boundary. The local browser visual smoke below exercises the
 packaged module against a real synthetic DICOM drop.
 
 The direct Métis canvas workflow is also available for the first browser
