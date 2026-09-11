@@ -110,7 +110,9 @@ start_web_orthogonal_canvases(
 
 The three canvases receive RITK-owned axial, coronal and sagittal
 `PresentationFrame` values from one bounded drop batch. Métis remains the
-format-neutral browser host and receives no DICOM state.
+format-neutral browser host and receives no DICOM state. The reviewed
+three-canvas runtime capture is in the [DICOM workflow manual](../../docs/manual/dicom-workflow.md#inspect-the-browser-orthogonal-visual-capture);
+physical browser input and GPU upload remain open migration work.
 
 To produce the browser module, build the library target and run the pinned
 `wasm-bindgen 0.2.128` CLI over

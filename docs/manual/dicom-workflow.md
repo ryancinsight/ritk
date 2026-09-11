@@ -428,8 +428,9 @@ format-neutral boundary:
 The entrypoint drains one bounded Métis file batch, opens it through RITK's
 existing loader and presents the axial, coronal and sagittal
 `PresentationFrame` values in that order. RITK's presentation tests assert the
-axis order and slice dimensions; a physical browser capture of all three
-canvases remains open with the pointer and GPU acceptance work.
+axis order and slice dimensions; the packaged three-canvas capture below
+verifies the runtime dimensions and non-black pixels. Physical browser input,
+pointer actions and GPU upload remain separate acceptance work.
 
 ## Inspect the browser canvas visual smoke
 
@@ -448,6 +449,22 @@ as an application-content snapshot. The synthetic DOM event is untrusted, so
 the smoke proves the packaged byte-to-frame path but does not close physical
 drag-and-drop, browser-engine, pointer, three-view, GPU, or complete
 application-window capture acceptance.
+
+## Inspect the browser orthogonal visual capture
+
+The packaged module at RITK revision `f0144c4a5` was produced with
+`wasm-bindgen 0.2.128` and served from the same local origin after the
+three-canvas entrypoint landed. The browser dispatched the three synthetic
+Part 10 files through Métis's bounded drop zone; RITK reported 1,962 bytes read and
+presented non-black frames with dimensions 4 × 2 (axial), 4 × 3 (coronal), and
+2 × 3 (sagittal). The reviewed PNG is generated from those live canvas pixels,
+contains no patient data, and preserves the axial/coronal/sagittal order.
+
+![RITK orthogonal browser DICOM capture](images/dicom-metis-browser-three.png)
+
+This runtime capture proves the packaged three-canvas presentation path. The
+drop event is still synthetic, so physical drag-and-drop, pointer dispatch,
+GPU upload, and complete application-window capture remain open.
 
 ## Present validated RITK views through Métis
 
