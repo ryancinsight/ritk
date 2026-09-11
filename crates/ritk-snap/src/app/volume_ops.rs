@@ -197,6 +197,7 @@ impl SnapApp {
     }
 
     /// Decode completely before replacing primary state.
+    #[cfg(any(test, target_arch = "wasm32"))]
     pub(crate) fn load_primary(&mut self, input: super::volume_input::VolumeInput) {
         match input.load() {
             Ok(volume) => {
@@ -211,6 +212,7 @@ impl SnapApp {
     }
 
     /// Decode completely before replacing the comparison acquisition.
+    #[cfg(any(test, target_arch = "wasm32"))]
     pub(crate) fn load_secondary(&mut self, input: super::volume_input::VolumeInput) {
         match input.load() {
             Ok(volume) => self.publish_secondary(volume),
