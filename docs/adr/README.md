@@ -41,3 +41,4 @@
 | [0030](0030-dicom-grayscale-presentation.md) | DICOM grayscale presentation semantics | Accepted |
 | [0031](0031-bounded-browser-canvas-input.md) | Bounded browser canvas input adapter | Accepted |
 | [0032](0032-browser-semantic-snapshot.md) | RITK browser semantic snapshot | Accepted |
+| [0033](0033-browser-trace-validator.md) | RITK browser trace semantic validator | Proposed |
