@@ -451,7 +451,12 @@ loading and orthogonal presentation in the Codex in-app Chromium host through
 a programmatic `DataTransfer`; physical drag-and-drop, Firefox/WebKit,
 WebGPU and complete application-window capture remain separate acceptance
 work. The public phantom data is the only committed image source; private
-clinical studies stay local.
+clinical studies stay local. A second run through Metis's pinned
+`browser_drop.py` and Edge 153.0.4234.19 used a configured W3C session with
+file-backed Chromium input; it matched the same file manifest, canvas RGBA
+hashes and overflow rejections, captured the window and each canvas, and
+closed the driver session. Its revision-bound trace is recorded in the
+[Metis gallery manual](https://github.com/ryancinsight/metis/blob/main/docs/manual/browser.md#drop-a-study-into-the-gallery).
 
 ## Build the RITK SNAP executable and installer
 
