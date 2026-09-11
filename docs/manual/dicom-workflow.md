@@ -404,8 +404,11 @@ loader. A valid drop replaces the RITK study and presents the selected slice on
 the named canvas; malformed, oversized, or non-DICOM input follows RITK's
 typed error and status paths. The browser host receives only the borrowed
 RGBA frame. DICOM parsing, metadata, geometry, window/level and viewer state
-remain in RITK. This increment presents one selected slice; browser pointer
-actions and GPU upload remain separate acceptance work.
+remain in RITK. The named canvas now retains bounded pointer and wheel
+listeners and routes target-local events through RITK's shared
+presentation/action reducer; pointer cancel and provider failures clear the
+active gesture. Physical browser-driver input, cross-engine evidence and GPU
+upload remain separate acceptance work.
 
 The direct three-view entrypoint uses three canvases and preserves the same
 format-neutral boundary:
@@ -437,8 +440,10 @@ The entrypoint drains one bounded Métis file batch, opens it through RITK's
 existing loader and presents the axial, coronal and sagittal
 `PresentationFrame` values in that order. RITK's presentation tests assert the
 axis order and slice dimensions; the packaged three-canvas capture below
-verifies the runtime dimensions and non-black pixels. Physical browser input,
-pointer actions and GPU upload remain separate acceptance work.
+verifies the runtime dimensions and non-black pixels. Each canvas now routes
+its bounded pointer and wheel batch to the matching RITK axis. Physical
+browser-driver input, cross-engine evidence and GPU upload remain separate
+acceptance work.
 
 ## Inspect the browser canvas visual smoke
 

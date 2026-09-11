@@ -6,8 +6,10 @@
 //! borrowed canvas seam. DICOM parsing and viewer state stay in [`SnapApp`].
 
 use super::SnapApp;
+use crate::app::action_adapter::{ViewerActionDisposition, ViewerViewport};
 use crate::presentation::{PresentationFrame, WebCanvasPresenter};
 use crate::ui::decide_dropped_input_action;
+use crate::ui::ViewTransform;
 use moirai_pal::wasm::{spawn_local_with_handle, LocalTaskHandle, WebTimer};
 use std::cell::RefCell;
 use std::rc::Rc;
@@ -33,14 +35,27 @@ impl BrowserViewer {
         }
     }
 
-    fn tick(&mut self) -> std::io::Result<()> {
+    fn tick(&mut self) -> std::io::Result<bool> {
+        let mut repaint = false;
         let dropped = super::browser_input::take_dropped_files();
         if !dropped.is_empty() {
             let action = decide_dropped_input_action(&dropped);
             self.app.apply_dropped_input_action(action);
             self.surface.clear();
+            repaint = true;
         }
-        self.surface.render_and_present(&self.app)
+        let disposition = self.surface.apply_events(&mut self.app)?;
+        let ViewerActionDisposition::Continue {
+            repaint: input_repaint,
+        } = disposition
+        else {
+            return Ok(false);
+        };
+        if repaint || input_repaint {
+            self.surface.clear();
+        }
+        self.surface.render_and_present(&self.app)?;
+        Ok(true)
     }
 }
 
@@ -90,6 +105,78 @@ impl BrowserSurface {
         }
         Ok(())
     }
+
+    fn apply_events(&mut self, app: &mut SnapApp) -> std::io::Result<ViewerActionDisposition> {
+        match self {
+            Self::Single { presenter, frame } => {
+                apply_canvas_events(app, 0, presenter, frame.as_ref())
+            }
+            Self::Orthogonal { presenters, frames } => {
+                let mut repaint = false;
+                for (axis, presenter) in presenters.iter_mut().enumerate() {
+                    let frame = frames.as_ref().and_then(|frames| frames.get(axis));
+                    match apply_canvas_events(app, axis, presenter, frame)? {
+                        ViewerActionDisposition::Continue { repaint: needed } => {
+                            repaint |= needed;
+                        }
+                        ViewerActionDisposition::Exit => {
+                            return Ok(ViewerActionDisposition::Exit);
+                        }
+                    }
+                }
+                Ok(ViewerActionDisposition::Continue { repaint })
+            }
+        }
+    }
+}
+
+fn apply_canvas_events(
+    app: &mut SnapApp,
+    axis: usize,
+    presenter: &mut WebCanvasPresenter,
+    frame: Option<&PresentationFrame>,
+) -> std::io::Result<ViewerActionDisposition> {
+    let events = match presenter.take_events() {
+        Ok(events) => events,
+        Err(error) => {
+            app.cancel_presentation_gesture();
+            return Err(std::io::Error::other(error.to_string()));
+        }
+    };
+    if events.is_empty() {
+        return Ok(ViewerActionDisposition::Continue { repaint: false });
+    }
+    let viewport = frame
+        .map(|frame| viewport_for_frame(axis, frame))
+        .transpose()?;
+    let previous_axis = app.axis;
+    app.axis = axis;
+    let disposition = match app.apply_presentation_events(&events, viewport.as_ref()) {
+        Ok(disposition) => disposition,
+        Err(error) => {
+            app.axis = previous_axis;
+            app.cancel_presentation_gesture();
+            return Err(std::io::Error::other(format!(
+                "apply RITK browser presentation events: {error}"
+            )));
+        }
+    };
+    Ok(disposition)
+}
+
+fn viewport_for_frame(axis: usize, frame: &PresentationFrame) -> std::io::Result<ViewerViewport> {
+    let width = usize::try_from(frame.width())
+        .map_err(|_| std::io::Error::other("browser frame width exceeds host range"))?;
+    let height = usize::try_from(frame.height())
+        .map_err(|_| std::io::Error::other("browser frame height exceeds host range"))?;
+    ViewerViewport::new(
+        axis,
+        egui::pos2(0.0, 0.0),
+        egui::vec2(1.0, 1.0),
+        [width, height],
+        ViewTransform::default(),
+    )
+    .map_err(|error| std::io::Error::other(error.to_string()))
 }
 
 fn launch_browser_viewer(viewer: BrowserViewer) -> Result<(), JsValue> {
@@ -97,8 +184,14 @@ fn launch_browser_viewer(viewer: BrowserViewer) -> Result<(), JsValue> {
     let task_viewer = Rc::clone(&viewer);
     let handle = spawn_local_with_handle(async move {
         loop {
-            if let Err(error) = task_viewer.borrow_mut().tick() {
-                tracing::error!(%error, "RITK browser canvas workflow stopped");
+            let keep_running = match task_viewer.borrow_mut().tick() {
+                Ok(keep_running) => keep_running,
+                Err(error) => {
+                    tracing::error!(%error, "RITK browser canvas workflow stopped");
+                    break;
+                }
+            };
+            if !keep_running {
                 break;
             }
             let timer = match WebTimer::new(FRAME_INTERVAL) {
@@ -121,7 +214,7 @@ fn launch_browser_viewer(viewer: BrowserViewer) -> Result<(), JsValue> {
 /// Starts the RITK DICOM byte-drop workflow on a Métis-owned browser canvas.
 pub(crate) fn start_web_canvas(canvas_id: String) -> Result<(), JsValue> {
     stop_web_canvas();
-    let presenter = match WebCanvasPresenter::from_canvas_id(&canvas_id) {
+    let presenter = match WebCanvasPresenter::from_canvas_id_with_input(&canvas_id) {
         Ok(presenter) => presenter,
         Err(error) => return Err(JsValue::from_str(&error.to_string())),
     };
@@ -137,9 +230,9 @@ pub(crate) fn start_web_orthogonal_canvases(canvas_ids: [String; 3]) -> Result<(
     stop_web_canvas();
     let [axial_id, coronal_id, sagittal_id] = canvas_ids;
     let presenters = match (
-        WebCanvasPresenter::from_canvas_id(&axial_id),
-        WebCanvasPresenter::from_canvas_id(&coronal_id),
-        WebCanvasPresenter::from_canvas_id(&sagittal_id),
+        WebCanvasPresenter::from_canvas_id_with_input(&axial_id),
+        WebCanvasPresenter::from_canvas_id_with_input(&coronal_id),
+        WebCanvasPresenter::from_canvas_id_with_input(&sagittal_id),
     ) {
         (Ok(axial), Ok(coronal), Ok(sagittal)) => [axial, coronal, sagittal],
         (Err(error), _, _) | (_, Err(error), _) | (_, _, Err(error)) => {

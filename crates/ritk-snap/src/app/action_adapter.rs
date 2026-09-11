@@ -430,7 +430,8 @@ fn validate_viewer_action(action: &ViewerAction) -> Result<(), ViewerActionError
 fn event_button(event: &PresentationEvent) -> Option<PointerButton> {
     match event {
         PresentationEvent::PointerDown { button, .. }
-        | PresentationEvent::PointerUp { button, .. } => Some(*button),
+        | PresentationEvent::PointerUp { button, .. }
+        | PresentationEvent::PointerCancel { button, .. } => Some(*button),
         _ => None,
     }
 }

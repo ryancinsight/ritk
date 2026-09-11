@@ -150,6 +150,48 @@ fn focus_loss_cancels_pressed_buttons_and_clears_state() {
 }
 
 #[test]
+fn pointer_cancel_clears_one_pressed_button_without_releasing_a_click() {
+    let mut dispatcher = PresentationDispatcher::new();
+    let actions = dispatcher
+        .dispatch(&[
+            PresentationEvent::PointerDown {
+                x: 2.0,
+                y: 3.0,
+                button: PointerButton::Left,
+            },
+            PresentationEvent::PointerCancel {
+                x: 7.0,
+                y: 11.0,
+                button: PointerButton::Left,
+            },
+        ])
+        .expect("pointer cancellation");
+    assert_eq!(
+        actions.as_ref(),
+        &[
+            ViewerAction::PointerPressed {
+                button: PointerButton::Left,
+                position: ViewportPoint::new(2.0, 3.0),
+            },
+            ViewerAction::PointerCancelled {
+                button: PointerButton::Left,
+                position: ViewportPoint::new(7.0, 11.0),
+            },
+        ]
+    );
+    assert!(matches!(
+        dispatcher.dispatch(&[PresentationEvent::PointerUp {
+            x: 7.0,
+            y: 11.0,
+            button: PointerButton::Left,
+        }]),
+        Err(ActionDispatchError::PointerReleaseWithoutPress {
+            button: PointerButton::Left
+        })
+    ));
+}
+
+#[test]
 fn malformed_batch_is_atomic_and_composition_is_bounded() {
     let mut dispatcher = PresentationDispatcher::new();
     let malformed = dispatcher.dispatch(&[
