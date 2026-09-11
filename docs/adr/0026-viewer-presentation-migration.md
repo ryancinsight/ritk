@@ -206,6 +206,18 @@ frame in the Rust host. The current `start_web` entrypoint still launches the
 eframe canvas while the complete browser viewer migration and visual capture
 remain open; this increment proves only the typed consumer boundary.
 
+Revision 2026-09-11 (direct browser canvas workflow increment): RITK now
+exports `start_web_canvas` and `stop_web_canvas` for a Métis-owned HTML5 canvas.
+The workflow mounts the generic Métis host, drains its bounded named-byte batch
+through the shared RITK dropped-input reducer, loads DICOM bytes with RITK's
+existing series loader, renders the selected RITK slice, and presents the
+borrowed `PresentationFrame` through Moirai's browser canvas provider. The
+reducer test opens a synthetic Part 10 study from the same named-byte action;
+WASM Clippy covers the browser task and presenter. `start_web` remains the
+eframe shell, and browser pointer actions, orthogonal composition, GPU upload,
+and runtime visual capture remain open. No DICOM parser, metadata, geometry, or
+viewer state is implemented in Métis.
+
 Revision 2026-09-08: [RITK-SNAP-DIRECTORY-001](../../backlog.md#RITK-SNAP-DIRECTORY-001)
 now validates the Explicit VR Little Endian DICOMDIR record sequence before
 membership is admitted. RecordInUseFlag, next/lower offsets, incoming-link

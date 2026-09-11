@@ -137,7 +137,17 @@ impl SnapApp {
             super::browser_input::extend_dropped_files(&mut dropped);
             dropped
         };
-        match decide_dropped_input_action(&dropped) {
+        let action = decide_dropped_input_action(&dropped);
+        self.apply_dropped_input_action(action);
+    }
+
+    /// Applies one dropped-input decision to the RITK-owned load state.
+    ///
+    /// Both the eframe shell and the Métis browser canvas use this reducer so
+    /// pathless browser bytes and native paths cannot diverge in DICOM
+    /// classification or replacement semantics.
+    pub(crate) fn apply_dropped_input_action(&mut self, action: DroppedInputAction) {
+        match action {
             DroppedInputAction::QueueDicom(path) => {
                 self.scan_for_series(path.clone());
                 self.pending_load = Some(VolumeInput::Path(path.clone()));

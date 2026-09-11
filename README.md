@@ -101,11 +101,13 @@ element byte counts. Viewer session save/load stores presentation state as
 JSON, including source path, slice indices, window/level, colormap, active
 tool, layout flags, overlay flags, sidebar tab, pan, and zoom.
 
-### Browser / WASM (Métis host + eframe canvas)
+### Browser / WASM (Métis host)
 
 `ritk-snap` exposes a wasm entrypoint for browser hosting:
 
 - `ritk_snap::start_web(canvas_id: String)` (wasm-only, exported via `wasm-bindgen`)
+- `ritk_snap::start_web_canvas(canvas_id: String)` and
+  `ritk_snap::stop_web_canvas()` (wasm-only, direct single-slice canvas workflow)
 
 The native binary (`ritk-snap`) remains desktop-only. For browser execution,
 build `crates/ritk-snap` for `wasm32-unknown-unknown`, load the generated JS/WASM
@@ -113,6 +115,11 @@ bundle in a page with both a `#metis-app` host element and a `<canvas>`, and
 invoke `start_web("<canvas-id>")`. Métis owns browser file handles and bounded
 named-byte transfer; RITK owns DICOM classification, scanning, decoding, and
 viewer state.
+
+For the direct Métis canvas increment, invoke `start_web_canvas` instead. It
+uses the same bounded drop handoff, opens DICOM bytes through RITK, and
+renders one selected slice through the borrowed canvas seam. It does not move
+DICOM parsing or viewer state into the GUI framework.
 
 Minimal JS bootstrap pattern:
 

@@ -110,10 +110,13 @@ pub fn run_app_with_options(options: AppLaunchOptions) -> anyhow::Result<()> {
 
 /// Stub launcher for non-native targets.
 ///
-/// On wasm targets, use [`start_web`] to launch `ritk-snap` in a browser.
+/// On wasm targets, use [`start_web`] or [`start_web_canvas`] to launch
+/// `ritk-snap` in a browser.
 #[cfg(target_arch = "wasm32")]
 pub fn run_app_with_options(_options: AppLaunchOptions) -> anyhow::Result<()> {
-    anyhow::bail!("run_app_with_options is native-only; use start_web() on wasm32")
+    anyhow::bail!(
+        "run_app_with_options is native-only; use start_web() or start_web_canvas() on wasm32"
+    )
 }
 
 /// Start the `ritk-snap` egui viewer in a browser canvas.
@@ -152,4 +155,23 @@ pub async fn start_web(canvas_id: String) -> Result<(), wasm_bindgen::JsValue> {
         })?;
 
     Ok(())
+}
+
+/// Start the RITK browser canvas workflow with Métis and Moirai.
+///
+/// The workflow receives bounded browser file bytes from Métis, lets RITK
+/// classify and decode them, and presents the selected RITK frame through the
+/// named HTML5 canvas. The existing [`start_web`] eframe entrypoint remains
+/// available while the full multi-view browser shell is migrated.
+#[cfg(target_arch = "wasm32")]
+#[wasm_bindgen::prelude::wasm_bindgen]
+pub fn start_web_canvas(canvas_id: String) -> Result<(), wasm_bindgen::JsValue> {
+    crate::app::start_web_canvas(canvas_id)
+}
+
+/// Stop the RITK browser canvas workflow and release its browser task.
+#[cfg(target_arch = "wasm32")]
+#[wasm_bindgen::prelude::wasm_bindgen]
+pub fn stop_web_canvas() {
+    crate::app::stop_web_canvas();
 }

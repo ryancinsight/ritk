@@ -5,8 +5,25 @@ use crate::dicom::loader::tests::fixtures;
 use crate::app::{state::SeriesLoadTarget, volume_input::VolumeInput, SnapApp};
 use crate::dicom::series_tree::SeriesEntryView;
 use crate::session::{StudySource, ViewerSessionSnapshot};
+use crate::ui::DroppedInputAction;
 
 const SECONDARY_UID: &str = "2.25.20260905002";
+#[test]
+fn browser_dicom_byte_action_loads_primary_volume() {
+    let root = tempfile::tempdir().expect("study root");
+    let files = fixtures::write_study(root.path(), "CT", fixtures::SERIES_UID)
+        .expect("write browser DICOM fixture");
+    let payloads = files
+        .into_iter()
+        .map(|(name, bytes)| (name, std::sync::Arc::<[u8]>::from(bytes)))
+        .collect();
+    let mut app = SnapApp::default();
+
+    app.apply_dropped_input_action(DroppedInputAction::LoadDicomSeriesBytes { files: payloads });
+
+    assert_primary(&app, fixtures::SERIES_UID);
+    assert!(app.status_message.contains("in-memory DICOM series"));
+}
 
 fn assert_primary(app: &SnapApp, uid: &str) {
     let volume = app.loaded.as_ref().expect("primary volume loaded");

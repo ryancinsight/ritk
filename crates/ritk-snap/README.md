@@ -72,3 +72,20 @@ await start_web("ritk-canvas");
 This keeps browser DICOM opening on the same RITK path as desktop pathless
 input. The host never receives a filesystem path and never decides whether a
 payload is DICOM.
+
+The direct canvas migration slice uses the same host and byte handoff without
+starting eframe. It renders one selected RITK slice through the borrowed Métis
+canvas seam:
+
+```javascript
+import init, { start_web_canvas, stop_web_canvas } from "./ritk_snap.js";
+
+await init();
+start_web_canvas("ritk-snap-canvas");
+// Call stop_web_canvas() when the page or route is torn down.
+```
+
+`start_web_canvas` is a presentation increment, not a second DICOM
+implementation: RITK owns classification, parsing, metadata, geometry,
+window/level and viewer state. Browser pointer actions, the three-view layout,
+GPU upload and runtime visual capture remain open migration work.
