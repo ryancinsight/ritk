@@ -445,6 +445,11 @@ its bounded pointer and wheel batch to the matching RITK axis. Physical
 browser-driver input, cross-engine evidence and GPU upload remain separate
 acceptance work.
 
+The shared RITK viewport mapper accepts finite display geometry independently
+of egui. Native eframe placement converts its coordinates at the host boundary;
+the browser canvas and viewer action path use the same RITK-owned mapping
+without importing GUI carrier types.
+
 The browser task also tears down the Métis mount when a frame, input, or timer
 failure ends the loop. This failure path is distinct from an explicit
 `stop_web_canvas` call: it releases provider listeners before the task exits so

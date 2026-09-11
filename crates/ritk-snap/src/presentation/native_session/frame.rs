@@ -282,18 +282,14 @@ fn placement(
     {
         bail!("native viewer geometry exceeds finite host range");
     }
-    #[expect(
-        clippy::cast_possible_truncation,
-        reason = "native geometry is checked against the f32 range above"
-    )]
-    let origin = egui::pos2(origin_x as f32, origin_y as f32);
-    #[expect(
-        clippy::cast_possible_truncation,
-        reason = "native geometry is checked against the f32 range above"
-    )]
-    let texel = egui::vec2(texel_x as f32, texel_y as f32);
-    let mapping = ViewerViewport::new(view.axis, origin, texel, view.source_size, view.transform)
-        .map_err(|error| anyhow!("construct native viewer viewport: {error}"))?;
+    let mapping = ViewerViewport::new(
+        view.axis,
+        [origin_x, origin_y],
+        [texel_x, texel_y],
+        view.source_size,
+        view.transform,
+    )
+    .map_err(|error| anyhow!("construct native viewer viewport: {error}"))?;
     Ok(NativeViewport {
         panel: ScreenRect {
             x: f64::from(panel_x),

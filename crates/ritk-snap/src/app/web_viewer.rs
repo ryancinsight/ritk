@@ -171,8 +171,8 @@ fn viewport_for_frame(axis: usize, frame: &PresentationFrame) -> std::io::Result
         .map_err(|_| std::io::Error::other("browser frame height exceeds host range"))?;
     ViewerViewport::new(
         axis,
-        egui::pos2(0.0, 0.0),
-        egui::vec2(1.0, 1.0),
+        [0.0, 0.0],
+        [1.0, 1.0],
         [width, height],
         ViewTransform::default(),
     )

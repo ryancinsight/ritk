@@ -19,8 +19,8 @@ fn fractional_client_coordinates_reach_image_mapping_unchanged() {
     app.active_tool = ToolKind::PointHu;
     let viewport = ViewerViewport::new(
         0,
-        egui::Pos2::new(10.25, 20.5),
-        egui::vec2(0.25, 0.5),
+        [10.25, 20.5],
+        [0.25, 0.5],
         [8, 8],
         ViewTransform::default(),
     )
@@ -59,8 +59,8 @@ fn large_client_coordinates_subtract_before_image_narrowing() {
     app.active_tool = ToolKind::PointHu;
     let viewport = ViewerViewport::new(
         0,
-        egui::Pos2::new(16_777_216.0, 0.0),
-        egui::vec2(1.0, 1.0),
+        [16_777_216.0, 0.0],
+        [1.0, 1.0],
         [4, 4],
         ViewTransform::default(),
     )
@@ -96,8 +96,8 @@ fn large_client_coordinates_subtract_before_image_narrowing() {
 fn large_client_coordinates_feed_image_space_consumers() {
     let viewport = ViewerViewport::new(
         0,
-        egui::Pos2::new(16_777_216.0, 0.0),
-        egui::vec2(1.0, 1.0),
+        [16_777_216.0, 0.0],
+        [1.0, 1.0],
         [5, 3],
         ViewTransform::default(),
     )

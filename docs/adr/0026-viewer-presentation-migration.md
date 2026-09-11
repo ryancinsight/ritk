@@ -219,6 +219,14 @@ frame in the Rust host. The current `start_web` entrypoint still launches the
 eframe canvas while the complete browser viewer migration and visual capture
 remain open; this increment proves only the typed consumer boundary.
 
+Revision 2026-09-11 (host-geometry decoupling increment): `ViewerViewport`
+now stores validated display origin and texel scale as plain finite `f64`
+pairs. Native eframe placement converts its provider values at the boundary;
+the RITK action mapper and browser path no longer carry `egui::Pos2` or
+`egui::Vec2`. Coordinate mapping and its boundary tests remain RITK-owned, so
+removing the GUI carrier does not move DICOM state or presentation policy into
+Métis.
+
 Revision 2026-09-11 (direct browser canvas workflow increment): RITK now
 exports `start_web_canvas` and `stop_web_canvas` for a Métis-owned HTML5 canvas.
 The workflow mounts the generic Métis host, drains its bounded named-byte batch
