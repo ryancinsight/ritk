@@ -14,27 +14,27 @@ pub(super) struct FileDialog;
 
 #[cfg(target_arch = "wasm32")]
 impl FileDialog {
-    fn new() -> Self {
+    pub(super) fn new() -> Self {
         Self
     }
 
-    fn set_file_name(self, _name: &str) -> Self {
+    pub(super) fn set_file_name(self, _name: &str) -> Self {
         self
     }
 
-    fn add_filter(self, _name: &str, _extensions: &[&str]) -> Self {
+    pub(super) fn add_filter(self, _name: &str, _extensions: &[&str]) -> Self {
         self
     }
 
-    fn pick_file(self) -> Option<std::path::PathBuf> {
+    pub(super) fn pick_file(self) -> Option<std::path::PathBuf> {
         None
     }
 
-    fn pick_folder(self) -> Option<std::path::PathBuf> {
+    pub(super) fn pick_folder(self) -> Option<std::path::PathBuf> {
         None
     }
 
-    fn save_file(self) -> Option<std::path::PathBuf> {
+    pub(super) fn save_file(self) -> Option<std::path::PathBuf> {
         None
     }
 }

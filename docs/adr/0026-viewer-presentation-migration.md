@@ -197,6 +197,15 @@ cancellation token; superseded, closed, or cancelled tasks cannot publish a
 retaining the previous study. The task bridge owns no DICOM logic and Métis is
 unchanged.
 
+Revision 2026-09-11 (browser canvas adapter increment): `metis-web` now exposes
+the format-neutral `CanvasFrame` and `CanvasSurface` seam over Moirai's bounded
+HTML5 canvas provider. RITK's `WebCanvasPresenter` implements that seam for the
+existing `PresentationFrame`, so a future browser viewer can present RITK-owned
+RGBA pixels without importing DICOM state into Métis or copying the source
+frame in the Rust host. The current `start_web` entrypoint still launches the
+eframe canvas while the complete browser viewer migration and visual capture
+remain open; this increment proves only the typed consumer boundary.
+
 Revision 2026-09-08: [RITK-SNAP-DIRECTORY-001](../../backlog.md#RITK-SNAP-DIRECTORY-001)
 now validates the Explicit VR Little Endian DICOMDIR record sequence before
 membership is admitted. RecordInUseFlag, next/lower offsets, incoming-link
