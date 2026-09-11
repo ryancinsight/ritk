@@ -1,0 +1,25 @@
+{
+  "schema": 1,
+  "status": "passed",
+  "source": {
+    "ritk_revision": "e1b2e799925dc0eb614b933f74bf8fce874869dc",
+    "metis_revision": "a8fd4164498048b359e12ecbb72fe45ee8d5a7e7",
+    "moirai_revision": "b4242109ad146c90c97ff432bb406bf5537ac2f6",
+    "dataset": "test_data/3_head_ct_mridir/DICOM",
+    "license": "CC BY 4.0",
+    "study": "public MRI-DIR porcine-head CT phantom"
+  },
+  "browser": {
+    "host": "Codex in-app browser",
+    "input": "bounded DataTransfer of nine actual DICOM Part 10 files",
+    "engine_matrix": ["chromium"]
+  },
+  "frames": [
+    {"canvas": "ritk-snap-axial", "width": 512, "height": 512, "non_black_pixels": 120515, "sha256": "e708e04acddf092a353b8c8a86eff3c76f8b71069d9aedf7269433535f0869dc"},
+    {"canvas": "ritk-snap-coronal", "width": 512, "height": 8, "non_black_pixels": 1879},
+    {"canvas": "ritk-snap-sagittal", "width": 512, "height": 8, "non_black_pixels": 2438}
+  ],
+  "bytes_read": 4756500,
+  "files_read": 9,
+  "visual_scope": "canvas pixels only; no browser chrome"
+}

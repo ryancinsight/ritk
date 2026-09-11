@@ -339,6 +339,34 @@ This command proves the native Métis frame path. It does not claim a browser
 WebDriver, WebGPU, or cross-engine run; those require configured browser
 drivers and remain separate RITK integration gates.
 
+## Inspect an actual DICOM study in the browser
+
+The same RITK browser entrypoint was exercised against nine real Part 10 files
+from the public MRI-DIR CT series. A local page mounted Métis, loaded the
+packaged `ritk_snap` WebAssembly module, and transferred the files through a
+bounded browser `DataTransfer`. RITK read 4,756,500 bytes and presented
+non-black pixels on all three canvases. The Chromium run reported these frame
+values:
+
+| Canvas | Presented pixels | Non-black pixels |
+| --- | ---: | ---: |
+| axial | 512 × 512 | 120,515 |
+| coronal | 512 × 8 | 1,879 |
+| sagittal | 512 × 8 | 2,438 |
+
+The axial canvas below is the PNG exported from the live browser canvas. It is
+decoded from the public DICOM files, not a generated illustration.
+
+![Actual MRI-DIR CT axial frame presented through the Métis browser canvas](images/dicom-metis-real-browser-axial.png)
+
+The capture provenance, source revisions, byte count, frame dimensions and
+SHA-256 digest are recorded in
+[`dicom-metis-real-browser.json`](images/dicom-metis-real-browser.json). The
+capture scope is the canvas pixels; it excludes browser chrome. This run uses
+a bounded programmatic `DataTransfer` in one Chromium host, so it demonstrates
+real DICOM decoding and browser presentation but does not close physical
+drag-and-drop, Firefox/WebKit, WebGPU or complete application-window capture.
+
 ## Build the RITK SNAP executable and installer
 
 RITK owns the application manifest at

@@ -56,6 +56,9 @@
       the synthetic three-file Part 10 study through a browser `DataTransfer`,
       inspect the non-black canvas frame, and record the PNG in the manual;
       physical browser input and the remaining host matrix stay open.
+- [x] Repeat the browser canvas run with nine actual MRI-DIR CT Part 10 files,
+      record the axial PNG and provenance in the manual, and retain the
+      physical drag-and-drop and cross-engine gaps as open acceptance work.
 
 ## FIX-DTI-VOLUME-FRAME [major][arch] — Preserve diffusion coordinate frames
 
