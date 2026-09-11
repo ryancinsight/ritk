@@ -101,7 +101,7 @@ impl SliceRenderer {
     /// # Returns
     /// An [`egui::ColorImage`] of size `[width, height]` (see table above).
     /// This adapter is retained for the eframe host; Métis-facing consumers
-    /// use [`Self::render_rgba`] and receive no egui carrier.
+    /// use `render_rgba` and receive no egui carrier.
     pub fn render(
         volume: &LoadedVolume,
         axis: usize,

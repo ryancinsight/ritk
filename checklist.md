@@ -60,8 +60,11 @@
       record the axial PNG and provenance in the manual, and retain the
       physical drag-and-drop and cross-engine gaps as open acceptance work.
 - [x] Repeat the browser canvas run with the maximum 64-file real MRI-DIR
-      batch, record all three orthogonal PNGs and provenance, and record the
-      409-file rejection as the open multi-batch browser-ingress gap.
+      batch, record all three orthogonal PNGs and provenance; this historical
+      count was superseded by the bounded full-series increment below.
+- [x] Repeat the browser canvas run with all 409 saved MRI-DIR files after the
+      Métis/Moirai bounds advance, record the actual orthogonal PNGs and
+      provenance, and retain physical/cross-engine/WebGPU/window gaps.
 
 ## FIX-DTI-VOLUME-FRAME [major][arch] — Preserve diffusion coordinate frames
 
