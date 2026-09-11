@@ -59,6 +59,9 @@
 - [x] Repeat the browser canvas run with nine actual MRI-DIR CT Part 10 files,
       record the axial PNG and provenance in the manual, and retain the
       physical drag-and-drop and cross-engine gaps as open acceptance work.
+- [x] Repeat the browser canvas run with the maximum 64-file real MRI-DIR
+      batch, record all three orthogonal PNGs and provenance, and record the
+      409-file rejection as the open multi-batch browser-ingress gap.
 
 ## FIX-DTI-VOLUME-FRAME [major][arch] — Preserve diffusion coordinate frames
 
