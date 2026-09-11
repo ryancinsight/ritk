@@ -264,6 +264,15 @@ does not establish physical drag-and-drop, browser-engine, pointer, three-view,
 GPU, or complete application-window capture acceptance. DICOM parsing,
 metadata, geometry and viewer state remain in RITK.
 
+Revision 2026-09-11 (dropped-input carrier decoupling): RITK now owns the
+format-neutral `DroppedInput` metadata and byte carrier. The native eframe
+shell converts `egui::DroppedFile` once at `app/panels.rs`; the Métis browser
+adapter constructs the same RITK value directly. The shared classifier and
+loader therefore no longer accept a GUI-framework carrier, while DICOM name,
+MIME and Part 10 checks, byte-series assembly, and all decoded viewer state
+remain in RITK. This increment removes a second eframe dependency from the
+browser handoff without moving format logic into Métis.
+
 Revision 2026-09-08: [RITK-SNAP-DIRECTORY-001](../../backlog.md#RITK-SNAP-DIRECTORY-001)
 now validates the Explicit VR Little Endian DICOMDIR record sequence before
 membership is admitted. RecordInUseFlag, next/lower offsets, incoming-link

@@ -2,28 +2,28 @@ use std::fs;
 use std::path::PathBuf;
 use std::time::{SystemTime, UNIX_EPOCH};
 
-use super::{decide_dropped_input_action, DroppedInputAction};
+use super::{decide_dropped_input_action, DroppedInput, DroppedInputAction};
 
-fn dropped_with_path(path: &str) -> egui::DroppedFile {
-    egui::DroppedFile {
-        path: Some(PathBuf::from(path)),
-        ..Default::default()
-    }
+fn dropped_with_path(path: &str) -> DroppedInput {
+    DroppedInput::new(
+        Some(PathBuf::from(path)),
+        String::new(),
+        String::new(),
+        None,
+    )
 }
 
-fn dropped_pathless_named(name: &str) -> egui::DroppedFile {
-    egui::DroppedFile {
-        name: name.to_owned(),
-        ..Default::default()
-    }
+fn dropped_pathless_named(name: &str) -> DroppedInput {
+    DroppedInput::new(None, name.to_owned(), String::new(), None)
 }
 
-fn dropped_pathless_named_with_bytes(name: &str, bytes: Vec<u8>) -> egui::DroppedFile {
-    egui::DroppedFile {
-        name: name.to_owned(),
-        bytes: Some(std::sync::Arc::<[u8]>::from(bytes)),
-        ..Default::default()
-    }
+fn dropped_pathless_named_with_bytes(name: &str, bytes: Vec<u8>) -> DroppedInput {
+    DroppedInput::new(
+        None,
+        name.to_owned(),
+        String::new(),
+        Some(std::sync::Arc::<[u8]>::from(bytes)),
+    )
 }
 
 fn create_temp_dicom_file() -> PathBuf {
@@ -116,6 +116,22 @@ fn pathless_dicom_with_bytes_routes_to_dicom_batch_load() {
         }
         other => panic!("expected LoadDicomSeriesBytes, got {other:?}"),
     }
+}
+
+#[test]
+fn dicom_mime_marks_a_pathless_payload_for_ritk_loading() {
+    let file = DroppedInput::new(
+        None,
+        "slice_without_extension".to_owned(),
+        "application/dicom".to_owned(),
+        Some(std::sync::Arc::<[u8]>::from([1_u8, 2, 3])),
+    );
+    let action = decide_dropped_input_action(&[file]);
+
+    assert!(
+        matches!(action, DroppedInputAction::LoadDicomSeriesBytes { .. }),
+        "application/dicom payloads must enter the RITK DICOM byte loader"
+    );
 }
 
 #[test]

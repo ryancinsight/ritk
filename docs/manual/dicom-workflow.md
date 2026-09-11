@@ -455,6 +455,12 @@ failure ends the loop. This failure path is distinct from an explicit
 `stop_web_canvas` call: it releases provider listeners before the task exits so
 the next route generation cannot retain callbacks or stale pointer capture.
 
+The drop reducer consumes RITK's `DroppedInput` value rather than an eframe
+carrier. Native eframe input is converted at the host edge; browser payloads
+from Métis enter the same RITK value directly. This keeps DICOM filename, MIME,
+Part 10 detection, byte-series assembly, and loader decisions in RITK while
+leaving Métis responsible only for bounded browser file transfer.
+
 ## Inspect the browser canvas visual smoke
 
 The packaged bundle was served from a local HTTP origin and given the three
