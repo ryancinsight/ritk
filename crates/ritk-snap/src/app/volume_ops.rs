@@ -112,10 +112,8 @@ impl SnapApp {
 
     #[cfg(not(target_arch = "wasm32"))]
     pub(crate) fn cancel_load_tasks(&mut self) {
-        for task in &self.load_tasks {
-            if let Some(task) = task {
-                task.cancellation.cancel();
-            }
+        for task in self.load_tasks.iter().flatten() {
+            task.cancellation.cancel();
         }
         self.load_tasks = std::array::from_fn(|_| None);
         self.pending_load = None;
@@ -154,7 +152,7 @@ impl SnapApp {
         );
         let (window_center, window_width) = metadata_window_level(&volume)
             .unwrap_or((protocol.window_center, protocol.window_width));
-        let modality = volume.modality.clone();
+        let modality = volume.modality;
         self.selected_series = super::volume_input::VolumeInput::acquisition(&volume);
         self.loaded_secondary = Some(volume);
         self.secondary_window_center = Some(window_center);
@@ -223,8 +221,5 @@ impl SnapApp {
 
 #[cfg(not(target_arch = "wasm32"))]
 fn next_generation(generation: u64) -> u64 {
-    match generation.checked_add(1) {
-        Some(next) => next,
-        None => u64::MAX,
-    }
+    generation.saturating_add(1)
 }
