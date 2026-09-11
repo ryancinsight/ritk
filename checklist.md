@@ -52,6 +52,10 @@
 - [x] Run focused/full RITK gates, collect exact-head hosted checks, merge the
       increment as [PR #267](https://github.com/ryancinsight/ritk/pull/267),
       and synchronize the Atlas dependency lock.
+- [x] Serve the packaged `ritk-snap` wasm bundle on a local HTTP origin, drop
+      the synthetic three-file Part 10 study through a browser `DataTransfer`,
+      inspect the non-black canvas frame, and record the PNG in the manual;
+      physical browser input and the remaining host matrix stay open.
 
 ## FIX-DTI-VOLUME-FRAME [major][arch] — Preserve diffusion coordinate frames
 
