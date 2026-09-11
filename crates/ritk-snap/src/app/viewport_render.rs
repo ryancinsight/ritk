@@ -328,8 +328,8 @@ impl SnapApp {
         // not depend on egui's response methods.
         let action_viewport = match ViewerViewport::new(
             axis,
-            origin,
-            egui::vec2(scale_x, scale_y),
+            [f64::from(origin.x), f64::from(origin.y)],
+            [f64::from(scale_x), f64::from(scale_y)],
             source_size,
             view_transform,
         ) {

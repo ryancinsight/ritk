@@ -80,25 +80,15 @@ fn focus_loss_cancels_a_gesture_and_lifecycle_actions_exit() {
 
 #[test]
 fn unsupported_buttons_and_invalid_viewports_are_typed_failures() {
-    let invalid_axis = ViewerViewport::new(
-        3,
-        egui::Pos2::ZERO,
-        egui::vec2(1.0, 1.0),
-        [4, 4],
-        ViewTransform::default(),
-    );
+    let invalid_axis =
+        ViewerViewport::new(3, [0.0, 0.0], [1.0, 1.0], [4, 4], ViewTransform::default());
     assert!(matches!(
         invalid_axis,
         Err(ViewerViewportError::Axis { axis: 3 })
     ));
 
-    let invalid_geometry = ViewerViewport::new(
-        0,
-        egui::Pos2::ZERO,
-        egui::vec2(0.0, 1.0),
-        [4, 4],
-        ViewTransform::default(),
-    );
+    let invalid_geometry =
+        ViewerViewport::new(0, [0.0, 0.0], [0.0, 1.0], [4, 4], ViewTransform::default());
     assert!(matches!(
         invalid_geometry,
         Err(ViewerViewportError::InvalidScreenGeometry)

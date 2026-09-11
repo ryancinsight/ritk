@@ -78,7 +78,7 @@ pub use coordinate_system::{
     format_point_mm, lps_to_ras, ras_to_lps, AnatomicalFrame, PatientPosition,
 };
 pub use cursor_info::{format_lps, voxel_to_lps};
-pub use dropped_input::{decide_dropped_input_action, DroppedInputAction};
+pub use dropped_input::{decide_dropped_input_action, DroppedInput, DroppedInputAction};
 pub use export_plan::{
     axis_folder_name, axis_slice_total, plan_all_mpr_exports, PlannedSliceExport,
 };

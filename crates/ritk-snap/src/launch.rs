@@ -119,35 +119,22 @@ pub fn run_app_with_options(_options: AppLaunchOptions) -> anyhow::Result<()> {
     )
 }
 
-/// Start the `ritk-snap` egui viewer in a browser canvas.
+/// Start the RITK browser canvas workflow through the Métis host.
 ///
-/// This entrypoint is exported only for `wasm32` and is intended to be called
-/// from JavaScript after loading the generated wasm module.
+/// This asynchronous entrypoint is exported only for `wasm32` and keeps the
+/// original JavaScript bootstrap contract. It delegates to
+/// [`start_web_canvas`], so the browser path receives only the format-neutral
+/// Métis canvas and bounded file handoff; RITK retains DICOM decoding and
+/// viewer state.
 #[cfg(target_arch = "wasm32")]
 #[wasm_bindgen::prelude::wasm_bindgen]
 pub async fn start_web(canvas_id: String) -> Result<(), wasm_bindgen::JsValue> {
     use wasm_bindgen_futures::JsFuture;
 
-    // Mount the generic Métis HTML5/CSS host first. Its bounded file handoff
-    // feeds RITK's existing DICOM routing; no format classification occurs in
-    // the host crate.
-    metis_web::metis_start();
+    crate::app::start_web_canvas(canvas_id)?;
 
-    let web_options = eframe::WebOptions::default();
-
-    let runner = eframe::WebRunner::new();
-    runner
-        .start(
-            &canvas_id,
-            web_options,
-            Box::new(|_cc| Ok(Box::new(crate::app::SnapApp::default()))),
-        )
-        .await
-        .map_err(|e| {
-            wasm_bindgen::JsValue::from_str(&format!("failed to start web runner: {e:?}"))
-        })?;
-
-    // Yield once so startup errors surface as rejected promises to JS callers.
+    // Preserve the async bootstrap contract so existing JavaScript callers can
+    // await startup while the bounded browser task begins its first tick.
     JsFuture::from(js_sys::Promise::resolve(&wasm_bindgen::JsValue::UNDEFINED))
         .await
         .map_err(|e| {
@@ -162,9 +149,8 @@ pub async fn start_web(canvas_id: String) -> Result<(), wasm_bindgen::JsValue> {
 /// The workflow receives bounded browser file bytes from Métis, lets RITK
 /// classify and decode them, and presents the selected RITK frame through the
 /// named HTML5 canvas. [`start_web_orthogonal_canvases`] presents the three
-/// RITK orthogonal frames through three named canvases; the existing
-/// [`start_web`] eframe entrypoint remains available while the full browser
-/// shell is migrated.
+/// RITK orthogonal frames through three named canvases. [`start_web`] is the
+/// asynchronous JavaScript-compatible wrapper for this single-canvas path.
 #[cfg(target_arch = "wasm32")]
 #[wasm_bindgen::prelude::wasm_bindgen]
 pub fn start_web_canvas(canvas_id: String) -> Result<(), wasm_bindgen::JsValue> {

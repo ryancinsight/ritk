@@ -4,8 +4,8 @@ use crate::session::ViewerSessionSnapshot;
 use crate::tools::interaction::ToolState;
 use crate::ui::window_presets::WindowPreset;
 use crate::ui::{
-    decide_dropped_input_action, format_lps, show_colorbar, voxel_to_lps, DroppedInputAction,
-    LinkedCursor, MAX_ZOOM, MIN_ZOOM,
+    decide_dropped_input_action, format_lps, show_colorbar, voxel_to_lps, DroppedInput,
+    DroppedInputAction, LinkedCursor, MAX_ZOOM, MIN_ZOOM,
 };
 use crate::viewer::{DEFAULT_WINDOW_CENTER, DEFAULT_WINDOW_WIDTH};
 
@@ -130,11 +130,15 @@ impl SnapApp {
     /// actions. The browser host supplies bounded named bytes, which enter the
     /// same RITK DICOM and volume classifiers as native pathless drops.
     pub(crate) fn handle_dropped_inputs(&mut self, ctx: &egui::Context) {
-        let dropped = ctx.input_mut(|i| std::mem::take(&mut i.raw.dropped_files));
+        let dropped = ctx
+            .input_mut(|i| std::mem::take(&mut i.raw.dropped_files))
+            .into_iter()
+            .map(|file| DroppedInput::new(file.path, file.name, file.mime, file.bytes))
+            .collect::<Vec<_>>();
         #[cfg(target_arch = "wasm32")]
         let dropped = {
             let mut dropped = dropped;
-            super::browser_input::extend_dropped_files(&mut dropped);
+            dropped.extend(super::browser_input::take_dropped_files());
             dropped
         };
         let action = decide_dropped_input_action(&dropped);

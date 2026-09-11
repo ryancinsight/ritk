@@ -13,8 +13,8 @@ mod wheel;
 fn viewport(source_size: [usize; 2]) -> ViewerViewport {
     ViewerViewport::new(
         0,
-        egui::Pos2::ZERO,
-        egui::vec2(1.0, 1.0),
+        [0.0, 0.0],
+        [1.0, 1.0],
         source_size,
         ViewTransform::default(),
     )

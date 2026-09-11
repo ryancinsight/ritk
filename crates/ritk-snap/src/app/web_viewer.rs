@@ -171,8 +171,8 @@ fn viewport_for_frame(axis: usize, frame: &PresentationFrame) -> std::io::Result
         .map_err(|_| std::io::Error::other("browser frame height exceeds host range"))?;
     ViewerViewport::new(
         axis,
-        egui::pos2(0.0, 0.0),
-        egui::vec2(1.0, 1.0),
+        [0.0, 0.0],
+        [1.0, 1.0],
         [width, height],
         ViewTransform::default(),
     )
@@ -188,21 +188,28 @@ fn launch_browser_viewer(viewer: BrowserViewer) -> Result<(), JsValue> {
                 Ok(keep_running) => keep_running,
                 Err(error) => {
                     tracing::error!(%error, "RITK browser canvas workflow stopped");
+                    // The task owns the only live browser loop. Failure must
+                    // release Métis listeners before the task exits so a
+                    // remount cannot retain callbacks from this generation.
+                    metis_web::metis_stop();
                     break;
                 }
             };
             if !keep_running {
+                metis_web::metis_stop();
                 break;
             }
             let timer = match WebTimer::new(FRAME_INTERVAL) {
                 Ok(timer) => timer,
                 Err(error) => {
                     tracing::error!(%error, "RITK browser canvas timer stopped");
+                    metis_web::metis_stop();
                     break;
                 }
             };
             if let Err(error) = timer.await {
                 tracing::error!(%error, "RITK browser canvas timer stopped");
+                metis_web::metis_stop();
                 break;
             }
         }

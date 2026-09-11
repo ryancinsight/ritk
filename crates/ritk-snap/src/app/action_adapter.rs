@@ -32,8 +32,8 @@ const VIRTUAL_KEY_ARROW_DOWN: u32 = 0x28;
 #[derive(Debug, Clone, Copy, PartialEq)]
 pub(crate) struct ViewerViewport {
     axis: usize,
-    origin: egui::Pos2,
-    texel_size: egui::Vec2,
+    origin: [f64; 2],
+    texel_size: [f64; 2],
     source_size: [usize; 2],
     transform: ViewTransform,
 }
@@ -51,8 +51,8 @@ impl ViewerViewport {
     /// outside the finite positive range required by the inverse mapping.
     pub(crate) fn new(
         axis: usize,
-        origin: egui::Pos2,
-        texel_size: egui::Vec2,
+        origin: [f64; 2],
+        texel_size: [f64; 2],
         source_size: [usize; 2],
         transform: ViewTransform,
     ) -> Result<Self, ViewerViewportError> {
@@ -62,10 +62,10 @@ impl ViewerViewport {
         if source_size.contains(&0) {
             return Err(ViewerViewportError::EmptyImage { source_size });
         }
-        if !origin.is_finite()
-            || !texel_size.is_finite()
-            || texel_size.x <= 0.0
-            || texel_size.y <= 0.0
+        if !origin.iter().all(|value| value.is_finite())
+            || !texel_size.iter().all(|value| value.is_finite())
+            || texel_size[0] <= 0.0
+            || texel_size[1] <= 0.0
         {
             return Err(ViewerViewportError::InvalidScreenGeometry);
         }
@@ -80,10 +80,10 @@ impl ViewerViewport {
 
     fn screen_bounds(self) -> Option<[f64; 4]> {
         let [width, height] = self.transform.output_size(self.source_size);
-        let min_x = f64::from(self.origin.x);
-        let min_y = f64::from(self.origin.y);
-        let extent_x = f64::from(self.texel_size.x) * width as f64;
-        let extent_y = f64::from(self.texel_size.y) * height as f64;
+        let min_x = self.origin[0];
+        let min_y = self.origin[1];
+        let extent_x = self.texel_size[0] * width as f64;
+        let extent_y = self.texel_size[1] * height as f64;
         let max_x = min_x + extent_x;
         let max_y = min_y + extent_y;
         if !extent_x.is_finite()
@@ -108,10 +108,8 @@ impl ViewerViewport {
         }
         let output_size = self.transform.output_size(self.source_size);
         let output = [
-            ((x - min_x) / f64::from(self.texel_size.x))
-                .clamp(0.0, output_size[0] as f64 * 0.999_999),
-            ((y - min_y) / f64::from(self.texel_size.y))
-                .clamp(0.0, output_size[1] as f64 * 0.999_999),
+            ((x - min_x) / self.texel_size[0]).clamp(0.0, output_size[0] as f64 * 0.999_999),
+            ((y - min_y) / self.texel_size[1]).clamp(0.0, output_size[1] as f64 * 0.999_999),
         ];
         let [source_x, source_y] = self
             .transform
