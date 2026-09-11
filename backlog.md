@@ -72,8 +72,7 @@
 
 <a id="RITK-SNAP-METIS-001"></a>
 ## RITK-SNAP-METIS-001 — Migrate the viewer shell to Métis [arch] [major]
-- Status: in-progress; priority: P1; owner: RITK viewer + Métis framework; integrator: root; last-update: 2026-09-10; risk: lost viewer behavior; decision: [ADR 0026](docs/adr/0026-viewer-presentation-migration.md).
-- Lease: root — `crates/ritk-snap/src/app/browser_input.rs`, `crates/ritk-snap/src/app/web_viewer.rs`, `crates/ritk-snap/src/launch.rs`, `docs/adr/0026-viewer-presentation-migration.md`, `docs/manual/dicom-workflow.md` — 2026-09-11T00:50:00-04:00.
+- Status: in-progress; priority: P1; owner: RITK viewer + Métis framework; integrator: root; last-update: 2026-09-11; risk: lost viewer behavior; decision: [ADR 0026](docs/adr/0026-viewer-presentation-migration.md).
 - Driver: user's named application; framework work: [METIS-MIGRATION-001](../metis/backlog.md#METIS-MIGRATION-001), [V09](../metis/docs/VERIFICATION.md#V09).
 - Dependencies: RITK-SNAP-FIXTURES-001, RITK-SNAP-OPEN-001, RITK-SNAP-DIRECTORY-001, RITK-SNAP-ASPECT-001, RITK-SNAP-RESOURCES-001, RITK-SNAP-FRAMES-001, RITK-SNAP-FUSION-001, RITK-SNAP-COORDINATES-001, RITK-SNAP-COLOR-001, RITK-SNAP-GRAYSCALE-001; working Métis host/input/image/async/file capabilities.
 - Scope: inventory and replace egui/eframe shell and GUI-specific carriers in `ritk-snap`; retain RITK decoding, geometry and viewer semantics, Iris visualization contracts and Moirai execution. Tauri is a framework comparison target, not a dependency found in this app.
@@ -92,6 +91,8 @@
 - Remaining host gap: GPU presentation, full application-window/overlay capture, and a browser runtime visual capture through Métis; hosted installer artifact evidence remains a release workflow item.
 - Completed increment: RITK now runs one bounded Moirai viewer-load task per target with checked generations and cooperative cancellation. Superseded or closed tasks cannot publish; current-load failures preserve the previous study. DICOM parsing, metadata, geometry, and viewer state remain in RITK. Focused tests and ADR/manual evidence are included in this change.
 - Completed increment: `WebCanvasPresenter` implements Metis's borrowed `CanvasFrame` seam for `PresentationFrame`; the adapter is compile-targeted and format-neutral, while `start_web` remains on eframe until the complete browser viewer shell and visual workflow land.
+- Completed increment: `start_web_canvas` mounts the Métis browser host, routes its bounded named-byte drops through RITK's shared reducer, opens synthetic Part 10 DICOM bytes with the existing RITK loader, and presents one selected slice through Moirai's bounded canvas provider. Verification: the browser-byte reducer test passes, native package tests remain green, and WASM Clippy passes. Pointer actions, three-view composition, GPU upload, and runtime visual capture remain open.
+- Dependency portability increment: Consus HDF5's 32-bit WASM chunk-size threshold is fixed by [Consus PR #74](https://github.com/ryancinsight/consus/pull/74); native 290/290 nextest, strict Clippy, and a `wasm32-unknown-unknown` check pass.
 
 <a id="RITK-SOFT-TISSUE-REGISTRATION-2026-09-03"></a>
 ## RITK-SOFT-TISSUE-REGISTRATION-2026-09-03 — Soft-tissue multimodal registration [major] [arch] — done

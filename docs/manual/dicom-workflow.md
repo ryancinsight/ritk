@@ -359,6 +359,32 @@ reviewed visual oracle remains the native Métis content capture above until a
 browser runtime bundle is generated on a host with the wasm-bindgen packaging
 tool; the browser check must not be represented by a static host screenshot.
 
+The direct Métis canvas workflow is also available for the first browser
+presentation slice. It keeps the canvas outside Métis's `#metis-app` mount and
+uses the RITK-owned browser loop:
+
+```html
+<main id="metis-app" aria-label="Métis browser host"></main>
+<canvas id="ritk-snap-canvas" width="512" height="512"></canvas>
+<script type="module">
+  import init, { start_web_canvas, stop_web_canvas } from "./ritk_snap.js";
+
+  await init();
+  start_web_canvas("ritk-snap-canvas");
+  // Call stop_web_canvas() when the page or route is torn down.
+</script>
+```
+
+`start_web_canvas` mounts Métis, consumes its bounded named-byte drop batch,
+and passes the files to RITK's existing DICOM classifier and byte-series
+loader. A valid drop replaces the RITK study and presents the selected slice on
+the named canvas; malformed, oversized, or non-DICOM input follows RITK's
+typed error and status paths. The browser host receives only the borrowed
+RGBA frame. DICOM parsing, metadata, geometry, window/level and viewer state
+remain in RITK. This increment presents one selected slice; browser pointer
+actions, the three-view layout, GPU upload, and a runtime visual capture are
+separate acceptance work and are not represented by a fabricated screenshot.
+
 ## Present validated RITK views through Métis
 
 RITK remains the only DICOM owner. After RITK has opened the study, decoded the
@@ -525,6 +551,6 @@ is implemented by RITK's `PresentationFrame`, and
 uploads that borrowed RGBA view through Métis and Moirai. The adapter carries
 only dimensions and pixels; DICOM parsing, decoded volume state, geometry and
 medical display policy remain in RITK. `start_web` continues to use the eframe
-canvas until the full viewer shell migration supplies the browser event and
-three-view composition path, so this adapter is not presented as a completed
-browser viewer workflow.
+canvas for the existing shell, while `start_web_canvas` exercises the direct
+single-slice browser workflow described above. Neither path moves DICOM
+behavior into the GUI framework.

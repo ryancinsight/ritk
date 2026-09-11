@@ -6700,6 +6700,7 @@ dependencies = [
  "js-sys",
  "metis-platform",
  "metis-web",
+ "moirai-pal",
  "mnemosyne-memory",
  "moirai-runtime",
  "pollster",

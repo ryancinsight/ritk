@@ -46,6 +46,6 @@ fn main() -> anyhow::Result<()> {
 #[cfg(target_arch = "wasm32")]
 fn main() -> anyhow::Result<()> {
     anyhow::bail!(
-        "ritk-snap binary is native-only on wasm32; use ritk_snap::start_web from JavaScript"
+        "ritk-snap binary is native-only on wasm32; use ritk_snap::start_web or start_web_canvas from JavaScript"
     )
 }

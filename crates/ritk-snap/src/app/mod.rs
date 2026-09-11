@@ -42,8 +42,13 @@ mod volume_state;
 
 #[cfg(target_arch = "wasm32")]
 mod browser_input;
+#[cfg(target_arch = "wasm32")]
+mod web_viewer;
 
 #[cfg(test)]
 mod tests;
 
 pub(crate) use state::SnapApp;
+
+#[cfg(target_arch = "wasm32")]
+pub(crate) use web_viewer::{start_web_canvas, stop_web_canvas};
