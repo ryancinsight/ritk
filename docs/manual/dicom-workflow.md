@@ -460,8 +460,8 @@ contains no patient data.
 This image is the PNG exported by the canvas during that run and is inspected
 as an application-content snapshot. The synthetic DOM event is untrusted, so
 the smoke proves the packaged byte-to-frame path but does not close physical
-drag-and-drop, browser-engine, pointer, three-view, GPU, or complete
-application-window capture acceptance.
+drag-and-drop, physical pointer input, cross-engine browser input, GPU, or
+complete application-window capture acceptance.
 
 ## Inspect the browser orthogonal visual capture
 
@@ -476,8 +476,14 @@ contains no patient data, and preserves the axial/coronal/sagittal order.
 ![RITK orthogonal browser DICOM capture](images/dicom-metis-browser-three.png)
 
 This runtime capture proves the packaged three-canvas presentation path. The
-drop event is still synthetic, so physical drag-and-drop, pointer dispatch,
-GPU upload, and complete application-window capture remain open.
+drop event is still synthetic, so physical drag-and-drop, cross-engine pointer
+input, GPU upload, and complete application-window capture remain open. The
+format-neutral pointer and wheel handoff itself is implemented: each canvas
+retains a bounded queue, preserves target-local coordinates, normalizes line
+and page wheel units, routes events to its RITK axis, and cancels an active
+gesture on `pointercancel` or provider failure. Those behaviors are covered by
+the RITK presentation/action tests and ADR 0031; a trusted browser-driver
+capture is still required before claiming physical or cross-engine evidence.
 
 ## Present validated RITK views through Métis
 
