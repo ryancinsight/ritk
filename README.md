@@ -105,7 +105,8 @@ tool, layout flags, overlay flags, sidebar tab, pan, and zoom.
 
 `ritk-snap` exposes a wasm entrypoint for browser hosting:
 
-- `ritk_snap::start_web(canvas_id: String)` (wasm-only, exported via `wasm-bindgen`)
+- `ritk_snap::start_web(canvas_id: String)` (wasm-only, exported via
+  `wasm-bindgen`; asynchronous wrapper for the Métis canvas workflow)
 - `ritk_snap::start_web_canvas(canvas_id: String)` and
   `ritk_snap::stop_web_canvas()` (wasm-only, direct single-slice canvas workflow)
 - `ritk_snap::start_web_orthogonal_canvases(axial_id, coronal_id, sagittal_id)`
@@ -122,16 +123,15 @@ wasm-bindgen target/wasm32-unknown-unknown/release/ritk_snap.wasm `
 ```
 
 Load the generated JS/WASM bundle in a page with both a `#metis-app` host
-element and a `<canvas>`, then invoke `start_web("<canvas-id>")`. Métis owns
-browser file handles and bounded named-byte transfer; RITK owns DICOM
-classification, scanning, decoding, and viewer state.
+element and a `<canvas>`, then invoke `start_web("<canvas-id>")`. The async
+entrypoint delegates to the Métis canvas workflow. Métis owns browser file
+handles and bounded named-byte transfer; RITK owns DICOM classification,
+scanning, decoding, and viewer state.
 
-For the direct Métis canvas increment, invoke `start_web_canvas` instead. It
-uses the same bounded drop handoff, opens DICOM bytes through RITK, and
-renders one selected slice through the borrowed canvas seam. The
-`start_web_orthogonal_canvases` entrypoint renders the three RITK orthogonal
-slices into three named canvases using the same handoff. Neither entrypoint
-moves DICOM parsing or viewer state into the GUI framework.
+`start_web_canvas` is the synchronous form of the same single-canvas workflow.
+The `start_web_orthogonal_canvases` entrypoint renders the three RITK
+orthogonal slices into three named canvases using the same handoff. None of
+these entrypoints moves DICOM parsing or viewer state into the GUI framework.
 
 Minimal JS bootstrap pattern:
 

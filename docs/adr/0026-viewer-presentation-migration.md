@@ -273,6 +273,16 @@ MIME and Part 10 checks, byte-series assembly, and all decoded viewer state
 remain in RITK. This increment removes a second eframe dependency from the
 browser handoff without moving format logic into Métis.
 
+Revision 2026-09-11 (default browser entry migration): `start_web` retains its
+asynchronous `wasm-bindgen` contract but now delegates to the RITK-owned
+single-canvas Métis workflow. The browser entry no longer starts an eframe
+`WebRunner`; `start_web_canvas` is the synchronous form and the orthogonal
+entrypoint remains available for three-view presentation. Métis still owns
+only the browser host, bounded file transfer and canvas transport. RITK owns
+DICOM classification, byte loading, geometry, presentation policy and viewer
+state. GPU presentation, trusted cross-engine input and complete application
+window capture remain open acceptance work.
+
 Revision 2026-09-08: [RITK-SNAP-DIRECTORY-001](../../backlog.md#RITK-SNAP-DIRECTORY-001)
 now validates the Explicit VR Little Endian DICOMDIR record sequence before
 membership is admitted. RecordInUseFlag, next/lower offsets, incoming-link

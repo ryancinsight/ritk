@@ -335,7 +335,7 @@ signing, and release promotion remain separate release-authority decisions.
 ## Open dropped DICOM files in the browser host
 
 The browser build uses the same RITK byte loader as the native dropped-input
-path. The HTML page supplies a Métis mount point and an eframe canvas:
+path. The HTML page supplies a Métis mount point and a named canvas:
 
 ```html
 <main id="metis-app" aria-label="Métis browser host"></main>
@@ -349,12 +349,12 @@ path. The HTML page supplies a Métis mount point and an eframe canvas:
 ```
 
 Métis registers the browser drag-and-drop listeners and transfers one bounded
-batch of named bytes. The RITK adapter copies those payloads into egui's input
-carrier; `ui::dropped_input` then detects Part 10 content or a DICOM suffix,
-and `dicom::loader` performs the existing scan, series selection, budgeted
-preflight, and decode. No filesystem path, browser handle, DICOM tag, or
-parser object crosses into Métis. A malformed or oversized payload follows the
-same typed rejection path as a native byte drop.
+batch of named bytes. The RITK browser adapter constructs its neutral
+`DroppedInput` value directly; the shared policy then detects Part 10 content
+or a DICOM suffix, and `dicom::loader` performs the existing scan, series
+selection, budgeted preflight, and decode. No filesystem path, browser handle,
+DICOM tag, or parser object crosses into Métis. A malformed or oversized
+payload follows the same typed rejection path as a native byte drop.
 
 The browser acceptance checks are the locked `wasm32-unknown-unknown` build and
 warning-denied Clippy for `ritk-snap`, plus the RITK byte-routing and loader
@@ -667,8 +667,8 @@ is implemented by RITK's `PresentationFrame`, and
 `ritk_snap::presentation::WebCanvasPresenter` resolves a named canvas and
 uploads that borrowed RGBA view through Métis and Moirai. The adapter carries
 only dimensions and pixels; DICOM parsing, decoded volume state, geometry and
-medical display policy remain in RITK. `start_web` continues to use the eframe
-canvas for the existing shell, while `start_web_canvas` and
-`start_web_orthogonal_canvases` exercise the direct single-slice and
-three-canvas browser workflows described above. Neither path moves DICOM
-behavior into the GUI framework.
+medical display policy remain in RITK. `start_web` now retains its async
+JavaScript contract while delegating to the direct single-canvas workflow;
+`start_web_canvas` is its synchronous form and
+`start_web_orthogonal_canvases` exercises the three-canvas workflow. None of
+these paths moves DICOM behavior into the GUI framework.

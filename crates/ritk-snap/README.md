@@ -57,7 +57,7 @@ API reference: `cargo doc --locked -p ritk-snap --no-deps`.
 ## Browser host
 
 The WASM entrypoint composes the generic Métis HTML5/CSS host with the RITK
-eframe canvas. The page must provide both a `#metis-app` element for the
+canvas workflow. The page must provide both a `#metis-app` element for the
 Métis host and the canvas element whose ID is passed to `start_web`. Métis owns
 the browser `File` handles and transfers one bounded named-byte batch; RITK
 then classifies, scans and decodes those bytes through its DICOM loader.
@@ -69,9 +69,10 @@ await init();
 await start_web("ritk-canvas");
 ```
 
-This keeps browser DICOM opening on the same RITK path as desktop pathless
-input. The host never receives a filesystem path and never decides whether a
-payload is DICOM.
+`start_web` retains the asynchronous JavaScript contract while delegating to
+the same single-canvas workflow as `start_web_canvas`. Browser DICOM opening
+therefore uses the same RITK path as desktop pathless input. The host never
+receives a filesystem path and never decides whether a payload is DICOM.
 
 The direct canvas migration slice uses the same host and byte handoff without
 starting eframe. It renders one selected RITK slice through the borrowed Métis
