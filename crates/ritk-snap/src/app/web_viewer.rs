@@ -188,21 +188,28 @@ fn launch_browser_viewer(viewer: BrowserViewer) -> Result<(), JsValue> {
                 Ok(keep_running) => keep_running,
                 Err(error) => {
                     tracing::error!(%error, "RITK browser canvas workflow stopped");
+                    // The task owns the only live browser loop. Failure must
+                    // release Métis listeners before the task exits so a
+                    // remount cannot retain callbacks from this generation.
+                    metis_web::metis_stop();
                     break;
                 }
             };
             if !keep_running {
+                metis_web::metis_stop();
                 break;
             }
             let timer = match WebTimer::new(FRAME_INTERVAL) {
                 Ok(timer) => timer,
                 Err(error) => {
                     tracing::error!(%error, "RITK browser canvas timer stopped");
+                    metis_web::metis_stop();
                     break;
                 }
             };
             if let Err(error) = timer.await {
                 tracing::error!(%error, "RITK browser canvas timer stopped");
+                metis_web::metis_stop();
                 break;
             }
         }

@@ -34,6 +34,11 @@ only when the reducer requests repaint, and cancels the gesture on translation
 or reducer failure. A browser pointer cancel becomes the existing typed
 `PointerCancelled` viewer action.
 
+Revision 2026-09-11: the browser loop now releases the Métis mount when a
+presenter, input, or timer error ends the task, before the task exits. This
+keeps listener and pointer-capture ownership generation-scoped and makes a
+subsequent route remount independent of the failed task.
+
 ## Rejected alternative
 
 Handling pointer state in Métis would duplicate RITK's viewer reducer and make

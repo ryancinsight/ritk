@@ -445,6 +445,11 @@ its bounded pointer and wheel batch to the matching RITK axis. Physical
 browser-driver input, cross-engine evidence and GPU upload remain separate
 acceptance work.
 
+The browser task also tears down the Métis mount when a frame, input, or timer
+failure ends the loop. This failure path is distinct from an explicit
+`stop_web_canvas` call: it releases provider listeners before the task exits so
+the next route generation cannot retain callbacks or stale pointer capture.
+
 ## Inspect the browser canvas visual smoke
 
 The packaged bundle was served from a local HTTP origin and given the three
