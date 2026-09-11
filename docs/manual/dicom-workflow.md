@@ -396,7 +396,39 @@ the named canvas; malformed, oversized, or non-DICOM input follows RITK's
 typed error and status paths. The browser host receives only the borrowed
 RGBA frame. DICOM parsing, metadata, geometry, window/level and viewer state
 remain in RITK. This increment presents one selected slice; browser pointer
-actions, the three-view layout, and GPU upload remain separate acceptance work.
+actions and GPU upload remain separate acceptance work.
+
+The direct three-view entrypoint uses three canvases and preserves the same
+format-neutral boundary:
+
+```html
+<main id="metis-app" aria-label="Métis browser host"></main>
+<section aria-label="RITK orthogonal views">
+  <canvas id="ritk-snap-axial"></canvas>
+  <canvas id="ritk-snap-coronal"></canvas>
+  <canvas id="ritk-snap-sagittal"></canvas>
+</section>
+<script type="module">
+  import init, {
+    start_web_orthogonal_canvases,
+    stop_web_canvas,
+  } from "./ritk_snap.js";
+
+  await init();
+  start_web_orthogonal_canvases(
+    "ritk-snap-axial",
+    "ritk-snap-coronal",
+    "ritk-snap-sagittal",
+  );
+  // Call stop_web_canvas() when the page or route is torn down.
+</script>
+```
+
+The entrypoint drains one bounded Métis file batch, opens it through RITK's
+existing loader and presents the axial, coronal and sagittal
+`PresentationFrame` values in that order. RITK's presentation tests assert the
+axis order and slice dimensions; a physical browser capture of all three
+canvases remains open with the pointer and GPU acceptance work.
 
 ## Inspect the browser canvas visual smoke
 
@@ -583,6 +615,7 @@ is implemented by RITK's `PresentationFrame`, and
 uploads that borrowed RGBA view through Métis and Moirai. The adapter carries
 only dimensions and pixels; DICOM parsing, decoded volume state, geometry and
 medical display policy remain in RITK. `start_web` continues to use the eframe
-canvas for the existing shell, while `start_web_canvas` exercises the direct
-single-slice browser workflow described above. Neither path moves DICOM
+canvas for the existing shell, while `start_web_canvas` and
+`start_web_orthogonal_canvases` exercise the direct single-slice and
+three-canvas browser workflows described above. Neither path moves DICOM
 behavior into the GUI framework.

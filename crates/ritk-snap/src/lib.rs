@@ -40,7 +40,7 @@ pub use launch::{run_app, run_app_with_options, AppLaunchOptions};
 #[cfg(target_arch = "wasm32")]
 pub use launch::{run_app_with_options, AppLaunchOptions};
 #[cfg(target_arch = "wasm32")]
-pub use launch::{start_web, start_web_canvas, stop_web_canvas};
+pub use launch::{start_web, start_web_canvas, start_web_orthogonal_canvases, stop_web_canvas};
 pub use loaded_volume::LoadedVolume;
 pub use viewer::ViewerState;
 

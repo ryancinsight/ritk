@@ -169,6 +169,21 @@ pub fn start_web_canvas(canvas_id: String) -> Result<(), wasm_bindgen::JsValue> 
     crate::app::start_web_canvas(canvas_id)
 }
 
+/// Start the RITK browser canvas workflow with three orthogonal views.
+///
+/// The identifiers are ordered axial, coronal, sagittal. RITK owns the
+/// decoded volume, slice selection and display semantics; Métis owns only the
+/// browser canvases and bounded file handoff.
+#[cfg(target_arch = "wasm32")]
+#[wasm_bindgen::prelude::wasm_bindgen]
+pub fn start_web_orthogonal_canvases(
+    axial_id: String,
+    coronal_id: String,
+    sagittal_id: String,
+) -> Result<(), wasm_bindgen::JsValue> {
+    crate::app::start_web_orthogonal_canvases([axial_id, coronal_id, sagittal_id])
+}
+
 /// Stop the RITK browser canvas workflow and release its browser task.
 #[cfg(target_arch = "wasm32")]
 #[wasm_bindgen::prelude::wasm_bindgen]

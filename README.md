@@ -108,6 +108,8 @@ tool, layout flags, overlay flags, sidebar tab, pan, and zoom.
 - `ritk_snap::start_web(canvas_id: String)` (wasm-only, exported via `wasm-bindgen`)
 - `ritk_snap::start_web_canvas(canvas_id: String)` and
   `ritk_snap::stop_web_canvas()` (wasm-only, direct single-slice canvas workflow)
+- `ritk_snap::start_web_orthogonal_canvases(axial_id, coronal_id, sagittal_id)`
+  (wasm-only, direct three-canvas axial/coronal/sagittal workflow)
 
 The native binary (`ritk-snap`) remains desktop-only. For browser execution,
 build the `ritk-snap` library target for `wasm32-unknown-unknown` and run
@@ -126,8 +128,10 @@ classification, scanning, decoding, and viewer state.
 
 For the direct Métis canvas increment, invoke `start_web_canvas` instead. It
 uses the same bounded drop handoff, opens DICOM bytes through RITK, and
-renders one selected slice through the borrowed canvas seam. It does not move
-DICOM parsing or viewer state into the GUI framework.
+renders one selected slice through the borrowed canvas seam. The
+`start_web_orthogonal_canvases` entrypoint renders the three RITK orthogonal
+slices into three named canvases using the same handoff. Neither entrypoint
+moves DICOM parsing or viewer state into the GUI framework.
 
 Minimal JS bootstrap pattern:
 

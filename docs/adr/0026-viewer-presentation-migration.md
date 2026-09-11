@@ -66,6 +66,15 @@ probe observes that translation during the real hidden host run; the remaining
 work is dispatching those events into `SnapApp` actions without reintroducing
 egui carriers or moving DICOM state into Métis.
 
+Revision 2026-09-11 (browser orthogonal increment): the WASM presentation
+surface now also exports `start_web_orthogonal_canvases`, which resolves three
+Métis-owned canvases in axial, coronal, sagittal order and presents the three
+RITK `PresentationFrame` values produced from one bounded file handoff. The
+single-canvas entrypoint remains available for the first browser smoke. The
+new path keeps DICOM parsing, geometry, window/level, slice selection and
+viewer state in RITK; physical browser input, GPU upload and full-window
+capture remain verification gaps.
+
 Revision 2026-09-10 (viewer action increment): RITK now reduces a bounded
 `PresentationEvent` batch through `PresentationDispatcher` into the typed
 `ViewerAction` contract. Press state is held in a fixed button array; movement
