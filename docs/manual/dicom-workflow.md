@@ -501,6 +501,36 @@ gesture on `pointercancel` or provider failure. Those behaviors are covered by
 the RITK presentation/action tests and ADR 0031; a trusted browser-driver
 capture is still required before claiming physical or cross-engine evidence.
 
+## Run the Metis trusted canvas trace
+
+The reusable browser transport lives in the Metis repository. Run it from a
+Metis checkout that contains the canvas scenario, and point it at the served
+RITK page. The page must expose the RITK-owned canvases and use the real RITK
+browser entrypoint:
+
+```text
+python scripts/browser_runtime.py --scenario canvas --engine chromium \
+  --driver-url http://127.0.0.1:9515 \
+  --url http://127.0.0.1:8080/ritk.html \
+  --consumer-revision <RITK-40-HEX> \
+  --canvas-id ritk-snap-axial \
+  --canvas-id ritk-snap-coronal \
+  --canvas-id ritk-snap-sagittal
+```
+
+Replace the driver endpoint and page URL with the configured local service,
+then repeat the run for Firefox and WebKit. Set `<RITK-40-HEX>` to the exact
+RITK revision serving the page. The Metis trace records the negotiated browser
+capabilities, bounded canvas dimensions, trusted pointer-drag and wheel
+actions, full-window PNGs, element PNGs, and both repository revisions. A
+missing driver endpoint is a failed invocation, not a skipped engine.
+
+The trace is transport and presentation evidence only. RITK must assert the
+accepted byte batch, Part 10 classification, selected study and series, axis
+order, decoded dimensions, expected slice/viewport changes, and stale-frame
+rejection after teardown. These DICOM and viewer assertions stay in RITK; the
+Metis runner neither reads DICOM bytes nor interprets clinical pixels.
+
 ## Present validated RITK views through Métis
 
 RITK remains the only DICOM owner. After RITK has opened the study, decoded the
