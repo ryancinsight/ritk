@@ -39,3 +39,4 @@
 | [0028](0028-transformed-viewport-coordinate-fidelity.md) | Transformed viewport coordinate fidelity | Accepted |
 | [0029](0029-dicom-rgb-display.md) | DICOM RGB display preservation | Accepted |
 | [0030](0030-dicom-grayscale-presentation.md) | DICOM grayscale presentation semantics | Accepted |
+| [0031](0031-bounded-browser-canvas-input.md) | Bounded browser canvas input adapter | Accepted |

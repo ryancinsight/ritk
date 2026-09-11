@@ -146,6 +146,15 @@ pub enum PresentationEvent {
         /// Released button.
         button: PointerButton,
     },
+    /// A browser or native host canceled an active pointer without a release.
+    PointerCancel {
+        /// Horizontal client coordinate in display pixels.
+        x: f64,
+        /// Vertical client coordinate in display pixels.
+        y: f64,
+        /// Canceled button.
+        button: PointerButton,
+    },
     /// A wheel rotated at client coordinates.
     ///
     /// The deltas retain the host's signed units as finite `f64` values. A

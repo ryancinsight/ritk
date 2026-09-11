@@ -143,6 +143,23 @@ impl PresentationDispatcher {
                     action_limit,
                 )
             }
+            PresentationEvent::PointerCancel { x, y, button } => {
+                let slot = button_slot(*button);
+                let Some(_press) = self.pointers[slot].take() else {
+                    return Err(ActionDispatchError::PointerReleaseWithoutPress {
+                        button: *button,
+                    });
+                };
+                let position = viewport_point(*x, *y)?;
+                Self::push_action(
+                    actions,
+                    ViewerAction::PointerCancelled {
+                        button: *button,
+                        position,
+                    },
+                    action_limit,
+                )
+            }
             PresentationEvent::KeyDown {
                 virtual_key,
                 repeated,
