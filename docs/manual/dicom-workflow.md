@@ -301,6 +301,44 @@ exit for the invalid-study probe. This binds the end-to-end evidence to an
 RITK-owned DICOM decode and a format-neutral Métis frame transfer; no DICOM
 parser or clinical state is present in the Métis workspace.
 
+## Capture an actual DICOM study through Métis
+
+The repository also includes the acquired MRI-DIR CT series under
+`test_data/3_head_ct_mridir/DICOM/`. It is a public CC BY 4.0 porcine-head
+phantom series from TCIA, not a generated Part 10 fixture and not private
+patient data. The series contains 409 512 × 512 CT slices; its provenance and
+license are recorded in [`test_data/README.md`](../../test_data/README.md).
+
+Build the viewer, then pass that DICOM directory to the same RITK-owned loader
+and Métis native surface used by the synthetic workflow:
+
+```powershell
+cargo build --locked -p ritk-snap
+target\debug\ritk-snap.exe `
+  test_data\3_head_ct_mridir\DICOM `
+  --metis-native `
+  --capture scratch\viewer\real-dicom-metis.png
+```
+
+The command decodes the real series, selects the current orthogonal slices,
+renders their RGBA frames in RITK, and transfers those frames to the Métis
+surface. The capture is 1280 × 800 pixels with axial, coronal, and sagittal
+views from left to right. The reviewed output below is the actual run from
+this workflow (SHA-256
+`4fac3ea73e58325755c780de51c1b1504c0fc391da5c48ed2f578810ff46ddcb`):
+
+![Actual MRI-DIR CT series rendered through the Métis native surface](images/dicom-metis-real-ct.png)
+
+This image is application output from DICOM pixel data; it is not an
+illustration or a generated image. The PNG is a documentation snapshot of the
+public phantom series. A private clinical study must remain outside the
+repository and can be passed as the positional path locally; neither the
+study files nor their identifiers belong in the manual or a public artifact.
+
+This command proves the native Métis frame path. It does not claim a browser
+WebDriver, WebGPU, or cross-engine run; those require configured browser
+drivers and remain separate RITK integration gates.
+
 ## Build the RITK SNAP executable and installer
 
 RITK owns the application manifest at
