@@ -107,7 +107,7 @@
 
 <a id="RITK-SNAP-METIS-002"></a>
 ## RITK-SNAP-METIS-002 — Validate RITK browser semantic traces [arch] [minor]
-- Status: review; priority: P1; owner: RITK viewer; integrator: root; last-update: 2026-09-11; regions: `crates/ritk-snap/src/browser_trace.rs`, `crates/ritk-snap/src/browser_trace/tests.rs`, `crates/ritk-snap/tests/fixtures/browser-trace.json`, `crates/ritk-snap/src/main.rs`, `docs/adr/0033-browser-trace-validator.md`, `docs/adr/README.md`, `docs/manual/dicom-workflow.md`; dependencies: RITK-SNAP-METIS-001, Metis PR #73; risk: false visual/runtime evidence
+- Status: done; priority: P1; owner: RITK viewer; integrator: root; last-update: 2026-09-11; delivery: [RITK PR #301](https://github.com/ryancinsight/ritk/pull/301), merge `d97e6523934a9485122d4dbb4afa1eacdf826353`; regions: `crates/ritk-snap/src/browser_trace.rs`, `crates/ritk-snap/src/browser_trace/tests.rs`, `crates/ritk-snap/tests/fixtures/browser-trace.json`, `crates/ritk-snap/src/main.rs`, `docs/adr/0033-browser-trace-validator.md`, `docs/adr/README.md`, `docs/manual/dicom-workflow.md`; dependencies: RITK-SNAP-METIS-001, Metis PR #73; risk: false visual/runtime evidence
 - Outcome: RITK's executable validates the Metis canvas trace as a consumer-owned semantic contract while Metis remains generic.
 - Scope: schema, revision, axis/slice/frame attributes, trusted input actions, screenshot scopes and cleanup evidence; no browser driver, DICOM parser, or clinical pixel interpretation in Metis.
 - Acceptance: valid three-canvas traces pass; missing/invalid consumer attributes, axis order, dimensions, actions, revisions, screenshots, cleanup or status fail with typed diagnostics; unit tests cover positive, boundary and malformed traces; manual documents the command.
