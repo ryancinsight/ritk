@@ -18,6 +18,7 @@ pub(crate) mod clinical_distribution;
 mod filter;
 mod image_placement;
 mod io_ops;
+#[cfg(not(target_arch = "wasm32"))]
 mod load_tasks;
 mod menu;
 mod mesh_ops;

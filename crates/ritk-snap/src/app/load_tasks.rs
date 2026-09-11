@@ -5,13 +5,17 @@
 //! checked at both sides of decoding; the application remains the sole owner
 //! that can publish the result into viewer state.
 
-use crate::app::volume_input::VolumeInput;
-use crate::LoadedVolume;
-use anyhow::{anyhow, Result};
 use std::sync::{
     atomic::{AtomicBool, Ordering},
     Arc,
 };
+
+#[cfg(not(target_arch = "wasm32"))]
+use crate::app::volume_input::VolumeInput;
+#[cfg(not(target_arch = "wasm32"))]
+use crate::LoadedVolume;
+#[cfg(not(target_arch = "wasm32"))]
+use anyhow::{anyhow, Result};
 
 /// Identifies the viewer state that receives a completed load.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]

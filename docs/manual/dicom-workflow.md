@@ -518,3 +518,13 @@ item. These workflows prepare the egui baseline for the Métis migration. The
 browser handoff now has a compiled RITK adapter and manual workflow; GPU
 upload, native packaging, and a browser runtime visual capture remain separate
 acceptance items in [RITK-SNAP-METIS-001](../../backlog.md#RITK-SNAP-METIS-001).
+
+The browser presentation seam is now explicit as well. `metis_web::CanvasFrame`
+is implemented by RITK's `PresentationFrame`, and
+`ritk_snap::presentation::WebCanvasPresenter` resolves a named canvas and
+uploads that borrowed RGBA view through Métis and Moirai. The adapter carries
+only dimensions and pixels; DICOM parsing, decoded volume state, geometry and
+medical display policy remain in RITK. `start_web` continues to use the eframe
+canvas until the full viewer shell migration supplies the browser event and
+three-view composition path, so this adapter is not presented as a completed
+browser viewer workflow.

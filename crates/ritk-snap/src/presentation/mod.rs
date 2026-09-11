@@ -8,6 +8,9 @@ mod actions;
 mod events;
 mod frame;
 
+#[cfg(target_arch = "wasm32")]
+mod web;
+
 #[cfg(windows)]
 mod native;
 #[cfg(windows)]
@@ -22,6 +25,9 @@ pub use events::{
     MAX_COMPOSITION_UNITS, MAX_PRESENTATION_EVENTS,
 };
 pub use frame::PresentationFrame;
+
+#[cfg(target_arch = "wasm32")]
+pub use web::WebCanvasPresenter;
 
 #[cfg(windows)]
 pub use native::{run_native_frame, translate_native_events, NativeFrameOutcome};

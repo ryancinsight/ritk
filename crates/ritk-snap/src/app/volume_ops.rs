@@ -129,6 +129,7 @@ impl SnapApp {
         self.pending_secondary_load = None;
     }
 
+    #[cfg(not(target_arch = "wasm32"))]
     fn publish_loaded(
         &mut self,
         target: super::load_tasks::LoadTarget,
