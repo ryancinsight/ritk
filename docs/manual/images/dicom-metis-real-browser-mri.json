@@ -1,0 +1,49 @@
+{
+  "schema": 1,
+  "status": "passed",
+  "runtime": {
+    "engine": "chromium",
+    "host": "Codex in-app browser",
+    "input": "bounded programmatic DataTransfer",
+    "metis_revision": "be6235ab0efdb4c406fd1c5c8af3a1880a4ab143",
+    "ritk_revision": "e4f7ad7281f4822a2b32a6e4fb04aff00b59ec7d",
+    "moirai_revision": "fd836cd1715e1cd6f537290ce670829ba875be94"
+  },
+  "dataset": {
+    "path": "test_data/2_head_mri_t2/DICOM",
+    "files_available": 94,
+    "files_submitted": 94,
+    "bytes_read": 49807236,
+    "license": "CC BY 4.0",
+    "description": "public MRI-DIR porcine-head T2 MRI phantom; not private patient data"
+  },
+  "frames": {
+    "axial": {
+      "width": 512,
+      "height": 512,
+      "non_black_pixels": 190836,
+      "sha256": "9f7e4cc559348a784b13912958b5b25e03d425099737ee165a51b5e1e7dadfe1",
+      "image": "dicom-metis-real-browser-mri-axial.png"
+    },
+    "coronal": {
+      "width": 512,
+      "height": 94,
+      "non_black_pixels": 41863,
+      "sha256": "f7af01f60af7e27f9e781e1f2d7a68a7be5ce2092f186486c7116c8280a005f3",
+      "image": "dicom-metis-real-browser-mri-coronal.png"
+    },
+    "sagittal": {
+      "width": 512,
+      "height": 94,
+      "non_black_pixels": 38843,
+      "sha256": "de4fb44039edad6b7c94103d81ff9f0c9b7815f4287d1ca8539cdd5095f1e10e",
+      "image": "dicom-metis-real-browser-mri-sagittal.png"
+    }
+  },
+  "bounds": {
+    "metis_file_count": 512,
+    "metis_batch_bytes": 268435456,
+    "series_submission": "accepted: 94 DICOM files"
+  },
+  "visual_scope": "canvas pixels only; browser chrome excluded"
+}

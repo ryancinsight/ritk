@@ -366,6 +366,34 @@ check; native IME, accessibility and cross-platform host evidence are separate
 gates. Replace the path with a private clinical study only for a local run;
 private studies must not be committed or uploaded.
 
+### Inspect the saved MRI study in the browser
+
+The same saved 94-file MRI-DIR T2 study was opened through the packaged RITK
+WASM browser entrypoint. The Codex in-app Chromium host mounted Métis, sent the
+files through its bounded `DataTransfer`, and reported 49,807,236 bytes read
+before RITK presented all three non-black canvases:
+
+| Canvas | Presented pixels | Non-black pixels |
+| --- | ---: | ---: |
+| axial | 512 × 512 | 190,836 |
+| coronal | 512 × 94 | 41,863 |
+| sagittal | 512 × 94 | 38,843 |
+
+![Actual MRI-DIR T2 axial frame presented through the Métis browser canvas](images/dicom-metis-real-browser-mri-axial.png)
+
+![Actual MRI-DIR T2 coronal frame presented through the Métis browser canvas](images/dicom-metis-real-browser-mri-coronal.png)
+
+![Actual MRI-DIR T2 sagittal frame presented through the Métis browser canvas](images/dicom-metis-real-browser-mri-sagittal.png)
+
+These are canvas PNGs exported from the live run after RITK decoded the real
+DICOM bytes; they are not generated illustrations. The source revisions,
+accepted-file bound, frame dimensions, non-black counts and SHA-256 digests are
+recorded in
+[`dicom-metis-real-browser-mri.json`](images/dicom-metis-real-browser-mri.json).
+The capture excludes browser chrome. This run proves the saved MRI study through
+one Chromium browser host and a bounded programmatic drop; physical drag-and-
+drop, Firefox/WebKit, WebGPU and complete application-window capture remain
+separate acceptance work.
 ## Inspect an actual DICOM study in the browser
 
 The same RITK browser entrypoint was exercised against nine real Part 10 files
