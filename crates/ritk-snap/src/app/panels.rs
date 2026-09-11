@@ -133,7 +133,7 @@ impl SnapApp {
         let dropped = ctx
             .input_mut(|i| std::mem::take(&mut i.raw.dropped_files))
             .into_iter()
-            .map(DroppedInput::from_egui)
+            .map(|file| DroppedInput::new(file.path, file.name, file.mime, file.bytes))
             .collect::<Vec<_>>();
         #[cfg(target_arch = "wasm32")]
         let dropped = {

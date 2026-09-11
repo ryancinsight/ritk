@@ -36,11 +36,6 @@ impl DroppedInput {
         }
     }
 
-    /// Convert one native eframe carrier at the shell boundary.
-    pub(crate) fn from_egui(file: egui::DroppedFile) -> Self {
-        Self::new(file.path, file.name, file.mime, file.bytes)
-    }
-
     /// Return the filesystem path, when the host supplied one.
     fn filesystem_path(&self) -> Option<&Path> {
         self.path.as_deref()
