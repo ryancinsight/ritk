@@ -189,6 +189,14 @@ manual Windows dispatch with the `2e21146c6a9de73666396705c25dfa7555eb172c`
 revision recorded in `Cargo.lock`; hosted artifact collection is evidence only
 and does not publish or sign the release.
 
+Revision 2026-09-10 (viewer load-task increment): pending primary and
+secondary `VolumeInput` requests now run through one bounded Moirai blocking
+task per target. RITK assigns checked generations and a cooperative
+cancellation token; superseded, closed, or cancelled tasks cannot publish a
+`LoadedVolume`, status, or frame. Current-load failures update the status while
+retaining the previous study. The task bridge owns no DICOM logic and Métis is
+unchanged.
+
 Revision 2026-09-08: [RITK-SNAP-DIRECTORY-001](../../backlog.md#RITK-SNAP-DIRECTORY-001)
 now validates the Explicit VR Little Endian DICOMDIR record sequence before
 membership is admitted. RecordInUseFlag, next/lower offsets, incoming-link
@@ -350,7 +358,7 @@ boundary.
 | `ToolState`'s `egui::Pos2` carriers in `tools/interaction/tool_state.rs` | In-progress pan, zoom, window/level and measurement coordinates | `ImagePoint` and `ViewportOffset` plus the format-neutral action contract | Closed in the adapter increment; transformed image coordinates and screen-space pan offsets retain their existing semantics. |
 | `egui::ColorImage`, `TextureHandle`, `render::{slice_render,mip_vr,gpu_*}` | Scalar/RGB presentation, W/L, colormap, MPR, MIP/VR and GPU numerical behavior | `metis-ui-lang::RasterImage`, `DisplayList`, and `metis-platform::Framebuffer`; Iris remains the visualization contract | A bounded image upload/texture cache and GPU-capable presentation path must support three orthogonal views and projections without copying DICOM or replacing Iris render contracts. |
 | `rfd::FileDialog` and `app/io_ops.rs` | User-selected paths, selected-study identity, export/session semantics | Moirai filesystem grants; Métis browser byte batches | Native dialog and browser byte-batch adapters must preserve exact selection intent and return typed failures to RITK. |
-| `process_pending_loads`, `pacs_worker`, `tick_cine`, and repaint requests | Decode/PACS/cine scheduling, cancellation and result publication | Moirai bounded tasks and host pump; `metis-frontend::AsyncFrontendApp` is an IPC pattern | A viewer-specific bounded task bridge is absent; it must never publish a stale or cancelled study. |
+| `process_pending_loads`, `pacs_worker`, `tick_cine`, and repaint requests | Decode/PACS/cine scheduling, cancellation and result publication | Moirai bounded tasks and host pump; `metis-frontend::AsyncFrontendApp` is an IPC pattern | The RITK bridge uses per-target generations and cooperative cancellation; host close and supersession invalidate pending publication. |
 | Menus, panels, overlays, annotations and accessibility behavior in `ui/*` | Medical labels, physical-coordinate overlays, measurements and actions | Métis UI language DOM/CSS layout plus format-neutral display commands | Widget, text, clipboard, context-menu, accessibility and overlay primitives need a conformance slice before porting the complete shell. |
 | `CaptureApp` in `launch/capture.rs` (`ViewportCommand::Screenshot`, `Event::Screenshot`, completion and close) | Eframe application-window PNG capture, study-load requirement and failure reporting | Métis framebuffer readback plus host close/present result | The Windows Métis session now provides a finite source-frame capture; complete application-window readback and three-view capture remain before shell cutover. |
 | `clap` binary options and eframe packaging in `main.rs` | RITK viewer arguments and capture workflow | `metis-cli` `init`, `dev`, `build`, `package`, `completions`; `package` produces the Windows MSI; `metis-platform` native surface | An application manifest and installer workflow must carry the RITK binary, assets and permissions as one distributable app; MSI installation is the packaged artifact workflow, not a separate `install` command. |
