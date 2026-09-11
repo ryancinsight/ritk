@@ -394,6 +394,7 @@ The capture excludes browser chrome. This run proves the saved MRI study through
 one Chromium browser host and a bounded programmatic drop; physical drag-and-
 drop, Firefox/WebKit, WebGPU and complete application-window capture remain
 separate acceptance work.
+
 ## Inspect an actual DICOM study in the browser
 
 The same RITK browser entrypoint was exercised against nine real Part 10 files
