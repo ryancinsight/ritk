@@ -339,6 +339,33 @@ This command proves the native Métis frame path. It does not claim a browser
 WebDriver, WebGPU, or cross-engine run; those require configured browser
 drivers and remain separate RITK integration gates.
 
+### Capture the saved MRI study through Métis
+
+The same native path accepts the saved MRI-DIR T2 series in
+`test_data/2_head_mri_t2/DICOM/`. These are 94 real DICOM Part 10 files from
+the public CC BY 4.0 porcine-head phantom; they are not generated fixtures and
+do not contain private patient data. Run the viewer from the repository root:
+
+```powershell
+target\debug\ritk-snap.exe `
+  test_data\2_head_mri_t2\DICOM `
+  --metis-native `
+  --capture scratch\viewer\real-mri-metis.png
+```
+
+RITK scans and decodes the MRI series, renders its axial, coronal and sagittal
+planes, and transfers the resulting RGBA frame to the Métis native surface.
+The reviewed 1280 × 800 output below is the actual run, not a made image:
+
+![Actual MRI-DIR T2 series rendered through the Métis native surface](images/dicom-metis-real-mri.png)
+
+The input byte count, source revisions, executable digest and image digest are
+recorded in [`dicom-metis-real-mri.json`](images/dicom-metis-real-mri.json).
+The capture excludes operating-system chrome and remains a visual-content
+check; native IME, accessibility and cross-platform host evidence are separate
+gates. Replace the path with a private clinical study only for a local run;
+private studies must not be committed or uploaded.
+
 ## Inspect an actual DICOM study in the browser
 
 The same RITK browser entrypoint was exercised against nine real Part 10 files
