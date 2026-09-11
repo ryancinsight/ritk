@@ -510,6 +510,9 @@ RGBA slices. The native session composes three such frames using the same
 window/level, colormap, orientation, and physical-spacing rules as the RITK
 viewer. The host receives one bounded framebuffer; DICOM identifiers, paths,
 codec state, geometry, and volume storage stay in RITK.
+The canonical handoff uses RITK's neutral `render_rgba` and RGBA orientation
+path; the legacy eframe slice adapter is the only path in this handoff that
+converts those pixels to `egui::ColorImage`.
 
 On Windows, `run_native_viewer` loads the selected study in RITK, presents the
 three orthogonal views through Métis's native surface, routes pointer events to

@@ -460,6 +460,17 @@ complete application-window capture remain before shell cutover. DICOM opening
 remains exercised by RITK's existing file and byte loaders; Métis receives only
 bounded format-neutral bytes and validated presentation data.
 
+Revision 2026-09-11 (neutral frame correction): commit
+[`c2fbea76e`](https://github.com/ryancinsight/ritk/commit/c2fbea76e) moves the
+Métis-facing slice path from `egui::ColorImage` to RITK-owned RGBA storage.
+`PresentationFrame::from_rgba` validates the public host contract, the native
+session applies the existing flip/rotation mapping directly to RGBA bytes, and
+the legacy `SliceRenderer::render` adapter remains for eframe callers. A
+16-transform differential test covers the neutral path against the existing
+RITK image oracle; the `ritk-snap` library gate passes 802/802 nextest tests,
+warning-denied Clippy, formatting, and doctests. No DICOM value or viewer state
+crosses into Métis.
+
 ## Alternatives and validation
 
 Retaining egui indefinitely contradicts the requested framework target. Removing
