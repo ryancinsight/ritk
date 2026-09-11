@@ -104,6 +104,13 @@
 - Neutral frame correction (2026-09-11, [commit `c2fbea76e`](https://github.com/ryancinsight/ritk/commit/c2fbea76e)): RITK's Métis-facing slice path now renders and orients validated RGBA storage directly. `PresentationFrame::from_rgba` owns the host contract; only the legacy eframe slice adapter constructs `egui::ColorImage` for this handoff. The 16-transform differential test and the 802-test `ritk-snap` library gate pass; DICOM decoding, metadata, geometry, and viewer state remain in RITK.
 - Dependency portability increment: Consus HDF5's 32-bit WASM chunk-size threshold is fixed by [Consus PR #74](https://github.com/ryancinsight/consus/pull/74); native 290/290 nextest, strict Clippy, and a `wasm32-unknown-unknown` check pass.
 
+<a id="RITK-SNAP-METIS-002"></a>
+## RITK-SNAP-METIS-002 — Validate RITK browser semantic traces [arch] [minor]
+- Status: in-progress; priority: P1; owner: RITK viewer; integrator: root; last-update: 2026-09-11; regions: `crates/ritk-snap/src/browser_trace.rs`, `crates/ritk-snap/src/main.rs`, `docs/adr/0033-browser-trace-validator.md`, `docs/adr/README.md`, `docs/manual/dicom-workflow.md`; dependencies: RITK-SNAP-METIS-001, Metis PR #73; risk: false visual/runtime evidence
+- Outcome: RITK's executable validates the Metis canvas trace as a consumer-owned semantic contract while Metis remains generic.
+- Scope: schema, revision, axis/slice/frame attributes, trusted input actions, screenshot scopes and cleanup evidence; no browser driver, DICOM parser, or clinical pixel interpretation in Metis.
+- Acceptance: valid three-canvas traces pass; missing/invalid consumer attributes, axis order, dimensions, actions, revisions, screenshots, cleanup or status fail with typed diagnostics; unit tests cover positive, boundary and malformed traces; manual documents the command.
+- Verification: focused `ritk-snap` nextest, warning-denied Clippy, formatting, doctests and `ritk-snap --validate-browser-trace` against a committed small fixture generated in tests.
 <a id="RITK-SOFT-TISSUE-REGISTRATION-2026-09-03"></a>
 ## RITK-SOFT-TISSUE-REGISTRATION-2026-09-03 — Soft-tissue multimodal registration [major] [arch] — done
 
