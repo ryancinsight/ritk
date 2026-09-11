@@ -87,8 +87,30 @@ start_web_canvas("ritk-snap-canvas");
 
 `start_web_canvas` is a presentation increment, not a second DICOM
 implementation: RITK owns classification, parsing, metadata, geometry,
-window/level and viewer state. Browser pointer actions, the three-view layout,
-GPU upload and runtime visual capture remain open migration work.
+window/level and viewer state. Browser pointer actions, GPU upload and runtime
+visual capture remain open migration work.
+
+The direct three-view browser entrypoint uses three canvases ordered axial,
+coronal, sagittal:
+
+```javascript
+import init, {
+  start_web_orthogonal_canvases,
+  stop_web_canvas,
+} from "./ritk_snap.js";
+
+await init();
+start_web_orthogonal_canvases(
+  "ritk-snap-axial",
+  "ritk-snap-coronal",
+  "ritk-snap-sagittal",
+);
+// Call stop_web_canvas() when the page or route is torn down.
+```
+
+The three canvases receive RITK-owned axial, coronal and sagittal
+`PresentationFrame` values from one bounded drop batch. Métis remains the
+format-neutral browser host and receives no DICOM state.
 
 To produce the browser module, build the library target and run the pinned
 `wasm-bindgen 0.2.128` CLI over

@@ -38,6 +38,28 @@ impl PresentationFrame {
         Self::from_color_image(&image)
     }
 
+    /// Renders the three orthogonal volume slices for a multi-viewport host.
+    ///
+    /// The indices are ordered axial, coronal, sagittal. The returned frames
+    /// retain the slice renderer's axis-specific dimensions and all display
+    /// semantics remain in RITK before the host boundary is crossed.
+    ///
+    /// # Errors
+    /// Returns an error if any rendered slice violates the bounded frame
+    /// contract or cannot be allocated.
+    #[cfg(any(target_arch = "wasm32", test))]
+    pub(crate) fn from_orthogonal_slices(
+        volume: &LoadedVolume,
+        indices: [usize; 3],
+        window_level: WindowLevel,
+        colormap: NamedColorMap,
+    ) -> Result<[Self; 3]> {
+        let axial = Self::from_slice(volume, 0, indices[0], window_level, colormap)?;
+        let coronal = Self::from_slice(volume, 1, indices[1], window_level, colormap)?;
+        let sagittal = Self::from_slice(volume, 2, indices[2], window_level, colormap)?;
+        Ok([axial, coronal, sagittal])
+    }
+
     /// Copies an egui image into the format-neutral RGBA representation.
     ///
     /// This is a presentation adapter only. It does not inspect or retain the
@@ -192,5 +214,25 @@ mod tests {
         assert_eq!(frame.width(), 2);
         assert_eq!(frame.height(), 1);
         assert_eq!(frame.rgba(), &[0, 0, 0, 255, 255, 255, 255, 255]);
+    }
+
+    #[test]
+    fn orthogonal_frames_preserve_axis_order_and_dimensions() {
+        let frames = PresentationFrame::from_orthogonal_slices(
+            &test_volume(),
+            [0, 0, 0],
+            WindowLevel::new(127.5, 255.0),
+            NamedColorMap::Grayscale,
+        )
+        .expect("orthogonal frames");
+
+        assert_eq!(frames[0].width(), 2);
+        assert_eq!(frames[0].height(), 1);
+        assert_eq!(frames[1].width(), 2);
+        assert_eq!(frames[1].height(), 1);
+        assert_eq!(frames[2].width(), 1);
+        assert_eq!(frames[2].height(), 1);
+        assert_eq!(frames[0].rgba(), frames[1].rgba());
+        assert_eq!(frames[2].rgba(), &[0, 0, 0, 255]);
     }
 }
