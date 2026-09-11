@@ -529,6 +529,32 @@ python scripts/browser_runtime.py --scenario canvas --engine chromium \
   --canvas-id ritk-snap-sagittal
 ```
 
+To carry RITK's own semantic evidence in the generic trace, add one
+`--canvas-attribute` argument per bounded canvas attribute:
+
+```text
+python scripts/browser_runtime.py --scenario canvas --engine chromium \
+  --driver-url http://127.0.0.1:9515 \
+  --url http://127.0.0.1:8080/ritk.html \
+  --consumer-revision <RITK-40-HEX> \
+  --canvas-id ritk-snap-axial \
+  --canvas-id ritk-snap-coronal \
+  --canvas-id ritk-snap-sagittal \
+  --canvas-attribute data-ritk-load-state \
+  --canvas-attribute data-ritk-frame-state \
+  --canvas-attribute data-ritk-axis \
+  --canvas-attribute data-ritk-slice-index \
+  --canvas-attribute data-ritk-slice-count \
+  --canvas-attribute data-ritk-frame-width \
+  --canvas-attribute data-ritk-frame-height
+```
+
+Metis records these requested values opaquely under each canvas snapshot and
+uses `null` when an attribute is absent. RITK interprets the values using the
+semantic contract above; the generic runner does not interpret DICOM or
+clinical state. The Metis attribute capture was added in [PR #73](https://github.com/ryancinsight/metis/pull/73)
+at commit `fb4ad93`.
+
 Replace the driver endpoint and page URL with the configured local service,
 then repeat the run for Firefox and WebKit. Set `<RITK-40-HEX>` to the exact
 RITK revision serving the page. The Metis trace records the negotiated browser
