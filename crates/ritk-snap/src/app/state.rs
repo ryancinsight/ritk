@@ -213,6 +213,13 @@ pub(crate) struct SnapApp {
     /// Secondary path queued for load on next update cycle.
     pub(crate) pending_secondary_load: Option<VolumeInput>,
 
+    /// Monotonic publication generations for primary and secondary loads.
+    #[cfg(not(target_arch = "wasm32"))]
+    pub(crate) load_generations: [u64; 2],
+    /// At most one bounded decode task per viewer target.
+    #[cfg(not(target_arch = "wasm32"))]
+    pub(crate) load_tasks: [Option<super::load_tasks::LoadTask>; 2],
+
     // ── PACS panel ────────────────────────────────────────────────────────────
     /// PACS server connection configuration.
     pub(crate) pacs_config: crate::pacs::PacsConfig,
@@ -339,6 +346,10 @@ impl Default for SnapApp {
             status_message: "No study loaded — use File > Open to load a DICOM folder.".to_owned(),
             pending_load: None,
             pending_secondary_load: None,
+            #[cfg(not(target_arch = "wasm32"))]
+            load_generations: [0; 2],
+            #[cfg(not(target_arch = "wasm32"))]
+            load_tasks: std::array::from_fn(|_| None),
             pacs_config: crate::pacs::PacsConfig::default(),
             pacs_query_state: crate::pacs::QueryState::Idle,
             show_pacs_panel: false,
@@ -396,6 +407,9 @@ impl eframe::App for SnapApp {
         // Process any pending file load queued in the previous frame so that
         // the file-dialog result is always acted on with a full UI repaint.
         self.process_pending_loads();
+
+        // Publish completed Moirai loads without blocking the UI thread.
+        self.poll_load_tasks();
 
         // Poll background PACS worker on every frame (must run even when the
         // PACS panel is closed so responses are applied promptly).

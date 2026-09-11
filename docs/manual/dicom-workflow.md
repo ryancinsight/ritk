@@ -391,6 +391,14 @@ Keyboard page navigation follows the same RITK-owned action path. Page Down
 advances the active slice and recomposes the native Métis framebuffer; the
 native session test verifies both the slice index and changed pixels.
 
+Deferred viewer loads use a bounded Moirai task per primary or comparison
+target. RITK assigns each request a generation and checks cooperative
+cancellation before publication, so a superseded or closed request cannot
+replace the current study. A failed replacement reports its error while the
+previous decoded study remains displayed. The load-task tests use the real
+synthetic DICOM fixtures and assert decoded shape, spacing, series identity,
+supersession, and close cancellation.
+
 Wheel input is now reduced and applied by RITK for every host. The native
 Moirai `ModifierState` is translated into the format-neutral
 `PresentationModifiers`; the current egui producer emits the same

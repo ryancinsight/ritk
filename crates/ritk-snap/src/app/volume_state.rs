@@ -186,6 +186,7 @@ impl SnapApp {
 
     /// Drop the currently loaded study and reset all study-owned state.
     pub(crate) fn close_study(&mut self) {
+        self.cancel_load_tasks();
         self.loaded = None;
         self.loaded_secondary = None;
         self.series_load_target = SeriesLoadTarget::Primary;

@@ -21,6 +21,8 @@ mod cursor;
 mod dicom_workflows;
 #[cfg(test)]
 mod distribution;
+#[cfg(not(target_arch = "wasm32"))]
+mod load_tasks;
 #[cfg(test)]
 mod measurement;
 #[cfg(test)]

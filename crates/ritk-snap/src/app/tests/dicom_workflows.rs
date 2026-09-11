@@ -99,6 +99,7 @@ fn sidebar_loads_distinct_same_folder_primary_and_secondary_acquisitions() {
         matches!(&app.pending_load, Some(VolumeInput::Series(info)) if info.series_instance_uid() == fixtures::SERIES_UID)
     );
     app.process_pending_loads();
+    app.wait_for_load_tasks();
     assert_primary(&app, fixtures::SERIES_UID);
     app.series_load_target = SeriesLoadTarget::Secondary;
     click_series(&mut app, &context, SECONDARY_UID);
@@ -106,6 +107,7 @@ fn sidebar_loads_distinct_same_folder_primary_and_secondary_acquisitions() {
         matches!(&app.pending_secondary_load, Some(VolumeInput::Series(info)) if info.series_instance_uid() == SECONDARY_UID)
     );
     app.process_pending_loads();
+    app.wait_for_load_tasks();
     assert_primary(&app, fixtures::SERIES_UID);
     assert_eq!(
         app.loaded_secondary
@@ -258,6 +260,7 @@ fn dicomdir_index_opens_referenced_pixels_and_excludes_unreferenced_acquisition(
     let mut app = SnapApp::default();
     app.pending_load = Some(VolumeInput::Path(index.clone()));
     app.process_pending_loads();
+    app.wait_for_load_tasks();
     assert_primary(&app, fixtures::SERIES_UID);
     let volume = app.loaded.as_ref().expect("indexed study loaded");
     assert_eq!(volume.source.as_deref(), Some(index.as_path()));
