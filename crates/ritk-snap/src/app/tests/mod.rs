@@ -14,6 +14,8 @@ use std::sync::Arc;
 #[cfg(test)]
 mod action_adapter;
 #[cfg(test)]
+mod browser_semantics;
+#[cfg(test)]
 mod colormap;
 #[cfg(test)]
 mod cursor;

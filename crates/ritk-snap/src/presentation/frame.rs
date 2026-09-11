@@ -118,6 +118,7 @@ impl PresentationFrame {
         })
     }
 
+    #[cfg(any(windows, test))]
     pub(crate) fn into_rgba_parts(self) -> (u32, u32, Box<[u8]>) {
         (self.width, self.height, self.rgba)
     }
