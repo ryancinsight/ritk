@@ -110,11 +110,19 @@ tool, layout flags, overlay flags, sidebar tab, pan, and zoom.
   `ritk_snap::stop_web_canvas()` (wasm-only, direct single-slice canvas workflow)
 
 The native binary (`ritk-snap`) remains desktop-only. For browser execution,
-build `crates/ritk-snap` for `wasm32-unknown-unknown`, load the generated JS/WASM
-bundle in a page with both a `#metis-app` host element and a `<canvas>`, and
-invoke `start_web("<canvas-id>")`. Métis owns browser file handles and bounded
-named-byte transfer; RITK owns DICOM classification, scanning, decoding, and
-viewer state.
+build the `ritk-snap` library target for `wasm32-unknown-unknown` and run
+`wasm-bindgen 0.2.128` over the resulting `ritk_snap.wasm`:
+
+```powershell
+cargo build --locked -p ritk-snap --lib --target wasm32-unknown-unknown --release
+wasm-bindgen target/wasm32-unknown-unknown/release/ritk_snap.wasm `
+  --target web --out-dir target/wasm-bindgen/ritk-snap
+```
+
+Load the generated JS/WASM bundle in a page with both a `#metis-app` host
+element and a `<canvas>`, then invoke `start_web("<canvas-id>")`. Métis owns
+browser file handles and bounded named-byte transfer; RITK owns DICOM
+classification, scanning, decoding, and viewer state.
 
 For the direct Métis canvas increment, invoke `start_web_canvas` instead. It
 uses the same bounded drop handoff, opens DICOM bytes through RITK, and

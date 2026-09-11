@@ -8,6 +8,11 @@ edition = "2021"
 description = "RITK DICOM image viewer — full-featured medical workstation viewer"
 license.workspace = true
 
+[lib]
+name = "ritk_snap"
+path = "src/lib.rs"
+crate-type = ["cdylib", "rlib"]
+
 [[bin]]
 name = "ritk-snap"
 path = "src/main.rs"

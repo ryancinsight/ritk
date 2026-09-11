@@ -218,6 +218,18 @@ eframe shell, and browser pointer actions, orthogonal composition, GPU upload,
 and runtime visual capture remain open. No DICOM parser, metadata, geometry, or
 viewer state is implemented in Métis.
 
+Revision 2026-09-11 (WASM packaging increment): `ritk-snap` now declares a
+`cdylib` library target so the browser artifact is the actual RITK library,
+not the native-only binary artifact. The lockfile advances the Mnemosyne
+consumer to merged [PR #143](https://github.com/ryancinsight/Mnemosyne/pull/143)
+(`be6efcb8`), whose host-environment FFI gate removes the final `getenv` link
+failure on `wasm32-unknown-unknown`. The release build and
+`wasm-bindgen 0.2.128 --target web` package pass against the live Atlas
+overlay; the locked commands are the standalone-checkout and CI acceptance
+path. They export `start_web` and `start_web_canvas`; browser pointer actions,
+three-view composition, GPU upload, and runtime visual capture remain open.
+DICOM ownership stays in RITK.
+
 Revision 2026-09-08: [RITK-SNAP-DIRECTORY-001](../../backlog.md#RITK-SNAP-DIRECTORY-001)
 now validates the Explicit VR Little Endian DICOMDIR record sequence before
 membership is admitted. RecordInUseFlag, next/lower offsets, incoming-link

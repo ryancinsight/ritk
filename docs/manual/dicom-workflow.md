@@ -351,13 +351,28 @@ same typed rejection path as a native byte drop.
 The browser acceptance checks are the locked `wasm32-unknown-unknown` build and
 warning-denied Clippy for `ritk-snap`, plus the RITK byte-routing and loader
 tests. The standalone consumer lock and graph now use the merged [Mnemosyne
-#141](https://github.com/ryancinsight/Mnemosyne/pull/141), [Coeus
+#141](https://github.com/ryancinsight/Mnemosyne/pull/141) and [Mnemosyne
+#143](https://github.com/ryancinsight/Mnemosyne/pull/143), [Coeus
 #393](https://github.com/ryancinsight/Coeus/pull/393), [Apollo
 #386](https://github.com/ryancinsight/apollo/pull/386), and [Leto
-#187](https://github.com/ryancinsight/leto/pull/187) portability fixes. The
-reviewed visual oracle remains the native Métis content capture above until a
-browser runtime bundle is generated on a host with the wasm-bindgen packaging
-tool; the browser check must not be represented by a static host screenshot.
+#187](https://github.com/ryancinsight/leto/pull/187) portability fixes. Build
+the RITK library target and package it with the pinned `wasm-bindgen 0.2.128`
+CLI:
+
+```powershell
+cargo build --locked -p ritk-snap --lib --target wasm32-unknown-unknown --release
+wasm-bindgen target/wasm32-unknown-unknown/release/ritk_snap.wasm `
+  --target web --out-dir target/wasm-bindgen/ritk-snap
+```
+
+The package contains `ritk_snap.js`, `ritk_snap_bg.wasm`, and TypeScript
+declarations. Run those commands from a standalone checkout or CI; the local
+Atlas development overlay resolves first-party crates to working trees and is
+therefore verified with the equivalent unlocked release build. The generated
+module exports `start_web` and `start_web_canvas`; packaging proves the
+consumer artifact boundary, while a browser runtime visual capture remains
+separate acceptance work and must not be represented by a static host
+screenshot.
 
 The direct Métis canvas workflow is also available for the first browser
 presentation slice. It keeps the canvas outside Métis's `#metis-app` mount and

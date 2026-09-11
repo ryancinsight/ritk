@@ -89,3 +89,16 @@ start_web_canvas("ritk-snap-canvas");
 implementation: RITK owns classification, parsing, metadata, geometry,
 window/level and viewer state. Browser pointer actions, the three-view layout,
 GPU upload and runtime visual capture remain open migration work.
+
+To produce the browser module, build the library target and run the pinned
+`wasm-bindgen 0.2.128` CLI over
+`target/wasm32-unknown-unknown/release/ritk_snap.wasm`:
+
+```powershell
+cargo build --locked -p ritk-snap --lib --target wasm32-unknown-unknown --release
+wasm-bindgen target/wasm32-unknown-unknown/release/ritk_snap.wasm `
+  --target web --out-dir target/wasm-bindgen/ritk-snap
+```
+
+The generated web module exports the RITK-owned launch functions; DICOM bytes
+and viewer state remain inside RITK.
