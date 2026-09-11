@@ -568,6 +568,29 @@ order, decoded dimensions, expected slice/viewport changes, and stale-frame
 rejection after teardown. These DICOM and viewer assertions stay in RITK; the
 Metis runner neither reads DICOM bytes nor interprets clinical pixels.
 
+### Validate the RITK meaning in a trace
+
+After the Metis runner writes a passed canvas trace, run the RITK-owned
+validator from the RITK checkout:
+
+```text
+cargo run --locked -p ritk-snap -- \
+  --validate-browser-trace output/browser/runtime/chromium-canvas.json
+```
+
+The command checks the schema and both repository revisions, the closed browser
+engine matrix, the ordered axial/coronal/sagittal canvases, all seven
+`data-ritk-*` values, intrinsic and presented dimensions, one trusted pointer
+drag and wheel action per canvas, full-window and element screenshot scopes,
+and input-source cleanup. Custom canvas identifiers use three repeated
+`--canvas-id` options in the same order as the trace. A small structural
+fixture is available at
+[`crates/ritk-snap/tests/fixtures/browser-trace.json`](../../crates/ritk-snap/tests/fixtures/browser-trace.json)
+for a local command demonstration; its digest fields exercise trace shape and
+do not claim a visual capture. The validator never opens DICOM bytes or
+interprets pixels, so clinical and decoded-value oracles remain the RITK
+workflow tests above.
+
 ## Present validated RITK views through Métis
 
 RITK remains the only DICOM owner. After RITK has opened the study, decoded the

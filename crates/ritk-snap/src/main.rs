@@ -15,7 +15,13 @@ static ALLOC: Mnemosyne = Mnemosyne;
 use std::path::PathBuf;
 
 #[cfg(not(target_arch = "wasm32"))]
+use std::io::Write;
+
+#[cfg(not(target_arch = "wasm32"))]
 use clap::Parser;
+
+#[cfg(not(target_arch = "wasm32"))]
+mod browser_trace;
 
 /// Native RITK DICOM viewer.
 #[cfg(not(target_arch = "wasm32"))]
@@ -31,11 +37,32 @@ struct Args {
     /// Run the loaded study through the Métis native host.
     #[arg(long)]
     metis_native: bool,
+    /// Validate a RITK-owned semantic canvas trace and exit.
+    #[arg(
+        long,
+        value_name = "JSON",
+        conflicts_with_all = ["initial_path", "capture", "metis_native"]
+    )]
+    validate_browser_trace: Option<PathBuf>,
+    /// Canvas identifiers in axial, coronal, sagittal order.
+    #[arg(
+        long = "canvas-id",
+        value_name = "ID",
+        action = clap::ArgAction::Append,
+        requires = "validate_browser_trace"
+    )]
+    canvas_ids: Vec<String>,
 }
 
 #[cfg(not(target_arch = "wasm32"))]
 fn main() -> anyhow::Result<()> {
     let args = Args::parse();
+    if let Some(path) = args.validate_browser_trace {
+        let report = browser_trace::validate_file(&path, &args.canvas_ids)?;
+        let mut stdout = std::io::stdout().lock();
+        writeln!(stdout, "{report}")?;
+        return Ok(());
+    }
     ritk_snap::run_app_with_options(ritk_snap::AppLaunchOptions {
         initial_path: args.initial_path,
         capture: args.capture,
