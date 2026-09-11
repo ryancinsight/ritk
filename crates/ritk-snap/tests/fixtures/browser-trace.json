@@ -1,0 +1,218 @@
+{
+  "schema": 1,
+  "status": "passed",
+  "engine": "chromium",
+  "url": "http://127.0.0.1:8080/ritk.html",
+  "bridge": "canvas",
+  "revision": "0000000000000000000000000000000000000000",
+  "consumer_revision": "1111111111111111111111111111111111111111",
+  "actions": [
+    { "action": "trusted-pointer-drag", "canvas": "ritk-snap-axial" },
+    { "action": "trusted-wheel", "canvas": "ritk-snap-axial" },
+    { "action": "trusted-pointer-drag", "canvas": "ritk-snap-coronal" },
+    { "action": "trusted-wheel", "canvas": "ritk-snap-coronal" },
+    { "action": "trusted-pointer-drag", "canvas": "ritk-snap-sagittal" },
+    { "action": "trusted-wheel", "canvas": "ritk-snap-sagittal" }
+  ],
+  "snapshots": [
+    {
+      "label": "ritk-snap-axial-initial",
+      "canvas": {
+        "id": "ritk-snap-axial",
+        "width": 256,
+        "height": 192,
+        "css_width": 512,
+        "css_height": 384,
+        "attributes": {
+          "data-ritk-load-state": "ready",
+          "data-ritk-frame-state": "presented",
+          "data-ritk-axis": "0",
+          "data-ritk-slice-index": "0",
+          "data-ritk-slice-count": "4",
+          "data-ritk-frame-width": "256",
+          "data-ritk-frame-height": "192"
+        }
+      }
+    },
+    {
+      "label": "ritk-snap-axial-after-input",
+      "canvas": {
+        "id": "ritk-snap-axial",
+        "width": 256,
+        "height": 192,
+        "css_width": 512,
+        "css_height": 384,
+        "attributes": {
+          "data-ritk-load-state": "ready",
+          "data-ritk-frame-state": "presented",
+          "data-ritk-axis": "0",
+          "data-ritk-slice-index": "1",
+          "data-ritk-slice-count": "4",
+          "data-ritk-frame-width": "256",
+          "data-ritk-frame-height": "192"
+        }
+      }
+    },
+    {
+      "label": "ritk-snap-coronal-initial",
+      "canvas": {
+        "id": "ritk-snap-coronal",
+        "width": 256,
+        "height": 192,
+        "css_width": 512,
+        "css_height": 384,
+        "attributes": {
+          "data-ritk-load-state": "ready",
+          "data-ritk-frame-state": "presented",
+          "data-ritk-axis": "1",
+          "data-ritk-slice-index": "0",
+          "data-ritk-slice-count": "4",
+          "data-ritk-frame-width": "256",
+          "data-ritk-frame-height": "192"
+        }
+      }
+    },
+    {
+      "label": "ritk-snap-coronal-after-input",
+      "canvas": {
+        "id": "ritk-snap-coronal",
+        "width": 256,
+        "height": 192,
+        "css_width": 512,
+        "css_height": 384,
+        "attributes": {
+          "data-ritk-load-state": "ready",
+          "data-ritk-frame-state": "presented",
+          "data-ritk-axis": "1",
+          "data-ritk-slice-index": "1",
+          "data-ritk-slice-count": "4",
+          "data-ritk-frame-width": "256",
+          "data-ritk-frame-height": "192"
+        }
+      }
+    },
+    {
+      "label": "ritk-snap-sagittal-initial",
+      "canvas": {
+        "id": "ritk-snap-sagittal",
+        "width": 256,
+        "height": 192,
+        "css_width": 512,
+        "css_height": 384,
+        "attributes": {
+          "data-ritk-load-state": "ready",
+          "data-ritk-frame-state": "presented",
+          "data-ritk-axis": "2",
+          "data-ritk-slice-index": "0",
+          "data-ritk-slice-count": "4",
+          "data-ritk-frame-width": "256",
+          "data-ritk-frame-height": "192"
+        }
+      }
+    },
+    {
+      "label": "ritk-snap-sagittal-after-input",
+      "canvas": {
+        "id": "ritk-snap-sagittal",
+        "width": 256,
+        "height": 192,
+        "css_width": 512,
+        "css_height": 384,
+        "attributes": {
+          "data-ritk-load-state": "ready",
+          "data-ritk-frame-state": "presented",
+          "data-ritk-axis": "2",
+          "data-ritk-slice-index": "1",
+          "data-ritk-slice-count": "4",
+          "data-ritk-frame-width": "256",
+          "data-ritk-frame-height": "192"
+        }
+      }
+    }
+  ],
+  "screenshots": [
+    {
+      "label": "window-initial",
+      "width": 1280,
+      "height": 720,
+      "bytes": 100,
+      "sha256": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+    },
+    {
+      "label": "ritk-snap-axial-initial",
+      "path": "output/browser/chromium/canvas/ritk-snap-axial-initial.png",
+      "width": 256,
+      "height": 192,
+      "bytes": 100,
+      "sha256": "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
+      "scope": "element"
+    },
+    {
+      "label": "ritk-snap-axial-after-input",
+      "path": "output/browser/chromium/canvas/ritk-snap-axial-after-input.png",
+      "width": 256,
+      "height": 192,
+      "bytes": 100,
+      "sha256": "cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc",
+      "scope": "element"
+    },
+    {
+      "label": "ritk-snap-coronal-initial",
+      "path": "output/browser/chromium/canvas/ritk-snap-coronal-initial.png",
+      "width": 256,
+      "height": 192,
+      "bytes": 100,
+      "sha256": "dddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddd",
+      "scope": "element"
+    },
+    {
+      "label": "ritk-snap-coronal-after-input",
+      "path": "output/browser/chromium/canvas/ritk-snap-coronal-after-input.png",
+      "width": 256,
+      "height": 192,
+      "bytes": 100,
+      "sha256": "eeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeee",
+      "scope": "element"
+    },
+    {
+      "label": "ritk-snap-sagittal-initial",
+      "path": "output/browser/chromium/canvas/ritk-snap-sagittal-initial.png",
+      "width": 256,
+      "height": 192,
+      "bytes": 100,
+      "sha256": "ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff",
+      "scope": "element"
+    },
+    {
+      "label": "ritk-snap-sagittal-after-input",
+      "path": "output/browser/chromium/canvas/ritk-snap-sagittal-after-input.png",
+      "width": 256,
+      "height": 192,
+      "bytes": 100,
+      "sha256": "0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef",
+      "scope": "element"
+    },
+    {
+      "label": "window-final",
+      "width": 1280,
+      "height": 720,
+      "bytes": 100,
+      "sha256": "1234567890abcdef1234567890abcdef1234567890abcdef1234567890abcdef"
+    }
+  ],
+  "cleanup": {
+    "session_closed": false,
+    "active_input_sources_released": true,
+    "canvas_count": 3,
+    "canvas_attribute_names": [
+      "data-ritk-load-state",
+      "data-ritk-frame-state",
+      "data-ritk-axis",
+      "data-ritk-slice-index",
+      "data-ritk-slice-count",
+      "data-ritk-frame-width",
+      "data-ritk-frame-height"
+    ],
+    "provider_listener_count": "unavailable from WebDriver"
+  }
+}

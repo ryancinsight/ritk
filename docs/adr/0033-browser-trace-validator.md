@@ -1,6 +1,6 @@
 # ADR 0033: RITK browser trace semantic validator
 
-Status: Proposed
+Status: Accepted
 
 Date: 2026-09-11
 
@@ -44,6 +44,13 @@ the browser trust boundary without improving the evidence contract.
 
 Unit tests construct small schema-1 trace values and cover valid three-view
 traces plus invalid status, revision, attributes, axis order, dimensions,
-actions, screenshot and cleanup cases. The focused `ritk-snap` nextest and
-warning-denied Clippy run cover the parser; the manual records the command and
-its limits. The ADR becomes Accepted when the executable and these gates pass.
+actions, screenshot, cleanup and oversized-file cases. The committed fixture is
+validated by the same code used by the executable. At the accepted revision,
+`cargo nextest run --locked -p ritk-snap` passes 812/812, warning-denied
+all-target Clippy and
+`cargo fmt --all -- --check` pass, and
+`cargo run --locked -p ritk-snap -- --validate-browser-trace
+crates/ritk-snap/tests/fixtures/browser-trace.json` reports the Chromium
+trace and both revisions. The manual records the command and its limits;
+configured browser-driver and clinical pixel evidence remain separate RITK
+workflow requirements.

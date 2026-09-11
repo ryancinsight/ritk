@@ -106,11 +106,11 @@
 
 <a id="RITK-SNAP-METIS-002"></a>
 ## RITK-SNAP-METIS-002 — Validate RITK browser semantic traces [arch] [minor]
-- Status: in-progress; priority: P1; owner: RITK viewer; integrator: root; last-update: 2026-09-11; regions: `crates/ritk-snap/src/browser_trace.rs`, `crates/ritk-snap/src/main.rs`, `docs/adr/0033-browser-trace-validator.md`, `docs/adr/README.md`, `docs/manual/dicom-workflow.md`; dependencies: RITK-SNAP-METIS-001, Metis PR #73; risk: false visual/runtime evidence
+- Status: review; priority: P1; owner: RITK viewer; integrator: root; last-update: 2026-09-11; regions: `crates/ritk-snap/src/browser_trace.rs`, `crates/ritk-snap/src/browser_trace/tests.rs`, `crates/ritk-snap/tests/fixtures/browser-trace.json`, `crates/ritk-snap/src/main.rs`, `docs/adr/0033-browser-trace-validator.md`, `docs/adr/README.md`, `docs/manual/dicom-workflow.md`; dependencies: RITK-SNAP-METIS-001, Metis PR #73; risk: false visual/runtime evidence
 - Outcome: RITK's executable validates the Metis canvas trace as a consumer-owned semantic contract while Metis remains generic.
 - Scope: schema, revision, axis/slice/frame attributes, trusted input actions, screenshot scopes and cleanup evidence; no browser driver, DICOM parser, or clinical pixel interpretation in Metis.
 - Acceptance: valid three-canvas traces pass; missing/invalid consumer attributes, axis order, dimensions, actions, revisions, screenshots, cleanup or status fail with typed diagnostics; unit tests cover positive, boundary and malformed traces; manual documents the command.
-- Verification: focused `ritk-snap` nextest, warning-denied Clippy, formatting, doctests and `ritk-snap --validate-browser-trace` against a committed small fixture generated in tests.
+- Verification: 812/812 locked `ritk-snap` nextest, warning-denied all-target Clippy, formatting, the committed fixture command, and doctests; configured browser-driver traces remain an external runtime requirement.
 <a id="RITK-SOFT-TISSUE-REGISTRATION-2026-09-03"></a>
 ## RITK-SOFT-TISSUE-REGISTRATION-2026-09-03 — Soft-tissue multimodal registration [major] [arch] — done
 
