@@ -7,6 +7,7 @@
 
 use super::{RotationSteps, ViewTransform};
 use crate::render::buffer_pool::RenderBufferPool;
+use anyhow::{anyhow, bail, Result};
 use egui::ColorImage;
 /// Apply a horizontal flip (left↔right) to a `ColorImage`.
 ///
@@ -107,6 +108,84 @@ pub fn apply_to_image(img: &ColorImage, transform: ViewTransform) -> ColorImage 
         }
     };
     result
+}
+
+/// Apply a view transform to owned straight-alpha RGBA storage.
+///
+/// The storage uses the same row-major pixel convention as [`ColorImage`],
+/// while the carrier remains independent of any GUI crate. The input storage
+/// is consumed so the identity path can return it without a copy; transformed
+/// paths allocate one output buffer and copy each four-byte pixel exactly once.
+pub(crate) fn apply_to_rgba(
+    size: [usize; 2],
+    rgba: Box<[u8]>,
+    transform: ViewTransform,
+) -> Result<([usize; 2], Box<[u8]>)> {
+    let [width, height] = size;
+    if width == 0 || height == 0 {
+        bail!("RGBA transform dimensions must be nonzero");
+    }
+    let pixel_count = width
+        .checked_mul(height)
+        .ok_or_else(|| anyhow!("RGBA transform pixel count overflows usize"))?;
+    let byte_count = pixel_count
+        .checked_mul(4)
+        .ok_or_else(|| anyhow!("RGBA transform byte count overflows usize"))?;
+    if rgba.len() != byte_count {
+        bail!(
+            "RGBA transform byte count {} does not match {}x{} storage",
+            rgba.len(),
+            width,
+            height
+        );
+    }
+    if transform.is_identity() {
+        return Ok((size, rgba));
+    }
+
+    let output_size = transform.output_size(size);
+    let output_pixel_count = output_size[0]
+        .checked_mul(output_size[1])
+        .ok_or_else(|| anyhow!("RGBA transform output pixel count overflows usize"))?;
+    let output_byte_count = output_pixel_count
+        .checked_mul(4)
+        .ok_or_else(|| anyhow!("RGBA transform output byte count overflows usize"))?;
+    let mut output = vec![0_u8; output_byte_count];
+
+    for (index, pixel) in rgba.chunks_exact(4).enumerate() {
+        let row = index / width;
+        let column = index % width;
+        let row = if transform.flip_v {
+            height - 1 - row
+        } else {
+            row
+        };
+        let column = if transform.flip_h {
+            width - 1 - column
+        } else {
+            column
+        };
+        let (output_row, output_column) = match transform.rotation {
+            RotationSteps::Zero => (row, column),
+            RotationSteps::Ninety => (column, height - 1 - row),
+            RotationSteps::OneEighty => (height - 1 - row, width - 1 - column),
+            RotationSteps::TwoSeventy => (width - 1 - column, row),
+        };
+        let output_index = output_row
+            .checked_mul(output_size[0])
+            .and_then(|offset| offset.checked_add(output_column))
+            .and_then(|pixel| pixel.checked_mul(4))
+            .ok_or_else(|| anyhow!("RGBA transform output offset overflows usize"))?;
+        let output_end = output_index
+            .checked_add(4)
+            .ok_or_else(|| anyhow!("RGBA transform output range overflows usize"))?;
+        let destination = output
+            .get_mut(output_index..output_end)
+            .ok_or_else(|| anyhow!("RGBA transform output offset is outside storage"))?;
+        destination.copy_from_slice(pixel);
+    }
+
+    Ok((output_size, output.into_boxed_slice()))
 }
 
 /// Apply a `ViewTransform` to a `ColorImage`, writing output into pre-allocated

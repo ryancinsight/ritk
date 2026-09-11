@@ -454,9 +454,8 @@ mod tests {
 
     #[test]
     fn frame_conversion_preserves_rgba_channels() {
-        let image =
-            egui::ColorImage::from_rgba_unmultiplied([2, 1], &[0, 0, 0, 0, 200, 150, 100, 255]);
-        let frame = PresentationFrame::from_color_image(&image).expect("valid frame");
+        let frame = PresentationFrame::from_rgba(2, 1, &[0, 0, 0, 0, 200, 150, 100, 255])
+            .expect("valid frame");
         let framebuffer = to_framebuffer(&frame).expect("framebuffer");
         assert_eq!(framebuffer.get_pixel(0, 0), Color::rgba(0, 0, 0, 0));
         assert_eq!(framebuffer.get_pixel(1, 0), Color::rgba(200, 150, 100, 255));
@@ -464,8 +463,7 @@ mod tests {
 
     #[test]
     fn native_host_presents_one_frame_and_closes() {
-        let image = egui::ColorImage::from_rgba_unmultiplied([1, 1], &[12, 34, 56, 255]);
-        let frame = PresentationFrame::from_color_image(&image).expect("valid frame");
+        let frame = PresentationFrame::from_rgba(1, 1, &[12, 34, 56, 255]).expect("valid frame");
         let outcome =
             run_native_frame(frame, "RITK presentation frame test").expect("native frame");
         assert_eq!((outcome.width(), outcome.height()), (1, 1));

@@ -268,6 +268,34 @@ fn test_apply_to_image_into_differential_all_16_combinations() {
 }
 
 #[test]
+fn test_apply_to_rgba_matches_color_image_for_all_16_combinations() {
+    let img = make_test_image();
+    let rgba = img
+        .pixels
+        .iter()
+        .flat_map(|pixel| pixel.to_array())
+        .collect::<Vec<_>>()
+        .into_boxed_slice();
+
+    for transform in all_transforms() {
+        let expected = apply_to_image(&img, transform);
+        let (size, actual) =
+            apply_to_rgba(img.size, rgba.clone(), transform).expect("valid RGBA transform input");
+        let expected_rgba = expected
+            .pixels
+            .iter()
+            .flat_map(|pixel| pixel.to_array())
+            .collect::<Vec<_>>();
+        assert_eq!(size, expected.size, "RGBA size mismatch for {transform:?}");
+        assert_eq!(
+            actual.as_ref(),
+            expected_rgba,
+            "RGBA pixels mismatch for {transform:?}"
+        );
+    }
+}
+
+#[test]
 fn test_apply_to_image_into_pool_reuse_consistent() {
     let img = make_test_image();
     let mut pool = RenderBufferPool::default();
