@@ -5,6 +5,7 @@ use serde::Deserialize;
 use std::collections::{BTreeMap, BTreeSet};
 use std::fmt;
 use std::fs;
+use std::io::Read;
 use std::path::Path;
 
 const MAX_CANVAS_DIMENSION: u32 = 4_096;
@@ -97,14 +98,23 @@ pub(crate) fn validate_file(
     path: &Path,
     requested_canvas_ids: &[String],
 ) -> Result<BrowserTraceReport> {
-    let length = fs::metadata(path)
-        .with_context(|| format!("failed to stat browser trace {}", path.display()))?
+    let file = fs::File::open(path)
+        .with_context(|| format!("failed to open browser trace {}", path.display()))?;
+    let length = file
+        .metadata()
+        .with_context(|| format!("failed to inspect browser trace {}", path.display()))?
         .len();
     if length > MAX_TRACE_BYTES {
         bail!("browser trace is {length} bytes; the {MAX_TRACE_BYTES}-byte limit was exceeded")
     }
-    let bytes = fs::read(path)
+    let capacity = usize::try_from(length).context("browser trace length does not fit memory")?;
+    let mut bytes = Vec::with_capacity(capacity.saturating_add(1));
+    file.take(MAX_TRACE_BYTES + 1)
+        .read_to_end(&mut bytes)
         .with_context(|| format!("failed to read browser trace {}", path.display()))?;
+    if u64::try_from(bytes.len()).map_or(true, |length| length > MAX_TRACE_BYTES) {
+        bail!("browser trace exceeded the {MAX_TRACE_BYTES}-byte limit while reading")
+    }
     let document: TraceDocument = serde_json::from_slice(&bytes)
         .with_context(|| format!("failed to parse browser trace {}", path.display()))?;
     let canvas_ids = resolve_canvas_ids(requested_canvas_ids)?;
