@@ -3,14 +3,19 @@
 //! This module is the first browser migration slice beyond the eframe shell:
 //! RITK consumes the bounded byte handoff from Métis, applies its existing
 //! dropped-input classifier and presents the selected RITK frame through the
-//! borrowed canvas seam. DICOM parsing and viewer state stay in [`SnapApp`].
+//! borrowed canvas seam. It also publishes a bounded semantic snapshot on
+//! each canvas for consumer-owned workflow assertions. DICOM parsing and
+//! viewer state stay in [`SnapApp`].
 
+use super::browser_semantics::BrowserCanvasSemantics;
 use super::SnapApp;
 use crate::app::action_adapter::{ViewerActionDisposition, ViewerViewport};
 use crate::presentation::{PresentationFrame, WebCanvasPresenter};
 use crate::ui::decide_dropped_input_action;
 use crate::ui::ViewTransform;
-use moirai_pal::wasm::{spawn_local_with_handle, LocalTaskHandle, WebTimer};
+use moirai_pal::wasm::{
+    spawn_local_with_handle, LocalTaskHandle, WebDocument, WebElement, WebTimer,
+};
 use std::cell::RefCell;
 use std::rc::Rc;
 use std::time::Duration;
@@ -55,17 +60,69 @@ impl BrowserViewer {
             self.surface.clear();
         }
         self.surface.render_and_present(&self.app)?;
+        self.surface.publish_semantics(&self.app)?;
         Ok(true)
+    }
+}
+
+struct BrowserCanvas {
+    presenter: WebCanvasPresenter,
+    element: WebElement,
+    last_semantics: Option<BrowserCanvasSemantics>,
+}
+
+impl BrowserCanvas {
+    fn from_id(id: &str) -> std::io::Result<Self> {
+        let presenter = WebCanvasPresenter::from_canvas_id_with_input(id)?;
+        let document = WebDocument::current()?;
+        let element = document.get_element_by_id(id).ok_or_else(|| {
+            std::io::Error::new(
+                std::io::ErrorKind::NotFound,
+                "browser canvas element disappeared during setup",
+            )
+        })?;
+        Ok(Self {
+            presenter,
+            element,
+            last_semantics: None,
+        })
+    }
+
+    fn publish_semantics(&mut self, semantics: BrowserCanvasSemantics) -> std::io::Result<()> {
+        if self.last_semantics == Some(semantics) {
+            return Ok(());
+        }
+        let axis = semantics.axis.to_string();
+        let slice_index = semantics.slice_index.to_string();
+        let slice_count = semantics.slice_count.to_string();
+        let (width, height) = semantics.frame_dimensions_or_zero();
+        let width = width.to_string();
+        let height = height.to_string();
+        self.element
+            .set_attribute("data-ritk-load-state", semantics.load_state_value())?;
+        self.element
+            .set_attribute("data-ritk-frame-state", semantics.frame_state_value())?;
+        self.element.set_attribute("data-ritk-axis", &axis)?;
+        self.element
+            .set_attribute("data-ritk-slice-index", &slice_index)?;
+        self.element
+            .set_attribute("data-ritk-slice-count", &slice_count)?;
+        self.element
+            .set_attribute("data-ritk-frame-width", &width)?;
+        self.element
+            .set_attribute("data-ritk-frame-height", &height)?;
+        self.last_semantics = Some(semantics);
+        Ok(())
     }
 }
 
 enum BrowserSurface {
     Single {
-        presenter: WebCanvasPresenter,
+        canvas: BrowserCanvas,
         frame: Option<PresentationFrame>,
     },
     Orthogonal {
-        presenters: [WebCanvasPresenter; 3],
+        canvases: [BrowserCanvas; 3],
         frames: Option<[PresentationFrame; 3]>,
     },
 }
@@ -80,25 +137,25 @@ impl BrowserSurface {
 
     fn render_and_present(&mut self, app: &SnapApp) -> std::io::Result<()> {
         match self {
-            Self::Single { presenter, frame } => {
+            Self::Single { canvas, frame } => {
                 if frame.is_none() {
                     *frame = app
                         .render_browser_frame()
                         .map_err(|error| std::io::Error::other(error.to_string()))?;
                 }
                 if let Some(frame) = frame.as_ref() {
-                    presenter.present(frame)?;
+                    canvas.presenter.present(frame)?;
                 }
             }
-            Self::Orthogonal { presenters, frames } => {
+            Self::Orthogonal { canvases, frames } => {
                 if frames.is_none() {
                     *frames = app
                         .render_browser_frames()
                         .map_err(|error| std::io::Error::other(error.to_string()))?;
                 }
                 if let Some(frames) = frames.as_ref() {
-                    for (presenter, frame) in presenters.iter().zip(frames) {
-                        presenter.present(frame)?;
+                    for (canvas, frame) in canvases.iter().zip(frames) {
+                        canvas.presenter.present(frame)?;
                     }
                 }
             }
@@ -106,16 +163,48 @@ impl BrowserSurface {
         Ok(())
     }
 
+    fn publish_semantics(&mut self, app: &SnapApp) -> std::io::Result<()> {
+        match self {
+            Self::Single { canvas, frame } => {
+                let axis = app.axis;
+                let (slice_index, slice_count) = app.axis_slice_info(axis);
+                let semantics = BrowserCanvasSemantics::from_state(
+                    app.loaded.is_some(),
+                    axis,
+                    slice_index,
+                    slice_count,
+                    frame.as_ref(),
+                );
+                canvas.publish_semantics(semantics)
+            }
+            Self::Orthogonal { canvases, frames } => {
+                for (axis, canvas) in canvases.iter_mut().enumerate() {
+                    let frame = frames.as_ref().and_then(|frames| frames.get(axis));
+                    let (slice_index, slice_count) = app.axis_slice_info(axis);
+                    let semantics = BrowserCanvasSemantics::from_state(
+                        app.loaded.is_some(),
+                        axis,
+                        slice_index,
+                        slice_count,
+                        frame,
+                    );
+                    canvas.publish_semantics(semantics)?;
+                }
+                Ok(())
+            }
+        }
+    }
+
     fn apply_events(&mut self, app: &mut SnapApp) -> std::io::Result<ViewerActionDisposition> {
         match self {
-            Self::Single { presenter, frame } => {
-                apply_canvas_events(app, 0, presenter, frame.as_ref())
+            Self::Single { canvas, frame } => {
+                apply_canvas_events(app, 0, &mut canvas.presenter, frame.as_ref())
             }
-            Self::Orthogonal { presenters, frames } => {
+            Self::Orthogonal { canvases, frames } => {
                 let mut repaint = false;
-                for (axis, presenter) in presenters.iter_mut().enumerate() {
+                for (axis, canvas) in canvases.iter_mut().enumerate() {
                     let frame = frames.as_ref().and_then(|frames| frames.get(axis));
-                    match apply_canvas_events(app, axis, presenter, frame)? {
+                    match apply_canvas_events(app, axis, &mut canvas.presenter, frame)? {
                         ViewerActionDisposition::Continue { repaint: needed } => {
                             repaint |= needed;
                         }
@@ -221,13 +310,13 @@ fn launch_browser_viewer(viewer: BrowserViewer) -> Result<(), JsValue> {
 /// Starts the RITK DICOM byte-drop workflow on a Métis-owned browser canvas.
 pub(crate) fn start_web_canvas(canvas_id: String) -> Result<(), JsValue> {
     stop_web_canvas();
-    let presenter = match WebCanvasPresenter::from_canvas_id_with_input(&canvas_id) {
-        Ok(presenter) => presenter,
+    let canvas = match BrowserCanvas::from_id(&canvas_id) {
+        Ok(canvas) => canvas,
         Err(error) => return Err(JsValue::from_str(&error.to_string())),
     };
     metis_web::metis_start();
     launch_browser_viewer(BrowserViewer::new(BrowserSurface::Single {
-        presenter,
+        canvas,
         frame: None,
     }))
 }
@@ -236,10 +325,10 @@ pub(crate) fn start_web_canvas(canvas_id: String) -> Result<(), JsValue> {
 pub(crate) fn start_web_orthogonal_canvases(canvas_ids: [String; 3]) -> Result<(), JsValue> {
     stop_web_canvas();
     let [axial_id, coronal_id, sagittal_id] = canvas_ids;
-    let presenters = match (
-        WebCanvasPresenter::from_canvas_id_with_input(&axial_id),
-        WebCanvasPresenter::from_canvas_id_with_input(&coronal_id),
-        WebCanvasPresenter::from_canvas_id_with_input(&sagittal_id),
+    let canvases = match (
+        BrowserCanvas::from_id(&axial_id),
+        BrowserCanvas::from_id(&coronal_id),
+        BrowserCanvas::from_id(&sagittal_id),
     ) {
         (Ok(axial), Ok(coronal), Ok(sagittal)) => [axial, coronal, sagittal],
         (Err(error), _, _) | (_, Err(error), _) | (_, _, Err(error)) => {
@@ -248,7 +337,7 @@ pub(crate) fn start_web_orthogonal_canvases(canvas_ids: [String; 3]) -> Result<(
     };
     metis_web::metis_start();
     launch_browser_viewer(BrowserViewer::new(BrowserSurface::Orthogonal {
-        presenters,
+        canvases,
         frames: None,
     }))
 }

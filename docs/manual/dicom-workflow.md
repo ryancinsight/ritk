@@ -445,6 +445,17 @@ its bounded pointer and wheel batch to the matching RITK axis. Physical
 browser-driver input, cross-engine evidence and GPU upload remain separate
 acceptance work.
 
+Each RITK canvas also publishes a bounded semantic snapshot for workflow
+drivers. `data-ritk-load-state` is `empty` or `ready`,
+`data-ritk-frame-state` is `empty` or `presented`, and the axis, zero-based
+slice index/count, and presented pixel dimensions are available as
+`data-ritk-axis`, `data-ritk-slice-index`, `data-ritk-slice-count`,
+`data-ritk-frame-width`, and `data-ritk-frame-height`. An empty frame reports
+zero dimensions. These attributes are produced by RITK after its own DICOM
+load and presentation decisions; they contain no patient or DICOM metadata.
+The generic Métis runner may read them as consumer assertions, but it does
+not assign them meaning.
+
 The shared RITK viewport mapper accepts finite display geometry independently
 of egui. Native eframe placement converts its coordinates at the host boundary;
 the browser canvas and viewer action path use the same RITK-owned mapping

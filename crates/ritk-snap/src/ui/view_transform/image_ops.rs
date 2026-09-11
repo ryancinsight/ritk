@@ -7,6 +7,7 @@
 
 use super::{RotationSteps, ViewTransform};
 use crate::render::buffer_pool::RenderBufferPool;
+#[cfg(any(windows, test))]
 use anyhow::{anyhow, bail, Result};
 use egui::ColorImage;
 /// Apply a horizontal flip (left↔right) to a `ColorImage`.
@@ -116,6 +117,7 @@ pub fn apply_to_image(img: &ColorImage, transform: ViewTransform) -> ColorImage 
 /// while the carrier remains independent of any GUI crate. The input storage
 /// is consumed so the identity path can return it without a copy; transformed
 /// paths allocate one output buffer and copy each four-byte pixel exactly once.
+#[cfg(any(windows, test))]
 pub(crate) fn apply_to_rgba(
     size: [usize; 2],
     rgba: Box<[u8]>,

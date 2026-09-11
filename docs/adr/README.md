@@ -40,3 +40,4 @@
 | [0029](0029-dicom-rgb-display.md) | DICOM RGB display preservation | Accepted |
 | [0030](0030-dicom-grayscale-presentation.md) | DICOM grayscale presentation semantics | Accepted |
 | [0031](0031-bounded-browser-canvas-input.md) | Bounded browser canvas input adapter | Accepted |
+| [0032](0032-browser-semantic-snapshot.md) | RITK browser semantic snapshot | Accepted |

@@ -14,6 +14,8 @@
 //! | `true`         | 2×2 grid: Axial / Coronal / Sagittal / 3D-MIP, with Info below.|
 
 pub(crate) mod action_adapter;
+#[cfg(any(target_arch = "wasm32", test))]
+mod browser_semantics;
 pub(crate) mod clinical_distribution;
 mod filter;
 mod image_placement;

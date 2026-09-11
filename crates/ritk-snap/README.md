@@ -76,6 +76,10 @@ await start_web("ritk-canvas");
 the same single-canvas workflow as `start_web_canvas`. Browser DICOM opening
 therefore uses the same RITK path as desktop pathless input. The host never
 receives a filesystem path and never decides whether a payload is DICOM.
+After each browser presentation, RITK publishes bounded `data-ritk-*`
+attributes on the named canvas for consumer workflow assertions. They expose
+load/frame state, axis, slice bounds and pixel dimensions without patient
+identifiers, DICOM metadata or pixels.
 
 The direct canvas migration slice uses the same host and byte handoff without
 starting eframe. It renders one selected RITK slice through the borrowed Métis
