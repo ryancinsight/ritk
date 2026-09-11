@@ -283,6 +283,23 @@ DICOM classification, byte loading, geometry, presentation policy and viewer
 state. GPU presentation, trusted cross-engine input and complete application
 window capture remain open acceptance work.
 
+Revision 2026-09-11 (full real browser series): the packaged RITK
+WASM library from `e4f7ad728` was served in the Codex in-app Chromium host
+with the Métis browser consumer at `be6235ab` and the merged Moirai browser
+provider at `fd836cd1`. The browser `DataTransfer` accepted all 409 public
+MRI-DIR CT Part 10 files, read 216,156,416 bytes, and presented actual
+non-black axial, coronal and sagittal canvases. The reviewed images are
+[`axial`](../manual/images/dicom-metis-real-browser-orthogonal-axial.png),
+[`coronal`](../manual/images/dicom-metis-real-browser-orthogonal-coronal.png),
+and
+[`sagittal`](../manual/images/dicom-metis-real-browser-orthogonal-sagittal.png);
+metrics and SHA-256 values are recorded in the adjacent JSON provenance.
+The 512-entry and 256 MiB bounds remain explicit. This closes the saved
+study's browser-ingress gap while physical drag-and-drop, Firefox/WebKit,
+WebGPU and complete application-window capture remain open. DICOM parsing,
+metadata, geometry, decoded pixels and viewer state remain in RITK; Métis and
+Moirai remain format-neutral transport and rendering providers.
+
 Revision 2026-09-08: [RITK-SNAP-DIRECTORY-001](../../backlog.md#RITK-SNAP-DIRECTORY-001)
 now validates the Explicit VR Little Endian DICOMDIR record sequence before
 membership is admitted. RecordInUseFlag, next/lower offsets, incoming-link

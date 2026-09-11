@@ -367,33 +367,35 @@ a bounded programmatic `DataTransfer` in one Chromium host, so it demonstrates
 real DICOM decoding and browser presentation but does not close physical
 drag-and-drop, Firefox/WebKit, WebGPU or complete application-window capture.
 
-### Three orthogonal canvases from a bounded real series batch
+### Three orthogonal canvases from the complete bounded real series
 
-To exercise the orthogonal geometry with more than the nine-file smoke, the
-same page accepted the first 64 slices from the saved MRI-DIR series. This is
-the maximum file count admitted by the current Métis browser handoff. RITK
-decoded all 64 files and presented non-black pixels on every canvas after
-reading 33,823,992 bytes:
+To exercise the orthogonal geometry with the complete saved study, the same
+page accepted all 409 slices from the MRI-DIR series in one bounded browser
+`DataTransfer`. RITK decoded 216,156,416 bytes and presented non-black pixels
+on every canvas:
 
 | Canvas | Presented pixels | Non-black pixels |
 | --- | ---: | ---: |
-| axial | 512 × 512 | 125,458 |
-| coronal | 512 × 82 | 20,778 |
-| sagittal | 512 × 82 | 27,467 |
+| axial | 512 × 512 | 124,466 |
+| coronal | 512 × 409 | 106,343 |
+| sagittal | 512 × 409 | 140,317 |
 
-![Actual MRI-DIR CT axial frame from the 64-file browser batch](images/dicom-metis-real-browser-orthogonal-axial.png)
+![Actual MRI-DIR CT axial frame from the 409-file browser batch](images/dicom-metis-real-browser-orthogonal-axial.png)
 
-![Actual MRI-DIR CT coronal frame from the 64-file browser batch](images/dicom-metis-real-browser-orthogonal-coronal.png)
+![Actual MRI-DIR CT coronal frame from the 409-file browser batch](images/dicom-metis-real-browser-orthogonal-coronal.png)
 
-![Actual MRI-DIR CT sagittal frame from the 64-file browser batch](images/dicom-metis-real-browser-orthogonal-sagittal.png)
+![Actual MRI-DIR CT sagittal frame from the 409-file browser batch](images/dicom-metis-real-browser-orthogonal-sagittal.png)
 
 The run's source revisions, byte count, frame hashes and bounds are recorded
 in [`dicom-metis-real-browser-orthogonal.json`](images/dicom-metis-real-browser-orthogonal.json).
-Submitting all 409 slices in one browser drop was rejected before RITK loading
-with `Browser file drop exceeds the bounded file count`. That is an open
-bounded-ingress gap for complete browser studies; the native path above still
-loads the complete series. Closing the browser gap requires an explicit
-directory or multi-batch contract whose series assembly remains in RITK.
+The Métis/Moirai handoff admits at most 512 file entries and 256 MiB of file
+bytes; this public 409-slice study is within both bounds. The capture scope is
+the canvas pixels, excluding browser chrome. It demonstrates actual DICOM
+loading and orthogonal presentation in the Codex in-app Chromium host through
+a programmatic `DataTransfer`; physical drag-and-drop, Firefox/WebKit,
+WebGPU and complete application-window capture remain separate acceptance
+work. The public phantom data is the only committed image source; private
+clinical studies stay local.
 
 ## Build the RITK SNAP executable and installer
 
