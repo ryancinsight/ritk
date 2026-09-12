@@ -120,10 +120,9 @@
 - Verification: 812/812 locked `ritk-snap` nextest, warning-denied all-target Clippy, formatting, the committed fixture command, and doctests; configured browser-driver traces remain an external runtime requirement.
 
 <a id="RITK-SNAP-PRESENTATION-CFG-001"></a>
-## RITK-SNAP-PRESENTATION-CFG-001 — Keep native presentation helpers platform-scoped [patch]
-- Status: in-progress; priority: P0; owner: RITK viewer; integrator: root; last-update: 2026-09-12; regions: `crates/ritk-snap/src/ui/mod.rs`, `crates/ritk-snap/src/presentation/frame.rs`; risk: Linux all-target gate failure after the Métis presentation migration.
-- Outcome: Linux test builds do not export or compile Windows-only RGBA transformation helpers; Windows native viewer behavior remains unchanged.
-- Acceptance: workspace all-target Clippy passes with `-D warnings` on Linux; Windows native-session tests retain the transformed-frame path; no test-only export or dead-code suppression remains.
+## RITK-SNAP-PRESENTATION-CFG-001 — Keep native presentation helpers platform-scoped [patch] — done
+- Status: done; priority: P0; owner: RITK viewer; integrator: root; last-update: 2026-09-12; delivery: [RITK PR #313](https://github.com/ryancinsight/ritk/pull/313), merge `030772033a2daa40657db1be093730a513c36c80`; risk: Linux all-target gate failure after the Métis presentation migration.
+- Outcome: Windows-only RGBA helpers are excluded from non-Windows test builds; `ritk-snap` native session tests 8/8 and the full pre-push gate pass without suppressions.
 
 <a id="RITK-PYTHON-DICOM-001"></a>
 ## RITK-PYTHON-DICOM-001 — Select DICOM series from Python [minor] — done

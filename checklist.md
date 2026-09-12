@@ -40,15 +40,6 @@
 
 # RITK Sprint Checklist — Active
 
-## RITK-SNAP-PRESENTATION-CFG-001
-
-- [ ] Restrict the native-only RGBA re-export and frame ownership helper to
-      Windows, preserving the Windows native session call path.
-- [ ] Run all-target warning-denied Clippy and the presentation/native-session
-      tests on the corrected revision.
-- [ ] Open and merge the fix, then remove this owner-local section and close
-      `RITK-SNAP-PRESENTATION-CFG-001` in `backlog.md`.
-
 ## RITK-SNAP-METIS-001 — Native Métis viewer session
 
 - [x] Build a bounded native session that loads one selected RITK study,
