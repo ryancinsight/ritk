@@ -121,7 +121,7 @@
 
 <a id="RITK-PYTHON-DICOM-001"></a>
 ## RITK-PYTHON-DICOM-001 — Select DICOM series from Python [minor]
-- Status: review; priority: P1; owner: RITK I/O + Python; integrator: root; last-update: 2026-09-12; regions: `crates/ritk-io/src/format/dicom/series`, `crates/ritk-python/src/io`, `crates/ritk-python/python/ritk/_ritk/io.pyi`, `crates/ritk-python/tests`, Python README/manual.
+- Status: review; priority: P1; owner: RITK I/O + Python; integrator: root; last-update: 2026-09-12; delivery: [RITK PR #311](https://github.com/ryancinsight/ritk/pull/311); regions: `crates/ritk-io/src/format/dicom/series`, `crates/ritk-python/src/io`, `crates/ritk-python/python/ritk/_ritk/io.pyi`, `crates/ritk-python/tests`, Python README/manual.
 - Outcome: Python callers select an exact `SeriesInstanceUID` from a mixed DICOM directory through the RITK-owned scanner and native loader; no first-series fallback or DICOM code enters Metis.
 - Acceptance: omitted selection preserves single-series behavior and rejects ambiguity; a valid UID loads the matching volume with shape and voxel-value assertions; unknown, empty, non-directory, and malformed selections fail with typed Python errors; stubs, docs and release notes describe the contract.
 - Dependencies: RITK-SNAP-DICOM-SUBSTRATE-001; risk: ambiguous clinical acquisition or silent cross-series display.
