@@ -120,6 +120,7 @@
 - Completed increment (2026-09-12): the complete-window reproduction command resolves Cargo's `target_directory`, so it launches the RITK executable from Atlas's shared build cache as well as from a standalone workspace.
 - Documentation increment (2026-09-12): the RITK user manual now leads with the reviewed real-DICOM Métis window capture and links its provenance before the synthetic study tutorial; the lower workflow keeps the reproduction command without duplicating the image.
 - Documentation increment (2026-09-12): the manual title now names the complete DICOM viewer workflow, matching its real-data gallery and synthetic, native, eframe, and browser sections.
+- Build increment (2026-09-12): the standalone lock now advances Iris to `a5df753f7a553b8f94b613e2a65a0910a81a7c81` and all Métis packages to merged `2044af8f64349f294c6ffbaf44bd8c6a221d4b80` while retaining the locked Moirai provider. Workspace check, strict `ritk-snap` Clippy, 826/826 nextest, doctests, and the saved 409-file public CT MIP command all pass; the four-panel PNG remains byte-identical at `989a1f66b43a39ec753180cdd882b08e11adfc2ab4009c416a694c1fd12efe42`.
 
 <a id="RITK-SNAP-METIS-MIP-001"></a>
 ## RITK-SNAP-METIS-MIP-001 — Match the native Métis projection layout [arch] [minor]
