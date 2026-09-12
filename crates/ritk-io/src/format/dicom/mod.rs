@@ -88,7 +88,7 @@ pub use ritk_dicom::diffusion::{
 pub use ritk_dicom::PixelSignedness;
 pub use series::{
     load_dicom_series, load_native_dicom_series, read_dicom_series, read_native_dicom_series,
-    scan_dicom_directory, DicomReader, DicomSeriesInfo,
+    read_native_dicom_series_with_uid, scan_dicom_directory, DicomReader, DicomSeriesInfo,
 };
 pub use transfer_syntax::TransferSyntaxKind;
 pub use writer::{

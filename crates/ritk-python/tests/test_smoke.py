@@ -11,6 +11,8 @@ import importlib
 import importlib.metadata
 import sys
 
+import pytest
+
 # Import verification
 
 
@@ -122,6 +124,14 @@ def test_io_public_functions_exist():
     ]
     missing = [fn for fn in required if not callable(getattr(rio, fn, None))]
     assert not missing, f"Missing callable functions in ritk.io: {missing}"
+
+
+def test_read_image_accepts_explicit_series_uid_for_dicom_selection(tmp_path):
+    """The UID keyword is part of the Python image-read contract."""
+    import ritk.io as rio
+
+    with pytest.raises(OSError, match="requires a DICOM directory"):
+        rio.read_image(str(tmp_path / "not-a-directory"), series_instance_uid="1.2.3")
 
 
 def test_filter_public_functions_exist():

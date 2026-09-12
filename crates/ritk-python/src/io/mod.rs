@@ -49,14 +49,32 @@ fn io_err<E: std::fmt::Display>(label: &'static str) -> impl Fn(E) -> RitkPyErro
 /// Supports: .nii, .nii.gz, .png, .mha, .mhd, .nrrd, .tif, .tiff,
 /// .vtk, .mgh, .mgz, .hdr, .img, .jpg, .jpeg, or a DICOM directory.
 ///
+/// `series_instance_uid` selects one acquisition when `path` is a DICOM
+/// directory containing more than one series. When it is omitted, DICOM
+/// input must contain exactly one image series.
+///
 /// Raises:
-///     IOError: on read failure or unsupported format.
+///     IOError: on read failure, unsupported format, or ambiguous DICOM input.
 #[pyfunction]
-pub fn read_image(py: Python<'_>, path: &str) -> RitkResult<PyImage> {
+#[pyo3(signature = (path, series_instance_uid=None))]
+pub fn read_image(
+    py: Python<'_>,
+    path: &str,
+    series_instance_uid: Option<&str>,
+) -> RitkResult<PyImage> {
     let path_owned = path.to_string();
+    let series_instance_uid = series_instance_uid.map(str::to_owned);
     py.allow_threads(move || {
         let p = Path::new(&path_owned);
-        ritk_io::read_image_native(p)
+        let native = match series_instance_uid.as_deref() {
+            Some(uid) => ritk_io::read_native_dicom_series_with_uid(
+                p,
+                uid,
+                &ritk_io::NativeBackend::default(),
+            ),
+            None => ritk_io::read_image_native(p),
+        };
+        native
             .map(native_into_py_image)
             .map_err(io_err("native image read error"))
     })

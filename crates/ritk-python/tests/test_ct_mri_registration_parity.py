@@ -188,6 +188,25 @@ def test_ct_statistics_agree_with_sitk():
 
 
 @_skip
+def test_ct_explicit_series_uid_preserves_decoded_pixels():
+    """An explicit public CT UID selects the same voxels as SimpleITK."""
+    ct_dir = _ct_dicom_dir()
+    assert ct_dir is not None
+
+    reader = sitk.ImageSeriesReader()
+    series_uids = reader.GetGDCMSeriesIDs(ct_dir)
+    assert len(series_uids) == 1
+    uid = series_uids[0]
+    reader.SetFileNames(reader.GetGDCMSeriesFileNames(ct_dir, uid))
+    expected = sitk.GetArrayFromImage(reader.Execute()).astype(np.float32)
+
+    actual = np.asarray(ritk.io.read_image(ct_dir, series_instance_uid=uid).to_numpy())
+    assert actual.shape == expected.shape
+    np.testing.assert_array_equal(actual, expected)
+    assert np.count_nonzero(actual) > 0
+
+
+@_skip
 def test_mri_statistics_agree_with_sitk():
     """MRI volume statistics computed by RITK must agree with SimpleITK within 5%.
 

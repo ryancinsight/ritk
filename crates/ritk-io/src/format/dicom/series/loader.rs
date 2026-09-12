@@ -298,6 +298,50 @@ pub fn read_native_dicom_series<B: ComputeBackend, P: AsRef<Path>>(
     load_native_dicom_series(&series_list[0], backend)
 }
 
+/// Read one DICOM series selected by its `SeriesInstanceUID`.
+///
+/// The directory is scanned as a file set and the requested UID must match
+/// exactly one discovered image series before any pixels are decoded. This is
+/// the explicit-selection counterpart to [`read_native_dicom_series`], which
+/// accepts only an unambiguous directory.
+///
+/// # Errors
+///
+/// Returns an error when `series_instance_uid` is empty, `path` is not a
+/// directory, the UID is absent, or the selected series cannot be decoded.
+pub fn read_native_dicom_series_with_uid<B: ComputeBackend, P: AsRef<Path>>(
+    path: P,
+    series_instance_uid: &str,
+    backend: &B,
+) -> Result<NativeImage<f32, B, 3>> {
+    let requested_uid = series_instance_uid.trim();
+    if requested_uid.is_empty() {
+        bail!("SeriesInstanceUID selection must not be empty");
+    }
+
+    let path = path.as_ref();
+    if !path.is_dir() {
+        bail!(
+            "explicit SeriesInstanceUID selection requires a DICOM directory: {}",
+            path.display()
+        );
+    }
+
+    let series_list = scan_dicom_directory(path)?;
+    let series = series_list
+        .into_iter()
+        .find(|series| series.series_instance_uid() == requested_uid)
+        .ok_or_else(|| {
+            anyhow::anyhow!(
+                "SeriesInstanceUID {:?} was not found in DICOM directory {}",
+                requested_uid,
+                path.display()
+            )
+        })?;
+
+    load_native_dicom_series(&series, backend)
+}
+
 // --- Helpers ---
 
 fn element_as_u32(obj: &FileDicomObject<InMemDicomObject>, tag: dicom::core::Tag) -> Option<u32> {

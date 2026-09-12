@@ -1,6 +1,7 @@
 use ritk_io::{
     read_image_native, read_image_series_native, read_native_dicom_series,
-    write_dicom_series_native, write_image_native, NativeBackend, NativeImage, NativeSeries,
+    read_native_dicom_series_with_uid, write_dicom_series_native, write_image_native,
+    NativeBackend, NativeImage, NativeSeries,
 };
 use ritk_spatial::{Direction, Point, Spacing};
 
@@ -152,6 +153,72 @@ fn native_dispatch_reads_dicom_directory_as_one_volume() {
         vec![read_native_dicom_series(&path, &backend).expect("read direct DICOM directory")];
     let actual = read_image_series_native(&path).expect("read DICOM directory through dispatch");
     assert_series_matches(&actual, &expected, "DICOM directory dispatch");
+}
+
+#[test]
+fn native_dicom_uid_selection_reads_only_the_requested_series() {
+    let dir = tempfile::tempdir().expect("temporary DICOM root");
+    let mixed = dir.path().join("mixed");
+    std::fs::create_dir_all(&mixed).expect("mixed DICOM root");
+    let backend = NativeBackend::default();
+
+    for (name, values) in [
+        ("first", vec![1.0_f32, 2.0, 3.0, 4.0]),
+        ("second", vec![101.0_f32, 102.0, 103.0, 104.0]),
+    ] {
+        let source = dir.path().join(name);
+        let image = ritk_image::Image::<f32, coeus_core::MoiraiBackend, 3>::from_flat(
+            values,
+            [1, 2, 2],
+            Point::origin(),
+            Spacing::new([1.0, 1.0, 1.0]),
+            Direction::identity(),
+        )
+        .expect("DICOM writer image");
+        write_dicom_series_native(&source, &image).expect("write DICOM series");
+
+        for entry in std::fs::read_dir(&source)
+            .expect("written series directory")
+            .map(|entry| entry.expect("written DICOM member").path())
+        {
+            let file_name = entry.file_name().expect("DICOM member name");
+            let destination = mixed.join(format!("{name}_{}", file_name.to_string_lossy()));
+            std::fs::rename(entry, destination).expect("move DICOM member into mixed root");
+        }
+    }
+
+    let series = ritk_io::scan_dicom_directory(&mixed).expect("scan mixed DICOM root");
+    assert_eq!(series.len(), 2, "mixed root must expose both acquisitions");
+    let first_uid = series[0].series_instance_uid().to_owned();
+    let second_uid = series[1].series_instance_uid().to_owned();
+
+    let first = read_native_dicom_series_with_uid(&mixed, &first_uid, &backend)
+        .expect("select first DICOM series");
+    let second = read_native_dicom_series_with_uid(&mixed, &second_uid, &backend)
+        .expect("select second DICOM series");
+    assert_eq!(first.shape(), [1, 2, 2]);
+    assert_eq!(second.shape(), [1, 2, 2]);
+    assert_ne!(
+        first.data_slice().expect("first voxels")[0],
+        second.data_slice().expect("second voxels")[0],
+        "UID selection must return the requested acquisition"
+    );
+
+    let unknown = read_native_dicom_series_with_uid(&mixed, "1.2.3.4.5", &backend)
+        .expect_err("unknown UID must fail closed");
+    assert!(format!("{unknown:#}").contains("was not found"));
+    let empty = read_native_dicom_series_with_uid(&mixed, "  ", &backend)
+        .expect_err("empty UID must fail closed");
+    assert!(format!("{empty:#}").contains("must not be empty"));
+    let file = std::fs::read_dir(&mixed)
+        .expect("mixed DICOM root")
+        .next()
+        .expect("one DICOM member")
+        .expect("DICOM member entry")
+        .path();
+    let non_directory = read_native_dicom_series_with_uid(&file, &first_uid, &backend)
+        .expect_err("file path with UID must fail closed");
+    assert!(format!("{non_directory:#}").contains("requires a DICOM directory"));
 }
 
 #[test]

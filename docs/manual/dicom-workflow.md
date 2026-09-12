@@ -210,6 +210,42 @@ root directory handle and returns the handle RITK reads. The Moirai PAL tests
 reject parent traversal and intermediate/final links; browser file entries use
 the DOM provider because the native path contract is unsupported on WebAssembly.
 
+## Select a saved DICOM series from Python
+
+The Python binding uses the same RITK-owned scanner and native loader. Pass
+`series_instance_uid` when a saved directory contains more than one acquisition;
+the UID is matched before pixel decode. This keeps acquisition selection in RITK
+and leaves Metis format-neutral. The public MRI-DIR CT directory is a real
+409-slice series, so it exercises the full native decode and explicit UID path
+without exposing private clinical data. The multi-series and fail-closed
+selection behavior is covered by the RITK integration test below:
+
+```powershell
+python -c "import hashlib, numpy as np, ritk; p=r'test_data\\3_head_ct_mridir\\DICOM'; uid='1.3.6.1.4.1.14519.5.2.1.1706.4996.115936088547498980797393821518'; image=ritk.io.read_image(p, series_instance_uid=uid); values=np.asarray(image.to_numpy()); print({'shape': values.shape, 'dtype': str(values.dtype), 'spacing': image.spacing, 'origin': image.origin, 'min': float(values.min()), 'max': float(values.max()), 'nonzero': int(np.count_nonzero(values)), 'sha256': hashlib.sha256(values.tobytes()).hexdigest()})"
+```
+
+The Windows `ritk-0.12.79-cp39-abi3-win_amd64.whl` built from this workflow
+reported the following values for the saved public CT series:
+
+| Quantity | Observed value |
+| --- | --- |
+| Shape | `(409, 512, 512)` |
+| Dtype | `float32` |
+| Spacing `(sz, sy, sx)` | `(0.390625, 0.390625, 0.625)` mm |
+| Origin `(oz, oy, ox)` | `(-122.25, -100.0, -100.0)` mm |
+| Intensity range | `[-2048.0, 3071.0]` HU |
+| Non-zero voxels | `107130061` |
+| Voxel byte SHA-256 | `70c414f86a387227ba4b79e92db43dc71551cd1cd911c2eb07b3ad3d33e2eec5` |
+
+The command must report a three-dimensional `float32` array and a non-zero
+voxel count. Omitting the UID for a directory with multiple series, passing an unknown or empty
+UID, or passing a non-directory with a UID raises `OSError`; there is no
+first-series fallback. The Rust integration test
+`native_dicom_uid_selection_reads_only_the_requested_series` covers the same
+positive and fail-closed cases with two generated acquisitions and exact voxel
+assertions. The Python smoke test covers the keyword and non-directory error
+boundary against the built extension.
+
 ## Resource-bounded DICOM ingress
 
 The RITK DICOM boundary runs a structural Part 10 preflight before dicom-rs
