@@ -4,9 +4,10 @@ PyO3/maturin Python extension module wrapping the RITK Rust crate.
 
 ## Requirements
 
-- Rust toolchain: `nightly-x86_64-pc-windows-gnu` (default) or `nightly-x86_64-pc-windows-msvc`
+- Rust toolchain 1.97.0 (the repository pin)
 - Python ≥ 3.9
-- maturin ≥ 1.7
+- maturin ≥ 1.9.4, < 2.0
+- NumPy ≥ 2.0.2, < 2.6
 
 Install the parity-test dependencies from their canonical manifest:
 
@@ -14,25 +15,24 @@ Install the parity-test dependencies from their canonical manifest:
 py -m pip install -r crates/ritk-python/requirements-test.txt
 ```
 
-## Build (Windows)
+## Build
 
-The default toolchain (`nightly-x86_64-pc-windows-gnu`) produces a wheel whose `_ritk.dll`
-links against MinGW runtime libraries (`libgcc_s_seh-1.dll`, `libstdc++-6.dll`,
-`libwinpthread-1.dll`).  Windows-native Python (CPython 3.9+, MSVC ABI) cannot load these
-DLLs via the default DLL search path.  The `--auditwheel repair` flag copies them into a
-`ritk.libs/` directory inside the wheel, which maturin patches into the DLL search path at
-import time.
+Build the stable-ABI wheel from the repository root:
 
-**Correct build command:**
 ```sh
-rustup run nightly-x86_64-pc-windows-msvc py -m maturin build --release --auditwheel repair \
-  -i "C:\Users\<USERNAME>\AppData\Local\Programs\Python\Python313\python.exe"
+python -m pip install "maturin>=1.9.4,<2.0"
+python -m maturin build --release --locked \
+  --manifest-path crates/ritk-python/Cargo.toml --out dist
 ```
 
-Then install the built wheel:
+Install the wheel selected for the current interpreter:
+
 ```sh
-py -m pip install target/wheels/ritk-0.1.0-cp39-abi3-win_amd64.whl --force-reinstall
+python -m pip install --force-reinstall --no-index --find-links dist ritk
 ```
+
+The release workflow builds the `abi3-py39` wheel matrix and publishes through
+GitHub Actions OIDC Trusted Publishing. It stores no PyPI token or private key.
 
 ## Running Tests
 

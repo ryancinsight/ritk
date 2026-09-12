@@ -124,6 +124,13 @@
 - Status: done; priority: P0; owner: RITK viewer; integrator: root; last-update: 2026-09-12; delivery: [RITK PR #313](https://github.com/ryancinsight/ritk/pull/313), merge `030772033a2daa40657db1be093730a513c36c80`; risk: Linux all-target gate failure after the Métis presentation migration.
 - Outcome: Windows-only RGBA helpers are excluded from non-Windows test builds; `ritk-snap` native session tests 8/8 and the full pre-push gate pass without suppressions.
 
+<a id="RITK-PYTHON-PACKAGING-001"></a>
+## RITK-PYTHON-PACKAGING-001 — Publishable Python metadata and tokenless release [patch]
+- Status: review; priority: P1; owner: RITK Python + delivery; integrator: root; last-update: 2026-09-12; delivery: [RITK PR #315](https://github.com/ryancinsight/ritk/pull/315), commit `be88085f7`; risk: hosted release evidence and PyPI trusted-publisher configuration remain external.
+- Scope: complete `crates/ritk-python/pyproject.toml` metadata and replace the direct wheel workflow with the Atlas OIDC reusable workflow; keep the current PyO3 0.22 `abi3-py39` surface and do not claim free-threaded support.
+- Acceptance: metadata validation, source distribution, stable-ABI wheel matrix, installed import/binding smoke and post-upload workflow are defined without repository tokens or private keys; README build instructions match the current toolchain and UID workflow.
+- Verification: pyproject parse/build metadata, local maturin package check where available, strict workflow syntax/lock checks, focused RITK Python tests, and hosted workflow evidence after landing.
+- Local evidence: `maturin sdist` produced `ritk-0.12.79.tar.gz`; the release wheel built as `ritk-0.12.79-cp39-abi3-win_amd64.whl`, installed and imported with matching version metadata and `py.typed`; 47/47 native binding tests, strict Clippy, and format checks passed.
 <a id="RITK-PYTHON-DICOM-001"></a>
 ## RITK-PYTHON-DICOM-001 — Select DICOM series from Python [minor] — done
 - Status: done; priority: P1; owner: RITK I/O + Python; integrator: root; last-update: 2026-09-12; delivery: [RITK PR #311](https://github.com/ryancinsight/ritk/pull/311), merge `d36263467b106fe7d73fe90b374adae7524d8267`; risk: ambiguous clinical acquisition or silent cross-series display.
