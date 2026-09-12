@@ -119,6 +119,12 @@
 - Acceptance: valid three-canvas traces pass; missing/invalid consumer attributes, axis order, dimensions, actions, revisions, screenshots, cleanup or status fail with typed diagnostics; unit tests cover positive, boundary and malformed traces; manual documents the command.
 - Verification: 812/812 locked `ritk-snap` nextest, warning-denied all-target Clippy, formatting, the committed fixture command, and doctests; configured browser-driver traces remain an external runtime requirement.
 
+<a id="RITK-SNAP-PRESENTATION-CFG-001"></a>
+## RITK-SNAP-PRESENTATION-CFG-001 — Keep native presentation helpers platform-scoped [patch]
+- Status: in-progress; priority: P0; owner: RITK viewer; integrator: root; last-update: 2026-09-12; regions: `crates/ritk-snap/src/ui/mod.rs`, `crates/ritk-snap/src/presentation/frame.rs`; risk: Linux all-target gate failure after the Métis presentation migration.
+- Outcome: Linux test builds do not export or compile Windows-only RGBA transformation helpers; Windows native viewer behavior remains unchanged.
+- Acceptance: workspace all-target Clippy passes with `-D warnings` on Linux; Windows native-session tests retain the transformed-frame path; no test-only export or dead-code suppression remains.
+
 <a id="RITK-PYTHON-DICOM-001"></a>
 ## RITK-PYTHON-DICOM-001 — Select DICOM series from Python [minor] — done
 - Status: done; priority: P1; owner: RITK I/O + Python; integrator: root; last-update: 2026-09-12; delivery: [RITK PR #311](https://github.com/ryancinsight/ritk/pull/311), merge `d36263467b106fe7d73fe90b374adae7524d8267`; risk: ambiguous clinical acquisition or silent cross-series display.
