@@ -7,6 +7,8 @@
 use anyhow::{anyhow, bail, Context, Result};
 use coeus_core::ComputeBackend;
 use std::path::Path;
+#[cfg(not(target_arch = "wasm32"))]
+use std::sync::Mutex;
 
 use ritk_dicom::TransferSyntaxKind;
 use ritk_image::Image;
@@ -90,17 +92,25 @@ pub(crate) fn load_from_series_with_budget<B: ComputeBackend>(
     backend: &B,
     budget: &DicomReadBudget,
 ) -> Result<(Image<f32, B, 3>, DicomReadMetadata)> {
-    let decoded = decode_series(series, budget)?;
-    let image = Image::from_flat_on(
-        decoded.volume,
-        decoded.shape,
-        decoded.origin,
-        decoded.spacing,
-        decoded.direction,
-        backend,
-    )?;
+    let DecodedDicomSeries {
+        volume,
+        shape,
+        origin,
+        spacing,
+        direction,
+        mut metadata,
+    } = decode_series(series, budget)?;
+    let image = Image::from_flat_on(volume, shape, origin, spacing, direction, backend)?;
 
-    Ok((image, decoded.metadata))
+    // Part-10 bytes protect the scan-to-decode interval. Once the image has
+    // been reconstructed, retaining every encoded slice would duplicate the
+    // study's storage for the lifetime of the viewer without serving a read
+    // contract.
+    for slice in &mut metadata.slices {
+        slice.part10_bytes = None;
+    }
+
+    Ok((image, metadata))
 }
 
 struct DecodedDicomSeries {
@@ -304,34 +314,59 @@ fn decode_series(series: DicomSeriesInfo, budget: &DicomReadBudget) -> Result<De
         (volume, new_depth)
     } else {
         // Uniform z-spacing: decode directly into a preallocated contiguous volume.
+        if slices.len() != depth {
+            bail!(
+                "DICOM series slice count {} does not match metadata depth {}",
+                slices.len(),
+                depth
+            );
+        }
         let mut volume = allocate_decoded_buffer(volume_len, budget, "DICOM decoded volume")?;
 
         #[cfg(not(target_arch = "wasm32"))]
         {
-            // Decode slices in parallel (fallible), then write into the volume
-            // sequentially (cheap memcpy) so the first decode error propagates.
-            let decoded: Vec<Result<Vec<f32>>> =
-                moirai::map_collect_index_with::<moirai::Adaptive, _, _>(slices.len(), |z| {
+            // Decode each slice into the destination chunk while the bounded
+            // Moirai scheduler walks worker-sized index ranges. The temporary
+            // frame is dropped after its copy, so decoded vectors do not
+            // accumulate for the whole study as a collected map would.
+            let failures = Mutex::new(Vec::<(usize, anyhow::Error)>::new());
+            moirai::for_each_chunk_mut_enumerated_with::<moirai::Adaptive, _, _>(
+                &mut volume,
+                frame_len,
+                |z, destination| {
                     let slice = &slices[z];
-                    let data = if let Some(ref bytes) = slice.part10_bytes {
+                    let decoded = if let Some(ref bytes) = slice.part10_bytes {
                         read_slice_pixels_from_bytes(bytes, slice, &parser_budget)
                     } else {
                         read_slice_pixels(slice, &parser_budget)
                     }
-                    .with_context(|| format!("failed to decode DICOM slice {:?}", slice.path))?;
-                    if data.len() != frame_len {
-                        bail!(
-                            "DICOM slice size mismatch: expected {} pixels, got {}",
-                            frame_len,
-                            data.len()
-                        );
+                    .with_context(|| format!("failed to decode DICOM slice {:?}", slice.path))
+                    .and_then(|data| {
+                        if data.len() != frame_len {
+                            bail!(
+                                "DICOM slice size mismatch: expected {} pixels, got {}",
+                                frame_len,
+                                data.len()
+                            );
+                        }
+                        Ok(data)
+                    });
+                    match decoded {
+                        Ok(data) => destination.copy_from_slice(&data),
+                        Err(error) => {
+                            failures
+                                .lock()
+                                .unwrap_or_else(std::sync::PoisonError::into_inner)
+                                .push((z, error));
+                        }
                     }
-                    Ok(data)
-                });
-            for (z, result) in decoded.into_iter().enumerate() {
-                let data = result?;
-                let offset = z * frame_len;
-                volume[offset..offset + frame_len].copy_from_slice(&data);
+                },
+            );
+            let mut failures = failures
+                .into_inner()
+                .unwrap_or_else(std::sync::PoisonError::into_inner);
+            if let Some((_, error)) = failures.drain(..).min_by_key(|(z, _)| *z) {
+                return Err(error);
             }
         }
 

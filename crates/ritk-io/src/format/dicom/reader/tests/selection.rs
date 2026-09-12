@@ -36,6 +36,13 @@ fn decoded_pixels_are_the_validated_bytes_after_file_replacement() {
         assert_eq!(metadata.series_instance_uid.as_deref(), Some(SERIES));
         assert_eq!(metadata.origin, [10.0, 20.0, 2.0]);
         assert_eq!(metadata.spacing, [2.0, 0.5, 0.5]);
+        assert!(
+            metadata
+                .slices
+                .iter()
+                .all(|slice| slice.part10_bytes.is_none()),
+            "decoded metadata must not retain the scan payload"
+        );
         assert_eq!(image.spacing().to_array(), [2.0, 0.5, 0.5]);
         assert_eq!(image.data_cow_on(&backend).as_ref(), &[43.0; 4]);
     }
