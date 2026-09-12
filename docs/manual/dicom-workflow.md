@@ -764,6 +764,13 @@ remain the committed pixel baseline for the same public series. The chooser
 run proves the RITK viewer consumes a user-activated Metis selection; physical
 file-manager drag input, Firefox/WebKit and WebGPU remain separate gates.
 
+The same chooser path was rerun with the saved MRI-DIR T2 study from
+`test_data/2_head_mri_t2/DICOM/`. It accepted 94 real files and read
+49,807,236 bytes. RITK reported ready presented frames at 512 × 512 for axial
+(slice 47 of 94) and 512 × 94 for both coronal and sagittal (slice 256 of 512);
+the live viewport showed non-black MRI anatomy. Modality interpretation and
+pixel semantics remain in this RITK workflow.
+
 ## Build the RITK SNAP executable and installer
 
 RITK owns the application manifest at
