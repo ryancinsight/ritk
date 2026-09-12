@@ -40,17 +40,6 @@
 
 # RITK Sprint Checklist — Active
 
-## RITK-PYTHON-DICOM-001
-
-- [x] Add an RITK-native `SeriesInstanceUID` selector and re-export it through
-      `ritk-io`; cover valid, ambiguous, unknown, empty, non-directory, and
-      malformed selection behavior with value-semantic tests.
-- [x] Extend `ritk.io.read_image`, its stub, README, changelog, and DICOM manual;
-      build the Windows ABI3 wheel and compare a real CT series byte-for-byte
-      with SimpleITK.
-- [ ] Open and merge the reviewed branch, then remove this owner-local section
-      and close `RITK-PYTHON-DICOM-001` in `backlog.md`.
-
 ## RITK-SNAP-METIS-001 — Native Métis viewer session
 
 - [x] Build a bounded native session that loads one selected RITK study,
