@@ -176,6 +176,17 @@ selection helper, mixed-directory tests, CLI help, migration guide and
 runnable README command provide the acceptance evidence; DICOM parsing,
 metadata, geometry and clinical display remain in RITK.
 
+Revision 2026-09-12 (bounded GPU volume upload): the eframe volume renderer
+now computes the scalar storage-buffer size before calling wgpu and compares it
+with both device buffer limits. When a saved study exceeds either limit, the
+GPU pass returns `None`, the existing RITK render cache selects its CPU MIP or
+volume-rendering path, and a structured warning identifies the limit and
+volume shape. This closes the panic observed while opening the public
+409 × 512 × 512 CT series without moving DICOM decoding or clinical state into
+the host; GPU presentation remains available for volumes that fit the device.
+The size helper has overflow and device-limit tests, and the full `ritk-snap`
+nextest run plus a real saved-series eframe capture verify the behavior.
+
 The native session also applies keyboard slice navigation through the same
 RITK action adapter. A page-down event advances the active slice and triggers a
 new composed framebuffer; the regression test checks the state and pixel

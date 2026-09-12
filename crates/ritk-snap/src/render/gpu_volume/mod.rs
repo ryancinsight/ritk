@@ -8,6 +8,8 @@
 //!   and Volume Rendering (`vr.wgsl`, front-to-back alpha compositing).
 //! - A cached volume buffer: the `Arc<Vec<f32>>` pointer is compared across
 //!   calls so the volume is re-uploaded only when it changes.
+//!   Volumes larger than the device's storage-buffer limits return `None` from
+//!   the GPU pass and are rendered by the caller's CPU path.
 //! - Per-pass `GpuFrameCache` holding pre-allocated output and staging GPU
 //!   buffers, reused across frames whenever output dimensions are stable.
 //!
@@ -57,6 +59,8 @@ mod frame_cache;
 mod mip_pass;
 mod params;
 mod renderer;
+mod upload;
+mod volume_limits;
 mod vr_pass;
 
 #[cfg(test)]

@@ -392,6 +392,14 @@ This command proves the native Métis frame path. It does not claim a browser
 WebDriver, WebGPU, or cross-engine run; those require configured browser
 drivers and remain separate RITK integration gates.
 
+The eframe viewer uses the same RITK loader and display state. Before uploading
+the scalar volume, its GPU renderer checks both the device buffer and storage
+binding limits. A volume that cannot fit, including this 409-slice public
+series on the reference Windows adapter, is rendered by the existing CPU MIP or
+volume-rendering path and emits a diagnostic instead of panicking in wgpu. The
+GPU path remains available for volumes within the device limits; this guard
+keeps a real saved study displayable on either path.
+
 ### Capture the saved MRI study through Métis
 
 The same native path accepts the saved MRI-DIR T2 series in
