@@ -12,6 +12,12 @@
 
 ### Added
 
+- [minor] `ritk.io.read_image` accepts an optional `series_instance_uid` for
+  selecting one acquisition from a DICOM directory. RITK scans and matches the
+  UID before decoding pixels; ambiguous, unknown, empty, and non-directory
+  selections fail with `OSError`. The native and Python contracts are covered
+  by value-semantic tests and the [DICOM workflow manual](docs/manual/dicom-workflow.md).
+
 - [major][arch] Add modality-specific intensity ranges, masked borrowed-sample
   evaluation, discrete and moving-linear partial-volume histogram estimators,
   physical-radius binary-morphology support, and a bounded rigid NMI-capture / NGF-

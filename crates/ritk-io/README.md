@@ -47,6 +47,11 @@ Presentation hosts, including browser or desktop shells, call this public
 byte-batch API and receive an RITK `Image` plus `DicomReadMetadata`; they do not
 own a second DICOM decoder or volume model.
 
+Native directory callers that already have the acquisition UID use
+`read_native_dicom_series_with_uid`; it scans the directory, matches the exact
+UID, and only then decodes the selected series. Omitting an explicit selection
+continues to require one unambiguous image series.
+
 The bounded DICOM reader scan and series-load entry points have a `*_with_budget`
 form accepting the typed `DicomReadBudget`. Its parser component is the Atlas
 `ritk_dicom::ParseBudget`; the other fields set independent retained-study and

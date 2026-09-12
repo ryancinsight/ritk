@@ -72,8 +72,19 @@ storage and provides `.to_numpy()` for zero-copy-where-possible extraction.
 ### DICOM I/O
 
 `ritk.io.read_image(path)` dispatches to `ritk_io::read_image_native`, which routes DICOM
-directories through the native DICOM series reader before extension inference.  Pass the DICOM
-series directory directly; the reader selects the first series UID via `scan_dicom_directory`.
+directories through the native DICOM series reader before extension inference. A directory with
+one image series can be passed directly. A mixed directory must name the acquisition explicitly:
+
+```python
+image = ritk.io.read_image(
+    "test_data/3_head_ct_mridir/DICOM",
+    series_instance_uid="1.3.6.1.4.1.14519.5.2.1.1706.4996.115936088547498980797393821518",
+)
+```
+
+The UID is matched by RITK's scanner before pixels are decoded. Omitting it for a mixed directory,
+passing an unknown or empty UID, or passing a non-directory with a UID fails with `IOError`; no
+first-series fallback is used. Obtain the UID from RITK's series discovery or the DICOM metadata.
 
 ### Native image I/O coverage
 
