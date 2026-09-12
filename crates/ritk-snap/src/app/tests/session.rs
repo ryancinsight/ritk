@@ -1,7 +1,7 @@
 //! Session snapshot, view reset, study close, and slice-mapping tests.
 
 use super::*;
-use crate::app::state::{ProjectionMode, SeriesLoadTarget};
+use crate::app::state::{ProjectionBackend, ProjectionMode, SeriesLoadTarget};
 use crate::render::histogram::compute_histogram;
 use crate::ui::LinkedCursor;
 use crate::AppLaunchOptions;
@@ -101,7 +101,43 @@ fn close_study_clears_loaded_and_cached_state() {
         ProjectionMode::Mip,
         "projection mode must reset to MIP"
     );
+    assert_eq!(
+        app.projection_backend,
+        ProjectionBackend::Cpu,
+        "projection backend must reset with the study"
+    );
     assert_eq!(app.status_message, "Study closed.");
+}
+
+#[test]
+fn primary_visual_ready_waits_for_current_multi_planar_projection() {
+    let mut app = SnapApp::default();
+    assert!(
+        !app.primary_visual_ready(),
+        "an empty app is not capture-ready"
+    );
+
+    app.loaded = Some(test_volume([2, 2, 2]));
+    app.multi_planar = true;
+    app.mip_dirty = true;
+    app.projection_backend = ProjectionBackend::Pending;
+    assert!(
+        !app.primary_visual_ready(),
+        "pending projection must not capture"
+    );
+
+    let ctx = egui::Context::default();
+    app.mip_tex = Some(ctx.load_texture(
+        "capture-ready",
+        egui::ColorImage::new([2, 2], egui::Color32::WHITE),
+        egui::TextureOptions::NEAREST,
+    ));
+    app.mip_dirty = false;
+    app.projection_backend = ProjectionBackend::Gpu;
+    assert!(
+        app.primary_visual_ready(),
+        "a completed projection texture must be capture-ready"
+    );
 }
 
 #[test]

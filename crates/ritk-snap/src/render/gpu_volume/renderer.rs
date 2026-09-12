@@ -13,8 +13,14 @@ use super::context::GpuContext;
 use super::frame_cache::GpuFrameCache;
 use super::mip_pass::{collect_mip_result, submit_mip_async};
 use super::vr_pass::{collect_vr_result, submit_vr_async};
-use super::GpuVolumeRenderer;
 use super::PendingReadback;
+use super::{GpuRenderResult, GpuVolumeRenderer, ProjectionRequest};
+
+fn ready_or_pending(last: Option<&ColorImage>) -> GpuRenderResult {
+    last.map_or(GpuRenderResult::Pending, |image| {
+        GpuRenderResult::Ready(image.clone())
+    })
+}
 
 impl GpuVolumeRenderer {
     /// Attempt to create a GPU renderer.
@@ -194,8 +200,10 @@ impl GpuVolumeRenderer {
             vr_cache: None,
             mip_pending: None,
             mip_last: None,
+            mip_last_request: None,
             vr_pending: None,
             vr_last: None,
+            vr_last_request: None,
         })
     }
 
@@ -206,35 +214,61 @@ impl GpuVolumeRenderer {
     ///
     /// # Async readback behaviour
     ///
-    /// - Returns `None` on the first call (work submitted, no result yet).
-    /// - Subsequent calls return the last completed frame while the GPU works
-    ///   on the current one (1-frame display latency).
+    /// - Returns [`GpuRenderResult::Pending`] on the first call (work
+    ///   submitted, no result yet).
+    /// - Subsequent calls return [`GpuRenderResult::Ready`] with the last
+    ///   completed frame while the GPU works on the current one (1-frame
+    ///   display latency).
     /// - The calling thread is never blocked waiting for the GPU.
     ///
-    /// Returns `None` when no volume is loaded, the GPU is unavailable, or
-    /// no frame has completed yet. Callers fall back to the CPU path on `None`.
-    pub fn render_mip(
+    /// Returns [`GpuRenderResult::Unsupported`] when the input or device cannot
+    /// use this path and [`GpuRenderResult::Failed`] when GPU submission or
+    /// readback fails. Callers use the CPU path only for those terminal states;
+    /// [`GpuRenderResult::Pending`] keeps the projection dirty for a later
+    /// frame.
+    pub(crate) fn render_mip(
         &mut self,
         volume: &LoadedVolume,
         wl: WindowLevel,
         colormap: NamedColorMap,
-    ) -> Option<ColorImage> {
+    ) -> GpuRenderResult {
         if volume.channels != 1 {
             tracing::error!(
                 channels = volume.channels,
                 "GPU MIP requires a scalar volume"
             );
-            return None;
+            return GpuRenderResult::Unsupported;
         }
         let presentation = match GrayscalePresentation::for_volume(volume) {
             Ok(presentation) => presentation,
             Err(error) => {
                 tracing::error!(%error, "invalid DICOM grayscale presentation metadata");
-                return None;
+                return GpuRenderResult::Unsupported;
             }
         };
+        let request = ProjectionRequest::new(volume, wl, presentation, colormap, 0.0);
         if !self.ensure_volume_uploaded(volume) {
-            return None;
+            return GpuRenderResult::Unsupported;
+        }
+
+        if self
+            .mip_pending
+            .as_ref()
+            .is_some_and(|pending| pending.request != request)
+        {
+            // The staging buffer may still be mapped by the abandoned
+            // callback; dropping the complete frame cache unmaps it before a
+            // new request can reuse the buffer.
+            self.mip_pending = None;
+            self.mip_last = None;
+            self.mip_last_request = None;
+            self.mip_cache = None;
+        } else if self
+            .mip_last_request
+            .is_some_and(|last_request| last_request != request)
+        {
+            self.mip_last = None;
+            self.mip_last_request = None;
         }
         let [_, rows, cols] = volume.shape;
 
@@ -247,6 +281,7 @@ impl GpuVolumeRenderer {
         {
             self.mip_pending = None;
             self.mip_last = None;
+            self.mip_last_request = None;
             self.mip_cache = Some(GpuFrameCache::new(&self.ctx.device, rows, cols, 4));
         }
 
@@ -266,46 +301,55 @@ impl GpuVolumeRenderer {
                         collect_mip_result(&cache.staging_buf, pending.rows, pending.cols)
                     };
                     self.mip_last = Some(img);
+                    self.mip_last_request = Some(pending.request);
                     // mip_pending remains None; new work submitted below.
                 }
                 Ok(Err(e)) => {
-                    // map_async failed — log and retry on next cycle.
-                    tracing::warn!(?e, "MIP map_async failed; retrying next render cycle");
+                    // A failed readback cannot produce a trustworthy frame.
+                    tracing::warn!(?e, "MIP map_async failed; caller must use CPU rendering");
+                    return GpuRenderResult::Failed;
                 }
                 Err(std::sync::mpsc::TryRecvError::Disconnected) => {
                     tracing::warn!("MIP readback channel disconnected unexpectedly");
+                    return GpuRenderResult::Failed;
                 }
                 Err(std::sync::mpsc::TryRecvError::Empty) => {
                     // GPU still executing — restore pending, return cached frame.
                     self.mip_pending = Some(pending);
-                    return self.mip_last.clone();
+                    return ready_or_pending(self.mip_last.as_ref());
                 }
             }
         }
 
         // Submit new GPU work (only when no readback is in-flight).
-        if let Some(vol_buf) = &self.vol_buffer {
-            let rx = {
-                let cache = self
-                    .mip_cache
-                    .as_ref()
-                    .expect("infallible: validated precondition");
-                submit_mip_async(
-                    &self.ctx,
-                    &self.mip_pipeline,
-                    &self.mip_bgl,
-                    vol_buf,
-                    cache,
-                    volume.shape,
-                    wl,
-                    presentation,
-                    colormap,
-                )
-            };
-            self.mip_pending = Some(PendingReadback { rx, rows, cols });
-        }
+        let Some(vol_buf) = &self.vol_buffer else {
+            return GpuRenderResult::Failed;
+        };
+        let rx = {
+            let cache = self
+                .mip_cache
+                .as_ref()
+                .expect("infallible: validated precondition");
+            submit_mip_async(
+                &self.ctx,
+                &self.mip_pipeline,
+                &self.mip_bgl,
+                vol_buf,
+                cache,
+                volume.shape,
+                wl,
+                presentation,
+                colormap,
+            )
+        };
+        self.mip_pending = Some(PendingReadback {
+            rx,
+            rows,
+            cols,
+            request,
+        });
 
-        self.mip_last.clone()
+        ready_or_pending(self.mip_last.as_ref())
     }
 
     /// Render a Volume Rendering (VR) projection via front-to-back alpha
@@ -316,33 +360,54 @@ impl GpuVolumeRenderer {
     ///
     /// # Async readback behaviour
     ///
-    /// Same 1-frame latency model as `render_mip`. Returns `None` on the
-    /// first call; subsequent calls return the last completed frame.
+    /// Same 1-frame latency model as `render_mip`. Returns
+    /// [`GpuRenderResult::Pending`] on the first call; subsequent calls return
+    /// the last completed frame as [`GpuRenderResult::Ready`].
     ///
-    /// Returns `None` on GPU error or before any frame completes.
-    pub fn render_vr(
+    /// Returns [`GpuRenderResult::Unsupported`] for an unsupported input or
+    /// device and [`GpuRenderResult::Failed`] after a GPU submission/readback
+    /// error.
+    pub(crate) fn render_vr(
         &mut self,
         volume: &LoadedVolume,
         wl: WindowLevel,
         colormap: NamedColorMap,
         alpha_scale: f32,
-    ) -> Option<ColorImage> {
+    ) -> GpuRenderResult {
         if volume.channels != 1 {
             tracing::error!(
                 channels = volume.channels,
                 "GPU VR requires a scalar volume"
             );
-            return None;
+            return GpuRenderResult::Unsupported;
         }
         let presentation = match GrayscalePresentation::for_volume(volume) {
             Ok(presentation) => presentation,
             Err(error) => {
                 tracing::error!(%error, "invalid DICOM grayscale presentation metadata");
-                return None;
+                return GpuRenderResult::Unsupported;
             }
         };
+        let request = ProjectionRequest::new(volume, wl, presentation, colormap, alpha_scale);
         if !self.ensure_volume_uploaded(volume) {
-            return None;
+            return GpuRenderResult::Unsupported;
+        }
+
+        if self
+            .vr_pending
+            .as_ref()
+            .is_some_and(|pending| pending.request != request)
+        {
+            self.vr_pending = None;
+            self.vr_last = None;
+            self.vr_last_request = None;
+            self.vr_cache = None;
+        } else if self
+            .vr_last_request
+            .is_some_and(|last_request| last_request != request)
+        {
+            self.vr_last = None;
+            self.vr_last_request = None;
         }
         let [_, rows, cols] = volume.shape;
 
@@ -354,6 +419,7 @@ impl GpuVolumeRenderer {
         {
             self.vr_pending = None;
             self.vr_last = None;
+            self.vr_last_request = None;
             self.vr_cache = Some(GpuFrameCache::new(&self.ctx.device, rows, cols, 4));
         }
 
@@ -372,44 +438,53 @@ impl GpuVolumeRenderer {
                         collect_vr_result(&cache.staging_buf, pending.rows, pending.cols)
                     };
                     self.vr_last = Some(img);
+                    self.vr_last_request = Some(pending.request);
                 }
                 Ok(Err(e)) => {
-                    tracing::warn!(?e, "VR map_async failed; retrying next render cycle");
+                    tracing::warn!(?e, "VR map_async failed; caller must use CPU rendering");
+                    return GpuRenderResult::Failed;
                 }
                 Err(std::sync::mpsc::TryRecvError::Disconnected) => {
                     tracing::warn!("VR readback channel disconnected unexpectedly");
+                    return GpuRenderResult::Failed;
                 }
                 Err(std::sync::mpsc::TryRecvError::Empty) => {
                     self.vr_pending = Some(pending);
-                    return self.vr_last.clone();
+                    return ready_or_pending(self.vr_last.as_ref());
                 }
             }
         }
 
         // Submit new GPU work.
-        if let Some(vol_buf) = &self.vol_buffer {
-            let rx = {
-                let cache = self
-                    .vr_cache
-                    .as_ref()
-                    .expect("infallible: validated precondition");
-                submit_vr_async(
-                    &self.ctx,
-                    &self.vr_pipeline,
-                    &self.vr_bgl,
-                    vol_buf,
-                    cache,
-                    volume.shape,
-                    wl,
-                    presentation,
-                    colormap,
-                    alpha_scale,
-                )
-            };
-            self.vr_pending = Some(PendingReadback { rx, rows, cols });
-        }
+        let Some(vol_buf) = &self.vol_buffer else {
+            return GpuRenderResult::Failed;
+        };
+        let rx = {
+            let cache = self
+                .vr_cache
+                .as_ref()
+                .expect("infallible: validated precondition");
+            submit_vr_async(
+                &self.ctx,
+                &self.vr_pipeline,
+                &self.vr_bgl,
+                vol_buf,
+                cache,
+                volume.shape,
+                wl,
+                presentation,
+                colormap,
+                alpha_scale,
+            )
+        };
+        self.vr_pending = Some(PendingReadback {
+            rx,
+            rows,
+            cols,
+            request,
+        });
 
-        self.vr_last.clone()
+        ready_or_pending(self.vr_last.as_ref())
     }
 
     /// Block the calling thread until all in-flight GPU work completes.

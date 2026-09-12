@@ -43,7 +43,8 @@ use super::params::VrParams;
 /// An `mpsc::Receiver` that fires:
 /// - `Ok(Ok(()))` — GPU finished; `cache.staging_buf` is mapped and readable
 ///   via [`collect_vr_result`].
-/// - `Ok(Err(_))` — `map_async` failed; caller retries on next render cycle.
+/// - `Ok(Err(_))` — `map_async` failed; the caller should select its CPU
+///   projection path and surface the failure.
 /// - `Err(Disconnected)` — internal error; treat as failure.
 ///
 /// # Non-blocking guarantee

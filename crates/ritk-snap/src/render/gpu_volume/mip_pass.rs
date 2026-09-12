@@ -49,8 +49,8 @@ use super::params::RenderParams;
 /// An `mpsc::Receiver` that fires:
 /// - `Ok(Ok(()))` — GPU finished; `cache.staging_buf` is mapped and readable
 ///   via [`collect_mip_result`].
-/// - `Ok(Err(_))` — `map_async` failed (device loss, OOM); caller should retry
-///   on the next render cycle.
+/// - `Ok(Err(_))` — `map_async` failed (device loss, OOM); the caller should
+///   select its CPU projection path and surface the failure.
 /// - `Err(Disconnected)` — internal error; treat as `map_async` failure.
 ///
 /// # Non-blocking guarantee

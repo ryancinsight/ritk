@@ -73,6 +73,7 @@
 <a id="RITK-SNAP-METIS-001"></a>
 ## RITK-SNAP-METIS-001 — Migrate the viewer shell to Métis [arch] [major]
 - Status: in-progress; priority: P1; owner: RITK viewer + Métis framework; integrator: root; last-update: 2026-09-12; delivery: [RITK PR #293](https://github.com/ryancinsight/ritk/pull/293), merge `2bdce4910`; risk: lost viewer behavior; decision: [ADR 0026](docs/adr/0026-viewer-presentation-migration.md).
+- Lease: root — `crates/ritk-snap/src/render/gpu_volume/`, `crates/ritk-snap/src/app/render_cache.rs`, `crates/ritk-snap/src/launch/capture.rs`, GPU capture evidence — 2026-09-12.
 - Driver: user's named application; framework work: [METIS-MIGRATION-001](../metis/backlog.md#METIS-MIGRATION-001), [V09](../metis/docs/VERIFICATION.md#V09).
 - Dependencies: RITK-SNAP-FIXTURES-001, RITK-SNAP-OPEN-001, RITK-SNAP-DIRECTORY-001, RITK-SNAP-ASPECT-001, RITK-SNAP-RESOURCES-001, RITK-SNAP-FRAMES-001, RITK-SNAP-FUSION-001, RITK-SNAP-COORDINATES-001, RITK-SNAP-COLOR-001, RITK-SNAP-GRAYSCALE-001; working Métis host/input/image/async/file capabilities.
 - Scope: inventory and replace egui/eframe shell and GUI-specific carriers in `ritk-snap`; retain RITK decoding, geometry and viewer semantics, Iris visualization contracts and Moirai execution. Tauri is a framework comparison target, not a dependency found in this app.

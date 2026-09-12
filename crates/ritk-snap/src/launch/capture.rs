@@ -75,6 +75,18 @@ impl CaptureApp {
                     ctx.request_repaint_after(LOAD_REPAINT_INTERVAL);
                     return Ok(());
                 }
+                if matches!(capture.requirement, Requirement::Study)
+                    && !self.app.primary_visual_ready()
+                {
+                    if start.elapsed() >= LOAD_DEADLINE {
+                        bail!(
+                            "initial study projection exceeded 30-second deadline: {}",
+                            self.app.status_message
+                        );
+                    }
+                    ctx.request_repaint_after(LOAD_REPAINT_INTERVAL);
+                    return Ok(());
+                }
                 capture.phase = Phase::Requested(Instant::now());
                 ctx.send_viewport_cmd(egui::ViewportCommand::Screenshot);
                 ctx.request_repaint_after(RESPONSE_DEADLINE);

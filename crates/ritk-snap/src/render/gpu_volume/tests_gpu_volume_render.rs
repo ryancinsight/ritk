@@ -14,7 +14,7 @@ use crate::render::mip_vr::render_vr_axial;
 use crate::render::{NamedColorMap, WindowLevel};
 use crate::LoadedVolume;
 
-use super::GpuVolumeRenderer;
+use super::{GpuRenderResult, GpuVolumeRenderer};
 
 // ── Test helpers (VR-specific) ──────────────────────────────────────────────
 
@@ -31,7 +31,10 @@ fn render_vr_sync(
     renderer.poll_blocking();
     let _ = renderer.render_vr(volume, wl, colormap, alpha_scale);
     renderer.poll_blocking();
-    renderer.render_vr(volume, wl, colormap, alpha_scale)
+    match renderer.render_vr(volume, wl, colormap, alpha_scale) {
+        GpuRenderResult::Ready(image) => Some(image),
+        GpuRenderResult::Pending | GpuRenderResult::Unsupported | GpuRenderResult::Failed => None,
+    }
 }
 
 /// Build a small synthetic `LoadedVolume` with uniform intensity `value`.
@@ -241,19 +244,19 @@ fn gpu_vr_repeated_render_identical() {
 
 // ── Sprint 274: async contract tests ─────────────────────────────────────────
 
-/// Async readback contract: first `render_mip` call returns `None`; after
-/// `poll_blocking`, the second call returns `Some` with valid pixel data.
+/// Async readback contract: first `render_mip` call is `Pending`; after
+/// `poll_blocking`, the second call returns `Ready` with valid pixel data.
 ///
 /// # Formal contract
 ///
 /// Let `r₀ = render_mip(v, wl, cm)` (first call, no cached result).
 /// Let `r₁ = render_mip(v, wl, cm)` (after `poll_blocking`).
 ///
-/// Invariant 1: `r₀ = None` — no blocking of the calling thread.
-/// Invariant 2: `r₁ = Some(img)` where `img.size = [cols, rows]`.
+/// Invariant 1: `r₀ = Pending` — no blocking of the calling thread.
+/// Invariant 2: `r₁ = Ready(img)` where `img.size = [cols, rows]`.
 /// Invariant 3: `img` contains ≥1 non-zero pixel for a non-zero input volume.
 #[test]
-fn gpu_mip_async_first_call_none_then_yields_result() {
+fn gpu_mip_async_first_call_pending_then_yields_result() {
     let Some(mut renderer) = GpuVolumeRenderer::try_create() else {
         tracing::info!("No GPU available — skipping async contract test");
         return;
@@ -263,20 +266,20 @@ fn gpu_mip_async_first_call_none_then_yields_result() {
     let wl = WindowLevel::new(128.0, 256.0);
     let cm = NamedColorMap::Grayscale;
 
-    // Invariant 1: first call submits GPU work and returns None immediately.
+    // Invariant 1: first call submits GPU work and returns Pending immediately.
     let r0 = renderer.render_mip(&vol, wl, cm);
     assert!(
-        r0.is_none(),
-        "First render_mip call must return None (GPU work in-flight, no cached result)"
+        matches!(r0, GpuRenderResult::Pending),
+        "First render_mip call must return Pending (GPU work in-flight, no cached result)"
     );
 
     // Drive GPU completion without blocking the render thread in production.
     renderer.poll_blocking();
 
     // Invariant 2 + 3: second call collects the completed result.
-    let r1 = renderer
-        .render_mip(&vol, wl, cm)
-        .expect("Second render_mip must return Some after poll_blocking");
+    let GpuRenderResult::Ready(r1) = renderer.render_mip(&vol, wl, cm) else {
+        panic!("Second render_mip must return Ready after poll_blocking");
+    };
 
     assert_eq!(r1.size, [8, 8], "Output size must be [cols=8, rows=8]");
     assert_eq!(
@@ -293,21 +296,60 @@ fn gpu_mip_async_first_call_none_then_yields_result() {
         "Non-zero test volume must produce at least one non-black MIP pixel"
     );
     tracing::info!(
-        "Async MIP contract verified: r0=None, r1=Some({} pixels)",
+        "Async MIP contract verified: r0=Pending, r1=Ready({} pixels)",
         r1.pixels.len()
     );
 }
 
-/// Async readback contract for VR: first call returns `None`; after
-/// `poll_blocking`, the second call returns `Some` with valid pixel data.
+/// A changed window/level request cannot publish the previous projection.
+///
+/// The first request maps a uniform sample to white. The second request maps
+/// the same sample below the window to black. The renderer must discard any
+/// in-flight readback from the first request and return the black image only
+/// after the second request completes.
+#[test]
+fn gpu_mip_changed_window_level_discards_stale_readback() {
+    let Some(mut renderer) = GpuVolumeRenderer::try_create() else {
+        tracing::info!("No GPU available — skipping request identity test");
+        return;
+    };
+
+    let volume = make_uniform_volume(4, 8, 8, 0.0);
+    let white_window = WindowLevel::new(0.0, 1.0);
+    let black_window = WindowLevel::new(100.0, 200.0);
+    let colormap = NamedColorMap::Grayscale;
+
+    assert!(matches!(
+        renderer.render_mip(&volume, white_window, colormap),
+        GpuRenderResult::Pending
+    ));
+    assert!(matches!(
+        renderer.render_mip(&volume, black_window, colormap),
+        GpuRenderResult::Pending
+    ));
+
+    renderer.poll_blocking();
+    let GpuRenderResult::Ready(image) = renderer.render_mip(&volume, black_window, colormap) else {
+        panic!("changed window/level must yield a completed current projection");
+    };
+
+    let black_pixel = egui::Color32::from_rgba_unmultiplied(0, 0, 0, 255);
+    assert!(
+        image.pixels.iter().all(|&pixel| pixel == black_pixel),
+        "the changed request must render black rather than reuse the white frame"
+    );
+}
+
+/// Async readback contract for VR: first call returns `Pending`; after
+/// `poll_blocking`, the second call returns `Ready` with valid pixel data.
 ///
 /// # Formal contract (parallel to MIP contract)
 ///
-/// Invariant 1: `render_vr(v, wl, cm, α)` on first call = `None`.
-/// Invariant 2: after `poll_blocking`, `render_vr(v, wl, cm, α)` = `Some(img)`.
+/// Invariant 1: `render_vr(v, wl, cm, α)` on first call = `Pending`.
+/// Invariant 2: after `poll_blocking`, `render_vr(v, wl, cm, α)` = `Ready(img)`.
 /// Invariant 3: `img.size = [cols, rows]`.
 #[test]
-fn gpu_vr_async_first_call_none_then_yields_result() {
+fn gpu_vr_async_first_call_pending_then_yields_result() {
     let Some(mut renderer) = GpuVolumeRenderer::try_create() else {
         tracing::info!("No GPU available — skipping async VR contract test");
         return;
@@ -321,21 +363,21 @@ fn gpu_vr_async_first_call_none_then_yields_result() {
     // Invariant 1.
     let r0 = renderer.render_vr(&vol, wl, cm, alpha);
     assert!(
-        r0.is_none(),
-        "First render_vr call must return None (GPU work in-flight, no cached result)"
+        matches!(r0, GpuRenderResult::Pending),
+        "First render_vr call must return Pending (GPU work in-flight, no cached result)"
     );
 
     renderer.poll_blocking();
 
     // Invariant 2 + 3.
-    let r1 = renderer
-        .render_vr(&vol, wl, cm, alpha)
-        .expect("Second render_vr must return Some after poll_blocking");
+    let GpuRenderResult::Ready(r1) = renderer.render_vr(&vol, wl, cm, alpha) else {
+        panic!("Second render_vr must return Ready after poll_blocking");
+    };
 
     assert_eq!(r1.size, [8, 8], "Output size must be [cols=8, rows=8]");
     assert_eq!(r1.pixels.len(), 8 * 8, "Pixel buffer length must equal 64");
     tracing::info!(
-        "Async VR contract verified: r0=None, r1=Some({} pixels)",
+        "Async VR contract verified: r0=Pending, r1=Ready({} pixels)",
         r1.pixels.len()
     );
 }

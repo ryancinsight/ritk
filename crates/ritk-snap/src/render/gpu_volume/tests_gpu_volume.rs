@@ -28,7 +28,7 @@ use crate::render::mip_vr::render_mip_axial;
 use crate::render::{NamedColorMap, WindowLevel};
 use crate::LoadedVolume;
 
-use super::GpuVolumeRenderer;
+use super::{GpuRenderResult, GpuVolumeRenderer};
 
 // ── Test helpers ─────────────────────────────────────────────────────────────
 
@@ -62,7 +62,10 @@ fn render_mip_sync(
     renderer.poll_blocking();
 
     // Round 3: collect the current volume's result.
-    renderer.render_mip(volume, wl, colormap)
+    match renderer.render_mip(volume, wl, colormap) {
+        GpuRenderResult::Ready(image) => Some(image),
+        GpuRenderResult::Pending | GpuRenderResult::Unsupported | GpuRenderResult::Failed => None,
+    }
 }
 
 /// Build a small synthetic `LoadedVolume` with uniform intensity `value`.

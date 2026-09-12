@@ -1,16 +1,35 @@
-use super::state::ProjectionMode;
-
-/// Per-voxel opacity scale for volume rendering. Canonical value per GPU VR spec.
-#[cfg(not(target_arch = "wasm32"))]
-const DEFAULT_VR_ALPHA: f32 = 0.06;
 use super::state::SnapApp;
+use super::state::{ProjectionBackend, ProjectionMode};
 use super::viewport_render::{OVERLAY_LABEL_COLOR, OVERLAY_LABEL_FONT_SIZE, OVERLAY_LABEL_INSET};
 use crate::render::mip_vr::{render_mip_axial_with_scratch, render_vr_axial_with_scratch};
 use crate::render::{SliceRenderer, WindowLevel};
 use crate::ui::apply_to_image_into;
 use crate::viewer::{DEFAULT_WINDOW_CENTER, DEFAULT_WINDOW_WIDTH};
 
+/// Per-voxel opacity scale for volume rendering. Canonical value per GPU VR spec.
+#[cfg(not(target_arch = "wasm32"))]
+const DEFAULT_VR_ALPHA: f32 = 0.06;
+const GPU_REPAINT_INTERVAL: std::time::Duration = std::time::Duration::from_millis(8);
+
 impl SnapApp {
+    /// Return whether a study capture can include the visible 3D projection.
+    ///
+    /// Single, dual-plane and compare layouts do not display the projection;
+    /// the multi-planar layout waits until its GPU readback or CPU fallback has
+    /// produced the current texture. Color volumes intentionally have no 3D
+    /// projection and are therefore ready once the study is loaded.
+    pub(crate) fn primary_visual_ready(&self) -> bool {
+        let Some(volume) = self.loaded.as_ref() else {
+            return false;
+        };
+        if !self.multi_planar || volume.channels != 1 {
+            return true;
+        }
+        self.mip_tex.is_some()
+            && !self.mip_dirty
+            && self.projection_backend != ProjectionBackend::Pending
+    }
+
     pub(crate) fn rebuild_texture_for_axis(&mut self, ctx: &egui::Context, axis: usize) {
         let (color_image, tex_name) = {
             let Some(vol) = &self.loaded else {
@@ -58,12 +77,13 @@ impl SnapApp {
     }
 
     /// Render the 3D-MIP projection through WL LUT and upload to the GPU.
-    pub(crate) fn rebuild_texture_for_mip(&mut self, ctx: &egui::Context) {
+    pub(crate) fn rebuild_texture_for_mip(&mut self, ctx: &egui::Context) -> bool {
         let Some(vol) = self.loaded.clone() else {
-            return;
+            return false;
         };
         if vol.channels != 1 {
             self.mip_tex = None;
+            self.projection_backend = ProjectionBackend::Cpu;
             self.status_message = format!(
                 "3D projection unavailable: scalar volume required (received {} channels).",
                 vol.channels
@@ -72,7 +92,7 @@ impl SnapApp {
                 channels = vol.channels,
                 "skipping 3D projection for color volume"
             );
-            return;
+            return true;
         }
         let wc = self
             .viewer_state
@@ -88,22 +108,38 @@ impl SnapApp {
         // ── GPU-accelerated MIP and VR (native only) ─────────────────────────
         #[cfg(not(target_arch = "wasm32"))]
         if let Some(ref mut gpu) = self.gpu_renderer {
-            let gpu_img = match self.projection_mode {
+            let gpu_result = match self.projection_mode {
                 ProjectionMode::Mip => gpu.render_mip(&vol, wl, self.colormap),
                 ProjectionMode::Vr => gpu.render_vr(&vol, wl, self.colormap, DEFAULT_VR_ALPHA),
             };
-            if let Some(img) = gpu_img {
-                self.mip_tex = Some(ctx.load_texture(
-                    "slice_tex_mip_axial",
-                    img,
-                    egui::TextureOptions::LINEAR,
-                ));
-                return;
+            match gpu_result {
+                crate::render::gpu_volume::GpuRenderResult::Ready(img) => {
+                    self.mip_tex = Some(ctx.load_texture(
+                        "slice_tex_mip_axial",
+                        img,
+                        egui::TextureOptions::LINEAR,
+                    ));
+                    self.projection_backend = ProjectionBackend::Gpu;
+                    return true;
+                }
+                crate::render::gpu_volume::GpuRenderResult::Pending => {
+                    self.projection_backend = ProjectionBackend::Pending;
+                    ctx.request_repaint_after(GPU_REPAINT_INTERVAL);
+                    return false;
+                }
+                crate::render::gpu_volume::GpuRenderResult::Unsupported => {
+                    tracing::info!(
+                        mode = ?self.projection_mode,
+                        "GPU projection unsupported; using CPU path"
+                    );
+                }
+                crate::render::gpu_volume::GpuRenderResult::Failed => {
+                    tracing::warn!(
+                        mode = ?self.projection_mode,
+                        "GPU projection failed; using CPU path"
+                    );
+                }
             }
-            tracing::warn!(
-                mode = ?self.projection_mode,
-                "GPU render failed; falling back to CPU path"
-            );
         }
 
         // ── CPU fallback (always available) ──────────────────────────────────
@@ -127,6 +163,8 @@ impl SnapApp {
             color_image,
             egui::TextureOptions::LINEAR,
         ));
+        self.projection_backend = ProjectionBackend::Cpu;
+        true
     }
 
     /// Render one 3D-MIP viewport into `ui`.
@@ -134,8 +172,7 @@ impl SnapApp {
         let needs_rebuild = self.mip_dirty || self.mip_tex.is_none();
 
         if needs_rebuild && self.loaded.is_some() {
-            self.rebuild_texture_for_mip(ctx);
-            self.mip_dirty = false;
+            self.mip_dirty = !self.rebuild_texture_for_mip(ctx);
         }
 
         let Some((tex_id, [tex_w_usize, tex_h_usize])) =
@@ -148,6 +185,8 @@ impl SnapApp {
                     .is_some_and(|volume| volume.channels != 1)
                 {
                     ui.label("3D projection requires a scalar volume");
+                } else if self.projection_backend == ProjectionBackend::Pending {
+                    ui.label("3D projection — waiting for GPU");
                 } else {
                     ui.label("3D MIP — open a volume to begin");
                 }
@@ -181,9 +220,13 @@ impl SnapApp {
         }
 
         let painter = ui.painter_at(response.rect);
-        let label = match self.projection_mode {
-            ProjectionMode::Mip => "3D MIP",
-            ProjectionMode::Vr => "3D VR",
+        let label = match (self.projection_mode, self.projection_backend) {
+            (ProjectionMode::Mip, ProjectionBackend::Gpu) => "3D MIP · GPU",
+            (ProjectionMode::Mip, ProjectionBackend::Cpu) => "3D MIP · CPU",
+            (ProjectionMode::Mip, ProjectionBackend::Pending) => "3D MIP · GPU pending",
+            (ProjectionMode::Vr, ProjectionBackend::Gpu) => "3D VR · GPU",
+            (ProjectionMode::Vr, ProjectionBackend::Cpu) => "3D VR · CPU",
+            (ProjectionMode::Vr, ProjectionBackend::Pending) => "3D VR · GPU pending",
         };
         painter.text(
             response.rect.min + egui::vec2(OVERLAY_LABEL_INSET, OVERLAY_LABEL_INSET),
