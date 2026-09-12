@@ -400,6 +400,34 @@ volume-rendering path and emits a diagnostic instead of panicking in wgpu. The
 GPU path remains available for volumes within the device limits; this guard
 keeps a real saved study displayable on either path.
 
+### Capture the saved CT study in eframe
+
+The same public series can be opened in the complete eframe application with an
+explicit acquisition selection:
+
+```powershell
+target\debug\ritk-snap.exe `
+  test_data\3_head_ct_mridir\DICOM `
+  --series-instance-uid 1.3.6.1.4.1.14519.5.2.1.1706.4996.115936088547498980797393821518 `
+  --capture scratch\viewer\real-dicom-eframe.png
+```
+
+This run decoded the saved 409-slice CT series and exited successfully with a
+1600 × 1000 application-content capture. The image includes the Series Browser,
+axial, coronal, sagittal and 3D MIP views, plus the RITK geometry and
+window/level state. The scalar volume exceeds the reference adapter's GPU
+storage-buffer limit, so the guard above selected the existing CPU projection
+path and kept the actual DICOM pixels visible:
+
+![Actual MRI-DIR CT series rendered in the eframe application](images/dicom-eframe-real-ct.png)
+
+The capture is byte-identical across two runs (SHA-256
+`2871d57dd4ce99788b57e897682d8402c439697bede704c0845314b6fbd4cad3`). Its
+source revisions, executable digest, selected UID and command bounds are in
+[`dicom-eframe-real-ct.json`](images/dicom-eframe-real-ct.json). The PNG is
+committed because this is public CC BY 4.0 phantom data; private clinical
+captures remain local and ignored.
+
 ### Capture the saved MRI study through Métis
 
 The same native path accepts the saved MRI-DIR T2 series in
