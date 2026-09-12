@@ -3,9 +3,9 @@
   "status": "passed",
   "runtime": {
     "host": "Windows native Métis HWND capture",
-    "capture_tool": "Metis scripts/python_native_capture.py at e4fcb0b41b514658115c4edb13688e02cfc3c925",
+    "capture_tool": "Metis scripts/python_native_capture.py at 2d0dad065c7bf6f4bff74eaf214da2cbd303fc3e",
     "input": "public MRI-DIR CT DICOM directory passed to ritk-snap",
-    "ritk_revision": "d365e339eb23b023d4ced467e5caf3bf429bba65",
+    "ritk_revision": "b2772322f44fd4297007711d9cb460efdf002f0d",
     "metis_revision": "be6235ab0efdb4c406fd1c5c8af3a1880a4ab143",
     "moirai_revision": "fd836cd1715e1cd6f537290ce670829ba875be94"
   },
@@ -23,8 +23,8 @@
     "height": 839,
     "bytes": 363441,
     "sha256": "e919a6245778849d223f688ad212fc095777b9d60b8b6acf6001436ba696fad7",
-    "executable_sha256": "6563b3c3323e2b3cdf55a20df058e1a6b746c4b323b47616aee29161e8e8e6ff",
-    "executable_bytes": 47900160,
+    "executable_sha256": "ded329b5b27ceb243904688aae653852e22fb22db4cb4da574265b853df9e57c",
+    "executable_bytes": 47911936,
     "visual_scope": "complete visible native window including Windows decorations",
     "capture_mode": "Metis process-tree PrintWindow capture",
     "planes": ["axial", "coronal", "sagittal"]
