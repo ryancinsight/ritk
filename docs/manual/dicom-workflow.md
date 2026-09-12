@@ -383,6 +383,35 @@ not an illustration or a generated image. The default capture and the
 application-content capture share the same RITK decode and presentation path;
 the latter adds only bounded viewer labels for visual inspection.
 
+### Show the real study with the native MIP panel
+
+The native host can expose the same scalar axial MIP already used by the RITK
+eframe viewer. The option is explicit so the default three-panel capture stays
+stable, while a matched capture can show all four RITK projections through the
+same Métis framebuffer:
+
+```powershell
+cargo run --locked -p ritk-snap -- `
+  test_data\3_head_ct_mridir\DICOM `
+  --series-instance-uid `
+  1.3.6.1.4.1.14519.5.2.1.1706.4996.115936088547498980797393821518 `
+  --metis-native `
+  --metis-native-layout orthogonal-with-mip `
+  --capture-application `
+  --capture scratch\viewer\real-dicom-metis-mip.png
+```
+
+The lower-right panel is the RITK axial MIP. The other three panels keep their
+existing axial, coronal, and sagittal event routing; the MIP is display-only.
+This command opens the saved public 409-slice CT series and writes actual
+decoded DICOM pixels. The committed image and its provenance record below are
+the visual demonstration; no generated or private patient image is used.
+
+![Actual MRI-DIR CT series with the RITK orthogonal views and axial MIP through the Métis native surface](images/dicom-metis-real-ct-mip.png)
+
+The capture metadata, source revisions, panel order, dimensions, and digest are
+in the accompanying [MIP provenance record](images/dicom-metis-real-ct-mip.json).
+
 ### Capture the complete Métis application window
 
 The framebuffer capture above intentionally excludes operating-system chrome.

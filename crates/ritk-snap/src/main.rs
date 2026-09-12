@@ -47,6 +47,14 @@ struct Args {
     /// Run the loaded study through the Métis native host.
     #[arg(long)]
     metis_native: bool,
+    /// Select the native Métis framebuffer layout.
+    #[arg(
+        long = "metis-native-layout",
+        value_enum,
+        default_value = "orthogonal",
+        requires = "metis_native"
+    )]
+    native_presentation_mode: ritk_snap::NativePresentationMode,
     /// Validate a RITK-owned semantic canvas trace and exit.
     #[arg(
         long,
@@ -79,6 +87,7 @@ fn main() -> anyhow::Result<()> {
         capture: args.capture,
         capture_application: args.capture_application,
         metis_native: args.metis_native,
+        native_presentation_mode: args.native_presentation_mode,
     })
 }
 

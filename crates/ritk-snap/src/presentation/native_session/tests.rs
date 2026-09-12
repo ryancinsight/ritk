@@ -1,9 +1,15 @@
-use super::frame::{OVERLAY_BAR_HEIGHT, OVERLAY_TEXT};
+use super::layout::{OVERLAY_BAR_HEIGHT, OVERLAY_TEXT};
 use super::*;
 use crate::dicom::loader::tests::fixtures;
 use metis_platform::native::{ModifierState, WindowEvent};
 
 fn session() -> (NativeViewerSession, tempfile::TempDir) {
+    session_with_mode(NativePresentationMode::Orthogonal)
+}
+
+fn session_with_mode(
+    presentation_mode: NativePresentationMode,
+) -> (NativeViewerSession, tempfile::TempDir) {
     let root = tempfile::tempdir().expect("study root");
     let path = root.path().to_path_buf();
     fixtures::write_study(&path, "CT", fixtures::SERIES_UID).expect("write study");
@@ -15,6 +21,7 @@ fn session() -> (NativeViewerSession, tempfile::TempDir) {
             app,
             Arc::new(NativeViewerObservation::default()),
             false,
+            presentation_mode,
             false,
         )
         .expect("native session"),
@@ -127,6 +134,51 @@ fn native_session_composes_three_views_and_routes_wheels_by_panel() {
         .expect("coronal wheel transition");
     assert_eq!(session.app.axis, 1);
     assert_eq!(session.app.coronal_slice, 1);
+}
+
+#[test]
+fn native_session_mip_layout_composes_a_fourth_display_panel() {
+    let (session, _root) = session_with_mode(NativePresentationMode::OrthogonalWithMip);
+    let projection = session.projection.as_ref().expect("MIP layout projection");
+    assert_eq!(projection.frame.width(), 4);
+    assert_eq!(projection.frame.height(), 2);
+    assert_eq!(session.framebuffer.width(), INITIAL_WIDTH);
+    assert_eq!(session.framebuffer.height(), INITIAL_HEIGHT);
+    assert_eq!(
+        session
+            .viewports
+            .iter()
+            .map(|viewport| viewport.axis())
+            .collect::<Vec<_>>(),
+        vec![0, 1, 2]
+    );
+    assert_ne!(
+        session.framebuffer.get_pixel(960, 600),
+        metis_platform::Color::BLACK,
+        "the fourth panel contains the rendered MIP"
+    );
+}
+
+#[test]
+fn native_session_mip_application_overlay_labels_the_fourth_panel() {
+    let (session, _root) = session_with_mode(NativePresentationMode::OrthogonalWithMip);
+    let projection = session.projection.as_ref().expect("MIP layout projection");
+    let (application, _) = surface_frames_with_mip(
+        &session.views,
+        projection,
+        INITIAL_WIDTH,
+        INITIAL_HEIGHT,
+        session.app.zoom,
+        session.app.pan_offset,
+        true,
+    )
+    .expect("MIP application capture");
+    let has_overlay_text =
+        (644..1280).any(|x| (404..424).any(|y| application.get_pixel(x, y) == OVERLAY_TEXT));
+    assert!(
+        has_overlay_text,
+        "MIP application capture includes panel text"
+    );
 }
 
 #[test]

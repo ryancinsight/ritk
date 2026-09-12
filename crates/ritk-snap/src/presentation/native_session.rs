@@ -2,13 +2,14 @@
 //!
 //! RITK owns the loaded volume, display policy and input transitions. Métis
 //! receives only the retained framebuffer and reports bounded native events.
-//! The session composes all three orthogonal RITK planes into one bounded
-//! framebuffer. RITK owns DICOM decoding, display policy and input state;
-//! Métis owns the native surface and receives only that framebuffer.
+//! The session composes RITK views into one bounded framebuffer. RITK owns
+//! DICOM decoding, display policy and input state; Métis owns the native
+//! surface and receives only that framebuffer.
 
 use super::{translate_native_events, PresentationEvent};
 use crate::app::SnapApp;
 use crate::dicom::loader::{load_volume_from_path, load_volume_from_series_uid};
+use crate::launch::NativePresentationMode;
 use anyhow::{anyhow, Context, Result};
 use metis_platform::native::{
     run_native_application, NativeApplication, NativeFlow, WindowConfig, WindowEvent,
@@ -22,7 +23,11 @@ use std::sync::{Arc, Mutex};
 use std::time::Duration;
 
 mod frame;
-use frame::{render_orthogonal_views, surface_frames, NativeViewport, RenderedView};
+mod layout;
+mod projection;
+use frame::{render_orthogonal_views, RenderedView};
+use layout::{surface_frames, surface_frames_with_mip, NativeViewport};
+use projection::{render_mip_projection, RenderedProjection};
 mod routing;
 
 const INITIAL_WIDTH: u32 = 1_280;
@@ -37,7 +42,9 @@ pub use outcome::NativeViewerOutcome;
 ///
 /// RITK opens and decodes `initial_path`, optionally selecting
 /// `initial_series_uid` after discovery, applies its existing hanging protocol
-/// and window/level rules, and renders the three orthogonal slices.
+/// and window/level rules, and renders the three orthogonal slices. The
+/// [`NativePresentationMode::OrthogonalWithMip`] mode adds the existing RITK
+/// axial MIP as a display-only fourth panel.
 /// The Métis host owns the visible window, finite event wait, framebuffer
 /// presentation and terminal cleanup. When `capture` is supplied, the window
 /// is hidden and the session closes after its first idle event batch, then
@@ -51,6 +58,7 @@ pub fn run_native_viewer(
     initial_path: impl AsRef<Path>,
     initial_series_uid: Option<&str>,
     capture: Option<&Path>,
+    presentation_mode: NativePresentationMode,
     capture_application: bool,
 ) -> Result<NativeViewerOutcome> {
     let initial_path = initial_path.as_ref();
@@ -79,6 +87,7 @@ pub fn run_native_viewer(
         app,
         Arc::clone(&observation),
         capture.is_some(),
+        presentation_mode,
         capture_application,
     )?;
     let config = WindowConfig::with_visibility(
@@ -131,6 +140,41 @@ pub fn run_native_viewer(
     })
 }
 
+fn compose_frames(
+    views: &[RenderedView; 3],
+    projection: Option<&RenderedProjection>,
+    presentation_mode: NativePresentationMode,
+    surface_width: u32,
+    surface_height: u32,
+    zoom: f32,
+    pan_offset: egui::Vec2,
+    show_application_overlay: bool,
+) -> Result<(Framebuffer, [NativeViewport; 3])> {
+    match (presentation_mode, projection) {
+        (NativePresentationMode::Orthogonal, None) => surface_frames(
+            views,
+            surface_width,
+            surface_height,
+            zoom,
+            pan_offset,
+            show_application_overlay,
+        ),
+        (NativePresentationMode::OrthogonalWithMip, Some(projection)) => surface_frames_with_mip(
+            views,
+            projection,
+            surface_width,
+            surface_height,
+            zoom,
+            pan_offset,
+            show_application_overlay,
+        ),
+        (NativePresentationMode::Orthogonal, Some(_))
+        | (NativePresentationMode::OrthogonalWithMip, None) => Err(anyhow!(
+            "native presentation mode and projection state disagree"
+        )),
+    }
+}
+
 fn save_capture(framebuffer: &Framebuffer, output: &Path) -> Result<()> {
     let pixel_count =
         usize::try_from(u64::from(framebuffer.width()) * u64::from(framebuffer.height()))
@@ -160,6 +204,8 @@ fn save_capture(framebuffer: &Framebuffer, output: &Path) -> Result<()> {
 struct NativeViewerSession {
     app: SnapApp,
     views: [RenderedView; 3],
+    projection: Option<RenderedProjection>,
+    presentation_mode: NativePresentationMode,
     framebuffer: Framebuffer,
     viewports: [NativeViewport; 3],
     active_view: Option<usize>,
@@ -177,11 +223,18 @@ impl NativeViewerSession {
         app: SnapApp,
         observation: Arc<NativeViewerObservation>,
         capture_after_idle: bool,
+        presentation_mode: NativePresentationMode,
         capture_application: bool,
     ) -> Result<Self> {
         let views = render_orthogonal_views(&app)?;
-        let (framebuffer, viewports) = surface_frames(
+        let projection = match presentation_mode {
+            NativePresentationMode::Orthogonal => None,
+            NativePresentationMode::OrthogonalWithMip => Some(render_mip_projection(&app)?),
+        };
+        let (framebuffer, viewports) = compose_frames(
             &views,
+            projection.as_ref(),
+            presentation_mode,
             INITIAL_WIDTH,
             INITIAL_HEIGHT,
             app.zoom,
@@ -205,6 +258,8 @@ impl NativeViewerSession {
         Ok(Self {
             app,
             views,
+            projection,
+            presentation_mode,
             framebuffer,
             viewports,
             active_view: None,
@@ -220,8 +275,14 @@ impl NativeViewerSession {
 
     fn refresh_frame(&mut self) -> Result<()> {
         let views = render_orthogonal_views(&self.app)?;
-        let (framebuffer, viewports) = surface_frames(
+        let projection = match self.presentation_mode {
+            NativePresentationMode::Orthogonal => None,
+            NativePresentationMode::OrthogonalWithMip => Some(render_mip_projection(&self.app)?),
+        };
+        let (framebuffer, viewports) = compose_frames(
             &views,
+            projection.as_ref(),
+            self.presentation_mode,
             self.surface_width,
             self.surface_height,
             self.app.zoom,
@@ -229,6 +290,7 @@ impl NativeViewerSession {
             self.capture_application,
         )?;
         self.views = views;
+        self.projection = projection;
         self.framebuffer = framebuffer;
         self.viewports = viewports;
         self.observation

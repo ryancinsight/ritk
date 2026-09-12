@@ -36,9 +36,9 @@ pub mod viewer;
 pub use filter::{BedSeparationConfigSerde, FilterKind};
 pub use geometry::{GeometrySummary, ModalityDisplay, ViewerResult, ViewerStatus};
 #[cfg(not(target_arch = "wasm32"))]
-pub use launch::{run_app, run_app_with_options, AppLaunchOptions};
+pub use launch::{run_app, run_app_with_options, AppLaunchOptions, NativePresentationMode};
 #[cfg(target_arch = "wasm32")]
-pub use launch::{run_app_with_options, AppLaunchOptions};
+pub use launch::{run_app_with_options, AppLaunchOptions, NativePresentationMode};
 #[cfg(target_arch = "wasm32")]
 pub use launch::{start_web, start_web_canvas, start_web_orthogonal_canvases, stop_web_canvas};
 pub use loaded_volume::LoadedVolume;

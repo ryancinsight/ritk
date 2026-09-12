@@ -4,6 +4,18 @@ use std::path::PathBuf;
 #[cfg(not(target_arch = "wasm32"))]
 mod capture;
 
+/// Native Métis framebuffer layout selected at application startup.
+#[derive(Debug, Clone, Copy, Default, PartialEq, Eq, Serialize, Deserialize, clap::ValueEnum)]
+pub enum NativePresentationMode {
+    /// Three spacing-aware orthogonal panels.
+    #[default]
+    #[value(name = "orthogonal")]
+    Orthogonal,
+    /// Orthogonal panels plus the RITK axial maximum-intensity projection.
+    #[value(name = "orthogonal-with-mip")]
+    OrthogonalWithMip,
+}
+
 /// Startup configuration for the native `ritk-snap` application.
 #[derive(Debug, Clone, Default, PartialEq, Eq, Serialize, Deserialize)]
 pub struct AppLaunchOptions {
@@ -31,6 +43,9 @@ pub struct AppLaunchOptions {
     /// startup path and is currently available on Windows.
     #[serde(default)]
     pub metis_native: bool,
+    /// Native Métis layout. Non-default values require `metis_native`.
+    #[serde(default)]
+    pub native_presentation_mode: NativePresentationMode,
 }
 
 /// Launch the `ritk-snap` native GUI application.
@@ -73,6 +88,7 @@ pub fn run_app_with_options(options: AppLaunchOptions) -> anyhow::Result<()> {
                 path,
                 options.initial_series_uid.as_deref(),
                 options.capture.as_deref(),
+                options.native_presentation_mode,
                 options.capture_application,
             )?;
             return Ok(());
@@ -82,8 +98,12 @@ pub fn run_app_with_options(options: AppLaunchOptions) -> anyhow::Result<()> {
             let _ = path;
             let _ = options.capture;
             let _ = options.capture_application;
+            let _ = options.native_presentation_mode;
             anyhow::bail!("--metis-native requires a Windows Métis native host");
         }
+    }
+    if options.native_presentation_mode != NativePresentationMode::Orthogonal {
+        anyhow::bail!("native presentation layout requires the Métis native host");
     }
     use std::cell::Cell;
     use std::rc::Rc;

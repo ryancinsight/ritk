@@ -118,6 +118,15 @@
 - Completed increment (2026-09-12): the public 409-file CT workflow now has a complete visible Métis HWND capture in addition to the deterministic framebuffer image, using Metis commit [`e4fcb0b`](https://github.com/ryancinsight/metis/commit/e4fcb0b41b514658115c4edb13688e02cfc3c925). The 1296 × 839 PNG includes the Windows frame and all three real RITK planes; provenance records the executable, stack revisions, dimensions and digest. Private studies remain local; GPU, cross-engine browser input and installed package evidence remain open.
 - Completed increment (2026-09-12): the complete-window reproduction command resolves Cargo's `target_directory`, so it launches the RITK executable from Atlas's shared build cache as well as from a standalone workspace.
 
+<a id="RITK-SNAP-METIS-MIP-001"></a>
+## RITK-SNAP-METIS-MIP-001 — Match the native Métis projection layout [arch] [minor]
+- Status: done; priority: P1; owner: RITK presentation; integrator: root; last-update: 2026-09-12; delivery: commit `de7b8d8ed0f754020ddb6a7607f24df3e6d652b8`; risk: comparing unlike viewer workloads.
+- Scope: add an explicit native layout that composes RITK's existing scalar axial MIP beside the three orthogonal views; the default orthogonal capture remains unchanged and Métis remains DICOM-free.
+- Acceptance: the layout is typed and CLI-selectable, rejects color volumes through the existing RITK projection contract, preserves native event routing for the three orthogonal panels, and produces a reviewed real public CT capture with deterministic unit coverage.
+- Dependencies: RITK-SNAP-METIS-001; existing RITK MIP renderer and Métis native framebuffer.
+- Verification: 13/13 focused nextest, strict Clippy, Rustdoc, doctests, default capture hash unchanged, and two matching Windows public-study MIP captures; [MIP provenance](docs/manual/images/dicom-metis-real-ct-mip.json).
+- Outcome: RITK exposes a typed native `orthogonal-with-mip` mode; the committed 1280 × 800 capture shows actual public CT axial, coronal, sagittal, and axial-MIP panels through Métis.
+
 <a id="RITK-SNAP-METIS-002"></a>
 ## RITK-SNAP-METIS-002 — Validate RITK browser semantic traces [arch] [minor]
 - Status: done; priority: P1; owner: RITK viewer; integrator: root; last-update: 2026-09-11; delivery: [RITK PR #301](https://github.com/ryancinsight/ritk/pull/301), merge `d97e6523934a9485122d4dbb4afa1eacdf826353`; regions: `crates/ritk-snap/src/browser_trace.rs`, `crates/ritk-snap/src/browser_trace/tests.rs`, `crates/ritk-snap/tests/fixtures/browser-trace.json`, `crates/ritk-snap/src/main.rs`, `docs/adr/0033-browser-trace-validator.md`, `docs/adr/README.md`, `docs/manual/dicom-workflow.md`; dependencies: RITK-SNAP-METIS-001, Metis PR #73; risk: false visual/runtime evidence

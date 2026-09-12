@@ -1,0 +1,50 @@
+{
+  "schema": 1,
+  "status": "passed",
+  "runtime": {
+    "host": "Windows native Métis surface",
+    "input": "public MRI-DIR CT DICOM directory passed to ritk-snap",
+    "graphics_backend": "Métis software framebuffer; RITK CPU MIP renderer",
+    "ritk_revision": "de7b8d8ed0f754020ddb6a7607f24df3e6d652b8",
+    "metis_revision": "be6235ab0efdb4c406fd1c5c8af3a1880a4ab143",
+    "moirai_revision": "fd836cd1715e1cd6f537290ce670829ba875be94"
+  },
+  "dataset": {
+    "path": "test_data/3_head_ct_mridir/DICOM",
+    "series_instance_uid": "1.3.6.1.4.1.14519.5.2.1.1706.4996.115936088547498980797393821518",
+    "files_available": 409,
+    "files_submitted": 409,
+    "bytes_read": 216156416,
+    "concatenated_input_sha256": "73eb154d9a3c1225aa15cd1e8051deb31770719239fc3430aeffd56f3e572d11",
+    "license": "CC BY 4.0",
+    "description": "public MRI-DIR porcine-head CT phantom; not private patient data"
+  },
+  "output": {
+    "image": "dicom-metis-real-ct-mip.png",
+    "width": 1280,
+    "height": 800,
+    "bytes": 549877,
+    "sha256": "989a1f66b43a39ec753180cdd882b08e11adfc2ab4009c416a694c1fd12efe42",
+    "executable_sha256": "d8f40b11e20ff5317e1f2cc3ecd421e5bc96c18b67357da33bc01f2dc5d74af8",
+    "executable_bytes": 53576704,
+    "visual_scope": "Métis framebuffer application content; operating-system chrome excluded",
+    "capture_mode": "--metis-native --metis-native-layout orthogonal-with-mip --capture-application",
+    "panels": ["axial", "coronal", "sagittal", "axial_mip"],
+    "mip_renderer": "RITK render_mip_axial with the active window/level and colormap policy",
+    "overlay": "RITK plane, slice, frame-dimension, window/level, and MIP labels"
+  },
+  "bounds": {
+    "surface": "1280 × 800",
+    "layout": "2 × 2 with four-pixel separators",
+    "repeat_runs": 2,
+    "repeat_sha256_match": true,
+    "repeat_sha256": "989a1f66b43a39ec753180cdd882b08e11adfc2ab4009c416a694c1fd12efe42",
+    "nonblack_pixels": 317416,
+    "nonblack_pixels_by_panel": {
+      "axial": 76530,
+      "coronal": 64123,
+      "sagittal": 84131,
+      "axial_mip": 92632
+    }
+  }
+}
