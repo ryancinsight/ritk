@@ -329,8 +329,34 @@ target/debug/ritk-snap.exe scratch/viewer/study --metis-native --capture scratch
 
 This capture checks real DICOM opening, RITK rendering, orthogonal slice
 selection, physical-aspect placement, and Métis framebuffer transfer. It is a
-content capture without OS chrome or text overlays; the native host owns the
-surface while RITK owns every DICOM and clinical display decision.
+content capture without OS chrome or application overlays; the native host owns
+the surface while RITK owns every DICOM and clinical display decision. This
+pixel-only form remains the deterministic framebuffer check. To demonstrate
+the viewer content state as it appears in the Métis surface, request the
+bounded RITK application overlay explicitly:
+
+```powershell
+cargo build --locked -p ritk-snap
+target\debug\ritk-snap.exe `
+  test_data\3_head_ct_mridir\DICOM `
+  --metis-native `
+  --capture-application `
+  --capture scratch\viewer\real-dicom-metis-application.png
+```
+
+The overlay is drawn into the same 1280 × 800 framebuffer after the real
+decoded planes are composed. It identifies the Métis/RITK host, plane, slice
+range, frame dimensions, and window/level values without adding patient
+metadata. Operating-system decorations remain outside the capture contract.
+The reviewed public CT result is [the application-content capture](images/dicom-metis-real-ct-application.png), with machine-readable
+[provenance](images/dicom-metis-real-ct-application.json).
+
+![Actual MRI-DIR CT series rendered through the Métis native surface with the RITK application overlay](images/dicom-metis-real-ct-application.png)
+
+This image is application output from the saved public DICOM pixel data; it is
+not an illustration or a generated image. The default capture and the
+application-content capture share the same RITK decode and presentation path;
+the latter adds only bounded viewer labels for visual inspection.
 
 The complete synthetic workflow can run this Métis check; it records the
 executable hash, invalid-study rejection and `metis-frame.png` hash in

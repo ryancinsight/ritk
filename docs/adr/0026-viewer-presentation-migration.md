@@ -492,7 +492,7 @@ boundary.
 | `rfd::FileDialog` and `app/io_ops.rs` | User-selected paths, selected-study identity, export/session semantics | Moirai filesystem grants; Métis browser byte batches | Native dialog and browser byte-batch adapters must preserve exact selection intent and return typed failures to RITK. |
 | `process_pending_loads`, `pacs_worker`, `tick_cine`, and repaint requests | Decode/PACS/cine scheduling, cancellation and result publication | Moirai bounded tasks and host pump; `metis-frontend::AsyncFrontendApp` is an IPC pattern | The RITK bridge uses per-target generations and cooperative cancellation; host close and supersession invalidate pending publication. |
 | Menus, panels, overlays, annotations and accessibility behavior in `ui/*` | Medical labels, physical-coordinate overlays, measurements and actions | Métis UI language DOM/CSS layout plus format-neutral display commands | Widget, text, clipboard, context-menu, accessibility and overlay primitives need a conformance slice before porting the complete shell. |
-| `CaptureApp` in `launch/capture.rs` (`ViewportCommand::Screenshot`, `Event::Screenshot`, completion and close) | Eframe application-window PNG capture, study-load requirement and failure reporting | Métis framebuffer readback plus host close/present result | The Windows Métis session now provides a finite source-frame capture; complete application-window readback and three-view capture remain before shell cutover. |
+| `CaptureApp` in `launch/capture.rs` (`ViewportCommand::Screenshot`, `Event::Screenshot`, completion and close) | Eframe application-window PNG capture, study-load requirement and failure reporting | Métis framebuffer readback plus host close/present result | The Windows Métis session provides a finite three-view source-frame capture and an opt-in bounded RITK application overlay; complete operating-system application-window readback remains before shell cutover. |
 | `clap` binary options and eframe packaging in `main.rs` | RITK viewer arguments and capture workflow | `metis-cli` `init`, `dev`, `build`, `package`, `completions`; `package` produces the Windows MSI; `metis-platform` native surface | The manifest-driven Windows executable and per-user MSI workflow are delivered. Cross-platform installer artifacts and complete application-window capture remain separate release evidence. |
 
 The initial implementation slices after this inventory are a format-neutral
@@ -502,7 +502,8 @@ existing viewer transitions on a native Métis surface. The frame, event,
 action-reducer, wheel policy, eframe adapter, three-view native composition,
 first Windows interactive session, and browser byte handoff are complete.
 GPU-capable Métis/WASM presentation, cross-engine browser evidence, and
-complete application-window capture remain before shell cutover. Native eframe
+complete operating-system application-window capture remain before shell
+cutover. Native eframe
 GPU projection now guards device limits, keeps changed requests pending until
 their readback completes, and falls back to the existing CPU path for
 unsupported or failed requests. A fitting-volume real-DICOM capture exercises
@@ -510,6 +511,15 @@ the GPU projection and is linked from the manual. DICOM opening remains
 exercised by RITK's existing file and byte loaders;
 Métis receives only bounded format-neutral bytes and validated presentation
 data.
+
+Revision 2026-09-12 (Métis application-content capture): RITK adds the
+`--capture-application` option to the Windows Métis native capture path. It
+draws bounded plane, slice, frame-dimension, and window/level labels into the
+same framebuffer as the decoded orthogonal pixels; the existing `--capture`
+output remains pixel-only, and operating-system chrome is outside the capture
+contract. The reviewed public MRI-DIR CT image and provenance are linked from
+the [DICOM workflow manual](../manual/dicom-workflow.md). DICOM decoding and
+clinical display state remain entirely in RITK.
 
 Revision 2026-09-11 (neutral frame correction): commit
 [`c2fbea76e`](https://github.com/ryancinsight/ritk/commit/c2fbea76e) moves the

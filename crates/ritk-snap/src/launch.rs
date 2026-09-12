@@ -21,6 +21,12 @@ pub struct AppLaunchOptions {
     /// returned to the caller; closing the window early does not report success.
     #[serde(default)]
     pub capture: Option<PathBuf>,
+    /// Include the bounded RITK application overlay in a Métis capture.
+    ///
+    /// This affects only the Métis native capture content. Operating-system
+    /// decorations are outside the framebuffer contract.
+    #[serde(default)]
+    pub capture_application: bool,
     /// Use the Métis native host instead of the eframe shell. This requires a
     /// startup path and is currently available on Windows.
     #[serde(default)]
@@ -67,6 +73,7 @@ pub fn run_app_with_options(options: AppLaunchOptions) -> anyhow::Result<()> {
                 path,
                 options.initial_series_uid.as_deref(),
                 options.capture.as_deref(),
+                options.capture_application,
             )?;
             return Ok(());
         }
@@ -74,6 +81,7 @@ pub fn run_app_with_options(options: AppLaunchOptions) -> anyhow::Result<()> {
         {
             let _ = path;
             let _ = options.capture;
+            let _ = options.capture_application;
             anyhow::bail!("--metis-native requires a Windows Métis native host");
         }
     }

@@ -1,0 +1,42 @@
+{
+  "schema": 1,
+  "status": "passed",
+  "runtime": {
+    "host": "Windows native Métis surface",
+    "input": "public MRI-DIR CT DICOM directory passed to ritk-snap",
+    "graphics_backend": "Métis software framebuffer; WGPU is not involved",
+    "ritk_revision": "96bdc5428ad6f83050534e889edb692216557dda",
+    "metis_revision": "be6235ab0efdb4c406fd1c5c8af3a1880a4ab143",
+    "moirai_revision": "fd836cd1715e1cd6f537290ce670829ba875be94"
+  },
+  "dataset": {
+    "path": "test_data/3_head_ct_mridir/DICOM",
+    "series_instance_uid": "1.3.6.1.4.1.14519.5.2.1.1706.4996.115936088547498980797393821518",
+    "files_available": 409,
+    "files_submitted": 409,
+    "bytes_read": 216156416,
+    "concatenated_input_sha256": "73eb154d9a3c1225aa15cd1e8051deb31770719239fc3430aeffd56f3e572d11",
+    "license": "CC BY 4.0",
+    "description": "public MRI-DIR porcine-head CT phantom; not private patient data"
+  },
+  "output": {
+    "image": "dicom-metis-real-ct-application.png",
+    "width": 1280,
+    "height": 800,
+    "bytes": 535797,
+    "sha256": "8082cea87348126ce5a07cacb602bf71081747881481d2062bb1f2c7314113d3",
+    "executable_sha256": "6563b3c3323e2b3cdf55a20df058e1a6b746c4b323b47616aee29161e8e8e6ff",
+    "executable_bytes": 47900160,
+    "visual_scope": "Métis framebuffer application content; operating-system chrome excluded",
+    "capture_mode": "--metis-native --capture-application",
+    "planes": ["axial", "coronal", "sagittal"],
+    "overlay": "RITK plane, slice, frame-dimension, and window/level labels"
+  },
+  "bounds": {
+    "surface": "1280 × 800",
+    "overlay_bar_height": 20,
+    "repeat_runs": 2,
+    "repeat_sha256_match": true,
+    "repeat_sha256": "8082cea87348126ce5a07cacb602bf71081747881481d2062bb1f2c7314113d3"
+  }
+}
