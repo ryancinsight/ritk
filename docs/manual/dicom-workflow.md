@@ -358,6 +358,36 @@ not an illustration or a generated image. The default capture and the
 application-content capture share the same RITK decode and presentation path;
 the latter adds only bounded viewer labels for visual inspection.
 
+### Capture the complete Métis application window
+
+The framebuffer capture above intentionally excludes operating-system chrome.
+To inspect the application as a user sees it, run the generic Métis Windows
+capture utility against the visible RITK process. The utility passes each
+argument separately, follows the supervised frontend process, captures the
+first visible top-level HWND and closes the process with `WM_CLOSE`:
+
+```powershell
+python ..\metis\scripts\python_native_capture.py `
+  --command target\debug\ritk-snap.exe `
+  --argument=test_data\3_head_ct_mridir\DICOM `
+  --argument=--series-instance-uid `
+  --argument=1.3.6.1.4.1.14519.5.2.1.1706.4996.115936088547498980797393821518 `
+  --argument=--metis-native `
+  --output docs\manual\images\dicom-metis-real-ct-window.png
+```
+
+The reviewed [complete-window capture](images/dicom-metis-real-ct-window.png)
+is 1296 × 839 pixels: a 1280 × 800 Métis client surface inside the visible
+Windows frame. It shows the actual saved public CT volume in axial, coronal and
+sagittal views. Its executable, runtime, dimensions and image digest are in
+the accompanying [provenance record](images/dicom-metis-real-ct-window.json).
+The capture includes host decorations and therefore varies with Windows theme,
+scale and font rasterization; the deterministic 1280 × 800 framebuffer remains
+the pixel-level regression oracle. Private patient studies and identifiers stay
+local and are never committed.
+
+![Complete Métis application window showing the saved CT study](images/dicom-metis-real-ct-window.png)
+
 The complete synthetic workflow can run this Métis check; it records the
 executable hash, invalid-study rejection and `metis-frame.png` hash in
 `scratch/viewer/workflow.json`:
