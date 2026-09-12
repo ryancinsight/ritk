@@ -367,8 +367,10 @@ argument separately, follows the supervised frontend process, captures the
 first visible top-level HWND and closes the process with `WM_CLOSE`:
 
 ```powershell
+$target = (cargo metadata --format-version 1 --no-deps |
+  ConvertFrom-Json).target_directory
 python ..\metis\scripts\python_native_capture.py `
-  --command target\debug\ritk-snap.exe `
+  --command (Join-Path $target "debug\ritk-snap.exe") `
   --argument=test_data\3_head_ct_mridir\DICOM `
   --argument=--series-instance-uid `
   --argument=1.3.6.1.4.1.14519.5.2.1.1706.4996.115936088547498980797393821518 `
