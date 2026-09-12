@@ -4,8 +4,8 @@
   "runtime": {
     "host": "Windows native eframe application",
     "input": "local DICOM directory passed to ritk-snap",
-    "ritk_revision": "697c22093aefa33b494662439d8e9ae26fbed282",
-    "metis_revision": "be6235ab0efdb4c406fd1c5c8af3a1880a4ab143",
+    "ritk_revision": "b2772322f44fd4297007711d9cb460efdf002f0d",
+    "metis_revision": "2d0dad065c7bf6f4bff74eaf214da2cbd303fc3e",
     "moirai_revision": "fd836cd1715e1cd6f537290ce670829ba875be94"
   },
   "dataset": {
@@ -21,14 +21,15 @@
     "image": "dicom-eframe-real-ct.png",
     "width": 1600,
     "height": 1000,
-    "sha256": "2871d57dd4ce99788b57e897682d8402c439697bede704c0845314b6fbd4cad3",
-    "executable_sha256": "c82ff1332f683095c8291d715d89fbf6e5b47de63b14c35c8b2fa636abb37007",
+    "sha256": "f4b30c71bd57f54227f5eeec524cd72e93f56f68e834fed909b907f9ecace048",
+    "bytes": 489775,
+    "executable_sha256": "ded329b5b27ce243904688aae653852e22fb22db4cb4da574265b853df9e57c",
     "visual_scope": "complete eframe application content; operating-system chrome excluded",
     "planes": ["axial", "coronal", "sagittal", "3d_mip"],
     "render_path": "RITK CPU projection after GPU storage-buffer preflight"
   },
   "bounds": {
-    "capture_timeout_seconds": 180,
+    "capture_timeout_seconds": 120,
     "series_selection": "explicit SeriesInstanceUID",
     "repeat_runs": 2,
     "repeat_sha256_match": true

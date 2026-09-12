@@ -504,8 +504,8 @@ path and kept the actual DICOM pixels visible:
 
 ![Actual MRI-DIR CT series rendered in the eframe application](images/dicom-eframe-real-ct.png)
 
-The capture is byte-identical across two runs (SHA-256
-`2871d57dd4ce99788b57e897682d8402c439697bede704c0845314b6fbd4cad3`). Its
+The capture is byte-identical across two independent runs (SHA-256
+`f4b30c71bd57f54227f5eeec524cd72e93f56f68e834fed909b907f9ecace048`). Its
 source revisions, executable digest, selected UID and command bounds are in
 [`dicom-eframe-real-ct.json`](images/dicom-eframe-real-ct.json). The PNG is
 committed because this is public CC BY 4.0 phantom data; private clinical
