@@ -120,11 +120,12 @@
 
 <a id="RITK-SNAP-METIS-MIP-001"></a>
 ## RITK-SNAP-METIS-MIP-001 — Match the native Métis projection layout [arch] [minor]
-- Status: in-progress; priority: P1; owner: RITK presentation; integrator: root; last-update: 2026-09-12; risk: comparing unlike viewer workloads.
+- Status: done; priority: P1; owner: RITK presentation; integrator: root; last-update: 2026-09-12; delivery: commit `de7b8d8ed0f754020ddb6a7607f24df3e6d652b8`; risk: comparing unlike viewer workloads.
 - Scope: add an explicit native layout that composes RITK's existing scalar axial MIP beside the three orthogonal views; the default orthogonal capture remains unchanged and Métis remains DICOM-free.
 - Acceptance: the layout is typed and CLI-selectable, rejects color volumes through the existing RITK projection contract, preserves native event routing for the three orthogonal panels, and produces a reviewed real public CT capture with deterministic unit coverage.
 - Dependencies: RITK-SNAP-METIS-001; existing RITK MIP renderer and Métis native framebuffer.
-- Verification: focused presentation tests, strict Clippy/Rustdoc/doctests, locked `ritk-snap` tests, and a real Windows public-study capture with image/hash provenance.
+- Verification: 13/13 focused nextest, strict Clippy, Rustdoc, doctests, default capture hash unchanged, and two matching Windows public-study MIP captures; [MIP provenance](docs/manual/images/dicom-metis-real-ct-mip.json).
+- Outcome: RITK exposes a typed native `orthogonal-with-mip` mode; the committed 1280 × 800 capture shows actual public CT axial, coronal, sagittal, and axial-MIP panels through Métis.
 
 <a id="RITK-SNAP-METIS-002"></a>
 ## RITK-SNAP-METIS-002 — Validate RITK browser semantic traces [arch] [minor]
