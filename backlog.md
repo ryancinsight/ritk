@@ -126,11 +126,8 @@
 
 <a id="RITK-PYTHON-PACKAGING-001"></a>
 ## RITK-PYTHON-PACKAGING-001 — Publishable Python metadata and tokenless release [patch]
-- Status: review; priority: P1; owner: RITK Python + delivery; integrator: root; last-update: 2026-09-12; delivery: [RITK PR #315](https://github.com/ryancinsight/ritk/pull/315), commit `be88085f7`; risk: hosted release evidence and PyPI trusted-publisher configuration remain external.
-- Scope: complete `crates/ritk-python/pyproject.toml` metadata and replace the direct wheel workflow with the Atlas OIDC reusable workflow; keep the current PyO3 0.22 `abi3-py39` surface and do not claim free-threaded support.
-- Acceptance: metadata validation, source distribution, stable-ABI wheel matrix, installed import/binding smoke and post-upload workflow are defined without repository tokens or private keys; README build instructions match the current toolchain and UID workflow.
-- Verification: pyproject parse/build metadata, local maturin package check where available, strict workflow syntax/lock checks, focused RITK Python tests, and hosted workflow evidence after landing.
-- Local evidence: `maturin sdist` produced `ritk-0.12.79.tar.gz`; the release wheel built as `ritk-0.12.79-cp39-abi3-win_amd64.whl`, installed and imported with matching version metadata and `py.typed`; 47/47 native binding tests, strict Clippy, and format checks passed.
+- Status: done; priority: P1; owner: RITK Python + delivery; integrator: root; last-update: 2026-09-12; delivery: [RITK PR #315](https://github.com/ryancinsight/ritk/pull/315), merge `8071c7d963095d80258832161a78b8809bb756f7`; risk: release evidence requires a tagged GitHub Release and configured PyPI trusted publisher.
+- Outcome: PyPI metadata, README build instructions, Atlas stable-ABI wheel/sdist workflow, installed-wheel smoke, and OIDC publishing are aligned; local sdist/wheel and import checks pass, 47/47 native binding tests, strict Clippy, and format checks pass; free-threaded support remains unclaimed.
 <a id="RITK-PYTHON-DICOM-001"></a>
 ## RITK-PYTHON-DICOM-001 — Select DICOM series from Python [minor] — done
 - Status: done; priority: P1; owner: RITK I/O + Python; integrator: root; last-update: 2026-09-12; delivery: [RITK PR #311](https://github.com/ryancinsight/ritk/pull/311), merge `d36263467b106fe7d73fe90b374adae7524d8267`; risk: ambiguous clinical acquisition or silent cross-series display.
