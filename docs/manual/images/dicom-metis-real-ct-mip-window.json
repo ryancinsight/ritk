@@ -1,0 +1,55 @@
+{
+  "schema": 1,
+  "status": "passed",
+  "runtime": {
+    "host": "Windows native M\u00e9tis HWND capture",
+    "capture_tool": "Metis scripts/python_native_capture.py",
+    "capture_tool_revision": "7aa673e6993cdc156a4312fe858b5b8ea03b2ae2",
+    "input": "public MRI-DIR CT DICOM directory passed to ritk-snap",
+    "ritk_revision": "b5dfc16ecfbc8c905161f96a074159c3bc88a86c",
+    "metis_revision": "7aa673e6993cdc156a4312fe858b5b8ea03b2ae2",
+    "moirai_revision": "fd836cd1715e1cd6f537290ce670829ba875be94"
+  },
+  "dataset": {
+    "path": "test_data/3_head_ct_mridir/DICOM",
+    "series_instance_uid": "1.3.6.1.4.1.14519.5.2.1.1706.4996.115936088547498980797393821518",
+    "files_available": 409,
+    "files_submitted": 409,
+    "bytes_read": 216156416,
+    "concatenated_input_sha256": "73eb154d9a3c1225aa15cd1e8051deb31770719239fc3430aeffd56f3e572d11",
+    "license": "CC BY 4.0",
+    "description": "public MRI-DIR porcine-head CT phantom; not private patient data"
+  },
+  "output": {
+    "image": "dicom-metis-real-ct-mip-window.png",
+    "width": 1296,
+    "height": 839,
+    "bytes": 349234,
+    "sha256": "403e9dc87f17f5ed11ca447f7de9073c9daf8abfd3847cf0508db13898e85428",
+    "executable_sha256": "d8f40b11e20ff5317e1f2cc3ecd421e5bc96c18b67357da33bc01f2dc5d74af8",
+    "executable_bytes": 53576704,
+    "visual_scope": "complete visible native window including Windows decorations",
+    "capture_mode": "Metis process-tree PrintWindow capture; --metis-native --metis-native-layout orthogonal-with-mip",
+    "panels": [
+      "axial",
+      "coronal",
+      "sagittal",
+      "axial_mip"
+    ],
+    "mip_renderer": "RITK axial maximum-intensity projection using the active scalar presentation policy"
+  },
+  "bounds": {
+    "client_surface": "1280 \u00d7 800",
+    "outer_window": "1296 \u00d7 839",
+    "repeat_runs": 2,
+    "repeat_sha256_match": true,
+    "repeat_sha256": "403e9dc87f17f5ed11ca447f7de9073c9daf8abfd3847cf0508db13898e85428",
+    "orderly_exit_code": 0,
+    "nonblack_pixels_by_panel": {
+      "axial": 76400,
+      "coronal": 64169,
+      "sagittal": 83882,
+      "axial_mip": 92230
+    }
+  }
+}
