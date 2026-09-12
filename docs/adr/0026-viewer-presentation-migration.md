@@ -176,16 +176,21 @@ selection helper, mixed-directory tests, CLI help, migration guide and
 runnable README command provide the acceptance evidence; DICOM parsing,
 metadata, geometry and clinical display remain in RITK.
 
-Revision 2026-09-12 (bounded GPU volume upload): the eframe volume renderer
+Revision 2026-09-12 (bounded GPU projection and readback): the eframe volume renderer
 now computes the scalar storage-buffer size before calling wgpu and compares it
 with both device buffer limits. When a saved study exceeds either limit, the
-GPU pass returns `None`, the existing RITK render cache selects its CPU MIP or
-volume-rendering path, and a structured warning identifies the limit and
-volume shape. This closes the panic observed while opening the public
+GPU pass reports `Unsupported`, the existing RITK render cache selects its CPU
+MIP or volume-rendering path, and a structured warning identifies the limit and
+volume shape. If the request fits, the renderer keeps the projection dirty until
+the matching asynchronous readback is collected; a changed volume, window or
+level, presentation, colormap, or opacity request invalidates the old frame and
+mapped staging cache. This closes the panic observed while opening the public
 409 × 512 × 512 CT series without moving DICOM decoding or clinical state into
-the host; GPU presentation remains available for volumes that fit the device.
-The size helper has overflow and device-limit tests, and the full `ritk-snap`
-nextest run plus a real saved-series eframe capture verify the behavior.
+the host. A fitting-volume capture now exercises the GPU projection and shows
+the `3D MIP · GPU` status label in the complete eframe application; the
+provenance is [`dicom-eframe-real-gpu-ct.json`](../manual/images/dicom-eframe-real-gpu-ct.json).
+The size helper, stale-readback invalidation, and device-limit tests plus the
+full `ritk-snap` nextest run verify the behavior.
 
 The native session also applies keyboard slice navigation through the same
 RITK action adapter. A page-down event advances the active slice and triggers a
@@ -483,7 +488,7 @@ boundary.
 | `SnapApp` fields and `app/*_ops.rs` transitions | Volume identity, series selection, navigation, measurements, overlays, PACS and persistence | `ritk_snap::presentation::PresentationDispatcher` and `ViewerAction`; Métis IPC/fragment actions are transport seams only | RITK's `ViewerViewport` adapter applies the actions on eframe and the first Windows Métis session. Browser host parity, stale-completion guards and multi-viewport dispatch remain before shell cutover; no DICOM state may cross into a Métis crate. |
 | `egui::Context`, `RawInput`, `Event`, `DroppedFile`, and pointer handling in `ui/*` | Pointer/keyboard semantics are translated into RITK actions | `metis-platform::PlatformEvent`; native Moirai `WindowEvent`; browser `FileDropBatch`/`take_file_drop` | Browser file batches now reach the existing RITK classifier and loader. Native file-picker grants, browser runtime packaging, focus/text/IME parity and trusted native file ingress remain incomplete for the viewer. |
 | `ToolState`'s `egui::Pos2` carriers in `tools/interaction/tool_state.rs` | In-progress pan, zoom, window/level and measurement coordinates | `ImagePoint` and `ViewportOffset` plus the format-neutral action contract | Closed in the adapter increment; transformed image coordinates and screen-space pan offsets retain their existing semantics. |
-| `egui::ColorImage`, `TextureHandle`, `render::{slice_render,mip_vr,gpu_*}` | Scalar/RGB presentation, W/L, colormap, MPR, MIP/VR and GPU numerical behavior | `metis-ui-lang::RasterImage`, `DisplayList`, and `metis-platform::Framebuffer`; Iris remains the visualization contract | Native eframe GPU projection now preflights device limits and uses the CPU path for oversized volumes. A GPU-capable Métis/WASM presentation path must still support three orthogonal views and projections without copying DICOM or replacing Iris render contracts. |
+| `egui::ColorImage`, `TextureHandle`, `render::{slice_render,mip_vr,gpu_*}` | Scalar/RGB presentation, W/L, colormap, MPR, MIP/VR and GPU numerical behavior | `metis-ui-lang::RasterImage`, `DisplayList`, and `metis-platform::Framebuffer`; Iris remains the visualization contract | Native eframe GPU projection preflights device limits, waits for matching asynchronous readback, and uses the CPU path for oversized or failed requests; a fitting-volume capture is recorded in the manual. A GPU-capable Métis/WASM presentation path must still support three orthogonal views and projections without copying DICOM or replacing Iris render contracts. |
 | `rfd::FileDialog` and `app/io_ops.rs` | User-selected paths, selected-study identity, export/session semantics | Moirai filesystem grants; Métis browser byte batches | Native dialog and browser byte-batch adapters must preserve exact selection intent and return typed failures to RITK. |
 | `process_pending_loads`, `pacs_worker`, `tick_cine`, and repaint requests | Decode/PACS/cine scheduling, cancellation and result publication | Moirai bounded tasks and host pump; `metis-frontend::AsyncFrontendApp` is an IPC pattern | The RITK bridge uses per-target generations and cooperative cancellation; host close and supersession invalidate pending publication. |
 | Menus, panels, overlays, annotations and accessibility behavior in `ui/*` | Medical labels, physical-coordinate overlays, measurements and actions | Métis UI language DOM/CSS layout plus format-neutral display commands | Widget, text, clipboard, context-menu, accessibility and overlay primitives need a conformance slice before porting the complete shell. |
@@ -498,8 +503,11 @@ action-reducer, wheel policy, eframe adapter, three-view native composition,
 first Windows interactive session, and browser byte handoff are complete.
 GPU-capable Métis/WASM presentation, cross-engine browser evidence, and
 complete application-window capture remain before shell cutover. Native eframe
-GPU projection now guards device limits and falls back to the existing CPU
-path. DICOM opening remains exercised by RITK's existing file and byte loaders;
+GPU projection now guards device limits, keeps changed requests pending until
+their readback completes, and falls back to the existing CPU path for
+unsupported or failed requests. A fitting-volume real-DICOM capture exercises
+the GPU projection and is linked from the manual. DICOM opening remains
+exercised by RITK's existing file and byte loaders;
 Métis receives only bounded format-neutral bytes and validated presentation
 data.
 

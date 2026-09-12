@@ -3,7 +3,9 @@
 use std::sync::Arc;
 use tracing::{error, info};
 
-use super::state::{ProjectionMode, SeriesLoadTarget, SnapApp, DEFAULT_FUSION_ALPHA};
+use super::state::{
+    ProjectionBackend, ProjectionMode, SeriesLoadTarget, SnapApp, DEFAULT_FUSION_ALPHA,
+};
 use crate::dicom::select_hanging_protocol;
 use crate::label::LabelEditor;
 use crate::render::NamedColorMap;
@@ -101,6 +103,7 @@ impl SnapApp {
         self.sagittal_dirty = true;
         self.mip_tex = None;
         self.mip_dirty = true;
+        self.projection_backend = ProjectionBackend::Pending;
         self.status_message = status_msg;
         self.refresh_cached_histogram();
         info!("{}", self.status_message);
@@ -223,6 +226,7 @@ impl SnapApp {
         self.sagittal_tex = None;
         self.mip_tex = None;
         self.projection_mode = ProjectionMode::Mip;
+        self.projection_backend = ProjectionBackend::Cpu;
         self.texture_dirty = false;
         self.secondary_texture_dirty = false;
         self.secondary_texture_axis = 0;

@@ -36,6 +36,13 @@ pub(crate) enum ProjectionMode {
     Vr,
 }
 
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub(crate) enum ProjectionBackend {
+    Cpu,
+    Gpu,
+    Pending,
+}
+
 // ── SnapApp ───────────────────────────────────────────────────────────────────
 
 pub(crate) struct SnapApp {
@@ -133,6 +140,8 @@ pub(crate) struct SnapApp {
     pub(crate) mip_dirty: bool,
     /// Active projection mode for the bottom-right 3D viewport.
     pub(crate) projection_mode: ProjectionMode,
+    /// Renderer that produced the current 3D projection texture.
+    pub(crate) projection_backend: ProjectionBackend,
 
     // ── Surface mesh overlay ──────────────────────────────────────────────────
     /// Currently loaded surface mesh for overlay rendering on the MIP viewport.
@@ -315,6 +324,7 @@ impl Default for SnapApp {
             mip_tex: None,
             mip_dirty: false,
             projection_mode: ProjectionMode::Mip,
+            projection_backend: ProjectionBackend::Cpu,
             loaded_mesh: None,
             mesh_tex: None,
             mesh_dirty: false,

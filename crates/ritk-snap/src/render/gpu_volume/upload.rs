@@ -36,6 +36,20 @@ impl GpuVolumeRenderer {
             return true;
         }
 
+        // A new volume invalidates both projection readbacks. Collecting a
+        // frame queued for the previous volume would publish stale pixels
+        // after the new study becomes visible. Drop the frame caches too: a
+        // discarded map callback can leave the old staging buffer mapped, and
+        // reusing that buffer would make the next queue submission invalid.
+        self.mip_pending = None;
+        self.mip_last = None;
+        self.mip_last_request = None;
+        self.mip_cache = None;
+        self.vr_pending = None;
+        self.vr_last = None;
+        self.vr_last_request = None;
+        self.vr_cache = None;
+
         let [depth, rows, cols] = volume.shape;
         let ch = volume.channels as usize;
         let Some((n_voxels, byte_count)) = volume_storage_size(volume.shape) else {

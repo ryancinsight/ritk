@@ -8,8 +8,9 @@
 //!   and Volume Rendering (`vr.wgsl`, front-to-back alpha compositing).
 //! - A cached volume buffer: the `Arc<Vec<f32>>` pointer is compared across
 //!   calls so the volume is re-uploaded only when it changes.
-//!   Volumes larger than the device's storage-buffer limits return `None` from
-//!   the GPU pass and are rendered by the caller's CPU path.
+//!   Volumes larger than the device's storage-buffer limits report
+//!   `GpuRenderResult::Unsupported` and are rendered by the caller's CPU
+//!   path.
 //! - Per-pass `GpuFrameCache` holding pre-allocated output and staging GPU
 //!   buffers, reused across frames whenever output dimensions are stable.
 //!
@@ -51,7 +52,8 @@
 //! The ±2 tolerance accounts for f32→u8 rounding (LUT truncation vs round)
 //! and pack4x8unorm rounding vs CPU truncation.
 
-use crate::render::NamedColorMap;
+use crate::render::{GrayscalePresentation, NamedColorMap, WindowLevel};
+use egui::ColorImage;
 use iris::color::LookupTable;
 
 pub(crate) mod context;
@@ -73,6 +75,71 @@ mod tests_gpu_volume_render;
 
 use context::GpuContext;
 use frame_cache::GpuFrameCache;
+
+/// Result of one non-blocking GPU projection attempt.
+///
+/// `Pending` means the request was submitted and the caller must schedule a
+/// later frame to collect it. It is distinct from `Unsupported` and `Failed`:
+/// those states authorize the caller to use its CPU implementation, while a
+/// pending request must not be replaced by a CPU frame before the GPU result
+/// is available.
+#[must_use]
+pub(crate) enum GpuRenderResult {
+    /// A completed projection image, possibly the previous frame while a new
+    /// request is in flight.
+    Ready(ColorImage),
+    /// GPU work is still in flight and no completed image is available yet.
+    Pending,
+    /// The input or device cannot use this GPU projection path.
+    Unsupported,
+    /// GPU submission or readback failed for this request.
+    Failed,
+}
+
+/// Identity of one GPU projection request.
+///
+/// The renderer may retain a completed image while another request is in
+/// flight. Keeping the input, presentation, and display parameters with that
+/// request prevents an old frame from being reported as current after a
+/// window/level or colormap change.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub(in crate::render::gpu_volume) struct ProjectionRequest {
+    /// Raw pointer of the shared voxel storage.
+    data_ptr: usize,
+    /// Spatial volume dimensions.
+    shape: [usize; 3],
+    /// Bit representation of the window centre.
+    center: u64,
+    /// Bit representation of the window width.
+    width: u64,
+    /// Resolved DICOM scalar presentation.
+    presentation: GrayscalePresentation,
+    /// Selected Iris colormap.
+    colormap: NamedColorMap,
+    /// Bit representation of the VR opacity scale; zero for MIP.
+    alpha_scale: u32,
+}
+
+impl ProjectionRequest {
+    /// Build a request identity from the current volume and display state.
+    pub(in crate::render::gpu_volume) fn new(
+        volume: &crate::LoadedVolume,
+        wl: WindowLevel,
+        presentation: GrayscalePresentation,
+        colormap: NamedColorMap,
+        alpha_scale: f32,
+    ) -> Self {
+        Self {
+            data_ptr: std::sync::Arc::as_ptr(&volume.data) as usize,
+            shape: volume.shape,
+            center: wl.center.to_bits(),
+            width: wl.width.to_bits(),
+            presentation,
+            colormap,
+            alpha_scale: alpha_scale.to_bits(),
+        }
+    }
+}
 
 /// Build a 256-entry f32 RGBA colormap LUT for GPU upload.
 ///
@@ -107,13 +174,15 @@ pub(in crate::render::gpu_volume) struct PendingReadback {
     /// Receiver fired by the `map_async` callback.
     ///
     /// - `Ok(Ok(()))` — GPU done; staging buffer is mapped and safe to read.
-    /// - `Ok(Err(_))` — `map_async` failed (device loss, OOM); retry next cycle.
-    /// - `Err(Disconnected)` — internal error; treat as `map_async` failure.
+    /// - `Ok(Err(_))` — `map_async` failed (device loss, OOM); use CPU output.
+    /// - `Err(Disconnected)` — internal error; use CPU output.
     pub(in crate::render::gpu_volume) rx:
         std::sync::mpsc::Receiver<Result<(), wgpu::BufferAsyncError>>,
     /// Expected output dimensions; validated against the collected image.
     pub(in crate::render::gpu_volume) rows: usize,
     pub(in crate::render::gpu_volume) cols: usize,
+    /// Input and display state used to encode this readback.
+    pub(in crate::render::gpu_volume) request: ProjectionRequest,
 }
 
 /// GPU-accelerated MIP and VR volume renderer with non-blocking async readback.
@@ -129,8 +198,8 @@ pub(in crate::render::gpu_volume) struct PendingReadback {
 /// 2. If a pending readback is complete, collects the result into `*_last`.
 /// 3. If no readback is in-flight, submits new GPU work and registers
 ///    `map_async` (stores `PendingReadback`).
-/// 4. Returns the last completed frame — `None` only on the first call before
-///    any frame has been rendered.
+/// 4. Returns `GpuRenderResult::Ready` for the last completed frame matching
+///    the request, or `GpuRenderResult::Pending` before that frame completes.
 ///
 /// This decouples GPU execution from CPU readback: the render thread is never
 /// blocked waiting for the GPU. One-frame display latency is acceptable for
@@ -155,8 +224,12 @@ pub struct GpuVolumeRenderer {
     pub(in crate::render::gpu_volume) mip_pending: Option<PendingReadback>,
     /// Last successfully collected MIP frame; `None` before any frame completes.
     pub(in crate::render::gpu_volume) mip_last: Option<egui::ColorImage>,
+    /// Request identity that produced `mip_last`.
+    pub(in crate::render::gpu_volume) mip_last_request: Option<ProjectionRequest>,
     /// In-flight VR readback awaiting GPU completion.
     pub(in crate::render::gpu_volume) vr_pending: Option<PendingReadback>,
     /// Last successfully collected VR frame; `None` before any frame completes.
     pub(in crate::render::gpu_volume) vr_last: Option<egui::ColorImage>,
+    /// Request identity that produced `vr_last`.
+    pub(in crate::render::gpu_volume) vr_last_request: Option<ProjectionRequest>,
 }
