@@ -5,11 +5,38 @@ build-backend = "maturin"
 [project]
 name = "ritk"
 requires-python = ">=3.9"
+description = "Python bindings for the RITK medical imaging toolkit"
+readme = "README.md"
+license = { text = "MIT OR Apache-2.0" }
+authors = [{ name = "Ryan Clanton", email = "ryanclanton@outlook.com" }]
+keywords = ["medical-imaging", "dicom", "registration", "image-processing", "rust"]
 classifiers = [
+    "Development Status :: 3 - Alpha",
+    "Intended Audience :: Science/Research",
+    "License :: OSI Approved :: MIT License",
+    "License :: OSI Approved :: Apache Software License",
+    "Operating System :: POSIX :: Linux",
+    "Operating System :: Microsoft :: Windows",
+    "Operating System :: MacOS",
+    "Programming Language :: Python :: 3",
     "Programming Language :: Rust",
+    "Programming Language :: Python :: 3.9",
+    "Programming Language :: Python :: 3.10",
+    "Programming Language :: Python :: 3.11",
+    "Programming Language :: Python :: 3.12",
+    "Programming Language :: Python :: 3.13",
+    "Programming Language :: Python :: 3.14",
     "Programming Language :: Python :: Implementation :: CPython",
+    "Typing :: Typed",
 ]
 dynamic = ["version"]
+dependencies = ["numpy>=2.0.2,<2.6"]
+
+[project.urls]
+Homepage = "https://github.com/ryancinsight/ritk"
+Repository = "https://github.com/ryancinsight/ritk"
+Documentation = "https://ryancinsight.github.io/ritk/"
+Issues = "https://github.com/ryancinsight/ritk/issues"
 
 [tool.maturin]
 python-source = "python"
