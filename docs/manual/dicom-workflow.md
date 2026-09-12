@@ -737,6 +737,33 @@ hashes and overflow rejections, captured the window and each canvas, and
 closed the driver session. Its revision-bound trace is recorded in the
 [Metis gallery manual](https://github.com/ryancinsight/metis/blob/main/docs/manual/browser.md#drop-a-study-into-the-gallery).
 
+### Select the saved study through the browser file chooser
+
+On 2026-09-12 the packaged viewer was rebuilt from RITK revision
+`52f5c52fbe3b8df18f275159ba7d79bd2a57c9c0` with Metis `8c105e1` and Moirai
+`3caa6c24`. The Codex in-app Chromium host activated Metis's
+`#file-input` and selected all 409 files in the saved public
+`test_data/3_head_ct_mridir/DICOM/` series through the browser file chooser.
+This is real file-backed input from the public CC BY 4.0 phantom; no DICOM
+bytes were synthesized and no private patient data entered the run.
+
+The browser reported `accepted 409 file(s)` and
+`Byte access: read 216156416 bytes from 409 file(s)`. RITK's consumer-owned
+canvas attributes then reported ready presented frames:
+
+| Canvas | Axis | Slice/count | Frame |
+| --- | ---: | ---: | ---: |
+| axial | 0 | 204/409 | 512 × 512 |
+| coronal | 1 | 256/512 | 512 × 409 |
+| sagittal | 2 | 256/512 | 512 × 409 |
+
+The live viewport showed non-black CT anatomy in all three planes. The
+reviewable PNGs in this section and
+[`dicom-metis-real-browser-orthogonal.json`](images/dicom-metis-real-browser-orthogonal.json)
+remain the committed pixel baseline for the same public series. The chooser
+run proves the RITK viewer consumes a user-activated Metis selection; physical
+file-manager drag input, Firefox/WebKit and WebGPU remain separate gates.
+
 ## Build the RITK SNAP executable and installer
 
 RITK owns the application manifest at
