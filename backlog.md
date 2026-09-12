@@ -126,7 +126,7 @@
 
 <a id="RITK-PYTHON-PACKAGING-001"></a>
 ## RITK-PYTHON-PACKAGING-001 — Publishable Python metadata and tokenless release [patch]
-- Status: review; priority: P1; owner: RITK Python + delivery; integrator: root; last-update: 2026-09-12; risk: incomplete wheel metadata or credential drift.
+- Status: review; priority: P1; owner: RITK Python + delivery; integrator: root; last-update: 2026-09-12; delivery: [RITK PR #315](https://github.com/ryancinsight/ritk/pull/315), commit `be88085f7`; risk: hosted release evidence and PyPI trusted-publisher configuration remain external.
 - Scope: complete `crates/ritk-python/pyproject.toml` metadata and replace the direct wheel workflow with the Atlas OIDC reusable workflow; keep the current PyO3 0.22 `abi3-py39` surface and do not claim free-threaded support.
 - Acceptance: metadata validation, source distribution, stable-ABI wheel matrix, installed import/binding smoke and post-upload workflow are defined without repository tokens or private keys; README build instructions match the current toolchain and UID workflow.
 - Verification: pyproject parse/build metadata, local maturin package check where available, strict workflow syntax/lock checks, focused RITK Python tests, and hosted workflow evidence after landing.
