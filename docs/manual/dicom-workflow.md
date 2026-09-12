@@ -653,8 +653,9 @@ RGBA frame. DICOM parsing, metadata, geometry, window/level and viewer state
 remain in RITK. The named canvas now retains bounded pointer and wheel
 listeners and routes target-local events through RITK's shared
 presentation/action reducer; pointer cancel and provider failures clear the
-active gesture. Physical browser-driver input, cross-engine evidence and GPU
-upload remain separate acceptance work.
+active gesture. Physical browser-driver input, cross-engine evidence and browser
+WebGPU remain separate acceptance work; the native eframe volume upload now
+preflights device limits and uses the CPU projection path when required.
 
 The direct three-view entrypoint uses three canvases and preserves the same
 format-neutral boundary:
@@ -688,8 +689,9 @@ existing loader and presents the axial, coronal and sagittal
 axis order and slice dimensions; the packaged three-canvas capture below
 verifies the runtime dimensions and non-black pixels. Each canvas now routes
 its bounded pointer and wheel batch to the matching RITK axis. Physical
-browser-driver input, cross-engine evidence and GPU upload remain separate
-acceptance work.
+browser-driver input, cross-engine evidence and browser WebGPU remain separate
+acceptance work; native eframe GPU uploads are guarded by the same RITK device
+limit check.
 
 Each RITK canvas also publishes a bounded semantic snapshot for workflow
 drivers. `data-ritk-load-state` is `empty` or `ready`,
@@ -997,8 +999,8 @@ Temporal multiframe organization and default DICOM LINEAR/VOI semantics are
 covered by the completed [RITK-SNAP-FRAMES-001](../../backlog.md#RITK-SNAP-FRAMES-001)
 item. These workflows prepare the egui baseline for the Métis migration. The
 browser handoff now has a compiled RITK adapter, manual workflow, and a local
-synthetic runtime visual smoke; GPU upload, physical browser input, and full
-application-window capture remain separate acceptance items in
+synthetic runtime visual smoke; browser WebGPU, physical browser input, and
+full application-window capture remain separate acceptance items in
 [RITK-SNAP-METIS-001](../../backlog.md#RITK-SNAP-METIS-001).
 
 The browser presentation seam is now explicit as well. `metis_web::CanvasFrame`
