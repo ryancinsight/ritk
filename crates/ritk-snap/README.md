@@ -30,9 +30,21 @@ selected UID and files and validates them before replacing the current study.
 Public caller changes are in the
 [selection migration guide](../../docs/migration_selected_dicom.md).
 
+For scripted or Métis-native launches, select the acquisition explicitly with
+its SeriesInstanceUID. RITK discovers the path, verifies the requested UID and
+re-scans the exact member list before decoding; an unknown UID fails without a
+fallback:
+
+```console
+cargo run --locked -p ritk-snap -- path/to/study \
+  --series-instance-uid 2.25.20260905001 --metis-native
+```
+
 To capture the rendered eframe window and exit, append `--capture window.png`.
-A supplied study must load successfully; capture failure returns an error. To
-run the same loaded study through the Windows Métis host, use:
+For a mixed folder, keep `--series-instance-uid` on the same command so the
+capture waits for that selected RITK acquisition to load. A supplied study must
+load successfully; capture failure returns an error. To run the same loaded
+study through the Windows Métis host, use:
 
 ```console
 cargo run --locked -p ritk-snap -- path/to/study --metis-native

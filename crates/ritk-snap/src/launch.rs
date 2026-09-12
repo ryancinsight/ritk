@@ -9,6 +9,12 @@ mod capture;
 pub struct AppLaunchOptions {
     /// Optional DICOM folder or medical image file to load at startup.
     pub initial_path: Option<PathBuf>,
+    /// Optional SeriesInstanceUID selected from the startup DICOM input.
+    ///
+    /// This is required when a directory contains more than one acquisition
+    /// and keeps native and eframe startup on the same explicit-selection path.
+    #[serde(default)]
+    pub initial_series_uid: Option<String>,
     /// Save the rendered application frame as PNG and exit.
     ///
     /// A supplied initial study must load successfully. Capture failure is
@@ -38,9 +44,11 @@ pub fn run_app() -> anyhow::Result<()> {
 /// Launch the `ritk-snap` native GUI application with startup options.
 ///
 /// With `metis_native`, `initial_path` is opened by RITK before the interactive
-/// Métis host starts. With the default eframe shell, `initial_path` is queued
-/// for loading on the first UI update. Directory paths are also scanned for the
-/// DICOM series browser before the first frame.
+/// Métis host starts. `initial_series_uid` selects one acquisition after RITK
+/// discovery when the path contains several series. With the default eframe
+/// shell, `initial_path` is queued for loading on the first UI update. Directory
+/// paths are also scanned for the DICOM series browser before the first frame;
+/// a requested capture waits for that load to publish before taking its frame.
 ///
 /// # Errors
 /// Returns a host creation/event-loop error. With capture requested, also
@@ -55,7 +63,11 @@ pub fn run_app_with_options(options: AppLaunchOptions) -> anyhow::Result<()> {
             .ok_or_else(|| anyhow::anyhow!("--metis-native requires an initial DICOM path"))?;
         #[cfg(windows)]
         {
-            crate::presentation::run_native_viewer(path, options.capture.as_deref())?;
+            crate::presentation::run_native_viewer(
+                path,
+                options.initial_series_uid.as_deref(),
+                options.capture.as_deref(),
+            )?;
             return Ok(());
         }
         #[cfg(not(windows))]
@@ -88,7 +100,9 @@ pub fn run_app_with_options(options: AppLaunchOptions) -> anyhow::Result<()> {
                 capture::Requirement::Application
             };
             let app = match options.initial_path {
-                Some(path) => crate::app::SnapApp::with_initial_path(path),
+                Some(path) => {
+                    crate::app::SnapApp::with_initial_path(path, options.initial_series_uid.clone())
+                }
                 None => crate::app::SnapApp::default(),
             };
             Ok(Box::new(capture::CaptureApp::new(

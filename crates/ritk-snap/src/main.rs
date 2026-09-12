@@ -31,6 +31,13 @@ struct Args {
     /// Optional DICOM folder or medical image file loaded at startup.
     #[arg(value_name = "PATH")]
     initial_path: Option<PathBuf>,
+    /// Select one SeriesInstanceUID after discovering the startup DICOM input.
+    #[arg(
+        long = "series-instance-uid",
+        value_name = "UID",
+        requires = "initial_path"
+    )]
+    initial_series_uid: Option<String>,
     /// Save the rendered application frame as PNG and exit.
     #[arg(long, value_name = "PNG")]
     capture: Option<PathBuf>,
@@ -41,7 +48,7 @@ struct Args {
     #[arg(
         long,
         value_name = "JSON",
-        conflicts_with_all = ["initial_path", "capture", "metis_native"]
+        conflicts_with_all = ["initial_path", "initial_series_uid", "capture", "metis_native"]
     )]
     validate_browser_trace: Option<PathBuf>,
     /// Canvas identifiers in axial, coronal, sagittal order.
@@ -65,6 +72,7 @@ fn main() -> anyhow::Result<()> {
     }
     ritk_snap::run_app_with_options(ritk_snap::AppLaunchOptions {
         initial_path: args.initial_path,
+        initial_series_uid: args.initial_series_uid,
         capture: args.capture,
         metis_native: args.metis_native,
     })

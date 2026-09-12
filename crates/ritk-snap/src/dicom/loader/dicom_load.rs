@@ -313,3 +313,37 @@ pub fn load_dicom_volume<P: AsRef<Path>>(path: P) -> Result<LoadedVolume> {
     volume.source = Some(path.to_path_buf());
     Ok(volume)
 }
+
+/// Load one acquisition from a previously discovered series descriptor.
+///
+/// The exact member list and SeriesInstanceUID are re-scanned before pixels
+/// are decoded. This keeps a user selection tied to the files and identity
+/// that discovery reported, even if the directory changes between the two
+/// operations.
+pub(crate) fn load_volume_from_series_info(
+    info: &ritk_io::DicomSeriesInfo,
+) -> Result<LoadedVolume> {
+    if info.file_paths.is_empty() {
+        bail!("selected DICOM series has no files");
+    }
+    let scanned = ritk_io::scan_dicom_files(&info.file_paths)
+        .with_context(|| "failed to re-scan selected DICOM series members")?;
+    if scanned.metadata.series_instance_uid.as_deref() != Some(info.series_instance_uid()) {
+        bail!("selected DICOM SeriesInstanceUID changed since discovery");
+    }
+    let mut expected: Vec<_> = info.file_paths.iter().collect();
+    let mut actual: Vec<_> = scanned
+        .metadata
+        .slices
+        .iter()
+        .map(|slice| &slice.path)
+        .collect();
+    expected.sort();
+    actual.sort();
+    if actual != expected {
+        bail!("selected DICOM acquisition membership changed since discovery");
+    }
+    let mut volume = load_volume_from_scanned_series(scanned)?;
+    volume.source = info.file_paths.first().cloned();
+    Ok(volume)
+}

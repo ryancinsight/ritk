@@ -107,3 +107,54 @@ fn explicit_file_selects_minority_series_while_mixed_batches_reject() {
     assert_eq!(volume.modality.as_deref(), Some("MR"));
     assert_eq!(volume.source.as_deref(), Some(selected.as_path()));
 }
+
+#[test]
+fn series_uid_selection_loads_the_requested_acquisition_from_a_mixed_directory() {
+    let root = tempdir().expect("mixed study root");
+    fixtures::write_study(root.path(), "CT", fixtures::SERIES_UID)
+        .expect("write primary acquisition");
+    let secondary_uid = "2.25.20260905002";
+    fixtures::write_study(root.path(), "MR", secondary_uid).expect("write secondary acquisition");
+
+    let volume = load_volume_from_series_uid(root.path(), secondary_uid)
+        .expect("explicit series UID must select one acquisition");
+
+    assert_eq!(volume.shape, [3, 2, 4]);
+    assert_eq!(volume.modality.as_deref(), Some("MR"));
+    assert_eq!(
+        volume
+            .metadata
+            .as_ref()
+            .expect("metadata retained")
+            .series_instance_uid
+            .as_deref(),
+        Some(secondary_uid)
+    );
+    assert_eq!(
+        volume.source.as_deref().and_then(std::path::Path::parent),
+        Some(root.path())
+    );
+}
+
+#[test]
+fn series_uid_selection_rejects_an_unknown_acquisition_without_fallback() {
+    let root = tempdir().expect("study root");
+    fixtures::write_study(root.path(), "CT", fixtures::SERIES_UID).expect("write acquisition");
+
+    let error = load_volume_from_series_uid(root.path(), "2.25.404")
+        .expect_err("unknown series UID must fail closed");
+    let message = format!("{error:#}");
+    assert!(
+        message.contains("SeriesInstanceUID"),
+        "diagnostic: {message}"
+    );
+    assert!(message.contains("2.25.404"), "diagnostic: {message}");
+}
+
+#[test]
+fn series_uid_selection_rejects_invalid_uid_syntax_before_discovery() {
+    let root = tempdir().expect("study root");
+    let error = load_volume_from_series_uid(root.path(), "1..02")
+        .expect_err("invalid UID syntax must fail before scanning");
+    assert_eq!(error.to_string(), "invalid SeriesInstanceUID selection");
+}

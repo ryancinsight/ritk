@@ -8,7 +8,7 @@
 
 use super::{translate_native_events, PresentationEvent};
 use crate::app::SnapApp;
-use crate::dicom::loader::load_volume_from_path;
+use crate::dicom::loader::{load_volume_from_path, load_volume_from_series_uid};
 use anyhow::{anyhow, Context, Result};
 use metis_platform::native::{
     run_native_application, NativeApplication, NativeFlow, WindowConfig, WindowEvent,
@@ -35,8 +35,9 @@ pub use outcome::NativeViewerOutcome;
 
 /// Run one loaded DICOM study through the interactive Métis native host.
 ///
-/// RITK opens and decodes `initial_path`, applies its existing hanging
-/// protocol and window/level rules, and renders the three orthogonal slices.
+/// RITK opens and decodes `initial_path`, optionally selecting
+/// `initial_series_uid` after discovery, applies its existing hanging protocol
+/// and window/level rules, and renders the three orthogonal slices.
 /// The Métis host owns the visible window, finite event wait, framebuffer
 /// presentation and terminal cleanup. When `capture` is supplied, the window
 /// is hidden and the session closes after its first idle event batch, then
@@ -48,16 +49,29 @@ pub use outcome::NativeViewerOutcome;
 #[must_use = "the session outcome records host and viewer transitions"]
 pub fn run_native_viewer(
     initial_path: impl AsRef<Path>,
+    initial_series_uid: Option<&str>,
     capture: Option<&Path>,
 ) -> Result<NativeViewerOutcome> {
     let initial_path = initial_path.as_ref();
     let mut app = SnapApp::default();
-    let volume = load_volume_from_path(initial_path)
-        .with_context(|| format!("open initial RITK study at {}", initial_path.display()))?;
-    app.load_volume(
-        volume,
-        format!("Loaded native Métis study: {}", initial_path.display()),
-    );
+    let volume = match initial_series_uid {
+        Some(series_uid) => {
+            load_volume_from_series_uid(initial_path, series_uid).with_context(|| {
+                format!("open selected RITK series from {}", initial_path.display())
+            })?
+        }
+        None => load_volume_from_path(initial_path)
+            .with_context(|| format!("open initial RITK study at {}", initial_path.display()))?,
+    };
+    let status = match initial_series_uid {
+        Some(series_uid) => format!(
+            "Loaded native Métis series {}: {}",
+            series_uid,
+            initial_path.display()
+        ),
+        None => format!("Loaded native Métis study: {}", initial_path.display()),
+    };
+    app.load_volume(volume, status);
 
     let observation = Arc::new(NativeViewerObservation::default());
     let session = NativeViewerSession::new(app, Arc::clone(&observation), capture.is_some())?;
