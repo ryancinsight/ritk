@@ -20,6 +20,22 @@ shell and the migrated Windows Métis shell. The code, fixtures, visual goldens,
 and rejection tests remain in RITK so a framework migration cannot fork
 medical-data semantics.
 
+## Actual application gallery
+
+The first visual proof is a real public MRI-DIR CT study opened by RITK and
+presented through the Métis native window. It contains axial, coronal, sagittal,
+and axial maximum-intensity-projection panels captured from the running Windows
+HWND. The image is application output from 409 DICOM files, not generated
+artwork; its source revisions, input bounds, panel counts, repeat digest, and
+orderly close are recorded in the [window provenance record](images/dicom-metis-real-ct-mip-window.json).
+
+![Complete Métis application window showing the saved CT study and axial MIP](images/dicom-metis-real-ct-mip-window.png)
+
+The detailed synthetic, native, eframe, browser, and saved-study workflows
+below explain how to reproduce and inspect each component boundary. RITK owns
+scanning, decoding, geometry, and clinical presentation; Métis owns the bounded
+host, canvas, and window lifecycle.
+
 Build from a standalone RITK checkout, then run the bounded demonstration:
 
 ```console
@@ -467,10 +483,8 @@ shows the saved public CT in axial, coronal, sagittal, and axial-MIP panels
 inside the visible Windows frame. Two independent launches produced the same
 PNG digest. Dimensions, source revisions, executable digest, panel counts, and
 the orderly close are recorded in the [MIP window provenance record](images/dicom-metis-real-ct-mip-window.json).
-The image is captured from the running RITK/Métis application; it is not a
-generated illustration.
-
-![Complete Métis application window showing the saved CT study and axial MIP](images/dicom-metis-real-ct-mip-window.png)
+The gallery at the front of this manual displays this capture; it is produced
+by the running RITK/Métis application and is not a generated illustration.
 
 The complete synthetic workflow can run this Métis check; it records the
 executable hash, invalid-study rejection and `metis-frame.png` hash in
