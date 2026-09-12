@@ -1,4 +1,4 @@
-# Verify a synthetic DICOM study
+# Verify DICOM viewer workflows
 
 This workflow generates three small Part 10 instances, opens them through
 the viewer's directory and dropped-byte loaders, checks their decoded values
