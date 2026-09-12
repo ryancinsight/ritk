@@ -444,6 +444,34 @@ local and are never committed.
 
 ![Complete Métis application window showing the saved CT study](images/dicom-metis-real-ct-window.png)
 
+### Capture the complete MIP application window
+
+The same visible-window check can select the explicit four-panel native layout.
+This command leaves the RITK process running for the capture utility, so the
+result includes the operating-system frame as well as the Métis client surface:
+
+```powershell
+python ..\metis\scripts\python_native_capture.py `
+  --command (Join-Path $target "debug\ritk-snap.exe") `
+  --argument=test_data\3_head_ct_mridir\DICOM `
+  --argument=--series-instance-uid `
+  --argument=1.3.6.1.4.1.14519.5.2.1.1706.4996.115936088547498980797393821518 `
+  --argument=--metis-native `
+  --argument=--metis-native-layout `
+  --argument=orthogonal-with-mip `
+  --output docs\manual\images\dicom-metis-real-ct-mip-window.png
+```
+
+The reviewed [complete MIP window](images/dicom-metis-real-ct-mip-window.png)
+shows the saved public CT in axial, coronal, sagittal, and axial-MIP panels
+inside the visible Windows frame. Two independent launches produced the same
+PNG digest. Dimensions, source revisions, executable digest, panel counts, and
+the orderly close are recorded in the [MIP window provenance record](images/dicom-metis-real-ct-mip-window.json).
+The image is captured from the running RITK/Métis application; it is not a
+generated illustration.
+
+![Complete Métis application window showing the saved CT study and axial MIP](images/dicom-metis-real-ct-mip-window.png)
+
 The complete synthetic workflow can run this Métis check; it records the
 executable hash, invalid-study rejection and `metis-frame.png` hash in
 `scratch/viewer/workflow.json`:
