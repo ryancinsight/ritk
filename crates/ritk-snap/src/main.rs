@@ -41,6 +41,9 @@ struct Args {
     /// Save the rendered application frame as PNG and exit.
     #[arg(long, value_name = "PNG")]
     capture: Option<PathBuf>,
+    /// Include the bounded RITK application overlay in a Métis capture.
+    #[arg(long, requires_all = ["capture", "metis_native"])]
+    capture_application: bool,
     /// Run the loaded study through the Métis native host.
     #[arg(long)]
     metis_native: bool,
@@ -74,6 +77,7 @@ fn main() -> anyhow::Result<()> {
         initial_path: args.initial_path,
         initial_series_uid: args.initial_series_uid,
         capture: args.capture,
+        capture_application: args.capture_application,
         metis_native: args.metis_native,
     })
 }

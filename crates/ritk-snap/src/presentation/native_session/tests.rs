@@ -1,3 +1,4 @@
+use super::frame::{OVERLAY_BAR_HEIGHT, OVERLAY_TEXT};
 use super::*;
 use crate::dicom::loader::tests::fixtures;
 use metis_platform::native::{ModifierState, WindowEvent};
@@ -10,8 +11,13 @@ fn session() -> (NativeViewerSession, tempfile::TempDir) {
     let volume = load_volume_from_path(&path).expect("load study fixture");
     app.load_volume(volume, "fixture".to_owned());
     (
-        NativeViewerSession::new(app, Arc::new(NativeViewerObservation::default()), false)
-            .expect("native session"),
+        NativeViewerSession::new(
+            app,
+            Arc::new(NativeViewerObservation::default()),
+            false,
+            false,
+        )
+        .expect("native session"),
         root,
     )
 }
@@ -121,6 +127,37 @@ fn native_session_composes_three_views_and_routes_wheels_by_panel() {
         .expect("coronal wheel transition");
     assert_eq!(session.app.axis, 1);
     assert_eq!(session.app.coronal_slice, 1);
+}
+
+#[test]
+fn native_application_capture_adds_bounded_ritk_overlays() {
+    let (session, _root) = session();
+    let (content, _) = surface_frames(
+        &session.views,
+        INITIAL_WIDTH,
+        INITIAL_HEIGHT,
+        session.app.zoom,
+        session.app.pan_offset,
+        false,
+    )
+    .expect("content capture");
+    let (application, _) = surface_frames(
+        &session.views,
+        INITIAL_WIDTH,
+        INITIAL_HEIGHT,
+        session.app.zoom,
+        session.app.pan_offset,
+        true,
+    )
+    .expect("application capture");
+    assert_ne!(content.pixels(), application.pixels());
+    let panel_width = i32::try_from(session.viewports[0].panel_width()).expect("panel width");
+    let has_overlay_text = (0..panel_width)
+        .any(|x| (0..OVERLAY_BAR_HEIGHT).any(|y| application.get_pixel(x, y) == OVERLAY_TEXT));
+    assert!(
+        has_overlay_text,
+        "application capture includes plane label text"
+    );
 }
 
 #[test]

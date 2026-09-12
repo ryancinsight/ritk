@@ -7,7 +7,7 @@ use crate::render::WindowLevel;
 use crate::ui::{apply_to_rgba, RotationSteps, ViewTransform};
 use crate::viewer::{DEFAULT_WINDOW_CENTER, DEFAULT_WINDOW_WIDTH};
 use anyhow::{anyhow, bail, Context, Result};
-use metis_platform::{Color, Framebuffer};
+use metis_platform::{draw_text, fill_rect, Color, Framebuffer, Rect};
 
 /// Pixel separator between the three native orthogonal panels.
 pub(super) const VIEW_GAP_PIXELS: u32 = 4;
@@ -16,6 +16,10 @@ pub(super) const VIEW_GAP_PIXELS: u32 = 4;
 #[derive(Debug, Clone)]
 pub(super) struct RenderedView {
     axis: usize,
+    plane_name: &'static str,
+    slice_index: usize,
+    slice_count: usize,
+    window_level: WindowLevel,
     frame: PresentationFrame,
     source_size: [usize; 2],
     transform: ViewTransform,
@@ -32,6 +36,8 @@ impl RenderedView {
 #[derive(Debug, Clone, Copy)]
 pub(super) struct NativeViewport {
     panel: ScreenRect,
+    panel_x: u32,
+    panel_width: u32,
     image: ScreenRect,
     mapping: ViewerViewport,
 }
@@ -47,6 +53,11 @@ impl NativeViewport {
 
     pub(super) fn contains(self, x: f64, y: f64) -> bool {
         self.panel.contains(x, y)
+    }
+
+    #[cfg(test)]
+    pub(super) const fn panel_width(self) -> u32 {
+        self.panel_width
     }
 
     #[cfg(test)]
@@ -142,6 +153,10 @@ fn render_view(app: &SnapApp, axis: usize) -> Result<RenderedView> {
     }
     Ok(RenderedView {
         axis,
+        plane_name: crate::ui::anatomical_label_for_axis(Some(volume), axis),
+        slice_index: index,
+        slice_count: app.axis_slice_info(axis).1,
+        window_level,
         frame,
         source_size,
         transform,
@@ -177,6 +192,7 @@ pub(super) fn surface_frames(
     surface_height: u32,
     zoom: f32,
     pan_offset: egui::Vec2,
+    show_application_overlay: bool,
 ) -> Result<(Framebuffer, [NativeViewport; 3])> {
     if surface_width == 0 || surface_height == 0 {
         bail!("native surface dimensions must be nonzero while rendering");
@@ -238,7 +254,76 @@ pub(super) fn surface_frames(
             surface_height,
         )?;
     }
+    if show_application_overlay {
+        draw_application_overlay(&mut framebuffer, views, &viewports, surface_height)?;
+    }
     Ok((framebuffer, viewports))
+}
+
+pub(super) const OVERLAY_BAR_HEIGHT: i32 = 20;
+const OVERLAY_MARGIN: i32 = 6;
+const OVERLAY_BACKGROUND: Color = Color::rgba(0, 0, 0, 224);
+pub(super) const OVERLAY_TEXT: Color = Color::rgba(255, 255, 160, 255);
+
+fn draw_application_overlay(
+    framebuffer: &mut Framebuffer,
+    views: &[RenderedView; 3],
+    viewports: &[NativeViewport; 3],
+    surface_height: u32,
+) -> Result<()> {
+    let surface_height =
+        i32::try_from(surface_height).map_err(|_| anyhow!("native overlay height exceeds i32"))?;
+    for (view, viewport) in views.iter().zip(viewports) {
+        let panel_x =
+            i32::try_from(viewport.panel_x).map_err(|_| anyhow!("native overlay x exceeds i32"))?;
+        let panel_width = i32::try_from(viewport.panel_width)
+            .map_err(|_| anyhow!("native overlay width exceeds i32"))?;
+        if panel_width <= OVERLAY_MARGIN * 2 {
+            continue;
+        }
+        fill_rect(
+            framebuffer,
+            Rect::new(panel_x, 0, panel_width, OVERLAY_BAR_HEIGHT),
+            OVERLAY_BACKGROUND,
+        );
+        fill_rect(
+            framebuffer,
+            Rect::new(
+                panel_x,
+                surface_height - OVERLAY_BAR_HEIGHT,
+                panel_width,
+                OVERLAY_BAR_HEIGHT,
+            ),
+            OVERLAY_BACKGROUND,
+        );
+        let title = format!("METIS  RITK-SNAP  {}", view.plane_name);
+        draw_text(
+            framebuffer,
+            panel_x + OVERLAY_MARGIN,
+            2,
+            &title,
+            OVERLAY_TEXT,
+            1,
+        );
+        let footer = format!(
+            "Slice {}/{}  {}x{}  W:{:.0} C:{:.0}",
+            view.slice_index.saturating_add(1),
+            view.slice_count,
+            view.frame.width(),
+            view.frame.height(),
+            view.window_level.width,
+            view.window_level.center
+        );
+        draw_text(
+            framebuffer,
+            panel_x + OVERLAY_MARGIN,
+            surface_height - OVERLAY_BAR_HEIGHT + 2,
+            &footer,
+            OVERLAY_TEXT,
+            1,
+        );
+    }
+    Ok(())
 }
 
 fn placement(
@@ -306,6 +391,8 @@ fn placement(
             width: f64::from(panel_width),
             height: f64::from(surface_height),
         },
+        panel_x,
+        panel_width,
         image: ScreenRect {
             x: origin_x,
             y: origin_y,

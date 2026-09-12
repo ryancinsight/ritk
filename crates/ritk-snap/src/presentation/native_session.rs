@@ -51,6 +51,7 @@ pub fn run_native_viewer(
     initial_path: impl AsRef<Path>,
     initial_series_uid: Option<&str>,
     capture: Option<&Path>,
+    capture_application: bool,
 ) -> Result<NativeViewerOutcome> {
     let initial_path = initial_path.as_ref();
     let mut app = SnapApp::default();
@@ -74,7 +75,12 @@ pub fn run_native_viewer(
     app.load_volume(volume, status);
 
     let observation = Arc::new(NativeViewerObservation::default());
-    let session = NativeViewerSession::new(app, Arc::clone(&observation), capture.is_some())?;
+    let session = NativeViewerSession::new(
+        app,
+        Arc::clone(&observation),
+        capture.is_some(),
+        capture_application,
+    )?;
     let config = WindowConfig::with_visibility(
         NATIVE_TITLE,
         INITIAL_WIDTH,
@@ -162,6 +168,7 @@ struct NativeViewerSession {
     dpi: u32,
     minimized: bool,
     capture_after_idle: bool,
+    capture_application: bool,
     observation: Arc<NativeViewerObservation>,
 }
 
@@ -170,6 +177,7 @@ impl NativeViewerSession {
         app: SnapApp,
         observation: Arc<NativeViewerObservation>,
         capture_after_idle: bool,
+        capture_application: bool,
     ) -> Result<Self> {
         let views = render_orthogonal_views(&app)?;
         let (framebuffer, viewports) = surface_frames(
@@ -178,6 +186,7 @@ impl NativeViewerSession {
             INITIAL_HEIGHT,
             app.zoom,
             app.pan_offset,
+            capture_application,
         )?;
         observation
             .initial_frame_width
@@ -204,6 +213,7 @@ impl NativeViewerSession {
             dpi: 96,
             minimized: false,
             capture_after_idle,
+            capture_application,
             observation,
         })
     }
@@ -216,6 +226,7 @@ impl NativeViewerSession {
             self.surface_height,
             self.app.zoom,
             self.app.pan_offset,
+            self.capture_application,
         )?;
         self.views = views;
         self.framebuffer = framebuffer;
