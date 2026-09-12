@@ -278,6 +278,31 @@ The DICOMDIR record-tree and referenced-identity contract is delivered by
 [RITK-SNAP-DIRECTORY-001](../../backlog.md#RITK-SNAP-DIRECTORY-001); the
 root-confined filesystem contract is provided by Moirai PAL.
 
+For a conventional scalar series, the scan retains each validated Part-10
+payload only through reconstruction. The loader now writes uniform-spacing
+frames directly into the destination volume, releases each temporary decoded
+frame after its copy, and clears the encoded payloads before returning
+`DicomReadMetadata`. This preserves the scan-to-decode replacement guarantee
+without keeping a second encoded copy for the viewer lifetime. Irregular
+spacing still uses the bounded frame set required by its interpolation
+contract.
+
+The Windows lifecycle measurement below reruns the saved public CT through the
+same Métis command three times at a 100 ms sampling interval. It compares the
+old collected-frame path with the bounded destination-write path; the metric is
+the aggregate mean of the process tree's peak private bytes.
+
+| Decoder path | RITK revision | Mean peak private bytes | Mean peak (GiB) |
+| --- | --- | ---: | ---: |
+| Collected decoded frames | `d365e339` | 2,938,277,888 B | 2.736 GiB |
+| Bounded destination writes | `b2772322` | 2,336,589,141 B | 2.176 GiB |
+
+The measured reduction is 20.48% in peak private bytes. All three runs of the
+bounded path exited with code 0, and the real 1280 × 800 pixel capture remained
+byte-identical (`4fac3ea73e58325755c780de51c1b1504c0fc391da5c48ed2f578810ff46ddcb`).
+The repeat count, executable digest, sample summaries and dataset identity are
+recorded in [the resource provenance record](images/dicom-metis-real-ct-resource.json).
+
 ## Capture the eframe application
 
 Build the binary alongside the example and run:

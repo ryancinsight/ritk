@@ -23,6 +23,11 @@ use super::scan::scan_dicom_path_with_budget;
 use super::types::{DicomReadBudget, DicomReadMetadata, DicomSeriesInfo};
 
 /// Read a DICOM series and return both the image and metadata.
+///
+/// Part-10 payloads retained by the scan are used during reconstruction and
+/// released before the returned metadata leaves the loader. The returned
+/// metadata therefore carries the validated descriptive fields without a
+/// second copy of the encoded study.
 pub fn read_dicom_series_with_metadata<B: ComputeBackend, P: AsRef<Path>>(
     path: P,
     backend: &B,
@@ -63,7 +68,9 @@ pub fn load_dicom_series_with_metadata_with_budget<B: ComputeBackend, P: AsRef<P
 /// callers that have already obtained a `DicomSeriesInfo` (e.g. via
 /// [`scan_dicom_instances`](super::scan::scan_dicom_instances)) pass it directly
 /// instead of re-scanning a directory. Pixel decode uses `part10_bytes` from the
-/// slice metadata when present, falling back to file-path I/O otherwise.
+/// slice metadata when present, falling back to file-path I/O otherwise. Those
+/// payloads are released after reconstruction; callers that need the encoded
+/// bytes must retain the scan input separately.
 pub fn load_dicom_from_series<B: ComputeBackend>(
     series: DicomSeriesInfo,
     backend: &B,

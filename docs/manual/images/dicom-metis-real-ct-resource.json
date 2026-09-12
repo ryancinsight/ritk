@@ -1,0 +1,56 @@
+{
+  "schema": 1,
+  "status": "passed",
+  "runtime": {
+    "host": "Windows native Métis surface",
+    "machine": "AMD64 Windows 11",
+    "capture_tool": "Metis scripts/resource.py",
+    "sample_interval_ms": 100,
+    "timeout_seconds": 60,
+    "repeat_runs": 3,
+    "ritk_revision": "b2772322f",
+    "metis_revision": "be6235ab0efdb4c406fd1c5c8af3a1880a4ab143",
+    "moirai_revision": "fd836cd1715e1cd6f537290ce670829ba875be94",
+    "command_sha256": "ee66b156b84d96c0ec68d06e44943af44d1935edd78bf8f1c9eda9be8800e5f3"
+  },
+  "dataset": {
+    "path": "test_data/3_head_ct_mridir/DICOM",
+    "series_instance_uid": "1.3.6.1.4.1.14519.5.2.1.1706.4996.115936088547498980797393821518",
+    "files_available": 409,
+    "files_submitted": 409,
+    "bytes_read": 216156416,
+    "license": "CC BY 4.0",
+    "description": "public MRI-DIR porcine-head CT phantom; not private patient data"
+  },
+  "output": {
+    "image": "dicom-metis-real-ct.png",
+    "width": 1280,
+    "height": 800,
+    "sha256": "4fac3ea73e58325755c780de51c1b1504c0fc391da5c48ed2f578810ff46ddcb",
+    "executable_sha256": "ded329b5b27ceb243904688aae653852e22fb22db4cb4da574265b853df9e57c",
+    "executable_bytes": 47911936,
+    "visual_scope": "Métis framebuffer with actual axial, coronal and sagittal RITK planes",
+    "capture_mode": "--metis-native --capture",
+    "planes": ["axial", "coronal", "sagittal"]
+  },
+  "resource": {
+    "metric": "process-tree peak private bytes",
+    "before": {
+      "ritk_revision": "d365e339",
+      "mean_bytes": 2938277888,
+      "approximate_95_half_width_bytes": 10811265
+    },
+    "after": {
+      "ritk_revision": "b2772322f",
+      "mean_bytes": 2336589141.3333335,
+      "approximate_95_half_width_bytes": 624725
+    },
+    "reduction_fraction": 0.2047759843,
+    "interpretation": "bounded uniform-series destination writes replace whole-series decoded-frame collection"
+  },
+  "bounds": {
+    "orderly_exit_codes": [0, 0, 0],
+    "repeat_capture_sha256_match": true,
+    "nonblack_pixels": 356111
+  }
+}
