@@ -17,6 +17,11 @@ impl SnapApp {
     }
 
     #[cfg(not(target_arch = "wasm32"))]
+    pub(crate) fn primary_load_active(&self) -> bool {
+        self.pending_load.is_some() || self.load_tasks[0].is_some()
+    }
+
+    #[cfg(not(target_arch = "wasm32"))]
     fn queue_primary(&mut self, input: super::volume_input::VolumeInput) {
         self.queue_load(super::load_tasks::LoadTarget::Primary, input);
     }

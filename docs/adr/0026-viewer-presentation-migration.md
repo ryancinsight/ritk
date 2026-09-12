@@ -163,6 +163,19 @@ the presented Métis framebuffer; the native-session regression test checks both
 observable values. The offset remains viewer state and no DICOM value crosses
 the host boundary.
 
+Revision 2026-09-12 (explicit native series selection): RITK now exposes
+`load_volume_from_series_uid` for a DICOM directory, DICOMDIR, or selected
+instance path. Discovery finds the requested SeriesInstanceUID, then the
+loader re-scans and verifies the exact member list before decoding. The native
+Métis and eframe launch options accept `initial_series_uid` and queue the
+selected acquisition without an arbitrary-series fallback. Unknown UIDs and
+non-DICOM paths fail closed. The eframe capture wrapper waits for the queued
+RITK load to publish before requesting its screenshot and reports a bounded
+load failure instead of treating the first empty frame as success. The
+selection helper, mixed-directory tests, CLI help, migration guide and
+runnable README command provide the acceptance evidence; DICOM parsing,
+metadata, geometry and clinical display remain in RITK.
+
 The native session also applies keyboard slice navigation through the same
 RITK action adapter. A page-down event advances the active slice and triggers a
 new composed framebuffer; the regression test checks the state and pixel

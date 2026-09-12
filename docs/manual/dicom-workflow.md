@@ -169,6 +169,20 @@ browser; if the folder contains several series, choose a series there instead of
 accepting an arbitrary largest series. The highlighted series changes after
 successful loading. Selecting a secondary series retains its own exact files.
 
+For a scripted startup or a Métis-native capture, pass the selected
+SeriesInstanceUID explicitly. RITK discovers the path and verifies the exact
+member list again before pixel decode:
+
+```console
+cargo run --locked -p ritk-snap -- path/to/study \
+  --series-instance-uid 2.25.20260905001 --metis-native --capture selected.png
+```
+
+An unknown UID, a non-DICOM path, or a changed member list fails with a typed
+diagnostic. The launcher never chooses the largest or first series. This is the
+safe path for saved patient folders that contain multiple acquisitions; keep
+clinical files local and do not add them to the repository or its captures.
+
 **Open DICOMDIR…** uses the index's referenced image set. Missing references or
 an invalid index report an error; unreferenced subdirectories do not supply a
 replacement study. The reader follows the linked PATIENT/STUDY/SERIES/IMAGE
@@ -244,9 +258,12 @@ then launches with a missing study and requires an explicit failure without a
 screenshot. Each of the three processes has a 60-second limit; the complete
 native workflow therefore has a maximum 180-second subprocess budget.
 
-Capture uses the normal viewer update and egui/eframe screenshot response.
-For your own local study, run `ritk-snap path/to/study --capture window.png`.
-The supplied study must load and the PNG must save before success is reported.
+Capture uses the normal viewer update and egui/eframe screenshot response. The
+capture wrapper keeps requesting bounded repaints while RITK's background load
+publishes, then takes the screenshot; a failed or over-deadline load returns an
+error instead of saving an empty frame. For your own local study, run
+`ritk-snap path/to/study --capture window.png`. The supplied study must load and
+the PNG must save before success is reported.
 Native window images depend on the host renderer and fonts; the exact pixel
 goldens above remain the deterministic software-rendering check.
 

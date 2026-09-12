@@ -11,6 +11,8 @@ use anyhow::{bail, Context, Result};
 // The normal native-test slow threshold bounds an absent screenshot response.
 // The outer demonstration runner independently bounds the whole process at 60s.
 const RESPONSE_DEADLINE: Duration = Duration::from_secs(30);
+const LOAD_DEADLINE: Duration = Duration::from_secs(30);
+const LOAD_REPAINT_INTERVAL: Duration = Duration::from_millis(8);
 
 pub(super) enum Requirement {
     Application,
@@ -18,7 +20,7 @@ pub(super) enum Requirement {
 }
 
 enum Phase {
-    Draw,
+    Draw(Instant),
     Requested(Instant),
     Finished,
 }
@@ -48,7 +50,7 @@ impl CaptureApp {
             capture: output.map(|output| Capture {
                 output,
                 requirement,
-                phase: Phase::Draw,
+                phase: Phase::Draw(Instant::now()),
             }),
             completion,
         }
@@ -59,9 +61,19 @@ impl CaptureApp {
             return Ok(());
         };
         match capture.phase {
-            Phase::Draw => {
+            Phase::Draw(start) => {
                 if matches!(capture.requirement, Requirement::Study) && self.app.loaded.is_none() {
-                    bail!("initial study did not load: {}", self.app.status_message);
+                    if !self.app.primary_load_active() {
+                        bail!("initial study did not load: {}", self.app.status_message);
+                    }
+                    if start.elapsed() >= LOAD_DEADLINE {
+                        bail!(
+                            "initial study load exceeded 30-second deadline: {}",
+                            self.app.status_message
+                        );
+                    }
+                    ctx.request_repaint_after(LOAD_REPAINT_INTERVAL);
+                    return Ok(());
                 }
                 capture.phase = Phase::Requested(Instant::now());
                 ctx.send_viewport_cmd(egui::ViewportCommand::Screenshot);

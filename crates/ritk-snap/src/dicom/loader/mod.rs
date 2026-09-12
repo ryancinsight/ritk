@@ -5,6 +5,7 @@
 //! - [`load_dicom_volume`] — load a DICOM series folder into a [`LoadedVolume`].
 //! - [`load_nifti_volume`] — load a NIfTI `.nii` / `.nii.gz` file.
 //! - [`load_volume_from_path`] — auto-detect format and dispatch to the above.
+//! - [`load_volume_from_series_uid`] — open one explicitly selected DICOM acquisition.
 //! - [`load_volume_from_bytes`] — load a pathless in-memory medical file payload.
 //! - [`scan_folder_for_series`] — walk a directory tree and return a `SeriesTree`.
 //!
@@ -35,9 +36,67 @@ mod scan;
 #[cfg(test)]
 pub(crate) mod tests;
 
+pub(crate) use dicom_load::load_volume_from_series_info;
 pub use dicom_load::{load_dicom_volume, load_volume_from_scanned_series};
 pub use nifti_load::load_nifti_volume;
 pub use scan::scan_folder_for_series;
+
+/// Load one explicitly selected DICOM acquisition from a path.
+///
+/// `path` may be a DICOM directory, a `DICOMDIR`, or a DICOM instance whose
+/// parent contains the acquisition. The directory is discovered first and the
+/// requested SeriesInstanceUID is then loaded through the exact member list
+/// returned by discovery. No arbitrary series is chosen when the path contains
+/// more than one acquisition.
+///
+/// # Examples
+/// ```no_run
+/// let volume = ritk_snap::dicom::loader::load_volume_from_series_uid(
+///     "study",
+///     "2.25.20260905001",
+/// )?;
+/// assert_eq!(volume.channels, 1);
+/// # Ok::<(), anyhow::Error>(())
+/// ```
+///
+/// # Errors
+/// Returns an error when the path cannot be discovered, the UID is not present,
+/// the selected members change during the re-scan, or pixel decoding fails.
+pub fn load_volume_from_series_uid<P: AsRef<Path>>(
+    path: P,
+    series_uid: &str,
+) -> Result<LoadedVolume> {
+    validate_series_uid(series_uid)?;
+    let path = path.as_ref();
+    let tree = scan_folder_for_series(path)
+        .with_context(|| format!("discover DICOM series beneath '{}'", path.display()))?;
+    let info = tree
+        .find_by_uid(series_uid)
+        .map(|entry| std::sync::Arc::clone(&entry.acquisition))
+        .ok_or_else(|| {
+            anyhow::anyhow!(
+                "SeriesInstanceUID was not found in '{}': {}",
+                path.display(),
+                series_uid
+            )
+        })?;
+    load_volume_from_series_info(&info)
+}
+
+pub(crate) fn validate_series_uid(series_uid: &str) -> Result<()> {
+    let valid = !series_uid.is_empty()
+        && series_uid.len() <= 64
+        && series_uid.split('.').all(|component| {
+            !component.is_empty()
+                && component.bytes().all(|byte| byte.is_ascii_digit())
+                && !(component.len() > 1 && component.starts_with('0'))
+        });
+    if valid {
+        Ok(())
+    } else {
+        anyhow::bail!("invalid SeriesInstanceUID selection")
+    }
+}
 
 /// Auto-detect the volume format from `path` and load accordingly.
 ///

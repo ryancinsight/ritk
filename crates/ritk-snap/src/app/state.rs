@@ -379,19 +379,51 @@ impl SnapApp {
     /// Construct an app that loads `path` on the first update cycle.
     ///
     /// Directory paths are scanned immediately so the series browser is
-    /// populated before the deferred volume load runs. File paths are queued
-    /// directly because they do not contain a DICOM series tree.
+    /// populated before the deferred volume load runs. When a series UID is
+    /// supplied, its discovered acquisition is queued directly; otherwise the
+    /// path is queued for the ordinary format loader.
     #[cfg(not(target_arch = "wasm32"))]
-    pub(crate) fn with_initial_path(path: std::path::PathBuf) -> Self {
+    pub(crate) fn with_initial_path(
+        path: std::path::PathBuf,
+        initial_series_uid: Option<String>,
+    ) -> Self {
         let mut app = Self::default();
-        if crate::dicom::classify_dicom_input_path(&path)
+        let is_dicom_input = crate::dicom::classify_dicom_input_path(&path)
             .dicom_root()
-            .is_some()
-        {
+            .is_some();
+        if is_dicom_input {
             app.scan_for_series(path.clone());
         }
-        app.status_message = format!("Queued initial load: {}", path.display());
-        app.pending_load = Some(VolumeInput::Path(path));
+        match initial_series_uid {
+            Some(series_uid) if is_dicom_input => {
+                if let Some(entry) = app.series_tree.find_by_uid(&series_uid) {
+                    app.status_message = format!(
+                        "Queued initial series {} from {}",
+                        series_uid,
+                        path.display()
+                    );
+                    app.pending_load = Some(VolumeInput::Series(std::sync::Arc::clone(
+                        &entry.acquisition,
+                    )));
+                } else {
+                    app.status_message = format!(
+                        "Initial SeriesInstanceUID not found in {}: {}",
+                        path.display(),
+                        series_uid
+                    );
+                }
+            }
+            Some(_) => {
+                app.status_message = format!(
+                    "Initial SeriesInstanceUID requires a DICOM input: {}",
+                    path.display()
+                );
+            }
+            None => {
+                app.status_message = format!("Queued initial load: {}", path.display());
+                app.pending_load = Some(VolumeInput::Path(path));
+            }
+        }
         app
     }
 }

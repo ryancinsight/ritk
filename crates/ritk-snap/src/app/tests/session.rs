@@ -119,6 +119,49 @@ fn test_app_launch_options_default_has_no_initial_path() {
         options.initial_path, None,
         "default launch options must not queue a startup load"
     );
+    assert_eq!(
+        options.initial_series_uid, None,
+        "default launch options must not select a startup series"
+    );
+}
+
+#[test]
+#[cfg(not(target_arch = "wasm32"))]
+fn initial_series_uid_queues_the_discovered_acquisition() {
+    let root = tempfile::tempdir().expect("study root");
+    crate::dicom::loader::tests::fixtures::write_study(
+        root.path(),
+        "CT",
+        crate::dicom::loader::tests::fixtures::SERIES_UID,
+    )
+    .expect("write CT acquisition");
+    crate::dicom::loader::tests::fixtures::write_study(root.path(), "MR", "2.25.20260905002")
+        .expect("write MR acquisition");
+
+    let mut app = SnapApp::with_initial_path(
+        root.path().to_path_buf(),
+        Some("2.25.20260905002".to_owned()),
+    );
+
+    assert!(matches!(
+        &app.pending_load,
+        Some(crate::app::volume_input::VolumeInput::Series(info))
+            if info.series_instance_uid() == "2.25.20260905002"
+    ));
+    app.process_pending_loads();
+    app.wait_for_load_tasks();
+    let loaded = app.loaded.as_ref().expect("selected acquisition loaded");
+    assert_eq!(loaded.shape, [3, 2, 4]);
+    assert_eq!(loaded.modality.as_deref(), Some("MR"));
+    assert_eq!(
+        loaded
+            .metadata
+            .as_ref()
+            .expect("selected metadata")
+            .series_instance_uid
+            .as_deref(),
+        Some("2.25.20260905002")
+    );
 }
 
 #[test]
