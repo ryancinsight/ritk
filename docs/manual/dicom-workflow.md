@@ -392,6 +392,42 @@ This command proves the native Métis frame path. It does not claim a browser
 WebDriver, WebGPU, or cross-engine run; those require configured browser
 drivers and remain separate RITK integration gates.
 
+The eframe viewer uses the same RITK loader and display state. Before uploading
+the scalar volume, its GPU renderer checks both the device buffer and storage
+binding limits. A volume that cannot fit, including this 409-slice public
+series on the reference Windows adapter, is rendered by the existing CPU MIP or
+volume-rendering path and emits a diagnostic instead of panicking in wgpu. The
+GPU path remains available for volumes within the device limits; this guard
+keeps a real saved study displayable on either path.
+
+### Capture the saved CT study in eframe
+
+The same public series can be opened in the complete eframe application with an
+explicit acquisition selection:
+
+```powershell
+target\debug\ritk-snap.exe `
+  test_data\3_head_ct_mridir\DICOM `
+  --series-instance-uid 1.3.6.1.4.1.14519.5.2.1.1706.4996.115936088547498980797393821518 `
+  --capture scratch\viewer\real-dicom-eframe.png
+```
+
+This run decoded the saved 409-slice CT series and exited successfully with a
+1600 × 1000 application-content capture. The image includes the Series Browser,
+axial, coronal, sagittal and 3D MIP views, plus the RITK geometry and
+window/level state. The scalar volume exceeds the reference adapter's GPU
+storage-buffer limit, so the guard above selected the existing CPU projection
+path and kept the actual DICOM pixels visible:
+
+![Actual MRI-DIR CT series rendered in the eframe application](images/dicom-eframe-real-ct.png)
+
+The capture is byte-identical across two runs (SHA-256
+`2871d57dd4ce99788b57e897682d8402c439697bede704c0845314b6fbd4cad3`). Its
+source revisions, executable digest, selected UID and command bounds are in
+[`dicom-eframe-real-ct.json`](images/dicom-eframe-real-ct.json). The PNG is
+committed because this is public CC BY 4.0 phantom data; private clinical
+captures remain local and ignored.
+
 ### Capture the saved MRI study through Métis
 
 The same native path accepts the saved MRI-DIR T2 series in
@@ -617,8 +653,9 @@ RGBA frame. DICOM parsing, metadata, geometry, window/level and viewer state
 remain in RITK. The named canvas now retains bounded pointer and wheel
 listeners and routes target-local events through RITK's shared
 presentation/action reducer; pointer cancel and provider failures clear the
-active gesture. Physical browser-driver input, cross-engine evidence and GPU
-upload remain separate acceptance work.
+active gesture. Physical browser-driver input, cross-engine evidence and browser
+WebGPU remain separate acceptance work; the native eframe volume upload now
+preflights device limits and uses the CPU projection path when required.
 
 The direct three-view entrypoint uses three canvases and preserves the same
 format-neutral boundary:
@@ -652,8 +689,9 @@ existing loader and presents the axial, coronal and sagittal
 axis order and slice dimensions; the packaged three-canvas capture below
 verifies the runtime dimensions and non-black pixels. Each canvas now routes
 its bounded pointer and wheel batch to the matching RITK axis. Physical
-browser-driver input, cross-engine evidence and GPU upload remain separate
-acceptance work.
+browser-driver input, cross-engine evidence and browser WebGPU remain separate
+acceptance work; native eframe GPU uploads are guarded by the same RITK device
+limit check.
 
 Each RITK canvas also publishes a bounded semantic snapshot for workflow
 drivers. `data-ritk-load-state` is `empty` or `ready`,
@@ -961,8 +999,8 @@ Temporal multiframe organization and default DICOM LINEAR/VOI semantics are
 covered by the completed [RITK-SNAP-FRAMES-001](../../backlog.md#RITK-SNAP-FRAMES-001)
 item. These workflows prepare the egui baseline for the Métis migration. The
 browser handoff now has a compiled RITK adapter, manual workflow, and a local
-synthetic runtime visual smoke; GPU upload, physical browser input, and full
-application-window capture remain separate acceptance items in
+synthetic runtime visual smoke; browser WebGPU, physical browser input, and
+full application-window capture remain separate acceptance items in
 [RITK-SNAP-METIS-001](../../backlog.md#RITK-SNAP-METIS-001).
 
 The browser presentation seam is now explicit as well. `metis_web::CanvasFrame`

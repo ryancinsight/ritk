@@ -1,0 +1,36 @@
+{
+  "schema": 1,
+  "status": "passed",
+  "runtime": {
+    "host": "Windows native eframe application",
+    "input": "local DICOM directory passed to ritk-snap",
+    "ritk_revision": "697c22093aefa33b494662439d8e9ae26fbed282",
+    "metis_revision": "be6235ab0efdb4c406fd1c5c8af3a1880a4ab143",
+    "moirai_revision": "fd836cd1715e1cd6f537290ce670829ba875be94"
+  },
+  "dataset": {
+    "path": "test_data/3_head_ct_mridir/DICOM",
+    "series_instance_uid": "1.3.6.1.4.1.14519.5.2.1.1706.4996.115936088547498980797393821518",
+    "files_available": 409,
+    "files_submitted": 409,
+    "bytes_read": 216156416,
+    "license": "CC BY 4.0",
+    "description": "public MRI-DIR porcine-head CT phantom; not private patient data"
+  },
+  "output": {
+    "image": "dicom-eframe-real-ct.png",
+    "width": 1600,
+    "height": 1000,
+    "sha256": "2871d57dd4ce99788b57e897682d8402c439697bede704c0845314b6fbd4cad3",
+    "executable_sha256": "c82ff1332f683095c8291d715d89fbf6e5b47de63b14c35c8b2fa636abb37007",
+    "visual_scope": "complete eframe application content; operating-system chrome excluded",
+    "planes": ["axial", "coronal", "sagittal", "3d_mip"],
+    "render_path": "RITK CPU projection after GPU storage-buffer preflight"
+  },
+  "bounds": {
+    "capture_timeout_seconds": 180,
+    "series_selection": "explicit SeriesInstanceUID",
+    "repeat_runs": 2,
+    "repeat_sha256_match": true
+  }
+}
