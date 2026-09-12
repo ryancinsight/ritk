@@ -102,7 +102,7 @@ pub use slice_navigation::{advance_wrapped, axis_total, clamp_index, step_clampe
 pub use tool_shortcuts::{tool_kind_for_key, tool_kind_for_virtual_key};
 pub use toolbar::{ToolbarPanel, ToolbarState};
 pub(crate) use view_transform::apply_to_image_into;
-#[cfg(any(windows, test))]
+#[cfg(windows)]
 pub(crate) use view_transform::apply_to_rgba;
 pub use view_transform::{
     apply_to_image, flip_h_image, flip_v_image, rotate_90_cw_image, RotationSteps, ViewTransform,
