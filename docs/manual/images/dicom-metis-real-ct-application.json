@@ -5,7 +5,7 @@
     "host": "Windows native Métis surface",
     "input": "public MRI-DIR CT DICOM directory passed to ritk-snap",
     "graphics_backend": "Métis software framebuffer; WGPU is not involved",
-    "ritk_revision": "working-tree at c403feb19",
+    "ritk_revision": "96bdc5428ad6f83050534e889edb692216557dda",
     "metis_revision": "be6235ab0efdb4c406fd1c5c8af3a1880a4ab143",
     "moirai_revision": "fd836cd1715e1cd6f537290ce670829ba875be94"
   },
