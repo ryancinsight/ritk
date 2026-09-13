@@ -5,9 +5,9 @@
     "engine": "chromium",
     "host": "Codex in-app browser",
     "input": "bounded programmatic DataTransfer",
-    "metis_revision": "be6235ab0efdb4c406fd1c5c8af3a1880a4ab143",
-    "ritk_revision": "e4f7ad7281f4822a2b32a6e4fb04aff00b59ec7d",
-    "moirai_revision": "fd836cd1715e1cd6f537290ce670829ba875be94"
+    "metis_revision": "74ca9d6bda82e6a4728c1724f124faff5b848765",
+    "ritk_revision": "1547d2af4cbb58d7c0630e422b2b9903902c9811",
+    "moirai_revision": "c7206e8b294599e55eb7a82071c5a91dc0428c3e"
   },
   "dataset": {
     "path": "test_data/2_head_mri_t2/DICOM",
