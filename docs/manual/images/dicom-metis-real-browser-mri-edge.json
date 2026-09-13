@@ -7,10 +7,10 @@
     "browser_version": "154.0.4258.12",
     "platform": "windows",
     "host": "Edge WebDriver",
-    "url": "http://127.0.0.1:62823/gallery.html",
+    "url": "http://127.0.0.1:59375/gallery.html",
     "input": "file-backed WebDriver DataTransfer drop",
     "observed_date": "2026-09-13",
-    "metis_revision": "49e38c815cb797bab11a9277e1d03453a3e82db6",
+    "metis_revision": "abd6578caffb92ad4ab9011507cdd89fc0c2c7e2",
     "ritk_revision": "60044428572461ff94cc0396a1960e9cdc78304a",
     "moirai_revision": "fd3ec288dd0f1e98912f1d439d4ff9129ca7e25a"
   },
@@ -80,6 +80,26 @@
   "verification": {
     "pixel_oracle": "all three canvas dimensions, non-black counts, and RGBA hashes match the RITK-produced oracle",
     "render_schedule": "requestAnimationFrame through Moirai WebAnimationFrame",
+    "canvas_trace": {
+      "actions": 6,
+      "snapshots": 6,
+      "screenshots": 8,
+      "trusted_events": true,
+      "slice_transitions": {
+        "axial": "47→46 of 94",
+        "coronal": "256→255 of 512",
+        "sagittal": "256→255 of 512"
+      },
+      "effective_offsets": {
+        "axial": {"start": [24, 24], "end_and_wheel": [64, 48]},
+        "coronal": {"start": [24, 24], "end_and_wheel": [64, 40]},
+        "sagittal": {"start": [24, 24], "end_and_wheel": [64, 40]}
+      },
+      "diagnostic_listener_count": 12,
+      "diagnostic_listeners_released": true,
+      "input_sources_released": true,
+      "session_closed": true
+    },
     "cleanup": "session closed cleanly",
     "unsupported_native_operations": ["native-file-dialog", "native-process-launch", "os-permission-grant"]
   },

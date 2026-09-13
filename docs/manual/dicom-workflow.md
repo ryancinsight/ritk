@@ -934,6 +934,17 @@ trusted events, rejection results, and cleanup state are recorded in
 The trace binds the RITK consumer revision to the Métis gallery assets, so the
 image is evidence from the running application rather than generated artwork.
 
+The same live page was then replayed with Metis's adaptive canvas trace. The
+runner snapshots each canvas's CSS dimensions and clamps its element-local
+pointer and wheel offsets to the visible surface. Axial moved from slice 47 to
+46 of 94 with wheel offset `(64, 48)`; coronal and sagittal moved from slice
+256 to 255 of 512 with wheel offset `(64, 40)`, derived from their 82.4 CSS-
+pixel height. The six trusted actions, six semantic snapshots and eight
+screenshots passed `ritk-snap --validate-browser-trace`; all 12 diagnostic
+listeners and WebDriver input sources were released before the session closed.
+The trace contains no DICOM interpretation in Metis: RITK owns the decoded
+pixels, slice state and clinical presentation.
+
 Reproduce the file-backed run from the Métis checkout with an Edge WebDriver
 already listening on port 9516:
 
@@ -942,8 +953,38 @@ python scripts/browser_drop.py --driver-url http://127.0.0.1:9516 `
   --browser-name MicrosoftEdge --input chromium `
   --files D:/atlas/repos/ritk/test_data/2_head_mri_t2/DICOM --pattern '*.dcm' `
   --oracle output/browser/mri-oracle.json `
-  --consumer-revision 1547d2af4cbb58d7c0630e422b2b9903902c9811 `
+  --consumer-revision 60044428572461ff94cc0396a1960e9cdc78304a `
   --output output/browser/drop-mri-edge-pass
+```
+
+To capture the adaptive input and consumer attributes in the same run, add the
+canvas trace and attribute allowlist:
+
+```powershell
+$consumerRevision = '60044428572461ff94cc0396a1960e9cdc78304a'
+python scripts/browser_drop.py --driver-url http://127.0.0.1:9516 `
+  --browser-name MicrosoftEdge --input chromium `
+  --files D:/atlas/repos/ritk/test_data/2_head_mri_t2/DICOM --pattern '*.dcm' `
+  --oracle output/browser/mri-oracle.json `
+  --consumer-revision $consumerRevision `
+  --canvas-trace output/browser/drop-mri-edge-canvas-final/canvas-trace.json `
+  --canvas-attribute data-ritk-load-state `
+  --canvas-attribute data-ritk-frame-state `
+  --canvas-attribute data-ritk-axis `
+  --canvas-attribute data-ritk-slice-index `
+  --canvas-attribute data-ritk-slice-count `
+  --canvas-attribute data-ritk-frame-width `
+  --canvas-attribute data-ritk-frame-height `
+  --output output/browser/drop-mri-edge-canvas-final
+```
+
+Validate that trace from the RITK checkout:
+
+```powershell
+ritk-snap.exe --validate-browser-trace `
+  D:/atlas/repos/metis/output/browser/drop-mri-edge-canvas-final/canvas-trace.json `
+  --canvas-id ritk-snap-axial --canvas-id ritk-snap-coronal `
+  --canvas-id ritk-snap-sagittal
 ```
 
 This closes the configured Edge/Chromium file-backed run for the saved MRI
