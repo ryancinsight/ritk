@@ -68,6 +68,9 @@
 - [x] Extend `scripts/viewer.py` with a saved-study Métis smoke that validates
       captured PNG dimensions and non-black pixels without retaining private
       paths or DICOM bytes; document the public command and local patient path.
+- [x] Keep the Métis native compositor format-neutral by passing RITK's
+      `ViewportOffset` through layout and geometry instead of `egui::Vec2`;
+      native session tests and formatting pass.
 
 ## FIX-DTI-VOLUME-FRAME [major][arch] — Preserve diffusion coordinate frames
 

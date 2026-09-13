@@ -9,6 +9,7 @@ use super::geometry::{
     placement, placement_geometry, placement_with_bounds, NativeViewport, ScreenRect,
     VIEW_GAP_PIXELS,
 };
+use crate::tools::interaction::ViewportOffset;
 
 /// Compose the three views into one bounded Métis framebuffer.
 pub(crate) fn surface_frames(
@@ -16,7 +17,7 @@ pub(crate) fn surface_frames(
     surface_width: u32,
     surface_height: u32,
     zoom: f32,
-    pan_offset: egui::Vec2,
+    pan_offset: ViewportOffset,
     show_application_overlay: bool,
 ) -> Result<(Framebuffer, [NativeViewport; 3])> {
     if surface_width == 0 || surface_height == 0 {
@@ -92,7 +93,7 @@ pub(crate) fn surface_frames_with_mip(
     surface_width: u32,
     surface_height: u32,
     zoom: f32,
-    pan_offset: egui::Vec2,
+    pan_offset: ViewportOffset,
     show_application_overlay: bool,
 ) -> Result<(Framebuffer, [NativeViewport; 3])> {
     if surface_width == 0 || surface_height == 0 {
