@@ -29,6 +29,7 @@
 //! bypass scalar windowing. The canonical output is a bounded RGBA image;
 //! the eframe host adapts it to `egui::ColorImage` at its own boundary.
 
+#[cfg(not(target_arch = "wasm32"))]
 use super::buffer_pool::RenderBufferPool;
 use super::{GrayscalePresentation, NamedColorMap, WindowLevel};
 use crate::LoadedVolume;
@@ -172,6 +173,7 @@ impl SliceRenderer {
     /// render_with_scratch(pool, volume, axis, index, wl, colormap).pixels
     ///   == render(volume, axis, index, wl, colormap).pixels
     /// ```
+    #[cfg(not(target_arch = "wasm32"))]
     pub(crate) fn render_with_scratch(
         pool: &mut RenderBufferPool,
         volume: &LoadedVolume,
@@ -273,6 +275,7 @@ fn invalid_channel_image(channels: u8) -> RgbaImage {
     invalid_image()
 }
 
+#[cfg(not(target_arch = "wasm32"))]
 fn invalid_color_image(channels: u8) -> egui::ColorImage {
     invalid_channel_image(channels).to_color_image()
 }

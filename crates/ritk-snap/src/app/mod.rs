@@ -16,29 +16,47 @@
 pub(crate) mod action_adapter;
 #[cfg(any(target_arch = "wasm32", test))]
 mod browser_semantics;
+#[cfg(not(target_arch = "wasm32"))]
 pub(crate) mod clinical_distribution;
+#[cfg(not(target_arch = "wasm32"))]
 mod eframe;
+#[cfg(not(target_arch = "wasm32"))]
 mod filter;
+#[cfg(not(target_arch = "wasm32"))]
 mod image_placement;
+#[cfg(not(target_arch = "wasm32"))]
 mod io_ops;
 #[cfg(not(target_arch = "wasm32"))]
 mod load_tasks;
+#[cfg(not(target_arch = "wasm32"))]
 mod menu;
+#[cfg(not(target_arch = "wasm32"))]
 mod mesh_ops;
+#[cfg(not(target_arch = "wasm32"))]
 mod pacs_ops;
 mod panels;
 mod pointer_ops;
+#[cfg(not(target_arch = "wasm32"))]
 mod render_cache;
+#[cfg(not(target_arch = "wasm32"))]
 mod rt_overlay;
+#[cfg(not(target_arch = "wasm32"))]
 mod rt_struct_export;
+#[cfg(not(target_arch = "wasm32"))]
 mod shortcuts;
 mod slice_ops;
 pub(crate) mod state;
+#[cfg(not(target_arch = "wasm32"))]
 mod surface_export;
+#[cfg(not(target_arch = "wasm32"))]
 mod toolbar;
+#[cfg(not(target_arch = "wasm32"))]
 mod viewport;
+#[cfg(not(target_arch = "wasm32"))]
 mod viewport_compare;
+#[cfg(not(target_arch = "wasm32"))]
 mod viewport_render;
+#[cfg(any(test, not(target_arch = "wasm32")))]
 mod volume_input;
 mod volume_ops;
 mod volume_state;
@@ -51,6 +69,7 @@ mod web_viewer;
 #[cfg(test)]
 mod tests;
 
+#[cfg(not(target_arch = "wasm32"))]
 pub(crate) use eframe::EguiApp;
 pub(crate) use state::SnapApp;
 
