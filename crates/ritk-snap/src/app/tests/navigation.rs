@@ -21,15 +21,16 @@ fn cine_loop_advances_and_wraps_active_axis() {
 ///
 /// Axis 0 has 3 slices; advance from index 2 by 1 step wraps to 0.
 #[test]
-fn advance_slice_for_axis_loop_wraps_and_marks_dirty() {
+fn advance_slice_for_axis_loop_wraps_and_advances_visual_revision() {
     let mut app = SnapApp::default();
     app.loaded = Some(test_volume([3, 4, 5]));
     app.viewer_state.slice_index = 2; // last slice
+    let revision = app.visual_revision;
 
     app.advance_slice_for_axis_loop(0, 1);
 
     assert_eq!(app.viewer_state.slice_index, 0, "wrap-around failed");
-    assert!(app.texture_dirty, "texture dirty not set after advance");
+    assert!(app.visual_revision > revision);
 }
 
 #[test]

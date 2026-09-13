@@ -163,7 +163,7 @@ impl SnapApp {
         self.loaded_secondary = Some(volume);
         self.secondary_window_center = Some(window_center);
         self.secondary_window_width = Some(window_width);
-        self.secondary_texture_dirty = true;
+        self.bump_visual_revision();
         self.secondary_colormap = Self::colormap_for_modality(modality.as_deref());
         self.compare_side_by_side = true;
         self.multi_planar = false;

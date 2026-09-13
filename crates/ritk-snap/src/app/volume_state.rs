@@ -45,7 +45,8 @@ impl SnapApp {
     /// Apply a newly loaded [`LoadedVolume`] to the viewer state.
     ///
     /// Sets up the viewer state (slice index, W/L, axis selection, multi-planar),
-    /// clears annotations, resets textures, and updates the status message.
+    /// clears annotations, advances the visual revision, and updates the
+    /// status message.
     pub(crate) fn load_volume(&mut self, vol: LoadedVolume, status_msg: String) {
         let shape = vol.shape;
         let protocol = select_hanging_protocol(
@@ -94,10 +95,7 @@ impl SnapApp {
         self.pointer_suv = None;
         self.colormap =
             Self::colormap_for_modality(self.loaded.as_ref().and_then(|v| v.modality.as_deref()));
-        self.texture_dirty = true;
-        self.coronal_dirty = true;
-        self.sagittal_dirty = true;
-        self.mip_dirty = true;
+        self.bump_visual_revision();
         self.projection_backend = ProjectionBackend::Pending;
         self.status_message = status_msg;
         self.refresh_cached_histogram();
@@ -216,13 +214,7 @@ impl SnapApp {
         self.zoom = 1.0;
         self.projection_mode = ProjectionMode::Mip;
         self.projection_backend = ProjectionBackend::Cpu;
-        self.texture_dirty = false;
-        self.secondary_texture_dirty = false;
-        self.secondary_texture_axis = 0;
-        self.secondary_texture_slice = 0;
-        self.coronal_dirty = false;
-        self.sagittal_dirty = false;
-        self.mip_dirty = false;
+        self.bump_visual_revision();
         self.cine.stop();
         self.status_message = "Study closed.".to_owned();
     }

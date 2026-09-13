@@ -578,6 +578,15 @@ bounded increment and continue to drive replacement of shell textures. Native
 Métis and browser paths still construct the host-neutral `SnapApp`; DICOM
 parsing, geometry, and clinical presentation remain in RITK.
 
+Revision 2026-09-13 (host-neutral visual invalidation): `SnapApp` now publishes
+one monotonic visual revision for transitions that invalidate retained render
+resources. `EguiRenderState` records the revision represented by its retained
+textures, clears all texture and RT-DOSE overlay resources when the revision
+changes, and owns the secondary `(axis, slice)` cache key. This removes
+per-texture dirty flags from RITK viewer state while preserving the existing
+native Métis and browser presentation contracts. A saved public CT capture
+continues to show all three decoded orthogonal planes after the transition.
+
 ## Alternatives and validation
 
 Retaining egui indefinitely contradicts the requested framework target. Removing

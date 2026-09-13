@@ -27,9 +27,7 @@ impl EguiApp {
         if !self.multi_planar || volume.channels != 1 {
             return true;
         }
-        self.render.mip_tex.is_some()
-            && !self.mip_dirty
-            && self.projection_backend != ProjectionBackend::Pending
+        self.render.mip_tex.is_some() && self.projection_backend != ProjectionBackend::Pending
     }
 
     pub(crate) fn rebuild_texture_for_axis(&mut self, ctx: &egui::Context, axis: usize) {
@@ -178,10 +176,10 @@ impl EguiApp {
 
     /// Render one 3D-MIP viewport into `ui`.
     pub(crate) fn render_mip_viewport(&mut self, ui: &mut egui::Ui, ctx: &egui::Context) {
-        let needs_rebuild = self.mip_dirty || self.render.mip_tex.is_none();
+        let needs_rebuild = self.render.mip_tex.is_none();
 
         if needs_rebuild && self.loaded.is_some() {
-            self.mip_dirty = !self.rebuild_texture_for_mip(ctx);
+            let _ = self.rebuild_texture_for_mip(ctx);
         }
 
         let Some((tex_id, [tex_w_usize, tex_h_usize])) =
@@ -218,7 +216,7 @@ impl EguiApp {
         let response = ui.add(image_widget);
 
         if self.show_mesh_overlay && self.loaded_mesh.is_some() {
-            if self.mesh_dirty || self.render.mesh_tex.is_none() {
+            if self.render.mesh_tex.is_none() {
                 self.rebuild_mesh_texture(ctx, tex_w_usize, tex_h_usize);
             }
             if let Some(ref mesh_tex) = self.render.mesh_tex {
@@ -255,7 +253,7 @@ impl EguiApp {
                 .clicked()
             {
                 self.projection_mode = ProjectionMode::Mip;
-                self.mip_dirty = true;
+                self.bump_visual_revision();
                 ui.close_menu();
             }
             if ui
@@ -263,7 +261,7 @@ impl EguiApp {
                 .clicked()
             {
                 self.projection_mode = ProjectionMode::Vr;
-                self.mip_dirty = true;
+                self.bump_visual_revision();
                 ui.close_menu();
             }
         });
@@ -302,8 +300,6 @@ impl EguiApp {
         };
         self.render.secondary_texture =
             Some(ctx.load_texture(tex_name, color_image, egui::TextureOptions::LINEAR));
-        self.secondary_texture_axis = axis;
-        self.secondary_texture_slice = slice_index;
-        self.secondary_texture_dirty = false;
+        self.render.secondary_texture_key = Some((axis, slice_index));
     }
 }

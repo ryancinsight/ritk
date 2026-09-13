@@ -70,23 +70,23 @@ impl SnapApp {
 
         if flip_h {
             self.view_transform = self.view_transform.toggle_flip_h();
-            self.mark_all_textures_dirty();
+            self.bump_visual_revision();
         }
         if flip_v {
             self.view_transform = self.view_transform.toggle_flip_v();
-            self.mark_all_textures_dirty();
+            self.bump_visual_revision();
         }
         if rotate_cw {
             self.view_transform = self.view_transform.rotate_cw();
-            self.mark_all_textures_dirty();
+            self.bump_visual_revision();
         }
         if rotate_ccw {
             self.view_transform = self.view_transform.rotate_ccw();
-            self.mark_all_textures_dirty();
+            self.bump_visual_revision();
         }
         if reset_orient {
             self.view_transform = self.view_transform.reset();
-            self.mark_all_textures_dirty();
+            self.bump_visual_revision();
         }
     }
 
@@ -120,10 +120,7 @@ impl SnapApp {
         let (pan_offset, zoom) = fit_view_transform();
         self.pan_offset = ViewportOffset::new(pan_offset[0], pan_offset[1]);
         self.zoom = zoom;
-        self.texture_dirty = true;
-        self.coronal_dirty = true;
-        self.sagittal_dirty = true;
-        self.mip_dirty = true;
+        self.bump_visual_revision();
         self.status_message = "Zoom reset to fit.".to_owned();
     }
 }

@@ -77,7 +77,7 @@ impl EguiApp {
     ///
     /// # Responsibilities
     ///
-    /// 1. Rebuild the texture for this axis if dirty or absent.
+    /// 1. Rebuild the texture for this axis if absent after shell invalidation.
     /// 2. Fit physical slice extents to available space, then apply zoom.
     /// 3. Display the image widget with click-and-drag sensing.
     /// 4. Draw compact axis and slice labels when the full overlay is disabled.
@@ -92,18 +92,13 @@ impl EguiApp {
     ) {
         // ── 1. Rebuild texture if stale ────────────────────────────────────────
         let needs_rebuild = match axis {
-            0 => self.texture_dirty || self.render.texture.is_none(),
-            1 => self.coronal_dirty || self.render.coronal_tex.is_none(),
-            _ => self.sagittal_dirty || self.render.sagittal_tex.is_none(),
+            0 => self.render.texture.is_none(),
+            1 => self.render.coronal_tex.is_none(),
+            _ => self.render.sagittal_tex.is_none(),
         };
 
         if needs_rebuild && self.loaded.is_some() {
             self.rebuild_texture_for_axis(ctx, axis);
-            match axis {
-                0 => self.texture_dirty = false,
-                1 => self.coronal_dirty = false,
-                _ => self.sagittal_dirty = false,
-            }
         }
 
         // ── 2. Extract texture ID and size (copy, releases borrow) ─────────────

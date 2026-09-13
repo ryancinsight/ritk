@@ -93,6 +93,7 @@ fn window_level_drag_updates_center_and_width_via_ssot() {
     let mut app = SnapApp::default();
     app.viewer_state.window_center = Some(40.0);
     app.viewer_state.window_width = Some(400.0);
+    let revision = app.visual_revision;
     app.tool_state = ToolState::WindowLevelDrag {
         start: ImagePoint::new(100.0, 100.0),
         original_center: 40.0,
@@ -105,10 +106,7 @@ fn window_level_drag_updates_center_and_width_via_ssot() {
     // Analytical: center = 40 − (−5)*4 = 60, width = 400 + 10*4 = 440
     assert_eq!(new_center, 60.0_f32, "center mismatch");
     assert_eq!(new_width, 440.0_f32, "width mismatch");
-    assert!(app.texture_dirty, "axial dirty not set");
-    assert!(app.coronal_dirty, "coronal dirty not set");
-    assert!(app.sagittal_dirty, "sagittal dirty not set");
-    assert!(app.mip_dirty, "mip dirty not set");
+    assert!(app.visual_revision > revision);
 }
 
 /// Tool shortcut 'L' selects MeasureLength tool.

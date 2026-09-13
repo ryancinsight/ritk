@@ -27,6 +27,10 @@ pub(crate) struct EguiRenderState {
     pub(crate) mip_tex: Option<egui::TextureHandle>,
     pub(crate) mesh_tex: Option<egui::TextureHandle>,
     pub(crate) rt_dose_overlay_cache: [Option<RtDoseOverlayCacheEntry>; 3],
+    /// Revision of [`SnapApp`] represented by the retained textures.
+    pub(crate) visual_revision: u64,
+    /// Secondary texture key `(axis, slice_index)` represented by the cache.
+    pub(crate) secondary_texture_key: Option<(usize, usize)>,
 }
 
 impl Default for EguiRenderState {
@@ -39,11 +43,25 @@ impl Default for EguiRenderState {
             mip_tex: None,
             mesh_tex: None,
             rt_dose_overlay_cache: std::array::from_fn(|_| None),
+            visual_revision: 0,
+            secondary_texture_key: None,
         }
     }
 }
 
 impl EguiRenderState {
+    pub(crate) fn invalidate(&mut self, revision: u64) {
+        self.texture = None;
+        self.secondary_texture = None;
+        self.coronal_tex = None;
+        self.sagittal_tex = None;
+        self.mip_tex = None;
+        self.mesh_tex = None;
+        self.secondary_texture_key = None;
+        self.clear_rt_dose_overlay_cache();
+        self.visual_revision = revision;
+    }
+
     pub(crate) fn clear_rt_dose_overlay_cache(&mut self) {
         self.rt_dose_overlay_cache = std::array::from_fn(|_| None);
     }
@@ -65,6 +83,9 @@ impl EguiApp {
     }
 
     fn reconcile_render_resources(&mut self) {
+        if self.render.visual_revision != self.visual_revision {
+            self.render.invalidate(self.visual_revision);
+        }
         if self.loaded.is_none() {
             self.render.texture = None;
             self.render.coronal_tex = None;
@@ -73,6 +94,7 @@ impl EguiApp {
         }
         if self.loaded_secondary.is_none() {
             self.render.secondary_texture = None;
+            self.render.secondary_texture_key = None;
         }
         if self.loaded_mesh.is_none() {
             self.render.mesh_tex = None;

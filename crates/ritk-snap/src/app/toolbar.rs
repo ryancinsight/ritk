@@ -55,7 +55,7 @@ impl SnapApp {
                             ui.close_menu();
                             std::mem::swap(&mut self.loaded, &mut self.loaded_secondary);
                             std::mem::swap(&mut self.colormap, &mut self.secondary_colormap);
-                            self.mark_all_textures_dirty();
+                            self.bump_visual_revision();
                             self.refresh_cached_histogram();
                         }
                     });
@@ -71,7 +71,7 @@ impl SnapApp {
                             self.dual_plane = false;
                             self.compare_side_by_side = false;
                             self.compare_fused_overlay = false;
-                            self.mark_all_textures_dirty();
+                            self.bump_visual_revision();
                             ui.close_menu();
                         }
                         if ui
@@ -82,7 +82,7 @@ impl SnapApp {
                             self.multi_planar = false;
                             self.compare_side_by_side = false;
                             self.compare_fused_overlay = false;
-                            self.mark_all_textures_dirty();
+                            self.bump_visual_revision();
                             ui.close_menu();
                         }
                         if ui
@@ -93,7 +93,7 @@ impl SnapApp {
                             self.dual_plane = false;
                             self.compare_side_by_side = false;
                             self.compare_fused_overlay = false;
-                            self.mark_all_textures_dirty();
+                            self.bump_visual_revision();
                             ui.close_menu();
                         }
                         if ui
@@ -106,7 +106,7 @@ impl SnapApp {
                             self.compare_side_by_side = true;
                             self.multi_planar = false;
                             self.dual_plane = false;
-                            self.mark_all_textures_dirty();
+                            self.bump_visual_revision();
                             ui.close_menu();
                         }
                     });
@@ -163,10 +163,10 @@ impl SnapApp {
                                         if ui.selectable_label(is_active, name).clicked() {
                                             if side_num == 0 {
                                                 self.compare_axes[0] = idx;
-                                                self.texture_dirty = true;
+                                                self.bump_visual_revision();
                                             } else {
                                                 self.compare_axes[1] = idx;
-                                                self.secondary_texture_dirty = true;
+                                                self.bump_visual_revision();
                                             }
                                         }
                                     }
@@ -183,18 +183,15 @@ impl SnapApp {
                         if self.compare_side_by_side {
                             if ui.button("Preset Ax | Ax").clicked() {
                                 self.compare_axes = [0, 0];
-                                self.texture_dirty = true;
-                                self.secondary_texture_dirty = true;
+                                self.bump_visual_revision();
                             }
                             if ui.button("Preset Co | Co").clicked() {
                                 self.compare_axes = [1, 1];
-                                self.texture_dirty = true;
-                                self.secondary_texture_dirty = true;
+                                self.bump_visual_revision();
                             }
                             if ui.button("Preset Sa | Sa").clicked() {
                                 self.compare_axes = [2, 2];
-                                self.texture_dirty = true;
-                                self.secondary_texture_dirty = true;
+                                self.bump_visual_revision();
                             }
                             ui.separator();
                             ui.label("Secondary W/L");
@@ -224,14 +221,14 @@ impl SnapApp {
                             if c_changed || w_changed {
                                 self.secondary_window_center = Some(c);
                                 self.secondary_window_width = Some(w.max(1.0));
-                                self.secondary_texture_dirty = true;
+                                self.bump_visual_revision();
                             }
                             ui.separator();
                             if ui
                                 .checkbox(&mut self.compare_fused_overlay, "Fused Overlay")
                                 .changed()
                             {
-                                self.secondary_texture_dirty = true;
+                                self.bump_visual_revision();
                             }
                             if self.compare_fused_overlay {
                                 let alpha_changed = ui
@@ -244,7 +241,7 @@ impl SnapApp {
                                     )
                                     .changed();
                                 if alpha_changed {
-                                    self.secondary_texture_dirty = true;
+                                    self.bump_visual_revision();
                                 }
                             }
                         } else {

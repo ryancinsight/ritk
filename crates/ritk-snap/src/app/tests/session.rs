@@ -1,6 +1,7 @@
 //! Session snapshot, view reset, study close, and slice-mapping tests.
 
 use super::*;
+use crate::app::eframe::EguiRenderState;
 use crate::app::state::{ProjectionBackend, ProjectionMode, SeriesLoadTarget};
 use crate::app::EguiApp;
 use crate::render::histogram::compute_histogram;
@@ -29,19 +30,13 @@ fn reset_view_to_fit_restores_canonical_transform() {
     let mut app = SnapApp::default();
     app.zoom = 3.25;
     app.pan_offset = ViewportOffset::new(24.0, -8.0);
-    app.texture_dirty = false;
-    app.coronal_dirty = false;
-    app.sagittal_dirty = false;
-    app.mip_dirty = false;
+    let revision = app.visual_revision;
 
     app.reset_view_to_fit();
 
     assert_eq!(app.zoom, 1.0);
     assert_eq!(app.pan_offset, ViewportOffset::new(0.0, 0.0));
-    assert!(app.texture_dirty);
-    assert!(app.coronal_dirty);
-    assert!(app.sagittal_dirty);
-    assert!(app.mip_dirty);
+    assert!(app.visual_revision > revision);
     assert_eq!(app.status_message, "Zoom reset to fit.");
 }
 
@@ -125,7 +120,7 @@ fn primary_visual_ready_waits_for_current_multi_planar_projection() {
 
     app.loaded = Some(test_volume([2, 2, 2]));
     app.multi_planar = true;
-    app.mip_dirty = true;
+    app.render.mip_tex = None;
     app.projection_backend = ProjectionBackend::Pending;
     assert!(
         !app.primary_visual_ready(),
@@ -138,12 +133,30 @@ fn primary_visual_ready_waits_for_current_multi_planar_projection() {
         egui::ColorImage::new([2, 2], egui::Color32::WHITE),
         egui::TextureOptions::NEAREST,
     ));
-    app.mip_dirty = false;
     app.projection_backend = ProjectionBackend::Gpu;
     assert!(
         app.primary_visual_ready(),
         "a completed projection texture must be capture-ready"
     );
+}
+
+#[test]
+fn render_state_invalidation_clears_retained_cache_keys() {
+    let mut render = EguiRenderState::default();
+    render.visual_revision = 4;
+    render.secondary_texture_key = Some((2, 7));
+
+    render.invalidate(5);
+
+    assert_eq!(render.visual_revision, 5);
+    assert_eq!(render.secondary_texture_key, None);
+    assert!(render.texture.is_none());
+    assert!(render.secondary_texture.is_none());
+    assert!(render.coronal_tex.is_none());
+    assert!(render.sagittal_tex.is_none());
+    assert!(render.mip_tex.is_none());
+    assert!(render.mesh_tex.is_none());
+    assert!(render.rt_dose_overlay_cache.iter().all(Option::is_none));
 }
 
 #[test]
