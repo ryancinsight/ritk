@@ -1,4 +1,5 @@
 use super::state::SnapApp;
+use crate::tools::interaction::ViewportOffset;
 use crate::ui::{fit_view_transform, tool_kind_for_key};
 
 impl SnapApp {
@@ -117,7 +118,7 @@ impl SnapApp {
 
     pub(crate) fn reset_view_to_fit(&mut self) {
         let (pan_offset, zoom) = fit_view_transform();
-        self.pan_offset = egui::Vec2::new(pan_offset[0], pan_offset[1]);
+        self.pan_offset = ViewportOffset::new(pan_offset[0], pan_offset[1]);
         self.zoom = zoom;
         self.texture_dirty = true;
         self.coronal_dirty = true;

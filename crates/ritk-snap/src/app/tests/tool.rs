@@ -1,7 +1,7 @@
 //! Tool interaction tests: zoom, pan, label undo/redo, window/level, shortcuts.
 
 use super::*;
-use crate::tools::interaction::ImagePoint;
+use crate::tools::interaction::{ImagePoint, ViewportOffset};
 use crate::ui::tool_kind_for_key;
 
 #[test]
@@ -19,39 +19,39 @@ fn zoom_tool_drag_updates_zoom_from_pointer_delta() {
 fn pan_tool_drag_updates_offset_via_ssot() {
     let mut app = SnapApp::default();
     app.active_tool = ToolKind::Pan;
-    app.pan_offset = egui::Vec2::ZERO;
+    app.pan_offset = ViewportOffset::new(0.0, 0.0);
     app.on_drag_start(Some(ImagePoint::new(100.0, 100.0)));
     app.on_drag(Some(ImagePoint::new(130.0, 80.0)));
     // delta = (30.0, -20.0)
     // new_offset = (0, 0) + (30, -20) = (30, -20)
-    assert_eq!(app.pan_offset.x, 30.0);
-    assert_eq!(app.pan_offset.y, -20.0);
+    assert_eq!(app.pan_offset.x(), 30.0);
+    assert_eq!(app.pan_offset.y(), -20.0);
 }
 
 #[test]
 fn pan_tool_drag_with_nonzero_starting_offset() {
     let mut app = SnapApp::default();
     app.active_tool = ToolKind::Pan;
-    app.pan_offset = egui::Vec2::new(50.0, 75.0);
+    app.pan_offset = ViewportOffset::new(50.0, 75.0);
     app.on_drag_start(Some(ImagePoint::new(200.0, 150.0)));
     app.on_drag(Some(ImagePoint::new(220.0, 130.0)));
     // delta = (20.0, -20.0)
     // new_offset = (50, 75) + (20, -20) = (70, 55)
-    assert_eq!(app.pan_offset.x, 70.0);
-    assert_eq!(app.pan_offset.y, 55.0);
+    assert_eq!(app.pan_offset.x(), 70.0);
+    assert_eq!(app.pan_offset.y(), 55.0);
 }
 
 #[test]
 fn pan_tool_drag_zero_delta_preserves_offset() {
     let mut app = SnapApp::default();
     app.active_tool = ToolKind::Pan;
-    app.pan_offset = egui::Vec2::new(100.0, 100.0);
+    app.pan_offset = ViewportOffset::new(100.0, 100.0);
     app.on_drag_start(Some(ImagePoint::new(200.0, 150.0)));
     app.on_drag(Some(ImagePoint::new(200.0, 150.0)));
     // delta = (0.0, 0.0)
     // new_offset = (100, 100) + (0, 0) = (100, 100)
-    assert_eq!(app.pan_offset.x, 100.0);
-    assert_eq!(app.pan_offset.y, 100.0);
+    assert_eq!(app.pan_offset.x(), 100.0);
+    assert_eq!(app.pan_offset.y(), 100.0);
 }
 
 #[test]

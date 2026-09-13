@@ -3,6 +3,7 @@
 use super::*;
 use crate::app::state::{ProjectionBackend, ProjectionMode, SeriesLoadTarget};
 use crate::render::histogram::compute_histogram;
+use crate::tools::interaction::ViewportOffset;
 use crate::ui::LinkedCursor;
 use crate::AppLaunchOptions;
 
@@ -26,7 +27,7 @@ fn session_snapshot_round_trip_preserves_cine_state() {
 fn reset_view_to_fit_restores_canonical_transform() {
     let mut app = SnapApp::default();
     app.zoom = 3.25;
-    app.pan_offset = egui::vec2(24.0, -8.0);
+    app.pan_offset = ViewportOffset::new(24.0, -8.0);
     app.texture_dirty = false;
     app.coronal_dirty = false;
     app.sagittal_dirty = false;
@@ -35,7 +36,7 @@ fn reset_view_to_fit_restores_canonical_transform() {
     app.reset_view_to_fit();
 
     assert_eq!(app.zoom, 1.0);
-    assert_eq!(app.pan_offset, egui::Vec2::ZERO);
+    assert_eq!(app.pan_offset, ViewportOffset::new(0.0, 0.0));
     assert!(app.texture_dirty);
     assert!(app.coronal_dirty);
     assert!(app.sagittal_dirty);
@@ -54,7 +55,7 @@ fn close_study_clears_loaded_and_cached_state() {
     app.series_load_target = SeriesLoadTarget::Secondary;
     app.linked_cursor = Some(LinkedCursor::from_slices([2, 2, 2], 1, 1, 1));
     app.pointer_intensity = 123.0;
-    app.pan_offset = egui::vec2(8.0, -4.0);
+    app.pan_offset = ViewportOffset::new(8.0, -4.0);
     app.zoom = 3.0;
     app.cached_histogram = Some(compute_histogram(&[0.0, 1.0, 1.0, 2.0], 0.0, 2.0, 4));
     app.selected_series = Some(std::sync::Arc::new(ritk_io::DicomSeriesInfo::new(
@@ -94,7 +95,11 @@ fn close_study_clears_loaded_and_cached_state() {
         "selected series must be cleared"
     );
     assert_eq!(app.pointer_intensity, 0.0, "pointer intensity must reset");
-    assert_eq!(app.pan_offset, egui::Vec2::ZERO, "pan must reset");
+    assert_eq!(
+        app.pan_offset,
+        ViewportOffset::new(0.0, 0.0),
+        "pan must reset"
+    );
     assert_eq!(app.zoom, 1.0, "zoom must reset");
     assert_eq!(
         app.projection_mode,

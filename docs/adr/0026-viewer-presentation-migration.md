@@ -559,6 +559,15 @@ boundary; layout and framebuffer code no longer depend on a GUI coordinate
 carrier. Native-session geometry and interaction tests preserve the existing
 pan and capture pixel contracts.
 
+Revision 2026-09-13 (host-neutral viewport state increment): `SnapApp` now
+stores pan state as RITK's `ViewportOffset` value instead of `egui::Vec2`.
+The eframe shell still owns its local pointer and widget coordinates, while the
+native Métis compositor and session snapshot use the same RITK value directly.
+Pan, reset, close, load, and persisted-session paths retain their existing
+behavior under the full `ritk-snap` suite. Texture handles and dirty flags
+remain eframe adapter state for the next extraction increment; DICOM parsing,
+geometry, and clinical presentation remain in RITK.
+
 ## Alternatives and validation
 
 Retaining egui indefinitely contradicts the requested framework target. Removing

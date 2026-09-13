@@ -4,7 +4,7 @@ use super::super::test_volume;
 use crate::app::action_adapter::ViewerActionDisposition;
 use crate::app::SnapApp;
 use crate::presentation::{PointerButton, PresentationDispatcher, PresentationEvent};
-use crate::tools::kind::ToolKind;
+use crate::tools::{interaction::ViewportOffset, kind::ToolKind};
 
 use super::{apply_app_event, apply_events, viewport};
 
@@ -42,7 +42,7 @@ fn pan_actions_update_viewer_state_without_gui_coordinates() {
         },
     );
 
-    assert_eq!(app.pan_offset, egui::vec2(20.0, -10.0));
+    assert_eq!(app.pan_offset, ViewportOffset::new(20.0, -10.0));
     assert!(app.tool_state.is_idle());
 }
 
