@@ -1,0 +1,92 @@
+{
+  "schema": 1,
+  "status": "passed",
+  "runtime": {
+    "engine": "chromium",
+    "browser": "Microsoft Edge",
+    "browser_version": "154.0.4258.12",
+    "platform": "windows",
+    "host": "Edge WebDriver",
+    "url": "http://127.0.0.1:65045/gallery.html",
+    "input": "file-backed WebDriver DataTransfer drop",
+    "observed_date": "2026-09-13",
+    "metis_revision": "1ea339107780ba6b1f5f4808bd9c7409418943c1",
+    "ritk_revision": "1547d2af4cbb58d7c0630e422b2b9903902c9811",
+    "moirai_revision": "c7206e8b294599e55eb7a82071c5a91dc0428c3e"
+  },
+  "dataset": {
+    "path": "test_data/2_head_mri_t2/DICOM",
+    "files_submitted": 94,
+    "bytes_read": 49807236,
+    "license": "CC BY 4.0",
+    "description": "public MRI-DIR porcine-head T2 MRI phantom; not private patient data"
+  },
+  "transfer": {
+    "events": ["dragenter", "dragover", "dragover", "drop"],
+    "trusted": true,
+    "drop_files": 94,
+    "drop_bytes": 49807236,
+    "file_manifest_sha256": "81b7b7f8ea473dfc12c25c07b4958762254a261ca49352af2adabc214d6e8d03",
+    "oracle_sha256": "3dac2fb0d23ef4451ee4ab9d0e07a5076a6eb922fc034899adbbeaf61d5c199c",
+    "reported_status": "Drop status: accepted 94 file(s)",
+    "reported_bytes": "Byte access: read 49807236 bytes from 94 file(s)"
+  },
+  "views": {
+    "axial": {
+      "width": 512,
+      "height": 512,
+      "non_black_pixels": 190836,
+      "rgba_sha256": "5c96fff2f82ecfddd64a6aa9a1e8f99af367740fcd43826977ac3d1035cb28f6",
+      "screenshot": "dicom-metis-real-browser-mri-edge-axial.png",
+      "screenshot_sha256": "77edcbdbef050ca497b5f5f9edbe42c2b1170ec2049a7bf10152d691e057782b"
+    },
+    "coronal": {
+      "width": 512,
+      "height": 94,
+      "non_black_pixels": 41863,
+      "rgba_sha256": "f76018ef402afa7811154c506219361b43227dbe218ff0383b3dddd7bf438136",
+      "screenshot": "dicom-metis-real-browser-mri-edge-coronal.png",
+      "screenshot_sha256": "7a5f2c25968111e34cc7f665e2c6d2eb45dffc75d469afb50eeb0beb5d1c0f9f"
+    },
+    "sagittal": {
+      "width": 512,
+      "height": 94,
+      "non_black_pixels": 38843,
+      "rgba_sha256": "b8cabf3aa07399387b9d1c7416dbfae594e4d2408f40e0a4bd654f9829799fe3",
+      "screenshot": "dicom-metis-real-browser-mri-edge-sagittal.png",
+      "screenshot_sha256": "b1c1c1568f26ea46b303904b5ac4c0a68ba6a47fa769ac3a6309acf48ec1aff3"
+    }
+  },
+  "application_capture": {
+    "screenshot": "dicom-metis-real-browser-mri-edge-gallery.png",
+    "width": 1773,
+    "height": 1203,
+    "bytes": 305398,
+    "sha256": "4538c9704962619499ef9d93925845c0e34f216215b1c2db4e91a12ec40cddcb",
+    "scope": "browser viewport containing the running gallery and three RITK canvases"
+  },
+  "rejections": [
+    {"kind": "count", "files": 513, "result": "rejected before reading"},
+    {"kind": "file-bytes", "files": 1, "bytes": 67108865, "result": "rejected before reading"},
+    {"kind": "batch-bytes", "files": 5, "bytes": 335544320, "result": "rejected before reading"}
+  ],
+  "assets": {
+    "gallery.html": "d6fad6f9c0479e9e29223e506f11dcef37c55d9b6892fb3fd57b9155c51f5628",
+    "gallery.js": "6d63e48f8510cce13317ab7b0150bbe059d6e8a903d733e6dee952436a59fea9",
+    "gallery.css": "372b8662375a56ec999e28196656474ae95a08f2feaaf12baf1800a8f0917e4b",
+    "consumer/ritk_snap.js": "80730ada1ef37e9b84fbaf0ddcc74145e56e9b29a80d4829fb6b572c09ec5330",
+    "consumer/ritk_snap_bg.wasm": "4191637300c5e3e670cc1b38b43347662bd86375e34ef3af0ccfb6682baa7b20"
+  },
+  "verification": {
+    "pixel_oracle": "all three canvas dimensions, non-black counts, and RGBA hashes match the RITK-produced oracle",
+    "cleanup": "session closed cleanly",
+    "unsupported_native_operations": ["native-file-dialog", "native-process-launch", "os-permission-grant"]
+  },
+  "limits": [
+    "Edge is one Chromium-family engine; Firefox and WebKit are untested",
+    "file-backed WebDriver dispatch is not physical file-manager drag input",
+    "no native file-dialog, native process-launch, or OS-permission evidence",
+    "no WebGPU evidence",
+    "application screenshot includes the browser viewport; RGBA hashes cover canvas pixels only"
+  ]
+}
