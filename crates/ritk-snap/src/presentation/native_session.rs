@@ -10,6 +10,7 @@ use super::{translate_native_events, PresentationEvent};
 use crate::app::SnapApp;
 use crate::dicom::loader::{load_volume_from_path, load_volume_from_series_uid};
 use crate::launch::NativePresentationMode;
+use crate::tools::interaction::ViewportOffset;
 use anyhow::{anyhow, Context, Result};
 use metis_platform::native::{
     run_native_application, NativeApplication, NativeFlow, WindowConfig, WindowEvent,
@@ -147,7 +148,7 @@ fn compose_frames(
     surface_width: u32,
     surface_height: u32,
     zoom: f32,
-    pan_offset: egui::Vec2,
+    pan_offset: ViewportOffset,
     show_application_overlay: bool,
 ) -> Result<(Framebuffer, [NativeViewport; 3])> {
     match (presentation_mode, projection) {
@@ -173,6 +174,10 @@ fn compose_frames(
             "native presentation mode and projection state disagree"
         )),
     }
+}
+
+fn viewport_offset(app: &SnapApp) -> ViewportOffset {
+    ViewportOffset::new(app.pan_offset.x, app.pan_offset.y)
 }
 
 fn save_capture(framebuffer: &Framebuffer, output: &Path) -> Result<()> {
@@ -238,7 +243,7 @@ impl NativeViewerSession {
             INITIAL_WIDTH,
             INITIAL_HEIGHT,
             app.zoom,
-            app.pan_offset,
+            viewport_offset(&app),
             capture_application,
         )?;
         observation
@@ -286,7 +291,7 @@ impl NativeViewerSession {
             self.surface_width,
             self.surface_height,
             self.app.zoom,
-            self.app.pan_offset,
+            viewport_offset(&self.app),
             self.capture_application,
         )?;
         self.views = views;

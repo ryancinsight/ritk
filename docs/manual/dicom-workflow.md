@@ -682,6 +682,31 @@ check; native IME, accessibility and cross-platform host evidence are separate
 gates. Replace the path with a private clinical study only for a local run;
 private studies must not be committed or uploaded.
 
+### Run the saved-study visual smoke
+
+The reusable viewer harness can run the synthetic contract workflow and then
+open a caller-supplied saved study through the same native Métis executable.
+It decodes the captured PNG with a bounded standard-library parser and records
+its dimensions and non-black pixel count, so a successful process exit cannot
+be mistaken for a blank image:
+
+```powershell
+python scripts/viewer.py `
+  target/debug/examples/dicom_workflow.exe `
+  --native-binary target/debug/ritk-snap.exe `
+  --metis-native `
+  --real-study test_data/2_head_mri_t2/DICOM
+```
+
+The report is written to the ignored `scratch/viewer/workflow.json` and the
+real capture to `scratch/viewer/real-metis-frame.png`. For a saved local
+patient study, replace `--real-study` with the private file or directory and
+keep the output local. If a directory contains multiple acquisitions, pass
+`--real-series-uid UID`; RITK rejects an unknown or ambiguous selection before
+decoding. The harness stores only `input_kind`, selection state, dimensions,
+pixel count and digests; it never copies the source path or DICOM bytes into
+tracked documentation.
+
 ### Inspect the saved MRI study in the browser
 
 The same saved 94-file MRI-DIR T2 study was opened through the packaged RITK

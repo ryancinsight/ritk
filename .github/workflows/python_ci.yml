@@ -122,7 +122,7 @@ jobs:
         shell: bash
         run: |
           python -m pip uninstall -y ritk || true
-          python -m pip install --force-reinstall --no-index --find-links dist ritk
+          python -m pip install --force-reinstall --no-deps --no-index --find-links dist ritk
 
       - name: Run Python parity and smoke tests
         run: >-

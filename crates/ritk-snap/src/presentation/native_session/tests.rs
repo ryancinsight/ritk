@@ -1,6 +1,7 @@
 use super::layout::{OVERLAY_BAR_HEIGHT, OVERLAY_TEXT};
 use super::*;
 use crate::dicom::loader::tests::fixtures;
+use crate::tools::interaction::ViewportOffset;
 use metis_platform::native::{ModifierState, WindowEvent};
 
 fn session() -> (NativeViewerSession, tempfile::TempDir) {
@@ -169,7 +170,7 @@ fn native_session_mip_application_overlay_labels_the_fourth_panel() {
         INITIAL_WIDTH,
         INITIAL_HEIGHT,
         session.app.zoom,
-        session.app.pan_offset,
+        ViewportOffset::new(session.app.pan_offset.x, session.app.pan_offset.y),
         true,
     )
     .expect("MIP application capture");
@@ -189,7 +190,7 @@ fn native_application_capture_adds_bounded_ritk_overlays() {
         INITIAL_WIDTH,
         INITIAL_HEIGHT,
         session.app.zoom,
-        session.app.pan_offset,
+        ViewportOffset::new(session.app.pan_offset.x, session.app.pan_offset.y),
         false,
     )
     .expect("content capture");
@@ -198,7 +199,7 @@ fn native_application_capture_adds_bounded_ritk_overlays() {
         INITIAL_WIDTH,
         INITIAL_HEIGHT,
         session.app.zoom,
-        session.app.pan_offset,
+        ViewportOffset::new(session.app.pan_offset.x, session.app.pan_offset.y),
         true,
     )
     .expect("application capture");

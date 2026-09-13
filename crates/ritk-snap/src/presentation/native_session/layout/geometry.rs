@@ -1,6 +1,7 @@
 //! Screen geometry and coordinate mapping for native presentation.
 
 use crate::app::action_adapter::ViewerViewport;
+use crate::tools::interaction::ViewportOffset;
 use anyhow::{anyhow, bail, Result};
 
 use super::super::frame::RenderedView;
@@ -81,7 +82,7 @@ pub(super) fn placement(
     panel_width: u32,
     surface_height: u32,
     zoom: f32,
-    pan_offset: egui::Vec2,
+    pan_offset: ViewportOffset,
 ) -> Result<NativeViewport> {
     placement_with_bounds(
         view,
@@ -101,7 +102,7 @@ pub(super) fn placement_with_bounds(
     panel_width: u32,
     panel_height: u32,
     zoom: f32,
-    pan_offset: egui::Vec2,
+    pan_offset: ViewportOffset,
 ) -> Result<NativeViewport> {
     let image = placement_geometry(
         [view.frame.width(), view.frame.height()],
@@ -148,7 +149,7 @@ pub(super) fn placement_geometry(
     panel_width: u32,
     panel_height: u32,
     zoom: f32,
-    pan_offset: egui::Vec2,
+    pan_offset: ViewportOffset,
 ) -> Result<ScreenRect> {
     let frame_width = f64::from(frame_size[0]);
     let frame_height = f64::from(frame_size[1]);
@@ -173,10 +174,10 @@ pub(super) fn placement_geometry(
     let rendered_height = frame_height * texel_y;
     let origin_x = f64::from(panel_x)
         + (f64::from(panel_width) - rendered_width) * 0.5
-        + f64::from(pan_offset.x);
+        + f64::from(pan_offset.x());
     let origin_y = f64::from(panel_y)
         + (f64::from(panel_height) - rendered_height) * 0.5
-        + f64::from(pan_offset.y);
+        + f64::from(pan_offset.y());
     if ![
         texel_x,
         texel_y,

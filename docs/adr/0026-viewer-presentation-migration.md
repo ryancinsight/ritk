@@ -552,6 +552,13 @@ entry. Both Windows Installer operations exited 0. This closes local
 install/uninstall evidence without changing the RITK ownership of DICOM data;
 release signing and publication remain outside the increment.
 
+Revision 2026-09-13 (native geometry boundary): the native Métis compositor now
+accepts RITK's `ViewportOffset` value for pan placement and geometry mapping.
+The legacy eframe `egui::Vec2` state is converted once at the RITK native host
+boundary; layout and framebuffer code no longer depend on a GUI coordinate
+carrier. Native-session geometry and interaction tests preserve the existing
+pan and capture pixel contracts.
+
 ## Alternatives and validation
 
 Retaining egui indefinitely contradicts the requested framework target. Removing
