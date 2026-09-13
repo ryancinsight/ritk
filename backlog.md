@@ -70,6 +70,13 @@
 - Outcome: RITK resolves signed/rescaled DICOM grayscale presentation once across CPU, GPU, MIP, volume rendering, fusion, and viewer load paths; Métis remains format-neutral.
 - Verification: 746/746 nextest, strict clippy, fmt, doctests, rustdoc, workflow capture, and ADR index pass; WASM remains blocked before SNAP by the existing Mnemosyne target configuration errors.
 
+<a id="RITK-SNAP-REAL-DICOM-DOCS-001"></a>
+## RITK-SNAP-REAL-DICOM-DOCS-001 — Lead with real image evidence [patch]
+- Status: done; priority: P1; delivery: `3c0ea6a00`; owner: RITK SNAP documentation; integrator: root; dependencies: RITK-SNAP-METIS-001; risk: misleading gallery entry point
+- Scope: make the viewer manual's front-page description identify the real public DICOM gallery while keeping synthetic fixtures as deterministic tests and private studies local.
+- Acceptance: README names both real and synthetic workflows, links the actual Métis capture, and no patient pixels or identifiers enter the public tree.
+- Demonstration: the existing revision-bound CT/MIP capture and local saved-study command in `docs/manual/dicom-workflow.md`.
+
 <a id="RITK-SNAP-METIS-001"></a>
 ## RITK-SNAP-METIS-001 — Migrate the viewer shell to Métis [arch] [major]
 - Status: in-progress; priority: P1; owner: RITK viewer + Métis framework; integrator: root; last-update: 2026-09-13; delivery: [RITK PR #293](https://github.com/ryancinsight/ritk/pull/293), merge `2bdce4910`; [RITK PR #334](https://github.com/ryancinsight/ritk/pull/334), merge `a3eef560b`; [RITK PR #342](https://github.com/ryancinsight/ritk/pull/342), merge `680e8abfe`; [RITK PR #343](https://github.com/ryancinsight/ritk/pull/343), merge `b5530674b`; risk: lost viewer behavior; decision: [ADR 0026](docs/adr/0026-viewer-presentation-migration.md).
