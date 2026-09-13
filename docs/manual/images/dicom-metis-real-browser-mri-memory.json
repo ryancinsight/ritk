@@ -1,0 +1,79 @@
+{
+  "schema": 1,
+  "status": "passed",
+  "runtime": {
+    "engine": "chromium",
+    "host": "Codex in-app browser",
+    "url": "http://127.0.0.1:8091/index.html?metis=mri-94-metis-memory-003",
+    "input": "browser file chooser with saved study",
+    "observer": "wasm-bindgen InitOutput.memory.buffer.byteLength",
+    "observed_date": "2026-09-13",
+    "metis_revision": "74ca9d6bda82e6a4728c1724f124faff5b848765",
+    "ritk_revision": "1547d2af4cbb58d7c0630e422b2b9903902c9811",
+    "moirai_revision": "c7206e8b294599e55eb7a82071c5a91dc0428c3e"
+  },
+  "dataset": {
+    "path": "test_data/2_head_mri_t2/DICOM",
+    "files_submitted": 94,
+    "bytes_read": 49807236,
+    "description": "public MRI-DIR porcine-head T2 MRI phantom; not private patient data"
+  },
+  "wasm_linear_memory": {
+    "unit": "committed bytes",
+    "page_size_bytes": 65536,
+    "observations": [
+      {
+        "run": "initial",
+        "bytes": 1769472,
+        "pages": 27
+      },
+      {
+        "run": "mounted",
+        "bytes": 1835008,
+        "pages": 28
+      },
+      {
+        "run": "decoded",
+        "bytes": 404160512,
+        "pages": 6167
+      },
+      {
+        "run": "repeat_initial",
+        "bytes": 1769472,
+        "pages": 27
+      },
+      {
+        "run": "repeat_mounted",
+        "bytes": 1835008,
+        "pages": 28
+      },
+      {
+        "run": "repeat_decoded",
+        "bytes": 404160512,
+        "pages": 6167
+      }
+    ],
+    "repeat_equal": true,
+    "decoded_minus_initial_bytes": 402391040,
+    "decoded_minus_mounted_bytes": 402325504
+  },
+  "evidence": [
+    "live page status text",
+    "two identical reload observations",
+    "browser DOM and accessibility snapshot",
+    "hash-bound canvas PNG provenance"
+  ],
+  "interpretation": [
+    "WebAssembly.Memory.buffer.byteLength reports committed linear-memory capacity in 64 KiB pages.",
+    "The capacity is not allocator-used bytes, JavaScript heap, native process private bytes, browser compositor memory, GPU memory, or DICOM payload size.",
+    "The decoded reading is a baseline for later matched profiling; it is not a memory-efficiency claim."
+  ],
+  "limits": [
+    "one in-app Chromium host",
+    "bounded browser file chooser input",
+    "local loopback URL and temporary observation label",
+    "no Firefox or WebKit evidence",
+    "no native process or browser heap profiler",
+    "no WebGPU evidence"
+  ]
+}

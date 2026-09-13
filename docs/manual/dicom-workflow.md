@@ -784,6 +784,43 @@ The same chooser path was rerun with the saved MRI-DIR T2 study from
 the live viewport showed non-black MRI anatomy. Modality interpretation and
 pixel semantics remain in this RITK workflow.
 
+### Observe committed WebAssembly linear memory
+
+The same saved-study run also records the WebAssembly memory capacity exposed
+by the generated `wasm-bindgen` initializer. This is a capacity observation in
+the browser, not an allocator or process-memory measurement. Add the probe to
+the browser bootstrap around the existing orthogonal-canvas call:
+
+```javascript
+const wasmRuntime = await init();
+const wasmMemoryBytes = () => wasmRuntime.memory.buffer.byteLength;
+const initialBytes = wasmMemoryBytes();
+
+start_web_orthogonal_canvases(
+  "mri-ritk-snap-axial",
+  "mri-ritk-snap-coronal",
+  "mri-ritk-snap-sagittal",
+);
+const mountedBytes = wasmMemoryBytes();
+
+// Select the saved study through Métis and wait for all three canvases to be
+// ready. Evaluate the next two lines after that frame-ready status appears.
+const decodedBytes = wasmMemoryBytes();
+console.table({ initialBytes, mountedBytes, decodedBytes });
+```
+
+The live Chromium run recorded `1,769,472` bytes (27 WebAssembly pages) at
+initialization, `1,835,008` bytes (28 pages) after mounting, and
+`404,160,512` bytes (6,167 pages) after RITK decoded the 94-file public MRI-DIR
+T2 study. A repeat reload produced the same three values. The DICOM payload
+read by RITK was `49,807,236` bytes; it is a separate input-byte count and must
+not be confused with committed linear memory. The repeat observations and
+limits are recorded in
+[`dicom-metis-real-browser-mri-memory.json`](images/dicom-metis-real-browser-mri-memory.json).
+The artifact does not claim JavaScript heap, native process, compositor, GPU,
+or allocator-used bytes; those require separate profilers and remain open
+performance work.
+
 ## Build the RITK SNAP executable and installer
 
 RITK owns the application manifest at
@@ -862,8 +899,8 @@ Atlas development overlay resolves first-party crates to working trees and is
 therefore verified with the equivalent unlocked release build. The generated
 module exports `start_web`, `start_web_canvas` and
 `start_web_orthogonal_canvases`; packaging proves the consumer artifact
-boundary. The local browser visual smoke below exercises the
-packaged module against a real synthetic DICOM drop.
+boundary. The local browser visual smoke below exercises the packaged module
+against a real public MRI-DIR DICOM drop.
 
 The direct Métis canvas workflow is also available for the first browser
 presentation slice. It keeps the canvas outside Métis's `#metis-app` mount and
