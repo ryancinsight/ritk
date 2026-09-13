@@ -6,8 +6,9 @@ stack.
 
 ## Documentation
 
-- [Viewer user manual: synthetic DICOM workflow](docs/manual/dicom-workflow.md)
-  — generated study, decoded-value checks, and reproducible slice captures.
+- [Viewer user manual: real and synthetic DICOM workflows](docs/manual/dicom-workflow.md)
+  — a real saved-study Métis capture first, followed by generated fixtures,
+  decoded-value checks, and reproducible slice captures.
 - [RITK medical imaging book](https://ryancinsight.github.io/ritk/) — hosted
   GitHub Pages mdBook with algorithms, runnable Rust examples, and filter and
   registration figure examples.
