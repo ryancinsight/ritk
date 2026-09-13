@@ -31,6 +31,13 @@ orderly close are recorded in the [window provenance record](images/dicom-metis-
 
 ![Complete Métis application window showing the saved CT study and axial MIP](images/dicom-metis-real-ct-mip-window.png)
 
+The same saved CT study also survives a live native resize. The initial
+1280 × 800 client surface and the resized 1024 × 720 surface are the reviewed
+[before](images/dicom-metis-real-ct-resize-initial.png) and
+[after](images/dicom-metis-real-ct-resize-after.png) captures; both retain all
+three decoded planes, and the exact dimensions, digests, source revisions and
+orderly close are recorded in the [resize provenance record](images/dicom-metis-real-ct-resize.json).
+
 The detailed synthetic, native, eframe, browser, and saved-study workflows
 below explain how to reproduce and inspect each component boundary. RITK owns
 scanning, decoding, geometry, and clinical presentation; Métis owns the bounded
@@ -459,6 +466,36 @@ the pixel-level regression oracle. Private patient studies and identifiers stay
 local and are never committed.
 
 ![Complete Métis application window showing the saved CT study](images/dicom-metis-real-ct-window.png)
+
+### Capture the saved CT window through a native resize
+
+The generic Métis capture utility can resize the running top-level window and
+capture the same study after the layout lifecycle completes. Run it from the
+RITK checkout after building `ritk-snap`:
+
+```powershell
+$target = (cargo metadata --format-version 1 --no-deps |
+  ConvertFrom-Json).target_directory
+python ..\metis\scripts\python_native_capture.py `
+  --command (Join-Path $target "debug\ritk-snap.exe") `
+  --cwd (Get-Location).Path `
+  --argument=test_data\3_head_ct_mridir\DICOM `
+  --argument=--series-instance-uid `
+  --argument=1.3.6.1.4.1.14519.5.2.1.1706.4996.115936088547498980797393821518 `
+  --argument=--metis-native `
+  --resize 1024 720 `
+  --output docs\manual\images\dicom-metis-real-ct-resize-initial.png `
+  --resize-output docs\manual\images\dicom-metis-real-ct-resize-after.png
+```
+
+The reviewed run captured the three decoded planes at a 1280 × 800 client
+surface, applied the requested 1024 × 720 client size, captured the same real
+DICOM pixels again, and closed with code 0. The before/after PNGs and their
+source, input, executable, dimension, DPI and digest evidence are in the
+[resize provenance record](images/dicom-metis-real-ct-resize.json). Use the
+same command with a local study path and explicit SeriesInstanceUID when
+validating a clinical folder; keep local captures and identifiers outside the
+public manual.
 
 ### Capture the complete MIP application window
 

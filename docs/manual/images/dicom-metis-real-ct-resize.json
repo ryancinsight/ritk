@@ -1,0 +1,69 @@
+{
+  "schema": 1,
+  "status": "passed",
+  "runtime": {
+    "host": "Windows native Métis HWND capture",
+    "capture_tool": "Metis scripts/python_native_capture.py --resize",
+    "capture_tool_revision": "cf3b20c5cd11b28bc5ab442d3f1ff881269f7024",
+    "ritk_revision": "09958a00ae3beeb44a9a72724ae9eb17e71f81bc",
+    "moirai_revision": "c7206e8b294599e55eb7a82071c5a91dc0428c3e",
+    "target": "x86_64-pc-windows-msvc",
+    "window_dpi_before": 96,
+    "window_dpi_after": 96
+  },
+  "dataset": {
+    "path": "test_data/3_head_ct_mridir/DICOM",
+    "series_instance_uid": "1.3.6.1.4.1.14519.5.2.1.1706.4996.115936088547498980797393821518",
+    "files_available": 409,
+    "files_submitted": 409,
+    "bytes_read": 216156416,
+    "concatenated_input_sha256": "73eb154d9a3c1225aa15cd1e8051deb31770719239fc3430aeffd56f3e572d11",
+    "license": "CC BY 4.0",
+    "description": "public MRI-DIR porcine-head CT phantom; not private patient data"
+  },
+  "command": {
+    "executable": "target/debug/ritk-snap.exe",
+    "arguments": [
+      "test_data/3_head_ct_mridir/DICOM",
+      "--series-instance-uid",
+      "1.3.6.1.4.1.14519.5.2.1.1706.4996.115936088547498980797393821518",
+      "--metis-native"
+    ],
+    "requested_client_size": [1024, 720]
+  },
+  "captures": [
+    {
+      "id": "dicom_metis_real_ct_resize_initial",
+      "image": "dicom-metis-real-ct-resize-initial.png",
+      "outer_size": [1296, 839],
+      "client_size": [1280, 800],
+      "dpi": 96,
+      "bytes": 305999,
+      "sha256": "320c12db2ebc69ee70f1afbcf3ea4758a3e4cb47dc3c1d551cad4b3f93cb858c",
+      "process_returncode": 0,
+      "planes": ["axial", "coronal", "sagittal"]
+    },
+    {
+      "id": "dicom_metis_real_ct_resize_after",
+      "image": "dicom-metis-real-ct-resize-after.png",
+      "outer_size": [1040, 759],
+      "client_size": [1024, 720],
+      "dpi": 96,
+      "bytes": 246139,
+      "sha256": "daeef9b070ae84484aed1eb13234834978b7a80668141a0f5c7b4327c63467d6",
+      "process_returncode": 0,
+      "planes": ["axial", "coronal", "sagittal"]
+    }
+  ],
+  "resize": {
+    "client_size_applied": true,
+    "pixels_changed": true,
+    "dpi_changed": false,
+    "orderly_exit_code": 0,
+    "visual_scope": "complete visible native window including Windows decorations"
+  },
+  "executable": {
+    "sha256": "446623e4b8ce476afd9cd373c96f80b42f106847807ca2ca11c13b80c77339f8",
+    "bytes": 53577216
+  }
+}
