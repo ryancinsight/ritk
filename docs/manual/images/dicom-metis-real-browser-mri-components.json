@@ -1,0 +1,85 @@
+{
+  "schema": 1,
+  "status": "passed",
+  "runtime": {
+    "engine": "chromium",
+    "host": "Codex in-app browser",
+    "url": "http://127.0.0.1:8091/index.html?metis=a9940e2-r4",
+    "input": "browser file chooser with saved study",
+    "observed_date": "2026-09-13",
+    "metis_revision": "74ca9d6bda82e6a4728c1724f124faff5b848765",
+    "ritk_revision": "1547d2af4cbb58d7c0630e422b2b9903902c9811",
+    "moirai_revision": "c7206e8b294599e55eb7a82071c5a91dc0428c3e"
+  },
+  "dataset": {
+    "path": "test_data/2_head_mri_t2/DICOM",
+    "files_submitted": 94,
+    "bytes_read": 49807236,
+    "description": "public MRI-DIR porcine-head T2 MRI phantom; not private patient data"
+  },
+  "components": {
+    "metis_mount": {
+      "id": "metis-app",
+      "lifecycle": "mounted",
+      "listeners": 31,
+      "generation": 3
+    },
+    "theme": {
+      "control": "theme-mode",
+      "value": "dark"
+    },
+    "file_drop": {
+      "control": "file-input",
+      "status": "accepted 94 file(s)",
+      "bytes_read": 49807236
+    },
+    "pointer": {
+      "capture": "none",
+      "released_sources": 1,
+      "wheel": {
+        "delta": [0.0, 944.0, 0.0],
+        "unit": "pixel",
+        "position": [700, 820]
+      },
+      "gesture": {
+        "operation": "wheel pan",
+        "pan_css_pixels": [60.0, 948.0],
+        "zoom_percent": 100.0
+      }
+    },
+    "text_composition": {
+      "status": "ready",
+      "composition": "idle",
+      "selection_utf16_code_units": 16,
+      "locale": "unspecified"
+    },
+    "backend": {
+      "status": "no authorized backend bridge configured",
+      "result": "unavailable"
+    },
+    "result_explorer": {
+      "status": "no backend results",
+      "entries": 0
+    }
+  },
+  "views": {
+    "provenance": "dicom-metis-real-browser-mri.json",
+    "axial": {"width": 512, "height": 512, "non_black_pixels": 190836},
+    "coronal": {"width": 512, "height": 94, "non_black_pixels": 41863},
+    "sagittal": {"width": 512, "height": 94, "non_black_pixels": 38843}
+  },
+  "evidence": [
+    "browser accessibility tree",
+    "browser DOM snapshot",
+    "live viewport screenshot",
+    "hash-bound canvas PNG provenance"
+  ],
+  "limits": [
+    "one in-app Chromium host",
+    "bounded browser file chooser input",
+    "no Firefox or WebKit evidence",
+    "no physical file-manager input",
+    "no WebGPU evidence",
+    "browser chrome excluded from canvas hashes"
+  ]
+}

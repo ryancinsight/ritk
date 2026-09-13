@@ -674,6 +674,19 @@ one Chromium browser host and a bounded programmatic drop; physical drag-and-
 drop, Firefox/WebKit, WebGPU and complete application-window capture remain
 separate acceptance work.
 
+The same live page exposes the host and component state used during the visual
+check. The Métis mount is `mounted` with 31 Rust-owned listener handles at
+generation 3; the file chooser reports 94 accepted files and 49,807,236 bytes;
+the Dark theme is selected; pointer capture is released after one source and a
+pixel wheel action is reduced to a bounded pan; text composition is idle with a
+UTF-16 caret; and the standalone page reports the expected absence of an
+authorized backend bridge. The component values and the browser accessibility
+and DOM observations are recorded in
+[`dicom-metis-real-browser-mri-components.json`](images/dicom-metis-real-browser-mri-components.json).
+The component artifact contains no patient identifiers or DICOM metadata; its
+view dimensions and non-black counts refer to the hash-bound frame provenance
+above.
+
 ## Inspect an actual DICOM study in the browser
 
 The same RITK browser entrypoint was exercised against nine real Part 10 files
