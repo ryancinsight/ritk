@@ -951,6 +951,23 @@ does not bundle patient data or choose a study; DICOM opening still follows the
 RITK workflow above. A package output directory is create-new and must not
 already exist.
 
+The package boundary was exercised on Windows x64 with the saved public
+MRI-DIR head CT study. The packaged executable was launched with
+`--metis-native --capture-application --capture`; it exited with code 0 and
+rendered decoded axial, coronal, and sagittal anatomy:
+
+![Packaged RITK SNAP rendering a saved DICOM CT study](images/dicom-metis-installer-ct.png)
+
+The portable executable and MSI hashes match the package's `inventory.json`.
+The capture, input manifest hash, package hashes, source revisions, and limits
+are recorded in
+[`dicom-metis-installer.json`](images/dicom-metis-installer.json). This is a
+real file-backed DICOM run from the RITK-owned viewer; no image was generated
+for the manual. When the Atlas development overlay is active, run the locked
+package command from outside that overlay (for example, the drive root) so
+Cargo resolves the standalone lockfile; the checked-in workflow remains
+lock-pinned.
+
 The manifest and package command are local integration evidence. The
 [`metis-package.yml`](../../.github/workflows/metis-package.yml) workflow
 repeats the same lock-pinned build on a Windows runner and uploads the

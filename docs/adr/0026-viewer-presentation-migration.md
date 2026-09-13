@@ -532,6 +532,19 @@ RITK image oracle; the `ritk-snap` library gate passes 802/802 nextest tests,
 warning-denied Clippy, formatting, and doctests. No DICOM value or viewer state
 crosses into Métis.
 
+Revision 2026-09-13 (portable package visual evidence): the Métis
+`package` command built the RITK `e4179a2a8` executable from the standalone
+locked graph and emitted a portable `ritk-snap.exe`, hash-checked inventory,
+and Windows per-user MSI. Launching that packaged executable with the tracked
+public 410-file MRI-DIR head CT study through `--metis-native` exited 0 and
+captured decoded axial, coronal, and sagittal planes. The capture and exact
+package/input hashes are recorded in
+[`dicom-metis-installer.json`](../manual/images/dicom-metis-installer.json),
+with the image shown in the [DICOM workflow manual](../manual/dicom-workflow.md).
+RITK retains DICOM parsing, study selection, geometry, and clinical display;
+MSI install/uninstall and release signing remain separate environment and
+release gates.
+
 ## Alternatives and validation
 
 Retaining egui indefinitely contradicts the requested framework target. Removing
