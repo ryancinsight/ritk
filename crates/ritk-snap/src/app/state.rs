@@ -14,16 +14,6 @@ pub(crate) const DEFAULT_FUSION_ALPHA: f32 = 0.35;
 
 // ── Helper types ──────────────────────────────────────────────────────────────
 
-/// Cached RT-DOSE overlay texture for one axis.
-pub(crate) struct RtDoseOverlayCacheEntry {
-    pub(crate) slice_idx: usize,
-    pub(crate) vol_shape: [usize; 3],
-    pub(crate) dose_dims: [usize; 3],
-    pub(crate) opacity_alpha: u8,
-    pub(crate) view_transform: ViewTransform,
-    pub(crate) texture: egui::TextureHandle,
-}
-
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub(crate) enum SeriesLoadTarget {
     Primary,
@@ -101,18 +91,12 @@ pub(crate) struct SnapApp {
     pub(crate) show_rt_dose_overlay: bool,
     /// Opacity of the RT-DOSE overlay (0.0 transparent … 1.0 opaque).
     pub(crate) rt_dose_opacity: f32,
-    /// Per-axis RT-DOSE overlay texture cache (bounded to three entries).
-    pub(crate) rt_dose_overlay_cache: [Option<RtDoseOverlayCacheEntry>; 3],
     /// Active filter configuration shown in the processing panel.
     pub(crate) active_filter: crate::FilterKind,
     /// Whether the filter processing panel is visible.
     pub(crate) show_filter_panel: bool,
 
-    // ── Texture cache — axial ─────────────────────────────────────────────────
-    /// Cached egui texture for the axial slice.
-    pub(crate) texture: Option<egui::TextureHandle>,
-    /// Cached egui texture for secondary compare panel.
-    pub(crate) secondary_texture: Option<egui::TextureHandle>,
+    // ── Texture invalidation ─────────────────────────────────────────────────
     /// `true` when the axial texture must be rebuilt before the next frame.
     pub(crate) texture_dirty: bool,
     /// `true` when secondary texture must be rebuilt.
@@ -123,20 +107,14 @@ pub(crate) struct SnapApp {
     pub(crate) secondary_texture_slice: usize,
 
     // ── Texture cache — coronal / sagittal ────────────────────────────────────
-    /// Cached egui texture for the coronal slice (MPR mode).
-    pub(crate) coronal_tex: Option<egui::TextureHandle>,
     /// `true` when the coronal texture must be rebuilt.
     pub(crate) coronal_dirty: bool,
     /// Current coronal slice index (fixed row `r`).
     pub(crate) coronal_slice: usize,
-    /// Cached egui texture for the sagittal slice (MPR mode).
-    pub(crate) sagittal_tex: Option<egui::TextureHandle>,
     /// `true` when the sagittal texture must be rebuilt.
     pub(crate) sagittal_dirty: bool,
     /// Current sagittal slice index (fixed column `c`).
     pub(crate) sagittal_slice: usize,
-    /// Cached egui texture for the 3D-MIP viewport (axial projection).
-    pub(crate) mip_tex: Option<egui::TextureHandle>,
     /// `true` when the MIP projection texture must be rebuilt.
     pub(crate) mip_dirty: bool,
     /// Active projection mode for the bottom-right 3D viewport.
@@ -147,8 +125,6 @@ pub(crate) struct SnapApp {
     // ── Surface mesh overlay ──────────────────────────────────────────────────
     /// Currently loaded surface mesh for overlay rendering on the MIP viewport.
     pub(crate) loaded_mesh: Option<ritk_io::VtkPolyData>,
-    /// Cached egui texture for the Phong-shaded mesh overlay.
-    pub(crate) mesh_tex: Option<egui::TextureHandle>,
     /// `true` when the mesh overlay texture must be rebuilt before next frame.
     pub(crate) mesh_dirty: bool,
     /// Whether the mesh overlay is composited on the 3D-MIP viewport.
@@ -307,27 +283,20 @@ impl Default for SnapApp {
             rt_dvh_cache: None,
             show_rt_dose_overlay: false,
             rt_dose_opacity: 0.5,
-            rt_dose_overlay_cache: std::array::from_fn(|_| None),
             active_filter: crate::FilterKind::Gaussian { sigma: 1.0 },
             show_filter_panel: false,
-            texture: None,
-            secondary_texture: None,
             texture_dirty: false,
             secondary_texture_dirty: false,
             secondary_texture_axis: 0,
             secondary_texture_slice: 0,
-            coronal_tex: None,
             coronal_dirty: false,
             coronal_slice: 0,
-            sagittal_tex: None,
             sagittal_dirty: false,
             sagittal_slice: 0,
-            mip_tex: None,
             mip_dirty: false,
             projection_mode: ProjectionMode::Mip,
             projection_backend: ProjectionBackend::Cpu,
             loaded_mesh: None,
-            mesh_tex: None,
             mesh_dirty: false,
             show_mesh_overlay: false,
             pan_offset: ViewportOffset::new(0.0, 0.0),
@@ -436,44 +405,5 @@ impl SnapApp {
             }
         }
         app
-    }
-}
-
-// ── eframe::App ───────────────────────────────────────────────────────────────
-
-impl eframe::App for SnapApp {
-    fn update(&mut self, ctx: &egui::Context, _frame: &mut eframe::Frame) {
-        // Accept dropped files from the OS/browser shell and route them through
-        // the same loader path as explicit File-menu actions.
-        self.handle_dropped_inputs(ctx);
-
-        // Process any pending file load queued in the previous frame so that
-        // the file-dialog result is always acted on with a full UI repaint.
-        self.process_pending_loads();
-
-        // Publish completed Moirai loads without blocking the UI thread.
-        self.poll_load_tasks();
-
-        // Poll background PACS worker on every frame (must run even when the
-        // PACS panel is closed so responses are applied promptly).
-        self.poll_pacs_worker();
-
-        self.tick_cine(ctx);
-        self.consume_global_shortcuts(ctx);
-        self.show_menu_bar(ctx);
-        self.show_ribbon_toolbar(ctx);
-        self.show_left_panel(ctx);
-        self.show_bottom_bar(ctx);
-        self.show_aux_windows(ctx);
-
-        if self.compare_side_by_side {
-            self.show_central_panel_compare(ctx);
-        } else if self.multi_planar {
-            self.show_central_panel_multi(ctx);
-        } else if self.dual_plane {
-            self.show_central_panel_dual(ctx);
-        } else {
-            self.show_central_panel_single(ctx);
-        }
     }
 }

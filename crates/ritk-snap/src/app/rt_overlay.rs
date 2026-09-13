@@ -1,4 +1,5 @@
-use super::state::{RtDoseOverlayCacheEntry, SnapApp};
+use super::eframe::{EguiApp, RtDoseOverlayCacheEntry};
+use super::state::SnapApp;
 use crate::ui::rtdose_overlay::extract_dose_slice_for_volume;
 use crate::ui::rtdose_texture::{build_overlay_image, overlay_alpha, positive_finite_dose_range};
 use crate::ui::{
@@ -108,7 +109,6 @@ impl SnapApp {
                 info!("{}", self.status_message);
                 self.rt_dose = Some(grid);
                 self.rt_dose_max_gy = Some(max_dose_gy);
-                self.clear_rt_dose_overlay_cache();
                 self.show_rt_dose_overlay = true;
                 self.refresh_rt_dvh_cache();
             }
@@ -142,11 +142,9 @@ impl SnapApp {
             }
         }
     }
+}
 
-    pub(crate) fn clear_rt_dose_overlay_cache(&mut self) {
-        self.rt_dose_overlay_cache = std::array::from_fn(|_| None);
-    }
-
+impl EguiApp {
     /// Draw the RT-DOSE heat-map overlay on the given viewport.
     pub(crate) fn draw_rt_dose_overlay(
         &mut self,
@@ -165,7 +163,7 @@ impl SnapApp {
         let opacity_alpha = overlay_alpha(self.rt_dose_opacity);
         let view_transform = self.view_transform;
 
-        if let Some(entry) = self.rt_dose_overlay_cache[axis_slot].as_ref() {
+        if let Some(entry) = self.render.rt_dose_overlay_cache[axis_slot].as_ref() {
             if entry.slice_idx == slice_idx
                 && entry.vol_shape == vol_shape
                 && entry.dose_dims == dose_dims
@@ -233,7 +231,7 @@ impl SnapApp {
                 .load_texture(tex_name, color_image, egui::TextureOptions::LINEAR);
         let texture_id = texture.id();
 
-        self.rt_dose_overlay_cache[axis_slot] = Some(RtDoseOverlayCacheEntry {
+        self.render.rt_dose_overlay_cache[axis_slot] = Some(RtDoseOverlayCacheEntry {
             slice_idx,
             vol_shape,
             dose_dims,
@@ -249,7 +247,9 @@ impl SnapApp {
             egui::Color32::WHITE,
         );
     }
+}
 
+impl SnapApp {
     pub(crate) fn draw_label_overlay(
         &self,
         painter: &egui::Painter,

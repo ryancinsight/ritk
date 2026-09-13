@@ -5,8 +5,8 @@
 //! pointer / wheel events to the active tool.
 //
 //! The secondary / fused-compare viewport lives in [`super::viewport_compare`].
+use super::eframe::EguiApp;
 use super::image_placement::ImagePlacement;
-use super::state::SnapApp;
 use crate::render::WindowLevel;
 use crate::tools::interaction::Annotation;
 use crate::ui::overlay::{OverlayContext, OverlayRenderer};
@@ -72,7 +72,7 @@ fn map_input_modifiers(input: egui::Modifiers) -> PresentationModifiers {
     PresentationModifiers::new(input.ctrl, input.shift, input.alt, input.mac_cmd)
 }
 
-impl SnapApp {
+impl EguiApp {
     /// Render one MPR viewport for the given `axis` into `ui`.
     ///
     /// # Responsibilities
@@ -92,9 +92,9 @@ impl SnapApp {
     ) {
         // ── 1. Rebuild texture if stale ────────────────────────────────────────
         let needs_rebuild = match axis {
-            0 => self.texture_dirty || self.texture.is_none(),
-            1 => self.coronal_dirty || self.coronal_tex.is_none(),
-            _ => self.sagittal_dirty || self.sagittal_tex.is_none(),
+            0 => self.texture_dirty || self.render.texture.is_none(),
+            1 => self.coronal_dirty || self.render.coronal_tex.is_none(),
+            _ => self.sagittal_dirty || self.render.sagittal_tex.is_none(),
         };
 
         if needs_rebuild && self.loaded.is_some() {
@@ -108,9 +108,13 @@ impl SnapApp {
 
         // ── 2. Extract texture ID and size (copy, releases borrow) ─────────────
         let tex_info: Option<(egui::TextureId, [usize; 2])> = match axis {
-            0 => self.texture.as_ref().map(|t| (t.id(), t.size())),
-            1 => self.coronal_tex.as_ref().map(|t| (t.id(), t.size())),
-            _ => self.sagittal_tex.as_ref().map(|t| (t.id(), t.size())),
+            0 => self.render.texture.as_ref().map(|t| (t.id(), t.size())),
+            1 => self.render.coronal_tex.as_ref().map(|t| (t.id(), t.size())),
+            _ => self
+                .render
+                .sagittal_tex
+                .as_ref()
+                .map(|t| (t.id(), t.size())),
         };
 
         let (tex_id, [tex_w_usize, tex_h_usize]) = match tex_info {

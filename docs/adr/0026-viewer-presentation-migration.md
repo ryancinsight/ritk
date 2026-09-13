@@ -568,6 +568,16 @@ behavior under the full `ritk-snap` suite. Texture handles and dirty flags
 remain eframe adapter state for the next extraction increment; DICOM parsing,
 geometry, and clinical presentation remain in RITK.
 
+Revision 2026-09-13 (eframe render-resource boundary): `egui::TextureHandle`
+values now live in `EguiRenderState`, wrapped by the eframe-only `EguiApp`.
+`SnapApp` no longer stores primary, secondary, MPR, MIP, mesh, or RT-DOSE
+texture handles and no longer implements `eframe::App`; the wrapper drives the
+same viewer transitions and routes RT-DOSE loading through shell-cache
+invalidation. Dirty flags and slice bookkeeping remain in `SnapApp` for this
+bounded increment and continue to drive replacement of shell textures. Native
+Métis and browser paths still construct the host-neutral `SnapApp`; DICOM
+parsing, geometry, and clinical presentation remain in RITK.
+
 ## Alternatives and validation
 
 Retaining egui indefinitely contradicts the requested framework target. Removing

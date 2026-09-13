@@ -4,6 +4,7 @@
 //! displays a secondary volume against the primary, including fused-slice
 //! rendering via [`render_fused_slice`] and standard fit-scale / zoom logic.
 
+use super::eframe::EguiApp;
 use super::image_placement::ImagePlacement;
 use super::state::SnapApp;
 use super::viewport_render::{OVERLAY_LABEL_COLOR, OVERLAY_LABEL_FONT_SIZE, OVERLAY_LABEL_INSET};
@@ -12,7 +13,7 @@ use crate::render::WindowLevel;
 use crate::ui::apply_to_image_into;
 use crate::viewer::{DEFAULT_WINDOW_CENTER, DEFAULT_WINDOW_WIDTH};
 
-impl SnapApp {
+impl EguiApp {
     /// Render the secondary (compare / fused-overlay) viewport.
     ///
     /// When `compare_fused_overlay` is active the two volumes are
@@ -34,7 +35,7 @@ impl SnapApp {
 
         let primary_total = self.axis_slice_info(primary_axis).1.max(1);
         let primary_idx = self.axis_slice_info(primary_axis).0;
-        let secondary_total = Self::axis_extent_for_volume(secondary, secondary_axis).max(1);
+        let secondary_total = SnapApp::axis_extent_for_volume(secondary, secondary_axis).max(1);
         let secondary_idx = if self.compare_fused_overlay {
             let mapped = match (self.loaded.as_ref(), self.loaded_secondary.as_ref()) {
                 (Some(primary), Some(secondary)) => secondary_slice_for_primary(
@@ -49,7 +50,7 @@ impl SnapApp {
             match mapped {
                 Ok(index) => index,
                 Err(error) => {
-                    self.secondary_texture = None;
+                    self.render.secondary_texture = None;
                     self.status_message = format!("Fused comparison unavailable: {error}");
                     ui.centered_and_justified(|ui| {
                         ui.label(&self.status_message);
@@ -58,14 +59,14 @@ impl SnapApp {
                 }
             }
         } else {
-            Self::map_slice_index_between_volumes(primary_idx, primary_total, secondary_total)
+            SnapApp::map_slice_index_between_volumes(primary_idx, primary_total, secondary_total)
         };
 
         let needs_rebuild = if self.compare_fused_overlay {
             true
         } else {
             self.secondary_texture_dirty
-                || self.secondary_texture.is_none()
+                || self.render.secondary_texture.is_none()
                 || self.secondary_texture_axis != secondary_axis
                 || self.secondary_texture_slice != secondary_idx
         };
@@ -113,7 +114,7 @@ impl SnapApp {
                     ) {
                         Ok(image) => image,
                         Err(error) => {
-                            self.secondary_texture = None;
+                            self.render.secondary_texture = None;
                             self.status_message = format!("Fused comparison unavailable: {error}");
                             ui.centered_and_justified(|ui| {
                                 ui.label(&self.status_message);
@@ -121,15 +122,16 @@ impl SnapApp {
                             return;
                         }
                     };
+                    let view_transform = self.view_transform;
                     let color_image = apply_to_image_into(
                         &mut self.render_buffer_pool,
                         &color_image,
-                        self.view_transform,
+                        view_transform,
                     );
                     let tex_name = "slice_tex_fused";
                     (color_image, tex_name)
                 };
-                self.secondary_texture =
+                self.render.secondary_texture =
                     Some(ctx.load_texture(tex_name, color_image, egui::TextureOptions::LINEAR));
                 self.secondary_texture_axis = secondary_axis;
                 self.secondary_texture_slice = secondary_idx;
@@ -139,7 +141,7 @@ impl SnapApp {
             }
         }
 
-        let Some(tex) = self.secondary_texture.as_ref() else {
+        let Some(tex) = self.render.secondary_texture.as_ref() else {
             return;
         };
         // Fusion emits the primary sampling grid; independent comparison emits

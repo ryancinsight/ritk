@@ -5,7 +5,7 @@ use std::path::PathBuf;
 use std::rc::Rc;
 use std::time::{Duration, Instant};
 
-use crate::app::SnapApp;
+use crate::app::EguiApp;
 use anyhow::{bail, Context, Result};
 
 // The normal native-test slow threshold bounds an absent screenshot response.
@@ -32,7 +32,7 @@ struct Capture {
 }
 
 pub(super) struct CaptureApp {
-    app: SnapApp,
+    app: EguiApp,
     capture: Option<Capture>,
     // The event loop and launch function share one result on the same thread.
     completion: Rc<Cell<Option<Result<()>>>>,
@@ -40,7 +40,7 @@ pub(super) struct CaptureApp {
 
 impl CaptureApp {
     pub(super) fn new(
-        app: SnapApp,
+        app: EguiApp,
         output: Option<PathBuf>,
         requirement: Requirement,
         completion: Rc<Cell<Option<Result<()>>>>,

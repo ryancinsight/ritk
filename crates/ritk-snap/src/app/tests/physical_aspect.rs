@@ -1,15 +1,16 @@
 //! Physical aspect ratios observed in actual textured viewport shapes.
 
 use super::*;
+use crate::app::EguiApp;
 use crate::dicom::loader::{load_volume_from_path, tests::fixtures};
 use crate::ui::{RotationSteps, ViewTransform};
 
-fn study_app() -> SnapApp {
+fn study_app() -> EguiApp {
     let root = tempfile::tempdir().expect("study root");
     fixtures::write_study(root.path(), "CT", fixtures::SERIES_UID).expect("write Part 10 study");
     let volume = load_volume_from_path(root.path()).expect("decode anisotropic study");
     assert_eq!(volume.spacing, [2.0, 1.5, 0.5]);
-    let mut app = SnapApp::default();
+    let mut app = EguiApp::new(SnapApp::default());
     app.loaded_secondary = Some(volume.clone());
     app.load_volume(volume, "Loaded".to_owned());
     app.show_overlay = false;
@@ -100,9 +101,9 @@ fn primary_physical_aspect_survives_all_layouts_and_texture_transforms() {
                         },
                     );
                     let texture = match axis {
-                        0 => &app.texture,
-                        1 => &app.coronal_tex,
-                        _ => &app.sagittal_tex,
+                        0 => &app.render.texture,
+                        1 => &app.render.coronal_tex,
+                        _ => &app.render.sagittal_tex,
                     }
                     .as_ref()
                     .expect("rendered texture");
@@ -155,7 +156,7 @@ fn comparison_physical_aspect_uses_the_output_sampling_grid() {
                     );
                     if fused && primary_axis != secondary_axis {
                         assert!(
-                            app.secondary_texture.is_none(),
+                            app.render.secondary_texture.is_none(),
                             "non-parallel fused planes must not retain a stale texture"
                         );
                         assert!(
@@ -164,7 +165,11 @@ fn comparison_physical_aspect_uses_the_output_sampling_grid() {
                         );
                         continue;
                     }
-                    let texture = app.secondary_texture.as_ref().expect("comparison texture");
+                    let texture = app
+                        .render
+                        .secondary_texture
+                        .as_ref()
+                        .expect("comparison texture");
                     assert_physical_ratio(
                         image_bounds(&output, texture.id()),
                         if fused { primary_axis } else { secondary_axis },
@@ -200,9 +205,9 @@ fn common_distance_scale_cannot_change_display_aspect() {
                 },
             );
             let texture = match axis {
-                0 => &app.texture,
-                1 => &app.coronal_tex,
-                _ => &app.sagittal_tex,
+                0 => &app.render.texture,
+                1 => &app.render.coronal_tex,
+                _ => &app.render.sagittal_tex,
             }
             .as_ref()
             .expect("texture");
@@ -241,9 +246,9 @@ fn cursor_click_uses_the_physical_image_rectangle_in_every_layout() {
                 },
             );
             let texture = match axis {
-                0 => &app.texture,
-                1 => &app.coronal_tex,
-                _ => &app.sagittal_tex,
+                0 => &app.render.texture,
+                1 => &app.render.coronal_tex,
+                _ => &app.render.sagittal_tex,
             }
             .as_ref()
             .expect("texture");
@@ -294,7 +299,7 @@ fn unrepresentable_display_geometry_reports_failure_before_painting_image() {
     assert_eq!(app.status_message, "Image placement failed: physical slice geometry cannot be represented in viewport coordinates");
     assert!(output.shapes.iter().any(|shape| matches!(&shape.shape,
         egui::Shape::Text(text) if text.galley.text() == app.status_message)));
-    let texture_id = app.texture.as_ref().expect("decoded texture").id();
+    let texture_id = app.render.texture.as_ref().expect("decoded texture").id();
     assert!(!output.shapes.iter().any(|shape| match &shape.shape {
         egui::Shape::Rect(rect) => rect.fill_texture_id == texture_id,
         egui::Shape::Mesh(mesh) => mesh.texture_id == texture_id,
@@ -332,9 +337,9 @@ fn translated_image_extent_that_rounds_to_zero_is_rejected_before_paint() {
             "Image placement failed: physical slice rectangle collapses at screen coordinates"
         );
         let id = if secondary {
-            &app.secondary_texture
+            &app.render.secondary_texture
         } else {
-            &app.texture
+            &app.render.texture
         }
         .as_ref()
         .expect("decoded texture")
@@ -380,12 +385,12 @@ fn physical_images_keep_requested_zoom_extents_and_viewport_clip() {
                     },
                 );
                 let texture = if secondary {
-                    &app.secondary_texture
+                    &app.render.secondary_texture
                 } else {
                     match axis {
-                        0 => &app.texture,
-                        1 => &app.coronal_tex,
-                        _ => &app.sagittal_tex,
+                        0 => &app.render.texture,
+                        1 => &app.render.coronal_tex,
+                        _ => &app.render.sagittal_tex,
                     }
                 }
                 .as_ref()
