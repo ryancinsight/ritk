@@ -72,7 +72,7 @@
 
 <a id="RITK-SNAP-REAL-DICOM-DOCS-001"></a>
 ## RITK-SNAP-REAL-DICOM-DOCS-001 — Lead with real image evidence [patch]
-- Status: in-progress; priority: P1; owner: RITK SNAP documentation; integrator: root; branch: `docs/real-dicom-readme-001`; regions: `README.md`, `backlog.md`; dependencies: RITK-SNAP-METIS-001; risk: misleading gallery entry point
+- Status: done; priority: P1; delivery: `3c0ea6a00`; owner: RITK SNAP documentation; integrator: root; dependencies: RITK-SNAP-METIS-001; risk: misleading gallery entry point
 - Scope: make the viewer manual's front-page description identify the real public DICOM gallery while keeping synthetic fixtures as deterministic tests and private studies local.
 - Acceptance: README names both real and synthetic workflows, links the actual Métis capture, and no patient pixels or identifiers enter the public tree.
 - Demonstration: the existing revision-bound CT/MIP capture and local saved-study command in `docs/manual/dicom-workflow.md`.
