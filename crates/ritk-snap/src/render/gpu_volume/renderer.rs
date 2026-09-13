@@ -486,20 +486,4 @@ impl GpuVolumeRenderer {
 
         ready_or_pending(self.vr_last.as_ref())
     }
-
-    /// Block the calling thread until all in-flight GPU work completes.
-    ///
-    /// Drives `device.poll(Maintain::Wait)` so that any pending `map_async`
-    /// callbacks fire before this function returns. After this call,
-    /// `mip_pending` and `vr_pending` receivers are guaranteed to have data.
-    ///
-    /// # Test use only
-    ///
-    /// Production code must use `device.poll(Maintain::Poll)` via `render_mip`
-    /// / `render_vr`. This function exists to give tests deterministic,
-    /// blocking access to GPU results without spinning.
-    #[cfg(test)]
-    pub(super) fn poll_blocking(&mut self) {
-        self.ctx.device.poll(wgpu::Maintain::Wait);
-    }
 }

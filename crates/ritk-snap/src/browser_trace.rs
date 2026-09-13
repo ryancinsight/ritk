@@ -7,6 +7,9 @@ use std::fmt;
 use std::fs;
 use std::io::Read;
 use std::path::Path;
+use std::str::FromStr;
+
+mod validation;
 
 const MAX_CANVAS_DIMENSION: u32 = 4_096;
 const MAX_TRACE_BYTES: u64 = 512 * 1024;
@@ -194,8 +197,8 @@ fn validate_document(
     validate_actions(&document.actions, canvas_ids)?;
     validate_snapshots(&document.snapshots, canvas_ids)?;
     validate_slice_progression(&document.snapshots, canvas_ids)?;
-    validate_screenshots(&document.screenshots, canvas_ids)?;
-    validate_cleanup(&document.cleanup, canvas_ids)?;
+    validation::validate_screenshots(&document.screenshots, canvas_ids)?;
+    validation::validate_cleanup(&document.cleanup, canvas_ids)?;
 
     Ok(BrowserTraceReport {
         engine: document.engine.clone(),
@@ -331,22 +334,22 @@ fn validate_snapshot(
     let load_state = attribute(&snapshot.canvas, "data-ritk-load-state", canvas_id)?;
     let frame_state = attribute(&snapshot.canvas, "data-ritk-frame-state", canvas_id)?;
     let axis_value = attribute(&snapshot.canvas, "data-ritk-axis", canvas_id)?;
-    let slice_index = parse_u64(
+    let slice_index: u64 = parse_attribute(
         attribute(&snapshot.canvas, "data-ritk-slice-index", canvas_id)?,
         "slice index",
         canvas_id,
     )?;
-    let slice_count = parse_u64(
+    let slice_count: u64 = parse_attribute(
         attribute(&snapshot.canvas, "data-ritk-slice-count", canvas_id)?,
         "slice count",
         canvas_id,
     )?;
-    let frame_width = parse_u32(
+    let frame_width: u32 = parse_attribute(
         attribute(&snapshot.canvas, "data-ritk-frame-width", canvas_id)?,
         "frame width",
         canvas_id,
     )?;
-    let frame_height = parse_u32(
+    let frame_height: u32 = parse_attribute(
         attribute(&snapshot.canvas, "data-ritk-frame-height", canvas_id)?,
         "frame height",
         canvas_id,
@@ -396,12 +399,12 @@ fn validate_slice_progression(snapshots: &[TraceSnapshot], canvas_ids: &[String]
             .iter()
             .find(|snapshot| snapshot.label == after_label)
             .with_context(|| format!("browser trace is missing snapshot {after_label:?}"))?;
-        let initial_count = parse_u64(
+        let initial_count: u64 = parse_attribute(
             attribute(&initial.canvas, "data-ritk-slice-count", canvas_id)?,
             "slice count",
             canvas_id,
         )?;
-        let after_count = parse_u64(
+        let after_count: u64 = parse_attribute(
             attribute(&after.canvas, "data-ritk-slice-count", canvas_id)?,
             "slice count",
             canvas_id,
@@ -414,12 +417,12 @@ fn validate_slice_progression(snapshots: &[TraceSnapshot], canvas_ids: &[String]
         if initial_count <= 1 {
             continue;
         }
-        let initial_index = parse_u64(
+        let initial_index: u64 = parse_attribute(
             attribute(&initial.canvas, "data-ritk-slice-index", canvas_id)?,
             "slice index",
             canvas_id,
         )?;
-        let after_index = parse_u64(
+        let after_index: u64 = parse_attribute(
             attribute(&after.canvas, "data-ritk-slice-index", canvas_id)?,
             "slice index",
             canvas_id,
@@ -443,104 +446,14 @@ fn attribute<'a>(canvas: &'a TraceCanvas, name: &str, canvas_id: &str) -> Result
     Ok(value)
 }
 
-fn parse_u64(value: &str, field: &str, canvas_id: &str) -> Result<u64> {
+fn parse_attribute<T>(value: &str, field: &str, canvas_id: &str) -> Result<T>
+where
+    T: FromStr,
+    T::Err: std::error::Error + Send + Sync + 'static,
+{
     value
-        .parse::<u64>()
+        .parse::<T>()
         .with_context(|| format!("canvas {canvas_id:?} has an invalid {field} value {value:?}"))
-}
-
-fn parse_u32(value: &str, field: &str, canvas_id: &str) -> Result<u32> {
-    value
-        .parse::<u32>()
-        .with_context(|| format!("canvas {canvas_id:?} has an invalid {field} value {value:?}"))
-}
-
-fn validate_screenshots(screenshots: &[TraceScreenshot], canvas_ids: &[String]) -> Result<()> {
-    let expected_screenshot_count = 2 + canvas_ids.len() * 2;
-    if screenshots.len() != expected_screenshot_count {
-        bail!(
-            "browser trace contains {} screenshots; expected {expected_screenshot_count}",
-            screenshots.len()
-        )
-    }
-
-    let mut labels = BTreeSet::new();
-    for screenshot in screenshots {
-        let expected_scope =
-            if matches!(screenshot.label.as_str(), "window-initial" | "window-final") {
-                None
-            } else if canvas_ids.iter().any(|id| {
-                screenshot.label == format!("{id}-initial")
-                    || screenshot.label == format!("{id}-after-input")
-            }) {
-                Some("element")
-            } else {
-                bail!(
-                    "browser trace contains unknown screenshot label {:?}",
-                    screenshot.label
-                )
-            };
-        if !labels.insert(screenshot.label.clone()) {
-            bail!(
-                "browser trace repeats screenshot label {:?}",
-                screenshot.label
-            )
-        }
-        if screenshot.scope.as_deref() != expected_scope {
-            bail!("screenshot {:?} has an invalid scope", screenshot.label)
-        }
-        if screenshot.width == 0 || screenshot.height == 0 || screenshot.bytes == 0 {
-            bail!(
-                "screenshot {:?} has invalid dimensions or byte count",
-                screenshot.label
-            )
-        }
-        if screenshot.sha256.len() != 64
-            || !screenshot
-                .sha256
-                .bytes()
-                .all(|byte| byte.is_ascii_hexdigit())
-        {
-            bail!(
-                "screenshot {:?} has an invalid SHA-256 digest",
-                screenshot.label
-            )
-        }
-    }
-
-    let mut expected_labels =
-        BTreeSet::from(["window-initial".to_owned(), "window-final".to_owned()]);
-    for id in canvas_ids {
-        expected_labels.insert(format!("{id}-initial"));
-        expected_labels.insert(format!("{id}-after-input"));
-    }
-    if labels != expected_labels {
-        bail!(
-            "browser trace screenshot labels do not cover the required window and canvas captures"
-        )
-    }
-    Ok(())
-}
-
-fn validate_cleanup(cleanup: &TraceCleanup, canvas_ids: &[String]) -> Result<()> {
-    if !cleanup.active_input_sources_released {
-        bail!("browser trace did not release active input sources")
-    }
-    if cleanup.canvas_count != canvas_ids.len() {
-        bail!(
-            "browser trace cleanup reports {} canvases; expected {}",
-            cleanup.canvas_count,
-            canvas_ids.len()
-        )
-    }
-    let expected_attributes: Vec<String> = EXPECTED_ATTRIBUTES
-        .iter()
-        .map(|name| (*name).to_owned())
-        .collect();
-    if cleanup.canvas_attribute_names != expected_attributes {
-        bail!("browser trace cleanup does not record the required RITK attributes")
-    }
-    Ok(())
 }
 
 #[cfg(test)]
