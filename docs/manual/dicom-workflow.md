@@ -968,6 +968,13 @@ package command from outside that overlay (for example, the drive root) so
 Cargo resolves the standalone lockfile; the checked-in workflow remains
 lock-pinned.
 
+The MSI lifecycle was also exercised in the current user scope. Silent install
+returned 0, placed the executable under `%LOCALAPPDATA%\org.ritk.snap\`, and
+rendered a byte-identical capture from the same study. Silent uninstall returned
+0 and removed both that registry entry and install directory. The lifecycle
+results are included in the provenance artifact; no elevation, signing key, or
+patient data was used.
+
 The manifest and package command are local integration evidence. The
 [`metis-package.yml`](../../.github/workflows/metis-package.yml) workflow
 repeats the same lock-pinned build on a Windows runner and uploads the

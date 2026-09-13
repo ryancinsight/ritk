@@ -55,14 +55,31 @@
       "views": ["axial", "coronal", "sagittal"]
     }
   },
+  "installer_lifecycle": {
+    "install": {
+      "command": "msiexec /i org.ritk.snap.msi /qn /norestart",
+      "exit_code": 0,
+      "scope": "per-user",
+      "registry_install_location": "%LOCALAPPDATA%\\org.ritk.snap\\",
+      "installed_executable_sha256": "fbe167c8b852011e12379f77ea520acad2c1295db5894e115cd15df9134ccdc2",
+      "installed_capture_sha256": "8082cea87348126ce5a07cacb602bf71081747881481d2062bb1f2c7314113d3",
+      "installed_capture_matches_portable": true
+    },
+    "uninstall": {
+      "command": "msiexec /x org.ritk.snap.msi /qn /norestart",
+      "exit_code": 0,
+      "registry_entry_present_after": false,
+      "install_directory_present_after": false
+    }
+  },
   "verification": {
     "inventory_payload_hashes": "passed",
     "portable_dicom_open": "passed: the packaged executable decoded the saved study and rendered three non-black orthogonal views",
+    "installer_lifecycle": "passed: per-user MSI install and uninstall completed without residual registry entry or install directory",
     "patient_data": "not bundled; the capture is derived from the committed public study",
     "signing": "not performed"
   },
   "limits": [
-    "This run proves package generation and portable execution; MSI install and uninstall remain separate environment-sensitive checks",
     "The public MRI-DIR study is a committed test fixture and is not evidence for arbitrary clinical DICOM conformance",
     "Release publication, code signing, and registry promotion are outside this local evidence run"
   ]

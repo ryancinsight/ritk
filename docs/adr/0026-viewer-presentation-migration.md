@@ -542,8 +542,15 @@ package/input hashes are recorded in
 [`dicom-metis-installer.json`](../manual/images/dicom-metis-installer.json),
 with the image shown in the [DICOM workflow manual](../manual/dicom-workflow.md).
 RITK retains DICOM parsing, study selection, geometry, and clinical display;
-MSI install/uninstall and release signing remain separate environment and
-release gates.
+release signing remains a separate release gate.
+
+Revision 2026-09-13 (per-user MSI lifecycle): the same package installed
+silently into the current user's `%LOCALAPPDATA%` scope, launched the installed
+viewer against the saved public study, and produced a byte-identical capture;
+silent uninstall then removed the install directory and the Métis registry
+entry. Both Windows Installer operations exited 0. This closes local
+install/uninstall evidence without changing the RITK ownership of DICOM data;
+release signing and publication remain outside the increment.
 
 ## Alternatives and validation
 
