@@ -821,6 +821,45 @@ The artifact does not claim JavaScript heap, native process, compositor, GPU,
 or allocator-used bytes; those require separate profilers and remain open
 performance work.
 
+### Re-run the saved MRI study through Edge
+
+The same 94-file MRI-DIR T2 study was replayed through Métis's bounded browser
+drop runner against Microsoft Edge 154.0.4258.12. The WebDriver session sent
+trusted file-backed `dragenter`, `dragover`, and `drop` events, RITK read all
+49,807,236 bytes, and the three canvas RGBA hashes matched the RITK oracle. The
+runner also exercised the count, per-file byte, and batch byte limits; each
+oversized input was rejected before reading, and the session closed cleanly.
+
+![Actual MRI-DIR T2 study in the running Métis Edge gallery](images/dicom-metis-real-browser-mri-edge-gallery.png)
+
+The gallery screenshot is the live browser viewport after the drop, with the
+decoded axial, coronal, and sagittal anatomy visible. The element captures are
+[axial](images/dicom-metis-real-browser-mri-edge-axial.png),
+[coronal](images/dicom-metis-real-browser-mri-edge-coronal.png), and
+[sagittal](images/dicom-metis-real-browser-mri-edge-sagittal.png). Their canvas
+dimensions, non-black counts, RGBA hashes, screenshot hashes, source revisions,
+trusted events, rejection results, and cleanup state are recorded in
+[`dicom-metis-real-browser-mri-edge.json`](images/dicom-metis-real-browser-mri-edge.json).
+The trace binds the RITK consumer revision to the Métis gallery assets, so the
+image is evidence from the running application rather than generated artwork.
+
+Reproduce the file-backed run from the Métis checkout with an Edge WebDriver
+already listening on port 9516:
+
+```powershell
+python scripts/browser_drop.py --driver-url http://127.0.0.1:9516 `
+  --browser-name MicrosoftEdge --input chromium `
+  --files D:/atlas/repos/ritk/test_data/2_head_mri_t2/DICOM --pattern '*.dcm' `
+  --oracle output/browser/mri-oracle.json `
+  --consumer-revision 1547d2af4cbb58d7c0630e422b2b9903902c9811 `
+  --output output/browser/drop-mri-edge-pass
+```
+
+This closes the configured Edge/Chromium file-backed run for the saved MRI
+study. Edge is one Chromium-family engine; physical file-manager drag input,
+Firefox/WebKit, WebGPU, native file dialogs and native process launch remain
+separate acceptance gates.
+
 ## Build the RITK SNAP executable and installer
 
 RITK owns the application manifest at
