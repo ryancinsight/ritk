@@ -145,6 +145,33 @@ fn semantic_attributes_and_dimensions_are_checked() {
 }
 
 #[test]
+fn trusted_wheel_must_advance_multi_slice_canvas() {
+    let mut value = fixture_value(&default_ids());
+    for snapshot in value["snapshots"].as_array_mut().expect("snapshots array") {
+        if snapshot["label"]
+            .as_str()
+            .expect("snapshot label")
+            .ends_with("after-input")
+        {
+            snapshot["canvas"]["attributes"]["data-ritk-slice-index"] = json!("0");
+        }
+    }
+    reject(value, "did not advance its multi-slice index");
+}
+
+#[test]
+fn singleton_slice_canvas_may_remain_at_the_same_index() {
+    let mut value = fixture_value(&default_ids());
+    for snapshot in value["snapshots"].as_array_mut().expect("snapshots array") {
+        snapshot["canvas"]["attributes"]["data-ritk-slice-count"] = json!("1");
+        snapshot["canvas"]["attributes"]["data-ritk-slice-index"] = json!("0");
+    }
+    let ids = default_ids();
+    let document: TraceDocument = serde_json::from_value(value).expect("singleton fixture");
+    validate_document(&document, &ids).expect("singleton canvas is valid");
+}
+
+#[test]
 fn actions_screenshots_and_cleanup_are_checked() {
     let mut value = fixture_value(&default_ids());
     value["actions"]

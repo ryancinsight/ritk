@@ -1,0 +1,179 @@
+{
+  "schema": 1,
+  "status": "passed",
+  "runtime": {
+    "engine": "chromium",
+    "browser": "Microsoft Edge",
+    "browser_version": "154.0.4258.12",
+    "platform": "windows",
+    "host": "Edge WebDriver",
+    "url": "http://127.0.0.1:54509/gallery.html",
+    "observed_date": "2026-09-13",
+    "input": "file-backed WebDriver drop followed by trusted pointer drag and wheel actions",
+    "metis_revision": "a85eb74e1d48f051279978e9a63a381d02a2fcfa",
+    "ritk_revision": "043794fa8d862ad9e0fdfc0410564962f3cbf0c1",
+    "moirai_revision": "c7206e8b294599e55eb7a82071c5a91dc0428c3e"
+  },
+  "dataset": {
+    "path": "test_data/3_head_ct_mridir/DICOM",
+    "files_submitted": 409,
+    "bytes_read": 216156416,
+    "license": "CC BY 4.0",
+    "description": "public MRI-DIR porcine-head CT phantom; not private patient data"
+  },
+  "transfer": {
+    "events": [
+      {
+        "bytes": 0,
+        "files": 0,
+        "trusted": true,
+        "type": "dragenter"
+      },
+      {
+        "bytes": 0,
+        "files": 0,
+        "trusted": true,
+        "type": "dragover"
+      },
+      {
+        "bytes": 0,
+        "files": 0,
+        "trusted": true,
+        "type": "dragover"
+      },
+      {
+        "bytes": 216156416,
+        "files": 409,
+        "trusted": true,
+        "type": "drop"
+      }
+    ],
+    "trusted": true,
+    "drop_files": 409,
+    "drop_bytes": 216156416,
+    "file_manifest_sha256": "a2a438f9f806848012a9683df146ddf5cc65e632c290c5f58f2edf9e6f8da6da",
+    "oracle_sha256": "07574079c71cbadf5def6ed892357b9f3b7d335878bf387a8f41fd620ad0d455",
+    "reported_status": "Drop status: accepted 409 file(s); 00000001.dcm (528502 bytes), 00000002.dcm (528502 bytes), 00000003.dcm (528496 bytes); ...",
+    "reported_bytes": "Byte access: read 216156416 bytes from 409 file(s)"
+  },
+  "views": {
+    "axial": {
+      "width": 512,
+      "height": 512,
+      "slice_count": 409,
+      "slice_index_initial": 204,
+      "slice_index_after_wheel": 203,
+      "initial_screenshot": "dicom-metis-real-browser-ct-axial-initial.png",
+      "initial_screenshot_sha256": "2a5a7103f6f4b7eb0eebb57827d6d3a6da3372590b8a3bb7a7dbc44aa65c59c5",
+      "after_wheel_screenshot": "dicom-metis-real-browser-ct-axial-after-wheel.png",
+      "after_wheel_screenshot_sha256": "39043f4cad86dac94c2d3372f127aec19c15aa46cc14889f7b83963880fddb14",
+      "screenshot_dimensions": {
+        "initial": [
+          561,
+          561
+        ],
+        "after_wheel": [
+          561,
+          561
+        ]
+      },
+      "non_black_pixels_at_drop": 124466,
+      "rgba_sha256_at_drop": "15b191108b506136a6dd8d2923f8e9a21baad9e2ad25d4c3ff858a8a7f798fea"
+    },
+    "coronal": {
+      "width": 512,
+      "height": 409,
+      "slice_count": 512,
+      "slice_index_initial": 256,
+      "slice_index_after_wheel": 255,
+      "initial_screenshot": "dicom-metis-real-browser-ct-coronal-initial.png",
+      "initial_screenshot_sha256": "5b45a694130b8c765be26061d76c321ddaebab4d37bdb6efa2d07d025e15427c",
+      "after_wheel_screenshot": "dicom-metis-real-browser-ct-coronal-after-wheel.png",
+      "after_wheel_screenshot_sha256": "123734bc2bed0e742cfbce26f9538221e3974a5bb8c1a6383afeced82fc8c57b",
+      "screenshot_dimensions": {
+        "initial": [
+          561,
+          449
+        ],
+        "after_wheel": [
+          561,
+          449
+        ]
+      },
+      "non_black_pixels_at_drop": 106343,
+      "rgba_sha256_at_drop": "cb1462edad7fe0f6e06c389e3a05ce0344381be65be8c016bc958f5fcbabeaa0"
+    },
+    "sagittal": {
+      "width": 512,
+      "height": 409,
+      "slice_count": 512,
+      "slice_index_initial": 256,
+      "slice_index_after_wheel": 255,
+      "initial_screenshot": "dicom-metis-real-browser-ct-sagittal-initial.png",
+      "initial_screenshot_sha256": "716f6a26e5091031c3683b27a7542371df3cd9b86826488f383c624d856f6c0d",
+      "after_wheel_screenshot": "dicom-metis-real-browser-ct-sagittal-after-wheel.png",
+      "after_wheel_screenshot_sha256": "492ec84cedf7cf90cf28e6017880caa0c5d80f34229fcbbea204a89a1ea80113",
+      "screenshot_dimensions": {
+        "initial": [
+          561,
+          449
+        ],
+        "after_wheel": [
+          561,
+          449
+        ]
+      },
+      "non_black_pixels_at_drop": 140317,
+      "rgba_sha256_at_drop": "94b7adc8980ef1cf4323c35781f3a57e5d5811380cf9988df5e6b831140f6cf3"
+    }
+  },
+  "application_capture": {
+    "initial_screenshot": "dicom-metis-real-browser-ct-slice-window-initial.png",
+    "initial_sha256": "72c9a01bf8d5cdb655f07b3bc01bd45a4ee22058c49d2fbf3c6823acc15092b0",
+    "after_wheel_screenshot": "dicom-metis-real-browser-ct-slice-window-after-wheel.png",
+    "after_wheel_sha256": "2bf981dbf283142e709a5f60a0afe531b7becb2b42908ca1285ecb598522915e",
+    "width": 1773,
+    "height": 1203,
+    "scope": "browser viewport containing the running gallery and three RITK canvases"
+  },
+  "rejections": [
+    {
+      "kind": "count",
+      "files": 513,
+      "bytes": 0,
+      "result": "rejected before reading"
+    },
+    {
+      "kind": "file-bytes",
+      "files": 1,
+      "bytes": 67108865,
+      "result": "rejected before reading"
+    },
+    {
+      "kind": "batch-bytes",
+      "files": 5,
+      "bytes": 335544320,
+      "result": "rejected before reading"
+    }
+  ],
+  "assets": {
+    "gallery.html": "d6fad6f9c0479e9e29223e506f11dcef37c55d9b6892fb3fd57b9155c51f5628",
+    "gallery.js": "6d63e48f8510cce13317ab7b0150bbe059d6e8a903d733e6dee952436a59fea9",
+    "gallery.css": "372b8662375a56ec999e28196656474ae95a08f2feaaf12baf1800a8f0917e4b",
+    "consumer/ritk_snap.js": "922a1fe9e666f5e0927c0f35d25019e186887f0aaa462e38da81ca4c842f92d0",
+    "consumer/ritk_snap_bg.wasm": "a9626bf66480ff8c31c73aa9c30735cdf5c56a9d5f3246c18924a5b9d6e39a57"
+  },
+  "verification": {
+    "semantic": "RITK validator requires stable slice counts and a changed slice index on every multi-slice canvas after trusted wheel input",
+    "validator": "cargo run --locked -p ritk-snap -- --validate-browser-trace ritk-browser-slice-progress.json",
+    "visual": "all three initial/after-wheel screenshot hashes differ; every canvas had non-black pixels at the decoded drop and each multi-slice index changed after the trusted wheel",
+    "cleanup": "Edge WebDriver session closed cleanly"
+  },
+  "limits": [
+    "Edge is one Chromium-family engine; Firefox and WebKit are untested",
+    "file-backed WebDriver dispatch is not physical file-manager drag input",
+    "application screenshots include the browser viewport; canvas pixel oracles cover decoded canvas content",
+    "no native file-dialog, native process-launch, OS-permission or WebGPU evidence",
+    "the public phantom is a reproducible test source; private clinical studies remain local and are not committed"
+  ]
+}
