@@ -3,11 +3,12 @@
 use std::sync::Arc;
 use tracing::{error, info};
 
-use super::state::{
-    ProjectionBackend, ProjectionMode, SeriesLoadTarget, SnapApp, DEFAULT_FUSION_ALPHA,
-};
+use super::state::SnapApp;
+#[cfg(not(target_arch = "wasm32"))]
+use super::state::{ProjectionBackend, ProjectionMode, SeriesLoadTarget, DEFAULT_FUSION_ALPHA};
 use crate::dicom::select_hanging_protocol;
 use crate::label::LabelEditor;
+#[cfg(not(target_arch = "wasm32"))]
 use crate::render::NamedColorMap;
 use crate::tools::interaction::{ToolState, ViewportOffset};
 use crate::ui::LinkedCursor;
@@ -62,18 +63,25 @@ impl SnapApp {
         state.window_width = Some(window_width);
         state.slice_index = shape[0] / 2;
 
+        #[cfg(not(target_arch = "wasm32"))]
         self.cine.stop();
-        self.selected_series = super::volume_input::VolumeInput::acquisition(&vol);
+        #[cfg(not(target_arch = "wasm32"))]
+        {
+            self.selected_series = super::volume_input::VolumeInput::acquisition(&vol);
+        }
         self.loaded = Some(vol);
         self.viewer_state = state;
         self.axis = protocol.preferred_axis.min(2);
         self.coronal_slice = shape[1] / 2;
         self.sagittal_slice = shape[2] / 2;
-        self.multi_planar = protocol.layout
-            == crate::dicom::hanging_protocol::LayoutSuggestion::MultiPlanarReformat;
-        self.dual_plane = false;
-        self.compare_side_by_side = false;
-        self.compare_fused_overlay = false;
+        #[cfg(not(target_arch = "wasm32"))]
+        {
+            self.multi_planar = protocol.layout
+                == crate::dicom::hanging_protocol::LayoutSuggestion::MultiPlanarReformat;
+            self.dual_plane = false;
+            self.compare_side_by_side = false;
+            self.compare_fused_overlay = false;
+        }
         self.linked_cursor = Some(LinkedCursor::from_slices(
             shape,
             self.viewer_state.slice_index,
@@ -82,12 +90,15 @@ impl SnapApp {
         ));
         self.annotations.clear();
         self.label_editor = Some(LabelEditor::new(shape));
-        self.rt_struct = None;
-        self.rt_dose = None;
-        self.rt_dose_max_gy = None;
-        self.rt_plan = None;
-        self.rt_dvh_selected_roi = None;
-        self.rt_dvh_cache = None;
+        #[cfg(not(target_arch = "wasm32"))]
+        {
+            self.rt_struct = None;
+            self.rt_dose = None;
+            self.rt_dose_max_gy = None;
+            self.rt_plan = None;
+            self.rt_dvh_selected_roi = None;
+            self.rt_dvh_cache = None;
+        }
         self.tool_state = ToolState::Idle;
         self.pan_offset = ViewportOffset::new(0.0, 0.0);
         self.zoom = 1.0;
@@ -96,12 +107,16 @@ impl SnapApp {
         self.colormap =
             Self::colormap_for_modality(self.loaded.as_ref().and_then(|v| v.modality.as_deref()));
         self.bump_visual_revision();
-        self.projection_backend = ProjectionBackend::Pending;
+        #[cfg(not(target_arch = "wasm32"))]
+        {
+            self.projection_backend = ProjectionBackend::Pending;
+        }
         self.status_message = status_msg;
         self.refresh_cached_histogram();
         info!("{}", self.status_message);
     }
 
+    #[cfg(not(target_arch = "wasm32"))]
     pub(crate) fn load_volume_file(&mut self, path: std::path::PathBuf) {
         match crate::dicom::loader::load_volume_from_path(&path) {
             Ok(vol) => {
@@ -181,6 +196,7 @@ impl SnapApp {
     }
 
     /// Drop the currently loaded study and reset all study-owned state.
+    #[cfg(not(target_arch = "wasm32"))]
     pub(crate) fn close_study(&mut self) {
         self.cancel_load_tasks();
         self.loaded = None;

@@ -6,6 +6,7 @@
 //! path uses, writing one output instead of an intermediate per step.
 
 use super::{RotationSteps, ViewTransform};
+#[cfg(not(target_arch = "wasm32"))]
 use crate::render::buffer_pool::RenderBufferPool;
 #[cfg(any(windows, test))]
 use anyhow::{anyhow, bail, Result};
@@ -209,6 +210,7 @@ pub(crate) fn apply_to_rgba(
 ///   borrows the input's pixel slice (no clone).
 /// - Non-identity transform: zero heap allocations after `pool.color32` has
 ///   reached peak capacity. The scratch buffer is reused across calls.
+#[cfg(not(target_arch = "wasm32"))]
 pub(crate) fn apply_to_image_into(
     pool: &mut RenderBufferPool,
     img: &ColorImage,

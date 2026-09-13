@@ -101,6 +101,7 @@ pub use sidebar::SidebarPanel;
 pub use slice_navigation::{advance_wrapped, axis_total, clamp_index, step_clamped};
 pub use tool_shortcuts::{tool_kind_for_key, tool_kind_for_virtual_key};
 pub use toolbar::{ToolbarPanel, ToolbarState};
+#[cfg(not(target_arch = "wasm32"))]
 pub(crate) use view_transform::apply_to_image_into;
 #[cfg(windows)]
 pub(crate) use view_transform::apply_to_rgba;

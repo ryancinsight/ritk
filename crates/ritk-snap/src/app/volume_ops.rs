@@ -1,12 +1,16 @@
 //! DICOM series scanning and loading methods.
 
+#[cfg(not(target_arch = "wasm32"))]
 use tracing::{error, info};
 
 use super::state::SnapApp;
+#[cfg(not(target_arch = "wasm32"))]
 use super::volume_state::metadata_window_level;
+#[cfg(not(target_arch = "wasm32"))]
 use crate::dicom::select_hanging_protocol;
 
 impl SnapApp {
+    #[cfg(not(target_arch = "wasm32"))]
     pub(crate) fn process_pending_loads(&mut self) {
         if let Some(input) = self.pending_load.take() {
             self.queue_primary(input);
@@ -26,19 +30,9 @@ impl SnapApp {
         self.queue_load(super::load_tasks::LoadTarget::Primary, input);
     }
 
-    #[cfg(target_arch = "wasm32")]
-    fn queue_primary(&mut self, input: super::volume_input::VolumeInput) {
-        self.load_primary(input);
-    }
-
     #[cfg(not(target_arch = "wasm32"))]
     fn queue_secondary(&mut self, input: super::volume_input::VolumeInput) {
         self.queue_load(super::load_tasks::LoadTarget::Secondary, input);
-    }
-
-    #[cfg(target_arch = "wasm32")]
-    fn queue_secondary(&mut self, input: super::volume_input::VolumeInput) {
-        self.load_secondary(input);
     }
 
     #[cfg(not(target_arch = "wasm32"))]
@@ -92,9 +86,6 @@ impl SnapApp {
         }
     }
 
-    #[cfg(all(test, target_arch = "wasm32"))]
-    pub(crate) fn wait_for_load_tasks(&mut self) {}
-
     #[cfg(not(target_arch = "wasm32"))]
     fn publish_task(&mut self, slot: usize, task: super::load_tasks::LoadTask) {
         let result = task.handle.join();
@@ -112,9 +103,6 @@ impl SnapApp {
         }
     }
 
-    #[cfg(target_arch = "wasm32")]
-    pub(crate) fn poll_load_tasks(&mut self) {}
-
     #[cfg(not(target_arch = "wasm32"))]
     pub(crate) fn cancel_load_tasks(&mut self) {
         for task in self.load_tasks.iter().flatten() {
@@ -126,12 +114,6 @@ impl SnapApp {
         for generation in &mut self.load_generations {
             *generation = next_generation(*generation);
         }
-    }
-
-    #[cfg(target_arch = "wasm32")]
-    pub(crate) fn cancel_load_tasks(&mut self) {
-        self.pending_load = None;
-        self.pending_secondary_load = None;
     }
 
     #[cfg(not(target_arch = "wasm32"))]
@@ -149,6 +131,7 @@ impl SnapApp {
         }
     }
 
+    #[cfg(not(target_arch = "wasm32"))]
     fn publish_secondary(&mut self, volume: crate::LoadedVolume) {
         let shape = volume.shape;
         let protocol = select_hanging_protocol(
@@ -183,6 +166,7 @@ impl SnapApp {
         self.status_message = message;
     }
 
+    #[cfg(not(target_arch = "wasm32"))]
     pub(crate) fn scan_for_series(&mut self, folder: std::path::PathBuf) {
         match crate::dicom::loader::scan_folder_for_series(&folder) {
             Ok(tree) => {
@@ -200,7 +184,7 @@ impl SnapApp {
     }
 
     /// Decode completely before replacing primary state.
-    #[cfg(any(test, target_arch = "wasm32"))]
+    #[cfg(test)]
     pub(crate) fn load_primary(&mut self, input: super::volume_input::VolumeInput) {
         match input.load() {
             Ok(volume) => {
@@ -215,7 +199,7 @@ impl SnapApp {
     }
 
     /// Decode completely before replacing the comparison acquisition.
-    #[cfg(any(test, target_arch = "wasm32"))]
+    #[cfg(test)]
     pub(crate) fn load_secondary(&mut self, input: super::volume_input::VolumeInput) {
         match input.load() {
             Ok(volume) => self.publish_secondary(volume),

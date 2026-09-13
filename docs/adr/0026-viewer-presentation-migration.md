@@ -587,6 +587,17 @@ per-texture dirty flags from RITK viewer state while preserving the existing
 native Métis and browser presentation contracts. A saved public CT capture
 continues to show all three decoded orthogonal planes after the transition.
 
+Revision 2026-09-13 (WASM shell topology): native-only eframe, filesystem,
+PACS, projection, mesh, and retained-render modules are now excluded from the
+`wasm32-unknown-unknown` library target. The shared browser path retains the
+RITK `SnapApp` state, pathless DICOM byte loaders, presentation reducer, label
+editor, slice navigation, and Métis canvas handoff; native-only state is
+scoped at its fields and transition methods rather than hidden with dead-code
+allowances. The standalone locked WASM library Clippy gate and native locked
+check, all-target Clippy, and 829-test `ritk-snap` nextest run pass on this
+increment. DICOM parsing, selection, geometry, and clinical presentation stay
+in RITK, while Métis remains the generic browser/native host.
+
 ## Alternatives and validation
 
 Retaining egui indefinitely contradicts the requested framework target. Removing

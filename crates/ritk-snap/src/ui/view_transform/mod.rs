@@ -27,6 +27,7 @@
 mod image_ops;
 mod transform;
 
+#[cfg(not(target_arch = "wasm32"))]
 pub(crate) use image_ops::apply_to_image_into;
 #[cfg(any(windows, test))]
 pub(crate) use image_ops::apply_to_rgba;

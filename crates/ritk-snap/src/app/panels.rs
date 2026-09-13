@@ -1,15 +1,24 @@
-use super::state::{SeriesLoadTarget, SnapApp};
+#[cfg(not(target_arch = "wasm32"))]
+use super::state::SeriesLoadTarget;
+use super::state::SnapApp;
+#[cfg(not(target_arch = "wasm32"))]
 use super::volume_input::VolumeInput;
+#[cfg(not(target_arch = "wasm32"))]
 use crate::session::ViewerSessionSnapshot;
+#[cfg(not(target_arch = "wasm32"))]
 use crate::tools::interaction::{ToolState, ViewportOffset};
+#[cfg(not(target_arch = "wasm32"))]
 use crate::ui::window_presets::WindowPreset;
-use crate::ui::{
-    decide_dropped_input_action, format_lps, show_colorbar, voxel_to_lps, DroppedInput,
-    DroppedInputAction, LinkedCursor, MAX_ZOOM, MIN_ZOOM,
-};
+use crate::ui::DroppedInputAction;
+#[cfg(not(target_arch = "wasm32"))]
+use crate::ui::{decide_dropped_input_action, DroppedInput};
+#[cfg(not(target_arch = "wasm32"))]
+use crate::ui::{format_lps, show_colorbar, voxel_to_lps, LinkedCursor, MAX_ZOOM, MIN_ZOOM};
+#[cfg(not(target_arch = "wasm32"))]
 use crate::viewer::{DEFAULT_WINDOW_CENTER, DEFAULT_WINDOW_WIDTH};
 
 impl SnapApp {
+    #[cfg(not(target_arch = "wasm32"))]
     pub(crate) fn undo_label_edit_shortcut(&mut self) {
         let Some(editor) = self.label_editor.as_mut() else {
             return;
@@ -19,6 +28,7 @@ impl SnapApp {
         }
     }
 
+    #[cfg(not(target_arch = "wasm32"))]
     pub(crate) fn redo_label_edit_shortcut(&mut self) {
         let Some(editor) = self.label_editor.as_mut() else {
             return;
@@ -29,12 +39,14 @@ impl SnapApp {
     }
 
     /// Apply a [`WindowPreset`] and advance the visual revision.
+    #[cfg(not(target_arch = "wasm32"))]
     pub(crate) fn apply_preset(&mut self, preset: WindowPreset) {
         self.viewer_state.window_center = Some(preset.center as f32);
         self.viewer_state.window_width = Some(preset.width as f32);
         self.bump_visual_revision();
     }
 
+    #[cfg(not(target_arch = "wasm32"))]
     pub(crate) fn session_snapshot(&self) -> ViewerSessionSnapshot {
         ViewerSessionSnapshot {
             format: crate::session::SessionFormat,
@@ -70,6 +82,7 @@ impl SnapApp {
         }
     }
 
+    #[cfg(not(target_arch = "wasm32"))]
     pub(crate) fn apply_session_snapshot(
         &mut self,
         mut snapshot: ViewerSessionSnapshot,
@@ -115,6 +128,7 @@ impl SnapApp {
     /// Files with filesystem paths are routed to the same code paths as File-menu
     /// actions. The browser host supplies bounded named bytes, which enter the
     /// same RITK DICOM and volume classifiers as native pathless drops.
+    #[cfg(not(target_arch = "wasm32"))]
     pub(crate) fn handle_dropped_inputs(&mut self, ctx: &egui::Context) {
         let dropped = ctx
             .input_mut(|i| std::mem::take(&mut i.raw.dropped_files))
@@ -138,13 +152,29 @@ impl SnapApp {
     /// classification or replacement semantics.
     pub(crate) fn apply_dropped_input_action(&mut self, action: DroppedInputAction) {
         match action {
+            #[cfg(not(target_arch = "wasm32"))]
             DroppedInputAction::QueueDicom(path) => {
                 self.scan_for_series(path.clone());
                 self.pending_load = Some(VolumeInput::Path(path.clone()));
                 self.status_message = format!("Queued dropped DICOM input: {}", path.display());
             }
+            #[cfg(target_arch = "wasm32")]
+            DroppedInputAction::QueueDicom(path) => {
+                self.status_message = format!(
+                    "Browser drop cannot supply a filesystem path: {}",
+                    path.display()
+                );
+            }
+            #[cfg(not(target_arch = "wasm32"))]
             DroppedInputAction::LoadVolume(path) => {
                 self.load_volume_file(path);
+            }
+            #[cfg(target_arch = "wasm32")]
+            DroppedInputAction::LoadVolume(path) => {
+                self.status_message = format!(
+                    "Browser drop cannot supply a filesystem path: {}",
+                    path.display()
+                );
             }
             DroppedInputAction::LoadVolumeBytes { name, bytes } => {
                 self.load_volume_bytes(name, bytes.as_ref());
@@ -161,6 +191,7 @@ impl SnapApp {
 
     // ── Left panel ────────────────────────────────────────────────────────────
 
+    #[cfg(not(target_arch = "wasm32"))]
     pub(crate) fn show_left_panel(&mut self, ctx: &egui::Context) {
         egui::SidePanel::left("info_panel")
             .min_width(220.0)
@@ -223,6 +254,7 @@ impl SnapApp {
 
     // ── Bottom status bar ─────────────────────────────────────────────────────
 
+    #[cfg(not(target_arch = "wasm32"))]
     pub(crate) fn show_bottom_bar(&mut self, ctx: &egui::Context) {
         egui::TopBottomPanel::bottom("status_bar").show(ctx, |ui| {
             ui.horizontal(|ui| {
@@ -250,6 +282,7 @@ impl SnapApp {
         });
     }
 
+    #[cfg(not(target_arch = "wasm32"))]
     pub(crate) fn show_aux_windows(&mut self, ctx: &egui::Context) {
         let mut show_filter = self.show_filter_panel;
         if show_filter {
@@ -331,6 +364,7 @@ impl SnapApp {
         self.show_pacs_panel = show_pacs;
     }
 
+    #[cfg(not(target_arch = "wasm32"))]
     pub(crate) fn show_right_info_panel(&self, ui: &mut egui::Ui) {
         ui.vertical(|ui| {
             ui.heading("MPR Info");

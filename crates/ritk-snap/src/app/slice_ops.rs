@@ -1,11 +1,16 @@
+#[cfg(not(target_arch = "wasm32"))]
 use std::time::Duration;
 
-use crate::ui::{advance_wrapped, axis_total, clamp_index, step_clamped};
+#[cfg(not(target_arch = "wasm32"))]
+use crate::ui::advance_wrapped;
+use crate::ui::{axis_total, clamp_index, step_clamped};
+#[cfg(not(target_arch = "wasm32"))]
 use crate::LoadedVolume;
 
 use super::state::SnapApp;
 
 impl SnapApp {
+    #[cfg(not(target_arch = "wasm32"))]
     pub(crate) fn axis_extent_for_volume(volume: &LoadedVolume, axis: usize) -> usize {
         match axis {
             0 => volume.shape[0],
@@ -14,6 +19,7 @@ impl SnapApp {
         }
     }
 
+    #[cfg(not(target_arch = "wasm32"))]
     pub(crate) fn map_slice_index_between_volumes(
         primary_index: usize,
         primary_total: usize,
@@ -103,11 +109,39 @@ impl SnapApp {
         self.step_slice_for_axis(self.axis, delta);
     }
 
+    /// Apply the keyboard navigation transitions shared by native and browser hosts.
+    pub(crate) fn apply_slice_navigation_shortcuts(
+        &mut self,
+        arrow_up: bool,
+        arrow_down: bool,
+        page_up: bool,
+        page_down: bool,
+        home: bool,
+        end: bool,
+    ) {
+        if arrow_up || page_up {
+            self.step_slice(-1);
+        } else if arrow_down || page_down {
+            self.step_slice(1);
+        } else if home {
+            self.jump_active_axis_slice_boundary(false);
+        } else if end {
+            self.jump_active_axis_slice_boundary(true);
+        }
+    }
+
+    fn jump_active_axis_slice_boundary(&mut self, end: bool) {
+        let (_, total) = self.axis_slice_info(self.axis);
+        let target = if end { total.saturating_sub(1) } else { 0 };
+        self.set_slice_for_axis(self.axis, target);
+    }
+
     /// Advance `axis` by `steps` with wrap-around.
     ///
     /// Delegates the actual write to [`set_slice_for_axis`] so visual revision,
     /// linked-cursor synchronisation, and the no-change guard are all applied
     /// through the shared state path.
+    #[cfg(not(target_arch = "wasm32"))]
     pub(crate) fn advance_slice_for_axis_loop(&mut self, axis: usize, steps: u32) {
         if steps == 0 {
             return;
@@ -130,6 +164,7 @@ impl SnapApp {
     }
 
     /// Advance cine playback for the active axis and schedule repaints.
+    #[cfg(not(target_arch = "wasm32"))]
     pub(crate) fn tick_cine(&mut self, ctx: &egui::Context) {
         if self.loaded.is_none() {
             self.cine.stop();

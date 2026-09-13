@@ -10,6 +10,7 @@
 //! - [`histogram`] — voxel intensity histogram computation SSOT.
 //! - [`mip_vr`] — multi-resolution image rendering.
 
+#[cfg(not(target_arch = "wasm32"))]
 pub mod buffer_pool;
 pub mod fusion;
 #[cfg(not(target_arch = "wasm32"))]
@@ -22,6 +23,7 @@ pub mod mesh_render;
 pub mod mip_vr;
 pub mod slice_render;
 
+#[cfg(not(target_arch = "wasm32"))]
 pub(crate) use buffer_pool::RenderBufferPool;
 /// Maximum value of a u8 pixel component as f32, used for normalizing to [0, 1].
 pub(crate) const U8_MAX_F32: f32 = 255.0;
