@@ -193,6 +193,7 @@ fn validate_document(
     validate_revision("RITK", consumer_revision)?;
     validate_actions(&document.actions, canvas_ids)?;
     validate_snapshots(&document.snapshots, canvas_ids)?;
+    validate_slice_progression(&document.snapshots, canvas_ids)?;
     validate_screenshots(&document.screenshots, canvas_ids)?;
     validate_cleanup(&document.cleanup, canvas_ids)?;
 
@@ -379,6 +380,55 @@ fn validate_snapshot(
         && (load_state != "ready" || frame_state != "presented")
     {
         bail!("canvas {canvas_id:?} is not presented after trusted input")
+    }
+    Ok(())
+}
+
+fn validate_slice_progression(snapshots: &[TraceSnapshot], canvas_ids: &[String]) -> Result<()> {
+    for canvas_id in canvas_ids {
+        let initial_label = format!("{canvas_id}-initial");
+        let after_label = format!("{canvas_id}-after-input");
+        let initial = snapshots
+            .iter()
+            .find(|snapshot| snapshot.label == initial_label)
+            .with_context(|| format!("browser trace is missing snapshot {initial_label:?}"))?;
+        let after = snapshots
+            .iter()
+            .find(|snapshot| snapshot.label == after_label)
+            .with_context(|| format!("browser trace is missing snapshot {after_label:?}"))?;
+        let initial_count = parse_u64(
+            attribute(&initial.canvas, "data-ritk-slice-count", canvas_id)?,
+            "slice count",
+            canvas_id,
+        )?;
+        let after_count = parse_u64(
+            attribute(&after.canvas, "data-ritk-slice-count", canvas_id)?,
+            "slice count",
+            canvas_id,
+        )?;
+        if initial_count != after_count {
+            bail!(
+                "canvas {canvas_id:?} changed its slice count from {initial_count} to {after_count}"
+            )
+        }
+        if initial_count <= 1 {
+            continue;
+        }
+        let initial_index = parse_u64(
+            attribute(&initial.canvas, "data-ritk-slice-index", canvas_id)?,
+            "slice index",
+            canvas_id,
+        )?;
+        let after_index = parse_u64(
+            attribute(&after.canvas, "data-ritk-slice-index", canvas_id)?,
+            "slice index",
+            canvas_id,
+        )?;
+        if initial_index == after_index {
+            bail!(
+                "canvas {canvas_id:?} did not advance its multi-slice index after trusted wheel input"
+            )
+        }
     }
     Ok(())
 }

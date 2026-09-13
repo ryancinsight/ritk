@@ -787,6 +787,35 @@ hashes and overflow rejections, captured the window and each canvas, and
 closed the driver session. Its revision-bound trace is recorded in the
 [Metis gallery manual](https://github.com/ryancinsight/metis/blob/main/docs/manual/browser.md#drop-a-study-into-the-gallery).
 
+### Verify real browser slice navigation through Métis
+
+The Edge run was repeated with the RITK-owned semantic trace validator and a
+trusted pointer drag plus wheel action on each canvas. The same public 409-file
+study remained loaded while the wheel changed every multi-slice index by one:
+
+| Canvas | Initial index | After wheel | Slice count |
+| --- | ---: | ---: | ---: |
+| axial | 204 | 203 | 409 |
+| coronal | 256 | 255 | 512 |
+| sagittal | 256 | 255 | 512 |
+
+![Actual CT axial canvas before the trusted wheel](images/dicom-metis-real-browser-ct-axial-initial.png)
+
+![Actual CT axial canvas after the trusted wheel](images/dicom-metis-real-browser-ct-axial-after-wheel.png)
+
+The paired axial images are decoded slices from the public DICOM series; their
+PNG hashes differ and the corresponding coronal and sagittal pairs also differ.
+The complete after-wheel browser viewport shows the three live canvases:
+
+![Actual CT browser gallery after trusted slice navigation](images/dicom-metis-real-browser-ct-slice-window-after-wheel.png)
+
+The [slice-navigation provenance record](images/dicom-metis-real-browser-ct-slice.json)
+binds the Edge version, Metis/RITK/Moirai revisions, 409-file transfer, canvas
+indices, screenshot hashes, overflow rejections and clean WebDriver teardown.
+The RITK validator rejects a trace when a trusted wheel leaves a multi-slice
+index unchanged; singleton axes remain valid at index zero. Physical file-manager
+dragging, Firefox/WebKit, WebGPU and native OS permission evidence remain open.
+
 ### Select the saved study through the browser file chooser
 
 On 2026-09-12 the packaged viewer was rebuilt from RITK revision
@@ -1182,7 +1211,10 @@ The command checks the schema and both repository revisions, the closed browser
 engine matrix, the ordered axial/coronal/sagittal canvases, all seven
 `data-ritk-*` values, intrinsic and presented dimensions, one trusted pointer
 drag and wheel action per canvas, full-window and element screenshot scopes,
-and input-source cleanup. Custom canvas identifiers use three repeated
+and input-source cleanup. It also compares the initial and after-input
+`data-ritk-slice-index` values: a trusted wheel must move every multi-slice
+canvas, while a one-slice axis may remain at zero; the declared slice count must
+stay stable. Custom canvas identifiers use three repeated
 `--canvas-id` options in the same order as the trace. A small structural
 fixture is available at
 [`crates/ritk-snap/tests/fixtures/browser-trace.json`](../../crates/ritk-snap/tests/fixtures/browser-trace.json)

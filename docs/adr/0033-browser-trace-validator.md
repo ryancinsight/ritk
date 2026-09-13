@@ -32,6 +32,13 @@ Pixel and decoded-value assertions remain in RITK's existing workflow tests and
 manual captures. Métis remains generic and continues to record only the values
 requested by the consumer.
 
+Revision 2026-09-13: the validator now compares the initial and after-input
+`data-ritk-slice-index` values for each canvas. A trusted wheel must change the
+index when the axis contains more than one slice; a singleton axis is valid at
+index zero. The slice count must remain stable across the interaction. This
+keeps a trace from passing when the browser reports an input event but the
+viewer state and image remain unchanged.
+
 ## Rejected alternative
 
 Putting the semantic checks in `scripts/browser_runtime.py` would make the
@@ -44,8 +51,9 @@ the browser trust boundary without improving the evidence contract.
 
 Unit tests construct small schema-1 trace values and cover valid three-view
 traces plus invalid status, revision, attributes, axis order, dimensions,
-actions, screenshot, cleanup and oversized-file cases. The committed fixture is
-validated by the same code used by the executable. At the accepted revision,
+actions, slice progression, screenshot, cleanup and oversized-file cases. The
+committed fixture is validated by the same code used by the executable. At the
+accepted revision,
 `cargo nextest run --locked -p ritk-snap` passes 812/812, warning-denied
 all-target Clippy and
 `cargo fmt --all -- --check` pass, and
