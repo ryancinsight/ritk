@@ -7,12 +7,12 @@
     "browser_version": "154.0.4258.12",
     "platform": "windows",
     "host": "Edge WebDriver",
-    "url": "http://127.0.0.1:65045/gallery.html",
+    "url": "http://127.0.0.1:62823/gallery.html",
     "input": "file-backed WebDriver DataTransfer drop",
     "observed_date": "2026-09-13",
-    "metis_revision": "1ea339107780ba6b1f5f4808bd9c7409418943c1",
-    "ritk_revision": "1547d2af4cbb58d7c0630e422b2b9903902c9811",
-    "moirai_revision": "c7206e8b294599e55eb7a82071c5a91dc0428c3e"
+    "metis_revision": "49e38c815cb797bab11a9277e1d03453a3e82db6",
+    "ritk_revision": "60044428572461ff94cc0396a1960e9cdc78304a",
+    "moirai_revision": "fd3ec288dd0f1e98912f1d439d4ff9129ca7e25a"
   },
   "dataset": {
     "path": "test_data/2_head_mri_t2/DICOM",
@@ -74,11 +74,12 @@
     "gallery.html": "d6fad6f9c0479e9e29223e506f11dcef37c55d9b6892fb3fd57b9155c51f5628",
     "gallery.js": "6d63e48f8510cce13317ab7b0150bbe059d6e8a903d733e6dee952436a59fea9",
     "gallery.css": "372b8662375a56ec999e28196656474ae95a08f2feaaf12baf1800a8f0917e4b",
-    "consumer/ritk_snap.js": "80730ada1ef37e9b84fbaf0ddcc74145e56e9b29a80d4829fb6b572c09ec5330",
-    "consumer/ritk_snap_bg.wasm": "4191637300c5e3e670cc1b38b43347662bd86375e34ef3af0ccfb6682baa7b20"
+    "consumer/ritk_snap.js": "b42f2cd68093bdaf8e752c59a609961c498c21a2e0ab194f3b49002c5b4c3190",
+    "consumer/ritk_snap_bg.wasm": "d055c5ab09f21a5cf3fb200f04b51acb4ccec78950ce75d215e43bc46a611d1f"
   },
   "verification": {
     "pixel_oracle": "all three canvas dimensions, non-black counts, and RGBA hashes match the RITK-produced oracle",
+    "render_schedule": "requestAnimationFrame through Moirai WebAnimationFrame",
     "cleanup": "session closed cleanly",
     "unsupported_native_operations": ["native-file-dialog", "native-process-launch", "os-permission-grant"]
   },
