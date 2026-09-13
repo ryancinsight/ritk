@@ -159,6 +159,13 @@
 - Verification: 13/13 focused nextest, strict Clippy, Rustdoc, doctests, default capture hash unchanged, and two matching Windows public-study MIP captures; [MIP provenance](docs/manual/images/dicom-metis-real-ct-mip.json).
 - Outcome: RITK exposes a typed native `orthogonal-with-mip` mode; the committed 1280 × 800 capture shows actual public CT axial, coronal, sagittal, and axial-MIP panels through Métis.
 
+<a id="RITK-SNAP-WASM-TOPOLOGY-001"></a>
+## RITK-SNAP-WASM-TOPOLOGY-001 — Scope native shell modules out of the WASM library [arch] [major]
+- Status: in-progress; priority: P1; owner: RITK viewer; integrator: root; last-update: 2026-09-13; dependencies: RITK-SNAP-METIS-001; risk: browser build drift or native viewer regression.
+- Outcome: the `wasm32-unknown-unknown` `ritk-snap` library contains only browser-reachable shell/state code, so warning-denied Clippy checks the real web artifact without blanket dead-code allowances.
+- Scope: cfg-gate eframe/native UI and export adapters, preserve the Métis browser byte-drop and presentation path, and keep all DICOM parsing, geometry and clinical display in RITK; no DICOM code moves into Métis.
+- Acceptance: locked WASM library Clippy with `-D warnings`, native locked check/Clippy/nextest, and the saved public-study browser/native visual workflows pass against one revision; no `#[allow(dead_code)]` or compatibility shim.
+
 <a id="RITK-SNAP-METIS-002"></a>
 ## RITK-SNAP-METIS-002 — Validate RITK browser semantic traces [arch] [minor]
 - Status: done; priority: P1; owner: RITK viewer; integrator: root; last-update: 2026-09-11; delivery: [RITK PR #301](https://github.com/ryancinsight/ritk/pull/301), merge `d97e6523934a9485122d4dbb4afa1eacdf826353`; regions: `crates/ritk-snap/src/browser_trace.rs`, `crates/ritk-snap/src/browser_trace/tests.rs`, `crates/ritk-snap/tests/fixtures/browser-trace.json`, `crates/ritk-snap/src/main.rs`, `docs/adr/0033-browser-trace-validator.md`, `docs/adr/README.md`, `docs/manual/dicom-workflow.md`; dependencies: RITK-SNAP-METIS-001, Metis PR #73; risk: false visual/runtime evidence
