@@ -65,6 +65,9 @@
 - [x] Repeat the browser canvas run with all 409 saved MRI-DIR files after the
       Métis/Moirai bounds advance, record the actual orthogonal PNGs and
       provenance, and retain physical/cross-engine/WebGPU/window gaps.
+- [x] Extend `scripts/viewer.py` with a saved-study Métis smoke that validates
+      captured PNG dimensions and non-black pixels without retaining private
+      paths or DICOM bytes; document the public command and local patient path.
 
 ## FIX-DTI-VOLUME-FRAME [major][arch] — Preserve diffusion coordinate frames
 
