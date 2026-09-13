@@ -27,17 +27,25 @@ listeners. `take_events` translates pointer and wheel records into
 rejects unsupported or non-finite values, and ignores non-primary touch
 pointers because the current RITK dispatcher has one primary gesture state.
 
-The browser viewer drains each canvas queue once per frame. It constructs a
-viewport from the current RITK frame dimensions, routes an orthogonal canvas to
-its axis, applies the existing `SnapApp` action reducer, invalidates the frame
+The browser viewer drains each canvas queue once per browser animation frame.
+It constructs a viewport from the current RITK frame dimensions, routes each
+orthogonal canvas to its axis, applies the existing `SnapApp` action reducer,
+and invalidates the frame
 only when the reducer requests repaint, and cancels the gesture on translation
 or reducer failure. A browser pointer cancel becomes the existing typed
 `PointerCancelled` viewer action.
 
-Revision 2026-09-11: the browser loop now releases the Métis mount when a
+Revision 2026-09-11: the browser loop releases the Métis mount when a
 presenter, input, or timer error ends the task, before the task exits. This
 keeps listener and pointer-capture ownership generation-scoped and makes a
 subsequent route remount independent of the failed task.
+
+Revision 2026-09-13: Moirai's `WebAnimationFrame` future schedules the browser
+loop at `requestAnimationFrame` and cancels its registration when dropped. The
+loop releases the Métis mount when a presenter, input, or animation-frame error
+ends the task, before the task exits. This keeps listener and pointer-capture
+ownership generation-scoped and makes a subsequent route remount independent
+of the failed task.
 
 ## Rejected alternative
 
