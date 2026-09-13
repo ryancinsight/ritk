@@ -1,7 +1,7 @@
 use super::state::{SeriesLoadTarget, SnapApp};
 use super::volume_input::VolumeInput;
 use crate::session::ViewerSessionSnapshot;
-use crate::tools::interaction::ToolState;
+use crate::tools::interaction::{ToolState, ViewportOffset};
 use crate::ui::window_presets::WindowPreset;
 use crate::ui::{
     decide_dropped_input_action, format_lps, show_colorbar, voxel_to_lps, DroppedInput,
@@ -73,7 +73,7 @@ impl SnapApp {
             sidebar_tab: self.sidebar_tab,
             coronal_slice: self.coronal_slice,
             sagittal_slice: self.sagittal_slice,
-            pan_offset: [self.pan_offset.x, self.pan_offset.y],
+            pan_offset: [self.pan_offset.x(), self.pan_offset.y()],
             zoom: self.zoom,
             cine_enabled: self.cine.enabled,
             cine_fps: self.cine.fps,
@@ -104,7 +104,7 @@ impl SnapApp {
         self.sidebar_tab = snapshot.sidebar_tab;
         self.coronal_slice = snapshot.coronal_slice;
         self.sagittal_slice = snapshot.sagittal_slice;
-        self.pan_offset = egui::Vec2::new(snapshot.pan_offset[0], snapshot.pan_offset[1]);
+        self.pan_offset = ViewportOffset::new(snapshot.pan_offset[0], snapshot.pan_offset[1]);
         self.zoom = snapshot.zoom.clamp(MIN_ZOOM, MAX_ZOOM);
         self.cine.restore(snapshot.cine_enabled, snapshot.cine_fps);
         self.annotations = snapshot.annotations;

@@ -177,7 +177,7 @@ fn compose_frames(
 }
 
 fn viewport_offset(app: &SnapApp) -> ViewportOffset {
-    ViewportOffset::new(app.pan_offset.x, app.pan_offset.y)
+    app.pan_offset
 }
 
 fn save_capture(framebuffer: &Framebuffer, output: &Path) -> Result<()> {

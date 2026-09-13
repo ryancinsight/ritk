@@ -1,8 +1,6 @@
 use super::state::SnapApp;
 use crate::render::NamedColorMap;
-use crate::tools::interaction::{
-    Annotation, ImagePoint, MeasurementError, RoiKind, ToolState, ViewportOffset,
-};
+use crate::tools::interaction::{Annotation, ImagePoint, MeasurementError, RoiKind, ToolState};
 use crate::tools::kind::ToolKind;
 use crate::ui::{
     anatomical_label_for_axis, axis_for_plane_in_volume, image_point_to_voxel, intensity_at_voxel,
@@ -20,7 +18,7 @@ impl SnapApp {
             ToolKind::Pan => {
                 self.tool_state = ToolState::Panning {
                     start: pos,
-                    viewport_origin: ViewportOffset::new(self.pan_offset.x, self.pan_offset.y),
+                    viewport_origin: self.pan_offset,
                 };
             }
             ToolKind::Zoom => {
@@ -70,7 +68,7 @@ impl SnapApp {
                 viewport_origin,
             } => {
                 let offset = pan_from_drag_delta(viewport_origin, start, pos);
-                self.pan_offset = egui::vec2(offset.x(), offset.y());
+                self.pan_offset = offset;
             }
             ToolState::Zooming {
                 start,

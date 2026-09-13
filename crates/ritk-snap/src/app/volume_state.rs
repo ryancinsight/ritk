@@ -9,7 +9,7 @@ use super::state::{
 use crate::dicom::select_hanging_protocol;
 use crate::label::LabelEditor;
 use crate::render::NamedColorMap;
-use crate::tools::interaction::ToolState;
+use crate::tools::interaction::{ToolState, ViewportOffset};
 use crate::ui::LinkedCursor;
 use crate::LoadedVolume;
 use crate::ViewerState;
@@ -89,7 +89,7 @@ impl SnapApp {
         self.rt_dvh_cache = None;
         self.clear_rt_dose_overlay_cache();
         self.tool_state = ToolState::Idle;
-        self.pan_offset = egui::Vec2::ZERO;
+        self.pan_offset = ViewportOffset::new(0.0, 0.0);
         self.zoom = 1.0;
         self.pointer_intensity = 0.0;
         self.pointer_suv = None;
@@ -218,7 +218,7 @@ impl SnapApp {
         self.pointer_suv = None;
         self.cached_histogram = None;
         self.selected_series = None;
-        self.pan_offset = egui::Vec2::ZERO;
+        self.pan_offset = ViewportOffset::new(0.0, 0.0);
         self.zoom = 1.0;
         self.texture = None;
         self.secondary_texture = None;

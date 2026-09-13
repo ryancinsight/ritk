@@ -3,7 +3,7 @@ use crate::label::LabelEditor;
 use crate::presentation::PresentationDispatcher;
 use crate::render::NamedColorMap;
 use crate::render::RenderBufferPool;
-use crate::tools::interaction::{Annotation, ToolState};
+use crate::tools::interaction::{Annotation, ToolState, ViewportOffset};
 use crate::tools::kind::ToolKind;
 use crate::ui::RoiDoseAnalytics;
 use crate::ui::{CinePlayback, LinkedCursor, ViewTransform};
@@ -156,7 +156,7 @@ pub(crate) struct SnapApp {
 
     // ── Viewport ──────────────────────────────────────────────────────────────
     /// Viewport pan offset in screen pixels.
-    pub(crate) pan_offset: egui::Vec2,
+    pub(crate) pan_offset: ViewportOffset,
     /// Viewport zoom multiplier (1.0 = fit-to-panel).
     pub(crate) zoom: f32,
     /// Viewport image orientation transform (flip/rotate).
@@ -330,7 +330,7 @@ impl Default for SnapApp {
             mesh_tex: None,
             mesh_dirty: false,
             show_mesh_overlay: false,
-            pan_offset: egui::Vec2::ZERO,
+            pan_offset: ViewportOffset::new(0.0, 0.0),
             zoom: 1.0,
             view_transform: ViewTransform::default(),
             show_colorbar: false,
