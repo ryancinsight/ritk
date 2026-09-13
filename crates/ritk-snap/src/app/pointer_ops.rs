@@ -92,10 +92,7 @@ impl SnapApp {
                 );
                 self.viewer_state.window_center = Some(new_center as f32);
                 self.viewer_state.window_width = Some(new_width as f32);
-                self.texture_dirty = true;
-                self.coronal_dirty = true;
-                self.sagittal_dirty = true;
-                self.mip_dirty = true;
+                self.bump_visual_revision();
             }
             ToolState::RoiDrag { start, kind, .. } => {
                 self.tool_state = ToolState::RoiDrag {
@@ -369,10 +366,7 @@ impl SnapApp {
         self.coronal_slice = voxel[1];
         self.sagittal_slice = voxel[2];
         self.axis = axis.min(2);
-        self.texture_dirty = true;
-        self.coronal_dirty = true;
-        self.sagittal_dirty = true;
-        self.mip_dirty = true;
+        self.bump_visual_revision();
         self.status_message = format!(
             "Linked cursor axis={} voxel=[{},{},{}]",
             axis, voxel[0], voxel[1], voxel[2]

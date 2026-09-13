@@ -78,6 +78,7 @@ impl SnapApp {
                 self.rt_struct = Some(rt);
                 self.show_rt_struct_overlay = true;
                 self.refresh_rt_dvh_cache();
+                self.bump_visual_revision();
                 self.status_message = format!(
                     "Loaded RT-STRUCT {} ({} ROIs) from {}",
                     label,
@@ -111,6 +112,7 @@ impl SnapApp {
                 self.rt_dose_max_gy = Some(max_dose_gy);
                 self.show_rt_dose_overlay = true;
                 self.refresh_rt_dvh_cache();
+                self.bump_visual_revision();
             }
             Err(e) => {
                 self.status_message = format!("RT-DOSE load failed for {}: {e:#}", path.display());

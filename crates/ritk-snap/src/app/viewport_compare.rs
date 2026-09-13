@@ -65,10 +65,8 @@ impl EguiApp {
         let needs_rebuild = if self.compare_fused_overlay {
             true
         } else {
-            self.secondary_texture_dirty
-                || self.render.secondary_texture.is_none()
-                || self.secondary_texture_axis != secondary_axis
-                || self.secondary_texture_slice != secondary_idx
+            self.render.secondary_texture.is_none()
+                || self.render.secondary_texture_key != Some((secondary_axis, secondary_idx))
         };
 
         if needs_rebuild {
@@ -133,9 +131,7 @@ impl EguiApp {
                 };
                 self.render.secondary_texture =
                     Some(ctx.load_texture(tex_name, color_image, egui::TextureOptions::LINEAR));
-                self.secondary_texture_axis = secondary_axis;
-                self.secondary_texture_slice = secondary_idx;
-                self.secondary_texture_dirty = false;
+                self.render.secondary_texture_key = Some((secondary_axis, secondary_idx));
             } else {
                 self.rebuild_secondary_texture(ctx, secondary_axis, secondary_idx);
             }

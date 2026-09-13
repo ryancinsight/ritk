@@ -10,14 +10,6 @@ use crate::ui::{
 use crate::viewer::{DEFAULT_WINDOW_CENTER, DEFAULT_WINDOW_WIDTH};
 
 impl SnapApp {
-    pub(crate) fn mark_all_textures_dirty(&mut self) {
-        self.texture_dirty = true;
-        self.coronal_dirty = true;
-        self.sagittal_dirty = true;
-        self.mip_dirty = true;
-        self.secondary_texture_dirty = true;
-    }
-
     pub(crate) fn undo_label_edit_shortcut(&mut self) {
         let Some(editor) = self.label_editor.as_mut() else {
             return;
@@ -36,14 +28,11 @@ impl SnapApp {
         }
     }
 
-    /// Apply a [`WindowPreset`] and mark all textures dirty.
+    /// Apply a [`WindowPreset`] and advance the visual revision.
     pub(crate) fn apply_preset(&mut self, preset: WindowPreset) {
         self.viewer_state.window_center = Some(preset.center as f32);
         self.viewer_state.window_width = Some(preset.width as f32);
-        self.texture_dirty = true;
-        self.coronal_dirty = true;
-        self.sagittal_dirty = true;
-        self.mip_dirty = true;
+        self.bump_visual_revision();
     }
 
     pub(crate) fn session_snapshot(&self) -> ViewerSessionSnapshot {
@@ -109,10 +98,7 @@ impl SnapApp {
         self.cine.restore(snapshot.cine_enabled, snapshot.cine_fps);
         self.annotations = snapshot.annotations;
         self.tool_state = ToolState::Idle;
-        self.texture_dirty = true;
-        self.coronal_dirty = true;
-        self.sagittal_dirty = true;
-        self.mip_dirty = true;
+        self.bump_visual_revision();
         self.linked_cursor = self.loaded.as_ref().map(|vol| {
             LinkedCursor::from_slices(
                 vol.shape,

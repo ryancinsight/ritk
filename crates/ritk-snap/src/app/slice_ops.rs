@@ -47,7 +47,7 @@ impl SnapApp {
 
     /// Step the slice for `axis` by `delta`, clamped to the valid range.
     ///
-    /// Marks the corresponding texture dirty when the index changes.
+    /// Advances the visual revision when the index changes.
     pub(crate) fn set_slice_for_axis(&mut self, axis: usize, index: usize) {
         let total = self
             .loaded
@@ -59,7 +59,7 @@ impl SnapApp {
             0 => {
                 if next != self.viewer_state.slice_index {
                     self.viewer_state.slice_index = next;
-                    self.texture_dirty = true;
+                    self.bump_visual_revision();
                     if let (Some(vol), Some(cursor)) = (&self.loaded, self.linked_cursor.as_mut()) {
                         cursor.set_axis_slice(vol.shape, 0, next);
                     }
@@ -68,7 +68,7 @@ impl SnapApp {
             1 => {
                 if next != self.coronal_slice {
                     self.coronal_slice = next;
-                    self.coronal_dirty = true;
+                    self.bump_visual_revision();
                     if let (Some(vol), Some(cursor)) = (&self.loaded, self.linked_cursor.as_mut()) {
                         cursor.set_axis_slice(vol.shape, 1, next);
                     }
@@ -77,7 +77,7 @@ impl SnapApp {
             _ => {
                 if next != self.sagittal_slice {
                     self.sagittal_slice = next;
-                    self.sagittal_dirty = true;
+                    self.bump_visual_revision();
                     if let (Some(vol), Some(cursor)) = (&self.loaded, self.linked_cursor.as_mut()) {
                         cursor.set_axis_slice(vol.shape, 2, next);
                     }
@@ -88,7 +88,7 @@ impl SnapApp {
 
     /// Step the slice for `axis` by `delta`, clamped to the valid range.
     ///
-    /// Marks the corresponding texture dirty when the index changes.
+    /// Advances the visual revision when the index changes.
     pub(crate) fn step_slice_for_axis(&mut self, axis: usize, delta: i32) {
         let (current, total) = self.axis_slice_info(axis);
         let next = step_clamped(current, total, delta);
@@ -105,9 +105,9 @@ impl SnapApp {
 
     /// Advance `axis` by `steps` with wrap-around.
     ///
-    /// Delegates the actual write to [`set_slice_for_axis`] so dirty flags,
+    /// Delegates the actual write to [`set_slice_for_axis`] so visual revision,
     /// linked-cursor synchronisation, and the no-change guard are all applied
-    /// through the shared SSOT path.
+    /// through the shared state path.
     pub(crate) fn advance_slice_for_axis_loop(&mut self, axis: usize, steps: u32) {
         if steps == 0 {
             return;

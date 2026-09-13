@@ -26,7 +26,7 @@ impl SnapApp {
     /// - `.obj` → [`ritk_io::read_obj_mesh`]
     /// - `.ply` → [`ritk_io::read_ply_mesh`]
     ///
-    /// On success sets `mesh_dirty = true` and `show_mesh_overlay = true`.
+    /// On success advances the visual revision and enables the mesh overlay.
     /// On failure the error is logged and written to [`Self::status_message`].
     pub(crate) fn load_mesh_file(&mut self, path: impl AsRef<Path>) {
         let path = path.as_ref();
@@ -58,7 +58,7 @@ impl SnapApp {
                     n_poly
                 );
                 self.loaded_mesh = Some(poly);
-                self.mesh_dirty = true;
+                self.bump_visual_revision();
                 self.show_mesh_overlay = true;
             }
             Err(err) => {
@@ -131,7 +131,7 @@ impl EguiApp {
     ///
     /// Renders `self.loaded_mesh` via the CPU Phong rasterizer with two
     /// directional lights (key + fill) and uploads the result as
-    /// `"mesh_overlay_tex"` with linear filtering. Sets `mesh_dirty = false`.
+    /// `"mesh_overlay_tex"` with linear filtering.
     ///
     /// No-op when `self.loaded_mesh` is `None`.
     pub(crate) fn rebuild_mesh_texture(&mut self, ctx: &egui::Context, w: usize, h: usize) {
@@ -160,7 +160,6 @@ impl EguiApp {
             color_image,
             egui::TextureOptions::LINEAR,
         ));
-        self.mesh_dirty = false;
     }
 }
 

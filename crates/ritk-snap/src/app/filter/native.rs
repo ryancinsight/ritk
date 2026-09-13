@@ -1345,7 +1345,7 @@ mod tests {
     }
 
     #[test]
-    fn snap_app_applies_native_unary_filter_and_invalidates_render_caches() {
+    fn snap_app_applies_native_unary_filter_and_advances_visual_revision() {
         let mut app = SnapApp::default();
         let mut volume = test_volume([1, 1, 2]);
         volume.data = Arc::new(vec![-2.0, 3.0]);
@@ -1353,10 +1353,7 @@ mod tests {
         volume.spacing = [0.5, 1.5, 2.5];
         app.loaded = Some(volume);
         app.active_filter = FilterKind::Abs;
-        app.texture_dirty = false;
-        app.coronal_dirty = false;
-        app.sagittal_dirty = false;
-        app.mip_dirty = false;
+        let revision = app.visual_revision;
 
         app.apply_filter_to_loaded_volume();
 
@@ -1364,10 +1361,7 @@ mod tests {
         assert_eq!(volume.data.as_slice(), [2.0, 3.0]);
         assert_eq!(volume.origin, [2.0, 3.0, 5.0]);
         assert_eq!(volume.spacing, [0.5, 1.5, 2.5]);
-        assert!(app.texture_dirty);
-        assert!(app.coronal_dirty);
-        assert!(app.sagittal_dirty);
-        assert!(app.mip_dirty);
+        assert!(app.visual_revision > revision);
         assert_eq!(app.status_message, "Filter applied.");
     }
 

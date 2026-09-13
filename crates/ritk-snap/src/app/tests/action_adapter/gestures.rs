@@ -52,6 +52,7 @@ fn window_level_actions_use_the_existing_sensitivity_mapping() {
     app.active_tool = ToolKind::WindowLevel;
     app.viewer_state.window_center = Some(40.0);
     app.viewer_state.window_width = Some(400.0);
+    let revision = app.visual_revision;
     let viewport = viewport([64, 64]);
     let mut dispatcher = PresentationDispatcher::new();
 
@@ -74,10 +75,7 @@ fn window_level_actions_use_the_existing_sensitivity_mapping() {
 
     assert_eq!(app.viewer_state.window_center, Some(60.0));
     assert_eq!(app.viewer_state.window_width, Some(440.0));
-    assert!(app.texture_dirty);
-    assert!(app.coronal_dirty);
-    assert!(app.sagittal_dirty);
-    assert!(app.mip_dirty);
+    assert!(app.visual_revision > revision);
 }
 
 #[test]
@@ -197,7 +195,6 @@ fn angle_measurement_clicks_advance_and_complete_through_the_adapter() {
 fn adapter_accumulates_repaint_across_actions_in_one_batch() {
     let mut app = SnapApp::default();
     app.loaded = Some(test_volume([4, 4, 3]));
-    app.texture_dirty = false;
     let viewport = viewport([4, 4]);
     let disposition = app
         .apply_presentation_events(

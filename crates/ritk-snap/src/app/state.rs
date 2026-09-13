@@ -44,6 +44,11 @@ pub(crate) struct SnapApp {
     pub(crate) loaded_secondary: Option<LoadedVolume>,
     /// Viewer navigation state (slice index, W/L).
     pub(crate) viewer_state: ViewerState,
+    /// Monotonic revision for transitions that invalidate retained render resources.
+    ///
+    /// Host adapters use this value to invalidate their own retained render
+    /// resources. It is deliberately independent of any GUI texture type.
+    pub(crate) visual_revision: u64,
     /// Secondary compare viewport W/L center.
     pub(crate) secondary_window_center: Option<f32>,
     /// Secondary compare viewport W/L width.
@@ -96,27 +101,11 @@ pub(crate) struct SnapApp {
     /// Whether the filter processing panel is visible.
     pub(crate) show_filter_panel: bool,
 
-    // ── Texture invalidation ─────────────────────────────────────────────────
-    /// `true` when the axial texture must be rebuilt before the next frame.
-    pub(crate) texture_dirty: bool,
-    /// `true` when secondary texture must be rebuilt.
-    pub(crate) secondary_texture_dirty: bool,
-    /// Axis used by current secondary texture.
-    pub(crate) secondary_texture_axis: usize,
-    /// Slice index used by current secondary texture.
-    pub(crate) secondary_texture_slice: usize,
-
     // ── Texture cache — coronal / sagittal ────────────────────────────────────
-    /// `true` when the coronal texture must be rebuilt.
-    pub(crate) coronal_dirty: bool,
     /// Current coronal slice index (fixed row `r`).
     pub(crate) coronal_slice: usize,
-    /// `true` when the sagittal texture must be rebuilt.
-    pub(crate) sagittal_dirty: bool,
     /// Current sagittal slice index (fixed column `c`).
     pub(crate) sagittal_slice: usize,
-    /// `true` when the MIP projection texture must be rebuilt.
-    pub(crate) mip_dirty: bool,
     /// Active projection mode for the bottom-right 3D viewport.
     pub(crate) projection_mode: ProjectionMode,
     /// Renderer that produced the current 3D projection texture.
@@ -125,8 +114,6 @@ pub(crate) struct SnapApp {
     // ── Surface mesh overlay ──────────────────────────────────────────────────
     /// Currently loaded surface mesh for overlay rendering on the MIP viewport.
     pub(crate) loaded_mesh: Option<ritk_io::VtkPolyData>,
-    /// `true` when the mesh overlay texture must be rebuilt before next frame.
-    pub(crate) mesh_dirty: bool,
     /// Whether the mesh overlay is composited on the 3D-MIP viewport.
     pub(crate) show_mesh_overlay: bool,
 
@@ -262,6 +249,7 @@ impl Default for SnapApp {
             loaded: None,
             loaded_secondary: None,
             viewer_state: ViewerState::new(),
+            visual_revision: 0,
             secondary_window_center: None,
             secondary_window_width: None,
             colormap: NamedColorMap::Grayscale,
@@ -285,19 +273,11 @@ impl Default for SnapApp {
             rt_dose_opacity: 0.5,
             active_filter: crate::FilterKind::Gaussian { sigma: 1.0 },
             show_filter_panel: false,
-            texture_dirty: false,
-            secondary_texture_dirty: false,
-            secondary_texture_axis: 0,
-            secondary_texture_slice: 0,
-            coronal_dirty: false,
             coronal_slice: 0,
-            sagittal_dirty: false,
             sagittal_slice: 0,
-            mip_dirty: false,
             projection_mode: ProjectionMode::Mip,
             projection_backend: ProjectionBackend::Cpu,
             loaded_mesh: None,
-            mesh_dirty: false,
             show_mesh_overlay: false,
             pan_offset: ViewportOffset::new(0.0, 0.0),
             zoom: 1.0,
@@ -356,6 +336,11 @@ impl Default for SnapApp {
 }
 
 impl SnapApp {
+    /// Advance the render revision after a state transition changes pixels.
+    pub(crate) fn bump_visual_revision(&mut self) {
+        self.visual_revision = self.visual_revision.saturating_add(1);
+    }
+
     /// Construct an app that loads `path` on the first update cycle.
     ///
     /// Directory paths are scanned immediately so the series browser is

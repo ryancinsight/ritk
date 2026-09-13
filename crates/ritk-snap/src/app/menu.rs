@@ -200,12 +200,7 @@ impl EguiApp {
                     if ui.button(layout_label).clicked() {
                         ui.close_menu();
                         self.multi_planar = !self.multi_planar;
-                        // Mark all textures dirty so the new layout renders
-                        // immediately.
-                        self.texture_dirty = true;
-                        self.coronal_dirty = true;
-                        self.sagittal_dirty = true;
-                        self.mip_dirty = true;
+                        self.bump_visual_revision();
                     }
 
                     ui.separator();
@@ -293,10 +288,7 @@ impl EguiApp {
                                 && self.colormap != cm
                             {
                                 self.colormap = cm;
-                                self.texture_dirty = true;
-                                self.coronal_dirty = true;
-                                self.sagittal_dirty = true;
-                                self.mip_dirty = true;
+                                self.bump_visual_revision();
                             }
                         }
                     });
@@ -307,27 +299,27 @@ impl EguiApp {
                     if ui.button("Flip Horizontal [H]").clicked() {
                         ui.close_menu();
                         self.view_transform = self.view_transform.toggle_flip_h();
-                        self.mark_all_textures_dirty();
+                        self.bump_visual_revision();
                     }
                     if ui.button("Flip Vertical [V]").clicked() {
                         ui.close_menu();
                         self.view_transform = self.view_transform.toggle_flip_v();
-                        self.mark_all_textures_dirty();
+                        self.bump_visual_revision();
                     }
                     if ui.button("Rotate CW 90° [R]").clicked() {
                         ui.close_menu();
                         self.view_transform = self.view_transform.rotate_cw();
-                        self.mark_all_textures_dirty();
+                        self.bump_visual_revision();
                     }
                     if ui.button("Rotate CCW 90° [Shift+R]").clicked() {
                         ui.close_menu();
                         self.view_transform = self.view_transform.rotate_ccw();
-                        self.mark_all_textures_dirty();
+                        self.bump_visual_revision();
                     }
                     if ui.button("Reset Orientation [O]").clicked() {
                         ui.close_menu();
                         self.view_transform = self.view_transform.reset();
-                        self.mark_all_textures_dirty();
+                        self.bump_visual_revision();
                     }
 
                     ui.separator();
@@ -359,7 +351,7 @@ impl EguiApp {
                             {
                                 ui.close_menu();
                                 self.axis = idx;
-                                self.texture_dirty = true;
+                                self.bump_visual_revision();
                             }
                         }
                     });
@@ -418,10 +410,7 @@ impl EguiApp {
                         };
                         self.viewer_state.window_center = Some(wc);
                         self.viewer_state.window_width = Some(ww);
-                        self.texture_dirty = true;
-                        self.coronal_dirty = true;
-                        self.sagittal_dirty = true;
-                        self.mip_dirty = true;
+                        self.bump_visual_revision();
                     }
                 });
 

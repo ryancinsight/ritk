@@ -33,10 +33,7 @@ impl SnapApp {
     }
 
     fn mark_filter_applied(&mut self) {
-        self.texture_dirty = true;
-        self.coronal_dirty = true;
-        self.sagittal_dirty = true;
-        self.mip_dirty = true;
+        self.bump_visual_revision();
         self.status_message = "Filter applied.".to_owned();
     }
 }

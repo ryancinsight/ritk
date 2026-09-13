@@ -85,7 +85,8 @@ fn primary_physical_aspect_survives_all_layouts_and_texture_transforms() {
                     flip_v,
                     rotation,
                 };
-                app.mark_all_textures_dirty();
+                app.bump_visual_revision();
+                app.render.invalidate(app.visual_revision);
                 for axis in 0..3 {
                     let output = context.run(
                         egui::RawInput {
@@ -134,7 +135,8 @@ fn comparison_physical_aspect_uses_the_output_sampling_grid() {
             };
             for primary_axis in 0..3 {
                 for secondary_axis in 0..3 {
-                    app.secondary_texture_dirty = true;
+                    app.render.secondary_texture = None;
+                    app.render.secondary_texture_key = None;
                     let output = context.run(
                         egui::RawInput {
                             screen_rect: Some(egui::Rect::from_min_size(
