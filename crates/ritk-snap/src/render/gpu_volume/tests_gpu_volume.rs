@@ -30,6 +30,14 @@ use crate::LoadedVolume;
 
 use super::{GpuRenderResult, GpuVolumeRenderer};
 
+#[cfg(test)]
+impl GpuVolumeRenderer {
+    /// Block the calling thread until in-flight GPU work completes for tests.
+    pub(super) fn poll_blocking(&mut self) {
+        self.ctx.device.poll(wgpu::Maintain::Wait);
+    }
+}
+
 // ── Test helpers ─────────────────────────────────────────────────────────────
 
 /// Submit MIP work, block until the GPU completes, then collect and return
