@@ -5,9 +5,9 @@
     "host": "Windows native Métis surface",
     "input": "public MRI-DIR CT DICOM directory passed to ritk-snap",
     "graphics_backend": "Métis software framebuffer; WGPU is not involved",
-    "ritk_revision": "b2772322f44fd4297007711d9cb460efdf002f0d",
-    "metis_revision": "be6235ab0efdb4c406fd1c5c8af3a1880a4ab143",
-    "moirai_revision": "fd836cd1715e1cd6f537290ce670829ba875be94"
+    "ritk_revision": "7702bbc95d8455a58bc0c71db8601b6a12e85aac",
+    "metis_revision": "74ca9d6bda82e6a4728c1724f124faff5b848765",
+    "moirai_revision": "c7206e8b294599e55eb7a82071c5a91dc0428c3e"
   },
   "dataset": {
     "path": "test_data/3_head_ct_mridir/DICOM",
@@ -25,8 +25,8 @@
     "height": 800,
     "bytes": 535797,
     "sha256": "8082cea87348126ce5a07cacb602bf71081747881481d2062bb1f2c7314113d3",
-    "executable_sha256": "ded329b5b27ceb243904688aae653852e22fb22db4cb4da574265b853df9e57c",
-    "executable_bytes": 47911936,
+    "executable_sha256": "446623e4b8ce476afd9cd373c96f80b42f106847807ca2ca11c13b80c77339f8",
+    "executable_bytes": 53577216,
     "visual_scope": "Métis framebuffer application content; operating-system chrome excluded",
     "capture_mode": "--metis-native --capture-application",
     "planes": ["axial", "coronal", "sagittal"],

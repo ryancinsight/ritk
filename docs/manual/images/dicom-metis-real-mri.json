@@ -4,9 +4,9 @@
   "runtime": {
     "host": "Windows native Métis surface",
     "input": "local DICOM directory passed to ritk-snap",
-    "ritk_revision": "1a9081a483cb059cbfdfbd398621ce9e39751f61",
-    "metis_revision": "cea80060b5c6550ec4ea18b1c73ef6544aea12a1",
-    "moirai_revision": "b4242109ad146c90c97ff432bb406bf5537ac2f6"
+    "ritk_revision": "7702bbc95d8455a58bc0c71db8601b6a12e85aac",
+    "metis_revision": "74ca9d6bda82e6a4728c1724f124faff5b848765",
+    "moirai_revision": "c7206e8b294599e55eb7a82071c5a91dc0428c3e"
   },
   "dataset": {
     "path": "test_data/2_head_mri_t2/DICOM",
@@ -20,7 +20,8 @@
     "width": 1280,
     "height": 800,
     "sha256": "c7cc731c07b5d7e2c53697db34faecf98974d23fb34c1eac8d7e219dedfd32eb",
-    "executable_sha256": "af2074a55a854c41e7179028c2915958d1af4010a7d5044ee658e8ca639c130f",
+    "executable_sha256": "446623e4b8ce476afd9cd373c96f80b42f106847807ca2ca11c13b80c77339f8",
+    "executable_bytes": 53577216,
     "visual_scope": "Métis framebuffer pixels; operating-system chrome excluded",
     "planes": ["axial", "coronal", "sagittal"]
   },
