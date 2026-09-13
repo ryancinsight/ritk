@@ -14,14 +14,11 @@ use crate::presentation::{PresentationFrame, WebCanvasPresenter};
 use crate::ui::decide_dropped_input_action;
 use crate::ui::ViewTransform;
 use moirai_pal::wasm::{
-    spawn_local_with_handle, LocalTaskHandle, WebDocument, WebElement, WebTimer,
+    spawn_local_with_handle, LocalTaskHandle, WebAnimationFrame, WebDocument, WebElement,
 };
 use std::cell::RefCell;
 use std::rc::Rc;
-use std::time::Duration;
 use wasm_bindgen::JsValue;
-
-const FRAME_INTERVAL: Duration = Duration::from_millis(16);
 
 thread_local! {
     static VIEWER_TASK: RefCell<Option<LocalTaskHandle>> = const { RefCell::new(None) };
@@ -288,16 +285,16 @@ fn launch_browser_viewer(viewer: BrowserViewer) -> Result<(), JsValue> {
                 metis_web::metis_stop();
                 break;
             }
-            let timer = match WebTimer::new(FRAME_INTERVAL) {
-                Ok(timer) => timer,
+            let frame = match WebAnimationFrame::new() {
+                Ok(frame) => frame,
                 Err(error) => {
-                    tracing::error!(%error, "RITK browser canvas timer stopped");
+                    tracing::error!(%error, "RITK browser animation-frame scheduling stopped");
                     metis_web::metis_stop();
                     break;
                 }
             };
-            if let Err(error) = timer.await {
-                tracing::error!(%error, "RITK browser canvas timer stopped");
+            if let Err(error) = frame.await {
+                tracing::error!(%error, "RITK browser animation-frame wait stopped");
                 metis_web::metis_stop();
                 break;
             }
@@ -342,7 +339,7 @@ pub(crate) fn start_web_orthogonal_canvases(canvas_ids: [String; 3]) -> Result<(
     }))
 }
 
-/// Stops the RITK browser canvas workflow and releases its timer task.
+/// Stops the RITK browser canvas workflow and releases its animation-frame task.
 pub(crate) fn stop_web_canvas() {
     VIEWER_TASK.with_borrow_mut(|slot| slot.take());
     metis_web::metis_stop();

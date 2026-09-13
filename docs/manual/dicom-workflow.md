@@ -1139,10 +1139,12 @@ of egui. Native eframe placement converts its coordinates at the host boundary;
 the browser canvas and viewer action path use the same RITK-owned mapping
 without importing GUI carrier types.
 
-The browser task also tears down the Métis mount when a frame, input, or timer
-failure ends the loop. This failure path is distinct from an explicit
-`stop_web_canvas` call: it releases provider listeners before the task exits so
-the next route generation cannot retain callbacks or stale pointer capture.
+The browser task schedules each presentation tick with Moirai's owned
+`requestAnimationFrame` future and tears down the Métis mount when a frame,
+input, or animation-frame failure ends the loop. This failure path is distinct
+from an explicit `stop_web_canvas` call: it releases provider listeners before
+the task exits so the next route generation cannot retain callbacks or stale
+pointer capture.
 
 The drop reducer consumes RITK's `DroppedInput` value rather than an eframe
 carrier. Native eframe input is converted at the host edge; browser payloads

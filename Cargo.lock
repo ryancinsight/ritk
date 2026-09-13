@@ -1342,7 +1342,7 @@ dependencies = [
  "eunomia",
  "leto",
  "leto-ops",
- "melinoe",
+ "melinoe 0.9.0 (git+https://github.com/ryancinsight/melinoe.git)",
  "smallvec",
  "thiserror 2.0.20",
 ]
@@ -2452,7 +2452,7 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "39cab71617ae0d63f51a36d69f866391735b51691dbda63cf6f96d042b63efeb"
 dependencies = [
  "libc",
- "windows-sys 0.59.0",
+ "windows-sys 0.61.2",
 ]
 
 [[package]]
@@ -2803,7 +2803,7 @@ dependencies = [
  "hashbrown 0.15.5",
  "indexmap",
  "leto",
- "melinoe",
+ "melinoe 0.9.0 (git+https://github.com/ryancinsight/melinoe.git)",
  "rand 0.8.8",
  "serde",
  "serde_json",
@@ -3616,7 +3616,7 @@ checksum = "3640c1c38b8e4e43584d8df18be5fc6b0aa314ce6ebf51b53313d4306cca8e46"
 dependencies = [
  "hermit-abi 0.5.3",
  "libc",
- "windows-sys 0.59.0",
+ "windows-sys 0.61.2",
 ]
 
 [[package]]
@@ -4140,7 +4140,12 @@ dependencies = [
 [[package]]
 name = "melinoe"
 version = "0.9.0"
-source = "git+https://github.com/ryancinsight/melinoe.git#61f3dee802ea5a5aa88ff296bf77e0ea868c8145"
+source = "git+https://github.com/ryancinsight/melinoe.git?rev=059e5891584918938c739e4885f861b7753d45b6#059e5891584918938c739e4885f861b7753d45b6"
+
+[[package]]
+name = "melinoe"
+version = "0.9.0"
+source = "git+https://github.com/ryancinsight/melinoe.git#059e5891584918938c739e4885f861b7753d45b6"
 
 [[package]]
 name = "memchr"
@@ -4324,7 +4329,7 @@ version = "0.4.0"
 source = "git+https://github.com/ryancinsight/Mnemosyne.git#be6efcb877c41494d965ea7ec8bfcd4233912c98"
 dependencies = [
  "libc",
- "melinoe",
+ "melinoe 0.9.0 (git+https://github.com/ryancinsight/melinoe.git)",
  "mnemosyne-arena",
  "mnemosyne-backend",
  "mnemosyne-local",
@@ -4338,7 +4343,7 @@ name = "mnemosyne-local"
 version = "0.4.0"
 source = "git+https://github.com/ryancinsight/Mnemosyne.git#be6efcb877c41494d965ea7ec8bfcd4233912c98"
 dependencies = [
- "melinoe",
+ "melinoe 0.9.0 (git+https://github.com/ryancinsight/melinoe.git)",
  "mnemosyne-arena",
  "mnemosyne-backend",
  "mnemosyne-build-util",
@@ -4408,7 +4413,7 @@ dependencies = [
 [[package]]
 name = "moirai-async"
 version = "0.6.0"
-source = "git+https://github.com/ryancinsight/Moirai.git#c7206e8b294599e55eb7a82071c5a91dc0428c3e"
+source = "git+https://github.com/ryancinsight/Moirai.git#fd3ec288dd0f1e98912f1d439d4ff9129ca7e25a"
 dependencies = [
  "futures",
  "libc",
@@ -4423,7 +4428,7 @@ dependencies = [
 [[package]]
 name = "moirai-async-macros"
 version = "0.6.0"
-source = "git+https://github.com/ryancinsight/Moirai.git#c7206e8b294599e55eb7a82071c5a91dc0428c3e"
+source = "git+https://github.com/ryancinsight/Moirai.git#fd3ec288dd0f1e98912f1d439d4ff9129ca7e25a"
 dependencies = [
  "proc-macro2",
  "quote",
@@ -4433,7 +4438,7 @@ dependencies = [
 [[package]]
 name = "moirai-core"
 version = "0.6.0"
-source = "git+https://github.com/ryancinsight/Moirai.git#c7206e8b294599e55eb7a82071c5a91dc0428c3e"
+source = "git+https://github.com/ryancinsight/Moirai.git#fd3ec288dd0f1e98912f1d439d4ff9129ca7e25a"
 dependencies = [
  "bytemuck",
  "libc",
@@ -4445,7 +4450,7 @@ dependencies = [
 [[package]]
 name = "moirai-crypto"
 version = "0.6.0"
-source = "git+https://github.com/ryancinsight/Moirai.git#c7206e8b294599e55eb7a82071c5a91dc0428c3e"
+source = "git+https://github.com/ryancinsight/Moirai.git#fd3ec288dd0f1e98912f1d439d4ff9129ca7e25a"
 dependencies = [
  "aes-gcm",
  "chacha20poly1305",
@@ -4469,9 +4474,9 @@ dependencies = [
 [[package]]
 name = "moirai-executor"
 version = "0.6.0"
-source = "git+https://github.com/ryancinsight/Moirai.git#c7206e8b294599e55eb7a82071c5a91dc0428c3e"
+source = "git+https://github.com/ryancinsight/Moirai.git#fd3ec288dd0f1e98912f1d439d4ff9129ca7e25a"
 dependencies = [
- "melinoe",
+ "melinoe 0.9.0 (git+https://github.com/ryancinsight/melinoe.git?rev=059e5891584918938c739e4885f861b7753d45b6)",
  "mnemosyne-memory",
  "moirai-core",
  "moirai-pal",
@@ -4483,7 +4488,7 @@ dependencies = [
 [[package]]
 name = "moirai-http"
 version = "0.6.0"
-source = "git+https://github.com/ryancinsight/Moirai.git#c7206e8b294599e55eb7a82071c5a91dc0428c3e"
+source = "git+https://github.com/ryancinsight/Moirai.git#fd3ec288dd0f1e98912f1d439d4ff9129ca7e25a"
 dependencies = [
  "http",
  "httparse",
@@ -4495,7 +4500,7 @@ dependencies = [
 [[package]]
 name = "moirai-iter"
 version = "0.6.0"
-source = "git+https://github.com/ryancinsight/Moirai.git#c7206e8b294599e55eb7a82071c5a91dc0428c3e"
+source = "git+https://github.com/ryancinsight/Moirai.git#fd3ec288dd0f1e98912f1d439d4ff9129ca7e25a"
 dependencies = [
  "futures",
  "libc",
@@ -4511,11 +4516,11 @@ dependencies = [
 [[package]]
 name = "moirai-pal"
 version = "0.6.0"
-source = "git+https://github.com/ryancinsight/Moirai.git#c7206e8b294599e55eb7a82071c5a91dc0428c3e"
+source = "git+https://github.com/ryancinsight/Moirai.git#fd3ec288dd0f1e98912f1d439d4ff9129ca7e25a"
 dependencies = [
  "js-sys",
  "libc",
- "melinoe",
+ "melinoe 0.9.0 (git+https://github.com/ryancinsight/melinoe.git?rev=059e5891584918938c739e4885f861b7753d45b6)",
  "moirai-core",
  "wasm-bindgen",
  "wasm-bindgen-futures",
@@ -4527,9 +4532,9 @@ dependencies = [
 [[package]]
 name = "moirai-parallel"
 version = "0.6.0"
-source = "git+https://github.com/ryancinsight/Moirai.git#c7206e8b294599e55eb7a82071c5a91dc0428c3e"
+source = "git+https://github.com/ryancinsight/Moirai.git#fd3ec288dd0f1e98912f1d439d4ff9129ca7e25a"
 dependencies = [
- "melinoe",
+ "melinoe 0.9.0 (git+https://github.com/ryancinsight/melinoe.git?rev=059e5891584918938c739e4885f861b7753d45b6)",
  "moirai-core",
  "moirai-executor",
  "themis-topology",
@@ -4538,9 +4543,9 @@ dependencies = [
 [[package]]
 name = "moirai-runtime"
 version = "0.6.0"
-source = "git+https://github.com/ryancinsight/Moirai.git#c7206e8b294599e55eb7a82071c5a91dc0428c3e"
+source = "git+https://github.com/ryancinsight/Moirai.git#fd3ec288dd0f1e98912f1d439d4ff9129ca7e25a"
 dependencies = [
- "melinoe",
+ "melinoe 0.9.0 (git+https://github.com/ryancinsight/melinoe.git?rev=059e5891584918938c739e4885f861b7753d45b6)",
  "mnemosyne-memory",
  "moirai-async",
  "moirai-core",
@@ -4556,7 +4561,7 @@ dependencies = [
 [[package]]
 name = "moirai-scheduler"
 version = "0.6.0"
-source = "git+https://github.com/ryancinsight/Moirai.git#c7206e8b294599e55eb7a82071c5a91dc0428c3e"
+source = "git+https://github.com/ryancinsight/Moirai.git#fd3ec288dd0f1e98912f1d439d4ff9129ca7e25a"
 dependencies = [
  "loom",
  "mnemosyne-memory",
@@ -4568,7 +4573,7 @@ dependencies = [
 [[package]]
 name = "moirai-sync"
 version = "0.6.0"
-source = "git+https://github.com/ryancinsight/Moirai.git#c7206e8b294599e55eb7a82071c5a91dc0428c3e"
+source = "git+https://github.com/ryancinsight/Moirai.git#fd3ec288dd0f1e98912f1d439d4ff9129ca7e25a"
 dependencies = [
  "libc",
  "moirai-core",
@@ -4578,7 +4583,7 @@ dependencies = [
 [[package]]
 name = "moirai-tls"
 version = "0.6.0"
-source = "git+https://github.com/ryancinsight/Moirai.git#c7206e8b294599e55eb7a82071c5a91dc0428c3e"
+source = "git+https://github.com/ryancinsight/Moirai.git#fd3ec288dd0f1e98912f1d439d4ff9129ca7e25a"
 dependencies = [
  "futures-io",
  "futures-rustls",
@@ -4591,7 +4596,7 @@ dependencies = [
 [[package]]
 name = "moirai-transport"
 version = "0.6.0"
-source = "git+https://github.com/ryancinsight/Moirai.git#c7206e8b294599e55eb7a82071c5a91dc0428c3e"
+source = "git+https://github.com/ryancinsight/Moirai.git#fd3ec288dd0f1e98912f1d439d4ff9129ca7e25a"
 dependencies = [
  "bytemuck",
  "moirai-core",
@@ -4602,7 +4607,7 @@ dependencies = [
 [[package]]
 name = "moirai-utils"
 version = "0.6.0"
-source = "git+https://github.com/ryancinsight/Moirai.git#c7206e8b294599e55eb7a82071c5a91dc0428c3e"
+source = "git+https://github.com/ryancinsight/Moirai.git#fd3ec288dd0f1e98912f1d439d4ff9129ca7e25a"
 
 [[package]]
 name = "moxcms"
@@ -4753,7 +4758,7 @@ version = "0.50.3"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "7957b9740744892f114936ab4a57b3f487491bbeafaf8083688b16841a4240e5"
 dependencies = [
- "windows-sys 0.59.0",
+ "windows-sys 0.61.2",
 ]
 
 [[package]]
@@ -5791,7 +5796,7 @@ dependencies = [
  "once_cell",
  "socket2 0.6.5",
  "tracing",
- "windows-sys 0.59.0",
+ "windows-sys 0.61.2",
 ]
 
 [[package]]
@@ -6980,7 +6985,7 @@ dependencies = [
  "errno",
  "libc",
  "linux-raw-sys 0.12.1",
- "windows-sys 0.59.0",
+ "windows-sys 0.61.2",
 ]
 
 [[package]]
@@ -7038,7 +7043,7 @@ dependencies = [
  "security-framework",
  "security-framework-sys",
  "webpki-root-certs",
- "windows-sys 0.59.0",
+ "windows-sys 0.61.2",
 ]
 
 [[package]]
@@ -7665,7 +7670,7 @@ dependencies = [
  "getrandom 0.3.4",
  "once_cell",
  "rustix 1.1.4",
- "windows-sys 0.59.0",
+ "windows-sys 0.61.2",
 ]
 
 [[package]]
@@ -7684,15 +7689,15 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "230a1b821ccbd75b185820a1f1ff7b14d21da1e442e22c0863ea5f08771a8874"
 dependencies = [
  "rustix 1.1.4",
- "windows-sys 0.59.0",
+ "windows-sys 0.61.2",
 ]
 
 [[package]]
 name = "themis-topology"
 version = "0.10.1"
-source = "git+https://github.com/ryancinsight/themis#a42a5ca2410c0163e672e7ac8d28f582c7f6da58"
+source = "git+https://github.com/ryancinsight/themis#5502d5d33bd2e6705d49a3130342c728def63285"
 dependencies = [
- "melinoe",
+ "melinoe 0.9.0 (git+https://github.com/ryancinsight/melinoe.git)",
 ]
 
 [[package]]

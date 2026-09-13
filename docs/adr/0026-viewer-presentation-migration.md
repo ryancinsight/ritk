@@ -598,6 +598,15 @@ check, all-target Clippy, and 829-test `ritk-snap` nextest run pass on this
 increment. DICOM parsing, selection, geometry, and clinical presentation stay
 in RITK, while Métis remains the generic browser/native host.
 
+Revision 2026-09-13 (browser frame scheduling): the RITK browser canvas loop
+now awaits Moirai's owned `WebAnimationFrame` future instead of a fixed
+16-millisecond timer. The future follows the browser compositor boundary,
+validates its finite timestamp, and cancels the pending registration when
+dropped. The RITK task still owns DICOM byte loading, selection, geometry,
+viewer state and presentation pixels; Métis and Moirai provide only the host,
+canvas and event-loop seams. Standalone locked WASM check and warning-denied
+Clippy cover the consumer against the merged Moirai provider.
+
 ## Alternatives and validation
 
 Retaining egui indefinitely contradicts the requested framework target. Removing
