@@ -9,6 +9,7 @@ use crate::viewer::{DEFAULT_WINDOW_CENTER, DEFAULT_WINDOW_WIDTH};
 /// Per-voxel opacity scale for volume rendering. Canonical value per GPU VR spec.
 #[cfg(not(target_arch = "wasm32"))]
 const DEFAULT_VR_ALPHA: f32 = 0.06;
+#[cfg(not(target_arch = "wasm32"))]
 const GPU_REPAINT_INTERVAL: std::time::Duration = std::time::Duration::from_millis(8);
 
 impl SnapApp {
@@ -18,6 +19,7 @@ impl SnapApp {
     /// the multi-planar layout waits until its GPU readback or CPU fallback has
     /// produced the current texture. Color volumes intentionally have no 3D
     /// projection and are therefore ready once the study is loaded.
+    #[cfg(any(not(target_arch = "wasm32"), test))]
     pub(crate) fn primary_visual_ready(&self) -> bool {
         let Some(volume) = self.loaded.as_ref() else {
             return false;
@@ -221,9 +223,11 @@ impl SnapApp {
 
         let painter = ui.painter_at(response.rect);
         let label = match (self.projection_mode, self.projection_backend) {
+            #[cfg(any(not(target_arch = "wasm32"), test))]
             (ProjectionMode::Mip, ProjectionBackend::Gpu) => "3D MIP · GPU",
             (ProjectionMode::Mip, ProjectionBackend::Cpu) => "3D MIP · CPU",
             (ProjectionMode::Mip, ProjectionBackend::Pending) => "3D MIP · GPU pending",
+            #[cfg(any(not(target_arch = "wasm32"), test))]
             (ProjectionMode::Vr, ProjectionBackend::Gpu) => "3D VR · GPU",
             (ProjectionMode::Vr, ProjectionBackend::Cpu) => "3D VR · CPU",
             (ProjectionMode::Vr, ProjectionBackend::Pending) => "3D VR · GPU pending",

@@ -39,6 +39,7 @@ pub(crate) enum ProjectionMode {
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub(crate) enum ProjectionBackend {
     Cpu,
+    #[cfg(any(not(target_arch = "wasm32"), test))]
     Gpu,
     Pending,
 }
