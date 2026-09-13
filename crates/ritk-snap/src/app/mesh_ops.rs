@@ -5,9 +5,10 @@
 //! - [`SnapApp::load_mesh_file`] — dispatch by extension, store in
 //!   [`SnapApp::loaded_mesh`].
 //! - [`SnapApp::auto_camera_for_poly`] — AABB-fitted pinhole camera.
-//! - [`SnapApp::rebuild_mesh_texture`] — Phong-rasterize to an
+//! - [`EguiApp::rebuild_mesh_texture`] — Phong-rasterize to an
 //!   [`egui::TextureHandle`] composited on the MIP viewport.
 
+use super::eframe::EguiApp;
 use super::state::SnapApp;
 use crate::render::mesh_render::{
     normalize, DirectionalLight, MeshCamera, MeshRenderer, PhongMaterial,
@@ -123,7 +124,9 @@ impl SnapApp {
             far: diag * 10.0,
         }
     }
+}
 
+impl EguiApp {
     /// Rebuild the mesh overlay [`egui::TextureHandle`] at pixel dimensions `w × h`.
     ///
     /// Renders `self.loaded_mesh` via the CPU Phong rasterizer with two
@@ -136,7 +139,7 @@ impl SnapApp {
             let Some(poly) = &self.loaded_mesh else {
                 return;
             };
-            let camera = Self::auto_camera_for_poly(poly, w, h);
+            let camera = SnapApp::auto_camera_for_poly(poly, w, h);
             let key_light = DirectionalLight {
                 direction: normalize([1.0, 1.0, 1.0]),
                 color: [1.0, 1.0, 1.0],
@@ -152,7 +155,7 @@ impl SnapApp {
         // Immutable borrow of self.loaded_mesh released; safe to mutate self.
 
         let color_image = egui::ColorImage::from_rgba_unmultiplied([w, h], &rgba);
-        self.mesh_tex = Some(ctx.load_texture(
+        self.render.mesh_tex = Some(ctx.load_texture(
             "mesh_overlay_tex",
             color_image,
             egui::TextureOptions::LINEAR,

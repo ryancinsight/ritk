@@ -87,7 +87,6 @@ impl SnapApp {
         self.rt_plan = None;
         self.rt_dvh_selected_roi = None;
         self.rt_dvh_cache = None;
-        self.clear_rt_dose_overlay_cache();
         self.tool_state = ToolState::Idle;
         self.pan_offset = ViewportOffset::new(0.0, 0.0);
         self.zoom = 1.0;
@@ -95,13 +94,9 @@ impl SnapApp {
         self.pointer_suv = None;
         self.colormap =
             Self::colormap_for_modality(self.loaded.as_ref().and_then(|v| v.modality.as_deref()));
-        self.texture = None;
         self.texture_dirty = true;
-        self.coronal_tex = None;
         self.coronal_dirty = true;
-        self.sagittal_tex = None;
         self.sagittal_dirty = true;
-        self.mip_tex = None;
         self.mip_dirty = true;
         self.projection_backend = ProjectionBackend::Pending;
         self.status_message = status_msg;
@@ -211,7 +206,6 @@ impl SnapApp {
         self.rt_plan = None;
         self.rt_dvh_selected_roi = None;
         self.rt_dvh_cache = None;
-        self.clear_rt_dose_overlay_cache();
         self.viewer_state = ViewerState::new();
         self.linked_cursor = None;
         self.pointer_intensity = 0.0;
@@ -220,11 +214,6 @@ impl SnapApp {
         self.selected_series = None;
         self.pan_offset = ViewportOffset::new(0.0, 0.0);
         self.zoom = 1.0;
-        self.texture = None;
-        self.secondary_texture = None;
-        self.coronal_tex = None;
-        self.sagittal_tex = None;
-        self.mip_tex = None;
         self.projection_mode = ProjectionMode::Mip;
         self.projection_backend = ProjectionBackend::Cpu;
         self.texture_dirty = false;

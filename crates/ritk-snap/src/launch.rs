@@ -134,7 +134,7 @@ pub fn run_app_with_options(options: AppLaunchOptions) -> anyhow::Result<()> {
                 None => crate::app::SnapApp::default(),
             };
             Ok(Box::new(capture::CaptureApp::new(
-                app,
+                crate::app::EguiApp::new(app),
                 options.capture,
                 requirement,
                 app_completion,

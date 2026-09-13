@@ -1,4 +1,4 @@
-use super::state::SnapApp;
+use super::eframe::EguiApp;
 use super::state::{ProjectionBackend, ProjectionMode};
 use super::viewport_render::{OVERLAY_LABEL_COLOR, OVERLAY_LABEL_FONT_SIZE, OVERLAY_LABEL_INSET};
 use crate::render::mip_vr::{render_mip_axial_with_scratch, render_vr_axial_with_scratch};
@@ -12,7 +12,7 @@ const DEFAULT_VR_ALPHA: f32 = 0.06;
 #[cfg(not(target_arch = "wasm32"))]
 const GPU_REPAINT_INTERVAL: std::time::Duration = std::time::Duration::from_millis(8);
 
-impl SnapApp {
+impl EguiApp {
     /// Return whether a study capture can include the visible 3D projection.
     ///
     /// Single, dual-plane and compare layouts do not display the projection;
@@ -27,73 +27,74 @@ impl SnapApp {
         if !self.multi_planar || volume.channels != 1 {
             return true;
         }
-        self.mip_tex.is_some()
+        self.render.mip_tex.is_some()
             && !self.mip_dirty
             && self.projection_backend != ProjectionBackend::Pending
     }
 
     pub(crate) fn rebuild_texture_for_axis(&mut self, ctx: &egui::Context, axis: usize) {
         let (color_image, tex_name) = {
-            let Some(vol) = &self.loaded else {
+            let app = &mut self.app;
+            let Some(vol) = app.loaded.as_ref() else {
                 return;
             };
-            let wc = self
+            let wc = app
                 .viewer_state
                 .window_center
                 .unwrap_or(DEFAULT_WINDOW_CENTER) as f64;
-            let ww = self
+            let ww = app
                 .viewer_state
                 .window_width
                 .unwrap_or(DEFAULT_WINDOW_WIDTH)
                 .max(1.0) as f64;
             let wl = WindowLevel::new(wc, ww);
             let slice_index = match axis {
-                0 => self.viewer_state.slice_index,
-                1 => self.coronal_slice,
-                _ => self.sagittal_slice,
+                0 => app.viewer_state.slice_index,
+                1 => app.coronal_slice,
+                _ => app.sagittal_slice,
             };
             let name = match axis {
                 0 => "slice_tex_axial",
                 1 => "slice_tex_coronal",
                 _ => "slice_tex_sagittal",
             };
+            let colormap = app.colormap;
+            let view_transform = app.view_transform;
             let img = SliceRenderer::render_with_scratch(
-                &mut self.render_buffer_pool,
+                &mut app.render_buffer_pool,
                 vol,
                 axis,
                 slice_index,
                 wl,
-                self.colormap,
+                colormap,
             );
             // Apply viewport orientation transform (flip/rotate) before GPU upload.
-            let img = apply_to_image_into(&mut self.render_buffer_pool, &img, self.view_transform);
+            let img = apply_to_image_into(&mut app.render_buffer_pool, &img, view_transform);
             (img, name)
         };
         // immutable borrow of self.loaded released here
         let tex = ctx.load_texture(tex_name, color_image, egui::TextureOptions::LINEAR);
         match axis {
-            0 => self.texture = Some(tex),
-            1 => self.coronal_tex = Some(tex),
-            _ => self.sagittal_tex = Some(tex),
+            0 => self.render.texture = Some(tex),
+            1 => self.render.coronal_tex = Some(tex),
+            _ => self.render.sagittal_tex = Some(tex),
         }
     }
 
     /// Render the 3D-MIP projection through WL LUT and upload to the GPU.
     pub(crate) fn rebuild_texture_for_mip(&mut self, ctx: &egui::Context) -> bool {
-        let Some(vol) = self.loaded.clone() else {
+        let Some(vol) = self.app.loaded.as_ref() else {
             return false;
         };
-        if vol.channels != 1 {
-            self.mip_tex = None;
+        let channels = vol.channels;
+        if channels != 1 {
+            self.render.mip_tex = None;
             self.projection_backend = ProjectionBackend::Cpu;
             self.status_message = format!(
                 "3D projection unavailable: scalar volume required (received {} channels).",
-                vol.channels
+                channels
             );
-            tracing::warn!(
-                channels = vol.channels,
-                "skipping 3D projection for color volume"
-            );
+            tracing::warn!(channels, "skipping 3D projection for color volume");
             return true;
         }
         let wc = self
@@ -109,58 +110,64 @@ impl SnapApp {
 
         // ── GPU-accelerated MIP and VR (native only) ─────────────────────────
         #[cfg(not(target_arch = "wasm32"))]
-        if let Some(ref mut gpu) = self.gpu_renderer {
-            let gpu_result = match self.projection_mode {
-                ProjectionMode::Mip => gpu.render_mip(&vol, wl, self.colormap),
-                ProjectionMode::Vr => gpu.render_vr(&vol, wl, self.colormap, DEFAULT_VR_ALPHA),
-            };
-            match gpu_result {
-                crate::render::gpu_volume::GpuRenderResult::Ready(img) => {
-                    self.mip_tex = Some(ctx.load_texture(
-                        "slice_tex_mip_axial",
-                        img,
-                        egui::TextureOptions::LINEAR,
-                    ));
-                    self.projection_backend = ProjectionBackend::Gpu;
-                    return true;
-                }
-                crate::render::gpu_volume::GpuRenderResult::Pending => {
-                    self.projection_backend = ProjectionBackend::Pending;
-                    ctx.request_repaint_after(GPU_REPAINT_INTERVAL);
-                    return false;
-                }
-                crate::render::gpu_volume::GpuRenderResult::Unsupported => {
-                    tracing::info!(
-                        mode = ?self.projection_mode,
-                        "GPU projection unsupported; using CPU path"
-                    );
-                }
-                crate::render::gpu_volume::GpuRenderResult::Failed => {
-                    tracing::warn!(
-                        mode = ?self.projection_mode,
-                        "GPU projection failed; using CPU path"
-                    );
+        {
+            let projection_mode = self.projection_mode;
+            let colormap = self.colormap;
+            if let Some(gpu) = self.app.gpu_renderer.as_mut() {
+                let gpu_result = match projection_mode {
+                    ProjectionMode::Mip => gpu.render_mip(vol, wl, colormap),
+                    ProjectionMode::Vr => gpu.render_vr(vol, wl, colormap, DEFAULT_VR_ALPHA),
+                };
+                match gpu_result {
+                    crate::render::gpu_volume::GpuRenderResult::Ready(img) => {
+                        self.render.mip_tex = Some(ctx.load_texture(
+                            "slice_tex_mip_axial",
+                            img,
+                            egui::TextureOptions::LINEAR,
+                        ));
+                        self.projection_backend = ProjectionBackend::Gpu;
+                        return true;
+                    }
+                    crate::render::gpu_volume::GpuRenderResult::Pending => {
+                        self.projection_backend = ProjectionBackend::Pending;
+                        ctx.request_repaint_after(GPU_REPAINT_INTERVAL);
+                        return false;
+                    }
+                    crate::render::gpu_volume::GpuRenderResult::Unsupported => {
+                        tracing::info!(
+                            mode = ?projection_mode,
+                            "GPU projection unsupported; using CPU path"
+                        );
+                    }
+                    crate::render::gpu_volume::GpuRenderResult::Failed => {
+                        tracing::warn!(
+                            mode = ?projection_mode,
+                            "GPU projection failed; using CPU path"
+                        );
+                    }
                 }
             }
         }
 
         // ── CPU fallback (always available) ──────────────────────────────────
-        let color_image = match self.projection_mode {
+        let projection_mode = self.projection_mode;
+        let colormap = self.colormap;
+        let color_image = match projection_mode {
             ProjectionMode::Mip => render_mip_axial_with_scratch(
-                &mut self.render_buffer_pool.rgba_u8,
-                &vol,
+                &mut self.app.render_buffer_pool.rgba_u8,
+                vol,
                 wl,
-                self.colormap,
+                colormap,
             ),
             ProjectionMode::Vr => render_vr_axial_with_scratch(
-                &mut self.render_buffer_pool.rgba_u8,
-                &vol,
+                &mut self.app.render_buffer_pool.rgba_u8,
+                vol,
                 wl,
-                self.colormap,
+                colormap,
                 0.06,
             ),
         };
-        self.mip_tex = Some(ctx.load_texture(
+        self.render.mip_tex = Some(ctx.load_texture(
             "slice_tex_mip_axial",
             color_image,
             egui::TextureOptions::LINEAR,
@@ -171,14 +178,14 @@ impl SnapApp {
 
     /// Render one 3D-MIP viewport into `ui`.
     pub(crate) fn render_mip_viewport(&mut self, ui: &mut egui::Ui, ctx: &egui::Context) {
-        let needs_rebuild = self.mip_dirty || self.mip_tex.is_none();
+        let needs_rebuild = self.mip_dirty || self.render.mip_tex.is_none();
 
         if needs_rebuild && self.loaded.is_some() {
             self.mip_dirty = !self.rebuild_texture_for_mip(ctx);
         }
 
         let Some((tex_id, [tex_w_usize, tex_h_usize])) =
-            self.mip_tex.as_ref().map(|t| (t.id(), t.size()))
+            self.render.mip_tex.as_ref().map(|t| (t.id(), t.size()))
         else {
             ui.centered_and_justified(|ui| {
                 if self
@@ -211,10 +218,10 @@ impl SnapApp {
         let response = ui.add(image_widget);
 
         if self.show_mesh_overlay && self.loaded_mesh.is_some() {
-            if self.mesh_dirty || self.mesh_tex.is_none() {
+            if self.mesh_dirty || self.render.mesh_tex.is_none() {
                 self.rebuild_mesh_texture(ctx, tex_w_usize, tex_h_usize);
             }
-            if let Some(ref mesh_tex) = self.mesh_tex {
+            if let Some(ref mesh_tex) = self.render.mesh_tex {
                 let painter = ui.painter_at(response.rect);
                 let uv = egui::Rect::from_min_max(egui::pos2(0.0, 0.0), egui::pos2(1.0, 1.0));
                 painter.image(mesh_tex.id(), response.rect, uv, egui::Color32::WHITE);
@@ -269,30 +276,31 @@ impl SnapApp {
         slice_index: usize,
     ) {
         let (color_image, tex_name) = {
-            let Some(vol) = &self.loaded_secondary else {
+            let app = &mut self.app;
+            let Some(vol) = app.loaded_secondary.as_ref() else {
                 return;
             };
-            let wc = self
-                .secondary_window_center
-                .unwrap_or(DEFAULT_WINDOW_CENTER) as f64;
-            let ww = self
+            let wc = app.secondary_window_center.unwrap_or(DEFAULT_WINDOW_CENTER) as f64;
+            let ww = app
                 .secondary_window_width
                 .unwrap_or(DEFAULT_WINDOW_WIDTH)
                 .max(1.0) as f64;
             let wl = WindowLevel::new(wc, ww);
             let name = "slice_tex_secondary";
+            let colormap = app.secondary_colormap;
+            let view_transform = app.view_transform;
             let img = SliceRenderer::render_with_scratch(
-                &mut self.render_buffer_pool,
+                &mut app.render_buffer_pool,
                 vol,
                 axis,
                 slice_index,
                 wl,
-                self.secondary_colormap,
+                colormap,
             );
-            let img = apply_to_image_into(&mut self.render_buffer_pool, &img, self.view_transform);
+            let img = apply_to_image_into(&mut app.render_buffer_pool, &img, view_transform);
             (img, name)
         };
-        self.secondary_texture =
+        self.render.secondary_texture =
             Some(ctx.load_texture(tex_name, color_image, egui::TextureOptions::LINEAR));
         self.secondary_texture_axis = axis;
         self.secondary_texture_slice = slice_index;

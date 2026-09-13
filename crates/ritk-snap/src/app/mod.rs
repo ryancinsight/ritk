@@ -1,6 +1,6 @@
 //! ritk-snap viewer application state and desktop-shell adapters.
 //!
-//! Owns the top-level `SnapApp` struct and its eframe implementation. All
+//! Owns the top-level `SnapApp` struct and its eframe shell wrapper. All
 //! domain logic (intensity mapping, slice extraction, annotation computation)
 //! lives in the `render` and `tools` sub-modules; this module wires events and
 //! drives state transitions. The format-neutral presentation module supplies
@@ -17,6 +17,7 @@ pub(crate) mod action_adapter;
 #[cfg(any(target_arch = "wasm32", test))]
 mod browser_semantics;
 pub(crate) mod clinical_distribution;
+mod eframe;
 mod filter;
 mod image_placement;
 mod io_ops;
@@ -50,6 +51,7 @@ mod web_viewer;
 #[cfg(test)]
 mod tests;
 
+pub(crate) use eframe::EguiApp;
 pub(crate) use state::SnapApp;
 
 #[cfg(target_arch = "wasm32")]

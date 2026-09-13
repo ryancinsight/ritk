@@ -2,6 +2,7 @@
 
 use super::*;
 use crate::app::state::{ProjectionBackend, ProjectionMode, SeriesLoadTarget};
+use crate::app::EguiApp;
 use crate::render::histogram::compute_histogram;
 use crate::tools::interaction::ViewportOffset;
 use crate::ui::LinkedCursor;
@@ -116,7 +117,7 @@ fn close_study_clears_loaded_and_cached_state() {
 
 #[test]
 fn primary_visual_ready_waits_for_current_multi_planar_projection() {
-    let mut app = SnapApp::default();
+    let mut app = EguiApp::new(SnapApp::default());
     assert!(
         !app.primary_visual_ready(),
         "an empty app is not capture-ready"
@@ -132,7 +133,7 @@ fn primary_visual_ready_waits_for_current_multi_planar_projection() {
     );
 
     let ctx = egui::Context::default();
-    app.mip_tex = Some(ctx.load_texture(
+    app.render.mip_tex = Some(ctx.load_texture(
         "capture-ready",
         egui::ColorImage::new([2, 2], egui::Color32::WHITE),
         egui::TextureOptions::NEAREST,

@@ -55,8 +55,6 @@ impl SnapApp {
                             ui.close_menu();
                             std::mem::swap(&mut self.loaded, &mut self.loaded_secondary);
                             std::mem::swap(&mut self.colormap, &mut self.secondary_colormap);
-                            self.texture = None;
-                            self.secondary_texture = None;
                             self.mark_all_textures_dirty();
                             self.refresh_cached_histogram();
                         }

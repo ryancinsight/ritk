@@ -1,6 +1,6 @@
 //! Central-panel layout methods for [`SnapApp`].
 
-use super::state::SnapApp;
+use super::eframe::EguiApp;
 use crate::ui::AnatomicalPlane;
 // ── Layout constants ─────────────────────────────────────────────────────────
 
@@ -13,7 +13,7 @@ const MPR_INFO_MIN_H: f32 = 110.0;
 /// Maximum pixel height of the MPR info panel.
 const MPR_INFO_MAX_H: f32 = 210.0;
 
-impl SnapApp {
+impl EguiApp {
     // ── Single-viewport central panel ────────────────────────────────────
     pub(crate) fn show_central_panel_single(&mut self, ctx: &egui::Context) {
         egui::CentralPanel::default().show(ctx, |ui| {
