@@ -1,0 +1,288 @@
+name: RITK SNAP Métis browser DICOM
+
+on:
+  schedule:
+    - cron: "17 4 * * 6"
+  workflow_dispatch:
+    inputs:
+      metis_revision:
+        description: Exact Métis commit resolved by Cargo.lock
+        required: true
+        default: edcd8cb4a228d1b158f01edd596463d24964c4ab
+        type: string
+
+permissions:
+  contents: read
+
+env:
+  CARGO_INCREMENTAL: 0
+  RUST_BACKTRACE: 1
+  METIS_REVISION: ${{ inputs.metis_revision || 'edcd8cb4a228d1b158f01edd596463d24964c4ab' }}
+
+concurrency:
+  group: ritk-snap-metis-browser-${{ github.ref }}
+  cancel-in-progress: false
+
+jobs:
+  build-browser:
+    name: Build RITK and Métis browser bundle
+    runs-on: ubuntu-24.04
+    timeout-minutes: 30
+    steps:
+      - name: Check out RITK
+        uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803
+        with:
+          path: ritk
+          persist-credentials: false
+
+      - name: Check out the lock-pinned Métis revision
+        uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803
+        with:
+          repository: ryancinsight/metis
+          ref: ${{ env.METIS_REVISION }}
+          path: metis
+          persist-credentials: false
+
+      - name: Set up Python
+        uses: actions/setup-python@ece7cb06caefa5fff74198d8649806c4678c61a1
+        with:
+          python-version: "3.13"
+
+      - name: Install the pinned Rust toolchain
+        uses: dtolnay/rust-toolchain@4360b52568e2003a75bf9bc1d59f33a8e3fc893c
+        with:
+          toolchain: 1.97.0
+          targets: wasm32-unknown-unknown
+
+      - name: Install wasm-bindgen
+        uses: taiki-e/install-action@a6b2e2dcd845ddd7f509ce4f3ed3d922b80cc5d9
+        with:
+          tool: wasm-bindgen@0.2.128
+          checksum: true
+
+      - name: Confirm the framework revision is locked
+        shell: bash
+        run: |
+          set -euo pipefail
+          revision="${METIS_REVISION}"
+          [[ "$revision" =~ ^[0-9a-f]{40}$ ]]
+          [[ "$(git -C metis rev-parse HEAD)" == "$revision" ]]
+          grep -F "#$revision" ritk/Cargo.lock
+
+      - name: Build the RITK WebAssembly consumer
+        working-directory: ritk
+        shell: bash
+        run: |
+          set -euo pipefail
+          cargo build --locked --manifest-path Cargo.toml \
+            -p ritk-snap --lib --target wasm32-unknown-unknown --release
+          wasm-bindgen \
+            target/wasm32-unknown-unknown/release/ritk_snap.wasm \
+            --target web --out-dir target/wasm-bindgen/ritk-snap
+
+      - name: Build the Métis gallery with the RITK consumer
+        working-directory: metis
+        shell: bash
+        run: |
+          set -euo pipefail
+          python scripts/browser.py build \
+            --ritk-package "$GITHUB_WORKSPACE/ritk/target/wasm-bindgen/ritk-snap"
+
+      - name: Derive the real-study canvas oracle
+        working-directory: metis
+        shell: bash
+        run: |
+          set -euo pipefail
+          python - <<'PY'
+          import json
+          from pathlib import Path
+
+          source_path = Path("../ritk/docs/manual/images/dicom-metis-real-browser-mri-edge.json")
+          source = json.loads(source_path.read_text(encoding="utf-8"))
+          if source.get("status") != "passed":
+              raise SystemExit("the committed MRI browser evidence is not passed")
+          oracle = {}
+          for name, view in source["views"].items():
+              required = ("width", "height", "non_black_pixels", "rgba_sha256")
+              if any(key not in view for key in required):
+                  raise SystemExit(f"MRI view {name!r} is missing an RGBA oracle")
+              canvas_id = f"ritk-snap-{name}"
+              oracle[canvas_id] = {key: view[key] for key in required}
+          attributes = {
+              "ritk-snap-axial": {"axis": "0", "slice_index": "47", "slice_count": "94", "frame_width": "512", "frame_height": "512"},
+              "ritk-snap-coronal": {"axis": "1", "slice_index": "256", "slice_count": "512", "frame_width": "512", "frame_height": "94"},
+              "ritk-snap-sagittal": {"axis": "2", "slice_index": "256", "slice_count": "512", "frame_width": "512", "frame_height": "94"},
+          }
+          for canvas_id, values in oracle.items():
+              oracle[canvas_id]["attributes"] = {
+                  "data-ritk-load-state": "ready",
+                  "data-ritk-frame-state": "presented",
+                  "data-ritk-axis": attributes[canvas_id]["axis"],
+                  "data-ritk-slice-index": attributes[canvas_id]["slice_index"],
+                  "data-ritk-slice-count": attributes[canvas_id]["slice_count"],
+                  "data-ritk-frame-width": attributes[canvas_id]["frame_width"],
+                  "data-ritk-frame-height": attributes[canvas_id]["frame_height"],
+              }
+          output = Path("output/browser/mri-oracle.json")
+          output.write_text(json.dumps(oracle) + "\n", encoding="utf-8")
+          PY
+
+      - name: Upload browser bundle and oracle
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
+        with:
+          name: ritk-metis-browser-assets-${{ github.run_id }}
+          path: metis/output/browser
+          if-no-files-found: error
+          retention-days: 7
+
+  browser-dicom:
+    name: Saved MRI study (${{ matrix.engine }})
+    needs: build-browser
+    runs-on: ${{ matrix.runner }}
+    timeout-minutes: 15
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - engine: chromium
+            runner: ubuntu-24.04
+            driver_url: http://127.0.0.1:9515
+            device_scale: "2"
+          - engine: firefox
+            runner: ubuntu-24.04
+            driver_url: http://127.0.0.1:4444
+            device_scale: "2"
+          - engine: webkit
+            runner: macos-latest
+            driver_url: http://127.0.0.1:4444
+            device_scale: "1"
+    steps:
+      - name: Check out RITK
+        uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803
+        with:
+          path: ritk
+          persist-credentials: false
+
+      - name: Check out the lock-pinned Métis revision
+        uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803
+        with:
+          repository: ryancinsight/metis
+          ref: ${{ env.METIS_REVISION }}
+          path: metis
+          persist-credentials: false
+
+      - name: Set up Python
+        uses: actions/setup-python@ece7cb06caefa5fff74198d8649806c4678c61a1
+        with:
+          python-version: "3.13"
+
+      - name: Download the browser bundle and oracle
+        uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c
+        with:
+          name: ritk-metis-browser-assets-${{ github.run_id }}
+          path: metis/output/browser
+
+      - name: Start virtual display
+        if: matrix.engine != 'webkit'
+        shell: bash
+        run: |
+          set -euo pipefail
+          command -v Xvfb
+          Xvfb :99 -screen 0 1280x800x24 -nolisten tcp > "$RUNNER_TEMP/xvfb.log" 2>&1 &
+          echo "DISPLAY=:99" >> "$GITHUB_ENV"
+
+      - name: Start Chromium WebDriver
+        if: matrix.engine == 'chromium'
+        shell: bash
+        run: |
+          set -euo pipefail
+          "$CHROMEWEBDRIVER/chromedriver" --port=9515 > "$RUNNER_TEMP/chromedriver.log" 2>&1 &
+
+      - name: Start Firefox WebDriver
+        if: matrix.engine == 'firefox'
+        shell: bash
+        run: |
+          set -euo pipefail
+          "$GECKOWEBDRIVER/geckodriver" --port=4444 --host 127.0.0.1 > "$RUNNER_TEMP/geckodriver.log" 2>&1 &
+
+      - name: Enable Safari WebDriver
+        if: matrix.engine == 'webkit'
+        shell: bash
+        run: sudo -n /usr/bin/safaridriver --enable
+
+      - name: Start Safari WebDriver
+        if: matrix.engine == 'webkit'
+        shell: bash
+        run: |
+          set -euo pipefail
+          /usr/bin/safaridriver -p 4444 > "$RUNNER_TEMP/safaridriver.log" 2>&1 &
+
+      - name: Wait for WebDriver
+        shell: bash
+        env:
+          DRIVER_URL: ${{ matrix.driver_url }}
+        run: |
+          set -euo pipefail
+          python - "$DRIVER_URL" <<'PY'
+          import json
+          import sys
+          import time
+          import urllib.error
+          import urllib.request
+
+          endpoint = sys.argv[1].rstrip("/") + "/status"
+          deadline = time.monotonic() + 20.0
+          last_error = "no response"
+          while time.monotonic() < deadline:
+              try:
+                  with urllib.request.urlopen(endpoint, timeout=1.0) as response:
+                      document = json.load(response)
+                  value = document.get("value") if isinstance(document, dict) else None
+                  if isinstance(value, dict) and value.get("ready") is not False:
+                      raise SystemExit(0)
+                  last_error = "driver status is not ready"
+              except (OSError, urllib.error.URLError, json.JSONDecodeError) as error:
+                  last_error = str(error)
+              time.sleep(0.1)
+          raise SystemExit(f"WebDriver did not become ready within 20 seconds: {last_error}")
+          PY
+
+      - name: Run the saved-study chooser workflow
+        working-directory: metis
+        shell: bash
+        env:
+          DRIVER_URL: ${{ matrix.driver_url }}
+          ENGINE: ${{ matrix.engine }}
+          DEVICE_SCALE: ${{ matrix.device_scale }}
+          RITK_REVISION: ${{ github.sha }}
+        run: |
+          set -euo pipefail
+          python scripts/browser_drop.py \
+            --engine "$ENGINE" \
+            --driver-url "$DRIVER_URL" \
+            --device-scale "$DEVICE_SCALE" \
+            --input chooser \
+            --files "$GITHUB_WORKSPACE/ritk/test_data/2_head_mri_t2/DICOM" \
+            --pattern '*.dcm' \
+            --oracle output/browser/mri-oracle.json \
+            --consumer-revision "$RITK_REVISION" \
+            --canvas-trace "output/browser/results/$ENGINE/canvas-trace.json" \
+            --canvas-attribute data-ritk-load-state \
+            --canvas-attribute data-ritk-frame-state \
+            --canvas-attribute data-ritk-axis \
+            --canvas-attribute data-ritk-slice-index \
+            --canvas-attribute data-ritk-slice-count \
+            --canvas-attribute data-ritk-frame-width \
+            --canvas-attribute data-ritk-frame-height \
+            --output "output/browser/results/$ENGINE"
+
+      - name: Upload saved-study evidence
+        if: always()
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
+        with:
+          name: ritk-metis-browser-dicom-${{ matrix.engine }}-${{ github.run_id }}
+          path: |
+            metis/output/browser/results/${{ matrix.engine }}/**
+            ${{ runner.temp }}/*.log
+          if-no-files-found: ignore
+          retention-days: 14

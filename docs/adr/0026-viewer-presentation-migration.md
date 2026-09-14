@@ -234,7 +234,7 @@ RITK tests already green; `inventory.json` recorded a 24,283,136-byte
 `5f4a7d434d934be29986c8db92a0a9cbe99b3596e3b5e34da112ff9a0a93c0bc`;
 `ritk-snap.exe --help` exited 0. The committed
 `.github/workflows/metis-package.yml` reproduces this package path on a
-manual Windows dispatch with the `2e21146c6a9de73666396705c25dfa7555eb172c`
+manual Windows dispatch with the `edcd8cb4a228d1b158f01edd596463d24964c4ab`
 revision recorded in `Cargo.lock`; hosted artifact collection is evidence only
 and does not publish or sign the release.
 
