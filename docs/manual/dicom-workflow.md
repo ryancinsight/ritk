@@ -15,10 +15,10 @@ decoded-workspace budgets, and return the RITK `Image` plus
 `DicomReadMetadata`. No GUI framework type or parser object crosses this
 boundary; the host owns only input and presentation lifecycle.
 
-This workflow is the DICOM opening demonstration for both the current eframe
-shell and the migrated Windows Métis shell. The code, fixtures, visual goldens,
-and rejection tests remain in RITK so a framework migration cannot fork
-medical-data semantics.
+This workflow is the DICOM opening demonstration for the default Windows Métis
+shell and the explicit eframe compatibility shell. The code, fixtures, visual
+goldens, and rejection tests remain in RITK so a framework migration cannot
+fork medical-data semantics.
 
 ## Actual application gallery
 
@@ -346,7 +346,7 @@ Capture uses the normal viewer update and egui/eframe screenshot response. The
 capture wrapper keeps requesting bounded repaints while RITK's background load
 publishes, then takes the screenshot; a failed or over-deadline load returns an
 error instead of saving an empty frame. For your own local study, run
-`ritk-snap path/to/study --capture window.png`. The supplied study must load and
+`ritk-snap path/to/study --eframe --capture window.png`. The supplied study must load and
 the PNG must save before success is reported.
 Native window images depend on the host renderer and fonts; the exact pixel
 goldens above remain the deterministic software-rendering check.
@@ -356,6 +356,10 @@ For the migrated Windows host, run the same generated study through Métis:
 ```console
 target/debug/ritk-snap.exe scratch/viewer/study --metis-native
 ```
+
+On Windows the `--metis-native` spelling is optional for this command; the
+Métis host is the default shell. Existing scripts may retain the explicit flag,
+while `--eframe` selects the compatibility path described above.
 
 To open a saved study through the same host without typing its path, omit the
 positional argument on Windows:

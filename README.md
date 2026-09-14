@@ -74,7 +74,8 @@ a single DICOM file, a `DICOMDIR` file, or a supported medical image file. The v
 I/O in `ritk-io` and presentation logic in `ritk-snap`, with a vertical module
 split for input path normalization, hanging-protocol selection, series
 discovery, metadata row construction, session snapshot persistence, rendering,
-tools, and egui widgets.
+tools, and the eframe compatibility widgets. On Windows the default shell is
+Métis; pass `--eframe` when the compatibility shell is required.
 
 `ritk-snap --metis-native` may omit `PATH` on Windows. The Métis host then
 opens Moirai's bounded native folder picker; RITK scans, decodes, and renders

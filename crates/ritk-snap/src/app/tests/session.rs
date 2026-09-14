@@ -198,6 +198,11 @@ fn test_app_launch_options_default_has_no_initial_path() {
         options.initial_series_uid, None,
         "default launch options must not select a startup series"
     );
+    assert_eq!(
+        options.metis_native,
+        cfg!(windows),
+        "Windows defaults to the Métis shell while other native targets keep eframe"
+    );
 }
 
 #[test]

@@ -1,8 +1,10 @@
 # ritk-snap
 
-`ritk-snap` is the RITK medical-image viewer. The current desktop shell uses
-egui/eframe, and the Windows Métis host is available for the migrated native
-session described in [ADR 0026](../../docs/adr/0026-viewer-presentation-migration.md).
+`ritk-snap` is the RITK medical-image viewer. On Windows the Métis host is the
+default desktop shell; pass `--eframe` when an eframe compatibility session is
+needed. Other native targets retain eframe until their Métis surface provider
+is available. The migration is described in
+[ADR 0026](../../docs/adr/0026-viewer-presentation-migration.md).
 
 RITK owns DICOM opening, decoding, geometry, and medical display semantics.
 The `presentation` module exposes a validated format-neutral RGBA frame for a
@@ -40,7 +42,8 @@ cargo run --locked -p ritk-snap -- path/to/study \
   --series-instance-uid 2.25.20260905001 --metis-native
 ```
 
-To capture the rendered eframe window and exit, append `--capture window.png`.
+To capture the rendered eframe compatibility window and exit, add `--eframe`
+and append `--capture window.png`.
 For a mixed folder, keep `--series-instance-uid` on the same command so the
 capture waits for that selected RITK acquisition to load. A supplied study must
 load successfully; capture failure returns an error. To run the same loaded
@@ -49,6 +52,10 @@ study through the Windows Métis host, use:
 ```console
 cargo run --locked -p ritk-snap -- path/to/study --metis-native
 ```
+
+On Windows the same command works without `--metis-native`; the flag remains an
+explicit spelling for scripts and existing workflows. Use `--eframe` to opt
+out of the default Métis shell.
 
 The Métis session owns the HWND, bounded event wait, framebuffer presentation,
 resize/minimize and terminal cleanup. RITK owns DICOM opening, decoded volume
