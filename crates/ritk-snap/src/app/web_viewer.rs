@@ -20,6 +20,8 @@ use std::cell::RefCell;
 use std::rc::Rc;
 use wasm_bindgen::JsValue;
 
+const MILLISECONDS_PER_SECOND: f64 = 1_000.0;
+
 thread_local! {
     static VIEWER_TASK: RefCell<Option<LocalTaskHandle>> = const { RefCell::new(None) };
 }
@@ -37,7 +39,7 @@ impl BrowserViewer {
         }
     }
 
-    fn tick(&mut self) -> std::io::Result<bool> {
+    fn tick(&mut self, now_seconds: f64) -> std::io::Result<bool> {
         let mut repaint = false;
         let dropped = super::browser_input::take_dropped_files();
         if !dropped.is_empty() {
@@ -54,6 +56,12 @@ impl BrowserViewer {
             return Ok(false);
         };
         if repaint || input_repaint {
+            self.surface.clear();
+        }
+        if matches!(
+            self.app.tick_cine_at(now_seconds),
+            super::slice_ops::CineTick::Advanced(_)
+        ) {
             self.surface.clear();
         }
         self.surface.render_and_present(&self.app)?;
@@ -270,7 +278,26 @@ fn launch_browser_viewer(viewer: BrowserViewer) -> Result<(), JsValue> {
     let task_viewer = Rc::clone(&viewer);
     let handle = spawn_local_with_handle(async move {
         loop {
-            let keep_running = match task_viewer.borrow_mut().tick() {
+            let frame = match WebAnimationFrame::new() {
+                Ok(frame) => frame,
+                Err(error) => {
+                    tracing::error!(%error, "RITK browser animation-frame scheduling stopped");
+                    metis_web::metis_stop();
+                    break;
+                }
+            };
+            let timestamp_ms = match frame.await {
+                Ok(timestamp_ms) => timestamp_ms,
+                Err(error) => {
+                    tracing::error!(%error, "RITK browser animation-frame wait stopped");
+                    metis_web::metis_stop();
+                    break;
+                }
+            };
+            let keep_running = match task_viewer
+                .borrow_mut()
+                .tick(timestamp_ms / MILLISECONDS_PER_SECOND)
+            {
                 Ok(keep_running) => keep_running,
                 Err(error) => {
                     tracing::error!(%error, "RITK browser canvas workflow stopped");
@@ -282,19 +309,6 @@ fn launch_browser_viewer(viewer: BrowserViewer) -> Result<(), JsValue> {
                 }
             };
             if !keep_running {
-                metis_web::metis_stop();
-                break;
-            }
-            let frame = match WebAnimationFrame::new() {
-                Ok(frame) => frame,
-                Err(error) => {
-                    tracing::error!(%error, "RITK browser animation-frame scheduling stopped");
-                    metis_web::metis_stop();
-                    break;
-                }
-            };
-            if let Err(error) = frame.await {
-                tracing::error!(%error, "RITK browser animation-frame wait stopped");
                 metis_web::metis_stop();
                 break;
             }

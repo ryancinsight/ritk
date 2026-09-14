@@ -1,4 +1,3 @@
-#[cfg(not(target_arch = "wasm32"))]
 use crate::ui::advance_wrapped;
 use crate::ui::{axis_total, clamp_index, step_clamped};
 #[cfg(not(target_arch = "wasm32"))]
@@ -7,7 +6,6 @@ use crate::LoadedVolume;
 use super::state::SnapApp;
 
 /// Host-neutral result of one cine timing sample.
-#[cfg(not(target_arch = "wasm32"))]
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub(crate) enum CineTick {
     /// Playback is disabled or no study is loaded.
@@ -150,7 +148,6 @@ impl SnapApp {
     /// Delegates the actual write to [`set_slice_for_axis`] so visual revision,
     /// linked-cursor synchronisation, and the no-change guard are all applied
     /// through the shared state path.
-    #[cfg(not(target_arch = "wasm32"))]
     pub(crate) fn advance_slice_for_axis_loop(&mut self, axis: usize, steps: u32) {
         if steps == 0 {
             return;
@@ -173,7 +170,6 @@ impl SnapApp {
     }
 
     /// Advance cine playback for the active axis at a host-provided time.
-    #[cfg(not(target_arch = "wasm32"))]
     pub(crate) fn tick_cine_at(&mut self, now_seconds: f64) -> CineTick {
         if self.loaded.is_none() {
             self.cine.stop();

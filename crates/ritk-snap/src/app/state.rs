@@ -5,11 +5,12 @@ use crate::presentation::PresentationDispatcher;
 use crate::render::NamedColorMap;
 use crate::tools::interaction::{Annotation, ToolState, ViewportOffset};
 use crate::tools::kind::ToolKind;
+use crate::ui::CinePlayback;
 use crate::ui::LinkedCursor;
 #[cfg(not(target_arch = "wasm32"))]
 use crate::ui::RoiDoseAnalytics;
 #[cfg(not(target_arch = "wasm32"))]
-use crate::ui::{CinePlayback, ViewTransform};
+use crate::ui::ViewTransform;
 use crate::{LoadedVolume, ViewerState};
 
 /// Default opacity for the fused-overlay compare mode.
@@ -187,7 +188,6 @@ pub(crate) struct SnapApp {
     /// Shared voxel cursor used to synchronize all MPR viewports.
     pub(crate) linked_cursor: Option<LinkedCursor>,
     /// Cine playback controller for automatic slice stepping.
-    #[cfg(not(target_arch = "wasm32"))]
     pub(crate) cine: CinePlayback,
     #[cfg(not(target_arch = "wasm32"))]
     /// `true` when the series browser left panel is visible.
@@ -378,7 +378,6 @@ impl Default for SnapApp {
             #[cfg(not(target_arch = "wasm32"))]
             show_crosshair: false,
             linked_cursor: None,
-            #[cfg(not(target_arch = "wasm32"))]
             cine: CinePlayback::default(),
             #[cfg(not(target_arch = "wasm32"))]
             show_series_browser: true,

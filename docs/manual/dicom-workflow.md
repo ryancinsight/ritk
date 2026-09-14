@@ -1243,10 +1243,12 @@ the browser canvas and viewer action path use the same RITK-owned mapping
 without importing GUI carrier types.
 
 The browser task schedules each presentation tick with Moirai's owned
-`requestAnimationFrame` future and tears down the Métis mount when a frame,
-input, or animation-frame failure ends the loop. This failure path is distinct
-from an explicit `stop_web_canvas` call: it releases provider listeners before
-the task exits so the next route generation cannot retain callbacks or stale
+`requestAnimationFrame` future and passes its monotonic millisecond timestamp
+to RITK's host-neutral cine clock. Loading a new study stops playback before
+the new volume is published. The loop tears down the Métis mount when a frame,
+input, or animation-frame failure ends it. This failure path is distinct from
+an explicit `stop_web_canvas` call: it releases provider listeners before the
+task exits so the next route generation cannot retain callbacks or stale
 pointer capture.
 
 The drop reducer consumes RITK's `DroppedInput` value rather than an eframe
