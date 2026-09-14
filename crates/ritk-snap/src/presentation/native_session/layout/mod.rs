@@ -3,7 +3,7 @@
 mod composition;
 mod geometry;
 
-pub(super) use composition::{surface_frames, surface_frames_with_mip};
 #[cfg(test)]
-pub(super) use composition::{OVERLAY_BAR_HEIGHT, OVERLAY_TEXT};
+pub(super) use composition::{application_overlay, OVERLAY_BAR_HEIGHT, OVERLAY_TEXT};
+pub(super) use composition::{surface_frames, surface_frames_with_mip};
 pub(super) use geometry::NativeViewport;

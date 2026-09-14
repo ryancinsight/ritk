@@ -615,6 +615,19 @@ retained GPU resources but preserves scratch capacity for reuse. Native Métis
 and browser presentation remain unchanged, and DICOM parsing, geometry and
 clinical pixels remain RITK-owned.
 
+Revision 2026-09-14 (Métis display-list chrome): the native RITK compositor now
+emits its plane, slice, frame-dimension, window/level and MIP labels as
+`metis_ui_lang::DisplayList` commands. RITK still blits the decoded
+`PresentationFrame` pixels directly into the host framebuffer, so no DICOM
+bytes or clinical state move into Métis; the shared Metis painter owns the
+format-neutral chrome rasterization. The standalone lock advances all Metis
+packages to `d8522334765ac905f4632cf2a2a6ecc3a5458e51` and Moirai to
+`a7fa2ba69f25070581f7245f059089705d8fc699`. The focused native session suite
+passes 14/14, and a rebuilt public CT capture remains byte-identical at
+`8082cea87348126ce5a07cacb602bf71081747881481d2062bb1f2c7314113d3`; the
+four-panel MIP capture remains byte-identical at
+`989a1f66b43a39ec753180cdd882b08e11adfc2ab4009c416a694c1fd12efe42`.
+
 ## Alternatives and validation
 
 Retaining egui indefinitely contradicts the requested framework target. Removing

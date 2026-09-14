@@ -45,6 +45,7 @@ walkdir = { workspace = true }
 bytemuck = { workspace = true }
 moirai = { workspace = true }
 metis-platform = { workspace = true }
+metis-ui-lang = { workspace = true }
 
 [target.'cfg(not(target_arch = "wasm32"))'.dependencies]
 wgpu = { workspace = true }

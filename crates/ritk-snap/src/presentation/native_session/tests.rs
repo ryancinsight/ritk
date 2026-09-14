@@ -2,6 +2,7 @@ use super::layout::{OVERLAY_BAR_HEIGHT, OVERLAY_TEXT};
 use super::*;
 use crate::dicom::loader::tests::fixtures;
 use metis_platform::native::{ModifierState, WindowEvent};
+use metis_ui_lang::DisplayCommand;
 
 fn session() -> (NativeViewerSession, tempfile::TempDir) {
     session_with_mode(NativePresentationMode::Orthogonal)
@@ -210,6 +211,34 @@ fn native_application_capture_adds_bounded_ritk_overlays() {
         has_overlay_text,
         "application capture includes plane label text"
     );
+}
+
+#[test]
+fn native_overlay_is_emitted_as_metis_display_commands() {
+    let (session, _root) = session();
+    let overlay = super::layout::application_overlay(&session.views, &session.viewports)
+        .expect("Métis overlay display list");
+    assert_eq!(
+        overlay
+            .commands
+            .iter()
+            .filter(|command| matches!(command, DisplayCommand::FillRect { .. }))
+            .count(),
+        6,
+        "each orthogonal panel receives two Metis chrome bars"
+    );
+    assert!(overlay.commands.iter().any(|command| matches!(
+        command,
+        DisplayCommand::DrawText { text, .. } if text == "METIS  RITK-SNAP  Axial"
+    )));
+    assert!(overlay.commands.iter().any(|command| matches!(
+        command,
+        DisplayCommand::DrawText { text, .. } if text.starts_with(&format!(
+            "Slice {}/{}",
+            session.views[0].slice_index + 1,
+            session.views[0].slice_count
+        ))
+    )));
 }
 
 #[test]
