@@ -392,10 +392,11 @@ target\debug\ritk-snap.exe `
   --capture scratch\viewer\real-dicom-metis-application.png
 ```
 
-The overlay is drawn into the same 1280 × 800 framebuffer after the real
-decoded planes are composed. It identifies the Métis/RITK host, plane, slice
-range, frame dimensions, and window/level values without adding patient
-metadata. Operating-system decorations remain outside the capture contract.
+The overlay is emitted as a Métis `metis_ui_lang::DisplayList` and rendered
+into the same 1280 × 800 framebuffer after the real decoded planes are
+composed. It identifies the Métis/RITK host, plane, slice range, frame
+dimensions, and window/level values without adding patient metadata.
+Operating-system decorations remain outside the capture contract.
 The reviewed public CT result is [the application-content capture](images/dicom-metis-real-ct-application.png), with machine-readable
 [provenance](images/dicom-metis-real-ct-application.json).
 

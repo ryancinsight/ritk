@@ -1,7 +1,8 @@
 //! Pixel composition for native presentation layouts.
 
 use anyhow::{anyhow, bail, Result};
-use metis_platform::{draw_text, fill_rect, Color, Framebuffer, Rect};
+use metis_platform::{Color, DisplayScale, Framebuffer, Rect};
+use metis_ui_lang::{DisplayCommand, DisplayList};
 
 use super::super::frame::RenderedView;
 use super::super::projection::RenderedProjection;
@@ -81,7 +82,8 @@ pub(crate) fn surface_frames(
         )?;
     }
     if show_application_overlay {
-        draw_application_overlay(&mut framebuffer, views, &viewports)?;
+        let overlay = application_overlay(views, &viewports)?;
+        overlay.render_to(&mut framebuffer);
     }
     Ok((framebuffer, viewports))
 }
@@ -185,15 +187,18 @@ pub(crate) fn surface_frames_with_mip(
         surface_height,
     )?;
     if show_application_overlay {
-        draw_application_overlay(&mut framebuffer, views, &viewports)?;
-        draw_projection_overlay(
-            &mut framebuffer,
-            projection,
-            column_widths[0] + VIEW_GAP_PIXELS,
-            row_heights[0] + VIEW_GAP_PIXELS,
-            column_widths[1],
-            row_heights[1],
+        let mut overlay = application_overlay(views, &viewports)?;
+        append_overlay_list(
+            &mut overlay,
+            projection_overlay(
+                projection,
+                column_widths[0] + VIEW_GAP_PIXELS,
+                row_heights[0] + VIEW_GAP_PIXELS,
+                column_widths[1],
+                row_heights[1],
+            )?,
         )?;
+        overlay.render_to(&mut framebuffer);
     }
     Ok((framebuffer, viewports))
 }
@@ -203,11 +208,11 @@ const OVERLAY_MARGIN: i32 = 6;
 const OVERLAY_BACKGROUND: Color = Color::rgba(0, 0, 0, 224);
 pub(crate) const OVERLAY_TEXT: Color = Color::rgba(255, 255, 160, 255);
 
-fn draw_application_overlay(
-    framebuffer: &mut Framebuffer,
+pub(crate) fn application_overlay(
     views: &[RenderedView; 3],
     viewports: &[NativeViewport; 3],
-) -> Result<()> {
+) -> Result<DisplayList> {
+    let mut overlay = DisplayList::default();
     for (view, viewport) in views.iter().zip(viewports) {
         let panel_x =
             i32::try_from(viewport.panel_x).map_err(|_| anyhow!("native overlay x exceeds i32"))?;
@@ -220,30 +225,37 @@ fn draw_application_overlay(
         if panel_width <= OVERLAY_MARGIN * 2 {
             continue;
         }
-        fill_rect(
-            framebuffer,
-            Rect::new(panel_x, panel_y, panel_width, OVERLAY_BAR_HEIGHT),
-            OVERLAY_BACKGROUND,
-        );
-        fill_rect(
-            framebuffer,
-            Rect::new(
-                panel_x,
-                panel_y + panel_height - OVERLAY_BAR_HEIGHT,
-                panel_width,
-                OVERLAY_BAR_HEIGHT,
-            ),
-            OVERLAY_BACKGROUND,
-        );
+        push_overlay_command(
+            &mut overlay,
+            DisplayCommand::FillRect {
+                rect: Rect::new(panel_x, panel_y, panel_width, OVERLAY_BAR_HEIGHT),
+                color: OVERLAY_BACKGROUND,
+            },
+        )?;
+        push_overlay_command(
+            &mut overlay,
+            DisplayCommand::FillRect {
+                rect: Rect::new(
+                    panel_x,
+                    panel_y + panel_height - OVERLAY_BAR_HEIGHT,
+                    panel_width,
+                    OVERLAY_BAR_HEIGHT,
+                ),
+                color: OVERLAY_BACKGROUND,
+            },
+        )?;
         let title = format!("METIS  RITK-SNAP  {}", view.plane_name);
-        draw_text(
-            framebuffer,
-            panel_x + OVERLAY_MARGIN,
-            panel_y + 2,
-            &title,
-            OVERLAY_TEXT,
-            1,
-        );
+        push_overlay_command(
+            &mut overlay,
+            DisplayCommand::DrawText {
+                text: title,
+                x: panel_x + OVERLAY_MARGIN,
+                y: panel_y + 2,
+                color: OVERLAY_TEXT,
+                scale: 1,
+                display_scale: DisplayScale::ONE,
+            },
+        )?;
         let footer = format!(
             "Slice {}/{}  {}x{}  W:{:.0} C:{:.0}",
             view.slice_index.saturating_add(1),
@@ -253,26 +265,28 @@ fn draw_application_overlay(
             view.window_level.width,
             view.window_level.center
         );
-        draw_text(
-            framebuffer,
-            panel_x + OVERLAY_MARGIN,
-            panel_y + panel_height - OVERLAY_BAR_HEIGHT + 2,
-            &footer,
-            OVERLAY_TEXT,
-            1,
-        );
+        push_overlay_command(
+            &mut overlay,
+            DisplayCommand::DrawText {
+                text: footer,
+                x: panel_x + OVERLAY_MARGIN,
+                y: panel_y + panel_height - OVERLAY_BAR_HEIGHT + 2,
+                color: OVERLAY_TEXT,
+                scale: 1,
+                display_scale: DisplayScale::ONE,
+            },
+        )?;
     }
-    Ok(())
+    Ok(overlay)
 }
 
-fn draw_projection_overlay(
-    framebuffer: &mut Framebuffer,
+pub(crate) fn projection_overlay(
     projection: &RenderedProjection,
     panel_x: u32,
     panel_y: u32,
     panel_width: u32,
     panel_height: u32,
-) -> Result<()> {
+) -> Result<DisplayList> {
     let panel_x =
         i32::try_from(panel_x).map_err(|_| anyhow!("native projection overlay x exceeds i32"))?;
     let panel_y =
@@ -281,45 +295,74 @@ fn draw_projection_overlay(
         .map_err(|_| anyhow!("native projection overlay width exceeds i32"))?;
     let panel_height = i32::try_from(panel_height)
         .map_err(|_| anyhow!("native projection overlay height exceeds i32"))?;
+    let mut overlay = DisplayList::default();
     if panel_width <= OVERLAY_MARGIN * 2 || panel_height <= OVERLAY_BAR_HEIGHT * 2 {
-        return Ok(());
+        return Ok(overlay);
     }
-    fill_rect(
-        framebuffer,
-        Rect::new(panel_x, panel_y, panel_width, OVERLAY_BAR_HEIGHT),
-        OVERLAY_BACKGROUND,
-    );
-    fill_rect(
-        framebuffer,
-        Rect::new(
-            panel_x,
-            panel_y + panel_height - OVERLAY_BAR_HEIGHT,
-            panel_width,
-            OVERLAY_BAR_HEIGHT,
-        ),
-        OVERLAY_BACKGROUND,
-    );
-    draw_text(
-        framebuffer,
-        panel_x + OVERLAY_MARGIN,
-        panel_y + 2,
-        "METIS  RITK-SNAP  3D MIP",
-        OVERLAY_TEXT,
-        1,
-    );
+    push_overlay_command(
+        &mut overlay,
+        DisplayCommand::FillRect {
+            rect: Rect::new(panel_x, panel_y, panel_width, OVERLAY_BAR_HEIGHT),
+            color: OVERLAY_BACKGROUND,
+        },
+    )?;
+    push_overlay_command(
+        &mut overlay,
+        DisplayCommand::FillRect {
+            rect: Rect::new(
+                panel_x,
+                panel_y + panel_height - OVERLAY_BAR_HEIGHT,
+                panel_width,
+                OVERLAY_BAR_HEIGHT,
+            ),
+            color: OVERLAY_BACKGROUND,
+        },
+    )?;
+    push_overlay_command(
+        &mut overlay,
+        DisplayCommand::DrawText {
+            text: "METIS  RITK-SNAP  3D MIP".to_owned(),
+            x: panel_x + OVERLAY_MARGIN,
+            y: panel_y + 2,
+            color: OVERLAY_TEXT,
+            scale: 1,
+            display_scale: DisplayScale::ONE,
+        },
+    )?;
     let footer = format!(
         "Axial MIP  {}x{}",
         projection.frame.width(),
         projection.frame.height()
     );
-    draw_text(
-        framebuffer,
-        panel_x + OVERLAY_MARGIN,
-        panel_y + panel_height - OVERLAY_BAR_HEIGHT + 2,
-        &footer,
-        OVERLAY_TEXT,
-        1,
-    );
+    push_overlay_command(
+        &mut overlay,
+        DisplayCommand::DrawText {
+            text: footer,
+            x: panel_x + OVERLAY_MARGIN,
+            y: panel_y + panel_height - OVERLAY_BAR_HEIGHT + 2,
+            color: OVERLAY_TEXT,
+            scale: 1,
+            display_scale: DisplayScale::ONE,
+        },
+    )?;
+    Ok(overlay)
+}
+
+fn push_overlay_command(display: &mut DisplayList, command: DisplayCommand) -> Result<()> {
+    display
+        .commands
+        .try_reserve(1)
+        .map_err(|_| anyhow!("native viewer overlay command allocation failed"))?;
+    display.commands.push(command);
+    Ok(())
+}
+
+fn append_overlay_list(target: &mut DisplayList, mut source: DisplayList) -> Result<()> {
+    target
+        .commands
+        .try_reserve(source.commands.len())
+        .map_err(|_| anyhow!("native viewer overlay command allocation failed"))?;
+    target.commands.append(&mut source.commands);
     Ok(())
 }
 

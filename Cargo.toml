@@ -115,6 +115,7 @@ moirai = { package = "moirai-runtime", version = "0.6.0", git = "https://github.
 moirai-pal = { package = "moirai-pal", version = "0.6.0", git = "https://github.com/ryancinsight/Moirai.git", default-features = false }
 metis-platform = { package = "metis-platform", version = "0.1.0", git = "https://github.com/ryancinsight/metis.git" }
 metis-web = { package = "metis-web", version = "0.1.0", git = "https://github.com/ryancinsight/metis.git" }
+metis-ui-lang = { package = "metis-ui-lang", version = "0.1.0", git = "https://github.com/ryancinsight/metis.git" }
 # Apollo FFT scratch caches use Eunomia complex values through Mnemosyne.
 mnemosyne = { package = "mnemosyne-memory", version = "0.7.0", git = "https://github.com/ryancinsight/Mnemosyne.git", default-features = false, features = ["std_tls", "eunomia"] }
 eunomia = { version = "0.8.0", git = "https://github.com/ryancinsight/eunomia", default-features = false }
