@@ -678,8 +678,8 @@ The reviewed 1280 × 800 output below is the actual run, not a made image:
 The input byte count, source revisions, executable digest and image digest are
 recorded in [`dicom-metis-real-mri.json`](images/dicom-metis-real-mri.json).
 The saved-study harness reran this workflow on 2026-09-14 at RITK
-`cc3270eaab28ceacea9242cec0a8854cc7afdcbc7`, Métis
-`80a5da5aebfbe2c7e43082886a0a1fff146b7aa7` and Moirai
+`f6e82835b856c55adcc1b97ad173686903e6a974`, Métis
+`ed3806811f23271310cb04078dff55aba5c90944` and Moirai
 `a7fa2ba69f25070581f7245f059089705d8fc699`. It recorded 411,589 non-black
 pixels and the image digest in the same 1280 × 800 frame. The capture remains
 public MRI-DIR data; a private clinical run stays local.
