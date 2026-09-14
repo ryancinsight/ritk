@@ -4,10 +4,14 @@
 //! module owns eframe texture handles and the shell implementation so those
 //! resources cannot enter native or browser-neutral viewer state.
 
+use super::slice_ops::CineTick;
 use super::state::SnapApp;
 use crate::render::RenderBufferPool;
 use crate::ui::ViewTransform;
 use std::ops::{Deref, DerefMut};
+
+#[cfg(not(target_arch = "wasm32"))]
+const CINE_REPAINT_INTERVAL: std::time::Duration = std::time::Duration::from_millis(8);
 
 /// Cached RT-DOSE overlay texture for one eframe viewport axis.
 pub(crate) struct RtDoseOverlayCacheEntry {
@@ -112,6 +116,15 @@ impl EguiApp {
     pub(crate) fn load_rt_dose_file(&mut self, path: std::path::PathBuf) {
         self.app.load_rt_dose_file(path);
         self.render.clear_rt_dose_overlay_cache();
+    }
+
+    fn tick_cine(&mut self, ctx: &egui::Context) {
+        let now_seconds = ctx.input(|input| input.time);
+        match self.app.tick_cine_at(now_seconds) {
+            CineTick::Inactive => {}
+            CineTick::Waiting => ctx.request_repaint_after(CINE_REPAINT_INTERVAL),
+            CineTick::Advanced(_) => ctx.request_repaint(),
+        }
     }
 }
 

@@ -1,13 +1,22 @@
 #[cfg(not(target_arch = "wasm32"))]
-use std::time::Duration;
-
-#[cfg(not(target_arch = "wasm32"))]
 use crate::ui::advance_wrapped;
 use crate::ui::{axis_total, clamp_index, step_clamped};
 #[cfg(not(target_arch = "wasm32"))]
 use crate::LoadedVolume;
 
 use super::state::SnapApp;
+
+/// Host-neutral result of one cine timing sample.
+#[cfg(not(target_arch = "wasm32"))]
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub(crate) enum CineTick {
+    /// Playback is disabled or no study is loaded.
+    Inactive,
+    /// Playback remains active but has not reached its next frame boundary.
+    Waiting,
+    /// Playback advanced by the reported number of slices.
+    Advanced(u32),
+}
 
 impl SnapApp {
     #[cfg(not(target_arch = "wasm32"))]
@@ -163,23 +172,22 @@ impl SnapApp {
         self.set_slice_for_axis(axis, next);
     }
 
-    /// Advance cine playback for the active axis and schedule repaints.
+    /// Advance cine playback for the active axis at a host-provided time.
     #[cfg(not(target_arch = "wasm32"))]
-    pub(crate) fn tick_cine(&mut self, ctx: &egui::Context) {
+    pub(crate) fn tick_cine_at(&mut self, now_seconds: f64) -> CineTick {
         if self.loaded.is_none() {
             self.cine.stop();
-            return;
+            return CineTick::Inactive;
         }
         if !self.cine.enabled {
-            return;
+            return CineTick::Inactive;
         }
-        let now = ctx.input(|i| i.time);
-        let steps = self.cine.consume_steps(now);
+        let steps = self.cine.consume_steps(now_seconds);
         if steps > 0 {
             self.advance_slice_for_axis_loop(self.axis, steps);
-            ctx.request_repaint();
+            CineTick::Advanced(steps)
         } else {
-            ctx.request_repaint_after(Duration::from_millis(8));
+            CineTick::Waiting
         }
     }
 }
