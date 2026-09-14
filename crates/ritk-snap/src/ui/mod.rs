@@ -5,8 +5,6 @@
 //! | Module           | Contents                                                |
 //! |------------------|---------------------------------------------------------|
 //! | [`layout`]       | [`LayoutMode`] and [`ViewportId`] enumerations.        |
-//! | [`viewport`]     | [`ViewportState`] and [`ViewportPanel`] — the core MPR  |
-//! |                  | slice display widget.                                   |
 //! | [`toolbar`]      | [`ToolbarState`] and [`ToolbarPanel`] — top toolbar.    |
 //! | [`sidebar`]      | [`SidebarPanel`] — series browser + metadata tab.       |
 //! | [`overlay`]      | [`OverlayRenderer`] — DICOM 4-corner text overlays.     |
@@ -65,7 +63,6 @@ pub mod slice_navigation;
 pub mod tool_shortcuts;
 pub mod toolbar;
 pub mod view_transform;
-pub mod viewport;
 pub mod window_level;
 pub mod window_presets;
 pub mod zoom;
@@ -108,7 +105,6 @@ pub(crate) use view_transform::apply_to_rgba;
 pub use view_transform::{
     apply_to_image, flip_h_image, flip_v_image, rotate_90_cw_image, RotationSteps, ViewTransform,
 };
-pub use viewport::{ViewportPanel, ViewportState};
 pub use window_level::MIN_WINDOW_WIDTH;
 pub use window_level::{
     clamp_window_width, window_level_from_drag_delta, WINDOW_LEVEL_SENSITIVITY,
