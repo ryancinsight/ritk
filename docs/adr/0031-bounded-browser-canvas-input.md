@@ -56,6 +56,11 @@ existing RITK virtual-key values, preserves auto-repeat on key-down events and
 ignores unsupported codes. The mapping is format-neutral; DICOM and viewer
 semantics remain in the RITK reducer.
 
+Revision 2026-09-14: each RITK canvas is assigned `tabindex="0"` at the
+consumer boundary before its input listeners are used. Keyboard focus therefore
+targets the canvas that owns the bounded event queue instead of depending on
+browser markup defaults.
+
 ## Rejected alternative
 
 Handling pointer state in Métis would duplicate RITK's viewer reducer and make
@@ -66,7 +71,8 @@ would couple RITK to a browser runtime and lose the bounded provider contract.
 
 The native RITK action suite covers pointer-cancel reduction, browser key-code
 mapping and the existing wheel, viewport and cancellation laws. The RITK WASM
-target is checked against the merged Metis input seam; the existing packaged
-synthetic DICOM capture continues to prove byte-to-frame ownership. Physical
-pointer, keyboard-driver, cross-engine, GPU and full-window captures remain
-open evidence under the migration item.
+target is checked against the merged Metis input seam; the browser canvas
+consumer makes its focus contract explicit with `tabindex="0"`. The existing
+packaged synthetic DICOM capture continues to prove byte-to-frame ownership.
+Physical pointer, keyboard-driver, cross-engine, GPU and full-window captures
+remain open evidence under the migration item.

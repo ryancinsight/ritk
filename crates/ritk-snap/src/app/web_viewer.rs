@@ -86,6 +86,9 @@ impl BrowserCanvas {
                 "browser canvas element disappeared during setup",
             )
         })?;
+        // Keyboard events target the focused canvas; make the retained
+        // presentation surface keyboard-focusable at the RITK boundary.
+        element.set_attribute("tabindex", "0")?;
         Ok(Self {
             presenter,
             element,
