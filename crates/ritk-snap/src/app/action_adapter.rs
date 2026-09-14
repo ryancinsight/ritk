@@ -17,12 +17,12 @@ use crate::ui::{
 use thiserror::Error;
 
 const PRIMARY_BUTTON: PointerButton = PointerButton::Left;
-const VIRTUAL_KEY_PAGE_UP: u32 = 0x21;
-const VIRTUAL_KEY_PAGE_DOWN: u32 = 0x22;
-const VIRTUAL_KEY_END: u32 = 0x23;
-const VIRTUAL_KEY_HOME: u32 = 0x24;
-const VIRTUAL_KEY_ARROW_UP: u32 = 0x26;
-const VIRTUAL_KEY_ARROW_DOWN: u32 = 0x28;
+pub(crate) const VIRTUAL_KEY_PAGE_UP: u32 = 0x21;
+pub(crate) const VIRTUAL_KEY_PAGE_DOWN: u32 = 0x22;
+pub(crate) const VIRTUAL_KEY_END: u32 = 0x23;
+pub(crate) const VIRTUAL_KEY_HOME: u32 = 0x24;
+pub(crate) const VIRTUAL_KEY_ARROW_UP: u32 = 0x26;
+pub(crate) const VIRTUAL_KEY_ARROW_DOWN: u32 = 0x28;
 pub(crate) const VIRTUAL_KEY_CINE_TOGGLE: u32 = 0x20;
 pub(crate) const VIRTUAL_KEY_CINE_FPS_UP: u32 = 0xbb;
 pub(crate) const VIRTUAL_KEY_CINE_FPS_DOWN: u32 = 0xbd;

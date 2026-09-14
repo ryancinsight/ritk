@@ -1,9 +1,13 @@
 //! Browser canvas adapter for RITK's format-neutral presentation frame.
 
-use super::{PointerButton, PresentationEvent, PresentationFrame, PresentationModifiers};
+use super::{
+    web_keys::virtual_key_for_browser, PointerButton, PresentationEvent, PresentationFrame,
+    PresentationModifiers,
+};
 use metis_web::{
-    CanvasEvent, CanvasEventError, CanvasFrame, CanvasPointerEvent, CanvasPointerPhase,
-    CanvasPointerType, CanvasSurface, CanvasWheelEvent, CanvasWheelUnit,
+    CanvasEvent, CanvasEventError, CanvasFrame, CanvasKeyboardEvent, CanvasKeyboardPhase,
+    CanvasPointerEvent, CanvasPointerPhase, CanvasPointerType, CanvasSurface, CanvasWheelEvent,
+    CanvasWheelUnit,
 };
 use std::io;
 use thiserror::Error;
@@ -62,6 +66,8 @@ impl WebCanvasPresenter {
     /// Target-local CSS-pixel coordinates are preserved as the RITK client
     /// coordinates. Wheel line and page units are normalized at this host
     /// boundary so the action reducer receives one explicit displacement unit.
+    /// Keyboard key/code pairs map to RITK's shared virtual-key values; browser
+    /// repeat state is preserved for the reducer and unknown keys are ignored.
     /// Non-primary touch pointers are ignored because the current RITK
     /// dispatcher has one button-indexed gesture state; the browser surface
     /// still releases their capture when its event listener observes them.
@@ -78,7 +84,7 @@ impl WebCanvasPresenter {
                 requested: events.len(),
             }
         })?;
-        for event in events.iter().copied() {
+        for event in events.iter().cloned() {
             if let Some(event) = translate_event(event)? {
                 translated.push(event);
             }
@@ -118,7 +124,23 @@ fn translate_event(event: CanvasEvent) -> Result<Option<PresentationEvent>, WebC
     match event {
         CanvasEvent::Pointer(pointer) => translate_pointer(pointer),
         CanvasEvent::Wheel(wheel) => translate_wheel(wheel).map(Some),
+        CanvasEvent::Keyboard(keyboard) => translate_keyboard(keyboard),
     }
+}
+
+fn translate_keyboard(
+    keyboard: CanvasKeyboardEvent,
+) -> Result<Option<PresentationEvent>, WebCanvasInputError> {
+    let Some(virtual_key) = virtual_key_for_browser(keyboard.key(), keyboard.code()) else {
+        return Ok(None);
+    };
+    Ok(Some(match keyboard.phase() {
+        CanvasKeyboardPhase::Down => PresentationEvent::KeyDown {
+            virtual_key,
+            repeated: keyboard.is_repeated(),
+        },
+        CanvasKeyboardPhase::Up => PresentationEvent::KeyUp { virtual_key },
+    }))
 }
 
 fn translate_pointer(
