@@ -24,6 +24,16 @@ const EXPECTED_ATTRIBUTES: [&str; 7] = [
 ];
 const DEFAULT_CANVAS_IDS: [&str; 3] =
     ["ritk-snap-axial", "ritk-snap-coronal", "ritk-snap-sagittal"];
+const KEYBOARD_TRACE_KEY: &str = "ArrowDown";
+
+/// Input evidence required by a browser trace validation run.
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+pub(crate) enum TraceInputMode {
+    /// Require one trusted pointer drag and wheel action per canvas.
+    PointerWheel,
+    /// Also require a focused ArrowDown keydown/keyup pair per canvas.
+    PointerWheelKeyboard,
+}
 
 #[derive(Debug, Deserialize)]
 struct TraceDocument {
@@ -44,6 +54,46 @@ struct TraceDocument {
 struct TraceAction {
     action: String,
     canvas: String,
+    #[serde(default)]
+    key: Option<String>,
+    #[serde(default)]
+    code: Option<String>,
+    #[serde(default)]
+    repeat: Option<bool>,
+    #[serde(default)]
+    focus: Option<TraceFocus>,
+    #[serde(default)]
+    observed_events: Vec<TraceEvent>,
+}
+
+#[derive(Debug, Deserialize)]
+struct TraceFocus {
+    ok: bool,
+    active_id: Option<String>,
+}
+
+#[derive(Debug, Deserialize)]
+struct TraceEvent {
+    #[serde(rename = "type")]
+    event_type: String,
+    #[serde(default)]
+    is_trusted: Option<bool>,
+    #[serde(default)]
+    target_id: Option<String>,
+    #[serde(default)]
+    key: Option<String>,
+    #[serde(default)]
+    code: Option<String>,
+    #[serde(default)]
+    repeat: Option<bool>,
+    #[serde(default)]
+    alt_key: Option<bool>,
+    #[serde(default)]
+    ctrl_key: Option<bool>,
+    #[serde(default)]
+    meta_key: Option<bool>,
+    #[serde(default)]
+    shift_key: Option<bool>,
 }
 
 #[derive(Debug, Deserialize)]
@@ -100,6 +150,7 @@ impl fmt::Display for BrowserTraceReport {
 pub(crate) fn validate_file(
     path: &Path,
     requested_canvas_ids: &[String],
+    input_mode: TraceInputMode,
 ) -> Result<BrowserTraceReport> {
     let file = fs::File::open(path)
         .with_context(|| format!("failed to open browser trace {}", path.display()))?;
@@ -121,7 +172,7 @@ pub(crate) fn validate_file(
     let document: TraceDocument = serde_json::from_slice(&bytes)
         .with_context(|| format!("failed to parse browser trace {}", path.display()))?;
     let canvas_ids = resolve_canvas_ids(requested_canvas_ids)?;
-    validate_document(&document, &canvas_ids)
+    validate_document(&document, &canvas_ids, input_mode)
 }
 
 fn resolve_canvas_ids(requested: &[String]) -> Result<Vec<String>> {
@@ -163,6 +214,7 @@ fn is_canvas_id(value: &str) -> bool {
 fn validate_document(
     document: &TraceDocument,
     canvas_ids: &[String],
+    input_mode: TraceInputMode,
 ) -> Result<BrowserTraceReport> {
     if document.schema != 1 {
         bail!(
@@ -194,7 +246,7 @@ fn validate_document(
         .as_deref()
         .context("browser trace is missing the RITK consumer revision")?;
     validate_revision("RITK", consumer_revision)?;
-    validate_actions(&document.actions, canvas_ids)?;
+    validate_actions(&document.actions, canvas_ids, input_mode)?;
     validate_snapshots(&document.snapshots, canvas_ids)?;
     validate_slice_progression(&document.snapshots, canvas_ids)?;
     validation::validate_screenshots(&document.screenshots, canvas_ids)?;
@@ -215,8 +267,16 @@ fn validate_revision(name: &str, revision: &str) -> Result<()> {
     Ok(())
 }
 
-fn validate_actions(actions: &[TraceAction], canvas_ids: &[String]) -> Result<()> {
-    let expected_action_count = canvas_ids.len() * 2;
+fn validate_actions(
+    actions: &[TraceAction],
+    canvas_ids: &[String],
+    input_mode: TraceInputMode,
+) -> Result<()> {
+    let actions_per_canvas = match input_mode {
+        TraceInputMode::PointerWheel => 2,
+        TraceInputMode::PointerWheelKeyboard => 3,
+    };
+    let expected_action_count = canvas_ids.len() * actions_per_canvas;
     if actions.len() != expected_action_count {
         bail!(
             "browser trace contains {} actions; expected {expected_action_count}",
@@ -224,10 +284,13 @@ fn validate_actions(actions: &[TraceAction], canvas_ids: &[String]) -> Result<()
         )
     }
 
-    let mut counts: BTreeMap<String, (usize, usize)> =
-        canvas_ids.iter().map(|id| (id.clone(), (0, 0))).collect();
+    let mut counts: BTreeMap<String, (usize, usize, usize)> = canvas_ids
+        .iter()
+        .map(|id| (id.clone(), (0, 0, 0)))
+        .collect();
     for action in actions {
-        let Some((pointer_count, wheel_count)) = counts.get_mut(&action.canvas) else {
+        let Some((pointer_count, wheel_count, keyboard_count)) = counts.get_mut(&action.canvas)
+        else {
             bail!(
                 "browser trace action targets unknown canvas {:?}",
                 action.canvas
@@ -236,13 +299,127 @@ fn validate_actions(actions: &[TraceAction], canvas_ids: &[String]) -> Result<()
         match action.action.as_str() {
             "trusted-pointer-drag" => *pointer_count += 1,
             "trusted-wheel" => *wheel_count += 1,
+            "trusted-keyboard" => {
+                if !matches!(input_mode, TraceInputMode::PointerWheelKeyboard) {
+                    bail!("browser trace contains keyboard evidence without keyboard validation")
+                }
+                validate_keyboard_action(action)?;
+                *keyboard_count += 1;
+            }
             other => bail!("browser trace contains unsupported canvas action {other:?}"),
         }
     }
-    for (id, (pointer_count, wheel_count)) in counts {
-        if pointer_count != 1 || wheel_count != 1 {
-            bail!("canvas {id:?} requires one trusted pointer drag and one trusted wheel action")
+    for (id, (pointer_count, wheel_count, keyboard_count)) in counts {
+        let valid = match input_mode {
+            TraceInputMode::PointerWheel => pointer_count == 1 && wheel_count == 1,
+            TraceInputMode::PointerWheelKeyboard => {
+                pointer_count == 1 && wheel_count == 1 && keyboard_count == 1
+            }
+        };
+        if !valid {
+            match input_mode {
+                TraceInputMode::PointerWheel => {
+                    bail!(
+                        "canvas {id:?} requires one trusted pointer drag and one trusted wheel action"
+                    )
+                }
+                TraceInputMode::PointerWheelKeyboard => bail!(
+                    "canvas {id:?} requires one trusted pointer drag, one trusted wheel action and one trusted keyboard action"
+                ),
+            }
         }
+    }
+    Ok(())
+}
+
+fn validate_keyboard_action(action: &TraceAction) -> Result<()> {
+    if action.key.as_deref() != Some(KEYBOARD_TRACE_KEY)
+        || action.code.as_deref() != Some(KEYBOARD_TRACE_KEY)
+        || action.repeat != Some(false)
+    {
+        bail!(
+            "canvas {:?} keyboard action must report key/code ArrowDown and repeat=false",
+            action.canvas
+        )
+    }
+    let Some(focus) = action.focus.as_ref() else {
+        bail!(
+            "canvas {:?} keyboard action is missing focus evidence",
+            action.canvas
+        )
+    };
+    if !focus.ok || focus.active_id.as_deref() != Some(action.canvas.as_str()) {
+        bail!(
+            "canvas {:?} keyboard action did not focus its target",
+            action.canvas
+        )
+    }
+    if action.observed_events.len() != 2 {
+        bail!(
+            "canvas {:?} keyboard action must contain exactly one keydown and one keyup event",
+            action.canvas
+        )
+    }
+    let mut phases = BTreeSet::new();
+    for event in &action.observed_events {
+        if !matches!(event.event_type.as_str(), "keydown" | "keyup") {
+            bail!(
+                "canvas {:?} keyboard evidence contains unsupported event {:?}",
+                action.canvas,
+                event.event_type
+            )
+        }
+        if event.is_trusted != Some(true) {
+            bail!(
+                "canvas {:?} keyboard event {:?} was not trusted",
+                action.canvas,
+                event.event_type
+            )
+        }
+        if event.target_id.as_deref() != Some(action.canvas.as_str()) {
+            bail!(
+                "canvas {:?} keyboard event {:?} targeted the wrong canvas",
+                action.canvas,
+                event.event_type
+            )
+        }
+        if event.key.as_deref() != Some(KEYBOARD_TRACE_KEY)
+            || event.code.as_deref() != Some(KEYBOARD_TRACE_KEY)
+            || event.repeat != Some(false)
+        {
+            bail!(
+                "canvas {:?} keyboard event {:?} has invalid key metadata",
+                action.canvas,
+                event.event_type
+            )
+        }
+        for (name, value) in [
+            ("alt", event.alt_key),
+            ("ctrl", event.ctrl_key),
+            ("meta", event.meta_key),
+            ("shift", event.shift_key),
+        ] {
+            if value != Some(false) {
+                bail!(
+                    "canvas {:?} keyboard event {:?} has an active {name} modifier",
+                    action.canvas,
+                    event.event_type
+                )
+            }
+        }
+        if !phases.insert(event.event_type.as_str()) {
+            bail!(
+                "canvas {:?} keyboard evidence repeats {:?}",
+                action.canvas,
+                event.event_type
+            )
+        }
+    }
+    if phases != BTreeSet::from(["keydown", "keyup"]) {
+        bail!(
+            "canvas {:?} keyboard evidence must contain keydown and keyup",
+            action.canvas
+        )
     }
     Ok(())
 }
