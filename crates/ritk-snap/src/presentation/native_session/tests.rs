@@ -96,6 +96,42 @@ fn native_session_space_toggles_cine_and_ignores_repeat() {
 }
 
 #[test]
+fn native_session_cine_rate_controls_repaint_and_bound_overlay() {
+    let (mut session, _root) = session();
+    let initial_rate = session.app.cine.fps;
+    let flow = session
+        .handle_events(&[WindowEvent::KeyDown {
+            virtual_key: crate::app::action_adapter::VIRTUAL_KEY_CINE_FPS_UP,
+            repeated: false,
+        }])
+        .expect("cine rate increase");
+    assert_eq!(flow, NativeFlow::Continue { repaint: true });
+    assert_eq!(session.app.cine.fps, initial_rate + 1.0);
+    assert!(session.app.status_message.contains("FPS"));
+
+    let overlay = super::layout::application_overlay(
+        &session.views,
+        &session.viewports,
+        true,
+        session.app.cine.fps,
+    )
+    .expect("active cine overlay");
+    assert!(overlay.commands.iter().any(|command| matches!(
+        command,
+        DisplayCommand::DrawText { text, .. } if text.contains("Cine:13fps") && text.contains("Space/-/+")
+    )));
+
+    let repeated = session
+        .handle_events(&[WindowEvent::KeyDown {
+            virtual_key: crate::app::action_adapter::VIRTUAL_KEY_CINE_FPS_UP,
+            repeated: true,
+        }])
+        .expect("repeated cine rate increase");
+    assert_eq!(repeated, NativeFlow::Continue { repaint: false });
+    assert_eq!(session.app.cine.fps, initial_rate + 1.0);
+}
+
+#[test]
 fn native_session_empty_batch_ticks_cine_from_the_session_clock() {
     let (mut session, _root) = session();
     session.app.cine.set_fps(10.0);
@@ -216,6 +252,8 @@ fn native_session_mip_application_overlay_labels_the_fourth_panel() {
         INITIAL_HEIGHT,
         session.app.zoom,
         session.app.pan_offset,
+        false,
+        session.app.cine.fps,
         true,
     )
     .expect("MIP application capture");
@@ -237,6 +275,8 @@ fn native_application_capture_adds_bounded_ritk_overlays() {
         session.app.zoom,
         session.app.pan_offset,
         false,
+        session.app.cine.fps,
+        false,
     )
     .expect("content capture");
     let (application, _) = surface_frames(
@@ -245,6 +285,8 @@ fn native_application_capture_adds_bounded_ritk_overlays() {
         INITIAL_HEIGHT,
         session.app.zoom,
         session.app.pan_offset,
+        false,
+        session.app.cine.fps,
         true,
     )
     .expect("application capture");
@@ -261,8 +303,13 @@ fn native_application_capture_adds_bounded_ritk_overlays() {
 #[test]
 fn native_overlay_is_emitted_as_metis_display_commands() {
     let (session, _root) = session();
-    let overlay = super::layout::application_overlay(&session.views, &session.viewports)
-        .expect("Métis overlay display list");
+    let overlay = super::layout::application_overlay(
+        &session.views,
+        &session.viewports,
+        false,
+        session.app.cine.fps,
+    )
+    .expect("Métis overlay display list");
     assert_eq!(
         overlay
             .commands

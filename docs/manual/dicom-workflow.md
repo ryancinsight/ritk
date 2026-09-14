@@ -707,6 +707,14 @@ native Métis session advances slices from its bounded event-wait clock and
 requests a new presentation only when a frame boundary is reached; the same
 host-neutral transition is used by the browser animation-frame loop and the
 legacy eframe shell. A newly loaded study starts paused.
+When cine is active, press `+` or `=` to increase the rate by one frame per
+second, or `-` to decrease it. The native Métis footer shows the current rate
+and these controls; the value is bounded to 1–60 FPS, repeated key-down events
+are ignored, and a rate change reanchors the host clock so stale elapsed time
+does not create a burst of slice advances. The eframe shell accepts the same
+keys. The browser animation-frame adapter currently uses the saved/session rate
+and does not expose keyboard rate controls; its host-neutral clock and bounded
+slice advancement remain the same.
 The reviewed 1280 × 800 output below is the actual run, not a made image:
 
 ![Actual MRI-DIR T2 series rendered through the Métis native surface](images/dicom-metis-real-mri.png)

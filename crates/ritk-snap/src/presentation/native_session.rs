@@ -149,6 +149,8 @@ fn compose_frames(
     surface_height: u32,
     zoom: f32,
     pan_offset: ViewportOffset,
+    cine_enabled: bool,
+    cine_fps: f32,
     show_application_overlay: bool,
 ) -> Result<(Framebuffer, [NativeViewport; 3])> {
     match (presentation_mode, projection) {
@@ -158,6 +160,8 @@ fn compose_frames(
             surface_height,
             zoom,
             pan_offset,
+            cine_enabled,
+            cine_fps,
             show_application_overlay,
         ),
         (NativePresentationMode::OrthogonalWithMip, Some(projection)) => surface_frames_with_mip(
@@ -167,6 +171,8 @@ fn compose_frames(
             surface_height,
             zoom,
             pan_offset,
+            cine_enabled,
+            cine_fps,
             show_application_overlay,
         ),
         (NativePresentationMode::Orthogonal, Some(_))
@@ -245,6 +251,8 @@ impl NativeViewerSession {
             INITIAL_HEIGHT,
             app.zoom,
             viewport_offset(&app),
+            app.cine.enabled,
+            app.cine.fps,
             capture_application,
         )?;
         observation
@@ -298,6 +306,8 @@ impl NativeViewerSession {
             self.surface_height,
             self.app.zoom,
             viewport_offset(&self.app),
+            self.app.cine.enabled,
+            self.app.cine.fps,
             self.capture_application,
         )?;
         self.views = views;

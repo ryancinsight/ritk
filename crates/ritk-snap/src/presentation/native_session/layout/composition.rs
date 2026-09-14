@@ -19,6 +19,8 @@ pub(crate) fn surface_frames(
     surface_height: u32,
     zoom: f32,
     pan_offset: ViewportOffset,
+    cine_enabled: bool,
+    cine_fps: f32,
     show_application_overlay: bool,
 ) -> Result<(Framebuffer, [NativeViewport; 3])> {
     if surface_width == 0 || surface_height == 0 {
@@ -82,7 +84,7 @@ pub(crate) fn surface_frames(
         )?;
     }
     if show_application_overlay {
-        let overlay = application_overlay(views, &viewports)?;
+        let overlay = application_overlay(views, &viewports, cine_enabled, cine_fps)?;
         overlay.render_to(&mut framebuffer);
     }
     Ok((framebuffer, viewports))
@@ -96,6 +98,8 @@ pub(crate) fn surface_frames_with_mip(
     surface_height: u32,
     zoom: f32,
     pan_offset: ViewportOffset,
+    cine_enabled: bool,
+    cine_fps: f32,
     show_application_overlay: bool,
 ) -> Result<(Framebuffer, [NativeViewport; 3])> {
     if surface_width == 0 || surface_height == 0 {
@@ -187,7 +191,7 @@ pub(crate) fn surface_frames_with_mip(
         surface_height,
     )?;
     if show_application_overlay {
-        let mut overlay = application_overlay(views, &viewports)?;
+        let mut overlay = application_overlay(views, &viewports, cine_enabled, cine_fps)?;
         append_overlay_list(
             &mut overlay,
             projection_overlay(
@@ -211,6 +215,8 @@ pub(crate) const OVERLAY_TEXT: Color = Color::rgba(255, 255, 160, 255);
 pub(crate) fn application_overlay(
     views: &[RenderedView; 3],
     viewports: &[NativeViewport; 3],
+    cine_enabled: bool,
+    cine_fps: f32,
 ) -> Result<DisplayList> {
     let mut overlay = DisplayList::default();
     for (view, viewport) in views.iter().zip(viewports) {
@@ -265,6 +271,11 @@ pub(crate) fn application_overlay(
             view.window_level.width,
             view.window_level.center
         );
+        let footer = if cine_enabled {
+            format!("{footer}  Cine:{cine_fps:.0}fps  Space/-/+")
+        } else {
+            footer
+        };
         push_overlay_command(
             &mut overlay,
             DisplayCommand::DrawText {
