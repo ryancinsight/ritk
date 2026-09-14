@@ -7,6 +7,7 @@ use crate::ui::ViewTransform;
 
 mod coordinates;
 mod gestures;
+mod keyboard;
 mod lifecycle;
 mod wheel;
 

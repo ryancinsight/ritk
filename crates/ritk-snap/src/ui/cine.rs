@@ -23,6 +23,22 @@ impl Default for CinePlayback {
 }
 
 impl CinePlayback {
+    /// Toggle playback and clear the timing anchor for the next host tick.
+    ///
+    /// Hosts own their clock. Clearing the anchor prevents a toggle from
+    /// converting the time elapsed before activation into an artificial burst
+    /// of slice advances.
+    pub fn toggle(&mut self) -> bool {
+        if self.enabled {
+            self.stop();
+            false
+        } else {
+            self.enabled = true;
+            self.last_tick_seconds = None;
+            true
+        }
+    }
+
     /// Enable or disable playback at the current wall-clock time.
     pub fn set_enabled(&mut self, enabled: bool, now_seconds: f64) {
         if enabled {
@@ -113,6 +129,16 @@ mod tests {
 
         let steps = cine.consume_steps(10.0);
         assert_eq!(steps, 64);
+    }
+
+    #[test]
+    fn toggle_starts_from_the_next_host_timestamp() {
+        let mut cine = CinePlayback::default();
+        assert!(cine.toggle());
+        assert!(cine.enabled);
+        assert_eq!(cine.consume_steps(100.0), 0);
+        assert!(!cine.toggle());
+        assert!(!cine.enabled);
     }
 
     #[test]

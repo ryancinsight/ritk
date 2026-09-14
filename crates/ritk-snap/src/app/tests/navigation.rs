@@ -41,6 +41,20 @@ fn cine_tick_stops_when_the_study_closes() {
     assert!(!app.cine.enabled);
 }
 
+#[test]
+fn cine_toggle_requires_a_study_and_resets_the_host_anchor() {
+    let mut app = SnapApp::default();
+    assert!(!app.toggle_cine());
+    assert!(!app.cine.enabled);
+
+    app.loaded = Some(test_volume([3, 4, 5]));
+    assert!(app.toggle_cine());
+    assert!(app.cine.enabled);
+    assert_eq!(app.cine.consume_steps(100.0), 0);
+    assert!(!app.toggle_cine());
+    assert!(!app.cine.enabled);
+}
+
 /// advance_slice_for_axis_loop wraps correctly and routes through set_slice_for_axis.
 ///
 /// Axis 0 has 3 slices; advance from index 2 by 1 step wraps to 0.

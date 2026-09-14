@@ -17,6 +17,22 @@ pub(crate) enum CineTick {
 }
 
 impl SnapApp {
+    /// Toggle active-axis cine playback without binding the viewer to a host
+    /// clock. The next native or browser tick establishes its own timestamp.
+    pub(crate) fn toggle_cine(&mut self) -> bool {
+        if self.loaded.is_none() {
+            self.cine.stop();
+            return false;
+        }
+        let enabled = self.cine.toggle();
+        self.status_message = if enabled {
+            "Cine playback started.".to_owned()
+        } else {
+            "Cine playback stopped.".to_owned()
+        };
+        enabled
+    }
+
     #[cfg(not(target_arch = "wasm32"))]
     pub(crate) fn axis_extent_for_volume(volume: &LoadedVolume, axis: usize) -> usize {
         match axis {
