@@ -63,7 +63,6 @@ impl SnapApp {
         state.window_width = Some(window_width);
         state.slice_index = shape[0] / 2;
 
-        #[cfg(not(target_arch = "wasm32"))]
         self.cine.stop();
         #[cfg(not(target_arch = "wasm32"))]
         {
