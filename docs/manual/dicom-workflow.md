@@ -31,6 +31,17 @@ orderly close are recorded in the [window provenance record](images/dicom-metis-
 
 ![Complete Métis application window showing the saved CT study and axial MIP](images/dicom-metis-real-ct-mip-window.png)
 
+The merged Windows default-shell build was rerun against the same saved public
+series on 2026-09-14. RITK selected all 409 files, rendered the three
+orthogonal planes, rejected a missing study before publishing a capture, and
+exited cleanly. Three bounded lifecycle runs produced the same 1280 × 800
+application frame (359,857 non-black pixels; SHA-256
+`8082cea87348126ce5a07cacb602bf71081747881481d2062bb1f2c7314113d3`). The
+capture and process-tree measurements are bound to the exact RITK, Métis and
+Moirai revisions in the [default-shell provenance record](images/dicom-metis-default-shell-ct.json).
+The corresponding three-plane application image is the [reviewed capture](images/dicom-metis-installer-ct.png);
+private clinical studies remain local.
+
 The same saved CT study also survives a live native resize. The initial
 1280 × 800 client surface and the resized 1024 × 720 surface are the reviewed
 [before](images/dicom-metis-real-ct-resize-initial.png) and
