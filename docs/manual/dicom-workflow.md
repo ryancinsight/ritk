@@ -1044,28 +1044,32 @@ acceptance gates.
 
 The reproducible cross-engine chooser workflow is
 [`metis-browser-dicom.yml`](../../.github/workflows/metis-browser-dicom.yml).
-Hosted run [34858003647](https://github.com/ryancinsight/ritk/actions/runs/34858003647)
+Hosted run [34895454734](https://github.com/ryancinsight/ritk/actions/runs/34895454734)
 ran the same 94 saved MRI-DIR DICOM files through the W3C file chooser on
 Chromium, Firefox, and WebKit. It built RITK at
-`6fabf703c8770adb239aba9bbdf4e067050a73b4`, resolved Métis at
-`e3d1cdbcaf4065030f61a2f2a75765a729c5e203`, and used Moirai at
-`3746941f810d696ced5bd7de6f1eb391e2857207`. Chromium and Firefox passed the
-RITK-owned canvas dimensions, non-black counts, exact RGBA hashes, semantic
-`data-ritk-*` attributes, bounded rejection probes, trusted pointer and wheel
-actions, and clean WebDriver teardown. Safari 26.6.2 accepted the 94 selected
-files but rejected the first bounded browser read; its trace still records
-clean WebDriver teardown. The [Chromium gallery](images/dicom-metis-real-browser-mri-cross-engine-chromium.png)
+`92f4dc5798d5b9cedc66201ff14eacb8c4e13c78`, resolved Métis at
+`02d4047c5567834667ab9beb796ea27f6257f0ad`, and used Moirai at
+`c110452ec8a8057a98deab330f9047b1c7efd522`. Chromium 152 and Firefox 155
+passed the RITK-owned canvas dimensions, non-black counts, exact RGBA hashes,
+semantic `data-ritk-*` attributes, bounded rejection probes, trusted pointer,
+wheel and focused `ArrowDown` key actions, and clean WebDriver teardown. Each
+keyboard trace contains a trusted keydown/keyup pair with `repeat: false` on
+all three canvases; the `after-keyboard` indices are 48, 257 and 257 before
+the wheel step returns to the recorded final indices. Safari 26.6.2 accepted
+the 94 selected files but rejected the first bounded browser read; its trace
+records the accepted chooser event and clean WebDriver teardown, with no DICOM
+or keyboard claim. The [Chromium gallery](images/dicom-metis-real-browser-mri-cross-engine-chromium.png)
 and [Firefox gallery](images/dicom-metis-real-browser-mri-cross-engine-firefox.png)
 are actual viewport captures of the running gallery and its RITK canvases. The
 [machine-readable provenance](images/dicom-metis-real-browser-mri-cross-engine.json)
-records the per-engine browser versions, hashes, canvas attributes, rejection
-results, and cleanup state, including the Safari read failure. RITK owns DICOM
-scanning, decoding, geometry, clinical presentation, and pixel assertions;
-Métis remains the format-neutral host and canvas boundary, and Moirai owns the
-bounded browser file read.
-Physical file-manager drag input, native file dialogs, native process launch,
-OS permission grants, WebGPU, and Safari's file-backed WebDriver read remain
-separate acceptance gates.
+records the per-engine browser versions, revisions, keyboard focus evidence,
+hashes, canvas attributes, rejection results, artifact links and cleanup state,
+including the Safari read failure. RITK owns DICOM scanning, decoding,
+geometry, clinical presentation and pixel assertions; Métis remains the
+format-neutral host and canvas boundary, and Moirai owns the bounded browser
+file read. Physical file-manager drag input, native file dialogs, native
+process launch, OS permission grants, WebGPU and Safari's file-backed
+WebDriver read remain separate acceptance gates.
 
 ## Build the RITK SNAP executable and installer
 
@@ -1415,9 +1419,11 @@ for each canvas, with matching `key` and `code`, `repeat: false`, no modifier
 flags, and the canvas as the event target. Missing focus, an untrusted event,
 or a mismatched target fails the trace before any viewer claim is made. The
 keyboard records are transport evidence; RITK's reducer remains the owner of
-navigation and cine meaning. Hosted cross-engine keyboard validation is still
-pending, so this command is a reproducible local contract check rather than a
-new image capture.
+navigation and cine meaning. Hosted run
+[34895454734](https://github.com/ryancinsight/ritk/actions/runs/34895454734)
+passes this keyboard contract on Chromium 152 and Firefox 155. Safari's file
+read failed before its canvases were presented, so no Safari keyboard claim is
+made.
 
 ## Present validated RITK views through Métis
 
