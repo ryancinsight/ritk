@@ -21,6 +21,7 @@ pub enum NativePresentationMode {
 
 /// Startup configuration for the native `ritk-snap` application.
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[cfg_attr(not(windows), derive(Default))]
 pub struct AppLaunchOptions {
     /// Optional DICOM folder or medical image file to load at startup.
     pub initial_path: Option<PathBuf>,
@@ -53,6 +54,7 @@ pub struct AppLaunchOptions {
     pub native_presentation_mode: NativePresentationMode,
 }
 
+#[cfg(windows)]
 impl Default for AppLaunchOptions {
     fn default() -> Self {
         Self {
