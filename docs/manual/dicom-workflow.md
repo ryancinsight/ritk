@@ -1029,6 +1029,18 @@ study. Edge is one Chromium-family engine; physical file-manager drag input,
 Firefox/WebKit, WebGPU, native file dialogs and native process launch remain
 separate acceptance gates.
 
+The reproducible cross-engine chooser workflow is
+[`metis-browser-dicom.yml`](../../.github/workflows/metis-browser-dicom.yml).
+On a scheduled or manual run it checks out the exact Métis revision recorded by
+`Cargo.lock`, builds the RITK `wasm32-unknown-unknown` consumer, packages the
+Métis gallery, and sends the same 94 saved MRI-DIR DICOM files through the W3C
+file chooser on Chromium, Firefox, and WebKit. Each matrix job checks the
+RITK-owned canvas dimensions, non-black counts, RGBA hashes, semantic
+`data-ritk-*` attributes, rejection probes, and clean WebDriver teardown. The
+job uploads the actual canvas and gallery PNGs as short-lived workflow
+artifacts; it does not replace the committed public-study captures or claim a
+hosted run until that workflow has completed.
+
 ## Build the RITK SNAP executable and installer
 
 RITK owns the application manifest at
