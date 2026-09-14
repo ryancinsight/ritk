@@ -54,6 +54,13 @@ preceding snapshot. This prevents a valid keyboard transition followed by an
 opposite wheel transition from looking unchanged when only the initial and
 final states are compared.
 
+Revision 2026-09-14: hosted run
+[34895454734](https://github.com/ryancinsight/ritk/actions/runs/34895454734)
+passed `--require-keyboard` validation on Chromium 152 and Firefox 155 for all
+three canvases. Safari 26.6.2 failed its bounded file read before a canvas trace
+or keyboard action could be produced; the failure is retained as the WebKit
+provider regression case.
+
 ## Rejected alternative
 
 Putting the semantic checks in `scripts/browser_runtime.py` would make the
@@ -73,6 +80,7 @@ by the executable. At the current revision,
 WASM Clippy/check gates and `cargo fmt --all -- --check` pass; and
 `cargo run --locked -p ritk-snap -- --validate-browser-trace
 crates/ritk-snap/tests/fixtures/browser-trace.json` reports the Chromium
-trace and both revisions. The manual records the command and its limits;
-configured browser-driver and clinical pixel evidence remain separate RITK
-workflow requirements.
+trace and both revisions. Hosted run 34895454734 supplies the same validator
+evidence on Chromium and Firefox and records the Safari read failure. The
+manual records the command and its limits; configured browser-driver and
+clinical pixel evidence remain separate RITK workflow requirements.

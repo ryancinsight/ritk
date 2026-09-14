@@ -61,6 +61,13 @@ consumer boundary before its input listeners are used. Keyboard focus therefore
 targets the canvas that owns the bounded event queue instead of depending on
 browser markup defaults.
 
+Revision 2026-09-14: hosted run
+[34895454734](https://github.com/ryancinsight/ritk/actions/runs/34895454734)
+validated the focused keyboard path on Chromium 152 and Firefox 155 while
+rendering the saved 94-file MRI-DIR study. Safari 26.6.2 accepted the chooser
+event but rejected the first bounded file read, so it has no canvas or keyboard
+claim.
+
 ## Rejected alternative
 
 Handling pointer state in Métis would duplicate RITK's viewer reducer and make
