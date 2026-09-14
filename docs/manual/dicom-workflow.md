@@ -1026,20 +1026,33 @@ ritk-snap.exe --validate-browser-trace `
 
 This closes the configured Edge/Chromium file-backed run for the saved MRI
 study. Edge is one Chromium-family engine; physical file-manager drag input,
-Firefox/WebKit, WebGPU, native file dialogs and native process launch remain
-separate acceptance gates.
+WebGPU, native file dialogs and native process launch remain separate
+acceptance gates.
 
 The reproducible cross-engine chooser workflow is
 [`metis-browser-dicom.yml`](../../.github/workflows/metis-browser-dicom.yml).
-On a scheduled or manual run it checks out the exact Métis revision recorded by
-`Cargo.lock`, builds the RITK `wasm32-unknown-unknown` consumer, packages the
-Métis gallery, and sends the same 94 saved MRI-DIR DICOM files through the W3C
-file chooser on Chromium, Firefox, and WebKit. Each matrix job checks the
-RITK-owned canvas dimensions, non-black counts, RGBA hashes, semantic
-`data-ritk-*` attributes, rejection probes, and clean WebDriver teardown. The
-job uploads the actual canvas and gallery PNGs as short-lived workflow
-artifacts; it does not replace the committed public-study captures or claim a
-hosted run until that workflow has completed.
+Hosted run [34858003647](https://github.com/ryancinsight/ritk/actions/runs/34858003647)
+ran the same 94 saved MRI-DIR DICOM files through the W3C file chooser on
+Chromium, Firefox, and WebKit. It built RITK at
+`6fabf703c8770adb239aba9bbdf4e067050a73b4`, resolved Métis at
+`e3d1cdbcaf4065030f61a2f2a75765a729c5e203`, and used Moirai at
+`3746941f810d696ced5bd7de6f1eb391e2857207`. Chromium and Firefox passed the
+RITK-owned canvas dimensions, non-black counts, exact RGBA hashes, semantic
+`data-ritk-*` attributes, bounded rejection probes, trusted pointer and wheel
+actions, and clean WebDriver teardown. Safari 26.6.2 accepted the 94 selected
+files but rejected the first bounded browser read; its trace still records
+clean WebDriver teardown. The [Chromium gallery](images/dicom-metis-real-browser-mri-cross-engine-chromium.png)
+and [Firefox gallery](images/dicom-metis-real-browser-mri-cross-engine-firefox.png)
+are actual viewport captures of the running gallery and its RITK canvases. The
+[machine-readable provenance](images/dicom-metis-real-browser-mri-cross-engine.json)
+records the per-engine browser versions, hashes, canvas attributes, rejection
+results, and cleanup state, including the Safari read failure. RITK owns DICOM
+scanning, decoding, geometry, clinical presentation, and pixel assertions;
+Métis remains the format-neutral host and canvas boundary, and Moirai owns the
+bounded browser file read.
+Physical file-manager drag input, native file dialogs, native process launch,
+OS permission grants, WebGPU, and Safari's file-backed WebDriver read remain
+separate acceptance gates.
 
 ## Build the RITK SNAP executable and installer
 
@@ -1171,10 +1184,10 @@ RGBA frame. DICOM parsing, metadata, geometry, window/level and viewer state
 remain in RITK. The named canvas now retains bounded pointer and wheel
 listeners and routes target-local events through RITK's shared
 presentation/action reducer; pointer cancel and provider failures clear the
-active gesture. Physical browser-driver input, cross-engine evidence and browser
-WebGPU remain separate acceptance work; the native eframe volume upload now
-preflights device limits, reports pending GPU readback, and uses the CPU
-projection path when the GPU path is unsupported or fails.
+active gesture. Physical browser-driver input, Safari's file-backed WebDriver
+read, and browser WebGPU remain separate acceptance work. The native eframe
+volume upload now preflights device limits, reports pending GPU readback, and
+uses the CPU projection path when the GPU path is unsupported or fails.
 
 The direct three-view entrypoint uses three canvases and preserves the same
 format-neutral boundary:
@@ -1208,10 +1221,10 @@ existing loader and presents the axial, coronal and sagittal
 axis order and slice dimensions; the packaged three-canvas capture below
 verifies the runtime dimensions and non-black pixels. Each canvas now routes
 its bounded pointer and wheel batch to the matching RITK axis. Physical
-browser-driver input, cross-engine evidence and browser WebGPU remain separate
-acceptance work; native eframe GPU uploads are guarded by the same RITK device
-limit check and have a fitting-volume visual capture in the eframe workflow
-above.
+browser-driver input, Safari's file-backed WebDriver read, and browser WebGPU
+remain separate acceptance work; native eframe GPU uploads are guarded by the
+same RITK device limit check and have a fitting-volume visual capture in the
+eframe workflow above.
 
 Each RITK canvas also publishes a bounded semantic snapshot for workflow
 drivers. `data-ritk-load-state` is `empty` or `ready`,
