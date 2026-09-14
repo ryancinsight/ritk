@@ -635,6 +635,14 @@ passes 14/14, and a rebuilt public CT capture remains byte-identical at
 four-panel MIP capture remains byte-identical at
 `989a1f66b43a39ec753180cdd882b08e11adfc2ab4009c416a694c1fd12efe42`.
 
+Revision 2026-09-14 (legacy eframe viewport removal): the unreferenced
+`ui::viewport` widget and its egui texture/state model are removed. The
+current viewer owns viewport state in `SnapApp`, renders the native surface
+through `PresentationFrame` and the browser through the Métis canvas seam; no
+caller in the workspace depended on the deleted public re-export. This
+removes a second, orphaned presentation state model without changing DICOM
+decoding, geometry, viewer transitions, or the inspected real-study captures.
+
 ## Alternatives and validation
 
 Retaining egui indefinitely contradicts the requested framework target. Removing
