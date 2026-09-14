@@ -224,7 +224,7 @@ impl EguiApp {
         };
 
         let color_image =
-            apply_to_image_into(&mut self.render_buffer_pool, &color_image, view_transform);
+            apply_to_image_into(&mut self.render.buffer_pool, &color_image, view_transform);
 
         let tex_name = format!("rtdose_overlay_axis{}_slice{}", axis_slot, slice_idx);
         let texture =

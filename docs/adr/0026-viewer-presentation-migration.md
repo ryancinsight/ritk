@@ -607,6 +607,14 @@ viewer state and presentation pixels; Métis and Moirai provide only the host,
 canvas and event-loop seams. Standalone locked WASM check and warning-denied
 Clippy cover the consumer against the merged Moirai provider.
 
+Revision 2026-09-14 (eframe scratch ownership): `RenderBufferPool` now lives
+inside `EguiRenderState` beside eframe texture handles. Slice, MIP, compare and
+RT-DOSE rebuilds borrow that shell-owned pool, while `SnapApp` carries only
+viewer state and RITK presentation values. Visual invalidation still releases
+retained GPU resources but preserves scratch capacity for reuse. Native Métis
+and browser presentation remain unchanged, and DICOM parsing, geometry and
+clinical pixels remain RITK-owned.
+
 ## Alternatives and validation
 
 Retaining egui indefinitely contradicts the requested framework target. Removing

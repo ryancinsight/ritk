@@ -5,6 +5,7 @@
 //! resources cannot enter native or browser-neutral viewer state.
 
 use super::state::SnapApp;
+use crate::render::RenderBufferPool;
 use crate::ui::ViewTransform;
 use std::ops::{Deref, DerefMut};
 
@@ -18,8 +19,10 @@ pub(crate) struct RtDoseOverlayCacheEntry {
     pub(crate) texture: egui::TextureHandle,
 }
 
-/// Eframe texture resources kept outside the host-neutral viewer state.
+/// Eframe render resources kept outside the host-neutral viewer state.
 pub(crate) struct EguiRenderState {
+    /// Scratch storage reused by eframe texture rebuilds.
+    pub(crate) buffer_pool: RenderBufferPool,
     pub(crate) texture: Option<egui::TextureHandle>,
     pub(crate) secondary_texture: Option<egui::TextureHandle>,
     pub(crate) coronal_tex: Option<egui::TextureHandle>,
@@ -36,6 +39,7 @@ pub(crate) struct EguiRenderState {
 impl Default for EguiRenderState {
     fn default() -> Self {
         Self {
+            buffer_pool: RenderBufferPool::default(),
             texture: None,
             secondary_texture: None,
             coronal_tex: None,

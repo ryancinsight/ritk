@@ -32,7 +32,7 @@ impl EguiApp {
 
     pub(crate) fn rebuild_texture_for_axis(&mut self, ctx: &egui::Context, axis: usize) {
         let (color_image, tex_name) = {
-            let app = &mut self.app;
+            let (app, render) = (&mut self.app, &mut self.render);
             let Some(vol) = app.loaded.as_ref() else {
                 return;
             };
@@ -59,7 +59,7 @@ impl EguiApp {
             let colormap = app.colormap;
             let view_transform = app.view_transform;
             let img = SliceRenderer::render_with_scratch(
-                &mut app.render_buffer_pool,
+                &mut render.buffer_pool,
                 vol,
                 axis,
                 slice_index,
@@ -67,7 +67,7 @@ impl EguiApp {
                 colormap,
             );
             // Apply viewport orientation transform (flip/rotate) before GPU upload.
-            let img = apply_to_image_into(&mut app.render_buffer_pool, &img, view_transform);
+            let img = apply_to_image_into(&mut render.buffer_pool, &img, view_transform);
             (img, name)
         };
         // immutable borrow of self.loaded released here
@@ -152,13 +152,13 @@ impl EguiApp {
         let colormap = self.colormap;
         let color_image = match projection_mode {
             ProjectionMode::Mip => render_mip_axial_with_scratch(
-                &mut self.app.render_buffer_pool.rgba_u8,
+                &mut self.render.buffer_pool.rgba_u8,
                 vol,
                 wl,
                 colormap,
             ),
             ProjectionMode::Vr => render_vr_axial_with_scratch(
-                &mut self.app.render_buffer_pool.rgba_u8,
+                &mut self.render.buffer_pool.rgba_u8,
                 vol,
                 wl,
                 colormap,
@@ -274,7 +274,7 @@ impl EguiApp {
         slice_index: usize,
     ) {
         let (color_image, tex_name) = {
-            let app = &mut self.app;
+            let (app, render) = (&mut self.app, &mut self.render);
             let Some(vol) = app.loaded_secondary.as_ref() else {
                 return;
             };
@@ -288,14 +288,14 @@ impl EguiApp {
             let colormap = app.secondary_colormap;
             let view_transform = app.view_transform;
             let img = SliceRenderer::render_with_scratch(
-                &mut app.render_buffer_pool,
+                &mut render.buffer_pool,
                 vol,
                 axis,
                 slice_index,
                 wl,
                 colormap,
             );
-            let img = apply_to_image_into(&mut app.render_buffer_pool, &img, view_transform);
+            let img = apply_to_image_into(&mut render.buffer_pool, &img, view_transform);
             (img, name)
         };
         self.render.secondary_texture =
