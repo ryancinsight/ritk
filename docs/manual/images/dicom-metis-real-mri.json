@@ -4,8 +4,8 @@
   "runtime": {
     "host": "Windows native Métis surface",
     "input": "local DICOM directory passed to ritk-snap",
-    "ritk_revision": "cc3270eaab28ceacea9242cec0a8854cc7afdcbc7",
-    "metis_revision": "80a5da5aebfbe2c7e43082886a0a1fff146b7aa7",
+    "ritk_revision": "f6e82835b856c55adcc1b97ad173686903e6a974",
+    "metis_revision": "ed3806811f23271310cb04078dff55aba5c90944",
     "moirai_revision": "a7fa2ba69f25070581f7245f059089705d8fc699"
   },
   "dataset": {
