@@ -38,6 +38,15 @@ impl SnapApp {
             self.toggle_cine();
         }
 
+        if ctx.input(|input| input.key_pressed(egui::Key::Plus))
+            || ctx.input(|input| input.key_pressed(egui::Key::Equals))
+        {
+            self.adjust_cine_fps(1.0);
+        }
+        if ctx.input(|input| input.key_pressed(egui::Key::Minus)) {
+            self.adjust_cine_fps(-1.0);
+        }
+
         let nav = ctx.input(|input| {
             (
                 input.key_pressed(egui::Key::ArrowUp),

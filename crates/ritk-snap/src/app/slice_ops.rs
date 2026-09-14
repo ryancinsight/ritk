@@ -33,6 +33,20 @@ impl SnapApp {
         enabled
     }
 
+    /// Adjust the bounded cine playback rate for the loaded study.
+    pub(crate) fn adjust_cine_fps(&mut self, delta: f32) -> bool {
+        if self.loaded.is_none() || !delta.is_finite() {
+            return false;
+        }
+        let next = (self.cine.fps + delta).clamp(1.0, 60.0);
+        if self.cine.fps.to_bits() == next.to_bits() {
+            return false;
+        }
+        self.cine.set_fps(next);
+        self.status_message = format!("Cine playback rate: {next:.0} FPS.");
+        true
+    }
+
     #[cfg(not(target_arch = "wasm32"))]
     pub(crate) fn axis_extent_for_volume(volume: &LoadedVolume, axis: usize) -> usize {
         match axis {

@@ -24,6 +24,8 @@ const VIRTUAL_KEY_HOME: u32 = 0x24;
 const VIRTUAL_KEY_ARROW_UP: u32 = 0x26;
 const VIRTUAL_KEY_ARROW_DOWN: u32 = 0x28;
 pub(crate) const VIRTUAL_KEY_CINE_TOGGLE: u32 = 0x20;
+pub(crate) const VIRTUAL_KEY_CINE_FPS_UP: u32 = 0xbb;
+pub(crate) const VIRTUAL_KEY_CINE_FPS_DOWN: u32 = 0xbd;
 
 /// Geometry needed to map host client coordinates into one displayed slice.
 ///
@@ -374,6 +376,19 @@ impl SnapApp {
             }
             return ViewerActionDisposition::Continue {
                 repaint: self.toggle_cine(),
+            };
+        }
+        if virtual_key == VIRTUAL_KEY_CINE_FPS_UP || virtual_key == VIRTUAL_KEY_CINE_FPS_DOWN {
+            if repeated {
+                return ViewerActionDisposition::Continue { repaint: false };
+            }
+            let delta = if virtual_key == VIRTUAL_KEY_CINE_FPS_UP {
+                1.0
+            } else {
+                -1.0
+            };
+            return ViewerActionDisposition::Continue {
+                repaint: self.adjust_cine_fps(delta),
             };
         }
         if let Some(tool) = tool_kind_for_virtual_key(virtual_key) {

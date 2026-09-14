@@ -57,7 +57,11 @@ impl CinePlayback {
 
     /// Update FPS while preserving bounded domain.
     pub fn set_fps(&mut self, fps: f32) {
-        self.fps = fps.clamp(1.0, 60.0);
+        let next = fps.clamp(1.0, 60.0);
+        if self.fps.to_bits() != next.to_bits() {
+            self.fps = next;
+            self.last_tick_seconds = None;
+        }
     }
 
     /// Restore state from a saved session.
@@ -148,5 +152,14 @@ mod tests {
         assert_eq!(cine.fps, 1.0);
         cine.set_fps(120.0);
         assert_eq!(cine.fps, 60.0);
+    }
+
+    #[test]
+    fn changing_fps_restarts_timing_anchor() {
+        let mut cine = CinePlayback::default();
+        cine.set_enabled(true, 0.0);
+        cine.set_fps(24.0);
+        assert_eq!(cine.consume_steps(0.0), 0);
+        assert_eq!(cine.consume_steps(1.0 / 24.0), 1);
     }
 }
