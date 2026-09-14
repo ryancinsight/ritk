@@ -1,4 +1,5 @@
-use super::eframe::EguiApp;
+use super::eframe::{EguiApp, EguiRenderState};
+use super::state::SnapApp;
 use super::state::{ProjectionBackend, ProjectionMode};
 use super::viewport_render::{OVERLAY_LABEL_COLOR, OVERLAY_LABEL_FONT_SIZE, OVERLAY_LABEL_INSET};
 use crate::render::mip_vr::{render_mip_axial_with_scratch, render_vr_axial_with_scratch};
@@ -12,27 +13,15 @@ const DEFAULT_VR_ALPHA: f32 = 0.06;
 #[cfg(not(target_arch = "wasm32"))]
 const GPU_REPAINT_INTERVAL: std::time::Duration = std::time::Duration::from_millis(8);
 
-impl EguiApp {
-    /// Return whether a study capture can include the visible 3D projection.
-    ///
-    /// Single, dual-plane and compare layouts do not display the projection;
-    /// the multi-planar layout waits until its GPU readback or CPU fallback has
-    /// produced the current texture. Color volumes intentionally have no 3D
-    /// projection and are therefore ready once the study is loaded.
-    #[cfg(any(not(target_arch = "wasm32"), test))]
-    pub(crate) fn primary_visual_ready(&self) -> bool {
-        let Some(volume) = self.loaded.as_ref() else {
-            return false;
-        };
-        if !self.multi_planar || volume.channels != 1 {
-            return true;
-        }
-        self.render.mip_tex.is_some() && self.projection_backend != ProjectionBackend::Pending
-    }
-
-    pub(crate) fn rebuild_texture_for_axis(&mut self, ctx: &egui::Context, axis: usize) {
+impl EguiRenderState {
+    /// Rebuild one orthogonal slice texture from host-neutral viewer state.
+    pub(crate) fn rebuild_texture_for_axis(
+        &mut self,
+        app: &mut SnapApp,
+        ctx: &egui::Context,
+        axis: usize,
+    ) {
         let (color_image, tex_name) = {
-            let (app, render) = (&mut self.app, &mut self.render);
             let Some(vol) = app.loaded.as_ref() else {
                 return;
             };
@@ -59,7 +48,7 @@ impl EguiApp {
             let colormap = app.colormap;
             let view_transform = app.view_transform;
             let img = SliceRenderer::render_with_scratch(
-                &mut render.buffer_pool,
+                &mut self.buffer_pool,
                 vol,
                 axis,
                 slice_index,
@@ -67,39 +56,42 @@ impl EguiApp {
                 colormap,
             );
             // Apply viewport orientation transform (flip/rotate) before GPU upload.
-            let img = apply_to_image_into(&mut render.buffer_pool, &img, view_transform);
+            let img = apply_to_image_into(&mut self.buffer_pool, &img, view_transform);
             (img, name)
         };
-        // immutable borrow of self.loaded released here
         let tex = ctx.load_texture(tex_name, color_image, egui::TextureOptions::LINEAR);
         match axis {
-            0 => self.render.texture = Some(tex),
-            1 => self.render.coronal_tex = Some(tex),
-            _ => self.render.sagittal_tex = Some(tex),
+            0 => self.texture = Some(tex),
+            1 => self.coronal_tex = Some(tex),
+            _ => self.sagittal_tex = Some(tex),
         }
     }
 
-    /// Render the 3D-MIP projection through WL LUT and upload to the GPU.
-    pub(crate) fn rebuild_texture_for_mip(&mut self, ctx: &egui::Context) -> bool {
-        let Some(vol) = self.app.loaded.as_ref() else {
+    /// Rebuild the 3D projection texture from host-neutral viewer state.
+    pub(crate) fn rebuild_texture_for_mip(
+        &mut self,
+        app: &mut SnapApp,
+        ctx: &egui::Context,
+    ) -> bool {
+        let Some(vol) = app.loaded.as_ref() else {
             return false;
         };
         let channels = vol.channels;
         if channels != 1 {
-            self.render.mip_tex = None;
-            self.projection_backend = ProjectionBackend::Cpu;
-            self.status_message = format!(
+            self.mip_tex = None;
+            app.projection_backend = ProjectionBackend::Cpu;
+            app.status_message = format!(
                 "3D projection unavailable: scalar volume required (received {} channels).",
                 channels
             );
             tracing::warn!(channels, "skipping 3D projection for color volume");
             return true;
         }
-        let wc = self
+        let wc = app
             .viewer_state
             .window_center
             .unwrap_or(DEFAULT_WINDOW_CENTER) as f64;
-        let ww = self
+        let ww = app
             .viewer_state
             .window_width
             .unwrap_or(DEFAULT_WINDOW_WIDTH)
@@ -109,25 +101,25 @@ impl EguiApp {
         // ── GPU-accelerated MIP and VR (native only) ─────────────────────────
         #[cfg(not(target_arch = "wasm32"))]
         {
-            let projection_mode = self.projection_mode;
-            let colormap = self.colormap;
-            if let Some(gpu) = self.app.gpu_renderer.as_mut() {
+            let projection_mode = app.projection_mode;
+            let colormap = app.colormap;
+            if let Some(gpu) = app.gpu_renderer.as_mut() {
                 let gpu_result = match projection_mode {
                     ProjectionMode::Mip => gpu.render_mip(vol, wl, colormap),
                     ProjectionMode::Vr => gpu.render_vr(vol, wl, colormap, DEFAULT_VR_ALPHA),
                 };
                 match gpu_result {
                     crate::render::gpu_volume::GpuRenderResult::Ready(img) => {
-                        self.render.mip_tex = Some(ctx.load_texture(
+                        self.mip_tex = Some(ctx.load_texture(
                             "slice_tex_mip_axial",
                             img,
                             egui::TextureOptions::LINEAR,
                         ));
-                        self.projection_backend = ProjectionBackend::Gpu;
+                        app.projection_backend = ProjectionBackend::Gpu;
                         return true;
                     }
                     crate::render::gpu_volume::GpuRenderResult::Pending => {
-                        self.projection_backend = ProjectionBackend::Pending;
+                        app.projection_backend = ProjectionBackend::Pending;
                         ctx.request_repaint_after(GPU_REPAINT_INTERVAL);
                         return false;
                     }
@@ -148,30 +140,93 @@ impl EguiApp {
         }
 
         // ── CPU fallback (always available) ──────────────────────────────────
-        let projection_mode = self.projection_mode;
-        let colormap = self.colormap;
+        let projection_mode = app.projection_mode;
+        let colormap = app.colormap;
         let color_image = match projection_mode {
-            ProjectionMode::Mip => render_mip_axial_with_scratch(
-                &mut self.render.buffer_pool.rgba_u8,
-                vol,
-                wl,
-                colormap,
-            ),
+            ProjectionMode::Mip => {
+                render_mip_axial_with_scratch(&mut self.buffer_pool.rgba_u8, vol, wl, colormap)
+            }
             ProjectionMode::Vr => render_vr_axial_with_scratch(
-                &mut self.render.buffer_pool.rgba_u8,
+                &mut self.buffer_pool.rgba_u8,
                 vol,
                 wl,
                 colormap,
-                0.06,
+                DEFAULT_VR_ALPHA,
             ),
         };
-        self.render.mip_tex = Some(ctx.load_texture(
+        self.mip_tex = Some(ctx.load_texture(
             "slice_tex_mip_axial",
             color_image,
             egui::TextureOptions::LINEAR,
         ));
-        self.projection_backend = ProjectionBackend::Cpu;
+        app.projection_backend = ProjectionBackend::Cpu;
         true
+    }
+
+    /// Rebuild the secondary slice texture from host-neutral viewer state.
+    pub(crate) fn rebuild_secondary_texture(
+        &mut self,
+        app: &mut SnapApp,
+        ctx: &egui::Context,
+        axis: usize,
+        slice_index: usize,
+    ) {
+        let (color_image, tex_name) = {
+            let Some(vol) = app.loaded_secondary.as_ref() else {
+                return;
+            };
+            let wc = app.secondary_window_center.unwrap_or(DEFAULT_WINDOW_CENTER) as f64;
+            let ww = app
+                .secondary_window_width
+                .unwrap_or(DEFAULT_WINDOW_WIDTH)
+                .max(1.0) as f64;
+            let wl = WindowLevel::new(wc, ww);
+            let name = "slice_tex_secondary";
+            let colormap = app.secondary_colormap;
+            let view_transform = app.view_transform;
+            let img = SliceRenderer::render_with_scratch(
+                &mut self.buffer_pool,
+                vol,
+                axis,
+                slice_index,
+                wl,
+                colormap,
+            );
+            let img = apply_to_image_into(&mut self.buffer_pool, &img, view_transform);
+            (img, name)
+        };
+        self.secondary_texture =
+            Some(ctx.load_texture(tex_name, color_image, egui::TextureOptions::LINEAR));
+        self.secondary_texture_key = Some((axis, slice_index));
+    }
+}
+
+impl EguiApp {
+    /// Return whether a study capture can include the visible 3D projection.
+    ///
+    /// Single, dual-plane and compare layouts do not display the projection;
+    /// the multi-planar layout waits until its GPU readback or CPU fallback has
+    /// produced the current texture. Color volumes intentionally have no 3D
+    /// projection and are therefore ready once the study is loaded.
+    #[cfg(any(not(target_arch = "wasm32"), test))]
+    pub(crate) fn primary_visual_ready(&self) -> bool {
+        let Some(volume) = self.loaded.as_ref() else {
+            return false;
+        };
+        if !self.multi_planar || volume.channels != 1 {
+            return true;
+        }
+        self.render.mip_tex.is_some() && self.projection_backend != ProjectionBackend::Pending
+    }
+
+    pub(crate) fn rebuild_texture_for_axis(&mut self, ctx: &egui::Context, axis: usize) {
+        self.render
+            .rebuild_texture_for_axis(&mut self.app, ctx, axis);
+    }
+
+    /// Render the 3D-MIP projection through WL LUT and upload to the GPU.
+    pub(crate) fn rebuild_texture_for_mip(&mut self, ctx: &egui::Context) -> bool {
+        self.render.rebuild_texture_for_mip(&mut self.app, ctx)
     }
 
     /// Render one 3D-MIP viewport into `ui`.
@@ -273,33 +328,7 @@ impl EguiApp {
         axis: usize,
         slice_index: usize,
     ) {
-        let (color_image, tex_name) = {
-            let (app, render) = (&mut self.app, &mut self.render);
-            let Some(vol) = app.loaded_secondary.as_ref() else {
-                return;
-            };
-            let wc = app.secondary_window_center.unwrap_or(DEFAULT_WINDOW_CENTER) as f64;
-            let ww = app
-                .secondary_window_width
-                .unwrap_or(DEFAULT_WINDOW_WIDTH)
-                .max(1.0) as f64;
-            let wl = WindowLevel::new(wc, ww);
-            let name = "slice_tex_secondary";
-            let colormap = app.secondary_colormap;
-            let view_transform = app.view_transform;
-            let img = SliceRenderer::render_with_scratch(
-                &mut render.buffer_pool,
-                vol,
-                axis,
-                slice_index,
-                wl,
-                colormap,
-            );
-            let img = apply_to_image_into(&mut render.buffer_pool, &img, view_transform);
-            (img, name)
-        };
-        self.render.secondary_texture =
-            Some(ctx.load_texture(tex_name, color_image, egui::TextureOptions::LINEAR));
-        self.render.secondary_texture_key = Some((axis, slice_index));
+        self.render
+            .rebuild_secondary_texture(&mut self.app, ctx, axis, slice_index);
     }
 }
