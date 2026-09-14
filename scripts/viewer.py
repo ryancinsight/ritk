@@ -195,7 +195,7 @@ def main():
             if arguments.metis_native:
                 native_args.extend(("--metis-native", "--capture", str(output / "metis-frame.png")))
             else:
-                native_args.extend(("--capture", str(output / "window.png")))
+                native_args.extend(("--eframe", "--capture", str(output / "window.png")))
             window = subprocess.run(native_args, capture_output=True, encoding="utf-8",
                                     timeout=60, check=True)
             # Exercise actual failure propagation without publishing a screenshot
@@ -205,7 +205,7 @@ def main():
             if arguments.metis_native:
                 rejected_args.extend(("--metis-native", "--capture", str(output / rejected_name)))
             else:
-                rejected_args.extend(("--capture", str(output / rejected_name)))
+                rejected_args.extend(("--eframe", "--capture", str(output / rejected_name)))
             rejected = subprocess.run(rejected_args, capture_output=True, encoding="utf-8",
                                       timeout=60, check=False)
             error_marker = "open initial RITK study" if arguments.metis_native else "initial study did not load"
@@ -231,7 +231,7 @@ def main():
                     real_args.extend(("--metis-native", "--capture-application", "--capture",
                                       str(output / real_capture_name)))
                 else:
-                    real_args.extend(("--capture", str(output / real_capture_name)))
+                    real_args.extend(("--eframe", "--capture", str(output / real_capture_name)))
                 subprocess.run(real_args, capture_output=True, encoding="utf-8",
                                timeout=60, check=True)
                 real_metrics = png_summary(output / real_capture_name)

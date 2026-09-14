@@ -42,19 +42,19 @@ struct Args {
     #[arg(long, value_name = "PNG")]
     capture: Option<PathBuf>,
     /// Include the bounded RITK application overlay in a Métis capture.
-    #[arg(long, requires_all = ["capture", "metis_native"])]
+    #[arg(long, requires = "capture")]
     capture_application: bool,
     /// Run a study through the Métis native host. Without PATH, open the
-    /// Windows native folder picker before loading the selected study.
+    /// Windows native folder picker before loading the selected study. This is
+    /// the default Windows shell; use `--eframe` for the compatibility shell.
     #[arg(long)]
     metis_native: bool,
+    /// Use the legacy eframe compatibility shell instead of the default Métis
+    /// host on Windows.
+    #[arg(long, conflicts_with = "metis_native")]
+    eframe: bool,
     /// Select the native Métis framebuffer layout.
-    #[arg(
-        long = "metis-native-layout",
-        value_enum,
-        default_value = "orthogonal",
-        requires = "metis_native"
-    )]
+    #[arg(long = "metis-native-layout", value_enum, default_value = "orthogonal")]
     native_presentation_mode: ritk_snap::NativePresentationMode,
     /// Validate a RITK-owned semantic canvas trace and exit.
     #[arg(
@@ -82,12 +82,21 @@ fn main() -> anyhow::Result<()> {
         writeln!(stdout, "{report}")?;
         return Ok(());
     }
+    let metis_native = !args.eframe && (args.metis_native || cfg!(windows));
+    if args.capture_application && !metis_native {
+        anyhow::bail!("--capture-application requires the Métis native shell");
+    }
+    if args.native_presentation_mode != ritk_snap::NativePresentationMode::Orthogonal
+        && !metis_native
+    {
+        anyhow::bail!("native presentation layout requires the Métis native shell");
+    }
     ritk_snap::run_app_with_options(ritk_snap::AppLaunchOptions {
         initial_path: args.initial_path,
         initial_series_uid: args.initial_series_uid,
         capture: args.capture,
         capture_application: args.capture_application,
-        metis_native: args.metis_native,
+        metis_native,
         native_presentation_mode: args.native_presentation_mode,
     })
 }

@@ -643,6 +643,13 @@ caller in the workspace depended on the deleted public re-export. This
 removes a second, orphaned presentation state model without changing DICOM
 decoding, geometry, viewer transitions, or the inspected real-study captures.
 
+Revision 2026-09-14 (Windows default shell): the existing Métis native host is
+now the default `ritk-snap` desktop shell on Windows. The eframe path remains
+available only through the explicit `--eframe` compatibility option, and other
+native targets retain eframe until a Métis surface provider exists. The
+selection is a launch policy change; RITK continues to own DICOM opening,
+decoding, geometry, clinical presentation, and the saved-study workflow.
+
 ## Alternatives and validation
 
 Retaining egui indefinitely contradicts the requested framework target. Removing

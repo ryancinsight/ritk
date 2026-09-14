@@ -20,7 +20,7 @@ pub enum NativePresentationMode {
 }
 
 /// Startup configuration for the native `ritk-snap` application.
-#[derive(Debug, Clone, Default, PartialEq, Eq, Serialize, Deserialize)]
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub struct AppLaunchOptions {
     /// Optional DICOM folder or medical image file to load at startup.
     pub initial_path: Option<PathBuf>,
@@ -42,8 +42,10 @@ pub struct AppLaunchOptions {
     /// decorations are outside the framebuffer contract.
     #[serde(default)]
     pub capture_application: bool,
-    /// Use the Métis native host instead of the eframe shell. On Windows, a
-    /// missing startup path opens the bounded native folder picker.
+    /// Use the Métis native host instead of the eframe shell. On Windows this
+    /// defaults to `true`; callers can select the eframe compatibility shell
+    /// explicitly. A missing startup path opens the bounded native folder
+    /// picker.
     #[serde(default)]
     pub metis_native: bool,
     /// Native Métis layout. Non-default values require `metis_native`.
@@ -51,15 +53,30 @@ pub struct AppLaunchOptions {
     pub native_presentation_mode: NativePresentationMode,
 }
 
+impl Default for AppLaunchOptions {
+    fn default() -> Self {
+        Self {
+            initial_path: None,
+            initial_series_uid: None,
+            capture: None,
+            capture_application: false,
+            metis_native: cfg!(windows),
+            native_presentation_mode: NativePresentationMode::default(),
+        }
+    }
+}
+
 /// Launch the `ritk-snap` native GUI application.
 ///
-/// Initialises the selected desktop shell with a 1280×800 viewport, constructs
-/// the default viewer state, and enters the platform event loop. This function
-/// blocks until the window is closed.
+/// Initialises the default desktop shell with a 1280×800 viewport, constructs
+/// the default viewer state, and enters the platform event loop. Windows uses
+/// the Métis native host by default; other native targets retain the eframe
+/// shell until their Métis surface provider is available. This function blocks
+/// until the window is closed.
 ///
 /// # Errors
-/// Returns an error if `eframe` cannot create a window or encounters a fatal
-/// platform error during the event loop.
+/// Returns an error if the selected shell cannot create a window or encounters
+/// a fatal platform error during the event loop.
 #[cfg(not(target_arch = "wasm32"))]
 pub fn run_app() -> anyhow::Result<()> {
     run_app_with_options(AppLaunchOptions::default())
@@ -87,8 +104,10 @@ where
 /// native folder picker and passes the selected path to RITK. A cancelled
 /// picker returns an error without starting a window. `initial_series_uid`
 /// selects one acquisition after RITK discovery when the path contains several
-/// series. With the default eframe shell, `initial_path` is queued for loading
-/// on the first UI update. Directory paths are also scanned for the DICOM
+/// series. With the eframe compatibility shell, `initial_path` is queued for loading
+/// on the first UI update. On Windows, the default launch uses the Métis host;
+/// pass `metis_native: false` to select the eframe compatibility shell.
+/// Directory paths are also scanned for the DICOM
 /// series browser before the first frame; a requested capture waits for that
 /// load to publish before taking its frame.
 ///
@@ -125,6 +144,9 @@ pub fn run_app_with_options(options: AppLaunchOptions) -> anyhow::Result<()> {
     }
     if options.native_presentation_mode != NativePresentationMode::Orthogonal {
         anyhow::bail!("native presentation layout requires the Métis native host");
+    }
+    if options.capture_application {
+        anyhow::bail!("application capture requires the Métis native host");
     }
     use std::cell::Cell;
     use std::rc::Rc;
