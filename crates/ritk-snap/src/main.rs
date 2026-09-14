@@ -44,7 +44,8 @@ struct Args {
     /// Include the bounded RITK application overlay in a Métis capture.
     #[arg(long, requires_all = ["capture", "metis_native"])]
     capture_application: bool,
-    /// Run the loaded study through the Métis native host.
+    /// Run a study through the Métis native host. Without PATH, open the
+    /// Windows native folder picker before loading the selected study.
     #[arg(long)]
     metis_native: bool,
     /// Select the native Métis framebuffer layout.

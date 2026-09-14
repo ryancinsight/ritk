@@ -357,6 +357,21 @@ For the migrated Windows host, run the same generated study through Métis:
 target/debug/ritk-snap.exe scratch/viewer/study --metis-native
 ```
 
+To open a saved study through the same host without typing its path, omit the
+positional argument on Windows:
+
+```powershell
+target\debug\ritk-snap.exe --metis-native
+```
+
+Moirai opens the bounded native folder picker and returns only the selected
+path to Metis. RITK then scans that folder, applies its DICOM series contract,
+decodes the stored pixels, and renders the selected study. Cancelling the
+picker returns an error before a window is created. A folder containing more
+than one acquisition must use the explicit path and
+`--series-instance-uid` command above; the picker path never selects a series
+implicitly.
+
 The Métis host owns the window handle, finite event wait, retained framebuffer,
 resize/minimize handling, DPI updates and terminal cleanup. RITK owns the file
 open, DICOM decode, selected volume, window/level, colormap, slice navigation

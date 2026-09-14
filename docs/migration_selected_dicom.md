@@ -28,7 +28,7 @@ parent directory. Invalid indices fail instead of enabling folder fallback.
 | `SidebarPanel::with_tag_search` | Use `new`; the removed alias ignored its tag-search argument. Struct literals use `selected_acquisition` instead of `selected_path`. |
 | `SidebarPanel::show` | Consume the returned `Arc<DicomSeriesInfo>`, keeping both UID and files. Update highlighting only after successful loading. |
 | `ViewerSessionSnapshot` struct construction | Supply `SessionFormat::default()` and `Option<StudySource>`; filesystem sources use `StudySource::Path`, selected series use `StudySource::Dicom { series_uid, files }`. |
-| `AppLaunchOptions` struct construction | Supply `capture: None`, `initial_series_uid: None`, and `metis_native: false` for the eframe shell, or set `metis_native: true` with an initial path and optional `initial_series_uid` to use the Windows Métis host. `Default` keeps all optional startup inputs disabled. |
+| `AppLaunchOptions` struct construction | Supply `capture: None`, `initial_series_uid: None`, and `metis_native: false` for the eframe shell, or set `metis_native: true` with an optional initial path and optional `initial_series_uid` to use the Windows Métis host. When the path is absent, Windows opens the native folder picker. `Default` keeps all optional startup inputs disabled. |
 | `OverlayRenderer::draw` | Consume its `Option<String>` result. Pass returned overflow metadata to `OverlayRenderer::show_details` with the viewport UI and rectangle. |
 | `OverlayRenderer::draw_orientation_labels` | Remove the separate call; `draw` now lays out orientation and corner annotations together. |
 
@@ -48,7 +48,8 @@ is therefore a breaking public-struct change. The native series-selection
 increment adds `initial_series_uid` to the same public struct. Downstream
 struct literals must set both fields explicitly (`initial_series_uid: None` and
 `metis_native: false` for the eframe shell, or a selected UID with
-`metis_native: true` and an initial path for the Windows Métis shell); callers
-that use `Default` need no source change. `load_volume_from_series_uid` is the
+`metis_native: true` with an optional initial path for the Windows Métis shell;
+when the path is absent, the shell obtains one from the native folder picker.
+Callers that use `Default` need no source change. `load_volume_from_series_uid` is the
 RITK-owned path API for non-interactive selection and never chooses an
 arbitrary series.

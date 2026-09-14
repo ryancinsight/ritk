@@ -1,6 +1,9 @@
 use serde::{Deserialize, Serialize};
 use std::path::PathBuf;
 
+#[cfg(windows)]
+use std::path::Path;
+
 #[cfg(not(target_arch = "wasm32"))]
 mod capture;
 
@@ -39,8 +42,8 @@ pub struct AppLaunchOptions {
     /// decorations are outside the framebuffer contract.
     #[serde(default)]
     pub capture_application: bool,
-    /// Use the Métis native host instead of the eframe shell. This requires a
-    /// startup path and is currently available on Windows.
+    /// Use the Métis native host instead of the eframe shell. On Windows, a
+    /// missing startup path opens the bounded native folder picker.
     #[serde(default)]
     pub metis_native: bool,
     /// Native Métis layout. Non-default values require `metis_native`.
@@ -62,14 +65,32 @@ pub fn run_app() -> anyhow::Result<()> {
     run_app_with_options(AppLaunchOptions::default())
 }
 
+#[cfg(windows)]
+fn select_native_initial_path<F>(
+    initial_path: Option<&Path>,
+    pick_folder: F,
+) -> anyhow::Result<PathBuf>
+where
+    F: FnOnce() -> anyhow::Result<Option<PathBuf>>,
+{
+    match initial_path {
+        Some(path) => Ok(path.to_path_buf()),
+        None => pick_folder()?
+            .ok_or_else(|| anyhow::anyhow!("native Métis file selection was cancelled")),
+    }
+}
+
 /// Launch the `ritk-snap` native GUI application with startup options.
 ///
 /// With `metis_native`, `initial_path` is opened by RITK before the interactive
-/// Métis host starts. `initial_series_uid` selects one acquisition after RITK
-/// discovery when the path contains several series. With the default eframe
-/// shell, `initial_path` is queued for loading on the first UI update. Directory
-/// paths are also scanned for the DICOM series browser before the first frame;
-/// a requested capture waits for that load to publish before taking its frame.
+/// Métis host starts. When it is absent on Windows, the host opens a bounded
+/// native folder picker and passes the selected path to RITK. A cancelled
+/// picker returns an error without starting a window. `initial_series_uid`
+/// selects one acquisition after RITK discovery when the path contains several
+/// series. With the default eframe shell, `initial_path` is queued for loading
+/// on the first UI update. Directory paths are also scanned for the DICOM
+/// series browser before the first frame; a requested capture waits for that
+/// load to publish before taking its frame.
 ///
 /// # Errors
 /// Returns a host creation/event-loop error. With capture requested, also
@@ -78,14 +99,15 @@ pub fn run_app() -> anyhow::Result<()> {
 #[cfg(not(target_arch = "wasm32"))]
 pub fn run_app_with_options(options: AppLaunchOptions) -> anyhow::Result<()> {
     if options.metis_native {
-        let path = options
-            .initial_path
-            .as_ref()
-            .ok_or_else(|| anyhow::anyhow!("--metis-native requires an initial DICOM path"))?;
         #[cfg(windows)]
         {
+            use metis_platform::native::{pick, DialogSelection};
+
+            let path = select_native_initial_path(options.initial_path.as_deref(), || {
+                pick(DialogSelection::Folder).map_err(Into::into)
+            })?;
             crate::presentation::run_native_viewer(
-                path,
+                &path,
                 options.initial_series_uid.as_deref(),
                 options.capture.as_deref(),
                 options.native_presentation_mode,
@@ -95,7 +117,6 @@ pub fn run_app_with_options(options: AppLaunchOptions) -> anyhow::Result<()> {
         }
         #[cfg(not(windows))]
         {
-            let _ = path;
             let _ = options.capture;
             let _ = options.capture_application;
             let _ = options.native_presentation_mode;
@@ -219,4 +240,38 @@ pub fn start_web_orthogonal_canvases(
 #[wasm_bindgen::prelude::wasm_bindgen]
 pub fn stop_web_canvas() {
     crate::app::stop_web_canvas();
+}
+
+#[cfg(all(test, windows))]
+mod tests {
+    use super::select_native_initial_path;
+    use std::path::Path;
+
+    #[test]
+    fn preserves_explicit_path_without_opening_picker() {
+        let path = select_native_initial_path(Some(Path::new("study")), || {
+            Err(anyhow::anyhow!("picker must not run"))
+        })
+        .expect("explicit startup paths do not require the picker");
+
+        assert_eq!(path, Path::new("study"));
+    }
+
+    #[test]
+    fn forwards_selected_folder() {
+        let path = select_native_initial_path(None, || Ok(Some("selected-study".into())))
+            .expect("selected folder is returned");
+
+        assert_eq!(path, Path::new("selected-study"));
+    }
+
+    #[test]
+    fn reports_picker_cancellation() {
+        let error = select_native_initial_path(None, || Ok(None)).expect_err("cancel is an error");
+
+        assert_eq!(
+            error.to_string(),
+            "native Métis file selection was cancelled"
+        );
+    }
 }
