@@ -71,6 +71,9 @@
 - [x] Keep the Métis native compositor format-neutral by passing RITK's
       `ViewportOffset` through layout and geometry instead of `egui::Vec2`;
       native session tests and formatting pass.
+- [ ] Verify the pathless Windows `--metis-native` folder-picker workflow with
+      a saved DICOM study; record the actual PNG digest and non-black pixel
+      count, then close the increment with focused native gates.
 
 ## FIX-DTI-VOLUME-FRAME [major][arch] — Preserve diffusion coordinate frames
 

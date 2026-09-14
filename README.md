@@ -76,6 +76,12 @@ split for input path normalization, hanging-protocol selection, series
 discovery, metadata row construction, session snapshot persistence, rendering,
 tools, and egui widgets.
 
+`ritk-snap --metis-native` may omit `PATH` on Windows. The Métis host then
+opens Moirai's bounded native folder picker; RITK scans, decodes, and renders
+the selected saved study. A multi-series folder still requires an explicit
+`PATH` and `--series-instance-uid` so RITK never chooses an acquisition
+implicitly.
+
 Current viewer capabilities include DICOM series browsing, axial/coronal/
 sagittal MPR layout, modality-aware window presets, colormaps, measurement and
 ROI tools, interactive segmentation label paint/erase with brush radius,

@@ -176,6 +176,13 @@ selection helper, mixed-directory tests, CLI help, migration guide and
 runnable README command provide the acceptance evidence; DICOM parsing,
 metadata, geometry and clinical display remain in RITK.
 
+Revision 2026-09-14 (pathless native startup): Windows `ritk-snap
+--metis-native` may omit its positional path. The Metis adapter obtains a
+folder through Moirai's bounded common dialog and passes that path directly to
+RITK; the host remains unaware of DICOM format, identifiers, and pixels. A
+multi-series folder still requires an explicit path and
+`--series-instance-uid`, preserving fail-closed acquisition selection.
+
 Revision 2026-09-12 (bounded GPU projection and readback): the eframe volume renderer
 now computes the scalar storage-buffer size before calling wgpu and compares it
 with both device buffer limits. When a saved study exceeds either limit, the
