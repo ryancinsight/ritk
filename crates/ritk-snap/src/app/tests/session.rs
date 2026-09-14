@@ -143,6 +143,14 @@ fn primary_visual_ready_waits_for_current_multi_planar_projection() {
 #[test]
 fn render_state_invalidation_clears_retained_cache_keys() {
     let mut render = EguiRenderState::default();
+    render.buffer_pool.pixel_f32.resize(8, 0.0_f32);
+    render.buffer_pool.resize_pixel_bytes(16);
+    render.buffer_pool.resize_color32(4);
+    let scratch_capacities = (
+        render.buffer_pool.pixel_f32.capacity(),
+        render.buffer_pool.rgba_u8.capacity(),
+        render.buffer_pool.color32.capacity(),
+    );
     render.visual_revision = 4;
     render.secondary_texture_key = Some((2, 7));
 
@@ -157,6 +165,18 @@ fn render_state_invalidation_clears_retained_cache_keys() {
     assert!(render.mip_tex.is_none());
     assert!(render.mesh_tex.is_none());
     assert!(render.rt_dose_overlay_cache.iter().all(Option::is_none));
+    assert_eq!(render.buffer_pool.pixel_f32.len(), 8);
+    assert_eq!(render.buffer_pool.rgba_u8.len(), 16);
+    assert_eq!(render.buffer_pool.color32.len(), 4);
+    assert_eq!(
+        (
+            render.buffer_pool.pixel_f32.capacity(),
+            render.buffer_pool.rgba_u8.capacity(),
+            render.buffer_pool.color32.capacity(),
+        ),
+        scratch_capacities,
+        "visual invalidation must retain reusable eframe scratch storage"
+    );
 }
 
 #[test]

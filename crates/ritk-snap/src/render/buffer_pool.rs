@@ -8,7 +8,7 @@
 //!
 //! # Usage
 //!
-//! `RenderBufferPool` is stored as a field on `SnapApp` and threaded through
+//! `RenderBufferPool` is stored by the eframe render state and threaded through
 //! the slice render and MIP render helpers as `&mut RenderBufferPool`.
 //!
 //! ## Eliminated allocations per dirty-texture rebuild

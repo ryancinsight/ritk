@@ -3,8 +3,6 @@ use super::volume_input::VolumeInput;
 use crate::label::LabelEditor;
 use crate::presentation::PresentationDispatcher;
 use crate::render::NamedColorMap;
-#[cfg(not(target_arch = "wasm32"))]
-use crate::render::RenderBufferPool;
 use crate::tools::interaction::{Annotation, ToolState, ViewportOffset};
 use crate::tools::kind::ToolKind;
 use crate::ui::LinkedCursor;
@@ -204,13 +202,6 @@ pub(crate) struct SnapApp {
     /// Used to render the W/L histogram panel in the sidebar.
     pub(crate) cached_histogram: Option<crate::render::histogram::Histogram>,
 
-    #[cfg(not(target_arch = "wasm32"))]
-    /// Pre-allocated scratch buffers for per-frame texture rebuild.
-    ///
-    /// Eliminates per-call heap allocations on the slice-render and MIP-render
-    /// hot paths. Capacity grows monotonically to the maximum observed dimension.
-    pub(crate) render_buffer_pool: RenderBufferPool,
-
     // ── Series browser ────────────────────────────────────────────────────────
     /// Hierarchical DICOM series tree.
     #[cfg(not(target_arch = "wasm32"))]
@@ -229,7 +220,7 @@ pub(crate) struct SnapApp {
     /// Message shown in the bottom status bar.
     pub(crate) status_message: String,
     #[cfg(not(target_arch = "wasm32"))]
-    /// Path queued for loading on the next [`eframe::App::update`] cycle.
+    /// Path queued for loading on the next native host update cycle.
     pub(crate) pending_load: Option<VolumeInput>,
     #[cfg(not(target_arch = "wasm32"))]
     /// Secondary path queued for load on next update cycle.
@@ -394,8 +385,6 @@ impl Default for SnapApp {
             pointer_intensity: 0.0,
             pointer_suv: None,
             cached_histogram: None,
-            #[cfg(not(target_arch = "wasm32"))]
-            render_buffer_pool: RenderBufferPool::default(),
             #[cfg(not(target_arch = "wasm32"))]
             series_tree: crate::dicom::series_tree::SeriesTree::new(),
             #[cfg(not(target_arch = "wasm32"))]

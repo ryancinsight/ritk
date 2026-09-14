@@ -122,7 +122,7 @@ impl EguiApp {
                     };
                     let view_transform = self.view_transform;
                     let color_image = apply_to_image_into(
-                        &mut self.render_buffer_pool,
+                        &mut self.render.buffer_pool,
                         &color_image,
                         view_transform,
                     );
