@@ -1,6 +1,9 @@
 use serde::{Deserialize, Serialize};
 use std::path::PathBuf;
 
+#[cfg(windows)]
+use std::path::Path;
+
 #[cfg(not(target_arch = "wasm32"))]
 mod capture;
 
@@ -62,6 +65,21 @@ pub fn run_app() -> anyhow::Result<()> {
     run_app_with_options(AppLaunchOptions::default())
 }
 
+#[cfg(windows)]
+fn select_native_initial_path<F>(
+    initial_path: Option<&Path>,
+    pick_folder: F,
+) -> anyhow::Result<PathBuf>
+where
+    F: FnOnce() -> anyhow::Result<Option<PathBuf>>,
+{
+    match initial_path {
+        Some(path) => Ok(path.to_path_buf()),
+        None => pick_folder()?
+            .ok_or_else(|| anyhow::anyhow!("native Métis file selection was cancelled")),
+    }
+}
+
 /// Launch the `ritk-snap` native GUI application with startup options.
 ///
 /// With `metis_native`, `initial_path` is opened by RITK before the interactive
@@ -85,11 +103,9 @@ pub fn run_app_with_options(options: AppLaunchOptions) -> anyhow::Result<()> {
         {
             use metis_platform::native::{pick, DialogSelection};
 
-            let path = match options.initial_path.as_deref() {
-                Some(path) => path.to_path_buf(),
-                None => pick(DialogSelection::Folder)?
-                    .ok_or_else(|| anyhow::anyhow!("native Métis file selection was cancelled"))?,
-            };
+            let path = select_native_initial_path(options.initial_path.as_deref(), || {
+                pick(DialogSelection::Folder).map_err(Into::into)
+            })?;
             crate::presentation::run_native_viewer(
                 &path,
                 options.initial_series_uid.as_deref(),
@@ -224,4 +240,38 @@ pub fn start_web_orthogonal_canvases(
 #[wasm_bindgen::prelude::wasm_bindgen]
 pub fn stop_web_canvas() {
     crate::app::stop_web_canvas();
+}
+
+#[cfg(all(test, windows))]
+mod tests {
+    use super::select_native_initial_path;
+    use std::path::Path;
+
+    #[test]
+    fn preserves_explicit_path_without_opening_picker() {
+        let path = select_native_initial_path(Some(Path::new("study")), || {
+            Err(anyhow::anyhow!("picker must not run"))
+        })
+        .expect("explicit startup paths do not require the picker");
+
+        assert_eq!(path, Path::new("study"));
+    }
+
+    #[test]
+    fn forwards_selected_folder() {
+        let path = select_native_initial_path(None, || Ok(Some("selected-study".into())))
+            .expect("selected folder is returned");
+
+        assert_eq!(path, Path::new("selected-study"));
+    }
+
+    #[test]
+    fn reports_picker_cancellation() {
+        let error = select_native_initial_path(None, || Ok(None)).expect_err("cancel is an error");
+
+        assert_eq!(
+            error.to_string(),
+            "native Métis file selection was cancelled"
+        );
+    }
 }
