@@ -13,19 +13,22 @@ present RITK-owned frames through its canvas seam. Pointer and wheel input was
 still absent, so the browser path could not exercise the shared presentation
 reducer or the same cancellation behavior as the native Métis host.
 
-The browser provider reports target-local coordinates and browser wheel units;
-RITK's action contract requires finite coordinates, one declared wheel unit and
-a viewport mapping for each displayed frame. Three orthogonal canvases also
-need an explicit axis route. DICOM parsing, metadata, geometry and viewer
-state must remain inside RITK.
+The browser provider reports target-local coordinates, browser wheel units and
+bounded keyboard metadata; RITK's action contract requires finite coordinates,
+one declared wheel unit, shared virtual-key values and a viewport mapping for
+each displayed frame. Three orthogonal canvases also need an explicit axis
+route. DICOM parsing, metadata, geometry and viewer state must remain inside
+RITK.
 
 ## Decision
 
 `WebCanvasPresenter::from_canvas_id_with_input` retains Métis's bounded input
-listeners. `take_events` translates pointer and wheel records into
+listeners. `take_events` translates pointer, wheel and keyboard records into
 `PresentationEvent`, normalizes line and page deltas to CSS-pixel host units,
-rejects unsupported or non-finite values, and ignores non-primary touch
-pointers because the current RITK dispatcher has one primary gesture state.
+maps browser key codes to the shared virtual-key contract, preserves key-down
+repeat state, rejects unsupported or non-finite values, and ignores non-primary
+touch pointers because the current RITK dispatcher has one primary gesture
+state. Unknown browser keys do not create presentation events.
 
 The browser viewer drains each canvas queue once per browser animation frame.
 It constructs a viewport from the current RITK frame dimensions, routes each
@@ -47,6 +50,12 @@ ends the task, before the task exits. This keeps listener and pointer-capture
 ownership generation-scoped and makes a subsequent route remount independent
 of the failed task.
 
+Revision 2026-09-14: the adapter consumes Métis keyboard down/up records. It
+maps physical browser codes for cine, navigation and tool shortcuts to the
+existing RITK virtual-key values, preserves auto-repeat on key-down events and
+ignores unsupported codes. The mapping is format-neutral; DICOM and viewer
+semantics remain in the RITK reducer.
+
 ## Rejected alternative
 
 Handling pointer state in Métis would duplicate RITK's viewer reducer and make
@@ -55,8 +64,9 @@ would couple RITK to a browser runtime and lose the bounded provider contract.
 
 ## Verification
 
-The native RITK action suite covers pointer-cancel reduction and its existing
-wheel, viewport and cancellation laws. The RITK WASM target is checked against
-the working Metis input seam; the existing packaged synthetic DICOM capture
-continues to prove byte-to-frame ownership. Physical pointer, cross-engine,
-GPU and full-window captures remain open evidence under the migration item.
+The native RITK action suite covers pointer-cancel reduction, browser key-code
+mapping and the existing wheel, viewport and cancellation laws. The RITK WASM
+target is checked against the merged Metis input seam; the existing packaged
+synthetic DICOM capture continues to prove byte-to-frame ownership. Physical
+pointer, keyboard-driver, cross-engine, GPU and full-window captures remain
+open evidence under the migration item.
