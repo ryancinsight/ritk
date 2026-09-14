@@ -71,9 +71,14 @@
 - [x] Keep the Métis native compositor format-neutral by passing RITK's
       `ViewportOffset` through layout and geometry instead of `egui::Vec2`;
       native session tests and formatting pass.
-- [ ] Verify the pathless Windows `--metis-native` folder-picker workflow with
-      a saved DICOM study; record the actual PNG digest and non-black pixel
-      count, then close the increment with focused native gates.
+- [x] Verify the path-selection boundary for pathless Windows
+      `--metis-native` with explicit-path, selected-folder, and cancellation
+      tests; run focused native gates and capture the saved public DICOM study
+      through Métis (1280 × 800, 359,857 non-black pixels, SHA-256
+      `8082cea87348126ce5a07cacb602bf71081747881481d2062bb1f2c7314113d3`).
+- [ ] Exercise the physical Windows folder-picker click path with a saved
+      DICOM study; the current CUA runtime exposes no native app surface for
+      this interaction.
 
 ## FIX-DTI-VOLUME-FRAME [major][arch] — Preserve diffusion coordinate frames
 
