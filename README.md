@@ -90,7 +90,7 @@ label visibility/active-label controls with undo/redo, viewport label overlays,
 load-time hanging-protocol defaults for CT/MR series, linked MPR cursor
 navigation across all three planes, DICOM-style patient-orientation labels,
 linked-cursor HU overlay readout, linked-cursor physical LPS readout,
-active-axis cine playback with FPS control, Ctrl/Cmd+scroll viewport zoom,
+active-axis cine playback (Space toggles playback), Ctrl/Cmd+scroll viewport zoom,
 Ctrl/Cmd+0 zoom-to-fit,
 Arrow Up/Down and Page Up/Down active-axis slice navigation,
 Home/End active-axis first/last slice navigation,

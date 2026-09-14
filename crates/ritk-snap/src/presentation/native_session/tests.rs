@@ -3,6 +3,7 @@ use super::*;
 use crate::dicom::loader::tests::fixtures;
 use metis_platform::native::{ModifierState, WindowEvent};
 use metis_ui_lang::DisplayCommand;
+use std::time::{Duration, Instant};
 
 fn session() -> (NativeViewerSession, tempfile::TempDir) {
     session_with_mode(NativePresentationMode::Orthogonal)
@@ -44,7 +45,7 @@ fn native_session_renders_and_steps_the_loaded_slice() {
             modifiers: ModifierState::NONE,
         }])
         .expect("wheel transition");
-    assert_eq!(flow, NativeFlow::Continue { repaint: false });
+    assert_eq!(flow, NativeFlow::Continue { repaint: true });
     assert_eq!(session.app.viewer_state.slice_index, 2);
     assert_ne!(session.views[0].frame(), &initial);
     assert_eq!(session.views[0].frame().width(), 4);
@@ -64,6 +65,50 @@ fn native_session_keyboard_navigation_updates_presented_frame() {
         .expect("page-down transition");
     assert_eq!(session.app.viewer_state.slice_index, initial_slice + 1);
     assert_ne!(session.framebuffer.pixels(), initial_frame.pixels());
+    assert!(
+        session
+            .observation
+            .frame_generations
+            .load(Ordering::Relaxed)
+            > 1
+    );
+}
+
+#[test]
+fn native_session_space_toggles_cine_and_ignores_repeat() {
+    let (mut session, _root) = session();
+    let flow = session
+        .handle_events(&[WindowEvent::KeyDown {
+            virtual_key: crate::app::action_adapter::VIRTUAL_KEY_CINE_TOGGLE,
+            repeated: false,
+        }])
+        .expect("cine toggle");
+    assert_eq!(flow, NativeFlow::Continue { repaint: true });
+    assert!(session.app.cine.enabled);
+
+    session
+        .handle_events(&[WindowEvent::KeyDown {
+            virtual_key: crate::app::action_adapter::VIRTUAL_KEY_CINE_TOGGLE,
+            repeated: true,
+        }])
+        .expect("repeated cine toggle");
+    assert!(session.app.cine.enabled);
+}
+
+#[test]
+fn native_session_empty_batch_ticks_cine_from_the_session_clock() {
+    let (mut session, _root) = session();
+    session.app.cine.set_fps(10.0);
+    session.app.cine.set_enabled(true, 0.0);
+    session.clock_start = Instant::now()
+        .checked_sub(Duration::from_millis(250))
+        .expect("invariant: test clock duration is representable");
+    let initial_slice = session.app.viewer_state.slice_index;
+
+    let flow = session.handle_events(&[]).expect("native animation tick");
+
+    assert_eq!(flow, NativeFlow::Continue { repaint: true });
+    assert_ne!(session.app.viewer_state.slice_index, initial_slice);
     assert!(
         session
             .observation

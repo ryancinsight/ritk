@@ -21,7 +21,7 @@ use std::fmt;
 use std::path::Path;
 use std::sync::atomic::{AtomicBool, AtomicU32, AtomicUsize, Ordering};
 use std::sync::{Arc, Mutex};
-use std::time::Duration;
+use std::time::{Duration, Instant};
 
 mod frame;
 mod layout;
@@ -221,6 +221,7 @@ struct NativeViewerSession {
     capture_after_idle: bool,
     capture_application: bool,
     observation: Arc<NativeViewerObservation>,
+    clock_start: Instant,
 }
 
 impl NativeViewerSession {
@@ -275,7 +276,12 @@ impl NativeViewerSession {
             capture_after_idle,
             capture_application,
             observation,
+            clock_start: Instant::now(),
         })
+    }
+
+    fn elapsed_seconds(&self) -> f64 {
+        self.clock_start.elapsed().as_secs_f64()
     }
 
     fn refresh_frame(&mut self) -> Result<()> {
@@ -405,13 +411,25 @@ impl NativeApplication for NativeViewerSession {
             disposition,
             crate::app::action_adapter::ViewerActionDisposition::Continue { repaint: true }
         );
+        let cine_repaint = if matches!(
+            disposition,
+            crate::app::action_adapter::ViewerActionDisposition::Continue { .. }
+        ) {
+            matches!(
+                self.app.tick_cine_at(self.elapsed_seconds()),
+                crate::app::CineTick::Advanced(_)
+            )
+        } else {
+            false
+        };
+        let frame_changed = repaint || cine_repaint;
         if terminal
             || matches!(
                 disposition,
                 crate::app::action_adapter::ViewerActionDisposition::Exit
             )
         {
-            if !self.minimized && (repaint || (resized && !geometry_refreshed)) {
+            if !self.minimized && frame_changed && !geometry_refreshed {
                 self.refresh_frame().map_err(NativeViewerError::from)?;
             } else if !geometry_refreshed {
                 record_state(&self.observation, &self.app, self.dpi, self.minimized);
@@ -421,12 +439,14 @@ impl NativeApplication for NativeViewerSession {
             return Ok(NativeFlow::Exit);
         }
 
-        if !self.minimized && (repaint || (resized && !geometry_refreshed)) {
+        if !self.minimized && frame_changed && !geometry_refreshed {
             self.refresh_frame().map_err(NativeViewerError::from)?;
         } else if !geometry_refreshed {
             record_state(&self.observation, &self.app, self.dpi, self.minimized);
         }
-        Ok(NativeFlow::Continue { repaint: false })
+        Ok(NativeFlow::Continue {
+            repaint: !self.minimized && (geometry_refreshed || frame_changed),
+        })
     }
 }
 

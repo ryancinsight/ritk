@@ -702,6 +702,11 @@ target\debug\ritk-snap.exe `
 
 RITK scans and decodes the MRI series, renders its axial, coronal and sagittal
 planes, and transfers the resulting RGBA frame to the Métis native surface.
+Press Space in the loaded viewer to toggle active-axis cine playback. The
+native Métis session advances slices from its bounded event-wait clock and
+requests a new presentation only when a frame boundary is reached; the same
+host-neutral transition is used by the browser animation-frame loop and the
+legacy eframe shell. A newly loaded study starts paused.
 The reviewed 1280 × 800 output below is the actual run, not a made image:
 
 ![Actual MRI-DIR T2 series rendered through the Métis native surface](images/dicom-metis-real-mri.png)

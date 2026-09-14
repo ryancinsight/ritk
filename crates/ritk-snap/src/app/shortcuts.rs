@@ -34,6 +34,10 @@ impl SnapApp {
             self.undo_label_edit_shortcut();
         }
 
+        if ctx.input(|input| input.key_pressed(egui::Key::Space)) {
+            self.toggle_cine();
+        }
+
         let nav = ctx.input(|input| {
             (
                 input.key_pressed(egui::Key::ArrowUp),

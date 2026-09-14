@@ -23,6 +23,7 @@ const VIRTUAL_KEY_END: u32 = 0x23;
 const VIRTUAL_KEY_HOME: u32 = 0x24;
 const VIRTUAL_KEY_ARROW_UP: u32 = 0x26;
 const VIRTUAL_KEY_ARROW_DOWN: u32 = 0x28;
+pub(crate) const VIRTUAL_KEY_CINE_TOGGLE: u32 = 0x20;
 
 /// Geometry needed to map host client coordinates into one displayed slice.
 ///
@@ -352,9 +353,10 @@ impl SnapApp {
                     Ok(ViewerActionDisposition::Continue { repaint: true })
                 }
             }
-            ViewerAction::KeyPressed { virtual_key, .. } => {
-                Ok(self.apply_virtual_key(*virtual_key))
-            }
+            ViewerAction::KeyPressed {
+                virtual_key,
+                repeated,
+            } => Ok(self.apply_virtual_key(*virtual_key, *repeated)),
             ViewerAction::KeyReleased { .. }
             | ViewerAction::TextInput { .. }
             | ViewerAction::TextComposition { .. }
@@ -365,7 +367,15 @@ impl SnapApp {
         }
     }
 
-    fn apply_virtual_key(&mut self, virtual_key: u32) -> ViewerActionDisposition {
+    fn apply_virtual_key(&mut self, virtual_key: u32, repeated: bool) -> ViewerActionDisposition {
+        if virtual_key == VIRTUAL_KEY_CINE_TOGGLE {
+            if repeated {
+                return ViewerActionDisposition::Continue { repaint: false };
+            }
+            return ViewerActionDisposition::Continue {
+                repaint: self.toggle_cine(),
+            };
+        }
         if let Some(tool) = tool_kind_for_virtual_key(virtual_key) {
             self.active_tool = tool;
             return ViewerActionDisposition::Continue { repaint: true };

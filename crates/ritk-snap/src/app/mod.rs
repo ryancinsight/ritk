@@ -71,6 +71,8 @@ mod tests;
 
 #[cfg(not(target_arch = "wasm32"))]
 pub(crate) use eframe::EguiApp;
+#[cfg(not(target_arch = "wasm32"))]
+pub(crate) use slice_ops::CineTick;
 pub(crate) use state::SnapApp;
 
 #[cfg(target_arch = "wasm32")]
