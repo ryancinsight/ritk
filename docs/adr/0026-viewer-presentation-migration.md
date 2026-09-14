@@ -650,6 +650,17 @@ native targets retain eframe until a Métis surface provider exists. The
 selection is a launch policy change; RITK continues to own DICOM opening,
 decoding, geometry, clinical presentation, and the saved-study workflow.
 
+Revision 2026-09-14 (host-neutral cine control): Space now toggles the shared
+RITK cine transition through the native and browser presentation action seam;
+repeated native key-down events do not retrigger playback. The native Métis
+session samples its bounded event-wait clock, advances `SnapApp::tick_cine_at`,
+and returns repaint requests when a navigation or cine transition changes the
+retained framebuffer. Eframe and browser hosts continue to provide their own
+clock samples. The native `ritk-snap` suite passes 811/811 with strict native
+Clippy and WASM library gates; DICOM loading, decoding, geometry and clinical
+pixels remain RITK-owned. User-facing FPS control remains a session-configured
+follow-up.
+
 ## Alternatives and validation
 
 Retaining egui indefinitely contradicts the requested framework target. Removing
