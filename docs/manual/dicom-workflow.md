@@ -1380,12 +1380,15 @@ The command checks the schema and both repository revisions, the closed browser
 engine matrix, the ordered axial/coronal/sagittal canvases, all seven
 `data-ritk-*` values, intrinsic and presented dimensions, one trusted pointer
 drag and wheel action per canvas, full-window and element screenshot scopes,
-and input-source cleanup. It also compares the initial and after-input
-`data-ritk-slice-index` values: a trusted wheel must move every multi-slice
-canvas, while a one-slice axis may remain at zero; the declared slice count must
-stay stable. Custom canvas identifiers use three repeated
-`--canvas-id` options in the same order as the trace. A small structural
-fixture is available at
+and input-source cleanup. Pointer/wheel mode compares the initial and
+after-input `data-ritk-slice-index` values: a trusted wheel must move every
+multi-slice canvas, while a one-slice axis may remain at zero; the declared
+slice count must stay stable. In keyboard mode the trace adds one `after-keyboard` semantic
+snapshot per canvas, keeps the slice count stable across that boundary, and
+compares the wheel result with that snapshot so keyboard and wheel transitions
+cannot cancel in the final-state comparison. Custom canvas identifiers use
+three repeated `--canvas-id` options in the same order as the trace. A small
+structural fixture is available at
 [`crates/ritk-snap/tests/fixtures/browser-trace.json`](../../crates/ritk-snap/tests/fixtures/browser-trace.json)
 for a local command demonstration; its digest fields exercise trace shape and
 do not claim a visual capture. The validator never opens DICOM bytes or

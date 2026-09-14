@@ -46,6 +46,14 @@ key/code values, `repeat: false`, and no modifier flags. Pointer/wheel-only
 traces remain valid under the default mode. The validator still assigns no
 shortcut or DICOM meaning to these records; RITK's reducer owns that contract.
 
+Revision 2026-09-14: keyboard-mode traces now carry an `after-keyboard`
+semantic snapshot between the focused key pair and the pointer/wheel actions.
+The validator requires the slice count to remain stable from the initial state
+through that boundary and compares the wheel result with the immediately
+preceding snapshot. This prevents a valid keyboard transition followed by an
+opposite wheel transition from looking unchanged when only the initial and
+final states are compared.
+
 ## Rejected alternative
 
 Putting the semantic checks in `scripts/browser_runtime.py` would make the
@@ -61,7 +69,7 @@ traces plus invalid status, revision, attributes, axis order, dimensions,
 actions, keyboard focus/metadata, slice progression, screenshot, cleanup and
 oversized-file cases. The committed fixture is validated by the same code used
 by the executable. At the current revision,
-`cargo nextest run --locked -p ritk-snap` passes 816/816; strict native and
+`cargo nextest run --locked -p ritk-snap` passes 830/830; strict native and
 WASM Clippy/check gates and `cargo fmt --all -- --check` pass; and
 `cargo run --locked -p ritk-snap -- --validate-browser-trace
 crates/ritk-snap/tests/fixtures/browser-trace.json` reports the Chromium

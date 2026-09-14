@@ -247,8 +247,8 @@ fn validate_document(
         .context("browser trace is missing the RITK consumer revision")?;
     validate_revision("RITK", consumer_revision)?;
     validate_actions(&document.actions, canvas_ids, input_mode)?;
-    validate_snapshots(&document.snapshots, canvas_ids)?;
-    validate_slice_progression(&document.snapshots, canvas_ids)?;
+    validate_snapshots(&document.snapshots, canvas_ids, input_mode)?;
+    validate_slice_progression(&document.snapshots, canvas_ids, input_mode)?;
     validation::validate_screenshots(&document.screenshots, canvas_ids)?;
     validation::validate_cleanup(&document.cleanup, canvas_ids)?;
 
@@ -427,11 +427,20 @@ fn validate_keyboard_action(action: &TraceAction) -> Result<()> {
 #[derive(Clone, Copy)]
 enum SnapshotPhase {
     Initial,
+    AfterKeyboard,
     AfterInput,
 }
 
-fn validate_snapshots(snapshots: &[TraceSnapshot], canvas_ids: &[String]) -> Result<()> {
-    let expected_snapshot_count = canvas_ids.len() * 2;
+fn validate_snapshots(
+    snapshots: &[TraceSnapshot],
+    canvas_ids: &[String],
+    input_mode: TraceInputMode,
+) -> Result<()> {
+    let snapshots_per_canvas = match input_mode {
+        TraceInputMode::PointerWheel => 2,
+        TraceInputMode::PointerWheelKeyboard => 3,
+    };
+    let expected_snapshot_count = canvas_ids.len() * snapshots_per_canvas;
     if snapshots.len() != expected_snapshot_count {
         bail!(
             "browser trace contains {} snapshots; expected {expected_snapshot_count}",
@@ -445,6 +454,10 @@ fn validate_snapshots(snapshots: &[TraceSnapshot], canvas_ids: &[String]) -> Res
             canvas_ids.iter().enumerate().find_map(|(axis, id)| {
                 if snapshot.label == format!("{id}-initial") {
                     Some((axis, id.as_str(), SnapshotPhase::Initial))
+                } else if matches!(input_mode, TraceInputMode::PointerWheelKeyboard)
+                    && snapshot.label == format!("{id}-after-keyboard")
+                {
+                    Some((axis, id.as_str(), SnapshotPhase::AfterKeyboard))
                 } else if snapshot.label == format!("{id}-after-input") {
                     Some((axis, id.as_str(), SnapshotPhase::AfterInput))
                 } else {
@@ -463,8 +476,14 @@ fn validate_snapshots(snapshots: &[TraceSnapshot], canvas_ids: &[String]) -> Res
         validate_snapshot(snapshot, canvas_id, axis, phase)?;
     }
 
+    let suffixes = match input_mode {
+        TraceInputMode::PointerWheel => ["initial", "after-input"].as_slice(),
+        TraceInputMode::PointerWheelKeyboard => {
+            ["initial", "after-keyboard", "after-input"].as_slice()
+        }
+    };
     for id in canvas_ids {
-        for suffix in ["initial", "after-input"] {
+        for suffix in suffixes {
             let label = format!("{id}-{suffix}");
             if !labels.contains(&label) {
                 bail!("browser trace is missing snapshot {label:?}")
@@ -556,22 +575,36 @@ fn validate_snapshot(
     } else if frame_width != 0 || frame_height != 0 {
         bail!("canvas {canvas_id:?} has dimensions for an empty frame")
     }
-    if matches!(phase, SnapshotPhase::AfterInput)
-        && (load_state != "ready" || frame_state != "presented")
+    if matches!(
+        phase,
+        SnapshotPhase::AfterKeyboard | SnapshotPhase::AfterInput
+    ) && (load_state != "ready" || frame_state != "presented")
     {
         bail!("canvas {canvas_id:?} is not presented after trusted input")
     }
     Ok(())
 }
 
-fn validate_slice_progression(snapshots: &[TraceSnapshot], canvas_ids: &[String]) -> Result<()> {
+fn validate_slice_progression(
+    snapshots: &[TraceSnapshot],
+    canvas_ids: &[String],
+    input_mode: TraceInputMode,
+) -> Result<()> {
     for canvas_id in canvas_ids {
         let initial_label = format!("{canvas_id}-initial");
+        let before_wheel_label = match input_mode {
+            TraceInputMode::PointerWheel => initial_label.clone(),
+            TraceInputMode::PointerWheelKeyboard => format!("{canvas_id}-after-keyboard"),
+        };
         let after_label = format!("{canvas_id}-after-input");
         let initial = snapshots
             .iter()
             .find(|snapshot| snapshot.label == initial_label)
             .with_context(|| format!("browser trace is missing snapshot {initial_label:?}"))?;
+        let before_wheel = snapshots
+            .iter()
+            .find(|snapshot| snapshot.label == before_wheel_label)
+            .with_context(|| format!("browser trace is missing snapshot {before_wheel_label:?}"))?;
         let after = snapshots
             .iter()
             .find(|snapshot| snapshot.label == after_label)
@@ -581,21 +614,31 @@ fn validate_slice_progression(snapshots: &[TraceSnapshot], canvas_ids: &[String]
             "slice count",
             canvas_id,
         )?;
+        let before_wheel_count: u64 = parse_attribute(
+            attribute(&before_wheel.canvas, "data-ritk-slice-count", canvas_id)?,
+            "slice count",
+            canvas_id,
+        )?;
         let after_count: u64 = parse_attribute(
             attribute(&after.canvas, "data-ritk-slice-count", canvas_id)?,
             "slice count",
             canvas_id,
         )?;
-        if initial_count != after_count {
+        if initial_count != before_wheel_count {
             bail!(
-                "canvas {canvas_id:?} changed its slice count from {initial_count} to {after_count}"
+                "canvas {canvas_id:?} changed its slice count from {initial_count} to {before_wheel_count} before the wheel"
+            )
+        }
+        if before_wheel_count != after_count {
+            bail!(
+                "canvas {canvas_id:?} changed its slice count from {before_wheel_count} to {after_count} after the wheel"
             )
         }
         if initial_count <= 1 {
             continue;
         }
-        let initial_index: u64 = parse_attribute(
-            attribute(&initial.canvas, "data-ritk-slice-index", canvas_id)?,
+        let before_wheel_index: u64 = parse_attribute(
+            attribute(&before_wheel.canvas, "data-ritk-slice-index", canvas_id)?,
             "slice index",
             canvas_id,
         )?;
@@ -604,7 +647,7 @@ fn validate_slice_progression(snapshots: &[TraceSnapshot], canvas_ids: &[String]
             "slice index",
             canvas_id,
         )?;
-        if initial_index == after_index {
+        if before_wheel_index == after_index {
             bail!(
                 "canvas {canvas_id:?} did not advance its multi-slice index after trusted wheel input"
             )

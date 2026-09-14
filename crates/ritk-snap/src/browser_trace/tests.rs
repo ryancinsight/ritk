@@ -70,21 +70,36 @@ fn fixture_value_for_mode(ids: &[String], input_mode: TraceInputMode) -> Value {
         actions.push(json!({"action": "trusted-wheel", "canvas": id}));
     }
     let snapshots: Vec<Value> = ids
-            .iter()
-            .enumerate()
-            .flat_map(|(axis, id)| {
-                [
+        .iter()
+        .enumerate()
+        .flat_map(|(axis, id)| {
+            let initial = json!({
+                "label": format!("{id}-initial"),
+                "canvas": {"id": id, "width": 256, "height": 192, "attributes": attributes(axis, 0)}
+            });
+            let after_input_index = if matches!(input_mode, TraceInputMode::PointerWheelKeyboard) {
+                2
+            } else {
+                1
+            };
+            let after_input = json!({
+                "label": format!("{id}-after-input"),
+                "canvas": {"id": id, "width": 256, "height": 192, "attributes": attributes(axis, after_input_index)}
+            });
+            if matches!(input_mode, TraceInputMode::PointerWheelKeyboard) {
+                vec![
+                    initial,
                     json!({
-                        "label": format!("{id}-initial"),
-                        "canvas": {"id": id, "width": 256, "height": 192, "attributes": attributes(axis, 0)}
-                    }),
-                    json!({
-                        "label": format!("{id}-after-input"),
+                        "label": format!("{id}-after-keyboard"),
                         "canvas": {"id": id, "width": 256, "height": 192, "attributes": attributes(axis, 1)}
                     }),
+                    after_input,
                 ]
-            })
-            .collect();
+            } else {
+                vec![initial, after_input]
+            }
+        })
+        .collect();
     let screenshots: Vec<Value> = [
             json!({"label": "window-initial", "width": 1280, "height": 720, "bytes": 100, "sha256": "0".repeat(64)}),
             json!({"label": "window-final", "width": 1280, "height": 720, "bytes": 100, "sha256": "1".repeat(64)}),
@@ -259,6 +274,25 @@ fn focused_keyboard_evidence_passes_and_untrusted_events_fail() {
     let document: TraceDocument = serde_json::from_value(value.clone()).expect("keyboard fixture");
     validate_document(&document, &ids, TraceInputMode::PointerWheelKeyboard)
         .expect("focused keyboard evidence is valid");
+    assert_eq!(
+        value["snapshots"]
+            .as_array()
+            .expect("snapshot array")
+            .iter()
+            .map(|snapshot| snapshot["label"].as_str().expect("snapshot label"))
+            .collect::<Vec<_>>(),
+        vec![
+            "ritk-snap-axial-initial",
+            "ritk-snap-axial-after-keyboard",
+            "ritk-snap-axial-after-input",
+            "ritk-snap-coronal-initial",
+            "ritk-snap-coronal-after-keyboard",
+            "ritk-snap-coronal-after-input",
+            "ritk-snap-sagittal-initial",
+            "ritk-snap-sagittal-after-keyboard",
+            "ritk-snap-sagittal-after-input",
+        ]
+    );
 
     let mut untrusted = value;
     untrusted["actions"][0]["observed_events"][0]["is_trusted"] = json!(false);
@@ -274,6 +308,36 @@ fn focused_keyboard_evidence_passes_and_untrusted_events_fail() {
         missing_focus,
         TraceInputMode::PointerWheelKeyboard,
         "missing focus evidence",
+    );
+}
+
+#[test]
+fn keyboard_wheel_progression_uses_post_keyboard_snapshot() {
+    let mut value = keyboard_fixture_value(&default_ids());
+    for snapshot in value["snapshots"].as_array_mut().expect("snapshots array") {
+        if snapshot["label"]
+            .as_str()
+            .expect("snapshot label")
+            .ends_with("after-input")
+        {
+            snapshot["canvas"]["attributes"]["data-ritk-slice-index"] = json!("1");
+        }
+    }
+    reject_with_mode(
+        value,
+        TraceInputMode::PointerWheelKeyboard,
+        "did not advance its multi-slice index",
+    );
+}
+
+#[test]
+fn keyboard_mode_requires_the_intermediate_snapshot() {
+    let mut value = keyboard_fixture_value(&default_ids());
+    value["snapshots"][1]["label"] = json!("ritk-snap-axial-after-input");
+    reject_with_mode(
+        value,
+        TraceInputMode::PointerWheelKeyboard,
+        "repeats snapshot label",
     );
 }
 
