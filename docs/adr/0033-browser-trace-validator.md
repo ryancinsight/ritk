@@ -39,6 +39,13 @@ index zero. The slice count must remain stable across the interaction. This
 keeps a trace from passing when the browser reports an input event but the
 viewer state and image remain unchanged.
 
+Revision 2026-09-14: `--require-keyboard` selects an explicit keyboard mode for
+the same validator. In this mode each declared canvas must report focus plus a
+trusted `ArrowDown` keydown/keyup pair targeted at that canvas, with matching
+key/code values, `repeat: false`, and no modifier flags. Pointer/wheel-only
+traces remain valid under the default mode. The validator still assigns no
+shortcut or DICOM meaning to these records; RITK's reducer owns that contract.
+
 ## Rejected alternative
 
 Putting the semantic checks in `scripts/browser_runtime.py` would make the
@@ -51,12 +58,11 @@ the browser trust boundary without improving the evidence contract.
 
 Unit tests construct small schema-1 trace values and cover valid three-view
 traces plus invalid status, revision, attributes, axis order, dimensions,
-actions, slice progression, screenshot, cleanup and oversized-file cases. The
-committed fixture is validated by the same code used by the executable. At the
-accepted revision,
-`cargo nextest run --locked -p ritk-snap` passes 812/812, warning-denied
-all-target Clippy and
-`cargo fmt --all -- --check` pass, and
+actions, keyboard focus/metadata, slice progression, screenshot, cleanup and
+oversized-file cases. The committed fixture is validated by the same code used
+by the executable. At the current revision,
+`cargo nextest run --locked -p ritk-snap` passes 816/816; strict native and
+WASM Clippy/check gates and `cargo fmt --all -- --check` pass; and
 `cargo run --locked -p ritk-snap -- --validate-browser-trace
 crates/ritk-snap/tests/fixtures/browser-trace.json` reports the Chromium
 trace and both revisions. The manual records the command and its limits;
