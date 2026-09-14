@@ -1,6 +1,7 @@
 //! Slice navigation and cine-loop playback tests.
 
 use super::*;
+use crate::app::slice_ops::CineTick;
 use crate::ui::LinkedCursor;
 
 #[test]
@@ -15,6 +16,29 @@ fn cine_loop_advances_and_wraps_active_axis() {
 
     assert_eq!(app.viewer_state.slice_index, 0);
     assert_eq!(app.linked_cursor.expect("cursor").voxel(), [0, 0, 0]);
+}
+
+#[test]
+fn cine_tick_keeps_timing_and_state_transition_host_neutral() {
+    let mut app = SnapApp::default();
+    app.loaded = Some(test_volume([3, 4, 5]));
+    app.cine.set_fps(10.0);
+    app.cine.set_enabled(true, 0.0);
+
+    assert_eq!(app.tick_cine_at(0.09), CineTick::Waiting);
+    assert_eq!(app.tick_cine_at(0.10), CineTick::Advanced(1));
+    assert_eq!(app.viewer_state.slice_index, 1);
+    assert_eq!(app.tick_cine_at(0.31), CineTick::Advanced(2));
+    assert_eq!(app.viewer_state.slice_index, 0);
+}
+
+#[test]
+fn cine_tick_stops_when_the_study_closes() {
+    let mut app = SnapApp::default();
+    app.cine.set_enabled(true, 0.0);
+
+    assert_eq!(app.tick_cine_at(1.0), CineTick::Inactive);
+    assert!(!app.cine.enabled);
 }
 
 /// advance_slice_for_axis_loop wraps correctly and routes through set_slice_for_axis.
