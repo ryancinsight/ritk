@@ -1392,6 +1392,30 @@ do not claim a visual capture. The validator never opens DICOM bytes or
 interprets pixels, so clinical and decoded-value oracles remain the RITK
 workflow tests above.
 
+### Require trusted keyboard focus evidence
+
+When the Metis trace was captured with `--keyboard-trace`, require the explicit
+keyboard mode so every canvas proves that its own focus target received the
+input:
+
+```text
+cargo run --locked -p ritk-snap -- \
+  --validate-browser-trace output/browser/runtime/chromium-keyboard-canvas.json \
+  --require-keyboard \
+  --canvas-id ritk-snap-axial \
+  --canvas-id ritk-snap-coronal \
+  --canvas-id ritk-snap-sagittal
+```
+
+In this mode the validator requires one trusted `ArrowDown` keydown and keyup
+for each canvas, with matching `key` and `code`, `repeat: false`, no modifier
+flags, and the canvas as the event target. Missing focus, an untrusted event,
+or a mismatched target fails the trace before any viewer claim is made. The
+keyboard records are transport evidence; RITK's reducer remains the owner of
+navigation and cine meaning. Hosted cross-engine keyboard validation is still
+pending, so this command is a reproducible local contract check rather than a
+new image capture.
+
 ## Present validated RITK views through Métis
 
 RITK remains the only DICOM owner. After RITK has opened the study, decoded the

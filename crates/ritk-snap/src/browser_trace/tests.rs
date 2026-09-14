@@ -9,6 +9,14 @@ fn default_ids() -> Vec<String> {
 }
 
 fn fixture_value(ids: &[String]) -> Value {
+    fixture_value_for_mode(ids, TraceInputMode::PointerWheel)
+}
+
+fn keyboard_fixture_value(ids: &[String]) -> Value {
+    fixture_value_for_mode(ids, TraceInputMode::PointerWheelKeyboard)
+}
+
+fn fixture_value_for_mode(ids: &[String], input_mode: TraceInputMode) -> Value {
     let attributes = |axis: usize, slice_index: usize| {
         json!({
             "data-ritk-load-state": "ready",
@@ -20,15 +28,47 @@ fn fixture_value(ids: &[String]) -> Value {
             "data-ritk-frame-height": "192"
         })
     };
-    let actions: Vec<Value> = ids
-        .iter()
-        .flat_map(|id| {
-            [
-                json!({"action": "trusted-pointer-drag", "canvas": id}),
-                json!({"action": "trusted-wheel", "canvas": id}),
-            ]
-        })
-        .collect();
+    let mut actions = Vec::new();
+    for id in ids {
+        if matches!(input_mode, TraceInputMode::PointerWheelKeyboard) {
+            actions.push(json!({
+                "action": "trusted-keyboard",
+                "canvas": id,
+                "key": KEYBOARD_TRACE_KEY,
+                "code": KEYBOARD_TRACE_KEY,
+                "repeat": false,
+                "focus": {"ok": true, "active_id": id},
+                "observed_events": [
+                    {
+                        "type": "keydown",
+                        "is_trusted": true,
+                        "target_id": id,
+                        "key": KEYBOARD_TRACE_KEY,
+                        "code": KEYBOARD_TRACE_KEY,
+                        "repeat": false,
+                        "alt_key": false,
+                        "ctrl_key": false,
+                        "meta_key": false,
+                        "shift_key": false
+                    },
+                    {
+                        "type": "keyup",
+                        "is_trusted": true,
+                        "target_id": id,
+                        "key": KEYBOARD_TRACE_KEY,
+                        "code": KEYBOARD_TRACE_KEY,
+                        "repeat": false,
+                        "alt_key": false,
+                        "ctrl_key": false,
+                        "meta_key": false,
+                        "shift_key": false
+                    }
+                ]
+            }));
+        }
+        actions.push(json!({"action": "trusted-pointer-drag", "canvas": id}));
+        actions.push(json!({"action": "trusted-wheel", "canvas": id}));
+    }
     let snapshots: Vec<Value> = ids
             .iter()
             .enumerate()
@@ -80,16 +120,22 @@ fn fixture(ids: &[String]) -> TraceDocument {
 }
 
 fn reject(value: Value, message: &str) {
+    reject_with_mode(value, TraceInputMode::PointerWheel, message);
+}
+
+fn reject_with_mode(value: Value, input_mode: TraceInputMode, message: &str) {
     let ids = default_ids();
     let document: TraceDocument = serde_json::from_value(value).expect("mutation keeps JSON shape");
-    let error = validate_document(&document, &ids).expect_err("malformed fixture must be rejected");
+    let error = validate_document(&document, &ids, input_mode)
+        .expect_err("malformed fixture must be rejected");
     assert!(error.to_string().contains(message), "{error:#}");
 }
 
 #[test]
 fn valid_three_canvas_trace_passes() {
     let ids = default_ids();
-    let report = validate_document(&fixture(&ids), &ids).expect("valid trace");
+    let report =
+        validate_document(&fixture(&ids), &ids, TraceInputMode::PointerWheel).expect("valid trace");
     assert_eq!(report.engine, "chromium");
     assert_eq!(report.canvas_count, 3);
 }
@@ -102,7 +148,8 @@ fn committed_manual_fixture_passes_the_same_validator() {
     )))
     .expect("committed browser trace fixture");
     let ids = default_ids();
-    validate_document(&document, &ids).expect("committed browser trace fixture is valid");
+    validate_document(&document, &ids, TraceInputMode::PointerWheel)
+        .expect("committed browser trace fixture is valid");
 }
 
 #[test]
@@ -111,7 +158,8 @@ fn custom_canvas_ids_are_checked_in_order() {
         .into_iter()
         .map(str::to_owned)
         .collect::<Vec<_>>();
-    let report = validate_document(&fixture(&ids), &ids).expect("custom ids are valid");
+    let report = validate_document(&fixture(&ids), &ids, TraceInputMode::PointerWheel)
+        .expect("custom ids are valid");
     assert_eq!(report.canvas_count, 3);
 }
 
@@ -168,7 +216,8 @@ fn singleton_slice_canvas_may_remain_at_the_same_index() {
     }
     let ids = default_ids();
     let document: TraceDocument = serde_json::from_value(value).expect("singleton fixture");
-    validate_document(&document, &ids).expect("singleton canvas is valid");
+    validate_document(&document, &ids, TraceInputMode::PointerWheel)
+        .expect("singleton canvas is valid");
 }
 
 #[test]
@@ -198,8 +247,44 @@ fn file_validation_reports_the_consumer_and_engine() {
         serde_json::to_vec(&fixture_value(&ids)).expect("serialize fixture"),
     )
     .expect("write fixture");
-    let report = validate_file(file.path(), &[]).expect("file fixture is valid");
+    let report = validate_file(file.path(), &[], TraceInputMode::PointerWheel)
+        .expect("file fixture is valid");
     assert_eq!(report.consumer_revision, "1".repeat(40));
+}
+
+#[test]
+fn focused_keyboard_evidence_passes_and_untrusted_events_fail() {
+    let ids = default_ids();
+    let value = keyboard_fixture_value(&ids);
+    let document: TraceDocument = serde_json::from_value(value.clone()).expect("keyboard fixture");
+    validate_document(&document, &ids, TraceInputMode::PointerWheelKeyboard)
+        .expect("focused keyboard evidence is valid");
+
+    let mut untrusted = value;
+    untrusted["actions"][0]["observed_events"][0]["is_trusted"] = json!(false);
+    reject_with_mode(
+        untrusted,
+        TraceInputMode::PointerWheelKeyboard,
+        "was not trusted",
+    );
+
+    let mut missing_focus = keyboard_fixture_value(&ids);
+    missing_focus["actions"][0]["focus"] = Value::Null;
+    reject_with_mode(
+        missing_focus,
+        TraceInputMode::PointerWheelKeyboard,
+        "missing focus evidence",
+    );
+}
+
+#[test]
+fn keyboard_mode_requires_one_keyboard_action_per_canvas() {
+    let ids = default_ids();
+    let document: TraceDocument =
+        serde_json::from_value(fixture_value(&ids)).expect("pointer fixture");
+    let error = validate_document(&document, &ids, TraceInputMode::PointerWheelKeyboard)
+        .expect_err("keyboard mode must reject a pointer-only trace");
+    assert!(error.to_string().contains("expected 9"), "{error:#}");
 }
 
 #[test]
@@ -207,6 +292,7 @@ fn oversized_trace_is_rejected_before_json_allocation() {
     let file = tempfile::NamedTempFile::new().expect("temporary trace file");
     let length = usize::try_from(MAX_TRACE_BYTES).expect("trace bound fits this platform") + 1;
     fs::write(file.path(), vec![b' '; length]).expect("write oversized trace");
-    let error = validate_file(file.path(), &[]).expect_err("oversized trace must fail");
+    let error = validate_file(file.path(), &[], TraceInputMode::PointerWheel)
+        .expect_err("oversized trace must fail");
     assert!(error.to_string().contains("limit"), "{error:#}");
 }
