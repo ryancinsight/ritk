@@ -1149,10 +1149,15 @@ does not bundle patient data or choose a study; DICOM opening still follows the
 RITK workflow above. A package output directory is create-new and must not
 already exist.
 
-The package boundary was exercised on Windows x64 with the saved public
-MRI-DIR head CT study. The packaged executable was launched with
-`--metis-native --capture-application --capture`; it exited with code 0 and
-rendered decoded axial, coronal, and sagittal anatomy:
+The package boundary was exercised again on Windows x64 on 2026-09-15 from
+the standalone locked graph at RITK `3f5c35c98d82cd01d53e972cbb9dc174725bf3fb`
+and Métis `c4276f2586f1ae9a1e3c0fa1dcb1507be4555f24`. The packaged executable
+was launched with `--metis-native --capture-application --capture`; it exited
+with code 0 and rendered decoded axial, coronal, and sagittal anatomy. The
+portable payload is 24,672,768 bytes (SHA-256
+`c24d21755e2f7cc8fa45e039cb1ed4ed76bc76cfc1d4607319ffe6b505ccff9c`) and the
+MSI is 9,424,896 bytes (SHA-256
+`7f05da20c3a09c65681b34916921b82310475536611417f4809a04c9875df632`):
 
 ![Packaged RITK SNAP rendering a saved DICOM CT study](images/dicom-metis-installer-ct.png)
 
@@ -1176,8 +1181,10 @@ patient data was used.
 The manifest and package command are local integration evidence. The
 [`metis-package.yml`](../../.github/workflows/metis-package.yml) workflow
 repeats the same lock-pinned build on a Windows runner and uploads the
-executable, inventory and MSI as a reviewable artifact. Registry publication,
-signing, and release promotion remain separate release-authority decisions.
+executable, inventory and MSI as a reviewable artifact. The hosted rerun is
+tracked in the RITK backlog and is not treated as DICOM execution evidence
+until its artifact is collected. Registry publication, signing, and release
+promotion remain separate release-authority decisions.
 
 ## Open dropped DICOM files in the browser host
 
