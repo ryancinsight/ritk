@@ -216,7 +216,36 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
-          /usr/bin/safaridriver -p 4444 > "$RUNNER_TEMP/safaridriver.log" 2>&1 &
+          /usr/bin/safaridriver --diagnose -p 4444 > "$RUNNER_TEMP/safaridriver.log" 2>&1 &
+
+      - name: Record selected-file filesystem access
+        if: matrix.engine == 'webkit'
+        timeout-minutes: 1
+        shell: bash
+        run: |
+          set -euo pipefail
+          python - <<'PY'
+          import hashlib
+          import json
+          import os
+          from pathlib import Path
+          import stat
+
+          study = Path(os.environ["GITHUB_WORKSPACE"]) / "ritk/test_data/2_head_mri_t2/DICOM"
+          selected = sorted(study.glob("*.dcm"))[0].resolve(strict=True)
+          paths = [selected, *selected.parents]
+          records = []
+          for index, path in enumerate(paths):
+              info = path.stat()
+              records.append({"ancestor": index, "mode": oct(stat.S_IMODE(info.st_mode)),
+                              "uid": info.st_uid, "gid": info.st_gid})
+          with selected.open("rb") as stream:
+              digest = hashlib.file_digest(stream, "sha256").hexdigest()
+          result = {"reader_uid": os.geteuid(), "bytes": selected.stat().st_size,
+                    "sha256": digest, "permissions": records}
+          output = Path(os.environ["RUNNER_TEMP"]) / "file-access.log"
+          output.write_text(json.dumps(result, indent=2) + "\n", encoding="utf-8")
+          PY
 
       - name: Wait for WebDriver
         shell: bash
@@ -294,6 +323,25 @@ jobs:
             --canvas-id ritk-snap-axial \
             --canvas-id ritk-snap-coronal \
             --canvas-id ritk-snap-sagittal
+
+      - name: Capture WebKit sandbox diagnostics
+        if: always() && matrix.engine == 'webkit'
+        timeout-minutes: 1
+        shell: bash
+        run: |
+          set -euo pipefail
+          /usr/bin/log show --last 5m --style ndjson \
+            --predicate 'eventMessage CONTAINS "Sandbox:" AND eventMessage CONTAINS "WebKit"' \
+            > "$RUNNER_TEMP/webkit-sandbox.log"
+
+      - name: Upload SafariDriver diagnostics
+        if: always() && matrix.engine == 'webkit'
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
+        with:
+          name: ritk-safaridriver-diagnostics-${{ github.run_id }}
+          path: ~/Library/Logs/com.apple.WebDriver/
+          if-no-files-found: ignore
+          retention-days: 14
 
       - name: Upload saved-study evidence
         if: always()
