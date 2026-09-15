@@ -62,10 +62,19 @@ or keyboard action could be produced; the failure is retained as the WebKit
 provider regression case.
 
 Revision 2026-09-15 (cine rate): `--require-cine-rate` selects a focused
-`=` key/`Equal` code keydown/keyup profile and requires each canvas's
-`data-ritk-cine-fps` value to increase after the keyboard action while staying
-within the bounded 1–60 FPS contract. The existing `--require-keyboard` mode
-continues to validate the ArrowDown navigation profile.
+`=`/`Equal` then `-`/`Minus` profile. Each initial keydown is followed by a
+second keydown while held, then keyup. The observed repeat flag must be true
+only on the second keydown. Each phase has its own snapshot and element PNG.
+From an interior integer rate, the effective actions change FPS by exactly
+one and advance `data-ritk-frame-generation` once; repeated keydowns preserve
+rate, generation, slice selection and the preceding screenshot digest.
+The sequence restores the global rate before exercising the next canvas.
+The existing `--require-keyboard` mode retains ArrowDown navigation.
+
+Generation counts newly rendered and uploaded frames, not cached animation
+frame uploads or compositor refreshes. Rate changes need not alter the medical
+image pixels. The JSON validator checks screenshot records; validating the
+actual PNG files and their hashes remains part of capture collection.
 
 ## Rejected alternative
 

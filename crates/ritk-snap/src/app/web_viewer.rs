@@ -101,9 +101,10 @@ impl BrowserCanvas {
     /// Counts newly rendered frames only after their canvas upload succeeds.
     /// Cached animation-frame uploads do not establish repaint evidence.
     fn present_rendered_frame(&mut self, frame: &PresentationFrame) -> std::io::Result<()> {
-        let generation = self.frame_generation.checked_add(1).ok_or_else(|| {
-            std::io::Error::other("browser rendered-frame generation exhausted")
-        })?;
+        let generation = self
+            .frame_generation
+            .checked_add(1)
+            .ok_or_else(|| std::io::Error::other("browser rendered-frame generation exhausted"))?;
         self.presenter.present(frame)?;
         self.element
             .set_attribute("data-ritk-frame-generation", &generation.to_string())?;

@@ -739,8 +739,8 @@ are ignored, and a rate change reanchors the host clock so stale elapsed time
 does not create a burst of slice advances. The eframe shell and browser canvas
 adapter accept the same controls: browser `Equal` and `Minus` codes map through
 the host-neutral reducer, which requests a repaint when the bounded rate
-changes. A rate-specific hosted browser trace remains open; the current
-cross-engine study trace proves focused `ArrowDown` delivery separately.
+  changes. The cross-engine study trace proves focused `ArrowDown` delivery
+  separately from the cine-rate evidence below.
 The reviewed 1280 × 800 output below is the actual run, not a made image:
 
 ![Actual MRI-DIR T2 series rendered through the Métis native surface](images/dicom-metis-real-mri.png)
@@ -1471,14 +1471,25 @@ python scripts/browser_drop.py --driver-url http://127.0.0.1:9515\
   --canvas-attribute data-ritk-slice-count\
   --canvas-attribute data-ritk-frame-width\
   --canvas-attribute data-ritk-frame-height\
-  --canvas-attribute data-ritk-cine-fps
+  --canvas-attribute data-ritk-cine-fps\
+  --canvas-attribute data-ritk-frame-generation
 ```
 
-Validate that trace with `--require-cine-rate`. The validator requires a
-focused trusted `=` keydown/keyup pair whose DOM code is `Equal`, then checks
-that every canvas's `data-ritk-cine-fps` increases after the key while staying
-within 1–60 FPS. The pointer and wheel checks still run, so the same trace
-proves rate control and slice navigation on the real saved study.
+Validate that trace with `--require-cine-rate`. For each focused canvas the
+profile sends `=`/`Equal`, repeats that held key, sends `-`/`Minus`, and repeats
+that held key. The effective actions change FPS by exactly one; each repeat
+must preserve FPS, slice selection, frame generation and the previous image.
+The sequence restores the initial global rate before testing the next canvas.
+Each phase requires trusted, unmodified input evidence and its own semantic
+snapshot and element screenshot. Screenshot dimensions are checked against
+CSS geometry and the independently observed device scale.
+
+`data-ritk-frame-generation` advances after a newly rendered frame uploads to
+the canvas. Cached uploads on ordinary animation frames do not advance it.
+It establishes fresh-frame presentation after an effective rate action; it
+does not measure playback cadence, display refresh, or compositor timing.
+Changing only the rate can leave the medical image pixels identical. The
+pointer and wheel checks still require actual slice progression afterward.
 
 ## Present validated RITK views through Métis
 
