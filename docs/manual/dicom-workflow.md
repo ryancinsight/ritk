@@ -736,10 +736,11 @@ When cine is active, press `+` or `=` to increase the rate by one frame per
 second, or `-` to decrease it. The native Métis footer shows the current rate
 and these controls; the value is bounded to 1–60 FPS, repeated key-down events
 are ignored, and a rate change reanchors the host clock so stale elapsed time
-does not create a burst of slice advances. The eframe shell accepts the same
-keys. The browser animation-frame adapter currently uses the saved/session rate
-and does not expose keyboard rate controls; its host-neutral clock and bounded
-slice advancement remain the same.
+does not create a burst of slice advances. The eframe shell and browser canvas
+adapter accept the same controls: browser `Equal` and `Minus` codes map through
+the host-neutral reducer, which requests a repaint when the bounded rate
+changes. A rate-specific hosted browser trace remains open; the current
+cross-engine study trace proves focused `ArrowDown` delivery separately.
 The reviewed 1280 × 800 output below is the actual run, not a made image:
 
 ![Actual MRI-DIR T2 series rendered through the Métis native surface](images/dicom-metis-real-mri.png)
