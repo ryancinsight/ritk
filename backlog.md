@@ -1,3 +1,12 @@
+<a id="RITK-BROWSER-READ-001"></a>
+## RITK-BROWSER-READ-001 — Reproduce and close WebKit study reads
+- Status: in-progress; priority: P0; integrator: webkit-read-root; last-update: 2026-09-15.
+- Scope: saved public MRI-DIR chooser replay and cross-engine gallery; provider/host fixes stay with their owners.
+- Acceptance: read-path cause and production fix, 94 file hashes, three exact pixel oracles, bounded rejections and clean sessions on Chromium, Firefox and WebKit.
+- Risk: [patch]; dependency: [Metis read diagnosis](../metis/backlog.md#METIS-BROWSER-READ-001).
+- Branch: `fix/browser-file-read`; tree: `D:/atlas/worktrees/ritk-browser-file-read`; fresh base: `1630df23e`.
+- Evidence: `34943272998` and `34943520103` fail revision preflight, before browser execution; fixed-pair reproduction pending.
+
 <a id="RITK-SNAP-FILE-TARGETS-2026-09-10"></a>
 ## RITK-SNAP-FILE-TARGETS-2026-09-10 — Four ritk-snap files past the 500-line target [patch]
 - Status: done; delivery: [PR #276](https://github.com/ryancinsight/ritk/pull/276), merge `58d42b87b`; atlas pin advanced in [atlas#166](https://github.com/ryancinsight/atlas/pull/166).
