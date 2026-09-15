@@ -665,8 +665,7 @@ and returns repaint requests when a navigation or cine transition changes the
 retained framebuffer. Eframe and browser hosts continue to provide their own
 clock samples. The native `ritk-snap` suite passes 811/811 with strict native
 Clippy and WASM library gates; DICOM loading, decoding, geometry and clinical
-pixels remain RITK-owned. User-facing FPS control remains a session-configured
-follow-up.
+pixels remain RITK-owned.
 
 Revision 2026-09-15 (native study reopen): the native Métis session now
 consumes the Moirai key modifier snapshot and maps an un-repeated `Ctrl+O`
@@ -681,6 +680,15 @@ distinct grayscale DICOM fixture and asserts the replacement shape, reset cine
 state and new rendered frame. This preserves the boundary: Métis owns
 selection UI and pixels, while RITK owns paths, DICOM parsing, geometry and
 clinical presentation.
+
+Revision 2026-09-15 (browser cine rate): the browser `CanvasEvent` adapter now
+maps physical `Equal` and `Minus` codes, plus their symbol fallbacks, to the
+same host-neutral cine-rate actions used by the native and eframe shells. The
+RITK reducer clamps the rate to 1–60 FPS, ignores repeated key-down events,
+reanchors its timing state and requests a repaint when the rate changes. Web
+key mapping and reducer tests cover the contract. The hosted cross-engine
+study trace still exercises focused `ArrowDown` input; a rate-specific hosted
+browser trace remains separate evidence.
 
 ## Alternatives and validation
 
