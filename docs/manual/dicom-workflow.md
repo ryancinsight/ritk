@@ -1075,18 +1075,21 @@ process launch, and OS permission flows remain separate acceptance gates.
 
 The reproducible cross-engine chooser workflow is
 [`metis-browser-dicom.yml`](../../.github/workflows/metis-browser-dicom.yml).
-Hosted run [34944643823](https://github.com/ryancinsight/ritk/actions/runs/34944643823)
+Hosted run [34949979770](https://github.com/ryancinsight/ritk/actions/runs/34949979770)
 ran the same 94 saved MRI-DIR DICOM files through the W3C file chooser on
 Chromium, Firefox, and WebKit. It built RITK at
-`ecf65bd09376e5cc9136a7aff31b4a830fc34e0f`, resolved Métis at
-`4ca4f33efb6a098c9a2c8aaffbd013d1f22788fa`, and used merged Moirai bounded
+`8a5698f0df1cdf9621b393893c02e303606167c2`, resolved Métis at
+`e5379ddb32190b2703ff08b2d063c90305f0576c`, and used merged Moirai bounded
 reads at `8d032e38`. Chromium 152 and Firefox 155
 passed the RITK-owned canvas dimensions, non-black counts, exact RGBA hashes,
 semantic `data-ritk-*` attributes, bounded rejection probes, trusted pointer,
-wheel and focused `=` key actions, and clean WebDriver teardown. Each
-keyboard trace contains a trusted keydown/keyup pair with `repeat: false` on
-all three canvases; each action increases the shared cine rate by one and
-preserves the focused slice. Safari 26.6.2 accepted the 94 selected files but
+wheel and focused cine-rate key actions, and clean WebDriver teardown. Each
+canvas follows 12 → 13 → 13 → 12 → 12 FPS through `=` and `-` key events.
+Effective rate changes advance the rendered-frame generation once; trusted
+repeats preserve rate, generation, focused slice and pixels. Chromium uses
+DevTools key dispatch and Firefox uses WebDriver actions; this is protocol
+repeat evidence, with no physical key-hold timing claim.
+Safari 26.6.2 accepted the 94 selected files but
 rejected the first 529,864-byte `File.arrayBuffer()` read before RITK received
 a completed batch. The same selected file returns `NotReadableError` from its
 original array-buffer, sliced array-buffer and FileReader reads; a bounded
@@ -1100,23 +1103,20 @@ are actual viewport captures of the running gallery and its RITK canvases. The
 records the per-engine browser versions, revisions, keyboard focus evidence,
 hashes, canvas attributes, rejection results, artifact links and cleanup state,
 including the [Safari failure capture](images/dicom-metis-real-browser-mri-cross-engine-webkit.png)
-and bounded read diagnostics. In [run 34947276064](https://github.com/ryancinsight/ritk/actions/runs/34947276064),
-an isolated native input with no application observers produces the same four
+and bounded read diagnostics. An isolated native input with no application
+observers produces the same four
 read failures for one-file and 94-file selections. The diagnostic input is
 removed and the prior selected-file handle restored. The failure reproduces
 without invoking application selection handlers for those controls; effects
 of the earlier failed attempt are not excluded.
 
-[Run 34948524329](https://github.com/ryancinsight/ritk/actions/runs/34948524329)
-identifies sandbox denials on the selected real file: WebContent is denied
+The same run identifies sandbox denials on the selected real file: WebContent is denied
 `file-read-data` and `file-issue-extension`, and Networking is denied
 `file-read-data`. The runner reads all 529,864 bytes of the first file and
 verifies its expected SHA-256; its mode is `0644`. SafariDriver accepts
-`Automation.setFilesToSelectForFileUpload` before those denials. The exact
+`Automation.setFilesToSelectForFileUpload`; the run records those denials. The exact
 SafariDriver/WebKit grant defect remains unresolved. Browser application code
 cannot grant that access; a different byte-read API does not repair it.
-The remaining jobs in that diagnostic run were cancelled after WebKit
-evidence collection because they carry the superseded cine-trace validator.
 RITK owns DICOM scanning, decoding,
 geometry, clinical presentation and pixel assertions; Métis remains the
 format-neutral host and canvas boundary, and Moirai owns the bounded browser
