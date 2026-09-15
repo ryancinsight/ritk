@@ -670,7 +670,7 @@ key mapping and reducer tests cover the contract. The hosted cross-engine
 study trace still exercises focused `ArrowDown` input; a rate-specific hosted
 browser trace remains separate evidence.
 
-Revision 2026-09-15 (package deadline and local executable evidence): the
+Revision 2026-09-15 (package deadline and executable evidence): the
 standalone RITK lock and package workflow now resolve Métis
 `c4276f2586f1ae9a1e3c0fa1dcb1507be4555f24`, whose packager gives the Cargo
 child build a bounded 900-second deadline. The resulting 24,672,768-byte
@@ -679,9 +679,12 @@ validation. The portable executable opened the committed 410-file public CT
 study through the Métis native host and rendered the same 1280 × 800
 three-plane capture (`8082cea87348126ce5a07cacb602bf71081747881481d2062bb1f2c7314113d3`);
 installing the MSI produced an identical capture and uninstall removed its
-per-user directory and registry entry. Hosted package run
-`34990164849` is a separate artifact check and is not treated as DICOM
-execution evidence until its output is collected.
+per-user directory and registry entry. Hosted package run `34990164849`
+completed successfully against RITK `3f5c35c98d82cd01d53e972cbb9dc174725bf3fb`;
+artifact `10406835672` contains the inventory, executable, and MSI with the
+hashes recorded in the manual provenance. A local replay of that hosted
+executable opened the same study and reproduced the committed capture; the
+hosted workflow itself does not execute DICOM or install the MSI.
 
 ## Alternatives and validation
 
