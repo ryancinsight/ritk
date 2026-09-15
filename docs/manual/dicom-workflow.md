@@ -1275,8 +1275,10 @@ drivers. `data-ritk-load-state` is `empty` or `ready`,
 slice index/count, and presented pixel dimensions are available as
 `data-ritk-axis`, `data-ritk-slice-index`, `data-ritk-slice-count`,
 `data-ritk-frame-width`, and `data-ritk-frame-height`. An empty frame reports
-zero dimensions. These attributes are produced by RITK after its own DICOM
-load and presentation decisions; they contain no patient or DICOM metadata.
+zero dimensions. `data-ritk-cine-fps` reports the active bounded playback rate
+from 1 through 60 frames per second. These attributes are produced by RITK
+after its own DICOM load and presentation decisions; they contain no patient
+or DICOM metadata.
 The generic Métis runner may read them as consumer assertions, but it does
 not assign them meaning.
 
@@ -1450,6 +1452,33 @@ navigation and cine meaning. Hosted run
 passes this keyboard contract on Chromium 152 and Firefox 155. Safari's file
 read failed before its canvases were presented, so no Safari keyboard claim is
 made.
+
+To verify the browser cine-rate control, capture with Metis's explicit rate
+profile and include the rate attribute in the same allowlist:
+
+```text
+python scripts/browser_drop.py --driver-url http://127.0.0.1:9515\
+  --engine chromium --input chooser\
+  --files D:/atlas/repos/ritk/test_data/2_head_mri_t2/DICOM --pattern '*.dcm'\
+  --oracle output/browser/mri-oracle.json\
+  --consumer-revision <RITK-40-HEX>\
+  --canvas-trace output/browser/runtime/chromium-cine-rate.json\
+  --keyboard-trace cine-rate\
+  --canvas-attribute data-ritk-load-state\
+  --canvas-attribute data-ritk-frame-state\
+  --canvas-attribute data-ritk-axis\
+  --canvas-attribute data-ritk-slice-index\
+  --canvas-attribute data-ritk-slice-count\
+  --canvas-attribute data-ritk-frame-width\
+  --canvas-attribute data-ritk-frame-height\
+  --canvas-attribute data-ritk-cine-fps
+```
+
+Validate that trace with `--require-cine-rate`. The validator requires a
+focused trusted `=` keydown/keyup pair whose DOM code is `Equal`, then checks
+that every canvas's `data-ritk-cine-fps` increases after the key while staying
+within 1–60 FPS. The pointer and wheel checks still run, so the same trace
+proves rate control and slice navigation on the real saved study.
 
 ## Present validated RITK views through Métis
 

@@ -106,6 +106,7 @@ impl BrowserCanvas {
         let (width, height) = semantics.frame_dimensions_or_zero();
         let width = width.to_string();
         let height = height.to_string();
+        let cine_fps = semantics.cine_fps_value();
         self.element
             .set_attribute("data-ritk-load-state", semantics.load_state_value())?;
         self.element
@@ -119,6 +120,8 @@ impl BrowserCanvas {
             .set_attribute("data-ritk-frame-width", &width)?;
         self.element
             .set_attribute("data-ritk-frame-height", &height)?;
+        self.element
+            .set_attribute("data-ritk-cine-fps", &cine_fps)?;
         self.last_semantics = Some(semantics);
         Ok(())
     }
@@ -182,6 +185,7 @@ impl BrowserSurface {
                     slice_index,
                     slice_count,
                     frame.as_ref(),
+                    app.cine.fps,
                 );
                 canvas.publish_semantics(semantics)
             }
@@ -195,6 +199,7 @@ impl BrowserSurface {
                         slice_index,
                         slice_count,
                         frame,
+                        app.cine.fps,
                     );
                     canvas.publish_semantics(semantics)?;
                 }

@@ -3,7 +3,7 @@
 use anyhow::{bail, Result};
 use std::collections::BTreeSet;
 
-use super::{TraceCleanup, TraceScreenshot, EXPECTED_ATTRIBUTES};
+use super::{TraceCleanup, TraceScreenshot};
 
 /// Validate the window and canvas screenshot manifest.
 pub(super) fn validate_screenshots(
@@ -77,7 +77,11 @@ pub(super) fn validate_screenshots(
 }
 
 /// Validate the input-release and canvas-attribute teardown evidence.
-pub(super) fn validate_cleanup(cleanup: &TraceCleanup, canvas_ids: &[String]) -> Result<()> {
+pub(super) fn validate_cleanup(
+    cleanup: &TraceCleanup,
+    canvas_ids: &[String],
+    expected_attributes: &[&str],
+) -> Result<()> {
     if !cleanup.active_input_sources_released {
         bail!("browser trace did not release active input sources")
     }
@@ -88,11 +92,11 @@ pub(super) fn validate_cleanup(cleanup: &TraceCleanup, canvas_ids: &[String]) ->
             canvas_ids.len()
         )
     }
-    let expected_attributes: Vec<String> = EXPECTED_ATTRIBUTES
+    let required_attributes: Vec<String> = expected_attributes
         .iter()
         .map(|name| (*name).to_owned())
         .collect();
-    if cleanup.canvas_attribute_names != expected_attributes {
+    if cleanup.canvas_attribute_names != required_attributes {
         bail!("browser trace cleanup does not record the required RITK attributes")
     }
     Ok(())

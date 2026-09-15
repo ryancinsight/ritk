@@ -28,6 +28,7 @@ RITK publishes a bounded semantic snapshot on each RITK canvas through
 | `data-ritk-slice-index` | zero-based decimal index |
 | `data-ritk-slice-count` | positive decimal count |
 | `data-ritk-frame-width` / `data-ritk-frame-height` | presented pixels, or `0` when empty |
+| `data-ritk-cine-fps` | finite decimal rate from `1` through `60` |
 
 The snapshot is derived by a pure RITK value and is written by the RITK
 browser viewer after presentation. The viewer caches the last value so an
