@@ -3,11 +3,11 @@
   "status": "passed",
   "runtime": {
     "platform": "windows-x86_64",
-    "observed_date": "2026-09-13",
+    "observed_date": "2026-09-15",
     "toolchain": "rustc 1.97.0 (2d8144b78 2026-07-07)",
-    "metis_revision": "6994a5f96fede946e71f1b77b28927ae923b0e75",
-    "ritk_revision": "e4179a2a8a904a974315b6da8b81abad9e5a1648",
-    "command": "metis.exe package metis.json output\\ritk-snap-installer-2026-09-13",
+    "metis_revision": "c4276f2586f1ae9a1e3c0fa1dcb1507be4555f24",
+    "ritk_revision": "3f5c35c98d82cd01d53e972cbb9dc174725bf3fb",
+    "command": "metis.exe package metis.json output\\postlock-package-local",
     "cargo_resolution": "--locked from a standalone checkout outside the Atlas development overlay"
   },
   "dataset": {
@@ -19,21 +19,21 @@
     "description": "public MRI-DIR head CT study; no private patient data is bundled"
   },
   "package": {
-    "output": "output/ritk-snap-installer-2026-09-13",
+    "output": "output/postlock-package-local",
     "inventory": {
       "file": "inventory.json",
       "bytes": 848,
-      "sha256": "7299a6ad3e86b05eb13db36fd906a51d8f6e31bd30f7d406e64fb866c8fd4712"
+      "sha256": "842d2d6edce2e5587112506f4fdc0a4ec2d39ec4cbfbadde0d35466b2178300c"
     },
     "portable": {
       "file": "app/ritk-snap.exe",
-      "bytes": 24539648,
-      "sha256": "fbe167c8b852011e12379f77ea520acad2c1295db5894e115cd15df9134ccdc2"
+      "bytes": 24672768,
+      "sha256": "c24d21755e2f7cc8fa45e039cb1ed4ed76bc76cfc1d4607319ffe6b505ccff9c"
     },
     "installer": {
       "file": "org.ritk.snap.msi",
-      "bytes": 9379840,
-      "sha256": "9641377d83ed9b8527b60332d0d6b221a90e26564bcd187692ef7e6d204d694b"
+      "bytes": 9424896,
+      "sha256": "7f05da20c3a09c65681b34916921b82310475536611417f4809a04c9875df632"
     },
     "manifest_identity": {
       "id": "org.ritk.snap",
@@ -43,7 +43,7 @@
     }
   },
   "portable_run": {
-    "command": "app\\ritk-snap.exe test_data\\3_head_ct_mridir\\DICOM --metis-native --capture-application --capture portable-real-dicom.png",
+    "command": "app\\ritk-snap.exe test_data\\3_head_ct_mridir\\DICOM --metis-native --capture-application --capture real-dicom-ct.png",
     "exit_code": 0,
     "capture": {
       "file": "dicom-metis-installer-ct.png",
@@ -61,7 +61,7 @@
       "exit_code": 0,
       "scope": "per-user",
       "registry_install_location": "%LOCALAPPDATA%\\org.ritk.snap\\",
-      "installed_executable_sha256": "fbe167c8b852011e12379f77ea520acad2c1295db5894e115cd15df9134ccdc2",
+      "installed_executable_sha256": "c24d21755e2f7cc8fa45e039cb1ed4ed76bc76cfc1d4607319ffe6b505ccff9c",
       "installed_capture_sha256": "8082cea87348126ce5a07cacb602bf71081747881481d2062bb1f2c7314113d3",
       "installed_capture_matches_portable": true
     },
