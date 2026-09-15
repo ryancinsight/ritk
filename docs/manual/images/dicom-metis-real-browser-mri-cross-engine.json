@@ -417,6 +417,86 @@
     "requested_bytes": 529864,
     "provider_bound_bytes": 1048576,
     "before_consumer": true,
-    "diagnosis_limit": "Browser File backing is unreadable in this run; the exact SafariDriver authorization or filesystem cause is not established by read API rejection alone."
+    "diagnosis_limit": "The same file is unreadable through isolated one-file and 94-file native inputs without invoking application selection handlers. Effects of the earlier application attempt are not excluded; the exact SafariDriver or filesystem access cause remains under investigation.",
+    "isolated_selection": {
+      "run_id": 34947276064,
+      "url": "https://github.com/ryancinsight/ritk/actions/runs/34947276064",
+      "ritk_revision": "fbb2d8c63b09c2ee682693938a5da81535c3af12",
+      "metis_revision": "e5379ddb32190b2703ff08b2d063c90305f0576c",
+      "trace_sha256": "8504a79b1391eda5f6f142811dcaccc715445d33584be9225da1ddd943430a70",
+      "result": {
+        "status": "captured",
+        "selections": [
+          {
+            "requested_files": 1,
+            "observation": {
+              "files": 1,
+              "changes": 1
+            },
+            "read": {
+              "status": "captured",
+              "cleanup_exceptions": [
+                {
+                  "operation": "stream-cancel",
+                  "exception": "TypeError"
+                }
+              ],
+              "selected_bytes": 529864,
+              "bounded_bytes": 529864,
+              "probes": {
+                "original_file_array_buffer": {
+                  "exception": "NotReadableError"
+                },
+                "bounded_slice_array_buffer": {
+                  "exception": "NotReadableError"
+                },
+                "bounded_slice_file_reader": {
+                  "exception": "NotReadableError"
+                },
+                "bounded_blob_url_stream": {
+                  "exception": "TypeError"
+                }
+              }
+            }
+          },
+          {
+            "requested_files": 94,
+            "observation": {
+              "files": 94,
+              "changes": 2
+            },
+            "read": {
+              "status": "captured",
+              "cleanup_exceptions": [
+                {
+                  "operation": "stream-cancel",
+                  "exception": "TypeError"
+                }
+              ],
+              "selected_bytes": 529864,
+              "bounded_bytes": 529864,
+              "probes": {
+                "original_file_array_buffer": {
+                  "exception": "NotReadableError"
+                },
+                "bounded_slice_array_buffer": {
+                  "exception": "NotReadableError"
+                },
+                "bounded_slice_file_reader": {
+                  "exception": "NotReadableError"
+                },
+                "bounded_blob_url_stream": {
+                  "exception": "TypeError"
+                }
+              }
+            }
+          }
+        ],
+        "cleanup": {
+          "removed": true,
+          "restored": true
+        }
+      }
+    }
   }
 }

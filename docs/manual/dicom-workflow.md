@@ -1095,8 +1095,13 @@ are actual viewport captures of the running gallery and its RITK canvases. The
 records the per-engine browser versions, revisions, keyboard focus evidence,
 hashes, canvas attributes, rejection results, artifact links and cleanup state,
 including the [Safari failure capture](images/dicom-metis-real-browser-mri-cross-engine-webkit.png)
-and bounded read diagnostics. The exact browser file-access cause remains
-unresolved. RITK owns DICOM scanning, decoding,
+and bounded read diagnostics. In [run 34947276064](https://github.com/ryancinsight/ritk/actions/runs/34947276064),
+an isolated native input with no application observers produces the same four
+read failures for one-file and 94-file selections. The diagnostic input is
+removed and the prior selected-file handle restored. The failure reproduces
+without invoking application selection handlers for those controls; effects
+of the earlier failed attempt are not excluded. The exact browser file-access
+cause remains unresolved. RITK owns DICOM scanning, decoding,
 geometry, clinical presentation and pixel assertions; Métis remains the
 format-neutral host and canvas boundary, and Moirai owns the bounded browser
 file read. Physical file-manager drag input, native file dialogs, native
