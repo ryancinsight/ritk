@@ -4,7 +4,7 @@
 - Scope: saved public MRI-DIR chooser replay and cross-engine gallery; provider/host fixes stay with their owners.
 - Acceptance: read-path cause and production fix, 94 file hashes, three exact pixel oracles, bounded rejections and clean sessions on Chromium, Firefox and WebKit.
 - Risk: [patch]; dependency: [Metis read diagnosis](../metis/backlog.md#METIS-BROWSER-READ-001).
-- branch: `build/ritk-metis-webview2-lock`; tree: `D:/atlas/repos/ritk`; integrated base: `67ed6db95`.
+- Branch: `main`; tree: `D:/atlas/repos/ritk`; integrated base: `67ed6db95`.
 - Evidence: [run 34973438029](https://github.com/ryancinsight/ritk/actions/runs/34973438029), RITK `67ed6db95`, Metis `b374ca937`, Moirai `2451a315`: Chromium/Firefox pass 94 file hashes, three exact pixel oracles, cine-rate/repeat checks, rejections and cleanup. Safari 26.6.2 accepts the chooser selection but fails its first bounded read before RITK receives a batch.
 - Diagnosis: WebKit sandbox denies reads and read-extension issuance on the selected real file despite verified host bytes; four browser APIs and isolated one-file/full-batch inputs fail. DICOM stays in RITK.
 - Verification: locked `ritk-snap` nextest 819/819, strict native/WASM Clippy and checks, formatting and lockfile validation pass; [proof and log hashes](docs/manual/images/dicom-metis-real-browser-mri-cross-engine.json).
