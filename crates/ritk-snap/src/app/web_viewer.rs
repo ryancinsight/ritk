@@ -74,6 +74,7 @@ struct BrowserCanvas {
     presenter: WebCanvasPresenter,
     element: WebElement,
     last_semantics: Option<BrowserCanvasSemantics>,
+    frame_generation: u64,
 }
 
 impl BrowserCanvas {
@@ -93,7 +94,21 @@ impl BrowserCanvas {
             presenter,
             element,
             last_semantics: None,
+            frame_generation: 0,
         })
+    }
+
+    /// Counts newly rendered frames only after their canvas upload succeeds.
+    /// Cached animation-frame uploads do not establish repaint evidence.
+    fn present_rendered_frame(&mut self, frame: &PresentationFrame) -> std::io::Result<()> {
+        let generation = self.frame_generation.checked_add(1).ok_or_else(|| {
+            std::io::Error::other("browser rendered-frame generation exhausted")
+        })?;
+        self.presenter.present(frame)?;
+        self.element
+            .set_attribute("data-ritk-frame-generation", &generation.to_string())?;
+        self.frame_generation = generation;
+        Ok(())
     }
 
     fn publish_semantics(&mut self, semantics: BrowserCanvasSemantics) -> std::io::Result<()> {
@@ -149,24 +164,34 @@ impl BrowserSurface {
     fn render_and_present(&mut self, app: &SnapApp) -> std::io::Result<()> {
         match self {
             Self::Single { canvas, frame } => {
+                let rendered = frame.is_none();
                 if frame.is_none() {
                     *frame = app
                         .render_browser_frame()
                         .map_err(|error| std::io::Error::other(error.to_string()))?;
                 }
                 if let Some(frame) = frame.as_ref() {
-                    canvas.presenter.present(frame)?;
+                    if rendered {
+                        canvas.present_rendered_frame(frame)?;
+                    } else {
+                        canvas.presenter.present(frame)?;
+                    }
                 }
             }
             Self::Orthogonal { canvases, frames } => {
+                let rendered = frames.is_none();
                 if frames.is_none() {
                     *frames = app
                         .render_browser_frames()
                         .map_err(|error| std::io::Error::other(error.to_string()))?;
                 }
                 if let Some(frames) = frames.as_ref() {
-                    for (canvas, frame) in canvases.iter().zip(frames) {
-                        canvas.presenter.present(frame)?;
+                    for (canvas, frame) in canvases.iter_mut().zip(frames) {
+                        if rendered {
+                            canvas.present_rendered_frame(frame)?;
+                        } else {
+                            canvas.presenter.present(frame)?;
+                        }
                     }
                 }
             }

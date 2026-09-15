@@ -47,6 +47,14 @@ snapshot is sufficient.
 
 ## Verification
 
+Revision 2026-09-15: `data-ritk-frame-generation` counts newly rendered frames
+successfully uploaded to each canvas. The counter advances after presentation,
+including repaint-triggered cache invalidation, and excludes cached uploads on
+ordinary animation frames. It is checked for overflow and contains no study
+metadata. The focused rate trace uses this counter to distinguish an effective
+rate action from a suppressed repeated keydown; it does not measure display
+refresh frequency or prove that the compositor displayed a frame.
+
 The RITK semantic value has unit tests for empty and presented states,
 including axis, slice and frame-dimension preservation. The WASM build and
 warning-denied Clippy cover the DOM publication path. The browser manual and
