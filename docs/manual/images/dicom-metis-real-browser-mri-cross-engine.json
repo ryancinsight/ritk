@@ -4,13 +4,13 @@
   "workflow": {
     "name": "RITK SNAP Métis browser DICOM",
     "file": ".github/workflows/metis-browser-dicom.yml",
-    "run_id": 34949979770,
-    "url": "https://github.com/ryancinsight/ritk/actions/runs/34949979770",
+    "run_id": 34973438029,
+    "url": "https://github.com/ryancinsight/ritk/actions/runs/34973438029",
     "conclusion": "failure",
     "observed_date": "2026-09-15",
-    "ritk_revision": "8a5698f0df1cdf9621b393893c02e303606167c2",
-    "metis_revision": "e5379ddb32190b2703ff08b2d063c90305f0576c",
-    "moirai_revision": "8d032e38bc30a754c2d909325a0d27a1c2ab45cb"
+    "ritk_revision": "67ed6db952414d7b611e57a8100deead0eba7e88",
+    "metis_revision": "b374ca937ce6ddbcbce2fb55a0dd074a241ea956",
+    "moirai_revision": "2451a3155c44dcf76d5577e4eb8c08badde51a0a"
   },
   "dataset": {
     "path": "test_data/2_head_mri_t2/DICOM",
@@ -27,8 +27,8 @@
       "browser_version": "152.0.7977.82",
       "platform": "linux",
       "input_source": "chooser",
-      "consumer_revision": "8a5698f0df1cdf9621b393893c02e303606167c2",
-      "metis_revision": "e5379ddb32190b2703ff08b2d063c90305f0576c",
+      "consumer_revision": "67ed6db952414d7b611e57a8100deead0eba7e88",
+      "metis_revision": "b374ca937ce6ddbcbce2fb55a0dd074a241ea956",
       "files": 94,
       "bytes": 49807236,
       "file_manifest_sha256": "81b7b7f8ea473dfc12c25c07b4958762254a261ca49352af2adabc214d6e8d03",
@@ -153,7 +153,7 @@
             "after_input": "255"
           }
         },
-        "trace_sha256": "63c4e24725d557bf3874afd03ee9ea2a473e0e9581899598955a6cb22f2e185b"
+        "trace_sha256": "d1abfa21cb71c207bcff0588163ccc4bce517486998b41326fe33220660e06b5"
       },
       "transfer": {
         "bytes": "Byte access: read 49807236 bytes from 94 file(s)",
@@ -238,9 +238,9 @@
         "canvas_trace": "output/browser/results/chromium/canvas-trace.json",
         "validation": "ritk-snap --require-cine-rate passed"
       },
-      "artifact_id": 10389232372,
-      "artifact_url": "https://github.com/ryancinsight/ritk/actions/runs/34949979770/artifacts/10389232372",
-      "trace_sha256": "506810949c7dd50e8dba8466679e9d38e738285f51422c86fe41d8cab7e2f526"
+      "artifact_id": 10399366988,
+      "artifact_url": "https://github.com/ryancinsight/ritk/actions/runs/34973438029/artifacts/10399366988",
+      "trace_sha256": "44ad725189a8eab1a07639c2ff8a20c700e3f7198f380337a8f3ba5821c10c27"
     },
     "firefox": {
       "status": "passed",
@@ -248,8 +248,8 @@
       "browser_version": "155.0",
       "platform": "linux",
       "input_source": "chooser",
-      "consumer_revision": "8a5698f0df1cdf9621b393893c02e303606167c2",
-      "metis_revision": "e5379ddb32190b2703ff08b2d063c90305f0576c",
+      "consumer_revision": "67ed6db952414d7b611e57a8100deead0eba7e88",
+      "metis_revision": "b374ca937ce6ddbcbce2fb55a0dd074a241ea956",
       "files": 94,
       "bytes": 49807236,
       "file_manifest_sha256": "81b7b7f8ea473dfc12c25c07b4958762254a261ca49352af2adabc214d6e8d03",
@@ -374,7 +374,7 @@
             "after_input": "255"
           }
         },
-        "trace_sha256": "c0eba4802e4cfe1b17965564022fc870dec1baf8a914fc17cef0132186d44fcb"
+        "trace_sha256": "32c7f5c3f9ee5d5b257d938151206987bae533ce455daefd63e4733bfa18bc1c"
       },
       "transfer": {
         "bytes": "Byte access: read 49807236 bytes from 94 file(s)",
@@ -459,9 +459,9 @@
         "canvas_trace": "output/browser/results/firefox/canvas-trace.json",
         "validation": "ritk-snap --require-cine-rate passed"
       },
-      "artifact_id": 10389103816,
-      "artifact_url": "https://github.com/ryancinsight/ritk/actions/runs/34949979770/artifacts/10389103816",
-      "trace_sha256": "7d78945bb84152e5547f32b7d458dc70971b81c8ad5146e527d83e5ca5b324ae"
+      "artifact_id": 10399132337,
+      "artifact_url": "https://github.com/ryancinsight/ritk/actions/runs/34973438029/artifacts/10399132337",
+      "trace_sha256": "eacfff702c21858c92371c3f938511d485c0b2aa2ab5d9e04ae74618afbfd95a"
     },
     "webkit": {
       "status": "failed",
@@ -469,8 +469,8 @@
       "browser_version": "26.6.2",
       "platform": "macOS",
       "input_source": "chooser",
-      "consumer_revision": "8a5698f0df1cdf9621b393893c02e303606167c2",
-      "metis_revision": "e5379ddb32190b2703ff08b2d063c90305f0576c",
+      "consumer_revision": "67ed6db952414d7b611e57a8100deead0eba7e88",
+      "metis_revision": "b374ca937ce6ddbcbce2fb55a0dd074a241ea956",
       "files": null,
       "bytes": null,
       "file_manifest_sha256": null,
@@ -515,9 +515,9 @@
         "status": "Drop status: accepted 94 file(s); 00000001.dcm (529864 bytes), 00000002.dcm (529864 bytes), 00000003.dcm (529864 bytes); ...",
         "bytes": "Byte access: browser rejected the bounded whole-file read"
       },
-      "artifact_id": 10389460899,
-      "artifact_url": "https://github.com/ryancinsight/ritk/actions/runs/34949979770/artifacts/10389460899",
-      "trace_sha256": "4f8caf491acb5b09be5dd9daf67d0cca44c58d9999e307bccbf927f8d1a33602",
+      "artifact_id": 10398956300,
+      "artifact_url": "https://github.com/ryancinsight/ritk/actions/runs/34973438029/artifacts/10398956300",
+      "trace_sha256": "874093724aa2313085be803d4ece8530e95074f8cec91d699b9d8d597a31c206",
       "file_read_diagnostic": {
         "status": "captured",
         "cleanup_exceptions": [
@@ -551,19 +551,19 @@
     "webkit": "selected 94 files; first whole-file read rejects; same selected File fails all four bounded browser read APIs",
     "ownership": "RITK owns DICOM scanning, decoding, geometry, clinical presentation, and pixel assertions; Métis remains format-neutral; Moirai owns browser file reads",
     "native": {
-      "revision": "8a5698f0df1cdf9621b393893c02e303606167c2",
-      "command": "rustup run 1.97.0 cargo nextest run --locked --manifest-path D:/atlas/worktrees/ritk-browser-file-read/Cargo.toml -p ritk-snap",
-      "run_id": "075bffca-f085-4d3a-96f5-966b130dbd54",
-      "passed": 847,
+      "revision": "a15eb077e51f0221dcb9f494a27af67c3145a355",
+      "command": "rustup run 1.97.0 cargo nextest run --locked --manifest-path D:/atlas/repos/ritk/Cargo.toml -p ritk-snap --lib",
+      "passed": 819,
       "failed": 0,
       "skipped": 0,
-      "log_sha256": "89c535d9d108aa0a7c38ab18bde55177529a0945f86f80e1feafe7ebea1f72e6",
       "other_checks": [
         "workspace formatting",
         "strict native all-target Clippy",
-        "locked wasm32-unknown-unknown library check"
+        "locked wasm32-unknown-unknown library check",
+        "strict wasm32-unknown-unknown library Clippy",
+        "python scripts/lockfile.py --check"
       ],
-      "execution_directory": "process TEMP, outside the Atlas development overlay"
+      "execution_directory": "D:/atlas/repos/ritk"
     }
   },
   "limits": [
@@ -580,11 +580,11 @@
     "before_consumer": true,
     "diagnosis_limit": "The selected real file is denied by the WebKit sandbox: WebContent cannot read it or issue a read extension, and Networking cannot read it. Host readability and the expected digest are verified. The exact SafariDriver/WebKit grant defect is not established; Metis and Moirai cannot confer browser sandbox access.",
     "isolated_selection": {
-      "workflow_run_id": 34949979770,
-      "workflow_url": "https://github.com/ryancinsight/ritk/actions/runs/34949979770",
-      "ritk_revision": "8a5698f0df1cdf9621b393893c02e303606167c2",
-      "metis_revision": "e5379ddb32190b2703ff08b2d063c90305f0576c",
-      "trace_sha256": "4f8caf491acb5b09be5dd9daf67d0cca44c58d9999e307bccbf927f8d1a33602",
+      "workflow_run_id": 34973438029,
+      "workflow_url": "https://github.com/ryancinsight/ritk/actions/runs/34973438029",
+      "ritk_revision": "67ed6db952414d7b611e57a8100deead0eba7e88",
+      "metis_revision": "b374ca937ce6ddbcbce2fb55a0dd074a241ea956",
+      "trace_sha256": "874093724aa2313085be803d4ece8530e95074f8cec91d699b9d8d597a31c206",
       "result": {
         "status": "captured",
         "selections": [
@@ -660,10 +660,10 @@
       }
     },
     "sandbox_access": {
-      "workflow_run_id": 34949979770,
-      "workflow_url": "https://github.com/ryancinsight/ritk/actions/runs/34949979770",
-      "ritk_revision": "8a5698f0df1cdf9621b393893c02e303606167c2",
-      "metis_revision": "e5379ddb32190b2703ff08b2d063c90305f0576c",
+      "workflow_run_id": 34973438029,
+      "workflow_url": "https://github.com/ryancinsight/ritk/actions/runs/34973438029",
+      "ritk_revision": "67ed6db952414d7b611e57a8100deead0eba7e88",
+      "metis_revision": "b374ca937ce6ddbcbce2fb55a0dd074a241ea956",
       "engine_status": "failed",
       "file_access": {
         "reader_uid": 501,
@@ -740,13 +740,13 @@
       },
       "diagnostic_sha256": {
         "filesystem": "1db4af388cb339a25972226fafde72f4443e750b999e424bbaaf2ee8a79eed25",
-        "sandbox": "4c7be39bde4bbb7cc4fbb1639c177dff8331e95052ee81e80c9279d6f777f6bc",
-        "driver": "7fbfe57a51547fd16a01c8e1112d5e82b61c11467926e2941c63a07b2c16d8c7",
-        "trace": "4f8caf491acb5b09be5dd9daf67d0cca44c58d9999e307bccbf927f8d1a33602"
+        "sandbox": "3932d0979b81ac6c3938e6785f8f7d86ed2f9d99a76eafa974194731a0462519",
+        "driver": "b57f64add1da5d56d92290814b6f03691552abb25f37f896a2885edbf6d86b08",
+        "trace": "874093724aa2313085be803d4ece8530e95074f8cec91d699b9d8d597a31c206"
       },
       "artifact_urls": {
-        "gallery": "https://github.com/ryancinsight/ritk/actions/runs/34949979770/artifacts/10389460899",
-        "driver": "https://github.com/ryancinsight/ritk/actions/runs/34949979770/artifacts/10389381205"
+        "gallery": "https://github.com/ryancinsight/ritk/actions/runs/34973438029/artifacts/10398956300",
+        "driver": "https://github.com/ryancinsight/ritk/actions/runs/34973438029/artifacts/10398981162"
       },
       "upload_command": {
         "method": "Automation.setFilesToSelectForFileUpload",
@@ -758,20 +758,20 @@
         {
           "category": "web-read",
           "line": 23,
-          "timestamp": "2026-09-15 09:08:55.537243+0000",
-          "message": "Sandbox: com.apple.WebKit.WebContent(2404) deny(1) file-read-data <checkout>/test_data/2_head_mri_t2/DICOM/00000001.dcm"
+          "timestamp": "2026-09-15 13:24:02.764315+0000",
+          "message": "Sandbox: com.apple.WebKit.WebContent(2472) deny(1) file-read-data <checkout>/test_data/2_head_mri_t2/DICOM/00000001.dcm"
         },
         {
           "category": "extension",
           "line": 24,
-          "timestamp": "2026-09-15 09:08:55.546654+0000",
-          "message": "Sandbox: com.apple.WebKit.WebContent(2404) deny(1) file-issue-extension target:<checkout>/test_data/2_head_mri_t2/DICOM/00000001.dcm extension-class:com.apple.app-sandbox.read"
+          "timestamp": "2026-09-15 13:24:02.775477+0000",
+          "message": "Sandbox: com.apple.WebKit.WebContent(2472) deny(1) file-issue-extension target:<checkout>/test_data/2_head_mri_t2/DICOM/00000001.dcm extension-class:com.apple.app-sandbox.read"
         },
         {
           "category": "network-read",
           "line": 214,
-          "timestamp": "2026-09-15 09:08:55.593142+0000",
-          "message": "Sandbox: com.apple.WebKit.Networking(2411) deny(1) file-read-data <checkout>/test_data/2_head_mri_t2/DICOM/00000001.dcm"
+          "timestamp": "2026-09-15 13:24:02.841609+0000",
+          "message": "Sandbox: com.apple.WebKit.Networking(2478) deny(1) file-read-data <checkout>/test_data/2_head_mri_t2/DICOM/00000001.dcm"
         }
       ]
     }
