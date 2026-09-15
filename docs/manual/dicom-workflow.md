@@ -1075,12 +1075,12 @@ process launch, and OS permission flows remain separate acceptance gates.
 
 The reproducible cross-engine chooser workflow is
 [`metis-browser-dicom.yml`](../../.github/workflows/metis-browser-dicom.yml).
-Hosted run [34973438029](https://github.com/ryancinsight/ritk/actions/runs/34973438029)
+Hosted run [34984468153](https://github.com/ryancinsight/ritk/actions/runs/34984468153)
 ran the same 94 saved MRI-DIR DICOM files through the W3C file chooser on
 Chromium, Firefox, and WebKit. It built RITK at
-`67ed6db952414d7b611e57a8100deead0eba7e88`, resolved Métis at
-`b374ca937ce6ddbcbce2fb55a0dd074a241ea956`, and used Moirai bounded
-reads at `2451a3155c44dcf76d5577e4eb8c08badde51a0a`. Chromium 152 and Firefox 155
+`15d3d3c3dd416b72cf901d652522c4877d38d664`, resolved Métis at
+`28a7c69da5991d5cd7cbf4bcdce40f826ed77e53`, and used Moirai bounded
+reads at `d95a2cd61b1f133a507d2735f5f72948a4ca5ec9`. Chromium 152 and Firefox 155
 passed the RITK-owned canvas dimensions, non-black counts, exact RGBA hashes,
 semantic `data-ritk-*` attributes, bounded rejection probes, trusted pointer,
 wheel and focused cine-rate key actions, and clean WebDriver teardown. Each
