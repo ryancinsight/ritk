@@ -1,113 +1,81 @@
 {
-  "schema": 1,
+  "schema": 2,
   "status": "passed",
-  "runtime": {
-    "engine": "chromium",
-    "browser": "Microsoft Edge",
-    "browser_version": "154.0.4258.12",
-    "platform": "windows",
-    "host": "Edge WebDriver",
-    "url": "http://127.0.0.1:59375/gallery.html",
-    "input": "file-backed WebDriver DataTransfer drop",
-    "observed_date": "2026-09-13",
-    "metis_revision": "abd6578caffb92ad4ab9011507cdd89fc0c2c7e2",
-    "ritk_revision": "60044428572461ff94cc0396a1960e9cdc78304a",
-    "moirai_revision": "fd3ec288dd0f1e98912f1d439d4ff9129ca7e25a"
-  },
-  "dataset": {
-    "path": "test_data/2_head_mri_t2/DICOM",
-    "files_submitted": 94,
-    "bytes_read": 49807236,
-    "license": "CC BY 4.0",
-    "description": "public MRI-DIR porcine-head T2 MRI phantom; not private patient data"
-  },
-  "transfer": {
-    "events": ["dragenter", "dragover", "dragover", "drop"],
-    "trusted": true,
-    "drop_files": 94,
-    "drop_bytes": 49807236,
-    "file_manifest_sha256": "81b7b7f8ea473dfc12c25c07b4958762254a261ca49352af2adabc214d6e8d03",
-    "oracle_sha256": "3dac2fb0d23ef4451ee4ab9d0e07a5076a6eb922fc034899adbbeaf61d5c199c",
-    "reported_status": "Drop status: accepted 94 file(s)",
-    "reported_bytes": "Byte access: read 49807236 bytes from 94 file(s)"
-  },
+  "runtime": {"engine":"chromium","browser":"Microsoft Edge","browser_version":"154.0.4258.12","platform":"windows","host":"Edge WebDriver","url":"http://127.0.0.1:51986/gallery.html","input":"W3C file chooser","observed_date":"2026-09-15","metis_revision":"d0d45561228a8481f0c6e4e3208162db93ccfe01","ritk_revision":"f5ce647828957ed19fbe5ef68b54f9c40ed11ddf","moirai_revision":"8d032e38bc30a754c2d909325a0d27a1c2ab45cb","device_scale":{"requested":null,"requested_milli":null,"effective":"1.25","effective_milli":1250,"device_pixel_ratio":1.25,"css_viewport":{"width":1418,"height":962}}},
+  "dataset": {"path":"test_data/2_head_mri_t2/DICOM","files_submitted":94,"bytes_read":49807236,"license":"CC BY 4.0","description":"public MRI-DIR porcine-head T2 MRI phantom; not private patient data"},
+  "transfer": {"action":{"input":"chooser","events":[{"bytes":49807236,"files":94,"trusted":true,"type":"change"}]},"snapshot":{"bytes":"Byte access: read 49807236 bytes from 94 file(s)","status":"Drop status: accepted 94 file(s); 00000001.dcm (529864 bytes), 00000002.dcm (529864 bytes), 00000003.dcm (529864 bytes); ..."},"file_manifest_sha256":"81b7b7f8ea473dfc12c25c07b4958762254a261ca49352af2adabc214d6e8d03","oracle_sha256":"3dac2fb0d23ef4451ee4ab9d0e07a5076a6eb922fc034899adbbeaf61d5c199c"},
   "views": {
-    "axial": {
-      "width": 512,
-      "height": 512,
-      "non_black_pixels": 190836,
-      "rgba_sha256": "5c96fff2f82ecfddd64a6aa9a1e8f99af367740fcd43826977ac3d1035cb28f6",
-      "screenshot": "dicom-metis-real-browser-mri-edge-axial.png",
-      "screenshot_sha256": "77edcbdbef050ca497b5f5f9edbe42c2b1170ec2049a7bf10152d691e057782b"
-    },
-    "coronal": {
-      "width": 512,
-      "height": 94,
-      "non_black_pixels": 41863,
-      "rgba_sha256": "f76018ef402afa7811154c506219361b43227dbe218ff0383b3dddd7bf438136",
-      "screenshot": "dicom-metis-real-browser-mri-edge-coronal.png",
-      "screenshot_sha256": "7a5f2c25968111e34cc7f665e2c6d2eb45dffc75d469afb50eeb0beb5d1c0f9f"
-    },
-    "sagittal": {
-      "width": 512,
-      "height": 94,
-      "non_black_pixels": 38843,
-      "rgba_sha256": "b8cabf3aa07399387b9d1c7416dbfae594e4d2408f40e0a4bd654f9829799fe3",
-      "screenshot": "dicom-metis-real-browser-mri-edge-sagittal.png",
-      "screenshot_sha256": "b1c1c1568f26ea46b303904b5ac4c0a68ba6a47fa769ac3a6309acf48ec1aff3"
-    }
+    "axial": {"width":512,"height":512,"non_black_pixels":190836,"rgba_sha256":"5c96fff2f82ecfddd64a6aa9a1e8f99af367740fcd43826977ac3d1035cb28f6","screenshot":"dicom-metis-real-browser-mri-edge-axial.png","screenshot_width":561,"screenshot_height":561,"screenshot_bytes":172340,"screenshot_sha256":"77edcbdbef050ca497b5f5f9edbe42c2b1170ec2049a7bf10152d691e057782b"},
+    "coronal": {"width":512,"height":94,"non_black_pixels":41863,"rgba_sha256":"f76018ef402afa7811154c506219361b43227dbe218ff0383b3dddd7bf438136","screenshot":"dicom-metis-real-browser-mri-edge-coronal.png","screenshot_width":561,"screenshot_height":103,"screenshot_bytes":44070,"screenshot_sha256":"7a5f2c25968111e34cc7f665e2c6d2eb45dffc75d469afb50eeb0beb5d1c0f9f"},
+    "sagittal": {"width":512,"height":94,"non_black_pixels":38843,"rgba_sha256":"b8cabf3aa07399387b9d1c7416dbfae594e4d2408f40e0a4bd654f9829799fe3","screenshot":"dicom-metis-real-browser-mri-edge-sagittal.png","screenshot_width":561,"screenshot_height":103,"screenshot_bytes":45541,"screenshot_sha256":"b1c1c1568f26ea46b303904b5ac4c0a68ba6a47fa769ac3a6309acf48ec1aff3"}
   },
-  "application_capture": {
-    "screenshot": "dicom-metis-real-browser-mri-edge-gallery.png",
-    "width": 1773,
-    "height": 1203,
-    "bytes": 305398,
-    "sha256": "4538c9704962619499ef9d93925845c0e34f216215b1c2db4e91a12ec40cddcb",
-    "scope": "browser viewport containing the running gallery and three RITK canvases"
-  },
-  "rejections": [
-    {"kind": "count", "files": 513, "result": "rejected before reading"},
-    {"kind": "file-bytes", "files": 1, "bytes": 67108865, "result": "rejected before reading"},
-    {"kind": "batch-bytes", "files": 5, "bytes": 335544320, "result": "rejected before reading"}
-  ],
-  "assets": {
-    "gallery.html": "d6fad6f9c0479e9e29223e506f11dcef37c55d9b6892fb3fd57b9155c51f5628",
-    "gallery.js": "6d63e48f8510cce13317ab7b0150bbe059d6e8a903d733e6dee952436a59fea9",
-    "gallery.css": "372b8662375a56ec999e28196656474ae95a08f2feaaf12baf1800a8f0917e4b",
-    "consumer/ritk_snap.js": "b42f2cd68093bdaf8e752c59a609961c498c21a2e0ab194f3b49002c5b4c3190",
-    "consumer/ritk_snap_bg.wasm": "d055c5ab09f21a5cf3fb200f04b51acb4ccec78950ce75d215e43bc46a611d1f"
-  },
+  "application_capture": {"screenshot":"dicom-metis-real-browser-mri-edge-gallery.png","source":"output/browser/cine/gallery.png","width":1773,"height":1203,"bytes":305356,"sha256":"22989c8455c3ceffb513cbc3968b7a5e8c1e5139f0780d2bb36b199088ed062a","scope":"browser viewport containing the running gallery and three RITK canvases"},
+  "rejections": [{"rejected":"count","files":513,"bytes":0,"input":"chooser","observer":{"rejected":"file evidence exceeds host bounds"}},{"rejected":"file-bytes","files":1,"bytes":67108865,"input":"chooser","observer":{"rejected":"file evidence exceeds host bounds"}},{"rejected":"batch-bytes","files":5,"bytes":335544320,"input":"chooser","observer":{"rejected":"file evidence exceeds host bounds"}}],
+  "assets": {"gallery.html":"ac4f713fbf4b9c5d588ccd6d73713ed4b07318cd596796b5e14af0c522edc0bd","gallery.js":"6d63e48f8510cce13317ab7b0150bbe059d6e8a903d733e6dee952436a59fea9","gallery.css":"372b8662375a56ec999e28196656474ae95a08f2feaaf12baf1800a8f0917e4b","consumer/ritk_snap.js":"0769a5d8537510a064461f7fd54595d7b5db9e0ddc742e61c14b848fec81f7b0","consumer/ritk_snap_bg.wasm":"011bd12639e1c78e406114c19d7876d3185e4720f031ed7c48df6ad54c50b603"},
+  "sources": {"browser.py":"78d71d8087fd4e6a4b04bbbd6f734ffebf35a719db70e1ba3eef02fa08b71069","browser_drop.py":"b37097eb462814dbfdf13308e8d87f0fa7efc562df1038eb438bc9b3b3f973c8","browser_file_read.py":"6bbb77ebc52176f8ddf9dbddbd7c4c8ceb16f6a9a603d5038aad843746dfd41a","browser_protocol.py":"143060a521a0fc681806a9ebaab3b132baaa51a928495c389334d6c797d542f1","browser_canvas.py":"bcdafeeee7fb0c5ef49ad65a49c576b577bfec36c237113607aae4305addfeb3"},
+  "source_artifacts": {"trace":{"path":"output/browser/cine/trace.json","bytes":5242,"sha256":"a4c275f264bf7618cd3eb1264f808b1c82782532879340758ef2b8bc37b82447"},"canvas_trace":{"path":"output/browser/cine/canvas-trace.json","bytes":43840,"sha256":"a7eafc7c505597f94396cc75dfd10d53edfe076a5b73f9f80720368bee50600e"}},
   "verification": {
     "pixel_oracle": "all three canvas dimensions, non-black counts, and RGBA hashes match the RITK-produced oracle",
-    "render_schedule": "requestAnimationFrame through Moirai WebAnimationFrame",
+    "trace_status": "passed",
+    "ritk_validator": {"command":"D:/atlas/target/debug/ritk-snap.exe --validate-browser-trace D:/atlas/repos/metis/output/browser/cine/canvas-trace.json --require-cine-rate","result":"validated engine=chromium canvases=3 metis_revision=d0d45561228a8481f0c6e4e3208162db93ccfe01 consumer_revision=f5ce647828957ed19fbe5ef68b54f9c40ed11ddf","exit_code":0},
     "canvas_trace": {
-      "actions": 6,
-      "snapshots": 6,
-      "screenshots": 8,
-      "trusted_events": true,
-      "slice_transitions": {
-        "axial": "47→46 of 94",
-        "coronal": "256→255 of 512",
-        "sagittal": "256→255 of 512"
-      },
-      "effective_offsets": {
-        "axial": {"start": [24, 24], "end_and_wheel": [64, 48]},
-        "coronal": {"start": [24, 24], "end_and_wheel": [64, 40]},
-        "sagittal": {"start": [24, 24], "end_and_wheel": [64, 40]}
-      },
-      "diagnostic_listener_count": 12,
-      "diagnostic_listeners_released": true,
-      "input_sources_released": true,
-      "session_closed": true
+      "status": "passed",
+      "profile": "cine-rate",
+      "action_count": 18,
+      "actions": [
+        {"index":1,"action":"trusted-keyboard","canvas":"ritk-snap-axial","focus":"ritk-snap-axial","focus_ok":true,"key":"=","code":"Equal","repeat":false,"transport":"chromium-devtools","observed_events":[{"type":"keydown","target":"ritk-snap-axial","trusted":true,"repeat":false,"key":"=","code":"Equal"}]},
+        {"index":2,"action":"trusted-keyboard","canvas":"ritk-snap-axial","focus":"ritk-snap-axial","focus_ok":true,"key":"=","code":"Equal","repeat":true,"transport":"chromium-devtools","observed_events":[{"type":"keydown","target":"ritk-snap-axial","trusted":true,"repeat":true,"key":"=","code":"Equal"},{"type":"keyup","target":"ritk-snap-axial","trusted":true,"repeat":false,"key":"=","code":"Equal"}]},
+        {"index":3,"action":"trusted-keyboard","canvas":"ritk-snap-axial","focus":"ritk-snap-axial","focus_ok":true,"key":"-","code":"Minus","repeat":false,"transport":"chromium-devtools","observed_events":[{"type":"keydown","target":"ritk-snap-axial","trusted":true,"repeat":false,"key":"-","code":"Minus"}]},
+        {"index":4,"action":"trusted-keyboard","canvas":"ritk-snap-axial","focus":"ritk-snap-axial","focus_ok":true,"key":"-","code":"Minus","repeat":true,"transport":"chromium-devtools","observed_events":[{"type":"keydown","target":"ritk-snap-axial","trusted":true,"repeat":true,"key":"-","code":"Minus"},{"type":"keyup","target":"ritk-snap-axial","trusted":true,"repeat":false,"key":"-","code":"Minus"}]},
+        {"index":5,"action":"trusted-pointer-drag","canvas":"ritk-snap-axial","start":[24,24],"end":[64,48],"observed_events":[{"type":"pointermove","target":"ritk-snap-axial","trusted":true,"repeat":false,"client":[264,723]},{"type":"pointerdown","target":"ritk-snap-axial","trusted":true,"repeat":false,"client":[264,723]},{"type":"pointermove","target":"ritk-snap-axial","trusted":true,"repeat":false,"client":[304,747]},{"type":"pointerup","target":"ritk-snap-axial","trusted":true,"repeat":false,"client":[304,747]}]},
+        {"index":6,"action":"trusted-wheel","canvas":"ritk-snap-axial","position":[64,48],"delta":[0,120],"observed_events":[{"type":"wheel","target":"ritk-snap-axial","trusted":true,"repeat":false,"client":[304,747],"delta":[0,120]}]},
+        {"index":7,"action":"trusted-keyboard","canvas":"ritk-snap-coronal","focus":"ritk-snap-coronal","focus_ok":true,"key":"=","code":"Equal","repeat":false,"transport":"chromium-devtools","observed_events":[{"type":"keydown","target":"ritk-snap-coronal","trusted":true,"repeat":false,"key":"=","code":"Equal"}]},
+        {"index":8,"action":"trusted-keyboard","canvas":"ritk-snap-coronal","focus":"ritk-snap-coronal","focus_ok":true,"key":"=","code":"Equal","repeat":true,"transport":"chromium-devtools","observed_events":[{"type":"keydown","target":"ritk-snap-coronal","trusted":true,"repeat":true,"key":"=","code":"Equal"},{"type":"keyup","target":"ritk-snap-coronal","trusted":true,"repeat":false,"key":"=","code":"Equal"}]},
+        {"index":9,"action":"trusted-keyboard","canvas":"ritk-snap-coronal","focus":"ritk-snap-coronal","focus_ok":true,"key":"-","code":"Minus","repeat":false,"transport":"chromium-devtools","observed_events":[{"type":"keydown","target":"ritk-snap-coronal","trusted":true,"repeat":false,"key":"-","code":"Minus"}]},
+        {"index":10,"action":"trusted-keyboard","canvas":"ritk-snap-coronal","focus":"ritk-snap-coronal","focus_ok":true,"key":"-","code":"Minus","repeat":true,"transport":"chromium-devtools","observed_events":[{"type":"keydown","target":"ritk-snap-coronal","trusted":true,"repeat":true,"key":"-","code":"Minus"},{"type":"keyup","target":"ritk-snap-coronal","trusted":true,"repeat":false,"key":"-","code":"Minus"}]},
+        {"index":11,"action":"trusted-pointer-drag","canvas":"ritk-snap-coronal","start":[24,24],"end":[64,40],"observed_events":[{"type":"pointermove","target":"ritk-snap-coronal","trusted":true,"repeat":false,"client":[733,539]},{"type":"pointerdown","target":"ritk-snap-coronal","trusted":true,"repeat":false,"client":[733,539]},{"type":"pointermove","target":"ritk-snap-coronal","trusted":true,"repeat":false,"client":[773,555]},{"type":"pointerup","target":"ritk-snap-coronal","trusted":true,"repeat":false,"client":[773,555]}]},
+        {"index":12,"action":"trusted-wheel","canvas":"ritk-snap-coronal","position":[64,40],"delta":[0,120],"observed_events":[{"type":"wheel","target":"ritk-snap-coronal","trusted":true,"repeat":false,"client":[773,555],"delta":[0,120]}]},
+        {"index":13,"action":"trusted-keyboard","canvas":"ritk-snap-sagittal","focus":"ritk-snap-sagittal","focus_ok":true,"key":"=","code":"Equal","repeat":false,"transport":"chromium-devtools","observed_events":[{"type":"keydown","target":"ritk-snap-sagittal","trusted":true,"repeat":false,"key":"=","code":"Equal"}]},
+        {"index":14,"action":"trusted-keyboard","canvas":"ritk-snap-sagittal","focus":"ritk-snap-sagittal","focus_ok":true,"key":"=","code":"Equal","repeat":true,"transport":"chromium-devtools","observed_events":[{"type":"keydown","target":"ritk-snap-sagittal","trusted":true,"repeat":true,"key":"=","code":"Equal"},{"type":"keyup","target":"ritk-snap-sagittal","trusted":true,"repeat":false,"key":"=","code":"Equal"}]},
+        {"index":15,"action":"trusted-keyboard","canvas":"ritk-snap-sagittal","focus":"ritk-snap-sagittal","focus_ok":true,"key":"-","code":"Minus","repeat":false,"transport":"chromium-devtools","observed_events":[{"type":"keydown","target":"ritk-snap-sagittal","trusted":true,"repeat":false,"key":"-","code":"Minus"}]},
+        {"index":16,"action":"trusted-keyboard","canvas":"ritk-snap-sagittal","focus":"ritk-snap-sagittal","focus_ok":true,"key":"-","code":"Minus","repeat":true,"transport":"chromium-devtools","observed_events":[{"type":"keydown","target":"ritk-snap-sagittal","trusted":true,"repeat":true,"key":"-","code":"Minus"},{"type":"keyup","target":"ritk-snap-sagittal","trusted":true,"repeat":false,"key":"-","code":"Minus"}]},
+        {"index":17,"action":"trusted-pointer-drag","canvas":"ritk-snap-sagittal","start":[24,24],"end":[64,40],"observed_events":[{"type":"pointermove","target":"ritk-snap-sagittal","trusted":true,"repeat":false,"client":[1202,539]},{"type":"pointerdown","target":"ritk-snap-sagittal","trusted":true,"repeat":false,"client":[1202,539]},{"type":"pointermove","target":"ritk-snap-sagittal","trusted":true,"repeat":false,"client":[1242,555]},{"type":"pointerup","target":"ritk-snap-sagittal","trusted":true,"repeat":false,"client":[1242,555]}]},
+        {"index":18,"action":"trusted-wheel","canvas":"ritk-snap-sagittal","position":[64,40],"delta":[0,120],"observed_events":[{"type":"wheel","target":"ritk-snap-sagittal","trusted":true,"repeat":false,"client":[1242,555],"delta":[0,120]}]}
+      ],
+      "snapshot_count": 18,
+      "snapshot_stages": ["initial","after-keyboard","after-repeat","after-decrease","after-decrease-repeat","after-input"],
+      "snapshots_by_canvas": [
+        {"canvas":"ritk-snap-axial","labels":["ritk-snap-axial-initial","ritk-snap-axial-after-keyboard","ritk-snap-axial-after-repeat","ritk-snap-axial-after-decrease","ritk-snap-axial-after-decrease-repeat","ritk-snap-axial-after-input"],"widths":[512,512,512,512,512,512],"heights":[512,512,512,512,512,512],"css_widths":[448.8000183105469,448.8000183105469,448.8000183105469,448.8000183105469,448.8000183105469,448.8000183105469],"css_heights":[448.8000183105469,448.8000183105469,448.8000183105469,448.8000183105469,448.8000183105469,448.8000183105469],"attributes":{"data-ritk-load-state":["ready","ready","ready","ready","ready","ready"],"data-ritk-frame-state":["presented","presented","presented","presented","presented","presented"],"data-ritk-axis":["0","0","0","0","0","0"],"data-ritk-slice-index":["47","47","47","47","47","46"],"data-ritk-slice-count":["94","94","94","94","94","94"],"data-ritk-frame-width":["512","512","512","512","512","512"],"data-ritk-frame-height":["512","512","512","512","512","512"],"data-ritk-cine-fps":["12","13","13","12","12","12"],"data-ritk-frame-generation":["1","2","2","3","3","7"]}},
+        {"canvas":"ritk-snap-coronal","labels":["ritk-snap-coronal-initial","ritk-snap-coronal-after-keyboard","ritk-snap-coronal-after-repeat","ritk-snap-coronal-after-decrease","ritk-snap-coronal-after-decrease-repeat","ritk-snap-coronal-after-input"],"widths":[512,512,512,512,512,512],"heights":[94,94,94,94,94,94],"css_widths":[448.8000183105469,448.8000183105469,448.8000183105469,448.8000183105469,448.8000183105469,448.8000183105469],"css_heights":[82.38750457763672,82.38750457763672,82.38750457763672,82.38750457763672,82.38750457763672,82.38750457763672],"attributes":{"data-ritk-load-state":["ready","ready","ready","ready","ready","ready"],"data-ritk-frame-state":["presented","presented","presented","presented","presented","presented"],"data-ritk-axis":["1","1","1","1","1","1"],"data-ritk-slice-index":["256","256","256","256","256","255"],"data-ritk-slice-count":["512","512","512","512","512","512"],"data-ritk-frame-width":["512","512","512","512","512","512"],"data-ritk-frame-height":["94","94","94","94","94","94"],"data-ritk-cine-fps":["12","13","13","12","12","12"],"data-ritk-frame-generation":["7","8","8","9","9","13"]}},
+        {"canvas":"ritk-snap-sagittal","labels":["ritk-snap-sagittal-initial","ritk-snap-sagittal-after-keyboard","ritk-snap-sagittal-after-repeat","ritk-snap-sagittal-after-decrease","ritk-snap-sagittal-after-decrease-repeat","ritk-snap-sagittal-after-input"],"widths":[512,512,512,512,512,512],"heights":[94,94,94,94,94,94],"css_widths":[448.8000183105469,448.8000183105469,448.8000183105469,448.8000183105469,448.8000183105469,448.8000183105469],"css_heights":[82.38750457763672,82.38750457763672,82.38750457763672,82.38750457763672,82.38750457763672,82.38750457763672],"attributes":{"data-ritk-load-state":["ready","ready","ready","ready","ready","ready"],"data-ritk-frame-state":["presented","presented","presented","presented","presented","presented"],"data-ritk-axis":["2","2","2","2","2","2"],"data-ritk-slice-index":["256","256","256","256","256","255"],"data-ritk-slice-count":["512","512","512","512","512","512"],"data-ritk-frame-width":["512","512","512","512","512","512"],"data-ritk-frame-height":["94","94","94","94","94","94"],"data-ritk-cine-fps":["12","13","13","12","12","12"],"data-ritk-frame-generation":["13","14","14","15","15","19"]}}
+      ],
+      "screenshot_count": 20,
+      "screenshots": [
+        {"bytes":305356,"height":1203,"label":"window-initial","path":"output/browser/cine/screenshots/chromium/canvas/window-initial.png","sha256":"22989c8455c3ceffb513cbc3968b7a5e8c1e5139f0780d2bb36b199088ed062a","width":1773},
+        {"bytes":172340,"height":561,"label":"ritk-snap-axial-initial","path":"output/browser/cine/screenshots/chromium/canvas/ritk-snap-axial-initial.png","scope":"element","sha256":"77edcbdbef050ca497b5f5f9edbe42c2b1170ec2049a7bf10152d691e057782b","width":561},
+        {"bytes":172987,"height":561,"label":"ritk-snap-axial-after-keyboard","path":"output/browser/cine/screenshots/chromium/canvas/ritk-snap-axial-after-keyboard.png","scope":"element","sha256":"59512e4e8b6c6dd9045739c4f8a74f898c9b7946ef793eab416d7f726a7a6e76","width":561},
+        {"bytes":172987,"height":561,"label":"ritk-snap-axial-after-repeat","path":"output/browser/cine/screenshots/chromium/canvas/ritk-snap-axial-after-repeat.png","scope":"element","sha256":"59512e4e8b6c6dd9045739c4f8a74f898c9b7946ef793eab416d7f726a7a6e76","width":561},
+        {"bytes":172987,"height":561,"label":"ritk-snap-axial-after-decrease","path":"output/browser/cine/screenshots/chromium/canvas/ritk-snap-axial-after-decrease.png","scope":"element","sha256":"59512e4e8b6c6dd9045739c4f8a74f898c9b7946ef793eab416d7f726a7a6e76","width":561},
+        {"bytes":172987,"height":561,"label":"ritk-snap-axial-after-decrease-repeat","path":"output/browser/cine/screenshots/chromium/canvas/ritk-snap-axial-after-decrease-repeat.png","scope":"element","sha256":"59512e4e8b6c6dd9045739c4f8a74f898c9b7946ef793eab416d7f726a7a6e76","width":561},
+        {"bytes":164552,"height":561,"label":"ritk-snap-axial-after-input","path":"output/browser/cine/screenshots/chromium/canvas/ritk-snap-axial-after-input.png","scope":"element","sha256":"ce5085d4d4d540c55d1fb290bf4b0f3643c9fce5306fd42f7f16643d139fd402","width":561},
+        {"bytes":42315,"height":103,"label":"ritk-snap-coronal-initial","path":"output/browser/cine/screenshots/chromium/canvas/ritk-snap-coronal-initial.png","scope":"element","sha256":"0f79c59b84849d11e92f470c8eecbb68582ac42a7abdc2c036d428dfb74deb4c","width":561},
+        {"bytes":41794,"height":103,"label":"ritk-snap-coronal-after-keyboard","path":"output/browser/cine/screenshots/chromium/canvas/ritk-snap-coronal-after-keyboard.png","scope":"element","sha256":"f99ae99ee62b109ae6993d7ab6483d26075b21513d786978679a202e0f4a3238","width":561},
+        {"bytes":41794,"height":103,"label":"ritk-snap-coronal-after-repeat","path":"output/browser/cine/screenshots/chromium/canvas/ritk-snap-coronal-after-repeat.png","scope":"element","sha256":"f99ae99ee62b109ae6993d7ab6483d26075b21513d786978679a202e0f4a3238","width":561},
+        {"bytes":41794,"height":103,"label":"ritk-snap-coronal-after-decrease","path":"output/browser/cine/screenshots/chromium/canvas/ritk-snap-coronal-after-decrease.png","scope":"element","sha256":"f99ae99ee62b109ae6993d7ab6483d26075b21513d786978679a202e0f4a3238","width":561},
+        {"bytes":41794,"height":103,"label":"ritk-snap-coronal-after-decrease-repeat","path":"output/browser/cine/screenshots/chromium/canvas/ritk-snap-coronal-after-decrease-repeat.png","scope":"element","sha256":"f99ae99ee62b109ae6993d7ab6483d26075b21513d786978679a202e0f4a3238","width":561},
+        {"bytes":40903,"height":103,"label":"ritk-snap-coronal-after-input","path":"output/browser/cine/screenshots/chromium/canvas/ritk-snap-coronal-after-input.png","scope":"element","sha256":"bd77d046a5a2eab383f82fa8c3ae971c464af6b6f8f19fcc7bc3bc4c7223d650","width":561},
+        {"bytes":42872,"height":103,"label":"ritk-snap-sagittal-initial","path":"output/browser/cine/screenshots/chromium/canvas/ritk-snap-sagittal-initial.png","scope":"element","sha256":"99493db452b4b75157e7d418e867c02db645d2289783530cc4976bdec1afc2fb","width":561},
+        {"bytes":42164,"height":103,"label":"ritk-snap-sagittal-after-keyboard","path":"output/browser/cine/screenshots/chromium/canvas/ritk-snap-sagittal-after-keyboard.png","scope":"element","sha256":"27d953f7b4d6273a7162fb5ed8dfde60048d6277d170ed6b2785ff548eb15c41","width":561},
+        {"bytes":42164,"height":103,"label":"ritk-snap-sagittal-after-repeat","path":"output/browser/cine/screenshots/chromium/canvas/ritk-snap-sagittal-after-repeat.png","scope":"element","sha256":"27d953f7b4d6273a7162fb5ed8dfde60048d6277d170ed6b2785ff548eb15c41","width":561},
+        {"bytes":42164,"height":103,"label":"ritk-snap-sagittal-after-decrease","path":"output/browser/cine/screenshots/chromium/canvas/ritk-snap-sagittal-after-decrease.png","scope":"element","sha256":"27d953f7b4d6273a7162fb5ed8dfde60048d6277d170ed6b2785ff548eb15c41","width":561},
+        {"bytes":42164,"height":103,"label":"ritk-snap-sagittal-after-decrease-repeat","path":"output/browser/cine/screenshots/chromium/canvas/ritk-snap-sagittal-after-decrease-repeat.png","scope":"element","sha256":"27d953f7b4d6273a7162fb5ed8dfde60048d6277d170ed6b2785ff548eb15c41","width":561},
+        {"bytes":41318,"height":103,"label":"ritk-snap-sagittal-after-input","path":"output/browser/cine/screenshots/chromium/canvas/ritk-snap-sagittal-after-input.png","scope":"element","sha256":"07807bff27f2f27262ae0baf714f59a27989ce11489a2f723cdf8ac3735697b9","width":561},
+        {"bytes":275984,"height":1203,"label":"window-final","path":"output/browser/cine/screenshots/chromium/canvas/window-final.png","sha256":"33da2309a82f21df825f4e927afb0a1ffd1cc2d6d915a7c3e948fbdb15b07f9e","width":1773}
+      ],
+      "event_modifiers": {"alt_key":false,"ctrl_key":false,"meta_key":false,"shift_key":false,"scope":"all observed events"},
+      "cleanup": {"active_input_sources_released":true,"canvas_attribute_names":["data-ritk-load-state","data-ritk-frame-state","data-ritk-axis","data-ritk-slice-index","data-ritk-slice-count","data-ritk-frame-width","data-ritk-frame-height","data-ritk-cine-fps","data-ritk-frame-generation"],"canvas_count":3,"diagnostic_listener_count":18,"diagnostic_listeners_released":true,"provider_listener_count":"unavailable from WebDriver","session_closed":true}
     },
-    "cleanup": "session closed cleanly",
-    "unsupported_native_operations": ["native-file-dialog", "native-process-launch", "os-permission-grant"]
+    "unsupported_native_operations": ["native-file-dialog","native-process-launch","os-permission-grant"]
   },
-  "limits": [
-    "Edge is one Chromium-family engine; Firefox and WebKit are untested",
-    "file-backed WebDriver dispatch is not physical file-manager drag input",
-    "no native file-dialog, native process-launch, or OS-permission evidence",
-    "no WebGPU evidence",
-    "application screenshot includes the browser viewport; RGBA hashes cover canvas pixels only"
-  ]
+  "limits": ["This capture covers Microsoft Edge 154 on Windows only; other engines are separate evidence.","Trusted repeat is protocol evidence from Chromium DevTools dispatch and trusted DOM events, not physical keyboard hold duration or operating-system repeat timing.","data-ritk-frame-generation counts fresh RITK render-and-upload completions; it does not measure compositor presentation or playback cadence.","The file-backed W3C chooser does not exercise a native file dialog or physical file-manager drag.","No native process-launch, OS-permission, or WebGPU claim is made.","Viewport and element PNGs show browser output; exact RGBA hashes cover canvas backing pixels."]
 }

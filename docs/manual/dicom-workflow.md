@@ -739,8 +739,8 @@ are ignored, and a rate change reanchors the host clock so stale elapsed time
 does not create a burst of slice advances. The eframe shell and browser canvas
 adapter accept the same controls: browser `Equal` and `Minus` codes map through
 the host-neutral reducer, which requests a repaint when the bounded rate
-changes. A rate-specific hosted browser trace remains open; the current
-cross-engine study trace proves focused `ArrowDown` delivery separately.
+changes. The retained cross-engine study trace proves focused `Equal` delivery;
+the extended cine-rate evidence below also checks repeated-key handling and frame generations.
 The reviewed 1280 × 800 output below is the actual run, not a made image:
 
 ![Actual MRI-DIR T2 series rendered through the Métis native surface](images/dicom-metis-real-mri.png)
@@ -991,15 +991,16 @@ performance work.
 ### Re-run the saved MRI study through Edge
 
 The same 94-file MRI-DIR T2 study was replayed through Métis's bounded browser
-drop runner against Microsoft Edge 154.0.4258.12. The WebDriver session sent
-trusted file-backed `dragenter`, `dragover`, and `drop` events, RITK read all
-49,807,236 bytes, and the three canvas RGBA hashes matched the RITK oracle. The
-runner also exercised the count, per-file byte, and batch byte limits; each
-oversized input was rejected before reading, and the session closed cleanly.
+runner against Microsoft Edge 154.0.4258.12. The WebDriver session selected the
+files through the W3C file chooser, RITK read all 49,807,236 bytes, and the
+three canvas dimensions, non-black counts, and RGBA hashes matched the RITK
+oracle. The runner also exercised the count, per-file byte, and batch byte
+limits; each oversized input was rejected before reading, and the session
+closed cleanly.
 
 ![Actual MRI-DIR T2 study in the running Métis Edge gallery](images/dicom-metis-real-browser-mri-edge-gallery.png)
 
-The gallery screenshot is the live browser viewport after the drop, with the
+The gallery screenshot is the live browser viewport after file selection, with the
 decoded axial, coronal, and sagittal anatomy visible. The element captures are
 [axial](images/dicom-metis-real-browser-mri-edge-axial.png),
 [coronal](images/dicom-metis-real-browser-mri-edge-coronal.png), and
@@ -1007,43 +1008,44 @@ decoded axial, coronal, and sagittal anatomy visible. The element captures are
 dimensions, non-black counts, RGBA hashes, screenshot hashes, source revisions,
 trusted events, rejection results, and cleanup state are recorded in
 [`dicom-metis-real-browser-mri-edge.json`](images/dicom-metis-real-browser-mri-edge.json).
-The trace binds the RITK consumer revision to the Métis gallery assets, so the
-image is evidence from the running application rather than generated artwork.
+The evidence binds Métis revision
+`d0d45561228a8481f0c6e4e3208162db93ccfe01` to RITK revision
+`f5ce647828957ed19fbe5ef68b54f9c40ed11ddf`, the exact Métis driver and gallery
+asset hashes, and the SHA-256 digests of the ignored source traces in the Métis
+checkout at `output/browser/cine/{trace.json,canvas-trace.json}`.
 
-The same live page was then replayed with Metis's adaptive canvas trace. The
-runner snapshots each canvas's CSS dimensions and clamps its element-local
-pointer and wheel offsets to the visible surface. Axial moved from slice 47 to
-46 of 94 with wheel offset `(64, 48)`; coronal and sagittal moved from slice
-256 to 255 of 512 with wheel offset `(64, 40)`, derived from their 82.4 CSS-
-pixel height. The six trusted actions, six semantic snapshots and eight
-screenshots passed `ritk-snap --validate-browser-trace`; all 12 diagnostic
-listeners and WebDriver input sources were released before the session closed.
-The trace contains no DICOM interpretation in Metis: RITK owns the decoded
-pixels, slice state and clinical presentation.
+The paired cine-rate trace applies six ordered actions to each canvas: focused
+nonrepeat `=`; repeated `=` keydown plus keyup; focused nonrepeat `-`; repeated
+`-` keydown plus keyup; pointer drag; and wheel. All observed DOM events were
+trusted, targeted the selected canvas, and preserved the requested key/code
+metadata. The repeated keydowns reported `repeat: true`; their keyups reported
+`repeat: false`. For every canvas, cine rate followed
+`12 -> 13 -> 13 -> 12 -> 12` frames per second through the keyboard stages.
+Frame generation advanced by one for each effective nonrepeat rate change and
+did not advance for either repeat. Slice index, dimensions, ready/presented
+state, and canvas identity remained stable through all rate stages. The final
+pointer-and-wheel stage decreased axial slice 47 to 46 of 94 and coronal and
+sagittal slice 256 to 255 of 512, with a generation greater than the preceding
+rate stage.
+
+The 18 actions, 18 semantic snapshots, and 20 PNG records passed
+`ritk-snap --validate-browser-trace --require-cine-rate`. All 18 diagnostic
+listeners and active WebDriver input sources were released before the session
+closed. The evidence JSON preserves every action, snapshot, and PNG digest
+record; the raw traces remain gitignored run output. RITK owns the decoded
+pixels, slice state, cine rate, and clinical presentation.
 
 Reproduce the file-backed run from the Métis checkout with an Edge WebDriver
-already listening on port 9516:
+already listening on port 9517:
 
 ```powershell
-python scripts/browser_drop.py --driver-url http://127.0.0.1:9516 `
-  --browser-name MicrosoftEdge --input chromium `
+python scripts/browser_drop.py --driver-url http://127.0.0.1:9517 `
+  --browser-name MicrosoftEdge --input chooser `
   --files D:/atlas/repos/ritk/test_data/2_head_mri_t2/DICOM --pattern '*.dcm' `
   --oracle output/browser/mri-oracle.json `
-  --consumer-revision 60044428572461ff94cc0396a1960e9cdc78304a `
-  --output output/browser/drop-mri-edge-pass
-```
-
-To capture the adaptive input and consumer attributes in the same run, add the
-canvas trace and attribute allowlist:
-
-```powershell
-$consumerRevision = '60044428572461ff94cc0396a1960e9cdc78304a'
-python scripts/browser_drop.py --driver-url http://127.0.0.1:9516 `
-  --browser-name MicrosoftEdge --input chromium `
-  --files D:/atlas/repos/ritk/test_data/2_head_mri_t2/DICOM --pattern '*.dcm' `
-  --oracle output/browser/mri-oracle.json `
-  --consumer-revision $consumerRevision `
-  --canvas-trace output/browser/drop-mri-edge-canvas-final/canvas-trace.json `
+  --consumer-revision f5ce647828957ed19fbe5ef68b54f9c40ed11ddf `
+  --canvas-trace output/browser/cine/canvas-trace.json `
+  --keyboard-trace cine-rate `
   --canvas-attribute data-ritk-load-state `
   --canvas-attribute data-ritk-frame-state `
   --canvas-attribute data-ritk-axis `
@@ -1051,22 +1053,25 @@ python scripts/browser_drop.py --driver-url http://127.0.0.1:9516 `
   --canvas-attribute data-ritk-slice-count `
   --canvas-attribute data-ritk-frame-width `
   --canvas-attribute data-ritk-frame-height `
-  --output output/browser/drop-mri-edge-canvas-final
+  --canvas-attribute data-ritk-cine-fps `
+  --canvas-attribute data-ritk-frame-generation `
+  --output output/browser/cine
 ```
 
 Validate that trace from the RITK checkout:
 
 ```powershell
 ritk-snap.exe --validate-browser-trace `
-  D:/atlas/repos/metis/output/browser/drop-mri-edge-canvas-final/canvas-trace.json `
-  --canvas-id ritk-snap-axial --canvas-id ritk-snap-coronal `
-  --canvas-id ritk-snap-sagittal
+  D:/atlas/repos/metis/output/browser/cine/canvas-trace.json `
+  --require-cine-rate
 ```
 
-This closes the configured Edge/Chromium file-backed run for the saved MRI
-study. Edge is one Chromium-family engine; physical file-manager drag input,
-WebGPU, native file dialogs and native process launch remain separate
-acceptance gates.
+This capture establishes protocol-level trusted repeat metadata, not physical
+keyboard hold duration or operating-system repeat timing. Frame generation
+counts fresh RITK render-and-upload completions, not compositor presentation or
+playback cadence. The evidence covers this Edge version on Windows only; other
+engines, physical file-manager drag input, WebGPU, native file dialogs, native
+process launch, and OS permission flows remain separate acceptance gates.
 
 The reproducible cross-engine chooser workflow is
 [`metis-browser-dicom.yml`](../../.github/workflows/metis-browser-dicom.yml).
@@ -1482,14 +1487,25 @@ python scripts/browser_drop.py --driver-url http://127.0.0.1:9515\
   --canvas-attribute data-ritk-slice-count\
   --canvas-attribute data-ritk-frame-width\
   --canvas-attribute data-ritk-frame-height\
-  --canvas-attribute data-ritk-cine-fps
+  --canvas-attribute data-ritk-cine-fps\
+  --canvas-attribute data-ritk-frame-generation
 ```
 
-Validate that trace with `--require-cine-rate`. The validator requires a
-focused trusted `=` keydown/keyup pair whose DOM code is `Equal`, then checks
-that every canvas's `data-ritk-cine-fps` increases after the key while staying
-within 1–60 FPS. The pointer and wheel checks still run, so the same trace
-proves rate control and slice navigation on the real saved study.
+Validate that trace with `--require-cine-rate`. For each focused canvas the
+profile sends `=`/`Equal`, repeats that held key, sends `-`/`Minus`, and repeats
+that held key. The effective actions change FPS by exactly one; each repeat
+must preserve FPS, slice selection, frame generation and the previous image.
+The sequence restores the initial global rate before testing the next canvas.
+Each phase requires trusted, unmodified input evidence and its own semantic
+snapshot and element screenshot. Screenshot dimensions are checked against
+CSS geometry and the independently observed device scale.
+
+`data-ritk-frame-generation` advances after a newly rendered frame uploads to
+the canvas. Cached uploads on ordinary animation frames do not advance it.
+It establishes fresh-frame presentation after an effective rate action; it
+does not measure playback cadence, display refresh, or compositor timing.
+Changing only the rate can leave the medical image pixels identical. The
+pointer and wheel checks still require actual slice progression afterward.
 
 ## Present validated RITK views through Métis
 
