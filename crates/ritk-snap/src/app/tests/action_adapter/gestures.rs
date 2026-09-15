@@ -3,7 +3,9 @@
 use super::super::test_volume;
 use crate::app::action_adapter::ViewerActionDisposition;
 use crate::app::SnapApp;
-use crate::presentation::{PointerButton, PresentationDispatcher, PresentationEvent};
+use crate::presentation::{
+    PointerButton, PresentationDispatcher, PresentationEvent, PresentationModifiers,
+};
 use crate::tools::{interaction::ViewportOffset, kind::ToolKind};
 
 use super::{apply_app_event, apply_events, viewport};
@@ -202,8 +204,12 @@ fn adapter_accumulates_repaint_across_actions_in_one_batch() {
                 PresentationEvent::KeyDown {
                     virtual_key: 0x22,
                     repeated: false,
+                    modifiers: PresentationModifiers::NONE,
                 },
-                PresentationEvent::KeyUp { virtual_key: 0x22 },
+                PresentationEvent::KeyUp {
+                    virtual_key: 0x22,
+                    modifiers: PresentationModifiers::NONE,
+                },
             ],
             Some(&viewport),
         )

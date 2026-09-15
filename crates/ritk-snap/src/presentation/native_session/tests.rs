@@ -61,6 +61,7 @@ fn native_session_keyboard_navigation_updates_presented_frame() {
         .handle_events(&[WindowEvent::KeyDown {
             virtual_key: 0x22,
             repeated: false,
+            modifiers: ModifierState::NONE,
         }])
         .expect("page-down transition");
     assert_eq!(session.app.viewer_state.slice_index, initial_slice + 1);
@@ -75,12 +76,60 @@ fn native_session_keyboard_navigation_updates_presented_frame() {
 }
 
 #[test]
+fn native_session_reopens_selected_study_through_the_ritk_loader() {
+    let (mut session, _initial_root) = session();
+    let replacement_root = tempfile::tempdir().expect("replacement study root");
+    fixtures::write_grayscale_presentation(replacement_root.path(), "MONOCHROME2", None)
+        .expect("write replacement study");
+
+    session
+        .open_study_path(replacement_root.path())
+        .expect("reopen selected study");
+    session.refresh_frame().expect("render replacement study");
+
+    let loaded = session.app.loaded.as_ref().expect("replacement volume");
+    assert_eq!(loaded.shape, [1, 1, 4]);
+    assert_eq!(session.views[0].frame().width(), 4);
+    assert_eq!(session.views[0].frame().height(), 1);
+    assert!(!session.app.cine.enabled);
+    assert!(session
+        .app
+        .status_message
+        .contains("Loaded native Métis study"));
+    assert!(
+        session
+            .observation
+            .frame_generations
+            .load(Ordering::Relaxed)
+            > 1
+    );
+}
+
+#[test]
+fn native_session_reopen_failure_preserves_the_current_study() {
+    let (mut session, _initial_root) = session();
+    let empty_root = tempfile::tempdir().expect("empty study root");
+    let previous_shape = session.app.loaded.as_ref().expect("initial volume").shape;
+
+    let error = session
+        .open_study_path(empty_root.path())
+        .expect_err("empty folder must fail to load");
+
+    assert!(error.to_string().contains("open selected RITK study"));
+    assert_eq!(
+        session.app.loaded.as_ref().expect("initial volume").shape,
+        previous_shape
+    );
+}
+
+#[test]
 fn native_session_space_toggles_cine_and_ignores_repeat() {
     let (mut session, _root) = session();
     let flow = session
         .handle_events(&[WindowEvent::KeyDown {
             virtual_key: crate::app::action_adapter::VIRTUAL_KEY_CINE_TOGGLE,
             repeated: false,
+            modifiers: ModifierState::NONE,
         }])
         .expect("cine toggle");
     assert_eq!(flow, NativeFlow::Continue { repaint: true });
@@ -90,6 +139,7 @@ fn native_session_space_toggles_cine_and_ignores_repeat() {
         .handle_events(&[WindowEvent::KeyDown {
             virtual_key: crate::app::action_adapter::VIRTUAL_KEY_CINE_TOGGLE,
             repeated: true,
+            modifiers: ModifierState::NONE,
         }])
         .expect("repeated cine toggle");
     assert!(session.app.cine.enabled);
@@ -103,6 +153,7 @@ fn native_session_cine_rate_controls_repaint_and_bound_overlay() {
         .handle_events(&[WindowEvent::KeyDown {
             virtual_key: crate::app::action_adapter::VIRTUAL_KEY_CINE_FPS_UP,
             repeated: false,
+            modifiers: ModifierState::NONE,
         }])
         .expect("cine rate increase");
     assert_eq!(flow, NativeFlow::Continue { repaint: true });
@@ -125,6 +176,7 @@ fn native_session_cine_rate_controls_repaint_and_bound_overlay() {
         .handle_events(&[WindowEvent::KeyDown {
             virtual_key: crate::app::action_adapter::VIRTUAL_KEY_CINE_FPS_UP,
             repeated: true,
+            modifiers: ModifierState::NONE,
         }])
         .expect("repeated cine rate increase");
     assert_eq!(repeated, NativeFlow::Continue { repaint: false });
