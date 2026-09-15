@@ -14,9 +14,10 @@ pub(crate) enum BrowserLoadState {
 /// Format-neutral semantic state published beside one RITK browser canvas.
 ///
 /// The state contains only viewer evidence needed by a browser driver: load
-/// state, axis and slice selection, and the dimensions of the presented frame.
+/// state, axis and slice selection, the dimensions of the presented frame and
+/// the active cine rate.
 /// It deliberately excludes paths, identifiers, metadata and pixel values.
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+#[derive(Debug, Clone, Copy, PartialEq)]
 pub(crate) struct BrowserCanvasSemantics {
     /// Whether RITK has a primary volume.
     pub(crate) load_state: BrowserLoadState,
@@ -28,6 +29,8 @@ pub(crate) struct BrowserCanvasSemantics {
     pub(crate) slice_count: usize,
     /// Presented frame dimensions, when a frame is available.
     pub(crate) frame_dimensions: Option<(u32, u32)>,
+    /// Active cine playback rate in frames per second.
+    pub(crate) cine_fps: f32,
 }
 
 impl BrowserCanvasSemantics {
@@ -39,9 +42,14 @@ impl BrowserCanvasSemantics {
         slice_index: usize,
         slice_count: usize,
         frame: Option<&PresentationFrame>,
+        cine_fps: f32,
     ) -> Self {
         debug_assert!(axis < 3, "RITK browser axes are limited to three planes");
         debug_assert!(slice_count > 0, "RITK browser slice counts are non-zero");
+        debug_assert!(
+            cine_fps.is_finite() && (1.0..=60.0).contains(&cine_fps),
+            "RITK browser cine rate stays within the supported range"
+        );
         Self {
             load_state: if loaded {
                 BrowserLoadState::Ready
@@ -52,7 +60,14 @@ impl BrowserCanvasSemantics {
             slice_index,
             slice_count,
             frame_dimensions: frame.map(|frame| (frame.width(), frame.height())),
+            cine_fps,
         }
+    }
+
+    /// Returns the stable DOM value for the active cine rate.
+    #[must_use]
+    pub(crate) fn cine_fps_value(self) -> String {
+        self.cine_fps.to_string()
     }
 
     /// Returns the stable DOM value for the load state.

@@ -61,6 +61,12 @@ three canvases. Safari 26.6.2 failed its bounded file read before a canvas trace
 or keyboard action could be produced; the failure is retained as the WebKit
 provider regression case.
 
+Revision 2026-09-15 (cine rate): `--require-cine-rate` selects a focused
+`=` key/`Equal` code keydown/keyup profile and requires each canvas's
+`data-ritk-cine-fps` value to increase after the keyboard action while staying
+within the bounded 1–60 FPS contract. The existing `--require-keyboard` mode
+continues to validate the ArrowDown navigation profile.
+
 ## Rejected alternative
 
 Putting the semantic checks in `scripts/browser_runtime.py` would make the

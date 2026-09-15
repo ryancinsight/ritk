@@ -13,7 +13,7 @@ mod validation;
 
 const MAX_CANVAS_DIMENSION: u32 = 4_096;
 const MAX_TRACE_BYTES: u64 = 512 * 1024;
-const EXPECTED_ATTRIBUTES: [&str; 7] = [
+const BASE_ATTRIBUTES: [&str; 7] = [
     "data-ritk-load-state",
     "data-ritk-frame-state",
     "data-ritk-axis",
@@ -22,17 +22,59 @@ const EXPECTED_ATTRIBUTES: [&str; 7] = [
     "data-ritk-frame-width",
     "data-ritk-frame-height",
 ];
+const CINE_RATE_ATTRIBUTES: [&str; 8] = [
+    "data-ritk-load-state",
+    "data-ritk-frame-state",
+    "data-ritk-axis",
+    "data-ritk-slice-index",
+    "data-ritk-slice-count",
+    "data-ritk-frame-width",
+    "data-ritk-frame-height",
+    "data-ritk-cine-fps",
+];
 const DEFAULT_CANVAS_IDS: [&str; 3] =
     ["ritk-snap-axial", "ritk-snap-coronal", "ritk-snap-sagittal"];
-const KEYBOARD_TRACE_KEY: &str = "ArrowDown";
+
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+pub(crate) enum KeyboardTraceKind {
+    /// The focused ArrowDown navigation profile.
+    Navigation,
+    /// The focused Equal cine-rate profile.
+    CineRate,
+}
+
+impl KeyboardTraceKind {
+    fn key_code(self) -> (&'static str, &'static str) {
+        match self {
+            Self::Navigation => ("ArrowDown", "ArrowDown"),
+            Self::CineRate => ("=", "Equal"),
+        }
+    }
+}
 
 /// Input evidence required by a browser trace validation run.
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
 pub(crate) enum TraceInputMode {
     /// Require one trusted pointer drag and wheel action per canvas.
     PointerWheel,
-    /// Also require a focused ArrowDown keydown/keyup pair per canvas.
-    PointerWheelKeyboard,
+    /// Also require a focused keyboard pair per canvas.
+    PointerWheelKeyboard(KeyboardTraceKind),
+}
+
+impl TraceInputMode {
+    fn keyboard_kind(self) -> Option<KeyboardTraceKind> {
+        match self {
+            Self::PointerWheel => None,
+            Self::PointerWheelKeyboard(kind) => Some(kind),
+        }
+    }
+
+    fn expected_attributes(self) -> &'static [&'static str] {
+        match self.keyboard_kind() {
+            Some(KeyboardTraceKind::CineRate) => &CINE_RATE_ATTRIBUTES,
+            Some(KeyboardTraceKind::Navigation) | None => &BASE_ATTRIBUTES,
+        }
+    }
 }
 
 #[derive(Debug, Deserialize)]
@@ -249,8 +291,18 @@ fn validate_document(
     validate_actions(&document.actions, canvas_ids, input_mode)?;
     validate_snapshots(&document.snapshots, canvas_ids, input_mode)?;
     validate_slice_progression(&document.snapshots, canvas_ids, input_mode)?;
+    if matches!(
+        input_mode.keyboard_kind(),
+        Some(KeyboardTraceKind::CineRate)
+    ) {
+        validate_cine_rate_progression(&document.snapshots, canvas_ids)?;
+    }
     validation::validate_screenshots(&document.screenshots, canvas_ids)?;
-    validation::validate_cleanup(&document.cleanup, canvas_ids)?;
+    validation::validate_cleanup(
+        &document.cleanup,
+        canvas_ids,
+        input_mode.expected_attributes(),
+    )?;
 
     Ok(BrowserTraceReport {
         engine: document.engine.clone(),
@@ -274,7 +326,7 @@ fn validate_actions(
 ) -> Result<()> {
     let actions_per_canvas = match input_mode {
         TraceInputMode::PointerWheel => 2,
-        TraceInputMode::PointerWheelKeyboard => 3,
+        TraceInputMode::PointerWheelKeyboard(_) => 3,
     };
     let expected_action_count = canvas_ids.len() * actions_per_canvas;
     if actions.len() != expected_action_count {
@@ -300,10 +352,10 @@ fn validate_actions(
             "trusted-pointer-drag" => *pointer_count += 1,
             "trusted-wheel" => *wheel_count += 1,
             "trusted-keyboard" => {
-                if !matches!(input_mode, TraceInputMode::PointerWheelKeyboard) {
+                let Some(kind) = input_mode.keyboard_kind() else {
                     bail!("browser trace contains keyboard evidence without keyboard validation")
-                }
-                validate_keyboard_action(action)?;
+                };
+                validate_keyboard_action(action, kind)?;
                 *keyboard_count += 1;
             }
             other => bail!("browser trace contains unsupported canvas action {other:?}"),
@@ -312,7 +364,7 @@ fn validate_actions(
     for (id, (pointer_count, wheel_count, keyboard_count)) in counts {
         let valid = match input_mode {
             TraceInputMode::PointerWheel => pointer_count == 1 && wheel_count == 1,
-            TraceInputMode::PointerWheelKeyboard => {
+            TraceInputMode::PointerWheelKeyboard(_) => {
                 pointer_count == 1 && wheel_count == 1 && keyboard_count == 1
             }
         };
@@ -323,7 +375,7 @@ fn validate_actions(
                         "canvas {id:?} requires one trusted pointer drag and one trusted wheel action"
                     )
                 }
-                TraceInputMode::PointerWheelKeyboard => bail!(
+                TraceInputMode::PointerWheelKeyboard(_) => bail!(
                     "canvas {id:?} requires one trusted pointer drag, one trusted wheel action and one trusted keyboard action"
                 ),
             }
@@ -332,14 +384,16 @@ fn validate_actions(
     Ok(())
 }
 
-fn validate_keyboard_action(action: &TraceAction) -> Result<()> {
-    if action.key.as_deref() != Some(KEYBOARD_TRACE_KEY)
-        || action.code.as_deref() != Some(KEYBOARD_TRACE_KEY)
+fn validate_keyboard_action(action: &TraceAction, kind: KeyboardTraceKind) -> Result<()> {
+    let (expected_key, expected_code) = kind.key_code();
+    if action.key.as_deref() != Some(expected_key)
+        || action.code.as_deref() != Some(expected_code)
         || action.repeat != Some(false)
     {
         bail!(
-            "canvas {:?} keyboard action must report key/code ArrowDown and repeat=false",
-            action.canvas
+            "canvas {:?} keyboard action has invalid key/code for {:?} and repeat=false",
+            action.canvas,
+            kind
         )
     }
     let Some(focus) = action.focus.as_ref() else {
@@ -383,8 +437,8 @@ fn validate_keyboard_action(action: &TraceAction) -> Result<()> {
                 event.event_type
             )
         }
-        if event.key.as_deref() != Some(KEYBOARD_TRACE_KEY)
-            || event.code.as_deref() != Some(KEYBOARD_TRACE_KEY)
+        if event.key.as_deref() != Some(expected_key)
+            || event.code.as_deref() != Some(expected_code)
             || event.repeat != Some(false)
         {
             bail!(
@@ -438,7 +492,7 @@ fn validate_snapshots(
 ) -> Result<()> {
     let snapshots_per_canvas = match input_mode {
         TraceInputMode::PointerWheel => 2,
-        TraceInputMode::PointerWheelKeyboard => 3,
+        TraceInputMode::PointerWheelKeyboard(_) => 3,
     };
     let expected_snapshot_count = canvas_ids.len() * snapshots_per_canvas;
     if snapshots.len() != expected_snapshot_count {
@@ -454,7 +508,7 @@ fn validate_snapshots(
             canvas_ids.iter().enumerate().find_map(|(axis, id)| {
                 if snapshot.label == format!("{id}-initial") {
                     Some((axis, id.as_str(), SnapshotPhase::Initial))
-                } else if matches!(input_mode, TraceInputMode::PointerWheelKeyboard)
+                } else if input_mode.keyboard_kind().is_some()
                     && snapshot.label == format!("{id}-after-keyboard")
                 {
                     Some((axis, id.as_str(), SnapshotPhase::AfterKeyboard))
@@ -473,12 +527,18 @@ fn validate_snapshots(
         if !labels.insert(snapshot.label.clone()) {
             bail!("browser trace repeats snapshot label {:?}", snapshot.label)
         }
-        validate_snapshot(snapshot, canvas_id, axis, phase)?;
+        validate_snapshot(
+            snapshot,
+            canvas_id,
+            axis,
+            phase,
+            input_mode.expected_attributes(),
+        )?;
     }
 
     let suffixes = match input_mode {
         TraceInputMode::PointerWheel => ["initial", "after-input"].as_slice(),
-        TraceInputMode::PointerWheelKeyboard => {
+        TraceInputMode::PointerWheelKeyboard(_) => {
             ["initial", "after-keyboard", "after-input"].as_slice()
         }
     };
@@ -498,6 +558,7 @@ fn validate_snapshot(
     canvas_id: &str,
     axis: usize,
     phase: SnapshotPhase,
+    expected_attributes: &[&str],
 ) -> Result<()> {
     if snapshot.canvas.id != canvas_id {
         bail!(
@@ -519,8 +580,8 @@ fn validate_snapshot(
             snapshot.canvas.height
         )
     }
-    if snapshot.canvas.attributes.len() != EXPECTED_ATTRIBUTES.len()
-        || EXPECTED_ATTRIBUTES
+    if snapshot.canvas.attributes.len() != expected_attributes.len()
+        || expected_attributes
             .iter()
             .any(|name| !snapshot.canvas.attributes.contains_key(*name))
     {
@@ -550,6 +611,16 @@ fn validate_snapshot(
         "frame height",
         canvas_id,
     )?;
+    if expected_attributes.contains(&"data-ritk-cine-fps") {
+        let cine_fps: f32 = parse_attribute(
+            attribute(&snapshot.canvas, "data-ritk-cine-fps", canvas_id)?,
+            "cine FPS",
+            canvas_id,
+        )?;
+        if !cine_fps.is_finite() || !(1.0..=60.0).contains(&cine_fps) {
+            bail!("canvas {canvas_id:?} reports an invalid cine FPS")
+        }
+    }
 
     if !matches!(load_state, "empty" | "ready") {
         bail!("canvas {canvas_id:?} has invalid load state {load_state:?}")
@@ -594,7 +665,7 @@ fn validate_slice_progression(
         let initial_label = format!("{canvas_id}-initial");
         let before_wheel_label = match input_mode {
             TraceInputMode::PointerWheel => initial_label.clone(),
-            TraceInputMode::PointerWheelKeyboard => format!("{canvas_id}-after-keyboard"),
+            TraceInputMode::PointerWheelKeyboard(_) => format!("{canvas_id}-after-keyboard"),
         };
         let after_label = format!("{canvas_id}-after-input");
         let initial = snapshots
@@ -651,6 +722,40 @@ fn validate_slice_progression(
             bail!(
                 "canvas {canvas_id:?} did not advance its multi-slice index after trusted wheel input"
             )
+        }
+    }
+    Ok(())
+}
+
+fn validate_cine_rate_progression(
+    snapshots: &[TraceSnapshot],
+    canvas_ids: &[String],
+) -> Result<()> {
+    for canvas_id in canvas_ids {
+        let initial_label = format!("{canvas_id}-initial");
+        let after_keyboard_label = format!("{canvas_id}-after-keyboard");
+        let initial = snapshots
+            .iter()
+            .find(|snapshot| snapshot.label == initial_label)
+            .with_context(|| format!("browser trace is missing snapshot {initial_label:?}"))?;
+        let after_keyboard = snapshots
+            .iter()
+            .find(|snapshot| snapshot.label == after_keyboard_label)
+            .with_context(|| {
+                format!("browser trace is missing snapshot {after_keyboard_label:?}")
+            })?;
+        let initial_fps: f32 = parse_attribute(
+            attribute(&initial.canvas, "data-ritk-cine-fps", canvas_id)?,
+            "cine FPS",
+            canvas_id,
+        )?;
+        let after_keyboard_fps: f32 = parse_attribute(
+            attribute(&after_keyboard.canvas, "data-ritk-cine-fps", canvas_id)?,
+            "cine FPS",
+            canvas_id,
+        )?;
+        if after_keyboard_fps <= initial_fps {
+            bail!("canvas {canvas_id:?} did not increase cine FPS after the trusted Equal action")
         }
     }
     Ok(())

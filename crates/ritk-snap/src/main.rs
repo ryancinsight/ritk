@@ -72,8 +72,19 @@ struct Args {
     )]
     canvas_ids: Vec<String>,
     /// Require focused ArrowDown keydown/keyup evidence for every canvas.
-    #[arg(long, requires = "validate_browser_trace")]
+    #[arg(
+        long,
+        requires = "validate_browser_trace",
+        conflicts_with = "require_cine_rate"
+    )]
     require_keyboard: bool,
+    /// Require focused Equal/`data-ritk-cine-fps` rate evidence for every canvas.
+    #[arg(
+        long,
+        requires = "validate_browser_trace",
+        conflicts_with = "require_keyboard"
+    )]
+    require_cine_rate: bool,
 }
 
 #[cfg(not(target_arch = "wasm32"))]
@@ -81,7 +92,13 @@ fn main() -> anyhow::Result<()> {
     let args = Args::parse();
     if let Some(path) = args.validate_browser_trace {
         let input_mode = if args.require_keyboard {
-            browser_trace::TraceInputMode::PointerWheelKeyboard
+            browser_trace::TraceInputMode::PointerWheelKeyboard(
+                browser_trace::KeyboardTraceKind::Navigation,
+            )
+        } else if args.require_cine_rate {
+            browser_trace::TraceInputMode::PointerWheelKeyboard(
+                browser_trace::KeyboardTraceKind::CineRate,
+            )
         } else {
             browser_trace::TraceInputMode::PointerWheel
         };
