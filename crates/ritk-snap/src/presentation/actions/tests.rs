@@ -315,8 +315,12 @@ fn non_pointer_actions_preserve_all_values() {
             PresentationEvent::KeyDown {
                 virtual_key: 0x41,
                 repeated: true,
+                modifiers: PresentationModifiers::NONE,
             },
-            PresentationEvent::KeyUp { virtual_key: 0x41 },
+            PresentationEvent::KeyUp {
+                virtual_key: 0x41,
+                modifiers: PresentationModifiers::NONE,
+            },
             PresentationEvent::TextInput { character: '中' },
             PresentationEvent::TextComposition {
                 phase: CompositionPhase::Committed,

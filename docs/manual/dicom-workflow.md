@@ -404,6 +404,14 @@ records the binary hash, provider revisions, commands and evidence limits.
 This closes Windows single-series folder selection; native permission-denial
 UI, process coverage and other host workflows remain separate acceptance work.
 
+While a study is open, press **Ctrl+O** to reopen the bounded native folder
+picker. Selecting a folder loads its DICOM study through the same RITK scanner,
+decoder and three-plane compositor, then presents the replacement frame in the
+existing Métis window. The current frame remains intact when the picker is
+cancelled. A selected folder that is not a readable DICOM study returns an
+explicit load error and leaves the prior volume unmodified; the browser
+`Ctrl+O` shortcut remains owned by the browser file chooser.
+
 The Métis host owns the window handle, finite event wait, retained framebuffer,
 resize/minimize handling, DPI updates and terminal cleanup. RITK owns the file
 open, DICOM decode, selected volume, window/level, colormap, slice navigation

@@ -130,12 +130,18 @@ pub fn translate_native_events(events: &[WindowEvent]) -> Result<Box<[Presentati
             WindowEvent::KeyDown {
                 virtual_key,
                 repeated,
+                modifiers,
             } => PresentationEvent::KeyDown {
                 virtual_key: *virtual_key,
                 repeated: *repeated,
+                modifiers: translate_modifiers(*modifiers),
             },
-            WindowEvent::KeyUp { virtual_key } => PresentationEvent::KeyUp {
+            WindowEvent::KeyUp {
+                virtual_key,
+                modifiers,
+            } => PresentationEvent::KeyUp {
                 virtual_key: *virtual_key,
+                modifiers: translate_modifiers(*modifiers),
             },
             WindowEvent::TextInput { character } => PresentationEvent::TextInput {
                 character: *character,
@@ -345,8 +351,12 @@ mod tests {
             WindowEvent::KeyDown {
                 virtual_key: 0x41,
                 repeated: true,
+                modifiers: metis_platform::native::ModifierState::NONE,
             },
-            WindowEvent::KeyUp { virtual_key: 0x41 },
+            WindowEvent::KeyUp {
+                virtual_key: 0x41,
+                modifiers: metis_platform::native::ModifierState::NONE,
+            },
             WindowEvent::TextInput { character: '中' },
             WindowEvent::TextComposition {
                 phase: metis_platform::native::CompositionPhase::Updated,
@@ -388,8 +398,12 @@ mod tests {
                 PresentationEvent::KeyDown {
                     virtual_key: 0x41,
                     repeated: true,
+                    modifiers: PresentationModifiers::NONE,
                 },
-                PresentationEvent::KeyUp { virtual_key: 0x41 },
+                PresentationEvent::KeyUp {
+                    virtual_key: 0x41,
+                    modifiers: PresentationModifiers::NONE,
+                },
                 PresentationEvent::TextInput { character: '中' },
                 PresentationEvent::TextComposition {
                     phase: CompositionPhase::Updated,

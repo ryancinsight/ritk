@@ -668,6 +668,20 @@ Clippy and WASM library gates; DICOM loading, decoding, geometry and clinical
 pixels remain RITK-owned. User-facing FPS control remains a session-configured
 follow-up.
 
+Revision 2026-09-15 (native study reopen): the native Métis session now
+consumes the Moirai key modifier snapshot and maps an un-repeated `Ctrl+O`
+key-down to the existing bounded folder picker. RITK receives only the selected
+path, scans and decodes it through `load_volume_from_path`, resets viewer state
+with `SnapApp::load_volume`, and refreshes the retained three-plane framebuffer;
+picker cancellation keeps the current frame, while a decode failure returns a
+contextual error before mutating the loaded volume. The public
+`PresentationEvent` key events carry modifier snapshots for native and browser
+consumers; browser `Ctrl+O` remains browser-owned. The reopen test loads a
+distinct grayscale DICOM fixture and asserts the replacement shape, reset cine
+state and new rendered frame. This preserves the boundary: Métis owns
+selection UI and pixels, while RITK owns paths, DICOM parsing, geometry and
+clinical presentation.
+
 ## Alternatives and validation
 
 Retaining egui indefinitely contradicts the requested framework target. Removing

@@ -13,6 +13,7 @@ fn space_toggles_cine_once_and_ignores_key_repeat() {
             &[PresentationEvent::KeyDown {
                 virtual_key: VIRTUAL_KEY_CINE_TOGGLE,
                 repeated: false,
+                modifiers: crate::presentation::PresentationModifiers::NONE,
             }],
             None,
         )
@@ -28,6 +29,7 @@ fn space_toggles_cine_once_and_ignores_key_repeat() {
             &[PresentationEvent::KeyDown {
                 virtual_key: VIRTUAL_KEY_CINE_TOGGLE,
                 repeated: true,
+                modifiers: crate::presentation::PresentationModifiers::NONE,
             }],
             None,
         )
@@ -49,6 +51,7 @@ fn cine_rate_keys_change_bounded_rate_and_ignore_repeats() {
             &[PresentationEvent::KeyDown {
                 virtual_key: VIRTUAL_KEY_CINE_FPS_UP,
                 repeated: false,
+                modifiers: crate::presentation::PresentationModifiers::NONE,
             }],
             None,
         )
@@ -65,6 +68,7 @@ fn cine_rate_keys_change_bounded_rate_and_ignore_repeats() {
             &[PresentationEvent::KeyDown {
                 virtual_key: VIRTUAL_KEY_CINE_FPS_UP,
                 repeated: true,
+                modifiers: crate::presentation::PresentationModifiers::NONE,
             }],
             None,
         )
@@ -81,6 +85,7 @@ fn cine_rate_keys_change_bounded_rate_and_ignore_repeats() {
             &[PresentationEvent::KeyDown {
                 virtual_key: VIRTUAL_KEY_CINE_FPS_DOWN,
                 repeated: false,
+                modifiers: crate::presentation::PresentationModifiers::NONE,
             }],
             None,
         )

@@ -163,6 +163,7 @@ impl PresentationDispatcher {
             PresentationEvent::KeyDown {
                 virtual_key,
                 repeated,
+                ..
             } => Self::push_action(
                 actions,
                 ViewerAction::KeyPressed {
@@ -171,7 +172,7 @@ impl PresentationDispatcher {
                 },
                 action_limit,
             ),
-            PresentationEvent::KeyUp { virtual_key } => Self::push_action(
+            PresentationEvent::KeyUp { virtual_key, .. } => Self::push_action(
                 actions,
                 ViewerAction::KeyReleased {
                     virtual_key: *virtual_key,

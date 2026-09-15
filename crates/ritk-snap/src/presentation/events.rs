@@ -178,11 +178,15 @@ pub enum PresentationEvent {
         virtual_key: u32,
         /// The key message is an auto-repeat.
         repeated: bool,
+        /// Modifier keys held when the key message was received.
+        modifiers: PresentationModifiers,
     },
     /// A virtual key was released.
     KeyUp {
         /// Host virtual-key value.
         virtual_key: u32,
+        /// Modifier keys still held after this key was released.
+        modifiers: PresentationModifiers,
     },
     /// Unicode text was produced by the host.
     TextInput {

@@ -138,8 +138,12 @@ fn translate_keyboard(
         CanvasKeyboardPhase::Down => PresentationEvent::KeyDown {
             virtual_key,
             repeated: keyboard.is_repeated(),
+            modifiers: modifiers(keyboard.modifiers()),
         },
-        CanvasKeyboardPhase::Up => PresentationEvent::KeyUp { virtual_key },
+        CanvasKeyboardPhase::Up => PresentationEvent::KeyUp {
+            virtual_key,
+            modifiers: modifiers(keyboard.modifiers()),
+        },
     }))
 }
 

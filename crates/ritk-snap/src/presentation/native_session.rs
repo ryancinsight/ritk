@@ -13,8 +13,8 @@ use crate::launch::NativePresentationMode;
 use crate::tools::interaction::ViewportOffset;
 use anyhow::{anyhow, Context, Result};
 use metis_platform::native::{
-    run_native_application, NativeApplication, NativeFlow, WindowConfig, WindowEvent,
-    WindowVisibility,
+    pick, run_native_application, DialogSelection, NativeApplication, NativeFlow, WindowConfig,
+    WindowEvent, WindowVisibility,
 };
 use metis_platform::Framebuffer;
 use std::fmt;
@@ -35,6 +35,7 @@ const INITIAL_WIDTH: u32 = 1_280;
 const INITIAL_HEIGHT: u32 = 800;
 const EVENT_WAIT: Duration = Duration::from_millis(16);
 const NATIVE_TITLE: &str = "RITK-SNAP — Métis native";
+const VIRTUAL_KEY_OPEN_STUDY: u32 = 0x4f;
 
 mod outcome;
 pub use outcome::NativeViewerOutcome;
@@ -321,6 +322,22 @@ impl NativeViewerSession {
         Ok(())
     }
 
+    fn open_study_path(&mut self, path: &Path) -> Result<()> {
+        let volume = load_volume_from_path(path).context("open selected RITK study")?;
+        let status = format!("Loaded native Métis study: {}", path.display());
+        self.app.load_volume(volume, status);
+        Ok(())
+    }
+
+    fn open_study_from_dialog(&mut self) -> Result<bool> {
+        let selected = pick(DialogSelection::Folder).context("show native study picker")?;
+        let Some(path) = selected else {
+            return Ok(false);
+        };
+        self.open_study_path(&path)?;
+        Ok(true)
+    }
+
     fn record_terminal_frame(&self, destroyed: bool) -> Result<()> {
         self.observation
             .destroyed
@@ -415,6 +432,27 @@ impl NativeApplication for NativeViewerSession {
         } else {
             false
         };
+        let mut study_reopened = false;
+        let mut open_shortcut_seen = false;
+        for event in translated.iter() {
+            let is_open_shortcut = matches!(
+                event,
+                PresentationEvent::KeyDown {
+                    virtual_key: VIRTUAL_KEY_OPEN_STUDY,
+                    repeated: false,
+                    modifiers,
+                } if modifiers.ctrl()
+            );
+            if !terminal && is_open_shortcut && !open_shortcut_seen {
+                open_shortcut_seen = true;
+                study_reopened = self
+                    .open_study_from_dialog()
+                    .map_err(NativeViewerError::from)?;
+            }
+        }
+        // Leave the shortcut in the shared action stream. `0x4f` has no viewer
+        // action, while retaining the original bounded batch avoids a second
+        // allocation and keeps pointer/focus ordering intact.
         let disposition = self.apply_events(&translated)?;
 
         let repaint = matches!(
@@ -432,7 +470,7 @@ impl NativeApplication for NativeViewerSession {
         } else {
             false
         };
-        let frame_changed = repaint || cine_repaint;
+        let frame_changed = repaint || cine_repaint || study_reopened;
         if terminal
             || matches!(
                 disposition,
