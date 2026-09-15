@@ -5,7 +5,8 @@
 - Acceptance: read-path cause and production fix, 94 file hashes, three exact pixel oracles, bounded rejections and clean sessions on Chromium, Firefox and WebKit.
 - Risk: [patch]; dependency: [Metis read diagnosis](../metis/backlog.md#METIS-BROWSER-READ-001).
 - Branch: `fix/browser-file-read`; tree: `D:/atlas/worktrees/ritk-browser-file-read`; fresh base: `1630df23e`.
-- Evidence: `34943272998` and `34943520103` fail revision preflight, before browser execution; fixed-pair reproduction pending.
+- Evidence: [run 34944643823](https://github.com/ryancinsight/ritk/actions/runs/34944643823), RITK `ecf65bd09`, Metis `4ca4f33`, Moirai `8d032e38`: Chromium/Firefox pass 94 files and three pixel oracles; Safari 26.6.2 rejects the first 529864-byte whole-file read before RITK receives a batch.
+- Diagnostic: original/sliced arrayBuffer and FileReader return NotReadableError; blob-URL stream returns TypeError. Isolated chooser controls are pending to distinguish application observers from SafariDriver-selected file access. DICOM decoding remains unchanged.
 
 <a id="RITK-SNAP-FILE-TARGETS-2026-09-10"></a>
 ## RITK-SNAP-FILE-TARGETS-2026-09-10 — Four ritk-snap files past the 500-line target [patch]
