@@ -417,7 +417,7 @@
     "requested_bytes": 529864,
     "provider_bound_bytes": 1048576,
     "before_consumer": true,
-    "diagnosis_limit": "The same file is unreadable through isolated one-file and 94-file native inputs without invoking application selection handlers. Effects of the earlier application attempt are not excluded; the exact SafariDriver or filesystem access cause remains under investigation.",
+    "diagnosis_limit": "The selected real file is denied by the WebKit sandbox: WebContent cannot read it or issue a read extension, and Networking cannot read it. Host readability and the expected digest are verified. The exact SafariDriver/WebKit grant defect is not established; Metis and Moirai cannot confer browser sandbox access.",
     "isolated_selection": {
       "run_id": 34947276064,
       "url": "https://github.com/ryancinsight/ritk/actions/runs/34947276064",
@@ -497,6 +497,120 @@
           "restored": true
         }
       }
+    },
+    "sandbox_access": {
+      "workflow_run_id": 34948524329,
+      "workflow_url": "https://github.com/ryancinsight/ritk/actions/runs/34948524329",
+      "ritk_revision": "a0578a2582bda55667686486b75c22f9c4d7f4a1",
+      "metis_revision": "e5379ddb32190b2703ff08b2d063c90305f0576c",
+      "engine_status": "failed",
+      "remaining_jobs": "cancelled after WebKit evidence collection; old RITK validator is incompatible with the extended Metis trace",
+      "file_access": {
+        "reader_uid": 501,
+        "bytes": 529864,
+        "sha256": "facb38830d7ac28d65615e7fe6fadca8a4fc02eebeb953a18a9b12e26466be8e",
+        "permissions": [
+          {
+            "ancestor": 0,
+            "mode": "0o644",
+            "uid": 501,
+            "gid": 20
+          },
+          {
+            "ancestor": 1,
+            "mode": "0o755",
+            "uid": 501,
+            "gid": 20
+          },
+          {
+            "ancestor": 2,
+            "mode": "0o755",
+            "uid": 501,
+            "gid": 20
+          },
+          {
+            "ancestor": 3,
+            "mode": "0o755",
+            "uid": 501,
+            "gid": 20
+          },
+          {
+            "ancestor": 4,
+            "mode": "0o755",
+            "uid": 501,
+            "gid": 20
+          },
+          {
+            "ancestor": 5,
+            "mode": "0o755",
+            "uid": 501,
+            "gid": 20
+          },
+          {
+            "ancestor": 6,
+            "mode": "0o755",
+            "uid": 501,
+            "gid": 20
+          },
+          {
+            "ancestor": 7,
+            "mode": "0o755",
+            "uid": 501,
+            "gid": 20
+          },
+          {
+            "ancestor": 8,
+            "mode": "0o750",
+            "uid": 501,
+            "gid": 20
+          },
+          {
+            "ancestor": 9,
+            "mode": "0o755",
+            "uid": 0,
+            "gid": 80
+          },
+          {
+            "ancestor": 10,
+            "mode": "0o755",
+            "uid": 0,
+            "gid": 0
+          }
+        ]
+      },
+      "diagnostic_sha256": {
+        "filesystem": "1db4af388cb339a25972226fafde72f4443e750b999e424bbaaf2ee8a79eed25",
+        "sandbox": "fe4cf1c3161a179fe2373fd3d29177849a22a0fa9af568b39a5f9d9e89f9538c",
+        "driver": "fb18fcaada7966374d9f57cfb3b94a721bb65a47115672ae8666503c7fa643e7",
+        "trace": "957175c2e9657a741ce3098e263bd781386e9d24805f906e63cba475764c423d"
+      },
+      "artifact_urls": {
+        "gallery": "https://github.com/ryancinsight/ritk/actions/runs/34948524329/artifacts/10388383368",
+        "driver": "https://github.com/ryancinsight/ritk/actions/runs/34948524329/artifacts/10388178847"
+      },
+      "upload_command": {
+        "method": "Automation.setFilesToSelectForFileUpload",
+        "driver_log_line": 103,
+        "request_id": 29,
+        "result": "accepted"
+      },
+      "denials": [
+        {
+          "line": 98,
+          "timestamp": "2026-09-15 08:55:27.056181+0000",
+          "message": "Sandbox: com.apple.WebKit.WebContent(9499) deny(1) file-read-data <checkout>/test_data/2_head_mri_t2/DICOM/00000001.dcm"
+        },
+        {
+          "line": 99,
+          "timestamp": "2026-09-15 08:55:27.069505+0000",
+          "message": "Sandbox: com.apple.WebKit.WebContent(9499) deny(1) file-issue-extension target:<checkout>/test_data/2_head_mri_t2/DICOM/00000001.dcm extension-class:com.apple.app-sandbox.read"
+        },
+        {
+          "line": 289,
+          "timestamp": "2026-09-15 08:55:27.138334+0000",
+          "message": "Sandbox: com.apple.WebKit.Networking(9503) deny(1) file-read-data <checkout>/test_data/2_head_mri_t2/DICOM/00000001.dcm"
+        }
+      ]
     }
   }
 }

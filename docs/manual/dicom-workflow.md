@@ -1105,8 +1105,19 @@ an isolated native input with no application observers produces the same four
 read failures for one-file and 94-file selections. The diagnostic input is
 removed and the prior selected-file handle restored. The failure reproduces
 without invoking application selection handlers for those controls; effects
-of the earlier failed attempt are not excluded. The exact browser file-access
-cause remains unresolved. RITK owns DICOM scanning, decoding,
+of the earlier failed attempt are not excluded.
+
+[Run 34948524329](https://github.com/ryancinsight/ritk/actions/runs/34948524329)
+identifies sandbox denials on the selected real file: WebContent is denied
+`file-read-data` and `file-issue-extension`, and Networking is denied
+`file-read-data`. The runner reads all 529,864 bytes of the first file and
+verifies its expected SHA-256; its mode is `0644`. SafariDriver accepts
+`Automation.setFilesToSelectForFileUpload` before those denials. The exact
+SafariDriver/WebKit grant defect remains unresolved. Browser application code
+cannot grant that access; a different byte-read API does not repair it.
+The remaining jobs in that diagnostic run were cancelled after WebKit
+evidence collection because they carry the superseded cine-trace validator.
+RITK owns DICOM scanning, decoding,
 geometry, clinical presentation and pixel assertions; Métis remains the
 format-neutral host and canvas boundary, and Moirai owns the bounded browser
 file read. Physical file-manager drag input, native file dialogs, native
