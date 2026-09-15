@@ -2,15 +2,15 @@
   "schema": 1,
   "status": "partial",
   "workflow": {
-    "name": "RITK SNAP MÃ©tis browser DICOM",
+    "name": "RITK SNAP Métis browser DICOM",
     "file": ".github/workflows/metis-browser-dicom.yml",
-    "run_id": 34922946179,
-    "url": "https://github.com/ryancinsight/ritk/actions/runs/34922946179",
+    "run_id": 34949979770,
+    "url": "https://github.com/ryancinsight/ritk/actions/runs/34949979770",
     "conclusion": "failure",
     "observed_date": "2026-09-15",
-    "ritk_revision": "37cca8684984498ce7bf179c9501f9dfec8dbcae",
-    "metis_revision": "fa7793be9b738859696ad566e012d69a763e55ca",
-    "moirai_revision": "3ccfb1b76f386321aa24a86e65fe81efdbdfad84"
+    "ritk_revision": "8a5698f0df1cdf9621b393893c02e303606167c2",
+    "metis_revision": "e5379ddb32190b2703ff08b2d063c90305f0576c",
+    "moirai_revision": "8d032e38bc30a754c2d909325a0d27a1c2ab45cb"
   },
   "dataset": {
     "path": "test_data/2_head_mri_t2/DICOM",
@@ -27,12 +27,12 @@
       "browser_version": "152.0.7977.82",
       "platform": "linux",
       "input_source": "chooser",
-      "consumer_revision": "37cca8684984498ce7bf179c9501f9dfec8dbcae",
-      "metis_revision": "fa7793be9b738859696ad566e012d69a763e55ca",
+      "consumer_revision": "8a5698f0df1cdf9621b393893c02e303606167c2",
+      "metis_revision": "e5379ddb32190b2703ff08b2d063c90305f0576c",
       "files": 94,
       "bytes": 49807236,
       "file_manifest_sha256": "81b7b7f8ea473dfc12c25c07b4958762254a261ca49352af2adabc214d6e8d03",
-      "oracle_sha256": "c3f088e6c43cb5a451096480498fb9e12f72515b4733c47c707ccd60495ef9e9",
+      "oracle_sha256": "7ee9bb4382f4c6aa05f4c8db88a42b83693301fc34ef5deec89d3d89cba8b2a1",
       "cleanup": {
         "session_closed": true
       },
@@ -43,22 +43,31 @@
       ],
       "rejections": [
         {
-          "kind": "count",
+          "rejected": "count",
           "files": 513,
           "bytes": 0,
-          "result": "file evidence exceeds host bounds"
+          "input": "chooser",
+          "observer": {
+            "rejected": "file evidence exceeds host bounds"
+          }
         },
         {
-          "kind": "file-bytes",
+          "rejected": "file-bytes",
           "files": 1,
           "bytes": 67108865,
-          "result": "file evidence exceeds host bounds"
+          "input": "chooser",
+          "observer": {
+            "rejected": "file evidence exceeds host bounds"
+          }
         },
         {
-          "kind": "batch-bytes",
+          "rejected": "batch-bytes",
           "files": 5,
           "bytes": 335544320,
-          "result": "file evidence exceeds host bounds"
+          "input": "chooser",
+          "observer": {
+            "rejected": "file evidence exceeds host bounds"
+          }
         }
       ],
       "gallery": {
@@ -77,12 +86,14 @@
         "session_closed": true,
         "canvases": {
           "ritk-snap-axial": {
-            "width": 512,
             "height": 512,
             "non_black_pixels": 190836,
             "rgba_sha256": "5c96fff2f82ecfddd64a6aa9a1e8f99af367740fcd43826977ac3d1035cb28f6",
+            "width": 512,
             "attributes": {
               "data-ritk-axis": "0",
+              "data-ritk-cine-fps": "12",
+              "data-ritk-frame-generation": "1",
               "data-ritk-frame-height": "512",
               "data-ritk-frame-state": "presented",
               "data-ritk-frame-width": "512",
@@ -92,12 +103,14 @@
             }
           },
           "ritk-snap-coronal": {
-            "width": 512,
             "height": 94,
             "non_black_pixels": 41863,
             "rgba_sha256": "f76018ef402afa7811154c506219361b43227dbe218ff0383b3dddd7bf438136",
+            "width": 512,
             "attributes": {
               "data-ritk-axis": "1",
+              "data-ritk-cine-fps": "12",
+              "data-ritk-frame-generation": "8",
               "data-ritk-frame-height": "94",
               "data-ritk-frame-state": "presented",
               "data-ritk-frame-width": "512",
@@ -107,12 +120,14 @@
             }
           },
           "ritk-snap-sagittal": {
-            "width": 512,
             "height": 94,
             "non_black_pixels": 38843,
             "rgba_sha256": "b8cabf3aa07399387b9d1c7416dbfae594e4d2408f40e0a4bd654f9829799fe3",
+            "width": 512,
             "attributes": {
               "data-ritk-axis": "2",
+              "data-ritk-cine-fps": "12",
+              "data-ritk-frame-generation": "14",
               "data-ritk-frame-height": "94",
               "data-ritk-frame-state": "presented",
               "data-ritk-frame-width": "512",
@@ -122,22 +137,23 @@
             }
           }
         },
-        "actions": 9,
+        "actions": 18,
         "trusted_events": true,
         "slice_transitions": {
           "ritk-snap-axial": {
             "initial": "47",
-            "after_input": "47"
+            "after_input": "46"
           },
           "ritk-snap-coronal": {
             "initial": "256",
-            "after_input": "256"
+            "after_input": "255"
           },
           "ritk-snap-sagittal": {
             "initial": "256",
-            "after_input": "256"
+            "after_input": "255"
           }
-        }
+        },
+        "trace_sha256": "63c4e24725d557bf3874afd03ee9ea2a473e0e9581899598955a6cb22f2e185b"
       },
       "transfer": {
         "bytes": "Byte access: read 49807236 bytes from 94 file(s)",
@@ -145,25 +161,86 @@
       },
       "keyboard": {
         "status": "passed",
-        "mode": "trusted-w3c",
-        "key": "ArrowDown",
-        "code": "ArrowDown",
-        "repeat": false,
+        "mode": "cine-rate",
+        "transports": [
+          "chromium-devtools"
+        ],
+        "keys": [
+          "-",
+          "="
+        ],
+        "codes": [
+          "Equal",
+          "Minus"
+        ],
+        "repeat_values": [
+          false,
+          true
+        ],
         "focused_canvases": [
           "ritk-snap-axial",
           "ritk-snap-coronal",
           "ritk-snap-sagittal"
         ],
-        "after_keyboard_slice_indices": {
-          "ritk-snap-axial": "48",
-          "ritk-snap-coronal": "257",
-          "ritk-snap-sagittal": "257"
+        "phases": [
+          "initial",
+          "after-keyboard",
+          "after-repeat",
+          "after-decrease",
+          "after-decrease-repeat"
+        ],
+        "cine_fps": {
+          "ritk-snap-axial": [
+            "12",
+            "13",
+            "13",
+            "12",
+            "12"
+          ],
+          "ritk-snap-coronal": [
+            "12",
+            "13",
+            "13",
+            "12",
+            "12"
+          ],
+          "ritk-snap-sagittal": [
+            "12",
+            "13",
+            "13",
+            "12",
+            "12"
+          ]
+        },
+        "frame_generation": {
+          "ritk-snap-axial": [
+            "1",
+            "2",
+            "2",
+            "3",
+            "3"
+          ],
+          "ritk-snap-coronal": [
+            "8",
+            "9",
+            "9",
+            "10",
+            "10"
+          ],
+          "ritk-snap-sagittal": [
+            "14",
+            "15",
+            "15",
+            "16",
+            "16"
+          ]
         },
         "canvas_trace": "output/browser/results/chromium/canvas-trace.json",
-        "validation": "ritk-snap --require-keyboard passed",
-        "artifact_id": 10378029775,
-        "artifact_url": "https://github.com/ryancinsight/ritk/actions/runs/34922946179/artifacts/10378029775"
-      }
+        "validation": "ritk-snap --require-cine-rate passed"
+      },
+      "artifact_id": 10389232372,
+      "artifact_url": "https://github.com/ryancinsight/ritk/actions/runs/34949979770/artifacts/10389232372",
+      "trace_sha256": "506810949c7dd50e8dba8466679e9d38e738285f51422c86fe41d8cab7e2f526"
     },
     "firefox": {
       "status": "passed",
@@ -171,12 +248,12 @@
       "browser_version": "155.0",
       "platform": "linux",
       "input_source": "chooser",
-      "consumer_revision": "37cca8684984498ce7bf179c9501f9dfec8dbcae",
-      "metis_revision": "fa7793be9b738859696ad566e012d69a763e55ca",
+      "consumer_revision": "8a5698f0df1cdf9621b393893c02e303606167c2",
+      "metis_revision": "e5379ddb32190b2703ff08b2d063c90305f0576c",
       "files": 94,
       "bytes": 49807236,
       "file_manifest_sha256": "81b7b7f8ea473dfc12c25c07b4958762254a261ca49352af2adabc214d6e8d03",
-      "oracle_sha256": "c3f088e6c43cb5a451096480498fb9e12f72515b4733c47c707ccd60495ef9e9",
+      "oracle_sha256": "7ee9bb4382f4c6aa05f4c8db88a42b83693301fc34ef5deec89d3d89cba8b2a1",
       "cleanup": {
         "session_closed": true
       },
@@ -187,22 +264,31 @@
       ],
       "rejections": [
         {
-          "kind": "count",
+          "rejected": "count",
           "files": 513,
           "bytes": 0,
-          "result": "file evidence exceeds host bounds"
+          "input": "chooser",
+          "observer": {
+            "rejected": "file evidence exceeds host bounds"
+          }
         },
         {
-          "kind": "file-bytes",
+          "rejected": "file-bytes",
           "files": 1,
           "bytes": 67108865,
-          "result": "file evidence exceeds host bounds"
+          "input": "chooser",
+          "observer": {
+            "rejected": "file evidence exceeds host bounds"
+          }
         },
         {
-          "kind": "batch-bytes",
+          "rejected": "batch-bytes",
           "files": 5,
           "bytes": 335544320,
-          "result": "file evidence exceeds host bounds"
+          "input": "chooser",
+          "observer": {
+            "rejected": "file evidence exceeds host bounds"
+          }
         }
       ],
       "gallery": {
@@ -221,12 +307,14 @@
         "session_closed": true,
         "canvases": {
           "ritk-snap-axial": {
-            "width": 512,
             "height": 512,
             "non_black_pixels": 190836,
             "rgba_sha256": "5c96fff2f82ecfddd64a6aa9a1e8f99af367740fcd43826977ac3d1035cb28f6",
+            "width": 512,
             "attributes": {
               "data-ritk-axis": "0",
+              "data-ritk-cine-fps": "12",
+              "data-ritk-frame-generation": "1",
               "data-ritk-frame-height": "512",
               "data-ritk-frame-state": "presented",
               "data-ritk-frame-width": "512",
@@ -236,12 +324,14 @@
             }
           },
           "ritk-snap-coronal": {
-            "width": 512,
             "height": 94,
             "non_black_pixels": 41863,
             "rgba_sha256": "f76018ef402afa7811154c506219361b43227dbe218ff0383b3dddd7bf438136",
+            "width": 512,
             "attributes": {
               "data-ritk-axis": "1",
+              "data-ritk-cine-fps": "12",
+              "data-ritk-frame-generation": "5",
               "data-ritk-frame-height": "94",
               "data-ritk-frame-state": "presented",
               "data-ritk-frame-width": "512",
@@ -251,12 +341,14 @@
             }
           },
           "ritk-snap-sagittal": {
-            "width": 512,
             "height": 94,
             "non_black_pixels": 38843,
             "rgba_sha256": "b8cabf3aa07399387b9d1c7416dbfae594e4d2408f40e0a4bd654f9829799fe3",
+            "width": 512,
             "attributes": {
               "data-ritk-axis": "2",
+              "data-ritk-cine-fps": "12",
+              "data-ritk-frame-generation": "8",
               "data-ritk-frame-height": "94",
               "data-ritk-frame-state": "presented",
               "data-ritk-frame-width": "512",
@@ -266,22 +358,23 @@
             }
           }
         },
-        "actions": 9,
+        "actions": 18,
         "trusted_events": true,
         "slice_transitions": {
           "ritk-snap-axial": {
             "initial": "47",
-            "after_input": "47"
+            "after_input": "46"
           },
           "ritk-snap-coronal": {
             "initial": "256",
-            "after_input": "256"
+            "after_input": "255"
           },
           "ritk-snap-sagittal": {
             "initial": "256",
-            "after_input": "256"
+            "after_input": "255"
           }
-        }
+        },
+        "trace_sha256": "c0eba4802e4cfe1b17965564022fc870dec1baf8a914fc17cef0132186d44fcb"
       },
       "transfer": {
         "bytes": "Byte access: read 49807236 bytes from 94 file(s)",
@@ -289,25 +382,86 @@
       },
       "keyboard": {
         "status": "passed",
-        "mode": "trusted-w3c",
-        "key": "ArrowDown",
-        "code": "ArrowDown",
-        "repeat": false,
+        "mode": "cine-rate",
+        "transports": [
+          "webdriver-actions"
+        ],
+        "keys": [
+          "-",
+          "="
+        ],
+        "codes": [
+          "Equal",
+          "Minus"
+        ],
+        "repeat_values": [
+          false,
+          true
+        ],
         "focused_canvases": [
           "ritk-snap-axial",
           "ritk-snap-coronal",
           "ritk-snap-sagittal"
         ],
-        "after_keyboard_slice_indices": {
-          "ritk-snap-axial": "48",
-          "ritk-snap-coronal": "257",
-          "ritk-snap-sagittal": "257"
+        "phases": [
+          "initial",
+          "after-keyboard",
+          "after-repeat",
+          "after-decrease",
+          "after-decrease-repeat"
+        ],
+        "cine_fps": {
+          "ritk-snap-axial": [
+            "12",
+            "13",
+            "13",
+            "12",
+            "12"
+          ],
+          "ritk-snap-coronal": [
+            "12",
+            "13",
+            "13",
+            "12",
+            "12"
+          ],
+          "ritk-snap-sagittal": [
+            "12",
+            "13",
+            "13",
+            "12",
+            "12"
+          ]
+        },
+        "frame_generation": {
+          "ritk-snap-axial": [
+            "1",
+            "2",
+            "2",
+            "3",
+            "3"
+          ],
+          "ritk-snap-coronal": [
+            "5",
+            "6",
+            "6",
+            "7",
+            "7"
+          ],
+          "ritk-snap-sagittal": [
+            "8",
+            "9",
+            "9",
+            "10",
+            "10"
+          ]
         },
         "canvas_trace": "output/browser/results/firefox/canvas-trace.json",
-        "validation": "ritk-snap --require-keyboard passed",
-        "artifact_id": 10379056132,
-        "artifact_url": "https://github.com/ryancinsight/ritk/actions/runs/34922946179/artifacts/10379056132"
-      }
+        "validation": "ritk-snap --require-cine-rate passed"
+      },
+      "artifact_id": 10389103816,
+      "artifact_url": "https://github.com/ryancinsight/ritk/actions/runs/34949979770/artifacts/10389103816",
+      "trace_sha256": "7d78945bb84152e5547f32b7d458dc70971b81c8ad5146e527d83e5ca5b324ae"
     },
     "webkit": {
       "status": "failed",
@@ -315,8 +469,8 @@
       "browser_version": "26.6.2",
       "platform": "macOS",
       "input_source": "chooser",
-      "consumer_revision": "37cca8684984498ce7bf179c9501f9dfec8dbcae",
-      "metis_revision": "fa7793be9b738859696ad566e012d69a763e55ca",
+      "consumer_revision": "8a5698f0df1cdf9621b393893c02e303606167c2",
+      "metis_revision": "e5379ddb32190b2703ff08b2d063c90305f0576c",
       "files": null,
       "bytes": null,
       "file_manifest_sha256": null,
@@ -331,9 +485,9 @@
       ],
       "rejections": [],
       "gallery": null,
-      "error": "file transfer did not complete: {'status': 'Drop status: accepted 94 file(s); 00000001.dcm (529864 bytes), 00000002.dcm (529864 bytes), 00000003.dcm (529864 bytes); ...', 'bytes': 'Byte access: host rejected the selected file'}",
+      "error": "file transfer did not complete: {'status': 'Drop status: accepted 94 file(s); 00000001.dcm (529864 bytes), 00000002.dcm (529864 bytes), 00000003.dcm (529864 bytes); ...', 'bytes': 'Byte access: browser rejected the bounded whole-file read'}",
       "diagnostic": {
-        "text": "DICOM study gallery\nChoose the DICOM files of one study with Choose study files, or drag them from your file manager onto the drop area below. Select files, not their enclosing folder.\n\nUp to 512 files, 64 MiB per file, 256 MiB total. Files stay in this browser; RITK opens the study and renders the three views.\n\nReady. Drop study files into the area below.\n\nFile drop\nDrop status: accepted 94 file(s); 00000001.dcm (529864 bytes), 00000002.dcm (529864 bytes), 00000003.dcm (529864 bytes); ...\n\nByte access: host rejected the selected file\n\nDrop files here to inspect bounded metadata and hand the selected bytes to a trusted decoder.\nChoose study files \nAxial\nCoronal\nSagittal\n",
+        "text": "DICOM study gallery\nChoose the DICOM files of one study with Choose study files, or drag them from your file manager onto the drop area below. Select files, not their enclosing folder.\n\nUp to 512 files, 64 MiB per file, 256 MiB total. Files stay in this browser; RITK opens the study and renders the three views.\n\nReady. Drop study files into the area below.\n\nFile drop\nDrop status: accepted 94 file(s); 00000001.dcm (529864 bytes), 00000002.dcm (529864 bytes), 00000003.dcm (529864 bytes); ...\n\nByte access: browser rejected the bounded whole-file read\n\nDrop files here to inspect bounded metadata and hand the selected bytes to a trusted decoder.\nChoose study files \nAxial\nCoronal\nSagittal\n",
         "events": [
           {
             "bytes": 49807236,
@@ -346,31 +500,280 @@
       "failure_screenshots": [
         {
           "label": "failure",
-          "path": "output/browser/results/webkit/failure.png",
-          "sha256": "2b2c7fdbd1c3405ff6d5d4835537bdcd78234566be1be7f1cec2a959ea530503",
+          "path": "dicom-metis-real-browser-mri-cross-engine-webkit.png",
+          "sha256": "d2c4ad3342a5bac5bc3bffd55583605da64e9536f64c78f082e10c48ab93b121",
           "width": 1440,
           "height": 1048,
-          "bytes": 119779
+          "bytes": 121228
         }
       ],
       "keyboard": {
         "status": "not_reached",
-        "reason": "bounded browser read failed before canvas presentation or keyboard actions",
-        "artifact_id": 10378214305,
-        "artifact_url": "https://github.com/ryancinsight/ritk/actions/runs/34922946179/artifacts/10378214305"
+        "reason": "bounded browser read failed before canvas presentation or keyboard actions"
+      },
+      "transfer": {
+        "status": "Drop status: accepted 94 file(s); 00000001.dcm (529864 bytes), 00000002.dcm (529864 bytes), 00000003.dcm (529864 bytes); ...",
+        "bytes": "Byte access: browser rejected the bounded whole-file read"
+      },
+      "artifact_id": 10389460899,
+      "artifact_url": "https://github.com/ryancinsight/ritk/actions/runs/34949979770/artifacts/10389460899",
+      "trace_sha256": "4f8caf491acb5b09be5dd9daf67d0cca44c58d9999e307bccbf927f8d1a33602",
+      "file_read_diagnostic": {
+        "status": "captured",
+        "cleanup_exceptions": [
+          {
+            "operation": "stream-cancel",
+            "exception": "TypeError"
+          }
+        ],
+        "selected_bytes": 529864,
+        "bounded_bytes": 529864,
+        "probes": {
+          "original_file_array_buffer": {
+            "exception": "NotReadableError"
+          },
+          "bounded_slice_array_buffer": {
+            "exception": "NotReadableError"
+          },
+          "bounded_slice_file_reader": {
+            "exception": "NotReadableError"
+          },
+          "bounded_blob_url_stream": {
+            "exception": "TypeError"
+          }
+        }
       }
     }
   },
   "verification": {
-    "chromium": "passed, including trusted focus and ArrowDown keyboard validation",
-    "firefox": "passed, including trusted focus and ArrowDown keyboard validation",
-    "webkit": "selected 94 files, then rejected the first bounded browser read before keyboard actions",
-    "ownership": "RITK owns DICOM scanning, decoding, geometry, clinical presentation, and pixel assertions; Métis remains format-neutral; Moirai owns browser file reads"
+    "chromium": "passed: 94 file hashes, three exact pixel oracles, bounded rejections, trusted cine-rate/repeat and frame-generation checks, clean teardown",
+    "firefox": "passed: 94 file hashes, three exact pixel oracles, bounded rejections, trusted cine-rate/repeat and frame-generation checks, clean teardown",
+    "webkit": "selected 94 files; first whole-file read rejects; same selected File fails all four bounded browser read APIs",
+    "ownership": "RITK owns DICOM scanning, decoding, geometry, clinical presentation, and pixel assertions; Métis remains format-neutral; Moirai owns browser file reads",
+    "native": {
+      "revision": "8a5698f0df1cdf9621b393893c02e303606167c2",
+      "command": "rustup run 1.97.0 cargo nextest run --locked --manifest-path D:/atlas/worktrees/ritk-browser-file-read/Cargo.toml -p ritk-snap",
+      "run_id": "075bffca-f085-4d3a-96f5-966b130dbd54",
+      "passed": 847,
+      "failed": 0,
+      "skipped": 0,
+      "log_sha256": "89c535d9d108aa0a7c38ab18bde55177529a0945f86f80e1feafe7ebea1f72e6",
+      "other_checks": [
+        "workspace formatting",
+        "strict native all-target Clippy",
+        "locked wasm32-unknown-unknown library check"
+      ],
+      "execution_directory": "process TEMP, outside the Atlas development overlay"
+    }
   },
   "limits": [
     "file-backed WebDriver chooser is not physical file-manager drag input",
     "native file-dialog, native process-launch, and OS-permission evidence is not covered",
     "WebGPU evidence is not covered",
     "Safari 26.6.2 rejected the selected file read before RITK could render its canvases or receive keyboard actions"
-  ]
+  ],
+  "read_path": {
+    "owner": "Moirai moirai-pal/src/wasm/file.rs WebFile::read",
+    "operation": "File.arrayBuffer()",
+    "requested_bytes": 529864,
+    "provider_bound_bytes": 1048576,
+    "before_consumer": true,
+    "diagnosis_limit": "The selected real file is denied by the WebKit sandbox: WebContent cannot read it or issue a read extension, and Networking cannot read it. Host readability and the expected digest are verified. The exact SafariDriver/WebKit grant defect is not established; Metis and Moirai cannot confer browser sandbox access.",
+    "isolated_selection": {
+      "workflow_run_id": 34949979770,
+      "workflow_url": "https://github.com/ryancinsight/ritk/actions/runs/34949979770",
+      "ritk_revision": "8a5698f0df1cdf9621b393893c02e303606167c2",
+      "metis_revision": "e5379ddb32190b2703ff08b2d063c90305f0576c",
+      "trace_sha256": "4f8caf491acb5b09be5dd9daf67d0cca44c58d9999e307bccbf927f8d1a33602",
+      "result": {
+        "status": "captured",
+        "selections": [
+          {
+            "requested_files": 1,
+            "observation": {
+              "files": 1,
+              "changes": 1
+            },
+            "read": {
+              "status": "captured",
+              "cleanup_exceptions": [
+                {
+                  "operation": "stream-cancel",
+                  "exception": "TypeError"
+                }
+              ],
+              "selected_bytes": 529864,
+              "bounded_bytes": 529864,
+              "probes": {
+                "original_file_array_buffer": {
+                  "exception": "NotReadableError"
+                },
+                "bounded_slice_array_buffer": {
+                  "exception": "NotReadableError"
+                },
+                "bounded_slice_file_reader": {
+                  "exception": "NotReadableError"
+                },
+                "bounded_blob_url_stream": {
+                  "exception": "TypeError"
+                }
+              }
+            }
+          },
+          {
+            "requested_files": 94,
+            "observation": {
+              "files": 94,
+              "changes": 2
+            },
+            "read": {
+              "status": "captured",
+              "cleanup_exceptions": [
+                {
+                  "operation": "stream-cancel",
+                  "exception": "TypeError"
+                }
+              ],
+              "selected_bytes": 529864,
+              "bounded_bytes": 529864,
+              "probes": {
+                "original_file_array_buffer": {
+                  "exception": "NotReadableError"
+                },
+                "bounded_slice_array_buffer": {
+                  "exception": "NotReadableError"
+                },
+                "bounded_slice_file_reader": {
+                  "exception": "NotReadableError"
+                },
+                "bounded_blob_url_stream": {
+                  "exception": "TypeError"
+                }
+              }
+            }
+          }
+        ],
+        "cleanup": {
+          "removed": true,
+          "restored": true
+        }
+      }
+    },
+    "sandbox_access": {
+      "workflow_run_id": 34949979770,
+      "workflow_url": "https://github.com/ryancinsight/ritk/actions/runs/34949979770",
+      "ritk_revision": "8a5698f0df1cdf9621b393893c02e303606167c2",
+      "metis_revision": "e5379ddb32190b2703ff08b2d063c90305f0576c",
+      "engine_status": "failed",
+      "file_access": {
+        "reader_uid": 501,
+        "bytes": 529864,
+        "sha256": "facb38830d7ac28d65615e7fe6fadca8a4fc02eebeb953a18a9b12e26466be8e",
+        "permissions": [
+          {
+            "ancestor": 0,
+            "mode": "0o644",
+            "uid": 501,
+            "gid": 20
+          },
+          {
+            "ancestor": 1,
+            "mode": "0o755",
+            "uid": 501,
+            "gid": 20
+          },
+          {
+            "ancestor": 2,
+            "mode": "0o755",
+            "uid": 501,
+            "gid": 20
+          },
+          {
+            "ancestor": 3,
+            "mode": "0o755",
+            "uid": 501,
+            "gid": 20
+          },
+          {
+            "ancestor": 4,
+            "mode": "0o755",
+            "uid": 501,
+            "gid": 20
+          },
+          {
+            "ancestor": 5,
+            "mode": "0o755",
+            "uid": 501,
+            "gid": 20
+          },
+          {
+            "ancestor": 6,
+            "mode": "0o755",
+            "uid": 501,
+            "gid": 20
+          },
+          {
+            "ancestor": 7,
+            "mode": "0o755",
+            "uid": 501,
+            "gid": 20
+          },
+          {
+            "ancestor": 8,
+            "mode": "0o750",
+            "uid": 501,
+            "gid": 20
+          },
+          {
+            "ancestor": 9,
+            "mode": "0o755",
+            "uid": 0,
+            "gid": 80
+          },
+          {
+            "ancestor": 10,
+            "mode": "0o755",
+            "uid": 0,
+            "gid": 0
+          }
+        ]
+      },
+      "diagnostic_sha256": {
+        "filesystem": "1db4af388cb339a25972226fafde72f4443e750b999e424bbaaf2ee8a79eed25",
+        "sandbox": "4c7be39bde4bbb7cc4fbb1639c177dff8331e95052ee81e80c9279d6f777f6bc",
+        "driver": "7fbfe57a51547fd16a01c8e1112d5e82b61c11467926e2941c63a07b2c16d8c7",
+        "trace": "4f8caf491acb5b09be5dd9daf67d0cca44c58d9999e307bccbf927f8d1a33602"
+      },
+      "artifact_urls": {
+        "gallery": "https://github.com/ryancinsight/ritk/actions/runs/34949979770/artifacts/10389460899",
+        "driver": "https://github.com/ryancinsight/ritk/actions/runs/34949979770/artifacts/10389381205"
+      },
+      "upload_command": {
+        "method": "Automation.setFilesToSelectForFileUpload",
+        "driver_log_line": 103,
+        "request_id": 29,
+        "result": "accepted"
+      },
+      "denials": [
+        {
+          "category": "web-read",
+          "line": 23,
+          "timestamp": "2026-09-15 09:08:55.537243+0000",
+          "message": "Sandbox: com.apple.WebKit.WebContent(2404) deny(1) file-read-data <checkout>/test_data/2_head_mri_t2/DICOM/00000001.dcm"
+        },
+        {
+          "category": "extension",
+          "line": 24,
+          "timestamp": "2026-09-15 09:08:55.546654+0000",
+          "message": "Sandbox: com.apple.WebKit.WebContent(2404) deny(1) file-issue-extension target:<checkout>/test_data/2_head_mri_t2/DICOM/00000001.dcm extension-class:com.apple.app-sandbox.read"
+        },
+        {
+          "category": "network-read",
+          "line": 214,
+          "timestamp": "2026-09-15 09:08:55.593142+0000",
+          "message": "Sandbox: com.apple.WebKit.Networking(2411) deny(1) file-read-data <checkout>/test_data/2_head_mri_t2/DICOM/00000001.dcm"
+        }
+      ]
+    }
+  }
 }
