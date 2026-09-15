@@ -56,7 +56,7 @@
   },
   "verification": {
     "basis": "babefe845a6168918f5d3c91e0ede508aed8e3e3 plus launch.rs test-only diff",
-    "launch_git_blob": "a1b60b022",
+    "launch_git_blob": "a1b60b0225006350de9dee93ac269141064cdbea",
     "toolchain": "1.97.0-x86_64-pc-windows-msvc",
     "cargo_cwd": "outside the Atlas development overlay",
     "cargo_prefix": "cargo +1.97.0 --config D:/atlas/repos/ritk/.cargo/config.toml --config D:/atlas/repos/.cargo/config.toml",
@@ -67,6 +67,8 @@
     "lint": "clippy --locked -p ritk-snap --all-targets -- -D warnings: exit 0",
     "format": "cargo +1.97.0 fmt --check from repository: exit 0",
     "lock": "python scripts/lockfile.py --check: exit 0, 62 first-party git sources",
-    "review": "picker_review: no actionable findings; independently verified image hashes, dimensions, executable digest and comparison PNG; did not replay UI or gates"
+    "review": "picker_review: no actionable findings; independently verified image hashes, dimensions, executable digest and comparison PNG; did not replay UI or gates",
+    "doctests": "test --locked -p ritk-snap --doc: 4 passed, 0 failed, 1 existing ignored example; 2.92 seconds execution",
+    "rustdoc": "doc --locked -p ritk-snap --no-deps with RUSTDOCFLAGS=-D warnings: exit 0"
   }
 }
