@@ -61,8 +61,8 @@ consumer boundary before its input listeners are used. Keyboard focus therefore
 targets the canvas that owns the bounded event queue instead of depending on
 browser markup defaults.
 
-Revision 2026-09-14: hosted run
-[34895454734](https://github.com/ryancinsight/ritk/actions/runs/34895454734)
+Revision 2026-09-15: hosted run
+[34922946179](https://github.com/ryancinsight/ritk/actions/runs/34922946179)
 validated the focused keyboard path on Chromium 152 and Firefox 155 while
 rendering the saved 94-file MRI-DIR study. Safari 26.6.2 accepted the chooser
 event but rejected the first bounded file read, so it has no canvas or keyboard
@@ -81,5 +81,6 @@ mapping and the existing wheel, viewport and cancellation laws. The RITK WASM
 target is checked against the merged Metis input seam; the browser canvas
 consumer makes its focus contract explicit with `tabindex="0"`. The existing
 packaged synthetic DICOM capture continues to prove byte-to-frame ownership.
-Physical pointer, keyboard-driver, cross-engine, GPU and full-window captures
-remain open evidence under the migration item.
+Physical file-manager input, GPU and full-window captures remain open evidence;
+Safari's file-backed WebDriver read remains the cross-engine residual under the
+migration item.

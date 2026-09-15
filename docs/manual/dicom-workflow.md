@@ -1061,12 +1061,12 @@ acceptance gates.
 
 The reproducible cross-engine chooser workflow is
 [`metis-browser-dicom.yml`](../../.github/workflows/metis-browser-dicom.yml).
-Hosted run [34895454734](https://github.com/ryancinsight/ritk/actions/runs/34895454734)
+Hosted run [34922946179](https://github.com/ryancinsight/ritk/actions/runs/34922946179)
 ran the same 94 saved MRI-DIR DICOM files through the W3C file chooser on
 Chromium, Firefox, and WebKit. It built RITK at
-`92f4dc5798d5b9cedc66201ff14eacb8c4e13c78`, resolved Métis at
-`02d4047c5567834667ab9beb796ea27f6257f0ad`, and used Moirai at
-`c110452ec8a8057a98deab330f9047b1c7efd522`. Chromium 152 and Firefox 155
+`37cca8684984498ce7bf179c9501f9dfec8dbcae`, resolved Métis at
+`fa7793be9b738859696ad566e012d69a763e55ca`, and used Moirai at
+`3ccfb1b76f386321aa24a86e65fe81efdbdfad84`. Chromium 152 and Firefox 155
 passed the RITK-owned canvas dimensions, non-black counts, exact RGBA hashes,
 semantic `data-ritk-*` attributes, bounded rejection probes, trusted pointer,
 wheel and focused `ArrowDown` key actions, and clean WebDriver teardown. Each
@@ -1437,7 +1437,7 @@ flags, and the canvas as the event target. Missing focus, an untrusted event,
 or a mismatched target fails the trace before any viewer claim is made. The
 keyboard records are transport evidence; RITK's reducer remains the owner of
 navigation and cine meaning. Hosted run
-[34895454734](https://github.com/ryancinsight/ritk/actions/runs/34895454734)
+[34922946179](https://github.com/ryancinsight/ritk/actions/runs/34922946179)
 passes this keyboard contract on Chromium 152 and Firefox 155. Safari's file
 read failed before its canvases were presented, so no Safari keyboard claim is
 made.
