@@ -298,4 +298,22 @@ mod tests {
             "native Métis file selection was cancelled"
         );
     }
+
+    #[test]
+    fn preserves_picker_failure_cause() {
+        let error = select_native_initial_path(None, || {
+            Err(std::io::Error::new(
+                std::io::ErrorKind::PermissionDenied,
+                "folder selection denied",
+            )
+            .into())
+        })
+        .expect_err("provider failure must prevent startup");
+
+        let source = error
+            .downcast_ref::<std::io::Error>()
+            .expect("provider error type must survive the selection boundary");
+        assert_eq!(source.kind(), std::io::ErrorKind::PermissionDenied);
+        assert_eq!(source.to_string(), "folder selection denied");
+    }
 }

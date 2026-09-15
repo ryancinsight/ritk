@@ -183,6 +183,13 @@ RITK; the host remains unaware of DICOM format, identifiers, and pixels. A
 multi-series folder still requires an explicit path and
 `--series-instance-uid`, preserving fail-closed acquisition selection.
 
+The 2026-09-14 Windows input-injection run selected the saved public MRI-DIR
+T2 folder through the actual dialog and displayed all three RITK planes.
+The pathless capture matches explicit-path capture byte-for-byte; cancellation
+exits before viewer creation. [Provenance](../manual/images/dicom-metis-real-mri.json)
+records the executable and provider revisions. Provider permission errors are
+covered by the launch boundary regression, not a live permission-dialog test.
+
 Revision 2026-09-12 (bounded GPU projection and readback): the eframe volume renderer
 now computes the scalar storage-buffer size before calling wgpu and compares it
 with both device buffer limits. When a saved study exceeds either limit, the
@@ -493,7 +500,7 @@ boundary.
 | --- | --- | --- | --- |
 | `SnapApp::update` in `app/state.rs`; `run_app_with_options` and `start_web` in `launch.rs` | Frame ordering, load/recovery decisions, viewer state and DICOM policy | Windows `metis_platform::native::NativeSurface::{poll_events,wait_events,present,close}`; browser `metis-web::{metis_start,metis_stop,take_file_drop}` | The RITK session connects the Windows host loop for three views and the WASM launcher drains browser file batches. A reusable loop for arbitrary apps, GPU-capable Métis/WASM presentation, and cross-engine browser evidence remain; native Windows packaging is delivered; `NativeSurface` is Windows-only. |
 | `SnapApp` fields and `app/*_ops.rs` transitions | Volume identity, series selection, navigation, measurements, overlays, PACS and persistence | `ritk_snap::presentation::PresentationDispatcher` and `ViewerAction`; Métis IPC/fragment actions are transport seams only | RITK's `ViewerViewport` adapter applies the actions on eframe and the first Windows Métis session. Browser host parity, stale-completion guards and multi-viewport dispatch remain before shell cutover; no DICOM state may cross into a Métis crate. |
-| `egui::Context`, `RawInput`, `Event`, `DroppedFile`, and pointer handling in `ui/*` | Pointer/keyboard semantics are translated into RITK actions | `metis-platform::PlatformEvent`; native Moirai `WindowEvent`; browser `FileDropBatch`/`take_file_drop` | Browser file batches now reach the existing RITK classifier and loader. Native file-picker grants, browser runtime packaging, focus/text/IME parity and trusted native file ingress remain incomplete for the viewer. |
+| `egui::Context`, `RawInput`, `Event`, `DroppedFile`, and pointer handling in `ui/*` | Pointer/keyboard semantics are translated into RITK actions | `metis-platform::PlatformEvent`; native Moirai `WindowEvent`; browser `FileDropBatch`/`take_file_drop` | Browser file batches reach the RITK classifier and loader. Windows folder selection and cancellation are verified with a saved study; native permission-denial UI, browser runtime packaging, focus/text/IME parity and other native file ingress remain incomplete. |
 | `ToolState`'s `egui::Pos2` carriers in `tools/interaction/tool_state.rs` | In-progress pan, zoom, window/level and measurement coordinates | `ImagePoint` and `ViewportOffset` plus the format-neutral action contract | Closed in the adapter increment; transformed image coordinates and screen-space pan offsets retain their existing semantics. |
 | `egui::ColorImage`, `TextureHandle`, `render::{slice_render,mip_vr,gpu_*}` | Scalar/RGB presentation, W/L, colormap, MPR, MIP/VR and GPU numerical behavior | `metis-ui-lang::RasterImage`, `DisplayList`, and `metis-platform::Framebuffer`; Iris remains the visualization contract | Native eframe GPU projection preflights device limits, waits for matching asynchronous readback, and uses the CPU path for oversized or failed requests; a fitting-volume capture is recorded in the manual. A GPU-capable Métis/WASM presentation path must still support three orthogonal views and projections without copying DICOM or replacing Iris render contracts. |
 | `rfd::FileDialog` and `app/io_ops.rs` | User-selected paths, selected-study identity, export/session semantics | Moirai filesystem grants; Métis browser byte batches | Native dialog and browser byte-batch adapters must preserve exact selection intent and return typed failures to RITK. |

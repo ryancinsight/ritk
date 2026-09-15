@@ -3,10 +3,11 @@
   "status": "passed",
   "runtime": {
     "host": "Windows native Métis surface",
-    "input": "local DICOM directory passed to ritk-snap",
-    "ritk_revision": "f6e82835b856c55adcc1b97ad173686903e6a974",
-    "metis_revision": "ed3806811f23271310cb04078dff55aba5c90944",
-    "moirai_revision": "a7fa2ba69f25070581f7245f059089705d8fc699"
+    "input": "saved DICOM directory selected through the Windows folder picker; no positional PATH",
+    "ritk_revision": "babefe845a6168918f5d3c91e0ede508aed8e3e3",
+    "source_delta": "launch.rs adds only the cfg(test) preserves_picker_failure_cause regression",
+    "metis_revision": "befc5333ff4869e632eb38b14997ce865e4dfbe9",
+    "moirai_revision": "27d9b06190e8e3db930ef9745187e0ea48cadfce"
   },
   "dataset": {
     "path": "test_data/2_head_mri_t2/DICOM",
@@ -20,14 +21,54 @@
     "width": 1280,
     "height": 800,
     "sha256": "259dd79103482756c4e688621bebafc841cc40f1df10ff2bbd7f9d04b7b4d401",
-    "executable_sha256": "4032125b29b77c207a586e1957259f6216034c0f464dc4862cfffc6230bcd73b",
-    "executable_bytes": 53540352,
+    "non_black_pixels": 411589,
+    "executable_sha256": "59af6328e36d0d8fc4b49ae04c7dacc8bf74fd0115b8fefb13d70efe15079fb2",
+    "executable_bytes": 53380096,
     "visual_scope": "Métis framebuffer pixels; operating-system chrome excluded",
-    "planes": ["axial", "coronal", "sagittal"]
+    "planes": [
+      "axial",
+      "coronal",
+      "sagittal"
+    ]
   },
-  "bounds": {
-    "metis_file_count": 512,
-    "metis_batch_bytes": 268435456,
-    "series_submission": "accepted: 94 DICOM files"
+  "picker_evidence": {
+    "date": "2026-09-14",
+    "interactive_command": "ritk-snap.exe --metis-native",
+    "interaction": "Windows input injection: navigate to saved study parent, click DICOM folder, click Select Folder",
+    "interactive_exit_code": 0,
+    "window_image": "dicom-metis-picker-mri-window.png",
+    "window_width": 1602,
+    "window_height": 1040,
+    "window_sha256": "b360e32de4b86b59f51c55eb31d59987ee2ba4d96613a168534fb171d1fc6f2b",
+    "window_scope": "actual interactive window including OS chrome and pointer; three MRI planes visually inspected",
+    "capture_command": "ritk-snap.exe --metis-native --capture-application --capture <PNG>",
+    "capture_interaction": "click Select Folder for the same saved DICOM directory",
+    "capture_exit_code": 0,
+    "explicit_path_comparison": "byte-identical PNG from the same executable with explicit study PATH and identical capture options; exit 0",
+    "cancellation_exit_code": 1,
+    "cancellation_error": "native Métis file selection was cancelled",
+    "scope": "Windows saved single-series folder selection and cancellation; permission-denial propagation is unit-tested, not induced in the OS"
+  },
+  "ownership": {
+    "host": "Moirai/Metis return the selected filesystem path and present a format-neutral framebuffer",
+    "ritk": "DICOM discovery, acquisition selection, decoding, geometry, clinical display and capture",
+    "limits": "native folder selection does not exercise browser file-count or byte-transfer limits"
+  },
+  "verification": {
+    "basis": "babefe845a6168918f5d3c91e0ede508aed8e3e3 plus launch.rs test-only diff",
+    "launch_git_blob": "a1b60b0225006350de9dee93ac269141064cdbea",
+    "toolchain": "1.97.0-x86_64-pc-windows-msvc",
+    "cargo_cwd": "outside the Atlas development overlay",
+    "cargo_prefix": "cargo +1.97.0 --config D:/atlas/repos/ritk/.cargo/config.toml --config D:/atlas/repos/.cargo/config.toml",
+    "cargo_manifest": "--manifest-path D:/atlas/repos/ritk/Cargo.toml",
+    "baseline": "nextest run --locked -p ritk-snap -E test(launch::tests): 3 passed at babefe845 parent 53c5d42f9; run d02525ce-b1d8-45cd-a87d-d3a5763c2a1a",
+    "build": "build --locked -p ritk-snap --bin ritk-snap: exit 0; Cargo reports the existing bin/cdylib ritk_snap.pdb filename collision",
+    "native_tests": "nextest run --locked -p ritk-snap --status-level fail: 831 passed, 0 skipped; default committed nextest profile; run 322499d4-2581-4343-a2a5-2287894edca6; 122.646 seconds",
+    "lint": "clippy --locked -p ritk-snap --all-targets -- -D warnings: exit 0",
+    "format": "cargo +1.97.0 fmt --check from repository: exit 0",
+    "lock": "python scripts/lockfile.py --check: exit 0, 62 first-party git sources",
+    "review": "picker_review: no actionable findings; independently verified image hashes, dimensions, executable digest and comparison PNG; did not replay UI or gates",
+    "doctests": "test --locked -p ritk-snap --doc: 4 passed, 0 failed, 1 existing ignored example; 2.92 seconds execution",
+    "rustdoc": "doc --locked -p ritk-snap --no-deps with RUSTDOCFLAGS=-D warnings: exit 0"
   }
 }

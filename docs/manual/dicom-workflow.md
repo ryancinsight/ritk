@@ -387,6 +387,23 @@ than one acquisition must use the explicit path and
 `--series-instance-uid` command above; the picker path never selects a series
 implicitly.
 
+The Windows picker was exercised on 2026-09-14 with the saved public MRI-DIR
+T2 study: launch without PATH, navigate to its parent directory, click `DICOM`,
+then click **Select Folder**. The actual interactive window shows all three
+RITK MRI planes and closes with exit 0:
+
+![RITK MRI window after native folder selection](images/dicom-metis-picker-mri-window.png)
+
+Repeating the same selection with `--capture-application --capture <PNG>`
+exits 0 and produces the existing [MRI framebuffer](images/dicom-metis-real-mri.png):
+1280 × 800 with 411,589 non-black pixels. Its PNG is byte-identical to an
+explicit-path capture from the same executable. Clicking **Cancel** in a third
+pathless launch exits 1 with `native Métis file selection was cancelled` and
+creates no viewer window. [Capture provenance](images/dicom-metis-real-mri.json)
+records the binary hash, provider revisions, commands and evidence limits.
+This closes Windows single-series folder selection; native permission-denial
+UI, process coverage and other host workflows remain separate acceptance work.
+
 The Métis host owns the window handle, finite event wait, retained framebuffer,
 resize/minimize handling, DPI updates and terminal cleanup. RITK owns the file
 open, DICOM decode, selected volume, window/level, colormap, slice navigation

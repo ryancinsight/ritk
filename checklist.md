@@ -76,9 +76,11 @@
       tests; run focused native gates and capture the saved public DICOM study
       through Métis (1280 × 800, 359,857 non-black pixels, SHA-256
       `8082cea87348126ce5a07cacb602bf71081747881481d2062bb1f2c7314113d3`).
-- [ ] Exercise the physical Windows folder-picker click path with a saved
-      DICOM study; the current CUA runtime exposes no native app surface for
-      this interaction.
+- [x] Exercise Windows folder selection through actual input injection with
+      the saved public MRI-DIR T2 study, capture its three RITK planes, compare
+      the picker PNG byte-for-byte with explicit-path capture, and cancel a
+      third pathless launch. [Evidence](docs/manual/images/dicom-metis-real-mri.json)
+      records exit codes 0/0/1 and the actual interactive window.
 
 ## FIX-DTI-VOLUME-FRAME [major][arch] — Preserve diffusion coordinate frames
 
