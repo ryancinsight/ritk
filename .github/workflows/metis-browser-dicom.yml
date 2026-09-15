@@ -8,7 +8,7 @@ on:
       metis_revision:
         description: Exact Métis commit resolved by Cargo.lock
         required: true
-        default: fa7793be9b738859696ad566e012d69a763e55ca
+        default: 539fe42776c7eadee702238d22d610e8a1ec5d64
         type: string
 
 permissions:
@@ -17,7 +17,7 @@ permissions:
 env:
   CARGO_INCREMENTAL: 0
   RUST_BACKTRACE: 1
-  METIS_REVISION: ${{ inputs.metis_revision || 'fa7793be9b738859696ad566e012d69a763e55ca' }}
+  METIS_REVISION: ${{ inputs.metis_revision || '539fe42776c7eadee702238d22d610e8a1ec5d64' }}
 
 concurrency:
   group: ritk-snap-metis-browser-${{ github.ref }}
@@ -122,6 +122,7 @@ jobs:
                   "data-ritk-slice-count": attributes[canvas_id]["slice_count"],
                   "data-ritk-frame-width": attributes[canvas_id]["frame_width"],
                   "data-ritk-frame-height": attributes[canvas_id]["frame_height"],
+                  "data-ritk-cine-fps": "12",
               }
           output = Path("output/browser/mri-oracle.json")
           output.write_text(json.dumps(oracle) + "\n", encoding="utf-8")
@@ -267,7 +268,7 @@ jobs:
             --oracle output/browser/mri-oracle.json \
             --consumer-revision "$RITK_REVISION" \
             --canvas-trace "output/browser/results/$ENGINE/canvas-trace.json" \
-            --keyboard-trace \
+            --keyboard-trace cine-rate \
             --canvas-attribute data-ritk-load-state \
             --canvas-attribute data-ritk-frame-state \
             --canvas-attribute data-ritk-axis \
@@ -275,9 +276,10 @@ jobs:
             --canvas-attribute data-ritk-slice-count \
             --canvas-attribute data-ritk-frame-width \
             --canvas-attribute data-ritk-frame-height \
+            --canvas-attribute data-ritk-cine-fps \
             --output "output/browser/results/$ENGINE"
 
-      - name: Validate RITK keyboard trace
+      - name: Validate RITK cine-rate trace
         if: success()
         working-directory: ritk
         env:
@@ -288,7 +290,7 @@ jobs:
           cargo run --locked --manifest-path Cargo.toml -p ritk-snap -- \
             --validate-browser-trace \
             "$GITHUB_WORKSPACE/metis/output/browser/results/$ENGINE/canvas-trace.json" \
-            --require-keyboard \
+            --require-cine-rate \
             --canvas-id ritk-snap-axial \
             --canvas-id ritk-snap-coronal \
             --canvas-id ritk-snap-sagittal
