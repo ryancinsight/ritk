@@ -1,7 +1,9 @@
 use super::*;
 use serde_json::{json, Value};
 
-fn default_ids() -> Vec<String> {
+mod cine_rate;
+
+pub(super) fn default_ids() -> Vec<String> {
     DEFAULT_CANVAS_IDS
         .iter()
         .map(|id| (*id).to_owned())
@@ -19,22 +21,32 @@ fn keyboard_fixture_value(ids: &[String]) -> Value {
     )
 }
 
-fn cine_rate_fixture_value(ids: &[String]) -> Value {
-    let mut value = fixture_value_for_mode(
+pub(super) fn cine_rate_fixture_value(ids: &[String]) -> Value {
+    fixture_value_for_mode(
         ids,
         TraceInputMode::PointerWheelKeyboard(KeyboardTraceKind::CineRate),
-    );
-    for snapshot in value["snapshots"].as_array_mut().expect("snapshots array") {
-        let label = snapshot["label"].as_str().expect("snapshot label");
-        if label.ends_with("after-keyboard") || label.ends_with("after-input") {
-            snapshot["canvas"]["attributes"]["data-ritk-cine-fps"] = json!("13");
+    )
+}
+
+#[derive(Clone, Copy)]
+struct SnapshotFixtureStage {
+    suffix: &'static str,
+    slice_index: usize,
+    cine_state: Option<(u32, u64)>,
+}
+
+impl SnapshotFixtureStage {
+    const fn new(suffix: &'static str, slice_index: usize, cine_state: Option<(u32, u64)>) -> Self {
+        Self {
+            suffix,
+            slice_index,
+            cine_state,
         }
     }
-    value
 }
 
 fn fixture_value_for_mode(ids: &[String], input_mode: TraceInputMode) -> Value {
-    let attributes = |axis: usize, slice_index: usize| {
+    let attributes = |axis: usize, slice_index: usize, cine_state: Option<(u32, u64)>| {
         let mut value = json!({
             "data-ritk-load-state": "ready",
             "data-ritk-frame-state": "presented",
@@ -44,52 +56,35 @@ fn fixture_value_for_mode(ids: &[String], input_mode: TraceInputMode) -> Value {
             "data-ritk-frame-width": "256",
             "data-ritk-frame-height": "192"
         });
-        if matches!(
-            input_mode.keyboard_kind(),
-            Some(KeyboardTraceKind::CineRate)
-        ) {
-            value["data-ritk-cine-fps"] = json!("12");
+        if let Some((rate, generation)) = cine_state {
+            value["data-ritk-cine-fps"] = json!(rate.to_string());
+            value["data-ritk-frame-generation"] = json!(generation.to_string());
         }
         value
     };
+    let (css_width, css_height) = if matches!(
+        input_mode,
+        TraceInputMode::PointerWheelKeyboard(KeyboardTraceKind::CineRate)
+    ) {
+        (204.4, 153.2)
+    } else {
+        (256.0, 192.0)
+    };
     let mut actions = Vec::new();
     for id in ids {
-        if let Some(kind) = input_mode.keyboard_kind() {
-            let (key, code) = kind.key_code();
-            actions.push(json!({
-                "action": "trusted-keyboard",
-                "canvas": id,
-                "key": key,
-                "code": code,
-                "repeat": false,
-                "focus": {"ok": true, "active_id": id},
-                "observed_events": [
-                    {
-                        "type": "keydown",
-                        "is_trusted": true,
-                        "target_id": id,
-                        "key": key,
-                        "code": code,
-                        "repeat": false,
-                        "alt_key": false,
-                        "ctrl_key": false,
-                        "meta_key": false,
-                        "shift_key": false
-                    },
-                    {
-                        "type": "keyup",
-                        "is_trusted": true,
-                        "target_id": id,
-                        "key": key,
-                        "code": code,
-                        "repeat": false,
-                        "alt_key": false,
-                        "ctrl_key": false,
-                        "meta_key": false,
-                        "shift_key": false
-                    }
-                ]
-            }));
+        match input_mode.keyboard_kind() {
+            Some(KeyboardTraceKind::Navigation) => {
+                actions.push(keyboard_action(id, "ArrowDown", "ArrowDown", false, true));
+            }
+            Some(KeyboardTraceKind::CineRate) => {
+                actions.extend([
+                    keyboard_action(id, "=", "Equal", false, false),
+                    keyboard_action(id, "=", "Equal", true, true),
+                    keyboard_action(id, "-", "Minus", false, false),
+                    keyboard_action(id, "-", "Minus", true, true),
+                ]);
+            }
+            None => {}
         }
         actions.push(json!({"action": "trusted-pointer-drag", "canvas": id}));
         actions.push(json!({"action": "trusted-wheel", "canvas": id}));
@@ -98,45 +93,87 @@ fn fixture_value_for_mode(ids: &[String], input_mode: TraceInputMode) -> Value {
         .iter()
         .enumerate()
         .flat_map(|(axis, id)| {
-            let initial = json!({
-                "label": format!("{id}-initial"),
-                "canvas": {"id": id, "width": 256, "height": 192, "attributes": attributes(axis, 0)}
-            });
-            let after_input_index = if input_mode.keyboard_kind().is_some() {
-                2
-            } else {
-                1
+            let stages: Vec<SnapshotFixtureStage> = match input_mode {
+                TraceInputMode::PointerWheel => vec![
+                    SnapshotFixtureStage::new("initial", 0, None),
+                    SnapshotFixtureStage::new("after-input", 1, None),
+                ],
+                TraceInputMode::PointerWheelKeyboard(KeyboardTraceKind::Navigation) => vec![
+                    SnapshotFixtureStage::new("initial", 0, None),
+                    SnapshotFixtureStage::new("after-keyboard", 1, None),
+                    SnapshotFixtureStage::new("after-input", 2, None),
+                ],
+                TraceInputMode::PointerWheelKeyboard(KeyboardTraceKind::CineRate) => vec![
+                    SnapshotFixtureStage::new("initial", 0, Some((12, 7))),
+                    SnapshotFixtureStage::new("after-keyboard", 0, Some((13, 8))),
+                    SnapshotFixtureStage::new("after-repeat", 0, Some((13, 8))),
+                    SnapshotFixtureStage::new("after-decrease", 0, Some((12, 9))),
+                    SnapshotFixtureStage::new("after-decrease-repeat", 0, Some((12, 9))),
+                    SnapshotFixtureStage::new("after-input", 1, Some((12, 10))),
+                ],
             };
-            let after_input = json!({
-                "label": format!("{id}-after-input"),
-                "canvas": {"id": id, "width": 256, "height": 192, "attributes": attributes(axis, after_input_index)}
-            });
-            if input_mode.keyboard_kind().is_some() {
-                vec![
-                    initial,
+            stages
+                .into_iter()
+                .map(|stage| {
+                    let SnapshotFixtureStage {
+                        suffix,
+                        slice_index,
+                        cine_state,
+                    } = stage;
                     json!({
-                        "label": format!("{id}-after-keyboard"),
-                        "canvas": {"id": id, "width": 256, "height": 192, "attributes": attributes(axis, 1)}
-                    }),
-                    after_input,
-                ]
-            } else {
-                vec![initial, after_input]
-            }
+                        "label": format!("{id}-{suffix}"),
+                        "canvas": {
+                            "id": id,
+                            "width": 256,
+                            "height": 192,
+                            "css_width": css_width,
+                            "css_height": css_height,
+                            "attributes": attributes(axis, slice_index, cine_state)
+                        }
+                    })
+                })
+                .collect::<Vec<_>>()
         })
         .collect();
+    let screenshot_suffixes = match input_mode {
+        TraceInputMode::PointerWheel
+        | TraceInputMode::PointerWheelKeyboard(KeyboardTraceKind::Navigation) => {
+            ["initial", "after-input"].as_slice()
+        }
+        TraceInputMode::PointerWheelKeyboard(KeyboardTraceKind::CineRate) => {
+            super::cine_rate::SNAPSHOT_SUFFIXES.as_slice()
+        }
+    };
     let screenshots: Vec<Value> = [
             json!({"label": "window-initial", "width": 1280, "height": 720, "bytes": 100, "sha256": "0".repeat(64)}),
             json!({"label": "window-final", "width": 1280, "height": 720, "bytes": 100, "sha256": "1".repeat(64)}),
         ]
         .into_iter()
         .chain(ids.iter().flat_map(|id| {
-            [
-                json!({"label": format!("{id}-initial"), "scope": "element", "width": 256, "height": 192, "bytes": 100, "sha256": "2".repeat(64)}),
-                json!({"label": format!("{id}-after-input"), "scope": "element", "width": 256, "height": 192, "bytes": 100, "sha256": "3".repeat(64)}),
-            ]
+            screenshot_suffixes.iter().map(move |suffix| {
+                let digest_digit = match *suffix {
+                    "initial" => "2",
+                    "after-keyboard" | "after-repeat" => "4",
+                    "after-decrease" | "after-decrease-repeat" => "5",
+                    "after-input" => "3",
+                    _ => unreachable!("invariant: fixture suffixes are exhaustive"),
+                };
+                json!({
+                    "label": format!("{id}-{suffix}"),
+                    "scope": "element",
+                    "width": 256,
+                    "height": 192,
+                    "bytes": 100,
+                    "sha256": digest_digit.repeat(64)
+                })
+            })
         }))
         .collect();
+    let metrics = matches!(
+        input_mode,
+        TraceInputMode::PointerWheelKeyboard(KeyboardTraceKind::CineRate)
+    )
+    .then(|| json!({"device_scale": {"device_pixel_ratio": 1.25}}));
     json!({
         "schema": 1,
         "status": "passed",
@@ -147,11 +184,43 @@ fn fixture_value_for_mode(ids: &[String], input_mode: TraceInputMode) -> Value {
         "actions": actions,
         "snapshots": snapshots,
         "screenshots": screenshots,
+        "metrics": metrics,
         "cleanup": {
             "active_input_sources_released": true,
             "canvas_count": ids.len(),
             "canvas_attribute_names": input_mode.expected_attributes()
         }
+    })
+}
+
+fn keyboard_action(id: &str, key: &str, code: &str, repeat: bool, release: bool) -> Value {
+    let mut observed_events = vec![keyboard_event(id, key, code, "keydown", repeat)];
+    if release {
+        observed_events.push(keyboard_event(id, key, code, "keyup", false));
+    }
+    json!({
+        "action": "trusted-keyboard",
+        "canvas": id,
+        "key": key,
+        "code": code,
+        "repeat": repeat,
+        "focus": {"ok": true, "active_id": id},
+        "observed_events": observed_events
+    })
+}
+
+fn keyboard_event(id: &str, key: &str, code: &str, event_type: &str, repeat: bool) -> Value {
+    json!({
+        "type": event_type,
+        "is_trusted": true,
+        "target_id": id,
+        "key": key,
+        "code": code,
+        "repeat": repeat,
+        "alt_key": false,
+        "ctrl_key": false,
+        "meta_key": false,
+        "shift_key": false
     })
 }
 
@@ -163,7 +232,7 @@ fn reject(value: Value, message: &str) {
     reject_with_mode(value, TraceInputMode::PointerWheel, message);
 }
 
-fn reject_with_mode(value: Value, input_mode: TraceInputMode, message: &str) {
+pub(super) fn reject_with_mode(value: Value, input_mode: TraceInputMode, message: &str) {
     let ids = default_ids();
     let document: TraceDocument = serde_json::from_value(value).expect("mutation keeps JSON shape");
     let error = validate_document(&document, &ids, input_mode)
@@ -409,7 +478,7 @@ fn cine_rate_keyboard_requires_equal_and_an_increased_rate() {
     reject_with_mode(
         unchanged,
         TraceInputMode::PointerWheelKeyboard(KeyboardTraceKind::CineRate),
-        "did not increase cine FPS",
+        "change by exactly +1 and -1",
     );
 
     let mut wrong_key = value;

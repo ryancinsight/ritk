@@ -8,7 +8,7 @@ on:
       metis_revision:
         description: Exact Métis commit resolved by Cargo.lock
         required: true
-        default: 539fe42776c7eadee702238d22d610e8a1ec5d64
+        default: d0d45561228a8481f0c6e4e3208162db93ccfe01
         type: string
 
 permissions:
@@ -17,7 +17,7 @@ permissions:
 env:
   CARGO_INCREMENTAL: 0
   RUST_BACKTRACE: 1
-  METIS_REVISION: ${{ inputs.metis_revision || '539fe42776c7eadee702238d22d610e8a1ec5d64' }}
+  METIS_REVISION: ${{ inputs.metis_revision || 'd0d45561228a8481f0c6e4e3208162db93ccfe01' }}
 
 concurrency:
   group: ritk-snap-metis-browser-${{ github.ref }}
@@ -277,6 +277,7 @@ jobs:
             --canvas-attribute data-ritk-frame-width \
             --canvas-attribute data-ritk-frame-height \
             --canvas-attribute data-ritk-cine-fps \
+            --canvas-attribute data-ritk-frame-generation \
             --output "output/browser/results/$ENGINE"
 
       - name: Validate RITK cine-rate trace

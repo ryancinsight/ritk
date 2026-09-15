@@ -9,9 +9,11 @@ use std::io::Read;
 use std::path::Path;
 use std::str::FromStr;
 
+mod cine_rate;
 mod validation;
 
 const MAX_CANVAS_DIMENSION: u32 = 4_096;
+const MAX_CANVAS_CSS_DIMENSION: f64 = 16_384.0;
 const MAX_TRACE_BYTES: u64 = 512 * 1024;
 const BASE_ATTRIBUTES: [&str; 7] = [
     "data-ritk-load-state",
@@ -22,7 +24,7 @@ const BASE_ATTRIBUTES: [&str; 7] = [
     "data-ritk-frame-width",
     "data-ritk-frame-height",
 ];
-const CINE_RATE_ATTRIBUTES: [&str; 8] = [
+const CINE_RATE_ATTRIBUTES: [&str; 9] = [
     "data-ritk-load-state",
     "data-ritk-frame-state",
     "data-ritk-axis",
@@ -31,6 +33,7 @@ const CINE_RATE_ATTRIBUTES: [&str; 8] = [
     "data-ritk-frame-width",
     "data-ritk-frame-height",
     "data-ritk-cine-fps",
+    "data-ritk-frame-generation",
 ];
 const DEFAULT_CANVAS_IDS: [&str; 3] =
     ["ritk-snap-axial", "ritk-snap-coronal", "ritk-snap-sagittal"];
@@ -89,7 +92,20 @@ struct TraceDocument {
     actions: Vec<TraceAction>,
     snapshots: Vec<TraceSnapshot>,
     screenshots: Vec<TraceScreenshot>,
+    #[serde(default)]
+    metrics: Option<TraceMetrics>,
     cleanup: TraceCleanup,
+}
+
+#[derive(Debug, Deserialize)]
+struct TraceMetrics {
+    #[serde(default)]
+    device_scale: Option<TraceDeviceScale>,
+}
+
+#[derive(Debug, Deserialize)]
+struct TraceDeviceScale {
+    device_pixel_ratio: f64,
 }
 
 #[derive(Debug, Deserialize)]
@@ -149,6 +165,8 @@ struct TraceCanvas {
     id: String,
     width: u32,
     height: u32,
+    css_width: f64,
+    css_height: f64,
     attributes: BTreeMap<String, Option<String>>,
 }
 
@@ -295,9 +313,34 @@ fn validate_document(
         input_mode.keyboard_kind(),
         Some(KeyboardTraceKind::CineRate)
     ) {
-        validate_cine_rate_progression(&document.snapshots, canvas_ids)?;
+        cine_rate::validate_snapshot_progression(&document.snapshots, canvas_ids)?;
     }
-    validation::validate_screenshots(&document.screenshots, canvas_ids)?;
+    let device_pixel_ratio = if matches!(
+        input_mode.keyboard_kind(),
+        Some(KeyboardTraceKind::CineRate)
+    ) {
+        let ratio = document
+            .metrics
+            .as_ref()
+            .context("cine browser trace is missing device-scale metrics")?
+            .device_scale
+            .as_ref()
+            .context("cine browser trace is missing device-scale metrics")?
+            .device_pixel_ratio;
+        if !ratio.is_finite() || !(0.5..=4.0).contains(&ratio) {
+            bail!("cine browser trace reports an invalid device pixel ratio")
+        }
+        Some(ratio)
+    } else {
+        None
+    };
+    validation::validate_screenshots(
+        &document.screenshots,
+        &document.snapshots,
+        canvas_ids,
+        input_mode,
+        device_pixel_ratio,
+    )?;
     validation::validate_cleanup(
         &document.cleanup,
         canvas_ids,
@@ -324,9 +367,18 @@ fn validate_actions(
     canvas_ids: &[String],
     input_mode: TraceInputMode,
 ) -> Result<()> {
+    if matches!(
+        input_mode.keyboard_kind(),
+        Some(KeyboardTraceKind::CineRate)
+    ) {
+        return cine_rate::validate_actions(actions, canvas_ids);
+    }
     let actions_per_canvas = match input_mode {
         TraceInputMode::PointerWheel => 2,
-        TraceInputMode::PointerWheelKeyboard(_) => 3,
+        TraceInputMode::PointerWheelKeyboard(KeyboardTraceKind::Navigation) => 3,
+        TraceInputMode::PointerWheelKeyboard(KeyboardTraceKind::CineRate) => {
+            unreachable!("invariant: cine-rate actions return through their dedicated validator")
+        }
     };
     let expected_action_count = canvas_ids.len() * actions_per_canvas;
     if actions.len() != expected_action_count {
@@ -482,6 +534,9 @@ fn validate_keyboard_action(action: &TraceAction, kind: KeyboardTraceKind) -> Re
 enum SnapshotPhase {
     Initial,
     AfterKeyboard,
+    AfterRepeat,
+    AfterDecrease,
+    AfterDecreaseRepeat,
     AfterInput,
 }
 
@@ -490,9 +545,18 @@ fn validate_snapshots(
     canvas_ids: &[String],
     input_mode: TraceInputMode,
 ) -> Result<()> {
+    if matches!(
+        input_mode.keyboard_kind(),
+        Some(KeyboardTraceKind::CineRate)
+    ) {
+        return cine_rate::validate_snapshots(snapshots, canvas_ids);
+    }
     let snapshots_per_canvas = match input_mode {
         TraceInputMode::PointerWheel => 2,
-        TraceInputMode::PointerWheelKeyboard(_) => 3,
+        TraceInputMode::PointerWheelKeyboard(KeyboardTraceKind::Navigation) => 3,
+        TraceInputMode::PointerWheelKeyboard(KeyboardTraceKind::CineRate) => {
+            unreachable!("invariant: cine-rate snapshots return through their dedicated validator")
+        }
     };
     let expected_snapshot_count = canvas_ids.len() * snapshots_per_canvas;
     if snapshots.len() != expected_snapshot_count {
@@ -580,6 +644,15 @@ fn validate_snapshot(
             snapshot.canvas.height
         )
     }
+    if !snapshot.canvas.css_width.is_finite()
+        || snapshot.canvas.css_width <= 0.0
+        || snapshot.canvas.css_width > MAX_CANVAS_CSS_DIMENSION
+        || !snapshot.canvas.css_height.is_finite()
+        || snapshot.canvas.css_height <= 0.0
+        || snapshot.canvas.css_height > MAX_CANVAS_CSS_DIMENSION
+    {
+        bail!("canvas {canvas_id:?} has invalid CSS dimensions")
+    }
     if snapshot.canvas.attributes.len() != expected_attributes.len()
         || expected_attributes
             .iter()
@@ -612,13 +685,21 @@ fn validate_snapshot(
         canvas_id,
     )?;
     if expected_attributes.contains(&"data-ritk-cine-fps") {
-        let cine_fps: f32 = parse_attribute(
+        let cine_fps: u32 = parse_attribute(
             attribute(&snapshot.canvas, "data-ritk-cine-fps", canvas_id)?,
             "cine FPS",
             canvas_id,
         )?;
-        if !cine_fps.is_finite() || !(1.0..=60.0).contains(&cine_fps) {
+        if !(1..=60).contains(&cine_fps) {
             bail!("canvas {canvas_id:?} reports an invalid cine FPS")
+        }
+        let frame_generation: u64 = parse_attribute(
+            attribute(&snapshot.canvas, "data-ritk-frame-generation", canvas_id)?,
+            "frame generation",
+            canvas_id,
+        )?;
+        if frame_generation == 0 {
+            bail!("canvas {canvas_id:?} reports a zero frame generation")
         }
     }
 
@@ -648,7 +729,11 @@ fn validate_snapshot(
     }
     if matches!(
         phase,
-        SnapshotPhase::AfterKeyboard | SnapshotPhase::AfterInput
+        SnapshotPhase::AfterKeyboard
+            | SnapshotPhase::AfterRepeat
+            | SnapshotPhase::AfterDecrease
+            | SnapshotPhase::AfterDecreaseRepeat
+            | SnapshotPhase::AfterInput
     ) && (load_state != "ready" || frame_state != "presented")
     {
         bail!("canvas {canvas_id:?} is not presented after trusted input")
@@ -665,7 +750,12 @@ fn validate_slice_progression(
         let initial_label = format!("{canvas_id}-initial");
         let before_wheel_label = match input_mode {
             TraceInputMode::PointerWheel => initial_label.clone(),
-            TraceInputMode::PointerWheelKeyboard(_) => format!("{canvas_id}-after-keyboard"),
+            TraceInputMode::PointerWheelKeyboard(KeyboardTraceKind::Navigation) => {
+                format!("{canvas_id}-after-keyboard")
+            }
+            TraceInputMode::PointerWheelKeyboard(KeyboardTraceKind::CineRate) => {
+                format!("{canvas_id}-after-decrease-repeat")
+            }
         };
         let after_label = format!("{canvas_id}-after-input");
         let initial = snapshots
@@ -722,40 +812,6 @@ fn validate_slice_progression(
             bail!(
                 "canvas {canvas_id:?} did not advance its multi-slice index after trusted wheel input"
             )
-        }
-    }
-    Ok(())
-}
-
-fn validate_cine_rate_progression(
-    snapshots: &[TraceSnapshot],
-    canvas_ids: &[String],
-) -> Result<()> {
-    for canvas_id in canvas_ids {
-        let initial_label = format!("{canvas_id}-initial");
-        let after_keyboard_label = format!("{canvas_id}-after-keyboard");
-        let initial = snapshots
-            .iter()
-            .find(|snapshot| snapshot.label == initial_label)
-            .with_context(|| format!("browser trace is missing snapshot {initial_label:?}"))?;
-        let after_keyboard = snapshots
-            .iter()
-            .find(|snapshot| snapshot.label == after_keyboard_label)
-            .with_context(|| {
-                format!("browser trace is missing snapshot {after_keyboard_label:?}")
-            })?;
-        let initial_fps: f32 = parse_attribute(
-            attribute(&initial.canvas, "data-ritk-cine-fps", canvas_id)?,
-            "cine FPS",
-            canvas_id,
-        )?;
-        let after_keyboard_fps: f32 = parse_attribute(
-            attribute(&after_keyboard.canvas, "data-ritk-cine-fps", canvas_id)?,
-            "cine FPS",
-            canvas_id,
-        )?;
-        if after_keyboard_fps <= initial_fps {
-            bail!("canvas {canvas_id:?} did not increase cine FPS after the trusted Equal action")
         }
     }
     Ok(())
