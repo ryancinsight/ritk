@@ -36,7 +36,7 @@
     "interactive_command": "ritk-snap.exe --metis-native",
     "interaction": "Windows input injection: navigate to saved study parent, click DICOM folder, click Select Folder",
     "interactive_exit_code": 0,
-    "window_image": "dicom-metis-picker-mri-window.png",
+    "window_image": "dicom-metis-picker-mri-window.jpg",
     "window_width": 1602,
     "window_height": 1040,
     "window_sha256": "b360e32de4b86b59f51c55eb31d59987ee2ba4d96613a168534fb171d1fc6f2b",

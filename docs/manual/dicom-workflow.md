@@ -392,7 +392,7 @@ T2 study: launch without PATH, navigate to its parent directory, click `DICOM`,
 then click **Select Folder**. The actual interactive window shows all three
 RITK MRI planes and closes with exit 0:
 
-![RITK MRI window after native folder selection](images/dicom-metis-picker-mri-window.png)
+![RITK MRI window after native folder selection](images/dicom-metis-picker-mri-window.jpg)
 
 Repeating the same selection with `--capture-application --capture <PNG>`
 exits 0 and produces the existing [MRI framebuffer](images/dicom-metis-real-mri.png):
