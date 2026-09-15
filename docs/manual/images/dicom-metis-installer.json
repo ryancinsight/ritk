@@ -72,6 +72,54 @@
       "install_directory_present_after": false
     }
   },
+  "hosted_package": {
+    "run": {
+      "id": 34990164849,
+      "url": "https://github.com/ryancinsight/ritk/actions/runs/34990164849",
+      "head_sha": "3f5c35c98d82cd01d53e972cbb9dc174725bf3fb",
+      "metis_revision": "c4276f2586f1ae9a1e3c0fa1dcb1507be4555f24",
+      "status": "completed",
+      "conclusion": "success"
+    },
+    "artifact": {
+      "id": 10406835672,
+      "name": "ritk-snap-package",
+      "archive_bytes": 19066127,
+      "digest": "sha256:7772adcad26328ffad8eff114a93bfd7fb7974b38a146075013f004d92f90ec2"
+    },
+    "inventory": {
+      "file": "inventory.json",
+      "bytes": 848,
+      "sha256": "f663e9e55c3c0741cd893da9cd16e178d48a20e40bfe1c422c738a892c91140e"
+    },
+    "portable": {
+      "file": "app/ritk-snap.exe",
+      "bytes": 24657920,
+      "sha256": "7f73b6cfd0294d0ef925a2859682dea14e1b39f07160612b8c7b1fc348586756"
+    },
+    "installer": {
+      "file": "org.ritk.snap.msi",
+      "bytes": 9416704,
+      "sha256": "a63bb0bb0a66cd6ea38f586c5bf5c33ee4d6297a7e4ab80a5f6fa54e1e2e3d37"
+    },
+    "verification": "hosted workflow passed locked build, package inventory/hash, and executable --help checks; it did not launch DICOM or install the MSI"
+  },
+  "hosted_portable_replay": {
+    "environment": "local Windows x64 replay of the hosted package artifact",
+    "command": "output\\postlock-package-hosted\\app\\ritk-snap.exe test_data\\3_head_ct_mridir\\DICOM --metis-native --capture-application --capture output\\postlock-package-hosted\\real-dicom-ct.png",
+    "exit_code": 0,
+    "capture": {
+      "file": "output/postlock-package-hosted/real-dicom-ct.png",
+      "width": 1280,
+      "height": 800,
+      "mode": "RGBA",
+      "bytes": 535797,
+      "sha256": "8082cea87348126ce5a07cacb602bf71081747881481d2062bb1f2c7314113d3",
+      "non_black_pixels": 359857,
+      "views": ["axial", "coronal", "sagittal"]
+    },
+    "matches_committed_capture": true
+  },
   "verification": {
     "inventory_payload_hashes": "passed",
     "portable_dicom_open": "passed: the packaged executable decoded the saved study and rendered three non-black orthogonal views",

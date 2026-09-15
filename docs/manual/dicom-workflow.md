@@ -1180,11 +1180,18 @@ patient data was used.
 
 The manifest and package command are local integration evidence. The
 [`metis-package.yml`](../../.github/workflows/metis-package.yml) workflow
-repeats the same lock-pinned build on a Windows runner and uploads the
-executable, inventory and MSI as a reviewable artifact. The hosted rerun is
-tracked in the RITK backlog and is not treated as DICOM execution evidence
-until its artifact is collected. Registry publication, signing, and release
-promotion remain separate release-authority decisions.
+repeated the same lock-pinned build on a Windows runner in run
+[34990164849](https://github.com/ryancinsight/ritk/actions/runs/34990164849).
+All package and inventory checks passed. Its reviewable artifact is
+`ritk-snap-package` (artifact `10406835672`, digest
+`sha256:7772adcad26328ffad8eff114a93bfd7fb7974b38a146075013f004d92f90ec2`)
+with a 24,657,920-byte executable and 9,416,704-byte MSI; the exact hashes
+are in [`dicom-metis-installer.json`](images/dicom-metis-installer.json). A
+local replay of that hosted executable opened the same saved study and
+produced the byte-identical three-plane capture. The hosted workflow itself
+checks packaging and `--help`; it does not execute DICOM or install the MSI.
+Registry publication, signing, and release promotion remain separate
+release-authority decisions.
 
 ## Open dropped DICOM files in the browser host
 
