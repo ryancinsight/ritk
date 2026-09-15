@@ -2,15 +2,15 @@
   "schema": 1,
   "status": "partial",
   "workflow": {
-    "name": "RITK SNAP Métis browser DICOM",
+    "name": "RITK SNAP MÃ©tis browser DICOM",
     "file": ".github/workflows/metis-browser-dicom.yml",
-    "run_id": 34895454734,
-    "url": "https://github.com/ryancinsight/ritk/actions/runs/34895454734",
+    "run_id": 34922946179,
+    "url": "https://github.com/ryancinsight/ritk/actions/runs/34922946179",
     "conclusion": "failure",
-    "observed_date": "2026-09-14",
-    "ritk_revision": "92f4dc5798d5b9cedc66201ff14eacb8c4e13c78",
-    "metis_revision": "02d4047c5567834667ab9beb796ea27f6257f0ad",
-    "moirai_revision": "c110452ec8a8057a98deab330f9047b1c7efd522"
+    "observed_date": "2026-09-15",
+    "ritk_revision": "37cca8684984498ce7bf179c9501f9dfec8dbcae",
+    "metis_revision": "fa7793be9b738859696ad566e012d69a763e55ca",
+    "moirai_revision": "3ccfb1b76f386321aa24a86e65fe81efdbdfad84"
   },
   "dataset": {
     "path": "test_data/2_head_mri_t2/DICOM",
@@ -27,8 +27,8 @@
       "browser_version": "152.0.7977.82",
       "platform": "linux",
       "input_source": "chooser",
-      "consumer_revision": "92f4dc5798d5b9cedc66201ff14eacb8c4e13c78",
-      "metis_revision": "02d4047c5567834667ab9beb796ea27f6257f0ad",
+      "consumer_revision": "37cca8684984498ce7bf179c9501f9dfec8dbcae",
+      "metis_revision": "fa7793be9b738859696ad566e012d69a763e55ca",
       "files": 94,
       "bytes": 49807236,
       "file_manifest_sha256": "81b7b7f8ea473dfc12c25c07b4958762254a261ca49352af2adabc214d6e8d03",
@@ -161,8 +161,8 @@
         },
         "canvas_trace": "output/browser/results/chromium/canvas-trace.json",
         "validation": "ritk-snap --require-keyboard passed",
-        "artifact_id": 10369057409,
-        "artifact_url": "https://github.com/ryancinsight/ritk/actions/runs/34895454734/artifacts/10369057409"
+        "artifact_id": 10378029775,
+        "artifact_url": "https://github.com/ryancinsight/ritk/actions/runs/34922946179/artifacts/10378029775"
       }
     },
     "firefox": {
@@ -171,8 +171,8 @@
       "browser_version": "155.0",
       "platform": "linux",
       "input_source": "chooser",
-      "consumer_revision": "92f4dc5798d5b9cedc66201ff14eacb8c4e13c78",
-      "metis_revision": "02d4047c5567834667ab9beb796ea27f6257f0ad",
+      "consumer_revision": "37cca8684984498ce7bf179c9501f9dfec8dbcae",
+      "metis_revision": "fa7793be9b738859696ad566e012d69a763e55ca",
       "files": 94,
       "bytes": 49807236,
       "file_manifest_sha256": "81b7b7f8ea473dfc12c25c07b4958762254a261ca49352af2adabc214d6e8d03",
@@ -305,8 +305,8 @@
         },
         "canvas_trace": "output/browser/results/firefox/canvas-trace.json",
         "validation": "ritk-snap --require-keyboard passed",
-        "artifact_id": 10368999544,
-        "artifact_url": "https://github.com/ryancinsight/ritk/actions/runs/34895454734/artifacts/10368999544"
+        "artifact_id": 10379056132,
+        "artifact_url": "https://github.com/ryancinsight/ritk/actions/runs/34922946179/artifacts/10379056132"
       }
     },
     "webkit": {
@@ -315,8 +315,8 @@
       "browser_version": "26.6.2",
       "platform": "macOS",
       "input_source": "chooser",
-      "consumer_revision": "92f4dc5798d5b9cedc66201ff14eacb8c4e13c78",
-      "metis_revision": "02d4047c5567834667ab9beb796ea27f6257f0ad",
+      "consumer_revision": "37cca8684984498ce7bf179c9501f9dfec8dbcae",
+      "metis_revision": "fa7793be9b738859696ad566e012d69a763e55ca",
       "files": null,
       "bytes": null,
       "file_manifest_sha256": null,
@@ -347,17 +347,17 @@
         {
           "label": "failure",
           "path": "output/browser/results/webkit/failure.png",
-          "sha256": "29d8172cde76e70cab316b29f3f4c77be0831e86035193f3e77984f7629a8d61",
+          "sha256": "2b2c7fdbd1c3405ff6d5d4835537bdcd78234566be1be7f1cec2a959ea530503",
           "width": 1440,
           "height": 1048,
-          "bytes": 119761
+          "bytes": 119779
         }
       ],
       "keyboard": {
         "status": "not_reached",
         "reason": "bounded browser read failed before canvas presentation or keyboard actions",
-        "artifact_id": 10369129487,
-        "artifact_url": "https://github.com/ryancinsight/ritk/actions/runs/34895454734/artifacts/10369129487"
+        "artifact_id": 10378214305,
+        "artifact_url": "https://github.com/ryancinsight/ritk/actions/runs/34922946179/artifacts/10378214305"
       }
     }
   },
