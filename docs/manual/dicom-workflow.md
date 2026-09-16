@@ -1362,10 +1362,11 @@ The consumer package contains only `ritk_snap.js` and `ritk_snap_bg.wasm`;
 runtime pair. Run those commands from a standalone checkout or CI; the local
 Atlas development overlay resolves first-party crates to working trees and is
 therefore verified with the equivalent unlocked release build. The generated
-module exports `start_web`, `start_web_canvas` and
-`start_web_orthogonal_canvases`; packaging proves the consumer artifact
-boundary. The local browser visual smoke below exercises the packaged module
-against a real public MRI-DIR DICOM drop.
+module exports `start_web`, `start_web_canvas`,
+`start_web_orthogonal_canvases` and their explicit asynchronous WebGPU
+variants; packaging proves the consumer artifact boundary. The local browser
+visual smoke below exercises the packaged raster module against a real public
+MRI-DIR DICOM drop.
 
 The direct Métis canvas workflow is also available for the first browser
 presentation slice. It keeps the canvas outside Métis's `#metis-app` mount and
@@ -1392,10 +1393,13 @@ RGBA frame. DICOM parsing, metadata, geometry, window/level and viewer state
 remain in RITK. The named canvas now retains bounded pointer and wheel
 listeners and routes target-local events through RITK's shared
 presentation/action reducer; pointer cancel and provider failures clear the
-active gesture. Physical browser-driver input, Safari's file-backed WebDriver
-read, and browser WebGPU remain separate acceptance work. The native eframe
-volume upload now preflights device limits, reports pending GPU readback, and
-uses the CPU projection path when the GPU path is unsupported or fails.
+active gesture. Physical browser-driver input and Safari's file-backed
+WebDriver read remain separate acceptance work. Browser WebGPU is available
+only through the explicit asynchronous `*_gpu` entrypoints or the gallery's
+`?renderer=webgpu` query; this manual has no device or equivalence claim until
+that mode produces revision-bound browser artifacts. The native eframe volume
+upload now preflights device limits, reports pending GPU readback, and uses the
+CPU projection path when the GPU path is unsupported or fails.
 
 The direct three-view entrypoint uses three canvases and preserves the same
 format-neutral boundary:
@@ -1429,10 +1433,13 @@ existing loader and presents the axial, coronal and sagittal
 axis order and slice dimensions; the packaged three-canvas capture below
 verifies the runtime dimensions and non-black pixels. Each canvas now routes
 its bounded pointer and wheel batch to the matching RITK axis. Physical
-browser-driver input, Safari's file-backed WebDriver read, and browser WebGPU
-remain separate acceptance work; native eframe GPU uploads are guarded by the
-same RITK device limit check and have a fitting-volume visual capture in the
-eframe workflow above.
+browser-driver input and Safari's file-backed WebDriver read remain separate
+acceptance work. Browser WebGPU is available through the explicit asynchronous
+`start_web_orthogonal_canvases_gpu` entrypoint; the gallery selects it only for
+`?renderer=webgpu` and records setup failures instead of falling back. No real
+GPU visual or equivalence claim is made until revision-bound browser artifacts
+exist. Native eframe GPU uploads are guarded by the same RITK device limit
+check and have a fitting-volume visual capture in the eframe workflow above.
 
 Each RITK canvas also publishes a bounded semantic snapshot for workflow
 drivers. `data-ritk-load-state` is `empty` or `ready`,
@@ -1682,10 +1689,12 @@ the panel under the pointer, translates each bounded native event batch to
 The focused suite checks slice pixels, all three panels, panel-specific wheel
 navigation, resize/minimize, DPI, focus-loss cancellation, close, and bounded
 hidden capture. The test proves the host boundary and the existing DICOM
-workflow; it does not add a DICOM parser to Métis. Browser handoff and GPU
-upload remain migration work; the RITK-owned manifest now exercises the Métis
-executable and Windows MSI path without moving DICOM behavior across the
-presentation boundary.
+workflow; it does not add a DICOM parser to Métis. Browser handoff and the
+explicit WebGPU upload entrypoints remain RITK-owned integration surfaces; the
+RITK-owned manifest now exercises the Métis executable and Windows MSI path
+without moving DICOM behavior across the presentation boundary. A real browser
+GPU run remains unverified until a configured device produces revision-bound
+artifacts.
 
 Primary-button drags follow the selected RITK tool through the same event path.
 For the Pan tool, the resulting image-space offset is applied while RITK
@@ -1822,8 +1831,9 @@ Temporal multiframe organization and default DICOM LINEAR/VOI semantics are
 covered by the completed [RITK-SNAP-FRAMES-001](../../backlog.md#RITK-SNAP-FRAMES-001)
 item. These workflows prepare the egui baseline for the Métis migration. The
 browser handoff now has a compiled RITK adapter, manual workflow, and a local
-synthetic runtime visual smoke; browser WebGPU, physical browser input, and
-full application-window capture remain separate acceptance items in
+synthetic runtime visual smoke. Browser WebGPU is an explicit opt-in path;
+physical browser input, a real GPU visual run and full application-window
+capture remain separate acceptance items in
 [RITK-SNAP-METIS-001](../../backlog.md#RITK-SNAP-METIS-001).
 
 The browser presentation seam is now explicit as well. `metis_web::CanvasFrame`
@@ -1834,5 +1844,8 @@ only dimensions and pixels; DICOM parsing, decoded volume state, geometry and
 medical display policy remain in RITK. `start_web` now retains its async
 JavaScript contract while delegating to the direct single-canvas workflow;
 `start_web_canvas` is its synchronous form and
-`start_web_orthogonal_canvases` exercises the three-canvas workflow. None of
-these paths moves DICOM behavior into the GUI framework.
+`start_web_orthogonal_canvases` exercises the three-canvas workflow. The
+asynchronous `start_web_canvas_gpu` and
+`start_web_orthogonal_canvases_gpu` entrypoints select WebGPU explicitly and
+surface setup failures without falling back. None of these paths moves DICOM
+behavior into the GUI framework.

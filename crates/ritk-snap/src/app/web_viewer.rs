@@ -7,16 +7,15 @@
 //! each canvas for consumer-owned workflow assertions. DICOM parsing and
 //! viewer state stay in [`SnapApp`].
 
+use super::browser_canvas::BrowserCanvas;
 use super::browser_geometry::{viewport_for_display, PhysicalCanvasAspect};
 use super::browser_semantics::BrowserCanvasSemantics;
 use super::browser_slice_selection::{parse_browser_slice_request, BrowserSliceSelectionError};
 use super::SnapApp;
 use crate::app::action_adapter::ViewerActionDisposition;
-use crate::presentation::{PresentationFrame, WebCanvasPresenter};
+use crate::presentation::PresentationFrame;
 use crate::ui::decide_dropped_input_action;
-use moirai_pal::wasm::{
-    spawn_local_with_handle, LocalTaskHandle, WebAnimationFrame, WebDocument, WebElement,
-};
+use moirai_pal::wasm::{spawn_local_with_handle, LocalTaskHandle, WebAnimationFrame};
 use std::cell::RefCell;
 use wasm_bindgen::JsValue;
 
@@ -71,106 +70,6 @@ impl BrowserViewer {
     }
 }
 
-struct BrowserCanvas {
-    presenter: WebCanvasPresenter,
-    element: WebElement,
-    last_semantics: Option<BrowserCanvasSemantics>,
-    last_physical_aspect: Option<PhysicalCanvasAspect>,
-    frame_generation: u64,
-}
-
-impl BrowserCanvas {
-    fn from_id(id: &str) -> std::io::Result<Self> {
-        let presenter = WebCanvasPresenter::from_canvas_id_with_input(id)?;
-        let document = WebDocument::current()?;
-        let element = document.get_element_by_id(id).ok_or_else(|| {
-            std::io::Error::new(
-                std::io::ErrorKind::NotFound,
-                "browser canvas element disappeared during setup",
-            )
-        })?;
-        // Keyboard events target the focused canvas; make the retained
-        // presentation surface keyboard-focusable at the RITK boundary.
-        element.set_attribute("tabindex", "0")?;
-        Ok(Self {
-            presenter,
-            element,
-            last_semantics: None,
-            last_physical_aspect: None,
-            frame_generation: 0,
-        })
-    }
-
-    /// Counts newly rendered frames only after their canvas upload succeeds.
-    /// Cached animation-frame uploads do not establish repaint evidence.
-    fn present_rendered_frame(&mut self, frame: &PresentationFrame) -> std::io::Result<()> {
-        let generation = self
-            .frame_generation
-            .checked_add(1)
-            .ok_or_else(|| std::io::Error::other("browser rendered-frame generation exhausted"))?;
-        self.presenter.present(frame)?;
-        self.element
-            .set_attribute("data-ritk-frame-generation", &generation.to_string())?;
-        self.frame_generation = generation;
-        Ok(())
-    }
-
-    fn publish_semantics(
-        &mut self,
-        semantics: BrowserCanvasSemantics,
-        physical_aspect: Option<PhysicalCanvasAspect>,
-    ) -> std::io::Result<()> {
-        self.publish_physical_aspect(physical_aspect)?;
-        if self.last_semantics == Some(semantics) {
-            return Ok(());
-        }
-        let axis = semantics.axis.to_string();
-        let slice_index = semantics.slice_index.to_string();
-        let slice_count = semantics.slice_count.to_string();
-        let (width, height) = semantics.frame_dimensions_or_zero();
-        let width = width.to_string();
-        let height = height.to_string();
-        let cine_fps = semantics.cine_fps_value();
-        self.element
-            .set_attribute("data-ritk-load-state", semantics.load_state_value())?;
-        self.element
-            .set_attribute("data-ritk-frame-state", semantics.frame_state_value())?;
-        self.element.set_attribute("data-ritk-axis", &axis)?;
-        self.element
-            .set_attribute("data-ritk-slice-index", &slice_index)?;
-        self.element
-            .set_attribute("data-ritk-slice-count", &slice_count)?;
-        self.element
-            .set_attribute("data-ritk-frame-width", &width)?;
-        self.element
-            .set_attribute("data-ritk-frame-height", &height)?;
-        self.element
-            .set_attribute("data-ritk-cine-fps", &cine_fps)?;
-        self.last_semantics = Some(semantics);
-        Ok(())
-    }
-
-    fn publish_physical_aspect(
-        &mut self,
-        physical_aspect: Option<PhysicalCanvasAspect>,
-    ) -> std::io::Result<()> {
-        let Some(physical_aspect) = physical_aspect else {
-            return Ok(());
-        };
-        if self.last_physical_aspect == Some(physical_aspect) {
-            return Ok(());
-        }
-        let value = physical_aspect.attribute_value();
-        self.element.set_style_property("width", "100%")?;
-        self.element.set_style_property("height", "auto")?;
-        self.element.set_style_property("aspect-ratio", &value)?;
-        self.element
-            .set_attribute("data-ritk-display-aspect", &value)?;
-        self.last_physical_aspect = Some(physical_aspect);
-        Ok(())
-    }
-}
-
 enum BrowserSurface {
     Single {
         canvas: BrowserCanvas,
@@ -185,11 +84,10 @@ enum BrowserSurface {
 impl BrowserSurface {
     fn listener_count(&self) -> usize {
         match self {
-            Self::Single { canvas, .. } => canvas.presenter.listener_count(),
-            Self::Orthogonal { canvases, .. } => canvases
-                .iter()
-                .map(|canvas| canvas.presenter.listener_count())
-                .sum(),
+            Self::Single { canvas, .. } => canvas.listener_count(),
+            Self::Orthogonal { canvases, .. } => {
+                canvases.iter().map(BrowserCanvas::listener_count).sum()
+            }
         }
     }
 
@@ -213,7 +111,7 @@ impl BrowserSurface {
                     if rendered {
                         canvas.present_rendered_frame(frame)?;
                     } else {
-                        canvas.presenter.present(frame)?;
+                        canvas.present(frame)?;
                     }
                 }
             }
@@ -229,7 +127,7 @@ impl BrowserSurface {
                         if rendered {
                             canvas.present_rendered_frame(frame)?;
                         } else {
-                            canvas.presenter.present(frame)?;
+                            canvas.present(frame)?;
                         }
                     }
                 }
@@ -313,7 +211,7 @@ fn apply_canvas_events(
     canvas: &mut BrowserCanvas,
     frame: Option<&PresentationFrame>,
 ) -> std::io::Result<ViewerActionDisposition> {
-    let events = match canvas.presenter.take_events() {
+    let events = match canvas.take_events() {
         Ok(events) => events,
         Err(error) => {
             app.cancel_presentation_gesture();
@@ -401,6 +299,20 @@ pub(crate) fn start_web_canvas(canvas_id: String) -> Result<(), JsValue> {
     }))
 }
 
+/// Starts the RITK byte-drop workflow with an explicit WebGPU canvas.
+pub(crate) async fn start_web_canvas_gpu(canvas_id: String) -> Result<(), JsValue> {
+    stop_web_canvas();
+    let canvas = match BrowserCanvas::from_id_gpu(&canvas_id).await {
+        Ok(canvas) => canvas,
+        Err(error) => return Err(JsValue::from_str(&error.to_string())),
+    };
+    metis_web::metis_start();
+    launch_browser_viewer(BrowserViewer::new(BrowserSurface::Single {
+        canvas,
+        frame: None,
+    }))
+}
+
 /// Starts the RITK DICOM byte-drop workflow on three Métis-owned canvases.
 pub(crate) fn start_web_orthogonal_canvases(canvas_ids: [String; 3]) -> Result<(), JsValue> {
     stop_web_canvas();
@@ -415,6 +327,29 @@ pub(crate) fn start_web_orthogonal_canvases(canvas_ids: [String; 3]) -> Result<(
             return Err(JsValue::from_str(&error.to_string()));
         }
     };
+    metis_web::metis_start();
+    launch_browser_viewer(BrowserViewer::new(BrowserSurface::Orthogonal {
+        canvases: Box::new(canvases),
+        frames: None,
+    }))
+}
+
+/// Starts the RITK byte-drop workflow with three explicit WebGPU canvases.
+pub(crate) async fn start_web_orthogonal_canvases_gpu(
+    canvas_ids: [String; 3],
+) -> Result<(), JsValue> {
+    stop_web_canvas();
+    let [axial_id, coronal_id, sagittal_id] = canvas_ids;
+    let axial = BrowserCanvas::from_id_gpu(&axial_id)
+        .await
+        .map_err(|error| JsValue::from_str(&error.to_string()))?;
+    let coronal = BrowserCanvas::from_id_gpu(&coronal_id)
+        .await
+        .map_err(|error| JsValue::from_str(&error.to_string()))?;
+    let sagittal = BrowserCanvas::from_id_gpu(&sagittal_id)
+        .await
+        .map_err(|error| JsValue::from_str(&error.to_string()))?;
+    let canvases = [axial, coronal, sagittal];
     metis_web::metis_start();
     launch_browser_viewer(BrowserViewer::new(BrowserSurface::Orthogonal {
         canvases: Box::new(canvases),

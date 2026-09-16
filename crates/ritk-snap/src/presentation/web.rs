@@ -34,6 +34,20 @@ impl WebCanvasPresenter {
         })
     }
 
+    /// Resolves a canvas and asynchronously acquires its WebGPU device.
+    ///
+    /// WebGPU selection is explicit; an unavailable adapter or rejected device
+    /// is returned to the caller and never changes to the raster provider.
+    ///
+    /// # Errors
+    /// Returns a typed I/O error when the browser document, canvas, or WebGPU
+    /// device is unavailable.
+    pub async fn from_canvas_id_gpu(id: &str) -> io::Result<Self> {
+        Ok(Self {
+            surface: CanvasSurface::from_current_document_gpu(id).await?,
+        })
+    }
+
     /// Resolves a canvas and retains bounded browser input listeners.
     ///
     /// # Errors
@@ -42,6 +56,20 @@ impl WebCanvasPresenter {
     pub fn from_canvas_id_with_input(id: &str) -> io::Result<Self> {
         Ok(Self {
             surface: CanvasSurface::from_current_document_with_input(id)?,
+        })
+    }
+
+    /// Resolves a canvas, acquires WebGPU, and retains bounded browser input listeners.
+    ///
+    /// WebGPU selection is explicit; an unavailable adapter or rejected device
+    /// is returned to the caller and never changes to the raster provider.
+    ///
+    /// # Errors
+    /// Returns a typed I/O error when the browser document, canvas, WebGPU
+    /// device, or listener registrations are unavailable.
+    pub async fn from_canvas_id_gpu_with_input(id: &str) -> io::Result<Self> {
+        Ok(Self {
+            surface: CanvasSurface::from_current_document_gpu_with_input(id).await?,
         })
     }
 
