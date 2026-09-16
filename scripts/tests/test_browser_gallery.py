@@ -155,3 +155,38 @@ class SliceGalleryTests(unittest.TestCase):
                 evidence["restored"][axis]["rgba_sha256"],
                 evidence["initial"][axis]["rgba_sha256"],
             )
+
+    def test_consumer_callback_maps_opaque_oracle_to_slice_counts(self):
+        class Client:
+            def __init__(self):
+                self.rect = None
+
+            def set_window_rect(self, width, height):
+                self.rect = (width, height)
+
+        oracle = {
+            f"ritk-snap-{axis}": {
+                "attributes": {"data-ritk-slice-count": str(count)},
+            }
+            for axis, count in zip(browser_gallery.AXES, (94, 512, 512))
+        }
+        canvas_ids = tuple(f"ritk-snap-{axis}" for axis in browser_gallery.AXES)
+        client = Client()
+        with tempfile.TemporaryDirectory(
+            dir=browser_gallery.ROOT / "output", prefix="gallery-callback-"
+        ) as directory, mock.patch.object(
+            browser_gallery,
+            "capture_slice_gallery",
+            return_value={"schema": 1},
+        ) as capture:
+            result = browser_gallery._capture_consumer_controls(
+                client, pathlib.Path(directory), oracle, canvas_ids
+            )
+
+        self.assertEqual(result, {"schema": 1})
+        self.assertEqual(client.rect, (1440, 1200))
+        capture.assert_called_once_with(
+            client,
+            pathlib.Path(directory) / "slices",
+            expected_counts={"axial": 94, "coronal": 512, "sagittal": 512},
+        )
