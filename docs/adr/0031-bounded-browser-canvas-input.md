@@ -68,6 +68,11 @@ rendering the saved 94-file MRI-DIR study. Safari 26.6.2 accepted the chooser
 event but rejected the first bounded file read, so it has no canvas or keyboard
 claim.
 
+Revision 2026-09-15: [ADR 0035](0035-browser-event-trust.md) makes the RITK
+consumer fail closed for a false browser `Event.isTrusted` snapshot before
+canvas values reach the viewer reducer. Metis and Moirai preserve the value;
+RITK owns the acceptance policy.
+
 ## Rejected alternative
 
 Handling pointer state in Métis would duplicate RITK's viewer reducer and make

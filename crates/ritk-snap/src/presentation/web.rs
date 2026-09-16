@@ -1,8 +1,9 @@
 //! Browser canvas adapter for RITK's format-neutral presentation frame.
 
 use super::{
-    web_keys::virtual_key_for_browser, PointerButton, PresentationEvent, PresentationFrame,
-    PresentationModifiers,
+    browser_policy::{browser_event_disposition, BrowserEventDisposition, BrowserEventTrust},
+    web_keys::virtual_key_for_browser,
+    PointerButton, PresentationEvent, PresentationFrame, PresentationModifiers,
 };
 use metis_web::{
     CanvasEvent, CanvasEventError, CanvasFrame, CanvasKeyboardEvent, CanvasKeyboardPhase,
@@ -68,6 +69,8 @@ impl WebCanvasPresenter {
     /// boundary so the action reducer receives one explicit displacement unit.
     /// Keyboard key/code pairs map to RITK's shared virtual-key values; browser
     /// repeat state is preserved for the reducer and unknown keys are ignored.
+    /// Browser events whose provider trust snapshot is false are dropped before
+    /// translation, so script-created input cannot reach the viewer reducer.
     /// Non-primary touch pointers are ignored because the current RITK
     /// dispatcher has one button-indexed gesture state; the browser surface
     /// still releases their capture when its event listener observes them.
@@ -121,6 +124,11 @@ pub enum WebCanvasInputError {
 }
 
 fn translate_event(event: CanvasEvent) -> Result<Option<PresentationEvent>, WebCanvasInputError> {
+    if browser_event_disposition(BrowserEventTrust::from(event.trust()))
+        == BrowserEventDisposition::Drop
+    {
+        return Ok(None);
+    }
     match event {
         CanvasEvent::Pointer(pointer) => translate_pointer(pointer),
         CanvasEvent::Wheel(wheel) => translate_wheel(wheel).map(Some),

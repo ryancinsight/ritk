@@ -1,3 +1,26 @@
+<a id="RITK-SNAP-BROWSER-TRUST-2026-09-15"></a>
+## RITK-SNAP-BROWSER-TRUST-2026-09-15 — Reject synthetic canvas input [arch] [minor]
+
+- Status: in-progress; priority: P1; owner: RITK browser presentation;
+  integrator: root; last-update: 2026-09-15; branch:
+  `feat/ritk-browser-event-trust`; regions:
+  `crates/ritk-snap/src/presentation/web.rs`, `docs/manual/dicom-workflow.md`,
+  `docs/adr/0035-browser-event-trust.md`, `Cargo.lock`; dependencies:
+  [Metis input trust](../metis/backlog.md#METIS-INPUT-TRUST-001),
+  [Moirai input trust](../moirai/docs/backlog.md#MOI-WASM-DOM-TRUST-2026-09-15).
+- Outcome: RITK drops browser pointer, wheel and keyboard events whose Moirai
+  `Event.isTrusted` snapshot is false before they reach the viewer reducer.
+- Scope: browser presentation policy and tests/docs; DICOM scanning, decoding,
+  geometry, frame generation, native input and browser file-read policy remain
+  in their existing owners.
+- Acceptance: false-trust canvas events produce no presentation event; trusted
+  events retain current translation and real-image browser galleries remain
+  byte-identical; locked `ritk-snap` native/WASM checks, strict Clippy, docs
+  and value-semantic policy tests pass.
+- Decision: [ADR 0035](docs/adr/0035-browser-event-trust.md); provider
+  contract: [Metis ADR 0034](../metis/docs/adr/0034-browser-event-trust.md).
+- Provider delivery (2026-09-16): Metis PR [#173](https://github.com/ryancinsight/metis/pull/173) merged at `fb8b0a0b8169a580eb80028d0bbd519cf0057473`; Moirai PR [#357](https://github.com/ryancinsight/Moirai/pull/357) merged at `a1e83a15`. RITK consumes the typed `CanvasEventTrust` at the WASM boundary. Exact locked native `ritk-snap` nextest passes 820/820; native and WASM strict checks and Clippy pass.
+
 <a id="RITK-BROWSER-READ-001"></a>
 ## RITK-BROWSER-READ-001 — Reproduce and close WebKit study reads
 - Status: blocked; priority: P0; integrator: webkit-read-root; last-update: 2026-09-15.
