@@ -60,8 +60,8 @@ below explain how to reproduce and inspect each component boundary. RITK owns
 scanning, decoding, geometry, and clinical presentation; Métis owns the bounded
 host, canvas, and window lifecycle.
 
-The browser canvas provider is pinned to Moirai merge
-`5cf572f734a3a50cf57eafe67dd3723e7e303116`. Repeated RGBA frames with the
+The current standalone lock pins the browser canvas provider to Moirai merge
+`95275651722583f52e098c0d30b1a53ec82c1fc7`. Repeated RGBA frames with the
 current extent retain the validated bitmap; a changed width or height takes
 the bounded resize path. This keeps the browser presentation lifecycle stable
 without changing DICOM decoding or the displayed pixels. It is an allocation
@@ -1438,8 +1438,26 @@ acceptance work. Browser WebGPU is available through the explicit asynchronous
 `start_web_orthogonal_canvases_gpu` entrypoint; the gallery selects it only for
 `?renderer=webgpu` and records setup failures instead of falling back. No real
 GPU visual or equivalence claim is made until revision-bound browser artifacts
-exist. Native eframe GPU uploads are guarded by the same RITK device limit
+exist. The generic Métis runner's `--canvas-capture screenshot
+--canvas-context webgpu` mode captures those non-2D canvases as real element
+PNGs and verifies the context without substituting a 2D readback. Native eframe GPU uploads are guarded by the same RITK device limit
 check and have a fitting-volume visual capture in the eframe workflow above.
+
+The hosted saved-study workflow
+([`metis-browser-dicom.yml`](../../.github/workflows/metis-browser-dicom.yml))
+includes a Chromium WebGPU matrix entry. It
+uses the same 94-file MRI-DIR study and invokes the consumer page with
+`?renderer=webgpu`, `--canvas-capture screenshot`, and
+`--canvas-context webgpu`. Its `mri-webgpu-oracle.json` keeps the intrinsic
+canvas dimensions and RITK semantic attributes while omitting the raster
+RGBA digest. The uploaded `chromium-webgpu` directory contains the actual
+element PNGs, canvas trace, and revision-bound manifest. A passed job proves
+that RITK opened the selected study and presented each canvas through the
+requested context; it does not prove 2D pixel equivalence, hardware
+acceleration, compositor timing, or lower memory use.
+The workflow's default Métis revision is the merged
+`29812898870042665010c6534dce111ea1966925`; the standalone lock resolves the
+same six packages and Moirai merge `95275651722583f52e098c0d30b1a53ec82c1fc7`.
 
 Each RITK canvas also publishes a bounded semantic snapshot for workflow
 drivers. `data-ritk-load-state` is `empty` or `ready`,

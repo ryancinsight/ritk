@@ -8,7 +8,7 @@ on:
       metis_revision:
         description: Exact Métis commit resolved by Cargo.lock
         required: true
-        default: 0d1d5bc42b22547fe50f30fac94e475873a507a7
+        default: 29812898870042665010c6534dce111ea1966925
         type: string
 
 permissions:
@@ -17,7 +17,7 @@ permissions:
 env:
   CARGO_INCREMENTAL: 0
   RUST_BACKTRACE: 1
-  METIS_REVISION: ${{ inputs.metis_revision || '0d1d5bc42b22547fe50f30fac94e475873a507a7' }}
+  METIS_REVISION: ${{ inputs.metis_revision || '29812898870042665010c6534dce111ea1966925' }}
 
 concurrency:
   group: ritk-snap-metis-browser-${{ github.ref }}
@@ -129,6 +129,33 @@ jobs:
           output.write_text(json.dumps(oracle) + "\n", encoding="utf-8")
           PY
 
+      - name: Derive the WebGPU canvas oracle
+        working-directory: metis
+        shell: bash
+        run: |
+          set -euo pipefail
+          python - <<'PY'
+          import json
+          from pathlib import Path
+
+          source = json.loads(Path("output/browser/mri-oracle.json").read_text(encoding="utf-8"))
+          oracle = {}
+          for canvas_id, view in source.items():
+              for key in ("width", "height", "attributes"):
+                  if key not in view:
+                      raise SystemExit(f"WebGPU view {canvas_id!r} is missing {key}")
+              if not isinstance(view["attributes"], dict):
+                  raise SystemExit(f"WebGPU view {canvas_id!r} has invalid attributes")
+              oracle[canvas_id] = {
+                  "width": view["width"],
+                  "height": view["height"],
+                  "attributes": view["attributes"],
+              }
+          Path("output/browser/mri-webgpu-oracle.json").write_text(
+              json.dumps(oracle) + "\n", encoding="utf-8"
+          )
+          PY
+
       - name: Upload browser bundle and oracle
         uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
         with:
@@ -138,7 +165,7 @@ jobs:
           retention-days: 7
 
   browser-dicom:
-    name: Saved MRI study (${{ matrix.engine }})
+    name: Saved MRI study (${{ matrix.result }})
     needs: build-browser
     runs-on: ${{ matrix.runner }}
     timeout-minutes: 15
@@ -150,14 +177,42 @@ jobs:
             runner: ubuntu-24.04
             driver_url: http://127.0.0.1:9515
             device_scale: "2"
+            mode: raster
+            result: chromium
+            lifecycle_cycles: "4"
+            canvas_capture: rgba
+            canvas_context: ""
+            oracle: mri-oracle.json
           - engine: firefox
             runner: ubuntu-24.04
             driver_url: http://127.0.0.1:4444
             device_scale: "2"
+            mode: raster
+            result: firefox
+            lifecycle_cycles: "4"
+            canvas_capture: rgba
+            canvas_context: ""
+            oracle: mri-oracle.json
           - engine: webkit
             runner: macos-latest
             driver_url: http://127.0.0.1:4444
             device_scale: "1"
+            mode: raster
+            result: webkit
+            lifecycle_cycles: "1"
+            canvas_capture: rgba
+            canvas_context: ""
+            oracle: mri-oracle.json
+          - engine: chromium
+            runner: ubuntu-24.04
+            driver_url: http://127.0.0.1:9515
+            device_scale: "2"
+            mode: webgpu
+            result: chromium-webgpu
+            lifecycle_cycles: "1"
+            canvas_capture: screenshot
+            canvas_context: webgpu
+            oracle: mri-webgpu-oracle.json
     steps:
       - name: Check out RITK
         uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803
@@ -286,9 +341,18 @@ jobs:
           ENGINE: ${{ matrix.engine }}
           DEVICE_SCALE: ${{ matrix.device_scale }}
           RITK_REVISION: ${{ github.sha }}
-          LIFECYCLE_CYCLES: ${{ matrix.engine == 'webkit' && '1' || '4' }}
+          MODE: ${{ matrix.mode }}
+          CANVAS_CAPTURE: ${{ matrix.canvas_capture }}
+          CANVAS_CONTEXT: ${{ matrix.canvas_context }}
+          LIFECYCLE_CYCLES: ${{ matrix.lifecycle_cycles }}
+          RESULT: ${{ matrix.result }}
+          ORACLE: ${{ matrix.oracle }}
         run: |
           set -euo pipefail
+          capture_args=(--canvas-capture "$CANVAS_CAPTURE")
+          if [[ "$MODE" == "webgpu" ]]; then
+            capture_args+=(--canvas-context "$CANVAS_CONTEXT" --page-query renderer=webgpu)
+          fi
           python scripts/browser_drop.py \
             --engine "$ENGINE" \
             --driver-url "$DRIVER_URL" \
@@ -297,9 +361,10 @@ jobs:
             --lifecycle-cycles "$LIFECYCLE_CYCLES" \
             --files "$GITHUB_WORKSPACE/ritk/test_data/2_head_mri_t2/DICOM" \
             --pattern '*.dcm' \
-            --oracle output/browser/mri-oracle.json \
+            --oracle "output/browser/$ORACLE" \
             --consumer-revision "$RITK_REVISION" \
-            --canvas-trace "output/browser/results/$ENGINE/canvas-trace.json" \
+            "${capture_args[@]}" \
+            --canvas-trace "output/browser/results/$RESULT/canvas-trace.json" \
             --keyboard-trace cine-rate \
             --canvas-attribute data-ritk-load-state \
             --canvas-attribute data-ritk-frame-state \
@@ -311,17 +376,17 @@ jobs:
             --canvas-attribute data-ritk-cine-fps \
             --canvas-attribute data-ritk-frame-generation \
             --canvas-attribute data-ritk-display-aspect \
-            --output "output/browser/results/$ENGINE"
+            --output "output/browser/results/$RESULT"
 
       - name: Validate RITK cine-rate trace
         if: success()
         working-directory: ritk
         env:
-          ENGINE: ${{ matrix.engine }}
+          RESULT: ${{ matrix.result }}
         shell: bash
         run: |
           set -euo pipefail
-          for trace in "$GITHUB_WORKSPACE/metis/output/browser/results/$ENGINE"/canvas-trace*.json; do
+          for trace in "$GITHUB_WORKSPACE/metis/output/browser/results/$RESULT"/canvas-trace*.json; do
             cargo run --locked --manifest-path Cargo.toml -p ritk-snap -- \
               --validate-browser-trace "$trace" \
               --require-cine-rate \
@@ -353,9 +418,9 @@ jobs:
         if: always()
         uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
         with:
-          name: ritk-metis-browser-dicom-${{ matrix.engine }}-${{ github.run_id }}
+          name: ritk-metis-browser-dicom-${{ matrix.result }}-${{ github.run_id }}
           path: |
-            metis/output/browser/results/${{ matrix.engine }}/**
+            metis/output/browser/results/${{ matrix.result }}/**
             ${{ runner.temp }}/*.log
           if-no-files-found: ignore
           retention-days: 14
