@@ -18,7 +18,7 @@
 - Contract: [ADR 0032](docs/adr/0032-browser-semantic-snapshot.md); Moirai measures local content geometry, Metis transports format-neutral coordinates and dimensions, RITK maps event-time fractions to voxels.
 - Risk: [patch]; dependency: provider local content geometry; verification: transformed/bordered browser cases plus coordinate oracles.
 - Native evidence: `cargo nextest run -p ritk-snap` run `ef9461e7-a7af-4c40-a279-99c1de13c27e` passes 872/872; native/WASM strict Clippy, formatting, 4 doctests and warning-denied rustdoc pass on the local provider overlay (one pre-existing ignored doctest).
-- Browser evidence: Edge 154, three layouts select `[47,340,173]`, wheel to `[46,340,173]`, padding/border wheels leave slices unchanged; rounding preflight and independent review pass. `output/browser/local-box.json` SHA256 `df4e0ffb3f9f7e460d19e75f860091f1ad01e7f4b81cb0a8c9e1576461b7c2c6`.
+- Browser evidence: Edge 154, three layouts select `[47,340,173]`, wheel to `[46,340,173]`, padding/border wheels leave slices unchanged; rounding preflight and independent review pass. `output/browser/local-box.json` SHA256 `855204ad93f2e46116df59e4d14ae7363c0050f9b170244e9671c22632800119`.
 - Dependency evidence: standalone lock check and locked RITK WASM check pass with Moirai `c9a4431b` and Metis `dce79dbe`; [Metis PR #178](https://github.com/ryancinsight/metis/pull/178) awaits its required Windows gate, with auto-merge enabled and administrative merge refused.
 
 <a id="RITK-GALLERY-CYCLES-001"></a>
