@@ -153,8 +153,12 @@ start_web_orthogonal_canvases(
 The three canvases receive RITK-owned axial, coronal and sagittal
 `PresentationFrame` values from one bounded drop batch. Métis remains the
 format-neutral browser host and receives no DICOM state. The reviewed
-three-canvas runtime capture is in the [DICOM workflow manual](../../docs/manual/dicom-workflow.md#inspect-the-browser-orthogonal-visual-capture);
-physical browser input and GPU upload remain open migration work.
+three-canvas runtime capture is in the [DICOM workflow manual](../../docs/manual/dicom-workflow.md#inspect-the-browser-orthogonal-visual-capture).
+Trusted pointer and wheel positions use the measured local canvas content box,
+excluding borders and padding and accounting for invertible 2D ancestor CSS
+transforms. Fractional positions and event-time dimensions preserve voxel
+selection through resizing. See [the embedding contract](../../docs/adr/0032-browser-semantic-snapshot.md)
+for supported geometry and browser regression coverage.
 
 Browser controls can call `select_web_slice(axis, index)` with zero-based axis
 (`0` axial, `1` coronal, `2` sagittal) and slice index after loading a study.

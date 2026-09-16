@@ -23,9 +23,9 @@ const MAX_ACTIONS_PER_EVENT: usize = 6;
 
 /// A client-space point carried by a viewer action.
 ///
-/// The `f64` representation is exact for native signed 32-bit coordinates
-/// and for browser client coordinates, so host translation does not round
-/// before the viewer applies its viewport transform.
+/// The host supplies native display pixels or browser content fractions and
+/// a matching viewport. The `f64` representation preserves that precision
+/// until the viewer maps the position into image coordinates.
 #[derive(Debug, Clone, Copy, PartialEq)]
 pub struct ViewportPoint {
     x: f64,
@@ -39,13 +39,13 @@ impl ViewportPoint {
         Self { x, y }
     }
 
-    /// Horizontal client coordinate in display pixels.
+    /// Horizontal coordinate in the host viewport basis.
     #[must_use]
     pub const fn x(self) -> f64 {
         self.x
     }
 
-    /// Vertical client coordinate in display pixels.
+    /// Vertical coordinate in the host viewport basis.
     #[must_use]
     pub const fn y(self) -> f64 {
         self.y

@@ -71,7 +71,10 @@ impl PhysicalCanvasAspect {
     }
 }
 
-/// Maps target-local CSS pixels onto the current backing frame.
+/// Maps a content-coordinate extent onto the current backing frame.
+///
+/// Browser events use fractions of their measured content box, so their
+/// matching display extent is `[1.0, 1.0]`, independent of CSS transforms.
 pub(super) fn viewport_for_display(
     axis: usize,
     display_size: [f64; 2],

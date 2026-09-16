@@ -1,6 +1,7 @@
 //! Browser canvas adapter for RITK's format-neutral presentation frame.
 
 use super::{
+    browser_coordinates::content_fraction,
     browser_policy::{browser_event_disposition, BrowserEventDisposition, BrowserEventTrust},
     web_keys::virtual_key_for_browser,
     PointerButton, PresentationEvent, PresentationFrame, PresentationModifiers,
@@ -70,8 +71,10 @@ impl WebCanvasPresenter {
 
     /// Takes the bounded browser input batch as RITK presentation events.
     ///
-    /// Target-local CSS-pixel coordinates are preserved as the RITK client
-    /// coordinates. Wheel line and page units are normalized at this host
+    /// Positions become content fractions using the dimensions measured with
+    /// each event. The viewer maps this unit-square viewport to its frame;
+    /// borders, padding and later resizes cannot change the selected voxel.
+    /// Wheel line and page units are normalized at this host
     /// boundary so the action reducer receives one explicit displacement unit.
     /// Keyboard key/code pairs map to RITK's shared virtual-key values; browser
     /// repeat state is preserved for the reducer and unknown keys are ignored.
@@ -83,8 +86,8 @@ impl WebCanvasPresenter {
     ///
     /// # Errors
     /// Returns a typed error when the Metis queue failed, a browser pointer
-    /// button or wheel unit is outside the RITK contract, or a wheel delta is
-    /// non-finite.
+    /// button or wheel unit is outside the RITK contract, a wheel delta is
+    /// non-finite, or measured content coordinates cannot be normalized.
     pub fn take_events(&self) -> Result<Box<[PresentationEvent]>, WebCanvasInputError> {
         let events = self.surface.take_events()?;
         let mut translated = Vec::new();
@@ -127,6 +130,9 @@ pub enum WebCanvasInputError {
     /// A browser wheel delta is not finite.
     #[error("browser wheel delta is not finite")]
     NonFiniteWheel,
+    /// A measured content box or its normalized point is not representable.
+    #[error("browser content coordinates require finite points and positive finite dimensions")]
+    ContentCoordinates,
 }
 
 fn translate_event(event: CanvasEvent) -> Result<Option<PresentationEvent>, WebCanvasInputError> {
@@ -167,8 +173,11 @@ fn translate_pointer(
     if !pointer.is_primary() && matches!(pointer.pointer_type(), CanvasPointerType::Touch) {
         return Ok(None);
     }
-    let x = f64::from(pointer.x());
-    let y = f64::from(pointer.y());
+    let [x, y] = content_fraction(
+        [pointer.x(), pointer.y()],
+        [pointer.content_width(), pointer.content_height()],
+    )
+    .ok_or(WebCanvasInputError::ContentCoordinates)?;
     let button = match pointer.phase() {
         CanvasPointerPhase::Move => PointerButton::Left,
         CanvasPointerPhase::Cancel => button_or_left(pointer.button())?,
@@ -183,6 +192,11 @@ fn translate_pointer(
 }
 
 fn translate_wheel(wheel: CanvasWheelEvent) -> Result<PresentationEvent, WebCanvasInputError> {
+    let [x, y] = content_fraction(
+        [wheel.x(), wheel.y()],
+        [wheel.content_width(), wheel.content_height()],
+    )
+    .ok_or(WebCanvasInputError::ContentCoordinates)?;
     let scale = match wheel.unit() {
         CanvasWheelUnit::Pixel => 1.0,
         CanvasWheelUnit::Line => WHEEL_LINE_PIXELS,
@@ -195,8 +209,8 @@ fn translate_wheel(wheel: CanvasWheelEvent) -> Result<PresentationEvent, WebCanv
         return Err(WebCanvasInputError::NonFiniteWheel);
     }
     Ok(PresentationEvent::PointerWheel {
-        x: f64::from(wheel.x()),
-        y: f64::from(wheel.y()),
+        x,
+        y,
         delta_x,
         delta_y,
         modifiers: modifiers(wheel.modifiers()),

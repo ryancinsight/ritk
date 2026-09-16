@@ -1205,6 +1205,35 @@ file read. Physical file-manager drag input, native file dialogs, native
 process launch, OS permission grants, WebGPU and Safari's file-backed
 WebDriver read remain separate acceptance gates.
 
+### Verify embedded canvas content coordinates
+
+The RITK-owned local-box regression compares the saved MRI study in unstyled,
+`content-box`, and `border-box` canvases. The styled cases add fractional
+dimensions, asymmetric borders and padding, nested reflection, rotation and
+nonuniform scaling. The driver computes forward affine viewport targets from
+the fixture geometry and calibrates their origin against the browser rectangle.
+This is browser integration evidence, not an independent layout-measurement
+oracle. Trusted clicks must select the same exact
+voxel, content wheels must step one axial slice, and wheels in padding or
+borders must leave all three slice indices unchanged.
+
+After rebuilding the RITK WASM package and Metis gallery, run from the RITK
+checkout with an Edge WebDriver listening on a dedicated port:
+
+```powershell
+python scripts/browser_local_box.py --metis-root ../metis `
+  --driver-url http://127.0.0.1:9518 --browser-name MicrosoftEdge --headless `
+  --files test_data/2_head_mri_t2/DICOM --pattern '*.dcm' `
+  --output output/browser/local-box.json
+```
+
+The bounded output records voxel transitions, trusted event samples, each
+loaded bundle's file hashes and the three repositories' source fingerprints.
+Temporary styled galleries are removed when the run ends. This checks browser
+input and RITK voxel selection, not clinical interpretation or compositor
+timing. The [embedding contract](../adr/0032-browser-semantic-snapshot.md)
+states the supported geometry and inspectable-ancestry requirement.
+
 ## Build the RITK SNAP executable and installer
 
 RITK owns the application manifest at

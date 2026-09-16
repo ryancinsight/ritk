@@ -4,6 +4,7 @@ use super::super::test_volume;
 use crate::app::action_adapter::{ViewerActionDisposition, ViewerActionError, ViewerInputError};
 use crate::app::browser_geometry::viewport_for_display;
 use crate::app::SnapApp;
+use crate::presentation::browser_coordinates::content_fraction;
 use crate::presentation::{PointerButton, PresentationEvent, PresentationModifiers};
 
 use super::viewport;
@@ -40,6 +41,40 @@ fn physical_display_height_keeps_mri_wheel_center_in_bounds() {
         .apply_presentation_events(&[event], Some(&physical_viewport))
         .expect("wheel at the physical display center is supported");
     assert_eq!(physical.viewer_state.slice_index, 0);
+}
+
+#[test]
+fn content_box_wheel_accepts_content_and_rejects_padding() {
+    let size = [80.5, 40.25];
+    let viewport = viewport_for_display(0, [1.0; 2], [8, 4])
+        .expect("fractional local content dimensions are valid");
+    for (point, expected_slice, repaint) in [
+        ([0.125, 0.125], 0, true),
+        ([80.375, 40.125], 0, true),
+        ([-0.125, 20.0], 1, false),
+        ([40.0, -0.125], 1, false),
+        ([80.625, 20.0], 1, false),
+        ([40.0, 40.375], 1, false),
+    ] {
+        let mut app = SnapApp::default();
+        app.loaded = Some(test_volume([3, 4, 8]));
+        app.viewer_state.slice_index = 1;
+        let point = content_fraction(point, size).expect("measured content point is valid");
+        let disposition = app
+            .apply_presentation_events(
+                &[PresentationEvent::PointerWheel {
+                    x: point[0],
+                    y: point[1],
+                    delta_x: 0.0,
+                    delta_y: 120.0,
+                    modifiers: PresentationModifiers::NONE,
+                }],
+                Some(&viewport),
+            )
+            .expect("content-local wheel event is finite");
+        assert_eq!(app.viewer_state.slice_index, expected_slice);
+        assert_eq!(disposition, ViewerActionDisposition::Continue { repaint });
+    }
 }
 
 #[test]
