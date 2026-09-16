@@ -1,6 +1,6 @@
 <a id="RITK-BROWSER-ASPECT-001"></a>
 ## RITK-BROWSER-ASPECT-001 — Preserve physical slice proportions
-- Status: in-progress; priority: P1; integrator: root; last-update: 2026-09-16; branch: `codex/browser-physical-aspect`.
+- Status: review; priority: P1; integrator: root; last-update: 2026-09-16; branch: `codex/browser-physical-aspect`; code: `abc098cf1`.
 - Scope: RITK browser display and input geometry, regression tests and saved MRI gallery evidence; preserve backing RGBA pixels and generic Metis ownership.
 - Acceptance: each displayed axis uses voxel count times sample spacing; anisotropic geometry tests pass; rebuilt saved-study capture matches physical aspect, pixel oracles and cine trace.
 - Risk: [patch]; dependencies: existing browser presenter and loaded-volume geometry; driver: squashed coronal/sagittal planes in the prior capture.

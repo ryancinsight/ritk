@@ -1052,7 +1052,13 @@ closed cleanly.
 ![Actual MRI-DIR T2 study in the running Métis Edge gallery](images/dicom-metis-real-browser-mri-edge-gallery.png)
 
 The gallery screenshot is the live browser viewport after file selection, with the
-decoded axial, coronal, and sagittal anatomy visible. The element captures are
+decoded axial, coronal, and sagittal anatomy visible. The corrected canvases use
+physical spacing: 0.5 mm in-plane and 2.5 mm between slices. Coronal and
+sagittal cover 256 × 235 mm and display at 561 × 515 pixels, replacing the
+compressed 561 × 103 display. The backing 512 × 94 pixels and exact RGBA
+hashes remain unchanged. CSS property publication respects the existing
+security policy, and input bounds follow the displayed canvas dimensions.
+The element captures are
 [axial](images/dicom-metis-real-browser-mri-edge-axial.png),
 [coronal](images/dicom-metis-real-browser-mri-edge-coronal.png), and
 [sagittal](images/dicom-metis-real-browser-mri-edge-sagittal.png). Their canvas
@@ -1060,9 +1066,10 @@ dimensions, non-black counts, RGBA hashes, screenshot hashes, source revisions,
 trusted events, rejection results, and cleanup state are recorded in
 [`dicom-metis-real-browser-mri-edge.json`](images/dicom-metis-real-browser-mri-edge.json).
 The evidence binds Métis revision
-`d0d45561228a8481f0c6e4e3208162db93ccfe01` to RITK revision
-`f5ce647828957ed19fbe5ef68b54f9c40ed11ddf`, the exact Métis driver and gallery
-asset hashes, and the SHA-256 digests of the ignored source traces in the Métis
+`e842ac7214189a1d7aff2f047f71406622bcc0a7` to RITK revision
+`abc098cf155d34f6da58b9cf932a051db793259f`, the exact Métis driver and gallery
+asset hashes, the current harness working-tree source hashes and patch, and
+the SHA-256 digests of the ignored source traces in the Métis
 checkout at `output/browser/cine/{trace.json,canvas-trace.json}`.
 
 The paired cine-rate trace applies six ordered actions to each canvas: focused
@@ -1094,7 +1101,7 @@ python scripts/browser_drop.py --driver-url http://127.0.0.1:9517 `
   --browser-name MicrosoftEdge --input chooser `
   --files D:/atlas/repos/ritk/test_data/2_head_mri_t2/DICOM --pattern '*.dcm' `
   --oracle output/browser/mri-oracle.json `
-  --consumer-revision f5ce647828957ed19fbe5ef68b54f9c40ed11ddf `
+  --consumer-revision abc098cf155d34f6da58b9cf932a051db793259f `
   --canvas-trace output/browser/cine/canvas-trace.json `
   --keyboard-trace cine-rate `
   --canvas-attribute data-ritk-load-state `
