@@ -1021,11 +1021,14 @@ diagnostic globals are removed. Stop now drops the RITK viewer and its decoded
 state synchronously before cancelling the animation task; the diagnostic
 runner removes its own four transfer listeners and retained file references.
 
-Use the existing `browser_drop.py` cine command with `--lifecycle-cycles 4`.
+Use the RITK consumer wrapper with `--lifecycle-cycles 4`; it delegates the
+format-neutral file and canvas transport to the pinned Metis checkout.
 Repeated mode accepts 4–8 cycles and a maximum 300-second suite deadline,
 including a reserved cleanup interval. Each `canvas-trace-cycle-N.json` must
-pass RITK's `--validate-browser-trace <path> --require-cine-rate` command.
+pass RITK validation with `--validate-browser-trace <path> --require-cine-rate`.
 The Chromium drop variant uses `--input chromium`; Firefox uses `--input chooser`.
+The wrapper is `scripts/browser_gallery.py --metis-root <metis-checkout>` and
+keeps DICOM and viewer assertions in RITK.
 
 The [memory provenance](images/dicom-metis-real-browser-mri-memory.json)
 retains the older reload baseline and adds `same_instance_cycles`, with every

@@ -89,6 +89,15 @@ jobs:
             --consumer-package "$GITHUB_WORKSPACE/ritk/target/wasm-bindgen/ritk-snap" \
             --consumer-gallery "$GITHUB_WORKSPACE/ritk/crates/ritk-snap/web/gallery"
 
+      - name: Validate the RITK gallery harness
+        working-directory: ritk
+        shell: bash
+        env:
+          PYTHONPATH: ${{ github.workspace }}/metis/scripts
+        run: |
+          set -euo pipefail
+          python -m unittest scripts.tests.test_browser_gallery
+
       - name: Derive the real-study canvas oracle
         working-directory: metis
         shell: bash
@@ -334,7 +343,7 @@ jobs:
           PY
 
       - name: Run the saved-study chooser workflow
-        working-directory: metis
+        working-directory: ritk
         shell: bash
         env:
           DRIVER_URL: ${{ matrix.driver_url }}
@@ -353,7 +362,8 @@ jobs:
           if [[ "$MODE" == "webgpu" ]]; then
             capture_args+=(--canvas-context "$CANVAS_CONTEXT" --page-query renderer=webgpu)
           fi
-          python scripts/browser_drop.py \
+          python scripts/browser_gallery.py \
+            --metis-root "$GITHUB_WORKSPACE/metis" \
             --engine "$ENGINE" \
             --driver-url "$DRIVER_URL" \
             --device-scale "$DEVICE_SCALE" \
@@ -361,10 +371,10 @@ jobs:
             --lifecycle-cycles "$LIFECYCLE_CYCLES" \
             --files "$GITHUB_WORKSPACE/ritk/test_data/2_head_mri_t2/DICOM" \
             --pattern '*.dcm' \
-            --oracle "output/browser/$ORACLE" \
+            --oracle "$GITHUB_WORKSPACE/metis/output/browser/$ORACLE" \
             --consumer-revision "$RITK_REVISION" \
             "${capture_args[@]}" \
-            --canvas-trace "output/browser/results/$RESULT/canvas-trace.json" \
+            --canvas-trace "$GITHUB_WORKSPACE/metis/output/browser/results/$RESULT/canvas-trace.json" \
             --keyboard-trace cine-rate \
             --canvas-attribute data-ritk-load-state \
             --canvas-attribute data-ritk-frame-state \
@@ -376,7 +386,7 @@ jobs:
             --canvas-attribute data-ritk-cine-fps \
             --canvas-attribute data-ritk-frame-generation \
             --canvas-attribute data-ritk-display-aspect \
-            --output "output/browser/results/$RESULT"
+            --output "$GITHUB_WORKSPACE/metis/output/browser/results/$RESULT"
 
       - name: Validate RITK cine-rate trace
         if: success()
