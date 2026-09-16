@@ -5,6 +5,8 @@
 //! input into typed events that Métis can use without receiving DICOM state.
 
 mod actions;
+#[cfg(any(target_arch = "wasm32", test))]
+mod browser_policy;
 mod events;
 mod frame;
 mod web_keys;

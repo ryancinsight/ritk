@@ -1382,6 +1382,11 @@ and page wheel units, routes events to its RITK axis, and cancels an active
 gesture on `pointercancel` or provider failure. Those behaviors are covered by
 the RITK presentation/action tests and ADR 0031; a trusted browser-driver
 capture is still required before claiming physical or cross-engine evidence.
+The browser presenter also checks the Moirai trust snapshot and drops
+script-created canvas events before the viewer reducer; this policy is recorded
+in [ADR 0035](../adr/0035-browser-event-trust.md). The browser `isTrusted` bit
+does not prove physical input, so the existing protocol and cross-engine limits
+remain.
 
 ## Run the Metis trusted canvas trace
 
