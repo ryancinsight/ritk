@@ -694,6 +694,12 @@ DICOM bytes, decoding, geometry and presentation pixels; no visual golden
 changed. The lifecycle guard removes redundant bitmap-reset work without
 claiming a WASM, browser-heap or process-memory measurement.
 
+The same standalone lock now resolves all six Metis packages at
+`9d14da154787e68f0b3d72290480aecbb838880b`; the chooser and package workflows
+use that revision as their default. The lifecycle runner consumes the host listener diagnostic;
+RITK's DICOM scanner, decoder, geometry, clinical pixels and existing real-study
+galleries remain unchanged.
+
 ## Alternatives and validation
 
 Retaining egui indefinitely contradicts the requested framework target. Removing

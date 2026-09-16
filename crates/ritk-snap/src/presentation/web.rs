@@ -50,6 +50,12 @@ impl WebCanvasPresenter {
         self.surface.id()
     }
 
+    /// Returns the number of browser input listener guards retained by this surface.
+    #[must_use]
+    pub fn listener_count(&self) -> usize {
+        self.surface.listener_count()
+    }
+
     /// Presents one RITK display frame without copying it in the Rust host.
     ///
     /// RITK retains ownership of the frame and its display semantics; Metis

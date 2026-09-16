@@ -15,6 +15,12 @@ decoded-workspace budgets, and return the RITK `Image` plus
 `DicomReadMetadata`. No GUI framework type or parser object crosses this
 boundary; the host owns only input and presentation lifecycle.
 
+The standalone lock used by the viewer resolves the six Metis packages at
+`9d14da154787e68f0b3d72290480aecbb838880b`, and the fifteen
+Moirai packages at `1fe0750962444283c23633dd33d766e503bca9fe`. The browser chooser and Windows
+package workflows default to that Metis revision. These are provider pins; RITK
+continues to own DICOM scanning, decoding, geometry and clinical presentation.
+
 This workflow is the DICOM opening demonstration for the default Windows Métis
 shell and the explicit eframe compatibility shell. The code, fixtures, visual
 goldens, and rejection tests remain in RITK so a framework migration cannot

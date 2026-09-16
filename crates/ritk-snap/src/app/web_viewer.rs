@@ -17,13 +17,13 @@ use moirai_pal::wasm::{
     spawn_local_with_handle, LocalTaskHandle, WebAnimationFrame, WebDocument, WebElement,
 };
 use std::cell::RefCell;
-use std::rc::Rc;
 use wasm_bindgen::JsValue;
 
 const MILLISECONDS_PER_SECOND: f64 = 1_000.0;
 
 thread_local! {
     static VIEWER_TASK: RefCell<Option<LocalTaskHandle>> = const { RefCell::new(None) };
+    static VIEWER: RefCell<Option<BrowserViewer>> = const { RefCell::new(None) };
 }
 
 struct BrowserViewer {
@@ -155,6 +155,16 @@ enum BrowserSurface {
 }
 
 impl BrowserSurface {
+    fn listener_count(&self) -> usize {
+        match self {
+            Self::Single { canvas, .. } => canvas.presenter.listener_count(),
+            Self::Orthogonal { canvases, .. } => canvases
+                .iter()
+                .map(|canvas| canvas.presenter.listener_count())
+                .sum(),
+        }
+    }
+
     fn clear(&mut self) {
         match self {
             Self::Single { frame, .. } => *frame = None,
@@ -308,15 +318,14 @@ fn viewport_for_frame(axis: usize, frame: &PresentationFrame) -> std::io::Result
 }
 
 fn launch_browser_viewer(viewer: BrowserViewer) -> Result<(), JsValue> {
-    let viewer = Rc::new(RefCell::new(viewer));
-    let task_viewer = Rc::clone(&viewer);
+    VIEWER.with_borrow_mut(|slot| *slot = Some(viewer));
     let handle = spawn_local_with_handle(async move {
         loop {
             let frame = match WebAnimationFrame::new() {
                 Ok(frame) => frame,
                 Err(error) => {
                     tracing::error!(%error, "RITK browser animation-frame scheduling stopped");
-                    metis_web::metis_stop();
+                    stop_web_canvas();
                     break;
                 }
             };
@@ -324,26 +333,28 @@ fn launch_browser_viewer(viewer: BrowserViewer) -> Result<(), JsValue> {
                 Ok(timestamp_ms) => timestamp_ms,
                 Err(error) => {
                     tracing::error!(%error, "RITK browser animation-frame wait stopped");
-                    metis_web::metis_stop();
+                    stop_web_canvas();
                     break;
                 }
             };
-            let keep_running = match task_viewer
-                .borrow_mut()
-                .tick(timestamp_ms / MILLISECONDS_PER_SECOND)
-            {
+            let tick = VIEWER.with_borrow_mut(|slot| {
+                let Some(viewer) = slot.as_mut() else {
+                    return Ok(false);
+                };
+                viewer.tick(timestamp_ms / MILLISECONDS_PER_SECOND)
+            });
+            let keep_running = match tick {
                 Ok(keep_running) => keep_running,
                 Err(error) => {
                     tracing::error!(%error, "RITK browser canvas workflow stopped");
-                    // The task owns the only live browser loop. Failure must
-                    // release Métis listeners before the task exits so a
-                    // remount cannot retain callbacks from this generation.
-                    metis_web::metis_stop();
+                    // Teardown drops the viewer synchronously before cancelling
+                    // this task, so remount cannot overlap listener generations.
+                    stop_web_canvas();
                     break;
                 }
             };
             if !keep_running {
-                metis_web::metis_stop();
+                stop_web_canvas();
                 break;
             }
         }
@@ -389,8 +400,21 @@ pub(crate) fn start_web_orthogonal_canvases(canvas_ids: [String; 3]) -> Result<(
 
 /// Stops the RITK browser canvas workflow and releases its animation-frame task.
 pub(crate) fn stop_web_canvas() {
+    // The task consults this slot only between animation-frame awaits. Dropping
+    // the viewer here releases decoded study state, rendered frames and canvas
+    // listener guards synchronously; task cancellation alone schedules its
+    // child future to be dropped on a later executor poll.
+    VIEWER.with_borrow_mut(|slot| *slot = None);
     VIEWER_TASK.with_borrow_mut(|slot| slot.take());
     metis_web::metis_stop();
+}
+
+/// Returns the number of RITK canvas listener guards retained by the live viewer.
+pub(crate) fn web_canvas_listener_count() -> usize {
+    VIEWER.with_borrow(|slot| {
+        slot.as_ref()
+            .map_or(0, |viewer| viewer.surface.listener_count())
+    })
 }
 
 impl SnapApp {
