@@ -41,13 +41,19 @@ The browser evidence workflow adds a Chromium entry that captures the
 consumer's real WebGPU element PNGs through Metis's named-context mode. It
 derives a dimensions-and-attributes oracle from the existing RITK study
 oracle, leaving raster RGBA verification unchanged. The consumer lock and
-workflow default now pin the merged Metis revision
-`29812898870042665010c6534dce111ea1966925`; the resolved Moirai provider is
-`95275651722583f52e098c0d30b1a53ec82c1fc7`.
+workflow default pin Metis `88c60a0b6410c0e07700e965bcdbea43b7b20789`.
+Moirai's browser PAL packages resolve to
+`95275651722583f52e098c0d30b1a53ec82c1fc7`; the runtime, iterator, parallel
+and sync packages resolve to `c0b1131178177da699f0692079a1413a2fb033e8`.
 
-The gallery's setup-failure renderer now preserves string-valued WASM
-rejections, so adapter and device errors reach `gallery-status` with their
-actual diagnostic instead of becoming `undefined`.
+Hosted run [35133971196](https://github.com/ryancinsight/ritk/actions/runs/35133971196)
+reached the RITK consumer but Chromium returned no WebGPU adapter. The
+`chromium-webgpu` artifact [10462807820](https://github.com/ryancinsight/ritk/actions/runs/35133971196/artifacts/10462807820)
+and the committed failure capture record that capability residual, with no
+raster fallback or GPU presentation claim. The gallery's setup-failure
+renderer preserves string-valued WASM rejections, so adapter and device
+errors reach `gallery-status` with their actual diagnostic instead of becoming
+`undefined`.
 
 ## Alternatives rejected
 
