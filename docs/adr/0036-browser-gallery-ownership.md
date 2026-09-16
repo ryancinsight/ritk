@@ -81,8 +81,17 @@ passes RITK's post-transfer capture callback, and records consumer evidence
 under the RITK output contract. The Metis scripts no longer contain RITK canvas
 IDs, DICOM filters or slice-control behavior.
 The dependent RITK lock and browser/package workflow defaults pin Metis merge
-`88c60a0b6410c0e07700e965bcdbea43b7b20789`; hosted evidence will be regenerated
+`88c60a0b6410c0e07700e965bcdbea43b7b20789`; hosted evidence has been regenerated
 from this wrapper.
+
+Revision 2026-09-16 (consumer evidence): hosted run
+`35133971196` rebuilt this wrapper at RITK merge
+`db390b8616e4cc58f2555f49a816e61eed1fadd1` against the pinned Metis revision.
+The Chromium and Firefox raster jobs exercise the saved 94-file MRI study;
+the WebKit job remains the selected-file authorization residual. The Chromium
+WebGPU job reaches the RITK page but reports no browser WebGPU adapter, so it
+does not claim a rendered GPU study. These outcomes preserve the ownership
+boundary: RITK owns DICOM behavior and Metis remains format-neutral.
 
 ## Residuals
 

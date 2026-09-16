@@ -16,8 +16,10 @@ decoded-workspace budgets, and return the RITK `Image` plus
 boundary; the host owns only input and presentation lifecycle.
 
 The standalone lock used by the viewer resolves the six Metis packages at
-`88c60a0b6410c0e07700e965bcdbea43b7b20789`, and the fifteen
-Moirai packages at `1fe0750962444283c23633dd33d766e503bca9fe`. The browser chooser and Windows
+`88c60a0b6410c0e07700e965bcdbea43b7b20789`. Moirai's browser PAL packages
+resolve to `95275651722583f52e098c0d30b1a53ec82c1fc7`, while its
+runtime, iterator, parallel and sync packages resolve to
+`c0b1131178177da699f0692079a1413a2fb033e8`. The browser chooser and Windows
 package workflows default to that Metis revision. These are provider pins; RITK
 continues to own DICOM scanning, decoding, geometry and clinical presentation.
 
@@ -1159,62 +1161,47 @@ process launch, and OS permission flows remain separate acceptance gates.
 
 The reproducible cross-engine chooser workflow is
 [`metis-browser-dicom.yml`](../../.github/workflows/metis-browser-dicom.yml).
-Hosted run [35089121864](https://github.com/ryancinsight/ritk/actions/runs/35089121864)
-has completed the Chromium and Firefox jobs for the same 94 saved MRI-DIR
-DICOM files; its WebKit job completed with a selected-file read failure. The
-run built RITK at
-`3b7386c5f58b39e479e9a9ee99a10b575fd102f`, resolved Métis at
-`0d1d5bc42b22547fe50f30fac94e475873a507a7`, and uses Moirai PAL at
-`c9a4431b2320adb8cd3e5a5f12d1632c18378950` (the runtime/parallel packages
-remain pinned to `c0b1131178177da699f0692079a1413a2fb033e8`). Chromium 152
-and Firefox 155 passed the RITK-owned canvas dimensions, non-black counts,
-exact RGBA hashes, semantic `data-ritk-*` attributes, bounded rejection
-probes, trusted pointer, wheel and focused cine-rate key actions, and clean
-WebDriver teardown across four mount cycles. Each canvas follows 12 → 13 →
-13 → 12 → 12 FPS through `=` and `-` key events. Effective rate changes
-advance the rendered-frame generation once; trusted repeats preserve rate,
-generation, focused slice and pixels. Chromium uses DevTools key dispatch and
-Firefox uses WebDriver actions; this is protocol repeat evidence, with no
-physical key-hold timing claim. The final captures retain the RITK consumer's
-`Choose study files` label and DICOM filter after every host remount.
+Hosted run [35133971196](https://github.com/ryancinsight/ritk/actions/runs/35133971196)
+rebuilt RITK at `db390b8616e4cc58f2555f49a816e61eed1fadd1` against Métis
+`88c60a0b6410c0e07700e965bcdbea43b7b20789` and the lock's Moirai revisions
+listed above. Chromium 152 and Firefox 155 each accepted the same 94 saved
+MRI-DIR DICOM files, read 49,807,236 bytes, matched the three exact RGBA
+oracles, and completed four mount cycles. Each cycle records 18 trusted canvas
+actions (12 keyboard, 3 pointer and 3 wheel), focused repeat metadata,
+semantic snapshots, and release of all 18 diagnostic listeners and active input
+sources. The final viewport captures retain the RITK consumer's `Choose study
+files` label and DICOM filter after every remount.
 
-Safari 26.6.2 accepted the 94 selected files in the current run but rejected
-the first 529,864-byte `File.arrayBuffer()` read before RITK received a
-completed batch. The same selected file returns `NotReadableError` from its
-original array-buffer, sliced array-buffer and FileReader reads; a bounded
-blob-URL stream returns `TypeError`. The current WebKit artifact is
-[10445741511](https://github.com/ryancinsight/ritk/actions/runs/35089121864/artifacts/10445741511).
-These results do not establish a decoder failure or justify substituting
-another read API. The trace records clean WebDriver teardown, with no Safari
-DICOM or keyboard success claim.
+![The real MRI study rendered in the hosted Chromium gallery](images/dicom-metis-real-browser-mri-cross-engine-chromium.png)
+
+![The real MRI study rendered in the hosted Firefox gallery](images/dicom-metis-real-browser-mri-cross-engine-firefox.png)
+
 The [Chromium gallery](images/dicom-metis-real-browser-mri-cross-engine-chromium.png)
 and [Firefox gallery](images/dicom-metis-real-browser-mri-cross-engine-firefox.png)
-are actual viewport captures of the running gallery and its RITK canvases. The
-[machine-readable provenance](images/dicom-metis-real-browser-mri-cross-engine.json)
-records the per-engine browser versions, revisions, keyboard focus evidence,
-hashes, canvas attributes, rejection results, artifact links and cleanup state,
-including the [Safari failure capture](images/dicom-metis-real-browser-mri-cross-engine-webkit.png)
-and bounded read diagnostics. An isolated native input with no application
-observers produces the same four read failures for one-file and 94-file
-selections. The diagnostic input is removed and the prior selected-file handle
-restored. The failure reproduces without invoking application selection
-handlers for those controls; effects of the earlier failed attempt are not
-excluded.
+are actual viewport captures of the running RITK page and its three canvases.
+The [machine-readable provenance](images/dicom-metis-real-browser-mri-cross-engine.json)
+binds each capture, trace, canvas RGBA digest, semantic attribute set, browser
+revision, and artifact to run `35133971196`. The Edge consumer record remains
+the source for the exact 50 trusted slider actions and 18 invalid-number
+probes; the four-cycle matrix deliberately records lifecycle and cross-engine
+input without duplicating that slider run.
 
-The current sandbox log identifies denials on the selected real file:
-WebContent is denied `file-read-data` and `file-issue-extension`, and
-Networking is denied `file-read-data`. The runner reads all 529,864 bytes of
-the first file and verifies its expected SHA-256; its mode is `0644`.
-SafariDriver accepts `Automation.setFilesToSelectForFileUpload` before the
-denials. The exact SafariDriver/WebKit grant defect remains unresolved.
-Browser application code cannot grant that access; a different byte-read API
-does not repair it.
-RITK owns DICOM scanning, decoding,
-geometry, clinical presentation and pixel assertions; Métis remains the
-format-neutral host and canvas boundary, and Moirai owns the bounded browser
-file read. Physical file-manager drag input, native file dialogs, native
-process launch, OS permission grants, WebGPU and Safari's file-backed
-WebDriver read remain separate acceptance gates.
+Safari 26.6.2 accepted the 94 selected files but rejected the first
+529,864-byte browser read before RITK received a completed batch. The selected
+file returns `NotReadableError` from its original array-buffer, bounded slice
+array-buffer and FileReader reads; a bounded blob-URL stream returns
+`TypeError`. The [WebKit artifact](https://github.com/ryancinsight/ritk/actions/runs/35133971196/artifacts/10463192885)
+and [failure capture](images/dicom-metis-real-browser-mri-cross-engine-webkit.png)
+record the probes and clean WebDriver teardown. Host readability and the
+expected file digest are verified separately; this is a SafariDriver/WebKit
+authorization residual, not a DICOM decoder failure, and browser application
+code cannot grant that access.
+
+RITK owns DICOM scanning, decoding, geometry, clinical presentation and pixel
+assertions; Métis remains the format-neutral host and canvas boundary, and
+Moirai owns the bounded browser file read. Physical file-manager drag input,
+native file dialogs, native process launch, OS permission grants, WebGPU and
+Safari's file-backed WebDriver read remain separate acceptance gates.
 
 ### Verify embedded canvas content coordinates
 
@@ -1397,10 +1384,10 @@ remain in RITK. The named canvas now retains bounded pointer and wheel
 listeners and routes target-local events through RITK's shared
 presentation/action reducer; pointer cancel and provider failures clear the
 active gesture. Physical browser-driver input and Safari's file-backed
-WebDriver read remain separate acceptance work. Browser WebGPU is available
+WebDriver read remain separate acceptance work. Browser WebGPU is selected
 only through the explicit asynchronous `*_gpu` entrypoints or the gallery's
-`?renderer=webgpu` query; this manual has no device or equivalence claim until
-that mode produces revision-bound browser artifacts. The native eframe volume
+`?renderer=webgpu` query; hosted capability evidence is recorded below and
+does not imply a device is present. The native eframe volume
 upload now preflights device limits, reports pending GPU readback, and uses the
 CPU projection path when the GPU path is unsupported or fails.
 When browser GPU setup rejects, the RITK gallery preserves the underlying WASM
@@ -1443,27 +1430,38 @@ browser-driver input and Safari's file-backed WebDriver read remain separate
 acceptance work. Browser WebGPU is available through the explicit asynchronous
 `start_web_orthogonal_canvases_gpu` entrypoint; the gallery selects it only for
 `?renderer=webgpu` and records setup failures instead of falling back. No real
-GPU visual or equivalence claim is made until revision-bound browser artifacts
-exist. The generic Métis runner's `--canvas-capture screenshot
+GPU visual or equivalence claim is made for the current hosted run because its
+browser reported no adapter. The generic Métis runner's `--canvas-capture screenshot
 --canvas-context webgpu` mode captures those non-2D canvases as real element
 PNGs and verifies the context without substituting a 2D readback. Native eframe GPU uploads are guarded by the same RITK device limit
 check and have a fitting-volume visual capture in the eframe workflow above.
 
 The hosted saved-study workflow
 ([`metis-browser-dicom.yml`](../../.github/workflows/metis-browser-dicom.yml))
-includes a Chromium WebGPU matrix entry. It
-uses the same 94-file MRI-DIR study and invokes the consumer page with
-`?renderer=webgpu`, `--canvas-capture screenshot`, and
-`--canvas-context webgpu`. Its `mri-webgpu-oracle.json` keeps the intrinsic
-canvas dimensions and RITK semantic attributes while omitting the raster
-RGBA digest. The uploaded `chromium-webgpu` directory contains the actual
-element PNGs, canvas trace, and revision-bound manifest. A passed job proves
-that RITK opened the selected study and presented each canvas through the
-requested context; it does not prove 2D pixel equivalence, hardware
-acceleration, compositor timing, or lower memory use.
-The workflow's default Métis revision is the merged
-`29812898870042665010c6534dce111ea1966925`; the standalone lock resolves the
-same six packages and Moirai merge `95275651722583f52e098c0d30b1a53ec82c1fc7`.
+includes a Chromium WebGPU matrix entry. It uses the same 94-file MRI-DIR
+study and invokes the consumer page with `?renderer=webgpu`,
+`--canvas-capture screenshot`, and `--canvas-context webgpu`. Its
+`mri-webgpu-oracle.json` keeps the intrinsic canvas dimensions and RITK
+semantic attributes while omitting the raster RGBA digest. The uploaded
+`chromium-webgpu` directory contains the element PNG, canvas trace and
+revision-bound manifest. A passed job proves that RITK opened the selected
+study and presented each canvas through the requested context; it does not
+prove 2D pixel equivalence, hardware acceleration, compositor timing or lower
+memory use.
+
+Hosted run
+[`35133971196`](https://github.com/ryancinsight/ritk/actions/runs/35133971196)
+rebuilt RITK `db390b8616e4cc58f2555f49a816e61eed1fadd1` against the default
+Metis revision `88c60a0b6410c0e07700e965bcdbea43b7b20789`. Its Chromium WebGPU
+job captured the page after the 94-file chooser probes, but RITK reported
+`browser returned no WebGPU adapter` and did not publish a study frame. The
+job therefore records browser capability absence with a real failure PNG and
+clean session teardown; it is not a raster fallback or a GPU presentation
+claim. The uploaded artifact is
+[`chromium-webgpu`](https://github.com/ryancinsight/ritk/actions/runs/35133971196/artifacts/10462807820),
+and its revision-bound trace and PNG remain the evidence for this residual.
+
+![Hosted Chromium WebGPU capability failure](images/dicom-metis-real-browser-mri-webgpu-failure.png)
 
 Each RITK canvas also publishes a bounded semantic snapshot for workflow
 drivers. `data-ritk-load-state` is `empty` or `ready`,
