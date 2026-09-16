@@ -1,5 +1,6 @@
 // RITK owns the viewer loop and consumes Metis's bounded byte handoff.
 const status = document.getElementById("gallery-status");
+const describeError = (error) => error instanceof Error ? error.message : String(error);
 try {
   const { default: init, start_web_orthogonal_canvases,
     start_web_orthogonal_canvases_gpu, stop_web_canvas, web_canvas_listener_count,
@@ -28,7 +29,7 @@ try {
       try {
         select_web_slice(axis, slider.valueAsNumber);
       } catch (error) {
-        status.textContent = `Slice could not change: ${error.message || error}`;
+        status.textContent = `Slice could not change: ${describeError(error)}`;
         sync();
       }
     });
@@ -85,6 +86,6 @@ try {
     controls.forEach(({ observer }) => observer.disconnect());
   }, { once: true });
 } catch (error) {
-  status.textContent = `Viewer could not start: ${error.message}`;
+  status.textContent = `Viewer could not start: ${describeError(error)}`;
   status.setAttribute("data-state", "failed");
 }
