@@ -49,8 +49,9 @@ try {
     mounted = true;
     status.textContent = "Ready. Drop study files into the area below.";
   };
+  mount();
   // The host exposes a format-neutral file picker. RITK supplies the DICOM
-  // filter and wording at this consumer boundary.
+  // filter and wording at this consumer boundary after the host mounts.
   const fileInput = document.getElementById("file-input");
   const fileLabel = document.querySelector('label[for="file-input"]');
   if (!(fileInput instanceof HTMLInputElement) || !(fileLabel instanceof HTMLLabelElement)) {
@@ -68,7 +69,6 @@ try {
       consumer_listeners: web_canvas_listener_count(),
     }),
   });
-  mount();
   window.addEventListener("pagehide", () => {
     stop();
     controls.forEach(({ observer }) => observer.disconnect());

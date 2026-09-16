@@ -64,6 +64,11 @@ contains exactly one JavaScript module and one WebAssembly module. Metis can
 validate that runtime pair without copying declaration sidecars; the consumer
 page and DICOM behavior are unchanged.
 
+Revision 2026-09-16 (consumer mount ordering): the gallery mounts the Metis host
+before querying its format-neutral file-picker controls. This keeps consumer
+customization deterministic when module initialization and host DOM insertion
+are scheduled differently across browser engines.
+
 ## Residuals
 
 Safari/WebKit selected-file authorization, physical file-manager drag input,
