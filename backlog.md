@@ -1,10 +1,10 @@
 <a id="RITK-GALLERY-CYCLES-001"></a>
 ## RITK-GALLERY-CYCLES-001 — Repeated saved-study browser lifecycle
-- Status: in-progress; priority: P1; integrator: root; last-update: 2026-09-16.
+- Status: review; priority: P1; integrator: root; last-update: 2026-09-16; implementation: `4bc8ad724`.
 - Scope: bounded same-instance MRI-DIR gallery cycles on Chromium and Firefox; DICOM semantics remain RITK-owned.
 - Acceptance: each cycle verifies file/pixel identities and cine actions; stopped listeners are zero; post-warmup capacity growth fails the regression gate; record available heap evidence and its limits.
 - Risk: [minor]; dependencies: current saved 94-file gallery and browser input contracts.
-- Verification: focused native/WASM and browser gates; measured V12 provenance and manual only.
+- Evidence: 12 measured same-instance cycles; all file/RGBA and cine oracles pass; 31/21 mounted guards, 0/0 stopped, 404,357,120-byte post-decode capacity. RITK memory provenance retains per-phase heap availability and limits.
 
 <a id="RITK-SNAP-BROWSER-TRUST-2026-09-15"></a>
 ## RITK-SNAP-BROWSER-TRUST-2026-09-15 — Reject synthetic canvas input [arch] [minor]

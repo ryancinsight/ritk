@@ -989,7 +989,7 @@ const decodedBytes = wasmMemoryBytes();
 console.table({ initialBytes, mountedBytes, decodedBytes });
 ```
 
-The live Chromium run recorded `1,769,472` bytes (27 WebAssembly pages) at
+The 2026-09-13 Chromium run recorded `1,769,472` bytes (27 WebAssembly pages) at
 initialization, `1,835,008` bytes (28 pages) after mounting, and
 `404,160,512` bytes (6,167 pages) after RITK decoded the 94-file public MRI-DIR
 T2 study. A repeat reload produced the same three values. The DICOM payload
@@ -997,9 +997,47 @@ read by RITK was `49,807,236` bytes; it is a separate input-byte count and must
 not be confused with committed linear memory. The repeat observations and
 limits are recorded in
 [`dicom-metis-real-browser-mri-memory.json`](images/dicom-metis-real-browser-mri-memory.json).
-The artifact does not claim JavaScript heap, native process, compositor, GPU,
-or allocator-used bytes; those require separate profilers and remain open
-performance work.
+That reload baseline does not measure allocator-used or process memory.
+
+### Repeat the saved-study lifecycle without reloading
+
+On 2026-09-16, the saved 94-file, 49,807,236-byte study completed four cycles
+per session on each path below. Every cycle mounted the same WebAssembly
+instance, selected or dropped the files, checked all file hashes and three
+exact RGBA oracles, exercised trusted cine-rate actions, and stopped the
+viewer. RITK's native trace validator accepted all 12 individual cine traces.
+
+| Engine and input | Cycles | Mounted host / canvas guards | Stopped guards | Capacity after decode |
+| --- | ---: | ---: | ---: | ---: |
+| Chromium 152.0.7977.83 chooser | 4 | 31 / 21 | 0 / 0 | 404,357,120 bytes |
+| Firefox 156.0 chooser | 4 | 31 / 21 | 0 / 0 | 404,357,120 bytes |
+| Chromium 152.0.7977.83 file-backed CDP drop | 4 | 31 / 21 | 0 / 0 | 404,357,120 bytes |
+
+Capacity remained equal at every observed phase after the first decode. The
+regression gate requires the five ordered phases, complete sequential cycles,
+stable mounted guard counts, zero stopped guards and exactly equal per-phase
+capacity after two warmup cycles. It also checks that file controls and
+diagnostic globals are removed. Stop now drops the RITK viewer and its decoded
+state synchronously before cancelling the animation task; the diagnostic
+runner removes its own four transfer listeners and retained file references.
+
+Use the existing `browser_drop.py` cine command with `--lifecycle-cycles 4`.
+Repeated mode accepts 4–8 cycles and a maximum 300-second suite deadline,
+including a reserved cleanup interval. Each `canvas-trace-cycle-N.json` must
+pass RITK's `--validate-browser-trace <path> --require-cine-rate` command.
+The Chromium drop variant uses `--input chromium`; Firefox uses `--input chooser`.
+
+The [memory provenance](images/dicom-metis-real-browser-mri-memory.json)
+retains the older reload baseline and adds `same_instance_cycles`, with every
+phase's counters, input/oracle/source/asset hashes, engine versions and cine
+trace digests. The measured sources are Metis `9d14da1` and RITK `4bc8ad724`.
+Chromium exposes `performance.memory`; its stopped heap counters vary with
+unforced garbage collection. Firefox reports that API unavailable, not zero.
+Neither heap stability nor allocator-used bytes are claimed. Committed WASM
+capacity does not shrink on free; four cycles cannot exclude a smaller leak
+within existing capacity or establish long-duration behavior. Process,
+compositor, GPU, physical file-manager input and matched-framework comparisons
+remain outside this measurement.
 
 ### Re-run the saved MRI study through Edge
 

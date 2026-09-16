@@ -75,5 +75,1432 @@
     "no Firefox or WebKit evidence",
     "no native process or browser heap profiler",
     "no WebGPU evidence"
-  ]
+  ],
+  "same_instance_cycles": {
+    "observed_date": "2026-09-16",
+    "status": "passed",
+    "platform": "Windows-11-10.0.26340-SP0",
+    "driver_versions": {
+      "chromium": "ChromeDriver 152.0.7977.83",
+      "firefox": "geckodriver 0.37.1"
+    },
+    "protocol": {
+      "cycles_per_session": 4,
+      "warmup_cycles": 2,
+      "maximum_cycles": 8,
+      "suite_deadline_seconds": 300,
+      "phases": [
+        "mounted",
+        "transfer",
+        "decoded",
+        "cine",
+        "stopped"
+      ],
+      "page_reloads_between_cycles": 0,
+      "growth_oracle": "Equal per-phase committed WASM capacity after two warmup cycles; stable positive mounted guards; zero stopped guards; cleared file/diagnostic references."
+    },
+    "ritk_lock_sha256": "69fd61f991594899fb1b98ce30713b74952fa0e46031c9bb1824bcd4810dbb79",
+    "validator_executable_sha256": "0e976bf0577476f9f8cfef496919c3ce9da23200c68f24c2c86904731d5aa5ba",
+    "runs": [
+      {
+        "engine": "chromium",
+        "capabilities": {
+          "browserName": "chrome",
+          "browserVersion": "152.0.7977.83",
+          "platformName": "windows"
+        },
+        "input_source": "chooser",
+        "files": 94,
+        "bytes": 49807236,
+        "revision": "9d14da154787e68f0b3d72290480aecbb838880b",
+        "consumer_revision": "4bc8ad7245ae811ee9d23d0427c72b22b5e643b0",
+        "file_manifest_sha256": "81b7b7f8ea473dfc12c25c07b4958762254a261ca49352af2adabc214d6e8d03",
+        "oracle_sha256": "26e7e89fdd42e480e1423295641c57ea6e397cc6d02b2a81ccd76ebc78adddcd",
+        "assets": {
+          "gallery.html": "ac4f713fbf4b9c5d588ccd6d73713ed4b07318cd596796b5e14af0c522edc0bd",
+          "gallery.js": "97e5d2364f71c6571dd18ea28a4fba43b5fb8f1cd9f514a7090644f99b2c3ea8",
+          "gallery.css": "372b8662375a56ec999e28196656474ae95a08f2feaaf12baf1800a8f0917e4b",
+          "consumer/ritk_snap.js": "c4112e5a85054a66c09f037ad9aa128e516e4b3887b0873d840d771ae6fd3ef1",
+          "consumer/ritk_snap_bg.wasm": "2464b08e7d2bf17de9e1dcff0dbed0754d7f7d63c44e0dc8dbb67d98ca3b05d9"
+        },
+        "sources": {
+          "browser.py": "78d71d8087fd4e6a4b04bbbd6f734ffebf35a719db70e1ba3eef02fa08b71069",
+          "browser_canvas.py": "bcdafeeee7fb0c5ef49ad65a49c576b577bfec36c237113607aae4305addfeb3",
+          "browser_drop.py": "39b531aae477914161e95494da0233c31ab434270169565027f0a3be45610031",
+          "browser_drop_lifecycle.py": "55cbdcc049741b687bec10684615f8383c7b4cb30ba99a4c03a8f4d5cb1ddc1f",
+          "browser_file_read.py": "e9bab2fdfeeb392b52dd404b1905b6c7b4413e4854c8dc686c20112d7827904a",
+          "browser_protocol.py": "143060a521a0fc681806a9ebaab3b132baaa51a928495c389334d6c797d542f1",
+          "browser_runtime.py": "f9b474e7ca4f370cfcb904ce7bfff32152e4cc5fd8e6786310e31296542ea96d",
+          "browser_trace.py": "dd34a66e9df7562a85ff0bd21552a705c4a4d1024bf4e604a6171a6e5387edba"
+        },
+        "cleanup": {
+          "lifecycle_cycles": 4,
+          "warmup_cycles": 2,
+          "growth_gate": "stable per-phase WebAssembly capacity after warmup",
+          "stopped_listener_guards": 0,
+          "transfer_observer_listeners": 0,
+          "session_closed": true
+        },
+        "trace_sha256": "462f6aaea0cdce09c7400cb4f1ebc734596724772dcce1a30e0aee5e1add80aa",
+        "cycles": [
+          {
+            "cycle": 1,
+            "status": "complete",
+            "phases": [
+              {
+                "phase": "mounted",
+                "gallery": {
+                  "wasm_bytes": 1835008,
+                  "host_listeners": 31,
+                  "consumer_listeners": 21,
+                  "mounted": true
+                },
+                "browser_heap": {
+                  "label": "cycle-1-mounted",
+                  "available": true,
+                  "source": "performance.memory",
+                  "used_js_heap_bytes": 1443519,
+                  "total_js_heap_bytes": 2428907,
+                  "js_heap_limit_bytes": 4395630592
+                }
+              },
+              {
+                "phase": "transfer",
+                "gallery": {
+                  "wasm_bytes": 404357120,
+                  "host_listeners": 31,
+                  "consumer_listeners": 21,
+                  "mounted": true
+                },
+                "browser_heap": {
+                  "label": "cycle-1-transfer",
+                  "available": true,
+                  "source": "performance.memory",
+                  "used_js_heap_bytes": 39816198,
+                  "total_js_heap_bytes": 42928430,
+                  "js_heap_limit_bytes": 4395630592
+                }
+              },
+              {
+                "phase": "decoded",
+                "gallery": {
+                  "wasm_bytes": 404357120,
+                  "host_listeners": 31,
+                  "consumer_listeners": 21,
+                  "mounted": true
+                },
+                "browser_heap": {
+                  "label": "cycle-1-decoded",
+                  "available": true,
+                  "source": "performance.memory",
+                  "used_js_heap_bytes": 4148843,
+                  "total_js_heap_bytes": 6736151,
+                  "js_heap_limit_bytes": 4395630592
+                }
+              },
+              {
+                "phase": "cine",
+                "gallery": {
+                  "wasm_bytes": 404357120,
+                  "host_listeners": 31,
+                  "consumer_listeners": 21,
+                  "mounted": true
+                },
+                "browser_heap": {
+                  "label": "cycle-1-cine",
+                  "available": true,
+                  "source": "performance.memory",
+                  "used_js_heap_bytes": 6678754,
+                  "total_js_heap_bytes": 10668854,
+                  "js_heap_limit_bytes": 4395630592
+                }
+              },
+              {
+                "phase": "stopped",
+                "gallery": {
+                  "wasm_bytes": 404357120,
+                  "host_listeners": 0,
+                  "consumer_listeners": 0,
+                  "mounted": false
+                },
+                "browser_heap": {
+                  "label": "cycle-1-stopped",
+                  "available": true,
+                  "source": "performance.memory",
+                  "used_js_heap_bytes": 6801333,
+                  "total_js_heap_bytes": 10669253,
+                  "js_heap_limit_bytes": 4395630592
+                }
+              }
+            ],
+            "stopped_cleanup": {
+              "canvas_trace_cleared": true,
+              "drop_zone_removed": true,
+              "file_evidence_cleared": true,
+              "file_input_removed": true,
+              "input_files_cleared": true,
+              "selected_file_cleared": true,
+              "transfer_observer_cleared": true
+            },
+            "observer_cleanup": {
+              "globals_cleared": true,
+              "listeners_removed": 4
+            }
+          },
+          {
+            "cycle": 2,
+            "status": "complete",
+            "phases": [
+              {
+                "phase": "mounted",
+                "gallery": {
+                  "wasm_bytes": 404357120,
+                  "host_listeners": 31,
+                  "consumer_listeners": 21,
+                  "mounted": true
+                },
+                "browser_heap": {
+                  "label": "cycle-2-mounted",
+                  "available": true,
+                  "source": "performance.memory",
+                  "used_js_heap_bytes": 6801333,
+                  "total_js_heap_bytes": 10669253,
+                  "js_heap_limit_bytes": 4395630592
+                }
+              },
+              {
+                "phase": "transfer",
+                "gallery": {
+                  "wasm_bytes": 404357120,
+                  "host_listeners": 31,
+                  "consumer_listeners": 21,
+                  "mounted": true
+                },
+                "browser_heap": {
+                  "label": "cycle-2-transfer",
+                  "available": true,
+                  "source": "performance.memory",
+                  "used_js_heap_bytes": 70588417,
+                  "total_js_heap_bytes": 75739433,
+                  "js_heap_limit_bytes": 4395630592
+                }
+              },
+              {
+                "phase": "decoded",
+                "gallery": {
+                  "wasm_bytes": 404357120,
+                  "host_listeners": 31,
+                  "consumer_listeners": 21,
+                  "mounted": true
+                },
+                "browser_heap": {
+                  "label": "cycle-2-decoded",
+                  "available": true,
+                  "source": "performance.memory",
+                  "used_js_heap_bytes": 72785705,
+                  "total_js_heap_bytes": 77435273,
+                  "js_heap_limit_bytes": 4395630592
+                }
+              },
+              {
+                "phase": "cine",
+                "gallery": {
+                  "wasm_bytes": 404357120,
+                  "host_listeners": 31,
+                  "consumer_listeners": 21,
+                  "mounted": true
+                },
+                "browser_heap": {
+                  "label": "cycle-2-cine",
+                  "available": true,
+                  "source": "performance.memory",
+                  "used_js_heap_bytes": 73882979,
+                  "total_js_heap_bytes": 78744163,
+                  "js_heap_limit_bytes": 4395630592
+                }
+              },
+              {
+                "phase": "stopped",
+                "gallery": {
+                  "wasm_bytes": 404357120,
+                  "host_listeners": 0,
+                  "consumer_listeners": 0,
+                  "mounted": false
+                },
+                "browser_heap": {
+                  "label": "cycle-2-stopped",
+                  "available": true,
+                  "source": "performance.memory",
+                  "used_js_heap_bytes": 73882979,
+                  "total_js_heap_bytes": 78744163,
+                  "js_heap_limit_bytes": 4395630592
+                }
+              }
+            ],
+            "stopped_cleanup": {
+              "canvas_trace_cleared": true,
+              "drop_zone_removed": true,
+              "file_evidence_cleared": true,
+              "file_input_removed": true,
+              "input_files_cleared": true,
+              "selected_file_cleared": true,
+              "transfer_observer_cleared": true
+            },
+            "observer_cleanup": {
+              "globals_cleared": true,
+              "listeners_removed": 4
+            }
+          },
+          {
+            "cycle": 3,
+            "status": "complete",
+            "phases": [
+              {
+                "phase": "mounted",
+                "gallery": {
+                  "wasm_bytes": 404357120,
+                  "host_listeners": 31,
+                  "consumer_listeners": 21,
+                  "mounted": true
+                },
+                "browser_heap": {
+                  "label": "cycle-3-mounted",
+                  "available": true,
+                  "source": "performance.memory",
+                  "used_js_heap_bytes": 73882979,
+                  "total_js_heap_bytes": 78744163,
+                  "js_heap_limit_bytes": 4395630592
+                }
+              },
+              {
+                "phase": "transfer",
+                "gallery": {
+                  "wasm_bytes": 404357120,
+                  "host_listeners": 31,
+                  "consumer_listeners": 21,
+                  "mounted": true
+                },
+                "browser_heap": {
+                  "label": "cycle-3-transfer",
+                  "available": true,
+                  "source": "performance.memory",
+                  "used_js_heap_bytes": 106316092,
+                  "total_js_heap_bytes": 110175976,
+                  "js_heap_limit_bytes": 4395630592
+                }
+              },
+              {
+                "phase": "decoded",
+                "gallery": {
+                  "wasm_bytes": 404357120,
+                  "host_listeners": 31,
+                  "consumer_listeners": 21,
+                  "mounted": true
+                },
+                "browser_heap": {
+                  "label": "cycle-3-decoded",
+                  "available": true,
+                  "source": "performance.memory",
+                  "used_js_heap_bytes": 4011648,
+                  "total_js_heap_bytes": 11000044,
+                  "js_heap_limit_bytes": 4395630592
+                }
+              },
+              {
+                "phase": "cine",
+                "gallery": {
+                  "wasm_bytes": 404357120,
+                  "host_listeners": 31,
+                  "consumer_listeners": 21,
+                  "mounted": true
+                },
+                "browser_heap": {
+                  "label": "cycle-3-cine",
+                  "available": true,
+                  "source": "performance.memory",
+                  "used_js_heap_bytes": 5717268,
+                  "total_js_heap_bytes": 11000392,
+                  "js_heap_limit_bytes": 4395630592
+                }
+              },
+              {
+                "phase": "stopped",
+                "gallery": {
+                  "wasm_bytes": 404357120,
+                  "host_listeners": 0,
+                  "consumer_listeners": 0,
+                  "mounted": false
+                },
+                "browser_heap": {
+                  "label": "cycle-3-stopped",
+                  "available": true,
+                  "source": "performance.memory",
+                  "used_js_heap_bytes": 5717268,
+                  "total_js_heap_bytes": 11000392,
+                  "js_heap_limit_bytes": 4395630592
+                }
+              }
+            ],
+            "stopped_cleanup": {
+              "canvas_trace_cleared": true,
+              "drop_zone_removed": true,
+              "file_evidence_cleared": true,
+              "file_input_removed": true,
+              "input_files_cleared": true,
+              "selected_file_cleared": true,
+              "transfer_observer_cleared": true
+            },
+            "observer_cleanup": {
+              "globals_cleared": true,
+              "listeners_removed": 4
+            }
+          },
+          {
+            "cycle": 4,
+            "status": "complete",
+            "phases": [
+              {
+                "phase": "mounted",
+                "gallery": {
+                  "wasm_bytes": 404357120,
+                  "host_listeners": 31,
+                  "consumer_listeners": 21,
+                  "mounted": true
+                },
+                "browser_heap": {
+                  "label": "cycle-4-mounted",
+                  "available": true,
+                  "source": "performance.memory",
+                  "used_js_heap_bytes": 5717268,
+                  "total_js_heap_bytes": 11000392,
+                  "js_heap_limit_bytes": 4395630592
+                }
+              },
+              {
+                "phase": "transfer",
+                "gallery": {
+                  "wasm_bytes": 404357120,
+                  "host_listeners": 31,
+                  "consumer_listeners": 21,
+                  "mounted": true
+                },
+                "browser_heap": {
+                  "label": "cycle-4-transfer",
+                  "available": true,
+                  "source": "performance.memory",
+                  "used_js_heap_bytes": 64401893,
+                  "total_js_heap_bytes": 72002317,
+                  "js_heap_limit_bytes": 4395630592
+                }
+              },
+              {
+                "phase": "decoded",
+                "gallery": {
+                  "wasm_bytes": 404357120,
+                  "host_listeners": 31,
+                  "consumer_listeners": 21,
+                  "mounted": true
+                },
+                "browser_heap": {
+                  "label": "cycle-4-decoded",
+                  "available": true,
+                  "source": "performance.memory",
+                  "used_js_heap_bytes": 66567201,
+                  "total_js_heap_bytes": 73436013,
+                  "js_heap_limit_bytes": 4395630592
+                }
+              },
+              {
+                "phase": "cine",
+                "gallery": {
+                  "wasm_bytes": 404357120,
+                  "host_listeners": 31,
+                  "consumer_listeners": 21,
+                  "mounted": true
+                },
+                "browser_heap": {
+                  "label": "cycle-4-cine",
+                  "available": true,
+                  "source": "performance.memory",
+                  "used_js_heap_bytes": 67623011,
+                  "total_js_heap_bytes": 73434183,
+                  "js_heap_limit_bytes": 4395630592
+                }
+              },
+              {
+                "phase": "stopped",
+                "gallery": {
+                  "wasm_bytes": 404357120,
+                  "host_listeners": 0,
+                  "consumer_listeners": 0,
+                  "mounted": false
+                },
+                "browser_heap": {
+                  "label": "cycle-4-stopped",
+                  "available": true,
+                  "source": "performance.memory",
+                  "used_js_heap_bytes": 67716154,
+                  "total_js_heap_bytes": 73434586,
+                  "js_heap_limit_bytes": 4395630592
+                }
+              }
+            ],
+            "stopped_cleanup": {
+              "canvas_trace_cleared": true,
+              "drop_zone_removed": true,
+              "file_evidence_cleared": true,
+              "file_input_removed": true,
+              "input_files_cleared": true,
+              "selected_file_cleared": true,
+              "transfer_observer_cleared": true
+            },
+            "observer_cleanup": {
+              "globals_cleared": true,
+              "listeners_removed": 4
+            }
+          }
+        ],
+        "cine_traces": [
+          {
+            "cycle": 1,
+            "sha256": "b39f82e6e3682397686d238b9f954bba574f34800ac17a7702266605d4ff7cf0",
+            "validator": "validated RITK browser trace: engine=chromium, canvases=3, metis_revision=9d14da154787e68f0b3d72290480aecbb838880b, ritk_revision=4bc8ad7245ae811ee9d23d0427c72b22b5e643b0"
+          },
+          {
+            "cycle": 2,
+            "sha256": "831cae81121bff08f7c2bc6f77889fca15d9bbfdb8ed8c0af7e5431bf3f28363",
+            "validator": "validated RITK browser trace: engine=chromium, canvases=3, metis_revision=9d14da154787e68f0b3d72290480aecbb838880b, ritk_revision=4bc8ad7245ae811ee9d23d0427c72b22b5e643b0"
+          },
+          {
+            "cycle": 3,
+            "sha256": "c693097f92d05f9a7e9aec0a561a3f444e61d08ac57dee16f0236a8b8270da81",
+            "validator": "validated RITK browser trace: engine=chromium, canvases=3, metis_revision=9d14da154787e68f0b3d72290480aecbb838880b, ritk_revision=4bc8ad7245ae811ee9d23d0427c72b22b5e643b0"
+          },
+          {
+            "cycle": 4,
+            "sha256": "e9fdaeae996856e8e254692c10f0a363c8dc21aad56ef97dea0d976e2ae0de96",
+            "validator": "validated RITK browser trace: engine=chromium, canvases=3, metis_revision=9d14da154787e68f0b3d72290480aecbb838880b, ritk_revision=4bc8ad7245ae811ee9d23d0427c72b22b5e643b0"
+          }
+        ]
+      },
+      {
+        "engine": "firefox",
+        "capabilities": {
+          "browserName": "firefox",
+          "browserVersion": "156.0",
+          "platformName": "windows"
+        },
+        "input_source": "chooser",
+        "files": 94,
+        "bytes": 49807236,
+        "revision": "9d14da154787e68f0b3d72290480aecbb838880b",
+        "consumer_revision": "4bc8ad7245ae811ee9d23d0427c72b22b5e643b0",
+        "file_manifest_sha256": "81b7b7f8ea473dfc12c25c07b4958762254a261ca49352af2adabc214d6e8d03",
+        "oracle_sha256": "26e7e89fdd42e480e1423295641c57ea6e397cc6d02b2a81ccd76ebc78adddcd",
+        "assets": {
+          "gallery.html": "ac4f713fbf4b9c5d588ccd6d73713ed4b07318cd596796b5e14af0c522edc0bd",
+          "gallery.js": "97e5d2364f71c6571dd18ea28a4fba43b5fb8f1cd9f514a7090644f99b2c3ea8",
+          "gallery.css": "372b8662375a56ec999e28196656474ae95a08f2feaaf12baf1800a8f0917e4b",
+          "consumer/ritk_snap.js": "c4112e5a85054a66c09f037ad9aa128e516e4b3887b0873d840d771ae6fd3ef1",
+          "consumer/ritk_snap_bg.wasm": "2464b08e7d2bf17de9e1dcff0dbed0754d7f7d63c44e0dc8dbb67d98ca3b05d9"
+        },
+        "sources": {
+          "browser.py": "78d71d8087fd4e6a4b04bbbd6f734ffebf35a719db70e1ba3eef02fa08b71069",
+          "browser_canvas.py": "bcdafeeee7fb0c5ef49ad65a49c576b577bfec36c237113607aae4305addfeb3",
+          "browser_drop.py": "39b531aae477914161e95494da0233c31ab434270169565027f0a3be45610031",
+          "browser_drop_lifecycle.py": "55cbdcc049741b687bec10684615f8383c7b4cb30ba99a4c03a8f4d5cb1ddc1f",
+          "browser_file_read.py": "e9bab2fdfeeb392b52dd404b1905b6c7b4413e4854c8dc686c20112d7827904a",
+          "browser_protocol.py": "143060a521a0fc681806a9ebaab3b132baaa51a928495c389334d6c797d542f1",
+          "browser_runtime.py": "f9b474e7ca4f370cfcb904ce7bfff32152e4cc5fd8e6786310e31296542ea96d",
+          "browser_trace.py": "dd34a66e9df7562a85ff0bd21552a705c4a4d1024bf4e604a6171a6e5387edba"
+        },
+        "cleanup": {
+          "lifecycle_cycles": 4,
+          "warmup_cycles": 2,
+          "growth_gate": "stable per-phase WebAssembly capacity after warmup",
+          "stopped_listener_guards": 0,
+          "transfer_observer_listeners": 0,
+          "session_closed": true
+        },
+        "trace_sha256": "ba760c99e2c875c39f5bacb2ffc670158a5e4d932a866088e12747559c4bba7c",
+        "cycles": [
+          {
+            "cycle": 1,
+            "status": "complete",
+            "phases": [
+              {
+                "phase": "mounted",
+                "gallery": {
+                  "wasm_bytes": 1835008,
+                  "host_listeners": 31,
+                  "consumer_listeners": 21,
+                  "mounted": true
+                },
+                "browser_heap": {
+                  "label": "cycle-1-mounted",
+                  "available": false,
+                  "reason": "performance.memory unavailable"
+                }
+              },
+              {
+                "phase": "transfer",
+                "gallery": {
+                  "wasm_bytes": 404357120,
+                  "host_listeners": 31,
+                  "consumer_listeners": 21,
+                  "mounted": true
+                },
+                "browser_heap": {
+                  "label": "cycle-1-transfer",
+                  "available": false,
+                  "reason": "performance.memory unavailable"
+                }
+              },
+              {
+                "phase": "decoded",
+                "gallery": {
+                  "wasm_bytes": 404357120,
+                  "host_listeners": 31,
+                  "consumer_listeners": 21,
+                  "mounted": true
+                },
+                "browser_heap": {
+                  "label": "cycle-1-decoded",
+                  "available": false,
+                  "reason": "performance.memory unavailable"
+                }
+              },
+              {
+                "phase": "cine",
+                "gallery": {
+                  "wasm_bytes": 404357120,
+                  "host_listeners": 31,
+                  "consumer_listeners": 21,
+                  "mounted": true
+                },
+                "browser_heap": {
+                  "label": "cycle-1-cine",
+                  "available": false,
+                  "reason": "performance.memory unavailable"
+                }
+              },
+              {
+                "phase": "stopped",
+                "gallery": {
+                  "wasm_bytes": 404357120,
+                  "host_listeners": 0,
+                  "consumer_listeners": 0,
+                  "mounted": false
+                },
+                "browser_heap": {
+                  "label": "cycle-1-stopped",
+                  "available": false,
+                  "reason": "performance.memory unavailable"
+                }
+              }
+            ],
+            "stopped_cleanup": {
+              "canvas_trace_cleared": true,
+              "drop_zone_removed": true,
+              "file_evidence_cleared": true,
+              "file_input_removed": true,
+              "input_files_cleared": true,
+              "selected_file_cleared": true,
+              "transfer_observer_cleared": true
+            },
+            "observer_cleanup": {
+              "globals_cleared": true,
+              "listeners_removed": 4
+            }
+          },
+          {
+            "cycle": 2,
+            "status": "complete",
+            "phases": [
+              {
+                "phase": "mounted",
+                "gallery": {
+                  "wasm_bytes": 404357120,
+                  "host_listeners": 31,
+                  "consumer_listeners": 21,
+                  "mounted": true
+                },
+                "browser_heap": {
+                  "label": "cycle-2-mounted",
+                  "available": false,
+                  "reason": "performance.memory unavailable"
+                }
+              },
+              {
+                "phase": "transfer",
+                "gallery": {
+                  "wasm_bytes": 404357120,
+                  "host_listeners": 31,
+                  "consumer_listeners": 21,
+                  "mounted": true
+                },
+                "browser_heap": {
+                  "label": "cycle-2-transfer",
+                  "available": false,
+                  "reason": "performance.memory unavailable"
+                }
+              },
+              {
+                "phase": "decoded",
+                "gallery": {
+                  "wasm_bytes": 404357120,
+                  "host_listeners": 31,
+                  "consumer_listeners": 21,
+                  "mounted": true
+                },
+                "browser_heap": {
+                  "label": "cycle-2-decoded",
+                  "available": false,
+                  "reason": "performance.memory unavailable"
+                }
+              },
+              {
+                "phase": "cine",
+                "gallery": {
+                  "wasm_bytes": 404357120,
+                  "host_listeners": 31,
+                  "consumer_listeners": 21,
+                  "mounted": true
+                },
+                "browser_heap": {
+                  "label": "cycle-2-cine",
+                  "available": false,
+                  "reason": "performance.memory unavailable"
+                }
+              },
+              {
+                "phase": "stopped",
+                "gallery": {
+                  "wasm_bytes": 404357120,
+                  "host_listeners": 0,
+                  "consumer_listeners": 0,
+                  "mounted": false
+                },
+                "browser_heap": {
+                  "label": "cycle-2-stopped",
+                  "available": false,
+                  "reason": "performance.memory unavailable"
+                }
+              }
+            ],
+            "stopped_cleanup": {
+              "canvas_trace_cleared": true,
+              "drop_zone_removed": true,
+              "file_evidence_cleared": true,
+              "file_input_removed": true,
+              "input_files_cleared": true,
+              "selected_file_cleared": true,
+              "transfer_observer_cleared": true
+            },
+            "observer_cleanup": {
+              "globals_cleared": true,
+              "listeners_removed": 4
+            }
+          },
+          {
+            "cycle": 3,
+            "status": "complete",
+            "phases": [
+              {
+                "phase": "mounted",
+                "gallery": {
+                  "wasm_bytes": 404357120,
+                  "host_listeners": 31,
+                  "consumer_listeners": 21,
+                  "mounted": true
+                },
+                "browser_heap": {
+                  "label": "cycle-3-mounted",
+                  "available": false,
+                  "reason": "performance.memory unavailable"
+                }
+              },
+              {
+                "phase": "transfer",
+                "gallery": {
+                  "wasm_bytes": 404357120,
+                  "host_listeners": 31,
+                  "consumer_listeners": 21,
+                  "mounted": true
+                },
+                "browser_heap": {
+                  "label": "cycle-3-transfer",
+                  "available": false,
+                  "reason": "performance.memory unavailable"
+                }
+              },
+              {
+                "phase": "decoded",
+                "gallery": {
+                  "wasm_bytes": 404357120,
+                  "host_listeners": 31,
+                  "consumer_listeners": 21,
+                  "mounted": true
+                },
+                "browser_heap": {
+                  "label": "cycle-3-decoded",
+                  "available": false,
+                  "reason": "performance.memory unavailable"
+                }
+              },
+              {
+                "phase": "cine",
+                "gallery": {
+                  "wasm_bytes": 404357120,
+                  "host_listeners": 31,
+                  "consumer_listeners": 21,
+                  "mounted": true
+                },
+                "browser_heap": {
+                  "label": "cycle-3-cine",
+                  "available": false,
+                  "reason": "performance.memory unavailable"
+                }
+              },
+              {
+                "phase": "stopped",
+                "gallery": {
+                  "wasm_bytes": 404357120,
+                  "host_listeners": 0,
+                  "consumer_listeners": 0,
+                  "mounted": false
+                },
+                "browser_heap": {
+                  "label": "cycle-3-stopped",
+                  "available": false,
+                  "reason": "performance.memory unavailable"
+                }
+              }
+            ],
+            "stopped_cleanup": {
+              "canvas_trace_cleared": true,
+              "drop_zone_removed": true,
+              "file_evidence_cleared": true,
+              "file_input_removed": true,
+              "input_files_cleared": true,
+              "selected_file_cleared": true,
+              "transfer_observer_cleared": true
+            },
+            "observer_cleanup": {
+              "globals_cleared": true,
+              "listeners_removed": 4
+            }
+          },
+          {
+            "cycle": 4,
+            "status": "complete",
+            "phases": [
+              {
+                "phase": "mounted",
+                "gallery": {
+                  "wasm_bytes": 404357120,
+                  "host_listeners": 31,
+                  "consumer_listeners": 21,
+                  "mounted": true
+                },
+                "browser_heap": {
+                  "label": "cycle-4-mounted",
+                  "available": false,
+                  "reason": "performance.memory unavailable"
+                }
+              },
+              {
+                "phase": "transfer",
+                "gallery": {
+                  "wasm_bytes": 404357120,
+                  "host_listeners": 31,
+                  "consumer_listeners": 21,
+                  "mounted": true
+                },
+                "browser_heap": {
+                  "label": "cycle-4-transfer",
+                  "available": false,
+                  "reason": "performance.memory unavailable"
+                }
+              },
+              {
+                "phase": "decoded",
+                "gallery": {
+                  "wasm_bytes": 404357120,
+                  "host_listeners": 31,
+                  "consumer_listeners": 21,
+                  "mounted": true
+                },
+                "browser_heap": {
+                  "label": "cycle-4-decoded",
+                  "available": false,
+                  "reason": "performance.memory unavailable"
+                }
+              },
+              {
+                "phase": "cine",
+                "gallery": {
+                  "wasm_bytes": 404357120,
+                  "host_listeners": 31,
+                  "consumer_listeners": 21,
+                  "mounted": true
+                },
+                "browser_heap": {
+                  "label": "cycle-4-cine",
+                  "available": false,
+                  "reason": "performance.memory unavailable"
+                }
+              },
+              {
+                "phase": "stopped",
+                "gallery": {
+                  "wasm_bytes": 404357120,
+                  "host_listeners": 0,
+                  "consumer_listeners": 0,
+                  "mounted": false
+                },
+                "browser_heap": {
+                  "label": "cycle-4-stopped",
+                  "available": false,
+                  "reason": "performance.memory unavailable"
+                }
+              }
+            ],
+            "stopped_cleanup": {
+              "canvas_trace_cleared": true,
+              "drop_zone_removed": true,
+              "file_evidence_cleared": true,
+              "file_input_removed": true,
+              "input_files_cleared": true,
+              "selected_file_cleared": true,
+              "transfer_observer_cleared": true
+            },
+            "observer_cleanup": {
+              "globals_cleared": true,
+              "listeners_removed": 4
+            }
+          }
+        ],
+        "cine_traces": [
+          {
+            "cycle": 1,
+            "sha256": "509cc9c18a8e3a95319af3b66d573b5b398ace925f20b9168347b6c6ca31cf6c",
+            "validator": "validated RITK browser trace: engine=firefox, canvases=3, metis_revision=9d14da154787e68f0b3d72290480aecbb838880b, ritk_revision=4bc8ad7245ae811ee9d23d0427c72b22b5e643b0"
+          },
+          {
+            "cycle": 2,
+            "sha256": "029184777d5bed9078f3f477cc7d3b45164650215a07053d74a0ff62db2e2aeb",
+            "validator": "validated RITK browser trace: engine=firefox, canvases=3, metis_revision=9d14da154787e68f0b3d72290480aecbb838880b, ritk_revision=4bc8ad7245ae811ee9d23d0427c72b22b5e643b0"
+          },
+          {
+            "cycle": 3,
+            "sha256": "7915f1c6d43ac982f45e03ad50fc79707afc6c03bb7220b7f860faa5c989b06e",
+            "validator": "validated RITK browser trace: engine=firefox, canvases=3, metis_revision=9d14da154787e68f0b3d72290480aecbb838880b, ritk_revision=4bc8ad7245ae811ee9d23d0427c72b22b5e643b0"
+          },
+          {
+            "cycle": 4,
+            "sha256": "067bd5d7da0c96a70277f5af8f8ef4ec499254baf2f3025a1b9101c03a4adba0",
+            "validator": "validated RITK browser trace: engine=firefox, canvases=3, metis_revision=9d14da154787e68f0b3d72290480aecbb838880b, ritk_revision=4bc8ad7245ae811ee9d23d0427c72b22b5e643b0"
+          }
+        ]
+      },
+      {
+        "engine": "chromium",
+        "capabilities": {
+          "browserName": "chrome",
+          "browserVersion": "152.0.7977.83",
+          "platformName": "windows"
+        },
+        "input_source": "chromium",
+        "files": 94,
+        "bytes": 49807236,
+        "revision": "9d14da154787e68f0b3d72290480aecbb838880b",
+        "consumer_revision": "4bc8ad7245ae811ee9d23d0427c72b22b5e643b0",
+        "file_manifest_sha256": "81b7b7f8ea473dfc12c25c07b4958762254a261ca49352af2adabc214d6e8d03",
+        "oracle_sha256": "26e7e89fdd42e480e1423295641c57ea6e397cc6d02b2a81ccd76ebc78adddcd",
+        "assets": {
+          "gallery.html": "ac4f713fbf4b9c5d588ccd6d73713ed4b07318cd596796b5e14af0c522edc0bd",
+          "gallery.js": "97e5d2364f71c6571dd18ea28a4fba43b5fb8f1cd9f514a7090644f99b2c3ea8",
+          "gallery.css": "372b8662375a56ec999e28196656474ae95a08f2feaaf12baf1800a8f0917e4b",
+          "consumer/ritk_snap.js": "c4112e5a85054a66c09f037ad9aa128e516e4b3887b0873d840d771ae6fd3ef1",
+          "consumer/ritk_snap_bg.wasm": "2464b08e7d2bf17de9e1dcff0dbed0754d7f7d63c44e0dc8dbb67d98ca3b05d9"
+        },
+        "sources": {
+          "browser.py": "78d71d8087fd4e6a4b04bbbd6f734ffebf35a719db70e1ba3eef02fa08b71069",
+          "browser_canvas.py": "bcdafeeee7fb0c5ef49ad65a49c576b577bfec36c237113607aae4305addfeb3",
+          "browser_drop.py": "39b531aae477914161e95494da0233c31ab434270169565027f0a3be45610031",
+          "browser_drop_lifecycle.py": "55cbdcc049741b687bec10684615f8383c7b4cb30ba99a4c03a8f4d5cb1ddc1f",
+          "browser_file_read.py": "e9bab2fdfeeb392b52dd404b1905b6c7b4413e4854c8dc686c20112d7827904a",
+          "browser_protocol.py": "143060a521a0fc681806a9ebaab3b132baaa51a928495c389334d6c797d542f1",
+          "browser_runtime.py": "f9b474e7ca4f370cfcb904ce7bfff32152e4cc5fd8e6786310e31296542ea96d",
+          "browser_trace.py": "dd34a66e9df7562a85ff0bd21552a705c4a4d1024bf4e604a6171a6e5387edba"
+        },
+        "cleanup": {
+          "lifecycle_cycles": 4,
+          "warmup_cycles": 2,
+          "growth_gate": "stable per-phase WebAssembly capacity after warmup",
+          "stopped_listener_guards": 0,
+          "transfer_observer_listeners": 0,
+          "session_closed": true
+        },
+        "trace_sha256": "7392de2e9f82a57c6784e3c0b8187a24e82f2e06f15688909452a36e244f4394",
+        "cycles": [
+          {
+            "cycle": 1,
+            "status": "complete",
+            "phases": [
+              {
+                "phase": "mounted",
+                "gallery": {
+                  "wasm_bytes": 1835008,
+                  "host_listeners": 31,
+                  "consumer_listeners": 21,
+                  "mounted": true
+                },
+                "browser_heap": {
+                  "label": "cycle-1-mounted",
+                  "available": true,
+                  "source": "performance.memory",
+                  "used_js_heap_bytes": 1448587,
+                  "total_js_heap_bytes": 2428907,
+                  "js_heap_limit_bytes": 4395630592
+                }
+              },
+              {
+                "phase": "transfer",
+                "gallery": {
+                  "wasm_bytes": 404357120,
+                  "host_listeners": 31,
+                  "consumer_listeners": 21,
+                  "mounted": true
+                },
+                "browser_heap": {
+                  "label": "cycle-1-transfer",
+                  "available": true,
+                  "source": "performance.memory",
+                  "used_js_heap_bytes": 1502176,
+                  "total_js_heap_bytes": 3728276,
+                  "js_heap_limit_bytes": 4395630592
+                }
+              },
+              {
+                "phase": "decoded",
+                "gallery": {
+                  "wasm_bytes": 404357120,
+                  "host_listeners": 31,
+                  "consumer_listeners": 21,
+                  "mounted": true
+                },
+                "browser_heap": {
+                  "label": "cycle-1-decoded",
+                  "available": true,
+                  "source": "performance.memory",
+                  "used_js_heap_bytes": 3865629,
+                  "total_js_heap_bytes": 5687413,
+                  "js_heap_limit_bytes": 4395630592
+                }
+              },
+              {
+                "phase": "cine",
+                "gallery": {
+                  "wasm_bytes": 404357120,
+                  "host_listeners": 31,
+                  "consumer_listeners": 21,
+                  "mounted": true
+                },
+                "browser_heap": {
+                  "label": "cycle-1-cine",
+                  "available": true,
+                  "source": "performance.memory",
+                  "used_js_heap_bytes": 5724775,
+                  "total_js_heap_bytes": 10406675,
+                  "js_heap_limit_bytes": 4395630592
+                }
+              },
+              {
+                "phase": "stopped",
+                "gallery": {
+                  "wasm_bytes": 404357120,
+                  "host_listeners": 0,
+                  "consumer_listeners": 0,
+                  "mounted": false
+                },
+                "browser_heap": {
+                  "label": "cycle-1-stopped",
+                  "available": true,
+                  "source": "performance.memory",
+                  "used_js_heap_bytes": 5844130,
+                  "total_js_heap_bytes": 10407074,
+                  "js_heap_limit_bytes": 4395630592
+                }
+              }
+            ],
+            "stopped_cleanup": {
+              "canvas_trace_cleared": true,
+              "drop_zone_removed": true,
+              "file_evidence_cleared": true,
+              "file_input_removed": true,
+              "input_files_cleared": true,
+              "selected_file_cleared": true,
+              "transfer_observer_cleared": true
+            },
+            "observer_cleanup": {
+              "globals_cleared": true,
+              "listeners_removed": 4
+            }
+          },
+          {
+            "cycle": 2,
+            "status": "complete",
+            "phases": [
+              {
+                "phase": "mounted",
+                "gallery": {
+                  "wasm_bytes": 404357120,
+                  "host_listeners": 31,
+                  "consumer_listeners": 21,
+                  "mounted": true
+                },
+                "browser_heap": {
+                  "label": "cycle-2-mounted",
+                  "available": true,
+                  "source": "performance.memory",
+                  "used_js_heap_bytes": 5844130,
+                  "total_js_heap_bytes": 10407074,
+                  "js_heap_limit_bytes": 4395630592
+                }
+              },
+              {
+                "phase": "transfer",
+                "gallery": {
+                  "wasm_bytes": 404357120,
+                  "host_listeners": 31,
+                  "consumer_listeners": 21,
+                  "mounted": true
+                },
+                "browser_heap": {
+                  "label": "cycle-2-transfer",
+                  "available": true,
+                  "source": "performance.memory",
+                  "used_js_heap_bytes": 69364320,
+                  "total_js_heap_bytes": 74417496,
+                  "js_heap_limit_bytes": 4395630592
+                }
+              },
+              {
+                "phase": "decoded",
+                "gallery": {
+                  "wasm_bytes": 404357120,
+                  "host_listeners": 31,
+                  "consumer_listeners": 21,
+                  "mounted": true
+                },
+                "browser_heap": {
+                  "label": "cycle-2-decoded",
+                  "available": true,
+                  "source": "performance.memory",
+                  "used_js_heap_bytes": 71552248,
+                  "total_js_heap_bytes": 76113336,
+                  "js_heap_limit_bytes": 4395630592
+                }
+              },
+              {
+                "phase": "cine",
+                "gallery": {
+                  "wasm_bytes": 404357120,
+                  "host_listeners": 31,
+                  "consumer_listeners": 21,
+                  "mounted": true
+                },
+                "browser_heap": {
+                  "label": "cycle-2-cine",
+                  "available": true,
+                  "source": "performance.memory",
+                  "used_js_heap_bytes": 4420881,
+                  "total_js_heap_bytes": 8710513,
+                  "js_heap_limit_bytes": 4395630592
+                }
+              },
+              {
+                "phase": "stopped",
+                "gallery": {
+                  "wasm_bytes": 404357120,
+                  "host_listeners": 0,
+                  "consumer_listeners": 0,
+                  "mounted": false
+                },
+                "browser_heap": {
+                  "label": "cycle-2-stopped",
+                  "available": true,
+                  "source": "performance.memory",
+                  "used_js_heap_bytes": 4420881,
+                  "total_js_heap_bytes": 8710513,
+                  "js_heap_limit_bytes": 4395630592
+                }
+              }
+            ],
+            "stopped_cleanup": {
+              "canvas_trace_cleared": true,
+              "drop_zone_removed": true,
+              "file_evidence_cleared": true,
+              "file_input_removed": true,
+              "input_files_cleared": true,
+              "selected_file_cleared": true,
+              "transfer_observer_cleared": true
+            },
+            "observer_cleanup": {
+              "globals_cleared": true,
+              "listeners_removed": 4
+            }
+          },
+          {
+            "cycle": 3,
+            "status": "complete",
+            "phases": [
+              {
+                "phase": "mounted",
+                "gallery": {
+                  "wasm_bytes": 404357120,
+                  "host_listeners": 31,
+                  "consumer_listeners": 21,
+                  "mounted": true
+                },
+                "browser_heap": {
+                  "label": "cycle-3-mounted",
+                  "available": true,
+                  "source": "performance.memory",
+                  "used_js_heap_bytes": 4649829,
+                  "total_js_heap_bytes": 8722969,
+                  "js_heap_limit_bytes": 4395630592
+                }
+              },
+              {
+                "phase": "transfer",
+                "gallery": {
+                  "wasm_bytes": 404357120,
+                  "host_listeners": 31,
+                  "consumer_listeners": 21,
+                  "mounted": true
+                },
+                "browser_heap": {
+                  "label": "cycle-3-transfer",
+                  "available": true,
+                  "source": "performance.memory",
+                  "used_js_heap_bytes": 66282196,
+                  "total_js_heap_bytes": 71500364,
+                  "js_heap_limit_bytes": 4395630592
+                }
+              },
+              {
+                "phase": "decoded",
+                "gallery": {
+                  "wasm_bytes": 404357120,
+                  "host_listeners": 31,
+                  "consumer_listeners": 21,
+                  "mounted": true
+                },
+                "browser_heap": {
+                  "label": "cycle-3-decoded",
+                  "available": true,
+                  "source": "performance.memory",
+                  "used_js_heap_bytes": 68446164,
+                  "total_js_heap_bytes": 72934060,
+                  "js_heap_limit_bytes": 4395630592
+                }
+              },
+              {
+                "phase": "cine",
+                "gallery": {
+                  "wasm_bytes": 404357120,
+                  "host_listeners": 31,
+                  "consumer_listeners": 21,
+                  "mounted": true
+                },
+                "browser_heap": {
+                  "label": "cycle-3-cine",
+                  "available": true,
+                  "source": "performance.memory",
+                  "used_js_heap_bytes": 69572606,
+                  "total_js_heap_bytes": 74767238,
+                  "js_heap_limit_bytes": 4395630592
+                }
+              },
+              {
+                "phase": "stopped",
+                "gallery": {
+                  "wasm_bytes": 404357120,
+                  "host_listeners": 0,
+                  "consumer_listeners": 0,
+                  "mounted": false
+                },
+                "browser_heap": {
+                  "label": "cycle-3-stopped",
+                  "available": true,
+                  "source": "performance.memory",
+                  "used_js_heap_bytes": 69668851,
+                  "total_js_heap_bytes": 74767639,
+                  "js_heap_limit_bytes": 4395630592
+                }
+              }
+            ],
+            "stopped_cleanup": {
+              "canvas_trace_cleared": true,
+              "drop_zone_removed": true,
+              "file_evidence_cleared": true,
+              "file_input_removed": true,
+              "input_files_cleared": true,
+              "selected_file_cleared": true,
+              "transfer_observer_cleared": true
+            },
+            "observer_cleanup": {
+              "globals_cleared": true,
+              "listeners_removed": 4
+            }
+          },
+          {
+            "cycle": 4,
+            "status": "complete",
+            "phases": [
+              {
+                "phase": "mounted",
+                "gallery": {
+                  "wasm_bytes": 404357120,
+                  "host_listeners": 31,
+                  "consumer_listeners": 21,
+                  "mounted": true
+                },
+                "browser_heap": {
+                  "label": "cycle-4-mounted",
+                  "available": true,
+                  "source": "performance.memory",
+                  "used_js_heap_bytes": 69668851,
+                  "total_js_heap_bytes": 74767639,
+                  "js_heap_limit_bytes": 4395630592
+                }
+              },
+              {
+                "phase": "transfer",
+                "gallery": {
+                  "wasm_bytes": 404357120,
+                  "host_listeners": 31,
+                  "consumer_listeners": 21,
+                  "mounted": true
+                },
+                "browser_heap": {
+                  "label": "cycle-4-transfer",
+                  "available": true,
+                  "source": "performance.memory",
+                  "used_js_heap_bytes": 106121517,
+                  "total_js_heap_bytes": 110437993,
+                  "js_heap_limit_bytes": 4395630592
+                }
+              },
+              {
+                "phase": "decoded",
+                "gallery": {
+                  "wasm_bytes": 404357120,
+                  "host_listeners": 31,
+                  "consumer_listeners": 21,
+                  "mounted": true
+                },
+                "browser_heap": {
+                  "label": "cycle-4-decoded",
+                  "available": true,
+                  "source": "performance.memory",
+                  "used_js_heap_bytes": 3780003,
+                  "total_js_heap_bytes": 11262155,
+                  "js_heap_limit_bytes": 4395630592
+                }
+              },
+              {
+                "phase": "cine",
+                "gallery": {
+                  "wasm_bytes": 404357120,
+                  "host_listeners": 31,
+                  "consumer_listeners": 21,
+                  "mounted": true
+                },
+                "browser_heap": {
+                  "label": "cycle-4-cine",
+                  "available": true,
+                  "source": "performance.memory",
+                  "used_js_heap_bytes": 5406055,
+                  "total_js_heap_bytes": 11262503,
+                  "js_heap_limit_bytes": 4395630592
+                }
+              },
+              {
+                "phase": "stopped",
+                "gallery": {
+                  "wasm_bytes": 404357120,
+                  "host_listeners": 0,
+                  "consumer_listeners": 0,
+                  "mounted": false
+                },
+                "browser_heap": {
+                  "label": "cycle-4-stopped",
+                  "available": true,
+                  "source": "performance.memory",
+                  "used_js_heap_bytes": 5406055,
+                  "total_js_heap_bytes": 11262503,
+                  "js_heap_limit_bytes": 4395630592
+                }
+              }
+            ],
+            "stopped_cleanup": {
+              "canvas_trace_cleared": true,
+              "drop_zone_removed": true,
+              "file_evidence_cleared": true,
+              "file_input_removed": true,
+              "input_files_cleared": true,
+              "selected_file_cleared": true,
+              "transfer_observer_cleared": true
+            },
+            "observer_cleanup": {
+              "globals_cleared": true,
+              "listeners_removed": 4
+            }
+          }
+        ],
+        "cine_traces": [
+          {
+            "cycle": 1,
+            "sha256": "339cfe490fd5beb289ad5e185ebc81ec776caf2aaf778391bc7d315567fe7884",
+            "validator": "validated RITK browser trace: engine=chromium, canvases=3, metis_revision=9d14da154787e68f0b3d72290480aecbb838880b, ritk_revision=4bc8ad7245ae811ee9d23d0427c72b22b5e643b0"
+          },
+          {
+            "cycle": 2,
+            "sha256": "4f80a92b19a2ed91810b44ea558b95f9c2865afa6183c57205e48c3158b8d3db",
+            "validator": "validated RITK browser trace: engine=chromium, canvases=3, metis_revision=9d14da154787e68f0b3d72290480aecbb838880b, ritk_revision=4bc8ad7245ae811ee9d23d0427c72b22b5e643b0"
+          },
+          {
+            "cycle": 3,
+            "sha256": "75f4135fe5f606a2f70fe1577a8faf7c64db1d0bf83843b49e93a8aa30acd82f",
+            "validator": "validated RITK browser trace: engine=chromium, canvases=3, metis_revision=9d14da154787e68f0b3d72290480aecbb838880b, ritk_revision=4bc8ad7245ae811ee9d23d0427c72b22b5e643b0"
+          },
+          {
+            "cycle": 4,
+            "sha256": "07011ad38a42a2226dc7dfef7331f7a613ed59e97a8387eafef29c2e3c26cf2a",
+            "validator": "validated RITK browser trace: engine=chromium, canvases=3, metis_revision=9d14da154787e68f0b3d72290480aecbb838880b, ritk_revision=4bc8ad7245ae811ee9d23d0427c72b22b5e643b0"
+          }
+        ]
+      }
+    ],
+    "limits": [
+      "Committed WebAssembly capacity is not allocator-used bytes and does not shrink when allocations are freed.",
+      "Four same-study cycles detect retained guards and capacity growth at the recorded phases; no unbounded-duration leak claim.",
+      "Chromium performance.memory is sampled without forced garbage collection; its variable heap counters are evidence, not a growth gate. Firefox reports this API unavailable, not zero.",
+      "File chooser selection and Chromium CDP file-backed drops are automated input, not physical file-manager drag.",
+      "No WebKit, process-tree, compositor, GPU, or matched-framework resource comparison in this run."
+    ],
+    "verification": {
+      "metis_native": "42/42 metis-web nextest tests passed",
+      "metis_python": "87/87 browser script tests passed",
+      "ritk_focused_native": "59/59 nextest tests passed, 789 filtered out; browser, cine, lifecycle and DICOM workflow selection",
+      "ritk_wasm": "locked release library build passed against Metis 9d14da1",
+      "clippy": "native all-target and wasm32 ritk-snap Clippy passed with warnings denied against Metis031bc21; git diff 031bc21..9d14da1 -- crates/ is empty",
+      "cine_validator": "12/12 saved trace validations passed using the hashed native executable; validator source unchanged by the lifecycle fix",
+      "contention": "Initial native attempt and redundant CLI rebuild reached their 300-second outer limits after shared-cache contention; neither is reported as a passed gate."
+    }
+  }
 }
