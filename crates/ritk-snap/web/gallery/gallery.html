@@ -1,0 +1,42 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' 'wasm-unsafe-eval'; style-src 'self'; connect-src 'self' blob: http://127.0.0.1:8766 ws://127.0.0.1:8765; img-src 'self'; object-src 'none'; base-uri 'none'; frame-ancestors 'none'; form-action 'self'">
+  <title>DICOM study gallery</title>
+  <link rel="icon" type="image/svg+xml" href="./assets/metis-mark.svg">
+  <link rel="stylesheet" href="./styles.css">
+  <link rel="stylesheet" href="./gallery.css">
+</head>
+<body class="gallery">
+  <header>
+    <h1>DICOM study gallery</h1>
+    <p>Choose the DICOM files of one study with <strong>Choose study files</strong>, or drag them from your file manager onto the drop area below. Select files, not their enclosing folder.</p>
+    <p>Up to 512 files, 64 MiB per file, 256 MiB total. Files stay in this browser; RITK opens the study and renders the three views.</p>
+    <p id="gallery-status" role="status" aria-live="polite">Loading viewer…</p>
+  </header>
+  <main id="metis-app" aria-label="Study file transfer"></main>
+  <section class="gallery-views" aria-label="Orthogonal study views">
+    <figure>
+      <figcaption>Axial</figcaption>
+      <canvas id="ritk-snap-axial" width="512" height="512" aria-label="Axial study view"></canvas>
+      <label class="slice-control" for="slice-axial">Slice <output id="position-axial" for="slice-axial">No study</output></label>
+      <input id="slice-axial" type="range" min="0" max="0" value="0" step="1" aria-label="Axial slice" disabled>
+    </figure>
+    <figure>
+      <figcaption>Coronal</figcaption>
+      <canvas id="ritk-snap-coronal" width="512" height="512" aria-label="Coronal study view"></canvas>
+      <label class="slice-control" for="slice-coronal">Slice <output id="position-coronal" for="slice-coronal">No study</output></label>
+      <input id="slice-coronal" type="range" min="0" max="0" value="0" step="1" aria-label="Coronal slice" disabled>
+    </figure>
+    <figure>
+      <figcaption>Sagittal</figcaption>
+      <canvas id="ritk-snap-sagittal" width="512" height="512" aria-label="Sagittal study view"></canvas>
+      <label class="slice-control" for="slice-sagittal">Slice <output id="position-sagittal" for="slice-sagittal">No study</output></label>
+      <input id="slice-sagittal" type="range" min="0" max="0" value="0" step="1" aria-label="Sagittal slice" disabled>
+    </figure>
+  </section>
+  <script type="module" src="./gallery.js"></script>
+</body>
+</html>

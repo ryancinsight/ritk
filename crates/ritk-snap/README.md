@@ -98,6 +98,10 @@ canvas workflow. The page must provide both a `#metis-app` element for the
 Métis host and the canvas element whose ID is passed to `start_web`. Métis owns
 the browser `File` handles and transfers one bounded named-byte batch; RITK
 then classifies, scans and decodes those bytes through its DICOM loader.
+The checked-in DICOM consumer page is
+[`web/gallery`](web/gallery); it owns the chooser wording, DICOM filter, slice
+controls and three-canvas layout. The browser workflow passes that directory
+explicitly to Metis together with the generated RITK package.
 
 ```javascript
 import init, { start_web } from "./ritk_snap.js";
@@ -165,8 +169,8 @@ Browser controls can call `select_web_slice(axis, index)` with zero-based axis
 RITK rejects invalid coordinates without changing the selection. A changed
 selection renders on the next animation frame; controls observe the canvas
 `data-ritk-slice-index` and `data-ritk-slice-count` attributes to synchronize their
-position with selection, wheel navigation and cine playback. The Metis gallery
-provides one labeled range control per plane using this entrypoint.
+position with selection, wheel navigation and cine playback. The RITK consumer
+gallery provides one labeled range control per plane using this entrypoint.
 
 To produce the browser module, build the library target and run the pinned
 `wasm-bindgen 0.2.128` CLI over

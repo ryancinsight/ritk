@@ -8,7 +8,7 @@ on:
       metis_revision:
         description: Exact Métis commit resolved by Cargo.lock
         required: true
-        default: 9d14da154787e68f0b3d72290480aecbb838880b
+        default: 8ca04d505c3b2a48746c92d790048b0163964614
         type: string
 
 permissions:
@@ -17,7 +17,7 @@ permissions:
 env:
   CARGO_INCREMENTAL: 0
   RUST_BACKTRACE: 1
-  METIS_REVISION: ${{ inputs.metis_revision || '9d14da154787e68f0b3d72290480aecbb838880b' }}
+  METIS_REVISION: ${{ inputs.metis_revision || '8ca04d505c3b2a48746c92d790048b0163964614' }}
 
 concurrency:
   group: ritk-snap-metis-browser-${{ github.ref }}
@@ -86,7 +86,8 @@ jobs:
         run: |
           set -euo pipefail
           python scripts/browser.py build \
-            --ritk-package "$GITHUB_WORKSPACE/ritk/target/wasm-bindgen/ritk-snap"
+            --consumer-package "$GITHUB_WORKSPACE/ritk/target/wasm-bindgen/ritk-snap" \
+            --consumer-gallery "$GITHUB_WORKSPACE/ritk/crates/ritk-snap/web/gallery"
 
       - name: Derive the real-study canvas oracle
         working-directory: metis
