@@ -36,7 +36,7 @@
 
 <a id="RITK-BROWSER-READ-001"></a>
 ## RITK-BROWSER-READ-001 — Reproduce and close WebKit study reads
-- Status: blocked; priority: P0; integrator: root (takeover of stale webkit-read-root claim); last-update: 2026-09-16; branch: `codex/ritk-browser-read-evidence`.
+- Status: blocked; priority: P0; integrator: root; last-update: 2026-09-16; branch: `codex/ritk-browser-webkit-refresh`.
 - Scope: saved public MRI-DIR chooser replay and cross-engine gallery; provider/host fixes stay with their owners.
 - Acceptance: read-path cause and production fix, 94 file hashes, three exact pixel oracles, bounded rejections and clean sessions on Chromium, Firefox and WebKit.
 - Risk: [patch]; dependency: [Metis read diagnosis](../metis/backlog.md#METIS-BROWSER-READ-001).
