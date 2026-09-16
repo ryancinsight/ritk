@@ -78,7 +78,7 @@ jobs:
             -p ritk-snap --lib --target wasm32-unknown-unknown --release
           wasm-bindgen \
             target/wasm32-unknown-unknown/release/ritk_snap.wasm \
-            --target web --out-dir target/wasm-bindgen/ritk-snap
+            --target web --no-typescript --out-dir target/wasm-bindgen/ritk-snap
 
       - name: Build the Métis gallery with the RITK consumer
         working-directory: metis

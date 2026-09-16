@@ -1346,11 +1346,12 @@ CLI:
 ```powershell
 cargo build --locked -p ritk-snap --lib --target wasm32-unknown-unknown --release
 wasm-bindgen target/wasm32-unknown-unknown/release/ritk_snap.wasm `
-  --target web --out-dir target/wasm-bindgen/ritk-snap
+  --target web --no-typescript --out-dir target/wasm-bindgen/ritk-snap
 ```
 
-The package contains `ritk_snap.js`, `ritk_snap_bg.wasm`, and TypeScript
-declarations. Run those commands from a standalone checkout or CI; the local
+The consumer package contains only `ritk_snap.js` and `ritk_snap_bg.wasm`;
+`--no-typescript` omits declaration sidecars so Metis can validate the bounded
+runtime pair. Run those commands from a standalone checkout or CI; the local
 Atlas development overlay resolves first-party crates to working trees and is
 therefore verified with the equivalent unlocked release build. The generated
 module exports `start_web`, `start_web_canvas` and

@@ -127,7 +127,7 @@ build the `ritk-snap` library target for `wasm32-unknown-unknown` and run
 ```powershell
 cargo build --locked -p ritk-snap --lib --target wasm32-unknown-unknown --release
 wasm-bindgen target/wasm32-unknown-unknown/release/ritk_snap.wasm `
-  --target web --out-dir target/wasm-bindgen/ritk-snap
+  --target web --no-typescript --out-dir target/wasm-bindgen/ritk-snap
 ```
 
 Load the generated JS/WASM bundle in a page with both a `#metis-app` host
