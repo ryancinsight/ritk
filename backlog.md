@@ -1,4 +1,12 @@
 <a id="RITK-GALLERY-CYCLES-001"></a>
+<a id="RITK-BROWSER-ASPECT-001"></a>
+## RITK-BROWSER-ASPECT-001 — Preserve physical slice proportions
+- Status: in-progress; priority: P1; integrator: root; last-update: 2026-09-16; branch: `codex/browser-physical-aspect`.
+- Scope: RITK browser display geometry, regression tests and saved MRI gallery evidence; preserve backing RGBA pixels and generic Metis ownership.
+- Acceptance: each displayed axis uses voxel count times sample spacing; anisotropic geometry tests pass; rebuilt saved-study capture matches physical aspect, pixel oracles and cine trace.
+- Risk: [patch]; dependencies: existing browser presenter and loaded-volume geometry; driver: squashed coronal/sagittal planes in the prior capture.
+- Verification: focused nextest, native/WASM Clippy and release build, actual Edge gallery capture with independent DICOM geometry and PNG checks.
+
 ## RITK-GALLERY-CYCLES-001 — Repeated saved-study browser lifecycle
 - Status: done; delivery: [PR #409](https://github.com/ryancinsight/ritk/pull/409), merge `86632ab0afc667f83e746ab5c8ccb8ce8ca8a32b`; last-update: 2026-09-16.
 - Outcome: synchronous viewer teardown; 12 saved-study cycles pass file, RGBA and cine oracles with zero stopped listeners and stable post-warmup WASM capacity; [measured evidence](docs/manual/images/dicom-metis-real-browser-mri-memory.json).
