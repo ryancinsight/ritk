@@ -58,6 +58,12 @@ and checks file hashes, three exact RGBA canvases, bounded rejections, trusted
 input and listener teardown on each configured engine. The committed manual
 images and provenance remain the visual evidence.
 
+Revision 2026-09-16 (runtime package boundary): the RITK workflow invokes
+`wasm-bindgen --target web --no-typescript`, so the explicit consumer package
+contains exactly one JavaScript module and one WebAssembly module. Metis can
+validate that runtime pair without copying declaration sidecars; the consumer
+page and DICOM behavior are unchanged.
+
 ## Residuals
 
 Safari/WebKit selected-file authorization, physical file-manager drag input,

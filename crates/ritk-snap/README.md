@@ -179,7 +179,7 @@ To produce the browser module, build the library target and run the pinned
 ```powershell
 cargo build --locked -p ritk-snap --lib --target wasm32-unknown-unknown --release
 wasm-bindgen target/wasm32-unknown-unknown/release/ritk_snap.wasm `
-  --target web --out-dir target/wasm-bindgen/ritk-snap
+  --target web --no-typescript --out-dir target/wasm-bindgen/ritk-snap
 ```
 
 The generated web module exports the RITK-owned launch functions; DICOM bytes
