@@ -41,24 +41,27 @@ try {
     controls.forEach(({ sync }) => sync());
     status.textContent = "Stopped. Viewer resources released.";
   };
+  const customizePicker = () => {
+    const fileInput = document.getElementById("file-input");
+    const fileLabel = document.querySelector('label[for="file-input"]');
+    if (!(fileInput instanceof HTMLInputElement) || !(fileLabel instanceof HTMLLabelElement)) {
+      throw new Error("Metis file picker controls are missing");
+    }
+    fileInput.accept = ".dcm,application/dicom";
+    fileLabel.textContent = "Choose study files";
+  };
   const mount = () => {
     stop();
     start_web_orthogonal_canvases(
       "ritk-snap-axial", "ritk-snap-coronal", "ritk-snap-sagittal",
     );
     mounted = true;
+    // Host mounting may replace the format-neutral controls on every cycle.
+    // Reapply the consumer's DICOM policy after each mount.
+    customizePicker();
     status.textContent = "Ready. Drop study files into the area below.";
   };
   mount();
-  // The host exposes a format-neutral file picker. RITK supplies the DICOM
-  // filter and wording at this consumer boundary after the host mounts.
-  const fileInput = document.getElementById("file-input");
-  const fileLabel = document.querySelector('label[for="file-input"]');
-  if (!(fileInput instanceof HTMLInputElement) || !(fileLabel instanceof HTMLLabelElement)) {
-    throw new Error("Metis file picker controls are missing");
-  }
-  fileInput.accept = ".dcm,application/dicom";
-  fileLabel.textContent = "Choose study files";
   window.metisGallery = Object.freeze({
     mount, stop,
     sample: () => ({
