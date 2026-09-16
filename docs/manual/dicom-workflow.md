@@ -54,6 +54,13 @@ below explain how to reproduce and inspect each component boundary. RITK owns
 scanning, decoding, geometry, and clinical presentation; Métis owns the bounded
 host, canvas, and window lifecycle.
 
+The browser canvas provider is pinned to Moirai merge
+`5cf572f734a3a50cf57eafe67dd3723e7e303116`. Repeated RGBA frames with the
+current extent retain the validated bitmap; a changed width or height takes
+the bounded resize path. This keeps the browser presentation lifecycle stable
+without changing DICOM decoding or the displayed pixels. It is an allocation
+lifecycle guard, not a measurement of WebAssembly or browser memory.
+
 Build from a standalone RITK checkout, then run the bounded demonstration:
 
 ```console
