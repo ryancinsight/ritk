@@ -6,15 +6,12 @@
     "file": ".github/workflows/metis-browser-dicom.yml",
     "run_id": 35089121864,
     "url": "https://github.com/ryancinsight/ritk/actions/runs/35089121864",
-    "conclusion": "queued",
+    "conclusion": "failure",
     "observed_date": "2026-09-16",
     "ritk_revision": "3b7386c5f58b39e479e9a9ee99a10b575fd102f",
     "metis_revision": "0d1d5bc42b22547fe50f30fac94e475873a507a7",
     "moirai_revision": "c9a4431b2320adb8cd3e5a5f12d1632c18378950",
-    "run_status": "queued",
-    "queued_engines": [
-      "webkit"
-    ]
+    "run_status": "completed"
   },
   "dataset": {
     "path": "test_data/2_head_mri_t2/DICOM",
@@ -481,7 +478,7 @@
       "browser_version": "26.6.2",
       "platform": "macOS",
       "input_source": "chooser",
-      "consumer_revision": "d07c338137bbaaaa38dcdaadaf47a2e6f321efb7",
+      "consumer_revision": "3b7386c5f58b39e479e9a9ee99a10b575fd102f9",
       "metis_revision": "0d1d5bc42b22547fe50f30fac94e475873a507a7",
       "files": null,
       "bytes": null,
@@ -527,9 +524,9 @@
         "status": "Drop status: accepted 94 file(s); 00000001.dcm (529864 bytes), 00000002.dcm (529864 bytes), 00000003.dcm (529864 bytes); ...",
         "bytes": "Byte access: browser rejected the bounded whole-file read"
       },
-      "artifact_id": 10443511896,
-      "artifact_url": "https://github.com/ryancinsight/ritk/actions/runs/35086915947/artifacts/10443511896",
-      "trace_sha256": "f5bcd8d8b5ef34deeb81077d41d1df8a14a3f2d80073f997e64190fec5f82cb",
+      "artifact_id": 10445741511,
+      "artifact_url": "https://github.com/ryancinsight/ritk/actions/runs/35089121864/artifacts/10445741511",
+      "trace_sha256": "586429faa3534f0042ab4de8d586c5a91e38feae000285eea93c485fb1b9cbd5",
       "file_read_diagnostic": {
         "status": "captured",
         "cleanup_exceptions": [
@@ -555,9 +552,9 @@
           }
         }
       },
-      "evidence_run_id": 35086915947,
-      "evidence_run_url": "https://github.com/ryancinsight/ritk/actions/runs/35086915947",
-      "evidence_note": "The current replay WebKit job is queued; this failure capture uses the preceding mount-order replay, which reaches the same selected-file read boundary before any remount.",
+      "evidence_run_id": 35089121864,
+      "evidence_run_url": "https://github.com/ryancinsight/ritk/actions/runs/35089121864",
+      "evidence_note": "The WebKit job in the current cross-engine replay completed with the same selected-file read denial; Chromium and Firefox passed. SafariDriver accepted 94 files, but WebKit denied the first browser read.",
       "read_selection_diagnostic": {
         "status": "captured",
         "selections": [
@@ -636,7 +633,7 @@
   "verification": {
     "chromium": "passed: 94 file hashes, three exact pixel oracles, bounded rejections, trusted cine-rate/repeat and frame-generation checks, clean teardown across four mount cycles; consumer picker label and DICOM filter persist after each remount",
     "firefox": "passed: 94 file hashes, three exact pixel oracles, bounded rejections, trusted cine-rate/repeat and frame-generation checks, clean teardown across four mount cycles; consumer picker label and DICOM filter persist after each remount",
-    "webkit": "current run 35089121864 has Chromium/Firefox results; WebKit remains queued, and source-equivalent Safari read diagnostics are retained from run 35086915947",
+    "webkit": "failed in current run 35089121864 after accepted 94-file selection; WebKit denied the first bounded read. The current artifact records NotReadableError for File.arrayBuffer, bounded slice and FileReader, TypeError for blob stream, and clean session teardown.",
     "ownership": "RITK owns DICOM scanning, decoding, geometry, clinical presentation, and pixel assertions; Métis remains format-neutral; Moirai owns browser file reads",
     "native": {
       "revision": "15d3d3c3dd416b72cf901d652522c4877d38d664",
@@ -658,7 +655,7 @@
     "file-backed WebDriver chooser is not physical file-manager drag input",
     "native file-dialog, native process-launch, and OS-permission evidence is not covered",
     "WebGPU evidence is not covered",
-    "Safari 26.6.2 rejected the selected file read before RITK could render its canvases or receive keyboard actions"
+    "Safari 26.6.2 accepted 94 selected files in run 35089121864 but rejected the first bounded read before RITK could render its canvases or receive keyboard actions"
   ],
   "read_path": {
     "owner": "Moirai moirai-pal/src/wasm/file.rs WebFile::read",
@@ -668,11 +665,11 @@
     "before_consumer": true,
     "diagnosis_limit": "The selected real file is denied by the WebKit sandbox: WebContent cannot read it or issue a read extension, and Networking cannot read it. Host readability and the expected digest are verified. The exact SafariDriver/WebKit grant defect is not established; Metis and Moirai cannot confer browser sandbox access.",
     "isolated_selection": {
-      "workflow_run_id": 35086915947,
-      "workflow_url": "https://github.com/ryancinsight/ritk/actions/runs/35086915947",
-      "ritk_revision": "d07c338137bbaaaa38dcdaadaf47a2e6f321efb7",
+      "workflow_run_id": 35089121864,
+      "workflow_url": "https://github.com/ryancinsight/ritk/actions/runs/35089121864",
+      "ritk_revision": "3b7386c5f58b39e479e9a9ee99a10b575fd102f9",
       "metis_revision": "0d1d5bc42b22547fe50f30fac94e475873a507a7",
-      "trace_sha256": "f5bcd8d8b5ef34deeb81077d41d1df8a14a3f2d80073f997e64190fec5f82cb",
+      "trace_sha256": "586429faa3534f0042ab4de8d586c5a91e38feae000285eea93c485fb1b9cbd5",
       "result": {
         "status": "captured",
         "selections": [
@@ -748,9 +745,9 @@
       }
     },
     "sandbox_access": {
-      "workflow_run_id": 35086915947,
-      "workflow_url": "https://github.com/ryancinsight/ritk/actions/runs/35086915947",
-      "ritk_revision": "d07c338137bbaaaa38dcdaadaf47a2e6f321efb7",
+      "workflow_run_id": 35089121864,
+      "workflow_url": "https://github.com/ryancinsight/ritk/actions/runs/35089121864",
+      "ritk_revision": "3b7386c5f58b39e479e9a9ee99a10b575fd102f9",
       "metis_revision": "0d1d5bc42b22547fe50f30fac94e475873a507a7",
       "engine_status": "failed",
       "file_access": {
@@ -828,38 +825,38 @@
       },
       "diagnostic_sha256": {
         "filesystem": "1db4af388cb339a25972226fafde72f4443e750b999e424bbaaf2ee8a79eed25",
-        "sandbox": "53d960334cc940e867606de757568fdcb73260b418a3f959ba399f433a392ada",
-        "driver": "5509934dfef0cff636b304ce4c7fe64c5e3616f6cbf137dd8c437a45c9d9d2a3",
-        "trace": "2ac7d64c8252acfb96a0cc481fb4dda7f3685a8f85b24f125bdd277b9bb1ec58"
+        "sandbox": "975519cfa8ff4aa6fd607ac4e3f17c26aa2348224cd0126383e8defc6afae10e",
+        "driver": "12d3ebebde5b9b8dcd0d98c7784ac3341f3ec3db67a8c77a2baaf8d46fe49b99",
+        "trace": "586429faa3534f0042ab4de8d586c5a91e38feae000285eea93c485fb1b9cbd5"
       },
       "artifact_urls": {
-        "gallery": "https://github.com/ryancinsight/ritk/actions/runs/34984468153/artifacts/10403359305",
-        "driver": "https://github.com/ryancinsight/ritk/actions/runs/34984468153/artifacts/10403189930"
+        "gallery": "https://github.com/ryancinsight/ritk/actions/runs/35089121864/artifacts/10445741511",
+        "driver": "https://github.com/ryancinsight/ritk/actions/runs/35089121864/artifacts/10445422456"
       },
       "upload_command": {
         "method": "Automation.setFilesToSelectForFileUpload",
-        "driver_log_line": 103,
-        "request_id": 29,
+        "driver_log_line": 234,
+        "request_id": 70,
         "result": "accepted"
       },
       "denials": [
         {
           "category": "web-read",
-          "line": 73,
-          "timestamp": "2026-09-15 15:08:30.734954+0000",
-          "message": "Sandbox: com.apple.WebKit.WebContent(2863) deny(1) file-read-data /Users/runner/work/ritk/ritk/ritk/test_data/2_head_mri_t2/DICOM/00000001.dcm"
+          "line": 27,
+          "timestamp": "2026-09-16 12:08:23.384572+0000",
+          "message": "Sandbox: com.apple.WebKit.WebContent(4619) deny(1) file-read-data <checkout>/test_data/2_head_mri_t2/DICOM/00000001.dcm"
         },
         {
           "category": "extension",
-          "line": 74,
-          "timestamp": "2026-09-15 15:08:30.744821+0000",
-          "message": "Sandbox: com.apple.WebKit.WebContent(2863) deny(1) file-issue-extension target:/Users/runner/work/ritk/ritk/ritk/test_data/2_head_mri_t2/DICOM/00000001.dcm extension-class:com.apple.app-sandbox.read"
+          "line": 28,
+          "timestamp": "2026-09-16 12:08:23.393074+0000",
+          "message": "Sandbox: com.apple.WebKit.WebContent(4619) deny(1) file-issue-extension target:<checkout>/test_data/2_head_mri_t2/DICOM/00000001.dcm extension-class:com.apple.app-sandbox.read"
         },
         {
           "category": "network-read",
-          "line": 264,
-          "timestamp": "2026-09-15 15:08:30.796019+0000",
-          "message": "Sandbox: com.apple.WebKit.Networking(2868) deny(1) file-read-data /Users/runner/work/ritk/ritk/ritk/test_data/2_head_mri_t2/DICOM/00000001.dcm"
+          "line": 218,
+          "timestamp": "2026-09-16 12:08:23.482348+0000",
+          "message": "Sandbox: com.apple.WebKit.Networking(4625) deny(1) file-read-data <checkout>/test_data/2_head_mri_t2/DICOM/00000001.dcm"
         }
       ]
     }
