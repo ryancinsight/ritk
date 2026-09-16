@@ -16,7 +16,7 @@ decoded-workspace budgets, and return the RITK `Image` plus
 boundary; the host owns only input and presentation lifecycle.
 
 The standalone lock used by the viewer resolves the six Metis packages at
-`0d1d5bc42b22547fe50f30fac94e475873a507a7`, and the fifteen
+`88c60a0b6410c0e07700e965bcdbea43b7b20789`, and the fifteen
 Moirai packages at `1fe0750962444283c23633dd33d766e503bca9fe`. The browser chooser and Windows
 package workflows default to that Metis revision. These are provider pins; RITK
 continues to own DICOM scanning, decoding, geometry and clinical presentation.
@@ -1021,11 +1021,14 @@ diagnostic globals are removed. Stop now drops the RITK viewer and its decoded
 state synchronously before cancelling the animation task; the diagnostic
 runner removes its own four transfer listeners and retained file references.
 
-Use the existing `browser_drop.py` cine command with `--lifecycle-cycles 4`.
+Use the RITK consumer wrapper with `--lifecycle-cycles 4`; it delegates the
+format-neutral file and canvas transport to the pinned Metis checkout.
 Repeated mode accepts 4–8 cycles and a maximum 300-second suite deadline,
 including a reserved cleanup interval. Each `canvas-trace-cycle-N.json` must
-pass RITK's `--validate-browser-trace <path> --require-cine-rate` command.
+pass RITK validation with `--validate-browser-trace <path> --require-cine-rate`.
 The Chromium drop variant uses `--input chromium`; Firefox uses `--input chooser`.
+The wrapper is `scripts/browser_gallery.py --metis-root <metis-checkout>` and
+keeps DICOM and viewer assertions in RITK.
 
 The [memory provenance](images/dicom-metis-real-browser-mri-memory.json)
 retains the older reload baseline and adds `same_instance_cycles`, with every

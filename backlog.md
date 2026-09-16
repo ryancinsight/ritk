@@ -22,6 +22,14 @@
 - Outcome: RITK owns the DICOM gallery HTML, CSS, WASM entrypoint and saved-study presentation while Metis packages only explicit consumer assets.
 - Delivery: RITK PRs [#414](https://github.com/ryancinsight/ritk/pull/414), [#416](https://github.com/ryancinsight/ritk/pull/416), [#418](https://github.com/ryancinsight/ritk/pull/418), [#419](https://github.com/ryancinsight/ritk/pull/419); hosted run [35089121864](https://github.com/ryancinsight/ritk/actions/runs/35089121864) passes the real 94-file MRI workflow on Chromium/Firefox, with WebKit read residual in [RITK-BROWSER-READ-001](#RITK-BROWSER-READ-001).
 
+<a id="RITK-BROWSER-GALLERY-HARNESS-001"></a>
+## RITK-BROWSER-GALLERY-HARNESS-001 — Own the browser slice-control harness [arch] [patch]
+- Status: in-progress; priority: P1; integrator: root; owner: RITK SNAP browser; last-update: 2026-09-16; branch: `arch/browser-gallery-harness`; regions: `scripts/browser_gallery*.py`, `scripts/tests/test_browser_gallery.py`, `.github/workflows/metis-browser-dicom.yml`, `docs/manual/dicom-workflow.md`, `docs/adr/0036-browser-gallery-ownership.md`, `backlog.md`; dependencies: Metis `METIS-BROWSER-001`; ADR: [0036](docs/adr/0036-browser-gallery-ownership.md).
+- Outcome: RITK owns the slice-control runner, evidence helpers and saved-study assertions; Metis exposes only the generic file/canvas host and bounded consumer callback.
+- Scope: `scripts/browser_gallery*.py`, `scripts/tests/test_browser_gallery.py`, `.github/workflows/metis-browser-dicom.yml`, manual commands and provenance; no DICOM logic moves into Metis.
+- Acceptance: the RITK wrapper delegates transfer to the pinned Metis revision, captures all 50 trusted slider actions and 18 invalid probes, restores exact pixels, validates teardown and passes the hosted Chromium/Firefox/WebKit matrix or records the engine-specific residual.
+- Delivery: commits `32c639efa` and `9d2976f71` move the harness and callback test into RITK; Metis PR [#193](https://github.com/ryancinsight/metis/pull/193) merged at `88c60a0b`; the standalone lock and browser/package workflow defaults now pin that revision. Hosted evidence must be regenerated from this consumer wrapper.
+
 <a id="RITK-GALLERY-CYCLES-001"></a>
 ## RITK-GALLERY-CYCLES-001 — Repeated saved-study browser lifecycle
 - Status: done; delivery: [PR #409](https://github.com/ryancinsight/ritk/pull/409), merge `86632ab0afc667f83e746ab5c8ccb8ce8ca8a32b`; last-update: 2026-09-16.

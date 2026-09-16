@@ -74,6 +74,16 @@ consumer label and DICOM filter after the host inserts its controls. Lifecycle
 teardown replaces those controls, so a one-time customization would silently
 restore the generic picker on the next cycle.
 
+Revision 2026-09-16 (harness ownership): the slice-control browser harness now
+lives in `scripts/browser_gallery*.py` beside the RITK consumer tests. Its
+wrapper imports the generic Metis runner through an explicit `--metis-root`,
+passes RITK's post-transfer capture callback, and records consumer evidence
+under the RITK output contract. The Metis scripts no longer contain RITK canvas
+IDs, DICOM filters or slice-control behavior.
+The dependent RITK lock and browser/package workflow defaults pin Metis merge
+`88c60a0b6410c0e07700e965bcdbea43b7b20789`; hosted evidence will be regenerated
+from this wrapper.
+
 ## Residuals
 
 Safari/WebKit selected-file authorization, physical file-manager drag input,
