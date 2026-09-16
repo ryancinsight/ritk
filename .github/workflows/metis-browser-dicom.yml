@@ -86,7 +86,8 @@ jobs:
         run: |
           set -euo pipefail
           python scripts/browser.py build \
-            --ritk-package "$GITHUB_WORKSPACE/ritk/target/wasm-bindgen/ritk-snap"
+            --consumer-package "$GITHUB_WORKSPACE/ritk/target/wasm-bindgen/ritk-snap" \
+            --consumer-gallery "$GITHUB_WORKSPACE/ritk/crates/ritk-snap/web/gallery"
 
       - name: Derive the real-study canvas oracle
         working-directory: metis

@@ -44,3 +44,4 @@
 | [0033](0033-browser-trace-validator.md) | RITK browser trace semantic validator | Accepted |
 | [0034](0034-native-mip-presentation-layout.md) | Native Métis projection layout | Accepted |
 | [0035](0035-browser-event-trust.md) | Reject synthetic browser canvas input | Accepted |
+| [0036](0036-browser-gallery-ownership.md) | RITK browser gallery ownership | Accepted |

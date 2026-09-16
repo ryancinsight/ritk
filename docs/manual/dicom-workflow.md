@@ -1306,7 +1306,12 @@ release-authority decisions.
 ## Open dropped DICOM files in the browser host
 
 The browser build uses the same RITK byte loader as the native dropped-input
-path. The HTML page supplies a Métis mount point and a named canvas:
+path. The complete DICOM consumer page is kept in
+[`crates/ritk-snap/web/gallery`](../../crates/ritk-snap/web/gallery), and the
+workflow passes it explicitly to Metis after building the RITK WebAssembly
+package. This keeps the chooser wording, slice controls and three-canvas
+presentation with the DICOM consumer. The HTML page supplies a Métis mount
+point and a named canvas:
 
 ```html
 <main id="metis-app" aria-label="Métis browser host"></main>

@@ -1,0 +1,22 @@
+.gallery { max-width: 1600px; margin: 0 auto; padding: 16px; font-family: system-ui, sans-serif; }
+.gallery > header { margin-bottom: 16px; }
+.gallery h1 { margin: 0; }
+.gallery p { margin: 8px 0; }
+.gallery #metis-app { display: block; max-width: none; padding: 0; }
+/* Keep the mounted host and its Rust listeners; expose only file transfer. */
+.gallery #metis-app > :not(.metis-drop) { display: none; }
+.gallery .metis-drop { margin: 0 0 16px; padding: 12px; }
+.gallery .metis-drop h2 { margin: 0; font-size: 1.1rem; }
+.gallery #drop-zone { min-height: 64px; padding: 12px; display: grid; place-items: center; }
+.gallery-views { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 20px; }
+.gallery-views figure { margin: 0; min-width: 0; }
+.gallery-views figcaption { margin-bottom: 8px; font-weight: 600; }
+.gallery-views canvas { display: block; width: 100%; height: auto; background: #000; }
+.slice-control { display: flex; justify-content: space-between; margin-top: 12px; }
+.slice-control output { font-variant-numeric: tabular-nums; }
+.gallery-views input[type="range"] { display: block; width: 100%; margin: 8px 0; cursor: pointer; }
+.gallery-views input[type="range"]:disabled { cursor: default; }
+@media (max-width: 700px) {
+  .gallery { padding: 16px; }
+  .gallery-views { grid-template-columns: 1fr; }
+}
