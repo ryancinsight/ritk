@@ -14,14 +14,15 @@
 ## RITK-BROWSER-LOCAL-BOX-001 — Map custom embedded canvas boxes
 - Status: done; delivery: [PR #412](https://github.com/ryancinsight/ritk/pull/412), merge `c8a323c56746e9bbbb20e52dd48cb9b101b842eb`; implementation `c08749927`; last-update: 2026-09-16.
 - Outcome: event-time content coordinates preserve voxel selection across borders, padding and affine transforms; Metis stays format-neutral. [Contract](docs/adr/0032-browser-semantic-snapshot.md).
-- Evidence: 872 native tests, native/WASM strict Clippy, locked standalone WASM and three Edge layouts pass; final report SHA256 `d327d0edaa8072825b50993b5c4b7ee902c9d0bad6fb523303c875eecb05658d`. Provider [Metis PR #178](https://github.com/ryancinsight/metis/pull/178) remains queued; published `dce79dbe` is pinned and verified.
+- Evidence: 872 native tests, native/WASM strict Clippy, locked standalone WASM and three Edge layouts pass; final report SHA256 `d327d0edaa8072825b50993b5c4b7ee902c9d0bad6fb523303c875eecb05658d`. Provider [Metis PR #178](https://github.com/ryancinsight/metis/pull/178) merged at `8ca04d5`; the ownership pin is advanced by RITK-BROWSER-GALLERY-001.
 
 <a id="RITK-BROWSER-GALLERY-001"></a>
 ## RITK-BROWSER-GALLERY-001 — Own the DICOM browser consumer page [arch] [patch]
-- Status: in-progress; priority: P1; owner: RITK SNAP browser; integrator: root; last-update: 2026-09-16; branch: `codex/ritk-browser-gallery-owner`; dependencies: Metis `METIS-DICOM-005`; risk: consumer packaging boundary; ADR: [0036](docs/adr/0036-browser-gallery-ownership.md).
+- Status: in-progress; priority: P1; owner: RITK SNAP browser; integrator: root; last-update: 2026-09-16; branch: `codex/ritk-metis-gallery-pin`; dependencies: Metis `METIS-DICOM-005`; risk: consumer packaging boundary; ADR: [0036](docs/adr/0036-browser-gallery-ownership.md).
 - Outcome: RITK owns the DICOM gallery HTML, CSS, WASM entrypoint and saved-study presentation while Metis packages only explicit consumer assets.
 - Acceptance: the locked RITK workflow supplies its gallery to Metis, opens the saved 94-file MRI study, renders all three real canvases, and preserves Chromium/Firefox pixel, rejection and teardown oracles.
 - Verification: standalone RITK tests/WASM checks plus the hosted browser workflow against the merged Metis revision; DICOM parsing and image evidence remain RITK-owned.
+- Delivery: gallery and ownership contract merged in [PR #414](https://github.com/ryancinsight/ritk/pull/414) at `8cf7c67f`; hosted verification is re-opened for Metis `0d1d5bc`.
 
 <a id="RITK-GALLERY-CYCLES-001"></a>
 ## RITK-GALLERY-CYCLES-001 — Repeated saved-study browser lifecycle
