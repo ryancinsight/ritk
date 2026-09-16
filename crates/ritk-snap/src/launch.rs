@@ -244,6 +244,17 @@ pub fn start_web_canvas(canvas_id: String) -> Result<(), wasm_bindgen::JsValue> 
     crate::app::start_web_canvas(canvas_id)
 }
 
+/// Start the RITK browser canvas workflow through an explicit WebGPU surface.
+///
+/// The future resolves after WebGPU adapter/device setup and listener
+/// registration complete. Setup errors are returned to JavaScript; the
+/// existing raster entrypoint is never selected implicitly.
+#[cfg(target_arch = "wasm32")]
+#[wasm_bindgen::prelude::wasm_bindgen]
+pub async fn start_web_canvas_gpu(canvas_id: String) -> Result<(), wasm_bindgen::JsValue> {
+    crate::app::start_web_canvas_gpu(canvas_id).await
+}
+
 /// Start the RITK browser canvas workflow with three orthogonal views.
 ///
 /// The identifiers are ordered axial, coronal, sagittal. RITK owns the
@@ -257,6 +268,20 @@ pub fn start_web_orthogonal_canvases(
     sagittal_id: String,
 ) -> Result<(), wasm_bindgen::JsValue> {
     crate::app::start_web_orthogonal_canvases([axial_id, coronal_id, sagittal_id])
+}
+
+/// Start the RITK orthogonal browser workflow through explicit WebGPU surfaces.
+///
+/// Identifiers are ordered axial, coronal, sagittal. The future rejects when
+/// any canvas cannot acquire WebGPU or register its bounded input listeners.
+#[cfg(target_arch = "wasm32")]
+#[wasm_bindgen::prelude::wasm_bindgen]
+pub async fn start_web_orthogonal_canvases_gpu(
+    axial_id: String,
+    coronal_id: String,
+    sagittal_id: String,
+) -> Result<(), wasm_bindgen::JsValue> {
+    crate::app::start_web_orthogonal_canvases_gpu([axial_id, coronal_id, sagittal_id]).await
 }
 
 /// Select an exact zero-based slice on one browser viewer axis.

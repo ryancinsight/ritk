@@ -32,7 +32,7 @@ pub use events::{
 pub use frame::PresentationFrame;
 
 #[cfg(target_arch = "wasm32")]
-pub use web::WebCanvasPresenter;
+pub use web::{WebCanvasInputError, WebCanvasPresenter};
 
 #[cfg(windows)]
 pub use native::{run_native_frame, translate_native_events, NativeFrameOutcome};

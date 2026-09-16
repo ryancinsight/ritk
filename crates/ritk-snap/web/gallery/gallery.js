@@ -1,10 +1,13 @@
 // RITK owns the viewer loop and consumes Metis's bounded byte handoff.
 const status = document.getElementById("gallery-status");
 try {
-  const { default: init, start_web_orthogonal_canvases, stop_web_canvas,
-    web_canvas_listener_count, select_web_slice } =
+  const { default: init, start_web_orthogonal_canvases,
+    start_web_orthogonal_canvases_gpu, stop_web_canvas, web_canvas_listener_count,
+    select_web_slice } =
     await import("./consumer/ritk_snap.js");
   const runtime = await init();
+  const renderer = new URLSearchParams(window.location.search).get("renderer") === "webgpu"
+    ? "webgpu" : "raster";
   let mounted = false;
   const controls = ["axial", "coronal", "sagittal"].map((name, axis) => {
     const canvas = document.getElementById(`ritk-snap-${name}`);
@@ -50,18 +53,23 @@ try {
     fileInput.accept = ".dcm,application/dicom";
     fileLabel.textContent = "Choose study files";
   };
-  const mount = () => {
+  const mount = async () => {
     stop();
-    start_web_orthogonal_canvases(
-      "ritk-snap-axial", "ritk-snap-coronal", "ritk-snap-sagittal",
-    );
+    const canvasIds = ["ritk-snap-axial", "ritk-snap-coronal", "ritk-snap-sagittal"];
+    if (renderer === "webgpu") {
+      await start_web_orthogonal_canvases_gpu(...canvasIds);
+    } else {
+      start_web_orthogonal_canvases(...canvasIds);
+    }
     mounted = true;
     // Host mounting may replace the format-neutral controls on every cycle.
     // Reapply the consumer's DICOM policy after each mount.
     customizePicker();
-    status.textContent = "Ready. Drop study files into the area below.";
+    status.textContent = renderer === "webgpu"
+      ? "Ready with WebGPU. Drop study files into the area below."
+      : "Ready. Drop study files into the area below.";
   };
-  mount();
+  await mount();
   window.metisGallery = Object.freeze({
     mount, stop,
     sample: () => ({

@@ -133,8 +133,10 @@ start_web_canvas("ritk-snap-canvas");
 
 `start_web_canvas` is a presentation increment, not a second DICOM
 implementation: RITK owns classification, parsing, metadata, geometry,
-window/level and viewer state. Browser pointer actions, GPU upload and runtime
-visual capture remain open migration work.
+window/level and viewer state. The default path uses the reviewed raster
+surface; `start_web_canvas_gpu` is an explicit asynchronous WebGPU variant and
+returns setup errors without falling back. A real browser GPU visual run and
+resource profile remain open evidence work.
 
 The direct three-view browser entrypoint uses three canvases ordered axial,
 coronal, sagittal:
@@ -153,6 +155,13 @@ start_web_orthogonal_canvases(
 );
 // Call stop_web_canvas() when the page or route is torn down.
 ```
+
+The gallery can opt into the asynchronous WebGPU surface with
+`start_web_orthogonal_canvases_gpu` (or the single-canvas
+`start_web_canvas_gpu`). These entrypoints wait for adapter/device setup and
+surface a typed JavaScript error when WebGPU is unavailable; they never switch
+to raster implicitly. The RITK gallery uses this mode only for
+`?renderer=webgpu`, so the default real-study capture remains reproducible.
 
 The three canvases receive RITK-owned axial, coronal and sagittal
 `PresentationFrame` values from one bounded drop batch. Métis remains the
