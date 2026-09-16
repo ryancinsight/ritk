@@ -6,8 +6,8 @@ Date: 2026-09-16
 
 Driver: [RITK-SNAP-METIS-001](../../backlog.md#RITK-SNAP-METIS-001)
 
-Upstream contract: [Metis ADR 0036](../../metis/docs/adr/0036-browser-webgpu-canvas.md)
-and [Moirai ADR 0061](../../moirai/docs/adr/0061-browser-webgpu-canvas.md)
+Upstream contract: [Metis ADR 0036](../../../metis/docs/adr/0036-browser-webgpu-canvas.md)
+and [Moirai ADR 0061](../../../moirai/docs/adr/0061-browser-webgpu-canvas.md)
 
 ## Context
 
