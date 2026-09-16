@@ -45,6 +45,10 @@ workflow default now pin the merged Metis revision
 `29812898870042665010c6534dce111ea1966925`; the resolved Moirai provider is
 `95275651722583f52e098c0d30b1a53ec82c1fc7`.
 
+The gallery's setup-failure renderer now preserves string-valued WASM
+rejections, so adapter and device errors reach `gallery-status` with their
+actual diagnostic instead of becoming `undefined`.
+
 ## Alternatives rejected
 
 1. Replacing the default gallery path would invalidate the existing real-study

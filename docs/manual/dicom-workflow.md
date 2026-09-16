@@ -1400,6 +1400,9 @@ only through the explicit asynchronous `*_gpu` entrypoints or the gallery's
 that mode produces revision-bound browser artifacts. The native eframe volume
 upload now preflights device limits, reports pending GPU readback, and uses the
 CPU projection path when the GPU path is unsupported or fails.
+When browser GPU setup rejects, the RITK gallery preserves the underlying WASM
+error text in `gallery-status`; a missing adapter or device is reported as a
+setup failure rather than an `undefined` message.
 
 The direct three-view entrypoint uses three canvases and preserves the same
 format-neutral boundary:
