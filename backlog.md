@@ -6,14 +6,16 @@
 - Risk: [patch]; dependencies: existing browser presenter and loaded-volume geometry; driver: squashed coronal/sagittal planes in the prior capture.
 - Verification: focused nextest, native/WASM Clippy and release build, actual Edge gallery capture with independent DICOM geometry and PNG checks.
 - Browser reproduction: the inline style attribute failed under the gallery CSP; CSS property publication fixes sizing. The taller views then expose unit-scale input bounds, requiring measured CSS-to-texel mapping in the same fix.
+- Lease: canvas_driver contributor — crates/ritk-snap/src/app/web_viewer.rs, browser slice-selection leaf/tests, and required WASM exports — 2026-09-16T03:35:01-04:00.
 
 <a id="RITK-BROWSER-LOCAL-BOX-001"></a>
 ## RITK-BROWSER-LOCAL-BOX-001 — Map custom embedded canvas boxes
-- Status: todo; priority: P2; last-update: 2026-09-16.
+- Status: in-progress; priority: P2; integrator: root; last-update: 2026-09-16; branch: `codex/browser-physical-aspect`.
 - Scope: custom browser embeddings with canvas borders, padding or ancestor CSS transforms; the saved Metis gallery has none.
 - Acceptance: CSS-local pointer positions map to the same image points under borders, padding and ancestor scaling, using a measured local content-box query.
 - Evidence: provider bounding rectangles include transforms and borders; pointer offset coordinates ignore transforms and originate at the padding edge.
 - Risk: [patch]; dependency: provider local content geometry; verification: transformed/bordered browser cases plus coordinate oracles.
+- lease: root `crates/ritk-snap/src/app/browser_geometry.rs`, `crates/ritk-snap/src/app/web_viewer.rs`, `crates/ritk-snap/src/app/tests/action_adapter/`, `docs/adr/0032-browser-semantic-snapshot.md` 2026-09-16.
 
 <a id="RITK-GALLERY-CYCLES-001"></a>
 ## RITK-GALLERY-CYCLES-001 — Repeated saved-study browser lifecycle
