@@ -107,9 +107,10 @@ pub enum CompositionPhase {
 ///
 /// The event carries coordinates, controls and lifecycle state only. It never
 /// carries a path, DICOM object, volume, metadata record or host authority.
-/// Pointer coordinates use `f64` so native `i32` positions and browser client
-/// coordinates share one lossless host representation; the action reducer
-/// rejects non-finite values.
+/// Pointer coordinates use the host viewport's basis: native display pixels
+/// or browser content fractions. Both retain `f64` precision until image
+/// mapping; the action reducer rejects non-finite values. Wheel displacement
+/// units are independent of this position basis.
 #[derive(Debug, Clone, PartialEq)]
 #[non_exhaustive]
 pub enum PresentationEvent {
@@ -123,34 +124,34 @@ pub enum PresentationEvent {
     FocusLost,
     /// The pointer moved in client coordinates.
     PointerMove {
-        /// Horizontal client coordinate in display pixels.
+        /// Horizontal coordinate in the host viewport basis.
         x: f64,
-        /// Vertical client coordinate in display pixels.
+        /// Vertical coordinate in the host viewport basis.
         y: f64,
     },
     /// A pointer button was pressed in client coordinates.
     PointerDown {
-        /// Horizontal client coordinate in display pixels.
+        /// Horizontal coordinate in the host viewport basis.
         x: f64,
-        /// Vertical client coordinate in display pixels.
+        /// Vertical coordinate in the host viewport basis.
         y: f64,
         /// Pressed button.
         button: PointerButton,
     },
     /// A pointer button was released in client coordinates.
     PointerUp {
-        /// Horizontal client coordinate in display pixels.
+        /// Horizontal coordinate in the host viewport basis.
         x: f64,
-        /// Vertical client coordinate in display pixels.
+        /// Vertical coordinate in the host viewport basis.
         y: f64,
         /// Released button.
         button: PointerButton,
     },
     /// A browser or native host canceled an active pointer without a release.
     PointerCancel {
-        /// Horizontal client coordinate in display pixels.
+        /// Horizontal coordinate in the host viewport basis.
         x: f64,
-        /// Vertical client coordinate in display pixels.
+        /// Vertical coordinate in the host viewport basis.
         y: f64,
         /// Canceled button.
         button: PointerButton,
@@ -161,9 +162,9 @@ pub enum PresentationEvent {
     /// native Win32 detent is represented exactly; browser hosts may pass
     /// pixel, line or page values after applying their own unit policy.
     PointerWheel {
-        /// Horizontal client coordinate in display pixels.
+        /// Horizontal coordinate in the host viewport basis.
         x: f64,
-        /// Vertical client coordinate in display pixels.
+        /// Vertical coordinate in the host viewport basis.
         y: f64,
         /// Signed horizontal wheel delta in host units.
         delta_x: f64,

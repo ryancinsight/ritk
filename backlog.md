@@ -12,12 +12,14 @@
 
 <a id="RITK-BROWSER-LOCAL-BOX-001"></a>
 ## RITK-BROWSER-LOCAL-BOX-001 — Map custom embedded canvas boxes
-- Status: in-progress; priority: P2; integrator: root; last-update: 2026-09-16; branch: `codex/browser-physical-aspect`.
+- Status: review; priority: P2; integrator: root; last-update: 2026-09-16; branch: `codex/browser-physical-aspect`.
 - Scope: custom browser embeddings with canvas borders, padding or ancestor CSS transforms; the saved Metis gallery has none.
-- Acceptance: CSS-local pointer positions map to the same image points under borders, padding and ancestor scaling, using a measured local content-box query.
-- Evidence: provider bounding rectangles include transforms and borders; pointer offset coordinates ignore transforms and originate at the padding edge.
+- Acceptance: measured content-local pointer and wheel positions preserve voxel selection under borders, padding and invertible ancestor affine transforms.
+- Contract: [ADR 0032](docs/adr/0032-browser-semantic-snapshot.md); Moirai measures local content geometry, Metis transports format-neutral coordinates and dimensions, RITK maps event-time fractions to voxels.
 - Risk: [patch]; dependency: provider local content geometry; verification: transformed/bordered browser cases plus coordinate oracles.
-- lease: root `crates/ritk-snap/src/app/browser_geometry.rs`, `crates/ritk-snap/src/app/web_viewer.rs`, `crates/ritk-snap/src/app/tests/action_adapter/`, `docs/adr/0032-browser-semantic-snapshot.md` 2026-09-16.
+- Native evidence: `cargo nextest run -p ritk-snap` run `ef9461e7-a7af-4c40-a279-99c1de13c27e` passes 872/872; native/WASM strict Clippy, formatting, 4 doctests and warning-denied rustdoc pass on the local provider overlay (one pre-existing ignored doctest).
+- Browser evidence: Edge 154, three layouts select `[47,340,173]`, wheel to `[46,340,173]`, padding/border wheels leave slices unchanged; rounding preflight and independent review pass. `output/browser/local-box.json` SHA256 `df4e0ffb3f9f7e460d19e75f860091f1ad01e7f4b81cb0a8c9e1576461b7c2c6`.
+- Dependency evidence: standalone lock check and locked RITK WASM check pass with Moirai `c9a4431b` and Metis `dce79dbe`; [Metis PR #178](https://github.com/ryancinsight/metis/pull/178) awaits its required Windows gate, with auto-merge enabled and administrative merge refused.
 
 <a id="RITK-GALLERY-CYCLES-001"></a>
 ## RITK-GALLERY-CYCLES-001 — Repeated saved-study browser lifecycle

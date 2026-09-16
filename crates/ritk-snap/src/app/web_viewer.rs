@@ -323,15 +323,8 @@ fn apply_canvas_events(
     if events.is_empty() {
         return Ok(ViewerActionDisposition::Continue { repaint: false });
     }
-    let display_size = canvas.element.bounding_size();
     let viewport = frame
-        .map(|frame| {
-            viewport_for_display(
-                axis,
-                [display_size.width(), display_size.height()],
-                [frame.width(), frame.height()],
-            )
-        })
+        .map(|frame| viewport_for_display(axis, [1.0, 1.0], [frame.width(), frame.height()]))
         .transpose()?;
     let previous_axis = app.axis;
     app.axis = axis;

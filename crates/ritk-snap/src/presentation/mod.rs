@@ -6,6 +6,8 @@
 
 mod actions;
 #[cfg(any(target_arch = "wasm32", test))]
+pub(crate) mod browser_coordinates;
+#[cfg(any(target_arch = "wasm32", test))]
 mod browser_policy;
 mod events;
 mod frame;
