@@ -1,19 +1,14 @@
 <a id="RITK-BROWSER-ASPECT-001"></a>
 ## RITK-BROWSER-ASPECT-001 — Preserve physical slice proportions
-- Status: review; priority: P1; integrator: root; last-update: 2026-09-16; branch: `codex/browser-physical-aspect`; code: `abc098cf1`.
-- Scope: RITK browser display and input geometry, regression tests and saved MRI gallery evidence; preserve backing RGBA pixels and generic Metis ownership.
-- Acceptance: each displayed axis uses voxel count times sample spacing; anisotropic geometry tests pass; rebuilt saved-study capture matches physical aspect, pixel oracles and cine trace.
-- Risk: [patch]; dependencies: existing browser presenter and loaded-volume geometry; driver: squashed coronal/sagittal planes in the prior capture.
-- Verification: focused nextest, native/WASM Clippy and release build, actual Edge gallery capture with independent DICOM geometry and PNG checks.
-- Browser reproduction: the inline style attribute failed under the gallery CSP; CSS property publication fixes sizing. The taller views then expose unit-scale input bounds, requiring measured CSS-to-texel mapping in the same fix.
+- Status: done; delivery: [PR #411](https://github.com/ryancinsight/ritk/pull/411), merge `e6be3d53621a9643331c3259d3d52654cc101072`; last-update: 2026-09-16.
+- Outcome: physical DICOM spacing sizes each canvas through CSSOM; displayed input bounds and cine/repaint/repeat evidence pass on the saved MRI study.
+- Evidence: [browser record](docs/manual/images/dicom-metis-real-browser-mri-edge.json).
 
 <a id="RITK-BROWSER-SLIDER-001"></a>
 ## RITK-BROWSER-SLIDER-001 — Select browser slices directly
-- Status: review; priority: P1; integrator: root; last-update: 2026-09-16; branch: `codex/browser-physical-aspect`.
-- Scope: typed RITK axis/index selection, WASM export, repaint invalidation, and focused state tests; Metis owns the slider controls and mirroring only.
-- Acceptance: `select_web_slice(axis, index)` selects an exact valid zero-based slice for every orthogonal axis, rejects invalid state without mutation, and invalidates cached frames for semantic republishing.
-- Risk: [minor]; dependencies: existing browser viewer state and slice reducer; verification: focused native nextest plus native/WASM check and Clippy.
-- Evidence: focused 6/6 slice-selection tests, release WASM build, strict native Clippy and full 872/872 `ritk-snap` nextest pass; headless browser session `75363` exercised every slider and rejected 18 invalid numbers in 50 trusted UI actions (`../metis/output/browser/cine/slices/gallery-slices.json`).
+- Status: done; delivery: [PR #411](https://github.com/ryancinsight/ritk/pull/411), code `bf54c6cf6`; last-update: 2026-09-16.
+- Outcome: validated Rust selection drives all three range controls; 50 trusted slider actions, 18 invalid-number probes and exact frame restoration pass.
+- Evidence: [browser record](docs/manual/images/dicom-metis-real-browser-mri-edge.json), capture `abc83b485`; six focused and 872 combined native tests pass.
 
 <a id="RITK-BROWSER-LOCAL-BOX-001"></a>
 ## RITK-BROWSER-LOCAL-BOX-001 — Map custom embedded canvas boxes
