@@ -1041,8 +1041,15 @@ remain outside this measurement.
 
 ### Re-run the saved MRI study through Edge
 
+Each browser plane has a slice slider and a current-slice counter. Drag the
+slider, use its arrow keys, or press Home/End to reach the first/last slice.
+The axial range follows the acquired slices; coronal and sagittal ranges follow
+the corresponding volume dimensions. The controls reflect wheel navigation and
+cine playback through RITK's published slice state.
+
 The same 94-file MRI-DIR T2 study was replayed through Métis's bounded browser
-runner against Microsoft Edge 154.0.4258.12. The WebDriver session selected the
+runner against Microsoft Edge 154.0.4258.12 in headless mode, isolating the final
+capture from desktop input. The WebDriver session selected the
 files through the W3C file chooser, RITK read all 49,807,236 bytes, and the
 three canvas dimensions, non-black counts, and RGBA hashes matched the RITK
 oracle. The runner also exercised the count, per-file byte, and batch byte
@@ -1052,7 +1059,13 @@ closed cleanly.
 ![Actual MRI-DIR T2 study in the running Métis Edge gallery](images/dicom-metis-real-browser-mri-edge-gallery.png)
 
 The gallery screenshot is the live browser viewport after file selection, with the
-decoded axial, coronal, and sagittal anatomy visible. The element captures are
+decoded axial, coronal, and sagittal anatomy visible. The corrected canvases use
+physical spacing: 0.5 mm in-plane and 2.5 mm between slices. Coronal and
+sagittal cover 256 × 235 mm and display at 560 × 514 pixels, replacing the
+compressed 561 × 103 display. The backing 512 × 94 pixels and exact RGBA
+hashes remain unchanged. CSS property publication respects the existing
+security policy, and input bounds follow the displayed canvas dimensions.
+The element captures are
 [axial](images/dicom-metis-real-browser-mri-edge-axial.png),
 [coronal](images/dicom-metis-real-browser-mri-edge-coronal.png), and
 [sagittal](images/dicom-metis-real-browser-mri-edge-sagittal.png). Their canvas
@@ -1060,9 +1073,11 @@ dimensions, non-black counts, RGBA hashes, screenshot hashes, source revisions,
 trusted events, rejection results, and cleanup state are recorded in
 [`dicom-metis-real-browser-mri-edge.json`](images/dicom-metis-real-browser-mri-edge.json).
 The evidence binds Métis revision
-`d0d45561228a8481f0c6e4e3208162db93ccfe01` to RITK revision
-`f5ce647828957ed19fbe5ef68b54f9c40ed11ddf`, the exact Métis driver and gallery
-asset hashes, and the SHA-256 digests of the ignored source traces in the Métis
+`da73f61d4d756f9cf1b66e5fa8e483abe2443626` to RITK basis
+`840757653e68f36e5a65e3d279a3ddb4ece9ec65` plus the recorded slider source patch
+and build-source hashes. It records the exact Métis driver and gallery
+asset hashes, the harness working-tree source hashes and patch, and
+the SHA-256 digests of the ignored source traces in the Métis
 checkout at `output/browser/cine/{trace.json,canvas-trace.json}`.
 
 The paired cine-rate trace applies six ordered actions to each canvas: focused
@@ -1086,17 +1101,31 @@ closed. The evidence JSON preserves every action, snapshot, and PNG digest
 record; the raw traces remain gitignored run output. RITK owns the decoded
 pixels, slice state, cine rate, and clinical presentation.
 
+The slider trace adds 50 trusted keyboard and pointer actions across the 94,
+512 and 512 slice ranges, plus 18 invalid-number API rejection probes. Every
+axis reaches both endpoints, produces multiple distinct rendered frames and
+restores its initial pixels exactly; changing one axis preserves the other
+two planes. No-op selection preserves frame generation. Different slices can
+contain identical pixels: independent DICOM decoding confirms both coronal
+endpoint planes contain only zeros, so the trace does not require every index
+to produce a unique hash. Batched restoration checks the resulting frame,
+not rendering of every intermediate index. All 24 slider diagnostic listeners
+are released.
+
+![Anatomical slice controls after the real browser actions](images/dicom-metis-real-browser-mri-edge-controls.png)
+
 Reproduce the file-backed run from the Métis checkout with an Edge WebDriver
 already listening on port 9517:
 
 ```powershell
 python scripts/browser_drop.py --driver-url http://127.0.0.1:9517 `
-  --browser-name MicrosoftEdge --input chooser `
+  --browser-name MicrosoftEdge --headless --device-scale 1.25 --input chooser `
   --files D:/atlas/repos/ritk/test_data/2_head_mri_t2/DICOM --pattern '*.dcm' `
   --oracle output/browser/mri-oracle.json `
-  --consumer-revision f5ce647828957ed19fbe5ef68b54f9c40ed11ddf `
+  --consumer-revision 840757653e68f36e5a65e3d279a3ddb4ece9ec65 `
   --canvas-trace output/browser/cine/canvas-trace.json `
   --keyboard-trace cine-rate `
+  --slice-controls `
   --canvas-attribute data-ritk-load-state `
   --canvas-attribute data-ritk-frame-state `
   --canvas-attribute data-ritk-axis `
@@ -1106,6 +1135,7 @@ python scripts/browser_drop.py --driver-url http://127.0.0.1:9517 `
   --canvas-attribute data-ritk-frame-height `
   --canvas-attribute data-ritk-cine-fps `
   --canvas-attribute data-ritk-frame-generation `
+  --canvas-attribute data-ritk-display-aspect `
   --output output/browser/cine
 ```
 
@@ -1569,7 +1599,8 @@ python scripts/browser_drop.py --driver-url http://127.0.0.1:9515\
   --canvas-attribute data-ritk-frame-width\
   --canvas-attribute data-ritk-frame-height\
   --canvas-attribute data-ritk-cine-fps\
-  --canvas-attribute data-ritk-frame-generation
+  --canvas-attribute data-ritk-frame-generation\
+  --canvas-attribute data-ritk-display-aspect
 ```
 
 Validate that trace with `--require-cine-rate`. For each focused canvas the

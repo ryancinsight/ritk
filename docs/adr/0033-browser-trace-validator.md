@@ -17,6 +17,13 @@ therefore insufficient evidence for the RITK viewer workflow.
 
 ## Decision
 
+Revision 2026-09-16: cine-rate captures also require the RITK-owned physical
+display aspect and check it against the observed CSS canvas rectangle. This
+closes the prior evidence gap where correct backing pixels and PNG dimensions
+could pass while non-square voxel sampling produced flattened anatomy.
+Layout-rounding bounds are derived at the assertion site. The saved-study
+capture additionally compares the ratio against the DICOM sample distances.
+
 Add a native-only `ritk-snap --validate-browser-trace <JSON>` command. The
 validator parses the bounded schema needed by RITK, requires a passed canvas
 trace with a valid engine and two repository revisions, and checks three
@@ -90,7 +97,7 @@ Unit tests construct small schema-1 trace values and cover valid three-view
 traces plus invalid status, revision, attributes, axis order, dimensions,
 actions, keyboard focus/metadata, slice progression, screenshot, cleanup and
 oversized-file cases. The committed fixture is validated by the same code used
-by the executable. At the current revision,
+by the executable. In the initial recorded verification,
 `cargo nextest run --locked -p ritk-snap` passes 817/817; strict native and
 WASM Clippy/check gates and `cargo fmt --all -- --check` pass; and
 `cargo run --locked -p ritk-snap -- --validate-browser-trace

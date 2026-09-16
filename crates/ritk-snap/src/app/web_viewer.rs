@@ -7,12 +7,13 @@
 //! each canvas for consumer-owned workflow assertions. DICOM parsing and
 //! viewer state stay in [`SnapApp`].
 
+use super::browser_geometry::{viewport_for_display, PhysicalCanvasAspect};
 use super::browser_semantics::BrowserCanvasSemantics;
+use super::browser_slice_selection::{parse_browser_slice_request, BrowserSliceSelectionError};
 use super::SnapApp;
-use crate::app::action_adapter::{ViewerActionDisposition, ViewerViewport};
+use crate::app::action_adapter::ViewerActionDisposition;
 use crate::presentation::{PresentationFrame, WebCanvasPresenter};
 use crate::ui::decide_dropped_input_action;
-use crate::ui::ViewTransform;
 use moirai_pal::wasm::{
     spawn_local_with_handle, LocalTaskHandle, WebAnimationFrame, WebDocument, WebElement,
 };
@@ -74,6 +75,7 @@ struct BrowserCanvas {
     presenter: WebCanvasPresenter,
     element: WebElement,
     last_semantics: Option<BrowserCanvasSemantics>,
+    last_physical_aspect: Option<PhysicalCanvasAspect>,
     frame_generation: u64,
 }
 
@@ -94,6 +96,7 @@ impl BrowserCanvas {
             presenter,
             element,
             last_semantics: None,
+            last_physical_aspect: None,
             frame_generation: 0,
         })
     }
@@ -112,7 +115,12 @@ impl BrowserCanvas {
         Ok(())
     }
 
-    fn publish_semantics(&mut self, semantics: BrowserCanvasSemantics) -> std::io::Result<()> {
+    fn publish_semantics(
+        &mut self,
+        semantics: BrowserCanvasSemantics,
+        physical_aspect: Option<PhysicalCanvasAspect>,
+    ) -> std::io::Result<()> {
+        self.publish_physical_aspect(physical_aspect)?;
         if self.last_semantics == Some(semantics) {
             return Ok(());
         }
@@ -141,6 +149,26 @@ impl BrowserCanvas {
         self.last_semantics = Some(semantics);
         Ok(())
     }
+
+    fn publish_physical_aspect(
+        &mut self,
+        physical_aspect: Option<PhysicalCanvasAspect>,
+    ) -> std::io::Result<()> {
+        let Some(physical_aspect) = physical_aspect else {
+            return Ok(());
+        };
+        if self.last_physical_aspect == Some(physical_aspect) {
+            return Ok(());
+        }
+        let value = physical_aspect.attribute_value();
+        self.element.set_style_property("width", "100%")?;
+        self.element.set_style_property("height", "auto")?;
+        self.element.set_style_property("aspect-ratio", &value)?;
+        self.element
+            .set_attribute("data-ritk-display-aspect", &value)?;
+        self.last_physical_aspect = Some(physical_aspect);
+        Ok(())
+    }
 }
 
 enum BrowserSurface {
@@ -149,7 +177,7 @@ enum BrowserSurface {
         frame: Option<PresentationFrame>,
     },
     Orthogonal {
-        canvases: [BrowserCanvas; 3],
+        canvases: Box<[BrowserCanvas; 3]>,
         frames: Option<[PresentationFrame; 3]>,
     },
 }
@@ -223,7 +251,8 @@ impl BrowserSurface {
                     frame.as_ref(),
                     app.cine.fps,
                 );
-                canvas.publish_semantics(semantics)
+                let physical_aspect = physical_aspect(app, axis, frame.as_ref())?;
+                canvas.publish_semantics(semantics, physical_aspect)
             }
             Self::Orthogonal { canvases, frames } => {
                 for (axis, canvas) in canvases.iter_mut().enumerate() {
@@ -237,7 +266,8 @@ impl BrowserSurface {
                         frame,
                         app.cine.fps,
                     );
-                    canvas.publish_semantics(semantics)?;
+                    let physical_aspect = physical_aspect(app, axis, frame)?;
+                    canvas.publish_semantics(semantics, physical_aspect)?;
                 }
                 Ok(())
             }
@@ -246,14 +276,12 @@ impl BrowserSurface {
 
     fn apply_events(&mut self, app: &mut SnapApp) -> std::io::Result<ViewerActionDisposition> {
         match self {
-            Self::Single { canvas, frame } => {
-                apply_canvas_events(app, 0, &mut canvas.presenter, frame.as_ref())
-            }
+            Self::Single { canvas, frame } => apply_canvas_events(app, 0, canvas, frame.as_ref()),
             Self::Orthogonal { canvases, frames } => {
                 let mut repaint = false;
                 for (axis, canvas) in canvases.iter_mut().enumerate() {
                     let frame = frames.as_ref().and_then(|frames| frames.get(axis));
-                    match apply_canvas_events(app, axis, &mut canvas.presenter, frame)? {
+                    match apply_canvas_events(app, axis, canvas, frame)? {
                         ViewerActionDisposition::Continue { repaint: needed } => {
                             repaint |= needed;
                         }
@@ -268,13 +296,24 @@ impl BrowserSurface {
     }
 }
 
+fn physical_aspect(
+    app: &SnapApp,
+    axis: usize,
+    frame: Option<&PresentationFrame>,
+) -> std::io::Result<Option<PhysicalCanvasAspect>> {
+    let (Some(volume), Some(frame)) = (app.loaded.as_ref(), frame) else {
+        return Ok(None);
+    };
+    PhysicalCanvasAspect::new(volume.spacing, axis, frame.width(), frame.height()).map(Some)
+}
+
 fn apply_canvas_events(
     app: &mut SnapApp,
     axis: usize,
-    presenter: &mut WebCanvasPresenter,
+    canvas: &mut BrowserCanvas,
     frame: Option<&PresentationFrame>,
 ) -> std::io::Result<ViewerActionDisposition> {
-    let events = match presenter.take_events() {
+    let events = match canvas.presenter.take_events() {
         Ok(events) => events,
         Err(error) => {
             app.cancel_presentation_gesture();
@@ -284,8 +323,15 @@ fn apply_canvas_events(
     if events.is_empty() {
         return Ok(ViewerActionDisposition::Continue { repaint: false });
     }
+    let display_size = canvas.element.bounding_size();
     let viewport = frame
-        .map(|frame| viewport_for_frame(axis, frame))
+        .map(|frame| {
+            viewport_for_display(
+                axis,
+                [display_size.width(), display_size.height()],
+                [frame.width(), frame.height()],
+            )
+        })
         .transpose()?;
     let previous_axis = app.axis;
     app.axis = axis;
@@ -300,21 +346,6 @@ fn apply_canvas_events(
         }
     };
     Ok(disposition)
-}
-
-fn viewport_for_frame(axis: usize, frame: &PresentationFrame) -> std::io::Result<ViewerViewport> {
-    let width = usize::try_from(frame.width())
-        .map_err(|_| std::io::Error::other("browser frame width exceeds host range"))?;
-    let height = usize::try_from(frame.height())
-        .map_err(|_| std::io::Error::other("browser frame height exceeds host range"))?;
-    ViewerViewport::new(
-        axis,
-        [0.0, 0.0],
-        [1.0, 1.0],
-        [width, height],
-        ViewTransform::default(),
-    )
-    .map_err(|error| std::io::Error::other(error.to_string()))
 }
 
 fn launch_browser_viewer(viewer: BrowserViewer) -> Result<(), JsValue> {
@@ -393,7 +424,7 @@ pub(crate) fn start_web_orthogonal_canvases(canvas_ids: [String; 3]) -> Result<(
     };
     metis_web::metis_start();
     launch_browser_viewer(BrowserViewer::new(BrowserSurface::Orthogonal {
-        canvases,
+        canvases: Box::new(canvases),
         frames: None,
     }))
 }
@@ -414,6 +445,23 @@ pub(crate) fn web_canvas_listener_count() -> usize {
     VIEWER.with_borrow(|slot| {
         slot.as_ref()
             .map_or(0, |viewer| viewer.surface.listener_count())
+    })
+}
+
+/// Selects an exact zero-based slice and invalidates cached browser frames.
+pub(crate) fn select_web_slice(axis: f64, index: f64) -> Result<(), BrowserSliceSelectionError> {
+    let (axis, index) = parse_browser_slice_request(axis, index)?;
+    VIEWER.with(|slot| {
+        let mut slot = slot
+            .try_borrow_mut()
+            .map_err(|_| BrowserSliceSelectionError::ViewerBusy)?;
+        let viewer = slot
+            .as_mut()
+            .ok_or(BrowserSliceSelectionError::ViewerNotMounted)?;
+        if viewer.app.select_browser_slice(axis, index)? {
+            viewer.surface.clear();
+        }
+        Ok(())
     })
 }
 

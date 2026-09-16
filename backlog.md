@@ -1,3 +1,29 @@
+<a id="RITK-BROWSER-ASPECT-001"></a>
+## RITK-BROWSER-ASPECT-001 — Preserve physical slice proportions
+- Status: review; priority: P1; integrator: root; last-update: 2026-09-16; branch: `codex/browser-physical-aspect`; code: `abc098cf1`.
+- Scope: RITK browser display and input geometry, regression tests and saved MRI gallery evidence; preserve backing RGBA pixels and generic Metis ownership.
+- Acceptance: each displayed axis uses voxel count times sample spacing; anisotropic geometry tests pass; rebuilt saved-study capture matches physical aspect, pixel oracles and cine trace.
+- Risk: [patch]; dependencies: existing browser presenter and loaded-volume geometry; driver: squashed coronal/sagittal planes in the prior capture.
+- Verification: focused nextest, native/WASM Clippy and release build, actual Edge gallery capture with independent DICOM geometry and PNG checks.
+- Browser reproduction: the inline style attribute failed under the gallery CSP; CSS property publication fixes sizing. The taller views then expose unit-scale input bounds, requiring measured CSS-to-texel mapping in the same fix.
+
+<a id="RITK-BROWSER-SLIDER-001"></a>
+## RITK-BROWSER-SLIDER-001 — Select browser slices directly
+- Status: review; priority: P1; integrator: root; last-update: 2026-09-16; branch: `codex/browser-physical-aspect`.
+- Scope: typed RITK axis/index selection, WASM export, repaint invalidation, and focused state tests; Metis owns the slider controls and mirroring only.
+- Acceptance: `select_web_slice(axis, index)` selects an exact valid zero-based slice for every orthogonal axis, rejects invalid state without mutation, and invalidates cached frames for semantic republishing.
+- Risk: [minor]; dependencies: existing browser viewer state and slice reducer; verification: focused native nextest plus native/WASM check and Clippy.
+- Evidence: focused 6/6 slice-selection tests, release WASM build, strict native Clippy and full 872/872 `ritk-snap` nextest pass; headless browser session `75363` exercised every slider and rejected 18 invalid numbers in 50 trusted UI actions (`../metis/output/browser/cine/slices/gallery-slices.json`).
+
+<a id="RITK-BROWSER-LOCAL-BOX-001"></a>
+## RITK-BROWSER-LOCAL-BOX-001 — Map custom embedded canvas boxes
+- Status: in-progress; priority: P2; integrator: root; last-update: 2026-09-16; branch: `codex/browser-physical-aspect`.
+- Scope: custom browser embeddings with canvas borders, padding or ancestor CSS transforms; the saved Metis gallery has none.
+- Acceptance: CSS-local pointer positions map to the same image points under borders, padding and ancestor scaling, using a measured local content-box query.
+- Evidence: provider bounding rectangles include transforms and borders; pointer offset coordinates ignore transforms and originate at the padding edge.
+- Risk: [patch]; dependency: provider local content geometry; verification: transformed/bordered browser cases plus coordinate oracles.
+- lease: root `crates/ritk-snap/src/app/browser_geometry.rs`, `crates/ritk-snap/src/app/web_viewer.rs`, `crates/ritk-snap/src/app/tests/action_adapter/`, `docs/adr/0032-browser-semantic-snapshot.md` 2026-09-16.
+
 <a id="RITK-GALLERY-CYCLES-001"></a>
 ## RITK-GALLERY-CYCLES-001 — Repeated saved-study browser lifecycle
 - Status: done; delivery: [PR #409](https://github.com/ryancinsight/ritk/pull/409), merge `86632ab0afc667f83e746ab5c8ccb8ce8ca8a32b`; last-update: 2026-09-16.

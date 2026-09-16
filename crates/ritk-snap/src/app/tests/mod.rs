@@ -16,6 +16,8 @@ mod action_adapter;
 #[cfg(test)]
 mod browser_semantics;
 #[cfg(test)]
+mod browser_slice_selection;
+#[cfg(test)]
 mod colormap;
 #[cfg(test)]
 mod cursor;

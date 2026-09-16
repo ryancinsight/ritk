@@ -17,6 +17,7 @@ pub(super) const SNAPSHOT_SUFFIXES: [&str; 6] = [
 ];
 
 const ACTIONS_PER_CANVAS: usize = 6;
+const DISPLAY_ASPECT_ATTRIBUTE: &str = "data-ritk-display-aspect";
 
 #[derive(Clone, Copy)]
 struct KeyboardAction<'a> {
@@ -212,8 +213,31 @@ pub(super) fn validate_snapshots(snapshots: &[TraceSnapshot], canvas_ids: &[Stri
                     snapshot.label
                 )
             }
+            validate_display_aspect(snapshot, canvas_id)?;
             validate_snapshot(snapshot, canvas_id, axis, phase, &CINE_RATE_ATTRIBUTES)?;
         }
+    }
+    Ok(())
+}
+
+fn validate_display_aspect(snapshot: &TraceSnapshot, canvas_id: &str) -> Result<()> {
+    let display_aspect: f64 = parse_attribute(
+        attribute(&snapshot.canvas, DISPLAY_ASPECT_ATTRIBUTE, canvas_id)?,
+        "display aspect",
+        canvas_id,
+    )?;
+    if !display_aspect.is_finite() || display_aspect <= 0.0 {
+        bail!("canvas {canvas_id:?} reports a non-positive or non-finite display aspect")
+    }
+
+    let residual = (snapshot.canvas.css_width - display_aspect * snapshot.canvas.css_height).abs();
+    // Browser box width and height may each be quantized by at most one CSS
+    // pixel. Width contributes one pixel of error and height contributes one
+    // pixel scaled by the physical aspect, so triangle inequality gives
+    // 1 + aspect.
+    let quantization_bound = 1.0 + display_aspect;
+    if !residual.is_finite() || residual > quantization_bound {
+        bail!("canvas {canvas_id:?} CSS dimensions do not preserve its physical display aspect")
     }
     Ok(())
 }

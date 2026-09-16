@@ -309,6 +309,7 @@ jobs:
             --canvas-attribute data-ritk-frame-height \
             --canvas-attribute data-ritk-cine-fps \
             --canvas-attribute data-ritk-frame-generation \
+            --canvas-attribute data-ritk-display-aspect \
             --output "output/browser/results/$ENGINE"
 
       - name: Validate RITK cine-rate trace

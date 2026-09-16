@@ -156,6 +156,14 @@ format-neutral browser host and receives no DICOM state. The reviewed
 three-canvas runtime capture is in the [DICOM workflow manual](../../docs/manual/dicom-workflow.md#inspect-the-browser-orthogonal-visual-capture);
 physical browser input and GPU upload remain open migration work.
 
+Browser controls can call `select_web_slice(axis, index)` with zero-based axis
+(`0` axial, `1` coronal, `2` sagittal) and slice index after loading a study.
+RITK rejects invalid coordinates without changing the selection. A changed
+selection renders on the next animation frame; controls observe the canvas
+`data-ritk-slice-index` and `data-ritk-slice-count` attributes to synchronize their
+position with selection, wheel navigation and cine playback. The Metis gallery
+provides one labeled range control per plane using this entrypoint.
+
 To produce the browser module, build the library target and run the pinned
 `wasm-bindgen 0.2.128` CLI over
 `target/wasm32-unknown-unknown/release/ritk_snap.wasm`:

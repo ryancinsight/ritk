@@ -2,10 +2,45 @@
 
 use super::super::test_volume;
 use crate::app::action_adapter::{ViewerActionDisposition, ViewerActionError, ViewerInputError};
+use crate::app::browser_geometry::viewport_for_display;
 use crate::app::SnapApp;
 use crate::presentation::{PointerButton, PresentationEvent, PresentationModifiers};
 
 use super::viewport;
+
+#[test]
+fn physical_display_height_keeps_mri_wheel_center_in_bounds() {
+    let event = PresentationEvent::PointerWheel {
+        x: 256.0,
+        y: 235.0,
+        delta_x: 0.0,
+        delta_y: 120.0,
+        modifiers: PresentationModifiers::NONE,
+    };
+    let mut compact = SnapApp::default();
+    compact.loaded = Some(test_volume([3, 4, 4]));
+    compact.viewer_state.slice_index = 1;
+    let compact_viewport = viewport_for_display(0, [512.0, 94.0], [512, 94])
+        .expect("compact browser display geometry is valid");
+    let disposition = compact
+        .apply_presentation_events(std::slice::from_ref(&event), Some(&compact_viewport))
+        .expect("out-of-bounds wheel is a supported no-op");
+    assert_eq!(
+        disposition,
+        ViewerActionDisposition::Continue { repaint: false }
+    );
+    assert_eq!(compact.viewer_state.slice_index, 1);
+
+    let mut physical = SnapApp::default();
+    physical.loaded = Some(test_volume([3, 4, 4]));
+    physical.viewer_state.slice_index = 1;
+    let physical_viewport = viewport_for_display(0, [512.0, 470.0], [512, 94])
+        .expect("physical browser display geometry is valid");
+    physical
+        .apply_presentation_events(&[event], Some(&physical_viewport))
+        .expect("wheel at the physical display center is supported");
+    assert_eq!(physical.viewer_state.slice_index, 0);
+}
 
 #[test]
 fn wheel_actions_preserve_zoom_and_slice_navigation_semantics() {
