@@ -24,7 +24,7 @@ const BASE_ATTRIBUTES: [&str; 7] = [
     "data-ritk-frame-width",
     "data-ritk-frame-height",
 ];
-const CINE_RATE_ATTRIBUTES: [&str; 9] = [
+const CINE_RATE_ATTRIBUTES: [&str; 10] = [
     "data-ritk-load-state",
     "data-ritk-frame-state",
     "data-ritk-axis",
@@ -34,6 +34,7 @@ const CINE_RATE_ATTRIBUTES: [&str; 9] = [
     "data-ritk-frame-height",
     "data-ritk-cine-fps",
     "data-ritk-frame-generation",
+    "data-ritk-display-aspect",
 ];
 const DEFAULT_CANVAS_IDS: [&str; 3] =
     ["ritk-snap-axial", "ritk-snap-coronal", "ritk-snap-sagittal"];

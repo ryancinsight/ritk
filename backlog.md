@@ -1,12 +1,21 @@
-<a id="RITK-GALLERY-CYCLES-001"></a>
 <a id="RITK-BROWSER-ASPECT-001"></a>
 ## RITK-BROWSER-ASPECT-001 — Preserve physical slice proportions
 - Status: in-progress; priority: P1; integrator: root; last-update: 2026-09-16; branch: `codex/browser-physical-aspect`.
-- Scope: RITK browser display geometry, regression tests and saved MRI gallery evidence; preserve backing RGBA pixels and generic Metis ownership.
+- Scope: RITK browser display and input geometry, regression tests and saved MRI gallery evidence; preserve backing RGBA pixels and generic Metis ownership.
 - Acceptance: each displayed axis uses voxel count times sample spacing; anisotropic geometry tests pass; rebuilt saved-study capture matches physical aspect, pixel oracles and cine trace.
 - Risk: [patch]; dependencies: existing browser presenter and loaded-volume geometry; driver: squashed coronal/sagittal planes in the prior capture.
 - Verification: focused nextest, native/WASM Clippy and release build, actual Edge gallery capture with independent DICOM geometry and PNG checks.
+- Browser reproduction: the inline style attribute failed under the gallery CSP; CSS property publication fixes sizing. The taller views then expose unit-scale input bounds, requiring measured CSS-to-texel mapping in the same fix.
 
+<a id="RITK-BROWSER-LOCAL-BOX-001"></a>
+## RITK-BROWSER-LOCAL-BOX-001 — Map custom embedded canvas boxes
+- Status: todo; priority: P2; last-update: 2026-09-16.
+- Scope: custom browser embeddings with canvas borders, padding or ancestor CSS transforms; the saved Metis gallery has none.
+- Acceptance: CSS-local pointer positions map to the same image points under borders, padding and ancestor scaling, using a measured local content-box query.
+- Evidence: provider bounding rectangles include transforms and borders; pointer offset coordinates ignore transforms and originate at the padding edge.
+- Risk: [patch]; dependency: provider local content geometry; verification: transformed/bordered browser cases plus coordinate oracles.
+
+<a id="RITK-GALLERY-CYCLES-001"></a>
 ## RITK-GALLERY-CYCLES-001 — Repeated saved-study browser lifecycle
 - Status: done; delivery: [PR #409](https://github.com/ryancinsight/ritk/pull/409), merge `86632ab0afc667f83e746ab5c8ccb8ce8ca8a32b`; last-update: 2026-09-16.
 - Outcome: synchronous viewer teardown; 12 saved-study cycles pass file, RGBA and cine oracles with zero stopped listeners and stable post-warmup WASM capacity; [measured evidence](docs/manual/images/dicom-metis-real-browser-mri-memory.json).

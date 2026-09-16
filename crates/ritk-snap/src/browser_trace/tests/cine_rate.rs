@@ -15,8 +15,17 @@ fn reject_cine(value: Value, message: &str) {
 fn complete_cine_sequence_passes() {
     let ids = default_ids();
     let value = cine_rate_fixture_value(&ids);
-    let document: TraceDocument = serde_json::from_value(value).expect("cine fixture shape");
+    let document: TraceDocument =
+        serde_json::from_value(value.clone()).expect("cine fixture shape");
     validate_document(&document, &ids, mode()).expect("complete cine sequence is valid");
+    assert_eq!(
+        value["snapshots"][0]["canvas"]["attributes"]["data-ritk-display-aspect"],
+        (2.0_f64 / 3.0).to_string()
+    );
+    assert_eq!(
+        value["snapshots"][0]["canvas"]["css_width"],
+        json!((2.0_f64 / 3.0) * 153.2)
+    );
 }
 
 #[test]
@@ -28,13 +37,104 @@ fn fractional_css_dimensions_accept_nonunit_device_scale_rounding() {
         .expect("screenshots array")
     {
         if screenshot["scope"].as_str() == Some("element") {
-            screenshot["width"] = json!(255);
+            let label = screenshot["label"].as_str().expect("screenshot label");
+            screenshot["width"] = json!(if label.starts_with("ritk-snap-axial-") {
+                127
+            } else if label.starts_with("ritk-snap-coronal-") {
+                63
+            } else {
+                95
+            });
             screenshot["height"] = json!(191);
         }
     }
     let document: TraceDocument = serde_json::from_value(value).expect("cine fixture shape");
     validate_document(&document, &ids, mode())
         .expect("floor-rounded element captures at device scale 1.25 are valid");
+}
+
+#[test]
+fn cine_css_box_accepts_independent_dimension_quantization() {
+    let mut value = cine_rate_fixture_value(&default_ids());
+    // Exercise both one-pixel terms just inside the analytical boundary without
+    // making binary floating-point equality part of the test contract.
+    let quantization = 0.99;
+    for snapshot in value["snapshots"]
+        .as_array_mut()
+        .expect("snapshots array")
+        .iter_mut()
+        .filter(|snapshot| snapshot["canvas"]["id"].as_str() == Some("ritk-snap-axial"))
+    {
+        let canvas = &mut snapshot["canvas"];
+        canvas["css_width"] = json!((2.0_f64 / 3.0) * 153.2 + quantization);
+        canvas["css_height"] = json!(153.2 - quantization);
+    }
+    for screenshot in value["screenshots"]
+        .as_array_mut()
+        .expect("screenshots array")
+        .iter_mut()
+        .filter(|screenshot| {
+            screenshot["scope"].as_str() == Some("element")
+                && screenshot["label"]
+                    .as_str()
+                    .is_some_and(|label| label.starts_with("ritk-snap-axial-"))
+        })
+    {
+        screenshot["width"] = json!(129);
+        screenshot["height"] = json!(190);
+    }
+    let document: TraceDocument = serde_json::from_value(value).expect("cine fixture shape");
+    validate_document(&document, &default_ids(), mode())
+        .expect("independently quantized CSS dimensions are valid");
+}
+
+#[test]
+fn cine_snapshots_require_positive_finite_display_aspect() {
+    let mut missing = cine_rate_fixture_value(&default_ids());
+    missing["snapshots"][0]["canvas"]["attributes"]
+        .as_object_mut()
+        .expect("attribute object")
+        .remove("data-ritk-display-aspect");
+    reject_cine(
+        missing,
+        "missing non-null attribute \"data-ritk-display-aspect\"",
+    );
+
+    for invalid in ["invalid", "-1", "0", "NaN", "inf"] {
+        let mut value = cine_rate_fixture_value(&default_ids());
+        value["snapshots"][0]["canvas"]["attributes"]["data-ritk-display-aspect"] = json!(invalid);
+        reject_cine(value, "display aspect");
+    }
+}
+
+#[test]
+fn cine_css_box_must_preserve_physical_not_pixel_aspect() {
+    let mut squashed = cine_rate_fixture_value(&default_ids());
+    for snapshot in squashed["snapshots"]
+        .as_array_mut()
+        .expect("snapshots array")
+        .iter_mut()
+        .filter(|snapshot| snapshot["canvas"]["id"].as_str() == Some("ritk-snap-axial"))
+    {
+        snapshot["canvas"]["css_width"] = json!(153.2);
+    }
+    for screenshot in squashed["screenshots"]
+        .as_array_mut()
+        .expect("screenshots array")
+        .iter_mut()
+        .filter(|screenshot| {
+            screenshot["scope"].as_str() == Some("element")
+                && screenshot["label"]
+                    .as_str()
+                    .is_some_and(|label| label.starts_with("ritk-snap-axial-"))
+        })
+    {
+        // Keep the pre-existing screenshot/CSS/device-scale guard satisfied so
+        // only the independent physical-aspect oracle detects the distortion.
+        screenshot["width"] = json!(192);
+        screenshot["height"] = json!(192);
+    }
+    reject_cine(squashed, "do not preserve its physical display aspect");
 }
 
 #[test]

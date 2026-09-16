@@ -47,6 +47,37 @@ snapshot is sufficient.
 
 ## Verification
 
+Revision 2026-09-16: the browser canvas publishes
+`data-ritk-display-aspect` and applies that width-to-height ratio to its CSS
+rectangle. RITK derives it from the rendered voxel dimensions and the loaded
+volume's axis-specific sample distances. Backing RGBA dimensions remain
+unchanged. The saved MRI fixture has 0.5 mm in-plane sampling and approximately
+2.5 mm slice spacing: its coronal and sagittal extents are approximately
+256 by 235 mm, rather than the raw 512 by 94 pixel ratio. Native geometry
+tests and the browser trace check this distinction; pixel hashes alone cannot
+establish correct physical display proportions.
+
+The gallery permits styles only from its own origin. Browser reproduction
+rejected the first implementation's complete `style` attribute: the declared
+ratio was correct, but the CSS rectangle retained the raw pixel aspect, and
+the new trace validator failed. Publication therefore uses Moirai's individual
+CSS property setter for width, height and aspect ratio. The gallery's content
+security policy remains unchanged.
+
+Input mapping uses the canvas's measured CSS dimensions at each nonempty
+event batch. Dividing those dimensions by the backing frame dimensions gives
+the displayed texel sizes used by `ViewerViewport`. This keeps pointer and
+wheel bounds aligned with the physical display, including after resize. A
+unit texel scale incorrectly rejected wheel positions below row 94 in the
+corrected coronal and sagittal canvases.
+
+This mapping covers the gallery's borderless, unpadded canvases without CSS
+transforms on them or their ancestors. Custom embeddings with borders, padding
+or transforms need local content-box geometry: `offsetX/Y` ignore transforms,
+whereas the browser's bounding rectangle includes them. That broader embedding
+contract is tracked as `RITK-BROWSER-LOCAL-BOX-001`; it is not established by
+the saved-gallery capture.
+
 Revision 2026-09-15: `data-ritk-frame-generation` counts newly rendered frames
 successfully uploaded to each canvas. The counter advances after presentation,
 including repaint-triggered cache invalidation, and excludes cached uploads on

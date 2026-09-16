@@ -1106,6 +1106,7 @@ python scripts/browser_drop.py --driver-url http://127.0.0.1:9517 `
   --canvas-attribute data-ritk-frame-height `
   --canvas-attribute data-ritk-cine-fps `
   --canvas-attribute data-ritk-frame-generation `
+  --canvas-attribute data-ritk-display-aspect `
   --output output/browser/cine
 ```
 
@@ -1569,7 +1570,8 @@ python scripts/browser_drop.py --driver-url http://127.0.0.1:9515\
   --canvas-attribute data-ritk-frame-width\
   --canvas-attribute data-ritk-frame-height\
   --canvas-attribute data-ritk-cine-fps\
-  --canvas-attribute data-ritk-frame-generation
+  --canvas-attribute data-ritk-frame-generation\
+  --canvas-attribute data-ritk-display-aspect
 ```
 
 Validate that trace with `--require-cine-rate`. For each focused canvas the

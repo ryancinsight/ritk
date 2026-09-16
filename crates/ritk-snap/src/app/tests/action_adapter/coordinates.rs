@@ -2,6 +2,7 @@
 
 use super::super::test_volume;
 use crate::app::action_adapter::ViewerViewport;
+use crate::app::browser_geometry::viewport_for_display;
 use crate::app::SnapApp;
 use crate::label::LabelEditor;
 use crate::presentation::{PointerButton, PresentationEvent};
@@ -11,6 +12,53 @@ use ritk_annotation::LabelId;
 use std::sync::Arc;
 
 use super::apply_app_event;
+
+fn hu_point(display_size: [f64; 2], point: [f64; 2]) -> [f32; 2] {
+    let mut app = SnapApp::default();
+    app.loaded = Some(test_volume([1, 4, 8]));
+    app.active_tool = ToolKind::PointHu;
+    let viewport =
+        viewport_for_display(0, display_size, [8, 4]).expect("browser display geometry is valid");
+    for event in [
+        PresentationEvent::PointerDown {
+            x: point[0],
+            y: point[1],
+            button: PointerButton::Left,
+        },
+        PresentationEvent::PointerUp {
+            x: point[0],
+            y: point[1],
+            button: PointerButton::Left,
+        },
+    ] {
+        apply_app_event(&mut app, &viewport, event);
+    }
+    match app.annotations.as_slice() {
+        // HuPoint persists positions as [row, column]; expose [x, y] here to
+        // compare the ViewerViewport mapping in ImagePoint coordinates.
+        [crate::tools::interaction::Annotation::HuPoint { pos, .. }] => [pos[1], pos[0]],
+        annotations => panic!("expected one HU point annotation, found {annotations:?}"),
+    }
+}
+
+#[test]
+fn browser_css_geometry_maps_corners_center_and_resize() {
+    let cases = [
+        ([5.0, 5.0], [0.5, 0.5]),
+        ([75.0, 5.0], [7.5, 0.5]),
+        ([5.0, 35.0], [0.5, 3.5]),
+        ([75.0, 35.0], [7.5, 3.5]),
+        ([40.0, 20.0], [4.0, 2.0]),
+    ];
+    for (point, expected) in cases {
+        assert_eq!(hu_point([80.0, 40.0], point), expected);
+        assert_eq!(
+            hu_point([160.0, 80.0], point.map(|coordinate| coordinate * 2.0)),
+            expected
+        );
+    }
+    assert_eq!(hu_point([160.0, 80.0], [40.0, 20.0]), [2.0, 1.0]);
+}
 
 #[test]
 fn fractional_client_coordinates_reach_image_mapping_unchanged() {

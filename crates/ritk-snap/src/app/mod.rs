@@ -15,6 +15,8 @@
 
 pub(crate) mod action_adapter;
 #[cfg(any(target_arch = "wasm32", test))]
+mod browser_geometry;
+#[cfg(any(target_arch = "wasm32", test))]
 mod browser_semantics;
 #[cfg(not(target_arch = "wasm32"))]
 pub(crate) mod clinical_distribution;

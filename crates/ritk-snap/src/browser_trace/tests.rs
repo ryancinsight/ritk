@@ -3,6 +3,16 @@ use serde_json::{json, Value};
 
 mod cine_rate;
 
+// The standalone anisotropic study has physical [width, height] extents of
+// [2, 3], [2, 6], and [3, 6] for axial, coronal, and sagittal slices.
+const SAMPLE_PHYSICAL_EXTENTS: [[f64; 2]; 3] = [[2.0, 3.0], [2.0, 6.0], [3.0, 6.0]];
+const CINE_CSS_HEIGHT: f64 = 153.2;
+
+fn sample_display_aspect(axis: usize) -> f64 {
+    let [width, height] = SAMPLE_PHYSICAL_EXTENTS[axis];
+    width / height
+}
+
 pub(super) fn default_ids() -> Vec<String> {
     DEFAULT_CANVAS_IDS
         .iter()
@@ -59,17 +69,14 @@ fn fixture_value_for_mode(ids: &[String], input_mode: TraceInputMode) -> Value {
         if let Some((rate, generation)) = cine_state {
             value["data-ritk-cine-fps"] = json!(rate.to_string());
             value["data-ritk-frame-generation"] = json!(generation.to_string());
+            value["data-ritk-display-aspect"] = json!(sample_display_aspect(axis).to_string());
         }
         value
     };
-    let (css_width, css_height) = if matches!(
+    let cine_rate_mode = matches!(
         input_mode,
         TraceInputMode::PointerWheelKeyboard(KeyboardTraceKind::CineRate)
-    ) {
-        (204.4, 153.2)
-    } else {
-        (256.0, 192.0)
-    };
+    );
     let mut actions = Vec::new();
     for id in ids {
         match input_mode.keyboard_kind() {
@@ -120,6 +127,14 @@ fn fixture_value_for_mode(ids: &[String], input_mode: TraceInputMode) -> Value {
                         slice_index,
                         cine_state,
                     } = stage;
+                    let (css_width, css_height) = if cine_rate_mode {
+                        (
+                            sample_display_aspect(axis) * CINE_CSS_HEIGHT,
+                            CINE_CSS_HEIGHT,
+                        )
+                    } else {
+                        (256.0, 192.0)
+                    };
                     json!({
                         "label": format!("{id}-{suffix}"),
                         "canvas": {
@@ -149,7 +164,7 @@ fn fixture_value_for_mode(ids: &[String], input_mode: TraceInputMode) -> Value {
             json!({"label": "window-final", "width": 1280, "height": 720, "bytes": 100, "sha256": "1".repeat(64)}),
         ]
         .into_iter()
-        .chain(ids.iter().flat_map(|id| {
+        .chain(ids.iter().enumerate().flat_map(|(axis, id)| {
             screenshot_suffixes.iter().map(move |suffix| {
                 let digest_digit = match *suffix {
                     "initial" => "2",
@@ -158,11 +173,16 @@ fn fixture_value_for_mode(ids: &[String], input_mode: TraceInputMode) -> Value {
                     "after-input" => "3",
                     _ => unreachable!("invariant: fixture suffixes are exhaustive"),
                 };
+                let (width, height) = if cine_rate_mode {
+                    ([128, 64, 96][axis], 192)
+                } else {
+                    (256, 192)
+                };
                 json!({
                     "label": format!("{id}-{suffix}"),
                     "scope": "element",
-                    "width": 256,
-                    "height": 192,
+                    "width": width,
+                    "height": height,
                     "bytes": 100,
                     "sha256": digest_digit.repeat(64)
                 })
