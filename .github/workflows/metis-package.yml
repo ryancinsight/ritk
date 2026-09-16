@@ -6,7 +6,7 @@ on:
       metis_revision:
         description: Exact Métis commit resolved by Cargo.lock
         required: true
-        default: 8ca04d505c3b2a48746c92d790048b0163964614
+        default: 0d1d5bc42b22547fe50f30fac94e475873a507a7
         type: string
 
 permissions:

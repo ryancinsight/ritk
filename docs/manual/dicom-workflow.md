@@ -16,7 +16,7 @@ decoded-workspace budgets, and return the RITK `Image` plus
 boundary; the host owns only input and presentation lifecycle.
 
 The standalone lock used by the viewer resolves the six Metis packages at
-`8ca04d505c3b2a48746c92d790048b0163964614`, and the fifteen
+`0d1d5bc42b22547fe50f30fac94e475873a507a7`, and the fifteen
 Moirai packages at `1fe0750962444283c23633dd33d766e503bca9fe`. The browser chooser and Windows
 package workflows default to that Metis revision. These are provider pins; RITK
 continues to own DICOM scanning, decoding, geometry and clinical presentation.
