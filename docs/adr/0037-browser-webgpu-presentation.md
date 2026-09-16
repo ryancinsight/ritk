@@ -35,6 +35,16 @@ viewer; no CPU fallback is added. The query choice and status belong to the
 RITK consumer page, not Metis. RITK's image oracle remains the decoded
 `PresentationFrame` and its canvas dimensions/aspect semantics.
 
+### Revision 2026-09-16
+
+The browser evidence workflow adds a Chromium entry that captures the
+consumer's real WebGPU element PNGs through Metis's named-context mode. It
+derives a dimensions-and-attributes oracle from the existing RITK study
+oracle, leaving raster RGBA verification unchanged. The consumer lock and
+workflow default now pin the merged Metis revision
+`29812898870042665010c6534dce111ea1966925`; the resolved Moirai provider is
+`95275651722583f52e098c0d30b1a53ec82c1fc7`.
+
 ## Alternatives rejected
 
 1. Replacing the default gallery path would invalidate the existing real-study
@@ -59,6 +69,9 @@ and revision-bound image/resource artifacts.
 The locked native `ritk-snap` suite, strict native Clippy and formatting cover
 the unchanged viewer state and compile the new WASM entrypoints. The locked
 WASM library check and Clippy cover the async constructor path. The RITK
-browser workflow records the selected renderer, exact Metis/Moirai revisions,
-canvas dimensions and RITK RGBA oracle; when a browser lacks WebGPU it records
-the typed failure instead of reporting a raster result as GPU evidence.
+browser workflow records the explicit `renderer=webgpu` query, exact
+Metis/Moirai revisions, named `webgpu` canvas-context checks, element PNG
+dimensions and RITK semantic attributes. The existing raster matrix retains
+the RGBA oracle; a WebGPU PNG does not claim 2D readback equivalence or
+hardware acceleration. When a browser lacks WebGPU the workflow records the
+typed failure instead of reporting a raster result as GPU evidence.
