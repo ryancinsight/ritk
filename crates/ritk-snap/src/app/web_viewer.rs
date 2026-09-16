@@ -9,6 +9,7 @@
 
 use super::browser_geometry::{viewport_for_display, PhysicalCanvasAspect};
 use super::browser_semantics::BrowserCanvasSemantics;
+use super::browser_slice_selection::{parse_browser_slice_request, BrowserSliceSelectionError};
 use super::SnapApp;
 use crate::app::action_adapter::ViewerActionDisposition;
 use crate::presentation::{PresentationFrame, WebCanvasPresenter};
@@ -444,6 +445,23 @@ pub(crate) fn web_canvas_listener_count() -> usize {
     VIEWER.with_borrow(|slot| {
         slot.as_ref()
             .map_or(0, |viewer| viewer.surface.listener_count())
+    })
+}
+
+/// Selects an exact zero-based slice and invalidates cached browser frames.
+pub(crate) fn select_web_slice(axis: f64, index: f64) -> Result<(), BrowserSliceSelectionError> {
+    let (axis, index) = parse_browser_slice_request(axis, index)?;
+    VIEWER.with(|slot| {
+        let mut slot = slot
+            .try_borrow_mut()
+            .map_err(|_| BrowserSliceSelectionError::ViewerBusy)?;
+        let viewer = slot
+            .as_mut()
+            .ok_or(BrowserSliceSelectionError::ViewerNotMounted)?;
+        if viewer.app.select_browser_slice(axis, index)? {
+            viewer.surface.clear();
+        }
+        Ok(())
     })
 }
 

@@ -6,7 +6,14 @@
 - Risk: [patch]; dependencies: existing browser presenter and loaded-volume geometry; driver: squashed coronal/sagittal planes in the prior capture.
 - Verification: focused nextest, native/WASM Clippy and release build, actual Edge gallery capture with independent DICOM geometry and PNG checks.
 - Browser reproduction: the inline style attribute failed under the gallery CSP; CSS property publication fixes sizing. The taller views then expose unit-scale input bounds, requiring measured CSS-to-texel mapping in the same fix.
-- Lease: canvas_driver contributor — crates/ritk-snap/src/app/web_viewer.rs, browser slice-selection leaf/tests, and required WASM exports — 2026-09-16T03:35:01-04:00.
+
+<a id="RITK-BROWSER-SLIDER-001"></a>
+## RITK-BROWSER-SLIDER-001 — Select browser slices directly
+- Status: review; priority: P1; integrator: root; last-update: 2026-09-16; branch: `codex/browser-physical-aspect`.
+- Scope: typed RITK axis/index selection, WASM export, repaint invalidation, and focused state tests; Metis owns the slider controls and mirroring only.
+- Acceptance: `select_web_slice(axis, index)` selects an exact valid zero-based slice for every orthogonal axis, rejects invalid state without mutation, and invalidates cached frames for semantic republishing.
+- Risk: [minor]; dependencies: existing browser viewer state and slice reducer; verification: focused native nextest plus native/WASM check and Clippy.
+- Evidence: focused 6/6 slice-selection tests, release WASM build, strict native Clippy and full 872/872 `ritk-snap` nextest pass; headless browser session `75363` exercised every slider and rejected 18 invalid numbers in 50 trusted UI actions (`../metis/output/browser/cine/slices/gallery-slices.json`).
 
 <a id="RITK-BROWSER-LOCAL-BOX-001"></a>
 ## RITK-BROWSER-LOCAL-BOX-001 — Map custom embedded canvas boxes

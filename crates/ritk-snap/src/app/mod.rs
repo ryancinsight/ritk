@@ -18,6 +18,8 @@ pub(crate) mod action_adapter;
 mod browser_geometry;
 #[cfg(any(target_arch = "wasm32", test))]
 mod browser_semantics;
+#[cfg(any(target_arch = "wasm32", test))]
+mod browser_slice_selection;
 #[cfg(not(target_arch = "wasm32"))]
 pub(crate) mod clinical_distribution;
 #[cfg(not(target_arch = "wasm32"))]
@@ -79,5 +81,6 @@ pub(crate) use state::SnapApp;
 
 #[cfg(target_arch = "wasm32")]
 pub(crate) use web_viewer::{
-    start_web_canvas, start_web_orthogonal_canvases, stop_web_canvas, web_canvas_listener_count,
+    select_web_slice, start_web_canvas, start_web_orthogonal_canvases, stop_web_canvas,
+    web_canvas_listener_count,
 };

@@ -259,6 +259,23 @@ pub fn start_web_orthogonal_canvases(
     crate::app::start_web_orthogonal_canvases([axial_id, coronal_id, sagittal_id])
 }
 
+/// Select an exact zero-based slice on one browser viewer axis.
+///
+/// Axes are `0` axial, `1` coronal and `2` sagittal. A successful change
+/// invalidates the cached frames; the next animation frame renders the new
+/// slice and republishes its `data-ritk-*` semantics.
+///
+/// # Errors
+///
+/// Returns a JavaScript error value when no viewer or study is available, the
+/// viewer is handling another callback, or the axis/index is out of range.
+#[cfg(target_arch = "wasm32")]
+#[wasm_bindgen::prelude::wasm_bindgen]
+pub fn select_web_slice(axis: f64, index: f64) -> Result<(), wasm_bindgen::JsValue> {
+    crate::app::select_web_slice(axis, index)
+        .map_err(|error| wasm_bindgen::JsValue::from_str(&error.to_string()))
+}
+
 /// Stop the RITK browser canvas workflow and release its browser task.
 #[cfg(target_arch = "wasm32")]
 #[wasm_bindgen::prelude::wasm_bindgen]
