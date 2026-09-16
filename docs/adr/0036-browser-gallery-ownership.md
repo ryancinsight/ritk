@@ -69,6 +69,11 @@ before querying its format-neutral file-picker controls. This keeps consumer
 customization deterministic when module initialization and host DOM insertion
 are scheduled differently across browser engines.
 
+Revision 2026-09-16 (remount picker policy): each gallery mount reapplies the
+consumer label and DICOM filter after the host inserts its controls. Lifecycle
+teardown replaces those controls, so a one-time customization would silently
+restore the generic picker on the next cycle.
+
 ## Residuals
 
 Safari/WebKit selected-file authorization, physical file-manager drag input,

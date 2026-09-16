@@ -1156,27 +1156,33 @@ process launch, and OS permission flows remain separate acceptance gates.
 
 The reproducible cross-engine chooser workflow is
 [`metis-browser-dicom.yml`](../../.github/workflows/metis-browser-dicom.yml).
-Hosted run [34984468153](https://github.com/ryancinsight/ritk/actions/runs/34984468153)
-ran the same 94 saved MRI-DIR DICOM files through the W3C file chooser on
-Chromium, Firefox, and WebKit. It built RITK at
-`15d3d3c3dd416b72cf901d652522c4877d38d664`, resolved Métis at
-`28a7c69da5991d5cd7cbf4bcdce40f826ed77e53`, and used Moirai bounded
-reads at `d95a2cd61b1f133a507d2735f5f72948a4ca5ec9`. Chromium 152 and Firefox 155
-passed the RITK-owned canvas dimensions, non-black counts, exact RGBA hashes,
-semantic `data-ritk-*` attributes, bounded rejection probes, trusted pointer,
-wheel and focused cine-rate key actions, and clean WebDriver teardown. Each
-canvas follows 12 → 13 → 13 → 12 → 12 FPS through `=` and `-` key events.
-Effective rate changes advance the rendered-frame generation once; trusted
-repeats preserve rate, generation, focused slice and pixels. Chromium uses
-DevTools key dispatch and Firefox uses WebDriver actions; this is protocol
-repeat evidence, with no physical key-hold timing claim.
-Safari 26.6.2 accepted the 94 selected files but rejected the first
-529,864-byte `File.arrayBuffer()` read before RITK received a completed batch.
-The same selected file returns `NotReadableError` from its original
-array-buffer, sliced array-buffer and FileReader reads; a bounded blob-URL
-stream returns `TypeError`. These results do not establish a decoder failure
-or justify substituting another read API. The trace records clean WebDriver
-teardown, with no Safari DICOM or keyboard success claim.
+Hosted run [35089121864](https://github.com/ryancinsight/ritk/actions/runs/35089121864)
+has completed the Chromium and Firefox jobs for the same 94 saved MRI-DIR
+DICOM files; its WebKit job is still queued. The run built RITK at
+`3b7386c5f58b39e479e9a9ee99a10b575fd102f`, resolved Métis at
+`0d1d5bc42b22547fe50f30fac94e475873a507a7`, and uses Moirai PAL at
+`c9a4431b2320adb8cd3e5a5f12d1632c18378950` (the runtime/parallel packages
+remain pinned to `c0b1131178177da699f0692079a1413a2fb033e8`). Chromium 152
+and Firefox 155 passed the RITK-owned canvas dimensions, non-black counts,
+exact RGBA hashes, semantic `data-ritk-*` attributes, bounded rejection
+probes, trusted pointer, wheel and focused cine-rate key actions, and clean
+WebDriver teardown across four mount cycles. Each canvas follows 12 → 13 →
+13 → 12 → 12 FPS through `=` and `-` key events. Effective rate changes
+advance the rendered-frame generation once; trusted repeats preserve rate,
+generation, focused slice and pixels. Chromium uses DevTools key dispatch and
+Firefox uses WebDriver actions; this is protocol repeat evidence, with no
+physical key-hold timing claim. The final captures retain the RITK consumer's
+`Choose study files` label and DICOM filter after every host remount.
+
+The current WebKit job has not started. A source-equivalent Safari 26.6.2
+failure capture from run [35086915947](https://github.com/ryancinsight/ritk/actions/runs/35086915947)
+is retained in the provenance record: Safari accepted the 94 selected files
+but rejected the first 529,864-byte `File.arrayBuffer()` read before RITK
+received a completed batch. The same selected file returns `NotReadableError`
+from its original array-buffer, sliced array-buffer and FileReader reads; a
+bounded blob-URL stream returns `TypeError`. These results do not establish a
+decoder failure or justify substituting another read API. The trace records
+clean WebDriver teardown, with no Safari DICOM or keyboard success claim.
 The [Chromium gallery](images/dicom-metis-real-browser-mri-cross-engine-chromium.png)
 and [Firefox gallery](images/dicom-metis-real-browser-mri-cross-engine-firefox.png)
 are actual viewport captures of the running gallery and its RITK canvases. The
@@ -1191,13 +1197,14 @@ restored. The failure reproduces without invoking application selection
 handlers for those controls; effects of the earlier failed attempt are not
 excluded.
 
-The same run identifies sandbox denials on the selected real file: WebContent is denied
-`file-read-data` and `file-issue-extension`, and Networking is denied
-`file-read-data`. The runner reads all 529,864 bytes of the first file and
-verifies its expected SHA-256; its mode is `0644`. SafariDriver accepts
-`Automation.setFilesToSelectForFileUpload`; the run records those denials. The exact
-SafariDriver/WebKit grant defect remains unresolved. Browser application code
-cannot grant that access; a different byte-read API does not repair it.
+The source-equivalent Safari run identifies sandbox denials on the selected
+real file: WebContent is denied `file-read-data` and `file-issue-extension`,
+and Networking is denied `file-read-data`. The runner reads all 529,864 bytes
+of the first file and verifies its expected SHA-256; its mode is `0644`.
+SafariDriver accepts `Automation.setFilesToSelectForFileUpload`; the run
+records those denials. The exact SafariDriver/WebKit grant defect remains
+unresolved. Browser application code cannot grant that access; a different
+byte-read API does not repair it.
 RITK owns DICOM scanning, decoding,
 geometry, clinical presentation and pixel assertions; Métis remains the
 format-neutral host and canvas boundary, and Moirai owns the bounded browser
