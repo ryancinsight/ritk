@@ -18,14 +18,9 @@
 
 <a id="RITK-BROWSER-GALLERY-001"></a>
 ## RITK-BROWSER-GALLERY-001 — Own the DICOM browser consumer page [arch] [patch]
-- Status: in-progress; priority: P1; owner: RITK SNAP browser; integrator: root; last-update: 2026-09-16; branch: `codex/ritk-browser-gallery-evidence`; dependencies: Metis `METIS-DICOM-005`; risk: consumer packaging boundary; ADR: [0036](docs/adr/0036-browser-gallery-ownership.md).
-- Lease: root — `crates/ritk-snap/web/gallery/gallery.js`, `backlog.md`, `docs/manual/dicom-workflow.md`, `docs/manual/images/dicom-metis-real-browser-mri-cross-engine.json`, 2026-09-16T15:20:00-04:00.
+- Status: done; priority: P1; owner: RITK SNAP browser; last-update: 2026-09-16; dependencies: Metis `METIS-DICOM-005`; ADR: [0036](docs/adr/0036-browser-gallery-ownership.md).
 - Outcome: RITK owns the DICOM gallery HTML, CSS, WASM entrypoint and saved-study presentation while Metis packages only explicit consumer assets.
-- Acceptance: the locked RITK workflow supplies its gallery to Metis, opens the saved 94-file MRI study, renders all three real canvases, and preserves Chromium/Firefox pixel, rejection and teardown oracles.
-- Verification: standalone RITK tests/WASM checks plus hosted run `35085323634` against Metis `0d1d5bc`; DICOM parsing and image evidence remain RITK-owned.
-- Delivery: gallery and ownership contract merged in [PR #414](https://github.com/ryancinsight/ritk/pull/414) at `8cf7c67f`; package correction merged in [PR #416](https://github.com/ryancinsight/ritk/pull/416) at `6f3d9cc71`.
-- Packaging correction: hosted run `35084308185` found declaration sidecars; `--no-typescript` now emits the bounded JS/WASM runtime pair.
-- Consumer mount correction: the same replay found Firefox queried the picker before Metis mounted; the gallery now mounts first, then applies its DICOM label/filter.
+- Delivery: RITK PRs [#414](https://github.com/ryancinsight/ritk/pull/414), [#416](https://github.com/ryancinsight/ritk/pull/416), [#418](https://github.com/ryancinsight/ritk/pull/418), [#419](https://github.com/ryancinsight/ritk/pull/419); hosted run [35089121864](https://github.com/ryancinsight/ritk/actions/runs/35089121864) passes the real 94-file MRI workflow on Chromium/Firefox, with WebKit read residual in [RITK-BROWSER-READ-001](#RITK-BROWSER-READ-001).
 
 <a id="RITK-GALLERY-CYCLES-001"></a>
 ## RITK-GALLERY-CYCLES-001 — Repeated saved-study browser lifecycle
