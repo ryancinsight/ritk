@@ -40,11 +40,11 @@
 - Scope: saved public MRI-DIR chooser replay and cross-engine gallery; provider/host fixes stay with their owners.
 - Acceptance: read-path cause and production fix, 94 file hashes, three exact pixel oracles, bounded rejections and clean sessions on Chromium, Firefox and WebKit.
 - Risk: [patch]; dependency: [Metis read diagnosis](../metis/backlog.md#METIS-BROWSER-READ-001).
-- Branch: `codex/ritk-browser-read-evidence`; tree: `D:/atlas/repos/ritk`; integrated base: `0bcfde50a`.
-- Evidence: current hosted [run 35089121864](https://github.com/ryancinsight/ritk/actions/runs/35089121864) builds RITK `3b7386c5f58b39e479e9a9ee99a10b575fd102f9` against Metis `0d1d5bc42b22547fe50f30fac94e475873a507a7` and Moirai `c9a4431b2320adb8cd3e5a5f12d1632c18378950`; Chromium/Firefox pass 94 file hashes, three exact pixel oracles, cine-rate/repeat checks, picker remount persistence, rejections and cleanup. WebKit remains queued; source-equivalent Safari read diagnostics are retained from [run 35086915947](https://github.com/ryancinsight/ritk/actions/runs/35086915947).
+- Branch: `codex/ritk-browser-webkit-refresh`; tree: `D:/atlas/repos/ritk`; integrated base: `b68bb51d7`.
+- Evidence: current hosted [run 35089121864](https://github.com/ryancinsight/ritk/actions/runs/35089121864) builds RITK `3b7386c5f58b39e479e9a9ee99a10b575fd102f9` against Metis `0d1d5bc42b22547fe50f30fac94e475873a507a7` and Moirai `c9a4431b2320adb8cd3e5a5f12d1632c18378950`; Chromium/Firefox pass 94 file hashes, three exact pixel oracles, cine-rate/repeat checks, picker remount persistence, rejections and cleanup. WebKit accepts 94 files then fails the first bounded read; [current artifact and hashes](docs/manual/images/dicom-metis-real-browser-mri-cross-engine.json) record the completed failure.
 - Diagnosis: WebKit sandbox denies reads and read-extension issuance on the selected real file despite verified host bytes; four browser APIs and isolated one-file/full-batch inputs fail. DICOM stays in RITK.
 - Verification: locked `ritk-snap` nextest 819/819, strict native/WASM Clippy and checks, formatting and lockfile validation pass; [proof and log hashes](docs/manual/images/dicom-metis-real-browser-mri-cross-engine.json).
-- Blocker: exact SafariDriver/WebKit selected-file authorization defect remains external while the current WebKit job is queued. Re-open when the corrected browser/runner path grants real-file reads; application byte-read APIs cannot grant that access.
+- Blocker: exact SafariDriver/WebKit selected-file authorization defect remains external; current run 35089121864 reproduces the denial after SafariDriver accepts the chooser request. Re-open when the corrected browser/runner path grants real-file reads; application byte-read APIs cannot grant that access.
 
 <a id="RITK-SNAP-FILE-TARGETS-2026-09-10"></a>
 ## RITK-SNAP-FILE-TARGETS-2026-09-10 — Four ritk-snap files past the 500-line target [patch]
