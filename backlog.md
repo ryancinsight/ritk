@@ -12,13 +12,13 @@
 
 <a id="RITK-BROWSER-LOCAL-BOX-001"></a>
 ## RITK-BROWSER-LOCAL-BOX-001 — Map custom embedded canvas boxes
-- Status: review; priority: P2; integrator: root; last-update: 2026-09-16; branch: `codex/browser-physical-aspect`.
+- Status: review; priority: P2; integrator: root; last-update: 2026-09-16; delivery: [PR #412](https://github.com/ryancinsight/ritk/pull/412), auto-merge enabled; implementation `c08749927`.
 - Scope: custom browser embeddings with canvas borders, padding or ancestor CSS transforms; the saved Metis gallery has none.
 - Acceptance: measured content-local pointer and wheel positions preserve voxel selection under borders, padding and invertible ancestor affine transforms.
 - Contract: [ADR 0032](docs/adr/0032-browser-semantic-snapshot.md); Moirai measures local content geometry, Metis transports format-neutral coordinates and dimensions, RITK maps event-time fractions to voxels.
 - Risk: [patch]; dependency: provider local content geometry; verification: transformed/bordered browser cases plus coordinate oracles.
 - Native evidence: `cargo nextest run -p ritk-snap` run `ef9461e7-a7af-4c40-a279-99c1de13c27e` passes 872/872; native/WASM strict Clippy, formatting, 4 doctests and warning-denied rustdoc pass on the local provider overlay (one pre-existing ignored doctest).
-- Browser evidence: Edge 154, three layouts select `[47,340,173]`, wheel to `[46,340,173]`, padding/border wheels leave slices unchanged; rounding preflight and independent review pass. `output/browser/local-box.json` SHA256 `855204ad93f2e46116df59e4d14ae7363c0050f9b170244e9671c22632800119`.
+- Browser evidence: Edge 154 at `70ab3fa84`, three layouts select `[47,340,173]`, wheel to `[46,340,173]`, padding/border wheels leave slices unchanged; rounding preflight and independent review pass. `output/browser/local-box.json` SHA256 `d327d0edaa8072825b50993b5c4b7ee902c9d0bad6fb523303c875eecb05658d`.
 - Dependency evidence: standalone lock check and locked RITK WASM check pass with Moirai `c9a4431b` and Metis `dce79dbe`; [Metis PR #178](https://github.com/ryancinsight/metis/pull/178) awaits its required Windows gate, with auto-merge enabled and administrative merge refused.
 
 <a id="RITK-GALLERY-CYCLES-001"></a>
