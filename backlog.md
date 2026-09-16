@@ -28,7 +28,7 @@
 - Outcome: RITK owns the slice-control runner, evidence helpers and saved-study assertions; Metis exposes only the generic file/canvas host and bounded consumer callback.
 - Scope: `scripts/browser_gallery*.py`, `scripts/tests/test_browser_gallery.py`, `.github/workflows/metis-browser-dicom.yml`, manual commands and provenance; no DICOM logic moves into Metis.
 - Acceptance: the RITK wrapper delegates transfer to the pinned Metis revision, captures all 50 trusted slider actions and 18 invalid probes, restores exact pixels, validates teardown and passes the hosted Chromium/Firefox/WebKit matrix or records the engine-specific residual.
-- Delivery: local harness extraction and workflow delegation are uncommitted on `arch/browser-gallery-harness`; hosted evidence must be regenerated after the Metis callback seam merges.
+- Delivery: commits `32c639efa` and `9d2976f71` move the harness and callback test into RITK; Metis PR [#193](https://github.com/ryancinsight/metis/pull/193) merged at `88c60a0b`; the standalone lock and browser/package workflow defaults now pin that revision. Hosted evidence must be regenerated from this consumer wrapper.
 
 <a id="RITK-GALLERY-CYCLES-001"></a>
 ## RITK-GALLERY-CYCLES-001 — Repeated saved-study browser lifecycle

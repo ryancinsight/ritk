@@ -80,6 +80,9 @@ wrapper imports the generic Metis runner through an explicit `--metis-root`,
 passes RITK's post-transfer capture callback, and records consumer evidence
 under the RITK output contract. The Metis scripts no longer contain RITK canvas
 IDs, DICOM filters or slice-control behavior.
+The dependent RITK lock and browser/package workflow defaults pin Metis merge
+`88c60a0b6410c0e07700e965bcdbea43b7b20789`; hosted evidence will be regenerated
+from this wrapper.
 
 ## Residuals
 
