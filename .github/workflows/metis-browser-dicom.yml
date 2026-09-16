@@ -8,7 +8,7 @@ on:
       metis_revision:
         description: Exact Métis commit resolved by Cargo.lock
         required: true
-        default: c4276f2586f1ae9a1e3c0fa1dcb1507be4555f24
+        default: 9d14da154787e68f0b3d72290480aecbb838880b
         type: string
 
 permissions:
@@ -17,7 +17,7 @@ permissions:
 env:
   CARGO_INCREMENTAL: 0
   RUST_BACKTRACE: 1
-  METIS_REVISION: ${{ inputs.metis_revision || 'c4276f2586f1ae9a1e3c0fa1dcb1507be4555f24' }}
+  METIS_REVISION: ${{ inputs.metis_revision || '9d14da154787e68f0b3d72290480aecbb838880b' }}
 
 concurrency:
   group: ritk-snap-metis-browser-${{ github.ref }}
@@ -285,6 +285,7 @@ jobs:
           ENGINE: ${{ matrix.engine }}
           DEVICE_SCALE: ${{ matrix.device_scale }}
           RITK_REVISION: ${{ github.sha }}
+          LIFECYCLE_CYCLES: ${{ matrix.engine == 'webkit' && '1' || '4' }}
         run: |
           set -euo pipefail
           python scripts/browser_drop.py \
@@ -292,6 +293,7 @@ jobs:
             --driver-url "$DRIVER_URL" \
             --device-scale "$DEVICE_SCALE" \
             --input chooser \
+            --lifecycle-cycles "$LIFECYCLE_CYCLES" \
             --files "$GITHUB_WORKSPACE/ritk/test_data/2_head_mri_t2/DICOM" \
             --pattern '*.dcm' \
             --oracle output/browser/mri-oracle.json \
@@ -317,13 +319,14 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
-          cargo run --locked --manifest-path Cargo.toml -p ritk-snap -- \
-            --validate-browser-trace \
-            "$GITHUB_WORKSPACE/metis/output/browser/results/$ENGINE/canvas-trace.json" \
-            --require-cine-rate \
-            --canvas-id ritk-snap-axial \
-            --canvas-id ritk-snap-coronal \
-            --canvas-id ritk-snap-sagittal
+          for trace in "$GITHUB_WORKSPACE/metis/output/browser/results/$ENGINE"/canvas-trace*.json; do
+            cargo run --locked --manifest-path Cargo.toml -p ritk-snap -- \
+              --validate-browser-trace "$trace" \
+              --require-cine-rate \
+              --canvas-id ritk-snap-axial \
+              --canvas-id ritk-snap-coronal \
+              --canvas-id ritk-snap-sagittal
+          done
 
       - name: Capture WebKit sandbox diagnostics
         if: always() && matrix.engine == 'webkit'

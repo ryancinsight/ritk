@@ -266,6 +266,17 @@ pub fn stop_web_canvas() {
     crate::app::stop_web_canvas();
 }
 
+/// Return the number of browser canvas listener guards retained by RITK.
+///
+/// The count is zero after [`stop_web_canvas`] returns. A mounted single-canvas
+/// viewer reports one provider input set; the orthogonal viewer reports three.
+#[cfg(target_arch = "wasm32")]
+#[wasm_bindgen::prelude::wasm_bindgen]
+#[must_use]
+pub fn web_canvas_listener_count() -> usize {
+    crate::app::web_canvas_listener_count()
+}
+
 #[cfg(all(test, windows))]
 mod tests {
     use super::select_native_initial_path;

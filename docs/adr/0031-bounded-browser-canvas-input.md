@@ -73,6 +73,18 @@ consumer fail closed for a false browser `Event.isTrusted` snapshot before
 canvas values reach the viewer reducer. Metis and Moirai preserve the value;
 RITK owns the acceptance policy.
 
+Revision 2026-09-16: the browser viewer is retained in a synchronous
+thread-local owner instead of inside the cancellable animation-frame future.
+`stop_web_canvas` drops that owner before cancelling the future, immediately
+releasing the decoded study, rendered frames, pointer captures and canvas
+listener guards. Every animation-frame scheduling, wait, presentation and
+viewer-exit path now uses the same teardown. The exported
+`web_canvas_listener_count` reads the provider's actual retained guard count,
+so browser lifecycle tests can assert the mounted and stopped values without
+encoding DICOM or viewer semantics in Metis. This closes the interval in which
+task cancellation had been requested but the executor had not yet polled and
+dropped the child future.
+
 ## Rejected alternative
 
 Handling pointer state in Métis would duplicate RITK's viewer reducer and make
@@ -83,8 +95,10 @@ would couple RITK to a browser runtime and lose the bounded provider contract.
 
 The native RITK action suite covers pointer-cancel reduction, browser key-code
 mapping and the existing wheel, viewport and cancellation laws. The RITK WASM
-target is checked against the merged Metis input seam; the browser canvas
-consumer makes its focus contract explicit with `tabindex="0"`. The existing
+target is checked against the merged Metis input seam; the repeated browser
+lifecycle gate reads the consumer listener diagnostic after mount and stop.
+The browser canvas consumer makes its focus contract explicit with
+`tabindex="0"`. The existing
 packaged synthetic DICOM capture continues to prove byte-to-frame ownership.
 Physical file-manager input, GPU and full-window captures remain open evidence;
 Safari's file-backed WebDriver read remains the cross-engine residual under the

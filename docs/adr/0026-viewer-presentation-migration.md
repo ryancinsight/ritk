@@ -686,6 +686,20 @@ hashes recorded in the manual provenance. A local replay of that hosted
 executable opened the same study and reproduced the committed capture; the
 hosted workflow itself does not execute DICOM or install the MSI.
 
+Revision 2026-09-16 (stable browser canvas extents): the standalone RITK lock
+now resolves all Moirai packages at merge `5cf572f734a3a50cf57eafe67dd3723e7e303116`.
+Its browser canvas presenter retains the validated bitmap dimensions across
+same-size RGBA frames and resizes only when an extent changes. RITK still owns
+DICOM bytes, decoding, geometry and presentation pixels; no visual golden
+changed. The lifecycle guard removes redundant bitmap-reset work without
+claiming a WASM, browser-heap or process-memory measurement.
+
+The same standalone lock now resolves all six Metis packages at
+`9d14da154787e68f0b3d72290480aecbb838880b`; the chooser and package workflows
+use that revision as their default. The lifecycle runner consumes the host listener diagnostic;
+RITK's DICOM scanner, decoder, geometry, clinical pixels and existing real-study
+galleries remain unchanged.
+
 ## Alternatives and validation
 
 Retaining egui indefinitely contradicts the requested framework target. Removing

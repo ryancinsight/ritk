@@ -76,4 +76,6 @@ pub(crate) use slice_ops::CineTick;
 pub(crate) use state::SnapApp;
 
 #[cfg(target_arch = "wasm32")]
-pub(crate) use web_viewer::{start_web_canvas, start_web_orthogonal_canvases, stop_web_canvas};
+pub(crate) use web_viewer::{
+    start_web_canvas, start_web_orthogonal_canvases, stop_web_canvas, web_canvas_listener_count,
+};
