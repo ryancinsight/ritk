@@ -1,9 +1,11 @@
+use super::layout::{surface_frames, surface_frames_with_mip};
 use super::layout::{OVERLAY_BAR_HEIGHT, OVERLAY_TEXT};
 use super::*;
 use crate::dicom::loader::tests::fixtures;
-use metis_platform::native::{ModifierState, WindowEvent};
+use metis_platform::native::{ModifierState, NativeApplication, NativeFlow, WindowEvent};
 use metis_ui_lang::DisplayCommand;
 use std::time::{Duration, Instant};
+mod selection;
 
 fn session() -> (NativeViewerSession, tempfile::TempDir) {
     session_with_mode(NativePresentationMode::Orthogonal)
@@ -19,12 +21,13 @@ fn session_with_mode(
     let volume = load_volume_from_path(&path).expect("load study fixture");
     app.load_volume(volume, "fixture".to_owned());
     (
-        NativeViewerSession::new(
+        NativeViewerSession::new_with_selection(
             app,
             Arc::new(NativeViewerObservation::default()),
             false,
             presentation_mode,
             false,
+            None,
         )
         .expect("native session"),
         root,
@@ -95,7 +98,7 @@ fn native_session_reopens_selected_study_through_the_ritk_loader() {
     assert!(session
         .app
         .status_message
-        .contains("Loaded native Métis study"));
+        .contains("Loaded native Métis series"));
     assert!(
         session
             .observation

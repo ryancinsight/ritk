@@ -232,6 +232,14 @@ diagnostic. The launcher never chooses the largest or first series. This is the
 safe path for saved patient folders that contain multiple acquisitions; keep
 clinical files local and do not add them to the repository or its captures.
 
+The interactive Windows Métis shell follows the same rule. `Ctrl+O` opens the
+bounded folder picker; when the folder contains several acquisitions, RITK
+renders a series selector over the current framebuffer. Use **Arrow Up/Down**
+or **1–9**, then **Enter** to load the highlighted SeriesInstanceUID. **Escape**
+cancels without replacing the current study. A failed scan or decode reports
+the failure in the selector and keeps the previous decoded frame available,
+so a recoverable reopen never terminates the Métis host.
+
 **Open DICOMDIR…** uses the index's referenced image set. Missing references or
 an invalid index report an error; unreferenced subdirectories do not supply a
 replacement study. The reader follows the linked PATIENT/STUDY/SERIES/IMAGE
@@ -248,8 +256,9 @@ Older path-based sessions remain readable, but an ambiguous folder requires
 selection. See the [public API migration guide](../migration_selected_dicom.md).
 This session format does not persist the secondary comparison acquisition.
 
-Native tests exercise actual egui series-row pointer events, primary/secondary
-loads, failed replacement, and session restore with deterministic Part 10 files.
+Native tests exercise the RITK series selector and exact UID load path alongside
+the existing egui series-row pointer events, primary/secondary loads, failed
+replacement, and session restore with deterministic Part 10 files.
 The IO tests load a complete synthetic linked PATIENT/STUDY/SERIES/IMAGE index,
 then exercise inactive and unreachable records, malformed links, identity
 mismatches, and final-component symlinks. They compare active member paths and
