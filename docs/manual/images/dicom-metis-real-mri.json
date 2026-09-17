@@ -49,6 +49,23 @@
     "cancellation_error": "native Métis file selection was cancelled",
     "scope": "Windows saved single-series folder selection and cancellation; permission-denial propagation is unit-tested, not induced in the OS"
   },
+  "replay_evidence": {
+    "date": "2026-09-16",
+    "command": "python scripts/viewer.py D:/atlas/target/debug/examples/dicom_workflow.exe --native-binary D:/atlas/target/debug/ritk-snap.exe --metis-native --real-study test_data/2_head_mri_t2/DICOM",
+    "input": "saved DICOM directory supplied to the bounded real-study harness",
+    "ritk_revision": "4a060dc75974945d5b446f41ab99fff697a1f6cb",
+    "metis_revision": "88c60a0b6410c0e07700e965bcdbea43b7b20789",
+    "moirai_revision": "95275651722583f52e098c0d30b1a53ec82c1fc7",
+    "executable_sha256": "79716a04a9696d9db8e7c1dff58524d0f3b8ca2db17cb542a1ced5df31964b17",
+    "executable_bytes": 53500416,
+    "capture": "real-metis-frame.png",
+    "capture_sha256": "259dd79103482756c4e688621bebafc841cc40f1df10ff2bbd7f9d04b7b4d401",
+    "width": 1280,
+    "height": 800,
+    "non_black_pixels": 411589,
+    "invalid_study_exit": 1,
+    "status": "passed"
+  },
   "ownership": {
     "host": "Moirai/Metis return the selected filesystem path and present a format-neutral framebuffer",
     "ritk": "DICOM discovery, acquisition selection, decoding, geometry, clinical display and capture",
