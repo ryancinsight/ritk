@@ -768,6 +768,11 @@ The saved-study harness reran this workflow on 2026-09-14 at RITK
 `a7fa2ba69f25070581f7245f059089705d8fc699`. It recorded 411,589 non-black
 pixels and the image digest in the same 1280 × 800 frame. The capture remains
 public MRI-DIR data; a private clinical run stays local.
+A clean-main replay on 2026-09-16 used RITK `4a060dc75`, the locked Métis
+consumer `88c60a0b` and Moirai `95275651`. It exited 0 after reading all 94
+files, rejected the invalid-study probe with exit 1, and reproduced the same
+411,589-pixel image; the executable digest and command are in the
+[`replay evidence`](images/dicom-metis-real-mri.json).
 The capture excludes operating-system chrome and remains a visual-content
 check; native IME, accessibility and cross-platform host evidence are separate
 gates. Replace the path with a private clinical study only for a local run;
