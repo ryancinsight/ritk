@@ -145,11 +145,9 @@
 
 <a id="RITK-METIS-LOCK-001"></a>
 ## RITK-METIS-LOCK-001 — Advance first-party provider pins [patch]
-- Status: review; priority: P1; integrator: root; last-update: 2026-09-17; branch: `build/ritk-metis-permission-lock`; regions: `Cargo.lock`, `backlog.md`.
-- Scope: advance the standalone lock from Metis `79f20e2c` and Moirai `a0f4fd29` to merged Metis `2358e3003ab625a058be042b6e0f6d562bab7ac9` and Moirai `b94f3ed7a0faa436ebe993dbfec49726cef853fa`; DICOM ownership and real-study evidence stay in RITK.
-- Acceptance: every resolved Metis and Moirai package uses the target revisions; the lockfile checker, focused native/WASM consumer gates, format and strict Clippy pass against the exact standalone lock.
-- Prior delivery: [RITK PR #446](https://github.com/ryancinsight/ritk/pull/446) established the previous provider pins; this increment supersedes those pins after Metis PR #209 and Moirai delivery.
-- Verification: `scripts/lockfile.py --check`, fmt, locked `ritk-snap` nextest 435/435, native strict Clippy, WASM check/Clippy and `ritk-snap-eframe` check/Clippy pass; no DICOM or visual artifacts changed.
+- Status: done; priority: P1; delivery: [RITK PR #446](https://github.com/ryancinsight/ritk/pull/446), [RITK PR #449](https://github.com/ryancinsight/ritk/pull/449) merge `1ab0a3685c58b8d0d6131d9ad5556729f7a838ac`; last-update: 2026-09-17.
+- Outcome: standalone Cargo.lock resolves every Metis package to `2358e3003ab625a058be042b6e0f6d562bab7ac9` and every Moirai package to `b94f3ed7a0faa436ebe993dbfec49726cef853fa`; the obsolete duplicate Melinoe source entry is removed, while RITK DICOM ownership and real-study evidence remain unchanged.
+- Verification: `scripts/lockfile.py --check` reports 61 first-party git sources; fmt, locked `ritk-snap` nextest 435/435, native strict Clippy, WASM check/Clippy, and `ritk-snap-eframe` check/Clippy pass; PR #449 landed with hosted retro-verification run 35232317634 still active at close.
 
 <a id="RITK-BROWSER-WEBGPU-001"></a>
 ## RITK-BROWSER-WEBGPU-001 — Demonstrate browser WebGPU presentation [arch] [minor]
