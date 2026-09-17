@@ -131,6 +131,13 @@
 - Acceptance: README names both real and synthetic workflows, links the actual Métis capture, and no patient pixels or identifiers enter the public tree.
 - Demonstration: the existing revision-bound CT/MIP capture and local saved-study command in `docs/manual/dicom-workflow.md`.
 
+<a id="RITK-SNAP-REAL-DICOM-REPLAY-001"></a>
+## RITK-SNAP-REAL-DICOM-REPLAY-001 — Rebind the real MRI replay [patch]
+- Status: in-progress; priority: P1; integrator: root; last-update: 2026-09-17; dependency: RITK-METIS-LOCK-001; risk: stale provider provenance
+- Scope: bind the committed native MRI capture and its manual replay text to the current standalone Metis/Moirai lock while preserving historical picker and hosted records.
+- Acceptance: machine-readable replay evidence names the exact current revisions, command, executable/image hashes, 94-file read and invalid-study rejection; manual text names the same lock and actual image.
+- Verification: JSON parse, image/hash/dimension checks, `git diff --check`, and the focused real-study replay from a standalone checkout outside the Atlas overlay.
+
 <a id="RITK-SNAP-METIS-001"></a>
 ## RITK-SNAP-METIS-001 — Migrate the viewer shell to Métis [arch] [major]
 - Status: done; priority: P1; owner: RITK viewer + Métis framework; integrator: root; last-update: 2026-09-17; delivery: RITK PR #443 (merge `57e11c92c080dc9c8716f9218d55c1344a75b412`) and PR #444 (merge `5a68a8e725280a3a94387dd4c9f01524201fdb8f`).
