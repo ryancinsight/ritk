@@ -6130,7 +6130,7 @@ ket as rotate
 
 ## RITK-GAP-2026-08-20-04 [patch] — evict the 1.6 GB tracked binary payload
 
-- **Status:** in-progress; owner=Codex `/root`; integrator=root; regions=`dist/`, `output/`, `.gitignore`, `backlog.md`, `checklist.md`, `gap_audit.md`; last-update=2026-09-17;
+- **Status:** in-progress; owner=Codex `/root`; integrator=root; regions=`test_data/`, `backlog.md`, `checklist.md`, `gap_audit.md`; last-update=2026-09-17;
   source=`gap_audit.md` Finding 2026-08-20 F5.
 - **Outcome:** the repository tracks source, sanctioned small golden fixtures,
   and nothing else. Large medical corpora are fetched on demand exactly as
@@ -6153,6 +6153,9 @@ ket as rotate
 - **Dependencies:** the `externals/` download harness already exists and is the
   reuse target — no new mechanism.
 - **Risk/change class:** `[patch]` (no source or API change). Effort M.
+- **Inventory:** `gap_audit.md` F5 records the measured dataset groups, consumer
+  references, duplicate MNI/OpenNeuro copies, and the unreferenced
+  `paired_mri_ct/` corpus whose provenance and retention are unresolved.
 
 ## RITK-GAP-2026-08-20-05 [patch] — derive the escalated test budgets and sweep the dead filters
 
