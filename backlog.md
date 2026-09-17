@@ -157,9 +157,9 @@
 
 <a id="RITK-CLIPPY-RENDER-CFG-001"></a>
 ## RITK-CLIPPY-RENDER-CFG-001 — Scope the native MIP export to Windows [patch]
-- Status: review; priority: P1; integrator: root; regions: `crates/ritk-snap/src/render/mod.rs`, `backlog.md`; dependency: hosted Clippy retro-verification for RITK-METIS-LOCK-001; last-update: 2026-09-17.
-- Scope: remove the Linux-only unused native-session re-export while retaining the Windows Métis projection and eframe compatibility paths.
-- Acceptance: workspace `cargo clippy --workspace --all-targets --all-features -- -D warnings` is clean on Linux and the existing native/WASM viewer gates remain green.
+- Status: done; priority: P1; delivery: [RITK PR #453](https://github.com/ryancinsight/ritk/pull/453), merge `92a3c06be03727a35a0b91bee2f87100d500c7fa`; last-update: 2026-09-17.
+- Outcome: the native RGBA MIP export is compiled only for the Windows Métis session, so Linux all-target Clippy has no unused re-export while the Windows projection and eframe shell remain intact.
+- Verification: hosted retro run [35235536323](https://github.com/ryancinsight/ritk/actions/runs/35235536323) reports Clippy success; neutral locked workspace Clippy, `ritk-snap` nextest 811/811, native/WASM checks and Clippy, eframe check/Clippy, format and diff checks pass. The current saved 94-file MRI replay remains byte-identical to the committed 1280×800 capture.
 
 <a id="RITK-BROWSER-WEBGPU-001"></a>
 ## RITK-BROWSER-WEBGPU-001 — Demonstrate browser WebGPU presentation [arch] [minor]
