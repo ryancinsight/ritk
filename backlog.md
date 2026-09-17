@@ -6136,7 +6136,7 @@ ket as rotate
 
 ## RITK-GAP-2026-08-20-04 [patch] — evict the 1.6 GB tracked binary payload
 
-- **Status:** in-progress; owner=Codex `/root`; integrator=root; regions=`test_data/`, `backlog.md`, `checklist.md`, `gap_audit.md`; last-update=2026-09-17;
+- **Status:** in-progress; owner=Codex `/root`; integrator=root; regions=`test_data/`, `crates/ritk-nifti/src/tests/tests_format_sources.rs`, `crates/ritk-python/tests/test_registration_validation.py`, `crates/ritk-python/tests/test_registration_gap_validation.py`, `crates/ritk-python/tests/test_metric_parity.py`, `xtask/src/main.rs`, `backlog.md`, `checklist.md`, `gap_audit.md`; last-update=2026-09-17;
   source=`gap_audit.md` Finding 2026-08-20 F5.
 - **Outcome:** the repository tracks source, sanctioned small golden fixtures,
   and nothing else. Large medical corpora are fetched on demand exactly as

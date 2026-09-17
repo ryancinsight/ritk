@@ -7552,6 +7552,9 @@ independent of it and can run concurrently on disjoint scopes.
 - [x] Inventory `test_data/` by tracked bytes and consumer references; record
       the measured groups, duplicate copies, and unresolved corpus provenance
       in `gap_audit.md` F5.
+- [ ] Consolidate the byte-identical MNI152 and OpenNeuro copies onto their
+      canonical `ants_example/` and `openneuro/` paths, migrate all consumers,
+      and remove the superseded files.
 - [ ] Decide retention or externalisation for the unreferenced
       `paired_mri_ct/` corpus after provenance and authorization are established.
 - [ ] Split referenced public datasets into small committed goldens and an
