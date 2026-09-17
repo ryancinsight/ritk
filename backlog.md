@@ -168,6 +168,12 @@
 - Acceptance: a configured browser runner reports an adapter, presents the three saved-study canvases, records revision-bound PNGs and semantic attributes, and completes bounded teardown without a raster fallback.
 - Blocker: hosted Chromium in run [35133971196](https://github.com/ryancinsight/ritk/actions/runs/35133971196) reports no WebGPU adapter; the existing setup error and failure capture are preserved in [`dicom-metis-real-browser-mri-webgpu-failure.png`](docs/manual/images/dicom-metis-real-browser-mri-webgpu-failure.png). Re-open when a runner with an adapter is available; no application code can manufacture that host capability.
 
+<a id="RITK-PYTHON-DENOISE-ULP-001"></a>
+## RITK-PYTHON-DENOISE-ULP-001 — Reproduce hosted denoising parity variance [patch]
+- Status: in-progress; priority: P1; integrator: root; regions: `crates/ritk-filter/src/patch_based_denoising.rs`, `crates/ritk-python/tests/test_simpleitk_cmake_data.py`, `backlog.md`; last-update: 2026-09-17; dependency: none.
+- Scope: determine why the fixed SimpleITK 2.5.6 comparison is 2 ULP on hosted runs `35206932737`, `35210616931` and `35235536323` but passed on `35177948901`; preserve the 1-ULP contract and RITK algorithm ownership.
+- Acceptance: a repeatable execution or environment cause is identified and fixed or documented with an independently derived bound; the dedicated test passes without widened tolerance or weakened assertions, with locked Python and Rust gates recorded.
+
 <a id="RITK-SNAP-EFRAME-BOUNDARY-001"></a>
 ## RITK-SNAP-EFRAME-BOUNDARY-001 — Separate the eframe compatibility shell [arch] [major]
 - Status: done; priority: P0; owner: RITK viewer; integrator: root; last-update: 2026-09-17; delivery: PR #443, merge `57e11c92c080dc9c8716f9218d55c1344a75b412`.
