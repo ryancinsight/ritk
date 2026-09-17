@@ -29,7 +29,7 @@
 //! bypass scalar windowing. The canonical output is a bounded RGBA image;
 //! the eframe host adapts it to `egui::ColorImage` at its own boundary.
 
-#[cfg(not(target_arch = "wasm32"))]
+#[cfg(all(not(target_arch = "wasm32"), feature = "eframe-shell"))]
 use super::buffer_pool::RenderBufferPool;
 use super::{GrayscalePresentation, NamedColorMap, WindowLevel};
 use crate::LoadedVolume;
@@ -45,7 +45,7 @@ pub(crate) struct RgbaImage {
 }
 
 impl RgbaImage {
-    fn new(size: [usize; 2], pixels: Vec<u8>) -> Self {
+    pub(crate) fn new(size: [usize; 2], pixels: Vec<u8>) -> Self {
         debug_assert_eq!(
             pixels.len(),
             size[0].saturating_mul(size[1]).saturating_mul(4)
@@ -65,6 +65,7 @@ impl RgbaImage {
     }
 
     /// Converts the neutral image for the legacy eframe host.
+    #[cfg(feature = "eframe-shell")]
     pub(crate) fn to_color_image(&self) -> egui::ColorImage {
         egui::ColorImage::from_rgba_unmultiplied(self.size, &self.pixels)
     }
@@ -103,6 +104,7 @@ impl SliceRenderer {
     /// An [`egui::ColorImage`] of size `[width, height]` (see table above).
     /// This adapter is retained for the eframe host; Métis-facing consumers
     /// use `render_rgba` and receive no egui carrier.
+    #[cfg(feature = "eframe-shell")]
     pub fn render(
         volume: &LoadedVolume,
         axis: usize,
@@ -173,7 +175,7 @@ impl SliceRenderer {
     /// render_with_scratch(pool, volume, axis, index, wl, colormap).pixels
     ///   == render(volume, axis, index, wl, colormap).pixels
     /// ```
-    #[cfg(not(target_arch = "wasm32"))]
+    #[cfg(all(not(target_arch = "wasm32"), feature = "eframe-shell"))]
     pub(crate) fn render_with_scratch(
         pool: &mut RenderBufferPool,
         volume: &LoadedVolume,
@@ -275,7 +277,7 @@ fn invalid_channel_image(channels: u8) -> RgbaImage {
     invalid_image()
 }
 
-#[cfg(not(target_arch = "wasm32"))]
+#[cfg(feature = "eframe-shell")]
 fn invalid_color_image(channels: u8) -> egui::ColorImage {
     invalid_channel_image(channels).to_color_image()
 }
@@ -284,6 +286,6 @@ fn invalid_image() -> RgbaImage {
     RgbaImage::new([1, 1], vec![255, 0, 255, 255])
 }
 
-#[cfg(test)]
+#[cfg(all(test, feature = "eframe-shell"))]
 #[path = "tests_slice_render.rs"]
 mod tests;

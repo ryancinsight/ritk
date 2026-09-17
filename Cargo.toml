@@ -22,6 +22,7 @@ members = [
   "crates/ritk-python",
   "crates/ritk-cli",
   "crates/ritk-snap",
+  "crates/ritk-snap-eframe",
   "crates/ritk-transform",
   "crates/ritk-interpolation",
   "crates/ritk-spatial",

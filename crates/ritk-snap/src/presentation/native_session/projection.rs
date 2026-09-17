@@ -2,7 +2,7 @@
 
 use crate::app::SnapApp;
 use crate::presentation::PresentationFrame;
-use crate::render::render_mip_axial;
+use crate::render::render_mip_axial_rgba;
 use anyhow::{anyhow, bail, Context, Result};
 
 use super::frame::window_level_for_app;
@@ -33,29 +33,11 @@ pub(super) fn render_mip_projection(app: &SnapApp) -> Result<RenderedProjection>
         bail!("native Métis MIP requires a scalar RITK volume");
     }
     let window_level = window_level_for_app(app);
-    let image = render_mip_axial(volume, window_level, app.colormap);
-    let [width, height] = image.size;
-    let byte_count = width
-        .checked_mul(height)
-        .and_then(|pixels| pixels.checked_mul(4))
-        .ok_or_else(|| anyhow!("native MIP RGBA storage size overflows usize"))?;
-    let mut rgba = Vec::new();
-    rgba.try_reserve_exact(byte_count)
-        .map_err(|_| anyhow!("unable to reserve native MIP RGBA storage"))?;
-    for pixel in image.pixels {
-        rgba.extend_from_slice(&pixel.to_srgba_unmultiplied());
-    }
-    if rgba.len() != byte_count {
-        bail!(
-            "native MIP RGBA storage {} does not match {}x{}",
-            rgba.len(),
-            width,
-            height
-        );
-    }
+    let image = render_mip_axial_rgba(volume, window_level, app.colormap);
+    let ([width, height], rgba) = image.into_parts();
     let width = u32::try_from(width).map_err(|_| anyhow!("native MIP width exceeds u32"))?;
     let height = u32::try_from(height).map_err(|_| anyhow!("native MIP height exceeds u32"))?;
-    let frame = PresentationFrame::from_rgba_storage(width, height, rgba.into_boxed_slice())
+    let frame = PresentationFrame::from_rgba_storage(width, height, rgba)
         .context("validate native MIP presentation frame")?;
     let [_, row_spacing, column_spacing] = volume.spacing;
     if !row_spacing.is_finite()
@@ -107,22 +89,18 @@ mod tests {
         let mut app = SnapApp::default();
         app.load_volume(volume.clone(), "projection fixture".to_owned());
         let window_level = window_level_for_app(&app);
-        let expected = render_mip_axial(&volume, window_level, app.colormap);
+        let expected = render_mip_axial_rgba(&volume, window_level, app.colormap);
         let actual = render_mip_projection(&app).expect("native MIP");
-        let expected_rgba: Vec<u8> = expected
-            .pixels
-            .iter()
-            .flat_map(|pixel| pixel.to_srgba_unmultiplied())
-            .collect();
+        let ([expected_width, expected_height], expected_rgba) = expected.into_parts();
         assert_eq!(
             actual.frame.width(),
-            u32::try_from(expected.size[0]).expect("width")
+            u32::try_from(expected_width).expect("width")
         );
         assert_eq!(
             actual.frame.height(),
-            u32::try_from(expected.size[1]).expect("height")
+            u32::try_from(expected_height).expect("height")
         );
-        assert_eq!(actual.frame.rgba(), expected_rgba.as_slice());
+        assert_eq!(actual.frame.rgba(), expected_rgba.as_ref());
         assert_eq!(actual.display_spacing, [1.5, 0.75]);
     }
 

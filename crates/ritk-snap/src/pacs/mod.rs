@@ -24,4 +24,5 @@ pub use worker::PacsWorkerHandle;
 mod tests;
 #[cfg(test)]
 #[path = "tests_query.rs"]
+#[cfg(feature = "eframe-shell")]
 mod tests_query;

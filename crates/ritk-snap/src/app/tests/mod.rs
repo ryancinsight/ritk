@@ -6,8 +6,11 @@
 
 use crate::app::state::SnapApp;
 use crate::render::NamedColorMap;
+#[cfg(feature = "eframe-shell")]
 use crate::tools::kind::ToolKind;
-use crate::{LoadedVolume, ViewerState};
+use crate::LoadedVolume;
+#[cfg(feature = "eframe-shell")]
+use crate::ViewerState;
 use arrayvec::ArrayString;
 use std::sync::Arc;
 
@@ -20,26 +23,36 @@ mod browser_slice_selection;
 #[cfg(test)]
 mod colormap;
 #[cfg(test)]
+#[cfg(feature = "eframe-shell")]
 mod cursor;
 #[cfg(test)]
+#[cfg(feature = "eframe-shell")]
 mod dicom_workflows;
 #[cfg(test)]
+#[cfg(feature = "eframe-shell")]
 mod distribution;
 #[cfg(not(target_arch = "wasm32"))]
+#[cfg(feature = "eframe-shell")]
 mod load_tasks;
 #[cfg(test)]
+#[cfg(feature = "eframe-shell")]
 mod measurement;
 #[cfg(test)]
 mod navigation;
 #[cfg(test)]
+#[cfg(feature = "eframe-shell")]
 mod physical_aspect;
 #[cfg(test)]
+#[cfg(feature = "eframe-shell")]
 mod rt;
 #[cfg(test)]
+#[cfg(feature = "eframe-shell")]
 mod seg_load;
 #[cfg(test)]
+#[cfg(feature = "eframe-shell")]
 mod session;
 #[cfg(test)]
+#[cfg(feature = "eframe-shell")]
 mod tool;
 
 /// Constructs a zero-filled `LoadedVolume` with the given shape and identity

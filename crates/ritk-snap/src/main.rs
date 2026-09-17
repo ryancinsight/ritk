@@ -51,6 +51,7 @@ struct Args {
     metis_native: bool,
     /// Use the legacy eframe compatibility shell instead of the default Métis
     /// host on Windows.
+    #[cfg(feature = "eframe-shell")]
     #[arg(long, conflicts_with = "metis_native")]
     eframe: bool,
     /// Select the native Métis framebuffer layout.
@@ -107,7 +108,11 @@ fn main() -> anyhow::Result<()> {
         writeln!(stdout, "{report}")?;
         return Ok(());
     }
-    let metis_native = !args.eframe && (args.metis_native || cfg!(windows));
+    #[cfg(feature = "eframe-shell")]
+    let eframe_requested = args.eframe;
+    #[cfg(not(feature = "eframe-shell"))]
+    let eframe_requested = false;
+    let metis_native = !eframe_requested && (args.metis_native || cfg!(windows));
     if args.capture_application && !metis_native {
         anyhow::bail!("--capture-application requires the Métis native shell");
     }

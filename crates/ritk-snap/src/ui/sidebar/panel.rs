@@ -24,23 +24,7 @@ use crate::LoadedVolume;
 use ritk_io::DicomSeriesInfo;
 use std::sync::Arc;
 
-// ── SidebarTab ────────────────────────────────────────────────────────────────
-
-/// Active tab in the sidebar panel.
-///
-/// Governs which of the three content areas is displayed when
-/// [`SidebarPanel::show`] is called.
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Default, serde::Serialize, serde::Deserialize)]
-
-pub enum SidebarTab {
-    /// Shows the collapsible Patient → Study → Series browser tree.
-    #[default]
-    Series,
-    /// Shows the scrollable DICOM metadata table for the loaded volume.
-    Metadata,
-    /// Shows the PET SUV quantification panel (only meaningful for PT modality).
-    PetSuv,
-}
+use super::SidebarTab;
 
 // ── SidebarPanel ──────────────────────────────────────────────────────────────
 

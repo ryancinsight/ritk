@@ -1,9 +1,9 @@
 # ritk-snap
 
 `ritk-snap` is the RITK medical-image viewer. On Windows the Métis host is the
-default desktop shell; pass `--eframe` when an eframe compatibility session is
-needed. Other native targets retain eframe until their Métis surface provider
-is available. The migration is described in
+default desktop shell. The default package has no eframe, egui, or rfd active
+dependency; the complete compatibility shell is the separately named
+`ritk-snap-eframe` package. The migration is described in
 [ADR 0026](../../docs/adr/0026-viewer-presentation-migration.md).
 
 RITK owns DICOM opening, decoding, geometry, and medical display semantics.
@@ -42,8 +42,21 @@ cargo run --locked -p ritk-snap -- path/to/study \
   --series-instance-uid 2.25.20260905001 --metis-native
 ```
 
-To capture the rendered eframe compatibility window and exit, add `--eframe`
-and append `--capture window.png`.
+To capture the rendered eframe compatibility window and exit, use the
+dedicated compatibility package:
+
+```console
+cargo run --locked -p ritk-snap-eframe -- path/to/study --capture window.png
+```
+
+The existing source-level capture harness can still select the complete shell
+with the feature explicitly enabled:
+
+```console
+cargo run --locked -p ritk-snap --features eframe-shell -- \
+  path/to/study --eframe --capture window.png
+```
+
 For a mixed folder, keep `--series-instance-uid` on the same command so the
 capture waits for that selected RITK acquisition to load. A supplied study must
 load successfully; capture failure returns an error. To run the same loaded
@@ -54,8 +67,9 @@ cargo run --locked -p ritk-snap -- path/to/study --metis-native
 ```
 
 On Windows the same command works without `--metis-native`; the flag remains an
-explicit spelling for scripts and existing workflows. Use `--eframe` to opt
-out of the default Métis shell.
+explicit spelling for scripts and existing workflows. The separately named
+`ritk-snap-eframe` executable selects the compatibility shell without activating
+the legacy graph in the default package.
 
 The Métis session owns the HWND, bounded event wait, framebuffer presentation,
 resize/minimize and terminal cleanup. RITK owns DICOM opening, decoded volume

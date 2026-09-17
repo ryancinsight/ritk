@@ -2,7 +2,9 @@
 
 pub(crate) mod fixtures;
 
+#[cfg(feature = "eframe-shell")]
 mod multiframe;
+#[cfg(feature = "eframe-shell")]
 mod presentation;
 mod selection;
 mod volumes;

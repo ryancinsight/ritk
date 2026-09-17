@@ -363,10 +363,10 @@ recorded in [the resource provenance record](images/dicom-metis-real-ct-resource
 
 ## Capture the eframe application
 
-Build the binary alongside the example and run:
+Build the synthetic workflow example with the compatibility feature and run:
 
 ```console
-cargo build --locked -p ritk-snap --bins --example dicom_workflow
+cargo build --locked -p ritk-snap --features eframe-shell --bin ritk-snap --example dicom_workflow
 python scripts/viewer.py target/debug/examples/dicom_workflow --native-binary target/debug/ritk-snap
 ```
 
@@ -380,9 +380,16 @@ native workflow therefore has a maximum 180-second subprocess budget.
 Capture uses the normal viewer update and egui/eframe screenshot response. The
 capture wrapper keeps requesting bounded repaints while RITK's background load
 publishes, then takes the screenshot; a failed or over-deadline load returns an
-error instead of saving an empty frame. For your own local study, run
-`ritk-snap path/to/study --eframe --capture window.png`. The supplied study must load and
-the PNG must save before success is reported.
+error instead of saving an empty frame. For your own local study, run the
+dedicated compatibility executable:
+
+```console
+ritk-snap-eframe path/to/study --capture window.png
+```
+
+The supplied study must load and the PNG must save before success is reported.
+The source-level equivalent is
+`ritk-snap --features eframe-shell -- path/to/study --eframe --capture window.png`.
 Native window images depend on the host renderer and fonts; the exact pixel
 goldens above remain the deterministic software-rendering check.
 
@@ -393,8 +400,9 @@ target/debug/ritk-snap.exe scratch/viewer/study --metis-native
 ```
 
 On Windows the `--metis-native` spelling is optional for this command; the
-Métis host is the default shell. Existing scripts may retain the explicit flag,
-while `--eframe` selects the compatibility path described above.
+Métis host is the default shell. Existing scripts may retain the explicit flag.
+The separately named `ritk-snap-eframe` executable selects the compatibility
+path without activating the legacy graph in the default package.
 
 To open a saved study through the same host without typing its path, omit the
 positional argument on Windows:
@@ -671,19 +679,20 @@ volume-rendering path and emits a diagnostic instead of panicking in wgpu. The
 GPU path remains available for volumes within the device limits; this guard
 keeps a real saved study displayable on either path.
 
-### Capture the saved CT study in eframe
+### Capture the saved CT study in the eframe compatibility package
 
 The same public series can be opened in the complete eframe application with an
 explicit acquisition selection:
 
 ```powershell
-target\debug\ritk-snap.exe `
+target\debug\ritk-snap-eframe.exe `
   test_data\3_head_ct_mridir\DICOM `
   --series-instance-uid 1.3.6.1.4.1.14519.5.2.1.1706.4996.115936088547498980797393821518 `
   --capture scratch\viewer\real-dicom-eframe.png
 ```
 
-This run decoded the saved 409-slice CT series and exited successfully with a
+Build the package first with `cargo build --locked -p ritk-snap-eframe`. This
+run decoded the saved 409-slice CT series and exited successfully with a
 1600 × 1000 application-content capture. The image includes the Series Browser,
 axial, coronal, sagittal and 3D MIP views, plus the RITK geometry and
 window/level state. The scalar volume exceeds the reference adapter's GPU
@@ -713,7 +722,7 @@ Get-ChildItem test_data\3_head_ct_mridir\DICOM -Filter '*.dcm' |
   Sort-Object Name | Select-Object -First 9 |
   Copy-Item -Destination $subset
 $env:WGPU_BACKEND = 'gl'
-target\debug\ritk-snap.exe `
+target\debug\ritk-snap-eframe.exe `
   $subset `
   --series-instance-uid 1.3.6.1.4.1.14519.5.2.1.1706.4996.115936088547498980797393821518 `
   --capture scratch\viewer\real-dicom-eframe-gpu.png

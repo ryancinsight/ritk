@@ -1,6 +1,6 @@
 //! ritk-snap viewer application state and desktop-shell adapters.
 //!
-//! Owns the top-level `SnapApp` struct and its eframe shell wrapper. All
+//! Owns the top-level `SnapApp` struct and optional desktop-shell adapters. All
 //! domain logic (intensity mapping, slice extraction, annotation computation)
 //! lives in the `render` and `tools` sub-modules; this module wires events and
 //! drives state transitions. The format-neutral presentation module supplies
@@ -20,48 +20,50 @@ mod browser_geometry;
 mod browser_semantics;
 #[cfg(any(target_arch = "wasm32", test))]
 mod browser_slice_selection;
-#[cfg(not(target_arch = "wasm32"))]
+#[cfg(all(not(target_arch = "wasm32"), feature = "eframe-shell"))]
 pub(crate) mod clinical_distribution;
-#[cfg(not(target_arch = "wasm32"))]
+#[cfg(all(not(target_arch = "wasm32"), feature = "eframe-shell"))]
 mod eframe;
-#[cfg(not(target_arch = "wasm32"))]
+#[cfg(all(not(target_arch = "wasm32"), feature = "eframe-shell"))]
 mod filter;
-#[cfg(not(target_arch = "wasm32"))]
+#[cfg(all(not(target_arch = "wasm32"), feature = "eframe-shell"))]
 mod image_placement;
-#[cfg(not(target_arch = "wasm32"))]
+#[cfg(all(not(target_arch = "wasm32"), feature = "eframe-shell"))]
 mod io_ops;
-#[cfg(not(target_arch = "wasm32"))]
+#[cfg(all(not(target_arch = "wasm32"), feature = "eframe-shell"))]
 mod load_tasks;
-#[cfg(not(target_arch = "wasm32"))]
+#[cfg(all(not(target_arch = "wasm32"), feature = "eframe-shell"))]
 mod menu;
-#[cfg(not(target_arch = "wasm32"))]
+#[cfg(all(not(target_arch = "wasm32"), feature = "eframe-shell"))]
 mod mesh_ops;
-#[cfg(not(target_arch = "wasm32"))]
+#[cfg(all(not(target_arch = "wasm32"), feature = "eframe-shell"))]
 mod pacs_ops;
+#[cfg(feature = "eframe-shell")]
 mod panels;
 mod pointer_ops;
-#[cfg(not(target_arch = "wasm32"))]
+#[cfg(all(not(target_arch = "wasm32"), feature = "eframe-shell"))]
 mod render_cache;
-#[cfg(not(target_arch = "wasm32"))]
+#[cfg(all(not(target_arch = "wasm32"), feature = "eframe-shell"))]
 mod rt_overlay;
-#[cfg(not(target_arch = "wasm32"))]
+#[cfg(all(not(target_arch = "wasm32"), feature = "eframe-shell"))]
 mod rt_struct_export;
-#[cfg(not(target_arch = "wasm32"))]
+#[cfg(all(not(target_arch = "wasm32"), feature = "eframe-shell"))]
 mod shortcuts;
 mod slice_ops;
 pub(crate) mod state;
-#[cfg(not(target_arch = "wasm32"))]
+#[cfg(all(not(target_arch = "wasm32"), feature = "eframe-shell"))]
 mod surface_export;
-#[cfg(not(target_arch = "wasm32"))]
+#[cfg(all(not(target_arch = "wasm32"), feature = "eframe-shell"))]
 mod toolbar;
-#[cfg(not(target_arch = "wasm32"))]
+#[cfg(all(not(target_arch = "wasm32"), feature = "eframe-shell"))]
 mod viewport;
-#[cfg(not(target_arch = "wasm32"))]
+#[cfg(all(not(target_arch = "wasm32"), feature = "eframe-shell"))]
 mod viewport_compare;
-#[cfg(not(target_arch = "wasm32"))]
+#[cfg(all(not(target_arch = "wasm32"), feature = "eframe-shell"))]
 mod viewport_render;
-#[cfg(any(test, not(target_arch = "wasm32")))]
+#[cfg(all(not(target_arch = "wasm32"), feature = "eframe-shell"))]
 mod volume_input;
+#[cfg(all(not(target_arch = "wasm32"), feature = "eframe-shell"))]
 mod volume_ops;
 mod volume_state;
 
@@ -75,7 +77,7 @@ mod web_viewer;
 #[cfg(test)]
 mod tests;
 
-#[cfg(not(target_arch = "wasm32"))]
+#[cfg(all(not(target_arch = "wasm32"), feature = "eframe-shell"))]
 pub(crate) use eframe::EguiApp;
 #[cfg(windows)]
 pub(crate) use slice_ops::CineTick;

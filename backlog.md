@@ -246,10 +246,10 @@
 
 <a id="RITK-SNAP-EFRAME-BOUNDARY-001"></a>
 ## RITK-SNAP-EFRAME-BOUNDARY-001 — Separate the eframe compatibility shell [arch] [major]
-- Status: in-progress; priority: P0; owner: RITK viewer; integrator: root; branch: `refactor/ritk-snap-eframe-boundary-001`; last-update: 2026-09-17;
+- Status: review; priority: P0; owner: RITK viewer; integrator: root; branch: `refactor/ritk-snap-eframe-boundary-001`; last-update: 2026-09-17;
 - Outcome: the default `ritk-snap` viewer graph builds through Métis without eframe, egui, or rfd while a separately named compatibility artifact retains the complete legacy shell.
 - Scope: move the eframe launch and GUI adapter behind a complete compatibility package/feature boundary; preserve every existing eframe workflow until the replacement is verified. DICOM parsing, geometry and clinical presentation remain in RITK.
-- Acceptance: default `cargo metadata` and locked build resolve no eframe/egui/rfd packages; the compatibility artifact builds and exercises the existing eframe capture path; the Windows default remains Métis; no forwarding shim or duplicated viewer state exists; manual, ADR and dependency lock are synchronized.
+- Acceptance: the default active dependency graph excludes eframe/egui/rfd and the locked build passes; the compatibility artifact builds and exercises the existing eframe capture path; the Windows default remains Métis; no forwarding shim or duplicated viewer state exists; manual, ADR and dependency lock are synchronized.
 - Dependencies: [RITK-SNAP-METIS-001](#RITK-SNAP-METIS-001); current Métis native session merge `75c17f11c`.
 - Verification: standalone locked metadata/build, native and WASM checks, strict Clippy/fmt, full `ritk-snap` nextest, compatibility-shell capture smoke, and an active-graph assertion.
 

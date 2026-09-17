@@ -48,7 +48,7 @@
 
 /// Map a canvas x-coordinate back to its corresponding intensity value.
 ///
-/// This is the inverse of [`crate::ui::histogram::wl_to_x`]:
+/// This is the inverse of the compatibility shell's `histogram::wl_to_x`:
 ///
 /// ```text
 /// t   = clamp((x − x_left) / (x_right − x_left), 0.0, 1.0)

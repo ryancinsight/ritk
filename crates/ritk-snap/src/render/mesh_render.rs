@@ -4,7 +4,7 @@
 //!
 //! Converts a `VtkPolyData` mesh into an RGBA pixel buffer using a Z-buffer
 //! rasterizer with per-face Phong lighting. The output buffer can be uploaded
-//! as an [`egui::ColorImage`] for display in the viewer.
+//! as an `egui::ColorImage` for display in the compatibility viewer.
 //!
 //! # Algorithm
 //!

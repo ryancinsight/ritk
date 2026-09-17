@@ -222,6 +222,7 @@ impl SnapApp {
     /// A native or browser host can terminate a drag without a final client
     /// coordinate. Clearing both reducer and viewer gesture state keeps the
     /// next press admissible and mirrors the focus-loss cancellation path.
+    #[cfg(any(target_arch = "wasm32", feature = "eframe-shell"))]
     pub(crate) fn cancel_presentation_gesture(&mut self) {
         self.presentation_dispatcher.cancel_pointers();
         self.on_drag_end(None);
