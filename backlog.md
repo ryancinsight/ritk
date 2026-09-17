@@ -176,9 +176,9 @@
 
 <a id="RITK-CI-DICOM-WORKFLOW-001"></a>
 ## RITK-CI-DICOM-WORKFLOW-001 — Build the viewer workflow example with its shell [patch]
-- Status: in-progress; priority: P1; integrator: root; regions: `.github/workflows/ci.yml`, `backlog.md`, `checklist.md`; last-update: 2026-09-17; dependency: none.
+- Status: done; priority: P1; integrator: root; last-update: 2026-09-17; delivery: PR [#459](https://github.com/ryancinsight/ritk/pull/459), merge `daef9acfc32d517dcfda8aef7183b7f2807f1c6c`.
 - Outcome: the hosted synthetic DICOM visual step builds `dicom_workflow` with the feature required by its manifest, so all operating-system test jobs execute the committed image oracle.
-- Acceptance: the workflow command matches `crates/ritk-snap/Cargo.toml`, the synthetic viewer capture passes on the local locked command and a hosted run, and the DICOM ownership boundary remains unchanged.
+- Evidence: `cargo build --locked -p ritk-snap --features eframe-shell --example dicom_workflow` and `python scripts/viewer.py target/debug/examples/dicom_workflow.exe` passed at `ee0ded9e4`; the report is `scratch/viewer/workflow.json` with status `passed`, synthetic shape `[3,2,4]`, and revision-bound PNG hashes. Post-merge CI `35242533864` and Python CI `35242532842` remain queued by hosted runner capacity; re-open only if either retro-check reports a defect.
 
 <a id="RITK-SNAP-EFRAME-BOUNDARY-001"></a>
 ## RITK-SNAP-EFRAME-BOUNDARY-001 — Separate the eframe compatibility shell [arch] [major]

@@ -71,7 +71,7 @@ lifecycle guard, not a measurement of WebAssembly or browser memory.
 Build from a standalone RITK checkout, then run the bounded demonstration:
 
 ```console
-cargo build --locked -p ritk-snap --example dicom_workflow
+cargo build --locked -p ritk-snap --features eframe-shell --example dicom_workflow
 python scripts/viewer.py target/debug/examples/dicom_workflow
 ```
 

@@ -60,8 +60,9 @@
 - [x] Run the local locked synthetic DICOM workflow image oracle and the
       affected configuration checks: `scripts/lockfile.py --check`, metadata,
       and `scripts/viewer.py` pass with `status: passed`.
-- [ ] Collect the hosted test-suite result on the exact branch head, then
-      merge and compact the backlog item with the evidence.
+- [x] Merge PR #459 at `daef9acfc32d517dcfda8aef7183b7f2807f1c6c` and compact
+      the item with the local report and the queued post-merge CI run IDs
+      `35242533864` and `35242532842`; re-open only on a retro-check failure.
 
 ## RITK-SNAP-METIS-001 — Native Métis viewer session
 
