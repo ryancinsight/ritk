@@ -20,6 +20,8 @@ mod browser_geometry;
 mod browser_semantics;
 #[cfg(any(target_arch = "wasm32", test))]
 mod browser_slice_selection;
+#[cfg(any(target_arch = "wasm32", test))]
+mod browser_window_preset;
 #[cfg(all(not(target_arch = "wasm32"), feature = "eframe-shell"))]
 pub(crate) mod clinical_distribution;
 #[cfg(all(not(target_arch = "wasm32"), feature = "eframe-shell"))]
@@ -66,6 +68,8 @@ mod volume_input;
 #[cfg(all(not(target_arch = "wasm32"), feature = "eframe-shell"))]
 mod volume_ops;
 mod volume_state;
+#[cfg(any(target_arch = "wasm32", feature = "eframe-shell", test))]
+mod window_level;
 
 #[cfg(target_arch = "wasm32")]
 mod browser_canvas;
@@ -85,6 +89,7 @@ pub(crate) use state::SnapApp;
 
 #[cfg(target_arch = "wasm32")]
 pub(crate) use web_viewer::{
-    select_web_slice, start_web_canvas, start_web_canvas_gpu, start_web_orthogonal_canvases,
-    start_web_orthogonal_canvases_gpu, stop_web_canvas, web_canvas_listener_count,
+    select_web_slice, set_web_window_preset, start_web_canvas, start_web_canvas_gpu,
+    start_web_orthogonal_canvases, start_web_orthogonal_canvases_gpu, stop_web_canvas,
+    web_canvas_listener_count, web_window_preset_count, web_window_preset_name,
 };

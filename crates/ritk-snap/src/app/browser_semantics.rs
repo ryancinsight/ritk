@@ -14,8 +14,8 @@ pub(crate) enum BrowserLoadState {
 /// Format-neutral semantic state published beside one RITK browser canvas.
 ///
 /// The state contains only viewer evidence needed by a browser driver: load
-/// state, axis and slice selection, the dimensions of the presented frame and
-/// the active cine rate.
+/// state, axis and slice selection, the dimensions of the presented frame,
+/// the active cine rate and the effective window/level display values.
 /// It deliberately excludes paths, identifiers, metadata and pixel values.
 #[derive(Debug, Clone, Copy, PartialEq)]
 pub(crate) struct BrowserCanvasSemantics {
@@ -31,6 +31,12 @@ pub(crate) struct BrowserCanvasSemantics {
     pub(crate) frame_dimensions: Option<(u32, u32)>,
     /// Active cine playback rate in frames per second.
     pub(crate) cine_fps: f32,
+    /// Effective window centre used for presentation.
+    pub(crate) window_center: f32,
+    /// Effective window width used for presentation.
+    pub(crate) window_width: f32,
+    /// Active modality preset, when the current values match one.
+    pub(crate) window_preset_index: Option<usize>,
 }
 
 impl BrowserCanvasSemantics {
@@ -43,6 +49,9 @@ impl BrowserCanvasSemantics {
         slice_count: usize,
         frame: Option<&PresentationFrame>,
         cine_fps: f32,
+        window_center: f32,
+        window_width: f32,
+        window_preset_index: Option<usize>,
     ) -> Self {
         debug_assert!(axis < 3, "RITK browser axes are limited to three planes");
         debug_assert!(slice_count > 0, "RITK browser slice counts are non-zero");
@@ -61,6 +70,9 @@ impl BrowserCanvasSemantics {
             slice_count,
             frame_dimensions: frame.map(|frame| (frame.width(), frame.height())),
             cine_fps,
+            window_center,
+            window_width,
+            window_preset_index,
         }
     }
 
@@ -68,6 +80,25 @@ impl BrowserCanvasSemantics {
     #[must_use]
     pub(crate) fn cine_fps_value(self) -> String {
         self.cine_fps.to_string()
+    }
+
+    /// Returns the stable DOM value for the effective window centre.
+    #[must_use]
+    pub(crate) fn window_center_value(self) -> String {
+        self.window_center.to_string()
+    }
+
+    /// Returns the stable DOM value for the effective window width.
+    #[must_use]
+    pub(crate) fn window_width_value(self) -> String {
+        self.window_width.to_string()
+    }
+
+    /// Returns the stable DOM value for the active preset index.
+    #[must_use]
+    pub(crate) fn window_preset_index_value(self) -> String {
+        self.window_preset_index
+            .map_or_else(String::new, |index| index.to_string())
     }
 
     /// Returns the stable DOM value for the load state.

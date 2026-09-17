@@ -6281,3 +6281,10 @@ ket as rotate
 - **Dependencies:** none.
 - **Risk/change class:** `[patch]`, `[minor]` if the parameter becomes public.
   Effort S.
+<a id="RITK-BROWSER-WINDOW-LEVEL-001"></a>
+## RITK-BROWSER-WINDOW-LEVEL-001 — Expose Rust-owned browser window presets [minor]
+- Status: in-progress; priority: P1; owner: RITK SNAP browser; integrator: root; last-update: 2026-09-17; dependencies: RITK-SNAP-METIS-001; risk: browser presentation drift; source: [RadiAnt window/level](https://www.radiantviewer.com/dicom-viewer-manual/change_brightness_contrast.html).
+- Scope: add a bounded WASM preset command and semantic window center/width attributes, then wire the RITK-owned gallery controls; Metis stays format-neutral and DICOM decoding remains in RITK.
+- Acceptance: valid preset changes all three real-study frames and frame generations; invalid requests leave state and pixels unchanged; controls are disabled before a study, keyboard-accessible, and covered by asset/unit tests; saved 94-file MRI replay and native/WASM gates pass.
+- Verification: focused Rust value tests, browser asset contract, exact saved-study replay and inspected control capture; no fabricated or synthetic clinical image evidence.
+- Lease: root — `crates/ritk-snap/src/app/{web_viewer.rs,browser_canvas.rs,browser_semantics.rs}`, `src/launch.rs`, `web/gallery/`, tests/docs — 2026-09-17.

@@ -8,8 +8,6 @@ use crate::session::ViewerSessionSnapshot;
 #[cfg(not(target_arch = "wasm32"))]
 use crate::tools::interaction::{ToolState, ViewportOffset};
 #[cfg(not(target_arch = "wasm32"))]
-use crate::ui::window_presets::WindowPreset;
-#[cfg(not(target_arch = "wasm32"))]
 use crate::ui::{decide_dropped_input_action, DroppedInput};
 #[cfg(not(target_arch = "wasm32"))]
 use crate::ui::{format_lps, show_colorbar, voxel_to_lps, LinkedCursor, MAX_ZOOM, MIN_ZOOM};
@@ -35,14 +33,6 @@ impl SnapApp {
         if editor.redo() {
             self.status_message = "Segmentation redo.".to_owned();
         }
-    }
-
-    /// Apply a [`WindowPreset`] and advance the visual revision.
-    #[cfg(not(target_arch = "wasm32"))]
-    pub(crate) fn apply_preset(&mut self, preset: WindowPreset) {
-        self.viewer_state.window_center = Some(preset.center as f32);
-        self.viewer_state.window_width = Some(preset.width as f32);
-        self.bump_visual_revision();
     }
 
     #[cfg(not(target_arch = "wasm32"))]

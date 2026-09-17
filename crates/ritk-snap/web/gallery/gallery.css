@@ -8,6 +8,9 @@
 .gallery .metis-drop { margin: 0 0 16px; padding: 12px; }
 .gallery .metis-drop h2 { margin: 0; font-size: 1.1rem; }
 .gallery #drop-zone { min-height: 64px; padding: 12px; display: grid; place-items: center; }
+.presentation-controls { display: grid; grid-template-columns: max-content minmax(14rem, 24rem) 1fr; gap: 10px 12px; align-items: center; margin: 0 0 20px; }
+.presentation-controls select { min-height: 2.25rem; padding: 4px 8px; }
+.presentation-controls output { font-variant-numeric: tabular-nums; color: #444; }
 .gallery-views { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 20px; }
 .gallery-views figure { margin: 0; min-width: 0; }
 .gallery-views figcaption { margin-bottom: 8px; font-weight: 600; }
@@ -18,5 +21,6 @@
 .gallery-views input[type="range"]:disabled { cursor: default; }
 @media (max-width: 700px) {
   .gallery { padding: 16px; }
+  .presentation-controls { grid-template-columns: 1fr; }
   .gallery-views { grid-template-columns: 1fr; }
 }

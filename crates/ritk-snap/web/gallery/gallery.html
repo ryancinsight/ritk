@@ -17,6 +17,13 @@
     <p id="gallery-status" role="status" aria-live="polite">Loading viewer…</p>
   </header>
   <main id="metis-app" aria-label="Study file transfer"></main>
+  <section class="presentation-controls" aria-label="Display controls">
+    <label for="window-preset">Window/level preset</label>
+    <select id="window-preset" aria-label="Window/level preset" disabled>
+      <option value="">Load a study to choose a preset</option>
+    </select>
+    <output id="window-level" aria-live="polite">No study</output>
+  </section>
   <section class="gallery-views" aria-label="Orthogonal study views">
     <figure>
       <figcaption>Axial</figcaption>

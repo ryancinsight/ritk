@@ -334,6 +334,41 @@ pub fn select_web_slice(axis: f64, index: f64) -> Result<(), wasm_bindgen::JsVal
         .map_err(|error| wasm_bindgen::JsValue::from_str(&error.to_string()))
 }
 
+/// Apply one exact loaded-modality window/level preset to every browser view.
+///
+/// The index is validated as a finite non-negative integer against the table
+/// selected from the loaded DICOM modality. A successful change invalidates
+/// all retained frames; the next animation frame renders the new intensity
+/// mapping and publishes the updated window attributes.
+///
+/// # Errors
+///
+/// Returns a JavaScript error when no viewer or study is available, the viewer
+/// is handling another callback, or the index is outside the active preset
+/// table.
+#[cfg(target_arch = "wasm32")]
+#[wasm_bindgen::prelude::wasm_bindgen]
+pub fn set_web_window_preset(index: f64) -> Result<(), wasm_bindgen::JsValue> {
+    crate::app::set_web_window_preset(index)
+        .map_err(|error| wasm_bindgen::JsValue::from_str(&error.to_string()))
+}
+
+/// Return the number of window/level presets for the loaded modality.
+#[cfg(target_arch = "wasm32")]
+#[wasm_bindgen::prelude::wasm_bindgen]
+pub fn web_window_preset_count() -> Result<usize, wasm_bindgen::JsValue> {
+    crate::app::web_window_preset_count()
+        .map_err(|error| wasm_bindgen::JsValue::from_str(&error.to_string()))
+}
+
+/// Return one window/level preset name for the loaded modality.
+#[cfg(target_arch = "wasm32")]
+#[wasm_bindgen::prelude::wasm_bindgen]
+pub fn web_window_preset_name(index: f64) -> Result<String, wasm_bindgen::JsValue> {
+    crate::app::web_window_preset_name(index)
+        .map_err(|error| wasm_bindgen::JsValue::from_str(&error.to_string()))
+}
+
 /// Stop the RITK browser canvas workflow and release its browser task.
 #[cfg(target_arch = "wasm32")]
 #[wasm_bindgen::prelude::wasm_bindgen]
