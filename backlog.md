@@ -151,10 +151,9 @@
 
 <a id="RITK-METIS-LOCK-002"></a>
 ## RITK-METIS-LOCK-002 — Advance the post-merge viewer pins [patch]
-- Status: review; priority: P1; owner: RITK viewer integration; integrator: root; last-update: 2026-09-17; dependencies: Metis PR #213, Moirai `c7b49a7623aed533f377aec77f656a16d2b9d68b`; risk: stale provider behavior in the saved-study workflow.
-- Scope: update the standalone Cargo.lock and workflow defaults to the merged Metis and Moirai revisions, rerun the real saved-study replay, and synchronize only current manual/provenance claims; historical captures remain immutable.
-- Acceptance: locked RITK viewer build/tests and lockfile checks pass; the replay reads all 94 saved MRI files, reproduces the exact committed 1280×800 frame and non-black pixel count, rejects an invalid study, and records the new provider revisions in the current manual/provenance evidence.
-- Demonstration: [RITK DICOM workflow](docs/manual/dicom-workflow.md) and [MRI replay provenance](docs/manual/images/dicom-metis-real-mri.json).
+- Status: done; priority: P1; delivery: [RITK PR #464](https://github.com/ryancinsight/ritk/pull/464), merge `132251fa57046241e55cb9189126d6ae7fb98eb9`; last-update: 2026-09-17.
+- Outcome: standalone lock and viewer workflows resolve Metis `8e566af9a37dc0382e8e919c593d3838f5b08186` and Moirai `a2f21496d1d09b2abe6523e3c8cdbf751dcd560a`; the saved-study replay reads 94 files, reproduces the committed MRI frame, and rejects an invalid study.
+- Verification: lockfile, fmt, nextest 435/435, strict native/WASM checks and Clippy, replay, provenance JSON and image hash/dimension checks pass; [current MRI evidence](docs/manual/images/dicom-metis-real-mri.json).
 
 <a id="RITK-DOCS-EVIDENCE-SYNC-001"></a>
 ## RITK-DOCS-EVIDENCE-SYNC-001 — Sync current provider revisions in replay docs [patch]
