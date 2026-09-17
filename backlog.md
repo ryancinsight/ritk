@@ -145,9 +145,11 @@
 
 <a id="RITK-METIS-LOCK-001"></a>
 ## RITK-METIS-LOCK-001 — Advance first-party provider pins [patch]
-- Status: done; priority: P1; delivery: [RITK PR #446](https://github.com/ryancinsight/ritk/pull/446); last-update: 2026-09-17.
-- Outcome: standalone Cargo.lock resolves all Metis packages to `79f20e2c` and Moirai packages to `a0f4fd29`, including the merged `metis-web` Unicode dependency edge; RITK DICOM ownership and real-study evidence remain unchanged.
-- Verification: lockfile check, fmt, locked `ritk-snap` nextest 435/435 no-feature and 846/846 all-features, strict native/WASM Clippy and check, and `ritk-snap-eframe` check/Clippy pass.
+- Status: review; priority: P1; integrator: root; last-update: 2026-09-17; branch: `build/ritk-metis-permission-lock`; regions: `Cargo.lock`, `backlog.md`.
+- Scope: advance the standalone lock from Metis `79f20e2c` and Moirai `a0f4fd29` to merged Metis `2358e3003ab625a058be042b6e0f6d562bab7ac9` and Moirai `b94f3ed7a0faa436ebe993dbfec49726cef853fa`; DICOM ownership and real-study evidence stay in RITK.
+- Acceptance: every resolved Metis and Moirai package uses the target revisions; the lockfile checker, focused native/WASM consumer gates, format and strict Clippy pass against the exact standalone lock.
+- Prior delivery: [RITK PR #446](https://github.com/ryancinsight/ritk/pull/446) established the previous provider pins; this increment supersedes those pins after Metis PR #209 and Moirai delivery.
+- Verification: `scripts/lockfile.py --check`, fmt, locked `ritk-snap` nextest 435/435, native strict Clippy, WASM check/Clippy and `ritk-snap-eframe` check/Clippy pass; no DICOM or visual artifacts changed.
 
 <a id="RITK-BROWSER-WEBGPU-001"></a>
 ## RITK-BROWSER-WEBGPU-001 — Demonstrate browser WebGPU presentation [arch] [minor]
