@@ -139,11 +139,9 @@
 
 <a id="RITK-METIS-LOCK-001"></a>
 ## RITK-METIS-LOCK-001 — Advance first-party provider pins [patch]
-- Status: in-progress; priority: P1; integrator: root; last-update: 2026-09-17; branch: `build/ritk-metis-204-lock`; regions: `Cargo.lock`, `backlog.md`.
-- Scope: resolve the standalone consumer lock to merged Metis `79f20e2c` and Moirai `a0f4fd29`; DICOM code, presentation and browser residuals stay unchanged.
-- Acceptance: every Metis/Moirai package source matches those revisions; `scripts/lockfile.py --check`, native and WASM consumer gates, format and strict Clippy pass against the exact lock.
-- Dependencies: Metis PR #204; Moirai PR #390; [RITK-SNAP-METIS-001](#RITK-SNAP-METIS-001).
-- Lease: root `Cargo.lock`, `backlog.md` — 2026-09-17T10:35:00-04:00.
+- Status: done; priority: P1; delivery: [RITK PR #446](https://github.com/ryancinsight/ritk/pull/446); last-update: 2026-09-17.
+- Outcome: standalone Cargo.lock resolves all Metis packages to `79f20e2c` and Moirai packages to `a0f4fd29`, including the merged `metis-web` Unicode dependency edge; RITK DICOM ownership and real-study evidence remain unchanged.
+- Verification: lockfile check, fmt, locked `ritk-snap` nextest 435/435 no-feature and 846/846 all-features, strict native/WASM Clippy and check, and `ritk-snap-eframe` check/Clippy pass.
 
 <a id="RITK-BROWSER-WEBGPU-001"></a>
 ## RITK-BROWSER-WEBGPU-001 — Demonstrate browser WebGPU presentation [arch] [minor]
