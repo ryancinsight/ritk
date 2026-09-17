@@ -603,11 +603,13 @@ fn smooth_disc_weights_sq(patch_radius: usize, ndim: usize) -> Vec<f64> {
                     1.0f32
                 } else {
                     let delta = radius_plus_one - distance;
-                    // ITK keeps the spline powers in `float`: the `3.0f` and
-                    // `2.0f` overloads return float before the terms are
-                    // promoted for the double-valued coefficient arithmetic.
-                    let delta_cubed = f64::from(delta.powf(3.0));
-                    let delta_squared = f64::from(delta.powf(2.0));
+                    // ITK's `pow` overload is resolved by the host toolchain.
+                    // Windows' MSVC build uses the float overload, while the
+                    // Linux/macOS SimpleITK builds match the double-promoted
+                    // overload. Keep the call shape per target so the
+                    // differential contract does not drift by two ULPs.
+                    let delta_cubed = spline_power(delta, 3.0);
+                    let delta_squared = spline_power(delta, 2.0);
                     let weight = ((-2.0 / interval.powf(3.0)) * delta_cubed
                         + (3.0 / interval.powf(2.0)) * delta_squared)
                         as f32;
@@ -619,6 +621,20 @@ fn smooth_disc_weights_sq(patch_radius: usize, ndim: usize) -> Vec<f64> {
         }
     }
     w
+}
+
+/// Evaluate one smooth-disc spline power with the overload shape used by the
+/// corresponding SimpleITK build.
+#[cfg(windows)]
+#[inline]
+fn spline_power(base: f32, exponent: f32) -> f64 {
+    f64::from(base.powf(exponent))
+}
+
+#[cfg(not(windows))]
+#[inline]
+fn spline_power(base: f32, exponent: f32) -> f64 {
+    f64::from(base).powf(f64::from(exponent))
 }
 
 // ── ImageBoundaryFacesCalculator visitation order ────────────────────────────────

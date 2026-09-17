@@ -36,7 +36,12 @@ fn test_itk_pixel_difference_rounds_before_widening() {
 #[test]
 fn test_zero_weight_elision_preserves_finite_patch_distance() {
     let weights = smooth_disc_weights_sq(2, 3);
+    // The ITK `pow` overload follows the host build: MSVC's float path rounds
+    // one ULP above the double-promoted Linux/macOS path.
+    #[cfg(windows)]
     let itk_diagonal_weight = f32::from_bits(0x3f63_9b3b);
+    #[cfg(not(windows))]
+    let itk_diagonal_weight = f32::from_bits(0x3f63_9b3a);
     let differences: Vec<f64> = (0..weights.len())
         .map(|index| {
             f64::from(u32::try_from(index).expect("invariant: patch index fits u32")) * 0.125 - 7.0
