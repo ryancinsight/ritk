@@ -303,33 +303,11 @@
 - **Evidence:** 424 package tests and 9 focused rigid-search tests pass; Clippy, doctests, Rustdoc, examples, changed book chapters, and rendered book are green.
 
 <a id="RITK-RIGID-CAPTURE-INITIALIZER-2026-09-04"></a>
-## RITK-RIGID-CAPTURE-INITIALIZER-2026-09-04 — Robust rigid capture initializer [major] [arch] — in-progress
+## RITK-RIGID-CAPTURE-INITIALIZER-2026-09-04 — Robust rigid capture initializer [major] [arch] — done
 
-- **Status:** in-progress; integrator=Codex; last-update=2026-09-04T19:31:36-04:00.
-- **Lease:** Codex/subagent `crates/ritk-registration/src/classical/robust_rigid.rs`, its focused tests, downstream rigid validation, and this item; 2026-09-04T19:31:36-04:00.
-- **Outcome:** fit deterministic directional least-trimmed-squares rigid transforms and combine the forward fit with the inverse reverse fit using the reference symmetric transformation-space mean before residual refinement.
-- **Scope/non-goals:** RITK fitting/search contracts and validation; no image-format policy, subject-tuned constants, deformable correction, or fiducials in optimization.
-- **Acceptance:** analytical rigid recovery below the 50% breakdown boundary, direction-swap inverse equivalence, directional-outlier isolation, finite/malformed-input failure, partial-FOV candidate rejection without padding evidence, bounded memory, focused/full gates, example/book, downstream RIRE validation, and independent review.
-- **Dependency:** LeoNeuro `M20`; Modat et al. 2014 sections 2.1–2.3 and 3 define the method and RIRE oracle.
-- **Design supersession, filed 2026-09-08 by a peer session (lease was four
-  days stale).** The recorded outcome above -- "combine the forward fit with
-  the inverse reverse fit using the reference symmetric transformation-space
-  mean" -- no longer describes the implementation. `fit_symmetric_trimmed_rigid`
-  on main reaches direction-swap equivalence by construction instead:
-  `normalize_correspondences` folds both directions into one canonical
-  bidirectional set (`canonical_endpoints`, then
-  `discard_ambiguous_endpoint_groups` rejects endpoints that disagree), and a
-  single trimmed fit runs over it. There is no transformation-space mean.
-  The log-Euclidean path the outcome names survives only on the unmerged
-  rescue branch `feat/symmetric-rigid-log-average` (`d4a39f81`, 50 commits
-  behind main), which carries `rigid_logarithm`, `rigid_exponential`,
-  `log_euclidean_mean`, `invert_rigid` and the forward/reverse
-  correspondence split -- none of them on main.
-  Re-open trigger: the item needs its outcome revised to the landed design,
-  or evidence that averaging two directional fits beats normalise-then-fit
-  on the RIRE oracle. Until that decision is recorded, the rescue branch is
-  neither mergeable nor safely deletable; it is kept as the only copy of the
-  alternative. This entry is the decision, not the work.
+- **Status:** done; delivery: this commit; independent review: pass.
+- **Outcome:** directional 50%-trimmed fits, conflict discard, reverse inversion, log-Euclidean mean, module split, and RIRE regression are delivered; ADR 0025 and the registration book are synchronized.
+- **Evidence:** 439/439 package tests passed (11 skipped), focused robust/RIRE tests, strict Clippy, rustfmt, doctests, Rustdoc, mdBook, and SemVer compatibility checks are green.
 
 ## RITK-LINT-ALLOW-SITES-2026-08-31 — Remove reintroduced production allowances [patch] — in progress
 

@@ -44,8 +44,9 @@ moving descriptor volume is built per pose.
 For rigid capture outside a centroid-anchored basin, use
 `fit_symmetric_trimmed_rigid` on direction-specific
 `FixedToMovingCorrespondence` and `MovingToFixedCorrespondence` block matches,
-then pass its transform through `RigidSearchAnchor`. The residual search remains
-bounded; the initializer retains only the best half of the joint match set.
+then pass its transform through `RigidSearchAnchor`. Each direction retains its
+best half independently; the reverse fit is inverted and combined with the
+forward fit through a log-Euclidean mean. The residual search remains bounded.
 
 **Optimizers** — the autodiff gradient-descent driver, plus the Coeus
 optimizers (SGD with momentum, Adam, AdamW, AdaGrad, RMSProp).
