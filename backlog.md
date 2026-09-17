@@ -151,9 +151,9 @@
 
 <a id="RITK-DOCS-EVIDENCE-SYNC-001"></a>
 ## RITK-DOCS-EVIDENCE-SYNC-001 — Sync current provider revisions in replay docs [patch]
-- Status: review; priority: P1; integrator: root; regions: `docs/manual/dicom-workflow.md`, `docs/manual/images/dicom-metis-real-mri.json`, `backlog.md`; dependency: RITK-METIS-LOCK-001; last-update: 2026-09-17.
-- Scope: update current-lock and real-replay references to the landed Metis `2358e3003ab625a058be042b6e0f6d562bab7ac9`, Moirai `b94f3ed7a0faa436ebe993dbfec49726cef853fa`, and RITK revision; preserve historical provenance records.
-- Acceptance: manual and machine-readable replay evidence name the exact command, input, revisions and hashes from the bounded 94-file replay; JSON parses and documentation diff is whitespace-clean.
+- Status: done; delivery: [RITK PR #451](https://github.com/ryancinsight/ritk/pull/451), merge `198fc38bfa1d144f8c95fe66127a96d65c562172`; last-update: 2026-09-17.
+- Outcome: current manual and MRI replay provenance name RITK `f971773edb79f987f0a977971e80366ad5001f39`, Metis `2358e3003ab625a058be042b6e0f6d562bab7ac9`, and Moirai `b94f3ed7a0faa436ebe993dbfec49726cef853fa`; historical records remain unchanged.
+- Verification: JSON parse, committed image SHA/dimensions/non-black count, `scripts/lockfile.py --check`, and `git diff --check` pass for the 94-file replay evidence.
 
 <a id="RITK-BROWSER-WEBGPU-001"></a>
 ## RITK-BROWSER-WEBGPU-001 — Demonstrate browser WebGPU presentation [arch] [minor]
