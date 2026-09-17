@@ -396,7 +396,7 @@
 
 ## DOC-HUMAN-CONNECTOME [patch] — human tractography and connectomics
 
-- **Status:** LOCAL GATES PASSED; owner=Codex; last-update=2026-08-19;
+- **Status:** DONE; owner=Codex; last-update=2026-09-17; delivered by [RITK PR #190](https://github.com/ryancinsight/ritk/pull/190), merge `1a21c14a60736481485027a9949a40c10ae22fb8`;
   scope=Stanford HARDI download provenance, FSL rounding-safe parsing, the
   runnable whole-brain tractography/connectome example, generated SVG/JSON,
   book chapters, and synchronized PM/CHANGELOG entries;
@@ -404,7 +404,10 @@
   inference, or release. Acceptance requires checksummed public inputs, exact
   DWI/parcellation alignment, value-semantic tracking/connectome invariants,
   inspected visual output, local book/Rust gates, exact-head hosted gates,
-  merged delivery, and live Pages verification.
+  merged delivery, and live Pages verification. PR #190 hosted CI, Python, and
+  book checks passed; default-branch Pages run `32339275860` deployed the
+  chapter, and the live chapter, connectome page, and matrix JSON return HTTP
+  200. `recurseml/analysis` remains report-only.
 
 ## FIX-DTI-VOLUME-FRAME [major][arch] — preserve diffusion coordinate frames
 

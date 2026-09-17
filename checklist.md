@@ -132,8 +132,14 @@
       anatomical or clinical validation.
 - [x] Pass formatting, warning-denied Clippy, focused Nextest/doctest gates,
       mdBook test/build, strict links, and diff checks.
-- [ ] Collect exact-head hosted gates, merge, verify Pages deployment, and
-      confirm live chapter and artifact HTTP responses.
+- [x] Collect exact-head hosted gates, merge, verify Pages deployment, and
+      confirm live chapter and artifact HTTP responses. PR #190 merged at
+      `1a21c14a60736481485027a9949a40c10ae22fb8`; its CI run
+      `32297172555`, Python CI run `32297172523`, and book run
+      `32297173130` passed the required checks. The default-branch Pages run
+      `32339275860` built and deployed the chapter; live chapter, connectome
+      page, and `brain_connectome.json` each return HTTP 200 with the expected
+      human/connectome content.
 
 ## BUILD-BLOCK-MATCHING-LOCK [patch] — Restore locked resolution
 
