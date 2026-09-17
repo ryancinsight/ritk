@@ -12,6 +12,7 @@ _metis_root = pathlib.Path(__file__).resolve().parents[3] / "metis"
 sys.path.insert(0, str(pathlib.Path(__file__).resolve().parents[1]))
 sys.path.insert(0, str(_metis_root / "scripts"))
 import browser_gallery
+import browser_gallery_window
 
 
 class SliceGalleryTests(unittest.TestCase):
@@ -190,3 +191,67 @@ class SliceGalleryTests(unittest.TestCase):
             pathlib.Path(directory) / "slices",
             expected_counts={"axial": 94, "coronal": 512, "sagittal": 512},
         )
+
+    def test_consumer_callback_can_capture_window_presets_after_slices(self):
+        class Client:
+            def set_window_rect(self, width, height):
+                self.rect = (width, height)
+
+        oracle = {
+            f"ritk-snap-{axis}": {
+                "attributes": {"data-ritk-slice-count": str(count)},
+            }
+            for axis, count in zip(browser_gallery.AXES, (94, 512, 512))
+        }
+        canvas_ids = tuple(f"ritk-snap-{axis}" for axis in browser_gallery.AXES)
+        client = Client()
+        with tempfile.TemporaryDirectory(
+            dir=browser_gallery.ROOT / "output", prefix="gallery-window-callback-"
+        ) as directory, mock.patch.object(
+            browser_gallery,
+            "capture_slice_gallery",
+            return_value={"schema": 1, "kind": "slices"},
+        ) as slices, mock.patch.object(
+            browser_gallery,
+            "capture_window_preset_gallery",
+            return_value={"schema": 1, "kind": "window-level"},
+        ) as presets:
+            result = browser_gallery._capture_consumer_controls(
+                client,
+                pathlib.Path(directory),
+                oracle,
+                canvas_ids,
+                window_presets=True,
+            )
+
+        self.assertEqual(
+            result,
+            {
+                "slices": {"schema": 1, "kind": "slices"},
+                "window_level": {"schema": 1, "kind": "window-level"},
+            },
+        )
+        slices.assert_called_once_with(
+            client,
+            pathlib.Path(directory) / "slices",
+            expected_counts={"axial": 94, "coronal": 512, "sagittal": 512},
+        )
+        presets.assert_called_once_with(client, pathlib.Path(directory) / "window-level")
+
+
+class WindowPresetHelperTests(unittest.TestCase):
+    def test_gallery_declares_rust_owned_window_preset_surface(self):
+        gallery_root = pathlib.Path(__file__).resolve().parents[2] / "crates" / "ritk-snap" / "web" / "gallery"
+        html = (gallery_root / "gallery.html").read_text(encoding="utf-8")
+        script = (gallery_root / "gallery.js").read_text(encoding="utf-8")
+        self.assertIn('id="window-preset"', html)
+        self.assertIn('id="window-level"', html)
+        self.assertIn("set_web_window_preset", script)
+        self.assertIn("web_window_preset_count", script)
+        self.assertIn("web_window_preset_name", script)
+
+    def test_decimal_parser_rejects_non_decimal_or_unbounded_values(self):
+        with self.assertRaises(browser_gallery_window.BrowserRuntimeError):
+            browser_gallery_window._decimal("1.0", "index")
+        with self.assertRaises(browser_gallery_window.BrowserRuntimeError):
+            browser_gallery_window._decimal(str(1 << 54), "index")

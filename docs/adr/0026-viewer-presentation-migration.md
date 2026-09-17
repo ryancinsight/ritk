@@ -731,6 +731,22 @@ native RITK session tests. The standalone locked `ritk-snap` library nextest
 passes 846/846, with strict all-target Clippy and formatting checks clean;
 DICOM parsing, geometry and clinical display remain in RITK.
 
+Revision 2026-09-17 (browser window/level presets):
+[RITK-BROWSER-WINDOW-LEVEL-001](../../backlog.md#RITK-BROWSER-WINDOW-LEVEL-001)
+extends the shared RITK presentation seam with a typed, modality-selected
+window/level command. The browser select is populated from the existing CT,
+MR and PT [`WindowPreset`](../../crates/ritk-snap/src/ui/window_presets/mod.rs)
+tables; the current centre, width and matching index are published on every
+Métis canvas as semantic attributes. A valid selection invalidates the retained
+frames and produces a new generation for all three planes. Non-finite,
+fractional and out-of-range indices reject before state or pixels change. The
+consumer harness drives the select through trusted WebDriver keyboard input,
+checks the semantic and RGBA transitions, captures the real saved MRI study,
+and verifies listener/input cleanup. The control contract follows the
+window/level preset and invalidation behavior documented in the
+[RadiAnt window/level manual](https://www.radiantviewer.com/dicom-viewer-manual/change_brightness_contrast.html);
+clinical values and DICOM ownership remain in RITK.
+
 
 Retaining egui indefinitely contradicts the requested framework target. Removing
 it before Métis can operate the viewer would lose behavior. Reimplementing DICOM

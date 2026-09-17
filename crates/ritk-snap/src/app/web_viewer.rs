@@ -141,6 +141,7 @@ impl BrowserSurface {
             Self::Single { canvas, frame } => {
                 let axis = app.axis;
                 let (slice_index, slice_count) = app.axis_slice_info(axis);
+                let (window_center, window_width) = app.browser_window_level_values();
                 let semantics = BrowserCanvasSemantics::from_state(
                     app.loaded.is_some(),
                     axis,
@@ -148,6 +149,9 @@ impl BrowserSurface {
                     slice_count,
                     frame.as_ref(),
                     app.cine.fps,
+                    window_center,
+                    window_width,
+                    app.browser_window_preset_index(),
                 );
                 let physical_aspect = physical_aspect(app, axis, frame.as_ref())?;
                 canvas.publish_semantics(semantics, physical_aspect)
@@ -156,6 +160,7 @@ impl BrowserSurface {
                 for (axis, canvas) in canvases.iter_mut().enumerate() {
                     let frame = frames.as_ref().and_then(|frames| frames.get(axis));
                     let (slice_index, slice_count) = app.axis_slice_info(axis);
+                    let (window_center, window_width) = app.browser_window_level_values();
                     let semantics = BrowserCanvasSemantics::from_state(
                         app.loaded.is_some(),
                         axis,
@@ -163,6 +168,9 @@ impl BrowserSurface {
                         slice_count,
                         frame,
                         app.cine.fps,
+                        window_center,
+                        window_width,
+                        app.browser_window_preset_index(),
                     );
                     let physical_aspect = physical_aspect(app, axis, frame)?;
                     canvas.publish_semantics(semantics, physical_aspect)?;
@@ -390,6 +398,58 @@ pub(crate) fn select_web_slice(axis: f64, index: f64) -> Result<(), BrowserSlice
             viewer.surface.clear();
         }
         Ok(())
+    })
+}
+
+/// Applies one exact loaded-modality window/level preset and invalidates frames.
+pub(crate) fn set_web_window_preset(
+    index: f64,
+) -> Result<(), super::browser_window_preset::BrowserWindowPresetError> {
+    let index = super::browser_window_preset::parse_browser_window_preset_request(index)?;
+    VIEWER.with(|slot| {
+        let mut slot = slot
+            .try_borrow_mut()
+            .map_err(|_| super::browser_window_preset::BrowserWindowPresetError::ViewerBusy)?;
+        let viewer = slot
+            .as_mut()
+            .ok_or(super::browser_window_preset::BrowserWindowPresetError::ViewerNotMounted)?;
+        if viewer.app.apply_browser_window_preset(index)? {
+            viewer.surface.clear();
+        }
+        Ok(())
+    })
+}
+
+/// Returns the loaded-modality window/level preset count.
+pub(crate) fn web_window_preset_count(
+) -> Result<usize, super::browser_window_preset::BrowserWindowPresetError> {
+    VIEWER.with(|slot| {
+        let slot = slot
+            .try_borrow()
+            .map_err(|_| super::browser_window_preset::BrowserWindowPresetError::ViewerBusy)?;
+        let viewer = slot
+            .as_ref()
+            .ok_or(super::browser_window_preset::BrowserWindowPresetError::ViewerNotMounted)?;
+        viewer.app.browser_window_preset_count()
+    })
+}
+
+/// Returns one loaded-modality window/level preset name.
+pub(crate) fn web_window_preset_name(
+    index: f64,
+) -> Result<String, super::browser_window_preset::BrowserWindowPresetError> {
+    let index = super::browser_window_preset::parse_browser_window_preset_request(index)?;
+    VIEWER.with(|slot| {
+        let slot = slot
+            .try_borrow()
+            .map_err(|_| super::browser_window_preset::BrowserWindowPresetError::ViewerBusy)?;
+        let viewer = slot
+            .as_ref()
+            .ok_or(super::browser_window_preset::BrowserWindowPresetError::ViewerNotMounted)?;
+        viewer
+            .app
+            .browser_window_preset_name(index)
+            .map(str::to_owned)
     })
 }
 

@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import argparse
+import functools
 import hashlib
 import json
 import math
@@ -35,6 +36,7 @@ _METIS_ROOT = _configure_metis_scripts()
 from browser_canvas import settle_canvas_input
 from browser_gallery_actions import _arrow_batch, _keyboard_action
 from browser_gallery_artifacts import _write_gallery_screenshots
+from browser_gallery_window import capture_window_preset_gallery
 from browser_gallery_trace import (
     ARROW_BATCH_SIZE,
     AXES,
@@ -233,6 +235,8 @@ def _capture_consumer_controls(
     output: pathlib.Path,
     oracle: Mapping[str, Any],
     canvas_ids: Sequence[str],
+    *,
+    window_presets: bool = False,
 ) -> Mapping[str, Any]:
     """Run the RITK slice contract after the generic Metis transfer contract."""
     expected_ids = tuple(f"ritk-snap-{axis}" for axis in AXES)
@@ -253,11 +257,17 @@ def _capture_consumer_controls(
             raise BrowserRuntimeError(f"RITK oracle omitted the {axis} slice count")
         expected_counts[axis] = int(raw_count)
     client.set_window_rect(1440, 1200)
-    return capture_slice_gallery(
+    slices = capture_slice_gallery(
         client,
         output / "slices",
         expected_counts=expected_counts,
     )
+    if not window_presets:
+        return slices
+    return {
+        "slices": slices,
+        "window_level": capture_window_preset_gallery(client, output / "window-level"),
+    }
 
 
 def build_parser() -> argparse.ArgumentParser:
@@ -273,6 +283,11 @@ def build_parser() -> argparse.ArgumentParser:
         default=_METIS_ROOT,
         help="Metis checkout containing the generic browser host and generated assets",
     )
+    parser.add_argument(
+        "--window-presets",
+        action="store_true",
+        help="exercise the RITK modality window/level preset control after slice navigation",
+    )
     return parser
 
 
@@ -281,7 +296,12 @@ def main() -> None:
     from browser_drop import run as run_host
 
     args = build_parser().parse_args()
-    consumer_capture = _capture_consumer_controls if args.lifecycle_cycles == 1 else None
+    consumer_capture = None
+    if args.lifecycle_cycles == 1:
+        consumer_capture = functools.partial(
+            _capture_consumer_controls,
+            window_presets=args.window_presets,
+        )
     run_host(args, consumer_capture=consumer_capture)
 
 

@@ -1158,6 +1158,38 @@ to produce a unique hash. Batched restoration checks the resulting frame,
 not rendering of every intermediate index. All 24 slider diagnostic listeners
 are released.
 
+### Change window/level on the saved study
+
+The display-control row is consumer-owned: after a study is ready, RITK
+publishes the modality's typed preset table to the select element. The current
+centre, width and matching preset index are published on each canvas as
+`data-ritk-window-center`, `data-ritk-window-width` and
+`data-ritk-window-preset-index`. Selecting a preset uses a trusted WebDriver
+click and keyboard sequence, changes all three RITK frames, and advances every
+`data-ritk-frame-generation`; malformed indices are rejected before viewer
+state or pixels change. The select is disabled and reports `No study` until a
+frame is presented, so the control remains keyboard accessible throughout the
+load and stop lifecycle. The CI canvas trace records the three window
+attributes alongside the existing load, frame, slice and aspect semantics.
+
+Run the consumer-owned replay with `--window-presets` in addition to the
+standard chooser arguments:
+
+```powershell
+python scripts/browser_gallery.py --metis-root D:/atlas/repos/metis `
+  --engine chromium --browser-name MicrosoftEdge --driver-url http://127.0.0.1:9517 `
+  --headless --device-scale 1.25 --input chooser --window-presets `
+  --files D:/atlas/repos/ritk/test_data/2_head_mri_t2/DICOM --pattern '*.dcm' `
+  --oracle D:/atlas/repos/metis/output/browser/mri-oracle.json `
+  --consumer-revision (git rev-parse HEAD) --output D:/atlas/repos/metis/output/browser/window-level
+```
+
+The bounded trace writes `window-level/gallery-window-level.json`, a viewport
+PNG containing the real axial, coronal and sagittal MRI planes, and an element
+PNG of the display-control row. Its semantic and RGBA records are the visual
+acceptance oracle; the committed workflow passes the same flag for every
+single-cycle job.
+
 ![Anatomical slice controls after the real browser actions](images/dicom-metis-real-browser-mri-edge-controls.png)
 
 Reproduce the file-backed run from the Métis checkout with an Edge WebDriver

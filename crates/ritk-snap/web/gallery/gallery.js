@@ -4,12 +4,73 @@ const describeError = (error) => error instanceof Error ? error.message : String
 try {
   const { default: init, start_web_orthogonal_canvases,
     start_web_orthogonal_canvases_gpu, stop_web_canvas, web_canvas_listener_count,
-    select_web_slice } =
+    select_web_slice, set_web_window_preset, web_window_preset_count,
+    web_window_preset_name } =
     await import("./consumer/ritk_snap.js");
   const runtime = await init();
   const renderer = new URLSearchParams(window.location.search).get("renderer") === "webgpu"
     ? "webgpu" : "raster";
   let mounted = false;
+  const windowPreset = document.getElementById("window-preset");
+  const windowLevel = document.getElementById("window-level");
+  if (!(windowPreset instanceof HTMLSelectElement) ||
+      !(windowLevel instanceof HTMLOutputElement)) {
+    throw new Error("RITK presentation controls are missing");
+  }
+  let presetSignature = "";
+  const syncPresentation = () => {
+    const canvas = document.getElementById("ritk-snap-axial");
+    const ready = mounted && canvas instanceof HTMLCanvasElement &&
+      canvas.getAttribute("data-ritk-load-state") === "ready" &&
+      canvas.getAttribute("data-ritk-frame-state") === "presented";
+    if (!ready) {
+      windowPreset.disabled = true;
+      windowPreset.replaceChildren(new Option("Load a study to choose a preset", ""));
+      windowPreset.value = "";
+      windowLevel.textContent = "No study";
+      presetSignature = "";
+      return;
+    }
+    let count;
+    try {
+      count = web_window_preset_count();
+    } catch (error) {
+      windowPreset.disabled = true;
+      windowLevel.textContent = `Preset list unavailable: ${describeError(error)}`;
+      return;
+    }
+    const labels = [];
+    try {
+      for (let index = 0; index < count; index += 1) {
+        labels.push(web_window_preset_name(index));
+      }
+    } catch (error) {
+      windowPreset.disabled = true;
+      windowLevel.textContent = `Preset list unavailable: ${describeError(error)}`;
+      return;
+    }
+    const signature = labels.join("\u001f");
+    if (signature !== presetSignature) {
+      windowPreset.replaceChildren(...labels.map((label, index) =>
+        new Option(label, String(index))));
+      presetSignature = signature;
+    }
+    windowPreset.disabled = false;
+    const selected = canvas.getAttribute("data-ritk-window-preset-index") ?? "";
+    windowPreset.value = selected;
+    const center = canvas.getAttribute("data-ritk-window-center") ?? "?";
+    const width = canvas.getAttribute("data-ritk-window-width") ?? "?";
+    windowLevel.textContent = `Center ${center} · Width ${width}`;
+  };
+  windowPreset.addEventListener("change", () => {
+    if (windowPreset.value === "") return;
+    try {
+      set_web_window_preset(Number(windowPreset.value));
+    } catch (error) {
+      status.textContent = `Window/level preset could not change: ${describeError(error)}`;
+      syncPresentation();
+    }
+  });
   const controls = ["axial", "coronal", "sagittal"].map((name, axis) => {
     const canvas = document.getElementById(`ritk-snap-${name}`);
     const slider = document.getElementById(`slice-${name}`);
@@ -36,6 +97,8 @@ try {
     const observer = new MutationObserver(sync);
     observer.observe(canvas, { attributes: true, attributeFilter: [
       "data-ritk-slice-index", "data-ritk-slice-count", "data-ritk-frame-state",
+      "data-ritk-load-state", "data-ritk-window-center", "data-ritk-window-width",
+      "data-ritk-window-preset-index", "data-ritk-frame-generation",
     ] });
     return { sync, observer };
   });
@@ -43,6 +106,7 @@ try {
     stop_web_canvas();
     mounted = false;
     controls.forEach(({ sync }) => sync());
+    syncPresentation();
     status.textContent = "Stopped. Viewer resources released.";
   };
   const customizePicker = () => {
@@ -66,6 +130,7 @@ try {
     // Host mounting may replace the format-neutral controls on every cycle.
     // Reapply the consumer's DICOM policy after each mount.
     customizePicker();
+    syncPresentation();
     status.textContent = renderer === "webgpu"
       ? "Ready with WebGPU. Drop study files into the area below."
       : "Ready. Drop study files into the area below.";

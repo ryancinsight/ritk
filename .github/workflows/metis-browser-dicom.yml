@@ -373,6 +373,7 @@ jobs:
             --pattern '*.dcm' \
             --oracle "$GITHUB_WORKSPACE/metis/output/browser/$ORACLE" \
             --consumer-revision "$RITK_REVISION" \
+            --window-presets \
             "${capture_args[@]}" \
             --canvas-trace "$GITHUB_WORKSPACE/metis/output/browser/results/$RESULT/canvas-trace.json" \
             --keyboard-trace cine-rate \
@@ -384,6 +385,9 @@ jobs:
             --canvas-attribute data-ritk-frame-width \
             --canvas-attribute data-ritk-frame-height \
             --canvas-attribute data-ritk-cine-fps \
+            --canvas-attribute data-ritk-window-center \
+            --canvas-attribute data-ritk-window-width \
+            --canvas-attribute data-ritk-window-preset-index \
             --canvas-attribute data-ritk-frame-generation \
             --canvas-attribute data-ritk-display-aspect \
             --output "$GITHUB_WORKSPACE/metis/output/browser/results/$RESULT"
