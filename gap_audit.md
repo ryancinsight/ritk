@@ -177,6 +177,29 @@ checksummed externalisation work.
 `.gitignore` retains only `/target` for the shared build cache; the four stale
 forked-cache names were removed.
 
+The tracked dataset inventory after this increment is:
+
+| Dataset | Files | Bytes | Consumer evidence |
+|---|---:|---:|---|
+| `paired_mri_ct/` | 2 334 | 1 088 167 692 | No tracked code or manual reference; DICOM metadata contains non-empty patient and referring-physician fields, and no provenance or license record is present. Preserve pending a retention decision. |
+| `3_head_ct_mridir/` | 410 | 216 159 203 | RITK registration, Python parity, viewer workflows, and the real CT/MIP evidence. |
+| `registration/` | 33 | 80 317 478 | Registration tests, examples, and the NIfTI source manifest. |
+| `2_head_mri_t2/` | 97 | 49 896 402 | RITK registration, Python parity, viewer workflows, and the real MRI evidence. |
+| `2_skull_ct/` | 308 | 46 217 380 | CLI viewer defaults and JPEG lossless fixture test. |
+| `ants_example/` | 2 | 21 166 223 | NIfTI source tests and registration fixture preparation. |
+| `openneuro/` | 1 | 10 581 116 | Dataset manifest and filter documentation. |
+| `dicom_seg/` | 5 | 1 504 256 | DICOM-SEG parser and viewer boundary tests. |
+| `diffusion/` | 3 | 13 030 | README, downloader, and ignore rules; downloaded imaging payload is already externalized. |
+
+`registration/brain_fixed.nii.gz` and `brain_moving.nii.gz` duplicate
+`ants_example/mni152.nii.gz`; `registration/brain_mni/sub-01_T1w.nii.gz`
+duplicates `openneuro/sub-01_T1w.nii.gz`. Removing those copies requires a
+call-site migration in `xtask`, Python registration tests, and NIfTI source
+tests, so it is a separate bounded increment. The public MRI-DIR directories
+are retained until the existing external-download path can reproduce their
+checksums; the unreferenced `paired_mri_ct/` corpus is not deleted or fetched
+without provenance and retention evidence.
+
 ### F6 — README claimed two capabilities the source does not contain
 
 `grep -ril 'correlation_ratio|CorrelationRatio|cmaes|CMA-ES'` over every `.rs`

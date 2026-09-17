@@ -7539,8 +7539,13 @@ independent of it and can run concurrently on disjoint scopes.
       `scratch/check_restart.rs`; `scratch/` is now free of tracked artifacts.
 - [x] Untrack `dist/` and `output/`; retain both paths in `.gitignore` and drop
       the four stale `target_*` entries.
-- [ ] Inventory `test_data/`: which files does a test actually open? Split into
-      small committed goldens and an on-demand checksummed set.
+- [x] Inventory `test_data/` by tracked bytes and consumer references; record
+      the measured groups, duplicate copies, and unresolved corpus provenance
+      in `gap_audit.md` F5.
+- [ ] Decide retention or externalisation for the unreferenced
+      `paired_mri_ct/` corpus after provenance and authorization are established.
+- [ ] Split referenced public datasets into small committed goldens and an
+      on-demand checksummed set without removing files consumed by tests.
 - [ ] Move the on-demand set behind the existing `externals/` fetch harness;
       re-point every consuming test and confirm each still resolves its input.
 - [ ] Record the committed-fixture budget so the next addition is measured
