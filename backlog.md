@@ -157,7 +157,7 @@
 
 <a id="RITK-CLIPPY-RENDER-CFG-001"></a>
 ## RITK-CLIPPY-RENDER-CFG-001 — Scope the native MIP export to Windows [patch]
-- Status: in-progress; priority: P1; integrator: root; regions: `crates/ritk-snap/src/render/mod.rs`, `backlog.md`; dependency: hosted Clippy retro-verification for RITK-METIS-LOCK-001; last-update: 2026-09-17.
+- Status: review; priority: P1; integrator: root; regions: `crates/ritk-snap/src/render/mod.rs`, `backlog.md`; dependency: hosted Clippy retro-verification for RITK-METIS-LOCK-001; last-update: 2026-09-17.
 - Scope: remove the Linux-only unused native-session re-export while retaining the Windows Métis projection and eframe compatibility paths.
 - Acceptance: workspace `cargo clippy --workspace --all-targets --all-features -- -D warnings` is clean on Linux and the existing native/WASM viewer gates remain green.
 
