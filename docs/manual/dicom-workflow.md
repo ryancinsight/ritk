@@ -1184,13 +1184,31 @@ python scripts/browser_gallery.py --metis-root D:/atlas/repos/metis `
   --consumer-revision (git rev-parse HEAD) --output D:/atlas/repos/metis/output/browser/window-level
 ```
 
+The accepted single-cycle raster capture is hosted in [run
+35269645902](https://github.com/ryancinsight/ritk/actions/runs/35269645902),
+using RITK `bdccdc569b57021613df8a82bc9ae99119eb6146` and Métis
+`8e566af9a37dc0382e8e919c593d3838f5b08186`. The
+[uploaded artifact](https://github.com/ryancinsight/ritk/actions/runs/35269645902/artifacts/10518409508)
+contains the [machine-readable provenance](images/dicom-metis-real-browser-mri-window-level.json)
+and the two PNGs below. The chooser accepted the saved public MRI-DIR study
+(94 files, 49,807,236 bytes). The initial centre/width was `556.42126 / 1962.9222`;
+trusted WebDriver selection chose `Brain T1` (index `0`, centre `500`, width
+`800`). Six malformed API indices were rejected without changing viewer state
+or RGBA pixels. All three frame generations advanced from `142` to `143`, and
+each canvas RGBA digest changed. The trace recorded seven trusted select
+events (click, two keydowns, two keyups, input and change), then released its
+five diagnostic listeners and active input sources.
+
+![Actual saved MRI study after the Brain T1 window/level preset](images/dicom-metis-real-browser-mri-window-level.png)
+
+![Window/level control after the trusted preset selection](images/dicom-metis-real-browser-mri-window-level-controls.png)
+
 The bounded trace writes `window-level/gallery-window-level.json`, a viewport
 PNG containing the real axial, coronal and sagittal MRI planes, and an element
 PNG of the display-control row. Its semantic and RGBA records are the visual
-acceptance oracle; the committed workflow passes the same flag for every
-single-cycle job.
-
-![Anatomical slice controls after the real browser actions](images/dicom-metis-real-browser-mri-edge-controls.png)
+acceptance oracle. The committed workflow passes `--window-presets` to every
+single-cycle job; this Chromium raster job is the image and control evidence,
+while WebGPU and WebKit remain separate host-capability probes.
 
 Reproduce the file-backed run from the Métis checkout with an Edge WebDriver
 already listening on port 9517:

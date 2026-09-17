@@ -1,0 +1,175 @@
+{
+  "artifact": "output/browser/results/chromium-window/window-level/gallery-window-level.json",
+  "cleanup": {
+    "active_input_sources_released": true,
+    "diagnostic_listener_count": 5,
+    "diagnostic_listeners_released": true
+  },
+  "consumer": "ritk-snap",
+  "initial": {
+    "canvases": {
+      "axial": {
+        "center": "556.42126",
+        "generation": 142,
+        "preset_index": "",
+        "rgba_sha256": "0e05b9e62b6b18373d9fdbe16018464adb9ea20c598f24ef582a5b25c222207e",
+        "width": "1962.9222"
+      },
+      "coronal": {
+        "center": "556.42126",
+        "generation": 142,
+        "preset_index": "",
+        "rgba_sha256": "aede3f7bad9eaabd43447c961c2e0abd0681700c480cbdf4957d6f6008225850",
+        "width": "1962.9222"
+      },
+      "sagittal": {
+        "center": "556.42126",
+        "generation": 142,
+        "preset_index": "",
+        "rgba_sha256": "e8f4662a857d4b92bc0b36a1614722ed1a4f8db72f3206503b5cde9e543b8b55",
+        "width": "1962.9222"
+      }
+    },
+    "select": {
+      "disabled": false,
+      "options": [
+        {
+          "label": "Brain T1",
+          "value": "0"
+        },
+        {
+          "label": "Brain T2",
+          "value": "1"
+        },
+        {
+          "label": "Brain FLAIR",
+          "value": "2"
+        },
+        {
+          "label": "Spine",
+          "value": "3"
+        }
+      ],
+      "output": "Center 556.42126 \u00b7 Width 1962.9222",
+      "value": ""
+    }
+  },
+  "invalid_api_probes": [
+    {
+      "error": "browser window preset index NaN must be finite",
+      "rejected": true,
+      "value": "NaN"
+    },
+    {
+      "error": "browser window preset index inf must be finite",
+      "rejected": true,
+      "value": "Infinity"
+    },
+    {
+      "error": "browser window preset index -inf must be finite",
+      "rejected": true,
+      "value": "-Infinity"
+    },
+    {
+      "error": "browser window preset index -1 is outside 0..=4294967295",
+      "rejected": true,
+      "value": "-1"
+    },
+    {
+      "error": "browser window preset index 0.5 must be an integer",
+      "rejected": true,
+      "value": "0.5"
+    },
+    {
+      "error": "browser window preset index 4294967296 is outside 0..=4294967295",
+      "rejected": true,
+      "value": "4294967296"
+    }
+  ],
+  "schema": 1,
+  "screenshots": {
+    "controls": {
+      "bytes": 19389,
+      "height": 72,
+      "path": "output/browser/results/chromium-window/window-level/gallery-window-level-controls.png",
+      "scope": "element",
+      "sha256": "78f19c848015070f72c2934985473e630501a94b8aa31816235966425c2f6be1",
+      "width": 2786
+    },
+    "window": {
+      "bytes": 1021131,
+      "height": 2114,
+      "path": "output/browser/results/chromium-window/window-level/gallery-window-level.png",
+      "scope": "window",
+      "sha256": "20cc98cfec0ce3b7d50e3795d4d9ddb5ad4432d76ec2da3cec9c0d9409092e7b",
+      "width": 2880
+    }
+  },
+  "selection": {
+    "after": {
+      "canvases": {
+        "axial": {
+          "center": "500",
+          "generation": 143,
+          "preset_index": "0",
+          "rgba_sha256": "e84c2c6b9ae827880cd38927e7b229fcb4c7ba3c104ecabc577866e40df2af0a",
+          "width": "800"
+        },
+        "coronal": {
+          "center": "500",
+          "generation": 143,
+          "preset_index": "0",
+          "rgba_sha256": "15611f7692cabd3c159a885b038bed3fb863a6f92638818a62196626db04f424",
+          "width": "800"
+        },
+        "sagittal": {
+          "center": "500",
+          "generation": 143,
+          "preset_index": "0",
+          "rgba_sha256": "43a4432067879ae14c8f20eb5e52f8fab2b54da28e53e767721e5aa0502d19d0",
+          "width": "800"
+        }
+      },
+      "select": {
+        "disabled": false,
+        "options": [
+          {
+            "label": "Brain T1",
+            "value": "0"
+          },
+          {
+            "label": "Brain T2",
+            "value": "1"
+          },
+          {
+            "label": "Brain FLAIR",
+            "value": "2"
+          },
+          {
+            "label": "Spine",
+            "value": "3"
+          }
+        ],
+        "output": "Center 500 \u00b7 Width 800",
+        "value": "0"
+      }
+    },
+    "events": {
+      "all_trusted": true,
+      "event_count": 7,
+      "event_types": {
+        "change": 1,
+        "click": 1,
+        "input": 1,
+        "keydown": 2,
+        "keyup": 2
+      },
+      "target_id": "window-preset"
+    },
+    "index": 0,
+    "label": "Brain T1"
+  },
+  "sources": {
+    "browser_gallery_window.py": "41b8179cde5c5efec79140631473f7ed4ce93804bd7a326844181b8111bfc97d"
+  }
+}
