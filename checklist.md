@@ -53,6 +53,15 @@
 
 # RITK Sprint Checklist — Active
 
+## RITK-CI-DICOM-WORKFLOW-001 — Viewer workflow feature selection
+
+- [ ] Update the committed CI command to pass `--features eframe-shell`,
+      which is the example's declared required feature.
+- [ ] Run the local locked synthetic DICOM workflow image oracle and the
+      affected configuration checks.
+- [ ] Collect the hosted test-suite result on the exact branch head, then
+      merge and compact the backlog item with the evidence.
+
 ## RITK-SNAP-METIS-001 — Native Métis viewer session
 
 - [x] Build a bounded native session that loads one selected RITK study,
