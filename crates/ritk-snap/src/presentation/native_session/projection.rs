@@ -14,6 +14,15 @@ pub(super) struct RenderedProjection {
     pub(super) display_spacing: [f64; 2],
 }
 
+pub(super) fn empty_projection() -> Result<RenderedProjection> {
+    let frame = PresentationFrame::from_rgba_storage(1, 1, vec![0, 0, 0, 255].into_boxed_slice())
+        .context("construct empty native MIP selection frame")?;
+    Ok(RenderedProjection {
+        frame,
+        display_spacing: [1.0, 1.0],
+    })
+}
+
 /// Render the existing RITK axial MIP for the native Métis layout.
 pub(super) fn render_mip_projection(app: &SnapApp) -> Result<RenderedProjection> {
     let volume = app

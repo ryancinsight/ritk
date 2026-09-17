@@ -6,15 +6,16 @@
 //! DICOM decoding, display policy and input state; Métis owns the native
 //! surface and receives only that framebuffer.
 
-use super::{translate_native_events, PresentationEvent};
 use crate::app::SnapApp;
-use crate::dicom::loader::{load_volume_from_path, load_volume_from_series_uid};
+use crate::dicom::loader::{
+    load_volume_from_path, load_volume_from_series_uid, scan_folder_for_series,
+};
+use crate::dicom::series_tree::SeriesEntryView;
 use crate::launch::NativePresentationMode;
 use crate::tools::interaction::ViewportOffset;
 use anyhow::{anyhow, Context, Result};
 use metis_platform::native::{
-    pick, run_native_application, DialogSelection, NativeApplication, NativeFlow, WindowConfig,
-    WindowEvent, WindowVisibility,
+    pick, run_native_application, DialogSelection, WindowConfig, WindowVisibility,
 };
 use metis_platform::Framebuffer;
 use std::fmt;
@@ -27,9 +28,16 @@ mod frame;
 mod layout;
 mod projection;
 use frame::{render_orthogonal_views, RenderedView};
-use layout::{surface_frames, surface_frames_with_mip, NativeViewport};
+use layout::NativeViewport;
 use projection::{render_mip_projection, RenderedProjection};
+mod composition;
+mod events;
 mod routing;
+mod selection;
+mod startup;
+use composition::{compose_frames, save_capture};
+use selection::{SelectionAction, SeriesSelection};
+use startup::prepare_initial_study;
 
 const INITIAL_WIDTH: u32 = 1_280;
 const INITIAL_HEIGHT: u32 = 800;
@@ -65,32 +73,33 @@ pub fn run_native_viewer(
 ) -> Result<NativeViewerOutcome> {
     let initial_path = initial_path.as_ref();
     let mut app = SnapApp::default();
-    let volume = match initial_series_uid {
+    let selection = match initial_series_uid {
         Some(series_uid) => {
-            load_volume_from_series_uid(initial_path, series_uid).with_context(|| {
-                format!("open selected RITK series from {}", initial_path.display())
-            })?
+            let volume =
+                load_volume_from_series_uid(initial_path, series_uid).with_context(|| {
+                    format!("open selected RITK series from {}", initial_path.display())
+                })?;
+            app.load_volume(
+                volume,
+                format!(
+                    "Loaded native Métis series {}: {}",
+                    series_uid,
+                    initial_path.display()
+                ),
+            );
+            None
         }
-        None => load_volume_from_path(initial_path)
-            .with_context(|| format!("open initial RITK study at {}", initial_path.display()))?,
+        None => prepare_initial_study(&mut app, initial_path, capture.is_some())?,
     };
-    let status = match initial_series_uid {
-        Some(series_uid) => format!(
-            "Loaded native Métis series {}: {}",
-            series_uid,
-            initial_path.display()
-        ),
-        None => format!("Loaded native Métis study: {}", initial_path.display()),
-    };
-    app.load_volume(volume, status);
 
     let observation = Arc::new(NativeViewerObservation::default());
-    let session = NativeViewerSession::new(
+    let session = NativeViewerSession::new_with_selection(
         app,
         Arc::clone(&observation),
         capture.is_some(),
         presentation_mode,
         capture_application,
+        selection,
     )?;
     let config = WindowConfig::with_visibility(
         NATIVE_TITLE,
@@ -142,75 +151,8 @@ pub fn run_native_viewer(
     })
 }
 
-fn compose_frames(
-    views: &[RenderedView; 3],
-    projection: Option<&RenderedProjection>,
-    presentation_mode: NativePresentationMode,
-    surface_width: u32,
-    surface_height: u32,
-    zoom: f32,
-    pan_offset: ViewportOffset,
-    cine_enabled: bool,
-    cine_fps: f32,
-    show_application_overlay: bool,
-) -> Result<(Framebuffer, [NativeViewport; 3])> {
-    match (presentation_mode, projection) {
-        (NativePresentationMode::Orthogonal, None) => surface_frames(
-            views,
-            surface_width,
-            surface_height,
-            zoom,
-            pan_offset,
-            cine_enabled,
-            cine_fps,
-            show_application_overlay,
-        ),
-        (NativePresentationMode::OrthogonalWithMip, Some(projection)) => surface_frames_with_mip(
-            views,
-            projection,
-            surface_width,
-            surface_height,
-            zoom,
-            pan_offset,
-            cine_enabled,
-            cine_fps,
-            show_application_overlay,
-        ),
-        (NativePresentationMode::Orthogonal, Some(_))
-        | (NativePresentationMode::OrthogonalWithMip, None) => Err(anyhow!(
-            "native presentation mode and projection state disagree"
-        )),
-    }
-}
-
 fn viewport_offset(app: &SnapApp) -> ViewportOffset {
     app.pan_offset
-}
-
-fn save_capture(framebuffer: &Framebuffer, output: &Path) -> Result<()> {
-    let pixel_count =
-        usize::try_from(u64::from(framebuffer.width()) * u64::from(framebuffer.height()))
-            .map_err(|_| anyhow!("native capture pixel count exceeds usize"))?;
-    if framebuffer.pixels().len() != pixel_count {
-        return Err(anyhow!(
-            "native capture framebuffer storage is inconsistent"
-        ));
-    }
-    let byte_count = pixel_count
-        .checked_mul(4)
-        .ok_or_else(|| anyhow!("native capture byte count overflows usize"))?;
-    let mut rgba = Vec::new();
-    rgba.try_reserve_exact(byte_count)
-        .map_err(|_| anyhow!("unable to reserve native capture bytes"))?;
-    for packed in framebuffer.pixels() {
-        let [alpha, red, green, blue] = packed.to_be_bytes();
-        rgba.extend_from_slice(&[red, green, blue, alpha]);
-    }
-    let pixels = image::RgbaImage::from_raw(framebuffer.width(), framebuffer.height(), rgba)
-        .ok_or_else(|| anyhow!("native capture RGBA dimensions do not match the framebuffer"))?;
-    pixels
-        .save_with_format(output, image::ImageFormat::Png)
-        .with_context(|| format!("write native Métis capture to {}", output.display()))
 }
 
 struct NativeViewerSession {
@@ -229,20 +171,30 @@ struct NativeViewerSession {
     capture_application: bool,
     observation: Arc<NativeViewerObservation>,
     clock_start: Instant,
+    selection: Option<SeriesSelection>,
 }
 
 impl NativeViewerSession {
-    fn new(
+    fn new_with_selection(
         app: SnapApp,
         observation: Arc<NativeViewerObservation>,
         capture_after_idle: bool,
         presentation_mode: NativePresentationMode,
         capture_application: bool,
+        selection: Option<SeriesSelection>,
     ) -> Result<Self> {
-        let views = render_orthogonal_views(&app)?;
+        let views = if app.loaded.is_some() {
+            render_orthogonal_views(&app)?
+        } else {
+            frame::empty_orthogonal_views()?
+        };
         let projection = match presentation_mode {
             NativePresentationMode::Orthogonal => None,
-            NativePresentationMode::OrthogonalWithMip => Some(render_mip_projection(&app)?),
+            NativePresentationMode::OrthogonalWithMip => Some(if app.loaded.is_some() {
+                render_mip_projection(&app)?
+            } else {
+                projection::empty_projection()?
+            }),
         };
         let (framebuffer, viewports) = compose_frames(
             &views,
@@ -269,8 +221,7 @@ impl NativeViewerSession {
             .surface_height
             .store(INITIAL_HEIGHT, Ordering::Relaxed);
         observation.frame_generations.store(1, Ordering::Relaxed);
-        record_state(&observation, &app, 96, false);
-        Ok(Self {
+        let mut session = Self {
             app,
             views,
             projection,
@@ -286,7 +237,13 @@ impl NativeViewerSession {
             capture_application,
             observation,
             clock_start: Instant::now(),
-        })
+            selection,
+        };
+        if session.selection.is_some() {
+            session.render_selection_overlay()?;
+        }
+        record_state(&session.observation, &session.app, 96, false);
+        Ok(session)
     }
 
     fn elapsed_seconds(&self) -> f64 {
@@ -294,10 +251,17 @@ impl NativeViewerSession {
     }
 
     fn refresh_frame(&mut self) -> Result<()> {
-        let views = render_orthogonal_views(&self.app)?;
-        let projection = match self.presentation_mode {
-            NativePresentationMode::Orthogonal => None,
-            NativePresentationMode::OrthogonalWithMip => Some(render_mip_projection(&self.app)?),
+        let (views, projection) = if self.app.loaded.is_some() {
+            let views = render_orthogonal_views(&self.app)?;
+            let projection = match self.presentation_mode {
+                NativePresentationMode::Orthogonal => None,
+                NativePresentationMode::OrthogonalWithMip => {
+                    Some(render_mip_projection(&self.app)?)
+                }
+            };
+            (views, projection)
+        } else {
+            (self.views.clone(), self.projection.clone())
         };
         let (framebuffer, viewports) = compose_frames(
             &views,
@@ -315,6 +279,9 @@ impl NativeViewerSession {
         self.projection = projection;
         self.framebuffer = framebuffer;
         self.viewports = viewports;
+        if self.selection.is_some() {
+            self.render_selection_overlay()?;
+        }
         self.observation
             .frame_generations
             .fetch_add(1, Ordering::Relaxed);
@@ -323,9 +290,48 @@ impl NativeViewerSession {
     }
 
     fn open_study_path(&mut self, path: &Path) -> Result<()> {
-        let volume = load_volume_from_path(path).context("open selected RITK study")?;
-        let status = format!("Loaded native Métis study: {}", path.display());
-        self.app.load_volume(volume, status);
+        if path.is_dir() {
+            let tree = scan_folder_for_series(path).context("discover selected RITK study")?;
+            match tree.total_series() {
+                0 => {
+                    let volume = load_volume_from_path(path).context("open selected RITK study")?;
+                    self.app.load_volume(
+                        volume,
+                        format!("Loaded native Métis study: {}", path.display()),
+                    );
+                    self.selection = None;
+                }
+                1 => {
+                    let series = tree
+                        .iter_series()
+                        .next()
+                        .expect("invariant: one discovered series has one entry");
+                    let uid = series.series_uid();
+                    let volume = load_volume_from_series_uid(path, uid)
+                        .with_context(|| format!("open selected RITK series {uid}"))?;
+                    self.app.load_volume(
+                        volume,
+                        format!("Loaded native Métis series {}: {}", uid, path.display()),
+                    );
+                    self.selection = None;
+                }
+                _ => {
+                    self.selection = Some(SeriesSelection::from_tree(path, &tree)?);
+                    self.app.status_message = format!(
+                        "Select one of {} DICOM series before loading {}",
+                        self.selection.as_ref().map_or(0, SeriesSelection::len),
+                        path.display()
+                    );
+                }
+            }
+        } else {
+            let volume = load_volume_from_path(path).context("open selected RITK study")?;
+            self.app.load_volume(
+                volume,
+                format!("Loaded native Métis study: {}", path.display()),
+            );
+            self.selection = None;
+        }
         Ok(())
     }
 
@@ -336,6 +342,58 @@ impl NativeViewerSession {
         };
         self.open_study_path(&path)?;
         Ok(true)
+    }
+
+    fn render_selection_overlay(&mut self) -> Result<()> {
+        if let Some(selection) = &self.selection {
+            selection.render_to(&mut self.framebuffer)?;
+        }
+        Ok(())
+    }
+
+    fn reduce_selection_key(&mut self, virtual_key: u32, repeated: bool) -> Result<(bool, bool)> {
+        let Some(selection) = self.selection.as_mut() else {
+            return Ok((false, false));
+        };
+        let action = selection.handle_key(virtual_key, repeated);
+        match action {
+            SelectionAction::Changed => Ok((true, false)),
+            SelectionAction::Canceled => {
+                self.selection = None;
+                self.app.status_message =
+                    "DICOM series selection canceled; current study remains displayed.".to_owned();
+                Ok((true, false))
+            }
+            SelectionAction::Confirmed => {
+                let (path, uid) = self
+                    .selection
+                    .as_ref()
+                    .expect("invariant: confirmed selection remains present")
+                    .selected_request();
+                match load_volume_from_series_uid(&path, &uid) {
+                    Ok(volume) => {
+                        self.selection = None;
+                        self.app.load_volume(
+                            volume,
+                            format!("Loaded native Métis series {}: {}", uid, path.display()),
+                        );
+                        Ok((true, true))
+                    }
+                    Err(error) => {
+                        let message = format!(
+                            "DICOM series {} could not be opened: {error:#}; choose another series.",
+                            uid
+                        );
+                        self.app.status_message = message.clone();
+                        if let Some(selection) = self.selection.as_mut() {
+                            selection.set_notice(message.into_boxed_str());
+                        }
+                        Ok((true, false))
+                    }
+                }
+            }
+            SelectionAction::Ignored => Ok((false, false)),
+        }
     }
 
     fn record_terminal_frame(&self, destroyed: bool) -> Result<()> {
@@ -351,150 +409,6 @@ impl NativeViewerSession {
             *final_frame = Some(self.framebuffer.clone());
         }
         Ok(())
-    }
-}
-
-impl NativeApplication for NativeViewerSession {
-    type Error = NativeViewerError;
-
-    fn framebuffer(&self) -> &Framebuffer {
-        self.observation
-            .presented_frames
-            .fetch_add(1, Ordering::Relaxed);
-        &self.framebuffer
-    }
-
-    fn handle_events(
-        &mut self,
-        events: &[WindowEvent],
-    ) -> std::result::Result<NativeFlow, NativeViewerError> {
-        let translated = translate_native_events(events).map_err(|error| {
-            NativeViewerError::new(format!("translate Métis native events: {error}"))
-        })?;
-        self.observation
-            .event_batches
-            .fetch_add(1, Ordering::Relaxed);
-        self.observation
-            .translated_events
-            .fetch_add(translated.len(), Ordering::Relaxed);
-        if translated.is_empty() && self.capture_after_idle {
-            self.record_terminal_frame(false)
-                .map_err(NativeViewerError::from)?;
-            return Ok(NativeFlow::Exit);
-        }
-
-        let mut resize = None;
-        let mut dpi = None;
-        let mut terminal = false;
-        let mut destroyed = false;
-        for event in translated.iter() {
-            match event {
-                PresentationEvent::Resized { width, height } => resize = Some((*width, *height)),
-                PresentationEvent::DpiChanged { dpi: value } => dpi = Some(*value),
-                PresentationEvent::CloseRequested => terminal = true,
-                PresentationEvent::Destroyed => {
-                    terminal = true;
-                    destroyed = true;
-                }
-                _ => {}
-            }
-        }
-        if dpi == Some(0) {
-            return Err(NativeViewerError::new("native display DPI must be nonzero"));
-        }
-
-        let resized = resize.is_some_and(|(width, height)| width > 0 && height > 0);
-        if let Some((width, height)) = resize {
-            self.surface_width = width;
-            self.surface_height = height;
-            self.minimized = width == 0 || height == 0;
-            self.observation
-                .surface_width
-                .store(width, Ordering::Relaxed);
-            self.observation
-                .surface_height
-                .store(height, Ordering::Relaxed);
-            self.observation
-                .minimized
-                .store(self.minimized, Ordering::Relaxed);
-        }
-        if let Some(value) = dpi {
-            self.dpi = value;
-            self.observation.dpi.store(value, Ordering::Relaxed);
-        }
-
-        // Establish the new viewport before reducing pointer events in the
-        // same provider batch. Métis can coalesce a resize with input, and
-        // those coordinates must use the new client rectangle.
-        let geometry_refreshed = if resized {
-            self.refresh_frame().map_err(NativeViewerError::from)?;
-            true
-        } else {
-            false
-        };
-        let mut study_reopened = false;
-        let mut open_shortcut_seen = false;
-        for event in translated.iter() {
-            let is_open_shortcut = matches!(
-                event,
-                PresentationEvent::KeyDown {
-                    virtual_key: VIRTUAL_KEY_OPEN_STUDY,
-                    repeated: false,
-                    modifiers,
-                } if modifiers.ctrl()
-            );
-            if !terminal && is_open_shortcut && !open_shortcut_seen {
-                open_shortcut_seen = true;
-                study_reopened = self
-                    .open_study_from_dialog()
-                    .map_err(NativeViewerError::from)?;
-            }
-        }
-        // Leave the shortcut in the shared action stream. `0x4f` has no viewer
-        // action, while retaining the original bounded batch avoids a second
-        // allocation and keeps pointer/focus ordering intact.
-        let disposition = self.apply_events(&translated)?;
-
-        let repaint = matches!(
-            disposition,
-            crate::app::action_adapter::ViewerActionDisposition::Continue { repaint: true }
-        );
-        let cine_repaint = if matches!(
-            disposition,
-            crate::app::action_adapter::ViewerActionDisposition::Continue { .. }
-        ) {
-            matches!(
-                self.app.tick_cine_at(self.elapsed_seconds()),
-                crate::app::CineTick::Advanced(_)
-            )
-        } else {
-            false
-        };
-        let frame_changed = repaint || cine_repaint || study_reopened;
-        if terminal
-            || matches!(
-                disposition,
-                crate::app::action_adapter::ViewerActionDisposition::Exit
-            )
-        {
-            if !self.minimized && frame_changed && !geometry_refreshed {
-                self.refresh_frame().map_err(NativeViewerError::from)?;
-            } else if !geometry_refreshed {
-                record_state(&self.observation, &self.app, self.dpi, self.minimized);
-            }
-            self.record_terminal_frame(destroyed)
-                .map_err(NativeViewerError::from)?;
-            return Ok(NativeFlow::Exit);
-        }
-
-        if !self.minimized && frame_changed && !geometry_refreshed {
-            self.refresh_frame().map_err(NativeViewerError::from)?;
-        } else if !geometry_refreshed {
-            record_state(&self.observation, &self.app, self.dpi, self.minimized);
-        }
-        Ok(NativeFlow::Continue {
-            repaint: !self.minimized && (geometry_refreshed || frame_changed),
-        })
     }
 }
 

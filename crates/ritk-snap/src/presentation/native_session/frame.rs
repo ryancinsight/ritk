@@ -37,6 +37,33 @@ pub(super) fn render_orthogonal_views(app: &SnapApp) -> Result<[RenderedView; 3]
     Ok(views)
 }
 
+pub(super) fn empty_orthogonal_views() -> Result<[RenderedView; 3]> {
+    let frame = PresentationFrame::from_rgba_storage(1, 1, vec![0, 0, 0, 255].into_boxed_slice())
+        .context("construct empty native selection frame")?;
+    Ok([
+        empty_view(frame.clone(), 0, "Axial"),
+        empty_view(frame.clone(), 1, "Coronal"),
+        empty_view(frame, 2, "Sagittal"),
+    ])
+}
+
+fn empty_view(frame: PresentationFrame, axis: usize, plane_name: &'static str) -> RenderedView {
+    RenderedView {
+        axis,
+        plane_name,
+        slice_index: 0,
+        slice_count: 1,
+        window_level: WindowLevel::new(
+            f64::from(DEFAULT_WINDOW_CENTER),
+            f64::from(DEFAULT_WINDOW_WIDTH),
+        ),
+        frame,
+        source_size: [1, 1],
+        transform: ViewTransform::default(),
+        display_spacing: [1.0, 1.0],
+    }
+}
+
 fn render_view(app: &SnapApp, axis: usize) -> Result<RenderedView> {
     let volume = app
         .loaded
