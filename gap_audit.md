@@ -167,6 +167,10 @@ The workspace has no `[workspace.lints]` table, so neither `pedantic` nor
 - `scratch/check_restart.exe` — a committed Windows executable. `scratch/` is
   in `.gitignore`, which does not untrack what was already added.
 
+The scratch executable and its source were removed in the first payload
+increment; the tracked `dist/`, `output/` and `test_data/` payload remains for
+the follow-on inventory and checksummed externalisation work.
+
 `.gitignore` also carries `/target_check`, `/target_test`, `/target_ag`, and
 `/target_temp` — four forked build-cache names normalised into the ignore file.
 Only `target/` exists on disk now, so the entries are residue, but they record
