@@ -155,6 +155,12 @@
 - Outcome: current manual and MRI replay provenance name RITK `f971773edb79f987f0a977971e80366ad5001f39`, Metis `2358e3003ab625a058be042b6e0f6d562bab7ac9`, and Moirai `b94f3ed7a0faa436ebe993dbfec49726cef853fa`; historical records remain unchanged.
 - Verification: JSON parse, committed image SHA/dimensions/non-black count, `scripts/lockfile.py --check`, and `git diff --check` pass for the 94-file replay evidence.
 
+<a id="RITK-CLIPPY-RENDER-CFG-001"></a>
+## RITK-CLIPPY-RENDER-CFG-001 — Scope the native MIP export to Windows [patch]
+- Status: in-progress; priority: P1; integrator: root; regions: `crates/ritk-snap/src/render/mod.rs`, `backlog.md`; dependency: hosted Clippy retro-verification for RITK-METIS-LOCK-001; last-update: 2026-09-17.
+- Scope: remove the Linux-only unused native-session re-export while retaining the Windows Métis projection and eframe compatibility paths.
+- Acceptance: workspace `cargo clippy --workspace --all-targets --all-features -- -D warnings` is clean on Linux and the existing native/WASM viewer gates remain green.
+
 <a id="RITK-BROWSER-WEBGPU-001"></a>
 ## RITK-BROWSER-WEBGPU-001 — Demonstrate browser WebGPU presentation [arch] [minor]
 - Status: blocked; priority: P1; owner: RITK SNAP browser; integrator: root; last-update: 2026-09-17; dependency: browser host with a WebGPU adapter; decision: [ADR 0037](docs/adr/0037-browser-webgpu-presentation.md).
