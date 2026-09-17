@@ -427,12 +427,11 @@
   behavior, warning-clean focused gates, and no compatibility path. The
   accepted design retains `GradientFrame` in fitted maps and rejects `Lps` at
   `DtiVolume` construction because physical-to-index conversion requires image
-  geometry that the volume does not own. Local `fmt`, diff, and locked
-  no-dependency metadata checks pass. An overlay-free locked Nextest run
-  passes 184/184 tests with 11 configured skips; the in-tree locked command
-  remains blocked before compilation by the Atlas overlay requesting a
-  lockfile rewrite for unused local patches. Provider Clippy/doctest and
-  hosted exact-head verification remain open.
+  geometry that the volume does not own. Local `fmt`, diff, locked
+  no-dependency metadata, and overlay-free Nextest (184/184, 11 configured
+  skips) pass. Hosted PR #198 checks pass for Rustfmt, Clippy, Rustdoc, native
+  suites, Python, and book deployment; live Pages returns HTTP 200 with the
+  expected title.
 
 ## DTI-CONNECTOME-PARCELLATION [major] — weighted DTI, connectome measures, atlas parcellation
 

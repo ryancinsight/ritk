@@ -111,11 +111,11 @@
 - [x] Run the focused locked `ritk-diffusion` Nextest outside the Atlas
       overlay: run `39e59a64-6827-4555-a5c2-6b62b4058078` passes 184/184
       tests with 11 configured skips.
-- [ ] Run the focused Clippy/doctest gates with the provider's MSVC toolchain,
-      collect exact-head hosted CI, merge, and advance the Atlas gitlink. The
-      in-tree locked command is still blocked by the Atlas overlay's unused
-      local patches; the overlay-free local lint attempt is separately blocked
-      by the host's unavailable MSVC linker context.
+- [x] Run the focused Clippy/doctest gates with the provider's MSVC toolchain,
+      collect exact-head hosted CI, merge, and advance the Atlas gitlink. PR
+      #198 merged at `2d159850636a6539db61109533f399d31cc7c6f4`; post-merge CI
+      `32387951529`, Python CI `32387951635`, and Deploy mdBook `32387952289`
+      passed, with live Pages returning HTTP 200 and the expected title.
 
 ## DOC-HUMAN-CONNECTOME [patch] — Human tractography and connectomics
 
