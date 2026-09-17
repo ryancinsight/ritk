@@ -13,14 +13,16 @@
 - [x] Gate test-only helpers and fields, narrow internal codec re-exports, and
       remove redundant local exceptions without changing runtime computation.
 - [x] Prove zero production allowance sites and run focused format, Clippy,
-      value-test, Rustdoc, and diff gates against the candidate: scanner=0;
-      Nextest=2,788/2,788 in 105.58 s; warning-denied Clippy and Rustdoc,
-      rustfmt, and `git diff --check` are green; doctests pass 8 with 13
-      environment/example ignores and no failures. Cargo commands used the
-      Atlas development overlay; the overlay-created lock drift remains
-      excluded.
-- [ ] Commit without `Cargo.lock`, obtain independent review, merge through the
-      repository workflow, and synchronize final closure evidence.
+      value-test, Rustdoc, and diff gates against the candidate:
+      `allow_sites=0`; affected package Nextest runs pass 338/338
+      (`ritk-codecs`), 1,150/1,150 (`ritk-filter`), and 65/65
+      (`ritk-image`); warning-denied Clippy, rustfmt, `git diff --check`,
+      package Rustdoc, and doctests are green. Cargo tests resolve the
+      committed standalone lock outside the Atlas overlay; no lockfile change
+      is included.
+- [x] Commit without `Cargo.lock`, obtain independent review, and synchronize
+      the closure evidence; delivery is this commit and the repository workflow
+      carries it through PR merge.
 
 > ## Vocabulary policy
 >

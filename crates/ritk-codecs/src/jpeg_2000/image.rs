@@ -3,7 +3,7 @@
 //! # Pipeline (ISO 15444-1)
 //! 1. Parse main header (SIZ, COD, QCD) via `codestream`.
 //! 2. Locate tile-part data (SOT → SOD).
-//! 3. Decode each tile-component via `packet::decode_tile_part`.
+//! 3. Decode each tile-component via `packet::reader::decode_tile_part`.
 //! 4. Apply DC level un-shift for unsigned components (ISO 15444-1 §G.1.2).
 //! 5. Validate decoded dimensions against `PixelLayout`.
 //! 6. Apply DICOM modality LUT: `output = stored_integer × slope + intercept`.
@@ -13,7 +13,10 @@ use std::ops::Range;
 
 use super::codestream::{parse_main_header, parse_sot};
 use super::marker;
-use super::packet::{decode_tile_part, TileCodingParams, WaveletTransform};
+use super::packet::{
+    reader::{decode_tile_part, TileCodingParams},
+    WaveletTransform,
+};
 use crate::dimensions::{checked_pixel_count, checked_sample_count};
 use crate::PixelLayout;
 

@@ -309,20 +309,12 @@
 - **Outcome:** directional 50%-trimmed fits, conflict discard, reverse inversion, log-Euclidean mean, module split, and RIRE regression are delivered; ADR 0025 and the registration book are synchronized.
 - **Evidence:** 439/439 package tests passed (11 skipped), focused robust/RIRE tests, strict Clippy, rustfmt, doctests, Rustdoc, mdBook, and SemVer compatibility checks are green.
 
-## RITK-LINT-ALLOW-SITES-2026-08-31 — Remove reintroduced production allowances [patch] — in progress
+<a id="RITK-LINT-ALLOW-SITES-2026-08-31"></a>
+## RITK-LINT-ALLOW-SITES-2026-08-31 — Remove reintroduced production allowances [patch] — done
 
-- **Status:** in progress; integrator=current Codex session; lease=the 13 affected
-  source files plus this item, `CHECKLIST.md`, and `CHANGELOG.md`; base=`81346473`.
-- **Outcome:** restore the production `allow_sites` conformance count from 16
-  to 0 by compiling test-only helpers only in tests, narrowing internal JPEG
-  2000 re-exports, and deleting local exceptions already owned by the workspace
-  lint ratchet. Numerical kernels and public behavior remain unchanged.
-- **Acceptance:** exact source enumeration reports zero production `#[allow]`
-  sites; warning-denied all-target Clippy and Rustdoc pass; affected Nextest is
-  2,788/2,788 in 105.58 s; diff and format checks pass. Cargo commands used the
-  Atlas development overlay; its unrelated `Cargo.lock` drift is excluded from
-  delivery. Commit, independent review, PR, merge, and post-merge closure remain
-  pending.
+- **Status:** done; delivery: this commit; independent review: pass.
+- **Outcome:** production `allow_sites` is zero after test-only helper gating, narrower JPEG 2000 re-exports, and removal of redundant exceptions; numerical kernels and public behavior are unchanged.
+- **Verification:** exact enumeration, strict Clippy, Rustdoc, doctests, rustfmt, and diff checks pass; Nextest is 338/338 (`ritk-codecs`), 1,150/1,150 (`ritk-filter`), and 65/65 (`ritk-image`), with no `Cargo.lock` change.
 
 ## ATLAS-RITK-BOOK-STAGING-2026-08-20 — Adopt hash-preserving shared book gate [patch] — in progress
 

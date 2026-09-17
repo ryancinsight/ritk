@@ -13,6 +13,16 @@
 use super::tile_cdf::build_tile_cdf;
 use super::tile_cdf::build_tile_cdf_into;
 
+#[derive(Clone, Copy)]
+pub(super) struct SliceParameters {
+    pub(super) rows: usize,
+    pub(super) cols: usize,
+    pub(super) n_tiles_y: usize,
+    pub(super) n_tiles_x: usize,
+    pub(super) clip_limit: f32,
+    pub(super) bins: usize,
+}
+
 /// Apply CLAHE to a single 2D slice (flat row-major, `rows × cols`) using
 /// pre-allocated scratch buffers.
 ///
@@ -25,17 +35,19 @@ use super::tile_cdf::build_tile_cdf_into;
 /// Output values lie in `[v_min, v_max]` where `v_min/v_max` are the
 /// minimum and maximum finite values of `pixels`. When all values are
 /// identical (span = 0), output equals input.
-#[allow(clippy::too_many_arguments, reason = "ratchet RITK-LINT-1")]
 pub(super) fn clahe_2d_with_scratch(
     pixels: &[f32],
-    rows: usize,
-    cols: usize,
-    n_tiles_y: usize,
-    n_tiles_x: usize,
-    clip_limit: f32,
-    bins: usize,
+    parameters: SliceParameters,
     scratch: &mut super::ClaheScratch,
 ) -> Vec<f32> {
+    let SliceParameters {
+        rows,
+        cols,
+        n_tiles_y,
+        n_tiles_x,
+        clip_limit,
+        bins,
+    } = parameters;
     debug_assert_eq!(pixels.len(), rows * cols);
 
     // Find global min/max for this slice.
@@ -131,7 +143,6 @@ pub(super) fn clahe_2d_with_scratch(
 ///
 /// This is the legacy path preserved for the 2-D unit tests in `tests_clahe.rs`.
 /// The production path uses [`clahe_2d_with_scratch`] instead.
-#[allow(clippy::too_many_arguments, reason = "ratchet RITK-LINT-1")]
 #[cfg(test)]
 pub(super) fn clahe_2d(
     pixels: &[f32],

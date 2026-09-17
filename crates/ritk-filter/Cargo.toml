@@ -36,6 +36,7 @@ coeus-ops = { workspace = true }
 coeus-tensor = { workspace = true }
 
 [dev-dependencies]
+ritk-core = { path = "../ritk-core", features = ["test-helpers"], version = "0.10.0" }
 criterion = { workspace = true }
 base64 = { workspace = true }
 image = { workspace = true }
