@@ -134,6 +134,13 @@ delete window.__ritkWindowPresetTrace;
 return {ok: true, listener_count: listenerCount};
 """
 
+FOCUS_PRESET_SCRIPT = """
+const select = document.getElementById("window-preset");
+if (!(select instanceof HTMLSelectElement)) return false;
+select.focus();
+return document.activeElement === select;
+"""
+
 INVALID_PRESET_API_PROBE_SCRIPT = """
 const done = arguments[arguments.length - 1];
 const invalid = [
@@ -291,6 +298,12 @@ def _cleanup_trace(client: WebDriverClient, expected_count: int) -> None:
         raise BrowserRuntimeError("window preset event listeners were not released exactly once")
 
 
+def _focus_preset(client: WebDriverClient) -> None:
+    """Refocus the DOM select after closing Chromium's native popup."""
+    if client.execute(FOCUS_PRESET_SCRIPT) is not True:
+        raise BrowserRuntimeError("window preset select could not be focused")
+
+
 def _invalid_probes(client: WebDriverClient) -> list[dict[str, Any]]:
     """Require malformed preset indices to reject before touching the viewer."""
     result = client.execute_async(INVALID_PRESET_API_PROBE_SCRIPT)
@@ -353,6 +366,8 @@ def capture_window_preset_gallery(
     try:
         select_element = client.find("#window-preset")
         client.click(select_element)
+        client.key_press("Escape", source_id="ritk-window-preset-keyboard")
+        _focus_preset(client)
         client.key_press("Home", source_id="ritk-window-preset-keyboard")
         for _ in range(target):
             client.key_press("ArrowDown", source_id="ritk-window-preset-keyboard")
