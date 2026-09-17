@@ -16,8 +16,8 @@ decoded-workspace budgets, and return the RITK `Image` plus
 boundary; the host owns only input and presentation lifecycle.
 
 The current standalone lock used by the viewer resolves the six Metis packages
-to `79f20e2c1058669b03a2c590c04883e89805d256` and Moirai packages to
-`a0f4fd296fe6ade8fd0d99d0045cafc85cfe400b`. The browser chooser and Windows
+to `2358e3003ab625a058be042b6e0f6d562bab7ac9` and Moirai packages to
+`b94f3ed7a0faa436ebe993dbfec49726cef853fa`. The browser chooser and Windows
 package workflows use these provider pins. Historical hosted captures retain
 the provider revisions recorded in their own provenance files. RITK continues
 to own DICOM scanning, decoding, geometry and clinical presentation.
@@ -62,7 +62,7 @@ scanning, decoding, geometry, and clinical presentation; Métis owns the bounded
 host, canvas, and window lifecycle.
 
 The current standalone lock pins the browser canvas provider to Moirai merge
-`a0f4fd296fe6ade8fd0d99d0045cafc85cfe400b`. Repeated RGBA frames with the
+`b94f3ed7a0faa436ebe993dbfec49726cef853fa`. Repeated RGBA frames with the
 current extent retain the validated bitmap; a changed width or height takes
 the bounded resize path. This keeps the browser presentation lifecycle stable
 without changing DICOM decoding or the displayed pixels. It is an allocation
@@ -791,7 +791,9 @@ files, rejected the invalid-study probe with exit 1, and reproduced the same
 411,589-pixel image; that historical executable digest and command remain in
 the [provenance record](images/dicom-metis-real-mri.json).
 The current standalone-lock replay ran on 2026-09-17 at RITK
-`f1d7d458b`, Metis `79f20e2c` and Moirai `a0f4fd29`. It read the same 94
+`f971773edb79f987f0a977971e80366ad5001f39`, Metis
+`2358e3003ab625a058be042b6e0f6d562bab7ac9` and Moirai
+`b94f3ed7a0faa436ebe993dbfec49726cef853fa`. It read the same 94
 files (49,807,236 DICOM bytes), exited 0, rejected the invalid-study probe
 with exit 1, and reproduced the committed 1280 × 800 image byte-for-byte
 (`259dd79103482756c4e688621bebafc841cc40f1df10ff2bbd7f9d04b7b4d401`,

@@ -151,7 +151,7 @@
 
 <a id="RITK-DOCS-EVIDENCE-SYNC-001"></a>
 ## RITK-DOCS-EVIDENCE-SYNC-001 — Sync current provider revisions in replay docs [patch]
-- Status: in-progress; priority: P1; integrator: root; regions: `docs/manual/dicom-workflow.md`, `docs/manual/images/dicom-metis-real-mri.json`, `backlog.md`; dependency: RITK-METIS-LOCK-001; lease: root `docs/manual/dicom-workflow.md`, `docs/manual/images/dicom-metis-real-mri.json`, `backlog.md` 2026-09-17.
+- Status: review; priority: P1; integrator: root; regions: `docs/manual/dicom-workflow.md`, `docs/manual/images/dicom-metis-real-mri.json`, `backlog.md`; dependency: RITK-METIS-LOCK-001; last-update: 2026-09-17.
 - Scope: update current-lock and real-replay references to the landed Metis `2358e3003ab625a058be042b6e0f6d562bab7ac9`, Moirai `b94f3ed7a0faa436ebe993dbfec49726cef853fa`, and RITK revision; preserve historical provenance records.
 - Acceptance: manual and machine-readable replay evidence name the exact command, input, revisions and hashes from the bounded 94-file replay; JSON parses and documentation diff is whitespace-clean.
 
