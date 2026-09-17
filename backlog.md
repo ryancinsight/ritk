@@ -137,6 +137,14 @@
 - Outcome: the Windows/native and browser raster shells use Métis format-neutral surfaces while RITK retains DICOM discovery, selection, decoding, geometry and clinical presentation; `ritk-snap-eframe` preserves the complete compatibility shell. Real saved CT/MRI captures, selector/cine controls, packaging and the user manual are revision-bound to the delivered workflows.
 - Verification: neutral `ritk-snap` nextest 435/435 and feature-enabled compatibility 846/846, strict native/WASM Clippy and checks, lockfile, doctest, rustdoc and package gates pass; actual MRI-DIR anatomy is inspected in [`dicom-metis-real-mri.json`](docs/manual/images/dicom-metis-real-mri.json) and the browser matrix in [`dicom-metis-real-browser-mri-cross-engine.json`](docs/manual/images/dicom-metis-real-browser-mri-cross-engine.json). Host residuals are tracked by [RITK-BROWSER-READ-001](#RITK-BROWSER-READ-001) and [RITK-BROWSER-WEBGPU-001](#RITK-BROWSER-WEBGPU-001); [ADR 0026](docs/adr/0026-viewer-presentation-migration.md) is current.
 
+<a id="RITK-METIS-LOCK-001"></a>
+## RITK-METIS-LOCK-001 — Advance first-party provider pins [patch]
+- Status: in-progress; priority: P1; integrator: root; last-update: 2026-09-17; branch: `build/ritk-metis-204-lock`; regions: `Cargo.lock`, `backlog.md`.
+- Scope: resolve the standalone consumer lock to merged Metis `79f20e2c` and Moirai `a0f4fd29`; DICOM code, presentation and browser residuals stay unchanged.
+- Acceptance: every Metis/Moirai package source matches those revisions; `scripts/lockfile.py --check`, native and WASM consumer gates, format and strict Clippy pass against the exact lock.
+- Dependencies: Metis PR #204; Moirai PR #390; [RITK-SNAP-METIS-001](#RITK-SNAP-METIS-001).
+- Lease: root `Cargo.lock`, `backlog.md` — 2026-09-17T10:35:00-04:00.
+
 <a id="RITK-BROWSER-WEBGPU-001"></a>
 ## RITK-BROWSER-WEBGPU-001 — Demonstrate browser WebGPU presentation [arch] [minor]
 - Status: blocked; priority: P1; owner: RITK SNAP browser; integrator: root; last-update: 2026-09-17; dependency: browser host with a WebGPU adapter; decision: [ADR 0037](docs/adr/0037-browser-webgpu-presentation.md).
