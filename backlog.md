@@ -174,6 +174,12 @@
 - Scope: determine why the fixed SimpleITK 2.5.6 comparison is 2 ULP on hosted runs `35206932737`, `35210616931` and `35235536323` but passed on `35177948901`; preserve the 1-ULP contract and RITK algorithm ownership.
 - Acceptance: a repeatable execution or environment cause is identified and fixed or documented with an independently derived bound; the dedicated test passes without widened tolerance or weakened assertions, with locked Python and Rust gates recorded.
 
+<a id="RITK-CI-DICOM-WORKFLOW-001"></a>
+## RITK-CI-DICOM-WORKFLOW-001 — Build the viewer workflow example with its shell [patch]
+- Status: in-progress; priority: P1; integrator: root; regions: `.github/workflows/ci.yml`, `backlog.md`, `checklist.md`; last-update: 2026-09-17; dependency: none.
+- Outcome: the hosted synthetic DICOM visual step builds `dicom_workflow` with the feature required by its manifest, so all operating-system test jobs execute the committed image oracle.
+- Acceptance: the workflow command matches `crates/ritk-snap/Cargo.toml`, the synthetic viewer capture passes on the local locked command and a hosted run, and the DICOM ownership boundary remains unchanged.
+
 <a id="RITK-SNAP-EFRAME-BOUNDARY-001"></a>
 ## RITK-SNAP-EFRAME-BOUNDARY-001 — Separate the eframe compatibility shell [arch] [major]
 - Status: done; priority: P0; owner: RITK viewer; integrator: root; last-update: 2026-09-17; delivery: PR #443, merge `57e11c92c080dc9c8716f9218d55c1344a75b412`.
