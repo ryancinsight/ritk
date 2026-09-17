@@ -149,6 +149,12 @@
 - Outcome: standalone Cargo.lock resolves every Metis package to `2358e3003ab625a058be042b6e0f6d562bab7ac9` and every Moirai package to `b94f3ed7a0faa436ebe993dbfec49726cef853fa`; the obsolete duplicate Melinoe source entry is removed, while RITK DICOM ownership and real-study evidence remain unchanged.
 - Verification: `scripts/lockfile.py --check` reports 61 first-party git sources; fmt, locked `ritk-snap` nextest 435/435, native strict Clippy, WASM check/Clippy, and `ritk-snap-eframe` check/Clippy pass; PR #449 landed with hosted retro-verification run 35232317634 still active at close.
 
+<a id="RITK-DOCS-EVIDENCE-SYNC-001"></a>
+## RITK-DOCS-EVIDENCE-SYNC-001 — Sync current provider revisions in replay docs [patch]
+- Status: review; priority: P1; integrator: root; regions: `docs/manual/dicom-workflow.md`, `docs/manual/images/dicom-metis-real-mri.json`, `backlog.md`; dependency: RITK-METIS-LOCK-001; last-update: 2026-09-17.
+- Scope: update current-lock and real-replay references to the landed Metis `2358e3003ab625a058be042b6e0f6d562bab7ac9`, Moirai `b94f3ed7a0faa436ebe993dbfec49726cef853fa`, and RITK revision; preserve historical provenance records.
+- Acceptance: manual and machine-readable replay evidence name the exact command, input, revisions and hashes from the bounded 94-file replay; JSON parses and documentation diff is whitespace-clean.
+
 <a id="RITK-BROWSER-WEBGPU-001"></a>
 ## RITK-BROWSER-WEBGPU-001 — Demonstrate browser WebGPU presentation [arch] [minor]
 - Status: blocked; priority: P1; owner: RITK SNAP browser; integrator: root; last-update: 2026-09-17; dependency: browser host with a WebGPU adapter; decision: [ADR 0037](docs/adr/0037-browser-webgpu-presentation.md).
