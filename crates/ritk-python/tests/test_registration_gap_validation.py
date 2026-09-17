@@ -42,6 +42,7 @@ import ritk  # noqa: E402
 TEST_DATA = (
     Path(__file__).resolve().parent.parent.parent.parent / "test_data" / "registration"
 )
+DATA_ROOT = TEST_DATA.parent
 DATA_DIR = Path(__file__).resolve().parent.parent.parent.parent / "data"
 
 SIZE = 64  # synthetic volume side length
@@ -935,7 +936,8 @@ class TestDICOMIOValidation:
 # ===========================================================================
 
 _skip_mni = pytest.mark.skipif(
-    not (TEST_DATA / "brain_mni" / "mni152.nii.gz").exists(),
+    not (DATA_ROOT / "ants_example" / "mni152.nii.gz").exists()
+    or not (DATA_ROOT / "openneuro" / "sub-01_T1w.nii.gz").exists(),
     reason="MNI152 / sub-01_T1w NIfTI pair absent",
 )
 
@@ -961,8 +963,8 @@ class TestInterSubjectBrainMNI:
             self.fixed_arr,
             self.moving_arr,
         ) = _load_pair(
-            TEST_DATA / "brain_mni" / "mni152.nii.gz",
-            TEST_DATA / "brain_mni" / "sub-01_T1w.nii.gz",
+            DATA_ROOT / "ants_example" / "mni152.nii.gz",
+            DATA_ROOT / "openneuro" / "sub-01_T1w.nii.gz",
             max_size=128,
         )
         self.fixed_norm = _minmax(self.fixed_arr)

@@ -5,8 +5,10 @@ synthetic and real medical image datasets.
 
 Datasets:
 - Synthetic (always available): shifted sphere, Gaussian blob
-- Brain NIfTI pair: test_data/registration/brain_*.nii.gz
-- MNI inter-subject: test_data/registration/brain_mni/*.nii.gz
+- Brain NIfTI pair: the canonical ANTs MNI152 fixture (the moving volume is
+  displaced in memory for the demons smoke test)
+- MNI inter-subject: test_data/ants_example/mni152.nii.gz and
+  test_data/openneuro/sub-01_T1w.nii.gz
 - RIRE CT↔MR: test_data/registration/rire/*.mha
 - VM head CT↔MR: test_data/registration/simpleitk_notebooks/*.mha
 
@@ -59,17 +61,13 @@ def _find_test_data() -> Path | None:
 
 _TEST_DATA = _find_test_data()
 
-_BRAIN_FIXED = (
-    _TEST_DATA / "registration" / "brain_fixed.nii.gz" if _TEST_DATA else None
-)
-_BRAIN_MOVING = (
-    _TEST_DATA / "registration" / "brain_moving.nii.gz" if _TEST_DATA else None
-)
+_BRAIN_FIXED = _TEST_DATA / "ants_example" / "mni152.nii.gz" if _TEST_DATA else None
+_BRAIN_MOVING = _BRAIN_FIXED
 _MNI_FIXED = (
-    _TEST_DATA / "registration" / "brain_mni" / "mni152.nii.gz" if _TEST_DATA else None
+    _TEST_DATA / "ants_example" / "mni152.nii.gz" if _TEST_DATA else None
 )
 _MNI_MOVING = (
-    _TEST_DATA / "registration" / "brain_mni" / "sub-01_T1w.nii.gz"
+    _TEST_DATA / "openneuro" / "sub-01_T1w.nii.gz"
     if _TEST_DATA
     else None
 )
@@ -602,9 +600,11 @@ def test_1c_identity_registration_stability():
 
 
 def _load_brain_pair() -> tuple[np.ndarray, np.ndarray]:
-    """Load brain_fixed.nii.gz and brain_moving.nii.gz as numpy arrays.
+    """Load the canonical MNI152 fixture twice as numpy arrays.
 
-    Both are read via ritk.io.read_image and converted to numpy.
+    Both reads use the canonical ANTs/MNI152 fixture through
+    ``ritk.io.read_image``.  The moving array is displaced in memory below so
+    the test exercises registration without maintaining a duplicate file.
     Minmax normalization is applied to each volume independently so
     NCC comparisons are intensity-scale invariant.
     """
@@ -627,9 +627,9 @@ def _load_brain_pair() -> tuple[np.ndarray, np.ndarray]:
 def test_2a_ritk_demons_improves_ncc():
     """RITK demons on the brain pair must improve NCC by at least 0.05.
 
-    Mathematical basis: the brain_fixed / brain_moving NIfTI pair represents
-    the same subject at different time points with small anatomical change.
-    Demons registration (50 iterations, sigma_diffusion=1.0) must reduce
+    Mathematical basis: the same canonical MNI152 volume is displaced in
+    memory to form the moving image. Demons registration (50 iterations,
+    sigma_diffusion=1.0) must reduce
     intensity mismatch, measurable as NCC improvement Δ ≥ 0.05.
 
     Threshold derivation: Δ ≥ 0.05 is a minimal-clinical-effect threshold.

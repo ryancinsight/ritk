@@ -67,7 +67,7 @@ enum Commands {
         data_dir: PathBuf,
     },
 
-    /// Prepare data for registration demo
+    /// Validate canonical sources for the registration demo
     PrepareRegistrationData {
         /// Directory containing test datasets
         #[arg(short, long, default_value = "test_data")]
@@ -297,6 +297,14 @@ fn run_registration_tests(data_dir: &Path) -> Result<()> {
 fn find_image_pairs(data_dir: &Path) -> Result<Vec<(PathBuf, PathBuf)>> {
     let mut pairs = Vec::new();
 
+    // The canonical inter-subject registration pair is kept in the dataset
+    // owners' directories so every consumer reads one source file.
+    let canonical_fixed = data_dir.join("ants_example").join("mni152.nii.gz");
+    let canonical_moving = data_dir.join("openneuro").join("sub-01_T1w.nii.gz");
+    if canonical_fixed.is_file() && canonical_moving.is_file() {
+        pairs.push((canonical_fixed, canonical_moving));
+    }
+
     // Look for standard pair patterns
     for entry in walkdir::WalkDir::new(data_dir).max_depth(3) {
         let entry = entry?;
@@ -305,7 +313,11 @@ fn find_image_pairs(data_dir: &Path) -> Result<Vec<(PathBuf, PathBuf)>> {
         if let Some(stem) = path.file_stem().and_then(|s| s.to_str()) {
             if let Some(base) = stem.strip_suffix("_fixed") {
                 let moving = path.with_file_name(format!("{}_moving.nii.gz", base));
-                if moving.exists() {
+                if moving.exists()
+                    && !pairs
+                        .iter()
+                        .any(|(fixed, candidate)| fixed == path && candidate == &moving)
+                {
                     pairs.push((path.to_path_buf(), moving));
                 }
             }
@@ -327,38 +339,31 @@ fn clean_datasets(data_dir: &Path) -> Result<()> {
 }
 
 fn prepare_registration_data(data_dir: &Path) -> Result<()> {
-    info!("Preparing registration data in: {}", data_dir.display());
+    info!("Validating registration data in: {}", data_dir.display());
 
-    let registration_dir = data_dir.join("registration");
-    std::fs::create_dir_all(&registration_dir)?;
+    let fixed = data_dir.join("ants_example").join("mni152.nii.gz");
+    let moving = data_dir.join("openneuro").join("sub-01_T1w.nii.gz");
 
-    // Source files
-    let template = data_dir.join("ants_example").join("mni152.nii.gz");
-    // Use same image for moving, just to verify pipeline works (visiblehuman was broken)
-    let subject = data_dir.join("ants_example").join("mni152.nii.gz");
-
-    if !template.exists() {
-        warn!("Source files missing. Attempting to download...");
-        // Fallback to trigger download if missing
+    if !fixed.is_file() {
+        warn!("Canonical fixed source missing; attempting ANTs download");
         download_datasets("ants", data_dir, false)?;
     }
-
-    if !template.exists() {
-        warn!("Source files still missing after download attempt.");
-        return Ok(());
+    if !moving.is_file() {
+        warn!("Canonical moving source missing; attempting OpenNeuro download");
+        download_datasets("openneuro", data_dir, false)?;
     }
 
-    // Target files
-    let fixed_path = registration_dir.join("brain_fixed.nii.gz");
-    let moving_path = registration_dir.join("brain_moving.nii.gz");
+    if !fixed.is_file() || !moving.is_file() {
+        anyhow::bail!(
+            "Canonical registration sources are unavailable: fixed={} moving={}",
+            fixed.display(),
+            moving.display()
+        );
+    }
 
-    info!("Copying {} -> {}", template.display(), fixed_path.display());
-    std::fs::copy(template, &fixed_path)?;
-
-    info!("Copying {} -> {}", subject.display(), moving_path.display());
-    std::fs::copy(subject, &moving_path)?;
-
-    info!("Registration data prepared successfully!");
+    info!("Canonical fixed source: {}", fixed.display());
+    info!("Canonical moving source: {}", moving.display());
+    info!("Registration data is ready");
     Ok(())
 }
 

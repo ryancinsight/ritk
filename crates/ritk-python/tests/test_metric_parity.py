@@ -48,7 +48,8 @@ BRAIN_MNI = (
     / "registration"
     / "brain_mni"
 )
-MNI152 = BRAIN_MNI / "mni152.nii.gz"
+DATA_ROOT = BRAIN_MNI.parent.parent
+MNI152 = DATA_ROOT / "ants_example" / "mni152.nii.gz"
 SUBJ_T1 = BRAIN_MNI / "single_subj_T1.nii.gz"
 
 
@@ -394,7 +395,7 @@ def test_mi_shape_mismatch_raises():
 # ── real-world brain MRI tests — SimpleITK cross-validation ───────────────────
 
 
-@pytest.mark.skipif(not MNI152.exists(), reason="brain_mni test data not available")
+@pytest.mark.skipif(not MNI152.exists(), reason="canonical MNI152 test data not available")
 def test_mse_same_image_is_zero_on_brain():
     img = ritk.io.read_image(str(MNI152))
     result = compute_mse(img, img)
@@ -403,7 +404,7 @@ def test_mse_same_image_is_zero_on_brain():
     )
 
 
-@pytest.mark.skipif(not MNI152.exists(), reason="brain_mni test data not available")
+@pytest.mark.skipif(not MNI152.exists(), reason="canonical MNI152 test data not available")
 def test_ncc_same_image_is_one_on_brain():
     img = ritk.io.read_image(str(MNI152))
     result = compute_ncc(img, img)
@@ -412,7 +413,7 @@ def test_ncc_same_image_is_one_on_brain():
     )
 
 
-@pytest.mark.skipif(not MNI152.exists(), reason="brain_mni test data not available")
+@pytest.mark.skipif(not MNI152.exists(), reason="canonical MNI152 test data not available")
 def test_mi_self_is_positive_on_brain():
     img = ritk.io.read_image(str(MNI152))
     result = compute_mutual_information(img, img, num_bins=64, variant="mattes")
@@ -421,7 +422,7 @@ def test_mi_self_is_positive_on_brain():
 
 @pytest.mark.skipif(
     not MNI152.exists() or not SUBJ_T1.exists(),
-    reason="brain_mni test data not available",
+    reason="canonical MNI152/OpenNeuro test data not available",
 )
 def test_mse_matches_sitk_on_brain_pair():
     """ritk MSE(mni,subj) ≈ sitk.MeanSquares(mni,subj) on real brain crop.
@@ -445,7 +446,7 @@ def test_mse_matches_sitk_on_brain_pair():
 
 @pytest.mark.skipif(
     not MNI152.exists() or not SUBJ_T1.exists(),
-    reason="brain_mni test data not available",
+    reason="canonical MNI152/OpenNeuro test data not available",
 )
 def test_ncc_matches_sitk_on_brain_pair():
     """ritk NCC(mni,subj) ≈ −sitk.CorrelationMetric(mni,subj) on real brain crop.
@@ -467,7 +468,7 @@ def test_ncc_matches_sitk_on_brain_pair():
 
 @pytest.mark.skipif(
     not MNI152.exists() or not SUBJ_T1.exists(),
-    reason="brain_mni test data not available",
+    reason="canonical MNI152/OpenNeuro test data not available",
 )
 def test_mi_mattes_matches_sitk_on_brain_pair():
     """ritk Mattes MI(mni,subj) ≈ sitk.MattesMutualInformation on real brain crop.
@@ -494,7 +495,7 @@ def test_mi_mattes_matches_sitk_on_brain_pair():
 
 @pytest.mark.skipif(
     not MNI152.exists() or not SUBJ_T1.exists(),
-    reason="brain_mni test data not available",
+    reason="canonical MNI152/OpenNeuro test data not available",
 )
 def test_mi_self_exceeds_cross_subject_on_brain():
     """MI(mni,mni) > MI(mni,subj): self-information exceeds cross-subject."""
