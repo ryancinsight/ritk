@@ -603,13 +603,11 @@ fn smooth_disc_weights_sq(patch_radius: usize, ndim: usize) -> Vec<f64> {
                     1.0f32
                 } else {
                     let delta = radius_plus_one - distance;
-                    // ITK's unqualified global `pow(float, float)` resolves to
-                    // the double-returning overload; both powers and the cubic
-                    // combination execute in `double` before one assignment to
-                    // the float weight image.
-                    let delta = f64::from(delta);
-                    let delta_cubed = <f64 as eunomia::FloatElement>::powf(delta, 3.0_f64);
-                    let delta_squared = <f64 as eunomia::FloatElement>::powf(delta, 2.0_f64);
+                    // ITK keeps the spline powers in `float`: the `3.0f` and
+                    // `2.0f` overloads return float before the terms are
+                    // promoted for the double-valued coefficient arithmetic.
+                    let delta_cubed = f64::from(delta.powf(3.0));
+                    let delta_squared = f64::from(delta.powf(2.0));
                     let weight = ((-2.0 / interval.powf(3.0)) * delta_cubed
                         + (3.0 / interval.powf(2.0)) * delta_squared)
                         as f32;

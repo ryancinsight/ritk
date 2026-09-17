@@ -504,9 +504,12 @@
   deleted) or stale (a build-target workaround whose premise no longer holds).
   Patches archived under the gitignored `scratch/stash-archive/`.
 
+<a id="RITK-ULP-PATCH-DENOISE"></a>
 ## RITK-ULP-PATCH-DENOISE [patch] — a 1-ULP parity tolerance that holds only on CI
 
-- **Status:** todo; owner=unclaimed; last-update=2026-08-20;
+- **Status:** in-progress; owner=Codex `/root`; integrator=Codex `/root`;
+  last-update=2026-09-17; regions=`crates/ritk-python/tests/test_simpleitk_cmake_data.py`,
+  `crates/ritk-filter/src/patch_based_denoising`;
   scope=`crates/ritk-python/tests/test_simpleitk_cmake_data.py`
   (`test_cmake_patch_based_denoising_structural`) and whichever of
   `ritk-filter`'s patch-based denoising or the stored reference is wrong;
