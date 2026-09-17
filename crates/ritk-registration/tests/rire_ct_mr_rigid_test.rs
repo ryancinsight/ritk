@@ -19,6 +19,10 @@ mod common;
 use common::{
     apply_rigid, mat3_det, mat3_mul, mat3_transpose, rigid_inverse, GT_ROT, GT_TRANS, RIRE_CORNERS,
 };
+use ritk_registration::{
+    fit_symmetric_trimmed_rigid, AffineTransform, FixedToMovingCorrespondence,
+    MovingToFixedCorrespondence,
+};
 use std::f64::consts::PI;
 
 // ── Group 1 — Pure math tests ────────────────────────────────────────────────
@@ -238,4 +242,71 @@ fn test_rire_perturbation_and_inverse_math_roundtrip() {
     }
     // Suppress unused import warning for PI (used in documentation context).
     let _ = PI;
+}
+
+/// The robust capture initializer must recover the published RIRE CT→MR
+/// transform when each directional schedule contains two gross outliers.
+///
+/// The eight fiducial pairs are rounded to 0.0001 mm in `ct_T1.standard`; the
+/// 0.01 mm bound is the RIRE acceptance threshold, so it includes that source
+/// quantisation while remaining far below a voxel spacing.
+#[test]
+fn test_rire_robust_capture_with_directional_outliers() {
+    let mut forward = Vec::with_capacity(RIRE_CORNERS.len() + 2);
+    let mut reverse = Vec::with_capacity(RIRE_CORNERS.len() + 2);
+    for [src_x, src_y, src_z, dst_x, dst_y, dst_z] in RIRE_CORNERS {
+        let source = [src_x, src_y, src_z];
+        let target = [dst_x, dst_y, dst_z];
+        forward.push(
+            FixedToMovingCorrespondence::try_new(source, target)
+                .expect("RIRE fiducials are finite"),
+        );
+        reverse.push(
+            MovingToFixedCorrespondence::try_new(target, source)
+                .expect("RIRE fiducials are finite"),
+        );
+    }
+    for (source, target) in [
+        ([1000.0, -700.0, 900.0], [-400.0, 1200.0, -600.0]),
+        ([850.0, 900.0, -500.0], [1400.0, -1100.0, 700.0]),
+    ] {
+        forward.push(
+            FixedToMovingCorrespondence::try_new(source, target)
+                .expect("outlier coordinates are finite"),
+        );
+        reverse.push(
+            MovingToFixedCorrespondence::try_new(target, source)
+                .expect("outlier coordinates are finite"),
+        );
+    }
+
+    let fitted = fit_symmetric_trimmed_rigid(&forward, &reverse)
+        .expect("RIRE fiducials retain a non-collinear consensus");
+    assert_eq!(fitted.correspondence_count, 20);
+    assert_eq!(fitted.inlier_count, 10);
+
+    let mut maximum_tre = 0.0_f64;
+    for [src_x, src_y, src_z, dst_x, dst_y, dst_z] in RIRE_CORNERS {
+        let predicted = apply_affine(&fitted.transform, [src_x, src_y, src_z]);
+        let residual = predicted
+            .into_iter()
+            .zip([dst_x, dst_y, dst_z])
+            .map(|(actual, expected)| (actual - expected).powi(2))
+            .sum::<f64>()
+            .sqrt();
+        maximum_tre = maximum_tre.max(residual);
+    }
+    assert!(
+        maximum_tre < 0.01,
+        "robust RIRE capture TRE {maximum_tre:.6} mm exceeds the 0.01 mm acceptance bound"
+    );
+}
+
+fn apply_affine(transform: &AffineTransform, point: [f64; 3]) -> [f64; 3] {
+    let matrix = transform.as_array();
+    [
+        matrix[0] * point[0] + matrix[1] * point[1] + matrix[2] * point[2] + matrix[3],
+        matrix[4] * point[0] + matrix[5] * point[1] + matrix[6] * point[2] + matrix[7],
+        matrix[8] * point[0] + matrix[9] * point[1] + matrix[10] * point[2] + matrix[11],
+    ]
 }

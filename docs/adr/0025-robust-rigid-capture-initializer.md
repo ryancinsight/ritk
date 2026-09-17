@@ -5,6 +5,12 @@
 - **Class:** [major] [arch]
 - **Date:** 2026-09-04
 
+### Revision — 2026-09-16
+
+The landed implementation follows the directional estimator selected in PR
+248. This revision replaces the earlier joint-fit wording and records the
+actual split schedules, endpoint conflict rule, and log-Euclidean combination.
+
 ## Context
 
 The rigid search accepted only fixed and moving centroids. That initialization
@@ -28,24 +34,23 @@ subjects and 704 landmarks [1, section 3 and table 1].
 RITK owns two reusable registration primitives:
 
 1. `fit_symmetric_trimmed_rigid` accepts direction-specific
-   `FixedToMovingCorrespondence` and `MovingToFixedCorrespondence` values,
-   normalizes reverse pairs to fixed-to-moving order, and fits one rigid
-   transform to the joint set. The distinct types make source/target order a
-   checked API contract. This is the rigid-specific algebraic form of symmetry:
-   applying the inverse direction does not change Euclidean residual ranking
-   because a rigid rotation is an isometry. It avoids two separately fitted
-   matrices and matrix logarithm/exponential averaging, which Modat et al.
-   require for their affine update.
+   `FixedToMovingCorrespondence` and `MovingToFixedCorrespondence` values and
+   fits each schedule independently with 50%-trimmed least squares. The
+   reverse fit is inverted and combined with the forward fit through the
+   log-Euclidean mean described by Modat et al., equations 4–5. The distinct
+   types make source/target order a checked API contract, while equal treatment
+   of the two retained directional halves removes direction bias.
 2. `RigidSearchAnchor` replaces the two-centroid `search_rigid_pose` arguments.
    It validates a full proper rigid transform and a fixed-frame center. Search
    rotations right-compose in the fixed frame and translations act in moving-
    frame millimetres. The exact zero residual returns the supplied transform.
 
-The LTS initializer evaluates every non-collinear three-pair elemental subset
-while there are at most 4,096 combinations. Larger inputs evaluate 1,024
-deterministically sampled subsets, ordered by each pair's unordered endpoint
-key so swapping fixed and moving selects the same candidate schedule. All paths
-perform at most five LTS concentration refits. At a 50% inlier fraction, 1,024
+Each directional LTS initializer evaluates every non-collinear three-pair
+elemental subset while there are at most 4,096 combinations. Larger schedules
+evaluate 1,024 deterministic sampled subsets. Directed source/target sorting
+makes exchanging the image roles exchange the two schedules exactly; the
+unordered endpoint key is used only for conflict detection. All paths perform
+at most five LTS concentration refits. At a 50% inlier fraction, 1,024
 independent three-point draws would miss an all-inlier subset with probability
 `(7/8)^1024`, below `f64::EPSILON^2`; the deterministic sequence provides
 reproducibility, not a probabilistic guarantee against adversarially arranged
@@ -72,22 +77,22 @@ criteria.
   estimate rotation and increases exposure to remote objective maxima.
 - Pairwise correspondence-consistency graph: rejected because quadratic
   memory conflicts with bounded operation on dense block populations.
-- Separate forward and reverse rigid fits followed by matrix-log averaging:
-  rejected because normalizing both directions produces the same rigid
-  residual ordering with one canonical fit; the affine case would need the
-  reference method's matrix averaging.
+- One joint fit after normalizing both directions: rejected because one
+  schedule could contribute more retained correspondences and dominate the
+  result. Independent 50%-trimmed fits preserve equal directional influence;
+  the log-Euclidean mean supplies the inverse-consistent transform.
 
 ## Verification and limits
 
 Analytical tests cover a known 20-degree transform with 40% coherent outliers,
 direction swapping and inverse composition on both exhaustive and sampled
-candidate paths, positional candidate-identity reversal across all 1,024
-sampled triplets with independent directional outliers,
+candidate paths, exact schedule exchange with independent directional outliers,
 rejection of conflicting unordered-endpoint directions, input-order
-normalization, non-finite points, collinear points, rejection of reflection
-anchors, exact zero-residual anchoring, and right composition of noncommuting
-anchor/residual rotations. Existing capture and refinement bounds remain
-covered. The runnable book example executes the same known-transform workflow.
+normalization, non-finite points, and collinear points. The RIRE integration
+test fits the eight published CT→MR fiducials with two gross outliers per
+direction and verifies the 0.01 mm target-registration-error bound. Existing
+capture and refinement bounds remain covered, and the runnable book example
+executes the same known-transform workflow.
 
 The fit assumes strictly more than half of the supplied correspondences support
 one identifiable non-collinear rigid transform. Exactly half is intrinsically

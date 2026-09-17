@@ -8,10 +8,11 @@ boundary, and checks the recovered transform against the analytical result.
 
 The two correspondence slices have explicit directions. Forward entries store
 fixed-to-moving matches. Reverse entries store moving-to-fixed matches. RITK
-normalizes the reverse pairs before one joint least-trimmed-squares fit. For a
-rigid transform this is symmetric because rotation preserves Euclidean
-residual norms. The estimator retains half of the combined pairs and returns
-the retained root-mean-square residual as a diagnostic.
+fits each direction independently with least-trimmed squares, inverts the
+reverse result, and combines the two fixed-to-moving transforms with a
+log-Euclidean mean. Conflicting unordered endpoint directions are removed from
+both schedules before fitting. Each direction retains its best half and the
+returned root-mean-square residual covers both retained sets.
 
 `RigidSearchAnchor` validates that the initializer is finite, homogeneous,
 orthonormal, and proper. Search parameters then describe only the residual

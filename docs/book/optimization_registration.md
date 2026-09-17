@@ -45,11 +45,13 @@ metric sample set therefore cannot be converted into a plausible pose.
 When centroids alone do not place the orientation inside this bounded search,
 `fit_symmetric_trimmed_rigid` estimates the complete anchor from direction-
 specific `FixedToMovingCorrespondence` and `MovingToFixedCorrespondence`
-physical-space matches. It normalizes reverse matches and retains the half with
-smallest Euclidean residual under a deterministic LTS fit. Exact endpoint pairs
-with conflicting directions are discarded because selecting either would make
-the sampled schedule depend on image-role ordering. The fit requires a strict
-majority supporting one non-collinear rigid consensus;
+physical-space matches. It fits each direction independently, retains the half
+with smallest Euclidean residual under a deterministic LTS fit, inverts the
+reverse result, and combines the two fixed-to-moving transforms with a
+log-Euclidean mean. Exact endpoint pairs with conflicting directions are
+discarded because selecting either would make the directional schedules depend
+on image-role ordering. The fit requires a strict majority supporting one
+non-collinear rigid consensus;
 exactly two equal half-population consensuses are not identifiable. See the
 [robust rigid capture initializer](examples/rigid_capture_initializer.md) for
 the executable known-transform and outlier case.
