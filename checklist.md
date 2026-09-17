@@ -55,10 +55,11 @@
 
 ## RITK-CI-DICOM-WORKFLOW-001 — Viewer workflow feature selection
 
-- [ ] Update the committed CI command to pass `--features eframe-shell`,
+- [x] Update the committed CI command to pass `--features eframe-shell`,
       which is the example's declared required feature.
-- [ ] Run the local locked synthetic DICOM workflow image oracle and the
-      affected configuration checks.
+- [x] Run the local locked synthetic DICOM workflow image oracle and the
+      affected configuration checks: `scripts/lockfile.py --check`, metadata,
+      and `scripts/viewer.py` pass with `status: passed`.
 - [ ] Collect the hosted test-suite result on the exact branch head, then
       merge and compact the backlog item with the evidence.
 

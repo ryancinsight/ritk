@@ -227,7 +227,7 @@ jobs:
         env:
           EXAMPLE_SUFFIX: ${{ runner.os == 'Windows' && '.exe' || '' }}
         run: |
-          cargo build --locked -p ritk-snap --example dicom_workflow
+          cargo build --locked -p ritk-snap --features eframe-shell --example dicom_workflow
           python scripts/viewer.py "target/debug/examples/dicom_workflow${EXAMPLE_SUFFIX}"
 
   python-wheel:
