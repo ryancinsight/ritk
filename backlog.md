@@ -151,8 +151,8 @@
 
 <a id="RITK-METIS-LOCK-002"></a>
 ## RITK-METIS-LOCK-002 — Advance the post-merge viewer pins [patch]
-- Status: in-progress; priority: P1; owner: RITK viewer integration; integrator: root; last-update: 2026-09-17; dependencies: Metis PR #213, Moirai `c7b49a7623aed533f377aec77f656a16d2b9d68b`; risk: stale provider behavior in the saved-study workflow.
-- Scope: update the standalone Cargo.lock to the merged Metis and Moirai defaults, rerun the real saved-study replay, and synchronize only current manual/provenance claims; historical captures remain immutable.
+- Status: review; priority: P1; owner: RITK viewer integration; integrator: root; last-update: 2026-09-17; dependencies: Metis PR #213, Moirai `c7b49a7623aed533f377aec77f656a16d2b9d68b`; risk: stale provider behavior in the saved-study workflow.
+- Scope: update the standalone Cargo.lock and workflow defaults to the merged Metis and Moirai revisions, rerun the real saved-study replay, and synchronize only current manual/provenance claims; historical captures remain immutable.
 - Acceptance: locked RITK viewer build/tests and lockfile checks pass; the replay reads all 94 saved MRI files, reproduces the exact committed 1280×800 frame and non-black pixel count, rejects an invalid study, and records the new provider revisions in the current manual/provenance evidence.
 - Demonstration: [RITK DICOM workflow](docs/manual/dicom-workflow.md) and [MRI replay provenance](docs/manual/images/dicom-metis-real-mri.json).
 
