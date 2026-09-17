@@ -309,10 +309,14 @@
 - **Outcome:** directional 50%-trimmed fits, conflict discard, reverse inversion, log-Euclidean mean, module split, and RIRE regression are delivered; ADR 0025 and the registration book are synchronized.
 - **Evidence:** 439/439 package tests passed (11 skipped), focused robust/RIRE tests, strict Clippy, rustfmt, doctests, Rustdoc, mdBook, and SemVer compatibility checks are green.
 
-## RITK-LINT-ALLOW-SITES-2026-08-31 — Remove reintroduced production allowances [patch] — in progress
+## RITK-LINT-ALLOW-SITES-2026-08-31 — Remove reintroduced production allowances [patch] — in-progress
 
-- **Status:** in progress; integrator=current Codex session; lease=the 13 affected
-  source files plus this item, `CHECKLIST.md`, and `CHANGELOG.md`; base=`81346473`.
+- **Status:** in-progress; integrator=Codex/root; last-update=2026-09-17T00:46:00-04:00.
+- **Lease:** Codex/root `crates/ritk-codecs/src/jpeg_2000/ebcot/mod.rs`,
+  `crates/ritk-codecs/src/jpeg_2000/packet/mod.rs`,
+  `crates/ritk-filter/src/intensity/clahe/interpolate.rs`,
+  `crates/ritk-image/src/grid.rs`, this item, and `CHECKLIST.md`;
+  2026-09-17T00:46:00-04:00.
 - **Outcome:** restore the production `allow_sites` conformance count from 16
   to 0 by compiling test-only helpers only in tests, narrowing internal JPEG
   2000 re-exports, and deleting local exceptions already owned by the workspace
