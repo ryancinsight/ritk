@@ -305,8 +305,8 @@
 <a id="RITK-RIGID-CAPTURE-INITIALIZER-2026-09-04"></a>
 ## RITK-RIGID-CAPTURE-INITIALIZER-2026-09-04 — Robust rigid capture initializer [major] [arch] — in-progress
 
-- **Status:** in-progress; integrator=Codex; last-update=2026-09-04T19:31:36-04:00.
-- **Lease:** Codex/subagent `crates/ritk-registration/src/classical/robust_rigid.rs`, its focused tests, downstream rigid validation, and this item; 2026-09-04T19:31:36-04:00.
+- **Status:** in-progress; integrator=Codex/root; last-update=2026-09-16T21:59:34-04:00.
+- **Lease:** Codex/root `crates/ritk-registration/src/classical/robust_rigid.rs`, its focused tests, RIRE validation, ADR 0025, and this item; 2026-09-16T21:59:34-04:00.
 - **Outcome:** fit deterministic directional least-trimmed-squares rigid transforms and combine the forward fit with the inverse reverse fit using the reference symmetric transformation-space mean before residual refinement.
 - **Scope/non-goals:** RITK fitting/search contracts and validation; no image-format policy, subject-tuned constants, deformable correction, or fiducials in optimization.
 - **Acceptance:** analytical rigid recovery below the 50% breakdown boundary, direction-swap inverse equivalence, directional-outlier isolation, finite/malformed-input failure, partial-FOV candidate rejection without padding evidence, bounded memory, focused/full gates, example/book, downstream RIRE validation, and independent review.
