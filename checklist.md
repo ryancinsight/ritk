@@ -1,10 +1,18 @@
 ## RITK-MIND-REGISTRATION-2026-09-04
 
-- [ ] Specify descriptor equations, boundary behavior, storage bounds, and API in ADR 0024.
-- [ ] Implement the canonical MIND descriptor and fixed-domain metric with value-semantic and differential tests.
-- [ ] Add a runnable example and synchronized registration book material.
-- [ ] Integrate the metric in Leoneuro and retain it only if RIRE and Patient109 validation pass.
-- [ ] Run risk-scaled RITK and consumer gates, obtain independent review, and merge both repositories.
+- [x] Specify descriptor equations, boundary behavior, storage bounds, and API in
+      accepted ADR 0024 (`docs/adr/0024-packed-fixed-domain-mind-ssc.md`).
+- [x] Implement the canonical MIND descriptor and fixed-domain metric with
+      value-semantic, boundary, malformed-input, and naive differential tests;
+      delivered by RITK PR #229 (merge `47a5d8b05901a2afa77bb558abc86ac675c5e223`).
+- [x] Add the runnable `book_registration` example and synchronized registration
+      book material, including generated figure and bounded-memory accounting.
+- [x] Integrate the metric in Leoneuro through PR #19 and retain the RIRE oracle
+      (`0.8330/1.1324 mm`); Patient109 remains explicitly review-gated per ADR 0024.
+- [x] Run the risk-scaled RITK and consumer gates, obtain independent review, and
+      merge the delivery. Hosted SemVer was informationally red because the
+      unrelated `ritk-analyze` rustdoc baseline failed; the required build,
+      Rustdoc, book, Python, lockfile, Clippy, and native test checks passed.
 
 ## RITK-LINT-ALLOW-SITES-2026-08-31
 
