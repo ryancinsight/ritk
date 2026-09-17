@@ -39,6 +39,8 @@ pub use geometry::{GeometrySummary, ModalityDisplay, ViewerResult, ViewerStatus}
 pub use launch::{run_app, run_app_with_options, AppLaunchOptions, NativePresentationMode};
 #[cfg(target_arch = "wasm32")]
 pub use launch::{run_app_with_options, AppLaunchOptions, NativePresentationMode};
+#[cfg(all(not(target_arch = "wasm32"), feature = "eframe-shell"))]
+pub use launch::{run_eframe_app, run_eframe_app_with_options};
 #[cfg(target_arch = "wasm32")]
 pub use launch::{
     select_web_slice, start_web, start_web_canvas, start_web_canvas_gpu,

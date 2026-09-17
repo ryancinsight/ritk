@@ -244,6 +244,15 @@
 - Documentation increment (2026-09-12): the manual title now names the complete DICOM viewer workflow, matching its real-data gallery and synthetic, native, eframe, and browser sections.
 - Build increment (2026-09-12): the standalone lock now advances Iris to `a5df753f7a553b8f94b613e2a65a0910a81a7c81` and all Métis packages to merged `2044af8f64349f294c6ffbaf44bd8c6a221d4b80` while retaining the locked Moirai provider. Workspace check, strict `ritk-snap` Clippy, 826/826 nextest, doctests, and the saved 409-file public CT MIP command all pass; the four-panel PNG remains byte-identical at `989a1f66b43a39ec753180cdd882b08e11adfc2ab4009c416a694c1fd12efe42`.
 
+<a id="RITK-SNAP-EFRAME-BOUNDARY-001"></a>
+## RITK-SNAP-EFRAME-BOUNDARY-001 — Separate the eframe compatibility shell [arch] [major]
+- Status: review; priority: P0; owner: RITK viewer; integrator: root; branch: `refactor/ritk-snap-eframe-boundary-001`; last-update: 2026-09-17;
+- Outcome: the default `ritk-snap` viewer graph builds through Métis without eframe, egui, or rfd while a separately named compatibility artifact retains the complete legacy shell.
+- Scope: move the eframe launch and GUI adapter behind a complete compatibility package/feature boundary; preserve every existing eframe workflow until the replacement is verified. DICOM parsing, geometry and clinical presentation remain in RITK.
+- Acceptance: the default active dependency graph excludes eframe/egui/rfd and the locked build passes; the compatibility artifact builds and exercises the existing eframe capture path; the Windows default remains Métis; no forwarding shim or duplicated viewer state exists; manual, ADR and dependency lock are synchronized.
+- Dependencies: [RITK-SNAP-METIS-001](#RITK-SNAP-METIS-001); current Métis native session merge `75c17f11c`.
+- Verification: standalone locked metadata/build, native and WASM checks, strict Clippy/fmt, full `ritk-snap` nextest, compatibility-shell capture smoke, and an active-graph assertion.
+
 <a id="RITK-SNAP-METIS-MIP-001"></a>
 ## RITK-SNAP-METIS-MIP-001 — Match the native Métis projection layout [arch] [minor]
 - Status: done; priority: P1; owner: RITK presentation; integrator: root; last-update: 2026-09-12; delivery: commit `de7b8d8ed0f754020ddb6a7607f24df3e6d652b8`; risk: comparing unlike viewer workloads.

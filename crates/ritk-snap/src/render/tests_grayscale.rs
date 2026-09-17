@@ -109,7 +109,7 @@ fn unsupported_voi_lut_sequence_fails_before_rendering() {
     );
 }
 
-#[cfg(not(target_arch = "wasm32"))]
+#[cfg(all(not(target_arch = "wasm32"), feature = "eframe-shell"))]
 #[test]
 fn gpu_presentation_bitfield_matches_cpu_selection() {
     let linear = GrayscalePresentation {

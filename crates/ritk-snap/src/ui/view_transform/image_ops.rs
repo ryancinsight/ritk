@@ -5,16 +5,19 @@
 //! individually; `apply_to_image_into` is the composed form that the render
 //! path uses, writing one output instead of an intermediate per step.
 
+#[cfg(any(windows, test, feature = "eframe-shell"))]
 use super::{RotationSteps, ViewTransform};
-#[cfg(not(target_arch = "wasm32"))]
+#[cfg(all(not(target_arch = "wasm32"), feature = "eframe-shell"))]
 use crate::render::buffer_pool::RenderBufferPool;
 #[cfg(any(windows, test))]
 use anyhow::{anyhow, bail, Result};
+#[cfg(feature = "eframe-shell")]
 use egui::ColorImage;
 /// Apply a horizontal flip (left↔right) to a `ColorImage`.
 ///
 /// For width W, pixel at column c maps to column W−1−c.
 /// Time complexity: O(W × H). No allocation beyond the output pixel buffer.
+#[cfg(feature = "eframe-shell")]
 pub fn flip_h_image(img: &ColorImage) -> ColorImage {
     let [w, h] = img.size;
     let mut out = vec![egui::Color32::BLACK; w * h];
@@ -33,6 +36,7 @@ pub fn flip_h_image(img: &ColorImage) -> ColorImage {
 ///
 /// For height H, pixel at row r maps to row H−1−r.
 /// Time complexity: O(W × H).
+#[cfg(feature = "eframe-shell")]
 pub fn flip_v_image(img: &ColorImage) -> ColorImage {
     let [w, h] = img.size;
     let mut out = vec![egui::Color32::BLACK; w * h];
@@ -53,6 +57,7 @@ pub fn flip_v_image(img: &ColorImage) -> ColorImage {
 /// Mapping: input `(row, col)` → output column `H−1−row`, output row `col`.
 /// Formally: `out[col, H−1−row] = in[row, col]`.
 /// Time complexity: O(W × H).
+#[cfg(feature = "eframe-shell")]
 pub fn rotate_90_cw_image(img: &ColorImage) -> ColorImage {
     let [w, h] = img.size;
     // Output dimensions are [h, w] (width and height swapped).
@@ -83,6 +88,7 @@ pub fn rotate_90_cw_image(img: &ColorImage) -> ColorImage {
 /// This function allocates a new `Vec<Color32>` per transform step.
 /// For zero-allocation hot-path usage, prefer `apply_to_image_into` which
 /// writes into pre-allocated scratch buffers from the `RenderBufferPool`.
+#[cfg(feature = "eframe-shell")]
 pub fn apply_to_image(img: &ColorImage, transform: ViewTransform) -> ColorImage {
     if transform.is_identity() {
         return img.clone();
@@ -210,7 +216,7 @@ pub(crate) fn apply_to_rgba(
 ///   borrows the input's pixel slice (no clone).
 /// - Non-identity transform: zero heap allocations after `pool.color32` has
 ///   reached peak capacity. The scratch buffer is reused across calls.
-#[cfg(not(target_arch = "wasm32"))]
+#[cfg(all(not(target_arch = "wasm32"), feature = "eframe-shell"))]
 pub(crate) fn apply_to_image_into(
     pool: &mut RenderBufferPool,
     img: &ColorImage,

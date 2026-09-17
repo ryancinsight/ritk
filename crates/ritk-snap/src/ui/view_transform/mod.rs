@@ -27,12 +27,13 @@
 mod image_ops;
 mod transform;
 
-#[cfg(not(target_arch = "wasm32"))]
+#[cfg(all(not(target_arch = "wasm32"), feature = "eframe-shell"))]
 pub(crate) use image_ops::apply_to_image_into;
 #[cfg(any(windows, test))]
 pub(crate) use image_ops::apply_to_rgba;
+#[cfg(feature = "eframe-shell")]
 pub use image_ops::{apply_to_image, flip_h_image, flip_v_image, rotate_90_cw_image};
 pub use transform::{RotationSteps, ViewTransform};
 
-#[cfg(test)]
+#[cfg(all(test, feature = "eframe-shell"))]
 mod tests;

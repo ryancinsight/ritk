@@ -5,6 +5,7 @@
 
 use std::collections::BTreeMap;
 
+#[cfg(feature = "eframe-shell")]
 use egui::{Color32, Pos2, Rect, Stroke, Ui, Vec2};
 use ritk_io::{ContourGeometricType, RtDoseGrid, RtStructureSet};
 
@@ -272,6 +273,7 @@ fn build_dvh_curve_histogram(dose_samples: &[f32], max_dose: f32, bins: usize) -
     curve
 }
 
+#[cfg(feature = "eframe-shell")]
 pub fn draw_dvh_curve(ui: &mut Ui, points: &[DvhPoint]) {
     let desired = Vec2::new(260.0, 120.0);
     let (rect, _) = ui.allocate_exact_size(desired, egui::Sense::hover());

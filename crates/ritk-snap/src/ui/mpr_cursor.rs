@@ -22,6 +22,7 @@
 //! - Surjective: every voxel on the fixed slice has uniquely recoverable
 //!   `(row,col)` from the two non-slice coordinates.
 
+#[cfg(feature = "eframe-shell")]
 use super::ViewTransform;
 use crate::tools::interaction::ImagePoint;
 
@@ -75,6 +76,7 @@ impl LinkedCursor {
     }
 
     /// Map a viewport point into a study voxel using the current slice on `axis`.
+    #[cfg(feature = "eframe-shell")]
     pub fn update_from_viewport_point(
         &mut self,
         shape: [usize; 3],
@@ -107,6 +109,7 @@ impl LinkedCursor {
     }
 
     /// Project the linked voxel into viewport coordinates for `axis`.
+    #[cfg(feature = "eframe-shell")]
     pub fn viewport_crosshair(
         &self,
         shape: [usize; 3],
@@ -157,6 +160,7 @@ pub fn map_voxel_to_view_row_col(axis: usize, voxel: [usize; 3]) -> Option<(usiz
 }
 
 /// Map a viewport point into a voxel on the currently displayed slice.
+#[cfg(feature = "eframe-shell")]
 pub fn viewport_point_to_voxel(
     shape: [usize; 3],
     axis: usize,
@@ -200,6 +204,7 @@ pub fn image_point_to_voxel(
 }
 
 /// Project a study voxel into viewport coordinates for `axis`.
+#[cfg(feature = "eframe-shell")]
 pub fn voxel_to_viewport_point(
     shape: [usize; 3],
     axis: usize,
@@ -235,6 +240,6 @@ fn clamp_index(index: usize, len: usize) -> usize {
     }
 }
 
-#[cfg(test)]
+#[cfg(all(test, feature = "eframe-shell"))]
 #[path = "tests_mpr_cursor.rs"]
 mod tests;

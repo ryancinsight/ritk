@@ -2,7 +2,7 @@ use super::state::SnapApp;
 use crate::render::NamedColorMap;
 use crate::tools::interaction::{Annotation, ImagePoint, MeasurementError, RoiKind, ToolState};
 use crate::tools::kind::ToolKind;
-#[cfg(not(target_arch = "wasm32"))]
+#[cfg(feature = "eframe-shell")]
 use crate::ui::{anatomical_label_for_axis, axis_for_plane_in_volume, AnatomicalPlane};
 use crate::ui::{
     image_point_to_voxel, intensity_at_voxel, pan_from_drag_delta, window_level_from_drag_delta,
@@ -432,6 +432,7 @@ impl SnapApp {
     ///
     /// Consumed by the overlay renderer for PET/CT SUV workflow (GAP-176-RAD-02).
     #[cfg(not(target_arch = "wasm32"))]
+    #[cfg(feature = "eframe-shell")]
     pub(crate) fn current_cursor_suv(&self) -> Option<f32> {
         let volume = self.loaded.as_ref()?;
         let cursor = self.linked_cursor?;
@@ -441,6 +442,7 @@ impl SnapApp {
     }
 
     #[cfg(not(target_arch = "wasm32"))]
+    #[cfg(feature = "eframe-shell")]
     pub(crate) fn current_cursor_value(&self) -> Option<f32> {
         let volume = self.loaded.as_ref()?;
         let cursor = self.linked_cursor?;
@@ -449,11 +451,13 @@ impl SnapApp {
     }
 
     #[cfg(not(target_arch = "wasm32"))]
+    #[cfg(feature = "eframe-shell")]
     pub(crate) fn axis_for_plane(&self, plane: AnatomicalPlane) -> usize {
         axis_for_plane_in_volume(self.loaded.as_ref(), plane)
     }
 
     #[cfg(not(target_arch = "wasm32"))]
+    #[cfg(feature = "eframe-shell")]
     pub(crate) fn axis_label(&self, axis: usize) -> &'static str {
         anatomical_label_for_axis(self.loaded.as_ref(), axis)
     }

@@ -75,7 +75,22 @@ I/O in `ritk-io` and presentation logic in `ritk-snap`, with a vertical module
 split for input path normalization, hanging-protocol selection, series
 discovery, metadata row construction, session snapshot persistence, rendering,
 tools, and the eframe compatibility widgets. On Windows the default shell is
-Métis; pass `--eframe` when the compatibility shell is required.
+Métis. The default `ritk-snap` graph has no eframe, egui, or rfd dependency;
+the complete legacy shell is packaged as `ritk-snap-eframe`.
+
+Run the compatibility shell with the separately named package:
+
+```console
+cargo run --locked -p ritk-snap-eframe -- path/to/study
+```
+
+The source-level compatibility feature remains available for the existing
+capture harness and tests:
+
+```console
+cargo run --locked -p ritk-snap --features eframe-shell -- \
+  path/to/study --eframe --capture window.png
+```
 
 `ritk-snap --metis-native` may omit `PATH` on Windows. The Métis host then
 opens Moirai's bounded native folder picker; RITK scans, decodes, and renders

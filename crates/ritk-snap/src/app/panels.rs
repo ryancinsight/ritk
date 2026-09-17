@@ -9,7 +9,6 @@ use crate::session::ViewerSessionSnapshot;
 use crate::tools::interaction::{ToolState, ViewportOffset};
 #[cfg(not(target_arch = "wasm32"))]
 use crate::ui::window_presets::WindowPreset;
-use crate::ui::DroppedInputAction;
 #[cfg(not(target_arch = "wasm32"))]
 use crate::ui::{decide_dropped_input_action, DroppedInput};
 #[cfg(not(target_arch = "wasm32"))]
@@ -143,50 +142,6 @@ impl SnapApp {
         };
         let action = decide_dropped_input_action(&dropped);
         self.apply_dropped_input_action(action);
-    }
-
-    /// Applies one dropped-input decision to the RITK-owned load state.
-    ///
-    /// Both the eframe shell and the Métis browser canvas use this reducer so
-    /// pathless browser bytes and native paths cannot diverge in DICOM
-    /// classification or replacement semantics.
-    pub(crate) fn apply_dropped_input_action(&mut self, action: DroppedInputAction) {
-        match action {
-            #[cfg(not(target_arch = "wasm32"))]
-            DroppedInputAction::QueueDicom(path) => {
-                self.scan_for_series(path.clone());
-                self.pending_load = Some(VolumeInput::Path(path.clone()));
-                self.status_message = format!("Queued dropped DICOM input: {}", path.display());
-            }
-            #[cfg(target_arch = "wasm32")]
-            DroppedInputAction::QueueDicom(path) => {
-                self.status_message = format!(
-                    "Browser drop cannot supply a filesystem path: {}",
-                    path.display()
-                );
-            }
-            #[cfg(not(target_arch = "wasm32"))]
-            DroppedInputAction::LoadVolume(path) => {
-                self.load_volume_file(path);
-            }
-            #[cfg(target_arch = "wasm32")]
-            DroppedInputAction::LoadVolume(path) => {
-                self.status_message = format!(
-                    "Browser drop cannot supply a filesystem path: {}",
-                    path.display()
-                );
-            }
-            DroppedInputAction::LoadVolumeBytes { name, bytes } => {
-                self.load_volume_bytes(name, bytes.as_ref());
-            }
-            DroppedInputAction::LoadDicomSeriesBytes { files } => {
-                self.load_dicom_series_bytes(files);
-            }
-            DroppedInputAction::Message(msg) => {
-                self.status_message = msg;
-            }
-            DroppedInputAction::None => {}
-        }
     }
 
     // ── Left panel ────────────────────────────────────────────────────────────

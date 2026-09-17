@@ -4,7 +4,7 @@ use std::path::PathBuf;
 #[cfg(windows)]
 use std::path::Path;
 
-#[cfg(not(target_arch = "wasm32"))]
+#[cfg(all(not(target_arch = "wasm32"), feature = "eframe-shell"))]
 mod capture;
 
 /// Native Métis framebuffer layout selected at application startup.
@@ -84,6 +84,30 @@ pub fn run_app() -> anyhow::Result<()> {
     run_app_with_options(AppLaunchOptions::default())
 }
 
+/// Launch the complete eframe compatibility shell.
+///
+/// This entrypoint belongs to the separately named compatibility artifact. It
+/// forces the eframe path while reusing the same [`AppLaunchOptions`] and RITK
+/// viewer state as the default Métis binary.
+///
+/// # Errors
+/// Returns the same window, event-loop, and capture errors as
+/// [`run_app_with_options`].
+#[cfg(all(not(target_arch = "wasm32"), feature = "eframe-shell"))]
+pub fn run_eframe_app_with_options(mut options: AppLaunchOptions) -> anyhow::Result<()> {
+    options.metis_native = false;
+    run_app_with_options(options)
+}
+
+/// Launch the eframe compatibility shell with its default options.
+///
+/// # Errors
+/// Returns a window or event-loop error from the compatibility shell.
+#[cfg(all(not(target_arch = "wasm32"), feature = "eframe-shell"))]
+pub fn run_eframe_app() -> anyhow::Result<()> {
+    run_eframe_app_with_options(AppLaunchOptions::default())
+}
+
 #[cfg(windows)]
 fn select_native_initial_path<F>(
     initial_path: Option<&Path>,
@@ -144,55 +168,64 @@ pub fn run_app_with_options(options: AppLaunchOptions) -> anyhow::Result<()> {
             anyhow::bail!("--metis-native requires a Windows Métis native host");
         }
     }
-    if options.native_presentation_mode != NativePresentationMode::Orthogonal {
-        anyhow::bail!("native presentation layout requires the Métis native host");
-    }
-    if options.capture_application {
-        anyhow::bail!("application capture requires the Métis native host");
-    }
-    use std::cell::Cell;
-    use std::rc::Rc;
+    #[cfg(feature = "eframe-shell")]
+    {
+        if options.native_presentation_mode != NativePresentationMode::Orthogonal {
+            anyhow::bail!("native presentation layout requires the Métis native host");
+        }
+        if options.capture_application {
+            anyhow::bail!("application capture requires the Métis native host");
+        }
+        use std::cell::Cell;
+        use std::rc::Rc;
 
-    let completion = Rc::new(Cell::new(None));
-    let capture_requested = options.capture.is_some();
-    let app_completion = Rc::clone(&completion);
-    let native_options = eframe::NativeOptions {
-        viewport: egui::ViewportBuilder::default()
-            .with_title("ritk-snap — DICOM Viewer")
-            .with_inner_size([1280.0, 800.0]),
-        ..Default::default()
-    };
+        let completion = Rc::new(Cell::new(None));
+        let capture_requested = options.capture.is_some();
+        let app_completion = Rc::clone(&completion);
+        let native_options = eframe::NativeOptions {
+            viewport: egui::ViewportBuilder::default()
+                .with_title("ritk-snap — DICOM Viewer")
+                .with_inner_size([1280.0, 800.0]),
+            ..Default::default()
+        };
 
-    eframe::run_native(
-        "ritk-snap",
-        native_options,
-        Box::new(move |_cc| {
-            let requirement = if options.initial_path.is_some() {
-                capture::Requirement::Study
-            } else {
-                capture::Requirement::Application
-            };
-            let app = match options.initial_path {
-                Some(path) => {
-                    crate::app::SnapApp::with_initial_path(path, options.initial_series_uid.clone())
-                }
-                None => crate::app::SnapApp::default(),
-            };
-            Ok(Box::new(capture::CaptureApp::new(
-                crate::app::EguiApp::new(app),
-                options.capture,
-                requirement,
-                app_completion,
-            )))
-        }),
-    )
-    .map_err(|e| anyhow::anyhow!("eframe error: {e}"))?;
-    if capture_requested {
-        completion
-            .take()
-            .ok_or_else(|| anyhow::anyhow!("window closed before screenshot completion"))??;
+        eframe::run_native(
+            "ritk-snap",
+            native_options,
+            Box::new(move |_cc| {
+                let requirement = if options.initial_path.is_some() {
+                    capture::Requirement::Study
+                } else {
+                    capture::Requirement::Application
+                };
+                let app = match options.initial_path {
+                    Some(path) => crate::app::SnapApp::with_initial_path(
+                        path,
+                        options.initial_series_uid.clone(),
+                    ),
+                    None => crate::app::SnapApp::default(),
+                };
+                Ok(Box::new(capture::CaptureApp::new(
+                    crate::app::EguiApp::new(app),
+                    options.capture,
+                    requirement,
+                    app_completion,
+                )))
+            }),
+        )
+        .map_err(|e| anyhow::anyhow!("eframe error: {e}"))?;
+        if capture_requested {
+            completion
+                .take()
+                .ok_or_else(|| anyhow::anyhow!("window closed before screenshot completion"))??;
+        }
+        Ok(())
     }
-    Ok(())
+    #[cfg(not(feature = "eframe-shell"))]
+    {
+        let _ = options;
+        anyhow::bail!("legacy eframe shell requires the `eframe-shell` feature")
+    }
 }
 
 /// Stub launcher for non-native targets.

@@ -6731,6 +6731,15 @@ dependencies = [
 ]
 
 [[package]]
+name = "ritk-snap-eframe"
+version = "0.1.0"
+dependencies = [
+ "anyhow",
+ "clap",
+ "ritk-snap",
+]
+
+[[package]]
 name = "ritk-spatial"
 version = "0.2.0"
 dependencies = [

@@ -23,7 +23,7 @@
 //!
 //! # Implementation
 //!
-//! [`tool_kind_for_key`] and [`tool_kind_for_virtual_key`] are the SSOTs that
+//! `tool_kind_for_key` and `tool_kind_for_virtual_key` are the SSOTs that
 //! map host keyboard values to optional [`ToolKind`] values.
 //! Return value is `Some(ToolKind)` if the key corresponds to a shortcut,
 //! or `None` if the key has no tool binding.
@@ -32,35 +32,45 @@
 //! applies the returned tool via the app-shell's existing `set_active_tool` path.
 
 use crate::tools::kind::ToolKind;
+#[cfg(feature = "eframe-shell")]
 use egui::Key;
 
 // ── Shortcut constants ────────────────────────────────────────────────────────
 
 /// Single-key shortcut for Measure Length tool.
+#[cfg(feature = "eframe-shell")]
 pub const KEY_MEASURE_LENGTH: Key = Key::L;
 
 /// Single-key shortcut for Measure Angle tool.
+#[cfg(feature = "eframe-shell")]
 pub const KEY_MEASURE_ANGLE: Key = Key::A;
 
 /// Single-key shortcut for ROI Rectangle tool.
+#[cfg(feature = "eframe-shell")]
 pub const KEY_ROI_RECT: Key = Key::R;
 
 /// Single-key shortcut for ROI Ellipse tool.
+#[cfg(feature = "eframe-shell")]
 pub const KEY_ROI_ELLIPSE: Key = Key::E;
 
 /// Single-key shortcut for HU Point tool.
+#[cfg(feature = "eframe-shell")]
 pub const KEY_HU_POINT: Key = Key::H;
 
 /// Single-key shortcut for Pan tool.
+#[cfg(feature = "eframe-shell")]
 pub const KEY_PAN: Key = Key::P;
 
 /// Single-key shortcut for Zoom tool.
+#[cfg(feature = "eframe-shell")]
 pub const KEY_ZOOM: Key = Key::Z;
 
 /// Single-key shortcut for Window/Level tool.
+#[cfg(feature = "eframe-shell")]
 pub const KEY_WINDOW_LEVEL: Key = Key::W;
 
 /// Single-key shortcut for Label Paint tool.
+#[cfg(feature = "eframe-shell")]
 pub const KEY_LABEL_PAINT: Key = Key::B;
 
 /// Host virtual-key value for the Measure Length shortcut.
@@ -139,6 +149,7 @@ pub fn tool_kind_for_virtual_key(virtual_key: u32) -> Option<ToolKind> {
 ///
 /// All other keys return `None`.
 #[inline]
+#[cfg(feature = "eframe-shell")]
 pub fn tool_kind_for_key(key: Key) -> Option<ToolKind> {
     match key {
         KEY_MEASURE_LENGTH => tool_kind_for_virtual_key(VIRTUAL_KEY_MEASURE_LENGTH),
@@ -154,6 +165,6 @@ pub fn tool_kind_for_key(key: Key) -> Option<ToolKind> {
     }
 }
 
-#[cfg(test)]
+#[cfg(all(test, feature = "eframe-shell"))]
 #[path = "tests_tool_shortcuts.rs"]
 mod tests;

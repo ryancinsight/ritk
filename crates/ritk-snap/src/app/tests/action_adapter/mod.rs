@@ -8,6 +8,7 @@ use crate::ui::ViewTransform;
 mod coordinates;
 mod gestures;
 mod keyboard;
+#[cfg(feature = "eframe-shell")]
 mod lifecycle;
 mod wheel;
 

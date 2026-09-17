@@ -30,6 +30,7 @@ fn colormap_for_modality_none_yields_grayscale() {
 }
 
 #[test]
+#[cfg(feature = "eframe-shell")]
 fn secondary_colormap_auto_selects_hot_when_secondary_is_pt() {
     let mut app = SnapApp::default();
     assert_eq!(app.secondary_colormap, NamedColorMap::Grayscale);
@@ -42,6 +43,7 @@ fn secondary_colormap_auto_selects_hot_when_secondary_is_pt() {
 }
 
 #[test]
+#[cfg(feature = "eframe-shell")]
 fn secondary_colormap_remains_grayscale_when_secondary_is_ct() {
     let mut app = SnapApp::default();
     app.secondary_colormap = SnapApp::colormap_for_modality(Some("CT"));

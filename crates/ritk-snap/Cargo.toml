@@ -13,9 +13,17 @@ name = "ritk_snap"
 path = "src/lib.rs"
 crate-type = ["cdylib", "rlib"]
 
+[features]
+default = []
+eframe-shell = ["dep:eframe", "dep:egui", "dep:rfd"]
+
 [[bin]]
 name = "ritk-snap"
 path = "src/main.rs"
+
+[[example]]
+name = "dicom_workflow"
+required-features = ["eframe-shell"]
 
 [dependencies]
 iris = { workspace = true, features = ["serde"] }
@@ -36,9 +44,9 @@ tracing = { workspace = true }
 thiserror = { workspace = true }
 mnemosyne = { workspace = true }
 tracing-subscriber = { workspace = true }
-eframe = { workspace = true }
-egui = { workspace = true }
-rfd = { workspace = true }
+eframe = { workspace = true, optional = true }
+egui = { workspace = true, optional = true }
+rfd = { workspace = true, optional = true }
 image = { workspace = true }
 gaia = { workspace = true }
 walkdir = { workspace = true }

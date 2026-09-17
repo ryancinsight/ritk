@@ -701,6 +701,21 @@ use that revision as their default. The lifecycle runner consumes the host liste
 RITK's DICOM scanner, decoder, geometry, clinical pixels and existing real-study
 galleries remain unchanged.
 
+Revision 2026-09-17 (eframe compatibility boundary): the `ritk-snap` package
+now declares the legacy eframe, egui and native-file-dialog dependencies as an
+explicit `eframe-shell` capability with an empty default feature set. The
+default library and binary therefore resolve the Métis native/browser path
+without the legacy GUI graph; the compatibility build keeps the complete
+eframe adapter, capture path and existing workflows available through the
+separately named `ritk-snap-eframe` package. The source-level feature remains
+for the existing capture harness while the default binary has no `--eframe`
+surface. Launch selection remains explicit and Windows still defaults to Métis;
+reusing `SnapApp` keeps DICOM parsing, geometry and clinical presentation in
+RITK without a forwarding shim or duplicated viewer state. Acceptance is the
+default active-graph exclusion plus a feature-enabled compatibility build and
+capture smoke, with the packaged executable covering the user-facing eframe
+workflow.
+
 ## Alternatives and validation
 Revision 2026-09-17 (native series selection and recovery): the Métis Windows
 session now scans an ambiguous folder into an RITK-owned selector instead of
