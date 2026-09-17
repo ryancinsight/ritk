@@ -32,13 +32,16 @@
 > wording unless touched by the current slice. Domain medical-atlas terms are
 > preserved.
 
-## ATLAS-RITK-BOOK-STAGING-2026-08-20 — current lane
+## ATLAS-RITK-BOOK-STAGING-2026-08-20 — closed
 
 - [x] Rebase the clean lane from RITK `origin/main` `ad508525` and preserve
       the existing package/crate inputs.
 - [x] Pin the caller to Atlas shared workflow commit `20c9398`.
-- [ ] Collect exact-head Rust and mdBook hosted checks, merge at terminal
-      success, verify the merged default, and close the Atlas residual.
+- [x] Collect exact-head Rust and mdBook hosted checks, merge at terminal
+      success, and verify the merged default: PR #204 merged at `b35c9331`,
+      post-merge run `35174713023` passed the book build and Pages deployment,
+      and live Pages returned HTTP 200 with the expected RITK title. The Atlas
+      root pointer residual remains in `ATLAS-BOOK-STAGING-2026-08-20`.
 
 # RITK Sprint Checklist — Active
 

@@ -316,16 +316,12 @@
 - **Outcome:** production `allow_sites` is zero after test-only helper gating, narrower JPEG 2000 re-exports, and removal of redundant exceptions; numerical kernels and public behavior are unchanged.
 - **Verification:** exact enumeration, strict Clippy, Rustdoc, doctests, rustfmt, and diff checks pass; Nextest is 338/338 (`ritk-codecs`), 1,150/1,150 (`ritk-filter`), and 65/65 (`ritk-image`), with no `Cargo.lock` change.
 
-## ATLAS-RITK-BOOK-STAGING-2026-08-20 — Adopt hash-preserving shared book gate [patch] — in progress
+<a id="ATLAS-RITK-BOOK-STAGING-2026-08-20"></a>
+## ATLAS-RITK-BOOK-STAGING-2026-08-20 — Adopt hash-preserving shared book gate [patch] — done
 
-- Owner: Atlas integration. Scope is the Pages caller and this PM record;
-  RITK implementation, lockfile, and book content remain unchanged.
-- Acceptance: pin the caller to Atlas `20c9398`, retain `mdbook-test: true` and
-  the `ritk-statistics` inputs, then pass exact hosted source and Pages checks
-  before advancing the Atlas gitlink.
-- Driver: Atlas `ATLAS-BOOK-STAGING-2026-08-20`; the prior shared workflow
-  selected one hashless dependency artifact by directory order and failed the
-  merged-default book gate with `E0460` for duplicate `rand_core` versions.
+- **Status:** done; delivery: [RITK PR #204](https://github.com/ryancinsight/ritk/pull/204), merge `b35c93313c06ea55fffa680a430378dda1df8e41`.
+- **Outcome:** the Pages caller uses Atlas workflow `20c93980` with `mdbook-test`, `ritk-statistics`, and `ritk_statistics` inputs; the hash-preserving staging fix is active without RITK source or lockfile changes.
+- **Verification:** PR Rust, Python, and book checks passed; post-merge run `35174713023` built and deployed Pages successfully, and live Pages returned HTTP 200 with the RITK title. The Atlas root pointer remains tracked by `ATLAS-BOOK-STAGING-2026-08-20`.
 
 ## RITK-GPU-SMOOTHER-REACH [major][arch] — retire the GPU smoother — IMPLEMENTED 2026-08-21
 
