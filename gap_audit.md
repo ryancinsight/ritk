@@ -153,28 +153,29 @@ The workspace has no `[workspace.lints]` table, so neither `pedantic` nor
 ### F5 — 1.6 GB of tracked binary payload
 
 `git ls-files` over `test_data`, `dist`, `output`, and `scratch` totals
-1 599 565 010 bytes:
+1 599 565 010 bytes before the payload increments. After the scratch,
+`dist/`, and `output/` removals, 3 195 `test_data/` files remain at
+1 514 031 420 bytes.
 
 - `test_data/` — 3 195 tracked files, the bulk of it. Largest single entries
   `test_data/ants_example/visiblehuman.nii.gz` (16.8 MB) and
   `test_data/registration/rire/training_001_ct.mha` (15.2 MB).
 - `dist/` — four committed Python wheels (`ritk-0.9.0`, `0.10.0`, `0.12.0`,
   `0.12.12`; 60 MB combined). Build artifacts, and stale ones.
-- `output/` — four run artifacts including
+- `output/` — four committed registration artifacts including
   `output/patient01_mri_registered.nii.gz` (15.1 MB) and
-  `output/rire_registration_comparison.png`. Run output belongs in the
-  gitignored output root; `output/` is not in `.gitignore`.
-- `scratch/check_restart.exe` — a committed Windows executable. `scratch/` is
-  in `.gitignore`, which does not untrack what was already added.
+  `output/rire_registration_comparison.png`. Runtime output belongs in the
+  gitignored output root.
+- `scratch/check_restart.exe` — a committed Windows executable removed by the
+  first payload increment; `scratch/` is now free of tracked artifacts.
 
 The scratch executable and its source were removed in the first payload
-increment; the tracked `dist/`, `output/` and `test_data/` payload remains for
-the follow-on inventory and checksummed externalisation work.
+increment. This increment removes the tracked `dist/` and `output/` artifacts
+and keeps both paths ignored; `test_data/` remains for the inventory and
+checksummed externalisation work.
 
-`.gitignore` also carries `/target_check`, `/target_test`, `/target_ag`, and
-`/target_temp` — four forked build-cache names normalised into the ignore file.
-Only `target/` exists on disk now, so the entries are residue, but they record
-the cache-forking practice rather than preventing it.
+`.gitignore` retains only `/target` for the shared build cache; the four stale
+forked-cache names were removed.
 
 ### F6 — README claimed two capabilities the source does not contain
 

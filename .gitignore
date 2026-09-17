@@ -1,6 +1,4 @@
 /target
-/target_check
-/target_test
 **/*.rs.bk
 .idea
 .vscode
@@ -35,12 +33,9 @@ nul
 
 # Fetched SimpleITK ExternalData test corpus (downloaded on demand)
 externals/
-/target_ag
-/target_temp
-
-
 
 scratch/
+/dist/
 /output/
 
 # Local host toolchain overlay (machine-specific paths)

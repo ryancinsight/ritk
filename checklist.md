@@ -7537,8 +7537,8 @@ independent of it and can run concurrently on disjoint scopes.
 
 - [x] Remove the committed `scratch/check_restart.exe` and
       `scratch/check_restart.rs`; `scratch/` is now free of tracked artifacts.
-- [ ] Untrack `dist/` and `output/`; add both paths to `.gitignore` and drop the
-      four stale `target_*` entries.
+- [x] Untrack `dist/` and `output/`; retain both paths in `.gitignore` and drop
+      the four stale `target_*` entries.
 - [ ] Inventory `test_data/`: which files does a test actually open? Split into
       small committed goldens and an on-demand checksummed set.
 - [ ] Move the on-demand set behind the existing `externals/` fetch harness;

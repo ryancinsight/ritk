@@ -6130,13 +6130,14 @@ ket as rotate
 
 ## RITK-GAP-2026-08-20-04 [patch] — evict the 1.6 GB tracked binary payload
 
-- **Status:** in-progress; owner=Codex `/root`; integrator=root; regions=`scratch/check_restart.exe`, `scratch/check_restart.rs`, `backlog.md`; last-update=2026-09-17;
+- **Status:** in-progress; owner=Codex `/root`; integrator=root; regions=`dist/`, `output/`, `.gitignore`, `backlog.md`, `checklist.md`, `gap_audit.md`; last-update=2026-09-17;
   source=`gap_audit.md` Finding 2026-08-20 F5.
 - **Outcome:** the repository tracks source, sanctioned small golden fixtures,
   and nothing else. Large medical corpora are fetched on demand exactly as
   `externals/` already is.
 - **Scope:** `dist/` (4 wheels, 60 MB — delete, they are build artifacts),
-  `output/` (4 run artifacts, 30 MB — delete and add to `.gitignore`),
+  `output/` (4 committed registration artifacts, 30 MB — delete; the path is
+  already ignored),
   `scratch/check_restart.exe` (delete; `scratch/` is already ignored),
   `test_data/` (3 195 files, 1.55 GB — triage into small committed goldens
   versus a checksummed on-demand download under the existing `externals/`
