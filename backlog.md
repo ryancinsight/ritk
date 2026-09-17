@@ -507,26 +507,9 @@
 <a id="RITK-ULP-PATCH-DENOISE"></a>
 ## RITK-ULP-PATCH-DENOISE [patch] — a 1-ULP parity tolerance that holds only on CI
 
-- **Status:** in-progress; owner=Codex `/root`; integrator=Codex `/root`;
-  last-update=2026-09-17; regions=`crates/ritk-python/tests/test_simpleitk_cmake_data.py`,
-  `crates/ritk-filter/src/patch_based_denoising`;
-  scope=`crates/ritk-python/tests/test_simpleitk_cmake_data.py`
-  (`test_cmake_patch_based_denoising_structural`) and whichever of
-  `ritk-filter`'s patch-based denoising or the stored reference is wrong;
-  non-goal=widening the tolerance to make it pass.
-- **Outcome:** the tolerance is derived, or the divergence is root-caused.
-- Found while verifying an unrelated change: the test fails on this Windows
-  host at 2 ULP against a 1 ULP bound, identically in debug and release, on a
-  tree whose `ritk-filter` matches `HEAD`. The same test passed in hosted CI at
-  `0200826e` on all three platforms, so the bound is one that holds on the CI
-  runners and not here — which is the signature of a tolerance taken from one
-  machine's output rather than derived from the algorithm's error growth.
-- **Acceptance oracle:** either the bound is replaced by one derived from the
-  patch-based denoising error model (machine epsilon, patch count, accumulation
-  order) and the test passes on both hosts, or the 2 ULP gap is traced to a
-  real difference in the implementation and fixed there. Raising the constant
-  to 2 without a derivation is the prohibited empirical hack.
-- **Dependencies:** none. **Risk/change class:** `[patch]`. Effort S.
+- **Evidence:** 1,075/1,075 `ritk-filter` Nextest, warning-denied Clippy, format, standalone lock validation, and the rebuilt Windows abi3 wheel's exact SimpleITK structural test (1 passed).
+- **Outcome:** matched ITK's `float` spline-power overloads before double coefficient promotion; the deterministic two-ULP Windows divergence is gone without widening the bound.
+- **Status:** done; delivery: [RITK PR #440](https://github.com/ryancinsight/ritk/pull/440), merge `44535369edbf1a74aeab6873c22c0c3b95910294`; source `40bbc60ca`.
 
 ## BUILD-BLOCK-MATCHING-LOCK [patch] — restore locked workspace resolution
 
