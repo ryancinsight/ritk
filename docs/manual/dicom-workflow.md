@@ -832,6 +832,15 @@ one Chromium browser host and a bounded programmatic drop; physical drag-and-
 drop, Firefox/WebKit, WebGPU and complete application-window capture remain
 separate acceptance work.
 
+A clean-main replay on 2026-09-16 used the standard W3C chooser in headless
+Chromium 152.0.7977.83. It accepted the same 94 files, reproduced all three
+RGBA hashes, traversed 50 trusted slice-control actions, rejected 18 invalid
+slice inputs, restored the starting indices exactly, and removed 24 diagnostic
+listeners plus the four transfer listeners before closing the session. The
+replay used RITK `4a060dc75`, Metis host sources matching main `743390ea` and
+Moirai `95275651`; the machine-readable values are in the
+[`local replay`](images/dicom-metis-real-browser-mri.json).
+
 The same live page exposes the host and component state used during the visual
 check. The Métis mount is `mounted` with 31 Rust-owned listener handles at
 generation 3; the file chooser reports 94 accepted files and 49,807,236 bytes;
