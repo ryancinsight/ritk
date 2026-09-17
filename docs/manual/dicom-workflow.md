@@ -15,13 +15,12 @@ decoded-workspace budgets, and return the RITK `Image` plus
 `DicomReadMetadata`. No GUI framework type or parser object crosses this
 boundary; the host owns only input and presentation lifecycle.
 
-The standalone lock used by the viewer resolves the six Metis packages at
-`88c60a0b6410c0e07700e965bcdbea43b7b20789`. Moirai's browser PAL packages
-resolve to `95275651722583f52e098c0d30b1a53ec82c1fc7`, while its
-runtime, iterator, parallel and sync packages resolve to
-`c0b1131178177da699f0692079a1413a2fb033e8`. The browser chooser and Windows
-package workflows default to that Metis revision. These are provider pins; RITK
-continues to own DICOM scanning, decoding, geometry and clinical presentation.
+The current standalone lock used by the viewer resolves the six Metis packages
+to `79f20e2c1058669b03a2c590c04883e89805d256` and Moirai packages to
+`a0f4fd296fe6ade8fd0d99d0045cafc85cfe400b`. The browser chooser and Windows
+package workflows use these provider pins. Historical hosted captures retain
+the provider revisions recorded in their own provenance files. RITK continues
+to own DICOM scanning, decoding, geometry and clinical presentation.
 
 This workflow is the DICOM opening demonstration for the default Windows Métis
 shell and the explicit eframe compatibility shell. The code, fixtures, visual
@@ -63,7 +62,7 @@ scanning, decoding, geometry, and clinical presentation; Métis owns the bounded
 host, canvas, and window lifecycle.
 
 The current standalone lock pins the browser canvas provider to Moirai merge
-`95275651722583f52e098c0d30b1a53ec82c1fc7`. Repeated RGBA frames with the
+`a0f4fd296fe6ade8fd0d99d0045cafc85cfe400b`. Repeated RGBA frames with the
 current extent retain the validated bitmap; a changed width or height takes
 the bounded resize path. This keeps the browser presentation lifecycle stable
 without changing DICOM decoding or the displayed pixels. It is an allocation
@@ -789,7 +788,15 @@ public MRI-DIR data; a private clinical run stays local.
 A clean-main replay on 2026-09-16 used RITK `4a060dc75`, the locked Métis
 consumer `88c60a0b` and Moirai `95275651`. It exited 0 after reading all 94
 files, rejected the invalid-study probe with exit 1, and reproduced the same
-411,589-pixel image; the executable digest and command are in the
+411,589-pixel image; that historical executable digest and command remain in
+the [provenance record](images/dicom-metis-real-mri.json).
+The current standalone-lock replay ran on 2026-09-17 at RITK
+`f1d7d458b`, Metis `79f20e2c` and Moirai `a0f4fd29`. It read the same 94
+files (49,807,236 DICOM bytes), exited 0, rejected the invalid-study probe
+with exit 1, and reproduced the committed 1280 × 800 image byte-for-byte
+(`259dd79103482756c4e688621bebafc841cc40f1df10ff2bbd7f9d04b7b4d401`,
+411,589 non-black pixels). The native and example
+executable digests, lock resolution and command are recorded in the
 [`replay evidence`](images/dicom-metis-real-mri.json).
 The capture excludes operating-system chrome and remains a visual-content
 check; native IME, accessibility and cross-platform host evidence are separate
