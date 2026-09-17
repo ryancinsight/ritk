@@ -133,7 +133,7 @@
 
 <a id="RITK-SNAP-REAL-DICOM-REPLAY-001"></a>
 ## RITK-SNAP-REAL-DICOM-REPLAY-001 — Rebind the real MRI replay [patch]
-- Status: in-progress; priority: P1; integrator: root; last-update: 2026-09-17; dependency: RITK-METIS-LOCK-001; risk: stale provider provenance
+- Status: review; priority: P1; integrator: root; last-update: 2026-09-17; delivery: commit `f811f1584` (PR pending); dependency: RITK-METIS-LOCK-001; risk: stale provider provenance
 - Scope: bind the committed native MRI capture and its manual replay text to the current standalone Metis/Moirai lock while preserving historical picker and hosted records.
 - Acceptance: machine-readable replay evidence names the exact current revisions, command, executable/image hashes, 94-file read and invalid-study rejection; manual text names the same lock and actual image.
 - Verification: JSON parse, image/hash/dimension checks, `git diff --check`, and the focused real-study replay from a standalone checkout outside the Atlas overlay.
