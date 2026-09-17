@@ -154,10 +154,10 @@ The workspace has no `[workspace.lints]` table, so neither `pedantic` nor
 
 `git ls-files` over `test_data`, `dist`, `output`, and `scratch` totals
 1 599 565 010 bytes before the payload increments. After the scratch,
-`dist/`, and `output/` removals, 3 195 `test_data/` files remain at
-1 514 031 420 bytes.
+`dist/`, `output/`, and duplicate registration-fixture removals, 3 191
+`test_data/` files remain at 1 490 441 876 bytes.
 
-- `test_data/` — 3 195 tracked files, the bulk of it. Largest single entries
+- `test_data/` — 3 191 tracked files, the bulk of it. Largest single entries
   `test_data/ants_example/visiblehuman.nii.gz` (16.8 MB) and
   `test_data/registration/rire/training_001_ct.mha` (15.2 MB).
 - `dist/` — four committed Python wheels (`ritk-0.9.0`, `0.10.0`, `0.12.0`,
@@ -183,7 +183,7 @@ The tracked dataset inventory after this increment is:
 |---|---:|---:|---|
 | `paired_mri_ct/` | 2 334 | 1 088 167 692 | No tracked code or manual reference; DICOM metadata contains non-empty patient and referring-physician fields, and no provenance or license record is present. Preserve pending a retention decision. |
 | `3_head_ct_mridir/` | 410 | 216 159 203 | RITK registration, Python parity, viewer workflows, and the real CT/MIP evidence. |
-| `registration/` | 33 | 80 317 478 | Registration tests, examples, and the NIfTI source manifest. |
+| `registration/` | 29 | 56 727 983 | Supplementary registration tests, examples, and source manifests. |
 | `2_head_mri_t2/` | 97 | 49 896 402 | RITK registration, Python parity, viewer workflows, and the real MRI evidence. |
 | `2_skull_ct/` | 308 | 46 217 380 | CLI viewer defaults and JPEG lossless fixture test. |
 | `ants_example/` | 2 | 21 166 223 | NIfTI source tests and registration fixture preparation. |
@@ -191,14 +191,12 @@ The tracked dataset inventory after this increment is:
 | `dicom_seg/` | 5 | 1 504 256 | DICOM-SEG parser and viewer boundary tests. |
 | `diffusion/` | 3 | 13 030 | README, downloader, and ignore rules; downloaded imaging payload is already externalized. |
 
-`registration/brain_fixed.nii.gz` and `brain_moving.nii.gz` duplicate
-`ants_example/mni152.nii.gz`; `registration/brain_mni/sub-01_T1w.nii.gz`
-duplicates `openneuro/sub-01_T1w.nii.gz`. Removing those copies requires a
-call-site migration in `xtask`, Python registration tests, and NIfTI source
-tests, so it is a separate bounded increment. The public MRI-DIR directories
-are retained until the existing external-download path can reproduce their
-checksums; the unreferenced `paired_mri_ct/` corpus is not deleted or fetched
-without provenance and retention evidence.
+The byte-identical MNI152 and OpenNeuro copies under `registration/` were
+removed after migrating `xtask`, Python registration tests, and NIfTI source
+tests to the canonical `ants_example/` and `openneuro/` paths. The public
+MRI-DIR directories are retained until the existing external-download path
+can reproduce their checksums; the unreferenced `paired_mri_ct/` corpus is not
+deleted or fetched without provenance and retention evidence.
 
 ### F6 — README claimed two capabilities the source does not contain
 

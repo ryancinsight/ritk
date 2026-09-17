@@ -4,14 +4,13 @@ Test datasets for side-by-side RITK vs SimpleITK registration validation.
 
 ## Directory Structure
 
-### brain_mni/ — Inter-subject T1 brain registration
+### brain_mni/ — Supplementary T1 brain registration fixtures
 
-Primary registration test directory. Contains multiple T1 brain volumes for same-modality and inter-subject registration testing.
+Supplementary registration directory. Contains additional T1 brain volumes
+for same-modality registration testing and format-specific fixtures.
 
 | File | Source | Shape | Spacing | Dtype | Size |
 |------|--------|-------|---------|-------|------|
-| mni152.nii.gz | ANTs example data (MNI152 atlas) | (207, 256, 215) | (0.74, 0.74, 0.74) mm | float32 | 4.1 MB |
-| sub-01_T1w.nii.gz | OpenNeuro sub-01 T1w | (176, 256, 256) | (1.0, 1.0, 1.0) mm | int16 | 10.6 MB |
 | ants_ch2.nii.gz | ANTs Colin27 average T1 | (181, 217, 181) | (1.0, 1.0, 1.0) mm | float32 | 1.7 MB |
 | ants_mni.nii.gz | ANTs ICBM MNI template | (182, 218, 182) | (1.0, 1.0, 1.0) mm | float32 | 4.1 MB |
 | ants_surf.nii.gz | ANTs cortical surface | (266, 266, 190) | (0.94, 0.94, 1.20) mm | float32 | 273 KB |
@@ -23,12 +22,13 @@ Primary registration test directory. Contains multiple T1 brain volumes for same
 | ants_r64.nii.gz | ANTs r64 2D slice | (256, 256) | (1.0, 1.0) mm | float32 | 29 KB |
 | ants_r85.nii.gz | ANTs r85 2D slice | (256, 256) | (1.0, 1.0) mm | float32 | 28 KB |
 
-Registration pairs:
+Supplementary registration pairs:
 - `ants_ch2.nii.gz` (Colin27) ↔ `ants_mni.nii.gz` (ICBM MNI) — same-modality, roughly pre-aligned, NCC_before ≈ 0.7-0.9
-- `mni152.nii.gz` (atlas) ↔ `sub-01_T1w.nii.gz` (subject) — inter-subject, NCC_before ≈ 0.04
 - `ants_r*.nii.gz` — 2D slices only, not suitable for 3D registration
 
-Note: `brain_fixed.nii.gz` and `brain_moving.nii.gz` in the parent directory are **byte-identical** copies of `mni152.nii.gz` (NCC=1.0, MSE=0.0). They are NOT a meaningful registration pair.
+The canonical inter-subject pair lives outside this supplementary directory:
+`../ants_example/mni152.nii.gz` (atlas) ↔ `../openneuro/sub-01_T1w.nii.gz`
+(subject), with NCC_before ≈ 0.04.
 
 ### rire/ — RIRE retrospective image registration evaluation
 

@@ -3946,7 +3946,7 @@ re-enter. Reserved inner tag: `ritk/atlas-migration-push/batch3`.
 
 - **MIG-426-01 [patch] — NIfTI fixture provenance and import coverage. DONE.**
   Add source-backed NIfTI import validation around `ritk-nifti`: the real
-  repository NIfTI-1 gzip fixture (`test_data/registration/brain_fixed.nii.gz`)
+  repository NIfTI-1 gzip fixture (`test_data/ants_example/mni152.nii.gz`)
   is documented as an ANTs/MNI152 copy and imported in tests; deterministic
   generated NIfTI-2 gzip fixtures validate the native writer/reader path; and
   Analyze-style `.hdr` bytes are rejected by the NIfTI reader so Analyze 7.5
@@ -6145,7 +6145,7 @@ ket as rotate
   `output/` (4 committed registration artifacts, 30 MB — delete; the path is
   already ignored),
   `scratch/check_restart.exe` (delete; `scratch/` is already ignored),
-  `test_data/` (3 195 files, 1.55 GB — triage into small committed goldens
+  `test_data/` (3 191 files, 1.49 GB — triage into small committed goldens
   versus a checksummed on-demand download under the existing `externals/`
   mechanism), and the stale `/target_check`, `/target_test`, `/target_ag`,
   `/target_temp` entries in `.gitignore`.
@@ -6159,9 +6159,10 @@ ket as rotate
 - **Dependencies:** the `externals/` download harness already exists and is the
   reuse target — no new mechanism.
 - **Risk/change class:** `[patch]` (no source or API change). Effort M.
-- **Inventory:** `gap_audit.md` F5 records the measured dataset groups, consumer
-  references, duplicate MNI/OpenNeuro copies, and the unreferenced
-  `paired_mri_ct/` corpus whose provenance and retention are unresolved.
+- **Inventory:** `gap_audit.md` F5 records the measured dataset groups and
+  consumer references. Duplicate MNI/OpenNeuro copies are removed; the
+  unreferenced `paired_mri_ct/` corpus still lacks provenance and retention
+  authority.
 
 ## RITK-GAP-2026-08-20-05 [patch] — derive the escalated test budgets and sweep the dead filters
 

@@ -12,11 +12,12 @@ struct RepositoryFixtureSource {
 }
 
 const REPOSITORY_NIFTI_SOURCES: &[RepositoryFixtureSource] = &[RepositoryFixtureSource {
-    name: "MNI152 atlas copy used as brain_fixed",
-    relative_path: "../../test_data/registration/brain_fixed.nii.gz",
+    name: "MNI152 atlas fixture",
+    relative_path: "../../test_data/ants_example/mni152.nii.gz",
     format: "NIfTI-1 gzip single-file",
-    source: "ANTs example MNI152 atlas, copied from test_data/ants_example/mni152.nii.gz; documented in test_data/registration/README.md",
-    license: "Per ANTs/MNI152 distribution terms; see test_data/README.md licensing table" }];
+    source: "ANTs example MNI152 atlas; documented in test_data/README.md",
+    license: "Per ANTs/MNI152 distribution terms; see test_data/README.md licensing table",
+}];
 
 fn repository_path(relative_path: &str) -> PathBuf {
     PathBuf::from(env!("CARGO_MANIFEST_DIR")).join(relative_path)
