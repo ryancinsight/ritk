@@ -58,7 +58,7 @@
 pub mod interpolate;
 pub mod tile_cdf;
 
-use interpolate::clahe_2d_with_scratch;
+use interpolate::{clahe_2d_with_scratch, SliceParameters};
 
 use anyhow::Result;
 use mnemosyne::AlignedVec;
@@ -220,21 +220,20 @@ impl ClaheFilter {
         let n_tiles_x = self.tile_grid_size[1].min(cols).max(1);
         let clip_limit = self.clip_limit;
         let bins = self.bins;
+        let parameters = SliceParameters {
+            rows,
+            cols,
+            n_tiles_y,
+            n_tiles_x,
+            clip_limit,
+            bins,
+        };
         let slice_size = rows * cols;
 
         moirai::map_collect_index_with::<moirai::Adaptive, _, _>(depth, |depth_index| {
             let mut scratch = ClaheScratch::new(rows, cols, n_tiles_y, n_tiles_x, bins);
             let slice = &vals[depth_index * slice_size..(depth_index + 1) * slice_size];
-            clahe_2d_with_scratch(
-                slice,
-                rows,
-                cols,
-                n_tiles_y,
-                n_tiles_x,
-                clip_limit,
-                bins,
-                &mut scratch,
-            )
+            clahe_2d_with_scratch(slice, parameters, &mut scratch)
         })
         .into_iter()
         .flatten()
@@ -272,21 +271,20 @@ impl ClaheFilter {
         *scratch = ClaheScratch::new(rows, cols, nty, ntx, bins);
 
         let clip_limit = self.clip_limit;
+        let parameters = SliceParameters {
+            rows,
+            cols,
+            n_tiles_y,
+            n_tiles_x,
+            clip_limit,
+            bins,
+        };
         let slice_size = rows * cols;
 
         let out: Vec<f32> = moirai::map_collect_index_with::<moirai::Adaptive, _, _>(depth, |d| {
             let mut thread_scratch = ClaheScratch::new(rows, cols, nty, ntx, bins);
             let slice = &vals[d * slice_size..(d + 1) * slice_size];
-            clahe_2d_with_scratch(
-                slice,
-                rows,
-                cols,
-                n_tiles_y,
-                n_tiles_x,
-                clip_limit,
-                bins,
-                &mut thread_scratch,
-            )
+            clahe_2d_with_scratch(slice, parameters, &mut thread_scratch)
         })
         .into_iter()
         .flatten()

@@ -20,7 +20,7 @@
 //! bounded reconstruction error, and the expected size/error ordering between
 //! finer and coarser steps.
 
-use super::packet::encode_tile_part;
+use super::packet::writer::encode_tile_part;
 use super::packet::WaveletTransform;
 use super::quantization::ScalarQuantizer;
 pub use super::quantization::{QuantizationStep, QuantizationStepError};

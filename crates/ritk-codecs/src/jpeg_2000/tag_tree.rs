@@ -13,7 +13,7 @@
 
 use anyhow::{Context, Result};
 
-use super::packet::{BitReader, BitWriter};
+use super::packet::{reader::BitReader, writer::BitWriter};
 
 /// A tag tree halves each dimension at every level. Starting from the largest
 /// representable dimension therefore needs at most one leaf level plus

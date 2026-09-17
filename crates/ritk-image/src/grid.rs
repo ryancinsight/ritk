@@ -78,6 +78,5 @@ where
 }
 
 #[cfg(test)]
-#[allow(clippy::single_range_in_vec_init, reason = "ratchet RITK-LINT-1")]
 #[path = "tests_grid.rs"]
 mod tests;

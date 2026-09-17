@@ -1,6 +1,6 @@
 #![expect(clippy::print_stderr, reason = "ratchet RITK-LINT-1")]
-use super::reader::{read_num_passes, BitReader};
-use super::writer::{write_num_passes, BitWriter};
+use super::reader::{decode_tile_part, read_num_passes, BitReader, TileCodingParams};
+use super::writer::{encode_tile_part, write_num_passes, BitWriter};
 use super::*;
 use crate::jpeg_2000::ebcot::{decode_code_block, encode_code_block};
 use crate::jpeg_2000::tag_tree::TagTree;
