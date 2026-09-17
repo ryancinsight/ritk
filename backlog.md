@@ -6130,7 +6130,7 @@ ket as rotate
 
 ## RITK-GAP-2026-08-20-04 [patch] — evict the 1.6 GB tracked binary payload
 
-- **Status:** todo; owner=unclaimed; last-update=2026-08-20;
+- **Status:** in-progress; owner=Codex `/root`; integrator=root; regions=`scratch/check_restart.exe`, `scratch/check_restart.rs`, `backlog.md`; last-update=2026-09-17;
   source=`gap_audit.md` Finding 2026-08-20 F5.
 - **Outcome:** the repository tracks source, sanctioned small golden fixtures,
   and nothing else. Large medical corpora are fetched on demand exactly as
