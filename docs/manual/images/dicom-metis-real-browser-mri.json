@@ -45,5 +45,34 @@
     "metis_batch_bytes": 268435456,
     "series_submission": "accepted: 94 DICOM files"
   },
+  "local_replay": {
+    "date": "2026-09-16",
+    "host": "Windows ChromeDriver with headless Chromium",
+    "browser_version": "152.0.7977.83",
+    "input": "standard W3C chooser",
+    "ritk_revision": "4a060dc75974945d5b446f41ab99fff697a1f6cb",
+    "metis_host_revision": "10f21f48761298b755b5edd8ce387d14d649c7cf",
+    "metis_main_revision": "743390ea4ec9759c86a11a474c56ec1292a8b81f",
+    "moirai_revision": "95275651722583f52e098c0d30b1a53ec82c1fc7",
+    "metis_host_sources_match_main": true,
+    "files_submitted": 94,
+    "bytes_read": 49807236,
+    "file_manifest_sha256": "81b7b7f8ea473dfc12c25c07b4958762254a261ca49352af2adabc214d6e8d03",
+    "oracle_sha256": "26e7e89fdd42e480e1423295641c57ea6e397cc6d02b2a81ccd76ebc78adddcd",
+    "frames": {
+      "axial": {"width": 512, "height": 512, "non_black_pixels": 190836, "rgba_sha256": "5c96fff2f82ecfddd64a6aa9a1e8f99af367740fcd43826977ac3d1035cb28f6"},
+      "coronal": {"width": 512, "height": 94, "non_black_pixels": 41863, "rgba_sha256": "f76018ef402afa7811154c506219361b43227dbe218ff0383b3dddd7bf438136"},
+      "sagittal": {"width": 512, "height": 94, "non_black_pixels": 38843, "rgba_sha256": "b8cabf3aa07399387b9d1c7416dbfae594e4d2408f40e0a4bd654f9829799fe3"}
+    },
+    "controls": {
+      "slice_actions": 50,
+      "invalid_api_probes": 18,
+      "initial_indices": {"axial": 47, "coronal": 256, "sagittal": 256},
+      "restored_indices": {"axial": 47, "coronal": 256, "sagittal": 256},
+      "diagnostic_listeners_removed": 24
+    },
+    "cleanup": {"transfer_listeners_removed": 4, "globals_cleared": true, "session_closed": true},
+    "status": "passed"
+  },
   "visual_scope": "canvas pixels only; browser chrome excluded"
 }
