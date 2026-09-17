@@ -36,6 +36,11 @@ const CINE_RATE_ATTRIBUTES: [&str; 10] = [
     "data-ritk-frame-generation",
     "data-ritk-display-aspect",
 ];
+const WINDOW_LEVEL_ATTRIBUTES: [&str; 3] = [
+    "data-ritk-window-center",
+    "data-ritk-window-width",
+    "data-ritk-window-preset-index",
+];
 const DEFAULT_CANVAS_IDS: [&str; 3] =
     ["ritk-snap-axial", "ritk-snap-coronal", "ritk-snap-sagittal"];
 
@@ -654,11 +659,13 @@ fn validate_snapshot(
     {
         bail!("canvas {canvas_id:?} has invalid CSS dimensions")
     }
-    if snapshot.canvas.attributes.len() != expected_attributes.len()
-        || expected_attributes
-            .iter()
-            .any(|name| !snapshot.canvas.attributes.contains_key(*name))
-    {
+    let attribute_names = snapshot
+        .canvas
+        .attributes
+        .keys()
+        .cloned()
+        .collect::<Vec<_>>();
+    if !attribute_names_match(&attribute_names, expected_attributes) {
         bail!("canvas {canvas_id:?} does not carry the complete RITK attribute set")
     }
 
@@ -703,6 +710,12 @@ fn validate_snapshot(
             bail!("canvas {canvas_id:?} reports a zero frame generation")
         }
     }
+    if WINDOW_LEVEL_ATTRIBUTES
+        .iter()
+        .all(|name| snapshot.canvas.attributes.contains_key(*name))
+    {
+        validate_window_level_attributes(snapshot, canvas_id)?;
+    }
 
     if !matches!(load_state, "empty" | "ready") {
         bail!("canvas {canvas_id:?} has invalid load state {load_state:?}")
@@ -738,6 +751,46 @@ fn validate_snapshot(
     ) && (load_state != "ready" || frame_state != "presented")
     {
         bail!("canvas {canvas_id:?} is not presented after trusted input")
+    }
+    Ok(())
+}
+
+fn attribute_names_match(actual: &[String], expected: &[&str]) -> bool {
+    let actual = actual.iter().map(String::as_str).collect::<BTreeSet<_>>();
+    let required = expected.iter().copied().collect::<BTreeSet<_>>();
+    if actual == required {
+        return true;
+    }
+    let mut extended = required.clone();
+    extended.extend(WINDOW_LEVEL_ATTRIBUTES);
+    actual == extended
+}
+
+fn validate_window_level_attributes(snapshot: &TraceSnapshot, canvas_id: &str) -> Result<()> {
+    let center: f64 = parse_attribute(
+        attribute(&snapshot.canvas, WINDOW_LEVEL_ATTRIBUTES[0], canvas_id)?,
+        "window center",
+        canvas_id,
+    )?;
+    if !center.is_finite() {
+        bail!("canvas {canvas_id:?} reports a non-finite window center")
+    }
+    let width: f64 = parse_attribute(
+        attribute(&snapshot.canvas, WINDOW_LEVEL_ATTRIBUTES[1], canvas_id)?,
+        "window width",
+        canvas_id,
+    )?;
+    if !width.is_finite() || width <= 0.0 {
+        bail!("canvas {canvas_id:?} reports a non-positive or non-finite window width")
+    }
+    let Some(raw_index) = snapshot.canvas.attributes.get(WINDOW_LEVEL_ATTRIBUTES[2]) else {
+        bail!("canvas {canvas_id:?} is missing window preset index attribute")
+    };
+    let Some(raw_index) = raw_index else {
+        bail!("canvas {canvas_id:?} has a null window preset index")
+    };
+    if !raw_index.is_empty() {
+        let _: u64 = parse_attribute(raw_index, "window preset index", canvas_id)?;
     }
     Ok(())
 }

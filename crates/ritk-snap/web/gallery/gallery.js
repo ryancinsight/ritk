@@ -94,7 +94,11 @@ try {
         sync();
       }
     });
-    const observer = new MutationObserver(sync);
+    const syncAll = () => {
+      sync();
+      syncPresentation();
+    };
+    const observer = new MutationObserver(syncAll);
     observer.observe(canvas, { attributes: true, attributeFilter: [
       "data-ritk-slice-index", "data-ritk-slice-count", "data-ritk-frame-state",
       "data-ritk-load-state", "data-ritk-window-center", "data-ritk-window-width",

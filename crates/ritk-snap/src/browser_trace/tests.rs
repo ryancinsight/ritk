@@ -252,6 +252,29 @@ fn reject(value: Value, message: &str) {
     reject_with_mode(value, TraceInputMode::PointerWheel, message);
 }
 
+fn add_window_level_attributes(value: &mut Value) {
+    for snapshot in value["snapshots"].as_array_mut().expect("snapshots array") {
+        let attributes = snapshot["canvas"]["attributes"]
+            .as_object_mut()
+            .expect("attribute object");
+        attributes.insert("data-ritk-window-center".to_owned(), json!("50"));
+        attributes.insert("data-ritk-window-width".to_owned(), json!("100"));
+        attributes.insert("data-ritk-window-preset-index".to_owned(), json!("0"));
+    }
+    value["cleanup"]["canvas_attribute_names"] = json!([
+        "data-ritk-load-state",
+        "data-ritk-frame-state",
+        "data-ritk-axis",
+        "data-ritk-slice-index",
+        "data-ritk-slice-count",
+        "data-ritk-frame-width",
+        "data-ritk-frame-height",
+        "data-ritk-window-center",
+        "data-ritk-window-width",
+        "data-ritk-window-preset-index"
+    ]);
+}
+
 pub(super) fn reject_with_mode(value: Value, input_mode: TraceInputMode, message: &str) {
     let ids = default_ids();
     let document: TraceDocument = serde_json::from_value(value).expect("mutation keeps JSON shape");
@@ -319,6 +342,53 @@ fn semantic_attributes_and_dimensions_are_checked() {
         .expect("attribute object")
         .remove("data-ritk-frame-height");
     reject(value, "complete RITK attribute set");
+}
+
+#[test]
+fn complete_window_level_attribute_extension_passes() {
+    let mut value = fixture_value(&default_ids());
+    add_window_level_attributes(&mut value);
+    let document: TraceDocument = serde_json::from_value(value).expect("window fixture shape");
+    validate_document(&document, &default_ids(), TraceInputMode::PointerWheel)
+        .expect("complete window-level attribute extension is valid");
+}
+
+#[test]
+fn window_level_attribute_extension_rejects_partial_or_unknown_sets() {
+    let mut partial = fixture_value(&default_ids());
+    add_window_level_attributes(&mut partial);
+    partial["snapshots"][0]["canvas"]["attributes"]
+        .as_object_mut()
+        .expect("attribute object")
+        .remove("data-ritk-window-width");
+    reject(partial, "complete RITK attribute set");
+
+    let mut unknown = fixture_value(&default_ids());
+    add_window_level_attributes(&mut unknown);
+    unknown["snapshots"][0]["canvas"]["attributes"]["data-ritk-window-extra"] = json!("1");
+    reject(unknown, "complete RITK attribute set");
+}
+
+#[test]
+fn window_level_values_are_finite_positive_and_indexed() {
+    for (name, value, message) in [
+        ("data-ritk-window-center", "NaN", "non-finite window center"),
+        (
+            "data-ritk-window-width",
+            "0",
+            "non-positive or non-finite window width",
+        ),
+        (
+            "data-ritk-window-preset-index",
+            "1.5",
+            "invalid window preset index",
+        ),
+    ] {
+        let mut invalid = fixture_value(&default_ids());
+        add_window_level_attributes(&mut invalid);
+        invalid["snapshots"][0]["canvas"]["attributes"][name] = json!(value);
+        reject(invalid, message);
+    }
 }
 
 #[test]

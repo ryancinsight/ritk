@@ -249,6 +249,8 @@ class WindowPresetHelperTests(unittest.TestCase):
         self.assertIn("set_web_window_preset", script)
         self.assertIn("web_window_preset_count", script)
         self.assertIn("web_window_preset_name", script)
+        self.assertIn("const syncAll = () => {", script)
+        self.assertIn("      syncPresentation();", script)
 
     def test_decimal_parser_rejects_non_decimal_or_unbounded_values(self):
         with self.assertRaises(browser_gallery_window.BrowserRuntimeError):
