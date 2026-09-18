@@ -36,7 +36,7 @@ Unresolved delivery items are kept as executable records. Closed history is inde
 - Evidence: recorded hosted [run 35395627386](https://github.com/ryancinsight/ritk/actions/runs/35395627386) builds RITK `4bbbe661cb12f2992189ce7a786f6d47529963c5` against Metis `5e892245ac52c6455bbb57244fa654e6eb3cc9c1`; Chromium and Firefox pass the 94-file real MRI study, three exact pixel oracles and lifecycle checks; WebKit accepts the chooser but denies the first bounded read under Safari 26.6.2, with the diagnostics preserved in the provenance JSON.
 - Diagnosis: WebKit sandbox denies reads and read-extension issuance on the selected real file despite verified host bytes; four browser APIs and isolated one-file/full-batch inputs fail. DICOM stays in RITK.
 - Verification: locked `ritk-snap` nextest 487/487, strict native/WASM Clippy and checks, formatting, rustdoc and lockfile validation pass; [proof and log hashes](docs/manual/images/dicom-metis-real-browser-mri-cross-engine.json).
-- Blocker: exact SafariDriver/WebKit selected-file authorization defect remains external; current run 35395627386 reproduces the denial after SafariDriver accepts all 94 files. Re-open when the corrected browser/runner path grants real-file reads; application byte-read APIs cannot grant that access.
+- Blocker: exact SafariDriver/WebKit selected-file authorization defect remains external; recorded run 35395627386 reproduces the denial after SafariDriver accepts all 94 files. Re-open when the corrected browser/runner path grants real-file reads; application byte-read APIs cannot grant that access.
 
 <a id="RITK-DOCS-EVIDENCE-SYNC-002"></a>
 ## RITK-DOCS-EVIDENCE-SYNC-002 — Rebind current real MRI replay provenance [patch]
