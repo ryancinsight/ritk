@@ -194,10 +194,9 @@
 
 <a id="RITK-METIS-LOCK-004"></a>
 ## RITK-METIS-LOCK-004 — Advance the landed Metis asset pin [patch]
-- Status: review; priority: P1; owner: RITK viewer integration; integrator: root; last-update: 2026-09-18; dependency: Metis PR #239 merge `619832d15ac18a188ce6f79a0d810fcab7315891`.
-- Outcome: standalone `Cargo.lock` resolves every Metis package to `619832d15ac18a188ce6f79a0d810fcab7315891`; the saved 94-file MRI replay remains byte-identical and its provenance records the landed source.
-- Acceptance: lockfile parser, native/WASM viewer gates, real-study replay and PNG hash/dimension/non-black checks pass; no DICOM implementation or format-specific host code changes.
-- Verification: standalone build exit 0; locked `ritk-snap` nextest 480/480; strict native Clippy; WASM check and strict Clippy; fmt, lock parser, diff check; browser workflow defaults and validates the same Metis revision; replay SHA `259dd79103482756c4e688621bebafc841cc40f1df10ff2bbd7f9d04b7b4d401`, 1280x800, 411,589 non-black pixels.
+- Status: done; delivery: [RITK PR #483](https://github.com/ryancinsight/ritk/pull/483), merge `b2535b139d4f0df132e0ffd157efe89b445a13e2`; last-update: 2026-09-18.
+- Outcome: the standalone lock and browser workflow resolve Metis `619832d15ac18a188ce6f79a0d810fcab7315891`; the 94-file MRI replay remains byte-identical and DICOM ownership stays in RITK.
+- Verification: hosted run [35322831603](https://github.com/ryancinsight/ritk/actions/runs/35322831603) passed; locked native/WASM gates, `ritk-snap` 480/480, lock/fmt/JSON/image checks passed; capture SHA `259dd79103482756c4e688621bebafc841cc40f1df10ff2bbd7f9d04b7b4d401`, 1280x800, 411,589 non-black pixels.
 
 <a id="RITK-DOCS-EVIDENCE-SYNC-001"></a>
 ## RITK-DOCS-EVIDENCE-SYNC-001 — Sync current provider revisions in replay docs [patch]
@@ -220,10 +219,9 @@
 
 <a id="RITK-PYTHON-DENOISE-ULP-001"></a>
 ## RITK-PYTHON-DENOISE-ULP-001 — Reproduce hosted denoising parity variance [patch]
-- Status: in-progress; priority: P1; integrator: root; last-update: 2026-09-18; delivery: PR #461, merge `ee0ded9e44a4d5a047d056f66736b65a6cbe4eec` (source `d810c18ac5f4ac7838f8dd043d4e4b28caa5e2d9`).
-- Outcome: restore ITK's host-specific unqualified `pow(float,float)` overload: MSVC uses the float numerator path, while GNU/Clang Linux uses the double-promoted path; the 1-ULP contract remains unchanged.
-- Evidence: hosted wheel run `35315900020` reproduced max 2 ULP on Linux; local Windows SimpleITK 2.5.6 passed with the float path. A local Clang overload probe reports the non-Windows unqualified call as double. Hosted run `35318654980` then exposed the stale Rust exact-value fixture: GNU/Clang produces the independently derived `0x3f63_9b3a` reference after the final float cast while MSVC remains `0x3f63_9b3b`; the assertion is now target-environment-specific without widening tolerance.
-- Acceptance: the exact hosted SimpleITK 2.5.6 comparison and native Rust matrix pass without widened tolerance or weakened assertions, with locked Python and Rust gates recorded.
+- Status: done; delivery: [RITK PR #483](https://github.com/ryancinsight/ritk/pull/483), merge `b2535b139d4f0df132e0ffd157efe89b445a13e2`; last-update: 2026-09-18.
+- Outcome: ITK's host-specific `pow(float,float)` behavior is modeled directly: MSVC uses the float path and GNU/Clang uses the double-promoted path; the exact one-ULP contract remains unchanged.
+- Verification: hosted Python matrix [35322829144](https://github.com/ryancinsight/ritk/actions/runs/35322829144) and wheel/native run [35322831603](https://github.com/ryancinsight/ritk/actions/runs/35322831603) passed; target-specific references `0x3f63_9b3b`/`0x3f63_9b3a` use no widened tolerance or weakened assertion.
 
 <a id="RITK-CI-DICOM-WORKFLOW-001"></a>
 ## RITK-CI-DICOM-WORKFLOW-001 — Build the viewer workflow example with its shell [patch]
