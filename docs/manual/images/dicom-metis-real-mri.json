@@ -74,6 +74,28 @@
     "invalid_study_exit": 1,
     "status": "passed"
   },
+  "standalone_lock_replay": {
+    "date": "2026-09-18",
+    "command": "D:/atlas/target/debug/ritk-snap.exe test_data/2_head_mri_t2/DICOM --metis-native --capture-application --capture scratch/viewer/recheck-real-mri-application.png",
+    "working_directory": "D:/atlas/repos/ritk",
+    "input": "public MRI-DIR DICOM directory at test_data/2_head_mri_t2/DICOM",
+    "files_submitted": 94,
+    "bytes_read": 49807236,
+    "ritk_revision": "0c24f4207a4916137bb88c7518188b083d651e35",
+    "metis_revision": "619832d15ac18a188ce6f79a0d810fcab7315891",
+    "moirai_revision": "a2f21496d1d09b2abe6523e3c8cdbf751dcd560a",
+    "cargo_lock_sha256": "abc3eaa88d6d450b2ae9221e19ff4f26d88f7a0653518c09df87be412ba92217",
+    "cargo_resolution": "standalone Cargo.lock outside the Atlas development overlay; only the six Metis package sources advanced for this replay",
+    "executable_sha256": "7a0e523fac1e38444ca80c806a697a4b0faa10ec83ef88eee32cb1cf68d5dbde",
+    "executable_bytes": 26356736,
+    "capture": "scratch/viewer/recheck-real-mri-application.png",
+    "capture_sha256": "259dd79103482756c4e688621bebafc841cc40f1df10ff2bbd7f9d04b7b4d401",
+    "width": 1280,
+    "height": 800,
+    "non_black_pixels": 411589,
+    "status": "passed",
+    "note": "The captured PNG is byte-identical to dicom-metis-real-mri.png; the source is public CC BY 4.0 phantom data and no private study bytes are committed."
+  },
   "ownership": {
     "host": "Moirai/Metis return the selected filesystem path and present a format-neutral framebuffer",
     "ritk": "DICOM discovery, acquisition selection, decoding, geometry, clinical display and capture",

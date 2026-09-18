@@ -16,7 +16,7 @@ decoded-workspace budgets, and return the RITK `Image` plus
 boundary; the host owns only input and presentation lifecycle.
 
 The current standalone lock used by the viewer resolves the six Metis packages
-to `47193af81491d3b2e5e236f8fe69dba85e42ded4` and Moirai packages to
+to `619832d15ac18a188ce6f79a0d810fcab7315891` and Moirai packages to
 `a2f21496d1d09b2abe6523e3c8cdbf751dcd560a`. The browser chooser and Windows
 package workflows use these provider pins. Historical hosted captures retain
 the provider revisions recorded in their own provenance files. RITK continues
@@ -843,7 +843,7 @@ consumer `88c60a0b` and Moirai `95275651`. It exited 0 after reading all 94
 files, rejected the invalid-study probe with exit 1, and reproduced the same
 411,589-pixel image; that historical executable digest and command remain in
 the [provenance record](images/dicom-metis-real-mri.json).
-The current standalone-lock replay ran on 2026-09-17 at RITK
+The standalone-lock replay on 2026-09-17 ran at RITK
 `f907d8cce5a6ec84a23d73de245b9841538e9f1a`, Metis
 `8e566af9a37dc0382e8e919c593d3838f5b08186` and Moirai
 `a2f21496d1d09b2abe6523e3c8cdbf751dcd560a`. It read the same 94
@@ -853,6 +853,20 @@ with exit 1, and reproduced the committed 1280 × 800 image byte-for-byte
 411,589 non-black pixels). The native and example
 executable digests, lock resolution and command are recorded in the
 [`replay evidence`](images/dicom-metis-real-mri.json).
+
+A current standalone-lock recheck on 2026-09-18 built the native viewer
+outside the Atlas development overlay at RITK source
+`0c24f4207a4916137bb88c7518188b083d651e35`, Metis
+`619832d15ac18a188ce6f79a0d810fcab7315891` and Moirai
+`a2f21496d1d09b2abe6523e3c8cdbf751dcd560a`. The command
+`ritk-snap.exe test_data/2_head_mri_t2/DICOM --metis-native
+--capture-application --capture scratch/viewer/recheck-real-mri-application.png`
+read all 94 files and exited 0. It reproduced the committed 1280 × 800
+frame byte-for-byte (`259dd79103482756c4e688621bebafc841cc40f1df10ff2bbd7f9d04b7b4d401`,
+411,589 non-black pixels). The executable digest
+`7a0e523fac1e38444ca80c806a697a4b0faa10ec83ef88eee32cb1cf68d5dbde` and
+lock digest `abc3eaa88d6d450b2ae9221e19ff4f26d88f7a0653518c09df87be412ba92217`
+are recorded in the [current replay evidence](images/dicom-metis-real-mri.json).
 The capture excludes operating-system chrome and remains a visual-content
 check; native IME, accessibility and cross-platform host evidence are separate
 gates. Replace the path with a private clinical study only for a local run;
