@@ -198,6 +198,13 @@
 - Outcome: the standalone lock and browser workflow resolve Metis `619832d15ac18a188ce6f79a0d810fcab7315891`; the 94-file MRI replay remains byte-identical and DICOM ownership stays in RITK.
 - Verification: hosted run [35322831603](https://github.com/ryancinsight/ritk/actions/runs/35322831603) passed; locked native/WASM gates, `ritk-snap` 480/480, lock/fmt/JSON/image checks passed; capture SHA `259dd79103482756c4e688621bebafc841cc40f1df10ff2bbd7f9d04b7b4d401`, 1280x800, 411,589 non-black pixels.
 
+<a id="RITK-METIS-LOCK-005"></a>
+## RITK-METIS-LOCK-005 — Advance the post-merge Metis pin [patch]
+- Status: done; priority: P1; delivery: [RITK PR #486](https://github.com/ryancinsight/ritk/pull/486); last-update: 2026-09-18; dependency: Metis e634fe9.
+- Scope: standalone Cargo.lock and the current replay provenance only; DICOM decoding and presentation remain in RITK.
+- Acceptance: one Metis revision e634fe925d8edb18cea4399d43255fdaa2d444a5 in the locked graph, lockfile check, focused viewer tests, and unchanged real MRI image/hash/dimension oracle.
+- Evidence: standalone lock check reports 61 first-party sources; native ritk-snap nextest 446/446, strict native/WASM checks and Clippy, eframe check/Clippy, fmt, and the 94-file MRI replay pass with the committed 1280x800 RGBA hash unchanged.
+
 <a id="RITK-DOCS-EVIDENCE-SYNC-001"></a>
 ## RITK-DOCS-EVIDENCE-SYNC-001 — Sync current provider revisions in replay docs [patch]
 - Status: done; delivery: [RITK PR #451](https://github.com/ryancinsight/ritk/pull/451), merge `198fc38bfa1d144f8c95fe66127a96d65c562172`; last-update: 2026-09-17.

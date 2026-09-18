@@ -4193,7 +4193,7 @@ dependencies = [
 [[package]]
 name = "metis-core"
 version = "0.1.0"
-source = "git+https://github.com/ryancinsight/metis.git#619832d15ac18a188ce6f79a0d810fcab7315891"
+source = "git+https://github.com/ryancinsight/metis.git#e634fe925d8edb18cea4399d43255fdaa2d444a5"
 dependencies = [
  "moirai-crypto",
 ]
@@ -4201,7 +4201,7 @@ dependencies = [
 [[package]]
 name = "metis-frontend"
 version = "0.1.0"
-source = "git+https://github.com/ryancinsight/metis.git#619832d15ac18a188ce6f79a0d810fcab7315891"
+source = "git+https://github.com/ryancinsight/metis.git#e634fe925d8edb18cea4399d43255fdaa2d444a5"
 dependencies = [
  "iris-viz",
  "metis-core",
@@ -4213,7 +4213,7 @@ dependencies = [
 [[package]]
 name = "metis-ipc"
 version = "0.1.0"
-source = "git+https://github.com/ryancinsight/metis.git#619832d15ac18a188ce6f79a0d810fcab7315891"
+source = "git+https://github.com/ryancinsight/metis.git#e634fe925d8edb18cea4399d43255fdaa2d444a5"
 dependencies = [
  "metis-core",
  "moirai-async",
@@ -4224,7 +4224,7 @@ dependencies = [
 [[package]]
 name = "metis-platform"
 version = "0.1.0"
-source = "git+https://github.com/ryancinsight/metis.git#619832d15ac18a188ce6f79a0d810fcab7315891"
+source = "git+https://github.com/ryancinsight/metis.git#e634fe925d8edb18cea4399d43255fdaa2d444a5"
 dependencies = [
  "metis-core",
  "moirai-pal",
@@ -4233,7 +4233,7 @@ dependencies = [
 [[package]]
 name = "metis-ui-lang"
 version = "0.1.0"
-source = "git+https://github.com/ryancinsight/metis.git#619832d15ac18a188ce6f79a0d810fcab7315891"
+source = "git+https://github.com/ryancinsight/metis.git#e634fe925d8edb18cea4399d43255fdaa2d444a5"
 dependencies = [
  "iris-viz",
  "metis-core",
@@ -4243,7 +4243,7 @@ dependencies = [
 [[package]]
 name = "metis-web"
 version = "0.1.0"
-source = "git+https://github.com/ryancinsight/metis.git#619832d15ac18a188ce6f79a0d810fcab7315891"
+source = "git+https://github.com/ryancinsight/metis.git#e634fe925d8edb18cea4399d43255fdaa2d444a5"
 dependencies = [
  "metis-core",
  "metis-frontend",
