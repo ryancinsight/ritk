@@ -23,6 +23,8 @@ mod browser_semantics;
 #[cfg(any(target_arch = "wasm32", test))]
 mod browser_slice_selection;
 #[cfg(any(target_arch = "wasm32", test))]
+mod browser_tool;
+#[cfg(any(target_arch = "wasm32", test))]
 mod browser_window_preset;
 #[cfg(all(not(target_arch = "wasm32"), feature = "eframe-shell"))]
 pub(crate) mod clinical_distribution;
@@ -91,8 +93,8 @@ pub(crate) use state::SnapApp;
 
 #[cfg(target_arch = "wasm32")]
 pub(crate) use web_viewer::{
-    select_web_slice, set_web_cine_rate, set_web_window_preset, start_web_canvas,
+    select_web_slice, select_web_tool, set_web_cine_rate, set_web_window_preset, start_web_canvas,
     start_web_canvas_gpu, start_web_orthogonal_canvases, start_web_orthogonal_canvases_gpu,
-    stop_web_canvas, toggle_web_cine, web_canvas_listener_count, web_window_preset_count,
-    web_window_preset_name,
+    stop_web_canvas, toggle_web_cine, web_canvas_listener_count, web_tool_count, web_tool_name,
+    web_window_preset_count, web_window_preset_name,
 };

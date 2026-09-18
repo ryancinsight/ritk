@@ -13,6 +13,7 @@ sys.path.insert(0, str(pathlib.Path(__file__).resolve().parents[1]))
 sys.path.insert(0, str(_metis_root / "scripts"))
 import browser_gallery
 import browser_gallery_cine
+import browser_gallery_tools
 import browser_gallery_window
 
 
@@ -285,6 +286,52 @@ class SliceGalleryTests(unittest.TestCase):
         )
         cine.assert_called_once_with(client, pathlib.Path(directory) / "cine")
 
+    def test_consumer_callback_can_capture_tool_controls_after_slices(self):
+        class Client:
+            def set_window_rect(self, width, height):
+                self.rect = (width, height)
+
+        oracle = {
+            f"ritk-snap-{axis}": {
+                "attributes": {"data-ritk-slice-count": str(count)},
+            }
+            for axis, count in zip(browser_gallery.AXES, (94, 512, 512))
+        }
+        canvas_ids = tuple(f"ritk-snap-{axis}" for axis in browser_gallery.AXES)
+        client = Client()
+        with tempfile.TemporaryDirectory(
+            dir=browser_gallery.ROOT / "output", prefix="gallery-tools-callback-"
+        ) as directory, mock.patch.object(
+            browser_gallery,
+            "capture_slice_gallery",
+            return_value={"schema": 1, "kind": "slices"},
+        ) as slices, mock.patch.object(
+            browser_gallery,
+            "capture_tool_gallery",
+            return_value={"schema": 1, "kind": "tools"},
+        ) as tools:
+            result = browser_gallery._capture_consumer_controls(
+                client,
+                pathlib.Path(directory),
+                oracle,
+                canvas_ids,
+                tool_controls=True,
+            )
+
+        self.assertEqual(
+            result,
+            {
+                "slices": {"schema": 1, "kind": "slices"},
+                "tools": {"schema": 1, "kind": "tools"},
+            },
+        )
+        slices.assert_called_once_with(
+            client,
+            pathlib.Path(directory) / "slices",
+            expected_counts={"axial": 94, "coronal": 512, "sagittal": 512},
+        )
+        tools.assert_called_once_with(client, pathlib.Path(directory) / "tools")
+
 
 class WindowPresetHelperTests(unittest.TestCase):
     def test_gallery_declares_rust_owned_window_preset_surface(self):
@@ -310,6 +357,23 @@ class WindowPresetHelperTests(unittest.TestCase):
         self.assertIn("set_web_cine_rate", script)
         self.assertIn("data-ritk-cine-enabled", script)
         self.assertIn("canvases.every", script)
+
+    def test_gallery_declares_diagnostic_tool_palette_and_typed_api(self):
+        gallery_root = pathlib.Path(__file__).resolve().parents[2] / "crates" / "ritk-snap" / "web" / "gallery"
+        html = (gallery_root / "gallery.html").read_text(encoding="utf-8")
+        script = (gallery_root / "gallery.js").read_text(encoding="utf-8")
+        self.assertIn('id="tool-buttons"', html)
+        self.assertIn('id="active-tool"', html)
+        self.assertIn("select_web_tool", script)
+        self.assertIn("web_tool_count", script)
+        self.assertIn("web_tool_name", script)
+        self.assertIn("data-ritk-active-tool-index", script)
+        self.assertIn("data-ritk-active-tool", script)
+        self.assertIn("canvases.every", script)
+
+    def test_tool_probe_contract_rejects_invalid_indices(self):
+        for value in ("NaN", "Infinity", "-Infinity", "-1", "0.5", "4294967296"):
+            self.assertIn(value, browser_gallery_tools.INVALID_TOOL_API_PROBE_SCRIPT)
 
     def test_cine_rate_parser_rejects_non_integer_and_out_of_range_values(self):
         self.assertEqual(browser_gallery_cine.MAX_CINE_RATE, 60)

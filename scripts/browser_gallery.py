@@ -37,6 +37,7 @@ from browser_canvas import settle_canvas_input
 from browser_gallery_actions import _arrow_batch, _keyboard_action
 from browser_gallery_artifacts import _write_gallery_screenshots
 from browser_gallery_cine import capture_cine_gallery
+from browser_gallery_tools import capture_tool_gallery
 from browser_gallery_window import capture_window_preset_gallery
 from browser_gallery_trace import (
     ARROW_BATCH_SIZE,
@@ -239,6 +240,7 @@ def _capture_consumer_controls(
     *,
     window_presets: bool = False,
     cine_controls: bool = False,
+    tool_controls: bool = False,
 ) -> Mapping[str, Any]:
     """Run the RITK slice contract after the generic Metis transfer contract."""
     expected_ids = tuple(f"ritk-snap-{axis}" for axis in AXES)
@@ -264,13 +266,15 @@ def _capture_consumer_controls(
         output / "slices",
         expected_counts=expected_counts,
     )
-    if not window_presets and not cine_controls:
+    if not window_presets and not cine_controls and not tool_controls:
         return slices
     result: dict[str, Any] = {"slices": slices}
     if window_presets:
         result["window_level"] = capture_window_preset_gallery(client, output / "window-level")
     if cine_controls:
         result["cine"] = capture_cine_gallery(client, output / "cine")
+    if tool_controls:
+        result["tools"] = capture_tool_gallery(client, output / "tools")
     return result
 
 
@@ -297,6 +301,11 @@ def build_parser() -> argparse.ArgumentParser:
         action="store_true",
         help="exercise the RITK Play/Pause and bounded FPS controls after slice navigation",
     )
+    parser.add_argument(
+        "--tool-controls",
+        action="store_true",
+        help="exercise every RITK diagnostic interaction tool after slice navigation",
+    )
     return parser
 
 
@@ -311,6 +320,7 @@ def main() -> None:
             _capture_consumer_controls,
             window_presets=args.window_presets,
             cine_controls=args.cine_controls,
+            tool_controls=args.tool_controls,
         )
     run_host(args, consumer_capture=consumer_capture)
 

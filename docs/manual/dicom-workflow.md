@@ -1232,6 +1232,59 @@ disabled. The workflow passes this flag to every single-cycle engine job;
 WebGPU and WebKit remain host-capability probes when their rendering or file
 access differs from the raster Chromium evidence.
 
+The browser gallery also exposes the complete RITK diagnostic-tool palette:
+Pan, Zoom, W/L, Length, Angle, ROI Rect, ROI Ellipse, Crosshair, HU Point,
+Label Paint and Label Erase. RITK publishes the selected zero-based index and
+label as `data-ritk-active-tool-index` and `data-ritk-active-tool` on every
+canvas. Buttons remain disabled until all three planes present a study, and
+the selected state is mirrored across the three canvases. The typed
+`select_web_tool` API rejects non-finite, fractional, negative and out-of-range
+indexes before changing viewer state.
+
+Run the consumer-owned diagnostic-tool trace with the same chooser arguments
+and add `--tool-controls`:
+
+```powershell
+python scripts/browser_gallery.py --metis-root D:/atlas/repos/metis `
+  --engine chromium --browser-name MicrosoftEdge --driver-url http://127.0.0.1:9517 `
+  --headless --device-scale 1.25 --input chooser --tool-controls `
+  --files D:/atlas/repos/ritk/test_data/2_head_mri_t2/DICOM --pattern '*.dcm' `
+  --oracle D:/atlas/repos/metis/output/browser/mri-oracle.json `
+  --consumer-revision (git rev-parse HEAD) --output D:/atlas/repos/metis/output/browser/tools
+```
+
+The bounded trace selects every palette button, focuses the axial canvas and
+uses the `P` shortcut, then sends trusted drags and clicks for each tool. The
+length and angle tools receive two and three points respectively; both ROI
+tools receive a drag; HU, crosshair and label tools receive a click. Every
+gesture must advance a fresh presented frame on all three canvases, so the
+trace proves that the real decoded MRI study responds to the active tool
+rather than only changing a button label. Invalid API probes, trusted event
+metadata, the viewport capture and the palette capture are written to
+`tools/gallery-tools.json`, `tools/gallery-tools.png` and
+`tools/gallery-tools-controls.png`. The post-stop sample must report zero RITK
+canvas listeners and all palette buttons disabled.
+
+The committed visual replay below used Edge 154.0.4258.12 on Windows with
+RITK `9c27f84c44499d9c30a88bf0add18f2b72df6f79` and Métis
+`ae5f80c8e2fe8c023d13514ffa6c48c84d3dc556`. The chooser accepted the saved
+94-file, 49,807,236-byte MRI-DIR study. All 11 palette selections produced
+trusted pointer events and a new presented generation on axial, coronal and
+sagittal canvases; seven malformed API probes were rejected without mutation;
+the final sample reports zero consumer listeners and disabled controls. The
+machine-readable record binds these values, source hashes, canvas RGBA hashes
+and screenshot digests in
+[`dicom-metis-real-browser-mri-tools.json`](images/dicom-metis-real-browser-mri-tools.json).
+
+![Actual MRI-DIR T2 study with the RITK diagnostic palette in the Métis browser](images/dicom-metis-real-browser-mri-tools.png)
+
+![RITK diagnostic-tool palette capture](images/dicom-metis-real-browser-mri-tools-controls.png)
+
+The red host rejection status visible in the viewport is intentional: Métis
+runs its bounded generic rejection probes before the consumer trace tears down
+the picker. The three canvas images remain the actual decoded MRI study; this
+ordering is the host contract recorded by Metis PR #229.
+
 Reproduce the file-backed run from the Métis checkout with an Edge WebDriver
 already listening on port 9517:
 

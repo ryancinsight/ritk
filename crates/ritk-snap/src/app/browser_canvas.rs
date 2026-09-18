@@ -98,6 +98,7 @@ impl BrowserCanvas {
         let window_center = semantics.window_center_value();
         let window_width = semantics.window_width_value();
         let window_preset_index = semantics.window_preset_index_value();
+        let active_tool_index = semantics.active_tool_index_value();
         self.element
             .set_attribute("data-ritk-load-state", semantics.load_state_value())?;
         self.element
@@ -121,6 +122,10 @@ impl BrowserCanvas {
             .set_attribute("data-ritk-window-width", &window_width)?;
         self.element
             .set_attribute("data-ritk-window-preset-index", &window_preset_index)?;
+        self.element
+            .set_attribute("data-ritk-active-tool-index", &active_tool_index)?;
+        self.element
+            .set_attribute("data-ritk-active-tool", semantics.active_tool_name)?;
         self.last_semantics = Some(semantics);
         Ok(())
     }
