@@ -207,6 +207,13 @@
 - Outcome: current manual and MRI replay provenance name RITK `f971773edb79f987f0a977971e80366ad5001f39`, Metis `2358e3003ab625a058be042b6e0f6d562bab7ac9`, and Moirai `b94f3ed7a0faa436ebe993dbfec49726cef853fa`; historical records remain unchanged.
 - Verification: JSON parse, committed image SHA/dimensions/non-black count, `scripts/lockfile.py --check`, and `git diff --check` pass for the 94-file replay evidence.
 
+<a id="RITK-DOCS-EVIDENCE-SYNC-002"></a>
+## RITK-DOCS-EVIDENCE-SYNC-002 — Rebind current real MRI replay provenance [patch]
+- Status: in-progress; priority: P1; owner: RITK SNAP documentation; integrator: root; last-update: 2026-09-18; dependencies: RITK-METIS-LOCK-006; risk: stale revision evidence
+- Scope: rerun the public 94-file MRI-DIR replay under the current standalone lock and synchronize its JSON, manual and linked verification records.
+- Acceptance: provenance names the exact RITK/Metis/Moirai revisions and lock digest; the real PNG SHA, dimensions and non-black count remain value-verified; no private study data is added.
+- lease: root docs/manual/images/dicom-metis-real-mri.json, docs/manual/dicom-workflow.md, backlog.md; 2026-09-18T09:52:00-04:00
+
 <a id="RITK-CLIPPY-RENDER-CFG-001"></a>
 ## RITK-CLIPPY-RENDER-CFG-001 — Scope the native MIP export to Windows [patch]
 - Status: done; priority: P1; delivery: [RITK PR #453](https://github.com/ryancinsight/ritk/pull/453), merge `92a3c06be03727a35a0b91bee2f87100d500c7fa`; last-update: 2026-09-17.
