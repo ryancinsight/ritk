@@ -1232,6 +1232,39 @@ disabled. The workflow passes this flag to every single-cycle engine job;
 WebGPU and WebKit remain host-capability probes when their rendering or file
 access differs from the raster Chromium evidence.
 
+The browser gallery also exposes the complete RITK diagnostic-tool palette:
+Pan, Zoom, W/L, Length, Angle, ROI Rect, ROI Ellipse, Crosshair, HU Point,
+Label Paint and Label Erase. RITK publishes the selected zero-based index and
+label as `data-ritk-active-tool-index` and `data-ritk-active-tool` on every
+canvas. Buttons remain disabled until all three planes present a study, and
+the selected state is mirrored across the three canvases. The typed
+`select_web_tool` API rejects non-finite, fractional, negative and out-of-range
+indexes before changing viewer state.
+
+Run the consumer-owned diagnostic-tool trace with the same chooser arguments
+and add `--tool-controls`:
+
+```powershell
+python scripts/browser_gallery.py --metis-root D:/atlas/repos/metis `
+  --engine chromium --browser-name MicrosoftEdge --driver-url http://127.0.0.1:9517 `
+  --headless --device-scale 1.25 --input chooser --tool-controls `
+  --files D:/atlas/repos/ritk/test_data/2_head_mri_t2/DICOM --pattern '*.dcm' `
+  --oracle D:/atlas/repos/metis/output/browser/mri-oracle.json `
+  --consumer-revision (git rev-parse HEAD) --output D:/atlas/repos/metis/output/browser/tools
+```
+
+The bounded trace selects every palette button, focuses the axial canvas and
+uses the `P` shortcut, then sends trusted drags and clicks for each tool. The
+length and angle tools receive two and three points respectively; both ROI
+tools receive a drag; HU, crosshair and label tools receive a click. Every
+gesture must advance a fresh presented frame on all three canvases, so the
+trace proves that the real decoded MRI study responds to the active tool
+rather than only changing a button label. Invalid API probes, trusted event
+metadata, the viewport capture and the palette capture are written to
+`tools/gallery-tools.json`, `tools/gallery-tools.png` and
+`tools/gallery-tools-controls.png`. The post-stop sample must report zero RITK
+canvas listeners and all palette buttons disabled.
+
 Reproduce the file-backed run from the Métis checkout with an Edge WebDriver
 already listening on port 9517:
 

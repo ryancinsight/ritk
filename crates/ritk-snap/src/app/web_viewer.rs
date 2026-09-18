@@ -12,6 +12,7 @@ use super::browser_cine::{parse_browser_cine_rate_request, BrowserCineControlErr
 use super::browser_geometry::{viewport_for_display, PhysicalCanvasAspect};
 use super::browser_semantics::BrowserCanvasSemantics;
 use super::browser_slice_selection::{parse_browser_slice_request, BrowserSliceSelectionError};
+use super::browser_tool::{parse_browser_tool_request, BrowserToolError};
 use super::SnapApp;
 use crate::app::action_adapter::ViewerActionDisposition;
 use crate::presentation::PresentationFrame;
@@ -154,6 +155,8 @@ impl BrowserSurface {
                     window_center,
                     window_width,
                     app.browser_window_preset_index(),
+                    app.browser_tool_index(),
+                    app.active_tool.label(),
                 );
                 let physical_aspect = physical_aspect(app, axis, frame.as_ref())?;
                 canvas.publish_semantics(semantics, physical_aspect)
@@ -174,6 +177,8 @@ impl BrowserSurface {
                         window_center,
                         window_width,
                         app.browser_window_preset_index(),
+                        app.browser_tool_index(),
+                        app.active_tool.label(),
                     );
                     let physical_aspect = physical_aspect(app, axis, frame)?;
                     canvas.publish_semantics(semantics, physical_aspect)?;
@@ -447,6 +452,42 @@ pub(crate) fn set_web_cine_rate(rate: f64) -> Result<bool, BrowserCineControlErr
             .as_mut()
             .ok_or(BrowserCineControlError::ViewerNotMounted)?;
         viewer.app.set_browser_cine_rate(rate)
+    })
+}
+
+/// Selects one loaded-study interaction tool from the stable RITK table.
+pub(crate) fn select_web_tool(index: f64) -> Result<bool, BrowserToolError> {
+    let index = parse_browser_tool_request(index)?;
+    VIEWER.with(|slot| {
+        let mut slot = slot
+            .try_borrow_mut()
+            .map_err(|_| BrowserToolError::ViewerBusy)?;
+        let viewer = slot.as_mut().ok_or(BrowserToolError::ViewerNotMounted)?;
+        viewer.app.select_browser_tool(index)
+    })
+}
+
+/// Returns the number of interaction tools available to the browser palette.
+pub(crate) fn web_tool_count() -> Result<usize, BrowserToolError> {
+    VIEWER.with(|slot| {
+        let slot = slot
+            .try_borrow()
+            .map_err(|_| BrowserToolError::ViewerBusy)?;
+        slot.as_ref()
+            .ok_or(BrowserToolError::ViewerNotMounted)
+            .map(|_| SnapApp::browser_tool_count())
+    })
+}
+
+/// Returns one interaction-tool label for browser palette construction.
+pub(crate) fn web_tool_name(index: f64) -> Result<String, BrowserToolError> {
+    let index = parse_browser_tool_request(index)?;
+    VIEWER.with(|slot| {
+        let slot = slot
+            .try_borrow()
+            .map_err(|_| BrowserToolError::ViewerBusy)?;
+        slot.as_ref().ok_or(BrowserToolError::ViewerNotMounted)?;
+        SnapApp::browser_tool_name(index).map(str::to_owned)
     })
 }
 

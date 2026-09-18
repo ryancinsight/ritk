@@ -366,6 +366,40 @@ pub fn set_web_cine_rate(rate: f64) -> Result<bool, wasm_bindgen::JsValue> {
         .map_err(|error| wasm_bindgen::JsValue::from_str(&error.to_string()))
 }
 
+/// Select one loaded-study interaction tool from the RITK browser table.
+///
+/// The index is a finite integer in the range reported by
+/// [`web_tool_count`]. Selecting a tool clears any in-progress gesture while
+/// leaving the decoded study and rendered pixels unchanged.
+///
+/// # Errors
+///
+/// Returns a JavaScript error when the value is invalid, the viewer is not
+/// mounted, another callback owns it, no study is loaded, or the index is
+/// outside the table.
+#[cfg(target_arch = "wasm32")]
+#[wasm_bindgen::prelude::wasm_bindgen]
+pub fn select_web_tool(index: f64) -> Result<bool, wasm_bindgen::JsValue> {
+    crate::app::select_web_tool(index)
+        .map_err(|error| wasm_bindgen::JsValue::from_str(&error.to_string()))
+}
+
+/// Return the number of interaction tools exposed to the browser palette.
+#[cfg(target_arch = "wasm32")]
+#[wasm_bindgen::prelude::wasm_bindgen]
+pub fn web_tool_count() -> Result<usize, wasm_bindgen::JsValue> {
+    crate::app::web_tool_count()
+        .map_err(|error| wasm_bindgen::JsValue::from_str(&error.to_string()))
+}
+
+/// Return one interaction-tool label for browser palette construction.
+#[cfg(target_arch = "wasm32")]
+#[wasm_bindgen::prelude::wasm_bindgen]
+pub fn web_tool_name(index: f64) -> Result<String, wasm_bindgen::JsValue> {
+    crate::app::web_tool_name(index)
+        .map_err(|error| wasm_bindgen::JsValue::from_str(&error.to_string()))
+}
+
 /// Apply one exact loaded-modality window/level preset to every browser view.
 ///
 /// The index is validated as a finite non-negative integer against the table

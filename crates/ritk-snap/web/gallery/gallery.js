@@ -5,7 +5,8 @@ try {
   const { default: init, start_web_orthogonal_canvases,
     start_web_orthogonal_canvases_gpu, stop_web_canvas, web_canvas_listener_count,
     select_web_slice, set_web_cine_rate, set_web_window_preset,
-    toggle_web_cine, web_window_preset_count, web_window_preset_name } =
+    toggle_web_cine, select_web_tool, web_tool_count, web_tool_name,
+    web_window_preset_count, web_window_preset_name } =
     await import("./consumer/ritk_snap.js");
   const runtime = await init();
   const renderer = new URLSearchParams(window.location.search).get("renderer") === "webgpu"
@@ -16,11 +17,15 @@ try {
   const cineToggle = document.getElementById("cine-toggle");
   const cineRate = document.getElementById("cine-rate");
   const cineRateValue = document.getElementById("cine-rate-value");
+  const toolButtons = document.getElementById("tool-buttons");
+  const activeTool = document.getElementById("active-tool");
   if (!(windowPreset instanceof HTMLSelectElement) ||
       !(windowLevel instanceof HTMLOutputElement) ||
       !(cineToggle instanceof HTMLButtonElement) ||
       !(cineRate instanceof HTMLInputElement) ||
-      !(cineRateValue instanceof HTMLOutputElement)) {
+      !(cineRateValue instanceof HTMLOutputElement) ||
+      !(toolButtons instanceof HTMLDivElement) ||
+      !(activeTool instanceof HTMLOutputElement)) {
     throw new Error("RITK presentation controls are missing");
   }
   let presetSignature = "";
@@ -121,6 +126,65 @@ try {
       syncCine();
     }
   });
+  let toolSignature = "";
+  const syncTools = () => {
+    const canvases = ["axial", "coronal", "sagittal"]
+      .map((name) => document.getElementById(`ritk-snap-${name}`));
+    const canvas = canvases[0];
+    const ready = mounted && canvases.every((candidate) =>
+      candidate instanceof HTMLCanvasElement &&
+      candidate.getAttribute("data-ritk-load-state") === "ready" &&
+      candidate.getAttribute("data-ritk-frame-state") === "presented");
+    if (!ready) {
+      for (const button of toolButtons.querySelectorAll("button")) button.disabled = true;
+      activeTool.textContent = "No study";
+      return;
+    }
+    let count;
+    try {
+      count = web_tool_count();
+    } catch (error) {
+      activeTool.textContent = `Tool list unavailable: ${describeError(error)}`;
+      for (const button of toolButtons.querySelectorAll("button")) button.disabled = true;
+      return;
+    }
+    if (!Number.isSafeInteger(count) || count < 1 || count > 32) {
+      throw new Error(`invalid browser tool count: ${count}`);
+    }
+    const labels = [];
+    for (let index = 0; index < count; index += 1) {
+      labels.push(web_tool_name(index));
+    }
+    const signature = labels.join("\u001f");
+    if (signature !== toolSignature) {
+      toolButtons.replaceChildren(...labels.map((label, index) => {
+        const button = document.createElement("button");
+        button.type = "button";
+        button.textContent = label;
+        button.dataset.toolIndex = String(index);
+        button.setAttribute("aria-pressed", "false");
+        button.addEventListener("click", () => {
+          try {
+            select_web_tool(Number(button.dataset.toolIndex));
+            syncTools();
+          } catch (error) {
+            status.textContent = `Viewer tool could not change: ${describeError(error)}`;
+            syncTools();
+          }
+        });
+        return button;
+      }));
+      toolSignature = signature;
+    }
+    const selected = Number(canvas.getAttribute("data-ritk-active-tool-index"));
+    const selectedName = canvas.getAttribute("data-ritk-active-tool") ?? "?";
+    activeTool.textContent = `Active tool: ${selectedName}`;
+    for (const button of toolButtons.querySelectorAll("button")) {
+      const isSelected = Number(button.dataset.toolIndex) === selected;
+      button.disabled = false;
+      button.setAttribute("aria-pressed", String(isSelected));
+    }
+  };
   const controls = ["axial", "coronal", "sagittal"].map((name, axis) => {
     const canvas = document.getElementById(`ritk-snap-${name}`);
     const slider = document.getElementById(`slice-${name}`);
@@ -148,6 +212,7 @@ try {
       sync();
       syncPresentation();
       syncCine();
+      syncTools();
     };
     const observer = new MutationObserver(syncAll);
     observer.observe(canvas, { attributes: true, attributeFilter: [
@@ -155,6 +220,7 @@ try {
       "data-ritk-load-state", "data-ritk-window-center", "data-ritk-window-width",
       "data-ritk-window-preset-index", "data-ritk-frame-generation",
       "data-ritk-cine-enabled", "data-ritk-cine-fps",
+      "data-ritk-active-tool-index", "data-ritk-active-tool",
     ] });
     return { sync, observer };
   });
@@ -164,6 +230,7 @@ try {
     controls.forEach(({ sync }) => sync());
     syncPresentation();
     syncCine();
+    syncTools();
     status.textContent = "Stopped. Viewer resources released.";
   };
   const customizePicker = () => {
@@ -206,6 +273,10 @@ try {
         ?.getAttribute("data-ritk-cine-enabled"),
       cine_fps: document.getElementById("ritk-snap-axial")
         ?.getAttribute("data-ritk-cine-fps"),
+      active_tool_index: document.getElementById("ritk-snap-axial")
+        ?.getAttribute("data-ritk-active-tool-index"),
+      active_tool: document.getElementById("ritk-snap-axial")
+        ?.getAttribute("data-ritk-active-tool"),
     }),
   });
   window.addEventListener("pagehide", () => {

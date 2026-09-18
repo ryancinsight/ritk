@@ -39,6 +39,10 @@ pub(crate) struct BrowserCanvasSemantics {
     pub(crate) window_width: f32,
     /// Active modality preset, when the current values match one.
     pub(crate) window_preset_index: Option<usize>,
+    /// Active interaction-tool index in the stable RITK tool table.
+    pub(crate) active_tool_index: usize,
+    /// Active interaction-tool label in the stable RITK tool table.
+    pub(crate) active_tool_name: &'static str,
 }
 
 impl BrowserCanvasSemantics {
@@ -55,6 +59,8 @@ impl BrowserCanvasSemantics {
         window_center: f32,
         window_width: f32,
         window_preset_index: Option<usize>,
+        active_tool_index: usize,
+        active_tool_name: &'static str,
     ) -> Self {
         debug_assert!(axis < 3, "RITK browser axes are limited to three planes");
         debug_assert!(slice_count > 0, "RITK browser slice counts are non-zero");
@@ -77,6 +83,8 @@ impl BrowserCanvasSemantics {
             window_center,
             window_width,
             window_preset_index,
+            active_tool_index,
+            active_tool_name,
         }
     }
 
@@ -113,6 +121,12 @@ impl BrowserCanvasSemantics {
     pub(crate) fn window_preset_index_value(self) -> String {
         self.window_preset_index
             .map_or_else(String::new, |index| index.to_string())
+    }
+
+    /// Returns the stable DOM value for the active interaction-tool index.
+    #[must_use]
+    pub(crate) fn active_tool_index_value(self) -> String {
+        self.active_tool_index.to_string()
     }
 
     /// Returns the stable DOM value for the load state.

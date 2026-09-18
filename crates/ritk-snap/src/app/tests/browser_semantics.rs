@@ -3,8 +3,9 @@ use crate::presentation::PresentationFrame;
 
 #[test]
 fn empty_canvas_publishes_bounded_empty_state() {
-    let state =
-        BrowserCanvasSemantics::from_state(false, 0, 0, 1, None, false, 12.0, 128.0, 256.0, None);
+    let state = BrowserCanvasSemantics::from_state(
+        false, 0, 0, 1, None, false, 12.0, 128.0, 256.0, None, 2, "W/L",
+    );
 
     assert_eq!(state.load_state, BrowserLoadState::Empty);
     assert_eq!(state.load_state_value(), "empty");
@@ -16,6 +17,8 @@ fn empty_canvas_publishes_bounded_empty_state() {
     assert_eq!(state.window_center_value(), "128");
     assert_eq!(state.window_width_value(), "256");
     assert_eq!(state.window_preset_index_value(), "");
+    assert_eq!(state.active_tool_index_value(), "2");
+    assert_eq!(state.active_tool_name, "W/L");
     assert_eq!(
         (state.axis, state.slice_index, state.slice_count),
         (0, 0, 1)
@@ -36,6 +39,8 @@ fn presented_canvas_preserves_axis_slice_and_frame_dimensions() {
         500.0,
         800.0,
         Some(0),
+        2,
+        "W/L",
     );
 
     assert_eq!(state.load_state, BrowserLoadState::Ready);
@@ -48,6 +53,8 @@ fn presented_canvas_preserves_axis_slice_and_frame_dimensions() {
     assert_eq!(state.window_center_value(), "500");
     assert_eq!(state.window_width_value(), "800");
     assert_eq!(state.window_preset_index_value(), "0");
+    assert_eq!(state.active_tool_index_value(), "2");
+    assert_eq!(state.active_tool_name, "W/L");
     assert_eq!(
         (state.axis, state.slice_index, state.slice_count),
         (2, 5, 9)
