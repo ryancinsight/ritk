@@ -30,10 +30,9 @@
 
 <a id="RITK-BROWSER-CINE-001"></a>
 ## RITK-BROWSER-CINE-001 — Expose browser cine controls [minor]
-- Status: in-progress; priority: P1; owner: RITK SNAP browser; integrator: root; last-update: 2026-09-18; dependencies: RITK-BROWSER-GALLERY-HARNESS-001; risk: playback state drift between controls and presented slices.
-- Scope: add typed WASM Play/Pause and bounded FPS controls to the RITK-owned gallery, publish enabled/rate semantics, and extend the real-study browser trace; Metis remains format-neutral and no DICOM code changes.
-- Acceptance: controls are disabled before load, reject invalid rates without mutation, preserve 1–60 FPS bounds, advance the active axis through the existing host-neutral clock, and release all listeners on stop; the 94-file MRI trace records semantic state, frame changes and exact teardown.
-- Demonstration: [RITK DICOM workflow](docs/manual/dicom-workflow.md) with the inspected real MRI capture and a revision-bound browser trace.
+- Status: done; priority: P1; delivery: [RITK PR #473](https://github.com/ryancinsight/ritk/pull/473), merge `3695ea220cdd8a630c604b1c6ccb67fb12f61d35`; last-update: 2026-09-18.
+- Outcome: RITK-owned gallery has typed Play/Pause and 1–60 FPS controls, all-three-view readiness, host-neutral slice advancement, invalid-input rejection, and listener teardown; Metis stays format-neutral.
+- Evidence: locked `ritk-snap` nextest 476/476, native/WASM/eframe checks and strict Clippy, format/lock/alignment gates, Python gallery tests 9/9, and inspected 94-file real MRI playback/pause at 24 FPS; hosted run [35294499612](https://github.com/ryancinsight/ritk/actions/runs/35294499612) retains pending matrix jobs and a `recurseml/analysis` failure for follow-up.
 
 <a id="RITK-GALLERY-CYCLES-001"></a>
 ## RITK-GALLERY-CYCLES-001 — Repeated saved-study browser lifecycle
