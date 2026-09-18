@@ -1422,13 +1422,16 @@ the source for the exact 50 trusted slider actions and 18 invalid-number
 probes; the four-cycle matrix deliberately records lifecycle and cross-engine
 input without duplicating that slider run.
 
-Safari 26.6.2 remains queued in run `35395627386`; its selected-file read result
-will be recorded here when the macOS job completes. The prior Safari evidence
-established the read-path diagnosis: after accepting all 94 files, WebKit denied
-the first 529,864-byte browser read (`NotReadableError` for the original file,
-bounded slice and FileReader, and `TypeError` for the blob-URL stream). That
-authorization residual is separate from RITK's DICOM decoder and cannot be
-fixed by application code granting browser sandbox access.
+Safari 26.6.2 in the completed run `35395627386` accepted all 94 selected
+files but WebKit denied the first 529,864-byte browser read. The selected file
+returns `NotReadableError` from its original array-buffer, bounded slice
+array-buffer and FileReader reads; a bounded blob-URL stream returns
+`TypeError`. The [WebKit artifact](https://github.com/ryancinsight/ritk/actions/runs/35395627386/artifacts/10569845625)
+and [failure capture](images/dicom-metis-real-browser-mri-cross-engine-webkit.png)
+record the probes, macOS sandbox log and clean WebDriver teardown. Host
+readability and the expected file digest are verified separately; this is a
+SafariDriver/WebKit authorization residual, not a DICOM decoder failure, and
+browser application code cannot grant that access.
 
 The same run's Chromium application-window probe accepted the 94-file study
 and rendered partial anatomy, then failed to observe a presented cine slice

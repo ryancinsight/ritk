@@ -15,7 +15,7 @@
       "moirai-pal": "ae282117fd962f4b7c66d722aad9d3c2906320bb",
       "moirai-runtime": "ae282117fd962f4b7c66d722aad9d3c2906320bb"
     },
-    "run_status": "queued"
+    "run_status": "completed"
   },
   "dataset": {
     "path": "test_data/2_head_mri_t2/DICOM",
@@ -526,11 +526,11 @@
       "browser_version": "26.6.2",
       "platform": "macOS",
       "input_source": "chooser",
-      "consumer_revision": "db390b8616e4cc58f2555f49a816e61eed1fadd1",
-      "metis_revision": "88c60a0b6410c0e07700e965bcdbea43b7b20789",
+      "consumer_revision": "4bbbe661cb12f2992189ce7a786f6d47529963c5",
+      "metis_revision": "5e892245ac52c6455bbb57244fa654e6eb3cc9c1",
       "moirai_revisions": {
-        "browser-pal": "95275651722583f52e098c0d30b1a53ec82c1fc7",
-        "runtime-iter-parallel-sync": "c0b1131178177da699f0692079a1413a2fb033e8"
+        "moirai-pal": "ae282117fd962f4b7c66d722aad9d3c2906320bb",
+        "moirai-runtime": "ae282117fd962f4b7c66d722aad9d3c2906320bb"
       },
       "files": null,
       "bytes": null,
@@ -547,10 +547,16 @@
       ],
       "rejections": [],
       "rejection_coverage": "not_reached: bounded browser read failed before viewer presentation",
-      "gallery": null,
+      "gallery": {
+        "path": "dicom-metis-real-browser-mri-cross-engine-webkit.png",
+        "width": 1440,
+        "height": 1048,
+        "bytes": 142162,
+        "sha256": "464903f757a9398354f6b9ea7a50e34b8d4bd1ec315ee2c8b10a25d8ebfa23bc"
+      },
       "error": "file transfer did not complete: {'status': 'Drop status: accepted 94 file(s); 00000001.dcm (529864 bytes), 00000002.dcm (529864 bytes), 00000003.dcm (529864 bytes); ...', 'bytes': 'Byte access: browser rejected the bounded whole-file read'}",
       "diagnostic": {
-        "text": "DICOM study gallery\nChoose the DICOM files of one study with Choose study files, or drag them from your file manager onto the drop area below. Select files, not their enclosing folder.\n\nUp to 512 files, 64 MiB per file, 256 MiB total. Files stay in this browser; RITK opens the study and renders the three views.\n\nReady. Drop study files into the area below.\n\nFile drop\nDrop status: accepted 94 file(s); 00000001.dcm (529864 bytes), 00000002.dcm (529864 bytes), 00000003.dcm (529864 bytes); ...\n\nByte access: browser rejected the bounded whole-file read\n\nDrop files here to inspect bounded metadata and hand the selected bytes to a trusted decoder.\nChoose study files \nAxial\nSlice No study\n\nCoronal\nSlice No study\n\nSagittal\nSlice No study\n",
+        "text": "DICOM study gallery\nChoose the DICOM files of one study with Choose study files, or drag them from your file manager onto the drop area below. Select files, not their enclosing folder.\n\nUp to 512 files, 64 MiB per file, 256 MiB total. Files stay in this browser; RITK opens the study and renders the three views.\n\nReady. Drop study files into the area below.\n\nFile drop\nDrop status: accepted 94 file(s); 00000001.dcm (529864 bytes), 00000002.dcm (529864 bytes), 00000003.dcm (529864 bytes); ...\n\nByte access: browser rejected the bounded whole-file read\n\nDrop files here to inspect bounded metadata and hand the selected bytes to a trusted decoder.\nChoose study files \nWindow/level preset\n\nNo study\nPlay\nCine rate\n12 FPS\nNo study\nAxial\nSlice No study\n\nCoronal\nSlice No study\n\nSagittal\nSlice No study\n",
         "events": [
           {
             "bytes": 49807236,
@@ -562,12 +568,20 @@
       },
       "failure_screenshots": [
         {
-          "label": "failure",
-          "path": "dicom-metis-real-browser-mri-cross-engine-webkit.png",
-          "sha256": "4bb4e2215ce293a74c1860136f8b4530624b90e593e410842cf11b6039602772",
+          "label": "before-drop",
+          "path": "dicom-metis-real-browser-mri-cross-engine-webkit-before-drop.png",
+          "sha256": "37affb2c850052a80b2c1b1022958c885b459e986b40f2ad958de19d49e5f485",
           "width": 1440,
           "height": 1048,
-          "bytes": 125265
+          "bytes": 132273
+        },
+        {
+          "label": "failure",
+          "path": "dicom-metis-real-browser-mri-cross-engine-webkit.png",
+          "sha256": "464903f757a9398354f6b9ea7a50e34b8d4bd1ec315ee2c8b10a25d8ebfa23bc",
+          "width": 1440,
+          "height": 1048,
+          "bytes": 142162
         }
       ],
       "keyboard": {
@@ -578,9 +592,9 @@
         "status": "chooser accepted 94 file(s); browser rejected the bounded whole-file read",
         "bytes": "Byte access: browser rejected the bounded whole-file read"
       },
-      "artifact_id": 10463192885,
-      "artifact_url": "https://github.com/ryancinsight/ritk/actions/runs/35133971196/artifacts/10463192885",
-      "trace_sha256": "3c261e18a8754a820879d517a2e4bbb6cb0205b74e7134f3d2151dd103c7404a",
+      "artifact_id": 10569845625,
+      "artifact_url": "https://github.com/ryancinsight/ritk/actions/runs/35395627386/artifacts/10569845625",
+      "trace_sha256": "270571c07b3a3d4cd974b573bee1f9b6b9fcf86fe79db6cfd98f75c3c0f9e334",
       "file_read_diagnostic": {
         "status": "captured",
         "cleanup_exceptions": [
@@ -606,9 +620,9 @@
           }
         }
       },
-      "evidence_run_id": 35133971196,
-      "evidence_run_url": "https://github.com/ryancinsight/ritk/actions/runs/35133971196",
-      "evidence_note": "SafariDriver accepted 94 files, but WebKit denied the first browser read; Chromium and Firefox passed the same real study in this run.",
+      "evidence_run_id": 35395627386,
+      "evidence_run_url": "https://github.com/ryancinsight/ritk/actions/runs/35395627386",
+      "evidence_note": "SafariDriver accepted all 94 files in hosted run 35395627386, but Safari 26.6.2 denied the first bounded browser read; Chromium and Firefox passed the same real study in this run.",
       "read_selection_diagnostic": {
         "status": "captured",
         "selections": [
@@ -898,7 +912,7 @@
   "verification": {
     "chromium": "passed in hosted run 35395627386: four lifecycle cycles read all 94 MRI files (49,807,236 bytes), matched the three exact RGBA oracles, exercised 18 trusted canvas actions per cycle and released all listeners and input sources; the consumer picker label and DICOM filter persist after remounts",
     "firefox": "passed in hosted run 35395627386: four lifecycle cycles read all 94 MRI files (49,807,236 bytes), matched the three exact RGBA oracles, exercised 18 trusted canvas actions per cycle and released all listeners and input sources; the consumer picker label and DICOM filter persist after remounts",
-    "webkit": "failed in hosted run 35133971196 after Safari accepted the 94-file selection; the first bounded read fails with NotReadableError for File.arrayBuffer, the bounded slice and FileReader, and TypeError for the blob stream; the session closes cleanly",
+    "webkit": "failed in hosted run 35395627386 after Safari accepted the 94-file selection; the first bounded read fails with NotReadableError for File.arrayBuffer, the bounded slice and FileReader, and TypeError for the blob stream; the session closes cleanly",
     "chromium-webgpu": "unavailable in hosted run 35395627386: the Chromium page reports no WebGPU adapter before RITK can publish the selected study; the failure PNG and trace are recorded without a raster fallback claim",
     "ownership": "RITK owns DICOM scanning, decoding, geometry, clinical presentation, and pixel assertions; Métis remains format-neutral; Moirai owns browser file reads",
     "native": {
@@ -924,7 +938,7 @@
     "native file-dialog, native process-launch, and OS-permission evidence is not covered",
     "Chromium WebGPU is unavailable on the hosted runner in run 35395627386 because no browser adapter was returned; no raster fallback was claimed",
     "Chromium application-window cine remains a residual in run 35395627386: the real study was accepted and partial anatomy rendered, but the one-cycle presented-slice assertion failed before teardown",
-    "Safari 26.6.2 has not started in run 35395627386; its selected-file read result remains an open cross-engine gate",
+    "Safari 26.6.2 in run 35395627386 accepted all 94 files but WebKit denied the first bounded browser read; the four read APIs and clean teardown are recorded",
     "the four-cycle matrix does not repeat the Edge slice-control rejection probes; exact 50 trusted slider actions and 18 invalid-number probes remain in dicom-metis-real-browser-mri-edge.json"
   ],
   "read_path": {
@@ -935,11 +949,11 @@
     "before_consumer": true,
     "diagnosis_limit": "The selected real file is denied by the WebKit sandbox: WebContent cannot read it or issue a read extension, and Networking cannot read it. Host readability and the expected digest are verified. The exact SafariDriver/WebKit grant defect is not established; Metis and Moirai cannot confer browser sandbox access.",
     "isolated_selection": {
-      "workflow_run_id": 35133971196,
-      "workflow_url": "https://github.com/ryancinsight/ritk/actions/runs/35133971196",
-      "ritk_revision": "db390b8616e4cc58f2555f49a816e61eed1fadd1",
-      "metis_revision": "88c60a0b6410c0e07700e965bcdbea43b7b20789",
-      "trace_sha256": "3c261e18a8754a820879d517a2e4bbb6cb0205b74e7134f3d2151dd103c7404a",
+      "workflow_run_id": 35395627386,
+      "workflow_url": "https://github.com/ryancinsight/ritk/actions/runs/35395627386",
+      "ritk_revision": "4bbbe661cb12f2992189ce7a786f6d47529963c5",
+      "metis_revision": "5e892245ac52c6455bbb57244fa654e6eb3cc9c1",
+      "trace_sha256": "270571c07b3a3d4cd974b573bee1f9b6b9fcf86fe79db6cfd98f75c3c0f9e334",
       "result": {
         "status": "captured",
         "selections": [
@@ -1015,10 +1029,10 @@
       }
     },
     "sandbox_access": {
-      "workflow_run_id": 35133971196,
-      "workflow_url": "https://github.com/ryancinsight/ritk/actions/runs/35133971196",
-      "ritk_revision": "db390b8616e4cc58f2555f49a816e61eed1fadd1",
-      "metis_revision": "88c60a0b6410c0e07700e965bcdbea43b7b20789",
+      "workflow_run_id": 35395627386,
+      "workflow_url": "https://github.com/ryancinsight/ritk/actions/runs/35395627386",
+      "ritk_revision": "4bbbe661cb12f2992189ce7a786f6d47529963c5",
+      "metis_revision": "5e892245ac52c6455bbb57244fa654e6eb3cc9c1",
       "engine_status": "failed",
       "file_access": {
         "reader_uid": 501,
@@ -1095,13 +1109,13 @@
       },
       "diagnostic_sha256": {
         "filesystem": "1db4af388cb339a25972226fafde72f4443e750b999e424bbaaf2ee8a79eed25",
-        "sandbox": "2f4a43eeb965d42aa02cd5c258d1adc7708c8a42fd40804e958e3983109df772",
+        "sandbox": "ea9507d7b026c55118ceca61d3b3635f98c494a50f6935e0d6554ed4b688546b",
         "driver": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
-        "trace": "3c261e18a8754a820879d517a2e4bbb6cb0205b74e7134f3d2151dd103c7404a"
+        "trace": "270571c07b3a3d4cd974b573bee1f9b6b9fcf86fe79db6cfd98f75c3c0f9e334"
       },
       "artifact_urls": {
-        "gallery": "https://github.com/ryancinsight/ritk/actions/runs/35133971196/artifacts/10463192885",
-        "driver": "https://github.com/ryancinsight/ritk/actions/runs/35133971196/artifacts/10463083446"
+        "gallery": "https://github.com/ryancinsight/ritk/actions/runs/35395627386/artifacts/10569845625",
+        "driver": "https://github.com/ryancinsight/ritk/actions/runs/35395627386/artifacts/10569915598"
       },
       "upload_command": {
         "method": "Automation.setFilesToSelectForFileUpload",
