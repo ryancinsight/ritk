@@ -4,16 +4,16 @@
   "workflow": {
     "name": "RITK SNAP Métis browser DICOM",
     "file": ".github/workflows/metis-browser-dicom.yml",
-    "run_id": 35133971196,
-    "url": "https://github.com/ryancinsight/ritk/actions/runs/35133971196",
+    "run_id": 35395627386,
+    "url": "https://github.com/ryancinsight/ritk/actions/runs/35395627386",
     "conclusion": "failure",
-    "observed_date": "2026-09-16",
-    "ritk_revision": "db390b8616e4cc58f2555f49a816e61eed1fadd1",
-    "metis_revision": "88c60a0b6410c0e07700e965bcdbea43b7b20789",
-    "moirai_revision": "95275651722583f52e098c0d30b1a53ec82c1fc7",
+    "observed_date": "2026-09-18",
+    "ritk_revision": "4bbbe661cb12f2992189ce7a786f6d47529963c5",
+    "metis_revision": "5e892245ac52c6455bbb57244fa654e6eb3cc9c1",
+    "moirai_revision": "ae282117fd962f4b7c66d722aad9d3c2906320bb",
     "moirai_lock_revisions": {
-      "browser-pal": "95275651722583f52e098c0d30b1a53ec82c1fc7",
-      "runtime-iter-parallel-sync": "c0b1131178177da699f0692079a1413a2fb033e8"
+      "moirai-pal": "ae282117fd962f4b7c66d722aad9d3c2906320bb",
+      "moirai-runtime": "ae282117fd962f4b7c66d722aad9d3c2906320bb"
     },
     "run_status": "completed"
   },
@@ -32,11 +32,11 @@
       "browser_version": "152.0.7977.82",
       "platform": "linux",
       "input_source": "chooser",
-      "consumer_revision": "db390b8616e4cc58f2555f49a816e61eed1fadd1",
-      "metis_revision": "88c60a0b6410c0e07700e965bcdbea43b7b20789",
+      "consumer_revision": "4bbbe661cb12f2992189ce7a786f6d47529963c5",
+      "metis_revision": "5e892245ac52c6455bbb57244fa654e6eb3cc9c1",
       "moirai_revisions": {
-        "browser-pal": "95275651722583f52e098c0d30b1a53ec82c1fc7",
-        "runtime-iter-parallel-sync": "c0b1131178177da699f0692079a1413a2fb033e8"
+        "moirai-pal": "ae282117fd962f4b7c66d722aad9d3c2906320bb",
+        "moirai-runtime": "ae282117fd962f4b7c66d722aad9d3c2906320bb"
       },
       "files": 94,
       "bytes": 49807236,
@@ -63,10 +63,14 @@
       },
       "gallery": {
         "path": "dicom-metis-real-browser-mri-cross-engine-chromium.png",
-        "width": 2880,
-        "height": 1914,
-        "bytes": 1078157,
-        "sha256": "8c9e2464c5e7688198d4c7d44462d214ea9d4f8168be13ba8875078b06262e8f"
+        "width": 1024,
+        "height": 681,
+        "bytes": 184299,
+        "sha256": "b4709dadfedd91b28d0fdea3e104cc8ed6c98e726f6bfb568191386e99410242",
+        "source_viewport": {
+          "width": 2880,
+          "height": 1914
+        }
       },
       "canvas": {
         "path": "output/browser/results/chromium/canvas-trace-cycle-1.json",
@@ -82,7 +86,10 @@
             "rgba_sha256": "5c96fff2f82ecfddd64a6aa9a1e8f99af367740fcd43826977ac3d1035cb28f6",
             "width": 512,
             "attributes": {
+              "data-ritk-active-tool": "W/L",
+              "data-ritk-active-tool-index": "2",
               "data-ritk-axis": "0",
+              "data-ritk-cine-enabled": "false",
               "data-ritk-cine-fps": "12",
               "data-ritk-display-aspect": "1",
               "data-ritk-frame-generation": "1",
@@ -91,7 +98,10 @@
               "data-ritk-frame-width": "512",
               "data-ritk-load-state": "ready",
               "data-ritk-slice-count": "94",
-              "data-ritk-slice-index": "47"
+              "data-ritk-slice-index": "47",
+              "data-ritk-window-center": "709",
+              "data-ritk-window-preset-index": "",
+              "data-ritk-window-width": "1418"
             }
           },
           "ritk-snap-coronal": {
@@ -100,16 +110,22 @@
             "rgba_sha256": "f76018ef402afa7811154c506219361b43227dbe218ff0383b3dddd7bf438136",
             "width": 512,
             "attributes": {
+              "data-ritk-active-tool": "W/L",
+              "data-ritk-active-tool-index": "2",
               "data-ritk-axis": "1",
+              "data-ritk-cine-enabled": "false",
               "data-ritk-cine-fps": "12",
               "data-ritk-display-aspect": "1.0893617021276596",
-              "data-ritk-frame-generation": "8",
+              "data-ritk-frame-generation": "7",
               "data-ritk-frame-height": "94",
               "data-ritk-frame-state": "presented",
               "data-ritk-frame-width": "512",
               "data-ritk-load-state": "ready",
               "data-ritk-slice-count": "512",
-              "data-ritk-slice-index": "256"
+              "data-ritk-slice-index": "256",
+              "data-ritk-window-center": "600.0155",
+              "data-ritk-window-preset-index": "",
+              "data-ritk-window-width": "1599.6407"
             }
           },
           "ritk-snap-sagittal": {
@@ -118,16 +134,22 @@
             "rgba_sha256": "b8cabf3aa07399387b9d1c7416dbfae594e4d2408f40e0a4bd654f9829799fe3",
             "width": 512,
             "attributes": {
+              "data-ritk-active-tool": "W/L",
+              "data-ritk-active-tool-index": "2",
               "data-ritk-axis": "2",
+              "data-ritk-cine-enabled": "false",
               "data-ritk-cine-fps": "12",
               "data-ritk-display-aspect": "1.0893617021276596",
-              "data-ritk-frame-generation": "15",
+              "data-ritk-frame-generation": "14",
               "data-ritk-frame-height": "94",
               "data-ritk-frame-state": "presented",
               "data-ritk-frame-width": "512",
               "data-ritk-load-state": "ready",
               "data-ritk-slice-count": "512",
-              "data-ritk-slice-index": "256"
+              "data-ritk-slice-index": "256",
+              "data-ritk-window-center": "578.2184",
+              "data-ritk-window-preset-index": "",
+              "data-ritk-window-width": "1781.2815"
             }
           }
         },
@@ -147,7 +169,7 @@
             "after_input": "255"
           }
         },
-        "trace_sha256": "b52bb0f5425dd88106484c2b6350ee87977728029a1a80b1649f5f8709df284b",
+        "trace_sha256": "cd7f5612cce6c0228c9da9bfebe8a48671cc3627cd338b23117c2c58138caccb",
         "trace_path": "output/browser/results/chromium/canvas-trace-cycle-1.json"
       },
       "transfer": {
@@ -161,8 +183,8 @@
           "chromium-devtools"
         ],
         "keys": [
-          "-",
-          "="
+          "=",
+          "-"
         ],
         "codes": [
           "Equal",
@@ -216,42 +238,42 @@
             "3"
           ],
           "ritk-snap-coronal": [
+            "7",
+            "8",
             "8",
             "9",
-            "9",
-            "10",
-            "10"
+            "9"
           ],
           "ritk-snap-sagittal": [
+            "14",
+            "15",
             "15",
             "16",
-            "16",
-            "17",
-            "17"
+            "16"
           ]
         },
         "canvas_trace": "output/browser/results/chromium/canvas-trace-cycle-1.json",
         "validation": "ritk-snap --validate-browser-trace --require-cine-rate passed"
       },
-      "artifact_id": 10462309871,
-      "artifact_url": "https://github.com/ryancinsight/ritk/actions/runs/35133971196/artifacts/10462309871",
-      "trace_sha256": "329c9f7594435f0e426aed6c051c11568d7eaac27aabfc6d10a78ac2fde13fba",
+      "artifact_id": 10568301436,
+      "artifact_url": "https://github.com/ryancinsight/ritk/actions/runs/35395627386/artifacts/10568301436",
+      "trace_sha256": "b6dcb2935274b75a46ae1b9e7997b047cf62884260bc4acfe910bde4c1fd8584",
       "assets": {
-        "gallery.html": "27966ebeda6a958120fa979baa56bfec8a77fed9504ce0f7be8777bb1a388fe4",
-        "gallery.js": "18f02d9ca9d18a697896288e12258be7b51a5a36fb51b2d56b9990c09c5f6053",
-        "gallery.css": "fc2fdea14afdeca020d664863ddc165702165a9cdac04459ff4c6a8e772098b5",
-        "consumer/ritk_snap.js": "b5be48ef5a94dff1d4d46c5bc6f3d96c80174893ef5fa99314ca1dd7a56fcb98",
-        "consumer/ritk_snap_bg.wasm": "44cae8a3b382428809de1040ef2cf8a19dd1afa5e5c2a19b56831688c9666438"
+        "gallery.html": "2af93349bed8e417b33af635cc96b0dd88b3f14852704373563c85d07efaec8e",
+        "gallery.js": "fbecd9b9f1d18e607680d310879cb40bd7024c769d096dbab0bc36ea1248f776",
+        "gallery.css": "f02b593d54956ff0eb4e754552dfe42235ae1d9016ecff40523dcf4a6a2635b4",
+        "consumer/ritk_snap.js": "8fd543f8a3f6baaa0a128d2ff552f37ca742af0e676d143b325e0f7909636cc6",
+        "consumer/ritk_snap_bg.wasm": "71bbd0d4b0ef3ae2fb9773d0cdda20553b7fd27f4be2e3e470cf475c562164c7"
       },
       "sources": {
-        "browser.py": "5183de58eabd5d9f591b411228b42fd00a83cbdd364a9806af58975e8d8df649",
-        "browser_canvas.py": "2f991d776c6dd43c5306adaea5a50b20351f78a05367aa9e8d9f0cdd6fd58cb1",
-        "browser_canvas_capture.py": "5f8089772da694da74c4b781bde04c74b59988da709d32f61812416eaead09ce",
-        "browser_drop.py": "86c240213ce6585121b2029d5aaeea42bcb476941742bd7e85bba3f4d19f9c19",
+        "browser.py": "055b2ac873dbd065a4cda80cf632fd4fcee2d44d66fe2a6dd4351205e17bd8f3",
+        "browser_canvas.py": "8b139ce828cfed6420f46e3c172fae4189da7d88efa2bcc3e81b37c6d80d0372",
+        "browser_canvas_capture.py": "85a74c789c28b4077f04f68ba5b1ac9033d4386a7f62d97139ea685d1dffcd1d",
+        "browser_drop.py": "6512f0c1f5930f42dc4a115cd1b207a5a51ca8bd745048b90a5fc7f668850993",
         "browser_drop_lifecycle.py": "adf2e32730c37a91dca120b647cd8e4e563d3a2cdf9bdf7799e4d7bc5a2332f3",
         "browser_file_read.py": "e9bab2fdfeeb392b52dd404b1905b6c7b4413e4854c8dc686c20112d7827904a",
-        "browser_protocol.py": "0ef67432dfc4b8d7efe3f6e07ba694f389679933e699e42e1b192c519e55edc2",
-        "browser_runtime.py": "bcbf34686b03b606b31abc358ce6046389dabe3e7589bd112a14883eab36ed8c",
+        "browser_protocol.py": "cb294d0c10f6a95f6451993e2efd8faf07206d9e7b1e765fada2d5e5d656905b",
+        "browser_runtime.py": "247aab0a7524b7d88e83a05c16b318f605e5e1019ababd4a160c0274941c063a",
         "browser_trace.py": "6ecd555ba3a9e57c4702f31a3c566a93a4159644f25f6fcfa743cc16b3a01500"
       }
     },
@@ -261,11 +283,11 @@
       "browser_version": "155.0",
       "platform": "linux",
       "input_source": "chooser",
-      "consumer_revision": "db390b8616e4cc58f2555f49a816e61eed1fadd1",
-      "metis_revision": "88c60a0b6410c0e07700e965bcdbea43b7b20789",
+      "consumer_revision": "4bbbe661cb12f2992189ce7a786f6d47529963c5",
+      "metis_revision": "5e892245ac52c6455bbb57244fa654e6eb3cc9c1",
       "moirai_revisions": {
-        "browser-pal": "95275651722583f52e098c0d30b1a53ec82c1fc7",
-        "runtime-iter-parallel-sync": "c0b1131178177da699f0692079a1413a2fb033e8"
+        "moirai-pal": "ae282117fd962f4b7c66d722aad9d3c2906320bb",
+        "moirai-runtime": "ae282117fd962f4b7c66d722aad9d3c2906320bb"
       },
       "files": 94,
       "bytes": 49807236,
@@ -292,10 +314,14 @@
       },
       "gallery": {
         "path": "dicom-metis-real-browser-mri-cross-engine-firefox.png",
-        "width": 2880,
-        "height": 2032,
-        "bytes": 1501137,
-        "sha256": "3d1cf7f54fdde8ce0f15c7daf200351428fb7ce2a0fde917b45987f7f216a30b"
+        "width": 1024,
+        "height": 722,
+        "bytes": 200260,
+        "sha256": "0ca18997b4d44d72ed39de04e6f3fea9a1ffb150d32389eb7482f5453bef81f5",
+        "source_viewport": {
+          "width": 2880,
+          "height": 2032
+        }
       },
       "canvas": {
         "path": "output/browser/results/firefox/canvas-trace-cycle-1.json",
@@ -311,7 +337,10 @@
             "rgba_sha256": "5c96fff2f82ecfddd64a6aa9a1e8f99af367740fcd43826977ac3d1035cb28f6",
             "width": 512,
             "attributes": {
+              "data-ritk-active-tool": "W/L",
+              "data-ritk-active-tool-index": "2",
               "data-ritk-axis": "0",
+              "data-ritk-cine-enabled": "false",
               "data-ritk-cine-fps": "12",
               "data-ritk-display-aspect": "1",
               "data-ritk-frame-generation": "1",
@@ -320,7 +349,10 @@
               "data-ritk-frame-width": "512",
               "data-ritk-load-state": "ready",
               "data-ritk-slice-count": "94",
-              "data-ritk-slice-index": "47"
+              "data-ritk-slice-index": "47",
+              "data-ritk-window-center": "709",
+              "data-ritk-window-preset-index": "",
+              "data-ritk-window-width": "1418"
             }
           },
           "ritk-snap-coronal": {
@@ -329,16 +361,22 @@
             "rgba_sha256": "f76018ef402afa7811154c506219361b43227dbe218ff0383b3dddd7bf438136",
             "width": 512,
             "attributes": {
+              "data-ritk-active-tool": "W/L",
+              "data-ritk-active-tool-index": "2",
               "data-ritk-axis": "1",
+              "data-ritk-cine-enabled": "false",
               "data-ritk-cine-fps": "12",
               "data-ritk-display-aspect": "1.0893617021276596",
-              "data-ritk-frame-generation": "5",
+              "data-ritk-frame-generation": "7",
               "data-ritk-frame-height": "94",
               "data-ritk-frame-state": "presented",
               "data-ritk-frame-width": "512",
               "data-ritk-load-state": "ready",
               "data-ritk-slice-count": "512",
-              "data-ritk-slice-index": "256"
+              "data-ritk-slice-index": "256",
+              "data-ritk-window-center": "601.21045",
+              "data-ritk-window-preset-index": "",
+              "data-ritk-window-width": "1597.6492"
             }
           },
           "ritk-snap-sagittal": {
@@ -347,16 +385,22 @@
             "rgba_sha256": "b8cabf3aa07399387b9d1c7416dbfae594e4d2408f40e0a4bd654f9829799fe3",
             "width": 512,
             "attributes": {
+              "data-ritk-active-tool": "W/L",
+              "data-ritk-active-tool-index": "2",
               "data-ritk-axis": "2",
+              "data-ritk-cine-enabled": "false",
               "data-ritk-cine-fps": "12",
               "data-ritk-display-aspect": "1.0893617021276596",
-              "data-ritk-frame-generation": "8",
+              "data-ritk-frame-generation": "10",
               "data-ritk-frame-height": "94",
               "data-ritk-frame-state": "presented",
               "data-ritk-frame-width": "512",
               "data-ritk-load-state": "ready",
               "data-ritk-slice-count": "512",
-              "data-ritk-slice-index": "256"
+              "data-ritk-slice-index": "256",
+              "data-ritk-window-center": "579.6529",
+              "data-ritk-window-preset-index": "",
+              "data-ritk-window-width": "1777.2983"
             }
           }
         },
@@ -376,7 +420,7 @@
             "after_input": "255"
           }
         },
-        "trace_sha256": "6916eb556af5e42256823bc24b140fcef8f0f999a917ad53d3d4e16c6b0a78ef",
+        "trace_sha256": "d64588f71c629a5ab6d2a66ebe74dcd40dd4a206bcc49b119f88496e4aafb895",
         "trace_path": "output/browser/results/firefox/canvas-trace-cycle-1.json"
       },
       "transfer": {
@@ -390,8 +434,8 @@
           "webdriver-actions"
         ],
         "keys": [
-          "-",
-          "="
+          "=",
+          "-"
         ],
         "codes": [
           "Equal",
@@ -445,42 +489,42 @@
             "3"
           ],
           "ritk-snap-coronal": [
-            "5",
-            "6",
-            "6",
             "7",
-            "7"
-          ],
-          "ritk-snap-sagittal": [
+            "8",
             "8",
             "9",
-            "9",
+            "9"
+          ],
+          "ritk-snap-sagittal": [
             "10",
-            "10"
+            "11",
+            "11",
+            "12",
+            "12"
           ]
         },
         "canvas_trace": "output/browser/results/firefox/canvas-trace-cycle-1.json",
         "validation": "ritk-snap --validate-browser-trace --require-cine-rate passed"
       },
-      "artifact_id": 10462248889,
-      "artifact_url": "https://github.com/ryancinsight/ritk/actions/runs/35133971196/artifacts/10462248889",
-      "trace_sha256": "aa08c2fb1c975715b963909b4d36e7696a9294a1615bdf74ce0185e82d2cd060",
+      "artifact_id": 10568241806,
+      "artifact_url": "https://github.com/ryancinsight/ritk/actions/runs/35395627386/artifacts/10568241806",
+      "trace_sha256": "932c5f09ce5e756ee85e1c5fc1bd30a3ec3f9952cc4e8310bcb306202e938056",
       "assets": {
-        "gallery.html": "27966ebeda6a958120fa979baa56bfec8a77fed9504ce0f7be8777bb1a388fe4",
-        "gallery.js": "18f02d9ca9d18a697896288e12258be7b51a5a36fb51b2d56b9990c09c5f6053",
-        "gallery.css": "fc2fdea14afdeca020d664863ddc165702165a9cdac04459ff4c6a8e772098b5",
-        "consumer/ritk_snap.js": "b5be48ef5a94dff1d4d46c5bc6f3d96c80174893ef5fa99314ca1dd7a56fcb98",
-        "consumer/ritk_snap_bg.wasm": "44cae8a3b382428809de1040ef2cf8a19dd1afa5e5c2a19b56831688c9666438"
+        "gallery.html": "2af93349bed8e417b33af635cc96b0dd88b3f14852704373563c85d07efaec8e",
+        "gallery.js": "fbecd9b9f1d18e607680d310879cb40bd7024c769d096dbab0bc36ea1248f776",
+        "gallery.css": "f02b593d54956ff0eb4e754552dfe42235ae1d9016ecff40523dcf4a6a2635b4",
+        "consumer/ritk_snap.js": "8fd543f8a3f6baaa0a128d2ff552f37ca742af0e676d143b325e0f7909636cc6",
+        "consumer/ritk_snap_bg.wasm": "71bbd0d4b0ef3ae2fb9773d0cdda20553b7fd27f4be2e3e470cf475c562164c7"
       },
       "sources": {
-        "browser.py": "5183de58eabd5d9f591b411228b42fd00a83cbdd364a9806af58975e8d8df649",
-        "browser_canvas.py": "2f991d776c6dd43c5306adaea5a50b20351f78a05367aa9e8d9f0cdd6fd58cb1",
-        "browser_canvas_capture.py": "5f8089772da694da74c4b781bde04c74b59988da709d32f61812416eaead09ce",
-        "browser_drop.py": "86c240213ce6585121b2029d5aaeea42bcb476941742bd7e85bba3f4d19f9c19",
+        "browser.py": "055b2ac873dbd065a4cda80cf632fd4fcee2d44d66fe2a6dd4351205e17bd8f3",
+        "browser_canvas.py": "8b139ce828cfed6420f46e3c172fae4189da7d88efa2bcc3e81b37c6d80d0372",
+        "browser_canvas_capture.py": "85a74c789c28b4077f04f68ba5b1ac9033d4386a7f62d97139ea685d1dffcd1d",
+        "browser_drop.py": "6512f0c1f5930f42dc4a115cd1b207a5a51ca8bd745048b90a5fc7f668850993",
         "browser_drop_lifecycle.py": "adf2e32730c37a91dca120b647cd8e4e563d3a2cdf9bdf7799e4d7bc5a2332f3",
         "browser_file_read.py": "e9bab2fdfeeb392b52dd404b1905b6c7b4413e4854c8dc686c20112d7827904a",
-        "browser_protocol.py": "0ef67432dfc4b8d7efe3f6e07ba694f389679933e699e42e1b192c519e55edc2",
-        "browser_runtime.py": "bcbf34686b03b606b31abc358ce6046389dabe3e7589bd112a14883eab36ed8c",
+        "browser_protocol.py": "cb294d0c10f6a95f6451993e2efd8faf07206d9e7b1e765fada2d5e5d656905b",
+        "browser_runtime.py": "247aab0a7524b7d88e83a05c16b318f605e5e1019ababd4a160c0274941c063a",
         "browser_trace.py": "6ecd555ba3a9e57c4702f31a3c566a93a4159644f25f6fcfa743cc16b3a01500"
       }
     },
@@ -490,11 +534,11 @@
       "browser_version": "26.6.2",
       "platform": "macOS",
       "input_source": "chooser",
-      "consumer_revision": "db390b8616e4cc58f2555f49a816e61eed1fadd1",
-      "metis_revision": "88c60a0b6410c0e07700e965bcdbea43b7b20789",
+      "consumer_revision": "4bbbe661cb12f2992189ce7a786f6d47529963c5",
+      "metis_revision": "5e892245ac52c6455bbb57244fa654e6eb3cc9c1",
       "moirai_revisions": {
-        "browser-pal": "95275651722583f52e098c0d30b1a53ec82c1fc7",
-        "runtime-iter-parallel-sync": "c0b1131178177da699f0692079a1413a2fb033e8"
+        "moirai-pal": "ae282117fd962f4b7c66d722aad9d3c2906320bb",
+        "moirai-runtime": "ae282117fd962f4b7c66d722aad9d3c2906320bb"
       },
       "files": null,
       "bytes": null,
@@ -511,10 +555,16 @@
       ],
       "rejections": [],
       "rejection_coverage": "not_reached: bounded browser read failed before viewer presentation",
-      "gallery": null,
+      "gallery": {
+        "path": "dicom-metis-real-browser-mri-cross-engine-webkit.png",
+        "width": 1440,
+        "height": 1048,
+        "bytes": 142162,
+        "sha256": "464903f757a9398354f6b9ea7a50e34b8d4bd1ec315ee2c8b10a25d8ebfa23bc"
+      },
       "error": "file transfer did not complete: {'status': 'Drop status: accepted 94 file(s); 00000001.dcm (529864 bytes), 00000002.dcm (529864 bytes), 00000003.dcm (529864 bytes); ...', 'bytes': 'Byte access: browser rejected the bounded whole-file read'}",
       "diagnostic": {
-        "text": "DICOM study gallery\nChoose the DICOM files of one study with Choose study files, or drag them from your file manager onto the drop area below. Select files, not their enclosing folder.\n\nUp to 512 files, 64 MiB per file, 256 MiB total. Files stay in this browser; RITK opens the study and renders the three views.\n\nReady. Drop study files into the area below.\n\nFile drop\nDrop status: accepted 94 file(s); 00000001.dcm (529864 bytes), 00000002.dcm (529864 bytes), 00000003.dcm (529864 bytes); ...\n\nByte access: browser rejected the bounded whole-file read\n\nDrop files here to inspect bounded metadata and hand the selected bytes to a trusted decoder.\nChoose study files \nAxial\nSlice No study\n\nCoronal\nSlice No study\n\nSagittal\nSlice No study\n",
+        "text": "DICOM study gallery\nChoose the DICOM files of one study with Choose study files, or drag them from your file manager onto the drop area below. Select files, not their enclosing folder.\n\nUp to 512 files, 64 MiB per file, 256 MiB total. Files stay in this browser; RITK opens the study and renders the three views.\n\nReady. Drop study files into the area below.\n\nFile drop\nDrop status: accepted 94 file(s); 00000001.dcm (529864 bytes), 00000002.dcm (529864 bytes), 00000003.dcm (529864 bytes); ...\n\nByte access: browser rejected the bounded whole-file read\n\nDrop files here to inspect bounded metadata and hand the selected bytes to a trusted decoder.\nChoose study files \nWindow/level preset\n\nNo study\nPlay\nCine rate\n12 FPS\nNo study\nAxial\nSlice No study\n\nCoronal\nSlice No study\n\nSagittal\nSlice No study\n",
         "events": [
           {
             "bytes": 49807236,
@@ -526,12 +576,20 @@
       },
       "failure_screenshots": [
         {
-          "label": "failure",
-          "path": "dicom-metis-real-browser-mri-cross-engine-webkit.png",
-          "sha256": "4bb4e2215ce293a74c1860136f8b4530624b90e593e410842cf11b6039602772",
+          "label": "before-drop",
+          "path": "dicom-metis-real-browser-mri-cross-engine-webkit-before-drop.png",
+          "sha256": "37affb2c850052a80b2c1b1022958c885b459e986b40f2ad958de19d49e5f485",
           "width": 1440,
           "height": 1048,
-          "bytes": 125265
+          "bytes": 132273
+        },
+        {
+          "label": "failure",
+          "path": "dicom-metis-real-browser-mri-cross-engine-webkit.png",
+          "sha256": "464903f757a9398354f6b9ea7a50e34b8d4bd1ec315ee2c8b10a25d8ebfa23bc",
+          "width": 1440,
+          "height": 1048,
+          "bytes": 142162
         }
       ],
       "keyboard": {
@@ -542,9 +600,9 @@
         "status": "chooser accepted 94 file(s); browser rejected the bounded whole-file read",
         "bytes": "Byte access: browser rejected the bounded whole-file read"
       },
-      "artifact_id": 10463192885,
-      "artifact_url": "https://github.com/ryancinsight/ritk/actions/runs/35133971196/artifacts/10463192885",
-      "trace_sha256": "3c261e18a8754a820879d517a2e4bbb6cb0205b74e7134f3d2151dd103c7404a",
+      "artifact_id": 10569845625,
+      "artifact_url": "https://github.com/ryancinsight/ritk/actions/runs/35395627386/artifacts/10569845625",
+      "trace_sha256": "270571c07b3a3d4cd974b573bee1f9b6b9fcf86fe79db6cfd98f75c3c0f9e334",
       "file_read_diagnostic": {
         "status": "captured",
         "cleanup_exceptions": [
@@ -570,9 +628,9 @@
           }
         }
       },
-      "evidence_run_id": 35133971196,
-      "evidence_run_url": "https://github.com/ryancinsight/ritk/actions/runs/35133971196",
-      "evidence_note": "SafariDriver accepted 94 files, but WebKit denied the first browser read; Chromium and Firefox passed the same real study in this run.",
+      "evidence_run_id": 35395627386,
+      "evidence_run_url": "https://github.com/ryancinsight/ritk/actions/runs/35395627386",
+      "evidence_note": "SafariDriver accepted all 94 files in hosted run 35395627386, but Safari 26.6.2 denied the first bounded browser read; Chromium and Firefox passed the same real study in this run.",
       "read_selection_diagnostic": {
         "status": "captured",
         "selections": [
@@ -654,11 +712,11 @@
       "browser_version": "152.0.7977.82",
       "platform": "linux",
       "input_source": "chooser",
-      "consumer_revision": "db390b8616e4cc58f2555f49a816e61eed1fadd1",
-      "metis_revision": "88c60a0b6410c0e07700e965bcdbea43b7b20789",
+      "consumer_revision": "4bbbe661cb12f2992189ce7a786f6d47529963c5",
+      "metis_revision": "5e892245ac52c6455bbb57244fa654e6eb3cc9c1",
       "moirai_revisions": {
-        "browser-pal": "95275651722583f52e098c0d30b1a53ec82c1fc7",
-        "runtime-iter-parallel-sync": "c0b1131178177da699f0692079a1413a2fb033e8"
+        "moirai-pal": "ae282117fd962f4b7c66d722aad9d3c2906320bb",
+        "moirai-runtime": "ae282117fd962f4b7c66d722aad9d3c2906320bb"
       },
       "files": null,
       "bytes": null,
@@ -681,22 +739,22 @@
         "path": "dicom-metis-real-browser-mri-webgpu-failure.png",
         "width": 2880,
         "height": 1914,
-        "bytes": 113940,
-        "sha256": "81647131d2d087d44f69654d62aa5669eb8a41c0dfedcd25a7a11eda315b3dce"
+        "bytes": 146652,
+        "sha256": "fe3f209fe03bb2c9ccc53be5d0686378eaba09bfc61d2d26d36de73745f51e76"
       },
       "error": "#gallery-status did not contains 'Ready' within 30000 ms",
       "diagnostic": {
         "events": null,
-        "text": "DICOM study gallery\n\nChoose the DICOM files of one study with Choose study files, or drag them from your file manager onto the drop area below. Select files, not their enclosing folder.\n\nUp to 512 files, 64 MiB per file, 256 MiB total. Files stay in this browser; RITK opens the study and renders the three views.\n\nViewer could not start: browser returned no WebGPU adapter\n\nAxial\nSlice\nNo study\nCoronal\nSlice\nNo study\nSagittal\nSlice\nNo study"
+        "text": "DICOM study gallery\n\nChoose the DICOM files of one study with Choose study files, or drag them from your file manager onto the drop area below. Select files, not their enclosing folder.\n\nUp to 512 files, 64 MiB per file, 256 MiB total. Files stay in this browser; RITK opens the study and renders the three views.\n\nViewer could not start: browser returned no WebGPU adapter\n\nWindow/level preset\nLoad a study to choose a preset\nNo study\nPlay\nCine rate\n12 FPS\nNo study\nAxial\nSlice\nNo study\nCoronal\nSlice\nNo study\nSagittal\nSlice\nNo study"
       },
       "failure_screenshots": [
         {
           "label": "failure",
           "path": "dicom-metis-real-browser-mri-webgpu-failure.png",
-          "sha256": "81647131d2d087d44f69654d62aa5669eb8a41c0dfedcd25a7a11eda315b3dce",
+          "sha256": "fe3f209fe03bb2c9ccc53be5d0686378eaba09bfc61d2d26d36de73745f51e76",
           "width": 2880,
           "height": 1914,
-          "bytes": 113940
+          "bytes": 146652
         }
       ],
       "keyboard": {
@@ -708,9 +766,9 @@
         "selected_files": 94,
         "selected_probe_bytes": 529864
       },
-      "artifact_id": 10462807820,
-      "artifact_url": "https://github.com/ryancinsight/ritk/actions/runs/35133971196/artifacts/10462807820",
-      "trace_sha256": "83803856db8f2aa09c2c5b10a1223e0b7a7686c18ed336a6d7e256b6808d4849",
+      "artifact_id": 10568306406,
+      "artifact_url": "https://github.com/ryancinsight/ritk/actions/runs/35395627386/artifacts/10568306406",
+      "trace_sha256": "e751afcd0a7a7ad972a7f90370853e253b94de5af1fea4df39e0a906fe9fe065",
       "file_read_diagnostic": {
         "reason": "no-selected-file",
         "status": "unavailable"
@@ -786,38 +844,113 @@
           "restored": true
         }
       },
-      "evidence_run_id": 35133971196,
-      "evidence_run_url": "https://github.com/ryancinsight/ritk/actions/runs/35133971196",
+      "evidence_run_id": 35395627386,
+      "evidence_run_url": "https://github.com/ryancinsight/ritk/actions/runs/35395627386",
       "evidence_note": "The Chromium WebGPU page reached the RITK consumer but no browser adapter was available; the failure is recorded without falling back to the raster path."
+    },
+    "chromium-window": {
+      "status": "failed",
+      "browser": "chrome",
+      "browser_version": "152.0.7977.82",
+      "platform": "linux",
+      "input_source": "chooser",
+      "consumer_revision": "4bbbe661cb12f2992189ce7a786f6d47529963c5",
+      "metis_revision": "5e892245ac52c6455bbb57244fa654e6eb3cc9c1",
+      "moirai_revisions": {
+        "moirai-pal": "ae282117fd962f4b7c66d722aad9d3c2906320bb",
+        "moirai-runtime": "ae282117fd962f4b7c66d722aad9d3c2906320bb"
+      },
+      "files": 94,
+      "bytes": 49807236,
+      "file_manifest_sha256": null,
+      "oracle_sha256": null,
+      "cleanup": {
+        "session_closed": true
+      },
+      "unsupported_native_operations": [
+        "native-file-dialog",
+        "native-process-launch",
+        "os-permission-grant"
+      ],
+      "error": "cine playback did not advance a presented slice",
+      "diagnostic": {
+        "events": [
+          {
+            "bytes": 49807236,
+            "files": 94,
+            "trusted": true,
+            "type": "change"
+          },
+          {
+            "bytes": null,
+            "files": 607,
+            "trusted": true,
+            "type": "change"
+          },
+          {
+            "bytes": null,
+            "files": 608,
+            "trusted": true,
+            "type": "change"
+          },
+          {
+            "bytes": null,
+            "files": 613,
+            "trusted": true,
+            "type": "change"
+          }
+        ],
+        "text": "DICOM study gallery\n\nChoose the DICOM files of one study with Choose study files, or drag them from your file manager onto the drop area below. Select files, not their enclosing folder.\n\nUp to 512 files, 64 MiB per file, 256 MiB total. Files stay in this browser; RITK opens the study and renders the three views.\n\nStopped. Viewer resources released.\n\nWindow/level preset\nLoad a study to choose a preset\nNo study\nPlay\nCine rate\n12 FPS\nPan\nZoom\nW/L\nLength\nAngle\nROI Rect\nROI Ellipse\nCrosshair\nHU Point\nLabel Paint\nLabel Erase\nNo study\nAxial\nSlice\nNo study\nCoronal\nSlice\nNo study\nSagittal\nSlice\nNo study"
+      },
+      "failure_screenshot": {
+        "path": "dicom-metis-real-browser-mri-application-window-failure.png",
+        "width": 1440,
+        "height": 1057,
+        "bytes": 179995,
+        "sha256": "10593798fb76e0f7e14aeb339fd16b3570ce49aae2d74bcb43e6ca42ce0d622e",
+        "source_viewport": {
+          "width": 2880,
+          "height": 2114
+        }
+      },
+      "artifact_id": 10567752411,
+      "artifact_url": "https://github.com/ryancinsight/ritk/actions/runs/35395627386/artifacts/10567752411",
+      "trace_sha256": "8dddded92a3c59eed54632fd10d6549973f2879a339bf95766e04d8731254ddb",
+      "evidence_run_id": 35395627386,
+      "evidence_run_url": "https://github.com/ryancinsight/ritk/actions/runs/35395627386",
+      "evidence_note": "The Chromium application-window probe accepted the real study and rendered partial anatomy, but the one-cycle cine assertion did not observe a presented slice before the session teardown."
     }
   },
   "verification": {
-    "chromium": "passed in hosted run 35133971196: four lifecycle cycles read all 94 MRI files (49,807,236 bytes), matched the three exact RGBA oracles, exercised 18 trusted canvas actions per cycle and released all listeners and input sources; the consumer picker label and DICOM filter persist after remounts",
-    "firefox": "passed in hosted run 35133971196: four lifecycle cycles read all 94 MRI files (49,807,236 bytes), matched the three exact RGBA oracles, exercised 18 trusted canvas actions per cycle and released all listeners and input sources; the consumer picker label and DICOM filter persist after remounts",
-    "webkit": "failed in hosted run 35133971196 after Safari accepted the 94-file selection; the first bounded read fails with NotReadableError for File.arrayBuffer, the bounded slice and FileReader, and TypeError for the blob stream; the session closes cleanly",
-    "chromium-webgpu": "unavailable in hosted run 35133971196: the Chromium page reports no WebGPU adapter before RITK can publish the selected study; the failure PNG and trace are recorded without a raster fallback claim",
+    "chromium": "passed in hosted run 35395627386: four lifecycle cycles read all 94 MRI files (49,807,236 bytes), matched the three exact RGBA oracles, exercised 18 trusted canvas actions per cycle and released all listeners and input sources; the consumer picker label and DICOM filter persist after remounts",
+    "firefox": "passed in hosted run 35395627386: four lifecycle cycles read all 94 MRI files (49,807,236 bytes), matched the three exact RGBA oracles, exercised 18 trusted canvas actions per cycle and released all listeners and input sources; the consumer picker label and DICOM filter persist after remounts",
+    "webkit": "failed in hosted run 35395627386 after Safari accepted the 94-file selection; the first bounded read fails with NotReadableError for File.arrayBuffer, the bounded slice and FileReader, and TypeError for the blob stream; the session closes cleanly",
+    "chromium-webgpu": "unavailable in hosted run 35395627386: the Chromium page reports no WebGPU adapter before RITK can publish the selected study; the failure PNG and trace are recorded without a raster fallback claim",
     "ownership": "RITK owns DICOM scanning, decoding, geometry, clinical presentation, and pixel assertions; Métis remains format-neutral; Moirai owns browser file reads",
     "native": {
-      "revision": "db390b8616e4cc58f2555f49a816e61eed1fadd1",
-      "command": "cargo nextest run --locked --manifest-path D:/atlas/repos/ritk/Cargo.toml -p ritk-snap --lib",
-      "passed": 841,
+      "revision": "8f8516065f6ab9405852d96885f54291d5e24a48",
+      "command": "cargo +1.97.0 nextest run --locked --manifest-path D:/atlas/repos/ritk/Cargo.toml -p ritk-snap --no-fail-fast --status-level fail",
+      "passed": 487,
       "failed": 0,
       "skipped": 0,
       "other_checks": [
+        "strict native Clippy",
+        "locked wasm32 library check",
+        "strict wasm32 library Clippy",
+        "cargo doc -D warnings",
         "workspace formatting",
-        "strict native all-target Clippy",
-        "locked wasm32-unknown-unknown library check",
-        "strict wasm32-unknown-unknown library Clippy",
         "python scripts/lockfile.py --check"
       ],
       "execution_directory": "D:/atlas/repos/ritk"
-    }
+    },
+    "chromium-window": "failed in hosted run 35395627386: the application-window probe accepted the 94-file study and rendered partial anatomy, but cine did not advance a presented slice before teardown"
   },
   "limits": [
     "file-backed WebDriver chooser is not physical file-manager drag input",
     "native file-dialog, native process-launch, and OS-permission evidence is not covered",
-    "Chromium WebGPU is unavailable on the hosted runner because no browser adapter was returned",
-    "Safari 26.6.2 accepted 94 selected files in the current run but rejected the first bounded read before RITK could render its canvases or receive keyboard actions",
+    "Chromium WebGPU is unavailable on the hosted runner in run 35395627386 because no browser adapter was returned; no raster fallback was claimed",
+    "Chromium application-window cine remains a residual in run 35395627386: the real study was accepted and partial anatomy rendered, but the one-cycle presented-slice assertion failed before teardown",
+    "Safari 26.6.2 in run 35395627386 accepted all 94 files but WebKit denied the first bounded browser read; the four read APIs and clean teardown are recorded",
     "the four-cycle matrix does not repeat the Edge slice-control rejection probes; exact 50 trusted slider actions and 18 invalid-number probes remain in dicom-metis-real-browser-mri-edge.json"
   ],
   "read_path": {
@@ -828,11 +961,11 @@
     "before_consumer": true,
     "diagnosis_limit": "The selected real file is denied by the WebKit sandbox: WebContent cannot read it or issue a read extension, and Networking cannot read it. Host readability and the expected digest are verified. The exact SafariDriver/WebKit grant defect is not established; Metis and Moirai cannot confer browser sandbox access.",
     "isolated_selection": {
-      "workflow_run_id": 35133971196,
-      "workflow_url": "https://github.com/ryancinsight/ritk/actions/runs/35133971196",
-      "ritk_revision": "db390b8616e4cc58f2555f49a816e61eed1fadd1",
-      "metis_revision": "88c60a0b6410c0e07700e965bcdbea43b7b20789",
-      "trace_sha256": "3c261e18a8754a820879d517a2e4bbb6cb0205b74e7134f3d2151dd103c7404a",
+      "workflow_run_id": 35395627386,
+      "workflow_url": "https://github.com/ryancinsight/ritk/actions/runs/35395627386",
+      "ritk_revision": "4bbbe661cb12f2992189ce7a786f6d47529963c5",
+      "metis_revision": "5e892245ac52c6455bbb57244fa654e6eb3cc9c1",
+      "trace_sha256": "270571c07b3a3d4cd974b573bee1f9b6b9fcf86fe79db6cfd98f75c3c0f9e334",
       "result": {
         "status": "captured",
         "selections": [
@@ -908,10 +1041,10 @@
       }
     },
     "sandbox_access": {
-      "workflow_run_id": 35133971196,
-      "workflow_url": "https://github.com/ryancinsight/ritk/actions/runs/35133971196",
-      "ritk_revision": "db390b8616e4cc58f2555f49a816e61eed1fadd1",
-      "metis_revision": "88c60a0b6410c0e07700e965bcdbea43b7b20789",
+      "workflow_run_id": 35395627386,
+      "workflow_url": "https://github.com/ryancinsight/ritk/actions/runs/35395627386",
+      "ritk_revision": "4bbbe661cb12f2992189ce7a786f6d47529963c5",
+      "metis_revision": "5e892245ac52c6455bbb57244fa654e6eb3cc9c1",
       "engine_status": "failed",
       "file_access": {
         "reader_uid": 501,
@@ -988,13 +1121,13 @@
       },
       "diagnostic_sha256": {
         "filesystem": "1db4af388cb339a25972226fafde72f4443e750b999e424bbaaf2ee8a79eed25",
-        "sandbox": "2f4a43eeb965d42aa02cd5c258d1adc7708c8a42fd40804e958e3983109df772",
+        "sandbox": "ea9507d7b026c55118ceca61d3b3635f98c494a50f6935e0d6554ed4b688546b",
         "driver": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
-        "trace": "3c261e18a8754a820879d517a2e4bbb6cb0205b74e7134f3d2151dd103c7404a"
+        "trace": "270571c07b3a3d4cd974b573bee1f9b6b9fcf86fe79db6cfd98f75c3c0f9e334"
       },
       "artifact_urls": {
-        "gallery": "https://github.com/ryancinsight/ritk/actions/runs/35133971196/artifacts/10463192885",
-        "driver": "https://github.com/ryancinsight/ritk/actions/runs/35133971196/artifacts/10463083446"
+        "gallery": "https://github.com/ryancinsight/ritk/actions/runs/35395627386/artifacts/10569845625",
+        "driver": "https://github.com/ryancinsight/ritk/actions/runs/35395627386/artifacts/10569915598"
       },
       "upload_command": {
         "method": "Automation.setFilesToSelectForFileUpload",
