@@ -16,7 +16,7 @@ decoded-workspace budgets, and return the RITK `Image` plus
 boundary; the host owns only input and presentation lifecycle.
 
 The current standalone lock used by the viewer resolves the six Metis packages
-to `619832d15ac18a188ce6f79a0d810fcab7315891` and Moirai packages to
+to `e634fe925d8edb18cea4399d43255fdaa2d444a5` and Moirai packages to
 `a2f21496d1d09b2abe6523e3c8cdbf751dcd560a`. The browser chooser and Windows
 package workflows use these provider pins. Historical hosted captures retain
 the provider revisions recorded in their own provenance files. RITK continues
@@ -856,16 +856,16 @@ executable digests, lock resolution and command are recorded in the
 
 A current standalone-lock recheck on 2026-09-18 built the native viewer
 outside the Atlas development overlay at RITK source
-`0c24f4207a4916137bb88c7518188b083d651e35`, Metis
-`619832d15ac18a188ce6f79a0d810fcab7315891` and Moirai
+`d494df9da7ccddc63176788f31ec36e4895e43ba`, Metis
+`e634fe925d8edb18cea4399d43255fdaa2d444a5` and Moirai
 `a2f21496d1d09b2abe6523e3c8cdbf751dcd560a`. The command
 `ritk-snap.exe test_data/2_head_mri_t2/DICOM --metis-native
 --capture-application --capture scratch/viewer/recheck-real-mri-application.png`
 read all 94 files and exited 0. It reproduced the committed 1280 × 800
 frame byte-for-byte (`259dd79103482756c4e688621bebafc841cc40f1df10ff2bbd7f9d04b7b4d401`,
 411,589 non-black pixels). The executable digest
-`7a0e523fac1e38444ca80c806a697a4b0faa10ec83ef88eee32cb1cf68d5dbde` and
-lock digest `abc3eaa88d6d450b2ae9221e19ff4f26d88f7a0653518c09df87be412ba92217`
+`7fdd80d5daa418776ae842f4dd1c005d546443c2f6d5b7dc5632ee802f5d12d8` and
+lock digest `42083be291a94d5e54f585780559357ee554f4725d571013a7e560aaa209f4a5`
 are recorded in the [current replay evidence](images/dicom-metis-real-mri.json).
 The capture excludes operating-system chrome and remains a visual-content
 check; native IME, accessibility and cross-platform host evidence are separate

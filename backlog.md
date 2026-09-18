@@ -200,10 +200,10 @@
 
 <a id="RITK-METIS-LOCK-005"></a>
 ## RITK-METIS-LOCK-005 — Advance the post-merge Metis pin [patch]
-- Status: in-progress; priority: P1; owner: RITK SNAP integration; integrator: root; last-update: 2026-09-18; dependencies: Metis e634fe9.
+- Status: review; priority: P1; owner: RITK SNAP integration; integrator: root; last-update: 2026-09-18; dependencies: Metis e634fe9.
 - Scope: standalone Cargo.lock and the current replay provenance only; DICOM decoding and presentation remain in RITK.
 - Acceptance: one Metis revision e634fe925d8edb18cea4399d43255fdaa2d444a5 in the locked graph, lockfile check, focused viewer tests, and unchanged real MRI image/hash/dimension oracle.
-- Lease: root Cargo.lock, backlog.md, current replay provenance 2026-09-18.
+- Evidence: standalone lock check reports 61 first-party sources; native ritk-snap nextest 446/446, strict native/WASM checks and Clippy, eframe check/Clippy, fmt, and the 94-file MRI replay pass with the committed 1280x800 RGBA hash unchanged.
 
 <a id="RITK-DOCS-EVIDENCE-SYNC-001"></a>
 ## RITK-DOCS-EVIDENCE-SYNC-001 — Sync current provider revisions in replay docs [patch]
