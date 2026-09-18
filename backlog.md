@@ -197,7 +197,7 @@
 - Status: review; priority: P1; owner: RITK viewer integration; integrator: root; last-update: 2026-09-18; dependency: Metis PR #239 merge `619832d15ac18a188ce6f79a0d810fcab7315891`.
 - Outcome: standalone `Cargo.lock` resolves every Metis package to `619832d15ac18a188ce6f79a0d810fcab7315891`; the saved 94-file MRI replay remains byte-identical and its provenance records the landed source.
 - Acceptance: lockfile parser, native/WASM viewer gates, real-study replay and PNG hash/dimension/non-black checks pass; no DICOM implementation or format-specific host code changes.
-- Verification: standalone build exit 0; locked `ritk-snap` nextest 480/480; strict native Clippy; WASM check and strict Clippy; fmt, lock parser, diff check; replay SHA `259dd79103482756c4e688621bebafc841cc40f1df10ff2bbd7f9d04b7b4d401`, 1280x800, 411,589 non-black pixels.
+- Verification: standalone build exit 0; locked `ritk-snap` nextest 480/480; strict native Clippy; WASM check and strict Clippy; fmt, lock parser, diff check; browser workflow defaults and validates the same Metis revision; replay SHA `259dd79103482756c4e688621bebafc841cc40f1df10ff2bbd7f9d04b7b4d401`, 1280x800, 411,589 non-black pixels.
 
 <a id="RITK-DOCS-EVIDENCE-SYNC-001"></a>
 ## RITK-DOCS-EVIDENCE-SYNC-001 — Sync current provider revisions in replay docs [patch]
