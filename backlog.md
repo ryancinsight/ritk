@@ -163,7 +163,7 @@
 
 <a id="RITK-SNAP-EFRAME-MATCH-001"></a>
 ## RITK-SNAP-EFRAME-MATCH-001 — Match the Métis capture extent [minor]
-- Status: review; delivery: RITK PR #487 (auto-merge queued), source `1f9053ba2dd8a6b77da83073261642019c66863a`; outcome/evidence: `--viewport-size 1024x640` yields a real 1280×800 physical MRI surface at 125%, three equal raw PNG digests (`2e47199cca0851f5ca2e3ce7b613cf70b096c3528bfc1eb705f64ced75485ba9`), 927,849 non-black pixels and recorded logical/physical/display-scale/resource hashes; visual planes are axial/coronal/sagittal; GPUI/Tauri remain open.
+- Status: done; delivery: [RITK PR #487](https://github.com/ryancinsight/ritk/pull/487), merge `102909c8f67bca1128eba1438ec280ee2651656e`; outcome/evidence: `--viewport-size 1024x640` yields a real 1280×800 physical MRI surface at 125%, three equal raw PNG digests (`2e47199cca0851f5ca2e3ce7b613cf70b096c3528bfc1eb705f64ced75485ba9`), 927,849 non-black pixels and recorded logical/physical/display-scale/resource hashes; visual planes are axial/coronal/sagittal; tracked manual figure is 640×400 with raw source provenance; GPUI/Tauri remain open.
 
 <a id="RITK-SNAP-METIS-001"></a>
 ## RITK-SNAP-METIS-001 — Migrate the viewer shell to Métis [arch] [major]
