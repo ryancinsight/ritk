@@ -838,6 +838,16 @@ adapter accept the same controls: browser `Equal` and `Minus` codes map through
 the host-neutral reducer, which requests a repaint when the bounded rate
 changes. The retained cross-engine study trace proves focused `Equal` delivery;
 the extended cine-rate evidence below also checks repeated-key handling and frame generations.
+
+The native W/L tool uses the same RITK pointer reducer. Select **W/L** in the
+viewer, then drag inside a plane: horizontal motion changes window width and
+vertical motion changes window centre. The native session test performs this
+gesture against a loaded DICOM fixture and asserts changed center/width values,
+changed presented pixels and an idle tool state after release
+([`native_session_window_level_drag_updates_the_presented_study`](../../crates/ritk-snap/src/presentation/native_session/tests.rs)).
+The real MRI capture below remains the pixel evidence for the saved-study
+decode and three-plane Métis presentation; the test is the bounded input
+evidence for the interactive W/L transition.
 The reviewed 1280 × 800 output below is the actual run, not a made image:
 
 ![Actual MRI-DIR T2 series rendered through the Métis native surface](images/dicom-metis-real-mri.png)

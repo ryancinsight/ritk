@@ -2,6 +2,13 @@
 
 Unresolved delivery items are kept as executable records. Closed history is indexed below; full prose remains in git.
 
+<a id="RITK-SNAP-METIS-NATIVE-WL-001"></a>
+## RITK-SNAP-METIS-NATIVE-WL-001 — Demonstrate native window/level interaction [minor]
+- Status: review; priority: P1; owner: RITK viewer + Métis presentation; integrator: root; last-update: 2026-09-18.
+- Scope: exercise the existing RITK window/level drag through the native Métis event path and document the value-semantic frame transition; DICOM loading and presentation ownership stay in RITK, while Métis remains the host/event/frame boundary.
+- Acceptance: a native-session test starts from a loaded DICOM fixture, performs a bounded W/L drag, asserts changed center/width and rendered pixels, and verifies the gesture ends idle; the user manual names the gesture and links the test. No new parser or host-specific W/L implementation.
+- Dependencies: existing `NativeViewerSession`, `SnapApp` W/L tool state, and the real saved-study captures; risk: input-to-image coordinate mapping.
+
 <a id="RITK-METIS-LOCK-008"></a>
 ## RITK-METIS-LOCK-008 — Advance the WebGPU recovery provider pins [patch]
 - Status: done; delivery: RITK PR [#499](https://github.com/ryancinsight/ritk/pull/499) (`d7ebd97dd`), [#500](https://github.com/ryancinsight/ritk/pull/500) (`c34f05d46`), [#501](https://github.com/ryancinsight/ritk/pull/501) (`9fa6c12d4`); compacted 2026-09-18.
