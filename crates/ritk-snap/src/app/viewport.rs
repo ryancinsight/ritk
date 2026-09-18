@@ -27,6 +27,29 @@ impl EguiApp {
         });
     }
 
+    /// Render the three orthogonal planes as one shell-free measurement surface.
+    pub(crate) fn show_central_panel_orthogonal_surface(&mut self, ctx: &egui::Context) {
+        egui::CentralPanel::default().show(ctx, |ui| {
+            if self.loaded.is_none() {
+                ui.centered_and_justified(|ui| {
+                    ui.label("Open a DICOM folder or NIfTI file to render the orthogonal surface.");
+                });
+                return;
+            }
+
+            let available = ui.available_size();
+            let gap = ui.spacing().item_spacing.x;
+            let panel_width = ((available.x - 2.0 * gap) / 3.0).max(1.0);
+            ui.horizontal(|ui| {
+                for axis in 0..3 {
+                    ui.allocate_ui(egui::vec2(panel_width, available.y), |ui| {
+                        self.render_axis_viewport(ui, ctx, axis);
+                    });
+                }
+            });
+        });
+    }
+
     // ── Multi-planar side-by-side viewport ───────────────────────────────────
     /// Render 2×2 MPR viewports (Coronal / Axial / Sagittal / 3D-MIP) with
     /// a shared Info panel row below.

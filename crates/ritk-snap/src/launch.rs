@@ -19,6 +19,18 @@ pub enum NativePresentationMode {
     OrthogonalWithMip,
 }
 
+/// Presentation selected by the compatibility shell.
+#[derive(Debug, Clone, Copy, Default, PartialEq, Eq, Serialize, Deserialize, clap::ValueEnum)]
+pub enum CompatibilityPresentation {
+    /// Render the complete eframe application, including its shell controls.
+    #[default]
+    #[value(name = "full-application")]
+    FullApplication,
+    /// Render only the three spacing-aware orthogonal planes.
+    #[value(name = "orthogonal-surface")]
+    OrthogonalSurface,
+}
+
 /// Startup configuration for the native `ritk-snap` application.
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 #[cfg_attr(not(windows), derive(Default))]
@@ -94,9 +106,27 @@ pub fn run_app() -> anyhow::Result<()> {
 /// Returns the same window, event-loop, and capture errors as
 /// [`run_app_with_options`].
 #[cfg(all(not(target_arch = "wasm32"), feature = "eframe-shell"))]
-pub fn run_eframe_app_with_options(mut options: AppLaunchOptions) -> anyhow::Result<()> {
+pub fn run_eframe_app_with_options(options: AppLaunchOptions) -> anyhow::Result<()> {
+    run_eframe_app_with_presentation(options, CompatibilityPresentation::FullApplication)
+}
+
+/// Launch the compatibility shell with an explicit presentation.
+///
+/// `OrthogonalSurface` is a bounded measurement fixture. It keeps the same
+/// RITK loader, textures and physical-aspect placement as the complete shell,
+/// while removing shell chrome and the 2×2/MIP layout so a resource record can
+/// be compared with a three-plane host surface.
+///
+/// # Errors
+/// Returns a window, event-loop, load, or capture error from the compatibility
+/// shell.
+#[cfg(all(not(target_arch = "wasm32"), feature = "eframe-shell"))]
+pub fn run_eframe_app_with_presentation(
+    mut options: AppLaunchOptions,
+    presentation: CompatibilityPresentation,
+) -> anyhow::Result<()> {
     options.metis_native = false;
-    run_app_with_options(options)
+    run_app_with_compatibility(options, presentation)
 }
 
 /// Launch the eframe compatibility shell with its default options.
@@ -143,7 +173,19 @@ where
 /// screenshot response exceeds its deadline, or the window closes early.
 #[cfg(not(target_arch = "wasm32"))]
 pub fn run_app_with_options(options: AppLaunchOptions) -> anyhow::Result<()> {
+    run_app_with_compatibility(options, CompatibilityPresentation::FullApplication)
+}
+
+#[cfg(not(target_arch = "wasm32"))]
+fn run_app_with_compatibility(
+    options: AppLaunchOptions,
+    compatibility_presentation: CompatibilityPresentation,
+) -> anyhow::Result<()> {
     if options.metis_native {
+        anyhow::ensure!(
+            compatibility_presentation == CompatibilityPresentation::FullApplication,
+            "compatibility presentation requires the eframe shell"
+        );
         #[cfg(windows)]
         {
             use metis_platform::native::{pick, DialogSelection};
@@ -206,9 +248,10 @@ pub fn run_app_with_options(options: AppLaunchOptions) -> anyhow::Result<()> {
                     None => crate::app::SnapApp::default(),
                 };
                 Ok(Box::new(capture::CaptureApp::new(
-                    crate::app::EguiApp::new(app),
+                    crate::app::EguiApp::new_with_presentation(app, compatibility_presentation),
                     options.capture,
                     requirement,
+                    compatibility_presentation,
                     app_completion,
                 )))
             }),

@@ -6,6 +6,7 @@ use std::rc::Rc;
 use std::time::{Duration, Instant};
 
 use crate::app::EguiApp;
+use crate::CompatibilityPresentation;
 use anyhow::{bail, Context, Result};
 
 // The normal native-test slow threshold bounds an absent screenshot response.
@@ -34,6 +35,7 @@ struct Capture {
 pub(super) struct CaptureApp {
     app: EguiApp,
     capture: Option<Capture>,
+    presentation: CompatibilityPresentation,
     // The event loop and launch function share one result on the same thread.
     completion: Rc<Cell<Option<Result<()>>>>,
 }
@@ -43,6 +45,7 @@ impl CaptureApp {
         app: EguiApp,
         output: Option<PathBuf>,
         requirement: Requirement,
+        presentation: CompatibilityPresentation,
         completion: Rc<Cell<Option<Result<()>>>>,
     ) -> Self {
         Self {
@@ -52,6 +55,7 @@ impl CaptureApp {
                 requirement,
                 phase: Phase::Draw(Instant::now()),
             }),
+            presentation,
             completion,
         }
     }
@@ -132,7 +136,11 @@ impl CaptureApp {
 
 impl eframe::App for CaptureApp {
     fn update(&mut self, ctx: &egui::Context, frame: &mut eframe::Frame) {
-        self.app.update(ctx, frame);
+        if self.presentation == CompatibilityPresentation::OrthogonalSurface {
+            self.app.update_orthogonal_surface(ctx);
+        } else {
+            self.app.update(ctx, frame);
+        }
         if let Err(error) = self.capture(ctx) {
             if let Some(capture) = &mut self.capture {
                 capture.phase = Phase::Finished;

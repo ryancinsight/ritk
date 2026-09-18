@@ -24,19 +24,25 @@ struct Args {
     /// Save the rendered eframe frame as PNG and exit.
     #[arg(long, value_name = "PNG")]
     capture: Option<PathBuf>,
+    /// Select the complete shell or a shell-free three-plane measurement surface.
+    #[arg(long, value_enum, default_value_t = ritk_snap::CompatibilityPresentation::FullApplication)]
+    presentation: ritk_snap::CompatibilityPresentation,
 }
 
 #[cfg(not(target_arch = "wasm32"))]
 fn main() -> anyhow::Result<()> {
     let args = Args::parse();
-    ritk_snap::run_eframe_app_with_options(ritk_snap::AppLaunchOptions {
-        initial_path: args.initial_path,
-        initial_series_uid: args.initial_series_uid,
-        capture: args.capture,
-        capture_application: false,
-        metis_native: false,
-        native_presentation_mode: ritk_snap::NativePresentationMode::Orthogonal,
-    })
+    ritk_snap::run_eframe_app_with_presentation(
+        ritk_snap::AppLaunchOptions {
+            initial_path: args.initial_path,
+            initial_series_uid: args.initial_series_uid,
+            capture: args.capture,
+            capture_application: false,
+            metis_native: false,
+            native_presentation_mode: ritk_snap::NativePresentationMode::Orthogonal,
+        },
+        args.presentation,
+    )
 }
 
 #[cfg(target_arch = "wasm32")]

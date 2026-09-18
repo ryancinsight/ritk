@@ -166,7 +166,7 @@
 - Status: in-progress; priority: P1; owner: RITK compatibility shell; integrator: root; last-update: 2026-09-18; dependency: [Metis performance fixtures](../metis/backlog.md#METIS-PERF-001); risk: unlike presentation surfaces.
 - Scope: add an explicit eframe capture presentation that renders only the RITK axial, coronal and sagittal planes through the existing spacing-aware placement; the complete compatibility shell and Métis native/browser hosts remain unchanged.
 - Acceptance: the CLI selects the surface mode without boolean flags, reuses the physical-aspect placement contract, rejects the mode on incompatible hosts, and produces a real saved-study capture whose semantic surfaces match Metis's three-plane record; tests and manual provenance bind the exact revision.
-- lease: root crates/ritk-snap/src/launch.rs, crates/ritk-snap/src/app/eframe.rs, crates/ritk-snap/src/app/viewport.rs, crates/ritk-snap/src/launch/capture.rs, crates/ritk-snap-eframe/src/main.rs, docs/adr/0026-viewer-presentation-migration.md, backlog.md 2026-09-18T03:35:00Z
+- lease: root crates/ritk-snap/src/launch.rs, crates/ritk-snap/src/app/eframe.rs, crates/ritk-snap/src/app/viewport.rs, crates/ritk-snap/src/launch/capture.rs, crates/ritk-snap-eframe/src/main.rs, docs/adr/0026-viewer-presentation-migration.md, docs/manual/dicom-workflow.md, docs/manual/images/dicom-eframe-orthogonal-surface.png, docs/manual/images/dicom-eframe-orthogonal-surface-resource.json, backlog.md 2026-09-18T03:35:00Z
 
 <a id="RITK-SNAP-METIS-001"></a>
 ## RITK-SNAP-METIS-001 — Migrate the viewer shell to Métis [arch] [major]
