@@ -27,12 +27,15 @@ struct Args {
     /// Select the complete shell or a shell-free three-plane measurement surface.
     #[arg(long, value_enum, default_value_t = ritk_snap::CompatibilityPresentation::FullApplication)]
     presentation: ritk_snap::CompatibilityPresentation,
+    /// Set the eframe logical viewport as WIDTHxHEIGHT points.
+    #[arg(long = "viewport-size", default_value = "1280x800")]
+    viewport: ritk_snap::EframeViewport,
 }
 
 #[cfg(not(target_arch = "wasm32"))]
 fn main() -> anyhow::Result<()> {
     let args = Args::parse();
-    ritk_snap::run_eframe_app_with_presentation(
+    ritk_snap::run_eframe_app_with_viewport(
         ritk_snap::AppLaunchOptions {
             initial_path: args.initial_path,
             initial_series_uid: args.initial_series_uid,
@@ -42,6 +45,7 @@ fn main() -> anyhow::Result<()> {
             native_presentation_mode: ritk_snap::NativePresentationMode::Orthogonal,
         },
         args.presentation,
+        args.viewport,
     )
 }
 

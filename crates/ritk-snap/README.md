@@ -49,6 +49,11 @@ dedicated compatibility package:
 cargo run --locked -p ritk-snap-eframe -- path/to/study --capture window.png
 ```
 
+The compatibility binary accepts `--viewport-size WIDTHxHEIGHT` in logical
+points for controlled comparison captures. The physical PNG dimensions remain
+display-scale dependent and belong in the capture provenance; the default is
+`1280x800` logical points.
+
 The existing source-level capture harness can still select the complete shell
 with the feature explicitly enabled:
 

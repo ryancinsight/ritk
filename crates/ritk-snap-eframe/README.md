@@ -12,4 +12,7 @@ ritk-snap-eframe path/to/study
 ```
 
 The `--capture PNG` option runs the bounded eframe capture workflow for a
-startup study. DICOM decoding and viewer state remain in `ritk-snap`.
+startup study. `--viewport-size WIDTHxHEIGHT` selects logical points for a
+controlled comparison surface; the physical PNG size is recorded separately
+because display scaling belongs to the host. DICOM decoding and viewer state
+remain in `ritk-snap`.

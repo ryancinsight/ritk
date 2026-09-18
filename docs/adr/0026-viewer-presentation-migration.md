@@ -757,6 +757,14 @@ the Métis native/browser hosts, or the RITK ownership of DICOM geometry and
 pixels. A saved-study capture and semantic-surface provenance are required
 before the cross-framework resource comparison can use the record.
 
+Revision 2026-09-18 (matched host extent): the eframe fixture accepts a
+validated `WIDTHxHEIGHT` logical viewport through `--viewport-size`. The
+controlled 125% Windows host can therefore request `1024x640` logical points
+and produce the same 1280×800 physical extent as the Métis native capture;
+provenance records both values. The default eframe viewport and complete shell
+remain unchanged, and the option does not rescale rendered pixels after
+capture.
+
 
 Retaining egui indefinitely contradicts the requested framework target. Removing
 it before Métis can operate the viewer would lose behavior. Reimplementing DICOM
