@@ -563,7 +563,7 @@ trap restore_gate_lock EXIT INT TERM
 
 # Formatting is workspace-wide and near-instant, and its failure is the
 # cheapest one to find here rather than on a runner.
-if ! (cd "$gate_cwd" && cargo fmt $gate_manifest -- --check >/dev/null); then
+if ! (cd "$gate_cwd" && cargo fmt --all $gate_manifest -- --check >/dev/null); then
   cat >&2 <<'MESSAGE'
 
 pre-push: `cargo fmt --check` fails, so the architecture validation would.
