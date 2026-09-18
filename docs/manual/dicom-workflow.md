@@ -429,7 +429,7 @@ target\debug\ritk-snap-eframe.exe `
   test_data\2_head_mri_t2\DICOM `
   --presentation orthogonal-surface `
   --viewport-size 1024x640 `
-  --capture scratch\viewer\real-mri-eframe-orthogonal.png
+  --capture scratch\viewer\real-mri-eframe-matched.png
 ```
 
 The eframe viewport size is logical points. On the controlled Windows host,

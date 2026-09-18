@@ -8,8 +8,8 @@
     "sample_interval_ms": 100,
     "timeout_seconds": 60,
     "repeat_runs": 3,
-    "ritk_revision": "3439b158747f227c98f3388e06c2905cb33cc768",
-    "metis_revision": "ae5f80c8e2fe8c023d13514ffa6c48c84d3dc556",
+    "ritk_revision": "1f9053ba2dd8a6b77da83073261642019c66863a",
+    "metis_revision": "e634fe925d8edb18cea4399d43255fdaa2d444a5",
     "moirai_revision": "a2f21496d1d09b2abe6523e3c8cdbf751dcd560a",
     "measurement_tool_revision": "74788b5508f3c9e29e80b464702f9c648922004f"
   },
@@ -22,15 +22,15 @@
   },
   "output": {
     "image": "dicom-eframe-orthogonal-surface.png",
-    "width": 1600,
-    "height": 1000,
-    "bytes": 946477,
-    "sha256": "3b58942a769d7f2d458fe14ec16c2f59be4c394fe3c5db4eb59723cba6c9d726",
-    "non_black_pixels": 1446200,
-    "executable_sha256": "9c8dc791bf55aa67b258dc008c75624cf28fdfd101ddaeca3abd8b3792584249",
-    "executable_bytes": 52889600,
+    "width": 1280,
+    "height": 800,
+    "bytes": 663891,
+    "sha256": "2e47199cca0851f5ca2e3ce7b613cf70b096c3528bfc1eb705f64ced75485ba9",
+    "non_black_pixels": 927849,
+    "executable_sha256": "00201a7034c25f3a4bb67905f98d6630cacc983ca3501e89466dd370a87eaf47",
+    "executable_bytes": 52916736,
     "visual_scope": "shell-free eframe orthogonal surface; operating-system chrome excluded",
-    "capture_command": "ritk-snap-eframe.exe test_data\\2_head_mri_t2\\DICOM --presentation orthogonal-surface --capture scratch\\viewer\\real-mri-eframe-orthogonal.png",
+    "capture_command": "ritk-snap-eframe.exe test_data\\\\2_head_mri_t2\\\\DICOM --presentation orthogonal-surface --viewport-size 1024x640 --capture scratch\\\\viewer\\\\real-mri-eframe-matched.png",
     "semantic_surfaces": [
       "axial",
       "coronal",
@@ -41,49 +41,65 @@
       "coronal",
       "sagittal"
     ],
-    "layout": "three equal host panels using RITK ImagePlacement physical spacing"
+    "layout": "three equal host panels using RITK ImagePlacement physical spacing",
+    "viewport": {
+      "requested_logical_points": [
+        1024,
+        640
+      ],
+      "observed_physical_pixels": [
+        1280,
+        800
+      ],
+      "display_scale": 1.25,
+      "display_scale_source": "Observed physical/logical ratio on the controlled Windows host; the default 1280x800 logical fixture produces 1600x1000 physical pixels on the same host."
+    }
   },
   "resource": {
-    "capture_sha256": "3b58942a769d7f2d458fe14ec16c2f59be4c394fe3c5db4eb59723cba6c9d726",
+    "capture_sha256": "2e47199cca0851f5ca2e3ce7b613cf70b096c3528bfc1eb705f64ced75485ba9",
     "duration_ms": {
-      "mean": 2990.6666666666665,
-      "approximate_95_half_width": 1544.8075992102636,
-      "sample_stddev": 1365.1455355870792,
-      "count": 3
+      "approximate_95_half_width": 81.48614715261594,
+      "count": 3,
+      "mean": 2069.6666666666665,
+      "sample_stddev": 72.00925866396163
     },
     "startup_observation_ms": {
-      "mean": 763.0,
-      "approximate_95_half_width": 1485.6804309586007,
-      "sample_stddev": 1312.8948929750622,
-      "count": 3
+      "approximate_95_half_width": 2.9939494540378155,
+      "count": 3,
+      "mean": 4.0,
+      "sample_stddev": 2.6457513110645907
     },
     "peak_private_bytes": {
-      "mean": 427410773.3333333,
-      "approximate_95_half_width": 26382414.23258665,
-      "sample_stddev": 23314123.40671854,
-      "count": 3
+      "approximate_95_half_width": 24884220.218961097,
+      "count": 3,
+      "mean": 432313685.3333333,
+      "sample_stddev": 21990170.268353753
     },
     "peak_working_set_bytes": {
-      "mean": 350651733.3333333,
-      "approximate_95_half_width": 738362.8324762188,
-      "sample_stddev": 652490.7858516726,
-      "count": 3
+      "approximate_95_half_width": 8124166.050876722,
+      "count": 3,
+      "mean": 360280064.0,
+      "sample_stddev": 7179320.5965534095
     },
     "peak_handles": {
-      "mean": 514.0,
       "approximate_95_half_width": 0.0,
-      "sample_stddev": 0.0,
-      "count": 3
+      "count": 3,
+      "mean": 504.0,
+      "sample_stddev": 0.0
     },
-    "command_sha256": "f89b11660cefe5ae0ac2473b158b14f188a1c8da0cb0aeaea707c1b1553c4db8"
+    "command_sha256": "36477a3831cc344d6b72c5ccbc833717be745c99b3dc30d30eadc0af2576b329"
   },
   "bounds": {
-    "orderly_exit_codes": [0, 0, 0],
+    "orderly_exit_codes": [
+      0,
+      0,
+      0
+    ],
     "repeat_capture_sha256_match": true,
-    "repeat_capture_sha256": "3b58942a769d7f2d458fe14ec16c2f59be4c394fe3c5db4eb59723cba6c9d726"
+    "repeat_capture_sha256": "2e47199cca0851f5ca2e3ce7b613cf70b096c3528bfc1eb705f64ced75485ba9"
   },
   "comparison": {
-    "interpretation": "This is a real public MRI-DIR eframe/egui capture with the same axial, coronal and sagittal semantic surfaces as the Métis three-plane record. Its 1600x1000 host output is not numerically comparable with the 1280x800 Métis capture until a common surface size and host contract are selected. GPUI and Tauri fixtures remain open."
+    "interpretation": "This is a real public MRI-DIR eframe/egui capture with the same axial, coronal and sagittal semantic surfaces and the same 1280x800 physical host extent as the M\u00e9tis native capture. The eframe command requests 1024x640 logical points on the controlled 125% Windows host; no post-capture rescaling is used. GPUI and Tauri fixtures remain open."
   },
   "ownership": {
     "ritk": "DICOM discovery, series selection, decoding, geometry, physical placement and clinical presentation",

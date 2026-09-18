@@ -170,11 +170,9 @@
 
 <a id="RITK-SNAP-EFRAME-MATCH-001"></a>
 ## RITK-SNAP-EFRAME-MATCH-001 — Match the Métis capture extent [minor]
-- Status: in-progress; priority: P1; owner: RITK viewer; integrator: root; last-update: 2026-09-18; dependency: [Metis comparative evidence](../metis/backlog.md#METIS-PERF-001); risk: display-scale-dependent fixture.
-- Scope: add a validated eframe logical viewport option and regenerate the real MRI orthogonal-surface capture at the controlled host extent used by Métis; retain the existing default and semantic planes.
-- Non-goals: GPUI/Tauri implementation, framework ranking, or rescaling an already-rendered image.
-- Acceptance: parser/unit tests cover positive, zero, oversized and malformed sizes; the controlled 125% host produces a 1280×800 physical capture with axial/coronal/sagittal surfaces, repeated digest and provenance recording requested logical size plus observed display scale; manual and `METIS-PERF-001` link the record.
-- Risk/change class: `[minor]`; the additive CLI/API option is documented and the default remains 1280×800 logical points.
+- Status: review; priority: P1; owner: RITK viewer; integrator: root; last-update: 2026-09-18; delivery: commit `1f9053ba2dd8a6b77da83073261642019c66863a`; dependency: [Metis comparative evidence](../metis/backlog.md#METIS-PERF-001); risk: display-scale-dependent fixture.
+- Outcome: the validated `--viewport-size 1024x640` option renders the real 94-file MRI study at 1280×800 physical pixels on the controlled 125% Windows host without post-capture rescaling; the default 1280×800 logical viewport and semantic planes remain unchanged.
+- Evidence: three lifecycle repeats exit 0 with equal PNG SHA-256 `2e47199cca0851f5ca2e3ce7b613cf70b096c3528bfc1eb705f64ced75485ba9`, 1280×800 dimensions and 927,849 non-black pixels; provenance records requested logical points, observed physical pixels, display scale, resource samples and the executable hash; visual inspection confirms real axial, coronal and sagittal anatomy. GPUI/Tauri fixtures and ranking remain open.
 
 <a id="RITK-SNAP-METIS-001"></a>
 ## RITK-SNAP-METIS-001 — Migrate the viewer shell to Métis [arch] [major]
