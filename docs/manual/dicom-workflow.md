@@ -1428,7 +1428,8 @@ Safari 26.6.2 in the completed run `35395627386` accepted all 94 selected
 files but WebKit denied the first 529,864-byte browser read. The selected file
 returns `NotReadableError` from its original array-buffer, bounded slice
 array-buffer and FileReader reads; a bounded blob-URL stream returns
-`TypeError`. The [WebKit artifact](https://github.com/ryancinsight/ritk/actions/runs/35395627386/artifacts/10569845625)
+`TypeError`. The [WebKit artifact](https://github.com/ryancinsight/ritk/actions/runs/35395627386/artifacts/10569845625),
+[before-drop capture](images/dicom-metis-real-browser-mri-cross-engine-webkit-before-drop.png)
 and [failure capture](images/dicom-metis-real-browser-mri-cross-engine-webkit.png)
 record the probes, macOS sandbox log and clean WebDriver teardown. Host
 readability and the expected file digest are verified separately; this is a
