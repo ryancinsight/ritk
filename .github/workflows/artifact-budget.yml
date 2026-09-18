@@ -23,6 +23,8 @@ permissions:
 jobs:
   artifact-budget:
     name: Artifact budget
-    uses: ryancinsight/atlas/.github/workflows/artifact-budget.yml@be563eef5415e5a78b21a410b1b2d8eb566bab72
+    uses: ryancinsight/atlas/.github/workflows/artifact-budget.yml@d22a9895b5967b2ccdd76668a95e6fc3851c99a7
+    with:
+      atlas-ref: d22a9895b5967b2ccdd76668a95e6fc3851c99a7
     permissions:
       contents: read
