@@ -36,10 +36,9 @@
 
 <a id="RITK-BROWSER-TOOLS-001"></a>
 ## RITK-BROWSER-TOOLS-001 — Expose browser diagnostic tools [minor]
-- Status: in-progress; priority: P1; owner: RITK SNAP browser; integrator: root; last-update: 2026-09-18; dependencies: RITK-BROWSER-CINE-001; risk: browser tool state diverges from pointer semantics; lease: root `crates/ritk-snap/src/app/browser_tool.rs`, `browser_semantics.rs`, `browser_canvas.rs`, `web_viewer.rs`, `launch.rs`, `lib.rs`, `app/mod.rs`, `web/gallery/`, `scripts/browser_gallery*.py`, `.github/workflows/metis-browser-dicom.yml`, `Cargo.lock`, `docs/manual/dicom-workflow.md`, `backlog.md`.
-- Scope: publish the existing RITK tool contract through typed WASM selection and an accessible consumer-owned palette; Metis remains format-neutral and receives only trusted browser events.
-- Acceptance: bounded tool indices and names reject invalid input without mutation, all three canvases publish the same active tool, trusted keyboard/pointer gestures produce input-sensitive frame or measurement changes on the 94-file MRI study, and stop releases all listeners.
-- Demonstration: the DICOM manual records the palette, keyboard shortcuts, real-study trace and inspected controls capture.
+- Status: done; priority: P1; last-update: 2026-09-18.
+- Delivery: RITK PR [#475](https://github.com/ryancinsight/ritk/pull/475), merge `1050b7730d85b4b047062e4053817a6d46f962cd`.
+- Outcome: typed tool selection, accessible consumer palette, invalid-input rejection and listener teardown pass; the committed Edge record proves 11 trusted actions on the 94-file MRI study, seven invalid probes, three-plane generation changes and real PNG captures. Locked nextest 480/480, strict native/WASM Clippy, docs and format gates pass; hosted replay [35298831502](https://github.com/ryancinsight/ritk/actions/runs/35298831502) is dispatched against this merge and remains pending collection.
 
 <a id="RITK-GALLERY-CYCLES-001"></a>
 ## RITK-GALLERY-CYCLES-001 — Repeated saved-study browser lifecycle
