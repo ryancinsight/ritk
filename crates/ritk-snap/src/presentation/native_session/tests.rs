@@ -246,6 +246,60 @@ fn native_session_drag_updates_pan_and_presented_frame() {
 }
 
 #[test]
+fn native_session_window_level_drag_updates_the_presented_study() {
+    let (mut session, _root) = session();
+    session.app.active_tool = crate::tools::kind::ToolKind::WindowLevel;
+    let initial_frame = session.framebuffer.clone();
+    let initial_center = session
+        .app
+        .viewer_state
+        .window_center
+        .expect("loaded fixture supplies a window center");
+    let initial_width = session
+        .app
+        .viewer_state
+        .window_width
+        .expect("loaded fixture supplies a window width");
+    let (start_x, start_y) = session.viewports[0].center();
+
+    session
+        .handle_events(&[
+            WindowEvent::PointerDown {
+                x: start_x,
+                y: start_y,
+                button: metis_platform::native::MouseButton::Left,
+            },
+            WindowEvent::PointerMove {
+                x: start_x + 24,
+                y: start_y - 12,
+            },
+            WindowEvent::PointerUp {
+                x: start_x + 24,
+                y: start_y - 12,
+                button: metis_platform::native::MouseButton::Left,
+            },
+        ])
+        .expect("window-level transition");
+
+    assert_ne!(
+        session.app.viewer_state.window_center,
+        Some(initial_center),
+        "vertical drag changes the window center"
+    );
+    assert_ne!(
+        session.app.viewer_state.window_width,
+        Some(initial_width),
+        "horizontal drag changes the window width"
+    );
+    assert_ne!(
+        session.framebuffer.pixels(),
+        initial_frame.pixels(),
+        "window-level transition changes presented pixels"
+    );
+    assert!(session.app.tool_state.is_idle());
+}
+
+#[test]
 fn native_session_composes_three_views_and_routes_wheels_by_panel() {
     let (mut session, _root) = session();
     assert_eq!(session.views.len(), 3);
