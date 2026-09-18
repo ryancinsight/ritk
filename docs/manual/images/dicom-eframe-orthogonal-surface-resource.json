@@ -22,14 +22,14 @@
   },
   "output": {
     "image": "dicom-eframe-orthogonal-surface.png",
-    "width": 1280,
-    "height": 800,
-    "bytes": 663891,
-    "sha256": "2e47199cca0851f5ca2e3ce7b613cf70b096c3528bfc1eb705f64ced75485ba9",
-    "non_black_pixels": 927849,
+    "width": 640,
+    "height": 400,
+    "bytes": 100251,
+    "sha256": "e35fa396623dd75870097712e08e21fee3b430c361042716a5b45d13acd3485a",
+    "non_black_pixels": 233333,
     "executable_sha256": "00201a7034c25f3a4bb67905f98d6630cacc983ca3501e89466dd370a87eaf47",
     "executable_bytes": 52916736,
-    "visual_scope": "shell-free eframe orthogonal surface; operating-system chrome excluded",
+    "visual_scope": "shell-free eframe orthogonal surface; 640x400 manual figure downscaled from the 1280x800 physical capture; operating-system chrome excluded",
     "capture_command": "ritk-snap-eframe.exe test_data\\\\2_head_mri_t2\\\\DICOM --presentation orthogonal-surface --viewport-size 1024x640 --capture scratch\\\\viewer\\\\real-mri-eframe-matched.png",
     "semantic_surfaces": [
       "axial",
@@ -53,6 +53,13 @@
       ],
       "display_scale": 1.25,
       "display_scale_source": "Observed physical/logical ratio on the controlled Windows host; the default 1280x800 logical fixture produces 1600x1000 physical pixels on the same host."
+    },
+    "source_capture": {
+      "width": 1280,
+      "height": 800,
+      "bytes": 663891,
+      "sha256": "2e47199cca0851f5ca2e3ce7b613cf70b096c3528bfc1eb705f64ced75485ba9",
+      "non_black_pixels": 927849
     }
   },
   "resource": {
@@ -99,7 +106,7 @@
     "repeat_capture_sha256": "2e47199cca0851f5ca2e3ce7b613cf70b096c3528bfc1eb705f64ced75485ba9"
   },
   "comparison": {
-    "interpretation": "This is a real public MRI-DIR eframe/egui capture with the same axial, coronal and sagittal semantic surfaces and the same 1280x800 physical host extent as the M\u00e9tis native capture. The eframe command requests 1024x640 logical points on the controlled 125% Windows host; no post-capture rescaling is used. GPUI and Tauri fixtures remain open."
+    "interpretation": "This is a real public MRI-DIR eframe/egui capture with the same axial, coronal and sagittal semantic surfaces and the same 1280x800 physical host extent as the M\u00e9tis native capture. The committed 640x400 manual figure is a downscaled rendering of that capture for the tracked-artifact budget; source capture dimensions and digest remain recorded. The eframe command requests 1024x640 logical points on the controlled 125% Windows host; no post-capture rescaling is used in the application. GPUI and Tauri fixtures remain open."
   },
   "ownership": {
     "ritk": "DICOM discovery, series selection, decoding, geometry, physical placement and clinical presentation",

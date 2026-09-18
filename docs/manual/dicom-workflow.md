@@ -441,12 +441,14 @@ together, so a DPI-dependent fixture cannot be mistaken for a rescaled image.
 
 The reviewed capture below contains real saved MRI pixels in axial, coronal
 and sagittal panels. The three panels preserve voxel spacing when they fit the
-host rectangles; the shell-free mode does not add a series browser or MIP.
+host rectangles; the shell-free mode does not add a series browser or MIP. The
+committed manual figure is a 640×400 display of the 1280×800 source capture;
+the provenance retains the source dimensions and digest.
 
-![Actual MRI-DIR T2 planes rendered in the matched eframe surface](images/dicom-eframe-orthogonal-surface.png)
+![Actual MRI-DIR T2 planes rendered in the matched eframe surface (640×400 figure from a 1280×800 capture)](images/dicom-eframe-orthogonal-surface.png)
 
-Three bounded lifecycle repeats exited with code 0 and produced the same PNG
-digest. Dimensions, resource samples, source revisions and the exact semantic
+Three bounded lifecycle repeats exited with code 0 and produced the same source
+PNG digest. Dimensions, resource samples, source revisions and the exact semantic
 surface list are recorded in
 [`dicom-eframe-orthogonal-surface-resource.json`](images/dicom-eframe-orthogonal-surface-resource.json).
 The matched 1280×800 record is the eframe half of the common fixture for

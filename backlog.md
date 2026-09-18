@@ -151,28 +151,19 @@
 
 <a id="RITK-SNAP-EFRAME-MRI-001"></a>
 ## RITK-SNAP-EFRAME-MRI-001 — Record a real eframe MRI baseline [patch]
-- Status: done; priority: P1; delivery: commit `b4d30980f`; owner: RITK viewer documentation; integrator: root; last-update: 2026-09-18; dependency: [Metis performance fixtures](../metis/backlog.md#METIS-PERF-001).
-- Outcome: the manual embeds a revision-bound eframe/egui capture and resource report for the public 94-file MRI-DIR T2 study, with explicit comparison limits against the Métis surface.
-- Verification: three lifecycle repeats exited 0 with equal PNG digests; JSON image/executable hash, byte-count, dimension and non-black-pixel checks, lockfile, format and diff checks pass; visual inspection confirms the real series browser, three planes and GPU MIP; no framework ranking is claimed from unlike surfaces.
+- Status: done; delivery: commit `b4d30980f`; outcome: revision-bound real 94-file eframe MRI capture and resource report with explicit limits against Métis; verification: three equal lifecycle digests, JSON/hash/dimension/non-black checks, lock/format/diff gates and visual inspection pass; no framework ranking.
 
 <a id="RITK-SNAP-EVIDENCE-SURFACES-001"></a>
 ## RITK-SNAP-EVIDENCE-SURFACES-001 — Identify measured presentation surfaces [patch]
-- Status: done; priority: P1; delivery: [RITK PR #478](https://github.com/ryancinsight/ritk/pull/478), merge `261307f65`; last-update: 2026-09-18; dependency: [Metis performance fixtures](../metis/backlog.md#METIS-PERF-001); risk: invalid matched-resource comparisons.
-- Outcome: the revision-bound MRI provenance records expose producer-owned semantic surface identities so the comparison tool can reject unlike eframe and Métis captures before calculating resource deltas.
-- Verification: both records parse with explicit surface arrays matching the inspected images; existing image/executable/hash checks remain unchanged; manual and cross-repo performance item link the contract; lockfile, format and diff checks pass.
+- Status: done; delivery: [RITK PR #478](https://github.com/ryancinsight/ritk/pull/478), merge `261307f65`; outcome: provenance records expose producer-owned semantic surfaces and reject unlike eframe/Métis comparisons; verification: parsed surface arrays, image/hash checks, linked manual/performance contract, lock/format/diff gates.
 
 <a id="RITK-SNAP-EFRAME-SURFACE-001"></a>
 ## RITK-SNAP-EFRAME-SURFACE-001 — Capture a matched eframe orthogonal surface [minor]
-- Status: done; priority: P1; delivery: [RITK PR #480](https://github.com/ryancinsight/ritk/pull/480), merge `0fd885adc6124468aa745a2f548dd685b74f0774`; last-update: 2026-09-18; dependency: [Metis performance fixtures](../metis/backlog.md#METIS-PERF-001); risk: GPUI/Tauri fixtures remain unmeasured.
-- Scope: add an explicit eframe capture presentation that renders only the RITK axial, coronal and sagittal planes through the existing spacing-aware placement; the complete compatibility shell and Métis native/browser hosts remain unchanged.
-- Outcome: `ritk-snap-eframe --presentation orthogonal-surface` renders only real axial, coronal and sagittal MRI planes through the existing spacing-aware placement; the complete eframe shell and Métis hosts are unchanged.
-- Verification: commit `3439b1587`; feature-enabled nextest 858/858 plus the regression test for the post-load hanging-protocol gate, strict package Clippy, locked build, format and diff checks pass; three resource repeats exit 0 with equal 1600×1000 PNG digest `3b58942a769d7f2d458fe14ec16c2f59be4c394fe3c5db4eb59723cba6c9d726`; visual inspection confirms real saved-study anatomy and the provenance record binds the semantic surfaces.
+- Status: done; delivery: [RITK PR #480](https://github.com/ryancinsight/ritk/pull/480), merge `0fd885adc6124468aa745a2f548dd685b74f0774`; outcome: shell-free `orthogonal-surface` renders real spacing-aware axial/coronal/sagittal MRI planes; verification: nextest 858/858, strict Clippy, locked build, format/diff gates and three equal 1600×1000 repeats pass; GPUI/Tauri remain unmeasured.
 
 <a id="RITK-SNAP-EFRAME-MATCH-001"></a>
 ## RITK-SNAP-EFRAME-MATCH-001 — Match the Métis capture extent [minor]
-- Status: review; priority: P1; owner: RITK viewer; integrator: root; last-update: 2026-09-18; delivery: commit `1f9053ba2dd8a6b77da83073261642019c66863a`; dependency: [Metis comparative evidence](../metis/backlog.md#METIS-PERF-001); risk: display-scale-dependent fixture.
-- Outcome: the validated `--viewport-size 1024x640` option renders the real 94-file MRI study at 1280×800 physical pixels on the controlled 125% Windows host without post-capture rescaling; the default 1280×800 logical viewport and semantic planes remain unchanged.
-- Evidence: three lifecycle repeats exit 0 with equal PNG SHA-256 `2e47199cca0851f5ca2e3ce7b613cf70b096c3528bfc1eb705f64ced75485ba9`, 1280×800 dimensions and 927,849 non-black pixels; provenance records requested logical points, observed physical pixels, display scale, resource samples and the executable hash; visual inspection confirms real axial, coronal and sagittal anatomy. GPUI/Tauri fixtures and ranking remain open.
+- Status: review; delivery: RITK PR #487 (auto-merge queued), source `1f9053ba2dd8a6b77da83073261642019c66863a`; outcome/evidence: `--viewport-size 1024x640` yields a real 1280×800 physical MRI surface at 125%, three equal raw PNG digests (`2e47199cca0851f5ca2e3ce7b613cf70b096c3528bfc1eb705f64ced75485ba9`), 927,849 non-black pixels and recorded logical/physical/display-scale/resource hashes; visual planes are axial/coronal/sagittal; GPUI/Tauri remain open.
 
 <a id="RITK-SNAP-METIS-001"></a>
 ## RITK-SNAP-METIS-001 — Migrate the viewer shell to Métis [arch] [major]
