@@ -1871,6 +1871,15 @@ do not claim a visual capture. The validator never opens DICOM bytes or
 interprets pixels, so clinical and decoded-value oracles remain the RITK
 workflow tests above.
 
+When a trace requests optional presentation state, the validator accepts the
+complete window-level group (`data-ritk-window-center`,
+`data-ritk-window-width`, `data-ritk-window-preset-index`) and the complete
+interaction group (`data-ritk-cine-enabled`, `data-ritk-active-tool-index`,
+`data-ritk-active-tool`) in addition to the seven base values. Each group is
+validated atomically; a partial group or unknown attribute is rejected. This
+keeps the workflow's cine, window/level and tool captures semantic without
+making the generic host interpret DICOM data.
+
 ### Require trusted keyboard focus evidence
 
 When the Metis trace was captured with `--keyboard-trace`, require the explicit

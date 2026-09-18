@@ -41,6 +41,11 @@ const WINDOW_LEVEL_ATTRIBUTES: [&str; 3] = [
     "data-ritk-window-width",
     "data-ritk-window-preset-index",
 ];
+const INTERACTION_ATTRIBUTES: [&str; 3] = [
+    "data-ritk-cine-enabled",
+    "data-ritk-active-tool-index",
+    "data-ritk-active-tool",
+];
 const DEFAULT_CANVAS_IDS: [&str; 3] =
     ["ritk-snap-axial", "ritk-snap-coronal", "ritk-snap-sagittal"];
 
@@ -710,11 +715,11 @@ fn validate_snapshot(
             bail!("canvas {canvas_id:?} reports a zero frame generation")
         }
     }
-    if WINDOW_LEVEL_ATTRIBUTES
-        .iter()
-        .all(|name| snapshot.canvas.attributes.contains_key(*name))
-    {
+    if has_attribute_group(&snapshot.canvas, &WINDOW_LEVEL_ATTRIBUTES) {
         validate_window_level_attributes(snapshot, canvas_id)?;
+    }
+    if has_attribute_group(&snapshot.canvas, &INTERACTION_ATTRIBUTES) {
+        validate_interaction_attributes(snapshot, canvas_id)?;
     }
 
     if !matches!(load_state, "empty" | "ready") {
@@ -758,12 +763,46 @@ fn validate_snapshot(
 fn attribute_names_match(actual: &[String], expected: &[&str]) -> bool {
     let actual = actual.iter().map(String::as_str).collect::<BTreeSet<_>>();
     let required = expected.iter().copied().collect::<BTreeSet<_>>();
-    if actual == required {
-        return true;
+    if !actual.is_superset(&required) {
+        return false;
     }
-    let mut extended = required.clone();
-    extended.extend(WINDOW_LEVEL_ATTRIBUTES);
-    actual == extended
+    let extension = actual
+        .difference(&required)
+        .copied()
+        .collect::<BTreeSet<_>>();
+    [&WINDOW_LEVEL_ATTRIBUTES[..], &INTERACTION_ATTRIBUTES[..]]
+        .into_iter()
+        .all(|group| {
+            let group = group.iter().copied().collect::<BTreeSet<_>>();
+            extension.is_disjoint(&group) || extension.is_superset(&group)
+        })
+        && extension.is_subset(
+            &WINDOW_LEVEL_ATTRIBUTES
+                .iter()
+                .chain(INTERACTION_ATTRIBUTES.iter())
+                .copied()
+                .collect::<BTreeSet<_>>(),
+        )
+}
+
+fn has_attribute_group(canvas: &TraceCanvas, group: &[&str]) -> bool {
+    group
+        .iter()
+        .any(|name| canvas.attributes.contains_key(*name))
+}
+
+fn validate_interaction_attributes(snapshot: &TraceSnapshot, canvas_id: &str) -> Result<()> {
+    let cine_enabled = attribute(&snapshot.canvas, INTERACTION_ATTRIBUTES[0], canvas_id)?;
+    if !matches!(cine_enabled, "true" | "false") {
+        bail!("canvas {canvas_id:?} has an invalid cine-enabled value {cine_enabled:?}")
+    }
+    let _: u64 = parse_attribute(
+        attribute(&snapshot.canvas, INTERACTION_ATTRIBUTES[1], canvas_id)?,
+        "active tool index",
+        canvas_id,
+    )?;
+    attribute(&snapshot.canvas, INTERACTION_ATTRIBUTES[2], canvas_id)?;
+    Ok(())
 }
 
 fn validate_window_level_attributes(snapshot: &TraceSnapshot, canvas_id: &str) -> Result<()> {

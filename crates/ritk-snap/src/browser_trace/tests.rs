@@ -261,17 +261,32 @@ fn add_window_level_attributes(value: &mut Value) {
         attributes.insert("data-ritk-window-width".to_owned(), json!("100"));
         attributes.insert("data-ritk-window-preset-index".to_owned(), json!("0"));
     }
-    value["cleanup"]["canvas_attribute_names"] = json!([
-        "data-ritk-load-state",
-        "data-ritk-frame-state",
-        "data-ritk-axis",
-        "data-ritk-slice-index",
-        "data-ritk-slice-count",
-        "data-ritk-frame-width",
-        "data-ritk-frame-height",
-        "data-ritk-window-center",
-        "data-ritk-window-width",
-        "data-ritk-window-preset-index"
+    let cleanup = value["cleanup"]["canvas_attribute_names"]
+        .as_array_mut()
+        .expect("cleanup attribute names");
+    cleanup.extend([
+        json!("data-ritk-window-center"),
+        json!("data-ritk-window-width"),
+        json!("data-ritk-window-preset-index"),
+    ]);
+}
+
+fn add_interaction_attributes(value: &mut Value) {
+    for snapshot in value["snapshots"].as_array_mut().expect("snapshots array") {
+        let attributes = snapshot["canvas"]["attributes"]
+            .as_object_mut()
+            .expect("attribute object");
+        attributes.insert("data-ritk-cine-enabled".to_owned(), json!("false"));
+        attributes.insert("data-ritk-active-tool-index".to_owned(), json!("2"));
+        attributes.insert("data-ritk-active-tool".to_owned(), json!("W/L"));
+    }
+    let cleanup = value["cleanup"]["canvas_attribute_names"]
+        .as_array_mut()
+        .expect("cleanup attribute names");
+    cleanup.extend([
+        json!("data-ritk-cine-enabled"),
+        json!("data-ritk-active-tool-index"),
+        json!("data-ritk-active-tool"),
     ]);
 }
 
@@ -354,6 +369,41 @@ fn complete_window_level_attribute_extension_passes() {
 }
 
 #[test]
+fn complete_interaction_attribute_extension_passes() {
+    let mut value = fixture_value(&default_ids());
+    add_interaction_attributes(&mut value);
+    let document: TraceDocument = serde_json::from_value(value).expect("interaction fixture shape");
+    validate_document(&document, &default_ids(), TraceInputMode::PointerWheel)
+        .expect("complete interaction attribute extension is valid");
+}
+
+#[test]
+fn complete_window_and_interaction_extensions_pass_together() {
+    let mut value = fixture_value(&default_ids());
+    add_window_level_attributes(&mut value);
+    add_interaction_attributes(&mut value);
+    let document: TraceDocument = serde_json::from_value(value).expect("combined fixture shape");
+    validate_document(&document, &default_ids(), TraceInputMode::PointerWheel)
+        .expect("combined attribute extensions are valid");
+}
+
+#[test]
+fn cine_rate_accepts_window_and_interaction_extensions() {
+    let ids = default_ids();
+    let mut value = cine_rate_fixture_value(&ids);
+    add_window_level_attributes(&mut value);
+    add_interaction_attributes(&mut value);
+    let document: TraceDocument =
+        serde_json::from_value(value).expect("combined cine fixture shape");
+    validate_document(
+        &document,
+        &ids,
+        TraceInputMode::PointerWheelKeyboard(KeyboardTraceKind::CineRate),
+    )
+    .expect("combined cine attributes are valid");
+}
+
+#[test]
 fn window_level_attribute_extension_rejects_partial_or_unknown_sets() {
     let mut partial = fixture_value(&default_ids());
     add_window_level_attributes(&mut partial);
@@ -367,6 +417,14 @@ fn window_level_attribute_extension_rejects_partial_or_unknown_sets() {
     add_window_level_attributes(&mut unknown);
     unknown["snapshots"][0]["canvas"]["attributes"]["data-ritk-window-extra"] = json!("1");
     reject(unknown, "complete RITK attribute set");
+
+    let mut partial_interaction = fixture_value(&default_ids());
+    add_interaction_attributes(&mut partial_interaction);
+    partial_interaction["snapshots"][0]["canvas"]["attributes"]
+        .as_object_mut()
+        .expect("attribute object")
+        .remove("data-ritk-active-tool");
+    reject(partial_interaction, "complete RITK attribute set");
 }
 
 #[test]
@@ -389,6 +447,32 @@ fn window_level_values_are_finite_positive_and_indexed() {
         invalid["snapshots"][0]["canvas"]["attributes"][name] = json!(value);
         reject(invalid, message);
     }
+}
+
+#[test]
+fn interaction_attribute_values_are_validated() {
+    for (name, value, message) in [
+        (
+            "data-ritk-cine-enabled",
+            "enabled",
+            "invalid cine-enabled value",
+        ),
+        (
+            "data-ritk-active-tool-index",
+            "tool",
+            "invalid active tool index value",
+        ),
+    ] {
+        let mut invalid = fixture_value(&default_ids());
+        add_interaction_attributes(&mut invalid);
+        invalid["snapshots"][0]["canvas"]["attributes"][name] = json!(value);
+        reject(invalid, message);
+    }
+
+    let mut invalid = fixture_value(&default_ids());
+    add_interaction_attributes(&mut invalid);
+    invalid["snapshots"][0]["canvas"]["attributes"]["data-ritk-active-tool"] = json!("");
+    reject(invalid, "empty attribute");
 }
 
 #[test]
