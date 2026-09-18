@@ -93,6 +93,7 @@ impl BrowserCanvas {
         let (width, height) = semantics.frame_dimensions_or_zero();
         let width = width.to_string();
         let height = height.to_string();
+        let cine_enabled = semantics.cine_enabled_value();
         let cine_fps = semantics.cine_fps_value();
         let window_center = semantics.window_center_value();
         let window_width = semantics.window_width_value();
@@ -110,6 +111,8 @@ impl BrowserCanvas {
             .set_attribute("data-ritk-frame-width", &width)?;
         self.element
             .set_attribute("data-ritk-frame-height", &height)?;
+        self.element
+            .set_attribute("data-ritk-cine-enabled", cine_enabled)?;
         self.element
             .set_attribute("data-ritk-cine-fps", &cine_fps)?;
         self.element

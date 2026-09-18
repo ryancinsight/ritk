@@ -15,7 +15,7 @@ pub(crate) enum BrowserLoadState {
 ///
 /// The state contains only viewer evidence needed by a browser driver: load
 /// state, axis and slice selection, the dimensions of the presented frame,
-/// the active cine rate and the effective window/level display values.
+/// cine playback state and rate, and the effective window/level display values.
 /// It deliberately excludes paths, identifiers, metadata and pixel values.
 #[derive(Debug, Clone, Copy, PartialEq)]
 pub(crate) struct BrowserCanvasSemantics {
@@ -29,6 +29,8 @@ pub(crate) struct BrowserCanvasSemantics {
     pub(crate) slice_count: usize,
     /// Presented frame dimensions, when a frame is available.
     pub(crate) frame_dimensions: Option<(u32, u32)>,
+    /// Whether cine playback is enabled for the loaded study.
+    pub(crate) cine_enabled: bool,
     /// Active cine playback rate in frames per second.
     pub(crate) cine_fps: f32,
     /// Effective window centre used for presentation.
@@ -48,6 +50,7 @@ impl BrowserCanvasSemantics {
         slice_index: usize,
         slice_count: usize,
         frame: Option<&PresentationFrame>,
+        cine_enabled: bool,
         cine_fps: f32,
         window_center: f32,
         window_width: f32,
@@ -69,6 +72,7 @@ impl BrowserCanvasSemantics {
             slice_index,
             slice_count,
             frame_dimensions: frame.map(|frame| (frame.width(), frame.height())),
+            cine_enabled,
             cine_fps,
             window_center,
             window_width,
@@ -80,6 +84,16 @@ impl BrowserCanvasSemantics {
     #[must_use]
     pub(crate) fn cine_fps_value(self) -> String {
         self.cine_fps.to_string()
+    }
+
+    /// Returns the stable DOM value for whether cine playback is enabled.
+    #[must_use]
+    pub(crate) const fn cine_enabled_value(self) -> &'static str {
+        if self.cine_enabled {
+            "true"
+        } else {
+            "false"
+        }
     }
 
     /// Returns the stable DOM value for the effective window centre.

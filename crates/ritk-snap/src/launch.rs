@@ -334,6 +334,38 @@ pub fn select_web_slice(axis: f64, index: f64) -> Result<(), wasm_bindgen::JsVal
         .map_err(|error| wasm_bindgen::JsValue::from_str(&error.to_string()))
 }
 
+/// Toggle host-neutral cine playback for the loaded browser study.
+///
+/// The next browser animation frame establishes the timing anchor and
+/// republishes `data-ritk-cine-enabled` on every RITK canvas.
+///
+/// # Errors
+///
+/// Returns a JavaScript error when the viewer is not mounted, another browser
+/// callback owns it, or no study has been loaded.
+#[cfg(target_arch = "wasm32")]
+#[wasm_bindgen::prelude::wasm_bindgen]
+pub fn toggle_web_cine() -> Result<bool, wasm_bindgen::JsValue> {
+    crate::app::toggle_web_cine()
+        .map_err(|error| wasm_bindgen::JsValue::from_str(&error.to_string()))
+}
+
+/// Set the exact bounded cine playback rate for the loaded browser study.
+///
+/// `rate` must be a finite integral value from 1 through 60 frames per
+/// second. Invalid values are rejected before viewer state changes.
+///
+/// # Errors
+///
+/// Returns a JavaScript error when the value is invalid, the viewer is not
+/// mounted, another browser callback owns it, or no study has been loaded.
+#[cfg(target_arch = "wasm32")]
+#[wasm_bindgen::prelude::wasm_bindgen]
+pub fn set_web_cine_rate(rate: f64) -> Result<bool, wasm_bindgen::JsValue> {
+    crate::app::set_web_cine_rate(rate)
+        .map_err(|error| wasm_bindgen::JsValue::from_str(&error.to_string()))
+}
+
 /// Apply one exact loaded-modality window/level preset to every browser view.
 ///
 /// The index is validated as a finite non-negative integer against the table

@@ -11,6 +11,12 @@
 .presentation-controls { display: grid; grid-template-columns: max-content minmax(14rem, 24rem) 1fr; gap: 10px 12px; align-items: center; margin: 0 0 20px; }
 .presentation-controls select { min-height: 2.25rem; padding: 4px 8px; }
 .presentation-controls output { font-variant-numeric: tabular-nums; color: #444; }
+.cine-controls { display: grid; grid-template-columns: max-content max-content minmax(14rem, 24rem) max-content; gap: 10px 12px; align-items: center; margin: 0 0 20px; }
+.cine-controls button { min-height: 2.25rem; padding: 4px 14px; cursor: pointer; }
+.cine-controls button:disabled { cursor: default; }
+.cine-controls input[type="range"] { width: 100%; cursor: pointer; }
+.cine-controls input[type="range"]:disabled { cursor: default; }
+.cine-controls output { font-variant-numeric: tabular-nums; color: #444; }
 .gallery-views { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 20px; }
 .gallery-views figure { margin: 0; min-width: 0; }
 .gallery-views figcaption { margin-bottom: 8px; font-weight: 600; }
@@ -22,5 +28,6 @@
 @media (max-width: 700px) {
   .gallery { padding: 16px; }
   .presentation-controls { grid-template-columns: 1fr; }
+  .cine-controls { grid-template-columns: 1fr; }
   .gallery-views { grid-template-columns: 1fr; }
 }

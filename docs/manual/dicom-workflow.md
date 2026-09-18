@@ -1093,6 +1093,16 @@ The axial range follows the acquired slices; coronal and sagittal ranges follow
 the corresponding volume dimensions. The controls reflect wheel navigation and
 cine playback through RITK's published slice state.
 
+The gallery also exposes consumer-owned **Play**, **Pause**, and **Cine rate**
+controls. They stay disabled until all three canvases present a loaded study.
+RITK publishes `data-ritk-cine-enabled` and `data-ritk-cine-fps` on every
+canvas; the Play button starts the host-neutral animation clock, and the range
+input accepts only integer rates from 1 through 60 FPS. The typed WASM setter
+rejects non-finite, fractional, and out-of-range values before viewer state or
+rendered frames change. Pausing stops slice advancement while retaining the
+current frame, and stopping the gallery disables both controls and releases
+the RITK canvas listeners.
+
 The same 94-file MRI-DIR T2 study was replayed through Métis's bounded browser
 runner against Microsoft Edge 154.0.4258.12 in headless mode, isolating the final
 capture from desktop input. The WebDriver session selected the
@@ -1172,13 +1182,13 @@ frame is presented, so the control remains keyboard accessible throughout the
 load and stop lifecycle. The CI canvas trace records the three window
 attributes alongside the existing load, frame, slice and aspect semantics.
 
-Run the consumer-owned replay with `--window-presets` in addition to the
-standard chooser arguments:
+Run the consumer-owned replay with `--window-presets --cine-controls` in
+addition to the standard chooser arguments:
 
 ```powershell
 python scripts/browser_gallery.py --metis-root D:/atlas/repos/metis `
   --engine chromium --browser-name MicrosoftEdge --driver-url http://127.0.0.1:9517 `
-  --headless --device-scale 1.25 --input chooser --window-presets `
+  --headless --device-scale 1.25 --input chooser --window-presets --cine-controls `
   --files D:/atlas/repos/ritk/test_data/2_head_mri_t2/DICOM --pattern '*.dcm' `
   --oracle D:/atlas/repos/metis/output/browser/mri-oracle.json `
   --consumer-revision (git rev-parse HEAD) --output D:/atlas/repos/metis/output/browser/window-level
@@ -1209,6 +1219,18 @@ PNG of the display-control row. Its semantic and RGBA records are the visual
 acceptance oracle. The committed workflow passes `--window-presets` to every
 single-cycle job; this Chromium raster job is the image and control evidence,
 while WebGPU and WebKit remain separate host-capability probes.
+
+With `--cine-controls`, the same single-cycle replay additionally writes
+`cine/gallery-cine.json`, `cine/gallery-cine.png`, and
+`cine/gallery-cine-controls.png`. The trace records the real saved-study
+canvas generations and enabled state before and after Play, the exact 24-FPS
+range selection, the paused stable state, seven malformed-rate rejection
+probes, trusted button/range events, and `window.metisGallery.sample()` before
+and after stop.
+The post-stop sample must report zero RITK canvas listeners and both controls
+disabled. The workflow passes this flag to every single-cycle engine job;
+WebGPU and WebKit remain host-capability probes when their rendering or file
+access differs from the raster Chromium evidence.
 
 Reproduce the file-backed run from the Métis checkout with an Edge WebDriver
 already listening on port 9517:
