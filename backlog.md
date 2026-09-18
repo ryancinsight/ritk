@@ -161,6 +161,13 @@
 - Outcome: the revision-bound MRI provenance records expose producer-owned semantic surface identities so the comparison tool can reject unlike eframe and Métis captures before calculating resource deltas.
 - Verification: both records parse with explicit surface arrays matching the inspected images; existing image/executable/hash checks remain unchanged; manual and cross-repo performance item link the contract; lockfile, format and diff checks pass.
 
+<a id="RITK-SNAP-EFRAME-SURFACE-001"></a>
+## RITK-SNAP-EFRAME-SURFACE-001 — Capture a matched eframe orthogonal surface [minor]
+- Status: in-progress; priority: P1; owner: RITK compatibility shell; integrator: root; last-update: 2026-09-18; dependency: [Metis performance fixtures](../metis/backlog.md#METIS-PERF-001); risk: unlike presentation surfaces.
+- Scope: add an explicit eframe capture presentation that renders only the RITK axial, coronal and sagittal planes through the existing spacing-aware placement; the complete compatibility shell and Métis native/browser hosts remain unchanged.
+- Acceptance: the CLI selects the surface mode without boolean flags, reuses the physical-aspect placement contract, rejects the mode on incompatible hosts, and produces a real saved-study capture whose semantic surfaces match Metis's three-plane record; tests and manual provenance bind the exact revision.
+- lease: root crates/ritk-snap/src/launch.rs, crates/ritk-snap/src/app/eframe.rs, crates/ritk-snap/src/app/viewport.rs, crates/ritk-snap/src/launch/capture.rs, crates/ritk-snap-eframe/src/main.rs, docs/adr/0026-viewer-presentation-migration.md, backlog.md 2026-09-18T03:35:00Z
+
 <a id="RITK-SNAP-METIS-001"></a>
 ## RITK-SNAP-METIS-001 — Migrate the viewer shell to Métis [arch] [major]
 - Status: done; priority: P1; owner: RITK viewer + Métis framework; integrator: root; last-update: 2026-09-17; delivery: RITK PR #443 (merge `57e11c92c080dc9c8716f9218d55c1344a75b412`) and PR #444 (merge `5a68a8e725280a3a94387dd4c9f01524201fdb8f`).
