@@ -192,6 +192,13 @@
 - Outcome: standalone lock and viewer workflows resolve Metis `47193af81491d3b2e5e236f8fe69dba85e42ded4` and retain Moirai `a2f21496d1d09b2abe6523e3c8cdbf751dcd560a`; native-only rendering imports are scoped away from WASM, and the 94-file saved-study replay reproduces the committed MRI frame and rejects an invalid study.
 - Verification: lockfile, fmt, native strict Clippy, locked `ritk-snap` nextest 473/473, WASM check/Clippy, eframe check/Clippy, replay image SHA/dimensions/non-black count, and `git diff --check` pass; local pre-push gate passed.
 
+<a id="RITK-METIS-LOCK-004"></a>
+## RITK-METIS-LOCK-004 — Advance the landed Metis asset pin [patch]
+- Status: in-progress; priority: P1; owner: RITK viewer integration; integrator: root; last-update: 2026-09-18; dependency: Metis PR #239 merge `619832d15ac18a188ce6f79a0d810fcab7315891`.
+- Outcome: standalone `Cargo.lock` resolves every Metis package to `619832d15ac18a188ce6f79a0d810fcab7315891`; the saved 94-file MRI replay remains byte-identical and its provenance records the landed source.
+- Acceptance: lockfile parser, native/WASM viewer gates, real-study replay and PNG hash/dimension/non-black checks pass; no DICOM implementation or format-specific host code changes.
+- lease: root `Cargo.lock`, `docs/manual/images/dicom-metis-real-mri.json`, `docs/manual/dicom-workflow.md`, `backlog.md` 2026-09-18T02:20:00-04:00
+
 <a id="RITK-DOCS-EVIDENCE-SYNC-001"></a>
 ## RITK-DOCS-EVIDENCE-SYNC-001 — Sync current provider revisions in replay docs [patch]
 - Status: done; delivery: [RITK PR #451](https://github.com/ryancinsight/ritk/pull/451), merge `198fc38bfa1d144f8c95fe66127a96d65c562172`; last-update: 2026-09-17.
