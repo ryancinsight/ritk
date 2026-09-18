@@ -16,7 +16,7 @@ decoded-workspace budgets, and return the RITK `Image` plus
 boundary; the host owns only input and presentation lifecycle.
 
 The current standalone lock used by the viewer resolves the six Metis packages
-to `a563f4517d2ef74f6b50707687f7f28d341ac111` and Moirai packages to
+to `8f33126f23b8dc327bea45c4fe513a6b60b73c99` and Moirai packages to
 `a2f21496d1d09b2abe6523e3c8cdbf751dcd560a`. The browser chooser and Windows
 package workflows use these provider pins. Historical hosted captures retain
 the provider revisions recorded in their own provenance files. RITK continues
@@ -867,16 +867,16 @@ executable digests, lock resolution and command are recorded in the
 
 A current standalone-lock recheck on 2026-09-18 built the native viewer
 outside the Atlas development overlay at RITK source
-`3ac246728d34a06d9998c21951dc76ad961c8efb`, Metis
-`a563f4517d2ef74f6b50707687f7f28d341ac111` and Moirai
+`64b9825c95ccede45477e67051062a30d03088c6`, Metis
+`8f33126f23b8dc327bea45c4fe513a6b60b73c99` and Moirai
 `a2f21496d1d09b2abe6523e3c8cdbf751dcd560a`. The command
 `ritk-snap.exe test_data/2_head_mri_t2/DICOM --metis-native
---capture-application --capture scratch/viewer/recheck-real-mri-application.png`
+--capture-application --capture scratch/viewer/recheck-real-mri-metis-text.png`
 read all 94 files and exited 0. It reproduced the committed 1280 × 800
 frame byte-for-byte (`259dd79103482756c4e688621bebafc841cc40f1df10ff2bbd7f9d04b7b4d401`,
 411,589 non-black pixels). The executable digest
-`a550bc5b37632d721f1edd4723a8481e114ec638660359923ede29bb51e21275` and
-lock digest `0dddb6ad5e1b5d0ec9b7d85a4d4840950ef8616e7ac5b65dceaea1e3efb9f712`
+`7ba2bc42222167dafef1e54d4a3e0509c6d0309e76a1c548b9f1ba726cc3eeb1` and
+lock digest `9ba2cf9ec135af749cb4399a6b8a9e6f2a12700ca449b23ab4b41cb0ee080d61`
 are recorded in the [current replay evidence](images/dicom-metis-real-mri.json).
 The capture excludes operating-system chrome and remains a visual-content
 check; native IME, accessibility and cross-platform host evidence are separate

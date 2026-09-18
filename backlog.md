@@ -4,10 +4,12 @@ Unresolved delivery items are kept as executable records. Closed history is inde
 
 <a id="RITK-METIS-LOCK-007"></a>
 ## RITK-METIS-LOCK-007 — Advance the current Metis text provider pin [patch]
-- Status: in-progress; priority: P1; owner: RITK viewer + integration; integrator: root; last-update: 2026-09-18.
+- Status: review; priority: P1; owner: RITK viewer + integration; integrator: root; last-update: 2026-09-18.
 - Scope: advance the six Metis package sources from `a563f4517d2ef74f6b50707687f7f28d341ac111` to merged Metis `8f33126f23b8dc327bea45c4fe513a6b60b73c99`, then replay the real MRI surface and rebind the standalone provenance.
 - Acceptance: standalone `Cargo.lock` resolves with 61 first-party sources; locked `ritk-snap` tests, native/WASM checks and strict Clippy pass; the 1280×800 real MRI PNG remains byte-identical; docs name the exact lock digest and provider revisions.
 - Dependency: Metis PR #253 merged with hosted Windows/artifact gates; DICOM parsing and clinical presentation remain RITK-owned.
+- Delivery: lock commit `64b9825c95ccede45477e67051062a30d03088c6`; six Metis sources resolve at `8f33126f23b8dc327bea45c4fe513a6b60b73c99`; standalone lock SHA-256 `9ba2cf9ec135af749cb4399a6b8a9e6f2a12700ca449b23ab4b41cb0ee080d61`.
+- Evidence: rebuilt `ritk-snap` exits 0 on the 94-file public MRI-DIR study; PNG SHA `259dd79103482756c4e688621bebafc841cc40f1df10ff2bbd7f9d04b7b4d401`, 1280×800, 411,589 non-black pixels; executable SHA `7ba2bc42222167dafef1e54d4a3e0509c6d0309e76a1c548b9f1ba726cc3eeb1` (25,973,760 bytes). Full gates remain to be collected on this branch.
 
 <a id="RITK-BROWSER-READ-001"></a>
 ## RITK-BROWSER-READ-001 — Reproduce and close WebKit study reads
