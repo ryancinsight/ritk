@@ -16,8 +16,8 @@ decoded-workspace budgets, and return the RITK `Image` plus
 boundary; the host owns only input and presentation lifecycle.
 
 The current standalone lock used by the viewer resolves the six Metis packages
-to `5e892245ac52c6455bbb57244fa654e6eb3cc9c1` and fifteen Moirai packages to
-`ae282117fd962f4b7c66d722aad9d3c2906320bb`. The browser chooser and Windows
+to `82bb3af7bb1695b43767caf9cf1012273e58613d` and fifteen Moirai packages to
+`5075d4c70ba4f840d4c5a47b67c5d564405badf5`. The browser chooser and Windows
 package workflows use these provider pins. Historical hosted captures retain
 the provider revisions recorded in their own provenance files. RITK continues
 to own DICOM scanning, decoding, geometry and clinical presentation.
@@ -62,8 +62,8 @@ scanning, decoding, geometry, and clinical presentation; Métis owns the bounded
 host, canvas, and window lifecycle.
 
 The current standalone lock pins the browser canvas provider to Moirai main
-`ae282117fd962f4b7c66d722aad9d3c2906320bb` and the six Metis packages to
-`5e892245ac52c6455bbb57244fa654e6eb3cc9c1`. Repeated RGBA frames with the
+`5075d4c70ba4f840d4c5a47b67c5d564405badf5` and the six Metis packages to
+`82bb3af7bb1695b43767caf9cf1012273e58613d`. Repeated RGBA frames with the
 current extent retain the validated bitmap; a changed width or height takes
 the bounded resize path. This keeps the browser presentation lifecycle stable
 without changing DICOM decoding or the displayed pixels. It is an allocation
@@ -865,7 +865,7 @@ consumer `88c60a0b` and Moirai `95275651`. It exited 0 after reading all 94
 files, rejected the invalid-study probe with exit 1, and reproduced the same
 411,589-pixel image; that historical executable digest and command remain in
 the [provenance record](images/dicom-metis-real-mri.json).
-A current standalone-lock replay on 2026-09-18 built the native viewer
+The recorded standalone-lock replay on 2026-09-18 built the native viewer
 outside the Atlas development overlay at RITK source
 `8f8516065f6ab9405852d96885f54291d5e24a48`, Metis
 `5e892245ac52c6455bbb57244fa654e6eb3cc9c1` and Moirai
@@ -884,6 +884,19 @@ The capture excludes operating-system chrome and remains a visual-content
 check; native IME, accessibility and cross-platform host evidence are separate
 gates. Replace the path with a private clinical study only for a local run;
 private studies must not be committed or uploaded.
+
+A fresh provider-lock replay on 2026-09-18 rebuilt the native viewer from RITK
+source `bf2526e90055bb8e6efbaa36d0f084baab2689da` with lock commit
+`b3ce7d6d1`, Metis `82bb3af7bb1695b43767caf9cf1012273e58613d` and Moirai
+`5075d4c70ba4f840d4c5a47b67c5d564405badf5`. The same command read all 94
+files, exited 0, rejected the invalid-study probe with exit 1, and reproduced
+the committed image byte-for-byte (`259dd79103482756c4e688621bebafc841cc40f1df10ff2bbd7f9d04b7b4d401`,
+411,589 non-black pixels). The rebuilt executable is
+`8a7ff0d40c119e19150f9ed9b643868eebff6d2865b6d3130e4a1014a3b7f995`
+(53,939,200 bytes), and the standalone lock digest is
+`3d06450ca51cdf42d4f0806b85f7589575ca753c92ad5ca74eff19dd592dee7e`.
+This replay is tied to the updated provider lock; earlier provenance records
+remain historical records for the revisions that generated them.
 
 ### Run the saved-study visual smoke
 

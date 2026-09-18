@@ -4,10 +4,17 @@ Unresolved delivery items are kept as executable records. Closed history is inde
 
 <a id="RITK-SNAP-METIS-NATIVE-WL-001"></a>
 ## RITK-SNAP-METIS-NATIVE-WL-001 — Demonstrate native window/level interaction [minor]
-- Status: review; priority: P1; owner: RITK viewer + Métis presentation; integrator: root; last-update: 2026-09-18.
-- Scope: exercise the existing RITK window/level drag through the native Métis event path and document the value-semantic frame transition; DICOM loading and presentation ownership stay in RITK, while Métis remains the host/event/frame boundary.
-- Acceptance: a native-session test starts from a loaded DICOM fixture, performs a bounded W/L drag, asserts changed center/width and rendered pixels, and verifies the gesture ends idle; the user manual names the gesture and links the test. No new parser or host-specific W/L implementation.
-- Dependencies: existing `NativeViewerSession`, `SnapApp` W/L tool state, and the real saved-study captures; risk: input-to-image coordinate mapping.
+- Status: done; delivery: RITK PR [#503](https://github.com/ryancinsight/ritk/pull/503), merge `bf2526e90055bb8e6efbaa36d0f084baab2689da`; compacted 2026-09-18.
+- Outcome: the native Métis session regression drives the existing RITK W/L pointer reducer against a loaded DICOM fixture, proves changed center/width and presented pixels, and verifies idle teardown; the user manual documents the gesture and keeps DICOM ownership in RITK. Local focused nextest, format, lockfile, provenance, and pre-push gates passed; hosted CI runs [35400891419](https://github.com/ryancinsight/ritk/actions/runs/35400891419) and [35400890913](https://github.com/ryancinsight/ritk/actions/runs/35400890913) passed.
+
+<a id="RITK-METIS-LOCK-009"></a>
+## RITK-METIS-LOCK-009 — Advance the current Métis and Moirai provider lock [patch]
+- Status: review; priority: P1; owner: RITK viewer + integration; integrator: root; last-update: 2026-09-18.
+- Scope: advance the standalone RITK lock and current provider references to merged Métis `82bb3af7bb1695b43767caf9cf1012273e58613d` and Moirai `5075d4c70ba4f840d4c5a47b67c5d564405badf5`; historical replay provenance remains bound to the revisions that generated its images.
+- Acceptance: standalone `Cargo.lock` resolves with all first-party sources; locked RITK native/WASM checks, strict Clippy, formatting, provenance and browser-workflow inputs pass; current manual/workflow pins match the lock; the public MRI image evidence is not relabeled as a new replay.
+- Dependency: Metis PR #269 merged with hosted Windows gate; DICOM parsing, geometry and clinical presentation remain RITK-owned.
+- Delivery: lock commit `b3ce7d6d1`; current manual/workflow references resolve Metis `82bb3af7bb1695b43767caf9cf1012273e58613d` and Moirai `5075d4c70ba4f840d4c5a47b67c5d564405badf5`.
+- Evidence: standalone lock check reports 61 first-party sources; native nextest `450/450`, strict native Clippy, WASM check/Clippy, rustdoc, doc tests `4 passed/1 ignored`, format, provenance JSON and diff checks pass. The real 94-file MRI replay exits 0, invalid-study probe exits 1, and reproduces PNG `259dd79103482756c4e688621bebafc841cc40f1df10ff2bbd7f9d04b7b4d401` with 411,589 non-black pixels; lock SHA `3d06450ca51cdf42d4f0806b85f7589575ca753c92ad5ca74eff19dd592dee7e`.
 
 <a id="RITK-METIS-LOCK-008"></a>
 ## RITK-METIS-LOCK-008 — Advance the WebGPU recovery provider pins [patch]
