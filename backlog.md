@@ -220,11 +220,10 @@
 
 <a id="RITK-PYTHON-DENOISE-ULP-001"></a>
 ## RITK-PYTHON-DENOISE-ULP-001 — Reproduce hosted denoising parity variance [patch]
-- Status: done; priority: P1; integrator: root; last-update: 2026-09-17; delivery: PR #461, merge `ee0ded9e44a4d5a047d056f66736b65a6cbe4eec` (source `d810c18ac5f4ac7838f8dd043d4e4b28caa5e2d9`).
-- Outcome: matched ITK's mixed overload by rounding spline numerator powers in `f32` before promotion to the double denominator; the 1-ULP assertion is stable without tolerance changes.
-- Evidence: locked `ritk-filter` Nextest 1,075/1,075, focused parity 14/14, strict Clippy/format/diff checks, and local SimpleITK 2.5.6 denoising 1/1 pass. Post-merge CI `35246092760` and Python CI `35246090436` remain queued by hosted capacity; re-open only on a retro-check defect.
-- Scope: determine why the fixed SimpleITK 2.5.6 comparison is 2 ULP on hosted runs `35206932737`, `35210616931` and `35235536323` but passed on `35177948901`; preserve the 1-ULP contract and RITK algorithm ownership.
-- Acceptance: a repeatable execution or environment cause is identified and fixed or documented with an independently derived bound; the dedicated test passes without widened tolerance or weakened assertions, with locked Python and Rust gates recorded.
+- Status: in-progress; priority: P1; integrator: root; last-update: 2026-09-18; delivery: PR #461, merge `ee0ded9e44a4d5a047d056f66736b65a6cbe4eec` (source `d810c18ac5f4ac7838f8dd043d4e4b28caa5e2d9`).
+- Outcome: restore ITK's host-specific unqualified `pow(float,float)` overload: MSVC uses the float numerator path, while GNU/Clang Linux uses the double-promoted path; the 1-ULP contract remains unchanged.
+- Evidence: hosted wheel run `35315900020` reproduced max 2 ULP on Linux; local Windows SimpleITK 2.5.6 passed with the float path. A local Clang overload probe reports the non-Windows unqualified call as double; the focused hosted wheel gate must verify the correction.
+- Acceptance: the exact hosted SimpleITK 2.5.6 comparison passes without widened tolerance or weakened assertions, with locked Python and Rust gates recorded.
 
 <a id="RITK-CI-DICOM-WORKFLOW-001"></a>
 ## RITK-CI-DICOM-WORKFLOW-001 — Build the viewer workflow example with its shell [patch]
