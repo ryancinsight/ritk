@@ -1414,10 +1414,12 @@ consumer's `Choose study files` label and DICOM filter after every remount.
 
 The [Chromium gallery](images/dicom-metis-real-browser-mri-cross-engine-chromium.png)
 and [Firefox gallery](images/dicom-metis-real-browser-mri-cross-engine-firefox.png)
-are actual 2880-pixel-wide viewport captures of the running RITK page and its
-three non-black DICOM canvases. The [machine-readable provenance](images/dicom-metis-real-browser-mri-cross-engine.json)
-binds each capture, trace, canvas RGBA digest, semantic attribute set, browser
-revision, and artifact to run `35395627386`. The Edge consumer record remains
+are budgeted manual copies of the actual hosted viewport captures. They retain
+the running RITK page and its three non-black DICOM canvases at 1,024 pixels
+wide; the hosted artifacts linked by the [machine-readable provenance](images/dicom-metis-real-browser-mri-cross-engine.json)
+retain the full 2,880-pixel-wide captures. The provenance binds each capture,
+trace, canvas RGBA digest, semantic attribute set, browser revision, and artifact
+to run `35395627386`. The Edge consumer record remains
 the source for the exact 50 trusted slider actions and 18 invalid-number
 probes; the four-cycle matrix deliberately records lifecycle and cross-engine
 input without duplicating that slider run.
@@ -1437,8 +1439,9 @@ The same run's Chromium application-window probe accepted the 94-file study
 and rendered partial anatomy, then failed to observe a presented cine slice
 before teardown. The [failure artifact](https://github.com/ryancinsight/ritk/actions/runs/35395627386/artifacts/10567752411)
 and [captured state](images/dicom-metis-real-browser-mri-application-window-failure.png)
-show the stopped viewer and the exact diagnostic; this is an application-window
-presentation residual, separate from the passing four-cycle browser matrix.
+show the stopped viewer and the exact diagnostic; this budgeted 1,440-pixel-wide
+copy is an application-window presentation residual, separate from the passing
+four-cycle browser matrix.
 
 RITK owns DICOM scanning, decoding, geometry, clinical presentation and pixel
 assertions; Métis remains the format-neutral host and canvas boundary, and

@@ -63,10 +63,14 @@
       },
       "gallery": {
         "path": "dicom-metis-real-browser-mri-cross-engine-chromium.png",
-        "width": 2880,
-        "height": 1914,
-        "bytes": 1024142,
-        "sha256": "691441006381640ff6b335b02e169fdc01ded52cee662ee3a2df9cdf7d4b5224"
+        "width": 1024,
+        "height": 681,
+        "bytes": 184299,
+        "sha256": "b4709dadfedd91b28d0fdea3e104cc8ed6c98e726f6bfb568191386e99410242",
+        "source_viewport": {
+          "width": 2880,
+          "height": 1914
+        }
       },
       "canvas": {
         "path": "output/browser/results/chromium/canvas-trace-cycle-1.json",
@@ -310,10 +314,14 @@
       },
       "gallery": {
         "path": "dicom-metis-real-browser-mri-cross-engine-firefox.png",
-        "width": 2880,
-        "height": 2032,
-        "bytes": 1537934,
-        "sha256": "042b562017321d5905010e070120f83277384037aa44d341df4eb58c6870e0eb"
+        "width": 1024,
+        "height": 722,
+        "bytes": 200260,
+        "sha256": "0ca18997b4d44d72ed39de04e6f3fea9a1ffb150d32389eb7482f5453bef81f5",
+        "source_viewport": {
+          "width": 2880,
+          "height": 2032
+        }
       },
       "canvas": {
         "path": "output/browser/results/firefox/canvas-trace-cycle-1.json",
@@ -896,10 +904,14 @@
       },
       "failure_screenshot": {
         "path": "dicom-metis-real-browser-mri-application-window-failure.png",
-        "width": 2880,
-        "height": 2114,
-        "bytes": 660500,
-        "sha256": "37be7ecf87ee1e46fa2e3b3c2e314d56648229e7ceab9d9a5e2d7d99d69489d2"
+        "width": 1440,
+        "height": 1057,
+        "bytes": 179995,
+        "sha256": "10593798fb76e0f7e14aeb339fd16b3570ce49aae2d74bcb43e6ca42ce0d622e",
+        "source_viewport": {
+          "width": 2880,
+          "height": 2114
+        }
       },
       "artifact_id": 10567752411,
       "artifact_url": "https://github.com/ryancinsight/ritk/actions/runs/35395627386/artifacts/10567752411",
