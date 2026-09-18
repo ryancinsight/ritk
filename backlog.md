@@ -2,6 +2,13 @@
 
 Unresolved delivery items are kept as executable records. Closed history is indexed below; full prose remains in git.
 
+<a id="RITK-METIS-LOCK-008"></a>
+## RITK-METIS-LOCK-008 — Advance the WebGPU recovery provider pins [patch]
+- Status: in-progress; priority: P1; owner: RITK viewer + integration; integrator: root; last-update: 2026-09-18; lease: root `Cargo.lock`, `.github/workflows/metis-browser-dicom.yml`, `backlog.md`, `docs/manual/dicom-workflow.md`, `docs/manual/images/dicom-metis-real-mri.json` until lock and replay evidence land.
+- Scope: advance the six Metis package sources to merged Metis `dc938c0e359dac610867d5d09ddb659a1d221fef` and the Moirai packages to the recovery API revision, then replay the real MRI surface and the hosted browser workflow.
+- Acceptance: standalone lock resolves with 61 first-party sources; locked native/WASM checks, strict Clippy, format and provenance gates pass; the 1280×800 real MRI PNG remains byte-identical; browser workflow pins the exact Metis revision and records WebGPU capability/recovery evidence without a raster fallback.
+- Dependency: Metis PR [#265](https://github.com/ryancinsight/metis/pull/265) merged with hosted Windows gate; Moirai PR [#400](https://github.com/ryancinsight/Moirai/pull/400) provides `WebGpuCanvas::recreate`; DICOM parsing and clinical presentation remain RITK-owned.
+
 <a id="RITK-METIS-LOCK-007"></a>
 ## RITK-METIS-LOCK-007 — Advance the current Metis text provider pin [patch]
 - Status: done; priority: P1; owner: RITK viewer + integration; integrator: root; last-update: 2026-09-18.
