@@ -27,10 +27,10 @@ Unresolved delivery items are kept as executable records. Closed history is inde
 - Acceptance: read-path cause and production fix, 94 file hashes, three exact pixel oracles, bounded rejections and clean sessions on Chromium, Firefox and WebKit.
 - Risk: [patch]; dependency: [Metis read diagnosis](../metis/backlog.md#METIS-BROWSER-READ-001).
 - Delivery: RITK PR [#422](https://github.com/ryancinsight/ritk/pull/422), merge `18ee4e55b`; the current failure evidence is recorded and the external WebKit authorization residual remains blocked.
-- Evidence: current hosted [run 35133971196](https://github.com/ryancinsight/ritk/actions/runs/35133971196) builds RITK `db390b8616e4cc58f2555f49a816e61eed1fadd1` against Metis `88c60a0b6410c0e07700e965bcdbea43b7b20789`; Chromium/Firefox pass 94 file hashes, three exact pixel oracles, cine-rate/repeat checks, picker r…
+- Evidence: current hosted [run 35395627386](https://github.com/ryancinsight/ritk/actions/runs/35395627386) builds RITK `4bbbe661cb12f2992189ce7a786f6d47529963c5` against Metis `5e892245ac52c6455bbb57244fa654e6eb3cc9c1`; Chromium and Firefox pass the 94-file real MRI study, three exact pixel oracles and lifecycle checks; WebKit accepts the chooser but denies the first bounded read under Safari 26.6.2, with the current diagnostics in the provenance JSON.
 - Diagnosis: WebKit sandbox denies reads and read-extension issuance on the selected real file despite verified host bytes; four browser APIs and isolated one-file/full-batch inputs fail. DICOM stays in RITK.
-- Verification: locked `ritk-snap` nextest 841/841, strict native/WASM Clippy and checks, formatting and lockfile validation pass; [proof and log hashes](docs/manual/images/dicom-metis-real-browser-mri-cross-engine.json).
-- Blocker: exact SafariDriver/WebKit selected-file authorization defect remains external; current run 35133971196 reproduces the denial after SafariDriver accepts the chooser request. Re-open when the corrected browser/runner path grants real-file reads; application byte-read APIs cannot grant that access.
+- Verification: locked `ritk-snap` nextest 487/487, strict native/WASM Clippy and checks, formatting, rustdoc and lockfile validation pass; [proof and log hashes](docs/manual/images/dicom-metis-real-browser-mri-cross-engine.json).
+- Blocker: exact SafariDriver/WebKit selected-file authorization defect remains external; current run 35395627386 reproduces the denial after SafariDriver accepts all 94 files. Re-open when the corrected browser/runner path grants real-file reads; application byte-read APIs cannot grant that access.
 
 <a id="RITK-DOCS-EVIDENCE-SYNC-002"></a>
 ## RITK-DOCS-EVIDENCE-SYNC-002 — Rebind current real MRI replay provenance [patch]
@@ -42,7 +42,7 @@ Unresolved delivery items are kept as executable records. Closed history is inde
 - Status: blocked; compacted 2026-09-18; full delivery history remains in git.
 - Scope: replay the saved public MRI-DIR study through the RITK-owned `?renderer=webgpu` page and retain actual canvas/window evidence; RITK owns DICOM decoding and clinical pixels, while Métis remains the format-neutral canvas host.
 - Acceptance: a configured browser runner reports an adapter, presents the three saved-study canvases, records revision-bound PNGs and semantic attributes, and completes bounded teardown without a raster fallback.
-- Blocker: hosted Chromium in run [35133971196](https://github.com/ryancinsight/ritk/actions/runs/35133971196) reports no WebGPU adapter; the existing setup error and failure capture are preserved in [`dicom-metis-real-browser-mri-webgpu-failure.png`](docs/manual/images/dicom-metis-real-browser-mri-webgpu-failure.png)…
+- Blocker: hosted Chromium in run [35395627386](https://github.com/ryancinsight/ritk/actions/runs/35395627386) reports no WebGPU adapter; the current setup error and failure capture artifact `10568306406` are preserved in [`dicom-metis-real-browser-mri-webgpu-failure.png`](docs/manual/images/dicom-metis-real-browser-mri-webgpu-failure.png).
 
 ## Atlas Batch #3 sub-batches (ritk Burn-trait rebind — 6 atomic commits per `atlas/docs/adr/0012-ritk-burn-trait-rebind.md`)
 
