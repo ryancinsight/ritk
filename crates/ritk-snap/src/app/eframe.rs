@@ -8,6 +8,7 @@ use super::slice_ops::CineTick;
 use super::state::SnapApp;
 use crate::render::RenderBufferPool;
 use crate::ui::ViewTransform;
+use crate::CompatibilityPresentation;
 use std::ops::{Deref, DerefMut};
 
 #[cfg(not(target_arch = "wasm32"))]
@@ -90,6 +91,25 @@ impl EguiApp {
         }
     }
 
+    /// Wrap viewer state and configure the selected compatibility presentation.
+    pub(crate) fn new_with_presentation(
+        mut app: SnapApp,
+        presentation: CompatibilityPresentation,
+    ) -> Self {
+        if presentation == CompatibilityPresentation::OrthogonalSurface {
+            app.show_overlay = false;
+            app.show_crosshair = false;
+            app.show_label_overlay = false;
+            app.show_rt_struct_overlay = false;
+            app.show_rt_dose_overlay = false;
+            app.show_series_browser = false;
+            app.multi_planar = false;
+            app.dual_plane = false;
+            app.compare_side_by_side = false;
+        }
+        Self::new(app)
+    }
+
     fn reconcile_render_resources(&mut self) {
         if self.render.visual_revision != self.visual_revision {
             self.render.invalidate(self.visual_revision);
@@ -167,5 +187,21 @@ impl eframe::App for EguiApp {
         } else {
             self.show_central_panel_single(ctx);
         }
+    }
+}
+
+impl EguiApp {
+    /// Advance the compatibility surface without drawing shell chrome.
+    pub(crate) fn update_orthogonal_surface(&mut self, ctx: &egui::Context) {
+        self.handle_dropped_inputs(ctx);
+        self.process_pending_loads();
+        self.poll_load_tasks();
+        self.poll_pacs_worker();
+        self.multi_planar = false;
+        self.dual_plane = false;
+        self.compare_side_by_side = false;
+        self.reconcile_render_resources();
+        self.tick_cine(ctx);
+        self.show_central_panel_orthogonal_surface(ctx);
     }
 }

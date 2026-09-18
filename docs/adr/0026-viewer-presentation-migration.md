@@ -747,6 +747,16 @@ window/level preset and invalidation behavior documented in the
 [RadiAnt window/level manual](https://www.radiantviewer.com/dicom-viewer-manual/change_brightness_contrast.html);
 clinical values and DICOM ownership remain in RITK.
 
+Revision 2026-09-18 (matched eframe surface fixture): the compatibility shell
+gains an explicit `orthogonal-surface` presentation selected by the eframe
+binary's value enum. This mode bypasses shell chrome and the 2×2/MIP layout,
+then reuses the existing `ImagePlacement` physical-spacing contract for the
+axial, coronal and sagittal panels. The mode is a measurement fixture for the
+Metis performance contract; it does not change the complete eframe workflow,
+the Métis native/browser hosts, or the RITK ownership of DICOM geometry and
+pixels. A saved-study capture and semantic-surface provenance are required
+before the cross-framework resource comparison can use the record.
+
 
 Retaining egui indefinitely contradicts the requested framework target. Removing
 it before Métis can operate the viewer would lose behavior. Reimplementing DICOM

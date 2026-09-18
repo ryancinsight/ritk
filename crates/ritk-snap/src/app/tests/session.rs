@@ -7,7 +7,7 @@ use crate::app::EguiApp;
 use crate::render::histogram::compute_histogram;
 use crate::tools::interaction::ViewportOffset;
 use crate::ui::LinkedCursor;
-use crate::AppLaunchOptions;
+use crate::{AppLaunchOptions, CompatibilityPresentation};
 
 #[test]
 fn session_snapshot_round_trip_preserves_cine_state() {
@@ -138,6 +138,34 @@ fn primary_visual_ready_waits_for_current_multi_planar_projection() {
         app.primary_visual_ready(),
         "a completed projection texture must be capture-ready"
     );
+}
+
+#[test]
+fn orthogonal_surface_disables_hanging_protocol_projection_gate() {
+    let mut app = EguiApp::new_with_presentation(
+        SnapApp::default(),
+        CompatibilityPresentation::OrthogonalSurface,
+    );
+    app.loaded = Some(test_volume([2, 2, 2]));
+    app.multi_planar = true;
+    app.projection_backend = ProjectionBackend::Pending;
+
+    let context = egui::Context::default();
+    drop(context.run(
+        egui::RawInput {
+            screen_rect: Some(egui::Rect::from_min_size(
+                egui::Pos2::ZERO,
+                egui::vec2(640.0, 480.0),
+            )),
+            ..egui::RawInput::default()
+        },
+        |context| app.update_orthogonal_surface(context),
+    ));
+
+    assert!(!app.multi_planar);
+    assert!(!app.dual_plane);
+    assert!(!app.compare_side_by_side);
+    assert!(app.primary_visual_ready());
 }
 
 #[test]
