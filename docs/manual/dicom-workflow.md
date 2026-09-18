@@ -855,19 +855,6 @@ consumer `88c60a0b` and Moirai `95275651`. It exited 0 after reading all 94
 files, rejected the invalid-study probe with exit 1, and reproduced the same
 411,589-pixel image; that historical executable digest and command remain in
 the [provenance record](images/dicom-metis-real-mri.json).
-The current standalone-lock replay on 2026-09-18 ran at RITK
-`8f8516065f6ab9405852d96885f54291d5e24a48`, Metis
-`5e892245ac52c6455bbb57244fa654e6eb3cc9c1` and Moirai
-`ae282117fd962f4b7c66d722aad9d3c2906320bb`. It read the same 94
-files (49,807,236 DICOM bytes), exited 0, rejected the invalid-study probe
-with exit 1, and reproduced the committed 1280 × 800 image byte-for-byte
-(`259dd79103482756c4e688621bebafc841cc40f1df10ff2bbd7f9d04b7b4d401`,
-411,589 non-black pixels). The standalone lock digest is
-`a602ec28d9fb3d2c73b6245067ec33e4648d66434de07087b0153c90aea12fbb`;
-the native and example executable digests, lock resolution and command are
-recorded in the
-[`replay evidence`](images/dicom-metis-real-mri.json).
-
 A current standalone-lock replay on 2026-09-18 built the native viewer
 outside the Atlas development overlay at RITK source
 `8f8516065f6ab9405852d96885f54291d5e24a48`, Metis
