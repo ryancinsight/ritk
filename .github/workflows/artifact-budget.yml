@@ -1,0 +1,28 @@
+# Artifact budget: PM boards under their line budget and tracked images under
+# their byte budget, ratchet-to-budget against the PR base (an over-budget
+# board may not grow, an oversized image may not be added or touched). The
+# check runs on every pull request so a ruleset can require it by name: the
+# verification pipeline (ci.yml) is path-filtered and would never see a
+# board-only change, which is exactly the change this gate exists for. One
+# definition in Atlas; this file only calls it.
+name: Artifact budget
+
+on:
+  pull_request:
+    branches: [main]
+  push:
+    branches: [main]
+
+concurrency:
+  group: artifact-budget-${{ github.event_name == 'pull_request' && github.ref || github.sha }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
+
+permissions:
+  contents: read
+
+jobs:
+  artifact-budget:
+    name: Artifact budget
+    uses: ryancinsight/atlas/.github/workflows/artifact-budget.yml@be563eef5415e5a78b21a410b1b2d8eb566bab72
+    permissions:
+      contents: read
