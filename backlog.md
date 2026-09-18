@@ -4,7 +4,7 @@ Unresolved delivery items are kept as executable records. Closed history is inde
 
 <a id="RITK-METIS-LOCK-007"></a>
 ## RITK-METIS-LOCK-007 — Advance the current Metis text provider pin [patch]
-- Status: review; priority: P1; owner: RITK viewer + integration; integrator: root; last-update: 2026-09-18.
+- Status: in-progress; priority: P1; owner: RITK viewer + integration; integrator: root; last-update: 2026-09-18; lease: root `Cargo.lock`, `backlog.md`, `docs/manual/images/dicom-metis-real-mri.json`, `docs/manual/dicom-workflow.md` until current Metis pin and replay provenance commit.
 - Scope: advance the six Metis package sources from `a563f4517d2ef74f6b50707687f7f28d341ac111` to merged Metis `8f33126f23b8dc327bea45c4fe513a6b60b73c99`, then replay the real MRI surface and rebind the standalone provenance.
 - Acceptance: standalone `Cargo.lock` resolves with 61 first-party sources; locked `ritk-snap` tests, native/WASM checks and strict Clippy pass; the 1280×800 real MRI PNG remains byte-identical; docs name the exact lock digest and provider revisions.
 - Dependency: Metis PR #253 merged with hosted Windows/artifact gates; DICOM parsing and clinical presentation remain RITK-owned.
