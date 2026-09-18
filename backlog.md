@@ -209,10 +209,11 @@
 
 <a id="RITK-DOCS-EVIDENCE-SYNC-002"></a>
 ## RITK-DOCS-EVIDENCE-SYNC-002 — Rebind current real MRI replay provenance [patch]
-- Status: in-progress; priority: P1; owner: RITK SNAP documentation; integrator: root; last-update: 2026-09-18; dependencies: RITK-METIS-LOCK-006; risk: stale revision evidence
+- Status: review; priority: P1; owner: RITK SNAP documentation; integrator: root; last-update: 2026-09-18; dependencies: RITK-METIS-LOCK-006; risk: stale revision evidence
 - Scope: rerun the public 94-file MRI-DIR replay under the current standalone lock and synchronize its JSON, manual and linked verification records.
 - Acceptance: provenance names the exact RITK/Metis/Moirai revisions and lock digest; the real PNG SHA, dimensions and non-black count remain value-verified; no private study data is added.
-- lease: root docs/manual/images/dicom-metis-real-mri.json, docs/manual/dicom-workflow.md, backlog.md; 2026-09-18T09:52:00-04:00
+- Completed increment (2026-09-18): the standalone-lock replay reads all 94 public MRI-DIR files at RITK `3ac246728d34a06d9998c21951dc76ad961c8efb`, Metis `a563f4517d2ef74f6b50707687f7f28d341ac111` and Moirai `a2f21496d1d09b2abe6523e3c8cdbf751dcd560a`; lock SHA-256 is `0dddb6ad5e1b5d0ec9b7d85a4d4840950ef8616e7ac5b65dceaea1e3efb9f712`.
+- Evidence: the native command exits 0 and reproduces the committed 1280×800 PNG byte-for-byte (`259dd79103482756c4e688621bebafc841cc40f1df10ff2bbd7f9d04b7b4d401`, 411,589 non-black pixels); executable SHA-256 is `a550bc5b37632d721f1edd4723a8481e114ec638660359923ede29bb51e21275` (26,360,832 bytes). JSON/image/hash, lock and diff checks pass.
 
 <a id="RITK-CLIPPY-RENDER-CFG-001"></a>
 ## RITK-CLIPPY-RENDER-CFG-001 — Scope the native MIP export to Windows [patch]
