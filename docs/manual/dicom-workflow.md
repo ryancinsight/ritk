@@ -1265,6 +1265,26 @@ metadata, the viewport capture and the palette capture are written to
 `tools/gallery-tools-controls.png`. The post-stop sample must report zero RITK
 canvas listeners and all palette buttons disabled.
 
+The committed visual replay below used Edge 154.0.4258.12 on Windows with
+RITK `9c27f84c44499d9c30a88bf0add18f2b72df6f79` and Métis
+`ae5f80c8e2fe8c023d13514ffa6c48c84d3dc556`. The chooser accepted the saved
+94-file, 49,807,236-byte MRI-DIR study. All 11 palette selections produced
+trusted pointer events and a new presented generation on axial, coronal and
+sagittal canvases; seven malformed API probes were rejected without mutation;
+the final sample reports zero consumer listeners and disabled controls. The
+machine-readable record binds these values, source hashes, canvas RGBA hashes
+and screenshot digests in
+[`dicom-metis-real-browser-mri-tools.json`](images/dicom-metis-real-browser-mri-tools.json).
+
+![Actual MRI-DIR T2 study with the RITK diagnostic palette in the Métis browser](images/dicom-metis-real-browser-mri-tools.png)
+
+![RITK diagnostic-tool palette capture](images/dicom-metis-real-browser-mri-tools-controls.png)
+
+The red host rejection status visible in the viewport is intentional: Métis
+runs its bounded generic rejection probes before the consumer trace tears down
+the picker. The three canvas images remain the actual decoded MRI study; this
+ordering is the host contract recorded by Metis PR #229.
+
 Reproduce the file-backed run from the Métis checkout with an Edge WebDriver
 already listening on port 9517:
 
