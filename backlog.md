@@ -199,7 +199,7 @@
 
 <a id="RITK-METIS-LOCK-006"></a>
 ## RITK-METIS-LOCK-006 — Advance the current public Metis pin [patch]
-- Status: review; priority: P1; integrator: root; last-update: 2026-09-18; scope: standalone `Cargo.lock`; outcome/evidence: all six Metis packages resolve `39d61bd27dbdb93de69b3b66b5e03850e9b55274`; lockfile check, fmt, locked `ritk-snap` nextest 449/449, strict `ritk-snap` Clippy and eframe check pass; real 94-file replay reproduces 1280×800 PNG SHA `2e47199cca0851f5ca2e3ce7b613cf70b096c3528bfc1eb705f64ced75485ba9` with 927,849 non-black pixels; DICOM remains RITK-owned.
+- Status: review; priority: P1; integrator: root; last-update: 2026-09-18; scope: standalone `Cargo.lock`; outcome/evidence: all six Metis packages resolve `a563f4517d2ef74f6b50707687f7f28d341ac111`; lockfile check, fmt, locked `ritk-snap` nextest 449/449, strict `ritk-snap` Clippy and eframe check pass; real 94-file replay reproduces 1280×800 PNG SHA `2e47199cca0851f5ca2e3ce7b613cf70b096c3528bfc1eb705f64ced75485ba9` with 927,849 non-black pixels; DICOM remains RITK-owned.
 
 <a id="RITK-DOCS-EVIDENCE-SYNC-001"></a>
 ## RITK-DOCS-EVIDENCE-SYNC-001 — Sync current provider revisions in replay docs [patch]
