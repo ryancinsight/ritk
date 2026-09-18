@@ -151,9 +151,9 @@
 
 <a id="RITK-SNAP-EFRAME-MRI-001"></a>
 ## RITK-SNAP-EFRAME-MRI-001 — Record a real eframe MRI baseline [patch]
-- Status: in-progress; priority: P1; owner: RITK viewer documentation; integrator: root; last-update: 2026-09-18; dependency: [Metis performance fixtures](../metis/backlog.md#METIS-PERF-001).
-- Outcome: preserve a revision-bound eframe/egui capture and resource report for the public 94-file MRI-DIR T2 study, with explicit comparison limits against the Métis surface.
-- Acceptance: the manual embeds the inspected PNG, the provenance JSON hashes the image and executable, three repeats exit 0 with equal capture digests, and no framework ranking is claimed from unlike surfaces.
+- Status: done; priority: P1; delivery: commit `b4d30980f`; owner: RITK viewer documentation; integrator: root; last-update: 2026-09-18; dependency: [Metis performance fixtures](../metis/backlog.md#METIS-PERF-001).
+- Outcome: the manual embeds a revision-bound eframe/egui capture and resource report for the public 94-file MRI-DIR T2 study, with explicit comparison limits against the Métis surface.
+- Verification: three lifecycle repeats exited 0 with equal PNG digests; JSON image/executable hash, byte-count, dimension and non-black-pixel checks, lockfile, format and diff checks pass; visual inspection confirms the real series browser, three planes and GPU MIP; no framework ranking is claimed from unlike surfaces.
 
 <a id="RITK-SNAP-METIS-001"></a>
 ## RITK-SNAP-METIS-001 — Migrate the viewer shell to Métis [arch] [major]
