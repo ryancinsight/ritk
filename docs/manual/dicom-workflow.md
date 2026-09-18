@@ -856,7 +856,7 @@ executable digests, lock resolution and command are recorded in the
 
 A current standalone-lock recheck on 2026-09-18 built the native viewer
 outside the Atlas development overlay at RITK source
-`d494df9da7ccddc63176788f31ec36e4895e43ba`, Metis
+`448202c0bbc8b5560cc5aad7e53dfedac10e04d5`, Metis
 `e634fe925d8edb18cea4399d43255fdaa2d444a5` and Moirai
 `a2f21496d1d09b2abe6523e3c8cdbf751dcd560a`. The command
 `ritk-snap.exe test_data/2_head_mri_t2/DICOM --metis-native
