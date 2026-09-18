@@ -191,16 +191,15 @@
 
 <a id="RITK-METIS-LOCK-004"></a>
 ## RITK-METIS-LOCK-004 — Advance the landed Metis asset pin [patch]
-- Status: done; delivery: [RITK PR #483](https://github.com/ryancinsight/ritk/pull/483), merge `b2535b139d4f0df132e0ffd157efe89b445a13e2`; last-update: 2026-09-18.
-- Outcome: the standalone lock and browser workflow resolve Metis `619832d15ac18a188ce6f79a0d810fcab7315891`; the 94-file MRI replay remains byte-identical and DICOM ownership stays in RITK.
-- Verification: hosted run [35322831603](https://github.com/ryancinsight/ritk/actions/runs/35322831603) passed; locked native/WASM gates, `ritk-snap` 480/480, lock/fmt/JSON/image checks passed; capture SHA `259dd79103482756c4e688621bebafc841cc40f1df10ff2bbd7f9d04b7b4d401`, 1280x800, 411,589 non-black pixels.
+- Status: done; delivery: [RITK PR #483](https://github.com/ryancinsight/ritk/pull/483), merge `b2535b139d4f0df132e0ffd157efe89b445a13e2`; outcome/evidence: Metis `619832d15ac18a188ce6f79a0d810fcab7315891` lock pin, hosted run `35322831603`, locked native/WASM gates, `ritk-snap` 480/480 and unchanged 1280×800 MRI SHA `259dd79103482756c4e688621bebafc841cc40f1df10ff2bbd7f9d04b7b4d401`.
 
 <a id="RITK-METIS-LOCK-005"></a>
 ## RITK-METIS-LOCK-005 — Advance the post-merge Metis pin [patch]
-- Status: done; priority: P1; delivery: [RITK PR #486](https://github.com/ryancinsight/ritk/pull/486); last-update: 2026-09-18; dependency: Metis e634fe9.
-- Scope: standalone Cargo.lock and the current replay provenance only; DICOM decoding and presentation remain in RITK.
-- Acceptance: one Metis revision e634fe925d8edb18cea4399d43255fdaa2d444a5 in the locked graph, lockfile check, focused viewer tests, and unchanged real MRI image/hash/dimension oracle.
-- Evidence: standalone lock check reports 61 first-party sources; native ritk-snap nextest 446/446, strict native/WASM checks and Clippy, eframe check/Clippy, fmt, and the 94-file MRI replay pass with the committed 1280x800 RGBA hash unchanged.
+- Status: done; priority: P1; delivery: [RITK PR #486](https://github.com/ryancinsight/ritk/pull/486); outcome/evidence: standalone lock pin `e634fe925d8edb18cea4399d43255fdaa2d444a5`, 61 first-party sources, native `ritk-snap` 446/446, strict native/WASM checks and Clippy, eframe checks, fmt and unchanged real MRI hash/dimensions; DICOM remains RITK-owned.
+
+<a id="RITK-METIS-LOCK-006"></a>
+## RITK-METIS-LOCK-006 — Advance the current public Metis pin [patch]
+- Status: review; priority: P1; integrator: root; last-update: 2026-09-18; scope: standalone `Cargo.lock`; outcome/evidence: all six Metis packages resolve `39d61bd27dbdb93de69b3b66b5e03850e9b55274`; lockfile check, fmt, locked `ritk-snap` nextest 449/449, strict `ritk-snap` Clippy and eframe check pass; real 94-file replay reproduces 1280×800 PNG SHA `2e47199cca0851f5ca2e3ce7b613cf70b096c3528bfc1eb705f64ced75485ba9` with 927,849 non-black pixels; DICOM remains RITK-owned.
 
 <a id="RITK-DOCS-EVIDENCE-SYNC-001"></a>
 ## RITK-DOCS-EVIDENCE-SYNC-001 — Sync current provider revisions in replay docs [patch]
