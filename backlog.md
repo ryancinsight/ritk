@@ -222,8 +222,8 @@
 ## RITK-PYTHON-DENOISE-ULP-001 — Reproduce hosted denoising parity variance [patch]
 - Status: in-progress; priority: P1; integrator: root; last-update: 2026-09-18; delivery: PR #461, merge `ee0ded9e44a4d5a047d056f66736b65a6cbe4eec` (source `d810c18ac5f4ac7838f8dd043d4e4b28caa5e2d9`).
 - Outcome: restore ITK's host-specific unqualified `pow(float,float)` overload: MSVC uses the float numerator path, while GNU/Clang Linux uses the double-promoted path; the 1-ULP contract remains unchanged.
-- Evidence: hosted wheel run `35315900020` reproduced max 2 ULP on Linux; local Windows SimpleITK 2.5.6 passed with the float path. A local Clang overload probe reports the non-Windows unqualified call as double; the focused hosted wheel gate must verify the correction.
-- Acceptance: the exact hosted SimpleITK 2.5.6 comparison passes without widened tolerance or weakened assertions, with locked Python and Rust gates recorded.
+- Evidence: hosted wheel run `35315900020` reproduced max 2 ULP on Linux; local Windows SimpleITK 2.5.6 passed with the float path. A local Clang overload probe reports the non-Windows unqualified call as double. Hosted run `35318654980` then exposed the stale Rust exact-value fixture: GNU/Clang produces the independently derived `0x3f63_9b3a` reference after the final float cast while MSVC remains `0x3f63_9b3b`; the assertion is now target-environment-specific without widening tolerance.
+- Acceptance: the exact hosted SimpleITK 2.5.6 comparison and native Rust matrix pass without widened tolerance or weakened assertions, with locked Python and Rust gates recorded.
 
 <a id="RITK-CI-DICOM-WORKFLOW-001"></a>
 ## RITK-CI-DICOM-WORKFLOW-001 — Build the viewer workflow example with its shell [patch]

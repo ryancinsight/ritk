@@ -36,8 +36,14 @@ fn test_itk_pixel_difference_rounds_before_widening() {
 #[test]
 fn test_zero_weight_elision_preserves_finite_patch_distance() {
     let weights = smooth_disc_weights_sq(2, 3);
-    // ITK's spline numerator powers use the float overload on every host.
+    // ITK's unqualified spline numerator overload is host-toolchain dependent:
+    // MSVC keeps float arithmetic, while GNU/Clang promotes the operands to
+    // double before the final float cast. These are independent ITK reference
+    // outputs for the resulting weight on each target environment.
+    #[cfg(target_env = "msvc")]
     let itk_diagonal_weight = f32::from_bits(0x3f63_9b3b);
+    #[cfg(not(target_env = "msvc"))]
+    let itk_diagonal_weight = f32::from_bits(0x3f63_9b3a);
     let differences: Vec<f64> = (0..weights.len())
         .map(|index| {
             f64::from(u32::try_from(index).expect("invariant: patch index fits u32")) * 0.125 - 7.0
