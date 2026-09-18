@@ -1408,16 +1408,16 @@ process launch, and OS permission flows remain separate acceptance gates.
 
 The reproducible cross-engine chooser workflow is
 [`metis-browser-dicom.yml`](../../.github/workflows/metis-browser-dicom.yml).
-Hosted run [35133971196](https://github.com/ryancinsight/ritk/actions/runs/35133971196)
-rebuilt RITK at `db390b8616e4cc58f2555f49a816e61eed1fadd1` against Métis
-`88c60a0b6410c0e07700e965bcdbea43b7b20789` and the lock's Moirai revisions
-listed above. Chromium 152 and Firefox 155 each accepted the same 94 saved
-MRI-DIR DICOM files, read 49,807,236 bytes, matched the three exact RGBA
-oracles, and completed four mount cycles. Each cycle records 18 trusted canvas
-actions (12 keyboard, 3 pointer and 3 wheel), focused repeat metadata,
-semantic snapshots, and release of all 18 diagnostic listeners and active input
-sources. The final viewport captures retain the RITK consumer's `Choose study
-files` label and DICOM filter after every remount.
+Hosted run [35395627386](https://github.com/ryancinsight/ritk/actions/runs/35395627386)
+rebuilt RITK at `4bbbe661cb12f2992189ce7a786f6d47529963c5` against Métis
+`5e892245ac52c6455bbb57244fa654e6eb3cc9c1` and the lock's Moirai revision
+`ae282117fd962f4b7c66d722aad9d3c2906320bb`. Chromium 152 and Firefox 155
+each accepted the same 94 saved MRI-DIR DICOM files, read 49,807,236 bytes,
+matched the three exact RGBA oracles, and completed four mount cycles. Each
+cycle records 18 trusted canvas actions (12 keyboard, 3 pointer and 3 wheel),
+focused repeat metadata, semantic snapshots, and release of all 18 diagnostic
+listeners and active input sources. The final viewport captures retain the RITK
+consumer's `Choose study files` label and DICOM filter after every remount.
 
 ![The real MRI study rendered in the hosted Chromium gallery](images/dicom-metis-real-browser-mri-cross-engine-chromium.png)
 
@@ -1425,24 +1425,28 @@ files` label and DICOM filter after every remount.
 
 The [Chromium gallery](images/dicom-metis-real-browser-mri-cross-engine-chromium.png)
 and [Firefox gallery](images/dicom-metis-real-browser-mri-cross-engine-firefox.png)
-are actual viewport captures of the running RITK page and its three canvases.
-The [machine-readable provenance](images/dicom-metis-real-browser-mri-cross-engine.json)
+are actual 2880-pixel-wide viewport captures of the running RITK page and its
+three non-black DICOM canvases. The [machine-readable provenance](images/dicom-metis-real-browser-mri-cross-engine.json)
 binds each capture, trace, canvas RGBA digest, semantic attribute set, browser
-revision, and artifact to run `35133971196`. The Edge consumer record remains
+revision, and artifact to run `35395627386`. The Edge consumer record remains
 the source for the exact 50 trusted slider actions and 18 invalid-number
 probes; the four-cycle matrix deliberately records lifecycle and cross-engine
 input without duplicating that slider run.
 
-Safari 26.6.2 accepted the 94 selected files but rejected the first
-529,864-byte browser read before RITK received a completed batch. The selected
-file returns `NotReadableError` from its original array-buffer, bounded slice
-array-buffer and FileReader reads; a bounded blob-URL stream returns
-`TypeError`. The [WebKit artifact](https://github.com/ryancinsight/ritk/actions/runs/35133971196/artifacts/10463192885)
-and [failure capture](images/dicom-metis-real-browser-mri-cross-engine-webkit.png)
-record the probes and clean WebDriver teardown. Host readability and the
-expected file digest are verified separately; this is a SafariDriver/WebKit
-authorization residual, not a DICOM decoder failure, and browser application
-code cannot grant that access.
+Safari 26.6.2 remains queued in run `35395627386`; its selected-file read result
+will be recorded here when the macOS job completes. The prior Safari evidence
+established the read-path diagnosis: after accepting all 94 files, WebKit denied
+the first 529,864-byte browser read (`NotReadableError` for the original file,
+bounded slice and FileReader, and `TypeError` for the blob-URL stream). That
+authorization residual is separate from RITK's DICOM decoder and cannot be
+fixed by application code granting browser sandbox access.
+
+The same run's Chromium application-window probe accepted the 94-file study
+and rendered partial anatomy, then failed to observe a presented cine slice
+before teardown. The [failure artifact](https://github.com/ryancinsight/ritk/actions/runs/35395627386/artifacts/10567752411)
+and [captured state](images/dicom-metis-real-browser-mri-application-window-failure.png)
+show the stopped viewer and the exact diagnostic; this is an application-window
+presentation residual, separate from the passing four-cycle browser matrix.
 
 RITK owns DICOM scanning, decoding, geometry, clinical presentation and pixel
 assertions; Métis remains the format-neutral host and canvas boundary, and
@@ -1697,15 +1701,14 @@ prove 2D pixel equivalence, hardware acceleration, compositor timing or lower
 memory use.
 
 Hosted run
-[`35133971196`](https://github.com/ryancinsight/ritk/actions/runs/35133971196)
-rebuilt RITK `db390b8616e4cc58f2555f49a816e61eed1fadd1` against the default
-Metis revision `88c60a0b6410c0e07700e965bcdbea43b7b20789`. Its Chromium WebGPU
-job captured the page after the 94-file chooser probes, but RITK reported
-`browser returned no WebGPU adapter` and did not publish a study frame. The
-job therefore records browser capability absence with a real failure PNG and
-clean session teardown; it is not a raster fallback or a GPU presentation
-claim. The uploaded artifact is
-[`chromium-webgpu`](https://github.com/ryancinsight/ritk/actions/runs/35133971196/artifacts/10462807820),
+[`35395627386`](https://github.com/ryancinsight/ritk/actions/runs/35395627386)
+rebuilt RITK `4bbbe661cb12f2992189ce7a786f6d47529963c5` against the lock-pinned
+Métis revision `5e892245ac52c6455bbb57244fa654e6eb3cc9c1`. Its Chromium WebGPU
+job reached the RITK consumer but reported `browser returned no WebGPU adapter`
+and did not publish a study frame. The job therefore records browser capability
+absence with a real failure PNG and clean session teardown; it is not a raster
+fallback or a GPU presentation claim. The uploaded artifact is
+[`chromium-webgpu`](https://github.com/ryancinsight/ritk/actions/runs/35395627386/artifacts/10568306406),
 and its revision-bound trace and PNG remain the evidence for this residual.
 
 ![Hosted Chromium WebGPU capability failure](images/dicom-metis-real-browser-mri-webgpu-failure.png)
