@@ -155,6 +155,13 @@
 - Outcome: the manual embeds a revision-bound eframe/egui capture and resource report for the public 94-file MRI-DIR T2 study, with explicit comparison limits against the Métis surface.
 - Verification: three lifecycle repeats exited 0 with equal PNG digests; JSON image/executable hash, byte-count, dimension and non-black-pixel checks, lockfile, format and diff checks pass; visual inspection confirms the real series browser, three planes and GPU MIP; no framework ranking is claimed from unlike surfaces.
 
+<a id="RITK-SNAP-EVIDENCE-SURFACES-001"></a>
+## RITK-SNAP-EVIDENCE-SURFACES-001 — Identify measured presentation surfaces [patch]
+- Status: in-progress; priority: P1; owner: RITK viewer documentation; integrator: root; last-update: 2026-09-18; dependency: [Metis performance fixtures](../metis/backlog.md#METIS-PERF-001); risk: invalid matched-resource comparisons.
+- lease: root docs/manual/images/dicom-eframe-real-mri-resource.json, docs/manual/images/dicom-metis-real-mri-resource.json, backlog.md 2026-09-18T03:35:00Z
+- Outcome: the revision-bound MRI provenance records expose producer-owned semantic surface identities so the comparison tool can reject unlike eframe and Métis captures before calculating resource deltas.
+- Acceptance: both records parse with explicit surface arrays matching the inspected images; existing image/executable/hash checks remain unchanged; manual and cross-repo performance item link the contract.
+
 <a id="RITK-SNAP-METIS-001"></a>
 ## RITK-SNAP-METIS-001 — Migrate the viewer shell to Métis [arch] [major]
 - Status: done; priority: P1; owner: RITK viewer + Métis framework; integrator: root; last-update: 2026-09-17; delivery: RITK PR #443 (merge `57e11c92c080dc9c8716f9218d55c1344a75b412`) and PR #444 (merge `5a68a8e725280a3a94387dd4c9f01524201fdb8f`).

@@ -31,6 +31,13 @@
     "executable_bytes": 53896192,
     "visual_scope": "complete eframe application content; operating-system chrome excluded",
     "capture_command": "ritk-snap.exe test_data\\2_head_mri_t2\\DICOM --eframe --capture scratch\\viewer\\real-mri-eframe.png",
+    "semantic_surfaces": [
+      "series_browser",
+      "axial",
+      "coronal",
+      "sagittal",
+      "3d_mip"
+    ],
     "planes": [
       "axial",
       "coronal",
