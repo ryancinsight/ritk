@@ -157,9 +157,10 @@
 
 <a id="RITK-METIS-LOCK-003"></a>
 ## RITK-METIS-LOCK-003 — Advance the current Metis viewer pin [patch]
-- Status: in-progress; priority: P1; owner: RITK integration; integrator: root; last-update: 2026-09-17; dependencies: Metis PR #228 merge `47193af81491d3b2e5e236f8fe69dba85e42ded4`; scope: `Cargo.lock`, Métis workflow defaults and lock provenance; non-goal: DICOM parsing or clinical presentation; lease: root `Cargo.lock`, `.github/workflows/metis-browser-dicom.yml`, `.github/workflows/metis-package.yml`, this item through the next commit.
+- Status: review; priority: P1; owner: RITK integration; integrator: root; last-update: 2026-09-17; dependencies: Metis PR #228 merge `47193af81491d3b2e5e236f8fe69dba85e42ded4`; scope: `Cargo.lock`, Métis workflow defaults and lock provenance, WASM cfg gates; non-goal: DICOM parsing or clinical presentation.
 - Outcome: standalone Cargo.lock and viewer workflows resolve every Metis package to the current public Metis revision while retaining the current Moirai provider; saved-study replay remains byte- and geometry-stable.
-- Acceptance: `scripts/lockfile.py --regenerate` and `--check` outside the Atlas overlay; one Metis SHA with no `8e566af` entries; standalone locked metadata; focused native/WASM `ritk-snap` gates; browser replay and committed image JSON/hash/dimension checks; `git diff --check`.
+- Acceptance: one current Metis SHA with no obsolete entries; standalone locked metadata and focused native/WASM `ritk-snap` gates pass; replay reads the saved study and preserves the committed frame.
+- Verification: `scripts/lockfile.py --check` reports 61 first-party git sources; fmt, native strict Clippy, locked `ritk-snap` nextest 473/473, WASM check/Clippy, and `ritk-snap-eframe` check/Clippy pass; replay reads 94 files, emits the committed 1280×800 MRI frame (`259dd79103482756c4e688621bebafc841cc40f1df10ff2bbd7f9d04b7b4d401`), rejects an invalid study with exit 1, and `git diff --check` passes.
 
 <a id="RITK-DOCS-EVIDENCE-SYNC-001"></a>
 ## RITK-DOCS-EVIDENCE-SYNC-001 — Sync current provider revisions in replay docs [patch]

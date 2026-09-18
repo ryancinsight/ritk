@@ -16,7 +16,7 @@ decoded-workspace budgets, and return the RITK `Image` plus
 boundary; the host owns only input and presentation lifecycle.
 
 The current standalone lock used by the viewer resolves the six Metis packages
-to `8e566af9a37dc0382e8e919c593d3838f5b08186` and Moirai packages to
+to `47193af81491d3b2e5e236f8fe69dba85e42ded4` and Moirai packages to
 `a2f21496d1d09b2abe6523e3c8cdbf751dcd560a`. The browser chooser and Windows
 package workflows use these provider pins. Historical hosted captures retain
 the provider revisions recorded in their own provenance files. RITK continues
