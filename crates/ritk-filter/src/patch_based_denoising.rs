@@ -627,9 +627,9 @@ fn smooth_disc_weights_sq(patch_radius: usize, ndim: usize) -> Vec<f64> {
 /// Evaluate one smooth-disc spline power with ITK's host overload.
 #[inline]
 fn spline_power(base: f32, exponent: f32) -> f64 {
-    #[cfg(windows)]
+    #[cfg(target_env = "msvc")]
     let promoted = f64::from(base.powf(exponent));
-    #[cfg(not(windows))]
+    #[cfg(not(target_env = "msvc"))]
     let promoted = f64::from(base).powf(f64::from(exponent));
     promoted
 }
