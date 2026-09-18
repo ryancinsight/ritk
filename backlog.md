@@ -25,11 +25,8 @@ Unresolved delivery items are kept as executable records. Closed history is inde
 
 <a id="RITK-DOCS-EVIDENCE-SYNC-002"></a>
 ## RITK-DOCS-EVIDENCE-SYNC-002 — Rebind current real MRI replay provenance [patch]
-- Status: review; compacted 2026-09-18; full delivery history remains in git.
-- Scope: rerun the public 94-file MRI-DIR replay under the current standalone lock and synchronize its JSON, manual and linked verification records.
-- Acceptance: provenance names the exact RITK/Metis/Moirai revisions and lock digest; the real PNG SHA, dimensions and non-black count remain value-verified; no private study data is added.
-- Evidence: the native command exits 0 and reproduces the committed 1280×800 PNG byte-for-byte (`259dd79103482756c4e688621bebafc841cc40f1df10ff2bbd7f9d04b7b4d401`, 411,589 non-black pixels); executable SHA-256 is `a550bc5b37632d721f1edd4723a8481e114ec638660359923ede29bb51e21275` (26,360,832 bytes). JSON/image/hash, lo…
-- Verification: the board is compacted to 411 lines so the hosted artifact-budget gate can inspect the changed PM artifact; closed history remains indexed below with delivery SHAs.
+- Status: done; delivery: RITK PR #493, merge `73b01be1a3fcb6bb755ffdd302cb412d218fcd44`; compacted 2026-09-18.
+- Outcome: standalone-lock provenance binds RITK `e635baf90f99cc0ae09df06c42424ba5c4c6faec`, Metis `0e449856ade677860fd6866c3855ae2ba527e33a`, Moirai `a2f21496d1d09b2abe6523e3c8cdbf751dcd560a` and lock `49381c64b5751b5c07bf571c66a31205ebf3ccdc780afe3b4b102c0792a5bc85`; the 94-file MRI replay remains byte-identical at `259dd79103482756c4e688621bebafc841cc40f1df10ff2bbd7f9d04b7b4d401` (1280×800, 411,589 non-black pixels), with JSON/image/hash and locked gates validated.
 
 <a id="RITK-BROWSER-WEBGPU-001"></a>
 ## RITK-BROWSER-WEBGPU-001 — Demonstrate browser WebGPU presentation [arch] [minor]
