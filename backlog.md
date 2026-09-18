@@ -155,6 +155,13 @@
 - Outcome: standalone lock and viewer workflows resolve Metis `8e566af9a37dc0382e8e919c593d3838f5b08186` and Moirai `a2f21496d1d09b2abe6523e3c8cdbf751dcd560a`; the saved-study replay reads 94 files, reproduces the committed MRI frame, and rejects an invalid study.
 - Verification: lockfile, fmt, nextest 435/435, strict native/WASM checks and Clippy, replay, provenance JSON and image hash/dimension checks pass; [current MRI evidence](docs/manual/images/dicom-metis-real-mri.json).
 
+<a id="RITK-METIS-LOCK-003"></a>
+## RITK-METIS-LOCK-003 — Advance the current Metis viewer pin [patch]
+- Status: review; priority: P1; owner: RITK integration; integrator: root; last-update: 2026-09-17; dependencies: Metis PR #228 merge `47193af81491d3b2e5e236f8fe69dba85e42ded4`; scope: `Cargo.lock`, Métis workflow defaults and lock provenance, WASM cfg gates; non-goal: DICOM parsing or clinical presentation.
+- Outcome: standalone Cargo.lock and viewer workflows resolve every Metis package to the current public Metis revision while retaining the current Moirai provider; saved-study replay remains byte- and geometry-stable.
+- Acceptance: one current Metis SHA with no obsolete entries; standalone locked metadata and focused native/WASM `ritk-snap` gates pass; replay reads the saved study and preserves the committed frame.
+- Verification: `scripts/lockfile.py --check` reports 61 first-party git sources; fmt, native strict Clippy, locked `ritk-snap` nextest 473/473, WASM check/Clippy, and `ritk-snap-eframe` check/Clippy pass; replay reads 94 files, emits the committed 1280×800 MRI frame (`259dd79103482756c4e688621bebafc841cc40f1df10ff2bbd7f9d04b7b4d401`), rejects an invalid study with exit 1, and `git diff --check` passes.
+
 <a id="RITK-DOCS-EVIDENCE-SYNC-001"></a>
 ## RITK-DOCS-EVIDENCE-SYNC-001 — Sync current provider revisions in replay docs [patch]
 - Status: done; delivery: [RITK PR #451](https://github.com/ryancinsight/ritk/pull/451), merge `198fc38bfa1d144f8c95fe66127a96d65c562172`; last-update: 2026-09-17.

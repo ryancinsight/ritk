@@ -1,6 +1,6 @@
 use crate::ui::advance_wrapped;
 use crate::ui::{axis_total, clamp_index, step_clamped};
-#[cfg(feature = "eframe-shell")]
+#[cfg(all(not(target_arch = "wasm32"), feature = "eframe-shell"))]
 use crate::LoadedVolume;
 
 use super::state::SnapApp;

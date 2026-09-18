@@ -277,7 +277,7 @@ fn invalid_channel_image(channels: u8) -> RgbaImage {
     invalid_image()
 }
 
-#[cfg(feature = "eframe-shell")]
+#[cfg(all(not(target_arch = "wasm32"), feature = "eframe-shell"))]
 fn invalid_color_image(channels: u8) -> egui::ColorImage {
     invalid_channel_image(channels).to_color_image()
 }

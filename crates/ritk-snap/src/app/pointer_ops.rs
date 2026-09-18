@@ -2,7 +2,7 @@ use super::state::SnapApp;
 use crate::render::NamedColorMap;
 use crate::tools::interaction::{Annotation, ImagePoint, MeasurementError, RoiKind, ToolState};
 use crate::tools::kind::ToolKind;
-#[cfg(feature = "eframe-shell")]
+#[cfg(all(not(target_arch = "wasm32"), feature = "eframe-shell"))]
 use crate::ui::{anatomical_label_for_axis, axis_for_plane_in_volume, AnatomicalPlane};
 use crate::ui::{
     image_point_to_voxel, intensity_at_voxel, pan_from_drag_delta, window_level_from_drag_delta,
