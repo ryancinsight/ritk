@@ -1700,7 +1700,7 @@ browser-driver input and Safari's file-backed WebDriver read remain separate
 acceptance work. Browser WebGPU is available through the explicit asynchronous
 `start_web_orthogonal_canvases_gpu` entrypoint; the gallery selects it only for
 `?renderer=webgpu` and records setup failures instead of falling back. No real
-GPU visual or equivalence claim is made for the current hosted run because its
+GPU visual or equivalence claim is made for the recorded hosted run because its
 browser reported no adapter. The generic Métis runner's `--canvas-capture screenshot
 --canvas-context webgpu` mode captures those non-2D canvases as real element
 PNGs and verifies the context without substituting a 2D readback. Native eframe GPU uploads are guarded by the same RITK device limit
