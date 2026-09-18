@@ -3,10 +3,7 @@
 use anyhow::{bail, Result};
 use std::collections::BTreeSet;
 
-use super::{
-    cine_rate, TraceCleanup, TraceInputMode, TraceScreenshot, TraceSnapshot,
-    WINDOW_LEVEL_ATTRIBUTES,
-};
+use super::{cine_rate, TraceCleanup, TraceInputMode, TraceScreenshot, TraceSnapshot};
 
 /// Validate the window and canvas screenshot manifest.
 pub(super) fn validate_screenshots(
@@ -192,24 +189,7 @@ pub(super) fn validate_cleanup(
             canvas_ids.len()
         )
     }
-    let required_attributes: Vec<String> = expected_attributes
-        .iter()
-        .map(|name| (*name).to_owned())
-        .collect();
-    let mut extended_attributes = required_attributes.clone();
-    let insertion_index = expected_attributes
-        .iter()
-        .position(|name| *name == "data-ritk-cine-fps")
-        .map_or(extended_attributes.len(), |index| index + 1);
-    extended_attributes.splice(
-        insertion_index..insertion_index,
-        WINDOW_LEVEL_ATTRIBUTES
-            .iter()
-            .map(|name| (*name).to_owned()),
-    );
-    if cleanup.canvas_attribute_names != required_attributes
-        && cleanup.canvas_attribute_names != extended_attributes
-    {
+    if !super::attribute_names_match(&cleanup.canvas_attribute_names, expected_attributes) {
         bail!("browser trace cleanup does not record the required RITK attributes")
     }
     Ok(())
