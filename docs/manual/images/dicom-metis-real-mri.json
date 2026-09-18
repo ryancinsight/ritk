@@ -25,6 +25,11 @@
     "executable_sha256": "59af6328e36d0d8fc4b49ae04c7dacc8bf74fd0115b8fefb13d70efe15079fb2",
     "executable_bytes": 53380096,
     "visual_scope": "Métis framebuffer pixels; operating-system chrome excluded",
+    "semantic_surfaces": [
+      "axial",
+      "coronal",
+      "sagittal"
+    ],
     "planes": [
       "axial",
       "coronal",
