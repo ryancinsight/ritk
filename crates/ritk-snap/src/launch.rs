@@ -1,6 +1,9 @@
 use serde::{Deserialize, Serialize};
 use std::path::PathBuf;
 
+mod viewport;
+pub use viewport::{EframeViewport, EframeViewportError};
+
 #[cfg(windows)]
 use std::path::Path;
 
@@ -122,11 +125,29 @@ pub fn run_eframe_app_with_options(options: AppLaunchOptions) -> anyhow::Result<
 /// shell.
 #[cfg(all(not(target_arch = "wasm32"), feature = "eframe-shell"))]
 pub fn run_eframe_app_with_presentation(
-    mut options: AppLaunchOptions,
+    options: AppLaunchOptions,
     presentation: CompatibilityPresentation,
 ) -> anyhow::Result<()> {
+    run_eframe_app_with_viewport(options, presentation, EframeViewport::default())
+}
+
+/// Launch the compatibility shell with an explicit logical viewport size.
+///
+/// The size is useful for matched resource fixtures. The resulting physical
+/// capture still depends on the host display scale and must be recorded by the
+/// capture provenance.
+///
+/// # Errors
+/// Returns a window, event-loop, load, or capture error from the compatibility
+/// shell.
+#[cfg(all(not(target_arch = "wasm32"), feature = "eframe-shell"))]
+pub fn run_eframe_app_with_viewport(
+    mut options: AppLaunchOptions,
+    presentation: CompatibilityPresentation,
+    viewport: EframeViewport,
+) -> anyhow::Result<()> {
     options.metis_native = false;
-    run_app_with_compatibility(options, presentation)
+    run_app_with_compatibility(options, presentation, viewport)
 }
 
 /// Launch the eframe compatibility shell with its default options.
@@ -173,14 +194,22 @@ where
 /// screenshot response exceeds its deadline, or the window closes early.
 #[cfg(not(target_arch = "wasm32"))]
 pub fn run_app_with_options(options: AppLaunchOptions) -> anyhow::Result<()> {
-    run_app_with_compatibility(options, CompatibilityPresentation::FullApplication)
+    run_app_with_compatibility(
+        options,
+        CompatibilityPresentation::FullApplication,
+        EframeViewport::default(),
+    )
 }
 
 #[cfg(not(target_arch = "wasm32"))]
 fn run_app_with_compatibility(
     options: AppLaunchOptions,
     compatibility_presentation: CompatibilityPresentation,
+    viewport: EframeViewport,
 ) -> anyhow::Result<()> {
+    #[cfg(not(feature = "eframe-shell"))]
+    let _ = viewport;
+
     if options.metis_native {
         anyhow::ensure!(
             compatibility_presentation == CompatibilityPresentation::FullApplication,
@@ -227,7 +256,7 @@ fn run_app_with_compatibility(
         let native_options = eframe::NativeOptions {
             viewport: egui::ViewportBuilder::default()
                 .with_title("ritk-snap — DICOM Viewer")
-                .with_inner_size([1280.0, 800.0]),
+                .with_inner_size(viewport.logical_size()),
             ..Default::default()
         };
 

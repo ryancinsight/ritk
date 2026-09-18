@@ -428,8 +428,16 @@ path, while presenting only the three planes that the Métis host exposes:
 target\debug\ritk-snap-eframe.exe `
   test_data\2_head_mri_t2\DICOM `
   --presentation orthogonal-surface `
+  --viewport-size 1024x640 `
   --capture scratch\viewer\real-mri-eframe-orthogonal.png
 ```
+
+The eframe viewport size is logical points. On the controlled Windows host,
+the display scale is 125%, so `--viewport-size 1024x640` produces the same
+1280×800 physical surface as the Métis native capture. Pass that option to the
+command above when producing the matched resource fixture. The provenance
+record keeps the requested logical size and observed physical PNG dimensions
+together, so a DPI-dependent fixture cannot be mistaken for a rescaled image.
 
 The reviewed capture below contains real saved MRI pixels in axial, coronal
 and sagittal panels. The three panels preserve voxel spacing when they fit the
@@ -441,9 +449,10 @@ Three bounded lifecycle repeats exited with code 0 and produced the same PNG
 digest. Dimensions, resource samples, source revisions and the exact semantic
 surface list are recorded in
 [`dicom-eframe-orthogonal-surface-resource.json`](images/dicom-eframe-orthogonal-surface-resource.json).
-This is the eframe half of the matched fixture for `METIS-PERF-001`; it does
-not rank frameworks. GPUI and Tauri captures still require the same semantic
-surface and host-size contract before their resource numbers can be compared.
+The matched 1280×800 record is the eframe half of the common fixture for
+`METIS-PERF-001`; it does not rank frameworks. GPUI and Tauri captures still
+require the same semantic surface and host-size contract before their resource
+numbers can be compared.
 
 For the migrated Windows host, run the same generated study through Métis:
 

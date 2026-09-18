@@ -168,6 +168,14 @@
 - Outcome: `ritk-snap-eframe --presentation orthogonal-surface` renders only real axial, coronal and sagittal MRI planes through the existing spacing-aware placement; the complete eframe shell and Métis hosts are unchanged.
 - Verification: commit `3439b1587`; feature-enabled nextest 858/858 plus the regression test for the post-load hanging-protocol gate, strict package Clippy, locked build, format and diff checks pass; three resource repeats exit 0 with equal 1600×1000 PNG digest `3b58942a769d7f2d458fe14ec16c2f59be4c394fe3c5db4eb59723cba6c9d726`; visual inspection confirms real saved-study anatomy and the provenance record binds the semantic surfaces.
 
+<a id="RITK-SNAP-EFRAME-MATCH-001"></a>
+## RITK-SNAP-EFRAME-MATCH-001 — Match the Métis capture extent [minor]
+- Status: in-progress; priority: P1; owner: RITK viewer; integrator: root; last-update: 2026-09-18; dependency: [Metis comparative evidence](../metis/backlog.md#METIS-PERF-001); risk: display-scale-dependent fixture.
+- Scope: add a validated eframe logical viewport option and regenerate the real MRI orthogonal-surface capture at the controlled host extent used by Métis; retain the existing default and semantic planes.
+- Non-goals: GPUI/Tauri implementation, framework ranking, or rescaling an already-rendered image.
+- Acceptance: parser/unit tests cover positive, zero, oversized and malformed sizes; the controlled 125% host produces a 1280×800 physical capture with axial/coronal/sagittal surfaces, repeated digest and provenance recording requested logical size plus observed display scale; manual and `METIS-PERF-001` link the record.
+- Risk/change class: `[minor]`; the additive CLI/API option is documented and the default remains 1280×800 logical points.
+
 <a id="RITK-SNAP-METIS-001"></a>
 ## RITK-SNAP-METIS-001 — Migrate the viewer shell to Métis [arch] [major]
 - Status: done; priority: P1; owner: RITK viewer + Métis framework; integrator: root; last-update: 2026-09-17; delivery: RITK PR #443 (merge `57e11c92c080dc9c8716f9218d55c1344a75b412`) and PR #444 (merge `5a68a8e725280a3a94387dd4c9f01524201fdb8f`).
