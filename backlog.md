@@ -157,10 +157,9 @@
 
 <a id="RITK-METIS-LOCK-003"></a>
 ## RITK-METIS-LOCK-003 — Advance the current Metis viewer pin [patch]
-- Status: review; priority: P1; owner: RITK integration; integrator: root; last-update: 2026-09-17; dependencies: Metis PR #228 merge `47193af81491d3b2e5e236f8fe69dba85e42ded4`; scope: `Cargo.lock`, Métis workflow defaults and lock provenance, WASM cfg gates; non-goal: DICOM parsing or clinical presentation.
-- Outcome: standalone Cargo.lock and viewer workflows resolve every Metis package to the current public Metis revision while retaining the current Moirai provider; saved-study replay remains byte- and geometry-stable.
-- Acceptance: one current Metis SHA with no obsolete entries; standalone locked metadata and focused native/WASM `ritk-snap` gates pass; replay reads the saved study and preserves the committed frame.
-- Verification: `scripts/lockfile.py --check` reports 61 first-party git sources; fmt, native strict Clippy, locked `ritk-snap` nextest 473/473, WASM check/Clippy, and `ritk-snap-eframe` check/Clippy pass; replay reads 94 files, emits the committed 1280×800 MRI frame (`259dd79103482756c4e688621bebafc841cc40f1df10ff2bbd7f9d04b7b4d401`), rejects an invalid study with exit 1, and `git diff --check` passes.
+- Status: done; priority: P1; delivery: [RITK PR #471](https://github.com/ryancinsight/ritk/pull/471), merge `5166dfad833db2d7b2ee3d63a07a52ad66416c3a`; last-update: 2026-09-17.
+- Outcome: standalone lock and viewer workflows resolve Metis `47193af81491d3b2e5e236f8fe69dba85e42ded4` and retain Moirai `a2f21496d1d09b2abe6523e3c8cdbf751dcd560a`; native-only rendering imports are scoped away from WASM, and the 94-file saved-study replay reproduces the committed MRI frame and rejects an invalid study.
+- Verification: lockfile, fmt, native strict Clippy, locked `ritk-snap` nextest 473/473, WASM check/Clippy, eframe check/Clippy, replay image SHA/dimensions/non-black count, and `git diff --check` pass; local pre-push gate passed.
 
 <a id="RITK-DOCS-EVIDENCE-SYNC-001"></a>
 ## RITK-DOCS-EVIDENCE-SYNC-001 — Sync current provider revisions in replay docs [patch]
