@@ -8,6 +8,7 @@
 //! viewer state stay in [`SnapApp`].
 
 use super::browser_canvas::BrowserCanvas;
+use super::browser_cine::{parse_browser_cine_rate_request, BrowserCineControlError};
 use super::browser_geometry::{viewport_for_display, PhysicalCanvasAspect};
 use super::browser_semantics::BrowserCanvasSemantics;
 use super::browser_slice_selection::{parse_browser_slice_request, BrowserSliceSelectionError};
@@ -148,7 +149,8 @@ impl BrowserSurface {
                     slice_index,
                     slice_count,
                     frame.as_ref(),
-                    app.cine.fps,
+                    app.browser_cine_enabled(),
+                    app.browser_cine_rate(),
                     window_center,
                     window_width,
                     app.browser_window_preset_index(),
@@ -167,7 +169,8 @@ impl BrowserSurface {
                         slice_index,
                         slice_count,
                         frame,
-                        app.cine.fps,
+                        app.browser_cine_enabled(),
+                        app.browser_cine_rate(),
                         window_center,
                         window_width,
                         app.browser_window_preset_index(),
@@ -417,6 +420,33 @@ pub(crate) fn set_web_window_preset(
             viewer.surface.clear();
         }
         Ok(())
+    })
+}
+
+/// Toggles cine playback for the loaded browser study.
+pub(crate) fn toggle_web_cine() -> Result<bool, BrowserCineControlError> {
+    VIEWER.with(|slot| {
+        let mut slot = slot
+            .try_borrow_mut()
+            .map_err(|_| BrowserCineControlError::ViewerBusy)?;
+        let viewer = slot
+            .as_mut()
+            .ok_or(BrowserCineControlError::ViewerNotMounted)?;
+        viewer.app.toggle_browser_cine()
+    })
+}
+
+/// Applies one exact bounded cine rate to the loaded browser study.
+pub(crate) fn set_web_cine_rate(rate: f64) -> Result<bool, BrowserCineControlError> {
+    let rate = parse_browser_cine_rate_request(rate)?;
+    VIEWER.with(|slot| {
+        let mut slot = slot
+            .try_borrow_mut()
+            .map_err(|_| BrowserCineControlError::ViewerBusy)?;
+        let viewer = slot
+            .as_mut()
+            .ok_or(BrowserCineControlError::ViewerNotMounted)?;
+        viewer.app.set_browser_cine_rate(rate)
     })
 }
 

@@ -28,6 +28,13 @@
 - Outcome: RITK owns the slice-control runner, evidence helpers and saved-study assertions; Metis exposes only the generic file/canvas host and bounded consumer callback.
 - Delivery: RITK PR #429 merge `db390b8616e4cc58f2555f49a816e61eed1fadd1` plus Metis PR #193 merge `88c60a0b`; Edge evidence records 50 trusted slider actions and 18 invalid probes, while hosted run [35133971196](https://github.com/ryancinsight/ritk/actions/runs/35133971196) passes Chromium/Firefox and records the WebKit/WebGPU residuals in the [provenance record](docs/manual/images/dicom-metis-real-browser-mri-cross-engine.json).
 
+<a id="RITK-BROWSER-CINE-001"></a>
+## RITK-BROWSER-CINE-001 — Expose browser cine controls [minor]
+- Status: in-progress; priority: P1; owner: RITK SNAP browser; integrator: root; last-update: 2026-09-18; dependencies: RITK-BROWSER-GALLERY-HARNESS-001; risk: playback state drift between controls and presented slices.
+- Scope: add typed WASM Play/Pause and bounded FPS controls to the RITK-owned gallery, publish enabled/rate semantics, and extend the real-study browser trace; Metis remains format-neutral and no DICOM code changes.
+- Acceptance: controls are disabled before load, reject invalid rates without mutation, preserve 1–60 FPS bounds, advance the active axis through the existing host-neutral clock, and release all listeners on stop; the 94-file MRI trace records semantic state, frame changes and exact teardown.
+- Demonstration: [RITK DICOM workflow](docs/manual/dicom-workflow.md) with the inspected real MRI capture and a revision-bound browser trace.
+
 <a id="RITK-GALLERY-CYCLES-001"></a>
 ## RITK-GALLERY-CYCLES-001 — Repeated saved-study browser lifecycle
 - Status: done; delivery: [PR #409](https://github.com/ryancinsight/ritk/pull/409), merge `86632ab0afc667f83e746ab5c8ccb8ce8ca8a32b`; last-update: 2026-09-16.

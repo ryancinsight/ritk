@@ -3,12 +3,15 @@ use crate::presentation::PresentationFrame;
 
 #[test]
 fn empty_canvas_publishes_bounded_empty_state() {
-    let state = BrowserCanvasSemantics::from_state(false, 0, 0, 1, None, 12.0, 128.0, 256.0, None);
+    let state =
+        BrowserCanvasSemantics::from_state(false, 0, 0, 1, None, false, 12.0, 128.0, 256.0, None);
 
     assert_eq!(state.load_state, BrowserLoadState::Empty);
     assert_eq!(state.load_state_value(), "empty");
     assert_eq!(state.frame_state_value(), "empty");
     assert_eq!(state.frame_dimensions_or_zero(), (0, 0));
+    assert!(!state.cine_enabled);
+    assert_eq!(state.cine_enabled_value(), "false");
     assert_eq!(state.cine_fps_value(), "12");
     assert_eq!(state.window_center_value(), "128");
     assert_eq!(state.window_width_value(), "256");
@@ -28,6 +31,7 @@ fn presented_canvas_preserves_axis_slice_and_frame_dimensions() {
         5,
         9,
         Some(&frame),
+        true,
         18.0,
         500.0,
         800.0,
@@ -38,6 +42,8 @@ fn presented_canvas_preserves_axis_slice_and_frame_dimensions() {
     assert_eq!(state.load_state_value(), "ready");
     assert_eq!(state.frame_state_value(), "presented");
     assert_eq!(state.frame_dimensions_or_zero(), (4, 3));
+    assert!(state.cine_enabled);
+    assert_eq!(state.cine_enabled_value(), "true");
     assert_eq!(state.cine_fps_value(), "18");
     assert_eq!(state.window_center_value(), "500");
     assert_eq!(state.window_width_value(), "800");

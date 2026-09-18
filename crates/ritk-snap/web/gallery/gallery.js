@@ -4,8 +4,8 @@ const describeError = (error) => error instanceof Error ? error.message : String
 try {
   const { default: init, start_web_orthogonal_canvases,
     start_web_orthogonal_canvases_gpu, stop_web_canvas, web_canvas_listener_count,
-    select_web_slice, set_web_window_preset, web_window_preset_count,
-    web_window_preset_name } =
+    select_web_slice, set_web_cine_rate, set_web_window_preset,
+    toggle_web_cine, web_window_preset_count, web_window_preset_name } =
     await import("./consumer/ritk_snap.js");
   const runtime = await init();
   const renderer = new URLSearchParams(window.location.search).get("renderer") === "webgpu"
@@ -13,8 +13,14 @@ try {
   let mounted = false;
   const windowPreset = document.getElementById("window-preset");
   const windowLevel = document.getElementById("window-level");
+  const cineToggle = document.getElementById("cine-toggle");
+  const cineRate = document.getElementById("cine-rate");
+  const cineRateValue = document.getElementById("cine-rate-value");
   if (!(windowPreset instanceof HTMLSelectElement) ||
-      !(windowLevel instanceof HTMLOutputElement)) {
+      !(windowLevel instanceof HTMLOutputElement) ||
+      !(cineToggle instanceof HTMLButtonElement) ||
+      !(cineRate instanceof HTMLInputElement) ||
+      !(cineRateValue instanceof HTMLOutputElement)) {
     throw new Error("RITK presentation controls are missing");
   }
   let presetSignature = "";
@@ -71,6 +77,50 @@ try {
       syncPresentation();
     }
   });
+  const syncCine = () => {
+    const canvases = ["axial", "coronal", "sagittal"]
+      .map((name) => document.getElementById(`ritk-snap-${name}`));
+    const canvas = canvases[0];
+    const ready = mounted && canvases.every((candidate) =>
+      candidate instanceof HTMLCanvasElement &&
+      candidate.getAttribute("data-ritk-load-state") === "ready" &&
+      candidate.getAttribute("data-ritk-frame-state") === "presented");
+    if (!ready) {
+      cineToggle.disabled = true;
+      cineToggle.textContent = "Play";
+      cineToggle.setAttribute("aria-pressed", "false");
+      cineRate.disabled = true;
+      cineRate.value = "12";
+      cineRateValue.textContent = "12 FPS";
+      return;
+    }
+    const enabled = canvas.getAttribute("data-ritk-cine-enabled") === "true";
+    const rawRate = Number(canvas.getAttribute("data-ritk-cine-fps"));
+    const rate = Number.isInteger(rawRate) && rawRate >= 1 && rawRate <= 60
+      ? rawRate : 12;
+    cineToggle.disabled = false;
+    cineToggle.textContent = enabled ? "Pause" : "Play";
+    cineToggle.setAttribute("aria-pressed", String(enabled));
+    cineRate.disabled = false;
+    cineRate.value = String(rate);
+    cineRateValue.textContent = `${rate} FPS`;
+  };
+  cineToggle.addEventListener("click", () => {
+    try {
+      toggle_web_cine();
+    } catch (error) {
+      status.textContent = `Cine playback could not change: ${describeError(error)}`;
+      syncCine();
+    }
+  });
+  cineRate.addEventListener("input", () => {
+    try {
+      set_web_cine_rate(cineRate.valueAsNumber);
+    } catch (error) {
+      status.textContent = `Cine rate could not change: ${describeError(error)}`;
+      syncCine();
+    }
+  });
   const controls = ["axial", "coronal", "sagittal"].map((name, axis) => {
     const canvas = document.getElementById(`ritk-snap-${name}`);
     const slider = document.getElementById(`slice-${name}`);
@@ -97,12 +147,14 @@ try {
     const syncAll = () => {
       sync();
       syncPresentation();
+      syncCine();
     };
     const observer = new MutationObserver(syncAll);
     observer.observe(canvas, { attributes: true, attributeFilter: [
       "data-ritk-slice-index", "data-ritk-slice-count", "data-ritk-frame-state",
       "data-ritk-load-state", "data-ritk-window-center", "data-ritk-window-width",
       "data-ritk-window-preset-index", "data-ritk-frame-generation",
+      "data-ritk-cine-enabled", "data-ritk-cine-fps",
     ] });
     return { sync, observer };
   });
@@ -111,6 +163,7 @@ try {
     mounted = false;
     controls.forEach(({ sync }) => sync());
     syncPresentation();
+    syncCine();
     status.textContent = "Stopped. Viewer resources released.";
   };
   const customizePicker = () => {
@@ -135,6 +188,7 @@ try {
     // Reapply the consumer's DICOM policy after each mount.
     customizePicker();
     syncPresentation();
+    syncCine();
     status.textContent = renderer === "webgpu"
       ? "Ready with WebGPU. Drop study files into the area below."
       : "Ready. Drop study files into the area below.";
@@ -148,6 +202,10 @@ try {
       host_listeners: Number(document.getElementById("metis-app")
         .getAttribute("data-metis-listener-count")),
       consumer_listeners: web_canvas_listener_count(),
+      cine_enabled: document.getElementById("ritk-snap-axial")
+        ?.getAttribute("data-ritk-cine-enabled"),
+      cine_fps: document.getElementById("ritk-snap-axial")
+        ?.getAttribute("data-ritk-cine-fps"),
     }),
   });
   window.addEventListener("pagehide", () => {

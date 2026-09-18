@@ -24,6 +24,12 @@
     </select>
     <output id="window-level" aria-live="polite">No study</output>
   </section>
+  <section class="cine-controls" aria-label="Cine playback controls">
+    <button id="cine-toggle" type="button" disabled aria-pressed="false">Play</button>
+    <label for="cine-rate">Cine rate</label>
+    <input id="cine-rate" type="range" min="1" max="60" step="1" value="12" aria-label="Cine playback rate" disabled>
+    <output id="cine-rate-value" aria-live="polite">12 FPS</output>
+  </section>
   <section class="gallery-views" aria-label="Orthogonal study views">
     <figure>
       <figcaption>Axial</figcaption>

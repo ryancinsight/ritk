@@ -43,9 +43,10 @@ pub use launch::{run_app_with_options, AppLaunchOptions, NativePresentationMode}
 pub use launch::{run_eframe_app, run_eframe_app_with_options};
 #[cfg(target_arch = "wasm32")]
 pub use launch::{
-    select_web_slice, set_web_window_preset, start_web, start_web_canvas, start_web_canvas_gpu,
-    start_web_orthogonal_canvases, start_web_orthogonal_canvases_gpu, stop_web_canvas,
-    web_canvas_listener_count, web_window_preset_count, web_window_preset_name,
+    select_web_slice, set_web_cine_rate, set_web_window_preset, start_web, start_web_canvas,
+    start_web_canvas_gpu, start_web_orthogonal_canvases, start_web_orthogonal_canvases_gpu,
+    stop_web_canvas, toggle_web_cine, web_canvas_listener_count, web_window_preset_count,
+    web_window_preset_name,
 };
 pub use loaded_volume::LoadedVolume;
 pub use viewer::ViewerState;
