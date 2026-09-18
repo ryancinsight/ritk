@@ -9,12 +9,8 @@ Unresolved delivery items are kept as executable records. Closed history is inde
 
 <a id="RITK-METIS-LOCK-009"></a>
 ## RITK-METIS-LOCK-009 — Advance the current Métis and Moirai provider lock [patch]
-- Status: review; priority: P1; owner: RITK viewer + integration; integrator: root; last-update: 2026-09-18.
-- Scope: advance the standalone RITK lock and current provider references to merged Métis `82bb3af7bb1695b43767caf9cf1012273e58613d` and Moirai `5075d4c70ba4f840d4c5a47b67c5d564405badf5`; historical replay provenance remains bound to the revisions that generated its images.
-- Acceptance: standalone `Cargo.lock` resolves with all first-party sources; locked RITK native/WASM checks, strict Clippy, formatting, provenance and browser-workflow inputs pass; current manual/workflow pins match the lock; the public MRI image evidence is not relabeled as a new replay.
-- Dependency: Metis PR #269 merged with hosted Windows gate; DICOM parsing, geometry and clinical presentation remain RITK-owned.
-- Delivery: lock commit `b3ce7d6d1`; current manual/workflow references resolve Metis `82bb3af7bb1695b43767caf9cf1012273e58613d` and Moirai `5075d4c70ba4f840d4c5a47b67c5d564405badf5`.
-- Evidence: standalone lock check reports 61 first-party sources; native nextest `450/450`, strict native Clippy, WASM check/Clippy, rustdoc, doc tests `4 passed/1 ignored`, format, provenance JSON and diff checks pass. The real 94-file MRI replay exits 0, invalid-study probe exits 1, and reproduces PNG `259dd79103482756c4e688621bebafc841cc40f1df10ff2bbd7f9d04b7b4d401` with 411,589 non-black pixels; lock SHA `3d06450ca51cdf42d4f0806b85f7589575ca753c92ad5ca74eff19dd592dee7e`.
+- Status: done; delivery: RITK PR [#504](https://github.com/ryancinsight/ritk/pull/504), merge `d8ed71cc6b592fe7a80cb4710d616aa1ffab5c1`; compacted 2026-09-18.
+- Outcome: the standalone lock and current browser workflow/manual pins now resolve Metis `82bb3af7bb1695b43767caf9cf1012273e58613d` and Moirai `5075d4c70ba4f840d4c5a47b67c5d564405badf5`; locked native/WASM gates and the fresh 94-file MRI replay pass with the committed image byte-identical. Historical provenance remains bound to its generating revisions; DICOM ownership stays in RITK.
 
 <a id="RITK-METIS-LOCK-008"></a>
 ## RITK-METIS-LOCK-008 — Advance the WebGPU recovery provider pins [patch]
