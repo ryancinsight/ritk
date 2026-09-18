@@ -1,0 +1,88 @@
+{
+  "schema": 1,
+  "status": "passed",
+  "runtime": {
+    "host": "Windows native eframe application",
+    "input": "saved public MRI-DIR T2 DICOM directory",
+    "phase": "lifecycle",
+    "sample_interval_ms": 100,
+    "timeout_seconds": 60,
+    "repeat_runs": 3,
+    "ritk_revision": "97c71f0cbcd383d3c77dcd36331d56d9118c4022",
+    "metis_revision": "ae5f80c8e2fe8c023d13514ffa6c48c84d3dc556",
+    "moirai_revision": "a2f21496d1d09b2abe6523e3c8cdbf751dcd560a",
+    "measurement_tool_revision": "457efed3942a6e324b4cbc510ff43014b250da40"
+  },
+  "dataset": {
+    "path": "test_data/2_head_mri_t2/DICOM",
+    "files_submitted": 94,
+    "bytes_read": 49807236,
+    "license": "CC BY 4.0",
+    "description": "public MRI-DIR porcine-head T2 MRI phantom; not private patient data"
+  },
+  "output": {
+    "image": "dicom-eframe-real-mri.png",
+    "width": 1600,
+    "height": 1000,
+    "bytes": 723980,
+    "sha256": "5f7d0bd307cf80a445b4ac997c779e68f68ca67e33c7f2b235ef6a3e3fa65ec0",
+    "non_black_pixels": 1455622,
+    "executable_sha256": "48e49accd29de3f3f0504ea4728202a241d98bb08412c1eddadc2abfa069768d",
+    "executable_bytes": 53896192,
+    "visual_scope": "complete eframe application content; operating-system chrome excluded",
+    "capture_command": "ritk-snap.exe test_data\\2_head_mri_t2\\DICOM --eframe --capture scratch\\viewer\\real-mri-eframe.png",
+    "planes": [
+      "axial",
+      "coronal",
+      "sagittal",
+      "3d_mip"
+    ],
+    "mip_mode": "GPU"
+  },
+  "resource": {
+    "capture_sha256": "5f7d0bd307cf80a445b4ac997c779e68f68ca67e33c7f2b235ef6a3e3fa65ec0",
+    "duration_ms": {
+      "mean": 2593.3333333333335,
+      "approximate_95_half_width": 476.93333333333334,
+      "sample_stddev": 421.4656965084268,
+      "count": 3
+    },
+    "startup_observation_ms": {
+      "mean": 3.3333333333333335,
+      "approximate_95_half_width": 0.6533333333333334,
+      "sample_stddev": 0.5773502691896258,
+      "count": 3
+    },
+    "peak_private_bytes": {
+      "mean": 1038607701.3333334,
+      "approximate_95_half_width": 2129689.59558995,
+      "sample_stddev": 1882005.3999554128,
+      "count": 3
+    },
+    "peak_working_set_bytes": {
+      "mean": 561489237.3333334,
+      "approximate_95_half_width": 905965.5941307762,
+      "sample_stddev": 800601.2443590963,
+      "count": 3
+    },
+    "peak_handles": {
+      "mean": 504.0,
+      "approximate_95_half_width": 0.0,
+      "sample_stddev": 0.0,
+      "count": 3
+    },
+    "command_sha256": "10b33e95e2561fbb4be9f7fe8d6e318b547753fe353f8965bc6877b9a8cfe479"
+  },
+  "bounds": {
+    "orderly_exit_codes": [0, 0, 0],
+    "repeat_capture_sha256_match": true,
+    "repeat_capture_sha256": "5f7d0bd307cf80a445b4ac997c779e68f68ca67e33c7f2b235ef6a3e3fa65ec0"
+  },
+  "comparison": {
+    "interpretation": "This is a real public MRI-DIR eframe/egui compatibility capture. It is a baseline for framework comparison, but it is not semantically matched to the current 1280x800 three-plane Metis capture: eframe includes a series browser, GPU MIP and a 1600x1000 surface. Matched GPUI/Tauri fixtures and a common surface/output contract remain open."
+  },
+  "ownership": {
+    "ritk": "DICOM discovery, series selection, decoding, geometry and clinical presentation",
+    "metis": "format-neutral host surface and measurement script only"
+  }
+}

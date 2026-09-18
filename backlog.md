@@ -149,6 +149,12 @@
 - Outcome: standalone-lock replay reads 94 public MRI-DIR DICOM files and reproduces the committed Métis frame; manual and provenance bind RITK `f1d7d458`, Metis `79f20e2c` and Moirai `a0f4fd29`, preserving historical picker and hosted records.
 - Verification: bounded replay, JSON/image/hash/dimension invariants, Python script tests (2/2), Python compilation and `git diff --check` pass; invalid-study probe exits 1.
 
+<a id="RITK-SNAP-EFRAME-MRI-001"></a>
+## RITK-SNAP-EFRAME-MRI-001 — Record a real eframe MRI baseline [patch]
+- Status: in-progress; priority: P1; owner: RITK viewer documentation; integrator: root; last-update: 2026-09-18; dependency: [Metis performance fixtures](../metis/backlog.md#METIS-PERF-001).
+- Outcome: preserve a revision-bound eframe/egui capture and resource report for the public 94-file MRI-DIR T2 study, with explicit comparison limits against the Métis surface.
+- Acceptance: the manual embeds the inspected PNG, the provenance JSON hashes the image and executable, three repeats exit 0 with equal capture digests, and no framework ranking is claimed from unlike surfaces.
+
 <a id="RITK-SNAP-METIS-001"></a>
 ## RITK-SNAP-METIS-001 — Migrate the viewer shell to Métis [arch] [major]
 - Status: done; priority: P1; owner: RITK viewer + Métis framework; integrator: root; last-update: 2026-09-17; delivery: RITK PR #443 (merge `57e11c92c080dc9c8716f9218d55c1344a75b412`) and PR #444 (merge `5a68a8e725280a3a94387dd4c9f01524201fdb8f`).

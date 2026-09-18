@@ -392,6 +392,32 @@ The source-level equivalent is
 Native window images depend on the host renderer and fonts; the exact pixel
 goldens above remain the deterministic software-rendering check.
 
+### Capture the saved MRI in the eframe compatibility shell
+
+The compatibility shell can open the same saved public MRI-DIR T2 study. This
+is a real DICOM run through the RITK loader, not a generated illustration:
+
+```powershell
+target\debug\ritk-snap.exe `
+  test_data\2_head_mri_t2\DICOM `
+  --eframe `
+  --capture scratch\viewer\real-mri-eframe.png
+```
+
+The reviewed capture is a 1600 × 1000 eframe application surface containing
+the series browser, axial, coronal and sagittal planes, and the `3D MIP · GPU`
+projection. Three bounded lifecycle repeats exited with code 0 and produced
+the same PNG digest:
+
+![Actual MRI-DIR T2 series rendered in the eframe compatibility shell](images/dicom-eframe-real-mri.png)
+
+The image and resource measurements are recorded in
+[`dicom-eframe-real-mri-resource.json`](images/dicom-eframe-real-mri-resource.json).
+This is a useful egui/eframe baseline, but it is not a matched performance
+fixture for the current 1280 × 800 Métis three-plane surface: eframe includes
+the browser and GPU MIP. A common output contract is required before comparing
+framework resource or latency numbers; GPUI and Tauri fixtures remain open.
+
 For the migrated Windows host, run the same generated study through Métis:
 
 ```console
