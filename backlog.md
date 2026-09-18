@@ -36,7 +36,7 @@
 
 <a id="RITK-BROWSER-TOOLS-001"></a>
 ## RITK-BROWSER-TOOLS-001 — Expose browser diagnostic tools [minor]
-- Status: in-progress; priority: P1; owner: RITK SNAP browser; integrator: root; last-update: 2026-09-18; dependencies: RITK-BROWSER-CINE-001; risk: browser tool state diverges from pointer semantics; lease: root `crates/ritk-snap/src/app/browser_tool.rs`, `browser_semantics.rs`, `browser_canvas.rs`, `web_viewer.rs`, `launch.rs`, `lib.rs`, `app/mod.rs`, `web/gallery/`, `scripts/browser_gallery*.py`, `.github/workflows/metis-browser-dicom.yml`, `docs/manual/dicom-workflow.md`, `backlog.md`.
+- Status: in-progress; priority: P1; owner: RITK SNAP browser; integrator: root; last-update: 2026-09-18; dependencies: RITK-BROWSER-CINE-001; risk: browser tool state diverges from pointer semantics; lease: root `crates/ritk-snap/src/app/browser_tool.rs`, `browser_semantics.rs`, `browser_canvas.rs`, `web_viewer.rs`, `launch.rs`, `lib.rs`, `app/mod.rs`, `web/gallery/`, `scripts/browser_gallery*.py`, `.github/workflows/metis-browser-dicom.yml`, `Cargo.lock`, `docs/manual/dicom-workflow.md`, `backlog.md`.
 - Scope: publish the existing RITK tool contract through typed WASM selection and an accessible consumer-owned palette; Metis remains format-neutral and receives only trusted browser events.
 - Acceptance: bounded tool indices and names reject invalid input without mutation, all three canvases publish the same active tool, trusted keyboard/pointer gestures produce input-sensitive frame or measurement changes on the 94-file MRI study, and stop releases all listeners.
 - Demonstration: the DICOM manual records the palette, keyboard shortcuts, real-study trace and inspected controls capture.
