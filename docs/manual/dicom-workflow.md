@@ -418,6 +418,33 @@ fixture for the current 1280 × 800 Métis three-plane surface: eframe includes
 the browser and GPU MIP. A common output contract is required before comparing
 framework resource or latency numbers; GPUI and Tauri fixtures remain open.
 
+### Capture the matched eframe orthogonal surface
+
+The dedicated eframe binary also exposes a shell-free measurement surface. It
+uses the same RITK loader, decoded pixels and spacing-aware `ImagePlacement`
+path, while presenting only the three planes that the Métis host exposes:
+
+```powershell
+target\debug\ritk-snap-eframe.exe `
+  test_data\2_head_mri_t2\DICOM `
+  --presentation orthogonal-surface `
+  --capture scratch\viewer\real-mri-eframe-orthogonal.png
+```
+
+The reviewed capture below contains real saved MRI pixels in axial, coronal
+and sagittal panels. The three panels preserve voxel spacing when they fit the
+host rectangles; the shell-free mode does not add a series browser or MIP.
+
+![Actual MRI-DIR T2 planes rendered in the matched eframe surface](images/dicom-eframe-orthogonal-surface.png)
+
+Three bounded lifecycle repeats exited with code 0 and produced the same PNG
+digest. Dimensions, resource samples, source revisions and the exact semantic
+surface list are recorded in
+[`dicom-eframe-orthogonal-surface-resource.json`](images/dicom-eframe-orthogonal-surface-resource.json).
+This is the eframe half of the matched fixture for `METIS-PERF-001`; it does
+not rank frameworks. GPUI and Tauri captures still require the same semantic
+surface and host-size contract before their resource numbers can be compared.
+
 For the migrated Windows host, run the same generated study through Métis:
 
 ```console

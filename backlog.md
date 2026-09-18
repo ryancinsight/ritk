@@ -163,10 +163,10 @@
 
 <a id="RITK-SNAP-EFRAME-SURFACE-001"></a>
 ## RITK-SNAP-EFRAME-SURFACE-001 — Capture a matched eframe orthogonal surface [minor]
-- Status: in-progress; priority: P1; owner: RITK compatibility shell; integrator: root; last-update: 2026-09-18; dependency: [Metis performance fixtures](../metis/backlog.md#METIS-PERF-001); risk: unlike presentation surfaces.
+- Status: done; priority: P1; delivery: pending PR; last-update: 2026-09-18; dependency: [Metis performance fixtures](../metis/backlog.md#METIS-PERF-001); risk: GPUI/Tauri fixtures remain unmeasured.
 - Scope: add an explicit eframe capture presentation that renders only the RITK axial, coronal and sagittal planes through the existing spacing-aware placement; the complete compatibility shell and Métis native/browser hosts remain unchanged.
-- Acceptance: the CLI selects the surface mode without boolean flags, reuses the physical-aspect placement contract, rejects the mode on incompatible hosts, and produces a real saved-study capture whose semantic surfaces match Metis's three-plane record; tests and manual provenance bind the exact revision.
-- lease: root crates/ritk-snap/src/launch.rs, crates/ritk-snap/src/app/eframe.rs, crates/ritk-snap/src/app/viewport.rs, crates/ritk-snap/src/launch/capture.rs, crates/ritk-snap-eframe/src/main.rs, docs/adr/0026-viewer-presentation-migration.md, docs/manual/dicom-workflow.md, docs/manual/images/dicom-eframe-orthogonal-surface.png, docs/manual/images/dicom-eframe-orthogonal-surface-resource.json, backlog.md 2026-09-18T03:35:00Z
+- Outcome: `ritk-snap-eframe --presentation orthogonal-surface` renders only real axial, coronal and sagittal MRI planes through the existing spacing-aware placement; the complete eframe shell and Métis hosts are unchanged.
+- Verification: commit `3439b1587`; feature-enabled nextest 857/857 plus the regression test for the post-load hanging-protocol gate, strict package Clippy, locked build, format and diff checks pass; three resource repeats exit 0 with equal 1600×1000 PNG digest `3b58942a769d7f2d458fe14ec16c2f59be4c394fe3c5db4eb59723cba6c9d726`; visual inspection confirms real saved-study anatomy and the provenance record binds the semantic surfaces.
 
 <a id="RITK-SNAP-METIS-001"></a>
 ## RITK-SNAP-METIS-001 — Migrate the viewer shell to Métis [arch] [major]
