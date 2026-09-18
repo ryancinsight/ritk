@@ -157,10 +157,9 @@
 
 <a id="RITK-SNAP-EVIDENCE-SURFACES-001"></a>
 ## RITK-SNAP-EVIDENCE-SURFACES-001 — Identify measured presentation surfaces [patch]
-- Status: in-progress; priority: P1; owner: RITK viewer documentation; integrator: root; last-update: 2026-09-18; dependency: [Metis performance fixtures](../metis/backlog.md#METIS-PERF-001); risk: invalid matched-resource comparisons.
-- lease: root docs/manual/images/dicom-eframe-real-mri-resource.json, docs/manual/images/dicom-metis-real-mri-resource.json, backlog.md 2026-09-18T03:35:00Z
+- Status: done; priority: P1; delivery: [RITK PR #478](https://github.com/ryancinsight/ritk/pull/478), merge `261307f65`; last-update: 2026-09-18; dependency: [Metis performance fixtures](../metis/backlog.md#METIS-PERF-001); risk: invalid matched-resource comparisons.
 - Outcome: the revision-bound MRI provenance records expose producer-owned semantic surface identities so the comparison tool can reject unlike eframe and Métis captures before calculating resource deltas.
-- Acceptance: both records parse with explicit surface arrays matching the inspected images; existing image/executable/hash checks remain unchanged; manual and cross-repo performance item link the contract.
+- Verification: both records parse with explicit surface arrays matching the inspected images; existing image/executable/hash checks remain unchanged; manual and cross-repo performance item link the contract; lockfile, format and diff checks pass.
 
 <a id="RITK-SNAP-METIS-001"></a>
 ## RITK-SNAP-METIS-001 — Migrate the viewer shell to Métis [arch] [major]
