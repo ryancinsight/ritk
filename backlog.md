@@ -4,11 +4,12 @@ Unresolved delivery items are kept as executable records. Closed history is inde
 
 <a id="RITK-SNAP-EFRAME-CURRENT-001"></a>
 ## RITK-SNAP-EFRAME-CURRENT-001 — Refresh the matched eframe MRI baseline [patch]
-- Status: review; priority: P1; owner: RITK viewer + integration; integrator: root.
+- Status: review; priority: P1; owner: RITK viewer + integration; integrator: root; branch: `build/ritk-eframe-baseline-014`; last-update: 2026-09-19.
 - Outcome: re-run the existing shell-free eframe orthogonal presentation against the current standalone RITK lock and bind the revision, executable, capture and resource metrics to the real 94-file MRI fixture.
 - Acceptance: three bounded runs exit 0, repeat capture SHA matches, semantic surfaces and physical host extent remain axial/coronal/sagittal at 1280×800, real-image capture is visually inspected, and no framework ranking is claimed.
-- Delivery: current locked eframe build; three bounded lifecycle runs exit 0 with repeated source SHA `2e47199cca0851f5ca2e3ce7b613cf70b096c3528bfc1eb705f64ced75485ba9`; mean peak private bytes `416,239,616 ± 29,801,008`, mean lifecycle duration `2,976 ± 1,949 ms`; provenance binds RITK `3a76cbe4`, Metis `a6af382`, and Moirai `b179b89`.
+- Delivery: current locked eframe build; three bounded lifecycle runs exited 0 with repeated source SHA `2e47199cca0851f5ca2e3ce7b613cf70b096c3528bfc1eb705f64ced75485ba9`; mean peak private bytes `416,867,669 ± 30,202,762`, mean lifecycle duration `2,123 ± 203 ms`; provenance binds RITK lock commit `f1a556786e849696caa73d8c341adf309e87d163`, Metis `8d4ab58e8731c51547bbca3ec87100facb698322`, and Moirai `f038622d24907884ce5f386da4e04d05bdb60d62`.
 - Verification: `scripts/resource.py` lifecycle report; real-image visual inspection; JSON/hash/diff checks; standalone lock check; current eframe build.
+- Evidence: the Metis resource runner recorded three orderly exits, matching capture SHA `2e47199cca0851f5ca2e3ce7b613cf70b096c3528bfc1eb705f64ced75485ba9`, 1280×800 source pixels with 927,849 non-black pixels, mean peak private bytes `416,867,669 ± 30,202,762`, mean lifecycle duration `2,123 ± 203 ms`, and peak handles `515`. The capture visibly contains the actual axial, coronal and sagittal MRI planes; no framework ranking is inferred.
 
 <a id="RITK-METIS-LOCK-012"></a>
 ## RITK-METIS-LOCK-012 — Replay the merged Metis clipboard runtime [patch]

@@ -6,12 +6,12 @@
     "input": "saved public MRI-DIR T2 DICOM directory",
     "phase": "lifecycle",
     "sample_interval_ms": 100,
-    "timeout_seconds": 90,
+    "timeout_seconds": 60,
     "repeat_runs": 3,
-    "ritk_revision": "3a76cbe4ac388267fd4016ec0fc21106ec569964",
-    "metis_revision": "a6af382ebf009806c920c07ae4031a98ea4a678a",
-    "moirai_revision": "b179b89fd2521034d2fc9c97663649811982e9fa",
-    "measurement_tool_revision": "3d20bb9446e4434a5c67d71a95f982bd692150b9"
+    "ritk_revision": "f1a556786e849696caa73d8c341adf309e87d163",
+    "metis_revision": "8d4ab58e8731c51547bbca3ec87100facb698322",
+    "moirai_revision": "f038622d24907884ce5f386da4e04d05bdb60d62",
+    "measurement_tool_revision": "74788b5508f3c9e29e80b464702f9c648922004f"
   },
   "dataset": {
     "path": "test_data/2_head_mri_t2/DICOM",
@@ -27,8 +27,8 @@
     "bytes": 100251,
     "sha256": "e35fa396623dd75870097712e08e21fee3b430c361042716a5b45d13acd3485a",
     "non_black_pixels": 233333,
-    "executable_sha256": "6d584048a681408c92b7b84c71d60220273b1d28a1a1a44ae3672137c9aff6a6",
-    "executable_bytes": 52916736,
+    "executable_sha256": "7f5c8f82c768582f543ae7ec72165ebbb15637b2a21d1fd13a07774ab02a51dd9",
+    "executable_bytes": 52985344,
     "visual_scope": "shell-free eframe orthogonal surface; 640x400 manual figure downscaled from the 1280x800 physical capture; operating-system chrome excluded",
     "capture_command": "ritk-snap-eframe.exe test_data\\\\2_head_mri_t2\\\\DICOM --presentation orthogonal-surface --viewport-size 1024x640 --capture scratch\\\\viewer\\\\real-mri-eframe-matched.png",
     "semantic_surfaces": [
@@ -65,36 +65,36 @@
   "resource": {
     "capture_sha256": "2e47199cca0851f5ca2e3ce7b613cf70b096c3528bfc1eb705f64ced75485ba9",
     "duration_ms": {
-      "approximate_95_half_width": 1949.2634401058608,
+      "approximate_95_half_width": 202.9028671830714,
       "count": 3,
-      "mean": 2976.0,
-      "sample_stddev": 1722.5629161223692
+      "mean": 2122.6666666666665,
+      "sample_stddev": 179.3051406223693
     },
     "startup_observation_ms": {
-      "approximate_95_half_width": 1589.2334340527543,
+      "approximate_95_half_width": 1.96,
       "count": 3,
-      "mean": 813.3333333333334,
-      "sample_stddev": 1404.4046188094558
+      "mean": 3.0,
+      "sample_stddev": 1.7320508075688772
     },
     "peak_private_bytes": {
-      "approximate_95_half_width": 29801008.24627615,
+      "approximate_95_half_width": 30202762.46797417,
       "count": 3,
-      "mean": 416239616.0,
-      "sample_stddev": 26335132.856800705
+      "mean": 416867669.3333333,
+      "sample_stddev": 26690162.81809471
     },
     "peak_working_set_bytes": {
-      "approximate_95_half_width": 5874536.862121164,
+      "approximate_95_half_width": 21803700.388261896,
       "count": 3,
-      "mean": 359660202.6666667,
-      "sample_stddev": 5191324.651086786
+      "mean": 365800106.6666667,
+      "sample_stddev": 19267916.768101458
     },
     "peak_handles": {
-      "approximate_95_half_width": 3.92,
+      "approximate_95_half_width": 0.0,
       "count": 3,
-      "mean": 517.0,
-      "sample_stddev": 3.4641016151377544
+      "mean": 515.0,
+      "sample_stddev": 0.0
     },
-    "command_sha256": "e439b8b852f03417aea38d726ed54a09d6a36ba3d8f5881bffc02276e6b4a620"
+    "command_sha256": "860a72476a21ec76f00b7b3005d19f31d1894405e755276f749d1e8d83abe7a8"
   },
   "bounds": {
     "orderly_exit_codes": [
