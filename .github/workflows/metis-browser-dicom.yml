@@ -8,7 +8,7 @@ on:
       metis_revision:
         description: Exact Métis commit resolved by Cargo.lock
         required: true
-        default: 82bb3af7bb1695b43767caf9cf1012273e58613d
+        default: 860ffbf52d12a70c80dd2f150d2aff3a5630d57e
         type: string
 
 permissions:
@@ -17,7 +17,7 @@ permissions:
 env:
   CARGO_INCREMENTAL: 0
   RUST_BACKTRACE: 1
-  METIS_REVISION: ${{ inputs.metis_revision || '82bb3af7bb1695b43767caf9cf1012273e58613d' }}
+  METIS_REVISION: ${{ inputs.metis_revision || '860ffbf52d12a70c80dd2f150d2aff3a5630d57e' }}
 
 concurrency:
   group: ritk-snap-metis-browser-${{ github.ref }}
