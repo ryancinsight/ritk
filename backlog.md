@@ -2,6 +2,13 @@
 
 Unresolved delivery items are kept as executable records. Closed history is indexed below; full prose remains in git.
 
+<a id="RITK-METIS-LOCK-011"></a>
+## RITK-METIS-LOCK-011 — Replay the current Metis consumer lock [patch]
+- Status: review; priority: P1; owner: RITK viewer + integration; integrator: root; last-update: 2026-09-19; dependencies: Metis main `b432446`; risk: cross-repo lock and real-study reproducibility.
+- Scope: advance the six Metis package sources in `Cargo.lock`, refresh the standalone replay provenance and manual references, and rerun the saved 94-file MRI workflow. DICOM parsing and clinical presentation remain RITK-owned.
+- Acceptance: standalone `Cargo.lock` resolves at one Metis revision; locked native/WASM checks, strict Clippy, formatting, provenance and image gates pass; the 1280×800 real MRI PNG remains byte-identical and the invalid-study probe rejects.
+- Evidence: Metis `b432446f5dbc39fb328220f45ba0d0341eb03263`; Moirai `5075d4c70ba4f840d4c5a47b67c5d564405badf5`; lock SHA-256 `182203ea9a9d13dbd596753055b96777954d68173228cfe22475cf496d58ac32`; locked `ritk-snap` nextest 450/450, native/WASM checks and strict Clippy, formatting and 94-file replay pass. The frame remains 1280×800, 411,589 non-black pixels and SHA-256 `259dd79103482756c4e688621bebafc841cc40f1df10ff2bbd7f9d04b7b4d401`; invalid-study exit 1.
+
 <a id="RITK-SNAP-METIS-NATIVE-WL-001"></a>
 ## RITK-SNAP-METIS-NATIVE-WL-001 — Demonstrate native window/level interaction [minor]
 - Status: done; delivery: RITK PR [#503](https://github.com/ryancinsight/ritk/pull/503), merge `bf2526e90055bb8e6efbaa36d0f084baab2689da`; compacted 2026-09-18.

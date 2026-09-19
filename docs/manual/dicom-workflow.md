@@ -16,7 +16,7 @@ decoded-workspace budgets, and return the RITK `Image` plus
 boundary; the host owns only input and presentation lifecycle.
 
 The current standalone lock used by the viewer resolves the six Metis packages
-to `860ffbf52d12a70c80dd2f150d2aff3a5630d57e` and fifteen Moirai packages to
+to `b432446f5dbc39fb328220f45ba0d0341eb03263` and fifteen Moirai packages to
 `5075d4c70ba4f840d4c5a47b67c5d564405badf5`. The browser chooser and Windows
 package workflows use these provider pins. Historical hosted captures retain
 the provider revisions recorded in their own provenance files. RITK continues
@@ -63,7 +63,7 @@ host, canvas, and window lifecycle.
 
 The current standalone lock pins the browser canvas provider to Moirai main
 `5075d4c70ba4f840d4c5a47b67c5d564405badf5` and the six Metis packages to
-`860ffbf52d12a70c80dd2f150d2aff3a5630d57e`. Repeated RGBA frames with the
+`b432446f5dbc39fb328220f45ba0d0341eb03263`. Repeated RGBA frames with the
 current extent retain the validated bitmap; a changed width or height takes
 the bounded resize path. This keeps the browser presentation lifecycle stable
 without changing DICOM decoding or the displayed pixels. It is an allocation
@@ -898,17 +898,17 @@ the committed image byte-for-byte (`259dd79103482756c4e688621bebafc841cc40f1df10
 This replay is tied to the updated provider lock; earlier provenance records
 remain historical records for the revisions that generated them.
 
-A current lock replay on 2026-09-18 rebuilt RITK source `c93a4f67ef0bedc3eed8ea405e3917a8c0a62c59` against
-Métis `860ffbf52d12a70c80dd2f150d2aff3a5630d57e` and Moirai
+A current lock replay on 2026-09-19 rebuilt RITK source `9ea19856c63dbe5b956c81560bad044a48705ee1` against
+Métis `b432446f5dbc39fb328220f45ba0d0341eb03263` and Moirai
 `5075d4c70ba4f840d4c5a47b67c5d564405badf5`. The same saved 94-file MRI-DIR
 study read 49,807,236 bytes, exited 0, rejected the invalid-study probe with
 exit 1, and reproduced the committed 1280 × 800 frame byte-for-byte. The
 replay executable digest is
-`8a7ff0d40c119e19150f9ed9b643868eebff6d2865b6d3130e4a1014a3b7f995`
-(53,939,200 bytes), the example digest is
-`f341036d6e339591fc8b8b34c6c4759f5170a8fb9c614a5c6557580b47eee265`
-(24,128,512 bytes), and the standalone lock digest is
-`f4a448b5bb3e76c1f966908c7b59ebc90b1102f26d668b5be72e64c9b611bbd2`.
+`a848580e42105e8a6798bbfb1a8fb0574fc3bc7d0dd7e8df31e337f3006526c9`
+(53,938,688 bytes), the example digest is
+`01f0e248e207acc347347b75e957f8b010e5f85c77c63cdf258f028e2f9136a0`
+(24,190,976 bytes), and the standalone lock digest is
+`182203ea9a9d13dbd596753055b96777954d68173228cfe22475cf496d58ac32`.
 The captured frame remains
 `259dd79103482756c4e688621bebafc841cc40f1df10ff2bbd7f9d04b7b4d401`
 with 411,589 non-black pixels; the executable, lock, and image hashes are
