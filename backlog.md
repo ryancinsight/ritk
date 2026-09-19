@@ -9,11 +9,8 @@ Unresolved delivery items are kept as executable records. Closed history is inde
 
 <a id="RITK-METIS-LOCK-010"></a>
 ## RITK-METIS-LOCK-010 — Replay the merged Metis keyboard runtime [patch]
-- Status: review; priority: P1; owner: RITK viewer + integration; integrator: root; last-update: 2026-09-18; dependency: Metis PR #272 merged at `860ffbf52d12a70c80dd2f150d2aff3a5630d57e`; delivery: RITK PR [#506](https://github.com/ryancinsight/ritk/pull/506); risk: provider drift.
-- Scope: advance the six Metis package sources and browser workflow revision, then replay the real 94-file MRI-DIR study through native and browser presentation; DICOM decoding, geometry and clinical semantics remain in RITK.
-- Acceptance: standalone lock resolves under `--locked`; native/WASM checks, strict Clippy, formatting and locked `ritk-snap` tests pass; the 1280×800 MRI PNG remains byte-identical; current workflow/manual provenance names exact provider revisions and residual WebKit/WebGPU limits.
-- Delivery evidence: lock commit `b56febcf4`; six Metis sources resolve at `860ffbf52d12a70c80dd2f150d2aff3a5630d57e`, Moirai remains `5075d4c70ba4f840d4c5a47b67c5d564405badf5`, and the standalone lock SHA-256 is `f4a448b5bb3e76c1f966908c7b59ebc90b1102f26d668b5be72e64c9b611bbd2`.
-- Verification: the 94-file replay read 49,807,236 bytes, exited 0, rejected the invalid study with exit 1, and reproduced image SHA-256 `259dd79103482756c4e688621bebafc841cc40f1df10ff2bbd7f9d04b7b4d401` (1280×800; 411,589 non-black pixels); locked nextest 488/488, native/WASM Clippy/check, formatting, doctest and rustdoc gates pass.
+- Status: done; delivery: RITK PR [#506](https://github.com/ryancinsight/ritk/pull/506), merge `fafe9c90a6d91cb646ec5e0472f537de4e3b4b03`; compacted 2026-09-19.
+- Outcome: the standalone lock, browser workflow and manual now bind Metis `860ffbf52d12a70c80dd2f150d2aff3a5630d57e` and Moirai `5075d4c70ba4f840d4c5a47b67c5d564405badf5`; the real 94-file MRI replay reads 49,807,236 bytes, rejects the invalid study, and reproduces the 1280×800 image byte-for-byte. Locked nextest 488/488, native/WASM checks and strict Clippy, formatting, docs, provenance and image gates pass; DICOM ownership remains in RITK.
 
 <a id="RITK-METIS-LOCK-009"></a>
 ## RITK-METIS-LOCK-009 — Advance the current Métis and Moirai provider lock [patch]
