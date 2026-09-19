@@ -15,6 +15,13 @@ Unresolved delivery items are kept as executable records. Closed history is inde
 - Status: done; delivery: RITK PR [#510](https://github.com/ryancinsight/ritk/pull/510), merge `e4eb95b5769e51066533c52ac32fc70306a9224e`; compacted 2026-09-18.
 - Outcome: standalone lock binds Metis `d7cb62f`, Moirai `b179b89`, and lock `2194947d`; neutral locked nextest 450/450, native/WASM checks, strict Clippy, formatting, rustdoc and replay gates pass. The public 94-file MRI study reads 49,807,236 bytes, rejects the invalid study with exit 1, and reproduces the 1280×800 image byte-identically (`259dd791...`, 411,589 non-black pixels); DICOM ownership remains in RITK.
 
+<a id="RITK-METIS-LOCK-013"></a>
+## RITK-METIS-LOCK-013 — Replay the merged Metis display-scale probe [patch]
+- Status: in-progress; priority: P1; owner: RITK viewer + integration; integrator: root; branch: `build/ritk-metis-lock-013`; last-update: 2026-09-19.
+- Outcome: standalone Cargo.lock and the real 94-file MRI replay advance all Metis packages to merge `8d4ab58e8731c51547bbca3ec87100facb698322`, preserving the byte-identical clinical framebuffer while consuming the delivered physical-monitor probe.
+- Acceptance: standalone lock resolves without the Atlas overlay; locked native/WASM tests, strict Clippy, formatting, rustdoc, provenance and the real MRI replay pass; DICOM parsing and presentation remain RITK-owned.
+- Dependency: Metis PR #286 merged with hosted Windows gate `35471442071`; Moirai remains at the current released provider revision until its per-monitor DPI PR lands.
+
 <a id="RITK-METIS-LOCK-011"></a>
 ## RITK-METIS-LOCK-011 — Replay the current Metis consumer lock [patch]
 - Status: done; delivery: RITK PR [#508](https://github.com/ryancinsight/ritk/pull/508), merge `632f22219`; compacted 2026-09-19.
