@@ -453,10 +453,11 @@ PNG digest. Dimensions, resource samples, source revisions and the exact semanti
 surface list are recorded in
 [`dicom-eframe-orthogonal-surface-resource.json`](images/dicom-eframe-orthogonal-surface-resource.json).
 The current standalone-lock sample records mean peak private bytes of
-416,239,616 ± 29,801,008 and lifecycle duration of 2,976 ± 1,949 ms; the first
-cold launch accounts for the reported uncertainty. The record binds RITK main
-`3a76cbe4ac388267fd4016ec0fc21106ec569964` with Metis `a6af382` and Moirai
-`b179b89`.
+416,867,669 ± 30,202,762 and lifecycle duration of 2,123 ± 203 ms across three
+bounded runs. The record binds RITK lock commit
+`f1a556786e849696caa73d8c341adf309e87d163` with merged Metis
+`8d4ab58e8731c51547bbca3ec87100facb698322` and Moirai
+`f038622d24907884ce5f386da4e04d05bdb60d62`.
 The matched 1280×800 record is the eframe half of the common fixture for
 `METIS-PERF-001`; it does not rank frameworks. GPUI and Tauri captures still
 require the same semantic surface and host-size contract before their resource
