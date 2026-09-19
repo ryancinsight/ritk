@@ -81,7 +81,7 @@
     "input": "public MRI-DIR DICOM directory at test_data/2_head_mri_t2/DICOM",
     "files_submitted": 94,
     "bytes_read": 49807236,
-    "ritk_revision": "b0dafdbd7154cfac3fad00bbd093c724f1dfe750",
+    "ritk_revision": "836b4b3e63b299b40433ab5deef35b7fdddc9ed6",
     "metis_revision": "a6af382ebf009806c920c07ae4031a98ea4a678a",
     "moirai_revision": "b179b89fd2521034d2fc9c97663649811982e9fa",
     "cargo_lock_sha256": "2e7815d44374804038cc7236c2fda4cd6539e7f5be46393ba73dbe981422a1c1",
