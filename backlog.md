@@ -2,6 +2,13 @@
 
 Unresolved delivery items are kept as executable records. Closed history is indexed below; full prose remains in git.
 
+<a id="RITK-METIS-LOCK-012"></a>
+## RITK-METIS-LOCK-012 — Replay the merged Metis clipboard runtime [patch]
+- Status: review; priority: P1; owner: RITK viewer + integration; integrator: root; last-update: 2026-09-18; dependency: Metis PR #278 merge `d7cb62f`; risk: cross-repo lock and real-study reproducibility.
+- Scope: advance the six Metis and fifteen Moirai sources, refresh the saved-study provenance/manual, and replay the 94-file MRI study; DICOM parsing and clinical presentation remain RITK-owned.
+- Acceptance: standalone lock resolves at one Metis/Moirai revision; locked native/WASM checks, strict Clippy, formatting, provenance and image gates pass; the 1280×800 MRI PNG stays byte-identical and the invalid-study probe exits 1.
+- Evidence: Metis `d7cb62f`, Moirai `b179b89`, lock `2194947d`; neutral locked nextest 450/450, native build, WASM check, strict native/WASM Clippy, fmt, lock, and replay gates pass; executable `c45fbf...` (54,008,320 bytes), example `25a15f...` (24,139,264 bytes), image `259dd791...` (1280×800, 411,589 non-black), invalid-study exit 1.
+
 <a id="RITK-METIS-LOCK-011"></a>
 ## RITK-METIS-LOCK-011 — Replay the current Metis consumer lock [patch]
 - Status: done; delivery: RITK PR [#508](https://github.com/ryancinsight/ritk/pull/508), merge `632f22219`; compacted 2026-09-19.
