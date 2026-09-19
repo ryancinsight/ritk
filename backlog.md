@@ -9,7 +9,7 @@ Unresolved delivery items are kept as executable records. Closed history is inde
 
 <a id="RITK-METIS-LOCK-010"></a>
 ## RITK-METIS-LOCK-010 — Replay the merged Metis keyboard runtime [patch]
-- Status: review; priority: P1; owner: RITK viewer + integration; integrator: root; last-update: 2026-09-18; dependency: Metis PR #272 merged at `860ffbf52d12a70c80dd2f150d2aff3a5630d57e`; risk: provider drift.
+- Status: review; priority: P1; owner: RITK viewer + integration; integrator: root; last-update: 2026-09-18; dependency: Metis PR #272 merged at `860ffbf52d12a70c80dd2f150d2aff3a5630d57e`; delivery: RITK PR [#506](https://github.com/ryancinsight/ritk/pull/506); risk: provider drift.
 - Scope: advance the six Metis package sources and browser workflow revision, then replay the real 94-file MRI-DIR study through native and browser presentation; DICOM decoding, geometry and clinical semantics remain in RITK.
 - Acceptance: standalone lock resolves under `--locked`; native/WASM checks, strict Clippy, formatting and locked `ritk-snap` tests pass; the 1280×800 MRI PNG remains byte-identical; current workflow/manual provenance names exact provider revisions and residual WebKit/WebGPU limits.
 - Delivery evidence: lock commit `b56febcf4`; six Metis sources resolve at `860ffbf52d12a70c80dd2f150d2aff3a5630d57e`, Moirai remains `5075d4c70ba4f840d4c5a47b67c5d564405badf5`, and the standalone lock SHA-256 is `f4a448b5bb3e76c1f966908c7b59ebc90b1102f26d668b5be72e64c9b611bbd2`.
