@@ -2,6 +2,13 @@
 
 Unresolved delivery items are kept as executable records. Closed history is indexed below; full prose remains in git.
 
+<a id="RITK-SNAP-EFRAME-CURRENT-001"></a>
+## RITK-SNAP-EFRAME-CURRENT-001 — Refresh the matched eframe MRI baseline [patch]
+- Status: in-progress; priority: P1; owner: RITK viewer + integration; integrator: root; lease: root docs/manual/images/dicom-eframe-orthogonal-surface-resource.json, docs/manual/dicom-workflow.md, docs/manual/applications.md, backlog.md 2026-09-19.
+- Outcome: re-run the existing shell-free eframe orthogonal presentation against the current standalone RITK lock and bind the revision, executable, capture and resource metrics to the real 94-file MRI fixture.
+- Acceptance: three bounded runs exit 0, repeat capture SHA matches, semantic surfaces and physical host extent remain axial/coronal/sagittal at 1280×800, real-image capture is visually inspected, and no framework ranking is claimed.
+- Verification: current locked eframe build; `scripts/resource.py` lifecycle report; JSON/hash/diff checks; focused documentation gates.
+
 <a id="RITK-METIS-LOCK-012"></a>
 ## RITK-METIS-LOCK-012 — Replay the merged Metis clipboard runtime [patch]
 - Status: done; delivery: RITK PR [#510](https://github.com/ryancinsight/ritk/pull/510), merge `e4eb95b5769e51066533c52ac32fc70306a9224e`; compacted 2026-09-18.
