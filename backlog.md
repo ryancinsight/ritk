@@ -17,7 +17,7 @@ Unresolved delivery items are kept as executable records. Closed history is inde
 
 <a id="RITK-METIS-LOCK-013"></a>
 ## RITK-METIS-LOCK-013 — Replay the merged Metis display-scale probe [patch]
-- Status: review; priority: P1; owner: RITK viewer + integration; integrator: root; branch: `build/ritk-metis-lock-013`; last-update: 2026-09-19.
+- Status: done; priority: P1; owner: RITK viewer + integration; integrator: root; delivery: [PR #515](https://github.com/ryancinsight/ritk/pull/515), merge `9881b9c4ac9fdccbc241c94fe1903f30d4f20e95`; last-update: 2026-09-19.
 - Outcome: standalone Cargo.lock and the real 94-file MRI replay advance all Metis packages to merge `8d4ab58e8731c51547bbca3ec87100facb698322` and Moirai packages to merge `f038622d24907884ce5f386da4e04d05bdb60d62`, preserving the byte-identical clinical framebuffer while consuming the delivered physical-monitor probe and per-monitor DPI provider.
 - Acceptance: standalone lock resolves without the Atlas overlay; locked native/WASM tests, strict Clippy, formatting, rustdoc, provenance and the real MRI replay pass; DICOM parsing and presentation remain RITK-owned.
 - Dependency: Metis PR #286 merged with hosted Windows gate `35471442071`; Moirai PR #406 merged at `f038622d24907884ce5f386da4e04d05bdb60d62` with local workspace gates green.
