@@ -2,6 +2,14 @@
 
 Unresolved delivery items are kept as executable records. Closed history is indexed below; full prose remains in git.
 
+<a id="RITK-SNAP-EFRAME-CURRENT-001"></a>
+## RITK-SNAP-EFRAME-CURRENT-001 — Refresh the matched eframe MRI baseline [patch]
+- Status: review; priority: P1; owner: RITK viewer + integration; integrator: root.
+- Outcome: re-run the existing shell-free eframe orthogonal presentation against the current standalone RITK lock and bind the revision, executable, capture and resource metrics to the real 94-file MRI fixture.
+- Acceptance: three bounded runs exit 0, repeat capture SHA matches, semantic surfaces and physical host extent remain axial/coronal/sagittal at 1280×800, real-image capture is visually inspected, and no framework ranking is claimed.
+- Delivery: current locked eframe build; three bounded lifecycle runs exit 0 with repeated source SHA `2e47199cca0851f5ca2e3ce7b613cf70b096c3528bfc1eb705f64ced75485ba9`; mean peak private bytes `416,239,616 ± 29,801,008`, mean lifecycle duration `2,976 ± 1,949 ms`; provenance binds RITK `3a76cbe4`, Metis `a6af382`, and Moirai `b179b89`.
+- Verification: `scripts/resource.py` lifecycle report; real-image visual inspection; JSON/hash/diff checks; standalone lock check; current eframe build.
+
 <a id="RITK-METIS-LOCK-012"></a>
 ## RITK-METIS-LOCK-012 — Replay the merged Metis clipboard runtime [patch]
 - Status: done; delivery: RITK PR [#510](https://github.com/ryancinsight/ritk/pull/510), merge `e4eb95b5769e51066533c52ac32fc70306a9224e`; compacted 2026-09-18.

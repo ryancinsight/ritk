@@ -6,12 +6,12 @@
     "input": "saved public MRI-DIR T2 DICOM directory",
     "phase": "lifecycle",
     "sample_interval_ms": 100,
-    "timeout_seconds": 60,
+    "timeout_seconds": 90,
     "repeat_runs": 3,
-    "ritk_revision": "1f9053ba2dd8a6b77da83073261642019c66863a",
-    "metis_revision": "e634fe925d8edb18cea4399d43255fdaa2d444a5",
-    "moirai_revision": "a2f21496d1d09b2abe6523e3c8cdbf751dcd560a",
-    "measurement_tool_revision": "74788b5508f3c9e29e80b464702f9c648922004f"
+    "ritk_revision": "3a76cbe4ac388267fd4016ec0fc21106ec569964",
+    "metis_revision": "a6af382ebf009806c920c07ae4031a98ea4a678a",
+    "moirai_revision": "b179b89fd2521034d2fc9c97663649811982e9fa",
+    "measurement_tool_revision": "3d20bb9446e4434a5c67d71a95f982bd692150b9"
   },
   "dataset": {
     "path": "test_data/2_head_mri_t2/DICOM",
@@ -27,7 +27,7 @@
     "bytes": 100251,
     "sha256": "e35fa396623dd75870097712e08e21fee3b430c361042716a5b45d13acd3485a",
     "non_black_pixels": 233333,
-    "executable_sha256": "00201a7034c25f3a4bb67905f98d6630cacc983ca3501e89466dd370a87eaf47",
+    "executable_sha256": "6d584048a681408c92b7b84c71d60220273b1d28a1a1a44ae3672137c9aff6a6",
     "executable_bytes": 52916736,
     "visual_scope": "shell-free eframe orthogonal surface; 640x400 manual figure downscaled from the 1280x800 physical capture; operating-system chrome excluded",
     "capture_command": "ritk-snap-eframe.exe test_data\\\\2_head_mri_t2\\\\DICOM --presentation orthogonal-surface --viewport-size 1024x640 --capture scratch\\\\viewer\\\\real-mri-eframe-matched.png",
@@ -65,36 +65,36 @@
   "resource": {
     "capture_sha256": "2e47199cca0851f5ca2e3ce7b613cf70b096c3528bfc1eb705f64ced75485ba9",
     "duration_ms": {
-      "approximate_95_half_width": 81.48614715261594,
+      "approximate_95_half_width": 1949.2634401058608,
       "count": 3,
-      "mean": 2069.6666666666665,
-      "sample_stddev": 72.00925866396163
+      "mean": 2976.0,
+      "sample_stddev": 1722.5629161223692
     },
     "startup_observation_ms": {
-      "approximate_95_half_width": 2.9939494540378155,
+      "approximate_95_half_width": 1589.2334340527543,
       "count": 3,
-      "mean": 4.0,
-      "sample_stddev": 2.6457513110645907
+      "mean": 813.3333333333334,
+      "sample_stddev": 1404.4046188094558
     },
     "peak_private_bytes": {
-      "approximate_95_half_width": 24884220.218961097,
+      "approximate_95_half_width": 29801008.24627615,
       "count": 3,
-      "mean": 432313685.3333333,
-      "sample_stddev": 21990170.268353753
+      "mean": 416239616.0,
+      "sample_stddev": 26335132.856800705
     },
     "peak_working_set_bytes": {
-      "approximate_95_half_width": 8124166.050876722,
+      "approximate_95_half_width": 5874536.862121164,
       "count": 3,
-      "mean": 360280064.0,
-      "sample_stddev": 7179320.5965534095
+      "mean": 359660202.6666667,
+      "sample_stddev": 5191324.651086786
     },
     "peak_handles": {
-      "approximate_95_half_width": 0.0,
+      "approximate_95_half_width": 3.92,
       "count": 3,
-      "mean": 504.0,
-      "sample_stddev": 0.0
+      "mean": 517.0,
+      "sample_stddev": 3.4641016151377544
     },
-    "command_sha256": "36477a3831cc344d6b72c5ccbc833717be745c99b3dc30d30eadc0af2576b329"
+    "command_sha256": "e439b8b852f03417aea38d726ed54a09d6a36ba3d8f5881bffc02276e6b4a620"
   },
   "bounds": {
     "orderly_exit_codes": [
@@ -106,7 +106,7 @@
     "repeat_capture_sha256": "2e47199cca0851f5ca2e3ce7b613cf70b096c3528bfc1eb705f64ced75485ba9"
   },
   "comparison": {
-    "interpretation": "This is a real public MRI-DIR eframe/egui capture with the same axial, coronal and sagittal semantic surfaces and the same 1280x800 physical host extent as the M\u00e9tis native capture. The committed 640x400 manual figure is a downscaled rendering of that capture for the tracked-artifact budget; source capture dimensions and digest remain recorded. The eframe command requests 1024x640 logical points on the controlled 125% Windows host; no post-capture rescaling is used in the application. GPUI and Tauri fixtures remain open."
+    "interpretation": "This is a real public MRI-DIR eframe/egui capture with the same axial, coronal and sagittal semantic surfaces and the same 1280x800 physical host extent as the M\u00e9tis native capture. The committed 640x400 manual figure is a downscaled rendering of that capture for the tracked-artifact budget; source capture dimensions and digest remain recorded. The eframe command requests 1024x640 logical points on the controlled 125% Windows host; no post-capture rescaling is used in the application. The first cold launch dominated this three-run lifecycle sample, so its uncertainty is retained. The eframe process boundary differs from the M\u00e9tis process and GPUI/Tauri fixtures remain open; no framework ranking is derived."
   },
   "ownership": {
     "ritk": "DICOM discovery, series selection, decoding, geometry, physical placement and clinical presentation",
