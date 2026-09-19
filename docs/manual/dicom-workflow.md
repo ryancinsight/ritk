@@ -903,9 +903,10 @@ the committed image byte-for-byte (`259dd79103482756c4e688621bebafc841cc40f1df10
 This replay is tied to the updated provider lock; earlier provenance records
 remain historical records for the revisions that generated them.
 
-A current lock replay on 2026-09-19 rebuilt RITK source `b0dafdbd7154cfac3fad00bbd093c724f1dfe750` against
-Métis `a6af382ebf009806c920c07ae4031a98ea4a678a` and Moirai
-`b179b89fd2521034d2fc9c97663649811982e9fa`. The same saved 94-file MRI-DIR
+A current lock replay on 2026-09-19 rebuilt RITK from lock commit
+`f1a556786e849696caa73d8c341adf309e87d163` against merged Métis
+`8d4ab58e8731c51547bbca3ec87100facb698322` and Moirai
+`f038622d24907884ce5f386da4e04d05bdb60d62`. The same saved 94-file MRI-DIR
 study read 49,807,236 bytes, exited 0, rejected the invalid-study probe with
 exit 1, and reproduced the committed 1280 × 800 frame byte-for-byte. The
 replay executable digest is
@@ -913,7 +914,7 @@ replay executable digest is
 (54,008,320 bytes), the example digest is
 `5e05148bfc8510b0a5febaf707b92403fe7b005263f56faeffa5df782326de2c`
 (24,139,264 bytes), and the standalone lock digest is
-`2e7815d44374804038cc7236c2fda4cd6539e7f5be46393ba73dbe981422a1c1`.
+`2825653169ee324f9421122416da1e65a279e8657841c7fce9347386f6b58745`.
 The captured frame remains
 `259dd79103482756c4e688621bebafc841cc40f1df10ff2bbd7f9d04b7b4d401`
 with 411,589 non-black pixels; the executable, lock, and image hashes are
