@@ -2,6 +2,15 @@
 
 Unresolved delivery items are kept as executable records. Closed history is indexed below; full prose remains in git.
 
+<a id="RITK-SNAP-PRESENTATION-GEOMETRY-001"></a>
+## RITK-SNAP-PRESENTATION-GEOMETRY-001 — Bind physical geometry to host-neutral frames [arch] [minor]
+- Status: in-progress; priority: P1; owner: RITK presentation; integrator: root; branch: `feat/ritk-presentation-geometry`; last-update: 2026-09-19.
+- Outcome: `PresentationFrame` carries validated display spacing once, and native/browser hosts consume that value for aspect validation and semantics without duplicating voxel-spacing derivation.
+- Scope: `ritk-snap` presentation frame, native session layout, browser geometry/semantics, ADR and manual/API documentation; DICOM decoding and VTK representation remain out of scope.
+- Acceptance: axis-specific anisotropic spacing survives slice construction and transformed native frames; browser aspect and native placement consume the same frame metadata; malformed geometry is rejected; locked native/WASM tests, strict Clippy, formatting, rustdoc and real MRI replay pass.
+- Dependencies: Metis `METIS-PRESENTATION-GEOMETRY-001` provider merge; existing RITK physical-aspect and real MRI capture oracles.
+- Lease: root `crates/ritk-snap/src/presentation/frame.rs`, `crates/ritk-snap/src/presentation/web.rs`, `crates/ritk-snap/src/presentation/native_session/`, `crates/ritk-snap/src/app/browser_geometry.rs`, `crates/ritk-snap/src/app/browser_semantics.rs`, `crates/ritk-snap/src/app/web_viewer.rs`, `docs/adr/0038-presentation-frame-geometry.md`, `backlog.md` (2026-09-19T00:00:00Z).
+
 <a id="RITK-SNAP-EFRAME-CURRENT-001"></a>
 ## RITK-SNAP-EFRAME-CURRENT-001 — Refresh the matched eframe MRI baseline [patch]
 - Status: review; priority: P1; owner: RITK viewer + integration; integrator: root; branch: `build/ritk-eframe-baseline-014`; last-update: 2026-09-19.
