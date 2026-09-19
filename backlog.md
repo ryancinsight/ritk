@@ -7,6 +7,13 @@ Unresolved delivery items are kept as executable records. Closed history is inde
 - Status: done; delivery: RITK PR [#503](https://github.com/ryancinsight/ritk/pull/503), merge `bf2526e90055bb8e6efbaa36d0f084baab2689da`; compacted 2026-09-18.
 - Outcome: the native Métis session regression drives the existing RITK W/L pointer reducer against a loaded DICOM fixture, proves changed center/width and presented pixels, and verifies idle teardown; the user manual documents the gesture and keeps DICOM ownership in RITK. Local focused nextest, format, lockfile, provenance, and pre-push gates passed; hosted CI runs [35400891419](https://github.com/ryancinsight/ritk/actions/runs/35400891419) and [35400890913](https://github.com/ryancinsight/ritk/actions/runs/35400890913) passed.
 
+<a id="RITK-METIS-LOCK-010"></a>
+## RITK-METIS-LOCK-010 — Replay the merged Metis keyboard runtime [patch]
+- Status: in-progress; priority: P1; owner: RITK viewer + integration; integrator: root; last-update: 2026-09-18; dependency: Metis PR #272; risk: provider drift; lease: root Cargo.lock, `.github/workflows/metis-browser-dicom.yml`, `docs/manual/images/dicom-metis-real-mri.json`, `backlog.md`.
+- Scope: advance the six Metis package sources and browser workflow revision, then replay the real 94-file MRI-DIR study through native and browser presentation; DICOM decoding, geometry and clinical semantics remain in RITK.
+- Acceptance: standalone lock resolves under `--locked`; native/WASM checks, strict Clippy, formatting and locked `ritk-snap` tests pass; the 1280×800 MRI PNG remains byte-identical; current workflow/manual provenance names exact provider revisions and residual WebKit/WebGPU limits.
+- Definition of ready: Metis PR #272 merge SHA is available; no source or presentation changes are expected in this consumer increment.
+
 <a id="RITK-METIS-LOCK-009"></a>
 ## RITK-METIS-LOCK-009 — Advance the current Métis and Moirai provider lock [patch]
 - Status: done; delivery: RITK PR [#504](https://github.com/ryancinsight/ritk/pull/504), merge `d8ed71cc6b592fe7a80cb4710d616aa1ffab5c1`; compacted 2026-09-18.
