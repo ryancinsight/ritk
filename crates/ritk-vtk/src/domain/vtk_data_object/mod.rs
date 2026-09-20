@@ -25,6 +25,7 @@ mod image_data;
 mod poly_data;
 mod structured_grid;
 mod unstructured_grid;
+mod volume;
 
 pub use attribute::AttributeArray;
 pub use cell_type::VtkCellType;
@@ -33,6 +34,7 @@ pub use image_data::VtkImageData;
 pub use poly_data::VtkPolyData;
 pub use structured_grid::VtkStructuredGrid;
 pub use unstructured_grid::VtkUnstructuredGrid;
+pub use volume::{VtkImageVolume, VtkImageVolumeError};
 
 #[cfg(test)]
 mod tests;

@@ -31,6 +31,7 @@ pub mod session;
 pub mod tools;
 pub mod ui;
 pub mod viewer;
+mod volume;
 
 // Re-export flat API surface so downstream crates don't need path changes.
 pub use filter::{BedSeparationConfigSerde, FilterKind};

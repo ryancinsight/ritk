@@ -19,8 +19,8 @@ pub use mtime::{Modifiable, ModifiedTime};
 pub use multi_block::{Block, LeafIter, VtkMultiBlockDataSet};
 pub use observer::{EventHandlers, EventId, Observable, ObserverCallback, ObserverTag};
 pub use vtk_data_object::{
-    AttributeArray, VtkCellType, VtkDataObject, VtkImageData, VtkPolyData, VtkStructuredGrid,
-    VtkUnstructuredGrid,
+    AttributeArray, VtkCellType, VtkDataObject, VtkImageData, VtkImageVolume, VtkImageVolumeError,
+    VtkPolyData, VtkStructuredGrid, VtkUnstructuredGrid,
 };
 pub use vtk_pipeline::{VtkFilter, VtkPipeline, VtkSink, VtkSource};
 pub use vtk_scene::{RenderProperties, Visibility, VtkActor, VtkScene};
