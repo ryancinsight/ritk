@@ -9,6 +9,16 @@
 - Dependency: existing `AffineTransform`, `LoadedVolume`, `SlabProjection`, VTK spatial-volume contract and Métis presentation-frame geometry.
 - Verification: `ritk-snap` nextest 479/479, strict native Clippy, wasm32 check/Clippy, rustdoc, formatting, standalone lock and ADR-index checks pass; six new reslice tests cover axis equivalence, rotated anisotropic coordinates, trilinear linear-field recovery, slab statistics, capacity reuse, and typed invalid inputs.
 
+<a id="RITK-METIS-LOCK-014"></a>
+## RITK-METIS-LOCK-014 — Replay the merged Métis semantic provider [patch]
+- Status: in-progress; priority: P1; owner: RITK viewer + integration; integrator: root; last-update: 2026-09-20.
+- Lease: root — `Cargo.lock`, `.github/workflows/metis-browser-dicom.yml`, `docs/manual/images/dicom-metis-real-mri.json`, this item — 2026-09-20.
+- Outcome: the standalone RITK lock and browser replay resolve Métis at merge `b58d64b1bebe76bb32570339c4a349cc1b0d7086`, consume the host-neutral semantic provider, and preserve the real 94-file MRI framebuffer and invalid-study rejection.
+- Scope: first-party lock resolution, the browser workflow's default revision, current real-study provenance, and focused native/WASM/replay verification. DICOM parsing and clinical semantics remain RITK-owned; historical evidence records stay bound to their generating revisions.
+- Acceptance: standalone Cargo.lock resolves without the Atlas overlay; locked `ritk-snap` tests, strict native/WASM checks and Clippy, formatting, rustdoc, provenance and real-study replay pass; the 1280×800 PNG remains byte-identical (`259dd791...`, 411,589 non-black pixels); the browser workflow checks out the same full revision by default.
+- Dependency: Métis PR #305 merge `b58d64b1bebe76bb32570339c4a349cc1b0d7086`; Moirai remains the current lock-pinned provider.
+- Verification: lock SHA, source revisions, file count/bytes, image hash/dimensions/non-black count, invalid-study exit, native nextest, WASM check/Clippy, formatting, rustdoc, and browser workflow revision assertions are recorded in the provenance JSON and PR body.
+
 <a id="RITK-BROWSER-VIEWPORT-001"></a>
 ## RITK-BROWSER-VIEWPORT-001 — Present browser zoom and pan state [minor]
 - Status: done; priority: P1; owner: RITK browser presentation; integrator: root; last-update: 2026-09-20.
