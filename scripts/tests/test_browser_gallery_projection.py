@@ -133,3 +133,11 @@ class ProjectionGalleryTests(unittest.TestCase):
         self.assertLessEqual(
             workflow.count("--canvas-attribute"), browser_canvas.MAX_CANVAS_ATTRIBUTES
         )
+
+    def test_projection_forwards_its_declared_canvas_context(self):
+        workflow = (
+            _ritk_root / ".github" / "workflows" / "metis-browser-dicom.yml"
+        ).read_text(encoding="utf-8")
+        self.assertIn('if [[ -n "$CANVAS_CONTEXT" ]]; then', workflow)
+        self.assertIn('capture_args+=(--canvas-context "$CANVAS_CONTEXT")', workflow)
+        self.assertIn('capture_args+=(--page-query renderer=webgpu)', workflow)
