@@ -4,12 +4,14 @@ Unresolved delivery items are kept as executable records. Closed history is inde
 
 <a id="RITK-SNAP-PRESENTATION-GEOMETRY-001"></a>
 ## RITK-SNAP-PRESENTATION-GEOMETRY-001 — Bind physical geometry to host-neutral frames [arch] [minor]
-- Status: in-progress; priority: P1; owner: RITK presentation; integrator: root; branch: `feat/ritk-presentation-geometry`; last-update: 2026-09-19.
-- Outcome: `PresentationFrame` carries validated display spacing once, and native/browser hosts consume that value for aspect validation and semantics without duplicating voxel-spacing derivation.
+- Status: review; priority: P1; owner: RITK presentation; integrator: root; branch: `feat/ritk-presentation-geometry`; last-update: 2026-09-19.
+- Outcome: `PresentationFrame` carries one validated `PresentationSpacing` value, and native/browser hosts consume it for aspect validation and semantics without duplicating voxel-spacing derivation.
 - Scope: `ritk-snap` presentation frame, native session layout, browser geometry/semantics, ADR and manual/API documentation; DICOM decoding and VTK representation remain out of scope.
 - Acceptance: axis-specific anisotropic spacing survives slice construction and transformed native frames; browser aspect and native placement consume the same frame metadata; malformed geometry is rejected; locked native/WASM tests, strict Clippy, formatting, rustdoc and real MRI replay pass.
 - Dependencies: Metis `METIS-PRESENTATION-GEOMETRY-001` provider merge; existing RITK physical-aspect and real MRI capture oracles.
-- Lease: root `crates/ritk-snap/src/presentation/frame.rs`, `crates/ritk-snap/src/presentation/web.rs`, `crates/ritk-snap/src/presentation/native_session/`, `crates/ritk-snap/src/app/browser_geometry.rs`, `crates/ritk-snap/src/app/browser_semantics.rs`, `crates/ritk-snap/src/app/web_viewer.rs`, `docs/adr/0038-presentation-frame-geometry.md`, `backlog.md` (2026-09-19T00:00:00Z).
+- Delivery: source and lock integration commit `b432ae69`; replay/provenance follow-up is this branch's evidence commit.
+- Verification: native `ritk-snap` nextest 454/454; strict native Clippy; wasm32 release check and strict Clippy; rustdoc with `-D warnings`; lockfile and Python script tests 12/12; actual 94-file MRI replay exit 0 with invalid-study exit 1 and byte-identical 1280×800 PNG (`259dd791...`, 411,589 non-black pixels).
+- Evidence: standalone lock SHA `4f4b96958a0545203775e21b3bd1152a864bd6b77847d2b638213d6b420b1084`; native executable `b260611...` (54,011,904 bytes); example `78e2d1...` (24,153,600 bytes); source/provider revisions are recorded in `docs/manual/images/dicom-metis-real-mri.json`.
 
 <a id="RITK-SNAP-EFRAME-CURRENT-001"></a>
 ## RITK-SNAP-EFRAME-CURRENT-001 — Refresh the matched eframe MRI baseline [patch]
