@@ -1,2077 +1,823 @@
 {
-  "schema": 1,
+  "schema": 2,
   "status": "passed",
-  "engine": "chromium",
-  "url": "http://127.0.0.1:59880/gallery.html",
-  "bridge": "disconnected",
-  "revision": "ae5f80c8e2fe8c023d13514ffa6c48c84d3dc556",
-  "capabilities": {
-    "browserName": "MicrosoftEdge",
-    "browserVersion": "154.0.4258.12",
-    "platformName": "windows"
+  "workflow": {
+    "run_id": 35535831906,
+    "url": "https://github.com/ryancinsight/ritk/actions/runs/35535831906",
+    "artifact_id": 10613092926,
+    "artifact_url": "https://github.com/ryancinsight/ritk/actions/runs/35535831906/artifacts/10613092926",
+    "ritk_revision": "651b4a808374afc3efca35b71b9583b0a2a17248",
+    "metis_revision": "b58d64b1bebe76bb32570339c4a349cc1b0d7086",
+    "moirai_revision": "2a54e010532f76c88027fec8a468620c92fe66b3",
+    "browser": "Chrome 152.0.7977.82 on Linux",
+    "files": 94,
+    "bytes": 49807236,
+    "file_manifest_sha256": "81b7b7f8ea473dfc12c25c07b4958762254a261ca49352af2adabc214d6e8d03"
   },
-  "actions": [
-    {
-      "input": "chooser",
-      "events": [
-        {
-          "bytes": 49807236,
-          "files": 94,
-          "trusted": true,
-          "type": "change"
+  "study": {
+    "path": "test_data/2_head_mri_t2/DICOM",
+    "files": 94,
+    "bytes": 49807236,
+    "file_manifest_sha256": "81b7b7f8ea473dfc12c25c07b4958762254a261ca49352af2adabc214d6e8d03",
+    "license": "CC BY 4.0",
+    "description": "public MRI-DIR porcine-head T2 MRI phantom; not private patient data"
+  },
+  "tool_capture": {
+    "actions": [
+      {
+        "annotation_after": {
+          "count": 1,
+          "kind": "length",
+          "value": 102.75155
+        },
+        "annotation_before": {
+          "count": 0,
+          "kind": "",
+          "value": null
+        },
+        "generations": [
+          135,
+          135,
+          135
+        ],
+        "gesture": "two-click-measurement",
+        "index": 3,
+        "label": "Length",
+        "pointer": {
+          "all_trusted": true,
+          "event_count": 8,
+          "event_types": {
+            "pointerdown": 2,
+            "pointermove": 4,
+            "pointerup": 2
+          },
+          "target": "canvas"
+        },
+        "selection": {
+          "all_trusted": true,
+          "event_count": 1,
+          "event_types": {
+            "click": 1
+          },
+          "target": "toolbar"
         }
-      ]
-    },
-    {
-      "rejected": "count",
-      "files": 513,
-      "bytes": 0,
-      "input": "chooser",
-      "observer": {
-        "rejected": "file evidence exceeds host bounds"
-      }
-    },
-    {
-      "rejected": "file-bytes",
-      "files": 1,
-      "bytes": 67108865,
-      "input": "chooser",
-      "observer": {
-        "rejected": "file evidence exceeds host bounds"
-      }
-    },
-    {
-      "rejected": "batch-bytes",
-      "files": 5,
-      "bytes": 335544320,
-      "input": "chooser",
-      "observer": {
-        "rejected": "file evidence exceeds host bounds"
-      }
-    }
-  ],
-  "snapshots": [
-    {
-      "transfer": {
-        "bytes": "Byte access: read 49807236 bytes from 94 file(s)",
-        "status": "Drop status: accepted 94 file(s); 00000001.dcm (529864 bytes), 00000002.dcm (529864 bytes), 00000003.dcm (529864 bytes); ..."
-      }
-    },
-    {
-      "id": "ritk-snap-axial",
-      "height": 512,
-      "non_black_pixels": 190836,
-      "rgba_sha256": "5c96fff2f82ecfddd64a6aa9a1e8f99af367740fcd43826977ac3d1035cb28f6",
-      "width": 512
-    },
-    {
-      "id": "ritk-snap-coronal",
-      "height": 94,
-      "non_black_pixels": 41863,
-      "rgba_sha256": "f76018ef402afa7811154c506219361b43227dbe218ff0383b3dddd7bf438136",
-      "width": 512
-    },
-    {
-      "id": "ritk-snap-sagittal",
-      "height": 94,
-      "non_black_pixels": 38843,
-      "rgba_sha256": "b8cabf3aa07399387b9d1c7416dbfae594e4d2408f40e0a4bd654f9829799fe3",
-      "width": 512
-    }
-  ],
-  "screenshots": [
-    {
-      "label": "before-drop",
-      "path": "output/browser/local-tools-committed/before-drop.png",
-      "sha256": "548839b54f26c4f6ce507c9e58c802353c6736a10c56d52caf33ea65b33a1112",
-      "width": 1769,
-      "height": 1202,
-      "bytes": 29633
-    },
-    {
-      "label": "ritk-snap-axial",
-      "path": "output/browser/local-tools-committed/ritk-snap-axial.png",
-      "sha256": "d5a99cad219a028015d503e88104dcc20385a1f274a75330186dcf7d5adfad47",
-      "width": 554,
-      "height": 374,
-      "bytes": 121535,
-      "scope": "element"
-    },
-    {
-      "label": "ritk-snap-coronal",
-      "path": "output/browser/local-tools-committed/ritk-snap-coronal.png",
-      "sha256": "1b4c18be6221f239bef8b85bd2ce2d00332dc4e29991fa86a24c7c932942282f",
-      "width": 554,
-      "height": 374,
-      "bytes": 110046,
-      "scope": "element"
-    },
-    {
-      "label": "ritk-snap-sagittal",
-      "path": "output/browser/local-tools-committed/ritk-snap-sagittal.png",
-      "sha256": "635ac28a4a377801512560850926f1145505d80a9ec83240f7bef461cf4167bc",
-      "width": 554,
-      "height": 374,
-      "bytes": 115261,
-      "scope": "element"
-    },
-    {
-      "label": "gallery",
-      "path": "output/browser/local-tools-committed/gallery.png",
-      "sha256": "f41ab0f9bea6a3b6f50f569c720d1af77710e2963517003239e5616c94185954",
-      "width": 1769,
-      "height": 1202,
-      "bytes": 384622
-    }
-  ],
-  "metrics": {
-    "headless": true,
-    "device_scale": {
-      "requested": "1.25",
-      "requested_milli": 1250,
-      "effective": "1.25",
-      "effective_milli": 1250,
-      "device_pixel_ratio": 1.25,
-      "css_viewport": {
-        "width": 1415,
-        "height": 962
-      }
-    },
-    "consumer_capture": {
-      "slices": {
-        "schema": 1,
-        "consumer": "ritk-snap",
-        "expected_counts": {
-          "axial": 94,
-          "coronal": 512,
-          "sagittal": 512
-        },
-        "invalid_api_probes": [
-          {
-            "axis": "axial",
-            "error": "browser slice index NaN must be finite",
-            "rejected": true,
-            "value": "NaN"
-          },
-          {
-            "axis": "axial",
-            "error": "browser slice index inf must be finite",
-            "rejected": true,
-            "value": "Infinity"
-          },
-          {
-            "axis": "axial",
-            "error": "browser slice index -inf must be finite",
-            "rejected": true,
-            "value": "-Infinity"
-          },
-          {
-            "axis": "axial",
-            "error": "browser slice index -1 is outside 0..=4294967295",
-            "rejected": true,
-            "value": "-1"
-          },
-          {
-            "axis": "axial",
-            "error": "browser slice index 0.5 must be an integer",
-            "rejected": true,
-            "value": "0.5"
-          },
-          {
-            "axis": "axial",
-            "error": "browser slice index 4294967296 is outside 0..=4294967295",
-            "rejected": true,
-            "value": "4294967296"
-          },
-          {
-            "axis": "coronal",
-            "error": "browser slice index NaN must be finite",
-            "rejected": true,
-            "value": "NaN"
-          },
-          {
-            "axis": "coronal",
-            "error": "browser slice index inf must be finite",
-            "rejected": true,
-            "value": "Infinity"
-          },
-          {
-            "axis": "coronal",
-            "error": "browser slice index -inf must be finite",
-            "rejected": true,
-            "value": "-Infinity"
-          },
-          {
-            "axis": "coronal",
-            "error": "browser slice index -1 is outside 0..=4294967295",
-            "rejected": true,
-            "value": "-1"
-          },
-          {
-            "axis": "coronal",
-            "error": "browser slice index 0.5 must be an integer",
-            "rejected": true,
-            "value": "0.5"
-          },
-          {
-            "axis": "coronal",
-            "error": "browser slice index 4294967296 is outside 0..=4294967295",
-            "rejected": true,
-            "value": "4294967296"
-          },
-          {
-            "axis": "sagittal",
-            "error": "browser slice index NaN must be finite",
-            "rejected": true,
-            "value": "NaN"
-          },
-          {
-            "axis": "sagittal",
-            "error": "browser slice index inf must be finite",
-            "rejected": true,
-            "value": "Infinity"
-          },
-          {
-            "axis": "sagittal",
-            "error": "browser slice index -inf must be finite",
-            "rejected": true,
-            "value": "-Infinity"
-          },
-          {
-            "axis": "sagittal",
-            "error": "browser slice index -1 is outside 0..=4294967295",
-            "rejected": true,
-            "value": "-1"
-          },
-          {
-            "axis": "sagittal",
-            "error": "browser slice index 0.5 must be an integer",
-            "rejected": true,
-            "value": "0.5"
-          },
-          {
-            "axis": "sagittal",
-            "error": "browser slice index 4294967296 is outside 0..=4294967295",
-            "rejected": true,
-            "value": "4294967296"
-          }
-        ],
-        "initial": {
-          "axial": {
-            "index": 47,
-            "count": 94,
-            "generation": 1,
-            "rgba_sha256": "5c96fff2f82ecfddd64a6aa9a1e8f99af367740fcd43826977ac3d1035cb28f6",
-            "width": 512,
-            "height": 512,
-            "slider_width": 442.6625061035156,
-            "slider_height": 44.0,
-            "output": "48 / 94"
-          },
-          "coronal": {
-            "index": 256,
-            "count": 512,
-            "generation": 1,
-            "rgba_sha256": "f76018ef402afa7811154c506219361b43227dbe218ff0383b3dddd7bf438136",
-            "width": 512,
-            "height": 94,
-            "slider_width": 442.6625061035156,
-            "slider_height": 44.0,
-            "output": "257 / 512"
-          },
-          "sagittal": {
-            "index": 256,
-            "count": 512,
-            "generation": 1,
-            "rgba_sha256": "b8cabf3aa07399387b9d1c7416dbfae594e4d2408f40e0a4bd654f9829799fe3",
-            "width": 512,
-            "height": 94,
-            "slider_width": 442.6625061035156,
-            "slider_height": 44.0,
-            "output": "257 / 512"
-          }
-        },
-        "actions": [
-          {
-            "axis": "axial",
-            "action": "native-click",
-            "from_index": 47,
-            "to_index": 47,
-            "generation": 1,
-            "rgba_sha256": "5c96fff2f82ecfddd64a6aa9a1e8f99af367740fcd43826977ac3d1035cb28f6",
-            "events": {
-              "event_count": 4,
-              "event_types": {
-                "click": 1,
-                "pointerdown": 1,
-                "pointermove": 1,
-                "pointerup": 1
-              },
-              "value_min": 47,
-              "value_max": 47,
-              "all_trusted": true,
-              "target_id": "slice-axial",
-              "key": null
-            }
-          },
-          {
-            "axis": "axial",
-            "action": "home",
-            "from_index": 47,
-            "to_index": 0,
-            "generation": 2,
-            "rgba_sha256": "45d3a5489e67d06c2abfea18053d2a221cedb25610de79141517b543bdb9eead",
-            "events": {
-              "event_count": 4,
-              "event_types": {
-                "change": 1,
-                "input": 1,
-                "keydown": 1,
-                "keyup": 1
-              },
-              "value_min": 0,
-              "value_max": 47,
-              "all_trusted": true,
-              "target_id": "slice-axial",
-              "key": "Home"
-            }
-          },
-          {
-            "axis": "axial",
-            "action": "end",
-            "from_index": 0,
-            "to_index": 93,
-            "generation": 3,
-            "rgba_sha256": "765314e719edff4a827c7e37fdb4fe3cd1c72540d09ad622ec88cc20693fd57c",
-            "events": {
-              "event_count": 4,
-              "event_types": {
-                "change": 1,
-                "input": 1,
-                "keydown": 1,
-                "keyup": 1
-              },
-              "value_min": 0,
-              "value_max": 93,
-              "all_trusted": true,
-              "target_id": "slice-axial",
-              "key": "End"
-            }
-          },
-          {
-            "axis": "axial",
-            "action": "pointer-drag-end-to-home",
-            "start": [
-              218,
-              0
-            ],
-            "end": [
-              -218,
-              0
-            ],
-            "from_index": 93,
-            "to_index": 0,
-            "generation": 4,
-            "rgba_sha256": "45d3a5489e67d06c2abfea18053d2a221cedb25610de79141517b543bdb9eead",
-            "events": {
-              "event_count": 7,
-              "event_types": {
-                "change": 1,
-                "click": 1,
-                "input": 1,
-                "pointerdown": 1,
-                "pointermove": 2,
-                "pointerup": 1
-              },
-              "value_min": 0,
-              "value_max": 93,
-              "all_trusted": true,
-              "target_id": "slice-axial",
-              "key": null
-            }
-          },
-          {
-            "axis": "axial",
-            "action": "restore-home",
-            "from_index": 0,
-            "to_index": 0,
-            "generation": 4,
-            "rgba_sha256": "45d3a5489e67d06c2abfea18053d2a221cedb25610de79141517b543bdb9eead",
-            "events": {
-              "event_count": 2,
-              "event_types": {
-                "keydown": 1,
-                "keyup": 1
-              },
-              "value_min": 0,
-              "value_max": 0,
-              "all_trusted": true,
-              "target_id": "slice-axial",
-              "key": "Home"
-            }
-          },
-          {
-            "axis": "axial",
-            "action": "restore-arrow-right-batch",
-            "presses": 16,
-            "from_index": 0,
-            "to_index": 16,
-            "generation": 7,
-            "rgba_sha256": "9f16783493168836be60cf7612dbb5a84d49ae255cda061d8ee645504a647b3f",
-            "events": {
-              "event_count": 64,
-              "event_types": {
-                "change": 16,
-                "input": 16,
-                "keydown": 16,
-                "keyup": 16
-              },
-              "value_min": 0,
-              "value_max": 16,
-              "all_trusted": true,
-              "target_id": "slice-axial",
-              "key": "ArrowRight"
-            }
-          },
-          {
-            "axis": "axial",
-            "action": "restore-arrow-right-batch",
-            "presses": 16,
-            "from_index": 16,
-            "to_index": 32,
-            "generation": 9,
-            "rgba_sha256": "32d138b0c55bc47680be739edcf3586aac0e0d5a108638c2bee6a00674cc0f95",
-            "events": {
-              "event_count": 64,
-              "event_types": {
-                "change": 16,
-                "input": 16,
-                "keydown": 16,
-                "keyup": 16
-              },
-              "value_min": 16,
-              "value_max": 32,
-              "all_trusted": true,
-              "target_id": "slice-axial",
-              "key": "ArrowRight"
-            }
-          },
-          {
-            "axis": "axial",
-            "action": "restore-arrow-right-batch",
-            "presses": 15,
-            "from_index": 32,
-            "to_index": 47,
-            "generation": 11,
-            "rgba_sha256": "5c96fff2f82ecfddd64a6aa9a1e8f99af367740fcd43826977ac3d1035cb28f6",
-            "events": {
-              "event_count": 60,
-              "event_types": {
-                "change": 15,
-                "input": 15,
-                "keydown": 15,
-                "keyup": 15
-              },
-              "value_min": 32,
-              "value_max": 47,
-              "all_trusted": true,
-              "target_id": "slice-axial",
-              "key": "ArrowRight"
-            }
-          },
-          {
-            "axis": "coronal",
-            "action": "native-click",
-            "from_index": 256,
-            "to_index": 256,
-            "generation": 11,
-            "rgba_sha256": "f76018ef402afa7811154c506219361b43227dbe218ff0383b3dddd7bf438136",
-            "events": {
-              "event_count": 4,
-              "event_types": {
-                "click": 1,
-                "pointerdown": 1,
-                "pointermove": 1,
-                "pointerup": 1
-              },
-              "value_min": 256,
-              "value_max": 256,
-              "all_trusted": true,
-              "target_id": "slice-coronal",
-              "key": null
-            }
-          },
-          {
-            "axis": "coronal",
-            "action": "home",
-            "from_index": 256,
-            "to_index": 0,
-            "generation": 12,
-            "rgba_sha256": "d440278c5b5f93896c70486501264a76627e0e0a169fdc540dbe5bfe918c19f6",
-            "events": {
-              "event_count": 4,
-              "event_types": {
-                "change": 1,
-                "input": 1,
-                "keydown": 1,
-                "keyup": 1
-              },
-              "value_min": 0,
-              "value_max": 256,
-              "all_trusted": true,
-              "target_id": "slice-coronal",
-              "key": "Home"
-            }
-          },
-          {
-            "axis": "coronal",
-            "action": "end",
-            "from_index": 0,
-            "to_index": 511,
-            "generation": 13,
-            "rgba_sha256": "d440278c5b5f93896c70486501264a76627e0e0a169fdc540dbe5bfe918c19f6",
-            "events": {
-              "event_count": 4,
-              "event_types": {
-                "change": 1,
-                "input": 1,
-                "keydown": 1,
-                "keyup": 1
-              },
-              "value_min": 0,
-              "value_max": 511,
-              "all_trusted": true,
-              "target_id": "slice-coronal",
-              "key": "End"
-            }
-          },
-          {
-            "axis": "coronal",
-            "action": "pointer-drag-end-to-home",
-            "start": [
-              218,
-              0
-            ],
-            "end": [
-              -218,
-              0
-            ],
-            "from_index": 511,
-            "to_index": 0,
-            "generation": 14,
-            "rgba_sha256": "d440278c5b5f93896c70486501264a76627e0e0a169fdc540dbe5bfe918c19f6",
-            "events": {
-              "event_count": 7,
-              "event_types": {
-                "change": 1,
-                "click": 1,
-                "input": 1,
-                "pointerdown": 1,
-                "pointermove": 2,
-                "pointerup": 1
-              },
-              "value_min": 0,
-              "value_max": 511,
-              "all_trusted": true,
-              "target_id": "slice-coronal",
-              "key": null
-            }
-          },
-          {
-            "axis": "coronal",
-            "action": "restore-home",
-            "from_index": 0,
-            "to_index": 0,
-            "generation": 14,
-            "rgba_sha256": "d440278c5b5f93896c70486501264a76627e0e0a169fdc540dbe5bfe918c19f6",
-            "events": {
-              "event_count": 2,
-              "event_types": {
-                "keydown": 1,
-                "keyup": 1
-              },
-              "value_min": 0,
-              "value_max": 0,
-              "all_trusted": true,
-              "target_id": "slice-coronal",
-              "key": "Home"
-            }
-          },
-          {
-            "axis": "coronal",
-            "action": "restore-arrow-right-batch",
-            "presses": 16,
-            "from_index": 0,
-            "to_index": 16,
-            "generation": 16,
-            "rgba_sha256": "d440278c5b5f93896c70486501264a76627e0e0a169fdc540dbe5bfe918c19f6",
-            "events": {
-              "event_count": 64,
-              "event_types": {
-                "change": 16,
-                "input": 16,
-                "keydown": 16,
-                "keyup": 16
-              },
-              "value_min": 0,
-              "value_max": 16,
-              "all_trusted": true,
-              "target_id": "slice-coronal",
-              "key": "ArrowRight"
-            }
-          },
-          {
-            "axis": "coronal",
-            "action": "restore-arrow-right-batch",
-            "presses": 16,
-            "from_index": 16,
-            "to_index": 32,
-            "generation": 17,
-            "rgba_sha256": "d440278c5b5f93896c70486501264a76627e0e0a169fdc540dbe5bfe918c19f6",
-            "events": {
-              "event_count": 64,
-              "event_types": {
-                "change": 16,
-                "input": 16,
-                "keydown": 16,
-                "keyup": 16
-              },
-              "value_min": 16,
-              "value_max": 32,
-              "all_trusted": true,
-              "target_id": "slice-coronal",
-              "key": "ArrowRight"
-            }
-          },
-          {
-            "axis": "coronal",
-            "action": "restore-arrow-right-batch",
-            "presses": 16,
-            "from_index": 32,
-            "to_index": 48,
-            "generation": 19,
-            "rgba_sha256": "0ecab3d61da50924607afcdc8b970fe835f2ec2691abe82ba7dc1bd964ac4f87",
-            "events": {
-              "event_count": 64,
-              "event_types": {
-                "change": 16,
-                "input": 16,
-                "keydown": 16,
-                "keyup": 16
-              },
-              "value_min": 32,
-              "value_max": 48,
-              "all_trusted": true,
-              "target_id": "slice-coronal",
-              "key": "ArrowRight"
-            }
-          },
-          {
-            "axis": "coronal",
-            "action": "restore-arrow-right-batch",
-            "presses": 16,
-            "from_index": 48,
-            "to_index": 64,
-            "generation": 22,
-            "rgba_sha256": "d49958969f53a5970e62f2c601d7bf650fe49f893595c1d50e575bceaf2bcf35",
-            "events": {
-              "event_count": 64,
-              "event_types": {
-                "change": 16,
-                "input": 16,
-                "keydown": 16,
-                "keyup": 16
-              },
-              "value_min": 48,
-              "value_max": 64,
-              "all_trusted": true,
-              "target_id": "slice-coronal",
-              "key": "ArrowRight"
-            }
-          },
-          {
-            "axis": "coronal",
-            "action": "restore-arrow-right-batch",
-            "presses": 16,
-            "from_index": 64,
-            "to_index": 80,
-            "generation": 25,
-            "rgba_sha256": "52b51143edd0a08aa7af1e264fca5b4ba579a4692734f47e461800ee8183f600",
-            "events": {
-              "event_count": 64,
-              "event_types": {
-                "change": 16,
-                "input": 16,
-                "keydown": 16,
-                "keyup": 16
-              },
-              "value_min": 64,
-              "value_max": 80,
-              "all_trusted": true,
-              "target_id": "slice-coronal",
-              "key": "ArrowRight"
-            }
-          },
-          {
-            "axis": "coronal",
-            "action": "restore-arrow-right-batch",
-            "presses": 16,
-            "from_index": 80,
-            "to_index": 96,
-            "generation": 27,
-            "rgba_sha256": "73a937d75e56198433f88f55d000c3155bc784caf4b0fc766cdda1670579fe8e",
-            "events": {
-              "event_count": 64,
-              "event_types": {
-                "change": 16,
-                "input": 16,
-                "keydown": 16,
-                "keyup": 16
-              },
-              "value_min": 80,
-              "value_max": 96,
-              "all_trusted": true,
-              "target_id": "slice-coronal",
-              "key": "ArrowRight"
-            }
-          },
-          {
-            "axis": "coronal",
-            "action": "restore-arrow-right-batch",
-            "presses": 16,
-            "from_index": 96,
-            "to_index": 112,
-            "generation": 30,
-            "rgba_sha256": "cef79edb6ed0180440f107fa94fa842ac953925fb22d0873ded4f2586926d8ed",
-            "events": {
-              "event_count": 64,
-              "event_types": {
-                "change": 16,
-                "input": 16,
-                "keydown": 16,
-                "keyup": 16
-              },
-              "value_min": 96,
-              "value_max": 112,
-              "all_trusted": true,
-              "target_id": "slice-coronal",
-              "key": "ArrowRight"
-            }
-          },
-          {
-            "axis": "coronal",
-            "action": "restore-arrow-right-batch",
-            "presses": 16,
-            "from_index": 112,
-            "to_index": 128,
-            "generation": 32,
-            "rgba_sha256": "1cf9fc194c1c6d78e77edab80a3f142c5ce24c4ccf35ceec209f332cb96a5a43",
-            "events": {
-              "event_count": 64,
-              "event_types": {
-                "change": 16,
-                "input": 16,
-                "keydown": 16,
-                "keyup": 16
-              },
-              "value_min": 112,
-              "value_max": 128,
-              "all_trusted": true,
-              "target_id": "slice-coronal",
-              "key": "ArrowRight"
-            }
-          },
-          {
-            "axis": "coronal",
-            "action": "restore-arrow-right-batch",
-            "presses": 16,
-            "from_index": 128,
-            "to_index": 144,
-            "generation": 33,
-            "rgba_sha256": "d2a6097e8fcdb7bff9f6af813c97c4125deb14049526af58e94cbc413416bd8a",
-            "events": {
-              "event_count": 64,
-              "event_types": {
-                "change": 16,
-                "input": 16,
-                "keydown": 16,
-                "keyup": 16
-              },
-              "value_min": 128,
-              "value_max": 144,
-              "all_trusted": true,
-              "target_id": "slice-coronal",
-              "key": "ArrowRight"
-            }
-          },
-          {
-            "axis": "coronal",
-            "action": "restore-arrow-right-batch",
-            "presses": 16,
-            "from_index": 144,
-            "to_index": 160,
-            "generation": 35,
-            "rgba_sha256": "62ea8d0e50b72c064be6b00e7cf8c416913724c66558b89478a3041e8cef897b",
-            "events": {
-              "event_count": 64,
-              "event_types": {
-                "change": 16,
-                "input": 16,
-                "keydown": 16,
-                "keyup": 16
-              },
-              "value_min": 144,
-              "value_max": 160,
-              "all_trusted": true,
-              "target_id": "slice-coronal",
-              "key": "ArrowRight"
-            }
-          },
-          {
-            "axis": "coronal",
-            "action": "restore-arrow-right-batch",
-            "presses": 16,
-            "from_index": 160,
-            "to_index": 176,
-            "generation": 37,
-            "rgba_sha256": "e8c1e26819190e32ef6fdba63b2f325a8cdc66d48e388ecd7496881aad19f162",
-            "events": {
-              "event_count": 64,
-              "event_types": {
-                "change": 16,
-                "input": 16,
-                "keydown": 16,
-                "keyup": 16
-              },
-              "value_min": 160,
-              "value_max": 176,
-              "all_trusted": true,
-              "target_id": "slice-coronal",
-              "key": "ArrowRight"
-            }
-          },
-          {
-            "axis": "coronal",
-            "action": "restore-arrow-right-batch",
-            "presses": 16,
-            "from_index": 176,
-            "to_index": 192,
-            "generation": 40,
-            "rgba_sha256": "a0924e5ad85ac6ec1dae2190b460838f192bc9b714eeb432ef0c609125282b9b",
-            "events": {
-              "event_count": 64,
-              "event_types": {
-                "change": 16,
-                "input": 16,
-                "keydown": 16,
-                "keyup": 16
-              },
-              "value_min": 176,
-              "value_max": 192,
-              "all_trusted": true,
-              "target_id": "slice-coronal",
-              "key": "ArrowRight"
-            }
-          },
-          {
-            "axis": "coronal",
-            "action": "restore-arrow-right-batch",
-            "presses": 16,
-            "from_index": 192,
-            "to_index": 208,
-            "generation": 42,
-            "rgba_sha256": "ee9167a6707190c66bb390da9f94f57aa191c560224eb7fa02c63dc13969a2d9",
-            "events": {
-              "event_count": 64,
-              "event_types": {
-                "change": 16,
-                "input": 16,
-                "keydown": 16,
-                "keyup": 16
-              },
-              "value_min": 192,
-              "value_max": 208,
-              "all_trusted": true,
-              "target_id": "slice-coronal",
-              "key": "ArrowRight"
-            }
-          },
-          {
-            "axis": "coronal",
-            "action": "restore-arrow-right-batch",
-            "presses": 16,
-            "from_index": 208,
-            "to_index": 224,
-            "generation": 44,
-            "rgba_sha256": "cb8b7d2c1dbfbc3c7236d82549cbd1f3dc83f3cb01bae04aad12e19722a47fd8",
-            "events": {
-              "event_count": 64,
-              "event_types": {
-                "change": 16,
-                "input": 16,
-                "keydown": 16,
-                "keyup": 16
-              },
-              "value_min": 208,
-              "value_max": 224,
-              "all_trusted": true,
-              "target_id": "slice-coronal",
-              "key": "ArrowRight"
-            }
-          },
-          {
-            "axis": "coronal",
-            "action": "restore-arrow-right-batch",
-            "presses": 16,
-            "from_index": 224,
-            "to_index": 240,
-            "generation": 45,
-            "rgba_sha256": "f13f4390df077ce74b4d0df8bf2bf2737fc0262b9846376dda69182270b00982",
-            "events": {
-              "event_count": 64,
-              "event_types": {
-                "change": 16,
-                "input": 16,
-                "keydown": 16,
-                "keyup": 16
-              },
-              "value_min": 224,
-              "value_max": 240,
-              "all_trusted": true,
-              "target_id": "slice-coronal",
-              "key": "ArrowRight"
-            }
-          },
-          {
-            "axis": "coronal",
-            "action": "restore-arrow-right-batch",
-            "presses": 16,
-            "from_index": 240,
-            "to_index": 256,
-            "generation": 47,
-            "rgba_sha256": "f76018ef402afa7811154c506219361b43227dbe218ff0383b3dddd7bf438136",
-            "events": {
-              "event_count": 64,
-              "event_types": {
-                "change": 16,
-                "input": 16,
-                "keydown": 16,
-                "keyup": 16
-              },
-              "value_min": 240,
-              "value_max": 256,
-              "all_trusted": true,
-              "target_id": "slice-coronal",
-              "key": "ArrowRight"
-            }
-          },
-          {
-            "axis": "sagittal",
-            "action": "native-click",
-            "from_index": 256,
-            "to_index": 256,
-            "generation": 47,
-            "rgba_sha256": "b8cabf3aa07399387b9d1c7416dbfae594e4d2408f40e0a4bd654f9829799fe3",
-            "events": {
-              "event_count": 4,
-              "event_types": {
-                "click": 1,
-                "pointerdown": 1,
-                "pointermove": 1,
-                "pointerup": 1
-              },
-              "value_min": 256,
-              "value_max": 256,
-              "all_trusted": true,
-              "target_id": "slice-sagittal",
-              "key": null
-            }
-          },
-          {
-            "axis": "sagittal",
-            "action": "home",
-            "from_index": 256,
-            "to_index": 0,
-            "generation": 48,
-            "rgba_sha256": "dc969be57f94e39af1a6e3f6cbefe3746a7eb83413b36be40626673e39fdf20b",
-            "events": {
-              "event_count": 4,
-              "event_types": {
-                "change": 1,
-                "input": 1,
-                "keydown": 1,
-                "keyup": 1
-              },
-              "value_min": 0,
-              "value_max": 256,
-              "all_trusted": true,
-              "target_id": "slice-sagittal",
-              "key": "Home"
-            }
-          },
-          {
-            "axis": "sagittal",
-            "action": "end",
-            "from_index": 0,
-            "to_index": 511,
-            "generation": 49,
-            "rgba_sha256": "aee9f4dd90fe18d990733948414a62f79597fe7b4df48a5dd045d2c2ac6fdb5d",
-            "events": {
-              "event_count": 4,
-              "event_types": {
-                "change": 1,
-                "input": 1,
-                "keydown": 1,
-                "keyup": 1
-              },
-              "value_min": 0,
-              "value_max": 511,
-              "all_trusted": true,
-              "target_id": "slice-sagittal",
-              "key": "End"
-            }
-          },
-          {
-            "axis": "sagittal",
-            "action": "pointer-drag-end-to-home",
-            "start": [
-              218,
-              0
-            ],
-            "end": [
-              -218,
-              0
-            ],
-            "from_index": 511,
-            "to_index": 0,
-            "generation": 50,
-            "rgba_sha256": "dc969be57f94e39af1a6e3f6cbefe3746a7eb83413b36be40626673e39fdf20b",
-            "events": {
-              "event_count": 7,
-              "event_types": {
-                "change": 1,
-                "click": 1,
-                "input": 1,
-                "pointerdown": 1,
-                "pointermove": 2,
-                "pointerup": 1
-              },
-              "value_min": 0,
-              "value_max": 511,
-              "all_trusted": true,
-              "target_id": "slice-sagittal",
-              "key": null
-            }
-          },
-          {
-            "axis": "sagittal",
-            "action": "restore-home",
-            "from_index": 0,
-            "to_index": 0,
-            "generation": 50,
-            "rgba_sha256": "dc969be57f94e39af1a6e3f6cbefe3746a7eb83413b36be40626673e39fdf20b",
-            "events": {
-              "event_count": 2,
-              "event_types": {
-                "keydown": 1,
-                "keyup": 1
-              },
-              "value_min": 0,
-              "value_max": 0,
-              "all_trusted": true,
-              "target_id": "slice-sagittal",
-              "key": "Home"
-            }
-          },
-          {
-            "axis": "sagittal",
-            "action": "restore-arrow-right-batch",
-            "presses": 16,
-            "from_index": 0,
-            "to_index": 16,
-            "generation": 51,
-            "rgba_sha256": "63bb806925b36587d197fc5d86c4e47b918132b4621baef0c941a106913b3380",
-            "events": {
-              "event_count": 64,
-              "event_types": {
-                "change": 16,
-                "input": 16,
-                "keydown": 16,
-                "keyup": 16
-              },
-              "value_min": 0,
-              "value_max": 16,
-              "all_trusted": true,
-              "target_id": "slice-sagittal",
-              "key": "ArrowRight"
-            }
-          },
-          {
-            "axis": "sagittal",
-            "action": "restore-arrow-right-batch",
-            "presses": 16,
-            "from_index": 16,
-            "to_index": 32,
-            "generation": 53,
-            "rgba_sha256": "29b901c17c05418516a2d108fa0cfc441c891fc08408d4406bc2d3b64cd3aca5",
-            "events": {
-              "event_count": 64,
-              "event_types": {
-                "change": 16,
-                "input": 16,
-                "keydown": 16,
-                "keyup": 16
-              },
-              "value_min": 16,
-              "value_max": 32,
-              "all_trusted": true,
-              "target_id": "slice-sagittal",
-              "key": "ArrowRight"
-            }
-          },
-          {
-            "axis": "sagittal",
-            "action": "restore-arrow-right-batch",
-            "presses": 16,
-            "from_index": 32,
-            "to_index": 48,
-            "generation": 54,
-            "rgba_sha256": "2077a2fea0d71acc59db4b9028baf9ea94552f4034d112041f727cc108db4d1b",
-            "events": {
-              "event_count": 64,
-              "event_types": {
-                "change": 16,
-                "input": 16,
-                "keydown": 16,
-                "keyup": 16
-              },
-              "value_min": 32,
-              "value_max": 48,
-              "all_trusted": true,
-              "target_id": "slice-sagittal",
-              "key": "ArrowRight"
-            }
-          },
-          {
-            "axis": "sagittal",
-            "action": "restore-arrow-right-batch",
-            "presses": 16,
-            "from_index": 48,
-            "to_index": 64,
-            "generation": 56,
-            "rgba_sha256": "833b4158776be830e35af425d3e557a90259a2f48223cb32fded3011a0e18002",
-            "events": {
-              "event_count": 64,
-              "event_types": {
-                "change": 16,
-                "input": 16,
-                "keydown": 16,
-                "keyup": 16
-              },
-              "value_min": 48,
-              "value_max": 64,
-              "all_trusted": true,
-              "target_id": "slice-sagittal",
-              "key": "ArrowRight"
-            }
-          },
-          {
-            "axis": "sagittal",
-            "action": "restore-arrow-right-batch",
-            "presses": 16,
-            "from_index": 64,
-            "to_index": 80,
-            "generation": 58,
-            "rgba_sha256": "d789ab30d1c97aea6c57d0d223a9cb97b53b8afb241e0bdb1ff772860afb2276",
-            "events": {
-              "event_count": 64,
-              "event_types": {
-                "change": 16,
-                "input": 16,
-                "keydown": 16,
-                "keyup": 16
-              },
-              "value_min": 64,
-              "value_max": 80,
-              "all_trusted": true,
-              "target_id": "slice-sagittal",
-              "key": "ArrowRight"
-            }
-          },
-          {
-            "axis": "sagittal",
-            "action": "restore-arrow-right-batch",
-            "presses": 16,
-            "from_index": 80,
-            "to_index": 96,
-            "generation": 60,
-            "rgba_sha256": "b779013218443d0e98737ddbb1216afade94f8b9da1bdfe8d447ebd6c487862b",
-            "events": {
-              "event_count": 64,
-              "event_types": {
-                "change": 16,
-                "input": 16,
-                "keydown": 16,
-                "keyup": 16
-              },
-              "value_min": 80,
-              "value_max": 96,
-              "all_trusted": true,
-              "target_id": "slice-sagittal",
-              "key": "ArrowRight"
-            }
-          },
-          {
-            "axis": "sagittal",
-            "action": "restore-arrow-right-batch",
-            "presses": 16,
-            "from_index": 96,
-            "to_index": 112,
-            "generation": 62,
-            "rgba_sha256": "1ae16f67552991514d719241c4b57d024cf2e20062687348f85a7b2b818e8480",
-            "events": {
-              "event_count": 64,
-              "event_types": {
-                "change": 16,
-                "input": 16,
-                "keydown": 16,
-                "keyup": 16
-              },
-              "value_min": 96,
-              "value_max": 112,
-              "all_trusted": true,
-              "target_id": "slice-sagittal",
-              "key": "ArrowRight"
-            }
-          },
-          {
-            "axis": "sagittal",
-            "action": "restore-arrow-right-batch",
-            "presses": 16,
-            "from_index": 112,
-            "to_index": 128,
-            "generation": 64,
-            "rgba_sha256": "4877701b0ee08ce981bbb42e61f117596460c86f0cf2776f9e594d432edf5889",
-            "events": {
-              "event_count": 64,
-              "event_types": {
-                "change": 16,
-                "input": 16,
-                "keydown": 16,
-                "keyup": 16
-              },
-              "value_min": 112,
-              "value_max": 128,
-              "all_trusted": true,
-              "target_id": "slice-sagittal",
-              "key": "ArrowRight"
-            }
-          },
-          {
-            "axis": "sagittal",
-            "action": "restore-arrow-right-batch",
-            "presses": 16,
-            "from_index": 128,
-            "to_index": 144,
-            "generation": 65,
-            "rgba_sha256": "d08276829b8c9072b6e3440f16426aa75d1e9302ead62041d5ab73255742ee8e",
-            "events": {
-              "event_count": 64,
-              "event_types": {
-                "change": 16,
-                "input": 16,
-                "keydown": 16,
-                "keyup": 16
-              },
-              "value_min": 128,
-              "value_max": 144,
-              "all_trusted": true,
-              "target_id": "slice-sagittal",
-              "key": "ArrowRight"
-            }
-          },
-          {
-            "axis": "sagittal",
-            "action": "restore-arrow-right-batch",
-            "presses": 16,
-            "from_index": 144,
-            "to_index": 160,
-            "generation": 66,
-            "rgba_sha256": "a822dc7e99a830dd13b8a4d7243acec95dd17c8565d0f8b7aea096ff74912926",
-            "events": {
-              "event_count": 64,
-              "event_types": {
-                "change": 16,
-                "input": 16,
-                "keydown": 16,
-                "keyup": 16
-              },
-              "value_min": 144,
-              "value_max": 160,
-              "all_trusted": true,
-              "target_id": "slice-sagittal",
-              "key": "ArrowRight"
-            }
-          },
-          {
-            "axis": "sagittal",
-            "action": "restore-arrow-right-batch",
-            "presses": 16,
-            "from_index": 160,
-            "to_index": 176,
-            "generation": 68,
-            "rgba_sha256": "78de06431ee451ad1acc170553e9448877245362d9d309ac5ad8e179b95e3f30",
-            "events": {
-              "event_count": 64,
-              "event_types": {
-                "change": 16,
-                "input": 16,
-                "keydown": 16,
-                "keyup": 16
-              },
-              "value_min": 160,
-              "value_max": 176,
-              "all_trusted": true,
-              "target_id": "slice-sagittal",
-              "key": "ArrowRight"
-            }
-          },
-          {
-            "axis": "sagittal",
-            "action": "restore-arrow-right-batch",
-            "presses": 16,
-            "from_index": 176,
-            "to_index": 192,
-            "generation": 70,
-            "rgba_sha256": "a9259e7ca656e3187410ce08e903a36f63171ef1317cd9cb399d2b7b7b43af0c",
-            "events": {
-              "event_count": 64,
-              "event_types": {
-                "change": 16,
-                "input": 16,
-                "keydown": 16,
-                "keyup": 16
-              },
-              "value_min": 176,
-              "value_max": 192,
-              "all_trusted": true,
-              "target_id": "slice-sagittal",
-              "key": "ArrowRight"
-            }
-          },
-          {
-            "axis": "sagittal",
-            "action": "restore-arrow-right-batch",
-            "presses": 16,
-            "from_index": 192,
-            "to_index": 208,
-            "generation": 72,
-            "rgba_sha256": "a01e63c52da4afa05093fef048b4160d9f192982d70f381a2bf4a0fcdaf0f559",
-            "events": {
-              "event_count": 64,
-              "event_types": {
-                "change": 16,
-                "input": 16,
-                "keydown": 16,
-                "keyup": 16
-              },
-              "value_min": 192,
-              "value_max": 208,
-              "all_trusted": true,
-              "target_id": "slice-sagittal",
-              "key": "ArrowRight"
-            }
-          },
-          {
-            "axis": "sagittal",
-            "action": "restore-arrow-right-batch",
-            "presses": 16,
-            "from_index": 208,
-            "to_index": 224,
-            "generation": 73,
-            "rgba_sha256": "f3c859c3c653f03b110890adf4e2524e3e08fa014ee39c61c07ea6e45a3b8d5e",
-            "events": {
-              "event_count": 64,
-              "event_types": {
-                "change": 16,
-                "input": 16,
-                "keydown": 16,
-                "keyup": 16
-              },
-              "value_min": 208,
-              "value_max": 224,
-              "all_trusted": true,
-              "target_id": "slice-sagittal",
-              "key": "ArrowRight"
-            }
-          },
-          {
-            "axis": "sagittal",
-            "action": "restore-arrow-right-batch",
-            "presses": 16,
-            "from_index": 224,
-            "to_index": 240,
-            "generation": 75,
-            "rgba_sha256": "4cc0307df35a764c84abc3091c8844d62fbf81f9c68a9f44b9e7fd645d621d1e",
-            "events": {
-              "event_count": 64,
-              "event_types": {
-                "change": 16,
-                "input": 16,
-                "keydown": 16,
-                "keyup": 16
-              },
-              "value_min": 224,
-              "value_max": 240,
-              "all_trusted": true,
-              "target_id": "slice-sagittal",
-              "key": "ArrowRight"
-            }
-          },
-          {
-            "axis": "sagittal",
-            "action": "restore-arrow-right-batch",
-            "presses": 16,
-            "from_index": 240,
-            "to_index": 256,
-            "generation": 77,
-            "rgba_sha256": "b8cabf3aa07399387b9d1c7416dbfae594e4d2408f40e0a4bd654f9829799fe3",
-            "events": {
-              "event_count": 64,
-              "event_types": {
-                "change": 16,
-                "input": 16,
-                "keydown": 16,
-                "keyup": 16
-              },
-              "value_min": 240,
-              "value_max": 256,
-              "all_trusted": true,
-              "target_id": "slice-sagittal",
-              "key": "ArrowRight"
-            }
-          }
-        ],
-        "restored": {
-          "axial": {
-            "index": 47,
-            "count": 94,
-            "generation": 77,
-            "rgba_sha256": "5c96fff2f82ecfddd64a6aa9a1e8f99af367740fcd43826977ac3d1035cb28f6",
-            "width": 512,
-            "height": 512,
-            "slider_width": 442.6625061035156,
-            "slider_height": 44.0,
-            "output": "48 / 94"
-          },
-          "coronal": {
-            "index": 256,
-            "count": 512,
-            "generation": 77,
-            "rgba_sha256": "f76018ef402afa7811154c506219361b43227dbe218ff0383b3dddd7bf438136",
-            "width": 512,
-            "height": 94,
-            "slider_width": 442.6625061035156,
-            "slider_height": 44.0,
-            "output": "257 / 512"
-          },
-          "sagittal": {
-            "index": 256,
-            "count": 512,
-            "generation": 77,
-            "rgba_sha256": "b8cabf3aa07399387b9d1c7416dbfae594e4d2408f40e0a4bd654f9829799fe3",
-            "width": 512,
-            "height": 94,
-            "slider_width": 442.6625061035156,
-            "slider_height": 44.0,
-            "output": "257 / 512"
-          }
-        },
-        "screenshots": {
-          "window": {
-            "path": "output/browser/local-tools-committed/slices/gallery-slices.png",
-            "sha256": "464f8239b83dc8d84082334af01d9e19fedf721ecd7e7cd4daafe34bd83609b2",
-            "width": 1769,
-            "height": 1327,
-            "bytes": 516638,
-            "scope": "window"
-          },
-          "orthogonal_views": {
-            "path": "output/browser/local-tools-committed/slices/gallery-slice-controls.png",
-            "sha256": "5bb3c3a9a72d2c31148368f40d222530ef0ff7db91f9620f39e54de046bf2f2c",
-            "width": 1710,
-            "height": 696,
-            "bytes": 491645,
-            "scope": "element"
-          }
-        },
-        "cleanup": {
-          "active_input_sources_released": true,
-          "diagnostic_listener_count": 24,
-          "diagnostic_listeners_released": true
-        },
-        "sources": {
-          "browser_gallery.py": "73ff3f57b4f082d18a8f083d4942d8eca7700af5199a1467f1b49ea6c1daa102",
-          "browser_gallery_actions.py": "692b83a2e357c4450450fd00961865f1ceec5f97fd5f1a4791e3230141d038f3",
-          "browser_gallery_artifacts.py": "6439c1a9b4ac4346338c84fe994164e7c8284c50e3a15c74c8a6e51a525a0283",
-          "browser_gallery_trace.py": "1c077830879c8da4eadca16c75ccd1ab227f408c56c6e5f351606cfaeb5fafe8"
-        },
-        "artifact": "output/browser/local-tools-committed/slices/gallery-slices.json"
       },
-      "tools": {
-        "schema": 1,
-        "consumer": "ritk-snap",
-        "initial": {
-          "canvases": [
-            {
-              "axis": "axial",
-              "active_tool_index": 2,
-              "active_tool": "W/L",
-              "generation": 77
-            },
-            {
-              "axis": "coronal",
-              "active_tool_index": 2,
-              "active_tool": "W/L",
-              "generation": 77
-            },
-            {
-              "axis": "sagittal",
-              "active_tool_index": 2,
-              "active_tool": "W/L",
-              "generation": 77
-            }
-          ],
-          "controls": {
-            "buttons": [
-              {
-                "index": 0,
-                "label": "Pan",
-                "pressed": false,
-                "disabled": false
-              },
-              {
-                "index": 1,
-                "label": "Zoom",
-                "pressed": false,
-                "disabled": false
-              },
-              {
-                "index": 2,
-                "label": "W/L",
-                "pressed": true,
-                "disabled": false
-              },
-              {
-                "index": 3,
-                "label": "Length",
-                "pressed": false,
-                "disabled": false
-              },
-              {
-                "index": 4,
-                "label": "Angle",
-                "pressed": false,
-                "disabled": false
-              },
-              {
-                "index": 5,
-                "label": "ROI Rect",
-                "pressed": false,
-                "disabled": false
-              },
-              {
-                "index": 6,
-                "label": "ROI Ellipse",
-                "pressed": false,
-                "disabled": false
-              },
-              {
-                "index": 7,
-                "label": "Crosshair",
-                "pressed": false,
-                "disabled": false
-              },
-              {
-                "index": 8,
-                "label": "HU Point",
-                "pressed": false,
-                "disabled": false
-              },
-              {
-                "index": 9,
-                "label": "Label Paint",
-                "pressed": false,
-                "disabled": false
-              },
-              {
-                "index": 10,
-                "label": "Label Erase",
-                "pressed": false,
-                "disabled": false
-              }
-            ],
-            "output": "Active tool: W/L"
-          }
+      {
+        "annotation_after": {
+          "count": 2,
+          "kind": "angle",
+          "value": 3.5569937
         },
-        "invalid_api_probes": [
-          {
-            "error": "browser tool index NaN must be finite",
-            "rejected": true,
-            "value": "NaN"
-          },
-          {
-            "error": "browser tool index inf must be finite",
-            "rejected": true,
-            "value": "Infinity"
-          },
-          {
-            "error": "browser tool index -inf must be finite",
-            "rejected": true,
-            "value": "-Infinity"
-          },
-          {
-            "error": "browser tool index -1 is outside 0..=4294967295",
-            "rejected": true,
-            "value": "-1"
-          },
-          {
-            "error": "browser tool index 0.5 must be an integer",
-            "rejected": true,
-            "value": "0.5"
-          },
-          {
-            "error": "browser tool index 4294967296 is outside 0..=4294967295",
-            "rejected": true,
-            "value": "4294967296"
-          },
-          {
-            "error": "browser tool index 11 is outside 0..11",
-            "rejected": true,
-            "value": "tool-count"
-          }
+        "annotation_before": {
+          "count": 1,
+          "kind": "length",
+          "value": 102.75155
+        },
+        "generations": [
+          146,
+          146,
+          146
         ],
-        "actions": [
+        "gesture": "three-click-measurement",
+        "index": 4,
+        "label": "Angle",
+        "pointer": {
+          "all_trusted": true,
+          "event_count": 8,
+          "event_types": {
+            "pointerdown": 2,
+            "pointermove": 4,
+            "pointerup": 2
+          },
+          "target": "canvas"
+        },
+        "selection": {
+          "all_trusted": true,
+          "event_count": 1,
+          "event_types": {
+            "click": 1
+          },
+          "target": "toolbar"
+        }
+      },
+      {
+        "annotation_after": {
+          "count": 3,
+          "kind": "roi-rect",
+          "value": 5402.25
+        },
+        "annotation_before": {
+          "count": 2,
+          "kind": "angle",
+          "value": 3.5569937
+        },
+        "generations": [
+          149,
+          149,
+          149
+        ],
+        "gesture": "roi-drag",
+        "index": 5,
+        "label": "ROI Rect",
+        "pointer": {
+          "all_trusted": true,
+          "event_count": 4,
+          "event_types": {
+            "pointerdown": 1,
+            "pointermove": 2,
+            "pointerup": 1
+          },
+          "target": "canvas"
+        },
+        "selection": {
+          "all_trusted": true,
+          "event_count": 1,
+          "event_types": {
+            "click": 1
+          },
+          "target": "toolbar"
+        }
+      },
+      {
+        "annotation_after": {
+          "count": 4,
+          "kind": "roi-ellipse",
+          "value": 4146.0703
+        },
+        "annotation_before": {
+          "count": 3,
+          "kind": "roi-rect",
+          "value": 5402.25
+        },
+        "generations": [
+          152,
+          152,
+          152
+        ],
+        "gesture": "roi-drag",
+        "index": 6,
+        "label": "ROI Ellipse",
+        "pointer": {
+          "all_trusted": true,
+          "event_count": 4,
+          "event_types": {
+            "pointerdown": 1,
+            "pointermove": 2,
+            "pointerup": 1
+          },
+          "target": "canvas"
+        },
+        "selection": {
+          "all_trusted": true,
+          "event_count": 1,
+          "event_types": {
+            "click": 1
+          },
+          "target": "toolbar"
+        }
+      },
+      {
+        "annotation_after": {
+          "count": 5,
+          "kind": "hu-point",
+          "value": 27.0
+        },
+        "annotation_before": {
+          "count": 4,
+          "kind": "roi-ellipse",
+          "value": 4146.0703
+        },
+        "generations": [
+          156,
+          156,
+          156
+        ],
+        "gesture": "trusted-click",
+        "index": 8,
+        "label": "HU Point",
+        "pointer": {
+          "all_trusted": true,
+          "event_count": 4,
+          "event_types": {
+            "pointerdown": 1,
+            "pointermove": 2,
+            "pointerup": 1
+          },
+          "target": "canvas"
+        },
+        "selection": {
+          "all_trusted": true,
+          "event_count": 1,
+          "event_types": {
+            "click": 1
+          },
+          "target": "toolbar"
+        }
+      },
+      {
+        "annotation_after": {
+          "count": 5,
+          "kind": "hu-point",
+          "value": 27.0
+        },
+        "annotation_before": {
+          "count": 5,
+          "kind": "hu-point",
+          "value": 27.0
+        },
+        "generations": [
+          160,
+          160,
+          160
+        ],
+        "gesture": "pointer-drag",
+        "index": 0,
+        "label": "Pan",
+        "pointer": {
+          "all_trusted": true,
+          "event_count": 4,
+          "event_types": {
+            "pointerdown": 1,
+            "pointermove": 2,
+            "pointerup": 1
+          },
+          "target": "canvas"
+        },
+        "selection": {
+          "all_trusted": true,
+          "event_count": 1,
+          "event_types": {
+            "click": 1
+          },
+          "target": "toolbar"
+        }
+      },
+      {
+        "annotation_after": {
+          "count": 5,
+          "kind": "hu-point",
+          "value": 27.0
+        },
+        "annotation_before": {
+          "count": 5,
+          "kind": "hu-point",
+          "value": 27.0
+        },
+        "generations": [
+          164,
+          164,
+          164
+        ],
+        "gesture": "pointer-drag",
+        "index": 1,
+        "label": "Zoom",
+        "pointer": {
+          "all_trusted": true,
+          "event_count": 4,
+          "event_types": {
+            "pointerdown": 1,
+            "pointermove": 2,
+            "pointerup": 1
+          },
+          "target": "canvas"
+        },
+        "selection": {
+          "all_trusted": true,
+          "event_count": 1,
+          "event_types": {
+            "click": 1
+          },
+          "target": "toolbar"
+        }
+      },
+      {
+        "annotation_after": {
+          "count": 5,
+          "kind": "hu-point",
+          "value": 27.0
+        },
+        "annotation_before": {
+          "count": 5,
+          "kind": "hu-point",
+          "value": 27.0
+        },
+        "generations": [
+          167,
+          167,
+          167
+        ],
+        "gesture": "pointer-drag",
+        "index": 2,
+        "label": "W/L",
+        "pointer": {
+          "all_trusted": true,
+          "event_count": 4,
+          "event_types": {
+            "pointerdown": 1,
+            "pointermove": 2,
+            "pointerup": 1
+          },
+          "target": "canvas"
+        },
+        "selection": {
+          "all_trusted": true,
+          "event_count": 1,
+          "event_types": {
+            "click": 1
+          },
+          "target": "toolbar"
+        }
+      },
+      {
+        "annotation_after": {
+          "count": 5,
+          "kind": "hu-point",
+          "value": 27.0
+        },
+        "annotation_before": {
+          "count": 5,
+          "kind": "hu-point",
+          "value": 27.0
+        },
+        "generations": [
+          170,
+          170,
+          170
+        ],
+        "gesture": "trusted-click",
+        "index": 7,
+        "label": "Crosshair",
+        "pointer": {
+          "all_trusted": true,
+          "event_count": 4,
+          "event_types": {
+            "pointerdown": 1,
+            "pointermove": 2,
+            "pointerup": 1
+          },
+          "target": "canvas"
+        },
+        "selection": {
+          "all_trusted": true,
+          "event_count": 1,
+          "event_types": {
+            "click": 1
+          },
+          "target": "toolbar"
+        }
+      },
+      {
+        "annotation_after": {
+          "count": 5,
+          "kind": "hu-point",
+          "value": 27.0
+        },
+        "annotation_before": {
+          "count": 5,
+          "kind": "hu-point",
+          "value": 27.0
+        },
+        "generations": [
+          173,
+          173,
+          173
+        ],
+        "gesture": "trusted-click",
+        "index": 9,
+        "label": "Label Paint",
+        "pointer": {
+          "all_trusted": true,
+          "event_count": 4,
+          "event_types": {
+            "pointerdown": 1,
+            "pointermove": 2,
+            "pointerup": 1
+          },
+          "target": "canvas"
+        },
+        "selection": {
+          "all_trusted": true,
+          "event_count": 1,
+          "event_types": {
+            "click": 1
+          },
+          "target": "toolbar"
+        }
+      },
+      {
+        "annotation_after": {
+          "count": 5,
+          "kind": "hu-point",
+          "value": 27.0
+        },
+        "annotation_before": {
+          "count": 5,
+          "kind": "hu-point",
+          "value": 27.0
+        },
+        "generations": [
+          176,
+          176,
+          176
+        ],
+        "gesture": "trusted-click",
+        "index": 10,
+        "label": "Label Erase",
+        "pointer": {
+          "all_trusted": true,
+          "event_count": 4,
+          "event_types": {
+            "pointerdown": 1,
+            "pointermove": 2,
+            "pointerup": 1
+          },
+          "target": "canvas"
+        },
+        "selection": {
+          "all_trusted": true,
+          "event_count": 1,
+          "event_types": {
+            "click": 1
+          },
+          "target": "toolbar"
+        }
+      }
+    ],
+    "artifact": "output/browser/results/chromium-window/tools/gallery-tools.json",
+    "cleanup": {
+      "active_input_sources_released": true,
+      "consumer_canvas_listeners": 0,
+      "diagnostic_listener_count": 8,
+      "diagnostic_listeners_released": true
+    },
+    "consumer": "ritk-snap",
+    "initial": {
+      "canvases": [
+        {
+          "active_tool": "W/L",
+          "active_tool_index": 2,
+          "annotation": {
+            "count": 0,
+            "kind": "",
+            "value": null
+          },
+          "axis": "axial",
+          "generation": 128
+        },
+        {
+          "active_tool": "W/L",
+          "active_tool_index": 2,
+          "annotation": {
+            "count": 0,
+            "kind": "",
+            "value": null
+          },
+          "axis": "coronal",
+          "generation": 128
+        },
+        {
+          "active_tool": "W/L",
+          "active_tool_index": 2,
+          "annotation": {
+            "count": 0,
+            "kind": "",
+            "value": null
+          },
+          "axis": "sagittal",
+          "generation": 128
+        }
+      ],
+      "controls": {
+        "buttons": [
           {
+            "disabled": false,
             "index": 0,
             "label": "Pan",
-            "selection": {
-              "event_count": 1,
-              "event_types": {
-                "click": 1
-              },
-              "target": "toolbar",
-              "all_trusted": true
-            },
-            "gesture": "pointer-drag",
-            "pointer": {
-              "event_count": 4,
-              "event_types": {
-                "pointerdown": 1,
-                "pointermove": 2,
-                "pointerup": 1
-              },
-              "target": "canvas",
-              "all_trusted": true
-            },
-            "generations": [
-              80,
-              80,
-              80
-            ]
+            "pressed": false
           },
           {
+            "disabled": false,
             "index": 1,
             "label": "Zoom",
-            "selection": {
-              "event_count": 1,
-              "event_types": {
-                "click": 1
-              },
-              "target": "toolbar",
-              "all_trusted": true
-            },
-            "gesture": "pointer-drag",
-            "pointer": {
-              "event_count": 4,
-              "event_types": {
-                "pointerdown": 1,
-                "pointermove": 2,
-                "pointerup": 1
-              },
-              "target": "canvas",
-              "all_trusted": true
-            },
-            "generations": [
-              83,
-              83,
-              83
-            ]
+            "pressed": false
           },
           {
+            "disabled": false,
             "index": 2,
             "label": "W/L",
-            "selection": {
-              "event_count": 1,
-              "event_types": {
-                "click": 1
-              },
-              "target": "toolbar",
-              "all_trusted": true
-            },
-            "gesture": "pointer-drag",
-            "pointer": {
-              "event_count": 4,
-              "event_types": {
-                "pointerdown": 1,
-                "pointermove": 2,
-                "pointerup": 1
-              },
-              "target": "canvas",
-              "all_trusted": true
-            },
-            "generations": [
-              86,
-              86,
-              86
-            ]
+            "pressed": true
           },
           {
+            "disabled": false,
             "index": 3,
             "label": "Length",
-            "selection": {
-              "event_count": 1,
-              "event_types": {
-                "click": 1
-              },
-              "target": "toolbar",
-              "all_trusted": true
-            },
-            "gesture": "two-click-measurement",
-            "pointer": {
-              "event_count": 8,
-              "event_types": {
-                "pointerdown": 2,
-                "pointermove": 4,
-                "pointerup": 2
-              },
-              "target": "canvas",
-              "all_trusted": true
-            },
-            "generations": [
-              92,
-              92,
-              92
-            ]
+            "pressed": false
           },
           {
+            "disabled": false,
             "index": 4,
             "label": "Angle",
-            "selection": {
-              "event_count": 1,
-              "event_types": {
-                "click": 1
-              },
-              "target": "toolbar",
-              "all_trusted": true
-            },
-            "gesture": "three-click-measurement",
-            "pointer": {
-              "event_count": 8,
-              "event_types": {
-                "pointerdown": 2,
-                "pointermove": 4,
-                "pointerup": 2
-              },
-              "target": "canvas",
-              "all_trusted": true
-            },
-            "generations": [
-              101,
-              101,
-              101
-            ]
+            "pressed": false
           },
           {
+            "disabled": false,
             "index": 5,
             "label": "ROI Rect",
-            "selection": {
-              "event_count": 1,
-              "event_types": {
-                "click": 1
-              },
-              "target": "toolbar",
-              "all_trusted": true
-            },
-            "gesture": "roi-drag",
-            "pointer": {
-              "event_count": 4,
-              "event_types": {
-                "pointerdown": 1,
-                "pointermove": 2,
-                "pointerup": 1
-              },
-              "target": "canvas",
-              "all_trusted": true
-            },
-            "generations": [
-              104,
-              104,
-              104
-            ]
+            "pressed": false
           },
           {
+            "disabled": false,
             "index": 6,
             "label": "ROI Ellipse",
-            "selection": {
-              "event_count": 1,
-              "event_types": {
-                "click": 1
-              },
-              "target": "toolbar",
-              "all_trusted": true
-            },
-            "gesture": "roi-drag",
-            "pointer": {
-              "event_count": 4,
-              "event_types": {
-                "pointerdown": 1,
-                "pointermove": 2,
-                "pointerup": 1
-              },
-              "target": "canvas",
-              "all_trusted": true
-            },
-            "generations": [
-              107,
-              107,
-              107
-            ]
+            "pressed": false
           },
           {
+            "disabled": false,
             "index": 7,
             "label": "Crosshair",
-            "selection": {
-              "event_count": 1,
-              "event_types": {
-                "click": 1
-              },
-              "target": "toolbar",
-              "all_trusted": true
-            },
-            "gesture": "trusted-click",
-            "pointer": {
-              "event_count": 4,
-              "event_types": {
-                "pointerdown": 1,
-                "pointermove": 2,
-                "pointerup": 1
-              },
-              "target": "canvas",
-              "all_trusted": true
-            },
-            "generations": [
-              110,
-              110,
-              110
-            ]
+            "pressed": false
           },
           {
+            "disabled": false,
             "index": 8,
             "label": "HU Point",
-            "selection": {
-              "event_count": 1,
-              "event_types": {
-                "click": 1
-              },
-              "target": "toolbar",
-              "all_trusted": true
-            },
-            "gesture": "trusted-click",
-            "pointer": {
-              "event_count": 4,
-              "event_types": {
-                "pointerdown": 1,
-                "pointermove": 2,
-                "pointerup": 1
-              },
-              "target": "canvas",
-              "all_trusted": true
-            },
-            "generations": [
-              113,
-              113,
-              113
-            ]
+            "pressed": false
           },
           {
+            "disabled": false,
             "index": 9,
             "label": "Label Paint",
-            "selection": {
-              "event_count": 1,
-              "event_types": {
-                "click": 1
-              },
-              "target": "toolbar",
-              "all_trusted": true
-            },
-            "gesture": "trusted-click",
-            "pointer": {
-              "event_count": 4,
-              "event_types": {
-                "pointerdown": 1,
-                "pointermove": 2,
-                "pointerup": 1
-              },
-              "target": "canvas",
-              "all_trusted": true
-            },
-            "generations": [
-              116,
-              116,
-              116
-            ]
+            "pressed": false
           },
           {
+            "disabled": false,
             "index": 10,
             "label": "Label Erase",
-            "selection": {
-              "event_count": 1,
-              "event_types": {
-                "click": 1
-              },
-              "target": "toolbar",
-              "all_trusted": true
-            },
-            "gesture": "trusted-click",
-            "pointer": {
-              "event_count": 4,
-              "event_types": {
-                "pointerdown": 1,
-                "pointermove": 2,
-                "pointerup": 1
-              },
-              "target": "canvas",
-              "all_trusted": true
-            },
-            "generations": [
-              119,
-              119,
-              119
-            ]
+            "pressed": false
           }
         ],
-        "keyboard": {
-          "active_tool": "Pan",
-          "events": {
-            "event_count": 2,
-            "event_types": {
-              "keydown": 1,
-              "keyup": 1
-            },
-            "target": "canvas",
-            "all_trusted": true
-          }
+        "output": "Active tool: W/L"
+      }
+    },
+    "invalid_api_probes": [
+      {
+        "error": "browser tool index NaN must be finite",
+        "rejected": true,
+        "value": "NaN"
+      },
+      {
+        "error": "browser tool index inf must be finite",
+        "rejected": true,
+        "value": "Infinity"
+      },
+      {
+        "error": "browser tool index -inf must be finite",
+        "rejected": true,
+        "value": "-Infinity"
+      },
+      {
+        "error": "browser tool index -1 is outside 0..=4294967295",
+        "rejected": true,
+        "value": "-1"
+      },
+      {
+        "error": "browser tool index 0.5 must be an integer",
+        "rejected": true,
+        "value": "0.5"
+      },
+      {
+        "error": "browser tool index 4294967296 is outside 0..=4294967295",
+        "rejected": true,
+        "value": "4294967296"
+      },
+      {
+        "error": "browser tool index 11 is outside 0..11",
+        "rejected": true,
+        "value": "tool-count"
+      }
+    ],
+    "keyboard": {
+      "active_tool": "Pan",
+      "events": {
+        "all_trusted": true,
+        "event_count": 2,
+        "event_types": {
+          "keydown": 1,
+          "keyup": 1
         },
-        "screenshots": {
-          "window": {
-            "path": "output/browser/local-tools-committed/tools/gallery-tools.png",
-            "sha256": "93b5de2607fbb357c740f57fb10b950e9351487425ff4daaa26cb8bdac06e882",
-            "width": 1769,
-            "height": 1327,
-            "bytes": 449076,
-            "scope": "window"
-          },
-          "controls": {
-            "path": "output/browser/local-tools-committed/tools/gallery-tools-controls.png",
-            "sha256": "b8a8db5dce0cee25b9dd8c080add9c581956941defc3f1aab1e3e3fffd602c94",
-            "width": 1710,
-            "height": 55,
-            "bytes": 3735,
-            "scope": "element"
-          }
-        },
-        "samples": {
-          "before_stop": {
-            "active_tool": "Pan",
-            "active_tool_index": "0",
-            "cine_enabled": "false",
-            "cine_fps": "12",
-            "consumer_listeners": 21,
-            "host_listeners": 32,
-            "mounted": true,
-            "wasm_bytes": 601620480
-          },
-          "after_stop": {
-            "active_tool": "Pan",
-            "active_tool_index": "0",
-            "cine_enabled": "false",
-            "cine_fps": "12",
-            "consumer_listeners": 0,
-            "host_listeners": 0,
-            "mounted": false,
-            "wasm_bytes": 601620480
-          }
-        },
-        "stopped": {
-          "button_count": 11,
-          "disabled": true,
-          "output": "No study"
-        },
-        "cleanup": {
-          "active_input_sources_released": true,
-          "diagnostic_listener_count": 8,
-          "diagnostic_listeners_released": true,
-          "consumer_canvas_listeners": 0
-        },
-        "sources": {
-          "browser_gallery_tools.py": "964c947f833272bcd2c6383105b1bed3646f8d67af2444a2819f035778283763",
-          "browser_gallery_tool_trace.py": "c11b7de51b523a96ade61e522ed890ce98acc30de7c81d2a75ae7d1e180bf995",
-          "browser_gallery.py": "73ff3f57b4f082d18a8f083d4942d8eca7700af5199a1467f1b49ea6c1daa102"
-        },
-        "artifact": "output/browser/local-tools-committed/tools/gallery-tools.json"
+        "target": "canvas"
+      }
+    },
+    "samples": {
+      "after_stop": {
+        "active_tool": "Pan",
+        "active_tool_index": "0",
+        "annotation_count": "5",
+        "cine_enabled": "false",
+        "cine_fps": "24",
+        "consumer_listeners": 0,
+        "crosshair_visible": "false",
+        "host_listeners": 0,
+        "last_annotation_kind": "hu-point",
+        "last_annotation_value": "27",
+        "linked_cursor": "65,400,400",
+        "mounted": false,
+        "projection_frame_state": null,
+        "projection_mode": null,
+        "projection_statistic": null,
+        "wasm_bytes": 404357120
+      },
+      "before_stop": {
+        "active_tool": "Pan",
+        "active_tool_index": "0",
+        "annotation_count": "5",
+        "cine_enabled": "false",
+        "cine_fps": "24",
+        "consumer_listeners": 21,
+        "crosshair_visible": "false",
+        "host_listeners": 34,
+        "last_annotation_kind": "hu-point",
+        "last_annotation_value": "27",
+        "linked_cursor": "65,400,400",
+        "mounted": true,
+        "projection_frame_state": null,
+        "projection_mode": null,
+        "projection_statistic": null,
+        "wasm_bytes": 404357120
+      }
+    },
+    "schema": 1,
+    "screenshots": {
+      "controls": {
+        "bytes": 27160,
+        "height": 88,
+        "path": "output/browser/results/chromium-window/tools/gallery-tools-controls.png",
+        "scope": "element",
+        "sha256": "b4450f60855bd16b05769b4404b40dcfbd3fb481e3365c00d1e46978ab0ae66d",
+        "width": 2786
+      },
+      "window": {
+        "bytes": 247771,
+        "height": 2114,
+        "path": "output/browser/results/chromium-window/tools/gallery-tools.png",
+        "scope": "window",
+        "sha256": "22d92a7758dceca9e8d0c4a2e5423d0c117f0424b3c00f72a9432ad9917e05c7",
+        "width": 2880
+      }
+    },
+    "sources": {
+      "browser_gallery.py": "ff0bde9f3846366fa75319274c5391439a61204972f5b634543f9e39c94c64ec",
+      "browser_gallery_tool_trace.py": "30ff44d6ac86d046eae9ff82e060fbe35701df1c21316f5d61cf0d12b8230ebd",
+      "browser_gallery_tools.py": "a587896908d3795af84c14d76ae85ea86d6edb8fee29873a02505a63992aad16"
+    },
+    "stopped": {
+      "button_count": 11,
+      "disabled": true,
+      "output": "No study"
+    },
+    "workflow": {
+      "run_id": 35535831906,
+      "url": "https://github.com/ryancinsight/ritk/actions/runs/35535831906",
+      "artifact_id": 10613092926,
+      "artifact_url": "https://github.com/ryancinsight/ritk/actions/runs/35535831906/artifacts/10613092926",
+      "ritk_revision": "651b4a808374afc3efca35b71b9583b0a2a17248",
+      "metis_revision": "b58d64b1bebe76bb32570339c4a349cc1b0d7086",
+      "moirai_revision": "2a54e010532f76c88027fec8a468620c92fe66b3",
+      "browser": "Chrome 152.0.7977.82 on Linux",
+      "files": 94,
+      "bytes": 49807236,
+      "file_manifest_sha256": "81b7b7f8ea473dfc12c25c07b4958762254a261ca49352af2adabc214d6e8d03"
+    },
+    "source_trace": {
+      "path": "output/browser/results/chromium-window/trace.json",
+      "sha256": "afd86ba12aa127b6e597800e4dd3759c00a95620c35b37961e1a242b5a3912bb"
+    },
+    "study": {
+      "path": "test_data/2_head_mri_t2/DICOM",
+      "files": 94,
+      "bytes": 49807236,
+      "file_manifest_sha256": "81b7b7f8ea473dfc12c25c07b4958762254a261ca49352af2adabc214d6e8d03",
+      "license": "CC BY 4.0",
+      "description": "public MRI-DIR porcine-head T2 MRI phantom; not private patient data"
+    },
+    "manual_derivatives": {
+      "tools": {
+        "path": "docs/manual/images/dicom-metis-real-browser-mri-tools.png",
+        "width": 1600,
+        "height": 1174,
+        "bytes": 79978,
+        "sha256": "76ab7e41ea0d691ed30fef6c648398ade9b03002b85d7e5631020a6aeced6044"
+      },
+      "controls": {
+        "path": "docs/manual/images/dicom-metis-real-browser-mri-tools-controls.png",
+        "width": 1600,
+        "height": 51,
+        "bytes": 16534,
+        "sha256": "01cc7030f5acc289bfb3ae191f763be3a0e22f86e659e750cb0659e5654eb936"
       }
     }
   },
-  "unsupported_native_operations": [
-    "native-file-dialog",
-    "native-process-launch",
-    "os-permission-grant"
-  ],
-  "cleanup": {
-    "transfer_observer": {
-      "globals_cleared": true,
-      "listeners_removed": 4
+  "annotation": {
+    "tool_artifact_path": "output/browser/results/chromium-window/tools/gallery-tools.json",
+    "screenshot_source": {
+      "path": "output/browser/results/chromium-window/tools/gallery-tools.png",
+      "width": 2880,
+      "height": 2114,
+      "bytes": 247771,
+      "sha256": "22d92a7758dceca9e8d0c4a2e5423d0c117f0424b3c00f72a9432ad9917e05c7"
     },
-    "session_closed": true
+    "manual_derivative": {
+      "path": "docs/manual/images/dicom-metis-real-browser-mri-tools.png",
+      "width": 1600,
+      "height": 1174,
+      "bytes": 79978,
+      "sha256": "76ab7e41ea0d691ed30fef6c648398ade9b03002b85d7e5631020a6aeced6044"
+    },
+    "actions": [
+      {
+        "label": "Length",
+        "count": 1,
+        "kind": "length",
+        "value": 102.75155
+      },
+      {
+        "label": "Angle",
+        "count": 2,
+        "kind": "angle",
+        "value": 3.5569937
+      },
+      {
+        "label": "ROI Rect",
+        "count": 3,
+        "kind": "roi-rect",
+        "value": 5402.25
+      },
+      {
+        "label": "ROI Ellipse",
+        "count": 4,
+        "kind": "roi-ellipse",
+        "value": 4146.0703
+      },
+      {
+        "label": "HU Point",
+        "count": 5,
+        "kind": "hu-point",
+        "value": 27.0
+      }
+    ],
+    "non_measurement_tools_preserve": {
+      "count": 5,
+      "kind": "hu-point",
+      "value": 27.0
+    },
+    "invalid_api_probes_rejected": 7,
+    "samples": {
+      "before_stop": {
+        "mounted": true,
+        "consumer_listeners": 21,
+        "host_listeners": 34,
+        "annotation_count": 5,
+        "last_annotation_kind": "hu-point",
+        "last_annotation_value": 27.0
+      },
+      "after_stop": {
+        "mounted": false,
+        "consumer_listeners": 0,
+        "host_listeners": 0,
+        "annotation_count": 5,
+        "last_annotation_kind": "hu-point",
+        "last_annotation_value": 27.0
+      }
+    },
+    "controls_screenshot_source": {
+      "path": "output/browser/results/chromium-window/tools/gallery-tools-controls.png",
+      "width": 2786,
+      "height": 88,
+      "bytes": 27160,
+      "sha256": "b4450f60855bd16b05769b4404b40dcfbd3fb481e3365c00d1e46978ab0ae66d"
+    },
+    "controls_manual_derivative": {
+      "path": "docs/manual/images/dicom-metis-real-browser-mri-tools-controls.png",
+      "width": 1600,
+      "height": 51,
+      "bytes": 16534,
+      "sha256": "01cc7030f5acc289bfb3ae191f763be3a0e22f86e659e750cb0659e5654eb936"
+    }
   },
-  "consumer_revision": "9c27f84c44499d9c30a88bf0add18f2b72df6f79",
-  "input_source": "chooser",
-  "files": 94,
-  "bytes": 49807236,
-  "viewport": {
-    "device_scale": 1.25,
-    "height": 962,
-    "width": 1415
-  },
-  "file_manifest_sha256": "81b7b7f8ea473dfc12c25c07b4958762254a261ca49352af2adabc214d6e8d03",
-  "oracle_sha256": "26e7e89fdd42e480e1423295641c57ea6e397cc6d02b2a81ccd76ebc78adddcd",
-  "assets": {
-    "gallery.html": "2af93349bed8e417b33af635cc96b0dd88b3f14852704373563c85d07efaec8e",
-    "gallery.js": "fbecd9b9f1d18e607680d310879cb40bd7024c769d096dbab0bc36ea1248f776",
-    "gallery.css": "f02b593d54956ff0eb4e754552dfe42235ae1d9016ecff40523dcf4a6a2635b4",
-    "consumer/ritk_snap.js": "76f303c48803f4bb3cf12fc718901153bc284323429093f61c1a7b3d1a00e86a",
-    "consumer/ritk_snap_bg.wasm": "ca88338d886ab03215cfb4cf08387c3721fdc88b256ccee87489504bcf920995"
-  },
-  "sources": {
-    "browser.py": "5183de58eabd5d9f591b411228b42fd00a83cbdd364a9806af58975e8d8df649",
-    "browser_canvas.py": "2f991d776c6dd43c5306adaea5a50b20351f78a05367aa9e8d9f0cdd6fd58cb1",
-    "browser_canvas_capture.py": "5f8089772da694da74c4b781bde04c74b59988da709d32f61812416eaead09ce",
-    "browser_drop.py": "24555744e64d62c9cddb26f511a07d4405e2dfd5fece56ecfd0df37745b96c6d",
-    "browser_drop_lifecycle.py": "adf2e32730c37a91dca120b647cd8e4e563d3a2cdf9bdf7799e4d7bc5a2332f3",
-    "browser_file_read.py": "e9bab2fdfeeb392b52dd404b1905b6c7b4413e4854c8dc686c20112d7827904a",
-    "browser_protocol.py": "cb294d0c10f6a95f6451993e2efd8faf07206d9e7b1e765fada2d5e5d656905b",
-    "browser_runtime.py": "7f15c3a71791d783e3f8d393075a4a1a5cb48af8be116511d6f66d04a5fb1fbd",
-    "browser_trace.py": "6ecd555ba3a9e57c4702f31a3c566a93a4159644f25f6fcfa743cc16b3a01500"
+  "manual_derivatives": {
+    "tools": {
+      "path": "docs/manual/images/dicom-metis-real-browser-mri-tools.png",
+      "width": 1600,
+      "height": 1174,
+      "bytes": 79978,
+      "sha256": "76ab7e41ea0d691ed30fef6c648398ade9b03002b85d7e5631020a6aeced6044"
+    },
+    "controls": {
+      "path": "docs/manual/images/dicom-metis-real-browser-mri-tools-controls.png",
+      "width": 1600,
+      "height": 51,
+      "bytes": 16534,
+      "sha256": "01cc7030f5acc289bfb3ae191f763be3a0e22f86e659e750cb0659e5654eb936"
+    }
   }
 }

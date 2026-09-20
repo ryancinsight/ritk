@@ -50,7 +50,15 @@ fixes that replay ordering and keeps the input-sensitive assertions unchanged.
 Rust snapshot and browser-semantic tests cover empty, finite and latest-value
 projection; the browser tool tests reject non-finite values, require
 input-sensitive transitions and replay measurements before viewport changes.
-The hosted Chromium tool replay is the visual evidence over the real 94-file
-MRI study and records the result transitions and source digests. WebKit bounded
-file reads and Chromium WebGPU adapter availability remain separate
-host-capability residuals.
+Merged-main run [35535831906](https://github.com/ryancinsight/ritk/actions/runs/35535831906)
+passes the Chromium-window tool replay over the real 94-file public MRI-DIR
+study. The Chromium-window artifact
+[10613092926](https://github.com/ryancinsight/ritk/actions/runs/35535831906/artifacts/10613092926)
+records Length `102.75155`, Angle `3.5569937`, ROI Rect `5402.25`,
+ROI Ellipse `4146.0703` and HU Point `27.0`, preserves the final HU result
+through non-measurement tools, rejects seven invalid probes, and releases all
+21 consumer and 34 host listeners at teardown. Chromium raster, Firefox raster
+and Chromium MIP artifacts in the same run carry the exact RGBA and semantic
+oracles. WebKit bounded file reads and Chromium WebGPU adapter availability
+remain separate host-capability residuals; neither is presented as a DICOM
+decoder failure.
