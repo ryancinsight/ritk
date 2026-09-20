@@ -60,6 +60,22 @@ const done = arguments[arguments.length - 1];
 const enabled = arguments[0];
 const rate = arguments[1];
 const limit = arguments[2];
+const read = () => {
+  const canvas = document.getElementById("ritk-snap-axial");
+  const button = document.getElementById("cine-toggle");
+  const input = document.getElementById("cine-rate");
+  return {
+    canvas: canvas instanceof HTMLCanvasElement ? {
+      enabled: canvas.getAttribute("data-ritk-cine-enabled"),
+      index: canvas.getAttribute("data-ritk-slice-index"),
+      generation: canvas.getAttribute("data-ritk-frame-generation"),
+    } : null,
+    controls: {
+      button_pressed: button instanceof HTMLButtonElement ? button.getAttribute("aria-pressed") : null,
+      rate: input instanceof HTMLInputElement ? input.value : null,
+    },
+  };
+};
 const ready = () => {
   const canvas = document.getElementById("ritk-snap-axial");
   const button = document.getElementById("cine-toggle");
@@ -103,6 +119,7 @@ const read = () => ["axial", "coronal", "sagittal"].map((axis) => {
     generation: Number(canvas.getAttribute("data-ritk-frame-generation")),
   } : null;
 });
+const status = () => document.getElementById("gallery-status")?.textContent || "";
 const ready = () => {
   const current = read();
   return current.every((state, position) => state && state.enabled === "true" &&
@@ -125,7 +142,7 @@ const timer = window.setTimeout(() => {
   if (settled) return;
   settled = true;
   observer.disconnect();
-  done({ok: false});
+  done({ok: false, current: read(), status: status()});
 }, limit);
 """
 
