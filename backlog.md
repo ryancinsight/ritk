@@ -1,5 +1,14 @@
 # RITK execution backlog
 
+<a id="RITK-SNAP-METIS-CROSSHAIR-001"></a>
+## RITK-SNAP-METIS-CROSSHAIR-001 — Present linked MPR cursor through Métis hosts [arch] [minor]
+- Status: review; priority: P1; owner: RITK presentation; integrator: root; last-update: 2026-09-20.
+- Outcome: the host-neutral viewer snapshot carries the linked voxel cursor and visibility state; the Métis browser gallery and Windows native session render the same crosshair over the real RITK planes without moving DICOM or cursor semantics into Métis.
+- Scope: `ritk-snap` presentation snapshot, browser semantic attributes and gallery control, native Métis display-list overlay, tests, ADR and manual evidence. Measurement/RT overlays, OS accessibility bridges and WebGPU fallback remain separate items.
+- Acceptance: toggling the browser control changes only the cursor overlay state; all three canvases publish identical visibility and cursor coordinates; native and browser projection use the shared `[z,y,x]` cursor mapping under anisotropic spacing and orientation; crosshair pixels/overlay geometry are value-tested, real MRI presentation remains non-black, and locked native/WASM, strict Clippy, rustdoc, formatting and browser script checks pass.
+- Dependencies: existing `PresentationSnapshot` contract, `LinkedCursor` mapping, Métis `DisplayCommand::DrawLine`, and the current 94-file MRI replay.
+- Verification: locked native `ritk-snap` nextest 488/488, strict native Clippy, wasm32 check/Clippy, rustdoc, doctests 4/4, release build, formatting, lockfile, Python 24/24, browser JavaScript syntax and workflow attribute checks pass. Native display-list tests assert six crosshair lines, hidden-state removal and orientation-aware movement; browser trace and gallery tests validate the optional cursor group and three-canvas linked state. Hosted crosshair capture remains pending the merged-main browser workflow.
+
 <a id="RITK-SNAP-NATIVE-PROJECTION-REUSE-001"></a>
 ## RITK-SNAP-NATIVE-PROJECTION-REUSE-001 — Reuse native scalar projection storage [patch]
 - Status: done; priority: P1; owner: RITK native presentation; integrator: root; last-update: 2026-09-20.

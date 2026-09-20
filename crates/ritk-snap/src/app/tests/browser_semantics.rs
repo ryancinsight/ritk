@@ -2,6 +2,7 @@ use crate::app::browser_semantics::{BrowserCanvasSemantics, BrowserLoadState};
 use crate::presentation::{PresentationFrame, PresentationSnapshot};
 use crate::render::WindowLevel;
 use crate::tools::interaction::ViewportOffset;
+use crate::ui::ViewTransform;
 
 fn snapshot(
     loaded: bool,
@@ -21,6 +22,9 @@ fn snapshot(
         12.0,
         1.0,
         ViewportOffset::new(0.0, 0.0),
+        ViewTransform::default(),
+        false,
+        None,
         window_preset_index,
         2,
         "W/L",
@@ -44,6 +48,11 @@ fn empty_canvas_publishes_bounded_empty_state() {
     assert_eq!(state.window_preset_index_value(), "");
     assert_eq!(state.active_tool_index_value(), "2");
     assert_eq!(state.active_tool_name(), "W/L");
+    assert_eq!(state.crosshair_visible_value(), "false");
+    assert_eq!(state.linked_cursor_value(), "");
+    assert_eq!(state.view_flip_h_value(), "false");
+    assert_eq!(state.view_flip_v_value(), "false");
+    assert_eq!(state.view_rotation_value(), "0");
     assert_eq!(
         (state.axis(), state.slice_index(), state.slice_count()),
         (0, 0, 1)
@@ -65,6 +74,9 @@ fn presented_canvas_preserves_axis_slice_and_frame_dimensions() {
             18.0,
             1.0,
             ViewportOffset::new(0.0, 0.0),
+            ViewTransform::default(),
+            true,
+            Some([2, 3, 4]),
             Some(0),
             2,
             "W/L",
@@ -84,6 +96,11 @@ fn presented_canvas_preserves_axis_slice_and_frame_dimensions() {
     assert_eq!(state.window_preset_index_value(), "0");
     assert_eq!(state.active_tool_index_value(), "2");
     assert_eq!(state.active_tool_name(), "W/L");
+    assert_eq!(state.crosshair_visible_value(), "true");
+    assert_eq!(state.linked_cursor_value(), "2,3,4");
+    assert_eq!(state.view_flip_h_value(), "false");
+    assert_eq!(state.view_flip_v_value(), "false");
+    assert_eq!(state.view_rotation_value(), "0");
     assert_eq!(
         (state.axis(), state.slice_index(), state.slice_count()),
         (2, 5, 9)

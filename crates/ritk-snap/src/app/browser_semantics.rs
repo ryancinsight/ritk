@@ -145,4 +145,55 @@ impl BrowserCanvasSemantics {
     pub(crate) const fn active_tool_name(self) -> &'static str {
         self.snapshot.active_tool_name()
     }
+
+    /// Returns the stable DOM value for crosshair visibility.
+    #[must_use]
+    pub(crate) const fn crosshair_visible_value(self) -> &'static str {
+        if self.snapshot.crosshair_visible() {
+            "true"
+        } else {
+            "false"
+        }
+    }
+
+    /// Returns the linked voxel as bounded `z,y,x` text for the consumer DOM.
+    #[must_use]
+    pub(crate) fn linked_cursor_value(self) -> String {
+        self.snapshot
+            .linked_cursor_voxel()
+            .map_or_else(String::new, |voxel| {
+                format!("{},{},{}", voxel[0], voxel[1], voxel[2])
+            })
+    }
+
+    /// Returns the stable DOM value for horizontal orientation mirroring.
+    #[must_use]
+    pub(crate) const fn view_flip_h_value(self) -> &'static str {
+        if self.snapshot.view_transform().flip_h {
+            "true"
+        } else {
+            "false"
+        }
+    }
+
+    /// Returns the stable DOM value for vertical orientation mirroring.
+    #[must_use]
+    pub(crate) const fn view_flip_v_value(self) -> &'static str {
+        if self.snapshot.view_transform().flip_v {
+            "true"
+        } else {
+            "false"
+        }
+    }
+
+    /// Returns the stable DOM value for clockwise quarter-turn orientation.
+    #[must_use]
+    pub(crate) const fn view_rotation_value(self) -> &'static str {
+        match self.snapshot.view_transform().rotation {
+            crate::ui::RotationSteps::Zero => "0",
+            crate::ui::RotationSteps::Ninety => "90",
+            crate::ui::RotationSteps::OneEighty => "180",
+            crate::ui::RotationSteps::TwoSeventy => "270",
+        }
+    }
 }

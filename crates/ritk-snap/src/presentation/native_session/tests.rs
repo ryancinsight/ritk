@@ -1,10 +1,12 @@
-use super::layout::{surface_frames, surface_frames_with_projection};
+use super::layout::{
+    crosshair_overlay, surface_frames, surface_frames_with_projection, CROSSHAIR_COLOR,
+};
 use super::layout::{OVERLAY_BAR_HEIGHT, OVERLAY_TEXT};
 use super::*;
 use crate::dicom::loader::tests::fixtures;
 use crate::ui::{RotationSteps, ViewTransform};
 use metis_platform::native::{ModifierState, NativeApplication, NativeFlow, WindowEvent};
-use metis_ui_lang::DisplayCommand;
+use metis_ui_lang::{DisplayCommand, DisplayList};
 use std::time::{Duration, Instant};
 mod selection;
 
@@ -218,6 +220,92 @@ fn native_session_space_toggles_cine_and_ignores_repeat() {
         }])
         .expect("repeated cine toggle");
     assert!(session.app.cine.enabled);
+}
+
+#[test]
+fn native_session_crosshair_key_repaints_and_updates_snapshot() {
+    let (mut session, _root) = session();
+    let hidden = session.framebuffer.clone();
+    let flow = session
+        .handle_events(&[WindowEvent::KeyDown {
+            virtual_key: crate::app::action_adapter::VIRTUAL_KEY_CROSSHAIR_TOGGLE,
+            repeated: false,
+            modifiers: ModifierState::NONE,
+        }])
+        .expect("crosshair toggle");
+    assert_eq!(flow, NativeFlow::Continue { repaint: true });
+    assert!(session.app.show_crosshair);
+    assert_ne!(session.framebuffer.pixels(), hidden.pixels());
+    assert!(session
+        .observation
+        .snapshot
+        .lock()
+        .expect("snapshot lock")
+        .expect("crosshair snapshot")
+        .crosshair_visible());
+
+    let shown = session.framebuffer.clone();
+    let repeated = session
+        .handle_events(&[WindowEvent::KeyDown {
+            virtual_key: crate::app::action_adapter::VIRTUAL_KEY_CROSSHAIR_TOGGLE,
+            repeated: true,
+            modifiers: ModifierState::NONE,
+        }])
+        .expect("repeated crosshair toggle");
+    assert_eq!(repeated, NativeFlow::Continue { repaint: false });
+    assert!(session.app.show_crosshair);
+    assert_eq!(session.framebuffer.pixels(), shown.pixels());
+}
+
+#[test]
+fn native_crosshair_overlay_maps_one_linked_voxel_into_each_plane() {
+    let (session, _root) = session();
+    let shape = session.app.loaded.as_ref().map(|volume| volume.shape);
+    let cursor = session.app.linked_cursor.map(|cursor| cursor.voxel());
+    let overlay = crosshair_overlay(&session.views, &session.viewports, shape, cursor, true)
+        .expect("crosshair display list");
+    assert_eq!(
+        overlay
+            .commands
+            .iter()
+            .filter(|command| matches!(command, DisplayCommand::DrawLine { color, .. } if *color == CROSSHAIR_COLOR))
+            .count(),
+        6,
+        "each orthogonal plane receives one horizontal and one vertical line"
+    );
+
+    let vertical_x = |display_list: &DisplayList| {
+        display_list
+            .commands
+            .iter()
+            .find_map(|command| match command {
+                DisplayCommand::DrawLine {
+                    start: (x, _),
+                    end: (end_x, _),
+                    color,
+                } if *color == CROSSHAIR_COLOR && x == end_x => Some(*x),
+                _ => None,
+            })
+    };
+    let mut flipped_views = session.views.clone();
+    flipped_views[0].transform = ViewTransform {
+        flip_h: true,
+        ..ViewTransform::default()
+    };
+    let flipped_overlay =
+        crosshair_overlay(&flipped_views, &session.viewports, shape, cursor, true)
+            .expect("flipped crosshair display list");
+    assert_ne!(
+        vertical_x(&overlay),
+        vertical_x(&flipped_overlay),
+        "horizontal flip must move the projected cursor line"
+    );
+    assert!(
+        crosshair_overlay(&session.views, &session.viewports, shape, cursor, false)
+            .expect("hidden crosshair display list")
+            .commands
+            .is_empty()
+    );
 }
 
 #[test]

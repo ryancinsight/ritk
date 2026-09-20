@@ -9,7 +9,6 @@ use crate::ui::CinePlayback;
 use crate::ui::LinkedCursor;
 #[cfg(all(not(target_arch = "wasm32"), feature = "eframe-shell"))]
 use crate::ui::RoiDoseAnalytics;
-#[cfg(not(target_arch = "wasm32"))]
 use crate::ui::ViewTransform;
 use crate::{LoadedVolume, ViewerState};
 
@@ -150,7 +149,6 @@ pub(crate) struct SnapApp {
     pub(crate) pan_offset: ViewportOffset,
     /// Viewport zoom multiplier (1.0 = fit-to-panel).
     pub(crate) zoom: f32,
-    #[cfg(not(target_arch = "wasm32"))]
     /// Viewport image orientation transform (flip/rotate).
     pub(crate) view_transform: ViewTransform,
     #[cfg(all(not(target_arch = "wasm32"), feature = "eframe-shell"))]
@@ -182,7 +180,6 @@ pub(crate) struct SnapApp {
     #[cfg(all(not(target_arch = "wasm32"), feature = "eframe-shell"))]
     /// `true` when the DICOM 4-corner overlay is drawn on viewports.
     pub(crate) show_overlay: bool,
-    #[cfg(all(not(target_arch = "wasm32"), feature = "eframe-shell"))]
     /// `true` when crosshair lines are drawn on viewports.
     pub(crate) show_crosshair: bool,
     /// Shared voxel cursor used to synchronize all MPR viewports.
@@ -356,7 +353,6 @@ impl Default for SnapApp {
             show_mesh_overlay: false,
             pan_offset: ViewportOffset::new(0.0, 0.0),
             zoom: 1.0,
-            #[cfg(not(target_arch = "wasm32"))]
             view_transform: ViewTransform::default(),
             #[cfg(all(not(target_arch = "wasm32"), feature = "eframe-shell"))]
             show_colorbar: false,
@@ -376,7 +372,6 @@ impl Default for SnapApp {
             compare_axes: [0, 0],
             #[cfg(all(not(target_arch = "wasm32"), feature = "eframe-shell"))]
             show_overlay: true,
-            #[cfg(all(not(target_arch = "wasm32"), feature = "eframe-shell"))]
             show_crosshair: false,
             linked_cursor: None,
             cine: CinePlayback::default(),

@@ -30,6 +30,10 @@
     <input id="cine-rate" type="range" min="1" max="60" step="1" value="12" aria-label="Cine playback rate" disabled>
     <output id="cine-rate-value" aria-live="polite">12 FPS</output>
   </section>
+  <section class="crosshair-controls" aria-label="Linked crosshair controls">
+    <button id="crosshair-toggle" type="button" disabled aria-pressed="false">Show crosshair</button>
+    <output id="crosshair-state" aria-live="polite">No study</output>
+  </section>
   <section class="tool-controls" aria-label="Viewer interaction tools">
     <div id="tool-buttons" role="toolbar" aria-label="Viewer interaction tools"></div>
     <output id="active-tool" aria-live="polite">No study</output>
@@ -37,19 +41,31 @@
   <section class="gallery-views" aria-label="Orthogonal study views">
     <figure>
       <figcaption>Axial</figcaption>
-      <canvas id="ritk-snap-axial" width="512" height="512" aria-label="Axial study view"></canvas>
+      <div class="canvas-view">
+        <canvas id="ritk-snap-axial" width="512" height="512" aria-label="Axial study view"></canvas>
+        <span class="crosshair-line crosshair-row" aria-hidden="true"></span>
+        <span class="crosshair-line crosshair-column" aria-hidden="true"></span>
+      </div>
       <label class="slice-control" for="slice-axial">Slice <output id="position-axial" for="slice-axial">No study</output></label>
       <input id="slice-axial" type="range" min="0" max="0" value="0" step="1" aria-label="Axial slice" disabled>
     </figure>
     <figure>
       <figcaption>Coronal</figcaption>
-      <canvas id="ritk-snap-coronal" width="512" height="512" aria-label="Coronal study view"></canvas>
+      <div class="canvas-view">
+        <canvas id="ritk-snap-coronal" width="512" height="512" aria-label="Coronal study view"></canvas>
+        <span class="crosshair-line crosshair-row" aria-hidden="true"></span>
+        <span class="crosshair-line crosshair-column" aria-hidden="true"></span>
+      </div>
       <label class="slice-control" for="slice-coronal">Slice <output id="position-coronal" for="slice-coronal">No study</output></label>
       <input id="slice-coronal" type="range" min="0" max="0" value="0" step="1" aria-label="Coronal slice" disabled>
     </figure>
     <figure>
       <figcaption>Sagittal</figcaption>
-      <canvas id="ritk-snap-sagittal" width="512" height="512" aria-label="Sagittal study view"></canvas>
+      <div class="canvas-view">
+        <canvas id="ritk-snap-sagittal" width="512" height="512" aria-label="Sagittal study view"></canvas>
+        <span class="crosshair-line crosshair-row" aria-hidden="true"></span>
+        <span class="crosshair-line crosshair-column" aria-hidden="true"></span>
+      </div>
       <label class="slice-control" for="slice-sagittal">Slice <output id="position-sagittal" for="slice-sagittal">No study</output></label>
       <input id="slice-sagittal" type="range" min="0" max="0" value="0" step="1" aria-label="Sagittal slice" disabled>
     </figure>

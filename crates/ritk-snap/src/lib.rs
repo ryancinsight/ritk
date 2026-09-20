@@ -54,8 +54,8 @@ pub use launch::{
     start_web_canvas, start_web_canvas_gpu, start_web_orthogonal_canvases,
     start_web_orthogonal_canvases_gpu, start_web_orthogonal_canvases_gpu_with_projection,
     start_web_orthogonal_canvases_with_projection, stop_web_canvas, toggle_web_cine,
-    web_canvas_listener_count, web_tool_count, web_tool_name, web_window_preset_count,
-    web_window_preset_name,
+    toggle_web_crosshair, web_canvas_listener_count, web_tool_count, web_tool_name,
+    web_window_preset_count, web_window_preset_name,
 };
 pub use loaded_volume::LoadedVolume;
 pub use viewer::ViewerState;

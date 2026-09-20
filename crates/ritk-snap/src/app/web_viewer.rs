@@ -9,6 +9,7 @@
 
 use super::browser_canvas::BrowserCanvas;
 use super::browser_cine::{parse_browser_cine_rate_request, BrowserCineControlError};
+use super::browser_crosshair::BrowserCrosshairError;
 use super::browser_projection::parse_browser_projection_request;
 use super::browser_slice_selection::{parse_browser_slice_request, BrowserSliceSelectionError};
 use super::browser_tool::{parse_browser_tool_request, BrowserToolError};
@@ -299,6 +300,19 @@ pub(crate) fn toggle_web_cine() -> Result<bool, BrowserCineControlError> {
             .as_mut()
             .ok_or(BrowserCineControlError::ViewerNotMounted)?;
         viewer.app.toggle_browser_cine()
+    })
+}
+
+/// Toggles the linked MPR crosshair for the loaded browser study.
+pub(crate) fn toggle_web_crosshair() -> Result<bool, BrowserCrosshairError> {
+    VIEWER.with(|slot| {
+        let mut slot = slot
+            .try_borrow_mut()
+            .map_err(|_| BrowserCrosshairError::ViewerBusy)?;
+        let viewer = slot
+            .as_mut()
+            .ok_or(BrowserCrosshairError::ViewerNotMounted)?;
+        viewer.app.toggle_browser_crosshair()
     })
 }
 

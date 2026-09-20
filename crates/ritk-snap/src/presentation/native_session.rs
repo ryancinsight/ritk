@@ -40,6 +40,7 @@ mod routing;
 mod selection;
 mod startup;
 use composition::{compose_frames, save_capture};
+use layout::crosshair_overlay;
 use selection::{SelectionAction, SeriesSelection};
 use startup::prepare_initial_study;
 
@@ -263,6 +264,7 @@ impl NativeViewerSession {
             clock_start: Instant::now(),
             selection,
         };
+        session.render_crosshair_overlay()?;
         if session.selection.is_some() {
             session.render_selection_overlay()?;
         }
@@ -314,6 +316,7 @@ impl NativeViewerSession {
         )?;
         self.framebuffer = framebuffer;
         self.viewports = viewports;
+        self.render_crosshair_overlay()?;
         if self.selection.is_some() {
             self.render_selection_overlay()?;
         }
@@ -383,6 +386,20 @@ impl NativeViewerSession {
         if let Some(selection) = &self.selection {
             selection.render_to(&mut self.framebuffer)?;
         }
+        Ok(())
+    }
+
+    fn render_crosshair_overlay(&mut self) -> Result<()> {
+        let shape = self.app.loaded.as_ref().map(|volume| volume.shape);
+        let cursor = self.app.linked_cursor.map(|cursor| cursor.voxel());
+        crosshair_overlay(
+            &self.views,
+            &self.viewports,
+            shape,
+            cursor,
+            self.app.show_crosshair,
+        )?
+        .render_to(&mut self.framebuffer);
         Ok(())
     }
 

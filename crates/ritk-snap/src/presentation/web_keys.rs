@@ -3,8 +3,8 @@
 #[cfg(any(target_arch = "wasm32", test))]
 use crate::app::action_adapter::{
     VIRTUAL_KEY_ARROW_DOWN, VIRTUAL_KEY_ARROW_UP, VIRTUAL_KEY_CINE_FPS_DOWN,
-    VIRTUAL_KEY_CINE_FPS_UP, VIRTUAL_KEY_CINE_TOGGLE, VIRTUAL_KEY_END, VIRTUAL_KEY_HOME,
-    VIRTUAL_KEY_PAGE_DOWN, VIRTUAL_KEY_PAGE_UP,
+    VIRTUAL_KEY_CINE_FPS_UP, VIRTUAL_KEY_CINE_TOGGLE, VIRTUAL_KEY_CROSSHAIR_TOGGLE,
+    VIRTUAL_KEY_END, VIRTUAL_KEY_HOME, VIRTUAL_KEY_PAGE_DOWN, VIRTUAL_KEY_PAGE_UP,
 };
 #[cfg(any(target_arch = "wasm32", test))]
 use crate::ui::tool_shortcuts::{
@@ -23,6 +23,7 @@ use crate::ui::tool_shortcuts::{
 pub(crate) fn virtual_key_for_browser(key: &str, code: &str) -> Option<u32> {
     let mapped = match code {
         "Space" => Some(VIRTUAL_KEY_CINE_TOGGLE),
+        "KeyX" => Some(VIRTUAL_KEY_CROSSHAIR_TOGGLE),
         "Equal" => Some(VIRTUAL_KEY_CINE_FPS_UP),
         "Minus" => Some(VIRTUAL_KEY_CINE_FPS_DOWN),
         "ArrowUp" => Some(VIRTUAL_KEY_ARROW_UP),
@@ -53,7 +54,7 @@ pub(crate) fn virtual_key_for_browser(key: &str, code: &str) -> Option<u32> {
 #[cfg(test)]
 mod tests {
     use super::{virtual_key_for_browser, VIRTUAL_KEY_CINE_FPS_DOWN, VIRTUAL_KEY_CINE_FPS_UP};
-    use crate::app::action_adapter::VIRTUAL_KEY_CINE_TOGGLE;
+    use crate::app::action_adapter::{VIRTUAL_KEY_CINE_TOGGLE, VIRTUAL_KEY_CROSSHAIR_TOGGLE};
 
     #[test]
     fn browser_code_maps_to_shared_virtual_key() {
@@ -68,6 +69,10 @@ mod tests {
         assert_eq!(
             virtual_key_for_browser(" ", "Space"),
             Some(VIRTUAL_KEY_CINE_TOGGLE)
+        );
+        assert_eq!(
+            virtual_key_for_browser("x", "KeyX"),
+            Some(VIRTUAL_KEY_CROSSHAIR_TOGGLE)
         );
     }
 
