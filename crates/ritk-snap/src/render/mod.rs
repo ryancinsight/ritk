@@ -42,14 +42,16 @@ pub use grayscale::{
 pub use histogram::{compute_histogram, histogram_bin_center, histogram_peak_count, Histogram};
 pub use iris::color::NamedColorMap;
 pub use mesh_render::{DirectionalLight, MeshCamera, MeshRenderer, PhongMaterial};
-#[cfg(all(windows, not(target_arch = "wasm32")))]
+#[cfg(all(windows, not(target_arch = "wasm32"), test))]
 pub(crate) use mip_vr::render_mip_axial_rgba;
+#[cfg(all(windows, not(target_arch = "wasm32")))]
+pub(crate) use mip_vr::render_mip_axial_rgba_into;
 #[cfg(all(not(target_arch = "wasm32"), feature = "eframe-shell"))]
 pub use mip_vr::{render_mip_axial, render_vr_axial};
 pub use reslice::{ResliceError, ResliceInterpolation, ResliceOutput, ReslicePlane};
 pub use slab::{ProjectionPlane, ProjectionStatistic, SlabProjection, SlabProjectionError};
 pub(crate) use slice_render::FrameRenderScratch;
-#[cfg(not(target_arch = "wasm32"))]
+#[cfg(all(not(target_arch = "wasm32"), any(feature = "eframe-shell", test)))]
 pub(crate) use slice_render::RgbaImage;
 pub use slice_render::SliceRenderer;
 

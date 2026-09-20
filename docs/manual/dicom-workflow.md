@@ -87,9 +87,14 @@ buffer, and swaps the completed storage back into the frame. The focused
 `native_session_reuses_transformed_frame_storage_across_refreshes` test runs
 two ninety-degree refreshes and checks byte-identical pixels, dimensions and
 stable scratch capacities; the RGBA transform test checks the same result
-against the allocating reference path. Projection rendering remains a
-separate scalar surface. These tests are allocation-lifecycle oracles, not
-process-memory or framework comparison measurements.
+against the allocating reference path. The optional scalar projection keeps
+one retained frame plus scalar and RGBA scratch, so MIP, MinIP and Average
+refreshes swap storage after warmup instead of allocating a new projection;
+`native_projection_reuses_frame_and_scratch_storage_after_warmup` and
+`native_projection_reuses_storage_when_statistic_changes` compare those
+pixels, dimensions and spacing with the existing projection oracles. These
+tests are allocation-lifecycle oracles, not process-memory or framework
+comparison measurements.
 
 The same public MRI replay was run three times through Métis's bounded
 process-tree resource runner. All runs exited with code 0, produced the same

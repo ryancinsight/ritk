@@ -3,10 +3,13 @@
 use crate::app::SnapApp;
 use crate::presentation::{PresentationFrame, PresentationSpacing};
 use crate::render::{
-    map_scalar_value, render_mip_axial_rgba, GrayscalePresentation, ProjectionStatistic,
+    map_scalar_value, render_mip_axial_rgba_into, GrayscalePresentation, ProjectionStatistic,
     SlabProjection,
 };
 use anyhow::{anyhow, bail, Context, Result};
+
+#[cfg(test)]
+use crate::render::render_mip_axial_rgba;
 
 use super::frame::window_level_for_app;
 
@@ -17,6 +20,13 @@ pub(super) struct RenderedProjection {
     pub(super) statistic: ProjectionStatistic,
 }
 
+/// Caller-owned storage for scalar projection reduction and display mapping.
+#[derive(Debug, Default)]
+pub(super) struct ProjectionRenderScratch {
+    pub(super) pixels: Vec<f32>,
+    pub(super) rgba: Vec<u8>,
+}
+
 pub(super) fn empty_projection(statistic: ProjectionStatistic) -> Result<RenderedProjection> {
     let frame = PresentationFrame::from_rgba_storage(1, 1, vec![0, 0, 0, 255])
         .context("construct empty native projection selection frame")?;
@@ -24,10 +34,24 @@ pub(super) fn empty_projection(statistic: ProjectionStatistic) -> Result<Rendere
 }
 
 /// Render one scalar axial projection for the native Métis layout.
+#[cfg(test)]
 pub(super) fn render_projection(
     app: &SnapApp,
     statistic: ProjectionStatistic,
 ) -> Result<RenderedProjection> {
+    let mut projection = empty_projection(statistic)?;
+    let mut scratch = ProjectionRenderScratch::default();
+    render_projection_into(app, statistic, &mut projection, &mut scratch)?;
+    Ok(projection)
+}
+
+/// Re-render a scalar projection into retained frame and scratch storage.
+pub(super) fn render_projection_into(
+    app: &SnapApp,
+    statistic: ProjectionStatistic,
+    projection: &mut RenderedProjection,
+    scratch: &mut ProjectionRenderScratch,
+) -> Result<()> {
     let volume = app
         .loaded
         .as_ref()
@@ -36,30 +60,32 @@ pub(super) fn render_projection(
         bail!("native Métis projection requires a scalar RITK volume");
     }
     let window_level = window_level_for_app(app);
-    let image = if statistic == ProjectionStatistic::Maximum {
-        render_mip_axial_rgba(volume, window_level, app.colormap)
+    let [width, height] = if statistic == ProjectionStatistic::Maximum {
+        render_mip_axial_rgba_into(&mut scratch.rgba, volume, window_level, app.colormap)
     } else {
-        render_slab_projection(volume, window_level, app.colormap, statistic)?
+        render_slab_projection_into(volume, window_level, app.colormap, statistic, scratch)?
     };
-    let ([width, height], rgba) = image.into_parts();
     let width = u32::try_from(width).map_err(|_| anyhow!("native projection width exceeds u32"))?;
     let height =
         u32::try_from(height).map_err(|_| anyhow!("native projection height exceeds u32"))?;
     let [_, row_spacing, column_spacing] = volume.spacing;
     let spacing = PresentationSpacing::try_new(row_spacing, column_spacing)
         .context("validate native projection display spacing")?;
-    let frame = PresentationFrame::from_rgba_storage(width, height, rgba.into_vec())
-        .context("validate native projection presentation frame")?
-        .with_display_spacing(spacing);
-    Ok(RenderedProjection { frame, statistic })
+    projection
+        .frame
+        .replace_rgba_storage(width, height, spacing, &mut scratch.rgba)
+        .context("replace native projection presentation storage")?;
+    projection.statistic = statistic;
+    Ok(())
 }
 
-fn render_slab_projection(
+fn render_slab_projection_into(
     volume: &crate::LoadedVolume,
     window_level: crate::render::WindowLevel,
     colormap: crate::render::NamedColorMap,
     statistic: ProjectionStatistic,
-) -> Result<crate::render::RgbaImage> {
+    scratch: &mut ProjectionRenderScratch,
+) -> Result<[usize; 2]> {
     let [depth, _, _] = volume.shape;
     let center = depth
         .checked_sub(1)
@@ -67,28 +93,26 @@ fn render_slab_projection(
         / 2;
     let request = SlabProjection::try_new(volume, 0, center, center)
         .map_err(|error| anyhow!("validate native slab projection: {error}"))?;
-    let plane = request
-        .compute(volume, statistic)
+    let dimensions = request
+        .compute_into(volume, statistic, &mut scratch.pixels)
         .map_err(|error| anyhow!("compute native slab projection: {error}"))?;
     let presentation = GrayscalePresentation::for_volume(volume)
         .map_err(|error| anyhow!("validate native projection grayscale metadata: {error}"))?;
-    let byte_len = plane
-        .pixels()
+    let byte_len = scratch
+        .pixels
         .len()
         .checked_mul(4)
         .ok_or_else(|| anyhow!("native projection byte count overflows usize"))?;
-    let mut rgba = Vec::new();
-    rgba.try_reserve_exact(byte_len)
-        .map_err(|_| anyhow!("reserve native projection pixels"))?;
-    for &value in plane.pixels() {
-        rgba.extend_from_slice(&map_scalar_value(
+    scratch.rgba.resize(byte_len, 0);
+    for (pixel, &value) in scratch.rgba.chunks_exact_mut(4).zip(&scratch.pixels) {
+        pixel.copy_from_slice(&map_scalar_value(
             value,
             presentation,
             window_level,
             colormap,
         ));
     }
-    Ok(crate::render::RgbaImage::new(plane.dimensions(), rgba))
+    Ok(dimensions)
 }
 
 #[cfg(test)]
@@ -171,5 +195,58 @@ mod tests {
             .compute(&volume, ProjectionStatistic::Average)
             .expect("average plane");
         assert_ne!(minimum_plane.pixels(), average_plane.pixels());
+    }
+
+    #[test]
+    fn native_projection_reuses_frame_and_scratch_storage_after_warmup() {
+        let volume = scalar_volume();
+        let mut app = SnapApp::default();
+        app.load_volume(volume, "projection fixture".to_owned());
+        let statistic = ProjectionStatistic::Maximum;
+        let expected = render_mip_axial_rgba(
+            app.loaded.as_ref().expect("loaded volume"),
+            window_level_for_app(&app),
+            app.colormap,
+        );
+        let (_, expected_rgba) = expected.into_parts();
+        let mut scratch = ProjectionRenderScratch::default();
+        let mut projection = empty_projection(statistic).expect("empty projection");
+        render_projection_into(&app, statistic, &mut projection, &mut scratch)
+            .expect("first reusable projection");
+        render_projection_into(&app, statistic, &mut projection, &mut scratch)
+            .expect("warm reusable projection");
+        assert_eq!(projection.frame.rgba(), expected_rgba.as_ref());
+        let frame_pointer = projection.frame.rgba().as_ptr();
+        let scratch_pointer = scratch.rgba.as_ptr();
+
+        render_projection_into(&app, statistic, &mut projection, &mut scratch)
+            .expect("steady-state reusable projection");
+        assert_eq!(projection.frame.rgba(), expected_rgba.as_ref());
+        assert_eq!(projection.frame.rgba().as_ptr(), scratch_pointer);
+        assert_eq!(scratch.rgba.as_ptr(), frame_pointer);
+    }
+
+    #[test]
+    fn native_projection_reuses_storage_when_statistic_changes() {
+        let volume = scalar_volume();
+        let mut app = SnapApp::default();
+        app.load_volume(volume, "projection fixture".to_owned());
+        let mut scratch = ProjectionRenderScratch::default();
+        let mut projection =
+            empty_projection(ProjectionStatistic::Maximum).expect("empty projection");
+        for statistic in [
+            ProjectionStatistic::Maximum,
+            ProjectionStatistic::Minimum,
+            ProjectionStatistic::Average,
+        ] {
+            render_projection_into(&app, statistic, &mut projection, &mut scratch)
+                .expect("re-render projection statistic");
+            assert_eq!(projection.statistic, statistic);
+            assert_eq!(
+                [projection.frame.width(), projection.frame.height()],
+                [2, 1]
+            );
+            assert_eq!(projection.frame.display_spacing().values(), [1.5, 0.75]);
+        }
     }
 }
