@@ -1,14 +1,14 @@
 # RITK execution backlog
 
-<a id="RITK-SNAP-SLAB-PROJECTION-001"></a>
-## RITK-SNAP-SLAB-PROJECTION-001 — Add a typed bounded slab projection contract [minor]
-- Status: in-progress; priority: P1; owner: RITK rendering; integrator: root; last-update: 2026-09-20.
-- Outcome: RITK exposes an axis-aware, bounded scalar slab projection that preserves the loaded volume's row-major contract and produces deterministic maximum, minimum or average samples for host renderers.
-- Scope: `ritk-snap` host-neutral projection type, analytical tests, ADR and manual/API documentation. Oblique resampling, GPU slab kernels, VTK volume mappers, RGB projection and Metis changes remain follow-up work; DICOM parsing stays in RITK loaders.
-- Acceptance: validated axis/center/half-width requests reject invalid or overflowing ranges; maximum/minimum/average outputs match manufactured-volume oracles; a one-sample maximum equals the corresponding extracted slice; scratch-backed output reuses capacity; locked package tests, strict Clippy, rustdoc, formatting and diff checks pass.
-- Dependency: `LoadedVolume` and the merged `ritk-vtk::VtkImageVolume` geometry contract; no GUI or Metis dependency.
-- Current increment: implement `SlabProjection` and `ProjectionStatistic` in the render domain, add value-semantic tests and document the host-neutral boundary.
-- Re-open trigger: a consumer needs oblique physical-plane resampling, GPU slab dispatch or clinical RGB slab semantics; those require separate contracts and independent analytical/differential oracles.
+<a id="RITK-SNAP-SLAB-PRESENTATION-001"></a>
+## RITK-SNAP-SLAB-PRESENTATION-001 — Present selectable scalar slab statistics [minor]
+- Status: in-progress; priority: P1; owner: RITK presentation; integrator: root; last-update: 2026-09-20.
+- Outcome: the native Métis DICOM workflow exposes maximum, minimum and average axial slab projections through the same typed RITK projection contract, with deterministic labels and no DICOM or host logic in the renderer.
+- Scope: `ritk-snap` native presentation mode, scalar projection rendering, command-line selection, overlay labels, value-semantic tests and DICOM manual command. Browser controls, oblique planes, GPU slab dispatch, RGB projection and installer changes remain out of scope.
+- Acceptance: each admitted mode renders real scalar pixels with the existing window/level and colormap policy; invalid/non-scalar studies fail with typed context; mode labels and dimensions match the selected statistic; locked native/WASM checks, strict Clippy, rustdoc, formatting, manual and real-study capture checks pass.
+- Dependency: host-neutral slab contract delivered by [RITK PR #525](https://github.com/ryancinsight/ritk/pull/525), merge `9658edd379ff561222d619d18e9d20a08860cbb4`; DICOM parsing and clinical metadata remain in RITK loaders.
+- Current increment: add selectable native presentation modes backed by `SlabProjection`, retain the existing MIP pixel contract, and document the actual public CT workflow.
+- Re-open trigger: a consumer needs interactive browser slab controls or physical-plane/oblique semantics; those require a separate event and resampling contract.
 
 <a id="RITK-VTK-SPATIAL-VOLUME-001"></a>
 ## RITK-VTK-SPATIAL-VOLUME-001 — Preserve physical volume geometry across the VTK boundary [arch] [minor]

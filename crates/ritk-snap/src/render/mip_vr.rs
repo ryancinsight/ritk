@@ -38,13 +38,23 @@ pub(crate) fn render_mip_axial_rgba_with_scratch(
             for z in 0..depth {
                 max_val = max_val.max(volume.pixel_at(z, row, col));
             }
-            let norm = Normalized::from_u8(presentation.apply(wl, f64::from(max_val)));
-            let [red, green, blue, _] = colormap.sample(norm).to_rgba8();
+            let [red, green, blue, alpha] = map_scalar_value(max_val, presentation, wl, colormap);
             let index = (row * cols + col) * 4;
-            scratch[index..index + 4].copy_from_slice(&[red, green, blue, 255]);
+            scratch[index..index + 4].copy_from_slice(&[red, green, blue, alpha]);
         }
     }
     RgbaImage::new([cols, rows], scratch.to_vec())
+}
+
+pub(crate) fn map_scalar_value(
+    value: f32,
+    presentation: GrayscalePresentation,
+    wl: WindowLevel,
+    colormap: NamedColorMap,
+) -> [u8; 4] {
+    let norm = Normalized::from_u8(presentation.apply(wl, f64::from(value)));
+    let [red, green, blue, _] = colormap.sample(norm).to_rgba8();
+    [red, green, blue, 255]
 }
 
 /// Render a scalar axial front-to-back volume projection into RGBA storage.

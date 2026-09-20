@@ -1,4 +1,4 @@
-use super::layout::{surface_frames, surface_frames_with_mip};
+use super::layout::{surface_frames, surface_frames_with_projection};
 use super::layout::{OVERLAY_BAR_HEIGHT, OVERLAY_TEXT};
 use super::*;
 use crate::dicom::loader::tests::fixtures;
@@ -351,10 +351,34 @@ fn native_session_mip_layout_composes_a_fourth_display_panel() {
 }
 
 #[test]
+fn native_session_scalar_projection_modes_render_and_label() {
+    for (mode, label) in [
+        (NativePresentationMode::OrthogonalWithMip, "MIP"),
+        (NativePresentationMode::OrthogonalWithMinip, "MinIP"),
+        (NativePresentationMode::OrthogonalWithAverage, "Average"),
+    ] {
+        let (session, _root) = session_with_mode(mode);
+        let projection = session.projection.as_ref().expect("projection layout");
+        assert_eq!(projection.statistic.label(), label);
+        assert_ne!(
+            session.framebuffer.get_pixel(960, 600),
+            metis_platform::Color::BLACK,
+            "the {label} panel contains rendered scalar pixels"
+        );
+        let overlay = super::layout::projection_overlay(projection, 640, 400, 640, 400)
+            .expect("projection overlay");
+        assert!(overlay.commands.iter().any(|command| matches!(
+            command,
+            DisplayCommand::DrawText { text, .. } if text.contains(label)
+        )));
+    }
+}
+
+#[test]
 fn native_session_mip_application_overlay_labels_the_fourth_panel() {
     let (session, _root) = session_with_mode(NativePresentationMode::OrthogonalWithMip);
     let projection = session.projection.as_ref().expect("MIP layout projection");
-    let (application, _) = surface_frames_with_mip(
+    let (application, _) = surface_frames_with_projection(
         &session.views,
         projection,
         INITIAL_WIDTH,

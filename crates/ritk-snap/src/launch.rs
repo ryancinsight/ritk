@@ -1,6 +1,8 @@
 use serde::{Deserialize, Serialize};
 use std::path::PathBuf;
 
+use crate::render::ProjectionStatistic;
+
 mod viewport;
 pub use viewport::{EframeViewport, EframeViewportError};
 
@@ -20,6 +22,25 @@ pub enum NativePresentationMode {
     /// Orthogonal panels plus the RITK axial maximum-intensity projection.
     #[value(name = "orthogonal-with-mip")]
     OrthogonalWithMip,
+    /// Orthogonal panels plus the RITK axial minimum-intensity projection.
+    #[value(name = "orthogonal-with-minip")]
+    OrthogonalWithMinip,
+    /// Orthogonal panels plus the RITK axial average-intensity projection.
+    #[value(name = "orthogonal-with-average")]
+    OrthogonalWithAverage,
+}
+
+impl NativePresentationMode {
+    /// Return the scalar reduction used by a projection layout, if any.
+    #[must_use]
+    pub const fn projection_statistic(self) -> Option<ProjectionStatistic> {
+        match self {
+            Self::Orthogonal => None,
+            Self::OrthogonalWithMip => Some(ProjectionStatistic::Maximum),
+            Self::OrthogonalWithMinip => Some(ProjectionStatistic::Minimum),
+            Self::OrthogonalWithAverage => Some(ProjectionStatistic::Average),
+        }
+    }
 }
 
 /// Presentation selected by the compatibility shell.

@@ -587,12 +587,12 @@ not an illustration or a generated image. The default capture and the
 application-content capture share the same RITK decode and presentation path;
 the latter adds only bounded viewer labels for visual inspection.
 
-### Show the real study with the native MIP panel
+### Show the real study with a native scalar projection panel
 
 The native host can expose the same scalar axial MIP already used by the RITK
-eframe viewer. The option is explicit so the default three-panel capture stays
-stable, while a matched capture can show all four RITK projections through the
-same Métis framebuffer:
+eframe viewer, or the typed minimum and average reductions. The option is
+explicit so the default three-panel capture stays stable, while a matched
+capture can show all four RITK projections through the same Métis framebuffer:
 
 ```powershell
 cargo run --locked -p ritk-snap -- `
@@ -616,6 +616,35 @@ the visual demonstration; no generated or private patient image is used.
 The capture metadata, source revisions, panel order, dimensions, and digest are
 in the accompanying [MIP provenance record](images/dicom-metis-real-ct-mip.json).
 
+The same real study can select the minimum or arithmetic-mean scalar statistic
+without moving voxel semantics into Métis:
+
+```powershell
+cargo run --locked -p ritk-snap -- `
+  test_data\3_head_ct_mridir\DICOM `
+  --series-instance-uid `
+  1.3.6.1.4.1.14519.5.2.1.1706.4996.115936088547498980797393821518 `
+  --metis-native `
+  --metis-native-layout orthogonal-with-minip `
+  --capture-application `
+  --capture scratch\viewer\real-dicom-metis-minip.png
+
+cargo run --locked -p ritk-snap -- `
+  test_data\3_head_ct_mridir\DICOM `
+  --series-instance-uid `
+  1.3.6.1.4.1.14519.5.2.1.1706.4996.115936088547498980797393821518 `
+  --metis-native `
+  --metis-native-layout orthogonal-with-average `
+  --capture-application `
+  --capture scratch\viewer\real-dicom-metis-average.png
+```
+
+Both commands decode the saved public 409-slice CT series and render actual
+DICOM pixels. The overlay labels the lower-right panel `MinIP` or `Average`
+and includes its frame dimensions. The committed MIP image above remains the
+reviewed visual oracle; these commands exercise the same four-panel host path
+with the two additional typed reductions.
+
 ### Request a bounded slab statistic from RITK
 
 RITK keeps slab sampling in the viewer domain so a native shell, browser
@@ -635,10 +664,8 @@ assert_eq!(plane.dimensions(), [volume.shape[2], volume.shape[1]]);
 
 Requests that cross the volume boundary, target RGB data, or use malformed
 payloads return typed errors. No index is clamped and no DICOM metadata enters
-the host contract. The existing native MIP capture above remains the reviewed
-real-study visual oracle; oblique resampling, GPU slab dispatch and new viewer
-controls require separate evidence before they are presented as available
-clinical workflows.
+the host contract. Oblique resampling, GPU slab dispatch, and browser-side
+projection controls remain separate capabilities.
 
 ### Capture the complete Métis application window
 

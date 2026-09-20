@@ -1,6 +1,6 @@
 //! Frame composition and capture encoding for the native Métis session.
 
-use super::layout::{surface_frames, surface_frames_with_mip};
+use super::layout::{surface_frames, surface_frames_with_projection};
 use super::{NativeViewport, RenderedProjection, RenderedView};
 use crate::launch::NativePresentationMode;
 use crate::tools::interaction::ViewportOffset;
@@ -31,19 +31,27 @@ pub(super) fn compose_frames(
             cine_fps,
             show_application_overlay,
         ),
-        (NativePresentationMode::OrthogonalWithMip, Some(projection)) => surface_frames_with_mip(
-            views,
-            projection,
-            surface_width,
-            surface_height,
-            zoom,
-            pan_offset,
-            cine_enabled,
-            cine_fps,
-            show_application_overlay,
-        ),
-        (NativePresentationMode::Orthogonal, Some(_))
-        | (NativePresentationMode::OrthogonalWithMip, None) => Err(anyhow!(
+        (NativePresentationMode::OrthogonalWithMip, Some(projection))
+        | (NativePresentationMode::OrthogonalWithMinip, Some(projection))
+        | (NativePresentationMode::OrthogonalWithAverage, Some(projection)) => {
+            surface_frames_with_projection(
+                views,
+                projection,
+                surface_width,
+                surface_height,
+                zoom,
+                pan_offset,
+                cine_enabled,
+                cine_fps,
+                show_application_overlay,
+            )
+        }
+        (NativePresentationMode::OrthogonalWithMip, None)
+        | (NativePresentationMode::OrthogonalWithMinip, None)
+        | (NativePresentationMode::OrthogonalWithAverage, None) => Err(anyhow!(
+            "native presentation mode and projection state disagree"
+        )),
+        (NativePresentationMode::Orthogonal, Some(_)) => Err(anyhow!(
             "native presentation mode and projection state disagree"
         )),
     }
