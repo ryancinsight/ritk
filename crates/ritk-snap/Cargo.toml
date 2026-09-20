@@ -38,6 +38,7 @@ ritk-spatial = { path = "../ritk-spatial", version = "0.2.0" }
 ritk-filter = { workspace = true }
 ritk-segmentation = { workspace = true }
 ritk-io = { workspace = true }
+ritk-vtk = { workspace = true }
 serde = { workspace = true }
 serde_json = { workspace = true }
 tracing = { workspace = true }

@@ -1,5 +1,15 @@
 # RITK execution backlog
 
+<a id="RITK-VTK-SPATIAL-VOLUME-001"></a>
+## RITK-VTK-SPATIAL-VOLUME-001 — Preserve physical volume geometry across the VTK boundary [arch] [minor]
+- Status: review; priority: P1; owner: RITK volume/VTK integration; integrator: root; last-update: 2026-09-20.
+- Outcome: a loaded clinical volume crosses into a zero-copy, VTK-compatible spatial volume contract with dimensions, origin, spacing, direction, channels and scalar payload preserved; existing VTK serialization remains an explicit materialization boundary.
+- Scope: `ritk-vtk` spatial-volume contract, `ritk-snap` conversion from `LoadedVolume`, value-semantic tests, ADR and VTK integration documentation. Oblique resampling, slab projection and Metis rendering are follow-up increments; DICOM parsing remains in `ritk-snap`/`ritk-io`.
+- Acceptance: anisotropic rotated geometry and channel-fastest scalar order survive conversion; malformed shape, spacing, direction and payload inputs return typed errors; the conversion shares the source allocation; an explicit materialization produces a valid `VtkImageData`; locked package tests, strict Clippy, formatting, rustdoc and diff checks pass.
+- Dependency: existing direction-aware `LoadedVolume` and `ritk-vtk` `VtkImageData`; no dependency on Metis or GUI semantics.
+- Verification: full `cargo nextest run -p ritk-vtk -p ritk-snap --lib` passed 719/719 under the Atlas overlay; focused VTK (4/4) and conversion (2/2) value tests passed; strict package Clippy, rustdoc, formatting, standalone lock and diff checks pass.
+- Evidence: anisotropic rotated geometry, channel-fastest payload, zero-copy pointer identity, malformed geometry/payload partitions and explicit `VtkImageData` materialization are covered in the new tests; standalone lock resolves 61 first-party git sources at current Metis `38b2de4` and Moirai `2a54e01` revisions.
+
 <a id="RITK-BROWSER-CINE-REPLAY-001"></a>
 ## RITK-BROWSER-CINE-REPLAY-001 — Reproduce the current browser cine residual [patch]
 - Status: done; priority: P1; owner: RITK browser presentation; integrator: root; last-update: 2026-09-20.

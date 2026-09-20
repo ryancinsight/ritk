@@ -10,6 +10,12 @@ dispatch.
 Color mapping uses the [Iris](https://github.com/ryancinsight/iris)
 `NamedColorMap` contract rather than a local interpolation path.
 
+`VtkImageVolume` is the direction-aware, zero-copy handoff for regular image
+volumes. It stores VTK-order dimensions, origin, spacing, direction, channel
+count and shared scalar samples. `to_vtk_image_data` is an explicit copy
+boundary for legacy serializers and filters whose attribute arrays own a
+`Vec<f32>`.
+
 ## Usage
 
 ```toml

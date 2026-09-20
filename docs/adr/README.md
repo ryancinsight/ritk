@@ -47,3 +47,4 @@
 | [0036](0036-browser-gallery-ownership.md) | RITK browser gallery ownership | Accepted |
 | [0037](0037-browser-webgpu-presentation.md) | Opt-in browser WebGPU presentation | Accepted |
 | [0038](0038-presentation-frame-geometry.md) | Carry physical display geometry with presentation frames | Accepted |
+| [0039](0039-vtk-spatial-volume-contract.md) | Physical volume contract at the VTK boundary | Accepted |

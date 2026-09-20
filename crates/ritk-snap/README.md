@@ -17,6 +17,13 @@ Each `PresentationFrame` also carries a validated `PresentationSpacing` value,
 so native placement and browser aspect semantics consume one axis-ordered
 geometry value while Metis remains format-neutral.
 
+For downstream VTK work, `LoadedVolume` implements
+`TryFrom<&LoadedVolume> for ritk_vtk::VtkImageVolume`. The conversion reorders
+the RITK `[depth, row, column]` geometry into VTK `[x, y, z]` order without
+copying the scalar allocation. DICOM parsing and clinical semantics remain in
+RITK; `to_vtk_image_data` is an explicit copy boundary only for legacy VTK
+serializers and filters.
+
 From a standalone RITK checkout, open a study directory with:
 
 ```console
