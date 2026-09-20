@@ -403,6 +403,12 @@ try {
         ?.getAttribute("data-ritk-active-tool-index"),
       active_tool: document.getElementById("ritk-snap-axial")
         ?.getAttribute("data-ritk-active-tool"),
+      annotation_count: document.getElementById("ritk-snap-axial")
+        ?.getAttribute("data-ritk-annotation-count"),
+      last_annotation_kind: document.getElementById("ritk-snap-axial")
+        ?.getAttribute("data-ritk-last-annotation-kind"),
+      last_annotation_value: document.getElementById("ritk-snap-axial")
+        ?.getAttribute("data-ritk-last-annotation-value"),
       projection_mode: projectionMode,
       projection_statistic: document.getElementById("ritk-snap-projection")
         ?.getAttribute("data-ritk-projection-statistic"),

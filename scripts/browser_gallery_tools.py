@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import hashlib
 import json
+import math
 import pathlib
 import sys
 from collections import Counter
@@ -16,6 +17,14 @@ from browser_protocol import ROOT, BrowserRuntimeError, WebDriverClient, _safe_p
 
 TOOL_TIMEOUT_MS = 60_000
 TOOL_COUNT_LIMIT = 32
+ANNOTATION_KINDS = {"length", "angle", "roi-rect", "roi-ellipse", "hu-point"}
+ANNOTATION_TOOL_KINDS = {
+    3: "length",
+    4: "angle",
+    5: "roi-rect",
+    6: "roi-ellipse",
+    8: "hu-point",
+}
 
 from browser_gallery_tool_trace import (
     CLEANUP_TOOL_TRACE_SCRIPT, FOCUS_TOOL_CANVAS_SCRIPT, INSTALL_TOOL_TRACE_SCRIPT,
@@ -32,6 +41,30 @@ def _decimal(value: Any, label: str, *, lower: int = 0) -> int:
     if not lower <= parsed <= (1 << 53) - 1:
         raise BrowserRuntimeError(f"{label} is outside its bound: {parsed}")
     return parsed
+
+
+def _annotation_state(canvas: Mapping[str, Any], axis: str) -> dict[str, Any]:
+    """Validate one input-sensitive completed-annotation projection."""
+    count = _decimal(canvas.get("annotation_count"), f"{axis} annotation count", lower=0)
+    if count > TOOL_COUNT_LIMIT:
+        raise BrowserRuntimeError(f"{axis} annotation count exceeds its bound: {count}")
+    kind = canvas.get("last_annotation_kind")
+    value = canvas.get("last_annotation_value")
+    if not isinstance(kind, str) or not isinstance(value, str):
+        raise BrowserRuntimeError(f"{axis} annotation summary is malformed")
+    if count == 0:
+        if kind or value:
+            raise BrowserRuntimeError(f"{axis} empty annotation state carries a summary")
+        return {"count": count, "kind": "", "value": None}
+    if kind not in ANNOTATION_KINDS or not value:
+        raise BrowserRuntimeError(f"{axis} annotation summary has an unknown kind or value")
+    try:
+        numeric = float(value)
+    except (TypeError, ValueError) as error:
+        raise BrowserRuntimeError(f"{axis} annotation value is not numeric: {value!r}") from error
+    if not math.isfinite(numeric):
+        raise BrowserRuntimeError(f"{axis} annotation value is not finite: {value!r}")
+    return {"count": count, "kind": kind, "value": numeric}
 
 
 def _snapshot(client: WebDriverClient) -> dict[str, Any]:
@@ -75,12 +108,17 @@ def _snapshot(client: WebDriverClient) -> dict[str, Any]:
         if canvas["active_tool"] != parsed_buttons[index]["label"]:
             raise BrowserRuntimeError(f"{axis} active tool label disagrees with the palette")
         generation = _decimal(canvas.get("frame_generation"), f"{axis} frame generation", lower=1)
+        annotation = _annotation_state(canvas, axis)
         validated.append({"axis": axis, "active_tool_index": index,
-                          "active_tool": canvas["active_tool"], "generation": generation})
+                          "active_tool": canvas["active_tool"], "generation": generation,
+                          "annotation": annotation})
     active_indexes = {canvas["active_tool_index"] for canvas in validated}
     active_names = {canvas["active_tool"] for canvas in validated}
     if len(active_indexes) != 1 or len(active_names) != 1 or selected[0] not in active_indexes:
         raise BrowserRuntimeError("active tool semantics diverged across the three canvases")
+    annotation_states = [canvas["annotation"] for canvas in validated]
+    if any(state != annotation_states[0] for state in annotation_states[1:]):
+        raise BrowserRuntimeError("annotation semantics diverged across the three canvases")
     output = controls.get("output")
     if output != f"Active tool: {validated[0]['active_tool']}":
         raise BrowserRuntimeError("active tool output does not match canvas semantics")
@@ -249,9 +287,26 @@ def capture_tool_gallery(client: WebDriverClient, output_directory: pathlib.Path
             if any(after_canvas["generation"] <= selected_canvas["generation"]
                    for after_canvas, selected_canvas in zip(after["canvases"], selected["canvases"])):
                 raise BrowserRuntimeError(f"{label} gesture did not change every presented frame")
+            before_annotation = before["canvases"][0]["annotation"]
+            after_annotation = after["canvases"][0]["annotation"]
+            expected_kind = ANNOTATION_TOOL_KINDS.get(index)
+            if expected_kind is None:
+                if after_annotation != before_annotation:
+                    raise BrowserRuntimeError(f"{label} changed completed annotation state")
+            else:
+                if (after_annotation["count"] != before_annotation["count"] + 1
+                        or after_annotation["kind"] != expected_kind
+                        or after_annotation["value"] is None):
+                    raise BrowserRuntimeError(
+                        f"{label} did not publish {expected_kind} annotation result"
+                    )
+                if index in (3, 4, 5, 6) and after_annotation["value"] <= 0.0:
+                    raise BrowserRuntimeError(f"{label} published a non-positive result")
             actions.append({"index": index, "label": label, "selection": selection_events,
                             "gesture": gesture, "pointer": pointer_events,
-                            "generations": [canvas_state["generation"] for canvas_state in after["canvases"]]})
+                            "generations": [canvas_state["generation"] for canvas_state in after["canvases"]],
+                            "annotation_before": before_annotation,
+                            "annotation_after": after_annotation})
 
         if client.execute(FOCUS_TOOL_CANVAS_SCRIPT) is not True:
             raise BrowserRuntimeError("axial canvas did not accept keyboard focus")

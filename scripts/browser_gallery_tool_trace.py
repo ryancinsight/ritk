@@ -15,6 +15,9 @@ const readCanvas = (axis) => {
     frame_generation: canvas.getAttribute("data-ritk-frame-generation"),
     active_tool_index: canvas.getAttribute("data-ritk-active-tool-index"),
     active_tool: canvas.getAttribute("data-ritk-active-tool"),
+    annotation_count: canvas.getAttribute("data-ritk-annotation-count"),
+    last_annotation_kind: canvas.getAttribute("data-ritk-last-annotation-kind"),
+    last_annotation_value: canvas.getAttribute("data-ritk-last-annotation-value"),
   };
 };
 const toolbar = document.getElementById("tool-buttons");

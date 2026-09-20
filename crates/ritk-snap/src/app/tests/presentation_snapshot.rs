@@ -1,6 +1,7 @@
 use super::test_volume;
 use crate::app::state::SnapApp;
 use crate::render::WindowLevel;
+use crate::tools::interaction::Annotation;
 use crate::tools::interaction::ViewportOffset;
 use crate::tools::kind::ToolKind;
 use crate::viewer::{DEFAULT_WINDOW_CENTER, DEFAULT_WINDOW_WIDTH};
@@ -29,6 +30,8 @@ fn empty_snapshot_contains_stable_defaults() {
     assert_eq!(snapshot.window_preset_index(), None);
     assert_eq!(snapshot.active_tool_index(), 2);
     assert_eq!(snapshot.active_tool_name(), "W/L");
+    assert_eq!(snapshot.annotation_count(), 0);
+    assert_eq!(snapshot.last_annotation(), None);
 }
 
 #[test]
@@ -65,4 +68,25 @@ fn loaded_snapshot_projects_all_host_visible_state() {
     assert_eq!(snapshot.window_preset_index(), Some(4));
     assert_eq!(snapshot.active_tool_index(), 0);
     assert_eq!(snapshot.active_tool_name(), "Pan");
+    assert_eq!(snapshot.annotation_count(), 0);
+    assert_eq!(snapshot.last_annotation(), None);
+}
+
+#[test]
+fn snapshot_projects_latest_annotation_kind_and_primary_value() {
+    let mut app = SnapApp::default();
+    app.loaded = Some(test_volume([4, 3, 2]));
+    app.annotations.push(Annotation::HuPoint {
+        pos: [1.0, 2.0],
+        value: -42.5,
+    });
+
+    let snapshot = app.presentation_snapshot();
+
+    assert_eq!(snapshot.annotation_count(), 1);
+    let summary = snapshot
+        .last_annotation()
+        .expect("invariant: inserted annotation is projected");
+    assert_eq!(summary.kind(), crate::presentation::AnnotationKind::HuPoint);
+    assert_eq!(summary.primary_value(), -42.5);
 }

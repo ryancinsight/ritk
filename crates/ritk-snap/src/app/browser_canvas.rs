@@ -106,6 +106,8 @@ impl BrowserCanvas {
         let window_width = semantics.window_width_value();
         let window_preset_index = semantics.window_preset_index_value();
         let active_tool_index = semantics.active_tool_index_value();
+        let annotation_count = semantics.annotation_count_value();
+        let last_annotation_value = semantics.last_annotation_value();
         let linked_cursor = semantics.linked_cursor_value();
         self.element
             .set_attribute("data-ritk-load-state", semantics.load_state_value())?;
@@ -134,6 +136,14 @@ impl BrowserCanvas {
             .set_attribute("data-ritk-active-tool-index", &active_tool_index)?;
         self.element
             .set_attribute("data-ritk-active-tool", semantics.active_tool_name())?;
+        self.element
+            .set_attribute("data-ritk-annotation-count", &annotation_count)?;
+        self.element.set_attribute(
+            "data-ritk-last-annotation-kind",
+            semantics.last_annotation_kind_value(),
+        )?;
+        self.element
+            .set_attribute("data-ritk-last-annotation-value", &last_annotation_value)?;
         self.element.set_attribute(
             "data-ritk-crosshair-visible",
             semantics.crosshair_visible_value(),
