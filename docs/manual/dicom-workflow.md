@@ -97,12 +97,24 @@ tests are allocation-lifecycle oracles, not process-memory or framework
 comparison measurements.
 
 The same public MRI replay was run three times through Métis's bounded
-process-tree resource runner. All runs exited with code 0, produced the same
-418,280-byte capture and retained the 411,589 non-black-pixel result. The
-sample reports process-tree peak private bytes and final private bytes for the
-current revision; it is lifecycle evidence for this presentation path, not a
-cross-framework memory ranking. The exact command fingerprint, revisions and
-bounded statistics are in the [native MRI resource provenance record](images/dicom-metis-real-mri-resource.json).
+process-tree resource runner for the orthogonal frame path. All runs exited
+with code 0, produced the same 418,280-byte capture and retained the 411,589
+non-black-pixel result. The sample reports process-tree peak private bytes and
+final private bytes for that revision; it is lifecycle evidence for this
+presentation path, not a cross-framework memory ranking. The exact command
+fingerprint, revisions and bounded statistics are in the [native MRI resource
+provenance record](images/dicom-metis-real-mri-resource.json).
+
+The replay was also run three times with `--metis-native-layout
+orthogonal-with-mip`, exercising the retained scalar projection frame and
+scalar/RGBA scratch. All runs exited with code 0 and produced the same
+1280×800, 614,907-byte capture (534,414 non-black pixels); the capture visibly
+contains the saved axial, coronal and sagittal MRI planes plus the axial
+`3D MIP` panel. Mean peak private bytes were 816,149,845 ± 1,137,625 and mean
+final private bytes were 440,810,155 ± 1,082,268 across the three bounded runs.
+These are lifecycle measurements for the projection path, not a framework
+comparison. The exact command fingerprint, hashes, revisions and test oracles
+are in the [native MRI projection resource provenance record](images/dicom-metis-real-mri-projection-resource.json).
 
 Build from a standalone RITK checkout, then run the bounded demonstration:
 

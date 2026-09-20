@@ -1,12 +1,14 @@
 # RITK execution backlog`r`n`r`n<a id="RITK-SNAP-NATIVE-PROJECTION-REUSE-001"></a>
 ## RITK-SNAP-NATIVE-PROJECTION-REUSE-001 — Reuse native scalar projection storage [patch]
-- Status: in-progress; priority: P1; owner: RITK native presentation; integrator: root; last-update: 2026-09-20.
+- Status: done; priority: P1; owner: RITK native presentation; integrator: root; last-update: 2026-09-20.
 - Outcome: repeated native Métis scalar projection refreshes reuse caller-owned scalar and RGBA storage while preserving the existing MIP, MinIP and Average pixels, dimensions, spacing and labels.
 - Scope: native scalar projection presentation, reusable projection scratch, value-semantic differential tests, native manual/resource evidence. DICOM decoding, slab semantics, browser/WebGPU presentation and host ownership remain unchanged.
 - Acceptance: the initial and subsequent scalar projection renders are byte-identical to the allocating renderer; frame and scratch storage are reused after warmup; switching projection statistics preserves dimensions, spacing and labels; locked native/WASM checks, strict Clippy, rustdoc, formatting, real-study replay and bounded resource evidence pass.
 - Dependency: RITK-SNAP-NATIVE-FRAME-REUSE-001 and the existing typed `SlabProjection`/native projection contract.
 - Verification: native projection tests compare reusable output with the allocating oracle and pointer-swapped storage; the full native/WASM package gates, real 94-file MRI replay and three-run lifecycle resource record bind to the delivered source revision.
 - Re-open trigger: a consumer requires interactive projection changes that alter the slab extent or a GPU projection path; those are separate typed seams.
+- Delivery: RITK commit `9714a1ab70a14dcbbd8cc9b3fa1c5e1412c85556`; native scalar projection refreshes now reuse retained frame, scalar and RGBA storage for MIP, MinIP and Average.
+- Verification: locked native nextest 482/482, strict native/WASM checks, feature Clippy, projection nextest 5/5, rustdoc/doctests, formatting, lockfile and script checks pass; the real 94-file MRI replay exits 0 with invalid-study exit 1; three bounded projection runs exit 0 with repeat capture SHA `056bf2cd...` and the resource record linked in the manual.
 
 
 <a id="RITK-SNAP-OBLIQUE-RESLICE-001"></a>
@@ -33,11 +35,11 @@
 ## RITK-SNAP-NATIVE-FRAME-REUSE-001 — Reuse native orthogonal render storage [patch]
 - Status: done; priority: P1; owner: RITK native presentation; integrator: root; last-update: 2026-09-20.
 - Outcome: repeated native Métis orthogonal renders reuse caller-owned RGBA and transform storage after warmup while preserving the existing DICOM display pixels, geometry, and transforms.
-- Scope: native orthogonal frame rendering, reusable transform output, value-semantic differential tests, native manual/resource evidence, ADR or design note if the public seam changes. Projection rendering and DICOM decoding remain unchanged and are reported as residuals.
+- Scope: native orthogonal frame rendering, reusable transform output, value-semantic differential tests, native manual/resource evidence, ADR or design note if the public seam changes. DICOM decoding remains unchanged; scalar projection storage is delivered by RITK-SNAP-NATIVE-PROJECTION-REUSE-001, while browser/WebGPU projection remains a separate seam.
 - Acceptance: the initial and subsequent native three-plane captures are byte-identical to the existing replay; scratch capacities remain stable after warmup; transformed dimensions and spacing remain correct for all view transforms; locked native/WASM checks, strict Clippy, rustdoc, formatting, real-study replay and resource evidence pass.
 - Dependency: current `PresentationFrame`/`FrameRenderScratch` storage swap and the native Métis viewer workflow; no Metis or DICOM ownership change.
 - Verification: locked native nextest 480/480 (including transformed frame capacity and RGBA differential tests), strict native/WASM Clippy, WASM check, rustdoc, formatting, standalone lockfile and Python checks pass; the real 94-file MRI replay exits 0 with invalid-study exit 1 and the byte-identical 1280×800 PNG (`259dd791...`, 411,589 non-black pixels); the JSON provenance records the lifecycle oracle and current binary/example hashes.
-- Delivery: RITK commit `58f1fe8fdc69f99acc94fe0d0735a86d1a8bc9fa` is the source revision for the replay and manual evidence; native orthogonal frames now retain one presentation frame and transform scratch slot per plane, while projection allocation remains a documented residual.
+- Delivery: RITK commit `58f1fe8fdc69f99acc94fe0d0735a86d1a8bc9fa` is the source revision for the replay and manual evidence; native orthogonal frames now retain one presentation frame and transform scratch slot per plane, and the scalar projection frame and scratch now reuse storage under RITK-SNAP-NATIVE-PROJECTION-REUSE-001.
 
 <a id="RITK-BROWSER-VIEWPORT-001"></a>
 ## RITK-BROWSER-VIEWPORT-001 — Present browser zoom and pan state [minor]

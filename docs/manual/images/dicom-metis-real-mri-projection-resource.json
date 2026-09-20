@@ -1,0 +1,67 @@
+{
+  "schema": 1,
+  "status": "passed",
+  "runtime": {
+    "host": "Windows native M\u00e9tis surface",
+    "machine": "AMD64 Windows 11",
+    "capture_tool": "Metis scripts/resource.py",
+    "sample_interval_ms": 100,
+    "timeout_seconds": 60,
+    "repeat_runs": 3,
+    "ritk_revision": "9714a1ab70a14dcbbd8cc9b3fa1c5e1412c85556",
+    "metis_revision": "b58d64b1bebe76bb32570339c4a349cc1b0d7086",
+    "moirai_revision": "2a54e010532f76c88027fec8a468620c92fe66b3",
+    "command_sha256": "2b194fd1b67e03b8bfbaadb451096203bdc617b0e1c602ff0307c80ef9fcc922"
+  },
+  "dataset": {
+    "path": "test_data/2_head_mri_t2/DICOM",
+    "files_submitted": 94,
+    "bytes_read": 49807236,
+    "license": "CC BY 4.0",
+    "description": "public MRI-DIR porcine-head T2 MRI phantom; not private patient data"
+  },
+  "output": {
+    "image": "scratch/viewer/native-projection-reuse-resource.png",
+    "width": 1280,
+    "height": 800,
+    "sha256": "056bf2cd8828df63972af2fe785e436ef0256e501a3ac7386535db0db169a0c9",
+    "bytes": 614907,
+    "non_black_pixels": 534414,
+    "executable_sha256": "23939f93a2eb9cebc2d4e093dcee51047d0fb2bd2792b259d82e15cec6586fe2",
+    "executable_bytes": 54028800,
+    "capture_mode": "--metis-native --metis-native-layout orthogonal-with-mip --capture-application --capture",
+    "planes": [
+      "axial",
+      "coronal",
+      "sagittal",
+      "axial MIP"
+    ]
+  },
+  "projection": {
+    "layout": "orthogonal-with-mip",
+    "label": "3D MIP",
+    "reusable_storage_tests": [
+      "presentation::native_session::projection::tests::native_projection_reuses_frame_and_scratch_storage_after_warmup",
+      "presentation::native_session::projection::tests::native_projection_reuses_storage_when_statistic_changes"
+    ]
+  },
+  "resource": {
+    "metric": "process-tree peak private bytes",
+    "peak_mean_bytes": 816149845.3333334,
+    "peak_approximate_95_half_width_bytes": 1137624.863130325,
+    "final_mean_bytes": 440810154.6666667,
+    "final_approximate_95_half_width_bytes": 1082267.5652781434,
+    "duration_mean_ms": 3111.3333333333335,
+    "duration_approximate_95_half_width_ms": 12.205273905616012,
+    "interpretation": "bounded three-run lifecycle sample for the native scalar projection path; not a framework comparison measurement"
+  },
+  "bounds": {
+    "orderly_exit_codes": [
+      0,
+      0,
+      0
+    ],
+    "repeat_capture_sha256_match": true,
+    "repeat_capture_sha256": "056bf2cd8828df63972af2fe785e436ef0256e501a3ac7386535db0db169a0c9"
+  }
+}
