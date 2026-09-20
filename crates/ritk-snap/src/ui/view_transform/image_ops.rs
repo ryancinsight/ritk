@@ -124,32 +124,38 @@ pub fn apply_to_image(img: &ColorImage, transform: ViewTransform) -> ColorImage 
 /// while the carrier remains independent of any GUI crate. The input storage
 /// is consumed so the identity path can return it without a copy; transformed
 /// paths allocate one output buffer and copy each four-byte pixel exactly once.
-#[cfg(any(windows, test))]
+#[cfg(all(test, feature = "eframe-shell"))]
 pub(crate) fn apply_to_rgba(
     size: [usize; 2],
     rgba: Box<[u8]>,
     transform: ViewTransform,
 ) -> Result<([usize; 2], Box<[u8]>)> {
-    let [width, height] = size;
-    if width == 0 || height == 0 {
-        bail!("RGBA transform dimensions must be nonzero");
-    }
-    let pixel_count = width
-        .checked_mul(height)
-        .ok_or_else(|| anyhow!("RGBA transform pixel count overflows usize"))?;
-    let byte_count = pixel_count
-        .checked_mul(4)
-        .ok_or_else(|| anyhow!("RGBA transform byte count overflows usize"))?;
-    if rgba.len() != byte_count {
-        bail!(
-            "RGBA transform byte count {} does not match {}x{} storage",
-            rgba.len(),
-            width,
-            height
-        );
-    }
     if transform.is_identity() {
+        validate_rgba_storage(size, rgba.len())?;
         return Ok((size, rgba));
+    }
+
+    let mut output = Vec::new();
+    let output_size = apply_to_rgba_into(size, &rgba, transform, &mut output)?;
+    Ok((output_size, output.into_boxed_slice()))
+}
+
+/// Apply a view transform into caller-owned RGBA storage.
+///
+/// The input and output buffers are separate so a presentation frame can swap
+/// them after the transform. The output capacity is retained across calls;
+/// identity leaves it untouched and returns the source dimensions.
+#[cfg(any(windows, test))]
+pub(crate) fn apply_to_rgba_into(
+    size: [usize; 2],
+    rgba: &[u8],
+    transform: ViewTransform,
+    output: &mut Vec<u8>,
+) -> Result<[usize; 2]> {
+    let [width, height] = size;
+    validate_rgba_storage(size, rgba.len())?;
+    if transform.is_identity() {
+        return Ok(size);
     }
 
     let output_size = transform.output_size(size);
@@ -159,7 +165,7 @@ pub(crate) fn apply_to_rgba(
     let output_byte_count = output_pixel_count
         .checked_mul(4)
         .ok_or_else(|| anyhow!("RGBA transform output byte count overflows usize"))?;
-    let mut output = vec![0_u8; output_byte_count];
+    output.resize(output_byte_count, 0);
 
     for (index, pixel) in rgba.chunks_exact(4).enumerate() {
         let row = index / width;
@@ -194,7 +200,30 @@ pub(crate) fn apply_to_rgba(
         destination.copy_from_slice(pixel);
     }
 
-    Ok((output_size, output.into_boxed_slice()))
+    Ok(output_size)
+}
+
+#[cfg(any(windows, test))]
+fn validate_rgba_storage(size: [usize; 2], length: usize) -> Result<()> {
+    let [width, height] = size;
+    if width == 0 || height == 0 {
+        bail!("RGBA transform dimensions must be nonzero");
+    }
+    let pixel_count = width
+        .checked_mul(height)
+        .ok_or_else(|| anyhow!("RGBA transform pixel count overflows usize"))?;
+    let byte_count = pixel_count
+        .checked_mul(4)
+        .ok_or_else(|| anyhow!("RGBA transform byte count overflows usize"))?;
+    if length != byte_count {
+        bail!(
+            "RGBA transform byte count {} does not match {}x{} storage",
+            length,
+            width,
+            height
+        );
+    }
+    Ok(())
 }
 
 /// Apply a `ViewTransform` to a `ColorImage`, writing output into pre-allocated

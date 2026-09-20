@@ -78,10 +78,26 @@ established, slice, window/level and cine updates reuse the existing capacity;
 the browser loop uploads a slot only after its pixels are rerendered, so an
 idle animation callback does not transfer an unchanged bitmap. Study
 replacement reclaims that capacity into the scratch owner before the next
-load. The native-session compositor still owns its separate transformed
-frame assembly. Frame bytes, dimensions and validated physical spacing remain
-unchanged by this storage policy. The focused reuse test is an allocation
-lifecycle oracle, not a process-memory or framework comparison measurement.
+load.
+
+The native Métis session now retains one `PresentationFrame` and one
+`FrameRenderScratch` per orthogonal plane. Each refresh renders the selected
+slice into the retained frame, applies the orientation into the scratch
+buffer, and swaps the completed storage back into the frame. The focused
+`native_session_reuses_transformed_frame_storage_across_refreshes` test runs
+two ninety-degree refreshes and checks byte-identical pixels, dimensions and
+stable scratch capacities; the RGBA transform test checks the same result
+against the allocating reference path. Projection rendering remains a
+separate scalar surface. These tests are allocation-lifecycle oracles, not
+process-memory or framework comparison measurements.
+
+The same public MRI replay was run three times through Métis's bounded
+process-tree resource runner. All runs exited with code 0, produced the same
+418,280-byte capture and retained the 411,589 non-black-pixel result. The
+sample reports process-tree peak private bytes and final private bytes for the
+current revision; it is lifecycle evidence for this presentation path, not a
+cross-framework memory ranking. The exact command fingerprint, revisions and
+bounded statistics are in the [native MRI resource provenance record](images/dicom-metis-real-mri-resource.json).
 
 Build from a standalone RITK checkout, then run the bounded demonstration:
 

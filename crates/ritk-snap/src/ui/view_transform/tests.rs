@@ -296,6 +296,48 @@ fn test_apply_to_rgba_matches_color_image_for_all_16_combinations() {
 }
 
 #[test]
+fn test_apply_to_rgba_into_reuses_storage_and_matches_owned_transform() {
+    let img = make_test_image();
+    let rgba = img
+        .pixels
+        .iter()
+        .flat_map(|pixel| pixel.to_array())
+        .collect::<Vec<_>>();
+    let transform = ViewTransform {
+        flip_h: true,
+        flip_v: false,
+        rotation: RotationSteps::Ninety,
+    };
+    let mut output = Vec::new();
+
+    let expected = apply_to_rgba(img.size, rgba.clone().into_boxed_slice(), transform)
+        .expect("valid RGBA transform input");
+    let actual_size = apply_to_rgba_into(img.size, &rgba, transform, &mut output)
+        .expect("valid reusable RGBA transform input");
+    let warm_capacity = output.capacity();
+    assert_eq!(actual_size, expected.0, "reusable transform size mismatch");
+    assert_eq!(
+        output,
+        expected.1.as_ref(),
+        "reusable transform pixels mismatch"
+    );
+
+    let repeat_size = apply_to_rgba_into(img.size, &rgba, transform, &mut output)
+        .expect("repeat reusable RGBA transform input");
+    assert_eq!(repeat_size, actual_size, "repeat transform size mismatch");
+    assert_eq!(
+        output,
+        expected.1.as_ref(),
+        "repeat transform pixels mismatch"
+    );
+    assert_eq!(
+        output.capacity(),
+        warm_capacity,
+        "repeated transform must retain its warmed output capacity"
+    );
+}
+
+#[test]
 fn test_apply_to_image_into_pool_reuse_consistent() {
     let img = make_test_image();
     let mut pool = RenderBufferPool::default();

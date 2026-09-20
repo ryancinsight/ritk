@@ -1,0 +1,47 @@
+{
+  "schema": 1,
+  "status": "passed",
+  "runtime": {
+    "host": "Windows native Métis surface",
+    "machine": "AMD64 Windows 11",
+    "capture_tool": "Metis scripts/resource.py",
+    "sample_interval_ms": 100,
+    "timeout_seconds": 60,
+    "repeat_runs": 3,
+    "ritk_revision": "58f1fe8fdc69f99acc94fe0d0735a86d1a8bc9fa",
+    "metis_revision": "b58d64b1bebe76bb32570339c4a349cc1b0d7086",
+    "moirai_revision": "2a54e010532f76c88027fec8a468620c92fe66b3",
+    "command_sha256": "9c922732ac5e5f7c8b8dfc46cda61495fa21c92874117cf3a6bf3073dbdbfe61"
+  },
+  "dataset": {
+    "path": "test_data/2_head_mri_t2/DICOM",
+    "files_submitted": 94,
+    "bytes_read": 49807236,
+    "license": "CC BY 4.0",
+    "description": "public MRI-DIR porcine-head T2 MRI phantom; not private patient data"
+  },
+  "output": {
+    "image": "dicom-metis-real-mri.png",
+    "width": 1280,
+    "height": 800,
+    "sha256": "259dd79103482756c4e688621bebafc841cc40f1df10ff2bbd7f9d04b7b4d401",
+    "bytes": 418280,
+    "executable_sha256": "89b59eea13dc7713505a9233751bd931d206509985b03d1108dd14f17ecb14f2",
+    "executable_bytes": 54029312,
+    "capture_mode": "--metis-native --capture-application --capture",
+    "planes": ["axial", "coronal", "sagittal"]
+  },
+  "resource": {
+    "metric": "process-tree peak private bytes",
+    "peak_mean_bytes": 816143018.6666666,
+    "peak_approximate_95_half_width_bytes": 563161.4204819538,
+    "final_mean_bytes": 441023146.6666667,
+    "final_approximate_95_half_width_bytes": 674784.77036784,
+    "interpretation": "bounded three-run lifecycle sample for the transformed native frame path; not a framework comparison measurement"
+  },
+  "bounds": {
+    "orderly_exit_codes": [0, 0, 0],
+    "repeat_capture_sha256_match": true,
+    "nonblack_pixels": 411589
+  }
+}

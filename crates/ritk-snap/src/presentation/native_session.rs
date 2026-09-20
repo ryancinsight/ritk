@@ -12,6 +12,7 @@ use crate::dicom::loader::{
 };
 use crate::dicom::series_tree::SeriesEntryView;
 use crate::launch::NativePresentationMode;
+use crate::render::FrameRenderScratch;
 use crate::tools::interaction::ViewportOffset;
 use anyhow::{anyhow, Context, Result};
 use metis_platform::native::{
@@ -27,7 +28,7 @@ use std::time::{Duration, Instant};
 mod frame;
 mod layout;
 mod projection;
-use frame::{render_orthogonal_views, RenderedView};
+use frame::{render_orthogonal_views, render_orthogonal_views_into, RenderedView};
 use layout::NativeViewport;
 use projection::{render_projection, RenderedProjection};
 mod composition;
@@ -158,6 +159,7 @@ fn viewport_offset(app: &SnapApp) -> ViewportOffset {
 struct NativeViewerSession {
     app: SnapApp,
     views: [RenderedView; 3],
+    render_scratch: [FrameRenderScratch; 3],
     projection: Option<RenderedProjection>,
     presentation_mode: NativePresentationMode,
     framebuffer: Framebuffer,
@@ -183,8 +185,9 @@ impl NativeViewerSession {
         capture_application: bool,
         selection: Option<SeriesSelection>,
     ) -> Result<Self> {
+        let mut render_scratch = std::array::from_fn(|_| FrameRenderScratch::default());
         let views = if app.loaded.is_some() {
-            render_orthogonal_views(&app)?
+            render_orthogonal_views(&app, &mut render_scratch)?
         } else {
             frame::empty_orthogonal_views()?
         };
@@ -224,6 +227,7 @@ impl NativeViewerSession {
         let mut session = Self {
             app,
             views,
+            render_scratch,
             projection,
             presentation_mode,
             framebuffer,
@@ -251,19 +255,16 @@ impl NativeViewerSession {
     }
 
     fn refresh_frame(&mut self) -> Result<()> {
-        let (views, projection) = if self.app.loaded.is_some() {
-            let views = render_orthogonal_views(&self.app)?;
-            let projection = match self.presentation_mode.projection_statistic() {
+        if self.app.loaded.is_some() {
+            render_orthogonal_views_into(&self.app, &mut self.views, &mut self.render_scratch)?;
+            self.projection = match self.presentation_mode.projection_statistic() {
                 None => None,
                 Some(statistic) => Some(render_projection(&self.app, statistic)?),
             };
-            (views, projection)
-        } else {
-            (self.views.clone(), self.projection.clone())
-        };
+        }
         let (framebuffer, viewports) = compose_frames(
-            &views,
-            projection.as_ref(),
+            &self.views,
+            self.projection.as_ref(),
             self.presentation_mode,
             self.surface_width,
             self.surface_height,
@@ -273,8 +274,6 @@ impl NativeViewerSession {
             self.app.cine.fps,
             self.capture_application,
         )?;
-        self.views = views;
-        self.projection = projection;
         self.framebuffer = framebuffer;
         self.viewports = viewports;
         if self.selection.is_some() {
