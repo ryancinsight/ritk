@@ -276,6 +276,8 @@ def _capture_consumer_controls(
     result: dict[str, Any] = {"slices": slices}
     if window_presets:
         result["window_level"] = capture_window_preset_gallery(client, output / "window-level")
+    if projection is not None:
+        result.update(capture_projection_gallery(client, output / "projection", oracle, statistic=projection))
     if cine_controls:
         if tool_controls:
             result["cine"] = capture_cine_gallery(
@@ -289,8 +291,6 @@ def _capture_consumer_controls(
         result["tools"] = capture_tool_gallery(client, output / "tools")
         if cine_controls:
             result["cine"] = finalize_cine_teardown(client, result["cine"])
-    if projection is not None:
-        result.update(capture_projection_gallery(client, output / "projection", oracle, statistic=projection))
     return result
 
 

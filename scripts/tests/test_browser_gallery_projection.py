@@ -126,6 +126,58 @@ class ProjectionGalleryTests(unittest.TestCase):
             statistic="mip",
         )
 
+    def test_projection_capture_precedes_controls_that_teardown_viewer(self):
+        class Client:
+            def set_window_rect(self, width, height):
+                self.rect = (width, height)
+
+        oracle = {
+            f"ritk-snap-{axis}": {
+                "attributes": {"data-ritk-slice-count": str(count)},
+            }
+            for axis, count in zip(browser_gallery.AXES, (94, 512, 512))
+        }
+        oracle["ritk-snap-projection"] = {"width": 512, "height": 512, "attributes": {}}
+        canvas_ids = tuple(
+            [f"ritk-snap-{axis}" for axis in browser_gallery.AXES]
+            + ["ritk-snap-projection"]
+        )
+        events = []
+        with tempfile.TemporaryDirectory(
+            dir=browser_gallery.ROOT / "output", prefix="gallery-projection-order-"
+        ) as directory, mock.patch.object(
+            browser_gallery,
+            "capture_slice_gallery",
+            side_effect=lambda *_args, **_kwargs: events.append("slices") or {"schema": 1},
+        ), mock.patch.object(
+            browser_gallery,
+            "capture_projection_gallery",
+            side_effect=lambda *_args, **_kwargs: events.append("projection") or {"projection": {"schema": 1}},
+        ), mock.patch.object(
+            browser_gallery,
+            "capture_cine_gallery",
+            side_effect=lambda *_args, **_kwargs: events.append("cine") or {"schema": 1},
+        ), mock.patch.object(
+            browser_gallery,
+            "capture_tool_gallery",
+            side_effect=lambda *_args, **_kwargs: events.append("tools") or {"schema": 1},
+        ), mock.patch.object(
+            browser_gallery,
+            "finalize_cine_teardown",
+            side_effect=lambda *_args, **_kwargs: events.append("teardown") or {"schema": 1},
+        ):
+            browser_gallery._capture_consumer_controls(
+                Client(),
+                pathlib.Path(directory),
+                oracle,
+                canvas_ids,
+                cine_controls=True,
+                tool_controls=True,
+                projection="mip",
+            )
+
+        self.assertEqual(events, ["slices", "projection", "cine", "tools", "teardown"])
+
     def test_host_trace_attribute_budget_is_preserved(self):
         workflow = (
             _ritk_root / ".github" / "workflows" / "metis-browser-dicom.yml"
