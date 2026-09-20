@@ -93,6 +93,17 @@ WebGPU job reaches the RITK page but reports no browser WebGPU adapter, so it
 does not claim a rendered GPU study. These outcomes preserve the ownership
 boundary: RITK owns DICOM behavior and Metis remains format-neutral.
 
+Revision 2026-09-20 (merged-main replay): hosted run
+[`35519330780`](https://github.com/ryancinsight/ritk/actions/runs/35519330780)
+rebuilt RITK `b220bf4ec2bf613fb23f2da20152881a1a3b4cf2` against Metis
+`b58d64b1bebe76bb32570339c4a349cc1b0d7086` and Moirai
+`2a54e010532f76c88027fec8a468620c92fe66b3`. Chromium and Firefox passed the
+94-file MRI chooser replay and exact raster oracles; Chromium also passed the
+application-window and scalar MIP projection captures. Safari 26.6.2 accepted
+the chooser but rejected the bounded whole-file read, and Chromium reported no
+WebGPU adapter. The machine-readable provenance records each artifact and
+failure at this revision; neither residual changes the DICOM ownership boundary.
+
 ## Residuals
 
 Safari/WebKit selected-file authorization, physical file-manager drag input,

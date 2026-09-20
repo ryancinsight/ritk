@@ -55,6 +55,19 @@ renderer preserves string-valued WASM rejections, so adapter and device
 errors reach `gallery-status` with their actual diagnostic instead of becoming
 `undefined`.
 
+### Revision 2026-09-20
+
+The current merged-main matrix is hosted run
+[`35519330780`](https://github.com/ryancinsight/ritk/actions/runs/35519330780),
+which rebuilt RITK `b220bf4ec2bf613fb23f2da20152881a1a3b4cf2` against Metis
+`b58d64b1bebe76bb32570339c4a349cc1b0d7086` and Moirai
+`2a54e010532f76c88027fec8a468620c92fe66b3`. Its explicit WebGPU job returned
+no Chromium adapter before study presentation; the failure artifact
+[`10607898845`](https://github.com/ryancinsight/ritk/actions/runs/35519330780/artifacts/10607898845)
+contains the 2,880 × 1,914 capture and clean teardown. The same run's 2D
+Chromium/Firefox and MIP projection jobs passed, so this remains a host
+capability residual rather than evidence for a raster fallback or GPU success.
+
 ## Alternatives rejected
 
 1. Replacing the default gallery path would invalidate the existing real-study
