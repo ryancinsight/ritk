@@ -146,8 +146,9 @@ the browser `File` handles and transfers one bounded named-byte batch; RITK
 then classifies, scans and decodes those bytes through its DICOM loader.
 The checked-in DICOM consumer page is
 [`web/gallery`](web/gallery); it owns the chooser wording, DICOM filter, slice
-controls and three-canvas layout. The browser workflow passes that directory
-explicitly to Metis together with the generated RITK package.
+controls and the default three-canvas layout. An explicit `projection` query
+selects the four-canvas scalar projection workflow. The browser workflow passes
+that directory explicitly to Metis together with the generated RITK package.
 
 ```javascript
 import init, { start_web } from "./ritk_snap.js";
@@ -243,6 +244,11 @@ window/level and colormap policy as the orthogonal planes; Métis receives only
 the resulting borrowed RGBA frame. The asynchronous
 `start_web_orthogonal_canvases_gpu_with_projection` entrypoint selects WebGPU
 explicitly and reports setup errors without raster fallback.
+The checked-in gallery accepts `?projection=mip`, `?projection=minip`, or
+`?projection=average`. Those names map to the typed statistic indices above;
+unknown values fail before the viewer mounts. The three existing slice controls
+remain attached to the interactive planes, while the projection canvas is
+display-only and carries no RITK input listener guards.
 Trusted pointer and wheel positions use the measured local canvas content box,
 excluding borders and padding and accounting for invertible 2D ancestor CSS
 transforms. Fractional positions and event-time dimensions preserve voxel

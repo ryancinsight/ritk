@@ -2,12 +2,13 @@
 
 <a id="RITK-SNAP-BROWSER-PROJECTION-001"></a>
 ## RITK-SNAP-BROWSER-PROJECTION-001 — Present a selectable scalar projection in the browser [arch] [minor]
-- Status: in-progress; priority: P1; owner: RITK browser presentation; integrator: root; last-update: 2026-09-20.
+- Status: review; priority: P1; owner: RITK browser presentation; integrator: root; last-update: 2026-09-20.
 - Outcome: the WASM Métis workflow can mount three interactive orthogonal canvases plus one display-only scalar projection canvas while RITK retains slab reduction, DICOM window/level, colormap and physical spacing.
 - Scope: `ritk-snap` browser presentation, projection-statistic parsing, four-canvas startup exports, bounded projection semantics, frame-storage reuse, ADR, README and DICOM manual. Existing three-canvas and single-canvas exports remain unchanged; oblique resampling, browser WebGPU slab dispatch and DICOM parsing remain out of scope.
 - Acceptance: maximum, minimum and average projection requests are validated before mount; the four-canvas raster and explicit WebGPU workflows present real scalar pixels with the selected label and dimensions; the projection canvas has no input listeners; malformed requests and non-scalar studies surface typed errors; native/WASM checks, strict Clippy, rustdoc, formatting and browser-facing tests pass.
 - Dependency: native scalar modes delivered by [RITK PR #526](https://github.com/ryancinsight/ritk/pull/526), merge `145372ea4781363abf28bad2790c3bfe25e1f202`; typed slab contract delivered by [RITK PR #525](https://github.com/ryancinsight/ritk/pull/525), merge `9658edd379ff561222d619d18e9d20a08860cbb4`.
-- Current increment: reuse the typed full-depth axis-0 slab request in the WASM surface and expose a single statistic-index parameter rather than three duplicated entrypoints.
+- Verification: native and WASM projection surfaces passed the locked `ritk-snap` library suite (465/465), strict native/WASM Clippy, native/WASM checks, rustdoc, formatting and strict ADR-index validation; the four-canvas browser gallery now selects a real MIP, MinIP or Average surface through a bounded query parameter, verifies projection attributes and non-black RGBA pixels from the saved MRI study, and proves the display-only canvas does not increase the 3 × 7 provider listener budget.
+- Delivery: RITK PR [#527](https://github.com/ryancinsight/ritk/pull/527), merge `9107da98cca72eebe2deffb466a6f5b7adb17948`; browser gallery visual evidence is delivered by the follow-up workflow increment in this branch.
 - Re-open trigger: a consumer needs interactive projection gestures, oblique physical-plane resampling or GPU slab dispatch; each requires its own typed contract.
 
 <a id="RITK-VTK-SPATIAL-VOLUME-001"></a>

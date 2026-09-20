@@ -163,6 +163,40 @@ jobs:
           Path("output/browser/mri-webgpu-oracle.json").write_text(
               json.dumps(oracle) + "\n", encoding="utf-8"
           )
+
+      - name: Derive the scalar projection oracle
+        working-directory: metis
+        shell: bash
+        run: |
+          set -euo pipefail
+          python - <<'PY'
+          import json
+          from pathlib import Path
+
+          source = json.loads(Path("output/browser/mri-oracle.json").read_text(encoding="utf-8"))
+          oracle = {
+              canvas_id: {
+                  "width": view["width"],
+                  "height": view["height"],
+                  "attributes": view["attributes"],
+              }
+              for canvas_id, view in source.items()
+          }
+          oracle["ritk-snap-projection"] = {
+              "width": 512,
+              "height": 512,
+              "attributes": {
+                  "data-ritk-role": "projection",
+                  "data-ritk-load-state": "ready",
+                  "data-ritk-frame-state": "presented",
+                  "data-ritk-projection-statistic": "MIP",
+                  "data-ritk-frame-width": "512",
+                  "data-ritk-frame-height": "512",
+              },
+          }
+          Path("output/browser/mri-projection-oracle.json").write_text(
+              json.dumps(oracle) + "\n", encoding="utf-8"
+          )
           PY
 
       - name: Upload browser bundle and oracle
@@ -192,6 +226,7 @@ jobs:
             canvas_capture: rgba
             canvas_context: ""
             oracle: mri-oracle.json
+            projection: ""
           - engine: chromium
             runner: ubuntu-24.04
             driver_url: http://127.0.0.1:9515
@@ -202,6 +237,7 @@ jobs:
             canvas_capture: rgba
             canvas_context: ""
             oracle: mri-oracle.json
+            projection: ""
           - engine: firefox
             runner: ubuntu-24.04
             driver_url: http://127.0.0.1:4444
@@ -212,6 +248,7 @@ jobs:
             canvas_capture: rgba
             canvas_context: ""
             oracle: mri-oracle.json
+            projection: ""
           - engine: webkit
             runner: macos-latest
             driver_url: http://127.0.0.1:4444
@@ -222,6 +259,7 @@ jobs:
             canvas_capture: rgba
             canvas_context: ""
             oracle: mri-oracle.json
+            projection: ""
           - engine: chromium
             runner: ubuntu-24.04
             driver_url: http://127.0.0.1:9515
@@ -232,6 +270,18 @@ jobs:
             canvas_capture: screenshot
             canvas_context: webgpu
             oracle: mri-webgpu-oracle.json
+            projection: ""
+          - engine: chromium
+            runner: ubuntu-24.04
+            driver_url: http://127.0.0.1:9515
+            device_scale: "2"
+            mode: raster
+            result: chromium-projection-mip
+            lifecycle_cycles: "1"
+            canvas_capture: screenshot
+            canvas_context: 2d
+            oracle: mri-projection-oracle.json
+            projection: mip
     steps:
       - name: Check out RITK
         uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803
@@ -366,11 +416,22 @@ jobs:
           LIFECYCLE_CYCLES: ${{ matrix.lifecycle_cycles }}
           RESULT: ${{ matrix.result }}
           ORACLE: ${{ matrix.oracle }}
+          PROJECTION: ${{ matrix.projection }}
         run: |
           set -euo pipefail
           capture_args=(--canvas-capture "$CANVAS_CAPTURE")
           if [[ "$MODE" == "webgpu" ]]; then
             capture_args+=(--canvas-context "$CANVAS_CONTEXT" --page-query renderer=webgpu)
+          fi
+          projection_args=()
+          trace_args=()
+          if [[ -n "$PROJECTION" ]]; then
+            projection_args+=(--projection "$PROJECTION" --page-query "projection=$PROJECTION")
+          else
+            trace_args+=(
+              --canvas-trace "$GITHUB_WORKSPACE/metis/output/browser/results/$RESULT/canvas-trace.json"
+              --keyboard-trace cine-rate
+            )
           fi
           python scripts/browser_gallery.py \
             --metis-root "$GITHUB_WORKSPACE/metis" \
@@ -386,9 +447,9 @@ jobs:
             --window-presets \
             --cine-controls \
             --tool-controls \
+            "${projection_args[@]}" \
             "${capture_args[@]}" \
-            --canvas-trace "$GITHUB_WORKSPACE/metis/output/browser/results/$RESULT/canvas-trace.json" \
-            --keyboard-trace cine-rate \
+            "${trace_args[@]}" \
             --canvas-attribute data-ritk-load-state \
             --canvas-attribute data-ritk-frame-state \
             --canvas-attribute data-ritk-axis \
@@ -405,10 +466,12 @@ jobs:
             --canvas-attribute data-ritk-active-tool \
             --canvas-attribute data-ritk-frame-generation \
             --canvas-attribute data-ritk-display-aspect \
+            --canvas-attribute data-ritk-role \
+            --canvas-attribute data-ritk-projection-statistic \
             --output "$GITHUB_WORKSPACE/metis/output/browser/results/$RESULT"
 
       - name: Validate RITK cine-rate trace
-        if: success()
+        if: success() && matrix.projection == ''
         working-directory: ritk
         env:
           RESULT: ${{ matrix.result }}

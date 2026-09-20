@@ -134,6 +134,10 @@ tool, layout flags, overlay flags, sidebar tab, pan, and zoom.
   `ritk_snap::stop_web_canvas()` (wasm-only, direct single-slice canvas workflow)
 - `ritk_snap::start_web_orthogonal_canvases(axial_id, coronal_id, sagittal_id)`
   (wasm-only, direct three-canvas axial/coronal/sagittal workflow)
+- `ritk_snap::start_web_orthogonal_canvases_with_projection(axial_id, coronal_id,
+  sagittal_id, projection_id, statistic)` (wasm-only, three interactive planes
+  plus one display-only scalar projection; `statistic` is `0` MIP, `1` MinIP,
+  or `2` average)
 
 The native binary (`ritk-snap`) remains desktop-only. For browser execution,
 build the `ritk-snap` library target for `wasm32-unknown-unknown` and run

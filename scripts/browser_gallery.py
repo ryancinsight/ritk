@@ -39,6 +39,7 @@ from browser_gallery_artifacts import _write_gallery_screenshots
 from browser_gallery_cine import capture_cine_gallery, finalize_cine_teardown
 from browser_gallery_tools import capture_tool_gallery
 from browser_gallery_window import capture_window_preset_gallery
+from browser_gallery_projection import capture_projection_gallery
 from browser_gallery_trace import (
     ARROW_BATCH_SIZE,
     AXES,
@@ -197,6 +198,7 @@ def capture_slice_gallery(
                 "browser_gallery.py",
                 "browser_gallery_actions.py",
                 "browser_gallery_artifacts.py",
+                "browser_gallery_projection.py",
                 "browser_gallery_trace.py",
             )
         }
@@ -241,9 +243,12 @@ def _capture_consumer_controls(
     window_presets: bool = False,
     cine_controls: bool = False,
     tool_controls: bool = False,
+    projection: str | None = None,
 ) -> Mapping[str, Any]:
     """Run the RITK slice contract after the generic Metis transfer contract."""
     expected_ids = tuple(f"ritk-snap-{axis}" for axis in AXES)
+    if projection is not None:
+        expected_ids += ("ritk-snap-projection",)
     if tuple(canvas_ids) != expected_ids:
         raise BrowserRuntimeError(
             f"RITK gallery requires canvas IDs {expected_ids!r}; received {tuple(canvas_ids)!r}"
@@ -266,7 +271,7 @@ def _capture_consumer_controls(
         output / "slices",
         expected_counts=expected_counts,
     )
-    if not window_presets and not cine_controls and not tool_controls:
+    if not window_presets and not cine_controls and not tool_controls and projection is None:
         return slices
     result: dict[str, Any] = {"slices": slices}
     if window_presets:
@@ -284,6 +289,8 @@ def _capture_consumer_controls(
         result["tools"] = capture_tool_gallery(client, output / "tools")
         if cine_controls:
             result["cine"] = finalize_cine_teardown(client, result["cine"])
+    if projection is not None:
+        result.update(capture_projection_gallery(client, output / "projection", oracle, statistic=projection))
     return result
 
 
@@ -315,6 +322,11 @@ def build_parser() -> argparse.ArgumentParser:
         action="store_true",
         help="exercise every RITK diagnostic interaction tool after slice navigation",
     )
+    parser.add_argument(
+        "--projection",
+        choices=("mip", "minip", "average"),
+        help="validate the selected display-only browser scalar projection",
+    )
     return parser
 
 
@@ -330,6 +342,7 @@ def main() -> None:
             window_presets=args.window_presets,
             cine_controls=args.cine_controls,
             tool_controls=args.tool_controls,
+            projection=args.projection,
         )
     run_host(args, consumer_capture=consumer_capture)
 

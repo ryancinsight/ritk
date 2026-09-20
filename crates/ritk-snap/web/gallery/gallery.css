@@ -26,6 +26,8 @@
 .gallery-views { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 20px; }
 .gallery-views figure { margin: 0; min-width: 0; }
 .gallery-views figcaption { margin-bottom: 8px; font-weight: 600; }
+.gallery-views figure[hidden] { display: none; }
+.gallery-views #projection-view { border-left: 2px solid #ccd4dd; padding-left: 16px; }
 .gallery-views canvas { display: block; width: 100%; height: auto; background: #000; }
 .slice-control { display: flex; justify-content: space-between; margin-top: 12px; }
 .slice-control output { font-variant-numeric: tabular-nums; }
