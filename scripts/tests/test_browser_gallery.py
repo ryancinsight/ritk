@@ -385,6 +385,12 @@ class WindowPresetHelperTests(unittest.TestCase):
         self.assertNotIn("arguments[arguments.length - 1]", script)
         self.assertIn("return {ok: true", script)
 
+    def test_cine_frame_wait_compares_snapshot_slice_field_and_preserves_timeout_state(self):
+        script = browser_gallery_cine.WAIT_CINE_FRAME_SCRIPT
+        self.assertIn("state.slice_index !== previous[position].slice_index", script)
+        self.assertNotIn("state.index !== previous[position].index", script)
+        self.assertIn("done({ok: false, previous, current: read(), status: status()})", script)
+
     def test_decimal_parser_rejects_non_decimal_or_unbounded_values(self):
         with self.assertRaises(browser_gallery_window.BrowserRuntimeError):
             browser_gallery_window._decimal("1.0", "index")

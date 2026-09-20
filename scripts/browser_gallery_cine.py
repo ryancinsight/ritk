@@ -115,7 +115,7 @@ const read = () => ["axial", "coronal", "sagittal"].map((axis) => {
   return canvas instanceof HTMLCanvasElement ? {
     axis,
     enabled: canvas.getAttribute("data-ritk-cine-enabled"),
-    index: canvas.getAttribute("data-ritk-slice-index"),
+    slice_index: canvas.getAttribute("data-ritk-slice-index"),
     generation: Number(canvas.getAttribute("data-ritk-frame-generation")),
   } : null;
 });
@@ -126,7 +126,7 @@ const ready = () => {
     Number.isSafeInteger(state.generation) &&
     state.generation >= previous[position].generation) &&
     current.some((state, position) => state.generation > previous[position].generation &&
-      state.index !== previous[position].index);
+      state.slice_index !== previous[position].slice_index);
 };
 if (ready()) { done({ok: true}); return; }
 let settled = false;
@@ -142,7 +142,7 @@ const timer = window.setTimeout(() => {
   if (settled) return;
   settled = true;
   observer.disconnect();
-  done({ok: false, current: read(), status: status()});
+  done({ok: false, previous, current: read(), status: status()});
 }, limit);
 """
 
