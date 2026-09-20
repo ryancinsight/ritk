@@ -51,6 +51,7 @@ mod pacs_ops;
 #[cfg(feature = "eframe-shell")]
 mod panels;
 mod pointer_ops;
+#[cfg(any(target_arch = "wasm32", windows, test))]
 mod presentation_snapshot;
 #[cfg(all(not(target_arch = "wasm32"), feature = "eframe-shell"))]
 mod render_cache;
