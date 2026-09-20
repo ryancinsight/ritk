@@ -27,10 +27,10 @@ source = ((q - c - p) / z) + c
 Samples outside the source frame are opaque black. Identity state (`z = 1`,
 `p = (0, 0)`) leaves the existing RGBA storage in place. Non-identity frames
 write into the existing reusable scratch buffer and swap it into the frame.
-The browser `ViewerViewport` uses the same inverse equation before applying
-the existing orientation transform; events over a panned black edge are
-ignored. The projection canvas remains display-only and is not coupled to the
-orthogonal viewport state.
+The browser `ViewerViewport` uses the same inverse equation in image-edge
+coordinates before applying the existing orientation transform; events over a
+panned black edge are ignored. The projection canvas remains display-only and
+is not coupled to the orthogonal viewport state.
 
 The transform stays in RITK. Métis receives only the resulting bounded RGBA
 frame and continues to own canvas, event and host lifecycle concerns. CSS or

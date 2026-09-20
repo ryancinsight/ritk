@@ -48,14 +48,17 @@ pub(super) fn transform_rgba(
     let zoom = f64::from(zoom);
     let pan_x = f64::from(pan.x());
     let pan_y = f64::from(pan.y());
+    // The viewer's continuous coordinates are measured from image edges, so
+    // pixel centres are sampled at half-integer coordinates without shifting
+    // the inverse transform by another half pixel.
     let center_x = width as f64 / 2.0;
     let center_y = height as f64 / 2.0;
 
     for output_y in 0..height {
         for output_x in 0..width {
             let output_index = (output_y * width + output_x) * RGBA_BYTES_PER_PIXEL;
-            let source_x = ((output_x as f64 + 0.5 - center_x - pan_x) / zoom) + center_x - 0.5;
-            let source_y = ((output_y as f64 + 0.5 - center_y - pan_y) / zoom) + center_y - 0.5;
+            let source_x = ((output_x as f64 + 0.5 - center_x - pan_x) / zoom) + center_x;
+            let source_y = ((output_y as f64 + 0.5 - center_y - pan_y) / zoom) + center_y;
             let Some(source_x) = source_x.is_finite().then_some(source_x) else {
                 destination[output_index..output_index + RGBA_BYTES_PER_PIXEL]
                     .copy_from_slice(&[0, 0, 0, 255]);
@@ -152,8 +155,8 @@ mod tests {
         assert_eq!(
             destination,
             [
-                0, 10, 20, 255, 1, 11, 21, 255, 1, 11, 21, 255, 2, 12, 22, 255, 0, 10, 20, 255, 1,
-                11, 21, 255, 1, 11, 21, 255, 2, 12, 22, 255,
+                1, 11, 21, 255, 1, 11, 21, 255, 2, 12, 22, 255, 2, 12, 22, 255, 5, 15, 25, 255, 5,
+                15, 25, 255, 6, 16, 26, 255, 6, 16, 26, 255,
             ]
         );
     }
