@@ -16,11 +16,13 @@ decoded-workspace budgets, and return the RITK `Image` plus
 boundary; the host owns only input and presentation lifecycle.
 
 The current standalone lock used by the viewer resolves the six Metis packages
-to `a6af382ebf009806c920c07ae4031a98ea4a678a` and fifteen Moirai packages to
-`b179b89fd2521034d2fc9c97663649811982e9fa`. The browser chooser and Windows
-package workflows use these provider pins. Historical hosted captures retain
-the provider revisions recorded in their own provenance files. RITK continues
-to own DICOM scanning, decoding, geometry and clinical presentation.
+to `165c4ec923e76ea7bc32b6b4fb99b4338166b3a3`. Eleven Moirai packages resolve
+to `2a54e010532f76c88027fec8a468620c92fe66b3` and four retained packages to
+`b179b89fd2521034d2fc9c97663649811982e9fa`; these are the exact git sources in
+`Cargo.lock`. The browser chooser and Windows package workflows use these
+provider pins. Historical hosted captures retain the provider revisions recorded
+in their own provenance files. RITK continues to own DICOM scanning, decoding,
+geometry and clinical presentation.
 
 This workflow is the DICOM opening demonstration for the default Windows Métis
 shell and the explicit eframe compatibility shell. The code, fixtures, visual
@@ -61,9 +63,9 @@ below explain how to reproduce and inspect each component boundary. RITK owns
 scanning, decoding, geometry, and clinical presentation; Métis owns the bounded
 host, canvas, and window lifecycle.
 
-The current standalone lock pins the browser canvas provider to Moirai main
-`b179b89fd2521034d2fc9c97663649811982e9fa` and the six Metis packages to
-`a6af382ebf009806c920c07ae4031a98ea4a678a`. Repeated RGBA frames with the
+The current standalone lock pins the browser canvas provider to Moirai
+`2a54e010532f76c88027fec8a468620c92fe66b3` and the six Metis packages to
+`165c4ec923e76ea7bc32b6b4fb99b4338166b3a3`. Repeated RGBA frames with the
 current extent retain the validated bitmap; a changed width or height takes
 the bounded resize path. This keeps the browser presentation lifecycle stable
 without changing DICOM decoding or the displayed pixels. It is an allocation
@@ -74,8 +76,10 @@ host. A `PresentationFrame` swaps its completed RGBA storage with
 caller-owned render scratch, and the browser viewer retains its frame slots
 while a study remains loaded. After the first dimension for a browser slot is
 established, slice, window/level and cine updates reuse the existing capacity;
-study replacement reclaims that capacity into the scratch owner before the
-next load. The native-session compositor still owns its separate transformed
+the browser loop uploads a slot only after its pixels are rerendered, so an
+idle animation callback does not transfer an unchanged bitmap. Study
+replacement reclaims that capacity into the scratch owner before the next
+load. The native-session compositor still owns its separate transformed
 frame assembly. Frame bytes, dimensions and validated physical spacing remain
 unchanged by this storage policy. The focused reuse test is an allocation
 lifecycle oracle, not a process-memory or framework comparison measurement.
