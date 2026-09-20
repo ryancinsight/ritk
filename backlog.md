@@ -1,12 +1,5 @@
 # RITK execution backlog
 
-<a id="RITK-SNAP-PRESENTATION-SNAPSHOT-001"></a>
-## RITK-SNAP-PRESENTATION-SNAPSHOT-001 — Unify host-neutral viewer state snapshots [arch] [minor]
-- Status: review; priority: P1; owner: RITK presentation; integrator: root; last-update: 2026-09-20; dependencies: RITK-SNAP-PRESENTATION-GEOMETRY-001, RITK-BROWSER-VIEWPORT-001; risk: host state drift; ADR: [0045](docs/adr/0045-host-neutral-viewer-snapshot.md)
-- Outcome: native and browser hosts consume one typed, format-neutral snapshot for loaded state, visual revision, axis slices, window/level, cine and viewport state; DICOM identifiers, paths, metadata and pixels remain outside the snapshot.
-- Scope: `ritk-snap` presentation snapshot, `SnapApp` projection, browser semantic attributes, native session outcome and value-semantic tests/docs. No DICOM parser, Métis API, eframe UI or WebGPU behavior changes.
-- Acceptance: snapshot values are derived from one `SnapApp` state projection; empty and loaded studies, anisotropic frame geometry, slice/window/cine/zoom/pan transitions and revision transitions are covered by value assertions; native and browser adapters expose the same fields; locked native/WASM checks, strict Clippy, rustdoc, formatting, provenance and real-study replay pass.
-
 <a id="RITK-SNAP-NATIVE-PROJECTION-REUSE-001"></a>
 ## RITK-SNAP-NATIVE-PROJECTION-REUSE-001 — Reuse native scalar projection storage [patch]
 - Status: done; priority: P1; owner: RITK native presentation; integrator: root; last-update: 2026-09-20.
