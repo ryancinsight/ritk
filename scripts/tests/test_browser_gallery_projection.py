@@ -191,8 +191,17 @@ class ProjectionGalleryTests(unittest.TestCase):
             _ritk_root / ".github" / "workflows" / "metis-browser-dicom.yml"
         ).read_text(encoding="utf-8")
         self.assertIn('if [[ -n "$CANVAS_CONTEXT" ]]; then', workflow)
-        self.assertIn('capture_args+=(--canvas-context "$CANVAS_CONTEXT")', workflow)
-        self.assertIn('capture_args+=(--page-query renderer=webgpu)', workflow)
+        self.assertIn('gallery_args+=(--canvas-context "$CANVAS_CONTEXT")', workflow)
+        self.assertIn('gallery_args+=(--page-query renderer=webgpu)', workflow)
+
+    def test_browser_workflow_keeps_optional_arguments_safe_under_nounset(self):
+        workflow = (
+            _ritk_root / ".github" / "workflows" / "metis-browser-dicom.yml"
+        ).read_text(encoding="utf-8")
+        self.assertIn("gallery_args=(", workflow)
+        self.assertIn('python scripts/browser_gallery.py "${gallery_args[@]}"', workflow)
+        self.assertNotIn('"${projection_args[@]}"', workflow)
+        self.assertNotIn('projection_args=()', workflow)
 
     def test_projection_exports_receive_string_canvas_arguments(self):
         gallery = (

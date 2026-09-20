@@ -419,57 +419,56 @@ jobs:
           PROJECTION: ${{ matrix.projection }}
         run: |
           set -euo pipefail
-          capture_args=(--canvas-capture "$CANVAS_CAPTURE")
+          gallery_args=(
+            --metis-root "$GITHUB_WORKSPACE/metis"
+            --engine "$ENGINE"
+            --driver-url "$DRIVER_URL"
+            --device-scale "$DEVICE_SCALE"
+            --input chooser
+            --lifecycle-cycles "$LIFECYCLE_CYCLES"
+            --files "$GITHUB_WORKSPACE/ritk/test_data/2_head_mri_t2/DICOM"
+            --pattern '*.dcm'
+            --oracle "$GITHUB_WORKSPACE/metis/output/browser/$ORACLE"
+            --consumer-revision "$RITK_REVISION"
+            --window-presets
+            --cine-controls
+            --tool-controls
+            --canvas-capture "$CANVAS_CAPTURE"
+          )
           if [[ -n "$CANVAS_CONTEXT" ]]; then
-            capture_args+=(--canvas-context "$CANVAS_CONTEXT")
+            gallery_args+=(--canvas-context "$CANVAS_CONTEXT")
           fi
           if [[ "$MODE" == "webgpu" ]]; then
-            capture_args+=(--page-query renderer=webgpu)
+            gallery_args+=(--page-query renderer=webgpu)
           fi
-          projection_args=()
-          trace_args=()
           if [[ -n "$PROJECTION" ]]; then
-            projection_args+=(--projection "$PROJECTION" --page-query "projection=$PROJECTION")
+            gallery_args+=(--projection "$PROJECTION" --page-query "projection=$PROJECTION")
           else
-            trace_args+=(
+            gallery_args+=(
               --canvas-trace "$GITHUB_WORKSPACE/metis/output/browser/results/$RESULT/canvas-trace.json"
               --keyboard-trace cine-rate
             )
           fi
-          python scripts/browser_gallery.py \
-            --metis-root "$GITHUB_WORKSPACE/metis" \
-            --engine "$ENGINE" \
-            --driver-url "$DRIVER_URL" \
-            --device-scale "$DEVICE_SCALE" \
-            --input chooser \
-            --lifecycle-cycles "$LIFECYCLE_CYCLES" \
-            --files "$GITHUB_WORKSPACE/ritk/test_data/2_head_mri_t2/DICOM" \
-            --pattern '*.dcm' \
-            --oracle "$GITHUB_WORKSPACE/metis/output/browser/$ORACLE" \
-            --consumer-revision "$RITK_REVISION" \
-            --window-presets \
-            --cine-controls \
-            --tool-controls \
-            "${projection_args[@]}" \
-            "${capture_args[@]}" \
-            "${trace_args[@]}" \
-            --canvas-attribute data-ritk-load-state \
-            --canvas-attribute data-ritk-frame-state \
-            --canvas-attribute data-ritk-axis \
-            --canvas-attribute data-ritk-slice-index \
-            --canvas-attribute data-ritk-slice-count \
-            --canvas-attribute data-ritk-frame-width \
-            --canvas-attribute data-ritk-frame-height \
-            --canvas-attribute data-ritk-cine-enabled \
-            --canvas-attribute data-ritk-cine-fps \
-            --canvas-attribute data-ritk-window-center \
-            --canvas-attribute data-ritk-window-width \
-            --canvas-attribute data-ritk-window-preset-index \
-            --canvas-attribute data-ritk-active-tool-index \
-            --canvas-attribute data-ritk-active-tool \
-            --canvas-attribute data-ritk-frame-generation \
-            --canvas-attribute data-ritk-display-aspect \
+          gallery_args+=(
+            --canvas-attribute data-ritk-load-state
+            --canvas-attribute data-ritk-frame-state
+            --canvas-attribute data-ritk-axis
+            --canvas-attribute data-ritk-slice-index
+            --canvas-attribute data-ritk-slice-count
+            --canvas-attribute data-ritk-frame-width
+            --canvas-attribute data-ritk-frame-height
+            --canvas-attribute data-ritk-cine-enabled
+            --canvas-attribute data-ritk-cine-fps
+            --canvas-attribute data-ritk-window-center
+            --canvas-attribute data-ritk-window-width
+            --canvas-attribute data-ritk-window-preset-index
+            --canvas-attribute data-ritk-active-tool-index
+            --canvas-attribute data-ritk-active-tool
+            --canvas-attribute data-ritk-frame-generation
+            --canvas-attribute data-ritk-display-aspect
             --output "$GITHUB_WORKSPACE/metis/output/browser/results/$RESULT"
+          )
+          python scripts/browser_gallery.py "${gallery_args[@]}"
 
       - name: Validate RITK cine-rate trace
         if: success() && matrix.projection == ''
