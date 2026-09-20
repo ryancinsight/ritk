@@ -206,7 +206,8 @@
     "projection": "The current run passed the real MIP projection with 512 \u00d7 512 dimensions, 110,028 non-black pixels, MIP attributes, 21 interactive listeners and a display-only projection canvas.",
     "webkit": "Safari 26.6.2 accepted all 94 chooser paths in the current run, but four bounded browser read probes returned NotReadableError or TypeError before RITK could present the study; the session closed cleanly.",
     "chromium-webgpu": "Chromium reported no WebGPU adapter before study presentation; the current workflow preserved the typed setup failure with a real failure PNG and clean teardown, without a raster fallback.",
-    "ownership": "RITK owns DICOM scanning, decoding, geometry, clinical presentation and pixel assertions; M\u00e9tis remains format-neutral; Moirai owns browser file reads."
+    "ownership": "RITK owns DICOM scanning, decoding, geometry, clinical presentation and pixel assertions; M\u00e9tis remains format-neutral; Moirai owns browser file reads.",
+    "chromium-window": "Chromium application-window capture passed the real study and cine-rate trace with clean session teardown."
   },
   "limits": [
     "file-backed WebDriver chooser is not physical file-manager drag input",
