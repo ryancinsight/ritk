@@ -21,6 +21,7 @@ pub(crate) const VIRTUAL_KEY_HOME: u32 = 0x24;
 pub(crate) const VIRTUAL_KEY_ARROW_UP: u32 = 0x26;
 pub(crate) const VIRTUAL_KEY_ARROW_DOWN: u32 = 0x28;
 pub(crate) const VIRTUAL_KEY_CINE_TOGGLE: u32 = 0x20;
+pub(crate) const VIRTUAL_KEY_CROSSHAIR_TOGGLE: u32 = 0x58;
 pub(crate) const VIRTUAL_KEY_CINE_FPS_UP: u32 = 0xbb;
 pub(crate) const VIRTUAL_KEY_CINE_FPS_DOWN: u32 = 0xbd;
 
@@ -245,6 +246,18 @@ impl SnapApp {
     }
 
     fn apply_virtual_key(&mut self, virtual_key: u32, repeated: bool) -> ViewerActionDisposition {
+        if virtual_key == VIRTUAL_KEY_CROSSHAIR_TOGGLE {
+            if repeated || self.loaded.is_none() {
+                return ViewerActionDisposition::Continue { repaint: false };
+            }
+            self.show_crosshair = !self.show_crosshair;
+            self.status_message = if self.show_crosshair {
+                "Linked crosshair shown (X)".to_owned()
+            } else {
+                "Linked crosshair hidden (X)".to_owned()
+            };
+            return ViewerActionDisposition::Continue { repaint: true };
+        }
         if virtual_key == VIRTUAL_KEY_CINE_TOGGLE {
             if repeated {
                 return ViewerActionDisposition::Continue { repaint: false };

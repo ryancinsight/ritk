@@ -35,7 +35,7 @@ _METIS_ROOT = _configure_metis_scripts()
 
 from browser_canvas import settle_canvas_input
 from browser_gallery_actions import _arrow_batch, _keyboard_action
-from browser_gallery_artifacts import _write_gallery_screenshots
+from browser_gallery_artifacts import _write_gallery_screenshots, _write_png
 from browser_gallery_cine import capture_cine_gallery, finalize_cine_teardown
 from browser_gallery_tools import capture_tool_gallery
 from browser_gallery_window import capture_window_preset_gallery
@@ -234,6 +234,82 @@ def capture_slice_gallery(
                 raise cleanup_error
 
 
+def capture_crosshair_gallery(
+    client: WebDriverClient,
+    output_directory: pathlib.Path,
+) -> dict[str, Any]:
+    """Toggle the linked crosshair and capture the real three-plane overlay."""
+    directory = _safe_path(output_directory, directory=ROOT / "output")
+    directory.mkdir(parents=True, exist_ok=True)
+    button = client.find("#crosshair-toggle")
+    if not client.execute(
+        "return document.querySelectorAll('.canvas-view').length === 3;"
+    ):
+        raise BrowserRuntimeError("gallery crosshair wrappers are missing")
+    before = client.execute("return window.metisGallery.sample();")
+    client.click(button)
+    settle_canvas_input(client)
+    after = client.execute("return window.metisGallery.sample();")
+    overlay = client.execute(
+        """
+        return Array.from(document.querySelectorAll('.canvas-view'), (view) => ({
+          row: view.querySelector('.crosshair-row')?.style.display ?? '',
+          column: view.querySelector('.crosshair-column')?.style.display ?? '',
+          top: view.querySelector('.crosshair-row')?.style.top ?? '',
+          left: view.querySelector('.crosshair-column')?.style.left ?? '',
+        }));
+        """
+    )
+    if not isinstance(after, Mapping) or after.get("crosshair_visible") != "true":
+        raise BrowserRuntimeError("crosshair toggle did not publish visible state")
+    cursors = [
+        client.execute(
+            "return document.getElementById(arguments[0]).getAttribute('data-ritk-linked-cursor');",
+            [f"ritk-snap-{axis}"],
+        )
+        for axis in AXES
+    ]
+    if len(set(cursors)) != 1 or not cursors[0]:
+        raise BrowserRuntimeError("crosshair planes did not publish one linked cursor")
+    if not isinstance(overlay, list) or len(overlay) != 3 or any(
+        not isinstance(item, Mapping) or item.get("row") != "block" or item.get("column") != "block"
+        for item in overlay
+    ):
+        raise BrowserRuntimeError("crosshair overlay lines are not visible on every plane")
+    screenshot = _write_png(
+        client.element_screenshot(client.find(".gallery-views")),
+        directory,
+        "gallery-crosshair-controls.png",
+        "element",
+    )
+    client.click(button)
+    settle_canvas_input(client)
+    hidden = client.execute("return window.metisGallery.sample();")
+    if not isinstance(hidden, Mapping) or hidden.get("crosshair_visible") != "false":
+        raise BrowserRuntimeError("crosshair toggle did not restore hidden state")
+    evidence = {
+        "schema": 1,
+        "before": before,
+        "visible": after,
+        "hidden": hidden,
+        "linked_cursor": cursors[0],
+        "overlay": overlay,
+        "screenshot": screenshot,
+    }
+    encoded = json.dumps(evidence, indent=2, sort_keys=True) + "\n"
+    if len(encoded.encode("utf-8")) > 512 * 1024:
+        raise BrowserRuntimeError("gallery crosshair evidence exceeds the 512 KiB trace bound")
+    evidence_path = _safe_path(directory / "gallery-crosshair.json", directory=directory)
+    evidence_path.write_text(encoded, encoding="utf-8", newline="\n")
+    evidence["artifact"] = evidence_path.relative_to(ROOT).as_posix()
+    evidence_path.write_text(
+        json.dumps(evidence, indent=2, sort_keys=True) + "\n",
+        encoding="utf-8",
+        newline="\n",
+    )
+    return evidence
+
+
 def _capture_consumer_controls(
     client: WebDriverClient,
     output: pathlib.Path,
@@ -243,6 +319,7 @@ def _capture_consumer_controls(
     window_presets: bool = False,
     cine_controls: bool = False,
     tool_controls: bool = False,
+    crosshair_controls: bool = False,
     projection: str | None = None,
 ) -> Mapping[str, Any]:
     """Run the RITK slice contract after the generic Metis transfer contract."""
@@ -271,13 +348,15 @@ def _capture_consumer_controls(
         output / "slices",
         expected_counts=expected_counts,
     )
-    if not window_presets and not cine_controls and not tool_controls and projection is None:
+    if not window_presets and not cine_controls and not tool_controls and not crosshair_controls and projection is None:
         return slices
     result: dict[str, Any] = {"slices": slices}
     if window_presets:
         result["window_level"] = capture_window_preset_gallery(client, output / "window-level")
     if projection is not None:
         result.update(capture_projection_gallery(client, output / "projection", oracle, statistic=projection))
+    if crosshair_controls:
+        result["crosshair"] = capture_crosshair_gallery(client, output / "crosshair")
     if cine_controls:
         if tool_controls:
             result["cine"] = capture_cine_gallery(
@@ -323,6 +402,11 @@ def build_parser() -> argparse.ArgumentParser:
         help="exercise every RITK diagnostic interaction tool after slice navigation",
     )
     parser.add_argument(
+        "--crosshair-controls",
+        action="store_true",
+        help="exercise the linked crosshair toggle and capture its three-plane overlay",
+    )
+    parser.add_argument(
         "--projection",
         choices=("mip", "minip", "average"),
         help="validate the selected display-only browser scalar projection",
@@ -342,6 +426,7 @@ def main() -> None:
             window_presets=args.window_presets,
             cine_controls=args.cine_controls,
             tool_controls=args.tool_controls,
+            crosshair_controls=args.crosshair_controls,
             projection=args.projection,
         )
     run_host(args, consumer_capture=consumer_capture)

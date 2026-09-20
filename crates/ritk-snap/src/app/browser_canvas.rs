@@ -106,6 +106,7 @@ impl BrowserCanvas {
         let window_width = semantics.window_width_value();
         let window_preset_index = semantics.window_preset_index_value();
         let active_tool_index = semantics.active_tool_index_value();
+        let linked_cursor = semantics.linked_cursor_value();
         self.element
             .set_attribute("data-ritk-load-state", semantics.load_state_value())?;
         self.element
@@ -133,6 +134,18 @@ impl BrowserCanvas {
             .set_attribute("data-ritk-active-tool-index", &active_tool_index)?;
         self.element
             .set_attribute("data-ritk-active-tool", semantics.active_tool_name())?;
+        self.element.set_attribute(
+            "data-ritk-crosshair-visible",
+            semantics.crosshair_visible_value(),
+        )?;
+        self.element
+            .set_attribute("data-ritk-linked-cursor", &linked_cursor)?;
+        self.element
+            .set_attribute("data-ritk-view-flip-h", semantics.view_flip_h_value())?;
+        self.element
+            .set_attribute("data-ritk-view-flip-v", semantics.view_flip_v_value())?;
+        self.element
+            .set_attribute("data-ritk-view-rotation", semantics.view_rotation_value())?;
         self.last_semantics = Some(semantics);
         Ok(())
     }

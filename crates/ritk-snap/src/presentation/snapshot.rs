@@ -2,6 +2,7 @@
 
 use crate::render::WindowLevel;
 use crate::tools::interaction::ViewportOffset;
+use crate::ui::ViewTransform;
 
 /// Value-semantic viewer state exposed beside host presentation frames.
 ///
@@ -21,6 +22,9 @@ pub struct PresentationSnapshot {
     cine_fps: f32,
     zoom: f32,
     pan: ViewportOffset,
+    view_transform: ViewTransform,
+    crosshair_visible: bool,
+    linked_cursor_voxel: Option<[usize; 3]>,
     window_preset_index: Option<usize>,
     active_tool_index: usize,
     active_tool_name: &'static str,
@@ -105,6 +109,24 @@ impl PresentationSnapshot {
         self.pan
     }
 
+    /// Returns the orientation applied to each presented slice.
+    #[must_use]
+    pub const fn view_transform(self) -> ViewTransform {
+        self.view_transform
+    }
+
+    /// Returns whether hosts should render the linked MPR crosshair.
+    #[must_use]
+    pub const fn crosshair_visible(self) -> bool {
+        self.crosshair_visible
+    }
+
+    /// Returns the linked cursor in volume voxel order `[z, y, x]`.
+    #[must_use]
+    pub const fn linked_cursor_voxel(self) -> Option<[usize; 3]> {
+        self.linked_cursor_voxel
+    }
+
     /// Returns the active modality window preset, when one is selected.
     #[must_use]
     pub const fn window_preset_index(self) -> Option<usize> {
@@ -150,6 +172,9 @@ impl PresentationSnapshot {
         cine_fps: f32,
         zoom: f32,
         pan: ViewportOffset,
+        view_transform: ViewTransform,
+        crosshair_visible: bool,
+        linked_cursor_voxel: Option<[usize; 3]>,
         window_preset_index: Option<usize>,
         active_tool_index: usize,
         active_tool_name: &'static str,
@@ -173,6 +198,9 @@ impl PresentationSnapshot {
             cine_fps,
             zoom,
             pan,
+            view_transform,
+            crosshair_visible,
+            linked_cursor_voxel,
             window_preset_index,
             active_tool_index,
             active_tool_name,

@@ -9,8 +9,12 @@ use std::io::Read;
 use std::path::Path;
 use std::str::FromStr;
 
+mod actions;
 mod cine_rate;
+mod snapshots;
 mod validation;
+
+use snapshots::SnapshotPhase;
 
 const MAX_CANVAS_DIMENSION: u32 = 4_096;
 const MAX_CANVAS_CSS_DIMENSION: f64 = 16_384.0;
@@ -45,6 +49,13 @@ const INTERACTION_ATTRIBUTES: [&str; 3] = [
     "data-ritk-cine-enabled",
     "data-ritk-active-tool-index",
     "data-ritk-active-tool",
+];
+const CURSOR_ATTRIBUTES: [&str; 5] = [
+    "data-ritk-crosshair-visible",
+    "data-ritk-linked-cursor",
+    "data-ritk-view-flip-h",
+    "data-ritk-view-flip-v",
+    "data-ritk-view-rotation",
 ];
 const DEFAULT_CANVAS_IDS: [&str; 3] =
     ["ritk-snap-axial", "ritk-snap-coronal", "ritk-snap-sagittal"];
@@ -378,177 +389,7 @@ fn validate_actions(
     canvas_ids: &[String],
     input_mode: TraceInputMode,
 ) -> Result<()> {
-    if matches!(
-        input_mode.keyboard_kind(),
-        Some(KeyboardTraceKind::CineRate)
-    ) {
-        return cine_rate::validate_actions(actions, canvas_ids);
-    }
-    let actions_per_canvas = match input_mode {
-        TraceInputMode::PointerWheel => 2,
-        TraceInputMode::PointerWheelKeyboard(KeyboardTraceKind::Navigation) => 3,
-        TraceInputMode::PointerWheelKeyboard(KeyboardTraceKind::CineRate) => {
-            unreachable!("invariant: cine-rate actions return through their dedicated validator")
-        }
-    };
-    let expected_action_count = canvas_ids.len() * actions_per_canvas;
-    if actions.len() != expected_action_count {
-        bail!(
-            "browser trace contains {} actions; expected {expected_action_count}",
-            actions.len()
-        )
-    }
-
-    let mut counts: BTreeMap<String, (usize, usize, usize)> = canvas_ids
-        .iter()
-        .map(|id| (id.clone(), (0, 0, 0)))
-        .collect();
-    for action in actions {
-        let Some((pointer_count, wheel_count, keyboard_count)) = counts.get_mut(&action.canvas)
-        else {
-            bail!(
-                "browser trace action targets unknown canvas {:?}",
-                action.canvas
-            )
-        };
-        match action.action.as_str() {
-            "trusted-pointer-drag" => *pointer_count += 1,
-            "trusted-wheel" => *wheel_count += 1,
-            "trusted-keyboard" => {
-                let Some(kind) = input_mode.keyboard_kind() else {
-                    bail!("browser trace contains keyboard evidence without keyboard validation")
-                };
-                validate_keyboard_action(action, kind)?;
-                *keyboard_count += 1;
-            }
-            other => bail!("browser trace contains unsupported canvas action {other:?}"),
-        }
-    }
-    for (id, (pointer_count, wheel_count, keyboard_count)) in counts {
-        let valid = match input_mode {
-            TraceInputMode::PointerWheel => pointer_count == 1 && wheel_count == 1,
-            TraceInputMode::PointerWheelKeyboard(_) => {
-                pointer_count == 1 && wheel_count == 1 && keyboard_count == 1
-            }
-        };
-        if !valid {
-            match input_mode {
-                TraceInputMode::PointerWheel => {
-                    bail!(
-                        "canvas {id:?} requires one trusted pointer drag and one trusted wheel action"
-                    )
-                }
-                TraceInputMode::PointerWheelKeyboard(_) => bail!(
-                    "canvas {id:?} requires one trusted pointer drag, one trusted wheel action and one trusted keyboard action"
-                ),
-            }
-        }
-    }
-    Ok(())
-}
-
-fn validate_keyboard_action(action: &TraceAction, kind: KeyboardTraceKind) -> Result<()> {
-    let (expected_key, expected_code) = kind.key_code();
-    if action.key.as_deref() != Some(expected_key)
-        || action.code.as_deref() != Some(expected_code)
-        || action.repeat != Some(false)
-    {
-        bail!(
-            "canvas {:?} keyboard action has invalid key/code for {:?} and repeat=false",
-            action.canvas,
-            kind
-        )
-    }
-    let Some(focus) = action.focus.as_ref() else {
-        bail!(
-            "canvas {:?} keyboard action is missing focus evidence",
-            action.canvas
-        )
-    };
-    if !focus.ok || focus.active_id.as_deref() != Some(action.canvas.as_str()) {
-        bail!(
-            "canvas {:?} keyboard action did not focus its target",
-            action.canvas
-        )
-    }
-    if action.observed_events.len() != 2 {
-        bail!(
-            "canvas {:?} keyboard action must contain exactly one keydown and one keyup event",
-            action.canvas
-        )
-    }
-    let mut phases = BTreeSet::new();
-    for event in &action.observed_events {
-        if !matches!(event.event_type.as_str(), "keydown" | "keyup") {
-            bail!(
-                "canvas {:?} keyboard evidence contains unsupported event {:?}",
-                action.canvas,
-                event.event_type
-            )
-        }
-        if event.is_trusted != Some(true) {
-            bail!(
-                "canvas {:?} keyboard event {:?} was not trusted",
-                action.canvas,
-                event.event_type
-            )
-        }
-        if event.target_id.as_deref() != Some(action.canvas.as_str()) {
-            bail!(
-                "canvas {:?} keyboard event {:?} targeted the wrong canvas",
-                action.canvas,
-                event.event_type
-            )
-        }
-        if event.key.as_deref() != Some(expected_key)
-            || event.code.as_deref() != Some(expected_code)
-            || event.repeat != Some(false)
-        {
-            bail!(
-                "canvas {:?} keyboard event {:?} has invalid key metadata",
-                action.canvas,
-                event.event_type
-            )
-        }
-        for (name, value) in [
-            ("alt", event.alt_key),
-            ("ctrl", event.ctrl_key),
-            ("meta", event.meta_key),
-            ("shift", event.shift_key),
-        ] {
-            if value != Some(false) {
-                bail!(
-                    "canvas {:?} keyboard event {:?} has an active {name} modifier",
-                    action.canvas,
-                    event.event_type
-                )
-            }
-        }
-        if !phases.insert(event.event_type.as_str()) {
-            bail!(
-                "canvas {:?} keyboard evidence repeats {:?}",
-                action.canvas,
-                event.event_type
-            )
-        }
-    }
-    if phases != BTreeSet::from(["keydown", "keyup"]) {
-        bail!(
-            "canvas {:?} keyboard evidence must contain keydown and keyup",
-            action.canvas
-        )
-    }
-    Ok(())
-}
-
-#[derive(Clone, Copy)]
-enum SnapshotPhase {
-    Initial,
-    AfterKeyboard,
-    AfterRepeat,
-    AfterDecrease,
-    AfterDecreaseRepeat,
-    AfterInput,
+    actions::validate_actions(actions, canvas_ids, input_mode)
 }
 
 fn validate_snapshots(
@@ -556,76 +397,7 @@ fn validate_snapshots(
     canvas_ids: &[String],
     input_mode: TraceInputMode,
 ) -> Result<()> {
-    if matches!(
-        input_mode.keyboard_kind(),
-        Some(KeyboardTraceKind::CineRate)
-    ) {
-        return cine_rate::validate_snapshots(snapshots, canvas_ids);
-    }
-    let snapshots_per_canvas = match input_mode {
-        TraceInputMode::PointerWheel => 2,
-        TraceInputMode::PointerWheelKeyboard(KeyboardTraceKind::Navigation) => 3,
-        TraceInputMode::PointerWheelKeyboard(KeyboardTraceKind::CineRate) => {
-            unreachable!("invariant: cine-rate snapshots return through their dedicated validator")
-        }
-    };
-    let expected_snapshot_count = canvas_ids.len() * snapshots_per_canvas;
-    if snapshots.len() != expected_snapshot_count {
-        bail!(
-            "browser trace contains {} snapshots; expected {expected_snapshot_count}",
-            snapshots.len()
-        )
-    }
-
-    let mut labels = BTreeSet::new();
-    for snapshot in snapshots {
-        let Some((axis, canvas_id, phase)) =
-            canvas_ids.iter().enumerate().find_map(|(axis, id)| {
-                if snapshot.label == format!("{id}-initial") {
-                    Some((axis, id.as_str(), SnapshotPhase::Initial))
-                } else if input_mode.keyboard_kind().is_some()
-                    && snapshot.label == format!("{id}-after-keyboard")
-                {
-                    Some((axis, id.as_str(), SnapshotPhase::AfterKeyboard))
-                } else if snapshot.label == format!("{id}-after-input") {
-                    Some((axis, id.as_str(), SnapshotPhase::AfterInput))
-                } else {
-                    None
-                }
-            })
-        else {
-            bail!(
-                "browser trace contains unknown or malformed snapshot label {:?}",
-                snapshot.label
-            )
-        };
-        if !labels.insert(snapshot.label.clone()) {
-            bail!("browser trace repeats snapshot label {:?}", snapshot.label)
-        }
-        validate_snapshot(
-            snapshot,
-            canvas_id,
-            axis,
-            phase,
-            input_mode.expected_attributes(),
-        )?;
-    }
-
-    let suffixes = match input_mode {
-        TraceInputMode::PointerWheel => ["initial", "after-input"].as_slice(),
-        TraceInputMode::PointerWheelKeyboard(_) => {
-            ["initial", "after-keyboard", "after-input"].as_slice()
-        }
-    };
-    for id in canvas_ids {
-        for suffix in suffixes {
-            let label = format!("{id}-{suffix}");
-            if !labels.contains(&label) {
-                bail!("browser trace is missing snapshot {label:?}")
-            }
-        }
-    }
-    Ok(())
+    snapshots::validate_snapshots(snapshots, canvas_ids, input_mode)
 }
 
 fn validate_snapshot(
@@ -635,203 +407,7 @@ fn validate_snapshot(
     phase: SnapshotPhase,
     expected_attributes: &[&str],
 ) -> Result<()> {
-    if snapshot.canvas.id != canvas_id {
-        bail!(
-            "snapshot {:?} identifies canvas {:?}; expected {:?}",
-            snapshot.label,
-            snapshot.canvas.id,
-            canvas_id
-        )
-    }
-    if snapshot.canvas.width == 0 || snapshot.canvas.width > MAX_CANVAS_DIMENSION {
-        bail!(
-            "canvas {canvas_id:?} has invalid intrinsic width {}",
-            snapshot.canvas.width
-        )
-    }
-    if snapshot.canvas.height == 0 || snapshot.canvas.height > MAX_CANVAS_DIMENSION {
-        bail!(
-            "canvas {canvas_id:?} has invalid intrinsic height {}",
-            snapshot.canvas.height
-        )
-    }
-    if !snapshot.canvas.css_width.is_finite()
-        || snapshot.canvas.css_width <= 0.0
-        || snapshot.canvas.css_width > MAX_CANVAS_CSS_DIMENSION
-        || !snapshot.canvas.css_height.is_finite()
-        || snapshot.canvas.css_height <= 0.0
-        || snapshot.canvas.css_height > MAX_CANVAS_CSS_DIMENSION
-    {
-        bail!("canvas {canvas_id:?} has invalid CSS dimensions")
-    }
-    let attribute_names = snapshot
-        .canvas
-        .attributes
-        .keys()
-        .cloned()
-        .collect::<Vec<_>>();
-    if !attribute_names_match(&attribute_names, expected_attributes) {
-        bail!("canvas {canvas_id:?} does not carry the complete RITK attribute set")
-    }
-
-    let load_state = attribute(&snapshot.canvas, "data-ritk-load-state", canvas_id)?;
-    let frame_state = attribute(&snapshot.canvas, "data-ritk-frame-state", canvas_id)?;
-    let axis_value = attribute(&snapshot.canvas, "data-ritk-axis", canvas_id)?;
-    let slice_index: u64 = parse_attribute(
-        attribute(&snapshot.canvas, "data-ritk-slice-index", canvas_id)?,
-        "slice index",
-        canvas_id,
-    )?;
-    let slice_count: u64 = parse_attribute(
-        attribute(&snapshot.canvas, "data-ritk-slice-count", canvas_id)?,
-        "slice count",
-        canvas_id,
-    )?;
-    let frame_width: u32 = parse_attribute(
-        attribute(&snapshot.canvas, "data-ritk-frame-width", canvas_id)?,
-        "frame width",
-        canvas_id,
-    )?;
-    let frame_height: u32 = parse_attribute(
-        attribute(&snapshot.canvas, "data-ritk-frame-height", canvas_id)?,
-        "frame height",
-        canvas_id,
-    )?;
-    if expected_attributes.contains(&"data-ritk-cine-fps") {
-        let cine_fps: u32 = parse_attribute(
-            attribute(&snapshot.canvas, "data-ritk-cine-fps", canvas_id)?,
-            "cine FPS",
-            canvas_id,
-        )?;
-        if !(1..=60).contains(&cine_fps) {
-            bail!("canvas {canvas_id:?} reports an invalid cine FPS")
-        }
-        let frame_generation: u64 = parse_attribute(
-            attribute(&snapshot.canvas, "data-ritk-frame-generation", canvas_id)?,
-            "frame generation",
-            canvas_id,
-        )?;
-        if frame_generation == 0 {
-            bail!("canvas {canvas_id:?} reports a zero frame generation")
-        }
-    }
-    if has_attribute_group(&snapshot.canvas, &WINDOW_LEVEL_ATTRIBUTES) {
-        validate_window_level_attributes(snapshot, canvas_id)?;
-    }
-    if has_attribute_group(&snapshot.canvas, &INTERACTION_ATTRIBUTES) {
-        validate_interaction_attributes(snapshot, canvas_id)?;
-    }
-
-    if !matches!(load_state, "empty" | "ready") {
-        bail!("canvas {canvas_id:?} has invalid load state {load_state:?}")
-    }
-    if !matches!(frame_state, "empty" | "presented") {
-        bail!("canvas {canvas_id:?} has invalid frame state {frame_state:?}")
-    }
-    if axis_value != axis.to_string() {
-        bail!("canvas {canvas_id:?} reports axis {axis_value:?}; expected {axis}")
-    }
-    if slice_count == 0 || slice_index >= slice_count {
-        bail!("canvas {canvas_id:?} reports an invalid slice range")
-    }
-    if frame_state == "presented" {
-        if load_state != "ready"
-            || frame_width == 0
-            || frame_height == 0
-            || frame_width != snapshot.canvas.width
-            || frame_height != snapshot.canvas.height
-        {
-            bail!("canvas {canvas_id:?} has inconsistent presented frame dimensions")
-        }
-    } else if frame_width != 0 || frame_height != 0 {
-        bail!("canvas {canvas_id:?} has dimensions for an empty frame")
-    }
-    if matches!(
-        phase,
-        SnapshotPhase::AfterKeyboard
-            | SnapshotPhase::AfterRepeat
-            | SnapshotPhase::AfterDecrease
-            | SnapshotPhase::AfterDecreaseRepeat
-            | SnapshotPhase::AfterInput
-    ) && (load_state != "ready" || frame_state != "presented")
-    {
-        bail!("canvas {canvas_id:?} is not presented after trusted input")
-    }
-    Ok(())
-}
-
-fn attribute_names_match(actual: &[String], expected: &[&str]) -> bool {
-    let actual = actual.iter().map(String::as_str).collect::<BTreeSet<_>>();
-    let required = expected.iter().copied().collect::<BTreeSet<_>>();
-    if !actual.is_superset(&required) {
-        return false;
-    }
-    let extension = actual
-        .difference(&required)
-        .copied()
-        .collect::<BTreeSet<_>>();
-    [&WINDOW_LEVEL_ATTRIBUTES[..], &INTERACTION_ATTRIBUTES[..]]
-        .into_iter()
-        .all(|group| {
-            let group = group.iter().copied().collect::<BTreeSet<_>>();
-            extension.is_disjoint(&group) || extension.is_superset(&group)
-        })
-        && extension.is_subset(
-            &WINDOW_LEVEL_ATTRIBUTES
-                .iter()
-                .chain(INTERACTION_ATTRIBUTES.iter())
-                .copied()
-                .collect::<BTreeSet<_>>(),
-        )
-}
-
-fn has_attribute_group(canvas: &TraceCanvas, group: &[&str]) -> bool {
-    group
-        .iter()
-        .any(|name| canvas.attributes.contains_key(*name))
-}
-
-fn validate_interaction_attributes(snapshot: &TraceSnapshot, canvas_id: &str) -> Result<()> {
-    let cine_enabled = attribute(&snapshot.canvas, INTERACTION_ATTRIBUTES[0], canvas_id)?;
-    if !matches!(cine_enabled, "true" | "false") {
-        bail!("canvas {canvas_id:?} has an invalid cine-enabled value {cine_enabled:?}")
-    }
-    let _: u64 = parse_attribute(
-        attribute(&snapshot.canvas, INTERACTION_ATTRIBUTES[1], canvas_id)?,
-        "active tool index",
-        canvas_id,
-    )?;
-    attribute(&snapshot.canvas, INTERACTION_ATTRIBUTES[2], canvas_id)?;
-    Ok(())
-}
-
-fn validate_window_level_attributes(snapshot: &TraceSnapshot, canvas_id: &str) -> Result<()> {
-    let center: f64 = parse_attribute(
-        attribute(&snapshot.canvas, WINDOW_LEVEL_ATTRIBUTES[0], canvas_id)?,
-        "window center",
-        canvas_id,
-    )?;
-    if !center.is_finite() {
-        bail!("canvas {canvas_id:?} reports a non-finite window center")
-    }
-    let width: f64 = parse_attribute(
-        attribute(&snapshot.canvas, WINDOW_LEVEL_ATTRIBUTES[1], canvas_id)?,
-        "window width",
-        canvas_id,
-    )?;
-    if !width.is_finite() || width <= 0.0 {
-        bail!("canvas {canvas_id:?} reports a non-positive or non-finite window width")
-    }
-    let Some(raw_index) = snapshot.canvas.attributes.get(WINDOW_LEVEL_ATTRIBUTES[2]) else {
-        bail!("canvas {canvas_id:?} is missing window preset index attribute")
-    };
-    let Some(raw_index) = raw_index else {
-        bail!("canvas {canvas_id:?} has a null window preset index")
-    };
-    if !raw_index.is_empty() {
-        let _: u64 = parse_attribute(raw_index, "window preset index", canvas_id)?;
-    }
-    Ok(())
+    snapshots::validate_snapshot(snapshot, canvas_id, axis, phase, expected_attributes)
 }
 
 fn validate_slice_progression(
@@ -839,85 +415,15 @@ fn validate_slice_progression(
     canvas_ids: &[String],
     input_mode: TraceInputMode,
 ) -> Result<()> {
-    for canvas_id in canvas_ids {
-        let initial_label = format!("{canvas_id}-initial");
-        let before_wheel_label = match input_mode {
-            TraceInputMode::PointerWheel => initial_label.clone(),
-            TraceInputMode::PointerWheelKeyboard(KeyboardTraceKind::Navigation) => {
-                format!("{canvas_id}-after-keyboard")
-            }
-            TraceInputMode::PointerWheelKeyboard(KeyboardTraceKind::CineRate) => {
-                format!("{canvas_id}-after-decrease-repeat")
-            }
-        };
-        let after_label = format!("{canvas_id}-after-input");
-        let initial = snapshots
-            .iter()
-            .find(|snapshot| snapshot.label == initial_label)
-            .with_context(|| format!("browser trace is missing snapshot {initial_label:?}"))?;
-        let before_wheel = snapshots
-            .iter()
-            .find(|snapshot| snapshot.label == before_wheel_label)
-            .with_context(|| format!("browser trace is missing snapshot {before_wheel_label:?}"))?;
-        let after = snapshots
-            .iter()
-            .find(|snapshot| snapshot.label == after_label)
-            .with_context(|| format!("browser trace is missing snapshot {after_label:?}"))?;
-        let initial_count: u64 = parse_attribute(
-            attribute(&initial.canvas, "data-ritk-slice-count", canvas_id)?,
-            "slice count",
-            canvas_id,
-        )?;
-        let before_wheel_count: u64 = parse_attribute(
-            attribute(&before_wheel.canvas, "data-ritk-slice-count", canvas_id)?,
-            "slice count",
-            canvas_id,
-        )?;
-        let after_count: u64 = parse_attribute(
-            attribute(&after.canvas, "data-ritk-slice-count", canvas_id)?,
-            "slice count",
-            canvas_id,
-        )?;
-        if initial_count != before_wheel_count {
-            bail!(
-                "canvas {canvas_id:?} changed its slice count from {initial_count} to {before_wheel_count} before the wheel"
-            )
-        }
-        if before_wheel_count != after_count {
-            bail!(
-                "canvas {canvas_id:?} changed its slice count from {before_wheel_count} to {after_count} after the wheel"
-            )
-        }
-        if initial_count <= 1 {
-            continue;
-        }
-        let before_wheel_index: u64 = parse_attribute(
-            attribute(&before_wheel.canvas, "data-ritk-slice-index", canvas_id)?,
-            "slice index",
-            canvas_id,
-        )?;
-        let after_index: u64 = parse_attribute(
-            attribute(&after.canvas, "data-ritk-slice-index", canvas_id)?,
-            "slice index",
-            canvas_id,
-        )?;
-        if before_wheel_index == after_index {
-            bail!(
-                "canvas {canvas_id:?} did not advance its multi-slice index after trusted wheel input"
-            )
-        }
-    }
-    Ok(())
+    snapshots::validate_slice_progression(snapshots, canvas_ids, input_mode)
+}
+
+fn attribute_names_match(actual: &[String], expected: &[&str]) -> bool {
+    snapshots::attribute_names_match(actual, expected)
 }
 
 fn attribute<'a>(canvas: &'a TraceCanvas, name: &str, canvas_id: &str) -> Result<&'a str> {
-    let Some(Some(value)) = canvas.attributes.get(name) else {
-        bail!("canvas {canvas_id:?} is missing non-null attribute {name:?}")
-    };
-    if value.is_empty() {
-        bail!("canvas {canvas_id:?} has an empty attribute {name:?}")
-    }
-    Ok(value)
+    snapshots::attribute(canvas, name, canvas_id)
 }
 
 fn parse_attribute<T>(value: &str, field: &str, canvas_id: &str) -> Result<T>
@@ -925,10 +431,7 @@ where
     T: FromStr,
     T::Err: std::error::Error + Send + Sync + 'static,
 {
-    value
-        .parse::<T>()
-        .with_context(|| format!("canvas {canvas_id:?} has an invalid {field} value {value:?}"))
+    snapshots::parse_attribute(value, field, canvas_id)
 }
-
 #[cfg(test)]
 mod tests;

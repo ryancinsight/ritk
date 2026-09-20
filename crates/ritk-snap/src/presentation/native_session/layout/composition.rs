@@ -211,7 +211,6 @@ pub(crate) const OVERLAY_BAR_HEIGHT: i32 = 20;
 const OVERLAY_MARGIN: i32 = 6;
 const OVERLAY_BACKGROUND: Color = Color::rgba(0, 0, 0, 224);
 pub(crate) const OVERLAY_TEXT: Color = Color::rgba(255, 255, 160, 255);
-
 pub(crate) fn application_overlay(
     views: &[RenderedView; 3],
     viewports: &[NativeViewport; 3],

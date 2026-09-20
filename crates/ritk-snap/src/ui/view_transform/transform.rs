@@ -120,11 +120,32 @@ impl ViewTransform {
     #[must_use]
     #[cfg(feature = "eframe-shell")]
     pub fn source_to_output(self, point: Pos2, source_size: [usize; 2]) -> Pos2 {
+        let [x, y] = self
+            .source_to_output_coordinates([f64::from(point.x), f64::from(point.y)], source_size);
+        #[expect(
+            clippy::cast_possible_truncation,
+            reason = "the eframe point contract is f32 and the caller supplied f32 coordinates"
+        )]
+        Pos2::new(x as f32, y as f32)
+    }
+
+    /// Map a source image-edge point `(x=column, y=row)` to display space.
+    ///
+    /// This host-neutral form keeps the orientation equation available to the
+    /// native Métis compositor as well as the eframe shell. Coordinates are
+    /// measured from the outer image edges, so `[width, height]` occupies
+    /// `[0,width] × [0,height]`.
+    #[must_use]
+    pub fn source_to_output_coordinates(
+        self,
+        point: [f64; 2],
+        source_size: [usize; 2],
+    ) -> [f64; 2] {
         let [width, height] = source_size;
-        let width = width as f32;
-        let height = height as f32;
-        let mut x = point.x;
-        let mut y = point.y;
+        let width = width as f64;
+        let height = height as f64;
+        let mut x = point[0];
+        let mut y = point[1];
         if self.flip_h {
             x = width - x;
         }
@@ -132,10 +153,10 @@ impl ViewTransform {
             y = height - y;
         }
         match self.rotation {
-            RotationSteps::Zero => Pos2::new(x, y),
-            RotationSteps::Ninety => Pos2::new(height - y, x),
-            RotationSteps::OneEighty => Pos2::new(width - x, height - y),
-            RotationSteps::TwoSeventy => Pos2::new(y, width - x),
+            RotationSteps::Zero => [x, y],
+            RotationSteps::Ninety => [height - y, x],
+            RotationSteps::OneEighty => [width - x, height - y],
+            RotationSteps::TwoSeventy => [y, width - x],
         }
     }
 

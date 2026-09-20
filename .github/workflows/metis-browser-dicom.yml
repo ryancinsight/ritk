@@ -433,6 +433,7 @@ jobs:
             --window-presets
             --cine-controls
             --tool-controls
+            --crosshair-controls
             --canvas-capture "$CANVAS_CAPTURE"
           )
           if [[ -n "$CANVAS_CONTEXT" ]]; then

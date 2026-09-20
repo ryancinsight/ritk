@@ -64,7 +64,12 @@ fn fixture_value_for_mode(ids: &[String], input_mode: TraceInputMode) -> Value {
             "data-ritk-slice-index": slice_index.to_string(),
             "data-ritk-slice-count": "4",
             "data-ritk-frame-width": "256",
-            "data-ritk-frame-height": "192"
+            "data-ritk-frame-height": "192",
+            "data-ritk-crosshair-visible": "false",
+            "data-ritk-linked-cursor": "128,96,128",
+            "data-ritk-view-flip-h": "false",
+            "data-ritk-view-flip-v": "false",
+            "data-ritk-view-rotation": "0"
         });
         if let Some((rate, generation)) = cine_state {
             value["data-ritk-cine-fps"] = json!(rate.to_string());
@@ -473,6 +478,21 @@ fn interaction_attribute_values_are_validated() {
     add_interaction_attributes(&mut invalid);
     invalid["snapshots"][0]["canvas"]["attributes"]["data-ritk-active-tool"] = json!("");
     reject(invalid, "empty attribute");
+}
+
+#[test]
+fn linked_cursor_attributes_are_bounded_and_orientation_typed() {
+    let mut invalid = fixture_value(&default_ids());
+    invalid["snapshots"][0]["canvas"]["attributes"]["data-ritk-crosshair-visible"] = json!("yes");
+    reject(invalid, "invalid crosshair visibility");
+
+    let mut invalid = fixture_value(&default_ids());
+    invalid["snapshots"][0]["canvas"]["attributes"]["data-ritk-linked-cursor"] = json!("1,2");
+    reject(invalid, "invalid linked cursor");
+
+    let mut invalid = fixture_value(&default_ids());
+    invalid["snapshots"][0]["canvas"]["attributes"]["data-ritk-view-rotation"] = json!("45");
+    reject(invalid, "invalid view rotation");
 }
 
 #[test]

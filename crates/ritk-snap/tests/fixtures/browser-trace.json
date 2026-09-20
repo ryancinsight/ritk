@@ -7,12 +7,30 @@
   "revision": "0000000000000000000000000000000000000000",
   "consumer_revision": "1111111111111111111111111111111111111111",
   "actions": [
-    { "action": "trusted-pointer-drag", "canvas": "ritk-snap-axial" },
-    { "action": "trusted-wheel", "canvas": "ritk-snap-axial" },
-    { "action": "trusted-pointer-drag", "canvas": "ritk-snap-coronal" },
-    { "action": "trusted-wheel", "canvas": "ritk-snap-coronal" },
-    { "action": "trusted-pointer-drag", "canvas": "ritk-snap-sagittal" },
-    { "action": "trusted-wheel", "canvas": "ritk-snap-sagittal" }
+    {
+      "action": "trusted-pointer-drag",
+      "canvas": "ritk-snap-axial"
+    },
+    {
+      "action": "trusted-wheel",
+      "canvas": "ritk-snap-axial"
+    },
+    {
+      "action": "trusted-pointer-drag",
+      "canvas": "ritk-snap-coronal"
+    },
+    {
+      "action": "trusted-wheel",
+      "canvas": "ritk-snap-coronal"
+    },
+    {
+      "action": "trusted-pointer-drag",
+      "canvas": "ritk-snap-sagittal"
+    },
+    {
+      "action": "trusted-wheel",
+      "canvas": "ritk-snap-sagittal"
+    }
   ],
   "snapshots": [
     {
@@ -30,7 +48,12 @@
           "data-ritk-slice-index": "0",
           "data-ritk-slice-count": "4",
           "data-ritk-frame-width": "256",
-          "data-ritk-frame-height": "192"
+          "data-ritk-frame-height": "192",
+          "data-ritk-crosshair-visible": "false",
+          "data-ritk-linked-cursor": "128,96,128",
+          "data-ritk-view-flip-h": "false",
+          "data-ritk-view-flip-v": "false",
+          "data-ritk-view-rotation": "0"
         }
       }
     },
@@ -49,7 +72,12 @@
           "data-ritk-slice-index": "1",
           "data-ritk-slice-count": "4",
           "data-ritk-frame-width": "256",
-          "data-ritk-frame-height": "192"
+          "data-ritk-frame-height": "192",
+          "data-ritk-crosshair-visible": "false",
+          "data-ritk-linked-cursor": "128,96,128",
+          "data-ritk-view-flip-h": "false",
+          "data-ritk-view-flip-v": "false",
+          "data-ritk-view-rotation": "0"
         }
       }
     },
@@ -68,7 +96,12 @@
           "data-ritk-slice-index": "0",
           "data-ritk-slice-count": "4",
           "data-ritk-frame-width": "256",
-          "data-ritk-frame-height": "192"
+          "data-ritk-frame-height": "192",
+          "data-ritk-crosshair-visible": "false",
+          "data-ritk-linked-cursor": "128,96,128",
+          "data-ritk-view-flip-h": "false",
+          "data-ritk-view-flip-v": "false",
+          "data-ritk-view-rotation": "0"
         }
       }
     },
@@ -87,7 +120,12 @@
           "data-ritk-slice-index": "1",
           "data-ritk-slice-count": "4",
           "data-ritk-frame-width": "256",
-          "data-ritk-frame-height": "192"
+          "data-ritk-frame-height": "192",
+          "data-ritk-crosshair-visible": "false",
+          "data-ritk-linked-cursor": "128,96,128",
+          "data-ritk-view-flip-h": "false",
+          "data-ritk-view-flip-v": "false",
+          "data-ritk-view-rotation": "0"
         }
       }
     },
@@ -106,7 +144,12 @@
           "data-ritk-slice-index": "0",
           "data-ritk-slice-count": "4",
           "data-ritk-frame-width": "256",
-          "data-ritk-frame-height": "192"
+          "data-ritk-frame-height": "192",
+          "data-ritk-crosshair-visible": "false",
+          "data-ritk-linked-cursor": "128,96,128",
+          "data-ritk-view-flip-h": "false",
+          "data-ritk-view-flip-v": "false",
+          "data-ritk-view-rotation": "0"
         }
       }
     },
@@ -125,7 +168,12 @@
           "data-ritk-slice-index": "1",
           "data-ritk-slice-count": "4",
           "data-ritk-frame-width": "256",
-          "data-ritk-frame-height": "192"
+          "data-ritk-frame-height": "192",
+          "data-ritk-crosshair-visible": "false",
+          "data-ritk-linked-cursor": "128,96,128",
+          "data-ritk-view-flip-h": "false",
+          "data-ritk-view-flip-v": "false",
+          "data-ritk-view-rotation": "0"
         }
       }
     }
@@ -211,7 +259,12 @@
       "data-ritk-slice-index",
       "data-ritk-slice-count",
       "data-ritk-frame-width",
-      "data-ritk-frame-height"
+      "data-ritk-frame-height",
+      "data-ritk-crosshair-visible",
+      "data-ritk-linked-cursor",
+      "data-ritk-view-flip-h",
+      "data-ritk-view-flip-v",
+      "data-ritk-view-rotation"
     ],
     "provider_listener_count": "unavailable from WebDriver"
   }

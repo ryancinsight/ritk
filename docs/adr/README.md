@@ -54,3 +54,4 @@
 | [0043](0043-browser-viewport-transform.md) | Browser viewport transform | Accepted |
 | [0044](0044-oblique-reslice-contract.md) | Physical-plane reslice contract | Accepted |
 | [0045](0045-host-neutral-viewer-snapshot.md) | Host-neutral viewer presentation snapshot | Accepted |
+| [0046](0046-linked-crosshair-presentation.md) | Linked crosshair presentation at the Métis host boundary | Accepted |

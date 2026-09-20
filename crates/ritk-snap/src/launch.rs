@@ -485,6 +485,23 @@ pub fn toggle_web_cine() -> Result<bool, wasm_bindgen::JsValue> {
         .map_err(|error| wasm_bindgen::JsValue::from_str(&error.to_string()))
 }
 
+/// Toggle the host-neutral linked MPR crosshair for the loaded browser study.
+///
+/// The three RITK canvases publish the new visibility and linked voxel state
+/// on the next animation frame. DICOM data and cursor reduction remain inside
+/// RITK; the browser consumer only chooses whether to draw the overlay.
+///
+/// # Errors
+///
+/// Returns a JavaScript error when the viewer is not mounted, another callback
+/// owns it, or no study has been loaded.
+#[cfg(target_arch = "wasm32")]
+#[wasm_bindgen::prelude::wasm_bindgen]
+pub fn toggle_web_crosshair() -> Result<bool, wasm_bindgen::JsValue> {
+    crate::app::toggle_web_crosshair()
+        .map_err(|error| wasm_bindgen::JsValue::from_str(&error.to_string()))
+}
+
 /// Set the exact bounded cine playback rate for the loaded browser study.
 ///
 /// `rate` must be a finite integral value from 1 through 60 frames per

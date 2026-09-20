@@ -332,6 +332,52 @@ class SliceGalleryTests(unittest.TestCase):
         )
         tools.assert_called_once_with(client, pathlib.Path(directory) / "tools")
 
+    def test_consumer_callback_can_capture_crosshair_controls_after_slices(self):
+        class Client:
+            def set_window_rect(self, width, height):
+                self.rect = (width, height)
+
+        oracle = {
+            f"ritk-snap-{axis}": {
+                "attributes": {"data-ritk-slice-count": str(count)},
+            }
+            for axis, count in zip(browser_gallery.AXES, (94, 512, 512))
+        }
+        canvas_ids = tuple(f"ritk-snap-{axis}" for axis in browser_gallery.AXES)
+        client = Client()
+        with tempfile.TemporaryDirectory(
+            dir=browser_gallery.ROOT / "output", prefix="gallery-crosshair-callback-"
+        ) as directory, mock.patch.object(
+            browser_gallery,
+            "capture_slice_gallery",
+            return_value={"schema": 1, "kind": "slices"},
+        ) as slices, mock.patch.object(
+            browser_gallery,
+            "capture_crosshair_gallery",
+            return_value={"schema": 1, "kind": "crosshair"},
+        ) as crosshair:
+            result = browser_gallery._capture_consumer_controls(
+                client,
+                pathlib.Path(directory),
+                oracle,
+                canvas_ids,
+                crosshair_controls=True,
+            )
+
+        self.assertEqual(
+            result,
+            {
+                "slices": {"schema": 1, "kind": "slices"},
+                "crosshair": {"schema": 1, "kind": "crosshair"},
+            },
+        )
+        slices.assert_called_once_with(
+            client,
+            pathlib.Path(directory) / "slices",
+            expected_counts={"axial": 94, "coronal": 512, "sagittal": 512},
+        )
+        crosshair.assert_called_once_with(client, pathlib.Path(directory) / "crosshair")
+
     def test_combined_cine_and_tool_controls_share_one_teardown(self):
         class Client:
             def set_window_rect(self, width, height):
@@ -436,6 +482,25 @@ class WindowPresetHelperTests(unittest.TestCase):
         self.assertIn("set_web_cine_rate", script)
         self.assertIn("data-ritk-cine-enabled", script)
         self.assertIn("canvases.every", script)
+
+    def test_gallery_declares_linked_crosshair_controls_and_projection_contract(self):
+        gallery_root = pathlib.Path(__file__).resolve().parents[2] / "crates" / "ritk-snap" / "web" / "gallery"
+        html = (gallery_root / "gallery.html").read_text(encoding="utf-8")
+        css = (gallery_root / "gallery.css").read_text(encoding="utf-8")
+        script = (gallery_root / "gallery.js").read_text(encoding="utf-8")
+        self.assertIn('id="crosshair-toggle"', html)
+        self.assertIn('id="crosshair-state"', html)
+        self.assertIn("toggle_web_crosshair", script)
+        self.assertIn("data-ritk-crosshair-visible", script)
+        self.assertIn("data-ritk-linked-cursor", script)
+        self.assertIn("data-ritk-view-rotation", script)
+        self.assertIn("crosshair-line", html)
+        self.assertIn(".crosshair-row", css)
+        self.assertIn(".crosshair-column", css)
+        gallery_script = pathlib.Path(__file__).resolve().parents[2] / "scripts" / "browser_gallery.py"
+        runner = gallery_script.read_text(encoding="utf-8")
+        self.assertIn("--crosshair-controls", runner)
+        self.assertIn("capture_crosshair_gallery", runner)
 
     def test_gallery_declares_diagnostic_tool_palette_and_typed_api(self):
         gallery_root = pathlib.Path(__file__).resolve().parents[2] / "crates" / "ritk-snap" / "web" / "gallery"

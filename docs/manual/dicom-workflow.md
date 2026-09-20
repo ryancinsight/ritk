@@ -101,7 +101,8 @@ comparison measurements.
 RITK projects the host-visible viewer state into one typed
 `PresentationSnapshot`. It contains the visual revision, loaded state, all
 three slice selections and counts, effective window/level, cine state and
-rate, viewport zoom/pan, active window preset and interaction tool. The
+rate, viewport zoom/pan, orientation, linked crosshair state and cursor, active
+window preset and interaction tool. The
 snapshot contains no DICOM path, identifier, metadata object, volume storage
 or pixel bytes. Browser canvas semantics add only the dimensions of their
 presented `PresentationFrame`; the native Métis outcome exposes the same
@@ -109,8 +110,12 @@ snapshot through `NativeViewerOutcome::snapshot()`.
 
 This keeps the clinical contract in RITK while Métis remains a format-neutral
 host. The browser publishes the snapshot's existing bounded slice, window/level,
-cine and interaction values as `data-ritk-*` attributes, so a visual test can
-correlate a real canvas image with the reducer state that produced it.
+cine, interaction, linked-cursor and orientation values as `data-ritk-*`
+attributes, so a visual test can correlate a real canvas image with the
+reducer state that produced it. `data-ritk-linked-cursor` uses volume order
+`z,y,x`; `data-ritk-view-flip-h`, `data-ritk-view-flip-v` and
+`data-ritk-view-rotation` describe the orientation already applied to the
+presented pixels.
 The native session records the snapshot whenever it records a frame or state
 transition. The focused snapshot and native-session tests assert identical
 slice, window/level, cine, zoom, pan, tool and revision semantics across the
@@ -1012,6 +1017,22 @@ vertical motion changes window centre. The native session test performs this
 gesture against a loaded DICOM fixture and asserts changed center/width values,
 changed presented pixels and an idle tool state after release
 ([`native_session_window_level_drag_updates_the_presented_study`](../../crates/ritk-snap/src/presentation/native_session/tests.rs)).
+
+Press `X` in the native Métis viewer to show or hide the linked crosshair. The
+browser gallery exposes the same transition through **Show crosshair**. RITK
+keeps one voxel cursor across the axial, coronal and sagittal planes; each host
+projects it after the current flip or quarter-turn, so the lines remain on the
+same anatomy for anisotropic studies. The native lines are Métis display-list
+commands clipped to the image panels. Browser lines are CSS overlays and leave
+the canvas RGBA pixels unchanged. Repeated native `X` key-down events do not
+toggle the state.
+
+The snapshot carries `data-ritk-crosshair-visible` and the bounded cursor
+attributes on every canvas. The browser control remains disabled until all
+three real study frames are presented, and its status output reports the
+current `z,y,x` coordinate. The crosshair display-list and browser semantic
+tests provide geometry and state evidence; the saved MRI capture below remains
+the clinical pixel evidence for the decoded study.
 The real MRI capture below remains the pixel evidence for the saved-study
 decode and three-plane Métis presentation; the test is the bounded input
 evidence for the interactive W/L transition.
@@ -1548,6 +1569,24 @@ metadata, the viewport capture and the palette capture are written to
 `tools/gallery-tools.json`, `tools/gallery-tools.png` and
 `tools/gallery-tools-controls.png`. The post-stop sample must report zero RITK
 canvas listeners and all palette buttons disabled.
+
+To capture the linked crosshair over the same saved MRI study, add
+`--crosshair-controls` to the consumer replay:
+
+```powershell
+python scripts/browser_gallery.py --metis-root D:/atlas/repos/metis `
+  --engine chromium --browser-name MicrosoftEdge --driver-url http://127.0.0.1:9517 `
+  --headless --device-scale 1.25 --input chooser --crosshair-controls `
+  --files D:/atlas/repos/ritk/test_data/2_head_mri_t2/DICOM --pattern '*.dcm' `
+  --oracle D:/atlas/repos/metis/output/browser/mri-oracle.json `
+  --consumer-revision (git rev-parse HEAD) --output D:/atlas/repos/metis/output/browser/crosshair
+```
+
+The workflow toggles the browser control on and off, checks that all three
+canvases publish one linked voxel and that both CSS lines are visible on every
+plane, then writes `crosshair/gallery-crosshair.json` and the real-study
+`crosshair/gallery-crosshair-controls.png`. The screenshot is a consumer
+overlay capture; the canvas RGBA oracle remains the unmodified clinical frame.
 
 The committed visual replay below used Edge 154.0.4258.12 on Windows with
 RITK `9c27f84c44499d9c30a88bf0add18f2b72df6f79` and Métis
@@ -2174,10 +2213,14 @@ When a trace requests optional presentation state, the validator accepts the
 complete window-level group (`data-ritk-window-center`,
 `data-ritk-window-width`, `data-ritk-window-preset-index`) and the complete
 interaction group (`data-ritk-cine-enabled`, `data-ritk-active-tool-index`,
-`data-ritk-active-tool`) in addition to the seven base values. Each group is
-validated atomically; a partial group or unknown attribute is rejected. This
-keeps the workflow's cine, window/level and tool captures semantic without
-making the generic host interpret DICOM data.
+`data-ritk-active-tool`) in addition to the seven base values. The linked
+cursor/orientation group (`data-ritk-crosshair-visible`,
+`data-ritk-linked-cursor`, `data-ritk-view-flip-h`, `data-ritk-view-flip-v`,
+`data-ritk-view-rotation`) is optional and, when present, is validated
+atomically alongside those groups. A partial group or unknown attribute is
+rejected. This keeps the workflow's cine, window/level, tool and linked
+cursor captures semantic without making the generic host interpret DICOM
+data.
 
 ### Require trusted keyboard focus evidence
 
