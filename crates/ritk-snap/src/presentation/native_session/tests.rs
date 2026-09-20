@@ -2,6 +2,7 @@ use super::layout::{surface_frames, surface_frames_with_projection};
 use super::layout::{OVERLAY_BAR_HEIGHT, OVERLAY_TEXT};
 use super::*;
 use crate::dicom::loader::tests::fixtures;
+use crate::ui::{RotationSteps, ViewTransform};
 use metis_platform::native::{ModifierState, NativeApplication, NativeFlow, WindowEvent};
 use metis_ui_lang::DisplayCommand;
 use std::time::{Duration, Instant};
@@ -53,6 +54,60 @@ fn native_session_renders_and_steps_the_loaded_slice() {
     assert_ne!(session.views[0].frame(), &initial);
     assert_eq!(session.views[0].frame().width(), 4);
     assert_eq!(session.views[0].frame().height(), 2);
+}
+
+#[test]
+fn native_session_reuses_transformed_frame_storage_across_refreshes() {
+    let (mut session, _root) = session();
+    session.app.view_transform = ViewTransform {
+        rotation: RotationSteps::Ninety,
+        ..ViewTransform::default()
+    };
+
+    session.refresh_frame().expect("first transformed refresh");
+    let first_frames = session
+        .views
+        .iter()
+        .map(|view| {
+            (
+                view.frame().width(),
+                view.frame().height(),
+                view.frame().rgba().to_vec(),
+            )
+        })
+        .collect::<Vec<_>>();
+    let first_capacities = session
+        .render_scratch
+        .iter()
+        .map(|scratch| scratch.rgba.capacity())
+        .collect::<Vec<_>>();
+
+    session.refresh_frame().expect("repeat transformed refresh");
+    let second_frames = session
+        .views
+        .iter()
+        .map(|view| {
+            (
+                view.frame().width(),
+                view.frame().height(),
+                view.frame().rgba().to_vec(),
+            )
+        })
+        .collect::<Vec<_>>();
+    let second_capacities = session
+        .render_scratch
+        .iter()
+        .map(|scratch| scratch.rgba.capacity())
+        .collect::<Vec<_>>();
+
+    assert_eq!(
+        second_frames, first_frames,
+        "repeated native render changed pixels"
+    );
+    assert_eq!(
+        second_capacities, first_capacities,
+        "native render scratch grew after warmup"
+    );
 }
 
 #[test]

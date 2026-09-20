@@ -127,7 +127,7 @@ pub use toolbar::{ToolbarPanel, ToolbarState};
 #[cfg(all(not(target_arch = "wasm32"), feature = "eframe-shell"))]
 pub(crate) use view_transform::apply_to_image_into;
 #[cfg(windows)]
-pub(crate) use view_transform::apply_to_rgba;
+pub(crate) use view_transform::apply_to_rgba_into;
 #[cfg(feature = "eframe-shell")]
 pub use view_transform::{apply_to_image, flip_h_image, flip_v_image, rotate_90_cw_image};
 pub use view_transform::{RotationSteps, ViewTransform};

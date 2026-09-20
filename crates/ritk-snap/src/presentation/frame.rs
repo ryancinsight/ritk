@@ -3,7 +3,11 @@
 use crate::render::{FrameRenderScratch, NamedColorMap, SliceRenderer, WindowLevel};
 #[cfg(target_arch = "wasm32")]
 use crate::tools::interaction::ViewportOffset;
+#[cfg(windows)]
+use crate::ui::{apply_to_rgba_into, ViewTransform};
 use crate::LoadedVolume;
+#[cfg(windows)]
+use anyhow::Context;
 use anyhow::{anyhow, bail, Result};
 use metis_platform::framebuffer::MAX_PIXELS;
 
@@ -192,6 +196,37 @@ impl PresentationFrame {
         self.replace_rgba_storage(width, height, display_spacing, &mut scratch.rgba)
     }
 
+    /// Applies the native display orientation using reusable caller-owned
+    /// storage and updates the frame's display geometry in place.
+    #[cfg(windows)]
+    pub(crate) fn apply_view_transform(
+        &mut self,
+        transform: ViewTransform,
+        display_spacing: PresentationSpacing,
+        scratch: &mut FrameRenderScratch,
+    ) -> Result<()> {
+        if transform.is_identity() {
+            self.display_spacing = display_spacing;
+            return Ok(());
+        }
+        let source_size = [
+            usize::try_from(self.width).map_err(|_| anyhow!("frame width exceeds usize"))?,
+            usize::try_from(self.height).map_err(|_| anyhow!("frame height exceeds usize"))?,
+        ];
+        let output_size = apply_to_rgba_into(source_size, &self.rgba, transform, &mut scratch.rgba)
+            .context("apply native viewport orientation into reusable RGBA storage")?;
+        let output_width =
+            u32::try_from(output_size[0]).map_err(|_| anyhow!("frame width exceeds u32"))?;
+        let output_height =
+            u32::try_from(output_size[1]).map_err(|_| anyhow!("frame height exceeds u32"))?;
+        self.replace_rgba_storage(
+            output_width,
+            output_height,
+            display_spacing,
+            &mut scratch.rgba,
+        )
+    }
+
     #[cfg(target_arch = "wasm32")]
     pub(crate) fn apply_zoom_pan(
         &mut self,
@@ -257,11 +292,6 @@ impl PresentationFrame {
     pub(crate) fn with_display_spacing(mut self, spacing: PresentationSpacing) -> Self {
         self.display_spacing = spacing;
         self
-    }
-
-    #[cfg(windows)]
-    pub(crate) fn into_rgba_parts(self) -> (u32, u32, Box<[u8]>) {
-        (self.width, self.height, self.rgba.into_boxed_slice())
     }
 
     fn validate_dimensions(width: u32, height: u32) -> Result<usize> {

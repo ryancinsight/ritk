@@ -2,8 +2,8 @@
 
 use crate::app::SnapApp;
 use crate::presentation::{PresentationFrame, PresentationSpacing};
-use crate::render::WindowLevel;
-use crate::ui::{apply_to_rgba, RotationSteps, ViewTransform};
+use crate::render::{FrameRenderScratch, WindowLevel};
+use crate::ui::{RotationSteps, ViewTransform};
 use crate::viewer::{DEFAULT_WINDOW_CENTER, DEFAULT_WINDOW_WIDTH};
 use anyhow::{anyhow, bail, Context, Result};
 
@@ -27,13 +27,25 @@ impl RenderedView {
 }
 
 /// Render all three RITK orthogonal planes with shared display semantics.
-pub(super) fn render_orthogonal_views(app: &SnapApp) -> Result<[RenderedView; 3]> {
-    let views = [
-        render_view(app, 0)?,
-        render_view(app, 1)?,
-        render_view(app, 2)?,
-    ];
+pub(super) fn render_orthogonal_views(
+    app: &SnapApp,
+    scratch: &mut [FrameRenderScratch; 3],
+) -> Result<[RenderedView; 3]> {
+    let mut views = empty_orthogonal_views()?;
+    render_orthogonal_views_into(app, &mut views, scratch)?;
     Ok(views)
+}
+
+/// Re-render orthogonal views into retained frames and scratch storage.
+pub(super) fn render_orthogonal_views_into(
+    app: &SnapApp,
+    views: &mut [RenderedView; 3],
+    scratch: &mut [FrameRenderScratch; 3],
+) -> Result<()> {
+    for (axis, (view, scratch)) in views.iter_mut().zip(scratch.iter_mut()).enumerate() {
+        render_view_into(app, axis, view, scratch)?;
+    }
+    Ok(())
 }
 
 pub(super) fn empty_orthogonal_views() -> Result<[RenderedView; 3]> {
@@ -62,34 +74,37 @@ fn empty_view(frame: PresentationFrame, axis: usize, plane_name: &'static str) -
     }
 }
 
-fn render_view(app: &SnapApp, axis: usize) -> Result<RenderedView> {
+fn render_view_into(
+    app: &SnapApp,
+    axis: usize,
+    view: &mut RenderedView,
+    scratch: &mut FrameRenderScratch,
+) -> Result<()> {
     let volume = app
         .loaded
         .as_ref()
         .ok_or_else(|| anyhow!("native viewer has no loaded RITK volume"))?;
     let (index, _) = app.axis_slice_info(axis);
     let window_level = window_level_for_app(app);
-    let frame = PresentationFrame::from_slice(volume, axis, index, window_level, app.colormap)
+    view.frame
+        .render_slice_into(volume, axis, index, window_level, app.colormap, scratch)
         .context("render RITK slice into a bounded presentation frame")?;
     let transform = app.view_transform;
-    let display_spacing = transformed_display_spacing(frame.display_spacing(), transform);
-    let (width, height, rgba) = frame.into_rgba_parts();
+    let display_spacing = transformed_display_spacing(view.frame.display_spacing(), transform);
     let source_size = [
-        usize::try_from(width).map_err(|_| anyhow!("native source width exceeds usize"))?,
-        usize::try_from(height).map_err(|_| anyhow!("native source height exceeds usize"))?,
+        usize::try_from(view.frame.width())
+            .map_err(|_| anyhow!("native source width exceeds usize"))?,
+        usize::try_from(view.frame.height())
+            .map_err(|_| anyhow!("native source height exceeds usize"))?,
     ];
-    let (output_size, rgba) = apply_to_rgba(source_size, rgba, transform)
-        .context("apply RITK viewport orientation to RGBA storage")?;
-    let output_width =
-        u32::try_from(output_size[0]).map_err(|_| anyhow!("native frame width exceeds u32"))?;
-    let output_height =
-        u32::try_from(output_size[1]).map_err(|_| anyhow!("native frame height exceeds u32"))?;
-    let frame = PresentationFrame::from_rgba_storage(output_width, output_height, rgba.into_vec())
-        .context("validate transformed RITK presentation frame")?
-        .with_display_spacing(display_spacing);
+    view.frame
+        .apply_view_transform(transform, display_spacing, scratch)
+        .context("apply RITK viewport orientation to reusable RGBA storage")?;
+    let output_size = transform.output_size(source_size);
     let frame_size = [
-        usize::try_from(frame.width()).map_err(|_| anyhow!("native frame width exceeds usize"))?,
-        usize::try_from(frame.height())
+        usize::try_from(view.frame.width())
+            .map_err(|_| anyhow!("native frame width exceeds usize"))?,
+        usize::try_from(view.frame.height())
             .map_err(|_| anyhow!("native frame height exceeds usize"))?,
     ];
     if frame_size != output_size {
@@ -99,16 +114,14 @@ fn render_view(app: &SnapApp, axis: usize) -> Result<RenderedView> {
             output_size
         );
     }
-    Ok(RenderedView {
-        axis,
-        plane_name: crate::ui::anatomical_label_for_axis(Some(volume), axis),
-        slice_index: index,
-        slice_count: app.axis_slice_info(axis).1,
-        window_level,
-        frame,
-        source_size,
-        transform,
-    })
+    view.axis = axis;
+    view.plane_name = crate::ui::anatomical_label_for_axis(Some(volume), axis);
+    view.slice_index = index;
+    view.slice_count = app.axis_slice_info(axis).1;
+    view.window_level = window_level;
+    view.source_size = source_size;
+    view.transform = transform;
+    Ok(())
 }
 
 pub(super) fn window_level_for_app(app: &SnapApp) -> WindowLevel {
