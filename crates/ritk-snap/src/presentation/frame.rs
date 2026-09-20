@@ -215,7 +215,7 @@ impl PresentationFrame {
     ///
     /// The values are ordered for the rendered frame, so a quarter-turn
     /// transform must swap them with the transformed pixel dimensions.
-    #[cfg(not(target_arch = "wasm32"))]
+    #[cfg(windows)]
     pub(crate) fn with_display_spacing(mut self, spacing: PresentationSpacing) -> Self {
         self.display_spacing = spacing;
         self
