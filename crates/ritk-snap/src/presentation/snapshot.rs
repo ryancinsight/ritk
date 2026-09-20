@@ -43,6 +43,7 @@ pub struct AnnotationSummary {
 
 impl AnnotationSummary {
     /// Constructs a summary after checking that its displayed value is finite.
+    #[cfg(any(target_arch = "wasm32", windows, test))]
     pub(crate) fn new(kind: AnnotationKind, primary_value: f32) -> Self {
         debug_assert!(primary_value.is_finite());
         Self {
@@ -236,6 +237,7 @@ impl PresentationSnapshot {
         self
     }
 
+    #[cfg(any(target_arch = "wasm32", windows, test))]
     pub(crate) fn from_parts(
         revision: u64,
         loaded: bool,
