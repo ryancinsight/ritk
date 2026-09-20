@@ -1,6 +1,6 @@
 # ADR 0046: Linked crosshair presentation at the Métis host boundary
 
-* Status: Accepted
+- Status: Accepted
 * Item: [RITK-SNAP-METIS-CROSSHAIR-001](../../backlog.md#RITK-SNAP-METIS-CROSSHAIR-001)
 
 ## Context
