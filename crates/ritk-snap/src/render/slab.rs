@@ -144,6 +144,10 @@ impl SlabProjection {
         self.end - self.start + 1
     }
 
+    pub(crate) const fn shape(self) -> [usize; 3] {
+        self.shape
+    }
+
     /// Return the output dimensions in `[width, height]` order.
     #[must_use]
     pub const fn dimensions(self) -> [usize; 2] {

@@ -23,6 +23,7 @@ pub mod histogram;
 pub mod mesh_render;
 #[cfg(not(target_arch = "wasm32"))]
 pub mod mip_vr;
+pub mod reslice;
 pub mod slab;
 pub mod slice_render;
 
@@ -45,6 +46,7 @@ pub use mesh_render::{DirectionalLight, MeshCamera, MeshRenderer, PhongMaterial}
 pub(crate) use mip_vr::render_mip_axial_rgba;
 #[cfg(all(not(target_arch = "wasm32"), feature = "eframe-shell"))]
 pub use mip_vr::{render_mip_axial, render_vr_axial};
+pub use reslice::{ResliceError, ResliceInterpolation, ResliceOutput, ReslicePlane};
 pub use slab::{ProjectionPlane, ProjectionStatistic, SlabProjection, SlabProjectionError};
 pub(crate) use slice_render::FrameRenderScratch;
 #[cfg(not(target_arch = "wasm32"))]

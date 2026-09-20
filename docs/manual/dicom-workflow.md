@@ -664,8 +664,43 @@ assert_eq!(plane.dimensions(), [volume.shape[2], volume.shape[1]]);
 
 Requests that cross the volume boundary, target RGB data, or use malformed
 payloads return typed errors. No index is clamped and no DICOM metadata enters
-the host contract. Oblique resampling, GPU slab dispatch, and browser-side
-projection controls remain separate capabilities.
+the host contract.
+
+### Request a physical oblique plane
+
+The same viewer domain now accepts a patient-space plane without asking the
+host to reproduce the DICOM affine. The example uses a unit-spacing volume;
+real callers derive these vectors from the loaded study. `origin` is the first output pixel centre;
+the horizontal, vertical and depth vectors are millimetres per output sample.
+The depth vector may be zero for a single plane or may carry a bounded slab:
+
+```rust
+use ritk_snap::render::{
+    ProjectionStatistic, ResliceInterpolation, ReslicePlane,
+};
+
+let plane = ReslicePlane::try_new(
+    &volume,
+    [0.0, 0.0, 0.0],       // patient-space origin
+    [0.0, 0.0, 1.0],       // horizontal step
+    [0.0, 1.0, 0.0],       // vertical step
+    [1.0, 0.0, 0.0],       // through-plane step
+    [512, 512],
+    32,
+    ResliceInterpolation::Linear,
+)?;
+let output = plane.compute(&volume, ProjectionStatistic::Maximum)?;
+assert_eq!(output.dimensions(), [512, 512]);
+```
+
+Construction validates the source affine, plane basis, request corners and
+bounded work before reading a voxel. Nearest-neighbour and trilinear sampling
+are explicit, and maximum, minimum and average reductions share the same
+contract. `compute_into` lets repeated native or browser presentations retain
+their scalar scratch capacity. The output remains a format-neutral scalar
+plane; host wiring, GPU dispatch and interactive oblique gestures are separate
+surfaces. The decision and limits are recorded in
+[ADR 0044](../adr/0044-oblique-reslice-contract.md).
 
 ### Capture the complete Métis application window
 

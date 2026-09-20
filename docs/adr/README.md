@@ -52,3 +52,4 @@
 | [0041](0041-native-scalar-projection-modes.md) | Native scalar projection modes | Accepted |
 | [0042](0042-browser-scalar-projection.md) | Browser scalar projection surface | Accepted |
 | [0043](0043-browser-viewport-transform.md) | Browser viewport transform | Accepted |
+| [0044](0044-oblique-reslice-contract.md) | Physical-plane reslice contract | Accepted |
