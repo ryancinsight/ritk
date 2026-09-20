@@ -17,7 +17,8 @@
 - Scope: `PresentationSnapshot`, browser semantic attributes, browser trace/value tests, manual and ADR. Annotation math, DICOM decoding, native drawing and WebKit/WebGPU capability residuals remain separate.
 - Acceptance: completed browser gestures publish input-sensitive annotation results with finite values; invalid selection probes leave the result unchanged; all three canvases agree; locked native/WASM, strict Clippy, rustdoc, formatting, browser script and real-study visual checks pass.
 - Dependencies: existing `Annotation` calculations, `PresentationSnapshot`, Métis semantic attributes and the 94-file MRI browser replay.
-- Verification: focused snapshot/semantic/tool tests plus the full `ritk-snap` gates and a hosted Chromium tool capture with actual MRI pixels and released listeners.
+- Delivery: RITK PR [#550](https://github.com/ryancinsight/ritk/pull/550), merge `2a2cc592fa3148eba12ac126da82afc3cdd56b30`; host-gating fix PR [#551](https://github.com/ryancinsight/ritk/pull/551), merge `724091c09fae2b0ce0442094c663721a47732e68`; replay-order fix PR [#552](https://github.com/ryancinsight/ritk/pull/552), merge `651b4a808374afc3efca35b71b9583b0a2a17248`.
+- Verification: focused snapshot/semantic/tool tests plus the full `ritk-snap` gates and a hosted Chromium tool capture with actual MRI pixels and released listeners. Local Python script suite is 26/26 after the replay-order fix; merged-main hosted run [35535831906](https://github.com/ryancinsight/ritk/actions/runs/35535831906) is the evidence basis for collection.
 - Lease: root `crates/ritk-snap/src/presentation/`, `crates/ritk-snap/src/app/`, `scripts/browser_gallery_tools.py`, `scripts/tests/`, `docs/` — 2026-09-20.
 
 <a id="RITK-SNAP-NATIVE-PROJECTION-REUSE-001"></a>
