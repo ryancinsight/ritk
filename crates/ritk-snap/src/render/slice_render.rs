@@ -71,6 +71,7 @@ impl RgbaImage {
         }
     }
 
+    #[cfg(windows)]
     pub(crate) fn into_parts(self) -> ([usize; 2], Box<[u8]>) {
         (self.size, self.pixels)
     }
