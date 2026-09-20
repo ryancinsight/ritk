@@ -16,6 +16,10 @@ legacy eframe slice adapter.
 Each `PresentationFrame` also carries a validated `PresentationSpacing` value,
 so native placement and browser aspect semantics consume one axis-ordered
 geometry value while Metis remains format-neutral.
+`PresentationSnapshot` is the matching host-neutral value projection: native
+and browser adapters consume the same loaded-state, slice, window/level, cine,
+viewport and interaction-tool state without receiving DICOM identifiers or
+pixel storage.
 
 For downstream VTK work, `LoadedVolume` implements
 `TryFrom<&LoadedVolume> for ritk_vtk::VtkImageVolume`. The conversion reorders

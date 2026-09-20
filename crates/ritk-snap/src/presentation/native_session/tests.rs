@@ -38,6 +38,15 @@ fn session_with_mode(
 #[test]
 fn native_session_renders_and_steps_the_loaded_slice() {
     let (mut session, _root) = session();
+    let initial_snapshot = session
+        .observation
+        .snapshot
+        .lock()
+        .expect("snapshot lock")
+        .expect("native session snapshot");
+    assert!(initial_snapshot.loaded());
+    assert_eq!(initial_snapshot.slice_counts(), [3, 2, 4]);
+    assert_eq!(initial_snapshot.axis(), session.app.axis);
     let initial = session.views[0].frame().clone();
     let (x, y) = session.viewports[0].center();
     let flow = session
@@ -54,6 +63,14 @@ fn native_session_renders_and_steps_the_loaded_slice() {
     assert_ne!(session.views[0].frame(), &initial);
     assert_eq!(session.views[0].frame().width(), 4);
     assert_eq!(session.views[0].frame().height(), 2);
+    let updated_snapshot = session
+        .observation
+        .snapshot
+        .lock()
+        .expect("snapshot lock")
+        .expect("updated native session snapshot");
+    assert_eq!(updated_snapshot.slice_index(0), Some(2));
+    assert_eq!(updated_snapshot.zoom(), session.app.zoom);
 }
 
 #[test]

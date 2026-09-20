@@ -11,6 +11,7 @@ pub(crate) mod browser_coordinates;
 mod browser_policy;
 mod events;
 mod frame;
+mod snapshot;
 #[cfg(any(target_arch = "wasm32", test))]
 mod viewport;
 mod web_keys;
@@ -32,6 +33,7 @@ pub use events::{
     MAX_COMPOSITION_UNITS, MAX_PRESENTATION_EVENTS,
 };
 pub use frame::{PresentationFrame, PresentationSpacing};
+pub use snapshot::PresentationSnapshot;
 
 #[cfg(target_arch = "wasm32")]
 pub use web::{WebCanvasInputError, WebCanvasPresenter};

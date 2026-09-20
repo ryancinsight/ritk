@@ -216,25 +216,12 @@ impl BrowserSurface {
     }
 
     pub(super) fn publish_semantics(&mut self, app: &SnapApp) -> std::io::Result<()> {
+        let snapshot = app
+            .presentation_snapshot()
+            .with_window_preset_index(app.browser_window_preset_index());
         match self {
             Self::Single { canvas, frame, .. } => {
-                let axis = app.axis;
-                let (slice_index, slice_count) = app.axis_slice_info(axis);
-                let (window_center, window_width) = app.browser_window_level_values();
-                let semantics = BrowserCanvasSemantics::from_state(
-                    app.loaded.is_some(),
-                    axis,
-                    slice_index,
-                    slice_count,
-                    frame.as_ref(),
-                    app.browser_cine_enabled(),
-                    app.browser_cine_rate(),
-                    window_center,
-                    window_width,
-                    app.browser_window_preset_index(),
-                    app.browser_tool_index(),
-                    app.active_tool.label(),
-                );
+                let semantics = BrowserCanvasSemantics::from_snapshot(snapshot, frame.as_ref());
                 let physical_aspect = physical_aspect(frame.as_ref())?;
                 canvas.publish_semantics(semantics, physical_aspect)
             }
@@ -243,22 +230,8 @@ impl BrowserSurface {
             } => {
                 for (axis, canvas) in canvases.iter_mut().enumerate() {
                     let frame = frames.as_ref().and_then(|frames| frames.get(axis));
-                    let (slice_index, slice_count) = app.axis_slice_info(axis);
-                    let (window_center, window_width) = app.browser_window_level_values();
-                    let semantics = BrowserCanvasSemantics::from_state(
-                        app.loaded.is_some(),
-                        axis,
-                        slice_index,
-                        slice_count,
-                        frame,
-                        app.browser_cine_enabled(),
-                        app.browser_cine_rate(),
-                        window_center,
-                        window_width,
-                        app.browser_window_preset_index(),
-                        app.browser_tool_index(),
-                        app.active_tool.label(),
-                    );
+                    let semantics =
+                        BrowserCanvasSemantics::from_snapshot(snapshot.with_axis(axis), frame);
                     let physical_aspect = physical_aspect(frame)?;
                     canvas.publish_semantics(semantics, physical_aspect)?;
                 }
@@ -273,22 +246,8 @@ impl BrowserSurface {
                 let (orthogonal, projection) = canvases.split_at_mut(3);
                 for (axis, canvas) in orthogonal.iter_mut().enumerate() {
                     let frame = frames.as_ref().and_then(|frames| frames.get(axis));
-                    let (slice_index, slice_count) = app.axis_slice_info(axis);
-                    let (window_center, window_width) = app.browser_window_level_values();
-                    let semantics = BrowserCanvasSemantics::from_state(
-                        app.loaded.is_some(),
-                        axis,
-                        slice_index,
-                        slice_count,
-                        frame,
-                        app.browser_cine_enabled(),
-                        app.browser_cine_rate(),
-                        window_center,
-                        window_width,
-                        app.browser_window_preset_index(),
-                        app.browser_tool_index(),
-                        app.active_tool.label(),
-                    );
+                    let semantics =
+                        BrowserCanvasSemantics::from_snapshot(snapshot.with_axis(axis), frame);
                     let physical_aspect = physical_aspect(frame)?;
                     canvas.publish_semantics(semantics, physical_aspect)?;
                 }

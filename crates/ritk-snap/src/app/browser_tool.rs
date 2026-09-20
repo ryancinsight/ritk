@@ -79,15 +79,6 @@ impl SnapApp {
         ToolKind::all().len()
     }
 
-    /// Returns the active tool's stable browser table index.
-    #[cfg(target_arch = "wasm32")]
-    pub(crate) fn browser_tool_index(&self) -> usize {
-        ToolKind::all()
-            .iter()
-            .position(|tool| *tool == self.active_tool)
-            .expect("invariant: active tool belongs to ToolKind::all")
-    }
-
     /// Returns one stable browser interaction-tool label.
     pub(crate) fn browser_tool_name(index: usize) -> Result<&'static str, BrowserToolError> {
         ToolKind::all()

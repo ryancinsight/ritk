@@ -96,6 +96,26 @@ pixels, dimensions and spacing with the existing projection oracles. These
 tests are allocation-lifecycle oracles, not process-memory or framework
 comparison measurements.
 
+### One state contract for native and browser hosts
+
+RITK projects the host-visible viewer state into one typed
+`PresentationSnapshot`. It contains the visual revision, loaded state, all
+three slice selections and counts, effective window/level, cine state and
+rate, viewport zoom/pan, active window preset and interaction tool. The
+snapshot contains no DICOM path, identifier, metadata object, volume storage
+or pixel bytes. Browser canvas semantics add only the dimensions of their
+presented `PresentationFrame`; the native Métis outcome exposes the same
+snapshot through `NativeViewerOutcome::snapshot()`.
+
+This keeps the clinical contract in RITK while Métis remains a format-neutral
+host. The browser publishes the snapshot's existing bounded slice, window/level,
+cine and interaction values as `data-ritk-*` attributes, so a visual test can
+correlate a real canvas image with the reducer state that produced it.
+The native session records the snapshot whenever it records a frame or state
+transition. The focused snapshot and native-session tests assert identical
+slice, window/level, cine, zoom, pan, tool and revision semantics across the
+two presentation paths.
+
 The same public MRI replay was run three times through Métis's bounded
 process-tree resource runner for the orthogonal frame path. All runs exited
 with code 0, produced the same 418,280-byte capture and retained the 411,589

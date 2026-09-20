@@ -43,6 +43,8 @@ mod navigation;
 #[cfg(feature = "eframe-shell")]
 mod physical_aspect;
 #[cfg(test)]
+mod presentation_snapshot;
+#[cfg(test)]
 #[cfg(feature = "eframe-shell")]
 mod rt;
 #[cfg(test)]
