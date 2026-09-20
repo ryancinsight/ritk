@@ -20,6 +20,16 @@
 - Verification: lock SHA, source revisions, file count/bytes, image hash/dimensions/non-black count, invalid-study exit, native nextest, WASM check/Clippy, formatting, rustdoc, and browser workflow revision assertions are recorded in the provenance JSON and PR body.
 - Delivery: RITK lock/workflow commit `940c0552eec0728c205ab57f361ec8f400b1e156`; current replay provenance records Cargo.lock SHA `d6f75fae8228e1a184ee2221a70f48478ae2388da7c3041eacb85cdc154a0afd`, six Metis sources at `b58d64b1bebe76bb32570339c4a349cc1b0d7086`, and the unchanged 1280×800 MRI PNG.
 
+<a id="RITK-SNAP-NATIVE-FRAME-REUSE-001"></a>
+## RITK-SNAP-NATIVE-FRAME-REUSE-001 — Reuse native orthogonal render storage [patch]
+- Status: in-progress; priority: P1; owner: RITK native presentation; integrator: root; last-update: 2026-09-20.
+- Lease: root — `crates/ritk-snap/src/presentation/frame.rs`, `crates/ritk-snap/src/presentation/native_session/frame.rs`, `crates/ritk-snap/src/presentation/native_session.rs`, `crates/ritk-snap/src/ui/view_transform/image_ops.rs`, this item — 2026-09-20.
+- Outcome: repeated native Métis orthogonal renders reuse caller-owned RGBA and transform storage after warmup while preserving the existing DICOM display pixels, geometry, and transforms.
+- Scope: native orthogonal frame rendering, reusable transform output, value-semantic differential tests, native manual/resource evidence, ADR or design note if the public seam changes. Projection rendering and DICOM decoding remain unchanged and are reported as residuals.
+- Acceptance: the initial and subsequent native three-plane captures are byte-identical to the existing replay; scratch capacities remain stable after warmup; transformed dimensions and spacing remain correct for all view transforms; locked native/WASM checks, strict Clippy, rustdoc, formatting, real-study replay and resource evidence pass.
+- Dependency: current `PresentationFrame`/`FrameRenderScratch` storage swap and the native Métis viewer workflow; no Metis or DICOM ownership change.
+- Verification: differential frame/transform tests, capacity assertions across repeated native refreshes, 94-file MRI PNG/hash oracle, and the bounded native lifecycle/resource harness are recorded in the PR and manual.
+
 <a id="RITK-BROWSER-VIEWPORT-001"></a>
 ## RITK-BROWSER-VIEWPORT-001 — Present browser zoom and pan state [minor]
 - Status: done; priority: P1; owner: RITK browser presentation; integrator: root; last-update: 2026-09-20.
