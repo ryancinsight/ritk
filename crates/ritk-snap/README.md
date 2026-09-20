@@ -13,6 +13,9 @@ does not parse DICOM or retain viewer state.
 The Métis-facing path renders through RITK's neutral RGBA carrier and applies
 orientation before the host boundary; `egui::ColorImage` remains only the
 legacy eframe slice adapter.
+Each `PresentationFrame` also carries a validated `PresentationSpacing` value,
+so native placement and browser aspect semantics consume one axis-ordered
+geometry value while Metis remains format-neutral.
 
 From a standalone RITK checkout, open a study directory with:
 

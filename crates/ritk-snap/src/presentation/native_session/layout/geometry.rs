@@ -1,6 +1,7 @@
 //! Screen geometry and coordinate mapping for native presentation.
 
 use crate::app::action_adapter::ViewerViewport;
+use crate::presentation::PresentationSpacing;
 use crate::tools::interaction::ViewportOffset;
 use anyhow::{anyhow, bail, Result};
 
@@ -106,7 +107,7 @@ pub(super) fn placement_with_bounds(
 ) -> Result<NativeViewport> {
     let image = placement_geometry(
         [view.frame.width(), view.frame.height()],
-        view.display_spacing,
+        view.frame.display_spacing(),
         panel_x,
         panel_y,
         panel_width,
@@ -143,7 +144,7 @@ pub(super) fn placement_with_bounds(
 
 pub(super) fn placement_geometry(
     frame_size: [u32; 2],
-    display_spacing: [f64; 2],
+    display_spacing: PresentationSpacing,
     panel_x: u32,
     panel_y: u32,
     panel_width: u32,
@@ -153,9 +154,10 @@ pub(super) fn placement_geometry(
 ) -> Result<ScreenRect> {
     let frame_width = f64::from(frame_size[0]);
     let frame_height = f64::from(frame_size[1]);
-    let reference = display_spacing[0].max(display_spacing[1]);
-    let relative_x = display_spacing[1] / reference;
-    let relative_y = display_spacing[0] / reference;
+    let [row_spacing, column_spacing] = display_spacing.values();
+    let reference = row_spacing.max(column_spacing);
+    let relative_x = column_spacing / reference;
+    let relative_y = row_spacing / reference;
     let physical_width = frame_width * relative_x;
     let physical_height = frame_height * relative_y;
     if !physical_width.is_finite()

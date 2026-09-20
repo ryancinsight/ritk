@@ -5,16 +5,58 @@ use crate::LoadedVolume;
 use anyhow::{anyhow, bail, Result};
 use metis_platform::framebuffer::MAX_PIXELS;
 
-/// A bounded, row-major RGBA frame with no format or viewer metadata.
+/// Validated row and column sample distances for a presentation frame.
+///
+/// Values use the physical unit carried by the source volume geometry.
+#[derive(Clone, Copy, Debug, PartialEq)]
+pub struct PresentationSpacing {
+    row: f64,
+    column: f64,
+}
+
+impl PresentationSpacing {
+    pub(crate) fn try_new(row: f64, column: f64) -> Result<Self> {
+        if row.is_finite() && row > 0.0 && column.is_finite() && column > 0.0 {
+            Ok(Self { row, column })
+        } else {
+            bail!("presentation frame display spacing must be finite and positive")
+        }
+    }
+
+    const fn unit() -> Self {
+        Self {
+            row: 1.0,
+            column: 1.0,
+        }
+    }
+
+    /// Returns row and column sample distances in display order.
+    #[must_use]
+    pub const fn values(self) -> [f64; 2] {
+        [self.row, self.column]
+    }
+
+    #[cfg(not(target_arch = "wasm32"))]
+    pub(crate) const fn swapped(self) -> Self {
+        Self {
+            row: self.column,
+            column: self.row,
+        }
+    }
+}
+
+/// A bounded, row-major RGBA frame with validated display geometry.
 ///
 /// The frame is the only value that crosses from RITK's display pipeline to a
-/// host renderer. Its dimensions and byte count are validated at construction;
-/// DICOM identifiers, paths and volume storage never enter the value.
-#[derive(Clone, Debug, PartialEq, Eq)]
+/// host renderer. Its dimensions, byte count and row/column sample distances
+/// are validated at construction; DICOM identifiers, paths and volume storage
+/// never enter the value.
+#[derive(Clone, Debug, PartialEq)]
 pub struct PresentationFrame {
     width: u32,
     height: u32,
     rgba: Box<[u8]>,
+    display_spacing: PresentationSpacing,
 }
 
 impl PresentationFrame {
@@ -34,8 +76,9 @@ impl PresentationFrame {
         window_level: WindowLevel,
         colormap: NamedColorMap,
     ) -> Result<Self> {
+        let display_spacing = slice_display_spacing(volume.spacing, axis)?;
         let image = SliceRenderer::render_rgba(volume, axis, index, window_level, colormap);
-        Self::from_rgba_image(image)
+        Ok(Self::from_rgba_image(image)?.with_display_spacing(display_spacing))
     }
 
     /// Renders the three orthogonal volume slices for a multi-viewport host.
@@ -115,7 +158,17 @@ impl PresentationFrame {
             width,
             height,
             rgba,
+            display_spacing: PresentationSpacing::unit(),
         })
+    }
+
+    /// Replaces the physical row and column sample distances.
+    ///
+    /// The values are ordered for the rendered frame, so a quarter-turn
+    /// transform must swap them with the transformed pixel dimensions.
+    pub(crate) fn with_display_spacing(mut self, spacing: PresentationSpacing) -> Self {
+        self.display_spacing = spacing;
+        self
     }
 
     #[cfg(windows)]
@@ -159,6 +212,23 @@ impl PresentationFrame {
     pub fn rgba(&self) -> &[u8] {
         &self.rgba
     }
+
+    /// Returns row and column sample distances for the rendered display frame.
+    #[must_use]
+    pub const fn display_spacing(&self) -> PresentationSpacing {
+        self.display_spacing
+    }
+}
+
+fn slice_display_spacing(spacing: [f64; 3], axis: usize) -> Result<PresentationSpacing> {
+    let [dz, dy, dx] = spacing;
+    let [row, column] = match axis {
+        0 => [dy, dx],
+        1 => [dz, dx],
+        2 => [dz, dy],
+        _ => return Err(anyhow!("presentation frame axis {axis} is outside 0..=2")),
+    };
+    PresentationSpacing::try_new(row, column)
 }
 
 #[cfg(test)]
@@ -198,6 +268,7 @@ mod tests {
         assert_eq!(frame.width(), 2);
         assert_eq!(frame.height(), 1);
         assert_eq!(frame.rgba(), &[0, 0, 0, 0, 200, 150, 100, 255]);
+        assert_eq!(frame.display_spacing().values(), [1.0, 1.0]);
     }
 
     #[test]
@@ -232,6 +303,7 @@ mod tests {
         assert_eq!(frame.width(), 2);
         assert_eq!(frame.height(), 1);
         assert_eq!(frame.rgba(), &[0, 0, 0, 255, 255, 255, 255, 255]);
+        assert_eq!(frame.display_spacing().values(), [1.0, 1.0]);
     }
 
     #[test]
@@ -252,5 +324,60 @@ mod tests {
         assert_eq!(frames[2].height(), 1);
         assert_eq!(frames[0].rgba(), frames[1].rgba());
         assert_eq!(frames[2].rgba(), &[0, 0, 0, 255]);
+        assert_eq!(frames[0].display_spacing().values(), [1.0, 1.0]);
+        assert_eq!(frames[1].display_spacing().values(), [1.0, 1.0]);
+        assert_eq!(frames[2].display_spacing().values(), [1.0, 1.0]);
+    }
+
+    #[test]
+    fn slice_frame_carries_axis_specific_spacing() {
+        let volume = LoadedVolume {
+            spacing: [2.0, 3.0, 5.0],
+            ..test_volume()
+        };
+        let frames = [0_usize, 1, 2].map(|axis| {
+            PresentationFrame::from_slice(
+                &volume,
+                axis,
+                0,
+                WindowLevel::new(127.5, 255.0),
+                NamedColorMap::Grayscale,
+            )
+            .expect("rendered spacing frame")
+        });
+        assert_eq!(frames[0].display_spacing().values(), [3.0, 5.0]);
+        assert_eq!(frames[1].display_spacing().values(), [2.0, 5.0]);
+        assert_eq!(frames[2].display_spacing().values(), [2.0, 3.0]);
+    }
+
+    #[test]
+    fn malformed_display_spacing_is_rejected() {
+        for [row, column] in [
+            [0.0, 1.0],
+            [-1.0, 1.0],
+            [f64::NAN, 1.0],
+            [1.0, f64::INFINITY],
+        ] {
+            let error =
+                PresentationSpacing::try_new(row, column).expect_err("invalid display spacing");
+            assert!(error.to_string().contains("display spacing"));
+        }
+    }
+
+    #[test]
+    fn slice_rejects_invalid_volume_spacing() {
+        let volume = LoadedVolume {
+            spacing: [1.0, 0.0, 1.0],
+            ..test_volume()
+        };
+        let error = PresentationFrame::from_slice(
+            &volume,
+            0,
+            0,
+            WindowLevel::new(127.5, 255.0),
+            NamedColorMap::Grayscale,
+        )
+        .expect_err("invalid volume spacing");
+        assert!(error.to_string().contains("display spacing"));
     }
 }

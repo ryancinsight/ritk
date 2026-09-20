@@ -1,7 +1,7 @@
 //! RITK projection rendering for the optional native Métis layout.
 
 use crate::app::SnapApp;
-use crate::presentation::PresentationFrame;
+use crate::presentation::{PresentationFrame, PresentationSpacing};
 use crate::render::render_mip_axial_rgba;
 use anyhow::{anyhow, bail, Context, Result};
 
@@ -11,16 +11,12 @@ use super::frame::window_level_for_app;
 #[derive(Debug, Clone)]
 pub(super) struct RenderedProjection {
     pub(super) frame: PresentationFrame,
-    pub(super) display_spacing: [f64; 2],
 }
 
 pub(super) fn empty_projection() -> Result<RenderedProjection> {
     let frame = PresentationFrame::from_rgba_storage(1, 1, vec![0, 0, 0, 255].into_boxed_slice())
         .context("construct empty native MIP selection frame")?;
-    Ok(RenderedProjection {
-        frame,
-        display_spacing: [1.0, 1.0],
-    })
+    Ok(RenderedProjection { frame })
 }
 
 /// Render the existing RITK axial MIP for the native Métis layout.
@@ -37,20 +33,13 @@ pub(super) fn render_mip_projection(app: &SnapApp) -> Result<RenderedProjection>
     let ([width, height], rgba) = image.into_parts();
     let width = u32::try_from(width).map_err(|_| anyhow!("native MIP width exceeds u32"))?;
     let height = u32::try_from(height).map_err(|_| anyhow!("native MIP height exceeds u32"))?;
-    let frame = PresentationFrame::from_rgba_storage(width, height, rgba)
-        .context("validate native MIP presentation frame")?;
     let [_, row_spacing, column_spacing] = volume.spacing;
-    if !row_spacing.is_finite()
-        || !column_spacing.is_finite()
-        || row_spacing <= 0.0
-        || column_spacing <= 0.0
-    {
-        bail!("native MIP sample distances must be finite and positive");
-    }
-    Ok(RenderedProjection {
-        frame,
-        display_spacing: [row_spacing, column_spacing],
-    })
+    let spacing = PresentationSpacing::try_new(row_spacing, column_spacing)
+        .context("validate native MIP display spacing")?;
+    let frame = PresentationFrame::from_rgba_storage(width, height, rgba)
+        .context("validate native MIP presentation frame")?
+        .with_display_spacing(spacing);
+    Ok(RenderedProjection { frame })
 }
 
 #[cfg(test)]
@@ -101,7 +90,7 @@ mod tests {
             u32::try_from(expected_height).expect("height")
         );
         assert_eq!(actual.frame.rgba(), expected_rgba.as_ref());
-        assert_eq!(actual.display_spacing, [1.5, 0.75]);
+        assert_eq!(actual.frame.display_spacing().values(), [1.5, 0.75]);
     }
 
     #[test]

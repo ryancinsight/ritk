@@ -46,3 +46,4 @@
 | [0035](0035-browser-event-trust.md) | Reject synthetic browser canvas input | Accepted |
 | [0036](0036-browser-gallery-ownership.md) | RITK browser gallery ownership | Accepted |
 | [0037](0037-browser-webgpu-presentation.md) | Opt-in browser WebGPU presentation | Accepted |
+| [0038](0038-presentation-frame-geometry.md) | Carry physical display geometry with presentation frames | Accepted |

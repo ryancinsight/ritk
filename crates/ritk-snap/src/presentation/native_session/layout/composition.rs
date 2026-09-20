@@ -174,7 +174,7 @@ pub(crate) fn surface_frames_with_mip(
     };
     let projection_image = placement_geometry(
         [projection.frame.width(), projection.frame.height()],
-        projection.display_spacing,
+        projection.frame.display_spacing(),
         column_widths[0] + VIEW_GAP_PIXELS,
         row_heights[0] + VIEW_GAP_PIXELS,
         column_widths[1],
