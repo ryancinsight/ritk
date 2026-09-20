@@ -389,6 +389,8 @@ class WindowPresetHelperTests(unittest.TestCase):
         script = browser_gallery_cine.WAIT_CINE_FRAME_SCRIPT
         self.assertIn("slice_index: rawIndex === null ? null : Number(rawIndex)", script)
         self.assertIn("state.slice_index !== previous[position].slice_index", script)
+        self.assertIn("previous[position].frame_generation", script)
+        self.assertNotIn("previous[position].generation", script)
         self.assertNotIn("state.index !== previous[position].index", script)
         self.assertIn("done({ok: false, previous, current: read(), status: status()})", script)
 

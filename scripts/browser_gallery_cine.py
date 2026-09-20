@@ -128,8 +128,8 @@ const ready = () => {
   return current.every((state, position) => state && state.enabled === "true" &&
     Number.isSafeInteger(state.slice_index) &&
     Number.isSafeInteger(state.generation) &&
-    state.generation >= previous[position].generation) &&
-    current.some((state, position) => state.generation > previous[position].generation &&
+    state.generation >= previous[position].frame_generation) &&
+    current.some((state, position) => state.generation > previous[position].frame_generation &&
       state.slice_index !== previous[position].slice_index);
 };
 if (ready()) { done({ok: true}); return; }
