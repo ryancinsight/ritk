@@ -2,12 +2,13 @@
 
 <a id="RITK-BROWSER-VIEWPORT-001"></a>
 ## RITK-BROWSER-VIEWPORT-001 — Present browser zoom and pan state [minor]
-- Status: in-progress; priority: P1; owner: RITK browser presentation; integrator: root; last-update: 2026-09-20.
+- Status: review; priority: P1; owner: RITK browser presentation; integrator: root; last-update: 2026-09-20.
 - Outcome: browser Métis canvases display the RITK viewer's zoom and pan state while pointer actions map through the same transformed pixels.
 - Scope: `ritk-snap` browser raster presentation, viewport coordinate mapping, focused value tests, ADR and DICOM manual; DICOM decoding, Metis APIs and native eframe composition remain out of scope.
 - Acceptance: zoom/pan identity preserves RGBA bytes; zoom crops around the frame center; pan shifts pixels with black out-of-bounds; pointer mapping uses the same inverse transform; storage remains reusable after warmup; locked native/WASM tests, strict Clippy, formatting, rustdoc, real MRI replay and documentation checks pass.
 - Dependency: existing `PresentationFrame` storage reuse, browser physical spacing and the host-neutral `SnapApp` zoom/pan policy.
-- Lease: root `crates/ritk-snap/src/presentation/viewport.rs`, `crates/ritk-snap/src/presentation/frame.rs`, `crates/ritk-snap/src/app/action_adapter.rs`, `crates/ritk-snap/src/app/browser_geometry.rs`, `crates/ritk-snap/src/app/web_render.rs`, `crates/ritk-snap/src/app/web_surface.rs`, `docs/adr/0043-browser-viewport-transform.md`, `docs/manual/dicom-workflow.md` (2026-09-20).
+- Verification: neutral locked `ritk-snap` nextest 473/473; strict native and wasm32 Clippy; wasm32 check; rustdoc; formatting; standalone lockfile check; Python script tests 21/21; real 94-file MRI replay passed with invalid-study exit 1 and byte-identical 1280×800 PNG (`259dd791...`, 411,589 non-black pixels).
+- Delivery: pending PR merge; the browser raster and pointer seams are covered by the accepted ADR and the DICOM workflow manual.
 
 <a id="RITK-SNAP-BROWSER-PROJECTION-001"></a>
 ## RITK-SNAP-BROWSER-PROJECTION-001 — Present a selectable scalar projection in the browser [arch] [minor]

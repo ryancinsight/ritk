@@ -28,7 +28,8 @@ impl SnapApp {
             window_level,
             self.colormap,
             scratch,
-        )
+        )?;
+        frame.apply_zoom_pan(self.zoom, self.pan_offset, &mut scratch.rgba)
     }
 
     pub(super) fn render_browser_frames_into(
@@ -54,6 +55,7 @@ impl SnapApp {
                 self.colormap,
                 scratch,
             )?;
+            frame.apply_zoom_pan(self.zoom, self.pan_offset, &mut scratch.rgba)?;
         }
         Ok(())
     }

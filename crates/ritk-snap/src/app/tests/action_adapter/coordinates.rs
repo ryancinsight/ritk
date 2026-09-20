@@ -1,12 +1,13 @@
 //! Client-to-image coordinate mapping across the seam.
 
 use super::super::test_volume;
-use crate::app::action_adapter::ViewerViewport;
 use crate::app::browser_geometry::viewport_for_display;
+use crate::app::viewer_viewport::ViewerViewport;
 use crate::app::SnapApp;
 use crate::label::LabelEditor;
 use crate::presentation::browser_coordinates::content_fraction;
 use crate::presentation::{PointerButton, PresentationEvent};
+use crate::tools::interaction::ViewportOffset;
 use crate::tools::kind::ToolKind;
 use crate::ui::{LinkedCursor, ViewTransform};
 use ritk_annotation::LabelId;
@@ -174,6 +175,78 @@ fn fractional_client_coordinates_reach_image_mapping_unchanged() {
         [crate::tools::interaction::Annotation::HuPoint { pos, .. }]
             if *pos == [1.5, 1.5]
     ));
+}
+
+#[test]
+fn transformed_browser_viewport_maps_pointer_to_presented_pixel() {
+    let mut app = SnapApp::default();
+    app.loaded = Some(test_volume([1, 2, 4]));
+    app.active_tool = ToolKind::PointHu;
+    let viewport = ViewerViewport::new_with_zoom_pan(
+        0,
+        [0.0, 0.0],
+        [1.0, 1.0],
+        [4, 2],
+        ViewTransform::default(),
+        2.0,
+        ViewportOffset::new(1.0, 0.0),
+    )
+    .expect("finite transformed viewport geometry");
+
+    for event in [
+        PresentationEvent::PointerDown {
+            x: 1.5,
+            y: 0.5,
+            button: PointerButton::Left,
+        },
+        PresentationEvent::PointerUp {
+            x: 1.5,
+            y: 0.5,
+            button: PointerButton::Left,
+        },
+    ] {
+        apply_app_event(&mut app, &viewport, event);
+    }
+
+    assert!(matches!(
+        app.annotations.as_slice(),
+        [crate::tools::interaction::Annotation::HuPoint { pos, .. }]
+            if *pos == [0.75, 1.25]
+    ));
+}
+
+#[test]
+fn transformed_browser_viewport_rejects_pointer_over_panned_black_edge() {
+    let mut app = SnapApp::default();
+    app.loaded = Some(test_volume([1, 2, 4]));
+    app.active_tool = ToolKind::PointHu;
+    let viewport = ViewerViewport::new_with_zoom_pan(
+        0,
+        [0.0, 0.0],
+        [1.0, 1.0],
+        [4, 2],
+        ViewTransform::default(),
+        1.0,
+        ViewportOffset::new(1.0, 0.0),
+    )
+    .expect("finite transformed viewport geometry");
+
+    for event in [
+        PresentationEvent::PointerDown {
+            x: 0.25,
+            y: 0.5,
+            button: PointerButton::Left,
+        },
+        PresentationEvent::PointerUp {
+            x: 0.25,
+            y: 0.5,
+            button: PointerButton::Left,
+        },
+    ] {
+        apply_app_event(&mut app, &viewport, event);
+    }
+
+    assert!(app.annotations.is_empty());
 }
 
 #[test]

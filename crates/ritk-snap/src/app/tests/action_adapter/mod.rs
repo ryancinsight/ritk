@@ -1,6 +1,6 @@
 //! End-to-end checks for the format-neutral presentation-to-viewer seam.
 
-use crate::app::action_adapter::ViewerViewport;
+use crate::app::viewer_viewport::ViewerViewport;
 use crate::app::SnapApp;
 use crate::presentation::{PresentationDispatcher, PresentationEvent};
 use crate::ui::ViewTransform;

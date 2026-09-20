@@ -1,8 +1,7 @@
 //! Gesture lifecycle: cancellation, focus loss, and typed refusals.
 
-use crate::app::action_adapter::{
-    ViewerActionDisposition, ViewerActionError, ViewerViewport, ViewerViewportError,
-};
+use crate::app::action_adapter::{ViewerActionDisposition, ViewerActionError};
+use crate::app::viewer_viewport::{ViewerViewport, ViewerViewportError};
 use crate::app::SnapApp;
 use crate::presentation::{
     PointerButton, PresentationDispatcher, PresentationEvent, ViewerAction, ViewportPoint,

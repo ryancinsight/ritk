@@ -1,6 +1,8 @@
 //! Validated RGBA frame produced by the RITK presentation boundary.
 
 use crate::render::{FrameRenderScratch, NamedColorMap, SliceRenderer, WindowLevel};
+#[cfg(target_arch = "wasm32")]
+use crate::tools::interaction::ViewportOffset;
 use crate::LoadedVolume;
 use anyhow::{anyhow, bail, Result};
 use metis_platform::framebuffer::MAX_PIXELS;
@@ -188,6 +190,30 @@ impl PresentationFrame {
         let width = u32::try_from(width).map_err(|_| anyhow!("frame width exceeds u32"))?;
         let height = u32::try_from(height).map_err(|_| anyhow!("frame height exceeds u32"))?;
         self.replace_rgba_storage(width, height, display_spacing, &mut scratch.rgba)
+    }
+
+    #[cfg(target_arch = "wasm32")]
+    pub(crate) fn apply_zoom_pan(
+        &mut self,
+        zoom: f32,
+        pan: ViewportOffset,
+        storage: &mut Vec<u8>,
+    ) -> Result<()> {
+        if zoom == 1.0 && pan == ViewportOffset::new(0.0, 0.0) {
+            return Ok(());
+        }
+        super::viewport::transform_rgba(
+            [
+                usize::try_from(self.width).map_err(|_| anyhow!("frame width exceeds usize"))?,
+                usize::try_from(self.height).map_err(|_| anyhow!("frame height exceeds usize"))?,
+            ],
+            &self.rgba,
+            zoom,
+            pan,
+            storage,
+        )?;
+        std::mem::swap(&mut self.rgba, storage);
+        Ok(())
     }
 
     /// Replaces this frame's RGBA storage with a validated caller-owned

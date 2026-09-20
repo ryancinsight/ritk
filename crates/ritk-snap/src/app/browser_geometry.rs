@@ -1,7 +1,8 @@
 //! Physical geometry for RITK-owned browser canvases.
 
-use super::action_adapter::ViewerViewport;
+use super::viewer_viewport::ViewerViewport;
 use crate::presentation::PresentationSpacing;
+use crate::tools::interaction::ViewportOffset;
 use crate::ui::ViewTransform;
 use std::io;
 
@@ -58,10 +59,28 @@ impl PhysicalCanvasAspect {
 ///
 /// Browser events use fractions of their measured content box, so their
 /// matching display extent is `[1.0, 1.0]`, independent of CSS transforms.
+#[cfg(test)]
 pub(super) fn viewport_for_display(
     axis: usize,
     display_size: [f64; 2],
     frame_size: [u32; 2],
+) -> io::Result<ViewerViewport> {
+    viewport_for_display_with_zoom_pan(
+        axis,
+        display_size,
+        frame_size,
+        1.0,
+        ViewportOffset::new(0.0, 0.0),
+    )
+}
+
+/// Maps browser content coordinates through the current viewer zoom and pan.
+pub(super) fn viewport_for_display_with_zoom_pan(
+    axis: usize,
+    display_size: [f64; 2],
+    frame_size: [u32; 2],
+    zoom: f32,
+    pan: ViewportOffset,
 ) -> io::Result<ViewerViewport> {
     let [frame_width, frame_height] = frame_size;
     if frame_width == 0 || frame_height == 0 {
@@ -74,7 +93,7 @@ pub(super) fn viewport_for_display(
         .map_err(|_| io::Error::other("browser frame width exceeds host range"))?;
     let height = usize::try_from(frame_height)
         .map_err(|_| io::Error::other("browser frame height exceeds host range"))?;
-    ViewerViewport::new(
+    ViewerViewport::new_with_zoom_pan(
         axis,
         [0.0, 0.0],
         [
@@ -83,14 +102,17 @@ pub(super) fn viewport_for_display(
         ],
         [width, height],
         ViewTransform::default(),
+        zoom,
+        pan,
     )
     .map_err(|error| io::Error::new(io::ErrorKind::InvalidInput, error.to_string()))
 }
 
 #[cfg(test)]
 mod tests {
-    use super::{viewport_for_display, PhysicalCanvasAspect};
+    use super::{viewport_for_display, viewport_for_display_with_zoom_pan, PhysicalCanvasAspect};
     use crate::presentation::PresentationSpacing;
+    use crate::tools::interaction::ViewportOffset;
     use std::io;
 
     fn ratio(display_spacing: [f64; 2], dimensions: [u32; 2]) -> f64 {
@@ -178,6 +200,22 @@ mod tests {
             assert_eq!(
                 viewport_for_display(0, display_size, [8, 4])
                     .expect_err("invalid CSS dimensions must be rejected")
+                    .kind(),
+                io::ErrorKind::InvalidInput
+            );
+        }
+    }
+
+    #[test]
+    fn transformed_display_viewport_rejects_invalid_zoom_and_pan() {
+        for (zoom, pan) in [
+            (0.0, ViewportOffset::new(0.0, 0.0)),
+            (f32::NAN, ViewportOffset::new(0.0, 0.0)),
+            (1.0, ViewportOffset::new(f32::INFINITY, 0.0)),
+        ] {
+            assert_eq!(
+                viewport_for_display_with_zoom_pan(0, [1.0; 2], [8, 4], zoom, pan)
+                    .expect_err("invalid transformed viewport must be rejected")
                     .kind(),
                 io::ErrorKind::InvalidInput
             );

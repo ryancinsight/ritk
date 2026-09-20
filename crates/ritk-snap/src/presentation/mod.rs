@@ -11,6 +11,8 @@ pub(crate) mod browser_coordinates;
 mod browser_policy;
 mod events;
 mod frame;
+#[cfg(any(target_arch = "wasm32", test))]
+mod viewport;
 mod web_keys;
 
 #[cfg(target_arch = "wasm32")]
