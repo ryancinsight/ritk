@@ -36,7 +36,7 @@ _METIS_ROOT = _configure_metis_scripts()
 from browser_canvas import settle_canvas_input
 from browser_gallery_actions import _arrow_batch, _keyboard_action
 from browser_gallery_artifacts import _write_gallery_screenshots
-from browser_gallery_cine import capture_cine_gallery
+from browser_gallery_cine import capture_cine_gallery, finalize_cine_teardown
 from browser_gallery_tools import capture_tool_gallery
 from browser_gallery_window import capture_window_preset_gallery
 from browser_gallery_trace import (
@@ -272,9 +272,18 @@ def _capture_consumer_controls(
     if window_presets:
         result["window_level"] = capture_window_preset_gallery(client, output / "window-level")
     if cine_controls:
-        result["cine"] = capture_cine_gallery(client, output / "cine")
+        if tool_controls:
+            result["cine"] = capture_cine_gallery(
+                client,
+                output / "cine",
+                stop_viewer=False,
+            )
+        else:
+            result["cine"] = capture_cine_gallery(client, output / "cine")
     if tool_controls:
         result["tools"] = capture_tool_gallery(client, output / "tools")
+        if cine_controls:
+            result["cine"] = finalize_cine_teardown(client, result["cine"])
     return result
 
 

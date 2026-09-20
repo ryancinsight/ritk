@@ -332,6 +332,56 @@ class SliceGalleryTests(unittest.TestCase):
         )
         tools.assert_called_once_with(client, pathlib.Path(directory) / "tools")
 
+    def test_combined_cine_and_tool_controls_share_one_teardown(self):
+        class Client:
+            def set_window_rect(self, width, height):
+                self.rect = (width, height)
+
+        oracle = {
+            f"ritk-snap-{axis}": {
+                "attributes": {"data-ritk-slice-count": str(count)},
+            }
+            for axis, count in zip(browser_gallery.AXES, (94, 512, 512))
+        }
+        canvas_ids = tuple(f"ritk-snap-{axis}" for axis in browser_gallery.AXES)
+        client = Client()
+        with tempfile.TemporaryDirectory(
+            dir=browser_gallery.ROOT / "output", prefix="gallery-combined-callback-"
+        ) as directory, mock.patch.object(
+            browser_gallery,
+            "capture_slice_gallery",
+            return_value={"schema": 1, "kind": "slices"},
+        ), mock.patch.object(
+            browser_gallery,
+            "capture_cine_gallery",
+            return_value={"schema": 1, "kind": "cine"},
+        ) as cine, mock.patch.object(
+            browser_gallery,
+            "capture_tool_gallery",
+            return_value={"schema": 1, "kind": "tools"},
+        ) as tools, mock.patch.object(
+            browser_gallery,
+            "finalize_cine_teardown",
+            side_effect=lambda _client, evidence: {**evidence, "stopped": {"done": True}},
+        ) as finalize:
+            result = browser_gallery._capture_consumer_controls(
+                client,
+                pathlib.Path(directory),
+                oracle,
+                canvas_ids,
+                cine_controls=True,
+                tool_controls=True,
+            )
+
+        self.assertEqual(result["cine"]["stopped"], {"done": True})
+        cine.assert_called_once_with(
+            client,
+            pathlib.Path(directory) / "cine",
+            stop_viewer=False,
+        )
+        tools.assert_called_once_with(client, pathlib.Path(directory) / "tools")
+        finalize.assert_called_once_with(client, {"schema": 1, "kind": "cine"})
+
 
 class WindowPresetHelperTests(unittest.TestCase):
     def test_gallery_declares_rust_owned_window_preset_surface(self):
