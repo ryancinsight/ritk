@@ -1,6 +1,6 @@
 //! Stable RITK-owned browser state used by visual and workflow drivers.
 
-use crate::presentation::PresentationFrame;
+use crate::presentation::{PresentationFrame, PresentationSnapshot};
 
 /// Whether the RITK viewer has a primary volume for a browser canvas.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -19,85 +19,67 @@ pub(crate) enum BrowserLoadState {
 /// It deliberately excludes paths, identifiers, metadata and pixel values.
 #[derive(Debug, Clone, Copy, PartialEq)]
 pub(crate) struct BrowserCanvasSemantics {
-    /// Whether RITK has a primary volume.
-    pub(crate) load_state: BrowserLoadState,
-    /// RITK axis represented by the canvas (`0` axial, `1` coronal, `2` sagittal).
-    pub(crate) axis: usize,
-    /// Zero-based slice index selected for the axis.
-    pub(crate) slice_index: usize,
-    /// Number of slices available on the axis.
-    pub(crate) slice_count: usize,
+    /// Shared RITK viewer state for this canvas.
+    pub(crate) snapshot: PresentationSnapshot,
     /// Presented frame dimensions, when a frame is available.
-    pub(crate) frame_dimensions: Option<(u32, u32)>,
-    /// Whether cine playback is enabled for the loaded study.
-    pub(crate) cine_enabled: bool,
-    /// Active cine playback rate in frames per second.
-    pub(crate) cine_fps: f32,
-    /// Effective window centre used for presentation.
-    pub(crate) window_center: f32,
-    /// Effective window width used for presentation.
-    pub(crate) window_width: f32,
-    /// Active modality preset, when the current values match one.
-    pub(crate) window_preset_index: Option<usize>,
-    /// Active interaction-tool index in the stable RITK tool table.
-    pub(crate) active_tool_index: usize,
-    /// Active interaction-tool label in the stable RITK tool table.
-    pub(crate) active_tool_name: &'static str,
+    frame_dimensions: Option<(u32, u32)>,
 }
 
 impl BrowserCanvasSemantics {
-    /// Builds the browser evidence from RITK state and an optional frame.
+    /// Builds browser evidence from one shared RITK snapshot and an optional frame.
     #[must_use]
-    pub(crate) fn from_state(
-        loaded: bool,
-        axis: usize,
-        slice_index: usize,
-        slice_count: usize,
+    pub(crate) fn from_snapshot(
+        snapshot: PresentationSnapshot,
         frame: Option<&PresentationFrame>,
-        cine_enabled: bool,
-        cine_fps: f32,
-        window_center: f32,
-        window_width: f32,
-        window_preset_index: Option<usize>,
-        active_tool_index: usize,
-        active_tool_name: &'static str,
     ) -> Self {
-        debug_assert!(axis < 3, "RITK browser axes are limited to three planes");
-        debug_assert!(slice_count > 0, "RITK browser slice counts are non-zero");
-        debug_assert!(
-            cine_fps.is_finite() && (1.0..=60.0).contains(&cine_fps),
-            "RITK browser cine rate stays within the supported range"
-        );
         Self {
-            load_state: if loaded {
-                BrowserLoadState::Ready
-            } else {
-                BrowserLoadState::Empty
-            },
-            axis,
-            slice_index,
-            slice_count,
+            snapshot,
             frame_dimensions: frame.map(|frame| (frame.width(), frame.height())),
-            cine_enabled,
-            cine_fps,
-            window_center,
-            window_width,
-            window_preset_index,
-            active_tool_index,
-            active_tool_name,
         }
+    }
+
+    /// Returns whether RITK has a primary volume.
+    #[must_use]
+    pub(crate) const fn load_state(self) -> BrowserLoadState {
+        if self.snapshot.loaded() {
+            BrowserLoadState::Ready
+        } else {
+            BrowserLoadState::Empty
+        }
+    }
+
+    /// Returns the axis represented by the canvas.
+    #[must_use]
+    pub(crate) const fn axis(self) -> usize {
+        self.snapshot.axis()
+    }
+
+    /// Returns the selected slice index for the canvas axis.
+    #[must_use]
+    pub(crate) const fn slice_index(self) -> usize {
+        self.snapshot
+            .slice_index(self.axis())
+            .expect("invariant: browser snapshot axis has a slice index")
+    }
+
+    /// Returns the number of slices available for the canvas axis.
+    #[must_use]
+    pub(crate) const fn slice_count(self) -> usize {
+        self.snapshot
+            .slice_count(self.axis())
+            .expect("invariant: browser snapshot axis has a slice count")
     }
 
     /// Returns the stable DOM value for the active cine rate.
     #[must_use]
     pub(crate) fn cine_fps_value(self) -> String {
-        self.cine_fps.to_string()
+        self.snapshot.cine_fps().to_string()
     }
 
     /// Returns the stable DOM value for whether cine playback is enabled.
     #[must_use]
     pub(crate) const fn cine_enabled_value(self) -> &'static str {
-        if self.cine_enabled {
+        if self.snapshot.cine_enabled() {
             "true"
         } else {
             "false"
@@ -107,32 +89,33 @@ impl BrowserCanvasSemantics {
     /// Returns the stable DOM value for the effective window centre.
     #[must_use]
     pub(crate) fn window_center_value(self) -> String {
-        self.window_center.to_string()
+        self.snapshot.window_level().center.to_string()
     }
 
     /// Returns the stable DOM value for the effective window width.
     #[must_use]
     pub(crate) fn window_width_value(self) -> String {
-        self.window_width.to_string()
+        self.snapshot.window_level().width.to_string()
     }
 
     /// Returns the stable DOM value for the active preset index.
     #[must_use]
     pub(crate) fn window_preset_index_value(self) -> String {
-        self.window_preset_index
+        self.snapshot
+            .window_preset_index()
             .map_or_else(String::new, |index| index.to_string())
     }
 
     /// Returns the stable DOM value for the active interaction-tool index.
     #[must_use]
     pub(crate) fn active_tool_index_value(self) -> String {
-        self.active_tool_index.to_string()
+        self.snapshot.active_tool_index().to_string()
     }
 
     /// Returns the stable DOM value for the load state.
     #[must_use]
     pub(crate) const fn load_state_value(self) -> &'static str {
-        match self.load_state {
+        match self.load_state() {
             BrowserLoadState::Empty => "empty",
             BrowserLoadState::Ready => "ready",
         }
@@ -155,5 +138,11 @@ impl BrowserCanvasSemantics {
             Some(dimensions) => dimensions,
             None => (0, 0),
         }
+    }
+
+    /// Returns the stable active interaction-tool label.
+    #[must_use]
+    pub(crate) const fn active_tool_name(self) -> &'static str {
+        self.snapshot.active_tool_name()
     }
 }

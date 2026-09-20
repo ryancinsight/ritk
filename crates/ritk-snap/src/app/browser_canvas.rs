@@ -94,9 +94,9 @@ impl BrowserCanvas {
         if self.last_semantics == Some(semantics) {
             return Ok(());
         }
-        let axis = semantics.axis.to_string();
-        let slice_index = semantics.slice_index.to_string();
-        let slice_count = semantics.slice_count.to_string();
+        let axis = semantics.axis().to_string();
+        let slice_index = semantics.slice_index().to_string();
+        let slice_count = semantics.slice_count().to_string();
         let (width, height) = semantics.frame_dimensions_or_zero();
         let width = width.to_string();
         let height = height.to_string();
@@ -132,7 +132,7 @@ impl BrowserCanvas {
         self.element
             .set_attribute("data-ritk-active-tool-index", &active_tool_index)?;
         self.element
-            .set_attribute("data-ritk-active-tool", semantics.active_tool_name)?;
+            .set_attribute("data-ritk-active-tool", semantics.active_tool_name())?;
         self.last_semantics = Some(semantics);
         Ok(())
     }

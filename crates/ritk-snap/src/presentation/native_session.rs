@@ -12,6 +12,7 @@ use crate::dicom::loader::{
 };
 use crate::dicom::series_tree::SeriesEntryView;
 use crate::launch::NativePresentationMode;
+use crate::presentation::PresentationSnapshot;
 use crate::render::FrameRenderScratch;
 use crate::tools::interaction::ViewportOffset;
 use anyhow::{anyhow, Context, Result};
@@ -135,8 +136,15 @@ pub fn run_native_viewer(
         save_capture(frame, output)?;
     }
 
+    let snapshot = observation
+        .snapshot
+        .lock()
+        .map_err(|_| anyhow!("native viewer snapshot lock was poisoned"))?
+        .take()
+        .ok_or_else(|| anyhow!("native viewer completed without a presentation snapshot"))?;
     let zoom = f32::from_bits(observation.zoom_bits.load(Ordering::Relaxed));
     Ok(NativeViewerOutcome {
+        snapshot,
         surface_width: observation.surface_width.load(Ordering::Relaxed),
         surface_height: observation.surface_height.load(Ordering::Relaxed),
         initial_frame_width: observation.initial_frame_width.load(Ordering::Relaxed),
@@ -258,7 +266,7 @@ impl NativeViewerSession {
         if session.selection.is_some() {
             session.render_selection_overlay()?;
         }
-        record_state(&session.observation, &session.app, 96, false);
+        record_state(&session.observation, &session.app, 96, false)?;
         Ok(session)
     }
 
@@ -312,7 +320,7 @@ impl NativeViewerSession {
         self.observation
             .frame_generations
             .fetch_add(1, Ordering::Relaxed);
-        record_state(&self.observation, &self.app, self.dpi, self.minimized);
+        record_state(&self.observation, &self.app, self.dpi, self.minimized)?;
         Ok(())
     }
 
@@ -482,9 +490,15 @@ struct NativeViewerObservation {
     minimized: AtomicBool,
     destroyed: AtomicBool,
     final_frame: Mutex<Option<Framebuffer>>,
+    snapshot: Mutex<Option<PresentationSnapshot>>,
 }
 
-fn record_state(observation: &NativeViewerObservation, app: &SnapApp, dpi: u32, minimized: bool) {
+fn record_state(
+    observation: &NativeViewerObservation,
+    app: &SnapApp,
+    dpi: u32,
+    minimized: bool,
+) -> Result<()> {
     let (slice, _) = app.axis_slice_info(app.axis);
     observation.last_slice.store(slice, Ordering::Relaxed);
     observation
@@ -492,6 +506,12 @@ fn record_state(observation: &NativeViewerObservation, app: &SnapApp, dpi: u32, 
         .store(app.zoom.to_bits(), Ordering::Relaxed);
     observation.dpi.store(dpi, Ordering::Relaxed);
     observation.minimized.store(minimized, Ordering::Relaxed);
+    *observation
+        .snapshot
+        .lock()
+        .map_err(|_| anyhow!("native viewer snapshot lock was poisoned"))? =
+        Some(app.presentation_snapshot());
+    Ok(())
 }
 
 #[cfg(test)]

@@ -99,18 +99,6 @@ impl SnapApp {
         self.status_message = format!("Cine playback rate: {rate} FPS.");
         Ok(true)
     }
-
-    /// Returns whether browser cine playback is currently enabled.
-    #[must_use]
-    pub(crate) const fn browser_cine_enabled(&self) -> bool {
-        self.cine.enabled
-    }
-
-    /// Returns the current browser cine playback rate.
-    #[must_use]
-    pub(crate) const fn browser_cine_rate(&self) -> f32 {
-        self.cine.fps
-    }
 }
 
 #[cfg(test)]
@@ -151,8 +139,8 @@ mod tests {
     #[test]
     fn unloaded_controls_fail_without_mutating_playback() {
         let mut app = SnapApp::default();
-        let enabled = app.browser_cine_enabled();
-        let rate = app.browser_cine_rate();
+        let enabled = app.cine.enabled;
+        let rate = app.cine.fps;
         assert_eq!(
             app.toggle_browser_cine(),
             Err(BrowserCineControlError::StudyNotLoaded)
@@ -161,21 +149,21 @@ mod tests {
             app.set_browser_cine_rate(24),
             Err(BrowserCineControlError::StudyNotLoaded)
         );
-        assert_eq!(app.browser_cine_enabled(), enabled);
-        assert_eq!(app.browser_cine_rate(), rate);
+        assert_eq!(app.cine.enabled, enabled);
+        assert_eq!(app.cine.fps, rate);
     }
 
     #[test]
     fn loaded_controls_change_only_the_requested_playback_state() {
         let mut app = SnapApp::default();
         app.loaded = Some(test_volume([4, 3, 2]));
-        assert!(!app.browser_cine_enabled());
+        assert!(!app.cine.enabled);
         assert_eq!(app.set_browser_cine_rate(24), Ok(true));
-        assert_eq!(app.browser_cine_rate(), 24.0);
+        assert_eq!(app.cine.fps, 24.0);
         assert_eq!(app.set_browser_cine_rate(24), Ok(false));
         assert_eq!(app.toggle_browser_cine(), Ok(true));
-        assert!(app.browser_cine_enabled());
+        assert!(app.cine.enabled);
         assert_eq!(app.toggle_browser_cine(), Ok(false));
-        assert!(!app.browser_cine_enabled());
+        assert!(!app.cine.enabled);
     }
 }

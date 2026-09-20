@@ -163,7 +163,8 @@ impl NativeApplication for NativeViewerSession {
             if !self.minimized && frame_changed && !geometry_refreshed {
                 self.refresh_frame().map_err(NativeViewerError::from)?;
             } else if !geometry_refreshed {
-                record_state(&self.observation, &self.app, self.dpi, self.minimized);
+                record_state(&self.observation, &self.app, self.dpi, self.minimized)
+                    .map_err(NativeViewerError::from)?;
             }
             self.record_terminal_frame(destroyed)
                 .map_err(NativeViewerError::from)?;
@@ -173,7 +174,8 @@ impl NativeApplication for NativeViewerSession {
         if !self.minimized && frame_changed && !geometry_refreshed {
             self.refresh_frame().map_err(NativeViewerError::from)?;
         } else if !geometry_refreshed {
-            record_state(&self.observation, &self.app, self.dpi, self.minimized);
+            record_state(&self.observation, &self.app, self.dpi, self.minimized)
+                .map_err(NativeViewerError::from)?;
         }
         Ok(NativeFlow::Continue {
             repaint: !self.minimized && (geometry_refreshed || frame_changed),

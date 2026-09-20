@@ -1,6 +1,11 @@
-//! Observable results from an interactive native viewer session.\n\n/// Observable result of an interactive native viewer session.
+//! Observable results from an interactive native viewer session.
+
+use crate::presentation::PresentationSnapshot;
+
+/// Observable result of an interactive native viewer session.
 #[derive(Debug, Clone, Copy, PartialEq)]
 pub struct NativeViewerOutcome {
+    pub(crate) snapshot: PresentationSnapshot,
     pub(crate) surface_width: u32,
     pub(crate) surface_height: u32,
     pub(crate) initial_frame_width: u32,
@@ -18,6 +23,12 @@ pub struct NativeViewerOutcome {
 }
 
 impl NativeViewerOutcome {
+    /// Final host-neutral RITK viewer state presented by the native session.
+    #[must_use]
+    pub const fn snapshot(self) -> PresentationSnapshot {
+        self.snapshot
+    }
+
     /// Final native surface width in client pixels.
     #[must_use]
     pub const fn surface_width(self) -> u32 {
