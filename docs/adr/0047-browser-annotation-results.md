@@ -28,6 +28,12 @@ from all three canvases, requires agreement, and checks the expected count and
 kind after each real measurement gesture. Non-measurement tools must preserve
 the summary. Empty state uses count `0` and empty kind/value attributes.
 
+The browser replay performs all five measurement gestures before pan, zoom and
+window-level gestures. Those viewport tools change the displayed coordinate
+mapping; running them first would make fixed-coordinate measurement probes land
+on the padded viewport rather than the decoded anatomy. RITK PR [#552](https://github.com/ryancinsight/ritk/pull/552)
+fixes that replay ordering and keeps the input-sensitive assertions unchanged.
+
 ## Alternatives
 
 * Recompute measurements in JavaScript. Rejected because it duplicates spacing,
@@ -42,8 +48,17 @@ the summary. Empty state uses count `0` and empty kind/value attributes.
 ## Evidence and limits
 
 Rust snapshot and browser-semantic tests cover empty, finite and latest-value
-projection; the browser tool tests reject non-finite values and require
-input-sensitive transitions. The hosted Chromium tool replay is the visual
-evidence over the real 94-file MRI study and records the result transitions and
-source digests. WebKit bounded file reads and Chromium WebGPU adapter
-availability remain separate host-capability residuals.
+projection; the browser tool tests reject non-finite values, require
+input-sensitive transitions and replay measurements before viewport changes.
+Merged-main run [35535831906](https://github.com/ryancinsight/ritk/actions/runs/35535831906)
+passes the Chromium-window tool replay over the real 94-file public MRI-DIR
+study. The Chromium-window artifact
+[10613092926](https://github.com/ryancinsight/ritk/actions/runs/35535831906/artifacts/10613092926)
+records Length `102.75155`, Angle `3.5569937`, ROI Rect `5402.25`,
+ROI Ellipse `4146.0703` and HU Point `27.0`, preserves the final HU result
+through non-measurement tools, rejects seven invalid probes, and releases all
+21 consumer and 34 host listeners at teardown. Chromium raster, Firefox raster
+and Chromium MIP artifacts in the same run carry the exact RGBA and semantic
+oracles. WebKit bounded file reads and Chromium WebGPU adapter availability
+remain separate host-capability residuals; neither is presented as a DICOM
+decoder failure.
