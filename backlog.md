@@ -22,13 +22,13 @@
 
 <a id="RITK-SNAP-NATIVE-FRAME-REUSE-001"></a>
 ## RITK-SNAP-NATIVE-FRAME-REUSE-001 — Reuse native orthogonal render storage [patch]
-- Status: in-progress; priority: P1; owner: RITK native presentation; integrator: root; last-update: 2026-09-20.
-- Lease: root — `crates/ritk-snap/src/presentation/frame.rs`, `crates/ritk-snap/src/presentation/native_session/frame.rs`, `crates/ritk-snap/src/presentation/native_session.rs`, `crates/ritk-snap/src/ui/view_transform/image_ops.rs`, this item — 2026-09-20.
+- Status: done; priority: P1; owner: RITK native presentation; integrator: root; last-update: 2026-09-20.
 - Outcome: repeated native Métis orthogonal renders reuse caller-owned RGBA and transform storage after warmup while preserving the existing DICOM display pixels, geometry, and transforms.
 - Scope: native orthogonal frame rendering, reusable transform output, value-semantic differential tests, native manual/resource evidence, ADR or design note if the public seam changes. Projection rendering and DICOM decoding remain unchanged and are reported as residuals.
 - Acceptance: the initial and subsequent native three-plane captures are byte-identical to the existing replay; scratch capacities remain stable after warmup; transformed dimensions and spacing remain correct for all view transforms; locked native/WASM checks, strict Clippy, rustdoc, formatting, real-study replay and resource evidence pass.
 - Dependency: current `PresentationFrame`/`FrameRenderScratch` storage swap and the native Métis viewer workflow; no Metis or DICOM ownership change.
-- Verification: differential frame/transform tests, capacity assertions across repeated native refreshes, 94-file MRI PNG/hash oracle, and the bounded native lifecycle/resource harness are recorded in the PR and manual.
+- Verification: locked native nextest 480/480 (including transformed frame capacity and RGBA differential tests), strict native/WASM Clippy, WASM check, rustdoc, formatting, standalone lockfile and Python checks pass; the real 94-file MRI replay exits 0 with invalid-study exit 1 and the byte-identical 1280×800 PNG (`259dd791...`, 411,589 non-black pixels); the JSON provenance records the lifecycle oracle and current binary/example hashes.
+- Delivery: RITK commit `58f1fe8fdc69f99acc94fe0d0735a86d1a8bc9fa` is the source revision for the replay and manual evidence; native orthogonal frames now retain one presentation frame and transform scratch slot per plane, while projection allocation remains a documented residual.
 
 <a id="RITK-BROWSER-VIEWPORT-001"></a>
 ## RITK-BROWSER-VIEWPORT-001 — Present browser zoom and pan state [minor]
