@@ -37,7 +37,7 @@ pub(super) fn render_orthogonal_views(app: &SnapApp) -> Result<[RenderedView; 3]
 }
 
 pub(super) fn empty_orthogonal_views() -> Result<[RenderedView; 3]> {
-    let frame = PresentationFrame::from_rgba_storage(1, 1, vec![0, 0, 0, 255].into_boxed_slice())
+    let frame = PresentationFrame::from_rgba_storage(1, 1, vec![0, 0, 0, 255])
         .context("construct empty native selection frame")?;
     Ok([
         empty_view(frame.clone(), 0, "Axial"),
@@ -84,7 +84,7 @@ fn render_view(app: &SnapApp, axis: usize) -> Result<RenderedView> {
         u32::try_from(output_size[0]).map_err(|_| anyhow!("native frame width exceeds u32"))?;
     let output_height =
         u32::try_from(output_size[1]).map_err(|_| anyhow!("native frame height exceeds u32"))?;
-    let frame = PresentationFrame::from_rgba_storage(output_width, output_height, rgba)
+    let frame = PresentationFrame::from_rgba_storage(output_width, output_height, rgba.into_vec())
         .context("validate transformed RITK presentation frame")?
         .with_display_spacing(display_spacing);
     let frame_size = [

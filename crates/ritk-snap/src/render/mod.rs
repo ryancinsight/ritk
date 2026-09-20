@@ -43,6 +43,8 @@ pub use mesh_render::{DirectionalLight, MeshCamera, MeshRenderer, PhongMaterial}
 pub(crate) use mip_vr::render_mip_axial_rgba;
 #[cfg(all(not(target_arch = "wasm32"), feature = "eframe-shell"))]
 pub use mip_vr::{render_mip_axial, render_vr_axial};
+pub(crate) use slice_render::FrameRenderScratch;
+#[cfg(not(target_arch = "wasm32"))]
 pub(crate) use slice_render::RgbaImage;
 pub use slice_render::SliceRenderer;
 

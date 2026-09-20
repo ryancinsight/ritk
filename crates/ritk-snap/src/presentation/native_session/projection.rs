@@ -14,7 +14,7 @@ pub(super) struct RenderedProjection {
 }
 
 pub(super) fn empty_projection() -> Result<RenderedProjection> {
-    let frame = PresentationFrame::from_rgba_storage(1, 1, vec![0, 0, 0, 255].into_boxed_slice())
+    let frame = PresentationFrame::from_rgba_storage(1, 1, vec![0, 0, 0, 255])
         .context("construct empty native MIP selection frame")?;
     Ok(RenderedProjection { frame })
 }
@@ -36,7 +36,7 @@ pub(super) fn render_mip_projection(app: &SnapApp) -> Result<RenderedProjection>
     let [_, row_spacing, column_spacing] = volume.spacing;
     let spacing = PresentationSpacing::try_new(row_spacing, column_spacing)
         .context("validate native MIP display spacing")?;
-    let frame = PresentationFrame::from_rgba_storage(width, height, rgba)
+    let frame = PresentationFrame::from_rgba_storage(width, height, rgba.into_vec())
         .context("validate native MIP presentation frame")?
         .with_display_spacing(spacing);
     Ok(RenderedProjection { frame })

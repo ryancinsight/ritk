@@ -2,6 +2,16 @@
 
 Unresolved delivery items are kept as executable records. Closed history is indexed below; full prose remains in git.
 
+<a id="RITK-SNAP-PRESENTATION-FRAME-REUSE-001"></a>
+## RITK-SNAP-PRESENTATION-FRAME-REUSE-001 — Reuse host presentation frame storage [patch]
+- Status: done; priority: P1; owner: RITK presentation; integrator: root; last-update: 2026-09-20.
+- Outcome: repeated browser slice presentation reuses bounded RGBA storage after warmup while preserving byte-identical pixels and physical display spacing; the reusable frame API is available to native callers.
+- Scope: `ritk-snap` presentation frame and slice-render scratch seam, browser surface cache, tests and DICOM manual evidence; DICOM decoding, clinical semantics, native-session composition and Metis ownership remain unchanged.
+- Acceptance: repeated browser-study slice updates retain frame-slot capacity without per-frame RGBA allocation; native/WASM checks, strict Clippy, locked presentation tests, rustdoc, formatting and real MRI pixel/hash oracles pass; no ranking claim is made.
+- Delivery: browser surfaces retain `PresentationFrame` slots and swap bounded RGBA storage with reusable extraction scratch; study replacement returns frame storage to scratch; native session composition remains unchanged.
+- Verification: locked native nextest 455/455 and eframe-shell nextest 867/867; strict native and wasm32 Clippy; wasm32 checks with and without eframe-shell; rustdoc; formatting; standalone lockfile and diff checks; real 94-file MRI replay exit 0 with invalid-study exit 1 and byte-identical 1280×800 PNG (`259dd791...`, 411,589 non-black pixels).
+- Evidence: current executable SHA `b260611...` (54,011,904 bytes); the reusable-frame regression asserts byte identity and stable frame/scratch capacities after warmup. Hosted browser residuals remain tracked by the existing cross-engine evidence item; this increment makes no framework or engine ranking claim.
+
 <a id="RITK-SNAP-PRESENTATION-GEOMETRY-001"></a>
 ## RITK-SNAP-PRESENTATION-GEOMETRY-001 — Bind physical geometry to host-neutral frames [arch] [minor]
 - Status: done; priority: P1; owner: RITK presentation; integrator: root; last-update: 2026-09-20.

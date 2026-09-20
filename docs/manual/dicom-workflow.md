@@ -69,6 +69,17 @@ the bounded resize path. This keeps the browser presentation lifecycle stable
 without changing DICOM decoding or the displayed pixels. It is an allocation
 lifecycle guard, not a measurement of WebAssembly or browser memory.
 
+RITK's presentation boundary exposes the same lifecycle primitive to every
+host. A `PresentationFrame` swaps its completed RGBA storage with
+caller-owned render scratch, and the browser viewer retains its frame slots
+while a study remains loaded. After the first dimension for a browser slot is
+established, slice, window/level and cine updates reuse the existing capacity;
+study replacement reclaims that capacity into the scratch owner before the
+next load. The native-session compositor still owns its separate transformed
+frame assembly. Frame bytes, dimensions and validated physical spacing remain
+unchanged by this storage policy. The focused reuse test is an allocation
+lifecycle oracle, not a process-memory or framework comparison measurement.
+
 Build from a standalone RITK checkout, then run the bounded demonstration:
 
 ```console
