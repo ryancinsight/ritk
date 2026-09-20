@@ -2213,6 +2213,17 @@ ignored before viewer state changes. Métis carries the event snapshot only; it
 does not parse DICOM, retain a decoded volume, choose a series, or apply a
 clinical display transform.
 
+The browser presentation now applies that same zoom and pan state to the
+RITK-owned RGBA raster before it reaches the Métis canvas. Zoom samples around
+the frame centre; the Pan tool shifts the displayed pixels and fills exposed
+areas with opaque black. Pointer coordinates use the inverse of the same
+transform, so a click selects the voxel that is visible under the pointer and
+black panned edges do not create an annotation. The transform reuses the
+browser frame scratch buffer after warmup; it does not add a JavaScript or CSS
+pixel path. The focused proof covers identity bytes, zoom, pan, invalid state,
+storage reuse and transformed pointer coordinates. The public 94-file MRI
+replay below remains the real-image visual oracle for this workflow.
+
 The existing `dicom-window.png` below remains the egui/eframe baseline. The
 `dicom-metis-native.png` image is the reviewed Métis content capture; it is
 generated from the same synthetic study and is not relabeled as an OS-window

@@ -63,6 +63,7 @@ pub(crate) mod state;
 mod surface_export;
 #[cfg(all(not(target_arch = "wasm32"), feature = "eframe-shell"))]
 mod toolbar;
+pub(crate) mod viewer_viewport;
 #[cfg(all(not(target_arch = "wasm32"), feature = "eframe-shell"))]
 mod viewport;
 #[cfg(all(not(target_arch = "wasm32"), feature = "eframe-shell"))]

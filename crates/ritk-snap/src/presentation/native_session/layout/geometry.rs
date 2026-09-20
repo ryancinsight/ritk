@@ -1,6 +1,6 @@
 //! Screen geometry and coordinate mapping for native presentation.
 
-use crate::app::action_adapter::ViewerViewport;
+use crate::app::viewer_viewport::ViewerViewport;
 use crate::presentation::PresentationSpacing;
 use crate::tools::interaction::ViewportOffset;
 use anyhow::{anyhow, bail, Result};

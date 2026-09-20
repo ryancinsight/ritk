@@ -1,5 +1,15 @@
 # RITK execution backlog
 
+<a id="RITK-BROWSER-VIEWPORT-001"></a>
+## RITK-BROWSER-VIEWPORT-001 — Present browser zoom and pan state [minor]
+- Status: review; priority: P1; owner: RITK browser presentation; integrator: root; last-update: 2026-09-20.
+- Outcome: browser Métis canvases display the RITK viewer's zoom and pan state while pointer actions map through the same transformed pixels.
+- Scope: `ritk-snap` browser raster presentation, viewport coordinate mapping, focused value tests, ADR and DICOM manual; DICOM decoding, Metis APIs and native eframe composition remain out of scope.
+- Acceptance: zoom/pan identity preserves RGBA bytes; zoom crops around the frame center; pan shifts pixels with black out-of-bounds; pointer mapping uses the same inverse transform; storage remains reusable after warmup; locked native/WASM tests, strict Clippy, formatting, rustdoc, real MRI replay and documentation checks pass.
+- Dependency: existing `PresentationFrame` storage reuse, browser physical spacing and the host-neutral `SnapApp` zoom/pan policy.
+- Verification: neutral locked `ritk-snap` nextest 473/473; strict native and wasm32 Clippy; wasm32 check; rustdoc; formatting; standalone lockfile check; Python script tests 21/21; real 94-file MRI replay passed with invalid-study exit 1 and byte-identical 1280×800 PNG (`259dd791...`, 411,589 non-black pixels).
+- Delivery: RITK PR [#535](https://github.com/ryancinsight/ritk/pull/535), pending merge; the browser raster and pointer seams are covered by the accepted ADR and the DICOM workflow manual.
+
 <a id="RITK-SNAP-BROWSER-PROJECTION-001"></a>
 ## RITK-SNAP-BROWSER-PROJECTION-001 — Present a selectable scalar projection in the browser [arch] [minor]
 - Status: done; priority: P1; owner: RITK browser presentation; integrator: root; last-update: 2026-09-20.

@@ -12,7 +12,7 @@ use crate::tools::interaction::Annotation;
 use crate::ui::overlay::{OverlayContext, OverlayRenderer};
 use crate::viewer::{DEFAULT_WINDOW_CENTER, DEFAULT_WINDOW_WIDTH};
 use crate::{
-    app::action_adapter::ViewerViewport,
+    app::viewer_viewport::ViewerViewport,
     presentation::{PointerButton, PresentationEvent, PresentationModifiers, ViewportPoint},
 };
 // ── Overlay label constants ──────────────────────────────────────────────────

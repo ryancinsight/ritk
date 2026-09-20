@@ -1,7 +1,7 @@
 //! Browser surface lifecycle and canvas event routing.
 
 use super::browser_canvas::BrowserCanvas;
-use super::browser_geometry::{viewport_for_display, PhysicalCanvasAspect};
+use super::browser_geometry::{viewport_for_display_with_zoom_pan, PhysicalCanvasAspect};
 use super::browser_semantics::BrowserCanvasSemantics;
 use super::SnapApp;
 use crate::app::action_adapter::ViewerActionDisposition;
@@ -383,7 +383,15 @@ fn apply_canvas_events(
         return Ok(ViewerActionDisposition::Continue { repaint: false });
     }
     let viewport = frame
-        .map(|frame| viewport_for_display(axis, [1.0, 1.0], [frame.width(), frame.height()]))
+        .map(|frame| {
+            viewport_for_display_with_zoom_pan(
+                axis,
+                [1.0, 1.0],
+                [frame.width(), frame.height()],
+                app.zoom,
+                app.pan_offset,
+            )
+        })
         .transpose()?;
     let previous_axis = app.axis;
     app.axis = axis;
