@@ -48,3 +48,4 @@
 | [0037](0037-browser-webgpu-presentation.md) | Opt-in browser WebGPU presentation | Accepted |
 | [0038](0038-presentation-frame-geometry.md) | Carry physical display geometry with presentation frames | Accepted |
 | [0039](0039-vtk-spatial-volume-contract.md) | Physical volume contract at the VTK boundary | Accepted |
+| [0040](0040-slab-projection-contract.md) | Typed bounded slab projection contract | Accepted |

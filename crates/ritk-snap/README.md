@@ -118,6 +118,21 @@ MIP renderer is defined for scalar data.
 
 The reviewed capture is shown in the [DICOM workflow manual](../../docs/manual/dicom-workflow.md#present-validated-ritk-views-through-metis).
 
+For host-neutral scalar slab work, use the validated RITK projection contract:
+
+```rust
+use ritk_snap::render::{ProjectionStatistic, SlabProjection};
+
+let request = SlabProjection::try_new(&volume, 0, centre, half_width)?;
+let plane = request.compute(&volume, ProjectionStatistic::Maximum)?;
+```
+
+The request validates the axis-aligned inclusive range and rejects malformed
+or RGB volumes. `ProjectionPlane::dimensions` and `pixels` follow the existing
+slice order, so each host can apply its own presentation carrier without
+duplicating voxel indexing. Oblique resampling and GPU slab dispatch are not
+implied by this contract.
+
 API reference: `cargo doc --locked -p ritk-snap --no-deps`.
 
 ## Browser host

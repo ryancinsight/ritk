@@ -616,6 +616,30 @@ the visual demonstration; no generated or private patient image is used.
 The capture metadata, source revisions, panel order, dimensions, and digest are
 in the accompanying [MIP provenance record](images/dicom-metis-real-ct-mip.json).
 
+### Request a bounded slab statistic from RITK
+
+RITK keeps slab sampling in the viewer domain so a native shell, browser
+consumer, VTK pipeline, or future GPU renderer shares one indexing contract.
+The current API accepts a scalar `LoadedVolume`, an axis (`0` depth, `1` row,
+`2` column), a centre voxel and an inclusive half-width. It returns exact
+maximum, minimum, or arithmetic-mean samples in the same plane order as slice
+extraction:
+
+```rust
+use ritk_snap::render::{ProjectionStatistic, SlabProjection};
+
+let request = SlabProjection::try_new(&volume, 0, 204, 2)?;
+let plane = request.compute(&volume, ProjectionStatistic::Average)?;
+assert_eq!(plane.dimensions(), [volume.shape[2], volume.shape[1]]);
+```
+
+Requests that cross the volume boundary, target RGB data, or use malformed
+payloads return typed errors. No index is clamped and no DICOM metadata enters
+the host contract. The existing native MIP capture above remains the reviewed
+real-study visual oracle; oblique resampling, GPU slab dispatch and new viewer
+controls require separate evidence before they are presented as available
+clinical workflows.
+
 ### Capture the complete Métis application window
 
 The framebuffer capture above intentionally excludes operating-system chrome.

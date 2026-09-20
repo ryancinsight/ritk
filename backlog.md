@@ -1,5 +1,15 @@
 # RITK execution backlog
 
+<a id="RITK-SNAP-SLAB-PROJECTION-001"></a>
+## RITK-SNAP-SLAB-PROJECTION-001 — Add a typed bounded slab projection contract [minor]
+- Status: in-progress; priority: P1; owner: RITK rendering; integrator: root; last-update: 2026-09-20.
+- Outcome: RITK exposes an axis-aware, bounded scalar slab projection that preserves the loaded volume's row-major contract and produces deterministic maximum, minimum or average samples for host renderers.
+- Scope: `ritk-snap` host-neutral projection type, analytical tests, ADR and manual/API documentation. Oblique resampling, GPU slab kernels, VTK volume mappers, RGB projection and Metis changes remain follow-up work; DICOM parsing stays in RITK loaders.
+- Acceptance: validated axis/center/half-width requests reject invalid or overflowing ranges; maximum/minimum/average outputs match manufactured-volume oracles; a one-sample maximum equals the corresponding extracted slice; scratch-backed output reuses capacity; locked package tests, strict Clippy, rustdoc, formatting and diff checks pass.
+- Dependency: `LoadedVolume` and the merged `ritk-vtk::VtkImageVolume` geometry contract; no GUI or Metis dependency.
+- Current increment: implement `SlabProjection` and `ProjectionStatistic` in the render domain, add value-semantic tests and document the host-neutral boundary.
+- Re-open trigger: a consumer needs oblique physical-plane resampling, GPU slab dispatch or clinical RGB slab semantics; those require separate contracts and independent analytical/differential oracles.
+
 <a id="RITK-VTK-SPATIAL-VOLUME-001"></a>
 ## RITK-VTK-SPATIAL-VOLUME-001 — Preserve physical volume geometry across the VTK boundary [arch] [minor]
 - Status: done; priority: P1; owner: RITK volume/VTK integration; integrator: root; last-update: 2026-09-20.
