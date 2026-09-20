@@ -1371,6 +1371,13 @@ disabled. The workflow passes this flag to every single-cycle engine job;
 WebGPU and WebKit remain host-capability probes when their rendering or file
 access differs from the raster Chromium evidence.
 
+The workflow also passes `--tool-controls` in the same single-cycle job. Cine
+capture leaves the mounted study available for the diagnostic-tool palette;
+the tool capture owns the one final viewer teardown and completes the cine
+artifact with that shared post-stop sample. This ordering prevents stale canvas
+attributes from being mistaken for a live study while retaining one lifecycle
+and one listener-release oracle for the full control workflow.
+
 The browser gallery also exposes the complete RITK diagnostic-tool palette:
 Pan, Zoom, W/L, Length, Angle, ROI Rect, ROI Ellipse, Crosshair, HU Point,
 Label Paint and Label Erase. RITK publishes the selected zero-based index and
