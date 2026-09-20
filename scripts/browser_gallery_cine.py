@@ -86,7 +86,7 @@ const timer = window.setTimeout(() => {
   if (settled) return;
   settled = true;
   observer.disconnect();
-  done({ok: false});
+  done({ok: false, current: read(), status: document.getElementById("gallery-status")?.textContent || ""});
 }, limit);
 """
 
@@ -286,7 +286,8 @@ def _wait_for_frame(client: WebDriverClient, previous: Mapping[str, Any]) -> Non
         raise BrowserRuntimeError("previous cine snapshot omitted canvas states")
     result = client.execute_async(WAIT_CINE_FRAME_SCRIPT, [states, CINE_TIMEOUT_MS])
     if not isinstance(result, dict) or result.get("ok") is not True:
-        raise BrowserRuntimeError("cine playback did not advance a presented slice")
+        detail = result if isinstance(result, dict) else {"result": result}
+        raise BrowserRuntimeError(f"cine playback did not advance a presented slice: {json.dumps(detail, sort_keys=True)}")
 
 
 def _invalid_api_probes(client: WebDriverClient) -> list[dict[str, Any]]:
