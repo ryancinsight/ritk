@@ -2,7 +2,7 @@
 
 <a id="RITK-BROWSER-VIEWPORT-001"></a>
 ## RITK-BROWSER-VIEWPORT-001 — Present browser zoom and pan state [minor]
-- Status: review; priority: P1; owner: RITK browser presentation; integrator: root; last-update: 2026-09-20.
+- Status: done; priority: P1; owner: RITK browser presentation; integrator: root; last-update: 2026-09-20.
 - Outcome: browser Métis canvases display the RITK viewer's zoom and pan state while pointer actions map through the same transformed pixels.
 - Scope: `ritk-snap` browser raster presentation, viewport coordinate mapping, focused value tests, ADR and DICOM manual; DICOM decoding, Metis APIs and native eframe composition remain out of scope.
 - Acceptance: zoom/pan identity preserves RGBA bytes; zoom crops around the frame center; pan shifts pixels with black out-of-bounds; pointer mapping uses the same inverse transform; storage remains reusable after warmup; locked native/WASM tests, strict Clippy, formatting, rustdoc, real MRI replay and documentation checks pass.
@@ -10,7 +10,7 @@
 - Correction: the post-merge review aligned the raster sampler with the existing image-edge coordinate contract; centered zoom now samples the same source pixels that the pointer inverse presents.
 - Workflow correction: the hosted browser chooser now builds one populated argument vector, so empty projection and cine trace options are safe under Bash `nounset`.
 - Verification: neutral locked `ritk-snap` nextest 473/473; strict native and wasm32 Clippy; wasm32 check; rustdoc; formatting; standalone lockfile check; Python script tests 22/22; real 94-file MRI replay passed with invalid-study exit 1 and byte-identical 1280×800 PNG (`259dd791...`, 411,589 non-black pixels).
-- Delivery: RITK PR [#535](https://github.com/ryancinsight/ritk/pull/535), pending merge; the browser raster and pointer seams are covered by the accepted ADR and the DICOM workflow manual.
+- Delivery: RITK PR [#535](https://github.com/ryancinsight/ritk/pull/535), merge `695d33c7e675604b1fb32dfaffe3e90d9b0d21e0`; post-merge edge-coordinate correction PR [#536](https://github.com/ryancinsight/ritk/pull/536), merge `055b2886cb448bdc3d4a673ababf00d0def70b7d`; workflow argument correction PR [#537](https://github.com/ryancinsight/ritk/pull/537), merge `fa0ae3301ea2cc5e3733f7f1cb94fbaee2808f4c`. Hosted run [35512369724](https://github.com/ryancinsight/ritk/actions/runs/35512369724) passed the real-study bundle, four-cycle Chromium raster, Chromium window and MIP projection artifacts; Safari accepted 94 chooser paths but failed four bounded browser-read probes, Chromium WebGPU had no adapter, and Firefox remained in progress at collection.
 
 <a id="RITK-SNAP-BROWSER-PROJECTION-001"></a>
 ## RITK-SNAP-BROWSER-PROJECTION-001 — Present a selectable scalar projection in the browser [arch] [minor]
