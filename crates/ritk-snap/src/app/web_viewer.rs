@@ -9,14 +9,12 @@
 
 use super::browser_canvas::BrowserCanvas;
 use super::browser_cine::{parse_browser_cine_rate_request, BrowserCineControlError};
-use super::browser_geometry::{viewport_for_display, PhysicalCanvasAspect};
-use super::browser_semantics::BrowserCanvasSemantics;
+use super::browser_projection::parse_browser_projection_request;
 use super::browser_slice_selection::{parse_browser_slice_request, BrowserSliceSelectionError};
 use super::browser_tool::{parse_browser_tool_request, BrowserToolError};
+use super::web_surface::BrowserSurface;
 use super::SnapApp;
 use crate::app::action_adapter::ViewerActionDisposition;
-use crate::presentation::PresentationFrame;
-use crate::render::FrameRenderScratch;
 use crate::ui::decide_dropped_input_action;
 use moirai_pal::wasm::{spawn_local_with_handle, LocalTaskHandle, WebAnimationFrame};
 use std::cell::RefCell;
@@ -73,239 +71,6 @@ impl BrowserViewer {
     }
 }
 
-enum BrowserSurface {
-    Single {
-        canvas: BrowserCanvas,
-        frame: Option<PresentationFrame>,
-        scratch: FrameRenderScratch,
-        dirty: bool,
-    },
-    Orthogonal {
-        canvases: Box<[BrowserCanvas; 3]>,
-        frames: Option<[PresentationFrame; 3]>,
-        scratch: FrameRenderScratch,
-        dirty: bool,
-    },
-}
-
-impl BrowserSurface {
-    fn listener_count(&self) -> usize {
-        match self {
-            Self::Single { canvas, .. } => canvas.listener_count(),
-            Self::Orthogonal { canvases, .. } => {
-                canvases.iter().map(BrowserCanvas::listener_count).sum()
-            }
-        }
-    }
-
-    fn clear(&mut self) {
-        match self {
-            Self::Single { dirty, .. } | Self::Orthogonal { dirty, .. } => *dirty = true,
-        }
-    }
-
-    fn render_and_present(&mut self, app: &SnapApp) -> std::io::Result<()> {
-        match self {
-            Self::Single {
-                canvas,
-                frame,
-                scratch,
-                dirty,
-            } => {
-                if app.loaded.is_none() {
-                    if let Some(mut frame) = frame.take() {
-                        frame.reclaim_storage(scratch);
-                    }
-                    *dirty = false;
-                    return Ok(());
-                }
-                let rendered = *dirty || frame.is_none();
-                if frame.is_none() {
-                    *frame = Some(PresentationFrame::empty());
-                }
-                if rendered {
-                    let frame = frame.as_mut().ok_or_else(|| {
-                        std::io::Error::other("browser frame was not initialized")
-                    })?;
-                    app.render_browser_frame_into(frame, scratch)
-                        .map_err(|error| std::io::Error::other(error.to_string()))?;
-                    *dirty = false;
-                }
-                if let Some(frame) = frame.as_ref() {
-                    if rendered {
-                        canvas.present_rendered_frame(frame)?;
-                    }
-                }
-            }
-            Self::Orthogonal {
-                canvases,
-                frames,
-                scratch,
-                dirty,
-            } => {
-                if app.loaded.is_none() {
-                    if let Some(frames) = frames.take() {
-                        for mut frame in frames {
-                            frame.reclaim_storage(scratch);
-                        }
-                    }
-                    *dirty = false;
-                    return Ok(());
-                }
-                let rendered = *dirty || frames.is_none();
-                if frames.is_none() {
-                    *frames = Some([
-                        PresentationFrame::empty(),
-                        PresentationFrame::empty(),
-                        PresentationFrame::empty(),
-                    ]);
-                }
-                if rendered {
-                    let frames = frames.as_mut().ok_or_else(|| {
-                        std::io::Error::other("browser frames were not initialized")
-                    })?;
-                    app.render_browser_frames_into(frames, scratch)
-                        .map_err(|error| std::io::Error::other(error.to_string()))?;
-                    *dirty = false;
-                }
-                if let Some(frames) = frames.as_ref() {
-                    for (canvas, frame) in canvases.iter_mut().zip(frames) {
-                        if rendered {
-                            canvas.present_rendered_frame(frame)?;
-                        }
-                    }
-                }
-            }
-        }
-        Ok(())
-    }
-
-    fn publish_semantics(&mut self, app: &SnapApp) -> std::io::Result<()> {
-        match self {
-            Self::Single { canvas, frame, .. } => {
-                let axis = app.axis;
-                let (slice_index, slice_count) = app.axis_slice_info(axis);
-                let (window_center, window_width) = app.browser_window_level_values();
-                let semantics = BrowserCanvasSemantics::from_state(
-                    app.loaded.is_some(),
-                    axis,
-                    slice_index,
-                    slice_count,
-                    frame.as_ref(),
-                    app.browser_cine_enabled(),
-                    app.browser_cine_rate(),
-                    window_center,
-                    window_width,
-                    app.browser_window_preset_index(),
-                    app.browser_tool_index(),
-                    app.active_tool.label(),
-                );
-                let physical_aspect = physical_aspect(frame.as_ref())?;
-                canvas.publish_semantics(semantics, physical_aspect)
-            }
-            Self::Orthogonal {
-                canvases, frames, ..
-            } => {
-                for (axis, canvas) in canvases.iter_mut().enumerate() {
-                    let frame = frames.as_ref().and_then(|frames| frames.get(axis));
-                    let (slice_index, slice_count) = app.axis_slice_info(axis);
-                    let (window_center, window_width) = app.browser_window_level_values();
-                    let semantics = BrowserCanvasSemantics::from_state(
-                        app.loaded.is_some(),
-                        axis,
-                        slice_index,
-                        slice_count,
-                        frame,
-                        app.browser_cine_enabled(),
-                        app.browser_cine_rate(),
-                        window_center,
-                        window_width,
-                        app.browser_window_preset_index(),
-                        app.browser_tool_index(),
-                        app.active_tool.label(),
-                    );
-                    let physical_aspect = physical_aspect(frame)?;
-                    canvas.publish_semantics(semantics, physical_aspect)?;
-                }
-                Ok(())
-            }
-        }
-    }
-
-    fn apply_events(&mut self, app: &mut SnapApp) -> std::io::Result<ViewerActionDisposition> {
-        match self {
-            Self::Single { canvas, frame, .. } => {
-                apply_canvas_events(app, 0, canvas, frame.as_ref())
-            }
-            Self::Orthogonal {
-                canvases, frames, ..
-            } => {
-                let mut repaint = false;
-                for (axis, canvas) in canvases.iter_mut().enumerate() {
-                    let frame = frames.as_ref().and_then(|frames| frames.get(axis));
-                    match apply_canvas_events(app, axis, canvas, frame)? {
-                        ViewerActionDisposition::Continue { repaint: needed } => {
-                            repaint |= needed;
-                        }
-                        ViewerActionDisposition::Exit => {
-                            return Ok(ViewerActionDisposition::Exit);
-                        }
-                    }
-                }
-                Ok(ViewerActionDisposition::Continue { repaint })
-            }
-        }
-    }
-}
-
-fn physical_aspect(
-    frame: Option<&PresentationFrame>,
-) -> std::io::Result<Option<PhysicalCanvasAspect>> {
-    let Some(frame) = frame else {
-        return Ok(None);
-    };
-    PhysicalCanvasAspect::from_display_spacing(
-        frame.display_spacing(),
-        frame.width(),
-        frame.height(),
-    )
-    .map(Some)
-}
-
-fn apply_canvas_events(
-    app: &mut SnapApp,
-    axis: usize,
-    canvas: &mut BrowserCanvas,
-    frame: Option<&PresentationFrame>,
-) -> std::io::Result<ViewerActionDisposition> {
-    let events = match canvas.take_events() {
-        Ok(events) => events,
-        Err(error) => {
-            app.cancel_presentation_gesture();
-            return Err(std::io::Error::other(error.to_string()));
-        }
-    };
-    if events.is_empty() {
-        return Ok(ViewerActionDisposition::Continue { repaint: false });
-    }
-    let viewport = frame
-        .map(|frame| viewport_for_display(axis, [1.0, 1.0], [frame.width(), frame.height()]))
-        .transpose()?;
-    let previous_axis = app.axis;
-    app.axis = axis;
-    let disposition = match app.apply_presentation_events(&events, viewport.as_ref()) {
-        Ok(disposition) => disposition,
-        Err(error) => {
-            app.axis = previous_axis;
-            app.cancel_presentation_gesture();
-            return Err(std::io::Error::other(format!(
-                "apply RITK browser presentation events: {error}"
-            )));
-        }
-    };
-    Ok(disposition)
-}
-
 fn launch_browser_viewer(viewer: BrowserViewer) -> Result<(), JsValue> {
     VIEWER.with_borrow_mut(|slot| *slot = Some(viewer));
     let handle = spawn_local_with_handle(async move {
@@ -360,12 +125,7 @@ pub(crate) fn start_web_canvas(canvas_id: String) -> Result<(), JsValue> {
         Err(error) => return Err(JsValue::from_str(&error.to_string())),
     };
     metis_web::metis_start();
-    launch_browser_viewer(BrowserViewer::new(BrowserSurface::Single {
-        canvas,
-        frame: None,
-        scratch: FrameRenderScratch::default(),
-        dirty: true,
-    }))
+    launch_browser_viewer(BrowserViewer::new(BrowserSurface::single(canvas)))
 }
 
 /// Starts the RITK byte-drop workflow with an explicit WebGPU canvas.
@@ -376,12 +136,7 @@ pub(crate) async fn start_web_canvas_gpu(canvas_id: String) -> Result<(), JsValu
         Err(error) => return Err(JsValue::from_str(&error.to_string())),
     };
     metis_web::metis_start();
-    launch_browser_viewer(BrowserViewer::new(BrowserSurface::Single {
-        canvas,
-        frame: None,
-        scratch: FrameRenderScratch::default(),
-        dirty: true,
-    }))
+    launch_browser_viewer(BrowserViewer::new(BrowserSurface::single(canvas)))
 }
 
 /// Starts the RITK DICOM byte-drop workflow on three Métis-owned canvases.
@@ -399,12 +154,7 @@ pub(crate) fn start_web_orthogonal_canvases(canvas_ids: [String; 3]) -> Result<(
         }
     };
     metis_web::metis_start();
-    launch_browser_viewer(BrowserViewer::new(BrowserSurface::Orthogonal {
-        canvases: Box::new(canvases),
-        frames: None,
-        scratch: FrameRenderScratch::default(),
-        dirty: true,
-    }))
+    launch_browser_viewer(BrowserViewer::new(BrowserSurface::orthogonal(canvases)))
 }
 
 /// Starts the RITK byte-drop workflow with three explicit WebGPU canvases.
@@ -424,12 +174,64 @@ pub(crate) async fn start_web_orthogonal_canvases_gpu(
         .map_err(|error| JsValue::from_str(&error.to_string()))?;
     let canvases = [axial, coronal, sagittal];
     metis_web::metis_start();
-    launch_browser_viewer(BrowserViewer::new(BrowserSurface::Orthogonal {
-        canvases: Box::new(canvases),
-        frames: None,
-        scratch: FrameRenderScratch::default(),
-        dirty: true,
-    }))
+    launch_browser_viewer(BrowserViewer::new(BrowserSurface::orthogonal(canvases)))
+}
+
+/// Starts the browser workflow with three interactive planes and one
+/// display-only scalar projection canvas.
+pub(crate) fn start_web_orthogonal_canvases_with_projection(
+    canvas_ids: [String; 4],
+    projection: f64,
+) -> Result<(), JsValue> {
+    let statistic = parse_browser_projection_request(projection)
+        .map_err(|error| JsValue::from_str(&error.to_string()))?;
+    stop_web_canvas();
+    let [axial_id, coronal_id, sagittal_id, projection_id] = canvas_ids;
+    let axial =
+        BrowserCanvas::from_id(&axial_id).map_err(|error| JsValue::from_str(&error.to_string()))?;
+    let coronal = BrowserCanvas::from_id(&coronal_id)
+        .map_err(|error| JsValue::from_str(&error.to_string()))?;
+    let sagittal = BrowserCanvas::from_id(&sagittal_id)
+        .map_err(|error| JsValue::from_str(&error.to_string()))?;
+    let projection_canvas = BrowserCanvas::from_id_without_input(&projection_id)
+        .map_err(|error| JsValue::from_str(&error.to_string()))?;
+    metis_web::metis_start();
+    launch_browser_viewer(BrowserViewer::new(
+        BrowserSurface::orthogonal_with_projection(
+            [axial, coronal, sagittal, projection_canvas],
+            statistic,
+        ),
+    ))
+}
+
+/// Starts the four-canvas browser workflow with explicit WebGPU surfaces.
+pub(crate) async fn start_web_orthogonal_canvases_gpu_with_projection(
+    canvas_ids: [String; 4],
+    projection: f64,
+) -> Result<(), JsValue> {
+    let statistic = parse_browser_projection_request(projection)
+        .map_err(|error| JsValue::from_str(&error.to_string()))?;
+    stop_web_canvas();
+    let [axial_id, coronal_id, sagittal_id, projection_id] = canvas_ids;
+    let axial = BrowserCanvas::from_id_gpu(&axial_id)
+        .await
+        .map_err(|error| JsValue::from_str(&error.to_string()))?;
+    let coronal = BrowserCanvas::from_id_gpu(&coronal_id)
+        .await
+        .map_err(|error| JsValue::from_str(&error.to_string()))?;
+    let sagittal = BrowserCanvas::from_id_gpu(&sagittal_id)
+        .await
+        .map_err(|error| JsValue::from_str(&error.to_string()))?;
+    let projection_canvas = BrowserCanvas::from_id_gpu_without_input(&projection_id)
+        .await
+        .map_err(|error| JsValue::from_str(&error.to_string()))?;
+    metis_web::metis_start();
+    launch_browser_viewer(BrowserViewer::new(
+        BrowserSurface::orthogonal_with_projection(
+            [axial, coronal, sagittal, projection_canvas],
+            statistic,
+        ),
+    ))
 }
 
 /// Stops the RITK browser canvas workflow and releases its animation-frame task.
@@ -581,65 +383,4 @@ pub(crate) fn web_window_preset_name(
             .browser_window_preset_name(index)
             .map(str::to_owned)
     })
-}
-
-impl SnapApp {
-    fn render_browser_frame_into(
-        &self,
-        frame: &mut PresentationFrame,
-        scratch: &mut FrameRenderScratch,
-    ) -> anyhow::Result<()> {
-        let Some(volume) = self.loaded.as_ref() else {
-            return Ok(());
-        };
-        let window_level = self.browser_window_level();
-        let slice_index = match self.axis {
-            0 => self.viewer_state.slice_index,
-            1 => self.coronal_slice,
-            _ => self.sagittal_slice,
-        };
-        frame.render_slice_into(
-            volume,
-            self.axis,
-            slice_index,
-            window_level,
-            self.colormap,
-            scratch,
-        )
-    }
-
-    fn render_browser_frames_into(
-        &self,
-        frames: &mut [PresentationFrame; 3],
-        scratch: &mut FrameRenderScratch,
-    ) -> anyhow::Result<()> {
-        let Some(volume) = self.loaded.as_ref() else {
-            return Ok(());
-        };
-        let indices = [0_usize, 1, 2].map(|axis| self.axis_slice_info(axis).0);
-        for (axis, frame) in frames.iter_mut().enumerate() {
-            frame.render_slice_into(
-                volume,
-                axis,
-                indices[axis],
-                self.browser_window_level(),
-                self.colormap,
-                scratch,
-            )?;
-        }
-        Ok(())
-    }
-
-    fn browser_window_level(&self) -> crate::render::WindowLevel {
-        let window_center = self
-            .viewer_state
-            .window_center
-            .unwrap_or(crate::viewer::DEFAULT_WINDOW_CENTER);
-        let window_width = self
-            .viewer_state
-            .window_width
-            .unwrap_or(crate::viewer::DEFAULT_WINDOW_WIDTH)
-            .max(1.0);
-        crate::render::WindowLevel::new(f64::from(window_center), f64::from(window_width))
-    }
 }

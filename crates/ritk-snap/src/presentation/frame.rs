@@ -187,19 +187,31 @@ impl PresentationFrame {
             SliceRenderer::render_rgba_into(scratch, volume, axis, index, window_level, colormap);
         let width = u32::try_from(width).map_err(|_| anyhow!("frame width exceeds u32"))?;
         let height = u32::try_from(height).map_err(|_| anyhow!("frame height exceeds u32"))?;
+        self.replace_rgba_storage(width, height, display_spacing, &mut scratch.rgba)
+    }
+
+    /// Replaces this frame's RGBA storage with a validated caller-owned
+    /// buffer, preserving the previous allocation in `storage` for reuse.
+    pub(crate) fn replace_rgba_storage(
+        &mut self,
+        width: u32,
+        height: u32,
+        display_spacing: PresentationSpacing,
+        storage: &mut Vec<u8>,
+    ) -> Result<()> {
         let pixel_count = Self::validate_dimensions(width, height)?;
         let byte_count = pixel_count
             .checked_mul(4)
             .ok_or_else(|| anyhow!("presentation frame byte count overflows usize"))?;
-        if scratch.rgba.len() != byte_count {
+        if storage.len() != byte_count {
             bail!(
                 "presentation frame byte count {} does not match {}x{} RGBA storage",
-                scratch.rgba.len(),
+                storage.len(),
                 width,
                 height
             );
         }
-        std::mem::swap(&mut self.rgba, &mut scratch.rgba);
+        std::mem::swap(&mut self.rgba, storage);
         self.width = width;
         self.height = height;
         self.display_spacing = display_spacing;

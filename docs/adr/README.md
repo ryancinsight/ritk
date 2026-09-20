@@ -50,3 +50,4 @@
 | [0039](0039-vtk-spatial-volume-contract.md) | Physical volume contract at the VTK boundary | Accepted |
 | [0040](0040-slab-projection-contract.md) | Typed bounded slab projection contract | Accepted |
 | [0041](0041-native-scalar-projection-modes.md) | Native scalar projection modes | Accepted |
+| [0042](0042-browser-scalar-projection.md) | Browser scalar projection surface | Accepted |

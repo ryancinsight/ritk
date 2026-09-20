@@ -1827,6 +1827,56 @@ browser reported no adapter. The generic Métis runner's `--canvas-capture scree
 PNGs and verifies the context without substituting a 2D readback. Native eframe GPU uploads are guarded by the same RITK device limit
 check and have a fitting-volume visual capture in the eframe workflow above.
 
+### Add a display-only scalar projection canvas
+
+The four-canvas entrypoint keeps the established three interactive planes and
+adds one RITK-owned scalar projection. Canvas identifiers are ordered axial,
+coronal, sagittal, projection. The final argument selects `0` maximum
+intensity (MIP), `1` minimum intensity (MinIP), or `2` arithmetic average:
+
+```html
+<main id="metis-app" aria-label="Métis browser host"></main>
+<section aria-label="RITK orthogonal views and scalar projection">
+  <canvas id="ritk-snap-axial"></canvas>
+  <canvas id="ritk-snap-coronal"></canvas>
+  <canvas id="ritk-snap-sagittal"></canvas>
+  <canvas id="ritk-snap-projection"></canvas>
+</section>
+<script type="module">
+  import init, {
+    start_web_orthogonal_canvases_with_projection,
+    stop_web_canvas,
+  } from "./ritk_snap.js";
+
+  await init();
+  start_web_orthogonal_canvases_with_projection(
+    "ritk-snap-axial",
+    "ritk-snap-coronal",
+    "ritk-snap-sagittal",
+    "ritk-snap-projection",
+    0,
+  );
+  // Call stop_web_canvas() when the page or route is torn down.
+</script>
+```
+
+The first three canvases publish the existing `data-ritk-*` slice and input
+contract. The projection canvas has no input listeners and publishes
+`data-ritk-role="projection"`, `data-ritk-projection-statistic`,
+`data-ritk-load-state`, `data-ritk-frame-state`, frame dimensions and physical
+display aspect. RITK computes the typed full-depth scalar slab, then applies the
+same DICOM window/level and colormap policy as the three planes. A color study,
+malformed statistic index, or unavailable WebGPU device returns a typed setup
+error; no browser fallback or DICOM interpretation occurs in Métis. The
+`start_web_orthogonal_canvases_gpu_with_projection` export has the same canvas
+order and selects WebGPU explicitly.
+
+The native CT captures in [the scalar projection section](#show-the-real-study-with-a-native-scalar-projection-panel)
+are the current visual oracle for the three statistics. A hosted four-canvas
+browser gallery capture is a separate consumer exercise; the existing checked-
+in gallery and its cross-engine traces intentionally remain on the stable
+three-canvas entrypoint.
+
 The hosted saved-study workflow
 ([`metis-browser-dicom.yml`](../../.github/workflows/metis-browser-dicom.yml))
 includes a Chromium WebGPU matrix entry. It uses the same 94-file MRI-DIR

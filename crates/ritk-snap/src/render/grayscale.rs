@@ -8,6 +8,7 @@
 use thiserror::Error;
 
 use crate::LoadedVolume;
+use iris::color::{ColorMap, NamedColorMap, Normalized};
 use ritk_io::{DicomObjectModel, DicomReadMetadata, DicomSliceMetadata, DicomTag};
 
 const VOI_LUT_FUNCTION_TAG: DicomTag = DicomTag::new(0x0028, 0x1056);
@@ -259,6 +260,21 @@ impl GrayscalePresentation {
     pub(crate) const fn gpu_code(self) -> u32 {
         self.voi_function.gpu_code() | if self.invert { 4 } else { 0 }
     }
+}
+
+/// Map one modality sample through RITK grayscale presentation and colormap.
+///
+/// This host-neutral operation is shared by native and browser projection
+/// surfaces so scalar slab statistics cannot drift between presentation hosts.
+pub(crate) fn map_scalar_value(
+    value: f32,
+    presentation: GrayscalePresentation,
+    window_level: WindowLevel,
+    colormap: NamedColorMap,
+) -> [u8; 4] {
+    let norm = Normalized::from_u8(presentation.apply(window_level, f64::from(value)));
+    let [red, green, blue, _] = colormap.sample(norm).to_rgba8();
+    [red, green, blue, 255]
 }
 
 impl Default for GrayscalePresentation {
