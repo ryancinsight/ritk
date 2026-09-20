@@ -67,6 +67,14 @@ def _annotation_state(canvas: Mapping[str, Any], axis: str) -> dict[str, Any]:
     return {"count": count, "kind": kind, "value": numeric}
 
 
+def _tool_replay_order(buttons: list[Mapping[str, Any]]) -> tuple[int, ...]:
+    """Replay measurements before tools that can move the viewport."""
+    indexes = tuple(range(len(buttons)))
+    annotation_indexes = tuple(index for index in indexes if index in ANNOTATION_TOOL_KINDS)
+    other_indexes = tuple(index for index in indexes if index not in ANNOTATION_TOOL_KINDS)
+    return annotation_indexes + other_indexes
+
+
 def _snapshot(client: WebDriverClient) -> dict[str, Any]:
     """Read the shared active-tool state and palette controls."""
     result = client.execute(TOOL_SNAPSHOT_SCRIPT, [list(AXES)])
@@ -270,7 +278,9 @@ def capture_tool_gallery(client: WebDriverClient, output_directory: pathlib.Path
     try:
         canvas = client.find("#ritk-snap-axial")
         actions: list[dict[str, Any]] = []
-        for index, label in enumerate(button["label"] for button in initial["controls"]["buttons"]):
+        buttons = initial["controls"]["buttons"]
+        for index in _tool_replay_order(buttons):
+            label = buttons[index]["label"]
             before = _snapshot(client)
             client.click(client.find(f'#tool-buttons button[data-tool-index="{index}"]'))
             _wait_for_tool(client, index, label)

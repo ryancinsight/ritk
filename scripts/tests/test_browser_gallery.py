@@ -553,6 +553,13 @@ class WindowPresetHelperTests(unittest.TestCase):
                 "axial",
             )
 
+    def test_tool_replay_orders_measurements_before_viewport_changes(self):
+        buttons = [{"label": str(index)} for index in range(11)]
+        self.assertEqual(
+            browser_gallery_tools._tool_replay_order(buttons),
+            (3, 4, 5, 6, 8, 0, 1, 2, 7, 9, 10),
+        )
+
     def test_tool_probe_contract_rejects_invalid_indices(self):
         for value in ("NaN", "Infinity", "-Infinity", "-1", "0.5", "4294967296"):
             self.assertIn(value, browser_gallery_tools.INVALID_TOOL_API_PROBE_SCRIPT)
