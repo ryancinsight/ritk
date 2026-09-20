@@ -30,7 +30,9 @@ mod layout;
 mod projection;
 use frame::{render_orthogonal_views, render_orthogonal_views_into, RenderedView};
 use layout::NativeViewport;
-use projection::{render_projection, RenderedProjection};
+use projection::{
+    empty_projection, render_projection_into, ProjectionRenderScratch, RenderedProjection,
+};
 mod composition;
 mod events;
 mod routing;
@@ -161,6 +163,7 @@ struct NativeViewerSession {
     views: [RenderedView; 3],
     render_scratch: [FrameRenderScratch; 3],
     projection: Option<RenderedProjection>,
+    projection_scratch: ProjectionRenderScratch,
     presentation_mode: NativePresentationMode,
     framebuffer: Framebuffer,
     viewports: [NativeViewport; 3],
@@ -191,13 +194,21 @@ impl NativeViewerSession {
         } else {
             frame::empty_orthogonal_views()?
         };
+        let mut projection_scratch = ProjectionRenderScratch::default();
         let projection = match presentation_mode.projection_statistic() {
             None => None,
-            Some(statistic) => Some(if app.loaded.is_some() {
-                render_projection(&app, statistic)?
-            } else {
-                projection::empty_projection(statistic)?
-            }),
+            Some(statistic) => {
+                let mut projection = empty_projection(statistic)?;
+                if app.loaded.is_some() {
+                    render_projection_into(
+                        &app,
+                        statistic,
+                        &mut projection,
+                        &mut projection_scratch,
+                    )?;
+                }
+                Some(projection)
+            }
         };
         let (framebuffer, viewports) = compose_frames(
             &views,
@@ -229,6 +240,7 @@ impl NativeViewerSession {
             views,
             render_scratch,
             projection,
+            projection_scratch,
             presentation_mode,
             framebuffer,
             viewports,
@@ -257,10 +269,28 @@ impl NativeViewerSession {
     fn refresh_frame(&mut self) -> Result<()> {
         if self.app.loaded.is_some() {
             render_orthogonal_views_into(&self.app, &mut self.views, &mut self.render_scratch)?;
-            self.projection = match self.presentation_mode.projection_statistic() {
-                None => None,
-                Some(statistic) => Some(render_projection(&self.app, statistic)?),
-            };
+            match self.presentation_mode.projection_statistic() {
+                None => self.projection = None,
+                Some(statistic) => {
+                    if let Some(projection) = self.projection.as_mut() {
+                        render_projection_into(
+                            &self.app,
+                            statistic,
+                            projection,
+                            &mut self.projection_scratch,
+                        )?;
+                    } else {
+                        let mut projection = empty_projection(statistic)?;
+                        render_projection_into(
+                            &self.app,
+                            statistic,
+                            &mut projection,
+                            &mut self.projection_scratch,
+                        )?;
+                        self.projection = Some(projection);
+                    }
+                }
+            }
         }
         let (framebuffer, viewports) = compose_frames(
             &self.views,

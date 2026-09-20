@@ -81,14 +81,14 @@
     "input": "public MRI-DIR DICOM directory at test_data/2_head_mri_t2/DICOM",
     "files_submitted": 94,
     "bytes_read": 49807236,
-    "ritk_revision": "58f1fe8fdc69f99acc94fe0d0735a86d1a8bc9fa",
+    "ritk_revision": "9714a1ab70a14dcbbd8cc9b3fa1c5e1412c85556",
     "metis_revision": "b58d64b1bebe76bb32570339c4a349cc1b0d7086",
     "moirai_revision": "2a54e010532f76c88027fec8a468620c92fe66b3",
     "cargo_lock_sha256": "d6f75fae8228e1a184ee2221a70f48478ae2388da7c3041eacb85cdc154a0afd",
     "cargo_resolution": "standalone Cargo.lock outside the Atlas development overlay; six Metis and fifteen Moirai package sources resolve at the merged revisions above",
-    "executable_sha256": "89b59eea13dc7713505a9233751bd931d206509985b03d1108dd14f17ecb14f2",
-    "executable_bytes": 54029312,
-    "example_sha256": "f08148a7ec4a8b525129dd0dac764399d66d001426b2e5a77ffeb9fd40db203e",
+    "executable_sha256": "23939f93a2eb9cebc2d4e093dcee51047d0fb2bd2792b259d82e15cec6586fe2",
+    "executable_bytes": 54028800,
+    "example_sha256": "b63172655379e92a7ebab6cc491eb859ecb5d243ac88b2432ae7ddd9a5031bc2",
     "example_bytes": 24156672,
     "capture": "scratch/viewer/real-metis-frame.png",
     "capture_sha256": "259dd79103482756c4e688621bebafc841cc40f1df10ff2bbd7f9d04b7b4d401",
@@ -103,6 +103,15 @@
       "oracle": "two consecutive ninety-degree native refreshes have byte-identical pixels, dimensions and scratch capacities",
       "scope": "allocation lifecycle; not a process-memory or framework comparison measurement"
     },
+    "projection_storage_reuse": {
+      "native_tests": [
+        "presentation::native_session::projection::tests::native_projection_reuses_frame_and_scratch_storage_after_warmup",
+        "presentation::native_session::projection::tests::native_projection_reuses_storage_when_statistic_changes"
+      ],
+      "resource_record": "dicom-metis-real-mri-projection-resource.json",
+      "oracle": "MIP, MinIP and Average use byte-identical pixels, dimensions and spacing while retained frame and scalar/RGBA scratch storage is swapped after warmup",
+      "scope": "allocation lifecycle; not a process-memory or framework comparison measurement"
+    },
     "note": "The captured PNG is byte-identical to dicom-metis-real-mri.png; the source is public CC BY 4.0 phantom data and no private study bytes are committed.",
     "browser_workflow_metis_revision": "b58d64b1bebe76bb32570339c4a349cc1b0d7086"
   },
@@ -112,7 +121,7 @@
     "limits": "native folder selection does not exercise browser file-count or byte-transfer limits"
   },
   "verification": {
-    "basis": "58f1fe8fdc69f99acc94fe0d0735a86d1a8bc9fa plus current standalone-lock replay",
+    "basis": "9714a1ab70a14dcbbd8cc9b3fa1c5e1412c85556 plus current standalone-lock replay",
     "launch_git_blob": "a1b60b0225006350de9dee93ac269141064cdbea",
     "toolchain": "1.97.0-x86_64-pc-windows-msvc",
     "cargo_cwd": "outside the Atlas development overlay",
@@ -120,7 +129,7 @@
     "cargo_manifest": "--manifest-path D:/atlas/repos/ritk/Cargo.toml",
     "baseline": "nextest run --locked -p ritk-snap -E test(launch::tests): 3 passed at babefe845 parent 53c5d42f9; run d02525ce-b1d8-45cd-a87d-d3a5763c2a1a",
     "build": "cargo +1.97.0 --config build.target-dir=D:/atlas/target build --offline --locked --manifest-path D:/atlas/repos/ritk/Cargo.toml -p ritk-snap --features eframe-shell --bin ritk-snap --example dicom_workflow: exit 0; Cargo reports the existing bin/cdylib ritk_snap.pdb filename collision",
-    "native_tests": "cargo +1.97.0 --config build.target-dir=D:/atlas/target nextest run --offline --locked --manifest-path D:/atlas/repos/ritk/Cargo.toml -p ritk-snap --lib --no-fail-fast: 480 passed, 0 skipped; run 2cacec9f-249b-45e7-a59d-afc9678f4877",
+    "native_tests": "cargo +1.97.0 --config build.target-dir=D:/atlas/target nextest run --offline --locked --manifest-path D:/atlas/repos/ritk/Cargo.toml -p ritk-snap --lib --no-fail-fast: 482 passed, 0 skipped; run 3f870d5e-4396-405c-a808-e13b77a7d4f8",
     "lint": "cargo +1.97.0 --config build.target-dir=D:/atlas/target clippy --offline --locked --manifest-path D:/atlas/repos/ritk/Cargo.toml -p ritk-snap --all-targets -- -D warnings: exit 0",
     "format": "cargo +1.97.0 fmt --all -- --check from repository: exit 0",
     "lock": "python scripts/lockfile.py --check: exit 0, 61 first-party git sources; Cargo.lock SHA-256 d6f75fae8228e1a184ee2221a70f48478ae2388da7c3041eacb85cdc154a0afd",
@@ -128,6 +137,8 @@
     "doctests": "cargo +1.97.0 --config build.target-dir=D:/atlas/target test --offline --locked --manifest-path D:/atlas/repos/ritk/Cargo.toml -p ritk-snap --doc: 4 passed, 0 failed, 1 ignored",
     "wasm_check": "cargo +1.97.0 --config build.target-dir=D:/atlas/target check --offline --locked --manifest-path D:/atlas/repos/ritk/Cargo.toml -p ritk-snap --lib --target wasm32-unknown-unknown: exit 0",
     "wasm_clippy": "cargo +1.97.0 --config build.target-dir=D:/atlas/target clippy --offline --locked --manifest-path D:/atlas/repos/ritk/Cargo.toml -p ritk-snap --lib --target wasm32-unknown-unknown -- -D warnings: exit 0",
+    "feature_clippy": "cargo +1.97.0 --config build.target-dir=D:/atlas/target clippy --offline --locked --manifest-path D:/atlas/repos/ritk/Cargo.toml -p ritk-snap --features eframe-shell --lib --all-targets -- -D warnings: exit 0",
+    "projection_tests": "cargo +1.97.0 --config build.target-dir=D:/atlas/target nextest run --offline --locked --manifest-path D:/atlas/repos/ritk/Cargo.toml -p ritk-snap --features eframe-shell --lib -E test(presentation::native_session::projection): 5 passed, 890 skipped; run 9e735aec-d7c7-4fea-95a6-c65a38683dac",
     "rustdoc": "cargo +1.97.0 --config build.target-dir=D:/atlas/target doc --offline --locked --manifest-path D:/atlas/repos/ritk/Cargo.toml -p ritk-snap --no-deps: exit 0"
   }
 }

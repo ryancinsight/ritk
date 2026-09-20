@@ -3,14 +3,15 @@
 //! Projection math is host-neutral: RITK produces bounded RGBA storage and
 //! the optional eframe shell adapts that storage to its image carrier.
 
-use crate::render::{
-    map_scalar_value, GrayscalePresentation, NamedColorMap, RgbaImage, WindowLevel,
-};
+#[cfg(any(feature = "eframe-shell", test))]
+use crate::render::RgbaImage;
+use crate::render::{map_scalar_value, GrayscalePresentation, NamedColorMap, WindowLevel};
 use crate::LoadedVolume;
 #[cfg(feature = "eframe-shell")]
 use iris::color::{ColorMap, Normalized};
 
 /// Render a scalar axial maximum-intensity projection into owned RGBA storage.
+#[cfg(any(feature = "eframe-shell", test))]
 pub(crate) fn render_mip_axial_rgba(
     volume: &LoadedVolume,
     wl: WindowLevel,
@@ -21,6 +22,7 @@ pub(crate) fn render_mip_axial_rgba(
 }
 
 /// Render an axial maximum-intensity projection using caller-owned scratch.
+#[cfg(any(feature = "eframe-shell", test))]
 pub(crate) fn render_mip_axial_rgba_with_scratch(
     scratch: &mut mnemosyne::AlignedVec<u8>,
     volume: &LoadedVolume,
@@ -33,8 +35,47 @@ pub(crate) fn render_mip_axial_rgba_with_scratch(
     let Some(presentation) = valid_presentation(volume) else {
         return invalid_image();
     };
-    let [depth, rows, cols] = volume.shape;
+    let [_, rows, cols] = volume.shape;
     scratch.resize(rows.saturating_mul(cols).saturating_mul(4), 0);
+    render_mip_pixels(volume, presentation, wl, colormap, scratch.as_mut_slice());
+    RgbaImage::new([cols, rows], scratch.to_vec())
+}
+
+/// Render an axial maximum-intensity projection into caller-owned RGBA bytes.
+///
+/// This native presentation seam keeps the completed image in the caller's
+/// frame/scratch swap instead of materializing an intermediate [`RgbaImage`].
+#[cfg(windows)]
+pub(crate) fn render_mip_axial_rgba_into(
+    scratch: &mut Vec<u8>,
+    volume: &LoadedVolume,
+    wl: WindowLevel,
+    colormap: NamedColorMap,
+) -> [usize; 2] {
+    if volume.channels != 1 {
+        scratch.clear();
+        scratch.extend_from_slice(&[255, 0, 255, 255]);
+        return [1, 1];
+    }
+    let Some(presentation) = valid_presentation(volume) else {
+        scratch.clear();
+        scratch.extend_from_slice(&[255, 0, 255, 255]);
+        return [1, 1];
+    };
+    let [_, rows, cols] = volume.shape;
+    scratch.resize(rows.saturating_mul(cols).saturating_mul(4), 0);
+    render_mip_pixels(volume, presentation, wl, colormap, scratch.as_mut_slice());
+    [cols, rows]
+}
+
+fn render_mip_pixels(
+    volume: &LoadedVolume,
+    presentation: GrayscalePresentation,
+    wl: WindowLevel,
+    colormap: NamedColorMap,
+    rgba: &mut [u8],
+) {
+    let [depth, rows, cols] = volume.shape;
     for row in 0..rows {
         for col in 0..cols {
             let mut max_val = f32::MIN;
@@ -43,10 +84,9 @@ pub(crate) fn render_mip_axial_rgba_with_scratch(
             }
             let [red, green, blue, alpha] = map_scalar_value(max_val, presentation, wl, colormap);
             let index = (row * cols + col) * 4;
-            scratch[index..index + 4].copy_from_slice(&[red, green, blue, alpha]);
+            rgba[index..index + 4].copy_from_slice(&[red, green, blue, alpha]);
         }
     }
-    RgbaImage::new([cols, rows], scratch.to_vec())
 }
 
 /// Render a scalar axial front-to-back volume projection into RGBA storage.
@@ -126,11 +166,13 @@ fn channel_to_byte(value: f32) -> u8 {
     byte
 }
 
+#[cfg(any(feature = "eframe-shell", test))]
 fn unsupported_projection_image(channels: u8) -> RgbaImage {
     tracing::error!(channels, "3D projection requires a scalar volume");
     invalid_image()
 }
 
+#[cfg(any(feature = "eframe-shell", test))]
 fn invalid_image() -> RgbaImage {
     RgbaImage::new([1, 1], vec![255_u8, 0, 255, 255])
 }

@@ -38,7 +38,7 @@ use iris::color::{ColorMap, Normalized};
 // ── SliceRenderer ─────────────────────────────────────────────────────────────
 
 /// A bounded row-major RGBA image produced by the RITK display pipeline.
-#[cfg(not(target_arch = "wasm32"))]
+#[cfg(all(not(target_arch = "wasm32"), any(feature = "eframe-shell", test)))]
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub(crate) struct RgbaImage {
     size: [usize; 2],
@@ -58,7 +58,7 @@ pub(crate) struct FrameRenderScratch {
     pub(crate) rgba: Vec<u8>,
 }
 
-#[cfg(not(target_arch = "wasm32"))]
+#[cfg(all(not(target_arch = "wasm32"), any(feature = "eframe-shell", test)))]
 impl RgbaImage {
     pub(crate) fn new(size: [usize; 2], pixels: Vec<u8>) -> Self {
         debug_assert_eq!(
@@ -71,7 +71,7 @@ impl RgbaImage {
         }
     }
 
-    #[cfg(windows)]
+    #[cfg(all(windows, test))]
     pub(crate) fn into_parts(self) -> ([usize; 2], Box<[u8]>) {
         (self.size, self.pixels)
     }

@@ -284,16 +284,6 @@ impl PresentationFrame {
         std::mem::swap(&mut self.rgba, &mut scratch.rgba);
     }
 
-    /// Replaces the physical row and column sample distances.
-    ///
-    /// The values are ordered for the rendered frame, so a quarter-turn
-    /// transform must swap them with the transformed pixel dimensions.
-    #[cfg(windows)]
-    pub(crate) fn with_display_spacing(mut self, spacing: PresentationSpacing) -> Self {
-        self.display_spacing = spacing;
-        self
-    }
-
     fn validate_dimensions(width: u32, height: u32) -> Result<usize> {
         if width == 0 || height == 0 {
             bail!("presentation frame dimensions must be nonzero");
