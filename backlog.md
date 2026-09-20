@@ -11,6 +11,16 @@
 - Verification: locked native nextest 482/482, strict native/WASM checks, feature Clippy, projection nextest 5/5, rustdoc/doctests, formatting, lockfile and script checks pass; the real 94-file MRI replay exits 0 with invalid-study exit 1; three bounded projection runs exit 0 with repeat capture SHA `056bf2cd...` and the resource record linked in the manual.
 
 
+<a id="RITK-DOCS-CROSS-ENGINE-REPLAY-001"></a>
+## RITK-DOCS-CROSS-ENGINE-REPLAY-001 — Rebind latest cross-engine MRI browser evidence [patch]
+- Status: in-progress; priority: P1; owner: RITK browser documentation; integrator: root; last-update: 2026-09-20.
+- Outcome: the cross-engine provenance record and manual identify the latest completed real-study workflow, exact engine artifacts and residual host failures.
+- Scope: current workflow run 35519330780 artifacts, `dicom-metis-real-browser-mri-cross-engine.json`, linked manual/ADR claims and actual public MRI browser captures. Browser or DICOM implementation remains unchanged.
+- Acceptance: Chromium and Firefox real-study/projection/window artifacts retain exact hashes and semantic results; WebKit read and Chromium WebGPU failures remain explicit; JSON, links, image dimensions/hashes and documentation checks pass.
+- Dependency: merged RITK PR #492 lock state and Metis `b58d64b1bebe76bb32570339c4a349cc1b0d7086`; hosted run 35519330780 artifacts.
+- Verification: artifact manifests and JSON parse, image/hash checks, manual/ADR references, `git diff --check`, and repository documentation gates pass.
+- Re-open trigger: a newer merged-main browser matrix or a host capability change supersedes this run.
+
 <a id="RITK-SNAP-OBLIQUE-RESLICE-001"></a>
 ## RITK-SNAP-OBLIQUE-RESLICE-001 — Resample physical viewer planes [arch] [minor]
 - Status: done; priority: P1; owner: RITK rendering; integrator: root; last-update: 2026-09-20.
