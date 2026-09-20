@@ -101,8 +101,8 @@ rendering, physical-aspect placement, and input routing; Métis owns the native
 surface and receives only the bounded framebuffer. The visible session remains
 open until the user closes it.
 
-To show the same loaded scalar study with RITK's existing axial maximum-
-intensity projection (MIP), select the native four-panel presentation:
+To show the same loaded scalar study with a RITK scalar projection, select one
+of the native four-panel presentations:
 
 ```console
 cargo run --locked -p ritk-snap -- path/to/study \
@@ -110,11 +110,13 @@ cargo run --locked -p ritk-snap -- path/to/study \
   --capture mip-frame.png --capture-application
 ```
 
-This keeps RITK responsible for DICOM decoding, window/level, colormap and MIP
-computation. The Métis framebuffer is a bounded 2 × 2 layout: axial, coronal,
-and sagittal occupy the first three panels and the display-only axial MIP is in
-the lower-right panel. Color volumes reject this mode because the shared RITK
-MIP renderer is defined for scalar data.
+Use `orthogonal-with-minip` for the minimum statistic or
+`orthogonal-with-average` for the arithmetic mean. RITK remains responsible
+for DICOM decoding, window/level, colormap and scalar reduction. Métis receives
+only the bounded RGBA framebuffer: axial, coronal, and sagittal occupy the
+first three panels and the display-only projection is in the lower-right
+panel. Color volumes reject every projection mode because the typed RITK
+contract is scalar-only.
 
 The reviewed capture is shown in the [DICOM workflow manual](../../docs/manual/dicom-workflow.md#present-validated-ritk-views-through-metis).
 

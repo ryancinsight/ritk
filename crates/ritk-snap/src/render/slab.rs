@@ -20,6 +20,18 @@ pub enum ProjectionStatistic {
     Average,
 }
 
+impl ProjectionStatistic {
+    /// Return the stable presentation label for this reduction.
+    #[must_use]
+    pub const fn label(self) -> &'static str {
+        match self {
+            Self::Maximum => "MIP",
+            Self::Minimum => "MinIP",
+            Self::Average => "Average",
+        }
+    }
+}
+
 /// A validated axis-aligned slab request.
 ///
 /// The request is tied to the source shape observed at construction. This

@@ -29,7 +29,7 @@ mod layout;
 mod projection;
 use frame::{render_orthogonal_views, RenderedView};
 use layout::NativeViewport;
-use projection::{render_mip_projection, RenderedProjection};
+use projection::{render_projection, RenderedProjection};
 mod composition;
 mod events;
 mod routing;
@@ -53,8 +53,8 @@ pub use outcome::NativeViewerOutcome;
 /// RITK opens and decodes `initial_path`, optionally selecting
 /// `initial_series_uid` after discovery, applies its existing hanging protocol
 /// and window/level rules, and renders the three orthogonal slices. The
-/// [`NativePresentationMode::OrthogonalWithMip`] mode adds the existing RITK
-/// axial MIP as a display-only fourth panel.
+/// Projection layouts add a display-only fourth panel using the selected RITK
+/// scalar statistic (`maximum`, `minimum`, or `average`).
 /// The Métis host owns the visible window, finite event wait, framebuffer
 /// presentation and terminal cleanup. When `capture` is supplied, the window
 /// is hidden and the session closes after its first idle event batch, then
@@ -188,12 +188,12 @@ impl NativeViewerSession {
         } else {
             frame::empty_orthogonal_views()?
         };
-        let projection = match presentation_mode {
-            NativePresentationMode::Orthogonal => None,
-            NativePresentationMode::OrthogonalWithMip => Some(if app.loaded.is_some() {
-                render_mip_projection(&app)?
+        let projection = match presentation_mode.projection_statistic() {
+            None => None,
+            Some(statistic) => Some(if app.loaded.is_some() {
+                render_projection(&app, statistic)?
             } else {
-                projection::empty_projection()?
+                projection::empty_projection(statistic)?
             }),
         };
         let (framebuffer, viewports) = compose_frames(
@@ -253,11 +253,9 @@ impl NativeViewerSession {
     fn refresh_frame(&mut self) -> Result<()> {
         let (views, projection) = if self.app.loaded.is_some() {
             let views = render_orthogonal_views(&self.app)?;
-            let projection = match self.presentation_mode {
-                NativePresentationMode::Orthogonal => None,
-                NativePresentationMode::OrthogonalWithMip => {
-                    Some(render_mip_projection(&self.app)?)
-                }
+            let projection = match self.presentation_mode.projection_statistic() {
+                None => None,
+                Some(statistic) => Some(render_projection(&self.app, statistic)?),
             };
             (views, projection)
         } else {

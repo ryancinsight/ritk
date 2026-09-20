@@ -90,8 +90,8 @@ pub(crate) fn surface_frames(
     Ok((framebuffer, viewports))
 }
 
-/// Compose orthogonal planes and the RITK axial MIP in a bounded 2×2 layout.
-pub(crate) fn surface_frames_with_mip(
+/// Compose orthogonal planes and a RITK scalar projection in a bounded 2×2 layout.
+pub(crate) fn surface_frames_with_projection(
     views: &[RenderedView; 3],
     projection: &RenderedProjection,
     surface_width: u32,
@@ -110,12 +110,12 @@ pub(crate) fn surface_frames_with_mip(
     }
     let available_width = surface_width
         .checked_sub(VIEW_GAP_PIXELS)
-        .ok_or_else(|| anyhow!("native MIP layout is narrower than its separator"))?;
+        .ok_or_else(|| anyhow!("native projection layout is narrower than its separator"))?;
     let available_height = surface_height
         .checked_sub(VIEW_GAP_PIXELS)
-        .ok_or_else(|| anyhow!("native MIP layout is shorter than its separator"))?;
+        .ok_or_else(|| anyhow!("native projection layout is shorter than its separator"))?;
     if available_width < 2 || available_height < 2 {
-        bail!("native MIP layout cannot allocate four panels");
+        bail!("native projection layout cannot allocate four panels");
     }
     let column_widths = [
         available_width / 2 + available_width % 2,
@@ -126,7 +126,7 @@ pub(crate) fn surface_frames_with_mip(
         available_height / 2,
     ];
     let mut framebuffer = Framebuffer::new(surface_width, surface_height)
-        .map_err(|error| anyhow!("allocate native MIP framebuffer: {error}"))?;
+        .map_err(|error| anyhow!("allocate native projection framebuffer: {error}"))?;
     framebuffer.clear(Color::BLACK);
     let viewports = [
         placement_with_bounds(
@@ -332,7 +332,7 @@ pub(crate) fn projection_overlay(
     push_overlay_command(
         &mut overlay,
         DisplayCommand::DrawText {
-            text: "METIS  RITK-SNAP  3D MIP".to_owned(),
+            text: format!("METIS  RITK-SNAP  3D {}", projection.statistic.label()),
             x: panel_x + OVERLAY_MARGIN,
             y: panel_y + 2,
             color: OVERLAY_TEXT,
@@ -341,7 +341,8 @@ pub(crate) fn projection_overlay(
         },
     )?;
     let footer = format!(
-        "Axial MIP  {}x{}",
+        "Axial {}  {}x{}",
+        projection.statistic.label(),
         projection.frame.width(),
         projection.frame.height()
     );

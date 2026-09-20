@@ -41,7 +41,7 @@ pub use histogram::{compute_histogram, histogram_bin_center, histogram_peak_coun
 pub use iris::color::NamedColorMap;
 pub use mesh_render::{DirectionalLight, MeshCamera, MeshRenderer, PhongMaterial};
 #[cfg(all(windows, not(target_arch = "wasm32")))]
-pub(crate) use mip_vr::render_mip_axial_rgba;
+pub(crate) use mip_vr::{map_scalar_value, render_mip_axial_rgba};
 #[cfg(all(not(target_arch = "wasm32"), feature = "eframe-shell"))]
 pub use mip_vr::{render_mip_axial, render_vr_axial};
 pub use slab::{ProjectionPlane, ProjectionStatistic, SlabProjection, SlabProjectionError};
