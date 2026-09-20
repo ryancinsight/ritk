@@ -9,10 +9,12 @@ import unittest
 from unittest import mock
 
 _metis_root = pathlib.Path(__file__).resolve().parents[3] / "metis"
+_ritk_root = pathlib.Path(__file__).resolve().parents[2]
 sys.path.insert(0, str(pathlib.Path(__file__).resolve().parents[1]))
 sys.path.insert(0, str(_metis_root / "scripts"))
 import browser_gallery
 import browser_gallery_projection
+import browser_canvas
 
 
 class ProjectionGalleryTests(unittest.TestCase):
@@ -122,4 +124,12 @@ class ProjectionGalleryTests(unittest.TestCase):
             pathlib.Path(directory) / "projection",
             oracle,
             statistic="mip",
+        )
+
+    def test_host_trace_attribute_budget_is_preserved(self):
+        workflow = (
+            _ritk_root / ".github" / "workflows" / "metis-browser-dicom.yml"
+        ).read_text(encoding="utf-8")
+        self.assertLessEqual(
+            workflow.count("--canvas-attribute"), browser_canvas.MAX_CANVAS_ATTRIBUTES
         )

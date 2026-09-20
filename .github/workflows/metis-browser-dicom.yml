@@ -466,8 +466,6 @@ jobs:
             --canvas-attribute data-ritk-active-tool \
             --canvas-attribute data-ritk-frame-generation \
             --canvas-attribute data-ritk-display-aspect \
-            --canvas-attribute data-ritk-role \
-            --canvas-attribute data-ritk-projection-statistic \
             --output "$GITHUB_WORKSPACE/metis/output/browser/results/$RESULT"
 
       - name: Validate RITK cine-rate trace
