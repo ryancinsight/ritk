@@ -10,6 +10,16 @@
 - Delivery: RITK PR [#547](https://github.com/ryancinsight/ritk/pull/547), merge `7eb4a0a1513248755d7d09b7ac8e3363113163a7`; ADR correction PR [#548](https://github.com/ryancinsight/ritk/pull/548), merge `cfe61bd271b47c1bfaf8694bb7f136512eeb3180`.
 - Verification: locked native `ritk-snap` nextest 488/488, strict native Clippy, wasm32 check/Clippy, rustdoc, doctests 4/4, release build, formatting, lockfile, Python 24/24, browser JavaScript syntax and workflow attribute checks pass. Native display-list tests assert six crosshair lines, hidden-state removal and orientation-aware movement; browser trace and gallery tests validate the optional cursor group and three-canvas linked state. Hosted run [35530079967](https://github.com/ryancinsight/ritk/actions/runs/35530079967) passes the Chromium window/projection and Firefox raster lanes; artifact [10611440694](https://github.com/ryancinsight/ritk/actions/runs/35530079967/artifacts/10611440694) records `false -> true -> false`, cursor `46,255,255`, and visible overlays on all three real MRI planes. WebKit bounded read and Chromium WebGPU adapter remain separate residuals.
 
+<a id="RITK-SNAP-METIS-ANNOTATIONS-001"></a>
+## RITK-SNAP-METIS-ANNOTATIONS-001 — Publish completed browser annotation results [arch] [minor]
+- Status: in-progress; priority: P1; owner: RITK presentation; integrator: root; last-update: 2026-09-20.
+- Outcome: the host-neutral snapshot and Métis browser canvases publish the completed annotation count, kind and primary value after real Length, Angle, ROI and HU gestures.
+- Scope: `PresentationSnapshot`, browser semantic attributes, browser trace/value tests, manual and ADR. Annotation math, DICOM decoding, native drawing and WebKit/WebGPU capability residuals remain separate.
+- Acceptance: completed browser gestures publish input-sensitive annotation results with finite values; invalid selection probes leave the result unchanged; all three canvases agree; locked native/WASM, strict Clippy, rustdoc, formatting, browser script and real-study visual checks pass.
+- Dependencies: existing `Annotation` calculations, `PresentationSnapshot`, Métis semantic attributes and the 94-file MRI browser replay.
+- Verification: focused snapshot/semantic/tool tests plus the full `ritk-snap` gates and a hosted Chromium tool capture with actual MRI pixels and released listeners.
+- Lease: root `crates/ritk-snap/src/presentation/`, `crates/ritk-snap/src/app/`, `scripts/browser_gallery_tools.py`, `scripts/tests/`, `docs/` — 2026-09-20.
+
 <a id="RITK-SNAP-NATIVE-PROJECTION-REUSE-001"></a>
 ## RITK-SNAP-NATIVE-PROJECTION-REUSE-001 — Reuse native scalar projection storage [patch]
 - Status: done; priority: P1; owner: RITK native presentation; integrator: root; last-update: 2026-09-20.
