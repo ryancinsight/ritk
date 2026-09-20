@@ -271,10 +271,12 @@ try {
       start_web_orthogonal_canvases(...orthogonalCanvasIds);
     } else if (renderer === "webgpu") {
       await start_web_orthogonal_canvases_gpu_with_projection(
-        [...orthogonalCanvasIds, "ritk-snap-projection"], projectionIndex);
+        orthogonalCanvasIds[0], orthogonalCanvasIds[1], orthogonalCanvasIds[2],
+        "ritk-snap-projection", projectionIndex);
     } else {
       start_web_orthogonal_canvases_with_projection(
-        [...orthogonalCanvasIds, "ritk-snap-projection"], projectionIndex);
+        orthogonalCanvasIds[0], orthogonalCanvasIds[1], orthogonalCanvasIds[2],
+        "ritk-snap-projection", projectionIndex);
     }
     mounted = true;
     // Host mounting may replace the format-neutral controls on every cycle.

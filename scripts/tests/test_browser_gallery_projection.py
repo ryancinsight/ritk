@@ -141,3 +141,16 @@ class ProjectionGalleryTests(unittest.TestCase):
         self.assertIn('if [[ -n "$CANVAS_CONTEXT" ]]; then', workflow)
         self.assertIn('capture_args+=(--canvas-context "$CANVAS_CONTEXT")', workflow)
         self.assertIn('capture_args+=(--page-query renderer=webgpu)', workflow)
+
+    def test_projection_exports_receive_string_canvas_arguments(self):
+        gallery = (
+            _ritk_root / "crates" / "ritk-snap" / "web" / "gallery" / "gallery.js"
+        ).read_text(encoding="utf-8")
+        expected = (
+            'orthogonalCanvasIds[0], orthogonalCanvasIds[1], orthogonalCanvasIds[2],\n'
+            '        "ritk-snap-projection", projectionIndex);'
+        )
+        self.assertEqual(gallery.count(expected), 2)
+        self.assertNotIn(
+            '[...orthogonalCanvasIds, "ritk-snap-projection"], projectionIndex', gallery
+        )
