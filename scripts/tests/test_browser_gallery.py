@@ -382,6 +382,35 @@ class SliceGalleryTests(unittest.TestCase):
         tools.assert_called_once_with(client, pathlib.Path(directory) / "tools")
         finalize.assert_called_once_with(client, {"schema": 1, "kind": "cine"})
 
+    def test_cine_teardown_completion_persists_shared_stop_state(self):
+        class Client:
+            def execute(self, script):
+                if "window.metisGallery.sample" in script:
+                    return {"mounted": False, "consumer_listeners": 0}
+                return {
+                    "button_disabled": True,
+                    "button_pressed": "false",
+                    "button_text": "Play",
+                    "rate_disabled": True,
+                    "rate_value": "12",
+                    "output": "12 FPS",
+                }
+
+        with tempfile.TemporaryDirectory(
+            dir=browser_gallery.ROOT / "output", prefix="gallery-cine-finalize-"
+        ) as directory:
+            artifact = pathlib.Path(directory) / "gallery-cine.json"
+            evidence = {
+                "artifact": artifact.relative_to(browser_gallery.ROOT).as_posix(),
+                "samples": {"before_stop": {"mounted": True}},
+                "stopped": None,
+            }
+            completed = browser_gallery_cine.finalize_cine_teardown(Client(), evidence)
+            self.assertEqual(completed["stopped"]["rate_value"], "12")
+            self.assertEqual(
+                json.loads(artifact.read_text(encoding="utf-8")), completed
+            )
+
 
 class WindowPresetHelperTests(unittest.TestCase):
     def test_gallery_declares_rust_owned_window_preset_surface(self):
