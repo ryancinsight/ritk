@@ -3,6 +3,7 @@
 use super::browser_geometry::PhysicalCanvasAspect;
 use super::browser_semantics::BrowserCanvasSemantics;
 use crate::presentation::{PresentationFrame, WebCanvasPresenter};
+use crate::render::ProjectionStatistic;
 use moirai_pal::wasm::{WebDocument, WebElement};
 
 pub(super) struct BrowserCanvas {
@@ -21,6 +22,16 @@ impl BrowserCanvas {
 
     pub(super) async fn from_id_gpu(id: &str) -> std::io::Result<Self> {
         let presenter = WebCanvasPresenter::from_canvas_id_gpu_with_input(id).await?;
+        Self::from_presenter(id, presenter)
+    }
+
+    pub(super) fn from_id_without_input(id: &str) -> std::io::Result<Self> {
+        let presenter = WebCanvasPresenter::from_canvas_id(id)?;
+        Self::from_presenter(id, presenter)
+    }
+
+    pub(super) async fn from_id_gpu_without_input(id: &str) -> std::io::Result<Self> {
+        let presenter = WebCanvasPresenter::from_canvas_id_gpu(id).await?;
         Self::from_presenter(id, presenter)
     }
 
@@ -123,6 +134,39 @@ impl BrowserCanvas {
         self.element
             .set_attribute("data-ritk-active-tool", semantics.active_tool_name)?;
         self.last_semantics = Some(semantics);
+        Ok(())
+    }
+
+    pub(super) fn publish_projection(
+        &mut self,
+        loaded: bool,
+        frame: Option<&PresentationFrame>,
+        statistic: ProjectionStatistic,
+        physical_aspect: Option<PhysicalCanvasAspect>,
+    ) -> std::io::Result<()> {
+        self.publish_physical_aspect(physical_aspect)?;
+        let (width, height) = frame
+            .map(|frame| (frame.width(), frame.height()))
+            .unwrap_or((0, 0));
+        self.element.set_attribute("data-ritk-role", "projection")?;
+        self.element.set_attribute(
+            "data-ritk-load-state",
+            if loaded { "ready" } else { "empty" },
+        )?;
+        self.element.set_attribute(
+            "data-ritk-frame-state",
+            if frame.is_some() {
+                "presented"
+            } else {
+                "empty"
+            },
+        )?;
+        self.element
+            .set_attribute("data-ritk-projection-statistic", statistic.label())?;
+        self.element
+            .set_attribute("data-ritk-frame-width", &width.to_string())?;
+        self.element
+            .set_attribute("data-ritk-frame-height", &height.to_string())?;
         Ok(())
     }
 

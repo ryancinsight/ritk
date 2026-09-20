@@ -1,14 +1,14 @@
 # RITK execution backlog
 
-<a id="RITK-SNAP-SLAB-PRESENTATION-001"></a>
-## RITK-SNAP-SLAB-PRESENTATION-001 — Present selectable scalar slab statistics [minor]
-- Status: in-progress; priority: P1; owner: RITK presentation; integrator: root; last-update: 2026-09-20.
-- Outcome: the native Métis DICOM workflow exposes maximum, minimum and average axial slab projections through the same typed RITK projection contract, with deterministic labels and no DICOM or host logic in the renderer.
-- Scope: `ritk-snap` native presentation mode, scalar projection rendering, command-line selection, overlay labels, value-semantic tests and DICOM manual command. Browser controls, oblique planes, GPU slab dispatch, RGB projection and installer changes remain out of scope.
-- Acceptance: each admitted mode renders real scalar pixels with the existing window/level and colormap policy; invalid/non-scalar studies fail with typed context; mode labels and dimensions match the selected statistic; locked native/WASM checks, strict Clippy, rustdoc, formatting, manual and real-study capture checks pass.
-- Dependency: host-neutral slab contract delivered by [RITK PR #525](https://github.com/ryancinsight/ritk/pull/525), merge `9658edd379ff561222d619d18e9d20a08860cbb4`; DICOM parsing and clinical metadata remain in RITK loaders.
-- Current increment: add selectable native presentation modes backed by `SlabProjection`, retain the existing MIP pixel contract, and document the actual public CT workflow.
-- Re-open trigger: a consumer needs interactive browser slab controls or physical-plane/oblique semantics; those require a separate event and resampling contract.
+<a id="RITK-SNAP-BROWSER-PROJECTION-001"></a>
+## RITK-SNAP-BROWSER-PROJECTION-001 — Present a selectable scalar projection in the browser [arch] [minor]
+- Status: in-progress; priority: P1; owner: RITK browser presentation; integrator: root; last-update: 2026-09-20.
+- Outcome: the WASM Métis workflow can mount three interactive orthogonal canvases plus one display-only scalar projection canvas while RITK retains slab reduction, DICOM window/level, colormap and physical spacing.
+- Scope: `ritk-snap` browser presentation, projection-statistic parsing, four-canvas startup exports, bounded projection semantics, frame-storage reuse, ADR, README and DICOM manual. Existing three-canvas and single-canvas exports remain unchanged; oblique resampling, browser WebGPU slab dispatch and DICOM parsing remain out of scope.
+- Acceptance: maximum, minimum and average projection requests are validated before mount; the four-canvas raster and explicit WebGPU workflows present real scalar pixels with the selected label and dimensions; the projection canvas has no input listeners; malformed requests and non-scalar studies surface typed errors; native/WASM checks, strict Clippy, rustdoc, formatting and browser-facing tests pass.
+- Dependency: native scalar modes delivered by [RITK PR #526](https://github.com/ryancinsight/ritk/pull/526), merge `145372ea4781363abf28bad2790c3bfe25e1f202`; typed slab contract delivered by [RITK PR #525](https://github.com/ryancinsight/ritk/pull/525), merge `9658edd379ff561222d619d18e9d20a08860cbb4`.
+- Current increment: reuse the typed full-depth axis-0 slab request in the WASM surface and expose a single statistic-index parameter rather than three duplicated entrypoints.
+- Re-open trigger: a consumer needs interactive projection gestures, oblique physical-plane resampling or GPU slab dispatch; each requires its own typed contract.
 
 <a id="RITK-VTK-SPATIAL-VOLUME-001"></a>
 ## RITK-VTK-SPATIAL-VOLUME-001 — Preserve physical volume geometry across the VTK boundary [arch] [minor]
@@ -379,6 +379,8 @@ Unresolved delivery items are kept as executable records. Closed history is inde
 
 Closed items are indexed by ID with delivery SHAs and dates; consult git history for their full acceptance records.
 
+<a id="RITK-SNAP-SLAB-PRESENTATION-001"></a>
+- **RITK-SNAP-SLAB-PRESENTATION-001** — Present selectable scalar slab statistics (2026-09-20) [RITK PR #526](https://github.com/ryancinsight/ritk/pull/526) `145372ea4781363abf28bad2790c3bfe25e1f202`
 - **RITK-BROWSER-ASPECT-001** — Preserve physical slice proportions (2026-09-16) `e6be3d53621a9643331c3259d3d52654cc101072`
 - **RITK-BROWSER-SLIDER-001** — Select browser slices directly (2026-09-16) `bf54c6cf6` `abc83b485`
 - **RITK-BROWSER-LOCAL-BOX-001** — Map custom embedded canvas boxes (2026-09-16) `c8a323c56746e9bbbb20e52dd48cb9b101b842eb` `c08749927` `8ca04d5`

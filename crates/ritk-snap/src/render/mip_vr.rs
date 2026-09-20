@@ -3,8 +3,11 @@
 //! Projection math is host-neutral: RITK produces bounded RGBA storage and
 //! the optional eframe shell adapts that storage to its image carrier.
 
-use crate::render::{GrayscalePresentation, NamedColorMap, RgbaImage, WindowLevel};
+use crate::render::{
+    map_scalar_value, GrayscalePresentation, NamedColorMap, RgbaImage, WindowLevel,
+};
 use crate::LoadedVolume;
+#[cfg(feature = "eframe-shell")]
 use iris::color::{ColorMap, Normalized};
 
 /// Render a scalar axial maximum-intensity projection into owned RGBA storage.
@@ -44,17 +47,6 @@ pub(crate) fn render_mip_axial_rgba_with_scratch(
         }
     }
     RgbaImage::new([cols, rows], scratch.to_vec())
-}
-
-pub(crate) fn map_scalar_value(
-    value: f32,
-    presentation: GrayscalePresentation,
-    wl: WindowLevel,
-    colormap: NamedColorMap,
-) -> [u8; 4] {
-    let norm = Normalized::from_u8(presentation.apply(wl, f64::from(value)));
-    let [red, green, blue, _] = colormap.sample(norm).to_rgba8();
-    [red, green, blue, 255]
 }
 
 /// Render a scalar axial front-to-back volume projection into RGBA storage.

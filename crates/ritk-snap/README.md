@@ -213,6 +213,36 @@ The three canvases receive RITK-owned axial, coronal and sagittal
 `PresentationFrame` values from one bounded drop batch. Métis remains the
 format-neutral browser host and receives no DICOM state. The reviewed
 three-canvas runtime capture is in the [DICOM workflow manual](../../docs/manual/dicom-workflow.md#inspect-the-browser-orthogonal-visual-capture).
+
+Consumers that want the native scalar projection panel can opt into the
+four-canvas entrypoint. The first three canvases retain their interactive
+listeners; the fourth is display-only. The statistic index is `0` for MIP, `1`
+for MinIP and `2` for arithmetic average:
+
+```javascript
+import init, {
+  start_web_orthogonal_canvases_with_projection,
+  stop_web_canvas,
+} from "./ritk_snap.js";
+
+await init();
+start_web_orthogonal_canvases_with_projection(
+  "ritk-snap-axial",
+  "ritk-snap-coronal",
+  "ritk-snap-sagittal",
+  "ritk-snap-projection",
+  0,
+);
+// Call stop_web_canvas() when the page or route is torn down.
+```
+
+The projection canvas publishes `data-ritk-role="projection"`,
+`data-ritk-projection-statistic`, load/frame state, dimensions and physical
+display aspect. RITK computes the typed scalar slab and applies the same
+window/level and colormap policy as the orthogonal planes; Métis receives only
+the resulting borrowed RGBA frame. The asynchronous
+`start_web_orthogonal_canvases_gpu_with_projection` entrypoint selects WebGPU
+explicitly and reports setup errors without raster fallback.
 Trusted pointer and wheel positions use the measured local canvas content box,
 excluding borders and padding and accounting for invertible 2D ancestor CSS
 transforms. Fractional positions and event-time dimensions preserve voxel

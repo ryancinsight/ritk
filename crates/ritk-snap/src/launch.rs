@@ -410,6 +410,48 @@ pub async fn start_web_orthogonal_canvases_gpu(
     crate::app::start_web_orthogonal_canvases_gpu([axial_id, coronal_id, sagittal_id]).await
 }
 
+/// Start the browser workflow with three interactive planes and one
+/// display-only scalar projection.
+///
+/// Canvas identifiers are ordered axial, coronal, sagittal, projection.
+/// `projection` is `0` for maximum, `1` for minimum and `2` for average.
+/// The value is validated before the viewer mounts.
+#[cfg(target_arch = "wasm32")]
+#[wasm_bindgen::prelude::wasm_bindgen]
+pub fn start_web_orthogonal_canvases_with_projection(
+    axial_id: String,
+    coronal_id: String,
+    sagittal_id: String,
+    projection_id: String,
+    projection: f64,
+) -> Result<(), wasm_bindgen::JsValue> {
+    crate::app::start_web_orthogonal_canvases_with_projection(
+        [axial_id, coronal_id, sagittal_id, projection_id],
+        projection,
+    )
+}
+
+/// Start the four-canvas browser workflow with explicit WebGPU surfaces.
+///
+/// Setup errors are returned to JavaScript; the raster provider is never
+/// selected implicitly. Canvas identifiers and statistic indices follow
+/// [`start_web_orthogonal_canvases_with_projection`].
+#[cfg(target_arch = "wasm32")]
+#[wasm_bindgen::prelude::wasm_bindgen]
+pub async fn start_web_orthogonal_canvases_gpu_with_projection(
+    axial_id: String,
+    coronal_id: String,
+    sagittal_id: String,
+    projection_id: String,
+    projection: f64,
+) -> Result<(), wasm_bindgen::JsValue> {
+    crate::app::start_web_orthogonal_canvases_gpu_with_projection(
+        [axial_id, coronal_id, sagittal_id, projection_id],
+        projection,
+    )
+    .await
+}
+
 /// Select an exact zero-based slice on one browser viewer axis.
 ///
 /// Axes are `0` axial, `1` coronal and `2` sagittal. A successful change

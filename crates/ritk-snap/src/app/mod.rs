@@ -19,6 +19,8 @@ mod browser_cine;
 #[cfg(any(target_arch = "wasm32", test))]
 mod browser_geometry;
 #[cfg(any(target_arch = "wasm32", test))]
+mod browser_projection;
+#[cfg(any(target_arch = "wasm32", test))]
 mod browser_semantics;
 #[cfg(any(target_arch = "wasm32", test))]
 mod browser_slice_selection;
@@ -80,6 +82,10 @@ mod browser_canvas;
 #[cfg(target_arch = "wasm32")]
 mod browser_input;
 #[cfg(target_arch = "wasm32")]
+mod web_render;
+#[cfg(target_arch = "wasm32")]
+mod web_surface;
+#[cfg(target_arch = "wasm32")]
 mod web_viewer;
 
 #[cfg(test)]
@@ -95,6 +101,8 @@ pub(crate) use state::SnapApp;
 pub(crate) use web_viewer::{
     select_web_slice, select_web_tool, set_web_cine_rate, set_web_window_preset, start_web_canvas,
     start_web_canvas_gpu, start_web_orthogonal_canvases, start_web_orthogonal_canvases_gpu,
-    stop_web_canvas, toggle_web_cine, web_canvas_listener_count, web_tool_count, web_tool_name,
-    web_window_preset_count, web_window_preset_name,
+    start_web_orthogonal_canvases_gpu_with_projection,
+    start_web_orthogonal_canvases_with_projection, stop_web_canvas, toggle_web_cine,
+    web_canvas_listener_count, web_tool_count, web_tool_name, web_window_preset_count,
+    web_window_preset_name,
 };
