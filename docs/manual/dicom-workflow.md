@@ -1512,13 +1512,30 @@ readability and the expected file digest are verified separately; this is a
 SafariDriver/WebKit authorization residual, not a DICOM decoder failure, and
 browser application code cannot grant that access.
 
-The same run's Chromium application-window probe accepted the 94-file study
-and rendered partial anatomy, then failed to observe a presented cine slice
-before teardown. The [failure artifact](https://github.com/ryancinsight/ritk/actions/runs/35395627386/artifacts/10567752411)
+The historical Chromium application-window probe in run `35395627386` accepted
+the 94-file study and rendered partial anatomy, then failed to observe a
+presented cine slice before teardown. The [failure artifact](https://github.com/ryancinsight/ritk/actions/runs/35395627386/artifacts/10567752411)
 and [captured state](images/dicom-metis-real-browser-mri-application-window-failure.png)
-show the stopped viewer and the exact diagnostic; this budgeted 1,440-pixel-wide
-copy is an application-window presentation residual, separate from the passing
-four-cycle browser matrix.
+retain that earlier diagnostic; the current paired replay below supersedes this
+application-window presentation residual.
+
+The current lock-pinned pair replay in hosted run
+[`35487777698`](https://github.com/ryancinsight/ritk/actions/runs/35487777698)
+rebuilt RITK at `4cbef46ef4be41fe2a93bcb79c81a02d2c73d685` against Métis
+`165c4ec923e76ea7bc32b6b4fb99b4338166b3a3`. Its Chromium-window job passed
+the saved-study workflow and cine validator. The chooser accepted all 94 MRI-DIR
+files (49,807,236 bytes); `trace.json` reports status `passed`, and the cine
+artifact records sagittal slice 255 at generation 126, 256 at generation 127
+after Play, and 257 at generation 128 after the rate change to 24 FPS. The
+pause snapshot is stable at generation 128, and all three canvases retain
+non-black pixels in the 2,880 × 2,114 `gallery-cine.png` capture retained by
+[artifact 10597873405](https://github.com/ryancinsight/ritk/actions/runs/35487777698/artifacts/10597873405).
+The Firefox job in the same run also passed its four-cycle saved-study replay.
+The combined cine/tool workflow leaves one final teardown owner:
+the pre-stop sample is mounted with 21 consumer listeners, the post-stop sample
+is unmounted with zero host and consumer listeners, and the cine evidence marks
+`teardown.owner=tool-controls`. The complete machine-readable evidence and
+PNG are retained in [artifact 10597873405](https://github.com/ryancinsight/ritk/actions/runs/35487777698/artifacts/10597873405).
 
 RITK owns DICOM scanning, decoding, geometry, clinical presentation and pixel
 assertions; Métis remains the format-neutral host and canvas boundary, and
