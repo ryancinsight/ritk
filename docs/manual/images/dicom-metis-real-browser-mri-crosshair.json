@@ -1,0 +1,130 @@
+{
+  "schema": 1,
+  "status": "passed",
+  "runtime": {
+    "workflow": "RITK SNAP M\u00e9tis browser DICOM",
+    "workflow_run": 35530079967,
+    "workflow_url": "https://github.com/ryancinsight/ritk/actions/runs/35530079967",
+    "job": "Saved MRI study (chromium-window)",
+    "job_url": "https://github.com/ryancinsight/ritk/actions/runs/35530079967/job/106129773999",
+    "artifact": "ritk-metis-browser-dicom-chromium-window-35530079967",
+    "artifact_id": 10611440694,
+    "artifact_url": "https://github.com/ryancinsight/ritk/actions/runs/35530079967/artifacts/10611440694",
+    "engine": "chromium",
+    "browser": "chrome",
+    "browser_version": "152.0.7977.82",
+    "platform": "linux",
+    "input": "chooser",
+    "observed_date": "2026-09-20",
+    "ritk_revision": "7eb4a0a1513248755d7d09b7ac8e3363113163a7",
+    "metis_revision": "b58d64b1bebe76bb32570339c4a349cc1b0d7086",
+    "device_scale": 2,
+    "viewport": {
+      "width": 1440,
+      "height": 957
+    }
+  },
+  "dataset": {
+    "path": "test_data/2_head_mri_t2/DICOM",
+    "files_submitted": 94,
+    "bytes_read": 49807236,
+    "file_manifest_sha256": "81b7b7f8ea473dfc12c25c07b4958762254a261ca49352af2adabc214d6e8d03",
+    "description": "public MRI-DIR porcine-head T2 MRI phantom; not private patient data"
+  },
+  "crosshair": {
+    "before": {
+      "active_tool": "W/L",
+      "active_tool_index": "2",
+      "cine_enabled": "false",
+      "cine_fps": "12",
+      "consumer_listeners": 21,
+      "crosshair_visible": "false",
+      "host_listeners": 34,
+      "linked_cursor": "46,255,255",
+      "mounted": true,
+      "projection_frame_state": null,
+      "projection_mode": null,
+      "projection_statistic": null,
+      "wasm_bytes": 404357120
+    },
+    "visible": {
+      "active_tool": "W/L",
+      "active_tool_index": "2",
+      "cine_enabled": "false",
+      "cine_fps": "12",
+      "consumer_listeners": 21,
+      "crosshair_visible": "true",
+      "host_listeners": 34,
+      "linked_cursor": "46,255,255",
+      "mounted": true,
+      "projection_frame_state": null,
+      "projection_mode": null,
+      "projection_statistic": null,
+      "wasm_bytes": 404357120
+    },
+    "hidden": {
+      "active_tool": "W/L",
+      "active_tool_index": "2",
+      "cine_enabled": "false",
+      "cine_fps": "12",
+      "consumer_listeners": 21,
+      "crosshair_visible": "false",
+      "host_listeners": 34,
+      "linked_cursor": "46,255,255",
+      "mounted": true,
+      "projection_frame_state": null,
+      "projection_mode": null,
+      "projection_statistic": null,
+      "wasm_bytes": 404357120
+    },
+    "linked_cursor": "46,255,255",
+    "overlay": [
+      {
+        "column": "block",
+        "left": "49.9023%",
+        "row": "block",
+        "top": "49.9023%"
+      },
+      {
+        "column": "block",
+        "left": "49.9023%",
+        "row": "block",
+        "top": "49.4681%"
+      },
+      {
+        "column": "block",
+        "left": "49.9023%",
+        "row": "block",
+        "top": "49.4681%"
+      }
+    ],
+    "source_screenshot": {
+      "bytes": 806520,
+      "height": 1134,
+      "path": "output/browser/results/chromium-window/crosshair/gallery-crosshair-controls.png",
+      "scope": "element",
+      "sha256": "f325875dc1741c24be334656c2444cca2572275c87622093033011fed3060a4d",
+      "width": 2786
+    }
+  },
+  "manual_image": {
+    "path": "docs/manual/images/dicom-metis-real-browser-mri-crosshair.png",
+    "width": 1280,
+    "height": 521,
+    "bytes": 154316,
+    "sha256": "75d4465ec470dfd5488e92249e9fe8967d617266044112c19c03dcd3f86d97db",
+    "derivation": "lossy display-size palette reduction of the hosted element screenshot; source hash is retained above"
+  },
+  "verification": {
+    "canvas_rgba": "three real-study canvas RGBA oracles passed in the same hosted run",
+    "crosshair_state": "false -> true -> false with one linked cursor on all three planes",
+    "listener_teardown": "consumer and host listener counts return to zero after stop",
+    "matrix": {
+      "chromium_window": "passed",
+      "chromium_projection_mip": "passed",
+      "firefox": "passed raster lane",
+      "webkit": "blocked by bounded whole-file read authorization",
+      "chromium_webgpu": "blocked by missing adapter"
+    }
+  }
+}

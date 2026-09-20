@@ -1588,6 +1588,12 @@ plane, then writes `crosshair/gallery-crosshair.json` and the real-study
 `crosshair/gallery-crosshair-controls.png`. The screenshot is a consumer
 overlay capture; the canvas RGBA oracle remains the unmodified clinical frame.
 
+The merged-main replay in GitHub Actions run [35530079967](https://github.com/ryancinsight/ritk/actions/runs/35530079967) used Chrome 152.0.7977.82 on Linux with RITK `7eb4a0a1513248755d7d09b7ac8e3363113163a7` and Métis `b58d64b1bebe76bb32570339c4a349cc1b0d7086`. Its Chromium window lane accepted the 94-file, 49,807,236-byte public MRI-DIR study, changed `crosshair_visible` from `false` to `true` and back to `false`, and reported the same linked cursor `46,255,255` with visible row and column lines on all three planes. The source screenshot is preserved in artifact [10611440694](https://github.com/ryancinsight/ritk/actions/runs/35530079967/artifacts/10611440694); the manual image is a display-size derivative with its source digest recorded in [`dicom-metis-real-browser-mri-crosshair.json`](images/dicom-metis-real-browser-mri-crosshair.json).
+
+![Real MRI-DIR T2 study with the linked crosshair rendered through the Métis browser host](images/dicom-metis-real-browser-mri-crosshair.png)
+
+The same run passed the Chromium projection lane and the Firefox raster lane. WebKit still rejects the bounded whole-file read after chooser acceptance, and Chromium WebGPU reports no adapter; those are recorded residuals in the run artifacts and do not change the raster crosshair result.
+
 The committed visual replay below used Edge 154.0.4258.12 on Windows with
 RITK `9c27f84c44499d9c30a88bf0add18f2b72df6f79` and Métis
 `ae5f80c8e2fe8c023d13514ffa6c48c84d3dc556`. The chooser accepted the saved
