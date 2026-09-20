@@ -420,8 +420,11 @@ jobs:
         run: |
           set -euo pipefail
           capture_args=(--canvas-capture "$CANVAS_CAPTURE")
+          if [[ -n "$CANVAS_CONTEXT" ]]; then
+            capture_args+=(--canvas-context "$CANVAS_CONTEXT")
+          fi
           if [[ "$MODE" == "webgpu" ]]; then
-            capture_args+=(--canvas-context "$CANVAS_CONTEXT" --page-query renderer=webgpu)
+            capture_args+=(--page-query renderer=webgpu)
           fi
           projection_args=()
           trace_args=()
