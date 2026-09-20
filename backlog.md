@@ -1,5 +1,13 @@
 # RITK execution backlog
 
+<a id="RITK-BROWSER-CINE-REPLAY-001"></a>
+## RITK-BROWSER-CINE-REPLAY-001 — Reproduce the current browser cine residual [patch]
+- Status: in-progress; priority: P1; owner: RITK browser presentation; integrator: root; last-update: 2026-09-20.
+- Outcome: current lock-pinned Chromium consumer replay either presents a changed real-study slice or records an exact live-state diagnosis and fixes the causal RITK path; Safari bounded file reads and WebGPU adapter availability remain separate residuals.
+- Scope: `ritk-snap` browser viewer/presentation and bounded gallery cine diagnostic; DICOM decoding, Metis file access, and WebGPU provider selection remain out of scope.
+- Acceptance: the hosted current-pair replay reaches one presented slice transition after Play and after the rate change, with generation/index semantics and real MRI pixels; timeout failures retain live canvas/control state and viewer status; locked native/WASM tests, strict Clippy, formatting, docs and browser script tests pass.
+- Basis: hosted run [35483782088](https://github.com/ryancinsight/ritk/actions/runs/35483782088), RITK `5aeb196a3`, Metis `165c4ec923e76ea7bc32b6b4fb99b4338166b3a3`; Chromium-window failed `cine playback did not advance a presented slice` after the 94-file replay while WebKit and WebGPU retained independent residuals.
+- Lease: root — `scripts/browser_gallery_cine.py`, `crates/ritk-snap/src/app/web_viewer.rs` — 2026-09-20.
 Unresolved delivery items are kept as executable records. Closed history is indexed below; full prose remains in git.
 
 <a id="RITK-SNAP-PRESENTATION-FRAME-REUSE-001"></a>
