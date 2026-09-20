@@ -15,7 +15,7 @@ Unresolved delivery items are kept as executable records. Closed history is inde
 
 <a id="RITK-SNAP-EFRAME-CURRENT-001"></a>
 ## RITK-SNAP-EFRAME-CURRENT-001 — Refresh the matched eframe MRI baseline [patch]
-- Status: review; priority: P1; owner: RITK viewer + integration; integrator: root; branch: `build/ritk-eframe-baseline-014`; last-update: 2026-09-19.
+- Status: done; priority: P1; owner: RITK viewer + integration; integrator: root; delivery: [PR #517](https://github.com/ryancinsight/ritk/pull/517), merge `19c3ec42f0f7f48a0f6dfb91337e828ecfadf965`; last-update: 2026-09-19.
 - Outcome: re-run the existing shell-free eframe orthogonal presentation against the current standalone RITK lock and bind the revision, executable, capture and resource metrics to the real 94-file MRI fixture.
 - Acceptance: three bounded runs exit 0, repeat capture SHA matches, semantic surfaces and physical host extent remain axial/coronal/sagittal at 1280×800, real-image capture is visually inspected, and no framework ranking is claimed.
 - Delivery: current locked eframe build; three bounded lifecycle runs exited 0 with repeated source SHA `2e47199cca0851f5ca2e3ce7b613cf70b096c3528bfc1eb705f64ced75485ba9`; mean peak private bytes `416,867,669 ± 30,202,762`, mean lifecycle duration `2,123 ± 203 ms`; provenance binds RITK lock commit `f1a556786e849696caa73d8c341adf309e87d163`, Metis `8d4ab58e8731c51547bbca3ec87100facb698322`, and Moirai `f038622d24907884ce5f386da4e04d05bdb60d62`.
