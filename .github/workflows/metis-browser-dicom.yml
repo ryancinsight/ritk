@@ -96,7 +96,7 @@ jobs:
           PYTHONPATH: ${{ github.workspace }}/metis/scripts
         run: |
           set -euo pipefail
-          python -m unittest scripts.tests.test_browser_gallery
+          python -m unittest discover -s scripts/tests
 
       - name: Derive the real-study canvas oracle
         working-directory: metis
