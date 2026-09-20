@@ -513,7 +513,45 @@ class WindowPresetHelperTests(unittest.TestCase):
         self.assertIn("web_tool_name", script)
         self.assertIn("data-ritk-active-tool-index", script)
         self.assertIn("data-ritk-active-tool", script)
+        self.assertIn("data-ritk-annotation-count", script)
+        self.assertIn("data-ritk-last-annotation-kind", script)
+        self.assertIn("data-ritk-last-annotation-value", script)
+        for attribute in (
+            "annotation_count",
+            "last_annotation_kind",
+            "last_annotation_value",
+        ):
+            self.assertIn(attribute, browser_gallery_tools.TOOL_SNAPSHOT_SCRIPT)
         self.assertIn("canvases.every", script)
+
+    def test_annotation_projection_requires_finite_input_sensitive_values(self):
+        state = browser_gallery_tools._annotation_state(
+            {
+                "annotation_count": "1",
+                "last_annotation_kind": "length",
+                "last_annotation_value": "2.5",
+            },
+            "axial",
+        )
+        self.assertEqual(state, {"count": 1, "kind": "length", "value": 2.5})
+        with self.assertRaises(browser_gallery_tools.BrowserRuntimeError):
+            browser_gallery_tools._annotation_state(
+                {
+                    "annotation_count": "1",
+                    "last_annotation_kind": "length",
+                    "last_annotation_value": "Infinity",
+                },
+                "axial",
+            )
+        with self.assertRaises(browser_gallery_tools.BrowserRuntimeError):
+            browser_gallery_tools._annotation_state(
+                {
+                    "annotation_count": "0",
+                    "last_annotation_kind": "length",
+                    "last_annotation_value": "2.5",
+                },
+                "axial",
+            )
 
     def test_tool_probe_contract_rejects_invalid_indices(self):
         for value in ("NaN", "Infinity", "-Infinity", "-1", "0.5", "4294967296"):

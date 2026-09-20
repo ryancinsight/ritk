@@ -102,7 +102,8 @@ RITK projects the host-visible viewer state into one typed
 `PresentationSnapshot`. It contains the visual revision, loaded state, all
 three slice selections and counts, effective window/level, cine state and
 rate, viewport zoom/pan, orientation, linked crosshair state and cursor, active
-window preset and interaction tool. The
+window preset and interaction tool, and the completed-annotation count plus
+latest kind/value summary. The
 snapshot contains no DICOM path, identifier, metadata object, volume storage
 or pixel bytes. Browser canvas semantics add only the dimensions of their
 presented `PresentationFrame`; the native Métis outcome exposes the same
@@ -110,12 +111,15 @@ snapshot through `NativeViewerOutcome::snapshot()`.
 
 This keeps the clinical contract in RITK while Métis remains a format-neutral
 host. The browser publishes the snapshot's existing bounded slice, window/level,
-cine, interaction, linked-cursor and orientation values as `data-ritk-*`
+cine, interaction, linked-cursor, orientation and completed-annotation values as `data-ritk-*`
 attributes, so a visual test can correlate a real canvas image with the
 reducer state that produced it. `data-ritk-linked-cursor` uses volume order
 `z,y,x`; `data-ritk-view-flip-h`, `data-ritk-view-flip-v` and
 `data-ritk-view-rotation` describe the orientation already applied to the
-presented pixels.
+presented pixels. `data-ritk-annotation-count` is zero for an empty result;
+`data-ritk-last-annotation-kind` is one of `length`, `angle`, `roi-rect`,
+`roi-ellipse` or `hu-point`; and `data-ritk-last-annotation-value` carries the
+finite primary value in the kind's documented units.
 The native session records the snapshot whenever it records a frame or state
 transition. The focused snapshot and native-session tests assert identical
 slice, window/level, cine, zoom, pan, tool and revision semantics across the
@@ -1562,13 +1566,17 @@ The bounded trace selects every palette button, focuses the axial canvas and
 uses the `P` shortcut, then sends trusted drags and clicks for each tool. The
 length and angle tools receive two and three points respectively; both ROI
 tools receive a drag; HU, crosshair and label tools receive a click. Every
-gesture must advance a fresh presented frame on all three canvases, so the
-trace proves that the real decoded MRI study responds to the active tool
-rather than only changing a button label. Invalid API probes, trusted event
-metadata, the viewport capture and the palette capture are written to
-`tools/gallery-tools.json`, `tools/gallery-tools.png` and
-`tools/gallery-tools-controls.png`. The post-stop sample must report zero RITK
-canvas listeners and all palette buttons disabled.
+gesture must advance a fresh presented frame on all three canvases. The five
+measurement gestures must also increment the shared annotation count, publish
+the expected kind (`length`, `angle`, `roi-rect`, `roi-ellipse` or `hu-point`)
+and publish a finite input-sensitive primary value. Pan, zoom, window/level,
+crosshair and label gestures must preserve the completed result. This proves
+that the real decoded MRI study responds with a computed result rather than
+only changing a button label. Invalid API probes, trusted event metadata,
+the per-canvas result transitions, viewport capture and palette capture are
+written to `tools/gallery-tools.json`, `tools/gallery-tools.png` and
+`tools/gallery-tools-controls.png`. The post-stop sample must report zero
+RITK canvas listeners and all palette buttons disabled.
 
 To capture the linked crosshair over the same saved MRI study, add
 `--crosshair-controls` to the consumer replay:

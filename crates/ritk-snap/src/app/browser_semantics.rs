@@ -15,8 +15,9 @@ pub(crate) enum BrowserLoadState {
 ///
 /// The state contains only viewer evidence needed by a browser driver: load
 /// state, axis and slice selection, the dimensions of the presented frame,
-/// cine playback state and rate, and the effective window/level display values.
-/// It deliberately excludes paths, identifiers, metadata and pixel values.
+/// cine playback state and rate, effective window/level display values, and the
+/// latest completed annotation result. It deliberately excludes paths,
+/// identifiers, metadata and pixel values.
 #[derive(Debug, Clone, Copy, PartialEq)]
 pub(crate) struct BrowserCanvasSemantics {
     /// Shared RITK viewer state for this canvas.
@@ -110,6 +111,28 @@ impl BrowserCanvasSemantics {
     #[must_use]
     pub(crate) fn active_tool_index_value(self) -> String {
         self.snapshot.active_tool_index().to_string()
+    }
+
+    /// Returns the bounded decimal count of completed annotations.
+    #[must_use]
+    pub(crate) fn annotation_count_value(self) -> String {
+        self.snapshot.annotation_count().to_string()
+    }
+
+    /// Returns the stable kind label for the latest annotation, or empty text.
+    #[must_use]
+    pub(crate) fn last_annotation_kind_value(self) -> &'static str {
+        self.snapshot
+            .last_annotation()
+            .map_or("", |summary| summary.kind().label())
+    }
+
+    /// Returns the latest annotation's finite primary value, or empty text.
+    #[must_use]
+    pub(crate) fn last_annotation_value(self) -> String {
+        self.snapshot
+            .last_annotation()
+            .map_or_else(String::new, |summary| summary.primary_value().to_string())
     }
 
     /// Returns the stable DOM value for the load state.

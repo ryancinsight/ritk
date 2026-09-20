@@ -33,7 +33,7 @@ pub use events::{
     MAX_COMPOSITION_UNITS, MAX_PRESENTATION_EVENTS,
 };
 pub use frame::{PresentationFrame, PresentationSpacing};
-pub use snapshot::PresentationSnapshot;
+pub use snapshot::{AnnotationKind, AnnotationSummary, PresentationSnapshot};
 
 #[cfg(target_arch = "wasm32")]
 pub use web::{WebCanvasInputError, WebCanvasPresenter};

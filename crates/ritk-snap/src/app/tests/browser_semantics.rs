@@ -28,6 +28,8 @@ fn snapshot(
         window_preset_index,
         2,
         "W/L",
+        0,
+        None,
     )
 }
 
@@ -48,6 +50,9 @@ fn empty_canvas_publishes_bounded_empty_state() {
     assert_eq!(state.window_preset_index_value(), "");
     assert_eq!(state.active_tool_index_value(), "2");
     assert_eq!(state.active_tool_name(), "W/L");
+    assert_eq!(state.annotation_count_value(), "0");
+    assert_eq!(state.last_annotation_kind_value(), "");
+    assert_eq!(state.last_annotation_value(), "");
     assert_eq!(state.crosshair_visible_value(), "false");
     assert_eq!(state.linked_cursor_value(), "");
     assert_eq!(state.view_flip_h_value(), "false");
@@ -80,6 +85,11 @@ fn presented_canvas_preserves_axis_slice_and_frame_dimensions() {
             Some(0),
             2,
             "W/L",
+            1,
+            Some(crate::presentation::AnnotationSummary::new(
+                crate::presentation::AnnotationKind::Length,
+                12.5,
+            )),
         ),
         Some(&frame),
     );
@@ -96,6 +106,9 @@ fn presented_canvas_preserves_axis_slice_and_frame_dimensions() {
     assert_eq!(state.window_preset_index_value(), "0");
     assert_eq!(state.active_tool_index_value(), "2");
     assert_eq!(state.active_tool_name(), "W/L");
+    assert_eq!(state.annotation_count_value(), "1");
+    assert_eq!(state.last_annotation_kind_value(), "length");
+    assert_eq!(state.last_annotation_value(), "12.5");
     assert_eq!(state.crosshair_visible_value(), "true");
     assert_eq!(state.linked_cursor_value(), "2,3,4");
     assert_eq!(state.view_flip_h_value(), "false");

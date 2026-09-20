@@ -1,8 +1,9 @@
 //! Projection of mutable viewer state into the host-neutral presentation contract.
 
 use super::SnapApp;
-use crate::presentation::PresentationSnapshot;
+use crate::presentation::{AnnotationKind, AnnotationSummary, PresentationSnapshot};
 use crate::render::WindowLevel;
+use crate::tools::interaction::Annotation;
 use crate::tools::kind::ToolKind;
 use crate::viewer::{DEFAULT_WINDOW_CENTER, DEFAULT_WINDOW_WIDTH};
 
@@ -28,6 +29,23 @@ impl SnapApp {
             .iter()
             .position(|tool| *tool == self.active_tool)
             .expect("invariant: active tool belongs to ToolKind::all");
+        let last_annotation = self.annotations.last().map(|annotation| match annotation {
+            Annotation::Length { length_mm, .. } => {
+                AnnotationSummary::new(AnnotationKind::Length, *length_mm)
+            }
+            Annotation::Angle { angle_deg, .. } => {
+                AnnotationSummary::new(AnnotationKind::Angle, *angle_deg)
+            }
+            Annotation::RoiRect { area_mm2, .. } => {
+                AnnotationSummary::new(AnnotationKind::RoiRect, *area_mm2)
+            }
+            Annotation::RoiEllipse { area_mm2, .. } => {
+                AnnotationSummary::new(AnnotationKind::RoiEllipse, *area_mm2)
+            }
+            Annotation::HuPoint { value, .. } => {
+                AnnotationSummary::new(AnnotationKind::HuPoint, *value)
+            }
+        });
         PresentationSnapshot::from_parts(
             self.visual_revision,
             self.loaded.is_some(),
@@ -45,6 +63,8 @@ impl SnapApp {
             None,
             active_tool_index,
             self.active_tool.label(),
+            self.annotations.len(),
+            last_annotation,
         )
     }
 }

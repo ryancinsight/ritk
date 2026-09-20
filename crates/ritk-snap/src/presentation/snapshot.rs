@@ -4,12 +4,73 @@ use crate::render::WindowLevel;
 use crate::tools::interaction::ViewportOffset;
 use crate::ui::ViewTransform;
 
+/// Stable kind labels for completed browser-visible annotations.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+#[non_exhaustive]
+pub enum AnnotationKind {
+    /// A two-point physical length measurement.
+    Length,
+    /// A three-point angle measurement.
+    Angle,
+    /// A rectangle region-of-interest statistic.
+    RoiRect,
+    /// An ellipse region-of-interest statistic.
+    RoiEllipse,
+    /// A single-point intensity measurement.
+    HuPoint,
+}
+
+impl AnnotationKind {
+    /// Returns the stable lower-case DOM label for this annotation kind.
+    #[must_use]
+    pub const fn label(self) -> &'static str {
+        match self {
+            Self::Length => "length",
+            Self::Angle => "angle",
+            Self::RoiRect => "roi-rect",
+            Self::RoiEllipse => "roi-ellipse",
+            Self::HuPoint => "hu-point",
+        }
+    }
+}
+
+/// The input-sensitive value published for the most recently completed annotation.
+#[derive(Debug, Clone, Copy, PartialEq)]
+pub struct AnnotationSummary {
+    kind: AnnotationKind,
+    primary_value: f32,
+}
+
+impl AnnotationSummary {
+    /// Constructs a summary after checking that its displayed value is finite.
+    pub(crate) fn new(kind: AnnotationKind, primary_value: f32) -> Self {
+        debug_assert!(primary_value.is_finite());
+        Self {
+            kind,
+            primary_value,
+        }
+    }
+
+    /// Returns the completed annotation kind.
+    #[must_use]
+    pub const fn kind(self) -> AnnotationKind {
+        self.kind
+    }
+
+    /// Returns the primary computed value in the kind's documented units.
+    #[must_use]
+    pub const fn primary_value(self) -> f32 {
+        self.primary_value
+    }
+}
+
 /// Value-semantic viewer state exposed beside host presentation frames.
 ///
 /// The snapshot contains only state needed to correlate a host frame with the
 /// viewer reducer. It excludes DICOM identifiers, paths, metadata, volume
 /// storage and pixel bytes. Hosts can therefore compare native and browser
-/// behavior without interpreting clinical data.
+/// behavior without interpreting clinical data. Completed annotations are
+/// represented only by their bounded kind, count, and primary computed value.
 #[derive(Debug, Clone, Copy, PartialEq)]
 pub struct PresentationSnapshot {
     revision: u64,
@@ -28,6 +89,8 @@ pub struct PresentationSnapshot {
     window_preset_index: Option<usize>,
     active_tool_index: usize,
     active_tool_name: &'static str,
+    annotation_count: usize,
+    last_annotation: Option<AnnotationSummary>,
 }
 
 impl PresentationSnapshot {
@@ -145,6 +208,18 @@ impl PresentationSnapshot {
         self.active_tool_name
     }
 
+    /// Returns the number of completed annotations stored by the viewer.
+    #[must_use]
+    pub const fn annotation_count(self) -> usize {
+        self.annotation_count
+    }
+
+    /// Returns the most recently completed annotation and its computed value.
+    #[must_use]
+    pub const fn last_annotation(self) -> Option<AnnotationSummary> {
+        self.last_annotation
+    }
+
     #[cfg(any(target_arch = "wasm32", test))]
     pub(crate) const fn with_window_preset_index(mut self, index: Option<usize>) -> Self {
         self.window_preset_index = index;
@@ -178,6 +253,8 @@ impl PresentationSnapshot {
         window_preset_index: Option<usize>,
         active_tool_index: usize,
         active_tool_name: &'static str,
+        annotation_count: usize,
+        last_annotation: Option<AnnotationSummary>,
     ) -> Self {
         debug_assert!(
             axis < 3,
@@ -187,6 +264,7 @@ impl PresentationSnapshot {
         debug_assert!(cine_fps.is_finite() && (1.0..=60.0).contains(&cine_fps));
         debug_assert!(zoom.is_finite() && zoom > 0.0);
         debug_assert!(pan.x().is_finite() && pan.y().is_finite());
+        debug_assert!(last_annotation.is_none_or(|summary| summary.primary_value().is_finite()));
         Self {
             revision,
             loaded,
@@ -204,6 +282,8 @@ impl PresentationSnapshot {
             window_preset_index,
             active_tool_index,
             active_tool_name,
+            annotation_count,
+            last_annotation,
         }
     }
 }
