@@ -68,6 +68,14 @@ typed scalar contract error.
 Parser tests cover valid statistics and finite/integer/range rejection. The
 WASM library check and strict Clippy compile both new exports, the projection
 surface tests assert listener and frame contracts, and the existing native
-slab/native-session tests retain the real public CT pixel evidence. Browser
-visual capture remains a follow-up consumer exercise because the checked-in
-gallery still uses the three-canvas entrypoint.
+slab/native-session tests retain the real public CT pixel evidence. Hosted run
+[`35500085568`](https://github.com/ryancinsight/ritk/actions/runs/35500085568)
+then exercised the current RITK/Metis pair: Chromium accepted the 94-file
+MRI-DIR study and passed the MIP projection artifact
+([`10601916572`](https://github.com/ryancinsight/ritk/actions/runs/35500085568/artifacts/10601916572)).
+The revision-bound `projection.json` proves 512 × 512 dimensions, 110,028
+non-black pixels, MIP attributes, `consumer_listeners: 21`, and
+`display_only: true`; the element screenshot's RGBA digest is
+`470e898c9dcd60a800155a29cfcd70acd72a597be7c98ac24d4a0d5e963d8924`.
+The same matrix records WebGPU no-adapter and WebKit file-read limits without
+claiming a raster or sandbox fallback.
