@@ -523,6 +523,14 @@ crosses the seam. Plain vertical wheel input steps the active slice, and
 Ctrl/Command plus vertical wheel applies the existing zoom policy. Focus loss
 cancels an in-progress pointer gesture.
 
+Each `PresentationFrame` also carries its validated `PresentationSpacing` row
+and column sample distances. RITK derives these values once from the loaded
+volume and axis. Native placement and the browser
+`data-ritk-display-aspect` attribute consume that same frame metadata. An
+anisotropic slice therefore keeps its physical extent
+when the host changes, while Metis only validates the format-neutral positive
+finite contract.
+
 The deterministic Métis capture path is hidden and bounded: it exits after the
 first idle event batch and writes the complete three-panel RITK composition as
 PNG. The fixed capture surface is 1280 × 800 pixels; the panels are axial,

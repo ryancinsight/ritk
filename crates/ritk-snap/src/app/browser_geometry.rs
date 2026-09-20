@@ -1,6 +1,7 @@
 //! Physical geometry for RITK-owned browser canvases.
 
 use super::action_adapter::ViewerViewport;
+use crate::presentation::PresentationSpacing;
 use crate::ui::ViewTransform;
 use std::io;
 
@@ -9,42 +10,24 @@ use std::io;
 pub(super) struct PhysicalCanvasAspect(f64);
 
 impl PhysicalCanvasAspect {
-    /// Computes the physical slice aspect from `[dz, dy, dx]` sample spacing.
+    /// Computes the aspect from frame-ordered row and column distances.
     ///
     /// Pixel and spacing factors are normalized independently before they are
     /// multiplied. This preserves common-unit scale invariance and prevents
     /// otherwise-valid large sample distances from overflowing intermediate
     /// physical extents.
-    pub(super) fn new(spacing: [f64; 3], axis: usize, width: u32, height: u32) -> io::Result<Self> {
+    pub(super) fn from_display_spacing(
+        display_spacing: PresentationSpacing,
+        width: u32,
+        height: u32,
+    ) -> io::Result<Self> {
         if width == 0 || height == 0 {
             return Err(io::Error::new(
                 io::ErrorKind::InvalidInput,
                 "browser slice dimensions must be positive",
             ));
         }
-        if !spacing
-            .iter()
-            .all(|distance| distance.is_finite() && *distance > 0.0)
-        {
-            return Err(io::Error::new(
-                io::ErrorKind::InvalidInput,
-                "browser slice spacing must be positive and finite",
-            ));
-        }
-
-        let [dz, dy, dx] = spacing;
-        let [row_spacing, column_spacing] = match axis {
-            0 => [dy, dx],
-            1 => [dz, dx],
-            2 => [dz, dy],
-            _ => {
-                return Err(io::Error::new(
-                    io::ErrorKind::InvalidInput,
-                    format!("browser slice axis {axis} is outside 0..=2"),
-                ));
-            }
-        };
-
+        let [row_spacing, column_spacing] = display_spacing.values();
         let spacing_scale = row_spacing.max(column_spacing);
         let dimension_scale = f64::from(width.max(height));
         let physical_width =
@@ -107,10 +90,13 @@ pub(super) fn viewport_for_display(
 #[cfg(test)]
 mod tests {
     use super::{viewport_for_display, PhysicalCanvasAspect};
+    use crate::presentation::PresentationSpacing;
     use std::io;
 
-    fn ratio(spacing: [f64; 3], axis: usize, dimensions: [u32; 2]) -> f64 {
-        PhysicalCanvasAspect::new(spacing, axis, dimensions[0], dimensions[1])
+    fn ratio(display_spacing: [f64; 2], dimensions: [u32; 2]) -> f64 {
+        let display_spacing = PresentationSpacing::try_new(display_spacing[0], display_spacing[1])
+            .expect("valid display spacing");
+        PhysicalCanvasAspect::from_display_spacing(display_spacing, dimensions[0], dimensions[1])
             .expect("valid physical canvas geometry")
             .0
     }
@@ -132,50 +118,45 @@ mod tests {
     }
 
     #[test]
-    fn anisotropic_mri_planes_use_physical_extents() {
-        let spacing = [2.5, 0.5, 0.5];
-        assert_close(ratio(spacing, 0, [512, 512]), 1.0);
-        assert_close(ratio(spacing, 1, [512, 94]), 256.0 / 235.0);
-        assert_close(ratio(spacing, 2, [512, 94]), 256.0 / 235.0);
+    fn frame_spacing_preserves_physical_extents() {
+        assert_close(ratio([0.5, 0.5], [512, 512]), 1.0);
+        assert_close(ratio([2.5, 0.5], [512, 94]), 256.0 / 235.0);
     }
 
     #[test]
     fn isotropic_spacing_preserves_pixel_aspect() {
-        assert_close(ratio([1.0; 3], 0, [512, 94]), 512.0 / 94.0);
-        let square =
-            PhysicalCanvasAspect::new([1.0; 3], 0, 2, 2).expect("valid square canvas geometry");
+        assert_close(ratio([1.0; 2], [512, 94]), 512.0 / 94.0);
+        let square = PhysicalCanvasAspect::from_display_spacing(
+            PresentationSpacing::try_new(1.0, 1.0).expect("unit spacing"),
+            2,
+            2,
+        )
+        .expect("valid square canvas geometry");
         assert_eq!(square.attribute_value(), "1");
     }
 
     #[test]
     fn each_axis_selects_its_row_and_column_spacing() {
-        let spacing = [2.0, 3.0, 5.0];
-        assert_close(ratio(spacing, 0, [10, 4]), 50.0 / 12.0);
-        assert_close(ratio(spacing, 1, [10, 4]), 50.0 / 8.0);
-        assert_close(ratio(spacing, 2, [10, 4]), 30.0 / 8.0);
+        assert_close(ratio([3.0, 5.0], [10, 4]), 50.0 / 12.0);
+        assert_close(ratio([2.0, 5.0], [10, 4]), 50.0 / 8.0);
+        assert_close(ratio([2.0, 3.0], [10, 4]), 30.0 / 8.0);
     }
 
     #[test]
     fn common_spacing_scale_cannot_change_aspect() {
-        let base = [2.0, 3.0, 5.0];
-        let expected = ratio(base, 1, [512, 94]);
+        let base = [2.0, 5.0];
+        let expected = ratio(base, [512, 94]);
         for exponent in [-1000, -30, 0, 1000] {
             let scale = 2.0_f64.powi(exponent);
-            assert_close(
-                ratio(base.map(|value| value * scale), 1, [512, 94]),
-                expected,
-            );
+            assert_close(ratio(base.map(|value| value * scale), [512, 94]), expected);
         }
     }
 
     #[test]
-    fn invalid_spacing_dimensions_and_axis_are_rejected() {
-        for invalid in [0.0, -1.0, f64::NAN, f64::INFINITY] {
-            assert_invalid(PhysicalCanvasAspect::new([invalid, 1.0, 1.0], 0, 2, 2));
-        }
-        assert_invalid(PhysicalCanvasAspect::new([1.0; 3], 0, 0, 2));
-        assert_invalid(PhysicalCanvasAspect::new([1.0; 3], 0, 2, 0));
-        assert_invalid(PhysicalCanvasAspect::new([1.0; 3], 3, 2, 2));
+    fn invalid_dimensions_are_rejected() {
+        let spacing = PresentationSpacing::try_new(1.0, 1.0).expect("unit spacing");
+        assert_invalid(PhysicalCanvasAspect::from_display_spacing(spacing, 0, 2));
+        assert_invalid(PhysicalCanvasAspect::from_display_spacing(spacing, 2, 0));
     }
 
     #[test]

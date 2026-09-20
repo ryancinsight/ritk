@@ -158,7 +158,7 @@ impl BrowserSurface {
                     app.browser_tool_index(),
                     app.active_tool.label(),
                 );
-                let physical_aspect = physical_aspect(app, axis, frame.as_ref())?;
+                let physical_aspect = physical_aspect(frame.as_ref())?;
                 canvas.publish_semantics(semantics, physical_aspect)
             }
             Self::Orthogonal { canvases, frames } => {
@@ -180,7 +180,7 @@ impl BrowserSurface {
                         app.browser_tool_index(),
                         app.active_tool.label(),
                     );
-                    let physical_aspect = physical_aspect(app, axis, frame)?;
+                    let physical_aspect = physical_aspect(frame)?;
                     canvas.publish_semantics(semantics, physical_aspect)?;
                 }
                 Ok(())
@@ -211,14 +211,17 @@ impl BrowserSurface {
 }
 
 fn physical_aspect(
-    app: &SnapApp,
-    axis: usize,
     frame: Option<&PresentationFrame>,
 ) -> std::io::Result<Option<PhysicalCanvasAspect>> {
-    let (Some(volume), Some(frame)) = (app.loaded.as_ref(), frame) else {
+    let Some(frame) = frame else {
         return Ok(None);
     };
-    PhysicalCanvasAspect::new(volume.spacing, axis, frame.width(), frame.height()).map(Some)
+    PhysicalCanvasAspect::from_display_spacing(
+        frame.display_spacing(),
+        frame.width(),
+        frame.height(),
+    )
+    .map(Some)
 }
 
 fn apply_canvas_events(

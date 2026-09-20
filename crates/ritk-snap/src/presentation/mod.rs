@@ -29,7 +29,7 @@ pub use events::{
     CompositionPhase, PointerButton, PresentationEvent, PresentationModifiers,
     MAX_COMPOSITION_UNITS, MAX_PRESENTATION_EVENTS,
 };
-pub use frame::PresentationFrame;
+pub use frame::{PresentationFrame, PresentationSpacing};
 
 #[cfg(target_arch = "wasm32")]
 pub use web::{WebCanvasInputError, WebCanvasPresenter};

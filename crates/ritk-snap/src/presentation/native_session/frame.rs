@@ -1,7 +1,7 @@
 //! Orthogonal slice rendering for the native viewer session.
 
 use crate::app::SnapApp;
-use crate::presentation::PresentationFrame;
+use crate::presentation::{PresentationFrame, PresentationSpacing};
 use crate::render::WindowLevel;
 use crate::ui::{apply_to_rgba, RotationSteps, ViewTransform};
 use crate::viewer::{DEFAULT_WINDOW_CENTER, DEFAULT_WINDOW_WIDTH};
@@ -18,7 +18,6 @@ pub(super) struct RenderedView {
     pub(super) frame: PresentationFrame,
     pub(super) source_size: [usize; 2],
     pub(super) transform: ViewTransform,
-    pub(super) display_spacing: [f64; 2],
 }
 
 impl RenderedView {
@@ -60,7 +59,6 @@ fn empty_view(frame: PresentationFrame, axis: usize, plane_name: &'static str) -
         frame,
         source_size: [1, 1],
         transform: ViewTransform::default(),
-        display_spacing: [1.0, 1.0],
     }
 }
 
@@ -73,13 +71,13 @@ fn render_view(app: &SnapApp, axis: usize) -> Result<RenderedView> {
     let window_level = window_level_for_app(app);
     let frame = PresentationFrame::from_slice(volume, axis, index, window_level, app.colormap)
         .context("render RITK slice into a bounded presentation frame")?;
+    let transform = app.view_transform;
+    let display_spacing = transformed_display_spacing(frame.display_spacing(), transform);
     let (width, height, rgba) = frame.into_rgba_parts();
     let source_size = [
         usize::try_from(width).map_err(|_| anyhow!("native source width exceeds usize"))?,
         usize::try_from(height).map_err(|_| anyhow!("native source height exceeds usize"))?,
     ];
-    let transform = app.view_transform;
-    let display_spacing = display_spacing(volume.spacing, axis, transform)?;
     let (output_size, rgba) = apply_to_rgba(source_size, rgba, transform)
         .context("apply RITK viewport orientation to RGBA storage")?;
     let output_width =
@@ -87,7 +85,8 @@ fn render_view(app: &SnapApp, axis: usize) -> Result<RenderedView> {
     let output_height =
         u32::try_from(output_size[1]).map_err(|_| anyhow!("native frame height exceeds u32"))?;
     let frame = PresentationFrame::from_rgba_storage(output_width, output_height, rgba)
-        .context("validate transformed RITK presentation frame")?;
+        .context("validate transformed RITK presentation frame")?
+        .with_display_spacing(display_spacing);
     let frame_size = [
         usize::try_from(frame.width()).map_err(|_| anyhow!("native frame width exceeds usize"))?,
         usize::try_from(frame.height())
@@ -109,7 +108,6 @@ fn render_view(app: &SnapApp, axis: usize) -> Result<RenderedView> {
         frame,
         source_size,
         transform,
-        display_spacing,
     })
 }
 
@@ -125,23 +123,48 @@ pub(super) fn window_level_for_app(app: &SnapApp) -> WindowLevel {
     )
 }
 
-fn display_spacing(spacing: [f64; 3], axis: usize, transform: ViewTransform) -> Result<[f64; 2]> {
-    let [dz, dy, dx] = spacing;
-    let source = match axis {
-        0 => [dy, dx],
-        1 => [dz, dx],
-        2 => [dz, dy],
-        _ => bail!("native viewer axis {axis} is outside the supported range 0..=2"),
-    };
-    let display = match transform.rotation {
-        RotationSteps::Ninety | RotationSteps::TwoSeventy => [source[1], source[0]],
-        RotationSteps::Zero | RotationSteps::OneEighty => source,
-    };
-    if !display
-        .iter()
-        .all(|value| value.is_finite() && *value > 0.0)
-    {
-        bail!("native viewer sample distances must be finite and positive");
+fn transformed_display_spacing(
+    spacing: PresentationSpacing,
+    transform: ViewTransform,
+) -> PresentationSpacing {
+    match transform.rotation {
+        RotationSteps::Ninety | RotationSteps::TwoSeventy => spacing.swapped(),
+        RotationSteps::Zero | RotationSteps::OneEighty => spacing,
     }
-    Ok(display)
+}
+
+#[cfg(test)]
+mod tests {
+    use super::transformed_display_spacing;
+    use crate::presentation::PresentationSpacing;
+    use crate::ui::{RotationSteps, ViewTransform};
+
+    fn assert_spacing(actual: [f64; 2], expected: [f64; 2]) {
+        for (actual, expected) in actual.into_iter().zip(expected) {
+            let bound = 2.0 * f64::EPSILON * expected.abs().max(1.0);
+            assert!((actual - expected).abs() <= bound);
+        }
+    }
+
+    #[test]
+    fn transformed_spacing_follows_pixel_rotation() {
+        let spacing = PresentationSpacing::try_new(2.0, 5.0).expect("spacing");
+        assert_spacing(
+            transformed_display_spacing(spacing, ViewTransform::default()).values(),
+            [2.0, 5.0],
+        );
+        for rotation in [RotationSteps::Ninety, RotationSteps::TwoSeventy] {
+            assert_spacing(
+                transformed_display_spacing(
+                    spacing,
+                    ViewTransform {
+                        rotation,
+                        ..ViewTransform::default()
+                    },
+                )
+                .values(),
+                [5.0, 2.0],
+            );
+        }
+    }
 }

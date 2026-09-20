@@ -9,7 +9,7 @@ use super::{
 use metis_web::{
     CanvasEvent, CanvasEventError, CanvasFrame, CanvasKeyboardEvent, CanvasKeyboardPhase,
     CanvasPointerEvent, CanvasPointerPhase, CanvasPointerType, CanvasSurface, CanvasWheelEvent,
-    CanvasWheelUnit,
+    CanvasWheelUnit, DisplaySpacing,
 };
 use std::io;
 use thiserror::Error;
@@ -279,5 +279,13 @@ impl CanvasFrame for PresentationFrame {
 
     fn rgba(&self) -> &[u8] {
         PresentationFrame::rgba(self)
+    }
+
+    fn display_spacing(&self) -> Option<DisplaySpacing> {
+        let [row, column] = PresentationFrame::display_spacing(self).values();
+        Some(
+            DisplaySpacing::try_new(row, column)
+                .expect("invariant: PresentationFrame stores finite positive display spacing"),
+        )
     }
 }
