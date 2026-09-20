@@ -112,12 +112,15 @@ const previous = arguments[0];
 const limit = arguments[1];
 const read = () => ["axial", "coronal", "sagittal"].map((axis) => {
   const canvas = document.getElementById(`ritk-snap-${axis}`);
-  return canvas instanceof HTMLCanvasElement ? {
+  if (!(canvas instanceof HTMLCanvasElement)) return null;
+  const rawIndex = canvas.getAttribute("data-ritk-slice-index");
+  const rawGeneration = canvas.getAttribute("data-ritk-frame-generation");
+  return {
     axis,
     enabled: canvas.getAttribute("data-ritk-cine-enabled"),
-    slice_index: Number(canvas.getAttribute("data-ritk-slice-index")),
-    generation: Number(canvas.getAttribute("data-ritk-frame-generation")),
-  } : null;
+    slice_index: rawIndex === null ? null : Number(rawIndex),
+    generation: rawGeneration === null ? NaN : Number(rawGeneration),
+  };
 });
 const status = () => document.getElementById("gallery-status")?.textContent || "";
 const ready = () => {
