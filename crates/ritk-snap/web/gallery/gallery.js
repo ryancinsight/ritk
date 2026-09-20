@@ -3,14 +3,34 @@ const status = document.getElementById("gallery-status");
 const describeError = (error) => error instanceof Error ? error.message : String(error);
 try {
   const { default: init, start_web_orthogonal_canvases,
-    start_web_orthogonal_canvases_gpu, stop_web_canvas, web_canvas_listener_count,
+    start_web_orthogonal_canvases_gpu,
+    start_web_orthogonal_canvases_with_projection,
+    start_web_orthogonal_canvases_gpu_with_projection,
+    stop_web_canvas, web_canvas_listener_count,
     select_web_slice, set_web_cine_rate, set_web_window_preset,
     toggle_web_cine, select_web_tool, web_tool_count, web_tool_name,
     web_window_preset_count, web_window_preset_name } =
     await import("./consumer/ritk_snap.js");
   const runtime = await init();
-  const renderer = new URLSearchParams(window.location.search).get("renderer") === "webgpu"
+  const query = new URLSearchParams(window.location.search);
+  const renderer = query.get("renderer") === "webgpu"
     ? "webgpu" : "raster";
+  const projectionModes = Object.freeze({ mip: 0, minip: 1, average: 2 });
+  const projectionMode = query.get("projection");
+  if (projectionMode !== null && !Object.hasOwn(projectionModes, projectionMode)) {
+    throw new Error(`unsupported projection mode: ${projectionMode}`);
+  }
+  const projectionIndex = projectionMode === null ? null : projectionModes[projectionMode];
+  const projectionFigure = document.getElementById("projection-view");
+  const projectionStatistic = document.getElementById("projection-statistic");
+  if (!(projectionFigure instanceof HTMLElement) ||
+      !(projectionStatistic instanceof HTMLOutputElement)) {
+    throw new Error("projection presentation controls are missing");
+  }
+  projectionFigure.hidden = projectionMode === null;
+  projectionStatistic.textContent = projectionMode === null
+    ? "No projection"
+    : projectionMode === "mip" ? "MIP" : projectionMode === "minip" ? "MinIP" : "Average";
   let mounted = false;
   const windowPreset = document.getElementById("window-preset");
   const windowLevel = document.getElementById("window-level");
@@ -244,11 +264,17 @@ try {
   };
   const mount = async () => {
     stop();
-    const canvasIds = ["ritk-snap-axial", "ritk-snap-coronal", "ritk-snap-sagittal"];
-    if (renderer === "webgpu") {
-      await start_web_orthogonal_canvases_gpu(...canvasIds);
+    const orthogonalCanvasIds = ["ritk-snap-axial", "ritk-snap-coronal", "ritk-snap-sagittal"];
+    if (projectionIndex === null && renderer === "webgpu") {
+      await start_web_orthogonal_canvases_gpu(...orthogonalCanvasIds);
+    } else if (projectionIndex === null) {
+      start_web_orthogonal_canvases(...orthogonalCanvasIds);
+    } else if (renderer === "webgpu") {
+      await start_web_orthogonal_canvases_gpu_with_projection(
+        [...orthogonalCanvasIds, "ritk-snap-projection"], projectionIndex);
     } else {
-      start_web_orthogonal_canvases(...canvasIds);
+      start_web_orthogonal_canvases_with_projection(
+        [...orthogonalCanvasIds, "ritk-snap-projection"], projectionIndex);
     }
     mounted = true;
     // Host mounting may replace the format-neutral controls on every cycle.
@@ -256,9 +282,9 @@ try {
     customizePicker();
     syncPresentation();
     syncCine();
-    status.textContent = renderer === "webgpu"
-      ? "Ready with WebGPU. Drop study files into the area below."
-      : "Ready. Drop study files into the area below.";
+    const rendererLabel = renderer === "webgpu" ? " with WebGPU" : "";
+    const projectionLabel = projectionMode === null ? "" : ` and ${projectionStatistic.textContent} projection`;
+    status.textContent = `Ready${rendererLabel}${projectionLabel}. Drop study files into the area below.`;
   };
   await mount();
   window.metisGallery = Object.freeze({
@@ -277,6 +303,11 @@ try {
         ?.getAttribute("data-ritk-active-tool-index"),
       active_tool: document.getElementById("ritk-snap-axial")
         ?.getAttribute("data-ritk-active-tool"),
+      projection_mode: projectionMode,
+      projection_statistic: document.getElementById("ritk-snap-projection")
+        ?.getAttribute("data-ritk-projection-statistic"),
+      projection_frame_state: document.getElementById("ritk-snap-projection")
+        ?.getAttribute("data-ritk-frame-state"),
     }),
   });
   window.addEventListener("pagehide", () => {

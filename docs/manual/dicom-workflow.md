@@ -1872,10 +1872,12 @@ error; no browser fallback or DICOM interpretation occurs in Métis. The
 order and selects WebGPU explicitly.
 
 The native CT captures in [the scalar projection section](#show-the-real-study-with-a-native-scalar-projection-panel)
-are the current visual oracle for the three statistics. A hosted four-canvas
-browser gallery capture is a separate consumer exercise; the existing checked-
-in gallery and its cross-engine traces intentionally remain on the stable
-three-canvas entrypoint.
+are the current visual oracle for the three statistics. The checked-in gallery
+keeps the stable three-canvas default and accepts `?projection=mip`,
+`?projection=minip`, or `?projection=average` for the four-canvas consumer
+workflow. The hosted workflow exercises the MIP form with the real saved MRI
+study; its run artifact and screenshot are recorded with the browser evidence
+when the matrix completes.
 
 The hosted saved-study workflow
 ([`metis-browser-dicom.yml`](../../.github/workflows/metis-browser-dicom.yml))
