@@ -36,7 +36,7 @@ impl PresentationSpacing {
         [self.row, self.column]
     }
 
-    #[cfg(not(target_arch = "wasm32"))]
+    #[cfg(windows)]
     pub(crate) const fn swapped(self) -> Self {
         Self {
             row: self.column,
