@@ -13,12 +13,12 @@
 
 <a id="RITK-DOCS-CROSS-ENGINE-REPLAY-001"></a>
 ## RITK-DOCS-CROSS-ENGINE-REPLAY-001 — Rebind latest cross-engine MRI browser evidence [patch]
-- Status: in-progress; priority: P1; owner: RITK browser documentation; integrator: root; last-update: 2026-09-20.
+- Status: review; priority: P1; owner: RITK browser documentation; integrator: root; last-update: 2026-09-20.
 - Outcome: the cross-engine provenance record and manual identify the latest completed real-study workflow, exact engine artifacts and residual host failures.
 - Scope: current workflow run 35519330780 artifacts, `dicom-metis-real-browser-mri-cross-engine.json`, linked manual/ADR claims and actual public MRI browser captures. Browser or DICOM implementation remains unchanged.
 - Acceptance: Chromium and Firefox real-study/projection/window artifacts retain exact hashes and semantic results; WebKit read and Chromium WebGPU failures remain explicit; JSON, links, image dimensions/hashes and documentation checks pass.
 - Dependency: merged RITK PR #492 lock state and Metis `b58d64b1bebe76bb32570339c4a349cc1b0d7086`; hosted run 35519330780 artifacts.
-- Verification: artifact manifests and JSON parse, image/hash checks, manual/ADR references, `git diff --check`, and repository documentation gates pass.
+- Verification: downloaded hosted artifact manifests and JSON parse, current Chromium gallery and MIP PNGs visually inspected as real non-black MRI anatomy, exact image/hash checks, manual/ADR references, and `git diff --check` pass; repository documentation gates are attached to the delivery PR.
 - Re-open trigger: a newer merged-main browser matrix or a host capability change supersedes this run.
 
 <a id="RITK-SNAP-OBLIQUE-RESLICE-001"></a>
@@ -180,10 +180,10 @@ Unresolved delivery items are kept as executable records. Closed history is inde
 - Acceptance: read-path cause and production fix, 94 file hashes, three exact pixel oracles, bounded rejections and clean sessions on Chromium, Firefox and WebKit.
 - Risk: [patch]; dependency: [Metis read diagnosis](../metis/backlog.md#METIS-BROWSER-READ-001).
 - Delivery: RITK PR [#422](https://github.com/ryancinsight/ritk/pull/422), merge `18ee4e55b`; the current failure evidence is recorded and the external WebKit authorization residual remains blocked.
-- Evidence: recorded hosted [run 35395627386](https://github.com/ryancinsight/ritk/actions/runs/35395627386) builds RITK `4bbbe661cb12f2992189ce7a786f6d47529963c5` against Metis `5e892245ac52c6455bbb57244fa654e6eb3cc9c1`; Chromium and Firefox pass the 94-file real MRI study, three exact pixel oracles and lifecycle checks; WebKit accepts the chooser but denies the first bounded read under Safari 26.6.2, with the diagnostics preserved in the provenance JSON.
-- Diagnosis: WebKit sandbox denies reads and read-extension issuance on the selected real file despite verified host bytes; four browser APIs and isolated one-file/full-batch inputs fail. DICOM stays in RITK.
+- Evidence: current hosted [run 35519330780](https://github.com/ryancinsight/ritk/actions/runs/35519330780) builds RITK `b220bf4ec2bf613fb23f2da20152881a1a3b4cf2` against Metis `b58d64b1bebe76bb32570339c4a349cc1b0d7086`; Chromium and Firefox pass the 94-file real MRI study, three exact pixel oracles and lifecycle checks; WebKit accepts the chooser but denies the first bounded read under Safari 26.6.2, with diagnostics preserved in the provenance JSON.
+- Diagnosis: the current WebKit trace shows the sandbox rejecting the bounded whole-file read after chooser acceptance; earlier isolated one-file/full-batch probes also failed across the available browser read paths. DICOM stays in RITK.
 - Verification: locked `ritk-snap` nextest 487/487, strict native/WASM Clippy and checks, formatting, rustdoc and lockfile validation pass; [proof and log hashes](docs/manual/images/dicom-metis-real-browser-mri-cross-engine.json).
-- Blocker: exact SafariDriver/WebKit selected-file authorization defect remains external; recorded run 35395627386 reproduces the denial after SafariDriver accepts all 94 files. Re-open when the corrected browser/runner path grants real-file reads; application byte-read APIs cannot grant that access.
+- Blocker: exact SafariDriver/WebKit selected-file authorization defect remains external; recorded run 35519330780 reproduces the denial after SafariDriver accepts all 94 files (artifact [10608058242](https://github.com/ryancinsight/ritk/actions/runs/35519330780/artifacts/10608058242), diagnostics [10607983766](https://github.com/ryancinsight/ritk/actions/runs/35519330780/artifacts/10607983766)). Re-open when the corrected browser/runner path grants real-file reads; application byte-read APIs cannot grant that access.
 
 <a id="RITK-DOCS-EVIDENCE-SYNC-002"></a>
 ## RITK-DOCS-EVIDENCE-SYNC-002 — Rebind current real MRI replay provenance [patch]
@@ -195,7 +195,7 @@ Unresolved delivery items are kept as executable records. Closed history is inde
 - Status: blocked; compacted 2026-09-18; full delivery history remains in git.
 - Scope: replay the saved public MRI-DIR study through the RITK-owned `?renderer=webgpu` page and retain actual canvas/window evidence; RITK owns DICOM decoding and clinical pixels, while Métis remains the format-neutral canvas host.
 - Acceptance: a configured browser runner reports an adapter, presents the three saved-study canvases, records revision-bound PNGs and semantic attributes, and completes bounded teardown without a raster fallback.
-- Blocker: hosted Chromium in run [35395627386](https://github.com/ryancinsight/ritk/actions/runs/35395627386) reports no WebGPU adapter; the current setup error and failure capture artifact `10568306406` are preserved in [`dicom-metis-real-browser-mri-webgpu-failure.png`](docs/manual/images/dicom-metis-real-browser-mri-webgpu-failure.png).
+- Blocker: hosted Chromium in run [35519330780](https://github.com/ryancinsight/ritk/actions/runs/35519330780) reports no WebGPU adapter; the current setup error and failure capture artifact [10607898845](https://github.com/ryancinsight/ritk/actions/runs/35519330780/artifacts/10607898845) are preserved in [`dicom-metis-real-browser-mri-webgpu-failure.png`](docs/manual/images/dicom-metis-real-browser-mri-webgpu-failure.png).
 
 ## Atlas Batch #3 sub-batches (ritk Burn-trait rebind — 6 atomic commits per `atlas/docs/adr/0012-ritk-burn-trait-rebind.md`)
 
