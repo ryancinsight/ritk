@@ -2,12 +2,23 @@
 
 <a id="RITK-SNAP-OBLIQUE-RESLICE-001"></a>
 ## RITK-SNAP-OBLIQUE-RESLICE-001 — Resample physical viewer planes [arch] [minor]
-- Status: review; priority: P1; owner: RITK rendering; integrator: root; last-update: 2026-09-20.
+- Status: done; priority: P1; owner: RITK rendering; integrator: root; last-update: 2026-09-20.
 - Outcome: a validated physical-plane request produces an input-sensitive scalar plane with nearest-neighbour or trilinear samples and maximum, minimum or average slab reduction; the result remains format-neutral for Métis, eframe and VTK consumers.
 - Scope: `ritk-snap` affine/reslice renderer, analytical/property tests, ADR and DICOM manual contract notes. DICOM parsing, host event wiring, GPU dispatch and clinical metadata remain in their existing owners.
 - Acceptance: axis-aligned requests are byte/value-equivalent to existing slice extraction; rotated anisotropic requests preserve voxel↔patient coordinates; invalid basis, extent, spacing, sample count and out-of-volume requests return typed errors; slab statistics use the declared sample path; caller-owned scalar storage is reusable; locked native/WASM checks, strict Clippy, rustdoc, formatting and real-study replay pass.
 - Dependency: existing `AffineTransform`, `LoadedVolume`, `SlabProjection`, VTK spatial-volume contract and Métis presentation-frame geometry.
 - Verification: `ritk-snap` nextest 479/479, strict native Clippy, wasm32 check/Clippy, rustdoc, formatting, standalone lock and ADR-index checks pass; six new reslice tests cover axis equivalence, rotated anisotropic coordinates, trilinear linear-field recovery, slab statistics, capacity reuse, and typed invalid inputs.
+- Delivery: RITK PR [#539](https://github.com/ryancinsight/ritk/pull/539), merge `2d9377975b4fc420ab0f16481c6e2a6c80279cc7`; physical-plane reslicing remains format-neutral for Métis, eframe and VTK consumers.
+
+<a id="RITK-METIS-LOCK-014"></a>
+## RITK-METIS-LOCK-014 — Replay the merged Métis semantic provider [patch]
+- Status: done; priority: P1; owner: RITK viewer + integration; integrator: root; last-update: 2026-09-20.
+- Outcome: the standalone RITK lock and browser replay resolve Métis at merge `b58d64b1bebe76bb32570339c4a349cc1b0d7086`, consume the host-neutral semantic provider, and preserve the real 94-file MRI framebuffer and invalid-study rejection.
+- Scope: first-party lock resolution, the browser workflow's default revision, current real-study provenance, and focused native/WASM/replay verification. DICOM parsing and clinical semantics remain RITK-owned; historical evidence records stay bound to their generating revisions.
+- Acceptance: standalone Cargo.lock resolves without the Atlas overlay; locked `ritk-snap` tests, strict native/WASM checks and Clippy, formatting, rustdoc, provenance and real-study replay pass; the 1280×800 PNG remains byte-identical (`259dd791...`, 411,589 non-black pixels); the browser workflow checks out the same full revision by default.
+- Dependency: Métis PR #305 merge `b58d64b1bebe76bb32570339c4a349cc1b0d7086`; Moirai remains the current lock-pinned provider.
+- Verification: lock SHA, source revisions, file count/bytes, image hash/dimensions/non-black count, invalid-study exit, native nextest, WASM check/Clippy, formatting, rustdoc, and browser workflow revision assertions are recorded in the provenance JSON and PR body.
+- Delivery: RITK lock/workflow commit `940c0552eec0728c205ab57f361ec8f400b1e156`; current replay provenance records Cargo.lock SHA `d6f75fae8228e1a184ee2221a70f48478ae2388da7c3041eacb85cdc154a0afd`, six Metis sources at `b58d64b1bebe76bb32570339c4a349cc1b0d7086`, and the unchanged 1280×800 MRI PNG.
 
 <a id="RITK-BROWSER-VIEWPORT-001"></a>
 ## RITK-BROWSER-VIEWPORT-001 — Present browser zoom and pan state [minor]
