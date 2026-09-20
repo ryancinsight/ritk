@@ -79,6 +79,9 @@ def finalize_cine_teardown(client: WebDriverClient, evidence: dict[str, Any]) ->
     """
     if not isinstance(evidence, dict) or evidence.get("stopped") is not None:
         raise BrowserRuntimeError("cine evidence is not awaiting shared teardown")
+    samples = evidence.get("samples")
+    if not isinstance(samples, dict):
+        raise BrowserRuntimeError("cine evidence omitted its sample map")
     sample_after_stop = client.execute("return window.metisGallery.sample();")
     if (
         not isinstance(sample_after_stop, dict)
@@ -88,7 +91,7 @@ def finalize_cine_teardown(client: WebDriverClient, evidence: dict[str, Any]) ->
         raise BrowserRuntimeError(
             f"RITK viewer did not release listeners after shared stop: {sample_after_stop!r}"
         )
-    evidence["samples"]["after_stop"] = sample_after_stop
+    samples["after_stop"] = sample_after_stop
     evidence["stopped"] = stopped_state(client)
     evidence["teardown"] = {"performed": True, "owner": "tool-controls"}
     return write_evidence(evidence)
