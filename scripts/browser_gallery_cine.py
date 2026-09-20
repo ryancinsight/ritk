@@ -115,7 +115,7 @@ const read = () => ["axial", "coronal", "sagittal"].map((axis) => {
   return canvas instanceof HTMLCanvasElement ? {
     axis,
     enabled: canvas.getAttribute("data-ritk-cine-enabled"),
-    slice_index: canvas.getAttribute("data-ritk-slice-index"),
+    slice_index: Number(canvas.getAttribute("data-ritk-slice-index")),
     generation: Number(canvas.getAttribute("data-ritk-frame-generation")),
   } : null;
 });
@@ -123,6 +123,7 @@ const status = () => document.getElementById("gallery-status")?.textContent || "
 const ready = () => {
   const current = read();
   return current.every((state, position) => state && state.enabled === "true" &&
+    Number.isSafeInteger(state.slice_index) &&
     Number.isSafeInteger(state.generation) &&
     state.generation >= previous[position].generation) &&
     current.some((state, position) => state.generation > previous[position].generation &&

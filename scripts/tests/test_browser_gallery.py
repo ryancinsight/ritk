@@ -387,6 +387,7 @@ class WindowPresetHelperTests(unittest.TestCase):
 
     def test_cine_frame_wait_compares_snapshot_slice_field_and_preserves_timeout_state(self):
         script = browser_gallery_cine.WAIT_CINE_FRAME_SCRIPT
+        self.assertIn("slice_index: Number(canvas.getAttribute(\"data-ritk-slice-index\"))", script)
         self.assertIn("state.slice_index !== previous[position].slice_index", script)
         self.assertNotIn("state.index !== previous[position].index", script)
         self.assertIn("done({ok: false, previous, current: read(), status: status()})", script)
