@@ -1,6 +1,6 @@
 //! Validated RGBA frame produced by the RITK presentation boundary.
 
-use crate::render::{NamedColorMap, RgbaImage, SliceRenderer, WindowLevel};
+use crate::render::{FrameRenderScratch, NamedColorMap, SliceRenderer, WindowLevel};
 use crate::LoadedVolume;
 use anyhow::{anyhow, bail, Result};
 use metis_platform::framebuffer::MAX_PIXELS;
@@ -55,7 +55,7 @@ impl PresentationSpacing {
 pub struct PresentationFrame {
     width: u32,
     height: u32,
-    rgba: Box<[u8]>,
+    rgba: Vec<u8>,
     display_spacing: PresentationSpacing,
 }
 
@@ -76,9 +76,10 @@ impl PresentationFrame {
         window_level: WindowLevel,
         colormap: NamedColorMap,
     ) -> Result<Self> {
-        let display_spacing = slice_display_spacing(volume.spacing, axis)?;
-        let image = SliceRenderer::render_rgba(volume, axis, index, window_level, colormap);
-        Ok(Self::from_rgba_image(image)?.with_display_spacing(display_spacing))
+        let mut scratch = FrameRenderScratch::default();
+        let mut frame = Self::empty();
+        frame.render_slice_into(volume, axis, index, window_level, colormap, &mut scratch)?;
+        Ok(frame)
     }
 
     /// Renders the three orthogonal volume slices for a multi-viewport host.
@@ -90,17 +91,26 @@ impl PresentationFrame {
     /// # Errors
     /// Returns an error if any rendered slice violates the bounded frame
     /// contract or cannot be allocated.
-    #[cfg(any(target_arch = "wasm32", test))]
+    #[cfg(test)]
     pub(crate) fn from_orthogonal_slices(
         volume: &LoadedVolume,
         indices: [usize; 3],
         window_level: WindowLevel,
         colormap: NamedColorMap,
     ) -> Result<[Self; 3]> {
-        let axial = Self::from_slice(volume, 0, indices[0], window_level, colormap)?;
-        let coronal = Self::from_slice(volume, 1, indices[1], window_level, colormap)?;
-        let sagittal = Self::from_slice(volume, 2, indices[2], window_level, colormap)?;
-        Ok([axial, coronal, sagittal])
+        let mut scratch = FrameRenderScratch::default();
+        let mut frames = [Self::empty(), Self::empty(), Self::empty()];
+        for (axis, frame) in frames.iter_mut().enumerate() {
+            frame.render_slice_into(
+                volume,
+                axis,
+                indices[axis],
+                window_level,
+                colormap,
+                &mut scratch,
+            )?;
+        }
+        Ok(frames)
     }
 
     /// Copies validated row-major RGBA bytes into the presentation boundary.
@@ -130,18 +140,10 @@ impl PresentationFrame {
             .try_reserve_exact(byte_count)
             .map_err(|_| anyhow!("unable to reserve presentation frame bytes"))?;
         owned.extend_from_slice(rgba);
-        Self::from_rgba_storage(width, height, owned.into_boxed_slice())
+        Self::from_rgba_storage(width, height, owned)
     }
 
-    fn from_rgba_image(image: RgbaImage) -> Result<Self> {
-        let [width, height] = image.size();
-        let width = u32::try_from(width).map_err(|_| anyhow!("frame width exceeds u32"))?;
-        let height = u32::try_from(height).map_err(|_| anyhow!("frame height exceeds u32"))?;
-        let (_, rgba) = image.into_parts();
-        Self::from_rgba_storage(width, height, rgba)
-    }
-
-    pub(crate) fn from_rgba_storage(width: u32, height: u32, rgba: Box<[u8]>) -> Result<Self> {
+    pub(crate) fn from_rgba_storage(width: u32, height: u32, rgba: Vec<u8>) -> Result<Self> {
         let pixel_count = Self::validate_dimensions(width, height)?;
         let byte_count = pixel_count
             .checked_mul(4)
@@ -162,10 +164,58 @@ impl PresentationFrame {
         })
     }
 
+    pub(crate) fn empty() -> Self {
+        Self {
+            width: 1,
+            height: 1,
+            rgba: vec![0, 0, 0, 255],
+            display_spacing: PresentationSpacing::unit(),
+        }
+    }
+
+    pub(crate) fn render_slice_into(
+        &mut self,
+        volume: &LoadedVolume,
+        axis: usize,
+        index: usize,
+        window_level: WindowLevel,
+        colormap: NamedColorMap,
+        scratch: &mut FrameRenderScratch,
+    ) -> Result<()> {
+        let display_spacing = slice_display_spacing(volume.spacing, axis)?;
+        let [width, height] =
+            SliceRenderer::render_rgba_into(scratch, volume, axis, index, window_level, colormap);
+        let width = u32::try_from(width).map_err(|_| anyhow!("frame width exceeds u32"))?;
+        let height = u32::try_from(height).map_err(|_| anyhow!("frame height exceeds u32"))?;
+        let pixel_count = Self::validate_dimensions(width, height)?;
+        let byte_count = pixel_count
+            .checked_mul(4)
+            .ok_or_else(|| anyhow!("presentation frame byte count overflows usize"))?;
+        if scratch.rgba.len() != byte_count {
+            bail!(
+                "presentation frame byte count {} does not match {}x{} RGBA storage",
+                scratch.rgba.len(),
+                width,
+                height
+            );
+        }
+        std::mem::swap(&mut self.rgba, &mut scratch.rgba);
+        self.width = width;
+        self.height = height;
+        self.display_spacing = display_spacing;
+        Ok(())
+    }
+
+    #[cfg(target_arch = "wasm32")]
+    pub(crate) fn reclaim_storage(&mut self, scratch: &mut FrameRenderScratch) {
+        std::mem::swap(&mut self.rgba, &mut scratch.rgba);
+    }
+
     /// Replaces the physical row and column sample distances.
     ///
     /// The values are ordered for the rendered frame, so a quarter-turn
     /// transform must swap them with the transformed pixel dimensions.
+    #[cfg(not(target_arch = "wasm32"))]
     pub(crate) fn with_display_spacing(mut self, spacing: PresentationSpacing) -> Self {
         self.display_spacing = spacing;
         self
@@ -173,7 +223,7 @@ impl PresentationFrame {
 
     #[cfg(windows)]
     pub(crate) fn into_rgba_parts(self) -> (u32, u32, Box<[u8]>) {
-        (self.width, self.height, self.rgba)
+        (self.width, self.height, self.rgba.into_boxed_slice())
     }
 
     fn validate_dimensions(width: u32, height: u32) -> Result<usize> {
@@ -379,5 +429,56 @@ mod tests {
         )
         .expect_err("invalid volume spacing");
         assert!(error.to_string().contains("display spacing"));
+    }
+
+    #[test]
+    fn repeated_slice_updates_reuse_rgba_capacity() {
+        let volume = test_volume();
+        let mut scratch = FrameRenderScratch::default();
+        let mut frame = PresentationFrame::empty();
+        let window_level = WindowLevel::new(127.5, 255.0);
+
+        frame
+            .render_slice_into(
+                &volume,
+                0,
+                0,
+                window_level,
+                NamedColorMap::Grayscale,
+                &mut scratch,
+            )
+            .expect("first reusable frame");
+        let expected =
+            PresentationFrame::from_slice(&volume, 0, 0, window_level, NamedColorMap::Grayscale)
+                .expect("reference frame");
+        assert_eq!(frame.rgba(), expected.rgba());
+
+        frame
+            .render_slice_into(
+                &volume,
+                0,
+                0,
+                window_level,
+                NamedColorMap::Grayscale,
+                &mut scratch,
+            )
+            .expect("second reusable frame");
+        assert_eq!(frame.rgba(), expected.rgba());
+        let frame_capacity = frame.rgba.capacity();
+        let scratch_capacity = scratch.rgba.capacity();
+
+        frame
+            .render_slice_into(
+                &volume,
+                0,
+                0,
+                window_level,
+                NamedColorMap::Grayscale,
+                &mut scratch,
+            )
+            .expect("third reusable frame");
+        assert_eq!(frame.rgba(), expected.rgba());
+        assert_eq!(frame.rgba.capacity(), frame_capacity);
+        assert_eq!(scratch.rgba.capacity(), scratch_capacity);
     }
 }

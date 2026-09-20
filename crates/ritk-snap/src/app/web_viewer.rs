@@ -16,6 +16,7 @@ use super::browser_tool::{parse_browser_tool_request, BrowserToolError};
 use super::SnapApp;
 use crate::app::action_adapter::ViewerActionDisposition;
 use crate::presentation::PresentationFrame;
+use crate::render::FrameRenderScratch;
 use crate::ui::decide_dropped_input_action;
 use moirai_pal::wasm::{spawn_local_with_handle, LocalTaskHandle, WebAnimationFrame};
 use std::cell::RefCell;
@@ -76,10 +77,14 @@ enum BrowserSurface {
     Single {
         canvas: BrowserCanvas,
         frame: Option<PresentationFrame>,
+        scratch: FrameRenderScratch,
+        dirty: bool,
     },
     Orthogonal {
         canvases: Box<[BrowserCanvas; 3]>,
         frames: Option<[PresentationFrame; 3]>,
+        scratch: FrameRenderScratch,
+        dirty: bool,
     },
 }
 
@@ -95,19 +100,36 @@ impl BrowserSurface {
 
     fn clear(&mut self) {
         match self {
-            Self::Single { frame, .. } => *frame = None,
-            Self::Orthogonal { frames, .. } => *frames = None,
+            Self::Single { dirty, .. } | Self::Orthogonal { dirty, .. } => *dirty = true,
         }
     }
 
     fn render_and_present(&mut self, app: &SnapApp) -> std::io::Result<()> {
         match self {
-            Self::Single { canvas, frame } => {
-                let rendered = frame.is_none();
+            Self::Single {
+                canvas,
+                frame,
+                scratch,
+                dirty,
+            } => {
+                if app.loaded.is_none() {
+                    if let Some(mut frame) = frame.take() {
+                        frame.reclaim_storage(scratch);
+                    }
+                    *dirty = false;
+                    return Ok(());
+                }
+                let rendered = *dirty || frame.is_none();
                 if frame.is_none() {
-                    *frame = app
-                        .render_browser_frame()
+                    *frame = Some(PresentationFrame::empty());
+                }
+                if rendered {
+                    let frame = frame.as_mut().ok_or_else(|| {
+                        std::io::Error::other("browser frame was not initialized")
+                    })?;
+                    app.render_browser_frame_into(frame, scratch)
                         .map_err(|error| std::io::Error::other(error.to_string()))?;
+                    *dirty = false;
                 }
                 if let Some(frame) = frame.as_ref() {
                     if rendered {
@@ -117,12 +139,36 @@ impl BrowserSurface {
                     }
                 }
             }
-            Self::Orthogonal { canvases, frames } => {
-                let rendered = frames.is_none();
+            Self::Orthogonal {
+                canvases,
+                frames,
+                scratch,
+                dirty,
+            } => {
+                if app.loaded.is_none() {
+                    if let Some(frames) = frames.take() {
+                        for mut frame in frames {
+                            frame.reclaim_storage(scratch);
+                        }
+                    }
+                    *dirty = false;
+                    return Ok(());
+                }
+                let rendered = *dirty || frames.is_none();
                 if frames.is_none() {
-                    *frames = app
-                        .render_browser_frames()
+                    *frames = Some([
+                        PresentationFrame::empty(),
+                        PresentationFrame::empty(),
+                        PresentationFrame::empty(),
+                    ]);
+                }
+                if rendered {
+                    let frames = frames.as_mut().ok_or_else(|| {
+                        std::io::Error::other("browser frames were not initialized")
+                    })?;
+                    app.render_browser_frames_into(frames, scratch)
                         .map_err(|error| std::io::Error::other(error.to_string()))?;
+                    *dirty = false;
                 }
                 if let Some(frames) = frames.as_ref() {
                     for (canvas, frame) in canvases.iter_mut().zip(frames) {
@@ -140,7 +186,7 @@ impl BrowserSurface {
 
     fn publish_semantics(&mut self, app: &SnapApp) -> std::io::Result<()> {
         match self {
-            Self::Single { canvas, frame } => {
+            Self::Single { canvas, frame, .. } => {
                 let axis = app.axis;
                 let (slice_index, slice_count) = app.axis_slice_info(axis);
                 let (window_center, window_width) = app.browser_window_level_values();
@@ -161,7 +207,9 @@ impl BrowserSurface {
                 let physical_aspect = physical_aspect(frame.as_ref())?;
                 canvas.publish_semantics(semantics, physical_aspect)
             }
-            Self::Orthogonal { canvases, frames } => {
+            Self::Orthogonal {
+                canvases, frames, ..
+            } => {
                 for (axis, canvas) in canvases.iter_mut().enumerate() {
                     let frame = frames.as_ref().and_then(|frames| frames.get(axis));
                     let (slice_index, slice_count) = app.axis_slice_info(axis);
@@ -190,8 +238,12 @@ impl BrowserSurface {
 
     fn apply_events(&mut self, app: &mut SnapApp) -> std::io::Result<ViewerActionDisposition> {
         match self {
-            Self::Single { canvas, frame } => apply_canvas_events(app, 0, canvas, frame.as_ref()),
-            Self::Orthogonal { canvases, frames } => {
+            Self::Single { canvas, frame, .. } => {
+                apply_canvas_events(app, 0, canvas, frame.as_ref())
+            }
+            Self::Orthogonal {
+                canvases, frames, ..
+            } => {
                 let mut repaint = false;
                 for (axis, canvas) in canvases.iter_mut().enumerate() {
                     let frame = frames.as_ref().and_then(|frames| frames.get(axis));
@@ -315,6 +367,8 @@ pub(crate) fn start_web_canvas(canvas_id: String) -> Result<(), JsValue> {
     launch_browser_viewer(BrowserViewer::new(BrowserSurface::Single {
         canvas,
         frame: None,
+        scratch: FrameRenderScratch::default(),
+        dirty: true,
     }))
 }
 
@@ -329,6 +383,8 @@ pub(crate) async fn start_web_canvas_gpu(canvas_id: String) -> Result<(), JsValu
     launch_browser_viewer(BrowserViewer::new(BrowserSurface::Single {
         canvas,
         frame: None,
+        scratch: FrameRenderScratch::default(),
+        dirty: true,
     }))
 }
 
@@ -350,6 +406,8 @@ pub(crate) fn start_web_orthogonal_canvases(canvas_ids: [String; 3]) -> Result<(
     launch_browser_viewer(BrowserViewer::new(BrowserSurface::Orthogonal {
         canvases: Box::new(canvases),
         frames: None,
+        scratch: FrameRenderScratch::default(),
+        dirty: true,
     }))
 }
 
@@ -373,6 +431,8 @@ pub(crate) async fn start_web_orthogonal_canvases_gpu(
     launch_browser_viewer(BrowserViewer::new(BrowserSurface::Orthogonal {
         canvases: Box::new(canvases),
         frames: None,
+        scratch: FrameRenderScratch::default(),
+        dirty: true,
     }))
 }
 
@@ -528,9 +588,13 @@ pub(crate) fn web_window_preset_name(
 }
 
 impl SnapApp {
-    fn render_browser_frame(&self) -> anyhow::Result<Option<PresentationFrame>> {
+    fn render_browser_frame_into(
+        &self,
+        frame: &mut PresentationFrame,
+        scratch: &mut FrameRenderScratch,
+    ) -> anyhow::Result<()> {
         let Some(volume) = self.loaded.as_ref() else {
-            return Ok(None);
+            return Ok(());
         };
         let window_level = self.browser_window_level();
         let slice_index = match self.axis {
@@ -538,22 +602,36 @@ impl SnapApp {
             1 => self.coronal_slice,
             _ => self.sagittal_slice,
         };
-        PresentationFrame::from_slice(volume, self.axis, slice_index, window_level, self.colormap)
-            .map(Some)
+        frame.render_slice_into(
+            volume,
+            self.axis,
+            slice_index,
+            window_level,
+            self.colormap,
+            scratch,
+        )
     }
 
-    fn render_browser_frames(&self) -> anyhow::Result<Option<[PresentationFrame; 3]>> {
+    fn render_browser_frames_into(
+        &self,
+        frames: &mut [PresentationFrame; 3],
+        scratch: &mut FrameRenderScratch,
+    ) -> anyhow::Result<()> {
         let Some(volume) = self.loaded.as_ref() else {
-            return Ok(None);
+            return Ok(());
         };
         let indices = [0_usize, 1, 2].map(|axis| self.axis_slice_info(axis).0);
-        PresentationFrame::from_orthogonal_slices(
-            volume,
-            indices,
-            self.browser_window_level(),
-            self.colormap,
-        )
-        .map(Some)
+        for (axis, frame) in frames.iter_mut().enumerate() {
+            frame.render_slice_into(
+                volume,
+                axis,
+                indices[axis],
+                self.browser_window_level(),
+                self.colormap,
+                scratch,
+            )?;
+        }
+        Ok(())
     }
 
     fn browser_window_level(&self) -> crate::render::WindowLevel {
