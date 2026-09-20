@@ -1,5 +1,14 @@
 # RITK execution backlog
 
+<a id="RITK-BROWSER-CINE-REPLAY-001"></a>
+## RITK-BROWSER-CINE-REPLAY-001 — Reproduce the current browser cine residual [patch]
+- Status: done; priority: P1; owner: RITK browser presentation; integrator: root; last-update: 2026-09-20.
+- Outcome: current lock-pinned Chromium consumer replay presents changed real-study slices through Play and rate changes, preserves live timeout diagnostics, and completes one shared cine/tool teardown; Safari bounded file reads and WebGPU adapter availability remain separate residuals.
+- Scope: `ritk-snap` browser viewer/presentation and bounded gallery cine diagnostic; DICOM decoding, Metis file access, and WebGPU provider selection remain out of scope.
+- Acceptance: the hosted current-pair replay reaches one presented slice transition after Play and after the rate change, with generation/index semantics and real MRI pixels; timeout failures retain live canvas/control state and viewer status; locked native/WASM tests, strict Clippy, formatting, docs and browser script tests pass.
+- Basis: hosted run [35487777698](https://github.com/ryancinsight/ritk/actions/runs/35487777698), RITK `4cbef46ef4be41fe2a93bcb79c81a02d2c73d685`, Metis `165c4ec923e76ea7bc32b6b4fb99b4338166b3a3`; the Chromium-window job passed after the 94-file replay, while WebKit and WebGPU retained independent residuals.
+- Delivery: [PR #522](https://github.com/ryancinsight/ritk/pull/522), current branch head `4cbef46ef`; the bounded cine capture now validates generation/index snapshots and shares final teardown with the tool capture.
+- Evidence: Chromium-window [artifact 10597873405](https://github.com/ryancinsight/ritk/actions/runs/35487777698/artifacts/10597873405) records `trace.json` status `passed`, 94 files/49,807,236 bytes, sagittal 255→256 on Play and 256→257 after the 24 FPS rate change, and final `mounted=false`/zero listeners with `teardown.owner=tool-controls`; the 2,880×2,114 `gallery-cine.png` has SHA-256 `73542c9c7be8ff1da18e90faaefa5105ff1e1edb94f2a1eef067d313daca0e03` and visibly contains the three non-black MRI planes.
 Unresolved delivery items are kept as executable records. Closed history is indexed below; full prose remains in git.
 
 <a id="RITK-SNAP-PRESENTATION-FRAME-REUSE-001"></a>

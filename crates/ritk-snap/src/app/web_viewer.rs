@@ -134,8 +134,6 @@ impl BrowserSurface {
                 if let Some(frame) = frame.as_ref() {
                     if rendered {
                         canvas.present_rendered_frame(frame)?;
-                    } else {
-                        canvas.present(frame)?;
                     }
                 }
             }
@@ -174,8 +172,6 @@ impl BrowserSurface {
                     for (canvas, frame) in canvases.iter_mut().zip(frames) {
                         if rendered {
                             canvas.present_rendered_frame(frame)?;
-                        } else {
-                            canvas.present(frame)?;
                         }
                     }
                 }

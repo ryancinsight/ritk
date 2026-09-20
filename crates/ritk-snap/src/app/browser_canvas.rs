@@ -48,10 +48,6 @@ impl BrowserCanvas {
         self.presenter.listener_count()
     }
 
-    pub(super) fn present(&self, frame: &PresentationFrame) -> std::io::Result<()> {
-        self.presenter.present(frame)
-    }
-
     pub(super) fn take_events(
         &self,
     ) -> Result<

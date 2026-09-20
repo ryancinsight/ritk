@@ -332,6 +332,85 @@ class SliceGalleryTests(unittest.TestCase):
         )
         tools.assert_called_once_with(client, pathlib.Path(directory) / "tools")
 
+    def test_combined_cine_and_tool_controls_share_one_teardown(self):
+        class Client:
+            def set_window_rect(self, width, height):
+                self.rect = (width, height)
+
+        oracle = {
+            f"ritk-snap-{axis}": {
+                "attributes": {"data-ritk-slice-count": str(count)},
+            }
+            for axis, count in zip(browser_gallery.AXES, (94, 512, 512))
+        }
+        canvas_ids = tuple(f"ritk-snap-{axis}" for axis in browser_gallery.AXES)
+        client = Client()
+        with tempfile.TemporaryDirectory(
+            dir=browser_gallery.ROOT / "output", prefix="gallery-combined-callback-"
+        ) as directory, mock.patch.object(
+            browser_gallery,
+            "capture_slice_gallery",
+            return_value={"schema": 1, "kind": "slices"},
+        ), mock.patch.object(
+            browser_gallery,
+            "capture_cine_gallery",
+            return_value={"schema": 1, "kind": "cine"},
+        ) as cine, mock.patch.object(
+            browser_gallery,
+            "capture_tool_gallery",
+            return_value={"schema": 1, "kind": "tools"},
+        ) as tools, mock.patch.object(
+            browser_gallery,
+            "finalize_cine_teardown",
+            side_effect=lambda _client, evidence: {**evidence, "stopped": {"done": True}},
+        ) as finalize:
+            result = browser_gallery._capture_consumer_controls(
+                client,
+                pathlib.Path(directory),
+                oracle,
+                canvas_ids,
+                cine_controls=True,
+                tool_controls=True,
+            )
+
+        self.assertEqual(result["cine"]["stopped"], {"done": True})
+        cine.assert_called_once_with(
+            client,
+            pathlib.Path(directory) / "cine",
+            stop_viewer=False,
+        )
+        tools.assert_called_once_with(client, pathlib.Path(directory) / "tools")
+        finalize.assert_called_once_with(client, {"schema": 1, "kind": "cine"})
+
+    def test_cine_teardown_completion_persists_shared_stop_state(self):
+        class Client:
+            def execute(self, script):
+                if "window.metisGallery.sample" in script:
+                    return {"mounted": False, "consumer_listeners": 0}
+                return {
+                    "button_disabled": True,
+                    "button_pressed": "false",
+                    "button_text": "Play",
+                    "rate_disabled": True,
+                    "rate_value": "12",
+                    "output": "12 FPS",
+                }
+
+        with tempfile.TemporaryDirectory(
+            dir=browser_gallery.ROOT / "output", prefix="gallery-cine-finalize-"
+        ) as directory:
+            artifact = pathlib.Path(directory) / "gallery-cine.json"
+            evidence = {
+                "artifact": artifact.relative_to(browser_gallery.ROOT).as_posix(),
+                "samples": {"before_stop": {"mounted": True}},
+                "stopped": None,
+            }
+            completed = browser_gallery_cine.finalize_cine_teardown(Client(), evidence)
+            self.assertEqual(completed["stopped"]["rate_value"], "12")
+            self.assertEqual(
+                json.loads(artifact.read_text(encoding="utf-8")), completed
+            )
+
 
 class WindowPresetHelperTests(unittest.TestCase):
     def test_gallery_declares_rust_owned_window_preset_surface(self):
@@ -384,6 +463,15 @@ class WindowPresetHelperTests(unittest.TestCase):
         script = browser_gallery_cine.CINE_SNAPSHOT_SCRIPT
         self.assertNotIn("arguments[arguments.length - 1]", script)
         self.assertIn("return {ok: true", script)
+
+    def test_cine_frame_wait_compares_snapshot_slice_field_and_preserves_timeout_state(self):
+        script = browser_gallery_cine.WAIT_CINE_FRAME_SCRIPT
+        self.assertIn("slice_index: rawIndex === null ? null : Number(rawIndex)", script)
+        self.assertIn("state.slice_index !== previous[position].slice_index", script)
+        self.assertIn("previous[position].frame_generation", script)
+        self.assertNotIn("previous[position].generation", script)
+        self.assertNotIn("state.index !== previous[position].index", script)
+        self.assertIn("done({ok: false, previous, current: read(), status: status()})", script)
 
     def test_decimal_parser_rejects_non_decimal_or_unbounded_values(self):
         with self.assertRaises(browser_gallery_window.BrowserRuntimeError):

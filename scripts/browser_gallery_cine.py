@@ -2,7 +2,6 @@
 
 from __future__ import annotations
 
-import hashlib
 import json
 import pathlib
 import sys
@@ -11,6 +10,12 @@ from typing import Any, Mapping
 
 from browser_canvas import settle_canvas_input
 from browser_gallery_artifacts import _write_png
+from browser_gallery_cine_lifecycle import (
+    finalize_cine_teardown,
+    source_digests,
+    stopped_state,
+    write_evidence,
+)
 from browser_gallery_trace import AXES
 from browser_protocol import ROOT, BrowserRuntimeError, WebDriverClient, _safe_path
 
@@ -60,6 +65,22 @@ const done = arguments[arguments.length - 1];
 const enabled = arguments[0];
 const rate = arguments[1];
 const limit = arguments[2];
+const read = () => {
+  const canvas = document.getElementById("ritk-snap-axial");
+  const button = document.getElementById("cine-toggle");
+  const input = document.getElementById("cine-rate");
+  return {
+    canvas: canvas instanceof HTMLCanvasElement ? {
+      enabled: canvas.getAttribute("data-ritk-cine-enabled"),
+      index: canvas.getAttribute("data-ritk-slice-index"),
+      generation: canvas.getAttribute("data-ritk-frame-generation"),
+    } : null,
+    controls: {
+      button_pressed: button instanceof HTMLButtonElement ? button.getAttribute("aria-pressed") : null,
+      rate: input instanceof HTMLInputElement ? input.value : null,
+    },
+  };
+};
 const ready = () => {
   const canvas = document.getElementById("ritk-snap-axial");
   const button = document.getElementById("cine-toggle");
@@ -86,7 +107,7 @@ const timer = window.setTimeout(() => {
   if (settled) return;
   settled = true;
   observer.disconnect();
-  done({ok: false});
+  done({ok: false, current: read(), status: document.getElementById("gallery-status")?.textContent || ""});
 }, limit);
 """
 
@@ -96,20 +117,25 @@ const previous = arguments[0];
 const limit = arguments[1];
 const read = () => ["axial", "coronal", "sagittal"].map((axis) => {
   const canvas = document.getElementById(`ritk-snap-${axis}`);
-  return canvas instanceof HTMLCanvasElement ? {
+  if (!(canvas instanceof HTMLCanvasElement)) return null;
+  const rawIndex = canvas.getAttribute("data-ritk-slice-index");
+  const rawGeneration = canvas.getAttribute("data-ritk-frame-generation");
+  return {
     axis,
     enabled: canvas.getAttribute("data-ritk-cine-enabled"),
-    index: canvas.getAttribute("data-ritk-slice-index"),
-    generation: Number(canvas.getAttribute("data-ritk-frame-generation")),
-  } : null;
+    slice_index: rawIndex === null ? null : Number(rawIndex),
+    generation: rawGeneration === null ? NaN : Number(rawGeneration),
+  };
 });
+const status = () => document.getElementById("gallery-status")?.textContent || "";
 const ready = () => {
   const current = read();
   return current.every((state, position) => state && state.enabled === "true" &&
+    Number.isSafeInteger(state.slice_index) &&
     Number.isSafeInteger(state.generation) &&
-    state.generation >= previous[position].generation) &&
-    current.some((state, position) => state.generation > previous[position].generation &&
-      state.index !== previous[position].index);
+    state.generation >= previous[position].frame_generation) &&
+    current.some((state, position) => state.generation > previous[position].frame_generation &&
+      state.slice_index !== previous[position].slice_index);
 };
 if (ready()) { done({ok: true}); return; }
 let settled = false;
@@ -125,7 +151,7 @@ const timer = window.setTimeout(() => {
   if (settled) return;
   settled = true;
   observer.disconnect();
-  done({ok: false});
+  done({ok: false, previous, current: read(), status: status()});
 }, limit);
 """
 
@@ -192,23 +218,6 @@ for (const registration of trace.registrations) {
 const listenerCount = trace.registrations.length;
 delete window.__ritkCineTrace;
 return {ok: true, listener_count: listenerCount};
-"""
-
-STOPPED_STATE_SCRIPT = """
-const button = document.getElementById("cine-toggle");
-const rate = document.getElementById("cine-rate");
-const output = document.getElementById("cine-rate-value");
-if (!(button instanceof HTMLButtonElement) ||
-    !(rate instanceof HTMLInputElement) ||
-    !(output instanceof HTMLOutputElement)) return null;
-return {
-  button_disabled: button.disabled,
-  button_pressed: button.getAttribute("aria-pressed"),
-  button_text: button.textContent || "",
-  rate_disabled: rate.disabled,
-  rate_value: rate.value,
-  output: output.textContent || "",
-};
 """
 
 def _decimal(value: Any, label: str, *, lower: int = 0) -> int:
@@ -286,7 +295,8 @@ def _wait_for_frame(client: WebDriverClient, previous: Mapping[str, Any]) -> Non
         raise BrowserRuntimeError("previous cine snapshot omitted canvas states")
     result = client.execute_async(WAIT_CINE_FRAME_SCRIPT, [states, CINE_TIMEOUT_MS])
     if not isinstance(result, dict) or result.get("ok") is not True:
-        raise BrowserRuntimeError("cine playback did not advance a presented slice")
+        detail = result if isinstance(result, dict) else {"result": result}
+        raise BrowserRuntimeError(f"cine playback did not advance a presented slice: {json.dumps(detail, sort_keys=True)}")
 
 
 def _invalid_api_probes(client: WebDriverClient) -> list[dict[str, Any]]:
@@ -370,24 +380,19 @@ def _set_rate(client: WebDriverClient, target: int) -> None:
     settle_canvas_input(client)
 
 
-def _stopped_state(client: WebDriverClient) -> dict[str, Any]:
-    """Read the consumer controls after the RITK viewer has stopped."""
-    result = client.execute(STOPPED_STATE_SCRIPT)
-    if not isinstance(result, dict):
-        raise BrowserRuntimeError("stopped cine controls returned an unexpected shape")
-    if (
-        result.get("button_disabled") is not True
-        or result.get("rate_disabled") is not True
-        or result.get("button_pressed") != "false"
-        or result.get("button_text") != "Play"
-        or result.get("rate_value") != "12"
-        or result.get("output") != "12 FPS"
-    ):
-        raise BrowserRuntimeError(f"stopped cine controls retained active state: {result!r}")
-    return result
+def capture_cine_gallery(
+    client: WebDriverClient,
+    output_directory: pathlib.Path,
+    *,
+    stop_viewer: bool = True,
+) -> dict[str, Any]:
+    """Drive Play/Pause and FPS controls and record exact browser evidence.
 
-def capture_cine_gallery(client: WebDriverClient, output_directory: pathlib.Path) -> dict[str, Any]:
-    """Drive Play/Pause and FPS controls and record exact browser evidence."""
+    ``stop_viewer=False`` keeps the mounted study available to a subsequent
+    control capture; that capture must call :func:`finalize_cine_teardown`.
+    """
+    if type(stop_viewer) is not bool:
+        raise BrowserRuntimeError("cine stop_viewer must be a boolean")
     if not isinstance(output_directory, pathlib.Path):
         raise BrowserRuntimeError("cine output directory must be a pathlib.Path")
     directory = _safe_path(output_directory, directory=ROOT / "output")
@@ -432,11 +437,14 @@ def capture_cine_gallery(client: WebDriverClient, output_directory: pathlib.Path
             ),
         }
         sample_before_stop = client.execute("return window.metisGallery.sample();")
-        client.execute("window.metisGallery.stop(); return true;")
-        sample_after_stop = client.execute("return window.metisGallery.sample();")
-        if not isinstance(sample_after_stop, dict) or sample_after_stop.get("mounted") is not False or sample_after_stop.get("consumer_listeners") != 0:
-            raise BrowserRuntimeError(f"RITK viewer did not release listeners after stop: {sample_after_stop!r}")
-        stopped = _stopped_state(client)
+        sample_after_stop = None
+        stopped = None
+        if stop_viewer:
+            client.execute("window.metisGallery.stop(); return true;")
+            sample_after_stop = client.execute("return window.metisGallery.sample();")
+            if not isinstance(sample_after_stop, dict) or sample_after_stop.get("mounted") is not False or sample_after_stop.get("consumer_listeners") != 0:
+                raise BrowserRuntimeError(f"RITK viewer did not release listeners after stop: {sample_after_stop!r}")
+            stopped = stopped_state(client)
         evidence = {
             "schema": 1,
             "consumer": "ritk-snap",
@@ -450,6 +458,7 @@ def capture_cine_gallery(client: WebDriverClient, output_directory: pathlib.Path
             "screenshots": screenshots,
             "samples": {"before_stop": sample_before_stop, "after_stop": sample_after_stop},
             "stopped": stopped,
+            "teardown": {"performed": stop_viewer},
             "cleanup": {
                 "active_input_sources_released": True,
                 "diagnostic_listener_count": expected_listener_count,
@@ -457,18 +466,10 @@ def capture_cine_gallery(client: WebDriverClient, output_directory: pathlib.Path
                 "consumer_canvas_listeners": 0,
             },
         }
-        source_root = pathlib.Path(__file__).resolve().parent
-        evidence["sources"] = {
-            "browser_gallery_cine.py": hashlib.sha256((source_root / "browser_gallery_cine.py").read_bytes()).hexdigest(),
-            "browser_gallery.py": hashlib.sha256((source_root / "browser_gallery.py").read_bytes()).hexdigest(),
-        }
+        evidence["sources"] = source_digests(pathlib.Path(__file__).resolve().parent)
         evidence_path = _safe_path(directory / "gallery-cine.json", directory=directory)
         evidence["artifact"] = evidence_path.relative_to(ROOT).as_posix()
-        encoded = json.dumps(evidence, indent=2, sort_keys=True) + "\n"
-        if len(encoded.encode("utf-8")) > 512 * 1024:
-            raise BrowserRuntimeError("cine evidence exceeds the 512 KiB trace bound")
-        evidence_path.write_text(encoded, encoding="utf-8", newline="\n")
-        return evidence
+        return write_evidence(evidence)
     finally:
         primary_error = sys.exc_info()[1]
         cleanup_errors = []
@@ -482,10 +483,11 @@ def capture_cine_gallery(client: WebDriverClient, output_directory: pathlib.Path
                 client.release_actions()
             except BrowserRuntimeError as error:
                 cleanup_errors.append(("browser input release", error))
-        try:
-            client.execute("window.metisGallery.stop(); return true;")
-        except BrowserRuntimeError as error:
-            cleanup_errors.append(("viewer teardown", error))
+        if stop_viewer:
+            try:
+                client.execute("window.metisGallery.stop(); return true;")
+            except BrowserRuntimeError as error:
+                cleanup_errors.append(("viewer teardown", error))
         if cleanup_errors:
             if primary_error is not None:
                 for operation, error in cleanup_errors:
