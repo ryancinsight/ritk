@@ -1,5 +1,14 @@
 # RITK execution backlog
 
+<a id="RITK-SNAP-OBLIQUE-RESLICE-001"></a>
+## RITK-SNAP-OBLIQUE-RESLICE-001 — Resample physical viewer planes [arch] [minor]
+- Status: review; priority: P1; owner: RITK rendering; integrator: root; last-update: 2026-09-20.
+- Outcome: a validated physical-plane request produces an input-sensitive scalar plane with nearest-neighbour or trilinear samples and maximum, minimum or average slab reduction; the result remains format-neutral for Métis, eframe and VTK consumers.
+- Scope: `ritk-snap` affine/reslice renderer, analytical/property tests, ADR and DICOM manual contract notes. DICOM parsing, host event wiring, GPU dispatch and clinical metadata remain in their existing owners.
+- Acceptance: axis-aligned requests are byte/value-equivalent to existing slice extraction; rotated anisotropic requests preserve voxel↔patient coordinates; invalid basis, extent, spacing, sample count and out-of-volume requests return typed errors; slab statistics use the declared sample path; caller-owned scalar storage is reusable; locked native/WASM checks, strict Clippy, rustdoc, formatting and real-study replay pass.
+- Dependency: existing `AffineTransform`, `LoadedVolume`, `SlabProjection`, VTK spatial-volume contract and Métis presentation-frame geometry.
+- Verification: `ritk-snap` nextest 479/479, strict native Clippy, wasm32 check/Clippy, rustdoc, formatting, standalone lock and ADR-index checks pass; six new reslice tests cover axis equivalence, rotated anisotropic coordinates, trilinear linear-field recovery, slab statistics, capacity reuse, and typed invalid inputs.
+
 <a id="RITK-BROWSER-VIEWPORT-001"></a>
 ## RITK-BROWSER-VIEWPORT-001 — Present browser zoom and pan state [minor]
 - Status: done; priority: P1; owner: RITK browser presentation; integrator: root; last-update: 2026-09-20.

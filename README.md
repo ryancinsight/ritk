@@ -124,6 +124,11 @@ element byte counts. Viewer session save/load stores presentation state as
 JSON, including source path, slice indices, window/level, colormap, active
 tool, layout flags, overlay flags, sidebar tab, pan, and zoom.
 
+The rendering domain also exposes a validated `ReslicePlane` contract for
+anisotropic and oblique scalar planes. It carries patient-space basis vectors,
+explicit nearest or trilinear interpolation, and typed maximum/minimum/average
+slab reduction; native and browser host wiring remains an adapter concern.
+
 ### Browser / WASM (Métis host)
 
 `ritk-snap` exposes a wasm entrypoint for browser hosting:
