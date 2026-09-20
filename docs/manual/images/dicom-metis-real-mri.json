@@ -75,21 +75,21 @@
     "status": "passed"
   },
   "standalone_lock_replay": {
-    "date": "2026-09-19",
+    "date": "2026-09-20",
     "command": "python D:/atlas/repos/ritk/scripts/viewer.py D:/atlas/target/debug/examples/dicom_workflow.exe --native-binary D:/atlas/target/debug/ritk-snap.exe --metis-native --real-study D:/atlas/repos/ritk/test_data/2_head_mri_t2/DICOM",
     "working_directory": "D:/atlas/repos/ritk",
     "input": "public MRI-DIR DICOM directory at test_data/2_head_mri_t2/DICOM",
     "files_submitted": 94,
     "bytes_read": 49807236,
-    "ritk_revision": "b432ae69db2a0578d8f1eb176ae6fdb9233231a9",
-    "metis_revision": "165c4ec923e76ea7bc32b6b4fb99b4338166b3a3",
+    "ritk_revision": "940c0552eec0728c205ab57f361ec8f400b1e156",
+    "metis_revision": "b58d64b1bebe76bb32570339c4a349cc1b0d7086",
     "moirai_revision": "2a54e010532f76c88027fec8a468620c92fe66b3",
-    "cargo_lock_sha256": "4f4b96958a0545203775e21b3bd1152a864bd6b77847d2b638213d6b420b1084",
+    "cargo_lock_sha256": "d6f75fae8228e1a184ee2221a70f48478ae2388da7c3041eacb85cdc154a0afd",
     "cargo_resolution": "standalone Cargo.lock outside the Atlas development overlay; six Metis and fifteen Moirai package sources resolve at the merged revisions above",
-    "executable_sha256": "b260611286c309a21a3132c0fbd20f855768f4cfe326e0cb99ab5820b1212b95",
-    "executable_bytes": 54011904,
-    "example_sha256": "78e2d185e56ad5d2c7407700846dcc457f24e88cdbfb694c6930f8d3970a3cf0",
-    "example_bytes": 24153600,
+    "executable_sha256": "1ddfc5ec46df49104c5852e478e250e1aafef3271249ef5e9f88dc590b2260eb",
+    "executable_bytes": 54031872,
+    "example_sha256": "bc4e31d2658197bc1036e78913cf4e6bb7b6cce4bbff1b4302c5961056e5a83e",
+    "example_bytes": 24156672,
     "capture": "scratch/viewer/real-metis-frame.png",
     "capture_sha256": "259dd79103482756c4e688621bebafc841cc40f1df10ff2bbd7f9d04b7b4d401",
     "width": 1280,
@@ -97,7 +97,8 @@
     "non_black_pixels": 411589,
     "invalid_study_exit": 1,
     "status": "passed",
-    "note": "The captured PNG is byte-identical to dicom-metis-real-mri.png; the source is public CC BY 4.0 phantom data and no private study bytes are committed."
+    "note": "The captured PNG is byte-identical to dicom-metis-real-mri.png; the source is public CC BY 4.0 phantom data and no private study bytes are committed.",
+    "browser_workflow_metis_revision": "b58d64b1bebe76bb32570339c4a349cc1b0d7086"
   },
   "ownership": {
     "host": "Moirai/Metis return the selected filesystem path and present a format-neutral framebuffer",
@@ -105,7 +106,7 @@
     "limits": "native folder selection does not exercise browser file-count or byte-transfer limits"
   },
   "verification": {
-    "basis": "b432ae69db2a0578d8f1eb176ae6fdb9233231a9 plus current standalone-lock replay",
+    "basis": "940c0552eec0728c205ab57f361ec8f400b1e156 plus current standalone-lock replay",
     "launch_git_blob": "a1b60b0225006350de9dee93ac269141064cdbea",
     "toolchain": "1.97.0-x86_64-pc-windows-msvc",
     "cargo_cwd": "outside the Atlas development overlay",
@@ -113,14 +114,14 @@
     "cargo_manifest": "--manifest-path D:/atlas/repos/ritk/Cargo.toml",
     "baseline": "nextest run --locked -p ritk-snap -E test(launch::tests): 3 passed at babefe845 parent 53c5d42f9; run d02525ce-b1d8-45cd-a87d-d3a5763c2a1a",
     "build": "cargo +1.97.0 --config build.target-dir=D:/atlas/target build --offline --locked --manifest-path D:/atlas/repos/ritk/Cargo.toml -p ritk-snap --features eframe-shell --bin ritk-snap --example dicom_workflow: exit 0; Cargo reports the existing bin/cdylib ritk_snap.pdb filename collision",
-    "native_tests": "cargo +1.97.0 --config build.target-dir=D:/atlas/target nextest run --offline --locked --manifest-path D:/atlas/repos/ritk/Cargo.toml -p ritk-snap --lib: 454 passed, 0 skipped; run ca3333fd-5fa7-46cd-b62d-d504b8076009",
+    "native_tests": "cargo +1.97.0 --config build.target-dir=D:/atlas/target nextest run --offline --locked --manifest-path D:/atlas/repos/ritk/Cargo.toml -p ritk-snap --lib --no-fail-fast: 479 passed, 0 skipped; run c5182a4d-070a-4c80-b8fd-bb53b927f4bb",
     "lint": "cargo +1.97.0 --config build.target-dir=D:/atlas/target clippy --offline --locked --manifest-path D:/atlas/repos/ritk/Cargo.toml -p ritk-snap --all-targets -- -D warnings: exit 0",
     "format": "cargo +1.97.0 fmt --all -- --check from repository: exit 0",
-    "lock": "python scripts/lockfile.py --check: exit 0, 61 first-party git sources; Cargo.lock SHA-256 4f4b96958a0545203775e21b3bd1152a864bd6b77847d2b638213d6b420b1084",
+    "lock": "python scripts/lockfile.py --check: exit 0, 61 first-party git sources; Cargo.lock SHA-256 d6f75fae8228e1a184ee2221a70f48478ae2388da7c3041eacb85cdc154a0afd",
     "review": "standalone-lock replay: actual 94-file MRI directory produced the byte-identical PNG; invalid-study exit 1; image, executable and lock hashes independently checked",
-    "doctests": "cargo test --locked -p ritk-snap --doc: 4 passed, 0 failed, 1 ignored",
-    "wasm_check": "cargo +1.97.0 --config build.target-dir=D:/atlas/target check --offline --locked --manifest-path D:/atlas/repos/ritk/Cargo.toml -p ritk-snap --lib --target wasm32-unknown-unknown --release: exit 0",
-    "wasm_clippy": "cargo +1.97.0 --config build.target-dir=D:/atlas/target clippy --offline --locked --manifest-path D:/atlas/repos/ritk/Cargo.toml -p ritk-snap --lib --target wasm32-unknown-unknown --release -- -D warnings: exit 0",
-    "rustdoc": "RUSTDOCFLAGS=-D warnings cargo +1.97.0 --config build.target-dir=D:/atlas/target doc --offline --locked --manifest-path D:/atlas/repos/ritk/Cargo.toml -p ritk-snap --no-deps: exit 0"
+    "doctests": "cargo +1.97.0 --config build.target-dir=D:/atlas/target test --offline --locked --manifest-path D:/atlas/repos/ritk/Cargo.toml -p ritk-snap --doc: 4 passed, 0 failed, 1 ignored",
+    "wasm_check": "cargo +1.97.0 --config build.target-dir=D:/atlas/target check --offline --locked --manifest-path D:/atlas/repos/ritk/Cargo.toml -p ritk-snap --lib --target wasm32-unknown-unknown: exit 0",
+    "wasm_clippy": "cargo +1.97.0 --config build.target-dir=D:/atlas/target clippy --offline --locked --manifest-path D:/atlas/repos/ritk/Cargo.toml -p ritk-snap --lib --target wasm32-unknown-unknown -- -D warnings: exit 0",
+    "rustdoc": "cargo +1.97.0 --config build.target-dir=D:/atlas/target doc --offline --locked --manifest-path D:/atlas/repos/ritk/Cargo.toml -p ritk-snap --no-deps: exit 0"
   }
 }
