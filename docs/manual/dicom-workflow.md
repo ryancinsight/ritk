@@ -1531,11 +1531,12 @@ rebuilt RITK at `fa0ae3301ea2cc5e3733f7f1cb94fbaee2808f4c` against Métis
 `2a54e010532f76c88027fec8a468620c92fe66b3`. Its Chromium application-window
 capture accepted the same 94 saved MRI-DIR DICOM files, read 49,807,236 bytes,
 and presented non-black axial, coronal and sagittal anatomy across four
-lifecycle cycles. The same run's Chromium MIP projection accepted the study
-and passed its 512 × 512 RGBA and semantic oracle. Firefox remained in
-progress, while WebGPU was queued and WebKit produced the bounded read failure
-recorded below at collection; the machine-readable provenance records each
-engine at its observed state rather than reusing pre-viewport evidence.
+lifecycle cycles. Firefox 155 accepted the same study, matched the same exact
+three-canvas RGBA oracles across four cycles, and released its listeners. The
+same run's Chromium MIP projection accepted the study and passed its 512 × 512
+RGBA and semantic oracle. WebGPU reported no adapter and WebKit produced the
+bounded read failure recorded below; the machine-readable provenance records
+each engine at its observed state rather than reusing pre-viewport evidence.
 
 ![The real MRI study rendered in the hosted Chromium gallery](images/dicom-metis-real-browser-mri-cross-engine-chromium.png)
 
@@ -1549,7 +1550,7 @@ retain the revision-bound 2,880-pixel-wide Chromium window capture, canvas
 RGBA digests, semantic attributes, browser revision and artifact identifiers
 for run `35512369724`. The Edge consumer record remains the source for the
 exact 50 trusted slider actions and 18 invalid-number probes; the current
-matrix records only the jobs that actually reached a runner.
+matrix records the revision-bound result and residual for every engine.
 
 The committed Chromium and Firefox PNGs are budgeted manual copies from the
 earlier real-study run `35500085568`; they remain actual MRI captures and are

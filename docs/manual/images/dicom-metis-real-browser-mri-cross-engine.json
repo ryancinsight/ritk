@@ -6,7 +6,7 @@
     "file": ".github/workflows/metis-browser-dicom.yml",
     "run_id": 35512369724,
     "url": "https://github.com/ryancinsight/ritk/actions/runs/35512369724",
-    "conclusion": "queued",
+    "conclusion": "failure",
     "observed_date": "2026-09-20",
     "ritk_revision": "fa0ae3301ea2cc5e3733f7f1cb94fbaee2808f4c",
     "metis_revision": "ab239d70bb561cbe665f852cc55ecbe4275be349",
@@ -15,7 +15,7 @@
       "moirai-pal": "2a54e010532f76c88027fec8a468620c92fe66b3",
       "moirai-runtime": "2a54e010532f76c88027fec8a468620c92fe66b3"
     },
-    "run_status": "queued"
+    "run_status": "completed"
   },
   "dataset": {
     "path": "test_data/2_head_mri_t2/DICOM",
@@ -51,13 +51,28 @@
       }
     },
     "firefox": {
-      "status": "queued",
+      "status": "passed",
       "browser": "firefox",
+      "browser_version": "155.0",
       "platform": "linux",
       "input_source": "chooser",
       "consumer_revision": "fa0ae3301ea2cc5e3733f7f1cb94fbaee2808f4c",
       "metis_revision": "ab239d70bb561cbe665f852cc55ecbe4275be349",
-      "moirai_revision": "2a54e010532f76c88027fec8a468620c92fe66b3"
+      "moirai_revision": "2a54e010532f76c88027fec8a468620c92fe66b3",
+      "files": 94,
+      "bytes": 49807236,
+      "file_manifest_sha256": "81b7b7f8ea473dfc12c25c07b4958762254a261ca49352af2adabc214d6e8d03",
+      "oracle_sha256": "7ee9bb4382f4c6aa05f4c8db88a42b83693301fc34ef5deec89d3d89cba8b2a1",
+      "artifact_id": 10606173975,
+      "artifact_url": "https://github.com/ryancinsight/ritk/actions/runs/35512369724/artifacts/10606173975",
+      "trace_sha256": "e8eb14e0cc7d4e50d5c3131a03411c98880b10ffa5fafb4a492c36cb24f6ebb8",
+      "cleanup": {
+        "lifecycle_cycles": 4,
+        "warmup_cycles": 2,
+        "stopped_listener_guards": 0,
+        "transfer_observer_listeners": 0,
+        "session_closed": true
+      }
     },
     "chromium-window": {
       "status": "passed",
@@ -187,7 +202,7 @@
     }
   },
   "verification": {
-    "raster": "The current run passed four Chromium lifecycle cycles with the real 94-file MRI study, exact three-canvas RGBA oracles, trusted chooser input and clean listener teardown; Firefox remained in progress at collection.",
+    "raster": "Chromium and Firefox each passed four lifecycle cycles with the real 94-file MRI study, exact three-canvas RGBA oracles, trusted chooser input and clean listener teardown.",
     "projection": "The current run passed the real MIP projection with 512 \u00d7 512 dimensions, 110,028 non-black pixels, MIP attributes, 21 interactive listeners and a display-only projection canvas.",
     "webkit": "Safari 26.6.2 accepted all 94 chooser paths in the current run, but four bounded browser read probes returned NotReadableError or TypeError before RITK could present the study; the session closed cleanly.",
     "chromium-webgpu": "Chromium reported no WebGPU adapter before study presentation; the current workflow preserved the typed setup failure with a real failure PNG and clean teardown, without a raster fallback.",
@@ -196,7 +211,7 @@
   "limits": [
     "file-backed WebDriver chooser is not physical file-manager drag input",
     "native file-dialog, native process-launch and OS-permission evidence is not covered",
-    "The merged-main run 35512369724 passed the real-study bundle, Chromium four-cycle raster, Chromium window and MIP projection; Chromium WebGPU reported no adapter, Safari failed bounded reads, and Firefox remained in progress at collection.",
+    "The merged-main run 35512369724 passed the real-study bundle, Chromium and Firefox four-cycle raster, Chromium window and MIP projection; Chromium WebGPU reported no adapter and Safari failed bounded reads.",
     "Safari 26.6.2 in run 35512369724 accepted 94 chooser paths but rejected bounded File.arrayBuffer(), Blob.slice().arrayBuffer(), FileReader and Blob URL stream reads; no DICOM decoder failure is claimed.",
     "the Edge consumer record remains the source for exact slider and invalid-number probes; this matrix records the current run lifecycle and projection evidence"
   ],
