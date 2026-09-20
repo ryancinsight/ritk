@@ -1,4 +1,13 @@
-# RITK execution backlog
+# RITK execution backlog`r`n`r`n<a id="RITK-SNAP-NATIVE-PROJECTION-REUSE-001"></a>
+## RITK-SNAP-NATIVE-PROJECTION-REUSE-001 — Reuse native scalar projection storage [patch]
+- Status: in-progress; priority: P1; owner: RITK native presentation; integrator: root; last-update: 2026-09-20.
+- Outcome: repeated native Métis scalar projection refreshes reuse caller-owned scalar and RGBA storage while preserving the existing MIP, MinIP and Average pixels, dimensions, spacing and labels.
+- Scope: native scalar projection presentation, reusable projection scratch, value-semantic differential tests, native manual/resource evidence. DICOM decoding, slab semantics, browser/WebGPU presentation and host ownership remain unchanged.
+- Acceptance: the initial and subsequent scalar projection renders are byte-identical to the allocating renderer; frame and scratch storage are reused after warmup; switching projection statistics preserves dimensions, spacing and labels; locked native/WASM checks, strict Clippy, rustdoc, formatting, real-study replay and bounded resource evidence pass.
+- Dependency: RITK-SNAP-NATIVE-FRAME-REUSE-001 and the existing typed `SlabProjection`/native projection contract.
+- Verification: native projection tests compare reusable output with the allocating oracle and pointer-swapped storage; the full native/WASM package gates, real 94-file MRI replay and three-run lifecycle resource record bind to the delivered source revision.
+- Re-open trigger: a consumer requires interactive projection changes that alter the slab extent or a GPU projection path; those are separate typed seams.
+
 
 <a id="RITK-SNAP-OBLIQUE-RESLICE-001"></a>
 ## RITK-SNAP-OBLIQUE-RESLICE-001 — Resample physical viewer planes [arch] [minor]
