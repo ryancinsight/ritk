@@ -38,6 +38,11 @@ on:
       - 'README.md'
       - 'docs/**'
       - '.github/agents/**'
+  # The full Python-version x OS matrix runs here, never per pull request
+  # (engineering_gates: workflow hygiene).
+  schedule:
+    - cron: '47 5 * * 1'
+  workflow_dispatch:
 
 concurrency:
   # Pull requests share one group per ref and cancel superseded runs; default-
@@ -54,9 +59,48 @@ env:
   RUST_BACKTRACE: 1
 
 jobs:
+  # A pull request pays one cell, and only when the binding's inputs changed;
+  # the default branch pays one cell as its merge gate; schedule and dispatch
+  # run the full matrix as the selection-drift backstop.
+  changes:
+    name: Changed paths
+    runs-on: ubuntu-latest
+    timeout-minutes: 3
+    outputs:
+      python: ${{ steps.classify.outputs.python }}
+      matrix: ${{ steps.classify.outputs.matrix }}
+    steps:
+      - uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803
+        with:
+          persist-credentials: false
+      - name: Classify the pushed range
+        id: classify
+        shell: bash
+        run: |
+          set -euo pipefail
+          event="${{ github.event_name }}"
+          python=true
+          if [[ "$event" == "pull_request" ]]; then
+            base="${{ github.event.pull_request.base.sha }}"
+            git fetch --no-tags --depth=1 origin "$base"
+            changed="$(git diff --name-only "$base" HEAD)"
+            if ! printf '%s\n' "$changed" | grep -qE '^(crates/ritk-python/|Cargo\.lock$|Cargo\.toml$|\.github/workflows/python_ci\.yml$)'; then
+              python=false
+            fi
+          fi
+          if [[ "$event" == "schedule" || "$event" == "workflow_dispatch" ]]; then
+            matrix='{"python-version":["3.9","3.10","3.11","3.12"],"os":["ubuntu-latest","windows-latest","macos-latest"],"include":[{"os":"ubuntu-latest","python-version":"3.13"}]}'
+          else
+            matrix='{"python-version":["3.12"],"os":["ubuntu-latest"]}'
+          fi
+          echo "python=$python" >> "$GITHUB_OUTPUT"
+          echo "matrix=$matrix" >> "$GITHUB_OUTPUT"
+
   build-and-smoke-test:
     name: Python ${{ matrix.python-version }} / ${{ matrix.os }}
     runs-on: ${{ matrix.os }}
+    needs: changes
+    if: github.event_name != 'pull_request' || needs.changes.outputs.python == 'true'
     # Windows is the binding matrix path at about 15 minutes; retain one full
     # observed runtime for dependency and runner variance.
     timeout-minutes: 30
@@ -65,12 +109,7 @@ jobs:
         working-directory: ritk
     strategy:
       fail-fast: false
-      matrix:
-        python-version: ["3.9", "3.10", "3.11", "3.12"]
-        os: [ubuntu-latest, windows-latest, macos-latest]
-        include:
-          - os: ubuntu-latest
-            python-version: "3.13"
+      matrix: ${{ fromJSON(needs.changes.outputs.matrix) }}
 
     steps:
       - name: Checkout repository
