@@ -38,6 +38,15 @@
     ],
     "mip_renderer": "RITK axial maximum-intensity projection using the active scalar presentation policy"
   },
+  "manual_figure": {
+    "image": "dicom-metis-real-ct-mip-window.webp",
+    "width": 1296,
+    "height": 839,
+    "bytes": 143896,
+    "sha256": "5dddf05b09febe3943363b9f0070fd505c31bc5ecb14a9347818094a188a6949",
+    "encoding": "lossless WebP",
+    "pixels_match_output": true
+  },
   "bounds": {
     "client_surface": "1280 \u00d7 800",
     "outer_window": "1296 \u00d7 839",

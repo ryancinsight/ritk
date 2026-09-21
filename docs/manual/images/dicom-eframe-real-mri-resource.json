@@ -46,6 +46,15 @@
     ],
     "mip_mode": "GPU"
   },
+  "manual_figure": {
+    "image": "dicom-eframe-real-mri.webp",
+    "width": 1600,
+    "height": 1000,
+    "bytes": 188436,
+    "sha256": "c6e9533271b6e84d437ced498bfacec2e7b90c1284ac1c6fe4615625a78c7254",
+    "encoding": "lossless WebP",
+    "pixels_match_output": true
+  },
   "resource": {
     "capture_sha256": "5f7d0bd307cf80a445b4ac997c779e68f68ca67e33c7f2b235ef6a3e3fa65ec0",
     "duration_ms": {

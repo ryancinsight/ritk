@@ -36,8 +36,11 @@ and axial maximum-intensity-projection panels captured from the running Windows
 HWND. The image is application output from 409 DICOM files, not generated
 artwork; its source revisions, input bounds, panel counts, repeat digest, and
 orderly close are recorded in the [window provenance record](images/dicom-metis-real-ct-mip-window.json).
+Manual figures with a `.webp` suffix are pixel-identical lossless encodings of
+the original PNG captures. Their provenance records retain the original PNG
+name, byte count, and digest and identify the derived manual figure separately.
 
-![Complete Métis application window showing the saved CT study and axial MIP](images/dicom-metis-real-ct-mip-window.png)
+![Complete Métis application window showing the saved CT study and axial MIP](images/dicom-metis-real-ct-mip-window.webp)
 
 The merged Windows default-shell build was rerun against the same saved public
 series on 2026-09-14. RITK selected all 409 files, rendered the three
@@ -47,7 +50,7 @@ application frame (359,857 non-black pixels; SHA-256
 `8082cea87348126ce5a07cacb602bf71081747881481d2062bb1f2c7314113d3`). The
 capture and process-tree measurements are bound to the exact RITK, Métis and
 Moirai revisions in the [default-shell provenance record](images/dicom-metis-default-shell-ct.json).
-The corresponding three-plane application image is the [reviewed capture](images/dicom-metis-installer-ct.png);
+The corresponding three-plane application image is the [reviewed capture](images/dicom-metis-installer-ct.webp);
 private clinical studies remain local.
 
 The same saved CT study also survives a live native resize. The initial
@@ -486,7 +489,7 @@ the series browser, axial, coronal and sagittal planes, and the `3D MIP · GPU`
 projection. Three bounded lifecycle repeats exited with code 0 and produced
 the same PNG digest:
 
-![Actual MRI-DIR T2 series rendered in the eframe compatibility shell](images/dicom-eframe-real-mri.png)
+![Actual MRI-DIR T2 series rendered in the eframe compatibility shell](images/dicom-eframe-real-mri.webp)
 
 The image and resource measurements are recorded in
 [`dicom-eframe-real-mri-resource.json`](images/dicom-eframe-real-mri-resource.json).
@@ -843,7 +846,7 @@ python ..\metis\scripts\python_native_capture.py `
   --output docs\manual\images\dicom-metis-real-ct-mip-window.png
 ```
 
-The reviewed [complete MIP window](images/dicom-metis-real-ct-mip-window.png)
+The reviewed [complete MIP window](images/dicom-metis-real-ct-mip-window.webp)
 shows the saved public CT in axial, coronal, sagittal, and axial-MIP panels
 inside the visible Windows frame. Two independent launches produced the same
 PNG digest. Dimensions, source revisions, executable digest, panel counts, and
@@ -974,7 +977,7 @@ asynchronous readback, and exits successfully. The reviewed 1600 × 1000
 capture below shows the public phantom anatomy and the `3D MIP · GPU` status
 label in the running application:
 
-![Actual MRI-DIR CT slices and GPU MIP rendered in the eframe application](images/dicom-eframe-real-gpu-ct.png)
+![Actual MRI-DIR CT slices and GPU MIP rendered in the eframe application](images/dicom-eframe-real-gpu-ct.webp)
 
 The capture is byte-identical across two runs (SHA-256
 `d8c82a0c51b9172ca11a0947f10cc31e80b135a2f23f10ba879f18b228575a7c`). The
@@ -1806,7 +1809,7 @@ portable payload is 24,672,768 bytes (SHA-256
 MSI is 9,424,896 bytes (SHA-256
 `7f05da20c3a09c65681b34916921b82310475536611417f4809a04c9875df632`):
 
-![Packaged RITK SNAP rendering a saved DICOM CT study](images/dicom-metis-installer-ct.png)
+![Packaged RITK SNAP rendering a saved DICOM CT study](images/dicom-metis-installer-ct.webp)
 
 The portable executable and MSI hashes match the package's `inventory.json`.
 The capture, input manifest hash, package hashes, source revisions, and limits

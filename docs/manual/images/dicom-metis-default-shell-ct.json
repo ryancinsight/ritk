@@ -32,6 +32,15 @@
     "planes": ["axial", "coronal", "sagittal"],
     "non_black_pixels": 359857
   },
+  "manual_figure": {
+    "image": "dicom-metis-installer-ct.webp",
+    "width": 1280,
+    "height": 800,
+    "bytes": 145140,
+    "sha256": "06b7a95a6c51b14d2d28017d77115342fb30f87c19b5958e8a739c33c2ca242f",
+    "encoding": "lossless WebP",
+    "pixels_match_output": true
+  },
   "resource": {
     "metric": "visible process-tree aggregate",
     "peak_private_bytes": {
