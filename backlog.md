@@ -2,12 +2,12 @@
 
 <a id="RITK-PYTHON-FREETHREADED-001"></a>
 ## RITK-PYTHON-FREETHREADED-001 — Ship free-threaded Python bindings [arch]
-- Status: in-progress; priority: P1; owner: RITK Python; integrator: root; branch: `fix/ritk-free-threaded-numpy`; last-update: 2026-09-21; delivery: PR [#571](https://github.com/ryancinsight/ritk/pull/571), merge `7559c221fde8557c97cb4f3d96a9c38e55a889cc`; follow-up fixes the merged-main ABI feature-selection red run.
+- Status: done; priority: P1; owner: RITK Python; integrator: root; branch: `fix/ritk-free-threaded-numpy`; last-update: 2026-09-21; delivery: PR [#574](https://github.com/ryancinsight/ritk/pull/574), merge `28e2acdf4ee8a937d55f452635a93c532df5487a`; it consumes rust-numpy abi3t revision `9df4023` and the NumPy 2.5 contract floor.
 - Outcome: RITK exposes a real PyO3 free-threaded module contract while retaining the Python 3.9 stable-ABI wheel.
 - Scope: PyO3 0.29 migration, `gil_used = false`, `abi3t` feature, concurrent binding test, release and CI matrix, README and ADR 0049. Zero-copy changes and DICOM domain logic remain out of scope.
 - Acceptance: `cargo check -p ritk-python --all-targets`, strict Clippy, and nextest pass locally; the hosted CPython 3.15t `abi3t` wheel test must import with the GIL disabled and preserve exact shape, metadata and pixels under concurrent `Image` reads.
 - Dependency: PyO3 0.29.2 and Atlas reusable wheel workflow support for `abi3t`/3.15t.
-- Verification: local `cargo check` (default and `abi3t`), strict Clippy, formatting, and nextest pass; Python 3.13 skips the free-threaded test by its declared interpreter guard. Hosted 3.15t wheel verification remains the merge gate.
+- Verification: local default/abi3t checks, strict Clippy, formatting, nextest, and Python tests pass; merged-main CI run `35664515797` and Python CI run `35664515333` pass the CPython 3.15t wheel contract, regular Python matrix, wheel smoke, and required docs/lock gates.
 - Failure basis: merged-main runs `35645202445` and `35645201560` exposed PyO3 test-link failures from `extension-module` and an unavailable exact `3.15t` setup. Run `35657075502` then reached CPython 3.15t but failed while resolving VTK, which has no compatible prerelease free-threaded wheel; PR #570 split the dependency set. Run `35658218463` reached the wheel build but failed because the job omitted the `rustfmt` and `clippy` components required by `rust-toolchain.toml`; PR #571 aligned the setup action. Run `35659451071` built the default `cp39-abi3` wheel despite `--features abi3t`, so PR #573 disables default features for the `abi3t` build. Run `35661207418` installed the corrected wheel but the registry `numpy` 0.29.0 bridge rejected `Image` extraction with `TypeError: 'ndarray' object is not an instance of 'ndarray'`; this increment consumes rust-numpy abi3t revision `9df4023` and pins the contract job to NumPy `>=2.5,<2.6` until a crates.io release contains both fixes.
 
 <a id="RITK-CONFORMANCE-001"></a>
