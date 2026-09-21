@@ -16,12 +16,12 @@ decoded-workspace budgets, and return the RITK `Image` plus
 boundary; the host owns only input and presentation lifecycle.
 
 The current standalone lock used by the viewer resolves the six Metis packages
-to `6e53c8a082447e6cd3b4ed46b2173b071b0c37f8`. Fifteen Moirai packages resolve
+to `4bceb90fe616465eca91cddc0c182548b295ca95`. Fifteen Moirai packages resolve
 to `2a54e010532f76c88027fec8a468620c92fe66b3`; these are the exact git sources
-in `Cargo.lock`. The browser chooser and Windows package workflows use these
-provider pins. Historical hosted captures retain the provider revisions recorded
-in their own provenance files. RITK continues to own DICOM scanning, decoding,
-geometry and clinical presentation.
+in `Cargo.lock`, which contains 62 first-party Git sources. The browser chooser
+and Windows package workflows use these provider pins. Historical hosted captures
+retain the provider revisions recorded in their own provenance files. RITK
+continues to own DICOM scanning, decoding, geometry and clinical presentation.
 
 This workflow is the DICOM opening demonstration for the default Windows Métis
 shell and the explicit eframe compatibility shell. The code, fixtures, visual
@@ -64,7 +64,7 @@ host, canvas, and window lifecycle.
 
 The current standalone lock pins the browser canvas provider to Moirai
 `2a54e010532f76c88027fec8a468620c92fe66b3` and the six Metis packages to
-`6e53c8a082447e6cd3b4ed46b2173b071b0c37f8`. Repeated RGBA frames with the
+`4bceb90fe616465eca91cddc0c182548b295ca95`. Repeated RGBA frames with the
 current extent retain the validated bitmap; a changed width or height takes
 the bounded resize path. This keeps the browser presentation lifecycle stable
 without changing DICOM decoding or the displayed pixels. It is an allocation
@@ -1091,17 +1091,17 @@ This replay is tied to the updated provider lock; earlier provenance records
 remain historical records for the revisions that generated them.
 
 A current lock replay on 2026-09-21 rebuilt RITK from source commit
-`6f710b935` against merged Métis
-`6e53c8a082447e6cd3b4ed46b2173b071b0c37f8` and Moirai
+`fc85dad03a6c14a617e9687609044497c1eba122` against merged Métis
+`4bceb90fe616465eca91cddc0c182548b295ca95` and Moirai
 `2a54e010532f76c88027fec8a468620c92fe66b3`. The same saved 94-file MRI-DIR
 study read 49,807,236 bytes, exited 0, rejected the invalid-study probe with
 exit 1, and reproduced the committed 1280 × 800 frame byte-for-byte. The
 replay executable digest is
-`49d553d8da68edae078a02adb51ef7f63ad20abdf56ea58dc436b2b6f069aae1`
-(54,054,912 bytes), the example digest is
-`411c5cd8168028215500e1895cd5af693e5403be8edeb94f8009e79921b50120`
-(24,137,216 bytes), and the standalone lock digest is
-`f5c822fb4e168be47d2996418cb85bfbde6b8ad52fa99e228825f714c53caf94`.
+`ca3900b3e8e663883e47e4c297d2ffd3f1ee086732c2a746632c505fff36e699`
+(54,192,128 bytes), the example digest is
+`4c17e303aa2254c29f950987cd2e6ab5667fd57aab5d18499264129813739155`
+(24,297,984 bytes), and the standalone lock digest is
+`b1d7c99a6dcbf788f515f4b18789d10035805e38db10f4a32dd7970b3050e226`.
 The captured frame remains
 `259dd79103482756c4e688621bebafc841cc40f1df10ff2bbd7f9d04b7b4d401`
 with 411,589 non-black pixels; the executable, lock, and image hashes are
