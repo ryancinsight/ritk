@@ -54,3 +54,10 @@ interpreter but failed before the wheel build because VTK had no compatible
 CPython 3.15t distribution. The contract test imports only NumPy and pytest,
 so the workflow now installs its minimal, explicitly scoped dependency file;
 the regular matrix still installs VTK and SimpleITK for parity coverage.
+
+### Revision 2026-09-21 (pinned toolchain components)
+
+The follow-up run reached the wheel build but failed when Cargo honored the
+repository toolchain declaration: the free-threaded job had installed 1.97.0
+without its required `rustfmt` and `clippy` components. The job now requests
+the same components as the pinned toolchain file before invoking maturin.
