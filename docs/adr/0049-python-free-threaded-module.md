@@ -23,7 +23,10 @@ feature suppresses Python linking for extension builds and makes Rust test
 binaries fail to link; maturin 1.9.4 or newer supplies the extension-module
 build environment only for wheel builds. The CI workflow keeps `3.15t` as the
 artifact identity while resolving setup-python with the `3.15` prerelease
-range and `freethreaded: true`.
+range and `freethreaded: true`. The free-threaded contract job installs only
+NumPy and pytest from `requirements-free-threaded.txt`; the full parity
+dependency set remains on the regular Python matrix because native parity
+packages do not necessarily publish prerelease free-threaded wheels.
 
 ## Alternatives
 
@@ -43,3 +46,11 @@ Merged-main runs 35645202445 and 35645201560 exposed the extension-module
 test-link configuration and an unavailable exact 3.15t tool-cache lookup.
 This revision records the build-feature and prerelease-resolution correction;
 the hosted 3.15t wheel job remains the acceptance oracle.
+
+### Revision 2026-09-21 (contract dependency split)
+
+The first merged-main run after that correction reached the free-threaded
+interpreter but failed before the wheel build because VTK had no compatible
+CPython 3.15t distribution. The contract test imports only NumPy and pytest,
+so the workflow now installs its minimal, explicitly scoped dependency file;
+the regular matrix still installs VTK and SimpleITK for parity coverage.

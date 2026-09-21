@@ -54,6 +54,12 @@ python -m maturin build --release --locked --features abi3t \
 free-threaded interpreter. The test is skipped on GIL-enabled CPython because
 it cannot establish the free-threaded contract there.
 
+The hosted contract job installs the minimal dependencies listed in
+`requirements-free-threaded.txt`. The regular parity matrix keeps the broader
+`requirements-test.txt` set; native parity packages are not required to prove
+the binding's free-threaded contract and may not publish prerelease
+free-threaded wheels.
+
 ## Running Tests
 
 ```sh

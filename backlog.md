@@ -2,13 +2,13 @@
 
 <a id="RITK-PYTHON-FREETHREADED-001"></a>
 ## RITK-PYTHON-FREETHREADED-001 — Ship free-threaded Python bindings [arch]
-- Status: in-progress; priority: P1; owner: RITK Python; integrator: root; branch: `fix/ritk-python-ci-red`; last-update: 2026-09-21; delivery: PR [#568](https://github.com/ryancinsight/ritk/pull/568), head `f0d3c50ac542d1511b9951ccf3b95f2e16151f30`; follow-up fixes the merged main red run.
+- Status: in-progress; priority: P1; owner: RITK Python; integrator: root; branch: `fix/ritk-free-threaded-contract-deps`; last-update: 2026-09-21; delivery: PR [#569](https://github.com/ryancinsight/ritk/pull/569), merge `42858157ff42ce13f111f4e3914d190f8952a9cb`; follow-up fixes the merged-main free-threaded dependency red run.
 - Outcome: RITK exposes a real PyO3 free-threaded module contract while retaining the Python 3.9 stable-ABI wheel.
 - Scope: PyO3 0.29 migration, `gil_used = false`, `abi3t` feature, concurrent binding test, release and CI matrix, README and ADR 0049. Zero-copy changes and DICOM domain logic remain out of scope.
 - Acceptance: `cargo check -p ritk-python --all-targets`, strict Clippy, and nextest pass locally; the hosted CPython 3.15t `abi3t` wheel test must import with the GIL disabled and preserve exact shape, metadata and pixels under concurrent `Image` reads.
 - Dependency: PyO3 0.29.2 and Atlas reusable wheel workflow support for `abi3t`/3.15t.
 - Verification: local `cargo check` (default and `abi3t`), strict Clippy, formatting, and nextest pass; Python 3.13 skips the free-threaded test by its declared interpreter guard. Hosted 3.15t wheel verification remains the merge gate.
-- Failure basis: merged-main runs `35645202445` and `35645201560` exposed PyO3 test-link failures from `extension-module` and an unavailable exact `3.15t` setup. This increment removes the test-linking feature from the library contract, raises maturin to the supported build floor, and selects the 3.15 release-candidate free-threaded interpreter through the workflow's prerelease range.
+- Failure basis: merged-main runs `35645202445` and `35645201560` exposed PyO3 test-link failures from `extension-module` and an unavailable exact `3.15t` setup. Merge run `35657075502` then reached CPython 3.15t but failed while resolving VTK, which has no compatible prerelease free-threaded wheel. This follow-up keeps the full parity requirements on the regular matrix and installs the contract's NumPy/pytest-only set for the 3.15t wheel test.
 
 <a id="RITK-CONFORMANCE-001"></a>
 ## RITK-CONFORMANCE-001 — Restore stack conformance bounds [patch]
@@ -419,4 +419,3 @@ Unresolved delivery items are kept as executable records. Closed history is inde
 ## RITK-GAP-2026-08-20-09 [patch] — derive or remove the MI subsample stride
 - Status: todo; compacted 2026-09-18; full delivery history remains in git.
 - Scope: historical item contract retained in the archived source block; re-open with the original DoR.
-
