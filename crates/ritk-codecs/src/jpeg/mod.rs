@@ -3,22 +3,25 @@
 //! # Contract
 //! The JPEG decoder produces integer sample values in image raster order. RITK
 //! validates that the decoded raster shape and sample representation match the
-//! DICOM metadata, then applies the same linear modality LUT used by native
-//! uncompressed pixel data: `output = sample * slope + intercept`. RGB24 output
-//! is preserved as interleaved samples in raster order.
+//! DICOM metadata, interprets signed samples using the precision declared by
+//! the JPEG frame, then applies the same linear modality LUT used by native
+//! uncompressed pixel data: `output = sample * slope + intercept`. RGB output
+//! is preserved as interleaved full-precision samples in raster order.
 //!
 use anyhow::{bail, Context, Result};
-use consus_raster::{jpeg, DecodeLimits, PixelFormat};
+use consus_raster::{jpeg, Compression, DecodeLimits, PixelFormat};
 
-use crate::{decode_native_pixel_bytes_checked, PixelLayout};
+use crate::pixel_layout::decode_compressed_samples;
+use crate::PixelLayout;
 
 /// Decode one JPEG fragment using the supplied DICOM pixel layout.
 ///
 /// The encoded raster is decoded without applying display-orientation
 /// metadata. Its dimensions, component count, and sample width must match the
-/// DICOM layout. Signed interpretation and the modality rescale are then
-/// applied from that layout. A single DICOM even-length zero pad after the
-/// terminal JPEG EOI marker is accepted; other trailing data is rejected.
+/// DICOM layout. Signed interpretation uses the JPEG frame precision rather
+/// than the storage container width, and the modality rescale is then applied
+/// from `layout`. A single DICOM even-length zero pad after the terminal JPEG
+/// EOI marker is accepted; other trailing data is rejected.
 ///
 /// # Errors
 ///
@@ -29,19 +32,27 @@ pub fn decode_jpeg_fragment(fragment: &[u8], layout: PixelLayout) -> Result<Vec<
     let codestream = strip_dicom_padding(fragment);
     let decoded =
         jpeg::decode(codestream, limits).context("failed to decode DICOM JPEG fragment")?;
+    if !matches!(decoded.compression(), Compression::Lossless)
+        && layout.pixel_representation.is_signed()
+    {
+        bail!("lossy JPEG DCT does not support signed DICOM pixel representation");
+    }
     validate_jpeg_layout(
         decoded.width(),
         decoded.height(),
         decoded.format(),
+        decoded.sample_precision(),
         decoded.pixels().len(),
         layout,
     )?;
 
     match decoded.format() {
         PixelFormat::Gray | PixelFormat::Rgb => {
-            decode_native_pixel_bytes_checked(decoded.pixels(), layout)
+            decode_jpeg_samples(decoded.pixels(), decoded.sample_precision(), 1, layout)
         }
-        PixelFormat::GrayWide => decode_gray_wide(decoded.pixels(), layout),
+        PixelFormat::GrayWide | PixelFormat::RgbWide => {
+            decode_jpeg_samples(decoded.pixels(), decoded.sample_precision(), 2, layout)
+        }
         _ => bail!("JPEG decoder returned an unsupported pixel format"),
     }
 }
@@ -55,6 +66,7 @@ fn strip_dicom_padding(fragment: &[u8]) -> &[u8] {
 }
 
 fn decode_limits(fragment: &[u8], layout: PixelLayout) -> Result<DecodeLimits> {
+    layout.bytes_per_frame()?;
     let pixels = layout.pixels_per_frame()?;
     let width = u32::try_from(layout.cols).context("DICOM JPEG columns exceed u32")?;
     let height = u32::try_from(layout.rows).context("DICOM JPEG rows exceed u32")?;
@@ -73,6 +85,7 @@ fn validate_jpeg_layout(
     width: u32,
     height: u32,
     pixel_format: PixelFormat,
+    sample_precision: u8,
     decoded_len: usize,
     layout: PixelLayout,
 ) -> Result<()> {
@@ -87,12 +100,27 @@ fn validate_jpeg_layout(
             layout.rows
         );
     }
-    let (expected_samples_per_pixel, pixel_bytes, bits_allocated) = match pixel_format {
-        PixelFormat::Gray => (1, 1, 8),
-        PixelFormat::GrayWide => (1, 2, 16),
-        PixelFormat::Rgb => (3, 3, 8),
+    let (expected_samples_per_pixel, bytes_per_sample, precision_range) = match pixel_format {
+        PixelFormat::Gray => (1, 1, 2..=8),
+        PixelFormat::GrayWide => (1, 2, 9..=16),
+        PixelFormat::Rgb => (3, 1, 8..=8),
+        PixelFormat::RgbWide => (3, 2, 12..=12),
         _ => bail!("JPEG decoder returned an unsupported pixel format"),
     };
+    if !precision_range.contains(&sample_precision) {
+        bail!(
+            "JPEG decoded format {:?} is incompatible with sample precision {}",
+            pixel_format,
+            sample_precision
+        );
+    }
+    if layout.bits_stored != u16::from(sample_precision) {
+        bail!(
+            "JPEG sample precision {} does not match DICOM BitsStored={}",
+            sample_precision,
+            layout.bits_stored
+        );
+    }
     if layout.samples_per_pixel != expected_samples_per_pixel {
         bail!(
             "JPEG decoded format {:?} requires samples_per_pixel={}; layout declares {}",
@@ -103,25 +131,9 @@ fn validate_jpeg_layout(
     }
 
     let expected_bytes = layout
-        .pixels_per_frame()?
-        .checked_mul(pixel_bytes)
+        .samples_per_frame()?
+        .checked_mul(bytes_per_sample)
         .context("JPEG decoded byte length overflow")?;
-    if layout.bits_allocated != bits_allocated {
-        bail!(
-            "JPEG decoded format {:?} is incompatible with DICOM BitsAllocated={}",
-            pixel_format,
-            layout.bits_allocated
-        );
-    }
-
-    let expected_layout_bytes = layout.bytes_per_frame()?;
-    if expected_bytes != expected_layout_bytes {
-        bail!(
-            "JPEG decoded byte length {} does not match DICOM layout byte length {}",
-            expected_bytes,
-            expected_layout_bytes
-        );
-    }
     if decoded_len != expected_bytes {
         bail!(
             "JPEG decoder returned {} bytes; expected {} bytes for decoded format {:?}",
@@ -133,25 +145,34 @@ fn validate_jpeg_layout(
     Ok(())
 }
 
-fn decode_gray_wide(bytes: &[u8], layout: PixelLayout) -> Result<Vec<f32>> {
-    layout.validate_rescale_parameters()?;
-    if !bytes.len().is_multiple_of(2) {
+fn decode_jpeg_samples(
+    bytes: &[u8],
+    sample_precision: u8,
+    bytes_per_sample: usize,
+    layout: PixelLayout,
+) -> Result<Vec<f32>> {
+    if !matches!(bytes_per_sample, 1 | 2) {
         bail!(
-            "wide grayscale JPEG decoder returned odd byte length {}",
-            bytes.len()
+            "JPEG sample representation precision={} bytes_per_sample={} is unsupported",
+            sample_precision,
+            bytes_per_sample
         );
     }
-    let pixels = bytes
-        .chunks_exact(2)
-        .map(|sample| match layout.pixel_representation {
-            crate::PixelSignedness::Signed => f32::from(i16::from_ne_bytes([sample[0], sample[1]])),
-            crate::PixelSignedness::Unsigned => {
-                f32::from(u16::from_ne_bytes([sample[0], sample[1]]))
-            }
-        })
-        .map(|sample| sample * layout.rescale_slope + layout.rescale_intercept)
-        .collect();
-    Ok(pixels)
+    if !bytes.len().is_multiple_of(bytes_per_sample) {
+        bail!(
+            "JPEG decoder returned {} bytes, not divisible by bytes_per_sample={}",
+            bytes.len(),
+            bytes_per_sample
+        );
+    }
+    let samples = bytes.chunks_exact(bytes_per_sample).map(|sample| {
+        if bytes_per_sample == 1 {
+            u16::from(sample[0])
+        } else {
+            u16::from_ne_bytes([sample[0], sample[1]])
+        }
+    });
+    decode_compressed_samples(samples, sample_precision, layout)
 }
 
 #[cfg(test)]

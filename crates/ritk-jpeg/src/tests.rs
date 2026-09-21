@@ -12,6 +12,38 @@ use crate::{read_jpeg, write_jpeg, JpegReader, JpegWriter};
 
 type TestBackend = SequentialBackend;
 
+pub(crate) fn dct_twelve_midpoint(component_ids: &[u8]) -> Vec<u8> {
+    let mut bytes = vec![0xff, 0xd8, 0xff, 0xdb, 0x00, 0x83, 0x10];
+    for _ in 0..64 {
+        bytes.extend_from_slice(&1_u16.to_be_bytes());
+    }
+    let frame_length =
+        u16::try_from(8 + 3 * component_ids.len()).expect("invariant: test frame length fits u16");
+    bytes.extend_from_slice(&[0xff, 0xc1]);
+    bytes.extend_from_slice(&frame_length.to_be_bytes());
+    bytes.extend_from_slice(&[12, 0, 8, 0, 8]);
+    bytes.push(u8::try_from(component_ids.len()).expect("invariant: test component count fits u8"));
+    for &id in component_ids {
+        bytes.extend_from_slice(&[id, 0x11, 0]);
+    }
+    bytes.extend_from_slice(&[
+        0xff, 0xc4, 0x00, 0x26, 0x00, 0x01, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0x10,
+        0x01, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
+    ]);
+    let scan_length =
+        u16::try_from(6 + 2 * component_ids.len()).expect("invariant: test scan length fits u16");
+    bytes.extend_from_slice(&[0xff, 0xda]);
+    bytes.extend_from_slice(&scan_length.to_be_bytes());
+    bytes.push(u8::try_from(component_ids.len()).expect("invariant: test component count fits u8"));
+    for &id in component_ids {
+        bytes.extend_from_slice(&[id, 0]);
+    }
+    bytes.extend_from_slice(&[0, 63, 0]);
+    bytes.push(u8::MAX >> (component_ids.len() * 2));
+    bytes.extend_from_slice(&[0xff, 0xd9]);
+    bytes
+}
+
 fn image_from_values(shape: [usize; 3], values: Vec<f32>) -> Image<f32, TestBackend, 3> {
     Image::from_flat_on(
         values,
@@ -160,6 +192,38 @@ fn reader_matches_independent_decoder_for_single_pixel() {
         loaded.data_slice().expect("contiguous host data"),
         reference_luma_values(&path)
     );
+}
+
+#[test]
+fn grayscale_reader_scales_twelve_bit_samples_to_display_range() -> Result<()> {
+    let directory = tempdir()?;
+    let path = directory.path().join("wide-gray.jpg");
+    std::fs::write(&path, dct_twelve_midpoint(&[1]))?;
+
+    let loaded = read_jpeg(&path, &SequentialBackend)?;
+
+    assert_eq!(loaded.shape(), [1, 8, 8]);
+    assert_eq!(
+        loaded.data_slice().expect("contiguous host data"),
+        &[128.0; 64]
+    );
+    Ok(())
+}
+
+#[test]
+fn grayscale_reader_scales_wide_rgb_before_luminance() -> Result<()> {
+    let directory = tempdir()?;
+    let path = directory.path().join("wide-rgb.jpg");
+    std::fs::write(&path, dct_twelve_midpoint(b"RGB"))?;
+
+    let loaded = read_jpeg(&path, &SequentialBackend)?;
+
+    assert_eq!(loaded.shape(), [1, 8, 8]);
+    assert_eq!(
+        loaded.data_slice().expect("contiguous host data"),
+        &[128.0; 64]
+    );
+    Ok(())
 }
 
 #[test]

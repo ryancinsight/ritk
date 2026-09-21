@@ -22,7 +22,8 @@ fn layout(rows: usize, cols: usize, bits: u16, signed: PixelSignedness) -> Pixel
         rows,
         cols,
         samples_per_pixel: 1,
-        bits_allocated: bits,
+        bits_allocated: if bits <= 8 { 8 } else { 16 },
+        bits_stored: bits,
         pixel_representation: signed,
         rescale_slope: 1.0,
         rescale_intercept: 0.0,
@@ -610,6 +611,37 @@ fn decode_jpeg2000_signed_samples_round_trip() {
         .expect("signed lossless JPEG 2000 round-trip must succeed");
 
     assert_eq!(decoded, vec![-4.0f32, -1.0, 0.0, 3.0]);
+}
+
+#[test]
+fn decode_jpeg2000_rejects_precision_larger_than_dicom_container() {
+    let j2k = encode_grayscale_j2k(&[2048], 1, 1, 12, PixelSignedness::Unsigned, lossless(0))
+        .expect("valid twelve-bit image must encode");
+    let mut invalid_layout = layout(1, 1, 12, PixelSignedness::Unsigned);
+    invalid_layout.bits_allocated = 8;
+
+    let error = decode_jpeg2000_fragment(&j2k, invalid_layout)
+        .expect_err("BitsStored cannot exceed BitsAllocated");
+    let message = format!("{error:#}");
+
+    assert!(
+        message.contains("J2K: invalid DICOM pixel layout") && message.contains("bits_stored=12"),
+        "expected pixel layout precision cause chain, got {message}"
+    );
+}
+
+#[test]
+fn decode_jpeg2000_rejects_codestream_signedness_mismatch() {
+    let j2k = encode_grayscale_j2k(&[-1], 1, 1, 8, PixelSignedness::Signed, lossless(0))
+        .expect("valid signed image must encode");
+
+    let error = decode_jpeg2000_fragment(&j2k, layout(1, 1, 8, PixelSignedness::Unsigned))
+        .expect_err("codestream and DICOM signedness must agree");
+
+    assert!(
+        error.to_string().contains("component signedness signed"),
+        "expected signedness mismatch error, got {error:#}"
+    );
 }
 
 #[test]

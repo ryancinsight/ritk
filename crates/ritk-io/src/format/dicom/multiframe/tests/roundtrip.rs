@@ -29,6 +29,7 @@ fn test_multiframe_info_and_roundtrip_writer_read_consistency() {
     assert_eq!(info.rows, rows, "rows");
     assert_eq!(info.cols, cols, "cols");
     assert_eq!(info.bits_allocated, 16, "bits_allocated");
+    assert_eq!(info.bits_stored, 16, "bits_stored");
     assert_eq!(info.modality.as_deref(), Some("OT"), "modality");
     assert_eq!(
         info.sop_class_uid.as_deref(),
@@ -103,6 +104,7 @@ fn test_read_multiframe_info_reports_scalar_defaults_for_single_frame() {
     assert_eq!(info.rows, 2, "rows");
     assert_eq!(info.cols, 3, "cols");
     assert_eq!(info.bits_allocated, 16, "bits_allocated");
+    assert_eq!(info.bits_stored, 16, "bits_stored");
     assert_eq!(info.modality.as_deref(), Some("OT"), "modality");
     assert_eq!(
         info.sop_class_uid.as_deref(),

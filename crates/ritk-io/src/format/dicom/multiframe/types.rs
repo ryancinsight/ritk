@@ -56,6 +56,8 @@ pub struct MultiFrameInfo {
     pub samples_per_pixel: usize,
     /// Bits allocated per sample (8 or 16).
     pub bits_allocated: u16,
+    /// Meaningful bits per sample from BitsStored (0028,0101).
+    pub bits_stored: u16,
     /// PixelRepresentation (0028,0103): unsigned or signed two's complement.
     /// Defaults to unsigned per DICOM PS3.3 C.7.6.3.1.
     pub pixel_representation: PixelSignedness,

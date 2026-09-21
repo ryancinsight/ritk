@@ -4,6 +4,7 @@
 //! boundary so consumers do not depend on dicom-rs tags or object APIs.
 
 use anyhow::{Context, Result};
+use dicom::core::value::DicomValueType;
 use dicom::core::Tag;
 use dicom::object::DefaultDicomObject;
 
@@ -44,6 +45,8 @@ pub mod tags {
     pub const SAMPLES_PER_PIXEL: DicomTag = DicomTag::new(0x0028, 0x0002);
     /// Bits Allocated (0028,0100).
     pub const BITS_ALLOCATED: DicomTag = DicomTag::new(0x0028, 0x0100);
+    /// Bits Stored (0028,0101).
+    pub const BITS_STORED: DicomTag = DicomTag::new(0x0028, 0x0101);
     /// Pixel Representation (0028,0103).
     pub const PIXEL_REPRESENTATION: DicomTag = DicomTag::new(0x0028, 0x0103);
     /// Rescale Intercept (0028,1052).
@@ -124,10 +127,25 @@ pub trait DicomAttributeRead {
     fn transfer_syntax_uid(&self) -> &str;
 }
 
+fn require_scalar(value: &impl DicomValueType, tag: DicomTag, name: &str) -> Result<()> {
+    let cardinality = value.cardinality();
+    if cardinality != 1 {
+        anyhow::bail!(
+            "{name} ({:04X},{:04X}) has cardinality={cardinality}; expected exactly 1",
+            tag.group,
+            tag.element
+        );
+    }
+    Ok(())
+}
+
 impl DicomAttributeRead for DefaultDicomObject {
     fn required_unsigned(&self, tag: DicomTag, name: &'static str) -> Result<u16> {
-        self.element(Tag::from(tag))
-            .with_context(|| format!("missing {name}"))?
+        let element = self
+            .element(Tag::from(tag))
+            .with_context(|| format!("missing {name}"))?;
+        require_scalar(element.value(), tag, name)?;
+        element
             .value()
             .to_int::<u16>()
             .with_context(|| format!("decode {name} as unsigned scalar"))
@@ -137,6 +155,7 @@ impl DicomAttributeRead for DefaultDicomObject {
         let Ok(element) = self.element(Tag::from(tag)) else {
             return Ok(None);
         };
+        require_scalar(element.value(), tag, name)?;
         element
             .value()
             .to_int::<u16>()
@@ -269,6 +288,24 @@ mod tests {
         assert!(
             err.to_string().contains("SamplesPerPixel"),
             "error must name malformed attribute, got {err:#}"
+        );
+    }
+
+    #[test]
+    fn required_unsigned_rejects_multiple_values() {
+        let object = object_with([DataElement::new(
+            Tag::from(tags::BITS_STORED),
+            VR::US,
+            PrimitiveValue::U16([12_u16, 16][..].into()),
+        )]);
+
+        let error = object
+            .required_unsigned(tags::BITS_STORED, "BitsStored")
+            .expect_err("multi-valued BitsStored must be rejected");
+
+        assert_eq!(
+            error.to_string(),
+            "BitsStored (0028,0101) has cardinality=2; expected exactly 1"
         );
     }
 }

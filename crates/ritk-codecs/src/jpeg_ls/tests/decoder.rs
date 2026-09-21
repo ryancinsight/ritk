@@ -34,6 +34,7 @@ fn decode_fragment_near_lossless_bounded_error() {
         cols: 4,
         samples_per_pixel: 1,
         bits_allocated: 8,
+        bits_stored: 8,
         pixel_representation: crate::PixelSignedness::Unsigned,
         rescale_slope: 1.0,
         rescale_intercept: 0.0,

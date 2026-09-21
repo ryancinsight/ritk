@@ -89,6 +89,7 @@ fn metadata_fixture() -> DicomReadMetadata {
             ),
             pixel_representation: PixelSignedness::Signed,
             bits_allocated: 16,
+            bits_stored: 12,
             window_center: Some(40.0),
             window_width: Some(400.0),
             gantry_tilt: Some(0.5),

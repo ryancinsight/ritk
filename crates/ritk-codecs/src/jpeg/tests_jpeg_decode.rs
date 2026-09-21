@@ -3,13 +3,22 @@ use super::*;
 use crate::PixelSignedness;
 
 fn layout(rows: usize, cols: usize, slope: f32, intercept: f32) -> PixelLayout {
-    layout_with_bits(rows, cols, 8, PixelSignedness::Unsigned, slope, intercept)
+    layout_with_precision(
+        rows,
+        cols,
+        8,
+        8,
+        PixelSignedness::Unsigned,
+        slope,
+        intercept,
+    )
 }
 
-fn layout_with_bits(
+fn layout_with_precision(
     rows: usize,
     cols: usize,
     bits_allocated: u16,
+    bits_stored: u16,
     pixel_representation: PixelSignedness,
     slope: f32,
     intercept: f32,
@@ -19,6 +28,7 @@ fn layout_with_bits(
         cols,
         samples_per_pixel: 1,
         bits_allocated,
+        bits_stored,
         pixel_representation,
         rescale_slope: slope,
         rescale_intercept: intercept,
@@ -81,6 +91,48 @@ fn lossless_single_pixel_jpeg_16bit_gray_0x1234() -> Vec<u8> {
     ]
 }
 
+fn lossless_single_pixel_midpoint(precision: u8) -> Vec<u8> {
+    vec![
+        0xFF, 0xD8, 0xFF, 0xC3, 0x00, 0x0B, precision, 0x00, 0x01, 0x00, 0x01, 0x01, 0x01, 0x11,
+        0x00, 0xFF, 0xC4, 0x00, 0x14, 0x00, 0x01, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
+        0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0xFF, 0xDA, 0x00, 0x08, 0x01, 0x01, 0x00,
+        0x01, 0x00, 0x00, 0x7F, 0xFF, 0xD9,
+    ]
+}
+
+fn dct_twelve_midpoint(component_ids: &[u8]) -> Vec<u8> {
+    let mut bytes = vec![0xff, 0xd8, 0xff, 0xdb, 0x00, 0x83, 0x10];
+    for _ in 0..64 {
+        bytes.extend_from_slice(&1_u16.to_be_bytes());
+    }
+    let frame_length =
+        u16::try_from(8 + 3 * component_ids.len()).expect("invariant: test frame length fits u16");
+    bytes.extend_from_slice(&[0xff, 0xc1]);
+    bytes.extend_from_slice(&frame_length.to_be_bytes());
+    bytes.extend_from_slice(&[12, 0, 8, 0, 8]);
+    bytes.push(u8::try_from(component_ids.len()).expect("invariant: test component count fits u8"));
+    for &id in component_ids {
+        bytes.extend_from_slice(&[id, 0x11, 0]);
+    }
+    bytes.extend_from_slice(&[
+        0xff, 0xc4, 0x00, 0x26, 0x00, 0x01, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0x10,
+        0x01, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
+    ]);
+    let scan_length =
+        u16::try_from(6 + 2 * component_ids.len()).expect("invariant: test scan length fits u16");
+    bytes.extend_from_slice(&[0xff, 0xda]);
+    bytes.extend_from_slice(&scan_length.to_be_bytes());
+    bytes.push(u8::try_from(component_ids.len()).expect("invariant: test component count fits u8"));
+    for &id in component_ids {
+        bytes.extend_from_slice(&[id, 0]);
+    }
+    bytes.extend_from_slice(&[0, 63, 0]);
+    let used_bits = component_ids.len() * 2;
+    bytes.push(u8::MAX >> used_bits);
+    bytes.extend_from_slice(&[0xff, 0xd9]);
+    bytes
+}
+
 #[test]
 fn jpeg_baseline_grayscale_fragment_decodes_with_modality_lut() {
     let source = [32u8, 32, 32, 32];
@@ -131,6 +183,7 @@ fn jpeg_rgb24_fragment_decodes_interleaved_samples() {
         cols: 2,
         samples_per_pixel: 3,
         bits_allocated: 8,
+        bits_stored: 8,
         pixel_representation: PixelSignedness::Unsigned,
         rescale_slope: 1.0,
         rescale_intercept: 0.0,
@@ -183,11 +236,124 @@ fn jpeg_lossless_grayscale_fragment_decodes_exact_sample() {
 #[test]
 fn jpeg_lossless_signed_l8_fragment_decodes_exact_sample() {
     let jpeg = lossless_single_pixel_jpeg_8bit_gray_128();
-    let layout = layout_with_bits(1, 1, 8, PixelSignedness::Signed, 2.0, 5.0);
+    let layout = layout_with_precision(1, 1, 16, 8, PixelSignedness::Signed, 2.0, 5.0);
 
     let decoded = decode_jpeg_fragment(&jpeg, layout).expect("infallible: validated precondition");
 
     assert_eq!(decoded, vec![-251.0]);
+}
+
+#[test]
+fn jpeg_lossless_low_precision_uses_codestream_sign_bit() {
+    let jpeg = lossless_single_pixel_midpoint(7);
+    let unsigned = decode_jpeg_fragment(
+        &jpeg,
+        layout_with_precision(1, 1, 16, 7, PixelSignedness::Unsigned, 2.0, -4.0),
+    )
+    .expect("valid unsigned seven-bit lossless sample");
+    let signed = decode_jpeg_fragment(
+        &jpeg,
+        layout_with_precision(1, 1, 16, 7, PixelSignedness::Signed, 2.0, -4.0),
+    )
+    .expect("valid signed seven-bit lossless sample");
+
+    assert_eq!(unsigned, vec![124.0]);
+    assert_eq!(signed, vec![-132.0]);
+}
+
+#[test]
+fn jpeg_lossless_two_bit_samples_use_sixteen_bit_dicom_container() {
+    let jpeg = lossless_single_pixel_midpoint(2);
+    let unsigned = decode_jpeg_fragment(
+        &jpeg,
+        layout_with_precision(1, 1, 16, 2, PixelSignedness::Unsigned, 3.0, 1.0),
+    )
+    .expect("valid unsigned two-bit lossless sample in a 16-bit container");
+    let signed = decode_jpeg_fragment(
+        &jpeg,
+        layout_with_precision(1, 1, 16, 2, PixelSignedness::Signed, 3.0, 1.0),
+    )
+    .expect("valid signed two-bit lossless sample in a 16-bit container");
+
+    assert_eq!(unsigned, vec![7.0]);
+    assert_eq!(signed, vec![-5.0]);
+}
+
+#[test]
+fn jpeg_lossless_wide_signed_sample_uses_codestream_sign_bit() {
+    let jpeg = lossless_single_pixel_midpoint(12);
+    let decoded = decode_jpeg_fragment(
+        &jpeg,
+        layout_with_precision(1, 1, 16, 12, PixelSignedness::Signed, 1.5, 2.0),
+    )
+    .expect("valid signed twelve-bit lossless sample");
+
+    assert_eq!(decoded, vec![-3070.0]);
+}
+
+#[test]
+fn jpeg_extended_twelve_bit_grayscale_preserves_full_precision() {
+    let jpeg = dct_twelve_midpoint(&[1]);
+    let decoded = decode_jpeg_fragment(
+        &jpeg,
+        layout_with_precision(8, 8, 16, 12, PixelSignedness::Unsigned, 2.0, -4.0),
+    )
+    .expect("valid twelve-bit extended grayscale sample");
+
+    assert_eq!(decoded.len(), 64);
+    assert_eq!(decoded, vec![4092.0; 64]);
+}
+
+#[test]
+fn jpeg_extended_twelve_bit_rejects_signed_pixel_representation() {
+    let jpeg = dct_twelve_midpoint(&[1]);
+    let error = decode_jpeg_fragment(
+        &jpeg,
+        layout_with_precision(8, 8, 16, 12, PixelSignedness::Signed, 1.0, 0.0),
+    )
+    .expect_err("lossy JPEG cannot represent signed samples");
+
+    assert!(
+        error.to_string().contains("does not support signed"),
+        "expected signedness rejection, got {error:#}"
+    );
+}
+
+#[test]
+fn jpeg_extended_twelve_bit_rejects_mismatched_bits_stored() {
+    let jpeg = dct_twelve_midpoint(&[1]);
+    let error = decode_jpeg_fragment(
+        &jpeg,
+        layout_with_precision(8, 8, 16, 16, PixelSignedness::Unsigned, 1.0, 0.0),
+    )
+    .expect_err("JPEG frame precision must match DICOM BitsStored");
+
+    assert!(
+        error
+            .to_string()
+            .contains("does not match DICOM BitsStored=16"),
+        "expected BitsStored mismatch, got {error:#}"
+    );
+}
+
+#[test]
+fn jpeg_extended_twelve_bit_rgb_preserves_interleaved_samples() {
+    let jpeg = dct_twelve_midpoint(b"RGB");
+    let layout = PixelLayout {
+        rows: 8,
+        cols: 8,
+        samples_per_pixel: 3,
+        bits_allocated: 16,
+        bits_stored: 12,
+        pixel_representation: PixelSignedness::Unsigned,
+        rescale_slope: 1.0,
+        rescale_intercept: 0.0,
+    };
+    let decoded =
+        decode_jpeg_fragment(&jpeg, layout).expect("valid twelve-bit direct RGB extended sample");
+
+    assert_eq!(decoded.len(), 8 * 8 * 3);
+    assert_eq!(decoded, vec![2048.0; 8 * 8 * 3]);
 }
 
 #[test]
@@ -226,7 +392,7 @@ fn jpeg_truncation_is_rejected() {
 #[test]
 fn jpeg_lossless_l16_fragment_decodes_exact_unsigned_sample() {
     let jpeg = lossless_single_pixel_jpeg_16bit_gray_0x1234();
-    let layout = layout_with_bits(1, 1, 16, PixelSignedness::Unsigned, 2.0, -4.0);
+    let layout = layout_with_precision(1, 1, 16, 16, PixelSignedness::Unsigned, 2.0, -4.0);
 
     let decoded = decode_jpeg_fragment(&jpeg, layout).expect("infallible: validated precondition");
 
@@ -238,7 +404,7 @@ fn jpeg_lossless_l16_accepts_dicom_even_length_padding() {
     let mut jpeg = lossless_single_pixel_jpeg_16bit_gray_0x1234();
     assert!(!jpeg.len().is_multiple_of(2));
     jpeg.push(0);
-    let layout = layout_with_bits(1, 1, 16, PixelSignedness::Unsigned, 1.0, 0.0);
+    let layout = layout_with_precision(1, 1, 16, 16, PixelSignedness::Unsigned, 1.0, 0.0);
 
     let decoded = decode_jpeg_fragment(&jpeg, layout).expect("DICOM zero padding is permitted");
 

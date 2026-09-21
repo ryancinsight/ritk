@@ -72,6 +72,7 @@ fn layout() -> PixelLayout {
         // DICOM allocates monochrome samples in complete bytes even when the
         // JPEG-LS frame stores a 12-bit precision.
         bits_allocated: 16,
+        bits_stored: u16::try_from(PRECISION).expect("invariant: example precision fits in u16"),
         pixel_representation: PixelSignedness::Unsigned,
         rescale_slope: 1.0,
         rescale_intercept: 0.0,

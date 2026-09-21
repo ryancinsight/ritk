@@ -18,7 +18,7 @@ use super::packet::{
     WaveletTransform,
 };
 use crate::dimensions::{checked_pixel_count, checked_sample_count};
-use crate::PixelLayout;
+use crate::{PixelLayout, PixelSignedness};
 
 #[derive(Debug)]
 struct TilePartRange {
@@ -34,6 +34,9 @@ struct TilePartRange {
 /// - DC level shift reversed for unsigned components per ISO 15444-1 §G.1.2.
 /// - Modality LUT applied: `output = stored_integer × slope + intercept`.
 pub fn decode_j2k_fragment(fragment: &[u8], layout: PixelLayout) -> Result<Vec<f32>> {
+    layout
+        .bytes_per_frame()
+        .context("J2K: invalid DICOM pixel layout")?;
     if !is_soc(fragment) {
         bail!(
             "J2K: fragment does not begin with SOC 0xFF4F \
@@ -71,6 +74,20 @@ pub fn decode_j2k_fragment(fragment: &[u8], layout: PixelLayout) -> Result<Vec<f
         bail!(
             "J2K: component 0 precision {c_prec} exceeds the native decoder's {}-bit coefficient capacity",
             i32::BITS
+        );
+    }
+    if c_prec != u32::from(layout.bits_stored) {
+        bail!(
+            "J2K: component precision {c_prec} does not match DICOM BitsStored={}",
+            layout.bits_stored
+        );
+    }
+    let layout_signed = matches!(layout.pixel_representation, PixelSignedness::Signed);
+    if c_signed != layout_signed {
+        bail!(
+            "J2K: component signedness {} does not match DICOM PixelRepresentation={}",
+            if c_signed { "signed" } else { "unsigned" },
+            u16::from(layout.pixel_representation)
         );
     }
     if cod.progression_order != 0 {
@@ -409,7 +426,8 @@ mod tests {
             rows,
             cols,
             samples_per_pixel: 1,
-            bits_allocated: bits,
+            bits_allocated: if bits <= 8 { 8 } else { 16 },
+            bits_stored: bits,
             pixel_representation: signed,
             rescale_slope: 1.0,
             rescale_intercept: 0.0,

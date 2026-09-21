@@ -8,7 +8,7 @@ arithmetic, native sample decoding, and encapsulated transfer-syntax decoders.
 | Codec | Implementation |
 |---|---|
 | JPEG 2000 | ISO 15444-1, multi-level reversible 5/3 and irreversible 9/7 |
-| JPEG | Baseline, Extended, and Lossless grayscale |
+| JPEG | 8/12-bit DCT and 2–16-bit lossless |
 | JPEG-LS | RITK-native |
 | PackBits | RITK-native |
 | RLE Lossless | RITK-native |

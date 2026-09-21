@@ -25,6 +25,16 @@ pub(super) fn write_stub_dicom(
         VR::UI,
         PrimitiveValue::from(sop_instance_uid),
     ));
+    obj.put(DataElement::new(
+        Tag(0x0028, 0x0100),
+        VR::US,
+        PrimitiveValue::from(16_u16),
+    ));
+    obj.put(DataElement::new(
+        Tag(0x0028, 0x0101),
+        VR::US,
+        PrimitiveValue::from(16_u16),
+    ));
     let file_obj = obj
         .with_meta(
             FileMetaTableBuilder::new()

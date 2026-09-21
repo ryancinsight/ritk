@@ -14,6 +14,7 @@ use std::path::Path;
 use super::super::per_frame::extract_functional_groups;
 use super::super::temporal::reject_temporal_organization;
 use super::super::types::MultiFrameInfo;
+use crate::format::dicom::color_common::read_required_unsigned;
 use crate::format::dicom::reader::types::{cs_to_arraystring, uid_to_arraystring};
 use crate::format::dicom::reader::DicomReadBudget;
 
@@ -43,9 +44,13 @@ pub(crate) fn parse_ds_backslash<const N: usize>(s: &str) -> Option<[f64; N]> {
 /// # Invariants
 /// - n_frames defaults to 1 when (0028,0008) is absent.
 /// - bits_allocated defaults to 16 when absent.
+/// - BitsStored is required and must be an unsigned scalar.
 /// - rescale_slope defaults to 1.0, rescale_intercept to 0.0 when absent.
 /// - per_frame is always Vec::new(); call extract_functional_groups separately.
-pub(crate) fn extract_multiframe_header(path: &Path, obj: &InMemDicomObject) -> MultiFrameInfo {
+pub(crate) fn extract_multiframe_header(
+    path: &Path,
+    obj: &InMemDicomObject,
+) -> Result<MultiFrameInfo> {
     let n_frames: usize = match obj.element(Tag(0x0028, 0x0008)) {
         Ok(element) => element
             .to_str()
@@ -75,6 +80,8 @@ pub(crate) fn extract_multiframe_header(path: &Path, obj: &InMemDicomObject) -> 
         .and_then(|e| e.to_str().ok())
         .and_then(|s| s.trim().parse().ok())
         .unwrap_or(16);
+
+    let bits_stored = read_required_unsigned(obj, Tag(0x0028, 0x0101), "BitsStored")?;
 
     let samples_per_pixel: usize = obj
         .element(Tag(0x0028, 0x0002))
@@ -138,13 +145,14 @@ pub(crate) fn extract_multiframe_header(path: &Path, obj: &InMemDicomObject) -> 
         .and_then(|s| s.trim().parse().ok())
         .unwrap_or(0.0);
 
-    MultiFrameInfo {
+    Ok(MultiFrameInfo {
         path: path.to_path_buf(),
         n_frames,
         rows,
         cols,
         samples_per_pixel,
         bits_allocated,
+        bits_stored,
         pixel_representation,
         pixel_spacing,
         frame_thickness,
@@ -155,7 +163,7 @@ pub(crate) fn extract_multiframe_header(path: &Path, obj: &InMemDicomObject) -> 
         rescale_slope,
         rescale_intercept,
         per_frame: Vec::new(),
-    }
+    })
 }
 
 pub(crate) fn read_multiframe_info_from_object(
@@ -163,7 +171,7 @@ pub(crate) fn read_multiframe_info_from_object(
     obj: &InMemDicomObject,
 ) -> Result<MultiFrameInfo> {
     reject_temporal_organization(path, obj)?;
-    let mut info = extract_multiframe_header(path, obj);
+    let mut info = extract_multiframe_header(path, obj)?;
     info.per_frame = extract_functional_groups(obj, info.n_frames);
     Ok(info)
 }

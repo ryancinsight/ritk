@@ -198,6 +198,11 @@ fn decode_series(series: &DicomSeriesInfo) -> Result<DecodedDicomSeries> {
             let samples_per_pixel =
                 element_as_u32(obj, tags::SAMPLES_PER_PIXEL).unwrap_or(1) as usize;
             let bits_allocated = element_as_u32(obj, tags::BITS_ALLOCATED).unwrap_or(16) as u16;
+            let bits_stored = crate::format::dicom::color_common::read_required_unsigned(
+                obj,
+                tags::BITS_STORED,
+                "BitsStored",
+            )?;
             let pixel_representation: PixelSignedness = PixelSignedness::try_from(
                 element_as_u32(obj, tags::PIXEL_REPRESENTATION).unwrap_or(0) as u16,
             )
@@ -214,6 +219,7 @@ fn decode_series(series: &DicomSeriesInfo) -> Result<DecodedDicomSeries> {
                         cols: cols as usize,
                         samples_per_pixel,
                         bits_allocated,
+                        bits_stored,
                         pixel_representation,
                         rescale_slope: slope as f32,
                         rescale_intercept: intercept as f32,

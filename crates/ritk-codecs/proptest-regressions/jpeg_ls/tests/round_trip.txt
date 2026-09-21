@@ -6,3 +6,4 @@
 # everyone who runs the test benefits from these saved cases.
 cc bdc1c2d3cf6cbac68e7d611514b340005e264d90b8b7eb977538781ac349a95c # shrinks to rows = 9, cols = 3, near = 2, seed = 6419120415352800386
 cc 82814bfdfcb3c8cf0082cb1b94a0aece85afe949f844855bf536a2110e45d53c # shrinks to rows = 3, cols = 8, bpp = 16, seed = 18395098268947010898
+cc 99465ca6577c0ce308109fc895b3eec431d7fe42df21154255b71fa73bfe2dce # shrinks to rows = 1, cols = 1, bpp = 12, seed = 0

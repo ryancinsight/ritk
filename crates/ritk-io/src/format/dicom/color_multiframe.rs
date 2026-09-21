@@ -157,6 +157,7 @@ fn load_color_multiframe_flat_from_object(
                     cols: info.cols,
                     samples_per_pixel: RGB_CHANNELS,
                     bits_allocated: info.bits_allocated,
+                    bits_stored: info.bits_stored,
                     pixel_representation: info.pixel_representation,
                     rescale_slope: 1.0,
                     rescale_intercept: 0.0,
@@ -245,9 +246,9 @@ fn validate_rgb_multiframe(
             planar_configuration
         );
     }
-    if info.bits_allocated != 8 {
+    if !matches!(info.bits_allocated, 8 | 16) {
         bail!(
-            "DICOM RGB color multiframe loader supports only BitsAllocated=8; {:?} declares {}",
+            "DICOM RGB color multiframe loader supports BitsAllocated=8 or 16; {:?} declares {}",
             path,
             info.bits_allocated
         );

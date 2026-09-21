@@ -265,9 +265,10 @@ fn validate_and_decode_rgb_slice(
 
     let bits_allocated =
         read_optional::<u16>(obj, Tag(0x0028, 0x0100)).unwrap_or(slice.bits_allocated);
-    if bits_allocated != 8 {
+    let bits_stored = read_optional::<u16>(obj, Tag(0x0028, 0x0101)).unwrap_or(slice.bits_stored);
+    if !matches!(bits_allocated, 8 | 16) {
         bail!(
-            "DICOM RGB color volume loader supports only BitsAllocated=8; {:?} declares {}",
+            "DICOM RGB color volume loader supports BitsAllocated=8 or 16; {:?} declares {}",
             slice.path,
             bits_allocated
         );
@@ -294,6 +295,7 @@ fn validate_and_decode_rgb_slice(
                 cols,
                 samples_per_pixel,
                 bits_allocated,
+                bits_stored,
                 pixel_representation,
                 rescale_slope: 1.0,
                 rescale_intercept: 0.0,

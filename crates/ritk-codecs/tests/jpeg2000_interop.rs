@@ -172,6 +172,7 @@ fn layout(fixture: Fixture<'_>) -> PixelLayout {
         cols: usize::from(fixture.cols),
         samples_per_pixel: 1,
         bits_allocated: if fixture.precision <= 8 { 8 } else { 16 },
+        bits_stored: u16::from(fixture.precision),
         pixel_representation: PixelSignedness::Unsigned,
         rescale_slope: 1.0,
         rescale_intercept: 0.0,

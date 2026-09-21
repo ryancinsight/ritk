@@ -6,14 +6,13 @@ use anyhow::{bail, Context, Result};
 use consus_raster::{jpeg, DecodeLimits, DecodedImage};
 
 // JPEG dimension fields are unsigned 16-bit values. File policy assigns at
-// most 256 MiB to encoded input and 100 million encoded-grid pixels. Provider
-// working storage is independently capped at eight bytes per allowed grid
-// pixel, so component-rich or heavily padded streams may reach that cap first.
+// most 256 MiB to encoded input, 100 million encoded-grid pixels, and 800 MB
+// to provider working storage. Component-rich or padded streams may reach the
+// working-storage cap before the pixel cap.
 const MEBIBYTE: usize = 1024 * 1024;
 const MAX_FILE_ENCODED_BYTES: usize = 256 * MEBIBYTE;
 const MAX_FILE_PIXELS: usize = 100_000_000;
-const WORKING_BYTES_PER_GRID_PIXEL: usize = 8;
-const MAX_FILE_WORKING_BYTES: usize = WORKING_BYTES_PER_GRID_PIXEL * MAX_FILE_PIXELS;
+const MAX_FILE_WORKING_BYTES: usize = 800_000_000;
 
 pub(crate) fn decode_file(path: &Path) -> Result<DecodedImage> {
     let file = File::open(path)

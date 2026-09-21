@@ -119,6 +119,16 @@ fn write_rgb_slice_with_dimensions(
         PrimitiveValue::from(8_u16),
     ));
     obj.put(DataElement::new(
+        Tag(0x0028, 0x0101),
+        VR::US,
+        PrimitiveValue::from(8_u16),
+    ));
+    obj.put(DataElement::new(
+        Tag(0x0028, 0x0102),
+        VR::US,
+        PrimitiveValue::from(7_u16),
+    ));
+    obj.put(DataElement::new(
         Tag(0x0028, 0x0103),
         VR::US,
         PrimitiveValue::from(0_u16),
@@ -217,6 +227,16 @@ fn native_color_series_rejects_scalar_samples() {
         Tag(0x0028, 0x0100),
         VR::US,
         PrimitiveValue::from(8_u16),
+    ));
+    obj.put(DataElement::new(
+        Tag(0x0028, 0x0101),
+        VR::US,
+        PrimitiveValue::from(8_u16),
+    ));
+    obj.put(DataElement::new(
+        Tag(0x0028, 0x0102),
+        VR::US,
+        PrimitiveValue::from(7_u16),
     ));
     obj.put(DataElement::new(
         Tag(0x0028, 0x0103),
@@ -334,6 +354,7 @@ fn native_color_from_series_preserves_values_and_metadata() {
         private_tags: Default::default(),
         pixel_representation: PixelSignedness::Unsigned,
         bits_allocated: 8,
+        bits_stored: 8,
         window_center: None,
         window_width: None,
         gantry_tilt: None,

@@ -223,6 +223,16 @@ fn test_load_dicom_multiframe_enhanced_per_frame_rescale() {
         PrimitiveValue::from(16_u16),
     ));
     obj.put(DataElement::new(
+        Tag(0x0028, 0x0101),
+        VR::US,
+        PrimitiveValue::from(16_u16),
+    ));
+    obj.put(DataElement::new(
+        Tag(0x0028, 0x0102),
+        VR::US,
+        PrimitiveValue::from(15_u16),
+    ));
+    obj.put(DataElement::new(
         Tag(0x0028, 0x0103),
         VR::US,
         PrimitiveValue::from(0_u16),

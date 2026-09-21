@@ -1,4 +1,5 @@
 use super::*;
+use crate::jpeg_ls::parser::parse_jpeg_ls_headers;
 
 #[test]
 fn parse_jpeg_ls_headers_rejects_missing_soi() {

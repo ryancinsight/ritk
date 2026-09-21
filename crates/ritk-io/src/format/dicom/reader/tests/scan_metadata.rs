@@ -24,6 +24,41 @@ use ritk_dicom::TransferSyntaxKind;
 use ritk_spatial::{Direction, Point, Spacing};
 
 #[test]
+fn scan_rejects_missing_and_malformed_bits_stored() {
+    let directory = tempfile::tempdir().expect("temporary directory must be created");
+    let path = directory.path().join("slice.dcm");
+    write_stub_dicom(&path, "1.2.840.10008.5.1.4.1.1.2", "2.25.72001.200");
+
+    let mut object = dicom::object::open_file(&path).expect("fixture must parse");
+    assert!(
+        object.remove_element(Tag(0x0028, 0x0101)),
+        "fixture must contain BitsStored"
+    );
+    object.write_to_file(&path).expect("fixture must rewrite");
+    let missing = scan_dicom_directory(directory.path())
+        .expect_err("an image instance without BitsStored must be rejected");
+    assert!(
+        missing.to_string().contains("missing required BitsStored"),
+        "expected required BitsStored error, got {missing:#}"
+    );
+
+    object.put(DataElement::new(
+        Tag(0x0028, 0x0101),
+        VR::LO,
+        PrimitiveValue::from("twelve"),
+    ));
+    object.write_to_file(&path).expect("fixture must rewrite");
+    let malformed = scan_dicom_directory(directory.path())
+        .expect_err("an image instance with malformed BitsStored must be rejected");
+    assert!(
+        malformed
+            .to_string()
+            .contains("BitsStored (0028,0101) is not an unsigned scalar"),
+        "expected malformed BitsStored error, got {malformed:#}"
+    );
+}
+
+#[test]
 fn test_scan_metadata_round_trip_spatial_fields() {
     use ritk_core::image::Image;
     use ritk_image::tensor::{Shape, Tensor};
@@ -63,8 +98,8 @@ fn test_scan_metadata_round_trip_spatial_fields() {
         origin: [10.0, 20.0, -50.0],
         direction: [0.0, 0.0, 1.0, 0.0, 1.0, 0.0, 1.0, 0.0, 0.0],
         bits_allocated: Some(16),
-        bits_stored: Some(16),
-        high_bit: Some(15),
+        bits_stored: Some(12),
+        high_bit: Some(11),
         photometric_interpretation: Some(ArrayString::from("MONOCHROME2").unwrap()),
         slices: Vec::new(),
         private_tags: HashMap::new(),
@@ -98,6 +133,11 @@ fn test_scan_metadata_round_trip_spatial_fields() {
         Some(16),
         "bits_allocated must round-trip as 16; got {:?}",
         m.bits_allocated
+    );
+    assert_eq!(m.bits_stored, Some(12), "bits_stored must round-trip");
+    assert!(
+        m.slices.iter().all(|slice| slice.bits_stored == 12),
+        "each slice must retain its own BitsStored value"
     );
     assert_eq!(
         m.dimensions[2], depth,

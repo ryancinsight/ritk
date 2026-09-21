@@ -37,7 +37,7 @@
 //!
 //! # Mathematical contract
 //!
-//! `decode_compressed_frame(obj, f, bits, repr, slope, intercept)`:
+//! `decode_compressed_frame(obj, f, allocated, stored, repr, slope, intercept)`:
 //!   `Output[i] = codec_sample[i] × slope + intercept`
 //!
 //! where `codec_sample[i]` is the integer produced by the codec for pixel i.
@@ -69,6 +69,7 @@ use ritk_dicom::{
 /// - `obj`: open Part 10 DICOM object with compressed transfer syntax in file meta.
 /// - `frame_idx`: zero-based frame index (0 for single-frame objects).
 /// - `bits_allocated`: from (0028,0100); drives byte interpretation in `decode_pixel_bytes`.
+/// - `bits_stored`: from (0028,0101); identifies the meaningful sample and sign bits.
 /// - `pixel_representation`: from (0028,0103); unsigned or signed.
 /// - `slope`: RescaleSlope from (0028,1053); absent ⇒ 1.0.
 /// - `intercept`: RescaleIntercept from (0028,1052); absent ⇒ 0.0.
@@ -86,6 +87,7 @@ pub(super) fn decode_compressed_frame(
     obj: &DefaultDicomObject,
     frame_idx: u32,
     bits_allocated: u16,
+    bits_stored: u16,
     pixel_representation: PixelSignedness,
     slope: f32,
     intercept: f32,
@@ -120,6 +122,7 @@ pub(super) fn decode_compressed_frame(
             cols,
             samples_per_pixel,
             bits_allocated,
+            bits_stored,
             pixel_representation,
             rescale_slope: slope,
             rescale_intercept: intercept,
