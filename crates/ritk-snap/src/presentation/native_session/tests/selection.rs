@@ -16,7 +16,9 @@ fn native_session_reopen_enters_series_selection_and_loads_exact_choice() {
     session
         .open_study_path(replacement_root.path())
         .expect("discover replacement series");
-    assert!(session.selection.is_some());
+    let selection = session.selection.as_ref().expect("series selector");
+    assert_eq!(selection.len(), 2);
+    assert_eq!(selection.selected(), 0);
     assert_eq!(
         session
             .app
@@ -123,7 +125,9 @@ fn native_session_selection_decode_failure_keeps_selector_and_viewer_alive() {
         .expect("failed selection remains recoverable");
 
     assert_eq!(flow, NativeFlow::Continue { repaint: true });
-    assert!(session.selection.is_some());
+    let selection = session.selection.as_ref().expect("recoverable selector");
+    assert_eq!(selection.len(), 2);
+    assert_eq!(selection.selected(), 0);
     assert_eq!(
         session.app.loaded.as_ref().expect("current study").shape,
         previous_shape

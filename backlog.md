@@ -1,5 +1,13 @@
 # RITK execution backlog
 
+<a id="RITK-CONFORMANCE-001"></a>
+## RITK-CONFORMANCE-001 — Restore stack conformance bounds [patch]
+- Status: review; priority: P0; owner: RITK integration; integrator: root/ritk_consumer; last-update: 2026-09-21.
+- Outcome: the stack pointer accepts RITK without increasing its recorded source, assertion, or image-debt baselines.
+- Scope: split four oversized `ritk-snap` modules by existing concerns, replace two existence-only selection assertions with value checks, and reduce four inspected manual PNGs below the 200 KiB asset budget while preserving their documented content.
+- Acceptance: `oversized_files` returns 49→45, `existence_only_assertions` 2→0, and `oversized_tracked_images` 30→26; focused `ritk-snap` formatting, strict Clippy, tests, and documentation gates pass.
+- Verification: staged-tree conformance reports zero regressions; native nextest passes 530/530; native and wasm32 strict Clippy, formatting, four doctests with one intentional ignore, and warning-clean Rustdoc pass. The four lossless WebP figures retain the PNG dimensions and decoded pixels exactly.
+
 <a id="RITK-JPEG-001"></a>
 ## RITK-JPEG-001 — Consume shared JPEG raster codec [arch] [major]
 - Status: in-progress; integrator: root/ritk_consumer; prior delivery: [PR 556](https://github.com/ryancinsight/ritk/pull/556), merge `fc85dad03a6c14a617e9687609044497c1eba122`; updated: 2026-09-21.

@@ -55,6 +55,15 @@
       "views": ["axial", "coronal", "sagittal"]
     }
   },
+  "manual_figure": {
+    "image": "dicom-metis-installer-ct.webp",
+    "width": 1280,
+    "height": 800,
+    "bytes": 145140,
+    "sha256": "06b7a95a6c51b14d2d28017d77115342fb30f87c19b5958e8a739c33c2ca242f",
+    "encoding": "lossless WebP",
+    "pixels_match_portable_capture": true
+  },
   "installer_lifecycle": {
     "install": {
       "command": "msiexec /i org.ritk.snap.msi /qn /norestart",
@@ -118,7 +127,7 @@
       "non_black_pixels": 359857,
       "views": ["axial", "coronal", "sagittal"]
     },
-    "matches_committed_capture": true
+    "matches_reviewed_capture_pixels": true
   },
   "verification": {
     "inventory_payload_hashes": "passed",

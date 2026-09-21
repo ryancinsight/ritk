@@ -48,6 +48,15 @@
     "render_path": "RITK GPU projection through wgpu compute and asynchronous readback",
     "visible_backend_label": "3D MIP \u00b7 GPU"
   },
+  "manual_figure": {
+    "image": "dicom-eframe-real-gpu-ct.webp",
+    "width": 1600,
+    "height": 1000,
+    "bytes": 101628,
+    "sha256": "e98393ef78df1e457479ab03d9d1386b2986c2b0cf63d3cca5d7bdd3b923d0b1",
+    "encoding": "lossless WebP",
+    "pixels_match_output": true
+  },
   "bounds": {
     "capture_timeout_seconds": 180,
     "series_selection": "explicit SeriesInstanceUID",
