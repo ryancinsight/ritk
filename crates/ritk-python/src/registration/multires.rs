@@ -12,7 +12,7 @@ use ritk_registration::demons::{
 use ritk_spatial::{Direction, Point, Spacing};
 
 /// Configuration options for [`multires_demons_register`].
-#[pyclass(name = "MultiResDemonsOptions")]
+#[pyclass(from_py_object, name = "MultiResDemonsOptions")]
 #[derive(Clone)]
 pub struct PyMultiresDemonsOptions {
     /// Base iteration count (scaled per pyramid level).
@@ -112,7 +112,7 @@ pub fn multires_demons_register(
     let fixed_spacing = *fixed.inner.spacing();
     let fixed_direction = *fixed.inner.direction();
     let [nz, ny, nx] = fixed_shape;
-    py.allow_threads(|| {
+    py.detach(|| {
         let variant = match opts.variant.as_str() {
             "diffeomorphic" => DemonsVariant::Diffeomorphic,
             _ => DemonsVariant::Classic,
@@ -205,7 +205,7 @@ pub fn inverse_consistent_demons_register(
     let fixed_spacing = *fixed.inner.spacing();
     let fixed_direction = *fixed.inner.direction();
     let [nz, ny, nx] = fixed_shape;
-    py.allow_threads(|| {
+    py.detach(|| {
         let config = InverseConsistentDemonsConfig {
             demons: DemonsConfig {
                 max_iterations,

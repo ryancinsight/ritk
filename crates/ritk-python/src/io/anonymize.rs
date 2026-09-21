@@ -22,8 +22,10 @@ pub enum PyCleaningPolicy {
     CleanAll,
 }
 
-impl<'py> FromPyObject<'py> for PyCleaningPolicy {
-    fn extract_bound(ob: &pyo3::Bound<'py, PyAny>) -> PyResult<Self> {
+impl<'a, 'py> FromPyObject<'a, 'py> for PyCleaningPolicy {
+    type Error = PyErr;
+
+    fn extract(ob: Borrowed<'a, 'py, PyAny>) -> PyResult<Self> {
         let s: String = ob.extract()?;
         match s.to_lowercase().as_str() {
             "none" => Ok(Self::None),
@@ -105,19 +107,19 @@ pub fn anonymize_dicom_dir(
     let input_owned = input_dir.to_string();
     let output_owned = output_dir.to_string();
 
-    let stats = py.allow_threads(move || {
+    let stats = py.detach(move || {
         anonymize_dicom_directory(&input_owned, &output_owned, &options)
             .map_err(|e| RitkPyError::io(format!("Anonymization error: {e}")))
     })?;
 
-    let dict = PyDict::new_bound(py);
+    let dict = PyDict::new(py);
     dict.set_item("file_count", stats.file_count)?;
     dict.set_item("success_count", stats.success_count)?;
     dict.set_item("error_count", stats.error_count)?;
 
-    let errors_list = PyList::empty_bound(py);
+    let errors_list = PyList::empty(py);
     for (path, msg) in &stats.errors {
-        let pair = PyList::empty_bound(py);
+        let pair = PyList::empty(py);
         pair.append(path.display().to_string())?;
         pair.append(msg.clone())?;
         errors_list.append(pair)?;

@@ -14,7 +14,7 @@ pub use maps::PyDiffusionMaps;
 
 /// Register the diffusion submodule into `parent`.
 pub fn register(parent: &Bound<'_, PyModule>) -> PyResult<()> {
-    let module = PyModule::new_bound(parent.py(), "diffusion")?;
+    let module = PyModule::new(parent.py(), "diffusion")?;
     module.add_class::<PyDiffusionMaps>()?;
     module.add_function(wrap_pyfunction!(fit_tensor_maps, &module)?)?;
     parent.add_submodule(&module)?;

@@ -18,7 +18,7 @@ pub fn mask_image(
     let img = Arc::clone(&image.inner);
     let msk = Arc::clone(&mask.inner);
     let backend = MoiraiBackend;
-    py.allow_threads(|| {
+    py.detach(|| {
         MaskImageFilter::new()
             .with_outside_value(outside_value)
             .apply_native(img.as_ref(), msk.as_ref(), &backend)
@@ -40,7 +40,7 @@ pub fn masked_assign(
     let img = Arc::clone(&image.inner);
     let msk = Arc::clone(&mask.inner);
     let backend = MoiraiBackend;
-    py.allow_threads(|| {
+    py.detach(|| {
         MaskedAssignImageFilter::new(assign_value)
             .apply_native(img.as_ref(), msk.as_ref(), &backend)
             .map_err(|e| RitkPyError::runtime(e.to_string()))
@@ -61,7 +61,7 @@ pub fn mask_negated_image(
     let img = Arc::clone(&image.inner);
     let msk = Arc::clone(&mask.inner);
     let backend = MoiraiBackend;
-    py.allow_threads(|| {
+    py.detach(|| {
         MaskNegatedImageFilter::new()
             .with_outside_value(outside_value)
             .apply_native(img.as_ref(), msk.as_ref(), &backend)

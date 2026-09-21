@@ -6,7 +6,7 @@ use ritk_registration::diffeomorphic::{SyNConfig, SyNRegistration};
 use super::py_convert::{load_matching_inputs, to_py_pair};
 
 /// Configuration options for [`syn_register`].
-#[pyclass(name = "SynConfig")]
+#[pyclass(from_py_object, name = "SynConfig")]
 #[derive(Clone)]
 pub struct PySynConfig {
     #[pyo3(get, set)]
@@ -72,7 +72,7 @@ pub fn syn_register(
     let opts = opts.unwrap_or_default();
     let inputs = load_matching_inputs(fixed, moving)?;
 
-    py.allow_threads(|| {
+    py.detach(|| {
         let config = SyNConfig {
             max_iterations: opts.max_iterations,
             sigma_smooth: opts.sigma_smooth,

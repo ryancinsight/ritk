@@ -19,7 +19,7 @@ use std::sync::Arc;
 pub fn mean_filter(py: Python<'_>, image: &PyImage, radius: usize) -> RitkResult<PyImage> {
     let image = Arc::clone(&image.inner);
     let backend = MoiraiBackend;
-    py.allow_threads(|| {
+    py.detach(|| {
         MeanImageFilter::new(radius)
             .apply_native(image.as_ref(), &backend)
             .map_err(|e| RitkPyError::runtime(e.to_string()))
@@ -42,7 +42,7 @@ pub fn box_mean(
 ) -> RitkResult<PyImage> {
     let image = Arc::clone(&image.inner);
     let backend = MoiraiBackend;
-    py.allow_threads(|| {
+    py.detach(|| {
         BoxMeanImageFilter::new([radius_z, radius_y, radius_x])
             .apply_native(image.as_ref(), &backend)
             .map_err(|e| RitkPyError::runtime(e.to_string()))
@@ -65,7 +65,7 @@ pub fn box_sigma(
 ) -> RitkResult<PyImage> {
     let image = Arc::clone(&image.inner);
     let backend = MoiraiBackend;
-    py.allow_threads(|| {
+    py.detach(|| {
         BoxSigmaImageFilter::new([radius_z, radius_y, radius_x])
             .apply_native(image.as_ref(), &backend)
             .map_err(|e| RitkPyError::runtime(e.to_string()))
@@ -89,7 +89,7 @@ pub fn local_noise(
 ) -> RitkResult<PyImage> {
     let image = Arc::clone(&image.inner);
     let backend = MoiraiBackend;
-    py.allow_threads(|| {
+    py.detach(|| {
         NoiseImageFilter::new([radius_z, radius_y, radius_x])
             .apply_native(image.as_ref(), &backend)
             .map_err(|e| RitkPyError::runtime(e.to_string()))
@@ -112,7 +112,7 @@ pub fn rank(
 ) -> RitkResult<PyImage> {
     let image = Arc::clone(&image.inner);
     let backend = MoiraiBackend;
-    py.allow_threads(|| {
+    py.detach(|| {
         RankImageFilter::new([radius_z, radius_y, radius_x], rank)
             .apply_native(image.as_ref(), &backend)
             .map_err(|e| RitkPyError::runtime(e.to_string()))
@@ -128,7 +128,7 @@ pub fn rank(
 pub fn binomial_blur(py: Python<'_>, image: &PyImage, repetitions: usize) -> RitkResult<PyImage> {
     let image = Arc::clone(&image.inner);
     let backend = MoiraiBackend;
-    py.allow_threads(|| {
+    py.detach(|| {
         BinomialBlurImageFilter::new(repetitions)
             .apply_native(image.as_ref(), &backend)
             .map_err(|e| RitkPyError::runtime(e.to_string()))
@@ -156,7 +156,7 @@ pub fn binomial_blur(py: Python<'_>, image: &PyImage, repetitions: usize) -> Rit
 #[pyo3(signature = (image, radius=1))]
 pub fn median_filter(py: Python<'_>, image: &PyImage, radius: usize) -> RitkResult<PyImage> {
     let image = Arc::clone(&image.inner);
-    py.allow_threads(|| {
+    py.detach(|| {
         let filter = MedianFilter::new(radius);
         filter
             .apply_native(image.as_ref())
@@ -191,7 +191,7 @@ pub fn bilateral_filter(
 ) -> RitkResult<PyImage> {
     let image = Arc::clone(&image.inner);
     let backend = MoiraiBackend;
-    py.allow_threads(|| {
+    py.detach(|| {
         let filter = BilateralFilter::new(spatial_sigma, range_sigma);
         filter
             .apply_native(image.as_ref(), &backend)
@@ -246,7 +246,7 @@ pub fn n4_bias_correction(
 ) -> RitkResult<PyImage> {
     let image = Arc::clone(&image.inner);
     let backend = MoiraiBackend;
-    py.allow_threads(|| {
+    py.detach(|| {
         let config = N4Config {
             num_fitting_levels,
             num_iterations,
@@ -290,7 +290,7 @@ pub fn bin_shrink(
 ) -> RitkResult<PyImage> {
     let image = Arc::clone(&image.inner);
     let backend = MoiraiBackend;
-    py.allow_threads(|| {
+    py.detach(|| {
         let filter = BinShrinkImageFilter::new(vec![factor_z, factor_y, factor_x]);
         filter
             .apply_native(image.as_ref(), &backend)
@@ -334,7 +334,7 @@ pub fn spatial_convolve(py: Python<'_>, image: &PyImage, kernel: &PyImage) -> Ri
     let image_inner = Arc::clone(&image.inner);
     let backend = MoiraiBackend;
     let (kernel_vals, kernel_dims) = image_to_vec(kernel.inner.as_ref());
-    py.allow_threads(|| {
+    py.detach(|| {
         let filter = SpatialConvolutionFilter::new(kernel_vals, kernel_dims)
             .map_err(|e| RitkPyError::value(e.to_string()))?;
         filter

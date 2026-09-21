@@ -25,7 +25,7 @@ use pyo3::prelude::*;
 ///
 /// Registered submodules are re-exported by `ritk/__init__.py` so they
 /// are importable as `ritk.image`, `ritk.io`, `ritk.filter`, etc.
-#[pymodule]
+#[pymodule(gil_used = false)]
 fn _ritk(m: &Bound<'_, PyModule>) -> PyResult<()> {
     m.add("__version__", env!("CARGO_PKG_VERSION"))?;
     image::register(m)?;

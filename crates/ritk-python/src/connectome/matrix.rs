@@ -78,7 +78,7 @@ pub fn build_connectivity_matrix(
     // shareable across threads, but the plain `&Parcellation` behind it is.
     let regions = parcellation.inner();
     let inner = py
-        .allow_threads(|| ritk_connectome::build_connectivity_matrix(regions, &polylines, &config))
+        .detach(|| ritk_connectome::build_connectivity_matrix(regions, &polylines, &config))
         .map_err(RitkPyError::value)?;
 
     Ok(PyConnectivityMatrix { inner })
@@ -144,7 +144,7 @@ impl PyConnectivityMatrix {
         for i in 0..n {
             flat.extend_from_slice(self.inner.row(i));
         }
-        PyArray1::<f64>::from_vec_bound(py, flat)
+        PyArray1::<f64>::from_vec(py, flat)
             .reshape([n, n])
             .map_err(|error| RitkPyError::runtime(format!("reshaping the matrix: {error}")))
     }
@@ -161,7 +161,7 @@ impl PyConnectivityMatrix {
     #[getter]
     fn accounting<'py>(&self, py: Python<'py>) -> RitkResult<Bound<'py, PyDict>> {
         let accounting = self.inner.accounting();
-        let entry = PyDict::new_bound(py);
+        let entry = PyDict::new(py);
         let map = |error: PyErr| RitkPyError::runtime(format!("building the accounting: {error}"));
         entry.set_item("total", accounting.total).map_err(map)?;
         entry
@@ -199,7 +199,7 @@ impl PyConnectivityMatrix {
     fn measures(&self, py: Python<'_>) -> PyGraphMeasures {
         let matrix = &self.inner;
         PyGraphMeasures {
-            inner: py.allow_threads(|| matrix.measures()),
+            inner: py.detach(|| matrix.measures()),
         }
     }
 
@@ -237,13 +237,13 @@ impl PyConnectivityMatrix {
         };
         let matrix = &self.inner;
         let (levels, report) = py
-            .allow_threads(|| normalised_rich_club(matrix, config))
+            .detach(|| normalised_rich_club(matrix, config))
             .map_err(RitkPyError::value)?;
 
         let entries = levels
             .into_iter()
             .map(|level| {
-                let entry = PyDict::new_bound(py);
+                let entry = PyDict::new(py);
                 let map = |error: PyErr| RitkPyError::runtime(format!("building a level: {error}"));
                 entry
                     .set_item("degree", level.observed.degree)
@@ -310,17 +310,17 @@ impl PyGraphMeasures {
     /// Neighbour count per node, in matrix-index order.
     fn degree<'py>(&self, py: Python<'py>) -> Bound<'py, PyArray1<u64>> {
         let values: Vec<u64> = self.inner.degree().iter().map(|d| *d as u64).collect();
-        PyArray1::from_vec_bound(py, values)
+        PyArray1::from_vec(py, values)
     }
 
     /// Summed incident weight per node.
     fn strength<'py>(&self, py: Python<'py>) -> Bound<'py, PyArray1<f64>> {
-        PyArray1::from_slice_bound(py, self.inner.strength())
+        PyArray1::from_slice(py, self.inner.strength())
     }
 
     /// Binary clustering coefficient per node.
     fn clustering<'py>(&self, py: Python<'py>) -> Bound<'py, PyArray1<f64>> {
-        PyArray1::from_slice_bound(py, self.inner.clustering())
+        PyArray1::from_slice(py, self.inner.clustering())
     }
 
     /// Onnela weighted clustering coefficient per node.
@@ -329,7 +329,7 @@ impl PyGraphMeasures {
     /// maximum weight, and separates a triangle closed by heavy edges from one
     /// closed by negligible ones — a distinction the binary form cannot make.
     fn weighted_clustering<'py>(&self, py: Python<'py>) -> Bound<'py, PyArray1<f64>> {
-        PyArray1::from_slice_bound(py, self.inner.weighted_clustering())
+        PyArray1::from_slice(py, self.inner.weighted_clustering())
     }
 
     /// Normalised betweenness centrality per node, in `[0, 1]`.
@@ -338,12 +338,12 @@ impl PyGraphMeasures {
     /// a node of modest degree bridging two otherwise separate modules carries
     /// enormous traffic, and degree does not see it.
     fn betweenness<'py>(&self, py: Python<'py>) -> Bound<'py, PyArray1<f64>> {
-        PyArray1::from_slice_bound(py, self.inner.betweenness())
+        PyArray1::from_slice(py, self.inner.betweenness())
     }
 
     /// Local efficiency per node.
     fn local_efficiency<'py>(&self, py: Python<'py>) -> Bound<'py, PyArray1<f64>> {
-        PyArray1::from_slice_bound(py, self.inner.local_efficiency())
+        PyArray1::from_slice(py, self.inner.local_efficiency())
     }
 
     /// Mean shortest-path length over reachable node pairs, or None when no
@@ -393,7 +393,7 @@ impl PyGraphMeasures {
             .iter()
             .map(|c| *c as u64)
             .collect();
-        PyArray1::from_vec_bound(py, values)
+        PyArray1::from_vec(py, values)
     }
 
     /// Modularity of the detected partition — the value achieved, not a bound.

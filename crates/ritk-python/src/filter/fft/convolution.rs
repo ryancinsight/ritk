@@ -28,7 +28,7 @@ pub fn fft_convolve(py: Python<'_>, image: &PyImage, kernel: &PyImage) -> RitkRe
     let img = Arc::clone(&image.inner);
     let kern = Arc::clone(&kernel.inner);
 
-    py.allow_threads(|| {
+    py.detach(|| {
         let kernel_shape = kern.shape();
         if kernel_shape[0] != 1 {
             return Err(RitkPyError::value(format!(
@@ -71,7 +71,7 @@ pub fn fft_convolve_3d(py: Python<'_>, volume: &PyImage, kernel: &PyImage) -> Ri
     let vol = Arc::clone(&volume.inner);
     let kern = Arc::clone(&kernel.inner);
 
-    py.allow_threads(|| {
+    py.detach(|| {
         let filter = FftConvolution3DFilter::<MoiraiBackend>::new(kern.as_ref())
             .map_err(|e| RitkPyError::runtime(e.to_string()))?;
         filter

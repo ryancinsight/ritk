@@ -9,7 +9,7 @@ use ritk_filter::{DiscreteGaussianFilter, GaussianFilter, RecursiveGaussianFilte
 use std::sync::Arc;
 
 /// Whether spatial filtering uses physical image spacing or voxel spacing.
-#[pyclass(eq, eq_int)]
+#[pyclass(from_py_object, eq, eq_int)]
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum PySpacingMode {
     Physical,
@@ -33,7 +33,7 @@ pub enum PySpacingMode {
 #[pyo3(signature = (image, sigma))]
 pub fn gaussian_filter(py: Python<'_>, image: &PyImage, sigma: f64) -> RitkResult<PyImage> {
     let native = Arc::clone(&image.inner);
-    py.allow_threads(|| {
+    py.detach(|| {
         let filter = GaussianFilter::<()>::new(vec![GaussianSigma::new_unchecked(sigma); 3]);
         filter
             .apply_native(native.as_ref(), &MoiraiBackend)
@@ -69,7 +69,7 @@ pub fn discrete_gaussian(
     spacing_mode: PySpacingMode,
 ) -> RitkResult<PyImage> {
     let native = Arc::clone(&image.inner);
-    py.allow_threads(|| {
+    py.detach(|| {
         let spacing_mode = match spacing_mode {
             PySpacingMode::Physical => ritk_filter::discrete_gaussian::SpacingMode::Physical,
             PySpacingMode::Voxel => ritk_filter::discrete_gaussian::SpacingMode::Voxel,
@@ -114,7 +114,7 @@ pub fn discrete_gaussian_derivative(
     let backend = MoiraiBackend;
     // sitk (x, y, z) → ritk axis-major (z, y, x).
     let order = [order_z, order_y, order_x];
-    py.allow_threads(|| {
+    py.detach(|| {
         ritk_filter::DiscreteGaussianDerivativeFilter::new(
             variance,
             order,
@@ -164,7 +164,7 @@ pub fn recursive_gaussian(
         }
     };
     let native = Arc::clone(&image.inner);
-    py.allow_threads(|| {
+    py.detach(|| {
         let filter = RecursiveGaussianFilter::new(sigma).with_derivative_order(derivative_order);
         filter
             .apply_native(native.as_ref(), &MoiraiBackend)
@@ -221,7 +221,7 @@ pub fn recursive_gaussian_directional(
         )));
     }
     let native = Arc::clone(&image.inner);
-    py.allow_threads(|| {
+    py.detach(|| {
         ritk_filter::recursive_gaussian::recursive_gaussian_directional(
             native.as_ref(),
             sigma,

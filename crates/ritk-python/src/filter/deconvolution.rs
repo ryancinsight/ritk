@@ -43,7 +43,7 @@ pub fn wiener_deconvolution(
     let img_ref = Arc::clone(&image.inner);
     let ker_ref = Arc::clone(&kernel.inner);
     let backend = MoiraiBackend;
-    let result = py.allow_threads(|| {
+    let result = py.detach(|| {
         WienerDeconvolution::new(noise_variance)
             .apply_native::<MoiraiBackend, 3>(img_ref.as_ref(), ker_ref.as_ref(), &backend)
             .map_err(|e| RitkPyError::runtime(e.to_string()))
@@ -77,7 +77,7 @@ pub fn tikhonov_deconvolution(
     let img_ref = Arc::clone(&image.inner);
     let ker_ref = Arc::clone(&kernel.inner);
     let backend = MoiraiBackend;
-    let result = py.allow_threads(|| {
+    let result = py.detach(|| {
         TikhonovDeconvolution::new(lambda)
             .apply_native::<MoiraiBackend, 3>(img_ref.as_ref(), ker_ref.as_ref(), &backend)
             .map_err(|e| RitkPyError::runtime(e.to_string()))
@@ -113,7 +113,7 @@ pub fn inverse_deconvolution(
     let img_ref = Arc::clone(&image.inner);
     let ker_ref = Arc::clone(&kernel.inner);
     let backend = MoiraiBackend;
-    let result = py.allow_threads(|| {
+    let result = py.detach(|| {
         InverseDeconvolution::new(kernel_zero_magnitude_threshold)
             .apply_native::<MoiraiBackend, 3>(img_ref.as_ref(), ker_ref.as_ref(), &backend)
             .map_err(|e| RitkPyError::runtime(e.to_string()))
@@ -152,7 +152,7 @@ pub fn richardson_lucy_deconvolution(
     let img_ref = Arc::clone(&image.inner);
     let ker_ref = Arc::clone(&kernel.inner);
     let backend = MoiraiBackend;
-    let result = py.allow_threads(|| {
+    let result = py.detach(|| {
         RichardsonLucyDeconvolution::new()
             .with_max_iterations(max_iterations)
             .with_tolerance(tolerance)
@@ -193,7 +193,7 @@ pub fn landweber_deconvolution(
     let img_ref = Arc::clone(&image.inner);
     let ker_ref = Arc::clone(&kernel.inner);
     let backend = MoiraiBackend;
-    let result = py.allow_threads(|| {
+    let result = py.detach(|| {
         LandweberDeconvolution::new()
             .with_step_size(step_size)
             .with_max_iterations(max_iterations)
@@ -232,7 +232,7 @@ pub fn projected_landweber_deconvolution(
     let img_ref = Arc::clone(&image.inner);
     let ker_ref = Arc::clone(&kernel.inner);
     let backend = MoiraiBackend;
-    let result = py.allow_threads(|| {
+    let result = py.detach(|| {
         LandweberDeconvolution::new()
             .with_step_size(step_size)
             .with_max_iterations(max_iterations)

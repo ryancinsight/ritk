@@ -7,7 +7,7 @@ macro_rules! unary_math_pyfn {
         pub fn $name(py: Python<'_>, image: &PyImage) -> RitkResult<PyImage> {
             let native = std::sync::Arc::clone(&image.inner);
             let backend = coeus_core::MoiraiBackend;
-            py.allow_threads(|| {
+            py.detach(|| {
                 $filter::new()
                     .apply_native(native.as_ref(), &backend)
                     .map_err(|e| RitkPyError::runtime(e.to_string()))
@@ -27,7 +27,7 @@ macro_rules! binary_pyfn {
             let a_native = std::sync::Arc::clone(&a.inner);
             let b_native = std::sync::Arc::clone(&b.inner);
             let backend = coeus_core::MoiraiBackend;
-            py.allow_threads(|| {
+            py.detach(|| {
                 $filter::new()
                     .apply_native(a_native.as_ref(), b_native.as_ref(), &backend)
                     .map_err(|e| RitkPyError::runtime(e.to_string()))
@@ -48,7 +48,7 @@ macro_rules! ternary_pyfn {
             let b_native = std::sync::Arc::clone(&b.inner);
             let c_native = std::sync::Arc::clone(&c.inner);
             let backend = coeus_core::MoiraiBackend;
-            py.allow_threads(|| {
+            py.detach(|| {
                 $filter::new()
                     .apply_native(
                         a_native.as_ref(),

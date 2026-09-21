@@ -45,7 +45,7 @@ pub fn resample_image(
     let mode = mode.to_string();
     let inner = Arc::clone(&image.inner);
 
-    py.allow_threads(move || -> Result<_, String> {
+    py.detach(move || -> Result<_, String> {
         let orig_dims = inner.shape();
         let orig_sp = *inner.spacing();
         let orig_orig = *inner.origin();

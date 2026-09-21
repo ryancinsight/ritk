@@ -68,7 +68,7 @@ use o_information::{dtc_slices, oi_slices};
 // ── module registration ───────────────────────────────────────────────────────
 
 pub fn register(parent: &Bound<'_, PyModule>) -> PyResult<()> {
-    let m = PyModule::new_bound(parent.py(), "metrics")?;
+    let m = PyModule::new(parent.py(), "metrics")?;
     m.add_function(wrap_pyfunction!(compute_entropy, &m)?)?;
     m.add_function(wrap_pyfunction!(compute_joint_entropy, &m)?)?;
     m.add_function(wrap_pyfunction!(compute_symmetric_uncertainty, &m)?)?;
@@ -102,6 +102,7 @@ mod tests {
     use std::sync::Arc;
 
     fn make_image(values: Vec<f32>, shape: [usize; 3]) -> PyImage {
+        Python::initialize();
         PyImage {
             inner: Arc::new(vec_to_image(
                 values,
@@ -115,25 +116,22 @@ mod tests {
 
     #[test]
     fn mse_rejects_shape_mismatch() {
-        pyo3::prepare_freethreaded_python();
         let a = make_image(vec![1.0, 2.0], [1, 1, 2]);
         let b = make_image(vec![1.0, 2.0, 3.0], [1, 1, 3]);
-        let err = Python::with_gil(|py| compute_mse(py, &a, &b)).unwrap_err();
+        let err = Python::attach(|py| compute_mse(py, &a, &b)).unwrap_err();
         assert!(err.to_string().contains("shape mismatch"));
     }
 
     #[test]
     fn ncc_rejects_shape_mismatch() {
-        pyo3::prepare_freethreaded_python();
         let a = make_image(vec![1.0, 2.0], [1, 1, 2]);
         let b = make_image(vec![1.0, 2.0, 3.0], [1, 1, 3]);
-        let err = Python::with_gil(|py| compute_ncc(py, &a, &b)).unwrap_err();
+        let err = Python::attach(|py| compute_ncc(py, &a, &b)).unwrap_err();
         assert!(err.to_string().contains("shape mismatch"));
     }
 
     #[test]
     fn mi_unknown_variant_errors() {
-        pyo3::prepare_freethreaded_python();
         let img = make_image(vec![1.0, 2.0, 3.0, 4.0], [1, 2, 2]);
         let err = compute_mutual_information(&img, &img, 32, "bogus").unwrap_err();
         assert!(err.to_string().contains("unknown variant"));
@@ -141,7 +139,7 @@ mod tests {
 
     #[test]
     fn total_correlation_empty_list_errors() {
-        pyo3::prepare_freethreaded_python();
+        Python::initialize();
         let tc = compute_total_correlation(vec![], 16).unwrap_err();
         assert!(
             tc.to_string().contains("empty"),
@@ -151,7 +149,6 @@ mod tests {
 
     #[test]
     fn vi_identical_images_is_zero_via_pyfunction() {
-        pyo3::prepare_freethreaded_python();
         let v: Vec<f32> = (0..64).map(|x| (x % 8) as f32).collect();
         let img = make_image(v, [4, 4, 4]);
         let vi = compute_variation_of_information(&img, &img, 8).unwrap();
@@ -160,7 +157,6 @@ mod tests {
 
     #[test]
     fn vi_rejects_shape_mismatch() {
-        pyo3::prepare_freethreaded_python();
         let a = make_image(vec![1.0, 2.0], [1, 1, 2]);
         let b = make_image(vec![1.0, 2.0, 3.0], [1, 1, 3]);
         let err = compute_variation_of_information(&a, &b, 8).unwrap_err();
@@ -169,7 +165,6 @@ mod tests {
 
     #[test]
     fn cmi_identical_images_is_nonnegative() {
-        pyo3::prepare_freethreaded_python();
         let v: Vec<f32> = (0..64).map(|x| (x % 8) as f32).collect();
         let img = make_image(v, [4, 4, 4]);
         let cmi = compute_conditional_mutual_information(&img, &img, &img, 8).unwrap();
@@ -178,7 +173,6 @@ mod tests {
 
     #[test]
     fn cmi_rejects_shape_mismatch() {
-        pyo3::prepare_freethreaded_python();
         let a = make_image(vec![1.0, 2.0], [1, 1, 2]);
         let b = make_image(vec![1.0, 2.0, 3.0], [1, 1, 3]);
         let err = compute_conditional_mutual_information(&a, &b, &a, 8).unwrap_err();
@@ -187,7 +181,6 @@ mod tests {
 
     #[test]
     fn ii_identical_is_positive() {
-        pyo3::prepare_freethreaded_python();
         let v: Vec<f32> = (0..64).map(|x| (x % 8) as f32).collect();
         let img = make_image(v, [4, 4, 4]);
         let ii = compute_interaction_information(&img, &img, &img, 8).unwrap();
@@ -196,7 +189,6 @@ mod tests {
 
     #[test]
     fn mvi_identical_images_is_zero() {
-        pyo3::prepare_freethreaded_python();
         let v: Vec<f32> = (0..64).map(|x| (x % 8) as f32).collect();
         let img = make_image(v, [4, 4, 4]);
         // PyRef requires Python object protocol — test via direct slice logic instead
@@ -212,7 +204,6 @@ mod tests {
 
     #[test]
     fn dtc_two_identical_images_non_negative() {
-        pyo3::prepare_freethreaded_python();
         let v: Vec<f32> = (0..64).map(|x| (x % 8) as f32).collect();
         let dtc = dtc_slices(&[v.as_slice(), v.as_slice()], 8).unwrap();
         assert!(dtc >= 0.0, "DTC must be ≥ 0, got {dtc}");
@@ -220,7 +211,6 @@ mod tests {
 
     #[test]
     fn oi_two_identical_images_is_zero() {
-        pyo3::prepare_freethreaded_python();
         let v: Vec<f32> = (0..64).map(|x| (x % 8) as f32).collect();
         let oi = oi_slices(&[v.as_slice(), v.as_slice()], 8).unwrap();
         assert!(oi.abs() < 1e-9, "Ω(X,X) must be 0 for n=2, got {oi}");
@@ -228,7 +218,6 @@ mod tests {
 
     #[test]
     fn entropy_nonconstant_image_is_positive() {
-        pyo3::prepare_freethreaded_python();
         let v: Vec<f32> = (0..64).map(|x| (x % 8) as f32).collect();
         let img = make_image(v, [4, 4, 4]);
         let h = compute_entropy(&img, 16).unwrap();
@@ -237,7 +226,6 @@ mod tests {
 
     #[test]
     fn joint_entropy_geq_marginal_via_pyfunction() {
-        pyo3::prepare_freethreaded_python();
         let v: Vec<f32> = (0..64).map(|x| (x % 8) as f32).collect();
         let w: Vec<f32> = (0..64).map(|x| ((x / 8) % 8) as f32).collect();
         let img_v = make_image(v, [4, 4, 4]);
@@ -252,7 +240,6 @@ mod tests {
 
     #[test]
     fn symmetric_uncertainty_self_is_one_via_pyfunction() {
-        pyo3::prepare_freethreaded_python();
         let v: Vec<f32> = (0..64).map(|x| (x % 8) as f32).collect();
         let img = make_image(v, [4, 4, 4]);
         let su = compute_symmetric_uncertainty(&img, &img, 16).unwrap();

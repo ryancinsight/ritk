@@ -20,8 +20,10 @@ pub enum PyDistanceMetric {
     Squared,
 }
 
-impl<'py> FromPyObject<'py> for PyDistanceMetric {
-    fn extract_bound(ob: &pyo3::Bound<'py, PyAny>) -> PyResult<Self> {
+impl<'a, 'py> FromPyObject<'a, 'py> for PyDistanceMetric {
+    type Error = PyErr;
+
+    fn extract(ob: Borrowed<'a, 'py, PyAny>) -> PyResult<Self> {
         let s: String = ob.extract()?;
         match s.to_lowercase().as_str() {
             "euclidean" => Ok(Self::Euclidean),
@@ -68,7 +70,7 @@ pub fn distance_transform(
         PyDistanceMetric::Squared => DistanceMeasure::Squared,
     };
     let threshold = BinarizationThreshold::new(foreground_threshold).map_err(RitkPyError::value)?;
-    let result = py.allow_threads(|| {
+    let result = py.detach(|| {
         DistanceTransformImageFilter::new()
             .with_threshold(threshold)
             .with_measure(measure)
@@ -99,7 +101,7 @@ pub fn signed_distance_map(
     let native = Arc::clone(&image.inner);
     let backend = MoiraiBackend;
     let threshold = BinarizationThreshold::new(foreground_threshold).map_err(RitkPyError::value)?;
-    py.allow_threads(|| {
+    py.detach(|| {
         SignedDistanceTransformImageFilter::new()
             .with_threshold(threshold)
             .apply_native(native.as_ref(), &backend)
@@ -133,7 +135,7 @@ pub fn signed_maurer_distance_map(
 ) -> RitkResult<PyImage> {
     let native = Arc::clone(&image.inner);
     let backend = MoiraiBackend;
-    py.allow_threads(|| {
+    py.detach(|| {
         SignedMaurerDistanceMapImageFilter {
             background_value,
             inside_is_positive,

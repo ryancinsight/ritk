@@ -38,7 +38,7 @@ pub fn canny_edge_detect(
 ) -> RitkResult<PyImage> {
     let native = Arc::clone(&image.inner);
     let backend = MoiraiBackend;
-    py.allow_threads(|| {
+    py.detach(|| {
         let filter = CannyEdgeDetector::new(
             GaussianSigma::new_unchecked(sigma),
             low_threshold,
@@ -81,7 +81,7 @@ pub fn canny_edge_detection(
 ) -> RitkResult<PyImage> {
     let native = Arc::clone(&image.inner);
     let backend = MoiraiBackend;
-    py.allow_threads(|| {
+    py.detach(|| {
         CannyEdgeDetectionImageFilter {
             variance,
             maximum_error,
@@ -115,7 +115,7 @@ pub fn canny_edge_detection(
 pub fn laplacian_of_gaussian(py: Python<'_>, image: &PyImage, sigma: f64) -> RitkResult<PyImage> {
     let native = Arc::clone(&image.inner);
     let backend = MoiraiBackend;
-    py.allow_threads(|| {
+    py.detach(|| {
         let filter = LaplacianOfGaussianFilter::new(GaussianSigma::new_unchecked(sigma));
         filter
             .apply_native(native.as_ref(), &backend)
@@ -166,7 +166,7 @@ pub fn canny_segmentation_level_set(
     let init_native = Arc::clone(&initial_level_set.inner);
     let feat_native = Arc::clone(&feature_image.inner);
     let backend = MoiraiBackend;
-    py.allow_threads(|| {
+    py.detach(|| {
         CannySegmentationLevelSet {
             canny_threshold: threshold,
             canny_variance: variance,

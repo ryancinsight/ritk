@@ -116,7 +116,7 @@ impl PyParcellation {
 
     /// The label volume, as a `[Z, Y, X]` array.
     fn labels<'py>(&self, py: Python<'py>) -> RitkResult<Bound<'py, PyArray3<u32>>> {
-        PyArray1::<u32>::from_slice_bound(py, self.inner.labels())
+        PyArray1::<u32>::from_slice(py, self.inner.labels())
             .reshape(self.shape)
             .map_err(|error| RitkPyError::runtime(format!("reshaping the labels: {error}")))
     }
@@ -170,7 +170,7 @@ fn statistics_to_dict<'py>(
     py: Python<'py>,
     statistics: &RegionStatistics,
 ) -> RitkResult<Bound<'py, PyDict>> {
-    let entry = PyDict::new_bound(py);
+    let entry = PyDict::new(py);
     let map = |error: PyErr| RitkPyError::runtime(format!("building a statistics entry: {error}"));
     entry.set_item("label", statistics.label()).map_err(map)?;
     entry

@@ -1,9 +1,4 @@
 //! Python bindings for per-label overlap measures.
-#![expect(
-    clippy::useless_conversion,
-    reason = "PyResult<T> is a type alias for Result<T, PyErr>, so the `?` conversion clippy flags inside the #[pyfunction] expansion is the identity"
-)]
-
 use crate::image::{with_image_slice, PyImage};
 use pyo3::prelude::*;
 use pyo3::types::{PyDict, PyList};
@@ -39,9 +34,9 @@ pub fn label_overlap_measures(
             label_overlap_measures_from_slices(pred_slice, gt_slice)
         })
     });
-    let list = PyList::empty_bound(py);
+    let list = PyList::empty(py);
     for m in &measures {
-        let dict = PyDict::new_bound(py);
+        let dict = PyDict::new(py);
         dict.set_item("label", m.label)?;
         dict.set_item("dice", m.dice)?;
         dict.set_item("jaccard", m.jaccard)?;

@@ -6,7 +6,7 @@ use ritk_registration::diffeomorphic::bspline_syn::{BSplineSyNConfig, BSplineSyN
 use super::py_convert::{load_matching_inputs, to_py_pair};
 
 /// Configuration options for [`bspline_syn_register`].
-#[pyclass(name = "BSplineSynOptions")]
+#[pyclass(from_py_object, name = "BSplineSynOptions")]
 #[derive(Clone)]
 pub struct PyBSplineSynOptions {
     #[pyo3(get, set)]
@@ -91,7 +91,7 @@ pub fn bspline_syn_register(
     let opts = opts.unwrap_or_default();
     let inputs = load_matching_inputs(fixed, moving)?;
 
-    py.allow_threads(|| {
+    py.detach(|| {
         let config = BSplineSyNConfig {
             max_iterations: opts.max_iterations,
             control_spacing: [

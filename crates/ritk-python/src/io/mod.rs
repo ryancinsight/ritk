@@ -64,7 +64,7 @@ pub fn read_image(
 ) -> RitkResult<PyImage> {
     let path_owned = path.to_string();
     let series_instance_uid = series_instance_uid.map(str::to_owned);
-    py.allow_threads(move || {
+    py.detach(move || {
         let p = Path::new(&path_owned);
         let native = match series_instance_uid.as_deref() {
             Some(uid) => ritk_io::read_native_dicom_series_with_uid(
@@ -93,7 +93,7 @@ pub fn read_image(
 pub fn write_image(py: Python<'_>, image: &PyImage, path: &str) -> RitkResult<()> {
     let native = py_image_to_native(image)?;
     let path_owned = path.to_string();
-    py.allow_threads(move || {
+    py.detach(move || {
         ritk_io::write_image_native(&path_owned, &native)
             .map_err(io_err("native image write error"))
     })
@@ -104,7 +104,7 @@ pub fn write_image(py: Python<'_>, image: &PyImage, path: &str) -> RitkResult<()
 /// Register the `io` submodule with image I/O, mesh I/O, transform I/O,
 /// and DICOM anonymization functions.
 pub fn register(parent: &Bound<'_, PyModule>) -> PyResult<()> {
-    let m = PyModule::new_bound(parent.py(), "io")?;
+    let m = PyModule::new(parent.py(), "io")?;
     m.add_class::<PyMesh>()?;
     m.add_function(wrap_pyfunction!(read_image, &m)?)?;
     m.add_function(wrap_pyfunction!(write_image, &m)?)?;

@@ -20,7 +20,7 @@ use ritk_statistics::{
 /// Convert [`ImageStatistics`] to a Python dict with keys:
 /// `min`, `max`, `mean`, `std`, `p25`, `p50`, `p75`.
 pub(super) fn stats_to_dict(py: Python<'_>, stats: &ImageStatistics) -> RitkResult<Py<PyDict>> {
-    let dict = PyDict::new_bound(py);
+    let dict = PyDict::new(py);
     dict.set_item("min", stats.min)?;
     dict.set_item("max", stats.max)?;
     dict.set_item("mean", stats.mean)?;
@@ -124,7 +124,7 @@ pub fn dice_coefficient(image1: &PyImage, image2: &PyImage) -> RitkResult<f32> {
 pub fn similarity_index(py: Python<'_>, image1: &PyImage, image2: &PyImage) -> RitkResult<f32> {
     let arc1 = image_from_py(image1);
     let arc2 = image_from_py(image2);
-    py.allow_threads(|| core_similarity_index(&arc1, &arc2))
+    py.detach(|| core_similarity_index(&arc1, &arc2))
         .map_err(RitkPyError::value)
 }
 
@@ -145,7 +145,7 @@ pub fn hausdorff_distance(py: Python<'_>, image1: &PyImage, image2: &PyImage) ->
     let spacing: [f64; 3] = [sp[0], sp[1], sp[2]];
     let arc1 = image_from_py(image1);
     let arc2 = image_from_py(image2);
-    py.allow_threads(|| core_hausdorff_distance(&arc1, &arc2, &spacing))
+    py.detach(|| core_hausdorff_distance(&arc1, &arc2, &spacing))
 }
 
 /// Compute the symmetric mean surface distance between two binary masks.
@@ -165,7 +165,7 @@ pub fn mean_surface_distance(py: Python<'_>, image1: &PyImage, image2: &PyImage)
     let spacing: [f64; 3] = [sp[0], sp[1], sp[2]];
     let arc1 = image_from_py(image1);
     let arc2 = image_from_py(image2);
-    py.allow_threads(|| core_mean_surface_distance(&arc1, &arc2, &spacing))
+    py.detach(|| core_mean_surface_distance(&arc1, &arc2, &spacing))
 }
 
 /// Compute the Peak Signal-to-Noise Ratio between two images.
@@ -266,9 +266,9 @@ pub fn compute_label_intensity_statistics(
             core_label_intensity_stats_from_slices(label_slice, intensity_slice, ddof)
         })
     });
-    let list = PyList::empty_bound(py);
+    let list = PyList::empty(py);
     for s in &stats {
-        let dict = PyDict::new_bound(py);
+        let dict = PyDict::new(py);
         dict.set_item("label", s.label)?;
         dict.set_item("count", s.count)?;
         dict.set_item("min", s.min)?;

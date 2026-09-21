@@ -100,11 +100,10 @@
       tests; run focused native gates and capture the saved public DICOM study
       through Métis (1280 × 800, 359,857 non-black pixels, SHA-256
       `8082cea87348126ce5a07cacb602bf71081747881481d2062bb1f2c7314113d3`).
-- [x] Exercise Windows folder selection through actual input injection with
-      the saved public MRI-DIR T2 study, capture its three RITK planes, compare
-      the picker PNG byte-for-byte with explicit-path capture, and cancel a
-      third pathless launch. [Evidence](docs/manual/images/dicom-metis-real-mri.json)
-      records exit codes 0/0/1 and the actual interactive window.
+- [x] Exercise Windows folder selection through actual input injection with the
+      saved public MRI-DIR T2 study; [evidence](docs/manual/images/dicom-metis-real-mri.json)
+      records the 0/0/1 exits, byte comparison, and interactive window.
+- [x] Exercise scalar multi-frame and RGB studies through the real Windows Métis shell; client non-black counts 614,751/561,317 and HWND 1298 × 847 at 120 DPI exit 0. [Evidence](docs/manual/images/dicom-metis-synthetic-native.json)
 
 ## FIX-DTI-VOLUME-FRAME [major][arch] — Preserve diffusion coordinate frames
 

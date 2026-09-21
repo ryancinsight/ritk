@@ -23,7 +23,7 @@ use ritk_segmentation::{
 #[pyfunction]
 pub fn toboggan(py: Python<'_>, image: &PyImage) -> RitkResult<PyImage> {
     let image = py_image_to_native(image)?;
-    py.allow_threads(|| {
+    py.detach(|| {
         TobogganFilter::new()
             .apply_native(&image, &SequentialBackend)
             .map_err(|error| RitkPyError::value(error.to_string()))
@@ -51,7 +51,7 @@ pub fn morphological_watershed(py: Python<'_>, image: &PyImage, level: f32) -> R
     let image = py_image_to_native(image)?;
     let filter = MorphologicalWatershed::new(level)
         .map_err(|error| RitkPyError::value(error.to_string()))?;
-    py.allow_threads(|| {
+    py.detach(|| {
         filter
             .apply_native(&image, &SequentialBackend)
             .map_err(|error| RitkPyError::value(error.to_string()))
@@ -73,7 +73,7 @@ pub fn morphological_watershed(py: Python<'_>, image: &PyImage, level: f32) -> R
 #[pyfunction]
 pub fn watershed_segment(py: Python<'_>, image: &PyImage) -> RitkResult<PyImage> {
     let image = py_image_to_native(image)?;
-    py.allow_threads(|| {
+    py.detach(|| {
         let seg = WatershedSegmentation::new();
         seg.apply_native(&image, &SequentialBackend)
             .map_err(|e| RitkPyError::value(e.to_string()))
@@ -125,7 +125,7 @@ pub fn marker_watershed_segment(
     } else {
         WatershedLinePolicy::Omit
     };
-    let result = py.allow_threads(|| {
+    let result = py.detach(|| {
         MarkerControlledWatershed::new()
             .with_connectivity(connectivity)
             .with_watershed_lines(watershed_lines)

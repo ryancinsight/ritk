@@ -35,7 +35,7 @@ pub fn fft_normalized_correlate(
     let img = Arc::clone(&image.inner);
     let tmpl = Arc::clone(&template.inner);
 
-    py.allow_threads(|| {
+    py.detach(|| {
         let tmpl_shape = tmpl.shape();
         if tmpl_shape[0] != 1 {
             return Err(RitkPyError::value(format!(
@@ -82,7 +82,7 @@ pub fn fft_normalized_correlate_3d(
     let vol = Arc::clone(&volume.inner);
     let tmpl = Arc::clone(&template.inner);
 
-    py.allow_threads(|| {
+    py.detach(|| {
         let filter = FftNormalizedCorrelation3DFilter::<MoiraiBackend>::new(tmpl.as_ref())
             .map_err(|e| RitkPyError::runtime(e.to_string()))?;
         filter
@@ -103,7 +103,7 @@ pub fn normalized_correlation(
     let img = Arc::clone(&image.inner);
     let msk = Arc::clone(&mask.inner);
     let tpl = Arc::clone(&template.inner);
-    py.allow_threads(|| {
+    py.detach(|| {
         core_normalized_correlation(img.as_ref(), msk.as_ref(), tpl.as_ref())
             .map_err(|e| RitkPyError::runtime(e.to_string()))
     })
@@ -128,7 +128,7 @@ pub fn masked_fft_normalized_correlation(
     let fm = Arc::clone(&fixed_mask.inner);
     let mm = Arc::clone(&moving_mask.inner);
     let backend = MoiraiBackend;
-    py.allow_threads(|| {
+    py.detach(|| {
         ritk_filter::MaskedFftNormalizedCorrelationFilter {
             required_number_of_overlapping_pixels,
             required_fraction_of_overlapping_pixels,

@@ -31,8 +31,23 @@ Install the wheel selected for the current interpreter:
 python -m pip install --force-reinstall --no-index --find-links dist ritk
 ```
 
-The release workflow builds the `abi3-py39` wheel matrix and publishes through
-GitHub Actions OIDC Trusted Publishing. It stores no PyPI token or private key.
+The release workflow builds the `abi3-py39` wheel matrix and the `abi3t` stable
+free-threaded wheel, then publishes through GitHub Actions OIDC Trusted
+Publishing. It stores no PyPI token or private key.
+
+## Free-threaded CPython
+
+The `abi3t` feature targets CPython 3.15t and declares `gil_used = false` at
+the module boundary. Build it with:
+
+```sh
+python -m maturin build --release --locked --features abi3t \
+  --manifest-path crates/ritk-python/Cargo.toml --out dist
+```
+
+`test_free_threaded.py` runs the value-semantic image contract on a
+free-threaded interpreter. The test is skipped on GIL-enabled CPython because
+it cannot establish the free-threaded contract there.
 
 ## Running Tests
 

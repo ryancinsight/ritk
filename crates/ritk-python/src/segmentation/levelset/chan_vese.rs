@@ -6,7 +6,7 @@ use pyo3::prelude::*;
 use ritk_segmentation::ChanVeseSegmentation;
 
 /// Configuration options for [`chan_vese_segment`].
-#[pyclass(name = "ChanVeseOptions")]
+#[pyclass(from_py_object, name = "ChanVeseOptions")]
 #[derive(Clone)]
 pub struct PyChanVeseOptions {
     /// Curvature (length) penalty weight.
@@ -78,7 +78,7 @@ pub fn chan_vese_segment(
 ) -> RitkResult<PyImage> {
     let opts = opts.unwrap_or_else(|| PyChanVeseOptions::new(0.25, 0.0, 1.0, 1.0, 200, 0.1, 1e-3));
     let image_arc = image_from_py(image);
-    py.allow_threads(|| {
+    py.detach(|| {
         let mut seg = ChanVeseSegmentation::new();
         seg.mu = opts.mu;
         seg.nu = opts.nu;

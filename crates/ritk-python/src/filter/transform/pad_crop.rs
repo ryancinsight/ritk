@@ -23,7 +23,7 @@ pub fn constant_pad(
     let backend = MoiraiBackend;
     let lo = Padding([lower.0, lower.1, lower.2]);
     let up = Padding([upper.0, upper.1, upper.2]);
-    py.allow_threads(|| {
+    py.detach(|| {
         ConstantPadImageFilter::new(lo, up, constant)
             .apply_native(native.as_ref(), &backend)
             .map_err(|e| RitkPyError::runtime(e.to_string()))
@@ -45,7 +45,7 @@ pub fn mirror_pad(
     let backend = MoiraiBackend;
     let lo = Padding([lower.0, lower.1, lower.2]);
     let up = Padding([upper.0, upper.1, upper.2]);
-    py.allow_threads(|| {
+    py.detach(|| {
         MirrorPadImageFilter::new(lo, up)
             .apply_native(native.as_ref(), &backend)
             .map_err(|e| RitkPyError::runtime(e.to_string()))
@@ -67,7 +67,7 @@ pub fn wrap_pad(
     let backend = MoiraiBackend;
     let lo = Padding([lower.0, lower.1, lower.2]);
     let up = Padding([upper.0, upper.1, upper.2]);
-    py.allow_threads(|| {
+    py.detach(|| {
         WrapPadImageFilter::new(lo, up)
             .apply_native(native.as_ref(), &backend)
             .map_err(|e| RitkPyError::runtime(e.to_string()))
@@ -89,7 +89,7 @@ pub fn zero_flux_neumann_pad(
     let backend = MoiraiBackend;
     let lo = Padding([lower.0, lower.1, lower.2]);
     let up = Padding([upper.0, upper.1, upper.2]);
-    py.allow_threads(|| {
+    py.detach(|| {
         ZeroFluxNeumannPadImageFilter::new(lo, up)
             .apply_native(native.as_ref(), &backend)
             .map_err(|e| RitkPyError::runtime(e.to_string()))
@@ -121,7 +121,7 @@ pub fn fft_pad(
             )))
         }
     };
-    py.allow_threads(|| {
+    py.detach(|| {
         FftPadImageFilter::new(max_prime, bc)
             .apply_native(native.as_ref(), &backend)
             .map_err(|e| RitkPyError::runtime(e.to_string()))
@@ -156,7 +156,7 @@ pub fn crop(
     let size = [nz - lower.0 - uz, ny - lower.1 - uy, nx - lower.2 - ux];
     let native = Arc::clone(&image.inner);
     let backend = MoiraiBackend;
-    py.allow_threads(|| {
+    py.detach(|| {
         RegionOfInterestImageFilter::new(start, size)
             .apply_native(native.as_ref(), &backend)
             .map_err(|e| RitkPyError::runtime(e.to_string()))
@@ -176,7 +176,7 @@ pub fn region_of_interest(
 ) -> RitkResult<PyImage> {
     let native = Arc::clone(&image.inner);
     let backend = MoiraiBackend;
-    py.allow_threads(|| {
+    py.detach(|| {
         RegionOfInterestImageFilter::new([start.0, start.1, start.2], [size.0, size.1, size.2])
             .apply_native(native.as_ref(), &backend)
             .map_err(|e| RitkPyError::runtime(e.to_string()))

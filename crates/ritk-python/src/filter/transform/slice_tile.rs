@@ -41,7 +41,7 @@ pub fn slice_image(
             "slice: empty result (check start/stop/step)".to_string(),
         ));
     }
-    let out = py.allow_threads(|| {
+    let out = py.detach(|| {
         with_image_slice(arc.as_ref(), |data| {
             let mut out = vec![0.0_f32; oz * oy * ox];
             for (a, &z) in zi.iter().enumerate() {
@@ -95,7 +95,7 @@ pub fn checker_board(
         )));
     }
     let (px, py_, pz) = pattern; // sitk x, y, z cells
-    let out = py.allow_threads(|| {
+    let out = py.detach(|| {
         with_image_slice(a.as_ref(), |da| {
             with_image_slice(b.as_ref(), |db| {
                 let mut out = vec![0.0_f32; nz * ny * nx];
@@ -161,7 +161,7 @@ pub fn tile(
     }
     // Output grid: nz tiles in z, ny in y, nx in x.
     let (oz, oy, ox) = (nz * hz, ny * hy, nx * hx);
-    let out = py.allow_threads(|| {
+    let out = py.detach(|| {
         let mut out = vec![default_value; oz * oy * ox];
         for (i, a) in arcs.iter().enumerate() {
             let tz = i / (nx * ny);
@@ -236,7 +236,7 @@ pub fn paste(
     let d = std::sync::Arc::clone(&dest.inner);
     let s = std::sync::Arc::clone(&source.inner);
     let backend = MoiraiBackend;
-    py.allow_threads(|| {
+    py.detach(|| {
         PasteImageFilter::new([dest_start.0, dest_start.1, dest_start.2])
             .apply_native(d.as_ref(), s.as_ref(), &backend)
             .map_err(|e| RitkPyError::runtime(e.to_string()))

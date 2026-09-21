@@ -46,12 +46,12 @@ pub fn extended_label_shape_statistics_py(
 ) -> RitkResult<Py<PyList>> {
     let image = label_image.inner.clone();
     let stats = py
-        .allow_threads(|| compute_label_shape_statistics_extended(image.as_ref()))
+        .detach(|| compute_label_shape_statistics_extended(image.as_ref()))
         .map_err(|error| RitkPyError::runtime(error.to_string()))?;
 
-    let list = PyList::empty_bound(py);
+    let list = PyList::empty(py);
     for s in &stats {
-        let dict = PyDict::new_bound(py);
+        let dict = PyDict::new(py);
         dict.set_item("label", s.label)?;
         dict.set_item("count", s.count)?;
         dict.set_item("perimeter", s.perimeter)?;

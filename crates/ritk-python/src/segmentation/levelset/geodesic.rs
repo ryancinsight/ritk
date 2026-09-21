@@ -7,7 +7,7 @@ use ritk_filter::edge::GaussianSigma;
 use ritk_segmentation::GeodesicActiveContourSegmentation;
 
 /// Configuration options for [`geodesic_active_contour_segment`].
-#[pyclass(name = "GeodesicActiveContourOptions")]
+#[pyclass(from_py_object, name = "GeodesicActiveContourOptions")]
 #[derive(Clone)]
 pub struct PyGacOptions {
     /// Balloon force ν (expansion if > 0).
@@ -86,7 +86,7 @@ pub fn geodesic_active_contour_segment(
     let opts = opts.unwrap_or_else(|| PyGacOptions::new(1.0, 1.0, 1.0, 1.0, 1.0, 0.05, 200));
     let image_arc = image_from_py(image);
     let phi_arc = image_from_py(initial_phi);
-    py.allow_threads(|| {
+    py.detach(|| {
         let mut seg = GeodesicActiveContourSegmentation::new();
         seg.propagation_weight = opts.propagation_weight;
         seg.curvature_weight = opts.curvature_weight;

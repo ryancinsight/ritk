@@ -27,7 +27,7 @@ use std::sync::Arc;
 pub fn fft_ideal_low_pass(py: Python<'_>, image: &PyImage, cutoff: f64) -> RitkResult<PyImage> {
     let img = Arc::clone(&image.inner);
     let backend = MoiraiBackend;
-    py.allow_threads(|| {
+    py.detach(|| {
         FrequencyDomainFilter::new()
             .apply_native(
                 img.as_ref(),
@@ -61,7 +61,7 @@ pub fn fft_ideal_low_pass(py: Python<'_>, image: &PyImage, cutoff: f64) -> RitkR
 pub fn fft_ideal_high_pass(py: Python<'_>, image: &PyImage, cutoff: f64) -> RitkResult<PyImage> {
     let img = Arc::clone(&image.inner);
     let backend = MoiraiBackend;
-    py.allow_threads(|| {
+    py.detach(|| {
         FrequencyDomainFilter::new()
             .apply_native(
                 img.as_ref(),
@@ -101,7 +101,7 @@ pub fn fft_butterworth_low_pass(
 ) -> RitkResult<PyImage> {
     let img = Arc::clone(&image.inner);
     let backend = MoiraiBackend;
-    py.allow_threads(|| {
+    py.detach(|| {
         FrequencyDomainFilter::new()
             .apply_native(
                 img.as_ref(),
@@ -141,7 +141,7 @@ pub fn fft_butterworth_high_pass(
 ) -> RitkResult<PyImage> {
     let img = Arc::clone(&image.inner);
     let backend = MoiraiBackend;
-    py.allow_threads(|| {
+    py.detach(|| {
         FrequencyDomainFilter::new()
             .apply_native(
                 img.as_ref(),

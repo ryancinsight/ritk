@@ -60,7 +60,7 @@ pub fn slic(
         .map_err(|error| RitkPyError::value(error.to_string()))?;
     let image = py_image_to_native(image)?;
     let output = py
-        .allow_threads(|| ItkSlicFilter::new(config).apply_native(&image, &SequentialBackend))
+        .detach(|| ItkSlicFilter::new(config).apply_native(&image, &SequentialBackend))
         .map_err(|error| RitkPyError::value(error.to_string()))?;
     Ok(native_into_py_image(output))
 }
@@ -101,9 +101,7 @@ pub fn slic_superpixel(
         .map_err(|error| RitkPyError::value(error.to_string()))?;
     let image = py_image_to_native(image)?;
     let result = py
-        .allow_threads(|| {
-            SlicSuperpixelFilter::new(config).apply_native(&image, &SequentialBackend)
-        })
+        .detach(|| SlicSuperpixelFilter::new(config).apply_native(&image, &SequentialBackend))
         .map_err(|error| RitkPyError::value(error.to_string()))?;
     Ok(native_into_py_image(result))
 }

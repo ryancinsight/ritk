@@ -44,7 +44,7 @@ pub fn connected_components(
         } else {
             SegConnectivity::TwentySix
         };
-        py.allow_threads(|| core_connected_components(&mask, seg_conn))
+        py.detach(|| core_connected_components(&mask, seg_conn))
     };
     Ok((into_py_image(label_image), num_components))
 }
@@ -74,7 +74,7 @@ pub fn scalar_connected_component(
         )));
     }
     let arc = Arc::clone(&image.inner);
-    let out = py.allow_threads(|| {
+    let out = py.detach(|| {
         let dims = arc.shape();
         let vals = with_image_slice(arc.as_ref(), |slice| slice.to_vec());
         let labels =
@@ -117,7 +117,7 @@ pub fn vector_connected_component(
     }
     let channel_images: Vec<_> = channels.iter().map(|p| image_from_py(p)).collect();
     let conn = if fully_connected { 26 } else { 6 };
-    let out = py.allow_threads(|| {
+    let out = py.detach(|| {
         let refs: Vec<_> = channel_images.iter().collect();
         core_vector_connected_components(&refs, distance_threshold, conn)
     });
@@ -147,7 +147,7 @@ pub fn threshold_maximum_connected_components(
     upper_boundary: Option<i64>,
 ) -> PyImage {
     let img = image_from_py(image);
-    let out = py.allow_threads(|| {
+    let out = py.detach(|| {
         ThresholdMaximumConnectedComponentsFilter {
             minimum_object_size,
             upper_boundary,

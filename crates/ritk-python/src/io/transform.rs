@@ -11,13 +11,13 @@ use ritk_transform::composition::io::{CompositeTransform, TransformDescription};
 ///
 /// Returns a dict with keys `"dimensionality"`, `"description"`, `"transforms"`.
 #[pyfunction]
-pub fn read_transform(py: Python<'_>, path: &str) -> RitkResult<PyObject> {
+pub fn read_transform(py: Python<'_>, path: &str) -> RitkResult<Py<PyAny>> {
     let composite = CompositeTransform::load_json(path)
         .map_err(|e| RitkPyError::io(format!("Transform read error: {e}")))?;
 
-    let transforms_list = PyList::empty_bound(py);
+    let transforms_list = PyList::empty(py);
     for t in &composite.transforms {
-        let d = PyDict::new_bound(py);
+        let d = PyDict::new(py);
         match t {
             TransformDescription::Translation { offset } => {
                 d.set_item("type", "translation")?;
@@ -63,11 +63,11 @@ pub fn read_transform(py: Python<'_>, path: &str) -> RitkResult<PyObject> {
         transforms_list.append(d)?;
     }
 
-    let result = PyDict::new_bound(py);
+    let result = PyDict::new(py);
     result.set_item("dimensionality", composite.dimensionality)?;
     result.set_item("description", &composite.description)?;
     result.set_item("transforms", transforms_list)?;
-    Ok(result.into())
+    Ok(result.into_any().unbind())
 }
 
 // ── write_transform ───────────────────────────────────────────────────────────
@@ -79,7 +79,7 @@ pub fn write_transform(
     py: Python<'_>,
     path: &str,
     dimensionality: usize,
-    transforms: Vec<PyObject>,
+    transforms: Vec<Py<PyAny>>,
     description: &str,
 ) -> RitkResult<()> {
     let mut composite = CompositeTransform::new(dimensionality);
@@ -87,7 +87,8 @@ pub fn write_transform(
 
     for obj in &transforms {
         let dict = obj
-            .downcast_bound::<PyDict>(py)
+            .bind(py)
+            .cast::<PyDict>()
             .map_err(|_| RitkPyError::io("each transform must be a dict"))?;
 
         let type_str: String = dict

@@ -80,7 +80,7 @@ pub fn anisotropic_diffusion(
     let kind = PyConductanceKind::from(conductance_kind);
     let image = Arc::clone(&image.inner);
     let backend = MoiraiBackend;
-    py.allow_threads(|| match kind {
+    py.detach(|| match kind {
         // ITK-exact gradient anisotropic diffusion (matches SimpleITK).
         PyConductanceKind::Exponential => {
             GradientAnisotropicDiffusionFilter::new(GradientDiffusionConfig {
@@ -133,7 +133,7 @@ pub fn curvature_anisotropic_diffusion(
 ) -> RitkResult<PyImage> {
     let image = Arc::clone(&image.inner);
     let backend = MoiraiBackend;
-    py.allow_threads(|| {
+    py.detach(|| {
         let filter = CurvatureAnisotropicDiffusionFilter::new(CurvatureConfig {
             num_iterations: iterations,
             time_step: time_step as f32,
@@ -158,7 +158,7 @@ pub fn curvature_flow(
 ) -> RitkResult<PyImage> {
     let image = Arc::clone(&image.inner);
     let backend = MoiraiBackend;
-    py.allow_threads(|| {
+    py.detach(|| {
         CurvatureFlowImageFilter::new(CurvatureFlowConfig {
             num_iterations: iterations,
             time_step: time_step as f32,
@@ -184,7 +184,7 @@ pub fn min_max_curvature_flow(
 ) -> RitkResult<PyImage> {
     let image = Arc::clone(&image.inner);
     let backend = MoiraiBackend;
-    py.allow_threads(|| {
+    py.detach(|| {
         MinMaxCurvatureFlowImageFilter::new(MinMaxCurvatureFlowConfig {
             num_iterations: iterations,
             time_step: time_step as f32,
@@ -211,7 +211,7 @@ pub fn binary_min_max_curvature_flow(
 ) -> RitkResult<PyImage> {
     let image = Arc::clone(&image.inner);
     let backend = MoiraiBackend;
-    py.allow_threads(|| {
+    py.detach(|| {
         BinaryMinMaxCurvatureFlowImageFilter::new(BinaryMinMaxCurvatureFlowConfig {
             num_iterations: iterations,
             time_step: time_step as f32,
@@ -256,7 +256,7 @@ pub fn coherence_enhancing_diffusion(
 ) -> RitkResult<PyImage> {
     let image = Arc::clone(&image.inner);
     let backend = MoiraiBackend;
-    py.allow_threads(|| {
+    py.detach(|| {
         let config = CoherenceConfig {
             sigma: GaussianSigma::new_unchecked(sigma),
             contrast,
@@ -301,7 +301,7 @@ pub fn anti_alias_binary(
 ) -> RitkResult<PyImage> {
     let arc = Arc::clone(&image.inner);
     let backend = MoiraiBackend;
-    py.allow_threads(|| {
+    py.detach(|| {
         AntiAliasBinaryImageFilter {
             max_rms_error,
             number_of_iterations,
@@ -352,7 +352,7 @@ pub fn scalar_chan_and_vese_dense_level_set(
     let arc_init = Arc::clone(&initial_level_set.inner);
     let arc_feat = Arc::clone(&feature_image.inner);
     let backend = MoiraiBackend;
-    let result = py.allow_threads(|| {
+    let result = py.detach(|| {
         ScalarChanAndVeseDenseLevelSet {
             number_of_iterations,
             lambda1,

@@ -169,7 +169,7 @@ pub fn complex_to_phase(image: &PyImage) -> RitkResult<PyImage> {
 pub fn forward_fft(py: Python<'_>, image: &PyImage) -> RitkResult<PyImage> {
     let image = Arc::clone(&image.inner);
     let backend = MoiraiBackend;
-    py.allow_threads(|| {
+    py.detach(|| {
         ForwardFftFilter::new()
             .apply_native(image.as_ref(), &backend)
             .map_err(|e| RitkPyError::runtime(e.to_string()))
@@ -193,7 +193,7 @@ pub fn forward_fft(py: Python<'_>, image: &PyImage) -> RitkResult<PyImage> {
 #[pyfunction]
 pub fn real_to_half_hermitian_forward_fft(py: Python<'_>, image: &PyImage) -> RitkResult<PyImage> {
     let image = Arc::clone(&image.inner);
-    py.allow_threads(|| {
+    py.detach(|| {
         RealToHalfHermitianForwardFftFilter::new()
             .apply(image.as_ref())
             .map_err(|e| RitkPyError::runtime(e.to_string()))
@@ -223,7 +223,7 @@ pub fn half_hermitian_to_real_inverse_fft(
     actual_x_is_odd: bool,
 ) -> RitkResult<PyImage> {
     let image = Arc::clone(&image.inner);
-    py.allow_threads(|| {
+    py.detach(|| {
         HalfHermitianToRealInverseFftFilter::new(actual_x_is_odd)
             .apply(image.as_ref())
             .map_err(|e| RitkPyError::runtime(e.to_string()))
@@ -251,7 +251,7 @@ pub fn half_hermitian_to_real_inverse_fft(
 pub fn inverse_fft(py: Python<'_>, image: &PyImage) -> RitkResult<PyImage> {
     let image = Arc::clone(&image.inner);
     let backend = MoiraiBackend;
-    py.allow_threads(|| {
+    py.detach(|| {
         InverseFftFilter::new()
             .apply_native(image.as_ref(), &backend)
             .map_err(|e| RitkPyError::runtime(e.to_string()))
@@ -280,7 +280,7 @@ pub fn inverse_fft(py: Python<'_>, image: &PyImage) -> RitkResult<PyImage> {
 pub fn fft_shift(py: Python<'_>, image: &PyImage) -> RitkResult<PyImage> {
     let image = Arc::clone(&image.inner);
     let backend = MoiraiBackend;
-    py.allow_threads(|| {
+    py.detach(|| {
         FftShiftFilter::new()
             .apply_native(image.as_ref(), &backend)
             .map_err(|e| RitkPyError::runtime(e.to_string()))
@@ -313,7 +313,7 @@ pub fn fft_shift(py: Python<'_>, image: &PyImage) -> RitkResult<PyImage> {
 #[pyfunction]
 pub fn real_fft_shift(py: Python<'_>, image: &PyImage) -> RitkResult<PyImage> {
     let image = Arc::clone(&image.inner);
-    py.allow_threads(|| {
+    py.detach(|| {
         RealFftShiftFilter::new()
             .apply(image.as_ref())
             .map_err(|e| RitkPyError::runtime(e.to_string()))

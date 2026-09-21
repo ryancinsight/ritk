@@ -53,7 +53,7 @@ impl PyMesh {
             data.push(p[1]);
             data.push(p[2]);
         }
-        Ok(PyArray1::<f32>::from_vec_bound(py, data)
+        Ok(PyArray1::<f32>::from_vec(py, data)
             .reshape([self.inner.points.len(), 3])
             .map_err(|e| RitkPyError::runtime(e.to_string()))?)
     }
@@ -61,9 +61,9 @@ impl PyMesh {
     /// Polygon connectivity as a Python list of lists of int indices.
     #[getter]
     fn polygons<'py>(&self, py: Python<'py>) -> PyResult<Bound<'py, PyList>> {
-        let outer = PyList::empty_bound(py);
+        let outer = PyList::empty(py);
         for poly in &self.inner.polygons {
-            let inner = PyList::empty_bound(py);
+            let inner = PyList::empty(py);
             for &idx in poly {
                 inner.append(idx as i64)?;
             }
@@ -84,7 +84,7 @@ impl PyMesh {
                 data.push(v[1]);
                 data.push(v[2]);
             }
-            let arr = PyArray1::<f32>::from_vec_bound(py, data)
+            let arr = PyArray1::<f32>::from_vec(py, data)
                 .reshape([n, 3])
                 .map_err(|e| RitkPyError::runtime(e.to_string()))?;
             Ok(Some(arr))
@@ -134,7 +134,7 @@ impl PyMesh {
 #[pyfunction]
 pub fn read_mesh(py: Python<'_>, path: &str) -> RitkResult<PyMesh> {
     let path_owned = path.to_string();
-    py.allow_threads(move || {
+    py.detach(move || {
         let p = Path::new(&path_owned);
         let lower = path_owned.to_lowercase();
         let poly = if lower.ends_with(".obj") {
@@ -180,7 +180,7 @@ pub fn read_mesh(py: Python<'_>, path: &str) -> RitkResult<PyMesh> {
 pub fn write_mesh(py: Python<'_>, path: &str, mesh: &PyMesh) -> RitkResult<()> {
     let path_owned = path.to_string();
     let poly = mesh.inner.clone();
-    py.allow_threads(move || {
+    py.detach(move || {
         let p = Path::new(&path_owned);
         let lower = path_owned.to_lowercase();
         if lower.ends_with(".obj") {

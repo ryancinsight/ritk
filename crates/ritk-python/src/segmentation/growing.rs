@@ -58,7 +58,7 @@ pub fn vector_confidence_connected_segment(
     .map_err(|error| RitkPyError::value(error.to_string()))?;
     let filter = VectorConfidenceConnectedFilter::new(seeds, config);
     let images: Vec<_> = channels.iter().map(|image| image.inner.clone()).collect();
-    py.allow_threads(move || {
+    py.detach(move || {
         let references: Vec<_> = images.iter().map(AsRef::as_ref).collect();
         filter.apply_native(&references, &MoiraiBackend)
     })
@@ -98,7 +98,7 @@ pub fn connected_threshold_segment(
         )));
     }
     let image = image.inner.clone();
-    py.allow_threads(move || {
+    py.detach(move || {
         ConnectedThresholdFilter::new(seed, lower, upper)
             .apply_native(image.as_ref(), &MoiraiBackend)
     })
@@ -158,7 +158,7 @@ pub fn isolated_connected_segment(
     .map_err(|error| RitkPyError::value(error.to_string()))?;
     let filter = IsolatedConnectedFilter::new(seed1, seed2, config);
     let image = image.inner.clone();
-    py.allow_threads(move || filter.apply_native(image.as_ref(), &MoiraiBackend))
+    py.detach(move || filter.apply_native(image.as_ref(), &MoiraiBackend))
         .map(|output| {
             let thresholding_failed = output.thresholding_failed();
             (into_py_image(output.into_image()), thresholding_failed)
@@ -218,7 +218,7 @@ pub fn confidence_connected_segment(
             .with_multiplier(multiplier)
             .map_err(|error| RitkPyError::value(error.to_string()))?
             .with_max_iterations(max_iterations);
-    py.allow_threads(move || filter.apply_native(image.as_ref(), &MoiraiBackend))
+    py.detach(move || filter.apply_native(image.as_ref(), &MoiraiBackend))
         .map(into_py_image)
         .map_err(|error| RitkPyError::value(error.to_string()))
 }
@@ -263,7 +263,7 @@ pub fn neighborhood_connected_segment(
         )));
     }
     let image = image.inner.clone();
-    py.allow_threads(move || {
+    py.detach(move || {
         NeighborhoodConnectedFilter::new([seed[0], seed[1], seed[2]], lower, upper)
             .with_radius([radius, radius, radius])
             .apply_native(image.as_ref(), &MoiraiBackend)
@@ -310,7 +310,7 @@ pub fn isolated_watershed_segment(
     let config =
         IsolatedWatershedConfig::new(threshold, isolated_value_tolerance, upper_value_limit)
             .map_err(|error| RitkPyError::value(error.to_string()))?;
-    let result = py.allow_threads(|| {
+    let result = py.detach(|| {
         IsolatedWatershed::new(seed1, seed2, config).apply_native(&image, &SequentialBackend)
     });
     result

@@ -49,7 +49,7 @@ pub fn rotate_image(
 ) -> RitkResult<PyImage> {
     let mode = mode.to_string();
     let inner = Arc::clone(&image.inner);
-    py.allow_threads(move || -> Result<_, String> {
+    py.detach(move || -> Result<_, String> {
         let shape = inner.shape();
         let sp = *inner.spacing();
         let orig = *inner.origin();
@@ -152,7 +152,7 @@ pub fn shift_image(
 ) -> RitkResult<PyImage> {
     let mode = mode.to_string();
     let inner = Arc::clone(&image.inner);
-    py.allow_threads(move || -> Result<_, String> {
+    py.detach(move || -> Result<_, String> {
         let shape = inner.shape();
         let sp = *inner.spacing();
         let orig = *inner.origin();
@@ -267,7 +267,7 @@ pub fn transform_to_displacement_field(
     center: [f64; 3],
 ) -> RitkResult<(PyImage, PyImage, PyImage)> {
     let arc = Arc::clone(&reference.inner);
-    let (dz, dy, dx) = py.allow_threads(|| {
+    let (dz, dy, dx) = py.detach(|| {
         ritk_filter::transform_to_displacement_field(arc.as_ref(), matrix, translation, center)
             .map_err(|e| RitkPyError::runtime(e.to_string()))
     })?;
@@ -294,7 +294,7 @@ pub fn transform_geometry(
     center: [f64; 3],
 ) -> RitkResult<PyImage> {
     let arc = Arc::clone(&image.inner);
-    py.allow_threads(|| {
+    py.detach(|| {
         ritk_filter::transform_geometry(arc.as_ref(), matrix, translation, center)
             .map_err(|e| RitkPyError::runtime(e.to_string()))
     })

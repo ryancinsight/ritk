@@ -17,7 +17,7 @@ use std::sync::Arc;
 pub fn clamp_image(py: Python<'_>, image: &PyImage, lower: f32, upper: f32) -> RitkResult<PyImage> {
     let native = Arc::clone(&image.inner);
     let backend = MoiraiBackend;
-    py.allow_threads(|| {
+    py.detach(|| {
         ClampImageFilter::new(lower, upper)
             .apply_native(native.as_ref(), &backend)
             .map_err(|e| RitkPyError::runtime(e.to_string()))
@@ -35,7 +35,7 @@ pub fn modulus(py: Python<'_>, image: &PyImage, dividend: i64) -> RitkResult<PyI
     }
     let native = Arc::clone(&image.inner);
     let backend = MoiraiBackend;
-    py.allow_threads(|| {
+    py.detach(|| {
         ModulusImageFilter::new(dividend)
             .apply_native(native.as_ref(), &backend)
             .map_err(|e| RitkPyError::runtime(e.to_string()))
@@ -55,7 +55,7 @@ pub fn binary_not(
 ) -> RitkResult<PyImage> {
     let native = Arc::clone(&image.inner);
     let backend = MoiraiBackend;
-    py.allow_threads(|| {
+    py.detach(|| {
         BinaryNotImageFilter::with_labels(foreground, background)
             .apply_native(native.as_ref(), &backend)
             .map_err(|e| RitkPyError::runtime(e.to_string()))
@@ -70,7 +70,7 @@ pub fn binary_not(
 pub fn invert_intensity(py: Python<'_>, image: &PyImage, maximum: f32) -> RitkResult<PyImage> {
     let native = Arc::clone(&image.inner);
     let backend = MoiraiBackend;
-    py.allow_threads(|| {
+    py.detach(|| {
         InvertIntensityFilter::with_maximum(maximum)
             .apply_native(native.as_ref(), &backend)
             .map_err(|e| RitkPyError::runtime(e.to_string()))

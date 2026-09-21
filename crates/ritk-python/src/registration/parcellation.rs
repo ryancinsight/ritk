@@ -57,7 +57,7 @@ impl PyAtlasParcellationResult {
     /// which is a statement about the method and not about the anatomy.
     #[getter]
     fn agreement<'py>(&self, py: Python<'py>) -> RitkResult<Bound<'py, PyArray3<f32>>> {
-        PyArray1::<f32>::from_slice_bound(py, &self.agreement)
+        PyArray1::<f32>::from_slice(py, &self.agreement)
             .reshape(self.shape)
             .map_err(|error| RitkPyError::runtime(format!("reshaping the agreement: {error}")))
     }
@@ -192,7 +192,7 @@ pub fn parcellate_with_atlases(
     // plain reference, not a guard that is not `Ungil`.
     let image = subject.inner.as_ref();
     let result = py
-        .allow_threads(|| parcellate_with_atlas_set(image, &atlases, &config))
+        .detach(|| parcellate_with_atlas_set(image, &atlases, &config))
         .map_err(|error| RitkPyError::runtime(error.to_string()))?;
 
     Ok(PyAtlasParcellationResult {

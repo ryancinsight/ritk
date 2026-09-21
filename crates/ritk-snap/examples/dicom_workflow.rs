@@ -56,6 +56,25 @@ fn main() -> Result<()> {
     );
     let landmark = voxel_to_lps([2, 1, 3], volume.origin, volume.direction, volume.spacing);
     ensure!(landmark == [14.0, 21.5, 31.5], "physical landmark oracle");
+
+    let multiframe_study = output.join("multiframe-study");
+    let (multiframe_filename, multiframe_bytes) =
+        fixtures::write_multiframe(&multiframe_study, fixtures::MULTIFRAME_SHAPE[0], None)?;
+    let multiframe_volume = load_volume_from_path(&multiframe_study)?;
+    let multiframe_borrowed = [(multiframe_filename.clone(), multiframe_bytes.as_slice())];
+    let multiframe_dropped = load_dicom_series_from_named_bytes(&multiframe_borrowed)?;
+    let expected_multiframe: Vec<f32> = fixtures::MULTIFRAME_RAW
+        .iter()
+        .map(|&sample| 2.0 * f32::from(sample) - 10.0)
+        .collect();
+    ensure!(
+        multiframe_volume.shape == fixtures::MULTIFRAME_SHAPE
+            && multiframe_volume.channels == 1
+            && multiframe_volume.data.as_slice() == expected_multiframe.as_slice()
+            && multiframe_dropped.shape == multiframe_volume.shape
+            && multiframe_dropped.data.as_slice() == expected_multiframe.as_slice(),
+        "multi-frame filesystem and byte-batch oracle"
+    );
     let mut captures = Vec::new();
     // These parameters cancel the fixture's modality rescale under explicit
     // LINEAR_EXACT metadata, preserving the stored sample values.
@@ -341,6 +360,13 @@ fn main() -> Result<()> {
             "secondary_origin_lps_mm": fusion_secondary.origin,
             "secondary_slice": secondary_slice,
             "sampling": "patient-coordinate nearest-neighbour with primary out-of-field retention"
+        },
+        "multiframe": {
+            "series_uid": fixtures::MULTIFRAME_SERIES_UID,
+            "shape": multiframe_volume.shape,
+            "channels": multiframe_volume.channels,
+            "decoded_values": multiframe_volume.data.as_ref(),
+            "sampling": "two spatial frames retained as depth slices"
         },
         "color": {
             "shape": color_volume.shape,

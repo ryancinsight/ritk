@@ -20,8 +20,10 @@ pub enum PyInverseConsistency {
     Enforced,
 }
 
-impl<'py> FromPyObject<'py> for PyInverseConsistency {
-    fn extract_bound(ob: &pyo3::Bound<'py, PyAny>) -> PyResult<Self> {
+impl<'a, 'py> FromPyObject<'a, 'py> for PyInverseConsistency {
+    type Error = PyErr;
+
+    fn extract(ob: Borrowed<'a, 'py, PyAny>) -> PyResult<Self> {
         let s: String = ob.extract()?;
         match s.to_lowercase().as_str() {
             "relaxed" => Ok(Self::Relaxed),
@@ -34,11 +36,15 @@ impl<'py> FromPyObject<'py> for PyInverseConsistency {
     }
 }
 
-impl IntoPy<PyObject> for PyInverseConsistency {
-    fn into_py(self, py: Python<'_>) -> PyObject {
+impl<'py> IntoPyObject<'py> for PyInverseConsistency {
+    type Target = PyAny;
+    type Output = Bound<'py, PyAny>;
+    type Error = PyErr;
+
+    fn into_pyobject(self, py: Python<'py>) -> PyResult<Self::Output> {
         match self {
-            Self::Relaxed => "relaxed".into_py(py),
-            Self::Enforced => "enforced".into_py(py),
+            Self::Relaxed => Ok("relaxed".into_pyobject(py)?.into_any()),
+            Self::Enforced => Ok("enforced".into_pyobject(py)?.into_any()),
         }
     }
 }
@@ -53,7 +59,7 @@ impl From<PyInverseConsistency> for InverseConsistency {
 }
 
 /// Configuration options for [`multires_syn_register`].
-#[pyclass(name = "MultiResSynOptions")]
+#[pyclass(from_py_object, name = "MultiResSynOptions")]
 #[derive(Clone)]
 pub struct PyMultiresSynOptions {
     #[pyo3(get, set)]
@@ -119,7 +125,7 @@ pub fn multires_syn_register(
     });
     let inputs = load_matching_inputs(fixed, moving)?;
 
-    py.allow_threads(|| {
+    py.detach(|| {
         let config = MultiResSyNConfig {
             num_levels: opts.num_levels,
             iterations_per_level: opts.iterations.unwrap_or_else(|| vec![100, 70, 20]),

@@ -11,7 +11,7 @@ use crate::errors::{RitkPyError, RitkResult};
 use crate::image::{with_image_pair_slices, PyImage};
 
 /// Options for deterministic native mutual-information registration.
-#[pyclass(name = "GlobalMiOptions")]
+#[pyclass(from_py_object, name = "GlobalMiOptions")]
 #[derive(Clone, Debug)]
 pub struct PyGlobalMiOptions {
     /// Transformation family: `translation`, `rigid`, or `affine`.
@@ -79,7 +79,7 @@ pub fn global_mi_register(
     fixed: &PyImage,
     moving: &PyImage,
     opts: Option<PyGlobalMiOptions>,
-) -> RitkResult<(Vec<f32>, f64, PyObject)> {
+) -> RitkResult<(Vec<f32>, f64, Py<PyAny>)> {
     let opts = opts.unwrap_or_default();
     validate_options(&opts)?;
     if fixed.inner.shape() != moving.inner.shape() {
@@ -107,7 +107,7 @@ pub fn global_mi_register(
     );
     let transform_type = opts.transform_type.clone();
     let result = py
-        .allow_threads(|| match transform_type.as_str() {
+        .detach(|| match transform_type.as_str() {
             "translation" => engine.translation_registration_mutual_info(
                 &moving_volume,
                 &fixed_volume,
@@ -128,7 +128,7 @@ pub fn global_mi_register(
         .map_err(|error| RitkPyError::runtime(error.to_string()))?;
 
     let matrix = physical_matrix(&result.transform, fixed, moving)?;
-    let info = pyo3::types::PyDict::new_bound(py);
+    let info = pyo3::types::PyDict::new(py);
     info.set_item(
         "convergence_history",
         vec![format!("{:?}", result.quality.convergence)],

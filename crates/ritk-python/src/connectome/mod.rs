@@ -27,7 +27,7 @@ pub use parcellation::PyParcellation;
 
 /// Register the connectome submodule into `parent`.
 pub fn register(parent: &Bound<'_, PyModule>) -> PyResult<()> {
-    let module = PyModule::new_bound(parent.py(), "connectome")?;
+    let module = PyModule::new(parent.py(), "connectome")?;
     module.add_class::<PyParcellation>()?;
     module.add_class::<PyConnectivityMatrix>()?;
     module.add_class::<PyGraphMeasures>()?;

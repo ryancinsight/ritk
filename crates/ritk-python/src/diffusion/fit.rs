@@ -85,7 +85,7 @@ pub fn fit_tensor_maps(
     // The fit touches no Python objects, so the interpreter is free to run
     // other threads for what is by far the longest part of the call.
     let maps = py
-        .allow_threads(|| {
+        .detach(|| {
             let borrowed: Vec<&[f32]> = data.iter().map(Vec::as_slice).collect();
             fit_diffusion_maps(&scheme, &borrowed, &config)
         })

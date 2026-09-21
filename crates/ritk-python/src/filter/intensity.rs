@@ -36,7 +36,7 @@ pub fn rescale_intensity(
 ) -> RitkResult<PyImage> {
     let native = Arc::clone(&image.inner);
     let backend = MoiraiBackend;
-    py.allow_threads(|| {
+    py.detach(|| {
         let filter = RescaleIntensityFilter::new(out_min, out_max);
         filter
             .apply_native(native.as_ref(), &backend)
@@ -67,7 +67,7 @@ pub fn intensity_windowing(
 ) -> RitkResult<PyImage> {
     let native = Arc::clone(&image.inner);
     let backend = MoiraiBackend;
-    py.allow_threads(|| {
+    py.detach(|| {
         let filter = IntensityWindowingFilter::new(window_min, window_max, out_min, out_max);
         filter
             .apply_native(native.as_ref(), &backend)
@@ -87,7 +87,7 @@ pub fn threshold_below(
 ) -> RitkResult<PyImage> {
     let native = Arc::clone(&image.inner);
     let backend = MoiraiBackend;
-    py.allow_threads(|| {
+    py.detach(|| {
         let filter = ThresholdImageFilter::below(threshold, outside_value);
         filter
             .apply_native(native.as_ref(), &backend)
@@ -107,7 +107,7 @@ pub fn threshold_above(
 ) -> RitkResult<PyImage> {
     let native = Arc::clone(&image.inner);
     let backend = MoiraiBackend;
-    py.allow_threads(|| {
+    py.detach(|| {
         let filter = ThresholdImageFilter::above(threshold, outside_value);
         filter
             .apply_native(native.as_ref(), &backend)
@@ -128,7 +128,7 @@ pub fn threshold_outside(
 ) -> RitkResult<PyImage> {
     let native = Arc::clone(&image.inner);
     let backend = MoiraiBackend;
-    py.allow_threads(|| {
+    py.detach(|| {
         let filter = ThresholdImageFilter::outside(lower, upper, outside_value);
         filter
             .apply_native(native.as_ref(), &backend)
@@ -165,7 +165,7 @@ pub fn sigmoid_filter(
 ) -> RitkResult<PyImage> {
     let native = Arc::clone(&image.inner);
     let backend = MoiraiBackend;
-    py.allow_threads(|| {
+    py.detach(|| {
         // Rust SigmoidImageFilter uses (inflection=alpha_rust, width=beta_rust).
         // Python/SimpleITK convention: alpha=width, beta=inflection.
         // Map: inflection=beta (Python), width=alpha (Python).
@@ -197,7 +197,7 @@ pub fn binary_threshold(
 ) -> RitkResult<PyImage> {
     let native = Arc::clone(&image.inner);
     let backend = MoiraiBackend;
-    py.allow_threads(|| {
+    py.detach(|| {
         BinaryThresholdImageFilter::new(lower_threshold, upper_threshold, foreground, background)
             .apply_native(native.as_ref(), &backend)
             .map_err(|e| RitkPyError::runtime(e.to_string()))
@@ -223,7 +223,7 @@ pub fn double_threshold(
 ) -> RitkResult<PyImage> {
     let native = Arc::clone(&image.inner);
     let backend = MoiraiBackend;
-    py.allow_threads(|| {
+    py.detach(|| {
         DoubleThresholdImageFilter::new(
             threshold1,
             threshold2,
@@ -252,7 +252,7 @@ pub fn blend_images(py: Python<'_>, a: &PyImage, b: &PyImage, alpha: f32) -> Rit
     let a_native = Arc::clone(&a.inner);
     let b_native = Arc::clone(&b.inner);
     let backend = MoiraiBackend;
-    py.allow_threads(|| {
+    py.detach(|| {
         BlendImageFilter::new(alpha)
             .apply_native(a_native.as_ref(), b_native.as_ref(), &backend)
             .map_err(|e| RitkPyError::runtime(e.to_string()))
@@ -275,7 +275,7 @@ pub fn blend_images(py: Python<'_>, a: &PyImage, b: &PyImage, alpha: f32) -> Rit
 pub fn normalize_image(py: Python<'_>, image: &PyImage) -> RitkResult<PyImage> {
     let native = Arc::clone(&image.inner);
     let backend = MoiraiBackend;
-    py.allow_threads(|| {
+    py.detach(|| {
         let filter = NormalizeImageFilter::new();
         filter
             .apply_native(native.as_ref(), &backend)
@@ -296,7 +296,7 @@ pub fn normalize_to_constant(
 ) -> RitkResult<PyImage> {
     let native = Arc::clone(&image.inner);
     let backend = MoiraiBackend;
-    py.allow_threads(|| {
+    py.detach(|| {
         NormalizeToConstantImageFilter::new(constant)
             .apply_native(native.as_ref(), &backend)
             .map_err(|e| RitkPyError::runtime(e.to_string()))
@@ -346,7 +346,7 @@ pub fn unsharp_mask(
 ) -> RitkResult<PyImage> {
     let native = Arc::clone(&image.inner);
     let backend = MoiraiBackend;
-    py.allow_threads(|| {
+    py.detach(|| {
         let clamp_policy = if clamp {
             ClampPolicy::ClampToInputRange
         } else {
@@ -393,7 +393,7 @@ pub fn zero_crossing_image(
 ) -> RitkResult<PyImage> {
     let native = Arc::clone(&image.inner);
     let backend = MoiraiBackend;
-    py.allow_threads(|| {
+    py.detach(|| {
         let filter = ZeroCrossingImageFilter::new()
             .with_foreground(foreground_value)
             .with_background(background_value);
@@ -429,7 +429,7 @@ pub fn adaptive_histogram_equalization(
 ) -> RitkResult<PyImage> {
     let native = Arc::clone(&image.inner);
     let backend = MoiraiBackend;
-    py.allow_threads(|| {
+    py.detach(|| {
         AdaptiveHistogramEqualizationFilter {
             radius: [radius.0, radius.1, radius.2],
             alpha,
@@ -469,7 +469,7 @@ pub fn bitwise_not(
     } else {
         BitwiseNotImageFilter::unsigned(bits)
     };
-    py.allow_threads(|| {
+    py.detach(|| {
         filter
             .apply_native(native.as_ref(), &backend)
             .map_err(|e| RitkPyError::runtime(e.to_string()))
@@ -500,7 +500,7 @@ pub fn bitwise_not(
 pub fn shift_scale(py: Python<'_>, image: &PyImage, shift: f32, scale: f32) -> RitkResult<PyImage> {
     let native = Arc::clone(&image.inner);
     let backend = MoiraiBackend;
-    py.allow_threads(|| {
+    py.detach(|| {
         ShiftScaleImageFilter::new(shift, scale)
             .apply_native(native.as_ref(), &backend)
             .map_err(|e| RitkPyError::runtime(e.to_string()))

@@ -36,7 +36,7 @@ pub fn additive_gaussian_noise(
     let img = Arc::clone(&image.inner);
     let backend = MoiraiBackend;
     let result = py
-        .allow_threads(|| {
+        .detach(|| {
             AdditiveGaussianNoiseFilter::new(std)
                 .with_mean(mean)
                 .with_seed(seed)
@@ -68,7 +68,7 @@ pub fn salt_and_pepper_noise(
     let img = Arc::clone(&image.inner);
     let backend = MoiraiBackend;
     let result = py
-        .allow_threads(|| {
+        .detach(|| {
             SaltAndPepperNoiseFilter::new(probability)
                 .with_seed(seed)
                 .apply_native(img.as_ref(), &backend)
@@ -96,7 +96,7 @@ pub fn shot_noise(py: Python<'_>, image: &PyImage, scale: f64, seed: u32) -> Rit
     let img = Arc::clone(&image.inner);
     let backend = MoiraiBackend;
     let result = py
-        .allow_threads(|| {
+        .detach(|| {
             ShotNoiseFilter::new(scale)
                 .with_seed(seed)
                 .apply_native(img.as_ref(), &backend)
@@ -126,7 +126,7 @@ pub fn speckle_noise(py: Python<'_>, image: &PyImage, std: f64, seed: u32) -> Ri
     let img = Arc::clone(&image.inner);
     let backend = MoiraiBackend;
     let result = py
-        .allow_threads(|| {
+        .detach(|| {
             SpeckleNoiseFilter::new(std)
                 .with_seed(seed)
                 .apply_native(img.as_ref(), &backend)
@@ -175,7 +175,7 @@ pub fn patch_based_denoising(
     }
     let native = Arc::clone(&image.inner);
     let backend = MoiraiBackend;
-    let result = py.allow_threads(|| {
+    let result = py.detach(|| {
         PatchBasedDenoisingImageFilter {
             number_of_iterations,
             number_of_sample_patches,

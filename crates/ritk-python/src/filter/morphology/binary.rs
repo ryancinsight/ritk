@@ -24,7 +24,7 @@ use std::sync::Arc;
 pub fn binary_thinning(py: Python<'_>, image: &PyImage) -> RitkResult<PyImage> {
     let native = Arc::clone(&image.inner);
     let backend = MoiraiBackend;
-    py.allow_threads(|| {
+    py.detach(|| {
         BinaryThinningFilter::new()
             .apply_native(native.as_ref(), &backend)
             .map_err(|e| RitkPyError::runtime(e.to_string()))
@@ -48,7 +48,7 @@ pub fn binary_thinning(py: Python<'_>, image: &PyImage) -> RitkResult<PyImage> {
 pub fn binary_pruning(py: Python<'_>, image: &PyImage, iteration: usize) -> RitkResult<PyImage> {
     let native = Arc::clone(&image.inner);
     let backend = MoiraiBackend;
-    py.allow_threads(|| {
+    py.detach(|| {
         BinaryPruningFilter::new(iteration)
             .apply_native(native.as_ref(), &backend)
             .map_err(|e| RitkPyError::runtime(e.to_string()))
@@ -83,7 +83,7 @@ pub fn erode_object_morphology(
 ) -> RitkResult<PyImage> {
     let native = Arc::clone(&image.inner);
     let backend = MoiraiBackend;
-    py.allow_threads(|| {
+    py.detach(|| {
         ErodeObjectMorphologyFilter::new([radius, radius, radius], object_value, background_value)
             .apply_native(native.as_ref(), &backend)
             .map_err(|e| RitkPyError::runtime(e.to_string()))
@@ -107,7 +107,7 @@ pub fn hit_or_miss(
 ) -> RitkResult<PyImage> {
     let native = Arc::clone(&image.inner);
     let backend = MoiraiBackend;
-    py.allow_threads(|| {
+    py.detach(|| {
         HitOrMissTransform::new(fg_radius, bg_radius)
             .apply_native(native.as_ref(), &backend)
             .map_err(|e| RitkPyError::runtime(e.to_string()))
@@ -132,7 +132,7 @@ pub fn voting_binary(
 ) -> RitkResult<PyImage> {
     let native = Arc::clone(&image.inner);
     let backend = MoiraiBackend;
-    py.allow_threads(|| {
+    py.detach(|| {
         VotingBinaryImageFilter::new(
             radius,
             birth_threshold,
@@ -162,7 +162,7 @@ pub fn voting_binary_hole_filling(
 ) -> RitkResult<PyImage> {
     let native = Arc::clone(&image.inner);
     let backend = MoiraiBackend;
-    py.allow_threads(|| {
+    py.detach(|| {
         VotingBinaryHoleFillingImageFilter::new(
             [radius, radius, radius],
             majority_threshold,
@@ -192,7 +192,7 @@ pub fn voting_binary_iterative_hole_filling(
 ) -> RitkResult<PyImage> {
     let native = Arc::clone(&image.inner);
     let backend = MoiraiBackend;
-    py.allow_threads(|| {
+    py.detach(|| {
         VotingBinaryHoleFillingImageFilter::new(
             [radius, radius, radius],
             majority_threshold,

@@ -7,7 +7,7 @@ use ritk_filter::edge::GaussianSigma;
 use ritk_segmentation::ShapeDetectionSegmentation;
 
 /// Configuration options for [`shape_detection_segment`].
-#[pyclass(name = "ShapeDetectionOptions")]
+#[pyclass(from_py_object, name = "ShapeDetectionOptions")]
 #[derive(Clone)]
 pub struct PyShapeDetectionOptions {
     /// Weight of curvature term.
@@ -114,7 +114,7 @@ pub fn shape_detection_segment(
     let opts = opts.unwrap_or_default();
     let image_arc = image_from_py(image);
     let phi_arc = image_from_py(initial_phi);
-    py.allow_threads(|| {
+    py.detach(|| {
         let mut seg = ShapeDetectionSegmentation::new();
         seg.curvature_weight = opts.curvature_weight;
         seg.propagation_weight = opts.propagation_weight;

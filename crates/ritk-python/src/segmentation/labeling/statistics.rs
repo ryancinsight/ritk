@@ -38,7 +38,7 @@ pub fn label_shape_statistics(
         )));
     }
     let mask_arc = image_from_py(mask);
-    let (_label_image, stats) = py.allow_threads(|| {
+    let (_label_image, stats) = py.detach(|| {
         let seg_conn = if connectivity == 6 {
             SegConnectivity::Six
         } else {
@@ -46,9 +46,9 @@ pub fn label_shape_statistics(
         };
         ConnectedComponentsFilter::with_connectivity(seg_conn).apply(&mask_arc)
     });
-    let list = PyList::empty_bound(py);
+    let list = PyList::empty(py);
     for s in &stats {
-        let dict = PyDict::new_bound(py);
+        let dict = PyDict::new(py);
         dict.set_item("label", s.label)?;
         dict.set_item("voxel_count", s.voxel_count)?;
         let centroid: Vec<f64> = s.centroid.to_array().to_vec();
@@ -104,7 +104,7 @@ pub fn kmeans_segment(
     }
     let image = image_from_py(image);
     let result = py
-        .allow_threads(|| segmentation.apply(&image))
+        .detach(|| segmentation.apply(&image))
         .map_err(|error| RitkPyError::value(error.to_string()))?;
     Ok(into_py_image(result))
 }

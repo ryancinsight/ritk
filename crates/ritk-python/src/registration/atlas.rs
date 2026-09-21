@@ -13,7 +13,7 @@ use ritk_registration::diffeomorphic::multires_syn::{InverseConsistency, MultiRe
 ///
 /// All fields mirror the positional parameters of the previous `build_atlas`
 /// pyfunction signature and carry the same defaults.
-#[pyclass(name = "AtlasBuildOptions")]
+#[pyclass(from_py_object, name = "AtlasBuildOptions")]
 #[derive(Clone)]
 pub struct PyAtlasBuildOptions {
     /// Maximum outer template-building iterations.
@@ -119,7 +119,7 @@ pub fn build_atlas(
         subject_vecs.push(vals);
     }
 
-    py.allow_threads(|| {
+    py.detach(|| {
         let subject_slices: Vec<&[f32]> = subject_vecs.iter().map(|v| v.as_slice()).collect();
         let syn_config = MultiResSyNConfig {
             num_levels: 3,
@@ -198,7 +198,7 @@ pub fn majority_vote_fusion(
         label_vecs.push(vals.iter().map(|&v| v.round() as u32).collect());
     }
 
-    py.allow_threads(|| {
+    py.detach(|| {
         let label_slices: Vec<&[u32]> = label_vecs.iter().map(|v| v.as_slice()).collect();
         majority_vote(&label_slices, first_shape).map_err(|e| e.to_string())
     })
@@ -289,7 +289,7 @@ pub fn joint_label_fusion_py(
         lbl_vecs.push(lbl_vals.iter().map(|&v| v.round() as u32).collect());
     }
 
-    py.allow_threads(|| {
+    py.detach(|| {
         let img_slices: Vec<&[f32]> = img_vecs.iter().map(|v| v.as_slice()).collect();
         let lbl_slices: Vec<&[u32]> = lbl_vecs.iter().map(|v| v.as_slice()).collect();
         let config = LabelFusionConfig { patch_radius, beta };

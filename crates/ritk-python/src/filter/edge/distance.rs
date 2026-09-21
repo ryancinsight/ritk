@@ -38,7 +38,7 @@ pub fn zero_crossing_based_edge_detection(
 ) -> RitkResult<PyImage> {
     let native = Arc::clone(&image.inner);
     let backend = MoiraiBackend;
-    py.allow_threads(|| {
+    py.detach(|| {
         ZeroCrossingBasedEdgeDetectionFilter::new(
             variance,
             maximum_error,
@@ -75,7 +75,7 @@ pub fn iso_contour_distance(
 ) -> RitkResult<PyImage> {
     let native = Arc::clone(&image.inner);
     let backend = MoiraiBackend;
-    py.allow_threads(|| {
+    py.detach(|| {
         IsoContourDistanceFilter::new(level_set_value, far_value)
             .apply_native(native.as_ref(), &backend)
             .map_err(|e| RitkPyError::runtime(e.to_string()))
@@ -106,7 +106,7 @@ pub fn approximate_signed_distance_map(
 ) -> RitkResult<PyImage> {
     let native = Arc::clone(&image.inner);
     let backend = MoiraiBackend;
-    py.allow_threads(|| {
+    py.detach(|| {
         ApproximateSignedDistanceMapFilter {
             inside_value,
             outside_value,
@@ -138,7 +138,7 @@ pub fn reinitialize_level_set(
 ) -> RitkResult<PyImage> {
     let native = Arc::clone(&image.inner);
     let backend = MoiraiBackend;
-    py.allow_threads(|| {
+    py.detach(|| {
         ReinitializeLevelSetFilter::new(level_set_value)
             .apply_native(native.as_ref(), &backend)
             .map_err(|e| RitkPyError::runtime(e.to_string()))

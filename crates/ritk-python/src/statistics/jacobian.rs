@@ -48,7 +48,7 @@ pub fn jacobian_determinant(
     let dz = image_from_py(disp_z);
     let dy = image_from_py(disp_y);
     let dx = image_from_py(disp_x);
-    py.allow_threads(|| {
+    py.detach(|| {
         jacobian::jacobian_determinant(&dz, &dy, &dx)
             .map_err(|e| RitkPyError::runtime(e.to_string()))
     })
@@ -87,10 +87,10 @@ pub fn analyze_jacobian<'a>(
     jac: &PyImage,
 ) -> RitkResult<pyo3::Bound<'a, pyo3::types::PyDict>> {
     let jac_inner = image_from_py(jac);
-    let stats = py.allow_threads(|| {
+    let stats = py.detach(|| {
         jacobian::analyze_jacobian(&jac_inner).map_err(|e| RitkPyError::runtime(e.to_string()))
     })?;
-    let dict = pyo3::types::PyDict::new_bound(py);
+    let dict = pyo3::types::PyDict::new(py);
     dict.set_item("min", stats.min)
         .map_err(RitkPyError::from_py)?;
     dict.set_item("max", stats.max)

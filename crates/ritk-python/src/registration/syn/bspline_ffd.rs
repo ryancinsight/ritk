@@ -6,7 +6,7 @@ use ritk_registration::bspline_ffd::{BSplineFFDConfig, BSplineFFDRegistration, V
 use super::py_convert::{load_matching_inputs, to_py_moving};
 
 /// Configuration options for [`bspline_ffd_register`].
-#[pyclass(name = "BSplineFfdConfig")]
+#[pyclass(from_py_object, name = "BSplineFfdConfig")]
 #[derive(Clone)]
 pub struct PyBSplineFfdConfig {
     #[pyo3(get, set)]
@@ -72,7 +72,7 @@ pub fn bspline_ffd_register(
     let opts = opts.unwrap_or_default();
     let inputs = load_matching_inputs(fixed, moving)?;
 
-    py.allow_threads(|| {
+    py.detach(|| {
         let config = BSplineFFDConfig {
             initial_control_spacing: [
                 opts.initial_control_spacing,

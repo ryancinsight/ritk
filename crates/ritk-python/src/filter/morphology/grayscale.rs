@@ -27,7 +27,7 @@ use std::sync::Arc;
 pub fn grayscale_erosion(py: Python<'_>, image: &PyImage, radius: usize) -> RitkResult<PyImage> {
     let native = Arc::clone(&image.inner);
     let backend = MoiraiBackend;
-    py.allow_threads(|| {
+    py.detach(|| {
         let filter = GrayscaleErosion::new(radius);
         filter
             .apply_native(native.as_ref(), &backend)
@@ -55,7 +55,7 @@ pub fn grayscale_erosion(py: Python<'_>, image: &PyImage, radius: usize) -> Ritk
 pub fn grayscale_dilation(py: Python<'_>, image: &PyImage, radius: usize) -> RitkResult<PyImage> {
     let native = Arc::clone(&image.inner);
     let backend = MoiraiBackend;
-    py.allow_threads(|| {
+    py.detach(|| {
         let filter = GrayscaleDilation::new(radius);
         filter
             .apply_native(native.as_ref(), &backend)
@@ -70,7 +70,7 @@ pub fn grayscale_dilation(py: Python<'_>, image: &PyImage, radius: usize) -> Rit
 pub fn white_top_hat(py: Python<'_>, image: &PyImage, radius: usize) -> RitkResult<PyImage> {
     let native = Arc::clone(&image.inner);
     let backend = MoiraiBackend;
-    py.allow_threads(|| {
+    py.detach(|| {
         WhiteTopHatFilter::new(radius)
             .apply_native(native.as_ref(), &backend)
             .map_err(|e| RitkPyError::runtime(e.to_string()))
@@ -84,7 +84,7 @@ pub fn white_top_hat(py: Python<'_>, image: &PyImage, radius: usize) -> RitkResu
 pub fn black_top_hat(py: Python<'_>, image: &PyImage, radius: usize) -> RitkResult<PyImage> {
     let native = Arc::clone(&image.inner);
     let backend = MoiraiBackend;
-    py.allow_threads(|| {
+    py.detach(|| {
         BlackTopHatFilter::new(radius)
             .apply_native(native.as_ref(), &backend)
             .map_err(|e| RitkPyError::runtime(e.to_string()))
@@ -99,7 +99,7 @@ pub fn black_top_hat(py: Python<'_>, image: &PyImage, radius: usize) -> RitkResu
 pub fn grayscale_closing(py: Python<'_>, image: &PyImage, radius: usize) -> RitkResult<PyImage> {
     let native = Arc::clone(&image.inner);
     let backend = MoiraiBackend;
-    py.allow_threads(|| {
+    py.detach(|| {
         GrayscaleClosingFilter::new(radius)
             .apply_native(native.as_ref(), &backend)
             .map_err(|e| RitkPyError::runtime(e.to_string()))
@@ -114,7 +114,7 @@ pub fn grayscale_closing(py: Python<'_>, image: &PyImage, radius: usize) -> Ritk
 pub fn grayscale_opening(py: Python<'_>, image: &PyImage, radius: usize) -> RitkResult<PyImage> {
     let native = Arc::clone(&image.inner);
     let backend = MoiraiBackend;
-    py.allow_threads(|| {
+    py.detach(|| {
         GrayscaleOpeningFilter::new(radius)
             .apply_native(native.as_ref(), &backend)
             .map_err(|e| RitkPyError::runtime(e.to_string()))
