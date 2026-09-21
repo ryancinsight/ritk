@@ -2,7 +2,7 @@
 
 <a id="RITK-JPEG-001"></a>
 ## RITK-JPEG-001 — Consume shared JPEG raster codec [arch] [major]
-- Status: in-progress; integrator: root; branch: refactor/jpeg-provider; updated: 2026-09-20.
+- Status: in-progress; integrator: root; branch: refactor/jpeg-provider; delivery: [PR 556](https://github.com/ryancinsight/ritk/pull/556); updated: 2026-09-20.
 - Driver: [METIS-ASSETS-001](../metis/backlog.md#METIS-ASSETS-001).
 - Outcome: JPEG format computation moves to [Consus](../consus/backlog.md#CONSUS-RASTER-001); medical layout and modality conversion remain here.
 - Scope: ritk-codecs JPEG, ritk-jpeg readers/writer, PNG adapters and Snap PNG output, manifests, tests and owning documentation.
