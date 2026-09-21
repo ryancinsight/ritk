@@ -1,12 +1,22 @@
 use anyhow::{Context, Result};
 use coeus_core::{ComputeBackend, CpuAddressableStorage};
-use image::GrayImage;
 use ritk_image::Image;
+use std::fs::File;
+use std::io::Write;
 use std::path::Path;
+
+// Preserve the quality used by image 0.24's JPEG file writer, which previously
+// owned this public operation.
+const JPEG_QUALITY: u8 = 75;
 
 /// Writes a native grayscale image with shape `[1, height, width]` as JPEG.
 ///
 /// Values are rounded, clamped to `[0, 255]`, and encoded as Luma8.
+///
+/// # Errors
+///
+/// Returns an error for a non-planar image, inconsistent dimensions, an image
+/// too large for JPEG dimension fields, encoding failure, or file I/O failure.
 pub fn write_jpeg<B, P>(path: P, image: &Image<f32, B, 3>, backend: &B) -> Result<()>
 where
     B: ComputeBackend + Default,
@@ -37,12 +47,15 @@ fn write_jpeg_flat(path: &Path, shape: [usize; 3], values: &[f32]) -> Result<()>
         .iter()
         .map(|value| value.round().clamp(0.0, 255.0) as u8)
         .collect();
-    let image = GrayImage::from_raw(width_u32, height_u32, pixels)
-        .context("validated JPEG dimensions did not match the pixel buffer")?;
+    let encoded = consus_raster::jpeg::encode_gray(&pixels, width_u32, height_u32, JPEG_QUALITY)
+        .context("failed to encode JPEG grayscale image")?;
     tracing::debug!(width, height, path = %path.display(), "write JPEG grayscale image");
-    image
-        .save(path)
-        .with_context(|| format!("failed to save JPEG: {}", path.display()))
+    let mut file =
+        File::create(path).with_context(|| format!("failed to create JPEG: {}", path.display()))?;
+    file.write_all(&encoded)
+        .with_context(|| format!("failed to write JPEG: {}", path.display()))?;
+    file.flush()
+        .with_context(|| format!("failed to flush JPEG: {}", path.display()))
 }
 
 /// Backend-bound native JPEG writer.
@@ -63,6 +76,10 @@ where
     B::DeviceBuffer<f32>: CpuAddressableStorage<f32>,
 {
     /// Writes a grayscale JPEG through the configured backend.
+    ///
+    /// # Errors
+    ///
+    /// Returns an error under the same conditions as [`write_jpeg`].
     pub fn write_image<P: AsRef<Path>>(&self, path: P, image: &Image<f32, B, 3>) -> Result<()> {
         write_jpeg(path, image, &self.backend)
     }

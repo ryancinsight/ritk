@@ -150,7 +150,7 @@ fn write_jpeg_dicom_file(path: &std::path::Path, width: u32, height: u32, pixels
 ///   AC  (1,1): Q = 6  → ≤ 3 per pixel (activated by 4×4→8×8 edge replication)
 /// Sum of primary contributors: 4+3+3+3 = 13. Tolerance set to 16 (next integer
 /// power-of-2 ≥ 13) to accommodate higher-order AC contributions and fixed-point
-/// IDCT rounding in `jpeg-decoder`.
+/// IDCT rounding in the shared raster provider.
 #[test]
 fn test_decode_compressed_frame_jpeg_baseline_round_trip() {
     let width = 4u32;
@@ -234,7 +234,7 @@ fn test_decode_compressed_frame_rescale_contract() {
 ///   AC  (0,1): Q = 6  → ≤ 3 per pixel
 ///   AC  (1,1): Q = 6  → ≤ 3 per pixel
 /// Sum = 13; tolerance set to 16 (next integer power-of-2 ≥ 13).
-/// The codec registered for JPEG Extended uses the same `jpeg-decoder` path as Baseline.
+/// The codec registered for JPEG Extended uses the same shared raster provider as Baseline.
 #[test]
 fn test_decode_compressed_frame_jpeg_extended_round_trip() {
     let width = 4u32;

@@ -2,9 +2,11 @@
 //!
 //! JPEG carries no physical-space metadata. Readers assign origin `[0,0,0]`,
 //! spacing `[1,1,1]`, and identity direction. Writers require `nz == 1` and
-//! encode a single 2-D grayscale plane.
+//! encode a single 2-D grayscale plane. File decode preserves encoded raster
+//! orientation and does not apply EXIF display transforms.
 
 mod color;
+mod decode;
 mod reader;
 mod writer;
 

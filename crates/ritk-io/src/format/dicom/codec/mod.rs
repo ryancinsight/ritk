@@ -22,10 +22,10 @@
 //!
 //! | Transfer Syntax                        | UID                      | Codec          |
 //! |----------------------------------------|--------------------------|----------------|
-//! | JPEG Baseline (Process 1)              | 1.2.840.10008.1.2.4.50   | jpeg-decoder   |
-//! | JPEG Extended (Process 2 & 4)          | 1.2.840.10008.1.2.4.51   | jpeg-decoder   |
-//! | JPEG Lossless Non-Hierarchical (P14)   | 1.2.840.10008.1.2.4.57   | jpeg-decoder   |
-//! | JPEG Lossless First-Order Prediction   | 1.2.840.10008.1.2.4.70   | jpeg-decoder   |
+//! | JPEG Baseline (Process 1)              | 1.2.840.10008.1.2.4.50   | consus-raster  |
+//! | JPEG Extended (Process 2 & 4)          | 1.2.840.10008.1.2.4.51   | consus-raster  |
+//! | JPEG Lossless Non-Hierarchical (P14)   | 1.2.840.10008.1.2.4.57   | consus-raster  |
+//! | JPEG Lossless First-Order Prediction   | 1.2.840.10008.1.2.4.70   | consus-raster  |
 //! | JPEG-LS Lossless                       | 1.2.840.10008.1.2.4.80   | RITK-native    |
 //! | JPEG-LS Near-Lossless                  | 1.2.840.10008.1.2.4.81   | RITK-native    |
 //! | JPEG 2000 Lossless                     | 1.2.840.10008.1.2.4.90   | RITK-native    |

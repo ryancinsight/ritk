@@ -2,23 +2,41 @@ use std::path::Path;
 
 use anyhow::{bail, Context, Result};
 use coeus_core::ComputeBackend;
-use image::{ColorType, RgbImage};
+use consus_raster::PixelFormat;
 use ritk_image::RgbVolume;
 use ritk_spatial::{Direction, Point, Spacing};
+
+use crate::decode::decode_file;
 
 const RGB_CHANNELS: usize = 3;
 
 /// Reads an RGB8 JPEG into a native image with shape `[1, height, width, 3]`.
+///
+/// Encoded raster orientation is preserved; EXIF display orientation is not
+/// applied.
+///
+/// # Errors
+///
+/// Returns an error if the file is not an RGB JPEG, cannot be read, or contains
+/// malformed, unsupported, truncated, or over-limit data.
 pub fn read_jpeg_color_to_volume<B, P>(path: P, backend: &B) -> Result<RgbVolume<f32, B>>
 where
     B: ComputeBackend,
     P: AsRef<Path>,
 {
     let path = path.as_ref();
-    let image = read_rgb8_jpeg(path)?;
-    let (width, height) = image.dimensions();
-    let pixels = image.as_raw().iter().copied().map(f32::from).collect();
-    rgb_volume_from_flat_pixels(pixels, height as usize, width as usize, backend)
+    let image = decode_file(path)?;
+    if image.format() != PixelFormat::Rgb {
+        bail!(
+            "JPEG RGB color loader supports only RGB; {} decoded as {:?}",
+            path.display(),
+            image.format()
+        );
+    }
+    let width = usize::try_from(image.width()).context("JPEG width exceeds usize")?;
+    let height = usize::try_from(image.height()).context("JPEG height exceeds usize")?;
+    let pixels = image.into_pixels().into_iter().map(f32::from).collect();
+    rgb_volume_from_flat_pixels(pixels, height, width, backend)
 }
 
 /// Backend-bound RGB JPEG reader.
@@ -33,23 +51,14 @@ impl<B: ComputeBackend> JpegColorReader<B> {
     }
 
     /// Reads an RGB8 JPEG on the configured backend.
+    ///
+    /// # Errors
+    ///
+    /// Returns an error under the same conditions as
+    /// [`read_jpeg_color_to_volume`].
     pub fn read_volume<P: AsRef<Path>>(&self, path: P) -> Result<RgbVolume<f32, B>> {
         read_jpeg_color_to_volume(path, &self.backend)
     }
-}
-
-fn read_rgb8_jpeg(path: &Path) -> Result<RgbImage> {
-    let image = image::open(path)
-        .with_context(|| format!("failed to open JPEG file: {}", path.display()))?;
-    let color = image.color();
-    if color != ColorType::Rgb8 {
-        bail!(
-            "JPEG RGB color loader supports only Rgb8; {} decoded as {:?}",
-            path.display(),
-            color
-        );
-    }
-    Ok(image.to_rgb8())
 }
 
 fn rgb_volume_from_flat_pixels<B: ComputeBackend>(
@@ -84,7 +93,7 @@ mod tests {
     use super::*;
     use coeus_core::SequentialBackend;
     use image::codecs::jpeg::JpegEncoder;
-    use image::{GrayImage, Luma};
+    use image::{GrayImage, Luma, RgbImage};
     use std::fs::File;
     use std::io::BufWriter;
     use tempfile::tempdir;
@@ -94,6 +103,24 @@ mod tests {
             .expect("invariant: test RGB dimensions match the pixel count");
         let writer = BufWriter::new(File::create(path)?);
         JpegEncoder::new_with_quality(writer, 100).encode_image(&image)?;
+        Ok(())
+    }
+
+    fn mark_components_as_direct_rgb(path: &Path) -> Result<()> {
+        let mut jpeg = std::fs::read(path)?;
+        let frame = jpeg
+            .windows(2)
+            .position(|bytes| bytes == [0xFF, 0xC0])
+            .expect("invariant: test encoder emits a baseline frame");
+        let scan = jpeg
+            .windows(2)
+            .position(|bytes| bytes == [0xFF, 0xDA])
+            .expect("invariant: test encoder emits a scan header");
+        for (index, identifier) in (*b"RGB").into_iter().enumerate() {
+            jpeg[frame + 10 + 3 * index] = identifier;
+            jpeg[scan + 5 + 2 * index] = identifier;
+        }
+        std::fs::write(path, jpeg)?;
         Ok(())
     }
 
@@ -120,6 +147,30 @@ mod tests {
     }
 
     #[test]
+    fn color_reader_preserves_direct_rgb_components() -> Result<()> {
+        let dir = tempdir()?;
+        let path = dir.path().join("direct-rgb.jpg");
+        let pixels: Vec<u8> = [120, 64, 32].into_iter().cycle().take(8 * 8 * 3).collect();
+        write_rgb_jpeg(&path, 8, 8, &pixels)?;
+        mark_components_as_direct_rgb(&path)?;
+        let expected: Vec<f32> = image::open(&path)?
+            .to_rgb8()
+            .into_raw()
+            .into_iter()
+            .map(f32::from)
+            .collect();
+
+        let volume = read_jpeg_color_to_volume(&path, &SequentialBackend)?;
+
+        assert_eq!(volume.shape(), [1, 8, 8, 3]);
+        assert_eq!(
+            volume.data_cow_on(&SequentialBackend).as_ref(),
+            expected.as_slice()
+        );
+        Ok(())
+    }
+
+    #[test]
     fn color_reader_rejects_grayscale_jpeg() -> Result<()> {
         let dir = tempdir()?;
         let path = dir.path().join("gray.jpg");
@@ -128,7 +179,7 @@ mod tests {
         JpegEncoder::new_with_quality(BufWriter::new(File::create(&path)?), 100)
             .encode_image(&image)?;
         let error = read_jpeg_color_to_volume(&path, &SequentialBackend).unwrap_err();
-        assert!(error.to_string().contains("supports only Rgb8"));
+        assert!(error.to_string().contains("supports only RGB"));
         Ok(())
     }
 }

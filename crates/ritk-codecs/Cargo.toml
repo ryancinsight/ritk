@@ -16,7 +16,7 @@ readme.workspace = true
 
 [dependencies]
 anyhow = { workspace = true }
-jpeg-decoder = { workspace = true }
+consus-raster = { workspace = true }
 
 [dev-dependencies]
 base64 = { workspace = true }

@@ -1,7 +1,7 @@
 # RITK execution backlog
 
 <a id="RITK-JPEG-001"></a>
-## RITK-JPEG-001 — Consume shared JPEG raster codec [arch] [minor]
+## RITK-JPEG-001 — Consume shared JPEG raster codec [arch] [major]
 - Status: in-progress; integrator: root; branch: refactor/jpeg-provider; updated: 2026-09-20.
 - Driver: [METIS-ASSETS-001](../metis/backlog.md#METIS-ASSETS-001).
 - Outcome: JPEG format computation moves to [Consus](../consus/backlog.md#CONSUS-RASTER-001); medical layout and modality conversion remain here.

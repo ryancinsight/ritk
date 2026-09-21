@@ -56,3 +56,4 @@
 | [0045](0045-host-neutral-viewer-snapshot.md) | Host-neutral viewer presentation snapshot | Accepted |
 | [0046](0046-linked-crosshair-presentation.md) | Linked crosshair presentation at the Métis host boundary | Accepted |
 | [0047](0047-browser-annotation-results.md) | Browser annotation result semantics at the Métis boundary | Accepted |
+| [0048](0048-jpeg-provider.md) | Shared JPEG raster provider | Accepted |
