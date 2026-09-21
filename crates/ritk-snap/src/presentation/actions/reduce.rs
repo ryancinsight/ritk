@@ -44,6 +44,12 @@ impl PresentationDispatcher {
                 self.clear_pointers();
                 Ok(())
             }
+            PresentationEvent::AccessibilityAction { request } => {
+                Err(ActionDispatchError::UnsupportedAccessibilityAction {
+                    target_node: request.target_node,
+                    action: request.action,
+                })
+            }
             PresentationEvent::PointerMove { x, y } => {
                 let position = viewport_point(*x, *y)?;
                 Self::push_action(

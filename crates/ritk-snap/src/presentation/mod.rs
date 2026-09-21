@@ -29,8 +29,9 @@ pub use actions::{
     ViewportPoint, WheelDelta,
 };
 pub use events::{
-    CompositionPhase, PointerButton, PresentationEvent, PresentationModifiers,
-    MAX_COMPOSITION_UNITS, MAX_PRESENTATION_EVENTS,
+    AccessibilityAction, AccessibilityActionRequest, CompositionPhase, PointerButton,
+    PresentationEvent, PresentationModifiers, MAX_ACCESSIBILITY_VALUE_BYTES, MAX_COMPOSITION_UNITS,
+    MAX_PRESENTATION_EVENTS,
 };
 pub use frame::{PresentationFrame, PresentationSpacing};
 pub use snapshot::{AnnotationKind, AnnotationSummary, PresentationSnapshot};

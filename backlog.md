@@ -19,6 +19,14 @@
 - Dependencies: Métis PR #311 merge `6e53c8a082447e6cd3b4ed46b2173b071b0c37f8`; current Moirai lock source remains unchanged unless Cargo resolution requires its existing revision.
 - Verification: standalone lock check, native/WASM gates, strict Clippy, formatting, rustdoc, provenance and the 94-file replay passed on the delivery revision.
 - Delivery: PR [#555](https://github.com/ryancinsight/ritk/pull/555), merge `d46fbda252b06a1445272167bdade4403e7bcb49`; the later JPEG integration in PR #556 advances the same six package sources to `4bceb90fe616465eca91cddc0c182548b295ca95`.
+<a id="RITK-METIS-LOCK-016"></a>
+## RITK-METIS-LOCK-016 — Replay the landed Métis accessibility provider [patch]
+- Status: done; priority: P1; owner: RITK viewer + integration; integrator: root; last-update: 2026-09-21; dependencies: Metis PR #316.
+- Outcome: the standalone lock and browser workflow consume Metis `d0585dac60fa66ae226e7b0b3da6081d834b8f47` while the real 94-file MRI replay remains byte-identical and DICOM ownership stays in RITK.
+- Scope: first-party Cargo.lock resolution, browser workflow default revision, replay provenance and manual synchronization; no DICOM parser, viewer semantics or Metis implementation enters RITK through this lock advance.
+- Acceptance: standalone lock resolves without the Atlas overlay; locked native/WASM checks, strict Clippy, formatting, rustdoc, provenance and real-study replay pass; the 1280×800 PNG remains byte-identical (`259dd791...`, 411,589 non-black pixels).
+- Verification: standalone lock check reports 62 first-party Git sources; `ritk-snap` nextest passes 491/491; native strict Clippy, WASM check/Clippy, rustdoc, doctests (4 passed, 1 ignored), formatting and Python script tests (26/26) pass; the native replay reads 94 files/49,807,236 bytes, exits 0, rejects the invalid-study probe with exit 1, and preserves the 1280×800 image.
+- Delivery: PR [#558](https://github.com/ryancinsight/ritk/pull/558), source commit `e8c674b08f460659d00e68378b1e4dde4963b41a`; lock SHA `363419d6f6bd632151aacb135ad847ba84e637e69c83e2ea048e74dfa383101c`; the typed accessibility request path is bounded and reports an explicit unsupported action until RITK installs a native accessibility semantics tree.
 <a id="RITK-SNAP-METIS-CROSSHAIR-001"></a>
 ## RITK-SNAP-METIS-CROSSHAIR-001 — Present linked MPR cursor through Métis hosts [arch] [minor]
 - Status: done; priority: P1; owner: RITK presentation; integrator: root; last-update: 2026-09-20.

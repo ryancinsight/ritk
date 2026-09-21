@@ -16,8 +16,8 @@ decoded-workspace budgets, and return the RITK `Image` plus
 boundary; the host owns only input and presentation lifecycle.
 
 The current standalone lock used by the viewer resolves the six Metis packages
-to `4bceb90fe616465eca91cddc0c182548b295ca95`. Fifteen Moirai packages resolve
-to `2a54e010532f76c88027fec8a468620c92fe66b3`; these are the exact git sources
+to `d0585dac60fa66ae226e7b0b3da6081d834b8f47`. Fifteen Moirai packages resolve
+to `88f837ea90c694c5c0b62793fe1edb02b39bdddc`; these are the exact git sources
 in `Cargo.lock`, which contains 62 first-party Git sources. The browser chooser
 and Windows package workflows use these provider pins. Historical hosted captures
 retain the provider revisions recorded in their own provenance files. RITK
@@ -63,8 +63,8 @@ scanning, decoding, geometry, and clinical presentation; Métis owns the bounded
 host, canvas, and window lifecycle.
 
 The current standalone lock pins the browser canvas provider to Moirai
-`2a54e010532f76c88027fec8a468620c92fe66b3` and the six Metis packages to
-`4bceb90fe616465eca91cddc0c182548b295ca95`. Repeated RGBA frames with the
+`88f837ea90c694c5c0b62793fe1edb02b39bdddc` and the six Metis packages to
+`d0585dac60fa66ae226e7b0b3da6081d834b8f47`. Repeated RGBA frames with the
 current extent retain the validated bitmap; a changed width or height takes
 the bounded resize path. This keeps the browser presentation lifecycle stable
 without changing DICOM decoding or the displayed pixels. It is an allocation
@@ -1091,21 +1091,25 @@ This replay is tied to the updated provider lock; earlier provenance records
 remain historical records for the revisions that generated them.
 
 A current lock replay on 2026-09-21 rebuilt RITK from source commit
-`fc85dad03a6c14a617e9687609044497c1eba122` against merged Métis
-`4bceb90fe616465eca91cddc0c182548b295ca95` and Moirai
-`2a54e010532f76c88027fec8a468620c92fe66b3`. The same saved 94-file MRI-DIR
+`e8c674b08f460659d00e68378b1e4dde4963b41a` against merged Métis
+`d0585dac60fa66ae226e7b0b3da6081d834b8f47` and Moirai
+`88f837ea90c694c5c0b62793fe1edb02b39bdddc`. The same saved 94-file MRI-DIR
 study read 49,807,236 bytes, exited 0, rejected the invalid-study probe with
 exit 1, and reproduced the committed 1280 × 800 frame byte-for-byte. The
 replay executable digest is
-`ca3900b3e8e663883e47e4c297d2ffd3f1ee086732c2a746632c505fff36e699`
-(54,192,128 bytes), the example digest is
-`4c17e303aa2254c29f950987cd2e6ab5667fd57aab5d18499264129813739155`
-(24,297,984 bytes), and the standalone lock digest is
-`b1d7c99a6dcbf788f515f4b18789d10035805e38db10f4a32dd7970b3050e226`.
+`335c953b120d4a2f92646b37fa9443c43f9ce8c8475d964cfec97213c3e045c3`
+(55,286,272 bytes), the example digest is
+`8889101a0cc038608a077447e17ce096d79f219ec639293a8353b355fb7387dd`
+(24,276,992 bytes), and the standalone lock digest is
+`363419d6f6bd632151aacb135ad847ba84e637e69c83e2ea048e74dfa383101c`.
 The captured frame remains
 `259dd79103482756c4e688621bebafc841cc40f1df10ff2bbd7f9d04b7b4d401`
 with 411,589 non-black pixels; the executable, lock, and image hashes are
-recorded in the machine-readable provenance below.
+recorded in the machine-readable provenance below. The native event translator
+also retains bounded Moirai accessibility requests as typed RITK events and
+returns an explicit unsupported-action error because this session does not yet
+install a native accessibility semantics tree; requests are not silently
+discarded.
 
 ### Run the saved-study visual smoke
 
