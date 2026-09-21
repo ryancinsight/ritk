@@ -25,6 +25,11 @@ python -m maturin build --release --locked \
   --manifest-path crates/ritk-python/Cargo.toml --out dist
 ```
 
+The Cargo feature set leaves PyO3's `extension-module` feature disabled so
+Rust tests and binaries retain their normal Python link contract; maturin
+1.9.4 or newer supplies the extension-module build environment when producing
+a wheel.
+
 Install the wheel selected for the current interpreter:
 
 ```sh

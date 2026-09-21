@@ -18,6 +18,13 @@ image from a thread pool on a free-threaded interpreter. The binding does not
 add a zero-copy promise; `Image.to_numpy()` retains its existing ownership and
 copy semantics.
 
+The Cargo feature set does not enable PyO3's `extension-module` feature. That
+feature suppresses Python linking for extension builds and makes Rust test
+binaries fail to link; maturin 1.9.4 or newer supplies the extension-module
+build environment only for wheel builds. The CI workflow keeps `3.15t` as the
+artifact identity while resolving setup-python with the `3.15` prerelease
+range and `freethreaded: true`.
+
 ## Alternatives
 
 Keeping PyO3 0.22 cannot express `gil_used = false` or the `abi3t` feature,
@@ -29,3 +36,10 @@ testing a 3.15t wheel would be an unverified packaging claim.
 The Rust crate check and nextest suite cover the binding implementation. The
 hosted Python matrix builds and installs the `abi3t` wheel with CPython 3.15t,
 asserts the interpreter is free-threaded, and runs the concurrent image test.
+
+### Revision 2026-09-21
+
+Merged-main runs 35645202445 and 35645201560 exposed the extension-module
+test-link configuration and an unavailable exact 3.15t tool-cache lookup.
+This revision records the build-feature and prerelease-resolution correction;
+the hosted 3.15t wheel job remains the acceptance oracle.
