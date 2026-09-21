@@ -30,7 +30,10 @@ classifiers = [
     "Typing :: Typed",
 ]
 dynamic = ["version"]
-dependencies = ["numpy>=2.0.2,<2.6"]
+dependencies = [
+    "numpy>=2.0.2,<2.6; python_version < '3.15'",
+    "numpy>=2.5,<2.6; python_version >= '3.15'",
+]
 
 [project.urls]
 Homepage = "https://github.com/ryancinsight/ritk"
