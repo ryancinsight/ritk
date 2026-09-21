@@ -36,6 +36,30 @@
   [ADR 0022](docs/adr/0022-reusable-dti-volume-tractography.md) and the
   [reusable DTI-volume example](docs/book/examples/dti_volume_tractography.md).
 
+- **PM: Compact the boards under the 1,000-line budget.** `backlog.md`
+  651 -> 421, `checklist.md` 7,608 -> 818, `gap_audit.md` 7,570 -> 506 lines.
+  Each board had become a ledger of merged increments rather than a queue:
+  `checklist.md` carried 1,406 ticked boxes across per-sprint delivery
+  narratives, and `gap_audit.md` carried 103 sprint audit sections. A board is
+  a queue, so the per-PR records and their evidence delete -- git, the PR
+  threads and CI hold them -- and what stays is the open signal: all 401
+  unchecked boxes, every `[ID OPEN]` residual, the `Finding 2026-08-20`
+  scope-vs-delivery audit with its measured baseline, and the
+  `RITK-GAP-2026-08-20-0x` execution plan.
+
+  The unmarked "next increment" prose under the retired `### Residual Risk`
+  sub-sections is dropped as superseded scope, not as open work: it named
+  deliverables the later sprints shipped (Sprints 449-461 landed the Coeus
+  reader paths for NIfTI, MetaImage, MINC, TIFF, PNG and JPEG, and `ritk-cli`
+  VTK conversion moved to the native reader/writer contracts). Every residual
+  those sub-sections also carried as `[ID OPEN]` is tracked as an unchecked
+  item in `checklist.md`, so no open item lost its home. Recover any removed
+  narrative with `git log -p -- <board>`.
+
+  Board lint reports all item ids unique on the three files; the remaining
+  `oversized_tracked_images` budget class (26 tracked figures/archives over
+  200 KiB) is untouched by a board compaction.
+
 ### Fixed
 
 - Removed 16 reintroduced production `#[allow]` sites. Test-only codec, MIF,
