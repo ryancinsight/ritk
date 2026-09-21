@@ -531,7 +531,7 @@ Closed items are indexed by ID with delivery SHAs and dates; consult git history
 - **RITK-SNAP-EVIDENCE-SURFACES-001** — Identify measured presentation surfaces [patch] `261307f65`
 - **RITK-SNAP-EFRAME-SURFACE-001** — Capture a matched eframe orthogonal surface [minor] `0fd885adc6124468aa745a2f548dd685b74f0774`
 - **RITK-SNAP-EFRAME-MATCH-001** — Match the Métis capture extent [minor] `102909c8f67bca1128eba1438ec280ee2651656e`
-- **RITK-SNAP-METIS-001** — Migrate the viewer shell to Métis [arch] [major] (2026-09-17) `57e11c92c080dc9c8716f9218d55c1344a75b412` `5a68a8e725280a3a94387dd4c9f01524201fdb8f`
+- **RITK-SNAP-METIS-001** — Migrate the viewer shell to Métis [arch] [major] (2026-09-21) `57e11c92c080dc9c8716f9218d55c1344a75b412` `5a68a8e725280a3a94387dd4c9f01524201fdb8f` `18815b6339e3689d33b790a2e7f0f4b1d0bb1fdb` — scalar multi-frame and RGB synthetic studies pass the real Windows Métis shell; native window evidence is recorded in `docs/manual/images/dicom-metis-synthetic-native.json`.
 - **RITK-METIS-LOCK-001** — Advance first-party provider pins [patch] (2026-09-17) `1ab0a3685c58b8d0d6131d9ad5556729f7a838ac` `2358e3003ab625a058be042b6e0f6d562bab7ac9` `b94f3ed7a0faa436ebe993dbfec49726cef853fa` `35232317634`
 - **RITK-METIS-LOCK-002** — Advance the post-merge viewer pins [patch] (2026-09-17) `132251fa57046241e55cb9189126d6ae7fb98eb9` `8e566af9a37dc0382e8e919c593d3838f5b08186` `a2f21496d1d09b2abe6523e3c8cdbf751dcd560a`
 - **RITK-METIS-LOCK-003** — Advance the current Metis viewer pin [patch] (2026-09-17) `5166dfad833db2d7b2ee3d63a07a52ad66416c3a` `47193af81491d3b2e5e236f8fe69dba85e42ded4` `a2f21496d1d09b2abe6523e3c8cdbf751dcd560a`
