@@ -107,6 +107,16 @@ fn write_multiframe_with_dims(
         PrimitiveValue::from(8_u16),
     ));
     obj.put(DataElement::new(
+        Tag(0x0028, 0x0101),
+        VR::US,
+        PrimitiveValue::from(8_u16),
+    ));
+    obj.put(DataElement::new(
+        Tag(0x0028, 0x0102),
+        VR::US,
+        PrimitiveValue::from(7_u16),
+    ));
+    obj.put(DataElement::new(
         Tag(0x0028, 0x0103),
         VR::US,
         PrimitiveValue::from(0_u16),

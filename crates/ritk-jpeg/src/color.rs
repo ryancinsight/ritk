@@ -10,10 +10,11 @@ use crate::decode::decode_file;
 
 const RGB_CHANNELS: usize = 3;
 
-/// Reads an RGB8 JPEG into a native image with shape `[1, height, width, 3]`.
+/// Reads an RGB JPEG into a native image with shape `[1, height, width, 3]`.
 ///
-/// Encoded raster orientation is preserved; EXIF display orientation is not
-/// applied.
+/// Samples are mapped from their encoded precision to the full 8-bit display
+/// range with nearest-integer rounding. Encoded raster orientation is
+/// preserved; EXIF display orientation is not applied.
 ///
 /// # Errors
 ///
@@ -26,7 +27,7 @@ where
 {
     let path = path.as_ref();
     let image = decode_file(path)?;
-    if image.format() != PixelFormat::Rgb {
+    if !matches!(image.format(), PixelFormat::Rgb | PixelFormat::RgbWide) {
         bail!(
             "JPEG RGB color loader supports only RGB; {} decoded as {:?}",
             path.display(),
@@ -35,7 +36,19 @@ where
     }
     let width = usize::try_from(image.width()).context("JPEG width exceeds usize")?;
     let height = usize::try_from(image.height()).context("JPEG height exceeds usize")?;
-    let pixels = image.into_pixels().into_iter().map(f32::from).collect();
+    let expected_samples = height
+        .checked_mul(width)
+        .and_then(|pixels| pixels.checked_mul(RGB_CHANNELS))
+        .context("JPEG RGB volume shape overflow")?;
+    let samples = image.display_samples();
+    if samples.len() != expected_samples {
+        bail!(
+            "JPEG RGB display sample count {} does not match expected sample count {}",
+            samples.len(),
+            expected_samples
+        );
+    }
+    let pixels = samples.map(f32::from).collect();
     rgb_volume_from_flat_pixels(pixels, height, width, backend)
 }
 
@@ -50,7 +63,7 @@ impl<B: ComputeBackend> JpegColorReader<B> {
         Self { backend }
     }
 
-    /// Reads an RGB8 JPEG on the configured backend.
+    /// Reads an RGB JPEG on the configured backend.
     ///
     /// # Errors
     ///
@@ -200,6 +213,22 @@ mod tests {
             .encode_image(&image)?;
         let error = read_jpeg_color_to_volume(&path, &SequentialBackend).unwrap_err();
         assert!(error.to_string().contains("supports only RGB"));
+        Ok(())
+    }
+
+    #[test]
+    fn color_reader_scales_twelve_bit_channels_to_display_range() -> Result<()> {
+        let dir = tempdir()?;
+        let path = dir.path().join("wide-rgb.jpg");
+        std::fs::write(&path, crate::tests::dct_twelve_midpoint(b"RGB"))?;
+
+        let volume = read_jpeg_color_to_volume(&path, &SequentialBackend)?;
+
+        assert_eq!(volume.shape(), [1, 8, 8, 3]);
+        assert_eq!(
+            volume.data_cow_on(&SequentialBackend).as_ref(),
+            &[128.0; 8 * 8 * 3]
+        );
         Ok(())
     }
 }

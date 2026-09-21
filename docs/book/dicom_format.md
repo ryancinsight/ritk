@@ -26,6 +26,21 @@ the boundary.
 pixel primitive implementations. Native-owned JPEG syntaxes route exclusively
 through `NativeCodecBackend`.
 
+## Pixel Precision
+
+Frame requests keep DICOM BitsAllocated and BitsStored separate. BitsAllocated
+selects the byte container; BitsStored identifies the meaningful magnitude and
+sign bits. Encapsulated JPEG, JPEG-LS, and JPEG 2000 headers must agree with
+BitsStored before samples reach the modality transform. Lossless signed JPEG
+uses the codestream precision's sign bit. Lossy DCT JPEG with signed DICOM
+metadata is rejected because the transform output does not define a signed
+stored-sample representation.
+
+Image readers reject a missing or malformed BitsStored attribute instead of
+inferring it from BitsAllocated. When HighBit is present, the DICOM object
+boundary requires it to equal BitsStored minus one, which establishes the
+right-justified sample layout used by native decoding.
+
 ## Diffusion metadata
 
 `read_dicom_gradient_scheme_from_file` reads one classic single-frame volume,

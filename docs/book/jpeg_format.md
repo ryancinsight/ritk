@@ -17,6 +17,12 @@ MetaImage as the quantitative source for registration and metric evaluation.
 After decoding, the result is an ordinary RITK image and can enter the same
 filter pipeline as any other input.
 
+The file reader maps the JPEG frame's full encoded range to 0–255 with nearest
+integer rounding before grayscale conversion or RGB image construction. This
+display policy applies equally to low-precision lossless and 12-bit DCT input.
+DICOM decoding uses the clinical path instead: it preserves full integer sample
+values and requires the frame precision to match BitsStored.
+
 ## Example Summary
 
 | Example | Status | Focus |

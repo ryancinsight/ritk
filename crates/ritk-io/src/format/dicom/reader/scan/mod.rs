@@ -314,7 +314,7 @@ impl SeriesScan {
             bail!("ambiguous DICOM input: multiple SeriesInstanceUID values require explicit selection");
         }
         self.uid = Some(uid);
-        let (mut slice, dimensions) = extract_dicom_metadata(object, path, &mut self.first);
+        let (mut slice, dimensions) = extract_dicom_metadata(object, path, &mut self.first)?;
         if self
             .dimensions
             .is_some_and(|previous| previous != dimensions)

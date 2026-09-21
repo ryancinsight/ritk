@@ -61,6 +61,16 @@ fn test_load_multiframe_rejects_rgb_scalar_volume() {
         PrimitiveValue::from(8_u16),
     ));
     obj.put(DataElement::new(
+        Tag(0x0028, 0x0101),
+        VR::US,
+        PrimitiveValue::from(8_u16),
+    ));
+    obj.put(DataElement::new(
+        Tag(0x0028, 0x0102),
+        VR::US,
+        PrimitiveValue::from(7_u16),
+    ));
+    obj.put(DataElement::new(
         Tag(0x0028, 0x0103),
         VR::US,
         PrimitiveValue::from(0_u16),
@@ -125,6 +135,16 @@ fn test_load_multiframe_compressed_ts_errors() {
         Tag(0x0028, 0x0100),
         VR::US,
         PrimitiveValue::from(16_u16),
+    ));
+    obj.put(DataElement::new(
+        Tag(0x0028, 0x0101),
+        VR::US,
+        PrimitiveValue::from(16_u16),
+    ));
+    obj.put(DataElement::new(
+        Tag(0x0028, 0x0102),
+        VR::US,
+        PrimitiveValue::from(15_u16),
     ));
     obj.put(DataElement::new(
         Tag(0x7FE0, 0x0010),
@@ -372,6 +392,16 @@ fn test_load_multiframe_signed_short_roundtrip() {
         Tag(0x0028, 0x0100),
         VR::US,
         PrimitiveValue::from(16_u16),
+    ));
+    obj.put(DataElement::new(
+        Tag(0x0028, 0x0101),
+        VR::US,
+        PrimitiveValue::from(16_u16),
+    ));
+    obj.put(DataElement::new(
+        Tag(0x0028, 0x0102),
+        VR::US,
+        PrimitiveValue::from(15_u16),
     ));
     obj.put(DataElement::new(
         Tag(0x0028, 0x0103),

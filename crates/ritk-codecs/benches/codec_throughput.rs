@@ -52,6 +52,7 @@ fn layout(rows: usize, cols: usize, bits: u16) -> PixelLayout {
         cols,
         samples_per_pixel: 1,
         bits_allocated: bits,
+        bits_stored: bits,
         pixel_representation: PixelSignedness::Unsigned,
         rescale_slope: 1.0,
         rescale_intercept: 0.0,

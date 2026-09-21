@@ -5,12 +5,12 @@ use std::fmt;
 use anyhow::{bail, Context, Result};
 use dicom::core::Tag;
 use dicom::object::DefaultDicomObject;
-#[cfg(test)]
-use ritk_dicom::PixelSignedness;
 use ritk_dicom::{
     decode_frame_with, parse_bytes_with_budget, parse_file_with_budget, DecodeFrameRequest,
     DicomRsBackend, ParseBudget, PixelLayout, TransferSyntaxKind,
 };
+#[cfg(test)]
+use ritk_dicom::{decode_native_pixel_bytes_checked, PixelSignedness};
 
 use super::types::DicomSliceMetadata;
 
@@ -18,8 +18,8 @@ use super::types::DicomSliceMetadata;
 ///
 /// # Invariants
 /// - `bits_allocated=8`: each byte is one unsigned sample.
-/// - `bits_allocated=16`, `pixel_representation=Signed`: each LE i16 pair is one sample.
-/// - Any other combination: each LE u16 pair is one sample (unsigned default).
+/// - `bits_allocated` selects the byte container width.
+/// - `bits_stored` selects the meaningful magnitude and two's-complement sign bit.
 ///
 /// Mathematical derivation: F(x) = x × RescaleSlope + RescaleIntercept
 /// per DICOM PS3.3 C.7.6.3.1.4.
@@ -27,28 +27,26 @@ use super::types::DicomSliceMetadata;
 pub(super) fn decode_pixel_bytes(
     bytes: &[u8],
     bits_allocated: u16,
+    bits_stored: u16,
     pixel_representation: PixelSignedness,
     slope: f32,
     intercept: f32,
 ) -> Vec<f32> {
-    match (bits_allocated, pixel_representation) {
-        (8, PixelSignedness::Signed) => bytes
-            .iter()
-            .map(|&b| (b as i8) as f32 * slope + intercept)
-            .collect(),
-        (8, PixelSignedness::Unsigned) => bytes
-            .iter()
-            .map(|&b| b as f32 * slope + intercept)
-            .collect(),
-        (16, PixelSignedness::Signed) => bytes
-            .chunks_exact(2)
-            .map(|c| i16::from_le_bytes([c[0], c[1]]) as f32 * slope + intercept)
-            .collect(),
-        _ => bytes
-            .chunks_exact(2)
-            .map(|c| u16::from_le_bytes([c[0], c[1]]) as f32 * slope + intercept)
-            .collect(),
-    }
+    let bytes_per_sample = usize::from(bits_allocated / 8);
+    decode_native_pixel_bytes_checked(
+        bytes,
+        PixelLayout {
+            rows: 1,
+            cols: bytes.len() / bytes_per_sample,
+            samples_per_pixel: 1,
+            bits_allocated,
+            bits_stored,
+            pixel_representation,
+            rescale_slope: slope,
+            rescale_intercept: intercept,
+        },
+    )
+    .expect("invariant: test helper receives complete byte-addressable samples")
 }
 
 pub(super) fn ensure_scalar_samples_per_pixel(
@@ -133,6 +131,7 @@ fn decode_pixels_from_object(
                 cols,
                 samples_per_pixel,
                 bits_allocated: slice.bits_allocated,
+                bits_stored: slice.bits_stored,
                 pixel_representation: slice.pixel_representation,
                 rescale_slope: slice.rescale_slope,
                 rescale_intercept: slice.rescale_intercept,

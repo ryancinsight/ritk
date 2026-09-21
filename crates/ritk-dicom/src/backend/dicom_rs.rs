@@ -106,6 +106,7 @@ impl PixelDecodeBackend<DefaultDicomObject> for DicomRsBackend {
         object: &DefaultDicomObject,
         request: DecodeFrameRequest,
     ) -> Result<DecodedFrame> {
+        validate_pixel_description(object, request.layout)?;
         let pixels = match &request.transfer_syntax {
             syntax if syntax.is_native_jpeg_codec() => {
                 NativeCodecBackend::decode_frame(object, request.clone())?.pixels
@@ -159,6 +160,49 @@ impl PixelDecodeBackend<DefaultDicomObject> for DicomRsBackend {
     }
 }
 
+fn validate_pixel_description(object: &DefaultDicomObject, layout: PixelLayout) -> Result<()> {
+    layout.bytes_per_sample()?;
+    for (tag, name, declared) in [
+        (Tag(0x0028, 0x0100), "BitsAllocated", layout.bits_allocated),
+        (Tag(0x0028, 0x0101), "BitsStored", layout.bits_stored),
+    ] {
+        if let Some(actual) = pixel_attribute(object, tag, name)? {
+            if actual != declared {
+                bail!("DICOM {name}={actual} does not match frame layout {name}={declared}");
+            }
+        }
+    }
+    if let Some(high_bit) = pixel_attribute(object, Tag(0x0028, 0x0102), "HighBit")? {
+        let expected = layout
+            .bits_stored
+            .checked_sub(1)
+            .context("DICOM BitsStored must be positive before validating HighBit")?;
+        if high_bit != expected {
+            bail!(
+                "DICOM HighBit={high_bit} does not equal BitsStored-1={expected} for BitsStored={}",
+                layout.bits_stored
+            );
+        }
+    }
+    Ok(())
+}
+
+fn pixel_attribute(
+    object: &DefaultDicomObject,
+    tag: Tag,
+    name: &'static str,
+) -> Result<Option<u16>> {
+    object
+        .element(tag)
+        .ok()
+        .map(|element| {
+            element
+                .to_int::<u16>()
+                .with_context(|| format!("DICOM {name} ({:04X},{:04X}) is not a u16", tag.0, tag.1))
+        })
+        .transpose()
+}
+
 fn decode_via_dicom_rs(
     object: &DefaultDicomObject,
     request: &DecodeFrameRequest,
@@ -183,6 +227,7 @@ fn decode_via_dicom_rs(
         cols: request.layout.cols,
         samples_per_pixel: request.layout.samples_per_pixel,
         bits_allocated: request.layout.bits_allocated,
+        bits_stored: request.layout.bits_stored,
         pixel_representation: request.layout.pixel_representation,
         rescale_slope: 1.0,
         rescale_intercept: 0.0,

@@ -115,6 +115,26 @@ fn test_scan_mixed_non_image_and_ct_retains_image_slice() {
             PrimitiveValue::from(4_u16),
         ));
         obj.put(DataElement::new(
+            Tag(0x0028, 0x0100),
+            VR::US,
+            PrimitiveValue::from(16_u16),
+        ));
+        obj.put(DataElement::new(
+            Tag(0x0028, 0x0101),
+            VR::US,
+            PrimitiveValue::from(16_u16),
+        ));
+        obj.put(DataElement::new(
+            Tag(0x0028, 0x0102),
+            VR::US,
+            PrimitiveValue::from(15_u16),
+        ));
+        obj.put(DataElement::new(
+            Tag(0x0028, 0x0103),
+            VR::US,
+            PrimitiveValue::from(0_u16),
+        ));
+        obj.put(DataElement::new(
             Tag(0x0020, 0x0013),
             VR::IS,
             PrimitiveValue::from("1"),
@@ -230,6 +250,26 @@ fn test_scan_private_sequence_is_preserved_in_object_model() {
         Tag(0x0028, 0x0011),
         VR::US,
         PrimitiveValue::from(4_u16),
+    ));
+    obj.put(DataElement::new(
+        Tag(0x0028, 0x0100),
+        VR::US,
+        PrimitiveValue::from(16_u16),
+    ));
+    obj.put(DataElement::new(
+        Tag(0x0028, 0x0101),
+        VR::US,
+        PrimitiveValue::from(16_u16),
+    ));
+    obj.put(DataElement::new(
+        Tag(0x0028, 0x0102),
+        VR::US,
+        PrimitiveValue::from(15_u16),
+    ));
+    obj.put(DataElement::new(
+        Tag(0x0028, 0x0103),
+        VR::US,
+        PrimitiveValue::from(0_u16),
     ));
     obj.put(DataElement::new(
         Tag(0x0020, 0x0013),

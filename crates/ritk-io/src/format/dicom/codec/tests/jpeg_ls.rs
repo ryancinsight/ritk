@@ -149,9 +149,16 @@ fn test_decode_compressed_frame_jpegls_lossless_round_trip() {
     write_jpegls_dicom_file(&path, width, height, &original, 0);
 
     let obj = dicom::object::open_file(&path).expect("open_file failed");
-    let decoded =
-        decode_compressed_frame(&obj, 0, 8, ritk_dicom::PixelSignedness::Unsigned, 1.0, 0.0)
-            .expect("JPEG-LS Lossless decode must succeed");
+    let decoded = decode_compressed_frame(
+        &obj,
+        0,
+        8,
+        8,
+        ritk_dicom::PixelSignedness::Unsigned,
+        1.0,
+        0.0,
+    )
+    .expect("JPEG-LS Lossless decode must succeed");
 
     let expected = original
         .iter()
@@ -177,9 +184,16 @@ fn test_decode_compressed_frame_jpegls_lossless_multirow_round_trip() {
     write_jpegls_dicom_file(&path, width, height, &original, 0);
 
     let obj = dicom::object::open_file(&path).expect("open_file failed");
-    let decoded =
-        decode_compressed_frame(&obj, 0, 8, ritk_dicom::PixelSignedness::Unsigned, 1.0, 0.0)
-            .expect("JPEG-LS Lossless decode must succeed for multi-row fixture");
+    let decoded = decode_compressed_frame(
+        &obj,
+        0,
+        8,
+        8,
+        ritk_dicom::PixelSignedness::Unsigned,
+        1.0,
+        0.0,
+    )
+    .expect("JPEG-LS Lossless decode must succeed for multi-row fixture");
 
     let expected = original
         .iter()
@@ -213,9 +227,16 @@ fn test_decode_compressed_frame_jpegls_near_lossless_round_trip() {
     write_jpegls_dicom_file(&path, width, height, &original, 2);
 
     let obj = dicom::object::open_file(&path).expect("open_file failed");
-    let decoded =
-        decode_compressed_frame(&obj, 0, 8, ritk_dicom::PixelSignedness::Unsigned, 1.0, 0.0)
-            .expect("decode_compressed_frame must succeed for JPEG-LS Near-Lossless");
+    let decoded = decode_compressed_frame(
+        &obj,
+        0,
+        8,
+        8,
+        ritk_dicom::PixelSignedness::Unsigned,
+        1.0,
+        0.0,
+    )
+    .expect("decode_compressed_frame must succeed for JPEG-LS Near-Lossless");
 
     assert_eq!(decoded.len(), 16, "decoded pixel count must equal 16");
     let max_error = original

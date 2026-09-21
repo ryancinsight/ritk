@@ -3,6 +3,7 @@
 use std::collections::HashMap;
 use std::path::PathBuf;
 
+use anyhow::Result;
 use dicom::core::{Tag, VR};
 use dicom::object::DefaultDicomObject;
 use dicom_core::header::Header;
@@ -13,6 +14,7 @@ use super::types::{
     cs_to_arraystring, da_to_arraystring, parse_patient_position, tm_to_arraystring,
     uid_to_arraystring, DicomSliceMetadata, SeriesFirstSeen,
 };
+use crate::format::dicom::color_common::read_required_unsigned;
 use crate::format::dicom::object_model::{
     is_private_tag, DicomElementClass, DicomObjectNode, DicomPreservationSet,
     DicomPreservedElement, DicomTag, DicomValue,
@@ -70,7 +72,7 @@ pub(super) fn extract_dicom_metadata(
     obj: &DefaultDicomObject,
     path_for_meta: PathBuf,
     first: &mut SeriesFirstSeen,
-) -> (DicomSliceMetadata, (u32, u32)) {
+) -> Result<(DicomSliceMetadata, (u32, u32))> {
     let mut slice_meta = DicomSliceMetadata {
         path: path_for_meta,
         preservation: DicomPreservationSet::new(),
@@ -88,6 +90,7 @@ pub(super) fn extract_dicom_metadata(
         private_tags: HashMap::new(),
         pixel_representation: PixelSignedness::Unsigned,
         bits_allocated: 16,
+        bits_stored: 16,
         window_center: None,
         window_width: None,
         gantry_tilt: None,
@@ -166,8 +169,9 @@ pub(super) fn extract_dicom_metadata(
             .to_str()
             .ok()
             .and_then(|s| s.trim().parse().ok())
-            .unwrap_or(16);
+            .unwrap_or(slice_meta.bits_allocated);
     }
+    slice_meta.bits_stored = read_required_unsigned(obj, Tag(0x0028, 0x0101), "BitsStored")?;
     // WindowCenter (0028,1050) — first value of potentially multi-valued DS.
     if let Ok(elem) = obj.element(Tag(0x0028, 0x1050)) {
         slice_meta.window_center = elem.to_str().ok().and_then(|s| {
@@ -424,7 +428,7 @@ pub(super) fn extract_dicom_metadata(
         }
     }
 
-    (slice_meta, file_dim)
+    Ok((slice_meta, file_dim))
 }
 
 #[cfg(test)]

@@ -13,7 +13,8 @@ fn layout(rows: usize, cols: usize, bits: u16) -> PixelLayout {
         rows,
         cols,
         samples_per_pixel: 1,
-        bits_allocated: bits,
+        bits_allocated: if bits <= 8 { 8 } else { 16 },
+        bits_stored: bits,
         pixel_representation: PixelSignedness::Unsigned,
         rescale_slope: 1.0,
         rescale_intercept: 0.0,
@@ -29,7 +30,7 @@ fn round_trip(samples: &[u16], rows: u32, cols: u32, bpp: u32) {
         &[0xFF, 0xD9],
         "stream must end with EOI"
     );
-    let bits = if bpp <= 8 { 8u16 } else { 16 };
+    let bits = u16::try_from(bpp).expect("test precision fits in u16");
     let decoded = decode_jpeg_ls_fragment(&stream, layout(rows as usize, cols as usize, bits))
         .expect("native JPEG-LS round-trip must decode");
     assert_eq!(decoded.len(), samples.len());
@@ -99,6 +100,28 @@ fn round_trip_single_pixel() {
     round_trip(&[42], 1, 1, 8);
 }
 
+#[test]
+fn eight_bit_signed_sample_uses_sixteen_bit_dicom_container() {
+    let stream =
+        encode_grayscale_jpeg_ls(&[128], 1, 1, 8, 0).expect("valid lossless fixture must encode");
+    let decoded = decode_jpeg_ls_fragment(
+        &stream,
+        PixelLayout {
+            rows: 1,
+            cols: 1,
+            samples_per_pixel: 1,
+            bits_allocated: 16,
+            bits_stored: 8,
+            pixel_representation: PixelSignedness::Signed,
+            rescale_slope: 2.0,
+            rescale_intercept: 5.0,
+        },
+    )
+    .expect("eight-bit JPEG-LS must decode into a 16-bit DICOM container");
+
+    assert_eq!(decoded, vec![-251.0]);
+}
+
 proptest::proptest! {
     /// Lossless invariant over random images: any sample matrix in the bpp
     /// dynamic range must round-trip exactly through encode → decode.
@@ -127,7 +150,7 @@ proptest::proptest! {
         }
         let stream = encode_grayscale_jpeg_ls(&samples, rows, cols, bpp, 0)
             .expect("valid random lossless fixture must encode");
-        let bits = if bpp <= 8 { 8u16 } else { 16 };
+        let bits = u16::try_from(bpp).expect("generated precision fits in u16");
         let decoded = decode_jpeg_ls_fragment(
             &stream,
             layout(rows as usize, cols as usize, bits),

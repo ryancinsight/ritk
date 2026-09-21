@@ -55,6 +55,16 @@ fn dicom_rs_backend_parses_file_and_decodes_uncompressed_frame() {
         PrimitiveValue::from(16_u16),
     ));
     obj.put(DataElement::new(
+        Tag(0x0028, 0x0101),
+        VR::US,
+        PrimitiveValue::from(16_u16),
+    ));
+    obj.put(DataElement::new(
+        Tag(0x0028, 0x0102),
+        VR::US,
+        PrimitiveValue::from(15_u16),
+    ));
+    obj.put(DataElement::new(
         Tag(0x0028, 0x0103),
         VR::US,
         PrimitiveValue::from(0_u16),
@@ -75,7 +85,7 @@ fn dicom_rs_backend_parses_file_and_decodes_uncompressed_frame() {
     .write_to_file(&path)
     .expect("DICOM file must be written");
 
-    let parsed = parse_file_with::<DicomRsBackend, _>(&path).expect("parse must succeed");
+    let mut parsed = parse_file_with::<DicomRsBackend, _>(&path).expect("parse must succeed");
     let encoded = std::fs::read(&path).expect("written DICOM must be readable");
     let bounded = parse_bytes_with_budget::<DicomRsBackend>(&encoded, &ParseBudget::DEFAULT)
         .expect("budgeted parse must succeed");
@@ -105,25 +115,38 @@ fn dicom_rs_backend_parses_file_and_decodes_uncompressed_frame() {
         "unexpected budget error: {error:#}"
     );
 
-    let decoded = decode_frame_with::<DicomRsBackend>(
-        &parsed,
-        DecodeFrameRequest {
-            frame_index: 0,
-            transfer_syntax: TransferSyntaxKind::ExplicitVrLittleEndian,
-            layout: PixelLayout {
-                rows: 2,
-                cols: 2,
-                samples_per_pixel: 1,
-                bits_allocated: 16,
-                pixel_representation: PixelSignedness::Unsigned,
-                rescale_slope: 2.0,
-                rescale_intercept: -10.0,
-            },
+    let request = DecodeFrameRequest {
+        frame_index: 0,
+        transfer_syntax: TransferSyntaxKind::ExplicitVrLittleEndian,
+        layout: PixelLayout {
+            rows: 2,
+            cols: 2,
+            samples_per_pixel: 1,
+            bits_allocated: 16,
+            bits_stored: 16,
+            pixel_representation: PixelSignedness::Unsigned,
+            rescale_slope: 2.0,
+            rescale_intercept: -10.0,
         },
-    )
-    .expect("decode must succeed");
+    };
+    let decoded =
+        decode_frame_with::<DicomRsBackend>(&parsed, request.clone()).expect("decode must succeed");
 
     assert_eq!(decoded.pixels, vec![10.0, 30.0, 50.0, 70.0]);
+
+    parsed.put(DataElement::new(
+        Tag(0x0028, 0x0102),
+        VR::US,
+        PrimitiveValue::from(14_u16),
+    ));
+    let error = decode_frame_with::<DicomRsBackend>(&parsed, request)
+        .expect_err("HighBit must equal BitsStored minus one");
+    assert!(
+        error
+            .to_string()
+            .contains("HighBit=14 does not equal BitsStored-1=15"),
+        "expected HighBit alignment error, got {error:#}"
+    );
 }
 
 #[test]
@@ -200,6 +223,7 @@ fn dicom_rs_backend_decodes_requested_native_multiframe_only() {
                 cols: 2,
                 samples_per_pixel: 1,
                 bits_allocated: 16,
+                bits_stored: 16,
                 pixel_representation: PixelSignedness::Unsigned,
                 rescale_slope: 1.0,
                 rescale_intercept: 0.0,
@@ -284,6 +308,7 @@ fn native_owned_jpeg_errors_do_not_fallback_to_dicom_rs() {
                 cols: 1,
                 samples_per_pixel: 1,
                 bits_allocated: 8,
+                bits_stored: 8,
                 pixel_representation: PixelSignedness::Unsigned,
                 rescale_slope: 1.0,
                 rescale_intercept: 0.0,
@@ -534,6 +559,8 @@ fn write_single_frame_compressed_fixture(
     path: &std::path::Path,
     width: u16,
     height: u16,
+    bits_allocated: u16,
+    bits_stored: u16,
     transfer_syntax_uid: &str,
     sop_instance_uid: &str,
     fragment: Vec<u8>,
@@ -570,17 +597,21 @@ fn write_single_frame_compressed_fixture(
     obj.put(DataElement::new(
         Tag(0x0028, 0x0100),
         VR::US,
-        PrimitiveValue::from(8u16),
+        PrimitiveValue::from(bits_allocated),
     ));
     obj.put(DataElement::new(
         Tag(0x0028, 0x0101),
         VR::US,
-        PrimitiveValue::from(8u16),
+        PrimitiveValue::from(bits_stored),
     ));
     obj.put(DataElement::new(
         Tag(0x0028, 0x0102),
         VR::US,
-        PrimitiveValue::from(7u16),
+        PrimitiveValue::from(
+            bits_stored
+                .checked_sub(1)
+                .expect("fixture BitsStored must be positive"),
+        ),
     ));
     obj.put(DataElement::new(
         Tag(0x0028, 0x0103),
@@ -642,6 +673,8 @@ fn dicom_rs_backend_round_trips_jpegls_pixeldata_via_write_bytes_and_file() {
         &src,
         width,
         height,
+        8,
+        8,
         "1.2.840.10008.1.2.4.80",
         "2.25.900001",
         fragment,
@@ -655,6 +688,7 @@ fn dicom_rs_backend_round_trips_jpegls_pixeldata_via_write_bytes_and_file() {
             cols: usize::from(width),
             samples_per_pixel: 1,
             bits_allocated: 8,
+            bits_stored: 8,
             pixel_representation: PixelSignedness::Unsigned,
             rescale_slope: 1.0,
             rescale_intercept: 0.0,
@@ -707,6 +741,8 @@ fn dicom_rs_backend_round_trips_j2k_pixeldata_via_write_bytes() {
         &src,
         width,
         height,
+        8,
+        8,
         "1.2.840.10008.1.2.4.90",
         "2.25.900002",
         fragment,
@@ -720,6 +756,7 @@ fn dicom_rs_backend_round_trips_j2k_pixeldata_via_write_bytes() {
             cols: usize::from(width),
             samples_per_pixel: 1,
             bits_allocated: 8,
+            bits_stored: 8,
             pixel_representation: PixelSignedness::Unsigned,
             rescale_slope: 1.0,
             rescale_intercept: 0.0,
@@ -754,6 +791,8 @@ fn dicom_rs_backend_round_trips_rle_pixeldata_via_write_bytes() {
         &src,
         width,
         height,
+        16,
+        16,
         "1.2.840.10008.1.2.5",
         "2.25.900003",
         fragment,
@@ -767,6 +806,7 @@ fn dicom_rs_backend_round_trips_rle_pixeldata_via_write_bytes() {
             cols: usize::from(width),
             samples_per_pixel: 1,
             bits_allocated: 16,
+            bits_stored: 16,
             pixel_representation: PixelSignedness::Unsigned,
             rescale_slope: 1.0,
             rescale_intercept: 0.0,

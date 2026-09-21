@@ -144,6 +144,8 @@ pub struct DicomSliceMetadata {
     pub pixel_representation: PixelSignedness,
     /// BitsAllocated (0028,0100). Defaults to 16 when absent.
     pub bits_allocated: u16,
+    /// Required BitsStored (0028,0101) value from the source instance.
+    pub bits_stored: u16,
     pub window_center: Option<f64>,
     pub window_width: Option<f64>,
     /// GantryDetectorTilt (0018,1120) in degrees.
@@ -175,6 +177,7 @@ impl Default for DicomSliceMetadata {
             private_tags: HashMap::new(),
             pixel_representation: PixelSignedness::Unsigned,
             bits_allocated: 16,
+            bits_stored: 16,
             window_center: None,
             window_width: None,
             gantry_tilt: None,

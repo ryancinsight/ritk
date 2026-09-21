@@ -24,7 +24,7 @@ use ritk_spatial::{Direction, Point, Spacing};
 fn test_decode_pixel_bytes_unsigned_16bit_identity_rescale() {
     // u16: [0x00,0x00] = 0; [0xFF,0xFF] = 65535. slope=1.0, intercept=0.0 → identity.
     let bytes: [u8; 4] = [0x00, 0x00, 0xFF, 0xFF];
-    let result = decode_pixel_bytes(&bytes, 16, PixelSignedness::Unsigned, 1.0, 0.0);
+    let result = decode_pixel_bytes(&bytes, 16, 16, PixelSignedness::Unsigned, 1.0, 0.0);
     assert_eq!(result.len(), 2);
     assert_eq!(result[0], 0.0f32);
     assert_eq!(result[1], 65535.0f32);
@@ -34,7 +34,7 @@ fn test_decode_pixel_bytes_unsigned_16bit_identity_rescale() {
 fn test_decode_pixel_bytes_signed_16bit_identity_rescale() {
     // i16::MIN = -32768 stored as [0x00, 0x80] LE; i16::MAX = 32767 stored as [0xFF, 0x7F] LE.
     let bytes: [u8; 4] = [0x00, 0x80, 0xFF, 0x7F];
-    let result = decode_pixel_bytes(&bytes, 16, PixelSignedness::Signed, 1.0, 0.0);
+    let result = decode_pixel_bytes(&bytes, 16, 16, PixelSignedness::Signed, 1.0, 0.0);
     assert_eq!(result.len(), 2);
     assert_eq!(result[0], -32768.0f32);
     assert_eq!(result[1], 32767.0f32);
@@ -44,7 +44,7 @@ fn test_decode_pixel_bytes_signed_16bit_identity_rescale() {
 fn test_decode_pixel_bytes_signed_16bit_with_rescale() {
     // i16: -1 = [0xFF, 0xFF] LE; decoded = -1.0 × 2.0 + 100.0 = 98.0.
     let bytes: [u8; 2] = [0xFF, 0xFF];
-    let result = decode_pixel_bytes(&bytes, 16, PixelSignedness::Signed, 2.0, 100.0);
+    let result = decode_pixel_bytes(&bytes, 16, 16, PixelSignedness::Signed, 2.0, 100.0);
     assert_eq!(result.len(), 1);
     assert_eq!(result[0], 98.0f32);
 }
@@ -52,7 +52,7 @@ fn test_decode_pixel_bytes_signed_16bit_with_rescale() {
 #[test]
 fn test_decode_pixel_bytes_8bit_identity_rescale() {
     let bytes: [u8; 3] = [0, 127, 255];
-    let result = decode_pixel_bytes(&bytes, 8, PixelSignedness::Unsigned, 1.0, 0.0);
+    let result = decode_pixel_bytes(&bytes, 8, 8, PixelSignedness::Unsigned, 1.0, 0.0);
     assert_eq!(result, vec![0.0f32, 127.0f32, 255.0f32]);
 }
 
@@ -60,7 +60,7 @@ fn test_decode_pixel_bytes_8bit_identity_rescale() {
 fn test_decode_pixel_bytes_8bit_with_rescale() {
     // 8-bit value 200; slope=0.5, intercept=10.0 → 200 × 0.5 + 10.0 = 110.0.
     let bytes: [u8; 1] = [200];
-    let result = decode_pixel_bytes(&bytes, 8, PixelSignedness::Unsigned, 0.5, 10.0);
+    let result = decode_pixel_bytes(&bytes, 8, 8, PixelSignedness::Unsigned, 0.5, 10.0);
     assert_eq!(result[0], 110.0f32);
 }
 

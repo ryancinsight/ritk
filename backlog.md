@@ -3,14 +3,14 @@
 <a id="RITK-JPEG-001"></a>
 ## RITK-JPEG-001 — Consume shared JPEG raster codec [arch] [major]
 - Status: in-progress; integrator: root/ritk_consumer; prior delivery: [PR 556](https://github.com/ryancinsight/ritk/pull/556), merge `fc85dad03a6c14a617e9687609044497c1eba122`; updated: 2026-09-21.
-- Lease: root/ritk_consumer `crates/ritk-codecs`, `crates/ritk-dicom`, DICOM paths in `crates/ritk-io`, `crates/ritk-jpeg`, JPEG metadata tests in `crates/ritk-snap`, and JPEG/DICOM docs; 2026-09-21T09:45:52-04:00.
 - Driver: [METIS-ASSETS-001](../metis/backlog.md#METIS-ASSETS-001).
 - Outcome: JPEG byte parsing, entropy reconstruction and EXIF interpretation move to [Consus](../consus/backlog.md#CONSUS-RASTER-001); RITK retains DICOM pixel layout, signedness, modality conversion and clinical presentation.
 - Scope: `ritk-codecs` JPEG, `ritk-jpeg` readers, PNG adapters and Snap PNG output, manifests, tests and owning documentation.
 - Acceptance: preserve lossless and modality samples, RGB/grayscale file semantics and writer boundaries while deleting duplicate codec computation.
-- Dependencies: merged `consus-raster` provider at Consus PR #77 revision `e34902feccc8e8c11906a9b35651fe72828cbc7e`.
-- Verification: standalone lock check passes with 62 first-party Git sources; the five-package debug gate passes 1,299/1,299 and the release codec gate passes 339/339; direct RGB uses the derived one-code-value differential bound; PNG readers reject JPEG bytes under both extensions and Snap emits a PNG signature for a `.jpg` path; the configured pre-push gate passes.
-- Evidence: the post-merge real-study replay reads 94 files/49,807,236 bytes, exits 0, rejects the invalid-study probe with exit 1, and reproduces the committed 1280×800 MRI PNG byte-identically (`259dd791...`, 411,589 non-black pixels) under lock `b1d7c99a6dcbf788f515f4b18789d10035805e38db10f4a32dd7970b3050e226`.
+- Dependencies: [Consus PR 80](https://github.com/ryancinsight/consus/pull/80) and [Apollo PR 526](https://github.com/ryancinsight/apollo/pull/526) are merged; the standalone lock resolves both providers coherently.
+- Current increment: BitsStored propagation, unsigned-scalar cardinality and shared display mapping pass 1,356 debug and 392 release tests, strict Clippy, ten doctests and warning-denied Rustdoc; five doctests remain intentionally ignored. ADR 0048 records the expected major API changes; integration remains pending.
+- Prior delivery verification (PR 556): standalone lock check passes with 62 first-party Git sources; the five-package debug gate passes 1,299/1,299 and the release codec gate passes 339/339; direct RGB uses the derived one-code-value differential bound; PNG readers reject JPEG bytes under both extensions and Snap emits a PNG signature for a `.jpg` path; the configured pre-push gate passes.
+- Prior delivery evidence (PR 556): the post-merge real-study replay reads 94 files/49,807,236 bytes, exits 0, rejects the invalid-study probe with exit 1, and reproduces the committed 1280×800 MRI PNG byte-identically (`259dd791...`, 411,589 non-black pixels) under lock `b1d7c99a6dcbf788f515f4b18789d10035805e38db10f4a32dd7970b3050e226`.
 <a id="RITK-METIS-LOCK-015"></a>
 ## RITK-METIS-LOCK-015 — Replay the merged Métis semantic capture provider [patch]
 - Status: done; priority: P1; owner: RITK viewer + integration; integrator: root; last-update: 2026-09-21.

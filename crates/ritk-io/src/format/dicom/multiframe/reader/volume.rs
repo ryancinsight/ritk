@@ -134,7 +134,7 @@ pub(crate) fn load_multiframe_flat_from_object(
         );
     }
 
-    let info = extract_multiframe_header(path, obj);
+    let info = extract_multiframe_header(path, obj)?;
     if info.rows == 0 || info.cols == 0 {
         bail!(
             "DICOM multiframe: rows={} cols={} must be >0 in {:?}",
@@ -210,6 +210,7 @@ pub(crate) fn load_multiframe_flat_from_object(
                     cols: info.cols,
                     samples_per_pixel: 1,
                     bits_allocated: info.bits_allocated,
+                    bits_stored: info.bits_stored,
                     pixel_representation: info.pixel_representation,
                     rescale_slope: slope,
                     rescale_intercept: intercept,
