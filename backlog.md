@@ -19,6 +19,15 @@
 - Dependencies: Métis PR #311 merge `6e53c8a082447e6cd3b4ed46b2173b071b0c37f8`; current Moirai lock source remains unchanged unless Cargo resolution requires its existing revision.
 - Verification: standalone lock check, native/WASM gates, strict Clippy, formatting, rustdoc, provenance and the 94-file replay passed on the delivery revision.
 - Delivery: PR [#555](https://github.com/ryancinsight/ritk/pull/555), merge `d46fbda252b06a1445272167bdade4403e7bcb49`; the later JPEG integration in PR #556 advances the same six package sources to `4bceb90fe616465eca91cddc0c182548b295ca95`.
+<a id="RITK-METIS-LOCK-017"></a>
+## RITK-METIS-LOCK-017 - Consume the merged Metis editable accessibility surface [patch]
+- Status: done; priority: P1; owner: RITK viewer + integration; integrator: root; last-update: 2026-09-21; dependency: Metis PR #317.
+- Outcome: the standalone RITK lock and browser workflow consume Metis merge `3a3b30b0c3481db00b16175e6418907a6ae6f11c` while DICOM decoding, clinical presentation and the byte-identical real MRI replay remain RITK-owned.
+- Scope: six Metis source revisions in `Cargo.lock`, the browser workflow default revision, current replay provenance and manual synchronization. No DICOM parser or viewer semantics move into Metis.
+- Acceptance: standalone lock resolves without the Atlas overlay; locked native/WASM tests, strict Clippy, formatting, rustdoc, provenance and the real 94-file MRI replay pass; the 1280x800 PNG remains byte-identical (`259dd791...`, 411,589 non-black pixels); the browser workflow checks out the merged Metis revision.
+- Verification: the standalone lock check reports 62 first-party Git sources at SHA-256 `ce73c2f...`; `ritk-snap` nextest passes 491/491; native strict Clippy, WASM check/Clippy, formatting, rustdoc and doctests (4 passed, 1 ignored) pass; projection tests pass 5/5; Python script tests pass 26/26; the native replay reads 94 files/49,807,236 bytes, exits 0, rejects the invalid-study probe with exit 1, and preserves the 1280x800 image (`259dd791...`, 411,589 non-black pixels).
+- Delivery: PR [#559](https://github.com/ryancinsight/ritk/pull/559), merge pending; DICOM remains RITK-owned and the provider lock is standalone outside the Atlas overlay.
+
 <a id="RITK-METIS-LOCK-016"></a>
 ## RITK-METIS-LOCK-016 — Replay the landed Métis accessibility provider [patch]
 - Status: done; priority: P1; owner: RITK viewer + integration; integrator: root; last-update: 2026-09-21; dependencies: Metis PR #316.
