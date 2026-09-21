@@ -225,7 +225,7 @@ jobs:
 
       - name: Install binding test tooling
         run: |
-          python -m pip install -r crates/ritk-python/requirements-test.txt
+          python -m pip install -r crates/ritk-python/requirements-free-threaded.txt
           python -m pip install 'maturin>=1.9.4,<2.0'
 
       - name: Build abi3t wheel
