@@ -81,15 +81,15 @@
     "input": "public MRI-DIR DICOM directory at test_data/2_head_mri_t2/DICOM",
     "files_submitted": 94,
     "bytes_read": 49807236,
-    "ritk_revision": "6f710b935e87940fc5da16d17aaf38a948b0269e",
-    "metis_revision": "6e53c8a082447e6cd3b4ed46b2173b071b0c37f8",
+    "ritk_revision": "fc85dad03a6c14a617e9687609044497c1eba122",
+    "metis_revision": "4bceb90fe616465eca91cddc0c182548b295ca95",
     "moirai_revision": "2a54e010532f76c88027fec8a468620c92fe66b3",
-    "cargo_lock_sha256": "f5c822fb4e168be47d2996418cb85bfbde6b8ad52fa99e228825f714c53caf94",
-    "cargo_resolution": "standalone Cargo.lock outside the Atlas development overlay; 61 first-party git sources resolve with six Metis packages at the merged revision above and fifteen Moirai packages at the current locked revision",
-    "executable_sha256": "49d553d8da68edae078a02adb51ef7f63ad20abdf56ea58dc436b2b6f069aae1",
-    "executable_bytes": 54054912,
-    "example_sha256": "411c5cd8168028215500e1895cd5af693e5403be8edeb94f8009e79921b50120",
-    "example_bytes": 24137216,
+    "cargo_lock_sha256": "b1d7c99a6dcbf788f515f4b18789d10035805e38db10f4a32dd7970b3050e226",
+    "cargo_resolution": "standalone Cargo.lock outside the Atlas development overlay; 62 first-party Git sources resolve with six Metis packages at the merged revision above and fifteen Moirai packages at the current locked revision",
+    "executable_sha256": "ca3900b3e8e663883e47e4c297d2ffd3f1ee086732c2a746632c505fff36e699",
+    "executable_bytes": 54192128,
+    "example_sha256": "4c17e303aa2254c29f950987cd2e6ab5667fd57aab5d18499264129813739155",
+    "example_bytes": 24297984,
     "capture": "scratch/viewer/real-metis-frame.png",
     "capture_sha256": "259dd79103482756c4e688621bebafc841cc40f1df10ff2bbd7f9d04b7b4d401",
     "width": 1280,
@@ -113,7 +113,7 @@
       "scope": "allocation lifecycle; not a process-memory or framework comparison measurement"
     },
     "note": "The captured PNG is byte-identical to dicom-metis-real-mri.png; the source is public CC BY 4.0 phantom data and no private study bytes are committed.",
-    "browser_workflow_metis_revision": "6e53c8a082447e6cd3b4ed46b2173b071b0c37f8"
+    "browser_workflow_metis_revision": "4bceb90fe616465eca91cddc0c182548b295ca95"
   },
   "ownership": {
     "host": "Moirai/Metis return the selected filesystem path and present a format-neutral framebuffer",
