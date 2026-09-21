@@ -27,6 +27,9 @@ range and `freethreaded: true`. The free-threaded contract job installs only
 NumPy and pytest from `requirements-free-threaded.txt`; the full parity
 dependency set remains on the regular Python matrix because native parity
 packages do not necessarily publish prerelease free-threaded wheels.
+Package metadata keeps NumPy `>=2.0.2,<2.6` for Python versions below 3.15
+and requires `>=2.5,<2.6` from Python 3.15 onward, so installed abi3t wheels
+receive the same C API floor as the contract job.
 
 ## Alternatives
 
@@ -69,3 +72,16 @@ wheel because Cargo keeps default features enabled when `--features abi3t` is
 passed alone. The free-threaded job now passes `--no-default-features` so the
 artifact is built from the `abi3t` feature exclusively and is installable by
 CPython 3.15t.
+
+### Revision 2026-09-21 (NumPy bridge compatibility)
+
+The first run that reached the installed wheel and free-threaded contract,
+35661207418, failed when `Image` extracted a NumPy array: the registry
+`numpy` 0.29.0 bridge reported `TypeError: 'ndarray' object is not an
+instance of 'ndarray'` under abi3t. The fix is the merged rust-numpy abi3t
+implementation and its extraction-error corrections at revision
+[`9df4023`](https://github.com/PyO3/rust-numpy/commit/9df402373716a60f0e7825b6043568abe4e63b46),
+consumed temporarily by the RITK lock. The free-threaded contract pins NumPy
+to `>=2.5,<2.6`, matching that bridge's supported C API surface. Remove the
+Git revision when a crates.io `numpy` release contains the abi3t support and
+extraction fixes; the hosted 3.15t contract remains the acceptance oracle.

@@ -1,5 +1,6 @@
 # Dependencies imported by the CPython 3.15t binding contract.
 # Keep this set independent from parity tooling whose native wheels may not
-# exist for a prerelease free-threaded interpreter.
-numpy>=2.0.2,<2.6
+# exist for a prerelease free-threaded interpreter. NumPy 2.5 is required by
+# rust-numpy's abi3t C-API bridge.
+numpy>=2.5,<2.6
 pytest>=8.4.2,<10

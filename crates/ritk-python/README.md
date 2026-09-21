@@ -7,7 +7,7 @@ PyO3/maturin Python extension module wrapping the RITK Rust crate.
 - Rust toolchain 1.97.0 (the repository pin)
 - Python ≥ 3.9
 - maturin ≥ 1.9.4, < 2.0
-- NumPy ≥ 2.0.2, < 2.6
+- NumPy ≥ 2.0.2, < 2.6 on Python < 3.15; NumPy ≥ 2.5, < 2.6 on Python ≥ 3.15
 
 Install the parity-test dependencies from their canonical manifest:
 
@@ -46,7 +46,7 @@ The `abi3t` feature targets CPython 3.15t and declares `gil_used = false` at
 the module boundary. Build it with:
 
 ```sh
-python -m maturin build --release --locked --features abi3t \
+python -m maturin build --release --locked --no-default-features --features abi3t \
   --manifest-path crates/ritk-python/Cargo.toml --out dist
 ```
 
@@ -58,7 +58,8 @@ The hosted contract job installs the minimal dependencies listed in
 `requirements-free-threaded.txt`. The regular parity matrix keeps the broader
 `requirements-test.txt` set; native parity packages are not required to prove
 the binding's free-threaded contract and may not publish prerelease
-free-threaded wheels.
+free-threaded wheels. NumPy 2.5 or newer is required for the free-threaded
+contract because the abi3t array bridge uses the NumPy 2.5 C API surface.
 
 ## Running Tests
 
