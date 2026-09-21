@@ -231,7 +231,7 @@ jobs:
 
       - name: Build abi3t wheel
         run: >-
-          maturin build --release --locked --features abi3t
+          maturin build --release --locked --no-default-features --features abi3t
           --manifest-path crates/ritk-python/Cargo.toml --out dist
 
       - name: Install abi3t wheel
