@@ -108,6 +108,26 @@ mod tests {
 
     fn mark_components_as_direct_rgb(path: &Path) -> Result<()> {
         let mut jpeg = std::fs::read(path)?;
+        let jfif = jpeg
+            .windows(2)
+            .position(|bytes| bytes == [0xFF, 0xE0])
+            .context("test encoder must emit a JFIF segment")?;
+        let length = usize::from(u16::from_be_bytes(
+            jpeg.get(jfif + 2..jfif + 4)
+                .context("test JFIF segment must include a length")?
+                .try_into()
+                .context("test JFIF segment length must be two bytes")?,
+        ));
+        let end = jfif
+            .checked_add(2)
+            .and_then(|offset| offset.checked_add(length))
+            .context("test JFIF segment length must fit the fixture")?;
+        if end > jpeg.len() {
+            bail!("test JFIF segment exceeds the fixture");
+        }
+        // JFIF identifies three-component samples as YCbCr. Component IDs
+        // select direct RGB samples only when a container marker is absent.
+        jpeg.drain(jfif..end);
         let frame = jpeg
             .windows(2)
             .position(|bytes| bytes == [0xFF, 0xC0])
