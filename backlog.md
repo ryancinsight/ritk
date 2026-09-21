@@ -36,7 +36,9 @@
 - Scope: six Metis source revisions in `Cargo.lock`, the browser workflow default revision, current replay provenance and manual synchronization. No DICOM parser or viewer semantics move into Metis.
 - Acceptance: standalone lock resolves without the Atlas overlay; locked native/WASM tests, strict Clippy, formatting, rustdoc, provenance and the real 94-file MRI replay pass; the 1280x800 PNG remains byte-identical (`259dd791...`, 411,589 non-black pixels); the browser workflow checks out the merged Metis revision.
 - Verification: the standalone lock check reports 62 first-party Git sources at SHA-256 `ce73c2f...`; `ritk-snap` nextest passes 491/491; native strict Clippy, WASM check/Clippy, formatting, rustdoc and doctests (4 passed, 1 ignored) pass; projection tests pass 5/5; Python script tests pass 26/26; the native replay reads 94 files/49,807,236 bytes, exits 0, rejects the invalid-study probe with exit 1, and preserves the 1280x800 image (`259dd791...`, 411,589 non-black pixels).
-- Delivery: PR [#559](https://github.com/ryancinsight/ritk/pull/559), merge pending; DICOM remains RITK-owned and the provider lock is standalone outside the Atlas overlay.
+- Delivery: PR [#559](https://github.com/ryancinsight/ritk/pull/559), merge
+  `fcb6dde73c9c1e55cac959586551dc0f4ed7c6ee`; DICOM remains RITK-owned and the
+  provider lock is standalone outside the Atlas overlay.
 
 <a id="RITK-METIS-LOCK-016"></a>
 ## RITK-METIS-LOCK-016 — Replay the landed Métis accessibility provider [patch]
