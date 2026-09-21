@@ -12,11 +12,16 @@ JPEG byte parsing, entropy reconstruction and EXIF interpretation move to
 modality rescaling and image geometry. Its file reader preserves encoded-grid
 orientation; EXIF display orientation never substitutes for clinical geometry.
 
-The existing decoder supports sequential and lossless streams but lacks desktop
-progressive decoding. The separate Metis implementation duplicates JPEG parsing.
+The replaced decoder supported sequential and lossless streams but lacked desktop
+progressive decoding. The separate Metis implementation duplicated JPEG parsing.
 A common upstream provider removes that duplication without a repository cycle:
 RITK's viewer already depends on Metis. Consus owns format parsing and neither
 consumer is a dependency of its raster package.
+
+PNG adapters select the PNG codec explicitly for reads and writes. Filename
+extensions and content guessing cannot route JPEG bytes through the image
+dependency's separate decoder, and a PNG writer emits PNG even when given a
+different extension. JPEG file and DICOM entry points use the shared provider.
 
 ## Verification
 
@@ -36,3 +41,8 @@ test consumers must retain their analytical input fixtures or use
 `consus_raster::jpeg::encode_gray` to produce grayscale JPEG input. No forwarding
 module remains. This removal is a breaking public change; version publication
 remains a separate release action.
+
+The compatibility check against `d46fbda` reports exactly the removed fixture
+module and its three public builders (`baseline_fixture`,
+`baseline_ycbcr_fixture`, and `baseline_grayscale_fixture`). The other 194 checks
+pass; this is compatibility evidence, not decoder correctness evidence.

@@ -576,5 +576,7 @@ Contributions are welcome. Requirements:
 
 ## Acknowledgments
 
+- The shared JPEG encoder includes an IJG-derived transform: this software is
+  based in part on the work of the Independent JPEG Group.
 - Inspired by [ITK](https://itk.org/) (Insight Segmentation and Registration Toolkit)
 - Uses Coeus and Leto for tensor, linear-algebra, and numerical execution

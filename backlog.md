@@ -5,12 +5,12 @@
 - Status: in-progress; integrator: root; branch: refactor/jpeg-provider; updated: 2026-09-20.
 - Driver: [METIS-ASSETS-001](../metis/backlog.md#METIS-ASSETS-001).
 - Outcome: JPEG format computation moves to [Consus](../consus/backlog.md#CONSUS-RASTER-001); medical layout and modality conversion remain here.
-- Scope: ritk-codecs JPEG, ritk-jpeg readers/writer, manifests, tests and owning documentation.
+- Scope: ritk-codecs JPEG, ritk-jpeg readers/writer, PNG adapters and Snap PNG output, manifests, tests and owning documentation.
 - Acceptance: preserve exact lossless and modality samples, RGB/grayscale file semantics, and writer roundtrips; delete duplicate codec computation.
 - Baseline: d46fbda25; locked nextest JPEG filter 276/276, run 68f88f86-f178-45c9-a2f5-e48b9de06eeb.
 - Dependencies: consus-raster bounded sequential/progressive/lossless decoder; ADR 0048.
 - Verification: focused configured nextest, Clippy, docs and consumer regression fixtures.
-- Lease: root crates/ritk-codecs/src/jpeg crates/ritk-jpeg Cargo.toml Cargo.lock docs/adr/0048-jpeg-provider.md.
+- Lease: root crates/ritk-codecs/src/jpeg crates/ritk-jpeg crates/ritk-png crates/ritk-snap/src/app/io_ops/dialog.rs Cargo.toml Cargo.lock README.md docs/adr/0048-jpeg-provider.md.
 
 <a id="RITK-METIS-LOCK-015"></a>
 ## RITK-METIS-LOCK-015 — Replay the merged Métis semantic capture provider [patch]

@@ -138,7 +138,24 @@ fn jpeg_rgb24_fragment_decodes_interleaved_samples() {
 
     let decoded = decode_jpeg_fragment(&jpeg, layout).expect("infallible: validated precondition");
 
-    assert_eq!(decoded, reference_rgb(&jpeg));
+    let reference = reference_rgb(&jpeg);
+    assert_eq!(decoded.len(), 6);
+    assert_eq!(reference.len(), 6);
+
+    // The repeated color produces a DC-only MCU, so both decoders reconstruct
+    // identical YCbCr components without AC or interpolation differences. The
+    // provider's BT.601 multipliers are 359/256, 88/256, 183/256, and 454/256;
+    // the independent decoder uses 1.40200, 0.34414, 0.71414, and 1.77200 in
+    // Q20. At the maximum centered chroma magnitude of 128, their respective
+    // transform-term differences are below 0.044, 0.050 + 0.091, and 0.184
+    // code values. Each is below half a code value, so the final integer
+    // roundings can differ by at most one.
+    for (actual, reference) in decoded.iter().zip(reference) {
+        assert!(
+            (*actual - reference).abs() <= 1.0,
+            "constant RGB reconstruction differs by more than one code value: {actual} vs {reference}"
+        );
+    }
 }
 
 #[test]

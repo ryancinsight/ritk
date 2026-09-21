@@ -55,5 +55,28 @@ pub(super) fn save_color_image_png(
     let [w, h] = color_image.size;
     image::RgbImage::from_raw(w as u32, h as u32, rgb_bytes)
         .ok_or_else(|| anyhow::anyhow!("buffer length mismatch"))
-        .and_then(|img| img.save(path).map_err(anyhow::Error::from))
+        .and_then(|img| {
+            img.save_with_format(path, image::ImageFormat::Png)
+                .map_err(anyhow::Error::from)
+        })
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn png_writer_ignores_a_jpeg_extension() -> anyhow::Result<()> {
+        let directory = tempfile::tempdir()?;
+        let path = directory.path().join("rendered.jpg");
+        let image = egui::ColorImage::new([2, 1], egui::Color32::from_rgb(12, 34, 56));
+
+        save_color_image_png(&path, &image)?;
+
+        let bytes = std::fs::read(&path)?;
+        assert_eq!(bytes.get(..8), Some(b"\x89PNG\r\n\x1a\n".as_slice()));
+        let decoded = image::load_from_memory_with_format(&bytes, image::ImageFormat::Png)?;
+        assert_eq!(decoded.to_rgb8().into_raw(), vec![12, 34, 56, 12, 34, 56]);
+        Ok(())
+    }
 }

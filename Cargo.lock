@@ -1477,7 +1477,7 @@ checksum = "c2459377285ad874054d797f3ccebf984978aa39129f6eafde5cdc8315b612f8"
 [[package]]
 name = "consus-compression"
 version = "0.1.0"
-source = "git+https://github.com/ryancinsight/consus.git#f3de72e2b2a99f857df6f451b04592891bd5fb10"
+source = "git+https://github.com/ryancinsight/consus.git#e34902feccc8e8c11906a9b35651fe72828cbc7e"
 dependencies = [
  "byteorder",
  "consus-core",
@@ -1486,7 +1486,7 @@ dependencies = [
 [[package]]
 name = "consus-core"
 version = "0.1.0"
-source = "git+https://github.com/ryancinsight/consus.git#f3de72e2b2a99f857df6f451b04592891bd5fb10"
+source = "git+https://github.com/ryancinsight/consus.git#e34902feccc8e8c11906a9b35651fe72828cbc7e"
 dependencies = [
  "byteorder",
  "smallvec",
@@ -1496,7 +1496,7 @@ dependencies = [
 [[package]]
 name = "consus-hdf5"
 version = "0.1.0"
-source = "git+https://github.com/ryancinsight/consus.git#f3de72e2b2a99f857df6f451b04592891bd5fb10"
+source = "git+https://github.com/ryancinsight/consus.git#e34902feccc8e8c11906a9b35651fe72828cbc7e"
 dependencies = [
  "byteorder",
  "consus-compression",
@@ -1507,7 +1507,7 @@ dependencies = [
 [[package]]
 name = "consus-io"
 version = "0.1.0"
-source = "git+https://github.com/ryancinsight/consus.git#f3de72e2b2a99f857df6f451b04592891bd5fb10"
+source = "git+https://github.com/ryancinsight/consus.git#e34902feccc8e8c11906a9b35651fe72828cbc7e"
 dependencies = [
  "consus-core",
 ]
@@ -1515,12 +1515,12 @@ dependencies = [
 [[package]]
 name = "consus-onnx"
 version = "0.1.0"
-source = "git+https://github.com/ryancinsight/consus.git#f3de72e2b2a99f857df6f451b04592891bd5fb10"
+source = "git+https://github.com/ryancinsight/consus.git#e34902feccc8e8c11906a9b35651fe72828cbc7e"
 
 [[package]]
 name = "consus-raster"
 version = "0.1.0"
-source = "git+https://github.com/ryancinsight/consus.git#f3de72e2b2a99f857df6f451b04592891bd5fb10"
+source = "git+https://github.com/ryancinsight/consus.git#e34902feccc8e8c11906a9b35651fe72828cbc7e"
 dependencies = [
  "jpeg-encoder",
 ]

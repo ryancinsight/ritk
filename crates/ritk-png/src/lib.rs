@@ -2,8 +2,11 @@
 
 use anyhow::{Context, Result};
 use coeus_core::ComputeBackend;
+use image::{DynamicImage, ImageFormat};
 use ritk_image::Image;
 use ritk_spatial::{Direction, Point, Spacing};
+use std::fs::File;
+use std::io::BufReader;
 use std::path::{Path, PathBuf};
 
 mod color;
@@ -33,9 +36,7 @@ where
 }
 
 fn decode_png_single(path: &Path) -> Result<(Vec<f32>, [usize; 3])> {
-    let image = image::open(path)
-        .with_context(|| format!("failed to open PNG: {}", path.display()))?
-        .to_luma8();
+    let image = open_png(path)?.to_luma8();
     let (width, height) = image.dimensions();
     Ok((
         image.into_raw().into_iter().map(f32::from).collect(),
@@ -45,16 +46,12 @@ fn decode_png_single(path: &Path) -> Result<(Vec<f32>, [usize; 3])> {
 
 fn decode_png_series(directory: &Path) -> Result<(Vec<f32>, [usize; 3])> {
     let files = sorted_png_files(directory)?;
-    let first = image::open(&files[0])
-        .with_context(|| format!("failed to open PNG: {}", files[0].display()))?
-        .to_luma8();
+    let first = open_png(&files[0])?.to_luma8();
     let (width, height) = first.dimensions();
     let mut pixels = Vec::new();
     append_gray_pixels(&mut pixels, &first)?;
     for file in &files[1..] {
-        let image = image::open(file)
-            .with_context(|| format!("failed to open PNG: {}", file.display()))?
-            .to_luma8();
+        let image = open_png(file)?.to_luma8();
         let (actual_width, actual_height) = image.dimensions();
         if (actual_width, actual_height) != (width, height) {
             anyhow::bail!(
@@ -65,6 +62,13 @@ fn decode_png_series(directory: &Path) -> Result<(Vec<f32>, [usize; 3])> {
         append_gray_pixels(&mut pixels, &image)?;
     }
     Ok((pixels, [files.len(), height as usize, width as usize]))
+}
+
+pub(crate) fn open_png(path: &Path) -> Result<DynamicImage> {
+    let file =
+        File::open(path).with_context(|| format!("failed to open PNG: {}", path.display()))?;
+    image::load(BufReader::new(file), ImageFormat::Png)
+        .with_context(|| format!("failed to decode PNG: {}", path.display()))
 }
 
 fn append_gray_pixels(output: &mut Vec<f32>, image: &image::GrayImage) -> Result<()> {
@@ -221,7 +225,16 @@ mod tests {
     fn write_gray_png(path: &Path, width: u32, height: u32, pixels: &[u8]) {
         let image = image::GrayImage::from_raw(width, height, pixels.to_vec())
             .expect("test image dimensions must match pixel count");
-        image.save(path).expect("test PNG write must succeed");
+        image
+            .save_with_format(path, image::ImageFormat::Png)
+            .expect("test PNG write must succeed");
+    }
+
+    fn write_gray_jpeg(path: &Path) {
+        image::GrayImage::from_raw(1, 1, vec![42])
+            .expect("invariant: one grayscale sample forms a one-pixel image")
+            .save_with_format(path, image::ImageFormat::Jpeg)
+            .expect("test JPEG write must succeed");
     }
 
     #[test]
@@ -237,6 +250,21 @@ mod tests {
         assert_eq!(image.data_slice()?, &[10.0, 20.0, 30.0, 40.0, 50.0, 60.0]);
         assert_eq!(image.origin().to_array(), [0.0; 3]);
         assert_eq!(image.spacing().to_array(), [1.0; 3]);
+        Ok(())
+    }
+
+    #[test]
+    fn grayscale_reader_rejects_jpeg_content_for_any_extension() -> Result<()> {
+        let directory = tempdir()?;
+        for name in ["image.jpg", "image.png"] {
+            let path = directory.path().join(name);
+            write_gray_jpeg(&path);
+
+            let error = crate::read_png_to_image(&path, &SequentialBackend)
+                .expect_err("JPEG content must not pass the PNG reader");
+
+            assert!(error.to_string().contains("failed to decode PNG"));
+        }
         Ok(())
     }
 

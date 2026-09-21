@@ -6,7 +6,7 @@ use image::{ColorType, RgbImage};
 use ritk_image::RgbVolume;
 use ritk_spatial::{Direction, Point, Spacing};
 
-use crate::sorted_png_files;
+use crate::{open_png, sorted_png_files};
 
 const RGB_CHANNELS: usize = 3;
 
@@ -89,8 +89,7 @@ impl<B: ComputeBackend> PngColorSeriesReader<B> {
 }
 
 fn read_rgb8_png(path: &Path) -> Result<RgbImage> {
-    let image =
-        image::open(path).with_context(|| format!("failed to open PNG: {}", path.display()))?;
+    let image = open_png(path)?;
     let color = image.color();
     if color != ColorType::Rgb8 {
         bail!(
@@ -146,8 +145,15 @@ mod tests {
     fn write_rgb_png(path: &Path, width: u32, height: u32, pixels: &[u8]) {
         RgbImage::from_raw(width, height, pixels.to_vec())
             .expect("invariant: test dimensions match RGB pixel count")
-            .save(path)
+            .save_with_format(path, image::ImageFormat::Png)
             .expect("test RGB PNG write must succeed");
+    }
+
+    fn write_rgb_jpeg(path: &Path) {
+        RgbImage::from_raw(1, 1, vec![10, 20, 30])
+            .expect("invariant: three samples form one RGB pixel")
+            .save_with_format(path, image::ImageFormat::Jpeg)
+            .expect("test RGB JPEG write must succeed");
     }
 
     #[test]
@@ -161,6 +167,21 @@ mod tests {
             volume.data_cow_on(&SequentialBackend).as_ref(),
             &[255.0, 0.0, 0.0, 0.0, 128.0, 255.0]
         );
+        Ok(())
+    }
+
+    #[test]
+    fn color_reader_rejects_jpeg_content_for_any_extension() -> Result<()> {
+        let directory = tempdir()?;
+        for name in ["image.jpg", "image.png"] {
+            let path = directory.path().join(name);
+            write_rgb_jpeg(&path);
+
+            let error = read_png_color_to_volume(&path, &SequentialBackend)
+                .expect_err("JPEG content must not pass the PNG color reader");
+
+            assert!(error.to_string().contains("failed to decode PNG"));
+        }
         Ok(())
     }
 
@@ -185,7 +206,7 @@ mod tests {
         let path = directory.path().join("gray.png");
         let mut image = GrayImage::new(1, 1);
         image.put_pixel(0, 0, Luma([42]));
-        image.save(&path)?;
+        image.save_with_format(&path, image::ImageFormat::Png)?;
         let error = read_png_color_to_volume(&path, &SequentialBackend).unwrap_err();
         assert!(error.to_string().contains("supports only Rgb8"));
         Ok(())
