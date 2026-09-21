@@ -2,13 +2,13 @@
 
 <a id="RITK-PYTHON-FREETHREADED-001"></a>
 ## RITK-PYTHON-FREETHREADED-001 — Ship free-threaded Python bindings [arch]
-- Status: in-progress; priority: P1; owner: RITK Python; integrator: root; branch: `fix/ritk-free-threaded-toolchain`; last-update: 2026-09-21; delivery: PR [#570](https://github.com/ryancinsight/ritk/pull/570), merge `6693d9b9821caeb03d01b5fa58a48fcac2abecc9`; follow-up fixes the merged-main toolchain-component red run.
+- Status: in-progress; priority: P1; owner: RITK Python; integrator: root; branch: `fix/ritk-free-threaded-feature-select`; last-update: 2026-09-21; delivery: PR [#571](https://github.com/ryancinsight/ritk/pull/571), merge `7559c221fde8557c97cb4f3d96a9c38e55a889cc`; follow-up fixes the merged-main ABI feature-selection red run.
 - Outcome: RITK exposes a real PyO3 free-threaded module contract while retaining the Python 3.9 stable-ABI wheel.
 - Scope: PyO3 0.29 migration, `gil_used = false`, `abi3t` feature, concurrent binding test, release and CI matrix, README and ADR 0049. Zero-copy changes and DICOM domain logic remain out of scope.
 - Acceptance: `cargo check -p ritk-python --all-targets`, strict Clippy, and nextest pass locally; the hosted CPython 3.15t `abi3t` wheel test must import with the GIL disabled and preserve exact shape, metadata and pixels under concurrent `Image` reads.
 - Dependency: PyO3 0.29.2 and Atlas reusable wheel workflow support for `abi3t`/3.15t.
 - Verification: local `cargo check` (default and `abi3t`), strict Clippy, formatting, and nextest pass; Python 3.13 skips the free-threaded test by its declared interpreter guard. Hosted 3.15t wheel verification remains the merge gate.
-- Failure basis: merged-main runs `35645202445` and `35645201560` exposed PyO3 test-link failures from `extension-module` and an unavailable exact `3.15t` setup. Run `35657075502` then reached CPython 3.15t but failed while resolving VTK, which has no compatible prerelease free-threaded wheel; PR #570 split the dependency set. Run `35658218463` reached the wheel build but failed because the job omitted the `rustfmt` and `clippy` components required by `rust-toolchain.toml`; this increment aligns the setup action with that declaration.
+- Failure basis: merged-main runs `35645202445` and `35645201560` exposed PyO3 test-link failures from `extension-module` and an unavailable exact `3.15t` setup. Run `35657075502` then reached CPython 3.15t but failed while resolving VTK, which has no compatible prerelease free-threaded wheel; PR #570 split the dependency set. Run `35658218463` reached the wheel build but failed because the job omitted the `rustfmt` and `clippy` components required by `rust-toolchain.toml`; PR #571 aligned the setup action. Run `35659451071` built the default `cp39-abi3` wheel despite `--features abi3t`, so this increment disables default features for the `abi3t` build.
 
 <a id="RITK-CONFORMANCE-001"></a>
 ## RITK-CONFORMANCE-001 — Restore stack conformance bounds [patch]

@@ -61,3 +61,11 @@ The follow-up run reached the wheel build but failed when Cargo honored the
 repository toolchain declaration: the free-threaded job had installed 1.97.0
 without its required `rustfmt` and `clippy` components. The job now requests
 the same components as the pinned toolchain file before invoking maturin.
+
+### Revision 2026-09-21 (explicit ABI feature selection)
+
+The next hosted run built successfully but produced the default `cp39-abi3`
+wheel because Cargo keeps default features enabled when `--features abi3t` is
+passed alone. The free-threaded job now passes `--no-default-features` so the
+artifact is built from the `abi3t` feature exclusively and is installable by
+CPython 3.15t.
