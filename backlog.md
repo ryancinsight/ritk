@@ -2,7 +2,8 @@
 
 <a id="RITK-JPEG-001"></a>
 ## RITK-JPEG-001 — Consume shared JPEG raster codec [arch] [major]
-- Status: done; integrator: root; delivery: [PR 556](https://github.com/ryancinsight/ritk/pull/556), merge `fc85dad03a6c14a617e9687609044497c1eba122`; updated: 2026-09-21.
+- Status: in-progress; integrator: root/ritk_consumer; prior delivery: [PR 556](https://github.com/ryancinsight/ritk/pull/556), merge `fc85dad03a6c14a617e9687609044497c1eba122`; updated: 2026-09-21.
+- Lease: root/ritk_consumer `crates/ritk-codecs`, `crates/ritk-dicom`, DICOM paths in `crates/ritk-io`, `crates/ritk-jpeg`, JPEG metadata tests in `crates/ritk-snap`, and JPEG/DICOM docs; 2026-09-21T09:45:52-04:00.
 - Driver: [METIS-ASSETS-001](../metis/backlog.md#METIS-ASSETS-001).
 - Outcome: JPEG byte parsing, entropy reconstruction and EXIF interpretation move to [Consus](../consus/backlog.md#CONSUS-RASTER-001); RITK retains DICOM pixel layout, signedness, modality conversion and clinical presentation.
 - Scope: `ritk-codecs` JPEG, `ritk-jpeg` readers, PNG adapters and Snap PNG output, manifests, tests and owning documentation.
