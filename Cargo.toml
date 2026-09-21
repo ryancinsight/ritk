@@ -178,7 +178,7 @@ consus-core = { version = "0.1.0", git = "https://github.com/ryancinsight/consus
 consus-compression = { version = "0.1.0", git = "https://github.com/ryancinsight/consus.git", features = ["std", "deflate"] }
 consus-io = { version = "0.1.0", git = "https://github.com/ryancinsight/consus.git", features = ["std", "alloc"] }
 consus-onnx = { version = "0.1.0", git = "https://github.com/ryancinsight/consus.git", features = ["std", "alloc"] }
-jpeg-decoder = "0.3"
+consus-raster = { version = "0.1", git = "https://github.com/ryancinsight/consus.git" }
 
 arrayvec = "0.7"
 

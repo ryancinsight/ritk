@@ -21,7 +21,10 @@
 //!   conversion, which the grayscale path skips entirely.
 
 use criterion::{criterion_group, criterion_main, Criterion};
-use ritk_codecs::jpeg::fixtures::baseline_fixture;
+#[path = "codec_throughput/jpeg_fixture.rs"]
+mod jpeg_fixture;
+
+use jpeg_fixture::baseline_fixture;
 use ritk_codecs::jpeg_2000::encoder::{encode_grayscale_j2k, Jpeg2000Encoding};
 use ritk_codecs::jpeg_ls::encoder::encode_grayscale_jpeg_ls;
 use ritk_codecs::{decode_jpeg2000_fragment, decode_jpeg_fragment, decode_jpeg_ls_fragment};

@@ -463,7 +463,7 @@ Third-party:
 |---|---|
 | `dicom` (`dicom-rs`) | DICOM dataset, metadata, and external-codec adapter |
 | `tiff` / `image` | Pixel codecs behind `ritk-tiff` and `ritk-png` |
-| `jpeg-decoder` / `zune-jpegxl` | JPEG and JPEG XL pixel decode |
+| `consus-raster` / `zune-jpegxl` | Shared JPEG raster provider and JPEG XL pixel decode; JPEG migration follows [ADR 0048](docs/adr/0048-jpeg-provider.md) |
 | `wgpu` / `eframe` / `egui` | Viewer rendering and graphics interop |
 | `onnx-ir` | ONNX graph import for DL registration |
 | `pyo3` / `numpy` | Python bindings |
@@ -576,5 +576,7 @@ Contributions are welcome. Requirements:
 
 ## Acknowledgments
 
+- The shared JPEG encoder includes an IJG-derived transform: this software is
+  based in part on the work of the Independent JPEG Group.
 - Inspired by [ITK](https://itk.org/) (Insight Segmentation and Registration Toolkit)
 - Uses Coeus and Leto for tensor, linear-algebra, and numerical execution

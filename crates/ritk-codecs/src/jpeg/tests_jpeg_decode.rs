@@ -1,9 +1,5 @@
 #![expect(clippy::unwrap_used, reason = "ratchet RITK-UNWRAP-1")]
-use std::io::Cursor;
-
 use super::*;
-use crate::jpeg::backend::JpegDecodeBackend;
-use crate::jpeg::ritk_decoder::RitkJpegDecoder;
 use crate::PixelSignedness;
 
 fn layout(rows: usize, cols: usize, slope: f32, intercept: f32) -> PixelLayout {
@@ -30,19 +26,12 @@ fn layout_with_bits(
 }
 
 fn encode_grayscale_jpeg(width: u32, height: u32, pixels: &[u8]) -> Vec<u8> {
-    use image::{DynamicImage, GrayImage};
-
-    let gray = GrayImage::from_raw(width, height, pixels.to_vec())
-        .expect("test image dimensions must match sample count");
-    let mut jpeg = Vec::with_capacity((width as usize * height as usize) / 8);
-    DynamicImage::ImageLuma8(gray)
-        .write_to(&mut Cursor::new(&mut jpeg), image::ImageFormat::Jpeg)
-        .expect("test JPEG encode must succeed");
-    jpeg
+    jpeg::encode_gray(pixels, width, height, 95).expect("test JPEG encode must succeed")
 }
 
 fn encode_rgb_jpeg(width: u32, height: u32, pixels: &[u8]) -> Vec<u8> {
     use image::{DynamicImage, RgbImage};
+    use std::io::Cursor;
 
     let rgb = RgbImage::from_raw(width, height, pixels.to_vec())
         .expect("test RGB image dimensions must match sample count");
@@ -53,12 +42,43 @@ fn encode_rgb_jpeg(width: u32, height: u32, pixels: &[u8]) -> Vec<u8> {
     jpeg
 }
 
+fn reference_grayscale(jpeg: &[u8], slope: f32, intercept: f32) -> Vec<f32> {
+    image::load_from_memory(jpeg)
+        .expect("independent decoder must read the grayscale fixture")
+        .to_luma8()
+        .into_raw()
+        .into_iter()
+        .map(f32::from)
+        .map(|sample| sample * slope + intercept)
+        .collect()
+}
+
+fn reference_rgb(jpeg: &[u8]) -> Vec<f32> {
+    image::load_from_memory(jpeg)
+        .expect("independent decoder must read the RGB fixture")
+        .to_rgb8()
+        .into_raw()
+        .into_iter()
+        .map(f32::from)
+        .collect()
+}
+
 fn lossless_single_pixel_jpeg_8bit_gray_128() -> Vec<u8> {
-    crate::jpeg::scan_lossless::tests::lossless_8bit_fixture()
+    vec![
+        0xFF, 0xD8, 0xFF, 0xC3, 0x00, 0x0B, 0x08, 0x00, 0x01, 0x00, 0x01, 0x01, 0x01, 0x11, 0x00,
+        0xFF, 0xC4, 0x00, 0x14, 0x00, 0x01, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
+        0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0xFF, 0xDA, 0x00, 0x08, 0x01, 0x01, 0x00, 0x01,
+        0x00, 0x00, 0x7F, 0xFF, 0xD9,
+    ]
 }
 
 fn lossless_single_pixel_jpeg_16bit_gray_0x1234() -> Vec<u8> {
-    crate::jpeg::scan_lossless::tests::lossless_16bit_fixture()
+    vec![
+        0xFF, 0xD8, 0xFF, 0xC3, 0x00, 0x0B, 0x10, 0x00, 0x01, 0x00, 0x01, 0x01, 0x01, 0x11, 0x00,
+        0xFF, 0xC4, 0x00, 0x14, 0x00, 0x01, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
+        0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x0F, 0xFF, 0xDA, 0x00, 0x08, 0x01, 0x01, 0x00, 0x01,
+        0x00, 0x00, 0x12, 0x33, 0xFF, 0xD9,
+    ]
 }
 
 #[test]
@@ -69,13 +89,7 @@ fn jpeg_baseline_grayscale_fragment_decodes_with_modality_lut() {
     let decoded = decode_jpeg_fragment(&jpeg, layout(2, 2, 2.0, -10.0))
         .expect("infallible: validated precondition");
 
-    assert_eq!(decoded.len(), 4);
-    for value in decoded {
-        assert!(
-            (value - 54.0).abs() <= 2.0,
-            "expected JPEG decoded sample near 32 with rescale result near 54, got {value}"
-        );
-    }
+    assert_eq!(decoded, reference_grayscale(&jpeg, 2.0, -10.0));
 }
 
 #[test]
@@ -100,11 +114,12 @@ fn jpeg_rejects_component_amplified_dimensions_before_scan_allocation() {
     jpeg[sof + 5..sof + 7].copy_from_slice(&16_384u16.to_be_bytes());
     jpeg[sof + 7..sof + 9].copy_from_slice(&16_384u16.to_be_bytes());
 
-    let err = RitkJpegDecoder::decode(&jpeg)
-        .expect_err("three-component frame over the sample cap must fail");
-    let msg = format!("{err:#}");
-    assert!(msg.contains("JPEG frame samples"), "got: {msg}");
-    assert!(msg.contains("sample decode limit"), "got: {msg}");
+    let err = decode_jpeg_fragment(&jpeg, layout(1, 1, 1.0, 0.0))
+        .expect_err("three-component frame over the pixel cap must fail");
+    let source = err
+        .downcast_ref::<consus_raster::DecodeError>()
+        .expect("decode error must preserve the provider cause");
+    assert_eq!(source.kind(), consus_raster::DecodeErrorKind::TooLarge);
 }
 
 #[test]
@@ -123,11 +138,22 @@ fn jpeg_rgb24_fragment_decodes_interleaved_samples() {
 
     let decoded = decode_jpeg_fragment(&jpeg, layout).expect("infallible: validated precondition");
 
-    assert_eq!(decoded.len(), source.len());
-    for (i, (actual, expected)) in decoded.iter().zip(source).enumerate() {
+    let reference = reference_rgb(&jpeg);
+    assert_eq!(decoded.len(), 6);
+    assert_eq!(reference.len(), 6);
+
+    // The repeated color produces a DC-only MCU, so both decoders reconstruct
+    // identical YCbCr components without AC or interpolation differences. The
+    // provider's BT.601 multipliers are 359/256, 88/256, 183/256, and 454/256;
+    // the independent decoder uses 1.40200, 0.34414, 0.71414, and 1.77200 in
+    // Q20. At the maximum centered chroma magnitude of 128, their respective
+    // transform-term differences are below 0.044, 0.050 + 0.091, and 0.184
+    // code values. Each is below half a code value, so the final integer
+    // roundings can differ by at most one.
+    for (actual, reference) in decoded.iter().zip(reference) {
         assert!(
-            (*actual - f32::from(expected)).abs() <= 16.0,
-            "RGB JPEG sample {i}: expected near {expected}, got {actual}"
+            (*actual - reference).abs() <= 1.0,
+            "constant RGB reconstruction differs by more than one code value: {actual} vs {reference}"
         );
     }
 }
@@ -165,16 +191,36 @@ fn jpeg_lossless_signed_l8_fragment_decodes_exact_sample() {
 }
 
 #[test]
-fn jpeg_backend_l16_output_uses_native_endian_contract() {
+fn jpeg_provider_wide_output_uses_native_endian_contract() {
     let jpeg = lossless_single_pixel_jpeg_16bit_gray_0x1234();
 
-    let decoded = RitkJpegDecoder::decode(&jpeg).expect("infallible: validated precondition");
+    let decoded = jpeg::decode(
+        &jpeg,
+        DecodeLimits {
+            max_encoded_bytes: jpeg.len(),
+            max_dimension: 1,
+            max_pixels: 1,
+            max_working_bytes: jpeg::working_storage_bound(1, 1)
+                .expect("invariant: one-pixel storage bound fits in usize"),
+        },
+    )
+    .expect("infallible: validated precondition");
 
-    assert_eq!(
-        decoded.pixel_format,
-        crate::jpeg::backend::JpegPixelFormat::L16
-    );
-    assert_eq!(decoded.pixels, 0x1234u16.to_ne_bytes());
+    assert_eq!(decoded.format(), PixelFormat::GrayWide);
+    assert_eq!(decoded.pixels(), 0x1234u16.to_ne_bytes());
+}
+
+#[test]
+fn jpeg_truncation_is_rejected() {
+    let mut jpeg = lossless_single_pixel_jpeg_8bit_gray_128();
+    jpeg.truncate(jpeg.len() - 2);
+
+    let error = decode_jpeg_fragment(&jpeg, layout(1, 1, 1.0, 0.0)).unwrap_err();
+
+    let source = error
+        .downcast_ref::<consus_raster::DecodeError>()
+        .expect("decode error must preserve the provider cause");
+    assert_eq!(source.kind(), consus_raster::DecodeErrorKind::Malformed);
 }
 
 #[test]
@@ -185,4 +231,16 @@ fn jpeg_lossless_l16_fragment_decodes_exact_unsigned_sample() {
     let decoded = decode_jpeg_fragment(&jpeg, layout).expect("infallible: validated precondition");
 
     assert_eq!(decoded, vec![9316.0]);
+}
+
+#[test]
+fn jpeg_lossless_l16_accepts_dicom_even_length_padding() {
+    let mut jpeg = lossless_single_pixel_jpeg_16bit_gray_0x1234();
+    assert!(!jpeg.len().is_multiple_of(2));
+    jpeg.push(0);
+    let layout = layout_with_bits(1, 1, 16, PixelSignedness::Unsigned, 1.0, 0.0);
+
+    let decoded = decode_jpeg_fragment(&jpeg, layout).expect("DICOM zero padding is permitted");
+
+    assert_eq!(decoded, vec![4660.0]);
 }

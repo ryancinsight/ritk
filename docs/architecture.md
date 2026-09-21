@@ -99,18 +99,18 @@ Native codec replacement changes codec internals behind `ritk-codecs` / `NativeC
 **Proof obligation**:
 For any supported grayscale DICOM JPEG 2000 frame `C` and layout `L`, if native packet and inverse-transform decoding yields the ISO 15444-1 integer sample sequence `S`, then `decode_jpeg2000_fragment(C,L)[i] = S[i] × L.rescale_slope + L.rescale_intercept`. Unsupported component traversal is a typed error, never a successful approximation.
 
-> **Theorem 6.3 (JPEG Backend Static Boundary)**: DICOM JPEG dependency replacement preserves frame-decode behavior when each backend yields the same validated raster metadata and integer sample stream.
+> **Theorem 6.3 (JPEG Provider Boundary)**: DICOM JPEG decoding preserves the provider's validated encoded-grid raster while RITK alone interprets DICOM layout and modality metadata.
 
 **Boundary surface**:
 - `ritk-codecs::jpeg` owns `decode_jpeg_fragment(fragment, PixelLayout) -> Vec<f32>`.
-- `ritk-codecs::jpeg::backend::JpegDecodeBackend` is sealed and uses static dispatch; there is no `dyn` codec dispatch in the DICOM JPEG path.
-- `JpegDecoderCrate` is the current ZST implementation backed by `jpeg-decoder`.
-- `JpegPixelFormat::L16` samples use the backend's native-endian byte contract; conversion to signed or unsigned DICOM stored integers happens only after `PixelLayout` validation.
-- `JpegPixelFormat::Rgb24` maps to interleaved RGB samples with `samples_per_pixel=3`, `BitsAllocated=8`, and unsigned sample interpretation.
+- `consus-raster` owns bounded JPEG parsing and returns encoded-grid dimensions, a pixel format, and packed sample bytes without applying EXIF presentation orientation.
+- `PixelFormat::GrayWide` samples use the provider's native-endian byte contract; conversion to signed or unsigned DICOM stored integers happens only after `PixelLayout` validation.
+- `PixelFormat::Rgb` maps to interleaved RGB samples with `samples_per_pixel=3`, `BitsAllocated=8`, and unsigned sample interpretation.
+- A single zero byte used to make an odd-length DICOM item value even is removed only when it follows terminal JPEG EOI; other trailing data is rejected by the provider.
 - `PixelLayout` owns integer sample interpretation for all native codecs; `BitsAllocated=8` with `PixelRepresentation=1` maps each byte through `i8`, not `u8`.
 
 **Proof obligation**:
-For any DICOM JPEG frame `C`, layout `L`, and backend `B`, if `B(C)` yields dimensions `W,H`, pixel format `F`, and ordered sample bytes `S` equal to the decoded JPEG raster under the backend byte contract, then `decode_jpeg_fragment(C,L)` either rejects `(W,H,F,S)` when it conflicts with `L`, or returns `stored_integer(S[i]) × L.rescale_slope + L.rescale_intercept`. Backend replacement is behavior-preserving when the replacement satisfies the same raster and byte-order contract.
+For any DICOM JPEG frame `C` and layout `L`, if bounded provider decode yields dimensions `W,H`, pixel format `F`, and ordered sample bytes `S`, then `decode_jpeg_fragment(C,L)` either rejects `(W,H,F,S)` when it conflicts with `L`, or returns `stored_integer(S[i]) × L.rescale_slope + L.rescale_intercept`. For lossless 8 through 16-bit grayscale frames, `S` retains the exact encoded integer samples before signed interpretation and rescale.
 
 > **Theorem 6.4 (Scalar DICOM Volume Boundary)**: A scalar 3-D DICOM volume loader must reject color sample layouts before tensor construction.
 
@@ -198,15 +198,18 @@ MetaImage parser/writer dependency changes stay behind `ritk-metaimage`; callers
 
 ### 11. JPEG Format Boundary
 
-> **Theorem 11.1 (JPEG 2D Ownership)**: JPEG grayscale and RGB file parsing have exactly one implementation body owned by `ritk-jpeg`.
+> **Theorem 11.1 (JPEG 2D Ownership)**: JPEG raster coding has exactly one implementation body in `consus-raster`; RITK owns only file policy and conversion into RITK image types.
 
 **Boundary surface**:
+- `consus-raster` owns bounded encoded-grid JPEG decode and grayscale encode.
 - `ritk-jpeg` owns `read_jpeg`, `write_jpeg`, `JpegReader<B>`, and `JpegWriter<B>`.
 - `ritk-jpeg` owns `read_jpeg_color_to_volume` and `JpegColorReader<B>`.
-- Reader invariant: decoded JPEG Luma8 pixels become `Image<B, 3>` with tensor shape `[1, height, width]`.
-- RGB reader invariant: decoded JPEG `Rgb8` pixels become `RgbVolume<B>` with tensor shape `[1, height, width, 3]`.
+- `ritk-codecs` owns DICOM layout validation, signed sample interpretation, and modality rescale after bounded provider decode.
+- Reader invariant: decoded grayscale JPEG pixels become Luma8-valued `Image<B, 3>` with tensor shape `[1, height, width]`; wide samples scale with nearest-integer rounding and RGB pixels convert to CIE luminance.
+- RGB reader invariant: only provider `Rgb` pixels become `RgbVolume<B>` with tensor shape `[1, height, width, 3]`; grayscale input is rejected.
 - Writer invariant: input `Image<B, 3>` must have `nz == 1`; values are rounded, clamped to `[0,255]`, and encoded as 8-bit grayscale.
 - Metadata invariant: JPEG carries no physical-space metadata, so origin is `[0,0,0]`, spacing is `[1,1,1]`, and direction is identity.
+- Orientation invariant: readers preserve encoded-grid orientation and do not apply EXIF display transforms to clinical image coordinates.
 - `ritk-io::format::jpeg` is a facade re-export plus local `ImageReader` / `ImageWriter` adapters only.
 
 ### 12. TIFF Format Boundary
@@ -275,7 +278,7 @@ For any PET voxel value `p` in Bq/mL, patient mass `m_kg`, injected dose `d_bq`,
 - `ritk-io::format::dicom::load_color_volume_flat` loads validated interleaved RGB DICOM series into a channel-explicit flat buffer while preserving spatial metadata from the scalar DICOM series scanner.
 - `ritk-io::format::dicom::load_color_multiframe_flat` loads validated interleaved RGB DICOM multiframe objects into `ColorMultiFrameVolume` while preserving multiframe origin, spacing, and direction metadata; its byte-payload counterpart serves browser or dropped-file hosts.
 - `ritk-png::read_png_color_to_volume` and `ritk-png::read_png_color_series` load only decoded `Rgb8` PNG inputs into `RgbVolume<B>` with default PNG spatial metadata.
-- `ritk-jpeg::read_jpeg_color_to_volume` loads only decoded `Rgb8` JPEG inputs into `RgbVolume<B>` with default JPEG spatial metadata.
+- `ritk-jpeg::read_jpeg_color_to_volume` loads only provider `Rgb` JPEG outputs into `RgbVolume<B>` with default JPEG spatial metadata.
 - `ritk-tiff::read_tiff_color_to_volume` loads only TIFF `ColorType::RGB(_)` page stacks into `RgbVolume<B>` with default TIFF spatial metadata.
 - Scalar DICOM series and multiframe loaders remain constrained to `SamplesPerPixel = 1`.
 
@@ -284,7 +287,7 @@ For any RGB DICOM frame stack with depth `d`, rows `r`, columns `c`, and interle
 
 For any RGB PNG stack with depth `d`, height `h`, width `w`, and decoded interleaved RGB bytes `S`, the PNG color loaders construct exactly one tensor with shape `[d,h,w,3]` and element order `S[(((z*h + y)*w + x)*3 + k)]`. If any slice decodes as a non-`Rgb8` color type or has dimensions different from the first slice, the loader rejects before constructing `RgbVolume<B>`.
 
-For any RGB JPEG decode result with height `h`, width `w`, and interleaved RGB bytes `S`, the JPEG color loader constructs exactly one tensor with shape `[1,h,w,3]` and element order `S[((y*w + x)*3 + k)]`. Because JPEG is lossy, the preservation contract is over the decoded raster `S`, not the pre-encoding source raster. If the decoded color type is not `Rgb8`, the loader rejects before constructing `RgbVolume<B>`.
+For any RGB JPEG decode result with height `h`, width `w`, and interleaved RGB bytes `S`, the JPEG color loader constructs exactly one tensor with shape `[1,h,w,3]` and element order `S[((y*w + x)*3 + k)]`. Because JPEG is lossy, the preservation contract is over the decoded raster `S`, not the pre-encoding source raster. If the provider format is not `Rgb`, the loader rejects before constructing `RgbVolume<B>`.
 
 For any RGB TIFF page stack with depth `d`, height `h`, width `w`, and decoded interleaved samples `S`, the TIFF color loader constructs exactly one tensor with shape `[d,h,w,3]` and element order `S[(((z*h + y)*w + x)*3 + k)]`. If any page is not `ColorType::RGB(_)`, has dimensions different from the first page, or decodes to a sample count different from `h*w*3`, the loader rejects before constructing `RgbVolume<B>`.
 
