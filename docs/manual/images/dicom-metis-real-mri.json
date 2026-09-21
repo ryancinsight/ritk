@@ -75,21 +75,21 @@
     "status": "passed"
   },
   "standalone_lock_replay": {
-    "date": "2026-09-20",
+    "date": "2026-09-21",
     "command": "python D:/atlas/repos/ritk/scripts/viewer.py D:/atlas/target/debug/examples/dicom_workflow.exe --native-binary D:/atlas/target/debug/ritk-snap.exe --metis-native --real-study D:/atlas/repos/ritk/test_data/2_head_mri_t2/DICOM",
     "working_directory": "D:/atlas/repos/ritk",
     "input": "public MRI-DIR DICOM directory at test_data/2_head_mri_t2/DICOM",
     "files_submitted": 94,
     "bytes_read": 49807236,
-    "ritk_revision": "9714a1ab70a14dcbbd8cc9b3fa1c5e1412c85556",
-    "metis_revision": "b58d64b1bebe76bb32570339c4a349cc1b0d7086",
+    "ritk_revision": "6f710b935e87940fc5da16d17aaf38a948b0269e",
+    "metis_revision": "6e53c8a082447e6cd3b4ed46b2173b071b0c37f8",
     "moirai_revision": "2a54e010532f76c88027fec8a468620c92fe66b3",
-    "cargo_lock_sha256": "d6f75fae8228e1a184ee2221a70f48478ae2388da7c3041eacb85cdc154a0afd",
-    "cargo_resolution": "standalone Cargo.lock outside the Atlas development overlay; six Metis and fifteen Moirai package sources resolve at the merged revisions above",
-    "executable_sha256": "23939f93a2eb9cebc2d4e093dcee51047d0fb2bd2792b259d82e15cec6586fe2",
-    "executable_bytes": 54028800,
-    "example_sha256": "b63172655379e92a7ebab6cc491eb859ecb5d243ac88b2432ae7ddd9a5031bc2",
-    "example_bytes": 24156672,
+    "cargo_lock_sha256": "f5c822fb4e168be47d2996418cb85bfbde6b8ad52fa99e228825f714c53caf94",
+    "cargo_resolution": "standalone Cargo.lock outside the Atlas development overlay; 61 first-party git sources resolve with six Metis packages at the merged revision above and fifteen Moirai packages at the current locked revision",
+    "executable_sha256": "49d553d8da68edae078a02adb51ef7f63ad20abdf56ea58dc436b2b6f069aae1",
+    "executable_bytes": 54054912,
+    "example_sha256": "411c5cd8168028215500e1895cd5af693e5403be8edeb94f8009e79921b50120",
+    "example_bytes": 24137216,
     "capture": "scratch/viewer/real-metis-frame.png",
     "capture_sha256": "259dd79103482756c4e688621bebafc841cc40f1df10ff2bbd7f9d04b7b4d401",
     "width": 1280,
@@ -113,7 +113,7 @@
       "scope": "allocation lifecycle; not a process-memory or framework comparison measurement"
     },
     "note": "The captured PNG is byte-identical to dicom-metis-real-mri.png; the source is public CC BY 4.0 phantom data and no private study bytes are committed.",
-    "browser_workflow_metis_revision": "b58d64b1bebe76bb32570339c4a349cc1b0d7086"
+    "browser_workflow_metis_revision": "6e53c8a082447e6cd3b4ed46b2173b071b0c37f8"
   },
   "ownership": {
     "host": "Moirai/Metis return the selected filesystem path and present a format-neutral framebuffer",
