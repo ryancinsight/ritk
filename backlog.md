@@ -1,5 +1,15 @@
 # RITK execution backlog
 
+<a id="RITK-METIS-LOCK-015"></a>
+## RITK-METIS-LOCK-015 — Replay the merged Métis semantic capture provider [patch]
+- Status: review; priority: P1; owner: RITK viewer + integration; integrator: root; last-update: 2026-09-21.
+- Outcome: the standalone RITK lock and browser workflow resolve the six Métis packages at merged provider revision `6e53c8a082447e6cd3b4ed46b2173b071b0c37f8`, while the real 94-file MRI replay remains byte-identical and DICOM ownership stays in RITK.
+- Scope: first-party Cargo.lock resolution, browser workflow default revision, current real-study provenance and manual synchronization. Semantic-tree capture is host-neutral Métis evidence; DICOM discovery, decoding, geometry and clinical semantics remain RITK-owned.
+- Acceptance: standalone Cargo.lock resolves without the Atlas overlay; locked native/WASM checks, strict Clippy, formatting, rustdoc, provenance and real-study replay pass; the 1280×800 PNG remains byte-identical (`259dd791...`, 411,589 non-black pixels); the browser workflow checks out the same full revision by default.
+- Dependencies: Métis PR #311 merge `6e53c8a082447e6cd3b4ed46b2173b071b0c37f8`; current Moirai lock source remains unchanged unless Cargo resolution requires its existing revision.
+- Verification: standalone lock check passes with 61 first-party git sources; the real replay reads 94 files/49,807,236 bytes, exits 0, rejects the invalid study with exit 1, and reproduces the 1280×800 PNG byte-identically (`259dd791...`, 411,589 non-black pixels); locked `ritk-snap` nextest passes 489/489, strict native and wasm32 Clippy/checks, formatting, doctests 4/4, rustdoc, and browser Python tests 26/26.
+- Delivery: PR [#555](https://github.com/ryancinsight/ritk/pull/555), auto-merge queued; merge SHA pending hosted verification.
+
 <a id="RITK-SNAP-METIS-CROSSHAIR-001"></a>
 ## RITK-SNAP-METIS-CROSSHAIR-001 — Present linked MPR cursor through Métis hosts [arch] [minor]
 - Status: done; priority: P1; owner: RITK presentation; integrator: root; last-update: 2026-09-20.
