@@ -2,11 +2,12 @@
 
 <a id="RITK-CONFORMANCE-001"></a>
 ## RITK-CONFORMANCE-001 — Restore stack conformance bounds [patch]
-- Status: review; priority: P0; owner: RITK integration; integrator: root/ritk_consumer; last-update: 2026-09-21.
+- Status: done; priority: P0; owner: RITK integration; integrator: root/ritk_consumer; last-update: 2026-09-21; delivery: PR [#562](https://github.com/ryancinsight/ritk/pull/562), merge `2e346c0dd29d6f711e387167f43df029437eccd2`.
 - Outcome: the stack pointer accepts RITK without increasing its recorded source, assertion, or image-debt baselines.
 - Scope: split four oversized `ritk-snap` modules by existing concerns, replace two existence-only selection assertions with value checks, and reduce four inspected manual PNGs below the 200 KiB asset budget while preserving their documented content.
 - Acceptance: `oversized_files` returns 49→45, `existence_only_assertions` 2→0, and `oversized_tracked_images` 30→26; focused `ritk-snap` formatting, strict Clippy, tests, and documentation gates pass.
 - Verification: staged-tree conformance reports zero regressions; native nextest passes 530/530; native and wasm32 strict Clippy, formatting, four doctests with one intentional ignore, and warning-clean Rustdoc pass. The four lossless WebP figures retain the PNG dimensions and decoded pixels exactly.
+- Delivery evidence: the merged revision preserves the exact conformance counts and the hosted PR checks passed the artifact budget, lockfile, formatting, Clippy, Rustdoc, dependency-alignment and SemVer checks; the remaining platform test matrix is independent of this source and image-budget closure.
 
 <a id="RITK-JPEG-001"></a>
 ## RITK-JPEG-001 — Consume shared JPEG raster codec [arch] [major]
