@@ -13,7 +13,9 @@ name = "_ritk"
 crate-type = ["cdylib", "rlib"]
 
 [features]
-extension-module = ["pyo3/extension-module"]
+default = ["abi3"]
+abi3 = ["pyo3/extension-module", "pyo3/abi3-py39"]
+abi3t = ["pyo3/extension-module", "pyo3/abi3t-py315"]
 
 [dependencies]
 pyo3 = { workspace = true }

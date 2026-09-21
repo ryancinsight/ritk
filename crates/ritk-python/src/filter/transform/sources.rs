@@ -23,7 +23,7 @@ pub fn gaussian_image_source(
     origin: (f64, f64, f64),
     spacing: (f64, f64, f64),
 ) -> PyImage {
-    let (buf, dims) = py.allow_threads(|| {
+    let (buf, dims) = py.detach(|| {
         core_gaussian_image_source(
             [size.0, size.1, size.2],
             [sigma.0, sigma.1, sigma.2],
@@ -60,7 +60,7 @@ pub fn grid_image_source(
     scale: f64,
     which_dimensions: (bool, bool, bool),
 ) -> PyImage {
-    let (buf, dims) = py.allow_threads(|| {
+    let (buf, dims) = py.detach(|| {
         core_grid_image_source(
             [size.0, size.1, size.2],
             [spacing.0, spacing.1, spacing.2],
@@ -96,7 +96,7 @@ pub fn gabor_image_source(
     mean: (f64, f64, f64),
     frequency: f64,
 ) -> PyImage {
-    let (buf, dims) = py.allow_threads(|| {
+    let (buf, dims) = py.detach(|| {
         core_gabor_image_source(
             [size.0, size.1, size.2],
             [spacing.0, spacing.1, spacing.2],

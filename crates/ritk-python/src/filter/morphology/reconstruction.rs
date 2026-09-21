@@ -44,7 +44,7 @@ pub fn morphological_reconstruction(
     let marker_arc = Arc::clone(&marker.inner);
     let mask_arc = Arc::clone(&mask.inner);
     let backend = MoiraiBackend;
-    py.allow_threads(|| {
+    py.detach(|| {
         MorphologicalReconstruction::new(recon_mode)
             .with_connectivity(connectivity)
             .apply_native(marker_arc.as_ref(), mask_arc.as_ref(), &backend)
@@ -65,7 +65,7 @@ pub fn h_maxima(
 ) -> RitkResult<PyImage> {
     let arc = Arc::clone(&image.inner);
     let conn = connectivity_from(fully_connected);
-    py.allow_threads(|| {
+    py.detach(|| {
         HMaximaFilter::new(height)
             .with_connectivity(conn)
             .apply(arc.as_ref())
@@ -87,7 +87,7 @@ pub fn h_minima(
     let image = Arc::clone(&image.inner);
     let backend = MoiraiBackend;
     let conn = connectivity_from(fully_connected);
-    py.allow_threads(|| {
+    py.detach(|| {
         HMinimaFilter::new(height)
             .with_connectivity(conn)
             .apply_native(image.as_ref(), &backend)
@@ -108,7 +108,7 @@ pub fn h_convex(
 ) -> RitkResult<PyImage> {
     let arc = Arc::clone(&image.inner);
     let conn = connectivity_from(fully_connected);
-    py.allow_threads(|| {
+    py.detach(|| {
         HConvexFilter::new(height)
             .with_connectivity(conn)
             .apply(arc.as_ref())
@@ -129,7 +129,7 @@ pub fn h_concave(
 ) -> RitkResult<PyImage> {
     let arc = Arc::clone(&image.inner);
     let conn = connectivity_from(fully_connected);
-    py.allow_threads(|| {
+    py.detach(|| {
         HConcaveFilter::new(height)
             .with_connectivity(conn)
             .apply(arc.as_ref())
@@ -151,7 +151,7 @@ pub fn regional_maxima(
 ) -> RitkResult<PyImage> {
     let arc = Arc::clone(&image.inner);
     let conn = connectivity_from(fully_connected);
-    py.allow_threads(|| {
+    py.detach(|| {
         RegionalMaximaFilter::new()
             .with_values(foreground, background)
             .with_connectivity(conn)
@@ -175,7 +175,7 @@ pub fn regional_minima(
     let image = Arc::clone(&image.inner);
     let backend = MoiraiBackend;
     let conn = connectivity_from(fully_connected);
-    py.allow_threads(|| {
+    py.detach(|| {
         RegionalMinimaFilter::new()
             .with_values(foreground, background)
             .with_connectivity(conn)
@@ -197,7 +197,7 @@ pub fn valued_regional_maxima(
 ) -> RitkResult<PyImage> {
     let arc = Arc::clone(&image.inner);
     let conn = connectivity_from(fully_connected);
-    py.allow_threads(|| {
+    py.detach(|| {
         ValuedRegionalMaximaFilter::new()
             .with_connectivity(conn)
             .apply(arc.as_ref())
@@ -218,7 +218,7 @@ pub fn valued_regional_minima(
 ) -> RitkResult<PyImage> {
     let arc = Arc::clone(&image.inner);
     let conn = connectivity_from(fully_connected);
-    py.allow_threads(|| {
+    py.detach(|| {
         ValuedRegionalMinimaFilter::new()
             .with_connectivity(conn)
             .apply(arc.as_ref())
@@ -241,7 +241,7 @@ pub fn opening_by_reconstruction(
     let arc = Arc::clone(&image.inner);
     let backend = MoiraiBackend;
     let conn = connectivity_from(fully_connected);
-    py.allow_threads(|| {
+    py.detach(|| {
         OpeningByReconstructionFilter::new(radius)
             .with_connectivity(conn)
             .apply_native(arc.as_ref(), &backend)
@@ -264,7 +264,7 @@ pub fn closing_by_reconstruction(
     let arc = Arc::clone(&image.inner);
     let backend = MoiraiBackend;
     let conn = connectivity_from(fully_connected);
-    py.allow_threads(|| {
+    py.detach(|| {
         ClosingByReconstructionFilter::new(radius)
             .with_connectivity(conn)
             .apply_native(arc.as_ref(), &backend)
@@ -279,7 +279,7 @@ pub fn closing_by_reconstruction(
 pub fn grayscale_fillhole(py: Python<'_>, image: &PyImage) -> RitkResult<PyImage> {
     let arc = Arc::clone(&image.inner);
     let backend = MoiraiBackend;
-    py.allow_threads(|| {
+    py.detach(|| {
         GrayscaleFillholeFilter::new()
             .apply_native(arc.as_ref(), &backend)
             .map_err(|e| RitkPyError::runtime(e.to_string()))
@@ -300,7 +300,7 @@ pub fn grayscale_grind_peak(
     let arc = Arc::clone(&image.inner);
     let backend = MoiraiBackend;
     let conn = connectivity_from(fully_connected);
-    py.allow_threads(|| {
+    py.detach(|| {
         GrayscaleGrindPeakFilter::new()
             .with_connectivity(conn)
             .apply_native(arc.as_ref(), &backend)

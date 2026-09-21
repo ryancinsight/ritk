@@ -6,7 +6,7 @@ use pyo3::prelude::*;
 use ritk_segmentation::ThresholdLevelSet;
 
 /// Configuration options for [`threshold_level_set_segment`].
-#[pyclass(name = "ThresholdLevelSetOptions")]
+#[pyclass(from_py_object, name = "ThresholdLevelSetOptions")]
 #[derive(Clone)]
 pub struct PyThresholdLevelSetOptions {
     /// Lower intensity threshold.
@@ -83,7 +83,7 @@ pub fn threshold_level_set_segment(
 ) -> RitkResult<PyImage> {
     let image_arc = image_from_py(image);
     let phi_arc = image_from_py(initial_phi);
-    py.allow_threads(|| {
+    py.detach(|| {
         let mut seg = ThresholdLevelSet::new(opts.lower_threshold, opts.upper_threshold);
         seg.propagation_weight = opts.propagation_weight;
         seg.curvature_weight = opts.curvature_weight;

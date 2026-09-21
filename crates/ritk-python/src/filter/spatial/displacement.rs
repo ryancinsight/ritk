@@ -23,7 +23,7 @@ pub fn warp(
     let dz = image_from_py(disp_z);
     let dy = image_from_py(disp_y);
     let dx = image_from_py(disp_x);
-    py.allow_threads(|| {
+    py.detach(|| {
         ritk_filter::warp_image(&mv, &dz, &dy, &dx).map_err(|e| RitkPyError::runtime(e.to_string()))
     })
     .map(into_py_image)
@@ -66,7 +66,7 @@ pub fn invert_displacement_field(
     let ax = image_from_py(disp_x);
     let backend = MoiraiBackend;
     let out = py
-        .allow_threads(|| {
+        .detach(|| {
             ritk_filter::InvertDisplacementField {
                 max_iterations,
                 max_error_tolerance,
@@ -116,7 +116,7 @@ pub fn inverse_displacement_field(
     let ax = image_from_py(disp_x);
     let backend = MoiraiBackend;
     let out = py
-        .allow_threads(|| {
+        .detach(|| {
             ritk_filter::InverseDisplacementField { subsampling_factor }
                 .apply_native(&ax, &ay, &az, &backend)
         })
@@ -159,7 +159,7 @@ pub fn iterative_inverse_displacement_field(
     let ax = image_from_py(disp_x);
     let backend = MoiraiBackend;
     let out = py
-        .allow_threads(|| {
+        .detach(|| {
             ritk_filter::IterativeInverseDisplacementField {
                 number_of_iterations,
                 stop_value,

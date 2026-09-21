@@ -68,7 +68,7 @@ impl PyImage {
         let shape = self.inner.shape();
         let backend = MoiraiBackend;
         let cow = self.inner.data_cow_on(&backend);
-        PyArray1::<f32>::from_vec_bound(py, cow.into_owned())
+        PyArray1::<f32>::from_vec(py, cow.into_owned())
             .reshape([shape[0], shape[1], shape[2]])
             .map_err(|e| RitkPyError::runtime(e.to_string()))
     }
@@ -224,7 +224,7 @@ pub fn vec_to_image(
 
 /// Register the `image` submodule and its classes/functions into `parent`.
 pub fn register(parent: &Bound<'_, PyModule>) -> PyResult<()> {
-    let m = PyModule::new_bound(parent.py(), "image")?;
+    let m = PyModule::new(parent.py(), "image")?;
     m.add_class::<PyImage>()?;
     m.add_class::<crate::color::PyColorImage>()?;
     parent.add_submodule(&m)?;

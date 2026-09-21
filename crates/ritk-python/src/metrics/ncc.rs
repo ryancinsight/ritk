@@ -27,7 +27,7 @@ pub fn compute_ncc(py: Python<'_>, fixed: &PyImage, moving: &PyImage) -> RitkRes
     }
     let fixed = fixed.inner.clone();
     let moving = moving.inner.clone();
-    py.allow_threads(move || {
+    py.detach(move || {
         with_image_pair_slices(&fixed, &moving, pearson_correlation)
             .map_err(|e| RitkPyError::runtime(e.to_string()))
     })

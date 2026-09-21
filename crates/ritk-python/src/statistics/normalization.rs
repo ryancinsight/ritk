@@ -132,9 +132,9 @@ pub fn zscore_normalize(
                 ));
             }
             let mask_arc = image_from_py(m);
-            py.allow_threads(|| ZScoreNormalizer::new().normalize_masked(&image_arc, &mask_arc))
+            py.detach(|| ZScoreNormalizer::new().normalize_masked(&image_arc, &mask_arc))
         }
-        None => py.allow_threads(|| ZScoreNormalizer::new().normalize(&image_arc)),
+        None => py.detach(|| ZScoreNormalizer::new().normalize(&image_arc)),
     };
     result.map(into_py_image).map_err(RitkPyError::value)
 }
@@ -173,7 +173,7 @@ pub fn histogram_match(
     }
     let source_arc = image_from_py(source);
     let reference_arc = image_from_py(reference);
-    let result = py.allow_threads(|| {
+    let result = py.detach(|| {
         HistogramMatcher::new(num_bins)
             .with_match_points(num_match_points)
             .with_threshold_at_mean(threshold_at_mean)
@@ -227,7 +227,7 @@ pub fn white_stripe_normalize(
     let image_arc = image_from_py(image);
     let mask_arc = mask.map(image_from_py);
 
-    let result = py.allow_threads(|| {
+    let result = py.detach(|| {
         let mask_ref = mask_arc.as_ref();
         WhiteStripeNormalizer::normalize(&image_arc, mask_ref, &config)
     });
@@ -283,7 +283,7 @@ pub fn nyul_udupa_normalize(
         .collect();
     let input_arc = image_from_py(image);
 
-    py.allow_threads(|| {
+    py.detach(|| {
         let refs: Vec<_> = training_arcs.iter().collect();
         let mut normalizer = match percentiles {
             Some(p) => NyulUdupaNormalizer::with_percentiles(p),

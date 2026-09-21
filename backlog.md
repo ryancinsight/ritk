@@ -1,5 +1,13 @@
 # RITK execution backlog
 
+<a id="RITK-PYTHON-FREETHREADED-001"></a>
+## RITK-PYTHON-FREETHREADED-001 — Ship free-threaded Python bindings [arch]
+- Status: in-progress; priority: P1; owner: RITK Python; integrator: root/atlas_provider_audit; last-update: 2026-09-21.
+- Outcome: RITK exposes a real PyO3 free-threaded module contract while retaining the Python 3.9 stable-ABI wheel.
+- Scope: PyO3 0.29 migration, `gil_used = false`, `abi3t` feature, concurrent binding test, release and CI matrix, README and ADR 0049. Zero-copy changes and DICOM domain logic remain out of scope.
+- Acceptance: `cargo check -p ritk-python --all-targets`, strict Clippy, nextest, and the CPython 3.15t `abi3t` wheel test pass; the module imports with the GIL disabled and concurrent `Image` reads preserve exact shape, metadata and pixels.
+- Dependency: PyO3 0.29.2 and Atlas reusable wheel workflow support for `abi3t`/3.15t.
+
 <a id="RITK-CONFORMANCE-001"></a>
 ## RITK-CONFORMANCE-001 — Restore stack conformance bounds [patch]
 - Status: done; priority: P0; owner: RITK integration; integrator: root/ritk_consumer; last-update: 2026-09-21; delivery: PR [#562](https://github.com/ryancinsight/ritk/pull/562), merge `2e346c0dd29d6f711e387167f43df029437eccd2`.

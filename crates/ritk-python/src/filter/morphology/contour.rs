@@ -19,7 +19,7 @@ pub fn binary_contour(
     let arc = Arc::clone(&image.inner);
     let backend = MoiraiBackend;
     let conn = connectivity_from(fully_connected);
-    py.allow_threads(|| {
+    py.detach(|| {
         BinaryContourImageFilter::new(conn, foreground_value)
             .apply_native(arc.as_ref(), &backend)
             .map_err(|e| RitkPyError::runtime(e.to_string()))
@@ -41,7 +41,7 @@ pub fn label_contour(
     let arc = Arc::clone(&image.inner);
     let backend = MoiraiBackend;
     let conn = connectivity_from(fully_connected);
-    py.allow_threads(|| {
+    py.detach(|| {
         LabelContourImageFilter::new(conn, background_value)
             .apply_native(arc.as_ref(), &backend)
             .map_err(|e| RitkPyError::runtime(e.to_string()))
@@ -72,7 +72,7 @@ pub fn contour_extractor_2d(
 ) -> RitkResult<Vec<Vec<(f64, f64)>>> {
     let arc = Arc::clone(&image.inner);
     let backend = MoiraiBackend;
-    let contours = py.allow_threads(|| {
+    let contours = py.detach(|| {
         ritk_filter::ContourExtractor2DImageFilter { contour_value }
             .apply_native(arc.as_ref(), &backend)
             .map_err(|e| RitkPyError::runtime(e.to_string()))

@@ -54,7 +54,7 @@ pub fn demons_register(
     let fixed_direction = *fixed.inner.direction();
     let [nz, ny, nx] = fixed_shape;
 
-    py.allow_threads(|| {
+    py.detach(|| {
         let config = DemonsConfig {
             max_iterations,
             sigma_diffusion: GaussianSigma::new(sigma_diffusion),
@@ -135,7 +135,7 @@ pub fn diffeomorphic_demons_register(
     let fixed_direction = *fixed.inner.direction();
     let [nz, ny, nx] = fixed_shape;
 
-    py.allow_threads(|| {
+    py.detach(|| {
         let config = DemonsConfig {
             max_iterations,
             sigma_diffusion: GaussianSigma::new(sigma_diffusion),
@@ -223,7 +223,7 @@ pub fn level_set_motion_register(
     let fixed_direction = *fixed.inner.direction();
     let [nz, ny, nx] = fixed_shape;
 
-    py.allow_threads(|| {
+    py.detach(|| {
         let reg = LevelSetMotionRegistration {
             number_of_iterations,
             smoothing_sigma,
@@ -299,7 +299,7 @@ pub fn symmetric_demons_register(
     let fixed_direction = *fixed.inner.direction();
     let [nz, ny, nx] = fixed_shape;
 
-    py.allow_threads(|| {
+    py.detach(|| {
         let config = DemonsConfig {
             max_iterations,
             sigma_diffusion: GaussianSigma::new(sigma_diffusion),

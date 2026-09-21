@@ -21,7 +21,7 @@ pub fn flip(
 ) -> RitkResult<PyImage> {
     let native = Arc::clone(&image.inner);
     let backend = MoiraiBackend;
-    py.allow_threads(|| {
+    py.detach(|| {
         FlipImageFilter::from_bools([flip_z, flip_y, flip_x])
             .apply_native(native.as_ref(), &backend)
             .map_err(|e| RitkPyError::runtime(e.to_string()))
@@ -43,7 +43,7 @@ pub fn shrink(
     factor_x: usize,
 ) -> RitkResult<PyImage> {
     let native = Arc::clone(&image.inner);
-    py.allow_threads(|| {
+    py.detach(|| {
         ShrinkImageFilter::new([factor_z, factor_y, factor_x])
             .apply(native.as_ref())
             .map_err(|e| RitkPyError::runtime(e.to_string()))
@@ -63,7 +63,7 @@ pub fn expand(
 ) -> RitkResult<PyImage> {
     let native = Arc::clone(&image.inner);
     let backend = MoiraiBackend;
-    py.allow_threads(|| {
+    py.detach(|| {
         ExpandImageFilter::new([factors.0, factors.1, factors.2])
             .apply_native(native.as_ref(), &backend)
             .map_err(|e| RitkPyError::runtime(e.to_string()))
@@ -81,7 +81,7 @@ pub fn cyclic_shift(
 ) -> RitkResult<PyImage> {
     let native = Arc::clone(&image.inner);
     let backend = MoiraiBackend;
-    py.allow_threads(|| {
+    py.detach(|| {
         CyclicShiftImageFilter::new([shift.0, shift.1, shift.2])
             .apply_native(native.as_ref(), &backend)
             .map_err(|e| RitkPyError::runtime(e.to_string()))
@@ -99,7 +99,7 @@ pub fn permute_axes(
 ) -> RitkResult<PyImage> {
     let native = Arc::clone(&image.inner);
     let backend = MoiraiBackend;
-    py.allow_threads(|| {
+    py.detach(|| {
         PermuteAxesImageFilter::new([order.0, order.1, order.2])
             .apply_native(native.as_ref(), &backend)
             .map_err(|e| RitkPyError::runtime(e.to_string()))
@@ -116,7 +116,7 @@ pub fn dicom_orient(py: Python<'_>, image: &PyImage, orientation: &str) -> RitkR
     let backend = MoiraiBackend;
     let filter =
         OrientImageFilter::from_code(orientation).map_err(|e| RitkPyError::value(e.to_string()))?;
-    py.allow_threads(|| {
+    py.detach(|| {
         filter
             .apply_native(native.as_ref(), &backend)
             .map_err(|e| RitkPyError::runtime(e.to_string()))

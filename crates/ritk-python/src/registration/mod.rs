@@ -30,7 +30,7 @@ use pyo3::prelude::*;
 
 /// Register the `registration` submodule and all exposed functions.
 pub fn register(parent: &Bound<'_, PyModule>) -> PyResult<()> {
-    let m = PyModule::new_bound(parent.py(), "registration")?;
+    let m = PyModule::new(parent.py(), "registration")?;
     m.add_function(wrap_pyfunction!(demons_register, &m)?)?;
     m.add_function(wrap_pyfunction!(diffeomorphic_demons_register, &m)?)?;
     m.add_function(wrap_pyfunction!(level_set_motion_register, &m)?)?;

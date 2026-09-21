@@ -19,7 +19,7 @@ pub fn add_images(py: Python<'_>, a: &PyImage, b: &PyImage) -> RitkResult<PyImag
     let a_native = Arc::clone(&a.inner);
     let b_native = Arc::clone(&b.inner);
     let backend = MoiraiBackend;
-    py.allow_threads(|| {
+    py.detach(|| {
         AddImageFilter::new()
             .apply_native(a_native.as_ref(), b_native.as_ref(), &backend)
             .map_err(|e| RitkPyError::runtime(e.to_string()))
@@ -35,7 +35,7 @@ pub fn subtract_images(py: Python<'_>, a: &PyImage, b: &PyImage) -> RitkResult<P
     let a_native = Arc::clone(&a.inner);
     let b_native = Arc::clone(&b.inner);
     let backend = MoiraiBackend;
-    py.allow_threads(|| {
+    py.detach(|| {
         SubtractImageFilter::new()
             .apply_native(a_native.as_ref(), b_native.as_ref(), &backend)
             .map_err(|e| RitkPyError::runtime(e.to_string()))
@@ -51,7 +51,7 @@ pub fn multiply_images(py: Python<'_>, a: &PyImage, b: &PyImage) -> RitkResult<P
     let a_native = Arc::clone(&a.inner);
     let b_native = Arc::clone(&b.inner);
     let backend = MoiraiBackend;
-    py.allow_threads(|| {
+    py.detach(|| {
         MultiplyImageFilter::new()
             .apply_native(a_native.as_ref(), b_native.as_ref(), &backend)
             .map_err(|e| RitkPyError::runtime(e.to_string()))
@@ -71,7 +71,7 @@ pub fn divide_images(py: Python<'_>, a: &PyImage, b: &PyImage) -> RitkResult<PyI
     let a_native = Arc::clone(&a.inner);
     let b_native = Arc::clone(&b.inner);
     let backend = MoiraiBackend;
-    py.allow_threads(|| {
+    py.detach(|| {
         DivideImageFilter::new()
             .apply_native(a_native.as_ref(), b_native.as_ref(), &backend)
             .map_err(|e| RitkPyError::runtime(e.to_string()))
@@ -87,7 +87,7 @@ pub fn squared_difference_images(py: Python<'_>, a: &PyImage, b: &PyImage) -> Ri
     let a_native = Arc::clone(&a.inner);
     let b_native = Arc::clone(&b.inner);
     let backend = MoiraiBackend;
-    py.allow_threads(|| {
+    py.detach(|| {
         SquaredDifferenceImageFilter::new()
             .apply_native(a_native.as_ref(), b_native.as_ref(), &backend)
             .map_err(|e| RitkPyError::runtime(e.to_string()))
@@ -107,7 +107,7 @@ pub fn absolute_value_difference_images(
     let a_native = Arc::clone(&a.inner);
     let b_native = Arc::clone(&b.inner);
     let backend = MoiraiBackend;
-    py.allow_threads(|| {
+    py.detach(|| {
         AbsoluteValueDifferenceImageFilter::new()
             .apply_native(a_native.as_ref(), b_native.as_ref(), &backend)
             .map_err(|e| RitkPyError::runtime(e.to_string()))
@@ -123,7 +123,7 @@ pub fn atan2_images(py: Python<'_>, a: &PyImage, b: &PyImage) -> RitkResult<PyIm
     let a_native = Arc::clone(&a.inner);
     let b_native = Arc::clone(&b.inner);
     let backend = MoiraiBackend;
-    py.allow_threads(|| {
+    py.detach(|| {
         Atan2ImageFilter::new()
             .apply_native(a_native.as_ref(), b_native.as_ref(), &backend)
             .map_err(|e| RitkPyError::runtime(e.to_string()))
@@ -139,7 +139,7 @@ pub fn pow_images(py: Python<'_>, a: &PyImage, b: &PyImage) -> RitkResult<PyImag
     let a_native = Arc::clone(&a.inner);
     let b_native = Arc::clone(&b.inner);
     let backend = MoiraiBackend;
-    py.allow_threads(|| {
+    py.detach(|| {
         PowImageFilter::new()
             .apply_native(a_native.as_ref(), b_native.as_ref(), &backend)
             .map_err(|e| RitkPyError::runtime(e.to_string()))
@@ -155,7 +155,7 @@ pub fn binary_magnitude_images(py: Python<'_>, a: &PyImage, b: &PyImage) -> Ritk
     let a_native = Arc::clone(&a.inner);
     let b_native = Arc::clone(&b.inner);
     let backend = MoiraiBackend;
-    py.allow_threads(|| {
+    py.detach(|| {
         BinaryMagnitudeImageFilter::new()
             .apply_native(a_native.as_ref(), b_native.as_ref(), &backend)
             .map_err(|e| RitkPyError::runtime(e.to_string()))
@@ -180,7 +180,7 @@ fn nary_fold<Op: ritk_filter::BinaryOp>(
         .map(|p| p.bind(py).borrow().inner.as_ref().clone())
         .collect();
     let backend = MoiraiBackend;
-    py.allow_threads(|| {
+    py.detach(|| {
         let mut acc = arcs[0].clone();
         for img in &arcs[1..] {
             acc = ritk_filter::BinaryOpFilter::<Op>::new()
@@ -284,7 +284,7 @@ pub fn minimum_images(py: Python<'_>, a: &PyImage, b: &PyImage) -> RitkResult<Py
     let a_native = Arc::clone(&a.inner);
     let b_native = Arc::clone(&b.inner);
     let backend = MoiraiBackend;
-    py.allow_threads(|| {
+    py.detach(|| {
         ImageMinFilter::new()
             .apply_native(a_native.as_ref(), b_native.as_ref(), &backend)
             .map_err(|e| RitkPyError::runtime(e.to_string()))
@@ -300,7 +300,7 @@ pub fn maximum_images(py: Python<'_>, a: &PyImage, b: &PyImage) -> RitkResult<Py
     let a_native = Arc::clone(&a.inner);
     let b_native = Arc::clone(&b.inner);
     let backend = MoiraiBackend;
-    py.allow_threads(|| {
+    py.detach(|| {
         ImageMaxFilter::new()
             .apply_native(a_native.as_ref(), b_native.as_ref(), &backend)
             .map_err(|e| RitkPyError::runtime(e.to_string()))

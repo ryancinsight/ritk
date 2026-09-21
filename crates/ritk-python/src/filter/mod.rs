@@ -43,7 +43,7 @@ pub use vessel::*;
 
 /// Register the `filter` submodule and all exposed functions.
 pub fn register(parent: &Bound<'_, PyModule>) -> PyResult<()> {
-    let m = PyModule::new_bound(parent.py(), "filter")?;
+    let m = PyModule::new(parent.py(), "filter")?;
     // Smoothing & diffusion
     m.add_class::<PySpacingMode>()?;
     m.add_function(wrap_pyfunction!(gaussian_filter, &m)?)?;

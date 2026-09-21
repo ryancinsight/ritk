@@ -30,7 +30,7 @@ use pyo3::prelude::*;
 
 /// Register the `segmentation` submodule with all exposed functions.
 pub fn register(parent: &Bound<'_, PyModule>) -> PyResult<()> {
-    let m = PyModule::new_bound(parent.py(), "segmentation")?;
+    let m = PyModule::new(parent.py(), "segmentation")?;
 
     // Thresholding
     m.add_function(wrap_pyfunction!(otsu_threshold, &m)?)?;

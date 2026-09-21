@@ -62,9 +62,9 @@ pub fn staple_ensemble(
         }
     }
 
-    let result = py.allow_threads(move || core_staple(&rater_vecs, max_iter, tol));
+    let result = py.detach(move || core_staple(&rater_vecs, max_iter, tol));
 
-    let dict = PyDict::new_bound(py);
+    let dict = PyDict::new(py);
     dict.set_item(
         "probabilistic_truth",
         result
@@ -144,7 +144,7 @@ pub fn multi_label_staple(
         }
     }
     let max = (max_iter != 0).then_some(max_iter);
-    let result = py.allow_threads(move || {
+    let result = py.detach(move || {
         core_multi_label_staple(&rater_vecs, max, termination_threshold, label_for_undecided)
     });
     Ok(into_py_image(vec_to_image_like(
@@ -181,6 +181,6 @@ pub fn growcut_segment(
 ) -> PyImage {
     let img_arc = image_from_py(image);
     let seed_arc = image_from_py(seeds);
-    let result = py.allow_threads(move || core_growcut(&img_arc, &seed_arc, max_iter));
+    let result = py.detach(move || core_growcut(&img_arc, &seed_arc, max_iter));
     into_py_image(result)
 }

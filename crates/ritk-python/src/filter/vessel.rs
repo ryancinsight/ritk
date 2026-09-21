@@ -20,8 +20,10 @@ pub enum PyVesselPolarity {
     Dark,
 }
 
-impl<'py> FromPyObject<'py> for PyVesselPolarity {
-    fn extract_bound(ob: &pyo3::Bound<'py, PyAny>) -> PyResult<Self> {
+impl<'a, 'py> FromPyObject<'a, 'py> for PyVesselPolarity {
+    type Error = PyErr;
+
+    fn extract(ob: Borrowed<'a, 'py, PyAny>) -> PyResult<Self> {
         let s: String = ob.extract()?;
         match s.to_lowercase().as_str() {
             "bright" => Ok(Self::Bright),
@@ -77,7 +79,7 @@ pub fn frangi_vesselness(
 ) -> RitkResult<PyImage> {
     let image = Arc::clone(&image.inner);
     let backend = MoiraiBackend;
-    py.allow_threads(|| {
+    py.detach(|| {
         let config = FrangiConfig {
             scales: scales.unwrap_or_else(|| vec![0.5, 1.0, 2.0]),
             alpha,
@@ -122,7 +124,7 @@ pub fn sato_line_filter(
 ) -> RitkResult<PyImage> {
     let image = Arc::clone(&image.inner);
     let backend = MoiraiBackend;
-    py.allow_threads(|| {
+    py.detach(|| {
         let filter = SatoLineFilter::new(SatoConfig {
             scales: scales.unwrap_or_else(|| vec![1.0, 2.0, 3.0]),
             alpha,

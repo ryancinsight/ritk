@@ -70,7 +70,7 @@ impl PyColorImage {
     fn to_numpy<'py>(&self, py: Python<'py>) -> RitkResult<Bound<'py, PyArray4<f32>>> {
         let [z, y, x, ch] = self.inner.shape();
         let vals = self.inner.data_cow_on(&MoiraiBackend).into_owned();
-        PyArray1::<f32>::from_vec_bound(py, vals)
+        PyArray1::<f32>::from_vec(py, vals)
             .reshape([z, y, x, ch])
             .map_err(|e| RitkPyError::runtime(e.to_string()))
     }
@@ -94,7 +94,7 @@ pub fn color_median(
 ) -> RitkResult<PyColorImage> {
     let arc = Arc::clone(&image.inner);
     let out = py
-        .allow_threads(|| {
+        .detach(|| {
             map_color_components(
                 arc.as_ref(),
                 |img| {
@@ -118,7 +118,7 @@ pub fn color_median(
 pub fn color_mean(py: Python<'_>, image: &PyColorImage, radius: usize) -> RitkResult<PyColorImage> {
     let arc = Arc::clone(&image.inner);
     let out = py
-        .allow_threads(|| {
+        .detach(|| {
             map_color_components(
                 arc.as_ref(),
                 |img| {
@@ -147,7 +147,7 @@ pub fn physical_point_image_source(
     origin: (f64, f64, f64),
     spacing: (f64, f64, f64),
 ) -> RitkResult<PyColorImage> {
-    let ([cx, cy, cz], dims) = py.allow_threads(|| {
+    let ([cx, cy, cz], dims) = py.detach(|| {
         core_physical_point_image_source(
             [size.0, size.1, size.2],
             [origin.0, origin.1, origin.2],
@@ -210,9 +210,7 @@ pub fn gradient(
 ) -> RitkResult<PyColorImage> {
     let native = image.inner.clone();
     let out = py
-        .allow_threads(|| {
-            GradientImageFilter::new(use_image_spacing).apply(&native, &MoiraiBackend)
-        })
+        .detach(|| GradientImageFilter::new(use_image_spacing).apply(&native, &MoiraiBackend))
         .map_err(|e| RitkPyError::runtime(e.to_string()))?;
     Ok(PyColorImage {
         inner: Arc::new(out),
@@ -232,9 +230,7 @@ pub fn gradient_recursive_gaussian(
 ) -> RitkResult<PyColorImage> {
     let native = image.inner.clone();
     let out = py
-        .allow_threads(|| {
-            GradientRecursiveGaussianImageFilter::new(sigma).apply(&native, &MoiraiBackend)
-        })
+        .detach(|| GradientRecursiveGaussianImageFilter::new(sigma).apply(&native, &MoiraiBackend))
         .map_err(|e| RitkPyError::runtime(e.to_string()))?;
     Ok(PyColorImage {
         inner: Arc::new(out),
@@ -256,7 +252,7 @@ pub fn scalar_to_rgb_colormap(
     let cmap = Colormap::from_name(colormap).map_err(|e| RitkPyError::value(e.to_string()))?;
     let native = image.inner.clone();
     let out = py
-        .allow_threads(|| ScalarToRGBColormapFilter::new(cmap).apply(&native, &MoiraiBackend))
+        .detach(|| ScalarToRGBColormapFilter::new(cmap).apply(&native, &MoiraiBackend))
         .map_err(|e| RitkPyError::runtime(e.to_string()))?;
     Ok(PyColorImage {
         inner: Arc::new(out),
@@ -271,7 +267,7 @@ pub fn scalar_to_rgb_colormap(
 pub fn label_to_rgb(py: Python<'_>, image: &PyImage, background: i64) -> RitkResult<PyColorImage> {
     let native = image.inner.clone();
     let out = py
-        .allow_threads(|| LabelToRGBFilter::new(background).apply(&native, &MoiraiBackend))
+        .detach(|| LabelToRGBFilter::new(background).apply(&native, &MoiraiBackend))
         .map_err(|e| RitkPyError::runtime(e.to_string()))?;
     Ok(PyColorImage {
         inner: Arc::new(out),
@@ -293,9 +289,7 @@ pub fn label_overlay(
     let img = image.inner.clone();
     let lab = label.inner.clone();
     let out = py
-        .allow_threads(|| {
-            LabelOverlayFilter::new(opacity, background).apply(&img, &lab, &MoiraiBackend)
-        })
+        .detach(|| LabelOverlayFilter::new(opacity, background).apply(&img, &lab, &MoiraiBackend))
         .map_err(|e| RitkPyError::runtime(e.to_string()))?;
     Ok(PyColorImage {
         inner: Arc::new(out),
@@ -319,7 +313,7 @@ pub fn label_map_contour_overlay(
     let img = image.inner.clone();
     let lab = label.inner.clone();
     let out = py
-        .allow_threads(|| {
+        .detach(|| {
             LabelMapContourOverlayFilter::new(opacity, background).apply(&img, &lab, &MoiraiBackend)
         })
         .map_err(|e| RitkPyError::runtime(e.to_string()))?;
@@ -409,7 +403,7 @@ pub fn color_smoothing_recursive_gaussian(
 ) -> RitkResult<PyColorImage> {
     let arc = Arc::clone(&image.inner);
     let out = py
-        .allow_threads(|| {
+        .detach(|| {
             map_color_components(
                 arc.as_ref(),
                 |img| {

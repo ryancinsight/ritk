@@ -36,7 +36,7 @@ pub fn fast_marching(
 ) -> RitkResult<PyImage> {
     let native = Arc::clone(&image.inner);
     let backend = MoiraiBackend;
-    py.allow_threads(|| {
+    py.detach(|| {
         FastMarchingFilter {
             trial_points,
             initial_trial_values,
@@ -78,7 +78,7 @@ pub fn colliding_fronts(
 ) -> RitkResult<PyImage> {
     let native = Arc::clone(&image.inner);
     let backend = MoiraiBackend;
-    py.allow_threads(|| {
+    py.detach(|| {
         CollidingFrontsFilter {
             seeds1,
             seeds2,

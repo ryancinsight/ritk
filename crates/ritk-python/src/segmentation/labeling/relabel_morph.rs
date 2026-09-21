@@ -29,7 +29,7 @@ pub fn relabel_components(
 ) -> RitkResult<PyImage> {
     let img = image_from_py(label_image);
     let out = py
-        .allow_threads(|| {
+        .detach(|| {
             RelabelComponentFilter::with_minimum_object_size(minimum_object_size).apply(&img)
         })
         .map_err(|error| RitkPyError::value(error.to_string()))?
@@ -54,7 +54,7 @@ pub fn relabel_components(
 #[pyo3(signature = (label_image))]
 pub fn relabel_label_map(py: Python<'_>, label_image: &PyImage) -> PyImage {
     let img = image_from_py(label_image);
-    let out = py.allow_threads(|| core_relabel_consecutive(&img));
+    let out = py.detach(|| core_relabel_consecutive(&img));
     into_py_image(out)
 }
 
@@ -91,7 +91,7 @@ pub fn merge_label_map(
         }
     };
     let images: Vec<_> = label_images.iter().map(|p| image_from_py(p)).collect();
-    let out = py.allow_threads(|| {
+    let out = py.detach(|| {
         let refs: Vec<_> = images.iter().collect();
         core_merge_label_maps(&refs, m).map_err(|e| RitkPyError::runtime(e.to_string()))
     })?;
@@ -176,7 +176,7 @@ fn label_set_morph_py(
         }
     };
     let img = image_from_py(label_image);
-    let out = py.allow_threads(|| core_label_set_morph(&img, radius_itk, use_image_spacing, op));
+    let out = py.detach(|| core_label_set_morph(&img, radius_itk, use_image_spacing, op));
     Ok(into_py_image(out))
 }
 
@@ -203,7 +203,7 @@ pub fn change_label(
 ) -> PyImage {
     use ritk_image::tensor::Tensor;
     let img = image_from_py(label_image);
-    let out = py.allow_threads(|| {
+    let out = py.detach(|| {
         let dims = img.shape();
         let values = img
             .data_slice()

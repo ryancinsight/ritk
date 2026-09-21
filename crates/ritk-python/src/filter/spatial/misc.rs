@@ -21,7 +21,7 @@ pub fn stochastic_fractal_dimension(
 ) -> RitkResult<PyImage> {
     let native = Arc::clone(&image.inner);
     let backend = MoiraiBackend;
-    py.allow_threads(|| {
+    py.detach(|| {
         ritk_filter::StochasticFractalDimensionFilter::new([radius; 3])
             .apply(native.as_ref(), &backend)
             .map_err(|error| RitkPyError::runtime(error.to_string()))
@@ -35,7 +35,7 @@ pub fn stochastic_fractal_dimension(
 #[pyfunction]
 pub fn bspline_decomposition(py: Python<'_>, image: &PyImage) -> RitkResult<PyImage> {
     let arc = Arc::clone(&image.inner);
-    py.allow_threads(|| {
+    py.detach(|| {
         ritk_filter::bspline_decomposition(arc.as_ref())
             .map_err(|e| RitkPyError::runtime(e.to_string()))
     })

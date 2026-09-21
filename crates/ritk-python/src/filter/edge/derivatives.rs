@@ -32,7 +32,7 @@ pub fn derivative(
     let axis = 2 - direction;
     let native = Arc::clone(&image.inner);
     let backend = MoiraiBackend;
-    py.allow_threads(|| {
+    py.detach(|| {
         DerivativeImageFilter::new(axis, order, use_image_spacing)
             .apply_native(native.as_ref(), &backend)
             .map_err(|e| RitkPyError::runtime(e.to_string()))
@@ -56,7 +56,7 @@ pub fn derivative(
 #[pyfunction]
 pub fn gradient_magnitude(py: Python<'_>, image: &PyImage) -> RitkResult<PyImage> {
     let native = Arc::clone(&image.inner);
-    py.allow_threads(|| {
+    py.detach(|| {
         let filter = GradientMagnitudeFilter::new(*native.spacing());
         filter
             .apply_native(native.as_ref())
@@ -81,7 +81,7 @@ pub fn gradient_magnitude(py: Python<'_>, image: &PyImage) -> RitkResult<PyImage
 #[pyfunction]
 pub fn laplacian(py: Python<'_>, image: &PyImage) -> RitkResult<PyImage> {
     let native = Arc::clone(&image.inner);
-    py.allow_threads(|| {
+    py.detach(|| {
         let filter = LaplacianFilter::new(*native.spacing());
         filter
             .apply_native(native.as_ref())
@@ -113,7 +113,7 @@ pub fn laplacian_sharpening(
 ) -> RitkResult<PyImage> {
     let native = Arc::clone(&image.inner);
     let backend = MoiraiBackend;
-    py.allow_threads(|| {
+    py.detach(|| {
         LaplacianSharpeningFilter::new(use_image_spacing)
             .apply_native(native.as_ref(), &backend)
             .map_err(|e| RitkPyError::runtime(e.to_string()))
@@ -139,7 +139,7 @@ pub fn laplacian_sharpening(
 #[pyfunction]
 pub fn sobel_gradient(py: Python<'_>, image: &PyImage) -> RitkResult<PyImage> {
     let native = Arc::clone(&image.inner);
-    py.allow_threads(|| {
+    py.detach(|| {
         let spacing = native.spacing();
         let filter = SobelFilter::new(*spacing);
         filter

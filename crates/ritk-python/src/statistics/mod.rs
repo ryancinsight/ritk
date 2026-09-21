@@ -24,7 +24,7 @@ use pyo3::prelude::*;
 
 /// Register the `statistics` submodule and all 18 exposed functions into `parent`.
 pub fn register(parent: &Bound<'_, PyModule>) -> PyResult<()> {
-    let m = PyModule::new_bound(parent.py(), "statistics")?;
+    let m = PyModule::new(parent.py(), "statistics")?;
     m.add_function(wrap_pyfunction!(compute_statistics, &m)?)?;
     m.add_function(wrap_pyfunction!(masked_statistics, &m)?)?;
     m.add_function(wrap_pyfunction!(dice_coefficient, &m)?)?;

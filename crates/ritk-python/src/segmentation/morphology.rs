@@ -24,7 +24,7 @@ use ritk_segmentation::{
 #[pyo3(signature = (image, radius=1))]
 pub fn binary_erosion(py: Python<'_>, image: &PyImage, radius: usize) -> PyImage {
     let image = image_from_py(image);
-    let result = py.allow_threads(|| {
+    let result = py.detach(|| {
         let op = BinaryErosion::new(radius);
         op.apply(&image)
     });
@@ -47,7 +47,7 @@ pub fn binary_erosion(py: Python<'_>, image: &PyImage, radius: usize) -> PyImage
 #[pyo3(signature = (image, radius=1))]
 pub fn binary_dilation(py: Python<'_>, image: &PyImage, radius: usize) -> PyImage {
     let image = image_from_py(image);
-    let result = py.allow_threads(|| {
+    let result = py.detach(|| {
         let op = BinaryDilation::new(radius);
         op.apply(&image)
     });
@@ -69,7 +69,7 @@ pub fn binary_dilation(py: Python<'_>, image: &PyImage, radius: usize) -> PyImag
 #[pyo3(signature = (image, radius=1))]
 pub fn binary_opening(py: Python<'_>, image: &PyImage, radius: usize) -> PyImage {
     let image = image_from_py(image);
-    let result = py.allow_threads(|| {
+    let result = py.detach(|| {
         let op = BinaryOpening::new(radius);
         op.apply(&image)
     });
@@ -91,7 +91,7 @@ pub fn binary_opening(py: Python<'_>, image: &PyImage, radius: usize) -> PyImage
 #[pyo3(signature = (image, radius=1))]
 pub fn binary_closing(py: Python<'_>, image: &PyImage, radius: usize) -> PyImage {
     let image = image_from_py(image);
-    let result = py.allow_threads(|| {
+    let result = py.detach(|| {
         let op = BinaryClosing::new(radius);
         op.apply(&image)
     });
@@ -111,7 +111,7 @@ pub fn binary_closing(py: Python<'_>, image: &PyImage, radius: usize) -> PyImage
 #[pyfunction]
 pub fn binary_fill_holes(py: Python<'_>, image: &PyImage) -> PyImage {
     let inner = image_from_py(image);
-    let result = py.allow_threads(move || BinaryFillHoles.apply(&inner));
+    let result = py.detach(move || BinaryFillHoles.apply(&inner));
     into_py_image(result)
 }
 
@@ -135,7 +135,7 @@ pub fn binary_fill_holes(py: Python<'_>, image: &PyImage) -> PyImage {
 #[pyo3(signature = (image, radius=1))]
 pub fn morphological_gradient(py: Python<'_>, image: &PyImage, radius: usize) -> PyImage {
     let inner = image_from_py(image);
-    let result = py.allow_threads(move || MorphologicalGradient::new(radius).apply(&inner));
+    let result = py.detach(move || MorphologicalGradient::new(radius).apply(&inner));
     into_py_image(result)
 }
 
@@ -155,6 +155,6 @@ pub fn morphological_gradient(py: Python<'_>, image: &PyImage, radius: usize) ->
 #[pyfunction]
 pub fn skeletonization(py: Python<'_>, image: &PyImage) -> PyImage {
     let inner = image_from_py(image);
-    let result = py.allow_threads(move || Skeletonization::new().apply::<_, 3>(&inner));
+    let result = py.detach(move || Skeletonization::new().apply::<_, 3>(&inner));
     into_py_image(result)
 }

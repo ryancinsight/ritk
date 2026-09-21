@@ -38,7 +38,7 @@ impl PyDiffusionMaps {
             reason = "maps are returned at image precision, matching every other RITK array"
         )]
         let narrowed: Vec<f32> = values.iter().map(|value| *value as f32).collect();
-        PyArray1::<f32>::from_vec_bound(py, narrowed)
+        PyArray1::<f32>::from_vec(py, narrowed)
             .reshape(self.shape)
             .map_err(|error| RitkPyError::runtime(format!("reshaping a map: {error}")))
     }
@@ -62,7 +62,7 @@ impl PyDiffusionMaps {
     /// Returns:
     ///     numpy.ndarray: bool array, True where a tensor was fitted.
     fn mask<'py>(&self, py: Python<'py>) -> RitkResult<Bound<'py, PyArray3<bool>>> {
-        PyArray1::<bool>::from_vec_bound(py, self.maps.mask().to_vec())
+        PyArray1::<bool>::from_vec(py, self.maps.mask().to_vec())
             .reshape(self.shape)
             .map_err(|error| RitkPyError::runtime(format!("reshaping the mask: {error}")))
     }
@@ -120,7 +120,7 @@ impl PyDiffusionMaps {
             .flat_map(|vector| vector.iter().map(|value| *value as f32))
             .collect();
 
-        PyArray1::<f32>::from_vec_bound(py, flat)
+        PyArray1::<f32>::from_vec(py, flat)
             .reshape([depth, rows, columns, 3])
             .map_err(|error| {
                 RitkPyError::runtime(format!("reshaping the eigenvector field: {error}"))

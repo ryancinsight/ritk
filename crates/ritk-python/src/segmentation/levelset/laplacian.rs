@@ -7,7 +7,7 @@ use ritk_filter::edge::GaussianSigma;
 use ritk_segmentation::LaplacianLevelSet;
 
 /// Configuration options for [`laplacian_level_set_segment`].
-#[pyclass(name = "LaplacianLevelSetOptions")]
+#[pyclass(from_py_object, name = "LaplacianLevelSetOptions")]
 #[derive(Clone)]
 pub struct PyLaplacianLevelSetOptions {
     /// Weight of Laplacian propagation term.
@@ -80,7 +80,7 @@ pub fn laplacian_level_set_segment(
         opts.unwrap_or_else(|| PyLaplacianLevelSetOptions::new(1.0, 0.2, 1.0, 0.05, 200, 1e-3));
     let image_arc = image_from_py(image);
     let phi_arc = image_from_py(initial_phi);
-    py.allow_threads(|| {
+    py.detach(|| {
         let mut seg = LaplacianLevelSet::new();
         seg.propagation_weight = opts.propagation_weight;
         seg.curvature_weight = opts.curvature_weight;
