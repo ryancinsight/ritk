@@ -85,3 +85,13 @@ consumed temporarily by the RITK lock. The free-threaded contract pins NumPy
 to `>=2.5,<2.6`, matching that bridge's supported C API surface. Remove the
 Git revision when a crates.io `numpy` release contains the abi3t support and
 extraction fixes; the hosted 3.15t contract remains the acceptance oracle.
+
+### Revision 2026-09-21 (accepted hosted contract)
+
+PR [#574](https://github.com/ryancinsight/ritk/pull/574), merged as
+`28e2acdf4ee8a937d55f452635a93c532df5487a`, passed the merged-main CI run
+`35664515797` and Python CI run `35664515333`. The CPython 3.15t contract
+installed the abi3t wheel, verified the interpreter remained free-threaded,
+and passed the concurrent `Image` value-semantic test. The rust-numpy Git
+revision and NumPy 2.5 floor remain quarantined until a crates.io release
+contains the same abi3t bridge and extraction fixes.
