@@ -1,4 +1,5 @@
 use super::*;
+use crate::presentation::AccessibilityActionRequest;
 
 #[test]
 fn click_and_drag_actions_preserve_positions_and_gesture() {
@@ -376,5 +377,27 @@ fn event_batch_bound_is_enforced_before_state_changes() {
     assert_eq!(
         actions.as_ref(),
         &[ViewerAction::FocusChanged { focused: false }]
+    );
+}
+
+#[test]
+fn native_accessibility_action_is_rejected_without_a_native_tree() {
+    let mut dispatcher = PresentationDispatcher::new();
+    let error = dispatcher
+        .dispatch(&[PresentationEvent::AccessibilityAction {
+            request: AccessibilityActionRequest {
+                target_node: 41,
+                action: AccessibilityAction::Activate,
+                value: None,
+                delta: None,
+            },
+        }])
+        .expect_err("native accessibility action must not be discarded");
+    assert_eq!(
+        error,
+        ActionDispatchError::UnsupportedAccessibilityAction {
+            target_node: 41,
+            action: AccessibilityAction::Activate,
+        }
     );
 }

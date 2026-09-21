@@ -1,7 +1,8 @@
 //! Windows host adapter for one RITK presentation frame.
 
 use super::{
-    CompositionPhase, PointerButton, PresentationEvent, PresentationFrame, PresentationModifiers,
+    AccessibilityAction, AccessibilityActionRequest, CompositionPhase, PointerButton,
+    PresentationEvent, PresentationFrame, PresentationModifiers, MAX_ACCESSIBILITY_VALUE_BYTES,
     MAX_COMPOSITION_UNITS, MAX_PRESENTATION_EVENTS,
 };
 use anyhow::{anyhow, bail, Result};
@@ -100,6 +101,16 @@ pub fn translate_native_events(events: &[WindowEvent]) -> Result<Box<[Presentati
             WindowEvent::Destroyed => PresentationEvent::Destroyed,
             WindowEvent::FocusGained => PresentationEvent::FocusGained,
             WindowEvent::FocusLost => PresentationEvent::FocusLost,
+            WindowEvent::AccessibilityAction { request } => {
+                PresentationEvent::AccessibilityAction {
+                    request: AccessibilityActionRequest {
+                        target_node: request.target_node,
+                        action: translate_accessibility_action(request.action)?,
+                        value: translate_accessibility_value(request.value.as_deref())?,
+                        delta: request.delta,
+                    },
+                }
+            }
             WindowEvent::PointerMove { x, y } => PresentationEvent::PointerMove {
                 x: f64::from(*x),
                 y: f64::from(*y),
@@ -188,6 +199,41 @@ fn translate_composition_phase(
         metis_platform::native::CompositionPhase::Committed => CompositionPhase::Committed,
         metis_platform::native::CompositionPhase::Canceled => CompositionPhase::Canceled,
     }
+}
+
+fn translate_accessibility_action(
+    action: metis_platform::native::AccessibilityAction,
+) -> Result<AccessibilityAction> {
+    match action {
+        metis_platform::native::AccessibilityAction::Activate => Ok(AccessibilityAction::Activate),
+        metis_platform::native::AccessibilityAction::Focus => Ok(AccessibilityAction::Focus),
+        metis_platform::native::AccessibilityAction::SetValue => Ok(AccessibilityAction::SetValue),
+        metis_platform::native::AccessibilityAction::Toggle => Ok(AccessibilityAction::Toggle),
+        metis_platform::native::AccessibilityAction::AdjustValue => {
+            Ok(AccessibilityAction::AdjustValue)
+        }
+        metis_platform::native::AccessibilityAction::Open => Ok(AccessibilityAction::Open),
+        action => bail!("unsupported native accessibility action {action:?}"),
+    }
+}
+
+fn translate_accessibility_value(value: Option<&str>) -> Result<Option<Box<str>>> {
+    let Some(value) = value else {
+        return Ok(None);
+    };
+    if value.len() > MAX_ACCESSIBILITY_VALUE_BYTES {
+        bail!(
+            "native accessibility action value length {} exceeds host limit {} bytes",
+            value.len(),
+            MAX_ACCESSIBILITY_VALUE_BYTES
+        );
+    }
+    let mut owned = String::new();
+    owned
+        .try_reserve_exact(value.len())
+        .map_err(|_| anyhow!("unable to reserve translated accessibility action value"))?;
+    owned.push_str(value);
+    Ok(Some(owned.into_boxed_str()))
 }
 
 fn translate_composition_text(text: &str) -> Result<Box<str>> {
@@ -330,6 +376,14 @@ mod tests {
             WindowEvent::Destroyed,
             WindowEvent::FocusGained,
             WindowEvent::FocusLost,
+            WindowEvent::AccessibilityAction {
+                request: metis_platform::native::AccessibilityActionRequest {
+                    target_node: 41,
+                    action: metis_platform::native::AccessibilityAction::SetValue,
+                    value: Some("patient".to_owned()),
+                    delta: None,
+                },
+            },
             WindowEvent::PointerMove { x: -4, y: 8 },
             WindowEvent::PointerDown {
                 x: 1,
@@ -377,6 +431,14 @@ mod tests {
                 PresentationEvent::Destroyed,
                 PresentationEvent::FocusGained,
                 PresentationEvent::FocusLost,
+                PresentationEvent::AccessibilityAction {
+                    request: AccessibilityActionRequest {
+                        target_node: 41,
+                        action: AccessibilityAction::SetValue,
+                        value: Some("patient".into()),
+                        delta: None,
+                    },
+                },
                 PresentationEvent::PointerMove { x: -4.0, y: 8.0 },
                 PresentationEvent::PointerDown {
                     x: 1.0,
@@ -439,6 +501,20 @@ mod tests {
         let events = vec![WindowEvent::FocusGained; MAX_PRESENTATION_EVENTS + 1];
         let error = translate_native_events(&events).expect_err("oversized batch");
         assert!(error.to_string().contains("exceeds host limit"));
+    }
+
+    #[test]
+    fn native_accessibility_value_bound_is_enforced() {
+        let events = [WindowEvent::AccessibilityAction {
+            request: metis_platform::native::AccessibilityActionRequest {
+                target_node: 41,
+                action: metis_platform::native::AccessibilityAction::SetValue,
+                value: Some("x".repeat(MAX_ACCESSIBILITY_VALUE_BYTES + 1)),
+                delta: None,
+            },
+        }];
+        let error = translate_native_events(&events).expect_err("oversized action value");
+        assert!(error.to_string().contains("action value length"));
     }
 
     #[test]

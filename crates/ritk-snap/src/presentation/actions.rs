@@ -7,7 +7,7 @@
 //! after a complete bounded batch succeeds.
 
 use super::{
-    CompositionPhase, PointerButton, PresentationEvent, PresentationModifiers,
+    AccessibilityAction, CompositionPhase, PointerButton, PresentationEvent, PresentationModifiers,
     MAX_COMPOSITION_UNITS, MAX_PRESENTATION_EVENTS,
 };
 use thiserror::Error;
@@ -297,6 +297,15 @@ pub enum ActionDispatchError {
         actual: usize,
         /// Maximum accepted UTF-16 code units.
         limit: usize,
+    },
+    /// A native accessibility request reached a viewer without a native
+    /// accessibility tree.
+    #[error("native accessibility action {action:?} for node {target_node} is unsupported")]
+    UnsupportedAccessibilityAction {
+        /// Stable target node identity supplied by the host.
+        target_node: u64,
+        /// Requested operation.
+        action: AccessibilityAction,
     },
 }
 

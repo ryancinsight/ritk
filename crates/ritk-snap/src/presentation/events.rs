@@ -14,6 +14,13 @@ pub const MAX_PRESENTATION_EVENTS: usize = 1_024;
 /// bound by constructing a presentation event directly.
 pub const MAX_COMPOSITION_UNITS: usize = 4_096;
 
+/// Maximum UTF-8 bytes retained for one native accessibility action value.
+///
+/// The value is copied from the host request at the native trust boundary and
+/// is bounded independently of the provider's queue size. Actions outside
+/// this bound are rejected before they reach viewer state.
+pub const MAX_ACCESSIBILITY_VALUE_BYTES: usize = 4_096;
+
 const MODIFIER_CTRL: u8 = 0b0001;
 const MODIFIER_SHIFT: u8 = 0b0010;
 const MODIFIER_ALT: u8 = 0b0100;
@@ -103,6 +110,37 @@ pub enum CompositionPhase {
     Canceled,
 }
 
+/// Operation requested by an assistive-technology client.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
+#[non_exhaustive]
+pub enum AccessibilityAction {
+    /// Activate the target control.
+    Activate,
+    /// Move keyboard focus to the target control.
+    Focus,
+    /// Replace the target control's value.
+    SetValue,
+    /// Toggle the target control.
+    Toggle,
+    /// Increment or decrement a bounded target value.
+    AdjustValue,
+    /// Open the target selection control.
+    Open,
+}
+
+/// One bounded assistive-technology action delivered by a native host.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct AccessibilityActionRequest {
+    /// Stable target node identity supplied by the host semantics tree.
+    pub target_node: u64,
+    /// Requested operation.
+    pub action: AccessibilityAction,
+    /// Replacement value when the operation carries text.
+    pub value: Option<Box<str>>,
+    /// Signed numeric adjustment when the operation increments or decrements.
+    pub delta: Option<i8>,
+}
+
 /// Input or lifecycle event delivered to the RITK viewer boundary.
 ///
 /// The event carries coordinates, controls and lifecycle state only. It never
@@ -122,6 +160,15 @@ pub enum PresentationEvent {
     FocusGained,
     /// The viewer lost keyboard focus.
     FocusLost,
+    /// An assistive-technology client requested an operation on a native node.
+    ///
+    /// RITK currently does not install a native accessibility tree. The
+    /// presentation reducer therefore surfaces this event as an unsupported
+    /// action instead of silently discarding a host request.
+    AccessibilityAction {
+        /// Bounded action request supplied by the host semantics tree.
+        request: AccessibilityActionRequest,
+    },
     /// The pointer moved in client coordinates.
     PointerMove {
         /// Horizontal coordinate in the host viewport basis.
