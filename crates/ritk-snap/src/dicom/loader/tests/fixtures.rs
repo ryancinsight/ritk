@@ -24,11 +24,11 @@ pub(crate) const SAMPLES: [u8; 24] = [
 /// Two-frame scalar multiframe fixture geometry in `[frames, rows, cols]`
 /// order. The frame payloads are intentionally distinct so a frame-zero
 /// fallback cannot satisfy the viewer assertions.
-#[cfg(all(test, feature = "eframe-shell"))]
+#[cfg(feature = "eframe-shell")]
 pub(crate) const MULTIFRAME_SHAPE: [usize; 3] = [2, 2, 2];
-#[cfg(all(test, feature = "eframe-shell"))]
+#[cfg(feature = "eframe-shell")]
 pub(crate) const MULTIFRAME_RAW: [u8; 8] = [1, 2, 3, 4, 11, 12, 13, 14];
-#[cfg(all(test, feature = "eframe-shell"))]
+#[cfg(feature = "eframe-shell")]
 pub(crate) const MULTIFRAME_SERIES_UID: &str = "2.25.20260905003";
 
 /// Two-frame RGB multi-frame fixture geometry in `[frames, rows, cols]` order.
@@ -125,7 +125,7 @@ pub(crate) fn write_grayscale_presentation(
 /// counts can exercise the same scanner and reader path as valid input.
 /// `temporal_positions`, when present, emits NumberOfTemporalPositions to
 /// verify that the spatial viewer rejects temporal organizations explicitly.
-#[cfg(all(test, feature = "eframe-shell"))]
+#[cfg(feature = "eframe-shell")]
 pub(crate) fn write_multiframe(
     root: &Path,
     declared_frames: usize,

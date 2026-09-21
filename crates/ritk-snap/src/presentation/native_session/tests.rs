@@ -4,7 +4,11 @@ use super::layout::{
 use super::layout::{OVERLAY_BAR_HEIGHT, OVERLAY_TEXT};
 use super::*;
 use crate::dicom::loader::tests::fixtures;
+#[cfg(feature = "eframe-shell")]
+use crate::presentation::PresentationFrame;
 use crate::ui::{RotationSteps, ViewTransform};
+#[cfg(feature = "eframe-shell")]
+use crate::LoadedVolume;
 use metis_platform::native::{ModifierState, NativeApplication, NativeFlow, WindowEvent};
 use metis_ui_lang::{DisplayCommand, DisplayList};
 use std::time::{Duration, Instant};
@@ -36,6 +40,39 @@ fn session_with_mode(
         .expect("native session"),
         root,
     )
+}
+
+#[cfg(feature = "eframe-shell")]
+fn session_with_volume(volume: LoadedVolume) -> (NativeViewerSession, tempfile::TempDir) {
+    let root = tempfile::tempdir().expect("study root");
+    let mut app = SnapApp::default();
+    app.load_volume(volume, "fixture".to_owned());
+    (
+        NativeViewerSession::new_with_selection(
+            app,
+            Arc::new(NativeViewerObservation::default()),
+            false,
+            NativePresentationMode::Orthogonal,
+            false,
+            None,
+        )
+        .expect("native session"),
+        root,
+    )
+}
+
+#[cfg(feature = "eframe-shell")]
+fn expected_native_frame(session: &NativeViewerSession, axis: usize) -> PresentationFrame {
+    let volume = session.app.loaded.as_ref().expect("loaded volume");
+    let (index, _) = session.app.axis_slice_info(axis);
+    PresentationFrame::from_slice(
+        volume,
+        axis,
+        index,
+        super::frame::window_level_for_app(&session.app),
+        session.app.colormap,
+    )
+    .expect("expected native frame")
 }
 
 #[test]
@@ -74,6 +111,87 @@ fn native_session_renders_and_steps_the_loaded_slice() {
         .expect("updated native session snapshot");
     assert_eq!(updated_snapshot.slice_index(0), Some(2));
     assert_eq!(updated_snapshot.zoom(), session.app.zoom);
+}
+
+#[test]
+#[cfg(feature = "eframe-shell")]
+fn native_session_multiframe_navigation_preserves_frame_values() {
+    let root = tempfile::tempdir().expect("multiframe study root");
+    fixtures::write_multiframe(root.path(), fixtures::MULTIFRAME_SHAPE[0], None)
+        .expect("write multiframe fixture");
+    let volume = load_volume_from_path(root.path()).expect("load multiframe study");
+    let (mut session, _session_root) = session_with_volume(volume);
+
+    assert_eq!(
+        session.app.loaded.as_ref().expect("loaded volume").shape,
+        fixtures::MULTIFRAME_SHAPE
+    );
+    assert_eq!(
+        session.app.loaded.as_ref().expect("loaded volume").channels,
+        1
+    );
+    assert_eq!(
+        session.views[0].frame(),
+        &expected_native_frame(&session, 0)
+    );
+    let second_frame = session.views[0].frame().rgba().to_vec();
+
+    let (x, y) = session.viewports[0].center();
+    session
+        .handle_events(&[WindowEvent::PointerWheel {
+            x,
+            y,
+            delta_x: 0,
+            delta_y: 120,
+            modifiers: ModifierState::NONE,
+        }])
+        .expect("previous multiframe slice");
+    assert_eq!(session.app.viewer_state.slice_index, 0);
+    assert_eq!(
+        session.views[0].frame(),
+        &expected_native_frame(&session, 0)
+    );
+    assert_ne!(session.views[0].frame().rgba(), second_frame.as_slice());
+    assert_ne!(
+        session.framebuffer.get_pixel(100, 100),
+        metis_platform::Color::BLACK
+    );
+}
+
+#[test]
+#[cfg(feature = "eframe-shell")]
+fn native_session_preserves_rgb_multiframe_channels() {
+    let root = tempfile::tempdir().expect("RGB multiframe study root");
+    fixtures::write_color_multiframe(root.path()).expect("write RGB multiframe fixture");
+    let volume = load_volume_from_path(root.path()).expect("load RGB multiframe study");
+    let (session, _session_root) = session_with_volume(volume);
+
+    let loaded = session.app.loaded.as_ref().expect("loaded volume");
+    assert_eq!(loaded.shape, fixtures::COLOR_MULTIFRAME_SHAPE);
+    assert_eq!(loaded.channels, 3);
+    for axis in 0..3 {
+        assert_eq!(
+            session.views[axis].frame(),
+            &expected_native_frame(&session, axis),
+            "native RGB frame changed on axis {axis}"
+        );
+    }
+    assert!(
+        session
+            .views
+            .iter()
+            .flat_map(|view| view.frame().rgba().chunks_exact(4))
+            .any(|pixel| pixel == [0, 255, 255, 255]),
+        "native RGB presentation must retain a cyan source channel"
+    );
+    assert!(
+        session
+            .framebuffer
+            .pixels()
+            .chunks_exact(4)
+            .any(|pixel| pixel[..3].iter().any(|&channel| channel != 0)),
+        "composed native framebuffer must retain non-black RGB content"
+    );
 }
 
 #[test]
