@@ -1,5 +1,13 @@
 # RITK execution backlog
 
+<a id="RITK-METIS-LOCK-021"></a>
+## RITK-METIS-LOCK-021 — Consume current Métis host and refresh replay provenance [patch]
+- Status: review; priority: P1; owner: RITK viewer + integration; integrator: root; branch: `build/ritk-metis-current-lock-021`; last-update: 2026-09-22; delivery: PR [#604](https://github.com/ryancinsight/ritk/pull/604).
+- Outcome: the standalone lock and browser workflow consume the current Metis default while the real 94-file MRI replay remains pixel-identical and DICOM decoding, geometry and clinical presentation remain RITK-owned.
+- Scope: six Metis and fifteen Moirai git sources in `Cargo.lock`, browser workflow revision guards, current MRI provenance/manual references and lock/replay verification; no viewer or DICOM behavior changes.
+- Acceptance: standalone lock resolves without the Atlas overlay; locked native/WASM `ritk-snap`, strict Clippy, formatting, Rustdoc, provenance and the 94-file replay pass; workflow revision guards bind the same Metis source revision; current capture SHA is `85071f20ca11cb4a9b2524db0a53b21695b7e93141831e7e0ab293c42fbcd582` and the lossless optimized manual image SHA is `959969ef69e66cebd3143b06468802e06ff68fbc6d94e2ed1d9a555f7e2ff98c`.
+- Dependencies: Atlas pins Metis `1b10541c2ef7a849e6ff66a3c778874bdf96de7b`; Atlas retains Moirai at the reachable clean pin `b77239dd10bcaf803394c26255c462bc858c1340` while its current default `29b129659f368fcbc3168103302cfc545411e642` carries the separate conformance waiver.
+
 <a id="RITK-SNAP-METIS-RESPONSIVE-BROWSER-001"></a>
 ## RITK-SNAP-METIS-RESPONSIVE-BROWSER-001 — Capture the responsive browser gallery [patch]
 - Status: done; priority: P1; owner: RITK browser presentation; integrator: root; branch: `docs/ritk-responsive-browser-evidence`; last-update: 2026-09-22; delivery: PR [#584](https://github.com/ryancinsight/ritk/pull/584), merge `4627b146bf2b7d2d246f01e8413cfab85373f93f`.
