@@ -52,12 +52,13 @@
 
 <a id="RITK-METIS-LOCK-019"></a>
 ## RITK-METIS-LOCK-019 — Replay the merged Métis desktop permission surface [patch]
-- Status: in-progress; priority: P1; owner: RITK viewer + integration; integrator: root; last-update: 2026-09-22; dependency: Metis PR #342 merge `7dd52ba`.
+- Status: done; priority: P1; owner: RITK viewer + integration; integrator: root; last-update: 2026-09-22; dependency: Metis PR #342 merge `7dd52ba`.
 - Outcome: the standalone RITK lock and browser workflow consume the merged Métis desktop permission matrix while DICOM discovery, decoding, clinical geometry and presentation remain RITK-owned.
 - Scope: six Metis source revisions in `Cargo.lock`, the browser workflow default revision, current real-MRI provenance and manual synchronization; no DICOM parser or viewer behavior moves into Metis.
 - Acceptance: standalone Cargo.lock resolves without the Atlas overlay; locked native/WASM `ritk-snap` checks, strict Clippy, formatting, rustdoc and provenance pass; the public 94-file/49,807,236-byte MRI replay exits 0, invalid-study exits 1, and preserves the 1280×800 PNG byte-identically (`259dd791...`, 411,589 non-black pixels); the browser workflow checks out the same full Metis revision.
 - Risk: [patch]; the permission matrix is a native WebView2 consumer feature, so browser/DICOM evidence must remain format-neutral and current.
-- Lease: root `Cargo.lock`, `.github/workflows/metis-browser-dicom.yml`, `docs/manual/dicom-workflow.md`, `docs/manual/images/dicom-metis-real-mri.json`, `docs/manual/images/dicom-metis-real-browser-mri-cross-engine.json`.
+- Verification: standalone lock check reports 63 first-party Git sources; locked `ritk-snap` nextest passes 495/495; native strict Clippy, WASM check/Clippy (dev and release), formatting, warning-clean Rustdoc and the canonical Python script suite (28/28) pass. The standalone replay reads 94 `.dcm` files/49,807,236 bytes, exits 0, rejects the invalid-study probe with exit 1, and preserves the 1280×800 real-MRI image (`259dd79103482756c4e688621bebafc841cc40f1df10ff2bbd7f9d04b7b4d401`, 411,589 non-black pixels); current executable SHA is `9b8f9052e7d5c40d285e288303a183c18b989491b493a63c0eca0c4dc95ce3ef`, example SHA `ea1b42644cb4a4e41e8f70b96856ff89c27b99bdd65fad36f71693f793dadfbf`, and lock SHA `b8183fb567b042da5b0726d80d53529b3d7924719433650685fe7af44a0853a5`.
+- Delivery: the branch advances the six Metis package sources and browser workflow to `7dd52bae2c20e17b3106a76369292c2bf0ed0fc1`; hosted cross-engine evidence is dispatched separately after merge so this item makes no unrun hosted claim.
 
 <a id="RITK-METIS-LOCK-018"></a>
 ## RITK-METIS-LOCK-018 — Replay the merged Métis command surface [patch]
