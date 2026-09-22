@@ -84,3 +84,16 @@ publishing each canvas's physical aspect. The generic fixed-gallery publisher
 uses an auto height, which would let an anisotropic canvas expand a CSS grid
 track beyond the trusted container; responsive tracks instead size the canvas
 to their grid cell and preserve the physical ratio with `object-fit: contain`.
+
+### Revision 2026-09-21 — hosted responsive replay
+
+Hosted run [35681744137](https://github.com/ryancinsight/ritk/actions/runs/35681744137)
+passes the responsive Chromium and Firefox jobs against RITK `37e28c0d` and
+Metis `3830fe7d`. Both engines accept the 94-file public MRI-DIR study, retain
+the three interactive axis canvases after all three bounded rejection probes,
+and present the display-only MIP projection in the four-pane layout. The
+workflow does not request the generic canvas input trace for this layout,
+because the projection intentionally has no input listeners; the consumer
+semantic hook and screenshot oracle cover the four visible panes instead. The
+complete trace and artifact provenance are recorded in
+`docs/manual/images/dicom-metis-real-browser-mri-responsive.json`.

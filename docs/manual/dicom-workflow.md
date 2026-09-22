@@ -796,8 +796,27 @@ python scripts/browser_gallery.py `
 ```
 
 The committed browser workflow runs this mode against Chromium and Firefox and
-records the inspected canvas pixels beside the fixed-engine captures. The
-WebKit entry continues to exercise its existing fixed entrypoint.
+records the inspected canvas pixels beside the fixed-engine captures. Hosted
+run [35681744137](https://github.com/ryancinsight/ritk/actions/runs/35681744137)
+passed both responsive lanes against RITK `37e28c0d` and Metis `3830fe7d`:
+Chromium accepted all 94 files and produced four complete 1390×762 element
+captures, while Firefox accepted the same 94 files and produced four complete
+1404×808 element captures. The three interactive axes restore their exact
+initial RGBA hashes after the three bounded rejection probes; the MIP
+projection is display-only, 512×512, 214,859 non-black pixels and 21 consumer
+listeners. The run's WebGPU no-adapter, Chromium-window tool and Safari
+bounded-read results remain separate residuals.
+
+![Real MRI-DIR T2 responsive panes in hosted Chromium](images/dicom-metis-real-browser-mri-responsive-chromium.png)
+
+![Real MRI-DIR T2 responsive panes in hosted Firefox](images/dicom-metis-real-browser-mri-responsive-firefox.png)
+
+The full trace hashes, artifact identifiers, source revisions, semantic slice
+states, rejection actions and cleanup counts are in the
+[responsive browser provenance record](images/dicom-metis-real-browser-mri-responsive.json).
+The PNGs are reviewed display derivatives of the hosted element captures; the
+provenance record retains their original dimensions and hashes. The WebKit
+entry continues to exercise its existing fixed entrypoint.
 
 ### Request a bounded slab statistic from RITK
 

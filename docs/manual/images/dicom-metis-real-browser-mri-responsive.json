@@ -1,0 +1,463 @@
+{
+  "schema": 1,
+  "status": "partial",
+  "workflow": {
+    "name": "RITK SNAP M\u00e9tis browser DICOM",
+    "file": ".github/workflows/metis-browser-dicom.yml",
+    "run_id": 35681744137,
+    "url": "https://github.com/ryancinsight/ritk/actions/runs/35681744137",
+    "conclusion": "failure",
+    "observed_date": "2026-09-21",
+    "run_status": "completed",
+    "ritk_revision": "37e28c0d541c50f845904543c202e8e055c4e093",
+    "metis_revision": "3830fe7d3bf38c45de4258aeb8145b05c5f37436",
+    "moirai_revision": "76dfdc8d7fd342eafa06311d120bd6bdd6d6d8db"
+  },
+  "dataset": {
+    "path": "test_data/2_head_mri_t2/DICOM",
+    "files_submitted": 94,
+    "bytes_read_by_passing_engines": 49807236,
+    "file_manifest_sha256": "81b7b7f8ea473dfc12c25c07b4958762254a261ca49352af2adabc214d6e8d03",
+    "license": "CC BY 4.0",
+    "description": "public MRI-DIR porcine-head T2 MRI phantom; not private patient data"
+  },
+  "responsive_layout": {
+    "query": [
+      "layout=responsive",
+      "projection=mip"
+    ],
+    "layout": "quad",
+    "roles": [
+      "axial",
+      "coronal",
+      "sagittal",
+      "projection"
+    ],
+    "projection_mode": "mip",
+    "projection_statistic": "MIP",
+    "projection_display_only": true,
+    "consumer_listeners": 21,
+    "invalid_file_probes": 3,
+    "screenshot_contract": "element PNG after each canvas is centered and complete; rejected chooser batches preserve exact screenshot SHA"
+  },
+  "engines": {
+    "chromium-responsive": {
+      "status": "passed",
+      "browser": "chrome",
+      "browser_version": "152.0.7977.82",
+      "platform": "linux",
+      "input_source": "chooser",
+      "consumer_revision": "37e28c0d541c50f845904543c202e8e055c4e093",
+      "metis_revision": "3830fe7d3bf38c45de4258aeb8145b05c5f37436",
+      "artifact_id": 10674558583,
+      "artifact_url": "https://github.com/ryancinsight/ritk/actions/runs/35681744137/artifacts/10674558583",
+      "trace_sha256": "7283927f3c47772966355b4d94be6809ce0b743aa02d9928b1abe5535f602885",
+      "files": 94,
+      "bytes": 49807236,
+      "file_manifest_sha256": "81b7b7f8ea473dfc12c25c07b4958762254a261ca49352af2adabc214d6e8d03",
+      "oracle_sha256": "bcf8fe04d17b9c35d4f180a4378749822803f5eed4c6a2d9bd3362c04e3c24b8",
+      "viewport": {
+        "device_scale": 2,
+        "height": 957,
+        "width": 1440
+      },
+      "slices": {
+        "initial": {
+          "axial": {
+            "index": 47,
+            "count": 94,
+            "generation": 1,
+            "rgba_sha256": "5c96fff2f82ecfddd64a6aa9a1e8f99af367740fcd43826977ac3d1035cb28f6",
+            "width": 512,
+            "height": 512,
+            "output": "48 / 94"
+          },
+          "coronal": {
+            "index": 256,
+            "count": 512,
+            "generation": 1,
+            "rgba_sha256": "f76018ef402afa7811154c506219361b43227dbe218ff0383b3dddd7bf438136",
+            "width": 512,
+            "height": 94,
+            "output": "257 / 512"
+          },
+          "sagittal": {
+            "index": 256,
+            "count": 512,
+            "generation": 1,
+            "rgba_sha256": "b8cabf3aa07399387b9d1c7416dbfae594e4d2408f40e0a4bd654f9829799fe3",
+            "width": 512,
+            "height": 94,
+            "output": "257 / 512"
+          }
+        },
+        "restored": {
+          "axial": {
+            "index": 47,
+            "count": 94,
+            "generation": 95,
+            "rgba_sha256": "5c96fff2f82ecfddd64a6aa9a1e8f99af367740fcd43826977ac3d1035cb28f6",
+            "width": 512,
+            "height": 512,
+            "output": "48 / 94"
+          },
+          "coronal": {
+            "index": 256,
+            "count": 512,
+            "generation": 95,
+            "rgba_sha256": "f76018ef402afa7811154c506219361b43227dbe218ff0383b3dddd7bf438136",
+            "width": 512,
+            "height": 94,
+            "output": "257 / 512"
+          },
+          "sagittal": {
+            "index": 256,
+            "count": 512,
+            "generation": 95,
+            "rgba_sha256": "b8cabf3aa07399387b9d1c7416dbfae594e4d2408f40e0a4bd654f9829799fe3",
+            "width": 512,
+            "height": 94,
+            "output": "257 / 512"
+          }
+        },
+        "invalid_api_probe_count": 18,
+        "rejection_probes": [
+          [
+            "count",
+            513,
+            0
+          ],
+          [
+            "file-bytes",
+            1,
+            67108865
+          ],
+          [
+            "batch-bytes",
+            5,
+            335544320
+          ]
+        ],
+        "screenshots": {
+          "ritk-snap-axial": {
+            "width": 1390,
+            "height": 762,
+            "sha256": "02c4bc2b3d600bb95ed58053b49bf9f6ce7d2e89f7e230e9f6c6a5e5b8f09f26",
+            "bytes": 277361,
+            "scope": "element"
+          },
+          "ritk-snap-coronal": {
+            "width": 1390,
+            "height": 762,
+            "sha256": "71bf68d0959f8be7aac50066c0992af2a99774ff5e541eee478fb844a7c29bc1",
+            "bytes": 169572,
+            "scope": "element"
+          },
+          "ritk-snap-sagittal": {
+            "width": 1390,
+            "height": 762,
+            "sha256": "66dca9027125edd2c7397b4faef29a72091d7a60348334427e018c0797b862b7",
+            "bytes": 182443,
+            "scope": "element"
+          },
+          "ritk-snap-projection": {
+            "width": 1390,
+            "height": 762,
+            "sha256": "1e03386338fd8462307daa4fc731af50da3996bcffb16612d7c421e37b51872b",
+            "bytes": 297723,
+            "scope": "element"
+          },
+          "ritk-snap-axial-after-rejections": {
+            "width": 1390,
+            "height": 762,
+            "sha256": "02c4bc2b3d600bb95ed58053b49bf9f6ce7d2e89f7e230e9f6c6a5e5b8f09f26",
+            "bytes": 277361,
+            "scope": "element"
+          },
+          "ritk-snap-coronal-after-rejections": {
+            "width": 1390,
+            "height": 762,
+            "sha256": "71bf68d0959f8be7aac50066c0992af2a99774ff5e541eee478fb844a7c29bc1",
+            "bytes": 169572,
+            "scope": "element"
+          },
+          "ritk-snap-sagittal-after-rejections": {
+            "width": 1390,
+            "height": 762,
+            "sha256": "66dca9027125edd2c7397b4faef29a72091d7a60348334427e018c0797b862b7",
+            "bytes": 182443,
+            "scope": "element"
+          },
+          "ritk-snap-projection-after-rejections": {
+            "width": 1390,
+            "height": 762,
+            "sha256": "1e03386338fd8462307daa4fc731af50da3996bcffb16612d7c421e37b51872b",
+            "bytes": 297723,
+            "scope": "element"
+          }
+        }
+      },
+      "projection": {
+        "dimensions": {
+          "width": 512,
+          "height": 512
+        },
+        "non_black_pixels": 214859,
+        "rgba_sha256": "1712e4d2abcd4e8b3293e2f4f8262ab80dd917fff24ed16113bafcdbc23b4366",
+        "consumer_listeners": 21,
+        "display_only": true
+      },
+      "crosshair": {
+        "pane_layout": "quad",
+        "roles": [
+          "axial",
+          "coronal",
+          "sagittal",
+          "projection"
+        ],
+        "linked_cursor": "47,256,256",
+        "screenshot": {
+          "path": "output/browser/results/chromium-responsive/crosshair/gallery-crosshair-controls.png",
+          "sha256": "fb4d0cfc24e5f879ff2ce3b2a097682ace8612d72db4d0404379f2a1239d3f28",
+          "width": 2786,
+          "height": 1692,
+          "bytes": 1027054,
+          "scope": "element"
+        }
+      },
+      "cleanup": {
+        "diagnostic_listener_count": 24,
+        "diagnostic_listeners_released": true,
+        "transfer_listeners_removed": 4,
+        "transfer_globals_cleared": true,
+        "session_closed": true
+      },
+      "manual_derivative": {
+        "path": "docs/manual/images/dicom-metis-real-browser-mri-responsive-chromium.png",
+        "width": 920,
+        "height": 559,
+        "bytes": 184645,
+        "sha256": "ab6f41a190702b685e6168e89642d8f3ecb556496dd194348be511be3a70218a",
+        "source_path": "output/browser/results/chromium-responsive/slices/gallery-slice-controls.png",
+        "source_width": 2786,
+        "source_height": 1692,
+        "source_bytes": 1029835,
+        "source_sha256": "f1a858de8586ec12ffcac6e843a8eea3636822f5cc786e7f233471638930e132"
+      }
+    },
+    "firefox-responsive": {
+      "status": "passed",
+      "browser": "firefox",
+      "browser_version": "155.0",
+      "platform": "linux",
+      "input_source": "chooser",
+      "consumer_revision": "37e28c0d541c50f845904543c202e8e055c4e093",
+      "metis_revision": "3830fe7d3bf38c45de4258aeb8145b05c5f37436",
+      "artifact_id": 10675370492,
+      "artifact_url": "https://github.com/ryancinsight/ritk/actions/runs/35681744137/artifacts/10675370492",
+      "trace_sha256": "c0a46141b68f73c46fdf2192b89d1f61da0b94dd38fb0e04189d41219f939cc7",
+      "files": 94,
+      "bytes": 49807236,
+      "file_manifest_sha256": "81b7b7f8ea473dfc12c25c07b4958762254a261ca49352af2adabc214d6e8d03",
+      "oracle_sha256": "bcf8fe04d17b9c35d4f180a4378749822803f5eed4c6a2d9bd3362c04e3c24b8",
+      "viewport": {
+        "device_scale": 2,
+        "height": 1016,
+        "width": 1440
+      },
+      "slices": {
+        "initial": {
+          "axial": {
+            "index": 47,
+            "count": 94,
+            "generation": 1,
+            "rgba_sha256": "5c96fff2f82ecfddd64a6aa9a1e8f99af367740fcd43826977ac3d1035cb28f6",
+            "width": 512,
+            "height": 512,
+            "output": "48 / 94"
+          },
+          "coronal": {
+            "index": 256,
+            "count": 512,
+            "generation": 1,
+            "rgba_sha256": "f76018ef402afa7811154c506219361b43227dbe218ff0383b3dddd7bf438136",
+            "width": 512,
+            "height": 94,
+            "output": "257 / 512"
+          },
+          "sagittal": {
+            "index": 256,
+            "count": 512,
+            "generation": 1,
+            "rgba_sha256": "b8cabf3aa07399387b9d1c7416dbfae594e4d2408f40e0a4bd654f9829799fe3",
+            "width": 512,
+            "height": 94,
+            "output": "257 / 512"
+          }
+        },
+        "restored": {
+          "axial": {
+            "index": 47,
+            "count": 94,
+            "generation": 345,
+            "rgba_sha256": "5c96fff2f82ecfddd64a6aa9a1e8f99af367740fcd43826977ac3d1035cb28f6",
+            "width": 512,
+            "height": 512,
+            "output": "48 / 94"
+          },
+          "coronal": {
+            "index": 256,
+            "count": 512,
+            "generation": 345,
+            "rgba_sha256": "f76018ef402afa7811154c506219361b43227dbe218ff0383b3dddd7bf438136",
+            "width": 512,
+            "height": 94,
+            "output": "257 / 512"
+          },
+          "sagittal": {
+            "index": 256,
+            "count": 512,
+            "generation": 345,
+            "rgba_sha256": "b8cabf3aa07399387b9d1c7416dbfae594e4d2408f40e0a4bd654f9829799fe3",
+            "width": 512,
+            "height": 94,
+            "output": "257 / 512"
+          }
+        },
+        "invalid_api_probe_count": 18,
+        "rejection_probes": [
+          [
+            "count",
+            513,
+            0
+          ],
+          [
+            "file-bytes",
+            1,
+            67108865
+          ],
+          [
+            "batch-bytes",
+            5,
+            335544320
+          ]
+        ],
+        "screenshots": {
+          "ritk-snap-axial": {
+            "width": 1404,
+            "height": 808,
+            "sha256": "6f1347b448917f9cca39ec494060f3e21706dbe7c5849661b21e5a94e9a9f81f",
+            "bytes": 371405,
+            "scope": "element"
+          },
+          "ritk-snap-coronal": {
+            "width": 1404,
+            "height": 808,
+            "sha256": "75817963af064f10b7bc15dbbb0302bde5d5226e3bae7929a215654d8da16859",
+            "bytes": 188872,
+            "scope": "element"
+          },
+          "ritk-snap-sagittal": {
+            "width": 1404,
+            "height": 808,
+            "sha256": "edd7f263d70d613fbf487c69a31e8c2a3a61d40a138a7844d189251b2ddfe38f",
+            "bytes": 203438,
+            "scope": "element"
+          },
+          "ritk-snap-projection": {
+            "width": 1404,
+            "height": 808,
+            "sha256": "c5ae8071600585a10208e33f970b280f71fc32b2751c75779342f8ce6dfc94dd",
+            "bytes": 399666,
+            "scope": "element"
+          },
+          "ritk-snap-axial-after-rejections": {
+            "width": 1404,
+            "height": 808,
+            "sha256": "6f1347b448917f9cca39ec494060f3e21706dbe7c5849661b21e5a94e9a9f81f",
+            "bytes": 371405,
+            "scope": "element"
+          },
+          "ritk-snap-coronal-after-rejections": {
+            "width": 1404,
+            "height": 808,
+            "sha256": "75817963af064f10b7bc15dbbb0302bde5d5226e3bae7929a215654d8da16859",
+            "bytes": 188872,
+            "scope": "element"
+          },
+          "ritk-snap-sagittal-after-rejections": {
+            "width": 1404,
+            "height": 808,
+            "sha256": "edd7f263d70d613fbf487c69a31e8c2a3a61d40a138a7844d189251b2ddfe38f",
+            "bytes": 203438,
+            "scope": "element"
+          },
+          "ritk-snap-projection-after-rejections": {
+            "width": 1404,
+            "height": 808,
+            "sha256": "c5ae8071600585a10208e33f970b280f71fc32b2751c75779342f8ce6dfc94dd",
+            "bytes": 399666,
+            "scope": "element"
+          }
+        }
+      },
+      "projection": {
+        "dimensions": {
+          "width": 512,
+          "height": 512
+        },
+        "non_black_pixels": 214859,
+        "rgba_sha256": "1712e4d2abcd4e8b3293e2f4f8262ab80dd917fff24ed16113bafcdbc23b4366",
+        "consumer_listeners": 21,
+        "display_only": true
+      },
+      "crosshair": {
+        "pane_layout": "quad",
+        "roles": [
+          "axial",
+          "coronal",
+          "sagittal",
+          "projection"
+        ],
+        "linked_cursor": "47,256,256",
+        "screenshot": {
+          "path": "output/browser/results/firefox-responsive/crosshair/gallery-crosshair-controls.png",
+          "sha256": "699f216666572f3971d273f0df50fc8c99e35eb06ed2c90d5e092c34675f298d",
+          "width": 2816,
+          "height": 1784,
+          "bytes": 1327092,
+          "scope": "element"
+        }
+      },
+      "cleanup": {
+        "diagnostic_listener_count": 24,
+        "diagnostic_listeners_released": true,
+        "transfer_listeners_removed": 4,
+        "transfer_globals_cleared": true,
+        "session_closed": true
+      },
+      "manual_derivative": {
+        "path": "docs/manual/images/dicom-metis-real-browser-mri-responsive-firefox.png",
+        "width": 920,
+        "height": 583,
+        "bytes": 193505,
+        "sha256": "105acc19f5a731fb27154419c0ad7230ca4f67d380725fc73fed0581b2eeb1a0",
+        "source_path": "output/browser/results/firefox-responsive/slices/gallery-slice-controls.png",
+        "source_width": 2816,
+        "source_height": 1784,
+        "source_bytes": 1308023,
+        "source_sha256": "430749ac21e2370c14400928801f391c24817d894cf8ea26ef695ca80ea20a21"
+      }
+    }
+  },
+  "residuals": [
+    "Chromium WebGPU has no adapter on the hosted runner (job chromium-webgpu).",
+    "The Chromium application-window lane still fails its ROI Rect tool result on this revision; responsive pane evidence is independent of that lane.",
+    "Safari 26.6.2 accepts the 94 chooser paths but rejects the first bounded whole-file read; the WebKit authorization residual remains external."
+  ],
+  "limits": [
+    "The hosted screenshots are browser element captures, not native OS-window captures.",
+    "The public phantom is a demonstration dataset; private patient identifiers and private studies are not committed.",
+    "The two engine captures establish responsive visual and semantic behavior, not a performance ranking against Tauri, egui or GPUI."
+  ]
+}
