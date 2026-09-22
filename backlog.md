@@ -52,12 +52,13 @@
 
 <a id="RITK-METIS-LOCK-020"></a>
 ## RITK-METIS-LOCK-020 — Consume the merged Métis permission capture [patch]
-- Status: in-progress; priority: P1; owner: RITK viewer + integration; integrator: root; last-update: 2026-09-22; dependency: Metis PR #343 merge `219143bbf3596aea85fa4624d7d5241a63b4cf0d`.
+- Status: done; priority: P1; owner: RITK viewer + integration; integrator: root; last-update: 2026-09-22; dependency: Metis PR #343 merge `219143bbf3596aea85fa4624d7d5241a63b4cf0d`.
 - Outcome: standalone Cargo.lock and the hosted browser workflow resolve the merged Métis permission-matrix capture while the RITK real-MRI replay remains byte-identical and DICOM ownership stays in RITK.
 - Scope: six Metis source revisions in Cargo.lock, workflow default revision, current real-MRI provenance/manual and exact lock/replay verification; no viewer or DICOM behavior changes.
 - Acceptance: standalone lock resolves without the Atlas overlay; locked native/WASM `ritk-snap`, strict Clippy, formatting, rustdoc, provenance and 94-file replay pass; hosted workflow's lock-confirmation step accepts the same full Metis revision.
-- Risk: [patch]; this is a dependency/provenance advance only, and the first hosted dispatch against the old lock is expected to fail its exact-revision guard.
-- Lease: root `Cargo.lock`, `.github/workflows/metis-browser-dicom.yml`, `docs/manual/dicom-workflow.md`, `docs/manual/images/dicom-metis-real-mri.json`, `backlog.md` — 2026-09-22T04:12:00-04:00.
+- Risk: [patch]; this is a dependency/provenance advance only. Diagnostic dispatch `35703095989` correctly exposed the old-lock exact-revision guard; the valid hosted dispatch is issued only after this lock lands, and its browser captures remain a separate evidence increment.
+- Verification: standalone lock check passes with 63 first-party Git sources at SHA-256 `acb5bd6c7c82ced80c052ae542dcd63992badf8d00a982c986f64716f5736b10`; locked `ritk-snap` nextest passes 495/495 (run `734e17f3-0429-411e-8b17-17393763f7f3`); strict native Clippy, WASM check/Clippy (dev and release), formatting, warning-clean Rustdoc and doctests (4 passed, 1 ignored) pass. The standalone replay reads 94 `.dcm` files/49,807,236 bytes, exits 0, rejects the invalid-study probe with exit 1, and preserves the 1280×800 real-MRI image (`259dd79103482756c4e688621bebafc841cc40f1df10ff2bbd7f9d04b7b4d401`, 411,589 non-black pixels); current executable SHA is `f416deadbb8a17ab4ffa1d58e1eef007bd1887883ad638fbbf82fa038ec063f9`, example SHA `8b70341d4f9abbe7b8b34587195e3107391deaa3ac2f3fc47d98498c69f73720`.
+- Delivery: lock/workflow commit `36b8330d3dfa450ae81523fc1ebc6e59413a1dc4` advances all six Metis package sources and both workflow revision references to `219143bbf3596aea85fa4624d7d5241a63b4cf0d`; current replay provenance and manual are synchronized. Hosted browser capture evidence is dispatched separately after merge, with no unrun hosted claim here.
 
 <a id="RITK-METIS-LOCK-019"></a>
 ## RITK-METIS-LOCK-019 — Replay the merged Métis desktop permission surface [patch]

@@ -16,7 +16,7 @@ decoded-workspace budgets, and return the RITK `Image` plus
 boundary; the host owns only input and presentation lifecycle.
 
 The current standalone lock used by the viewer resolves the six Metis packages
-to `7dd52bae2c20e17b3106a76369292c2bf0ed0fc1`. Fifteen Moirai packages resolve
+to `219143bbf3596aea85fa4624d7d5241a63b4cf0d`. Fifteen Moirai packages resolve
 to `0e2e1bbb2d81e16dd9c694ba46a9e9710e034417`; these are the exact git sources
 in `Cargo.lock`, which contains 63 first-party Git sources. The browser chooser
 and Windows package workflows use these provider pins. Historical hosted captures
@@ -67,7 +67,7 @@ host, canvas, and window lifecycle.
 
 The current standalone lock pins the browser canvas provider to Moirai
 `0e2e1bbb2d81e16dd9c694ba46a9e9710e034417` and the six Metis packages to
-`7dd52bae2c20e17b3106a76369292c2bf0ed0fc1`. Repeated RGBA frames with the
+`219143bbf3596aea85fa4624d7d5241a63b4cf0d`. Repeated RGBA frames with the
 current extent retain the validated bitmap; a changed width or height takes
 the bounded resize path. This keeps the browser presentation lifecycle stable
 without changing DICOM decoding or the displayed pixels. It is an allocation
@@ -1245,19 +1245,19 @@ This replay is tied to the updated provider lock; earlier provenance records
 remain historical records for the revisions that generated them.
 
 A current standalone-lock replay on 2026-09-22 rebuilt RITK from source
-commit `b671ae72a20bb6d113de35314e73874f197d2a83` against merged Métis
-`7dd52bae2c20e17b3106a76369292c2bf0ed0fc1` and Moirai
+commit `36b8330d3dfa450ae81523fc1ebc6e59413a1dc4` against merged Métis
+`219143bbf3596aea85fa4624d7d5241a63b4cf0d` and Moirai
 `0e2e1bbb2d81e16dd9c694ba46a9e9710e034417`. The same saved 94-file MRI-DIR
 study read 49,807,236 bytes, exited 0, rejected the invalid-study probe with
 exit 1, and reproduced the committed 1280 × 800 frame byte-for-byte. The
 replay executable digest is
-`9b8f9052e7d5c40d285e288303a183c18b989491b493a63c0eca0c4dc95ce3ef`
+`f416deadbb8a17ab4ffa1d58e1eef007bd1887883ad638fbbf82fa038ec063f9`
 (55,460,864 bytes), the example digest is
-`ea1b42644cb4a4e41e8f70b96856ff89c27b99bdd65fad36f71693f793dadfbf`
+`8b70341d4f9abbe7b8b34587195e3107391deaa3ac2f3fc47d98498c69f73720`
 (24,423,424 bytes), and the standalone lock digest is
-`b8183fb567b042da5b0726d80d53529b3d7924719433650685fe7af44a0853a5`.
+`acb5bd6c7c82ced80c052ae542dcd63992badf8d00a982c986f64716f5736b10`.
 The lock resolves 63 first-party Git sources, including six Métis packages at
-`7dd52bae2c20e17b3106a76369292c2bf0ed0fc1` and fifteen Moirai packages at
+`219143bbf3596aea85fa4624d7d5241a63b4cf0d` and fifteen Moirai packages at
 `0e2e1bbb2d81e16dd9c694ba46a9e9710e034417`. The captured frame remains
 `259dd79103482756c4e688621bebafc841cc40f1df10ff2bbd7f9d04b7b4d401`
 with 411,589 non-black pixels; the executable, lock, and image hashes are
