@@ -3,6 +3,7 @@
 use super::{
     curvature::curvature, AntiAliasBinaryImageFilter, CGV, DT, ST_CDN, ST_CHG, ST_CUP, ST_NULL,
 };
+use crate::sparse_field::{move_to, SparseFieldLayers};
 
 use std::collections::VecDeque;
 
@@ -93,7 +94,7 @@ impl AntiAliasBinaryImageFilter {
             .iter()
             .map(|&s| if s > 0.0 { bg_val } else { -bg_val })
             .collect();
-        let mut layers: Vec<VecDeque<usize>> = vec![VecDeque::new(); num as usize];
+        let mut lists = SparseFieldLayers::new(n, num as usize);
 
         // add: set status + push-front into its layer list.
         macro_rules! push_layer {
@@ -101,7 +102,7 @@ impl AntiAliasBinaryImageFilter {
                 let s: i32 = $s;
                 status[$f] = s;
                 if s >= 0 {
-                    layers[s as usize].push_front($f);
+                    lists.push_front(s as usize, $f);
                 }
             }};
         }
@@ -123,7 +124,7 @@ impl AntiAliasBinaryImageFilter {
         }
         // ConstructLayer i → i+2.
         for i in 1..(num - 2) {
-            let cur: VecDeque<usize> = layers[i as usize].clone();
+            let cur: Vec<usize> = lists.iter(i as usize).collect();
             for f in cur {
                 for &off in &offsets {
                     if let Some(g) = neighbor(f, off) {
@@ -136,7 +137,7 @@ impl AntiAliasBinaryImageFilter {
         }
         // InitializeActiveLayerValues: clamp(shifted/upwind_len, ±CGV/2).
         let cf = CGV / 2.0;
-        for &f in &layers[0] {
+        for f in lists.iter(0) {
             let c = shifted[f];
             let mut l2 = 0.0f32;
             for &off in &offsets {
@@ -157,7 +158,7 @@ impl AntiAliasBinaryImageFilter {
         }
 
         // PropagateLayerValues / PropagateAllLayerValues.
-        let propagate_layer = |layers: &mut Vec<VecDeque<usize>>,
+        let propagate_layer = |lists: &mut SparseFieldLayers,
                                phi: &mut [f32],
                                status: &mut [i32],
                                frm: i32,
@@ -165,8 +166,8 @@ impl AntiAliasBinaryImageFilter {
                                promote: i32,
                                inout: i32| {
             let delta = if inout == 1 { -CGV } else { CGV };
-            let mut survivors: VecDeque<usize> = VecDeque::new();
-            let cur: VecDeque<usize> = layers[to as usize].clone();
+            let mut survivors: Vec<usize> = Vec::new();
+            let cur: Vec<usize> = lists.iter(to as usize).collect();
             for f in cur {
                 if status[f] != to {
                     continue;
@@ -190,23 +191,22 @@ impl AntiAliasBinaryImageFilter {
                 }
                 if found {
                     phi[f] = val + delta;
-                    survivors.push_back(f);
+                    survivors.push(f);
                 } else if promote > num - 1 {
                     status[f] = ST_NULL;
                 } else {
-                    status[f] = promote;
-                    layers[promote as usize].push_front(f);
+                    move_to(lists, status, f, promote);
                 }
             }
-            layers[to as usize] = survivors;
+            lists.replace(to as usize, &survivors);
         };
         macro_rules! propagate_all {
             () => {{
-                propagate_layer(&mut layers, &mut phi, &mut status, 0, 1, 3, 1);
-                propagate_layer(&mut layers, &mut phi, &mut status, 0, 2, 4, 2);
+                propagate_layer(&mut lists, &mut phi, &mut status, 0, 1, 3, 1);
+                propagate_layer(&mut lists, &mut phi, &mut status, 0, 2, 4, 2);
                 for i in 1..(num - 2) {
                     propagate_layer(
-                        &mut layers,
+                        &mut lists,
                         &mut phi,
                         &mut status,
                         i,
@@ -221,14 +221,14 @@ impl AntiAliasBinaryImageFilter {
 
         // ── ApplyUpdate loop ──
         for _ in 0..self.number_of_iterations {
-            let al: VecDeque<usize> = layers[0].clone();
+            let al: Vec<usize> = lists.iter(0).collect();
             let update: Vec<f32> = al
                 .iter()
                 .map(|&f| curvature(&phi, f, dims, ndim as usize))
                 .collect();
             let mut up: [VecDeque<usize>; 2] = [VecDeque::new(), VecDeque::new()];
             let mut dn: [VecDeque<usize>; 2] = [VecDeque::new(), VecDeque::new()];
-            let mut keep: VecDeque<usize> = VecDeque::new();
+            let mut keep: Vec<usize> = Vec::new();
             let mut rms_acc = 0.0f64;
             let mut cnt = 0usize;
             for (k, &f) in al.iter().enumerate() {
@@ -244,7 +244,7 @@ impl AntiAliasBinaryImageFilter {
                         .iter()
                         .any(|&o| neighbor(f, o).is_some_and(|g| status[g] == ST_CDN))
                     {
-                        keep.push_back(f);
+                        keep.push(f);
                         continue;
                     }
                     rms_acc += ((nv - old) as f64).powi(2);
@@ -265,7 +265,7 @@ impl AntiAliasBinaryImageFilter {
                         .iter()
                         .any(|&o| neighbor(f, o).is_some_and(|g| status[g] == ST_CUP))
                     {
-                        keep.push_back(f);
+                        keep.push(f);
                         continue;
                     }
                     rms_acc += ((nv - old) as f64).powi(2);
@@ -284,30 +284,15 @@ impl AntiAliasBinaryImageFilter {
                     rms_acc += ((nv - old) as f64).powi(2);
                     cnt += 1;
                     phi[f] = nv;
-                    keep.push_back(f);
+                    keep.push(f);
                 }
             }
-            layers[0] = keep;
+            lists.replace(0, &keep);
 
-            // move_to: remove f from its old layer, set status, push-front into
-            // the new layer (if it is a layer). Mirrors ITK node relinking.
-            let move_to =
-                |layers: &mut Vec<VecDeque<usize>>, status: &mut [i32], f: usize, s: i32| {
-                    let o = status[f];
-                    if o >= 0 {
-                        if let Some(p) = layers[o as usize].iter().position(|&x| x == f) {
-                            layers[o as usize].remove(p);
-                        }
-                    }
-                    status[f] = s;
-                    if s >= 0 {
-                        layers[s as usize].push_front(f);
-                    }
-                };
             // ProcessStatusList: consume `inl` from the front (PopFront), move each
             // voxel to `ct`, and mark its `sr`-status neighbours as Changing into a
             // fresh output list (returned).
-            let proc = |layers: &mut Vec<VecDeque<usize>>,
+            let proc = |lists: &mut SparseFieldLayers,
                         status: &mut [i32],
                         mut inl: VecDeque<usize>,
                         ct: i32,
@@ -315,11 +300,11 @@ impl AntiAliasBinaryImageFilter {
              -> VecDeque<usize> {
                 let mut outl: VecDeque<usize> = VecDeque::new();
                 while let Some(f) = inl.pop_front() {
-                    move_to(layers, status, f, ct);
+                    move_to(lists, status, f, ct);
                     for &off in &offsets {
                         if let Some(g) = neighbor(f, off) {
                             if status[g] == sr {
-                                move_to(layers, status, g, ST_CHG);
+                                move_to(lists, status, g, ST_CHG);
                                 outl.push_front(g);
                             }
                         }
@@ -328,28 +313,28 @@ impl AntiAliasBinaryImageFilter {
                 outl
             };
 
-            let mut u = proc(&mut layers, &mut status, std::mem::take(&mut up[0]), 2, 1);
-            let mut d = proc(&mut layers, &mut status, std::mem::take(&mut dn[0]), 1, 2);
+            let mut u = proc(&mut lists, &mut status, std::mem::take(&mut up[0]), 2, 1);
+            let mut d = proc(&mut lists, &mut status, std::mem::take(&mut dn[0]), 1, 2);
             let mut up_to = 0i32;
             let mut dn_to = 0i32;
             let mut us = 3i32;
             let mut ds = 4i32;
             while ds < num {
-                u = proc(&mut layers, &mut status, u, up_to, us);
-                d = proc(&mut layers, &mut status, d, dn_to, ds);
+                u = proc(&mut lists, &mut status, u, up_to, us);
+                d = proc(&mut lists, &mut status, d, dn_to, ds);
                 up_to = if up_to == 0 { 1 } else { up_to + 2 };
                 dn_to += 2;
                 us += 2;
                 ds += 2;
             }
-            u = proc(&mut layers, &mut status, u, up_to, ST_NULL);
-            d = proc(&mut layers, &mut status, d, dn_to, ST_NULL);
+            u = proc(&mut lists, &mut status, u, up_to, ST_NULL);
+            d = proc(&mut lists, &mut status, d, dn_to, ST_NULL);
             // ProcessOutsideList: remaining work-list voxels → outermost layers.
             for f in u {
-                move_to(&mut layers, &mut status, f, num - 2);
+                move_to(&mut lists, &mut status, f, num - 2);
             }
             for f in d {
-                move_to(&mut layers, &mut status, f, num - 1);
+                move_to(&mut lists, &mut status, f, num - 1);
             }
 
             propagate_all!();
