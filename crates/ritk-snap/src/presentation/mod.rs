@@ -11,6 +11,7 @@ pub(crate) mod browser_coordinates;
 mod browser_policy;
 mod events;
 mod frame;
+#[cfg(any(target_arch = "wasm32", windows, test))]
 mod layout;
 mod snapshot;
 #[cfg(any(target_arch = "wasm32", test))]
@@ -35,6 +36,7 @@ pub use events::{
     MAX_PRESENTATION_EVENTS,
 };
 pub use frame::{PresentationFrame, PresentationSpacing};
+#[cfg(any(target_arch = "wasm32", windows, test))]
 pub(crate) use layout::{PaneLayout, PaneRole};
 pub use snapshot::{AnnotationKind, AnnotationSummary, PresentationSnapshot};
 
