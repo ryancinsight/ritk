@@ -32,6 +32,7 @@ try {
   const projectionFigure = document.getElementById("projection-view");
   const projectionStatistic = document.getElementById("projection-statistic");
   const responsiveViews = document.getElementById("responsive-views");
+  const responsiveCrosshairOverlays = new Map();
   if (!(projectionFigure instanceof HTMLElement) ||
       !(projectionStatistic instanceof HTMLOutputElement)) {
     throw new Error("projection presentation controls are missing");
@@ -124,6 +125,31 @@ try {
   };
   const crosshairCanvases = ["axial", "coronal", "sagittal"]
     .map((name) => document.getElementById(`ritk-snap-${name}`));
+  const responsiveCrosshairOverlay = (canvas) => {
+    if (!responsiveLayout || !(responsiveViews instanceof HTMLElement)) return null;
+    let overlay = responsiveCrosshairOverlays.get(canvas);
+    if (!(overlay instanceof HTMLElement) || !overlay.isConnected) {
+      overlay = document.createElement("div");
+      overlay.className = "responsive-crosshair-overlay";
+      overlay.dataset.crosshairFor = canvas.id;
+      const row = document.createElement("span");
+      row.className = "crosshair-line crosshair-row";
+      row.setAttribute("aria-hidden", "true");
+      const column = document.createElement("span");
+      column.className = "crosshair-line crosshair-column";
+      column.setAttribute("aria-hidden", "true");
+      overlay.append(row, column);
+      responsiveViews.append(overlay);
+      responsiveCrosshairOverlays.set(canvas, overlay);
+    }
+    const containerRect = responsiveViews.getBoundingClientRect();
+    const canvasRect = canvas.getBoundingClientRect();
+    overlay.style.left = `${canvasRect.left - containerRect.left}px`;
+    overlay.style.top = `${canvasRect.top - containerRect.top}px`;
+    overlay.style.width = `${canvasRect.width}px`;
+    overlay.style.height = `${canvasRect.height}px`;
+    return overlay;
+  };
   const crosshairCoordinate = (canvas, voxel) => {
     const axis = Number(canvas.getAttribute("data-ritk-axis"));
     const width = Number(canvas.getAttribute("data-ritk-frame-width"));
@@ -165,7 +191,9 @@ try {
       crosshairToggle.setAttribute("aria-pressed", "false");
       crosshairState.textContent = "No study";
       crosshairCanvases.forEach((canvas) => {
-        const view = canvas.parentElement;
+        const view = responsiveLayout
+          ? responsiveCrosshairOverlays.get(canvas)
+          : canvas.parentElement;
         view?.querySelectorAll(".crosshair-line").forEach((line) => { line.style.display = "none"; });
       });
       return;
@@ -182,7 +210,9 @@ try {
       ? `${visible ? "Crosshair visible" : "Crosshair hidden"} at ${voxel.join(",")}`
       : "Crosshair unavailable";
     crosshairCanvases.forEach((candidate) => {
-      const view = candidate.parentElement;
+      const view = responsiveLayout
+        ? responsiveCrosshairOverlay(candidate)
+        : candidate.parentElement;
       const lines = view?.querySelectorAll(".crosshair-line");
       const point = visible && validVoxel ? crosshairCoordinate(candidate, voxel) : null;
       if (!lines || lines.length !== 2 || !point) {
@@ -455,7 +485,11 @@ try {
   window.addEventListener("pagehide", () => {
     stop();
     controls.forEach(({ observer }) => observer.disconnect());
+    window.removeEventListener("resize", syncCrosshair);
+    responsiveCrosshairOverlays.forEach((overlay) => overlay.remove());
+    responsiveCrosshairOverlays.clear();
   }, { once: true });
+  window.addEventListener("resize", syncCrosshair);
 } catch (error) {
   status.textContent = `Viewer could not start: ${describeError(error)}`;
   status.setAttribute("data-state", "failed");

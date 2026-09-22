@@ -247,11 +247,22 @@ def capture_crosshair_gallery(
     ):
         raise BrowserRuntimeError("gallery crosshair wrappers are missing")
     before = client.execute("return window.metisGallery.sample();")
+    responsive = isinstance(before, Mapping) and before.get("responsive_layout") is True
     client.click(button)
     settle_canvas_input(client)
     after = client.execute("return window.metisGallery.sample();")
     overlay = client.execute(
+        (
+            """
+        return Array.from(document.querySelectorAll('.responsive-crosshair-overlay'), (view) => ({
+          row: view.querySelector('.crosshair-row')?.style.display ?? '',
+          column: view.querySelector('.crosshair-column')?.style.display ?? '',
+          top: view.querySelector('.crosshair-row')?.style.top ?? '',
+          left: view.querySelector('.crosshair-column')?.style.left ?? '',
+        }));
         """
+            if responsive
+            else """
         return Array.from(document.querySelectorAll('.canvas-view'), (view) => ({
           row: view.querySelector('.crosshair-row')?.style.display ?? '',
           column: view.querySelector('.crosshair-column')?.style.display ?? '',
@@ -259,6 +270,7 @@ def capture_crosshair_gallery(
           left: view.querySelector('.crosshair-column')?.style.left ?? '',
         }));
         """
+        )
     )
     if not isinstance(after, Mapping) or after.get("crosshair_visible") != "true":
         raise BrowserRuntimeError("crosshair toggle did not publish visible state")
@@ -277,7 +289,9 @@ def capture_crosshair_gallery(
     ):
         raise BrowserRuntimeError("crosshair overlay lines are not visible on every plane")
     screenshot = _write_png(
-        client.element_screenshot(client.find(".gallery-views")),
+        client.element_screenshot(
+            client.find(".responsive-views" if responsive else ".gallery-views")
+        ),
         directory,
         "gallery-crosshair-controls.png",
         "element",

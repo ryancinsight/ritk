@@ -768,8 +768,8 @@ remain available for existing pages and captures.
 
 The saved-study gallery also has a responsive consumer mode. It moves the
 same four canvas elements into its direct trusted container before mounting
-RITK, so the transfer, slice, projection and listener oracles exercise the
-adaptive page with the public MRI study:
+RITK, so the transfer, slice, projection, crosshair and listener oracles
+exercise the adaptive page with the public MRI study:
 
 ```powershell
 python scripts/browser_gallery.py `
@@ -785,15 +785,16 @@ python scripts/browser_gallery.py `
   --canvas-capture rgba `
   --canvas-context 2d `
   --projection mip `
+  --crosshair-controls `
   --page-query layout=responsive `
   --page-query projection=mip `
   --canvas-attribute data-ritk-pane-role `
   --output ..\metis\output\browser\results\chromium-responsive
 ```
 
-The committed browser workflow runs this mode against Chromium and records
-the inspected canvas pixels beside the fixed-engine captures. The WebKit and
-Firefox matrix entries continue to exercise their existing fixed entrypoints.
+The committed browser workflow runs this mode against Chromium and Firefox and
+records the inspected canvas pixels beside the fixed-engine captures. The
+WebKit entry continues to exercise its existing fixed entrypoint.
 
 ### Request a bounded slab statistic from RITK
 

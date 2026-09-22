@@ -21,16 +21,22 @@ class ResponsiveGalleryTests(unittest.TestCase):
         css = (gallery_root / "gallery.css").read_text(encoding="utf-8")
         script = (gallery_root / "gallery.js").read_text(encoding="utf-8")
         artifacts = (root / "scripts" / "browser_gallery_artifacts.py").read_text(encoding="utf-8")
+        runner = (root / "scripts" / "browser_gallery.py").read_text(encoding="utf-8")
         workflow = (root / ".github" / "workflows" / "metis-browser-dicom.yml").read_text(encoding="utf-8")
         self.assertIn('id="responsive-views"', html)
         self.assertIn('query.get("layout") === "responsive"', script)
         self.assertIn("start_web_responsive_canvases", script)
         self.assertIn("data-ritk-pane-layout", script)
+        self.assertIn("responsive-crosshair-overlay", script)
+        self.assertIn("responsive-crosshair-overlay", runner)
         self.assertIn(".responsive-views", css)
+        self.assertIn("position: relative", css)
         self.assertIn("responsive-views", artifacts)
         self.assertIn("result: chromium-responsive", workflow)
+        self.assertIn("result: firefox-responsive", workflow)
         self.assertIn("layout: responsive", workflow)
-        self.assertIn('gallery_args+=(--page-query "layout=$LAYOUT")', workflow)
+        self.assertIn('--page-query "layout=$LAYOUT"', workflow)
+        self.assertIn("--crosshair-controls", workflow)
 
     def test_capture_sample_preserves_quad_roles_and_listeners(self):
         class Client:
