@@ -289,7 +289,7 @@ jobs:
             mode: raster
             result: chromium-responsive
             lifecycle_cycles: "1"
-            canvas_capture: rgba
+            canvas_capture: screenshot
             canvas_context: 2d
             oracle: mri-projection-oracle.json
             projection: mip
@@ -301,7 +301,7 @@ jobs:
             mode: raster
             result: firefox-responsive
             lifecycle_cycles: "1"
-            canvas_capture: rgba
+            canvas_capture: screenshot
             canvas_context: 2d
             oracle: mri-projection-oracle.json
             projection: mip
