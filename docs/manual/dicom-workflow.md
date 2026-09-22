@@ -764,10 +764,36 @@ The browser publishes `data-ritk-pane-layout`, `data-ritk-pane-role` and
 oracle therefore distinguishes a one-pane mount (one interactive guard), a
 two-pane mount (two guards) and a four-pane mount (three guards plus a
 display-only projection). The fixed three-canvas and four-canvas entrypoints
-remain available for existing pages and captures. The current hosted gallery
-uses wrapped canvases for its fixed capture workflow; a hosted responsive
-capture is deferred to a consumer page that supplies the direct trusted
-container shown above.
+remain available for existing pages and captures.
+
+The saved-study gallery also has a responsive consumer mode. It moves the
+same four canvas elements into its direct trusted container before mounting
+RITK, so the transfer, slice, projection and listener oracles exercise the
+adaptive page with the public MRI study:
+
+```powershell
+python scripts/browser_gallery.py `
+  --metis-root ..\metis `
+  --engine chromium `
+  --driver-url http://127.0.0.1:9515 `
+  --device-scale 2 `
+  --input chooser `
+  --files test_data\2_head_mri_t2\DICOM `
+  --pattern '*.dcm' `
+  --oracle ..\metis\output\browser\mri-projection-oracle.json `
+  --consumer-revision (git rev-parse HEAD) `
+  --canvas-capture rgba `
+  --canvas-context 2d `
+  --projection mip `
+  --page-query layout=responsive `
+  --page-query projection=mip `
+  --canvas-attribute data-ritk-pane-role `
+  --output ..\metis\output\browser\results\chromium-responsive
+```
+
+The committed browser workflow runs this mode against Chromium and records
+the inspected canvas pixels beside the fixed-engine captures. The WebKit and
+Firefox matrix entries continue to exercise their existing fixed entrypoints.
 
 ### Request a bounded slab statistic from RITK
 

@@ -282,6 +282,18 @@ jobs:
             canvas_context: 2d
             oracle: mri-projection-oracle.json
             projection: mip
+          - engine: chromium
+            runner: ubuntu-24.04
+            driver_url: http://127.0.0.1:9515
+            device_scale: "2"
+            mode: raster
+            result: chromium-responsive
+            lifecycle_cycles: "1"
+            canvas_capture: rgba
+            canvas_context: 2d
+            oracle: mri-projection-oracle.json
+            projection: mip
+            layout: responsive
     steps:
       - name: Check out RITK
         uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803
@@ -417,6 +429,7 @@ jobs:
           RESULT: ${{ matrix.result }}
           ORACLE: ${{ matrix.oracle }}
           PROJECTION: ${{ matrix.projection }}
+          LAYOUT: ${{ matrix.layout }}
         run: |
           set -euo pipefail
           gallery_args=(
@@ -430,21 +443,30 @@ jobs:
             --pattern '*.dcm'
             --oracle "$GITHUB_WORKSPACE/metis/output/browser/$ORACLE"
             --consumer-revision "$RITK_REVISION"
-            --window-presets
-            --cine-controls
-            --tool-controls
-            --crosshair-controls
             --canvas-capture "$CANVAS_CAPTURE"
           )
+          if [[ -n "$LAYOUT" ]]; then
+            gallery_args+=(--page-query "layout=$LAYOUT")
+          else
+            gallery_args+=(
+              --window-presets
+              --cine-controls
+              --tool-controls
+              --crosshair-controls
+            )
+          fi
           if [[ -n "$CANVAS_CONTEXT" ]]; then
             gallery_args+=(--canvas-context "$CANVAS_CONTEXT")
           fi
           if [[ "$MODE" == "webgpu" ]]; then
             gallery_args+=(--page-query renderer=webgpu)
           fi
+          if [[ -n "$LAYOUT" ]]; then
+            gallery_args+=(--canvas-trace "$GITHUB_WORKSPACE/metis/output/browser/results/$RESULT/canvas-trace.json")
+          fi
           if [[ -n "$PROJECTION" ]]; then
             gallery_args+=(--projection "$PROJECTION" --page-query "projection=$PROJECTION")
-          else
+          elif [[ -z "$LAYOUT" ]]; then
             gallery_args+=(
               --canvas-trace "$GITHUB_WORKSPACE/metis/output/browser/results/$RESULT/canvas-trace.json"
               --keyboard-trace cine-rate
