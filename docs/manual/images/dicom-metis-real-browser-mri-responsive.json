@@ -2,16 +2,16 @@
   "schema": 1,
   "status": "partial",
   "workflow": {
-    "name": "RITK SNAP M\u00e9tis browser DICOM",
+    "name": "RITK SNAP Métis browser DICOM",
     "file": ".github/workflows/metis-browser-dicom.yml",
-    "run_id": 35681744137,
-    "url": "https://github.com/ryancinsight/ritk/actions/runs/35681744137",
+    "run_id": 35724926751,
+    "url": "https://github.com/ryancinsight/ritk/actions/runs/35724926751",
     "conclusion": "failure",
-    "observed_date": "2026-09-21",
+    "observed_date": "2026-09-22",
     "run_status": "completed",
-    "ritk_revision": "37e28c0d541c50f845904543c202e8e055c4e093",
-    "metis_revision": "3830fe7d3bf38c45de4258aeb8145b05c5f37436",
-    "moirai_revision": "76dfdc8d7fd342eafa06311d120bd6bdd6d6d8db"
+    "ritk_revision": "67d4ad4457823f928b02739ec120bc0329a1b7f0",
+    "metis_revision": "776dbbf94593e42d0a5686b587ed27b72f885a73",
+    "moirai_revision": "0e2e1bbb2d81e16dd9c694ba46a9e9710e034417"
   },
   "dataset": {
     "path": "test_data/2_head_mri_t2/DICOM",
@@ -47,11 +47,11 @@
       "browser_version": "152.0.7977.82",
       "platform": "linux",
       "input_source": "chooser",
-      "consumer_revision": "37e28c0d541c50f845904543c202e8e055c4e093",
-      "metis_revision": "3830fe7d3bf38c45de4258aeb8145b05c5f37436",
-      "artifact_id": 10674558583,
-      "artifact_url": "https://github.com/ryancinsight/ritk/actions/runs/35681744137/artifacts/10674558583",
-      "trace_sha256": "7283927f3c47772966355b4d94be6809ce0b743aa02d9928b1abe5535f602885",
+      "consumer_revision": "67d4ad4457823f928b02739ec120bc0329a1b7f0",
+      "metis_revision": "776dbbf94593e42d0a5686b587ed27b72f885a73",
+      "artifact_id": 10693572248,
+      "artifact_url": "https://github.com/ryancinsight/ritk/actions/runs/35724926751/artifacts/10693572248",
+      "trace_sha256": "0f6d3d0b09c5e303747b88836a10058e0471a0e8e98ee81e4e7a5cf0f123dcf5",
       "files": 94,
       "bytes": 49807236,
       "file_manifest_sha256": "81b7b7f8ea473dfc12c25c07b4958762254a261ca49352af2adabc214d6e8d03",
@@ -70,6 +70,8 @@
             "rgba_sha256": "5c96fff2f82ecfddd64a6aa9a1e8f99af367740fcd43826977ac3d1035cb28f6",
             "width": 512,
             "height": 512,
+            "slider_width": 451.0,
+            "slider_height": 44.0,
             "output": "48 / 94"
           },
           "coronal": {
@@ -79,6 +81,8 @@
             "rgba_sha256": "f76018ef402afa7811154c506219361b43227dbe218ff0383b3dddd7bf438136",
             "width": 512,
             "height": 94,
+            "slider_width": 451.0,
+            "slider_height": 44.0,
             "output": "257 / 512"
           },
           "sagittal": {
@@ -88,6 +92,8 @@
             "rgba_sha256": "b8cabf3aa07399387b9d1c7416dbfae594e4d2408f40e0a4bd654f9829799fe3",
             "width": 512,
             "height": 94,
+            "slider_width": 451.0,
+            "slider_height": 44.0,
             "output": "257 / 512"
           }
         },
@@ -95,50 +101,46 @@
           "axial": {
             "index": 47,
             "count": 94,
-            "generation": 95,
+            "generation": 111,
             "rgba_sha256": "5c96fff2f82ecfddd64a6aa9a1e8f99af367740fcd43826977ac3d1035cb28f6",
             "width": 512,
             "height": 512,
+            "slider_width": 451.0,
+            "slider_height": 44.0,
             "output": "48 / 94"
           },
           "coronal": {
             "index": 256,
             "count": 512,
-            "generation": 95,
+            "generation": 111,
             "rgba_sha256": "f76018ef402afa7811154c506219361b43227dbe218ff0383b3dddd7bf438136",
             "width": 512,
             "height": 94,
+            "slider_width": 451.0,
+            "slider_height": 44.0,
             "output": "257 / 512"
           },
           "sagittal": {
             "index": 256,
             "count": 512,
-            "generation": 95,
+            "generation": 111,
             "rgba_sha256": "b8cabf3aa07399387b9d1c7416dbfae594e4d2408f40e0a4bd654f9829799fe3",
             "width": 512,
             "height": 94,
+            "slider_width": 451.0,
+            "slider_height": 44.0,
             "output": "257 / 512"
           }
         },
         "invalid_api_probe_count": 18,
-        "rejection_probes": [
-          [
-            "count",
-            513,
-            0
-          ],
-          [
-            "file-bytes",
-            1,
-            67108865
-          ],
-          [
-            "batch-bytes",
-            5,
-            335544320
-          ]
-        ],
+        "rejection_probes": [],
         "screenshots": {
+          "before-drop": {
+            "width": 2880,
+            "height": 1914,
+            "sha256": "df6a149b45230cdd9321d529d4e62fce1498b2697f5c94467a0a07b13a511336",
+            "bytes": 236669
+          },
           "ritk-snap-axial": {
             "width": 1390,
             "height": 762,
@@ -166,6 +168,12 @@
             "sha256": "1e03386338fd8462307daa4fc731af50da3996bcffb16612d7c421e37b51872b",
             "bytes": 297723,
             "scope": "element"
+          },
+          "gallery": {
+            "width": 2880,
+            "height": 1914,
+            "sha256": "fb00b37ffaed75cb9d0d6ec1894302748b35920cf822ce61d3f4516e84b1fd56",
+            "bytes": 662446
           },
           "ritk-snap-axial-after-rejections": {
             "width": 1390,
@@ -198,24 +206,128 @@
         }
       },
       "projection": {
+        "schema": 1,
+        "canvas_id": "ritk-snap-projection",
+        "statistic": "mip",
+        "label": "MIP",
         "dimensions": {
           "width": 512,
           "height": 512
         },
         "non_black_pixels": 214859,
         "rgba_sha256": "1712e4d2abcd4e8b3293e2f4f8262ab80dd917fff24ed16113bafcdbc23b4366",
+        "attributes": {
+          "data-ritk-role": "projection",
+          "data-ritk-load-state": "ready",
+          "data-ritk-frame-state": "presented",
+          "data-ritk-projection-statistic": "MIP",
+          "data-ritk-frame-width": "512",
+          "data-ritk-frame-height": "512"
+        },
         "consumer_listeners": 21,
         "display_only": true
       },
       "crosshair": {
-        "pane_layout": "quad",
-        "roles": [
-          "axial",
-          "coronal",
-          "sagittal",
-          "projection"
-        ],
+        "schema": 1,
+        "before": {
+          "active_tool": "W/L",
+          "active_tool_index": "2",
+          "annotation_count": "0",
+          "cine_enabled": "false",
+          "cine_fps": "12",
+          "consumer_listeners": 21,
+          "crosshair_visible": "false",
+          "host_listeners": 34,
+          "last_annotation_kind": "",
+          "last_annotation_value": "",
+          "linked_cursor": "47,256,256",
+          "mounted": true,
+          "pane_layout": "quad",
+          "pane_roles": [
+            "axial",
+            "coronal",
+            "sagittal",
+            "projection"
+          ],
+          "projection_frame_state": "presented",
+          "projection_mode": "mip",
+          "projection_statistic": "MIP",
+          "responsive_layout": true,
+          "wasm_bytes": 404357120
+        },
+        "visible": {
+          "active_tool": "W/L",
+          "active_tool_index": "2",
+          "annotation_count": "0",
+          "cine_enabled": "false",
+          "cine_fps": "12",
+          "consumer_listeners": 21,
+          "crosshair_visible": "true",
+          "host_listeners": 34,
+          "last_annotation_kind": "",
+          "last_annotation_value": "",
+          "linked_cursor": "47,256,256",
+          "mounted": true,
+          "pane_layout": "quad",
+          "pane_roles": [
+            "axial",
+            "coronal",
+            "sagittal",
+            "projection"
+          ],
+          "projection_frame_state": "presented",
+          "projection_mode": "mip",
+          "projection_statistic": "MIP",
+          "responsive_layout": true,
+          "wasm_bytes": 404357120
+        },
+        "hidden": {
+          "active_tool": "W/L",
+          "active_tool_index": "2",
+          "annotation_count": "0",
+          "cine_enabled": "false",
+          "cine_fps": "12",
+          "consumer_listeners": 21,
+          "crosshair_visible": "false",
+          "host_listeners": 34,
+          "last_annotation_kind": "",
+          "last_annotation_value": "",
+          "linked_cursor": "47,256,256",
+          "mounted": true,
+          "pane_layout": "quad",
+          "pane_roles": [
+            "axial",
+            "coronal",
+            "sagittal",
+            "projection"
+          ],
+          "projection_frame_state": "presented",
+          "projection_mode": "mip",
+          "projection_statistic": "MIP",
+          "responsive_layout": true,
+          "wasm_bytes": 404357120
+        },
         "linked_cursor": "47,256,256",
+        "overlay": [
+          {
+            "column": "block",
+            "left": "50.0977%",
+            "row": "block",
+            "top": "50.0977%"
+          },
+          {
+            "column": "block",
+            "left": "50.0977%",
+            "row": "block",
+            "top": "50.5319%"
+          },
+          {
+            "column": "block",
+            "left": "50.0977%",
+            "row": "block",
+            "top": "50.5319%"
+          }
+        ],
         "screenshot": {
           "path": "output/browser/results/chromium-responsive/crosshair/gallery-crosshair-controls.png",
           "sha256": "fb4d0cfc24e5f879ff2ce3b2a097682ace8612d72db4d0404379f2a1239d3f28",
@@ -223,26 +335,27 @@
           "height": 1692,
           "bytes": 1027054,
           "scope": "element"
-        }
+        },
+        "artifact": "output/browser/results/chromium-responsive/crosshair/gallery-crosshair.json"
       },
       "cleanup": {
-        "diagnostic_listener_count": 24,
-        "diagnostic_listeners_released": true,
-        "transfer_listeners_removed": 4,
-        "transfer_globals_cleared": true,
+        "transfer_observer": {
+          "globals_cleared": true,
+          "listeners_removed": 4
+        },
         "session_closed": true
       },
       "manual_derivative": {
         "path": "docs/manual/images/dicom-metis-real-browser-mri-responsive-chromium.png",
         "width": 920,
         "height": 559,
-        "bytes": 184645,
-        "sha256": "ab6f41a190702b685e6168e89642d8f3ecb556496dd194348be511be3a70218a",
-        "source_path": "output/browser/results/chromium-responsive/slices/gallery-slice-controls.png",
+        "bytes": 37851,
+        "sha256": "153420d1bfae69390a0862fc22da007e287229b7ec588e9785f1be0fd03ed2ce",
+        "source_path": "output/browser/results/chromium-responsive/crosshair/gallery-crosshair-controls.png",
         "source_width": 2786,
         "source_height": 1692,
-        "source_bytes": 1029835,
-        "source_sha256": "f1a858de8586ec12ffcac6e843a8eea3636822f5cc786e7f233471638930e132"
+        "source_bytes": 1027054,
+        "source_sha256": "fb4d0cfc24e5f879ff2ce3b2a097682ace8612d72db4d0404379f2a1239d3f28"
       }
     },
     "firefox-responsive": {
@@ -251,11 +364,11 @@
       "browser_version": "155.0",
       "platform": "linux",
       "input_source": "chooser",
-      "consumer_revision": "37e28c0d541c50f845904543c202e8e055c4e093",
-      "metis_revision": "3830fe7d3bf38c45de4258aeb8145b05c5f37436",
-      "artifact_id": 10675370492,
-      "artifact_url": "https://github.com/ryancinsight/ritk/actions/runs/35681744137/artifacts/10675370492",
-      "trace_sha256": "c0a46141b68f73c46fdf2192b89d1f61da0b94dd38fb0e04189d41219f939cc7",
+      "consumer_revision": "67d4ad4457823f928b02739ec120bc0329a1b7f0",
+      "metis_revision": "776dbbf94593e42d0a5686b587ed27b72f885a73",
+      "artifact_id": 10692907100,
+      "artifact_url": "https://github.com/ryancinsight/ritk/actions/runs/35724926751/artifacts/10692907100",
+      "trace_sha256": "c3bcceb491e7ab59b2ab4554303137adcefecebab512840a382ad07d750a1bbf",
       "files": 94,
       "bytes": 49807236,
       "file_manifest_sha256": "81b7b7f8ea473dfc12c25c07b4958762254a261ca49352af2adabc214d6e8d03",
@@ -274,6 +387,8 @@
             "rgba_sha256": "5c96fff2f82ecfddd64a6aa9a1e8f99af367740fcd43826977ac3d1035cb28f6",
             "width": 512,
             "height": 512,
+            "slider_width": 456.0,
+            "slider_height": 44.0,
             "output": "48 / 94"
           },
           "coronal": {
@@ -283,6 +398,8 @@
             "rgba_sha256": "f76018ef402afa7811154c506219361b43227dbe218ff0383b3dddd7bf438136",
             "width": 512,
             "height": 94,
+            "slider_width": 456.0,
+            "slider_height": 44.0,
             "output": "257 / 512"
           },
           "sagittal": {
@@ -292,6 +409,8 @@
             "rgba_sha256": "b8cabf3aa07399387b9d1c7416dbfae594e4d2408f40e0a4bd654f9829799fe3",
             "width": 512,
             "height": 94,
+            "slider_width": 456.0,
+            "slider_height": 44.0,
             "output": "257 / 512"
           }
         },
@@ -299,50 +418,46 @@
           "axial": {
             "index": 47,
             "count": 94,
-            "generation": 345,
+            "generation": 261,
             "rgba_sha256": "5c96fff2f82ecfddd64a6aa9a1e8f99af367740fcd43826977ac3d1035cb28f6",
             "width": 512,
             "height": 512,
+            "slider_width": 456.0,
+            "slider_height": 44.0,
             "output": "48 / 94"
           },
           "coronal": {
             "index": 256,
             "count": 512,
-            "generation": 345,
+            "generation": 261,
             "rgba_sha256": "f76018ef402afa7811154c506219361b43227dbe218ff0383b3dddd7bf438136",
             "width": 512,
             "height": 94,
+            "slider_width": 456.0,
+            "slider_height": 44.0,
             "output": "257 / 512"
           },
           "sagittal": {
             "index": 256,
             "count": 512,
-            "generation": 345,
+            "generation": 261,
             "rgba_sha256": "b8cabf3aa07399387b9d1c7416dbfae594e4d2408f40e0a4bd654f9829799fe3",
             "width": 512,
             "height": 94,
+            "slider_width": 456.0,
+            "slider_height": 44.0,
             "output": "257 / 512"
           }
         },
         "invalid_api_probe_count": 18,
-        "rejection_probes": [
-          [
-            "count",
-            513,
-            0
-          ],
-          [
-            "file-bytes",
-            1,
-            67108865
-          ],
-          [
-            "batch-bytes",
-            5,
-            335544320
-          ]
-        ],
+        "rejection_probes": [],
         "screenshots": {
+          "before-drop": {
+            "width": 2880,
+            "height": 2032,
+            "sha256": "ba94e0613910977a8803f150fb8288a16d83f6f45930c54cde61ce269cc057ca",
+            "bytes": 266240
+          },
           "ritk-snap-axial": {
             "width": 1404,
             "height": 808,
@@ -370,6 +485,12 @@
             "sha256": "c5ae8071600585a10208e33f970b280f71fc32b2751c75779342f8ce6dfc94dd",
             "bytes": 399666,
             "scope": "element"
+          },
+          "gallery": {
+            "width": 2880,
+            "height": 2032,
+            "sha256": "fa8f75568f768fbb24a62e4816dc35528eacea93d2b39e7a256015fde88f5490",
+            "bytes": 844784
           },
           "ritk-snap-axial-after-rejections": {
             "width": 1404,
@@ -402,24 +523,128 @@
         }
       },
       "projection": {
+        "schema": 1,
+        "canvas_id": "ritk-snap-projection",
+        "statistic": "mip",
+        "label": "MIP",
         "dimensions": {
           "width": 512,
           "height": 512
         },
         "non_black_pixels": 214859,
         "rgba_sha256": "1712e4d2abcd4e8b3293e2f4f8262ab80dd917fff24ed16113bafcdbc23b4366",
+        "attributes": {
+          "data-ritk-role": "projection",
+          "data-ritk-load-state": "ready",
+          "data-ritk-frame-state": "presented",
+          "data-ritk-projection-statistic": "MIP",
+          "data-ritk-frame-width": "512",
+          "data-ritk-frame-height": "512"
+        },
         "consumer_listeners": 21,
         "display_only": true
       },
       "crosshair": {
-        "pane_layout": "quad",
-        "roles": [
-          "axial",
-          "coronal",
-          "sagittal",
-          "projection"
-        ],
+        "schema": 1,
+        "before": {
+          "active_tool": "W/L",
+          "active_tool_index": "2",
+          "annotation_count": "0",
+          "cine_enabled": "false",
+          "cine_fps": "12",
+          "consumer_listeners": 21,
+          "crosshair_visible": "false",
+          "host_listeners": 34,
+          "last_annotation_kind": "",
+          "last_annotation_value": "",
+          "linked_cursor": "47,256,256",
+          "mounted": true,
+          "pane_layout": "quad",
+          "pane_roles": [
+            "axial",
+            "coronal",
+            "sagittal",
+            "projection"
+          ],
+          "projection_frame_state": "presented",
+          "projection_mode": "mip",
+          "projection_statistic": "MIP",
+          "responsive_layout": true,
+          "wasm_bytes": 404357120
+        },
+        "visible": {
+          "active_tool": "W/L",
+          "active_tool_index": "2",
+          "annotation_count": "0",
+          "cine_enabled": "false",
+          "cine_fps": "12",
+          "consumer_listeners": 21,
+          "crosshair_visible": "true",
+          "host_listeners": 34,
+          "last_annotation_kind": "",
+          "last_annotation_value": "",
+          "linked_cursor": "47,256,256",
+          "mounted": true,
+          "pane_layout": "quad",
+          "pane_roles": [
+            "axial",
+            "coronal",
+            "sagittal",
+            "projection"
+          ],
+          "projection_frame_state": "presented",
+          "projection_mode": "mip",
+          "projection_statistic": "MIP",
+          "responsive_layout": true,
+          "wasm_bytes": 404357120
+        },
+        "hidden": {
+          "active_tool": "W/L",
+          "active_tool_index": "2",
+          "annotation_count": "0",
+          "cine_enabled": "false",
+          "cine_fps": "12",
+          "consumer_listeners": 21,
+          "crosshair_visible": "false",
+          "host_listeners": 34,
+          "last_annotation_kind": "",
+          "last_annotation_value": "",
+          "linked_cursor": "47,256,256",
+          "mounted": true,
+          "pane_layout": "quad",
+          "pane_roles": [
+            "axial",
+            "coronal",
+            "sagittal",
+            "projection"
+          ],
+          "projection_frame_state": "presented",
+          "projection_mode": "mip",
+          "projection_statistic": "MIP",
+          "responsive_layout": true,
+          "wasm_bytes": 404357120
+        },
         "linked_cursor": "47,256,256",
+        "overlay": [
+          {
+            "column": "block",
+            "left": "50.0977%",
+            "row": "block",
+            "top": "50.0977%"
+          },
+          {
+            "column": "block",
+            "left": "50.0977%",
+            "row": "block",
+            "top": "50.5319%"
+          },
+          {
+            "column": "block",
+            "left": "50.0977%",
+            "row": "block",
+            "top": "50.5319%"
+          }
+        ],
         "screenshot": {
           "path": "output/browser/results/firefox-responsive/crosshair/gallery-crosshair-controls.png",
           "sha256": "699f216666572f3971d273f0df50fc8c99e35eb06ed2c90d5e092c34675f298d",
@@ -427,33 +652,34 @@
           "height": 1784,
           "bytes": 1327092,
           "scope": "element"
-        }
+        },
+        "artifact": "output/browser/results/firefox-responsive/crosshair/gallery-crosshair.json"
       },
       "cleanup": {
-        "diagnostic_listener_count": 24,
-        "diagnostic_listeners_released": true,
-        "transfer_listeners_removed": 4,
-        "transfer_globals_cleared": true,
+        "transfer_observer": {
+          "globals_cleared": true,
+          "listeners_removed": 4
+        },
         "session_closed": true
       },
       "manual_derivative": {
         "path": "docs/manual/images/dicom-metis-real-browser-mri-responsive-firefox.png",
         "width": 920,
         "height": 583,
-        "bytes": 193505,
-        "sha256": "105acc19f5a731fb27154419c0ad7230ca4f67d380725fc73fed0581b2eeb1a0",
-        "source_path": "output/browser/results/firefox-responsive/slices/gallery-slice-controls.png",
+        "bytes": 39484,
+        "sha256": "fc62ee5a7fb3d219a17792414dd0ea9bec9953e24fcc984ddbcd9c6ce794d365",
+        "source_path": "output/browser/results/firefox-responsive/crosshair/gallery-crosshair-controls.png",
         "source_width": 2816,
         "source_height": 1784,
-        "source_bytes": 1308023,
-        "source_sha256": "430749ac21e2370c14400928801f391c24817d894cf8ea26ef695ca80ea20a21"
+        "source_bytes": 1327092,
+        "source_sha256": "699f216666572f3971d273f0df50fc8c99e35eb06ed2c90d5e092c34675f298d"
       }
     }
   },
   "residuals": [
-    "Chromium WebGPU has no adapter on the hosted runner (job chromium-webgpu).",
-    "The Chromium application-window lane still fails its ROI Rect tool result on this revision; responsive pane evidence is independent of that lane.",
-    "Safari 26.6.2 accepts the 94 chooser paths but rejects the first bounded whole-file read; the WebKit authorization residual remains external."
+    "Hosted run 35724926751 passes Chromium and Firefox responsive chooser workflows with the exact 94-file study, slice/projection/crosshair oracles and teardown cleanup.",
+    "WebKit bounded whole-file read remains blocked by the Safari 26.6.2 selected-file authorization failure recorded in the cross-engine provenance.",
+    "Chromium WebGPU remains blocked when the hosted runner has no adapter; the typed failure is preserved without raster fallback."
   ],
   "limits": [
     "The hosted screenshots are browser element captures, not native OS-window captures.",

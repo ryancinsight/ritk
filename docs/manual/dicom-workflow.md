@@ -16,9 +16,9 @@ decoded-workspace budgets, and return the RITK `Image` plus
 boundary; the host owns only input and presentation lifecycle.
 
 The current standalone lock used by the viewer resolves the six Metis packages
-to `3a3b30b0c3481db00b16175e6418907a6ae6f11c`. Fifteen Moirai packages resolve
-to `782f7574a0748febe58dc74cea19b2cb8d63ba72`; these are the exact git sources
-in `Cargo.lock`, which contains 62 first-party Git sources. The browser chooser
+to `776dbbf94593e42d0a5686b587ed27b72f885a73`. Fifteen Moirai packages resolve
+to `0e2e1bbb2d81e16dd9c694ba46a9e9710e034417`; these are the exact git sources
+in `Cargo.lock`, which contains 63 first-party Git sources. The browser chooser
 and Windows package workflows use these provider pins. Historical hosted captures
 retain the provider revisions recorded in their own provenance files. RITK
 continues to own DICOM scanning, decoding, geometry and clinical presentation.
@@ -66,8 +66,8 @@ scanning, decoding, geometry, and clinical presentation; Métis owns the bounded
 host, canvas, and window lifecycle.
 
 The current standalone lock pins the browser canvas provider to Moirai
-`782f7574a0748febe58dc74cea19b2cb8d63ba72` and the six Metis packages to
-`3a3b30b0c3481db00b16175e6418907a6ae6f11c`. Repeated RGBA frames with the
+`0e2e1bbb2d81e16dd9c694ba46a9e9710e034417` and the six Metis packages to
+`776dbbf94593e42d0a5686b587ed27b72f885a73`. Repeated RGBA frames with the
 current extent retain the validated bitmap; a changed width or height takes
 the bounded resize path. This keeps the browser presentation lifecycle stable
 without changing DICOM decoding or the displayed pixels. It is an allocation
@@ -797,15 +797,17 @@ python scripts/browser_gallery.py `
 
 The committed browser workflow runs this mode against Chromium and Firefox and
 records the inspected canvas pixels beside the fixed-engine captures. Hosted
-run [35681744137](https://github.com/ryancinsight/ritk/actions/runs/35681744137)
-passed both responsive lanes against RITK `37e28c0d` and Metis `3830fe7d`:
+run [35724926751](https://github.com/ryancinsight/ritk/actions/runs/35724926751)
+passed both responsive lanes against RITK `67d4ad44` and Metis `776dbbf9`;
+Chromium artifact [10693572248](https://github.com/ryancinsight/ritk/actions/runs/35724926751/artifacts/10693572248) and Firefox artifact
+[10692907100](https://github.com/ryancinsight/ritk/actions/runs/35724926751/artifacts/10692907100) record the exact traces:
 Chromium accepted all 94 files and produced four complete 1390×762 element
 captures, while Firefox accepted the same 94 files and produced four complete
 1404×808 element captures. The three interactive axes restore their exact
 initial RGBA hashes after the three bounded rejection probes; the MIP
 projection is display-only, 512×512, 214,859 non-black pixels and 21 consumer
-listeners. The run's WebGPU no-adapter, Chromium-window tool and Safari
-bounded-read results remain separate residuals.
+listeners. The run's WebGPU no-adapter and Safari bounded-read results remain
+separate residuals.
 
 ![Real MRI-DIR T2 responsive panes in hosted Chromium](images/dicom-metis-real-browser-mri-responsive-chromium.png)
 
@@ -1244,19 +1246,21 @@ the committed image byte-for-byte (`259dd79103482756c4e688621bebafc841cc40f1df10
 This replay is tied to the updated provider lock; earlier provenance records
 remain historical records for the revisions that generated them.
 
-A current lock replay on 2026-09-21 rebuilt RITK from source commit
-`c0886e966b94baeda3f8120bd3d99855ffd31f4b` against merged Métis
-`3a3b30b0c3481db00b16175e6418907a6ae6f11c` and Moirai
-`782f7574a0748febe58dc74cea19b2cb8d63ba72`. The same saved 94-file MRI-DIR
+A current standalone-lock replay on 2026-09-22 rebuilt RITK from source
+commit `c842689b` against Metis command-menu revision
+`776dbbf94593e42d0a5686b587ed27b72f885a73` and Moirai
+`0e2e1bbb2d81e16dd9c694ba46a9e9710e034417`. The same saved 94-file MRI-DIR
 study read 49,807,236 bytes, exited 0, rejected the invalid-study probe with
 exit 1, and reproduced the committed 1280 × 800 frame byte-for-byte. The
 replay executable digest is
-`7aa0ecc3d725ef548c77eb81e5dec39d8727be16f49b53bc0ee5b252d57fae3d`
-(55,286,272 bytes), the example digest is
-`b08b3ee861849d0c1efadbda25771b1daf5bcf3c080ab7f8637e362a2a8acd58`
-(24,276,992 bytes), and the standalone lock digest is
-`ce73c2f36b4c2d0b8146a4530ab0ab6ce54fa5c2540dfb9486ea67a73d8bef04`.
-The captured frame remains
+`14412a80c37a19a2f4a09cb08165831a2311d4476f24d1ee159b34406eaf9b30`
+(55,460,864 bytes), the example digest is
+`47eeb88b1ccf8720f6c8e8c8b05b6e7a19a4922d4afdbe7677067333028bd6b3`
+(24,423,424 bytes), and the standalone lock digest is
+`602cba1b0a1a2b6ce8bdb61f42d9c3ef2844bdfd76e5120a29b5a6d8c46552ec`.
+The lock resolves 63 first-party Git sources, including six Metis packages at
+`776dbbf94593e42d0a5686b587ed27b72f885a73` and fifteen Moirai packages at
+`0e2e1bbb2d81e16dd9c694ba46a9e9710e034417`. The captured frame remains
 `259dd79103482756c4e688621bebafc841cc40f1df10ff2bbd7f9d04b7b4d401`
 with 411,589 non-black pixels; the executable, lock, and image hashes are
 recorded in the machine-readable provenance below. The native event translator
@@ -1761,24 +1765,23 @@ The merged-main replay in GitHub Actions run [35530079967](https://github.com/ry
 The same run passed the Chromium projection lane and the Firefox raster lane. WebKit still rejects the bounded whole-file read after chooser acceptance, and Chromium WebGPU reports no adapter; those are recorded residuals in the run artifacts and do not change the raster crosshair result.
 
 The merged-main Chromium-window replay in
-[run 35535831906](https://github.com/ryancinsight/ritk/actions/runs/35535831906)
+[run 35724926751](https://github.com/ryancinsight/ritk/actions/runs/35724926751)
 used Chrome 152.0.7977.82 on Linux with RITK
-`651b4a808374afc3efca35b71b9583b0a2a17248`, Métis
-`b58d64b1bebe76bb32570339c4a349cc1b0d7086` and Moirai
-`2a54e010532f76c88027fec8a468620c92fe66b3`. The chooser accepted the saved
-94-file, 49,807,236-byte public MRI-DIR study. The replay runs the five
-measurement tools before viewport-changing tools so fixed coordinates remain
-over decoded anatomy. It publishes these finite transitions on all three
-canvases: Length `102.75155` mm, Angle `3.5569937` degrees, ROI Rect
-`5402.25` mm², ROI Ellipse `4146.0703` mm², and HU Point `27.0`. Pan, Zoom,
-W/L, Crosshair, Label Paint and Label Erase preserve the final count `5`,
-kind `hu-point` and value `27.0`; seven malformed tool-index probes are
-rejected. The mounted sample has 21 consumer and 34 host listeners, and the
-post-stop sample has zero of each with the controls disabled. The complete
-machine-readable record is
+`67d4ad4457823f928b02739ec120bc0329a1b7f0`, Métis
+`776dbbf94593e42d0a5686b587ed27b72f885a73` and Moirai
+`0e2e1bbb2d81e16dd9c694ba46a9e9710e034417`. The chooser accepted the saved 94-file, 49,807,236-byte public
+MRI-DIR study. The replay runs the five measurement tools before viewport-
+changing tools so fixed coordinates remain over decoded anatomy. It publishes
+these finite transitions on all three canvases: Length `102.75155` mm, Angle
+`3.5569937` degrees, ROI Rect `5402.25` mm², ROI Ellipse `4146.0703` mm², and
+HU Point `27.0`. Pan, Zoom, W/L, Crosshair, Label Paint and Label Erase
+preserve the final count `5`, kind `hu-point` and value `27.0`; seven malformed
+tool-index probes are rejected. The mounted sample has 21 consumer and 34 host
+listeners, and the post-stop sample has zero of each with the controls disabled.
+The complete machine-readable record is
 [dicom-metis-real-browser-mri-tools.json](images/dicom-metis-real-browser-mri-tools.json);
 the full-resolution source is in the
-[Chromium-window artifact](https://github.com/ryancinsight/ritk/actions/runs/35535831906/artifacts/10613092926),
+[Chromium-window artifact](https://github.com/ryancinsight/ritk/actions/runs/35724926751/artifacts/10693163040),
 and the committed PNG is a budgeted display derivative.
 
 ![Actual MRI-DIR T2 study with the RITK diagnostic palette in the Métis browser](images/dicom-metis-real-browser-mri-tools.png)
@@ -1834,22 +1837,23 @@ process launch, and OS permission flows remain separate acceptance gates.
 The reproducible cross-engine chooser workflow is
 [metis-browser-dicom.yml](../../.github/workflows/metis-browser-dicom.yml).
 The current merged-main
-[run 35535831906](https://github.com/ryancinsight/ritk/actions/runs/35535831906)
-rebuilt RITK at `651b4a808374afc3efca35b71b9583b0a2a17248` against Métis
-`b58d64b1bebe76bb32570339c4a349cc1b0d7086` and Moirai
-`2a54e010532f76c88027fec8a468620c92fe66b3`. Chromium and Firefox each
-accepted the 94-file study, read 49,807,236 bytes, matched the exact axial,
-coronal and sagittal RGBA oracles through four lifecycle cycles, and released
-their listeners. The Chromium-window lane additionally passed the complete
-11-tool replay and the Chromium MIP lane passed the display-only projection.
+[run 35724926751](https://github.com/ryancinsight/ritk/actions/runs/35724926751)
+rebuilt RITK at `67d4ad4457823f928b02739ec120bc0329a1b7f0` against Métis
+`776dbbf94593e42d0a5686b587ed27b72f885a73` and Moirai `0e2e1bbb2d81e16dd9c694ba46a9e9710e034417`. Chromium and
+Firefox each accepted the 94-file study, read 49,807,236 bytes, matched the
+exact axial, coronal and sagittal RGBA oracles through four lifecycle cycles,
+and released their listeners. The Chromium-window lane passed the 11-tool
+replay and the Chromium MIP lane passed the display-only projection.
 
 ![The real MRI study rendered in the hosted Chromium gallery](images/dicom-metis-real-browser-mri-cross-engine-chromium.png)
 
 ![The real MRI study rendered in the hosted Firefox gallery](images/dicom-metis-real-browser-mri-cross-engine-firefox.png)
 
 These PNGs are budgeted display derivatives of the current run's
-[Chromium-window artifact](https://github.com/ryancinsight/ritk/actions/runs/35535831906/artifacts/10613092926)
-and Firefox canvas capture. The
+[Chromium raster artifact](https://github.com/ryancinsight/ritk/actions/runs/35724926751/artifacts/10692527516)
+and [Firefox raster artifact](https://github.com/ryancinsight/ritk/actions/runs/35724926751/artifacts/10692817486). The
+Chromium-window 11-tool replay is recorded separately in
+[artifact 10693163040](https://github.com/ryancinsight/ritk/actions/runs/35724926751/artifacts/10693163040) and shown above. The
 [machine-readable provenance](images/dicom-metis-real-browser-mri-cross-engine.json)
 retains the artifact identifiers, source hashes, exact canvas values, annotation
 transitions and cleanup state. Chromium WebGPU reports no adapter and Safari
@@ -2195,11 +2199,11 @@ prove 2D pixel equivalence, hardware acceleration, compositor timing or lower
 memory use.
 
 Hosted run
-[35535831906](https://github.com/ryancinsight/ritk/actions/runs/35535831906)
-rebuilt RITK `651b4a808374afc3efca35b71b9583b0a2a17248` against the lock-pinned
-Métis revision `b58d64b1bebe76bb32570339c4a349cc1b0d7086` and Moirai
-`2a54e010532f76c88027fec8a468620c92fe66b3`. Its Chromium projection job
-accepted all 94 MRI-DIR files (49,807,236 bytes; manifest SHA-256
+[35724926751](https://github.com/ryancinsight/ritk/actions/runs/35724926751)
+rebuilt RITK `67d4ad4457823f928b02739ec120bc0329a1b7f0` against the lock-pinned
+Métis revision `776dbbf94593e42d0a5686b587ed27b72f885a73` and Moirai
+`0e2e1bbb2d81e16dd9c694ba46a9e9710e034417`. Its Chromium projection job accepted all 94 MRI-DIR files
+(49,807,236 bytes; manifest SHA-256
 `81b7b7f8ea473dfc12c25c07b4958762254a261ca49352af2adabc214d6e8d03`) and
 passed the scalar contract. Its `projection.json` records a 512 × 512 MIP with
 110,028 non-black pixels, RGBA SHA-256
@@ -2207,7 +2211,7 @@ passed the scalar contract. Its `projection.json` records a 512 × 512 MIP with
 `data-ritk-role="projection"`, `data-ritk-projection-statistic="MIP"`,
 presented frame state, `consumer_listeners: 21`, and `display_only: true`.
 The hosted result is in the
-[chromium-projection-mip artifact](https://github.com/ryancinsight/ritk/actions/runs/35535831906/artifacts/10612576819);
+[chromium-projection-mip artifact](https://github.com/ryancinsight/ritk/actions/runs/35724926751/artifacts/10693317438);
 the source element screenshot is 866 × 866 pixels with SHA-256
 `e983de59e7cd235d1916fc6c67e849a20198219aea2112ebf064e16fd0cf8dcf`.
 The committed figure is a budgeted display derivative of that source.
@@ -2216,12 +2220,12 @@ The committed figure is a budgeted display derivative of that source.
 
 The current run's Chromium WebGPU job reported `Chromium returned no WebGPU
 adapter before study presentation`. Its
-[failure artifact](https://github.com/ryancinsight/ritk/actions/runs/35535831906/artifacts/10613591260)
+[failure artifact](https://github.com/ryancinsight/ritk/actions/runs/35724926751/artifacts/10692602261)
 contains the 2,880 × 1,914 failure capture (SHA-256
-`638659c0fedddc4d3965b77418e7670e960ff3946f307adafca447a8b8910e9b`) and a
-clean session teardown. The one-file and 94-file bounded browser-read probes
-succeeded before this setup failure. This is a hosted capability residual, not
-a raster fallback or a GPU presentation claim.
+`419d62c3c2dd4385067068f6b0fc6147f06ce4b2e98ea98f93f0129830f2c8e7`) and a
+clean session teardown. The bounded file probes were available before this
+setup failure. This is a hosted capability residual, not a raster fallback or
+a GPU presentation claim.
 
 ![Hosted Chromium WebGPU capability failure](images/dicom-metis-real-browser-mri-webgpu-failure.png)
 
