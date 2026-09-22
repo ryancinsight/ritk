@@ -16,9 +16,9 @@ decoded-workspace budgets, and return the RITK `Image` plus
 boundary; the host owns only input and presentation lifecycle.
 
 The current standalone lock used by the viewer resolves the six Metis packages
-to `3a3b30b0c3481db00b16175e6418907a6ae6f11c`. Fifteen Moirai packages resolve
-to `782f7574a0748febe58dc74cea19b2cb8d63ba72`; these are the exact git sources
-in `Cargo.lock`, which contains 62 first-party Git sources. The browser chooser
+to `ad27d2148cc6b8fa9702cbbd4f37d9e106aa6535`. Fifteen Moirai packages resolve
+to `0e2e1bbb2d81e16dd9c694ba46a9e9710e034417`; these are the exact git sources
+in `Cargo.lock`, which contains 63 first-party Git sources. The browser chooser
 and Windows package workflows use these provider pins. Historical hosted captures
 retain the provider revisions recorded in their own provenance files. RITK
 continues to own DICOM scanning, decoding, geometry and clinical presentation.
@@ -66,8 +66,8 @@ scanning, decoding, geometry, and clinical presentation; Métis owns the bounded
 host, canvas, and window lifecycle.
 
 The current standalone lock pins the browser canvas provider to Moirai
-`782f7574a0748febe58dc74cea19b2cb8d63ba72` and the six Metis packages to
-`3a3b30b0c3481db00b16175e6418907a6ae6f11c`. Repeated RGBA frames with the
+`0e2e1bbb2d81e16dd9c694ba46a9e9710e034417` and the six Metis packages to
+`ad27d2148cc6b8fa9702cbbd4f37d9e106aa6535`. Repeated RGBA frames with the
 current extent retain the validated bitmap; a changed width or height takes
 the bounded resize path. This keeps the browser presentation lifecycle stable
 without changing DICOM decoding or the displayed pixels. It is an allocation

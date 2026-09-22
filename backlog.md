@@ -49,6 +49,14 @@
 - Verification: the standalone lock resolves Consus's merged raster provider and Apollo's merged DCT provider coherently; BitsStored propagation, unsigned-scalar cardinality and shared display mapping pass 1,356 debug and 392 release tests, strict Clippy, ten doctests and warning-denied Rustdoc, with five doctests intentionally ignored. ADR 0048 records the required major API migration; release versioning remains a separate authorized action.
 - Prior delivery verification (PR 556): standalone lock check passes with 62 first-party Git sources; the five-package debug gate passes 1,299/1,299 and the release codec gate passes 339/339; direct RGB uses the derived one-code-value differential bound; PNG readers reject JPEG bytes under both extensions and Snap emits a PNG signature for a `.jpg` path; the configured pre-push gate passes.
 - Prior delivery evidence (PR 556): the post-merge real-study replay reads 94 files/49,807,236 bytes, exits 0, rejects the invalid-study probe with exit 1, and reproduces the committed 1280×800 MRI PNG byte-identically (`259dd791...`, 411,589 non-black pixels) under lock `b1d7c99a6dcbf788f515f4b18789d10035805e38db10f4a32dd7970b3050e226`.
+
+<a id="RITK-METIS-LOCK-018"></a>
+## RITK-METIS-LOCK-018 — Replay the merged Métis command surface [patch]
+- Status: in-progress; priority: P1; owner: RITK viewer + integration; integrator: root; branch: `build/ritk-metis-lock-018`; last-update: 2026-09-22; dependency: Metis PR #338 merge `ad27d2148cc6b8fa9702cbbd4f37d9e106aa6535`.
+- Outcome: the standalone RITK lock and browser workflow consume the merged Métis semantic command surface while DICOM discovery, decoding, clinical geometry and presentation remain RITK-owned.
+- Scope: six Metis source revisions in `Cargo.lock`, the browser workflow default revision, current real-MRI provenance and manual synchronization; no DICOM parser or viewer behavior moves into Metis.
+- Acceptance: standalone Cargo.lock resolves without the Atlas overlay; locked native/WASM `ritk-snap` checks, strict Clippy, formatting, rustdoc and provenance pass; the public 94-file/49,807,236-byte MRI replay exits 0, invalid-study exits 1, and preserves the 1280×800 PNG byte-identically (`259dd791...`, 411,589 non-black pixels); the browser workflow checks out the same full Metis revision by default.
+- Lease: root owns `Cargo.lock`, `.github/workflows/metis-browser-dicom.yml`, `docs/manual/images/dicom-metis-real-mri.json`, `docs/manual/dicom-workflow.md` and this backlog item for the lock/replay increment.
 <a id="RITK-METIS-LOCK-015"></a>
 ## RITK-METIS-LOCK-015 — Replay the merged Métis semantic capture provider [patch]
 - Status: done; priority: P1; owner: RITK viewer + integration; integrator: root; last-update: 2026-09-21.
