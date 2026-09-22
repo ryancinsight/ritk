@@ -709,6 +709,65 @@ and includes its frame dimensions. The committed MIP image above remains the
 reviewed visual oracle; these commands exercise the same four-panel host path
 with the two additional typed reductions.
 
+### Use the responsive Métis pane layout
+
+The native Métis host can select a pane count from the actual surface extent.
+`responsive` uses one axial pane below 640 × 480, two orthogonal panes from
+640 × 480 through 959 × 639, and a four-pane axial/coronal/sagittal/MIP grid
+from 960 × 640 upward. Each pane still uses the spacing-aware RITK placement,
+so anisotropic voxels are letterboxed instead of stretched:
+
+```powershell
+cargo run --locked -p ritk-snap -- `
+  test_data\2_head_mri_t2\DICOM `
+  --metis-native `
+  --metis-native-layout responsive `
+  --capture-application `
+  --capture scratch\viewer\real-mri-metis-responsive.png
+```
+
+This command decodes the saved public MRI-DIR Part 10 files and writes the
+actual RITK pixels. The native layout tests exercise all three thresholds,
+disjoint pane rectangles, physical aspect placement and the display-only MIP;
+the existing [real MRI native capture](images/dicom-metis-real-mri.png) is the
+pixel reference for the decoded study. A responsive replay at 1280×800
+produced axial, coronal, sagittal and axial-MIP anatomy; its run-output PNG
+was 1280×800 RGBA with 534,414 non-black pixels and SHA-256
+`056bf2cd8828df63972af2fe785e436ef0256e501a3ac7386535db0db169a0c9`.
+Rust consumers can invoke `run_responsive_native_app_with_options`; the
+existing exhaustive `NativePresentationMode` enum remains unchanged.
+
+The browser exposes the same policy through a trusted container element. The
+four canvas IDs are ordered axial, coronal, sagittal and projection. RITK
+updates the container's CSS grid on each animation frame; hidden orthogonal
+canvases are recreated without input listeners, while the visible axial,
+coronal and sagittal canvases retain the normal Métis event seam:
+
+```javascript
+import init, { start_web_responsive_canvases, stop_web_canvas } from "./ritk_snap.js";
+
+await init();
+start_web_responsive_canvases(
+  "ritk-responsive-container",
+  "ritk-snap-axial",
+  "ritk-snap-coronal",
+  "ritk-snap-sagittal",
+  "ritk-snap-projection",
+  0, // maximum-intensity projection
+);
+// Call stop_web_canvas() when the route is torn down.
+```
+
+The browser publishes `data-ritk-pane-layout`, `data-ritk-pane-role` and
+`data-ritk-pane-visible` on the container and canvases. The listener-count
+oracle therefore distinguishes a one-pane mount (one interactive guard), a
+two-pane mount (two guards) and a four-pane mount (three guards plus a
+display-only projection). The fixed three-canvas and four-canvas entrypoints
+remain available for existing pages and captures. The current hosted gallery
+uses wrapped canvases for its fixed capture workflow; a hosted responsive
+capture is deferred to a consumer page that supplies the direct trusted
+container shown above.
+
 ### Request a bounded slab statistic from RITK
 
 RITK keeps slab sampling in the viewer domain so a native shell, browser

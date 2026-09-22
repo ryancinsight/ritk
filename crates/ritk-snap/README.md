@@ -125,6 +125,22 @@ contract is scalar-only.
 
 The reviewed capture is shown in the [DICOM workflow manual](../../docs/manual/dicom-workflow.md#present-validated-ritk-views-through-metis).
 
+The native host also provides a responsive layout that selects one, two or
+four panes from the current surface extent:
+
+```console
+cargo run --locked -p ritk-snap -- path/to/study \
+  --metis-native --metis-native-layout responsive \
+  --capture responsive-frame.png --capture-application
+```
+
+The thresholds are 640 × 480 for two panes and 960 × 640 for four panes. The
+four-pane arrangement adds the typed axial MIP; every visible plane keeps the
+RITK physical-aspect placement and only the orthogonal planes receive input.
+Library callers can select the same host policy with
+`run_responsive_native_app_with_options`; the existing exhaustive
+`NativePresentationMode` API remains unchanged.
+
 For host-neutral scalar slab work, use the validated RITK projection contract:
 
 ```rust
@@ -254,6 +270,32 @@ The checked-in gallery accepts `?projection=mip`, `?projection=minip`, or
 unknown values fail before the viewer mounts. The three existing slice controls
 remain attached to the interactive planes, while the projection canvas is
 display-only and carries no RITK input listener guards.
+
+For a consumer-owned adaptive page, mount the responsive raster workflow on a
+trusted container. The container's rendered CSS extent drives the same native
+thresholds. Hidden axes are reconstructed without Métis input listeners, and
+the projection canvas remains display-only:
+
+```javascript
+import init, { start_web_responsive_canvases, stop_web_canvas } from "./ritk_snap.js";
+
+await init();
+start_web_responsive_canvases(
+  "ritk-responsive-container",
+  "ritk-snap-axial",
+  "ritk-snap-coronal",
+  "ritk-snap-sagittal",
+  "ritk-snap-projection",
+  0,
+);
+// Call stop_web_canvas() when the page or route is torn down.
+```
+
+The entrypoint publishes `data-ritk-pane-layout`, `data-ritk-pane-role` and
+`data-ritk-pane-visible` for CSS and accessibility assertions. Existing fixed
+three-canvas and four-canvas entrypoints, including their explicit WebGPU
+variants, remain unchanged.
+
 Trusted pointer and wheel positions use the measured local canvas content box,
 excluding borders and padding and accounting for invertible 2D ancestor CSS
 transforms. Fractional positions and event-time dimensions preserve voxel

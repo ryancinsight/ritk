@@ -120,6 +120,30 @@ pub async fn start_web_orthogonal_canvases_gpu_with_projection(
     .await
 }
 
+/// Start the responsive browser workflow with one, two, or four panes.
+///
+/// `container_id` identifies a trusted layout element whose rendered extent
+/// selects the arrangement. Canvas identifiers are ordered axial, coronal,
+/// sagittal, projection; `projection` is `0` for maximum, `1` for minimum,
+/// and `2` for average. Hidden orthogonal canvases are rebuilt without input
+/// listeners, so the browser retains only the active interactive planes.
+#[cfg(target_arch = "wasm32")]
+#[wasm_bindgen::prelude::wasm_bindgen]
+pub fn start_web_responsive_canvases(
+    container_id: String,
+    axial_id: String,
+    coronal_id: String,
+    sagittal_id: String,
+    projection_id: String,
+    projection: f64,
+) -> Result<(), wasm_bindgen::JsValue> {
+    crate::app::start_web_responsive_canvases(
+        container_id,
+        [axial_id, coronal_id, sagittal_id, projection_id],
+        projection,
+    )
+}
+
 /// Select an exact zero-based slice on one browser viewer axis.
 ///
 /// Axes are `0` axial, `1` coronal and `2` sagittal. A successful change

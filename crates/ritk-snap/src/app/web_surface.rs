@@ -3,6 +3,7 @@
 use super::browser_canvas::BrowserCanvas;
 use super::browser_geometry::{viewport_for_display_with_zoom_pan, PhysicalCanvasAspect};
 use super::browser_semantics::BrowserCanvasSemantics;
+use super::web_responsive::ResponsiveSurface;
 use super::SnapApp;
 use crate::app::action_adapter::ViewerActionDisposition;
 use crate::presentation::PresentationFrame;
@@ -28,6 +29,9 @@ pub(super) enum BrowserSurface {
         statistic: ProjectionStatistic,
         scratch: FrameRenderScratch,
         dirty: bool,
+    },
+    Responsive {
+        surface: Box<ResponsiveSurface>,
     },
 }
 
@@ -63,6 +67,19 @@ impl BrowserSurface {
             dirty: true,
         }
     }
+
+    pub(super) fn responsive(surface: ResponsiveSurface) -> Self {
+        Self::Responsive {
+            surface: Box::new(surface),
+        }
+    }
+
+    pub(super) fn refresh_layout(&mut self) -> std::io::Result<bool> {
+        match self {
+            Self::Responsive { surface } => surface.refresh_layout(),
+            _ => Ok(false),
+        }
+    }
     pub(super) fn listener_count(&self) -> usize {
         match self {
             Self::Single { canvas, .. } => canvas.listener_count(),
@@ -74,6 +91,7 @@ impl BrowserSurface {
                 .take(3)
                 .map(BrowserCanvas::listener_count)
                 .sum(),
+            Self::Responsive { surface } => surface.listener_count(),
         }
     }
 
@@ -82,6 +100,7 @@ impl BrowserSurface {
             Self::Single { dirty, .. }
             | Self::Orthogonal { dirty, .. }
             | Self::OrthogonalWithProjection { dirty, .. } => *dirty = true,
+            Self::Responsive { surface } => surface.clear(),
         }
     }
 
@@ -211,6 +230,7 @@ impl BrowserSurface {
                     }
                 }
             }
+            Self::Responsive { surface } => surface.render_and_present(app)?,
         }
         Ok(())
     }
@@ -262,6 +282,7 @@ impl BrowserSurface {
                     physical_aspect(frame)?,
                 )
             }
+            Self::Responsive { surface } => surface.publish_semantics(app),
         }
     }
 
@@ -307,11 +328,12 @@ impl BrowserSurface {
                 }
                 Ok(ViewerActionDisposition::Continue { repaint })
             }
+            Self::Responsive { surface } => surface.apply_events(app),
         }
     }
 }
 
-fn physical_aspect(
+pub(super) fn physical_aspect(
     frame: Option<&PresentationFrame>,
 ) -> std::io::Result<Option<PhysicalCanvasAspect>> {
     let Some(frame) = frame else {
@@ -325,7 +347,7 @@ fn physical_aspect(
     .map(Some)
 }
 
-fn apply_canvas_events(
+pub(super) fn apply_canvas_events(
     app: &mut SnapApp,
     axis: usize,
     canvas: &mut BrowserCanvas,

@@ -2,7 +2,7 @@
 
 use super::browser_geometry::PhysicalCanvasAspect;
 use super::browser_semantics::BrowserCanvasSemantics;
-use crate::presentation::{PresentationFrame, WebCanvasPresenter};
+use crate::presentation::{PaneLayout, PaneRole, PresentationFrame, WebCanvasPresenter};
 use crate::render::ProjectionStatistic;
 use moirai_pal::wasm::{WebDocument, WebElement};
 
@@ -57,6 +57,43 @@ impl BrowserCanvas {
 
     pub(super) fn listener_count(&self) -> usize {
         self.presenter.listener_count()
+    }
+
+    pub(super) fn set_pane_metadata(
+        &self,
+        layout: PaneLayout,
+        role: PaneRole,
+        visible: bool,
+        index: usize,
+    ) -> std::io::Result<()> {
+        self.element
+            .set_attribute("data-ritk-pane-layout", layout.label())?;
+        self.element
+            .set_attribute("data-ritk-pane-role", role.label())?;
+        self.element
+            .set_attribute("data-ritk-pane-index", &index.to_string())?;
+        self.element.set_attribute(
+            "data-ritk-pane-visible",
+            if visible { "true" } else { "false" },
+        )?;
+        let (column, row) = match (layout, role) {
+            (PaneLayout::Single, _) | (PaneLayout::Dual, PaneRole::Axis(0)) => (1, 1),
+            (PaneLayout::Dual, PaneRole::Axis(1)) => (2, 1),
+            (PaneLayout::Quad, PaneRole::Axis(0)) => (1, 1),
+            (PaneLayout::Quad, PaneRole::Axis(1)) => (2, 1),
+            (PaneLayout::Quad, PaneRole::Axis(2)) => (1, 2),
+            (PaneLayout::Quad, PaneRole::Projection) => (2, 2),
+            (_, PaneRole::Axis(_)) | (_, PaneRole::Projection) => (1, 1),
+        };
+        self.element
+            .set_style_property("grid-column", &column.to_string())?;
+        self.element
+            .set_style_property("grid-row", &row.to_string())?;
+        self.element.set_style_property("min-width", "0")?;
+        self.element.set_style_property("min-height", "0")?;
+        self.element
+            .set_style_property("display", if visible { "block" } else { "none" })?;
+        Ok(())
     }
 
     pub(super) fn take_events(

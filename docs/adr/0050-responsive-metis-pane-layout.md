@@ -1,6 +1,6 @@
 # ADR 0050: Responsive Métis pane layout
 
-- Status: Proposed
+- Status: Accepted
 - Date: 2026-09-21
 - Item: [RITK-SNAP-METIS-RESPONSIVE-LAYOUT-001](../../backlog.md#RITK-SNAP-METIS-RESPONSIVE-LAYOUT-001)
 
@@ -42,7 +42,33 @@ rejected in favor of one RITK presentation contract.
 Invalid or zero surface extents return a typed error before allocation.
 Layout tests assert exact pane counts, disjoint rectangles and full coverage
 of the usable surface after separators. Spacing tests use anisotropic values
-and assert the rendered image aspect remains the physical ratio. Browser
-listener-count tests prove inactive panes do not retain input guards. The
+and assert the rendered image aspect remains the physical ratio. The browser
+listener lifecycle releases inactive panes' input guards. The
 public 94-file MRI replay supplies the visual oracle; DICOM decoding and
 clinical semantics remain in RITK.
+
+## Verification record
+
+The implementation is in `ritk-snap` and keeps DICOM decoding and geometry in
+RITK. Locked native nextest runs 495 tests with 495 passes. Native and
+`wasm32-unknown-unknown` library checks, strict Clippy, formatting, doctests
+(4 passed, 1 intentionally ignored), and warning-clean Rustdoc pass. The
+native command in the manual decoded the public 94-file MRI-DIR study and
+produced a 1280×800 RGBA responsive capture with SHA-256
+`056bf2cd8828df63972af2fe785e436ef0256e501a3ac7386535db0db169a0c9` and
+534,414 non-black pixels; visual inspection shows axial, coronal, sagittal
+and axial-MIP anatomy in the four-pane layout. The browser responsive surface
+compiles for WASM and releases listeners by rebuilding hidden canvases without
+input guards. The existing hosted gallery remains the visual oracle for the
+fixed raster/WebGPU entrypoints; a hosted responsive-browser capture is a
+follow-up because the current gallery uses figure wrappers rather than the
+direct trusted-container contract documented here.
+
+### Revision 2026-09-21
+
+Accepted after the native/WASM and visual evidence above. The responsive
+browser contract is intentionally consumer-owned: RITK supplies the trusted
+container and named canvases, while Métis remains a format-neutral canvas and
+event provider. The native responsive workflow is an additive entrypoint so
+the existing exhaustive `NativePresentationMode` enum remains stable.
+Existing fixed browser and native entrypoints remain stable.

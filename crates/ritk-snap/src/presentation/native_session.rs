@@ -11,7 +11,7 @@ use crate::dicom::loader::{
     load_volume_from_path, load_volume_from_series_uid, scan_folder_for_series,
 };
 use crate::dicom::series_tree::SeriesEntryView;
-use crate::launch::NativePresentationMode;
+use crate::launch::{NativePresentationMode, NativePresentationSelection};
 use crate::presentation::PresentationSnapshot;
 use crate::render::FrameRenderScratch;
 use crate::tools::interaction::ViewportOffset;
@@ -74,6 +74,47 @@ pub fn run_native_viewer(
     initial_series_uid: Option<&str>,
     capture: Option<&Path>,
     presentation_mode: NativePresentationMode,
+    capture_application: bool,
+) -> Result<NativeViewerOutcome> {
+    run_native_viewer_with_selection(
+        initial_path,
+        initial_series_uid,
+        capture,
+        NativePresentationSelection::Fixed(presentation_mode),
+        capture_application,
+    )
+}
+
+/// Run a loaded DICOM study with the responsive one-, two- or four-pane layout.
+///
+/// This additive entrypoint keeps [`NativePresentationMode`] exhaustive for
+/// existing callers while exposing the new responsive host workflow without
+/// changing that public enum's variants.
+///
+/// # Errors
+/// Returns the same DICOM load, frame conversion, native-host, and capture
+/// errors as [`run_native_viewer`].
+#[must_use = "the session outcome records host and viewer transitions"]
+pub fn run_native_responsive_viewer(
+    initial_path: impl AsRef<Path>,
+    initial_series_uid: Option<&str>,
+    capture: Option<&Path>,
+    capture_application: bool,
+) -> Result<NativeViewerOutcome> {
+    run_native_viewer_with_selection(
+        initial_path,
+        initial_series_uid,
+        capture,
+        NativePresentationSelection::Responsive,
+        capture_application,
+    )
+}
+
+fn run_native_viewer_with_selection(
+    initial_path: impl AsRef<Path>,
+    initial_series_uid: Option<&str>,
+    capture: Option<&Path>,
+    presentation_mode: NativePresentationSelection,
     capture_application: bool,
 ) -> Result<NativeViewerOutcome> {
     let initial_path = initial_path.as_ref();
@@ -173,7 +214,7 @@ struct NativeViewerSession {
     render_scratch: [FrameRenderScratch; 3],
     projection: Option<RenderedProjection>,
     projection_scratch: ProjectionRenderScratch,
-    presentation_mode: NativePresentationMode,
+    presentation_mode: NativePresentationSelection,
     framebuffer: Framebuffer,
     viewports: [NativeViewport; 3],
     active_view: Option<usize>,
@@ -193,7 +234,7 @@ impl NativeViewerSession {
         app: SnapApp,
         observation: Arc<NativeViewerObservation>,
         capture_after_idle: bool,
-        presentation_mode: NativePresentationMode,
+        presentation_mode: NativePresentationSelection,
         capture_application: bool,
         selection: Option<SeriesSelection>,
     ) -> Result<Self> {

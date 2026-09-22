@@ -3,6 +3,7 @@
 mod composition;
 mod crosshair;
 mod geometry;
+mod responsive;
 
 #[cfg(test)]
 pub(super) use composition::{
@@ -13,3 +14,4 @@ pub(super) use crosshair::crosshair_overlay;
 #[cfg(test)]
 pub(super) use crosshair::CROSSHAIR_COLOR;
 pub(super) use geometry::NativeViewport;
+pub(super) use responsive::surface_frames_responsive;

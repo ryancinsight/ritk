@@ -43,6 +43,26 @@ impl NativePresentationMode {
     }
 }
 
+/// Internal native presentation selection used by the host entrypoints.
+#[cfg(not(target_arch = "wasm32"))]
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub(crate) enum NativePresentationSelection {
+    /// Use one of the stable public fixed presentation modes.
+    Fixed(NativePresentationMode),
+    /// Select one, two or four panes from the current native surface extent.
+    Responsive,
+}
+
+#[cfg(not(target_arch = "wasm32"))]
+impl NativePresentationSelection {
+    pub(crate) const fn projection_statistic(self) -> Option<ProjectionStatistic> {
+        match self {
+            Self::Fixed(mode) => mode.projection_statistic(),
+            Self::Responsive => Some(ProjectionStatistic::Maximum),
+        }
+    }
+}
+
 /// Presentation selected by the compatibility shell.
 #[derive(Debug, Clone, Copy, Default, PartialEq, Eq, Serialize, Deserialize, clap::ValueEnum)]
 pub enum CompatibilityPresentation {
@@ -215,18 +235,58 @@ where
 /// screenshot response exceeds its deadline, or the window closes early.
 #[cfg(not(target_arch = "wasm32"))]
 pub fn run_app_with_options(options: AppLaunchOptions) -> anyhow::Result<()> {
-    run_app_with_compatibility(
+    let presentation_selection =
+        NativePresentationSelection::Fixed(options.native_presentation_mode);
+    run_app_with_compatibility_selection(
         options,
         CompatibilityPresentation::FullApplication,
         EframeViewport::default(),
+        presentation_selection,
+    )
+}
+
+/// Launch the Métis native host with its responsive pane layout.
+///
+/// This additive entrypoint preserves the public fixed-layout enum and its
+/// existing exhaustive matches while exposing adaptive native presentation to
+/// library consumers.
+///
+/// # Errors
+/// Returns the same window, event-loop, DICOM load, and capture errors as
+/// [`run_app_with_options`].
+#[cfg(not(target_arch = "wasm32"))]
+pub fn run_responsive_native_app_with_options(options: AppLaunchOptions) -> anyhow::Result<()> {
+    run_app_with_compatibility_selection(
+        options,
+        CompatibilityPresentation::FullApplication,
+        EframeViewport::default(),
+        NativePresentationSelection::Responsive,
     )
 }
 
 #[cfg(not(target_arch = "wasm32"))]
+#[cfg(feature = "eframe-shell")]
 fn run_app_with_compatibility(
     options: AppLaunchOptions,
     compatibility_presentation: CompatibilityPresentation,
     viewport: EframeViewport,
+) -> anyhow::Result<()> {
+    let presentation_selection =
+        NativePresentationSelection::Fixed(options.native_presentation_mode);
+    run_app_with_compatibility_selection(
+        options,
+        compatibility_presentation,
+        viewport,
+        presentation_selection,
+    )
+}
+
+#[cfg(not(target_arch = "wasm32"))]
+fn run_app_with_compatibility_selection(
+    options: AppLaunchOptions,
+    compatibility_presentation: CompatibilityPresentation,
+    viewport: EframeViewport,
+    presentation_selection: NativePresentationSelection,
 ) -> anyhow::Result<()> {
     #[cfg(not(feature = "eframe-shell"))]
     let _ = viewport;
@@ -243,26 +303,40 @@ fn run_app_with_compatibility(
             let path = select_native_initial_path(options.initial_path.as_deref(), || {
                 pick(DialogSelection::Folder).map_err(Into::into)
             })?;
-            crate::presentation::run_native_viewer(
-                &path,
-                options.initial_series_uid.as_deref(),
-                options.capture.as_deref(),
-                options.native_presentation_mode,
-                options.capture_application,
-            )?;
+            match presentation_selection {
+                NativePresentationSelection::Fixed(mode) => {
+                    crate::presentation::run_native_viewer(
+                        &path,
+                        options.initial_series_uid.as_deref(),
+                        options.capture.as_deref(),
+                        mode,
+                        options.capture_application,
+                    )?;
+                }
+                NativePresentationSelection::Responsive => {
+                    crate::presentation::run_native_responsive_viewer(
+                        &path,
+                        options.initial_series_uid.as_deref(),
+                        options.capture.as_deref(),
+                        options.capture_application,
+                    )?;
+                }
+            }
             return Ok(());
         }
         #[cfg(not(windows))]
         {
             let _ = options.capture;
             let _ = options.capture_application;
-            let _ = options.native_presentation_mode;
+            let _ = presentation_selection;
             anyhow::bail!("--metis-native requires a Windows Métis native host");
         }
     }
     #[cfg(feature = "eframe-shell")]
     {
-        if options.native_presentation_mode != NativePresentationMode::Orthogonal {
+        if presentation_selection
+            != NativePresentationSelection::Fixed(NativePresentationMode::Orthogonal)
+        {
             anyhow::bail!("native presentation layout requires the Métis native host");
         }
         if options.capture_application {
@@ -339,9 +413,9 @@ pub use web::{
     select_web_slice, select_web_tool, set_web_cine_rate, set_web_window_preset, start_web,
     start_web_canvas, start_web_canvas_gpu, start_web_orthogonal_canvases,
     start_web_orthogonal_canvases_gpu, start_web_orthogonal_canvases_gpu_with_projection,
-    start_web_orthogonal_canvases_with_projection, stop_web_canvas, toggle_web_cine,
-    toggle_web_crosshair, web_canvas_listener_count, web_tool_count, web_tool_name,
-    web_window_preset_count, web_window_preset_name,
+    start_web_orthogonal_canvases_with_projection, start_web_responsive_canvases, stop_web_canvas,
+    toggle_web_cine, toggle_web_crosshair, web_canvas_listener_count, web_tool_count,
+    web_tool_name, web_window_preset_count, web_window_preset_name,
 };
 
 #[cfg(all(test, windows))]

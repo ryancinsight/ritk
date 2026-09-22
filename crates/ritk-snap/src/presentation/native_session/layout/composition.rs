@@ -368,7 +368,7 @@ fn push_overlay_command(display: &mut DisplayList, command: DisplayCommand) -> R
     Ok(())
 }
 
-fn append_overlay_list(target: &mut DisplayList, mut source: DisplayList) -> Result<()> {
+pub(super) fn append_overlay_list(target: &mut DisplayList, mut source: DisplayList) -> Result<()> {
     target
         .commands
         .try_reserve(source.commands.len())
@@ -377,7 +377,7 @@ fn append_overlay_list(target: &mut DisplayList, mut source: DisplayList) -> Res
     Ok(())
 }
 
-fn blit_frame(
+pub(super) fn blit_frame(
     framebuffer: &mut Framebuffer,
     view: &RenderedView,
     viewport: NativeViewport,
@@ -394,7 +394,7 @@ fn blit_frame(
     )
 }
 
-fn blit_rgba_frame(
+pub(super) fn blit_rgba_frame(
     framebuffer: &mut Framebuffer,
     frame: &crate::presentation::PresentationFrame,
     image: ScreenRect,

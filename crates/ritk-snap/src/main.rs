@@ -23,6 +23,33 @@ use clap::Parser;
 #[cfg(not(target_arch = "wasm32"))]
 mod browser_trace;
 
+#[cfg(not(target_arch = "wasm32"))]
+#[derive(Debug, Clone, Copy, clap::ValueEnum)]
+enum CliNativeLayout {
+    Orthogonal,
+    OrthogonalWithMip,
+    OrthogonalWithMinip,
+    OrthogonalWithAverage,
+    Responsive,
+}
+
+#[cfg(not(target_arch = "wasm32"))]
+impl CliNativeLayout {
+    const fn fixed_mode(self) -> Option<ritk_snap::NativePresentationMode> {
+        match self {
+            Self::Orthogonal => Some(ritk_snap::NativePresentationMode::Orthogonal),
+            Self::OrthogonalWithMip => Some(ritk_snap::NativePresentationMode::OrthogonalWithMip),
+            Self::OrthogonalWithMinip => {
+                Some(ritk_snap::NativePresentationMode::OrthogonalWithMinip)
+            }
+            Self::OrthogonalWithAverage => {
+                Some(ritk_snap::NativePresentationMode::OrthogonalWithAverage)
+            }
+            Self::Responsive => None,
+        }
+    }
+}
+
 /// Native RITK DICOM viewer.
 #[cfg(not(target_arch = "wasm32"))]
 #[derive(Debug, Parser)]
@@ -56,7 +83,7 @@ struct Args {
     eframe: bool,
     /// Select the native Métis framebuffer layout.
     #[arg(long = "metis-native-layout", value_enum, default_value = "orthogonal")]
-    native_presentation_mode: ritk_snap::NativePresentationMode,
+    native_presentation_mode: CliNativeLayout,
     /// Validate a RITK-owned semantic canvas trace and exit.
     #[arg(
         long,
@@ -116,18 +143,29 @@ fn main() -> anyhow::Result<()> {
     if args.capture_application && !metis_native {
         anyhow::bail!("--capture-application requires the Métis native shell");
     }
-    if args.native_presentation_mode != ritk_snap::NativePresentationMode::Orthogonal
-        && !metis_native
-    {
+    if !matches!(args.native_presentation_mode, CliNativeLayout::Orthogonal) && !metis_native {
         anyhow::bail!("native presentation layout requires the Métis native shell");
     }
+    if matches!(args.native_presentation_mode, CliNativeLayout::Responsive) {
+        return ritk_snap::run_responsive_native_app_with_options(ritk_snap::AppLaunchOptions {
+            initial_path: args.initial_path,
+            initial_series_uid: args.initial_series_uid,
+            capture: args.capture,
+            capture_application: args.capture_application,
+            metis_native,
+            native_presentation_mode: ritk_snap::NativePresentationMode::Orthogonal,
+        });
+    }
+    let Some(native_presentation_mode) = args.native_presentation_mode.fixed_mode() else {
+        anyhow::bail!("responsive layout selection did not resolve to a fixed mode");
+    };
     ritk_snap::run_app_with_options(ritk_snap::AppLaunchOptions {
         initial_path: args.initial_path,
         initial_series_uid: args.initial_series_uid,
         capture: args.capture,
         capture_application: args.capture_application,
         metis_native,
-        native_presentation_mode: args.native_presentation_mode,
+        native_presentation_mode,
     })
 }
 

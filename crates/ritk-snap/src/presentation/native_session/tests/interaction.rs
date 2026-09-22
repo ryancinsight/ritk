@@ -1,6 +1,7 @@
 //! Native pointer, layout, capture, and lifecycle tests.
 
 use super::*;
+use crate::presentation::PaneLayout;
 
 #[test]
 fn native_session_drag_updates_pan_and_presented_frame() {
@@ -141,6 +142,52 @@ fn native_session_mip_layout_composes_a_fourth_display_panel() {
         metis_platform::Color::BLACK,
         "the fourth panel contains the rendered MIP"
     );
+}
+
+#[test]
+fn responsive_native_layout_selects_single_dual_and_quad_panes() {
+    let (session, _root) = session_with_responsive_mode();
+    assert_eq!(session.viewports[0].panel_width(), 638);
+    assert_eq!(session.viewports[1].panel_width(), 638);
+    assert_eq!(session.viewports[2].panel_width(), 638);
+    assert_ne!(
+        session.framebuffer.get_pixel(960, 600),
+        metis_platform::Color::BLACK,
+        "responsive quad layout presents the real scalar projection"
+    );
+
+    for (layout, width, height, expected_visible) in [
+        (PaneLayout::Single, 500, 400, 1_usize),
+        (PaneLayout::Dual, 800, 600, 2_usize),
+        (PaneLayout::Quad, 1_200, 800, 4_usize),
+    ] {
+        let (frame, viewports) = super::layout::surface_frames_responsive(
+            &session.views,
+            session.projection.as_ref(),
+            layout,
+            width,
+            height,
+            session.app.zoom,
+            session.app.pan_offset,
+            false,
+            session.app.cine.fps,
+            false,
+        )
+        .expect("responsive layout");
+        assert_eq!(layout.pane_count(), expected_visible);
+        assert_eq!(
+            viewports
+                .iter()
+                .filter(|viewport| viewport.panel_width() > 0)
+                .count(),
+            usize::min(expected_visible, 3),
+            "only orthogonal panes receive input viewports"
+        );
+        assert!(
+            frame.pixels().iter().any(|pixel| *pixel != 0xFF00_0000),
+            "responsive {layout:?} layout presents real MRI pixels"
+        );
+    }
 }
 
 #[test]

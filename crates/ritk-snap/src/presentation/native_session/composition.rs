@@ -1,8 +1,9 @@
 //! Frame composition and capture encoding for the native Métis session.
 
-use super::layout::{surface_frames, surface_frames_with_projection};
+use super::layout::{surface_frames, surface_frames_responsive, surface_frames_with_projection};
 use super::{NativeViewport, RenderedProjection, RenderedView};
-use crate::launch::NativePresentationMode;
+use crate::launch::{NativePresentationMode, NativePresentationSelection};
+use crate::presentation::PaneLayout;
 use crate::tools::interaction::ViewportOffset;
 use anyhow::{anyhow, Context, Result};
 use metis_platform::Framebuffer;
@@ -11,7 +12,7 @@ use std::path::Path;
 pub(super) fn compose_frames(
     views: &[RenderedView; 3],
     projection: Option<&RenderedProjection>,
-    presentation_mode: NativePresentationMode,
+    presentation_mode: NativePresentationSelection,
     surface_width: u32,
     surface_height: u32,
     zoom: f32,
@@ -21,8 +22,10 @@ pub(super) fn compose_frames(
     show_application_overlay: bool,
 ) -> Result<(Framebuffer, [NativeViewport; 3])> {
     match (presentation_mode, projection) {
-        (NativePresentationMode::Orthogonal, None) => surface_frames(
+        (NativePresentationSelection::Responsive, Some(projection)) => surface_frames_responsive(
             views,
+            Some(projection),
+            PaneLayout::responsive(surface_width, surface_height),
             surface_width,
             surface_height,
             zoom,
@@ -31,12 +34,9 @@ pub(super) fn compose_frames(
             cine_fps,
             show_application_overlay,
         ),
-        (NativePresentationMode::OrthogonalWithMip, Some(projection))
-        | (NativePresentationMode::OrthogonalWithMinip, Some(projection))
-        | (NativePresentationMode::OrthogonalWithAverage, Some(projection)) => {
-            surface_frames_with_projection(
+        (NativePresentationSelection::Fixed(NativePresentationMode::Orthogonal), None) => {
+            surface_frames(
                 views,
-                projection,
                 surface_width,
                 surface_height,
                 zoom,
@@ -46,14 +46,40 @@ pub(super) fn compose_frames(
                 show_application_overlay,
             )
         }
-        (NativePresentationMode::OrthogonalWithMip, None)
-        | (NativePresentationMode::OrthogonalWithMinip, None)
-        | (NativePresentationMode::OrthogonalWithAverage, None) => Err(anyhow!(
+        (
+            NativePresentationSelection::Fixed(NativePresentationMode::OrthogonalWithMip),
+            Some(projection),
+        )
+        | (
+            NativePresentationSelection::Fixed(NativePresentationMode::OrthogonalWithMinip),
+            Some(projection),
+        )
+        | (
+            NativePresentationSelection::Fixed(NativePresentationMode::OrthogonalWithAverage),
+            Some(projection),
+        ) => surface_frames_with_projection(
+            views,
+            projection,
+            surface_width,
+            surface_height,
+            zoom,
+            pan_offset,
+            cine_enabled,
+            cine_fps,
+            show_application_overlay,
+        ),
+        (NativePresentationSelection::Fixed(NativePresentationMode::OrthogonalWithMip), None)
+        | (NativePresentationSelection::Fixed(NativePresentationMode::OrthogonalWithMinip), None)
+        | (
+            NativePresentationSelection::Fixed(NativePresentationMode::OrthogonalWithAverage),
+            None,
+        )
+        | (NativePresentationSelection::Responsive, None) => Err(anyhow!(
             "native presentation mode and projection state disagree"
         )),
-        (NativePresentationMode::Orthogonal, Some(_)) => Err(anyhow!(
-            "native presentation mode and projection state disagree"
-        )),
+        (NativePresentationSelection::Fixed(NativePresentationMode::Orthogonal), Some(_)) => Err(
+            anyhow!("native presentation mode and projection state disagree"),
+        ),
     }
 }
 

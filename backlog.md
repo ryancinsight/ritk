@@ -2,12 +2,12 @@
 
 <a id="RITK-SNAP-METIS-RESPONSIVE-LAYOUT-001"></a>
 ## RITK-SNAP-METIS-RESPONSIVE-LAYOUT-001 — Drive adaptive 1/2/4-pane Métis presentation [arch] [minor]
-- Status: in-progress; priority: P1; owner: RITK presentation; integrator: root; branch: `feat/ritk-snap-metis-responsive-layout`; last-update: 2026-09-21.
+- Status: review; priority: P1; owner: RITK presentation; integrator: root; branch: `feat/ritk-snap-metis-responsive-layout`; last-update: 2026-09-21.
 - Outcome: one RITK-owned pane-layout contract selects single, dual and four-pane presentation across Métis native and browser hosts while preserving physical voxel aspect and linked input routing.
 - Scope: `ritk-snap` presentation layout contract, native framebuffer composition, browser canvas lifecycle/semantics, tests, ADR and DICOM manual evidence; DICOM decoding, Metis canvas primitives and VTK data ownership remain unchanged.
 - Acceptance: deterministic layout selection for bounded surface sizes; pane rectangles form a non-overlapping union; single/dual/four-pane captures publish the selected axis/projection roles; anisotropic spacing remains letterboxed in every pane; inactive browser panes release input listeners; native and WASM checks, strict Clippy, formatting, rustdoc, browser script tests and a real-MRI visual capture pass.
 - Dependencies: existing `PresentationFrame` spacing contract, native projection modes, browser three/four-canvas entrypoints and the public 94-file MRI replay.
-- Verification: locked `ritk-snap` nextest, native/WASM checks and Clippy, rustdoc, Python/browser script tests, and deterministic layout/property tests; hosted browser evidence remains limited to engines that permit the selected-file read.
+- Verification: locked `ritk-snap` nextest 495/495, native/WASM checks and strict Clippy, formatting, 4 doctests plus 1 intentional ignore, warning-clean Rustdoc, Python/browser script tests 26/26, and deterministic layout/property tests; native real-MRI responsive capture is 1280×800 RGBA, SHA-256 `056bf2cd8828df63972af2fe785e436ef0256e501a3ac7386535db0db169a0c9`, 534,414 non-black pixels; hosted responsive-browser evidence remains a follow-up because the current gallery uses wrapped canvases.
 - Lease: root owns `crates/ritk-snap/src/presentation/**`, `crates/ritk-snap/src/app/web_surface.rs`, `crates/ritk-snap/src/app/web_viewer.rs`, `crates/ritk-snap/src/launch/**`, `docs/adr/0050-*`, and affected manual sections.
 
 <a id="RITK-PYTHON-FREETHREADED-001"></a>

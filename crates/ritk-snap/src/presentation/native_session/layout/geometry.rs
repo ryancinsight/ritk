@@ -35,6 +35,22 @@ impl NativeViewport {
         self.panel.contains(x, y)
     }
 
+    pub(super) fn hidden(view: &RenderedView) -> Result<Self> {
+        let mut viewport =
+            placement_with_bounds(view, 0, 0, 1, 1, 1.0, ViewportOffset::new(0.0, 0.0))?;
+        viewport.panel = ScreenRect {
+            x: 0.0,
+            y: 0.0,
+            width: 0.0,
+            height: 0.0,
+        };
+        viewport.panel_x = 0;
+        viewport.panel_y = 0;
+        viewport.panel_width = 0;
+        viewport.panel_height = 0;
+        Ok(viewport)
+    }
+
     #[cfg(test)]
     pub(crate) const fn panel_width(self) -> u32 {
         self.panel_width
