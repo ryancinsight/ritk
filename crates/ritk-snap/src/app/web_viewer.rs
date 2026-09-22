@@ -17,6 +17,7 @@ use super::web_surface::BrowserSurface;
 use super::SnapApp;
 use crate::app::action_adapter::ViewerActionDisposition;
 use crate::ui::decide_dropped_input_action;
+use moirai_pal::wasm::WebDocument;
 use moirai_pal::wasm::{spawn_local_with_handle, LocalTaskHandle, WebAnimationFrame};
 use std::cell::RefCell;
 use wasm_bindgen::JsValue;
@@ -43,6 +44,10 @@ impl BrowserViewer {
 
     fn tick(&mut self, now_seconds: f64) -> std::io::Result<bool> {
         let mut repaint = false;
+        if self.surface.refresh_layout()? {
+            self.surface.clear();
+            repaint = true;
+        }
         let dropped = super::browser_input::take_dropped_files();
         if !dropped.is_empty() {
             let action = decide_dropped_input_action(&dropped);
@@ -233,6 +238,26 @@ pub(crate) async fn start_web_orthogonal_canvases_gpu_with_projection(
             statistic,
         ),
     ))
+}
+
+/// Starts the browser workflow with a responsive one-, two- or four-pane
+/// layout selected from the trusted container's rendered extent.
+pub(crate) fn start_web_responsive_canvases(
+    container_id: String,
+    canvas_ids: [String; 4],
+    projection: f64,
+) -> Result<(), JsValue> {
+    let statistic = parse_browser_projection_request(projection)
+        .map_err(|error| JsValue::from_str(&error.to_string()))?;
+    stop_web_canvas();
+    let container = WebDocument::current()
+        .map_err(|error| JsValue::from_str(&error.to_string()))?
+        .get_element_by_id(&container_id)
+        .ok_or_else(|| JsValue::from_str("responsive viewer container was not found"))?;
+    let surface = super::web_responsive::ResponsiveSurface::new(container, canvas_ids, statistic)
+        .map_err(|error| JsValue::from_str(&error.to_string()))?;
+    metis_web::metis_start();
+    launch_browser_viewer(BrowserViewer::new(BrowserSurface::responsive(surface)))
 }
 
 /// Stops the RITK browser canvas workflow and releases its animation-frame task.

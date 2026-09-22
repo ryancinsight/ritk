@@ -89,6 +89,8 @@ mod browser_input;
 #[cfg(target_arch = "wasm32")]
 mod web_render;
 #[cfg(target_arch = "wasm32")]
+mod web_responsive;
+#[cfg(target_arch = "wasm32")]
 mod web_surface;
 #[cfg(target_arch = "wasm32")]
 mod web_viewer;
@@ -107,7 +109,7 @@ pub(crate) use web_viewer::{
     select_web_slice, select_web_tool, set_web_cine_rate, set_web_window_preset, start_web_canvas,
     start_web_canvas_gpu, start_web_orthogonal_canvases, start_web_orthogonal_canvases_gpu,
     start_web_orthogonal_canvases_gpu_with_projection,
-    start_web_orthogonal_canvases_with_projection, stop_web_canvas, toggle_web_cine,
-    toggle_web_crosshair, web_canvas_listener_count, web_tool_count, web_tool_name,
-    web_window_preset_count, web_window_preset_name,
+    start_web_orthogonal_canvases_with_projection, start_web_responsive_canvases, stop_web_canvas,
+    toggle_web_cine, toggle_web_crosshair, web_canvas_listener_count, web_tool_count,
+    web_tool_name, web_window_preset_count, web_window_preset_name,
 };

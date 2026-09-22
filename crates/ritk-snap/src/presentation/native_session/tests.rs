@@ -4,6 +4,7 @@ use super::layout::{
 use super::layout::{OVERLAY_BAR_HEIGHT, OVERLAY_TEXT};
 use super::*;
 use crate::dicom::loader::tests::fixtures;
+use crate::launch::{NativePresentationMode, NativePresentationSelection};
 #[cfg(feature = "eframe-shell")]
 use crate::presentation::PresentationFrame;
 use crate::ui::{RotationSteps, ViewTransform};
@@ -21,6 +22,16 @@ fn session() -> (NativeViewerSession, tempfile::TempDir) {
 
 fn session_with_mode(
     presentation_mode: NativePresentationMode,
+) -> (NativeViewerSession, tempfile::TempDir) {
+    session_with_selection(NativePresentationSelection::Fixed(presentation_mode))
+}
+
+fn session_with_responsive_mode() -> (NativeViewerSession, tempfile::TempDir) {
+    session_with_selection(NativePresentationSelection::Responsive)
+}
+
+fn session_with_selection(
+    presentation_mode: NativePresentationSelection,
 ) -> (NativeViewerSession, tempfile::TempDir) {
     let root = tempfile::tempdir().expect("study root");
     let path = root.path().to_path_buf();
@@ -52,7 +63,7 @@ fn session_with_volume(volume: LoadedVolume) -> (NativeViewerSession, tempfile::
             app,
             Arc::new(NativeViewerObservation::default()),
             false,
-            NativePresentationMode::Orthogonal,
+            NativePresentationSelection::Fixed(NativePresentationMode::Orthogonal),
             false,
             None,
         )

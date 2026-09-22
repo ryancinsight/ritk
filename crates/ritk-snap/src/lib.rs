@@ -38,8 +38,8 @@ pub use filter::{BedSeparationConfigSerde, FilterKind};
 pub use geometry::{GeometrySummary, ModalityDisplay, ViewerResult, ViewerStatus};
 #[cfg(not(target_arch = "wasm32"))]
 pub use launch::{
-    run_app, run_app_with_options, AppLaunchOptions, CompatibilityPresentation,
-    NativePresentationMode,
+    run_app, run_app_with_options, run_responsive_native_app_with_options, AppLaunchOptions,
+    CompatibilityPresentation, NativePresentationMode,
 };
 #[cfg(target_arch = "wasm32")]
 pub use launch::{run_app_with_options, AppLaunchOptions, NativePresentationMode};
@@ -53,9 +53,9 @@ pub use launch::{
     select_web_slice, select_web_tool, set_web_cine_rate, set_web_window_preset, start_web,
     start_web_canvas, start_web_canvas_gpu, start_web_orthogonal_canvases,
     start_web_orthogonal_canvases_gpu, start_web_orthogonal_canvases_gpu_with_projection,
-    start_web_orthogonal_canvases_with_projection, stop_web_canvas, toggle_web_cine,
-    toggle_web_crosshair, web_canvas_listener_count, web_tool_count, web_tool_name,
-    web_window_preset_count, web_window_preset_name,
+    start_web_orthogonal_canvases_with_projection, start_web_responsive_canvases, stop_web_canvas,
+    toggle_web_cine, toggle_web_crosshair, web_canvas_listener_count, web_tool_count,
+    web_tool_name, web_window_preset_count, web_window_preset_name,
 };
 pub use loaded_volume::LoadedVolume;
 pub use viewer::ViewerState;
