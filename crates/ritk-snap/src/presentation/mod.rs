@@ -35,6 +35,7 @@ pub use events::{
     MAX_PRESENTATION_EVENTS,
 };
 pub use frame::{PresentationFrame, PresentationSpacing};
+#[cfg(any(target_arch = "wasm32", windows))]
 pub(crate) use layout::{PaneLayout, PaneRole};
 pub use snapshot::{AnnotationKind, AnnotationSummary, PresentationSnapshot};
 

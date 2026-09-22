@@ -55,6 +55,8 @@ pub(crate) enum NativePresentationSelection {
 
 #[cfg(not(target_arch = "wasm32"))]
 impl NativePresentationSelection {
+    /// The native session that reads this is Windows-only.
+    #[cfg(windows)]
     pub(crate) const fn projection_statistic(self) -> Option<ProjectionStatistic> {
         match self {
             Self::Fixed(mode) => mode.projection_statistic(),

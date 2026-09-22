@@ -1,6 +1,11 @@
 //! Host-neutral pane roles and bounded responsive layout selection.
+//!
+//! The vocabulary is consumed by the two hosts that present panes — the
+//! web browser (wasm32) and the native Windows session — so shared items
+//! carry `any(wasm32, windows)` and single-host items carry their host.
 
 /// A RITK presentation pane role.
+#[cfg(any(target_arch = "wasm32", windows))]
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub(crate) enum PaneRole {
     /// One of the three orthogonal slice axes (`0` axial, `1` coronal,
@@ -11,6 +16,7 @@ pub(crate) enum PaneRole {
 }
 
 /// The number and arrangement of panes in a host surface.
+#[cfg(any(target_arch = "wasm32", windows))]
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub(crate) enum PaneLayout {
     /// One full-size axial pane.
@@ -22,7 +28,7 @@ pub(crate) enum PaneLayout {
 }
 
 /// A bounded pane rectangle in host pixels.
-#[cfg(not(target_arch = "wasm32"))]
+#[cfg(windows)]
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub(crate) struct PaneRect {
     /// Horizontal origin.
@@ -36,12 +42,16 @@ pub(crate) struct PaneRect {
 }
 
 /// Minimum surface width for the dual-pane arrangement.
+#[cfg(any(target_arch = "wasm32", windows))]
 const DUAL_MIN_WIDTH: u32 = 640;
 /// Minimum surface height for the dual-pane arrangement.
+#[cfg(any(target_arch = "wasm32", windows))]
 const DUAL_MIN_HEIGHT: u32 = 480;
 /// Minimum surface width for the four-pane arrangement.
+#[cfg(any(target_arch = "wasm32", windows))]
 const QUAD_MIN_WIDTH: u32 = 960;
 /// Minimum surface height for the four-pane arrangement.
+#[cfg(any(target_arch = "wasm32", windows))]
 const QUAD_MIN_HEIGHT: u32 = 640;
 
 impl PaneLayout {
@@ -56,6 +66,7 @@ impl PaneLayout {
         }
     }
     /// Select a layout from a bounded host extent.
+    #[cfg(any(target_arch = "wasm32", windows))]
     #[must_use]
     pub(crate) const fn responsive(width: u32, height: u32) -> Self {
         if width >= QUAD_MIN_WIDTH && height >= QUAD_MIN_HEIGHT {
@@ -68,7 +79,7 @@ impl PaneLayout {
     }
 
     /// Return the number of visible panes.
-    #[cfg(not(target_arch = "wasm32"))]
+    #[cfg(windows)]
     #[must_use]
     pub(crate) const fn pane_count(self) -> usize {
         match self {
@@ -79,6 +90,7 @@ impl PaneLayout {
     }
 
     /// Return pane roles in stable display order.
+    #[cfg(any(target_arch = "wasm32", windows))]
     #[must_use]
     pub(crate) const fn roles(self) -> &'static [PaneRole] {
         const SINGLE: [PaneRole; 1] = [PaneRole::Axis(0)];
@@ -101,7 +113,7 @@ impl PaneLayout {
     /// The returned slots follow [`Self::roles`]. Unused slots are `None` and
     /// therefore cannot accidentally receive input. The separator is applied
     /// only between neighboring rows or columns.
-    #[cfg(not(target_arch = "wasm32"))]
+    #[cfg(windows)]
     pub(crate) fn partition(
         self,
         surface_width: u32,
@@ -203,7 +215,7 @@ impl PaneRole {
     }
 }
 
-#[cfg(test)]
+#[cfg(all(test, any(target_arch = "wasm32", windows)))]
 mod tests {
     use super::{PaneLayout, PaneRole};
 
@@ -216,6 +228,7 @@ mod tests {
         assert_eq!(PaneLayout::responsive(960, 640), PaneLayout::Quad);
     }
 
+    #[cfg(windows)]
     #[test]
     fn roles_and_counts_are_value_semantic() {
         assert_eq!(PaneLayout::Single.pane_count(), 1);
@@ -224,6 +237,7 @@ mod tests {
         assert_eq!(PaneLayout::Quad.roles()[3], PaneRole::Projection);
     }
 
+    #[cfg(windows)]
     #[test]
     fn partition_forms_a_disjoint_union() {
         for layout in [PaneLayout::Single, PaneLayout::Dual, PaneLayout::Quad] {
