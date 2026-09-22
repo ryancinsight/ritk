@@ -38,6 +38,8 @@ class ResponsiveGalleryTests(unittest.TestCase):
         self.assertIn("layout: responsive", workflow)
         self.assertIn('--page-query "layout=$LAYOUT"', workflow)
         self.assertIn("--crosshair-controls", workflow)
+        self.assertIn("display-only projection", workflow)
+        self.assertIn("generic canvas trace requires every selected canvas", workflow)
 
     def test_capture_sample_preserves_quad_roles_and_listeners(self):
         class Client:
