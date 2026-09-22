@@ -294,6 +294,18 @@ jobs:
             oracle: mri-projection-oracle.json
             projection: mip
             layout: responsive
+          - engine: firefox
+            runner: ubuntu-24.04
+            driver_url: http://127.0.0.1:4444
+            device_scale: "2"
+            mode: raster
+            result: firefox-responsive
+            lifecycle_cycles: "1"
+            canvas_capture: rgba
+            canvas_context: 2d
+            oracle: mri-projection-oracle.json
+            projection: mip
+            layout: responsive
     steps:
       - name: Check out RITK
         uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803
@@ -446,7 +458,7 @@ jobs:
             --canvas-capture "$CANVAS_CAPTURE"
           )
           if [[ -n "$LAYOUT" ]]; then
-            gallery_args+=(--page-query "layout=$LAYOUT")
+            gallery_args+=(--page-query "layout=$LAYOUT" --crosshair-controls)
           else
             gallery_args+=(
               --window-presets

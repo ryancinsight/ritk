@@ -62,7 +62,9 @@ compiles for WASM and releases listeners by rebuilding hidden canvases without
 input guards. The existing hosted gallery remains the visual oracle for the
 fixed raster/WebGPU entrypoints. The consumer-owned saved-study gallery now
 moves its existing canvas elements into the direct trusted container before
-mounting this entrypoint; its responsive browser capture is tracked by
+mounting this entrypoint. The consumer keeps the linked crosshair overlay in a
+positioned layer over each adaptive canvas and reanchors it on browser resize.
+Its responsive browser capture is tracked by
 `RITK-SNAP-METIS-RESPONSIVE-BROWSER-001` and retains the same real-study pixel
 and listener oracles as the fixed entrypoints.
 
