@@ -33,7 +33,10 @@ def _write_png(
 def _write_gallery_screenshots(client: WebDriverClient, directory: pathlib.Path) -> dict[str, Any]:
     """Store the restored viewport and an unclipped orthogonal-view capture."""
     window = _write_png(client.screenshot(), directory, "gallery-slices.png", "window")
-    views_element = client.find(".gallery-views")
+    responsive = client.execute(
+        "return document.getElementById('responsive-views')?.hidden === false;"
+    )
+    views_element = client.find(".responsive-views" if responsive else ".gallery-views")
     views = _write_png(
         client.element_screenshot(views_element),
         directory,

@@ -348,9 +348,14 @@ def _capture_consumer_controls(
         output / "slices",
         expected_counts=expected_counts,
     )
+    responsive = _responsive_capture_sample(client)
     if not window_presets and not cine_controls and not tool_controls and not crosshair_controls and projection is None:
-        return slices
+        if responsive is None:
+            return slices
+        return {"slices": slices, "responsive": responsive}
     result: dict[str, Any] = {"slices": slices}
+    if responsive is not None:
+        result["responsive"] = responsive
     if window_presets:
         result["window_level"] = capture_window_preset_gallery(client, output / "window-level")
     if projection is not None:
@@ -371,6 +376,38 @@ def _capture_consumer_controls(
         if cine_controls:
             result["cine"] = finalize_cine_teardown(client, result["cine"])
     return result
+
+
+def _responsive_capture_sample(client: WebDriverClient) -> Mapping[str, Any] | None:
+    """Capture the consumer-owned responsive pane metadata when mounted."""
+    execute = getattr(client, "execute", None)
+    if not callable(execute):
+        return None
+    sample = execute(
+        "return window.metisGallery?.sample?.() ?? null;"
+    )
+    if not isinstance(sample, Mapping) or sample.get("responsive_layout") is not True:
+        return None
+    layout = sample.get("pane_layout")
+    roles = sample.get("pane_roles")
+    if layout not in {"single", "dual", "quad"}:
+        raise BrowserRuntimeError(f"responsive gallery reported invalid pane layout: {layout!r}")
+    if not isinstance(roles, list) or not roles or any(
+        role not in {"axial", "coronal", "sagittal", "projection"} for role in roles
+    ):
+        raise BrowserRuntimeError(f"responsive gallery reported invalid pane roles: {roles!r}")
+    if layout == "quad" and roles != ["axial", "coronal", "sagittal", "projection"]:
+        raise BrowserRuntimeError(f"responsive gallery quad roles are not ordered: {roles!r}")
+    listeners = sample.get("consumer_listeners")
+    if type(listeners) is not int or listeners <= 0:
+        raise BrowserRuntimeError("responsive gallery reported no consumer listener guards")
+    return {
+        "layout": layout,
+        "roles": roles,
+        "consumer_listeners": listeners,
+        "projection_mode": sample.get("projection_mode"),
+        "projection_statistic": sample.get("projection_statistic"),
+    }
 
 
 def build_parser() -> argparse.ArgumentParser:

@@ -60,9 +60,11 @@ produced a 1280×800 RGBA responsive capture with SHA-256
 and axial-MIP anatomy in the four-pane layout. The browser responsive surface
 compiles for WASM and releases listeners by rebuilding hidden canvases without
 input guards. The existing hosted gallery remains the visual oracle for the
-fixed raster/WebGPU entrypoints; a hosted responsive-browser capture is a
-follow-up because the current gallery uses figure wrappers rather than the
-direct trusted-container contract documented here.
+fixed raster/WebGPU entrypoints. The consumer-owned saved-study gallery now
+moves its existing canvas elements into the direct trusted container before
+mounting this entrypoint; its responsive browser capture is tracked by
+`RITK-SNAP-METIS-RESPONSIVE-BROWSER-001` and retains the same real-study pixel
+and listener oracles as the fixed entrypoints.
 
 ### Revision 2026-09-21
 
@@ -71,4 +73,6 @@ browser contract is intentionally consumer-owned: RITK supplies the trusted
 container and named canvases, while Métis remains a format-neutral canvas and
 event provider. The native responsive workflow is an additive entrypoint so
 the existing exhaustive `NativePresentationMode` enum remains stable.
-Existing fixed browser and native entrypoints remain stable.
+Existing fixed browser and native entrypoints remain stable. The responsive
+gallery integration is a consumer presentation change; it does not move DICOM
+decoding or geometry into Métis.

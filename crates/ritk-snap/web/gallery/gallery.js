@@ -6,6 +6,7 @@ try {
     start_web_orthogonal_canvases_gpu,
     start_web_orthogonal_canvases_with_projection,
     start_web_orthogonal_canvases_gpu_with_projection,
+    start_web_responsive_canvases,
     stop_web_canvas, web_canvas_listener_count,
     select_web_slice, set_web_cine_rate, set_web_window_preset,
     toggle_web_cine, toggle_web_crosshair, select_web_tool, web_tool_count, web_tool_name,
@@ -20,17 +21,41 @@ try {
   if (projectionMode !== null && !Object.hasOwn(projectionModes, projectionMode)) {
     throw new Error(`unsupported projection mode: ${projectionMode}`);
   }
-  const projectionIndex = projectionMode === null ? null : projectionModes[projectionMode];
+  const responsiveLayout = query.get("layout") === "responsive";
+  if (responsiveLayout && renderer === "webgpu") {
+    throw new Error("responsive gallery layout currently requires the raster host");
+  }
+  const projectionIndex = projectionMode === null
+    ? (responsiveLayout ? projectionModes.mip : null)
+    : projectionModes[projectionMode];
+  const activeProjectionMode = projectionMode ?? (responsiveLayout ? "mip" : null);
   const projectionFigure = document.getElementById("projection-view");
   const projectionStatistic = document.getElementById("projection-statistic");
+  const responsiveViews = document.getElementById("responsive-views");
   if (!(projectionFigure instanceof HTMLElement) ||
       !(projectionStatistic instanceof HTMLOutputElement)) {
     throw new Error("projection presentation controls are missing");
   }
+  if (responsiveLayout) {
+    if (!(responsiveViews instanceof HTMLElement)) {
+      throw new Error("responsive presentation container is missing");
+    }
+    document.body.classList.add("responsive-layout");
+    responsiveViews.hidden = false;
+    for (const id of [
+      "ritk-snap-axial", "ritk-snap-coronal", "ritk-snap-sagittal", "ritk-snap-projection",
+    ]) {
+      const canvas = document.getElementById(id);
+      if (!(canvas instanceof HTMLCanvasElement)) {
+        throw new Error(`responsive presentation canvas is missing: ${id}`);
+      }
+      responsiveViews.append(canvas);
+    }
+  }
   projectionFigure.hidden = projectionMode === null;
-  projectionStatistic.textContent = projectionMode === null
+  projectionStatistic.textContent = activeProjectionMode === null
     ? "No projection"
-    : projectionMode === "mip" ? "MIP" : projectionMode === "minip" ? "MinIP" : "Average";
+    : activeProjectionMode === "mip" ? "MIP" : activeProjectionMode === "minip" ? "MinIP" : "Average";
   let mounted = false;
   const windowPreset = document.getElementById("window-preset");
   const windowLevel = document.getElementById("window-level");
@@ -358,7 +383,11 @@ try {
   const mount = async () => {
     stop();
     const orthogonalCanvasIds = ["ritk-snap-axial", "ritk-snap-coronal", "ritk-snap-sagittal"];
-    if (projectionIndex === null && renderer === "webgpu") {
+    if (responsiveLayout) {
+      start_web_responsive_canvases(
+        "responsive-views", orthogonalCanvasIds[0], orthogonalCanvasIds[1],
+        orthogonalCanvasIds[2], "ritk-snap-projection", projectionIndex);
+    } else if (projectionIndex === null && renderer === "webgpu") {
       await start_web_orthogonal_canvases_gpu(...orthogonalCanvasIds);
     } else if (projectionIndex === null) {
       start_web_orthogonal_canvases(...orthogonalCanvasIds);
@@ -379,8 +408,9 @@ try {
     syncCine();
     syncCrosshair();
     const rendererLabel = renderer === "webgpu" ? " with WebGPU" : "";
-    const projectionLabel = projectionMode === null ? "" : ` and ${projectionStatistic.textContent} projection`;
-    status.textContent = `Ready${rendererLabel}${projectionLabel}. Drop study files into the area below.`;
+    const layoutLabel = responsiveLayout ? " in responsive layout" : "";
+    const projectionLabel = activeProjectionMode === null ? "" : ` and ${projectionStatistic.textContent} projection`;
+    status.textContent = `Ready${rendererLabel}${layoutLabel}${projectionLabel}. Drop study files into the area below.`;
   };
   await mount();
   window.metisGallery = Object.freeze({
@@ -409,7 +439,13 @@ try {
         ?.getAttribute("data-ritk-last-annotation-kind"),
       last_annotation_value: document.getElementById("ritk-snap-axial")
         ?.getAttribute("data-ritk-last-annotation-value"),
-      projection_mode: projectionMode,
+      responsive_layout: responsiveLayout,
+      pane_layout: responsiveViews?.getAttribute("data-ritk-pane-layout"),
+      pane_roles: responsiveLayout
+        ? Array.from(responsiveViews?.querySelectorAll("canvas") ?? [],
+          (canvas) => canvas.getAttribute("data-ritk-pane-role"))
+        : [],
+      projection_mode: activeProjectionMode,
       projection_statistic: document.getElementById("ritk-snap-projection")
         ?.getAttribute("data-ritk-projection-statistic"),
       projection_frame_state: document.getElementById("ritk-snap-projection")
