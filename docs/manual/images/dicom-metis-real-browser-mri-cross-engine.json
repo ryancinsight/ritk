@@ -4,12 +4,12 @@
   "workflow": {
     "name": "RITK SNAP Métis browser DICOM",
     "file": ".github/workflows/metis-browser-dicom.yml",
-    "run_id": 35704771969,
-    "url": "https://github.com/ryancinsight/ritk/actions/runs/35704771969",
+    "run_id": 35724926751,
+    "url": "https://github.com/ryancinsight/ritk/actions/runs/35724926751",
     "conclusion": "failure",
     "observed_date": "2026-09-22",
-    "ritk_revision": "620c03342f3951366441f1f908d05bc3f249f566",
-    "metis_revision": "219143bbf3596aea85fa4624d7d5241a63b4cf0d",
+    "ritk_revision": "67d4ad4457823f928b02739ec120bc0329a1b7f0",
+    "metis_revision": "776dbbf94593e42d0a5686b587ed27b72f885a73",
     "moirai_revision": "0e2e1bbb2d81e16dd9c694ba46a9e9710e034417",
     "moirai_lock_revisions": {
       "moirai-pal": "0e2e1bbb2d81e16dd9c694ba46a9e9710e034417",
@@ -32,11 +32,11 @@
       "browser_version": "152.0.7977.82",
       "platform": "linux",
       "input_source": "chooser",
-      "consumer_revision": "620c03342f3951366441f1f908d05bc3f249f566",
-      "metis_revision": "219143bbf3596aea85fa4624d7d5241a63b4cf0d",
-      "artifact_id": 10684785508,
-      "artifact_url": "https://github.com/ryancinsight/ritk/actions/runs/35704771969/artifacts/10684785508",
-      "trace_sha256": "cf240b99f6fd66c8825895f3ac01396843c16538d671a7e97e38079d2b925f4b",
+      "consumer_revision": "67d4ad4457823f928b02739ec120bc0329a1b7f0",
+      "metis_revision": "776dbbf94593e42d0a5686b587ed27b72f885a73",
+      "artifact_id": 10692527516,
+      "artifact_url": "https://github.com/ryancinsight/ritk/actions/runs/35724926751/artifacts/10692527516",
+      "trace_sha256": "6276d799aa3d028e0003a36c4d98ab154b7dacf1477d62119e7891876ffdff32",
       "files": 94,
       "bytes": 49807236,
       "file_manifest_sha256": "81b7b7f8ea473dfc12c25c07b4958762254a261ca49352af2adabc214d6e8d03",
@@ -63,7 +63,8 @@
           "bytes": 75746,
           "sha256": "8fb2d8204aceb1eff08f840f09896dcf1dc3e34a0cc6aa6012dd0e99f31e5df2"
         }
-      }
+      },
+      "ritk_revision": null
     },
     "firefox": {
       "status": "passed",
@@ -71,11 +72,11 @@
       "browser_version": "155.0",
       "platform": "linux",
       "input_source": "chooser",
-      "consumer_revision": "620c03342f3951366441f1f908d05bc3f249f566",
-      "metis_revision": "219143bbf3596aea85fa4624d7d5241a63b4cf0d",
-      "artifact_id": 10683538718,
-      "artifact_url": "https://github.com/ryancinsight/ritk/actions/runs/35704771969/artifacts/10683538718",
-      "trace_sha256": "d98ac7f8c0979c0777938e266f40cddd0d295f331878131d7e22d1fb96fd823c",
+      "consumer_revision": "67d4ad4457823f928b02739ec120bc0329a1b7f0",
+      "metis_revision": "776dbbf94593e42d0a5686b587ed27b72f885a73",
+      "artifact_id": 10692817486,
+      "artifact_url": "https://github.com/ryancinsight/ritk/actions/runs/35724926751/artifacts/10692817486",
+      "trace_sha256": "2bc9328d51af1bcd0184917190d67f19abc2aa31d820a5143f25369970d70831",
       "files": 94,
       "bytes": 49807236,
       "file_manifest_sha256": "81b7b7f8ea473dfc12c25c07b4958762254a261ca49352af2adabc214d6e8d03",
@@ -102,7 +103,8 @@
           "bytes": 70082,
           "sha256": "c82e0f854ff464f0bda09b258c92eef3b3802a0b387da0498a358f9336a42ea9"
         }
-      }
+      },
+      "ritk_revision": null
     },
     "chromium-window": {
       "status": "passed",
@@ -110,11 +112,11 @@
       "browser_version": "152.0.7977.82",
       "platform": "linux",
       "input_source": "chooser",
-      "consumer_revision": "620c03342f3951366441f1f908d05bc3f249f566",
-      "metis_revision": "219143bbf3596aea85fa4624d7d5241a63b4cf0d",
-      "artifact_id": 10683893322,
-      "artifact_url": "https://github.com/ryancinsight/ritk/actions/runs/35704771969/artifacts/10683893322",
-      "trace_sha256": "ccd09c77a01fbe573973be5efc2baf42a2cc2fee9d5bf7b5f89ac1e85a105908",
+      "consumer_revision": "67d4ad4457823f928b02739ec120bc0329a1b7f0",
+      "metis_revision": "776dbbf94593e42d0a5686b587ed27b72f885a73",
+      "artifact_id": 10693163040,
+      "artifact_url": "https://github.com/ryancinsight/ritk/actions/runs/35724926751/artifacts/10693163040",
+      "trace_sha256": "876faf169f063434c51ddd35b799931ed00759c0e4826b209bc100ed36150fc0",
       "files": 94,
       "bytes": 49807236,
       "file_manifest_sha256": "81b7b7f8ea473dfc12c25c07b4958762254a261ca49352af2adabc214d6e8d03",
@@ -130,15 +132,9 @@
         "path": "output/browser/results/chromium-window/gallery.png",
         "width": 2880,
         "height": 1914,
-        "bytes": 840596,
-        "sha256": "7d16ab6abd5ff80cf35eb8fd2b358a2be8d6706ea39f24b2c0f3f2df9a0d0aa0",
-        "manual_derivative": {
-          "path": "docs/manual/images/dicom-metis-real-browser-mri-cross-engine-chromium.png",
-          "width": 1200,
-          "height": 798,
-          "bytes": 75746,
-          "sha256": "8fb2d8204aceb1eff08f840f09896dcf1dc3e34a0cc6aa6012dd0e99f31e5df2"
-        }
+        "bytes": 834176,
+        "sha256": "5af84dbf084bc7d0f885495ad26184366303d1bb34a76ed464e29bc2f16a7729",
+        "scope": "window"
       },
       "annotation": {
         "tool_artifact_path": "output/browser/results/chromium-window/tools/gallery-tools.json",
@@ -146,16 +142,16 @@
           "path": "output/browser/results/chromium-window/tools/gallery-tools.png",
           "width": 2880,
           "height": 2114,
-          "bytes": 247779,
-          "sha256": "4e1258469262a682b9bf9edc61d9baac4c5f101f164e978664a7cd0600dd89b6",
+          "bytes": 244532,
+          "sha256": "a592e6b9ab489706f60c52e2dc858b317d274acf429ffae021ebeb2f8d45b5ba",
           "scope": "window"
         },
         "manual_derivative": {
           "path": "docs/manual/images/dicom-metis-real-browser-mri-tools.png",
           "width": 1600,
           "height": 1174,
-          "bytes": 79978,
-          "sha256": "5a87411855d05ca4d130bcb9298dfbacf1ee8b96d3df0a739ae08ac281569f1e"
+          "bytes": 79530,
+          "sha256": "46de087248fd70643c9c1bc45e82cf4211ea1fe827facec9582645c93e1b220a"
         },
         "actions": [
           {
@@ -290,7 +286,8 @@
           "bytes": 8235,
           "sha256": "0df77dc01f6e0446d43e7a66b23678192d113a99aba2bad795d83e7fffb0fc1e"
         }
-      }
+      },
+      "ritk_revision": null
     },
     "chromium-projection-mip": {
       "status": "passed",
@@ -298,11 +295,11 @@
       "browser_version": "152.0.7977.82",
       "platform": "linux",
       "input_source": "chooser",
-      "consumer_revision": "620c03342f3951366441f1f908d05bc3f249f566",
-      "metis_revision": "219143bbf3596aea85fa4624d7d5241a63b4cf0d",
-      "artifact_id": 10684320687,
-      "artifact_url": "https://github.com/ryancinsight/ritk/actions/runs/35704771969/artifacts/10684320687",
-      "trace_sha256": "65b02991dab160c9cfd62668437fed3ce90bfc22f1f8572efbd6c06308efe4fa",
+      "consumer_revision": "67d4ad4457823f928b02739ec120bc0329a1b7f0",
+      "metis_revision": "776dbbf94593e42d0a5686b587ed27b72f885a73",
+      "artifact_id": 10693317438,
+      "artifact_url": "https://github.com/ryancinsight/ritk/actions/runs/35724926751/artifacts/10693317438",
+      "trace_sha256": "8b5af0db199bc22d250c30cc638ea81edde8e40a17da4f99c424a0f235130d9e",
       "files": 94,
       "bytes": 49807236,
       "file_manifest_sha256": "81b7b7f8ea473dfc12c25c07b4958762254a261ca49352af2adabc214d6e8d03",
@@ -350,7 +347,8 @@
             "sha256": "a3f1e893b7eda3f9c8dd688597d74047a9cb26261cfc3794d5935e359165b4e4"
           }
         }
-      }
+      },
+      "ritk_revision": null
     },
     "chromium-webgpu": {
       "status": "failed",
@@ -358,11 +356,11 @@
       "browser_version": "152.0.7977.82",
       "platform": "linux",
       "input_source": null,
-      "consumer_revision": "620c03342f3951366441f1f908d05bc3f249f566",
-      "metis_revision": "219143bbf3596aea85fa4624d7d5241a63b4cf0d",
-      "artifact_id": 10683659854,
-      "artifact_url": "https://github.com/ryancinsight/ritk/actions/runs/35704771969/artifacts/10683659854",
-      "trace_sha256": "1945105d093990ea76f5ede42cdc558eb69371d3b777bd62784ab25871248bf3",
+      "consumer_revision": "67d4ad4457823f928b02739ec120bc0329a1b7f0",
+      "metis_revision": "776dbbf94593e42d0a5686b587ed27b72f885a73",
+      "artifact_id": 10692602261,
+      "artifact_url": "https://github.com/ryancinsight/ritk/actions/runs/35724926751/artifacts/10692602261",
+      "trace_sha256": "ecdea1c3333ef19945f6872d507d6a4fa3d951bb98cc29bb095572d91aed7c77",
       "files": null,
       "bytes": null,
       "file_manifest_sha256": null,
@@ -375,17 +373,19 @@
         "path": "output/browser/results/chromium-webgpu/failure.png",
         "width": 2880,
         "height": 1914,
-        "bytes": 178017,
-        "sha256": "f062a05e8c677abb349e1eb165c3466802e8b9bf877d7e7659d7ed51586e63f8",
+        "bytes": 178020,
+        "sha256": "419d62c3c2dd4385067068f6b0fc6147f06ce4b2e98ea98f93f0129830f2c8e7",
+        "scope": "window",
         "manual_derivative": {
           "path": "docs/manual/images/dicom-metis-real-browser-mri-webgpu-failure.png",
           "width": 1200,
           "height": 798,
-          "bytes": 52291,
-          "sha256": "5d9df30f9d3762969c68f4ac7cac6117c919f1a00a9b1c0f81883d01f3c58f94"
+          "bytes": 52290,
+          "sha256": "099217fd1bb18fd017d7fbc96064e6a94fbdd63b8662c76d087ed45322d3d83d"
         }
       },
-      "file_read_diagnostic": "The bounded file probes were available, but no WebGPU adapter was available for study presentation."
+      "file_read_diagnostic": "The bounded file probes were available, but no WebGPU adapter was available for study presentation.",
+      "ritk_revision": null
     },
     "webkit": {
       "status": "failed",
@@ -393,11 +393,11 @@
       "browser_version": "26.6.2",
       "platform": "macOS",
       "input_source": null,
-      "consumer_revision": "620c03342f3951366441f1f908d05bc3f249f566",
-      "metis_revision": "219143bbf3596aea85fa4624d7d5241a63b4cf0d",
-      "artifact_id": 10683583337,
-      "artifact_url": "https://github.com/ryancinsight/ritk/actions/runs/35704771969/artifacts/10683583337",
-      "trace_sha256": "0dbe6d81db2a1b558a64f6ada4900b06714c186fca6aa31efbd662618a679d03",
+      "consumer_revision": "67d4ad4457823f928b02739ec120bc0329a1b7f0",
+      "metis_revision": "776dbbf94593e42d0a5686b587ed27b72f885a73",
+      "artifact_id": 10692527187,
+      "artifact_url": "https://github.com/ryancinsight/ritk/actions/runs/35724926751/artifacts/10692527187",
+      "trace_sha256": "6afb613620cfee3f08038d61aa304cc081bbd8b4663ff90fe14058da3f60279e",
       "files": null,
       "bytes": null,
       "file_manifest_sha256": "81b7b7f8ea473dfc12c25c07b4958762254a261ca49352af2adabc214d6e8d03",
@@ -412,14 +412,15 @@
         "path": "output/browser/results/webkit/before-drop.png",
         "width": 1440,
         "height": 1048,
-        "bytes": 143417,
-        "sha256": "7f51f8361e630b9d8e31b9e1db360b8deabffafb17a209216ae34f52d5fc975e",
+        "bytes": 131678,
+        "sha256": "30bf86f5d95465f13b511e2e87e346cbc05947dcf8380c0e0fcb6c822797bc69",
+        "scope": "window",
         "manual_derivative": {
           "path": "docs/manual/images/dicom-metis-real-browser-mri-cross-engine-webkit-before-drop.png",
           "width": 1200,
           "height": 873,
-          "bytes": 33692,
-          "sha256": "1438889aae0e76e2b1ac66bbc7eb2876e74f4c97aa268cb3d3256c09810a73e2"
+          "bytes": 56323,
+          "sha256": "60846b1d098a8aff56f29efded989a29ee00c11f9f8ca2d4c3de578ba5fe867c"
         }
       },
       "failure_screenshot": {
@@ -428,6 +429,7 @@
         "height": 1048,
         "bytes": 155856,
         "sha256": "7eb44e1a5b405e450c711e274c31d95b1d549fd0fb8571ed060366d55ccdbb59",
+        "scope": "window",
         "manual_derivative": {
           "path": "docs/manual/images/dicom-metis-real-browser-mri-cross-engine-webkit.png",
           "width": 1200,
@@ -436,23 +438,24 @@
           "sha256": "d68674470cbd7c0c866858fa336745c8b26809cbc82b32991fbae5a3b8f6e0f0"
         }
       },
-      "diagnostics_artifact_id": 10683463342,
-      "diagnostics_artifact_url": "https://github.com/ryancinsight/ritk/actions/runs/35704771969/artifacts/10683463342",
-      "diagnostics": "WebKit trace and bounded File.arrayBuffer read diagnostics preserve chooser acceptance followed by host authorization failure."
+      "diagnostics_artifact_id": 10692622232,
+      "diagnostics_artifact_url": "https://github.com/ryancinsight/ritk/actions/runs/35724926751/artifacts/10692622232",
+      "diagnostics": "WebKit trace and bounded File.arrayBuffer read diagnostics preserve chooser acceptance followed by host authorization failure.",
+      "ritk_revision": null
     }
   },
   "verification": {
-    "raster": "Merged-main run 35704771969 passed the real 94-file MRI study on Chromium and Firefox through four lifecycle cycles with exact canvas RGBA oracles, chooser input and clean listener teardown.",
-    "chromium-window": "The Chromium application-window lane in run 35704771969 passed the same real study and the 11-tool replay; the five measurement transitions published finite values, the six non-measurement tools preserved the final HU value, seven invalid API probes were rejected, and teardown released all host and consumer listeners.",
-    "projection": "The Chromium MIP lane in run 35704771969 passed the real study with a 512 × 512, 110,028-pixel non-black projection, MIP semantic attributes, 21 interactive listeners and a display-only projection canvas.",
-    "webkit": "Safari 26.6.2 in run 35704771969 accepted all 94 chooser paths but rejected the bounded whole-file read before RITK could present the study; diagnostics cover the host rejection and the session closed cleanly.",
-    "chromium-webgpu": "Chromium in run 35704771969 reported no WebGPU adapter before study presentation; the workflow preserved the typed setup failure with a real failure PNG and clean teardown, without a raster fallback.",
+    "raster": "Merged-main run 35724926751 passed the real 94-file MRI study on Chromium and Firefox through four lifecycle cycles with exact canvas RGBA oracles, chooser input and clean listener teardown.",
+    "chromium-window": "The Chromium application-window lane in run 35724926751 passed the same real study and the 11-tool replay; the five measurement transitions published finite values, the six non-measurement tools preserved the final HU value, seven invalid API probes were rejected, and teardown released all host and consumer listeners.",
+    "projection": "The Chromium MIP lane in run 35724926751 passed the real study with a 512 × 512, 110,028-pixel non-black projection, MIP semantic attributes, 21 interactive listeners and a display-only projection canvas.",
+    "webkit": "Safari 26.6.2 in run 35724926751 accepted all 94 chooser paths but rejected the bounded whole-file read before RITK could present the study; diagnostics cover the host rejection and the session closed cleanly.",
+    "chromium-webgpu": "Chromium in run 35724926751 reported no WebGPU adapter before study presentation; the workflow preserved the typed setup failure with a real failure PNG and clean teardown, without a raster fallback.",
     "ownership": "RITK owns DICOM scanning, decoding, geometry, clinical presentation and pixel assertions; Métis remains format-neutral; Moirai owns browser file reads."
   },
   "limits": [
     "file-backed WebDriver chooser is not physical file-manager drag input",
     "native file-dialog, native process-launch and OS-permission evidence is not covered",
-    "The hosted workflow conclusion is partial because WebGPU has no adapter and Safari rejects the bounded read; Chromium, Chromium window, Chromium projection and Firefox lanes pass in run 35704771969.",
+    "The hosted workflow conclusion is partial because WebGPU has no adapter and Safari rejects the bounded read; Chromium, Chromium window, Chromium projection and Firefox lanes pass in run 35724926751.",
     "Safari 26.6.2 accepted 94 chooser paths but rejected the bounded whole-file read; no DICOM decoder failure is claimed.",
     "the committed PNGs are budgeted display derivatives of the hosted captures; artifact links and source hashes remain the authoritative full-resolution evidence"
   ],

@@ -2,12 +2,12 @@
   "schema": 2,
   "status": "passed",
   "workflow": {
-    "run_id": 35704771969,
-    "url": "https://github.com/ryancinsight/ritk/actions/runs/35704771969",
-    "artifact_id": 10683893322,
-    "artifact_url": "https://github.com/ryancinsight/ritk/actions/runs/35704771969/artifacts/10683893322",
-    "ritk_revision": "620c03342f3951366441f1f908d05bc3f249f566",
-    "metis_revision": "219143bbf3596aea85fa4624d7d5241a63b4cf0d",
+    "run_id": 35724926751,
+    "url": "https://github.com/ryancinsight/ritk/actions/runs/35724926751",
+    "artifact_id": 10693163040,
+    "artifact_url": "https://github.com/ryancinsight/ritk/actions/runs/35724926751/artifacts/10693163040",
+    "ritk_revision": "67d4ad4457823f928b02739ec120bc0329a1b7f0",
+    "metis_revision": "776dbbf94593e42d0a5686b587ed27b72f885a73",
     "moirai_revision": "0e2e1bbb2d81e16dd9c694ba46a9e9710e034417",
     "browser": "Chrome 152.0.7977.82 on Linux",
     "files": 94,
@@ -36,9 +36,9 @@
           "value": null
         },
         "generations": [
-          140,
-          140,
-          140
+          147,
+          147,
+          147
         ],
         "gesture": "two-click-measurement",
         "index": 3,
@@ -74,9 +74,9 @@
           "value": 102.75155
         },
         "generations": [
-          151,
-          151,
-          151
+          156,
+          156,
+          156
         ],
         "gesture": "three-click-measurement",
         "index": 4,
@@ -112,9 +112,9 @@
           "value": 3.5569937
         },
         "generations": [
-          155,
-          155,
-          155
+          160,
+          160,
+          160
         ],
         "gesture": "roi-drag",
         "index": 5,
@@ -150,9 +150,9 @@
           "value": 5402.25
         },
         "generations": [
-          159,
-          159,
-          159
+          163,
+          163,
+          163
         ],
         "gesture": "roi-drag",
         "index": 6,
@@ -188,51 +188,13 @@
           "value": 4146.0703
         },
         "generations": [
-          163,
-          163,
-          163
+          167,
+          167,
+          167
         ],
         "gesture": "trusted-click",
         "index": 8,
         "label": "HU Point",
-        "pointer": {
-          "all_trusted": true,
-          "event_count": 4,
-          "event_types": {
-            "pointerdown": 1,
-            "pointermove": 2,
-            "pointerup": 1
-          },
-          "target": "canvas"
-        },
-        "selection": {
-          "all_trusted": true,
-          "event_count": 1,
-          "event_types": {
-            "click": 1
-          },
-          "target": "toolbar"
-        }
-      },
-      {
-        "annotation_after": {
-          "count": 5,
-          "kind": "hu-point",
-          "value": 27.0
-        },
-        "annotation_before": {
-          "count": 5,
-          "kind": "hu-point",
-          "value": 27.0
-        },
-        "generations": [
-          166,
-          166,
-          166
-        ],
-        "gesture": "pointer-drag",
-        "index": 0,
-        "label": "Pan",
         "pointer": {
           "all_trusted": true,
           "event_count": 4,
@@ -269,8 +231,8 @@
           170
         ],
         "gesture": "pointer-drag",
-        "index": 1,
-        "label": "Zoom",
+        "index": 0,
+        "label": "Pan",
         "pointer": {
           "all_trusted": true,
           "event_count": 4,
@@ -302,13 +264,13 @@
           "value": 27.0
         },
         "generations": [
-          172,
-          172,
-          172
+          173,
+          173,
+          173
         ],
         "gesture": "pointer-drag",
-        "index": 2,
-        "label": "W/L",
+        "index": 1,
+        "label": "Zoom",
         "pointer": {
           "all_trusted": true,
           "event_count": 4,
@@ -344,9 +306,9 @@
           176,
           176
         ],
-        "gesture": "trusted-click",
-        "index": 7,
-        "label": "Crosshair",
+        "gesture": "pointer-drag",
+        "index": 2,
+        "label": "W/L",
         "pointer": {
           "all_trusted": true,
           "event_count": 4,
@@ -383,8 +345,8 @@
           179
         ],
         "gesture": "trusted-click",
-        "index": 9,
-        "label": "Label Paint",
+        "index": 7,
+        "label": "Crosshair",
         "pointer": {
           "all_trusted": true,
           "event_count": 4,
@@ -419,6 +381,44 @@
           182,
           182,
           182
+        ],
+        "gesture": "trusted-click",
+        "index": 9,
+        "label": "Label Paint",
+        "pointer": {
+          "all_trusted": true,
+          "event_count": 4,
+          "event_types": {
+            "pointerdown": 1,
+            "pointermove": 2,
+            "pointerup": 1
+          },
+          "target": "canvas"
+        },
+        "selection": {
+          "all_trusted": true,
+          "event_count": 1,
+          "event_types": {
+            "click": 1
+          },
+          "target": "toolbar"
+        }
+      },
+      {
+        "annotation_after": {
+          "count": 5,
+          "kind": "hu-point",
+          "value": 27.0
+        },
+        "annotation_before": {
+          "count": 5,
+          "kind": "hu-point",
+          "value": 27.0
+        },
+        "generations": [
+          185,
+          185,
+          185
         ],
         "gesture": "trusted-click",
         "index": 10,
@@ -462,7 +462,7 @@
             "value": null
           },
           "axis": "axial",
-          "generation": 134
+          "generation": 140
         },
         {
           "active_tool": "W/L",
@@ -473,7 +473,7 @@
             "value": null
           },
           "axis": "coronal",
-          "generation": 134
+          "generation": 140
         },
         {
           "active_tool": "W/L",
@@ -484,7 +484,7 @@
             "value": null
           },
           "axis": "sagittal",
-          "generation": 134
+          "generation": 140
         }
       ],
       "controls": {
@@ -638,7 +638,7 @@
         "cine_fps": "24",
         "consumer_listeners": 21,
         "crosshair_visible": "false",
-        "host_listeners": 34,
+        "host_listeners": 39,
         "last_annotation_kind": "hu-point",
         "last_annotation_value": "27",
         "linked_cursor": "65,400,400",
@@ -663,11 +663,11 @@
         "width": 2786
       },
       "window": {
-        "bytes": 247779,
+        "bytes": 244532,
         "height": 2114,
         "path": "output/browser/results/chromium-window/tools/gallery-tools.png",
         "scope": "window",
-        "sha256": "4e1258469262a682b9bf9edc61d9baac4c5f101f164e978664a7cd0600dd89b6",
+        "sha256": "a592e6b9ab489706f60c52e2dc858b317d274acf429ffae021ebeb2f8d45b5ba",
         "width": 2880
       }
     },
@@ -685,19 +685,19 @@
   "annotation": {
     "tool_artifact_path": "output/browser/results/chromium-window/tools/gallery-tools.json",
     "screenshot_source": {
-      "bytes": 247779,
+      "bytes": 244532,
       "height": 2114,
       "path": "output/browser/results/chromium-window/tools/gallery-tools.png",
       "scope": "window",
-      "sha256": "4e1258469262a682b9bf9edc61d9baac4c5f101f164e978664a7cd0600dd89b6",
+      "sha256": "a592e6b9ab489706f60c52e2dc858b317d274acf429ffae021ebeb2f8d45b5ba",
       "width": 2880
     },
     "manual_derivative": {
       "path": "docs/manual/images/dicom-metis-real-browser-mri-tools.png",
       "width": 1600,
       "height": 1174,
-      "bytes": 79978,
-      "sha256": "5a87411855d05ca4d130bcb9298dfbacf1ee8b96d3df0a739ae08ac281569f1e"
+      "bytes": 79530,
+      "sha256": "46de087248fd70643c9c1bc45e82cf4211ea1fe827facec9582645c93e1b220a"
     },
     "actions": [
       {
@@ -774,6 +774,27 @@
     },
     "invalid_api_probes_rejected": 7,
     "samples": {
+      "after_stop": {
+        "active_tool": "Pan",
+        "active_tool_index": "0",
+        "annotation_count": "5",
+        "cine_enabled": "false",
+        "cine_fps": "24",
+        "consumer_listeners": 0,
+        "crosshair_visible": "false",
+        "host_listeners": 0,
+        "last_annotation_kind": "hu-point",
+        "last_annotation_value": "27",
+        "linked_cursor": "65,400,400",
+        "mounted": false,
+        "pane_layout": null,
+        "pane_roles": [],
+        "projection_frame_state": null,
+        "projection_mode": null,
+        "projection_statistic": null,
+        "responsive_layout": false,
+        "wasm_bytes": 404357120
+      },
       "before_stop": {
         "active_tool": "Pan",
         "active_tool_index": "0",
@@ -782,7 +803,7 @@
         "cine_fps": "24",
         "consumer_listeners": 21,
         "crosshair_visible": "false",
-        "host_listeners": 34,
+        "host_listeners": 39,
         "last_annotation_kind": "hu-point",
         "last_annotation_value": "27",
         "linked_cursor": "65,400,400",
@@ -794,22 +815,15 @@
         "projection_statistic": null,
         "responsive_layout": false,
         "wasm_bytes": 404357120
-      },
-      "after_stop": {
-        "mounted": false,
-        "consumer_listeners": 0,
-        "host_listeners": 0,
-        "annotation_count": 5,
-        "last_annotation_kind": "hu-point",
-        "last_annotation_value": 27.0
       }
     },
     "controls_screenshot_source": {
-      "path": "output/browser/results/chromium-window/tools/gallery-tools-controls.png",
-      "width": 2786,
-      "height": 88,
       "bytes": 27160,
-      "sha256": "b4450f60855bd16b05769b4404b40dcfbd3fb481e3365c00d1e46978ab0ae66d"
+      "height": 88,
+      "path": "output/browser/results/chromium-window/tools/gallery-tools-controls.png",
+      "scope": "element",
+      "sha256": "b4450f60855bd16b05769b4404b40dcfbd3fb481e3365c00d1e46978ab0ae66d",
+      "width": 2786
     },
     "controls_manual_derivative": {
       "path": "docs/manual/images/dicom-metis-real-browser-mri-tools-controls.png",
@@ -824,8 +838,8 @@
       "path": "docs/manual/images/dicom-metis-real-browser-mri-tools.png",
       "width": 1600,
       "height": 1174,
-      "bytes": 79978,
-      "sha256": "5a87411855d05ca4d130bcb9298dfbacf1ee8b96d3df0a739ae08ac281569f1e"
+      "bytes": 79530,
+      "sha256": "46de087248fd70643c9c1bc45e82cf4211ea1fe827facec9582645c93e1b220a"
     },
     "controls": {
       "path": "docs/manual/images/dicom-metis-real-browser-mri-tools-controls.png",
