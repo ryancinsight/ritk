@@ -476,4 +476,3 @@ Unresolved delivery items are kept as executable records. Closed history is inde
 ## RITK-GAP-2026-08-20-09 [patch] — derive or remove the MI subsample stride
 - Status: todo; compacted 2026-09-18; full delivery history remains in git.
 - Scope: historical item contract retained in the archived source block; re-open with the original DoR.
-
