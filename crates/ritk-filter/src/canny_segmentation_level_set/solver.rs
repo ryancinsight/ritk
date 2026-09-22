@@ -4,6 +4,8 @@ use super::{
     spatial::GridHelper, CannySegmentationLevelSet, CGV, GRAD_EPS, ST_CDN, ST_CHG, ST_CUP, ST_NULL,
 };
 
+use std::collections::VecDeque;
+
 impl CannySegmentationLevelSet {
     pub(crate) fn run(
         &self,
@@ -63,14 +65,14 @@ impl CannySegmentationLevelSet {
             .iter()
             .map(|&s| if s > 0.0 { bg_val } else { -bg_val })
             .collect();
-        let mut layers: Vec<Vec<usize>> = vec![Vec::new(); num as usize];
+        let mut layers: Vec<VecDeque<usize>> = vec![VecDeque::new(); num as usize];
 
         macro_rules! push_layer {
             ($f:expr, $s:expr) => {{
                 let s: i32 = $s;
                 status[$f] = s;
                 if s >= 0 {
-                    layers[s as usize].insert(0, $f);
+                    layers[s as usize].push_front($f);
                 }
             }};
         }
@@ -91,7 +93,7 @@ impl CannySegmentationLevelSet {
         }
         // ConstructLayer i → i+2.
         for i in 1..(num - 2) {
-            let cur: Vec<usize> = layers[i as usize].clone();
+            let cur: VecDeque<usize> = layers[i as usize].clone();
             for f in cur {
                 for &off in &offsets {
                     if let Some(g) = gh.neighbor(f, off) {
@@ -122,7 +124,7 @@ impl CannySegmentationLevelSet {
         }
 
         // PropagateLayerValues / PropagateAllLayerValues.
-        let propagate_layer = |layers: &mut Vec<Vec<usize>>,
+        let propagate_layer = |layers: &mut Vec<VecDeque<usize>>,
                                phi: &mut [f64],
                                status: &mut [i32],
                                frm: i32,
@@ -130,8 +132,8 @@ impl CannySegmentationLevelSet {
                                promote: i32,
                                inout: i32| {
             let delta = if inout == 1 { -CGV } else { CGV };
-            let mut survivors: Vec<usize> = Vec::new();
-            let cur: Vec<usize> = layers[to as usize].clone();
+            let mut survivors: VecDeque<usize> = VecDeque::new();
+            let cur: VecDeque<usize> = layers[to as usize].clone();
             for f in cur {
                 if status[f] != to {
                     continue;
@@ -155,12 +157,12 @@ impl CannySegmentationLevelSet {
                 }
                 if found {
                     phi[f] = val + delta;
-                    survivors.push(f);
+                    survivors.push_back(f);
                 } else if promote > num - 1 {
                     status[f] = ST_NULL;
                 } else {
                     status[f] = promote;
-                    layers[promote as usize].insert(0, f);
+                    layers[promote as usize].push_front(f);
                 }
             }
             layers[to as usize] = survivors;
@@ -272,7 +274,7 @@ impl CannySegmentationLevelSet {
 
         // ── ApplyUpdate loop ──
         for _ in 0..self.number_of_iterations {
-            let al: Vec<usize> = layers[0].clone();
+            let al: VecDeque<usize> = layers[0].clone();
             // CalculateChange: per-voxel update + global maxima for the time step.
             let sp: Vec<(f64, f64, f64, f64)> = al.iter().map(|&f| seg_speed(&phi, f)).collect();
             let mut maxc = 0.0f64;
@@ -296,9 +298,9 @@ impl CannySegmentationLevelSet {
                 0.0
             };
 
-            let mut up: [Vec<usize>; 2] = [Vec::new(), Vec::new()];
-            let mut dn: [Vec<usize>; 2] = [Vec::new(), Vec::new()];
-            let mut keep: Vec<usize> = Vec::new();
+            let mut up: [VecDeque<usize>; 2] = [VecDeque::new(), VecDeque::new()];
+            let mut dn: [VecDeque<usize>; 2] = [VecDeque::new(), VecDeque::new()];
+            let mut keep: VecDeque<usize> = VecDeque::new();
             let mut rms_acc = 0.0f64;
             let mut cnt = 0usize;
             for (k, &f) in al.iter().enumerate() {
@@ -309,7 +311,7 @@ impl CannySegmentationLevelSet {
                         .iter()
                         .any(|&o| gh.neighbor(f, o).is_some_and(|g| status[g] == ST_CDN))
                     {
-                        keep.push(f);
+                        keep.push_back(f);
                         continue;
                     }
                     rms_acc += (nv - old).powi(2);
@@ -323,13 +325,13 @@ impl CannySegmentationLevelSet {
                         }
                     }
                     status[f] = ST_CUP;
-                    up[0].insert(0, f);
+                    up[0].push_front(f);
                 } else if nv < -cf {
                     if offsets
                         .iter()
                         .any(|&o| gh.neighbor(f, o).is_some_and(|g| status[g] == ST_CUP))
                     {
-                        keep.push(f);
+                        keep.push_back(f);
                         continue;
                     }
                     rms_acc += (nv - old).powi(2);
@@ -343,43 +345,43 @@ impl CannySegmentationLevelSet {
                         }
                     }
                     status[f] = ST_CDN;
-                    dn[0].insert(0, f);
+                    dn[0].push_front(f);
                 } else {
                     rms_acc += (nv - old).powi(2);
                     cnt += 1;
                     phi[f] = nv;
-                    keep.push(f);
+                    keep.push_back(f);
                 }
             }
             layers[0] = keep;
 
-            let move_to = |layers: &mut Vec<Vec<usize>>, status: &mut [i32], f: usize, s: i32| {
-                let o = status[f];
-                if o >= 0 {
-                    if let Some(p) = layers[o as usize].iter().position(|&x| x == f) {
-                        layers[o as usize].remove(p);
+            let move_to =
+                |layers: &mut Vec<VecDeque<usize>>, status: &mut [i32], f: usize, s: i32| {
+                    let o = status[f];
+                    if o >= 0 {
+                        if let Some(p) = layers[o as usize].iter().position(|&x| x == f) {
+                            layers[o as usize].remove(p);
+                        }
                     }
-                }
-                status[f] = s;
-                if s >= 0 {
-                    layers[s as usize].insert(0, f);
-                }
-            };
-            let proc = |layers: &mut Vec<Vec<usize>>,
+                    status[f] = s;
+                    if s >= 0 {
+                        layers[s as usize].push_front(f);
+                    }
+                };
+            let proc = |layers: &mut Vec<VecDeque<usize>>,
                         status: &mut [i32],
-                        mut inl: Vec<usize>,
+                        mut inl: VecDeque<usize>,
                         ct: i32,
                         sr: i32|
-             -> Vec<usize> {
-                let mut outl: Vec<usize> = Vec::new();
-                while !inl.is_empty() {
-                    let f = inl.remove(0);
+             -> VecDeque<usize> {
+                let mut outl: VecDeque<usize> = VecDeque::new();
+                while let Some(f) = inl.pop_front() {
                     move_to(layers, status, f, ct);
                     for &off in &offsets {
                         if let Some(g) = gh.neighbor(f, off) {
                             if status[g] == sr {
                                 move_to(layers, status, g, ST_CHG);
-                                outl.insert(0, g);
+                                outl.push_front(g);
                             }
                         }
                     }

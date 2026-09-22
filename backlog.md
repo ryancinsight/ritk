@@ -1,5 +1,14 @@
 # RITK execution backlog
 
+<a id="RITK-FILTER-QUEUE-001"></a>
+## RITK-FILTER-QUEUE-001 — Remove front-shift cost from SparseField layers [perf]
+- Status: in-progress; priority: P1; owner: RITK filter; integrator: root; branch: `fix/ritk-filter-narrow-band-clippy-001`; last-update: 2026-09-22; delivery: PR [#586](https://github.com/ryancinsight/ritk/pull/586).
+- Outcome: narrow-band layer queues remove front insertion/removal shifts while preserving the solver's survivor order and level-set behavior.
+- Scope: `ritk-filter` SparseField queue storage, benchmark registration, current-main integration, tests, and PR evidence; DICOM presentation remains in `ritk-snap`.
+- Acceptance: current-main locked `ritk-filter` nextest, strict Clippy, formatting, and benchmark compile pass; the PR retains the existing criterion comparison without changing its workload.
+- Verification: nextest 1075/1075 passed on the merged current-main revision; strict Clippy, formatting, and benchmark compile passed against the standalone lock.
+- Re-open: a hosted gate failure on the rebased PR or a benchmark compile failure requires fix-forward on this item.
+
 <a id="RITK-SNAP-METIS-RESPONSIVE-BROWSER-001"></a>
 ## RITK-SNAP-METIS-RESPONSIVE-BROWSER-001 — Capture the responsive browser gallery [patch]
 - Status: done; priority: P1; owner: RITK browser presentation; integrator: root; branch: `docs/ritk-responsive-browser-evidence`; last-update: 2026-09-22; delivery: PR [#584](https://github.com/ryancinsight/ritk/pull/584), merge `4627b146bf2b7d2d246f01e8413cfab85373f93f`.
