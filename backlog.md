@@ -2,7 +2,7 @@
 
 <a id="RITK-SNAP-METIS-RESPONSIVE-BROWSER-001"></a>
 ## RITK-SNAP-METIS-RESPONSIVE-BROWSER-001 — Capture the responsive browser gallery [patch]
-- Status: review; priority: P1; owner: RITK browser presentation; integrator: root; branch: `docs/ritk-responsive-browser-evidence`; last-update: 2026-09-21; delivery: PR [#584](https://github.com/ryancinsight/ritk/pull/584) (pending merge).
+- Status: done; priority: P1; owner: RITK browser presentation; integrator: root; branch: `docs/ritk-responsive-browser-evidence`; last-update: 2026-09-22; delivery: PR [#584](https://github.com/ryancinsight/ritk/pull/584), merge `4627b146bf2b7d2d246f01e8413cfab85373f93f`.
 - Outcome: the hosted RITK gallery mounts the existing canvas IDs directly in the trusted responsive container, preserves the linked crosshair overlay, and records real-study pane roles, listener counts and pixels.
 - Scope: gallery HTML/CSS/JS, browser capture oracle, workflow invocation, tests, manual evidence and delivery metadata; Métis primitives, DICOM decoding and clinical geometry remain unchanged.
 - Acceptance: `layout=responsive` selects the RITK responsive entrypoint, keeps three interactive axes plus a display-only projection, passes the existing transfer/slice/projection/crosshair value oracles, and produces inspected Chromium/Firefox captures from the public 94-file MRI study.
