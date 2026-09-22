@@ -739,9 +739,10 @@ existing exhaustive `NativePresentationMode` enum remains unchanged.
 
 The browser exposes the same policy through a trusted container element. The
 four canvas IDs are ordered axial, coronal, sagittal and projection. RITK
-updates the container's CSS grid on each animation frame; hidden orthogonal
-canvases are recreated without input listeners, while the visible axial,
-coronal and sagittal canvases retain the normal Métis event seam:
+updates the container's CSS grid when the measured extent crosses a layout
+threshold. Hidden orthogonal canvases are recreated without input listeners,
+while the visible axial, coronal and sagittal canvases retain the normal Métis
+event seam:
 
 ```javascript
 import init, { start_web_responsive_canvases, stop_web_canvas } from "./ritk_snap.js";

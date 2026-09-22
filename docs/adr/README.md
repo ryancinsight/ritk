@@ -58,4 +58,4 @@
 | [0047](0047-browser-annotation-results.md) | Browser annotation result semantics at the Métis boundary | Accepted |
 | [0048](0048-jpeg-provider.md) | Shared JPEG raster provider | Accepted |
 | [0049](0049-python-free-threaded-module.md) | Free-threaded Python module contract | Accepted |
-| [0050](0050-responsive-metis-pane-layout.md) | Responsive Métis pane layout | Proposed |
+| [0050](0050-responsive-metis-pane-layout.md) | Responsive Métis pane layout | Accepted |
