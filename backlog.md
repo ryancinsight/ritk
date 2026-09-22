@@ -6,7 +6,7 @@
 - Outcome: Linux workspace Clippy no longer compiles unused Windows/WASM pane layout code, while those supported targets and layout tests retain the responsive contract.
 - Scope: `ritk-snap` presentation module declarations, regression verification, and post-merge CI evidence; no DICOM or Métis behavior changes.
 - Acceptance: locked workspace Clippy with `-D warnings` and locked `ritk-snap` tests pass on the current merged main revision; supported-target module/test compilation remains intact.
-- Verification: hosted merged-main run 35734138185 exposed the Linux dead-code errors, and PR run 35737174271 exposed the Linux-only `NativePresentationSelection::projection_statistic` method; the exact locked workspace all-features Clippy gate now passes locally after both target gates were added.
+- Verification: hosted merged-main run 35734138185 exposed the Linux dead-code errors, PR run 35737174271 exposed the Linux-only `NativePresentationSelection::projection_statistic` method, and PR run 35740844492 job 106789879914 exposed the Linux-only `PaneLayout`/`PaneRole` re-export; the exact locked workspace all-features Clippy gate now passes locally after all three target gates were added.
 - Re-open: any supported-target compile/test regression or a hosted Clippy failure requires fix-forward on this item.
 
 <a id="RITK-SNAP-METIS-RESPONSIVE-BROWSER-001"></a>
