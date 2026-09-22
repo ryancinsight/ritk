@@ -82,13 +82,13 @@
     "files_submitted": 94,
     "bytes_read": 49807236,
     "ritk_revision": "b671ae72a20bb6d113de35314e73874f197d2a83",
-    "metis_revision": "ad27d2148cc6b8fa9702cbbd4f37d9e106aa6535",
+    "metis_revision": "7dd52bae2c20e17b3106a76369292c2bf0ed0fc1",
     "moirai_revision": "0e2e1bbb2d81e16dd9c694ba46a9e9710e034417",
-    "cargo_lock_sha256": "c1ccbc7785cce37d4e2322002fd19b0bb4ab03fec03ab7d4154fa6cfbcf470b1",
-    "cargo_resolution": "standalone Cargo.lock outside the Atlas development overlay; 63 first-party Git sources resolve with six Metis packages at ad27d2148cc6b8fa9702cbbd4f37d9e106aa6535 and fifteen Moirai packages at 0e2e1bbb2d81e16dd9c694ba46a9e9710e034417",
-    "executable_sha256": "2f44ae2f9a3facc7c8659e5ac246af235021ab9a3e84ffabbff9d2d823099035",
+    "cargo_lock_sha256": "b8183fb567b042da5b0726d80d53529b3d7924719433650685fe7af44a0853a5",
+    "cargo_resolution": "standalone Cargo.lock outside the Atlas development overlay; 63 first-party Git sources resolve with six Metis packages at 7dd52bae2c20e17b3106a76369292c2bf0ed0fc1 and fifteen Moirai packages at 0e2e1bbb2d81e16dd9c694ba46a9e9710e034417",
+    "executable_sha256": "9b8f9052e7d5c40d285e288303a183c18b989491b493a63c0eca0c4dc95ce3ef",
     "executable_bytes": 55460864,
-    "example_sha256": "1ef63e3c13f64180af19f480da6bf77baa00a8842a88f81934cb6e1833e531f9",
+    "example_sha256": "ea1b42644cb4a4e41e8f70b96856ff89c27b99bdd65fad36f71693f793dadfbf",
     "example_bytes": 24423424,
     "capture": "scratch/viewer/real-metis-frame.png",
     "capture_sha256": "259dd79103482756c4e688621bebafc841cc40f1df10ff2bbd7f9d04b7b4d401",
@@ -113,7 +113,7 @@
       "scope": "allocation lifecycle; not a process-memory or framework comparison measurement"
     },
     "note": "The captured PNG is byte-identical to dicom-metis-real-mri.png; the source is public CC BY 4.0 phantom data and no private study bytes are committed.",
-    "browser_workflow_metis_revision": "ad27d2148cc6b8fa9702cbbd4f37d9e106aa6535"
+    "browser_workflow_metis_revision": "7dd52bae2c20e17b3106a76369292c2bf0ed0fc1"
   },
   "ownership": {
     "host": "Moirai/Metis return the selected filesystem path and present a format-neutral framebuffer",

@@ -50,6 +50,16 @@
 - Prior delivery verification (PR 556): standalone lock check passes with 62 first-party Git sources; the five-package debug gate passes 1,299/1,299 and the release codec gate passes 339/339; direct RGB uses the derived one-code-value differential bound; PNG readers reject JPEG bytes under both extensions and Snap emits a PNG signature for a `.jpg` path; the configured pre-push gate passes.
 - Prior delivery evidence (PR 556): the post-merge real-study replay reads 94 files/49,807,236 bytes, exits 0, rejects the invalid-study probe with exit 1, and reproduces the committed 1280×800 MRI PNG byte-identically (`259dd791...`, 411,589 non-black pixels) under lock `b1d7c99a6dcbf788f515f4b18789d10035805e38db10f4a32dd7970b3050e226`.
 
+<a id="RITK-METIS-LOCK-019"></a>
+## RITK-METIS-LOCK-019 — Replay the merged Métis desktop permission surface [patch]
+- Status: done; priority: P1; owner: RITK viewer + integration; integrator: root; last-update: 2026-09-22; dependency: Metis PR #342 merge `7dd52ba`.
+- Outcome: the standalone RITK lock and browser workflow consume the merged Métis desktop permission matrix while DICOM discovery, decoding, clinical geometry and presentation remain RITK-owned.
+- Scope: six Metis source revisions in `Cargo.lock`, the browser workflow default revision, current real-MRI provenance and manual synchronization; no DICOM parser or viewer behavior moves into Metis.
+- Acceptance: standalone Cargo.lock resolves without the Atlas overlay; locked native/WASM `ritk-snap` checks, strict Clippy, formatting, rustdoc and provenance pass; the public 94-file/49,807,236-byte MRI replay exits 0, invalid-study exits 1, and preserves the 1280×800 PNG byte-identically (`259dd791...`, 411,589 non-black pixels); the browser workflow checks out the same full Metis revision.
+- Risk: [patch]; the permission matrix is a native WebView2 consumer feature, so browser/DICOM evidence must remain format-neutral and current.
+- Verification: standalone lock check reports 63 first-party Git sources; locked `ritk-snap` nextest passes 495/495; native strict Clippy, WASM check/Clippy (dev and release), formatting, warning-clean Rustdoc and the canonical Python script suite (28/28) pass. The standalone replay reads 94 `.dcm` files/49,807,236 bytes, exits 0, rejects the invalid-study probe with exit 1, and preserves the 1280×800 real-MRI image (`259dd79103482756c4e688621bebafc841cc40f1df10ff2bbd7f9d04b7b4d401`, 411,589 non-black pixels); current executable SHA is `9b8f9052e7d5c40d285e288303a183c18b989491b493a63c0eca0c4dc95ce3ef`, example SHA `ea1b42644cb4a4e41e8f70b96856ff89c27b99bdd65fad36f71693f793dadfbf`, and lock SHA `b8183fb567b042da5b0726d80d53529b3d7924719433650685fe7af44a0853a5`.
+- Delivery: the branch advances the six Metis package sources and browser workflow to `7dd52bae2c20e17b3106a76369292c2bf0ed0fc1`; hosted cross-engine evidence is dispatched separately after merge so this item makes no unrun hosted claim.
+
 <a id="RITK-METIS-LOCK-018"></a>
 ## RITK-METIS-LOCK-018 — Replay the merged Métis command surface [patch]
 - Status: done; priority: P1; owner: RITK viewer + integration; integrator: root; last-update: 2026-09-22; dependency: Metis PR #338 merge `ad27d2148cc6b8fa9702cbbd4f37d9e106aa6535`.
