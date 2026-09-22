@@ -1244,19 +1244,21 @@ the committed image byte-for-byte (`259dd79103482756c4e688621bebafc841cc40f1df10
 This replay is tied to the updated provider lock; earlier provenance records
 remain historical records for the revisions that generated them.
 
-A current lock replay on 2026-09-21 rebuilt RITK from source commit
-`c0886e966b94baeda3f8120bd3d99855ffd31f4b` against merged Métis
-`3a3b30b0c3481db00b16175e6418907a6ae6f11c` and Moirai
-`782f7574a0748febe58dc74cea19b2cb8d63ba72`. The same saved 94-file MRI-DIR
+A current standalone-lock replay on 2026-09-22 rebuilt RITK from source
+commit `b671ae72a20bb6d113de35314e73874f197d2a83` against merged Métis
+`ad27d2148cc6b8fa9702cbbd4f37d9e106aa6535` and Moirai
+`0e2e1bbb2d81e16dd9c694ba46a9e9710e034417`. The same saved 94-file MRI-DIR
 study read 49,807,236 bytes, exited 0, rejected the invalid-study probe with
 exit 1, and reproduced the committed 1280 × 800 frame byte-for-byte. The
 replay executable digest is
-`7aa0ecc3d725ef548c77eb81e5dec39d8727be16f49b53bc0ee5b252d57fae3d`
-(55,286,272 bytes), the example digest is
-`b08b3ee861849d0c1efadbda25771b1daf5bcf3c080ab7f8637e362a2a8acd58`
-(24,276,992 bytes), and the standalone lock digest is
-`ce73c2f36b4c2d0b8146a4530ab0ab6ce54fa5c2540dfb9486ea67a73d8bef04`.
-The captured frame remains
+`2f44ae2f9a3facc7c8659e5ac246af235021ab9a3e84ffabbff9d2d823099035`
+(55,460,864 bytes), the example digest is
+`1ef63e3c13f64180af19f480da6bf77baa00a8842a88f81934cb6e1833e531f9`
+(24,423,424 bytes), and the standalone lock digest is
+`c1ccbc7785cce37d4e2322002fd19b0bb4ab03fec03ab7d4154fa6cfbcf470b1`.
+The lock resolves 63 first-party Git sources, including six Métis packages at
+`ad27d2148cc6b8fa9702cbbd4f37d9e106aa6535` and fifteen Moirai packages at
+`0e2e1bbb2d81e16dd9c694ba46a9e9710e034417`. The captured frame remains
 `259dd79103482756c4e688621bebafc841cc40f1df10ff2bbd7f9d04b7b4d401`
 with 411,589 non-black pixels; the executable, lock, and image hashes are
 recorded in the machine-readable provenance below. The native event translator
