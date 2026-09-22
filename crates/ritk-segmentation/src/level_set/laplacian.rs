@@ -53,8 +53,6 @@
 //! - Sethian, J. A. (1999). *Level Set Methods and Fast Marching Methods*.
 //!   Cambridge University Press.
 
-use std::borrow::Cow;
-
 use super::helpers;
 use ritk_filter::edge::GaussianSigma;
 use ritk_image::tensor::{Backend, Tensor};
@@ -115,15 +113,7 @@ impl LaplacianLevelSet {
         image: &Image<f32, B, 3>,
         initial_phi: &Image<f32, B, 3>,
     ) -> anyhow::Result<Image<f32, B, 3>> {
-        let dims = image.shape();
-        let phi_dims = initial_phi.shape();
-        if dims != phi_dims {
-            anyhow::bail!(
-                "image shape {:?} and initial_phi shape {:?} must match",
-                dims,
-                phi_dims
-            );
-        }
+        let dims = helpers::checked_dims(image.shape(), initial_phi.shape())?;
 
         let device = B::default();
         let [nz, ny, nx] = dims;
@@ -132,14 +122,11 @@ impl LaplacianLevelSet {
         let (img_vals, _) = extract_vec(image)?;
         let (phi_init, _) = extract_vec(initial_phi)?;
         let img_wide: Vec<f64> = img_vals.iter().map(|&v| v as f64).collect();
-        let mut phi: Vec<f64> = phi_init.iter().map(|&v| v as f64).collect();
+        let phi: Vec<f64> = phi_init.iter().map(|&v| v as f64).collect();
 
-        // Optional Gaussian pre-smoothing of the input image.
-        let smoothed: Cow<[f64]> = if self.sigma.get() > 0.0 {
-            Cow::Owned(helpers::gaussian_smooth(&img_wide, dims, self.sigma.get()))
-        } else {
-            Cow::Borrowed(&img_wide)
-        };
+        // Optional Gaussian pre-smoothing of the input image (zero-copy when
+        // sigma <= 0).
+        let smoothed = helpers::smooth_or_borrow(&img_wide, dims, self.sigma.get());
 
         // L(I)[i] = d2I/dz2 + d2I/dy2 + d2I/dx2  (central diffs, clamped BC).
         // Parallelised over all elements using moirai.
@@ -168,63 +155,22 @@ impl LaplacianLevelSet {
         // F[i] = L[i] / (1.0 + |L[i]|) maps L into (-1, +1).
         let speed_field: Vec<f64> = laplacian.iter().map(|&l| l / (1.0 + l.abs())).collect();
 
-        // PDE scratch buffers.
-        let mut kappa = vec![0.0_f64; n];
-        let mut phi_new = phi.clone();
-        let mut phi_z = vec![0.0_f64; n];
-        let mut phi_y = vec![0.0_f64; n];
-        let mut phi_x = vec![0.0_f64; n];
+        let phi = helpers::evolve_to_convergence::<helpers::MaxAbsRate, _, _>(
+            phi,
+            dims,
+            self.dt,
+            self.max_iterations,
+            self.tolerance,
+            |_phi, _scratch| {},
+            |idx, grad_phi_mag, scratch| {
+                // dphi = dt * [w_p * F(x) + w_c * kappa] * |grad phi|
+                let speed = self.propagation_weight * speed_field[idx]
+                    + self.curvature_weight * scratch.kappa[idx];
+                self.dt * speed * grad_phi_mag
+            },
+        );
 
-        let slice_len = ny * nx;
-        let mut max_changes = vec![0.0_f64; nz];
-
-        // dphi/dt = [w_p * F(x) + w_c * kappa] * |grad phi|
-        for _iter in 0..self.max_iterations {
-            helpers::compute_curvature_into(&phi, dims, &mut kappa);
-            helpers::compute_field_gradient_into(&phi, dims, &mut phi_z, &mut phi_y, &mut phi_x);
-
-            helpers::evolve_slices_with_metric(
-                &mut phi_new,
-                &mut max_changes,
-                slice_len,
-                |iz, phi_new_s| {
-                    let base = iz * slice_len;
-                    let mut local_max = 0.0_f64;
-                    for (i, phi_new_val) in phi_new_s.iter_mut().enumerate() {
-                        let idx = base + i;
-                        let grad_phi_mag = (phi_z[idx] * phi_z[idx]
-                            + phi_y[idx] * phi_y[idx]
-                            + phi_x[idx] * phi_x[idx])
-                            .sqrt();
-
-                        let speed = self.propagation_weight * speed_field[idx]
-                            + self.curvature_weight * kappa[idx];
-                        let dphi = self.dt * speed * grad_phi_mag;
-                        *phi_new_val = phi[idx] + dphi;
-
-                        let change = dphi.abs() / self.dt;
-                        if change > local_max {
-                            local_max = change;
-                        }
-                    }
-                    local_max
-                },
-            );
-
-            std::mem::swap(&mut phi, &mut phi_new);
-
-            let max_change = max_changes.iter().copied().fold(0.0_f64, f64::max);
-            if max_change < self.tolerance {
-                break;
-            }
-        }
-
-        // Binary mask: phi < 0 => 1.0 (foreground), else => 0.0 (background).
-        let mask: Vec<f32> = phi
-            .iter()
-            .map(|&v| if v < 0.0 { 1.0_f32 } else { 0.0_f32 })
-            .collect();
-
+        let mask = helpers::binary_mask(&phi);
         let tensor = Tensor::<f32, B>::from_slice_on(dims, &mask, &device);
 
         Image::new(
@@ -252,29 +198,16 @@ impl LaplacianLevelSet {
         B: coeus_core::ComputeBackend,
         B::DeviceBuffer<f32>: coeus_core::CpuAddressableStorage<f32>,
     {
-        let dims = image.shape();
-        let phi_dims = initial_phi.shape();
-        if dims != phi_dims {
-            anyhow::bail!(
-                "image shape {:?} and initial_phi shape {:?} must match",
-                dims,
-                phi_dims
-            );
-        }
-
+        let dims = helpers::checked_dims(image.shape(), initial_phi.shape())?;
         let [nz, ny, nx] = dims;
         let n: usize = nz * ny * nx;
 
         let img_vals = image.data_slice()?;
         let phi_init = initial_phi.data_slice()?;
         let img_wide: Vec<f64> = img_vals.iter().map(|&v| v as f64).collect();
-        let mut phi: Vec<f64> = phi_init.iter().map(|&v| v as f64).collect();
+        let phi: Vec<f64> = phi_init.iter().map(|&v| v as f64).collect();
 
-        let smoothed: Cow<[f64]> = if self.sigma.get() > 0.0 {
-            Cow::Owned(helpers::gaussian_smooth(&img_wide, dims, self.sigma.get()))
-        } else {
-            Cow::Borrowed(&img_wide)
-        };
+        let smoothed = helpers::smooth_or_borrow(&img_wide, dims, self.sigma.get());
 
         let laplacian = moirai::map_collect_index_with::<moirai::Adaptive, _, _>(n, |i| {
             let iz = i / (ny * nx);
@@ -300,62 +233,21 @@ impl LaplacianLevelSet {
 
         let speed_field: Vec<f64> = laplacian.iter().map(|&l| l / (1.0 + l.abs())).collect();
 
-        let mut kappa = vec![0.0_f64; n];
-        let mut phi_new = phi.clone();
-        let mut phi_z = vec![0.0_f64; n];
-        let mut phi_y = vec![0.0_f64; n];
-        let mut phi_x = vec![0.0_f64; n];
+        let phi = helpers::evolve_to_convergence::<helpers::MaxAbsRate, _, _>(
+            phi,
+            dims,
+            self.dt,
+            self.max_iterations,
+            self.tolerance,
+            |_phi, _scratch| {},
+            |idx, grad_phi_mag, scratch| {
+                let speed = self.propagation_weight * speed_field[idx]
+                    + self.curvature_weight * scratch.kappa[idx];
+                self.dt * speed * grad_phi_mag
+            },
+        );
 
-        let slice_len = ny * nx;
-        let mut max_changes = vec![0.0_f64; nz];
-
-        for _iter in 0..self.max_iterations {
-            helpers::compute_curvature_into(&phi, dims, &mut kappa);
-            helpers::compute_field_gradient_into(&phi, dims, &mut phi_z, &mut phi_y, &mut phi_x);
-
-            helpers::evolve_slices_with_metric(
-                &mut phi_new,
-                &mut max_changes,
-                slice_len,
-                |iz, phi_new_s| {
-                    let base = iz * slice_len;
-                    let mut local_max = 0.0_f64;
-                    for (i, phi_new_val) in phi_new_s.iter_mut().enumerate() {
-                        let idx = base + i;
-                        let grad_phi_mag = (phi_z[idx] * phi_z[idx]
-                            + phi_y[idx] * phi_y[idx]
-                            + phi_x[idx] * phi_x[idx])
-                            .sqrt();
-
-                        let speed = self.propagation_weight * speed_field[idx]
-                            + self.curvature_weight * kappa[idx];
-                        let dphi = self.dt * speed * grad_phi_mag;
-                        *phi_new_val = phi[idx] + dphi;
-
-                        let change = dphi.abs() / self.dt;
-                        if change > local_max {
-                            local_max = change;
-                        }
-                    }
-                    local_max
-                },
-            );
-
-            std::mem::swap(&mut phi, &mut phi_new);
-
-            let max_change = max_changes.iter().copied().fold(0.0_f64, f64::max);
-            if max_change < self.tolerance {
-                break;
-            }
-        }
-
-        crate::native_output::from_values(
-            image,
-            phi.iter()
-                .map(|&v| if v < 0.0 { 1.0_f32 } else { 0.0_f32 })
-                .collect(),
-            backend,
-        )
+        crate::native_output::from_values(image, helpers::binary_mask(&phi), backend)
     }
 }
 

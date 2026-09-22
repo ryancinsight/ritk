@@ -25,7 +25,8 @@
 //! The implementation uses:
 //! - clamped boundary conditions,
 //! - central finite differences,
-//! - shared numerical helpers from `helpers.rs`,
+//! - shared numerical helpers from the `helpers` module, including the
+//!   shared evolution engine in `helpers::evolve`,
 //! - `f64` for the PDE evolution pipeline.
 //!
 //! The final output is a binary mask obtained by thresholding `φ < 0`.
@@ -107,92 +108,47 @@ impl ShapeDetectionSegmentation {
         image: &Image<f32, B, 3>,
         initial_phi: &Image<f32, B, 3>,
     ) -> anyhow::Result<Image<f32, B, 3>> {
-        let dims = image.shape();
-        let [nz, ny, nx] = dims;
-        let phi_dims = initial_phi.shape();
-        if dims != phi_dims {
-            anyhow::bail!(
-                "image shape {:?} and initial_phi shape {:?} must match",
-                dims,
-                phi_dims
-            );
-        }
+        let dims = helpers::checked_dims(image.shape(), initial_phi.shape())?;
 
         let device = B::default();
 
         let (img_vals, _) = extract_vec(image)?;
         let (phi_init, _) = extract_vec(initial_phi)?;
         let img_wide: Vec<f64> = img_vals.iter().map(|&v| v as f64).collect();
-        let mut phi: Vec<f64> = phi_init.iter().map(|&v| v as f64).collect();
+        let phi: Vec<f64> = phi_init.iter().map(|&v| v as f64).collect();
 
-        let smoothed = helpers::smooth_or_borrow(&img_wide, dims, self.sigma.get());
+        let fields = helpers::edge_stopping_fields(&img_wide, dims, self.sigma.get(), self.edge_k);
 
-        let grad_mag = helpers::compute_gradient_magnitude(&smoothed, dims);
-        let g = helpers::compute_edge_stopping(&grad_mag, self.edge_k);
-        let (g_z, g_y, g_x) = helpers::compute_field_gradient(&g, dims);
+        let phi = helpers::evolve_to_convergence::<helpers::MaxAbsRate, _, _>(
+            phi,
+            dims,
+            self.dt,
+            self.max_iterations,
+            self.tolerance,
+            |phi, scratch| {
+                // Upwind discretisation of the advection (transport) term ∇g·∇φ;
+                // central differencing it is unstable and leaks the front past edges.
+                helpers::upwind_advection_into(
+                    phi,
+                    dims,
+                    &fields.gz,
+                    &fields.gy,
+                    &fields.gx,
+                    &mut scratch.extra,
+                );
+            },
+            |idx, grad_phi_mag, scratch| {
+                let curvature =
+                    self.curvature_weight * fields.g[idx] * scratch.kappa[idx] * grad_phi_mag;
+                let propagation = self.propagation_weight * fields.g[idx] * grad_phi_mag;
+                // Edge attraction +w_a·∇g·∇φ, upwind-discretised for stability.
+                let advection = self.advection_weight * scratch.extra[idx];
 
-        let n = phi.len();
-        let mut kappa = vec![0.0_f64; n];
-        let mut phi_new = phi.clone();
-        let mut phi_z = vec![0.0_f64; n];
-        let mut phi_y = vec![0.0_f64; n];
-        let mut phi_x = vec![0.0_f64; n];
-        let mut adv = vec![0.0_f64; n];
+                self.dt * (curvature - propagation + advection)
+            },
+        );
 
-        let slice_len = ny * nx;
-        let mut max_changes = vec![0.0_f64; nz];
-
-        for _iter in 0..self.max_iterations {
-            helpers::compute_curvature_into(&phi, dims, &mut kappa);
-            helpers::compute_field_gradient_into(&phi, dims, &mut phi_z, &mut phi_y, &mut phi_x);
-            // Upwind discretisation of the advection (transport) term ∇g·∇φ;
-            // central differencing it is unstable and leaks the front past edges.
-            helpers::upwind_advection_into(&phi, dims, &g_z, &g_y, &g_x, &mut adv);
-
-            helpers::evolve_slices_with_metric(
-                &mut phi_new,
-                &mut max_changes,
-                slice_len,
-                |iz, phi_new_s| {
-                    let base = iz * slice_len;
-                    let mut local_max = 0.0_f64;
-                    for (i, phi_new_val) in phi_new_s.iter_mut().enumerate() {
-                        let idx = base + i;
-                        let grad_phi_mag = (phi_z[idx] * phi_z[idx]
-                            + phi_y[idx] * phi_y[idx]
-                            + phi_x[idx] * phi_x[idx])
-                            .sqrt();
-
-                        let curvature = self.curvature_weight * g[idx] * kappa[idx] * grad_phi_mag;
-                        let propagation = self.propagation_weight * g[idx] * grad_phi_mag;
-                        // Edge attraction +w_a·∇g·∇φ, upwind-discretised for stability.
-                        let advection = self.advection_weight * adv[idx];
-
-                        let dphi = self.dt * (curvature - propagation + advection);
-                        *phi_new_val = phi[idx] + dphi;
-
-                        let change = dphi.abs() / self.dt;
-                        if change > local_max {
-                            local_max = change;
-                        }
-                    }
-                    local_max
-                },
-            );
-
-            std::mem::swap(&mut phi, &mut phi_new);
-
-            let max_change = max_changes.iter().copied().fold(0.0_f64, f64::max);
-            if max_change < self.tolerance {
-                break;
-            }
-        }
-
-        let mask: Vec<f32> = phi
-            .iter()
-            .map(|&v| if v < 0.0 { 1.0_f32 } else { 0.0_f32 })
-            .collect();
-
+        let mask = helpers::binary_mask(&phi);
         let tensor = Tensor::<f32, B>::from_slice_on(dims, &mask, &device);
 
         Image::new(
@@ -220,89 +176,42 @@ impl ShapeDetectionSegmentation {
         B: coeus_core::ComputeBackend,
         B::DeviceBuffer<f32>: coeus_core::CpuAddressableStorage<f32>,
     {
-        let dims = image.shape();
-        let [nz, ny, nx] = dims;
-        let phi_dims = initial_phi.shape();
-        if dims != phi_dims {
-            anyhow::bail!(
-                "image shape {:?} and initial_phi shape {:?} must match",
-                dims,
-                phi_dims
-            );
-        }
+        let dims = helpers::checked_dims(image.shape(), initial_phi.shape())?;
 
         let img_vals = image.data_slice()?;
         let phi_init = initial_phi.data_slice()?;
         let img_wide: Vec<f64> = img_vals.iter().map(|&v| v as f64).collect();
-        let mut phi: Vec<f64> = phi_init.iter().map(|&v| v as f64).collect();
+        let phi: Vec<f64> = phi_init.iter().map(|&v| v as f64).collect();
 
-        let smoothed = helpers::smooth_or_borrow(&img_wide, dims, self.sigma.get());
+        let fields = helpers::edge_stopping_fields(&img_wide, dims, self.sigma.get(), self.edge_k);
 
-        let grad_mag = helpers::compute_gradient_magnitude(&smoothed, dims);
-        let g = helpers::compute_edge_stopping(&grad_mag, self.edge_k);
-        let (g_z, g_y, g_x) = helpers::compute_field_gradient(&g, dims);
+        let phi = helpers::evolve_to_convergence::<helpers::MaxAbsRate, _, _>(
+            phi,
+            dims,
+            self.dt,
+            self.max_iterations,
+            self.tolerance,
+            |phi, scratch| {
+                helpers::upwind_advection_into(
+                    phi,
+                    dims,
+                    &fields.gz,
+                    &fields.gy,
+                    &fields.gx,
+                    &mut scratch.extra,
+                );
+            },
+            |idx, grad_phi_mag, scratch| {
+                let curvature =
+                    self.curvature_weight * fields.g[idx] * scratch.kappa[idx] * grad_phi_mag;
+                let propagation = self.propagation_weight * fields.g[idx] * grad_phi_mag;
+                let advection = self.advection_weight * scratch.extra[idx];
 
-        let n = phi.len();
-        let mut kappa = vec![0.0_f64; n];
-        let mut phi_new = phi.clone();
-        let mut phi_z = vec![0.0_f64; n];
-        let mut phi_y = vec![0.0_f64; n];
-        let mut phi_x = vec![0.0_f64; n];
-        let mut adv = vec![0.0_f64; n];
+                self.dt * (curvature - propagation + advection)
+            },
+        );
 
-        let slice_len = ny * nx;
-        let mut max_changes = vec![0.0_f64; nz];
-
-        for _iter in 0..self.max_iterations {
-            helpers::compute_curvature_into(&phi, dims, &mut kappa);
-            helpers::compute_field_gradient_into(&phi, dims, &mut phi_z, &mut phi_y, &mut phi_x);
-            helpers::upwind_advection_into(&phi, dims, &g_z, &g_y, &g_x, &mut adv);
-
-            helpers::evolve_slices_with_metric(
-                &mut phi_new,
-                &mut max_changes,
-                slice_len,
-                |iz, phi_new_s| {
-                    let base = iz * slice_len;
-                    let mut local_max = 0.0_f64;
-                    for (i, phi_new_val) in phi_new_s.iter_mut().enumerate() {
-                        let idx = base + i;
-                        let grad_phi_mag = (phi_z[idx] * phi_z[idx]
-                            + phi_y[idx] * phi_y[idx]
-                            + phi_x[idx] * phi_x[idx])
-                            .sqrt();
-
-                        let curvature = self.curvature_weight * g[idx] * kappa[idx] * grad_phi_mag;
-                        let propagation = self.propagation_weight * g[idx] * grad_phi_mag;
-                        let advection = self.advection_weight * adv[idx];
-
-                        let dphi = self.dt * (curvature - propagation + advection);
-                        *phi_new_val = phi[idx] + dphi;
-
-                        let change = dphi.abs() / self.dt;
-                        if change > local_max {
-                            local_max = change;
-                        }
-                    }
-                    local_max
-                },
-            );
-
-            std::mem::swap(&mut phi, &mut phi_new);
-
-            let max_change = max_changes.iter().copied().fold(0.0_f64, f64::max);
-            if max_change < self.tolerance {
-                break;
-            }
-        }
-
-        crate::native_output::from_values(
-            image,
-            phi.iter()
-                .map(|&v| if v < 0.0 { 1.0_f32 } else { 0.0_f32 })
-                .collect(),
-            backend,
-        )
+        crate::native_output::from_values(image, helpers::binary_mask(&phi), backend)
     }
 }
 

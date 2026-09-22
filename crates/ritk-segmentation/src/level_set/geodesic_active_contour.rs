@@ -143,120 +143,69 @@ impl GeodesicActiveContourSegmentation {
     /// Apply GAC segmentation to a 3D image with an explicit initial level set.
     ///
     /// # Arguments
-    /// - : input scalar 3D image.
-    /// - : initial level set function (same shape as ).
+    /// - `image`: input scalar 3D image.
+    /// - `initial_phi`: initial level set function (same shape as `image`).
     ///   φ < 0 inside the initial contour, φ > 0 outside.
     ///
     /// # Returns
     /// Binary mask image: 1.0 where φ < 0 (inside), 0.0 elsewhere.
     ///
     /// # Errors
-    /// Returns  if tensor data cannot be read as  or shapes mismatch.
+    /// Returns `Err` if tensor data cannot be read as `f32` or shapes mismatch.
     pub fn apply<B: Backend>(
         &self,
         image: &Image<f32, B, 3>,
         initial_phi: &Image<f32, B, 3>,
     ) -> anyhow::Result<Image<f32, B, 3>> {
-        let dims = image.shape();
-        let [nz, ny, nx] = dims;
-        let phi_dims = initial_phi.shape();
-        if dims != phi_dims {
-            anyhow::bail!(
-                "image shape {:?} and initial_phi shape {:?} must match",
-                dims,
-                phi_dims
-            );
-        }
+        let dims = helpers::checked_dims(image.shape(), initial_phi.shape())?;
         let device = B::default();
 
         let (img_vals, _) = extract_vec(image)?;
         let (phi_init, _) = extract_vec(initial_phi)?;
         // Convert to f64 for the entire PDE pipeline.
         let img_wide: Vec<f64> = img_vals.iter().map(|&v| v as f64).collect();
-        let mut phi: Vec<f64> = phi_init.iter().map(|&v| v as f64).collect();
+        let phi: Vec<f64> = phi_init.iter().map(|&v| v as f64).collect();
 
-        // Precompute smoothed image.
-        let smoothed = helpers::smooth_or_borrow(&img_wide, dims, self.sigma.get());
+        let fields = helpers::edge_stopping_fields(&img_wide, dims, self.sigma.get(), self.edge_k);
 
-        // Precompute gradient magnitude of smoothed image.
-        let grad_mag = helpers::compute_gradient_magnitude(&smoothed, dims);
+        // Per-iteration scratch (curvature, φ-gradient, upwind advection) is
+        // owned by the shared engine and allocated once for the whole
+        // evolution — the SEG-01 rationale: pre-allocating the scratch
+        // outside the loop eliminates 4 × N×8 heap allocations per PDE
+        // iteration.
+        let phi = helpers::evolve_to_convergence::<helpers::RootMeanSquare, _, _>(
+            phi,
+            dims,
+            self.dt,
+            self.max_iterations,
+            self.tolerance,
+            |phi, scratch| {
+                // Upwind discretisation of the advection (transport) term ∇g·∇φ;
+                // central differencing it is unstable and leaks the front past edges.
+                helpers::upwind_advection_into(
+                    phi,
+                    dims,
+                    &fields.gz,
+                    &fields.gy,
+                    &fields.gx,
+                    &mut scratch.extra,
+                );
+            },
+            |idx, grad_phi_mag, scratch| {
+                // Curvature term (positive κ for convex → contracts): w_c·g·κ·|∇φ|
+                let curv =
+                    self.curvature_weight * fields.g[idx] * scratch.kappa[idx] * grad_phi_mag;
+                // Propagation term (positive w_p → expansion): −w_p·g·|∇φ|
+                let prop = self.propagation_weight * fields.g[idx] * grad_phi_mag;
+                // Advection term (attracts the front toward edges): +w_a·∇g·∇φ,
+                // upwind-discretised for stability.
+                let advection = self.advection_weight * scratch.extra[idx];
 
-        // Precompute edge stopping function g and its gradient ∇g.
-        let g = helpers::compute_edge_stopping(&grad_mag, self.edge_k);
-        let (g_grad_z, g_grad_y, g_grad_x) = helpers::compute_field_gradient(&g, dims);
+                self.dt * (curv - prop + advection)
+            },
+        );
 
-        let n = phi.len();
-        let mut kappa = vec![0.0_f64; n];
-        let mut phi_new = phi.clone();
-        // SEG-01: pre-allocate per-iteration scratch buffers outside the loop so
-        // that compute_field_gradient_into / upwind_advection_into reuse them,
-        // eliminating 4 × N×8 heap allocations per PDE iteration.
-        let mut phi_gz = vec![0.0_f64; n];
-        let mut phi_gy = vec![0.0_f64; n];
-        let mut phi_gx = vec![0.0_f64; n];
-        let mut adv = vec![0.0_f64; n];
-        let mut sum_sqs = vec![0.0_f64; nz];
-
-        for _iter in 0..self.max_iterations {
-            // Compute curvature and gradient of phi.
-            helpers::compute_curvature_into(&phi, dims, &mut kappa);
-            helpers::compute_field_gradient_into(&phi, dims, &mut phi_gz, &mut phi_gy, &mut phi_gx);
-            // Upwind discretisation of the advection (transport) term ∇g·∇φ;
-            // central differencing it is unstable and leaks the front past edges.
-            helpers::upwind_advection_into(&phi, dims, &g_grad_z, &g_grad_y, &g_grad_x, &mut adv);
-
-            let slice_len = ny * nx;
-
-            helpers::evolve_slices_with_metric(
-                &mut phi_new,
-                &mut sum_sqs,
-                slice_len,
-                |iz, phi_new_s| {
-                    let base = iz * slice_len;
-                    let mut local_sum_sq = 0.0_f64;
-                    for (i, phi_new_val) in phi_new_s.iter_mut().enumerate() {
-                        let idx = base + i;
-                        let grad_phi_mag = (phi_gz[idx] * phi_gz[idx]
-                            + phi_gy[idx] * phi_gy[idx]
-                            + phi_gx[idx] * phi_gx[idx])
-                            .sqrt();
-
-                        // Curvature term (positive κ for convex → contracts): w_c·g·κ·|∇φ|
-                        let curv = self.curvature_weight * g[idx] * kappa[idx] * grad_phi_mag;
-
-                        // Propagation term (positive w_p → expansion): −w_p·g·|∇φ|
-                        let prop = self.propagation_weight * g[idx] * grad_phi_mag;
-
-                        // Advection term (attracts the front toward edges): +w_a·∇g·∇φ,
-                        // upwind-discretised for stability.
-                        let advection = self.advection_weight * adv[idx];
-
-                        let dphi = self.dt * (curv - prop + advection);
-                        *phi_new_val = phi[idx] + dphi;
-
-                        // Accumulate squared change for RMS convergence criterion.
-                        local_sum_sq += dphi * dphi;
-                    }
-                    local_sum_sq
-                },
-            );
-
-            std::mem::swap(&mut phi, &mut phi_new);
-
-            // ITK RMS criterion: sqrt(sum(Δφ²) / N) < tolerance.
-            let sum_sq: f64 = sum_sqs.iter().sum();
-            let rms = (sum_sq / n as f64).sqrt();
-            if rms < self.tolerance {
-                break;
-            }
-        }
-
-        // Threshold: φ < 0 → inside (1.0), else outside (0.0).
-        let mask: Vec<f32> = phi
-            .iter()
-            .map(|&v| if v < 0.0 { 1.0_f32 } else { 0.0_f32 })
-            .collect();
-
+        let mask = helpers::binary_mask(&phi);
         let tensor = Tensor::<f32, B>::from_slice_on(dims, &mask, &device);
 
         Image::new(
@@ -284,85 +233,42 @@ impl GeodesicActiveContourSegmentation {
         B: coeus_core::ComputeBackend,
         B::DeviceBuffer<f32>: coeus_core::CpuAddressableStorage<f32>,
     {
-        let dims = image.shape();
-        let [nz, ny, nx] = dims;
-        let phi_dims = initial_phi.shape();
-        if dims != phi_dims {
-            anyhow::bail!(
-                "image shape {:?} and initial_phi shape {:?} must match",
-                dims,
-                phi_dims
-            );
-        }
+        let dims = helpers::checked_dims(image.shape(), initial_phi.shape())?;
 
         let img_vals = image.data_slice()?;
         let phi_init = initial_phi.data_slice()?;
         let img_wide: Vec<f64> = img_vals.iter().map(|&v| v as f64).collect();
-        let mut phi: Vec<f64> = phi_init.iter().map(|&v| v as f64).collect();
+        let phi: Vec<f64> = phi_init.iter().map(|&v| v as f64).collect();
 
-        let smoothed = helpers::smooth_or_borrow(&img_wide, dims, self.sigma.get());
-        let grad_mag = helpers::compute_gradient_magnitude(&smoothed, dims);
-        let g = helpers::compute_edge_stopping(&grad_mag, self.edge_k);
-        let (g_grad_z, g_grad_y, g_grad_x) = helpers::compute_field_gradient(&g, dims);
+        let fields = helpers::edge_stopping_fields(&img_wide, dims, self.sigma.get(), self.edge_k);
 
-        let n = phi.len();
-        let mut kappa = vec![0.0_f64; n];
-        let mut phi_new = phi.clone();
-        let mut phi_gz = vec![0.0_f64; n];
-        let mut phi_gy = vec![0.0_f64; n];
-        let mut phi_gx = vec![0.0_f64; n];
-        let mut adv = vec![0.0_f64; n];
-        let mut sum_sqs = vec![0.0_f64; nz];
+        let phi = helpers::evolve_to_convergence::<helpers::RootMeanSquare, _, _>(
+            phi,
+            dims,
+            self.dt,
+            self.max_iterations,
+            self.tolerance,
+            |phi, scratch| {
+                helpers::upwind_advection_into(
+                    phi,
+                    dims,
+                    &fields.gz,
+                    &fields.gy,
+                    &fields.gx,
+                    &mut scratch.extra,
+                );
+            },
+            |idx, grad_phi_mag, scratch| {
+                let curv =
+                    self.curvature_weight * fields.g[idx] * scratch.kappa[idx] * grad_phi_mag;
+                let prop = self.propagation_weight * fields.g[idx] * grad_phi_mag;
+                let advection = self.advection_weight * scratch.extra[idx];
 
-        for _iter in 0..self.max_iterations {
-            helpers::compute_curvature_into(&phi, dims, &mut kappa);
-            helpers::compute_field_gradient_into(&phi, dims, &mut phi_gz, &mut phi_gy, &mut phi_gx);
-            helpers::upwind_advection_into(&phi, dims, &g_grad_z, &g_grad_y, &g_grad_x, &mut adv);
+                self.dt * (curv - prop + advection)
+            },
+        );
 
-            let slice_len = ny * nx;
-
-            helpers::evolve_slices_with_metric(
-                &mut phi_new,
-                &mut sum_sqs,
-                slice_len,
-                |iz, phi_new_s| {
-                    let base = iz * slice_len;
-                    let mut local_sum_sq = 0.0_f64;
-                    for (i, phi_new_val) in phi_new_s.iter_mut().enumerate() {
-                        let idx = base + i;
-                        let grad_phi_mag = (phi_gz[idx] * phi_gz[idx]
-                            + phi_gy[idx] * phi_gy[idx]
-                            + phi_gx[idx] * phi_gx[idx])
-                            .sqrt();
-
-                        let curv = self.curvature_weight * g[idx] * kappa[idx] * grad_phi_mag;
-                        let prop = self.propagation_weight * g[idx] * grad_phi_mag;
-                        let advection = self.advection_weight * adv[idx];
-
-                        let dphi = self.dt * (curv - prop + advection);
-                        *phi_new_val = phi[idx] + dphi;
-                        local_sum_sq += dphi * dphi;
-                    }
-                    local_sum_sq
-                },
-            );
-
-            std::mem::swap(&mut phi, &mut phi_new);
-
-            let sum_sq: f64 = sum_sqs.iter().sum();
-            let rms = (sum_sq / n as f64).sqrt();
-            if rms < self.tolerance {
-                break;
-            }
-        }
-
-        crate::native_output::from_values(
-            image,
-            phi.iter()
-                .map(|&v| if v < 0.0 { 1.0_f32 } else { 0.0_f32 })
-                .collect(),
-            backend,
-        )
+        crate::native_output::from_values(image, helpers::binary_mask(&phi), backend)
     }
 }
 
@@ -374,15 +280,14 @@ impl Default for GeodesicActiveContourSegmentation {
 
 // ── Test-only wrappers ─────────────────────────────────────────────────────────────────────────
 //
-// The existing tests call  and
-// with f32 data. These thin wrappers delegate to the shared f64 helpers and
-// convert back to f32, preserving the test-facing signatures without modifying
-// any test function.
+// The existing tests call `compute_edge_stopping` with f32 data. This thin
+// wrapper delegates to the shared f64 helper and converts back to f32,
+// preserving the test-facing signatures without modifying any test function.
 
 #[cfg(test)]
 fn compute_edge_stopping(grad_mag: &[f32], k: f64) -> Vec<f32> {
     let grad_wide: Vec<f64> = grad_mag.iter().map(|&v| v as f64).collect();
-    helpers::compute_edge_stopping(&grad_wide, k)
+    helpers::math::compute_edge_stopping(&grad_wide, k)
         .iter()
         .map(|&v| v as f32)
         .collect()

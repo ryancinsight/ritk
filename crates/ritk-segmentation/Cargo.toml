@@ -29,6 +29,11 @@ leto-ops = { workspace = true }
 [dev-dependencies]
 base64 = { workspace = true }
 image = { workspace = true }
+# The level-set rejection tests import `ritk_core::rejection`, which the
+# feature gates; without naming it here a `-p ritk-segmentation` test build
+# fails while workspace-wide feature unification (ritk-filter,
+# ritk-registration) hides the gap. Same pattern as those members.
+ritk-core = { path = "../ritk-core", features = ["test-helpers"], version = "0.10.0" }
 ritk-spatial = { path = "../ritk-spatial" }  # path-only: dev-deps form a publish cycle
 [lints]
 workspace = true

@@ -90,6 +90,36 @@ pub(crate) fn gaussian_smooth(data: &[f64], dims: [usize; 3], sigma: f64) -> Vec
     tmp
 }
 
+/// Precomputed edge-stopping chain for the `∇g·∇φ` solvers.
+///
+/// One struct replaces the four identical straight-line copies (shape
+/// detection and geodesic active contour, each in `apply` and `apply_native`):
+/// smooth → |∇I| → `g = 1/(1+(|∇I|/k)²)` → `∇g`.
+pub(crate) struct EdgeFields {
+    /// Edge-stopping values `g(i) ∈ (0, 1]`.
+    pub(crate) g: Vec<f64>,
+    /// `∂g/∂z` by central finite differences, clamped boundaries.
+    pub(crate) gz: Vec<f64>,
+    /// `∂g/∂y`.
+    pub(crate) gy: Vec<f64>,
+    /// `∂g/∂x`.
+    pub(crate) gx: Vec<f64>,
+}
+
+/// Build the [`EdgeFields`] chain from a widened input image.
+pub(crate) fn edge_stopping_fields(
+    img_wide: &[f64],
+    dims: [usize; 3],
+    sigma: f64,
+    edge_k: f64,
+) -> EdgeFields {
+    let smoothed = smooth_or_borrow(img_wide, dims, sigma);
+    let grad_mag = super::ops::compute_gradient_magnitude(&smoothed, dims);
+    let g = compute_edge_stopping(&grad_mag, edge_k);
+    let (gz, gy, gx) = super::ops::compute_field_gradient(&g, dims);
+    EdgeFields { g, gz, gy, gx }
+}
+
 // ── Cow helpers ─────────────────────────────────────────────────────────────────────
 
 /// Smooth `data` if `sigma > 0`; otherwise borrow it zero-copy.
