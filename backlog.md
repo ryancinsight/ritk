@@ -62,11 +62,13 @@
 
 <a id="RITK-METIS-LOCK-021"></a>
 ## RITK-METIS-LOCK-021 — Consume the Métis native command menu [patch]
-- Status: in-progress; priority: P1; owner: RITK viewer + integration; integrator: root; branch: `build/ritk-metis-command-001`; last-update: 2026-09-22; dependency: Metis PR #348 head `776dbbf94593e42d0a5686b587ed27b72f885a73` (reachable Git revision).
+- Status: review; priority: P1; owner: RITK viewer + integration; integrator: root; branch: `build/ritk-metis-command-001`; last-update: 2026-09-22; dependency: Metis PR #348 head `776dbbf94593e42d0a5686b587ed27b72f885a73` (reachable Git revision).
 - Outcome: the standalone RITK lock and browser workflow resolve the shared Métis command/theme surface while DICOM discovery, decoding, clinical geometry and presentation remain RITK-owned.
 - Scope: six Metis source revisions in `Cargo.lock`, workflow default revision, current real-MRI provenance/manual and exact lock/replay verification; no DICOM parser or viewer behavior moves into Metis.
 - Acceptance: standalone Cargo.lock resolves without the Atlas overlay; locked native/WASM `ritk-snap`, strict Clippy, formatting, rustdoc, provenance and 94-file replay pass; the browser workflow checks out the same full Metis revision and preserves the 1280×800 MRI PNG byte-identically.
 - Risk: [patch]; command/theme state is format-neutral host infrastructure, while DICOM ownership and real-image evidence stay in RITK. Hosted browser evidence remains a separate cross-engine run.
+- Verification: standalone lock check passes with 63 first-party Git sources at SHA-256 `602cba1b0a1a2b6ce8bdb61f42d9c3ef2844bdfd76e5120a29b5a6d8c46552ec`; locked `ritk-snap` nextest passes 495/495, projection tests 5/5, strict native/WASM Clippy and checks, formatting, rustdoc, doctests (4 passed, 1 ignored) and Python scripts (28/28) pass. The replay reads 94 files/49,807,236 bytes, exits 0, rejects the invalid-study probe with exit 1, and preserves the 1280×800 MRI image (`259dd791...`, 411,589 non-black pixels).
+- Delivery: lock/workflow commit `c842689b985beecb159bba17cc1b3a6a50e67c6a`; provenance/manual synchronization is in this review branch.
 
 <a id="RITK-METIS-LOCK-019"></a>
 ## RITK-METIS-LOCK-019 — Replay the merged Métis desktop permission surface [patch]
