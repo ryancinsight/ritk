@@ -78,3 +78,9 @@ the existing exhaustive `NativePresentationMode` enum remains stable.
 Existing fixed browser and native entrypoints remain stable. The responsive
 gallery integration is a consumer presentation change; it does not move DICOM
 decoding or geometry into Métis.
+
+The responsive consumer reapplies definite `width` and `height` values after
+publishing each canvas's physical aspect. The generic fixed-gallery publisher
+uses an auto height, which would let an anisotropic canvas expand a CSS grid
+track beyond the trusted container; responsive tracks instead size the canvas
+to their grid cell and preserve the physical ratio with `object-fit: contain`.
