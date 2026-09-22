@@ -5,13 +5,13 @@
     "host": "Windows native Métis surface",
     "machine": "AMD64 Windows 11",
     "capture_tool": "Metis scripts/resource.py",
-    "sample_interval_ms": 100,
+    "sample_interval_ms": 25,
     "timeout_seconds": 60,
     "repeat_runs": 3,
-    "ritk_revision": "58f1fe8fdc69f99acc94fe0d0735a86d1a8bc9fa",
-    "metis_revision": "b58d64b1bebe76bb32570339c4a349cc1b0d7086",
-    "moirai_revision": "2a54e010532f76c88027fec8a468620c92fe66b3",
-    "command_sha256": "9c922732ac5e5f7c8b8dfc46cda61495fa21c92874117cf3a6bf3073dbdbfe61"
+    "ritk_revision": "e88a94219fac9f07339393da2cd0e7a19164f93b",
+    "metis_revision": "1b10541c2ef7a849e6ff66a3c778874bdf96de7b",
+    "moirai_revision": "b77239dd10bcaf803394c26255c462bc858c1340",
+    "command_sha256": "2e183dd64a09b60b2bf9700a969dfb72372683a0346ba8312b56809f20447e75"
   },
   "dataset": {
     "path": "test_data/2_head_mri_t2/DICOM",
@@ -24,24 +24,32 @@
     "image": "dicom-metis-real-mri.png",
     "width": 1280,
     "height": 800,
-    "sha256": "259dd79103482756c4e688621bebafc841cc40f1df10ff2bbd7f9d04b7b4d401",
-    "bytes": 418280,
-    "executable_sha256": "89b59eea13dc7713505a9233751bd931d206509985b03d1108dd14f17ecb14f2",
-    "executable_bytes": 54029312,
+    "sha256": "85071f20ca11cb4a9b2524db0a53b21695b7e93141831e7e0ab293c42fbcd582",
+    "bytes": 418490,
+    "executable_sha256": "7f81c6fc3d2e76c7e28d603fbaad3eece1fb67c694b7b97bf4ff6c7dc3325484",
+    "executable_bytes": 55460864,
     "capture_mode": "--metis-native --capture-application --capture",
-    "planes": ["axial", "coronal", "sagittal"]
+    "planes": [
+      "axial",
+      "coronal",
+      "sagittal"
+    ]
   },
   "resource": {
     "metric": "process-tree peak private bytes",
-    "peak_mean_bytes": 816143018.6666666,
-    "peak_approximate_95_half_width_bytes": 563161.4204819538,
-    "final_mean_bytes": 441023146.6666667,
-    "final_approximate_95_half_width_bytes": 674784.77036784,
+    "peak_mean_bytes": 815527253.3333334,
+    "peak_approximate_95_half_width_bytes": 110595.81612510626,
+    "final_mean_bytes": 440169813.3333333,
+    "final_approximate_95_half_width_bytes": 171204.6818447507,
     "interpretation": "bounded three-run lifecycle sample for the transformed native frame path; not a framework comparison measurement"
   },
   "bounds": {
-    "orderly_exit_codes": [0, 0, 0],
+    "orderly_exit_codes": [
+      0,
+      0,
+      0
+    ],
     "repeat_capture_sha256_match": true,
-    "nonblack_pixels": 411589
+    "nonblack_pixels": 411413
   }
 }

@@ -130,12 +130,13 @@ two presentation paths.
 
 The same public MRI replay was run three times through Métis's bounded
 process-tree resource runner for the orthogonal frame path. All runs exited
-with code 0, produced the same 418,280-byte capture and retained the 411,589
-non-black-pixel result. The sample reports process-tree peak private bytes and
-final private bytes for that revision; it is lifecycle evidence for this
-presentation path, not a cross-framework memory ranking. The exact command
-fingerprint, revisions and bounded statistics are in the [native MRI resource
-provenance record](images/dicom-metis-real-mri-resource.json).
+with code 0, produced the same 418,490-byte capture and retained the 411,413
+non-black-pixel result. With a 25 ms sample interval, mean peak private bytes
+were 815,527,253 ± 110,596 and mean final private bytes were 440,169,813 ±
+171,205 across the three bounded runs. These are lifecycle measurements for
+this presentation path, not a cross-framework memory ranking. The exact
+command fingerprint, revisions and bounded statistics are in the [native MRI
+resource provenance record](images/dicom-metis-real-mri-resource.json).
 
 The replay was also run three times with `--metis-native-layout
 orthogonal-with-mip`, exercising the retained scalar projection frame and
@@ -1247,23 +1248,27 @@ This replay is tied to the updated provider lock; earlier provenance records
 remain historical records for the revisions that generated them.
 
 A current standalone-lock replay on 2026-09-22 rebuilt RITK from source
-commit `c842689b` against Metis command-menu revision
-`776dbbf94593e42d0a5686b587ed27b72f885a73` and Moirai
-`0e2e1bbb2d81e16dd9c694ba46a9e9710e034417`. The same saved 94-file MRI-DIR
+commit `e88a94219fac9f07339393da2cd0e7a19164f93b` against Metis revision
+`1b10541c2ef7a849e6ff66a3c778874bdf96de7b` and the Atlas clean Moirai pin
+`b77239dd10bcaf803394c26255c462bc858c1340`. The same saved 94-file MRI-DIR
 study read 49,807,236 bytes, exited 0, rejected the invalid-study probe with
-exit 1, and reproduced the committed 1280 × 800 frame byte-for-byte. The
+exit 1, and reproduced the 1280 × 800 frame pixel-for-pixel. The tracked
+manual PNG is a lossless re-encoding of that capture; its decoded RGBA pixels
+are byte-identical while its compressed artifact is 190,219 bytes. The
 replay executable digest is
-`14412a80c37a19a2f4a09cb08165831a2311d4476f24d1ee159b34406eaf9b30`
+`7f81c6fc3d2e76c7e28d603fbaad3eece1fb67c694b7b97bf4ff6c7dc3325484`
 (55,460,864 bytes), the example digest is
-`47eeb88b1ccf8720f6c8e8c8b05b6e7a19a4922d4afdbe7677067333028bd6b3`
+`560cc0d276c8d25a45bca44973a0cb6658b9b1b743aa1b88c6ca75811fa71019`
 (24,423,424 bytes), and the standalone lock digest is
-`602cba1b0a1a2b6ce8bdb61f42d9c3ef2844bdfd76e5120a29b5a6d8c46552ec`.
+`d0d6abd6baf3f7d45943e9d1d3f85a2158b7dae605d3ec23ec07981b8b17a9cd`.
 The lock resolves 63 first-party Git sources, including six Metis packages at
-`776dbbf94593e42d0a5686b587ed27b72f885a73` and fifteen Moirai packages at
-`0e2e1bbb2d81e16dd9c694ba46a9e9710e034417`. The captured frame remains
-`259dd79103482756c4e688621bebafc841cc40f1df10ff2bbd7f9d04b7b4d401`
-with 411,589 non-black pixels; the executable, lock, and image hashes are
-recorded in the machine-readable provenance below. The native event translator
+`1b10541c2ef7a849e6ff66a3c778874bdf96de7b` and fifteen Moirai packages at
+`b77239dd10bcaf803394c26255c462bc858c1340`. The captured frame remains
+`85071f20ca11cb4a9b2524db0a53b21695b7e93141831e7e0ab293c42fbcd582`
+with 411,413 non-black pixels. The lossless manual image digest is
+`959969ef69e66cebd3143b06468802e06ff68fbc6d94e2ed1d9a555f7e2ff98c`;
+the executable, lock, capture and manual-image hashes are recorded in the
+machine-readable provenance below. The native event translator
 also retains bounded Moirai accessibility requests as typed RITK events and
 returns an explicit unsupported-action error because this session does not yet
 install a native accessibility semantics tree; requests are not silently
