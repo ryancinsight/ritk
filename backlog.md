@@ -1,5 +1,14 @@
 # RITK execution backlog
 
+<a id="RITK-CLIPPY-LINUX-001"></a>
+## RITK-CLIPPY-LINUX-001 — Gate platform-specific responsive layout code [patch]
+- Status: in-progress; priority: P0; owner: RITK integration; integrator: root; branch: `fix/ritk-postmerge-clippy-audit-001`; last-update: 2026-09-22.
+- Outcome: Linux workspace Clippy no longer compiles unused Windows/WASM pane layout code, while those supported targets and layout tests retain the responsive contract.
+- Scope: `ritk-snap` presentation module declarations, regression verification, and post-merge CI evidence; no DICOM or Métis behavior changes.
+- Acceptance: locked workspace Clippy with `-D warnings` and locked `ritk-snap` tests pass on the current merged main revision; supported-target module/test compilation remains intact.
+- Verification: hosted merged-main run 35734138185 exposed the Linux dead-code errors; local fix gate is pending.
+- Re-open: any supported-target compile/test regression or a hosted Clippy failure requires fix-forward on this item.
+
 <a id="RITK-SNAP-METIS-RESPONSIVE-BROWSER-001"></a>
 ## RITK-SNAP-METIS-RESPONSIVE-BROWSER-001 — Capture the responsive browser gallery [patch]
 - Status: done; priority: P1; owner: RITK browser presentation; integrator: root; branch: `docs/ritk-responsive-browser-evidence`; last-update: 2026-09-22; delivery: PR [#584](https://github.com/ryancinsight/ritk/pull/584), merge `4627b146bf2b7d2d246f01e8413cfab85373f93f`.
