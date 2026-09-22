@@ -473,9 +473,10 @@ jobs:
           if [[ "$MODE" == "webgpu" ]]; then
             gallery_args+=(--page-query renderer=webgpu)
           fi
-          if [[ -n "$LAYOUT" ]]; then
-            gallery_args+=(--canvas-trace "$GITHUB_WORKSPACE/metis/output/browser/results/$RESULT/canvas-trace.json")
-          fi
+          # Responsive layout includes a visible display-only projection. The
+          # generic canvas trace requires every selected canvas to emit input
+          # events, so responsive semantic/screenshot capture stays on the
+          # consumer path while the fixed interactive lanes retain the trace.
           if [[ -n "$PROJECTION" ]]; then
             gallery_args+=(--projection "$PROJECTION" --page-query "projection=$PROJECTION")
           elif [[ -z "$LAYOUT" ]]; then

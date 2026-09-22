@@ -742,7 +742,10 @@ four canvas IDs are ordered axial, coronal, sagittal and projection. RITK
 updates the container's CSS grid when the measured extent crosses a layout
 threshold. Hidden orthogonal canvases are recreated without input listeners,
 while the visible axial, coronal and sagittal canvases retain the normal Métis
-event seam:
+event seam. Responsive canvases receive definite grid-cell width and height
+after physical aspect metadata is published; `object-fit: contain` preserves
+anisotropic voxel spacing without allowing a pane to expand outside the
+trusted container:
 
 ```javascript
 import init, { start_web_responsive_canvases, stop_web_canvas } from "./ritk_snap.js";
