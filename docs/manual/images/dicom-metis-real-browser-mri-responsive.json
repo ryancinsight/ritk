@@ -4,13 +4,13 @@
   "workflow": {
     "name": "RITK SNAP Métis browser DICOM",
     "file": ".github/workflows/metis-browser-dicom.yml",
-    "run_id": 35690425860,
-    "url": "https://github.com/ryancinsight/ritk/actions/runs/35690425860",
+    "run_id": 35704771969,
+    "url": "https://github.com/ryancinsight/ritk/actions/runs/35704771969",
     "conclusion": "failure",
     "observed_date": "2026-09-22",
     "run_status": "completed",
-    "ritk_revision": "27ac7d12bc69a04f7fb12e5ba41ef8fd4fe93aa9",
-    "metis_revision": "ad27d2148cc6b8fa9702cbbd4f37d9e106aa6535",
+    "ritk_revision": "620c03342f3951366441f1f908d05bc3f249f566",
+    "metis_revision": "219143bbf3596aea85fa4624d7d5241a63b4cf0d",
     "moirai_revision": "0e2e1bbb2d81e16dd9c694ba46a9e9710e034417"
   },
   "dataset": {
@@ -47,11 +47,11 @@
       "browser_version": "152.0.7977.82",
       "platform": "linux",
       "input_source": "chooser",
-      "consumer_revision": "27ac7d12bc69a04f7fb12e5ba41ef8fd4fe93aa9",
-      "metis_revision": "ad27d2148cc6b8fa9702cbbd4f37d9e106aa6535",
-      "artifact_id": 10678104659,
-      "artifact_url": "https://github.com/ryancinsight/ritk/actions/runs/35690425860/artifacts/10678104659",
-      "trace_sha256": "a143039abdda9df0d21506331e3fa325220ab8b838c2c9039720de9c721f84f6",
+      "consumer_revision": "620c03342f3951366441f1f908d05bc3f249f566",
+      "metis_revision": "219143bbf3596aea85fa4624d7d5241a63b4cf0d",
+      "artifact_id": 10684660103,
+      "artifact_url": "https://github.com/ryancinsight/ritk/actions/runs/35704771969/artifacts/10684660103",
+      "trace_sha256": "0d436fb9c14c11a795aad9273e36a8210ad6a6f60110ee4f2c940848188af9e5",
       "files": 94,
       "bytes": 49807236,
       "file_manifest_sha256": "81b7b7f8ea473dfc12c25c07b4958762254a261ca49352af2adabc214d6e8d03",
@@ -101,7 +101,7 @@
           "axial": {
             "index": 47,
             "count": 94,
-            "generation": 96,
+            "generation": 111,
             "rgba_sha256": "5c96fff2f82ecfddd64a6aa9a1e8f99af367740fcd43826977ac3d1035cb28f6",
             "width": 512,
             "height": 512,
@@ -112,7 +112,7 @@
           "coronal": {
             "index": 256,
             "count": 512,
-            "generation": 96,
+            "generation": 111,
             "rgba_sha256": "f76018ef402afa7811154c506219361b43227dbe218ff0383b3dddd7bf438136",
             "width": 512,
             "height": 94,
@@ -123,7 +123,7 @@
           "sagittal": {
             "index": 256,
             "count": 512,
-            "generation": 96,
+            "generation": 111,
             "rgba_sha256": "b8cabf3aa07399387b9d1c7416dbfae594e4d2408f40e0a4bd654f9829799fe3",
             "width": 512,
             "height": 94,
@@ -135,6 +135,12 @@
         "invalid_api_probe_count": 18,
         "rejection_probes": [],
         "screenshots": {
+          "before-drop": {
+            "width": 2880,
+            "height": 1914,
+            "sha256": "df6a149b45230cdd9321d529d4e62fce1498b2697f5c94467a0a07b13a511336",
+            "bytes": 236669
+          },
           "ritk-snap-axial": {
             "width": 1390,
             "height": 762,
@@ -162,6 +168,12 @@
             "sha256": "1e03386338fd8462307daa4fc731af50da3996bcffb16612d7c421e37b51872b",
             "bytes": 297723,
             "scope": "element"
+          },
+          "gallery": {
+            "width": 2880,
+            "height": 1914,
+            "sha256": "fb00b37ffaed75cb9d0d6ec1894302748b35920cf822ce61d3f4516e84b1fd56",
+            "bytes": 662446
           },
           "ritk-snap-axial-after-rejections": {
             "width": 1390,
@@ -216,21 +228,115 @@
         "display_only": true
       },
       "crosshair": {
-        "pane_layout": "quad",
-        "roles": [
-          "axial",
-          "coronal",
-          "sagittal",
-          "projection"
-        ],
+        "schema": 1,
+        "before": {
+          "active_tool": "W/L",
+          "active_tool_index": "2",
+          "annotation_count": "0",
+          "cine_enabled": "false",
+          "cine_fps": "12",
+          "consumer_listeners": 21,
+          "crosshair_visible": "false",
+          "host_listeners": 34,
+          "last_annotation_kind": "",
+          "last_annotation_value": "",
+          "linked_cursor": "47,256,256",
+          "mounted": true,
+          "pane_layout": "quad",
+          "pane_roles": [
+            "axial",
+            "coronal",
+            "sagittal",
+            "projection"
+          ],
+          "projection_frame_state": "presented",
+          "projection_mode": "mip",
+          "projection_statistic": "MIP",
+          "responsive_layout": true,
+          "wasm_bytes": 404357120
+        },
+        "visible": {
+          "active_tool": "W/L",
+          "active_tool_index": "2",
+          "annotation_count": "0",
+          "cine_enabled": "false",
+          "cine_fps": "12",
+          "consumer_listeners": 21,
+          "crosshair_visible": "true",
+          "host_listeners": 34,
+          "last_annotation_kind": "",
+          "last_annotation_value": "",
+          "linked_cursor": "47,256,256",
+          "mounted": true,
+          "pane_layout": "quad",
+          "pane_roles": [
+            "axial",
+            "coronal",
+            "sagittal",
+            "projection"
+          ],
+          "projection_frame_state": "presented",
+          "projection_mode": "mip",
+          "projection_statistic": "MIP",
+          "responsive_layout": true,
+          "wasm_bytes": 404357120
+        },
+        "hidden": {
+          "active_tool": "W/L",
+          "active_tool_index": "2",
+          "annotation_count": "0",
+          "cine_enabled": "false",
+          "cine_fps": "12",
+          "consumer_listeners": 21,
+          "crosshair_visible": "false",
+          "host_listeners": 34,
+          "last_annotation_kind": "",
+          "last_annotation_value": "",
+          "linked_cursor": "47,256,256",
+          "mounted": true,
+          "pane_layout": "quad",
+          "pane_roles": [
+            "axial",
+            "coronal",
+            "sagittal",
+            "projection"
+          ],
+          "projection_frame_state": "presented",
+          "projection_mode": "mip",
+          "projection_statistic": "MIP",
+          "responsive_layout": true,
+          "wasm_bytes": 404357120
+        },
         "linked_cursor": "47,256,256",
+        "overlay": [
+          {
+            "column": "block",
+            "left": "50.0977%",
+            "row": "block",
+            "top": "50.0977%"
+          },
+          {
+            "column": "block",
+            "left": "50.0977%",
+            "row": "block",
+            "top": "50.5319%"
+          },
+          {
+            "column": "block",
+            "left": "50.0977%",
+            "row": "block",
+            "top": "50.5319%"
+          }
+        ],
         "screenshot": {
           "path": "output/browser/results/chromium-responsive/crosshair/gallery-crosshair-controls.png",
+          "sha256": "fb4d0cfc24e5f879ff2ce3b2a097682ace8612d72db4d0404379f2a1239d3f28",
           "width": 2786,
           "height": 1692,
           "bytes": 1027054,
-          "sha256": "fb4d0cfc24e5f879ff2ce3b2a097682ace8612d72db4d0404379f2a1239d3f28"
-        }
+          "scope": "element"
+        },
+        "artifact": "output/browser/results/chromium-responsive/crosshair/gallery-crosshair.json"
       },
       "cleanup": {
         "transfer_observer": {
@@ -258,11 +364,11 @@
       "browser_version": "155.0",
       "platform": "linux",
       "input_source": "chooser",
-      "consumer_revision": "27ac7d12bc69a04f7fb12e5ba41ef8fd4fe93aa9",
-      "metis_revision": "ad27d2148cc6b8fa9702cbbd4f37d9e106aa6535",
-      "artifact_id": 10677379735,
-      "artifact_url": "https://github.com/ryancinsight/ritk/actions/runs/35690425860/artifacts/10677379735",
-      "trace_sha256": "cddabc235779388b1fbfc3a69e7000d42501abfad50fc23e3c0cdb5dd5a8a151",
+      "consumer_revision": "620c03342f3951366441f1f908d05bc3f249f566",
+      "metis_revision": "219143bbf3596aea85fa4624d7d5241a63b4cf0d",
+      "artifact_id": 10684240856,
+      "artifact_url": "https://github.com/ryancinsight/ritk/actions/runs/35704771969/artifacts/10684240856",
+      "trace_sha256": "fff843730d3e39b55952dbebdae0051ce77c668f7de1585f40cdb064b6d3af52",
       "files": 94,
       "bytes": 49807236,
       "file_manifest_sha256": "81b7b7f8ea473dfc12c25c07b4958762254a261ca49352af2adabc214d6e8d03",
@@ -312,7 +418,7 @@
           "axial": {
             "index": 47,
             "count": 94,
-            "generation": 378,
+            "generation": 261,
             "rgba_sha256": "5c96fff2f82ecfddd64a6aa9a1e8f99af367740fcd43826977ac3d1035cb28f6",
             "width": 512,
             "height": 512,
@@ -323,7 +429,7 @@
           "coronal": {
             "index": 256,
             "count": 512,
-            "generation": 378,
+            "generation": 261,
             "rgba_sha256": "f76018ef402afa7811154c506219361b43227dbe218ff0383b3dddd7bf438136",
             "width": 512,
             "height": 94,
@@ -334,7 +440,7 @@
           "sagittal": {
             "index": 256,
             "count": 512,
-            "generation": 378,
+            "generation": 261,
             "rgba_sha256": "b8cabf3aa07399387b9d1c7416dbfae594e4d2408f40e0a4bd654f9829799fe3",
             "width": 512,
             "height": 94,
@@ -346,6 +452,12 @@
         "invalid_api_probe_count": 18,
         "rejection_probes": [],
         "screenshots": {
+          "before-drop": {
+            "width": 2880,
+            "height": 2032,
+            "sha256": "ba94e0613910977a8803f150fb8288a16d83f6f45930c54cde61ce269cc057ca",
+            "bytes": 266240
+          },
           "ritk-snap-axial": {
             "width": 1404,
             "height": 808,
@@ -373,6 +485,12 @@
             "sha256": "c5ae8071600585a10208e33f970b280f71fc32b2751c75779342f8ce6dfc94dd",
             "bytes": 399666,
             "scope": "element"
+          },
+          "gallery": {
+            "width": 2880,
+            "height": 2032,
+            "sha256": "fa8f75568f768fbb24a62e4816dc35528eacea93d2b39e7a256015fde88f5490",
+            "bytes": 844784
           },
           "ritk-snap-axial-after-rejections": {
             "width": 1404,
@@ -427,21 +545,115 @@
         "display_only": true
       },
       "crosshair": {
-        "pane_layout": "quad",
-        "roles": [
-          "axial",
-          "coronal",
-          "sagittal",
-          "projection"
-        ],
+        "schema": 1,
+        "before": {
+          "active_tool": "W/L",
+          "active_tool_index": "2",
+          "annotation_count": "0",
+          "cine_enabled": "false",
+          "cine_fps": "12",
+          "consumer_listeners": 21,
+          "crosshair_visible": "false",
+          "host_listeners": 34,
+          "last_annotation_kind": "",
+          "last_annotation_value": "",
+          "linked_cursor": "47,256,256",
+          "mounted": true,
+          "pane_layout": "quad",
+          "pane_roles": [
+            "axial",
+            "coronal",
+            "sagittal",
+            "projection"
+          ],
+          "projection_frame_state": "presented",
+          "projection_mode": "mip",
+          "projection_statistic": "MIP",
+          "responsive_layout": true,
+          "wasm_bytes": 404357120
+        },
+        "visible": {
+          "active_tool": "W/L",
+          "active_tool_index": "2",
+          "annotation_count": "0",
+          "cine_enabled": "false",
+          "cine_fps": "12",
+          "consumer_listeners": 21,
+          "crosshair_visible": "true",
+          "host_listeners": 34,
+          "last_annotation_kind": "",
+          "last_annotation_value": "",
+          "linked_cursor": "47,256,256",
+          "mounted": true,
+          "pane_layout": "quad",
+          "pane_roles": [
+            "axial",
+            "coronal",
+            "sagittal",
+            "projection"
+          ],
+          "projection_frame_state": "presented",
+          "projection_mode": "mip",
+          "projection_statistic": "MIP",
+          "responsive_layout": true,
+          "wasm_bytes": 404357120
+        },
+        "hidden": {
+          "active_tool": "W/L",
+          "active_tool_index": "2",
+          "annotation_count": "0",
+          "cine_enabled": "false",
+          "cine_fps": "12",
+          "consumer_listeners": 21,
+          "crosshair_visible": "false",
+          "host_listeners": 34,
+          "last_annotation_kind": "",
+          "last_annotation_value": "",
+          "linked_cursor": "47,256,256",
+          "mounted": true,
+          "pane_layout": "quad",
+          "pane_roles": [
+            "axial",
+            "coronal",
+            "sagittal",
+            "projection"
+          ],
+          "projection_frame_state": "presented",
+          "projection_mode": "mip",
+          "projection_statistic": "MIP",
+          "responsive_layout": true,
+          "wasm_bytes": 404357120
+        },
         "linked_cursor": "47,256,256",
+        "overlay": [
+          {
+            "column": "block",
+            "left": "50.0977%",
+            "row": "block",
+            "top": "50.0977%"
+          },
+          {
+            "column": "block",
+            "left": "50.0977%",
+            "row": "block",
+            "top": "50.5319%"
+          },
+          {
+            "column": "block",
+            "left": "50.0977%",
+            "row": "block",
+            "top": "50.5319%"
+          }
+        ],
         "screenshot": {
           "path": "output/browser/results/firefox-responsive/crosshair/gallery-crosshair-controls.png",
+          "sha256": "699f216666572f3971d273f0df50fc8c99e35eb06ed2c90d5e092c34675f298d",
           "width": 2816,
           "height": 1784,
           "bytes": 1327092,
-          "sha256": "699f216666572f3971d273f0df50fc8c99e35eb06ed2c90d5e092c34675f298d"
-        }
+          "scope": "element"
+        },
+        "artifact": "output/browser/results/firefox-responsive/crosshair/gallery-crosshair.json"
       },
       "cleanup": {
         "transfer_observer": {
@@ -465,7 +677,7 @@
     }
   },
   "residuals": [
-    "Hosted run 35690425860 passes Chromium and Firefox responsive chooser workflows with the exact 94-file study, slice/projection/crosshair oracles and teardown cleanup.",
+    "Hosted run 35704771969 passes Chromium and Firefox responsive chooser workflows with the exact 94-file study, slice/projection/crosshair oracles and teardown cleanup.",
     "WebKit bounded whole-file read remains blocked by the Safari 26.6.2 selected-file authorization failure recorded in the cross-engine provenance.",
     "Chromium WebGPU remains blocked when the hosted runner has no adapter; the typed failure is preserved without raster fallback."
   ],
