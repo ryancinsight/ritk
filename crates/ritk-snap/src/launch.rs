@@ -53,7 +53,7 @@ pub(crate) enum NativePresentationSelection {
     Responsive,
 }
 
-#[cfg(not(target_arch = "wasm32"))]
+#[cfg(all(not(target_arch = "wasm32"), windows))]
 impl NativePresentationSelection {
     pub(crate) const fn projection_statistic(self) -> Option<ProjectionStatistic> {
         match self {
