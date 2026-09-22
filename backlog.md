@@ -50,6 +50,15 @@
 - Prior delivery verification (PR 556): standalone lock check passes with 62 first-party Git sources; the five-package debug gate passes 1,299/1,299 and the release codec gate passes 339/339; direct RGB uses the derived one-code-value differential bound; PNG readers reject JPEG bytes under both extensions and Snap emits a PNG signature for a `.jpg` path; the configured pre-push gate passes.
 - Prior delivery evidence (PR 556): the post-merge real-study replay reads 94 files/49,807,236 bytes, exits 0, rejects the invalid-study probe with exit 1, and reproduces the committed 1280×800 MRI PNG byte-identically (`259dd791...`, 411,589 non-black pixels) under lock `b1d7c99a6dcbf788f515f4b18789d10035805e38db10f4a32dd7970b3050e226`.
 
+<a id="RITK-METIS-LOCK-020"></a>
+## RITK-METIS-LOCK-020 — Consume the merged Métis permission capture [patch]
+- Status: in-progress; priority: P1; owner: RITK viewer + integration; integrator: root; last-update: 2026-09-22; dependency: Metis PR #343 merge `219143bbf3596aea85fa4624d7d5241a63b4cf0d`.
+- Outcome: standalone Cargo.lock and the hosted browser workflow resolve the merged Métis permission-matrix capture while the RITK real-MRI replay remains byte-identical and DICOM ownership stays in RITK.
+- Scope: six Metis source revisions in Cargo.lock, workflow default revision, current real-MRI provenance/manual and exact lock/replay verification; no viewer or DICOM behavior changes.
+- Acceptance: standalone lock resolves without the Atlas overlay; locked native/WASM `ritk-snap`, strict Clippy, formatting, rustdoc, provenance and 94-file replay pass; hosted workflow's lock-confirmation step accepts the same full Metis revision.
+- Risk: [patch]; this is a dependency/provenance advance only, and the first hosted dispatch against the old lock is expected to fail its exact-revision guard.
+- Lease: root `Cargo.lock`, `.github/workflows/metis-browser-dicom.yml`, `docs/manual/dicom-workflow.md`, `docs/manual/images/dicom-metis-real-mri.json`, `backlog.md` — 2026-09-22T04:12:00-04:00.
+
 <a id="RITK-METIS-LOCK-019"></a>
 ## RITK-METIS-LOCK-019 — Replay the merged Métis desktop permission surface [patch]
 - Status: done; priority: P1; owner: RITK viewer + integration; integrator: root; last-update: 2026-09-22; dependency: Metis PR #342 merge `7dd52ba`.
