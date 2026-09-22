@@ -46,3 +46,7 @@ scratch/
 
 # Local host toolchain overlay (machine-specific paths)
 .cargo/config.toml
+
+# Per-machine agent state: harness locks, subagent memory, managed worktrees.
+# A CI checkout has none of it, so it is this machine's, not the repository's.
+.claude/
