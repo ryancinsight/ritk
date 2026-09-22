@@ -6,7 +6,7 @@
 - Outcome: narrow-band layer queues remove front insertion/removal shifts while preserving the solver's survivor order and level-set behavior.
 - Scope: `ritk-filter` SparseField queue storage, benchmark registration, current-main integration, tests, and PR evidence; DICOM presentation remains in `ritk-snap`.
 - Acceptance: current-main locked `ritk-filter` nextest, strict Clippy, formatting, and benchmark compile pass; the PR retains the existing criterion comparison without changing its workload.
-- Verification: nextest 1075/1075 passed on the merged current-main revision; strict Clippy and formatting passed; benchmark compile is running against the standalone lock.
+- Verification: nextest 1075/1075 passed on the merged current-main revision; strict Clippy, formatting, and benchmark compile passed against the standalone lock.
 - Re-open: a hosted gate failure on the rebased PR or a benchmark compile failure requires fix-forward on this item.
 
 <a id="RITK-SNAP-METIS-RESPONSIVE-BROWSER-001"></a>
