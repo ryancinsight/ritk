@@ -31,6 +31,12 @@ nul
 # Local agent tooling state
 .mimocode/
 
+# Claude agent per-machine state (lock files, linked-worktree lanes); never
+# the shared agent memory under .claude/agent-memory/, which is tracked
+# project configuration.
+.claude/scheduled_tasks.lock
+.claude/worktrees/
+
 # Fetched SimpleITK ExternalData test corpus (downloaded on demand)
 externals/
 
