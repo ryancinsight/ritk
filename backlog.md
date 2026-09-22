@@ -2,7 +2,7 @@
 
 <a id="RITK-METIS-LOCK-021"></a>
 ## RITK-METIS-LOCK-021 — Consume current Métis host and refresh replay provenance [patch]
-- Status: review; priority: P1; owner: RITK viewer + integration; integrator: root; branch: `docs/ritk-metis-hosted-35759891764`; last-update: 2026-09-22; dependency delivery: PR [#604](https://github.com/ryancinsight/ritk/pull/604); delivery: PR [#605](https://github.com/ryancinsight/ritk/pull/605).
+- Status: done; priority: P1; owner: RITK viewer + integration; integrator: root; branch: `docs/ritk-metis-hosted-35759891764`; last-update: 2026-09-22; dependency delivery: PR [#604](https://github.com/ryancinsight/ritk/pull/604); delivery: PR [#605](https://github.com/ryancinsight/ritk/pull/605), merge `29c51440ad4d33ab4109dd665683b7ef5bf45198`.
 - Outcome: the standalone lock and browser workflow consume the current Metis default while the real 94-file MRI replay remains pixel-identical and DICOM decoding, geometry and clinical presentation remain RITK-owned.
 - Scope: six Metis and fifteen Moirai git sources in `Cargo.lock`, browser workflow revision guards, current MRI provenance/manual references and lock/replay verification; no viewer or DICOM behavior changes.
 - Acceptance: standalone lock resolves without the Atlas overlay; locked native/WASM `ritk-snap`, strict Clippy, formatting, Rustdoc, provenance and the 94-file replay pass; workflow revision guards bind the same Metis source revision; current capture SHA is `85071f20ca11cb4a9b2524db0a53b21695b7e93141831e7e0ab293c42fbcd582` and the lossless optimized manual image SHA is `959969ef69e66cebd3143b06468802e06ff68fbc6d94e2ed1d9a555f7e2ff98c`.
