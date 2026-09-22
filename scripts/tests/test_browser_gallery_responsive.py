@@ -34,6 +34,7 @@ class ResponsiveGalleryTests(unittest.TestCase):
         self.assertIn("responsive-views", artifacts)
         self.assertIn("result: chromium-responsive", workflow)
         self.assertIn("result: firefox-responsive", workflow)
+        self.assertIn("canvas_capture: screenshot", workflow)
         self.assertIn("layout: responsive", workflow)
         self.assertIn('--page-query "layout=$LAYOUT"', workflow)
         self.assertIn("--crosshair-controls", workflow)

@@ -782,7 +782,7 @@ python scripts/browser_gallery.py `
   --pattern '*.dcm' `
   --oracle ..\metis\output\browser\mri-projection-oracle.json `
   --consumer-revision (git rev-parse HEAD) `
-  --canvas-capture rgba `
+  --canvas-capture screenshot `
   --canvas-context 2d `
   --projection mip `
   --crosshair-controls `
