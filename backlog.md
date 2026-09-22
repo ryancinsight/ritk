@@ -1,5 +1,15 @@
 # RITK execution backlog
 
+<a id="RITK-SNAP-METIS-RESPONSIVE-BROWSER-001"></a>
+## RITK-SNAP-METIS-RESPONSIVE-BROWSER-001 — Capture the responsive browser gallery [patch]
+- Status: in-progress; priority: P1; owner: RITK browser presentation; integrator: root; branch: `feat/ritk-responsive-gallery`; last-update: 2026-09-22.
+- Outcome: the hosted RITK gallery mounts the existing canvas IDs directly in the trusted responsive container and records real-study pane roles, listener counts and pixels.
+- Scope: gallery HTML/CSS/JS, browser capture oracle, workflow invocation, tests, manual evidence and delivery metadata; Métis primitives, DICOM decoding and clinical geometry remain unchanged.
+- Acceptance: `layout=responsive` selects the RITK responsive entrypoint, keeps three interactive axes plus a display-only projection, passes the existing transfer/slice/projection value oracles, and produces inspected Chromium/Firefox captures from the public 94-file MRI study.
+- Dependencies: merged RITK responsive API in PR #576 and the existing Metis browser transfer contract.
+- Verification: dependency-free script tests, browser syntax/fixture checks, locked native/WASM package gates, and hosted responsive raster evidence.
+- Lease: root owns `crates/ritk-snap/web/gallery/**`, `scripts/browser_gallery*.py`, `.github/workflows/metis-browser-dicom.yml`, and affected manual sections.
+
 <a id="RITK-SNAP-METIS-RESPONSIVE-LAYOUT-001"></a>
 ## RITK-SNAP-METIS-RESPONSIVE-LAYOUT-001 — Drive adaptive 1/2/4-pane Métis presentation [arch] [minor]
 - Status: done; priority: P1; owner: RITK presentation; integrator: root; branch: `feat/ritk-snap-metis-responsive-layout`; last-update: 2026-09-21; delivery: PR [#576](https://github.com/ryancinsight/ritk/pull/576), merge `87b2d841a5849c75f2a1f7523a5d8b0ef0c0c2c4`.
