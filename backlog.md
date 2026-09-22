@@ -52,11 +52,12 @@
 
 <a id="RITK-METIS-LOCK-018"></a>
 ## RITK-METIS-LOCK-018 — Replay the merged Métis command surface [patch]
-- Status: review; priority: P1; owner: RITK viewer + integration; integrator: root; branch: `build/ritk-metis-lock-018`; last-update: 2026-09-22; dependency: Metis PR #338 merge `ad27d2148cc6b8fa9702cbbd4f37d9e106aa6535`.
+- Status: done; priority: P1; owner: RITK viewer + integration; integrator: root; last-update: 2026-09-22; dependency: Metis PR #338 merge `ad27d2148cc6b8fa9702cbbd4f37d9e106aa6535`.
 - Outcome: the standalone RITK lock and browser workflow consume the merged Métis semantic command surface while DICOM discovery, decoding, clinical geometry and presentation remain RITK-owned.
 - Scope: six Metis source revisions in `Cargo.lock`, the browser workflow default revision, current real-MRI provenance and manual synchronization; no DICOM parser or viewer behavior moves into Metis.
 - Acceptance: standalone Cargo.lock resolves without the Atlas overlay; locked native/WASM `ritk-snap` checks, strict Clippy, formatting, rustdoc and provenance pass; the public 94-file/49,807,236-byte MRI replay exits 0, invalid-study exits 1, and preserves the 1280×800 PNG byte-identically (`259dd791...`, 411,589 non-black pixels); the browser workflow checks out the same full Metis revision by default.
 - Verification: standalone lock check reports 63 first-party Git sources at SHA-256 `c1ccbc7785cce37d4e2322002fd19b0bb4ab03fec03ab7d4154fa6cfbcf470b1`; locked `ritk-snap` nextest passes 495/495 (run `4e6d4e79-f8f5-45e8-946f-a953ed1f5a18`); native strict Clippy, WASM check/Clippy, formatting, rustdoc, doctests (4 passed, 1 ignored) and projection tests (5 passed, 906 skipped; run `31eb1c15-33b2-499f-92ee-a5b3deda507d`) pass; Python script tests pass 28/28; the standalone replay reads 94 `.dcm` files/49,807,236 bytes, exits 0, rejects the invalid-study probe with exit 1, and preserves the 1280×800 image (`259dd791...`, 411,589 non-black pixels) with executable `2f44ae...` and example `1ef63e...` hashes.
+- Delivery: PR [#588](https://github.com/ryancinsight/ritk/pull/588), merge `27ac7d12bc69a04f7fb12e5ba41ef8fd4fe93aa9`; source commit `b671ae72a20bb6d113de35314e73874f197d2a83`, provenance commit `ffcc7b835b5890b4cdfe87451b1f56f11d9c4738`.
 <a id="RITK-METIS-LOCK-015"></a>
 ## RITK-METIS-LOCK-015 — Replay the merged Métis semantic capture provider [patch]
 - Status: done; priority: P1; owner: RITK viewer + integration; integrator: root; last-update: 2026-09-21.
