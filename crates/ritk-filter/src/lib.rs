@@ -159,6 +159,7 @@ pub use transform::{
 
 mod native_displacement;
 mod native_support;
+pub(crate) mod sparse_field;
 
 // ── Surface & distance ───────────────────────────────────────────────────────
 pub mod colliding_fronts;
