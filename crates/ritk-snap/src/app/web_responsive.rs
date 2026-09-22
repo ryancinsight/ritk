@@ -184,6 +184,7 @@ impl ResponsiveSurface {
             canvas
                 .canvas
                 .publish_semantics(semantics, physical_aspect(frame)?)?;
+            canvas.canvas.set_responsive_sizing()?;
         }
         let projection = self.canvases.get_mut(3).ok_or_else(|| {
             io::Error::other("responsive browser projection canvas was not initialized")
@@ -193,7 +194,8 @@ impl ResponsiveSurface {
             frames.get(3),
             self.statistic,
             physical_aspect(frames.get(3))?,
-        )
+        )?;
+        projection.canvas.set_responsive_sizing()
     }
 
     pub(super) fn apply_events(

@@ -96,6 +96,15 @@ impl BrowserCanvas {
         Ok(())
     }
 
+    pub(super) fn set_responsive_sizing(&self) -> std::io::Result<()> {
+        // Responsive panes are grid tracks. The generic aspect publisher uses
+        // an auto height for fixed gallery canvases; responsive tracks instead
+        // need both dimensions definite so the browser keeps every pane inside
+        // the container and the canvas object-fit preserves physical aspect.
+        self.element.set_style_property("width", "100%")?;
+        self.element.set_style_property("height", "100%")
+    }
+
     pub(super) fn take_events(
         &self,
     ) -> Result<
