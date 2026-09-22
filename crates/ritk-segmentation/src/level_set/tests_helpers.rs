@@ -1,3 +1,5 @@
+use super::math::{compute_edge_stopping, gaussian_smooth};
+use super::ops::{compute_field_gradient, compute_gradient_magnitude};
 use super::*;
 use std::f64::consts::PI;
 

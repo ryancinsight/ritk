@@ -93,95 +93,35 @@ impl ThresholdLevelSet {
         image: &Image<f32, B, 3>,
         initial_phi: &Image<f32, B, 3>,
     ) -> anyhow::Result<Image<f32, B, 3>> {
-        let dims = image.shape();
-        let phi_dims = initial_phi.shape();
-        if dims != phi_dims {
-            anyhow::bail!(
-                "image shape {:?} and initial_phi shape {:?} must match",
-                dims,
-                phi_dims
-            );
-        }
+        let dims = helpers::checked_dims(image.shape(), initial_phi.shape())?;
 
         let device = B::default();
-        let [nz, ny, nx] = dims;
-        let n: usize = nz * ny * nx;
 
         // Extract f32 tensor data and convert to f64 for PDE pipeline.
         let (img_vals, _) = extract_vec(image)?;
         let (phi_init, _) = extract_vec(initial_phi)?;
         let img_wide: Vec<f64> = img_vals.iter().map(|&v| v as f64).collect();
-        let mut phi: Vec<f64> = phi_init.iter().map(|&v| v as f64).collect();
+        let phi: Vec<f64> = phi_init.iter().map(|&v| v as f64).collect();
 
-        // Precompute threshold speed field T(I).
-        let threshold_speed: Vec<f64> = img_wide
-            .iter()
-            .map(|&v| {
-                if self.lower_threshold <= v && v <= self.upper_threshold {
-                    1.0
-                } else {
-                    -1.0
-                }
-            })
-            .collect();
+        let speed_field = self.sign_folded_speed(&img_wide);
 
-        // Scratch buffers.
-        let mut kappa = vec![0.0_f64; n];
-        let mut phi_new = phi.clone();
-        let mut phi_z = vec![0.0_f64; n];
-        let mut phi_y = vec![0.0_f64; n];
-        let mut phi_x = vec![0.0_f64; n];
+        let phi = helpers::evolve_to_convergence::<helpers::MaxAbsRate, _, _>(
+            phi,
+            dims,
+            self.dt,
+            self.max_iterations,
+            self.tolerance,
+            |_phi, _scratch| {},
+            |idx, grad_phi_mag, scratch| {
+                // dphi = dt * |grad phi| * (w_p * S + w_c * kappa),
+                // with S = -T so the bracket reproduces w_c*kappa - w_p*T.
+                let speed = self.propagation_weight * speed_field[idx]
+                    + self.curvature_weight * scratch.kappa[idx];
+                self.dt * grad_phi_mag * speed
+            },
+        );
 
-        let slice_len = ny * nx;
-        let mut max_changes = vec![0.0_f64; nz];
-
-        // PDE evolution loop.
-        for _iter in 0..self.max_iterations {
-            helpers::compute_curvature_into(&phi, dims, &mut kappa);
-            helpers::compute_field_gradient_into(&phi, dims, &mut phi_z, &mut phi_y, &mut phi_x);
-
-            helpers::evolve_slices_with_metric(
-                &mut phi_new,
-                &mut max_changes,
-                slice_len,
-                |iz, phi_new_s| {
-                    let base = iz * slice_len;
-                    let mut local_max = 0.0_f64;
-                    for (i, phi_new_val) in phi_new_s.iter_mut().enumerate() {
-                        let idx = base + i;
-                        let grad_phi_mag = (phi_z[idx] * phi_z[idx]
-                            + phi_y[idx] * phi_y[idx]
-                            + phi_x[idx] * phi_x[idx])
-                            .sqrt();
-
-                        let speed = self.curvature_weight * kappa[idx]
-                            - self.propagation_weight * threshold_speed[idx];
-                        let dphi = self.dt * grad_phi_mag * speed;
-                        *phi_new_val = phi[idx] + dphi;
-
-                        let change = dphi.abs() / self.dt;
-                        if change > local_max {
-                            local_max = change;
-                        }
-                    }
-                    local_max
-                },
-            );
-
-            std::mem::swap(&mut phi, &mut phi_new);
-
-            let max_change = max_changes.iter().copied().fold(0.0_f64, f64::max);
-            if max_change < self.tolerance {
-                break;
-            }
-        }
-
-        // Binary mask: phi < 0 => 1.0, else 0.0.
-        let mask: Vec<f32> = phi
-            .iter()
-            .map(|&v| if v < 0.0 { 1.0_f32 } else { 0.0_f32 })
-            .collect();
-
+        let mask = helpers::binary_mask(&phi);
         let tensor = Tensor::<f32, B>::from_slice_on(dims, &mask, &device);
 
         Image::new(
@@ -209,97 +149,59 @@ impl ThresholdLevelSet {
         B: coeus_core::ComputeBackend,
         B::DeviceBuffer<f32>: coeus_core::CpuAddressableStorage<f32>,
     {
-        let dims = image.shape();
-        let phi_dims = initial_phi.shape();
-        if dims != phi_dims {
-            anyhow::bail!(
-                "image shape {:?} and initial_phi shape {:?} must match",
-                dims,
-                phi_dims
-            );
-        }
-
-        let [nz, ny, nx] = dims;
-        let n: usize = nz * ny * nx;
+        let dims = helpers::checked_dims(image.shape(), initial_phi.shape())?;
 
         let img_vals = image.data_slice()?;
         let phi_init = initial_phi.data_slice()?;
         let img_wide: Vec<f64> = img_vals.iter().map(|&v| v as f64).collect();
-        let mut phi: Vec<f64> = phi_init.iter().map(|&v| v as f64).collect();
+        let phi: Vec<f64> = phi_init.iter().map(|&v| v as f64).collect();
 
-        let threshold_speed: Vec<f64> = img_wide
-            .iter()
-            .map(|&v| {
-                if self.lower_threshold <= v && v <= self.upper_threshold {
-                    1.0
-                } else {
-                    -1.0
-                }
-            })
-            .collect();
+        let speed_field = self.sign_folded_speed(&img_wide);
 
-        let mut kappa = vec![0.0_f64; n];
-        let mut phi_new = phi.clone();
-        let mut phi_z = vec![0.0_f64; n];
-        let mut phi_y = vec![0.0_f64; n];
-        let mut phi_x = vec![0.0_f64; n];
+        let phi = helpers::evolve_to_convergence::<helpers::MaxAbsRate, _, _>(
+            phi,
+            dims,
+            self.dt,
+            self.max_iterations,
+            self.tolerance,
+            |_phi, _scratch| {},
+            |idx, grad_phi_mag, scratch| {
+                let speed = self.propagation_weight * speed_field[idx]
+                    + self.curvature_weight * scratch.kappa[idx];
+                self.dt * grad_phi_mag * speed
+            },
+        );
 
-        let slice_len = ny * nx;
-        let mut max_changes = vec![0.0_f64; nz];
-
-        for _iter in 0..self.max_iterations {
-            helpers::compute_curvature_into(&phi, dims, &mut kappa);
-            helpers::compute_field_gradient_into(&phi, dims, &mut phi_z, &mut phi_y, &mut phi_x);
-
-            helpers::evolve_slices_with_metric(
-                &mut phi_new,
-                &mut max_changes,
-                slice_len,
-                |iz, phi_new_s| {
-                    let base = iz * slice_len;
-                    let mut local_max = 0.0_f64;
-                    for (i, phi_new_val) in phi_new_s.iter_mut().enumerate() {
-                        let idx = base + i;
-                        let grad_phi_mag = (phi_z[idx] * phi_z[idx]
-                            + phi_y[idx] * phi_y[idx]
-                            + phi_x[idx] * phi_x[idx])
-                            .sqrt();
-
-                        let speed = self.curvature_weight * kappa[idx]
-                            - self.propagation_weight * threshold_speed[idx];
-                        let dphi = self.dt * grad_phi_mag * speed;
-                        *phi_new_val = phi[idx] + dphi;
-
-                        let change = dphi.abs() / self.dt;
-                        if change > local_max {
-                            local_max = change;
-                        }
-                    }
-                    local_max
-                },
-            );
-
-            std::mem::swap(&mut phi, &mut phi_new);
-
-            let max_change = max_changes.iter().copied().fold(0.0_f64, f64::max);
-            if max_change < self.tolerance {
-                break;
-            }
-        }
-
-        crate::native_output::from_values(
-            image,
-            phi.iter()
-                .map(|&v| if v < 0.0 { 1.0_f32 } else { 0.0_f32 })
-                .collect(),
-            backend,
-        )
+        crate::native_output::from_values(image, helpers::binary_mask(&phi), backend)
     }
 }
 
 impl Default for ThresholdLevelSet {
     fn default() -> Self {
         Self::new(0.0, 255.0)
+    }
+}
+
+impl ThresholdLevelSet {
+    /// The threshold sign field `S = -T` for the shared evolution engine.
+    ///
+    /// `T = +1` inside `[lower, upper]`, `-1` outside; the PDE carries
+    /// `- w_p * T`, and the engine's bracket is `w_p * S + w_c * kappa`.
+    /// Folding the minus sign into `S` up front is exact under IEEE-754:
+    /// `w_p * (-T) = -(w_p * T)`, and `y + (-(x))` rounds identically to
+    /// `y - x`, so every increment matches the pre-engine arithmetic
+    /// bit-for-bit.
+    fn sign_folded_speed(&self, img_wide: &[f64]) -> Vec<f64> {
+        img_wide
+            .iter()
+            .map(|&v| {
+                if self.lower_threshold <= v && v <= self.upper_threshold {
+                    -1.0
+                } else {
+                    1.0
+                }
+            })
+            .collect()
     }
 }
 
