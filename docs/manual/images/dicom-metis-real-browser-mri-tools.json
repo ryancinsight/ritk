@@ -2,14 +2,14 @@
   "schema": 2,
   "status": "passed",
   "workflow": {
-    "run_id": 35724926751,
-    "url": "https://github.com/ryancinsight/ritk/actions/runs/35724926751",
-    "artifact_id": 10693163040,
-    "artifact_url": "https://github.com/ryancinsight/ritk/actions/runs/35724926751/artifacts/10693163040",
-    "ritk_revision": "67d4ad4457823f928b02739ec120bc0329a1b7f0",
-    "metis_revision": "776dbbf94593e42d0a5686b587ed27b72f885a73",
-    "moirai_revision": "0e2e1bbb2d81e16dd9c694ba46a9e9710e034417",
-    "browser": "Chrome 152.0.7977.82 on Linux",
+    "run_id": 35759891764,
+    "url": "https://github.com/ryancinsight/ritk/actions/runs/35759891764",
+    "artifact_id": 10709149104,
+    "artifact_url": "https://github.com/ryancinsight/ritk/actions/runs/35759891764/artifacts/10709149104",
+    "ritk_revision": "db17163baf2947e6e8d163e2750c4fec7f93b671",
+    "metis_revision": "1b10541c2ef7a849e6ff66a3c778874bdf96de7b",
+    "moirai_revision": "b77239dd10bcaf803394c26255c462bc858c1340",
+    "browser": "Chrome 153.0.8010.52 on Linux",
     "files": 94,
     "bytes": 49807236,
     "file_manifest_sha256": "81b7b7f8ea473dfc12c25c07b4958762254a261ca49352af2adabc214d6e8d03"
@@ -28,7 +28,7 @@
         "annotation_after": {
           "count": 1,
           "kind": "length",
-          "value": 102.75155
+          "value": 102.751564
         },
         "annotation_before": {
           "count": 0,
@@ -36,9 +36,9 @@
           "value": null
         },
         "generations": [
-          147,
-          147,
-          147
+          126,
+          126,
+          126
         ],
         "gesture": "two-click-measurement",
         "index": 3,
@@ -66,17 +66,17 @@
         "annotation_after": {
           "count": 2,
           "kind": "angle",
-          "value": 3.5569937
+          "value": 3.5985856
         },
         "annotation_before": {
           "count": 1,
           "kind": "length",
-          "value": 102.75155
+          "value": 102.751564
         },
         "generations": [
-          156,
-          156,
-          156
+          135,
+          135,
+          135
         ],
         "gesture": "three-click-measurement",
         "index": 4,
@@ -109,12 +109,12 @@
         "annotation_before": {
           "count": 2,
           "kind": "angle",
-          "value": 3.5569937
+          "value": 3.5985856
         },
         "generations": [
-          160,
-          160,
-          160
+          138,
+          138,
+          138
         ],
         "gesture": "roi-drag",
         "index": 5,
@@ -142,7 +142,7 @@
         "annotation_after": {
           "count": 4,
           "kind": "roi-ellipse",
-          "value": 4146.0703
+          "value": 4146.0713
         },
         "annotation_before": {
           "count": 3,
@@ -150,9 +150,9 @@
           "value": 5402.25
         },
         "generations": [
-          163,
-          163,
-          163
+          141,
+          141,
+          141
         ],
         "gesture": "roi-drag",
         "index": 6,
@@ -185,12 +185,12 @@
         "annotation_before": {
           "count": 4,
           "kind": "roi-ellipse",
-          "value": 4146.0703
+          "value": 4146.0713
         },
         "generations": [
-          167,
-          167,
-          167
+          144,
+          144,
+          144
         ],
         "gesture": "trusted-click",
         "index": 8,
@@ -226,9 +226,9 @@
           "value": 27.0
         },
         "generations": [
-          170,
-          170,
-          170
+          147,
+          147,
+          147
         ],
         "gesture": "pointer-drag",
         "index": 0,
@@ -264,9 +264,9 @@
           "value": 27.0
         },
         "generations": [
-          173,
-          173,
-          173
+          150,
+          150,
+          150
         ],
         "gesture": "pointer-drag",
         "index": 1,
@@ -302,9 +302,9 @@
           "value": 27.0
         },
         "generations": [
-          176,
-          176,
-          176
+          153,
+          153,
+          153
         ],
         "gesture": "pointer-drag",
         "index": 2,
@@ -340,9 +340,9 @@
           "value": 27.0
         },
         "generations": [
-          179,
-          179,
-          179
+          156,
+          156,
+          156
         ],
         "gesture": "trusted-click",
         "index": 7,
@@ -378,9 +378,9 @@
           "value": 27.0
         },
         "generations": [
-          182,
-          182,
-          182
+          159,
+          159,
+          159
         ],
         "gesture": "trusted-click",
         "index": 9,
@@ -416,9 +416,9 @@
           "value": 27.0
         },
         "generations": [
-          185,
-          185,
-          185
+          162,
+          162,
+          162
         ],
         "gesture": "trusted-click",
         "index": 10,
@@ -462,7 +462,7 @@
             "value": null
           },
           "axis": "axial",
-          "generation": 140
+          "generation": 119
         },
         {
           "active_tool": "W/L",
@@ -473,7 +473,7 @@
             "value": null
           },
           "axis": "coronal",
-          "generation": 140
+          "generation": 119
         },
         {
           "active_tool": "W/L",
@@ -484,7 +484,7 @@
             "value": null
           },
           "axis": "sagittal",
-          "generation": 140
+          "generation": 119
         }
       ],
       "controls": {
@@ -655,19 +655,19 @@
     "schema": 1,
     "screenshots": {
       "controls": {
-        "bytes": 27160,
+        "bytes": 25549,
         "height": 88,
         "path": "output/browser/results/chromium-window/tools/gallery-tools-controls.png",
         "scope": "element",
-        "sha256": "b4450f60855bd16b05769b4404b40dcfbd3fb481e3365c00d1e46978ab0ae66d",
+        "sha256": "a2493c13e26e15122933b90cee241e8c2a727ffe2eb401aaf53842f61f7a4357",
         "width": 2786
       },
       "window": {
-        "bytes": 244532,
+        "bytes": 232707,
         "height": 2114,
         "path": "output/browser/results/chromium-window/tools/gallery-tools.png",
         "scope": "window",
-        "sha256": "a592e6b9ab489706f60c52e2dc858b317d274acf429ffae021ebeb2f8d45b5ba",
+        "sha256": "f9637e00e387574aed720479b90d5ac45c312302120f5c529f19c2b7774538a1",
         "width": 2880
       }
     },
@@ -685,19 +685,19 @@
   "annotation": {
     "tool_artifact_path": "output/browser/results/chromium-window/tools/gallery-tools.json",
     "screenshot_source": {
-      "bytes": 244532,
-      "height": 2114,
       "path": "output/browser/results/chromium-window/tools/gallery-tools.png",
-      "scope": "window",
-      "sha256": "a592e6b9ab489706f60c52e2dc858b317d274acf429ffae021ebeb2f8d45b5ba",
-      "width": 2880
+      "bytes": 232707,
+      "sha256": "f9637e00e387574aed720479b90d5ac45c312302120f5c529f19c2b7774538a1",
+      "width": 2880,
+      "height": 2114,
+      "scope": "window"
     },
     "manual_derivative": {
       "path": "docs/manual/images/dicom-metis-real-browser-mri-tools.png",
-      "width": 1600,
-      "height": 1174,
-      "bytes": 79530,
-      "sha256": "46de087248fd70643c9c1bc45e82cf4211ea1fe827facec9582645c93e1b220a"
+      "width": 900,
+      "height": 660,
+      "bytes": 83507,
+      "sha256": "91b7f7ccb62e9765b762979db6321592280066f89c04be1c4cec77da365c8eb5"
     },
     "actions": [
       {
@@ -818,35 +818,35 @@
       }
     },
     "controls_screenshot_source": {
-      "bytes": 27160,
-      "height": 88,
       "path": "output/browser/results/chromium-window/tools/gallery-tools-controls.png",
-      "scope": "element",
-      "sha256": "b4450f60855bd16b05769b4404b40dcfbd3fb481e3365c00d1e46978ab0ae66d",
-      "width": 2786
+      "bytes": 25549,
+      "sha256": "a2493c13e26e15122933b90cee241e8c2a727ffe2eb401aaf53842f61f7a4357",
+      "width": 2786,
+      "height": 88,
+      "scope": "element"
     },
     "controls_manual_derivative": {
       "path": "docs/manual/images/dicom-metis-real-browser-mri-tools-controls.png",
-      "width": 1600,
-      "height": 51,
-      "bytes": 8235,
-      "sha256": "0df77dc01f6e0446d43e7a66b23678192d113a99aba2bad795d83e7fffb0fc1e"
+      "width": 1200,
+      "height": 38,
+      "bytes": 21743,
+      "sha256": "e0491fc82f37b32d15a8c74ecb19d7a44a0087f412812332cd4d3241afa6d3bb"
     }
   },
   "manual_derivatives": {
     "tools": {
       "path": "docs/manual/images/dicom-metis-real-browser-mri-tools.png",
-      "width": 1600,
-      "height": 1174,
-      "bytes": 79530,
-      "sha256": "46de087248fd70643c9c1bc45e82cf4211ea1fe827facec9582645c93e1b220a"
+      "width": 900,
+      "height": 660,
+      "bytes": 83507,
+      "sha256": "91b7f7ccb62e9765b762979db6321592280066f89c04be1c4cec77da365c8eb5"
     },
     "controls": {
       "path": "docs/manual/images/dicom-metis-real-browser-mri-tools-controls.png",
-      "width": 1600,
-      "height": 51,
-      "bytes": 8235,
-      "sha256": "0df77dc01f6e0446d43e7a66b23678192d113a99aba2bad795d83e7fffb0fc1e"
+      "width": 1200,
+      "height": 38,
+      "bytes": 21743,
+      "sha256": "e0491fc82f37b32d15a8c74ecb19d7a44a0087f412812332cd4d3241afa6d3bb"
     }
   }
 }
