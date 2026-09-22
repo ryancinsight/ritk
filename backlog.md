@@ -2,13 +2,13 @@
 
 <a id="RITK-SNAP-METIS-RESPONSIVE-BROWSER-001"></a>
 ## RITK-SNAP-METIS-RESPONSIVE-BROWSER-001 — Capture the responsive browser gallery [patch]
-- Status: in-progress; priority: P1; owner: RITK browser presentation; integrator: root; branch: `fix/ritk-responsive-capture-contract`; last-update: 2026-09-21.
+- Status: review; priority: P1; owner: RITK browser presentation; integrator: root; branch: `docs/ritk-responsive-browser-evidence`; last-update: 2026-09-21.
 - Outcome: the hosted RITK gallery mounts the existing canvas IDs directly in the trusted responsive container, preserves the linked crosshair overlay, and records real-study pane roles, listener counts and pixels.
 - Scope: gallery HTML/CSS/JS, browser capture oracle, workflow invocation, tests, manual evidence and delivery metadata; Métis primitives, DICOM decoding and clinical geometry remain unchanged.
 - Acceptance: `layout=responsive` selects the RITK responsive entrypoint, keeps three interactive axes plus a display-only projection, passes the existing transfer/slice/projection/crosshair value oracles, and produces inspected Chromium/Firefox captures from the public 94-file MRI study.
 - Dependencies: merged RITK responsive API in PR #576 and the existing Metis browser transfer contract.
-- Verification: dependency-free script tests, browser syntax/fixture checks, locked native/WASM package gates, and hosted responsive raster evidence.
-- Lease: root owns `crates/ritk-snap/src/app/browser_canvas.rs`, `crates/ritk-snap/src/app/web_responsive.rs`, `crates/ritk-snap/web/gallery/**`, `scripts/browser_gallery*.py`, `.github/workflows/metis-browser-dicom.yml`, and affected manual sections.
+- Verification: dependency-free script tests, browser syntax/fixture checks, locked native/WASM package gates, and hosted responsive raster evidence. Hosted run `35681744137` passes Chromium and Firefox responsive jobs; exact trace and derivative hashes are in `docs/manual/images/dicom-metis-real-browser-mri-responsive.json`.
+- Lease: root owns the responsive evidence record, derivative PNGs, this backlog item and the affected manual section.
 
 <a id="RITK-SNAP-METIS-RESPONSIVE-LAYOUT-001"></a>
 ## RITK-SNAP-METIS-RESPONSIVE-LAYOUT-001 — Drive adaptive 1/2/4-pane Métis presentation [arch] [minor]
