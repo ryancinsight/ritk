@@ -3,88 +3,19 @@ use super::layout::{
 };
 use super::layout::{OVERLAY_BAR_HEIGHT, OVERLAY_TEXT};
 use super::*;
+use crate::dicom::loader::load_volume_from_path;
 use crate::dicom::loader::tests::fixtures;
 use crate::launch::{NativePresentationMode, NativePresentationSelection};
-#[cfg(feature = "eframe-shell")]
-use crate::presentation::PresentationFrame;
 use crate::ui::{RotationSteps, ViewTransform};
-#[cfg(feature = "eframe-shell")]
-use crate::LoadedVolume;
 use metis_platform::native::{ModifierState, NativeApplication, NativeFlow, WindowEvent};
 use metis_ui_lang::{DisplayCommand, DisplayList};
 use std::time::{Duration, Instant};
 mod interaction;
 mod selection;
-
-fn session() -> (NativeViewerSession, tempfile::TempDir) {
-    session_with_mode(NativePresentationMode::Orthogonal)
-}
-
-fn session_with_mode(
-    presentation_mode: NativePresentationMode,
-) -> (NativeViewerSession, tempfile::TempDir) {
-    session_with_selection(NativePresentationSelection::Fixed(presentation_mode))
-}
-
-fn session_with_responsive_mode() -> (NativeViewerSession, tempfile::TempDir) {
-    session_with_selection(NativePresentationSelection::Responsive)
-}
-
-fn session_with_selection(
-    presentation_mode: NativePresentationSelection,
-) -> (NativeViewerSession, tempfile::TempDir) {
-    let root = tempfile::tempdir().expect("study root");
-    let path = root.path().to_path_buf();
-    fixtures::write_study(&path, "CT", fixtures::SERIES_UID).expect("write study");
-    let mut app = SnapApp::default();
-    let volume = load_volume_from_path(&path).expect("load study fixture");
-    app.load_volume(volume, "fixture".to_owned());
-    (
-        NativeViewerSession::new_with_selection(
-            app,
-            Arc::new(NativeViewerObservation::default()),
-            false,
-            presentation_mode,
-            false,
-            None,
-        )
-        .expect("native session"),
-        root,
-    )
-}
-
+mod support;
 #[cfg(feature = "eframe-shell")]
-fn session_with_volume(volume: LoadedVolume) -> (NativeViewerSession, tempfile::TempDir) {
-    let root = tempfile::tempdir().expect("study root");
-    let mut app = SnapApp::default();
-    app.load_volume(volume, "fixture".to_owned());
-    (
-        NativeViewerSession::new_with_selection(
-            app,
-            Arc::new(NativeViewerObservation::default()),
-            false,
-            NativePresentationSelection::Fixed(NativePresentationMode::Orthogonal),
-            false,
-            None,
-        )
-        .expect("native session"),
-        root,
-    )
-}
-
-#[cfg(feature = "eframe-shell")]
-fn expected_native_frame(session: &NativeViewerSession, axis: usize) -> PresentationFrame {
-    let volume = session.app.loaded.as_ref().expect("loaded volume");
-    let (index, _) = session.app.axis_slice_info(axis);
-    PresentationFrame::from_slice(
-        volume,
-        axis,
-        index,
-        super::frame::window_level_for_app(&session.app),
-        session.app.colormap,
-    )
-    .expect("expected native frame")
-}
+use support::{expected_native_frame, session_with_volume};
+use support::{session, session_with_mode, session_with_responsive_mode};
 
 #[test]
 fn native_session_renders_and_steps_the_loaded_slice() {
