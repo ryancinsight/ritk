@@ -6,7 +6,7 @@
 - Outcome: the standalone lock and browser workflow consume the current Metis default while the real 94-file MRI replay remains byte-identical and DICOM decoding, geometry and clinical presentation remain RITK-owned.
 - Scope: six Metis and fifteen Moirai git sources in `Cargo.lock`, browser workflow revision guards, current MRI provenance/manual references and lock/replay verification; no viewer or DICOM behavior changes.
 - Acceptance: standalone lock resolves without the Atlas overlay; locked native/WASM `ritk-snap`, strict Clippy, formatting, Rustdoc, provenance and the 94-file replay pass; workflow revision guards bind the same Metis source revision; public image SHA remains `259dd79103482756c4e688621bebafc841cc40f1df10ff2bbd7f9d04b7b4d401`.
-- Dependencies: Atlas pins Metis `1b10541c2ef7a849e6ff66a3c778874bdf96de7b`; Moirai current default is `29b129659f368fcbc3168103302cfc545411e642` while Atlas retains its separate conformance waiver.
+- Dependencies: Atlas pins Metis `1b10541c2ef7a849e6ff66a3c778874bdf96de7b`; Atlas retains Moirai at the reachable clean pin `b77239dd10bcaf803394c26255c462bc858c1340` while its current default `29b129659f368fcbc3168103302cfc545411e642` carries the separate conformance waiver.
 - Lease: root owns `Cargo.lock`, `.github/workflows/metis-browser-dicom.yml`, the current MRI provenance/manual records and this item.
 
 <a id="RITK-SNAP-METIS-RESPONSIVE-BROWSER-001"></a>
