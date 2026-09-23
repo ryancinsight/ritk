@@ -5,12 +5,16 @@
 //! anatomy appears yellow/grey; misalignment appears as red/green fringes.
 //! The three panels are identity | RITK MI | Elastix.
 //!
-//! Usage: `cargo run --release -p ritk-registration --example registration_compare_figure`
-//! (paths default to the RIRE-109 pair + Elastix result under leoneuro/).
+//! Usage: `cargo run --release -p ritk-registration --example registration_compare_figure --
+//! <ct.nii.gz> <mr.nii.gz> <elastix-mr-on-ct.nii.gz> <identity-output.nii.gz>
+//! <comparison.png>`.
 #![expect(
     clippy::print_stdout,
     reason = "RITK-LINT-1: example/test diagnostic output"
 )]
+
+use std::ffi::OsString;
+use std::path::PathBuf;
 
 use anyhow::{bail, Context, Result};
 use coeus_core::SequentialBackend;
@@ -32,6 +36,37 @@ use ritk_registration::{
 use ritk_transform::transform::affine::AtlasAffineTransform;
 
 type Backend = SequentialBackend;
+
+const USAGE: &str = "Usage: registration_compare_figure <ct.nii.gz> <mr.nii.gz> <elastix-mr-on-ct.nii.gz> <identity-output.nii.gz> <comparison.png>";
+
+fn comparison_paths(args: impl IntoIterator<Item = OsString>) -> Result<[PathBuf; 5]> {
+    let mut args = args.into_iter();
+    let Some(ct) = args.next() else {
+        bail!("{USAGE}");
+    };
+    let Some(mr) = args.next() else {
+        bail!("{USAGE}");
+    };
+    let Some(elastix) = args.next() else {
+        bail!("{USAGE}");
+    };
+    let Some(identity_output) = args.next() else {
+        bail!("{USAGE}");
+    };
+    let Some(comparison_output) = args.next() else {
+        bail!("{USAGE}");
+    };
+    if args.next().is_some() {
+        bail!("{USAGE}");
+    }
+    Ok([
+        ct.into(),
+        mr.into(),
+        elastix.into(),
+        identity_output.into(),
+        comparison_output.into(),
+    ])
+}
 
 fn host(image: &Image<f32, Backend, 3>) -> Result<Vec<f32>> {
     Ok(image.data_slice()?.to_vec())
@@ -112,14 +147,11 @@ fn ncc(fixed: &[f32], moving: &[f32]) -> Result<f64> {
 }
 
 fn main() -> Result<()> {
-    let ct_path = "D:/kwavers/leoneuro/data/brain_ct.nii.gz";
-    let mr_path = "D:/kwavers/leoneuro/data/brain_mri_t1.nii.gz";
-    let elastix_path = "D:/kwavers/leoneuro/scripts/elastix_result_mr_on_ct.nii.gz";
-    let identity_output = "D:/kwavers/leoneuro/scripts/ritk_identity_mr_on_ct.nii.gz";
-    let output = "D:/kwavers/leoneuro/scripts/registration_compare.png";
+    let [ct_path, mr_path, elastix_path, identity_output, comparison_output] =
+        comparison_paths(std::env::args_os().skip(1))?;
 
-    let ct = NiftiReader::new(Backend::default()).read(ct_path)?;
-    let mri = NiftiReader::new(Backend::default()).read(mr_path)?;
+    let ct = NiftiReader::new(Backend::default()).read(&ct_path)?;
+    let mri = NiftiReader::new(Backend::default()).read(&mr_path)?;
     let shape = ct.shape();
     let [nz, ny, nx] = shape;
 
@@ -147,7 +179,7 @@ fn main() -> Result<()> {
     let identity = AtlasAffineTransform::<Backend, 3>::identity(None);
     let mr_identity = resample_moving_at_world(&fixed_world, &mri, &identity)?;
     let mr_ritk = resample_moving_at_world(&fixed_world, &mri, &physical_transform)?;
-    let mr_elastix = host(&NiftiReader::new(Backend::default()).read(elastix_path)?)?;
+    let mr_elastix = host(&NiftiReader::new(Backend::default()).read(&elastix_path)?)?;
 
     let identity_image = Image::from_flat_on(
         mr_identity.clone(),
@@ -159,7 +191,7 @@ fn main() -> Result<()> {
     )?;
     ImageWriter::write(
         &NiftiWriter::new(Backend::default()),
-        identity_output,
+        &identity_output,
         &identity_image,
     )?;
 
@@ -203,9 +235,67 @@ fn main() -> Result<()> {
             }
         }
     }
-    figure.save(output)?;
+    figure.save(&comparison_output)?;
     println!(
-        "wrote {output} (panels: identity | RITK MI | Elastix; R=CT, G=MR; axial z={axial_index})"
+        "wrote registration comparison (panels: identity | RITK MI | Elastix; R=CT, G=MR; axial z={axial_index})"
     );
     Ok(())
+}
+
+#[cfg(test)]
+mod tests {
+    use super::{comparison_paths, USAGE};
+    use std::ffi::OsString;
+    use std::path::PathBuf;
+
+    #[test]
+    fn accepts_exactly_five_paths() {
+        let paths = [
+            "ct.nii.gz",
+            "mr.nii.gz",
+            "elastix.nii.gz",
+            "identity.nii.gz",
+            "figure.png",
+        ]
+        .map(OsString::from);
+        let parsed = comparison_paths(paths).expect("five paths satisfy the CLI contract");
+        assert_eq!(
+            parsed,
+            [
+                PathBuf::from("ct.nii.gz"),
+                PathBuf::from("mr.nii.gz"),
+                PathBuf::from("elastix.nii.gz"),
+                PathBuf::from("identity.nii.gz"),
+                PathBuf::from("figure.png"),
+            ]
+        );
+    }
+
+    #[test]
+    fn rejects_missing_paths_with_usage() {
+        let paths = [
+            "ct.nii.gz",
+            "mr.nii.gz",
+            "elastix.nii.gz",
+            "identity.nii.gz",
+        ]
+        .map(OsString::from);
+        let error = comparison_paths(paths).expect_err("four paths are incomplete");
+        assert_eq!(error.to_string(), USAGE);
+    }
+
+    #[test]
+    fn rejects_extra_paths_with_usage() {
+        let paths = [
+            "ct.nii.gz",
+            "mr.nii.gz",
+            "elastix.nii.gz",
+            "identity.nii.gz",
+            "figure.png",
+            "unexpected.nii.gz",
+        ]
+        .map(OsString::from);
+        let error = comparison_paths(paths).expect_err("six paths exceed the CLI contract");
+        assert_eq!(error.to_string(), USAGE);
+    }
 }

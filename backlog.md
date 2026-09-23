@@ -2,7 +2,7 @@
 
 <a id="RITK-REGISTRATION-EXAMPLE-PATHS-001"></a>
 ## RITK-REGISTRATION-EXAMPLE-PATHS-001 — Require paths for comparison inputs [patch]
-- Status: in-progress; priority: P1; owner: registration example; integrator: root; branch: `fix/registration-example-inputs`; last-update: 2026-09-22; meta: `../../backlog.md#atlas-privacy-naming-1`.
+- Status: review; priority: P1; owner: registration example; integrator: root; branch: `fix/registration-example-inputs`; last-update: 2026-09-22; meta: `../../backlog.md#atlas-privacy-naming-1`.
 - Outcome: the comparison example accepts five explicit input/output paths and contains no machine-specific file locations.
 - Scope: the comparison example, its tests, ADR 0023, and this item.
 - Acceptance: exact-five, missing, and extra path cases are value-tested; the example and package gates pass; the linked ADR uses generic downstream wording.
