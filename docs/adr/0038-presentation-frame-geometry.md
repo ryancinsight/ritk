@@ -4,7 +4,7 @@ Status: Accepted
 
 Date: 2026-09-19
 
-Driver: [RITK-SNAP-PRESENTATION-GEOMETRY-001](../../backlog.md#RITK-SNAP-PRESENTATION-GEOMETRY-001).
+Delivery: [RITK PR #518](https://github.com/ryancinsight/ritk/pull/518), merge `694904718d7ec922883ab2a6b572e9aa29edab99`.
 
 ## Decision
 

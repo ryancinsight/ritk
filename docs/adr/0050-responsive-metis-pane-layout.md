@@ -2,7 +2,7 @@
 
 - Status: Accepted
 - Date: 2026-09-21
-- Item: [RITK-SNAP-METIS-RESPONSIVE-LAYOUT-001](../../backlog.md#RITK-SNAP-METIS-RESPONSIVE-LAYOUT-001)
+- Delivery: [RITK PR #576](https://github.com/ryancinsight/ritk/pull/576), merge `87b2d841a5849c75f2a1f7523a5d8b0ef0c0c2c4`.
 
 ## Context
 
@@ -64,9 +64,8 @@ fixed raster/WebGPU entrypoints. The consumer-owned saved-study gallery now
 moves its existing canvas elements into the direct trusted container before
 mounting this entrypoint. The consumer keeps the linked crosshair overlay in a
 positioned layer over each adaptive canvas and reanchors it on browser resize.
-Its responsive browser capture is tracked by
-`RITK-SNAP-METIS-RESPONSIVE-BROWSER-001` and retains the same real-study pixel
-and listener oracles as the fixed entrypoints.
+Its responsive browser capture was delivered by [RITK PR #584](https://github.com/ryancinsight/ritk/pull/584), merge
+`4627b146bf2b7d2d246f01e8413cfab85373f93f`, with the same real-study pixel and listener oracles as the fixed entrypoints.
 
 ### Revision 2026-09-21
 

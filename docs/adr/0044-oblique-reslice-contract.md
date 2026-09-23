@@ -2,7 +2,7 @@
 
 - Status: Accepted
 - Date: 2026-09-20
-- Driver: [RITK-SNAP-OBLIQUE-RESLICE-001](../../backlog.md#RITK-SNAP-OBLIQUE-RESLICE-001)
+- Delivery: [RITK PR #539](https://github.com/ryancinsight/ritk/pull/539), merge `2d9377975b4fc420ab0f16481c6e2a6c80279cc7`.
 
 ## Context
 

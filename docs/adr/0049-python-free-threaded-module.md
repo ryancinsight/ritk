@@ -2,7 +2,7 @@
 
 - Status: Accepted
 - Date: 2026-09-21
-- Item: [RITK-PYTHON-FREETHREADED-001](../../backlog.md#RITK-PYTHON-FREETHREADED-001)
+- Delivery: [RITK PR #574](https://github.com/ryancinsight/ritk/pull/574), merge `28e2acdf4ee8a937d55f452635a93c532df5487a`.
 
 ## Decision
 

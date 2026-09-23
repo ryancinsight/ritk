@@ -1,7 +1,7 @@
 # ADR 0047: Browser annotation result semantics at the Métis boundary
 
 - Status: Accepted
-- Item: [RITK-SNAP-METIS-ANNOTATIONS-001](../../backlog.md#RITK-SNAP-METIS-ANNOTATIONS-001)
+- Delivery: [RITK PR #550](https://github.com/ryancinsight/ritk/pull/550), with host-gating and replay-order fixes in [PR #551](https://github.com/ryancinsight/ritk/pull/551) and [PR #552](https://github.com/ryancinsight/ritk/pull/552). Merges: `2a2cc592fa3148eba12ac126da82afc3cdd56b30`, `724091c09fae2b0ce0442094c663721a47732e68`, `651b4a808374afc3efca35b71b9583b0a2a17248`.
 
 ## Context
 
