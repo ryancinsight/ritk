@@ -80,6 +80,13 @@
 
 ### Changed
 
+- [patch] Remove the unused eager `ColorVolume::data_vec()` from
+  `ritk-image`. The colour family now exposes exactly the two-behaviour
+  contract of [ADR 0051](docs/adr/0051-two-image-data-accessors.md):
+  `with_data_slice` for a borrowed view and `data_cow_on(&backend)` for a
+  borrow-or-compact-copy; ownership stays an explicit `.into_owned()` at the
+  call site that pays for it. It had no callers left in the workspace.
+
 - [major][arch] Remove five redundant `Image` host-extraction methods and move
   the rank-generic `CartesianGridGeometry` to `ritk-spatial`. Use `data_slice()`
   for a contiguous borrow and `data_cow_on(&backend)` when a strided layout may

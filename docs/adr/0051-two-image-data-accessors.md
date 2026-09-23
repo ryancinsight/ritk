@@ -14,6 +14,13 @@ nonorthogonal regression case now checks both directions. Geometry assertions
 use exact binary-representable matrices, coordinates, and spacings, so they need
 no floating-point tolerance.
 
+Revision 2026-09-23 (colour family): `ColorVolume` ran a parallel migration and
+kept an eager `data_vec()` beside its two-behaviour pair. With zero callers
+left in the workspace it is removed, so both image families now expose exactly
+the two behaviours this ADR names — `with_data_slice` (borrow view) and
+`data_cow_on` (borrow or compact copy) on `ColorVolume`, `data_slice` and
+`data_cow_on` on `Image`.
+
 ## Context
 
 ADR 0019 deferred two clauses of its item and recorded the reason: `Image`'s
