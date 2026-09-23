@@ -9,6 +9,14 @@
 - Dependency: [Atlas gitlink drift](../../backlog.md#atlas-gitlink-drift-056), which holds this member pin until the conformance regression is closed.
 - Evidence: Atlas origin `6cd1ab9a8a946ff7c3faedc8fc6b758794960dcd` and RITK main `ee24739c8b04461455dfb15e46c55126ea1c7bc9`; one added `#[allow(clippy::too_many_arguments)]` raises `allow_sites` 0→1.
 
+<a id="RITK-DOCS-QUEUE-001"></a>
+## RITK-DOCS-QUEUE-001 — Remove merged work from the active queue [patch]
+- Status: in-progress; priority: P1; owner: RITK documentation; integrator: root; branch: `docs/ritk-done-queue-reconcile-001`; last-update: 2026-09-23.
+- Outcome: the RITK queue lists unresolved work only.
+- Scope: `backlog.md`; verify merged delivery evidence and remove completed entries.
+- Acceptance: all 34 merged entries are removed, all 20 unresolved entries remain, and board checks pass.
+- lease: root `backlog.md` 2026-09-23T09:35Z
+
 <a id="RITK-METIS-LOCK-021"></a>
 ## RITK-METIS-LOCK-021 — Consume current Métis host and refresh replay provenance [patch]
 - Status: done; priority: P1; owner: RITK viewer + integration; integrator: root; branch: `docs/ritk-metis-hosted-35759891764`; last-update: 2026-09-22; dependency delivery: PR [#604](https://github.com/ryancinsight/ritk/pull/604); delivery: PR [#605](https://github.com/ryancinsight/ritk/pull/605), merge `29c51440ad4d33ab4109dd665683b7ef5bf45198`.
