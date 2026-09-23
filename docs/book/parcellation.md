@@ -278,22 +278,24 @@ The `freesurfer` module reads and writes the FreeSurfer surface family:
 | `Morphometry` | `lh.curv`, `lh.thickness`, `lh.sulc` | new-format per-vertex `f32`, magic `0xFFFFFF` |
 | `SurfaceAnnotation` | `lh.aparc.annot` | per-vertex colour with an embedded colour table |
 | `SurfaceLabel` | `lh.cortex.label` | ASCII vertex list |
-| `ColorLut` | `FreeSurferColorLUT.txt` | text lookup table |
+| `lut::read` / `lut::write` | `FreeSurferColorLUT.txt` | text lookup table, as a `ritk_annotation::LabelTable` |
 
 ```rust,ignore
-use ritk_parcellation::freesurfer::{ColorLut, SurfaceAnnotation};
+use ritk_parcellation::freesurfer::{lut, SurfaceAnnotation};
 
-let lut = ColorLut::parse(lut_file)?;            // names and colours per label
+let table = lut::read(lut_file)?;                // names and colours per label
 let annotation = SurfaceAnnotation::read(file)?; // per-vertex structure indices
-let names = annotation.color_table().region_names();
+let names = lut::region_names(annotation.color_table());
 ```
 
 An annotation identifies each vertex's structure by *colour*: the file stores
 `red + green·2⁸ + blue·2¹⁶` per vertex, and the reader resolves it against the
 embedded table to a structure index. A value no entry has, or two entries with
 one colour, is rejected rather than guessed. The lookup table's fourth column
-is transparency, not opacity — FreeSurfer derives `alpha = 255 - t`, and
-`LutColor::alpha` does the same.
+is transparency, not opacity — FreeSurfer derives `alpha = 255 - t`, and the
+reader stores that alpha in the table's RGBA colour. Both tables are the
+segmentation editor's own `LabelTable`, so a FreeSurfer parcellation opens with
+its names and colours intact.
 
 Every reader treats its input as hostile: counts are bounded, storage grows
 only as real input backs it, and every failure is a typed `FreeSurferError`.
@@ -344,7 +346,7 @@ resolution, and `contested_voxels` counts where two parcels wanted the same
 voxel — concentrated at boundaries and inside sulcal folds, which is exactly
 where a connectome's endpoints land.
 
-`ColorLut::region_names` is separately usable as the `region_names` of a
+`lut::region_names` is separately usable as the `region_names` of a
 volumetric parcellation from any source.
 
 ## Next

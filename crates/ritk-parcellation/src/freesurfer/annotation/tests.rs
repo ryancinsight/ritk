@@ -1,4 +1,5 @@
 use super::*;
+use crate::freesurfer::lut;
 
 // Fixtures are laid out field by field from the format in the module docs,
 // never produced by the writer under test.
@@ -65,7 +66,7 @@ fn old_format_bytes() -> Vec<u8> {
 }
 
 fn expected_names(annotation: &SurfaceAnnotation) -> Vec<(u32, String)> {
-    annotation.color_table().region_names()
+    lut::region_names(annotation.color_table())
 }
 
 #[test]
@@ -81,16 +82,8 @@ fn a_version_2_file_reads_to_its_structure_indices() {
             (3, "bankssts".to_owned()),
         ]
     );
-    let precentral = annotation.color_table().get(1).expect("present");
-    assert_eq!(
-        precentral.color(),
-        LutColor {
-            red: 60,
-            green: 20,
-            blue: 220,
-            transparency: 0
-        }
-    );
+    let precentral = annotation.color_table().get_label(1).expect("present");
+    assert_eq!(precentral.color, RgbaBytes::new(60, 20, 220, 255));
 }
 
 #[test]
@@ -99,7 +92,10 @@ fn an_old_format_file_indexes_entries_by_position() {
 
     assert_eq!(annotation.vertex_labels(), &[1, BACKGROUND, 3, 0]);
     assert_eq!(
-        annotation.color_table().get(2).map(LutEntry::name),
+        annotation
+            .color_table()
+            .get_label(2)
+            .map(|entry| entry.name.as_str()),
         Some("unused")
     );
 }
@@ -295,11 +291,12 @@ fn a_colour_component_outside_a_byte_is_rejected() {
 
 #[test]
 fn entries_sharing_a_colour_are_rejected() {
-    let table = ColorLut::new([
-        LutEntry::new(1, "a".to_owned(), LutColor::default()).expect("valid"),
-        LutEntry::new(2, "b".to_owned(), LutColor::default()).expect("valid"),
-    ])
-    .expect("unique labels");
+    let mut table = LabelTable::new();
+    for (label, name) in [(1, "a"), (2, "b")] {
+        table
+            .add_label(label, name, RgbaBytes::default())
+            .expect("unique labels");
+    }
     let error = SurfaceAnnotation::new(vec![1, 2].into_boxed_slice(), table)
         .expect_err("invalid input must be rejected");
     assert!(matches!(
@@ -314,16 +311,10 @@ fn entries_sharing_a_colour_are_rejected() {
 
 #[test]
 fn a_label_missing_from_the_table_is_rejected() {
-    let table = ColorLut::new([LutEntry::new(
-        1,
-        "a".to_owned(),
-        LutColor {
-            red: 1,
-            ..LutColor::default()
-        },
-    )
-    .expect("valid")])
-    .expect("unique");
+    let mut table = LabelTable::new();
+    table
+        .add_label(1, "a", RgbaBytes::new(1, 0, 0, 255))
+        .expect("unique");
     let error = SurfaceAnnotation::new(vec![1, 0, 7].into_boxed_slice(), table)
         .expect_err("invalid input must be rejected");
     assert!(matches!(
@@ -334,4 +325,16 @@ fn a_label_missing_from_the_table_is_rejected() {
             ..
         }
     ));
+}
+
+/// The annotation value packs red, green, and blue low to high and ignores
+/// alpha (`read_annotation.m`, colour table column 5).
+#[test]
+fn the_annotation_value_packs_rgb_low_to_high() {
+    for alpha in [0, 191, 255] {
+        assert_eq!(
+            annotation_value(RgbaBytes::new(255, 192, 32, alpha)),
+            255 + 192 * 256 + 32 * 65_536
+        );
+    }
 }

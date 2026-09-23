@@ -2,6 +2,8 @@
 
 use thiserror::Error;
 
+use crate::types::LabelId;
+
 /// Errors produced by annotation operations.
 #[derive(Debug, Clone, PartialEq, Eq, Error)]
 pub enum AnnotationError {
@@ -12,5 +14,11 @@ pub enum AnnotationError {
         kind: &'static str,
         /// Actual number of points supplied.
         count: usize,
+    },
+    /// A label table already holds an entry with this ID.
+    #[error("label id {id} already exists in the table")]
+    DuplicateLabel {
+        /// The repeated ID.
+        id: LabelId,
     },
 }
