@@ -61,6 +61,7 @@ jobs:
     timeout-minutes: 3
     outputs:
       python: ${{ steps.classify.outputs.python }}
+      scripts_tests: ${{ steps.classify.outputs.scripts_tests }}
       matrix: ${{ steps.classify.outputs.matrix }}
     steps:
       - uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803
@@ -73,12 +74,16 @@ jobs:
           set -euo pipefail
           event="${{ github.event_name }}"
           python=true
+          scripts_tests=true
           if [[ "$event" == "pull_request" ]]; then
             base="${{ github.event.pull_request.base.sha }}"
             git fetch --no-tags --depth=1 origin "$base"
             changed="$(git diff --name-only "$base" HEAD)"
             if ! printf '%s\n' "$changed" | grep -qE '^(crates/ritk-python/|Cargo\.lock$|Cargo\.toml$|\.github/workflows/python_ci\.yml$)'; then
               python=false
+            fi
+            if ! printf '%s\n' "$changed" | grep -qE '^(scripts/|Cargo\.lock$|\.github/workflows/python_ci\.yml$|docs/manual/images/dicom-metis-real-mri(\.png|\.json|-resource\.json)$)'; then
+              scripts_tests=false
             fi
           fi
           if [[ "$event" == "schedule" || "$event" == "workflow_dispatch" ]]; then
@@ -87,6 +92,7 @@ jobs:
             matrix='{"python-version":["3.12"],"os":["ubuntu-latest"]}'
           fi
           echo "python=$python" >> "$GITHUB_OUTPUT"
+          echo "scripts_tests=$scripts_tests" >> "$GITHUB_OUTPUT"
           echo "matrix=$matrix" >> "$GITHUB_OUTPUT"
 
   build-and-smoke-test:
@@ -105,11 +111,47 @@ jobs:
 
     steps:
       - name: Checkout repository
-        if: github.event_name != 'pull_request' || needs.changes.outputs.python == 'true'
+        if: github.event_name != 'pull_request' || needs.changes.outputs.python == 'true' || needs.changes.outputs.scripts_tests == 'true'
         uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803
         with:
           path: ritk
           persist-credentials: false
+
+      - name: Read lock-pinned Métis revision
+        id: metis-revision
+        if: github.event_name != 'pull_request' || needs.changes.outputs.scripts_tests == 'true'
+        shell: bash
+        run: |
+          set -euo pipefail
+          revision=""
+          while IFS= read -r candidate; do
+            [[ ${#candidate} -eq 40 && "$candidate" != *[!0-9a-f]* ]]
+            if [[ -n "$revision" && "$candidate" != "$revision" ]]; then
+              exit 1
+            fi
+            revision="$candidate"
+          done < <(sed -nE 's/^source = "git\+https:\/\/github\.com\/ryancinsight\/metis\.git#([0-9a-f]{40})"$/\1/p' Cargo.lock)
+          [[ -n "$revision" ]]
+          echo "revision=$revision" >> "$GITHUB_OUTPUT"
+
+      - name: Check out lock-pinned Métis scripts
+        if: github.event_name != 'pull_request' || needs.changes.outputs.scripts_tests == 'true'
+        uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803
+        with:
+          repository: ryancinsight/metis
+          ref: ${{ steps.metis-revision.outputs.revision }}
+          path: metis
+          persist-credentials: false
+
+      - name: Verify lock-pinned Métis scripts
+        if: github.event_name != 'pull_request' || needs.changes.outputs.scripts_tests == 'true'
+        shell: bash
+        env:
+          METIS_REVISION: ${{ steps.metis-revision.outputs.revision }}
+        run: |
+          set -euo pipefail
+          [[ "$(git -C "$GITHUB_WORKSPACE/metis" rev-parse HEAD)" == "$METIS_REVISION" ]]
+          grep -F "source = \"git+https://github.com/ryancinsight/metis.git#$METIS_REVISION\"" Cargo.lock
 
       - name: Set up Rust toolchain
         if: github.event_name != 'pull_request' || needs.changes.outputs.python == 'true'
@@ -126,10 +168,20 @@ jobs:
           key: python-${{ matrix.python-version }}-abi3
 
       - name: Set up Python ${{ matrix.python-version }}
-        if: github.event_name != 'pull_request' || needs.changes.outputs.python == 'true'
+        if: github.event_name != 'pull_request' || needs.changes.outputs.python == 'true' || needs.changes.outputs.scripts_tests == 'true'
         uses: actions/setup-python@ece7cb06caefa5fff74198d8649806c4678c61a1
         with:
           python-version: ${{ matrix.python-version }}
+
+      - name: Prepare Métis script output root
+        if: github.event_name != 'pull_request' || needs.changes.outputs.scripts_tests == 'true'
+        run: python -c "from pathlib import Path; Path('../metis/output').mkdir(parents=True, exist_ok=True)"
+
+      - name: Run Python script tests
+        if: github.event_name != 'pull_request' || needs.changes.outputs.scripts_tests == 'true'
+        env:
+          PYTHONPATH: ${{ github.workspace }}/metis/scripts
+        run: python -m unittest discover -s scripts/tests
 
       - name: Add MSYS2 ucrt64 to PATH (Windows — clang-cl C++ runtime DLLs)
         if: (github.event_name != 'pull_request' || needs.changes.outputs.python == 'true') && runner.os == 'Windows'

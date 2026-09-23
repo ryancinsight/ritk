@@ -30,7 +30,13 @@ fork medical-data semantics.
 
 ## Actual application gallery
 
-The first visual proof is a real public MRI-DIR CT study opened by RITK and
+The 94-file T2 and 409-file CT captures below use the public MRI-DIR
+porcine-head phantom, not patient studies. Dataset citation: Ger et al. (2018),
+*Data from Synthetic and Phantom MR Images for Determining Deformable Image
+Registration Accuracy (MRI-DIR), Version 1*, The Cancer Imaging Archive
+([DOI](https://doi.org/10.7937/K9/TCIA.2018.3f08iejt)).
+
+The first visual proof is a real public MRI-DIR phantom CT series opened by RITK and
 presented through the Métis native window. It contains axial, coronal, sagittal,
 and axial maximum-intensity-projection panels captured from the running Windows
 HWND. The image is application output from 409 DICOM files, not generated
@@ -1265,12 +1271,16 @@ replay executable digest is
 `d0d6abd6baf3f7d45943e9d1d3f85a2158b7dae605d3ec23ec07981b8b17a9cd`.
 The lock resolves 63 first-party Git sources, including six Metis packages at
 `1b10541c2ef7a849e6ff66a3c778874bdf96de7b` and fifteen Moirai packages at
-`b77239dd10bcaf803394c26255c462bc858c1340`. The captured frame remains
+`b77239dd10bcaf803394c26255c462bc858c1340`. The source capture remains
 `85071f20ca11cb4a9b2524db0a53b21695b7e93141831e7e0ab293c42fbcd582`
-with 411,413 non-black pixels. The lossless manual image digest is
-`959969ef69e66cebd3143b06468802e06ff68fbc6d94e2ed1d9a555f7e2ff98c`;
-the executable, lock, capture and manual-image hashes are recorded in the
-machine-readable provenance below. The native event translator
+(418,490 bytes; 411,413 non-black pixels). The tracked manual PNG is its
+lossless re-encoding, with digest
+`959969ef69e66cebd3143b06468802e06ff68fbc6d94e2ed1d9a555f7e2ff98c` and
+190,219 bytes; its decoded RGBA bytes match the capture. The
+[resource provenance record](images/dicom-metis-real-mri-resource.json) keeps
+the source-capture and manual-output digests and byte counts separate. The
+executable, lock, and capture hashes are recorded in the machine-readable
+replay provenance below. The native event translator
 also retains bounded Moirai accessibility requests as typed RITK events and
 returns an explicit unsupported-action error because this session does not yet
 install a native accessibility semantics tree; requests are not silently
