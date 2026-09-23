@@ -1,12 +1,5 @@
 # RITK execution backlog
 
-<a id="RITK-CI-PYTHON-GATE-001"></a>
-## RITK-CI-PYTHON-GATE-001 â€” Preserve required checks under path selection [patch]
-- Status: in-progress; priority: P0; owner: RITK CI; integrator: root; branch: `docs/ritk-done-queue-reconcile-001`; delivery: PR [#618](https://github.com/ryancinsight/ritk/pull/618), merge `641a97ad5f5f0b86fdbccf0e840d64d71d37d0a8`; last-update: 2026-09-23.
-- Outcome: required contexts report on every pull request while path selection skips unrelated build and test work.
-- Scope: `.github/workflows/ci.yml`, `.github/workflows/python_ci.yml`, and this backlog item; preserve the current ruleset contexts.
-- Acceptance: docs-only pull requests report the expanded Python 3.12/Ubuntu matrix context; relevant Rust and Python inputs execute their suites; unrelated heavy steps skip; hosted checks pass without changing required context names.
-
 <a id="RITK-BROWSER-READ-001"></a>
 ## RITK-BROWSER-READ-001 â€” Reproduce and close WebKit study reads
 - Status: blocked; compacted 2026-09-18; full delivery history remains in git.
@@ -178,13 +171,6 @@
 ## RITK-GAP-2026-08-20-09 [patch] â€” derive or remove the MI subsample stride
 - Status: todo; compacted 2026-09-18; full delivery history remains in git.
 - Scope: historical item contract retained in the archived source block; re-open with the original DoR.
-
-<a id="RITK-DOCS-QUEUE-001"></a>
-## RITK-DOCS-QUEUE-001 â€” Remove merged work from the active queue [patch]
-- Status: review; priority: P1; owner: RITK documentation; integrator: root; branch: `docs/ritk-done-queue-reconcile-001`; last-update: 2026-09-23.
-- Outcome: the RITK queue lists unresolved work only.
-- Scope: `backlog.md` and ADR delivery references to completed queue entries.
-- Acceptance: remove the 34 previously merged entries and newly completed RITK-ALLOW-001; retain all 20 original unresolved records and RITK-CI-PYTHON-GATE-001 until its docs-only regression check passes; ADR references resolve and board checks pass.
 
 <a id="RITK-MANUAL-PROVENANCE-001"></a>
 ## RITK-MANUAL-PROVENANCE-001 â€” Bind MRI resource metadata to its PNG [patch]
