@@ -6,7 +6,7 @@
 //! of `nx * ny * nz` voxels; the `nframes` header field counts consecutive
 //! volumes of identical geometry.
 
-use crate::binary::{read_f32_be, read_i16_be, read_i32_be};
+use crate::binary::read_be;
 use crate::spatial::{derive_image_geometry, RasValidity};
 use crate::types::VoxelType;
 use crate::{is_gzip_path, GOOD_RAS_VALID, PADDING_LEN, VERSION};
@@ -148,7 +148,7 @@ fn read_mgh_series_from_reader<B: ComputeBackend, R: Read>(
 }
 
 fn read_mgh_header<R: Read>(reader: &mut R) -> Result<MghHeader> {
-    let version = read_i32_be(reader)?;
+    let version = read_be::<i32, _>(reader)?;
     if version != VERSION {
         bail!(
             "Invalid MGH version: expected {}, found {}",
@@ -157,12 +157,12 @@ fn read_mgh_header<R: Read>(reader: &mut R) -> Result<MghHeader> {
         );
     }
 
-    let width = read_i32_be(reader)?;
-    let height = read_i32_be(reader)?;
-    let depth = read_i32_be(reader)?;
-    let nframes = read_i32_be(reader)?;
-    let mri_type = read_i32_be(reader)?;
-    let _dof = read_i32_be(reader)?;
+    let width = read_be::<i32, _>(reader)?;
+    let height = read_be::<i32, _>(reader)?;
+    let depth = read_be::<i32, _>(reader)?;
+    let nframes = read_be::<i32, _>(reader)?;
+    let mri_type = read_be::<i32, _>(reader)?;
+    let _dof = read_be::<i32, _>(reader)?;
 
     if width <= 0 || height <= 0 || depth <= 0 {
         bail!(
@@ -176,17 +176,17 @@ fn read_mgh_header<R: Read>(reader: &mut R) -> Result<MghHeader> {
         bail!("Invalid MGH nframes: {}", nframes);
     }
 
-    let good_ras_flag = read_i16_be(reader)?;
+    let good_ras_flag = read_be::<i16, _>(reader)?;
     let spacing_xyz = [
-        read_f32_be(reader)?,
-        read_f32_be(reader)?,
-        read_f32_be(reader)?,
+        read_be::<f32, _>(reader)?,
+        read_be::<f32, _>(reader)?,
+        read_be::<f32, _>(reader)?,
     ];
     let direction_columns = read_direction_columns(reader)?;
     let c_ras = [
-        read_f32_be(reader)?,
-        read_f32_be(reader)?,
-        read_f32_be(reader)?,
+        read_be::<f32, _>(reader)?,
+        read_be::<f32, _>(reader)?,
+        read_be::<f32, _>(reader)?,
     ];
 
     let mut padding = [0u8; PADDING_LEN];
@@ -266,7 +266,7 @@ fn read_direction_columns<R: Read>(reader: &mut R) -> Result<[[f32; 3]; 3]> {
     let mut columns = [[0.0f32; 3]; 3];
     for column in &mut columns {
         for value in column {
-            *value = read_f32_be(reader)?;
+            *value = read_be(reader)?;
         }
     }
     Ok(columns)
