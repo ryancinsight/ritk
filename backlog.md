@@ -2,7 +2,7 @@
 
 <a id="RITK-ALLOW-001"></a>
 ## RITK-ALLOW-001 — Bundle sparse-field layer transition state [patch]
-- Status: in-progress; priority: P1; owner: RITK filter; integrator: root; branch: `fix/ritk-allow-parameter-bundle-001`; last-update: 2026-09-23.
+- Status: review; priority: P1; owner: RITK filter; integrator: root; branch: `fix/ritk-allow-parameter-bundle-001`; last-update: 2026-09-23; delivery: PR [#616](https://github.com/ryancinsight/ritk/pull/616).
 - Outcome: remove the new argument-count suppression by representing one layer transition as a cohesive value.
 - Scope: `crates/ritk-filter/src/sparse_field/band.rs`, relevant filter tests, and this item; preserve sparse-field results and public APIs.
 - Acceptance: no production `#[allow(clippy::too_many_arguments)]` remains for this transition; strict `ritk-filter` Clippy, nextest and formatting pass; the Atlas conformance scan returns `allow_sites` to 0.
