@@ -324,6 +324,13 @@ Unresolved delivery items are kept as executable records. Closed history is inde
 - Acceptance: a configured browser runner reports an adapter, presents the three saved-study canvases, records revision-bound PNGs and semantic attributes, and completes bounded teardown without a raster fallback.
 - Blocker: hosted Chromium in run [35759891764](https://github.com/ryancinsight/ritk/actions/runs/35759891764) reports no WebGPU adapter; the setup error and failure capture artifact [10710217395](https://github.com/ryancinsight/ritk/actions/runs/35759891764/artifacts/10710217395) are preserved in [`dicom-metis-real-browser-mri-webgpu-failure.png`](docs/manual/images/dicom-metis-real-browser-mri-webgpu-failure.png).
 
+<a id="RITK-CI-PYTHON-GATE-001"></a>
+## RITK-CI-PYTHON-GATE-001 — Preserve required checks under path selection [patch]
+- Status: in-progress; priority: P0; owner: RITK CI; integrator: root; branch: `ci/ritk-required-gate-001`; last-update: 2026-09-23.
+- Outcome: required contexts report on every pull request while path selection skips unrelated build and test work.
+- Scope: `.github/workflows/ci.yml`, `.github/workflows/python_ci.yml`, and this backlog item; preserve the current ruleset contexts.
+- Acceptance: docs-only pull requests report the expanded Python 3.12/Ubuntu matrix context; relevant Rust and Python inputs execute their suites; unrelated heavy steps skip; hosted checks pass without changing required context names.
+
 <a id="MIG-439-03"></a>
 
 ## MIG-439-03 — Replace remaining Burn NdArray backend aliases with Atlas-backed surfaces
