@@ -2,7 +2,7 @@
 
 - Status: Accepted
 - Date: 2026-09-20
-- Driver: [RITK-BROWSER-VIEWPORT-001](../../backlog.md#RITK-BROWSER-VIEWPORT-001)
+- Delivery: [RITK PR #535](https://github.com/ryancinsight/ritk/pull/535), with edge-coordinate and workflow corrections in [PR #536](https://github.com/ryancinsight/ritk/pull/536) and [PR #537](https://github.com/ryancinsight/ritk/pull/537). Merges: `695d33c7e675604b1fb32dfaffe3e90d9b0d21e0`, `055b2886cb448bdc3d4a673ababf00d0def70b7d`, `fa0ae3301ea2cc5e3733f7f1cb94fbaee2808f4c`.
 
 ## Context
 

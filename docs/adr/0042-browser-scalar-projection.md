@@ -2,7 +2,7 @@
 
 - Status: Accepted
 - Date: 2026-09-20
-- Driver: [RITK-SNAP-BROWSER-PROJECTION-001](../../backlog.md#RITK-SNAP-BROWSER-PROJECTION-001)
+- Delivery: [RITK PR #527](https://github.com/ryancinsight/ritk/pull/527), with caller and projection-order corrections in [PR #532](https://github.com/ryancinsight/ritk/pull/532) and [PR #533](https://github.com/ryancinsight/ritk/pull/533). Merges: `9107da98cca72eebe2deffb466a6f5b7adb17948`, `a66d2ecee751c03bb111395ea239a10a88583a4c`, `f46d30091cac1ace12bb339d7421ac0c339ebf49`.
 
 ## Context
 

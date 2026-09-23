@@ -3,7 +3,7 @@
 - Status: Accepted
 - Date: 2026-09-20
 - Class: [arch] [major]
-- Item: [RITK-JPEG-001](../../backlog.md#RITK-JPEG-001)
+- Delivery: [RITK PR #556](https://github.com/ryancinsight/ritk/pull/556) and [PR #561](https://github.com/ryancinsight/ritk/pull/561). Merges: `fc85dad03a6c14a617e9687609044497c1eba122`, `71b247c0f0e948614a7e2c5205b34106762c0861`.
 
 ## Decision
 

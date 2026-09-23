@@ -2,7 +2,7 @@
 
 - Status: Accepted
 - Date: 2026-09-20
-- Driver: [RITK-VTK-SPATIAL-VOLUME-001](../../backlog.md#RITK-VTK-SPATIAL-VOLUME-001)
+- Delivery: [RITK PR #523](https://github.com/ryancinsight/ritk/pull/523), merge `07f23d4831b9c0b493102b3aa3f05d3da4d23c68`.
 
 ## Context
 

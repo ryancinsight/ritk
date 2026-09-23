@@ -1,7 +1,7 @@
 # ADR 0046: Linked crosshair presentation at the Métis host boundary
 
 - Status: Accepted
-* Item: [RITK-SNAP-METIS-CROSSHAIR-001](../../backlog.md#RITK-SNAP-METIS-CROSSHAIR-001)
+- Delivery: [RITK PR #547](https://github.com/ryancinsight/ritk/pull/547) and ADR correction [PR #548](https://github.com/ryancinsight/ritk/pull/548). Merges: `7eb4a0a1513248755d7d09b7ac8e3363113163a7`, `cfe61bd271b47c1bfaf8694bb7f136512eeb3180`.
 
 ## Context
 
