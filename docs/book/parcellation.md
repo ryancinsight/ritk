@@ -270,15 +270,33 @@ every atlas is equally wrong.
 
 ## FreeSurfer formats
 
-The `freesurfer` module reads the colour lookup table and surface annotation
-files.
+The `freesurfer` module reads and writes the FreeSurfer surface family:
+
+| Type | Files | Format |
+|------|-------|--------|
+| `Surface` | `lh.white`, `lh.pial`, `lh.inflated` | binary triangle file, magic `0xFFFFFE` |
+| `Morphometry` | `lh.curv`, `lh.thickness`, `lh.sulc` | new-format per-vertex `f32`, magic `0xFFFFFF` |
+| `SurfaceAnnotation` | `lh.aparc.annot` | per-vertex colour with an embedded colour table |
+| `SurfaceLabel` | `lh.cortex.label` | ASCII vertex list |
+| `ColorLut` | `FreeSurferColorLUT.txt` | text lookup table |
 
 ```rust,ignore
-use ritk_parcellation::freesurfer::{SurfaceAnnotation, read_freesurfer_lut};
+use ritk_parcellation::freesurfer::{ColorLut, SurfaceAnnotation};
 
-let names = read_freesurfer_lut(lut_file)?;      // Vec<(u32, String)>
-let annotation = SurfaceAnnotation::read(file)?; // per-vertex labels
+let lut = ColorLut::parse(lut_file)?;            // names and colours per label
+let annotation = SurfaceAnnotation::read(file)?; // per-vertex structure indices
+let names = annotation.color_table().region_names();
 ```
+
+An annotation identifies each vertex's structure by *colour*: the file stores
+`red + green·2⁸ + blue·2¹⁶` per vertex, and the reader resolves it against the
+embedded table to a structure index. A value no entry has, or two entries with
+one colour, is rejected rather than guessed. The lookup table's fourth column
+is transparency, not opacity — FreeSurfer derives `alpha = 255 - t`, and
+`LutColor::alpha` does the same.
+
+Every reader treats its input as hostile: counts are bounded, storage grows
+only as real input backs it, and every failure is a typed `FreeSurferError`.
 
 A `SurfaceAnnotation` labels *vertices of a mesh*, not voxels. Converting one to
 a volumetric `Parcellation` needs the geometry those vertices belong to —
@@ -326,7 +344,7 @@ resolution, and `contested_voxels` counts where two parcels wanted the same
 voxel — concentrated at boundaries and inside sulcal folds, which is exactly
 where a connectome's endpoints land.
 
-The `read_freesurfer_lut` table is separately usable as the `region_names` of a
+`ColorLut::region_names` is separately usable as the `region_names` of a
 volumetric parcellation from any source.
 
 ## Next
