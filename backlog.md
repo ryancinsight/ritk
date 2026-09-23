@@ -171,10 +171,3 @@
 ## RITK-GAP-2026-08-20-09 [patch] â€” derive or remove the MI subsample stride
 - Status: todo; compacted 2026-09-18; full delivery history remains in git.
 - Scope: historical item contract retained in the archived source block; re-open with the original DoR.
-
-<a id="RITK-MANUAL-PROVENANCE-001"></a>
-## RITK-MANUAL-PROVENANCE-001 — Bind MRI resource metadata to its PNG [patch]
-- Status: in-progress; priority: P1; owner: RITK documentation; integrator: root; branch: `docs/ritk-manual-provenance-001`; last-update: 2026-09-23; dependency delivery: [PR #605](https://github.com/ryancinsight/ritk/pull/605).
-- Outcome: the public MRI manual PNG and its resource manifest report matching output digest and size while retaining distinct source-capture evidence.
-- Scope: docs/manual/images/dicom-metis-real-mri-resource.json, its integrity test in scripts/tests/, affected manual provenance text, and `.github/workflows/python_ci.yml`.
-- Acceptance: output SHA-256 and byte count match the tracked PNG; source-capture SHA-256 and byte count remain unchanged; the required Python 3.12 job runs the script tests when `scripts/` changes and retains its stable context for unrelated pull requests.
