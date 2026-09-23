@@ -6395,6 +6395,17 @@ dependencies = [
 ]
 
 [[package]]
+name = "ritk-gifti"
+version = "0.1.0"
+dependencies = [
+ "base64 0.22.1",
+ "flate2",
+ "proptest",
+ "quick-xml",
+ "thiserror 2.0.20",
+]
+
+[[package]]
 name = "ritk-image"
 version = "0.4.0"
 dependencies = [

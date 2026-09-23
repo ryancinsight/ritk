@@ -40,6 +40,7 @@ members = [
   "crates/ritk-trk",
   "crates/ritk-mif",
   "crates/ritk-tck",
+  "crates/ritk-gifti",
   "crates/ritk-trx",
   "xtask",
 ]
@@ -167,6 +168,7 @@ getrandom = "0.3"
 getrandom_02 = { package = "getrandom", version = "0.2" }
 image = "0.24"
 base64 = "0.22"
+quick-xml = "0.41"
 tiff = "0.9"
 
 dicom-core = "0.10"

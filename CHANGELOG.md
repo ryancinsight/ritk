@@ -12,6 +12,14 @@
 
 ### Added
 
+- [minor] `ritk-gifti` reads and writes GIFTI 1.0 (`.surf.gii`, `.func.gii`,
+  `.shape.gii`, `.label.gii`): ASCII, base64, and zlib-base64 payloads in either
+  byte order and indexing order, label tables, metadata, and coordinate
+  transforms, with `GiftiImage::surface` for the mesh. Shapes are bounded,
+  payloads must match their declared shape exactly, and zlib streams are
+  inflated no further than the shape allows. Data in an external file is
+  reported as unsupported.
+
 - [minor] `ritk.io.read_image` accepts an optional `series_instance_uid` for
   selecting one acquisition from a DICOM directory. RITK scans and matches the
   UID before decoding pixels; ambiguous, unknown, empty, and non-directory
