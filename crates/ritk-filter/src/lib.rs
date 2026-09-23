@@ -25,6 +25,7 @@ pub mod discrete_gaussian;
 pub mod discrete_gaussian_derivative;
 pub mod gaussian;
 pub mod median;
+pub mod mppca;
 pub mod noise;
 pub mod recursive_gaussian;
 pub mod smoothing;
@@ -43,6 +44,7 @@ pub use discrete_gaussian::{DiscreteGaussianFilter, SpacingMode};
 pub use discrete_gaussian_derivative::DiscreteGaussianDerivativeFilter;
 pub use gaussian::GaussianFilter;
 pub use median::MedianFilter;
+pub use mppca::{MpEstimator, MpPcaDenoiser, MpPcaError, MpPcaOutput, PatchExtent};
 pub use noise::{
     AdditiveGaussianNoiseFilter, SaltAndPepperNoiseFilter, ShotNoiseFilter, SpeckleNoiseFilter,
 };

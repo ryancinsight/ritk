@@ -14,7 +14,7 @@ Medical image filtering algorithms for [RITK](https://github.com/ryancinsight/ri
 | Distance transform | Euclidean (Meijster 2000) and chamfer (chessboard / taxicab) |
 | Artifact correction | Gibbs-ringing removal by local subvoxel shifts (Kellner 2016) for volume series |
 | Deconvolution | Regularized deconvolution |
-| Denoising | Patch-based denoising |
+| Denoising | Patch-based denoising, Marchenko-Pastur PCA (MP-PCA; Veraart 2016, Cordero-Grande 2019) for volume series |
 | Colormap | Color component mapping and lookup-table application |
 
 Filters are generic over `Backend` and `const D: usize`; one implementation
