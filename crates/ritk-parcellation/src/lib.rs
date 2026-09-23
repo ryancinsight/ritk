@@ -19,7 +19,7 @@
 //! | [`grid`] | Voxel-to-physical affine, including the direction cosines |
 //! | [`regions`] | Per-region volume, centroid, and extent |
 //! | [`search`] | Nearest labelled voxel to a point, within a radius |
-//! | [`freesurfer`] | FreeSurfer colour lookup tables and surface annotations |
+//! | [`freesurfer`] | FreeSurfer surfaces, morphometry, annotations, labels, and colour lookup tables |
 //!
 //! # Example
 //!

@@ -1,110 +1,85 @@
+//! Hostile input: every reader returns a typed result for arbitrary bytes.
+//!
+//! The property is panic-freedom — a panic fails the test, whatever the
+//! result — over two input families: raw bytes, and bytes behind each format's
+//! valid magic so the search reaches past the first check into the counts and
+//! records. Reading from an in-memory slice also bounds each case's work by
+//! its length, so a forged count cannot turn a case into a long allocation.
+
+use proptest::prelude::*;
+
 use super::*;
 
-/// A minimal valid `.annot` file with 3 vertices and 2 label table entries.
-fn minimal_annot_bytes() -> Vec<u8> {
-    let mut buf = Vec::new();
-
-    // Magic.
-    buf.extend_from_slice(&(-2i32).to_le_bytes());
-
-    // Vertex count.
-    buf.extend_from_slice(&(3i32).to_le_bytes());
-
-    // Label table: 2 entries.
-    buf.extend_from_slice(&(2i32).to_le_bytes());
-
-    // Entry 0: structure_idx=0, name="Unknown"
-    buf.extend_from_slice(&(0i32).to_le_bytes()); // struct idx
-    buf.extend_from_slice(&(7i32).to_le_bytes()); // name length
-    buf.extend_from_slice(b"Unknown"); // name (no null needed, exact length)
-    buf.extend_from_slice(&[0u8; 16]); // RGBA
-
-    // Entry 1: structure_idx=1001, name="precentral-L"
-    buf.extend_from_slice(&(1001i32).to_le_bytes());
-    buf.extend_from_slice(&(12i32).to_le_bytes());
-    buf.extend_from_slice(b"precentral-L");
-    buf.extend_from_slice(&[0u8; 16]);
-
-    // Per-vertex labels (3 vertices): [0, 1, 0] → [Unknown, precentral-L, Unknown].
-    buf.extend_from_slice(&(0i32).to_le_bytes());
-    buf.extend_from_slice(&(1i32).to_le_bytes());
-    buf.extend_from_slice(&(0i32).to_le_bytes());
-
-    // Color table: 1 entry (can differ from label table count).
-    buf.extend_from_slice(&(1i32).to_le_bytes());
-    buf.extend_from_slice(&(1001i32).to_le_bytes());
-    buf.extend_from_slice(&(12i32).to_le_bytes());
-    buf.extend_from_slice(b"precentral-L");
-    buf.extend_from_slice(&[0u8; 16]);
-
-    // Per-vertex colours — one i32 (4 bytes) per vertex.
-    buf.extend_from_slice(&[0u8; 12]); // 3 vertices × 4 bytes (i32 LE)
-
-    buf
+/// Read `bytes` as every format; whatever is accepted must hold its invariants.
+fn read_every_format(bytes: &[u8]) {
+    if let Ok(surface) = Surface::read(bytes) {
+        let vertices = surface.vertex_count();
+        assert!(
+            surface
+                .faces()
+                .iter()
+                .flatten()
+                .all(|v| (*v as usize) < vertices)
+        );
+        assert!(surface.vertices().iter().flatten().all(|c| c.is_finite()));
+    }
+    if let Ok(data) = Morphometry::read(bytes) {
+        // Header is 15 bytes; each value is 4 bytes of real input.
+        assert!(data.values().len() * 4 + 15 <= bytes.len());
+    }
+    if let Ok(annotation) = SurfaceAnnotation::read(bytes) {
+        let table = annotation.color_table();
+        assert!(
+            annotation
+                .vertex_labels()
+                .iter()
+                .all(|label| *label == crate::BACKGROUND || table.get(*label).is_some())
+        );
+    }
+    if let Ok(label) = SurfaceLabel::read(bytes) {
+        assert!(label.vertices().iter().all(|point| point.value.is_finite()));
+    }
+    if let Ok(lut) = ColorLut::parse(bytes) {
+        assert!(!lut.entries().is_empty());
+        assert!(
+            lut.entries()
+                .windows(2)
+                .all(|pair| pair.first().map(LutEntry::label) < pair.last().map(LutEntry::label))
+        );
+    }
 }
 
-#[test]
-fn read_minimal_annot() {
-    let bytes = minimal_annot_bytes();
-    let annot = SurfaceAnnotation::read(bytes.as_slice()).expect("valid .annot");
+proptest! {
+    #[test]
+    fn arbitrary_bytes_never_panic(bytes in proptest::collection::vec(any::<u8>(), 0..512)) {
+        read_every_format(&bytes);
+    }
 
-    assert_eq!(annot.vertex_count, 3);
-    assert_eq!(annot.label_table.len(), 2);
-    assert_eq!(annot.label_table[0].1, "Unknown");
-    assert_eq!(annot.label_table[1].0, 1001);
-    assert_eq!(annot.label_table[1].1, "precentral-L");
+    #[test]
+    fn bytes_behind_a_valid_magic_never_panic(
+        magic in prop_oneof![Just([0xFF_u8, 0xFF, 0xFE]), Just([0xFF_u8, 0xFF, 0xFF])],
+        body in proptest::collection::vec(any::<u8>(), 0..512),
+    ) {
+        let mut bytes = magic.to_vec();
+        bytes.extend_from_slice(&body);
+        read_every_format(&bytes);
+    }
 
-    assert_eq!(annot.vertex_labels.len(), 3);
-    assert_eq!(annot.vertex_labels[0], 0);
-    assert_eq!(annot.vertex_labels[1], 1001);
-    assert_eq!(annot.vertex_labels[2], 0);
-}
+    /// Small big-endian integers make counts plausible, which is what drives a
+    /// reader deep into its record loops.
+    #[test]
+    fn small_integer_fields_never_panic(
+        fields in proptest::collection::vec(-3_i32..300, 0..64),
+    ) {
+        let bytes: Vec<u8> = fields.iter().flat_map(|field| field.to_be_bytes()).collect();
+        read_every_format(&bytes);
+        let mut behind_magic = vec![0xFF, 0xFF, 0xFF];
+        behind_magic.extend_from_slice(&bytes);
+        read_every_format(&behind_magic);
+    }
 
-#[test]
-fn reject_invalid_magic() {
-    let mut buf = Vec::new();
-    buf.extend_from_slice(&(42i32).to_le_bytes()); // not -2
-    buf.extend_from_slice(&(3i32).to_le_bytes()); // vertex count
-    buf.extend_from_slice(&(0i32).to_le_bytes()); // label table
-
-    let err = SurfaceAnnotation::read(buf.as_slice()).expect_err("bad magic");
-    assert!(matches!(
-        err,
-        FreeSurferSurfaceError::InvalidMagic { got: 42 }
-    ));
-}
-
-#[test]
-fn parse_freesurfer_lut() {
-    let lut = "\
-# FreeSurfer ColorLUT
-# Lines starting with # are comments
-
-0   Unknown                 0    0    0    0
-1001 precentral-L           255  128  0    0
-1005 postcentral-L          0    255  128  0
-2001 ctx-lh-unknown          128  128  128  0
-";
-
-    let entries = read_freesurfer_lut(lut.as_bytes()).expect("valid LUT");
-    assert_eq!(entries.len(), 4);
-    assert_eq!(entries[0], (0, "Unknown".to_string()));
-    assert_eq!(entries[1], (1001, "precentral-L".to_string()));
-    assert_eq!(entries[2], (1005, "postcentral-L".to_string()));
-    assert_eq!(entries[3], (2001, "ctx-lh-unknown".to_string()));
-}
-
-#[test]
-fn lut_skips_non_numeric_first_tokens() {
-    let lut = "\
-# comment
-VERSION 1.0
-0   Unknown     0 0 0 0
-1   Region-1    255 0 0 0
-";
-    let entries = read_freesurfer_lut(lut.as_bytes()).expect("valid LUT");
-    assert_eq!(entries.len(), 2);
-    // "VERSION" is skipped because "VERSION" is not a valid u32.
-    assert_eq!(entries[0], (0, "Unknown".to_string()));
-    assert_eq!(entries[1], (1, "Region-1".to_string()));
+    #[test]
+    fn arbitrary_text_never_panics(text in "[-0-9a-z# .\n]{0,256}") {
+        read_every_format(text.as_bytes());
+    }
 }

@@ -6,7 +6,10 @@
 //!
 //! # Format
 //!
-//! The binary triangle file is big-endian throughout:
+//! The binary triangle file, per nibabel's `freesurfer/io.py`
+//! `read_geometry`/`write_geometry`
+//! (<https://github.com/nipy/nibabel/blob/master/nibabel/freesurfer/io.py>), is
+//! big-endian throughout:
 //!
 //! ```text
 //! magic          3 bytes, 0xFFFFFE
@@ -36,11 +39,16 @@
 //! supply vertices already in that volume's frame; [`Surface::translated`] is
 //! there to apply the offset once it is known.
 
-use std::io::Read;
+use std::io::{Read, Write};
 
-use super::FreeSurferSurfaceError;
+use super::big_endian::{
+    read_be, read_count, read_u24, reserve_for, write_be, write_count, write_u24,
+};
+use super::{FreeSurferError, FreeSurferFormat};
 
-/// Magic identifying a big-endian triangular surface file.
+const FORMAT: FreeSurferFormat = FreeSurferFormat::Surface;
+
+/// Magic identifying a big-endian triangular surface file (16777214).
 const TRIANGLE_MAGIC: u32 = 0x00FF_FFFE;
 
 /// Largest vertex or face count that can be a real surface.
@@ -48,8 +56,8 @@ const TRIANGLE_MAGIC: u32 = 0x00FF_FFFE;
 /// A hemisphere reconstructed at the usual resolution has of order 150,000
 /// vertices; ten million is far beyond any real surface and well short of what
 /// a corrupt length field would demand, so it separates the two without
-/// rejecting anything genuine.
-const MAX_ELEMENTS: i32 = 10_000_000;
+/// rejecting anything genuine. The per-vertex formats share the bound.
+pub(super) const MAX_ELEMENTS: usize = 10_000_000;
 
 /// A triangular surface mesh.
 #[derive(Debug, Clone, PartialEq)]
@@ -63,72 +71,65 @@ pub struct Surface {
 impl Surface {
     /// Read a FreeSurfer binary triangular surface.
     ///
+    /// Coordinates are stored as `f32` and widened to `f64` exactly. Anything
+    /// after the faces (the optional volume-geometry trailer) is not read.
+    ///
     /// # Errors
     ///
-    /// [`FreeSurferSurfaceError`] for wrong magic, an unreasonable vertex or
-    /// face count, a face referencing a vertex that does not exist, a
-    /// non-finite coordinate, or premature end of file.
-    pub fn read(mut reader: impl Read) -> Result<Self, FreeSurferSurfaceError> {
-        let mut magic = [0_u8; 3];
-        reader.read_exact(&mut magic)?;
-        let magic = u32::from(magic[0]) << 16 | u32::from(magic[1]) << 8 | u32::from(magic[2]);
+    /// [`FreeSurferError::InvalidMagic`] for a file that is not a triangle
+    /// surface (quad surfaces included); [`FreeSurferError::InvalidCount`] for
+    /// an unreasonable vertex or face count; [`FreeSurferError::Malformed`] for
+    /// a face referencing a vertex that does not exist or a non-finite
+    /// coordinate; [`FreeSurferError::Io`] for premature end of file.
+    pub fn read(mut reader: impl Read) -> Result<Self, FreeSurferError> {
+        let magic = read_u24(&mut reader)?;
         if magic != TRIANGLE_MAGIC {
-            #[expect(
-                clippy::cast_possible_wrap,
-                reason = "reported for diagnosis; the three-byte magic cannot reach i32::MAX"
-            )]
-            let got = magic as i32;
-            return Err(FreeSurferSurfaceError::InvalidMagic { got });
+            return Err(FreeSurferError::InvalidMagic {
+                format: FORMAT,
+                expected: TRIANGLE_MAGIC,
+                got: magic,
+            });
         }
 
         skip_comment(&mut reader)?;
 
-        let vertex_count = read_i32(&mut reader)?;
-        let face_count = read_i32(&mut reader)?;
-        for count in [vertex_count, face_count] {
-            if !(0..=MAX_ELEMENTS).contains(&count) {
-                return Err(FreeSurferSurfaceError::InvalidVertexCount { count });
-            }
-        }
-        #[expect(
-            clippy::cast_sign_loss,
-            reason = "both counts are range-checked nonnegative immediately above"
-        )]
-        let (vertices_len, faces_len) = (vertex_count as usize, face_count as usize);
+        let vertices_len = read_count(&mut reader, FORMAT, "vertex count", MAX_ELEMENTS)?;
+        let faces_len = read_count(&mut reader, FORMAT, "face count", MAX_ELEMENTS)?;
 
-        let mut vertices = Vec::with_capacity(vertices_len);
+        let mut vertices = Vec::with_capacity(reserve_for(vertices_len));
         for index in 0..vertices_len {
             let point = [
-                f64::from(read_f32(&mut reader)?),
-                f64::from(read_f32(&mut reader)?),
-                f64::from(read_f32(&mut reader)?),
+                f64::from(read_be::<f32>(&mut reader)?),
+                f64::from(read_be::<f32>(&mut reader)?),
+                f64::from(read_be::<f32>(&mut reader)?),
             ];
             if point.iter().any(|value| !value.is_finite()) {
-                return Err(FreeSurferSurfaceError::MalformedLabelTable {
+                return Err(FreeSurferError::malformed(
+                    FORMAT,
+                    "vertex",
                     index,
-                    reason: "vertex coordinate is not finite".to_owned(),
-                });
+                    "coordinate is not finite",
+                ));
             }
             vertices.push(point);
         }
 
-        let mut faces = Vec::with_capacity(faces_len);
+        let mut faces = Vec::with_capacity(reserve_for(faces_len));
         for index in 0..faces_len {
             let mut triangle = [0_u32; 3];
             for slot in &mut triangle {
-                let value = read_i32(&mut reader)?;
-                #[expect(
-                    clippy::cast_sign_loss,
-                    reason = "checked against the vertex count immediately below"
-                )]
-                let vertex = value as u32;
-                if value < 0 || vertices_len <= vertex as usize {
-                    return Err(FreeSurferSurfaceError::MalformedLabelTable {
-                        index,
-                        reason: format!("face references vertex {value} of {vertices_len}"),
-                    });
-                }
-                *slot = vertex;
+                let value = read_be::<i32>(&mut reader)?;
+                *slot = u32::try_from(value)
+                    .ok()
+                    .filter(|vertex| (*vertex as usize) < vertices_len)
+                    .ok_or_else(|| {
+                        FreeSurferError::malformed(
+                            FORMAT,
+                            "face",
+                            index,
+                            format!("references vertex {value} of {vertices_len}"),
+                        )
+                    })?;
             }
             faces.push(triangle);
         }
@@ -139,35 +140,77 @@ impl Surface {
         })
     }
 
+    /// Write the binary triangle format.
+    ///
+    /// Coordinates are narrowed to the format's `f32`. `comment` is the
+    /// creation line FreeSurfer writes as `created by <user> on <date>`.
+    ///
+    /// # Errors
+    ///
+    /// [`FreeSurferError::Malformed`] when `comment` contains a blank line,
+    /// which would end the header early; [`FreeSurferError::InvalidCount`]
+    /// when a count exceeds `i32`; [`FreeSurferError::Io`] on write failure.
+    pub fn write(&self, mut writer: impl Write, comment: &str) -> Result<(), FreeSurferError> {
+        if comment.contains("\n\n") || comment.ends_with('\n') {
+            return Err(FreeSurferError::malformed(
+                FORMAT,
+                "comment",
+                0,
+                "contains a blank line, which terminates the header",
+            ));
+        }
+        let writer = &mut writer;
+        write_u24(writer, TRIANGLE_MAGIC)?;
+        writer.write_all(comment.as_bytes())?;
+        writer.write_all(b"\n\n")?;
+        write_count(writer, FORMAT, "vertex count", self.vertices.len())?;
+        write_count(writer, FORMAT, "face count", self.faces.len())?;
+        for point in &self.vertices {
+            for coordinate in point {
+                #[expect(
+                    clippy::cast_possible_truncation,
+                    reason = "the triangle format stores f32 coordinates"
+                )]
+                write_be(writer, *coordinate as f32)?;
+            }
+        }
+        for face in &self.faces {
+            for vertex in face {
+                write_count(writer, FORMAT, "face vertex", *vertex as usize)?;
+            }
+        }
+        Ok(())
+    }
+
     /// Assemble a surface from coordinates and triangles.
     ///
     /// # Errors
     ///
-    /// [`FreeSurferSurfaceError::MalformedLabelTable`] when a face references a
-    /// vertex that does not exist, or a coordinate is not finite.
-    pub fn new(
-        vertices: Vec<[f64; 3]>,
-        faces: Vec<[u32; 3]>,
-    ) -> Result<Self, FreeSurferSurfaceError> {
-        if let Some((index, _)) = vertices
+    /// [`FreeSurferError::Malformed`] when a face references a vertex that does
+    /// not exist, or a coordinate is not finite.
+    pub fn new(vertices: Vec<[f64; 3]>, faces: Vec<[u32; 3]>) -> Result<Self, FreeSurferError> {
+        if let Some(index) = vertices
             .iter()
-            .enumerate()
-            .find(|(_, point)| point.iter().any(|value| !value.is_finite()))
+            .position(|point| point.iter().any(|value| !value.is_finite()))
         {
-            return Err(FreeSurferSurfaceError::MalformedLabelTable {
+            return Err(FreeSurferError::malformed(
+                FORMAT,
+                "vertex",
                 index,
-                reason: "vertex coordinate is not finite".to_owned(),
-            });
+                "coordinate is not finite",
+            ));
         }
         if let Some((index, face)) = faces
             .iter()
             .enumerate()
             .find(|(_, face)| face.iter().any(|v| vertices.len() <= *v as usize))
         {
-            return Err(FreeSurferSurfaceError::MalformedLabelTable {
+            return Err(FreeSurferError::malformed(
+                FORMAT,
+                "face",
                 index,
-                reason: format!("face {face:?} references a vertex of {}", vertices.len()),
-            });
+                format!("{face:?} references a vertex of {}", vertices.len()),
+            ));
         }
         Ok(Self {
             vertices: vertices.into_boxed_slice(),
@@ -218,7 +261,7 @@ impl Surface {
 }
 
 /// Consume the free-text comment, which ends at the first double newline.
-fn skip_comment(reader: &mut impl Read) -> Result<(), FreeSurferSurfaceError> {
+fn skip_comment(reader: &mut impl Read) -> Result<(), FreeSurferError> {
     let mut previous = 0_u8;
     loop {
         let mut byte = [0_u8; 1];
@@ -228,18 +271,6 @@ fn skip_comment(reader: &mut impl Read) -> Result<(), FreeSurferSurfaceError> {
         }
         previous = byte[0];
     }
-}
-
-fn read_i32(reader: &mut impl Read) -> Result<i32, FreeSurferSurfaceError> {
-    let mut bytes = [0_u8; 4];
-    reader.read_exact(&mut bytes)?;
-    Ok(i32::from_be_bytes(bytes))
-}
-
-fn read_f32(reader: &mut impl Read) -> Result<f32, FreeSurferSurfaceError> {
-    let mut bytes = [0_u8; 4];
-    reader.read_exact(&mut bytes)?;
-    Ok(f32::from_be_bytes(bytes))
 }
 
 #[cfg(test)]

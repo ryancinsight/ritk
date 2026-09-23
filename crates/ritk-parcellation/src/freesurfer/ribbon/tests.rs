@@ -1,6 +1,6 @@
 use super::*;
 
-use crate::freesurfer::SurfaceAnnotation;
+use crate::freesurfer::{ColorLut, LutColor, LutEntry, SurfaceAnnotation};
 
 /// A grid of 1 mm voxels spanning `0..8` on every axis.
 fn grid() -> ParcellationGrid {
@@ -9,23 +9,26 @@ fn grid() -> ParcellationGrid {
 
 /// An annotation over `labels.len()` vertices, with a matching table.
 fn annotation(labels: &[u32]) -> SurfaceAnnotation {
-    let mut table: Vec<(u32, String)> = labels
+    let mut used: Vec<u32> = labels
         .iter()
         .copied()
         .filter(|label| *label != BACKGROUND)
-        .map(|label| (label, format!("parcel {label}")))
         .collect();
-    table.sort_unstable();
-    table.dedup();
-    SurfaceAnnotation {
-        #[expect(
-            clippy::cast_possible_truncation,
-            reason = "fixtures hold a handful of vertices"
-        )]
-        vertex_count: labels.len() as u32,
-        label_table: table,
-        vertex_labels: labels.to_vec().into_boxed_slice(),
-    }
+    used.sort_unstable();
+    used.dedup();
+    let entries = used.into_iter().map(|label| {
+        // Distinct colours, as an annotation requires.
+        let [red, green, _, _] = label.to_le_bytes();
+        let color = LutColor {
+            red,
+            green,
+            blue: 1,
+            transparency: 0,
+        };
+        LutEntry::new(label, format!("parcel-{label}"), color).expect("valid entry")
+    });
+    let table = ColorLut::new(entries).expect("unique labels");
+    SurfaceAnnotation::new(labels.to_vec().into_boxed_slice(), table).expect("valid annotation")
 }
 
 fn surface(points: Vec<[f64; 3]>) -> Surface {
@@ -102,7 +105,7 @@ fn region_names_carry_through_from_the_annotation() {
     let (parcellation, _) =
         rasterise_ribbon(&white, &pial, &annotation(&[11]), &grid(), 8).expect("rasterises");
 
-    assert_eq!(parcellation.name_of(11), Some("parcel 11"));
+    assert_eq!(parcellation.name_of(11), Some("parcel-11"));
 }
 
 // ── The report says what the rasterisation could not do ──────────────────
@@ -163,7 +166,17 @@ fn mismatched_surfaces_are_rejected() {
     let pial = surface(vec![[1.0, 1.0, 3.0]]);
 
     let error = rasterise_ribbon(&white, &pial, &annotation(&[1, 2]), &grid(), 8).unwrap_err();
-    assert!(matches!(error, RibbonError::Surface(_)), "got {error}");
+    assert!(
+        matches!(
+            error,
+            RibbonError::VertexCountMismatch {
+                white: 2,
+                pial: 1,
+                annotation: 2
+            }
+        ),
+        "got {error}"
+    );
 }
 
 #[test]
@@ -172,7 +185,17 @@ fn an_annotation_of_the_wrong_length_is_rejected() {
     let pial = surface(vec![[1.0, 1.0, 3.0], [2.0, 2.0, 4.0]]);
 
     let error = rasterise_ribbon(&white, &pial, &annotation(&[1]), &grid(), 8).unwrap_err();
-    assert!(matches!(error, RibbonError::Surface(_)), "got {error}");
+    assert!(
+        matches!(
+            error,
+            RibbonError::VertexCountMismatch {
+                white: 2,
+                pial: 2,
+                annotation: 1
+            }
+        ),
+        "got {error}"
+    );
 }
 
 // ── Sampling ─────────────────────────────────────────────────────────────

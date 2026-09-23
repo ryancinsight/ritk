@@ -6620,6 +6620,7 @@ dependencies = [
 name = "ritk-parcellation"
 version = "0.1.0"
 dependencies = [
+ "proptest",
  "ritk-spatial",
  "serde",
  "serde_json",

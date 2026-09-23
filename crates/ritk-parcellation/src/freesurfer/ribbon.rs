@@ -46,7 +46,7 @@
 
 use crate::{BACKGROUND, Parcellation, ParcellationError, ParcellationGrid};
 
-use super::{FreeSurferSurfaceError, Surface, SurfaceAnnotation};
+use super::{Surface, SurfaceAnnotation};
 
 /// How much of the ribbon the rasterisation managed to fill.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Default)]
@@ -81,9 +81,10 @@ pub struct RibbonReport {
 ///
 /// # Errors
 ///
-/// [`FreeSurferSurfaceError::InvalidVertexCount`] when the two surfaces or the
+/// [`RibbonError::VertexCountMismatch`] when the two surfaces or the
 /// annotation disagree on how many vertices there are — which means they are not
 /// from one reconstruction, and pairing them would join unrelated points.
+/// [`RibbonError::Parcellation`] when the result is not a parcellation.
 ///
 /// # Panics
 ///
@@ -96,16 +97,12 @@ pub fn rasterise_ribbon(
     steps: usize,
 ) -> Result<(Parcellation, RibbonReport), RibbonError> {
     let vertices = white.vertex_count();
-    if pial.vertex_count() != vertices || annotation.vertex_labels.len() != vertices {
-        #[expect(
-            clippy::cast_possible_truncation,
-            clippy::cast_possible_wrap,
-            reason = "reported for diagnosis; surface vertex counts are bounded well below i32::MAX"
-        )]
-        let count = vertices as i32;
-        return Err(RibbonError::Surface(
-            FreeSurferSurfaceError::InvalidVertexCount { count },
-        ));
+    if pial.vertex_count() != vertices || annotation.vertex_count() != vertices {
+        return Err(RibbonError::VertexCountMismatch {
+            white: vertices,
+            pial: pial.vertex_count(),
+            annotation: annotation.vertex_count(),
+        });
     }
 
     // At least the two endpoints, so a zero or one step still walks the column
@@ -114,7 +111,7 @@ pub fn rasterise_ribbon(
     let mut labels = vec![BACKGROUND; grid.voxel_count()];
     let mut report = RibbonReport::default();
 
-    for (vertex, label) in annotation.vertex_labels.iter().copied().enumerate() {
+    for (vertex, label) in annotation.vertex_labels().iter().copied().enumerate() {
         if label == BACKGROUND {
             continue;
         }
@@ -158,7 +155,7 @@ pub fn rasterise_ribbon(
         }
     }
 
-    let names = annotation.label_table.clone();
+    let names = annotation.color_table().region_names();
     let parcellation = Parcellation::new(labels.into_boxed_slice(), grid.clone(), names)?;
     Ok((parcellation, report))
 }
@@ -168,8 +165,15 @@ pub fn rasterise_ribbon(
 #[non_exhaustive]
 pub enum RibbonError {
     /// The surfaces or the annotation do not describe one reconstruction.
-    #[error("surface error: {0}")]
-    Surface(#[from] FreeSurferSurfaceError),
+    #[error("vertex counts disagree: white {white}, pial {pial}, annotation {annotation}")]
+    VertexCountMismatch {
+        /// Vertices of the white surface.
+        white: usize,
+        /// Vertices of the pial surface.
+        pial: usize,
+        /// Vertices the annotation labels.
+        annotation: usize,
+    },
     /// The rasterised volume is not a usable parcellation.
     ///
     /// Reached when no column landed inside the grid at all, which means the

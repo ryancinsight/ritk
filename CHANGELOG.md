@@ -12,6 +12,13 @@
 
 ### Added
 
+- [minor] `ritk-parcellation::freesurfer` reads and writes the FreeSurfer
+  surface family: `Morphometry` (new-format `curv`, magic `0xFFFFFF`),
+  `SurfaceLabel` (ASCII `.label`), `ColorLut` (`FreeSurferColorLUT.txt`, with
+  colours and FreeSurfer's transparency convention), and writers for `Surface`
+  and `SurfaceAnnotation`. Every reader bounds its counts, grows storage only as
+  input backs it, and reports a typed `FreeSurferError`.
+
 - [minor] `ritk.io.read_image` accepts an optional `series_instance_uid` for
   selecting one acquisition from a DICOM directory. RITK scans and matches the
   UID before decoding pixels; ambiguous, unknown, empty, and non-directory
@@ -70,6 +77,13 @@
   62 in-repository call sites are migrated. See [ADR 0051](docs/adr/0051-two-image-data-accessors.md).
 
 ### Fixed
+
+- [minor] `SurfaceAnnotation::read` parses the real `.annot` layout —
+  big-endian `(vertex, packed RGB)` records followed by an old-format or
+  version 2 colour table, per FreeSurfer `read_annotation.m` — replacing a
+  little-endian reader of a layout no FreeSurfer tool writes. Vertices resolve
+  to colour-table structure indices. `read_freesurfer_lut` is replaced by
+  `ColorLut::parse`, and `FreeSurferSurfaceError` by `FreeSurferError`.
 
 - Removed 16 reintroduced production `#[allow]` sites. Test-only codec, MIF,
   and curved-planar-reformation helpers now compile only for tests; internal MQ
