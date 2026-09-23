@@ -18,7 +18,7 @@
 //! - A no-op paint/erase does not create a new undo history entry.
 //! - Out-of-bounds brush centers are rejected before touching the label map.
 
-use ritk_annotation::{LabelId, LabelMap, LabelTable, UndoRedoStack};
+use ritk_annotation::{AnnotationError, LabelId, LabelMap, LabelTable, UndoRedoStack};
 use ritk_annotation::{RgbaBytes, Visibility};
 
 const DEFAULT_LABEL_ID: LabelId = LabelId(1);
@@ -102,11 +102,16 @@ impl LabelEditor {
     /// Add a label to the current table and make it active.
     ///
     /// The ID is the smallest positive integer absent from the current table.
+    ///
+    /// # Errors
+    ///
+    /// [`AnnotationError::DuplicateLabel`] if the chosen ID is taken, which
+    /// `next_free_id` rules out.
     pub fn add_label(
         &mut self,
         name: impl Into<String>,
         color: RgbaBytes,
-    ) -> Result<LabelId, String> {
+    ) -> Result<LabelId, AnnotationError> {
         let mut next = self.current_map().clone();
         let label_id = next.table.next_free_id();
         next.table.add_label(label_id, name, color)?;

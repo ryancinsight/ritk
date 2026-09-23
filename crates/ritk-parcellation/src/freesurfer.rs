@@ -6,7 +6,7 @@
 //! | [`morphometry`] | New-format per-vertex scalars | `lh.curv`, `lh.thickness`, `lh.sulc` |
 //! | [`annotation`] | Per-vertex parcellation with embedded colour table | `lh.aparc.annot` |
 //! | [`label`] | ASCII vertex set | `lh.cortex.label` |
-//! | [`lut`] | Text colour lookup table | `FreeSurferColorLUT.txt` |
+//! | [`lut`] | Text colour lookup table, read into a [`ritk_annotation::LabelTable`] | `FreeSurferColorLUT.txt` |
 //! | [`ribbon`] | Rasterising an annotation into a volume | — |
 //!
 //! Every reader treats its input as hostile: counts are bounded, storage grows
@@ -43,7 +43,6 @@ pub mod surface;
 pub use annotation::SurfaceAnnotation;
 pub use error::{FreeSurferError, FreeSurferFormat};
 pub use label::{LabelVertex, SurfaceLabel};
-pub use lut::{ColorLut, LutColor, LutEntry};
 pub use morphometry::Morphometry;
 pub use ribbon::{RibbonError, RibbonReport, rasterise_ribbon};
 pub use surface::Surface;

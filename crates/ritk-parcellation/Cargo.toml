@@ -14,6 +14,7 @@ readme.workspace = true
 description = "Anatomical parcellation volumes, region statistics, and label-map formats"
 
 [dependencies]
+ritk-annotation.workspace = true
 ritk-spatial.workspace = true
 serde = { workspace = true, features = ["derive"] }
 thiserror.workspace = true

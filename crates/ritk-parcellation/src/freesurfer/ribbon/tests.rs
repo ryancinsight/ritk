@@ -1,6 +1,8 @@
 use super::*;
 
-use crate::freesurfer::{ColorLut, LutColor, LutEntry, SurfaceAnnotation};
+use ritk_annotation::{LabelTable, RgbaBytes};
+
+use crate::freesurfer::SurfaceAnnotation;
 
 /// A grid of 1 mm voxels spanning `0..8` on every axis.
 fn grid() -> ParcellationGrid {
@@ -16,18 +18,18 @@ fn annotation(labels: &[u32]) -> SurfaceAnnotation {
         .collect();
     used.sort_unstable();
     used.dedup();
-    let entries = used.into_iter().map(|label| {
+    let mut table = LabelTable::new();
+    for label in used {
         // Distinct colours, as an annotation requires.
         let [red, green, _, _] = label.to_le_bytes();
-        let color = LutColor {
-            red,
-            green,
-            blue: 1,
-            transparency: 0,
-        };
-        LutEntry::new(label, format!("parcel-{label}"), color).expect("valid entry")
-    });
-    let table = ColorLut::new(entries).expect("unique labels");
+        table
+            .add_label(
+                label,
+                format!("parcel-{label}"),
+                RgbaBytes::new(red, green, 1, 255),
+            )
+            .expect("unique labels");
+    }
     SurfaceAnnotation::new(labels.to_vec().into_boxed_slice(), table).expect("valid annotation")
 }
 
