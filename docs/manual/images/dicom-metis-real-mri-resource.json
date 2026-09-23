@@ -1,5 +1,5 @@
 {
-  "schema": 1,
+  "schema": 2,
   "status": "passed",
   "runtime": {
     "host": "Windows native Métis surface",
@@ -24,8 +24,8 @@
     "image": "dicom-metis-real-mri.png",
     "width": 1280,
     "height": 800,
-    "sha256": "85071f20ca11cb4a9b2524db0a53b21695b7e93141831e7e0ab293c42fbcd582",
-    "bytes": 418490,
+    "sha256": "959969ef69e66cebd3143b06468802e06ff68fbc6d94e2ed1d9a555f7e2ff98c",
+    "bytes": 190219,
     "executable_sha256": "7f81c6fc3d2e76c7e28d603fbaad3eece1fb67c694b7b97bf4ff6c7dc3325484",
     "executable_bytes": 55460864,
     "capture_mode": "--metis-native --capture-application --capture",
@@ -34,6 +34,11 @@
       "coronal",
       "sagittal"
     ]
+  },
+  "source_capture": {
+    "image": "scratch/viewer/real-metis-frame.png",
+    "sha256": "85071f20ca11cb4a9b2524db0a53b21695b7e93141831e7e0ab293c42fbcd582",
+    "bytes": 418490
   },
   "resource": {
     "metric": "process-tree peak private bytes",

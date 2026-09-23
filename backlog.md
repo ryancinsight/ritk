@@ -176,5 +176,5 @@
 ## RITK-MANUAL-PROVENANCE-001 — Bind MRI resource metadata to its PNG [patch]
 - Status: in-progress; priority: P1; owner: RITK documentation; integrator: root; branch: `docs/ritk-manual-provenance-001`; last-update: 2026-09-23; dependency delivery: [PR #605](https://github.com/ryancinsight/ritk/pull/605).
 - Outcome: the public MRI manual PNG and its resource manifest report matching output digest and size while retaining distinct source-capture evidence.
-- Scope: docs/manual/images/dicom-metis-real-mri-resource.json, a focused integrity test in scripts/tests/, and affected manual provenance text.
-- Acceptance: output SHA-256 and byte count match the tracked PNG, capture SHA-256 and byte count remain unchanged, and provenance tests pass.
+- Scope: docs/manual/images/dicom-metis-real-mri-resource.json, its integrity test in scripts/tests/, affected manual provenance text, and `.github/workflows/python_ci.yml`.
+- Acceptance: output SHA-256 and byte count match the tracked PNG; source-capture SHA-256 and byte count remain unchanged; the required Python 3.12 job runs the script tests when `scripts/` changes and retains its stable context for unrelated pull requests.
