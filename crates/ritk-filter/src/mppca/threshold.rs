@@ -43,10 +43,20 @@ pub(crate) struct NoiseBoundary<T> {
     pub(crate) variance: T,
 }
 
+impl<T: RealScalar> NoiseBoundary<T> {
+    /// No signal and zero variance: the placeholder a staged window holds
+    /// before its spectrum is thresholded.
+    pub(crate) const EMPTY: Self = Self {
+        signal_components: 0,
+        variance: T::ZERO,
+    };
+}
+
 /// Locate the Marchenko-Pastur boundary of a spectrum.
 ///
 /// `descending` holds `λ₁ ≥ … ≥ λ_m`, the eigenvalues of the Gram matrix
-/// divided by `n` (the larger Casorati dimension). `p` increases from zero
+/// divided by `n` (the larger Casorati dimension). `trailing` is reused
+/// scratch for the suffix sums. `p` increases from zero
 /// until the trailing sum reaches `(m − p)·σ̂²(p)` with
 /// `σ̂²(p) = (λ_{p+1} − λ_m) / (4√γ_p)` (Eq. 10–11), `γ_p` per `estimator`.
 ///
@@ -60,13 +70,15 @@ pub(crate) fn marchenko_pastur_boundary<T: RealScalar>(
     descending: &[T],
     n: usize,
     estimator: MpEstimator,
+    trailing: &mut Vec<T>,
 ) -> NoiseBoundary<T> {
     let m = descending.len();
     debug_assert!(m >= 1 && n >= m, "invariant: 1 ≤ m ≤ n");
     let four = T::from_usize(4);
     let smallest = descending[m - 1];
     // Suffix sums let every candidate read its trailing sum in O(1).
-    let mut trailing = vec![T::ZERO; m + 1];
+    trailing.clear();
+    trailing.resize(m + 1, T::ZERO);
     for i in (0..m).rev() {
         trailing[i] = trailing[i + 1] + descending[i];
     }

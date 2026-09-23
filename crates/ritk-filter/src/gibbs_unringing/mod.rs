@@ -50,7 +50,10 @@
 //! order, up to the linear back-interpolation error.
 //!
 //! Slices are the planes spanned by the two axes other than the
-//! [`SliceAxis`]; every slice of every volume is corrected independently.
+//! [`SliceAxis`]; every slice of every volume is corrected independently, in
+//! parallel on the stack's parallel provider (`moirai`) with one reused
+//! workspace per worker, so the output is bitwise independent of the worker
+//! count.
 //!
 //! # Accuracy on smooth input
 //!

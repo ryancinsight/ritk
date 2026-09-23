@@ -39,6 +39,14 @@
 //! inward at the borders, so every window holds exactly `V` voxels. The noise
 //! map and component map report each voxel's own window.
 //!
+//! # Parallelism
+//!
+//! Windows are reconstructed in parallel on the stack's parallel provider
+//! (`moirai`), each worker reusing one window workspace, and their
+//! reconstructions are added to the overlap sums in window-centre order, so
+//! every voxel averages its windows in the order a sequential sweep would:
+//! the output is bitwise independent of the worker count.
+//!
 //! # Precision
 //!
 //! Every Gram accumulation, eigendecomposition

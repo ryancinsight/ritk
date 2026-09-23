@@ -68,13 +68,17 @@ impl MpPcaDenoiser {
     /// Denoise a series of volumes sharing `shape` (row-major, last axis
     /// fastest).
     ///
+    /// Windows are reconstructed in parallel; the result is bitwise identical
+    /// to a sequential sweep (see the [module documentation](super)).
+    ///
     /// # Errors
     ///
     /// - [`MpPcaError::TooFewVolumes`] for fewer than two volumes.
     /// - [`MpPcaError::VolumeLength`] when a volume's length disagrees with `shape`.
     /// - [`MpPcaError::NonFinite`] for a NaN or infinite sample.
     /// - [`MpPcaError::PatchExceedsImage`] when the window does not fit `shape`.
-    /// - [`MpPcaError::Eigen`] when a window's eigendecomposition fails.
+    /// - [`MpPcaError::Eigen`] when a window's eigendecomposition fails; the
+    ///   first failing window in centre order is reported.
     pub fn denoise<T: RealScalar>(
         &self,
         shape: [usize; 3],
@@ -91,36 +95,79 @@ impl MpPcaDenoiser {
         validate_series(shape, voxel_count, volumes)?;
         let extent = self.extent_for(depth);
         extent.fit(shape)?;
+        let batch = window_batch::<T>(extent.voxels(), depth);
+        self.sweep::<moirai::Parallel, T>(shape, volumes, extent, batch)
+    }
 
+    /// The window sweep under execution policy `P`, staging `batch` windows
+    /// per parallel region, over a validated series.
+    ///
+    /// Each region reconstructs its windows into per-window slots, every
+    /// worker reusing one [`WindowWorkspace`]; the slots are then added to the
+    /// overlap sums serially in centre order. Every output voxel therefore
+    /// sums its windows in ascending centre order — the order of a sequential
+    /// sweep — whatever `P`, the worker count, or `batch`, so the result is
+    /// bitwise independent of all three.
+    pub(super) fn sweep<P: moirai::ExecutionPolicy, T: RealScalar>(
+        &self,
+        shape: [usize; 3],
+        volumes: &[&[T]],
+        extent: PatchExtent,
+        batch: usize,
+    ) -> Result<MpPcaOutput<T>, MpPcaError> {
+        let depth = volumes.len();
+        let voxel_count: usize = shape.iter().product();
         let window_voxels = extent.voxels();
-        let mut window = WindowWorkspace::new(window_voxels, depth);
+        let estimator = self.estimator;
+        let mut slots: Vec<WindowSlot<T>> = (0..batch.clamp(1, voxel_count))
+            .map(|_| WindowSlot::new(window_voxels, depth))
+            .collect();
+        // Voxel-major overlap sums, so each window row adds contiguously.
         let mut sum = vec![T::ZERO; voxel_count * depth];
         let mut coverage = vec![0_usize; voxel_count];
         let mut sigma = vec![T::ZERO; voxel_count];
         let mut components = vec![0_usize; voxel_count];
 
-        for center in 0..voxel_count {
-            let origin = extent.origin(unravel(center, shape), shape);
-            window.gather(origin, extent.extent(), shape, volumes);
-            let boundary = window.reconstruct(self.estimator)?;
-            for (slot, &voxel) in window.indices.iter().enumerate() {
-                coverage[voxel] += 1;
-                let row = &window.reconstruction[slot * depth..(slot + 1) * depth];
-                for (d, &value) in row.iter().enumerate() {
-                    sum[d * voxel_count + voxel] += value;
-                }
+        let staged = slots.len();
+        for first in (0..voxel_count).step_by(staged) {
+            let active = &mut slots[..staged.min(voxel_count - first)];
+            for (offset, slot) in active.iter_mut().enumerate() {
+                slot.center = first + offset;
             }
-            sigma[center] = boundary.variance.sqrt();
-            components[center] = boundary.signal_components;
+            moirai::for_each_chunk_mut_with_state::<P, _, _, _, _>(
+                active,
+                1,
+                || WindowWorkspace::new(window_voxels, depth),
+                |workspace, run| {
+                    for slot in run {
+                        let origin = extent.origin(unravel(slot.center, shape), shape);
+                        workspace.gather(origin, extent.extent(), shape, volumes);
+                        slot.outcome = workspace.reconstruct(estimator, &mut slot.reconstruction);
+                    }
+                },
+            );
+            for slot in active.iter_mut() {
+                let boundary = std::mem::replace(&mut slot.outcome, Ok(NoiseBoundary::EMPTY))?;
+                let origin = extent.origin(unravel(slot.center, shape), shape);
+                accumulate(
+                    &mut sum,
+                    &mut coverage,
+                    &slot.reconstruction,
+                    origin,
+                    extent.extent(),
+                    shape,
+                );
+                sigma[slot.center] = boundary.variance.sqrt();
+                components[slot.center] = boundary.signal_components;
+            }
         }
 
-        let volumes = sum
-            .chunks_exact(voxel_count)
-            .map(|volume| {
-                volume
+        let volumes = (0..depth)
+            .map(|d| {
+                coverage
                     .iter()
-                    .zip(&coverage)
-                    .map(|(&total, &count)| total / T::from_usize(count))
+                    .enumerate()
+                    .map(|(voxel, &count)| sum[voxel * depth + d] / T::from_usize(count))
                     .collect()
             })
             .collect();
@@ -129,6 +176,74 @@ impl MpPcaDenoiser {
             sigma,
             components,
         })
+    }
+}
+
+/// Bytes of window reconstructions staged per parallel region.
+///
+/// Bounds the staging memory independently of the image size while giving
+/// every worker many windows: at the `dwidenoise` geometry (`V = 64`,
+/// `D = 60`, `f64`) one slot is 30 KiB, so the budget stages 546 windows —
+/// over 20 per worker on a 24-thread host, against which the static
+/// contiguous partition's imbalance of at most one window is small.
+const WINDOW_BATCH_BYTES: usize = 16 << 20;
+
+/// Windows per parallel region: [`WINDOW_BATCH_BYTES`] of reconstructions,
+/// at least one.
+fn window_batch<T>(window_voxels: usize, depth: usize) -> usize {
+    let slot_bytes = (window_voxels * depth * size_of::<T>()).max(1);
+    (WINDOW_BATCH_BYTES / slot_bytes).max(1)
+}
+
+/// Add one window's `V × D` reconstruction to the voxel-major overlap sums.
+///
+/// A window row along the last axis is `extent[2]` consecutive voxels in both
+/// the image and the reconstruction, so each row adds as one contiguous run
+/// of `extent[2] · D` values.
+fn accumulate<T: RealScalar>(
+    sum: &mut [T],
+    coverage: &mut [usize],
+    reconstruction: &[T],
+    origin: [usize; 3],
+    extent: [usize; 3],
+    shape: [usize; 3],
+) {
+    let depth = sum.len() / coverage.len();
+    let run = extent[2] * depth;
+    let mut rows = reconstruction.chunks_exact(run);
+    for z in origin[0]..origin[0] + extent[0] {
+        for y in origin[1]..origin[1] + extent[1] {
+            let first = (z * shape[1] + y) * shape[2] + origin[2];
+            let row = rows
+                .next()
+                .expect("invariant: a reconstruction holds extent[0] · extent[1] rows");
+            for (total, &value) in sum[first * depth..first * depth + run].iter_mut().zip(row) {
+                *total += value;
+            }
+            for count in &mut coverage[first..first + extent[2]] {
+                *count += 1;
+            }
+        }
+    }
+}
+
+/// One window staged between the parallel reconstruction and the serial
+/// overlap sum.
+struct WindowSlot<T> {
+    center: usize,
+    /// `V × D` reconstruction; row `r` is the window's `r`-th voxel in
+    /// `z, y, x` order.
+    reconstruction: Vec<T>,
+    outcome: Result<NoiseBoundary<T>, MpPcaError>,
+}
+
+impl<T: RealScalar> WindowSlot<T> {
+    fn new(voxels: usize, depth: usize) -> Self {
+        Self {
+            center: 0,
+            reconstruction: vec![T::ZERO; voxels * depth],
+            outcome: Ok(NoiseBoundary::EMPTY),
+        }
     }
 }
 
@@ -194,24 +309,30 @@ fn unravel(index: usize, shape: [usize; 3]) -> [usize; 3] {
     [index / plane, (index % plane) / shape[2], index % shape[2]]
 }
 
-/// Reused per-window storage: the Casorati matrix, its voxel indices, and the
-/// reconstruction, so the sweep allocates only inside the eigensolver.
+/// One worker's reusable window storage: the Casorati matrix, its voxel
+/// indices, the Gram matrix, and the spectrum buffers, so a worker allocates
+/// only inside the eigensolver.
 struct WindowWorkspace<T> {
     voxels: usize,
     depth: usize,
     indices: Vec<usize>,
     casorati: Vec<T>,
-    reconstruction: Vec<T>,
+    gram: Vec<T>,
+    descending: Vec<T>,
+    trailing: Vec<T>,
 }
 
 impl<T: RealScalar> WindowWorkspace<T> {
     fn new(voxels: usize, depth: usize) -> Self {
+        let m = voxels.min(depth);
         Self {
             voxels,
             depth,
             indices: Vec::with_capacity(voxels),
             casorati: vec![T::ZERO; voxels * depth],
-            reconstruction: vec![T::ZERO; voxels * depth],
+            gram: Vec::with_capacity(m * m),
+            descending: Vec::with_capacity(m),
+            trailing: Vec::with_capacity(m + 1),
         }
     }
 
@@ -239,13 +360,18 @@ impl<T: RealScalar> WindowWorkspace<T> {
         }
     }
 
-    /// Project the Casorati matrix onto its signal subspace.
+    /// Project the Casorati matrix onto its signal subspace, writing the
+    /// `V × D` reconstruction into `out`.
     ///
     /// The Gram matrix is formed on the smaller dimension `m` and divided by
     /// the larger `n` (Veraart et al. 2016, Eq. 2). Projecting onto its top
     /// `P̂` eigenvectors equals the rank-`P̂` truncated SVD of the Casorati
     /// matrix, whichever side the Gram matrix was formed on.
-    fn reconstruct(&mut self, estimator: MpEstimator) -> Result<NoiseBoundary<T>, MpPcaError> {
+    fn reconstruct(
+        &mut self,
+        estimator: MpEstimator,
+        out: &mut [T],
+    ) -> Result<NoiseBoundary<T>, MpPcaError> {
         let (voxels, depth) = (self.voxels, self.depth);
         let volumes_smaller = depth <= voxels;
         let (m, n) = if volumes_smaller {
@@ -257,7 +383,9 @@ impl<T: RealScalar> WindowWorkspace<T> {
         let at = |row: usize, col: usize| y[row * depth + col];
 
         let scale = T::from_usize(n);
-        let mut gram = vec![T::ZERO; m * m];
+        let mut gram = std::mem::take(&mut self.gram);
+        gram.clear();
+        gram.resize(m * m, T::ZERO);
         for i in 0..m {
             for j in i..m {
                 let mut dot = T::ZERO;
@@ -277,9 +405,14 @@ impl<T: RealScalar> WindowWorkspace<T> {
         }
 
         let matrix = Array2::from_shape_vec([m, m], gram).map_err(MpPcaError::Eigen)?;
-        let eigen = symmetric_eigen_jacobi(&matrix.view()).map_err(MpPcaError::Eigen)?;
-        let descending: Vec<T> = eigen.eigenvalues.iter().rev().copied().collect();
-        let boundary = marchenko_pastur_boundary(&descending, n, estimator);
+        let eigen = symmetric_eigen_jacobi(&matrix.view());
+        self.gram = matrix.into_vec();
+        let eigen = eigen.map_err(MpPcaError::Eigen)?;
+        self.descending.clear();
+        self.descending
+            .extend(eigen.eigenvalues.iter().rev().copied());
+        let boundary =
+            marchenko_pastur_boundary(&self.descending, n, estimator, &mut self.trailing);
         let vectors = eigen
             .eigenvectors
             .as_slice()
@@ -287,8 +420,7 @@ impl<T: RealScalar> WindowWorkspace<T> {
         // Eigenvalues ascend, so the signal eigenvectors are the last P̂ columns.
         let signal = m - boundary.signal_components..m;
 
-        self.reconstruction.fill(T::ZERO);
-        let out = &mut self.reconstruction;
+        out.fill(T::ZERO);
         if volumes_smaller {
             // Ŷ = Y·U·Uᵀ over volume-space eigenvectors u_k.
             for r in 0..voxels {
