@@ -25,6 +25,7 @@ pub mod discrete_gaussian;
 pub mod discrete_gaussian_derivative;
 pub mod gaussian;
 pub mod median;
+pub mod mppca;
 pub mod noise;
 pub mod recursive_gaussian;
 pub mod smoothing;
@@ -43,6 +44,7 @@ pub use discrete_gaussian::{DiscreteGaussianFilter, SpacingMode};
 pub use discrete_gaussian_derivative::DiscreteGaussianDerivativeFilter;
 pub use gaussian::GaussianFilter;
 pub use median::MedianFilter;
+pub use mppca::{MpEstimator, MpPcaDenoiser, MpPcaError, MpPcaOutput, PatchExtent};
 pub use noise::{
     AdditiveGaussianNoiseFilter, SaltAndPepperNoiseFilter, ShotNoiseFilter, SpeckleNoiseFilter,
 };
@@ -181,6 +183,9 @@ pub mod warp;
 // ── New filters ──────────────────────────────────────────────────────────────
 pub mod canny_segmentation_level_set;
 pub use canny_segmentation_level_set::CannySegmentationLevelSet;
+
+pub mod gibbs_unringing;
+pub use gibbs_unringing::{GibbsError, GibbsUnringer, SliceAxis, TvWindow};
 
 pub mod patch_based_denoising;
 pub use patch_based_denoising::PatchBasedDenoisingImageFilter;

@@ -12,6 +12,11 @@
 
 ### Added
 
+- [minor] `ritk_filter::mppca::MpPcaDenoiser` denoises a volume series by
+  Marchenko-Pastur PCA (the `dwidenoise` role; Veraart et al. 2016, with the
+  Cordero-Grande et al. 2019 ratio by default), returning the denoised series
+  with per-voxel noise-sigma and signal-rank maps.
+
 - [minor] `ritk-gifti` reads and writes GIFTI 1.0 (`.surf.gii`, `.func.gii`,
   `.shape.gii`, `.label.gii`): ASCII, base64, and zlib-base64 payloads in either
   byte order and indexing order, label tables, metadata, and coordinate
@@ -19,12 +24,18 @@
   payloads must match their declared shape exactly, and zlib streams are
   inflated no further than the shape allows. Data in an external file is
   reported as unsupported.
-
 - [minor] `ritk.io.read_image` accepts an optional `series_instance_uid` for
   selecting one acquisition from a DICOM directory. RITK scans and matches the
   UID before decoding pixels; ambiguous, unknown, empty, and non-directory
   selections fail with `OSError`. The native and Python contracts are covered
   by value-semantic tests and the [DICOM workflow manual](docs/manual/dicom-workflow.md).
+
+- [minor] `ritk_filter::gibbs_unringing::GibbsUnringer` removes Gibbs ringing
+  from a volume series by local subvoxel shifts (the `mrdegibbs` role; Kellner
+  et al. 2016): per-line total-variation-minimising Fourier shifts with linear
+  back-interpolation, combined over the two in-plane axes by the paper's
+  `1 + cos k` spectral split, with a configurable slice axis, shift count, and
+  window.
 
 - [major][arch] Add modality-specific intensity ranges, masked borrowed-sample
   evaluation, discrete and moving-linear partial-volume histogram estimators,
@@ -67,7 +78,6 @@
   Board lint reports all item ids unique on the three files; the remaining
   `oversized_tracked_images` budget class (26 tracked figures/archives over
   200 KiB) is untouched by a board compaction.
-
 
 ### Changed
 
@@ -1967,7 +1977,6 @@
   profiling. The dense-path fix closes the B-spline-bound row; the other
   two remain as documented follow-ups.
 
-
 ## [Unreleased] — Atlas consumer integration
 
 ### Added
@@ -2031,7 +2040,6 @@
 
 ---
 
-
 ## [Unreleased] — Sprint 494: Native writers for NRRD + Analyze (MIG-494)
 
 ### Added
@@ -2053,7 +2061,6 @@
   35/35, analyze 5/5, io 356/356; clippy -D warnings + doc clean.
 
 ---
-
 
 ## [Unreleased] — Sprint 493: Native-reader parity for NRRD + Analyze (MIG-493)
 
@@ -2080,7 +2087,6 @@
 
 ---
 
-
 ## [Unreleased] — Sprint 492: Coeus un-gated — Atlas substrate is the mainline (MIG-489 slice 4)
 
 ### Changed
@@ -2097,7 +2103,6 @@
   0.10→0.11, mnemosyne eunomia feature) verified green together.
 
 ---
-
 
 ## [Unreleased] - Sprint 492: Atlas scratch-feature propagation
 
@@ -2132,7 +2137,6 @@
 
 ---
 
-
 ## [Unreleased] — Sprint 490: `ritk_image::coeus` → `ritk_image::native` (MIG-489 slice 2)
 
 ### Changed (unreleased surface only)
@@ -2147,7 +2151,6 @@
   `-D warnings` and doc clean. No dependency changes.
 
 ---
-
 
 ## [Unreleased] — Sprint 489: De-brand registration autodiff module + inline pass (MIG-489 slice 1)
 
@@ -2168,7 +2171,6 @@
   change, no dependency changes.
 
 ---
-
 
 ## [Unreleased] — Sprint 488: Correction — image-generic I/O contract, de-branded types (MIG-488-01)
 
@@ -2198,7 +2200,6 @@
   upstream-committed line.
 
 ---
-
 
 ## [Unreleased] — Sprint 487: Seven Coeus reader implementors — contract coverage 1→8 (MIG-487-01)
 
@@ -4457,7 +4458,6 @@
 
 ---
 
-
 ### Fixed (correctness)
 - `ritk-filter`: **Frangi vesselness + Sato line filter** — Hessian was computed via discrete sampled-Gaussian blur followed by finite-difference second derivatives, diverging from ITK for σ ≲ 2 px. Replaced with `compute_hessian_iir`: all 6 Hessian components (`H_{dd}`, `H_{di}`) now computed via Deriche IIR recursion (matching ITK `HessianRecursiveGaussianImageFilter`). New test `test_hessian_iir_laplacian_consistency` verifies algebraic identity `H_{zz}+H_{yy}+H_{xx} = ∇²G` to 1e-3. Closes CORR-384-01.
 - `ritk-filter`: **`ScalarChanAndVeseDenseLevelSet`** — `mu` default was 0.5 instead of ITK's `CurvatureWeight=1.0`; fixed to 1.0. Added adaptive per-iteration dt: `actual_dt = dt / max|δ(φ)·force|` (stability criterion matching ITK's `DenseFiniteDifferenceImageFilter`). Python binding now exposes `mu` kwarg. Closes CORR-384-03.
@@ -4622,7 +4622,6 @@
 
 ## [0.12.78] — Sprint 379 Python Binding Gap Closure & SimpleITK Parity
 
-
 ### Fixed
 - `ritk-python`: Root-cause of stale `.pyd` in pytest identified — `uv run pytest` resolves
   `pytest` from miniforge3 (not the venv), loading the old miniforge3 `_ritk.pyd`. Fixed by
@@ -4654,7 +4653,6 @@
   `normalized_correlation`, `masked_fft_normalized_correlation`) and `multi_label_staple`
   (segmentation) to the smoke-test required lists.
 
-
 ### Performance
 - `ritk-filter`: `erode_binary_3d` (BinaryErodeFilter) parallelized via `moirai::map_collect_index_with` over the flat voxel index. Structuring-element scan uses `.flat_map().all()` preserving early-exit short-circuit semantics. Equivalent to serial version; all existing binary erosion tests pass.
 - `ritk-filter`: `convolve_1d_axis` (SeparableGradientFilter / Sobel / Prewitt) parallelized over flat voxel index. Called 3× per gradient component × 3 axes = 9 parallel calls per `gradient_components` invocation. Boundary/interior dispatch preserved verbatim.
@@ -4669,7 +4667,6 @@
 ### Added
 - `ritk-python`: `test_cmake_canny_edge_detection_structural_parity` — Dice≥0.20 structural check between ritk and sitk CannyEdgeDetection (measured Dice≈0.30; different NMS implementations).
 - `ritk-python`: `GradientMagnitude/short` cmake case (RA-Short.nrrd, tol=1e-6) and `Median/radius2` cmake case (0.0 tolerance).
-
 
 ### Performance
 - `ritk-filter`: `MedianFilter::median_3d` clamp-hoist micro-optimisation — per-voxel `clamp(iz+dz, 0, nz−1)` and `clamp(iy+dy, 0, ny−1)` pre-baked into stack buffers `zz_buf`/`yy_buf` once per iz/iy, eliminating `(2r+1)²` and `(2r+1)` redundant clamps per voxel. Added `radius==0` identity fast path and a bounded `BUF_CAP=64` stack buffer with a `2·radius < 64` panic guard. Two new brute-force equivalence tests assert `to_bits()` equality at r=1 (12³) and r=3 (10³, 343-sample cube) — bit-identical to the naive reference.
@@ -5838,7 +5835,6 @@ reduces to deinterleave → scalar filter per channel → reinterleave.
 - `config.early_stopping_patience` → match on `EarlyStoppingPolicy::Enabled { patience, .. }`.
 - `series.series_instance_uid` (field) → `series.series_instance_uid()` (method).
 
-
 ## [0.59.0] — 2026-06-11 (Sprint 362: Architecture Hardening — SSOT · DRY · SRP · DIP)
 
 ### Fixed
@@ -5887,7 +5883,6 @@ reduces to deinterleave → scalar filter per channel → reinterleave.
 ### Residual (filed for next sprint)
 - `NAMING-362-23`: `transform_1d/_2d/_3d/_4d` renaming **blocked** — duplicate method names across impl blocks on same type; requires `[arch]` dispatch-table refactor.
 - `ARCH-362-29`: `Image<B,T,D>` scalar phantom `PhantomData<T>` — filed as `[arch]` item.
-
 
 ## [0.58.0] — 2026-06-11 (Sprint 361: 20-Cycle Phase 21 Optimization ×6)
 
@@ -5957,7 +5952,6 @@ reduces to deinterleave → scalar filter per channel → reinterleave.
 - `clahe/interpolate.rs` — `scratch.output.clone()` replaced with `std::mem::take(&mut scratch.output)` — zero-copy output extraction.
 - `ritk-io/dicom/networking/context.rs` — `Vec::new()` → `Vec::with_capacity(32)` for `presentation_contexts` in `AssociationConfig::default()`.
 
-
 ### Changed (Breaking — API)
 
 - **PRIM-360-01: `GaussianSigma` in `WhiteStripeResult.sigma`** — `WhiteStripeResult.sigma: f64` → `GaussianSigma`; all call sites updated (CLI, Python, tests).
@@ -6024,7 +6018,6 @@ reduces to deinterleave → scalar filter per channel → reinterleave.
 
 ---
 
-
 ## [0.55.0] - 2026-06-10
 
 ### Performance
@@ -6063,7 +6056,6 @@ reduces to deinterleave → scalar filter per channel → reinterleave.
 - `StapleResult.converged: bool` → `convergence: StapleConvergence`
 
 ---
-
 
 ## [0.54.0] - 2026-06-10
 
@@ -6142,7 +6134,6 @@ reduces to deinterleave → scalar filter per channel → reinterleave.
 - `BlendImageFilter.alpha: f32` type changed to `Opacity`
 - `BilateralFilter.spatial_sigma: f64` type changed to `SpatialSigma` (use `.get()`)
 - `BilateralFilter.range_sigma: f64` type changed to `RangeSigma` (use `.get()`)
-
 
 ### Added
 - **BOOL-354-01: `Connectivity` enum** — `Face6`/`Vertex26` replaces `fully_connected: bool` in `BinaryContourImageFilter` and `LabelContourImageFilter`. Eliminates boolean blindness at 2 filter call sites + 4 ritk-snap UI sites.
@@ -7182,7 +7173,6 @@ reduces to deinterleave → scalar filter per channel → reinterleave.
 - `maturin develop --release`: wheel rebuilt (ritk 0.12.4)
 - `pytest test_elastix_vs_ritk_rire.py -k "smoke or defaults or invalid or tre or presets or oob"`: **8 passed** in 0.09 s
 
-
 ## [0.50.64] - 2026-05-22
 
 ### Added [minor]
@@ -7202,7 +7192,6 @@ reduces to deinterleave → scalar filter per channel → reinterleave.
 - `cargo test -p ritk-registration --lib`: **306 passed** (300 pre-existing + 6 new OOB tests)
 - `maturin develop --release`: wheel rebuilt (ritk 0.12.4)
 - `pytest test_elastix_vs_ritk_rire.py -k "smoke or defaults or invalid or tre or presets or oob"`: **8 passed** in 0.09 s
-
 
 ### Added [minor]
 
@@ -7485,7 +7474,6 @@ All registration methods diverge from identity without brain masking. TRE improv
 - `cargo test -p ritk-io --lib format::dicom::networking`: 50 passed, 0 failed
 
 ---
-
 
 ## [0.50.52] - 2026-05-20
 
@@ -7801,7 +7789,6 @@ All registration methods diverge from identity without brain masking. TRE improv
 - `cargo test -p ritk-vtk --lib`: 177 passed (13 new bridge + mesh_indexed tests included)
 - `cargo test -p ritk-core --lib`: 1350 passed
 
-
 ### Changed [patch]
 
 - Partitioned `ritk-python/src/registration/syn.rs` into the `syn/` directory module:
@@ -7839,7 +7826,6 @@ All registration methods diverge from identity without brain masking. TRE improv
 - `cargo check -p ritk-cli`: 0 errors, 0 warnings
 - `cargo test -p ritk-registration --lib`: 285 passed, 0 failed
 - `cargo test -p ritk-cli`: 200 passed, 0 failed
-
 
 ## [0.50.30] - 2026-05-18
 
@@ -8961,7 +8947,6 @@ Verification and completion sprint. Comprehensive feature coverage achieved acro
 
 ## [0.26.0] - 2026 - Sprint 145
 
-
 ### Added
 - **`ritk-core` 7 arithmetic intensity filters** (`filter/intensity/arithmetic.rs`): ITK/ImageJ/SimpleITK parity.
   - `AbsImageFilter`: `out(x) = |in(x)|`. 5 tests.
@@ -9341,7 +9326,6 @@ Verification and completion sprint. Comprehensive feature coverage achieved acro
 - `gap_audit.md` §5.1 (`Histogram Matching`) updated from `Critical` to `Closed` (implemented Sprint 27)
 - `gap_audit.md` §5.4 (`Image Statistics`) `label_statistics.rs` status updated from `MISSING` to `DONE` (implemented, parity-tested Sprint 77)
 - `ritk-python` version bumped from `0.9.0` to `0.10.0`
-
 
 ## [0.9.0] — Sprint 77
 ### Added
