@@ -16,6 +16,23 @@ pub(crate) const ST_CUP: i32 = -3;
 /// Moved inward, waiting to be assigned a layer.
 pub(crate) const ST_CDN: i32 = -4;
 
+#[derive(Clone, Copy)]
+enum LevelSetSide {
+    /// Negative signed-distance layers.
+    Inside,
+    /// Positive signed-distance layers.
+    Outside,
+}
+
+/// The source, target, promotion layer and sign convention for one transition.
+#[derive(Clone, Copy)]
+struct LayerTransition {
+    from: i32,
+    to: i32,
+    promote: i32,
+    side: LevelSetSide,
+}
+
 /// `PropagateAllLayerValues`: layer 1 and 2 against the active layer, then every
 /// deeper layer against the one two levels in.
 pub(crate) fn propagate_all<T: SparseScalar>(
@@ -26,9 +43,36 @@ pub(crate) fn propagate_all<T: SparseScalar>(
     num: i32,
     cgv: T,
 ) {
-    propagate_layer(lists, phi, status, topo, num, cgv, 0, 1, 3, 1);
-    propagate_layer(lists, phi, status, topo, num, cgv, 0, 2, 4, 2);
+    propagate_layer(
+        lists,
+        phi,
+        status,
+        topo,
+        num,
+        cgv,
+        LayerTransition {
+            from: 0,
+            to: 1,
+            promote: 3,
+            side: LevelSetSide::Inside,
+        },
+    );
+    propagate_layer(
+        lists,
+        phi,
+        status,
+        topo,
+        num,
+        cgv,
+        LayerTransition {
+            from: 0,
+            to: 2,
+            promote: 4,
+            side: LevelSetSide::Outside,
+        },
+    );
     for i in 1..(num - 2) {
+        let to = i + 2;
         propagate_layer(
             lists,
             phi,
@@ -36,18 +80,22 @@ pub(crate) fn propagate_all<T: SparseScalar>(
             topo,
             num,
             cgv,
-            i,
-            i + 2,
-            i + 4,
-            (i + 2) % 2,
+            LayerTransition {
+                from: i,
+                to,
+                promote: i + 4,
+                side: if to % 2 == 1 {
+                    LevelSetSide::Inside
+                } else {
+                    LevelSetSide::Outside
+                },
+            },
         );
     }
 }
 
-/// `PropagateLayerValues` for one layer pair: value from the `frm` layer plus the
-/// signed constant gradient, promoting voxels with no `frm` neighbour outward
-/// (or out of the band entirely, once `promote` runs past the innermost layer).
-#[allow(clippy::too_many_arguments)]
+/// Propagate values from a source layer into its target layer, promoting voxels
+/// without a source neighbour outward or removing them beyond the band.
 fn propagate_layer<T: SparseScalar>(
     lists: &mut SparseFieldLayers,
     phi: &mut [T],
@@ -55,13 +103,19 @@ fn propagate_layer<T: SparseScalar>(
     topo: &GridTopology,
     num: i32,
     cgv: T,
-    frm: i32,
-    to: i32,
-    promote: i32,
-    inout: i32,
+    transition: LayerTransition,
 ) {
+    let LayerTransition {
+        from,
+        to,
+        promote,
+        side,
+    } = transition;
     let offsets = topo.face_offsets();
-    let delta = if inout == 1 { -cgv } else { cgv };
+    let delta = match side {
+        LevelSetSide::Inside => -cgv,
+        LevelSetSide::Outside => cgv,
+    };
     let mut survivors: Vec<usize> = Vec::new();
     for f in lists.iter(to as usize).collect::<Vec<_>>() {
         if status[f] != to {
@@ -71,14 +125,27 @@ fn propagate_layer<T: SparseScalar>(
         let mut found = false;
         for &off in offsets {
             if let Some(g) = topo.neighbor(f, off) {
-                if status[g] == frm {
+                if status[g] == from {
                     let vt = phi[g];
                     if !found {
                         val = vt;
-                    } else if inout == 1 {
-                        val = if val > vt { val } else { vt };
                     } else {
-                        val = if val < vt { val } else { vt };
+                        val = match side {
+                            LevelSetSide::Inside => {
+                                if val > vt {
+                                    val
+                                } else {
+                                    vt
+                                }
+                            }
+                            LevelSetSide::Outside => {
+                                if val < vt {
+                                    val
+                                } else {
+                                    vt
+                                }
+                            }
+                        };
                     }
                     found = true;
                 }

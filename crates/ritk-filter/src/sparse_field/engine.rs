@@ -283,48 +283,44 @@ mod tests {
 
     struct Noop;
 
-    impl SparseFieldStep<f64> for Noop {
-        fn stage(&self, _phi: &[f64], active: &[usize]) -> (Vec<f64>, f64) {
-            (vec![0.0; active.len()], 0.0)
+    impl<T: SparseScalar> SparseFieldStep<T> for Noop {
+        fn stage(&self, _phi: &[T], active: &[usize]) -> (Vec<T>, T) {
+            (vec![T::zero(); active.len()], T::zero())
         }
     }
 
-    impl SparseFieldStep<f32> for Noop {
-        fn stage(&self, _phi: &[f32], active: &[usize]) -> (Vec<f32>, f32) {
-            (vec![0.0; active.len()], 0.0)
+    fn assert_signed_band<T: SparseScalar + std::fmt::Debug>(unit: T) {
+        let (nz, ny, nx) = (1usize, 4usize, 4usize);
+        let mut shifted = vec![-unit; nz * ny * nx];
+        for iy in 0..ny {
+            for ix in 2..nx {
+                shifted[iy * nx + ix] = unit;
+            }
+        }
+        let cfg = SparseFieldConfig {
+            dims: [nz, ny, nx],
+            number_of_layers: 2,
+            constant_gradient: unit,
+            iterations: 0,
+            max_rms_error: 0.0,
+        };
+        let phi = evolve(&shifted, &cfg, &Noop);
+
+        // This edge initializes to -1/(2 + ε); every band layer adds one CGV.
+        let active = -unit / (unit + unit + T::from_f64(1.0e-6));
+        for (f, &v) in phi.iter().enumerate() {
+            let ix = f % nx;
+            let expected = [active - unit, active, active + unit, active + unit + unit][ix];
+            assert_eq!(v, expected, "signed band value at voxel {f}");
         }
     }
 
     /// A step image: the boundary column is the active set, and the engine writes
     /// the signed band around it even with no iterations.
     #[test]
-    fn zero_iterations_builds_the_signed_band() {
-        let (nz, ny, nx) = (1usize, 4usize, 4usize);
-        let mut shifted = vec![-1.0f64; nz * ny * nx];
-        for iy in 0..ny {
-            for ix in 2..nx {
-                shifted[iy * nx + ix] = 1.0;
-            }
-        }
-        let cfg = SparseFieldConfig {
-            dims: [nz, ny, nx],
-            number_of_layers: 2,
-            constant_gradient: 1.0f64,
-            iterations: 0,
-            max_rms_error: 0.0,
-        };
-        let phi = evolve(&shifted, &cfg, &Noop);
-
-        // Two layers of band on each side, the far field beyond: |φ| ≤ NL + 1 = 3.
-        for (f, &v) in phi.iter().enumerate() {
-            let ix = f % nx;
-            assert!(v.abs() <= 3.0, "band value {v} out of range at {f}");
-            if ix < 2 {
-                assert!(v < 0.0, "inside voxel {f} must stay negative");
-            } else {
-                assert!(v > 0.0, "outside voxel {f} must stay positive");
-            }
-        }
+    fn zero_iterations_builds_signed_band_for_each_scalar() {
+        assert_signed_band(1.0f32);
+        assert_signed_band(1.0f64);
     }
 
     /// The far field: a uniform image has no zero crossing, so every voxel ends
