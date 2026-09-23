@@ -25,12 +25,6 @@ const CGV: f32 = 1.0;
 /// Gradient-magnitude-squared floor preventing 0/0 in flat regions.
 const MSQ_EPS: f32 = 1e-9;
 
-// Status sentinels (non-layer states are negative; layer indices are 0..num).
-const ST_NULL: i32 = -1;
-const ST_CHG: i32 = -2;
-const ST_CUP: i32 = -3;
-const ST_CDN: i32 = -4;
-
 // ── Filter ────────────────────────────────────────────────────────────────────
 
 /// Anti-alias binary image filter (faithful ITK SparseField solver).

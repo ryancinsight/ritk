@@ -1,83 +1,81 @@
-//! Helpers for index decoding, neighbor searching, and multilinear interpolation.
+//! `f64` difference and interpolation stencils over the shared [`GridTopology`].
+//!
+//! Index arithmetic, neighbour lookup and the Neumann clamp live in
+//! [`crate::sparse_field::GridTopology`] because both SparseField filters need
+//! them; what is left here is the `f64`-only stencil arithmetic of
+//! `itkLevelSetFunction` (`CalculateChange` and its
+//! `InterpolateSurfaceLocation` samples).
 
 use super::MIN_NORM;
+use crate::sparse_field::GridTopology;
 
 #[derive(Clone, Copy, Debug)]
 pub(crate) struct GridHelper {
-    pub nz: usize,
-    pub ny: usize,
-    pub nx: usize,
-    pub ndim: usize,
+    topo: GridTopology,
 }
 
 impl GridHelper {
     #[inline]
     pub fn new(dims: [usize; 3]) -> Self {
-        let [nz, ny, nx] = dims;
-        let ndim = if nz == 1 { 2 } else { 3 };
-        Self { nz, ny, nx, ndim }
-    }
-
-    #[inline]
-    pub fn idx(&self, iz: usize, iy: usize, ix: usize) -> usize {
-        iz * self.ny * self.nx + iy * self.nx + ix
-    }
-
-    #[inline]
-    pub fn decode(&self, f: usize) -> (usize, usize, usize) {
-        let iz = f / (self.ny * self.nx);
-        let r = f % (self.ny * self.nx);
-        (iz, r / self.nx, r % self.nx)
-    }
-
-    #[inline]
-    pub fn neighbor(&self, f: usize, off: (isize, isize, isize)) -> Option<usize> {
-        let (iz, iy, ix) = self.decode(f);
-        let z = iz as isize + off.0;
-        let y = iy as isize + off.1;
-        let x = ix as isize + off.2;
-        if z >= 0
-            && y >= 0
-            && x >= 0
-            && z < self.nz as isize
-            && y < self.ny as isize
-            && x < self.nx as isize
-        {
-            Some(self.idx(z as usize, y as usize, x as usize))
-        } else {
-            None
+        Self {
+            topo: GridTopology::new(dims),
         }
     }
 
     #[inline]
+    pub fn ndim(&self) -> usize {
+        self.topo.ndim()
+    }
+
+    #[inline]
+    pub fn decode(&self, f: usize) -> (usize, usize, usize) {
+        self.topo.decode(f)
+    }
+
+    /// φ sampled at integer coordinates, each axis clamped into the volume.
+    #[inline]
     pub fn gphi(&self, phi: &[f64], iz: isize, iy: isize, ix: isize) -> f64 {
-        let z = iz.clamp(0, self.nz as isize - 1) as usize;
-        let y = iy.clamp(0, self.ny as isize - 1) as usize;
-        let x = ix.clamp(0, self.nx as isize - 1) as usize;
-        phi[self.idx(z, y, x)]
+        phi[self.topo.clamped_index(iz, iy, ix)]
     }
 
     /// Multilinear sample of a scalar field at continuous (cz, cy, cx).
     pub fn interp(&self, arr: &[f64], cz: f64, cy: f64, cx: f64) -> f64 {
+        let (nz, ny, nx) = (self.topo.nz(), self.topo.ny(), self.topo.nx());
         let cl = |v: f64, hi: usize| v.clamp(0.0, hi as f64 - 1.0);
-        let cz = cl(cz, self.nz);
-        let cy = cl(cy, self.ny);
-        let cx = cl(cx, self.nx);
+        let cz = cl(cz, nz);
+        let cy = cl(cy, ny);
+        let cx = cl(cx, nx);
         let z0 = cz.floor() as usize;
         let y0 = cy.floor() as usize;
         let x0 = cx.floor() as usize;
-        let z1 = (z0 + 1).min(self.nz - 1);
-        let y1 = (y0 + 1).min(self.ny - 1);
-        let x1 = (x0 + 1).min(self.nx - 1);
+        let z1 = (z0 + 1).min(nz - 1);
+        let y1 = (y0 + 1).min(ny - 1);
+        let x1 = (x0 + 1).min(nx - 1);
         let fz = cz - z0 as f64;
         let fy = cy - y0 as f64;
         let fx = cx - x0 as f64;
         let lerp = |a: f64, b: f64, t: f64| a + (b - a) * t;
-        let c00 = lerp(arr[self.idx(z0, y0, x0)], arr[self.idx(z0, y0, x1)], fx);
-        let c01 = lerp(arr[self.idx(z0, y1, x0)], arr[self.idx(z0, y1, x1)], fx);
+        let c00 = lerp(
+            arr[self.topo.idx(z0, y0, x0)],
+            arr[self.topo.idx(z0, y0, x1)],
+            fx,
+        );
+        let c01 = lerp(
+            arr[self.topo.idx(z0, y1, x0)],
+            arr[self.topo.idx(z0, y1, x1)],
+            fx,
+        );
         let c0 = lerp(c00, c01, fy);
-        let c10 = lerp(arr[self.idx(z1, y0, x0)], arr[self.idx(z1, y0, x1)], fx);
-        let c11 = lerp(arr[self.idx(z1, y1, x0)], arr[self.idx(z1, y1, x1)], fx);
+        let c10 = lerp(
+            arr[self.topo.idx(z1, y0, x0)],
+            arr[self.topo.idx(z1, y0, x1)],
+            fx,
+        );
+        let c11 = lerp(
+            arr[self.topo.idx(z1, y1, x0)],
+            arr[self.topo.idx(z1, y1, x1)],
+            fx,
+        );
         let c1 = lerp(c10, c11, fy);
         lerp(c0, c1, fz)
     }
@@ -106,7 +104,7 @@ impl GridHelper {
             self.gphi(phi, zi, yi + 1, xi),
             self.gphi(phi, zi, yi - 1, xi),
         );
-        let oz = if self.ndim == 3 {
+        let oz = if self.ndim() == 3 {
             self.off_axis(
                 c,
                 self.gphi(phi, zi + 1, yi, xi),
