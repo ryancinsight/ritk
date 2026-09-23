@@ -1,5 +1,14 @@
 # RITK execution backlog
 
+<a id="RITK-ALLOW-001"></a>
+## RITK-ALLOW-001 — Bundle sparse-field layer transition state [patch]
+- Status: review; priority: P1; owner: RITK filter; integrator: root; branch: `fix/ritk-allow-parameter-bundle-001`; last-update: 2026-09-23; delivery: PR [#616](https://github.com/ryancinsight/ritk/pull/616).
+- Outcome: remove the new argument-count suppression by representing one layer transition as a cohesive value.
+- Scope: `crates/ritk-filter/src/sparse_field/band.rs`, relevant filter tests, and this item; preserve sparse-field results and public APIs.
+- Acceptance: no production `#[allow(clippy::too_many_arguments)]` remains for this transition; strict `ritk-filter` Clippy, nextest and formatting pass; the Atlas conformance scan returns `allow_sites` to 0.
+- Dependency: [Atlas gitlink drift](../../backlog.md#atlas-gitlink-drift-056), which holds this member pin until the conformance regression is closed.
+- Evidence: Atlas origin `6cd1ab9a8a946ff7c3faedc8fc6b758794960dcd` and RITK main `ee24739c8b04461455dfb15e46c55126ea1c7bc9`; one added `#[allow(clippy::too_many_arguments)]` raises `allow_sites` 0→1.
+
 <a id="RITK-METIS-LOCK-021"></a>
 ## RITK-METIS-LOCK-021 — Consume current Métis host and refresh replay provenance [patch]
 - Status: done; priority: P1; owner: RITK viewer + integration; integrator: root; branch: `docs/ritk-metis-hosted-35759891764`; last-update: 2026-09-22; dependency delivery: PR [#604](https://github.com/ryancinsight/ritk/pull/604); delivery: PR [#605](https://github.com/ryancinsight/ritk/pull/605), merge `29c51440ad4d33ab4109dd665683b7ef5bf45198`.
