@@ -76,12 +76,6 @@ const GRAD_EPS: f64 = 1.0e-6;
 /// Internal Canny `MaximumError` fixed by `CannySegmentationLevelSetFunction`.
 const CANNY_MAX_ERROR: f64 = 0.01;
 
-// Status sentinels (non-layer states are negative; layer indices are 0..num).
-const ST_NULL: i32 = -1;
-const ST_CHG: i32 = -2;
-const ST_CUP: i32 = -3;
-const ST_CDN: i32 = -4;
-
 // ── Public API ─────────────────────────────────────────────────────────────────
 
 /// Canny-edge-guided segmentation level set (faithful ITK SparseField solver).
