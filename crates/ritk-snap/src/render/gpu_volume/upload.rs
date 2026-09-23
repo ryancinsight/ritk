@@ -25,7 +25,8 @@ impl GpuVolumeRenderer {
     /// # Multi-channel path
     ///
     /// When `volume.channels > 1` the first channel is extracted in parallel
-    /// using Rayon before uploading.
+    /// using moirai's `map_collect_index_with` (Adaptive policy) before
+    /// uploading.
     ///
     /// Returns `false` when the device cannot bind the complete scalar volume;
     /// callers then use the CPU renderer rather than reaching a wgpu validation
@@ -74,7 +75,8 @@ impl GpuVolumeRenderer {
         let extracted: Option<Vec<f32>> = if ch == 1 && raw.len() >= n_voxels {
             None
         } else {
-            // Multi-channel: extract first channel in parallel with Rayon.
+            // Multi-channel: extract first channel in parallel with moirai
+            // (`map_collect_index_with`, Adaptive policy).
             // Voxel at linear index `lin` has first-channel value at raw[lin * ch].
             Some(moirai::map_collect_index_with::<moirai::Adaptive, _, _>(
                 n_voxels,

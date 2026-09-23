@@ -323,7 +323,8 @@ where
 
     // Parallel reduction through Moirai: each worker maintains a local accumulator
     // and the results are combined through the policy reduction. This scales with
-    // the selected execution policy without coupling statistics to Rayon.
+    // the selected execution policy without coupling statistics to a specific
+    // parallel runtime.
     let (min, max, sum, num_folded, num_compressed, num_expanded) =
         moirai::fold_reduce_with::<moirai::Adaptive, _, _, _, _>(
             vals.len(),
