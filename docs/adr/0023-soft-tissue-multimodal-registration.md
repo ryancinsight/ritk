@@ -4,6 +4,10 @@
 - **Board item:** `RITK-SOFT-TISSUE-REGISTRATION-2026-09-03`
 - **Class:** [major] [arch]
 - **Date:** 2026-09-03
+- **Revision 2026-09-22:** Make the comparison example accept explicit paths and
+  describe the registration evaluation as a generic downstream RIRE oracle;
+  see [`RITK-REGISTRATION-EXAMPLE-PATHS-001`](../../backlog.md#RITK-REGISTRATION-EXAMPLE-PATHS-001)
+  and [`ATLAS-PRIVACY-NAMING-1`](../../../backlog/atlas-privacy-naming-1.md).
 - **Revision 2026-09-03:** Add the fixed-region conditioned metric after the
   downstream global-histogram RIRE result remained anatomically offset.
 - **Revision 2026-09-04:** Make the structural-refinement half-range a bounded
@@ -117,7 +121,7 @@ and negative global bounds, finite candidate evaluation under extreme accepted
 configuration, objective isolation from finite-centroid transform overflow,
 finite effective intervals under requested-radius overflow, and local/global
 saturation semantics. The
-downstream LeoNeuro RIRE oracle evaluates image-only registration against
+downstream RIRE oracle evaluates image-only registration against
 held-out fiducials: the 3×3×3 conditioned capture reaches
 0.8330 mm mean and 1.1324 mm maximum TRE, while an adversarial field-of-view
 crop loses support and scores below the fiducial pose. The selected pose reaches
