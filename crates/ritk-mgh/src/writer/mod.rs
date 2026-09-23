@@ -4,7 +4,7 @@
 //! in `.mgz` or `.mgh.gz` are gzip-compressed. The series writer emits one
 //! frame per volume with a shared spatial grid.
 
-use crate::binary::{write_f32_be, write_i16_be, write_i32_be};
+use crate::binary::write_be;
 use crate::spatial::ras_center_from_geometry;
 use crate::{
     is_gzip_path, DOF_UNSET, GOOD_RAS_VALID, MRI_FLOAT, PADDING_LEN, SINGLE_FRAME, VERSION,
@@ -76,31 +76,31 @@ fn write_mgh_flat<W: Write>(
 ) -> Result<()> {
     let [nz, ny, nx] = shape;
 
-    write_i32_be(writer, VERSION)?;
+    write_be(writer, VERSION)?;
     for (axis, extent) in [("x", nx), ("y", ny), ("z", nz)] {
         let extent = i32::try_from(extent)
             .with_context(|| format!("MGH {axis}-axis extent {extent} exceeds i32"))?;
-        write_i32_be(writer, extent)?;
+        write_be(writer, extent)?;
     }
-    write_i32_be(writer, SINGLE_FRAME)?;
-    write_i32_be(writer, MRI_FLOAT)?;
-    write_i32_be(writer, DOF_UNSET)?;
-    write_i16_be(writer, GOOD_RAS_VALID)?;
+    write_be(writer, SINGLE_FRAME)?;
+    write_be(writer, MRI_FLOAT)?;
+    write_be(writer, DOF_UNSET)?;
+    write_be(writer, GOOD_RAS_VALID)?;
 
     for axis in 0..3 {
-        write_f32_be(writer, spacing[axis] as f32)?;
+        write_be(writer, spacing[axis] as f32)?;
     }
 
     for col in 0..3 {
         for row in 0..3 {
-            write_f32_be(writer, direction[(row, col)] as f32)?;
+            write_be(writer, direction[(row, col)] as f32)?;
         }
     }
 
     let c_ras = ras_center_from_geometry(origin, spacing, direction, [nz, ny, nx]);
-    write_f32_be(writer, c_ras[0] as f32)?;
-    write_f32_be(writer, c_ras[1] as f32)?;
-    write_f32_be(writer, c_ras[2] as f32)?;
+    write_be(writer, c_ras[0] as f32)?;
+    write_be(writer, c_ras[1] as f32)?;
+    write_be(writer, c_ras[2] as f32)?;
 
     writer
         .write_all(&[0u8; PADDING_LEN])
@@ -227,31 +227,31 @@ where
     let nframes_i32 = i32::try_from(volumes.len())
         .context("MGH series frame count exceeds i32 header capacity")?;
 
-    write_i32_be(writer, VERSION)?;
+    write_be(writer, VERSION)?;
     for (axis, extent) in [("x", nx), ("y", ny), ("z", nz)] {
         let extent = i32::try_from(extent)
             .with_context(|| format!("MGH {axis}-axis extent {extent} exceeds i32"))?;
-        write_i32_be(writer, extent)?;
+        write_be(writer, extent)?;
     }
-    write_i32_be(writer, nframes_i32)?;
-    write_i32_be(writer, MRI_FLOAT)?;
-    write_i32_be(writer, DOF_UNSET)?;
-    write_i16_be(writer, GOOD_RAS_VALID)?;
+    write_be(writer, nframes_i32)?;
+    write_be(writer, MRI_FLOAT)?;
+    write_be(writer, DOF_UNSET)?;
+    write_be(writer, GOOD_RAS_VALID)?;
 
     for axis in 0..3 {
-        write_f32_be(writer, spacing[axis] as f32)?;
+        write_be(writer, spacing[axis] as f32)?;
     }
 
     for col in 0..3 {
         for row in 0..3 {
-            write_f32_be(writer, direction[(row, col)] as f32)?;
+            write_be(writer, direction[(row, col)] as f32)?;
         }
     }
 
     let c_ras = ras_center_from_geometry(origin, spacing, direction, [nz, ny, nx]);
-    write_f32_be(writer, c_ras[0] as f32)?;
-    write_f32_be(writer, c_ras[1] as f32)?;
-    write_f32_be(writer, c_ras[2] as f32)?;
+    write_be(writer, c_ras[0] as f32)?;
+    write_be(writer, c_ras[1] as f32)?;
+    write_be(writer, c_ras[2] as f32)?;
 
     writer
         .write_all(&[0u8; PADDING_LEN])
