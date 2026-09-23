@@ -85,7 +85,7 @@ jobs:
   # Atlas ATLAS-SEMVER-GATE-FLEETWIDE-2026-08-28.
   semver:
     name: SemVer gate
-    uses: ryancinsight/atlas/.github/workflows/semver-gate.yml@da9d549bc50dbb9c4e1d18dca8f37d17059098cb
+    uses: ryancinsight/atlas/.github/workflows/semver-gate.yml@b44c45c3875c9c03ac9fc83994ee068c1805bb49
     with:
       package: ritk-analyze,ritk-annotation,ritk-block-matching,ritk-codecs,ritk-core,ritk-dicom,ritk-diffusion-scheme,ritk-filter,ritk-image,ritk-interpolation,ritk-io,ritk-jpeg,ritk-metaimage,ritk-mgh,ritk-mif,ritk-minc,ritk-model,ritk-morphology,ritk-nifti,ritk-nrrd,ritk-parcellation,ritk-png,ritk-registration,ritk-segmentation,ritk-spatial,ritk-statistics,ritk-tensor-ops,ritk-tiff,ritk-transform,ritk-vtk,ritk-wgpu-compat
       rust-toolchain: 1.97.0
