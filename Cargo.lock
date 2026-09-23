@@ -6378,6 +6378,8 @@ dependencies = [
  "eunomia",
  "gaia-mesh",
  "image 0.24.9",
+ "leto",
+ "leto-ops",
  "mnemosyne-memory",
  "moirai-runtime",
  "rand 0.9.5",
@@ -6392,6 +6394,7 @@ dependencies = [
  "ritk-transform",
  "ritk-wgpu-compat",
  "serde",
+ "thiserror 2.0.20",
 ]
 
 [[package]]

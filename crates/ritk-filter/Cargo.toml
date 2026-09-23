@@ -34,6 +34,9 @@ serde = { workspace = true }
 coeus-core = { workspace = true }
 coeus-ops = { workspace = true }
 coeus-tensor = { workspace = true }
+leto = { workspace = true }
+leto-ops = { workspace = true }
+thiserror = { workspace = true }
 
 [dev-dependencies]
 ritk-core = { path = "../ritk-core", features = ["test-helpers"], version = "0.10.0" }

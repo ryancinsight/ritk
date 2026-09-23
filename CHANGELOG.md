@@ -12,6 +12,10 @@
 
 ### Added
 
+- [minor] `ritk_filter::mppca::MpPcaDenoiser` denoises a volume series by
+  Marchenko-Pastur PCA (the `dwidenoise` role; Veraart et al. 2016, with the
+  Cordero-Grande et al. 2019 ratio by default), returning the denoised series
+  with per-voxel noise-sigma and signal-rank maps.
 - [minor] `ritk.io.read_image` accepts an optional `series_instance_uid` for
   selecting one acquisition from a DICOM directory. RITK scans and matches the
   UID before decoding pixels; ambiguous, unknown, empty, and non-directory
