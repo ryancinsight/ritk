@@ -134,7 +134,7 @@ fn the_writer_emits_version_2_and_round_trips() {
 }
 
 fn error_of(bytes: &[u8]) -> FreeSurferError {
-    SurfaceAnnotation::read(bytes).unwrap_err()
+    SurfaceAnnotation::read(bytes).expect_err("invalid input must be rejected")
 }
 
 #[test]
@@ -300,7 +300,8 @@ fn entries_sharing_a_colour_are_rejected() {
         LutEntry::new(2, "b".to_owned(), LutColor::default()).expect("valid"),
     ])
     .expect("unique labels");
-    let error = SurfaceAnnotation::new(vec![1, 2].into_boxed_slice(), table).unwrap_err();
+    let error = SurfaceAnnotation::new(vec![1, 2].into_boxed_slice(), table)
+        .expect_err("invalid input must be rejected");
     assert!(matches!(
         error,
         FreeSurferError::Malformed {
@@ -323,7 +324,8 @@ fn a_label_missing_from_the_table_is_rejected() {
     )
     .expect("valid")])
     .expect("unique");
-    let error = SurfaceAnnotation::new(vec![1, 0, 7].into_boxed_slice(), table).unwrap_err();
+    let error = SurfaceAnnotation::new(vec![1, 0, 7].into_boxed_slice(), table)
+        .expect_err("invalid input must be rejected");
     assert!(matches!(
         error,
         FreeSurferError::Malformed {

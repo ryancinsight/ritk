@@ -154,7 +154,8 @@ fn surfaces_entirely_outside_the_grid_are_rejected() {
     let white = surface(vec![[900.0, 900.0, 900.0]]);
     let pial = surface(vec![[901.0, 901.0, 901.0]]);
 
-    let error = rasterise_ribbon(&white, &pial, &annotation(&[3]), &grid(), 8).unwrap_err();
+    let error = rasterise_ribbon(&white, &pial, &annotation(&[3]), &grid(), 8)
+        .expect_err("invalid input must be rejected");
     assert!(matches!(error, RibbonError::Parcellation(_)), "got {error}");
 }
 
@@ -165,7 +166,8 @@ fn mismatched_surfaces_are_rejected() {
     let white = surface(vec![[1.0, 1.0, 1.0], [2.0, 2.0, 2.0]]);
     let pial = surface(vec![[1.0, 1.0, 3.0]]);
 
-    let error = rasterise_ribbon(&white, &pial, &annotation(&[1, 2]), &grid(), 8).unwrap_err();
+    let error = rasterise_ribbon(&white, &pial, &annotation(&[1, 2]), &grid(), 8)
+        .expect_err("invalid input must be rejected");
     assert!(
         matches!(
             error,
@@ -184,7 +186,8 @@ fn an_annotation_of_the_wrong_length_is_rejected() {
     let white = surface(vec![[1.0, 1.0, 1.0], [2.0, 2.0, 2.0]]);
     let pial = surface(vec![[1.0, 1.0, 3.0], [2.0, 2.0, 4.0]]);
 
-    let error = rasterise_ribbon(&white, &pial, &annotation(&[1]), &grid(), 8).unwrap_err();
+    let error = rasterise_ribbon(&white, &pial, &annotation(&[1]), &grid(), 8)
+        .expect_err("invalid input must be rejected");
     assert!(
         matches!(
             error,

@@ -23,14 +23,16 @@ fn assert_close(actual: [f64; 3], expected: [f64; 3], context: &str) {
 
 #[test]
 fn zero_extent_is_rejected() {
-    let error = ParcellationGrid::axis_aligned([2, 0, 2], [1.0; 3], [0.0; 3]).unwrap_err();
+    let error = ParcellationGrid::axis_aligned([2, 0, 2], [1.0; 3], [0.0; 3])
+        .expect_err("invalid input must be rejected");
     assert!(matches!(error, ParcellationError::DegenerateGrid { .. }));
 }
 
 #[test]
 fn nonpositive_spacing_is_rejected() {
     for spacing in [[1.0, 0.0, 1.0], [1.0, -1.0, 1.0], [1.0, f64::NAN, 1.0]] {
-        let error = ParcellationGrid::axis_aligned([2, 2, 2], spacing, [0.0; 3]).unwrap_err();
+        let error = ParcellationGrid::axis_aligned([2, 2, 2], spacing, [0.0; 3])
+            .expect_err("invalid input must be rejected");
         assert!(
             matches!(error, ParcellationError::DegenerateGrid { .. }),
             "spacing {spacing:?} must be rejected"
@@ -45,7 +47,8 @@ fn nonpositive_spacing_is_rejected() {
 fn singular_direction_is_rejected() {
     // Two identical rows: rank 2, determinant 0.
     let singular = [1.0, 0.0, 0.0, 1.0, 0.0, 0.0, 0.0, 0.0, 1.0];
-    let error = ParcellationGrid::new([2, 2, 2], [1.0; 3], [0.0; 3], singular).unwrap_err();
+    let error = ParcellationGrid::new([2, 2, 2], [1.0; 3], [0.0; 3], singular)
+        .expect_err("invalid input must be rejected");
     assert!(matches!(error, ParcellationError::DegenerateGrid { .. }));
 }
 

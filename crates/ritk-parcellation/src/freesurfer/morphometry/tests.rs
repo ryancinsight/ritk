@@ -45,7 +45,7 @@ fn a_nan_value_is_kept_as_stored() {
 fn an_old_format_file_is_rejected_by_its_magic() {
     let mut bytes = vec![0x00, 0x00, 0x03, 0x00, 0x00, 0x01];
     bytes.extend_from_slice(&[0; 6]);
-    let error = Morphometry::read(bytes.as_slice()).unwrap_err();
+    let error = Morphometry::read(bytes.as_slice()).expect_err("invalid input must be rejected");
     assert!(
         matches!(
             error,
@@ -61,7 +61,8 @@ fn an_old_format_file_is_rejected_by_its_magic() {
 
 #[test]
 fn more_than_one_value_per_vertex_is_unsupported() {
-    let error = Morphometry::read(encode(&THICKNESS, 6, 2).as_slice()).unwrap_err();
+    let error = Morphometry::read(encode(&THICKNESS, 6, 2).as_slice())
+        .expect_err("invalid input must be rejected");
     assert!(
         matches!(
             error,
@@ -79,7 +80,7 @@ fn more_than_one_value_per_vertex_is_unsupported() {
 fn a_negative_count_is_rejected() {
     let mut bytes = encode(&THICKNESS, 6, 1);
     bytes[3..7].copy_from_slice(&(-5_i32).to_be_bytes());
-    let error = Morphometry::read(bytes.as_slice()).unwrap_err();
+    let error = Morphometry::read(bytes.as_slice()).expect_err("invalid input must be rejected");
     assert!(
         matches!(
             error,
@@ -99,7 +100,7 @@ fn a_negative_count_is_rejected() {
 fn a_count_exceeding_the_data_fails_as_truncation() {
     let mut bytes = encode(&THICKNESS, 6, 1);
     bytes[3..7].copy_from_slice(&9_999_999_i32.to_be_bytes());
-    let error = Morphometry::read(bytes.as_slice()).unwrap_err();
+    let error = Morphometry::read(bytes.as_slice()).expect_err("invalid input must be rejected");
     assert!(
         matches!(&error, FreeSurferError::Io(io) if io.kind() == std::io::ErrorKind::UnexpectedEof),
         "got {error}"

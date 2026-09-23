@@ -95,7 +95,7 @@ fn the_format_is_read_big_endian() {
     assert_eq!(&bytes[counts_at..counts_at + 4], &4_i32.to_be_bytes());
     // Swapping it to little-endian must be rejected, not silently misread.
     bytes[counts_at..counts_at + 4].copy_from_slice(&4_i32.to_le_bytes());
-    let error = Surface::read(bytes.as_slice()).unwrap_err();
+    let error = Surface::read(bytes.as_slice()).expect_err("invalid input must be rejected");
     assert!(
         matches!(
             error,
@@ -117,7 +117,7 @@ fn wrong_magic_is_rejected() {
     let mut bytes = encode(&vertices, &faces, "x");
     bytes[1] = 0x00;
 
-    let error = Surface::read(bytes.as_slice()).unwrap_err();
+    let error = Surface::read(bytes.as_slice()).expect_err("invalid input must be rejected");
     assert!(
         matches!(
             error,
@@ -138,7 +138,7 @@ fn a_face_referencing_a_missing_vertex_is_rejected() {
     let (vertices, _) = tetrahedron();
     let bytes = encode(&vertices, &[[0, 1, 9]], "x");
 
-    let error = Surface::read(bytes.as_slice()).unwrap_err();
+    let error = Surface::read(bytes.as_slice()).expect_err("invalid input must be rejected");
     assert!(
         matches!(
             error,
@@ -156,7 +156,7 @@ fn a_face_referencing_a_missing_vertex_is_rejected() {
 fn a_negative_vertex_index_is_rejected() {
     let (vertices, _) = tetrahedron();
     let bytes = encode(&vertices, &[[0, 1, -2]], "x");
-    let error = Surface::read(bytes.as_slice()).unwrap_err();
+    let error = Surface::read(bytes.as_slice()).expect_err("invalid input must be rejected");
     assert!(
         matches!(error, FreeSurferError::Malformed { field: "face", .. }),
         "got {error}"
@@ -169,7 +169,7 @@ fn a_truncated_file_is_rejected() {
     let bytes = encode(&vertices, &faces, "x");
     let truncated = &bytes[..bytes.len() - 8];
 
-    let error = Surface::read(truncated).unwrap_err();
+    let error = Surface::read(truncated).expect_err("invalid input must be rejected");
     assert!(
         matches!(&error, FreeSurferError::Io(io) if io.kind() == std::io::ErrorKind::UnexpectedEof),
         "got {error}"
@@ -179,7 +179,7 @@ fn a_truncated_file_is_rejected() {
 #[test]
 fn a_non_finite_coordinate_is_rejected() {
     let bytes = encode(&[[0.0, f32::NAN, 0.0]], &[], "x");
-    let error = Surface::read(bytes.as_slice()).unwrap_err();
+    let error = Surface::read(bytes.as_slice()).expect_err("invalid input must be rejected");
     assert!(
         matches!(
             error,
@@ -217,7 +217,9 @@ fn a_comment_that_would_end_the_header_is_refused() {
     let (vertices, faces) = tetrahedron();
     let surface = Surface::read(encode(&vertices, &faces, "x").as_slice()).expect("valid");
     for comment in ["a\n\nb", "trailing\n"] {
-        let error = surface.write(Vec::new(), comment).unwrap_err();
+        let error = surface
+            .write(Vec::new(), comment)
+            .expect_err("invalid input must be rejected");
         assert!(
             matches!(
                 error,

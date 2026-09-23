@@ -119,7 +119,8 @@ fn a_negative_label_is_rejected() {
 
 #[test]
 fn a_repeated_label_is_rejected() {
-    let error = ColorLut::parse("3 A 0 0 0 0\n3 B 1 1 1 0\n".as_bytes()).unwrap_err();
+    let error = ColorLut::parse("3 A 0 0 0 0\n3 B 1 1 1 0\n".as_bytes())
+        .expect_err("invalid input must be rejected");
     assert!(
         matches!(
             error,
@@ -135,7 +136,8 @@ fn a_repeated_label_is_rejected() {
 
 #[test]
 fn a_table_without_entries_is_rejected() {
-    let error = ColorLut::parse("# only a comment\n\n".as_bytes()).unwrap_err();
+    let error = ColorLut::parse("# only a comment\n\n".as_bytes())
+        .expect_err("invalid input must be rejected");
     assert!(
         matches!(error, FreeSurferError::InvalidCount { count: 0, .. }),
         "got {error}"
@@ -145,7 +147,8 @@ fn a_table_without_entries_is_rejected() {
 #[test]
 fn a_name_the_text_format_cannot_hold_is_rejected() {
     for name in ["", "two words"] {
-        let error = LutEntry::new(1, name.to_owned(), LutColor::default()).unwrap_err();
+        let error = LutEntry::new(1, name.to_owned(), LutColor::default())
+            .expect_err("invalid input must be rejected");
         assert!(
             matches!(error, FreeSurferError::Malformed { index: 1, .. }),
             "{name:?}: got {error}"

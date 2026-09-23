@@ -102,7 +102,8 @@ fn a_non_numeric_or_non_finite_field_is_rejected() {
 #[test]
 fn an_unreasonable_count_is_rejected() {
     for (text, count) in [("#c\n-3\n", -3), ("#c\n99999999999\n", 99_999_999_999)] {
-        let error = SurfaceLabel::read(text.as_bytes()).unwrap_err();
+        let error =
+            SurfaceLabel::read(text.as_bytes()).expect_err("invalid input must be rejected");
         assert!(
             matches!(error, FreeSurferError::InvalidCount { count: got, .. } if got == count),
             "got {error}"
@@ -118,7 +119,8 @@ fn a_missing_header_or_count_is_rejected() {
         ("#c\n", 2),
         ("#c\nthree\n", 2),
     ] {
-        let error = SurfaceLabel::read(text.as_bytes()).unwrap_err();
+        let error =
+            SurfaceLabel::read(text.as_bytes()).expect_err("invalid input must be rejected");
         assert!(
             matches!(error, FreeSurferError::Malformed { field: "line", index, .. } if index == line),
             "{text:?}: got {error}"
