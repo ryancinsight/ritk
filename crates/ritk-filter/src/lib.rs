@@ -184,6 +184,9 @@ pub mod warp;
 pub mod canny_segmentation_level_set;
 pub use canny_segmentation_level_set::CannySegmentationLevelSet;
 
+pub mod gibbs_unringing;
+pub use gibbs_unringing::{GibbsError, GibbsUnringer, SliceAxis, TvWindow};
+
 pub mod patch_based_denoising;
 pub use patch_based_denoising::PatchBasedDenoisingImageFilter;
 
