@@ -1,4 +1,4 @@
-# ADR 0051 - Two host-data accessors on `Image`, one grid-transform family
+# ADR 0051: Two host-data accessors on `Image`, one grid-transform family
 
 - Status: Accepted
 - Date: 2026-08-18
