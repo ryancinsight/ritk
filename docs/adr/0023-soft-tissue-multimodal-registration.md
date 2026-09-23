@@ -6,8 +6,8 @@
 - **Date:** 2026-09-03
 - **Revision 2026-09-22:** Make the comparison example accept explicit paths and
   describe the registration evaluation as a generic downstream RIRE oracle;
-  see [`RITK-REGISTRATION-EXAMPLE-PATHS-001`](../../backlog.md#RITK-REGISTRATION-EXAMPLE-PATHS-001)
-  and [`ATLAS-PRIVACY-NAMING-1`](../../../backlog/atlas-privacy-naming-1.md).
+  see [RITK PR #610](https://github.com/ryancinsight/ritk/pull/610) and
+  [`ATLAS-PRIVACY-NAMING-1`](../../../backlog/atlas-privacy-naming-1.md).
 - **Revision 2026-09-03:** Add the fixed-region conditioned metric after the
   downstream global-histogram RIRE result remained anatomically offset.
 - **Revision 2026-09-04:** Make the structural-refinement half-range a bounded

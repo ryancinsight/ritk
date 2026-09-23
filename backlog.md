@@ -1,24 +1,5 @@
 # RITK execution backlog
 
-<a id="RITK-REGISTRATION-EXAMPLE-PATHS-001"></a>
-## RITK-REGISTRATION-EXAMPLE-PATHS-001 — Require paths for comparison inputs [patch]
-- Status: review; priority: P1; owner: registration example; integrator: root; branch: `fix/registration-example-inputs`; last-update: 2026-09-22; meta: `../../backlog.md#atlas-privacy-naming-1`.
-- Outcome: the comparison example accepts five explicit input/output paths and contains no machine-specific file locations.
-- Scope: the comparison example, its tests, ADR 0023, and this item.
-- Acceptance: exact-five, missing, and extra path cases are value-tested; the example and package gates pass; the linked ADR uses generic downstream wording.
-- Verification: example parser tests, locked package Clippy/nextest, formatting, and the RITK privacy scan.
-
-<a id="RITK-IMAGE-ACCESSORS-001"></a>
-## RITK-IMAGE-ACCESSORS-001 — Collapse image host accessors [major][arch]
-- Status: in-progress; priority: P1; integrator: root; branch: `refactor/ritk-two-accessors-047`; last-update: 2026-09-23; ADR: [0051](docs/adr/0051-two-image-data-accessors.md); meta: `../../backlog.md#ritk-views-047`; risk: public API break.
-- Outcome: retain only contiguous borrowing and backend-selected copy-on-stride access, with one public rank-generic Cartesian grid transform.
-- Scope: `Image` accessors, every Rust caller, grid geometry, tests, migration docs, and ADR 0051.
-- Acceptance: remove five redundant methods without wrappers; migrate all 62 current Rust sites; test inverse versus transpose on a nonsingular nonorthogonal fixture; pass workspace nextest, strict Clippy, docs, and semver gates.
-- Verification: workspace format/check, locked nextest, strict Clippy, Rustdoc, and `cargo-semver-checks` against the pre-change API; only the five removed methods may be reported breaking.
-- Review: independent review of `8221e857` confirmed the API/caller closure and transform extraction, and identified an unsupported tolerance bound, inaccurate ADR test counts, and a broken Atlas link. The fixture and documentation corrections pass 10 focused tests, strict package Clippy, and warning-denying package Rustdoc.
-- Integration: rebase onto current RITK main `53004d2b`, rerun the workspace gates and SemVer check, then obtain a fresh independent verdict before updating PR #608.
-
-
 <a id="RITK-METIS-LOCK-021"></a>
 ## RITK-METIS-LOCK-021 — Consume current Métis host and refresh replay provenance [patch]
 - Status: done; priority: P1; owner: RITK viewer + integration; integrator: root; branch: `docs/ritk-metis-hosted-35759891764`; last-update: 2026-09-22; dependency delivery: PR [#604](https://github.com/ryancinsight/ritk/pull/604); delivery: PR [#605](https://github.com/ryancinsight/ritk/pull/605), merge `29c51440ad4d33ab4109dd665683b7ef5bf45198`.
