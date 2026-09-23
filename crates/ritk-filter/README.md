@@ -12,6 +12,7 @@ Medical image filtering algorithms for [RITK](https://github.com/ryancinsight/ri
 | Bias correction | N4 bias field correction (B-spline fitting) |
 | Resampling | Downsample, resample, multi-resolution pyramid |
 | Distance transform | Euclidean (Meijster 2000) and chamfer (chessboard / taxicab) |
+| Artifact correction | Gibbs-ringing removal by local subvoxel shifts (Kellner 2016) for volume series |
 | Deconvolution | Regularized deconvolution |
 | Denoising | Patch-based denoising |
 | Colormap | Color component mapping and lookup-table application |

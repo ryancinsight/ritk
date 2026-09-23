@@ -6392,6 +6392,7 @@ dependencies = [
  "ritk-transform",
  "ritk-wgpu-compat",
  "serde",
+ "thiserror 2.0.20",
 ]
 
 [[package]]

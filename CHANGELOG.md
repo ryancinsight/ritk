@@ -18,6 +18,13 @@
   selections fail with `OSError`. The native and Python contracts are covered
   by value-semantic tests and the [DICOM workflow manual](docs/manual/dicom-workflow.md).
 
+- [minor] `ritk_filter::gibbs_unringing::GibbsUnringer` removes Gibbs ringing
+  from a volume series by local subvoxel shifts (the `mrdegibbs` role; Kellner
+  et al. 2016): per-line total-variation-minimising Fourier shifts with linear
+  back-interpolation, combined over the two in-plane axes by the paper's
+  `1 + cos k` spectral split, with a configurable slice axis, shift count, and
+  window.
+
 - [major][arch] Add modality-specific intensity ranges, masked borrowed-sample
   evaluation, discrete and moving-linear partial-volume histogram estimators,
   physical-radius binary-morphology support, and a bounded rigid NMI-capture / NGF-
