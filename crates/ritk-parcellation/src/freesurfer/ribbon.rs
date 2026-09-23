@@ -155,7 +155,7 @@ pub fn rasterise_ribbon(
         }
     }
 
-    let names = annotation.color_table().region_names();
+    let names = super::lut::region_names(annotation.color_table());
     let parcellation = Parcellation::new(labels.into_boxed_slice(), grid.clone(), names)?;
     Ok((parcellation, report))
 }

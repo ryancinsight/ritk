@@ -34,12 +34,15 @@
 //! the convention rather than a loss. Two table entries with the same colour
 //! make the file ambiguous and are rejected, as is a vertex value no entry has.
 
-use std::collections::HashMap;
+use std::collections::{HashMap, HashSet};
 use std::io::{Read, Write};
 
+use ritk_annotation::{LabelTable, RgbaBytes};
+
 use super::big_endian::{bounded_count, read_be, read_count, reserve_for, write_be, write_count};
+use super::lut::{color_from_stored, stored_components};
 use super::surface::MAX_ELEMENTS;
-use super::{ColorLut, FreeSurferError, FreeSurferFormat, LutColor, LutEntry};
+use super::{FreeSurferError, FreeSurferFormat};
 use crate::BACKGROUND;
 
 const FORMAT: FreeSurferFormat = FreeSurferFormat::Annotation;
@@ -60,7 +63,7 @@ const CTAB_VERSION_2: i32 = -2;
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct SurfaceAnnotation {
     vertex_labels: Box<[u32]>,
-    color_table: ColorLut,
+    color_table: LabelTable,
 }
 
 impl SurfaceAnnotation {
@@ -70,12 +73,20 @@ impl SurfaceAnnotation {
     ///
     /// [`FreeSurferError::Malformed`] when a vertex carries a label other than
     /// [`BACKGROUND`] that the table lacks, or two entries share a colour.
-    pub fn new(vertex_labels: Box<[u32]>, color_table: ColorLut) -> Result<Self, FreeSurferError> {
+    pub fn new(
+        vertex_labels: Box<[u32]>,
+        color_table: LabelTable,
+    ) -> Result<Self, FreeSurferError> {
         unique_colors(&color_table)?;
+        let known: HashSet<u32> = color_table
+            .entries()
+            .iter()
+            .map(|entry| u32::from(entry.id))
+            .collect();
         if let Some((vertex, label)) = vertex_labels
             .iter()
             .enumerate()
-            .find(|(_, label)| **label != BACKGROUND && color_table.get(**label).is_none())
+            .find(|(_, label)| **label != BACKGROUND && !known.contains(*label))
         {
             return Err(FreeSurferError::malformed(
                 FORMAT,
@@ -161,35 +172,34 @@ impl SurfaceAnnotation {
     /// [`FreeSurferError::InvalidCount`] when a count exceeds the `i32` fields.
     pub fn write(&self, mut writer: impl Write) -> Result<(), FreeSurferError> {
         let writer = &mut writer;
+        let entries = self.color_table.entries();
+        let value_of: HashMap<u32, u32> = entries
+            .iter()
+            .map(|entry| (u32::from(entry.id), annotation_value(entry.color)))
+            .collect();
         write_count(writer, FORMAT, "vertex count", self.vertex_labels.len())?;
         for (vertex, label) in self.vertex_labels.iter().enumerate() {
             write_count(writer, FORMAT, "vertex", vertex)?;
-            let value = match self.color_table.get(*label) {
-                Some(entry) if *label != BACKGROUND => entry.color().annotation_value(),
+            let value = match value_of.get(label) {
+                Some(value) if *label != BACKGROUND => *value,
                 _ => 0,
             };
             write_count(writer, FORMAT, "annotation value", value as usize)?;
         }
         write_be(writer, 1_i32)?;
         write_be(writer, CTAB_VERSION_2)?;
-        let max_index = self
-            .color_table
-            .entries()
-            .last()
-            .map_or(0, |entry| entry.label() as usize + 1);
+        let max_index = entries
+            .iter()
+            .map(|entry| u32::from(entry.id) as usize + 1)
+            .max()
+            .unwrap_or(0);
         write_count(writer, FORMAT, "max index", max_index)?;
         write_string(writer, "NOFILE")?;
-        write_count(
-            writer,
-            FORMAT,
-            "entry count",
-            self.color_table.entries().len(),
-        )?;
-        for entry in self.color_table.entries() {
-            write_count(writer, FORMAT, "entry index", entry.label() as usize)?;
-            write_string(writer, entry.name())?;
-            let color = entry.color();
-            for component in [color.red, color.green, color.blue, color.transparency] {
+        write_count(writer, FORMAT, "entry count", entries.len())?;
+        for entry in entries {
+            write_count(writer, FORMAT, "entry index", u32::from(entry.id) as usize)?;
+            write_string(writer, &entry.name)?;
+            for component in stored_components(entry.color) {
                 write_be(writer, i32::from(component))?;
             }
         }
@@ -204,7 +214,7 @@ impl SurfaceAnnotation {
 
     /// The embedded colour table, keyed by structure index.
     #[must_use]
-    pub const fn color_table(&self) -> &ColorLut {
+    pub const fn color_table(&self) -> &LabelTable {
         &self.color_table
     }
 
@@ -215,15 +225,23 @@ impl SurfaceAnnotation {
     }
 }
 
+/// The value identifying a colour in an `.annot` file:
+/// `red + green·2⁸ + blue·2¹⁶` (`read_annotation.m`, colour table column 5).
+const fn annotation_value(color: RgbaBytes) -> u32 {
+    let [red, green, blue, _] = color.0;
+    red as u32 | (green as u32) << 8 | (blue as u32) << 16
+}
+
 /// Map annotation value to label, rejecting a colour two entries share.
-fn unique_colors(table: &ColorLut) -> Result<HashMap<u32, u32>, FreeSurferError> {
-    let mut by_value = HashMap::with_capacity(table.entries().len());
+fn unique_colors(table: &LabelTable) -> Result<HashMap<u32, u32>, FreeSurferError> {
+    let mut by_value = HashMap::with_capacity(table.len());
     for entry in table.entries() {
-        if let Some(previous) = by_value.insert(entry.color().annotation_value(), entry.label()) {
+        let label = u32::from(entry.id);
+        if let Some(previous) = by_value.insert(annotation_value(entry.color), label) {
             return Err(FreeSurferError::malformed(
                 FORMAT,
                 "colour-table entry",
-                entry.label() as usize,
+                label as usize,
                 format!("shares its colour with entry {previous}"),
             ));
         }
@@ -232,14 +250,14 @@ fn unique_colors(table: &ColorLut) -> Result<HashMap<u32, u32>, FreeSurferError>
 }
 
 /// Read the colour table in either the old or the version 2 layout.
-fn read_color_table(reader: &mut impl Read) -> Result<ColorLut, FreeSurferError> {
+fn read_color_table(reader: &mut impl Read) -> Result<LabelTable, FreeSurferError> {
     let first = read_be::<i32>(reader)?;
-    let mut entries = Vec::new();
+    let mut table = LabelTable::new();
     if first > 0 {
         let count = bounded_count(first, FORMAT, "entry count", MAX_TABLE_INDEX)?;
         read_string(reader, 0)?;
         for index in 0..count {
-            entries.push(read_entry(reader, index)?);
+            add_entry(&mut table, reader, index)?;
         }
     } else if first == CTAB_VERSION_2 {
         let max_index = read_count(reader, FORMAT, "max index", MAX_TABLE_INDEX)?;
@@ -258,7 +276,7 @@ fn read_color_table(reader: &mut impl Read) -> Result<ColorLut, FreeSurferError>
                         format!("index {index} outside 0..{max_index}"),
                     )
                 })?;
-            entries.push(read_entry(reader, index)?);
+            add_entry(&mut table, reader, index)?;
         }
     } else {
         return Err(FreeSurferError::Unsupported {
@@ -267,11 +285,16 @@ fn read_color_table(reader: &mut impl Read) -> Result<ColorLut, FreeSurferError>
             got: -i64::from(first),
         });
     }
-    ColorLut::new(entries)
+    Ok(table)
 }
 
-/// Read one entry's name and colour; `index` is its structure index.
-fn read_entry(reader: &mut impl Read, index: usize) -> Result<LutEntry, FreeSurferError> {
+/// Read one entry's name and colour into `table`; `index` is its structure
+/// index.
+fn add_entry(
+    table: &mut LabelTable,
+    reader: &mut impl Read,
+    index: usize,
+) -> Result<(), FreeSurferError> {
     let name = read_string(reader, index)?;
     let mut components = [0_u8; 4];
     for slot in &mut components {
@@ -285,20 +308,14 @@ fn read_entry(reader: &mut impl Read, index: usize) -> Result<LutEntry, FreeSurf
             )
         })?;
     }
-    let [red, green, blue, transparency] = components;
     let label = u32::try_from(index).map_err(|_| {
         FreeSurferError::malformed(FORMAT, "colour-table entry", index, "index exceeds u32")
     })?;
-    LutEntry::new(
-        label,
-        name,
-        LutColor {
-            red,
-            green,
-            blue,
-            transparency,
-        },
-    )
+    table
+        .add_label(label, name, color_from_stored(components))
+        .map_err(|error| {
+            FreeSurferError::malformed(FORMAT, "colour-table entry", index, error.to_string())
+        })
 }
 
 /// Read a length-prefixed string whose length counts its trailing NUL.

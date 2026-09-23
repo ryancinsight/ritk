@@ -12,6 +12,10 @@
 
 ### Added
 
+- [major] `ritk_annotation::LabelTable::add_label` reports a repeated ID as
+  `AnnotationError::DuplicateLabel` instead of a `String`, and `LabelTable`
+  compares by value; `ritk-snap`'s `LabelEditor::add_label` returns the same
+  typed error.
 - [minor] `ritk_filter::mppca::MpPcaDenoiser` denoises a volume series by
   Marchenko-Pastur PCA (the `dwidenoise` role; Veraart et al. 2016, with the
   Cordero-Grande et al. 2019 ratio by default), returning the denoised series
@@ -19,9 +23,11 @@
 
 - [minor] `ritk-parcellation::freesurfer` reads and writes the FreeSurfer
   surface family: `Morphometry` (new-format `curv`, magic `0xFFFFFF`),
-  `SurfaceLabel` (ASCII `.label`), `ColorLut` (`FreeSurferColorLUT.txt`, with
-  colours and FreeSurfer's transparency convention), and writers for `Surface`
-  and `SurfaceAnnotation`. Every reader bounds its counts, grows storage only as
+  `SurfaceLabel` (ASCII `.label`), `lut::read`/`lut::write`
+  (`FreeSurferColorLUT.txt`, with colours and FreeSurfer's transparency
+  convention, into `ritk_annotation::LabelTable`), and writers for `Surface`
+  and `SurfaceAnnotation`, whose embedded colour table is likewise a
+  `LabelTable`. Every reader bounds its counts, grows storage only as
   input backs it, and reports a typed `FreeSurferError`.
 - [minor] `ritk.io.read_image` accepts an optional `series_instance_uid` for
   selecting one acquisition from a DICOM directory. RITK scans and matches the
@@ -100,7 +106,7 @@
   version 2 colour table, per FreeSurfer `read_annotation.m` — replacing a
   little-endian reader of a layout no FreeSurfer tool writes. Vertices resolve
   to colour-table structure indices. `read_freesurfer_lut` is replaced by
-  `ColorLut::parse`, and `FreeSurferSurfaceError` by `FreeSurferError`.
+  `lut::read`, and `FreeSurferSurfaceError` by `FreeSurferError`.
 
 - Removed 16 reintroduced production `#[allow]` sites. Test-only codec, MIF,
   and curved-planar-reformation helpers now compile only for tests; internal MQ
