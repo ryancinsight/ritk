@@ -26,7 +26,8 @@ fn search(parcellation: &Parcellation, radius: f64) -> NearestLabelSearch {
 fn an_unusable_radius_is_rejected() {
     let parcellation = two_islands();
     for radius in [-1.0, f64::NAN, f64::INFINITY] {
-        let error = NearestLabelSearch::new(parcellation.grid(), radius).unwrap_err();
+        let error = NearestLabelSearch::new(parcellation.grid(), radius)
+            .expect_err("invalid input must be rejected");
         assert!(
             matches!(error, ParcellationError::InvalidRadius { .. }),
             "radius {radius} must be rejected"

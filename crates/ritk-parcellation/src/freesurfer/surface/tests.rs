@@ -95,9 +95,16 @@ fn the_format_is_read_big_endian() {
     assert_eq!(&bytes[counts_at..counts_at + 4], &4_i32.to_be_bytes());
     // Swapping it to little-endian must be rejected, not silently misread.
     bytes[counts_at..counts_at + 4].copy_from_slice(&4_i32.to_le_bytes());
-    let error = Surface::read(bytes.as_slice()).unwrap_err();
+    let error = Surface::read(bytes.as_slice()).expect_err("invalid input must be rejected");
     assert!(
-        matches!(error, FreeSurferSurfaceError::InvalidVertexCount { .. }),
+        matches!(
+            error,
+            FreeSurferError::InvalidCount {
+                field: "vertex count",
+                count: 0x0400_0000,
+                ..
+            }
+        ),
         "got {error}"
     );
 }
@@ -110,8 +117,18 @@ fn wrong_magic_is_rejected() {
     let mut bytes = encode(&vertices, &faces, "x");
     bytes[1] = 0x00;
 
-    let error = Surface::read(bytes.as_slice()).unwrap_err();
-    assert!(matches!(error, FreeSurferSurfaceError::InvalidMagic { .. }));
+    let error = Surface::read(bytes.as_slice()).expect_err("invalid input must be rejected");
+    assert!(
+        matches!(
+            error,
+            FreeSurferError::InvalidMagic {
+                expected: 0x00FF_FFFE,
+                got: 0x00FF_00FE,
+                ..
+            }
+        ),
+        "got {error}"
+    );
 }
 
 /// A face naming a vertex the surface does not have would index out of bounds
@@ -121,9 +138,16 @@ fn a_face_referencing_a_missing_vertex_is_rejected() {
     let (vertices, _) = tetrahedron();
     let bytes = encode(&vertices, &[[0, 1, 9]], "x");
 
-    let error = Surface::read(bytes.as_slice()).unwrap_err();
+    let error = Surface::read(bytes.as_slice()).expect_err("invalid input must be rejected");
     assert!(
-        matches!(error, FreeSurferSurfaceError::MalformedLabelTable { .. }),
+        matches!(
+            error,
+            FreeSurferError::Malformed {
+                field: "face",
+                index: 0,
+                ..
+            }
+        ),
         "got {error}"
     );
 }
@@ -132,7 +156,11 @@ fn a_face_referencing_a_missing_vertex_is_rejected() {
 fn a_negative_vertex_index_is_rejected() {
     let (vertices, _) = tetrahedron();
     let bytes = encode(&vertices, &[[0, 1, -2]], "x");
-    assert!(Surface::read(bytes.as_slice()).is_err());
+    let error = Surface::read(bytes.as_slice()).expect_err("invalid input must be rejected");
+    assert!(
+        matches!(error, FreeSurferError::Malformed { field: "face", .. }),
+        "got {error}"
+    );
 }
 
 #[test]
@@ -141,9 +169,9 @@ fn a_truncated_file_is_rejected() {
     let bytes = encode(&vertices, &faces, "x");
     let truncated = &bytes[..bytes.len() - 8];
 
-    let error = Surface::read(truncated).unwrap_err();
+    let error = Surface::read(truncated).expect_err("invalid input must be rejected");
     assert!(
-        matches!(error, FreeSurferSurfaceError::Io(_)),
+        matches!(&error, FreeSurferError::Io(io) if io.kind() == std::io::ErrorKind::UnexpectedEof),
         "got {error}"
     );
 }
@@ -151,7 +179,58 @@ fn a_truncated_file_is_rejected() {
 #[test]
 fn a_non_finite_coordinate_is_rejected() {
     let bytes = encode(&[[0.0, f32::NAN, 0.0]], &[], "x");
-    assert!(Surface::read(bytes.as_slice()).is_err());
+    let error = Surface::read(bytes.as_slice()).expect_err("invalid input must be rejected");
+    assert!(
+        matches!(
+            error,
+            FreeSurferError::Malformed {
+                field: "vertex",
+                index: 0,
+                ..
+            }
+        ),
+        "got {error}"
+    );
+}
+
+// ── Writing ──────────────────────────────────────────────────────────────
+
+/// The writer emits exactly the bytes the format specifies, so its output
+/// equals the field-by-field encoding and reads back to the same surface.
+#[test]
+fn the_writer_emits_the_specified_bytes_and_round_trips() {
+    let (vertices, faces) = tetrahedron();
+    let surface = Surface::read(encode(&vertices, &faces, "created by tests").as_slice())
+        .expect("valid surface");
+
+    let mut written = Vec::new();
+    surface
+        .write(&mut written, "created by tests")
+        .expect("writes");
+
+    assert_eq!(written, encode(&vertices, &faces, "created by tests"));
+    assert_eq!(Surface::read(written.as_slice()).expect("reads"), surface);
+}
+
+#[test]
+fn a_comment_that_would_end_the_header_is_refused() {
+    let (vertices, faces) = tetrahedron();
+    let surface = Surface::read(encode(&vertices, &faces, "x").as_slice()).expect("valid");
+    for comment in ["a\n\nb", "trailing\n"] {
+        let error = surface
+            .write(Vec::new(), comment)
+            .expect_err("invalid input must be rejected");
+        assert!(
+            matches!(
+                error,
+                FreeSurferError::Malformed {
+                    field: "comment",
+                    ..
+                }
+            ),
+            "{comment:?}: got {error}"
+        );
+    }
 }
 
 // ── Construction and translation ─────────────────────────────────────────

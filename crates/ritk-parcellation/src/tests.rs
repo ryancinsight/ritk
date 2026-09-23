@@ -28,7 +28,8 @@ fn grid_2x2x2() -> ParcellationGrid {
 
 #[test]
 fn a_label_array_that_does_not_cover_the_grid_is_rejected() {
-    let error = Parcellation::new(Box::new([1, 2, 3]), grid_2x2x2(), Vec::new()).unwrap_err();
+    let error = Parcellation::new(Box::new([1, 2, 3]), grid_2x2x2(), Vec::new())
+        .expect_err("invalid input must be rejected");
     match error {
         ParcellationError::LabelCountMismatch { expected, actual } => {
             assert_eq!(expected, 8);
@@ -48,7 +49,7 @@ fn an_all_background_volume_is_rejected() {
         grid_2x2x2(),
         Vec::new(),
     )
-    .unwrap_err();
+    .expect_err("invalid input must be rejected");
     assert!(matches!(error, ParcellationError::EmptyParcellation));
 }
 
@@ -154,7 +155,7 @@ fn remapping_everything_to_background_is_rejected() {
     let parcellation = three_region_cube();
     let error = parcellation
         .remap_labels(|_| BACKGROUND, Vec::new())
-        .unwrap_err();
+        .expect_err("invalid input must be rejected");
     assert!(matches!(error, ParcellationError::EmptyParcellation));
 }
 
@@ -181,7 +182,9 @@ fn retaining_a_subset_drops_the_other_regions_and_their_names() {
 #[test]
 fn retaining_only_absent_regions_is_rejected() {
     let parcellation = three_region_cube();
-    let error = parcellation.retain_regions(&[42]).unwrap_err();
+    let error = parcellation
+        .retain_regions(&[42])
+        .expect_err("invalid input must be rejected");
     assert!(matches!(error, ParcellationError::EmptyParcellation));
 }
 
@@ -223,7 +226,8 @@ fn a_document_whose_labels_do_not_cover_its_grid_is_rejected() {
     let truncated = encoded.replace("\"labels\":[1,0,0,3,0,2,3,0]", "\"labels\":[1,0,3]");
     assert_ne!(truncated, encoded, "the fixture must have been edited");
 
-    let error = serde_json::from_str::<Parcellation>(&truncated).unwrap_err();
+    let error = serde_json::from_str::<Parcellation>(&truncated)
+        .expect_err("invalid input must be rejected");
     assert!(
         error.to_string().contains("labels were supplied"),
         "expected the count-mismatch message, got {error}"
@@ -240,7 +244,8 @@ fn an_all_background_document_is_rejected() {
     );
     assert_ne!(emptied, encoded, "the fixture must have been edited");
 
-    let error = serde_json::from_str::<Parcellation>(&emptied).unwrap_err();
+    let error =
+        serde_json::from_str::<Parcellation>(&emptied).expect_err("invalid input must be rejected");
     assert!(
         error.to_string().contains("no labelled regions"),
         "expected the empty-parcellation message, got {error}"

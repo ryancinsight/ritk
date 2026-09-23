@@ -17,6 +17,13 @@
   Cordero-Grande et al. 2019 ratio by default), returning the denoised series
   with per-voxel noise-sigma and signal-rank maps.
 
+- [minor] `ritk-parcellation::freesurfer` reads and writes the FreeSurfer
+  surface family: `Morphometry` (new-format `curv`, magic `0xFFFFFF`),
+  `SurfaceLabel` (ASCII `.label`), `ColorLut` (`FreeSurferColorLUT.txt`, with
+  colours and FreeSurfer's transparency convention), and writers for `Surface`
+  and `SurfaceAnnotation`. Every reader bounds its counts, grows storage only as
+  input backs it, and reports a typed `FreeSurferError`.
+
 - [minor] `ritk-gifti` reads and writes GIFTI 1.0 (`.surf.gii`, `.func.gii`,
   `.shape.gii`, `.label.gii`): ASCII, base64, and zlib-base64 payloads in either
   byte order and indexing order, label tables, metadata, and coordinate
@@ -81,6 +88,13 @@
 
 ### Changed
 
+- [patch] Remove the unused eager `ColorVolume::data_vec()` from
+  `ritk-image`. The colour family now exposes exactly the two-behaviour
+  contract of [ADR 0051](docs/adr/0051-two-image-data-accessors.md):
+  `with_data_slice` for a borrowed view and `data_cow_on(&backend)` for a
+  borrow-or-compact-copy; ownership stays an explicit `.into_owned()` at the
+  call site that pays for it. It had no callers left in the workspace.
+
 - [major][arch] Remove five redundant `Image` host-extraction methods and move
   the rank-generic `CartesianGridGeometry` to `ritk-spatial`. Use `data_slice()`
   for a contiguous borrow and `data_cow_on(&backend)` when a strided layout may
@@ -88,6 +102,13 @@
   62 in-repository call sites are migrated. See [ADR 0051](docs/adr/0051-two-image-data-accessors.md).
 
 ### Fixed
+
+- [minor] `SurfaceAnnotation::read` parses the real `.annot` layout —
+  big-endian `(vertex, packed RGB)` records followed by an old-format or
+  version 2 colour table, per FreeSurfer `read_annotation.m` — replacing a
+  little-endian reader of a layout no FreeSurfer tool writes. Vertices resolve
+  to colour-table structure indices. `read_freesurfer_lut` is replaced by
+  `ColorLut::parse`, and `FreeSurferSurfaceError` by `FreeSurferError`.
 
 - Removed 16 reintroduced production `#[allow]` sites. Test-only codec, MIF,
   and curved-planar-reformation helpers now compile only for tests; internal MQ

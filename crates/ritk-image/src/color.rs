@@ -171,12 +171,6 @@ where
     B: ComputeBackend + Default,
     B::DeviceBuffer<T>: coeus_core::CpuAddressableStorage<T>,
 {
-    /// Extract the underlying tensor data as a `Vec<T>`.
-    #[inline]
-    pub fn data_vec(&self) -> Vec<T> {
-        self.data.as_slice().to_vec()
-    }
-
     /// Provide a `&[T]` view of the volume data to a closure without
     /// allocating a `Vec`.
     ///
