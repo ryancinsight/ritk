@@ -335,3 +335,34 @@ fn window_bounds_are_validated() {
         })
     );
 }
+
+/// The parallel pass equals a sequential one bit for bit on every slice axis:
+/// each slice's correction reads only that slice.
+fn check_parallel_slices_match_sequential<T>()
+where
+    T: RealField,
+    Complex<T>: FftPrecision,
+{
+    let shape = [10, 12, 14];
+    let volumes: Vec<Vec<T>> = (0..4)
+        .map(|seed| to_scalar(&edgy_volume(shape, seed)))
+        .collect();
+    let views: Vec<&[T]> = volumes.iter().map(Vec::as_slice).collect();
+    let bits = |values: &[T]| -> Vec<u64> { to_f64(values).iter().map(|v| v.to_bits()).collect() };
+    for axis in [SliceAxis::Axis0, SliceAxis::Axis1, SliceAxis::Axis2] {
+        let unringer = GibbsUnringer::default().with_slice_axis(axis);
+        let sequential = unringer.correct_slices::<moirai::Sequential, T>(shape, &views);
+        let parallel = unringer.correct_slices::<moirai::Parallel, T>(shape, &views);
+        let public = unringer.unring(shape, &views).expect("valid series");
+        for ((a, b), c) in sequential.iter().zip(&parallel).zip(&public) {
+            assert_eq!(bits(a), bits(b), "slice axis {axis:?}");
+            assert_eq!(bits(a), bits(c), "slice axis {axis:?}");
+        }
+    }
+}
+
+#[test]
+fn parallel_slices_match_sequential() {
+    check_parallel_slices_match_sequential::<f32>();
+    check_parallel_slices_match_sequential::<f64>();
+}
