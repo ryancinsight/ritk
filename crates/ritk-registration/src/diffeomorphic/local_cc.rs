@@ -14,7 +14,7 @@
 //!
 //! f_k(p) = [(J_w(p)−μ_J)/√(σ_I²σ_J²) − CC·(I_w(p)−μ_I)/σ_I²] · ∇_k I_w(p)
 //!
-//! All outer voxel loops are parallelized via Rayon, since each voxel's
+//! All outer voxel loops are parallelized via moirai, since each voxel's
 //! window reads are independent (read-only access, no data races).
 
 mod forces;

@@ -9,7 +9,8 @@
 //! # Complexity
 //! O(n * (2r+1)^3) average where n is the total voxel count and r is
 //! the neighbourhood half-width, using introselect (select_nth_unstable_by)
-//! rather than a full sort.  Parallelised over z-slices via Rayon.
+//! rather than a full sort. Parallelised over z-slices via moirai's
+//! `for_each_chunk_mut_enumerated_with` on the `Adaptive` execution policy.
 
 use ritk_core::image::Image;
 use ritk_image::tensor::Backend;
@@ -96,8 +97,9 @@ fn median_3d(data: &[f32], dims: [usize; 3], radius: usize) -> Vec<f32> {
         &mut output,
         ny * nx,
         |iz, out_slice| {
-            // Allocate once per z-slice (per Rayon thread); reused across all
-            // voxels in the slice via clear() to avoid per-voxel heap allocation.
+            // Allocate once per z-slice (per parallel worker); reused across
+            // all voxels in the slice via clear() to avoid per-voxel heap
+            // allocation.
             let mut neighbors: Vec<f32> = Vec::with_capacity(cap);
 
             // Pre-clamp the Z-plane once per voxel-row: each `dz` maps to a
