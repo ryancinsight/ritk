@@ -2,7 +2,7 @@
 
 - Status: Accepted
 - Date: 2026-08-18
-- Board item: [RITK-IMAGE-ACCESSORS-001](../../backlog.md#RITK-IMAGE-ACCESSORS-001), meta [RITK-VIEWS-047](https://github.com/ryancinsight/atlas/blob/main/backlog.md#ritk-views-047)
+- Delivery: [RITK PR #608](https://github.com/ryancinsight/ritk/pull/608)
 - Supersedes the "Deviation from the item's acceptance oracle" section of ADR
   [0019](0019-borrowed-region-views.md)
 

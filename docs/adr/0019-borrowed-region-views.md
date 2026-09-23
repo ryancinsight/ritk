@@ -2,7 +2,7 @@
 
 - Status: Accepted
 - Date: 2026-08-17
-- Board item: ATLAS-RITK-VIEWS-047 (Atlas meta-repo board)
+- Delivery: [RITK PR #608](https://github.com/ryancinsight/ritk/pull/608)
 
 ## Context
 
