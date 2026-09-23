@@ -69,7 +69,7 @@ impl MpPcaDenoiser {
     /// fastest).
     ///
     /// Windows are reconstructed in parallel; the result is bitwise identical
-    /// to a sequential sweep (see [`Self::sweep`]).
+    /// to a sequential sweep (see the [module documentation](super)).
     ///
     /// # Errors
     ///
