@@ -1,4 +1,25 @@
 use super::*;
+use crate::geometry::PatientPointMm;
+use crate::tools::interaction::PatientLength;
+
+#[test]
+fn orthogonal_layer_does_not_rasterize_patient_space_length() {
+    let start = PatientPointMm::try_new([0.0, 0.0, 0.0]).expect("finite point");
+    let end = PatientPointMm::try_new([3.0, 4.0, 0.0]).expect("finite point");
+    let annotation = Annotation::PatientLength(
+        PatientLength::try_new(start, end).expect("3-4-5 segment is representable"),
+    );
+    let context = egui::Context::default();
+    let output = context.run(egui::RawInput::default(), |context| {
+        let painter = context.layer_painter(egui::LayerId::background());
+        MeasurementLayer::draw_annotations(&painter, &[annotation], |point| point);
+    });
+
+    assert!(
+        output.shapes.is_empty(),
+        "an orthogonal painter must not fabricate a 2D patient-length line"
+    );
+}
 
 /// `perpendicular_offset` for a horizontal right-pointing line must return
 /// a straight-up vector.

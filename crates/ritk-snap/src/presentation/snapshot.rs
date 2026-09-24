@@ -10,6 +10,8 @@ use crate::ui::ViewTransform;
 pub enum AnnotationKind {
     /// A two-point physical length measurement.
     Length,
+    /// A three-dimensional length measured in DICOM patient space.
+    PatientLength,
     /// A three-point angle measurement.
     Angle,
     /// A rectangle region-of-interest statistic.
@@ -26,6 +28,7 @@ impl AnnotationKind {
     pub const fn label(self) -> &'static str {
         match self {
             Self::Length => "length",
+            Self::PatientLength => "patient-length",
             Self::Angle => "angle",
             Self::RoiRect => "roi-rect",
             Self::RoiEllipse => "roi-ellipse",
@@ -38,13 +41,13 @@ impl AnnotationKind {
 #[derive(Debug, Clone, Copy, PartialEq)]
 pub struct AnnotationSummary {
     kind: AnnotationKind,
-    primary_value: f32,
+    primary_value: f64,
 }
 
 impl AnnotationSummary {
     /// Constructs a summary after checking that its displayed value is finite.
     #[cfg(any(target_arch = "wasm32", windows, test))]
-    pub(crate) fn new(kind: AnnotationKind, primary_value: f32) -> Self {
+    pub(crate) fn new(kind: AnnotationKind, primary_value: f64) -> Self {
         debug_assert!(primary_value.is_finite());
         Self {
             kind,
@@ -60,7 +63,7 @@ impl AnnotationSummary {
 
     /// Returns the primary computed value in the kind's documented units.
     #[must_use]
-    pub const fn primary_value(self) -> f32 {
+    pub const fn primary_value(self) -> f64 {
         self.primary_value
     }
 }
@@ -287,5 +290,20 @@ impl PresentationSnapshot {
             annotation_count,
             last_annotation,
         }
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::{AnnotationKind, AnnotationSummary};
+
+    #[test]
+    fn patient_length_summary_preserves_f64_distance_and_kind() {
+        let distance = f64::from(f32::MAX) * 2.0;
+        let summary = AnnotationSummary::new(AnnotationKind::PatientLength, distance);
+
+        assert_eq!(summary.kind(), AnnotationKind::PatientLength);
+        assert_eq!(summary.kind().label(), "patient-length");
+        assert_eq!(summary.primary_value(), distance);
     }
 }

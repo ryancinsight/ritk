@@ -20,10 +20,11 @@ pub enum StudySource {
     },
 }
 
-/// Current session format, accepting version 1 at the deserialize boundary.
+/// Current session format, accepting versions 1 and 2 as legacy inputs.
 ///
 /// Legacy unversioned sessions default to version 1. Both accepted inputs
-/// normalize to version 2, whose source can preserve exact DICOM membership.
+/// normalize to version 3, which adds patient-space annotations while retaining
+/// exact DICOM acquisition membership from version 2.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Default, Serialize, Deserialize)]
 #[serde(try_from = "u8", into = "u8")]
 pub struct SessionFormat;
@@ -32,7 +33,7 @@ impl TryFrom<u8> for SessionFormat {
     type Error = &'static str;
     fn try_from(version: u8) -> Result<Self, Self::Error> {
         match version {
-            1 | 2 => Ok(Self),
+            1..=3 => Ok(Self),
             _ => Err("unsupported viewer session format version"),
         }
     }
@@ -40,6 +41,6 @@ impl TryFrom<u8> for SessionFormat {
 
 impl From<SessionFormat> for u8 {
     fn from(_: SessionFormat) -> Self {
-        2
+        3
     }
 }

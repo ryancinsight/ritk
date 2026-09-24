@@ -27,10 +27,11 @@
 //! ```text
 //! index,type,primary_value,unit,extra
 //! 0,Length,12.30,mm,
-//! 1,Angle,45.00,deg,
-//! 2,ROI Rect,100.00,HU,σ=10.00 area=50.00mm²
-//! 3,ROI Ellipse,80.00,HU,σ=5.00 area=25.00mm²
-//! 4,HU Point,200.00,HU,
+//! 1,Patient Length,5.00,mm,
+//! 2,Angle,45.00,deg,
+//! 3,ROI Rect,100.00,HU,σ=10.00 area=50.00mm²
+//! 4,ROI Ellipse,80.00,HU,σ=5.00 area=25.00mm²
+//! 5,HU Point,200.00,HU,
 //! ```
 
 use egui::Ui;
@@ -66,6 +67,7 @@ pub enum AnnotationPanelAction {
 /// | Variant      | primary_value      | unit | extra                          |
 /// |--------------|--------------------|------|-------------------------------|
 /// | Length       | `length_mm`        | mm   | _(empty)_                     |
+/// | Patient Length | three-dimensional distance | mm | _(empty)_                |
 /// | Angle        | `angle_deg`        | deg  | _(empty)_                     |
 /// | ROI Rect     | `mean`             | HU   | `σ=N area=Nmm²`               |
 /// | ROI Ellipse  | `mean`             | HU   | `σ=N area=Nmm²`               |
@@ -80,6 +82,10 @@ pub fn csv_for(annotations: &[Annotation]) -> String {
         let row = match ann {
             Annotation::Length { length_mm, .. } => {
                 format!("{i},Length,{length_mm:.2},mm,\n")
+            }
+            Annotation::PatientLength(measurement) => {
+                let length_mm = measurement.length_mm();
+                format!("{i},Patient Length,{length_mm:.2},mm,\n")
             }
             Annotation::Angle { angle_deg, .. } => {
                 format!("{i},Angle,{angle_deg:.2},deg,\n")
@@ -116,6 +122,10 @@ fn annotation_label(i: usize, ann: &Annotation) -> String {
     match ann {
         Annotation::Length { length_mm, .. } => {
             format!("#{i}  Length: {length_mm:.1} mm")
+        }
+        Annotation::PatientLength(measurement) => {
+            let length_mm = measurement.length_mm();
+            format!("#{i}  Patient length: {length_mm:.1} mm")
         }
         Annotation::Angle { angle_deg, .. } => {
             format!("#{i}  Angle: {angle_deg:.2}°")
