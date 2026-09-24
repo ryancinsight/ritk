@@ -62,6 +62,7 @@
   - [Human Tractography and Connectomics](examples/brain_tractography.md)
 - [Anatomical Parcellation](parcellation.md)
   - [Example: Atlas Parcellation](examples/atlas_parcellation.md)
+  - [GIFTI Surface Interchange](gifti_format.md)
 - [Connectome Construction and Graph Measures](connectome.md)
 
 ## Tractogram Interchange Formats

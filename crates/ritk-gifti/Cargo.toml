@@ -1,0 +1,22 @@
+[package]
+name = "ritk-gifti"
+version = "0.1.0"
+edition = "2024"
+rust-version = "1.95"
+license.workspace = true
+description = "GIFTI surface data format (.surf.gii, .func.gii, .label.gii) reader and writer"
+repository.workspace = true
+readme = "README.md"
+publish = false
+
+[dependencies]
+base64 = { workspace = true }
+flate2 = { workspace = true }
+quick-xml = { workspace = true }
+thiserror.workspace = true
+
+[dev-dependencies]
+proptest = { workspace = true }
+
+[lints]
+workspace = true

@@ -39,14 +39,14 @@ RITK provides a comprehensive framework for medical image analysis:
 |---|---|---|
 | Domain contracts | `ritk-spatial`, `ritk-image`, `ritk-transform`, `ritk-interpolation`, `ritk-annotation` | Physical coordinates, typed images, transforms, interpolation, and annotation state |
 | Operations | `ritk-filter`, `ritk-segmentation`, `ritk-morphology`, `ritk-statistics`, `ritk-tensor-ops` | Image algorithms and shared Coeus host-buffer operations |
-| Registration | `ritk-registration`, `ritk-model` | Classical, deformable, differentiable, and learned registration |
-| Diffusion & tractography | `ritk-diffusion-scheme`, `ritk-diffusion`, `ritk-tractography`, `ritk-connectome` | Validated acquisition schemes, DTI/DKI/NODDI/Q-ball/CSD models, streamline tracking, and parcellation graph measures |
-| Format owners | `ritk-dicom`, `ritk-codecs`, `ritk-nifti`, `ritk-nrrd`, `ritk-metaimage`, `ritk-mgh`, `ritk-analyze`, `ritk-png`, `ritk-jpeg`, `ritk-tiff`, `ritk-minc`, `ritk-vtk`, `ritk-mif` | Validated byte-level codecs and format-specific image I/O |
+| Registration | `ritk-registration`, `ritk-model`, `ritk-block-matching` | Classical, deformable, differentiable, and learned registration |
+| Diffusion & tractography | `ritk-diffusion-scheme`, `ritk-diffusion`, `ritk-tractography`, `ritk-parcellation`, `ritk-connectome` | Validated acquisition schemes, DTI/DKI/NODDI/Q-ball/CSD models, streamline tracking, parcellations with the FreeSurfer surface formats, and parcellation graph measures |
+| Format owners | `ritk-dicom`, `ritk-codecs`, `ritk-nifti`, `ritk-nrrd`, `ritk-metaimage`, `ritk-mgh`, `ritk-analyze`, `ritk-png`, `ritk-jpeg`, `ritk-tiff`, `ritk-minc`, `ritk-vtk`, `ritk-mif`, `ritk-gifti` | Validated byte-level codecs and format-specific image I/O |
 | Tractogram formats | `ritk-tck`, `ritk-trk`, `ritk-trx` | MRtrix3 `.tck`, TrackVis `.trk`, and TRX streamline I/O |
 | Integration | `ritk-io`, `ritk-core`, `ritk-wgpu-compat` | Unified I/O dispatch, public facade contracts, and graphics interop |
-| Deliverables | `ritk-cli`, `ritk-snap`, `ritk-python` | CLI, native viewer, and thin PyO3 bindings |
+| Deliverables | `ritk-cli`, `ritk-snap`, `ritk-snap-eframe`, `ritk-python` | CLI, native viewer, and thin PyO3 bindings |
 
-All 38 workspace crates appear above; `xtask` is the build-automation member and
+All 42 workspace crates appear above; `xtask` is the build-automation member and
 is not a library crate.
 
 Dependencies point inward toward domain contracts. Format crates own byte-level
@@ -507,9 +507,9 @@ verifies the packaged source and uses crates.io trusted publishing to obtain a
 short-lived credential. The matching GitHub Release is the source and artifact
 record for that package version.
 
-Nine workspace members carry `publish = false` and are not crates.io packages:
-`ritk-cli`, `ritk-snap`, `ritk-python`, `ritk-diffusion`, `ritk-tractography`,
-`ritk-connectome`, `ritk-tck`, `ritk-trk`, and `ritk-trx`. Python wheels use
+Eleven workspace members carry `publish = false` and are not crates.io packages:
+`ritk-cli`, `ritk-snap`, `ritk-snap-eframe`, `ritk-python`, `ritk-diffusion`, `ritk-tractography`,
+`ritk-connectome`, `ritk-tck`, `ritk-trk`, `ritk-trx`, and `ritk-gifti`. Python wheels use
 the separate `v<version>` maturin release workflow.
 
 Two provider packages carry a registry name that differs from their import
