@@ -6,22 +6,22 @@
 - acceptance: all child items land; invalid geometry is rejected; the public phantom capture and manual show the real workflow; native visual and value-semantic gates pass.
 - status: todo
 - priority: architecture
-- needs: RITK-SNAP-OBLIQUE-PIXEL-MAPPING-001, RITK-SNAP-RESLICE-PIXEL-MODULE-001, RITK-SNAP-RESLICE-ORIENTATION-001, RITK-SNAP-RESLICE-ORIENTATION-TESTS-001, RITK-SNAP-PATIENT-LENGTH-001, RITK-SNAP-INTERACTION-REGIONS-001, RITK-SNAP-INTERACTION-MEASUREMENTS-001, RITK-SNAP-INTERACTION-STATE-001, RITK-SNAP-INTERACTION-WINDOW-LEVEL-001, RITK-SNAP-NATIVE-OVERLAY-001, RITK-SNAP-NATIVE-MPR-COMPOSITION-001, RITK-SNAP-OBLIQUE-VIEWPORT-001, RITK-SNAP-OBLIQUE-APP-ADAPTER-001, RITK-SNAP-OBLIQUE-APP-TESTS-001, RITK-SNAP-OBLIQUE-SESSION-MODULES-001, RITK-SNAP-OBLIQUE-SESSION-WIRING-001, RITK-SNAP-OBLIQUE-ROUTING-001, RITK-SNAP-PATIENT-MEASUREMENT-OVERLAY-001, RITK-SNAP-OBLIQUE-SESSION-TESTS-001, RITK-SNAP-OBLIQUE-INTERACTION-TESTS-001, RITK-SNAP-OBLIQUE-MANUAL-001
+- needs: RITK-SNAP-OBLIQUE-PIXEL-PROJECTION-001, RITK-SNAP-RESLICE-PIXEL-MODULE-001, RITK-SNAP-RESLICE-ORIENTATION-001, RITK-SNAP-RESLICE-ORIENTATION-TESTS-001, RITK-SNAP-PATIENT-LENGTH-001, RITK-SNAP-INTERACTION-REGIONS-001, RITK-SNAP-INTERACTION-MEASUREMENTS-001, RITK-SNAP-INTERACTION-STATE-001, RITK-SNAP-INTERACTION-WINDOW-LEVEL-001, RITK-SNAP-NATIVE-OVERLAY-001, RITK-SNAP-NATIVE-MPR-COMPOSITION-001, RITK-SNAP-OBLIQUE-VIEWPORT-001, RITK-SNAP-OBLIQUE-APP-ADAPTER-001, RITK-SNAP-OBLIQUE-APP-TESTS-001, RITK-SNAP-OBLIQUE-SESSION-MODULES-001, RITK-SNAP-OBLIQUE-SESSION-WIRING-001, RITK-SNAP-OBLIQUE-ROUTING-001, RITK-SNAP-PATIENT-MEASUREMENT-OVERLAY-001, RITK-SNAP-OBLIQUE-SESSION-TESTS-001, RITK-SNAP-OBLIQUE-INTERACTION-TESTS-001, RITK-SNAP-OBLIQUE-MANUAL-001
 - scope: `crates/ritk-snap/src/{app,presentation,render,tools/interaction,session}/`, `crates/ritk-snap/src/main.rs`, crate README, ADRs, manual, and provenance.
 - next: deliver ready child items in dependency order; preserve the public MRI-DIR phantom as the shareable visual fixture.
 - risk: [major] [arch]; patient-space annotations and session format 3; no registry release is authorized.
 - basis: 3fcdc3dd
 
-<a id="RITK-SNAP-OBLIQUE-PIXEL-MAPPING-001"></a>
-## RITK-SNAP-OBLIQUE-PIXEL-MAPPING-001: Map reslice pixels to patient space
-- outcome: map continuous output-pixel coordinates through the physical reslice affine.
-- acceptance: forward and inverse mappings agree on rotated anisotropic data; invalid and out-of-bounds coordinates reject with typed errors.
+<a id="RITK-SNAP-OBLIQUE-PIXEL-PROJECTION-001"></a>
+## RITK-SNAP-OBLIQUE-PIXEL-PROJECTION-001: Project patient points to pixels
+- outcome: project patient millimetres into continuous output pixels with signed plane distance.
+- acceptance: rotated, anisotropic, and skew mappings round-trip; outward-rounded componentwise enclosures keep large normal offsets from widening unrelated pixel axes; boundary clamping requires an enclosure that contains the edge; the unit-plane point [-0.125, 0.5, 1e13] rejects as out of bounds; unresolved and overflowing projections return typed errors.
 - status: todo
 - priority: correctness
-- needs: none
-- scope: `crates/ritk-snap/src/render/reslice.rs`, `crates/ritk-snap/src/render/tests_reslice.rs`
-- next: establish the pixel-to-patient contract before adding plane controls.
-- basis: 3fcdc3dd
+- needs: RITK-SNAP-OBLIQUE-PIXEL-MAPPING-001
+- scope: `crates/ritk-snap/src/render/reslice/pixel.rs`, `crates/ritk-snap/src/render/reslice/pixel/interval.rs`, `crates/ritk-snap/src/render/tests_reslice.rs`
+- next: implement componentwise interval propagation and the out-of-bounds regression.
+- basis: c665c5075a6e712fa11e13d65955ecb3a05f6c13
 
 <a id="RITK-SNAP-RESLICE-PIXEL-MODULE-001"></a>
 ## RITK-SNAP-RESLICE-PIXEL-MODULE-001: Extract pixel projection operations
@@ -29,7 +29,7 @@
 - acceptance: the module extraction preserves every pixel value and rejection case; the shared pixel mapping remains the single implementation.
 - status: todo
 - priority: tightening
-- needs: RITK-SNAP-OBLIQUE-PIXEL-MAPPING-001
+- needs: RITK-SNAP-OBLIQUE-PIXEL-PROJECTION-001
 - scope: `crates/ritk-snap/src/render/reslice.rs`, `crates/ritk-snap/src/render/reslice/pixel.rs`
 - next: move the pixel operation family without changing its contract.
 - basis: 3fcdc3dd
