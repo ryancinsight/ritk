@@ -22,12 +22,12 @@ const RANK: usize = 3;
 /// Spatial loading amplitude: each signal eigenvalue ≈ `A²·D ≈ 1.3e4 σ²`,
 /// far beyond the bulk edge `λ₊ = σ²(1 + √(32/64))² ≈ 2.9 σ²`.
 const AMPLITUDE: f64 = 20.0;
-/// Absolute off-diagonal residue floor `τ` in the passthrough bounds below:
-/// the `10⁻¹²` tolerance of the Jacobi solver they were derived for. The
-/// tridiagonal-QL solver deflates at `ε·‖T‖` with no floor; its backward
-/// error `p(m)·ε·‖G‖` is of the `m·ε` order these bounds carry in practice,
-/// while its worst case `p(m) = m²` is asserted by `jacobi_reference`.
-const JACOBI_TOLERANCE: f64 = 1e-12;
+/// Relative off-diagonal residue floor `τ` of the passthrough bounds below,
+/// which carry `max(τ, m·ε)·λ₁`: at f64 the floor dominates `m·ε`, leaving
+/// headroom over the eigensolver's residue. The tridiagonal-QL solver deflates
+/// at `ε·‖T‖`; its backward error `p(m)·ε·‖G‖` is of the `m·ε` order in
+/// practice, and its worst case `p(m) = m²` is asserted by `jacobi_reference`.
+const RESIDUE_FLOOR: f64 = 1e-12;
 /// Bound on the signal condition `λ₁/λ_P`: the three loadings are i.i.d.
 /// standard normal over 64 voxels, so each eigenvalue is `A²·D·χ²₆₄/64`;
 /// a ratio of 8 lies beyond any seed's reach (χ²₆₄/64 ∈ [0.5, 1.6] at 5σ).
@@ -264,7 +264,7 @@ fn denoising_reduces_rmse_below_the_projection_bound() {
 /// i.e. by `max(τ, m·ε)·κ` with `κ ≤ CONDITION_BOUND`; the projection
 /// `Y·U·Uᵀ` doubles it, and the Gram and projection sums add `m·ε` each.
 fn passthrough_bound(epsilon: f64, m: f64) -> f64 {
-    let residue = JACOBI_TOLERANCE.max(m * epsilon);
+    let residue = RESIDUE_FLOOR.max(m * epsilon);
     4.0 * residue * CONDITION_BOUND + 4.0 * m * epsilon
 }
 
@@ -303,7 +303,7 @@ fn constant_series_is_reproduced<T: RealScalar>(epsilon: f64) {
     // Rank one: λ₁ = c²·D and every other eigenvalue is solver residue of at
     // most max(τ, m·ε)·λ₁, so σ̂ ≤ c·√(max(τ, m·ε)·D).
     let m = depth as f64;
-    let residue = JACOBI_TOLERANCE.max(m * epsilon);
+    let residue = RESIDUE_FLOOR.max(m * epsilon);
     let sigma_bound = value * (residue * depth as f64).sqrt();
     let value_bound = 4.0 * (residue + m * epsilon) * value;
     for denoised in output.volumes() {
