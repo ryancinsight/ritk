@@ -1,4 +1,7 @@
 pub mod affine;
+mod patient_point;
+
+pub use patient_point::{PatientPointError, PatientPointMm};
 
 use ritk_io::DicomReadMetadata;
 use serde::{Deserialize, Serialize};
