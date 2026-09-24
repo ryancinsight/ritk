@@ -12,13 +12,13 @@
 //! Both eigensolvers are backward stable on the Gram matrix `G` (`m × m`):
 //! Householder tridiagonalization plus QL is exact for `G + E` with
 //! `‖E‖_F ≤ m²·ε·‖G‖_F` (Higham 2002, Lemma 19.3, `m` reflectors of `γ̃_m`
-//! each), and Jacobi stopped at off-diagonal tolerance `τ` adds at most `m·τ`
-//! to its own `m²·ε·‖G‖_F`. Forming `G = YᵀY/n` in floating point perturbs it
+//! each), and Jacobi stopped at relative tolerance `τ` (every off-diagonal
+//! entry at most `τ·‖G‖_F`) adds at most `m·τ·‖G‖_F` to its own `m²·ε·‖G‖_F`. Forming `G = YᵀY/n` in floating point perturbs it
 //! by at most `ε·‖Y‖²_F` (`γ_n` per sum of `n` products, over `n`). The two
 //! spectra therefore agree to
 //!
 //! ```text
-//! δ = (2m² + 1)·ε·‖G‖_F + ε·‖Y‖²_F + m·τ          (Weyl)
+//! δ = (2m² + 1 + m·τ/ε)·ε·‖G‖_F + ε·‖Y‖²_F          (Weyl)
 //! ```
 //!
 //! Given matching `P̂`, the signal projectors differ by at most
@@ -113,7 +113,7 @@ fn check_window_matches_jacobi(extent: [usize; 3], estimator: MpEstimator) {
     }
     let epsilon = f64::EPSILON;
     let gram_norm = frobenius(&gram);
-    let tau = m as f64 * epsilon * gram_norm;
+    let tau = m as f64 * epsilon;
     let reference = symmetric_eigen_jacobi_with_tolerance(
         &Array2::from_shape_vec([m, m], gram)
             .expect("invariant: m² entries")
@@ -126,7 +126,7 @@ fn check_window_matches_jacobi(extent: [usize; 3], estimator: MpEstimator) {
     let p = boundary.signal_components;
     let delta = (2 * m * m + 1) as f64 * epsilon * gram_norm
         + epsilon * frobenius(&y).powi(2)
-        + m as f64 * tau;
+        + m as f64 * tau * gram_norm;
 
     for candidate in [p.checked_sub(1), (p + 1 < m).then_some(p)]
         .into_iter()
