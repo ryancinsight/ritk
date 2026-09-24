@@ -1,5 +1,5 @@
 //! Series driver: validation, slice gathering along the acquisition plane,
-//! and per-slice correction.
+//! and parallel per-slice correction.
 
 use super::slice::SliceUnringer;
 use super::{GibbsError, SliceAxis, TvWindow};
@@ -102,7 +102,8 @@ impl GibbsUnringer {
 
     /// Remove Gibbs ringing from each volume of a series sharing `shape`
     /// (row-major, last axis fastest). Volumes and slices are corrected
-    /// independently; a shape holding no samples returns the (empty) volumes
+    /// independently, in parallel, with a result bitwise identical to a
+    /// sequential pass; a shape holding no samples returns the (empty) volumes
     /// as given.
     ///
     /// # Errors
@@ -152,29 +153,61 @@ impl GibbsUnringer {
             }
         }
 
+        Ok(self.correct_slices::<moirai::Parallel, T>(shape, volumes))
+    }
+
+    /// Correct every slice of a validated series under execution policy `P`.
+    ///
+    /// Slices are gathered into a slice-major staging buffer, corrected in
+    /// place in parallel — each worker reusing one [`SliceUnringer`] — and
+    /// scattered back. A slice's correction reads only that slice, and the
+    /// workspace carries no state between slices, so the result is bitwise
+    /// independent of `P` and of which worker corrects which slice.
+    pub(super) fn correct_slices<P, T>(&self, shape: [usize; 3], volumes: &[&[T]]) -> Vec<Vec<T>>
+    where
+        P: moirai::ExecutionPolicy,
+        T: RealField,
+        Complex<T>: FftPrecision,
+    {
+        let voxel_count: usize = shape.iter().product();
+        let [row_axis, col_axis] = self.slice_axis.plane();
         let strides = [shape[1] * shape[2], shape[2], 1];
         let slice_axis = self.slice_axis.index();
         let (rows, cols) = (shape[row_axis], shape[col_axis]);
-        let mut workspace = SliceUnringer::new(rows, cols, self.half_shifts.get());
-        let mut slice = vec![<T as NumericElement>::ZERO; rows * cols];
-        let mut output = Vec::with_capacity(volumes.len());
-        for samples in volumes {
-            let mut corrected = vec![<T as NumericElement>::ZERO; voxel_count];
-            for index in 0..shape[slice_axis] {
-                let base = index * strides[slice_axis];
-                let offset = |i: usize| {
-                    base + (i / cols) * strides[row_axis] + (i % cols) * strides[col_axis]
-                };
+        let slice_len = rows * cols;
+        let offset = |slice: usize, i: usize| {
+            slice * strides[slice_axis]
+                + (i / cols) * strides[row_axis]
+                + (i % cols) * strides[col_axis]
+        };
+
+        // Slice `s` of volume `v` is chunk `v · slices + s` of `staged`.
+        let mut staged = vec![<T as NumericElement>::ZERO; volumes.len() * voxel_count];
+        for (samples, volume) in volumes.iter().zip(staged.chunks_exact_mut(voxel_count)) {
+            for (index, slice) in volume.chunks_exact_mut(slice_len).enumerate() {
                 for (i, value) in slice.iter_mut().enumerate() {
-                    *value = samples[offset(i)];
-                }
-                workspace.unring(&mut slice, self.window);
-                for (i, &value) in slice.iter().enumerate() {
-                    corrected[offset(i)] = value;
+                    *value = samples[offset(index, i)];
                 }
             }
-            output.push(corrected);
         }
-        Ok(output)
+        let (half_shifts, window) = (self.half_shifts.get(), self.window);
+        moirai::for_each_chunk_mut_with_state::<P, _, _, _, _>(
+            &mut staged,
+            slice_len,
+            || SliceUnringer::new(rows, cols, half_shifts),
+            |workspace, slice| workspace.unring(slice, window),
+        );
+        staged
+            .chunks_exact(voxel_count)
+            .map(|volume| {
+                let mut corrected = vec![<T as NumericElement>::ZERO; voxel_count];
+                for (index, slice) in volume.chunks_exact(slice_len).enumerate() {
+                    for (i, &value) in slice.iter().enumerate() {
+                        corrected[offset(index, i)] = value;
+                    }
+                }
+                corrected
+            })
+            .collect()
     }
 }

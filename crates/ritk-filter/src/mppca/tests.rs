@@ -109,8 +109,12 @@ fn window_dimensions() -> (f64, f64) {
 fn boundary_separates_a_spike_from_a_flat_bulk() {
     // p = 0: γ = 4/100, σ̂²(0) = 99/(4·0.2) = 123.75, trailing sum 103 < 495.
     // p = 1: zero support width, trailing sum 3 ≥ 0 — P̂ = 1, σ̂² = 3/3 = 1.
-    let boundary =
-        marchenko_pastur_boundary(&[100.0_f64, 1.0, 1.0, 1.0], 100, MpEstimator::Veraart2016);
+    let boundary = marchenko_pastur_boundary(
+        &[100.0_f64, 1.0, 1.0, 1.0],
+        100,
+        MpEstimator::Veraart2016,
+        &mut Vec::new(),
+    );
     assert_eq!(
         boundary,
         NoiseBoundary {
@@ -124,7 +128,12 @@ fn boundary_separates_a_spike_from_a_flat_bulk() {
 fn boundary_floors_rounding_residue_at_zero() {
     // p = 0 fails (sum < 0 < bound); p = 1 is accepted with mean −1e-18,
     // which is rounding residue of an exactly zero spectrum.
-    let boundary = marchenko_pastur_boundary(&[1e-20_f64, -1e-18], 2, MpEstimator::Veraart2016);
+    let boundary = marchenko_pastur_boundary(
+        &[1e-20_f64, -1e-18],
+        2,
+        MpEstimator::Veraart2016,
+        &mut Vec::new(),
+    );
     assert_eq!(
         boundary,
         NoiseBoundary {
@@ -372,4 +381,74 @@ fn malformed_series_is_rejected() {
             sample: 13
         }
     ));
+}
+
+/// IEEE-754 bit patterns of a series, widened exactly to `f64`, so `±0` and
+/// every other value compare by representation rather than by `==`.
+fn bits<T: RealScalar>(values: &[T]) -> Vec<u64> {
+    values
+        .iter()
+        .map(|value| value.to_f64().to_bits())
+        .collect()
+}
+
+/// The `[4, 4, 5]` corner of each volume: every window extent below still
+/// fits, and the 80 windows keep the debug-build sweep inside the test budget.
+fn corner(series: &[Vec<f64>]) -> ([usize; 3], Vec<Vec<f64>>) {
+    let shape = [4, 4, 5];
+    let cropped = series
+        .iter()
+        .map(|volume| {
+            (0..shape[0])
+                .flat_map(|z| (0..shape[1]).map(move |y| (z, y)))
+                .flat_map(|(z, y)| {
+                    let start = (z * SHAPE[1] + y) * SHAPE[2];
+                    volume[start..start + shape[2]].iter().copied()
+                })
+                .collect()
+        })
+        .collect();
+    (shape, cropped)
+}
+
+/// The parallel sweep equals a sequential one bit for bit, for one window
+/// per region and for a width that divides nothing, on both Gram
+/// orientations: each voxel sums its windows in centre order whatever the
+/// partition.
+fn check_parallel_sweep_matches_sequential<T: RealScalar>() {
+    let (shape, noisy) = corner(&with_noise(&low_rank_series(11), 1.0, 12));
+    let noisy = cast::<T>(&noisy);
+    let views: Vec<&[T]> = noisy.iter().map(Vec::as_slice).collect();
+    let voxels: usize = shape.iter().product();
+    // The derived 4³ window has V = 64 > D = 32; a 2³ window has V = 8 < D.
+    let small = PatchExtent::new([2, 2, 2]).expect("invariant: 2³ is a valid extent");
+    for extent in [PatchExtent::for_volume_count(DEPTH), small] {
+        let denoiser = MpPcaDenoiser::default().with_extent(extent);
+        let sequential = denoiser
+            .sweep::<moirai::Sequential, T>(shape, &views, extent, voxels)
+            .expect("invariant: the synthetic series is valid for the window");
+        for batch in [1, 7] {
+            let parallel = denoiser
+                .sweep::<moirai::Parallel, T>(shape, &views, extent, batch)
+                .expect("invariant: the synthetic series is valid for the window");
+            for (a, b) in sequential.volumes().iter().zip(parallel.volumes()) {
+                assert_eq!(bits(a), bits(b), "batch {batch}, extent {extent:?}");
+            }
+            assert_eq!(bits(sequential.noise_sigma()), bits(parallel.noise_sigma()));
+            assert_eq!(sequential.signal_components(), parallel.signal_components());
+        }
+        // The public entry point stages the whole image in one region.
+        let public = denoiser
+            .denoise(shape, &views)
+            .expect("invariant: the synthetic series is valid for the window");
+        for (a, b) in sequential.volumes().iter().zip(public.volumes()) {
+            assert_eq!(bits(a), bits(b), "public entry, extent {extent:?}");
+        }
+    }
+}
+
+#[test]
+fn parallel_sweep_matches_sequential() {
+    check_parallel_sweep_matches_sequential::<f32>();
+    check_parallel_sweep_matches_sequential::<f64>();
 }

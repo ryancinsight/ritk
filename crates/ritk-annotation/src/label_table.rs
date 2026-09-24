@@ -13,6 +13,7 @@
 //!    (so auto-assigned IDs never collide with existing entries).
 
 use super::color::RgbaBytes;
+use super::error::AnnotationError;
 use super::overlay::Visibility;
 use super::types::LabelId;
 use serde::{Deserialize, Serialize};
@@ -45,7 +46,7 @@ impl LabelEntry {
 /// Ordered collection of segmentation labels.
 ///
 /// Invariant: all entries have distinct IDs.
-#[derive(Debug, Clone, Default, Serialize, Deserialize)]
+#[derive(Debug, Clone, Default, PartialEq, Eq, Serialize, Deserialize)]
 pub struct LabelTable {
     entries: Vec<LabelEntry>,
 }
@@ -56,16 +57,20 @@ impl LabelTable {
         Self::default()
     }
 
-    /// Add a label entry. Returns Err if the ID already exists in the table.
+    /// Add a visible label entry.
+    ///
+    /// # Errors
+    ///
+    /// [`AnnotationError::DuplicateLabel`] when the table already holds `id`.
     pub fn add_label(
         &mut self,
         id: impl Into<LabelId>,
         name: impl Into<String>,
         color: RgbaBytes,
-    ) -> Result<(), String> {
+    ) -> Result<(), AnnotationError> {
         let id = id.into();
         if self.entries.iter().any(|e| e.id == id) {
-            return Err(format!("label id {} already exists", u32::from(id)));
+            return Err(AnnotationError::DuplicateLabel { id });
         }
         self.entries.push(LabelEntry::new(id, name, color));
         Ok(())

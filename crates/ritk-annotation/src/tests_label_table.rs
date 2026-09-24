@@ -21,8 +21,16 @@ fn test_label_table_duplicate_id_error() {
         .add_label(1, "Brain", RgbaBytes::new(255, 0, 0, 255))
         .expect("infallible: validated precondition");
     let result = table.add_label(1, "Duplicate", RgbaBytes::new(0, 0, 0, 255));
-    let msg = result.expect_err("duplicate id must return Err");
-    assert!(msg.contains("1"), "error message must mention the id");
+    assert_eq!(
+        result,
+        Err(AnnotationError::DuplicateLabel { id: LabelId(1) })
+    );
+    // A rejected duplicate leaves the table as it was.
+    assert_eq!(table.len(), 1);
+    assert_eq!(
+        table.get_label(1).map(|entry| entry.name.as_str()),
+        Some("Brain")
+    );
 }
 
 #[test]

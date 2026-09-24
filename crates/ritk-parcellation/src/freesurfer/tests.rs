@@ -33,19 +33,17 @@ fn read_every_format(bytes: &[u8]) {
             annotation
                 .vertex_labels()
                 .iter()
-                .all(|label| *label == crate::BACKGROUND || table.get(*label).is_some())
+                .all(|label| *label == crate::BACKGROUND || table.get_label(*label).is_some())
         );
     }
     if let Ok(label) = SurfaceLabel::read(bytes) {
         assert!(label.vertices().iter().all(|point| point.value.is_finite()));
     }
-    if let Ok(lut) = ColorLut::parse(bytes) {
-        assert!(!lut.entries().is_empty());
-        assert!(
-            lut.entries()
-                .windows(2)
-                .all(|pair| pair.first().map(LutEntry::label) < pair.last().map(LutEntry::label))
-        );
+    if let Ok(table) = lut::read(bytes) {
+        assert!(!table.is_empty());
+        let labels: std::collections::HashSet<u32> =
+            table.entries().iter().map(|entry| entry.id.0).collect();
+        assert_eq!(labels.len(), table.len(), "labels are unique");
     }
 }
 
