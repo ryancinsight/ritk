@@ -11,9 +11,9 @@ use thiserror::Error;
 use crate::geometry::affine::{AffineError, AffineTransform};
 use crate::LoadedVolume;
 
-use super::slab::SlabProjection;
 #[cfg(test)]
 use super::slab::ProjectionStatistic;
+use super::slab::SlabProjection;
 use sampling::{
     axis_index, patient_step_to_voxel, validate_dimensions, validate_plane_vectors,
     validate_volume, validate_volume_bounds, vector_norm, voxel_step,
