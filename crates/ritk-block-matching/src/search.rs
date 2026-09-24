@@ -847,11 +847,7 @@ fn level_extent(extent: usize, scale: usize) -> usize {
 }
 
 fn scaled_level_dims(dims: [usize; 3], scale: usize) -> [usize; 3] {
-    [
-        level_extent(dims[0], scale),
-        level_extent(dims[1], scale),
-        level_extent(dims[2], scale),
-    ]
+    map_axes(dims, |extent| level_extent(extent, scale))
 }
 
 fn validate_level_source_buffers<T>(fixed: &[T], moving: &[T], dims: [usize; 3]) -> Result<()> {
@@ -909,35 +905,40 @@ fn ceil_div(value: usize, divisor: usize) -> usize {
 }
 
 fn ceil_div_axes(values: [usize; 3], divisor: usize) -> [usize; 3] {
-    [
-        ceil_div(values[0], divisor),
-        ceil_div(values[1], divisor),
-        ceil_div(values[2], divisor),
-    ]
+    map_axes(values, |value| ceil_div(value, divisor))
 }
 
 fn scale_coordinate(coordinate: [usize; 3], scale: usize) -> [usize; 3] {
-    [
-        coordinate[0] / scale,
-        coordinate[1] / scale,
-        coordinate[2] / scale,
-    ]
+    map_axes(coordinate, |value| value / scale)
 }
 
 fn scale_displacement(displacement: [f64; 3], scale: usize) -> [f64; 3] {
-    [
-        displacement[0] * scale as f64,
-        displacement[1] * scale as f64,
-        displacement[2] * scale as f64,
-    ]
+    map_axes(displacement, |value| value * scale as f64)
 }
 
 fn add_displacement(centre: [usize; 3], displacement: [f64; 3]) -> [usize; 3] {
-    [
-        (centre[0] as f64 + displacement[0]).round().max(0.0) as usize,
-        (centre[1] as f64 + displacement[1]).round().max(0.0) as usize,
-        (centre[2] as f64 + displacement[2]).round().max(0.0) as usize,
-    ]
+    zip_map_axes(centre, displacement, |centre, displacement| {
+        (centre as f64 + displacement).round().max(0.0) as usize
+    })
+}
+
+#[inline]
+fn map_axes<T, U, F, const N: usize>(values: [T; N], mut map: F) -> [U; N]
+where
+    T: Copy,
+    F: FnMut(T) -> U,
+{
+    std::array::from_fn(|index| map(values[index]))
+}
+
+#[inline]
+fn zip_map_axes<T, U, V, F, const N: usize>(left: [T; N], right: [U; N], mut map: F) -> [V; N]
+where
+    T: Copy,
+    U: Copy,
+    F: FnMut(T, U) -> V,
+{
+    std::array::from_fn(|index| map(left[index], right[index]))
 }
 
 #[cfg(test)]
