@@ -17,6 +17,12 @@ use sampling::{
     validate_plane_vectors, validate_volume, validate_volume_bounds, vector_norm, voxel_step,
 };
 
+mod orientation;
+mod pixel;
+
+pub use orientation::ResliceOrientation;
+pub use pixel::{PatientPlaneProjection, ResliceSample};
+
 /// Interpolation used when a plane lands between source voxels.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum ResliceInterpolation {
@@ -196,67 +202,6 @@ impl ReslicePlane {
         self.interpolation
     }
 
-    /// Map and sample a continuous output-pixel coordinate on this plane.
-    ///
-    /// The coordinate is `[column, row]`, where integer coordinates identify
-    /// output-pixel centres. The returned scalar is sampled at the first
-    /// through-plane position using this plane's interpolation policy.
-    ///
-    /// # Errors
-    ///
-    /// Returns [`ResliceError::InvalidPixelCoordinate`] for a non-finite
-    /// coordinate, [`ResliceError::PixelOutOfBounds`] when the coordinate is
-    /// outside the output plane, or the same source-shape and physical-
-    /// geometry errors as [`Self::compute`].
-    pub fn sample_pixel(
-        self,
-        volume: &LoadedVolume,
-        pixel: [f64; 2],
-    ) -> Result<ResliceSample, ResliceError> {
-        let transform = self.source_transform(volume)?;
-        if !pixel.into_iter().all(f64::is_finite) {
-            return Err(ResliceError::InvalidPixelCoordinate { coordinate: pixel });
-        }
-        let maximum = [
-            self.dimensions[0].saturating_sub(1) as f64,
-            self.dimensions[1].saturating_sub(1) as f64,
-        ];
-        if pixel
-            .into_iter()
-            .zip(maximum)
-            .any(|(coordinate, limit)| coordinate < 0.0 || coordinate > limit)
-        {
-            return Err(ResliceError::PixelOutOfBounds {
-                coordinate: pixel,
-                dimensions: self.dimensions,
-            });
-        }
-
-        let patient = add_scaled(
-            add_scaled(self.origin, self.horizontal_step, pixel[0]),
-            self.vertical_step,
-            pixel[1],
-        );
-        let voxel = transform.patient_to_voxel(patient);
-        let value = sample_volume(volume, voxel, self.interpolation)?;
-        let nearest_voxel = voxel.map(f64::round).map(|coordinate| {
-            #[expect(
-                clippy::cast_possible_truncation,
-                reason = "the sampled voxel coordinate is finite and inside the source extent"
-            )]
-            {
-                coordinate as usize
-            }
-        });
-        Ok(ResliceSample {
-            pixel,
-            patient,
-            voxel,
-            nearest_voxel,
-            value,
-        })
-    }
-
     /// Compute a scalar plane into a newly allocated output.
     pub fn compute(
         self,
@@ -341,48 +286,6 @@ impl ReslicePlane {
     }
 }
 
-/// A scalar sample and physical mapping for one continuous reslice pixel.
-#[derive(Debug, Clone, Copy, PartialEq)]
-pub struct ResliceSample {
-    pixel: [f64; 2],
-    patient: [f64; 3],
-    voxel: [f64; 3],
-    nearest_voxel: [usize; 3],
-    value: f32,
-}
-
-impl ResliceSample {
-    /// Return the continuous output coordinate in `[column, row]` order.
-    #[must_use]
-    pub const fn pixel(self) -> [f64; 2] {
-        self.pixel
-    }
-
-    /// Return the corresponding patient-space coordinate in millimetres.
-    #[must_use]
-    pub const fn patient(self) -> [f64; 3] {
-        self.patient
-    }
-
-    /// Return the corresponding continuous `[depth, row, column]` coordinate.
-    #[must_use]
-    pub const fn voxel(self) -> [f64; 3] {
-        self.voxel
-    }
-
-    /// Return the nearest in-bounds `[depth, row, column]` source voxel.
-    #[must_use]
-    pub const fn nearest_voxel(self) -> [usize; 3] {
-        self.nearest_voxel
-    }
-
-    /// Return the source scalar sampled with the plane's interpolation policy.
-    #[must_use]
-    pub const fn value(self) -> f32 {
-        self.value
-    }
-}
-
 /// Scalar output produced by [`ReslicePlane::compute`].
 #[derive(Debug, Clone, PartialEq)]
 pub struct ResliceOutput {
@@ -455,6 +358,21 @@ pub enum ResliceError {
     /// The through-plane step is zero for a multi-sample slab.
     #[error("a multi-sample slab requires a non-zero depth step")]
     InvalidDepthStep,
+    /// A yaw or pitch angle is non-finite or outside its documented range.
+    #[error("oblique orientation angles are invalid: yaw {yaw_degrees}, pitch {pitch_degrees}")]
+    InvalidOrientation {
+        yaw_degrees: f64,
+        pitch_degrees: f64,
+    },
+    /// The requested oblique plane center is outside the source volume.
+    #[error("oblique plane center {center_voxel:?} is outside the source volume")]
+    InvalidCenter { center_voxel: [f64; 3] },
+    /// The source geometry cannot represent a finite oblique field of view.
+    #[error("oblique plane field of view is not finite")]
+    InvalidFieldOfView,
+    /// A through-plane translation is non-finite.
+    #[error("oblique plane depth offset is not finite: {steps}")]
+    InvalidDepthOffset { steps: f64 },
     /// Output dimensions or depth are zero.
     #[error("reslice dimensions and depth sample count must be non-zero")]
     EmptyRequest,
