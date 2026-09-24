@@ -1,5 +1,16 @@
 # RITK execution backlog
 
+<a id="RITK-SNAP-OBLIQUE-NATIVE-001"></a>
+## RITK-SNAP-OBLIQUE-NATIVE-001: Native oblique MPR
+- Outcome: render and interact with a physical oblique plane in the Métis native viewer.
+- Acceptance: same RITK reslice drives pixels and pointer mapping; linked cursor and patient-space length are correct on rotated anisotropic data; invalid geometry is rejected; public MRI-DIR phantom capture and manual show the workflow.
+- Scope: `crates/ritk-snap/src/{app,presentation,render,tools/interaction,session}/`, `crates/ritk-snap/src/main.rs`, `crates/ritk-snap/README.md`, `docs/adr/`, `docs/manual/`, `backlog.md`.
+- status: todo
+- priority: architecture
+- needs: none
+- Risk: [major] [arch]; adds patient-space annotations and session format 3; no release is authorized.
+- Next: implement the native RITK vertical slice and verify it against the locked package and visual gates.
+
 <a id="RITK-BROWSER-READ-001"></a>
 ## RITK-BROWSER-READ-001 â€” Reproduce and close WebKit study reads
 - Status: blocked; compacted 2026-09-18; full delivery history remains in git.
