@@ -77,6 +77,76 @@ fn rotated_anisotropic_plane_preserves_voxel_coordinates() {
 }
 
 #[test]
+fn continuous_pixel_mapping_preserves_rotated_physical_geometry() {
+    let mut volume = scalar_volume([4, 5, 6]);
+    volume.spacing = [2.0, 3.0, 4.0];
+    volume.origin = [10.0, 20.0, 30.0];
+    volume.direction = [0.0, -1.0, 0.0, 1.0, 0.0, 0.0, 0.0, 0.0, 1.0];
+    volume.data = Arc::new(
+        (0..4)
+            .flat_map(|depth| {
+                (0..5).flat_map(move |row| {
+                    (0..6).map(move |column| (100 * depth + 10 * row + column) as f32)
+                })
+            })
+            .collect(),
+    );
+    let plane = ReslicePlane::try_new(
+        &volume,
+        [7.0, 21.0, 35.0],
+        [0.0, 0.5, 2.0],
+        [-1.5, 0.0, 1.0],
+        [0.0; 3],
+        [4, 3],
+        1,
+        ResliceInterpolation::Linear,
+    )
+    .expect("rotated anisotropic plane is valid");
+
+    let sample = plane
+        .sample_pixel(&volume, [1.5, 0.5])
+        .expect("interior output coordinate maps and samples");
+    assert_eq!(sample.pixel(), [1.5, 0.5]);
+    assert_eq!(sample.patient(), [6.25, 21.75, 38.5]);
+    assert_eq!(sample.voxel(), [0.875, 1.25, 2.125]);
+    assert_eq!(sample.nearest_voxel(), [1, 1, 2]);
+    assert_eq!(sample.value(), 102.125);
+}
+
+#[test]
+fn continuous_pixel_mapping_rejects_invalid_coordinates_and_changed_sources() {
+    let volume = scalar_volume([3, 4, 5]);
+    let plane = ReslicePlane::axis_aligned(&volume, 0, 1, ResliceInterpolation::Linear)
+        .expect("axis-aligned plane is valid");
+
+    assert!(matches!(
+        plane.sample_pixel(&volume, [f64::NAN, 0.0]),
+        Err(ResliceError::InvalidPixelCoordinate { .. })
+    ));
+    for coordinate in [[-f64::EPSILON, 0.0], [5.0, 0.0], [0.0, 4.0]] {
+        assert!(matches!(
+            plane.sample_pixel(&volume, coordinate),
+            Err(ResliceError::PixelOutOfBounds { .. })
+        ));
+    }
+
+    let mut changed_shape = volume.clone();
+    changed_shape.shape = [2, 4, 5];
+    changed_shape.data = Arc::new(changed_shape.data[..40].to_vec());
+    assert!(matches!(
+        plane.sample_pixel(&changed_shape, [0.0, 0.0]),
+        Err(ResliceError::ShapeChanged { .. })
+    ));
+
+    let mut changed_geometry = volume.clone();
+    changed_geometry.spacing[0] = 2.0;
+    assert!(matches!(
+        plane.sample_pixel(&changed_geometry, [0.0, 0.0]),
+        Err(ResliceError::GeometryChanged)
+    ));
+}
+
+#[test]
 fn trilinear_resampling_reproduces_a_linear_field() {
     let mut volume = scalar_volume([2, 2, 2]);
     volume.data = Arc::new(

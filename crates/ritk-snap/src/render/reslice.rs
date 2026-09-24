@@ -196,6 +196,67 @@ impl ReslicePlane {
         self.interpolation
     }
 
+    /// Map and sample a continuous output-pixel coordinate on this plane.
+    ///
+    /// The coordinate is `[column, row]`, where integer coordinates identify
+    /// output-pixel centres. The returned scalar is sampled at the first
+    /// through-plane position using this plane's interpolation policy.
+    ///
+    /// # Errors
+    ///
+    /// Returns [`ResliceError::InvalidPixelCoordinate`] for a non-finite
+    /// coordinate, [`ResliceError::PixelOutOfBounds`] when the coordinate is
+    /// outside the output plane, or the same source-shape and physical-
+    /// geometry errors as [`Self::compute`].
+    pub fn sample_pixel(
+        self,
+        volume: &LoadedVolume,
+        pixel: [f64; 2],
+    ) -> Result<ResliceSample, ResliceError> {
+        let transform = self.source_transform(volume)?;
+        if !pixel.into_iter().all(f64::is_finite) {
+            return Err(ResliceError::InvalidPixelCoordinate { coordinate: pixel });
+        }
+        let maximum = [
+            self.dimensions[0].saturating_sub(1) as f64,
+            self.dimensions[1].saturating_sub(1) as f64,
+        ];
+        if pixel
+            .into_iter()
+            .zip(maximum)
+            .any(|(coordinate, limit)| coordinate < 0.0 || coordinate > limit)
+        {
+            return Err(ResliceError::PixelOutOfBounds {
+                coordinate: pixel,
+                dimensions: self.dimensions,
+            });
+        }
+
+        let patient = add_scaled(
+            add_scaled(self.origin, self.horizontal_step, pixel[0]),
+            self.vertical_step,
+            pixel[1],
+        );
+        let voxel = transform.patient_to_voxel(patient);
+        let value = sample_volume(volume, voxel, self.interpolation)?;
+        let nearest_voxel = voxel.map(f64::round).map(|coordinate| {
+            #[expect(
+                clippy::cast_possible_truncation,
+                reason = "the sampled voxel coordinate is finite and inside the source extent"
+            )]
+            {
+                coordinate as usize
+            }
+        });
+        Ok(ResliceSample {
+            pixel,
+            patient,
+            voxel,
+            nearest_voxel,
+            value,
+        })
+    }
+
     /// Compute a scalar plane into a newly allocated output.
     pub fn compute(
         self,
@@ -219,16 +280,7 @@ impl ReslicePlane {
         statistic: ProjectionStatistic,
         pixels: &mut Vec<f32>,
     ) -> Result<[usize; 2], ResliceError> {
-        let transform = validate_volume(volume)?;
-        if volume.shape != self.shape {
-            return Err(ResliceError::ShapeChanged {
-                expected: self.shape,
-                actual: volume.shape,
-            });
-        }
-        if transform != self.transform {
-            return Err(ResliceError::GeometryChanged);
-        }
+        let transform = self.source_transform(volume)?;
         let [width, height] = self.dimensions;
         let output_len = width
             .checked_mul(height)
@@ -272,6 +324,62 @@ impl ReslicePlane {
             }
         }
         Ok(self.dimensions)
+    }
+
+    fn source_transform(self, volume: &LoadedVolume) -> Result<AffineTransform, ResliceError> {
+        let transform = validate_volume(volume)?;
+        if volume.shape != self.shape {
+            return Err(ResliceError::ShapeChanged {
+                expected: self.shape,
+                actual: volume.shape,
+            });
+        }
+        if transform != self.transform {
+            return Err(ResliceError::GeometryChanged);
+        }
+        Ok(transform)
+    }
+}
+
+/// A scalar sample and physical mapping for one continuous reslice pixel.
+#[derive(Debug, Clone, Copy, PartialEq)]
+pub struct ResliceSample {
+    pixel: [f64; 2],
+    patient: [f64; 3],
+    voxel: [f64; 3],
+    nearest_voxel: [usize; 3],
+    value: f32,
+}
+
+impl ResliceSample {
+    /// Return the continuous output coordinate in `[column, row]` order.
+    #[must_use]
+    pub const fn pixel(self) -> [f64; 2] {
+        self.pixel
+    }
+
+    /// Return the corresponding patient-space coordinate in millimetres.
+    #[must_use]
+    pub const fn patient(self) -> [f64; 3] {
+        self.patient
+    }
+
+    /// Return the corresponding continuous `[depth, row, column]` coordinate.
+    #[must_use]
+    pub const fn voxel(self) -> [f64; 3] {
+        self.voxel
+    }
+
+    /// Return the nearest in-bounds `[depth, row, column]` source voxel.
+    #[must_use]
+    pub const fn nearest_voxel(self) -> [usize; 3] {
+        self.nearest_voxel
+    }
+
+    /// Return the source scalar sampled with the plane's interpolation policy.
+    #[must_use]
+    pub const fn value(self) -> f32 {
+        self.value
     }
 }
 
@@ -356,6 +464,15 @@ pub enum ResliceError {
     /// A plane corner lies outside the source volume.
     #[error("reslice plane lies outside the source volume at voxel coordinate {coordinate:?}")]
     OutOfVolume { coordinate: [f64; 3] },
+    /// A requested output-pixel coordinate is non-finite.
+    #[error("reslice pixel coordinate {coordinate:?} must be finite")]
+    InvalidPixelCoordinate { coordinate: [f64; 2] },
+    /// A requested continuous pixel lies outside the output plane.
+    #[error("reslice pixel coordinate {coordinate:?} is outside output dimensions {dimensions:?}")]
+    PixelOutOfBounds {
+        coordinate: [f64; 2],
+        dimensions: [usize; 2],
+    },
     /// The source shape changed after request validation.
     #[error("reslice volume shape changed from {expected:?} to {actual:?}")]
     ShapeChanged {
