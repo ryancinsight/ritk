@@ -6,32 +6,10 @@
 - acceptance: all child items land; invalid geometry is rejected; the public phantom capture and manual show the real workflow; native visual and value-semantic gates pass.
 - status: todo
 - priority: architecture
-- needs: RITK-SNAP-OBLIQUE-ADR-001, RITK-SNAP-PATIENT-POINT-001, RITK-SNAP-OBLIQUE-PIXEL-MAPPING-001, RITK-SNAP-RESLICE-PIXEL-MODULE-001, RITK-SNAP-RESLICE-ORIENTATION-001, RITK-SNAP-RESLICE-ORIENTATION-TESTS-001, RITK-SNAP-PATIENT-LENGTH-001, RITK-SNAP-INTERACTION-REGIONS-001, RITK-SNAP-INTERACTION-MEASUREMENTS-001, RITK-SNAP-INTERACTION-STATE-001, RITK-SNAP-INTERACTION-WINDOW-LEVEL-001, RITK-SNAP-NATIVE-OVERLAY-001, RITK-SNAP-NATIVE-MPR-COMPOSITION-001, RITK-SNAP-OBLIQUE-VIEWPORT-001, RITK-SNAP-OBLIQUE-APP-ADAPTER-001, RITK-SNAP-OBLIQUE-APP-TESTS-001, RITK-SNAP-OBLIQUE-SESSION-MODULES-001, RITK-SNAP-OBLIQUE-SESSION-WIRING-001, RITK-SNAP-OBLIQUE-ROUTING-001, RITK-SNAP-PATIENT-MEASUREMENT-OVERLAY-001, RITK-SNAP-OBLIQUE-SESSION-TESTS-001, RITK-SNAP-OBLIQUE-INTERACTION-TESTS-001, RITK-SNAP-OBLIQUE-MANUAL-001
+- needs: RITK-SNAP-OBLIQUE-PIXEL-MAPPING-001, RITK-SNAP-RESLICE-PIXEL-MODULE-001, RITK-SNAP-RESLICE-ORIENTATION-001, RITK-SNAP-RESLICE-ORIENTATION-TESTS-001, RITK-SNAP-PATIENT-LENGTH-001, RITK-SNAP-INTERACTION-REGIONS-001, RITK-SNAP-INTERACTION-MEASUREMENTS-001, RITK-SNAP-INTERACTION-STATE-001, RITK-SNAP-INTERACTION-WINDOW-LEVEL-001, RITK-SNAP-NATIVE-OVERLAY-001, RITK-SNAP-NATIVE-MPR-COMPOSITION-001, RITK-SNAP-OBLIQUE-VIEWPORT-001, RITK-SNAP-OBLIQUE-APP-ADAPTER-001, RITK-SNAP-OBLIQUE-APP-TESTS-001, RITK-SNAP-OBLIQUE-SESSION-MODULES-001, RITK-SNAP-OBLIQUE-SESSION-WIRING-001, RITK-SNAP-OBLIQUE-ROUTING-001, RITK-SNAP-PATIENT-MEASUREMENT-OVERLAY-001, RITK-SNAP-OBLIQUE-SESSION-TESTS-001, RITK-SNAP-OBLIQUE-INTERACTION-TESTS-001, RITK-SNAP-OBLIQUE-MANUAL-001
 - scope: `crates/ritk-snap/src/{app,presentation,render,tools/interaction,session}/`, `crates/ritk-snap/src/main.rs`, crate README, ADRs, manual, and provenance.
 - next: deliver ready child items in dependency order; preserve the public MRI-DIR phantom as the shareable visual fixture.
 - risk: [major] [arch]; patient-space annotations and session format 3; no registry release is authorized.
-- basis: 3fcdc3dd
-
-<a id="RITK-SNAP-OBLIQUE-ADR-001"></a>
-## RITK-SNAP-OBLIQUE-ADR-001: Record native MPR ownership
-- outcome: record the accepted RITK geometry, Métis presentation, and migration boundaries.
-- acceptance: ADR 0052 and its index link describe the implemented seams, alternatives, public API migration, and phantom-based visual oracle.
-- status: todo
-- priority: architecture
-- needs: none
-- scope: `docs/adr/0052-native-oblique-mpr.md`, `docs/adr/README.md`
-- next: publish ADR 0052 with the first geometry slice.
-- basis: 3fcdc3dd
-
-<a id="RITK-SNAP-PATIENT-POINT-001"></a>
-## RITK-SNAP-PATIENT-POINT-001: Validate patient coordinates
-- outcome: represent finite patient-space points as a validated domain value.
-- acceptance: construction rejects non-finite values and preserves exact valid coordinates; boundary tests cover all components.
-- status: todo
-- priority: correctness
-- needs: RITK-SNAP-OBLIQUE-ADR-001
-- scope: `crates/ritk-snap/src/geometry.rs`, `crates/ritk-snap/src/geometry/patient_point.rs`
-- next: land the validated point type before consumers store measurements.
 - basis: 3fcdc3dd
 
 <a id="RITK-SNAP-OBLIQUE-PIXEL-MAPPING-001"></a>
@@ -40,7 +18,7 @@
 - acceptance: forward and inverse mappings agree on rotated anisotropic data; invalid and out-of-bounds coordinates reject with typed errors.
 - status: todo
 - priority: correctness
-- needs: RITK-SNAP-PATIENT-POINT-001
+- needs: none
 - scope: `crates/ritk-snap/src/render/reslice.rs`, `crates/ritk-snap/src/render/tests_reslice.rs`
 - next: establish the pixel-to-patient contract before adding plane controls.
 - basis: 3fcdc3dd
@@ -84,7 +62,7 @@
 - acceptance: format 3 writes patient endpoints; formats 1 and 2 still load; a 3–4–5 segment reports 5 mm through snapshots and UI.
 - status: todo
 - priority: correctness
-- needs: RITK-SNAP-PATIENT-POINT-001, RITK-SNAP-RESLICE-ORIENTATION-001
+- needs: RITK-SNAP-RESLICE-ORIENTATION-001
 - scope: `crates/ritk-snap/src/{session,tools/interaction,ui}/` and snapshot tests
 - next: complete the persisted-format migration and public enum documentation.
 - risk: [major] public exhaustive annotation matches require migration.
