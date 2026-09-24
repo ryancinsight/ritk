@@ -6,6 +6,7 @@
 - Driver: Jacobi was 99.3% of each window (6.2 ms of 6.3 ms at 60×60 f32), so a 64×64×40×60 series took 58.7 s in parallel.
 - Acceptance: existing MP-PCA tests unchanged and green; `jacobi_reference` differential within the derived backward-error bound; `benches/mppca.rs`.
 - Re-open trigger for the lock: the leto PR landing on main, when `Cargo.lock` moves from the branch commit to the merge.
+- Follow-ups (todo, not in this PR): eigenvalues-only QL plus inverse iteration for the top P̂ vectors (the solver is still 136 of 181 µs per window); a Casorati SVD path (error `ε·σ₁σᵢ` instead of `ε·σ₁²`) to cut the 1.1% f32 rank flips against f64, which needs an ADR.
 
 <a id="RITK-BROWSER-READ-001"></a>
 ## RITK-BROWSER-READ-001 â€” Reproduce and close WebKit study reads
