@@ -11,10 +11,12 @@ use thiserror::Error;
 use crate::geometry::affine::{AffineError, AffineTransform};
 use crate::LoadedVolume;
 
-use super::slab::{ProjectionStatistic, SlabProjection};
+#[cfg(test)]
+use super::slab::ProjectionStatistic;
+use super::slab::SlabProjection;
 use sampling::{
-    add_scaled, axis_index, patient_step_to_voxel, sample_volume, validate_dimensions,
-    validate_plane_vectors, validate_volume, validate_volume_bounds, vector_norm, voxel_step,
+    axis_index, patient_step_to_voxel, validate_dimensions, validate_plane_vectors,
+    validate_volume, validate_volume_bounds, vector_norm, voxel_step,
 };
 
 /// Interpolation used when a plane lands between source voxels.
@@ -195,119 +197,6 @@ impl ReslicePlane {
     pub const fn interpolation(self) -> ResliceInterpolation {
         self.interpolation
     }
-
-    /// Compute a scalar plane into a newly allocated output.
-    pub fn compute(
-        self,
-        volume: &LoadedVolume,
-        statistic: ProjectionStatistic,
-    ) -> Result<ResliceOutput, ResliceError> {
-        let mut pixels = Vec::new();
-        self.compute_into(volume, statistic, &mut pixels)?;
-        Ok(ResliceOutput {
-            dimensions: self.dimensions,
-            depth_samples: self.depth_samples,
-            statistic,
-            pixels: pixels.into_boxed_slice(),
-        })
-    }
-
-    /// Compute a scalar plane into caller-owned storage.
-    pub fn compute_into(
-        self,
-        volume: &LoadedVolume,
-        statistic: ProjectionStatistic,
-        pixels: &mut Vec<f32>,
-    ) -> Result<[usize; 2], ResliceError> {
-        let transform = validate_volume(volume)?;
-        if volume.shape != self.shape {
-            return Err(ResliceError::ShapeChanged {
-                expected: self.shape,
-                actual: volume.shape,
-            });
-        }
-        if transform != self.transform {
-            return Err(ResliceError::GeometryChanged);
-        }
-        let [width, height] = self.dimensions;
-        let output_len = width
-            .checked_mul(height)
-            .ok_or(ResliceError::OutputTooLarge {
-                dimensions: self.dimensions,
-            })?;
-        pixels.resize(output_len, 0.0);
-        let origin_voxel = transform.patient_to_voxel(self.origin);
-        let horizontal_voxel = patient_step_to_voxel(&transform, self.origin, self.horizontal_step);
-        let vertical_voxel = patient_step_to_voxel(&transform, self.origin, self.vertical_step);
-        let depth_voxel = patient_step_to_voxel(&transform, self.origin, self.depth_step);
-        let mut output_position = 0;
-        for row in 0..height {
-            let row_origin = add_scaled(origin_voxel, vertical_voxel, row as f64);
-            for column in 0..width {
-                let pixel_origin = add_scaled(row_origin, horizontal_voxel, column as f64);
-                let mut value = match statistic {
-                    ProjectionStatistic::Maximum => f32::NEG_INFINITY,
-                    ProjectionStatistic::Minimum => f32::INFINITY,
-                    ProjectionStatistic::Average => 0.0,
-                };
-                for sample in 0..self.depth_samples {
-                    let coordinate = add_scaled(pixel_origin, depth_voxel, sample as f64);
-                    let source = sample_volume(volume, coordinate, self.interpolation)?;
-                    value = match statistic {
-                        ProjectionStatistic::Maximum => value.max(source),
-                        ProjectionStatistic::Minimum => value.min(source),
-                        ProjectionStatistic::Average => value + source,
-                    };
-                }
-                if statistic == ProjectionStatistic::Average {
-                    #[expect(
-                        clippy::cast_precision_loss,
-                        reason = "validated slab depth is finite and the viewer preserves the existing f32 presentation contract"
-                    )]
-                    let count = self.depth_samples as f32;
-                    value /= count;
-                }
-                pixels[output_position] = value;
-                output_position += 1;
-            }
-        }
-        Ok(self.dimensions)
-    }
-}
-
-/// Scalar output produced by [`ReslicePlane::compute`].
-#[derive(Debug, Clone, PartialEq)]
-pub struct ResliceOutput {
-    dimensions: [usize; 2],
-    depth_samples: usize,
-    statistic: ProjectionStatistic,
-    pixels: Box<[f32]>,
-}
-
-impl ResliceOutput {
-    /// Return output dimensions in `[width, height]` order.
-    #[must_use]
-    pub const fn dimensions(&self) -> [usize; 2] {
-        self.dimensions
-    }
-
-    /// Return the number of source samples reduced for every output pixel.
-    #[must_use]
-    pub const fn depth_samples(&self) -> usize {
-        self.depth_samples
-    }
-
-    /// Return the reduction applied to each output pixel.
-    #[must_use]
-    pub const fn statistic(&self) -> ProjectionStatistic {
-        self.statistic
-    }
-
-    /// Borrow row-major scalar pixels.
-    #[must_use]
-    pub fn pixels(&self) -> &[f32] {
-        &self.pixels
-    }
 }
 
 /// Failure while validating or evaluating a physical-plane request.
@@ -376,7 +265,7 @@ pub enum ResliceError {
 mod pixel;
 mod sampling;
 
-pub use pixel::{PatientPlaneProjection, PixelMappingError};
+pub use pixel::{PatientPlaneProjection, PixelMappingError, ResliceOutput};
 
 #[cfg(test)]
 #[path = "tests_reslice.rs"]

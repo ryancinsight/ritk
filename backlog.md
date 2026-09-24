@@ -24,16 +24,6 @@
 - risk: [major] [arch]; patient-space annotations and session format 3; no registry release is authorized.
 - basis: 3fcdc3dd
 
-<a id="RITK-SNAP-RESLICE-PIXEL-MODULE-001"></a>
-## RITK-SNAP-RESLICE-PIXEL-MODULE-001: Extract pixel projection operations
-- outcome: place reslice pixel sampling and projection operations in their canonical module.
-- acceptance: the module extraction preserves every pixel value and rejection case; the shared pixel mapping remains the single implementation.
-- status: todo
-- priority: tightening
-- scope: `crates/ritk-snap/src/render/reslice.rs`, `crates/ritk-snap/src/render/reslice/pixel.rs`
-- next: move the pixel operation family without changing its contract.
-- basis: 3fcdc3dd
-
 <a id="RITK-SNAP-RESLICE-ORIENTATION-001"></a>
 ## RITK-SNAP-RESLICE-ORIENTATION-001: Build physical oblique planes
 - outcome: construct bounded reslice planes from volume geometry and an in-plane orientation.
