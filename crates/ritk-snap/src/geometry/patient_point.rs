@@ -131,6 +131,45 @@ mod tests {
     }
 
     #[test]
+    fn point_try_from_rejects_non_finite_values_on_every_axis() {
+        for axis in 0..3 {
+            for invalid in [f64::NAN, f64::INFINITY, f64::NEG_INFINITY] {
+                let coordinates: [f64; 3] =
+                    std::array::from_fn(|component| if component == axis { invalid } else { 0.0 });
+                let Err(PatientPointError::NonFiniteCoordinate {
+                    axis: rejected_axis,
+                    value,
+                }) = PatientPointMm::try_from(coordinates)
+                else {
+                    panic!("TryFrom must reject non-finite coordinates");
+                };
+                assert_eq!(rejected_axis, axis);
+                assert_eq!(value.to_bits(), invalid.to_bits());
+            }
+        }
+    }
+
+    #[test]
+    fn point_deserialization_rejects_non_finite_values_on_every_axis() {
+        for axis in 0..3 {
+            for invalid in [f64::NAN, f64::INFINITY, f64::NEG_INFINITY] {
+                let coordinates: [f64; 3] =
+                    std::array::from_fn(|component| if component == axis { invalid } else { 0.0 });
+                let deserializer =
+                    serde::de::value::SeqDeserializer::<_, serde::de::value::Error>::new(
+                        coordinates.into_iter(),
+                    );
+                let Err(error) = <PatientPointMm as serde::Deserialize>::deserialize(deserializer)
+                else {
+                    panic!("deserialization must reject non-finite coordinates");
+                };
+                let expected = format!("patient coordinate {axis} is not finite: {invalid}");
+                assert!(error.to_string().contains(&expected));
+            }
+        }
+    }
+
+    #[test]
     fn point_deserialization_rejects_invalid_array_shape() {
         let error = serde_json::from_str::<PatientPointMm>("[0.0,1.0]")
             .expect_err("patient point requires exactly three coordinates");
