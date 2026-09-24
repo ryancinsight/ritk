@@ -376,7 +376,7 @@ pub enum ResliceError {
 mod pixel;
 mod sampling;
 
-pub use pixel::PixelMappingError;
+pub use pixel::{PatientPlaneProjection, PixelMappingError};
 
 #[cfg(test)]
 #[path = "tests_reslice.rs"]

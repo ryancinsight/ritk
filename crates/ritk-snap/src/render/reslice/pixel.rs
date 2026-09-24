@@ -6,6 +6,10 @@ use thiserror::Error;
 use super::sampling::add_scaled;
 use super::ReslicePlane;
 
+mod interval;
+mod projection;
+pub use projection::PatientPlaneProjection;
+
 /// An error mapping a continuous output pixel to patient millimetres.
 #[non_exhaustive]
 #[derive(Debug, Error)]
@@ -30,6 +34,18 @@ pub enum PixelMappingError {
         /// The error produced by patient-point validation.
         #[source]
         source: PatientPointError,
+    },
+    /// Finite patient coordinates overflow during plane projection.
+    #[error("patient point {coordinate:?} overflows during plane projection")]
+    ProjectionOverflow {
+        /// The finite patient-space point that could not be projected.
+        coordinate: [f64; 3],
+    },
+    /// The pixel enclosure extends at least half a pixel from its nominal value.
+    #[error("patient point {coordinate:?} has a pixel projection unresolved within half a pixel")]
+    ProjectionUnresolved {
+        /// The finite patient-space point whose projection could not be resolved.
+        coordinate: [f64; 3],
     },
 }
 
