@@ -3,10 +3,10 @@
 <a id="RITK-MPPCA-EIGEN-QL-2026-09-23"></a>
 ## RITK-MPPCA-EIGEN-QL-2026-09-23 — Replace the MP-PCA Jacobi eigensolver [patch]
 - Status: review; depends on [leto LETO-SYMMETRIC-EIGEN-QR-2026-09-23](../leto/backlog.md#LETO-SYMMETRIC-EIGEN-QR-2026-09-23).
-- Driver: Jacobi was 99.3% of each window (6.2 ms of 6.3 ms at 60×60 f32), so a 64×64×40×60 series took 58.7 s in parallel.
+- Driver: Jacobi was 99.3% of each window (6.2 ms of 6.3 ms at 60×60 f32): it converges in a few thousand rotations, each scanning all `m²/2` off-diagonal entries for its pivot, so a 64×64×40×60 series took 58.7 s in parallel.
 - Acceptance: existing MP-PCA tests unchanged and green; `jacobi_reference` differential within the derived backward-error bound; `benches/mppca.rs`.
 - Re-open trigger for the lock: the leto PR landing on main, when `Cargo.lock` moves from the branch commit to the merge.
-- Follow-ups (todo, not in this PR): eigenvalues-only QL plus inverse iteration for the top P̂ vectors (the solver is still 136 of 181 µs per window); a Casorati SVD path (error `ε·σ₁σᵢ` instead of `ε·σ₁²`) to cut the 1.1% f32 rank flips against f64, which needs an ADR.
+- Follow-ups (todo, not in this PR): eigenvalues-only QL plus inverse iteration for the top P̂ vectors (the solver is still 130 of 175 µs per window); a Casorati SVD path (error `ε·σ₁σᵢ` instead of `ε·σ₁²`) to cut the 1.3% f32 rank flips against f64 (Jacobi: 0.6%), which needs an ADR.
 
 <a id="RITK-BROWSER-READ-001"></a>
 ## RITK-BROWSER-READ-001 â€” Reproduce and close WebKit study reads
