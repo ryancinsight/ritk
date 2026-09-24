@@ -1,5 +1,12 @@
 # RITK execution backlog
 
+<a id="RITK-MPPCA-EIGEN-QL-2026-09-23"></a>
+## RITK-MPPCA-EIGEN-QL-2026-09-23 — Replace the MP-PCA Jacobi eigensolver [patch]
+- Status: review; depends on [leto LETO-SYMMETRIC-EIGEN-QR-2026-09-23](../leto/backlog.md#LETO-SYMMETRIC-EIGEN-QR-2026-09-23).
+- Driver: Jacobi was 99.3% of each window (6.2 ms of 6.3 ms at 60×60 f32), so a 64×64×40×60 series took 58.7 s in parallel.
+- Acceptance: existing MP-PCA tests unchanged and green; `jacobi_reference` differential within the derived backward-error bound; `benches/mppca.rs`.
+- Re-open trigger for the lock: the leto PR landing on main, when `Cargo.lock` moves from the branch commit to the merge.
+
 <a id="RITK-BROWSER-READ-001"></a>
 ## RITK-BROWSER-READ-001 â€” Reproduce and close WebKit study reads
 - Status: blocked; compacted 2026-09-18; full delivery history remains in git.

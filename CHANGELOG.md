@@ -94,6 +94,15 @@
 
 ### Changed
 
+- [patch] `ritk_filter::mppca::MpPcaDenoiser` decomposes each window's Gram
+  matrix with leto's tridiagonal-QL eigensolver (`SymmetricEigenWorkspace`,
+  one per worker) instead of classical Jacobi: a 64×64×40 series of 60
+  volumes denoises in 1.85 s instead of 58.7 s in parallel, and in 27.2 s
+  instead of 1033 s on one core. f64 output agrees with the Jacobi path to
+  3.1e-11 with identical signal ranks; at f32 the rank differs in 1.0% of
+  windows, within the f32 backward-error bound (see the PR for the
+  comparison against an f64 reference).
+
 - [patch] Remove the unused eager `ColorVolume::data_vec()` from
   `ritk-image`. The colour family now exposes exactly the two-behaviour
   contract of [ADR 0051](docs/adr/0051-two-image-data-accessors.md):

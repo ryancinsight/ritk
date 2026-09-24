@@ -2,7 +2,7 @@
 //!
 //! The synthetic series is rank `P` plus i.i.d. Gaussian noise of known `σ`.
 //! Tolerances derive from the estimator's sampling distribution for the window
-//! geometry and from the eigensolver's convergence tolerance, stated at each
+//! geometry and from the eigensolver's residue floor, stated at each
 //! assertion.
 
 use super::threshold::{marchenko_pastur_boundary, NoiseBoundary};
@@ -22,7 +22,11 @@ const RANK: usize = 3;
 /// Spatial loading amplitude: each signal eigenvalue ≈ `A²·D ≈ 1.3e4 σ²`,
 /// far beyond the bulk edge `λ₊ = σ²(1 + √(32/64))² ≈ 2.9 σ²`.
 const AMPLITUDE: f64 = 20.0;
-/// Convergence tolerance of `leto_ops::symmetric_eigen_jacobi` (`10⁻¹²` in `T`).
+/// Absolute off-diagonal residue floor `τ` in the passthrough bounds below:
+/// the `10⁻¹²` tolerance of the Jacobi solver they were derived for. The
+/// tridiagonal-QL solver deflates at `ε·‖T‖` with no floor; its backward
+/// error `p(m)·ε·‖G‖` is of the `m·ε` order these bounds carry in practice,
+/// while its worst case `p(m) = m²` is asserted by `jacobi_reference`.
 const JACOBI_TOLERANCE: f64 = 1e-12;
 /// Bound on the signal condition `λ₁/λ_P`: the three loadings are i.i.d.
 /// standard normal over 64 voxels, so each eigenvalue is `A²·D·χ²₆₄/64`;
@@ -255,7 +259,7 @@ fn denoising_reduces_rmse_below_the_projection_bound() {
 
 /// Relative reconstruction error bound for a noise-free window.
 ///
-/// The Jacobi solver stops at off-diagonal residue `max(τ, m·ε)·λ₁`, which
+/// The eigensolver stops at off-diagonal residue `max(τ, m·ε)·λ₁`, which
 /// tilts the signal subspace by at most that over the gap `λ_P` (Davis–Kahan),
 /// i.e. by `max(τ, m·ε)·κ` with `κ ≤ CONDITION_BOUND`; the projection
 /// `Y·U·Uᵀ` doubles it, and the Gram and projection sums add `m·ε` each.
@@ -452,3 +456,5 @@ fn parallel_sweep_matches_sequential() {
     check_parallel_sweep_matches_sequential::<f32>();
     check_parallel_sweep_matches_sequential::<f64>();
 }
+
+mod jacobi_reference;

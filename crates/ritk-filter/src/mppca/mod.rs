@@ -49,10 +49,14 @@
 //!
 //! # Precision
 //!
-//! Every Gram accumulation, eigendecomposition
-//! ([`leto_ops::symmetric_eigen_jacobi`]), and reconstruction runs in the
+//! Every Gram accumulation, eigendecomposition, and reconstruction runs in the
 //! series' scalar type `T`; a caller wanting double-precision work on
-//! single-precision data instantiates at `f64`.
+//! single-precision data instantiates at `f64`. The eigendecomposition is
+//! Householder tridiagonalization plus implicit-shift QL
+//! ([`leto_ops::SymmetricEigenWorkspace`], reused per worker), whose computed
+//! spectrum is exact for a Gram perturbation `‖E‖₂ ≤ p(m)·ε·‖G‖₂`: each
+//! eigenvalue moves by at most `‖E‖₂` (Weyl) and the signal subspace by at
+//! most `‖E‖₂` over the gap `λ_P̂ − λ_{P̂+1}` (Davis–Kahan).
 
 mod denoise;
 mod error;
