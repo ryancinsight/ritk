@@ -1,5 +1,6 @@
 use super::{
-    ProjectionStatistic, ResliceError, ResliceInterpolation, ReslicePlane, SlabProjection,
+    ProjectionStatistic, ResliceError, ResliceInterpolation, ResliceOrientation, ReslicePlane,
+    SlabProjection,
 };
 use crate::LoadedVolume;
 use std::sync::Arc;
@@ -74,6 +75,177 @@ fn rotated_anisotropic_plane_preserves_voxel_coordinates() {
         .compute(&volume, ProjectionStatistic::Maximum)
         .expect("rotated plane computes");
     assert_eq!(output.pixels(), &[100.0, 101.0, 110.0, 111.0]);
+}
+
+#[test]
+fn continuous_pixel_mapping_preserves_rotated_physical_geometry() {
+    let mut volume = scalar_volume([4, 5, 6]);
+    volume.spacing = [2.0, 3.0, 4.0];
+    volume.origin = [10.0, 20.0, 30.0];
+    volume.direction = [0.0, -1.0, 0.0, 1.0, 0.0, 0.0, 0.0, 0.0, 1.0];
+    volume.data = Arc::new(
+        (0..4)
+            .flat_map(|depth| {
+                (0..5).flat_map(move |row| {
+                    (0..6).map(move |column| (100 * depth + 10 * row + column) as f32)
+                })
+            })
+            .collect(),
+    );
+    let plane = ReslicePlane::try_new(
+        &volume,
+        [7.0, 21.0, 35.0],
+        [0.0, 0.5, 2.0],
+        [-1.5, 0.0, 1.0],
+        [0.0; 3],
+        [4, 3],
+        1,
+        ResliceInterpolation::Linear,
+    )
+    .expect("rotated anisotropic plane is valid");
+
+    let sample = plane
+        .sample_pixel(&volume, [1.5, 0.5])
+        .expect("interior output coordinate maps and samples");
+    assert_eq!(sample.pixel(), [1.5, 0.5]);
+    assert_eq!(sample.patient(), [6.25, 21.75, 38.5]);
+    assert_eq!(sample.voxel(), [0.875, 1.25, 2.125]);
+    assert_eq!(sample.nearest_voxel(), [1, 1, 2]);
+    assert_eq!(sample.value(), 102.125);
+}
+
+#[test]
+fn continuous_pixel_mapping_rejects_invalid_coordinates_and_changed_sources() {
+    let volume = scalar_volume([3, 4, 5]);
+    let plane = ReslicePlane::axis_aligned(&volume, 0, 1, ResliceInterpolation::Linear)
+        .expect("axis-aligned plane is valid");
+
+    assert!(matches!(
+        plane.sample_pixel(&volume, [f64::NAN, 0.0]),
+        Err(ResliceError::InvalidPixelCoordinate { .. })
+    ));
+    for coordinate in [[-f64::EPSILON, 0.0], [5.0, 0.0], [0.0, 4.0]] {
+        assert!(matches!(
+            plane.sample_pixel(&volume, coordinate),
+            Err(ResliceError::PixelOutOfBounds { .. })
+        ));
+    }
+
+    let mut changed_shape = volume.clone();
+    changed_shape.shape = [2, 4, 5];
+    changed_shape.data = Arc::new(changed_shape.data[..40].to_vec());
+    assert!(matches!(
+        plane.sample_pixel(&changed_shape, [0.0, 0.0]),
+        Err(ResliceError::ShapeChanged { .. })
+    ));
+
+    let mut changed_geometry = volume.clone();
+    changed_geometry.spacing[0] = 2.0;
+    assert!(matches!(
+        plane.sample_pixel(&changed_geometry, [0.0, 0.0]),
+        Err(ResliceError::GeometryChanged)
+    ));
+}
+
+#[test]
+fn centered_oblique_plane_preserves_aspect_and_samples_linear_field() {
+    let mut volume = scalar_volume([7, 9, 11]);
+    volume.spacing = [4.0, 2.0, 1.0];
+    volume.origin = [13.0, -7.0, 21.0];
+    volume.direction = [0.0, -1.0, 0.0, 1.0, 0.0, 0.0, 0.0, 0.0, 1.0];
+    volume.data = Arc::new(
+        (0..7)
+            .flat_map(|depth| {
+                (0..9).flat_map(move |row| {
+                    (0..11).map(move |column| (2 * depth + 3 * row + 5 * column) as f32)
+                })
+            })
+            .collect(),
+    );
+    let orientation =
+        ResliceOrientation::try_new(23.0, -17.0).expect("bounded orientation is valid");
+    let plane = ReslicePlane::centered_oblique(
+        &volume,
+        [3.0, 4.0, 5.0],
+        orientation,
+        ResliceInterpolation::Linear,
+    )
+    .expect("centered oblique plane fits the volume");
+
+    let horizontal_spacing = plane
+        .horizontal_step()
+        .map(|value| value * value)
+        .into_iter()
+        .sum::<f64>()
+        .sqrt();
+    let vertical_spacing = plane
+        .vertical_step()
+        .map(|value| value * value)
+        .into_iter()
+        .sum::<f64>()
+        .sqrt();
+    let physical_width = (plane.dimensions()[0] - 1) as f64 * horizontal_spacing;
+    let physical_height = (plane.dimensions()[1] - 1) as f64 * vertical_spacing;
+    let spacing_aspect = horizontal_spacing / vertical_spacing;
+    assert!((spacing_aspect - 0.5).abs() <= 64.0 * f64::EPSILON);
+    assert!(physical_width > 0.0);
+    assert!(physical_height > 0.0);
+
+    let pixels = plane
+        .compute(&volume, ProjectionStatistic::Maximum)
+        .expect("oblique plane computes");
+    let [width, height] = pixels.dimensions();
+    for row in [0, height / 2, height - 1] {
+        for column in [0, width / 2, width - 1] {
+            #[expect(
+                clippy::cast_precision_loss,
+                reason = "test coordinates are bounded by the committed small fixture"
+            )]
+            let pixel = [column as f64, row as f64];
+            let sample = plane
+                .sample_pixel(&volume, pixel)
+                .expect("rendered pixel maps to a source sample");
+            let expected = (2.0 * sample.voxel()[0]
+                + 3.0 * sample.voxel()[1]
+                + 5.0 * sample.voxel()[2]) as f32;
+            assert!((sample.value() - expected).abs() <= 64.0 * f32::EPSILON);
+            assert_eq!(pixels.pixels()[row * width + column], sample.value());
+        }
+    }
+}
+
+#[test]
+fn centered_oblique_plane_rejects_bad_center_orientation_and_depth_shift() {
+    let volume = scalar_volume([5, 7, 9]);
+    let orientation = ResliceOrientation::default();
+    assert!(matches!(
+        ResliceOrientation::try_new(f64::NAN, 0.0),
+        Err(ResliceError::InvalidOrientation { .. })
+    ));
+    assert!(matches!(
+        ReslicePlane::centered_oblique(
+            &volume,
+            [2.0, 3.0, 9.0],
+            orientation,
+            ResliceInterpolation::Linear,
+        ),
+        Err(ResliceError::InvalidCenter { .. })
+    ));
+    let plane = ReslicePlane::centered_oblique(
+        &volume,
+        [2.0, 3.0, 4.0],
+        orientation,
+        ResliceInterpolation::Linear,
+    )
+    .expect("centered plane is valid");
+    assert!(matches!(
+        plane.shifted_along_depth(&volume, f64::NAN),
+        Err(ResliceError::InvalidDepthOffset { .. })
+    ));
+    assert!(matches!(
+        plane.shifted_along_depth(&volume, 20.0),
+        Err(ResliceError::OutOfVolume { .. })
+    ));
 }
 
 #[test]

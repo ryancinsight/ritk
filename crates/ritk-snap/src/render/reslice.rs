@@ -17,6 +17,12 @@ use sampling::{
     validate_plane_vectors, validate_volume, validate_volume_bounds, vector_norm, voxel_step,
 };
 
+mod orientation;
+mod pixel;
+
+pub use orientation::ResliceOrientation;
+pub use pixel::{PatientPlaneProjection, ResliceSample};
+
 /// Interpolation used when a plane lands between source voxels.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum ResliceInterpolation {
@@ -219,16 +225,7 @@ impl ReslicePlane {
         statistic: ProjectionStatistic,
         pixels: &mut Vec<f32>,
     ) -> Result<[usize; 2], ResliceError> {
-        let transform = validate_volume(volume)?;
-        if volume.shape != self.shape {
-            return Err(ResliceError::ShapeChanged {
-                expected: self.shape,
-                actual: volume.shape,
-            });
-        }
-        if transform != self.transform {
-            return Err(ResliceError::GeometryChanged);
-        }
+        let transform = self.source_transform(volume)?;
         let [width, height] = self.dimensions;
         let output_len = width
             .checked_mul(height)
@@ -272,6 +269,20 @@ impl ReslicePlane {
             }
         }
         Ok(self.dimensions)
+    }
+
+    fn source_transform(self, volume: &LoadedVolume) -> Result<AffineTransform, ResliceError> {
+        let transform = validate_volume(volume)?;
+        if volume.shape != self.shape {
+            return Err(ResliceError::ShapeChanged {
+                expected: self.shape,
+                actual: volume.shape,
+            });
+        }
+        if transform != self.transform {
+            return Err(ResliceError::GeometryChanged);
+        }
+        Ok(transform)
     }
 }
 
@@ -347,6 +358,21 @@ pub enum ResliceError {
     /// The through-plane step is zero for a multi-sample slab.
     #[error("a multi-sample slab requires a non-zero depth step")]
     InvalidDepthStep,
+    /// A yaw or pitch angle is non-finite or outside its documented range.
+    #[error("oblique orientation angles are invalid: yaw {yaw_degrees}, pitch {pitch_degrees}")]
+    InvalidOrientation {
+        yaw_degrees: f64,
+        pitch_degrees: f64,
+    },
+    /// The requested oblique plane center is outside the source volume.
+    #[error("oblique plane center {center_voxel:?} is outside the source volume")]
+    InvalidCenter { center_voxel: [f64; 3] },
+    /// The source geometry cannot represent a finite oblique field of view.
+    #[error("oblique plane field of view is not finite")]
+    InvalidFieldOfView,
+    /// A through-plane translation is non-finite.
+    #[error("oblique plane depth offset is not finite: {steps}")]
+    InvalidDepthOffset { steps: f64 },
     /// Output dimensions or depth are zero.
     #[error("reslice dimensions and depth sample count must be non-zero")]
     EmptyRequest,
@@ -356,6 +382,15 @@ pub enum ResliceError {
     /// A plane corner lies outside the source volume.
     #[error("reslice plane lies outside the source volume at voxel coordinate {coordinate:?}")]
     OutOfVolume { coordinate: [f64; 3] },
+    /// A requested output-pixel coordinate is non-finite.
+    #[error("reslice pixel coordinate {coordinate:?} must be finite")]
+    InvalidPixelCoordinate { coordinate: [f64; 2] },
+    /// A requested continuous pixel lies outside the output plane.
+    #[error("reslice pixel coordinate {coordinate:?} is outside output dimensions {dimensions:?}")]
+    PixelOutOfBounds {
+        coordinate: [f64; 2],
+        dimensions: [usize; 2],
+    },
     /// The source shape changed after request validation.
     #[error("reslice volume shape changed from {expected:?} to {actual:?}")]
     ShapeChanged {

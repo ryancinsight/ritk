@@ -72,6 +72,10 @@ impl MeasurementLayer {
                     let sp2 = img_to_screen(egui::pos2((*p2)[1], (*p2)[0]));
                     draw_length_annotation(painter, sp1, sp2, *length_mm);
                 }
+                // Patient-space annotations require the reslice plane that
+                // created them. Orthogonal views must not project them as if
+                // their endpoints were two-dimensional image coordinates.
+                Annotation::PatientLength(_) => {}
                 Annotation::Angle {
                     p1,
                     p2,
