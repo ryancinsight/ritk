@@ -10,7 +10,7 @@
 - scope: `crates/ritk-snap/src/{app,presentation,render,tools/interaction,session}/`, `crates/ritk-snap/src/main.rs`, crate README, ADRs, manual, and provenance.
 - next: deliver ready child items in dependency order; preserve the public MRI-DIR phantom as the shareable visual fixture.
 - risk: [major] [arch]; patient-space annotations and session format 3; no registry release is authorized.
-- basis: f4df8b2a9
+- basis: 3fcdc3dd
 
 <a id="RITK-SNAP-OBLIQUE-ADR-001"></a>
 ## RITK-SNAP-OBLIQUE-ADR-001: Record native MPR ownership
@@ -21,7 +21,7 @@
 - needs: none
 - scope: `docs/adr/0052-native-oblique-mpr.md`, `docs/adr/README.md`
 - next: publish ADR 0052 with the first geometry slice.
-- basis: f4df8b2a9
+- basis: 3fcdc3dd
 
 <a id="RITK-SNAP-PATIENT-POINT-001"></a>
 ## RITK-SNAP-PATIENT-POINT-001: Validate patient coordinates
@@ -32,7 +32,7 @@
 - needs: RITK-SNAP-OBLIQUE-ADR-001
 - scope: `crates/ritk-snap/src/geometry.rs`, `crates/ritk-snap/src/geometry/patient_point.rs`
 - next: land the validated point type before consumers store measurements.
-- basis: f4df8b2a9
+- basis: 3fcdc3dd
 
 <a id="RITK-SNAP-OBLIQUE-PIXEL-MAPPING-001"></a>
 ## RITK-SNAP-OBLIQUE-PIXEL-MAPPING-001: Map reslice pixels to patient space
@@ -43,7 +43,7 @@
 - needs: RITK-SNAP-PATIENT-POINT-001
 - scope: `crates/ritk-snap/src/render/reslice.rs`, `crates/ritk-snap/src/render/tests_reslice.rs`
 - next: establish the pixel-to-patient contract before adding plane controls.
-- basis: f4df8b2a9
+- basis: 3fcdc3dd
 
 <a id="RITK-SNAP-RESLICE-PIXEL-MODULE-001"></a>
 ## RITK-SNAP-RESLICE-PIXEL-MODULE-001: Extract pixel projection operations
@@ -54,7 +54,7 @@
 - needs: RITK-SNAP-OBLIQUE-PIXEL-MAPPING-001
 - scope: `crates/ritk-snap/src/render/reslice.rs`, `crates/ritk-snap/src/render/reslice/pixel.rs`
 - next: move the pixel operation family without changing its contract.
-- basis: f4df8b2a9
+- basis: 3fcdc3dd
 
 <a id="RITK-SNAP-RESLICE-ORIENTATION-001"></a>
 ## RITK-SNAP-RESLICE-ORIENTATION-001: Build physical oblique planes
@@ -65,7 +65,7 @@
 - needs: RITK-SNAP-RESLICE-PIXEL-MODULE-001
 - scope: `crates/ritk-snap/src/render/reslice.rs`, `crates/ritk-snap/src/render/reslice/orientation.rs`, render exports
 - next: add plane construction and orientation operations behind the reslice contract.
-- basis: f4df8b2a9
+- basis: 3fcdc3dd
 
 <a id="RITK-SNAP-RESLICE-ORIENTATION-TESTS-001"></a>
 ## RITK-SNAP-RESLICE-ORIENTATION-TESTS-001: Verify orientation boundaries
@@ -76,7 +76,7 @@
 - needs: RITK-SNAP-RESLICE-ORIENTATION-001
 - scope: `crates/ritk-snap/src/render/tests_reslice.rs`
 - next: add the remaining edge and source-geometry cases.
-- basis: f4df8b2a9
+- basis: 3fcdc3dd
 
 <a id="RITK-SNAP-PATIENT-LENGTH-001"></a>
 ## RITK-SNAP-PATIENT-LENGTH-001: Persist patient-space lengths
@@ -88,7 +88,7 @@
 - scope: `crates/ritk-snap/src/{session,tools/interaction,ui}/` and snapshot tests
 - next: complete the persisted-format migration and public enum documentation.
 - risk: [major] public exhaustive annotation matches require migration.
-- basis: f4df8b2a9
+- basis: 3fcdc3dd
 
 <a id="RITK-SNAP-INTERACTION-REGIONS-001"></a>
 ## RITK-SNAP-INTERACTION-REGIONS-001: Separate region interaction tests
@@ -99,7 +99,7 @@
 - needs: RITK-SNAP-PATIENT-LENGTH-001
 - scope: `crates/ritk-snap/src/tools/interaction/tests.rs`, `tools/interaction/tests/regions.rs`
 - next: move only region cases and keep the parent test module as a manifest.
-- basis: f4df8b2a9
+- basis: 3fcdc3dd
 
 <a id="RITK-SNAP-INTERACTION-MEASUREMENTS-001"></a>
 ## RITK-SNAP-INTERACTION-MEASUREMENTS-001: Separate measurement tests
@@ -110,7 +110,7 @@
 - needs: RITK-SNAP-INTERACTION-REGIONS-001
 - scope: `crates/ritk-snap/src/tools/interaction/tests.rs`, `tools/interaction/tests/measurements.rs`
 - next: move measurement cases after the region extraction lands.
-- basis: f4df8b2a9
+- basis: 3fcdc3dd
 
 <a id="RITK-SNAP-INTERACTION-STATE-001"></a>
 ## RITK-SNAP-INTERACTION-STATE-001: Separate interaction state tests
@@ -121,7 +121,7 @@
 - needs: RITK-SNAP-INTERACTION-MEASUREMENTS-001
 - scope: `crates/ritk-snap/src/tools/interaction/tests.rs`, `tools/interaction/tests/state.rs`
 - next: move the state cases after measurement tests.
-- basis: f4df8b2a9
+- basis: 3fcdc3dd
 
 <a id="RITK-SNAP-INTERACTION-WINDOW-LEVEL-001"></a>
 ## RITK-SNAP-INTERACTION-WINDOW-LEVEL-001: Separate window-level tests
@@ -132,7 +132,7 @@
 - needs: RITK-SNAP-INTERACTION-STATE-001
 - scope: `crates/ritk-snap/src/tools/interaction/tests.rs`, `tools/interaction/tests/window_level.rs`
 - next: move the remaining window-level cases and leave no implementation in the test manifest.
-- basis: f4df8b2a9
+- basis: 3fcdc3dd
 
 <a id="RITK-SNAP-NATIVE-OVERLAY-001"></a>
 ## RITK-SNAP-NATIVE-OVERLAY-001: Extract native pane overlays
@@ -143,7 +143,7 @@
 - needs: RITK-SNAP-PATIENT-LENGTH-001
 - scope: `crates/ritk-snap/src/presentation/native_session/layout/`
 - next: extract overlay composition from the native session layout.
-- basis: f4df8b2a9
+- basis: 3fcdc3dd
 
 <a id="RITK-SNAP-NATIVE-MPR-COMPOSITION-001"></a>
 ## RITK-SNAP-NATIVE-MPR-COMPOSITION-001: Compose the four native panes
@@ -154,7 +154,7 @@
 - needs: RITK-SNAP-NATIVE-OVERLAY-001, RITK-SNAP-RESLICE-ORIENTATION-001
 - scope: `crates/ritk-snap/src/presentation/native_session/layout/composition.rs`
 - next: extend composition only after the overlay module exists.
-- basis: f4df8b2a9
+- basis: 3fcdc3dd
 
 <a id="RITK-SNAP-OBLIQUE-VIEWPORT-001"></a>
 ## RITK-SNAP-OBLIQUE-VIEWPORT-001: Map oblique viewport interactions
@@ -165,7 +165,7 @@
 - needs: RITK-SNAP-RESLICE-ORIENTATION-001, RITK-SNAP-NATIVE-MPR-COMPOSITION-001
 - scope: `crates/ritk-snap/src/app/oblique_viewport.rs`, app exports
 - next: implement the viewport mapping as an independent app value.
-- basis: f4df8b2a9
+- basis: 3fcdc3dd
 
 <a id="RITK-SNAP-OBLIQUE-APP-ADAPTER-001"></a>
 ## RITK-SNAP-OBLIQUE-APP-ADAPTER-001: Route oblique viewer actions
@@ -176,7 +176,7 @@
 - needs: RITK-SNAP-OBLIQUE-VIEWPORT-001, RITK-SNAP-PATIENT-LENGTH-001
 - scope: `crates/ritk-snap/src/app/action_adapter.rs`, `app/pointer_ops.rs`, and oblique modules
 - next: add the adapter with the smallest complete happy-path test.
-- basis: f4df8b2a9
+- basis: 3fcdc3dd
 
 <a id="RITK-SNAP-OBLIQUE-APP-TESTS-001"></a>
 ## RITK-SNAP-OBLIQUE-APP-TESTS-001: Verify oblique adapter boundaries
@@ -187,7 +187,7 @@
 - needs: RITK-SNAP-OBLIQUE-APP-ADAPTER-001
 - scope: `crates/ritk-snap/src/app/tests/action_adapter/oblique.rs`
 - next: add rotated, edge, and invalid-input cases.
-- basis: f4df8b2a9
+- basis: 3fcdc3dd
 
 <a id="RITK-SNAP-OBLIQUE-SESSION-MODULES-001"></a>
 ## RITK-SNAP-OBLIQUE-SESSION-MODULES-001: Separate native oblique session concerns
@@ -198,7 +198,7 @@
 - needs: RITK-SNAP-NATIVE-MPR-COMPOSITION-001, RITK-SNAP-OBLIQUE-APP-ADAPTER-001
 - scope: `crates/ritk-snap/src/presentation/native_session/oblique.rs`
 - next: separate render/rebuild state from the gesture reducer.
-- basis: f4df8b2a9
+- basis: 3fcdc3dd
 
 <a id="RITK-SNAP-OBLIQUE-SESSION-WIRING-001"></a>
 ## RITK-SNAP-OBLIQUE-SESSION-WIRING-001: Wire the oblique session pane
@@ -209,7 +209,7 @@
 - needs: RITK-SNAP-OBLIQUE-SESSION-MODULES-001
 - scope: `crates/ritk-snap/src/presentation/native_session/{composition,session,events}.rs`
 - next: connect the plane lifecycle to native session state.
-- basis: f4df8b2a9
+- basis: 3fcdc3dd
 
 <a id="RITK-SNAP-OBLIQUE-ROUTING-001"></a>
 ## RITK-SNAP-OBLIQUE-ROUTING-001: Route native oblique input
@@ -220,7 +220,7 @@
 - needs: RITK-SNAP-OBLIQUE-SESSION-WIRING-001, RITK-SNAP-OBLIQUE-APP-TESTS-001
 - scope: `crates/ritk-snap/src/presentation/native_session/routing.rs`, `events.rs`
 - next: implement the bounded event state machine and user-visible controls.
-- basis: f4df8b2a9
+- basis: 3fcdc3dd
 
 <a id="RITK-SNAP-PATIENT-MEASUREMENT-OVERLAY-001"></a>
 ## RITK-SNAP-PATIENT-MEASUREMENT-OVERLAY-001: Present patient-space lengths
@@ -231,7 +231,7 @@
 - needs: RITK-SNAP-OBLIQUE-SESSION-WIRING-001, RITK-SNAP-PATIENT-LENGTH-001
 - scope: `crates/ritk-snap/src/presentation/native_session/layout/measurement.rs`, `crates/ritk-snap/src/ui/measurements/`
 - next: project endpoints through the shared physical plane mapping.
-- basis: f4df8b2a9
+- basis: 3fcdc3dd
 
 <a id="RITK-SNAP-OBLIQUE-SESSION-TESTS-001"></a>
 ## RITK-SNAP-OBLIQUE-SESSION-TESTS-001: Verify oblique rendering and startup
@@ -242,7 +242,7 @@
 - needs: RITK-SNAP-OBLIQUE-SESSION-WIRING-001
 - scope: `crates/ritk-snap/src/presentation/native_session/tests/oblique/`
 - next: add rendering and startup cases against manufactured volumes.
-- basis: f4df8b2a9
+- basis: 3fcdc3dd
 
 <a id="RITK-SNAP-OBLIQUE-INTERACTION-TESTS-001"></a>
 ## RITK-SNAP-OBLIQUE-INTERACTION-TESTS-001: Verify complete native gestures
@@ -253,7 +253,7 @@
 - needs: RITK-SNAP-OBLIQUE-ROUTING-001, RITK-SNAP-PATIENT-MEASUREMENT-OVERLAY-001
 - scope: `crates/ritk-snap/src/presentation/native_session/tests/oblique/gestures.rs`, `measurement.rs`
 - next: verify full pointer and keyboard workflows on rotated anisotropic data.
-- basis: f4df8b2a9
+- basis: 3fcdc3dd
 
 <a id="RITK-SNAP-OBLIQUE-MANUAL-001"></a>
 ## RITK-SNAP-OBLIQUE-MANUAL-001: Demonstrate oblique MPR in the user manual
@@ -264,7 +264,7 @@
 - needs: RITK-SNAP-OBLIQUE-INTERACTION-TESTS-001, RITK-SNAP-OBLIQUE-SESSION-TESTS-001
 - scope: `crates/ritk-snap/src/{launch.rs,main.rs}`, crate README, `docs/manual/`, provenance tests
 - next: capture the completed viewer from the public phantom and validate the manual artifacts.
-- basis: f4df8b2a9
+- basis: 3fcdc3dd
 
 <a id="RITK-BROWSER-READ-001"></a>
 ## RITK-BROWSER-READ-001 â€” Reproduce and close WebKit study reads
