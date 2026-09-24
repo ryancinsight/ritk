@@ -1,5 +1,6 @@
 use super::{
-    ProjectionStatistic, ResliceError, ResliceInterpolation, ReslicePlane, SlabProjection,
+    PixelMappingError, ProjectionStatistic, ResliceError, ResliceInterpolation, ReslicePlane,
+    SlabProjection,
 };
 use crate::LoadedVolume;
 use std::sync::Arc;
@@ -74,6 +75,78 @@ fn rotated_anisotropic_plane_preserves_voxel_coordinates() {
         .compute(&volume, ProjectionStatistic::Maximum)
         .expect("rotated plane computes");
     assert_eq!(output.pixels(), &[100.0, 101.0, 110.0, 111.0]);
+}
+
+fn rotated_anisotropic_patient_plane() -> ReslicePlane {
+    let mut volume = scalar_volume([8, 8, 8]);
+    volume.spacing = [2.0, 3.0, 4.0];
+    volume.origin = [10.0, 20.0, 30.0];
+    volume.direction = [0.0, -1.0, 0.0, 1.0, 0.0, 0.0, 0.0, 0.0, 1.0];
+    ReslicePlane::try_new(
+        &volume,
+        [7.0, 21.0, 35.0],
+        [0.0, 0.5, 2.0],
+        [-1.5, 0.0, 1.0],
+        [0.0; 3],
+        [4, 3],
+        1,
+        ResliceInterpolation::Linear,
+    )
+    .expect("rotated anisotropic plane is valid")
+}
+
+#[test]
+fn continuous_pixel_mapping_preserves_rotated_physical_geometry() {
+    let plane = rotated_anisotropic_patient_plane();
+    assert_eq!(
+        plane
+            .patient_at_pixel([1.5, 0.5])
+            .expect("interior coordinate maps to patient space")
+            .coordinates(),
+        [6.25, 21.75, 38.5]
+    );
+
+    for pixel in [[0.0, 0.0], [3.0, 0.0], [0.0, 2.0], [3.0, 2.0]] {
+        let expected = [
+            7.0 - 1.5 * pixel[1],
+            21.0 + 0.5 * pixel[0],
+            35.0 + 2.0 * pixel[0] + pixel[1],
+        ];
+        assert_eq!(
+            plane
+                .patient_at_pixel(pixel)
+                .expect("boundary coordinate maps to patient space")
+                .coordinates(),
+            expected
+        );
+    }
+}
+
+#[test]
+fn continuous_pixel_mapping_rejects_invalid_and_out_of_bounds_coordinates() {
+    let plane = rotated_anisotropic_patient_plane();
+    for axis in 0..2 {
+        for invalid in [f64::NAN, f64::INFINITY, f64::NEG_INFINITY] {
+            let pixel =
+                std::array::from_fn(|component| if component == axis { invalid } else { 0.5 });
+            assert!(matches!(
+                plane.patient_at_pixel(pixel),
+                Err(PixelMappingError::InvalidCoordinate { .. })
+            ));
+        }
+    }
+
+    for pixel in [
+        [-f64::EPSILON, 0.5],
+        [4.0, 0.5],
+        [1.5, -f64::EPSILON],
+        [1.5, 3.0],
+    ] {
+        assert!(matches!(
+            plane.patient_at_pixel(pixel),
+            Err(PixelMappingError::OutOfBounds { .. })
+        ));
+    }
 }
 
 #[test]

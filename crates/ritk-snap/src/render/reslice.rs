@@ -373,7 +373,10 @@ pub enum ResliceError {
     AxisAlignedSlab(#[source] super::slab::SlabProjectionError),
 }
 
+mod pixel;
 mod sampling;
+
+pub use pixel::PixelMappingError;
 
 #[cfg(test)]
 #[path = "tests_reslice.rs"]
