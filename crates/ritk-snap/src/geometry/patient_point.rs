@@ -112,14 +112,22 @@ mod tests {
     }
 
     #[test]
-    fn point_constructor_rejects_non_finite_coordinates() {
-        let Err(PatientPointError::NonFiniteCoordinate { axis, value }) =
-            PatientPointMm::try_new([0.0, f64::NAN, 1.0])
-        else {
-            panic!("non-finite coordinate must be rejected");
-        };
-        assert_eq!(axis, 1);
-        assert!(value.is_nan());
+    fn point_constructor_rejects_non_finite_values_on_every_axis() {
+        for axis in 0..3 {
+            for invalid in [f64::NAN, f64::INFINITY, f64::NEG_INFINITY] {
+                let coordinates: [f64; 3] =
+                    std::array::from_fn(|component| if component == axis { invalid } else { 0.0 });
+                let Err(PatientPointError::NonFiniteCoordinate {
+                    axis: rejected_axis,
+                    value,
+                }) = PatientPointMm::try_new(coordinates)
+                else {
+                    panic!("non-finite coordinate must be rejected");
+                };
+                assert_eq!(rejected_axis, axis);
+                assert_eq!(value.to_bits(), invalid.to_bits());
+            }
+        }
     }
 
     #[test]
