@@ -1,14 +1,12 @@
 use anyhow::{bail, Context, Result};
-use dicom::core::header::Length;
-use dicom::core::smallvec::SmallVec;
-use dicom::core::value::{DataSetSequence, Value};
-use dicom::core::{DataElement, PrimitiveValue, Tag, VR};
+use dicom::core::{Tag, VR};
 use dicom::object::meta::FileMetaTableBuilder;
 use dicom::object::InMemDicomObject;
 use std::path::Path;
 
 use super::types::{DicomSegmentation, SEG_SOP_CLASS_UID};
 use crate::format::dicom::transfer_syntax::EXPLICIT_VR_LE;
+use crate::format::dicom::writer::elements::{put_bytes, put_is, put_sequence, put_text, put_u16};
 use crate::format::dicom::writer::pixel_encoding::{generate_series_uid, MONOCHROME2};
 
 /// Write a [`DicomSegmentation`] to a DICOM Segmentation Storage file.
@@ -76,125 +74,73 @@ pub fn write_dicom_seg<P: AsRef<Path>>(path: P, seg: &DicomSegmentation) -> Resu
         .iter()
         .map(|info| {
             let mut item = InMemDicomObject::new_empty();
-            item.put(DataElement::new(
-                Tag(0x0062, 0x0004),
-                VR::US,
-                PrimitiveValue::from(info.segment_number),
-            ));
-            item.put(DataElement::new(
+            put_u16(&mut item, Tag(0x0062, 0x0004), info.segment_number);
+            put_text(
+                &mut item,
                 Tag(0x0062, 0x0005),
                 VR::LO,
-                PrimitiveValue::from(info.segment_label.as_str()),
-            ));
-            item.put(DataElement::new(
+                info.segment_label.as_str(),
+            );
+            put_text(
+                &mut item,
                 Tag(0x0062, 0x0006),
                 VR::ST,
-                PrimitiveValue::from(info.segment_description.as_deref().unwrap_or("")),
-            ));
-            item.put(DataElement::new(
+                info.segment_description.as_deref().unwrap_or(""),
+            );
+            put_text(
+                &mut item,
                 Tag(0x0062, 0x0008),
                 VR::CS,
-                PrimitiveValue::from(
-                    info.algorithm_type
-                        .as_ref()
-                        .map(|t| t.as_dicom_str())
-                        .unwrap_or("MANUAL"),
-                ),
-            ));
+                info.algorithm_type
+                    .as_ref()
+                    .map(|t| t.as_dicom_str())
+                    .unwrap_or("MANUAL"),
+            );
             item
         })
         .collect();
 
     let mut obj = InMemDicomObject::new_empty();
 
-    obj.put(DataElement::new(
-        Tag(0x0008, 0x0016),
-        VR::UI,
-        PrimitiveValue::from(SEG_SOP_CLASS_UID),
-    ));
-    obj.put(DataElement::new(
+    put_text(&mut obj, Tag(0x0008, 0x0016), VR::UI, SEG_SOP_CLASS_UID);
+    put_text(
+        &mut obj,
         Tag(0x0008, 0x0018),
         VR::UI,
-        PrimitiveValue::from(sop_instance_uid.as_str()),
-    ));
-    obj.put(DataElement::new(
-        Tag(0x0008, 0x0060),
-        VR::CS,
-        PrimitiveValue::from("SEG"),
-    ));
-    obj.put(DataElement::new(
+        sop_instance_uid.as_str(),
+    );
+    put_text(&mut obj, Tag(0x0008, 0x0060), VR::CS, "SEG");
+    put_text(
+        &mut obj,
         Tag(0x0020, 0x000D),
         VR::UI,
-        PrimitiveValue::from(study_instance_uid.as_str()),
-    ));
-    obj.put(DataElement::new(
+        study_instance_uid.as_str(),
+    );
+    put_text(
+        &mut obj,
         Tag(0x0020, 0x000E),
         VR::UI,
-        PrimitiveValue::from(series_instance_uid.as_str()),
-    ));
-    obj.put(DataElement::new(
-        Tag(0x0020, 0x0013),
-        VR::IS,
-        PrimitiveValue::from("1"),
-    ));
-    obj.put(DataElement::new(
-        Tag(0x0028, 0x0008),
-        VR::IS,
-        PrimitiveValue::from(seg.n_frames.to_string().as_str()),
-    ));
-    obj.put(DataElement::new(
-        Tag(0x0028, 0x0010),
-        VR::US,
-        PrimitiveValue::from(seg.rows as u16),
-    ));
-    obj.put(DataElement::new(
-        Tag(0x0028, 0x0011),
-        VR::US,
-        PrimitiveValue::from(seg.cols as u16),
-    ));
-    obj.put(DataElement::new(
-        Tag(0x0028, 0x0100),
-        VR::US,
-        PrimitiveValue::from(seg.bits_allocated),
-    ));
-    obj.put(DataElement::new(
-        Tag(0x0028, 0x0101),
-        VR::US,
-        PrimitiveValue::from(seg.bits_allocated),
-    ));
-    obj.put(DataElement::new(
-        Tag(0x0028, 0x0102),
-        VR::US,
-        PrimitiveValue::from(seg.bits_allocated - 1),
-    ));
-    obj.put(DataElement::new(
-        Tag(0x0028, 0x0103),
-        VR::US,
-        PrimitiveValue::from(0u16),
-    ));
-    obj.put(DataElement::new(
-        Tag(0x0028, 0x0002),
-        VR::US,
-        PrimitiveValue::from(1u16),
-    ));
-    obj.put(DataElement::new(
-        Tag(0x0028, 0x0004),
-        VR::CS,
-        PrimitiveValue::from(MONOCHROME2),
-    ));
-    obj.put(DataElement::new(
+        series_instance_uid.as_str(),
+    );
+    put_is(&mut obj, Tag(0x0020, 0x0013), 1);
+    put_is(&mut obj, Tag(0x0028, 0x0008), seg.n_frames);
+    put_u16(&mut obj, Tag(0x0028, 0x0010), seg.rows as u16);
+    put_u16(&mut obj, Tag(0x0028, 0x0011), seg.cols as u16);
+    put_u16(&mut obj, Tag(0x0028, 0x0100), seg.bits_allocated);
+    put_u16(&mut obj, Tag(0x0028, 0x0101), seg.bits_allocated);
+    put_u16(&mut obj, Tag(0x0028, 0x0102), seg.bits_allocated - 1);
+    put_u16(&mut obj, Tag(0x0028, 0x0103), 0);
+    put_u16(&mut obj, Tag(0x0028, 0x0002), 1);
+    put_text(&mut obj, Tag(0x0028, 0x0004), VR::CS, MONOCHROME2);
+    put_text(
+        &mut obj,
         Tag(0x0062, 0x0001),
         VR::CS,
-        PrimitiveValue::from(seg.segmentation_type.as_dicom_str()),
-    ));
+        seg.segmentation_type.as_dicom_str(),
+    );
 
     if !seg_items.is_empty() {
-        let seq = DataSetSequence::new(seg_items, Length::UNDEFINED);
-        obj.put(DataElement::new(
-            Tag(0x0062, 0x0002),
-            VR::SQ,
-            Value::from(seq),
-        ));
+        put_sequence(&mut obj, Tag(0x0062, 0x0002), seg_items);
     }
 
     let mut shared_item = InMemDicomObject::new_empty();
@@ -206,17 +152,8 @@ pub fn write_dicom_seg<P: AsRef<Path>>(path: P, seg: &DicomSegmentation) -> Resu
             "{}\\{}\\{}\\{}\\{}\\{}",
             iop[0], iop[1], iop[2], iop[3], iop[4], iop[5]
         );
-        ori_item.put(DataElement::new(
-            Tag(0x0020, 0x0037),
-            VR::DS,
-            PrimitiveValue::from(iop_ds.as_str()),
-        ));
-        let ori_seq = DataSetSequence::new(vec![ori_item], Length::UNDEFINED);
-        shared_item.put(DataElement::new(
-            Tag(0x0020, 0x9116),
-            VR::SQ,
-            Value::from(ori_seq),
-        ));
+        put_text(&mut ori_item, Tag(0x0020, 0x0037), VR::DS, iop_ds.as_str());
+        put_sequence(&mut shared_item, Tag(0x0020, 0x9116), vec![ori_item]);
         has_shared_fg = true;
     }
 
@@ -224,36 +161,18 @@ pub fn write_dicom_seg<P: AsRef<Path>>(path: P, seg: &DicomSegmentation) -> Resu
         let mut px_item = InMemDicomObject::new_empty();
         if let Some(ps) = seg.pixel_spacing {
             let ps_ds = format!("{}\\{}", ps[0], ps[1]);
-            px_item.put(DataElement::new(
-                Tag(0x0028, 0x0030),
-                VR::DS,
-                PrimitiveValue::from(ps_ds.as_str()),
-            ));
+            put_text(&mut px_item, Tag(0x0028, 0x0030), VR::DS, ps_ds.as_str());
         }
         if let Some(st) = seg.slice_thickness {
             let st_ds = st.to_string();
-            px_item.put(DataElement::new(
-                Tag(0x0018, 0x0050),
-                VR::DS,
-                PrimitiveValue::from(st_ds.as_str()),
-            ));
+            put_text(&mut px_item, Tag(0x0018, 0x0050), VR::DS, st_ds.as_str());
         }
-        let px_seq = DataSetSequence::new(vec![px_item], Length::UNDEFINED);
-        shared_item.put(DataElement::new(
-            Tag(0x0028, 0x9110),
-            VR::SQ,
-            Value::from(px_seq),
-        ));
+        put_sequence(&mut shared_item, Tag(0x0028, 0x9110), vec![px_item]);
         has_shared_fg = true;
     }
 
     if has_shared_fg {
-        let shared_seq = DataSetSequence::new(vec![shared_item], Length::UNDEFINED);
-        obj.put(DataElement::new(
-            Tag(0x5200, 0x9229),
-            VR::SQ,
-            Value::from(shared_seq),
-        ));
+        put_sequence(&mut obj, Tag(0x5200, 0x9229), vec![shared_item]);
     }
 
     let mut per_frame_items: Vec<InMemDicomObject> = Vec::with_capacity(seg.n_frames);
@@ -262,50 +181,27 @@ pub fn write_dicom_seg<P: AsRef<Path>>(path: P, seg: &DicomSegmentation) -> Resu
 
         let referenced_segment_number = seg.frame_segment_numbers[frame_idx];
         let mut seg_id_item = InMemDicomObject::new_empty();
-        seg_id_item.put(DataElement::new(
+        put_u16(
+            &mut seg_id_item,
             Tag(0x0062, 0x000B),
-            VR::US,
-            PrimitiveValue::from(referenced_segment_number),
-        ));
-        let seg_id_seq = DataSetSequence::new(vec![seg_id_item], Length::UNDEFINED);
-        frame_item.put(DataElement::new(
-            Tag(0x0062, 0x000A),
-            VR::SQ,
-            Value::from(seg_id_seq),
-        ));
+            referenced_segment_number,
+        );
+        put_sequence(&mut frame_item, Tag(0x0062, 0x000A), vec![seg_id_item]);
 
         if let Some(Some(pos)) = seg.image_position_per_frame.get(frame_idx) {
             let mut pos_item = InMemDicomObject::new_empty();
             let pos_ds = format!("{}\\{}\\{}", pos[0], pos[1], pos[2]);
-            pos_item.put(DataElement::new(
-                Tag(0x0020, 0x0032),
-                VR::DS,
-                PrimitiveValue::from(pos_ds.as_str()),
-            ));
-            let pos_seq = DataSetSequence::new(vec![pos_item], Length::UNDEFINED);
-            frame_item.put(DataElement::new(
-                Tag(0x0020, 0x9113),
-                VR::SQ,
-                Value::from(pos_seq),
-            ));
+            put_text(&mut pos_item, Tag(0x0020, 0x0032), VR::DS, pos_ds.as_str());
+            put_sequence(&mut frame_item, Tag(0x0020, 0x9113), vec![pos_item]);
         }
 
         per_frame_items.push(frame_item);
     }
     if !per_frame_items.is_empty() {
-        let seq = DataSetSequence::new(per_frame_items, Length::UNDEFINED);
-        obj.put(DataElement::new(
-            Tag(0x5200, 0x9230),
-            VR::SQ,
-            Value::from(seq),
-        ));
+        put_sequence(&mut obj, Tag(0x5200, 0x9230), per_frame_items);
     }
 
-    obj.put(DataElement::new(
-        Tag(0x7FE0, 0x0010),
-        VR::OW,
-        PrimitiveValue::U8(SmallVec::from_vec(pixel_bytes)),
-    ));
+    put_bytes(&mut obj, Tag(0x7FE0, 0x0010), VR::OW, pixel_bytes);
 
     let path = path.as_ref();
     obj.with_meta(

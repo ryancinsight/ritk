@@ -81,45 +81,29 @@ impl AnalyzeVoxel for u8 {
     }
 }
 
-impl AnalyzeVoxel for i16 {
-    fn decode(bytes: &[u8]) -> f32 {
-        f32::from(i16::from_le_bytes(
-            bytes
-                .try_into()
-                .expect("invariant: i16 Analyze chunks contain two bytes"),
-        ))
-    }
+macro_rules! impl_analyze_voxel_from_le_bytes {
+    ($($ty:ty => $width:expr),+ $(,)?) => {
+        $(
+            impl AnalyzeVoxel for $ty {
+                fn decode(bytes: &[u8]) -> f32 {
+                    <$ty>::from_le_bytes(
+                        bytes
+                            .try_into()
+                            .expect(concat!(
+                                "invariant: ",
+                                stringify!($ty),
+                                " Analyze chunks contain ",
+                                stringify!($width),
+                                " bytes"
+                            )),
+                    ) as f32
+                }
+            }
+        )+
+    };
 }
 
-impl AnalyzeVoxel for i32 {
-    fn decode(bytes: &[u8]) -> f32 {
-        i32::from_le_bytes(
-            bytes
-                .try_into()
-                .expect("invariant: i32 Analyze chunks contain four bytes"),
-        ) as f32
-    }
-}
-
-impl AnalyzeVoxel for f32 {
-    fn decode(bytes: &[u8]) -> f32 {
-        Self::from_le_bytes(
-            bytes
-                .try_into()
-                .expect("invariant: f32 Analyze chunks contain four bytes"),
-        )
-    }
-}
-
-impl AnalyzeVoxel for f64 {
-    fn decode(bytes: &[u8]) -> f32 {
-        Self::from_le_bytes(
-            bytes
-                .try_into()
-                .expect("invariant: f64 Analyze chunks contain eight bytes"),
-        ) as f32
-    }
-}
+impl_analyze_voxel_from_le_bytes!(i16 => 2, i32 => 4, f32 => 4, f64 => 8);
 
 #[derive(Clone, Copy)]
 enum AnalyzeDatatype {

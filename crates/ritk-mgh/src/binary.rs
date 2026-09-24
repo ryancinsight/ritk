@@ -15,53 +15,29 @@ pub(crate) trait BigEndian: Sized {
     fn write_be_bytes<W: Write>(self, writer: &mut W) -> Result<()>;
 }
 
-impl BigEndian for i16 {
-    fn read_be_bytes<R: Read>(reader: &mut R) -> Result<Self> {
-        let mut buf = [0u8; 2];
-        reader
-            .read_exact(&mut buf)
-            .context("Failed to read i16 BE")?;
-        Ok(i16::from_be_bytes(buf))
-    }
+macro_rules! impl_big_endian {
+    ($($ty:ty => $width:expr),+ $(,)?) => {
+        $(
+            impl BigEndian for $ty {
+                fn read_be_bytes<R: Read>(reader: &mut R) -> Result<Self> {
+                    let mut buf = [0u8; $width];
+                    reader
+                        .read_exact(&mut buf)
+                        .context(concat!("Failed to read ", stringify!($ty), " BE"))?;
+                    Ok(<$ty>::from_be_bytes(buf))
+                }
 
-    fn write_be_bytes<W: Write>(self, writer: &mut W) -> Result<()> {
-        writer
-            .write_all(&self.to_be_bytes())
-            .context("Failed to write i16 BE")
-    }
+                fn write_be_bytes<W: Write>(self, writer: &mut W) -> Result<()> {
+                    writer
+                        .write_all(&self.to_be_bytes())
+                        .context(concat!("Failed to write ", stringify!($ty), " BE"))
+                }
+            }
+        )+
+    };
 }
 
-impl BigEndian for i32 {
-    fn read_be_bytes<R: Read>(reader: &mut R) -> Result<Self> {
-        let mut buf = [0u8; 4];
-        reader
-            .read_exact(&mut buf)
-            .context("Failed to read i32 BE")?;
-        Ok(i32::from_be_bytes(buf))
-    }
-
-    fn write_be_bytes<W: Write>(self, writer: &mut W) -> Result<()> {
-        writer
-            .write_all(&self.to_be_bytes())
-            .context("Failed to write i32 BE")
-    }
-}
-
-impl BigEndian for f32 {
-    fn read_be_bytes<R: Read>(reader: &mut R) -> Result<Self> {
-        let mut buf = [0u8; 4];
-        reader
-            .read_exact(&mut buf)
-            .context("Failed to read f32 BE")?;
-        Ok(f32::from_be_bytes(buf))
-    }
-
-    fn write_be_bytes<W: Write>(self, writer: &mut W) -> Result<()> {
-        writer
-            .write_all(&self.to_be_bytes())
-            .context("Failed to write f32 BE")
-    }
-}
+impl_big_endian!(i16 => 2, i32 => 4, f32 => 4);
 
 /// Read one big-endian `T` from `reader`.
 pub(crate) fn read_be<T: BigEndian, R: Read>(reader: &mut R) -> Result<T> {

@@ -34,25 +34,25 @@ pub(super) trait BigEndian: Sized {
     fn to_be(self) -> Self::Bytes;
 }
 
-impl BigEndian for i32 {
-    type Bytes = [u8; 4];
-    fn from_be(bytes: Self::Bytes) -> Self {
-        Self::from_be_bytes(bytes)
-    }
-    fn to_be(self) -> Self::Bytes {
-        self.to_be_bytes()
-    }
+macro_rules! impl_big_endian {
+    ($($ty:ty),+ $(,)?) => {
+        $(
+            impl BigEndian for $ty {
+                type Bytes = [u8; 4];
+
+                fn from_be(bytes: Self::Bytes) -> Self {
+                    Self::from_be_bytes(bytes)
+                }
+
+                fn to_be(self) -> Self::Bytes {
+                    self.to_be_bytes()
+                }
+            }
+        )+
+    };
 }
 
-impl BigEndian for f32 {
-    type Bytes = [u8; 4];
-    fn from_be(bytes: Self::Bytes) -> Self {
-        Self::from_be_bytes(bytes)
-    }
-    fn to_be(self) -> Self::Bytes {
-        self.to_be_bytes()
-    }
-}
+impl_big_endian!(i32, f32);
 
 /// Read one big-endian `T`.
 pub(super) fn read_be<T: BigEndian>(reader: &mut impl Read) -> io::Result<T> {

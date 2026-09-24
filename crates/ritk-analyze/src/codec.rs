@@ -30,32 +30,26 @@ mod sealed {
         fn le_encode(self, buf: &mut [u8], off: usize);
     }
 
-    impl LeBytes for i16 {
-        fn le_decode(buf: &[u8], off: usize) -> Self {
-            i16::from_le_bytes([buf[off], buf[off + 1]])
-        }
-        fn le_encode(self, buf: &mut [u8], off: usize) {
-            buf[off..off + 2].copy_from_slice(&self.to_le_bytes());
-        }
+    macro_rules! impl_le_bytes {
+        ($($ty:ty => $width:expr),+ $(,)?) => {
+            $(
+                impl LeBytes for $ty {
+                    fn le_decode(buf: &[u8], off: usize) -> Self {
+                        <$ty>::from_le_bytes(
+                            buf[off..off + $width]
+                                .try_into()
+                                .expect("slice width matches primitive width"),
+                        )
+                    }
+                    fn le_encode(self, buf: &mut [u8], off: usize) {
+                        buf[off..off + $width].copy_from_slice(&self.to_le_bytes());
+                    }
+                }
+            )+
+        };
     }
 
-    impl LeBytes for i32 {
-        fn le_decode(buf: &[u8], off: usize) -> Self {
-            i32::from_le_bytes([buf[off], buf[off + 1], buf[off + 2], buf[off + 3]])
-        }
-        fn le_encode(self, buf: &mut [u8], off: usize) {
-            buf[off..off + 4].copy_from_slice(&self.to_le_bytes());
-        }
-    }
-
-    impl LeBytes for f32 {
-        fn le_decode(buf: &[u8], off: usize) -> Self {
-            f32::from_le_bytes([buf[off], buf[off + 1], buf[off + 2], buf[off + 3]])
-        }
-        fn le_encode(self, buf: &mut [u8], off: usize) {
-            buf[off..off + 4].copy_from_slice(&self.to_le_bytes());
-        }
-    }
+    impl_le_bytes!(i16 => 2, i32 => 4, f32 => 4);
 }
 
 /// Read a little-endian value of type `T` from `buf` at byte offset `off`.

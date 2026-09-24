@@ -8,65 +8,19 @@
 //! - Byte nodes use OB VR unconditionally.
 //! - Sequence nodes produce SQ elements with undefined length.
 
-use super::object_model::{
-    DicomObjectModel, DicomObjectNode, DicomSequenceItem, DicomTag, DicomValue,
-};
+use super::object_model::{DicomObjectModel, DicomTag};
 use super::transfer_syntax::EXPLICIT_VR_LE;
-use super::writer::pixel_encoding::{str_to_vr, DICOM_SOP_CLASS_SECONDARY_CAPTURE};
-use anyhow::{Context, Result};
-use dicom::core::header::Length;
-use dicom::core::smallvec::SmallVec;
-use dicom::core::value::{DataSetSequence, Value as DicomCoreValue};
-use dicom::core::{DataElement, PrimitiveValue, Tag, VR};
-use dicom::object::{meta::FileMetaTableBuilder, InMemDicomObject};
+use super::writer::elements::node_to_element;
+use super::writer::pixel_encoding::DICOM_SOP_CLASS_SECONDARY_CAPTURE;
+use anyhow::Result;
+use dicom::object::{InMemDicomObject, meta::FileMetaTableBuilder};
 use std::path::Path;
-
-fn sequence_item_to_dicom(item: &DicomSequenceItem) -> InMemDicomObject {
-    let mut obj = InMemDicomObject::new_empty();
-    for node in &item.elements {
-        if let Ok(elem) = node_to_element(node) {
-            obj.put(elem);
-        }
-    }
-    obj
-}
-
-fn node_to_element(node: &DicomObjectNode) -> Result<DataElement<InMemDicomObject>> {
-    let tag = Tag(node.tag.group, node.tag.element);
-    let vr = node.vr.as_deref().map(str_to_vr).unwrap_or(VR::UN);
-    let elem = match &node.value {
-        DicomValue::Text(s) => DataElement::new(tag, vr, PrimitiveValue::from(s.as_str())),
-        DicomValue::Bytes(b) => DataElement::new(
-            tag,
-            VR::OB,
-            PrimitiveValue::U8(SmallVec::from_vec(b.clone())),
-        ),
-        DicomValue::U16(v) => DataElement::new(tag, vr, PrimitiveValue::from(*v)),
-        DicomValue::I32(v) => {
-            DataElement::new(tag, vr, PrimitiveValue::from(format!("{}", v).as_str()))
-        }
-        DicomValue::F64(v) => {
-            DataElement::new(tag, vr, PrimitiveValue::from(format!("{:.6}", v).as_str()))
-        }
-        DicomValue::Sequence(items) => {
-            let dicom_items: Vec<InMemDicomObject> =
-                items.iter().map(sequence_item_to_dicom).collect();
-            let seq = DataSetSequence::new(dicom_items, Length::UNDEFINED);
-            let val: DicomCoreValue<InMemDicomObject> = DicomCoreValue::from(seq);
-            DataElement::new(tag, VR::SQ, val)
-        }
-        DicomValue::Empty => DataElement::new(tag, vr, PrimitiveValue::Empty),
-    };
-    Ok(elem)
-}
 
 /// Convert a `DicomObjectModel` to an `InMemDicomObject`.
 pub fn model_to_in_mem(model: &DicomObjectModel) -> Result<InMemDicomObject> {
     let mut obj = InMemDicomObject::new_empty();
     for node in &model.nodes {
-        let elem = node_to_element(node)
-            .with_context(|| format!("node_to_element failed for tag {:?}", node.tag))?;
-        obj.put(elem);
+        obj.put(node_to_element(node));
     }
     Ok(obj)
 }
