@@ -678,6 +678,25 @@ struct OwnedLevel<T> {
 }
 
 impl<T: Sample> OwnedPyramid<T> {
+    fn build_with_scales<F>(
+        fixed: &[T],
+        moving: &[T],
+        dims: [usize; 3],
+        scales: &[usize],
+        mut build_level: F,
+    ) -> Result<Self>
+    where
+        F: FnMut(&[T], &[T], [usize; 3], usize) -> OwnedLevel<T>,
+    {
+        validate_scales(dims, scales)?;
+        validate_level_source_buffers(fixed, moving, dims)?;
+        let mut levels = Vec::with_capacity(scales.len());
+        for &scale in scales {
+            levels.push(build_level(fixed, moving, dims, scale));
+        }
+        Ok(Self { levels })
+    }
+
     /// Build a nearest-neighbour decimated pyramid.
     ///
     /// `scales` must be strictly decreasing coarse-to-fine, end at `1`, and
@@ -693,22 +712,8 @@ impl<T: Sample> OwnedPyramid<T> {
     /// anywhere other than `1`, contains a zero, when any extent is not
     /// divisible by its scale, or when the buffers do not match `dims`.
     pub fn nearest(fixed: &[T], moving: &[T], dims: [usize; 3], scales: &[usize]) -> Result<Self> {
-        validate_scales(dims, scales)?;
-        let expected = dims[0] * dims[1] * dims[2];
-        if fixed.len() != expected || moving.len() != expected {
-            bail!(
-                "fixed ({}) and moving ({}) buffers must both hold {expected} voxels for dims {dims:?}",
-                fixed.len(),
-                moving.len()
-            );
-        }
-        let mut levels = Vec::with_capacity(scales.len());
-        for scale in scales {
-            let level_dims = [
-                level_extent(dims[0], *scale),
-                level_extent(dims[1], *scale),
-                level_extent(dims[2], *scale),
-            ];
+        Self::build_with_scales(fixed, moving, dims, scales, |fixed, moving, dims, scale| {
+            let level_dims = scaled_level_dims(dims, scale);
             let level_len = level_dims[0] * level_dims[1] * level_dims[2];
             let mut fixed_level = Vec::with_capacity(level_len);
             let mut moving_level = Vec::with_capacity(level_len);
@@ -721,13 +726,12 @@ impl<T: Sample> OwnedPyramid<T> {
                     }
                 }
             }
-            levels.push(OwnedLevel {
+            OwnedLevel {
                 fixed: fixed_level,
                 moving: moving_level,
                 dims: level_dims,
-            });
-        }
-        Ok(Self { levels })
+            }
+        })
     }
 
     /// Build a min/max pyramid that preserves the speckle envelope.
@@ -744,28 +748,14 @@ impl<T: Sample> OwnedPyramid<T> {
     ///
     /// Same validation as [`Self::nearest`].
     pub fn min_max(fixed: &[T], moving: &[T], dims: [usize; 3], scales: &[usize]) -> Result<Self> {
-        validate_scales(dims, scales)?;
-        let expected = dims[0] * dims[1] * dims[2];
-        if fixed.len() != expected || moving.len() != expected {
-            bail!(
-                "fixed ({}) and moving ({}) buffers must both hold {expected} voxels for dims {dims:?}",
-                fixed.len(),
-                moving.len()
-            );
-        }
-        let mut levels = Vec::with_capacity(scales.len());
-        for scale in scales {
-            let base_dims = [
-                level_extent(dims[0], *scale),
-                level_extent(dims[1], *scale),
-                level_extent(dims[2], *scale),
-            ];
+        Self::build_with_scales(fixed, moving, dims, scales, |fixed, moving, dims, scale| {
+            let base_dims = scaled_level_dims(dims, scale);
             // The reduction window is the scale, except on a singleton axis,
             // which is not downsampled and has no second sample to read.
             let window = [
-                reduction_window(dims[0], *scale),
-                reduction_window(dims[1], *scale),
-                reduction_window(dims[2], *scale),
+                reduction_window(dims[0], scale),
+                reduction_window(dims[1], scale),
+                reduction_window(dims[2], scale),
             ];
             let level_dims = [base_dims[0], base_dims[1], 2 * base_dims[2]];
             let level_len = level_dims[0] * level_dims[1] * level_dims[2];
@@ -806,13 +796,12 @@ impl<T: Sample> OwnedPyramid<T> {
                 .into_iter()
                 .map(T::from_f64_saturating)
                 .collect();
-            levels.push(OwnedLevel {
+            OwnedLevel {
                 fixed: fixed_level,
                 moving: moving_level,
                 dims: level_dims,
-            });
-        }
-        Ok(Self { levels })
+            }
+        })
     }
 
     /// The levels in coarse-to-fine order, as borrowed [`PyramidLevel`]s.
@@ -855,6 +844,26 @@ fn level_extent(extent: usize, scale: usize) -> usize {
     } else {
         extent / scale
     }
+}
+
+fn scaled_level_dims(dims: [usize; 3], scale: usize) -> [usize; 3] {
+    [
+        level_extent(dims[0], scale),
+        level_extent(dims[1], scale),
+        level_extent(dims[2], scale),
+    ]
+}
+
+fn validate_level_source_buffers<T>(fixed: &[T], moving: &[T], dims: [usize; 3]) -> Result<()> {
+    let expected = dims[0] * dims[1] * dims[2];
+    if fixed.len() != expected || moving.len() != expected {
+        bail!(
+            "fixed ({}) and moving ({}) buffers must both hold {expected} voxels for dims {dims:?}",
+            fixed.len(),
+            moving.len()
+        );
+    }
+    Ok(())
 }
 
 fn validate_scales(dims: [usize; 3], scales: &[usize]) -> Result<()> {
