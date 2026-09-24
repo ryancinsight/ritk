@@ -254,3 +254,175 @@ fn invalid_planes_and_source_layouts_return_typed_errors() {
         Err(ResliceError::UnsupportedChannels { channels: 3 })
     ));
 }
+
+#[test]
+fn patient_projection_round_trips_skewed_anisotropic_pixels() {
+    let plane = rotated_anisotropic_patient_plane();
+    for pixel in [[0.0, 0.5], [3.0, 0.75], [1.5, 0.0], [1.25, 2.0]] {
+        let point = plane
+            .patient_at_pixel(pixel)
+            .expect("in-bounds pixel maps to patient space");
+        let projection = plane
+            .project_patient(point.coordinates())
+            .expect("round-tripped patient point projects into the plane");
+        let enclosure = plane
+            .patient_pixel_enclosure(point.coordinates())
+            .expect("finite point has a bounded pixel projection");
+        // The rounded forward and inverse maps need not reproduce an edge
+        // coordinate bit-for-bit; the enclosure is the round-trip oracle.
+        let maximum = [3.0, 2.0];
+        for (((bound, expected), projected), limit) in enclosure
+            .into_iter()
+            .zip(pixel)
+            .zip(projection.pixel())
+            .zip(maximum)
+        {
+            assert!(bound.contains(expected));
+            assert!(bound.contains(projected));
+            assert!((0.0..=limit).contains(&projected));
+        }
+    }
+}
+
+#[test]
+fn patient_projection_preserves_componentwise_bounds_at_large_normal_offsets() {
+    let volume = scalar_volume([5, 4, 3]);
+    let plane = ReslicePlane::try_new(
+        &volume,
+        [0.0; 3],
+        [1.0, 0.0, 0.0],
+        [0.0, 1.0, 0.0],
+        [0.0, 0.0, 1.0],
+        [5, 4],
+        1,
+        ResliceInterpolation::Nearest,
+    )
+    .expect("unit plane fits the source volume");
+
+    let interior = plane
+        .project_patient([0.5, 0.5, 1.0e13])
+        .expect("normal displacement does not widen the in-plane axes");
+    assert_eq!(interior.pixel(), [0.5, 0.5]);
+    assert_eq!(interior.distance_mm(), 1.0e13);
+    let negative = plane
+        .project_patient([0.5, 0.5, -18.0])
+        .expect("point on the negative normal side projects into the plane");
+    assert_eq!(negative.pixel(), [0.5, 0.5]);
+    assert_eq!(negative.distance_mm(), -18.0);
+
+    let tiny_in_plane = plane
+        .project_patient([1.0e-20, 0.5, 1.0e308])
+        .expect("normal displacement preserves representable in-plane coordinates");
+    assert_eq!(tiny_in_plane.pixel(), [1.0e-20, 0.5]);
+    assert_eq!(tiny_in_plane.distance_mm(), 1.0e308);
+
+    assert!(matches!(
+        plane.project_patient([-0.125, 0.5, 1.0e13]),
+        Err(PixelMappingError::OutOfBounds { .. })
+    ));
+    assert!(matches!(
+        plane.project_patient([-f64::EPSILON, 0.5, 0.0]),
+        Err(PixelMappingError::OutOfBounds { .. })
+    ));
+}
+
+#[test]
+fn patient_projection_rejects_indistinguishable_adjacent_pixel_centres() {
+    let mut volume = scalar_volume([2, 2, 2]);
+    volume.origin = [1.0e16, 0.0, 0.0];
+    let plane = ReslicePlane::try_new(
+        &volume,
+        [1.0e16, 0.0, 0.0],
+        [1.0, 0.0, 0.0],
+        [0.0, 1.0, 0.0],
+        [0.0, 0.0, 1.0],
+        [2, 2],
+        1,
+        ResliceInterpolation::Nearest,
+    )
+    .expect("finite plane geometry is valid");
+
+    let first = plane
+        .patient_at_pixel([0.0, 0.0])
+        .expect("first pixel centre maps to patient space");
+    let adjacent = plane
+        .patient_at_pixel([1.0, 0.0])
+        .expect("adjacent pixel centre maps to patient space");
+    assert_eq!(first, adjacent);
+    assert!(matches!(
+        plane.project_patient(first.coordinates()),
+        Err(PixelMappingError::ProjectionUnresolved { .. })
+    ));
+}
+
+#[test]
+fn patient_projection_reports_signed_distance_for_a_rotated_plane() {
+    let volume = scalar_volume([2, 2, 2]);
+    let plane = ReslicePlane::try_new(
+        &volume,
+        [0.0; 3],
+        [0.0, 1.0, 0.0],
+        [0.0, 0.0, 1.0],
+        [1.0, 0.0, 0.0],
+        [2, 2],
+        1,
+        ResliceInterpolation::Nearest,
+    )
+    .expect("rotated plane geometry is valid");
+
+    let positive = plane
+        .project_patient([2.5, 0.25, 0.75])
+        .expect("point projects into the rotated plane");
+    assert_eq!(positive.pixel(), [0.25, 0.75]);
+    assert_eq!(positive.distance_mm(), 2.5);
+
+    let negative = plane
+        .project_patient([-1.25, 0.25, 0.75])
+        .expect("point projects from the negative normal side");
+    assert_eq!(negative.pixel(), [0.25, 0.75]);
+    assert_eq!(negative.distance_mm(), -1.25);
+}
+
+#[test]
+fn patient_projection_returns_typed_errors_for_invalid_unresolved_and_overflowing_points() {
+    let plane = rotated_anisotropic_patient_plane();
+    assert!(matches!(
+        plane.project_patient([f64::NAN, 21.0, 35.0]),
+        Err(PixelMappingError::InvalidPatientPoint { .. })
+    ));
+
+    let mut volume = scalar_volume([2, 2, 2]);
+    volume.origin = [f64::MAX, 0.0, 0.0];
+    let large_origin_plane = ReslicePlane::try_new(
+        &volume,
+        [f64::MAX, 0.0, 0.0],
+        [1.0, 0.0, 0.0],
+        [0.0, 1.0, 0.0],
+        [0.0, 0.0, 1.0],
+        [2, 2],
+        1,
+        ResliceInterpolation::Nearest,
+    )
+    .expect("finite translated plane is valid");
+    assert!(matches!(
+        large_origin_plane.project_patient([f64::MAX, 0.0, 0.0]),
+        Err(PixelMappingError::ProjectionUnresolved { .. })
+    ));
+
+    let volume = scalar_volume([32, 32, 32]);
+    let diagonal_plane = ReslicePlane::try_new(
+        &volume,
+        [4.0, 4.0, 8.0],
+        [1.0, -1.0, 0.0],
+        [1.0, 1.0, -2.0],
+        [0.0; 3],
+        [1, 1],
+        1,
+        ResliceInterpolation::Nearest,
+    )
+    .expect("diagonal plane is valid");
+    assert!(matches!(
+        diagonal_plane.project_patient([1.7e308; 3]),
+        Err(PixelMappingError::ProjectionOverflow { .. })
+    ));
+}
