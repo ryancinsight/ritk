@@ -4,6 +4,9 @@ use crate::render::WindowLevel;
 use crate::tools::ToolKind;
 use iris::color::{ColorMap, Normalized};
 
+#[path = "tests/patient_length.rs"]
+mod patient_length;
+
 // ── compute_length ────────────────────────────────────────────────────────
 
 /// Axis-aligned horizontal displacement with unit spacing must yield the
