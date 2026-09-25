@@ -6687,7 +6687,6 @@ version = "0.54.0"
 dependencies = [
  "anyhow",
  "base64 0.22.1",
- "bytemuck",
  "coeus-autograd",
  "coeus-core",
  "coeus-nn",
@@ -6711,10 +6710,8 @@ dependencies = [
  "ritk-parcellation",
  "ritk-segmentation",
  "ritk-spatial",
- "ritk-statistics",
  "ritk-tensor-ops",
  "ritk-transform",
- "ritk-wgpu-compat",
  "serde",
  "tempfile",
  "thiserror 2.0.20",
