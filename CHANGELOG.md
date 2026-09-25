@@ -124,6 +124,19 @@
 
 ### Removed
 
+- **[patch] `onnx-ir`, declared workspace-wide and used by nothing.**
+  It sat in `[workspace.dependencies]` and was referenced by exactly one crate,
+  `ritk-model`, whose source contains zero occurrences of `onnx_ir` --
+  `ritk-model` parses ONNX through `consus-onnx` instead. It was also the sole
+  path by which `burn` reached the graph: `onnx-ir` -> `burn-tensor` ->
+  `burn-backend`/`burn-std`, dragging `cubecl-common`, `protobuf`,
+  `derive_more`, `strum`, `rand_distr` and a `which`/`home` build-dependency
+  chain behind it. Because `ritk-model` is a normal dependency of the
+  workspace, `ritk`, `kwavers` and `leoneuro-rs` each carried a machine-learning
+  framework for a parser no code called. Deleting the two lines takes this lock
+  from 897 entries to 865 -- 27 packages -- with no source revision moving.
+  Tensor and autograd work is Coeus, which `ritk-model` already used for all of
+  it.
 - **[patch] Four dependencies `ritk-registration`'s library never names.**
   `ritk-model`, `ritk-wgpu-compat`, `ritk-statistics` and `bytemuck` were
   non-optional dependencies of the library, and no file under `src/`, `tests/`
