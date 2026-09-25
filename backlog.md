@@ -25,16 +25,6 @@
 - basis: 3fcdc3dd
 
 <a id="RITK-SNAP-RESLICE-ORIENTATION-001"></a>
-## RITK-SNAP-RESLICE-ORIENTATION-001: Build physical oblique planes
-- outcome: construct bounded reslice planes from volume geometry and an in-plane orientation.
-- acceptance: orthogonal bases, physical extents, sampling, and pixel mapping use one plane contract; invalid geometry never replaces valid output.
-- status: todo
-- priority: correctness
-- needs: RITK-SNAP-RESLICE-PIXEL-MODULE-001
-- scope: `crates/ritk-snap/src/render/reslice.rs`, `crates/ritk-snap/src/render/reslice/orientation.rs`, render exports
-- next: add plane construction and orientation operations behind the reslice contract.
-- basis: 3fcdc3dd
-
 <a id="RITK-SNAP-RESLICE-ORIENTATION-TESTS-001"></a>
 ## RITK-SNAP-RESLICE-ORIENTATION-TESTS-001: Verify orientation boundaries
 - outcome: cover source changes, plane bounds, and invalid orientation inputs.
@@ -42,9 +32,9 @@
 - status: todo
 - priority: verification
 - needs: RITK-SNAP-RESLICE-ORIENTATION-001
-- scope: `crates/ritk-snap/src/render/tests_reslice.rs`
+- scope: `crates/ritk-snap/src/render/{tests_reslice.rs,tests_reslice/orientation.rs}`
 - next: add the remaining edge and source-geometry cases.
-- basis: 3fcdc3dd
+- basis: c81d190b
 
 <a id="RITK-SNAP-PATIENT-LENGTH-001"></a>
 ## RITK-SNAP-PATIENT-LENGTH-001: Persist patient-space lengths
