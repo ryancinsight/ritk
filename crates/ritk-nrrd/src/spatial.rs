@@ -77,6 +77,10 @@ pub(crate) fn file_space_directions_from_internal(
     ]
 }
 
+mod normalized_or_axis {
+    include!("../../ritk-spatial/src/internal/normalized_or_axis.rs");
+}
+
 fn metadata_from_internal_scaled_columns(
     scaled_columns: [Vector<3>; 3],
 ) -> Result<InternalSpatialMetadata> {
@@ -88,9 +92,9 @@ fn metadata_from_internal_scaled_columns(
     .context("NRRD spatial metadata does not describe a physical grid")?;
 
     let direction_columns = [
-        normalized_or_axis(scaled_columns[0], spacing[0], Vector::z_axis()),
-        normalized_or_axis(scaled_columns[1], spacing[1], Vector::y_axis()),
-        normalized_or_axis(scaled_columns[2], spacing[2], Vector::x_axis()),
+        normalized_or_axis::normalized_or_axis(scaled_columns[0], spacing[0], Vector::z_axis()),
+        normalized_or_axis::normalized_or_axis(scaled_columns[1], spacing[1], Vector::y_axis()),
+        normalized_or_axis::normalized_or_axis(scaled_columns[2], spacing[2], Vector::x_axis()),
     ];
 
     Ok(InternalSpatialMetadata {
@@ -101,14 +105,6 @@ fn metadata_from_internal_scaled_columns(
 
 fn vector_from_array(value: [f64; 3]) -> Vector<3> {
     Vector::new(value)
-}
-
-fn normalized_or_axis(vector: Vector<3>, norm: f64, fallback: Vector<3>) -> Vector<3> {
-    if norm > 1e-9 {
-        vector / norm
-    } else {
-        fallback
-    }
 }
 
 fn scaled_direction_column(

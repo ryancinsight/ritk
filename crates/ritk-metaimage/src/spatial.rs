@@ -76,6 +76,10 @@ pub(crate) fn file_spatial_fields_from_internal(
     }
 }
 
+mod normalized_or_axis {
+    include!("../../ritk-spatial/src/internal/normalized_or_axis.rs");
+}
+
 fn metadata_from_internal_scaled_columns(
     scaled_columns: [Vector<3>; 3],
 ) -> InternalSpatialMetadata {
@@ -86,9 +90,9 @@ fn metadata_from_internal_scaled_columns(
     ]);
 
     let direction_columns = [
-        normalized_or_axis(scaled_columns[0], spacing[0], Vector::z_axis()),
-        normalized_or_axis(scaled_columns[1], spacing[1], Vector::y_axis()),
-        normalized_or_axis(scaled_columns[2], spacing[2], Vector::x_axis()),
+        normalized_or_axis::normalized_or_axis(scaled_columns[0], spacing[0], Vector::z_axis()),
+        normalized_or_axis::normalized_or_axis(scaled_columns[1], spacing[1], Vector::y_axis()),
+        normalized_or_axis::normalized_or_axis(scaled_columns[2], spacing[2], Vector::x_axis()),
     ];
 
     InternalSpatialMetadata {
@@ -123,14 +127,6 @@ fn direction_column(direction_row_major: [f64; 9], column: usize) -> [f64; 3] {
         direction_row_major[3 + column],
         direction_row_major[6 + column],
     ]
-}
-
-fn normalized_or_axis(vector: Vector<3>, norm: f64, fallback: Vector<3>) -> Vector<3> {
-    if norm > 1e-9 {
-        vector / norm
-    } else {
-        fallback
-    }
 }
 
 #[cfg(test)]
