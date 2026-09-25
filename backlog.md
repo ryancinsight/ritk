@@ -12,17 +12,52 @@
 - preserved implementation: branch `perf/ritk-mppca-tridiagonal-eigen` and closed RITK PR #631.
 - basis: 7f149269
 
+<a id="RITK-METIS-DISPLAY-COMMAND-001"></a>
+## RITK-METIS-DISPLAY-COMMAND-001: Adopt the Métis display contract
+- outcome: migrate RITK native overlays to current Métis display-command types.
+- acceptance: latest Métis sources resolve; overlay commands provide explicit corner and text styles; locked native and WASM checks, Clippy, tests, and visual assertions pass.
+- status: todo
+- priority: correctness
+- needs: none
+- scope: `Cargo.lock`, `crates/ritk-snap/src/presentation/native_session/layout/composition.rs`, `crates/ritk-snap/src/presentation/native_session/selection.rs`
+- evidence: Metis main 8c11894caea8df0759a7a9578c25bfc25a02e3da changes FillRect and DrawText fields; a fresh RITK resolution fails both current native overlay modules.
+- next: map colors and sizes to CornerRadius and TextStyle, refresh the lock outside the Atlas overlay, then run the package gates.
+- basis: 5950857874f154cbff145d18c359883e6b58615f
+
+<a id="RITK-SNAP-PATIENT-LENGTH-PERSISTENCE-001"></a>
+## RITK-SNAP-PATIENT-LENGTH-PERSISTENCE-001: Persist patient-space lengths
+- outcome: store validated patient-space endpoints in viewer annotations and saved sessions.
+- acceptance: format 3 writes patient endpoints; formats 1 and 2 still load; a 3–4–5 segment round-trips with a 5 mm derived distance; unknown formats fail; orthogonal rendering never treats patient coordinates as image pixels.
+- status: todo
+- priority: correctness
+- needs: RITK-SNAP-RESLICE-ORIENTATION-001
+- scope: `crates/ritk-snap/src/{session,tools/interaction/annotation.rs,ui/measurements/}`
+- next: add the annotation variant and migrate the session reader and writer to format 3.
+- risk: [major] public annotation enum and session format migration; no registry release is authorized.
+- basis: 5950857874f154cbff145d18c359883e6b58615f
+
+<a id="RITK-SNAP-PATIENT-LENGTH-PRESENTATION-001"></a>
+## RITK-SNAP-PATIENT-LENGTH-PRESENTATION-001: Show patient lengths
+- outcome: expose derived patient-space lengths through viewer snapshots and the annotation panel.
+- acceptance: a 3–4–5 patient-space segment reports exactly 5.0 mm as f64; values beyond f32 integer precision remain distinct; existing annotation-kind discriminants stay stable.
+- status: todo
+- priority: correctness
+- needs: RITK-SNAP-PATIENT-LENGTH-PERSISTENCE-001
+- scope: `crates/ritk-snap/src/{app/presentation_snapshot.rs,app/tests/presentation_snapshot.rs,presentation/snapshot.rs,ui/annotation_panel.rs,ui/annotation_panel/tests.rs}` and migration docs
+- next: publish patient-length summaries and render them in the annotation panel with millimetre units.
+- basis: 5950857874f154cbff145d18c359883e6b58615f
+
 <a id="RITK-SNAP-OBLIQUE-NATIVE-001"></a>
 ## RITK-SNAP-OBLIQUE-NATIVE-001: Native oblique MPR
 - outcome: deliver a native four-plane oblique viewer with patient-space navigation and measurement.
 - acceptance: all child items land; invalid geometry is rejected; the public phantom capture and manual show the real workflow; native visual and value-semantic gates pass.
 - status: todo
 - priority: architecture
-- needs: RITK-SNAP-RESLICE-PIXEL-MODULE-001, RITK-SNAP-RESLICE-ORIENTATION-001, RITK-SNAP-RESLICE-ORIENTATION-TESTS-001, RITK-SNAP-PATIENT-LENGTH-001, RITK-SNAP-INTERACTION-REGIONS-001, RITK-SNAP-INTERACTION-MEASUREMENTS-001, RITK-SNAP-INTERACTION-STATE-001, RITK-SNAP-INTERACTION-WINDOW-LEVEL-001, RITK-SNAP-NATIVE-OVERLAY-001, RITK-SNAP-NATIVE-MPR-COMPOSITION-001, RITK-SNAP-OBLIQUE-VIEWPORT-001, RITK-SNAP-OBLIQUE-APP-ADAPTER-001, RITK-SNAP-OBLIQUE-APP-TESTS-001, RITK-SNAP-OBLIQUE-SESSION-MODULES-001, RITK-SNAP-OBLIQUE-SESSION-WIRING-001, RITK-SNAP-OBLIQUE-ROUTING-001, RITK-SNAP-PATIENT-MEASUREMENT-OVERLAY-001, RITK-SNAP-OBLIQUE-SESSION-TESTS-001, RITK-SNAP-OBLIQUE-INTERACTION-TESTS-001, RITK-SNAP-OBLIQUE-MANUAL-001
+- needs: RITK-SNAP-RESLICE-PIXEL-MODULE-001, RITK-SNAP-RESLICE-ORIENTATION-001, RITK-SNAP-RESLICE-ORIENTATION-TESTS-001, RITK-SNAP-PATIENT-LENGTH-PERSISTENCE-001, RITK-SNAP-PATIENT-LENGTH-PRESENTATION-001, RITK-SNAP-INTERACTION-REGIONS-001, RITK-SNAP-INTERACTION-MEASUREMENTS-001, RITK-SNAP-INTERACTION-STATE-001, RITK-SNAP-INTERACTION-WINDOW-LEVEL-001, RITK-SNAP-NATIVE-OVERLAY-001, RITK-SNAP-NATIVE-MPR-COMPOSITION-001, RITK-SNAP-OBLIQUE-VIEWPORT-001, RITK-SNAP-OBLIQUE-APP-ADAPTER-001, RITK-SNAP-OBLIQUE-APP-TESTS-001, RITK-SNAP-OBLIQUE-SESSION-MODULES-001, RITK-SNAP-OBLIQUE-SESSION-WIRING-001, RITK-SNAP-OBLIQUE-ROUTING-001, RITK-SNAP-PATIENT-MEASUREMENT-OVERLAY-001, RITK-SNAP-OBLIQUE-SESSION-TESTS-001, RITK-SNAP-OBLIQUE-INTERACTION-TESTS-001, RITK-SNAP-OBLIQUE-MANUAL-001, RITK-METIS-DISPLAY-COMMAND-001
 - scope: `crates/ritk-snap/src/{app,presentation,render,tools/interaction,session}/`, `crates/ritk-snap/src/main.rs`, crate README, ADRs, manual, and provenance.
 - next: deliver ready child items in dependency order; preserve the public MRI-DIR phantom as the shareable visual fixture.
 - risk: [major] [arch]; patient-space annotations and session format 3; no registry release is authorized.
-- basis: 3fcdc3dd
+- basis: 5950857874f154cbff145d18c359883e6b58615f
 
 <a id="RITK-SNAP-RESLICE-ORIENTATION-001"></a>
 <a id="RITK-SNAP-RESLICE-ORIENTATION-TESTS-001"></a>
@@ -36,28 +71,16 @@
 - next: add the remaining edge and source-geometry cases.
 - basis: c81d190b
 
-<a id="RITK-SNAP-PATIENT-LENGTH-001"></a>
-## RITK-SNAP-PATIENT-LENGTH-001: Persist patient-space lengths
-- outcome: store validated endpoint coordinates and millimetre length in viewer annotations.
-- acceptance: format 3 writes patient endpoints; formats 1 and 2 still load; a 3–4–5 segment reports 5 mm through snapshots and UI.
-- status: todo
-- priority: correctness
-- needs: RITK-SNAP-RESLICE-ORIENTATION-001
-- scope: `crates/ritk-snap/src/{session,tools/interaction,ui}/` and snapshot tests
-- next: complete the persisted-format migration and public enum documentation.
-- risk: [major] public exhaustive annotation matches require migration.
-- basis: 3fcdc3dd
-
 <a id="RITK-SNAP-INTERACTION-REGIONS-001"></a>
 ## RITK-SNAP-INTERACTION-REGIONS-001: Separate region interaction tests
 - outcome: give region tools one test module without changing behavior.
 - acceptance: every moved test remains present and passes with the same assertions.
 - status: todo
 - priority: tightening
-- needs: RITK-SNAP-PATIENT-LENGTH-001
+- needs: none
 - scope: `crates/ritk-snap/src/tools/interaction/tests.rs`, `tools/interaction/tests/regions.rs`
 - next: move only region cases and keep the parent test module as a manifest.
-- basis: 3fcdc3dd
+- basis: 5950857874f154cbff145d18c359883e6b58615f
 
 <a id="RITK-SNAP-INTERACTION-MEASUREMENTS-001"></a>
 ## RITK-SNAP-INTERACTION-MEASUREMENTS-001: Separate measurement tests
@@ -98,10 +121,10 @@
 - acceptance: existing native captures and interaction outcomes remain unchanged after the pure extraction.
 - status: todo
 - priority: architecture
-- needs: RITK-SNAP-PATIENT-LENGTH-001
+- needs: RITK-SNAP-PATIENT-LENGTH-PERSISTENCE-001, RITK-METIS-DISPLAY-COMMAND-001
 - scope: `crates/ritk-snap/src/presentation/native_session/layout/`
 - next: extract overlay composition from the native session layout.
-- basis: 3fcdc3dd
+- basis: 5950857874f154cbff145d18c359883e6b58615f
 
 <a id="RITK-SNAP-NATIVE-MPR-COMPOSITION-001"></a>
 ## RITK-SNAP-NATIVE-MPR-COMPOSITION-001: Compose the four native panes
@@ -131,10 +154,10 @@
 - acceptance: clicks link the correct voxel, wheel translates the plane, and orientation keys update its basis; invalid actions reject.
 - status: todo
 - priority: feature
-- needs: RITK-SNAP-OBLIQUE-VIEWPORT-001, RITK-SNAP-PATIENT-LENGTH-001
+- needs: RITK-SNAP-OBLIQUE-VIEWPORT-001, RITK-SNAP-PATIENT-LENGTH-PERSISTENCE-001
 - scope: `crates/ritk-snap/src/app/action_adapter.rs`, `app/pointer_ops.rs`, and oblique modules
 - next: add the adapter with the smallest complete happy-path test.
-- basis: 3fcdc3dd
+- basis: 5950857874f154cbff145d18c359883e6b58615f
 
 <a id="RITK-SNAP-OBLIQUE-APP-TESTS-001"></a>
 ## RITK-SNAP-OBLIQUE-APP-TESTS-001: Verify oblique adapter boundaries
@@ -186,10 +209,10 @@
 - acceptance: label positions use the same plane projection as pixels; a 3–4–5 measurement displays 5 mm.
 - status: todo
 - priority: correctness
-- needs: RITK-SNAP-OBLIQUE-SESSION-WIRING-001, RITK-SNAP-PATIENT-LENGTH-001
+- needs: RITK-SNAP-OBLIQUE-SESSION-WIRING-001, RITK-SNAP-PATIENT-LENGTH-PERSISTENCE-001
 - scope: `crates/ritk-snap/src/presentation/native_session/layout/measurement.rs`, `crates/ritk-snap/src/ui/measurements/`
 - next: project endpoints through the shared physical plane mapping.
-- basis: 3fcdc3dd
+- basis: 5950857874f154cbff145d18c359883e6b58615f
 
 <a id="RITK-SNAP-OBLIQUE-SESSION-TESTS-001"></a>
 ## RITK-SNAP-OBLIQUE-SESSION-TESTS-001: Verify oblique rendering and startup
