@@ -49,8 +49,8 @@ pub(crate) use mip_vr::render_mip_axial_rgba_into;
 #[cfg(all(not(target_arch = "wasm32"), feature = "eframe-shell"))]
 pub use mip_vr::{render_mip_axial, render_vr_axial};
 pub use reslice::{
-    PatientPlaneProjection, PixelMappingError, ResliceError, ResliceInterpolation, ResliceOutput,
-    ReslicePlane,
+    PatientPlaneProjection, PixelMappingError, ResliceError, ResliceInterpolation,
+    ResliceOrientation, ResliceOrientationError, ResliceOutput, ReslicePlane,
 };
 pub use slab::{ProjectionPlane, ProjectionStatistic, SlabProjection, SlabProjectionError};
 pub(crate) use slice_render::FrameRenderScratch;
