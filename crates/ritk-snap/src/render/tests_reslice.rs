@@ -5,7 +5,7 @@ use super::{
 use crate::LoadedVolume;
 use std::sync::Arc;
 
-fn scalar_volume(shape: [usize; 3]) -> LoadedVolume {
+pub(super) fn scalar_volume(shape: [usize; 3]) -> LoadedVolume {
     let [depth, rows, columns] = shape;
     let data = (0..depth)
         .flat_map(|depth_index| {
@@ -36,6 +36,9 @@ fn scalar_volume(shape: [usize; 3]) -> LoadedVolume {
         decay_correction: None,
     }
 }
+
+#[path = "tests_reslice/orientation.rs"]
+mod orientation;
 
 #[test]
 fn axis_aligned_planes_match_existing_slice_values() {

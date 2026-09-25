@@ -262,9 +262,11 @@ pub enum ResliceError {
     AxisAlignedSlab(#[source] super::slab::SlabProjectionError),
 }
 
+mod orientation;
 mod pixel;
 mod sampling;
 
+pub use orientation::{ResliceOrientation, ResliceOrientationError};
 pub use pixel::{PatientPlaneProjection, PixelMappingError, ResliceOutput};
 
 #[cfg(test)]
