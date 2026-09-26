@@ -4,7 +4,7 @@
 use super::threshold::{marchenko_pastur_boundary, NoiseBoundary};
 use super::{MpEstimator, MpPcaError, PatchExtent};
 use leto::Array2;
-use leto_ops::{symmetric_eigen_jacobi, RealScalar};
+use leto_ops::{RealScalar, SymmetricEigenWorkspace};
 
 /// Minimum volume count the Marchenko-Pastur boundary can split.
 const MIN_VOLUMES: usize = 2;
@@ -310,16 +310,18 @@ fn unravel(index: usize, shape: [usize; 3]) -> [usize; 3] {
 }
 
 /// One worker's reusable window storage: the Casorati matrix, its voxel
-/// indices, the Gram matrix, and the spectrum buffers, so a worker allocates
-/// only inside the eigensolver.
+/// indices, the Gram matrix, the eigensolver workspace, and the spectrum and
+/// projection buffers, so a worker allocates only on its first window.
 struct WindowWorkspace<T> {
     voxels: usize,
     depth: usize,
     indices: Vec<usize>,
     casorati: Vec<T>,
     gram: Vec<T>,
+    eigen: SymmetricEigenWorkspace<T>,
     descending: Vec<T>,
     trailing: Vec<T>,
+    coefficients: Vec<T>,
 }
 
 impl<T: RealScalar> WindowWorkspace<T> {
@@ -331,8 +333,10 @@ impl<T: RealScalar> WindowWorkspace<T> {
             indices: Vec::with_capacity(voxels),
             casorati: vec![T::ZERO; voxels * depth],
             gram: Vec::with_capacity(m * m),
+            eigen: SymmetricEigenWorkspace::new(),
             descending: Vec::with_capacity(m),
             trailing: Vec::with_capacity(m + 1),
+            coefficients: vec![T::ZERO; depth],
         }
     }
 
@@ -379,71 +383,83 @@ impl<T: RealScalar> WindowWorkspace<T> {
         } else {
             (voxels, depth)
         };
-        let y = &self.casorati;
-        let at = |row: usize, col: usize| y[row * depth + col];
+        let rows = self.casorati.chunks_exact(depth);
 
+        // Lower triangle only: the eigensolver reads no other entry. Each
+        // entry still sums its products in ascending row (or column) order.
         let scale = T::from_usize(n);
         let mut gram = std::mem::take(&mut self.gram);
         gram.clear();
         gram.resize(m * m, T::ZERO);
-        for i in 0..m {
-            for j in i..m {
-                let mut dot = T::ZERO;
-                if volumes_smaller {
-                    for r in 0..voxels {
-                        dot += at(r, i) * at(r, j);
-                    }
-                } else {
-                    for c in 0..depth {
-                        dot += at(i, c) * at(j, c);
-                    }
-                }
-                let value = dot / scale;
-                gram[i * m + j] = value;
-                gram[j * m + i] = value;
-            }
-        }
-
-        let matrix = Array2::from_shape_vec([m, m], gram).map_err(MpPcaError::Eigen)?;
-        let eigen = symmetric_eigen_jacobi(&matrix.view());
-        self.gram = matrix.into_vec();
-        let eigen = eigen.map_err(MpPcaError::Eigen)?;
-        self.descending.clear();
-        self.descending
-            .extend(eigen.eigenvalues.iter().rev().copied());
-        let boundary =
-            marchenko_pastur_boundary(&self.descending, n, estimator, &mut self.trailing);
-        let vectors = eigen
-            .eigenvectors
-            .as_slice()
-            .expect("invariant: leto builds eigenvectors in contiguous row-major storage");
-        // Eigenvalues ascend, so the signal eigenvectors are the last P̂ columns.
-        let signal = m - boundary.signal_components..m;
-
-        out.fill(T::ZERO);
         if volumes_smaller {
-            // Ŷ = Y·U·Uᵀ over volume-space eigenvectors u_k.
-            for r in 0..voxels {
-                for k in signal.clone() {
-                    let mut coefficient = T::ZERO;
-                    for i in 0..depth {
-                        coefficient += at(r, i) * vectors[i * m + k];
-                    }
-                    for i in 0..depth {
-                        out[r * depth + i] += coefficient * vectors[i * m + k];
+            // G = YᵀY: add each voxel row's outer product, row by row.
+            for row in rows.clone() {
+                for (i, &yi) in row.iter().enumerate() {
+                    let lower = &mut gram[i * m..=i * m + i];
+                    for (entry, &yj) in lower.iter_mut().zip(row) {
+                        *entry += yi * yj;
                     }
                 }
             }
         } else {
-            // Ŷ = W·Wᵀ·Y over voxel-space eigenvectors w_k.
-            for c in 0..depth {
-                for k in signal.clone() {
-                    let mut coefficient = T::ZERO;
-                    for r in 0..voxels {
-                        coefficient += vectors[r * m + k] * at(r, c);
+            // G = YYᵀ: dot products of voxel rows.
+            for (i, row_i) in rows.clone().enumerate() {
+                for (entry, row_j) in gram[i * m..=i * m + i].iter_mut().zip(rows.clone()) {
+                    *entry = row_i
+                        .iter()
+                        .zip(row_j)
+                        .fold(T::ZERO, |dot, (&a, &b)| dot + a * b);
+                }
+            }
+        }
+        for i in 0..m {
+            for entry in &mut gram[i * m..=i * m + i] {
+                *entry = *entry / scale;
+            }
+        }
+
+        let matrix = Array2::from_shape_vec([m, m], gram).map_err(MpPcaError::Eigen)?;
+        let decomposed = self.eigen.decompose(&matrix.view());
+        self.gram = matrix.into_vec();
+        decomposed.map_err(MpPcaError::Eigen)?;
+        self.descending.clear();
+        self.descending
+            .extend(self.eigen.eigenvalues().iter().rev().copied());
+        let boundary =
+            marchenko_pastur_boundary(&self.descending, n, estimator, &mut self.trailing);
+        // Eigenvalues ascend, so the signal eigenvectors are the last P̂.
+        let signal = self
+            .eigen
+            .eigenvectors()
+            .skip(m - boundary.signal_components);
+
+        out.fill(T::ZERO);
+        if volumes_smaller {
+            // Ŷ = Y·U·Uᵀ over volume-space eigenvectors u_k.
+            for (row, reconstructed) in rows.zip(out.chunks_exact_mut(depth)) {
+                for u in signal.clone() {
+                    let coefficient = row
+                        .iter()
+                        .zip(u)
+                        .fold(T::ZERO, |dot, (&y, &uk)| dot + y * uk);
+                    for (value, &uk) in reconstructed.iter_mut().zip(u) {
+                        *value += coefficient * uk;
                     }
-                    for r in 0..voxels {
-                        out[r * depth + c] += coefficient * vectors[r * m + k];
+                }
+            }
+        } else {
+            // Ŷ = W·Wᵀ·Y over voxel-space eigenvectors w_k: the coefficient
+            // row wₖᵀY accumulates voxel rows in ascending order.
+            for w in signal {
+                self.coefficients.fill(T::ZERO);
+                for (row, &wr) in rows.clone().zip(w) {
+                    for (coefficient, &y) in self.coefficients.iter_mut().zip(row) {
+                        *coefficient += wr * y;
+                    }
+                }
+                for (reconstructed, &wr) in out.chunks_exact_mut(depth).zip(w) {
+                    for (value, &coefficient) in reconstructed.iter_mut().zip(&self.coefficients) {
+                        *value += coefficient * wr;
                     }
                 }
             }

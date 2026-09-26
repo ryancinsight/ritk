@@ -1,17 +1,5 @@
 # RITK execution backlog
 
-<a id="RITK-MPPCA-EIGEN-QL-2026-09-23"></a>
-## RITK-MPPCA-EIGEN-QL-2026-09-23: Replace the MP-PCA Jacobi eigensolver
-- outcome: use Leto's range-scaled tridiagonal QL solver with one allocation-reusing workspace per worker.
-- acceptance: existing MP-PCA tests remain green; the Jacobi differential stays within its derived backward-error bound; the full workspace gate passes against the merged Leto dependency.
-- status: blocked
-- priority: tightening
-- scope: `Cargo.lock`, `crates/ritk-filter/{Cargo.toml,benches/mppca.rs,src/mppca/}`
-- blocker: Leto PR #233 is mergeable and its Rust and Miri checks pass, but its current head lacks an independent numerical review and GitHub still requires an Artifact budget check that its workflow does not emit.
-- next: re-open RITK PR #631 after Leto PR #233 receives a current-head numerical review, its required-check configuration reports green, and it merges; then rebase and resolve the lockfile to that merge.
-- preserved implementation: branch `perf/ritk-mppca-tridiagonal-eigen` and closed RITK PR #631.
-- basis: 7f149269
-
 <a id="RITK-SNAP-OBLIQUE-NATIVE-001"></a>
 ## RITK-SNAP-OBLIQUE-NATIVE-001: Native oblique MPR
 - outcome: deliver a native four-plane oblique viewer with patient-space navigation and measurement.
