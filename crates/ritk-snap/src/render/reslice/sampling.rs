@@ -265,7 +265,7 @@ pub(super) fn vector_norm(vector: [f64; 3]) -> f64 {
         .sqrt()
 }
 
-fn cross_product(first: [f64; 3], second: [f64; 3]) -> [f64; 3] {
+pub(super) fn cross_product(first: [f64; 3], second: [f64; 3]) -> [f64; 3] {
     [
         first[1] * second[2] - first[2] * second[1],
         first[2] * second[0] - first[0] * second[2],

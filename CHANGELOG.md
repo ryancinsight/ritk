@@ -133,6 +133,32 @@
 
 ### Removed
 
+- **[patch] `onnx-ir`, declared workspace-wide and used by nothing.**
+  It sat in `[workspace.dependencies]` and was referenced by exactly one crate,
+  `ritk-model`, whose source contains zero occurrences of `onnx_ir` --
+  `ritk-model` parses ONNX through `consus-onnx` instead. It was also the sole
+  path by which `burn` reached the graph: `onnx-ir` -> `burn-tensor` ->
+  `burn-backend`/`burn-std`, dragging `cubecl-common`, `protobuf`,
+  `derive_more`, `strum`, `rand_distr` and a `which`/`home` build-dependency
+  chain behind it. Because `ritk-model` is a normal dependency of the
+  workspace, `ritk`, `kwavers` and `leoneuro-rs` each carried a machine-learning
+  framework for a parser no code called. Deleting the two lines takes this lock
+  from 897 entries to 865 -- 27 packages -- with no source revision moving.
+  Tensor and autograd work is Coeus, which `ritk-model` already used for all of
+  it.
+- **[patch] Four dependencies `ritk-registration`'s library never names.**
+  `ritk-model`, `ritk-wgpu-compat`, `ritk-statistics` and `bytemuck` were
+  non-optional dependencies of the library, and no file under `src/`, `tests/`
+  or `benches/` referenced any of them. `ritk-model` alone reached `onnx-ir`,
+  `burn-tensor`, `cubecl` and `reqwest`/`rustls`/`aws-lc-rs`, so a consumer of
+  `classical::translation` -- an exhaustive integer-voxel search over two
+  borrowed slices -- inherited a machine-learning framework and an HTTP client
+  with a CMake-built TLS backend. Measured on the library graph, 348 packages
+  before and 214 after. `ritk-model` is used by `examples/dl_registration.rs`
+  and `examples/dl_train.rs`, so it moves to `[dev-dependencies]`; the other
+  three are deleted. `ritk-statistics` and `ritk-wgpu-compat` remain workspace
+  members and still reach the dev graph through other dev-dependencies.
+
 - **[major] `GpuFieldSmoother` and `CpuOrGpu`.** Neither could do what its name
   said. `GpuFieldSmoother<B: Backend>` bound `coeus_core::Backend`, whose only
   implementors are `SequentialBackend` and `MoiraiBackend` — both CPU — so no

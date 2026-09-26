@@ -1,8 +1,9 @@
 //! Workspace dependency-inheritance gate.
 #![expect(clippy::print_stdout, reason = "ratchet RITK-LINT-1")]
 
+use std::collections::{BTreeMap, BTreeSet};
 use std::fs;
-use std::path::PathBuf;
+use std::path::{Path, PathBuf};
 use std::process::Command;
 
 use anyhow::{bail, Context, Result};
@@ -30,6 +31,23 @@ struct Dependency {
     target: Option<String>,
 }
 
+/// Runtime tensor/autograd stacks that Coeus replaces. Coeus is the SSOT for
+/// every tensor operation, so the graph must not reach a second one -- and
+/// "reach" is the operative word: `onnx-ir` pulled `burn-tensor` in without any
+/// manifest in this workspace naming `burn`.
+const FORBIDDEN_RUNTIME_STACKS: &[&str] = &["burn", "tch"];
+
+/// Match a crate name against a stack root, so `burn`, `burn-tensor` and
+/// `burn-ndarray` all resolve to `burn` while `burner` does not.
+fn forbidden_stack(crate_name: &str) -> Option<&'static str> {
+    FORBIDDEN_RUNTIME_STACKS.iter().copied().find(|stack| {
+        crate_name == *stack
+            || crate_name
+                .strip_prefix(stack)
+                .is_some_and(|rest| rest.starts_with('-'))
+    })
+}
+
 pub(crate) fn verify() -> Result<()> {
     let output = Command::new("cargo")
         .args(["metadata", "--format-version", "1", "--no-deps", "--locked"])
@@ -50,6 +68,19 @@ pub(crate) fn verify() -> Result<()> {
         };
         if parent == metadata.workspace_root {
             continue;
+        }
+        let relative = package
+            .manifest_path
+            .strip_prefix(&metadata.workspace_root)
+            .unwrap_or(&package.manifest_path);
+        for dependency in &package.dependencies {
+            if let Some(stack) = forbidden_stack(&dependency.name) {
+                failures.push(format!(
+                    "{}: declares the `{stack}` runtime stack ('{}'); tensor operations are Coeus",
+                    relative.display(),
+                    dependency.name
+                ));
+            }
         }
         let manifest_text = fs::read_to_string(&package.manifest_path).with_context(|| {
             format!(
@@ -75,10 +106,6 @@ pub(crate) fn verify() -> Result<()> {
                 dependency.kind.as_deref().unwrap_or("normal"),
                 dependency.target.as_deref(),
             ) {
-                let relative = package
-                    .manifest_path
-                    .strip_prefix(&metadata.workspace_root)
-                    .unwrap_or(&package.manifest_path);
                 failures.push(format!(
                     "{}: dependency '{}' is not inherited from workspace",
                     relative.display(),
@@ -86,6 +113,13 @@ pub(crate) fn verify() -> Result<()> {
                 ));
             }
         }
+    }
+    for (stack, crates) in reachable_forbidden_stacks(&metadata.workspace_root)? {
+        failures.push(format!(
+            "the resolved dependency graph reaches the `{stack}` runtime stack ({}); tensor \
+             operations are Coeus",
+            crates.into_iter().collect::<Vec<_>>().join(", ")
+        ));
     }
     if failures.is_empty() {
         println!("Workspace dependency alignment check passed.");
@@ -124,9 +158,66 @@ fn inherits_workspace_dependency(
         == Some(true)
 }
 
+/// The stacks must be absent from the *resolved* graph, not merely undeclared:
+/// `burn` arrived here through `onnx-ir` with no manifest in this workspace
+/// naming it.
+///
+/// Match on the resolved package names rather than `cargo tree -i <stack>`.
+/// No package in this graph is called plain `burn` -- the lock carries
+/// `burn-tensor`, `burn-backend` and `burn-std` -- so an exact-name inversion
+/// reports "did not match any packages" while the stack is present.
+/// `cargo tree --format '{p}'` prints one `name version` line per node.
+fn reachable_forbidden_stacks(
+    workspace_root: &Path,
+) -> Result<BTreeMap<&'static str, BTreeSet<String>>> {
+    let output = Command::new("cargo")
+        .args([
+            "tree",
+            "--locked",
+            "--workspace",
+            "--prefix",
+            "none",
+            "--format",
+            "{p}",
+        ])
+        .current_dir(workspace_root)
+        .output()
+        .context("failed to run cargo tree")?;
+    if !output.status.success() {
+        bail!(
+            "cargo tree failed: {}",
+            String::from_utf8_lossy(&output.stderr).trim()
+        );
+    }
+    let mut found: BTreeMap<&'static str, BTreeSet<String>> = BTreeMap::new();
+    for line in String::from_utf8_lossy(&output.stdout).lines() {
+        let Some(name) = line.split_whitespace().next() else {
+            continue;
+        };
+        if let Some(stack) = forbidden_stack(name) {
+            found.entry(stack).or_default().insert(name.to_string());
+        }
+    }
+    Ok(found)
+}
+
 #[cfg(test)]
 mod tests {
-    use super::inherits_workspace_dependency;
+    use super::{forbidden_stack, inherits_workspace_dependency};
+
+    #[test]
+    fn forbidden_stack_matches_the_stack_and_its_crates_but_not_lookalikes() {
+        assert_eq!(forbidden_stack("burn"), Some("burn"));
+        assert_eq!(forbidden_stack("burn-tensor"), Some("burn"));
+        assert_eq!(forbidden_stack("burn-ndarray"), Some("burn"));
+        assert_eq!(forbidden_stack("tch"), Some("tch"));
+        // A lookalike is not the stack.
+        assert_eq!(forbidden_stack("burner"), None);
+        // Coeus is the replacement, and `onnx-ir` is not itself a runtime
+        // stack -- it is caught by the reachability check instead.
+        assert_eq!(forbidden_stack("coeus-tensor"), None);
+        assert_eq!(forbidden_stack("onnx-ir"), None);
+    }
 
     #[test]
     fn inheritance_detection_respects_kind_and_target_scope() {
