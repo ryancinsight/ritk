@@ -10,6 +10,7 @@ use super::geometry::{
     VIEW_GAP_PIXELS,
 };
 use super::overlay::{append_overlay_list, application_overlay, projection_overlay};
+use crate::presentation::PresentationFrame;
 use crate::tools::interaction::ViewportOffset;
 
 /// Compose the three views into one bounded Métis framebuffer.
@@ -102,20 +103,88 @@ pub(crate) fn surface_frames_with_projection(
     cine_fps: f32,
     show_application_overlay: bool,
 ) -> Result<(Framebuffer, [NativeViewport; 3])> {
+    let mut composition = compose_four_panel(
+        views,
+        &projection.frame,
+        [surface_width, surface_height],
+        PaneNavigation { zoom, pan_offset },
+        PaneNavigation { zoom, pan_offset },
+    )?;
+    if show_application_overlay {
+        let mut overlay =
+            application_overlay(views, &composition.viewports, cine_enabled, cine_fps)?;
+        append_overlay_list(
+            &mut overlay,
+            projection_overlay(
+                projection,
+                composition.fourth_panel.x,
+                composition.fourth_panel.y,
+                composition.fourth_panel.width,
+                composition.fourth_panel.height,
+            )?,
+        )?;
+        overlay.render_to(&mut composition.framebuffer);
+    }
+    Ok((composition.framebuffer, composition.viewports))
+}
+
+#[derive(Clone, Copy)]
+struct PaneNavigation {
+    zoom: f32,
+    pan_offset: ViewportOffset,
+}
+
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+struct PanelBounds {
+    x: u32,
+    y: u32,
+    width: u32,
+    height: u32,
+}
+
+impl PanelBounds {
+    fn screen_rect(self) -> ScreenRect {
+        ScreenRect {
+            x: f64::from(self.x),
+            y: f64::from(self.y),
+            width: f64::from(self.width),
+            height: f64::from(self.height),
+        }
+    }
+}
+
+struct FourPanelComposition {
+    framebuffer: Framebuffer,
+    viewports: [NativeViewport; 3],
+    fourth_panel: PanelBounds,
+}
+
+/// Place three orthogonal frames and a host-neutral fourth frame in one grid.
+fn compose_four_panel(
+    views: &[RenderedView; 3],
+    fourth_frame: &PresentationFrame,
+    surface_size: [u32; 2],
+    orthogonal: PaneNavigation,
+    fourth: PaneNavigation,
+) -> Result<FourPanelComposition> {
+    let [surface_width, surface_height] = surface_size;
     if surface_width == 0 || surface_height == 0 {
         bail!("native surface dimensions must be nonzero while rendering");
     }
-    if !zoom.is_finite() || zoom <= 0.0 {
+    if !orthogonal.zoom.is_finite() || orthogonal.zoom <= 0.0 {
         bail!("native viewer zoom must be finite and positive");
+    }
+    if !fourth.zoom.is_finite() || fourth.zoom <= 0.0 {
+        bail!("native fourth-panel zoom must be finite and positive");
     }
     let available_width = surface_width
         .checked_sub(VIEW_GAP_PIXELS)
-        .ok_or_else(|| anyhow!("native projection layout is narrower than its separator"))?;
+        .ok_or_else(|| anyhow!("native four-panel layout is narrower than its separator"))?;
     let available_height = surface_height
         .checked_sub(VIEW_GAP_PIXELS)
-        .ok_or_else(|| anyhow!("native projection layout is shorter than its separator"))?;
+        .ok_or_else(|| anyhow!("native four-panel layout is shorter than its separator"))?;
     if available_width < 2 || available_height < 2 {
-        bail!("native projection layout cannot allocate four panels");
+        bail!("native four-panel layout cannot allocate four panels");
     }
     let column_widths = [
         available_width / 2 + available_width % 2,
@@ -125,9 +194,6 @@ pub(crate) fn surface_frames_with_projection(
         available_height / 2 + available_height % 2,
         available_height / 2,
     ];
-    let mut framebuffer = Framebuffer::new(surface_width, surface_height)
-        .map_err(|error| anyhow!("allocate native projection framebuffer: {error}"))?;
-    framebuffer.clear(Color::BLACK);
     let viewports = [
         placement_with_bounds(
             &views[0],
@@ -135,8 +201,8 @@ pub(crate) fn surface_frames_with_projection(
             0,
             column_widths[0],
             row_heights[0],
-            zoom,
-            pan_offset,
+            orthogonal.zoom,
+            orthogonal.pan_offset,
         )?,
         placement_with_bounds(
             &views[1],
@@ -144,8 +210,8 @@ pub(crate) fn surface_frames_with_projection(
             0,
             column_widths[1],
             row_heights[0],
-            zoom,
-            pan_offset,
+            orthogonal.zoom,
+            orthogonal.pan_offset,
         )?,
         placement_with_bounds(
             &views[2],
@@ -153,10 +219,29 @@ pub(crate) fn surface_frames_with_projection(
             row_heights[0] + VIEW_GAP_PIXELS,
             column_widths[0],
             row_heights[1],
-            zoom,
-            pan_offset,
+            orthogonal.zoom,
+            orthogonal.pan_offset,
         )?,
     ];
+    let fourth_panel = PanelBounds {
+        x: column_widths[0] + VIEW_GAP_PIXELS,
+        y: row_heights[0] + VIEW_GAP_PIXELS,
+        width: column_widths[1],
+        height: row_heights[1],
+    };
+    let fourth_image = placement_geometry(
+        [fourth_frame.width(), fourth_frame.height()],
+        fourth_frame.display_spacing(),
+        fourth_panel.x,
+        fourth_panel.y,
+        fourth_panel.width,
+        fourth_panel.height,
+        fourth.zoom,
+        fourth.pan_offset,
+    )?;
+    let mut framebuffer = Framebuffer::new(surface_width, surface_height)
+        .map_err(|error| anyhow!("allocate native viewer framebuffer: {error}"))?;
+    framebuffer.clear(Color::BLACK);
     for (view, viewport) in views.iter().zip(viewports) {
         blit_frame(
             &mut framebuffer,
@@ -166,45 +251,19 @@ pub(crate) fn surface_frames_with_projection(
             surface_height,
         )?;
     }
-    let projection_panel = ScreenRect {
-        x: f64::from(column_widths[0] + VIEW_GAP_PIXELS),
-        y: f64::from(row_heights[0] + VIEW_GAP_PIXELS),
-        width: f64::from(column_widths[1]),
-        height: f64::from(row_heights[1]),
-    };
-    let projection_image = placement_geometry(
-        [projection.frame.width(), projection.frame.height()],
-        projection.frame.display_spacing(),
-        column_widths[0] + VIEW_GAP_PIXELS,
-        row_heights[0] + VIEW_GAP_PIXELS,
-        column_widths[1],
-        row_heights[1],
-        zoom,
-        pan_offset,
-    )?;
     blit_rgba_frame(
         &mut framebuffer,
-        &projection.frame,
-        projection_image,
-        projection_panel,
+        fourth_frame,
+        fourth_image,
+        fourth_panel.screen_rect(),
         surface_width,
         surface_height,
     )?;
-    if show_application_overlay {
-        let mut overlay = application_overlay(views, &viewports, cine_enabled, cine_fps)?;
-        append_overlay_list(
-            &mut overlay,
-            projection_overlay(
-                projection,
-                column_widths[0] + VIEW_GAP_PIXELS,
-                row_heights[0] + VIEW_GAP_PIXELS,
-                column_widths[1],
-                row_heights[1],
-            )?,
-        )?;
-        overlay.render_to(&mut framebuffer);
-    }
-    Ok((framebuffer, viewports))
+    Ok(FourPanelComposition {
+        framebuffer,
+        viewports,
+        fourth_panel,
+    })
 }
 
 pub(super) fn blit_frame(
@@ -288,3 +347,7 @@ pub(super) fn blit_rgba_frame(
     );
     Ok(())
 }
+
+#[cfg(test)]
+#[path = "composition/tests.rs"]
+mod tests;

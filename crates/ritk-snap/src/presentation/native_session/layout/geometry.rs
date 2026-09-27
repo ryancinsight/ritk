@@ -7,7 +7,7 @@ use anyhow::{anyhow, bail, Result};
 
 use super::super::frame::RenderedView;
 
-/// Pixel separator between the three native orthogonal panels.
+/// Pixel separator between native viewer panels.
 pub(super) const VIEW_GAP_PIXELS: u32 = 4;
 
 /// Screen placement and RITK coordinate mapping for one composed view.
