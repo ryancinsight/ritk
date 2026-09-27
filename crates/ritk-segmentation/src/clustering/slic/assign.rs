@@ -10,57 +10,103 @@ use super::grid::Center;
 
 const ASSIGN_CHUNK_LEN: usize = 1024;
 
-/// Build a mapping from grid cell index to the list of center indices whose
-/// search region (±2S per axis) overlaps that cell.
-pub fn build_grid_map(
-    centers: &[Center],
-    grid_sizes: &[usize],
-    shape: &[usize],
-    ndim: usize,
-) -> Vec<Vec<usize>> {
-    let mut grid_map = Vec::new();
-    build_grid_map_into(centers, grid_sizes, shape, ndim, &mut grid_map);
-    grid_map
+/// Grid-cell to cluster-center search index in compressed sparse row form.
+///
+/// The centers whose search region (±2S per axis) overlaps cell `c` are
+/// `members[offsets[c]..offsets[c + 1]]`, in ascending center index. That
+/// order is the tie-break of the assignment scan, which keeps the first
+/// center reaching the minimum distance. One contiguous member buffer replaces
+/// a heap list per cell, so the per-voxel scan reads one slice of a single
+/// allocation and a rebuild touches no per-cell headers.
+#[derive(Debug, Clone, Default)]
+pub struct CenterGrid {
+    offsets: Vec<usize>,
+    members: Vec<usize>,
 }
 
-/// Zero-allocation variant of [`build_grid_map`] that reuses the allocated capacity of `grid_map`.
-pub fn build_grid_map_into(
+impl CenterGrid {
+    /// Rebuild the index for `centers`, reusing the buffers' capacity.
+    ///
+    /// Two passes over the centers: the first counts each cell's members, a
+    /// prefix sum turns the counts into row offsets, and the second writes the
+    /// members through a per-cell cursor held in `offsets` itself, which is
+    /// then shifted back by one row to restore the row starts.
+    pub fn rebuild(
+        &mut self,
+        centers: &[Center],
+        grid_sizes: &[usize],
+        shape: &[usize],
+        ndim: usize,
+    ) {
+        let n_cells_per_axis: Vec<usize> = shape
+            .iter()
+            .zip(grid_sizes.iter())
+            .map(|(&s, &gs)| if s == 0 { 1 } else { (s - 1) / gs.max(1) + 1 })
+            .collect();
+        let total_cells: usize = n_cells_per_axis.iter().copied().product::<usize>().max(1);
+
+        let offsets = &mut self.offsets;
+        offsets.clear();
+        offsets.resize(total_cells + 1, 0);
+        visit_center_cells(
+            centers,
+            grid_sizes,
+            shape,
+            &n_cells_per_axis,
+            ndim,
+            |_, cell| {
+                offsets[cell + 1] += 1;
+            },
+        );
+        for row in 1..=total_cells {
+            offsets[row] += offsets[row - 1];
+        }
+
+        let members = &mut self.members;
+        members.clear();
+        members.resize(offsets[total_cells], 0);
+        visit_center_cells(
+            centers,
+            grid_sizes,
+            shape,
+            &n_cells_per_axis,
+            ndim,
+            |center, cell| {
+                members[offsets[cell]] = center;
+                offsets[cell] += 1;
+            },
+        );
+        offsets.copy_within(0..total_cells, 1);
+        offsets[0] = 0;
+    }
+
+    /// Candidate centers for `cell`, in ascending center index; empty for a
+    /// cell outside the grid.
+    #[must_use]
+    pub fn cell(&self, cell: usize) -> &[usize] {
+        match self.offsets.get(cell..cell + 2) {
+            Some(&[start, end]) => &self.members[start..end],
+            _ => &[],
+        }
+    }
+}
+
+/// Call `visit(center, cell)` for every grid cell each center's search region
+/// overlaps, centers in ascending index.
+fn visit_center_cells(
     centers: &[Center],
     grid_sizes: &[usize],
     shape: &[usize],
+    n_cells_per_axis: &[usize],
     ndim: usize,
-    grid_map: &mut Vec<Vec<usize>>,
+    mut visit: impl FnMut(usize, usize),
 ) {
-    let n_cells_per_axis: Vec<usize> = shape
-        .iter()
-        .zip(grid_sizes.iter())
-        .map(|(&s, &gs)| if s == 0 { 1 } else { (s - 1) / gs.max(1) + 1 })
-        .collect();
-
-    let total_cells: usize = n_cells_per_axis.iter().copied().product::<usize>().max(1);
-
-    if grid_map.len() < total_cells {
-        grid_map.resize(total_cells, Vec::new());
-    } else {
-        grid_map.truncate(total_cells);
-    }
-
-    for buf in grid_map.iter_mut() {
-        buf.clear();
-    }
-
-    let avg_per_cell = centers.len() / total_cells + 1;
-    for buf in grid_map.iter_mut() {
-        if buf.capacity() < avg_per_cell {
-            buf.reserve(avg_per_cell - buf.capacity());
-        }
-    }
-
     // Pre-allocate coordinate buffers once; all positions are fully overwritten
-    // per iteration, so no reset is needed.
+    // per center, so no reset is needed.
     let mut lo_cell = vec![0usize; ndim];
     let mut hi_cell = vec![0usize; ndim];
     let mut cell_coords = vec![0usize; ndim];
+    let total_cells: usize = n_cells_per_axis.iter().product();
 
     for (ci, center) in centers.iter().enumerate() {
         for d in 0..ndim {
@@ -81,46 +127,33 @@ pub fn build_grid_map_into(
             0,
             &lo_cell,
             &hi_cell,
-            &n_cells_per_axis,
-            grid_map,
-            ci,
-            ndim,
+            n_cells_per_axis,
+            &mut |cell_flat| {
+                if cell_flat < total_cells {
+                    visit(ci, cell_flat);
+                }
+            },
         );
     }
 }
 
 /// Recursively enumerate grid cells in a hyper-rectangular range.
-#[expect(clippy::too_many_arguments, reason = "ratchet RITK-LINT-1")]
 fn enumerate_cells_range(
     cell_coords: &mut [usize],
     depth: usize,
     lo: &[usize],
     hi: &[usize],
     n_cells: &[usize],
-    grid_map: &mut Vec<Vec<usize>>,
-    center_idx: usize,
-    ndim: usize,
+    visit: &mut impl FnMut(usize),
 ) {
-    if depth == ndim {
-        let cell_flat = encode_coords_dyn(cell_coords, n_cells);
-        if cell_flat < grid_map.len() {
-            grid_map[cell_flat].push(center_idx);
-        }
+    if depth == cell_coords.len() {
+        visit(encode_coords_dyn(cell_coords, n_cells));
         return;
     }
 
     for c in lo[depth]..=hi[depth] {
         cell_coords[depth] = c;
-        enumerate_cells_range(
-            cell_coords,
-            depth + 1,
-            lo,
-            hi,
-            n_cells,
-            grid_map,
-            center_idx,
-            ndim,
-        );
+        enumerate_cells_range(cell_coords, depth + 1, lo, hi, n_cells, visit);
     }
 }
 
@@ -140,7 +173,7 @@ pub fn assign_voxels(
     shape: &[usize],
     ndim: usize,
     centers: &[Center],
-    grid_map: &[Vec<usize>],
+    center_grid: &CenterGrid,
     grid_sizes: &[usize],
     m_c: f32,
     m_s: f32,
@@ -153,7 +186,7 @@ pub fn assign_voxels(
             intensities,
             shape,
             centers,
-            grid_map,
+            center_grid,
             grid_sizes,
             m_c,
             m_s,
@@ -165,7 +198,7 @@ pub fn assign_voxels(
             intensities,
             shape,
             centers,
-            grid_map,
+            center_grid,
             grid_sizes,
             m_c,
             m_s,
@@ -186,7 +219,7 @@ fn assign_voxels_impl<const D: usize>(
     intensities: &[f32],
     shape: &[usize],
     centers: &[Center],
-    grid_map: &[Vec<usize>],
+    center_grid: &CenterGrid,
     grid_sizes: &[usize],
     m_c: f32,
     m_s: f32,
@@ -245,40 +278,37 @@ fn assign_voxels_impl<const D: usize>(
                 let mut best_dist = *dist_mut;
                 let mut best_label = *label_mut;
 
-                if cell_flat < grid_map.len() {
-                    for &ci in &grid_map[cell_flat] {
-                        if ci >= k {
-                            continue;
-                        }
-                        let center = &centers[ci];
+                for &ci in center_grid.cell(cell_flat) {
+                    if ci >= k {
+                        continue;
+                    }
+                    let center = &centers[ci];
 
-                        let mut in_range = true;
-                        for d in 0..D {
-                            let diff = coords[d] as f32 - center.pos[d];
-                            let step = grid_sizes_arr[d] as f32;
-                            if diff.abs() > 2.0 * step + 0.5 {
-                                in_range = false;
-                                break;
-                            }
+                    let mut in_range = true;
+                    for d in 0..D {
+                        let diff = coords[d] as f32 - center.pos[d];
+                        let step = grid_sizes_arr[d] as f32;
+                        if diff.abs() > 2.0 * step + 0.5 {
+                            in_range = false;
+                            break;
                         }
-                        if !in_range {
-                            continue;
-                        }
+                    }
+                    if !in_range {
+                        continue;
+                    }
 
-                        let normalized_intensity = (intensity - center.intensity) / m_c;
-                        let mut distance = normalized_intensity.abs();
-                        for (&coord_d, &pos_d) in coords.iter().zip(center.pos.iter()) {
-                            let normalized_position = (((coord_d as f32 - pos_d) / m_s)
-                                * compactness)
-                                .abs()
-                                .min(f32::MAX);
-                            distance = distance.hypot(normalized_position);
-                        }
+                    let normalized_intensity = (intensity - center.intensity) / m_c;
+                    let mut distance = normalized_intensity.abs();
+                    for (&coord_d, &pos_d) in coords.iter().zip(center.pos.iter()) {
+                        let normalized_position = (((coord_d as f32 - pos_d) / m_s) * compactness)
+                            .abs()
+                            .min(f32::MAX);
+                        distance = distance.hypot(normalized_position);
+                    }
 
-                        if distance < best_dist {
-                            best_dist = distance;
-                            best_label = ci as u32;
-                        }
+                    if distance < best_dist {
+                        best_dist = distance;
+                        best_label = ci as u32;
                     }
                 }
 

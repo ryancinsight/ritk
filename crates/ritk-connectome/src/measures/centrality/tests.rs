@@ -159,3 +159,44 @@ fn a_graph_with_no_edges_has_zero_betweenness() {
         assert_eq!(*value, 0.0);
     }
 }
+
+// ── Exact output ─────────────────────────────────────────────────────────
+
+/// A lattice of integer-weighted edges has many equal-length routes, so the
+/// predecessor lists carry several entries per node and the backward sweep's
+/// accumulation order decides the last bits. Pinning every value's bit
+/// pattern makes any change to that order visible.
+#[test]
+fn a_tied_lattice_reproduces_its_exact_values() {
+    let side = 5;
+    let mut edges = Vec::new();
+    for row in 0..side {
+        for column in 0..side {
+            let node = row * side + column;
+            #[expect(
+                clippy::cast_precision_loss,
+                reason = "lattice indices stay far below f64's exact-integer range"
+            )]
+            let weight = ((row + column) % 3 + 1) as f64;
+            if column + 1 < side {
+                edges.push((node, node + 1, weight));
+            }
+            if row + 1 < side {
+                edges.push((node, node + side, weight));
+            }
+        }
+    }
+    let values = betweenness(&matrix_from_edges(side * side, &edges));
+    let digest = values
+        .iter()
+        .fold(0xcbf2_9ce4_8422_2325_u64, |hash, value| {
+            (hash ^ value.to_bits()).wrapping_mul(0x0000_0100_0000_01b3)
+        });
+    assert!(
+        values.iter().any(|value| *value > 0.0),
+        "lattice has intermediaries"
+    );
+    assert_eq!(digest, GOLDEN_LATTICE, "betweenness bit patterns changed");
+}
+
+const GOLDEN_LATTICE: u64 = 10_125_451_103_854_310_763;

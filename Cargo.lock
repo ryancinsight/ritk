@@ -6416,6 +6416,7 @@ dependencies = [
  "base64 0.22.1",
  "coeus-core",
  "coeus-tensor",
+ "criterion",
  "image 0.24.9",
  "leto",
  "leto-ops",
