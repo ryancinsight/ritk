@@ -1,17 +1,5 @@
 # RITK execution backlog
 
-<a id="RITK-METIS-DISPLAY-COMMAND-001"></a>
-## RITK-METIS-DISPLAY-COMMAND-001: Adopt the Métis display contract
-- outcome: migrate RITK native overlays to current Métis display-command types.
-- acceptance: latest Métis sources resolve; overlay commands provide explicit corner and text styles; locked native and WASM checks, Clippy, tests, and visual assertions pass.
-- status: todo
-- priority: correctness
-- needs: none
-- scope: `Cargo.lock`, `crates/ritk-snap/src/presentation/native_session/layout/composition.rs`, `crates/ritk-snap/src/presentation/native_session/selection.rs`
-- evidence: Metis main 8c11894caea8df0759a7a9578c25bfc25a02e3da changes FillRect and DrawText fields; a fresh RITK resolution fails both current native overlay modules.
-- next: map colors and sizes to CornerRadius and TextStyle, refresh the lock outside the Atlas overlay, then run the package gates.
-- basis: 5950857874f154cbff145d18c359883e6b58615f
-
 <a id="RITK-SNAP-PATIENT-LENGTH-PERSISTENCE-001"></a>
 ## RITK-SNAP-PATIENT-LENGTH-PERSISTENCE-001: Persist patient-space lengths
 - outcome: store validated patient-space endpoints in viewer annotations and saved sessions.
@@ -41,7 +29,7 @@
 - acceptance: all child items land; invalid geometry is rejected; the public phantom capture and manual show the real workflow; native visual and value-semantic gates pass.
 - status: todo
 - priority: architecture
-- needs: RITK-SNAP-RESLICE-PIXEL-MODULE-001, RITK-SNAP-RESLICE-ORIENTATION-001, RITK-SNAP-RESLICE-ORIENTATION-TESTS-001, RITK-SNAP-PATIENT-LENGTH-PERSISTENCE-001, RITK-SNAP-PATIENT-LENGTH-PRESENTATION-001, RITK-SNAP-INTERACTION-REGIONS-001, RITK-SNAP-INTERACTION-MEASUREMENTS-001, RITK-SNAP-INTERACTION-STATE-001, RITK-SNAP-INTERACTION-WINDOW-LEVEL-001, RITK-SNAP-NATIVE-OVERLAY-001, RITK-SNAP-NATIVE-MPR-COMPOSITION-001, RITK-SNAP-OBLIQUE-VIEWPORT-001, RITK-SNAP-OBLIQUE-APP-ADAPTER-001, RITK-SNAP-OBLIQUE-APP-TESTS-001, RITK-SNAP-OBLIQUE-SESSION-MODULES-001, RITK-SNAP-OBLIQUE-SESSION-WIRING-001, RITK-SNAP-OBLIQUE-ROUTING-001, RITK-SNAP-PATIENT-MEASUREMENT-OVERLAY-001, RITK-SNAP-OBLIQUE-SESSION-TESTS-001, RITK-SNAP-OBLIQUE-INTERACTION-TESTS-001, RITK-SNAP-OBLIQUE-MANUAL-001, RITK-METIS-DISPLAY-COMMAND-001
+- needs: RITK-SNAP-RESLICE-PIXEL-MODULE-001, RITK-SNAP-RESLICE-ORIENTATION-001, RITK-SNAP-RESLICE-ORIENTATION-TESTS-001, RITK-SNAP-PATIENT-LENGTH-PERSISTENCE-001, RITK-SNAP-PATIENT-LENGTH-PRESENTATION-001, RITK-SNAP-INTERACTION-REGIONS-001, RITK-SNAP-INTERACTION-MEASUREMENTS-001, RITK-SNAP-INTERACTION-STATE-001, RITK-SNAP-INTERACTION-WINDOW-LEVEL-001, RITK-SNAP-NATIVE-OVERLAY-001, RITK-SNAP-NATIVE-MPR-COMPOSITION-001, RITK-SNAP-OBLIQUE-VIEWPORT-001, RITK-SNAP-OBLIQUE-APP-ADAPTER-001, RITK-SNAP-OBLIQUE-APP-TESTS-001, RITK-SNAP-OBLIQUE-SESSION-MODULES-001, RITK-SNAP-OBLIQUE-SESSION-WIRING-001, RITK-SNAP-OBLIQUE-ROUTING-001, RITK-SNAP-PATIENT-MEASUREMENT-OVERLAY-001, RITK-SNAP-OBLIQUE-SESSION-TESTS-001, RITK-SNAP-OBLIQUE-INTERACTION-TESTS-001, RITK-SNAP-OBLIQUE-MANUAL-001
 - scope: `crates/ritk-snap/src/{app,presentation,render,tools/interaction,session}/`, `crates/ritk-snap/src/main.rs`, crate README, ADRs, manual, and provenance.
 - next: deliver ready child items in dependency order; preserve the public MRI-DIR phantom as the shareable visual fixture.
 - risk: [major] [arch]; patient-space annotations and session format 3; no registry release is authorized.
@@ -109,7 +97,7 @@
 - acceptance: existing native captures and interaction outcomes remain unchanged after the pure extraction.
 - status: todo
 - priority: architecture
-- needs: RITK-SNAP-PATIENT-LENGTH-PERSISTENCE-001, RITK-METIS-DISPLAY-COMMAND-001
+- needs: RITK-SNAP-PATIENT-LENGTH-PERSISTENCE-001
 - scope: `crates/ritk-snap/src/presentation/native_session/layout/`
 - next: extract overlay composition from the native session layout.
 - basis: 5950857874f154cbff145d18c359883e6b58615f
