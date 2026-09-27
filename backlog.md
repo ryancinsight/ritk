@@ -6,11 +6,11 @@
 - acceptance: all child items land; invalid geometry is rejected; the public phantom capture and manual show the real workflow; native visual and value-semantic gates pass.
 - status: todo
 - priority: architecture
-- needs: RITK-SNAP-RESLICE-ORIENTATION-TESTS-001, RITK-SNAP-INTERACTION-REGIONS-001, RITK-SNAP-INTERACTION-MEASUREMENTS-001, RITK-SNAP-INTERACTION-STATE-001, RITK-SNAP-INTERACTION-WINDOW-LEVEL-001, RITK-SNAP-OBLIQUE-VIEWPORT-001, RITK-SNAP-OBLIQUE-APP-ADAPTER-001, RITK-SNAP-OBLIQUE-APP-TESTS-001, RITK-SNAP-OBLIQUE-SESSION-MODULES-001, RITK-SNAP-OBLIQUE-SESSION-WIRING-001, RITK-SNAP-OBLIQUE-ROUTING-001, RITK-SNAP-PATIENT-MEASUREMENT-OVERLAY-001, RITK-SNAP-OBLIQUE-SESSION-TESTS-001, RITK-SNAP-OBLIQUE-INTERACTION-TESTS-001, RITK-SNAP-OBLIQUE-MANUAL-001
+- needs: RITK-SNAP-INTERACTION-REGIONS-001, RITK-SNAP-INTERACTION-MEASUREMENTS-001, RITK-SNAP-INTERACTION-STATE-001, RITK-SNAP-INTERACTION-WINDOW-LEVEL-001, RITK-SNAP-OBLIQUE-VIEWPORT-001, RITK-SNAP-OBLIQUE-APP-ADAPTER-001, RITK-SNAP-OBLIQUE-APP-TESTS-001, RITK-SNAP-OBLIQUE-SESSION-MODULES-001, RITK-SNAP-OBLIQUE-SESSION-WIRING-001, RITK-SNAP-OBLIQUE-ROUTING-001, RITK-SNAP-PATIENT-MEASUREMENT-OVERLAY-001, RITK-SNAP-OBLIQUE-SESSION-TESTS-001, RITK-SNAP-OBLIQUE-INTERACTION-TESTS-001, RITK-SNAP-OBLIQUE-MANUAL-001
 - scope: `crates/ritk-snap/src/{app,presentation,render,tools/interaction,session}/`, `crates/ritk-snap/src/main.rs`, crate README, ADRs, manual, and provenance.
 - next: deliver ready child items in dependency order; preserve the public MRI-DIR phantom as the shareable visual fixture.
 - risk: [major] [arch]; patient-space annotations and session format 3; no registry release is authorized.
-- basis: bf589f94b9826be8b4b05c85e5da31c338f01bab
+- basis: c0bd60d246a5e549010a0a981e5fdbeaec813dbb
 
 <a id="RITK-CI-MERGE-GATE-001"></a>
 ## RITK-CI-MERGE-GATE-001: Gate pull requests through one CI check
@@ -22,17 +22,6 @@
 - scope: `.github/workflows/`, `scripts/tests/`, `docs/adr/`, and the main merge ruleset
 - next: claim the item, map the required-check and reusable-workflow graph, then record the single-pipeline design in an indexed ADR before changing workflows.
 - basis: bf589f94b9826be8b4b05c85e5da31c338f01bab
-
-<a id="RITK-SNAP-RESLICE-ORIENTATION-TESTS-001"></a>
-## RITK-SNAP-RESLICE-ORIENTATION-TESTS-001: Verify orientation boundaries
-- outcome: cover source changes, plane bounds, and invalid orientation inputs.
-- acceptance: rotated, non-square, anisotropic manufactured data verifies orientation and bounds with value-semantic assertions.
-- status: todo
-- priority: verification
-- needs: none
-- scope: `crates/ritk-snap/src/render/{tests_reslice.rs,tests_reslice/orientation.rs}`
-- next: add the remaining edge and source-geometry cases.
-- basis: ba37d37658c679ba354eccf904f8074a2a2aff5e
 
 <a id="RITK-SNAP-INTERACTION-REGIONS-001"></a>
 ## RITK-SNAP-INTERACTION-REGIONS-001: Separate region interaction tests

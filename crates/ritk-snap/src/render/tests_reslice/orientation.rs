@@ -107,6 +107,126 @@ fn quarter_turn_orientation_maps_and_samples_the_rotated_plane() {
 }
 
 #[test]
+fn yawed_plane_preserves_anisotropic_pixels_within_rectangular_source_bounds() {
+    let mut volume = scalar_volume([7, 7, 11]);
+    volume.spacing = [2.0, 3.0, 5.0];
+    volume.origin = [10.0, 20.0, 30.0];
+    let orientation = ResliceOrientation::try_new(90.0, 0.0).expect("quarter-turn yaw is valid");
+    let plane = ReslicePlane::centered_oblique(
+        &volume,
+        [3.0, 3.0, 5.0],
+        orientation,
+        ResliceInterpolation::Nearest,
+    )
+    .expect("the rotated plane contracts to fit the source depth");
+
+    assert_eq!(plane.dimensions(), [3, 2]);
+    assert_eq!(plane.depth_samples(), 1);
+    let first = plane
+        .patient_at_pixel([0.0, 0.0])
+        .expect("first output pixel maps to patient space")
+        .coordinates();
+    let last = plane
+        .patient_at_pixel([2.0, 1.0])
+        .expect("last output pixel maps to patient space")
+        .coordinates();
+    // The chosen output bounds map to source voxel coordinates [0.5, 2.5, 5]
+    // and [5.5, 3.5, 5], so all pixel centres remain inside [0, 6]×[0, 6]×[0, 10].
+    let coordinate_scale = first
+        .into_iter()
+        .chain(last)
+        .map(f64::abs)
+        .fold(1.0, f64::max);
+    // The two basis rotations and coordinate mapping use at most 32 rounded
+    // operations; gamma_n = n*epsilon/(1 - n*epsilon) bounds their error.
+    const MAPPING_ROUNDING_OPERATIONS: f64 = 32.0;
+    let rounding_factor = MAPPING_ROUNDING_OPERATIONS * f64::EPSILON
+        / (1.0 - MAPPING_ROUNDING_OPERATIONS * f64::EPSILON);
+    let rounding_bound = rounding_factor * coordinate_scale;
+    for (actual, expected) in first.into_iter().zip([11.0, 27.5, 55.0]) {
+        assert!((actual - expected).abs() <= rounding_bound);
+    }
+    for (actual, expected) in last.into_iter().zip([21.0, 30.5, 55.0]) {
+        assert!((actual - expected).abs() <= rounding_bound);
+    }
+
+    let output = plane
+        .compute(&volume, ProjectionStatistic::Maximum)
+        .expect("the bounded plane samples the anisotropic source");
+    assert_eq!(output.dimensions(), [3, 2]);
+    assert_eq!(output.pixels(), &[135.0, 335.0, 635.0, 145.0, 345.0, 645.0]);
+}
+
+#[test]
+fn centered_oblique_rejects_nonfinite_and_out_of_bounds_centers() {
+    let volume = scalar_volume([3, 4, 5]);
+    let centers = [
+        [f64::NAN, 1.5, 2.0],
+        [1.0, f64::INFINITY, 2.0],
+        [1.0, 1.5, f64::NEG_INFINITY],
+        [-f64::EPSILON, 1.5, 2.0],
+        [1.0, f64::from_bits(3.0_f64.to_bits() + 1), 2.0],
+        [1.0, 1.5, 5.0],
+    ];
+
+    for center in centers {
+        assert!(matches!(
+            ReslicePlane::centered_oblique(
+                &volume,
+                center,
+                ResliceOrientation::default(),
+                ResliceInterpolation::Linear,
+            ),
+            Err(ResliceOrientationError::InvalidCenter { center_voxel })
+                if center_voxel.map(f64::to_bits) == center.map(f64::to_bits)
+        ));
+    }
+}
+
+#[test]
+fn oriented_plane_tracks_source_pixels_and_rejects_changed_geometry_or_shape() {
+    let volume = scalar_volume([3, 4, 5]);
+    let plane = ReslicePlane::centered_oblique(
+        &volume,
+        [1.0, 1.5, 2.0],
+        ResliceOrientation::default(),
+        ResliceInterpolation::Nearest,
+    )
+    .expect("source-aligned plane is valid");
+
+    let replacement = crate::LoadedVolume {
+        data: std::sync::Arc::new(vec![42.0; 3 * 4 * 5]),
+        ..volume.clone()
+    };
+    let output = plane
+        .compute(&replacement, ProjectionStatistic::Maximum)
+        .expect("matching source geometry can supply replacement voxel values");
+    assert_eq!(output.pixels(), &[42.0; 5 * 4]);
+
+    let shifted_origin = crate::LoadedVolume {
+        origin: [0.0, 0.0, 1.0],
+        ..replacement.clone()
+    };
+    assert!(matches!(
+        plane.compute(&shifted_origin, ProjectionStatistic::Maximum),
+        Err(ResliceError::GeometryChanged)
+    ));
+
+    let changed_shape = crate::LoadedVolume {
+        data: std::sync::Arc::new(vec![42.0; 2 * 4 * 5]),
+        shape: [2, 4, 5],
+        ..replacement
+    };
+    assert!(matches!(
+        plane.compute(&changed_shape, ProjectionStatistic::Maximum),
+        Err(ResliceError::ShapeChanged {
+            expected: [3, 4, 5],
+            actual: [2, 4, 5]
+        })
+    ));
+}
+
+#[test]
 fn failed_depth_translation_preserves_the_valid_plane() {
     let volume = scalar_volume([3, 5, 5]);
     let plane = ReslicePlane::centered_oblique(
