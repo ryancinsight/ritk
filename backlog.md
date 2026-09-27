@@ -6,11 +6,11 @@
 - acceptance: all child items land; invalid geometry is rejected; the public phantom capture and manual show the real workflow; native visual and value-semantic gates pass.
 - status: todo
 - priority: architecture
-- needs: RITK-SNAP-RESLICE-ORIENTATION-TESTS-001, RITK-SNAP-INTERACTION-REGIONS-001, RITK-SNAP-INTERACTION-MEASUREMENTS-001, RITK-SNAP-INTERACTION-STATE-001, RITK-SNAP-INTERACTION-WINDOW-LEVEL-001, RITK-SNAP-NATIVE-OVERLAY-001, RITK-SNAP-NATIVE-MPR-COMPOSITION-001, RITK-SNAP-OBLIQUE-VIEWPORT-001, RITK-SNAP-OBLIQUE-APP-ADAPTER-001, RITK-SNAP-OBLIQUE-APP-TESTS-001, RITK-SNAP-OBLIQUE-SESSION-MODULES-001, RITK-SNAP-OBLIQUE-SESSION-WIRING-001, RITK-SNAP-OBLIQUE-ROUTING-001, RITK-SNAP-PATIENT-MEASUREMENT-OVERLAY-001, RITK-SNAP-OBLIQUE-SESSION-TESTS-001, RITK-SNAP-OBLIQUE-INTERACTION-TESTS-001, RITK-SNAP-OBLIQUE-MANUAL-001
+- needs: RITK-SNAP-RESLICE-ORIENTATION-TESTS-001, RITK-SNAP-INTERACTION-REGIONS-001, RITK-SNAP-INTERACTION-MEASUREMENTS-001, RITK-SNAP-INTERACTION-STATE-001, RITK-SNAP-INTERACTION-WINDOW-LEVEL-001, RITK-SNAP-NATIVE-MPR-COMPOSITION-001, RITK-SNAP-OBLIQUE-VIEWPORT-001, RITK-SNAP-OBLIQUE-APP-ADAPTER-001, RITK-SNAP-OBLIQUE-APP-TESTS-001, RITK-SNAP-OBLIQUE-SESSION-MODULES-001, RITK-SNAP-OBLIQUE-SESSION-WIRING-001, RITK-SNAP-OBLIQUE-ROUTING-001, RITK-SNAP-PATIENT-MEASUREMENT-OVERLAY-001, RITK-SNAP-OBLIQUE-SESSION-TESTS-001, RITK-SNAP-OBLIQUE-INTERACTION-TESTS-001, RITK-SNAP-OBLIQUE-MANUAL-001
 - scope: `crates/ritk-snap/src/{app,presentation,render,tools/interaction,session}/`, `crates/ritk-snap/src/main.rs`, crate README, ADRs, manual, and provenance.
 - next: deliver ready child items in dependency order; preserve the public MRI-DIR phantom as the shareable visual fixture.
 - risk: [major] [arch]; patient-space annotations and session format 3; no registry release is authorized.
-- basis: ba37d37658c679ba354eccf904f8074a2a2aff5e
+- basis: dbd50d7fc7d8cf79f51fc439bd1e4c8601dcf375
 
 <a id="RITK-SNAP-RESLICE-ORIENTATION-TESTS-001"></a>
 ## RITK-SNAP-RESLICE-ORIENTATION-TESTS-001: Verify orientation boundaries
@@ -67,27 +67,16 @@
 - next: move the remaining window-level cases and leave no implementation in the test manifest.
 - basis: 3fcdc3dd
 
-<a id="RITK-SNAP-NATIVE-OVERLAY-001"></a>
-## RITK-SNAP-NATIVE-OVERLAY-001: Extract native pane overlays
-- outcome: place pane labels, tool state, and measurement presentation in one layout module.
-- acceptance: existing native captures and interaction outcomes remain unchanged after the pure extraction.
-- status: todo
-- priority: architecture
-- needs: none
-- scope: `crates/ritk-snap/src/presentation/native_session/layout/`
-- next: extract overlay composition from the native session layout.
-- basis: ba37d37658c679ba354eccf904f8074a2a2aff5e
-
 <a id="RITK-SNAP-NATIVE-MPR-COMPOSITION-001"></a>
 ## RITK-SNAP-NATIVE-MPR-COMPOSITION-001: Compose the four native panes
 - outcome: compose three orthogonal panes and the physical oblique pane in one layout path.
 - acceptance: pane geometry remains non-overlapping and responsive; existing three-pane layout remains unchanged.
 - status: todo
 - priority: architecture
-- needs: RITK-SNAP-NATIVE-OVERLAY-001
+- needs: none
 - scope: `crates/ritk-snap/src/presentation/native_session/layout/composition.rs`
-- next: extend composition only after the overlay module exists.
-- basis: 3fcdc3dd
+- next: compose the physical oblique pane while preserving the responsive three-pane path.
+- basis: dbd50d7fc7d8cf79f51fc439bd1e4c8601dcf375
 
 <a id="RITK-SNAP-OBLIQUE-VIEWPORT-001"></a>
 ## RITK-SNAP-OBLIQUE-VIEWPORT-001: Map oblique viewport interactions
