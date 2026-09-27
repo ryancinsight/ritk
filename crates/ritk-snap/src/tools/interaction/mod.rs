@@ -17,6 +17,6 @@ mod tool_state;
 #[cfg(test)]
 mod tests;
 
-pub use annotation::{Annotation, MeasurementError};
+pub use annotation::{Annotation, MeasurementError, PatientLength};
 pub use point::{ImagePoint, ViewportOffset};
 pub use tool_state::{RoiKind, ToolState};

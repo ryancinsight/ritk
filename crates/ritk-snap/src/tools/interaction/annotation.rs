@@ -39,6 +39,10 @@
 //! area = (max_r − min_r + 1) · s_r × (max_c − min_c + 1) · s_c [mm²]
 //! ```
 
+mod patient_length;
+
+pub use patient_length::PatientLength;
+
 /// Failure raised when physical measurement inputs or results cannot be
 /// represented without changing their meaning.
 #[derive(Debug, Clone, Copy, PartialEq, thiserror::Error)]
