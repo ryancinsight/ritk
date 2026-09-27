@@ -2,9 +2,10 @@
 //!
 //! # Coordinate system
 //!
-//! All image-space coordinates are stored as `[row, col]` in pixel units.
-//! Physical distances are computed by multiplying pixel deltas by the
-//! corresponding voxel spacing components.
+//! Orthogonal image-space coordinates are stored as `[row, col]` in pixel
+//! units. Physical distances are computed by multiplying pixel deltas by the
+//! corresponding voxel spacing components. Oblique lengths instead retain
+//! validated `[x, y, z]` endpoints in DICOM patient millimetres.
 //!
 //! # Mathematical specifications
 //!
@@ -67,11 +68,12 @@ pub enum MeasurementError {
 
 /// A completed measurement annotation stored on a viewport.
 ///
-/// Positions are stored as `[row, col]` in image pixel coordinates. Computed
-/// values (lengths, angles, statistics) are stored in physical units (mm,
-/// degrees, HU) and are derived quantities — they can be recomputed from the
-/// position data and the volume spacing at any time.
+/// Orthogonal positions are stored as `[row, col]` in image pixel coordinates.
+/// Patient-space lengths retain `[x, y, z]` millimetre endpoints. Computed
+/// values use physical units (mm, degrees, HU) and remain derivable from the
+/// stored coordinates and applicable geometry.
 #[derive(Debug, Clone, PartialEq, serde::Serialize, serde::Deserialize)]
+#[non_exhaustive]
 pub enum Annotation {
     /// Straight-line distance between two image points.
     Length {
@@ -82,6 +84,9 @@ pub enum Annotation {
         /// Euclidean distance in millimetres.
         length_mm: f32,
     },
+
+    /// Straight-line distance between two points in DICOM patient space.
+    PatientLength(PatientLength),
 
     /// Angle at vertex `p2` between the rays `p2→p1` and `p2→p3`.
     Angle {

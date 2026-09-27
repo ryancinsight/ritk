@@ -31,19 +31,22 @@ impl SnapApp {
             .expect("invariant: active tool belongs to ToolKind::all");
         let last_annotation = self.annotations.last().map(|annotation| match annotation {
             Annotation::Length { length_mm, .. } => {
-                AnnotationSummary::new(AnnotationKind::Length, *length_mm)
+                AnnotationSummary::new(AnnotationKind::Length, f64::from(*length_mm))
+            }
+            Annotation::PatientLength(measurement) => {
+                AnnotationSummary::new(AnnotationKind::PatientLength, measurement.length_mm())
             }
             Annotation::Angle { angle_deg, .. } => {
-                AnnotationSummary::new(AnnotationKind::Angle, *angle_deg)
+                AnnotationSummary::new(AnnotationKind::Angle, f64::from(*angle_deg))
             }
             Annotation::RoiRect { area_mm2, .. } => {
-                AnnotationSummary::new(AnnotationKind::RoiRect, *area_mm2)
+                AnnotationSummary::new(AnnotationKind::RoiRect, f64::from(*area_mm2))
             }
             Annotation::RoiEllipse { area_mm2, .. } => {
-                AnnotationSummary::new(AnnotationKind::RoiEllipse, *area_mm2)
+                AnnotationSummary::new(AnnotationKind::RoiEllipse, f64::from(*area_mm2))
             }
             Annotation::HuPoint { value, .. } => {
-                AnnotationSummary::new(AnnotationKind::HuPoint, *value)
+                AnnotationSummary::new(AnnotationKind::HuPoint, f64::from(*value))
             }
         });
         PresentationSnapshot::from_parts(

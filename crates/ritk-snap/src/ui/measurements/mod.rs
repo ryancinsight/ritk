@@ -44,16 +44,20 @@ fn egui_point(point: ImagePoint) -> Pos2 {
 
 /// Stateless annotation rendering helpers.
 ///
-/// Call [`MeasurementLayer::draw_annotations`] every frame to repaint all
-/// completed annotations, and [`MeasurementLayer::draw_in_progress`] to
-/// render the currently active in-progress tool state.
+/// Call [`MeasurementLayer::draw_annotations`] every frame to repaint the
+/// completed image-space annotations for the current plane, and
+/// [`MeasurementLayer::draw_in_progress`] to render the currently active
+/// in-progress tool state. Patient-space lengths require the oblique plane
+/// transform and are omitted from this orthogonal image-space layer.
 pub struct MeasurementLayer;
 
 impl MeasurementLayer {
-    /// Draw all completed [`Annotation`]s stored in `annotations`.
+    /// Draw completed image-space [`Annotation`]s stored in `annotations`.
     ///
     /// `img_to_screen` converts image-pixel coordinates `(col, row)` stored in
-    /// annotations as `[row, col]` to screen coordinates.
+    /// the annotations as `[row, col]` to screen coordinates. Patient-space
+    /// lengths are skipped because this layer does not carry their oblique
+    /// plane transform.
     ///
     /// Annotations whose geometric positions lie outside the current viewport
     /// are still passed to the underlying drawing routines; egui clips them
@@ -72,6 +76,10 @@ impl MeasurementLayer {
                     let sp2 = img_to_screen(egui::pos2((*p2)[1], (*p2)[0]));
                     draw_length_annotation(painter, sp1, sp2, *length_mm);
                 }
+                // Patient-space annotations require the reslice plane that
+                // created them. Orthogonal views must not project them as if
+                // their endpoints were two-dimensional image coordinates.
+                Annotation::PatientLength(_) => {}
                 Annotation::Angle {
                     p1,
                     p2,

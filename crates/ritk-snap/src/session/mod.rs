@@ -78,9 +78,10 @@ pub struct ViewerSessionSnapshot {
     pub cine_fps: f32,
     /// Completed measurement and ROI annotations.
     ///
-    /// Stored in image-pixel coordinates; physical (mm) derived fields
-    /// (length_mm, angle_deg, area_mm2, statistics) are stored verbatim so
-    /// they survive round-trip without requiring the volume to be loaded.
+    /// Image-space measurements and regions retain their pixel coordinates
+    /// and stored physical results. Patient-space lengths retain validated
+    /// millimetre endpoints and derive their three-dimensional distance, so
+    /// that measurement remains meaningful without the volume loaded.
     #[serde(default)]
     pub annotations: Vec<Annotation>,
 }

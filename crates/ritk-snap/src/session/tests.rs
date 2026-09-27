@@ -1,6 +1,7 @@
 #![expect(clippy::unwrap_used, reason = "ratchet RITK-UNWRAP-1")]
 use super::*;
-use crate::tools::interaction::Annotation;
+use crate::geometry::PatientPointMm;
+use crate::tools::interaction::{Annotation, PatientLength};
 use ritk_core::rejection::assert_rejects;
 use std::path::PathBuf;
 
@@ -50,6 +51,13 @@ fn all_annotation_variants() -> Vec<Annotation> {
             p2: [3.0, 4.0],
             length_mm: 5.0,
         },
+        Annotation::PatientLength(
+            PatientLength::try_new(
+                PatientPointMm::try_new([1.0, 2.0, 3.0]).expect("finite patient point"),
+                PatientPointMm::try_new([4.0, 6.0, 3.0]).expect("finite patient point"),
+            )
+            .expect("3-4-5 segment is representable"),
+        ),
         Annotation::Angle {
             p1: [0.0, 1.0],
             p2: [0.0, 0.0],
@@ -118,6 +126,8 @@ fn session_snapshot_default_matches_viewer_defaults() {
 fn session_snapshot_json_round_trip_preserves_values_no_annotations() {
     let snapshot = canonical_snapshot_no_annotations();
     let json = serde_json::to_string_pretty(&snapshot).expect("serialize snapshot");
+    let serialized: serde_json::Value = serde_json::from_str(&json).expect("parse session JSON");
+    assert_eq!(serialized["format"], 3);
     let recovered: ViewerSessionSnapshot =
         serde_json::from_str(&json).expect("deserialize snapshot");
     assert_eq!(recovered, snapshot);
@@ -129,15 +139,15 @@ fn session_snapshot_json_round_trip_preserves_all_annotation_variants() {
     snapshot.annotations = all_annotation_variants();
     assert_eq!(
         snapshot.annotations.len(),
-        5,
-        "expected 5 annotation variants"
+        6,
+        "expected 6 annotation variants"
     );
 
     let json = serde_json::to_string_pretty(&snapshot).expect("serialize snapshot");
     let recovered: ViewerSessionSnapshot =
         serde_json::from_str(&json).expect("deserialize snapshot");
 
-    assert_eq!(recovered.annotations.len(), 5);
+    assert_eq!(recovered.annotations.len(), 6);
 
     // Verify Length annotation values round-trip exactly.
     match &recovered.annotations[0] {
@@ -149,8 +159,18 @@ fn session_snapshot_json_round_trip_preserves_all_annotation_variants() {
         other => panic!("expected Length, got {:?}", other),
     }
 
-    // Verify Angle annotation values round-trip exactly.
+    // Verify patient-space endpoints and derived distance round-trip exactly.
     match &recovered.annotations[1] {
+        Annotation::PatientLength(measurement) => {
+            assert_eq!(measurement.start_mm().coordinates(), [1.0, 2.0, 3.0]);
+            assert_eq!(measurement.end_mm().coordinates(), [4.0, 6.0, 3.0]);
+            assert_eq!(measurement.length_mm(), 5.0);
+        }
+        other => panic!("expected PatientLength, got {:?}", other),
+    }
+
+    // Verify Angle annotation values round-trip exactly.
+    match &recovered.annotations[2] {
         Annotation::Angle {
             p1,
             p2,
@@ -166,7 +186,7 @@ fn session_snapshot_json_round_trip_preserves_all_annotation_variants() {
     }
 
     // Verify HU point annotation round-trips negative value exactly.
-    match &recovered.annotations[4] {
+    match &recovered.annotations[5] {
         Annotation::HuPoint { pos, value } => {
             assert_eq!(*pos, [5.0f32, 8.0f32]);
             assert_eq!(*value, -150.0f32);
@@ -223,9 +243,8 @@ fn save_to_file_and_load_from_file_round_trip_with_annotations() {
 
     // Confirm annotations survive the file round-trip.
     assert_eq!(
-        recovered.annotations.len(),
-        snapshot.annotations.len(),
-        "annotation count must be preserved through file round-trip"
+        recovered.annotations, snapshot.annotations,
+        "annotation values must survive the session file round-trip"
     );
 
     // Confirm navigation state survives.
@@ -303,20 +322,55 @@ fn unique_temp_path(stem: &str, extension: &str) -> std::path::PathBuf {
 }
 
 #[test]
-fn session_source_migrates_legacy_paths_and_rejects_unknown_formats() {
-    let snapshot = canonical_snapshot_no_annotations();
-    let mut json = serde_json::to_value(&snapshot).expect("serialize session");
-    json.as_object_mut()
-        .expect("session object")
-        .remove("format");
-    let migrated: ViewerSessionSnapshot =
-        serde_json::from_value(json.clone()).expect("legacy source migrates");
-    assert_eq!(migrated.source, snapshot.source);
-    let current = serde_json::to_value(migrated).expect("serialize current session");
-    assert_eq!(current["format"], 2);
-    json["format"] = serde_json::json!(3);
-    let error =
-        serde_json::from_value::<ViewerSessionSnapshot>(json).expect_err("unknown version rejects");
+fn session_formats_preserve_values_and_reject_unknown_versions() {
+    let mut snapshot = canonical_snapshot_no_annotations();
+    snapshot.annotations = all_annotation_variants()
+        .into_iter()
+        .filter(|annotation| !matches!(annotation, Annotation::PatientLength(_)))
+        .collect();
+    let unversioned: serde_json::Value =
+        serde_json::from_str(include_str!("../../tests/fixtures/session-v1.json"))
+            .expect("parse format 1 fixture");
+    let expected_one = snapshot.clone();
+    let recovered_unversioned =
+        serde_json::from_value::<ViewerSessionSnapshot>(unversioned.clone())
+            .expect("unversioned format 1 session loads");
+    assert_eq!(recovered_unversioned, expected_one);
+
+    let mut version_one = unversioned;
+    version_one["format"] = serde_json::json!(1);
+    let recovered_one = serde_json::from_value::<ViewerSessionSnapshot>(version_one)
+        .expect("supported path-based session format");
+    assert_eq!(recovered_one, expected_one);
+    assert_eq!(
+        serde_json::to_value(&recovered_one).expect("serialize migrated format 1 session")
+            ["format"],
+        3
+    );
+
+    let mut version_two: serde_json::Value =
+        serde_json::from_str(include_str!("../../tests/fixtures/session-v2.json"))
+            .expect("parse format 2 fixture");
+    let mut expected_two = snapshot;
+    expected_two.source = Some(StudySource::Dicom {
+        series_uid: "1.2.826.0.1.3680043.8.498.1".to_owned(),
+        files: vec![
+            PathBuf::from("C:/studies/series/0001.dcm"),
+            PathBuf::from("C:/studies/series/0002.dcm"),
+        ],
+    });
+    let recovered_two = serde_json::from_value::<ViewerSessionSnapshot>(version_two.clone())
+        .expect("supported exact-acquisition session format");
+    assert_eq!(recovered_two, expected_two);
+    assert_eq!(
+        serde_json::to_value(&recovered_two).expect("serialize migrated format 2 session")
+            ["format"],
+        3
+    );
+
+    version_two["format"] = serde_json::json!(4);
+    let error = serde_json::from_value::<ViewerSessionSnapshot>(version_two)
+        .expect_err("unknown version rejects");
     assert!(error
         .to_string()
         .contains("unsupported viewer session format version"));

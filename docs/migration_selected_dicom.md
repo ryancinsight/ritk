@@ -1,8 +1,9 @@
-# Migrate DICOM acquisition selection
+# Migrate DICOM viewer contracts
 
-The unreleased selection change implements
-[ADR 0026](adr/0026-viewer-presentation-migration.md). It changes public viewer
-carriers and directory-opening behavior; it does not publish a new version.
+The unreleased viewer changes implement [ADR 0026](adr/0026-viewer-presentation-migration.md)
+and [ADR 0052](adr/0052-native-oblique-mpr.md). They change public viewer
+carriers, patient-space measurement types, and session serialization; they do
+not publish a new version.
 
 Use `ritk_io::scan_dicom_path` for a selected instance, directory, or DICOMDIR.
 A selected instance chooses its SeriesInstanceUID before collecting neighbouring
@@ -31,11 +32,16 @@ parent directory. Invalid indices fail instead of enabling folder fallback.
 | `AppLaunchOptions` struct construction | Supply `capture: None`, `initial_series_uid: None`, and `metis_native: false` to select the eframe compatibility shell, or set `metis_native: true` with an optional initial path and optional `initial_series_uid` to use the Windows Métis host. When the path is absent, Windows opens the native folder picker. `Default` selects Métis on Windows and eframe on other native targets. |
 | `OverlayRenderer::draw` | Consume its `Option<String>` result. Pass returned overflow metadata to `OverlayRenderer::show_details` with the viewport UI and rectangle. |
 | `OverlayRenderer::draw_orientation_labels` | Remove the separate call; `draw` now lays out orientation and corner annotations together. |
+| `Annotation` | Keep a wildcard arm for the non-exhaustive enum; handle `PatientLength` in patient millimetres and retain its full `f64` distance. |
+| `AnnotationSummary::primary_value()` | Consume `f64` so patient-space distances are not narrowed to `f32`. |
 
-New sessions serialize format 2 and preserve selected DICOM UID and member
-paths. Unversioned and version-1 sessions remain readable at the persisted
-format boundary and normalize to format 2. Legacy directory sources containing
-several series require a new explicit selection. Unknown versions fail.
+New sessions serialize format 3 and preserve selected DICOM UID and member
+paths. Unversioned and version-1 path sessions remain readable, and version-2
+exact-acquisition sessions retain their source; all normalize to format 3.
+Format 3 patient-space lengths serialize validated millimetre endpoints and
+derive their three-dimensional Euclidean distance from those endpoints. Legacy
+directory sources containing several series require a new explicit selection.
+Unknown versions fail.
 Restoring a session validates its source before replacing either the displayed
 study or presentation controls; a failure preserves the current viewer state.
 

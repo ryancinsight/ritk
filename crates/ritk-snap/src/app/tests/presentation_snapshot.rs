@@ -1,8 +1,9 @@
 use super::test_volume;
 use crate::app::state::SnapApp;
+use crate::geometry::PatientPointMm;
 use crate::render::WindowLevel;
-use crate::tools::interaction::Annotation;
 use crate::tools::interaction::ViewportOffset;
+use crate::tools::interaction::{Annotation, PatientLength};
 use crate::tools::kind::ToolKind;
 use crate::viewer::{DEFAULT_WINDOW_CENTER, DEFAULT_WINDOW_WIDTH};
 
@@ -89,4 +90,28 @@ fn snapshot_projects_latest_annotation_kind_and_primary_value() {
         .expect("invariant: inserted annotation is projected");
     assert_eq!(summary.kind(), crate::presentation::AnnotationKind::HuPoint);
     assert_eq!(summary.primary_value(), -42.5);
+}
+
+#[test]
+fn patient_length_snapshot_preserves_f64_precision_through_app() {
+    let length = PatientLength::try_new(
+        PatientPointMm::try_new([0.0, 0.0, 0.0]).expect("finite patient point"),
+        PatientPointMm::try_new([16_777_217.0, 0.0, 0.0]).expect("finite patient point"),
+    )
+    .expect("finite patient-space length");
+    let mut app = SnapApp::default();
+    app.annotations.push(Annotation::PatientLength(length));
+
+    let summary = app
+        .presentation_snapshot()
+        .last_annotation()
+        .expect("invariant: inserted patient length is projected");
+    let value: f64 = summary.primary_value();
+
+    assert_eq!(
+        summary.kind(),
+        crate::presentation::AnnotationKind::PatientLength
+    );
+    assert_eq!(value, 16_777_217.0);
+    assert_eq!(value, length.length_mm());
 }
