@@ -302,12 +302,12 @@ fn slic_impl(data: &[f32], shape: &[usize], ndim: usize, config: &SlicConfig) ->
     // ── Iterative assignment + update ─────────────────────────────────────────
     let mut labels = vec![0u32; n];
     let mut distances = vec![f32::MAX; n];
-    let mut grid_map = Vec::new();
+    let mut center_grid = assign::CenterGrid::default();
 
     for _iter in 0..config.max_iterations {
         distances.iter_mut().for_each(|d| *d = f32::MAX);
 
-        assign::build_grid_map_into(&centers, &grid_sizes, shape, ndim, &mut grid_map);
+        center_grid.rebuild(&centers, &grid_sizes, shape, ndim);
 
         // ── Assignment step ──────────────────────────────────────────────────
         assign::assign_voxels(
@@ -315,7 +315,7 @@ fn slic_impl(data: &[f32], shape: &[usize], ndim: usize, config: &SlicConfig) ->
             shape,
             ndim,
             &centers,
-            &grid_map,
+            &center_grid,
             &grid_sizes,
             m_c,
             m_s,
@@ -334,13 +334,13 @@ fn slic_impl(data: &[f32], shape: &[usize], ndim: usize, config: &SlicConfig) ->
 
     // ── Final assignment (ensure labels match final centers) ──────────────────
     distances.iter_mut().for_each(|d| *d = f32::MAX);
-    assign::build_grid_map_into(&centers, &grid_sizes, shape, ndim, &mut grid_map);
+    center_grid.rebuild(&centers, &grid_sizes, shape, ndim);
     assign::assign_voxels(
         data,
         shape,
         ndim,
         &centers,
-        &grid_map,
+        &center_grid,
         &grid_sizes,
         m_c,
         m_s,
@@ -413,3 +413,7 @@ fn validate_standard_input(data: &[f32], shape: &[usize], ndim: usize) -> anyhow
 #[cfg(test)]
 #[path = "tests_slic.rs"]
 mod tests_slic;
+
+#[cfg(test)]
+#[path = "tests_slic_golden.rs"]
+mod tests_slic_golden;
