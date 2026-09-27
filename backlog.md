@@ -6,11 +6,11 @@
 - acceptance: all child items land; invalid geometry is rejected; the public phantom capture and manual show the real workflow; native visual and value-semantic gates pass.
 - status: todo
 - priority: architecture
-- needs: RITK-SNAP-INTERACTION-REGIONS-001, RITK-SNAP-INTERACTION-MEASUREMENTS-001, RITK-SNAP-INTERACTION-STATE-001, RITK-SNAP-INTERACTION-WINDOW-LEVEL-001, RITK-SNAP-OBLIQUE-VIEWPORT-001, RITK-SNAP-OBLIQUE-APP-ADAPTER-001, RITK-SNAP-OBLIQUE-APP-TESTS-001, RITK-SNAP-OBLIQUE-SESSION-MODULES-001, RITK-SNAP-OBLIQUE-SESSION-WIRING-001, RITK-SNAP-OBLIQUE-ROUTING-001, RITK-SNAP-PATIENT-MEASUREMENT-OVERLAY-001, RITK-SNAP-OBLIQUE-SESSION-TESTS-001, RITK-SNAP-OBLIQUE-INTERACTION-TESTS-001, RITK-SNAP-OBLIQUE-MANUAL-001
+- needs: RITK-SNAP-INTERACTION-REGIONS-001, RITK-SNAP-INTERACTION-MEASUREMENTS-001, RITK-SNAP-INTERACTION-STATE-001, RITK-SNAP-INTERACTION-WINDOW-LEVEL-001, RITK-SNAP-OBLIQUE-VIEWPORT-001, RITK-SNAP-OBLIQUE-APP-ADAPTER-001, RITK-SNAP-OBLIQUE-APP-TESTS-001, RITK-SNAP-OBLIQUE-SESSION-MODULES-001, RITK-SNAP-OBLIQUE-SESSION-WIRING-001, RITK-SNAP-OBLIQUE-ROUTING-001, RITK-SNAP-PATIENT-MEASUREMENT-OVERLAY-001, RITK-SNAP-OBLIQUE-SESSION-TESTS-001, RITK-SNAP-OBLIQUE-INTERACTION-TESTS-001, RITK-SNAP-WINDOW-CONTROLS-001, RITK-SNAP-OBLIQUE-MANUAL-001
 - scope: `crates/ritk-snap/src/{app,presentation,render,tools/interaction,session}/`, `crates/ritk-snap/src/main.rs`, crate README, ADRs, manual, and provenance.
 - next: deliver ready child items in dependency order; preserve the public MRI-DIR phantom as the shareable visual fixture.
 - risk: [major] [arch]; patient-space annotations and session format 3; no registry release is authorized.
-- basis: c0bd60d246a5e549010a0a981e5fdbeaec813dbb
+- basis: 4e2e797c6af199d0c33e37148e784b2becc04981
 
 <a id="RITK-CI-MERGE-GATE-001"></a>
 ## RITK-CI-MERGE-GATE-001: Gate pull requests through one CI check
@@ -71,12 +71,14 @@
 ## RITK-SNAP-OBLIQUE-VIEWPORT-001: Map oblique viewport interactions
 - outcome: map viewport points and transforms through the rendered plane geometry.
 - acceptance: resize, pan, zoom, and pixel-to-patient mappings agree on rotated anisotropic test data.
-- status: todo
+- status: blocked
 - priority: correctness
 - needs: none
 - scope: `crates/ritk-snap/src/app/oblique_viewport.rs`, app exports
-- next: implement the viewport mapping as an independent app value.
-- basis: bf589f94b9826be8b4b05c85e5da31c338f01bab
+- blocker: local pre-push Clippy is held by the active shared source-identity lease from [Leto PR #276](https://github.com/ryancinsight/leto/pull/276).
+- reopen: rerun the configured gate after the shared lease releases; collect RITK package checks.
+- next: preserve the local viewport branch and resume its full gate after lease release.
+- basis: 4e2e797c6af199d0c33e37148e784b2becc04981
 
 <a id="RITK-SNAP-OBLIQUE-APP-ADAPTER-001"></a>
 ## RITK-SNAP-OBLIQUE-APP-ADAPTER-001: Route oblique viewer actions
@@ -169,13 +171,24 @@
 <a id="RITK-SNAP-OBLIQUE-MANUAL-001"></a>
 ## RITK-SNAP-OBLIQUE-MANUAL-001: Demonstrate oblique MPR in the user manual
 - outcome: document native launch and controls with a genuine public MRI-DIR phantom capture.
-- acceptance: CLI, README, manual, lossless image, and provenance identify the 94-file public phantom and exact capture revision; visual gate confirms all four anatomical panes.
+- acceptance: CLI, README, and manual show the 94-file public phantom in a complete app window with working menus or toolbar controls, pane controls, and all four anatomical panes; provenance identifies the exact capture revision.
 - status: todo
 - priority: verification
-- needs: RITK-SNAP-OBLIQUE-INTERACTION-TESTS-001, RITK-SNAP-OBLIQUE-SESSION-TESTS-001
+- needs: RITK-SNAP-OBLIQUE-INTERACTION-TESTS-001, RITK-SNAP-OBLIQUE-SESSION-TESTS-001, RITK-SNAP-WINDOW-CONTROLS-001
 - scope: `crates/ritk-snap/src/{launch.rs,main.rs}`, crate README, `docs/manual/`, provenance tests
 - next: capture the completed viewer from the public phantom and validate the manual artifacts.
-- basis: 3fcdc3dd
+- basis: 4e2e797c6af199d0c33e37148e784b2becc04981
+
+<a id="RITK-SNAP-WINDOW-CONTROLS-001"></a>
+## RITK-SNAP-WINDOW-CONTROLS-001: Add functional controls to the app window
+- outcome: show RITK menus, tool controls, and study status around real views in the Métis native window.
+- acceptance: File/View/Tools menus and toolbar controls perform their named viewer actions; chrome input never reaches image panes; the pane-only pixel capture remains unchanged; the public MRI manual image shows the complete app window and working controls.
+- status: todo
+- priority: feature
+- needs: none
+- scope: `crates/ritk-snap/src/presentation/native_session/`, `docs/manual/`, screenshot provenance.
+- next: implement chrome layout and event reduction in RITK, then capture and inspect the public MRI workflow.
+- basis: 4e2e797c6af199d0c33e37148e784b2becc04981
 
 <a id="RITK-BROWSER-READ-001"></a>
 ## RITK-BROWSER-READ-001 â€” Reproduce and close WebKit study reads
