@@ -1,17 +1,23 @@
 //! Coordinate mapping for one displayed viewer slice.
 
+use crate::app::screen_image_geometry::ScreenImageGeometry;
 use crate::presentation::ViewportPoint;
 use crate::tools::interaction::{ImagePoint, ViewportOffset};
 use crate::ui::ViewTransform;
 use thiserror::Error;
 
+// Every integer through this index is exactly representable in ImagePoint.
+const MAX_EXACT_PIXEL_INDEX: u32 = 1_u32 << f32::MANTISSA_DIGITS;
+// A half-open image extent includes the last exact index and its far edge.
+const MAX_IMAGE_EXTENT: u32 = MAX_EXACT_PIXEL_INDEX + 1;
+
 /// Geometry needed to map host client coordinates into one displayed slice.
 #[derive(Debug, Clone, Copy, PartialEq)]
 pub(crate) struct ViewerViewport {
     axis: usize,
-    origin: [f64; 2],
-    texel_size: [f64; 2],
+    geometry: ScreenImageGeometry,
     source_size: [usize; 2],
+    source_dimensions: [u32; 2],
     transform: ViewTransform,
     zoom: f64,
     pan: [f64; 2],
@@ -67,69 +73,47 @@ impl ViewerViewport {
         if source_size.contains(&0) {
             return Err(ViewerViewportError::EmptyImage { source_size });
         }
-        if !origin.iter().all(|value| value.is_finite())
-            || !texel_size.iter().all(|value| value.is_finite())
-            || texel_size[0] <= 0.0
-            || texel_size[1] <= 0.0
-        {
-            return Err(ViewerViewportError::InvalidScreenGeometry);
-        }
         if !zoom.is_finite() || zoom <= 0.0 || !pan.x().is_finite() || !pan.y().is_finite() {
             return Err(ViewerViewportError::InvalidViewTransform);
         }
+        let output_size = transform.output_size(source_size);
+        let [Ok(width), Ok(height)] = output_size.map(u32::try_from) else {
+            return Err(ViewerViewportError::InvalidScreenGeometry);
+        };
+        if [width, height]
+            .into_iter()
+            .any(|dimension| dimension > MAX_IMAGE_EXTENT)
+        {
+            return Err(ViewerViewportError::InvalidScreenGeometry);
+        }
+        let [Ok(source_width), Ok(source_height)] = source_size.map(u32::try_from) else {
+            return Err(ViewerViewportError::InvalidScreenGeometry);
+        };
+        let geometry = ScreenImageGeometry::try_new(origin, texel_size, [width, height])
+            .ok_or(ViewerViewportError::InvalidScreenGeometry)?;
         Ok(Self {
             axis,
-            origin,
-            texel_size,
+            geometry,
             source_size,
+            source_dimensions: [source_width, source_height],
             transform,
             zoom: f64::from(zoom),
             pan: [f64::from(pan.x()), f64::from(pan.y())],
         })
     }
 
-    fn screen_bounds(self) -> Option<[f64; 4]> {
-        let [width, height] = self.transform.output_size(self.source_size);
-        let min_x = self.origin[0];
-        let min_y = self.origin[1];
-        let extent_x = self.texel_size[0] * width as f64;
-        let extent_y = self.texel_size[1] * height as f64;
-        let max_x = min_x + extent_x;
-        let max_y = min_y + extent_y;
-        if !extent_x.is_finite()
-            || !extent_y.is_finite()
-            || !max_x.is_finite()
-            || !max_y.is_finite()
-        {
-            return None;
-        }
-        Some([min_x, max_x, min_y, max_y])
-    }
-
     pub(crate) fn map(self, point: ViewportPoint) -> Option<ImagePoint> {
-        let x = point.x();
-        let y = point.y();
-        if !x.is_finite() || !y.is_finite() {
-            return None;
-        }
-        let [min_x, max_x, min_y, max_y] = self.screen_bounds()?;
-        if x < min_x || x > max_x || y < min_y || y > max_y {
-            return None;
-        }
-        let output_size = self.transform.output_size(self.source_size);
-        let output = [
-            ((x - min_x) / self.texel_size[0]).clamp(0.0, output_size[0] as f64 * 0.999_999),
-            ((y - min_y) / self.texel_size[1]).clamp(0.0, output_size[1] as f64 * 0.999_999),
-        ];
-        let center = [output_size[0] as f64 / 2.0, output_size[1] as f64 / 2.0];
+        let output = self.geometry.map_edge(point)?;
+        let output_size = self.geometry.dimensions().map(f64::from);
+        let center = [output_size[0] / 2.0, output_size[1] / 2.0];
         let output = [
             ((output[0] - center[0] - self.pan[0]) / self.zoom) + center[0],
             ((output[1] - center[1] - self.pan[1]) / self.zoom) + center[1],
         ];
         if output[0] < 0.0
-            || output[0] >= output_size[0] as f64
+            || output[0] >= output_size[0]
             || output[1] < 0.0
-            || output[1] >= output_size[1] as f64
+            || output[1] >= output_size[1]
         {
             return None;
         }
@@ -145,7 +129,22 @@ impl ViewerViewport {
         {
             return None;
         }
-        Some(ImagePoint::new(source_x as f32, source_y as f32))
+        #[expect(
+            clippy::cast_possible_truncation,
+            reason = "the pointer-action contract stores f32 image coordinates; the dimensions bound the pixel index"
+        )]
+        let image_x = source_x as f32;
+        #[expect(
+            clippy::cast_possible_truncation,
+            reason = "the pointer-action contract stores f32 image coordinates; the dimensions bound the pixel index"
+        )]
+        let image_y = source_y as f32;
+        if f64::from(image_x) >= f64::from(self.source_dimensions[0])
+            || f64::from(image_y) >= f64::from(self.source_dimensions[1])
+        {
+            return None;
+        }
+        Some(ImagePoint::new(image_x, image_y))
     }
 }
 
@@ -164,8 +163,8 @@ pub(crate) enum ViewerViewportError {
         /// Invalid source dimensions.
         source_size: [usize; 2],
     },
-    /// Origin or texel scale cannot represent a positive finite rectangle.
-    #[error("viewport screen geometry must be finite with positive texel sizes")]
+    /// Geometry is invalid or a raster dimension exceeds the mapping range.
+    #[error("viewport screen geometry must be finite, positive, and fit its mapping range")]
     InvalidScreenGeometry,
     /// Zoom or pan contains a non-finite or non-positive value.
     #[error("viewport zoom and pan must be finite with positive zoom")]

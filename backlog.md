@@ -3,7 +3,7 @@
 <a id="RITK-SNAP-OBLIQUE-NATIVE-001"></a>
 ## RITK-SNAP-OBLIQUE-NATIVE-001: Native oblique MPR
 - outcome: deliver a native four-plane oblique viewer with patient-space navigation and measurement.
-- acceptance: all child items land; invalid geometry is rejected; the public phantom capture and manual show the real workflow; native visual and value-semantic gates pass.
+- acceptance: all child items land; invalid geometry is rejected; the public phantom capture shows one complete, uncropped app window with visible menus or toolbar buttons and all four anatomical panes; native visual and value-semantic gates pass.
 - status: todo
 - priority: architecture
 - needs: RITK-SNAP-INTERACTION-REGIONS-001, RITK-SNAP-INTERACTION-MEASUREMENTS-001, RITK-SNAP-INTERACTION-STATE-001, RITK-SNAP-INTERACTION-WINDOW-LEVEL-001, RITK-SNAP-OBLIQUE-VIEWPORT-001, RITK-SNAP-OBLIQUE-APP-ADAPTER-001, RITK-SNAP-OBLIQUE-APP-TESTS-001, RITK-SNAP-OBLIQUE-SESSION-MODULES-001, RITK-SNAP-OBLIQUE-SESSION-WIRING-001, RITK-SNAP-OBLIQUE-ROUTING-001, RITK-SNAP-PATIENT-MEASUREMENT-OVERLAY-001, RITK-SNAP-OBLIQUE-SESSION-TESTS-001, RITK-SNAP-OBLIQUE-INTERACTION-TESTS-001, RITK-SNAP-OBLIQUE-MANUAL-001
@@ -68,24 +68,24 @@
 - basis: 3fcdc3dd
 
 <a id="RITK-SNAP-OBLIQUE-VIEWPORT-001"></a>
-## RITK-SNAP-OBLIQUE-VIEWPORT-001: Map oblique viewport interactions
-- outcome: map viewport points and transforms through the rendered plane geometry.
-- acceptance: resize, pan, zoom, and pixel-to-patient mappings agree on rotated anisotropic test data.
+## RITK-SNAP-OBLIQUE-VIEWPORT-001: Map screen points to image grids
+- outcome: use one checked screen-to-raster geometry for orthogonal and oblique viewport mapping.
+- acceptance: orthogonal mapping rejects half-open edges and post-conversion bounds; oblique mapping preserves pixel-centre, clipping, and patient-coordinate oracles; invalid and unrepresentable geometry rejects.
 - status: todo
 - priority: correctness
 - needs: none
-- scope: `crates/ritk-snap/src/app/oblique_viewport.rs`, app exports
-- next: implement the viewport mapping as an independent app value.
-- basis: bf589f94b9826be8b4b05c85e5da31c338f01bab
+- scope: `crates/ritk-snap/src/app/{screen_image_geometry.rs,viewer_viewport.rs,oblique_viewport.rs,oblique_viewport/}` and action-adapter coordinate tests
+- next: finish native and WASM geometry gates; the dependent action adapter will route through `ObliqueViewport`.
+- basis: 044fe2afdc872917096611ccb1d70c9a8c6d466b
 
 <a id="RITK-SNAP-OBLIQUE-APP-ADAPTER-001"></a>
 ## RITK-SNAP-OBLIQUE-APP-ADAPTER-001: Route oblique viewer actions
 - outcome: apply pointer and navigation actions to the RITK oblique view model.
-- acceptance: clicks link the correct voxel, wheel translates the plane, and orientation keys update its basis; invalid actions reject.
+- acceptance: production oblique viewport mapping consumes the checked shared geometry; clicks link the correct voxel, wheel translates the plane, and orientation keys update its basis; invalid actions reject.
 - status: todo
 - priority: feature
 - needs: RITK-SNAP-OBLIQUE-VIEWPORT-001
-- scope: `crates/ritk-snap/src/app/action_adapter.rs`, `app/pointer_ops.rs`, and oblique modules
+- scope: `crates/ritk-snap/src/app/{action_adapter.rs,pointer_ops.rs,screen_image_geometry.rs,oblique_viewport.rs}` and oblique tests
 - next: add the adapter with the smallest complete happy-path test.
 - basis: ba37d37658c679ba354eccf904f8074a2a2aff5e
 
@@ -169,7 +169,7 @@
 <a id="RITK-SNAP-OBLIQUE-MANUAL-001"></a>
 ## RITK-SNAP-OBLIQUE-MANUAL-001: Demonstrate oblique MPR in the user manual
 - outcome: document native launch and controls with a genuine public MRI-DIR phantom capture.
-- acceptance: CLI, README, manual, lossless image, and provenance identify the 94-file public phantom and exact capture revision; visual gate confirms all four anatomical panes.
+- acceptance: CLI, README, manual, full-window image, and provenance identify the 94-file public phantom and exact capture revision; one uncropped screenshot shows the app menus or toolbar buttons, pane controls, and all four anatomical panes together.
 - status: todo
 - priority: verification
 - needs: RITK-SNAP-OBLIQUE-INTERACTION-TESTS-001, RITK-SNAP-OBLIQUE-SESSION-TESTS-001

@@ -46,6 +46,8 @@ mod load_tasks;
 mod menu;
 #[cfg(all(not(target_arch = "wasm32"), feature = "eframe-shell"))]
 mod mesh_ops;
+#[cfg(all(not(target_arch = "wasm32"), test))]
+mod oblique_viewport;
 #[cfg(all(not(target_arch = "wasm32"), feature = "eframe-shell"))]
 mod pacs_ops;
 #[cfg(feature = "eframe-shell")]
@@ -59,6 +61,7 @@ mod render_cache;
 mod rt_overlay;
 #[cfg(all(not(target_arch = "wasm32"), feature = "eframe-shell"))]
 mod rt_struct_export;
+mod screen_image_geometry;
 #[cfg(all(not(target_arch = "wasm32"), feature = "eframe-shell"))]
 mod shortcuts;
 mod slice_ops;
