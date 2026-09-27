@@ -3,15 +3,17 @@
 mod composition;
 mod crosshair;
 mod geometry;
+mod overlay;
 mod responsive;
+pub(super) mod text;
 
-#[cfg(test)]
-pub(super) use composition::{
-    application_overlay, projection_overlay, OVERLAY_BAR_HEIGHT, OVERLAY_TEXT,
-};
 pub(super) use composition::{surface_frames, surface_frames_with_projection};
 pub(super) use crosshair::crosshair_overlay;
 #[cfg(test)]
 pub(super) use crosshair::CROSSHAIR_COLOR;
 pub(super) use geometry::NativeViewport;
+#[cfg(test)]
+pub(super) use overlay::{
+    application_overlay, projection_overlay, OVERLAY_BAR_HEIGHT, OVERLAY_TEXT,
+};
 pub(super) use responsive::surface_frames_responsive;

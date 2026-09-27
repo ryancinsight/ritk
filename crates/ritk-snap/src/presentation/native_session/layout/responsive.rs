@@ -5,12 +5,11 @@ use metis_platform::{Color, Framebuffer};
 
 use super::super::frame::RenderedView;
 use super::super::projection::RenderedProjection;
-use super::composition::{
-    append_overlay_list, application_overlay, blit_frame, blit_rgba_frame, projection_overlay,
-};
+use super::composition::{blit_frame, blit_rgba_frame};
 use super::geometry::{
     placement_geometry, placement_with_bounds, NativeViewport, ScreenRect, VIEW_GAP_PIXELS,
 };
+use super::overlay::{append_overlay_list, application_overlay, projection_overlay};
 use crate::presentation::{PaneLayout, PaneRole};
 use crate::tools::interaction::ViewportOffset;
 
