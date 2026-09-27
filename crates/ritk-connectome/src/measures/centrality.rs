@@ -99,10 +99,8 @@ pub fn betweenness(matrix: &ConnectivityMatrix) -> Box<[f64]> {
     }
 
     // One set of buffers for the whole sweep. Brandes runs a full Dijkstra per
-    // source, and allocating its five working arrays — plus a predecessor list
-    // per node — inside that loop makes the allocation count quadratic in the
-    // node count. Reusing them keeps the predecessor lists' capacity across
-    // sources, so the repeated sweeps stop paying for the same growth.
+    // source, and allocating its working arrays inside that loop makes the
+    // allocation count quadratic in the node count.
     let mut scratch = Scratch::new(n);
     for source in 0..n {
         accumulate_from(matrix, source, &mut scratch, &mut centrality);
@@ -128,7 +126,13 @@ pub fn betweenness(matrix: &ConnectivityMatrix) -> Box<[f64]> {
 struct Scratch {
     distance: Vec<f64>,
     path_count: Vec<f64>,
-    predecessors: Vec<Vec<usize>>,
+    /// Row-major `n × n` predecessor table: node `v`'s predecessors are
+    /// `predecessors[v * n..v * n + predecessor_count[v]]`, in recording order.
+    /// A node's predecessors are distinct other nodes, so a row of `n` never
+    /// overflows, and the table is the same size as the dense weight matrix
+    /// the sweep already reads.
+    predecessors: Vec<usize>,
+    predecessor_count: Vec<usize>,
     /// Nodes in the order they were settled, which is by increasing distance —
     /// exactly the order the backward sweep needs reversed.
     settled_order: Vec<usize>,
@@ -142,7 +146,8 @@ impl Scratch {
         Self {
             distance: vec![f64::INFINITY; nodes],
             path_count: vec![0.0; nodes],
-            predecessors: vec![Vec::new(); nodes],
+            predecessors: vec![0; nodes * nodes],
+            predecessor_count: vec![0; nodes],
             settled_order: Vec::with_capacity(nodes),
             settled: vec![false; nodes],
             dependency: vec![0.0; nodes],
@@ -152,15 +157,12 @@ impl Scratch {
 
     /// Return every buffer to its start-of-source state.
     ///
-    /// The predecessor lists are cleared rather than reallocated, which is the
-    /// point of holding them: their capacity is what a fresh source would
-    /// otherwise have to grow again.
+    /// Emptying the predecessor table only zeroes its row lengths; stale
+    /// entries past a row's length are never read.
     fn reset(&mut self) {
         self.distance.fill(f64::INFINITY);
         self.path_count.fill(0.0);
-        for list in &mut self.predecessors {
-            list.clear();
-        }
+        self.predecessor_count.fill(0);
         self.settled_order.clear();
         self.settled.fill(false);
         self.dependency.fill(0.0);
@@ -180,12 +182,14 @@ fn accumulate_from(
         distance,
         path_count,
         predecessors,
+        predecessor_count,
         settled_order,
         settled,
         dependency,
         heap,
     } = scratch;
 
+    let nodes = distance.len();
     distance[source] = 0.0;
     path_count[source] = 1.0;
     heap.push(Frontier {
@@ -223,8 +227,8 @@ fn accumulate_from(
                 // far described a longer path and is now wrong.
                 distance[neighbour] = candidate;
                 path_count[neighbour] = path_count[node];
-                predecessors[neighbour].clear();
-                predecessors[neighbour].push(node);
+                predecessors[neighbour * nodes] = node;
+                predecessor_count[neighbour] = 1;
                 heap.push(Frontier {
                     distance: candidate,
                     node: neighbour,
@@ -234,7 +238,8 @@ fn accumulate_from(
                 // them. Settled nodes are skipped because their dependency has
                 // already been fixed.
                 path_count[neighbour] += path_count[node];
-                predecessors[neighbour].push(node);
+                predecessors[neighbour * nodes + predecessor_count[neighbour]] = node;
+                predecessor_count[neighbour] += 1;
             }
         }
     }
@@ -242,7 +247,8 @@ fn accumulate_from(
     // Backward sweep: a node's dependency is complete once every node it feeds
     // has been processed, and those are all further from the source.
     for node in settled_order.iter().rev() {
-        for predecessor in &predecessors[*node] {
+        let row = *node * nodes;
+        for predecessor in &predecessors[row..row + predecessor_count[*node]] {
             if path_count[*node] > 0.0 {
                 dependency[*predecessor] +=
                     (path_count[*predecessor] / path_count[*node]) * (1.0 + dependency[*node]);
