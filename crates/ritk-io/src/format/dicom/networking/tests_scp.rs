@@ -1,8 +1,8 @@
 //! Embedded C-STORE SCP loopback integration tests.
 //!
 //! Each test starts the SCP with port=0 (OS-assigned), connects via
-//! `Association::connect`, sends one or more C-STORE-RQ messages, then polls
-//! `StoreScpHandle::try_recv` to verify the received instances.
+//! `Association::connect`, sends one or more C-STORE-RQ messages, then blocks
+//! on `StoreScpHandle::recv_timeout` to verify the received instances.
 //!
 //! No external PACS is required — all tests run fully in-process.
 
@@ -86,8 +86,9 @@ fn test_store_scp_single_instance_received() {
     );
     assoc.release().expect("SCU release");
 
-    // Poll with timeout (SCP runs on a separate thread).
-    let inst = poll_instance(&handle, Duration::from_secs(2))
+    // Block until the SCP thread delivers (it runs on a separate thread).
+    let inst = handle
+        .recv_timeout(Duration::from_secs(2))
         .expect("SCP must deliver instance within 2s");
 
     assert_eq!(
@@ -159,10 +160,12 @@ fn test_store_scp_multiple_instances_same_association() {
 
     assoc.release().expect("SCU release");
 
-    let inst_a =
-        poll_instance(&handle, Duration::from_secs(2)).expect("must receive first instance");
-    let inst_b =
-        poll_instance(&handle, Duration::from_secs(2)).expect("must receive second instance");
+    let inst_a = handle
+        .recv_timeout(Duration::from_secs(2))
+        .expect("must receive first instance");
+    let inst_b = handle
+        .recv_timeout(Duration::from_secs(2))
+        .expect("must receive second instance");
 
     // Order of arrival preserves send order.
     assert_eq!(
@@ -259,20 +262,4 @@ fn test_pad_uid_even_length_unchanged() {
     let result = super::pad_uid("1.2.840.10008.1.21");
     assert_eq!(result, b"1.2.840.10008.1.21");
     assert_eq!(result.len() % 2, 0, "even-length UID must remain even");
-}
-
-// ── Poll helper ───────────────────────────────────────────────────────────────
-
-fn poll_instance(
-    handle: &crate::format::dicom::networking::scp::StoreScpHandle,
-    timeout: Duration,
-) -> Option<crate::format::dicom::networking::scp::StoredInstance> {
-    let deadline = std::time::Instant::now() + timeout;
-    while std::time::Instant::now() < deadline {
-        if let Some(inst) = handle.try_recv() {
-            return Some(inst);
-        }
-        std::thread::sleep(Duration::from_millis(10));
-    }
-    None
 }

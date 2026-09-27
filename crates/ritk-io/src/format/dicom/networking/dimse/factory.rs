@@ -12,7 +12,7 @@ impl DimseMessage {
                 CommandElement {
                     tag: TAG_AFFECTED_SOP_CLASS,
                     vr: CommandVr::Ui,
-                    value: CommandValue::ui(sop_class::VERIFICATION),
+                    value: CommandValue::ui(sop_class::VERIFICATION_SOP_CLASS),
                 },
                 CommandElement {
                     tag: TAG_COMMAND_FIELD,
@@ -41,7 +41,7 @@ impl DimseMessage {
                 CommandElement {
                     tag: TAG_AFFECTED_SOP_CLASS,
                     vr: CommandVr::Ui,
-                    value: CommandValue::ui(sop_class::VERIFICATION),
+                    value: CommandValue::ui(sop_class::VERIFICATION_SOP_CLASS),
                 },
                 CommandElement {
                     tag: TAG_COMMAND_FIELD,

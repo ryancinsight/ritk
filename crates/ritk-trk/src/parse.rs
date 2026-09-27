@@ -1,6 +1,5 @@
 #![forbid(unsafe_code)]
 #![deny(missing_docs)]
-#![expect(clippy::unwrap_used, reason = "ratchet RITK-UNWRAP-1")]
 
 use std::io::Read;
 
@@ -139,15 +138,27 @@ pub(crate) fn read_exact(
 }
 
 pub(crate) fn i16_from_le(buf: &[u8], pos: usize) -> i16 {
-    i16::from_le_bytes(buf[pos..pos + 2].try_into().unwrap())
+    i16::from_le_bytes(
+        buf[pos..pos + 2]
+            .try_into()
+            .expect("fixed-width byte field"),
+    )
 }
 
 pub(crate) fn i32_from_le(buf: &[u8], pos: usize) -> i32 {
-    i32::from_le_bytes(buf[pos..pos + 4].try_into().unwrap())
+    i32::from_le_bytes(
+        buf[pos..pos + 4]
+            .try_into()
+            .expect("fixed-width byte field"),
+    )
 }
 
 pub(crate) fn f32_from_le(buf: &[u8], pos: usize) -> f32 {
-    f32::from_le_bytes(buf[pos..pos + 4].try_into().unwrap())
+    f32::from_le_bytes(
+        buf[pos..pos + 4]
+            .try_into()
+            .expect("fixed-width byte field"),
+    )
 }
 
 /// Apply a row-major `4×4` affine to a point `(x, y, z, 1)`.

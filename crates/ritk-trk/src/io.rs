@@ -1,6 +1,5 @@
 #![forbid(unsafe_code)]
 #![deny(missing_docs)]
-#![expect(clippy::unwrap_used, reason = "ratchet RITK-UNWRAP-1")]
 
 use std::io::{Read, Write};
 
@@ -27,10 +26,10 @@ impl TrkTractogram {
         let mut header_buf = [0u8; TRK_HEADER_SIZE];
         read_exact(reader, &mut header_buf, &mut offset)?;
 
-        let magic: [u8; 6] = header_buf[..6].try_into().unwrap();
+        let magic: [u8; 6] = header_buf[..6].try_into().expect("fixed-width byte field");
         if &magic != TRK_MAGIC {
             return Err(TrkError::InvalidMagic {
-                got: magic[..5].try_into().unwrap(),
+                got: magic[..5].try_into().expect("fixed-width byte field"),
             });
         }
 
@@ -88,7 +87,9 @@ impl TrkTractogram {
                 let mut byte_buf = vec![0u8; byte_len];
                 read_exact(reader, &mut byte_buf, &mut offset)?;
                 for chunk in byte_buf.chunks_exact(4) {
-                    point_buf.push(f32::from_le_bytes(chunk.try_into().unwrap()));
+                    point_buf.push(f32::from_le_bytes(
+                        chunk.try_into().expect("fixed-width byte field"),
+                    ));
                 }
             }
 
@@ -123,7 +124,9 @@ impl TrkTractogram {
                 read_exact(reader, &mut prop_bytes, &mut offset)?;
                 let mut prop = Vec::with_capacity(n_properties);
                 for chunk in prop_bytes.chunks_exact(4) {
-                    prop.push(f32::from_le_bytes(chunk.try_into().unwrap()));
+                    prop.push(f32::from_le_bytes(
+                        chunk.try_into().expect("fixed-width byte field"),
+                    ));
                 }
                 properties.push(prop.into_boxed_slice());
             }

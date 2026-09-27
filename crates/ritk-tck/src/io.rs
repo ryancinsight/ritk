@@ -1,4 +1,3 @@
-#![expect(clippy::unwrap_used, reason = "ratchet RITK-UNWRAP-1")]
 use std::collections::HashMap;
 use std::io::{BufRead, BufReader, Read, Write};
 
@@ -338,27 +337,33 @@ fn parse_transform(value: &str) -> Result<[[f64; 4]; 4], TckError> {
 fn decode_point(dt: TckDatatype, buf: &[u8]) -> (f64, f64, f64) {
     match dt {
         TckDatatype::Float32LE => {
-            let x = f32::from_le_bytes(buf[0..4].try_into().unwrap()) as f64;
-            let y = f32::from_le_bytes(buf[4..8].try_into().unwrap()) as f64;
-            let z = f32::from_le_bytes(buf[8..12].try_into().unwrap()) as f64;
+            let x =
+                f32::from_le_bytes(buf[0..4].try_into().expect("fixed-width byte field")) as f64;
+            let y =
+                f32::from_le_bytes(buf[4..8].try_into().expect("fixed-width byte field")) as f64;
+            let z =
+                f32::from_le_bytes(buf[8..12].try_into().expect("fixed-width byte field")) as f64;
             (x, y, z)
         }
         TckDatatype::Float32BE => {
-            let x = f32::from_be_bytes(buf[0..4].try_into().unwrap()) as f64;
-            let y = f32::from_be_bytes(buf[4..8].try_into().unwrap()) as f64;
-            let z = f32::from_be_bytes(buf[8..12].try_into().unwrap()) as f64;
+            let x =
+                f32::from_be_bytes(buf[0..4].try_into().expect("fixed-width byte field")) as f64;
+            let y =
+                f32::from_be_bytes(buf[4..8].try_into().expect("fixed-width byte field")) as f64;
+            let z =
+                f32::from_be_bytes(buf[8..12].try_into().expect("fixed-width byte field")) as f64;
             (x, y, z)
         }
         TckDatatype::Float64LE => {
-            let x = f64::from_le_bytes(buf[0..8].try_into().unwrap());
-            let y = f64::from_le_bytes(buf[8..16].try_into().unwrap());
-            let z = f64::from_le_bytes(buf[16..24].try_into().unwrap());
+            let x = f64::from_le_bytes(buf[0..8].try_into().expect("fixed-width byte field"));
+            let y = f64::from_le_bytes(buf[8..16].try_into().expect("fixed-width byte field"));
+            let z = f64::from_le_bytes(buf[16..24].try_into().expect("fixed-width byte field"));
             (x, y, z)
         }
         TckDatatype::Float64BE => {
-            let x = f64::from_be_bytes(buf[0..8].try_into().unwrap());
-            let y = f64::from_be_bytes(buf[8..16].try_into().unwrap());
-            let z = f64::from_be_bytes(buf[16..24].try_into().unwrap());
+            let x = f64::from_be_bytes(buf[0..8].try_into().expect("fixed-width byte field"));
+            let y = f64::from_be_bytes(buf[8..16].try_into().expect("fixed-width byte field"));
+            let z = f64::from_be_bytes(buf[16..24].try_into().expect("fixed-width byte field"));
             (x, y, z)
         }
     }
@@ -554,9 +559,17 @@ pub fn read_tck_weights(reader: impl Read) -> Result<Vec<Box<[f32]>>, TckError> 
 /// Decode a single scalar from a byte buffer according to `datatype`.
 fn decode_scalar(dt: TckDatatype, buf: &[u8]) -> f64 {
     match dt {
-        TckDatatype::Float32LE => f32::from_le_bytes(buf[..4].try_into().unwrap()) as f64,
-        TckDatatype::Float32BE => f32::from_be_bytes(buf[..4].try_into().unwrap()) as f64,
-        TckDatatype::Float64LE => f64::from_le_bytes(buf[..8].try_into().unwrap()),
-        TckDatatype::Float64BE => f64::from_be_bytes(buf[..8].try_into().unwrap()),
+        TckDatatype::Float32LE => {
+            f32::from_le_bytes(buf[..4].try_into().expect("fixed-width byte field")) as f64
+        }
+        TckDatatype::Float32BE => {
+            f32::from_be_bytes(buf[..4].try_into().expect("fixed-width byte field")) as f64
+        }
+        TckDatatype::Float64LE => {
+            f64::from_le_bytes(buf[..8].try_into().expect("fixed-width byte field"))
+        }
+        TckDatatype::Float64BE => {
+            f64::from_be_bytes(buf[..8].try_into().expect("fixed-width byte field"))
+        }
     }
 }

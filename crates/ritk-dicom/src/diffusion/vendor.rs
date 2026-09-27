@@ -18,7 +18,6 @@
 //! 1. A private element lookup (via [`crate::attribute::DicomAttributeRead::optional_bytes`]).
 //! 2. A format-specific decoder in this module.
 //! 3. A new arm in [`try_vendor_pair`].
-#![expect(clippy::unwrap_used, reason = "ratchet RITK-UNWRAP-1")]
 
 use anyhow::{bail, Result};
 use ritk_spatial::Vector;
@@ -108,7 +107,8 @@ fn parse_csa_entries(blob: &[u8]) -> Result<Vec<CsaEntry>> {
         bail!("CSA header does not start with SV10 magic");
     }
 
-    let n_tags = u32::from_le_bytes(blob[8..12].try_into().unwrap()) as usize;
+    let n_tags =
+        u32::from_le_bytes(blob[8..12].try_into().expect("fixed-width byte field")) as usize;
     // Sanity: a DICOM element is ≤ 4 GB, so n_tags must be reasonable.
     if n_tags == 0 {
         bail!("CSA header declares zero tags — malformed");
@@ -134,11 +134,22 @@ fn parse_csa_entries(blob: &[u8]) -> Result<Vec<CsaEntry>> {
         let name_len = name_bytes.iter().position(|&b| b == 0).unwrap_or(64);
         let name = String::from_utf8_lossy(&name_bytes[..name_len]).into_owned();
 
-        let vm = u32::from_le_bytes(blob[offset + 64..offset + 68].try_into().unwrap());
+        let vm = u32::from_le_bytes(
+            blob[offset + 64..offset + 68]
+                .try_into()
+                .expect("fixed-width byte field"),
+        );
         let _vr = &blob[offset + 68..offset + 72]; // 4-char ASCII, e.g. "FD  "
-        let _syngo_dt = u32::from_le_bytes(blob[offset + 72..offset + 76].try_into().unwrap());
-        let n_items =
-            u32::from_le_bytes(blob[offset + 76..offset + 80].try_into().unwrap()) as usize;
+        let _syngo_dt = u32::from_le_bytes(
+            blob[offset + 72..offset + 76]
+                .try_into()
+                .expect("fixed-width byte field"),
+        );
+        let n_items = u32::from_le_bytes(
+            blob[offset + 76..offset + 80]
+                .try_into()
+                .expect("fixed-width byte field"),
+        ) as usize;
 
         // Skip the 4-byte pad after the tag header.
         offset += 84;
@@ -148,8 +159,11 @@ fn parse_csa_entries(blob: &[u8]) -> Result<Vec<CsaEntry>> {
             if offset + 4 > blob.len() {
                 bail!("CSA item header at offset {offset} extends past blob end");
             }
-            let item_len =
-                u32::from_le_bytes(blob[offset..offset + 4].try_into().unwrap()) as usize;
+            let item_len = u32::from_le_bytes(
+                blob[offset..offset + 4]
+                    .try_into()
+                    .expect("fixed-width byte field"),
+            ) as usize;
             offset += 4;
 
             if offset + item_len > blob.len() {

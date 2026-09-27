@@ -190,6 +190,15 @@ impl StoreScpHandle {
         self.rx.try_recv().ok()
     }
 
+    /// Blocking receive: waits up to `timeout` for the next buffered
+    /// [`StoredInstance`] and returns `None` if none arrives in time.
+    ///
+    /// Use this when a caller has nothing else to do; a UI thread should keep
+    /// using [`StoreScpHandle::try_recv`] so it never blocks a frame.
+    pub fn recv_timeout(&self, timeout: Duration) -> Option<StoredInstance> {
+        self.rx.recv_timeout(timeout).ok()
+    }
+
     /// TCP port the SCP is listening on.
     ///
     /// Reflects the OS-assigned port when [`ScpConfig::port`] was `0`.
@@ -213,6 +222,10 @@ impl StoreScpHandle {
 
 impl Drop for StoreScpHandle {
     fn drop(&mut self) {
-        self.shutdown.store(true, Ordering::SeqCst);
+        // Relaxed is the weakest ordering that supplies the needed edge: the
+        // flag is a pure cancellation signal and publishes no other data, and
+        // the accept loop polls it with `Relaxed` loads. It only has to become
+        // visible on the next `ACCEPT_POLL_INTERVAL`, which Relaxed guarantees.
+        self.shutdown.store(true, Ordering::Relaxed);
     }
 }

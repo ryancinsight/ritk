@@ -1,5 +1,5 @@
 use super::elements::put_u16;
-use anyhow::{Context, Result, bail};
+use anyhow::{bail, Context, Result};
 use dicom::core::{Tag, VR};
 use dicom::object::InMemDicomObject;
 use std::collections::HashSet;
