@@ -3,6 +3,7 @@
 - Status: Accepted
 - Date: 2026-09-24
 - Item: [RITK-SNAP-OBLIQUE-NATIVE-001](../../backlog.md#RITK-SNAP-OBLIQUE-NATIVE-001)
+- Revision: 2026-09-27 — co-deliver patient-length persistence and presentation: the annotation variant requires exhaustive snapshot and panel updates, and its distance contract remains f64 end to end; see [PR #664](https://github.com/ryancinsight/ritk/pull/664).
 
 ## Context
 
@@ -27,11 +28,12 @@ corners remain inside the volume. Pixel size is derived from the physical
 voxel spacing. Resize, zoom, pan, and rotation affect placement or the plane
 basis without changing the source geometry contract.
 
-Completed oblique lengths store validated patient-space endpoints and the
-derived millimetre distance. `ViewerSessionSnapshot` writes format 3 while
-the reader continues to accept formats 1 and 2. `Annotation` becomes
-non-exhaustive, and `ToolState` gains `PatientLength1` for the pending first
-endpoint. This is a major API change, delivered without a registry release.
+Completed oblique lengths store validated patient-space endpoints and derive
+their millimetre distance. `ViewerSessionSnapshot` writes format 3 while the
+reader continues to accept formats 1 and 2. `Annotation` becomes
+non-exhaustive. The later interaction slice will use `ToolState::PatientLength1`
+for the pending first endpoint; that variant is not part of the persistence
+increment. These public API changes are breaking and remain unreleased.
 
 ## Alternatives
 
@@ -60,11 +62,13 @@ endpoint. This is a major API change, delivered without a registry release.
 
 The `Annotation` enum gains a patient-space length variant and becomes
 `#[non_exhaustive]`; downstream matches require a wildcard arm and may handle
-the new annotation explicitly. The public exhaustive `ToolState` enum gains
-`ToolState::PatientLength1`; downstream exhaustive matches add that pending
-measurement arm or a wildcard. Session writers emit format 3; readers
-continue to accept formats 1 and 2 and validate format-3 endpoints. No
-registry release is part of this change.
+the new annotation explicitly. Session writers emit format 3; readers continue
+to accept formats 1 and 2 and validate format-3 endpoints.
+`AnnotationSummary::primary_value()` returns `f64`; downstream hosts must
+consume that type so patient-space distances do not narrow to `f32`. The
+dependent interaction slice adds `ToolState::PatientLength1` to the currently
+exhaustive `ToolState` enum. When it lands, downstream exhaustive matches must
+add that arm or a wildcard. No registry release is part of this change.
 
 ## Verification
 

@@ -1,5 +1,14 @@
 use super::*;
-use crate::tools::interaction::Annotation;
+use crate::geometry::PatientPointMm;
+use crate::tools::interaction::{Annotation, PatientLength};
+
+fn patient_length() -> Annotation {
+    let start = PatientPointMm::try_new([0.0, 0.0, 0.0]).expect("finite point");
+    let end = PatientPointMm::try_new([3.0, 4.0, 0.0]).expect("finite point");
+    Annotation::PatientLength(
+        PatientLength::try_new(start, end).expect("3-4-5 segment is representable"),
+    )
+}
 
 // ── CSV determinism ───────────────────────────────────────────────────────
 
@@ -61,6 +70,13 @@ fn csv_length_row_analytical() {
         data_row, "0,Length,5.00,mm,",
         "Length annotation CSV row must match analytical format"
     );
+}
+
+#[test]
+fn csv_patient_length_row_uses_three_dimensional_distance() {
+    let csv = csv_for(std::slice::from_ref(&patient_length()));
+    let data_row = csv.lines().nth(1).expect("data row must exist");
+    assert_eq!(data_row, "0,Patient Length,5.00,mm,");
 }
 
 #[test]
@@ -238,6 +254,12 @@ fn label_length_format() {
         "length label must contain formatted length: got '{label}'"
     );
     assert!(label.starts_with("#0"), "label must begin with index");
+}
+
+#[test]
+fn label_patient_length_identifies_patient_space() {
+    let label = annotation_label(0, &patient_length());
+    assert_eq!(label, "#0  Patient length: 5.0 mm");
 }
 
 #[test]
