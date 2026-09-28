@@ -146,11 +146,20 @@ jobs:
           toolchain: 1.97.0
           components: clippy
 
+      # Root cause: clippy, rustdoc, dependency-alignment, test, and
+      # python-wheel all shared one Swatinem/rust-cache key ("ritk"). GitHub's
+      # cache API is immutable per key, so whichever job's post-step saved
+      # first each run won the key; the other four jobs' saves of their own
+      # (different) dependency subsets silently no-op, and every restore
+      # reports a false "full match" while third-party crates still recompile
+      # from scratch (confirmed: 148-356 non-ritk `Compiling` lines per job
+      # despite `full match: true`, run 36407185894). Splitting the key per
+      # job lets each own its save.
       - name: Restore the compile cache (keyed on lockfile and toolchain)
         uses: Swatinem/rust-cache@6323deb102c322ba6fcbdcafc7e3dddab59af2b6 # v2.9.2
         with:
           workspaces: ritk
-          shared-key: ritk
+          shared-key: ritk-clippy
           save-if: ${{ github.ref == 'refs/heads/main' }}
 
       - name: Run Clippy
@@ -180,7 +189,7 @@ jobs:
         uses: Swatinem/rust-cache@6323deb102c322ba6fcbdcafc7e3dddab59af2b6 # v2.9.2
         with:
           workspaces: ritk
-          shared-key: ritk
+          shared-key: ritk-rustdoc
           save-if: ${{ github.ref == 'refs/heads/main' }}
 
       - name: Document workspace
@@ -213,7 +222,7 @@ jobs:
         uses: Swatinem/rust-cache@6323deb102c322ba6fcbdcafc7e3dddab59af2b6 # v2.9.2
         with:
           workspaces: ritk
-          shared-key: ritk
+          shared-key: ritk-dependency-alignment
           save-if: ${{ github.ref == 'refs/heads/main' }}
 
       - name: Enforce workspace dependency inheritance
@@ -281,7 +290,7 @@ jobs:
         if: matrix.run
         with:
           workspaces: ritk
-          shared-key: ritk
+          shared-key: ritk-test
           save-if: ${{ github.ref == 'refs/heads/main' }}
 
       - name: Run tests with nextest
@@ -330,7 +339,7 @@ jobs:
         uses: Swatinem/rust-cache@6323deb102c322ba6fcbdcafc7e3dddab59af2b6 # v2.9.2
         with:
           workspaces: ritk
-          shared-key: ritk
+          shared-key: ritk-python-wheel
           save-if: ${{ github.ref == 'refs/heads/main' }}
 
       - name: Set up Python 3.11
