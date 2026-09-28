@@ -6,7 +6,7 @@
 - acceptance: all child items land; invalid geometry is rejected; the public phantom capture shows one complete, uncropped app window with visible menus or toolbar buttons and all four anatomical panes; native visual and value-semantic gates pass.
 - status: todo
 - priority: architecture
-- needs: RITK-SNAP-INTERACTION-REGIONS-001, RITK-SNAP-INTERACTION-MEASUREMENTS-001, RITK-SNAP-INTERACTION-STATE-001, RITK-SNAP-INTERACTION-WINDOW-LEVEL-001, RITK-SNAP-OBLIQUE-APP-ADAPTER-001, RITK-SNAP-OBLIQUE-APP-TESTS-001, RITK-SNAP-OBLIQUE-SESSION-MODULES-001, RITK-SNAP-OBLIQUE-SESSION-WIRING-001, RITK-SNAP-OBLIQUE-ROUTING-001, RITK-SNAP-PATIENT-MEASUREMENT-OVERLAY-001, RITK-SNAP-OBLIQUE-SESSION-TESTS-001, RITK-SNAP-OBLIQUE-INTERACTION-TESTS-001, RITK-SNAP-OBLIQUE-MANUAL-001
+- needs: RITK-SNAP-INTERACTION-REGIONS-001, RITK-SNAP-INTERACTION-MEASUREMENTS-001, RITK-SNAP-INTERACTION-STATE-001, RITK-SNAP-INTERACTION-WINDOW-LEVEL-001, RITK-SNAP-OBLIQUE-APP-ADAPTER-001, RITK-SNAP-OBLIQUE-APP-TESTS-001, RITK-SNAP-OBLIQUE-SESSION-MODULES-001, RITK-SNAP-OBLIQUE-SESSION-WIRING-001, RITK-SNAP-OBLIQUE-ROUTING-001, RITK-SNAP-PATIENT-MEASUREMENT-OVERLAY-001, RITK-SNAP-OBLIQUE-SESSION-TESTS-001, RITK-SNAP-OBLIQUE-INTERACTION-TESTS-001, RITK-SNAP-OBLIQUE-MANUAL-001, RITK-SNAP-RADIANT-MULTISELECT-001, RITK-SNAP-RADIANT-PANEL-LIFECYCLE-001
 - scope: `crates/ritk-snap/src/{app,presentation,render,tools/interaction,session}/`, `crates/ritk-snap/src/main.rs`, crate README, ADRs, manual, and provenance.
 - next: deliver ready child items in dependency order; preserve the public MRI-DIR phantom as the shareable visual fixture.
 - risk: [major] [arch]; patient-space annotations and session format 3; no registry release is authorized.
@@ -165,6 +165,28 @@
 - scope: `crates/ritk-snap/src/{launch.rs,main.rs}`, crate README, `docs/manual/`, provenance tests
 - next: capture the completed viewer from the public phantom and validate the manual artifacts.
 - basis: 4e2e797c6af199d0c33e37148e784b2becc04981
+
+<a id="RITK-SNAP-RADIANT-MULTISELECT-001"></a>
+## RITK-SNAP-RADIANT-MULTISELECT-001: Open multiple series together
+- outcome: select and open multiple discovered series in one native workflow.
+- acceptance: F4 and Window menu open a filterable study-grouped series list; multiple selections open in independent panels, Enter opens the first filtered result, and selection limits never truncate silently.
+- status: todo
+- priority: feature
+- needs: none
+- scope: `crates/ritk-snap/src/presentation/native_session/`, native tests, manual capture and provenance.
+- next: define the bounded selection and filtering state, then test selected, filtered, empty and capacity-bound inputs.
+- basis: fbcd7989277b340bfc8903e24500e4f9844af6aa
+
+<a id="RITK-SNAP-RADIANT-PANEL-LIFECYCLE-001"></a>
+## RITK-SNAP-RADIANT-PANEL-LIFECYCLE-001: Manage viewer panels
+- outcome: maximize, restore, close and navigate native series panels.
+- acceptance: Window menu and panel controls close the active panel, close all panels, and maximize or restore the active panel without losing other panel state; Tab switches panels and documented shortcuts perform the same actions.
+- status: todo
+- priority: feature
+- needs: none
+- scope: `crates/ritk-snap/src/presentation/native_session/`, native tests, manual capture and provenance.
+- next: re-derive panel ownership so close and maximize preserve every loaded series and viewer state.
+- basis: fbcd7989277b340bfc8903e24500e4f9844af6aa
 
 <a id="RITK-BROWSER-READ-001"></a>
 ## RITK-BROWSER-READ-001 â€” Reproduce and close WebKit study reads
