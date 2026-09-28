@@ -88,9 +88,9 @@ fn metadata_from_internal_scaled_columns(
     .context("NRRD spatial metadata does not describe a physical grid")?;
 
     let direction_columns = [
-        normalized_or_axis(scaled_columns[0], spacing[0], Vector::z_axis()),
-        normalized_or_axis(scaled_columns[1], spacing[1], Vector::y_axis()),
-        normalized_or_axis(scaled_columns[2], spacing[2], Vector::x_axis()),
+        scaled_columns[0].unit_direction_or(spacing[0], Vector::z_axis()),
+        scaled_columns[1].unit_direction_or(spacing[1], Vector::y_axis()),
+        scaled_columns[2].unit_direction_or(spacing[2], Vector::x_axis()),
     ];
 
     Ok(InternalSpatialMetadata {
@@ -101,14 +101,6 @@ fn metadata_from_internal_scaled_columns(
 
 fn vector_from_array(value: [f64; 3]) -> Vector<3> {
     Vector::new(value)
-}
-
-fn normalized_or_axis(vector: Vector<3>, norm: f64, fallback: Vector<3>) -> Vector<3> {
-    if norm > 1e-9 {
-        vector / norm
-    } else {
-        fallback
-    }
 }
 
 fn scaled_direction_column(
