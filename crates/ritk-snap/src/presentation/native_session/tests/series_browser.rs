@@ -32,11 +32,7 @@ fn click_series(
     session: &mut crate::presentation::native_session::NativeViewerSession,
     index: i32,
 ) {
-    let first_visible = session
-        .series_browser
-        .as_ref()
-        .map_or(0, SeriesBrowser::first_visible);
-    let row = index.saturating_sub(i32::try_from(first_visible).expect("series index fits in i32"));
+    let row = index;
     let x = 24;
     let y = 190 + row.saturating_mul(95);
     session
@@ -60,12 +56,7 @@ fn drag_series_to_panel(
     series_index: i32,
     panel_index: usize,
 ) {
-    let first_visible = session
-        .series_browser
-        .as_ref()
-        .map_or(0, SeriesBrowser::first_visible);
-    let row =
-        series_index.saturating_sub(i32::try_from(first_visible).expect("series index fits in i32"));
+    let row = series_index;
     let start_x = 24;
     let start_y = 190 + row.saturating_mul(95);
     let (end_x, end_y) = session.viewports[panel_index].center();

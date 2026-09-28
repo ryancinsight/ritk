@@ -5,7 +5,6 @@ use crate::render::ProjectionStatistic;
 
 mod viewport;
 pub use viewport::{EframeViewport, EframeViewportError};
-
 #[cfg(windows)]
 use std::path::Path;
 

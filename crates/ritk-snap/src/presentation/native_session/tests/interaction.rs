@@ -152,7 +152,7 @@ fn responsive_native_layout_selects_single_dual_and_quad_panes() {
         .viewport_area(session.surface_width, session.surface_height)
         .expect("bounded image workspace");
     let selected_layout = PaneLayout::responsive(viewport_area.width, viewport_area.height);
-    assert_eq!(selected_layout, PaneLayout::Dual);
+    assert_eq!(selected_layout, PaneLayout::Quad);
     let panes = selected_layout
         .partition(
             viewport_area.width,

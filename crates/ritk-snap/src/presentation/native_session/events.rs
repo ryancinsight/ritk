@@ -1,6 +1,5 @@
 //! Native Métis event reduction and lifecycle for the RITK session.
 
-use super::layout::WorkspaceLayout;
 use super::WindowAction;
 use super::{record_state, NativeViewerError, NativeViewerSession, VIRTUAL_KEY_OPEN_STUDY};
 use crate::app::action_adapter::ViewerActionDisposition;

@@ -1,4 +1,4 @@
-//! RadiAnt-style series rail beside the native image workspace.
+//! RadiAnt-style horizontal series preview below the image workspace.
 
 use super::super::layout::text_style;
 use super::super::series_browser::{SeriesBrowser, SeriesChoice};
@@ -18,10 +18,12 @@ const CARD_INACTIVE: Color = Color::rgb(38, 45, 54);
 const CARD_ACTIVE: Color = Color::rgb(38, 87, 112);
 const TEXT_COLOR: Color = Color::rgb(225, 232, 239);
 const MUTED_COLOR: Color = Color::rgb(153, 169, 183);
+const CARD_WIDTH: i32 = 184;
 const CARD_HEIGHT: i32 = 88;
-const CARD_GAP: i32 = 7;
-const CARD_TOP: i32 = 60;
+const CARD_GAP: i32 = 8;
+const CARD_TOP: i32 = 28;
 const CARD_BOTTOM: i32 = 8;
+const CARD_LEFT: i32 = 8;
 
 pub(super) fn render(
     framebuffer: &mut Framebuffer,
@@ -36,14 +38,10 @@ pub(super) fn render(
         return Ok(());
     }
     fill_rect(framebuffer, area, CornerRadius::SQUARE, PANEL_BACKGROUND);
-    let right = area
-        .x
-        .checked_add(area.width)
-        .and_then(|edge| edge.checked_sub(1))
-        .ok_or_else(|| anyhow!("series preview divider x overflows"))?;
+    let top = area.y;
     fill_rect(
         framebuffer,
-        Rect::new(right, area.y, 1, area.height),
+        Rect::new(area.x, top, area.width, 1),
         CornerRadius::SQUARE,
         PANEL_EDGE,
     );
@@ -69,7 +67,7 @@ pub(super) fn render(
         draw_text(
             framebuffer,
             offset(area.x, 10)?,
-            offset(area.y, 27)?,
+            offset(area.y, 8)?,
             summary.as_str(),
             detail_style,
         );
@@ -77,7 +75,7 @@ pub(super) fn render(
         draw_text(
             framebuffer,
             offset(area.x, 10)?,
-            offset(area.y, 27)?,
+            offset(area.y, 8)?,
             "1 study  |  1 series",
             detail_style,
         );
@@ -85,7 +83,7 @@ pub(super) fn render(
         draw_text(
             framebuffer,
             offset(area.x, 10)?,
-            offset(area.y, 27)?,
+            offset(area.y, 8)?,
             "Open a study to view its series",
             detail_style,
         );
@@ -104,7 +102,7 @@ pub(super) fn render(
     draw_fit(
         framebuffer,
         target_x,
-        offset(area.y, 43)?,
+        offset(area.y, 8)?,
         target.as_str(),
         detail_style,
         area.x
@@ -149,15 +147,15 @@ fn render_cards(
         let stride = CARD_HEIGHT
             .checked_add(CARD_GAP)
             .ok_or_else(|| anyhow!("series card stride overflows"))?;
-        let y = bounds
-            .y
+        let x = bounds
+            .x
             .checked_add(
                 visible_i32
                     .checked_mul(stride)
                     .ok_or_else(|| anyhow!("series card position overflows"))?,
             )
-            .ok_or_else(|| anyhow!("series card y overflows"))?;
-        let card = Rect::new(bounds.x, y, bounds.width, CARD_HEIGHT);
+            .ok_or_else(|| anyhow!("series card x overflows"))?;
+        let card = Rect::new(x, bounds.y, CARD_WIDTH, CARD_HEIGHT);
         fill_rect(
             framebuffer,
             card,
@@ -197,7 +195,7 @@ fn render_cards(
             .saturating_sub(8);
         let group = group_label(choice)?;
         let badge_reserve = if displayed_series.contains(&Some(index)) {
-            38
+            30
         } else {
             0
         };
@@ -212,7 +210,7 @@ fn render_cards(
         draw_fit(
             framebuffer,
             text_x,
-            offset(card.y, 24)?,
+            offset(card.y, 23)?,
             choice.description.as_ref(),
             title_style,
             text_width,
@@ -221,21 +219,17 @@ fn render_cards(
             framebuffer,
             text_x,
             offset(card.y, 42)?,
-            choice.modality.as_ref(),
-            detail_style,
-            text_width,
-        );
         let mut details = ArrayString::<40>::new();
         write!(
             &mut details,
-            "{} images  |  Study {}",
-            choice.instance_count, choice.study_number
+            "{}  |  {} images",
+            choice.modality, choice.instance_count
         )
         .map_err(|_| anyhow!("series details exceed their display buffer"))?;
         draw_fit(
             framebuffer,
             text_x,
-            offset(card.y, 60)?,
+            offset(card.y, 45)?,
             details.as_str(),
             detail_style,
             text_width,
@@ -292,15 +286,15 @@ pub(super) fn index_at(browser: &SeriesBrowser, area: Rect, x: f64, y: f64) -> O
     if !rect_contains(bounds, x, y) {
         return None;
     }
-    if bounds.width <= 0 || bounds.height < CARD_HEIGHT {
+    if bounds.width < CARD_WIDTH || bounds.height < CARD_HEIGHT {
         return None;
     }
     let start = visible_start(browser, visible_count(area));
     for offset in 0..visible_count(area) {
         let visible_i32 = i32::try_from(offset).ok()?;
-        let stride = CARD_HEIGHT.checked_add(CARD_GAP)?;
-        let card_y = bounds.y.checked_add(visible_i32.checked_mul(stride)?)?;
-        if rect_contains(Rect::new(bounds.x, card_y, bounds.width, CARD_HEIGHT), x, y) {
+        let stride = CARD_WIDTH.checked_add(CARD_GAP)?;
+        let card_x = bounds.x.checked_add(visible_i32.checked_mul(stride)?)?;
+        if rect_contains(Rect::new(card_x, bounds.y, CARD_WIDTH, CARD_HEIGHT), x, y) {
             let index = start.checked_add(offset)?;
             return (index < browser.len()).then_some(index);
         }
@@ -310,11 +304,11 @@ pub(super) fn index_at(browser: &SeriesBrowser, area: Rect, x: f64, y: f64) -> O
 
 pub(super) fn visible_count(area: Rect) -> usize {
     let bounds = card_bounds(area);
-    if bounds.width == 0 || bounds.height < CARD_HEIGHT {
+    if bounds.width < CARD_WIDTH || bounds.height < CARD_HEIGHT {
         return 0;
     }
-    let available = i64::from(bounds.height).saturating_add(i64::from(CARD_GAP));
-    let stride = i64::from(CARD_HEIGHT.saturating_add(CARD_GAP));
+    let available = i64::from(bounds.width).saturating_add(i64::from(CARD_GAP));
+    let stride = i64::from(CARD_WIDTH.saturating_add(CARD_GAP));
     usize::try_from(available / stride).expect("invariant: visible card count fits in usize")
 }
 
@@ -327,14 +321,11 @@ fn visible_start(browser: &SeriesBrowser, count: usize) -> usize {
 fn card_bounds(area: Rect) -> Rect {
     let inset = 8_i32;
     let y = area.y.saturating_add(CARD_TOP);
-    let bottom = area
-        .y
-        .saturating_add(area.height)
-        .saturating_sub(CARD_BOTTOM);
+    let bottom = area.y.saturating_add(area.height).saturating_sub(CARD_BOTTOM);
     Rect::new(
-        area.x.saturating_add(inset),
+        area.x.saturating_add(CARD_LEFT),
         y,
-        area.width.saturating_sub(inset.saturating_mul(2)).max(0),
+        area.width.saturating_sub(CARD_LEFT.saturating_mul(2)).max(0),
         bottom.saturating_sub(y).max(0),
     )
 }
@@ -343,7 +334,7 @@ fn group_label(choice: &SeriesChoice) -> Result<ArrayString<64>> {
     let mut label = ArrayString::new();
     write!(
         &mut label,
-        "PATIENT {}  /  STUDY {}",
+        "PAT {} / ST {}",
         choice.patient_number, choice.study_number
     )
     .map_err(|_| anyhow!("study group label exceeds its display buffer"))?;

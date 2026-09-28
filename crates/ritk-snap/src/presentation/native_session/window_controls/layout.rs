@@ -1,9 +1,11 @@
 //! RadiAnt-style native menus, grouped tools, series preview and status bar.
 
 use super::super::layout::{
-    PanelGrid, ViewportArea, WorkspaceLayout, MAX_GRID_COLUMNS, MAX_GRID_ROWS,
+    PanelGrid, WorkspaceLayout, MAX_GRID_COLUMNS, MAX_GRID_ROWS,
 };
+mod geometry;
 mod render;
+pub(super) use geometry::ChromeGeometry;
 use super::super::series_browser::SeriesBrowser;
 use super::series;
 use super::{Menu, WindowAction};
@@ -13,11 +15,6 @@ use anyhow::{anyhow, Result};
 use arrayvec::ArrayVec;
 use metis_platform::Rect;
 
-const MENU_HEIGHT: u32 = 30;
-const TOOLBAR_HEIGHT: u32 = 58;
-const STATUS_HEIGHT: u32 = 26;
-const SERIES_PREVIEW_WIDTH: u32 = 280;
-const MIN_SERIES_PREVIEW_WINDOW_WIDTH: u32 = 640;
 const MENU_ROW_HEIGHT: u32 = 28;
 const CONTROL_GAP: u32 = 6;
 const CONTROL_CAPACITY: usize = 40;
@@ -87,73 +84,6 @@ const TOOLBAR_ITEMS: [(&str, u32, WindowAction, &str); 9] = [
         "LAYOUT",
     ),
 ];
-
-pub(super) struct ChromeGeometry {
-    menu_bar: Rect,
-    toolbar: Rect,
-    series_preview: Rect,
-    status_bar: Rect,
-    pub(super) viewport_area: ViewportArea,
-    menu_height: u32,
-    toolbar_height: u32,
-}
-
-impl ChromeGeometry {
-    pub(super) fn new(width: u32, height: u32, show_series_preview: bool) -> Result<Self> {
-        let menu_height = height.min(MENU_HEIGHT);
-        let status_height = height.saturating_sub(menu_height).min(STATUS_HEIGHT);
-        let toolbar_height = height
-            .saturating_sub(menu_height)
-            .saturating_sub(status_height)
-            .min(TOOLBAR_HEIGHT);
-        let content_y = menu_height
-            .checked_add(toolbar_height)
-            .ok_or_else(|| anyhow!("native content y overflows"))?;
-        let content_height = height
-            .saturating_sub(menu_height)
-            .saturating_sub(toolbar_height)
-            .saturating_sub(status_height);
-        let preview_width = if show_series_preview && width >= MIN_SERIES_PREVIEW_WINDOW_WIDTH {
-            SERIES_PREVIEW_WIDTH.min(width)
-        } else {
-            0
-        };
-        let width_i32 =
-            i32::try_from(width).map_err(|_| anyhow!("native chrome width exceeds i32"))?;
-        let menu_height_i32 =
-            i32::try_from(menu_height).map_err(|_| anyhow!("native menu height exceeds i32"))?;
-        let toolbar_height_i32 = i32::try_from(toolbar_height)
-            .map_err(|_| anyhow!("native toolbar height exceeds i32"))?;
-        let status_height_i32 = i32::try_from(status_height)
-            .map_err(|_| anyhow!("native status height exceeds i32"))?;
-        let preview_width_i32 = i32::try_from(preview_width)
-            .map_err(|_| anyhow!("native series preview width exceeds i32"))?;
-        let content_y_i32 =
-            i32::try_from(content_y).map_err(|_| anyhow!("native content y exceeds i32"))?;
-        let status_y = i32::try_from(height.saturating_sub(status_height))
-            .map_err(|_| anyhow!("native status y exceeds i32"))?;
-        Ok(Self {
-            menu_bar: Rect::new(0, 0, width_i32, menu_height_i32),
-            toolbar: Rect::new(0, menu_height_i32, width_i32, toolbar_height_i32),
-            series_preview: Rect::new(
-                0,
-                content_y_i32,
-                preview_width_i32,
-                i32::try_from(content_height)
-                    .map_err(|_| anyhow!("native series preview height exceeds i32"))?,
-            ),
-            status_bar: Rect::new(0, status_y, width_i32, status_height_i32),
-            viewport_area: ViewportArea {
-                x: preview_width,
-                y: content_y,
-                width: width.saturating_sub(preview_width),
-                height: content_height,
-            },
-            menu_height,
-            toolbar_height,
-        })
-    }
-}
 
 #[derive(Clone, Copy)]
 enum ControlKind {
@@ -264,7 +194,7 @@ impl ChromeLayout {
                 .find(|control| control.action == WindowAction::OpenMenu(Menu::GridPicker))
                 .map(|control| control.rect)
             {
-                if let Some(popup) = grid_popup_bounds(width, height, geometry, anchor)? {
+                if let Some(popup) = grid_popup_bounds(width, height, &geometry, anchor)? {
                     grid_popup = Some(popup);
                     let (selected_columns, selected_rows) = workspace_layout
                         .grid()
@@ -505,7 +435,7 @@ fn menu_item(
 fn grid_popup_bounds(
     width: u32,
     height: u32,
-    geometry: ChromeGeometry,
+    geometry: &ChromeGeometry,
     anchor: Rect,
 ) -> Result<Option<Rect>> {
     if width < GRID_POPUP_WIDTH || height < GRID_POPUP_HEIGHT {
