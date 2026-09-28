@@ -52,21 +52,27 @@ pub(super) fn render(
         framebuffer,
         offset(area.x, 10)?,
         offset(area.y, 8)?,
-        "STUDIES AND SERIES",
+        "SERIES PREVIEW",
         heading_style,
     );
     if let Some(browser) = browser {
         let mut summary = ArrayString::<64>::new();
+        let study_label = if browser.study_count() == 1 {
+            "study"
+        } else {
+            "studies"
+        };
         write!(
             &mut summary,
-            "{} studies  |  {} series",
+            "{} {}  |  {} series",
             browser.study_count(),
+            study_label,
             browser.len()
         )
         .map_err(|_| anyhow!("series preview summary exceeds its display buffer"))?;
         draw_text(
             framebuffer,
-            offset(area.x, 10)?,
+            offset(area.x, 142)?,
             offset(area.y, 8)?,
             summary.as_str(),
             detail_style,
@@ -74,7 +80,7 @@ pub(super) fn render(
     } else if app.loaded.is_some() {
         draw_text(
             framebuffer,
-            offset(area.x, 10)?,
+            offset(area.x, 142)?,
             offset(area.y, 8)?,
             "1 study  |  1 series",
             detail_style,
@@ -82,7 +88,7 @@ pub(super) fn render(
     } else {
         draw_text(
             framebuffer,
-            offset(area.x, 10)?,
+            offset(area.x, 142)?,
             offset(area.y, 8)?,
             "Open a study to view its series",
             detail_style,
@@ -144,7 +150,7 @@ fn render_cards(
         };
         let visible_i32 = i32::try_from(visible_index)
             .map_err(|_| anyhow!("visible series index exceeds i32"))?;
-        let stride = CARD_HEIGHT
+        let stride = CARD_WIDTH
             .checked_add(CARD_GAP)
             .ok_or_else(|| anyhow!("series card stride overflows"))?;
         let x = bounds
@@ -210,15 +216,11 @@ fn render_cards(
         draw_fit(
             framebuffer,
             text_x,
-            offset(card.y, 23)?,
+            offset(card.y, 22)?,
             choice.description.as_ref(),
             title_style,
             text_width,
         );
-        draw_fit(
-            framebuffer,
-            text_x,
-            offset(card.y, 42)?,
         let mut details = ArrayString::<40>::new();
         write!(
             &mut details,
@@ -229,7 +231,7 @@ fn render_cards(
         draw_fit(
             framebuffer,
             text_x,
-            offset(card.y, 45)?,
+            offset(card.y, 40)?,
             details.as_str(),
             detail_style,
             text_width,
@@ -319,13 +321,17 @@ fn visible_start(browser: &SeriesBrowser, count: usize) -> usize {
 }
 
 fn card_bounds(area: Rect) -> Rect {
-    let inset = 8_i32;
     let y = area.y.saturating_add(CARD_TOP);
-    let bottom = area.y.saturating_add(area.height).saturating_sub(CARD_BOTTOM);
+    let bottom = area
+        .y
+        .saturating_add(area.height)
+        .saturating_sub(CARD_BOTTOM);
     Rect::new(
         area.x.saturating_add(CARD_LEFT),
         y,
-        area.width.saturating_sub(CARD_LEFT.saturating_mul(2)).max(0),
+        area.width
+            .saturating_sub(CARD_LEFT.saturating_mul(2))
+            .max(0),
         bottom.saturating_sub(y).max(0),
     )
 }

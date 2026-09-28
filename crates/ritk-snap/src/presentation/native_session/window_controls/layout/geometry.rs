@@ -70,12 +70,7 @@ impl ChromeGeometry {
         Ok(Self {
             menu_bar: Rect::new(0, 0, width_i32, menu_height_i32),
             toolbar: Rect::new(0, menu_height_i32, width_i32, toolbar_height_i32),
-            series_preview: Rect::new(
-                0,
-                preview_y_i32,
-                width_i32,
-                preview_height_i32,
-            ),
+            series_preview: Rect::new(0, preview_y_i32, width_i32, preview_height_i32),
             status_bar: Rect::new(0, status_y, width_i32, status_height_i32),
             viewport_area: ViewportArea {
                 x: 0,

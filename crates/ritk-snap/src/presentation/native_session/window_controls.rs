@@ -274,11 +274,18 @@ impl WindowChrome {
                     WindowChromeEvent::passed()
                 })
             }
-            PresentationEvent::PointerWheel { x, y, delta_y, .. } => {
+            PresentationEvent::PointerWheel {
+                x,
+                y,
+                delta_x,
+                delta_y,
+                ..
+            } => {
                 if layout.series_contains(*x, *y) {
-                    let delta = if *delta_y > 0.0 {
+                    let direction = if *delta_x != 0.0 { *delta_x } else { *delta_y };
+                    let delta = if direction > 0.0 {
                         -3
-                    } else if *delta_y < 0.0 {
+                    } else if direction < 0.0 {
                         3
                     } else {
                         0

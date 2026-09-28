@@ -1208,8 +1208,8 @@ the anatomical pixel evidence for the public phantom study.
 The first full-window capture shows the live Métis native viewer with the
 public 94-instance MRI-DIR phantom, three orthogonal MPR panes and a fourth
 maximum-intensity projection, File, View, Tools and Window menus, grouped
-toolbar buttons, a scrollable left-side study and series rail, and the status
-bar. The second full-window capture shows the MRI and CT
+toolbar buttons, a scrollable bottom series preview bar, and the status bar.
+The second full-window capture shows the MRI and CT
 from the same porcine phantom loaded simultaneously in two independent image
 panels. Its series cards show thumbnails from both decoded volumes and mark
 their panel assignments. RITK reads 94 MRI instances and 409 CT instances from
@@ -1218,17 +1218,17 @@ the original public files.
 To compare series, open the folder that contains them, then choose **Split
 screen** or **Panel layout...** from **Window**. The picker maps all 20
 column-and-row combinations from 1×1 through 5×4. Click a destination panel
-and select a series card, or drag the card directly from the left rail into its
-destination. The load-target label identifies the active panel, and the series
+and select a series card, or drag the card directly from the bottom preview bar
+into its destination. The load-target label identifies the active panel, and the series
 card shows its panel assignment. Clicking an assigned card activates that
 panel. Slice, window/level, zoom, pan and cine state remain independent
 between panels. A series may occupy more than one panel. A failed load
-preserves the displayed volume. The left series rail, direct drag assignment
-and 5×4 grid picker follow RadiAnt's documented multi-series workflow.
+preserves the displayed volume. The bottom series preview bar, direct drag
+assignment and 5×4 grid picker follow RadiAnt's documented multi-series workflow.
 
 The window does not show patient name or ID. The controls invoke the viewer’s
-study, tool, crosshair, cine, series rail, layout and reset actions. The
-menu, left series rail, panel grid picker and drag assignment implement RadiAnt's
+study, tool, crosshair, cine, series preview bar, layout and reset actions. The
+menu, bottom series preview bar, panel grid picker and drag assignment implement RadiAnt's
 documented series workflow ([series browsing](https://www.radiantviewer.com/dicom-viewer-manual/browse_series_and_images.html),
 [multiple-series viewing](https://www.radiantviewer.com/dicom-viewer-manual/view_multiple_series.html));
 RITK and Métis provide the application branding, rendering and DICOM pixels.
@@ -1279,9 +1279,9 @@ python $captureUtility `
   --output scratch\viewer\real-mri-ct-multiseries-window.png
 ```
 
-![Full RITK/Métis viewer window with menus, grouped toolbar buttons, scrollable left series rail, status bar, three orthogonal RITK MPR panes and one MIP projection, and the real public MRI phantom](images/dicom-metis-real-mri-application-window.webp)
+![Full RITK/Métis viewer window with menus, grouped toolbar buttons, scrollable bottom series preview bar, status bar, three orthogonal RITK MPR panes and one MIP projection, and the real public MRI phantom](images/dicom-metis-real-mri-application-window.webp)
 
-![Full RITK/Métis viewer window with menus, grouped toolbar buttons, left series rail showing real MRI and CT thumbnails and panel assignments, status bar, and the actual public series side by side](images/dicom-metis-real-mri-ct-multiseries-window.webp)
+![Full RITK/Métis viewer window with menus, grouped toolbar buttons, bottom series preview bar showing real MRI and CT thumbnails and panel assignments, status bar, and the actual public series side by side](images/dicom-metis-real-mri-ct-multiseries-window.webp)
 
 The separate 1280 × 800 pane-only capture remains the pixel evidence for the
 saved-study decode; it deliberately excludes the application controls and

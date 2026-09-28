@@ -1,11 +1,10 @@
 //! RadiAnt-style native menus, grouped tools, series preview and status bar.
 
-use super::super::layout::{
-    PanelGrid, WorkspaceLayout, MAX_GRID_COLUMNS, MAX_GRID_ROWS,
-};
+use super::super::layout::{PanelGrid, WorkspaceLayout, MAX_GRID_COLUMNS, MAX_GRID_ROWS};
+#[cfg(test)]
+use super::super::layout::ViewportArea;
 mod geometry;
 mod render;
-pub(super) use geometry::ChromeGeometry;
 use super::super::series_browser::SeriesBrowser;
 use super::series;
 use super::{Menu, WindowAction};
@@ -13,6 +12,7 @@ use crate::app::SnapApp;
 use crate::tools::kind::ToolKind;
 use anyhow::{anyhow, Result};
 use arrayvec::ArrayVec;
+pub(super) use geometry::ChromeGeometry;
 use metis_platform::Rect;
 
 const MENU_ROW_HEIGHT: u32 = 28;

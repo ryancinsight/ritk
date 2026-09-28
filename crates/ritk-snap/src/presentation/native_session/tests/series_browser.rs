@@ -32,9 +32,8 @@ fn click_series(
     session: &mut crate::presentation::native_session::NativeViewerSession,
     index: i32,
 ) {
-    let row = index;
-    let x = 24;
-    let y = 190 + row.saturating_mul(95);
+    let x = 100 + index.saturating_mul(192);
+    let y = 714;
     session
         .handle_events(&[
             WindowEvent::PointerDown {
@@ -56,9 +55,8 @@ fn drag_series_to_panel(
     series_index: i32,
     panel_index: usize,
 ) {
-    let row = series_index;
-    let start_x = 24;
-    let start_y = 190 + row.saturating_mul(95);
+    let start_x = 100 + series_index.saturating_mul(192);
+    let start_y = 714;
     let (end_x, end_y) = session.viewports[panel_index].center();
     session
         .handle_events(&[

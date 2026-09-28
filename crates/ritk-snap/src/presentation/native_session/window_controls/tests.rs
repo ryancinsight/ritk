@@ -16,17 +16,17 @@ fn browser_with_series(count: usize) -> (SeriesBrowser, tempfile::TempDir) {
 }
 
 #[test]
-fn visible_workspace_reserves_menus_toolbar_series_rail_and_status() {
+fn visible_workspace_reserves_menus_toolbar_series_preview_and_status() {
     let app = SnapApp::default();
     let layout = ChromeLayout::new(1_280, 800, None, &app, true, WorkspaceLayout::Orthogonal)
         .expect("chrome layout");
     assert_eq!(
         layout.viewport_area(),
         ViewportArea {
-            x: 280,
+            x: 0,
             y: 88,
-            width: 1_000,
-            height: 686
+            width: 1_280,
+            height: 554
         }
     );
     assert_eq!(layout.visible_series(), 6);
@@ -110,8 +110,8 @@ fn series_cards_route_selection_and_consume_viewport_input() {
     let (series_browser, _root) = browser_with_series(2);
     let mut browser = Some(series_browser);
     let event = PresentationEvent::PointerDown {
-        x: 252.0,
-        y: 280.0,
+        x: 292.0,
+        y: 714.0,
         button: PointerButton::Left,
     };
 
@@ -137,8 +137,8 @@ fn series_cards_route_selection_and_consume_viewport_input() {
         chrome
             .handle_event(
                 &PresentationEvent::PointerUp {
-                    x: 252.0,
-                    y: 280.0,
+                    x: 292.0,
+                    y: 714.0,
                     button: PointerButton::Left,
                 },
                 1_280,
@@ -166,8 +166,8 @@ fn preview_wheel_scrolls_the_discovered_series_list() {
     let event = PresentationEvent::PointerWheel {
         x: 40.0,
         y: 700.0,
-        delta_x: 0.0,
-        delta_y: -120.0,
+        delta_x: -120.0,
+        delta_y: 0.0,
         modifiers: crate::presentation::PresentationModifiers::NONE,
     };
 
