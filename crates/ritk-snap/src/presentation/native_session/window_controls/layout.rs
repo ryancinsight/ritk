@@ -1,8 +1,8 @@
-//! RadiAnt-style native menus, grouped tools, series preview and status bar.
+//! RadiAnt-clone native menus, grouped tools, series preview and status bar.
 
-use super::super::layout::{PanelGrid, WorkspaceLayout, MAX_GRID_COLUMNS, MAX_GRID_ROWS};
 #[cfg(test)]
 use super::super::layout::ViewportArea;
+use super::super::layout::{PanelGrid, WorkspaceLayout, MAX_GRID_COLUMNS, MAX_GRID_ROWS};
 mod geometry;
 mod render;
 use super::super::series_browser::SeriesBrowser;

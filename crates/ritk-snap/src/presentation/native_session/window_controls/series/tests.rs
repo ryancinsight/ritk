@@ -19,17 +19,17 @@ fn thumbnail_preserves_sampled_rgba_from_the_rendered_slice() {
 
 #[test]
 fn each_assigned_series_preview_uses_its_own_panel_frame() {
-    let primary = PresentationFrame::from_rgba(1, 1, &[255, 0, 0, 255])
-        .expect("primary series thumbnail");
-    let comparison = PresentationFrame::from_rgba(1, 1, &[0, 255, 0, 255])
-        .expect("comparison series thumbnail");
+    let primary =
+        PresentationFrame::from_rgba(1, 1, &[255, 0, 0, 255]).expect("primary series thumbnail");
+    let comparison =
+        PresentationFrame::from_rgba(1, 1, &[0, 255, 0, 255]).expect("comparison series thumbnail");
     let previews = [Some(&primary), Some(&comparison)];
 
     let displayed_series = [Some(3), Some(7)];
-    let primary_preview = displayed_preview(3, &displayed_series, &previews)
-        .expect("primary series is displayed");
-    let comparison_preview = displayed_preview(7, &displayed_series, &previews)
-        .expect("comparison series is displayed");
+    let primary_preview =
+        displayed_preview(3, &displayed_series, &previews).expect("primary series is displayed");
+    let comparison_preview =
+        displayed_preview(7, &displayed_series, &previews).expect("comparison series is displayed");
 
     assert_eq!(primary_preview.rgba(), &[255, 0, 0, 255]);
     assert_eq!(comparison_preview.rgba(), &[0, 255, 0, 255]);

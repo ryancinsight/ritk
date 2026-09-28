@@ -1,4 +1,4 @@
-//! Native RadiAnt-style workspace geometry and input tests.
+//! Native RadiAnt-clone workspace geometry and input tests.
 
 use super::*;
 use crate::dicom::loader::{scan_folder_for_series, tests::fixtures};
