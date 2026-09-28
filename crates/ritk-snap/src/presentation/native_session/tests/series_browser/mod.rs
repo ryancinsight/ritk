@@ -79,5 +79,5 @@ fn drag_series_to_panel(
 }
 
 mod catalog;
-mod panels;
 mod multi_series_panels;
+mod panels;
