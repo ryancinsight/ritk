@@ -9,7 +9,7 @@
 use super::compare::ComparePanel;
 use super::composition::compose_frames;
 use super::layout::{
-    crosshair_overlay, surface_frames_grid, GridPanel, NativeViewport, WorkspaceLayout,
+    surface_frames_grid, GridPanel, NativeViewport, WorkspaceLayout,
     MAX_COMPARISON_PANELS, MAX_GRID_PANELS,
 };
 use super::observation::{record_state, NativeViewerObservation};
@@ -479,23 +479,6 @@ impl NativeViewerSession {
         };
         self.open_study_path(&path)?;
         Ok(true)
-    }
-
-    fn render_crosshair_overlay(&mut self) -> Result<()> {
-        if self.workspace_layout.is_grid() {
-            return Ok(());
-        }
-        let shape = self.app.loaded.as_ref().map(|volume| volume.shape);
-        let cursor = self.app.linked_cursor.map(|cursor| cursor.voxel());
-        crosshair_overlay(
-            &self.views,
-            self.viewports.as_slice(),
-            shape,
-            cursor,
-            self.app.show_crosshair,
-        )?
-        .render_to(&mut self.framebuffer);
-        Ok(())
     }
 
     pub(super) fn record_terminal_frame(&self, destroyed: bool) -> Result<()> {

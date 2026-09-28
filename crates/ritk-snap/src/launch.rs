@@ -3,11 +3,15 @@ use std::path::PathBuf;
 
 use crate::render::ProjectionStatistic;
 
-mod viewport;
 #[cfg(not(target_arch = "wasm32"))]
 mod series_comparison;
+mod viewport;
 #[cfg(not(target_arch = "wasm32"))]
 pub use series_comparison::run_app_with_series_comparison;
+#[cfg(not(target_arch = "wasm32"))]
+mod responsive;
+#[cfg(not(target_arch = "wasm32"))]
+pub use responsive::run_responsive_native_app_with_options;
 #[cfg(windows)]
 use std::path::Path;
 pub use viewport::{EframeViewport, EframeViewportError};
@@ -245,26 +249,6 @@ pub fn run_app_with_options(options: AppLaunchOptions) -> anyhow::Result<()> {
         CompatibilityPresentation::FullApplication,
         EframeViewport::default(),
         presentation_selection,
-        None,
-    )
-}
-
-/// Launch the Métis native host with its responsive pane layout.
-///
-/// This additive entrypoint preserves the public fixed-layout enum and its
-/// existing exhaustive matches while exposing adaptive native presentation to
-/// library consumers.
-///
-/// # Errors
-/// Returns the same window, event-loop, DICOM load, and capture errors as
-/// [`run_app_with_options`].
-#[cfg(not(target_arch = "wasm32"))]
-pub fn run_responsive_native_app_with_options(options: AppLaunchOptions) -> anyhow::Result<()> {
-    run_app_with_compatibility_selection(
-        options,
-        CompatibilityPresentation::FullApplication,
-        EframeViewport::default(),
-        NativePresentationSelection::Responsive,
         None,
     )
 }

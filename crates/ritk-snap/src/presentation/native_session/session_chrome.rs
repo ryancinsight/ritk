@@ -1,11 +1,28 @@
 //! Native chrome composition for the viewer session.
 
-use super::layout::MAX_GRID_PANELS;
+use super::layout::{crosshair_overlay, MAX_GRID_PANELS};
 use super::session::NativeViewerSession;
 use anyhow::Result;
 use arrayvec::ArrayVec;
 
 impl NativeViewerSession {
+    pub(super) fn render_crosshair_overlay(&mut self) -> Result<()> {
+        if self.workspace_layout.is_grid() {
+            return Ok(());
+        }
+        let shape = self.app.loaded.as_ref().map(|volume| volume.shape);
+        let cursor = self.app.linked_cursor.map(|cursor| cursor.voxel());
+        crosshair_overlay(
+            &self.views,
+            self.viewports.as_slice(),
+            shape,
+            cursor,
+            self.app.show_crosshair,
+        )?
+        .render_to(&mut self.framebuffer);
+        Ok(())
+    }
+
     pub(super) fn render_chrome(&mut self) -> Result<()> {
         let (
             framebuffer,
