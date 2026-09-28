@@ -65,6 +65,34 @@ impl PartialEq<Vec<f32>> for NativeFilterOutput {
     }
 }
 
+impl NativeFilterOutput {
+    #[inline]
+    fn from_image(output: Image<f32, SequentialBackend, 3>, backend: &SequentialBackend) -> Self {
+        Self {
+            data: output.data_cow_on(backend).into_owned(),
+            shape: output.shape(),
+            origin: output.origin().to_array(),
+            spacing: output.spacing().to_array(),
+            direction: output.direction().to_row_major(),
+        }
+    }
+
+    #[inline]
+    fn from_cpr_image(
+        output: Image<f32, SequentialBackend, 2>,
+        backend: &SequentialBackend,
+    ) -> Self {
+        let [rows, columns] = output.shape();
+        Self {
+            data: output.data_cow_on(backend).into_owned(),
+            shape: [1, rows, columns],
+            origin: [0.0, output.origin()[0], output.origin()[1]],
+            spacing: [1.0, output.spacing()[0], output.spacing()[1]],
+            direction: [1.0, 0.0, 0.0, 0.0, 1.0, 0.0, 0.0, 0.0, 1.0],
+        }
+    }
+}
+
 /// Apply a filter through the Coeus-native image substrate.
 ///
 /// Every current [`FilterKind`] has a native implementation. A provider or
@@ -139,6 +167,7 @@ fn apply_cpr(
 ) -> Result<NativeFilterOutput> {
     let backend = SequentialBackend;
     let image = native_image_from_volume(volume, &backend)?;
+
     let output = CprImageFilter::new(
         control_points.to_vec(),
         CprConfig {
@@ -150,16 +179,7 @@ fn apply_cpr(
     .apply_native(&image, &backend)
     .context("Coeus-native CPR failed")?;
 
-    let origin = output.origin();
-    let spacing = output.spacing();
-    let [rows, columns] = output.shape();
-    Ok(NativeFilterOutput {
-        data: output.data_cow_on(&backend).into_owned(),
-        shape: [1, rows, columns],
-        origin: [0.0, origin[0], origin[1]],
-        spacing: [1.0, spacing[0], spacing[1]],
-        direction: [1.0, 0.0, 0.0, 0.0, 1.0, 0.0, 0.0, 0.0, 1.0],
-    })
+    Ok(NativeFilterOutput::from_cpr_image(output, &backend))
 }
 
 fn apply_supported_filter(
@@ -475,36 +495,40 @@ fn apply_supported_filter(
     }
     .context("Coeus-native filter failed")?;
 
-    let origin = output.origin();
-    let spacing = output.spacing();
-    let direction = output.direction();
-    Ok(NativeFilterOutput {
-        data: output.data_cow_on(&backend).into_owned(),
-        shape: output.shape(),
-        origin: [origin[0], origin[1], origin[2]],
-        spacing: [spacing[0], spacing[1], spacing[2]],
-        direction: [
-            direction[(0, 0)],
-            direction[(0, 1)],
-            direction[(0, 2)],
-            direction[(1, 0)],
-            direction[(1, 1)],
-            direction[(1, 2)],
-            direction[(2, 0)],
-            direction[(2, 1)],
-            direction[(2, 2)],
-        ],
-    })
+    Ok(NativeFilterOutput::from_image(output, &backend))
 }
 
 #[cfg(test)]
 mod tests {
-    use super::apply_if_supported;
+    use super::{apply_if_supported, native_image_from_volume, NativeFilterOutput};
     use crate::app::tests::test_volume;
     use crate::app::SnapApp;
     use crate::FilterKind;
     use ritk_filter::{BinarizationThreshold, ForegroundValue};
     use std::sync::Arc;
+
+    #[test]
+    fn native_output_carries_the_input_geometry_in_row_major_order() {
+        // A 90 degree rotation about z: non-symmetric, so a transposed
+        // direction would read back as the inverse rotation.
+        let direction = [0.0, -1.0, 0.0, 1.0, 0.0, 0.0, 0.0, 0.0, 1.0];
+        let mut volume = test_volume([2, 3, 4]);
+        volume.origin = [1.5, -2.0, 7.25];
+        volume.spacing = [0.5, 0.75, 2.0];
+        volume.direction = direction;
+        volume.data = Arc::new((0..24_u16).map(f32::from).collect());
+        let backend = coeus_core::SequentialBackend;
+        let image =
+            native_image_from_volume(&volume, &backend).expect("invariant: valid test volume");
+
+        let output = NativeFilterOutput::from_image(image, &backend);
+
+        assert_eq!(output.shape, volume.shape);
+        assert_eq!(output.origin, volume.origin);
+        assert_eq!(output.spacing, volume.spacing);
+        assert_eq!(output.direction, direction);
+        assert_eq!(output.data, *volume.data);
+    }
 
     #[test]
     fn native_unary_filters_transform_loaded_volume_values() {
