@@ -900,35 +900,19 @@ fn ceil_div(value: usize, divisor: usize) -> usize {
 }
 
 fn ceil_div_axes(values: [usize; 3], divisor: usize) -> [usize; 3] {
-    [
-        ceil_div(values[0], divisor),
-        ceil_div(values[1], divisor),
-        ceil_div(values[2], divisor),
-    ]
+    values.map(|value| ceil_div(value, divisor))
 }
 
 fn scale_coordinate(coordinate: [usize; 3], scale: usize) -> [usize; 3] {
-    [
-        coordinate[0] / scale,
-        coordinate[1] / scale,
-        coordinate[2] / scale,
-    ]
+    coordinate.map(|value| value / scale)
 }
 
 fn scale_displacement(displacement: [f64; 3], scale: usize) -> [f64; 3] {
-    [
-        displacement[0] * scale as f64,
-        displacement[1] * scale as f64,
-        displacement[2] * scale as f64,
-    ]
+    displacement.map(|value| value * scale as f64)
 }
 
 fn add_displacement(centre: [usize; 3], displacement: [f64; 3]) -> [usize; 3] {
-    [
-        (centre[0] as f64 + displacement[0]).round().max(0.0) as usize,
-        (centre[1] as f64 + displacement[1]).round().max(0.0) as usize,
-        (centre[2] as f64 + displacement[2]).round().max(0.0) as usize,
-    ]
+    std::array::from_fn(|axis| (centre[axis] as f64 + displacement[axis]).round().max(0.0) as usize)
 }
 
 #[cfg(test)]
