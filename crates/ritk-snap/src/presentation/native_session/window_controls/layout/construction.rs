@@ -1,6 +1,6 @@
-use super::super::layout::{PanelGrid, WorkspaceLayout, MAX_GRID_COLUMNS, MAX_GRID_ROWS};
+use super::super::super::layout::{PanelGrid, WorkspaceLayout, MAX_GRID_COLUMNS, MAX_GRID_ROWS};
+use super::super::{Menu, WindowAction};
 use super::{ChromeControl, ChromeLayout, ControlKind, ToolbarGroup, CONTROL_CAPACITY};
-use super::{Menu, WindowAction};
 use crate::app::SnapApp;
 use crate::tools::kind::ToolKind;
 use anyhow::{anyhow, Result};
