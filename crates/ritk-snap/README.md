@@ -86,6 +86,23 @@ study through the Windows Métis host, use:
 cargo run --locked -p ritk-snap -- path/to/study --metis-native
 ```
 
+To compare two acquisitions from one discovered folder, select the primary and
+comparison SeriesInstanceUIDs. The native Métis window opens both in separate
+side-by-side panels; selecting a series in the left preview sidebar replaces
+only the active panel:
+
+```console
+cargo run --locked -p ritk-snap -- path/to/study \
+  --metis-native \
+  --series-instance-uid 2.25.20260905001 \
+  --compare-series-instance-uid 2.25.20260905002
+```
+
+Each panel keeps independent slice, window/level, zoom, pan and cine state.
+Choose 2-, 4-, 6-, 9-, 12-, 16- or 20-panel grids in the Window menu, then
+drag a series card into a panel or click a card to load it into the active
+panel. The single-series workspace remains the three-plane MPR view.
+
 On Windows the same command works without `--metis-native`; the flag remains an
 explicit spelling for scripts and existing workflows. The separately named
 `ritk-snap-eframe` executable selects the compatibility shell without activating

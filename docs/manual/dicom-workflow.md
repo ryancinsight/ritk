@@ -1204,16 +1204,97 @@ attributes on every canvas. The browser control remains disabled until all
 three real study frames are presented, and its status output reports the
 current `z,y,x` coordinate. The crosshair display-list and browser semantic
 tests provide geometry and state evidence; the saved MRI capture below remains
-the clinical pixel evidence for the decoded study.
-The real MRI capture below remains the pixel evidence for the saved-study
-decode and three-plane Métis presentation; the test is the bounded input
-evidence for the interactive W/L transition.
-The reviewed 1280 × 800 output below is the actual run, not a made image:
+the anatomical pixel evidence for the public phantom study.
+The first full-window capture shows the live Métis native viewer with the
+public 94-instance MRI-DIR phantom, three orthogonal MPR panes and a fourth
+maximum-intensity projection, File, View, Tools and Window menus, grouped
+toolbar buttons, a scrollable left-side study and series rail, and the status
+bar. The second full-window capture shows the MRI and CT
+from the same porcine phantom loaded simultaneously in two independent image
+panels. Its series cards show thumbnails from both decoded volumes and mark
+their panel assignments. RITK reads 94 MRI instances and 409 CT instances from
+the original public files.
 
-![Actual MRI-DIR T2 series rendered through the Métis native surface](images/dicom-metis-real-mri.png)
+To compare series, open the folder that contains them, then choose **Split
+screen** or **Panel layout...** from **Window**. The picker maps all 20
+column-and-row combinations from 1×1 through 5×4. Click a destination panel
+and select a series card, or drag the card directly from the left rail into its
+destination. The load-target label identifies the active panel, and the series
+card shows its panel assignment. Clicking an assigned card activates that
+panel. Slice, window/level, zoom, pan and cine state remain independent
+between panels. A series may occupy more than one panel. A failed load
+preserves the displayed volume. The left series rail, direct drag assignment
+and 5×4 grid picker follow RadiAnt's documented multi-series workflow.
 
-The input byte count, source revisions, executable digest and image digest are
-recorded in [`dicom-metis-real-mri.json`](images/dicom-metis-real-mri.json).
+The window does not show patient name or ID. The controls invoke the viewer’s
+study, tool, crosshair, cine, series rail, layout and reset actions. The
+menu, left series rail, panel grid picker and drag assignment implement RadiAnt's
+documented series workflow ([series browsing](https://www.radiantviewer.com/dicom-viewer-manual/browse_series_and_images.html),
+[multiple-series viewing](https://www.radiantviewer.com/dicom-viewer-manual/view_multiple_series.html));
+RITK and Métis provide the application branding, rendering and DICOM pixels.
+These are captures of the running application, not annotated framebuffers or
+generated images.
+
+From the RITK repository root, build and capture the visible MPR window. Then
+place hard links to the two public series in one temporary folder and capture
+the comparison window. The source DICOM files remain unchanged:
+
+```powershell
+cargo build --locked -p ritk-snap --bin ritk-snap
+$target = (cargo metadata --format-version 1 --no-deps |
+  ConvertFrom-Json).target_directory
+$captureOutput = Join-Path $PWD 'scratch\viewer'
+New-Item -ItemType Directory -Path $captureOutput -Force | Out-Null
+$atlasRoot = (Get-Item $PWD).Parent.Parent.FullName
+$captureUtility = Join-Path $atlasRoot 'repos\metis\scripts\python_native_capture.py'
+python $captureUtility `
+  --command (Join-Path $target "debug\ritk-snap.exe") `
+  --cwd (Get-Location).Path `
+  --argument=test_data\2_head_mri_t2\DICOM `
+  --argument=--metis-native `
+  --argument=--metis-native-layout `
+  --argument=orthogonal-with-mip `
+  --output scratch\viewer\real-mri-mpr-application-window.png
+$comparisonStudy = Join-Path $captureOutput ("multiseries-" + [Guid]::NewGuid().ToString("N"))
+New-Item -ItemType Directory -Path $comparisonStudy | Out-Null
+foreach ($source in @(
+  @{ Prefix = "MR"; Path = "test_data\2_head_mri_t2\DICOM" },
+  @{ Prefix = "CT"; Path = "test_data\3_head_ct_mridir\DICOM" }
+)) {
+  Get-ChildItem $source.Path -Filter *.dcm | ForEach-Object {
+    New-Item -ItemType HardLink `
+      -Path (Join-Path $comparisonStudy ($source.Prefix + "-" + $_.Name)) `
+      -Target $_.FullName | Out-Null
+  }
+}
+python $captureUtility `
+  --command (Join-Path $target "debug\ritk-snap.exe") `
+  --cwd (Get-Location).Path `
+  --argument=$comparisonStudy `
+  --argument=--metis-native `
+  --argument=--series-instance-uid `
+  --argument=1.3.6.1.4.1.14519.5.2.1.1706.4996.123065603063404191260103927213 `
+  --argument=--compare-series-instance-uid `
+  --argument=1.3.6.1.4.1.14519.5.2.1.1706.4996.115936088547498980797393821518 `
+  --output scratch\viewer\real-mri-ct-multiseries-window.png
+```
+
+![Full RITK/Métis viewer window with menus, grouped toolbar buttons, scrollable left series rail, status bar, three orthogonal RITK MPR panes and one MIP projection, and the real public MRI phantom](images/dicom-metis-real-mri-application-window.webp)
+
+![Full RITK/Métis viewer window with menus, grouped toolbar buttons, left series rail showing real MRI and CT thumbnails and panel assignments, status bar, and the actual public series side by side](images/dicom-metis-real-mri-ct-multiseries-window.webp)
+
+The separate 1280 × 800 pane-only capture remains the pixel evidence for the
+saved-study decode; it deliberately excludes the application controls and
+Windows chrome:
+
+[`dicom-metis-real-mri.png`](images/dicom-metis-real-mri.png)
+
+The MPR and comparison windows each have a provenance record containing the
+capture utility, executable digest, study input counts and image digest:
+[`MPR capture`](images/dicom-metis-real-mri-application-window.json) and
+[`two-series capture`](images/dicom-metis-real-mri-ct-multiseries-window.json).
+The pane-only image and its separate decode provenance remain recorded in
+[`dicom-metis-real-mri.json`](images/dicom-metis-real-mri.json).
 The saved-study harness reran this workflow on 2026-09-14 at RITK
 `f6e82835b856c55adcc1b97ad173686903e6a974`, Métis
 `ed3806811f23271310cb04078dff55aba5c90944` and Moirai
@@ -1340,7 +1421,7 @@ recorded in
 [`dicom-metis-real-browser-mri.json`](images/dicom-metis-real-browser-mri.json).
 The capture excludes browser chrome. This run proves the saved MRI study through
 one Chromium browser host and a bounded programmatic drop; physical drag-and-
-drop, Firefox/WebKit, WebGPU and complete application-window capture remain
+drop, Firefox/WebKit, WebGPU and complete browser-window capture remain
 separate acceptance work.
 
 A clean-main replay on 2026-09-16 used the standard W3C chooser in headless
@@ -1391,7 +1472,7 @@ SHA-256 digest are recorded in
 capture scope is the canvas pixels; it excludes browser chrome. This run uses
 a bounded programmatic `DataTransfer` in one Chromium host, so it demonstrates
 real DICOM decoding and browser presentation but does not close physical
-drag-and-drop, Firefox/WebKit, WebGPU or complete application-window capture.
+drag-and-drop, Firefox/WebKit, WebGPU or complete browser-window capture.
 
 ### Three orthogonal canvases from the complete bounded real series
 
@@ -1419,7 +1500,7 @@ bytes; this public 409-slice study is within both bounds. The capture scope is
 the canvas pixels, excluding browser chrome. It demonstrates actual DICOM
 loading and orthogonal presentation in the Codex in-app Chromium host through
 a programmatic `DataTransfer`; physical drag-and-drop, Firefox/WebKit,
-WebGPU and complete application-window capture remain separate acceptance
+WebGPU and complete browser-window capture remain separate acceptance
 work. The public phantom data is the only committed image source; private
 clinical studies stay local. A second run through Metis's pinned
 `browser_drop.py` and Edge 153.0.4234.19 used a configured W3C session with
@@ -2300,7 +2381,7 @@ This image is the PNG exported by the canvas during that run and is inspected
 as an application-content snapshot. The synthetic DOM event is untrusted, so
 the smoke proves the packaged byte-to-frame path but does not close physical
 drag-and-drop, physical pointer input, cross-engine browser input, GPU, or
-complete application-window capture acceptance.
+complete browser-window capture acceptance.
 
 ## Inspect the browser orthogonal visual capture
 
@@ -2316,7 +2397,7 @@ contains no patient data, and preserves the axial/coronal/sagittal order.
 
 This runtime capture proves the packaged three-canvas presentation path. The
 drop event is still synthetic, so physical drag-and-drop, cross-engine pointer
-input, GPU upload, and complete application-window capture remain open. The
+input, GPU upload, and complete browser-window capture remain open. The
 format-neutral pointer and wheel handoff itself is implemented: each canvas
 retains a bounded queue, preserves target-local coordinates, normalizes line
 and page wheel units, routes events to its RITK axis, and cancels an active
@@ -2666,7 +2747,7 @@ covered by the completed [RITK-SNAP-FRAMES-001](../../backlog.md#RITK-SNAP-FRAME
 item. These workflows prepare the egui baseline for the Métis migration. The
 browser handoff now has a compiled RITK adapter, manual workflow, and a local
 synthetic runtime visual smoke. Browser WebGPU is an explicit opt-in path;
-physical browser input, a real GPU visual run and full application-window
+physical browser input, a real GPU visual run and full browser-window
 capture remain separate acceptance items in
 [RITK-SNAP-METIS-001](../../backlog.md#RITK-SNAP-METIS-001).
 

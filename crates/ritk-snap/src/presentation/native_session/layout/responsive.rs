@@ -7,7 +7,8 @@ use super::super::frame::RenderedView;
 use super::super::projection::RenderedProjection;
 use super::composition::{blit_frame, blit_rgba_frame};
 use super::geometry::{
-    placement_geometry, placement_with_bounds, NativeViewport, ScreenRect, VIEW_GAP_PIXELS,
+    placement_geometry, placement_with_bounds, NativeViewport, ScreenRect, ViewportArea,
+    VIEW_GAP_PIXELS,
 };
 use super::overlay::{append_overlay_list, application_overlay, projection_overlay};
 use crate::presentation::{PaneLayout, PaneRole};
@@ -20,6 +21,7 @@ pub(crate) fn surface_frames_responsive(
     layout: PaneLayout,
     surface_width: u32,
     surface_height: u32,
+    viewport_area: ViewportArea,
     zoom: f32,
     pan_offset: ViewportOffset,
     cine_enabled: bool,
@@ -29,7 +31,7 @@ pub(crate) fn surface_frames_responsive(
     if !zoom.is_finite() || zoom <= 0.0 {
         bail!("native viewer zoom must be finite and positive");
     }
-    let panes = layout.partition(surface_width, surface_height, VIEW_GAP_PIXELS)?;
+    let panes = layout.partition(viewport_area.width, viewport_area.height, VIEW_GAP_PIXELS)?;
     let mut framebuffer = Framebuffer::new(surface_width, surface_height)
         .map_err(|error| anyhow!("allocate responsive native framebuffer: {error}"))?;
     framebuffer.clear(Color::BLACK);
@@ -41,6 +43,14 @@ pub(crate) fn surface_frames_responsive(
     let mut projection_panel = None;
     for (slot, role) in layout.roles().iter().copied().enumerate() {
         let pane = panes[slot].ok_or_else(|| anyhow!("responsive layout omitted pane {slot}"))?;
+        let pane_x = viewport_area
+            .x
+            .checked_add(pane.x)
+            .ok_or_else(|| anyhow!("responsive native panel x overflows"))?;
+        let pane_y = viewport_area
+            .y
+            .checked_add(pane.y)
+            .ok_or_else(|| anyhow!("responsive native panel y overflows"))?;
         match role {
             PaneRole::Axis(axis) => {
                 let view = views.get(axis).ok_or_else(|| {
@@ -48,8 +58,8 @@ pub(crate) fn surface_frames_responsive(
                 })?;
                 let viewport = placement_with_bounds(
                     view,
-                    pane.x,
-                    pane.y,
+                    pane_x,
+                    pane_y,
                     pane.width,
                     pane.height,
                     zoom,
@@ -68,16 +78,16 @@ pub(crate) fn surface_frames_responsive(
                 let projection = projection
                     .ok_or_else(|| anyhow!("responsive quad layout requires a projection"))?;
                 let panel = ScreenRect {
-                    x: f64::from(pane.x),
-                    y: f64::from(pane.y),
+                    x: f64::from(pane_x),
+                    y: f64::from(pane_y),
                     width: f64::from(pane.width),
                     height: f64::from(pane.height),
                 };
                 let image = placement_geometry(
                     [projection.frame.width(), projection.frame.height()],
                     projection.frame.display_spacing(),
-                    pane.x,
-                    pane.y,
+                    pane_x,
+                    pane_y,
                     pane.width,
                     pane.height,
                     zoom,
@@ -91,16 +101,16 @@ pub(crate) fn surface_frames_responsive(
                     surface_width,
                     surface_height,
                 )?;
-                projection_panel = Some((projection, pane));
+                projection_panel = Some((projection, pane_x, pane_y, pane.width, pane.height));
             }
         }
     }
     if show_application_overlay {
         let mut overlay = application_overlay(views, &viewports, cine_enabled, cine_fps)?;
-        if let Some((projection, pane)) = projection_panel {
+        if let Some((projection, pane_x, pane_y, pane_width, pane_height)) = projection_panel {
             append_overlay_list(
                 &mut overlay,
-                projection_overlay(projection, pane.x, pane.y, pane.width, pane.height)?,
+                projection_overlay(projection, pane_x, pane_y, pane_width, pane_height)?,
             )?;
         }
         overlay.render_to(&mut framebuffer);

@@ -32,6 +32,12 @@ impl NativeViewerSession {
                 return candidate;
             }
         }
+        if self.workspace_layout.is_grid() {
+            return Some(
+                self.active_panel
+                    .min(self.viewports.len().saturating_sub(1)),
+            );
+        }
         self.viewports
             .iter()
             .position(|viewport| viewport.axis() == self.app.axis)
@@ -41,11 +47,15 @@ impl NativeViewerSession {
         &mut self,
         events: &[PresentationEvent],
     ) -> std::result::Result<ViewerActionDisposition, NativeViewerError> {
-        let previous_axis = self.app.axis;
+        let previous_panel = self.active_panel;
+        let previous_axis = self.active_app().axis;
         let previous_active_view = self.active_view;
         let selected_view = self.event_view_index(events);
         if let Some(index) = selected_view {
-            self.app.axis = self.viewports[index].axis();
+            if self.workspace_layout.is_grid() {
+                self.active_panel = index;
+            }
+            self.active_app_mut().axis = self.viewports[index].axis();
             if events
                 .iter()
                 .any(|event| matches!(event, PresentationEvent::PointerDown { .. }))
@@ -58,12 +68,13 @@ impl NativeViewerSession {
             .and_then(|index| self.viewports.get(index))
             .map(|viewport| viewport.mapping());
         let result = self
-            .app
+            .active_app_mut()
             .apply_presentation_events(events, viewport.as_ref());
         let disposition = match result {
             Ok(disposition) => disposition,
             Err(error) => {
-                self.app.axis = previous_axis;
+                self.active_panel = previous_panel;
+                self.active_app_mut().axis = previous_axis;
                 self.active_view = previous_active_view;
                 return Err(NativeViewerError::new(format!(
                     "apply RITK presentation events: {error}"

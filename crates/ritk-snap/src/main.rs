@@ -65,6 +65,13 @@ struct Args {
         requires = "initial_path"
     )]
     initial_series_uid: Option<String>,
+    /// Load a second series into the side-by-side comparison panel.
+    #[arg(
+        long = "compare-series-instance-uid",
+        value_name = "UID",
+        requires_all = ["initial_path", "initial_series_uid"]
+    )]
+    comparison_series_uid: Option<String>,
     /// Save the rendered application frame as PNG and exit.
     #[arg(long, value_name = "PNG")]
     capture: Option<PathBuf>,
@@ -88,7 +95,13 @@ struct Args {
     #[arg(
         long,
         value_name = "JSON",
-        conflicts_with_all = ["initial_path", "initial_series_uid", "capture", "metis_native"]
+        conflicts_with_all = [
+            "initial_path",
+            "initial_series_uid",
+            "comparison_series_uid",
+            "capture",
+            "metis_native"
+        ]
     )]
     validate_browser_trace: Option<PathBuf>,
     /// Canvas identifiers in axial, coronal, sagittal order.
@@ -146,6 +159,28 @@ fn main() -> anyhow::Result<()> {
     if !matches!(args.native_presentation_mode, CliNativeLayout::Orthogonal) && !metis_native {
         anyhow::bail!("native presentation layout requires the Métis native shell");
     }
+    if let Some(comparison_series_uid) = args.comparison_series_uid {
+        if !metis_native {
+            anyhow::bail!("series comparison requires the Métis native shell");
+        }
+        if matches!(args.native_presentation_mode, CliNativeLayout::Responsive) {
+            anyhow::bail!("series comparison currently requires a fixed native layout");
+        }
+        return ritk_snap::run_app_with_series_comparison(
+            ritk_snap::AppLaunchOptions {
+                initial_path: args.initial_path,
+                initial_series_uid: args.initial_series_uid,
+                capture: args.capture,
+                capture_application: args.capture_application,
+                metis_native,
+                native_presentation_mode: args
+                    .native_presentation_mode
+                    .fixed_mode()
+                    .ok_or_else(|| anyhow::anyhow!("comparison layout did not resolve"))?,
+            },
+            comparison_series_uid,
+        );
+    }
     if matches!(args.native_presentation_mode, CliNativeLayout::Responsive) {
         return ritk_snap::run_responsive_native_app_with_options(ritk_snap::AppLaunchOptions {
             initial_path: args.initial_path,
@@ -167,6 +202,35 @@ fn main() -> anyhow::Result<()> {
         metis_native,
         native_presentation_mode,
     })
+}
+
+#[cfg(all(not(target_arch = "wasm32"), test))]
+mod tests {
+    use super::Args;
+    use clap::Parser;
+
+    #[test]
+    fn comparison_arguments_require_a_study_and_primary_series() {
+        let args = Args::try_parse_from([
+            "ritk-snap",
+            "study",
+            "--series-instance-uid",
+            "2.25.1",
+            "--compare-series-instance-uid",
+            "2.25.2",
+        ])
+        .expect("parse the two-series launch");
+        assert_eq!(args.initial_series_uid.as_deref(), Some("2.25.1"));
+        assert_eq!(args.comparison_series_uid.as_deref(), Some("2.25.2"));
+
+        assert!(Args::try_parse_from([
+            "ritk-snap",
+            "study",
+            "--compare-series-instance-uid",
+            "2.25.2",
+        ])
+        .is_err());
+    }
 }
 
 #[cfg(target_arch = "wasm32")]

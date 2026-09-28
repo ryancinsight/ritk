@@ -17,14 +17,18 @@ fn orthogonal_overlay_uses_current_metis_styles_and_composites_exact_rgba() {
         .expect("compose the RITK overlay commands");
     assert_eq!(overlay.commands.len(), 12);
 
-    let expected_fills = [
-        Rect::new(0, 0, 424, 20),
-        Rect::new(0, 780, 424, 20),
-        Rect::new(428, 0, 424, 20),
-        Rect::new(428, 780, 424, 20),
-        Rect::new(856, 0, 424, 20),
-        Rect::new(856, 780, 424, 20),
-    ];
+    let expected_fills = session
+        .viewports
+        .iter()
+        .flat_map(|viewport| {
+            let panel = viewport.panel_rect().expect("bounded native panel");
+            [
+                Rect::new(panel.x, panel.y, panel.width, 20),
+                Rect::new(panel.x, panel.y + panel.height - 20, panel.width, 20),
+            ]
+        })
+        .collect::<Vec<_>>();
+    assert_eq!(expected_fills.len(), 6);
     let mut fill_index = 0;
     for (view_index, view) in session.views.iter().enumerate() {
         let command_index = view_index * 4;
@@ -78,5 +82,15 @@ fn orthogonal_overlay_uses_current_metis_styles_and_composites_exact_rgba() {
     framebuffer.clear(Color::rgb(37, 53, 71));
     overlay.render_to(&mut framebuffer);
     // Rounded source-over gives (37,53,71) * (255-224) / 255 = (4,6,9).
-    assert_eq!(framebuffer.get_pixel(1, 1), Color::rgb(4, 6, 9));
+    let first_viewport = session
+        .viewports
+        .first()
+        .expect("three orthogonal viewport slots");
+    let first_panel = first_viewport.panel_rect().expect("bounded native panel");
+    let sample_x = first_panel.x + 1;
+    let sample_y = first_panel.y + 1;
+    assert_eq!(
+        framebuffer.get_pixel(sample_x, sample_y),
+        Color::rgb(4, 6, 9)
+    );
 }

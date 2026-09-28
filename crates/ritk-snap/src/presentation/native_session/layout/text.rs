@@ -4,9 +4,6 @@ use metis_platform::Color;
 
 pub(in crate::presentation::native_session) const PANEL_TITLE_SIZE: u32 = 14;
 pub(in crate::presentation::native_session) const PANEL_DETAIL_SIZE: u32 = 12;
-pub(in crate::presentation::native_session) const SELECTOR_TITLE_SIZE: u32 = 16;
-pub(in crate::presentation::native_session) const SELECTOR_ROW_SIZE: u32 = 14;
-pub(in crate::presentation::native_session) const SELECTOR_FOOTER_SIZE: u32 = 12;
 
 pub(in crate::presentation::native_session) fn text_style(
     color: Color,

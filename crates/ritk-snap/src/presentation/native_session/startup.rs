@@ -1,65 +1,64 @@
 //! RITK startup discovery for the native Métis session.
 
-use super::SeriesSelection;
+use super::SeriesBrowser;
 use crate::app::SnapApp;
 use crate::dicom::loader::{
-    load_volume_from_path, load_volume_from_series_uid, scan_folder_for_series,
+    load_volume_from_path, load_volume_from_series_info, scan_folder_for_series,
 };
-use crate::dicom::series_tree::SeriesEntryView;
 use anyhow::{anyhow, Context, Result};
 use std::path::Path;
 
 pub(super) fn prepare_initial_study(
     app: &mut SnapApp,
     path: &Path,
+    selected_uid: Option<&str>,
     capture_requested: bool,
-) -> Result<Option<SeriesSelection>> {
+) -> Result<Option<SeriesBrowser>> {
     if path.is_dir() {
         let tree = scan_folder_for_series(path)
             .with_context(|| format!("discover initial DICOM input at {}", path.display()))?;
-        match tree.total_series() {
-            0 => {
-                let volume = load_volume_from_path(path)
-                    .with_context(|| format!("open initial RITK study at {}", path.display()))?;
-                app.load_volume(volume, format!("Loaded native Métis study: {}", path.display()));
-                Ok(None)
+        let series_count = tree.total_series();
+        if series_count == 0 {
+            if selected_uid.is_some() {
+                return Err(anyhow!(
+                    "requested SeriesInstanceUID is absent from the selected folder"
+                ));
             }
-            1 => {
-                let series = tree
-                    .iter_series()
-                    .next()
-                    .expect("invariant: one discovered series has one entry");
-                let uid = series.series_uid();
-                let volume = load_volume_from_series_uid(path, uid).with_context(|| {
-                    format!("open initial RITK series {} from {}", uid, path.display())
-                })?;
-                app.load_volume(
-                    volume,
-                    format!("Loaded native Métis series {}: {}", uid, path.display()),
-                );
-                Ok(None)
-            }
-            _ if capture_requested => Err(anyhow!(
+            let volume = load_volume_from_path(path)
+                .with_context(|| format!("open initial RITK study at {}", path.display()))?;
+            app.load_volume(volume, "Loaded DICOM study.".to_owned());
+            return Ok(None);
+        }
+
+        if capture_requested && series_count > 1 && selected_uid.is_none() {
+            return Err(anyhow!(
                 "native capture requires --series-instance-uid when '{}' contains multiple DICOM series",
                 path.display()
-            )),
-            _ => {
-                let selection = SeriesSelection::from_tree(path, &tree)?;
-                app.status_message = format!(
-                    "Select one of {} DICOM series before loading {}",
-                    selection.len(),
-                    path.display()
-                );
-                Ok(Some(selection))
-            }
+            ));
         }
-    } else {
-        let volume = load_volume_from_path(path)
-            .with_context(|| format!("open initial RITK study at {}", path.display()))?;
+        let browser = SeriesBrowser::from_tree(&tree, selected_uid)?;
+        let choice = browser
+            .choice(browser.active_index())
+            .expect("invariant: a non-empty study browser has an active series");
+        let volume = load_volume_from_series_info(&choice.acquisition)
+            .with_context(|| "open the selected DICOM series")?;
         app.load_volume(
             volume,
-            format!("Loaded native Métis study: {}", path.display()),
+            format!(
+                "Loaded {} series ({} instances).",
+                choice.modality, choice.instance_count
+            ),
         );
+        Ok(Some(browser))
+    } else {
+        if selected_uid.is_some() {
+            return Err(anyhow!(
+                "--series-instance-uid requires a DICOM study folder"
+            ));
+        }
+        let volume = load_volume_from_path(path)
+            .with_context(|| format!("open initial RITK study at {}", path.display()))?;
+        app.load_volume(volume, "Loaded DICOM study.".to_owned());
         Ok(None)
     }
 }

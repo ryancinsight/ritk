@@ -2,14 +2,27 @@
 
 import hashlib
 import json
+import struct
 import unittest
 from pathlib import Path
 
 
 ROOT = Path(__file__).resolve().parents[2]
 IMAGE = ROOT / "docs/manual/images/dicom-metis-real-mri.png"
+APPLICATION_IMAGE = (
+    ROOT / "docs/manual/images/dicom-metis-real-mri-application-window.webp"
+)
+COMPARISON_IMAGE = (
+    ROOT / "docs/manual/images/dicom-metis-real-mri-ct-multiseries-window.webp"
+)
 RESOURCE = ROOT / "docs/manual/images/dicom-metis-real-mri-resource.json"
 REPLAY = ROOT / "docs/manual/images/dicom-metis-real-mri.json"
+APPLICATION_REPLAY = (
+    ROOT / "docs/manual/images/dicom-metis-real-mri-application-window.json"
+)
+COMPARISON_REPLAY = (
+    ROOT / "docs/manual/images/dicom-metis-real-mri-ct-multiseries-window.json"
+)
 
 
 class ManualImageProvenanceTests(unittest.TestCase):
@@ -38,3 +51,85 @@ class ManualImageProvenanceTests(unittest.TestCase):
         self.assertEqual(capture["bytes"], replay_capture["capture_bytes"])
         self.assertNotEqual(capture["sha256"], resource["output"]["sha256"])
         self.assertNotEqual(capture["bytes"], resource["output"]["bytes"])
+
+    def test_full_application_captures_match_live_window_records(self):
+        cases = (
+            (
+                APPLICATION_IMAGE,
+                APPLICATION_REPLAY,
+                94,
+                49_807_236,
+                ["MPR: axial", "MPR: coronal", "MPR: sagittal", "MIP projection"],
+            ),
+            (
+                COMPARISON_IMAGE,
+                COMPARISON_REPLAY,
+                503,
+                265_963_652,
+                ["P1  |  MR  |  T2", "P2  |  CT  |  CT"],
+            ),
+        )
+        for image_path, record_path, instance_count, byte_count, panels in cases:
+            with self.subTest(image=image_path.name):
+                capture = json.loads(record_path.read_text(encoding="utf-8"))
+                output = capture["output"]
+                dataset = capture["dataset"]
+                source_capture = capture["source_capture"]
+                runtime = capture["runtime"]
+                image = image_path.read_bytes()
+                self.assertEqual(image[:4], b"RIFF")
+                self.assertEqual(image[8:12], b"WEBP")
+                self.assertEqual(image[12:16], b"VP8L")
+                chunk_size = struct.unpack_from("<I", image, 16)[0]
+                payload = image[20 : 20 + chunk_size]
+                self.assertEqual(payload[0], 0x2F)
+                dimensions = int.from_bytes(payload[1:5], "little")
+                width = (dimensions & 0x3FFF) + 1
+                height = ((dimensions >> 14) & 0x3FFF) + 1
+                self.assertEqual(output["path"], image_path.relative_to(ROOT).as_posix())
+                self.assertEqual(output["sha256"], hashlib.sha256(image).hexdigest())
+                self.assertEqual(output["bytes"], len(image))
+                self.assertLessEqual(len(image), 200_000)
+                self.assertEqual((output["width"], output["height"]), (width, height))
+                self.assertEqual(output["encoding"], "lossless WebP")
+                self.assertTrue(output["decoded_rgba_byte_equal_to_source_capture"])
+                self.assertEqual(
+                    source_capture["encoding"],
+                    "PNG captured from the live native application window",
+                )
+                self.assertEqual(dataset["dicom_instances_read"], instance_count)
+                self.assertEqual(dataset["dicom_bytes_read"], byte_count)
+                self.assertEqual(
+                    runtime["window"], {"width": 1_298, "height": 847, "dpi": 120}
+                )
+                self.assertEqual(runtime["client"], {"width": 1_280, "height": 800})
+                self.assertEqual(
+                    runtime["capture_utility"]["path"],
+                    "scripts/python_native_capture.py",
+                )
+                self.assertEqual(runtime["ritk_pull_request"], "ryancinsight/ritk#676")
+                self.assertEqual(
+                    output["visible_controls"],
+                    [
+                        "File",
+                        "View",
+                        "Tools",
+                        "Window",
+                        "Open Study",
+                        "W/L",
+                        "Pan",
+                        "Zoom",
+                        "Length",
+                        "Angle",
+                        "Crosshair",
+                        "Cine",
+                        "Split screen",
+                        "SERIES PREVIEW",
+                    ],
+                )
+                self.assertEqual(output["panels"], panels)
+                self.assertFalse(output["patient_identifiers_displayed"])
+                self.assertIn(
+                    "actual running métis native window",
+                    output["visual_scope"].casefold(),
+                )

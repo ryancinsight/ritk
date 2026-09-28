@@ -1,7 +1,11 @@
 //! Frame composition and capture encoding for the native Métis session.
 
-use super::layout::{surface_frames, surface_frames_responsive, surface_frames_with_projection};
-use super::{NativeViewport, RenderedProjection, RenderedView};
+use super::frame::RenderedView;
+use super::layout::{
+    surface_frames, surface_frames_responsive, surface_frames_with_projection, NativeViewport,
+    ViewportArea,
+};
+use super::projection::RenderedProjection;
 use crate::launch::{NativePresentationMode, NativePresentationSelection};
 use crate::presentation::PaneLayout;
 use crate::tools::interaction::ViewportOffset;
@@ -15,6 +19,7 @@ pub(super) fn compose_frames(
     presentation_mode: NativePresentationSelection,
     surface_width: u32,
     surface_height: u32,
+    viewport_area: ViewportArea,
     zoom: f32,
     pan_offset: ViewportOffset,
     cine_enabled: bool,
@@ -25,9 +30,10 @@ pub(super) fn compose_frames(
         (NativePresentationSelection::Responsive, Some(projection)) => surface_frames_responsive(
             views,
             Some(projection),
-            PaneLayout::responsive(surface_width, surface_height),
+            PaneLayout::responsive(viewport_area.width, viewport_area.height),
             surface_width,
             surface_height,
+            viewport_area,
             zoom,
             pan_offset,
             cine_enabled,
@@ -39,6 +45,7 @@ pub(super) fn compose_frames(
                 views,
                 surface_width,
                 surface_height,
+                viewport_area,
                 zoom,
                 pan_offset,
                 cine_enabled,
@@ -62,6 +69,7 @@ pub(super) fn compose_frames(
             projection,
             surface_width,
             surface_height,
+            viewport_area,
             zoom,
             pan_offset,
             cine_enabled,

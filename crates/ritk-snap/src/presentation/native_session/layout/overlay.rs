@@ -16,7 +16,7 @@ const OVERLAY_BACKGROUND: Color = Color::rgba(0, 0, 0, 224);
 pub(crate) const OVERLAY_TEXT: Color = Color::rgba(255, 255, 160, 255);
 pub(crate) fn application_overlay(
     views: &[RenderedView; 3],
-    viewports: &[NativeViewport; 3],
+    viewports: &[NativeViewport],
     cine_enabled: bool,
     cine_fps: f32,
 ) -> Result<DisplayList> {

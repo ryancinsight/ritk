@@ -167,14 +167,14 @@
 - basis: 4e2e797c6af199d0c33e37148e784b2becc04981
 
 <a id="RITK-SNAP-WINDOW-CONTROLS-001"></a>
-## RITK-SNAP-WINDOW-CONTROLS-001: Add functional controls to the app window
-- outcome: show RITK menus, tool controls, and study status around real views in the Métis native window.
-- acceptance: File/View/Tools menus and toolbar controls perform their named viewer actions; chrome input never reaches image panes; the pane-only pixel capture remains unchanged; the public MRI manual image shows the complete app window and working controls.
+## RITK-SNAP-WINDOW-CONTROLS-001: Build the RadiAnt viewer workspace
+- outcome: provide organized viewer controls, a persistent series preview, and simultaneous series comparison in the Métis native window.
+- acceptance: File/View/Tools/Window menus and grouped viewer controls work; every discovered series remains in the scrollable left-side rail; selecting a card loads into the active MPR view or activates its assigned panel; the split-screen picker selects every grid from 1×1 through 5×4; series cards drag into individual panels; each panel retains independent navigation and display state; failed loads preserve panel data; chrome input never reaches image panes; pane-only pixel capture remains unchanged; a four-series fixture verifies distinct panel assignments; full-window public MRI and MRI/CT captures show the organized app controls and real images.
 - status: todo
 - priority: feature
 - needs: none
 - scope: `crates/ritk-snap/src/presentation/native_session/`, `docs/manual/`, screenshot provenance.
-- next: implement chrome layout and event reduction in RITK, then capture and inspect the public MRI workflow.
+- next: verify every split-screen picker cell and click/drag series assignment, refresh the actual full-window MRI and MRI/CT manual captures, then run the RITK delivery gate.
 - basis: 4e2e797c6af199d0c33e37148e784b2becc04981
 
 <a id="RITK-BROWSER-READ-001"></a>

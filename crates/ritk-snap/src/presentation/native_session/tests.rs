@@ -12,8 +12,9 @@ use metis_ui_lang::{DisplayCommand, DisplayList};
 use std::time::{Duration, Instant};
 mod display;
 mod interaction;
-mod selection;
+mod series_browser;
 mod support;
+mod window_controls;
 #[cfg(feature = "eframe-shell")]
 use support::{expected_native_frame, session_with_volume};
 use support::{session, session_with_mode, session_with_responsive_mode};
@@ -231,10 +232,7 @@ fn native_session_reopens_selected_study_through_the_ritk_loader() {
     assert_eq!(session.views[0].frame().width(), 4);
     assert_eq!(session.views[0].frame().height(), 1);
     assert!(!session.app.cine.enabled);
-    assert!(session
-        .app
-        .status_message
-        .contains("Loaded native Métis series"));
+    assert!(session.app.status_message.contains("Loaded CT series"));
     assert!(
         session
             .observation

@@ -1,0 +1,89 @@
+{
+  "schema": 1,
+  "status": "passed",
+  "runtime": {
+    "host": "Windows 11 native M\u00e9tis surface",
+    "date": "2026-09-28",
+    "ritk_pull_request": "ryancinsight/ritk#676",
+    "executable": "ritk-snap.exe",
+    "executable_sha256": "f6df5fd5f1ab76540ce8ea63d9749b1ba85dbdd7a21f8d797c84856553335130",
+    "executable_bytes": 25999872,
+    "toolchain": "Rust 1.97.0",
+    "metis_revision": "d93a45688713fd4d57371243f6afa5413560d75d",
+    "metis_platform_revision": "d93a45688713fd4d57371243f6afa5413560d75d",
+    "moirai_pal_revision": "b3b37f7fae9de019939a53eaaaf5ada5ba5e806e",
+    "capture_utility": {
+      "path": "scripts/python_native_capture.py",
+      "file_revision": "109e042d1a05d166fa478e44d9143083f2920c42",
+      "sha256": "612b51eab9f422249f41f0c4b863f66da3ec077ff15ef6358041a2a66cb69b77",
+      "capture": "Win32 PrintWindow of the live RITK process window"
+    },
+    "client": {
+      "width": 1280,
+      "height": 800
+    },
+    "window": {
+      "width": 1298,
+      "height": 847,
+      "dpi": 120
+    },
+    "caption_text_observed_by_GetWindowTextW": "",
+    "command": "ritk-snap.exe test_data/2_head_mri_t2/DICOM --metis-native --metis-native-layout orthogonal-with-mip"
+  },
+  "dataset": {
+    "path": "test_data/2_head_mri_t2/DICOM",
+    "description": "Public MRI-DIR porcine-head T2 MRI phantom; not private patient data",
+    "license": "CC BY 4.0",
+    "directory_regular_files": 95,
+    "non_dicom_files": [
+      {
+        "path": "LICENSE",
+        "bytes": 2787
+      }
+    ],
+    "dicom_instances_read": 94,
+    "dicom_bytes_read": 49807236,
+    "study_count": 1,
+    "series_count": 1
+  },
+  "source_capture": {
+    "path": "scratch/viewer/real-mri-mpr-application-window.png",
+    "sha256": "444d004b3bf527e7d899000e53d46bb8aab6709f5d57157f78df1fdf1b91def1",
+    "bytes": 228722,
+    "encoding": "PNG captured from the live native application window"
+  },
+  "output": {
+    "path": "docs/manual/images/dicom-metis-real-mri-application-window.webp",
+    "width": 1298,
+    "height": 847,
+    "sha256": "254cb802668a61e9c0276c30abda27a919cd475aafcaa6232f3428daa8a24bb5",
+    "bytes": 112610,
+    "encoding": "lossless WebP",
+    "decoded_rgba_byte_equal_to_source_capture": true,
+    "visible_controls": [
+      "File",
+      "View",
+      "Tools",
+      "Window",
+      "Open Study",
+      "W/L",
+      "Pan",
+      "Zoom",
+      "Length",
+      "Angle",
+      "Crosshair",
+      "Cine",
+      "Split screen",
+      "SERIES PREVIEW"
+    ],
+    "panels": [
+      "MPR: axial",
+      "MPR: coronal",
+      "MPR: sagittal",
+      "MIP projection"
+    ],
+    "visual_scope": "Actual running M\u00e9tis native window with Windows chrome, menus, grouped toolbar, bottom series preview, status bar, three MRI planes and MIP projection",
+    "patient_identifiers_displayed": false
+  },
+  "residual": "The Windows caption text is empty although RITK supplies a window title; native viewer controls and DICOM panels render in the live client area."
+}
