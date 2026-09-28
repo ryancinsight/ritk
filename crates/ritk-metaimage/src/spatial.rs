@@ -86,9 +86,9 @@ fn metadata_from_internal_scaled_columns(
     ]);
 
     let direction_columns = [
-        normalized_or_axis(scaled_columns[0], spacing[0], Vector::z_axis()),
-        normalized_or_axis(scaled_columns[1], spacing[1], Vector::y_axis()),
-        normalized_or_axis(scaled_columns[2], spacing[2], Vector::x_axis()),
+        scaled_columns[0].unit_direction_or(spacing[0], Vector::z_axis()),
+        scaled_columns[1].unit_direction_or(spacing[1], Vector::y_axis()),
+        scaled_columns[2].unit_direction_or(spacing[2], Vector::x_axis()),
     ];
 
     InternalSpatialMetadata {
@@ -123,14 +123,6 @@ fn direction_column(direction_row_major: [f64; 9], column: usize) -> [f64; 3] {
         direction_row_major[3 + column],
         direction_row_major[6 + column],
     ]
-}
-
-fn normalized_or_axis(vector: Vector<3>, norm: f64, fallback: Vector<3>) -> Vector<3> {
-    if norm > 1e-9 {
-        vector / norm
-    } else {
-        fallback
-    }
 }
 
 #[cfg(test)]

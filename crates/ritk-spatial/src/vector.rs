@@ -39,6 +39,10 @@ impl<'de, const D: usize> Deserialize<'de> for Vector<D> {
 }
 
 impl<const D: usize> Vector<D> {
+    /// Lengths at or below this are a degenerate axis: [`Self::unit_direction_or`]
+    /// returns its fallback rather than dividing by them.
+    pub const DEGENERATE_LENGTH: f64 = 1e-9;
+
     /// Create a new vector from components.
     pub fn new(components: [f64; D]) -> Self {
         Self(FixedVector::new(components))
@@ -92,6 +96,21 @@ impl<const D: usize> Vector<D> {
             Some(*self / norm)
         } else {
             None
+        }
+    }
+
+    /// Divide by `length` to recover a unit direction, or return `fallback`
+    /// when `length` is at or below [`Self::DEGENERATE_LENGTH`].
+    ///
+    /// Image readers store each axis as a direction column scaled by its
+    /// spacing; this undoes that scaling, keeping the reader's axis default
+    /// for a zero-spaced (degenerate) axis instead of dividing by it.
+    #[must_use]
+    pub fn unit_direction_or(self, length: f64, fallback: Self) -> Self {
+        if length > Self::DEGENERATE_LENGTH {
+            self / length
+        } else {
+            fallback
         }
     }
 
@@ -198,6 +217,33 @@ mod tests {
 
     // Type aliases for testing
     type Vector3 = Vector<3>;
+
+    #[test]
+    fn unit_direction_or_divides_by_the_length() {
+        let scaled = Vector3::new([0.0, 3.0, 4.0]);
+        assert_eq!(
+            scaled.unit_direction_or(5.0, Vector3::x_axis()).to_array(),
+            [0.0, 0.6, 0.8]
+        );
+    }
+
+    #[test]
+    fn unit_direction_or_returns_the_fallback_for_a_degenerate_length() {
+        let scaled = Vector3::new([0.0, 3.0, 4.0]);
+        for length in [0.0, Vector3::DEGENERATE_LENGTH, -1.0] {
+            assert_eq!(
+                scaled.unit_direction_or(length, Vector3::z_axis()),
+                Vector3::z_axis()
+            );
+        }
+        let just_above = Vector3::DEGENERATE_LENGTH * 2.0;
+        assert_eq!(
+            scaled
+                .unit_direction_or(just_above, Vector3::z_axis())
+                .to_array(),
+            (scaled / just_above).to_array()
+        );
+    }
 
     #[test]
     fn test_vector_creation() {
