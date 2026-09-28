@@ -40,6 +40,9 @@ static LIVE_BYTES: AtomicUsize = AtomicUsize::new(0);
 /// High-water mark of [`LIVE_BYTES`], rebased by [`peak_bytes_during`].
 static PEAK_BYTES: AtomicUsize = AtomicUsize::new(0);
 
+/// Number of `alloc` calls served since process start.
+static ALLOC_COUNT: AtomicUsize = AtomicUsize::new(0);
+
 /// Allocator that records the high-water mark of live bytes.
 ///
 /// Forwards every request to the system allocator unchanged; the counters are
@@ -56,6 +59,7 @@ unsafe impl GlobalAlloc for PeakTrackingAllocator {
         // SAFETY: `layout` is forwarded exactly as received.
         let ptr = unsafe { Mnemosyne.alloc(layout) };
         if !ptr.is_null() {
+            ALLOC_COUNT.fetch_add(1, Ordering::Relaxed);
             let live = LIVE_BYTES.fetch_add(layout.size(), Ordering::Relaxed) + layout.size();
             PEAK_BYTES.fetch_max(live, Ordering::Relaxed);
         }
@@ -80,4 +84,19 @@ pub fn peak_bytes_during<T>(body: impl FnOnce() -> T) -> (T, usize) {
     PEAK_BYTES.store(LIVE_BYTES.load(Ordering::Relaxed), Ordering::Relaxed);
     let value = body();
     (value, PEAK_BYTES.load(Ordering::Relaxed))
+}
+
+/// Run `body` and return its value alongside the number of allocations it made.
+///
+/// A count is the complement of [`peak_bytes_during`]: peak bytes answers "how
+/// large was the buffer", the count answers "how many buffers". A hot loop that
+/// allocates a small temporary per iteration is invisible in the peak and
+/// obvious in the count, and vice versa — measure both.
+///
+/// Requires [`PeakTrackingAllocator`] to be installed as the test binary's
+/// `#[global_allocator]`; without it the returned count never moves.
+pub fn allocations_during<T>(body: impl FnOnce() -> T) -> (T, usize) {
+    let before = ALLOC_COUNT.load(Ordering::Relaxed);
+    let value = body();
+    (value, ALLOC_COUNT.load(Ordering::Relaxed) - before)
 }

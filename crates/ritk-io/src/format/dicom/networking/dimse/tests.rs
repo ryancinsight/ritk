@@ -10,7 +10,7 @@ fn test_c_echo_rq_encode_decode() {
     assert_eq!(decoded.message_id(), Some(7));
     assert_eq!(
         decoded.affected_sop_class_uid().as_deref(),
-        Some(sop_class::VERIFICATION)
+        Some(sop_class::VERIFICATION_SOP_CLASS)
     );
 }
 
@@ -93,14 +93,14 @@ fn test_command_group_length() {
 #[test]
 fn test_sop_class_uids() {
     let uids = [
-        sop_class::VERIFICATION,
+        sop_class::VERIFICATION_SOP_CLASS,
         sop_class::FIND_STUDY,
         sop_class::FIND_PATIENT,
-        sop_class::FIND_SERIES,
+        sop_class::STUDY_ROOT_FIND_SOP_CLASS,
         sop_class::FIND_INSTANCE,
         sop_class::MOVE_STUDY,
         sop_class::MOVE_PATIENT,
-        sop_class::MOVE_SERIES,
+        sop_class::STUDY_ROOT_MOVE_SOP_CLASS,
         sop_class::GET_STUDY,
         sop_class::STORAGE_COMMITMENT,
     ];

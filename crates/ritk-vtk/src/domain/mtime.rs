@@ -42,8 +42,13 @@ impl ModifiedTime {
     /// Atomically increments the global counter and returns the new `ModifiedTime`.
     ///
     /// The returned value is strictly greater than all previously returned values.
+    ///
+    /// `Relaxed` is the weakest ordering that supplies the needed edge: a
+    /// read-modify-write always operates on the latest value in the atomic's
+    /// modification order, so the counter is unique and monotone regardless of
+    /// ordering, and no other memory is published through it.
     pub fn tick() -> Self {
-        Self(GLOBAL_MTIME.fetch_add(1, Ordering::SeqCst) + 1)
+        Self(GLOBAL_MTIME.fetch_add(1, Ordering::Relaxed) + 1)
     }
 }
 
