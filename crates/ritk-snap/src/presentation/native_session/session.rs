@@ -9,15 +9,15 @@
 use super::compare::ComparePanel;
 use super::composition::compose_frames;
 use super::layout::{
-    GridPanel, MAX_COMPARISON_PANELS, MAX_GRID_PANELS, NativeViewport, WorkspaceLayout,
-    surface_frames_grid,
+    surface_frames_grid, GridPanel, NativeViewport, WorkspaceLayout, MAX_COMPARISON_PANELS,
+    MAX_GRID_PANELS,
 };
-use super::observation::{NativeViewerObservation, record_state};
+use super::observation::{record_state, NativeViewerObservation};
 use super::projection::{
-    ProjectionRenderScratch, RenderedProjection, empty_projection, render_projection_into,
+    empty_projection, render_projection_into, ProjectionRenderScratch, RenderedProjection,
 };
 use super::series_browser::SeriesBrowser;
-use super::{INITIAL_HEIGHT, INITIAL_WIDTH, WindowChrome, frame};
+use super::{frame, WindowChrome, INITIAL_HEIGHT, INITIAL_WIDTH};
 use crate::app::SnapApp;
 use crate::dicom::loader::{
     load_volume_from_path, load_volume_from_series_info, scan_folder_for_series,
@@ -25,14 +25,14 @@ use crate::dicom::loader::{
 use crate::launch::NativePresentationSelection;
 use crate::render::FrameRenderScratch;
 use crate::tools::interaction::ViewportOffset;
-use anyhow::{Context, Result, anyhow};
+use anyhow::{anyhow, Context, Result};
 use arrayvec::{ArrayString, ArrayVec};
-use frame::{RenderedView, render_orthogonal_views, render_orthogonal_views_into};
+use frame::{render_orthogonal_views, render_orthogonal_views_into, RenderedView};
+use metis_platform::native::{pick, DialogSelection};
 use metis_platform::Framebuffer;
-use metis_platform::native::{DialogSelection, pick};
 use std::path::Path;
-use std::sync::Arc;
 use std::sync::atomic::Ordering;
+use std::sync::Arc;
 use std::time::Instant;
 
 fn viewport_offset(app: &SnapApp) -> ViewportOffset {
