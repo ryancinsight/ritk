@@ -22,6 +22,7 @@ mod frame;
 mod layout;
 mod projection;
 mod routing;
+mod series;
 mod series_browser;
 mod startup;
 mod window_controls;
