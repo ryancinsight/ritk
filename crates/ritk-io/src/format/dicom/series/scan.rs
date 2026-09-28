@@ -9,18 +9,29 @@ use ritk_dicom::{parse_file_with, DicomRsBackend};
 use std::collections::HashMap;
 use std::path::{Path, PathBuf};
 
-use crate::format::dicom::identity::image_series_uid;
+use crate::format::dicom::identity::{image_series_uid, uid_is_valid};
 use crate::format::dicom::reader::types::{literal_arraystring, truncate_arraystring};
 
 use super::types::DicomSeriesInfo;
 
 /// Raw per-file data extracted during the parallel scan phase.
-type ScannedEntry = (ArrayString<64>, String, ArrayString<16>, String, PathBuf);
+struct ScannedEntry {
+    series_instance_uid: ArrayString<64>,
+    series_description: String,
+    modality: ArrayString<16>,
+    patient_id: String,
+    patient_name: String,
+    study_instance_uid: Option<ArrayString<64>>,
+    study_date: Option<ArrayString<8>>,
+    file_path: PathBuf,
+}
 
 pub(crate) fn sort_discovered_series(series_list: &mut [DicomSeriesInfo]) {
     series_list.sort_by(|a, b| {
         a.patient_id
             .cmp(&b.patient_id)
+            .then_with(|| a.study_instance_uid.cmp(&b.study_instance_uid))
+            .then_with(|| a.study_date.cmp(&b.study_date))
             .then_with(|| a.modality.cmp(&b.modality))
             .then_with(|| a.series_description.cmp(&b.series_description))
             .then_with(|| a.series_instance_uid.cmp(&b.series_instance_uid))
@@ -56,14 +67,22 @@ pub fn scan_dicom_directory<P: AsRef<Path>>(path: P) -> Result<Vec<DicomSeriesIn
                 .map(|s| truncate_arraystring::<16>(s.trim()))
                 .unwrap_or_else(|| literal_arraystring("OT"));
             let patient_id = get_string(&obj, tags::PATIENT_ID).unwrap_or_default();
+            let patient_name = get_string(&obj, tags::PATIENT_NAME).unwrap_or_default();
+            let study_instance_uid = get_string(&obj, tags::STUDY_INSTANCE_UID)
+                .and_then(|value| valid_study_uid(&value));
+            let study_date =
+                get_string(&obj, tags::STUDY_DATE).and_then(|value| valid_study_date(&value));
 
-            Ok(Some((
-                uid,
-                description,
+            Ok(Some(ScannedEntry {
+                series_instance_uid: uid,
+                series_description: description,
                 modality,
                 patient_id,
-                file_path.clone(),
-            )))
+                patient_name,
+                study_instance_uid,
+                study_date,
+                file_path: file_path.clone(),
+            }))
         },
     )
     .into_iter()
@@ -74,17 +93,20 @@ pub fn scan_dicom_directory<P: AsRef<Path>>(path: P) -> Result<Vec<DicomSeriesIn
 
     // 2. Sequential merge — no Mutex required.
     let mut map: HashMap<ArrayString<64>, DicomSeriesInfo> = HashMap::new();
-    for (uid, description, modality, patient_id, file_path) in raw {
-        map.entry(uid)
+    for entry in raw {
+        map.entry(entry.series_instance_uid)
             .or_insert_with(|| DicomSeriesInfo {
-                series_instance_uid: uid,
-                series_description: description,
-                modality,
-                patient_id,
+                series_instance_uid: entry.series_instance_uid,
+                series_description: entry.series_description,
+                modality: entry.modality,
+                patient_id: entry.patient_id,
+                patient_name: entry.patient_name,
+                study_instance_uid: entry.study_instance_uid,
+                study_date: entry.study_date,
                 file_paths: Vec::new(),
             })
             .file_paths
-            .push(file_path);
+            .push(entry.file_path);
     }
 
     let mut series_list: Vec<DicomSeriesInfo> = map.into_values().collect();
@@ -96,6 +118,19 @@ pub fn scan_dicom_directory<P: AsRef<Path>>(path: P) -> Result<Vec<DicomSeriesIn
     sort_discovered_series(&mut series_list);
 
     Ok(series_list)
+}
+
+fn valid_study_uid(value: &str) -> Option<ArrayString<64>> {
+    let value = value.trim_end_matches('\0').trim();
+    uid_is_valid(value)
+        .then(|| ArrayString::from(value).expect("invariant: valid DICOM UID fits 64 bytes"))
+}
+
+fn valid_study_date(value: &str) -> Option<ArrayString<8>> {
+    let value = value.trim_end_matches('\0').trim();
+    (value.len() == 8 && value.bytes().all(|byte| byte.is_ascii_digit())).then(|| {
+        ArrayString::from(value).expect("invariant: eight-digit DICOM date fits its buffer")
+    })
 }
 
 fn get_string(obj: &FileDicomObject<InMemDicomObject>, tag: dicom::core::Tag) -> Option<String> {
@@ -124,6 +159,9 @@ mod tests {
                 series_description: "B".to_owned(),
                 modality: literal_arraystring::<16>("MR"),
                 patient_id: "P2".to_owned(),
+                patient_name: "Patient Two".to_owned(),
+                study_instance_uid: Some(ArrayString::from("2.25.2").expect("study uid")),
+                study_date: Some(ArrayString::from("20260102").expect("study date")),
                 file_paths: vec![PathBuf::from("z/2.dcm")],
             },
             DicomSeriesInfo {
@@ -131,6 +169,9 @@ mod tests {
                 series_description: "A".to_owned(),
                 modality: literal_arraystring::<16>("CT"),
                 patient_id: "P1".to_owned(),
+                patient_name: "Patient One".to_owned(),
+                study_instance_uid: Some(ArrayString::from("2.25.1").expect("study uid")),
+                study_date: Some(ArrayString::from("20260101").expect("study date")),
                 file_paths: vec![PathBuf::from("a/1.dcm")],
             },
             DicomSeriesInfo {
@@ -138,6 +179,9 @@ mod tests {
                 series_description: "A".to_owned(),
                 modality: literal_arraystring::<16>("CT"),
                 patient_id: "P1".to_owned(),
+                patient_name: "Patient One".to_owned(),
+                study_instance_uid: Some(ArrayString::from("2.25.1").expect("study uid")),
+                study_date: Some(ArrayString::from("20260101").expect("study date")),
                 file_paths: vec![PathBuf::from("b/1.dcm")],
             },
         ];
@@ -146,5 +190,21 @@ mod tests {
 
         let uids: Vec<&str> = v.iter().map(|s| s.series_instance_uid.as_str()).collect();
         assert_eq!(uids, vec!["1", "3", "2"]);
+    }
+
+    #[test]
+    fn study_metadata_validation_preserves_only_grouping_safe_values() {
+        assert_eq!(
+            valid_study_uid("2.25.123\0"),
+            Some(ArrayString::from("2.25.123").expect("uid"))
+        );
+        assert_eq!(valid_study_uid("2.25.01"), None);
+        assert_eq!(valid_study_uid(&"1".repeat(65)), None);
+        assert_eq!(
+            valid_study_date("20260927"),
+            Some(ArrayString::from("20260927").expect("date"))
+        );
+        assert_eq!(valid_study_date("2026927"), None);
+        assert_eq!(valid_study_date("2026-09-27"), None);
     }
 }

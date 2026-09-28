@@ -2,13 +2,13 @@
   "schema": 1,
   "status": "passed",
   "runtime": {
-    "host": "Windows 11 native M\u00e9tis surface",
+    "host": "Windows 11 native Métis surface",
     "date": "2026-09-28",
     "ritk_pull_request": "ryancinsight/ritk#676",
     "executable": "ritk-snap.exe",
-    "executable_sha256": "f6df5fd5f1ab76540ce8ea63d9749b1ba85dbdd7a21f8d797c84856553335130",
-    "executable_bytes": 25999872,
-    "toolchain": "Rust 1.97.0",
+    "executable_sha256": "940b48e3612c8be75e865978cdc228802e5af36dd045a438657f14b296071c38",
+    "executable_bytes": 26009088,
+    "toolchain": "Rust 1.97.0 (2d8144b78 2026-07-07)",
     "metis_revision": "d93a45688713fd4d57371243f6afa5413560d75d",
     "metis_platform_revision": "d93a45688713fd4d57371243f6afa5413560d75d",
     "moirai_pal_revision": "b3b37f7fae9de019939a53eaaaf5ada5ba5e806e",
@@ -28,44 +28,31 @@
       "dpi": 120
     },
     "caption_text_observed_by_GetWindowTextW": "",
-    "command": "ritk-snap.exe scratch/viewer/multiseries-phantom --metis-native --series-instance-uid 1.3.6.1.4.1.14519.5.2.1.1706.4996.123065603063404191260103927213 --compare-series-instance-uid 1.3.6.1.4.1.14519.5.2.1.1706.4996.115936088547498980797393821518"
+    "command": "ritk-snap.exe scratch/viewer/multiseries-c90d4b6cfe9348a5878e55a08a4d2dc6 --metis-native --series-instance-uid 1.3.6.1.4.1.14519.5.2.1.1706.4996.123065603063404191260103927213 --compare-series-instance-uid 1.3.6.1.4.1.14519.5.2.1.1706.4996.115936088547498980797393821518"
   },
   "dataset": {
-    "path": "scratch/viewer/multiseries-phantom",
-    "description": "Public MRI-DIR porcine-head phantom with separate T2 MRI and CT studies; not private patient data",
+    "path": "scratch/viewer/multiseries-c90d4b6cfe9348a5878e55a08a4d2dc6",
+    "description": "Public MRI-DIR porcine-head phantom with the matching MRI and CT series loaded together",
     "license": "CC BY 4.0",
     "directory_regular_files": 503,
+    "non_dicom_files": [],
     "dicom_instances_read": 503,
     "dicom_bytes_read": 265963652,
     "study_count": 2,
-    "series_count": 2,
-    "source_series": [
-      {
-        "path": "test_data/2_head_mri_t2/DICOM",
-        "modality": "MR",
-        "instances": 94,
-        "bytes": 49807236
-      },
-      {
-        "path": "test_data/3_head_ct_mridir/DICOM",
-        "modality": "CT",
-        "instances": 409,
-        "bytes": 216156416
-      }
-    ]
+    "series_count": 2
   },
   "source_capture": {
     "path": "scratch/viewer/real-mri-ct-multiseries-window.png",
-    "sha256": "d4b4a5598b56956f37571e4bb3e6bf938a64afb15f550135fb1ef9399e59bbec",
-    "bytes": 365843,
+    "sha256": "bc2d8a7feb2b37b6c88a99a8ce50138ee011fadeedb70c8bfe15bff6c84a8b02",
+    "bytes": 369238,
     "encoding": "PNG captured from the live native application window"
   },
   "output": {
     "path": "docs/manual/images/dicom-metis-real-mri-ct-multiseries-window.webp",
     "width": 1298,
     "height": 847,
-    "sha256": "d78c8d7b561a226c537bb336ad38b9c2349df9e43d3b40366655d38e16a5fa3c",
-    "bytes": 160172,
+    "sha256": "6e009b5a04a918adf14de87f9ebf489cdc88fab123659b8663408d52bffc9848",
+    "bytes": 163646,
     "encoding": "lossless WebP",
     "decoded_rgba_byte_equal_to_source_capture": true,
     "visible_controls": [
@@ -88,8 +75,8 @@
       "P1  |  MR  |  T2",
       "P2  |  CT  |  CT"
     ],
-    "visual_scope": "Actual running M\u00e9tis native window with Windows chrome, menus, grouped toolbar, bottom series preview with decoded MRI and CT thumbnails, status bar, and two independent DICOM panels",
+    "visual_scope": "Actual running Métis native window with Windows chrome, menus, grouped toolbar buttons, bottom series preview showing MRI and CT assignments, status bar and both public image series",
     "patient_identifiers_displayed": false
   },
-  "residual": "The Windows caption text is empty although RITK supplies a window title; native viewer controls and DICOM panels render in the live client area."
+  "residual": "The native window caption is blank in the captured frame although RITK supplies a title; viewer controls and DICOM panels render in the client area."
 }

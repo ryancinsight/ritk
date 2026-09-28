@@ -9,8 +9,8 @@
 use super::compare::ComparePanel;
 use super::composition::compose_frames;
 use super::layout::{
-    surface_frames_grid, GridPanel, NativeViewport, WorkspaceLayout, MAX_COMPARISON_PANELS,
-    MAX_GRID_PANELS,
+    surface_frames_grid, GridPanel, NativeViewport, PanelGrid, WorkspaceLayout,
+    MAX_COMPARISON_PANELS, MAX_GRID_PANELS,
 };
 use super::observation::{record_state, NativeViewerObservation};
 use super::projection::{
@@ -380,8 +380,9 @@ impl NativeViewerSession {
         if browser.choice(index).is_none() {
             return Err(anyhow!("selected series row is outside the study"));
         }
+        let browser_active_index = browser.active_index();
         if self.primary_series_index == Some(index) {
-            let changed = self.active_panel != 0 || browser.active_index() != index;
+            let changed = self.active_panel != 0 || browser_active_index != index;
             self.active_panel = 0;
             self.series_browser
                 .as_mut()
@@ -389,21 +390,31 @@ impl NativeViewerSession {
                 .set_active(index);
             return Ok(changed);
         }
-        if self.workspace_layout.is_grid() {
-            if let Some(panel_index) = self
-                .compare_panels
-                .iter()
-                .position(|panel| panel.series_index == Some(index))
-            {
-                let panel_index = panel_index.saturating_add(1);
-                let changed = self.active_panel != panel_index || browser.active_index() != index;
-                self.active_panel = panel_index;
-                self.series_browser
-                    .as_mut()
-                    .expect("invariant: selected series retains its study browser")
-                    .set_active(index);
-                return Ok(changed);
-            }
+        if let Some(panel_index) = self
+            .compare_panels
+            .iter()
+            .position(|panel| panel.series_index == Some(index))
+            .map(|index| index.saturating_add(1))
+        {
+            let panel_is_visible = self
+                .workspace_layout
+                .grid()
+                .is_some_and(|grid| panel_index < grid.panel_count());
+            let layout_changed = if panel_is_visible {
+                false
+            } else {
+                let grid = PanelGrid::containing_panel(panel_index)
+                    .ok_or_else(|| anyhow!("assigned series exceeds the supported panel range"))?;
+                self.set_workspace_layout(WorkspaceLayout::Panels(grid))?
+            };
+            let changed =
+                layout_changed || self.active_panel != panel_index || browser_active_index != index;
+            self.active_panel = panel_index;
+            self.series_browser
+                .as_mut()
+                .expect("invariant: selected series retains its study browser")
+                .set_active(index);
+            return Ok(changed);
         }
         self.assign_series_to_panel(index, self.active_panel)
     }

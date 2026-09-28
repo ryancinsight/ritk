@@ -166,17 +166,6 @@
 - next: capture the completed viewer from the public phantom and validate the manual artifacts.
 - basis: 4e2e797c6af199d0c33e37148e784b2becc04981
 
-<a id="RITK-SNAP-WINDOW-CONTROLS-001"></a>
-## RITK-SNAP-WINDOW-CONTROLS-001: Build the RadiAnt viewer workspace
-- outcome: provide organized viewer controls, a persistent series preview, and simultaneous series comparison in the Métis native window.
-- acceptance: File/View/Tools/Window menus and grouped viewer controls work; every discovered series remains in the scrollable bottom preview bar; selecting a card loads into the active MPR view or activates its assigned panel; the split-screen picker selects every grid from 1×1 through 5×4; series cards drag into individual panels; each panel retains independent navigation and display state; failed loads preserve panel data; chrome input never reaches image panes; pane-only pixel capture remains unchanged; a four-series fixture verifies distinct panel assignments; full-window public MRI and MRI/CT captures show the organized app controls and real images.
-- status: todo
-- priority: feature
-- needs: none
-- scope: `crates/ritk-snap/src/presentation/native_session/`, `docs/manual/`, screenshot provenance.
-- next: verify every split-screen picker cell and click/drag series assignment, refresh the actual full-window MRI and MRI/CT manual captures, then run the RITK delivery gate.
-- basis: 4e2e797c6af199d0c33e37148e784b2becc04981
-
 <a id="RITK-BROWSER-READ-001"></a>
 ## RITK-BROWSER-READ-001 â€” Reproduce and close WebKit study reads
 - Status: blocked; compacted 2026-09-18; full delivery history remains in git.

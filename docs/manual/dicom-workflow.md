@@ -1224,11 +1224,11 @@ card shows its panel assignment. Clicking an assigned card activates that
 panel. Slice, window/level, zoom, pan and cine state remain independent
 between panels. A series may occupy more than one panel. A failed load
 preserves the displayed volume. The bottom series preview bar, direct drag
-assignment and 5×4 grid picker follow RadiAnt's documented multi-series workflow.
+assignment and 5×4 grid picker reproduce RadiAnt's documented multi-series workflow.
 
 The window does not show patient name or ID. The controls invoke the viewer’s
 study, tool, crosshair, cine, series preview bar, layout and reset actions. The
-menu, bottom series preview bar, panel grid picker and drag assignment implement RadiAnt's
+menu, bottom series preview bar, panel grid picker and drag assignment implement the RadiAnt clone's
 documented series workflow ([series browsing](https://www.radiantviewer.com/dicom-viewer-manual/browse_series_and_images.html),
 [multiple-series viewing](https://www.radiantviewer.com/dicom-viewer-manual/view_multiple_series.html));
 RITK and Métis provide the application branding, rendering and DICOM pixels.

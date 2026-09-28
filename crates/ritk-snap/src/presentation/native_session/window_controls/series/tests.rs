@@ -57,6 +57,6 @@ fn thumbnail_rejects_zero_source_extent() {
         fit_dimensions(0, 256, 70, 56)
             .expect_err("zero-width DICOM slice")
             .to_string(),
-        "series thumbnail dimensions must be nonzero"
+        "series preview dimensions must be nonzero"
     );
 }

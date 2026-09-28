@@ -2,13 +2,13 @@
   "schema": 1,
   "status": "passed",
   "runtime": {
-    "host": "Windows 11 native M\u00e9tis surface",
+    "host": "Windows 11 native Métis surface",
     "date": "2026-09-28",
     "ritk_pull_request": "ryancinsight/ritk#676",
     "executable": "ritk-snap.exe",
-    "executable_sha256": "f6df5fd5f1ab76540ce8ea63d9749b1ba85dbdd7a21f8d797c84856553335130",
-    "executable_bytes": 25999872,
-    "toolchain": "Rust 1.97.0",
+    "executable_sha256": "940b48e3612c8be75e865978cdc228802e5af36dd045a438657f14b296071c38",
+    "executable_bytes": 26009088,
+    "toolchain": "Rust 1.97.0 (2d8144b78 2026-07-07)",
     "metis_revision": "d93a45688713fd4d57371243f6afa5413560d75d",
     "metis_platform_revision": "d93a45688713fd4d57371243f6afa5413560d75d",
     "moirai_pal_revision": "b3b37f7fae9de019939a53eaaaf5ada5ba5e806e",
@@ -48,16 +48,16 @@
   },
   "source_capture": {
     "path": "scratch/viewer/real-mri-mpr-application-window.png",
-    "sha256": "444d004b3bf527e7d899000e53d46bb8aab6709f5d57157f78df1fdf1b91def1",
-    "bytes": 228722,
+    "sha256": "4b418f6d24e46d7f281cad544b7c8a1f3ea47b83017d1e81053bd0f6832b2b9d",
+    "bytes": 235301,
     "encoding": "PNG captured from the live native application window"
   },
   "output": {
     "path": "docs/manual/images/dicom-metis-real-mri-application-window.webp",
     "width": 1298,
     "height": 847,
-    "sha256": "254cb802668a61e9c0276c30abda27a919cd475aafcaa6232f3428daa8a24bb5",
-    "bytes": 112610,
+    "sha256": "78b370c0c0653bf87ab519dfcb163567d640cf1a443ea27addb5228c4bbe8370",
+    "bytes": 115764,
     "encoding": "lossless WebP",
     "decoded_rgba_byte_equal_to_source_capture": true,
     "visible_controls": [
@@ -82,8 +82,8 @@
       "MPR: sagittal",
       "MIP projection"
     ],
-    "visual_scope": "Actual running M\u00e9tis native window with Windows chrome, menus, grouped toolbar, bottom series preview, status bar, three MRI planes and MIP projection",
+    "visual_scope": "Actual running Métis native window with Windows chrome, menus, grouped toolbar buttons, bottom series preview, status bar, three MRI planes and MIP projection",
     "patient_identifiers_displayed": false
   },
-  "residual": "The Windows caption text is empty although RITK supplies a window title; native viewer controls and DICOM panels render in the live client area."
+  "residual": "The native window caption is blank in the captured frame although RITK supplies a title; viewer controls and DICOM panels render in the client area."
 }

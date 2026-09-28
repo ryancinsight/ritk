@@ -72,6 +72,26 @@ impl PanelGrid {
         usize::from(self.columns.get()) * usize::from(self.rows.get())
     }
 
+    pub(in crate::presentation::native_session) fn containing_panel(
+        panel_index: usize,
+    ) -> Option<Self> {
+        let required_panels = panel_index.checked_add(1)?;
+        let mut selected = None;
+        for rows in 1..=MAX_GRID_ROWS {
+            for columns in 1..=MAX_GRID_COLUMNS {
+                let grid = Self::new(columns, rows)?;
+                if grid.panel_count() < required_panels {
+                    continue;
+                }
+                let rank = (grid.panel_count(), rows, columns);
+                if selected.is_none_or(|(best_rank, _)| rank < best_rank) {
+                    selected = Some((rank, grid));
+                }
+            }
+        }
+        selected.map(|(_, grid)| grid)
+    }
+
     pub(in crate::presentation::native_session) fn menu_label(self) -> Option<&'static str> {
         let columns_per_row = usize::try_from(MAX_GRID_COLUMNS).ok()?;
         let row_offset =

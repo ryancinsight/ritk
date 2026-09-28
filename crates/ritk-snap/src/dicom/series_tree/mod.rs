@@ -172,11 +172,16 @@ impl SeriesEntry<'_> {
     /// Retain a discovered acquisition without losing its file selection.
     pub fn from_dicom_series_info(mut info: DicomSeriesInfo) -> Self {
         info.file_paths.sort();
+        let patient_name = Cow::Owned(info.patient_name().to_owned());
+        let study_date = info.study_date().map(|date| Cow::Owned(date.to_owned()));
+        let study_uid = info
+            .study_instance_uid()
+            .map(|uid| Cow::Owned(uid.to_owned()));
         Self {
             acquisition: Arc::new(info),
-            patient_name: Cow::Borrowed(""),
-            study_date: None,
-            study_uid: None,
+            patient_name,
+            study_date,
+            study_uid,
         }
     }
     /// Display the series description, modality and slice count.

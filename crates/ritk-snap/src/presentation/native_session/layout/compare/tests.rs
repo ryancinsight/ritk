@@ -120,3 +120,25 @@ fn panel_grid_accepts_radiant_bounds_and_rejects_invalid_dimensions() {
     assert_eq!(PanelGrid::new(6, 1), None);
     assert_eq!(PanelGrid::new(1, 5), None);
 }
+
+#[test]
+fn panel_grid_selects_the_smallest_wide_layout_containing_a_panel() {
+    for panel_index in 0..MAX_GRID_PANELS {
+        let grid = PanelGrid::containing_panel(panel_index)
+            .expect("every supported panel index has a containing layout");
+        assert!(grid.panel_count() > panel_index);
+    }
+    assert_eq!(
+        PanelGrid::containing_panel(3).map(PanelGrid::dimensions),
+        Some((4, 1))
+    );
+    assert_eq!(
+        PanelGrid::containing_panel(5).map(PanelGrid::dimensions),
+        Some((3, 2))
+    );
+    assert_eq!(
+        PanelGrid::containing_panel(19).map(PanelGrid::dimensions),
+        Some((5, 4))
+    );
+    assert_eq!(PanelGrid::containing_panel(MAX_GRID_PANELS), None);
+}

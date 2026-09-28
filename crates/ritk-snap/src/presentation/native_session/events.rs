@@ -10,6 +10,27 @@ use metis_platform::Framebuffer;
 use std::sync::atomic::Ordering;
 
 impl NativeViewerSession {
+    pub(super) fn tick_cine_at(&mut self, timestamp: f64) -> bool {
+        let primary_advanced = matches!(
+            self.app.tick_cine_at(timestamp),
+            crate::app::CineTick::Advanced(_)
+        );
+        let mut secondary_advanced = false;
+        if let Some(grid) = self.workspace_layout.grid() {
+            for panel in self
+                .compare_panels
+                .iter_mut()
+                .take(grid.panel_count().saturating_sub(1))
+            {
+                secondary_advanced |= matches!(
+                    panel.app.tick_cine_at(timestamp),
+                    crate::app::CineTick::Advanced(_)
+                );
+            }
+        }
+        primary_advanced || secondary_advanced
+    }
+
     fn apply_viewer_event_segment(
         &mut self,
         events: &[PresentationEvent],
@@ -297,22 +318,7 @@ impl NativeApplication for NativeViewerSession {
             crate::app::action_adapter::ViewerActionDisposition::Continue { .. }
         ) {
             let timestamp = self.elapsed_seconds();
-            let primary_advanced = matches!(
-                self.app.tick_cine_at(timestamp),
-                crate::app::CineTick::Advanced(_)
-            );
-            let secondary_advanced = self.workspace_layout.grid().is_some_and(|grid| {
-                self.compare_panels
-                    .iter_mut()
-                    .take(grid.panel_count().saturating_sub(1))
-                    .any(|panel| {
-                        matches!(
-                            panel.app.tick_cine_at(timestamp),
-                            crate::app::CineTick::Advanced(_)
-                        )
-                    })
-            });
-            primary_advanced || secondary_advanced
+            self.tick_cine_at(timestamp)
         } else {
             false
         };
