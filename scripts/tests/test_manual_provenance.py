@@ -59,6 +59,8 @@ class ManualImageProvenanceTests(unittest.TestCase):
                 APPLICATION_REPLAY,
                 94,
                 49_807_236,
+                1,
+                1,
                 ["MPR: axial", "MPR: coronal", "MPR: sagittal", "MIP projection"],
             ),
             (
@@ -66,10 +68,20 @@ class ManualImageProvenanceTests(unittest.TestCase):
                 COMPARISON_REPLAY,
                 503,
                 265_963_652,
+                2,
+                2,
                 ["P1  |  MR  |  T2", "P2  |  CT  |  CT"],
             ),
         )
-        for image_path, record_path, instance_count, byte_count, panels in cases:
+        for (
+            image_path,
+            record_path,
+            instance_count,
+            byte_count,
+            study_count,
+            series_count,
+            panels,
+        ) in cases:
             with self.subTest(image=image_path.name):
                 capture = json.loads(record_path.read_text(encoding="utf-8"))
                 output = capture["output"]
@@ -99,6 +111,8 @@ class ManualImageProvenanceTests(unittest.TestCase):
                 )
                 self.assertEqual(dataset["dicom_instances_read"], instance_count)
                 self.assertEqual(dataset["dicom_bytes_read"], byte_count)
+                self.assertEqual(dataset["study_count"], study_count)
+                self.assertEqual(dataset["series_count"], series_count)
                 self.assertEqual(
                     runtime["window"], {"width": 1_298, "height": 847, "dpi": 120}
                 )
@@ -125,6 +139,7 @@ class ManualImageProvenanceTests(unittest.TestCase):
                         "Cine",
                         "Split screen",
                         "SERIES PREVIEW",
+                        "LOAD TARGET: P1",
                     ],
                 )
                 self.assertEqual(output["panels"], panels)
@@ -133,3 +148,4 @@ class ManualImageProvenanceTests(unittest.TestCase):
                     "actual running métis native window",
                     output["visual_scope"].casefold(),
                 )
+                self.assertIn("bottom series preview bar", output["visual_scope"])

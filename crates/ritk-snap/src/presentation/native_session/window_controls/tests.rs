@@ -16,7 +16,7 @@ fn browser_with_series(count: usize) -> (SeriesBrowser, tempfile::TempDir) {
 }
 
 #[test]
-fn visible_workspace_reserves_menus_toolbar_series_preview_and_status() {
+fn visible_workspace_reserves_the_bottom_series_preview_bar() {
     let app = SnapApp::default();
     let layout = ChromeLayout::new(1_280, 800, None, &app, true, WorkspaceLayout::Orthogonal)
         .expect("chrome layout");
@@ -29,9 +29,13 @@ fn visible_workspace_reserves_menus_toolbar_series_preview_and_status() {
             height: 554
         }
     );
+    assert_eq!(
+        layout.series_preview_area(),
+        metis_platform::Rect::new(0, 642, 1_280, 132)
+    );
     assert_eq!(layout.visible_series(), 6);
     assert!(!layout.owns_pointer(640.0, 400.0));
-    assert!(layout.owns_pointer(40.0, 700.0));
+    assert!(layout.owns_pointer(640.0, 700.0));
     assert!(layout.owns_pointer(640.0, 780.0));
     assert_eq!(
         layout.action_at(20.0, 48.0, None),
@@ -104,14 +108,25 @@ fn view_menu_routes_panel_and_crosshair_commands() {
 }
 
 #[test]
-fn series_cards_route_selection_and_consume_viewport_input() {
+fn horizontal_series_cards_route_selection_and_consume_viewer_input() {
     let mut chrome = WindowChrome::new(true);
     let app = SnapApp::default();
     let (series_browser, _root) = browser_with_series(2);
     let mut browser = Some(series_browser);
+    let layout = ChromeLayout::new(1_280, 800, None, &app, true, WorkspaceLayout::Orthogonal)
+        .expect("horizontal series preview");
+    assert_eq!(
+        layout.series_index_at(browser.as_ref(), 32.0, 700.0),
+        Some(0)
+    );
+    assert_eq!(
+        layout.series_index_at(browser.as_ref(), 232.0, 700.0),
+        Some(1)
+    );
+    assert_eq!(layout.series_index_at(browser.as_ref(), 195.0, 700.0), None);
     let event = PresentationEvent::PointerDown {
-        x: 292.0,
-        y: 714.0,
+        x: 232.0,
+        y: 700.0,
         button: PointerButton::Left,
     };
 
@@ -137,8 +152,8 @@ fn series_cards_route_selection_and_consume_viewport_input() {
         chrome
             .handle_event(
                 &PresentationEvent::PointerUp {
-                    x: 292.0,
-                    y: 714.0,
+                    x: 232.0,
+                    y: 700.0,
                     button: PointerButton::Left,
                 },
                 1_280,
@@ -166,8 +181,8 @@ fn preview_wheel_scrolls_the_discovered_series_list() {
     let event = PresentationEvent::PointerWheel {
         x: 40.0,
         y: 700.0,
-        delta_x: -120.0,
-        delta_y: 0.0,
+        delta_x: 120.0,
+        delta_y: -120.0,
         modifiers: crate::presentation::PresentationModifiers::NONE,
     };
 
@@ -280,6 +295,74 @@ fn tools_menu_hit_tests_each_ritk_tool() {
 }
 
 #[test]
+fn tools_popup_takes_pointer_priority_over_series_cards() {
+    let mut chrome = WindowChrome::new(true);
+    chrome.open_menu = Some(Menu::Tools);
+    let app = SnapApp::default();
+    let (series_browser, _root) = browser_with_series(2);
+    let mut browser = Some(series_browser);
+    assert!(browser.as_mut().expect("series browser").set_active(1));
+
+    let result = chrome
+        .handle_event(
+            &PresentationEvent::PointerDown {
+                x: 160.0,
+                y: 156.0,
+                button: PointerButton::Left,
+            },
+            1_280,
+            800,
+            &app,
+            &mut browser,
+            WorkspaceLayout::Orthogonal,
+            &[],
+        )
+        .expect("select the obscured Tools menu item");
+
+    assert_eq!(
+        result.action,
+        Some(WindowAction::SelectTool(ToolKind::MeasureAngle))
+    );
+    assert_eq!(browser.as_ref().expect("series browser").active_index(), 1);
+    assert_eq!(chrome.open_menu, None);
+}
+
+#[test]
+fn wheel_over_tools_popup_does_not_scroll_the_series_list() {
+    let mut chrome = WindowChrome::new(true);
+    chrome.open_menu = Some(Menu::Tools);
+    let app = SnapApp::default();
+    let (series_browser, _root) = browser_with_series(10);
+    let mut browser = Some(series_browser);
+    let before = browser.as_ref().expect("series browser").first_visible();
+
+    assert_eq!(
+        chrome
+            .handle_event(
+                &PresentationEvent::PointerWheel {
+                    x: 160.0,
+                    y: 156.0,
+                    delta_x: 0.0,
+                    delta_y: -120.0,
+                    modifiers: crate::presentation::PresentationModifiers::NONE,
+                },
+                1_280,
+                800,
+                &app,
+                &mut browser,
+                WorkspaceLayout::Orthogonal,
+                &[],
+            )
+            .expect("keep wheel input in the menu layer"),
+        WindowChromeEvent::consumed(false)
+    );
+    assert_eq!(
+        browser.as_ref().expect("series browser").first_visible(),
+        before
+    );
+}
+
+#[test]
 fn narrow_windows_keep_every_control_inside_the_surface() {
     let app = SnapApp::default();
     let layout = ChromeLayout::new(
@@ -359,7 +442,9 @@ fn native_menu_event_toggles_the_series_preview() {
     );
     chrome.toggle_series_preview();
     assert_eq!(
-        chrome.viewport_area(1_280, 800).expect("expanded viewport"),
+        chrome
+            .viewport_area(1_280, 800)
+            .expect("viewport without series preview"),
         ViewportArea {
             x: 0,
             y: 88,

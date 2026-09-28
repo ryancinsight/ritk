@@ -22,7 +22,7 @@ use crate::app::SnapApp;
 use crate::launch::NativePresentationSelection;
 use crate::render::FrameRenderScratch;
 use crate::tools::interaction::ViewportOffset;
-use anyhow::{anyhow, Context, Result};
+use anyhow::{anyhow, Result};
 use arrayvec::{ArrayString, ArrayVec};
 use frame::{render_orthogonal_views, render_orthogonal_views_into, RenderedView};
 use metis_platform::Framebuffer;
@@ -58,6 +58,7 @@ pub(super) struct NativeViewerSession {
     pub(super) workspace_layout: WorkspaceLayout,
     pub(super) active_panel: usize,
     pub(super) window_chrome: WindowChrome,
+    pub(super) suppress_cancelled_pointer_release: Option<crate::presentation::PointerButton>,
 }
 
 impl NativeViewerSession {
@@ -151,6 +152,7 @@ impl NativeViewerSession {
             workspace_layout: WorkspaceLayout::Orthogonal,
             active_panel: 0,
             window_chrome,
+            suppress_cancelled_pointer_release: None,
         };
         if let Some(uid) = comparison_series_uid {
             session.initialize_comparison_uid(uid)?;

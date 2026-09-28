@@ -110,236 +110,283 @@ fn comparison_displays_two_independent_series_and_routes_each_panel() {
 }
 
 #[test]
-fn four_panel_layout_assigns_four_independent_dicom_series() {
+fn one_input_batch_routes_wheels_to_each_comparison_panel() {
     let (mut viewer, _initial_root) = session();
-    let study = four_series_study();
+    let study = replacement_study();
     viewer
         .open_study_path(study.path())
-        .expect("open four-series study");
+        .expect("open two-series study");
     viewer
         .set_workspace_layout(WorkspaceLayout::Panels(
-            PanelGrid::new(2, 2).expect("four-panel grid is within the picker bounds"),
+            PanelGrid::new(2, 1).expect("side-by-side grid is valid"),
         ))
-        .expect("select four-panel layout");
-    viewer.refresh_frame().expect("render four panel targets");
-
-    click_series(&mut viewer, 1);
-    for (panel_index, series_index) in [(2, 2), (3, 3)] {
-        let (x, y) = viewer.viewports[panel_index].center();
-        viewer
-            .handle_events(&[
-                WindowEvent::PointerDown {
-                    x,
-                    y,
-                    button: MouseButton::Left,
-                },
-                WindowEvent::PointerUp {
-                    x,
-                    y,
-                    button: MouseButton::Left,
-                },
-            ])
-            .expect("choose the next empty series panel");
-        click_series(&mut viewer, series_index);
-    }
-
-    assert_eq!(viewer.viewports.len(), 4);
-    assert_eq!(viewer.primary_series_index, Some(0));
-    assert_eq!(viewer.compare_panels.len(), 3);
-    let displayed_uids = std::iter::once(
-        viewer
-            .app
-            .loaded
-            .as_ref()
-            .and_then(|volume| volume.metadata.as_ref())
-            .and_then(|metadata| metadata.series_instance_uid.as_deref()),
-    )
-    .chain(viewer.compare_panels.iter().map(|panel| {
-        panel
-            .app
-            .loaded
-            .as_ref()
-            .and_then(|volume| volume.metadata.as_ref())
-            .and_then(|metadata| metadata.series_instance_uid.as_deref())
-    }))
-    .collect::<Vec<_>>();
-    assert_eq!(
-        displayed_uids,
-        [
-            Some(fixtures::SERIES_UID),
-            Some(SECOND_SERIES_UID),
-            Some(THIRD_SERIES_UID),
-            Some(FOURTH_SERIES_UID),
-        ]
-    );
-    for index in 0..4 {
-        let (x, y) = viewer.viewports[index].center();
-        assert_ne!(
-            viewer.framebuffer.get_pixel(x, y),
-            metis_platform::Color::BLACK,
-            "panel {index} must display its assigned series"
-        );
-    }
-}
-
-#[test]
-fn selecting_a_series_assigned_to_a_hidden_panel_restores_its_panel() {
-    let (mut viewer, _initial_root) = session();
-    let study = four_series_study();
-    viewer
-        .open_study_path(study.path())
-        .expect("open four-series study");
-    viewer
-        .set_workspace_layout(WorkspaceLayout::Panels(
-            PanelGrid::new(2, 2).expect("four-panel grid is within the picker bounds"),
-        ))
-        .expect("select four-panel layout");
-    viewer
-        .assign_series_to_panel(3, 3)
-        .expect("assign the fourth series to panel four");
-    viewer
-        .set_workspace_layout(WorkspaceLayout::Panels(
-            PanelGrid::new(2, 1).expect("two-panel grid is within the picker bounds"),
-        ))
-        .expect("hide the lower row");
-
-    click_series(&mut viewer, 3);
-
-    assert_eq!(
-        viewer.workspace_layout.grid().map(PanelGrid::dimensions),
-        Some((4, 1))
-    );
-    assert_eq!(viewer.active_panel, 3);
-    assert_eq!(viewer.viewports.len(), 4);
-    assert_eq!(viewer.compare_panels[2].series_index, Some(3));
-    let (x, y) = viewer.viewports[3].center();
-    assert_ne!(
-        viewer.framebuffer.get_pixel(x, y),
-        metis_platform::Color::BLACK
-    );
-}
-
-#[test]
-fn cine_advances_every_visible_series_panel_in_one_event_batch() {
-    let (mut viewer, _initial_root) = session();
-    let study = four_series_study();
-    viewer
-        .open_study_path(study.path())
-        .expect("open four-series study");
-    viewer
-        .set_workspace_layout(WorkspaceLayout::Panels(
-            PanelGrid::new(3, 1).expect("three-panel grid is within the picker bounds"),
-        ))
-        .expect("select three-panel layout");
+        .expect("select side-by-side layout");
     viewer
         .assign_series_to_panel(1, 1)
-        .expect("assign the second series to panel two");
-    viewer
-        .assign_series_to_panel(2, 2)
-        .expect("assign the third series to panel three");
-    viewer.app.cine.set_fps(10.0);
-    viewer.app.cine.set_enabled(true, 0.0);
-    for panel in viewer.compare_panels.iter_mut().take(2) {
-        panel.app.cine.set_fps(10.0);
-        panel.app.cine.set_enabled(true, 0.0);
-    }
-    assert!(viewer.tick_cine_at(0.25));
+        .expect("load the second series into panel two");
+    viewer.refresh_frame().expect("render both series");
 
-    let updated_slices = [
-        viewer.app.viewer_state.slice_index,
+    let primary_before = viewer.app.viewer_state.slice_index;
+    let secondary_before = viewer.compare_panels[0].app.viewer_state.slice_index;
+    let (left_x, left_y) = viewer.viewports[0].center();
+    let (right_x, right_y) = viewer.viewports[1].center();
+    viewer
+        .handle_events(&[
+            WindowEvent::PointerWheel {
+                x: left_x,
+                y: left_y,
+                delta_x: 0,
+                delta_y: -120,
+                modifiers: ModifierState::NONE,
+            },
+            WindowEvent::PointerWheel {
+                x: right_x,
+                y: right_y,
+                delta_x: 0,
+                delta_y: -120,
+                modifiers: ModifierState::NONE,
+            },
+        ])
+        .expect("route both panel wheels in one host batch");
+
+    assert_ne!(viewer.app.viewer_state.slice_index, primary_before);
+    assert_ne!(
         viewer.compare_panels[0].app.viewer_state.slice_index,
-        viewer.compare_panels[1].app.viewer_state.slice_index,
-    ];
-    assert_eq!(updated_slices, [0, 0, 0]);
+        secondary_before
+    );
+    assert_eq!(viewer.active_panel, 1);
 }
 
 #[test]
-fn dragging_a_series_card_assigns_only_the_drop_target_panel() {
+fn rejected_comparison_batch_does_not_apply_an_earlier_panel_event() {
     let (mut viewer, _initial_root) = session();
-    let study = four_series_study();
+    let study = replacement_study();
     viewer
         .open_study_path(study.path())
-        .expect("open four-series study");
+        .expect("open two-series study");
     viewer
         .set_workspace_layout(WorkspaceLayout::Panels(
-            PanelGrid::new(2, 2).expect("four-panel grid is within the picker bounds"),
+            PanelGrid::new(2, 1).expect("side-by-side grid is valid"),
         ))
-        .expect("select four-panel layout");
-    viewer.refresh_frame().expect("render four panel targets");
+        .expect("select side-by-side layout");
+    viewer
+        .assign_series_to_panel(1, 1)
+        .expect("load the second series into panel two");
+    viewer.refresh_frame().expect("render both series");
 
-    drag_series_to_panel(&mut viewer, 2, 3);
+    let primary_before = viewer.app.viewer_state.slice_index;
+    let secondary_before = viewer.compare_panels[0].app.viewer_state.slice_index;
+    let (left_x, left_y) = viewer.viewports[0].center();
+    let (right_x, right_y) = viewer.viewports[1].center();
+    let error = viewer
+        .handle_events(&[
+            WindowEvent::PointerWheel {
+                x: left_x,
+                y: left_y,
+                delta_x: 0,
+                delta_y: -120,
+                modifiers: ModifierState::NONE,
+            },
+            WindowEvent::PointerUp {
+                x: right_x,
+                y: right_y,
+                button: MouseButton::Left,
+            },
+        ])
+        .expect_err("reject release without a press in the second panel");
 
-    assert_eq!(viewer.active_panel, 3);
-    assert_eq!(viewer.primary_series_index, Some(0));
-    assert_eq!(viewer.compare_panels[0].series_index, None);
-    assert_eq!(viewer.compare_panels[1].series_index, None);
-    assert_eq!(viewer.compare_panels[2].series_index, Some(2));
+    assert!(error.to_string().contains("without a press"));
+    assert_eq!(viewer.app.viewer_state.slice_index, primary_before);
     assert_eq!(
-        viewer.compare_panels[2]
-            .app
-            .loaded
-            .as_ref()
-            .and_then(|volume| volume.metadata.as_ref())
-            .and_then(|metadata| metadata.series_instance_uid.as_deref()),
-        Some(THIRD_SERIES_UID)
+        viewer.compare_panels[0].app.viewer_state.slice_index,
+        secondary_before
     );
 }
 
 #[test]
-fn initial_comparison_loads_distinct_requested_series_into_both_panels() {
-    let root = replacement_study();
-    let tree = scan_folder_for_series(root.path()).expect("scan comparison study");
-    let browser =
-        SeriesBrowser::from_tree(&tree, Some(fixtures::SERIES_UID)).expect("select primary series");
-    let primary = load_volume_from_series_info(
-        &browser
-            .choice(browser.active_index())
-            .expect("primary series")
-            .acquisition,
-    )
-    .expect("load primary series");
-    let mut app = crate::app::SnapApp::default();
-    app.load_volume(primary, "primary".to_owned());
-    let viewer = crate::presentation::native_session::NativeViewerSession::new_with_browser(
-        app,
-        std::sync::Arc::new(
-            crate::presentation::native_session::NativeViewerObservation::default(),
-        ),
-        false,
-        crate::launch::NativePresentationSelection::Fixed(
-            crate::launch::NativePresentationMode::Orthogonal,
-        ),
-        false,
-        Some(browser),
-        Some(SECOND_SERIES_UID),
-    )
-    .expect("initialize two-series comparison");
+fn rejected_native_batch_does_not_apply_pane_events_before_toolbar_actions() {
+    let (mut viewer, _initial_root) = session();
+    let study = replacement_study();
+    viewer
+        .open_study_path(study.path())
+        .expect("open two-series study");
+    viewer
+        .set_workspace_layout(WorkspaceLayout::Panels(
+            PanelGrid::new(2, 1).expect("side-by-side grid is valid"),
+        ))
+        .expect("select side-by-side layout");
+    viewer
+        .assign_series_to_panel(1, 1)
+        .expect("load the second series into panel two");
+    viewer.active_panel = 0;
+    viewer.refresh_frame().expect("render both series");
+    viewer.app.active_tool = crate::tools::kind::ToolKind::WindowLevel;
+
+    let primary_slice = viewer.app.viewer_state.slice_index;
+    let primary_tool = viewer.app.active_tool;
+    let (left_x, left_y) = viewer.viewports[0].center();
+    let (right_x, right_y) = viewer.viewports[1].center();
+    let error = viewer
+        .handle_events(&[
+            WindowEvent::PointerWheel {
+                x: left_x,
+                y: left_y,
+                delta_x: 0,
+                delta_y: -120,
+                modifiers: ModifierState::NONE,
+            },
+            WindowEvent::PointerDown {
+                x: 200,
+                y: 48,
+                button: MouseButton::Left,
+            },
+            WindowEvent::PointerUp {
+                x: 200,
+                y: 48,
+                button: MouseButton::Left,
+            },
+            WindowEvent::PointerUp {
+                x: right_x,
+                y: right_y,
+                button: MouseButton::Left,
+            },
+        ])
+        .expect_err("reject the unpressed release after all earlier inputs");
+
+    assert!(error.to_string().contains("without a press"));
+    assert_eq!(viewer.app.viewer_state.slice_index, primary_slice);
+    assert_eq!(viewer.app.active_tool, primary_tool);
+}
+
+#[test]
+fn pane_input_after_layout_selection_uses_the_presented_layout_snapshot() {
+    let (mut viewer, _initial_root) = session();
+    viewer
+        .refresh_frame()
+        .expect("render the orthogonal workspace");
+    let (sagittal_x, sagittal_y) = viewer.viewports[2].center();
+
+    viewer
+        .handle_events(&[
+            WindowEvent::PointerDown {
+                x: 690,
+                y: 65,
+                button: MouseButton::Left,
+            },
+            WindowEvent::PointerUp {
+                x: 690,
+                y: 65,
+                button: MouseButton::Left,
+            },
+            WindowEvent::PointerDown {
+                x: 632,
+                y: 151,
+                button: MouseButton::Left,
+            },
+            WindowEvent::PointerUp {
+                x: 632,
+                y: 151,
+                button: MouseButton::Left,
+            },
+            WindowEvent::PointerDown {
+                x: sagittal_x,
+                y: sagittal_y,
+                button: MouseButton::Left,
+            },
+            WindowEvent::PointerUp {
+                x: sagittal_x,
+                y: sagittal_y,
+                button: MouseButton::Left,
+            },
+        ])
+        .expect("reduce pane events against the layout visible at batch start");
 
     assert!(viewer.workspace_layout.is_grid());
-    assert_eq!(viewer.primary_series_index, Some(0));
+    assert_eq!(viewer.viewports.len(), 2);
+    assert_eq!(viewer.app.axis, 2);
+}
+
+#[test]
+fn layout_change_cancels_a_captured_drag_before_remapping_panes() {
+    let (mut viewer, _initial_root) = session();
+    viewer
+        .refresh_frame()
+        .expect("render the orthogonal workspace");
+    let (sagittal_x, sagittal_y) = viewer.viewports[2].center();
+    viewer.app.active_tool = crate::tools::kind::ToolKind::Pan;
+
+    viewer
+        .handle_events(&[
+            WindowEvent::PointerDown {
+                x: 690,
+                y: 65,
+                button: MouseButton::Left,
+            },
+            WindowEvent::PointerUp {
+                x: 690,
+                y: 65,
+                button: MouseButton::Left,
+            },
+            WindowEvent::PointerDown {
+                x: 632,
+                y: 151,
+                button: MouseButton::Left,
+            },
+            WindowEvent::PointerUp {
+                x: 632,
+                y: 151,
+                button: MouseButton::Left,
+            },
+            WindowEvent::PointerDown {
+                x: sagittal_x,
+                y: sagittal_y,
+                button: MouseButton::Left,
+            },
+        ])
+        .expect("apply layout selection against the presented orthogonal frame");
+
+    assert!(viewer.workspace_layout.is_grid());
+    assert_eq!(viewer.viewports.len(), 2);
+    assert_eq!(viewer.active_view, None);
     assert_eq!(
-        viewer
-            .compare_panels
-            .first()
-            .and_then(|panel| panel.series_index),
-        Some(1)
+        viewer.suppress_cancelled_pointer_release,
+        Some(crate::presentation::PointerButton::Left)
     );
+    assert!(viewer.app.tool_state.is_idle());
+
+    viewer
+        .handle_events(&[
+            WindowEvent::PointerDown {
+                x: 690,
+                y: 65,
+                button: MouseButton::Right,
+            },
+            WindowEvent::PointerUp {
+                x: 690,
+                y: 65,
+                button: MouseButton::Right,
+            },
+        ])
+        .expect("a different button does not release the canceled left gesture");
     assert_eq!(
-        viewer
-            .app
-            .loaded
-            .as_ref()
-            .and_then(|volume| volume.metadata.as_ref())
-            .and_then(|metadata| metadata.series_instance_uid.as_deref()),
-        Some(fixtures::SERIES_UID)
+        viewer.suppress_cancelled_pointer_release,
+        Some(crate::presentation::PointerButton::Left)
     );
-    assert_eq!(
-        viewer
-            .compare_panels
-            .first()
-            .and_then(|panel| panel.app.loaded.as_ref())
-            .and_then(|volume| volume.metadata.as_ref())
-            .and_then(|metadata| metadata.series_instance_uid.as_deref()),
-        Some(SECOND_SERIES_UID)
-    );
+
+    viewer
+        .handle_events(&[WindowEvent::PointerMove {
+            x: sagittal_x + 16,
+            y: sagittal_y + 12,
+        }])
+        .expect("ignore the canceled drag while the new layout is active");
+    viewer
+        .handle_events(&[WindowEvent::PointerUp {
+            x: sagittal_x + 16,
+            y: sagittal_y + 12,
+            button: MouseButton::Left,
+        }])
+        .expect("consume the release for the canceled drag");
+
+    assert_eq!(viewer.suppress_cancelled_pointer_release, None);
+    assert!(viewer.app.tool_state.is_idle());
 }

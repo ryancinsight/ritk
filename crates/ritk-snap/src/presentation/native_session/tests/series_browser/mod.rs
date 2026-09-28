@@ -11,6 +11,9 @@ use metis_platform::native::{
 const SECOND_SERIES_UID: &str = "2.25.20260905002";
 const THIRD_SERIES_UID: &str = "2.25.20260905004";
 const FOURTH_SERIES_UID: &str = "2.25.20260905005";
+const FIRST_SERIES_CARD_CENTER_X: i32 = 100;
+const SERIES_CARD_CENTER_Y: i32 = 714;
+const SERIES_CARD_STRIDE: i32 = 192;
 
 fn replacement_study() -> tempfile::TempDir {
     let root = tempfile::tempdir().expect("replacement study root");
@@ -32,8 +35,8 @@ fn click_series(
     session: &mut crate::presentation::native_session::NativeViewerSession,
     index: i32,
 ) {
-    let x = 100 + index.saturating_mul(192);
-    let y = 714;
+    let x = FIRST_SERIES_CARD_CENTER_X + index.saturating_mul(SERIES_CARD_STRIDE);
+    let y = SERIES_CARD_CENTER_Y;
     session
         .handle_events(&[
             WindowEvent::PointerDown {
@@ -55,8 +58,8 @@ fn drag_series_to_panel(
     series_index: i32,
     panel_index: usize,
 ) {
-    let start_x = 100 + series_index.saturating_mul(192);
-    let start_y = 714;
+    let start_x = FIRST_SERIES_CARD_CENTER_X + series_index.saturating_mul(SERIES_CARD_STRIDE);
+    let start_y = SERIES_CARD_CENTER_Y;
     let (end_x, end_y) = session.viewports[panel_index].center();
     session
         .handle_events(&[
@@ -77,3 +80,4 @@ fn drag_series_to_panel(
 
 mod catalog;
 mod panels;
+mod multi_series_panels;

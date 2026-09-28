@@ -41,10 +41,9 @@ pub(super) fn render(
         return Ok(());
     }
     fill_rect(framebuffer, area, CornerRadius::SQUARE, PANEL_BACKGROUND);
-    let top = area.y;
     fill_rect(
         framebuffer,
-        Rect::new(area.x, top, area.width, 1),
+        Rect::new(area.x, area.y, area.width, 1),
         CornerRadius::SQUARE,
         PANEL_EDGE,
     );

@@ -1281,7 +1281,7 @@ python $captureUtility `
 
 ![Full RITK/Métis viewer window with menus, grouped toolbar buttons, scrollable bottom series preview bar, status bar, three orthogonal RITK MPR panes and one MIP projection, and the real public MRI phantom](images/dicom-metis-real-mri-application-window.webp)
 
-![Full RITK/Métis viewer window with menus, grouped toolbar buttons, bottom series preview bar showing real MRI and CT thumbnails and panel assignments, status bar, and the actual public series side by side](images/dicom-metis-real-mri-ct-multiseries-window.webp)
+![Full RITK/Métis viewer window with menus, grouped toolbar buttons, bottom preview bar showing real MRI and CT thumbnails and panel assignments, status bar, and the actual public series side by side](images/dicom-metis-real-mri-ct-multiseries-window.webp)
 
 The separate 1280 × 800 pane-only capture remains the pixel evidence for the
 saved-study decode; it deliberately excludes the application controls and

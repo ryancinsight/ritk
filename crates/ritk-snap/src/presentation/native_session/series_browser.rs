@@ -102,6 +102,11 @@ impl SeriesBrowser {
         self.first_visible
     }
 
+    /// Restore a scroll position saved before validating a host input batch.
+    pub(crate) fn restore_first_visible(&mut self, index: usize) {
+        self.first_visible = index.min(self.choices.len().saturating_sub(1));
+    }
+
     pub(crate) fn choice(&self, index: usize) -> Option<&SeriesChoice> {
         self.choices.get(index)
     }

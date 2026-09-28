@@ -71,6 +71,7 @@ impl WindowChromeEvent {
     }
 }
 
+#[derive(Clone)]
 pub(super) struct WindowChrome {
     visible: bool,
     open_menu: Option<Menu>,
@@ -165,10 +166,29 @@ impl WindowChrome {
         match event {
             PresentationEvent::PointerDown { x, y, button } => {
                 if self.pointer_owner == PointerOwner::None && *button == PointerButton::Left {
+                    if layout.popup_contains(*x, *y) {
+                        self.pointer_owner = PointerOwner::Chrome;
+                        self.press(*button);
+                        let action = layout.action_at(*x, *y, browser.as_ref());
+                        if let Some(WindowAction::OpenMenu(menu)) = action {
+                            self.open_menu = (self.open_menu != Some(menu)).then_some(menu);
+                            return Ok(WindowChromeEvent::consumed(true));
+                        }
+                        if let Some(action) = action {
+                            self.open_menu = None;
+                            return Ok(WindowChromeEvent {
+                                consumed: true,
+                                repaint: true,
+                                action: Some(action),
+                            });
+                        }
+                        return Ok(WindowChromeEvent::consumed(false));
+                    }
                     if let Some(index) = layout.series_index_at(browser.as_ref(), *x, *y) {
                         self.pointer_owner = PointerOwner::Series(index);
                         self.press(*button);
-                        return Ok(WindowChromeEvent::consumed(false));
+                        let repaint = self.open_menu.take().is_some();
+                        return Ok(WindowChromeEvent::consumed(repaint));
                     }
                 }
                 if self.pointer_owner == PointerOwner::Chrome {
@@ -281,8 +301,10 @@ impl WindowChrome {
                 delta_y,
                 ..
             } => {
-                if layout.series_contains(*x, *y) {
-                    let direction = if *delta_x != 0.0 { *delta_x } else { *delta_y };
+                if layout.popup_contains(*x, *y) {
+                    Ok(WindowChromeEvent::consumed(false))
+                } else if layout.series_contains(*x, *y) {
+                    let direction = if *delta_y != 0.0 { *delta_y } else { *delta_x };
                     let delta = if direction > 0.0 {
                         -3
                     } else if direction < 0.0 {
@@ -328,6 +350,11 @@ impl WindowChrome {
     pub(super) fn toggle_series_preview(&mut self) {
         self.show_series_preview = !self.show_series_preview;
         self.open_menu = None;
+    }
+
+    pub(super) fn cancel_pointer_capture(&mut self) {
+        self.pointer_owner = PointerOwner::None;
+        self.pressed_buttons = 0;
     }
 }
 

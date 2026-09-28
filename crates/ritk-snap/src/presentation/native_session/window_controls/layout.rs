@@ -319,12 +319,25 @@ impl ChromeLayout {
         self.geometry.viewport_area
     }
 
+    #[cfg(test)]
+    pub(super) const fn series_preview_area(&self) -> Rect {
+        self.geometry.series_preview
+    }
+
     pub(super) fn visible_series(&self) -> usize {
         series::visible_count(self.geometry.series_preview)
     }
 
     pub(super) fn series_contains(&self, x: f64, y: f64) -> bool {
         rect_contains(self.geometry.series_preview, x, y)
+    }
+
+    pub(super) fn popup_contains(&self, x: f64, y: f64) -> bool {
+        self.grid_popup
+            .is_some_and(|popup| rect_contains(popup, x, y))
+            || self.controls.iter().any(|control| {
+                matches!(control.kind, ControlKind::MenuItem) && rect_contains(control.rect, x, y)
+            })
     }
 
     pub(super) fn owns_pointer(&self, x: f64, y: f64) -> bool {

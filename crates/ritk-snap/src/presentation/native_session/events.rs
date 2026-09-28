@@ -1,5 +1,6 @@
 //! Native Métis event reduction and lifecycle for the RITK session.
 
+use super::routing::RoutedBatch;
 use super::WindowAction;
 use super::{record_state, NativeViewerError, NativeViewerSession, VIRTUAL_KEY_OPEN_STUDY};
 use crate::app::action_adapter::ViewerActionDisposition;
@@ -34,8 +35,10 @@ impl NativeViewerSession {
     fn apply_viewer_event_segment(
         &mut self,
         events: &[PresentationEvent],
+        routes: &[Option<usize>],
+        routed: &RoutedBatch,
     ) -> std::result::Result<ViewerActionDisposition, NativeViewerError> {
-        self.apply_events(events)
+        self.apply_events(events, routes, routed.layout, routed.active_panel)
     }
 
     fn apply_window_action(
@@ -186,29 +189,6 @@ impl NativeApplication for NativeViewerSession {
             false
         };
         let mut study_reopened = false;
-        let mut open_shortcut_seen = false;
-        for event in translated.iter() {
-            let is_open_shortcut = matches!(
-                event,
-                PresentationEvent::KeyDown {
-                    virtual_key: VIRTUAL_KEY_OPEN_STUDY,
-                    repeated: false,
-                    modifiers,
-                } if modifiers.ctrl()
-            );
-            if !terminal && is_open_shortcut && !open_shortcut_seen {
-                open_shortcut_seen = true;
-                match self.open_study_from_dialog() {
-                    Ok(reopened) => study_reopened |= reopened,
-                    Err(error) => {
-                        self.active_app_mut().status_message = format!(
-                            "DICOM reopen failed; current study remains displayed: {error:#}"
-                        );
-                        study_reopened = true;
-                    }
-                }
-            }
-        }
         let mut chrome_repaint = false;
         let mut chrome_actions = Vec::new();
         chrome_actions
@@ -217,10 +197,16 @@ impl NativeApplication for NativeViewerSession {
         let mut viewer_events = Vec::from(translated);
         let mut retained_event_count = 0;
         let mut chrome_error = None;
+        let mut suppress_cancelled_pointer_release = self.suppress_cancelled_pointer_release;
         let width = self.surface_width;
         let height = self.surface_height;
         let workspace_layout = self.workspace_layout;
         let active_panel = self.active_panel;
+        let chrome_before = self.window_chrome.clone();
+        let series_scroll_before = self
+            .series_browser
+            .as_ref()
+            .map(|browser| browser.first_visible());
         let (window_chrome, primary_app, compare_panels, browser, viewports) = (
             &mut self.window_chrome,
             &self.app,
@@ -248,13 +234,32 @@ impl NativeApplication for NativeViewerSession {
             ) {
                 Ok(chrome_event) => {
                     chrome_repaint |= chrome_event.repaint;
-                    if !chrome_event.consumed {
+                    let cancelled_pointer_event = match event {
+                        PresentationEvent::PointerUp { button, .. }
+                            if suppress_cancelled_pointer_release == Some(*button) =>
+                        {
+                            suppress_cancelled_pointer_release = None;
+                            true
+                        }
+                        PresentationEvent::PointerCancel { button, .. }
+                            if suppress_cancelled_pointer_release == Some(*button) =>
+                        {
+                            suppress_cancelled_pointer_release = None;
+                            true
+                        }
+                        PresentationEvent::FocusLost => {
+                            suppress_cancelled_pointer_release = None;
+                            false
+                        }
+                        _ => false,
+                    };
+                    if !chrome_event.consumed && !cancelled_pointer_event {
                         retained_event_count += 1;
                     }
                     if let Some(action) = chrome_event.action {
                         chrome_actions.push((retained_event_count, action));
                     }
-                    !chrome_event.consumed
+                    !chrome_event.consumed && !cancelled_pointer_event
                 }
                 Err(error) => {
                     chrome_error = Some(error);
@@ -263,17 +268,49 @@ impl NativeApplication for NativeViewerSession {
             }
         });
         if let Some(error) = chrome_error {
+            self.window_chrome = chrome_before;
+            if let (Some(index), Some(browser)) =
+                (series_scroll_before, self.series_browser.as_mut())
+            {
+                browser.restore_first_visible(index);
+            }
             return Err(NativeViewerError::from(error));
         }
+        let routed = match self.prepare_event_routes(&viewer_events) {
+            Ok(routed) => routed,
+            Err(error) => {
+                self.window_chrome = chrome_before;
+                if let (Some(index), Some(browser)) =
+                    (series_scroll_before, self.series_browser.as_mut())
+                {
+                    browser.restore_first_visible(index);
+                }
+                return Err(error);
+            }
+        };
+
+        let mut open_study_requested = !terminal
+            && viewer_events.iter().any(|event| {
+                matches!(
+                    event,
+                    PresentationEvent::KeyDown {
+                        virtual_key: VIRTUAL_KEY_OPEN_STUDY,
+                        repeated: false,
+                        modifiers,
+                    } if modifiers.ctrl()
+                )
+            });
         let mut chrome_exit = false;
         let mut viewer_exit = false;
         let mut viewer_repaint = false;
         let mut viewer_event_cursor = 0;
         for (event_end, action) in chrome_actions {
             if event_end > viewer_event_cursor {
-                match self
-                    .apply_viewer_event_segment(&viewer_events[viewer_event_cursor..event_end])?
-                {
+                match self.apply_viewer_event_segment(
+                    &viewer_events[viewer_event_cursor..event_end],
+                    &routed.routes()[viewer_event_cursor..event_end],
+                    &routed,
+                )? {
                     ViewerActionDisposition::Continue { repaint } => {
                         viewer_repaint |= repaint;
                     }
@@ -288,19 +325,46 @@ impl NativeApplication for NativeViewerSession {
                 chrome_exit = true;
                 break;
             }
-            chrome_repaint |= self.apply_window_action(action)?;
+            if action == WindowAction::OpenStudy {
+                open_study_requested = true;
+            } else {
+                chrome_repaint |= self.apply_window_action(action)?;
+            }
         }
         if !chrome_exit && !viewer_exit && viewer_event_cursor < viewer_events.len() {
-            match self.apply_viewer_event_segment(&viewer_events[viewer_event_cursor..])? {
+            match self.apply_viewer_event_segment(
+                &viewer_events[viewer_event_cursor..],
+                &routed.routes()[viewer_event_cursor..],
+                &routed,
+            )? {
                 ViewerActionDisposition::Continue { repaint } => {
                     viewer_repaint |= repaint;
                 }
                 ViewerActionDisposition::Exit => viewer_exit = true,
             }
         }
-        // Leave the shortcut in the shared action stream. `0x4f` has no viewer
-        // action, while retaining the original bounded batch avoids a second
-        // allocation and keeps pointer/focus ordering intact.
+        if !chrome_exit && !viewer_exit && open_study_requested {
+            match self.open_study_from_dialog() {
+                Ok(reopened) => study_reopened |= reopened,
+                Err(error) => {
+                    self.active_app_mut().status_message =
+                        format!("DICOM reopen failed; current study remains displayed: {error:#}");
+                    study_reopened = true;
+                }
+            }
+        }
+        if self.workspace_layout != routed.layout && routed.active_view.is_some() {
+            self.app.cancel_presentation_gesture();
+            for panel in &mut self.compare_panels {
+                panel.app.cancel_presentation_gesture();
+            }
+            self.window_chrome.cancel_pointer_capture();
+            self.active_view = None;
+            suppress_cancelled_pointer_release = Some(crate::presentation::PointerButton::Left);
+        }
+        self.suppress_cancelled_pointer_release = suppress_cancelled_pointer_release;
+        // Keep the shortcut in the bounded event stream to preserve pointer
+        // and focus ordering without a second allocation.
         let disposition = if chrome_exit || viewer_exit {
             ViewerActionDisposition::Exit
         } else {

@@ -48,7 +48,7 @@ impl ChromeLayout {
             CornerRadius::SQUARE,
             TOOLBAR_BACKGROUND,
         );
-        if self.geometry.series_preview.height > 0 {
+        if self.geometry.series_preview.width > 0 {
             series::render(
                 framebuffer,
                 self.geometry.series_preview,

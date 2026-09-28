@@ -88,7 +88,7 @@ cargo run --locked -p ritk-snap -- path/to/study --metis-native
 
 To compare two acquisitions from one discovered folder, select the primary and
 comparison SeriesInstanceUIDs. The native Métis window opens both in separate
-side-by-side panels; selecting a series in the left preview sidebar replaces
+side-by-side panels; selecting a series in the bottom preview bar replaces
 only the active panel:
 
 ```console
