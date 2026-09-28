@@ -1,4 +1,4 @@
-//! RadiAnt-style horizontal series preview below the image workspace.
+//! RadiAnt-clone horizontal series preview below the image workspace.
 
 use super::super::layout::text_style;
 use super::super::series_browser::{SeriesBrowser, SeriesChoice};
@@ -9,6 +9,9 @@ use arrayvec::ArrayString;
 use metis_platform::rasterizer::{fill_rect, CornerRadius};
 use metis_platform::typeface::draw_text;
 use metis_platform::{Color, Framebuffer, Rect};
+
+#[cfg(test)]
+mod tests;
 use std::fmt::Write as _;
 
 const PANEL_BACKGROUND: Color = Color::rgb(31, 37, 45);
