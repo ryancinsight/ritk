@@ -1,11 +1,11 @@
-use super::super::super::layout::{MAX_GRID_COLUMNS, MAX_GRID_ROWS, PanelGrid, WorkspaceLayout};
+use super::super::super::layout::{PanelGrid, WorkspaceLayout, MAX_GRID_COLUMNS, MAX_GRID_ROWS};
 use super::super::{Menu, WindowAction};
 use super::{
-    CONTROL_CAPACITY, ChromeControl, ChromeGeometry, ChromeLayout, ControlKind, ToolbarGroup,
+    ChromeControl, ChromeGeometry, ChromeLayout, ControlKind, ToolbarGroup, CONTROL_CAPACITY,
 };
 use crate::app::SnapApp;
 use crate::tools::kind::ToolKind;
-use anyhow::{Result, anyhow};
+use anyhow::{anyhow, Result};
 use arrayvec::ArrayVec;
 use metis_platform::Rect;
 const MENU_ROW_HEIGHT: u32 = 28;
