@@ -1,6 +1,7 @@
 //! Drawing for the native viewer workspace.
 
 use super::super::super::layout::text_style;
+use super::super::super::layout::WorkspaceLayout;
 use super::super::series;
 use super::*;
 use crate::app::SnapApp;
