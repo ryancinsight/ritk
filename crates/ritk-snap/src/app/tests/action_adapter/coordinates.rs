@@ -6,8 +6,8 @@ use crate::app::viewer_viewport::ViewerViewport;
 use crate::app::SnapApp;
 use crate::label::LabelEditor;
 use crate::presentation::browser_coordinates::content_fraction;
-use crate::presentation::{PointerButton, PresentationEvent};
-use crate::tools::interaction::ViewportOffset;
+use crate::presentation::{PointerButton, PresentationEvent, ViewportPoint};
+use crate::tools::interaction::{ImagePoint, ViewportOffset};
 use crate::tools::kind::ToolKind;
 use crate::ui::{LinkedCursor, ViewTransform};
 use ritk_annotation::LabelId;
@@ -175,6 +175,82 @@ fn fractional_client_coordinates_reach_image_mapping_unchanged() {
         [crate::tools::interaction::Annotation::HuPoint { pos, .. }]
             if *pos == [1.5, 1.5]
     ));
+}
+
+#[test]
+fn viewer_viewport_uses_half_open_image_edges() {
+    let viewport = ViewerViewport::new(
+        0,
+        [10.0, 20.0],
+        [2.0, 4.0],
+        [4, 2],
+        ViewTransform::default(),
+    )
+    .expect("finite image rectangle");
+
+    assert_eq!(
+        viewport.map(ViewportPoint::new(10.0, 20.0)),
+        Some(ImagePoint::new(0.0, 0.0))
+    );
+    assert_eq!(
+        viewport.map(ViewportPoint::new(12.0, 22.0)),
+        Some(ImagePoint::new(1.0, 0.5))
+    );
+    assert_eq!(viewport.map(ViewportPoint::new(18.0, 24.0)), None);
+    assert_eq!(viewport.map(ViewportPoint::new(16.0, 28.0)), None);
+}
+
+#[test]
+fn viewer_viewport_rejects_narrowing_a_point_onto_the_exclusive_edge() {
+    let viewport = ViewerViewport::new(0, [0.0, 0.0], [1.0, 1.0], [4, 2], ViewTransform::default())
+        .expect("finite image rectangle");
+
+    assert_eq!(viewport.map(ViewportPoint::new(3.999_999_99, 0.5)), None);
+}
+
+#[test]
+fn viewer_viewport_bounds_dimensions_to_exact_image_point_indices() {
+    let last_exact_index = 1_usize << f32::MANTISSA_DIGITS;
+    let largest_dimension = last_exact_index + 1;
+    let viewport = ViewerViewport::new(
+        0,
+        [0.0, 0.0],
+        [1.0, 1.0],
+        [largest_dimension, 4],
+        ViewTransform::default(),
+    )
+    .expect("every integer pixel index fits the image-point precision");
+    let exact_coordinate = f64::from(1_u32 << f32::MANTISSA_DIGITS);
+    assert_eq!(
+        viewport.map(ViewportPoint::new(exact_coordinate, 0.5)),
+        Some(ImagePoint::new(16_777_216.0, 0.5))
+    );
+    assert_eq!(
+        ViewerViewport::new(
+            0,
+            [0.0, 0.0],
+            [1.0, 1.0],
+            [largest_dimension + 1, 4],
+            ViewTransform::default(),
+        ),
+        Err(crate::app::viewer_viewport::ViewerViewportError::InvalidScreenGeometry)
+    );
+}
+
+#[cfg(target_pointer_width = "64")]
+#[test]
+fn viewer_viewport_rejects_dimensions_outside_the_exact_mapping_range() {
+    let width = usize::try_from(u64::from(u32::MAX) + 1).expect("64-bit host dimension");
+    assert_eq!(
+        ViewerViewport::new(
+            0,
+            [0.0, 0.0],
+            [1.0, 1.0],
+            [width, 4],
+            ViewTransform::default(),
+        ),
+        Err(crate::app::viewer_viewport::ViewerViewportError::InvalidScreenGeometry)
+    );
 }
 
 #[test]

@@ -3,10 +3,10 @@
 <a id="RITK-SNAP-OBLIQUE-NATIVE-001"></a>
 ## RITK-SNAP-OBLIQUE-NATIVE-001: Native oblique MPR
 - outcome: deliver a native four-plane oblique viewer with patient-space navigation and measurement.
-- acceptance: all child items land; invalid geometry is rejected; the public phantom capture and manual show the real workflow; native visual and value-semantic gates pass.
+- acceptance: all child items land; invalid geometry is rejected; the public phantom capture shows one complete, uncropped app window with visible menus or toolbar buttons and all four anatomical panes; native visual and value-semantic gates pass.
 - status: todo
 - priority: architecture
-- needs: RITK-SNAP-INTERACTION-REGIONS-001, RITK-SNAP-INTERACTION-MEASUREMENTS-001, RITK-SNAP-INTERACTION-STATE-001, RITK-SNAP-INTERACTION-WINDOW-LEVEL-001, RITK-SNAP-OBLIQUE-VIEWPORT-001, RITK-SNAP-OBLIQUE-APP-ADAPTER-001, RITK-SNAP-OBLIQUE-APP-TESTS-001, RITK-SNAP-OBLIQUE-SESSION-MODULES-001, RITK-SNAP-OBLIQUE-SESSION-WIRING-001, RITK-SNAP-OBLIQUE-ROUTING-001, RITK-SNAP-PATIENT-MEASUREMENT-OVERLAY-001, RITK-SNAP-OBLIQUE-SESSION-TESTS-001, RITK-SNAP-OBLIQUE-INTERACTION-TESTS-001, RITK-SNAP-WINDOW-CONTROLS-001, RITK-SNAP-OBLIQUE-MANUAL-001
+- needs: RITK-SNAP-INTERACTION-REGIONS-001, RITK-SNAP-INTERACTION-MEASUREMENTS-001, RITK-SNAP-INTERACTION-STATE-001, RITK-SNAP-INTERACTION-WINDOW-LEVEL-001, RITK-SNAP-OBLIQUE-APP-ADAPTER-001, RITK-SNAP-OBLIQUE-APP-TESTS-001, RITK-SNAP-OBLIQUE-SESSION-MODULES-001, RITK-SNAP-OBLIQUE-SESSION-WIRING-001, RITK-SNAP-OBLIQUE-ROUTING-001, RITK-SNAP-PATIENT-MEASUREMENT-OVERLAY-001, RITK-SNAP-OBLIQUE-SESSION-TESTS-001, RITK-SNAP-OBLIQUE-INTERACTION-TESTS-001, RITK-SNAP-WINDOW-CONTROLS-001, RITK-SNAP-OBLIQUE-MANUAL-001
 - scope: `crates/ritk-snap/src/{app,presentation,render,tools/interaction,session}/`, `crates/ritk-snap/src/main.rs`, crate README, ADRs, manual, and provenance.
 - next: deliver ready child items in dependency order; preserve the public MRI-DIR phantom as the shareable visual fixture.
 - risk: [major] [arch]; patient-space annotations and session format 3; no registry release is authorized.
@@ -67,29 +67,16 @@
 - next: move the remaining window-level cases and leave no implementation in the test manifest.
 - basis: 3fcdc3dd
 
-<a id="RITK-SNAP-OBLIQUE-VIEWPORT-001"></a>
-## RITK-SNAP-OBLIQUE-VIEWPORT-001: Map oblique viewport interactions
-- outcome: map viewport points and transforms through the rendered plane geometry.
-- acceptance: resize, pan, zoom, and pixel-to-patient mappings agree on rotated anisotropic test data.
-- status: blocked
-- priority: correctness
-- needs: none
-- scope: `crates/ritk-snap/src/app/oblique_viewport.rs`, app exports
-- blocker: local pre-push Clippy is held by the active shared source-identity lease from [Leto PR #276](https://github.com/ryancinsight/leto/pull/276).
-- reopen: rerun the configured gate after the shared lease releases; collect RITK package checks.
-- next: preserve the local viewport branch and resume its full gate after lease release.
-- basis: 4e2e797c6af199d0c33e37148e784b2becc04981
-
 <a id="RITK-SNAP-OBLIQUE-APP-ADAPTER-001"></a>
 ## RITK-SNAP-OBLIQUE-APP-ADAPTER-001: Route oblique viewer actions
 - outcome: apply pointer and navigation actions to the RITK oblique view model.
-- acceptance: clicks link the correct voxel, wheel translates the plane, and orientation keys update its basis; invalid actions reject.
+- acceptance: production oblique viewport mapping consumes the checked shared geometry; clicks link the correct voxel, wheel translates the plane, and orientation keys update its basis; invalid actions reject.
 - status: todo
 - priority: feature
-- needs: RITK-SNAP-OBLIQUE-VIEWPORT-001
-- scope: `crates/ritk-snap/src/app/action_adapter.rs`, `app/pointer_ops.rs`, and oblique modules
+- needs: none
+- scope: `crates/ritk-snap/src/app/{action_adapter.rs,pointer_ops.rs,screen_image_geometry.rs,oblique_viewport.rs}` and oblique tests
 - next: add the adapter with the smallest complete happy-path test.
-- basis: ba37d37658c679ba354eccf904f8074a2a2aff5e
+- basis: 4e2e797c6af199d0c33e37148e784b2becc04981
 
 <a id="RITK-SNAP-OBLIQUE-APP-TESTS-001"></a>
 ## RITK-SNAP-OBLIQUE-APP-TESTS-001: Verify oblique adapter boundaries
