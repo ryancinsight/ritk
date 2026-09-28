@@ -63,54 +63,18 @@ mod header;
 mod reader;
 mod shape;
 mod spatial;
+mod typed;
 mod writer;
 
 pub use reader::{
     read_nifti, read_nifti_from_bytes, read_nifti_labels, read_nifti_series,
     read_nifti_series_from_bytes,
 };
-
-use coeus_core::{ComputeBackend, CpuAddressableStorage};
-use ritk_image::Image;
-use std::path::Path;
+pub use typed::{NiftiReader, NiftiWriter};
 pub use writer::{
     write_nifti, write_nifti2, write_nifti2_labels, write_nifti2_series, write_nifti_labels,
     write_nifti_series,
 };
-
-/// DIP boundary executing strict spatial metadata preservation over standard NIfTI datasets.
-pub struct NiftiReader<B: ComputeBackend> {
-    backend: B,
-}
-
-impl<B: ComputeBackend> NiftiReader<B> {
-    pub fn new(backend: B) -> Self {
-        Self { backend }
-    }
-
-    pub fn read<P: AsRef<Path>>(&self, path: P) -> std::io::Result<Image<f32, B, 3>> {
-        read_nifti(path, &self.backend).map_err(|e| std::io::Error::other(e.to_string()))
-    }
-}
-
-/// DIP boundary executing strict spatial metadata preservation over standard NIfTI datasets.
-pub struct NiftiWriter<B: ComputeBackend> {
-    backend: B,
-}
-
-impl<B: ComputeBackend> NiftiWriter<B> {
-    pub fn new(backend: B) -> Self {
-        Self { backend }
-    }
-
-    pub fn write<P: AsRef<Path>>(&self, path: P, image: &Image<f32, B, 3>) -> std::io::Result<()>
-    where
-        B: Default,
-        B::DeviceBuffer<f32>: CpuAddressableStorage<f32>,
-    {
-        write_nifti(path, image, &self.backend).map_err(|e| std::io::Error::other(e.to_string()))
-    }
-}
 
 #[cfg(test)]
 mod tests;

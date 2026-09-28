@@ -1,6 +1,5 @@
 #![forbid(unsafe_code)]
 #![deny(missing_docs)]
-#![expect(clippy::unwrap_used, reason = "ratchet RITK-UNWRAP-1")]
 
 use std::collections::HashMap;
 
@@ -105,7 +104,7 @@ impl TrxTractogram {
 
         let offsets: Vec<u64> = offsets_raw
             .chunks_exact(U64_BYTES)
-            .map(|chunk| u64::from_le_bytes(chunk.try_into().unwrap()))
+            .map(|chunk| u64::from_le_bytes(chunk.try_into().expect("fixed-width byte field")))
             .collect();
 
         let sentinel = offsets[header.nb_streamlines as usize];
@@ -159,12 +158,21 @@ pub(crate) fn build_streamlines(
                 let base = start * TRX_DIMENSIONS as usize * F32_BYTES;
                 for point_index in 0..n_points {
                     let off = base + point_index * TRX_DIMENSIONS as usize * F32_BYTES;
-                    let x =
-                        f32::from_le_bytes(positions_raw[off..off + 4].try_into().unwrap()) as f64;
-                    let y = f32::from_le_bytes(positions_raw[off + 4..off + 8].try_into().unwrap())
-                        as f64;
-                    let z = f32::from_le_bytes(positions_raw[off + 8..off + 12].try_into().unwrap())
-                        as f64;
+                    let x = f32::from_le_bytes(
+                        positions_raw[off..off + 4]
+                            .try_into()
+                            .expect("fixed-width byte field"),
+                    ) as f64;
+                    let y = f32::from_le_bytes(
+                        positions_raw[off + 4..off + 8]
+                            .try_into()
+                            .expect("fixed-width byte field"),
+                    ) as f64;
+                    let z = f32::from_le_bytes(
+                        positions_raw[off + 8..off + 12]
+                            .try_into()
+                            .expect("fixed-width byte field"),
+                    ) as f64;
                     if !x.is_finite() || !y.is_finite() || !z.is_finite() {
                         return Err(TrxError::NonFiniteCoordinate { index, point_index });
                     }
@@ -175,11 +183,21 @@ pub(crate) fn build_streamlines(
                 let base = start * TRX_DIMENSIONS as usize * F64_BYTES;
                 for point_index in 0..n_points {
                     let off = base + point_index * TRX_DIMENSIONS as usize * F64_BYTES;
-                    let x = f64::from_le_bytes(positions_raw[off..off + 8].try_into().unwrap());
-                    let y =
-                        f64::from_le_bytes(positions_raw[off + 8..off + 16].try_into().unwrap());
-                    let z =
-                        f64::from_le_bytes(positions_raw[off + 16..off + 24].try_into().unwrap());
+                    let x = f64::from_le_bytes(
+                        positions_raw[off..off + 8]
+                            .try_into()
+                            .expect("fixed-width byte field"),
+                    );
+                    let y = f64::from_le_bytes(
+                        positions_raw[off + 8..off + 16]
+                            .try_into()
+                            .expect("fixed-width byte field"),
+                    );
+                    let z = f64::from_le_bytes(
+                        positions_raw[off + 16..off + 24]
+                            .try_into()
+                            .expect("fixed-width byte field"),
+                    );
                     if !x.is_finite() || !y.is_finite() || !z.is_finite() {
                         return Err(TrxError::NonFiniteCoordinate { index, point_index });
                     }

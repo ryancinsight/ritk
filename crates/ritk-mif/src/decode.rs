@@ -1,5 +1,4 @@
 //! Byte decoding for MRtrix `.mif` binary payloads.
-#![expect(clippy::unwrap_used, reason = "ratchet RITK-UNWRAP-1")]
 
 use anyhow::{anyhow, Result};
 
@@ -35,7 +34,7 @@ pub(crate) fn decode_bytes(
         }
         2 => {
             for chunk in raw.chunks_exact(2) {
-                let arr: [u8; 2] = chunk.try_into().unwrap();
+                let arr: [u8; 2] = chunk.try_into().expect("fixed-width byte field");
                 let val = if is_big_endian {
                     i16::from_be_bytes(arr) as f32
                 } else {
@@ -46,7 +45,7 @@ pub(crate) fn decode_bytes(
         }
         4 => {
             for chunk in raw.chunks_exact(4) {
-                let arr: [u8; 4] = chunk.try_into().unwrap();
+                let arr: [u8; 4] = chunk.try_into().expect("fixed-width byte field");
                 let val = if is_big_endian {
                     f32::from_bits(u32::from_be_bytes(arr))
                 } else {
@@ -57,7 +56,7 @@ pub(crate) fn decode_bytes(
         }
         8 => {
             for chunk in raw.chunks_exact(8) {
-                let arr: [u8; 8] = chunk.try_into().unwrap();
+                let arr: [u8; 8] = chunk.try_into().expect("fixed-width byte field");
                 let val = if is_big_endian {
                     f64::from_be_bytes(arr) as f32
                 } else {

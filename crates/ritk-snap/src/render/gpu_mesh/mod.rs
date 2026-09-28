@@ -33,7 +33,6 @@
 //! # Platform gate
 //!
 //! Compiled only on non-wasm32 targets (same gate as `gpu_volume`).
-#![expect(clippy::unwrap_used, reason = "ratchet RITK-UNWRAP-1")]
 
 mod context;
 mod frame_cache;
@@ -157,16 +156,11 @@ impl GpuMeshRenderer {
             if let Ok(Ok(())) = pending.rx.try_recv() {
                 let (rows, cols) = (pending.rows, pending.cols);
                 // Dimensions must match cache; if resize occurred, discard.
-                let collect = self
+                let image = self
                     .cache
                     .as_ref()
-                    .map(|c| c.rows == rows && c.cols == cols)
-                    .unwrap_or(false);
-                let image = if collect {
-                    Some(collect_mesh_result(self.cache.as_ref().unwrap()))
-                } else {
-                    None
-                };
+                    .filter(|c| c.rows == rows && c.cols == cols)
+                    .map(collect_mesh_result);
                 self.pending = None;
                 if let Some(img) = image {
                     self.last = Some(img);

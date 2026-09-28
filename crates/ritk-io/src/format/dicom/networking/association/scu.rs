@@ -8,8 +8,10 @@ use anyhow::{bail, Context, Result};
 impl Association {
     /// Send a C-ECHO-RQ and return the response status.
     pub fn c_echo(&mut self) -> Result<u16> {
-        let ctx = self
-            .context_for_sop_class(sop_class::VERIFICATION, &[transfer_syntax::IMPLICIT_VR_LE])?;
+        let ctx = self.context_for_sop_class(
+            sop_class::VERIFICATION_SOP_CLASS,
+            &[transfer_syntax::IMPLICIT_VR_LE],
+        )?;
         let msg = DimseMessage::c_echo_rq(self.next_message_id());
         self.send_message(ctx, &msg)?;
         let (_, rsp) = self.recv_message()?;

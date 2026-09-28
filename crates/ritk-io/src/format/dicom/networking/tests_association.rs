@@ -35,7 +35,10 @@ fn test_config_default() {
 fn test_requested_context_odd_ids() {
     let cfg = AssociationConfig {
         presentation_contexts: vec![
-            rpc(sop_class::VERIFICATION, &[transfer_syntax::IMPLICIT_VR_LE]),
+            rpc(
+                sop_class::VERIFICATION_SOP_CLASS,
+                &[transfer_syntax::IMPLICIT_VR_LE],
+            ),
             rpc(sop_class::FIND_STUDY, &[transfer_syntax::IMPLICIT_VR_LE]),
             rpc(sop_class::MOVE_STUDY, &[transfer_syntax::IMPLICIT_VR_LE]),
         ],
@@ -57,7 +60,7 @@ fn test_build_associate_rq() {
     let cfg = AssociationConfig {
         called_ae_title: ArrayString::from("TESTSCP").expect("infallible: validated precondition"),
         presentation_contexts: vec![rpc(
-            sop_class::VERIFICATION,
+            sop_class::VERIFICATION_SOP_CLASS,
             &[transfer_syntax::EXPLICIT_VR_LE],
         )],
         ..Default::default()
@@ -108,7 +111,7 @@ fn test_find_context() {
         negotiated_contexts: vec![
             NegotiatedContext {
                 presentation_context_id: 1,
-                abstract_syntax_uid: ArrayString::from(sop_class::VERIFICATION)
+                abstract_syntax_uid: ArrayString::from(sop_class::VERIFICATION_SOP_CLASS)
                     .expect("infallible: validated precondition"),
                 transfer_syntax_uid: ArrayString::from(transfer_syntax::IMPLICIT_VR_LE)
                     .expect("infallible: validated precondition"),
@@ -126,7 +129,7 @@ fn test_find_context() {
         state: crate::format::dicom::networking::association::DicomAssociationState::Active,
     };
     assert_eq!(
-        a.find_context(sop_class::VERIFICATION)
+        a.find_context(sop_class::VERIFICATION_SOP_CLASS)
             .expect("infallible: validated precondition")
             .presentation_context_id,
         1
@@ -161,7 +164,8 @@ fn test_negotiated_context_from_ac() {
     let mut m = std::collections::HashMap::new();
     m.insert(
         1u8,
-        ArrayString::from(sop_class::VERIFICATION).expect("infallible: validated precondition"),
+        ArrayString::from(sop_class::VERIFICATION_SOP_CLASS)
+            .expect("infallible: validated precondition"),
     );
     m.insert(
         3u8,
@@ -173,7 +177,7 @@ fn test_negotiated_context_from_ac() {
         n[0],
         NegotiatedContext {
             presentation_context_id: 1,
-            abstract_syntax_uid: ArrayString::from(sop_class::VERIFICATION)
+            abstract_syntax_uid: ArrayString::from(sop_class::VERIFICATION_SOP_CLASS)
                 .expect("infallible: validated precondition"),
             transfer_syntax_uid: ArrayString::from(transfer_syntax::IMPLICIT_VR_LE)
                 .expect("infallible: validated precondition")
