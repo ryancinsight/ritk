@@ -1,6 +1,6 @@
 //! Native chrome composition for the viewer session.
 
-use super::layout::{crosshair_overlay, MAX_GRID_PANELS};
+use super::layout::{MAX_GRID_PANELS, crosshair_overlay};
 use super::session::NativeViewerSession;
 use anyhow::Result;
 use arrayvec::ArrayVec;

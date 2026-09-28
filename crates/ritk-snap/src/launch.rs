@@ -289,7 +289,7 @@ fn run_app_with_compatibility_selection(
         );
         #[cfg(windows)]
         {
-            use metis_platform::native::{pick, DialogSelection};
+            use metis_platform::native::{DialogSelection, pick};
 
             let path = select_native_initial_path(options.initial_path.as_deref(), || {
                 pick(DialogSelection::Folder).map_err(Into::into)

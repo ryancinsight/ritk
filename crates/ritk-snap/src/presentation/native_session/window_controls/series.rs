@@ -4,9 +4,9 @@ use super::super::layout::text_style;
 use super::super::series_browser::{SeriesBrowser, SeriesChoice};
 use crate::app::SnapApp;
 use crate::presentation::PresentationFrame;
-use anyhow::{anyhow, Result};
+use anyhow::{Result, anyhow};
 use arrayvec::ArrayString;
-use metis_platform::rasterizer::{fill_rect, CornerRadius};
+use metis_platform::rasterizer::{CornerRadius, fill_rect};
 use metis_platform::typeface::draw_text;
 use metis_platform::{Color, Framebuffer, Rect};
 
