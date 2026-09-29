@@ -671,7 +671,8 @@ impl<T: Sample> OwnedPyramid<T> {
     /// Build a nearest-neighbour decimated pyramid.
     ///
     /// `scales` must be strictly decreasing coarse-to-fine, end at `1`, and
-    /// divide every image extent. Nearest-neighbour decimation is only a valid
+    /// divide every non-singleton image extent. Singleton axes are preserved
+    /// at extent `1`. Nearest-neighbour decimation is only a valid
     /// RF pyramid when the source is already band-limited at the coarsened
     /// resolution; this function deliberately does not filter. Callers that
     /// need an anti-aliased pyramid for wideband RF should use
@@ -727,7 +728,9 @@ impl<T: Sample> OwnedPyramid<T> {
     ///
     /// # Errors
     ///
-    /// Same validation as [`Self::nearest`]. The doubled axial extent is
+    /// Same validation as [`Self::nearest`]. For each axis the base extent is
+    /// `1` for a singleton source axis and otherwise `dims[axis] / scale`.
+    /// The doubled axial extent is
     /// checked before deriving output dimensions, and both the converted `T`
     /// output capacity and the `f64` reduction scratch capacity are checked
     /// before allocation.

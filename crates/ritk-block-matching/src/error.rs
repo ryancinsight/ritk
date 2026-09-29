@@ -49,6 +49,16 @@ pub enum BlockMatchingError {
         /// Fixed block extent on the overflowing axis.
         block: usize,
     },
+    /// An FFT moving ROI reach cannot be represented by `usize`.
+    #[error("FFT block/search reach overflows on axis {axis}: {block_radius} + {search_radius}")]
+    FftReachExtentOverflow {
+        /// Axis whose reach overflowed.
+        axis: usize,
+        /// Block radius on the overflowing axis.
+        block_radius: usize,
+        /// Search radius on the overflowing axis.
+        search_radius: usize,
+    },
     /// An FFT padded extent cannot be rounded to the next power of two.
     #[error("FFT padded extent overflows on axis {axis}: {extent}")]
     FftPaddingExtentOverflow {
