@@ -9,18 +9,13 @@ use metis_platform::Rect;
 pub(super) const CARD_HEIGHT: i32 = 104;
 pub(super) const CARD_GAP: i32 = 8;
 pub(super) const HEADER_HEIGHT: i32 = 48;
-const METADATA_HEIGHT: i32 = 132;
 const CARD_BOTTOM: i32 = 8;
 const CARD_LEFT: i32 = 8;
 const CARD_RIGHT: i32 = 10;
 pub(in crate::presentation::native_session::window_controls) const SCROLLBAR_WIDTH: i32 = 5;
 
 pub(in crate::presentation::native_session::window_controls) fn card_bounds(area: Rect) -> Rect {
-    let y = area
-        .y
-        .saturating_add(HEADER_HEIGHT)
-        .saturating_add(METADATA_HEIGHT)
-        .saturating_add(8);
+    let y = area.y.saturating_add(HEADER_HEIGHT).saturating_add(8);
     let bottom = area
         .y
         .saturating_add(area.height)

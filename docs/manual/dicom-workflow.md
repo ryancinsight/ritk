@@ -1235,17 +1235,18 @@ volume. This reproduces RadiAnt's documented series-browsing and multi-series
 workflow.
 
 The shareable captures use the public phantom and contain no clinical patient
-identifiers. In live use, the navigator shows Patient Name when the DICOM
-contains one, plus study and series labels; it does not display Patient ID.
-The controls invoke study loading, image tools, crosshair, cine, series
-navigation, panel layout, and reset actions. RITK is being built as a RadiAnt
-DICOM Viewer clone. This native slice follows its desktop organization: a
-Windows menu bar, compact toolbar with vertical separators between tool
+identifiers. The preview rail groups each study with separate patient and
+study headers. They show Patient Name and birth date, then study date/time,
+description, modality and series count; Patient ID is not displayed. Series
+cards follow each header and show thumbnails, image counts and panel
+assignments. The controls invoke study loading, image tools, crosshair, cine,
+series navigation, panel layout, and reset actions. RITK is being built as a
+RadiAnt DICOM Viewer clone. This native slice follows its desktop organization:
+a Windows menu bar, dark compact toolbar with vertical separators between tool
 groups, study-and-series preview bar, multi-panel image grid, F4 multi-series
 picker, Ctrl-click and drag assignment, and per-panel maximize/restore/close
-controls. Study, navigation, measurement, display, and layout actions occupy
-distinct toolbar groups. Configurable mouse-button mappings and the full image
-annotation set remain open parity gaps, tracked in the
+controls. Configurable mouse-button mappings and the full image annotation set
+remain open parity gaps, tracked in the
 [native viewer work](../../backlog.md#RITK-SNAP-RADIANT-INPUT-001) and
 [oblique MPR work](../../backlog.md#RITK-SNAP-OBLIQUE-NATIVE-001). The
 reference behavior appears in [series browsing](https://www.radiantviewer.com/dicom-viewer-manual/browse_series_and_images.html),
@@ -1317,8 +1318,9 @@ through the viewer, open their folder, press F4 or choose **Open multiple
 series** from **Window**, select MR T2 and CT, then press Enter or click
 **Open**. Enter opens every selected row; with no selection, it opens the
 first filtered match. Each panel has independent image navigation and
-window-level state. The left series bar shows study details, decoded
-thumbnails, image counts and panel assignments. Each panel title bar exposes
+window-level state. The left series bar groups studies into patient/study
+headers, then shows decoded series thumbnails, image counts and panel
+assignments. Each panel title bar exposes
 maximize/restore and close controls. Ctrl-click or drag a preview card to
 assign another series to a panel. The public MRI-DIR porcine-head phantom is
 not patient data. Native input and state-transition tests cover the F4 picker

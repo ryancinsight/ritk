@@ -47,6 +47,40 @@ fn series_cards_show_order_within_their_study() {
 }
 
 #[test]
+fn first_series_card_shows_separate_patient_and_study_header_boxes() {
+    use crate::dicom::loader::{scan_folder_for_series, tests::fixtures};
+
+    let root = tempfile::tempdir().expect("series root");
+    fixtures::write_study(root.path(), "MR", "2.25.202609050001").expect("write series");
+    let tree = scan_folder_for_series(root.path()).expect("scan series");
+    let browser = SeriesBrowser::from_tree(&tree, None).expect("build series catalog");
+    let area = Rect::new(0, 0, 300, 400);
+    let mut framebuffer = Framebuffer::new(300, 400).expect("series rail framebuffer");
+
+    cards::render(
+        &mut framebuffer,
+        area,
+        Some(&browser),
+        &SnapApp::default(),
+        &[],
+        0,
+        &[],
+    )
+    .expect("render grouped series card");
+
+    assert_eq!(
+        framebuffer.get_pixel(24, 62),
+        Color::rgb(27, 45, 59),
+        "the patient details have their own preview-rail header box"
+    );
+    assert_eq!(
+        framebuffer.get_pixel(24, 83),
+        Color::rgb(38, 54, 67),
+        "the study details have their own preview-rail header box"
+    );
+}
+
+#[test]
 fn thumbnail_preserves_sampled_rgba_from_the_rendered_slice() {
     let frame = PresentationFrame::from_rgba(2, 1, &[255, 0, 0, 255, 0, 255, 0, 255])
         .expect("two-pixel axial frame");

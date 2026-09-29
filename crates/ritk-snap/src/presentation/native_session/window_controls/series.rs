@@ -18,12 +18,9 @@ use anyhow::{anyhow, Result};
 use metis_platform::{Color, Framebuffer, Rect};
 
 pub(super) const TEXT: Color = Color::rgb(225, 232, 239);
-pub(super) const STUDY_TEXT: Color = Color::rgb(181, 216, 237);
 pub(super) const MUTED: Color = Color::rgb(153, 169, 183);
 
-pub(super) use labels::{
-    display_patient_name, format_dicom_date, format_dicom_time, patient_label, study_label,
-};
+pub(super) use labels::{format_dicom_date, format_dicom_time, patient_label, study_label};
 
 pub(super) fn render(
     framebuffer: &mut Framebuffer,

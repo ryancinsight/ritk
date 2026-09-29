@@ -1,182 +1,145 @@
-//! Patient and study information in the series preview rail.
+//! Patient and study information attached to each study's first series card.
 
-use super::super::super::layout::text_style;
 use super::super::super::series_browser::SeriesChoice;
-use super::{
-    display_patient_name, draw_fit, format_dicom_date, format_dicom_time, MUTED, STUDY_TEXT, TEXT,
-};
+use super::super::series::draw_fit;
+use super::{format_dicom_date, format_dicom_time, patient_label};
+use crate::presentation::native_session::layout::TextStyle;
 use anyhow::{anyhow, Result};
 use arrayvec::ArrayString;
 use metis_platform::rasterizer::{fill_rect, CornerRadius};
 use metis_platform::{Color, Framebuffer, Rect};
 use std::fmt::Write as _;
 
-const STUDY_INFO_BACKGROUND: Color = Color::rgb(27, 45, 59);
-const STUDY_INFO_EDGE: Color = Color::rgb(91, 151, 184);
-const STUDY_DETAILS_BUFFER_CAPACITY: usize = 16 + 2 + decimal_width(usize::MAX) + 12 + 64 * 4;
-
-const fn decimal_width(mut value: usize) -> usize {
-    let mut digits = 1;
-    while value >= 10 {
-        value /= 10;
-        digits += 1;
-    }
-    digits
-}
+const STUDY_HEADER_BACKGROUND: Color = Color::rgb(27, 45, 59);
+const STUDY_DETAILS_BACKGROUND: Color = Color::rgb(38, 54, 67);
+const STUDY_HEADER_EDGE: Color = Color::rgb(91, 151, 184);
+const STUDY_LABEL_CAPACITY: usize = 80;
 
 pub(super) fn render_study_metadata(
     framebuffer: &mut Framebuffer,
-    area: Rect,
-    choice: Option<&SeriesChoice>,
+    card: Rect,
+    choice: &SeriesChoice,
     study_count: usize,
+    detail_style: TextStyle,
 ) -> Result<()> {
-    let Some(choice) = choice else {
-        return Ok(());
-    };
-    let left = area.x.saturating_add(8);
-    let width = area.width.saturating_sub(20);
-    let patient_y = area.y.saturating_add(54);
-    let study_y = patient_y.saturating_add(54);
-    for (y, height) in [(patient_y, 48), (study_y, 72)] {
-        let rect = Rect::new(left, y, width, height);
-        fill_rect(
-            framebuffer,
-            rect,
-            CornerRadius::SQUARE,
-            STUDY_INFO_BACKGROUND,
-        );
+    let patient = patient_label(choice)?;
+    let identity = study_identity_label(choice, study_count)?;
+    let series_summary = study_series_summary_label(choice)?;
+    let patient_box = Rect::new(
+        card.x.saturating_add(2),
+        card.y.saturating_add(2),
+        card.width.saturating_sub(4),
+        18,
+    );
+    let study_box = Rect::new(
+        patient_box.x,
+        patient_box.y.saturating_add(20),
+        patient_box.width,
+        30,
+    );
+    fill_rect(
+        framebuffer,
+        patient_box,
+        CornerRadius::SQUARE,
+        STUDY_HEADER_BACKGROUND,
+    );
+    fill_rect(
+        framebuffer,
+        study_box,
+        CornerRadius::SQUARE,
+        STUDY_DETAILS_BACKGROUND,
+    );
+    for rect in [patient_box, study_box] {
         fill_rect(
             framebuffer,
             Rect::new(rect.x, rect.y, 2, rect.height),
             CornerRadius::SQUARE,
-            STUDY_INFO_EDGE,
+            STUDY_HEADER_EDGE,
         );
     }
 
-    let label_style = text_style(MUTED, 10)?;
-    let value_style = text_style(TEXT, 12)?;
-    let detail_style = text_style(STUDY_TEXT, 10)?;
-    let text_x = left.saturating_add(8);
-    let text_width = width.saturating_sub(16);
+    let text_x = patient_box.x.saturating_add(8);
+    let text_width = patient_box.width.saturating_sub(16);
     draw_fit(
         framebuffer,
         text_x,
-        patient_y.saturating_add(6),
-        "Patient",
-        label_style,
-        text_width,
-    );
-    let patient_name = display_patient_name(choice.acquisition.patient_name());
-    draw_fit(
-        framebuffer,
-        text_x,
-        patient_y.saturating_add(21),
-        patient_name.as_str(),
-        value_style,
-        text_width,
-    );
-    let birth_date_value = choice
-        .acquisition
-        .patient_birth_date()
-        .and_then(format_dicom_date)
-        .unwrap_or_else(|| ArrayString::from("DOB N/A").expect("static label fits"));
-    let mut birth_date = ArrayString::<32>::new();
-    write!(&mut birth_date, "DOB  {}", birth_date_value)
-        .map_err(|_| anyhow!("patient birth date exceeds its display buffer"))?;
-    draw_fit(
-        framebuffer,
-        text_x,
-        patient_y.saturating_add(36),
-        birth_date.as_str(),
+        patient_box.y.saturating_add(3),
+        patient.as_str(),
         detail_style,
         text_width,
     );
-
-    let mut study_title = ArrayString::<32>::new();
-    write!(
-        &mut study_title,
-        "Study {}/{}",
-        choice.study_number, study_count
-    )
-    .map_err(|_| anyhow!("study position exceeds its display buffer"))?;
     draw_fit(
         framebuffer,
         text_x,
-        study_y.saturating_add(6),
-        study_title.as_str(),
-        label_style,
+        study_box.y.saturating_add(2),
+        identity.as_str(),
+        detail_style,
         text_width,
     );
+    let summary_width = detail_style
+        .extent(0, 0, series_summary.as_str())
+        .map_or(0, |rect| rect.width)
+        .min(text_width);
+    let description_width = text_width.saturating_sub(summary_width.saturating_add(8));
+    let study_description = choice.acquisition.study_description().trim();
+    draw_fit(
+        framebuffer,
+        text_x,
+        study_box.y.saturating_add(15),
+        if study_description.is_empty() {
+            "No study description"
+        } else {
+            study_description
+        },
+        detail_style,
+        description_width,
+    );
+    draw_fit(
+        framebuffer,
+        study_box
+            .x
+            .saturating_add(study_box.width)
+            .saturating_sub(summary_width)
+            .saturating_sub(8),
+        study_box.y.saturating_add(15),
+        series_summary.as_str(),
+        detail_style,
+        summary_width,
+    );
+    Ok(())
+}
+
+fn study_identity_label(
+    choice: &SeriesChoice,
+    study_count: usize,
+) -> Result<ArrayString<STUDY_LABEL_CAPACITY>> {
     let date = choice
         .acquisition
         .study_date()
         .and_then(format_dicom_date)
         .unwrap_or_else(|| ArrayString::from("Date N/A").expect("static label fits"));
     let time = choice.acquisition.study_time().and_then(format_dicom_time);
-    let mut date_time = ArrayString::<32>::new();
-    write!(&mut date_time, "{}", date)
-        .map_err(|_| anyhow!("study date exceeds its display buffer"))?;
+    let mut label = ArrayString::new();
+    write!(
+        &mut label,
+        "Study {}/{}  ·  {}",
+        choice.study_number, study_count, date
+    )
+    .map_err(|_| anyhow!("study identity label exceeds its display buffer"))?;
     if let Some(time) = time {
-        write!(&mut date_time, "  {}", time)
-            .map_err(|_| anyhow!("study time exceeds its display buffer"))?;
+        write!(&mut label, " {time}")
+            .map_err(|_| anyhow!("study identity label exceeds its display buffer"))?;
     }
-    draw_fit(
-        framebuffer,
-        text_x,
-        study_y.saturating_add(25),
-        date_time.as_str(),
-        value_style,
-        text_width,
-    );
-    let study_details = format_study_details(
-        choice.modality.as_ref(),
-        choice.study_series_count,
-        choice.acquisition.study_description().trim(),
-    )?;
-    draw_fit(
-        framebuffer,
-        text_x,
-        study_y.saturating_add(45),
-        study_details.as_str(),
-        detail_style,
-        text_width,
-    );
-    Ok(())
+    Ok(label)
 }
 
-fn format_study_details(
-    modality: &str,
-    study_series_count: usize,
-    study_description: &str,
-) -> Result<ArrayString<STUDY_DETAILS_BUFFER_CAPACITY>> {
-    let mut details = ArrayString::new();
-    if study_description.is_empty() {
-        write!(&mut details, "{}: {} series", modality, study_series_count)
-    } else {
-        write!(
-            &mut details,
-            "{}: {} series  |  {}",
-            modality, study_series_count, study_description
-        )
-    }
-    .map_err(|_| anyhow!("study details exceed their DICOM metadata buffer"))?;
-    Ok(details)
-}
-
-#[cfg(test)]
-mod tests {
-    use super::{format_study_details, STUDY_DETAILS_BUFFER_CAPACITY};
-
-    #[test]
-    fn study_details_fit_maximum_dicom_metadata_and_series_count() {
-        let description = "😀".repeat(64);
-        let details = format_study_details("1234567890123456", usize::MAX, &description)
-            .expect("bounded DICOM metadata fits the study label");
-
-        assert_eq!(
-            details.as_str(),
-            format!("1234567890123456: {} series  |  {description}", usize::MAX)
-        );
-        assert_eq!(details.len(), STUDY_DETAILS_BUFFER_CAPACITY);
-    }
+fn study_series_summary_label(choice: &SeriesChoice) -> Result<ArrayString<STUDY_LABEL_CAPACITY>> {
+    let mut label = ArrayString::new();
+    write!(
+        &mut label,
+        "{}  ·  {} series",
+        choice.modality, choice.study_series_count
+    )
+    .map_err(|_| anyhow!("study series summary exceeds its display buffer"))?;
+    Ok(label)
 }

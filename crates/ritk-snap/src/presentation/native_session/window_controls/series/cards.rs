@@ -131,12 +131,6 @@ pub(super) fn render(
     );
 
     if let Some(browser) = browser {
-        render_study_metadata(
-            framebuffer,
-            area,
-            browser.choice(browser.active_index()),
-            browser.study_count(),
-        )?;
         render_cards(
             framebuffer,
             area,
@@ -217,7 +211,15 @@ impl CardPresentation<'_> {
                 STUDY_EDGE,
             );
         }
-        if !same_study(previous, Some(choice)) {
+        let starts_study = !same_study(previous, Some(choice));
+        if starts_study {
+            render_study_metadata(
+                framebuffer,
+                card,
+                choice,
+                self.browser.study_count(),
+                self.detail_style,
+            )?;
             fill_rect(
                 framebuffer,
                 Rect::new(card.x, card.y, card.width, 2),
@@ -250,9 +252,10 @@ impl CardPresentation<'_> {
 
         let thumbnail = Rect::new(
             offset(card.x, 6)?,
-            offset(card.y, 8)?,
+            offset(card.y, if starts_study { 52 } else { 8 })?,
             68,
-            card.height.saturating_sub(16),
+            card.height
+                .saturating_sub(if starts_study { 60 } else { 16 }),
         );
         fill_rect(
             framebuffer,
@@ -298,7 +301,7 @@ impl CardPresentation<'_> {
         draw_fit(
             framebuffer,
             text_x,
-            offset(card.y, 7)?,
+            offset(card.y, if starts_study { 53 } else { 6 })?,
             label.as_str(),
             self.detail_style,
             first_line_width,
@@ -307,16 +310,17 @@ impl CardPresentation<'_> {
             draw_fit(
                 framebuffer,
                 text_right.saturating_sub(badge_width),
-                offset(card.y, 7)?,
+                offset(card.y, if starts_study { 53 } else { 6 })?,
                 badge.as_str(),
                 self.detail_style,
                 badge_width,
             );
         }
+        let (title_y, modality_y) = if starts_study { (69, 84) } else { (29, 61) };
         draw_fit(
             framebuffer,
             text_x,
-            offset(card.y, 29)?,
+            offset(card.y, title_y)?,
             choice.description.as_ref(),
             self.title_style,
             text_width,
@@ -324,7 +328,7 @@ impl CardPresentation<'_> {
         draw_fit(
             framebuffer,
             text_x,
-            offset(card.y, 61)?,
+            offset(card.y, modality_y)?,
             choice.modality.as_ref(),
             self.detail_style,
             text_width,

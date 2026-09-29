@@ -108,10 +108,10 @@ mod tests {
             .expect("last scrollbar geometry")
             .expect("overflow shows a scrollbar");
 
-        assert_eq!(visible, 4);
-        assert_eq!(first.0, Rect::new(268, 276, 5, 490));
-        assert_eq!(first.1, Rect::new(268, 276, 5, 98));
-        assert_eq!(last.1, Rect::new(268, 668, 5, 98));
+        assert_eq!(visible, 5);
+        assert_eq!(first.0, Rect::new(268, 144, 5, 622));
+        assert_eq!(first.1, Rect::new(268, 144, 5, 155));
+        assert_eq!(last.1, Rect::new(268, 611, 5, 155));
     }
 
     #[test]

@@ -23,7 +23,7 @@ fn visible_workspace_places_the_series_preview_to_the_left_of_the_image_panels()
         layout.series_preview_area(),
         metis_platform::Rect::new(0, 78, 276, 696)
     );
-    assert_eq!(layout.visible_series(), 4);
+    assert_eq!(layout.visible_series(), 5);
     assert!(!layout.owns_pointer(640.0, 400.0));
     assert!(layout.owns_pointer(100.0, 160.0));
     assert!(layout.owns_pointer(640.0, 780.0));
@@ -280,7 +280,7 @@ fn vertical_scrollbar_pages_through_the_discovered_series() {
             .expect("page down through the series list"),
         WindowChromeEvent::consumed(true)
     );
-    assert_eq!(browser.as_ref().map(SeriesBrowser::first_visible), Some(4));
+    assert_eq!(browser.as_ref().map(SeriesBrowser::first_visible), Some(5));
 }
 
 #[test]

@@ -9,19 +9,28 @@ pub(in crate::presentation::native_session::window_controls) fn patient_label(
     choice: &SeriesChoice,
 ) -> Result<ArrayString<96>> {
     let name = display_patient_name(choice.acquisition.patient_name());
+    let birth_date = choice
+        .acquisition
+        .patient_birth_date()
+        .and_then(format_dicom_date)
+        .unwrap_or_else(|| ArrayString::from("N/A").expect("static label fits"));
     let mut label = ArrayString::new();
     if name.as_str() == "Unknown patient" {
         write!(&mut label, "Patient {}", choice.patient_number)
+            .map_err(|_| anyhow!("patient label exceeds its display buffer"))?;
     } else {
-        write!(&mut label, "{}", name.as_str())
+        label
+            .try_push_str(name.as_str())
+            .map_err(|_| anyhow!("patient label exceeds its display buffer"))?;
     }
-    .map_err(|_| anyhow!("patient label exceeds its display buffer"))?;
+    write!(&mut label, "  ·  DOB {}", birth_date.as_str())
+        .map_err(|_| anyhow!("patient label exceeds its display buffer"))?;
     Ok(label)
 }
 
 pub(in crate::presentation::native_session::window_controls) fn study_label(
     choice: &SeriesChoice,
-) -> Result<ArrayString<96>> {
+) -> Result<ArrayString<320>> {
     let mut label = ArrayString::new();
     if let Some(date) = choice.acquisition.study_date().and_then(format_dicom_date) {
         write!(&mut label, "{date}")

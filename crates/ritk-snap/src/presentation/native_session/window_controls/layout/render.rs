@@ -13,17 +13,17 @@ use metis_platform::rasterizer::{fill_rect, CornerRadius};
 use metis_platform::{Color, Framebuffer, Rect};
 use std::fmt::Write as _;
 
-const SURFACE_BACKGROUND: Color = Color::rgb(232, 234, 236);
-const TOOLBAR_BACKGROUND: Color = Color::rgb(207, 211, 215);
-const STATUS_BACKGROUND: Color = Color::rgb(218, 221, 224);
-const CONTROL_BACKGROUND: Color = Color::rgb(242, 243, 244);
-const CONTROL_ACTIVE: Color = Color::rgb(42, 99, 139);
-const CONTROL_TEXT: Color = Color::rgb(35, 40, 45);
-const POPUP_BACKGROUND: Color = Color::rgb(247, 248, 249);
-const ICON_COLOR: Color = Color::rgb(61, 70, 78);
+const SURFACE_BACKGROUND: Color = Color::rgb(35, 40, 47);
+const TOOLBAR_BACKGROUND: Color = Color::rgb(43, 49, 57);
+const STATUS_BACKGROUND: Color = Color::rgb(35, 40, 47);
+const CONTROL_BACKGROUND: Color = Color::rgb(56, 63, 72);
+const CONTROL_ACTIVE: Color = Color::rgb(32, 105, 145);
+const CONTROL_TEXT: Color = Color::rgb(221, 228, 235);
+const POPUP_BACKGROUND: Color = Color::rgb(43, 49, 57);
+const ICON_COLOR: Color = Color::rgb(190, 202, 213);
 const ICON_ACTIVE: Color = Color::rgb(250, 252, 254);
-const DIVIDER: Color = Color::rgb(154, 160, 166);
-const STATUS_TEXT: Color = Color::rgb(55, 61, 67);
+const DIVIDER: Color = Color::rgb(79, 88, 98);
+const STATUS_TEXT: Color = Color::rgb(183, 194, 204);
 
 pub(super) fn render(
     layout: &ChromeLayout,
