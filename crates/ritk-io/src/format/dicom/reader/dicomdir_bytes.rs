@@ -1,6 +1,7 @@
 //! Byte-level traversal of an Explicit VR Little Endian DICOMDIR record sequence.
 
 use anyhow::{bail, Context, Result};
+use consus_core::{read_integer, ByteOrder, EndianScalar};
 use dicom::core::{Tag, VR};
 
 const RECORD_SEQUENCE: Tag = Tag(0x0004, 0x1220);
@@ -31,7 +32,7 @@ pub(super) fn directory_record_offsets(data: &[u8]) -> Result<Vec<u32>> {
         bail!("DICOMDIR file meta must begin with (0002,0000) UL length 4");
     }
     let group_length_start = checked_end(dataset_start, group_length.bytes, data.len())?;
-    let group_length_value = read_u32(data, group_length_start)?;
+    let group_length_value = read_field::<u32>(data, group_length_start)?;
     let group_length_end = checked_end(group_length_start, 4, data.len())?;
     let group_end = checked_end(
         group_length_end,
@@ -70,7 +71,7 @@ fn record_sequence_offsets(data: &[u8], start: usize, length: u32) -> Result<Vec
             if length != UNDEFINED_LENGTH {
                 bail!("defined-length DICOMDIR sequence contains a delimiter");
             }
-            let delimiter_length = read_u32(data, checked_end(cursor, 4, data.len())?)?;
+            let delimiter_length = read_field::<u32>(data, checked_end(cursor, 4, data.len())?)?;
             if delimiter_length != 0 {
                 bail!("DICOMDIR sequence delimiter length must be zero");
             }
@@ -80,7 +81,7 @@ fn record_sequence_offsets(data: &[u8], start: usize, length: u32) -> Result<Vec
             bail!("DICOMDIR DirectoryRecordSequence expects an item at byte {cursor}");
         }
         offsets.push(u32::try_from(cursor).context("DICOMDIR record offset exceeds u32")?);
-        let item_length = read_u32(data, checked_end(cursor, 4, data.len())?)?;
+        let item_length = read_field::<u32>(data, checked_end(cursor, 4, data.len())?)?;
         cursor = skip_item(data, cursor, sequence_end, item_length)?;
     }
 }
@@ -115,7 +116,7 @@ fn skip_dataset_until_item_delimiter(data: &[u8], mut cursor: usize, end: usize)
     while cursor < end {
         let tag = read_tag(data, cursor)?;
         if tag == ITEM_DELIMITER {
-            let delimiter_length = read_u32(data, checked_end(cursor, 4, end)?)?;
+            let delimiter_length = read_field::<u32>(data, checked_end(cursor, 4, end)?)?;
             if delimiter_length != 0 {
                 bail!("DICOMDIR item delimiter length must be zero");
             }
@@ -163,7 +164,7 @@ fn skip_sequence(data: &[u8], start: usize, length: u32, parent_end: usize) -> R
             if length != UNDEFINED_LENGTH {
                 bail!("defined-length DICOMDIR sequence contains a delimiter");
             }
-            let delimiter_length = read_u32(data, checked_end(cursor, 4, parent_end)?)?;
+            let delimiter_length = read_field::<u32>(data, checked_end(cursor, 4, parent_end)?)?;
             if delimiter_length != 0 {
                 bail!("DICOMDIR sequence delimiter length must be zero");
             }
@@ -172,7 +173,7 @@ fn skip_sequence(data: &[u8], start: usize, length: u32, parent_end: usize) -> R
         if tag != ITEM_TAG {
             bail!("DICOMDIR sequence expects an item at byte {cursor}");
         }
-        let item_length = read_u32(data, checked_end(cursor, 4, sequence_end)?)?;
+        let item_length = read_field::<u32>(data, checked_end(cursor, 4, sequence_end)?)?;
         cursor = skip_item(data, cursor, sequence_end, item_length)?;
     }
 }
@@ -196,9 +197,9 @@ fn read_header(data: &[u8], cursor: usize) -> Result<RawHeader> {
     let bytes = if uses_short_length(vr) { 8 } else { 12 };
     let length_offset = checked_end(cursor, if bytes == 8 { 6 } else { 8 }, data.len())?;
     let length = if bytes == 8 {
-        u32::from(u16::from_le_bytes(read_array::<2>(data, length_offset)?))
+        u32::from(read_field::<u16>(data, length_offset)?)
     } else {
-        read_u32(data, length_offset)?
+        read_field::<u32>(data, length_offset)?
     };
     checked_end(cursor, bytes, data.len())?;
     Ok(RawHeader {
@@ -237,13 +238,17 @@ fn uses_short_length(vr: VR) -> bool {
 }
 
 fn read_tag(data: &[u8], cursor: usize) -> Result<Tag> {
-    let group = u16::from_le_bytes(read_array::<2>(data, cursor)?);
-    let element = u16::from_le_bytes(read_array::<2>(data, checked_end(cursor, 2, data.len())?)?);
+    let group = read_field::<u16>(data, cursor)?;
+    let element = read_field::<u16>(data, checked_end(cursor, 2, data.len())?)?;
     Ok(Tag(group, element))
 }
 
-fn read_u32(data: &[u8], cursor: usize) -> Result<u32> {
-    Ok(u32::from_le_bytes(read_array::<4>(data, cursor)?))
+fn read_field<T: EndianScalar>(data: &[u8], cursor: usize) -> Result<T> {
+    let end = checked_end(cursor, T::BYTE_WIDTH, data.len())?;
+    let field = data
+        .get(cursor..end)
+        .context("truncated DICOMDIR byte span")?;
+    read_integer(field, ByteOrder::LittleEndian).context("DICOMDIR byte span has an invalid width")
 }
 
 fn read_array<const N: usize>(data: &[u8], cursor: usize) -> Result<[u8; N]> {

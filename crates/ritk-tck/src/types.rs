@@ -1,3 +1,4 @@
+use consus_core::ByteOrder;
 use std::collections::HashMap;
 
 use gaia::Polyline;
@@ -63,11 +64,24 @@ pub enum TckDatatype {
 }
 
 impl TckDatatype {
+    /// Bytes per scalar.
+    pub(crate) fn scalar_width(self) -> usize {
+        match self {
+            TckDatatype::Float32LE | TckDatatype::Float32BE => 4,
+            TckDatatype::Float64LE | TckDatatype::Float64BE => 8,
+        }
+    }
+
     /// Number of bytes per point (3 scalars × byte width).
     pub(crate) fn bytes_per_point(self) -> usize {
+        3 * self.scalar_width()
+    }
+
+    /// Byte order of every scalar.
+    pub(crate) fn byte_order(self) -> ByteOrder {
         match self {
-            TckDatatype::Float32LE | TckDatatype::Float32BE => 12,
-            TckDatatype::Float64LE | TckDatatype::Float64BE => 24,
+            TckDatatype::Float32LE | TckDatatype::Float64LE => ByteOrder::LittleEndian,
+            TckDatatype::Float32BE | TckDatatype::Float64BE => ByteOrder::BigEndian,
         }
     }
 

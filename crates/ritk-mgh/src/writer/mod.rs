@@ -4,13 +4,13 @@
 //! in `.mgz` or `.mgh.gz` are gzip-compressed. The series writer emits one
 //! frame per volume with a shared spatial grid.
 
-use crate::binary::write_be;
 use crate::spatial::ras_center_from_geometry;
 use crate::{
     is_gzip_path, DOF_UNSET, GOOD_RAS_VALID, MRI_FLOAT, PADDING_LEN, SINGLE_FRAME, VERSION,
 };
 use anyhow::{anyhow, Context, Result};
 use coeus_core::{ComputeBackend, CpuAddressableStorage};
+use consus_core::{write_to, ByteOrder};
 use flate2::write::GzEncoder;
 use flate2::Compression;
 use ritk_image::Image;
@@ -76,31 +76,31 @@ fn write_mgh_flat<W: Write>(
 ) -> Result<()> {
     let [nz, ny, nx] = shape;
 
-    write_be(writer, VERSION)?;
+    write_to(writer, VERSION, ByteOrder::BigEndian)?;
     for (axis, extent) in [("x", nx), ("y", ny), ("z", nz)] {
         let extent = i32::try_from(extent)
             .with_context(|| format!("MGH {axis}-axis extent {extent} exceeds i32"))?;
-        write_be(writer, extent)?;
+        write_to(writer, extent, ByteOrder::BigEndian)?;
     }
-    write_be(writer, SINGLE_FRAME)?;
-    write_be(writer, MRI_FLOAT)?;
-    write_be(writer, DOF_UNSET)?;
-    write_be(writer, GOOD_RAS_VALID)?;
+    write_to(writer, SINGLE_FRAME, ByteOrder::BigEndian)?;
+    write_to(writer, MRI_FLOAT, ByteOrder::BigEndian)?;
+    write_to(writer, DOF_UNSET, ByteOrder::BigEndian)?;
+    write_to(writer, GOOD_RAS_VALID, ByteOrder::BigEndian)?;
 
     for axis in 0..3 {
-        write_be(writer, spacing[axis] as f32)?;
+        write_to(writer, spacing[axis] as f32, ByteOrder::BigEndian)?;
     }
 
     for col in 0..3 {
         for row in 0..3 {
-            write_be(writer, direction[(row, col)] as f32)?;
+            write_to(writer, direction[(row, col)] as f32, ByteOrder::BigEndian)?;
         }
     }
 
     let c_ras = ras_center_from_geometry(origin, spacing, direction, [nz, ny, nx]);
-    write_be(writer, c_ras[0] as f32)?;
-    write_be(writer, c_ras[1] as f32)?;
-    write_be(writer, c_ras[2] as f32)?;
+    write_to(writer, c_ras[0] as f32, ByteOrder::BigEndian)?;
+    write_to(writer, c_ras[1] as f32, ByteOrder::BigEndian)?;
+    write_to(writer, c_ras[2] as f32, ByteOrder::BigEndian)?;
 
     writer
         .write_all(&[0u8; PADDING_LEN])
@@ -227,31 +227,31 @@ where
     let nframes_i32 = i32::try_from(volumes.len())
         .context("MGH series frame count exceeds i32 header capacity")?;
 
-    write_be(writer, VERSION)?;
+    write_to(writer, VERSION, ByteOrder::BigEndian)?;
     for (axis, extent) in [("x", nx), ("y", ny), ("z", nz)] {
         let extent = i32::try_from(extent)
             .with_context(|| format!("MGH {axis}-axis extent {extent} exceeds i32"))?;
-        write_be(writer, extent)?;
+        write_to(writer, extent, ByteOrder::BigEndian)?;
     }
-    write_be(writer, nframes_i32)?;
-    write_be(writer, MRI_FLOAT)?;
-    write_be(writer, DOF_UNSET)?;
-    write_be(writer, GOOD_RAS_VALID)?;
+    write_to(writer, nframes_i32, ByteOrder::BigEndian)?;
+    write_to(writer, MRI_FLOAT, ByteOrder::BigEndian)?;
+    write_to(writer, DOF_UNSET, ByteOrder::BigEndian)?;
+    write_to(writer, GOOD_RAS_VALID, ByteOrder::BigEndian)?;
 
     for axis in 0..3 {
-        write_be(writer, spacing[axis] as f32)?;
+        write_to(writer, spacing[axis] as f32, ByteOrder::BigEndian)?;
     }
 
     for col in 0..3 {
         for row in 0..3 {
-            write_be(writer, direction[(row, col)] as f32)?;
+            write_to(writer, direction[(row, col)] as f32, ByteOrder::BigEndian)?;
         }
     }
 
     let c_ras = ras_center_from_geometry(origin, spacing, direction, [nz, ny, nx]);
-    write_be(writer, c_ras[0] as f32)?;
-    write_be(writer, c_ras[1] as f32)?;
-    write_be(writer, c_ras[2] as f32)?;
+    write_to(writer, c_ras[0] as f32, ByteOrder::BigEndian)?;
+    write_to(writer, c_ras[1] as f32, ByteOrder::BigEndian)?;
+    write_to(writer, c_ras[2] as f32, ByteOrder::BigEndian)?;
 
     writer
         .write_all(&[0u8; PADDING_LEN])

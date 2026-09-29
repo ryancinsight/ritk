@@ -1,8 +1,6 @@
 use super::convert::{f64_affine_to_f32, f64_to_f32, f64x4_to_f32x4};
 use super::raw::{
-    read_array, read_f32, read_f32x4_as_f64, read_f64, read_f64x4, read_i16, read_i32, read_i64,
-    read_u16, write_f32, write_f32x4, write_f64, write_f64x4, write_i16, write_i32, write_i64,
-    write_u16, Endian,
+    read_array, read_f32x4_as_f64, read_f64x4, read_field, write_f32x4, write_f64x4, write_field,
 };
 use super::validate::{
     checked_lane, checked_spatial_pixdim, dims_for_version, qfac_from_pixdim,
@@ -10,6 +8,7 @@ use super::validate::{
     validate_vox_offset, volume_count,
 };
 use anyhow::{anyhow, bail, Context, Result};
+use consus_core::ByteOrder;
 
 const NIFTI1_HEADER_LEN: usize = 348;
 const NIFTI1_SINGLE_FILE_VOX_OFFSET: usize = 352;
@@ -96,7 +95,7 @@ pub(crate) struct NiftiHeader {
     pub(crate) srow_y: [f64; 4],
     pub(crate) srow_z: [f64; 4],
     pub(crate) xyzt_units: i32,
-    endian: Endian,
+    endian: ByteOrder,
 }
 
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
@@ -156,7 +155,7 @@ impl NiftiHeader {
             srow_y: spatial.srow_y,
             srow_z: spatial.srow_z,
             xyzt_units: 2,
-            endian: Endian::Little,
+            endian: ByteOrder::LittleEndian,
         })
     }
 
@@ -168,18 +167,18 @@ impl NiftiHeader {
             );
         }
 
-        let little = i32::from_le_bytes(read_array::<4>(bytes, 0)?);
-        let big = i32::from_be_bytes(read_array::<4>(bytes, 0)?);
+        let little = read_field::<i32>(bytes, 0, ByteOrder::LittleEndian)?;
+        let big = read_field::<i32>(bytes, 0, ByteOrder::BigEndian)?;
         match (little, big) {
-            (348, _) => Self::parse_nifti1(bytes, Endian::Little),
-            (_, 348) => Self::parse_nifti1(bytes, Endian::Big),
-            (540, _) => Self::parse_nifti2(bytes, Endian::Little),
-            (_, 540) => Self::parse_nifti2(bytes, Endian::Big),
+            (348, _) => Self::parse_nifti1(bytes, ByteOrder::LittleEndian),
+            (_, 348) => Self::parse_nifti1(bytes, ByteOrder::BigEndian),
+            (540, _) => Self::parse_nifti2(bytes, ByteOrder::LittleEndian),
+            (_, 540) => Self::parse_nifti2(bytes, ByteOrder::BigEndian),
             _ => bail!("Invalid NIfTI sizeof_hdr; expected 348 or 540"),
         }
     }
 
-    fn parse_nifti1(bytes: &[u8], endian: Endian) -> Result<Self> {
+    fn parse_nifti1(bytes: &[u8], endian: ByteOrder) -> Result<Self> {
         if bytes.len() < NIFTI1_HEADER_LEN {
             bail!(
                 "NIfTI-1 header requires {NIFTI1_HEADER_LEN} bytes, got {}",
@@ -194,19 +193,19 @@ impl NiftiHeader {
 
         let mut dim = [0_usize; 8];
         for (index, slot) in dim.iter_mut().enumerate() {
-            *slot = usize::from(read_u16(bytes, 40 + index * 2, endian)?);
+            *slot = usize::from(read_field::<u16>(bytes, 40 + index * 2, endian)?);
         }
         validate_dims(dim)?;
 
-        let datatype = NiftiDatatype::from_code(read_i16(bytes, 70, endian)?)?;
-        validate_bitpix(datatype, read_i16(bytes, 72, endian)?)?;
+        let datatype = NiftiDatatype::from_code(read_field::<i16>(bytes, 70, endian)?)?;
+        validate_bitpix(datatype, read_field::<i16>(bytes, 72, endian)?)?;
 
         let mut pixdim = [0.0_f64; 8];
         for (index, slot) in pixdim.iter_mut().enumerate() {
-            *slot = f64::from(read_f32(bytes, 76 + index * 4, endian)?);
+            *slot = f64::from(read_field::<f32>(bytes, 76 + index * 4, endian)?);
         }
 
-        let vox_offset = f64::from(read_f32(bytes, 108, endian)?);
+        let vox_offset = f64::from(read_field::<f32>(bytes, 108, endian)?);
         let vox_offset = validate_vox_offset(HeaderVersion::One, vox_offset)?;
 
         Ok(Self {
@@ -215,14 +214,14 @@ impl NiftiHeader {
             datatype,
             pixdim,
             vox_offset,
-            qform_code: i32::from(read_i16(bytes, 252, endian)?),
-            sform_code: i32::from(read_i16(bytes, 254, endian)?),
-            quatern_b: f64::from(read_f32(bytes, 256, endian)?),
-            quatern_c: f64::from(read_f32(bytes, 260, endian)?),
-            quatern_d: f64::from(read_f32(bytes, 264, endian)?),
-            quatern_x: f64::from(read_f32(bytes, 268, endian)?),
-            quatern_y: f64::from(read_f32(bytes, 272, endian)?),
-            quatern_z: f64::from(read_f32(bytes, 276, endian)?),
+            qform_code: i32::from(read_field::<i16>(bytes, 252, endian)?),
+            sform_code: i32::from(read_field::<i16>(bytes, 254, endian)?),
+            quatern_b: f64::from(read_field::<f32>(bytes, 256, endian)?),
+            quatern_c: f64::from(read_field::<f32>(bytes, 260, endian)?),
+            quatern_d: f64::from(read_field::<f32>(bytes, 264, endian)?),
+            quatern_x: f64::from(read_field::<f32>(bytes, 268, endian)?),
+            quatern_y: f64::from(read_field::<f32>(bytes, 272, endian)?),
+            quatern_z: f64::from(read_field::<f32>(bytes, 276, endian)?),
             srow_x: read_f32x4_as_f64(bytes, 280, endian)?,
             srow_y: read_f32x4_as_f64(bytes, 296, endian)?,
             srow_z: read_f32x4_as_f64(bytes, 312, endian)?,
@@ -231,7 +230,7 @@ impl NiftiHeader {
         })
     }
 
-    fn parse_nifti2(bytes: &[u8], endian: Endian) -> Result<Self> {
+    fn parse_nifti2(bytes: &[u8], endian: ByteOrder) -> Result<Self> {
         if bytes.len() < NIFTI2_HEADER_LEN {
             bail!(
                 "NIfTI-2 header requires {NIFTI2_HEADER_LEN} bytes, got {}",
@@ -246,23 +245,23 @@ impl NiftiHeader {
 
         let mut dim = [0_usize; 8];
         for (index, slot) in dim.iter_mut().enumerate() {
-            let raw = read_i64(bytes, 16 + index * 8, endian)?;
+            let raw = read_field::<i64>(bytes, 16 + index * 8, endian)?;
             *slot = usize::try_from(raw).with_context(|| {
                 format!("NIfTI-2 dim[{index}] must be non-negative and fit usize, got {raw}")
             })?;
         }
         validate_dims(dim)?;
 
-        let datatype = NiftiDatatype::from_code(read_i16(bytes, 12, endian)?)?;
-        validate_bitpix(datatype, read_i16(bytes, 14, endian)?)?;
+        let datatype = NiftiDatatype::from_code(read_field::<i16>(bytes, 12, endian)?)?;
+        validate_bitpix(datatype, read_field::<i16>(bytes, 14, endian)?)?;
 
         let mut pixdim = [0.0_f64; 8];
         for (index, slot) in pixdim.iter_mut().enumerate() {
-            *slot = read_f64(bytes, 104 + index * 8, endian)?;
+            *slot = read_field::<f64>(bytes, 104 + index * 8, endian)?;
         }
 
         let vox_offset =
-            validate_i64_vox_offset(HeaderVersion::Two, read_i64(bytes, 168, endian)?)?;
+            validate_i64_vox_offset(HeaderVersion::Two, read_field::<i64>(bytes, 168, endian)?)?;
 
         Ok(Self {
             version: HeaderVersion::Two,
@@ -270,18 +269,18 @@ impl NiftiHeader {
             datatype,
             pixdim,
             vox_offset,
-            qform_code: read_i32(bytes, 344, endian)?,
-            sform_code: read_i32(bytes, 348, endian)?,
-            quatern_b: read_f64(bytes, 352, endian)?,
-            quatern_c: read_f64(bytes, 360, endian)?,
-            quatern_d: read_f64(bytes, 368, endian)?,
-            quatern_x: read_f64(bytes, 376, endian)?,
-            quatern_y: read_f64(bytes, 384, endian)?,
-            quatern_z: read_f64(bytes, 392, endian)?,
+            qform_code: read_field::<i32>(bytes, 344, endian)?,
+            sform_code: read_field::<i32>(bytes, 348, endian)?,
+            quatern_b: read_field::<f64>(bytes, 352, endian)?,
+            quatern_c: read_field::<f64>(bytes, 360, endian)?,
+            quatern_d: read_field::<f64>(bytes, 368, endian)?,
+            quatern_x: read_field::<f64>(bytes, 376, endian)?,
+            quatern_y: read_field::<f64>(bytes, 384, endian)?,
+            quatern_z: read_field::<f64>(bytes, 392, endian)?,
             srow_x: read_f64x4(bytes, 400, endian)?,
             srow_y: read_f64x4(bytes, 432, endian)?,
             srow_z: read_f64x4(bytes, 464, endian)?,
-            xyzt_units: read_i32(bytes, 500, endian)?,
+            xyzt_units: read_field::<i32>(bytes, 500, endian)?,
             endian,
         })
     }
@@ -295,44 +294,44 @@ impl NiftiHeader {
 
     fn encode_nifti1(&self) -> [u8; NIFTI1_HEADER_LEN] {
         let mut out = [0_u8; NIFTI1_HEADER_LEN];
-        write_i32(&mut out, 0, 348);
+        write_field::<i32>(&mut out, 0, 348);
         for (index, value) in self.dim.iter().copied().enumerate() {
-            write_u16(
+            write_field::<u16>(
                 &mut out,
                 40 + index * 2,
                 u16::try_from(value)
                     .expect("invariant: NIfTI-1 header dims are validated at construction"),
             );
         }
-        write_i16(&mut out, 70, self.datatype.code());
-        write_i16(&mut out, 72, self.datatype.bitpix());
+        write_field::<i16>(&mut out, 70, self.datatype.code());
+        write_field::<i16>(&mut out, 72, self.datatype.bitpix());
         for (index, value) in self.pixdim.iter().copied().enumerate() {
-            write_f32(&mut out, 76 + index * 4, f64_to_f32(value, "pixdim"));
+            write_field::<f32>(&mut out, 76 + index * 4, f64_to_f32(value, "pixdim"));
         }
-        write_f32(
+        write_field::<f32>(
             &mut out,
             108,
             f64_to_f32(self.vox_offset as f64, "vox_offset"),
         );
-        write_f32(&mut out, 112, 1.0);
+        write_field::<f32>(&mut out, 112, 1.0);
         out[123] = u8::try_from(self.xyzt_units)
             .expect("invariant: NIfTI-1 xyzt_units is set to a u8-compatible value");
-        write_i16(
+        write_field::<i16>(
             &mut out,
             252,
             i16::try_from(self.qform_code).expect("invariant: NIfTI-1 qform_code fits i16"),
         );
-        write_i16(
+        write_field::<i16>(
             &mut out,
             254,
             i16::try_from(self.sform_code).expect("invariant: NIfTI-1 sform_code fits i16"),
         );
-        write_f32(&mut out, 256, f64_to_f32(self.quatern_b, "quatern_b"));
-        write_f32(&mut out, 260, f64_to_f32(self.quatern_c, "quatern_c"));
-        write_f32(&mut out, 264, f64_to_f32(self.quatern_d, "quatern_d"));
-        write_f32(&mut out, 268, f64_to_f32(self.quatern_x, "quatern_x"));
-        write_f32(&mut out, 272, f64_to_f32(self.quatern_y, "quatern_y"));
-        write_f32(&mut out, 276, f64_to_f32(self.quatern_z, "quatern_z"));
+        write_field::<f32>(&mut out, 256, f64_to_f32(self.quatern_b, "quatern_b"));
+        write_field::<f32>(&mut out, 260, f64_to_f32(self.quatern_c, "quatern_c"));
+        write_field::<f32>(&mut out, 264, f64_to_f32(self.quatern_d, "quatern_d"));
+        write_field::<f32>(&mut out, 268, f64_to_f32(self.quatern_x, "quatern_x"));
+        write_field::<f32>(&mut out, 272, f64_to_f32(self.quatern_y, "quatern_y"));
+        write_field::<f32>(&mut out, 276, f64_to_f32(self.quatern_z, "quatern_z"));
         write_f32x4(&mut out, 280, self.srow_x);
         write_f32x4(&mut out, 296, self.srow_y);
         write_f32x4(&mut out, 312, self.srow_z);
@@ -342,12 +341,12 @@ impl NiftiHeader {
 
     fn encode_nifti2(&self) -> [u8; NIFTI2_HEADER_LEN] {
         let mut out = [0_u8; NIFTI2_HEADER_LEN];
-        write_i32(&mut out, 0, 540);
+        write_field::<i32>(&mut out, 0, 540);
         out[4..12].copy_from_slice(&NIFTI2_MAGIC_SINGLE_FILE);
-        write_i16(&mut out, 12, self.datatype.code());
-        write_i16(&mut out, 14, self.datatype.bitpix());
+        write_field::<i16>(&mut out, 12, self.datatype.code());
+        write_field::<i16>(&mut out, 14, self.datatype.bitpix());
         for (index, value) in self.dim.iter().copied().enumerate() {
-            write_i64(
+            write_field::<i64>(
                 &mut out,
                 16 + index * 8,
                 i64::try_from(value)
@@ -355,26 +354,26 @@ impl NiftiHeader {
             );
         }
         for (index, value) in self.pixdim.iter().copied().enumerate() {
-            write_f64(&mut out, 104 + index * 8, value);
+            write_field::<f64>(&mut out, 104 + index * 8, value);
         }
-        write_i64(
+        write_field::<i64>(
             &mut out,
             168,
             i64::try_from(self.vox_offset).expect("invariant: vox_offset fits i64"),
         );
-        write_f64(&mut out, 176, 1.0);
-        write_i32(&mut out, 344, self.qform_code);
-        write_i32(&mut out, 348, self.sform_code);
-        write_f64(&mut out, 352, self.quatern_b);
-        write_f64(&mut out, 360, self.quatern_c);
-        write_f64(&mut out, 368, self.quatern_d);
-        write_f64(&mut out, 376, self.quatern_x);
-        write_f64(&mut out, 384, self.quatern_y);
-        write_f64(&mut out, 392, self.quatern_z);
+        write_field::<f64>(&mut out, 176, 1.0);
+        write_field::<i32>(&mut out, 344, self.qform_code);
+        write_field::<i32>(&mut out, 348, self.sform_code);
+        write_field::<f64>(&mut out, 352, self.quatern_b);
+        write_field::<f64>(&mut out, 360, self.quatern_c);
+        write_field::<f64>(&mut out, 368, self.quatern_d);
+        write_field::<f64>(&mut out, 376, self.quatern_x);
+        write_field::<f64>(&mut out, 384, self.quatern_y);
+        write_field::<f64>(&mut out, 392, self.quatern_z);
         write_f64x4(&mut out, 400, self.srow_x);
         write_f64x4(&mut out, 432, self.srow_y);
         write_f64x4(&mut out, 464, self.srow_z);
-        write_i32(&mut out, 500, self.xyzt_units);
+        write_field::<i32>(&mut out, 500, self.xyzt_units);
         out
     }
 
@@ -388,8 +387,8 @@ impl NiftiHeader {
         T: NiftiLane<N>,
     {
         match self.endian {
-            Endian::Little => T::from_little_endian(raw),
-            Endian::Big => T::from_big_endian(raw),
+            ByteOrder::LittleEndian => T::from_little_endian(raw),
+            ByteOrder::BigEndian => T::from_big_endian(raw),
         }
     }
 

@@ -13,6 +13,7 @@
 
 use crate::domain::vtk_data_object::{AttributeArray, VtkPolyData};
 use anyhow::{bail, Context, Result};
+use consus_core::{read_integer, ByteOrder};
 use std::path::Path;
 
 /// Read an STL file (ASCII or binary) and return a [`VtkPolyData`].
@@ -40,7 +41,8 @@ fn is_binary_stl(bytes: &[u8]) -> bool {
     if bytes.len() < 84 {
         return false;
     }
-    let n = u32::from_le_bytes([bytes[80], bytes[81], bytes[82], bytes[83]]) as usize;
+    let n = read_integer::<u32>(&bytes[80..], ByteOrder::LittleEndian)
+        .expect("invariant: the length check above guarantees 84 bytes") as usize;
     bytes.len() == n * 50 + 84
 }
 
@@ -127,7 +129,10 @@ fn parse_stl_ascii(bytes: &[u8]) -> Result<VtkPolyData> {
 fn parse_stl_binary(bytes: &[u8]) -> Result<VtkPolyData> {
     // bytes[0..80]  : header (ignored)
     // bytes[80..84] : n_triangles as u32 LE
-    let n = u32::from_le_bytes([bytes[80], bytes[81], bytes[82], bytes[83]]) as usize;
+    let n = bytes
+        .get(80..)
+        .and_then(|count| read_integer::<u32>(count, ByteOrder::LittleEndian))
+        .context("binary STL is shorter than its 84-byte header")? as usize;
     let required = n * 50 + 84;
     if bytes.len() < required {
         bail!(
@@ -143,11 +148,11 @@ fn parse_stl_binary(bytes: &[u8]) -> Result<VtkPolyData> {
 
     let mut off = 84usize;
     for _ in 0..n {
-        let normal = read_f32x3_le(bytes, off);
+        let normal = read_vector_le(bytes, off);
         off += 12;
         let base = points.len() as u32;
         for _ in 0..3 {
-            points.push(read_f32x3_le(bytes, off));
+            points.push(read_vector_le(bytes, off));
             off += 12;
         }
         cell_normals.push(normal);
@@ -161,21 +166,11 @@ fn parse_stl_binary(bytes: &[u8]) -> Result<VtkPolyData> {
 // ── Helpers ───────────────────────────────────────────────────────────────────
 
 #[inline]
-fn read_f32x3_le(bytes: &[u8], off: usize) -> [f32; 3] {
-    let x = f32::from_le_bytes([bytes[off], bytes[off + 1], bytes[off + 2], bytes[off + 3]]);
-    let y = f32::from_le_bytes([
-        bytes[off + 4],
-        bytes[off + 5],
-        bytes[off + 6],
-        bytes[off + 7],
-    ]);
-    let z = f32::from_le_bytes([
-        bytes[off + 8],
-        bytes[off + 9],
-        bytes[off + 10],
-        bytes[off + 11],
-    ]);
-    [x, y, z]
+fn read_vector_le(bytes: &[u8], off: usize) -> [f32; 3] {
+    std::array::from_fn(|axis| {
+        read_integer(&bytes[off + 4 * axis..], ByteOrder::LittleEndian)
+            .expect("invariant: the body holds every declared triangle")
+    })
 }
 
 fn build_stl_poly(

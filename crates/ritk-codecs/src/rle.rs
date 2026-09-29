@@ -6,6 +6,7 @@
 //! the encoded samples exactly before modality LUT application.
 
 use anyhow::{bail, Context, Result};
+use consus_core::{read_integer, ByteOrder, EndianScalar};
 
 use crate::packbits_decode;
 use crate::{decode_native_pixel_bytes_checked, PixelLayout};
@@ -29,7 +30,7 @@ pub fn decode_rle_lossless_fragment(fragment: &[u8], layout: PixelLayout) -> Res
         );
     }
 
-    let n_segments = read_u32_le(fragment, 0, "RLE segment count")? as usize;
+    let n_segments = read_le::<u32>(fragment, 0, "RLE segment count")? as usize;
     if n_segments != expected_segments {
         bail!(
             "RLE header declares {} segments; expected {}",
@@ -39,7 +40,7 @@ pub fn decode_rle_lossless_fragment(fragment: &[u8], layout: PixelLayout) -> Res
     }
 
     let offsets: Vec<usize> = (0..n_segments)
-        .map(|k| read_u32_le(fragment, 4 + k * 4, "RLE segment offset").map(|v| v as usize))
+        .map(|k| read_le::<u32>(fragment, 4 + k * 4, "RLE segment offset").map(|v| v as usize))
         .collect::<Result<Vec<_>>>()?;
     for pair in offsets.windows(2) {
         if pair[0] >= pair[1] {
@@ -153,14 +154,14 @@ fn packbits_encode(data: &[u8]) -> Vec<u8> {
     out
 }
 
-fn read_u32_le(bytes: &[u8], offset: usize, field: &str) -> Result<u32> {
+fn read_le<T: EndianScalar>(bytes: &[u8], offset: usize, field: &str) -> Result<T> {
     let end = offset
-        .checked_add(4)
+        .checked_add(T::BYTE_WIDTH)
         .ok_or_else(|| anyhow::anyhow!("{field} offset overflows usize"))?;
-    let chunk = bytes
+    bytes
         .get(offset..end)
-        .ok_or_else(|| anyhow::anyhow!("{field} at offset {offset} exceeds byte buffer"))?;
-    Ok(u32::from_le_bytes([chunk[0], chunk[1], chunk[2], chunk[3]]))
+        .and_then(|chunk| read_integer(chunk, ByteOrder::LittleEndian))
+        .ok_or_else(|| anyhow::anyhow!("{field} at offset {offset} exceeds byte buffer"))
 }
 
 #[cfg(test)]

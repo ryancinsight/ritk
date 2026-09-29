@@ -325,7 +325,7 @@ checksum = "330a5ed07fa54e4702c9d6c4174f74427fc0ef6e214bbd677ae50a5099946470"
 [[package]]
 name = "apollo-dctdst-core"
 version = "0.16.0"
-source = "git+https://github.com/ryancinsight/apollo#f3b2f84420f06f4df6a7c3e035a453e06e3df31b"
+source = "git+https://github.com/ryancinsight/apollo#011f0389bec8e623463ba02bf4cffa07943fcf9f"
 dependencies = [
  "eunomia",
 ]
@@ -1471,7 +1471,7 @@ checksum = "c2459377285ad874054d797f3ccebf984978aa39129f6eafde5cdc8315b612f8"
 [[package]]
 name = "consus-compression"
 version = "0.1.0"
-source = "git+https://github.com/ryancinsight/consus.git#1fff4281ebb720c17e70c65c7e788c4c8ce183b4"
+source = "git+https://github.com/ryancinsight/consus.git#b5ea3b3e448f035512be76fb5e6271e47a2c60e7"
 dependencies = [
  "byteorder",
  "consus-core",
@@ -1480,7 +1480,7 @@ dependencies = [
 [[package]]
 name = "consus-core"
 version = "0.1.0"
-source = "git+https://github.com/ryancinsight/consus.git#1fff4281ebb720c17e70c65c7e788c4c8ce183b4"
+source = "git+https://github.com/ryancinsight/consus.git#b5ea3b3e448f035512be76fb5e6271e47a2c60e7"
 dependencies = [
  "byteorder",
  "smallvec",
@@ -1490,7 +1490,7 @@ dependencies = [
 [[package]]
 name = "consus-hdf5"
 version = "0.1.0"
-source = "git+https://github.com/ryancinsight/consus.git#1fff4281ebb720c17e70c65c7e788c4c8ce183b4"
+source = "git+https://github.com/ryancinsight/consus.git#b5ea3b3e448f035512be76fb5e6271e47a2c60e7"
 dependencies = [
  "byteorder",
  "consus-compression",
@@ -1501,7 +1501,7 @@ dependencies = [
 [[package]]
 name = "consus-io"
 version = "0.1.0"
-source = "git+https://github.com/ryancinsight/consus.git#1fff4281ebb720c17e70c65c7e788c4c8ce183b4"
+source = "git+https://github.com/ryancinsight/consus.git#b5ea3b3e448f035512be76fb5e6271e47a2c60e7"
 dependencies = [
  "consus-core",
 ]
@@ -1509,12 +1509,12 @@ dependencies = [
 [[package]]
 name = "consus-onnx"
 version = "0.1.0"
-source = "git+https://github.com/ryancinsight/consus.git#1fff4281ebb720c17e70c65c7e788c4c8ce183b4"
+source = "git+https://github.com/ryancinsight/consus.git#b5ea3b3e448f035512be76fb5e6271e47a2c60e7"
 
 [[package]]
 name = "consus-raster"
 version = "0.1.0"
-source = "git+https://github.com/ryancinsight/consus.git#428a1910d036fe0f2cfc60b6439071f83ae9df56"
+source = "git+https://github.com/ryancinsight/consus.git#b5ea3b3e448f035512be76fb5e6271e47a2c60e7"
 dependencies = [
  "apollo-dctdst-core",
  "jpeg-encoder",
@@ -2333,7 +2333,7 @@ checksum = "0b5343afd4a8365a643ac588dab4cf234a190c7f6c88c9f6dd6ffe00837661b7"
 [[package]]
 name = "eunomia"
 version = "0.8.0"
-source = "git+https://github.com/ryancinsight/eunomia#2dd48e730d82fafa9617803014a55a8618ef2949"
+source = "git+https://github.com/ryancinsight/eunomia#c29becfbe8af9e9732aa19c7c643e671d84ec6b4"
 dependencies = [
  "bytemuck",
  "eunomia-derive",
@@ -2345,7 +2345,7 @@ dependencies = [
 [[package]]
 name = "eunomia-derive"
 version = "0.8.0"
-source = "git+https://github.com/ryancinsight/eunomia#2dd48e730d82fafa9617803014a55a8618ef2949"
+source = "git+https://github.com/ryancinsight/eunomia#c29becfbe8af9e9732aa19c7c643e671d84ec6b4"
 dependencies = [
  "proc-macro2",
  "quote",
@@ -5893,6 +5893,7 @@ dependencies = [
  "anyhow",
  "base64 0.22.1",
  "coeus-core",
+ "consus-core",
  "image 0.24.9",
  "ritk-core",
  "ritk-image",
@@ -5962,6 +5963,7 @@ version = "0.6.0"
 dependencies = [
  "anyhow",
  "base64 0.22.1",
+ "consus-core",
  "consus-raster",
  "criterion",
  "image 0.24.9",
@@ -6219,6 +6221,7 @@ dependencies = [
  "anyhow",
  "base64 0.22.1",
  "coeus-core",
+ "consus-core",
  "criterion",
  "flate2",
  "image 0.24.9",
@@ -6295,6 +6298,7 @@ version = "0.2.0"
 dependencies = [
  "anyhow",
  "coeus-core",
+ "consus-core",
  "flate2",
  "ritk-image",
  "ritk-spatial",
@@ -6322,6 +6326,7 @@ dependencies = [
 name = "ritk-parcellation"
 version = "0.1.0"
 dependencies = [
+ "consus-core",
  "proptest",
  "ritk-annotation",
  "ritk-spatial",
@@ -6511,6 +6516,7 @@ dependencies = [
 name = "ritk-tck"
 version = "0.1.0"
 dependencies = [
+ "consus-core",
  "gaia-mesh",
  "leto",
  "thiserror 2.0.20",
@@ -6609,6 +6615,7 @@ version = "0.2.0"
 dependencies = [
  "anyhow",
  "coeus-core",
+ "consus-core",
  "consus-io",
  "criterion",
  "gaia-mesh",

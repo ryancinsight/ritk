@@ -2,6 +2,7 @@
 //! and shared line/cell parsing utilities.
 
 use anyhow::{bail, Context, Result};
+use consus_core::{ByteOrder, EndianScalar};
 use consus_io::{bounded_capacity, read_exact_bounded};
 use std::io::{BufRead, Read};
 
@@ -41,44 +42,6 @@ where
         bail!("expected {count} {type_name} values, got {}", out.len());
     }
     Ok(out)
-}
-
-/// Trait for types that can be decoded from big-endian byte slices.
-pub trait FromBeBytes: Sized {
-    /// Number of bytes per element.
-    const SIZE: usize;
-    /// Decode one value from a big-endian byte slice of exactly `SIZE` bytes.
-    fn from_be_slice(bytes: &[u8]) -> Self;
-}
-
-impl FromBeBytes for f32 {
-    const SIZE: usize = 4;
-    fn from_be_slice(bytes: &[u8]) -> Self {
-        f32::from_be_bytes([bytes[0], bytes[1], bytes[2], bytes[3]])
-    }
-}
-
-impl FromBeBytes for f64 {
-    const SIZE: usize = 8;
-    fn from_be_slice(bytes: &[u8]) -> Self {
-        f64::from_be_bytes([
-            bytes[0], bytes[1], bytes[2], bytes[3], bytes[4], bytes[5], bytes[6], bytes[7],
-        ])
-    }
-}
-
-impl FromBeBytes for i32 {
-    const SIZE: usize = 4;
-    fn from_be_slice(bytes: &[u8]) -> Self {
-        i32::from_be_bytes([bytes[0], bytes[1], bytes[2], bytes[3]])
-    }
-}
-
-impl FromBeBytes for u8 {
-    const SIZE: usize = 1;
-    fn from_be_slice(bytes: &[u8]) -> Self {
-        bytes[0]
-    }
 }
 
 /// Read the next non-blank line from a buffered reader.
@@ -125,24 +88,27 @@ pub(crate) fn parse_cells_from_ints(raw: &[i32], n_cells: usize) -> Result<Vec<V
 
 /// Read `count` big-endian binary numeric values from a reader.
 ///
-/// The intermediate byte buffer (`count * T::SIZE` bytes) is read through
+/// The intermediate byte buffer (`count * T::BYTE_WIDTH` bytes) is read through
 /// [`read_exact_bounded`], so a corrupt or hostile `count` cannot force a huge
 /// up-front allocation: the buffer grows by at most [`MAX_EAGER_BYTES`] per
 /// confirmed chunk and a count exceeding the available input yields a truncation
-/// error. The `count * T::SIZE` product is checked for overflow.
-pub fn read_binary_be<T: FromBeBytes>(
+/// error. The `count * T::BYTE_WIDTH` product is checked for overflow.
+pub fn read_binary_be<T: EndianScalar>(
     reader: &mut dyn Read,
     count: usize,
     type_name: &str,
 ) -> Result<Vec<T>> {
     let byte_count = count
-        .checked_mul(T::SIZE)
+        .checked_mul(T::BYTE_WIDTH)
         .with_context(|| format!("binary {type_name} length overflow ({count} values)"))?;
     let buf = read_exact_bounded(reader, byte_count)
         .with_context(|| format!("truncated binary {type_name} (need {count} values)"))?;
     Ok(buf
-        .chunks_exact(T::SIZE)
-        .map(|c| T::from_be_slice(c))
+        .chunks_exact(T::BYTE_WIDTH)
+        .map(|c| {
+            T::from_bytes(c, ByteOrder::BigEndian)
+                .expect("invariant: chunks_exact yields BYTE_WIDTH bytes")
+        })
         .collect())
 }
 

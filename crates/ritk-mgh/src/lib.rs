@@ -45,7 +45,6 @@
 //! `MRI_SHORT` i16, `MRI_INT` i32, `MRI_FLOAT` f32), converting all
 //! to f32 for the RITK tensor.  The writer always emits `MRI_FLOAT`.
 
-mod binary;
 mod reader;
 mod spatial;
 #[cfg(test)]

@@ -39,11 +39,12 @@ use std::io::{Read, Write};
 
 use ritk_annotation::{LabelTable, RgbaBytes};
 
-use super::big_endian::{bounded_count, read_be, read_count, reserve_for, write_be, write_count};
+use super::big_endian::{bounded_count, read_count, reserve_for, write_count};
 use super::lut::{color_from_stored, stored_components};
 use super::surface::MAX_ELEMENTS;
 use super::{FreeSurferError, FreeSurferFormat};
 use crate::BACKGROUND;
+use consus_core::{ByteOrder, read_from, write_to};
 
 const FORMAT: FreeSurferFormat = FreeSurferFormat::Annotation;
 
@@ -115,10 +116,13 @@ impl SurfaceAnnotation {
         let vertex_count = read_count(&mut reader, FORMAT, "vertex count", MAX_ELEMENTS)?;
         let mut pairs = Vec::with_capacity(reserve_for(vertex_count));
         for _ in 0..vertex_count {
-            pairs.push((read_be::<i32>(&mut reader)?, read_be::<i32>(&mut reader)?));
+            pairs.push((
+                read_from::<i32, _>(&mut reader, ByteOrder::BigEndian)?,
+                read_from::<i32, _>(&mut reader, ByteOrder::BigEndian)?,
+            ));
         }
 
-        let tag = read_be::<i32>(&mut reader)?;
+        let tag = read_from::<i32, _>(&mut reader, ByteOrder::BigEndian)?;
         if tag != 1 {
             return Err(FreeSurferError::Unsupported {
                 format: FORMAT,
@@ -186,8 +190,8 @@ impl SurfaceAnnotation {
             };
             write_count(writer, FORMAT, "annotation value", value as usize)?;
         }
-        write_be(writer, 1_i32)?;
-        write_be(writer, CTAB_VERSION_2)?;
+        write_to(writer, 1_i32, ByteOrder::BigEndian)?;
+        write_to(writer, CTAB_VERSION_2, ByteOrder::BigEndian)?;
         let max_index = entries
             .iter()
             .map(|entry| u32::from(entry.id) as usize + 1)
@@ -200,7 +204,7 @@ impl SurfaceAnnotation {
             write_count(writer, FORMAT, "entry index", u32::from(entry.id) as usize)?;
             write_string(writer, &entry.name)?;
             for component in stored_components(entry.color) {
-                write_be(writer, i32::from(component))?;
+                write_to(writer, i32::from(component), ByteOrder::BigEndian)?;
             }
         }
         Ok(())
@@ -251,7 +255,7 @@ fn unique_colors(table: &LabelTable) -> Result<HashMap<u32, u32>, FreeSurferErro
 
 /// Read the colour table in either the old or the version 2 layout.
 fn read_color_table(reader: &mut impl Read) -> Result<LabelTable, FreeSurferError> {
-    let first = read_be::<i32>(reader)?;
+    let first = read_from::<i32, _>(reader, ByteOrder::BigEndian)?;
     let mut table = LabelTable::new();
     if first > 0 {
         let count = bounded_count(first, FORMAT, "entry count", MAX_TABLE_INDEX)?;
@@ -264,7 +268,7 @@ fn read_color_table(reader: &mut impl Read) -> Result<LabelTable, FreeSurferErro
         read_string(reader, 0)?;
         let count = read_count(reader, FORMAT, "entry count", max_index)?;
         for position in 0..count {
-            let index = read_be::<i32>(reader)?;
+            let index = read_from::<i32, _>(reader, ByteOrder::BigEndian)?;
             let index = usize::try_from(index)
                 .ok()
                 .filter(|index| *index < max_index)
@@ -298,7 +302,7 @@ fn add_entry(
     let name = read_string(reader, index)?;
     let mut components = [0_u8; 4];
     for slot in &mut components {
-        let value = read_be::<i32>(reader)?;
+        let value = read_from::<i32, _>(reader, ByteOrder::BigEndian)?;
         *slot = u8::try_from(value).map_err(|_| {
             FreeSurferError::malformed(
                 FORMAT,
