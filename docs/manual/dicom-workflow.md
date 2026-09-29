@@ -1224,7 +1224,9 @@ To compare series, open the folder that contains them, then choose **Split
 screen** or **Panel layout...** from **Window**. The picker maps all 20
 column-and-row combinations from 1×1 through 5×4. Click a destination panel
 and select a series card in the left preview bar, or drag the card into its
-destination. Ctrl-clicking a series opens it in the next available panel. The
+destination. Ctrl-clicking a series opens it in the next available panel,
+including when that series is already displayed. Repeated panels share decoded
+voxel samples while retaining independent navigation and display state. The
 active-panel label identifies the destination, and each series card shows its
 panel assignment. Clicking an assigned card activates that panel. Slice,
 window/level, zoom, pan and cine state remain independent between panels. A

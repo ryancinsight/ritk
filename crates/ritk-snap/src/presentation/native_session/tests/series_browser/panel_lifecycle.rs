@@ -112,6 +112,44 @@ fn selecting_another_series_restores_panel_identity_before_activation() {
 }
 
 #[test]
+fn control_click_opens_an_already_displayed_series_in_an_independent_panel() {
+    let (mut viewer, _root) = session();
+    let study = replacement_study();
+    viewer
+        .open_study_path(study.path())
+        .expect("open two-series study");
+
+    assert!(viewer
+        .assign_series_to_next_panel(0)
+        .expect("open the displayed series in another panel"));
+
+    assert_eq!(viewer.primary_series_index, Some(0));
+    assert_eq!(viewer.compare_panels[0].series_index, Some(0));
+    assert_eq!(series_uid(&viewer.app), Some(fixtures::SERIES_UID));
+    assert_eq!(
+        series_uid(&viewer.compare_panels[0].app),
+        Some(fixtures::SERIES_UID)
+    );
+    assert!(std::sync::Arc::ptr_eq(
+        &viewer.app.loaded.as_ref().expect("primary volume").data,
+        &viewer.compare_panels[0]
+            .app
+            .loaded
+            .as_ref()
+            .expect("comparison volume")
+            .data
+    ));
+    assert_eq!(viewer.active_panel, 1);
+    assert_eq!(
+        viewer.workspace_layout.grid().map(PanelGrid::panel_count),
+        Some(2)
+    );
+
+    viewer.compare_panels[0].app.zoom = 1.75;
+    assert_ne!(viewer.app.zoom, viewer.compare_panels[0].app.zoom);
+}
+
+#[test]
 fn control_click_preserves_populated_panels_when_one_is_maximized() {
     let (mut viewer, _root) = session();
     let study = four_series_study();

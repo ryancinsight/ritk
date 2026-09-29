@@ -129,14 +129,6 @@ impl NativeViewerSession {
         if browser.choice(index).is_none() {
             return Err(anyhow!("selected series row is outside the study"));
         }
-        if self.primary_series_index == Some(index)
-            || self
-                .compare_panels
-                .iter()
-                .any(|panel| panel.series_index == Some(index))
-        {
-            return self.select_series(index);
-        }
         self.restore_maximized_panel()?;
         let target = self
             .compare_panels
@@ -300,8 +292,27 @@ impl NativeViewerSession {
             return Ok(changed);
         }
 
-        let volume = load_volume_from_series_info(&acquisition)
-            .with_context(|| "open the selected DICOM series")?;
+        let volume = if self.primary_series_index == Some(index) {
+            self.app
+                .loaded
+                .as_ref()
+                .ok_or_else(|| anyhow!("primary series {index} has no decoded volume"))?
+                .clone()
+        } else if let Some(panel) = self
+            .compare_panels
+            .iter()
+            .find(|panel| panel.series_index == Some(index))
+        {
+            panel
+                .app
+                .loaded
+                .as_ref()
+                .ok_or_else(|| anyhow!("comparison series {index} has no decoded volume"))?
+                .clone()
+        } else {
+            load_volume_from_series_info(&acquisition)
+                .with_context(|| "open the selected DICOM series")?
+        };
         let status = format!("Loaded {modality} series ({image_count} images).");
         if panel_index == 0 {
             self.app.load_volume(volume, status);
