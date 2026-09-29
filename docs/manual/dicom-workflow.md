@@ -1207,13 +1207,14 @@ tests provide geometry and state evidence; the saved MRI capture below remains
 the anatomical pixel evidence for the public phantom study.
 The first full-window capture shows the live Métis native viewer with the
 public 94-instance MRI-DIR phantom, three orthogonal MPR panes and a fourth
-maximum-intensity projection, File, View, Tools and Window menus, grouped
-toolbar buttons, the vertical study-and-series preview bar on the left of the
-image workspace, and the status bar. The second full-window capture shows MRI
-and CT from the same porcine phantom loaded simultaneously in two independent
-image panels. The left preview bar shows decoded thumbnails, per-series image-count
-badges, and panel assignments. Each panel displays the image number and count,
-window width and centre, and source pixel dimensions in its image corners.
+maximum-intensity projection, File, View, Tools and Window menus, a compact
+toolbar with separated tool groups, the study-and-series preview bar on the
+left of the image workspace, and the status bar. The second full-window
+capture shows MRI and CT from the same porcine phantom loaded simultaneously
+in two independent image panels. The left preview bar shows decoded
+thumbnails, per-series image-count badges, and panel assignments. Each panel
+displays the image number and count, window width and centre, and source pixel
+dimensions in its image corners.
 These readouts track the active series render state. Scanned image counts
 include the frames declared by `NumberOfFrames`; a file without that attribute
 counts as one image. The MRI-DIR phantom series shown here are single-frame,
@@ -1234,22 +1235,23 @@ workflow.
 The shareable captures use the public phantom and contain no clinical patient
 identifiers. In live use, the navigator shows Patient Name when the DICOM
 contains one, plus study and series labels; it does not display Patient ID.
-The controls invoke the viewer’s study, tool, crosshair, cine, series
-navigator, panel layout and reset actions. RITK is a RadiAnt clone for the
-documented native viewing workflow: menus and grouped toolbar, left
-study-and-series preview bar, multi-panel image grid, F4 multi-series picker,
-Ctrl-click and drag assignment, and per-panel maximize/restore/close
-controls. Toolbar groups organize study, navigation, measurement, display and
-layout actions. This clone does not yet provide RadiAnt's configurable
-mouse-button mappings or full image annotation overlays; those parity gaps are
-tracked in the [native viewer work](../../backlog.md#RITK-SNAP-RADIANT-INPUT-001)
-and [oblique MPR work](../../backlog.md#RITK-SNAP-OBLIQUE-NATIVE-001). The
+The controls invoke study loading, image tools, crosshair, cine, series
+navigation, panel layout, and reset actions. RITK is being built as a RadiAnt
+DICOM Viewer clone. This native slice follows its desktop organization: a
+Windows menu bar, compact toolbar with vertical separators between tool
+groups, study-and-series preview bar, multi-panel image grid, F4 multi-series
+picker, Ctrl-click and drag assignment, and per-panel maximize/restore/close
+controls. Study, navigation, measurement, display, and layout actions occupy
+distinct toolbar groups. Configurable mouse-button mappings and the full image
+annotation set remain open parity gaps, tracked in the
+[native viewer work](../../backlog.md#RITK-SNAP-RADIANT-INPUT-001) and
+[oblique MPR work](../../backlog.md#RITK-SNAP-OBLIQUE-NATIVE-001). The
 reference behavior appears in [series browsing](https://www.radiantviewer.com/dicom-viewer-manual/browse_series_and_images.html),
 [multiple-series viewing](https://www.radiantviewer.com/dicom-viewer-manual/view_multiple_series.html),
 and [mouse functions](https://www.radiantviewer.com/dicom-viewer-manual/mouse_functions.html).
-RITK and Métis provide the application branding, rendering and DICOM pixels.
-These are captures of the running application, not annotated framebuffers or
-generated images.
+RITK and Métis provide the application branding, rendering, and DICOM pixels.
+The captures show the running application rather than annotated framebuffers
+or generated images.
 
 From the RITK repository root, build and capture the visible MPR window. Then
 place hard links to the two public series in one temporary folder and capture
@@ -1259,7 +1261,7 @@ the comparison window. The source DICOM files remain unchanged:
 cargo build --locked -p ritk-snap --bin ritk-snap
 $target = (cargo metadata --format-version 1 --no-deps |
   ConvertFrom-Json).target_directory
-$captureOutput = Join-Path $PWD 'scratch\viewer'
+$captureOutput = Join-Path $PWD 'scratch\viewer\radiant-clone'
 New-Item -ItemType Directory -Path $captureOutput -Force | Out-Null
 $atlasRoot = (Get-Item $PWD).Parent.Parent.FullName
 $captureUtility = Join-Path $atlasRoot 'repos\metis\scripts\python_native_capture.py'
@@ -1270,7 +1272,10 @@ python $captureUtility `
   --argument=--metis-native `
   --argument=--metis-native-layout `
   --argument=orthogonal-with-mip `
-  --output scratch\viewer\real-mri-mpr-application-window.png
+  --title 'RITK DICOM Viewer' `
+  --width 1280 `
+  --height 800 `
+  --output scratch\viewer\radiant-clone\real-mri-mpr-application-window.png
 $comparisonStudy = Join-Path $captureOutput ("multiseries-" + [Guid]::NewGuid().ToString("N"))
 New-Item -ItemType Directory -Path $comparisonStudy | Out-Null
 foreach ($source in @(
@@ -1292,12 +1297,15 @@ python $captureUtility `
   --argument=1.3.6.1.4.1.14519.5.2.1.1706.4996.123065603063404191260103927213 `
   --argument=--compare-series-instance-uid `
   --argument=1.3.6.1.4.1.14519.5.2.1.1706.4996.115936088547498980797393821518 `
-  --output scratch\viewer\real-mri-ct-multiseries-window.png
+  --title 'RITK DICOM Viewer' `
+  --width 1280 `
+  --height 800 `
+  --output scratch\viewer\radiant-clone\real-mri-ct-multiseries-window.png
 ```
 
-![Full RITK/Métis viewer window with menus and grouped toolbar buttons above the workspace, a left study-and-series preview bar with thumbnail counts, status bar, three orthogonal RITK MPR panes and one MIP projection, and the real public MRI phantom](images/dicom-metis-real-mri-application-window.webp)
+![Full RITK/Métis viewer window with menus and a compact separated toolbar above the workspace, a left study-and-series preview bar with thumbnail counts, status bar, three orthogonal RITK MPR panes and one MIP projection, and the real public MRI phantom](images/dicom-metis-real-mri-application-window.webp)
 
-![Full RITK/Métis viewer window with menus and grouped toolbar buttons above the workspace, left preview bar showing real MRI and CT thumbnails, image-count badges and panel assignments, status bar, and both actual public series side by side](images/dicom-metis-real-mri-ct-multiseries-window.webp)
+![Full RITK/Métis viewer window with menus and a compact separated toolbar above the workspace, left preview bar showing real MRI and CT thumbnails, image-count badges and panel assignments, status bar, and both actual public series side by side](images/dicom-metis-real-mri-ct-multiseries-window.webp)
 
 The two-panel screenshot shows the current native application with the actual
 94-image MRI and 409-image CT loaded in independent P1 and P2 panels. This

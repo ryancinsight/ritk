@@ -110,6 +110,9 @@ class ManualImageProvenanceTests(unittest.TestCase):
                 )
                 self.assertEqual(output["encoding"], "lossless WebP")
                 self.assertTrue(output["decoded_rgba_byte_equal_to_source_capture"])
+                self.assertEqual(runtime["process_returncode"], 0)
+                self.assertRegex(source_capture["sha256"], r"\A[0-9a-f]{64}\Z")
+                self.assertGreater(source_capture["bytes"], 0)
                 self.assertEqual(
                     source_capture["encoding"],
                     "PNG captured from the live native application window",
@@ -128,8 +131,20 @@ class ManualImageProvenanceTests(unittest.TestCase):
                     "scripts/python_native_capture.py",
                 )
                 self.assertEqual(runtime["ritk_pull_request"], "ryancinsight/ritk#676")
+                self.assertRegex(runtime["ritk_revision"], r"\A[0-9a-f]{40}\Z")
+                self.assertRegex(runtime["ritk_tree"], r"\A[0-9a-f]{40}\Z")
                 self.assertEqual(
                     runtime["capture_utility"]["repository"], "ryancinsight/metis"
+                )
+                self.assertRegex(
+                    runtime["capture_utility"]["file_revision"],
+                    r"\A[0-9a-f]{40}\Z",
+                )
+                self.assertRegex(
+                    runtime["capture_utility"]["sha256"], r"\A[0-9a-f]{64}\Z"
+                )
+                self.assertRegex(
+                    runtime["capture_utility"]["git_blob"], r"\A[0-9a-f]{40}\Z"
                 )
                 self.assertEqual(len(runtime["executable_sha256"]), 64)
                 self.assertGreater(runtime["executable_bytes"], 0)
@@ -138,7 +153,7 @@ class ManualImageProvenanceTests(unittest.TestCase):
                     "View",
                     "Tools",
                     "Window",
-                    "Open Study",
+                    "Open Study...",
                     "Open multiple series",
                     "W/L",
                     "Pan",
@@ -154,16 +169,33 @@ class ManualImageProvenanceTests(unittest.TestCase):
                     expected_controls.extend(["Panel maximize", "Panel close"])
                 expected_controls.extend(["Series preview", "Load to P1"])
                 self.assertEqual(output["visible_controls"], expected_controls)
-                self.assertEqual(
-                    output["toolbar_groups"],
-                    ["Study", "Navigate", "Measure", "Display", "Layout"],
-                )
+                self.assertEqual(output["toolbar_divider_count"], 4)
                 self.assertEqual(output["panels"], panels)
+                self.assertEqual(len(dataset["series"]), series_count)
+                self.assertEqual(
+                    sum(series["instances"] for series in dataset["series"]),
+                    instance_count,
+                )
+                series_uids = [
+                    series["series_instance_uid"] for series in dataset["series"]
+                ]
+                self.assertEqual(len(set(series_uids)), series_count)
+                self.assertEqual(
+                    [series["panel"] for series in dataset["series"]],
+                    [f"P{index}" for index in range(1, series_count + 1)],
+                )
                 if series_count > 1:
                     self.assertIn("--series-instance-uid", runtime["command"])
                     self.assertIn("--compare-series-instance-uid", runtime["command"])
                     self.assertNotIn("input_events", runtime)
                     self.assertIn("two independent image panels", output["visual_scope"])
+                    self.assertEqual(
+                        [
+                            (series["modality"], series["instances"])
+                            for series in dataset["series"]
+                        ],
+                        [("MR", 94), ("CT", 409)],
+                    )
                 if output["panel_actions_visible"]:
                     self.assertEqual(
                         output["visible_annotations"],

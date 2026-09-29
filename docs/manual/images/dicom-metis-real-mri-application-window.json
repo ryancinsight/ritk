@@ -5,19 +5,22 @@
     "host": "Windows 11 native Métis surface",
     "date": "2026-09-29",
     "ritk_pull_request": "ryancinsight/ritk#676",
+    "ritk_revision": "f006bc7130f09107308b0bef3b76f7850d9f5595",
+    "ritk_tree": "257cd94ae8a7e0dd7eb613b53f652798a00e9694",
     "executable": "ritk-snap.exe",
-    "executable_sha256": "4c9d2efd51278af0b8a5c9693a8522afa43cedcc9a81bf451090701850b0ff68",
-    "executable_bytes": 26279936,
-    "toolchain": "Rust 1.97.0 (2d8144b78 2026-07-07)",
+    "executable_sha256": "924f2fd42b772feb1dc81960d138ed0ee22381b56709e6caf97785e35ac9853a",
+    "executable_bytes": 26278400,
+    "toolchain": "rustc 1.97.0 (2d8144b78 2026-07-07)",
     "metis_revision": "57709a4958a78ec99a9b9128da03db39ee4d2b22",
     "metis_platform_revision": "57709a4958a78ec99a9b9128da03db39ee4d2b22",
     "moirai_pal_revision": "a3282e9f61e27e7ebfa42a264c6e3b184b462f47",
     "capture_utility": {
       "path": "scripts/python_native_capture.py",
-      "file_revision": "109e042d1a05d166fa478e44d9143083f2920c42",
-      "sha256": "612b51eab9f422249f41f0c4b863f66da3ec077ff15ef6358041a2a66cb69b77",
-      "capture": "Win32 PrintWindow of the live RITK process window",
-      "repository": "ryancinsight/metis"
+      "repository": "ryancinsight/metis",
+      "file_revision": "091e9c01b764dba1f478f13d579d388e61043f05",
+      "git_blob": "05db2c28a5deb55be86d690caf7a7b00ba78dee8",
+      "sha256": "600b5f1c2e3678cb71fad1d414c7c72466153e45b68419603add4812fa47a709",
+      "capture": "Win32 PrintWindow of the live RITK process window"
     },
     "client": {
       "width": 1280,
@@ -30,8 +33,7 @@
     },
     "caption_text_observed_by_GetWindowTextW": "RITK DICOM Viewer",
     "process_returncode": 0,
-    "command": "ritk-snap.exe test_data/2_head_mri_t2/DICOM --metis-native --metis-native-layout orthogonal-with-mip",
-    "process_returncode_at_capture": 0
+    "command": "ritk-snap.exe test_data/2_head_mri_t2/DICOM --metis-native --metis-native-layout orthogonal-with-mip"
   },
   "dataset": {
     "path": "test_data/2_head_mri_t2/DICOM",
@@ -47,20 +49,29 @@
     "dicom_instances_read": 94,
     "dicom_bytes_read": 49807236,
     "study_count": 1,
-    "series_count": 1
+    "series_count": 1,
+    "series": [
+      {
+        "series_instance_uid": "1.3.6.1.4.1.14519.5.2.1.1706.4996.123065603063404191260103927213",
+        "modality": "MR",
+        "description": "T2",
+        "instances": 94,
+        "panel": "P1"
+      }
+    ]
   },
   "source_capture": {
-    "path": "scratch/viewer/radiant-mri-mpr.png",
-    "sha256": "693a57b17360a3627c87fa8ca932c01d919c6243b0ebabdea2f104f02c52eb63",
-    "bytes": 319661,
+    "path": "scratch/viewer/radiant-clone/real-mri-mpr-application-window.png",
+    "sha256": "b0cd1e1e0663754cf26f8cefcb7adadd88a05047beee1eb6e0c047a5b303c7ec",
+    "bytes": 322550,
     "encoding": "PNG captured from the live native application window"
   },
   "output": {
     "path": "docs/manual/images/dicom-metis-real-mri-application-window.webp",
     "width": 1298,
     "height": 847,
-    "sha256": "23039fb2ee1beac71b83e9b4432a353d9cc09f6581630952771461ba46c400b4",
-    "bytes": 159568,
+    "sha256": "6652eb9ac25803e9ecf43f20240ee4dc4b1d78a71ecde7cad9dde3f281a51004",
+    "bytes": 161016,
     "encoding": "lossless WebP",
     "decoded_rgba_byte_equal_to_source_capture": true,
     "visible_controls": [
@@ -68,7 +79,7 @@
       "View",
       "Tools",
       "Window",
-      "Open Study",
+      "Open Study...",
       "Open multiple series",
       "W/L",
       "Pan",
@@ -88,16 +99,10 @@
       "MPR: sagittal",
       "MIP projection"
     ],
-    "visual_scope": "Actual running Métis native window with Windows chrome and title bar labeled RITK DICOM Viewer, File/View/Tools/Window menus, Study/Navigate/Measure/Display/Layout toolbar groups, left study and series preview bar with decoded MRI thumbnail and thumbnail image-count badges (94), status bar, three real MRI planes and a MIP projection.",
+    "visual_scope": "Actual running Métis native window with Windows chrome and title bar labeled RITK DICOM Viewer, File/View/Tools/Window menus, five compact toolbar groups divided by four vertical separators, left study and series preview bar with decoded MRI thumbnail and thumbnail image-count badges (94), status bar, three real MRI planes and one MIP projection.",
     "clinical_patient_identifiers_displayed": false,
     "panel_actions_visible": false,
-    "toolbar_groups": [
-      "Study",
-      "Navigate",
-      "Measure",
-      "Display",
-      "Layout"
-    ]
+    "toolbar_divider_count": 4
   },
-  "residual": "The capture shows the full live application and a real public MRI volume; it does not establish complete RadiAnt feature parity."
+  "residual": "This full-window capture verifies the public MRI application workflow. It does not establish complete RadiAnt feature parity."
 }
