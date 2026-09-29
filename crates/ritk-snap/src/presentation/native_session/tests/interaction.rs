@@ -174,9 +174,9 @@ fn responsive_native_layout_selects_single_dual_and_quad_panes() {
         viewport_area,
         super::layout::ViewportArea {
             x: 276,
-            y: 88,
+            y: 78,
             width: 1_004,
-            height: 686,
+            height: 696,
         }
     );
     assert_eq!(selected_layout, PaneLayout::Quad);

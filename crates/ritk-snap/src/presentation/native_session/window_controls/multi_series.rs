@@ -19,15 +19,15 @@ const ROW_HEIGHT: i32 = 32;
 const LIST_TOP: i32 = 84;
 const LIST_HEADER_HEIGHT: i32 = 24;
 const FOOTER_HEIGHT: i32 = 64;
-const PANEL: Color = Color::rgb(33, 39, 47);
-const BORDER: Color = Color::rgb(91, 106, 120);
-const ROW: Color = Color::rgb(42, 49, 58);
-const FOCUSED_ROW: Color = Color::rgb(44, 96, 124);
-const SELECTED: Color = Color::rgb(66, 148, 185);
-const TEXT: Color = Color::rgb(231, 237, 243);
-const MUTED: Color = Color::rgb(166, 181, 195);
-const WARNING: Color = Color::rgb(255, 194, 118);
-const OVERLAY: Color = Color::rgba(4, 7, 11, 176);
+const PANEL: Color = Color::rgb(249, 250, 251);
+const BORDER: Color = Color::rgb(142, 148, 153);
+const ROW: Color = Color::rgb(255, 255, 255);
+const FOCUSED_ROW: Color = Color::rgb(220, 235, 247);
+const SELECTED: Color = Color::rgb(47, 103, 145);
+const TEXT: Color = Color::rgb(36, 41, 46);
+const MUTED: Color = Color::rgb(93, 101, 109);
+const WARNING: Color = Color::rgb(159, 83, 0);
+const OVERLAY: Color = Color::rgba(24, 31, 38, 150);
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub(super) enum DialogAction {

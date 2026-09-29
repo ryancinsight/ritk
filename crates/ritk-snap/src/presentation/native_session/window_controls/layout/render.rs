@@ -13,19 +13,17 @@ use metis_platform::rasterizer::{fill_rect, CornerRadius};
 use metis_platform::{Color, Framebuffer, Rect};
 use std::fmt::Write as _;
 
-const SURFACE_BACKGROUND: Color = Color::rgb(27, 32, 39);
-const TOOLBAR_BACKGROUND: Color = Color::rgb(40, 46, 54);
-const STATUS_BACKGROUND: Color = Color::rgb(29, 34, 41);
-const CONTROL_BACKGROUND: Color = Color::rgb(55, 64, 74);
-const CONTROL_ACTIVE: Color = Color::rgb(42, 104, 139);
-const CONTROL_TEXT: Color = Color::rgb(235, 240, 245);
-const POPUP_BACKGROUND: Color = Color::rgb(31, 37, 45);
-const ICON_COLOR: Color = Color::rgb(194, 209, 222);
-const ICON_ACTIVE: Color = Color::rgb(180, 232, 255);
-const DIVIDER: Color = Color::rgb(82, 92, 103);
-const GROUP_TEXT: Color = Color::rgb(188, 200, 212);
-const GROUP_RULE: Color = Color::rgb(71, 108, 130);
-const STATUS_TEXT: Color = Color::rgb(190, 203, 215);
+const SURFACE_BACKGROUND: Color = Color::rgb(232, 234, 236);
+const TOOLBAR_BACKGROUND: Color = Color::rgb(207, 211, 215);
+const STATUS_BACKGROUND: Color = Color::rgb(218, 221, 224);
+const CONTROL_BACKGROUND: Color = Color::rgb(242, 243, 244);
+const CONTROL_ACTIVE: Color = Color::rgb(42, 99, 139);
+const CONTROL_TEXT: Color = Color::rgb(35, 40, 45);
+const POPUP_BACKGROUND: Color = Color::rgb(247, 248, 249);
+const ICON_COLOR: Color = Color::rgb(61, 70, 78);
+const ICON_ACTIVE: Color = Color::rgb(250, 252, 254);
+const DIVIDER: Color = Color::rgb(154, 160, 166);
+const STATUS_TEXT: Color = Color::rgb(55, 61, 67);
 
 pub(super) fn render(
     layout: &ChromeLayout,
@@ -49,6 +47,28 @@ pub(super) fn render(
         CornerRadius::SQUARE,
         TOOLBAR_BACKGROUND,
     );
+    fill_rect(
+        framebuffer,
+        Rect::new(
+            layout.geometry.menu_bar.x,
+            layout.geometry.menu_bar.y + layout.geometry.menu_bar.height - 1,
+            layout.geometry.menu_bar.width,
+            1,
+        ),
+        CornerRadius::SQUARE,
+        DIVIDER,
+    );
+    fill_rect(
+        framebuffer,
+        Rect::new(
+            layout.geometry.toolbar.x,
+            layout.geometry.toolbar.y + layout.geometry.toolbar.height - 1,
+            layout.geometry.toolbar.width,
+            1,
+        ),
+        CornerRadius::SQUARE,
+        DIVIDER,
+    );
     if layout.geometry.series_preview.width > 0 {
         series::render(
             framebuffer,
@@ -68,7 +88,7 @@ pub(super) fn render(
     );
     if let Some(popup) = layout.grid_popup {
         fill_rect(framebuffer, popup, CornerRadius::SQUARE, POPUP_BACKGROUND);
-        let border = Color::rgb(86, 101, 115);
+        let border = DIVIDER;
         fill_rect(
             framebuffer,
             Rect::new(popup.x, popup.y, popup.width, 1),
@@ -114,51 +134,35 @@ pub(super) fn render(
     }
 
     let control_style = text_style(CONTROL_TEXT, 12)?;
+    let active_control_style = text_style(Color::rgb(250, 252, 254), 12)?;
     let menu_item_style = text_style(CONTROL_TEXT, 13)?;
-    let group_style = text_style(GROUP_TEXT, 10)?;
     let toolbar_y = i32::try_from(layout.geometry.menu_height)
         .map_err(|_| anyhow!("native toolbar y exceeds i32"))?;
-    for (index, group) in layout.groups.iter().enumerate() {
-        let group_right = layout
-            .groups
-            .get(index.saturating_add(1))
-            .map_or(layout.geometry.status_bar.width, |next| next.x);
-        let group_width = group_right
-            .saturating_sub(group.x)
-            .saturating_sub(12)
-            .max(0);
-        series::draw_fit(
-            framebuffer,
-            group.x,
-            toolbar_y.saturating_add(3),
-            group.label,
-            group_style,
-            group_width.max(0),
-        );
-        if group_width > 0 {
-            fill_rect(
-                framebuffer,
-                Rect::new(group.x, toolbar_y.saturating_add(15), group_width, 1),
-                CornerRadius::SQUARE,
-                GROUP_RULE,
-            );
-        }
-    }
-    for group in layout.groups.iter().skip(1) {
+    for separator in &layout.separators {
         fill_rect(
             framebuffer,
-            Rect::new(group.x - 8, toolbar_y.saturating_add(6), 1, 46),
+            Rect::new(
+                separator.x - 8,
+                toolbar_y.saturating_add(8),
+                1,
+                layout.geometry.toolbar.height.saturating_sub(16),
+            ),
             CornerRadius::SQUARE,
             DIVIDER,
         );
     }
     for control in &layout.controls {
-        if !matches!(control.kind, ControlKind::MenuTab) || control.active {
-            let background = if control.active {
+        let background = match control.kind {
+            ControlKind::MenuTab | ControlKind::Toolbar if control.active => Some(CONTROL_ACTIVE),
+            ControlKind::MenuItem if control.active => Some(CONTROL_ACTIVE),
+            ControlKind::Grid => Some(if control.active {
                 CONTROL_ACTIVE
             } else {
                 CONTROL_BACKGROUND
-            };
+            }),
+            _ => None,
+        };
+        if let Some(background) = background {
             fill_rect(framebuffer, control.rect, CornerRadius::SQUARE, background);
         }
         if matches!(control.kind, ControlKind::Toolbar) {
@@ -182,7 +186,9 @@ pub(super) fn render(
             .y
             .checked_add((control.rect.height - 14).max(0) / 2)
             .ok_or_else(|| anyhow!("native control text y overflows"))?;
-        let style = if matches!(control.kind, ControlKind::MenuItem) {
+        let style = if control.active {
+            active_control_style
+        } else if matches!(control.kind, ControlKind::MenuItem) {
             menu_item_style
         } else {
             control_style

@@ -11,8 +11,9 @@ use metis_platform::rasterizer::{fill_rect, CornerRadius};
 use metis_platform::{Color, Framebuffer, Rect};
 use std::fmt::Write as _;
 
-pub(super) const TABLE_HEADER_BACKGROUND: Color = Color::rgb(25, 30, 36);
-const TABLE_HEADER_TEXT: Color = Color::rgb(167, 182, 196);
+pub(super) const TABLE_HEADER_BACKGROUND: Color = Color::rgb(221, 225, 228);
+const TABLE_HEADER_TEXT: Color = Color::rgb(62, 68, 74);
+pub(super) const LIST_BACKGROUND: Color = Color::rgb(250, 251, 252);
 
 impl MultiSeriesDialog {
     pub(in crate::presentation::native_session::window_controls) fn render(
@@ -95,7 +96,7 @@ impl MultiSeriesDialog {
             framebuffer,
             geometry.list,
             CornerRadius::SQUARE,
-            Color::rgb(22, 27, 33),
+            LIST_BACKGROUND,
         );
         let column_style = text_style(TABLE_HEADER_TEXT, 9)?;
         let patient_column = geometry.list.x.saturating_add(34);
@@ -188,13 +189,13 @@ impl MultiSeriesDialog {
                     framebuffer,
                     Rect::new(check.x + 3, check.y + 6, 3, 5),
                     CornerRadius::SQUARE,
-                    TEXT,
+                    Color::rgb(255, 255, 255),
                 );
                 fill_rect(
                     framebuffer,
                     Rect::new(check.x + 6, check.y + 8, 6, 3),
                     CornerRadius::SQUARE,
-                    TEXT,
+                    Color::rgb(255, 255, 255),
                 );
             }
             let patient = patient_label(choice)?;
@@ -284,14 +285,15 @@ impl MultiSeriesDialog {
                 detail,
             );
         }
+        let primary_button_style = text_style(Color::rgb(255, 255, 255), 12)?;
         draw_button(framebuffer, geometry.cancel, "Cancel", regular, false);
-        draw_button(
-            framebuffer,
-            geometry.open,
-            "Open",
-            regular,
-            !self.matches.is_empty() || !self.selected.is_empty(),
-        );
+        let open_enabled = !self.matches.is_empty() || !self.selected.is_empty();
+        let open_style = if open_enabled {
+            primary_button_style
+        } else {
+            regular
+        };
+        draw_button(framebuffer, geometry.open, "Open", open_style, open_enabled);
         Ok(())
     }
 }

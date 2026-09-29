@@ -1,4 +1,4 @@
-//! RadiAnt-clone native menus, grouped tools, series preview and status bar.
+//! RadiAnt-clone native menus, compact toolbar, series preview and status bar.
 
 #[cfg(test)]
 use super::super::layout::ViewportArea;
@@ -35,15 +35,14 @@ struct ChromeControl {
 }
 
 #[derive(Clone, Copy)]
-struct ToolbarGroup {
+struct ToolbarSeparator {
     x: i32,
-    label: &'static str,
 }
 
 pub(super) struct ChromeLayout {
     geometry: ChromeGeometry,
     controls: ArrayVec<ChromeControl, CONTROL_CAPACITY>,
-    groups: ArrayVec<ToolbarGroup, 8>,
+    separators: ArrayVec<ToolbarSeparator, 8>,
     grid_popup: Option<Rect>,
 }
 
@@ -99,6 +98,20 @@ impl ChromeLayout {
             control.rect.x.checked_add(control.rect.width / 2)?,
             control.rect.y.checked_add(control.rect.height / 2)?,
         ))
+    }
+
+    #[cfg(test)]
+    pub(super) fn toolbar_separator_sample(&self, index: usize) -> Option<(i32, i32)> {
+        let separator = self.separators.get(index)?;
+        Some((
+            separator.x.checked_sub(8)?,
+            self.geometry.toolbar.y.checked_add(8)?,
+        ))
+    }
+
+    #[cfg(test)]
+    pub(super) fn toolbar_separator_count(&self) -> usize {
+        self.separators.len()
     }
 
     pub(super) fn series_index_at(

@@ -276,9 +276,9 @@ fn native_menu_event_toggles_the_series_preview() {
             .expect("viewport without series preview"),
         ViewportArea {
             x: 0,
-            y: 88,
+            y: 78,
             width: 1_280,
-            height: 686,
+            height: 696,
         }
     );
 }

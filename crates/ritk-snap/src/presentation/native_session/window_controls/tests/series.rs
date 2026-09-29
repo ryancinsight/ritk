@@ -14,14 +14,14 @@ fn visible_workspace_places_the_series_preview_to_the_left_of_the_image_panels()
         layout.viewport_area(),
         ViewportArea {
             x: 276,
-            y: 88,
+            y: 78,
             width: 1_004,
-            height: 686
+            height: 696
         }
     );
     assert_eq!(
         layout.series_preview_area(),
-        metis_platform::Rect::new(0, 88, 276, 686)
+        metis_platform::Rect::new(0, 78, 276, 696)
     );
     assert_eq!(layout.visible_series(), 4);
     assert!(!layout.owns_pointer(640.0, 400.0));
@@ -87,21 +87,21 @@ fn series_preview_hides_before_it_collapses_the_viewport() {
     let hidden = ChromeLayout::new(640, 479, None, &app, true, WorkspaceLayout::Orthogonal)
         .expect("hide the rail below its width threshold");
     assert_eq!(hidden.series_preview_area().width, 0);
-    assert_eq!(hidden.viewport_area().height, 365);
+    assert_eq!(hidden.viewport_area().height, 375);
 
     let visible = ChromeLayout::new(640, 480, None, &app, true, WorkspaceLayout::Orthogonal)
         .expect("keep the rail visible when the viewer minimum size fits");
     assert_eq!(
         visible.series_preview_area(),
-        metis_platform::Rect::new(0, 88, 276, 366)
+        metis_platform::Rect::new(0, 78, 276, 376)
     );
     assert_eq!(
         visible.viewport_area(),
         ViewportArea {
             x: 276,
-            y: 88,
+            y: 78,
             width: 364,
-            height: 366,
+            height: 376,
         }
     );
 }

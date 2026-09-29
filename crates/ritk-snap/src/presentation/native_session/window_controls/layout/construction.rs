@@ -1,7 +1,7 @@
 use super::super::super::layout::{PanelGrid, WorkspaceLayout, MAX_GRID_COLUMNS, MAX_GRID_ROWS};
 use super::super::{Menu, WindowAction};
 use super::{
-    ChromeControl, ChromeGeometry, ChromeLayout, ControlKind, ToolbarGroup, CONTROL_CAPACITY,
+    ChromeControl, ChromeGeometry, ChromeLayout, ControlKind, ToolbarSeparator, CONTROL_CAPACITY,
 };
 use crate::app::SnapApp;
 use crate::tools::kind::ToolKind;
@@ -31,7 +31,7 @@ const MENU_TABS: [(Menu, &str, u32); 4] = [
 ];
 
 const TOOLBAR_ITEMS: [(&str, u32, WindowAction, &str); 11] = [
-    ("Open Study", 98, WindowAction::OpenStudy, "Study"),
+    ("Open Study...", 114, WindowAction::OpenStudy, "Study"),
     (
         "Open multiple series",
         180,
@@ -100,7 +100,7 @@ impl ChromeLayout {
     ) -> Result<Self> {
         let geometry = ChromeGeometry::new(width, height, show_series_preview)?;
         let mut controls = ArrayVec::new();
-        let mut groups = ArrayVec::new();
+        let mut separators = ArrayVec::new();
         let mut tab_x = 8_u32;
         for (menu, label, requested_width) in MENU_TABS {
             let tab_width = requested_width.min(width.saturating_sub(tab_x));
@@ -120,23 +120,26 @@ impl ChromeLayout {
         }
 
         let mut control_x = 12_u32;
-        let button_height = geometry.toolbar_height.saturating_sub(20).min(34);
-        let button_y = geometry.menu_height.saturating_add(18);
+        let button_height = geometry.toolbar_height.saturating_sub(12).min(36);
+        let button_y = geometry
+            .menu_height
+            .saturating_add(geometry.toolbar_height.saturating_sub(button_height) / 2);
         let mut previous_group = None;
         for (label, requested_width, action, group) in TOOLBAR_ITEMS {
-            if previous_group != Some(group) {
-                groups
-                    .try_push(ToolbarGroup {
-                        x: i32::try_from(control_x)
-                            .map_err(|_| anyhow!("native toolbar group x exceeds i32"))?,
-                        label: group,
-                    })
-                    .map_err(|_| anyhow!("native toolbar group capacity exceeded"))?;
-                previous_group = Some(group);
-            }
             let control_width = requested_width.min(width.saturating_sub(control_x));
             if control_width == 0 || button_height == 0 {
                 break;
+            }
+            if previous_group != Some(group) {
+                if previous_group.is_some() {
+                    separators
+                        .try_push(ToolbarSeparator {
+                            x: i32::try_from(control_x)
+                                .map_err(|_| anyhow!("native toolbar group x exceeds i32"))?,
+                        })
+                        .map_err(|_| anyhow!("native toolbar group capacity exceeded"))?;
+                }
+                previous_group = Some(group);
             }
             let active = match action {
                 WindowAction::SelectTool(tool) => app.active_tool == tool,
@@ -256,7 +259,7 @@ impl ChromeLayout {
         Ok(Self {
             geometry,
             controls,
-            groups,
+            separators,
             grid_popup,
         })
     }

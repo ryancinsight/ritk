@@ -5,7 +5,7 @@ use anyhow::{anyhow, Result};
 use metis_platform::Rect;
 
 const MENU_HEIGHT: u32 = 30;
-const TOOLBAR_HEIGHT: u32 = 58;
+const TOOLBAR_HEIGHT: u32 = 48;
 const STATUS_HEIGHT: u32 = 26;
 const SERIES_PREVIEW_WIDTH: u32 = 276;
 const MIN_SERIES_PREVIEW_WINDOW_WIDTH: u32 = 640;

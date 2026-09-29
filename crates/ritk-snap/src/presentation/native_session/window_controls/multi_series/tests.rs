@@ -212,6 +212,18 @@ fn picker_renders_study_column_beneath_the_table_header() {
         framebuffer.get_pixel(header_x, header_y),
         render::TABLE_HEADER_BACKGROUND
     );
+    assert_eq!(
+        framebuffer.get_pixel(geometry.list.x + 3, geometry.list.y + 3),
+        FOCUSED_ROW
+    );
+    assert_eq!(
+        framebuffer.get_pixel(geometry.list.x + 3, geometry.list.y + 2 * ROW_HEIGHT + 2),
+        render::LIST_BACKGROUND
+    );
+    assert_eq!(
+        framebuffer.get_pixel(geometry.open.x + 1, geometry.open.y + 1),
+        SELECTED
+    );
 
     let study_left = geometry.list.x + 160;
     let study_right = study_left + 142;
