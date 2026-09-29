@@ -243,11 +243,11 @@ fn gather_block<T: Sample>(
     dims: [usize; 3],
     centre: [usize; 3],
     radius: [usize; 3],
-) -> Vec<f64> {
-    let mut out =
-        Vec::with_capacity((2 * radius[0] + 1) * (2 * radius[1] + 1) * (2 * radius[2] + 1));
+) -> Result<Vec<f64>> {
+    let extent = window_extents(radius, "block")?;
+    let mut out = Vec::with_capacity(buffer_len::<f64>(extent, "block")?);
     gather_block_into(buf, dims, centre, radius, &mut out);
-    out
+    Ok(out)
 }
 
 /// Copy the block centred at `centre` into `out`, reusing its allocation.

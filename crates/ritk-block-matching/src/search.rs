@@ -282,9 +282,15 @@ impl MultiResolutionSearch {
         let mut peak_similarities = vec![f64::NAN; centres.len()];
 
         for (index, &centre) in centres.iter().enumerate() {
-            if let Ok(result) = self.match_pyramid(pyramid, centre, refinement) {
-                displacements[index] = result.displacement;
-                peak_similarities[index] = result.peak_similarity;
+            match self.match_pyramid(pyramid, centre, refinement) {
+                Ok(result) => {
+                    displacements[index] = result.displacement;
+                    peak_similarities[index] = result.peak_similarity;
+                }
+                Err(error) if error.downcast_ref::<BlockMatchingError>().is_some() => {
+                    return Err(error);
+                }
+                Err(_) => {}
             }
         }
 
@@ -444,10 +450,16 @@ impl MultiResolutionSearch {
         for (index, &centre) in centres.iter().enumerate() {
             // A failed block keeps its NaN peak and `None` diagnostics: it was
             // not measured, which is distinct from measuring zero displacement.
-            if let Ok(result) = match_at(centre) {
-                displacements[index] = result.displacement;
-                peak_similarities[index] = result.peak_similarity;
-                level_diagnostics[index] = Some(result.levels);
+            match match_at(centre) {
+                Ok(result) => {
+                    displacements[index] = result.displacement;
+                    peak_similarities[index] = result.peak_similarity;
+                    level_diagnostics[index] = Some(result.levels);
+                }
+                Err(error) if error.downcast_ref::<BlockMatchingError>().is_some() => {
+                    return Err(error);
+                }
+                Err(_) => {}
             }
         }
 
