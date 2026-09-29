@@ -348,14 +348,3 @@
 ## RITK-GAP-2026-08-20-09 [patch] â€” derive or remove the MI subsample stride
 - Status: todo; compacted 2026-09-18; full delivery history remains in git.
 - Scope: historical item contract retained in the archived source block; re-open with the original DoR.
-
-<a id="RITK-DICOM-WRITER-ELEMENTS-001"></a>
-## RITK-DICOM-WRITER-ELEMENTS-001: Share the DICOM element writers
-- outcome: every ritk-io DICOM writer puts elements through one set of helpers, and sequence items convert through one function.
-- acceptance: the rt_dose, rt_plan, rt_struct, seg, series, metadata and multiframe writers use the shared helpers, with writer output byte-identical; `DicomValue::Empty` inside a sequence item gets one behaviour, set by its own fix commit with a round-trip test (today `writer/preservation.rs` skips it and `writer_object.rs` writes a zero-length element); byte-order helpers have one home per trait, with no second `impl_big_endian!` or second little-endian macro.
-- status: todo
-- priority: tightening
-- needs: none
-- scope: `crates/ritk-io/src/format/dicom/`, `crates/ritk-analyze/src/{codec,reader}.rs`, `crates/ritk-mgh/src/binary.rs`, `crates/ritk-parcellation/src/freesurfer/big_endian.rs`
-- next: decide the empty sequence-item behaviour first; the unpushed audit-ritk-20260926 attempt merged the two copies onto the zero-length form without saying so and left 84 hand-written puts in metadata, series and multiframe.
-- basis: fbcd7989277b340bfc8903e24500e4f9844af6aa

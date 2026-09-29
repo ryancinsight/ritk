@@ -1,11 +1,12 @@
 //! RT Structure Set writer — serialize an [`RtStructureSet`] to a DICOM Part-10 file.
 
+use crate::format::dicom::writer::elements::PutValue;
 use anyhow::{Context, Result};
 use dicom::core::header::Length;
 use dicom::core::value::DataSetSequence;
 use dicom::core::value::Value;
 use dicom::core::Tag;
-use dicom::core::{DataElement, PrimitiveValue, VR};
+use dicom::core::{DataElement, VR};
 use dicom::object::meta::FileMetaTableBuilder;
 use dicom::object::InMemDicomObject;
 use std::path::Path;
@@ -36,33 +37,13 @@ pub fn write_rt_struct<P: AsRef<Path>>(path: P, ss: &RtStructureSet) -> Result<(
 
     let mut obj = InMemDicomObject::new_empty();
 
-    obj.put(DataElement::new(
-        Tag(0x0008, 0x0016),
-        VR::UI,
-        PrimitiveValue::from(RT_STRUCT_SOP_CLASS_UID),
-    ));
-    obj.put(DataElement::new(
-        Tag(0x0008, 0x0018),
-        VR::UI,
-        PrimitiveValue::from(sop_instance_uid.as_str()),
-    ));
-    obj.put(DataElement::new(
-        Tag(0x0008, 0x0060),
-        VR::CS,
-        PrimitiveValue::from("RTSTRUCT"),
-    ));
-    obj.put(DataElement::new(
-        Tag(0x3006, 0x0002),
-        VR::LO,
-        PrimitiveValue::from(ss.structure_set_label.as_str()),
-    ));
+    obj.put_value(Tag(0x0008, 0x0016), VR::UI, RT_STRUCT_SOP_CLASS_UID);
+    obj.put_value(Tag(0x0008, 0x0018), VR::UI, sop_instance_uid.as_str());
+    obj.put_value(Tag(0x0008, 0x0060), VR::CS, "RTSTRUCT");
+    obj.put_value(Tag(0x3006, 0x0002), VR::LO, ss.structure_set_label.as_str());
     if let Some(name) = &ss.structure_set_name {
         if !name.is_empty() {
-            obj.put(DataElement::new(
-                Tag(0x3006, 0x0004),
-                VR::LO,
-                PrimitiveValue::from(name.as_str()),
-            ));
+            obj.put_value(Tag(0x3006, 0x0004), VR::LO, name.as_str());
         }
     }
     if !roi_seq_items.is_empty() {
@@ -105,23 +86,15 @@ pub fn write_rt_struct<P: AsRef<Path>>(path: P, ss: &RtStructureSet) -> Result<(
 
 fn build_roi_seq_item(roi: &RtRoiInfo) -> InMemDicomObject {
     let mut item = InMemDicomObject::new_empty();
-    item.put(DataElement::new(
+    item.put_value(
         Tag(0x3006, 0x0022),
         VR::IS,
-        PrimitiveValue::from(roi.roi_number.to_string().as_str()),
-    ));
-    item.put(DataElement::new(
-        Tag(0x3006, 0x0026),
-        VR::LO,
-        PrimitiveValue::from(roi.roi_name.as_str()),
-    ));
+        roi.roi_number.to_string().as_str(),
+    );
+    item.put_value(Tag(0x3006, 0x0026), VR::LO, roi.roi_name.as_str());
     if let Some(desc) = &roi.roi_description {
         if !desc.is_empty() {
-            item.put(DataElement::new(
-                Tag(0x3006, 0x0028),
-                VR::ST,
-                PrimitiveValue::from(desc.as_str()),
-            ));
+            item.put_value(Tag(0x3006, 0x0028), VR::ST, desc.as_str());
         }
     }
     item
@@ -132,18 +105,14 @@ fn build_roi_contour_item(roi: &RtRoiInfo) -> InMemDicomObject {
         roi.contours.iter().map(build_contour_item).collect();
 
     let mut item = InMemDicomObject::new_empty();
-    item.put(DataElement::new(
+    item.put_value(
         Tag(0x3006, 0x0084),
         VR::IS,
-        PrimitiveValue::from(roi.roi_number.to_string().as_str()),
-    ));
+        roi.roi_number.to_string().as_str(),
+    );
     if let Some(color) = &roi.display_color {
         let color_str = format!("{}\\{}\\{}", color[0], color[1], color[2]);
-        item.put(DataElement::new(
-            Tag(0x3006, 0x002A),
-            VR::IS,
-            PrimitiveValue::from(color_str.as_str()),
-        ));
+        item.put_value(Tag(0x3006, 0x002A), VR::IS, color_str.as_str());
     }
     if !contour_items.is_empty() {
         item.put(DataElement::new(
@@ -164,32 +133,24 @@ fn build_contour_item(contour: &RtContour) -> InMemDicomObject {
         .join("\\");
 
     let mut item = InMemDicomObject::new_empty();
-    item.put(DataElement::new(
+    item.put_value(
         Tag(0x3006, 0x0042),
         VR::CS,
-        PrimitiveValue::from(contour.geometric_type.as_dicom_str()),
-    ));
-    item.put(DataElement::new(
-        Tag(0x3006, 0x0050),
-        VR::DS,
-        PrimitiveValue::from(data_str.as_str()),
-    ));
+        contour.geometric_type.as_dicom_str(),
+    );
+    item.put_value(Tag(0x3006, 0x0050), VR::DS, data_str.as_str());
     item
 }
 
 fn build_obs_item(roi: &RtRoiInfo) -> InMemDicomObject {
     let mut item = InMemDicomObject::new_empty();
-    item.put(DataElement::new(
+    item.put_value(
         Tag(0x3006, 0x0084),
         VR::IS,
-        PrimitiveValue::from(roi.roi_number.to_string().as_str()),
-    ));
+        roi.roi_number.to_string().as_str(),
+    );
     if let Some(itype) = &roi.roi_interpreted_type {
-        item.put(DataElement::new(
-            Tag(0x3006, 0x00A4),
-            VR::CS,
-            PrimitiveValue::from(itype.as_dicom_str()),
-        ));
+        item.put_value(Tag(0x3006, 0x00A4), VR::CS, itype.as_dicom_str());
     }
     item
 }

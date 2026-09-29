@@ -6,9 +6,10 @@ use super::pixel_encoding::{
 };
 use super::preservation::emit_preservation_nodes;
 use crate::format::dicom::transfer_syntax::EXPLICIT_VR_LE;
+use crate::format::dicom::writer::elements::PutValue;
 use anyhow::{bail, Result};
 use dicom::core::smallvec::SmallVec;
-use dicom::core::{DataElement, PrimitiveValue, Tag, VR};
+use dicom::core::{PrimitiveValue, Tag, VR};
 use dicom::object::meta::FileMetaTableBuilder;
 use dicom::object::InMemDicomObject;
 use ritk_core::image::Image;
@@ -74,221 +75,101 @@ pub fn write_dicom_series_with_metadata<B: Backend, P: AsRef<Path>>(
         let sop_instance_uid = generate_instance_uid(series_uid, z);
         let mut obj = InMemDicomObject::new_empty();
 
-        obj.put(DataElement::new(
-            Tag(0x0008, 0x0016),
-            VR::UI,
-            PrimitiveValue::from(sop_class),
-        ));
-        obj.put(DataElement::new(
-            Tag(0x0008, 0x0018),
-            VR::UI,
-            PrimitiveValue::from(sop_instance_uid.as_str()),
-        ));
-        obj.put(DataElement::new(
-            Tag(0x0008, 0x0060),
-            VR::CS,
-            PrimitiveValue::from(modality),
-        ));
-        obj.put(DataElement::new(
-            Tag(0x0008, 0x0064),
-            VR::CS,
-            PrimitiveValue::from("WSD"),
-        ));
-        obj.put(DataElement::new(
-            Tag(0x0020, 0x000D),
-            VR::UI,
-            PrimitiveValue::from(study_uid),
-        ));
-        obj.put(DataElement::new(
-            Tag(0x0020, 0x000E),
-            VR::UI,
-            PrimitiveValue::from(series_uid),
-        ));
-        obj.put(DataElement::new(
-            Tag(0x0020, 0x0013),
-            VR::IS,
-            PrimitiveValue::from(format!("{}", z + 1)),
-        ));
+        obj.put_value(Tag(0x0008, 0x0016), VR::UI, sop_class);
+        obj.put_value(Tag(0x0008, 0x0018), VR::UI, sop_instance_uid.as_str());
+        obj.put_value(Tag(0x0008, 0x0060), VR::CS, modality);
+        obj.put_value(Tag(0x0008, 0x0064), VR::CS, "WSD");
+        obj.put_value(Tag(0x0020, 0x000D), VR::UI, study_uid);
+        obj.put_value(Tag(0x0020, 0x000E), VR::UI, series_uid);
+        obj.put_value(Tag(0x0020, 0x0013), VR::IS, format!("{}", z + 1));
 
-        obj.put(DataElement::new(
-            Tag(0x0028, 0x0002),
-            VR::US,
-            PrimitiveValue::from(1_u16),
-        ));
-        obj.put(DataElement::new(
-            Tag(0x0028, 0x0010),
-            VR::US,
-            PrimitiveValue::from(rows as u16),
-        ));
-        obj.put(DataElement::new(
-            Tag(0x0028, 0x0011),
-            VR::US,
-            PrimitiveValue::from(cols as u16),
-        ));
+        obj.put_value(Tag(0x0028, 0x0002), VR::US, 1_u16);
+        obj.put_value(Tag(0x0028, 0x0010), VR::US, rows as u16);
+        obj.put_value(Tag(0x0028, 0x0011), VR::US, cols as u16);
         emit_pixel_format_tags(&mut obj);
-        obj.put(DataElement::new(
-            Tag(0x0028, 0x1053),
-            VR::DS,
-            PrimitiveValue::from(format!("{:.6}", rescale_slope)),
-        ));
-        obj.put(DataElement::new(
+        obj.put_value(Tag(0x0028, 0x1053), VR::DS, format!("{:.6}", rescale_slope));
+        obj.put_value(
             Tag(0x0028, 0x1052),
             VR::DS,
-            PrimitiveValue::from(format!("{:.6}", rescale_intercept)),
-        ));
-        obj.put(DataElement::new(
-            Tag(0x0028, 0x0004),
-            VR::CS,
-            PrimitiveValue::from(photometric),
-        ));
+            format!("{:.6}", rescale_intercept),
+        );
+        obj.put_value(Tag(0x0028, 0x0004), VR::CS, photometric);
 
         if metadata.is_some() {
             let ipp_x = origin[0] + (z as f64) * spacing[0] * normal[0];
             let ipp_y = origin[1] + (z as f64) * spacing[0] * normal[1];
             let ipp_z = origin[2] + (z as f64) * spacing[0] * normal[2];
-            obj.put(DataElement::new(
+            obj.put_value(
                 Tag(0x0020, 0x0032),
                 VR::DS,
-                PrimitiveValue::from(format_triplet([ipp_x, ipp_y, ipp_z])),
-            ));
-            obj.put(DataElement::new(
+                format_triplet([ipp_x, ipp_y, ipp_z]),
+            );
+            // IOP = [F_r, F_c] = [direction[6..9], direction[3..6]]
+            obj.put_value(
                 Tag(0x0020, 0x0037),
                 VR::DS,
-                // IOP = [F_r, F_c] = [direction[6..9], direction[3..6]]
-                PrimitiveValue::from(format_six([
+                format_six([
                     direction[6],
                     direction[7],
                     direction[8],
                     direction[3],
                     direction[4],
                     direction[5],
-                ])),
-            ));
-            obj.put(DataElement::new(
+                ]),
+            );
+            // PixelSpacing = [ΔRow, ΔCol] = [spacing[1], spacing[2]]
+            obj.put_value(
                 Tag(0x0028, 0x0030),
                 VR::DS,
-                // PixelSpacing = [ΔRow, ΔCol] = [spacing[1], spacing[2]]
-                PrimitiveValue::from(format_pair([spacing[1], spacing[2]])),
-            ));
-            obj.put(DataElement::new(
-                Tag(0x0018, 0x0050),
-                VR::DS,
-                // SliceThickness = Δz = spacing[0]
-                PrimitiveValue::from(format!("{:.6}", spacing[0])),
-            ));
+                format_pair([spacing[1], spacing[2]]),
+            );
+            // SliceThickness = Δz = spacing[0]
+            obj.put_value(Tag(0x0018, 0x0050), VR::DS, format!("{:.6}", spacing[0]));
         }
 
         // DICOM PS3.3 Type 2: tag must be present even when value is unknown; empty string is valid.
-        obj.put(DataElement::new(
-            Tag(0x0008, 0x0090),
-            VR::PN,
-            PrimitiveValue::from(""),
-        ));
-        obj.put(DataElement::new(
-            Tag(0x0010, 0x0010),
-            VR::PN,
-            PrimitiveValue::from(""),
-        ));
-        obj.put(DataElement::new(
-            Tag(0x0010, 0x0020),
-            VR::LO,
-            PrimitiveValue::from(""),
-        ));
-        obj.put(DataElement::new(
-            Tag(0x0008, 0x0020),
-            VR::DA,
-            PrimitiveValue::from(""),
-        ));
-        obj.put(DataElement::new(
-            Tag(0x0020, 0x0011),
-            VR::IS,
-            PrimitiveValue::from("0"),
-        ));
+        obj.put_value(Tag(0x0008, 0x0090), VR::PN, "");
+        obj.put_value(Tag(0x0010, 0x0010), VR::PN, "");
+        obj.put_value(Tag(0x0010, 0x0020), VR::LO, "");
+        obj.put_value(Tag(0x0008, 0x0020), VR::DA, "");
+        obj.put_value(Tag(0x0020, 0x0011), VR::IS, "0");
 
         if let Some(m) = metadata {
             if let Some(ref uid) = m.frame_of_reference_uid {
-                obj.put(DataElement::new(
-                    Tag(0x0020, 0x0052),
-                    VR::UI,
-                    PrimitiveValue::from(uid.as_str()),
-                ));
+                obj.put_value(Tag(0x0020, 0x0052), VR::UI, uid.as_str());
             }
             if let Some(ref pid) = m.patient_id {
-                obj.put(DataElement::new(
-                    Tag(0x0010, 0x0020),
-                    VR::LO,
-                    PrimitiveValue::from(pid.as_str()),
-                ));
+                obj.put_value(Tag(0x0010, 0x0020), VR::LO, pid.as_str());
             }
             if let Some(ref pn) = m.patient_name {
-                obj.put(DataElement::new(
-                    Tag(0x0010, 0x0010),
-                    VR::PN,
-                    PrimitiveValue::from(pn.as_str()),
-                ));
+                obj.put_value(Tag(0x0010, 0x0010), VR::PN, pn.as_str());
             }
             if let Some(ref sd) = m.study_date {
-                obj.put(DataElement::new(
-                    Tag(0x0008, 0x0020),
-                    VR::DA,
-                    PrimitiveValue::from(sd.as_str()),
-                ));
+                obj.put_value(Tag(0x0008, 0x0020), VR::DA, sd.as_str());
             }
             if let Some(ref desc) = m.series_description {
-                obj.put(DataElement::new(
-                    Tag(0x0008, 0x103E),
-                    VR::LO,
-                    PrimitiveValue::from(desc.as_str()),
-                ));
+                obj.put_value(Tag(0x0008, 0x103E), VR::LO, desc.as_str());
             }
             if let Some(ref sd) = m.series_date {
-                obj.put(DataElement::new(
-                    Tag(0x0008, 0x0021),
-                    VR::DA,
-                    PrimitiveValue::from(sd.as_str()),
-                ));
+                obj.put_value(Tag(0x0008, 0x0021), VR::DA, sd.as_str());
             }
             if let Some(ref st) = m.series_time {
-                obj.put(DataElement::new(
-                    Tag(0x0008, 0x0031),
-                    VR::TM,
-                    PrimitiveValue::from(st.as_str()),
-                ));
+                obj.put_value(Tag(0x0008, 0x0031), VR::TM, st.as_str());
             }
             if let Some(bits) = m.bits_allocated {
-                obj.put(DataElement::new(
-                    Tag(0x0028, 0x0100),
-                    VR::US,
-                    PrimitiveValue::from(bits),
-                ));
+                obj.put_value(Tag(0x0028, 0x0100), VR::US, bits);
             }
             if let Some(bits) = m.bits_stored {
-                obj.put(DataElement::new(
-                    Tag(0x0028, 0x0101),
-                    VR::US,
-                    PrimitiveValue::from(bits),
-                ));
+                obj.put_value(Tag(0x0028, 0x0101), VR::US, bits);
             }
             if let Some(bits) = m.high_bit {
-                obj.put(DataElement::new(
-                    Tag(0x0028, 0x0102),
-                    VR::US,
-                    PrimitiveValue::from(bits),
-                ));
+                obj.put_value(Tag(0x0028, 0x0102), VR::US, bits);
             }
             if let Some(private_value) = m.private_tags.get("0019,10AA") {
-                obj.put(DataElement::new(
-                    Tag(0x0019, 0x10AA),
-                    VR::LO,
-                    PrimitiveValue::from(private_value.as_str()),
-                ));
+                obj.put_value(Tag(0x0019, 0x10AA), VR::LO, private_value.as_str());
             }
             if let Some(private_value) = m.private_tags.get("0029,10BB") {
-                obj.put(DataElement::new(
-                    Tag(0x0029, 0x10BB),
-                    VR::LO,
-                    PrimitiveValue::from(private_value.as_str()),
-                ));
+                obj.put_value(Tag(0x0029, 0x10BB), VR::LO, private_value.as_str());
             }
         }
 
@@ -299,11 +180,11 @@ pub fn write_dicom_series_with_metadata<B: Backend, P: AsRef<Path>>(
                 emit_preservation_nodes(&mut obj, &m.preservation, &exclusion);
             }
         }
-        obj.put(DataElement::new(
+        obj.put_value(
             Tag(0x7FE0, 0x0010),
             VR::OW,
             PrimitiveValue::U16(SmallVec::from_vec(pixel_u16)),
-        ));
+        );
 
         let file_obj = obj
             .with_meta(
