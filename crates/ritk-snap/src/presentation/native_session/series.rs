@@ -174,8 +174,22 @@ impl NativeViewerSession {
                 .expect("invariant: a non-empty study browser has an active series");
             let modality = choice.modality.to_string();
             let image_count = choice.image_count;
-            let volume = load_volume_from_series_info(&choice.acquisition)
-                .with_context(|| "open the first discovered DICOM series")?;
+            let volume = match load_volume_from_series_info(&choice.acquisition) {
+                Ok(volume) => volume,
+                Err(error) => {
+                    self.series_browser = Some(browser);
+                    self.primary_series_index = None;
+                    self.reset_comparison();
+                    tracing::warn!(
+                        error_chain_depth = error.chain().count(),
+                        "first discovered series could not be opened; study catalog remains available"
+                    );
+                    self.app.status_message =
+                        "First series could not be opened; select another series from the preview bar."
+                            .to_owned();
+                    return Ok(());
+                }
+            };
             self.app.load_volume(
                 volume,
                 format!("Loaded {modality} series ({image_count} images)."),
@@ -247,6 +261,56 @@ impl NativeViewerSession {
         self.assign_series_to_panel(index, self.active_panel)
     }
 
+    pub(super) fn browse_series(&mut self, index: usize, panel_index: usize) -> Result<bool> {
+        let Some(browser) = self.series_browser.as_ref() else {
+            return Ok(false);
+        };
+        if browser.choice(index).is_none() {
+            return Err(anyhow!("selected series row is outside the study"));
+        }
+        let layout = self
+            .maximized_panel
+            .map_or(self.workspace_layout, |maximized| maximized.layout);
+        let panel_count = layout.grid().map_or(1, PanelGrid::panel_count);
+        if panel_index >= panel_count {
+            return Err(anyhow!("browsed series target is outside the study layout"));
+        }
+        let hidden_panel = self.maximized_panel.is_some() && panel_index != 0;
+        let current_series = if panel_index == 0 {
+            self.primary_series_index
+        } else {
+            self.compare_panels
+                .get(panel_index - 1)
+                .and_then(|panel| panel.series_index)
+        };
+        if current_series == Some(index) {
+            if hidden_panel {
+                return Ok(false);
+            }
+            let changed = self.active_panel != panel_index
+                || self
+                    .series_browser
+                    .as_ref()
+                    .is_some_and(|browser| browser.active_index() != index);
+            self.active_panel = panel_index;
+            self.series_browser
+                .as_mut()
+                .expect("invariant: browsed series retains its study browser")
+                .set_active(index);
+            return Ok(changed);
+        }
+
+        self.replace_series_at(index, panel_index)?;
+        if !hidden_panel {
+            self.active_panel = panel_index;
+            self.series_browser
+                .as_mut()
+                .expect("invariant: browsed series retains its study browser")
+                .set_active(index);
+        }
+        Ok(true)
+    }
+
     pub(super) fn assign_series_to_panel(
         &mut self,
         index: usize,
@@ -256,14 +320,9 @@ impl NativeViewerSession {
             .series_browser
             .as_ref()
             .ok_or_else(|| anyhow!("series assignment requires a study catalog"))?;
-        let choice = browser
-            .choice(index)
-            .ok_or_else(|| anyhow!("selected series row is outside the study"))?;
-        let (acquisition, modality, image_count) = (
-            Arc::clone(&choice.acquisition),
-            choice.modality.to_string(),
-            choice.image_count,
-        );
+        if browser.choice(index).is_none() {
+            return Err(anyhow!("selected series row is outside the study"));
+        }
         let panel_count = self
             .workspace_layout
             .grid()
@@ -292,6 +351,30 @@ impl NativeViewerSession {
             return Ok(changed);
         }
 
+        self.replace_series_at(index, panel_index)?;
+        self.active_panel = panel_index;
+        self.series_browser
+            .as_mut()
+            .expect("invariant: selected series retains its study browser")
+            .set_active(index);
+        Ok(true)
+    }
+
+    fn replace_series_at(&mut self, index: usize, panel_index: usize) -> Result<()> {
+        let (acquisition, modality, image_count) = {
+            let browser = self
+                .series_browser
+                .as_ref()
+                .ok_or_else(|| anyhow!("series replacement requires a study catalog"))?;
+            let choice = browser
+                .choice(index)
+                .ok_or_else(|| anyhow!("selected series row is outside the study"))?;
+            (
+                Arc::clone(&choice.acquisition),
+                choice.modality.to_string(),
+                choice.image_count,
+            )
+        };
         let volume = if self.primary_series_index == Some(index) {
             self.app
                 .loaded
@@ -320,15 +403,10 @@ impl NativeViewerSession {
         } else {
             self.compare_panels
                 .get_mut(panel_index - 1)
-                .ok_or_else(|| anyhow!("series assignment panel is not initialized"))?
+                .ok_or_else(|| anyhow!("series replacement panel is not initialized"))?
                 .replace(volume, index, status)?;
         }
-        self.active_panel = panel_index;
-        self.series_browser
-            .as_mut()
-            .expect("invariant: selected series retains its study browser")
-            .set_active(index);
-        Ok(true)
+        Ok(())
     }
 
     pub(super) fn open_study_from_dialog(&mut self) -> Result<bool> {

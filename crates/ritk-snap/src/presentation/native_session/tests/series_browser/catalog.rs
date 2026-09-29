@@ -43,6 +43,61 @@ fn native_study_navigator_retains_and_loads_each_discovered_series() {
 }
 
 #[test]
+fn undecodable_first_series_keeps_the_catalog_and_allows_a_later_series() {
+    let root = tempfile::tempdir().expect("study root");
+    fixtures::write_grayscale_presentation(root.path(), "MONOCHROME3", None)
+        .expect("write a catalogued series with unsupported pixel presentation");
+    fixtures::write_study(root.path(), "CT", fixtures::SERIES_UID)
+        .expect("write a valid later series");
+
+    let (mut viewer, _initial_root) = session();
+    let previous_uid = viewer
+        .app
+        .loaded
+        .as_ref()
+        .and_then(|volume| volume.metadata.as_ref())
+        .and_then(|metadata| metadata.series_instance_uid);
+    viewer
+        .open_study_path(root.path())
+        .expect("keep the discoverable series catalog when the first decode fails");
+
+    let browser = viewer.series_browser.as_ref().expect("retained catalog");
+    assert_eq!(browser.len(), 2);
+    assert_eq!(
+        browser
+            .choice(0)
+            .expect("first discovered series")
+            .acquisition
+            .series_instance_uid(),
+        "2.25.20260905005"
+    );
+    assert_eq!(viewer.primary_series_index, None);
+    assert_eq!(
+        viewer
+            .app
+            .loaded
+            .as_ref()
+            .and_then(|volume| volume.metadata.as_ref())
+            .and_then(|metadata| metadata.series_instance_uid.as_deref()),
+        previous_uid.as_deref()
+    );
+    assert!(viewer.app.status_message.contains("select another series"));
+
+    click_series(&mut viewer, 1);
+
+    assert_eq!(viewer.primary_series_index, Some(1));
+    assert_eq!(
+        viewer
+            .app
+            .loaded
+            .as_ref()
+            .and_then(|volume| volume.metadata.as_ref())
+            .and_then(|metadata| metadata.series_instance_uid.as_deref()),
+        Some(fixtures::SERIES_UID)
+    );
+}
+
+#[test]
 fn failed_series_switch_preserves_the_active_volume_and_catalog() {
     let (mut viewer, _initial_root) = session();
     let replacement = replacement_study();

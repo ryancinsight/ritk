@@ -3,6 +3,7 @@
 use super::window_controls::{PanelCloseKind, WindowAction};
 use super::{NativeViewerError, NativeViewerSession};
 use crate::tools::interaction::{ToolState, ViewportOffset};
+use crate::tools::kind::ToolKind;
 
 impl NativeViewerSession {
     pub(super) fn apply_window_action(
@@ -45,6 +46,18 @@ impl NativeViewerSession {
                 Err(error) => {
                     self.active_app_mut().status_message = format!(
                         "Series could not be opened; the active image remains displayed: {error:#}"
+                    );
+                    Ok(true)
+                }
+            },
+            WindowAction::BrowseSeries {
+                series_index,
+                panel_index,
+            } => match self.browse_series(series_index, panel_index) {
+                Ok(changed) => Ok(changed),
+                Err(error) => {
+                    self.active_app_mut().status_message = format!(
+                        "Series could not be opened in the active panel; its image remains displayed: {error:#}"
                     );
                     Ok(true)
                 }
@@ -102,12 +115,18 @@ impl NativeViewerSession {
                 .map_err(NativeViewerError::from),
             WindowAction::Exit => Ok(true),
             WindowAction::SelectTool(tool) => {
+                if self.workspace_layout.is_grid() && tool == ToolKind::Crosshair {
+                    return Ok(false);
+                }
                 let app = self.active_app_mut();
                 app.active_tool = tool;
                 app.tool_state = ToolState::Idle;
                 Ok(true)
             }
             WindowAction::ToggleCrosshair => {
+                if self.workspace_layout.is_grid() {
+                    return Ok(false);
+                }
                 let app = self.active_app_mut();
                 app.show_crosshair = !app.show_crosshair;
                 Ok(true)

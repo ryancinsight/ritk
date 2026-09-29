@@ -57,6 +57,15 @@ impl PanelRouteMap {
                     series_index,
                     panel_index,
                 }),
+            WindowAction::BrowseSeries {
+                series_index,
+                panel_index,
+            } => self
+                .current_panel(panel_index)
+                .map(|panel_index| WindowAction::BrowseSeries {
+                    series_index,
+                    panel_index,
+                }),
             _ => Some(action),
         }
     }

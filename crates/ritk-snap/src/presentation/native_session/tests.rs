@@ -318,6 +318,32 @@ fn native_session_crosshair_key_repaints_and_updates_snapshot() {
 }
 
 #[test]
+fn panel_layout_clears_crosshair_and_ignores_its_shortcut() {
+    let (mut session, _root) = session();
+    session.app.show_crosshair = true;
+    session.app.active_tool = crate::tools::kind::ToolKind::Crosshair;
+    session
+        .set_workspace_layout(super::layout::WorkspaceLayout::Panels(
+            super::layout::PanelGrid::new(2, 1).expect("two-panel layout"),
+        ))
+        .expect("enable panel layout");
+    session.refresh_frame().expect("render panel layout");
+
+    assert!(!session.app.show_crosshair);
+    assert_eq!(session.app.active_tool, crate::tools::kind::ToolKind::Pan);
+
+    let flow = session
+        .handle_events(&[WindowEvent::KeyDown {
+            virtual_key: crate::app::action_adapter::VIRTUAL_KEY_CROSSHAIR_TOGGLE,
+            repeated: false,
+            modifiers: ModifierState::NONE,
+        }])
+        .expect("ignore unavailable panel crosshair shortcut");
+    assert_eq!(flow, NativeFlow::Continue { repaint: false });
+    assert!(!session.app.show_crosshair);
+}
+
+#[test]
 fn native_crosshair_overlay_maps_one_linked_voxel_into_each_plane() {
     let (session, _root) = session();
     let shape = session.app.loaded.as_ref().map(|volume| volume.shape);

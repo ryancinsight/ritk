@@ -302,10 +302,12 @@ exact NIfTI file/byte roundtrips for `.nii` and `.nii.gz`.
 
 Use **File → Open DICOM file…** to select a particular acquisition in a folder
 containing several series. The selected instance's SeriesInstanceUID determines
-which neighbouring image files load. **Open DICOM folder…** discovers the series
-browser; if the folder contains several series, choose a series there instead of
-accepting an arbitrary largest series. The highlighted series changes after
-successful loading. Selecting a secondary series retains its own exact files.
+which neighbouring image files load. **File → Open Study…** discovers the
+series catalog and displays its preview bar. The desktop viewer loads the first
+discovered series initially. Selecting a series card loads it into the active
+panel; if it is already open, the viewer activates its existing panel. Ctrl-click
+opens that series in the next panel. Each panel retains its own series
+assignment. The highlighted card tracks the active panel.
 
 For a scripted startup or a Métis-native capture, pass the selected
 SeriesInstanceUID explicitly. RITK discovers the path and verifies the exact
@@ -317,17 +319,21 @@ cargo run --locked -p ritk-snap -- path/to/study \
 ```
 
 An unknown UID, a non-DICOM path, or a changed member list fails with a typed
-diagnostic. The launcher never chooses the largest or first series. This is the
-safe path for saved patient folders that contain multiple acquisitions; keep
-clinical files local and do not add them to the repository or its captures.
+diagnostic. Scripted startup requires an explicit UID whenever a folder has
+multiple series. This is the safe path for saved patient folders that contain
+multiple acquisitions; keep clinical files local and do not add them to the
+repository or its captures.
 
-The interactive Windows Métis shell follows the same rule. `Ctrl+O` opens the
-bounded folder picker; when the folder contains several acquisitions, RITK
-renders a series selector over the current framebuffer. Use **Arrow Up/Down**
-or **1–9**, then **Enter** to load the highlighted SeriesInstanceUID. **Escape**
-cancels without replacing the current study. A failed scan or decode reports
-the failure in the selector and keeps the previous decoded frame available,
-so a recoverable reopen never terminates the Métis host.
+In the native desktop shell, use **File → Open Study…** to choose a folder.
+Click a series card in the left preview bar to load it into the active panel;
+Ctrl-click opens it in the next panel. The **Open multiple series** button or
+F4 opens the catalog picker, where checkboxes select several series and Enter
+loads them into separate panels. **Escape** closes the picker without changing
+series assignments. Left/Right browses series in the active panel; a horizontal
+wheel over an image panel browses that panel's series. If the first discovered
+series cannot be decoded, the catalog stays available so another card can be
+opened, and the previously displayed primary image remains visible. A failed
+scan reports its error without terminating the native host.
 
 **Open DICOMDIR…** uses the index's referenced image set. Missing references or
 an invalid index report an error; unreferenced subdirectories do not supply a
@@ -1233,6 +1239,15 @@ window/level, zoom, pan and cine state remain independent between panels. A
 series may occupy more than one panel. A failed load preserves the displayed
 volume. This reproduces RadiAnt's documented series-browsing and multi-series
 workflow.
+
+Left and Right browse the previous or next series in the active panel. A
+horizontal wheel browses relative to the series shown in the panel under the
+pointer and replaces only that panel's series. Activating a series card still
+switches to the panel already assigned to that card.
+
+The F4 multiple-series picker can filter the catalog by typing. Enter loads the
+first visible result while the filter is active; a filter with no results clears
+the prior selection and leaves the picker open.
 
 The shareable captures use the public phantom and contain no clinical patient
 identifiers. The preview rail groups each study with separate patient and

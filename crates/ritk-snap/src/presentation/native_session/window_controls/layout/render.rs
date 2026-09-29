@@ -197,11 +197,17 @@ pub(super) fn render(
     }
 
     let study_status = app.status_message.as_str();
-    let right_status = match (app.show_crosshair, app.cine.enabled) {
-        (true, true) => "Crosshair: On  |  Cine: Playing",
-        (true, false) => "Crosshair: On  |  Cine: Paused",
-        (false, true) => "Crosshair: Off  |  Cine: Playing",
-        (false, false) => "Crosshair: Off  |  Cine: Paused",
+    let right_status = match (
+        workspace_layout.is_grid(),
+        app.show_crosshair,
+        app.cine.enabled,
+    ) {
+        (true, _, true) => "Cine: Playing",
+        (true, _, false) => "Cine: Paused",
+        (false, true, true) => "Crosshair: On  |  Cine: Playing",
+        (false, true, false) => "Crosshair: On  |  Cine: Paused",
+        (false, false, true) => "Crosshair: Off  |  Cine: Playing",
+        (false, false, false) => "Crosshair: Off  |  Cine: Paused",
     };
     let mut layout_status = ArrayString::<48>::new();
     if let Some(grid) = workspace_layout.grid() {

@@ -31,6 +31,10 @@ pub(super) enum WindowAction {
     LoadSelectedSeries,
     Exit,
     SelectSeries(usize),
+    BrowseSeries {
+        series_index: usize,
+        panel_index: usize,
+    },
     OpenSeriesInNextPanel(usize),
     MaximizePanel(usize),
     ClosePanel {

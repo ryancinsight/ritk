@@ -119,6 +119,32 @@ fn tools_menu_hit_tests_each_ritk_tool() {
 }
 
 #[test]
+fn panel_layout_hides_crosshair_controls_that_are_not_rendered() {
+    let app = SnapApp::default();
+    let workspace = WorkspaceLayout::Panels(PanelGrid::new(2, 1).expect("two-panel layout"));
+    let toolbar = ChromeLayout::new(1_280, 800, None, &app, true, workspace)
+        .expect("comparison toolbar layout");
+    assert_eq!(
+        toolbar.action_center(WindowAction::SelectTool(ToolKind::Crosshair)),
+        None
+    );
+
+    for (menu, action) in [
+        (Menu::View, WindowAction::ToggleCrosshair),
+        (Menu::Tools, WindowAction::SelectTool(ToolKind::Crosshair)),
+    ] {
+        let layout = ChromeLayout::new(1_280, 800, Some(menu), &app, true, workspace)
+            .expect("comparison menu layout");
+        assert_eq!(layout.action_center(action), None);
+    }
+
+    let view_menu = ChromeLayout::new(1_280, 800, Some(Menu::View), &app, true, workspace)
+        .expect("comparison View menu layout");
+    assert!(view_menu.action_center(WindowAction::ToggleCine).is_some());
+    assert!(view_menu.action_center(WindowAction::ResetView).is_some());
+}
+
+#[test]
 fn tools_popup_consumes_pointer_without_changing_series_selection() {
     let mut chrome = WindowChrome::new(true);
     chrome.open_menu = Some(Menu::Tools);
@@ -141,6 +167,8 @@ fn tools_popup_consumes_pointer_without_changing_series_selection() {
             WorkspaceLayout::Orthogonal,
             false,
             &[],
+            &[],
+            0,
         )
         .expect("select the obscured Tools menu item");
 
@@ -178,6 +206,8 @@ fn wheel_over_tools_popup_does_not_scroll_the_series_list() {
                 WorkspaceLayout::Orthogonal,
                 false,
                 &[],
+                &[],
+                0,
             )
             .expect("keep wheel input in the menu layer"),
         WindowChromeEvent::consumed(false)
@@ -230,6 +260,8 @@ fn native_menu_event_toggles_the_series_preview() {
             WorkspaceLayout::Orthogonal,
             false,
             &[],
+            &[],
+            0,
         )
         .expect("open View menu");
     chrome
@@ -242,6 +274,8 @@ fn native_menu_event_toggles_the_series_preview() {
             WorkspaceLayout::Orthogonal,
             false,
             &[],
+            &[],
+            0,
         )
         .expect("release View menu");
     let toggle = PresentationEvent::PointerDown {
@@ -261,6 +295,8 @@ fn native_menu_event_toggles_the_series_preview() {
                 WorkspaceLayout::Orthogonal,
                 false,
                 &[],
+                &[],
+                0,
             )
             .expect("toggle series preview"),
         WindowChromeEvent {

@@ -22,7 +22,21 @@ impl WindowChrome {
         workspace_layout: WorkspaceLayout,
         maximized_panel: bool,
         viewports: &[NativeViewport],
+        displayed_series: &[Option<usize>],
+        active_panel: usize,
     ) -> Result<WindowChromeEvent> {
+        if workspace_layout.is_grid()
+            && self.multi_series_dialog.is_none()
+            && matches!(
+                event,
+                PresentationEvent::KeyDown {
+                    virtual_key: 0x58,
+                    ..
+                }
+            )
+        {
+            return Ok(WindowChromeEvent::consumed(false));
+        }
         if !self.visible {
             return Ok(WindowChromeEvent::passed());
         }
@@ -91,28 +105,37 @@ impl WindowChrome {
             } = event
             {
                 if *modifiers == PresentationModifiers::NONE {
+                    let current_series = displayed_series
+                        .get(active_panel)
+                        .copied()
+                        .flatten()
+                        .or_else(|| browser.as_ref().map(SeriesBrowser::active_index));
                     let index = match *virtual_key {
                         0x24 => browser
                             .as_ref()
-                            .filter(|browser| browser.active_index() != 0)
+                            .filter(|_| current_series.is_some_and(|current| current != 0))
                             .map(|_| 0),
                         0x23 => browser.as_ref().and_then(|browser| {
-                            (browser.active_index().saturating_add(1) < browser.len())
+                            current_series
+                                .is_some_and(|current| current.saturating_add(1) < browser.len())
                                 .then_some(browser.len().saturating_sub(1))
                         }),
                         0x25 => browser
                             .as_ref()
-                            .and_then(|browser| adjacent_series(browser, -1)),
+                            .and_then(|browser| adjacent_series(browser, current_series?, -1)),
                         0x27 => browser
                             .as_ref()
-                            .and_then(|browser| adjacent_series(browser, 1)),
+                            .and_then(|browser| adjacent_series(browser, current_series?, 1)),
                         _ => None,
                     };
                     if let Some(index) = index {
                         return Ok(WindowChromeEvent {
                             consumed: true,
                             repaint: true,
-                            action: Some(WindowAction::SelectSeries(index)),
+                            action: Some(WindowAction::BrowseSeries {
+                                series_index: index,
+                                panel_index: active_panel,
+                            }),
                         });
                     }
                 }
@@ -347,10 +370,20 @@ impl WindowChrome {
                     && viewports.iter().any(|viewport| viewport.contains(*x, *y))
                 {
                     let direction = if *delta_x > 0.0 { 1 } else { -1 };
+                    let panel_index = viewports
+                        .iter()
+                        .position(|viewport| viewport.contains(*x, *y));
+                    let current_series = panel_index
+                        .and_then(|index| displayed_series.get(index).copied().flatten())
+                        .or_else(|| browser.as_ref().map(SeriesBrowser::active_index));
                     let action = browser
                         .as_ref()
-                        .and_then(|browser| adjacent_series(browser, direction))
-                        .map(WindowAction::SelectSeries);
+                        .and_then(|browser| adjacent_series(browser, current_series?, direction))
+                        .zip(panel_index)
+                        .map(|(series_index, panel_index)| WindowAction::BrowseSeries {
+                            series_index,
+                            panel_index,
+                        });
                     Ok(match action {
                         Some(action) => WindowChromeEvent {
                             consumed: true,
@@ -389,8 +422,7 @@ impl WindowChrome {
     }
 }
 
-fn adjacent_series(browser: &SeriesBrowser, direction: i32) -> Option<usize> {
-    let active = browser.active_index();
+fn adjacent_series(browser: &SeriesBrowser, active: usize, direction: i32) -> Option<usize> {
     let next = if direction < 0 {
         active.checked_sub(1)?
     } else {

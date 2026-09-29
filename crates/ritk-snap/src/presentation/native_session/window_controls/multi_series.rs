@@ -91,7 +91,12 @@ impl MultiSeriesDialog {
             } if !repeated => match *virtual_key {
                 0x1b => Ok(action(DialogAction::Cancel)),
                 0x0d => {
-                    if self.selected.is_empty() {
+                    if !self.filter.is_empty() {
+                        self.selected.clear();
+                        if let Some(index) = self.matches.first().copied() {
+                            self.set_single(index);
+                        }
+                    } else if self.selected.is_empty() {
                         if let Some(index) = self.matches.first().copied() {
                             self.set_single(index);
                         }

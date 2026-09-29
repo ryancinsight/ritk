@@ -126,6 +126,10 @@ impl ChromeLayout {
             .saturating_add(geometry.toolbar_height.saturating_sub(button_height) / 2);
         let mut previous_group = None;
         for (label, requested_width, action, group) in TOOLBAR_ITEMS {
+            if workspace_layout.is_grid() && action == WindowAction::SelectTool(ToolKind::Crosshair)
+            {
+                continue;
+            }
             let control_width = requested_width.min(width.saturating_sub(control_x));
             if control_width == 0 || button_height == 0 {
                 break;
@@ -225,7 +229,7 @@ impl ChromeLayout {
         } else if let Some(menu) = open_menu {
             let popup_width = 210_u32.min(width);
             let menu_x = menu_tab_geometry(menu).min(width.saturating_sub(popup_width));
-            let count = menu_item_count(menu);
+            let count = menu_item_count(menu, workspace_layout);
             let available_height = height.saturating_sub(geometry.menu_height);
             let count_u32 =
                 u32::try_from(count).map_err(|_| anyhow!("native menu item count exceeds u32"))?;
@@ -276,11 +280,20 @@ fn menu_tab_geometry(menu: Menu) -> u32 {
     0
 }
 
-fn menu_item_count(menu: Menu) -> usize {
+fn menu_item_count(menu: Menu, workspace_layout: WorkspaceLayout) -> usize {
     match menu {
         Menu::File => 2,
-        Menu::View => 4,
-        Menu::Tools => ToolKind::all().len(),
+        Menu::View => {
+            if workspace_layout.is_grid() {
+                3
+            } else {
+                4
+            }
+        }
+        Menu::Tools => ToolKind::all()
+            .iter()
+            .filter(|tool| !(workspace_layout.is_grid() && **tool == ToolKind::Crosshair))
+            .count(),
         Menu::Window => 6,
         Menu::GridPicker => 0,
     }
@@ -297,6 +310,20 @@ fn menu_item(
             0 => Ok(("Open Study...", WindowAction::OpenStudy, false)),
             1 => Ok(("Exit", WindowAction::Exit, false)),
             _ => Err(anyhow!("native File menu row is outside its items")),
+        },
+        Menu::View if workspace_layout.is_grid() => match index {
+            0 => Ok((
+                "Toggle series browser",
+                WindowAction::ToggleSeriesPreview,
+                false,
+            )),
+            1 => Ok((
+                "Toggle cine playback",
+                WindowAction::ToggleCine,
+                app.cine.enabled,
+            )),
+            2 => Ok(("Reset view", WindowAction::ResetView, false)),
+            _ => Err(anyhow!("native View menu row is outside its items")),
         },
         Menu::View => match index {
             0 => Ok((
@@ -319,8 +346,10 @@ fn menu_item(
         },
         Menu::Tools => {
             let tool = ToolKind::all()
-                .get(index)
+                .iter()
                 .copied()
+                .filter(|tool| !(workspace_layout.is_grid() && *tool == ToolKind::Crosshair))
+                .nth(index)
                 .ok_or_else(|| anyhow!("native Tools menu row is outside its items"))?;
             Ok((
                 tool.label(),

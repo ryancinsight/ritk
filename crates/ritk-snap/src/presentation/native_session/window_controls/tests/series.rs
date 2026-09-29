@@ -70,7 +70,18 @@ fn window_menu_shortcuts_match_panel_actions() {
         };
         assert_eq!(
             chrome
-                .handle_event(&event, 1_280, 800, &app, &mut browser, grid, false, &[])
+                .handle_event(
+                    &event,
+                    1_280,
+                    800,
+                    &app,
+                    &mut browser,
+                    grid,
+                    false,
+                    &[],
+                    &[],
+                    0
+                )
                 .expect("translate a documented window shortcut"),
             WindowChromeEvent {
                 consumed: true,
@@ -133,6 +144,8 @@ fn focus_loss_closes_an_open_menu_and_requests_a_repaint() {
                 WorkspaceLayout::Orthogonal,
                 false,
                 &[],
+                &[],
+                0,
             )
             .expect("close the menu on focus loss"),
         WindowChromeEvent {
@@ -221,6 +234,8 @@ fn grouped_series_cards_route_selection_and_consume_viewer_input() {
                 WorkspaceLayout::Orthogonal,
                 false,
                 &[],
+                &[],
+                0,
             )
             .expect("begin a series drag"),
         WindowChromeEvent {
@@ -244,6 +259,8 @@ fn grouped_series_cards_route_selection_and_consume_viewer_input() {
                 WorkspaceLayout::Orthogonal,
                 false,
                 &[],
+                &[],
+                0,
             )
             .expect("select a series row"),
         WindowChromeEvent {
@@ -276,6 +293,8 @@ fn vertical_scrollbar_pages_through_the_discovered_series() {
                 WorkspaceLayout::Orthogonal,
                 false,
                 &[],
+                &[],
+                0,
             )
             .expect("page down through the series list"),
         WindowChromeEvent::consumed(true)
@@ -308,6 +327,8 @@ fn preview_wheel_scrolls_through_the_discovered_series() {
                 WorkspaceLayout::Orthogonal,
                 false,
                 &[],
+                &[],
+                0,
             )
             .expect("scroll the series preview"),
         WindowChromeEvent::consumed(true)

@@ -143,6 +143,16 @@ impl NativeApplication for NativeViewerSession {
         let workspace_layout = self.workspace_layout;
         let active_panel = self.active_panel;
         let maximized_panel = self.maximized_panel.is_some();
+        let displayed_series: [Option<usize>; super::layout::MAX_GRID_PANELS] =
+            std::array::from_fn(|index| {
+                if index == 0 {
+                    self.primary_series_index
+                } else {
+                    self.compare_panels
+                        .get(index.saturating_sub(1))
+                        .and_then(|panel| panel.series_index)
+                }
+            });
         let chrome_before = self.window_chrome.clone();
         let series_scroll_before = self
             .series_browser
@@ -181,6 +191,8 @@ impl NativeApplication for NativeViewerSession {
                 workspace_layout,
                 maximized_panel,
                 viewports,
+                &displayed_series,
+                active_panel,
             ) {
                 Ok(chrome_event) => {
                     chrome_repaint |= chrome_event.repaint;

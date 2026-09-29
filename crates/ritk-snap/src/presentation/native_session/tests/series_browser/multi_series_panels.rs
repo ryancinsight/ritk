@@ -215,6 +215,64 @@ fn f4_picker_opens_every_keyboard_selected_series_in_the_native_window() {
         loaded_series_uid(&viewer.compare_panels[0].app),
         Some(SECOND_SERIES_UID)
     );
+
+    viewer.refresh_frame().expect("render the series panels");
+    let (x, y) = viewer.viewports[1].center();
+    viewer
+        .handle_events(&[WindowEvent::PointerWheel {
+            x,
+            y,
+            delta_x: 120,
+            delta_y: 0,
+            modifiers: ModifierState::NONE,
+        }])
+        .expect("browse from the series under the horizontal wheel");
+
+    assert_eq!(viewer.active_panel, 1);
+    assert_eq!(viewer.primary_series_index, Some(0));
+    assert_eq!(viewer.compare_panels[0].series_index, Some(2));
+    assert_eq!(loaded_series_uid(&viewer.app), Some(fixtures::SERIES_UID));
+    assert_eq!(
+        loaded_series_uid(&viewer.compare_panels[0].app),
+        Some(THIRD_SERIES_UID)
+    );
+}
+
+#[test]
+fn series_browsing_replaces_the_active_panel_without_switching_to_an_existing_panel() {
+    let (mut viewer, _initial_root) = session();
+    let study = four_series_study();
+    viewer
+        .open_study_path(study.path())
+        .expect("open four-series study");
+    viewer
+        .set_workspace_layout(WorkspaceLayout::Panels(
+            PanelGrid::new(2, 1).expect("side-by-side grid"),
+        ))
+        .expect("select two-panel grid");
+    viewer
+        .assign_series_to_panel(1, 1)
+        .expect("load a second series into the right panel");
+    viewer
+        .assign_series_to_panel(0, 0)
+        .expect("focus the left panel");
+
+    viewer
+        .handle_events(&[WindowEvent::KeyDown {
+            virtual_key: 0x27,
+            repeated: false,
+            modifiers: ModifierState::NONE,
+        }])
+        .expect("browse to the next series from the active panel");
+
+    assert_eq!(viewer.active_panel, 0);
+    assert_eq!(viewer.primary_series_index, Some(1));
+    assert_eq!(viewer.compare_panels[0].series_index, Some(1));
+    assert_eq!(loaded_series_uid(&viewer.app), Some(SECOND_SERIES_UID));
+    assert_eq!(
+        loaded_series_uid(&viewer.compare_panels[0].app),
+        Some(SECOND_SERIES_UID)
+    );
 }
 
 #[test]
