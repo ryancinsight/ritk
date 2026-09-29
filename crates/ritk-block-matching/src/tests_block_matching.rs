@@ -681,7 +681,11 @@ fn block_grid_dense_enumerates_centres() {
 
 #[test]
 fn block_grid_validates_stride_and_overflow() {
-    assert!(BlockGrid::try_dense([usize::MAX, 0, 0]).is_err());
+    let error = BlockGrid::try_dense([usize::MAX, 0, 0]).expect_err("axis 0 overflows");
+    assert_eq!(
+        error.to_string(),
+        "dense grid stride extent overflows on axis 0"
+    );
     assert!(BlockGrid { stride: [0, 1, 1] }.validate().is_err());
 
     let grid = BlockGrid { stride: [1, 1, 1] };

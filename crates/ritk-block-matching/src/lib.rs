@@ -122,6 +122,7 @@ impl Sample for f64 {
     }
 }
 
+mod extent;
 #[cfg(feature = "fft")]
 mod fft;
 mod input;
@@ -387,14 +388,9 @@ impl BlockGrid {
     ///
     /// Returns an error when `2 * block_radius + 1` overflows on any axis.
     pub fn try_dense(block_radius: [usize; 3]) -> Result<Self> {
-        let mut stride = [0; 3];
-        for axis in 0..3 {
-            stride[axis] = block_radius[axis]
-                .checked_mul(2)
-                .and_then(|value| value.checked_add(1))
-                .ok_or_else(|| anyhow::anyhow!("dense grid stride overflows on axis {axis}"))?;
-        }
-        Ok(Self { stride })
+        Ok(Self {
+            stride: extent::window_extents(block_radius, "dense grid stride")?,
+        })
     }
 
     /// Validate the grid stride.
@@ -553,17 +549,7 @@ pub fn track_volume<T: Sample>(
 ) -> Result<DisplacementField> {
     config.validate()?;
     grid.validate()?;
-    let expected = dims[0]
-        .checked_mul(dims[1])
-        .and_then(|v| v.checked_mul(dims[2]))
-        .ok_or_else(|| anyhow::anyhow!("dims {dims:?} overflow the buffer size calculation"))?;
-    if fixed.len() != expected || moving.len() != expected {
-        bail!(
-            "fixed ({}) and moving ({}) buffers must both hold {expected} voxels for dims {dims:?}",
-            fixed.len(),
-            moving.len()
-        );
-    }
+    extent::check_buffer_lengths(fixed.len(), moving.len(), dims)?;
 
     let centres = grid.centres(dims, &config);
     let n = centres.len();
@@ -1060,17 +1046,7 @@ fn track_volume_fft<T: Sample>(
 
     config.validate()?;
     grid.validate()?;
-    let expected = dims[0]
-        .checked_mul(dims[1])
-        .and_then(|v| v.checked_mul(dims[2]))
-        .ok_or_else(|| anyhow::anyhow!("dims {dims:?} overflow the buffer size calculation"))?;
-    if fixed.len() != expected || moving.len() != expected {
-        bail!(
-            "fixed ({}) and moving ({}) buffers must both hold {expected} voxels for dims {dims:?}",
-            fixed.len(),
-            moving.len()
-        );
-    }
+    extent::check_buffer_lengths(fixed.len(), moving.len(), dims)?;
 
     let centres = grid.centres(dims, &config);
     let n = centres.len();

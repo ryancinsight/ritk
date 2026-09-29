@@ -2,6 +2,8 @@
 
 use anyhow::{bail, Result};
 
+use crate::extent::{check_buffer_lengths, voxel_count, window_extents};
+
 use super::{BlockMatchingConfig, MovingSamples, Sample};
 
 /// Similarity measure evaluated between the fixed block and a candidate moving
@@ -92,24 +94,8 @@ pub(crate) fn metric_image_at<T: Sample>(
     validate_inputs(fixed, moving, dims, fixed_centre, moving_centre, config)?;
     let radius = config.block_radius;
     let search = config.search_radius;
-    let extent = [
-        search[0]
-            .checked_mul(2)
-            .and_then(|v| v.checked_add(1))
-            .ok_or_else(|| anyhow::anyhow!("search extent overflows on axis 0"))?,
-        search[1]
-            .checked_mul(2)
-            .and_then(|v| v.checked_add(1))
-            .ok_or_else(|| anyhow::anyhow!("search extent overflows on axis 1"))?,
-        search[2]
-            .checked_mul(2)
-            .and_then(|v| v.checked_add(1))
-            .ok_or_else(|| anyhow::anyhow!("search extent overflows on axis 2"))?,
-    ];
-    let value_count = extent[0]
-        .checked_mul(extent[1])
-        .and_then(|v| v.checked_mul(extent[2]))
-        .ok_or_else(|| anyhow::anyhow!("metric image extent {extent:?} overflows"))?;
+    let extent = window_extents(search, "search")?;
+    let value_count = voxel_count(extent, "metric image")?;
 
     // Fixed block, mean-subtracted once: it is reused for every candidate.
     let block = gather_block(fixed, dims, fixed_centre, radius);
@@ -208,17 +194,7 @@ fn validate_inputs<T: Sample>(
     config: BlockMatchingConfig,
 ) -> Result<()> {
     config.validate()?;
-    let expected = dims[0]
-        .checked_mul(dims[1])
-        .and_then(|value| value.checked_mul(dims[2]))
-        .ok_or_else(|| anyhow::anyhow!("dims {dims:?} overflow the buffer size calculation"))?;
-    if fixed.len() != expected || moving.values().len() != expected {
-        bail!(
-            "fixed ({}) and moving ({}) buffers must both hold {expected} voxels for dims {dims:?}",
-            fixed.len(),
-            moving.values().len()
-        );
-    }
+    check_buffer_lengths(fixed.len(), moving.values().len(), dims)?;
     for axis in 0..3 {
         for (label, centre) in [("fixed", fixed_centre), ("moving", moving_centre)] {
             let radius = config.block_radius[axis];

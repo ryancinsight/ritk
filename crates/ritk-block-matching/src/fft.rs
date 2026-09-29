@@ -7,6 +7,8 @@
 //! entry remains `-∞`, matching the direct metric's boundary contract.
 
 use anyhow::{bail, Result};
+
+use crate::extent::{check_buffer_lengths, voxel_count, window_extents};
 use eunomia::Complex64;
 
 use super::{
@@ -115,8 +117,8 @@ pub(crate) fn metric_image_fft_at<T: Sample>(
         FftPadding::Zero => {}
     }
 
-    let block_dims = checked_extents(config.block_radius, "block")?;
-    let search_dims = checked_extents(config.search_radius, "search")?;
+    let block_dims = window_extents(config.block_radius, "block")?;
+    let search_dims = window_extents(config.search_radius, "search")?;
     let reach = [
         config.block_radius[0]
             .checked_add(config.search_radius[0])
@@ -128,7 +130,7 @@ pub(crate) fn metric_image_fft_at<T: Sample>(
             .checked_add(config.search_radius[2])
             .ok_or_else(|| anyhow::anyhow!("block/search radius overflows on axis 2"))?,
     ];
-    let roi_dims = checked_extents(reach, "moving ROI")?;
+    let roi_dims = window_extents(reach, "moving ROI")?;
     let convolution_dims = [
         roi_dims[0]
             .checked_add(block_dims[0] - 1)
@@ -145,7 +147,7 @@ pub(crate) fn metric_image_fft_at<T: Sample>(
         next_power_of_two(convolution_dims[1], "axis 1")?,
         next_power_of_two(convolution_dims[2], "axis 2")?,
     ];
-    let fft_len = checked_product(fft_dims, "FFT buffer")?;
+    let fft_len = voxel_count(fft_dims, "FFT buffer")?;
 
     let fixed_values = gather_fixed_block(fixed, dims, fixed_centre, config.block_radius);
     if fixed_values.iter().any(|value| !value.is_finite()) {
@@ -234,7 +236,7 @@ pub(crate) fn metric_image_fft_at<T: Sample>(
     fft3d(&mut moving_spectrum, fft_dims, true);
     let inverse_scale = 1.0 / fft_len as f64;
 
-    let mut values = vec![f64::NEG_INFINITY; checked_product(search_dims, "metric image")?];
+    let mut values = vec![f64::NEG_INFINITY; voxel_count(search_dims, "metric image")?];
     let mut candidate = Vec::with_capacity(fixed_values.len());
     for (oz, dz) in
         (-(config.search_radius[0] as isize)..=config.search_radius[0] as isize).enumerate()
@@ -312,14 +314,7 @@ fn validate_inputs<T: Sample>(
     config: BlockMatchingConfig,
 ) -> Result<()> {
     config.validate()?;
-    let expected = checked_product(dims, "image")?;
-    if fixed.len() != expected || moving.values().len() != expected {
-        bail!(
-            "fixed ({}) and moving ({}) buffers must both hold {expected} voxels for dims {dims:?}",
-            fixed.len(),
-            moving.values().len()
-        );
-    }
+    check_buffer_lengths(fixed.len(), moving.values().len(), dims)?;
     for &dimension in &dims {
         isize::try_from(dimension)?;
     }
@@ -348,30 +343,6 @@ fn validate_inputs<T: Sample>(
         isize::try_from(config.search_radius[axis])?;
     }
     Ok(())
-}
-
-fn checked_product(dims: [usize; 3], label: &str) -> Result<usize> {
-    dims[0]
-        .checked_mul(dims[1])
-        .and_then(|value| value.checked_mul(dims[2]))
-        .ok_or_else(|| anyhow::anyhow!("{label} dimensions {dims:?} overflow"))
-}
-
-fn checked_extents(radius: [usize; 3], label: &str) -> Result<[usize; 3]> {
-    Ok([
-        radius[0]
-            .checked_mul(2)
-            .and_then(|value| value.checked_add(1))
-            .ok_or_else(|| anyhow::anyhow!("{label} extent overflows on axis 0"))?,
-        radius[1]
-            .checked_mul(2)
-            .and_then(|value| value.checked_add(1))
-            .ok_or_else(|| anyhow::anyhow!("{label} extent overflows on axis 1"))?,
-        radius[2]
-            .checked_mul(2)
-            .and_then(|value| value.checked_add(1))
-            .ok_or_else(|| anyhow::anyhow!("{label} extent overflows on axis 2"))?,
-    ])
 }
 
 fn next_power_of_two(value: usize, axis: &str) -> Result<usize> {
