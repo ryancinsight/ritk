@@ -50,8 +50,8 @@ pub(super) fn validate_volume(
 }
 
 pub(super) fn validate_axis(axis: usize) -> Result<(), FusionError> {
-    (axis < 3)
-        .then_some(())
+    crate::ui::slice_navigation::normalize_axis(axis)
+        .map(|_| ())
         .ok_or(FusionError::InvalidAxis { axis })
 }
 

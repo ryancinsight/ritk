@@ -8,6 +8,7 @@ pub mod color;
 pub mod grid;
 pub mod metadata;
 pub mod region;
+pub mod series;
 #[cfg(any(test, feature = "test-helpers"))]
 pub mod test_support;
 pub mod transform;
@@ -23,6 +24,9 @@ pub use region::{RegionRows, RowWalker, Tiles, VoxelIter, VoxelRegion};
 pub use ritk_spatial::{
     CoordinateMap, CurvilinearArray, InvalidCoordinateMap, PhasedArray3D, SliceSeries,
     SliceTransform,
+};
+pub use series::{
+    ensure_single_grid, reject_series, write_le_f32, write_le_u32, VolumeGrid, VolumeSet,
 };
 pub use types::Image;
 

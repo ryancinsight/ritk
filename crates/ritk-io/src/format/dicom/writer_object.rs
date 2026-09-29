@@ -13,7 +13,7 @@ use super::transfer_syntax::EXPLICIT_VR_LE;
 use super::writer::elements::node_to_element;
 use super::writer::pixel_encoding::DICOM_SOP_CLASS_SECONDARY_CAPTURE;
 use anyhow::Result;
-use dicom::object::{InMemDicomObject, meta::FileMetaTableBuilder};
+use dicom::object::{meta::FileMetaTableBuilder, InMemDicomObject};
 use std::path::Path;
 
 /// Convert a `DicomObjectModel` to an `InMemDicomObject`.

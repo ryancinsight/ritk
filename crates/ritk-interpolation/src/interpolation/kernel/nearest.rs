@@ -5,7 +5,7 @@
 //! performs the interpolation in CPU loops, and returns a Coeus tensor.
 
 use super::BoundsPolicy;
-use crate::interpolation::shared::OutOfBoundsMode;
+use crate::interpolation::shared::{clamp_index, OutOfBoundsMode};
 use coeus_core::{Backend, CpuAddressableStorage};
 use coeus_tensor::Tensor;
 use ritk_core::interpolation::Interpolator;
@@ -57,54 +57,16 @@ where
 {
     fn interpolate(&self, data: &Tensor<f32, B>, indices: Tensor<f32, B>) -> Tensor<f32, B> {
         let mode = self.bounds_policy.as_out_of_bounds_mode();
-        let shape = data.shape().to_vec();
-        let rank = shape.len();
-        assert!(
-            (1..=4).contains(&rank),
-            "Nearest-neighbor interpolation only supports 1D-4D data"
-        );
-
-        let idx_shape = indices.shape();
-        assert_eq!(idx_shape.len(), 2, "indices must be a 2D tensor [N, rank]");
-        let n_points = idx_shape[0];
-        let idx_rank = idx_shape[1];
-        assert_eq!(idx_rank, rank, "indices rank must match data rank");
-
-        let data_contig = data.to_contiguous();
-        let data_slice = data_contig.as_slice();
-        let idx_contig = indices.to_contiguous();
-        let idx_slice = idx_contig.as_slice();
-
-        let mut results = vec![0.0f32; n_points];
-        let strides = compute_strides(&shape);
-
-        for i in 0..n_points {
-            let coords = &idx_slice[i * rank..(i + 1) * rank];
-            results[i] = interpolate_point(data_slice, &shape, &strides, coords, mode);
-        }
-
-        Tensor::from_slice([n_points], &results)
+        super::scan::scan(
+            data,
+            indices,
+            |rank| (1..=4).contains(&rank),
+            "Nearest-neighbor interpolation only supports 1D-4D data",
+            |data_slice, coords, shape, strides| {
+                interpolate_point(data_slice, shape, strides, coords, mode)
+            },
+        )
     }
-}
-
-/// Compute row-major strides for a shape.
-fn compute_strides(shape: &[usize]) -> Vec<usize> {
-    let rank = shape.len();
-    let mut strides = vec![1usize; rank];
-    for d in (0..rank.saturating_sub(1)).rev() {
-        strides[d] = strides[d + 1] * shape[d + 1];
-    }
-    strides
-}
-
-/// Clamp a coordinate to the valid index range for an axis.
-fn clamp_index(idx: f32, size: usize) -> usize {
-    if size == 0 {
-        return 0;
-    }
-    let max = (size - 1) as f32;
-    let clamped = idx.clamp(0.0, max);
-    clamped as usize
 }
 
 /// Nearest-neighbor interpolate a single point.

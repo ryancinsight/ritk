@@ -99,48 +99,24 @@ where
     B::DeviceBuffer<f32>: CpuAddressableStorage<f32>,
 {
     fn interpolate(&self, data: &Tensor<f32, B>, indices: Tensor<f32, B>) -> Tensor<f32, B> {
-        let shape = data.shape().to_vec();
-        let rank = shape.len();
-        assert!(
-            matches!(rank, 2 | 3),
-            "B-Spline interpolation only supports 2D and 3D data"
-        );
-
-        let idx_shape = indices.shape();
-        assert_eq!(idx_shape.len(), 2, "indices must be a 2D tensor [N, rank]");
-        let n_points = idx_shape[0];
-        let idx_rank = idx_shape[1];
-        assert_eq!(idx_rank, rank, "indices rank must match data rank");
-
-        let data_contig = data.to_contiguous();
-        let volume_slice = data_contig.as_slice();
-        let coeffs = prefilter::compute_coefficients(volume_slice, &shape);
-
-        let idx_contig = indices.to_contiguous();
-        let idx_slice = idx_contig.as_slice();
-
-        let mut results = Vec::with_capacity(n_points);
-
-        for i in 0..n_points {
-            let coords = &idx_slice[i * rank..(i + 1) * rank];
-            let value = match rank {
-                3 => flat::interpolate_point_3d_flat(
-                    &coeffs,
-                    coords,
-                    &shape,
-                    self.bounds_policy.as_out_of_bounds_mode(),
-                ),
-                2 => flat::interpolate_point_2d_flat(
-                    &coeffs,
-                    coords,
-                    &shape,
-                    self.bounds_policy.as_out_of_bounds_mode(),
-                ),
-                _ => unreachable!(),
-            };
-            results.push(value);
-        }
-
-        Tensor::from_slice([n_points], &results)
+        let mode = self.bounds_policy.as_out_of_bounds_mode();
+        // The coefficient prefilter runs once, on the first sample; the shared
+        // scan owns the contiguous data slice it needs.
+        let mut coeffs: Option<Vec<f32>> = None;
+        super::scan::scan(
+            data,
+            indices,
+            |rank| matches!(rank, 2 | 3),
+            "B-Spline interpolation only supports 2D and 3D data",
+            move |data_slice, coords, shape, _strides| {
+                let coeffs = coeffs
+                    .get_or_insert_with(|| prefilter::compute_coefficients(data_slice, shape));
+                match shape.len() {
+                    3 => flat::interpolate_point_3d_flat(coeffs.as_slice(), coords, shape, mode),
+                    2 => flat::interpolate_point_2d_flat(coeffs.as_slice(), coords, shape, mode),
+                    _ => unreachable!(),
+                }
+            },
+        )
     }
 }

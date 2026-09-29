@@ -33,6 +33,16 @@ impl VolumeDims {
     pub fn total_voxels(self) -> usize {
         self.0.iter().product()
     }
+
+    /// Total voxel count, or `None` when `nz * ny * nx` overflows `usize`.
+    ///
+    /// The checked counterpart of [`Self::total_voxels`], for header fields that
+    /// arrive from a file and may name an impossible shape. Callers keep their
+    /// own error type and message so the diagnostic names the format and field.
+    #[inline]
+    pub fn checked_total_voxels(self) -> Option<usize> {
+        self.0.into_iter().try_fold(1usize, usize::checked_mul)
+    }
 }
 
 impl From<[usize; 3]> for VolumeDims {
@@ -50,5 +60,23 @@ impl From<VolumeDims> for [usize; 3] {
 impl std::fmt::Display for VolumeDims {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         write!(f, "[{}, {}, {}]", self.0[0], self.0[1], self.0[2])
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::VolumeDims;
+
+    #[test]
+    fn checked_total_voxels_multiplies_dimensions() {
+        assert_eq!(VolumeDims::new([2, 3, 4]).checked_total_voxels(), Some(24));
+    }
+
+    #[test]
+    fn checked_total_voxels_rejects_overflow() {
+        assert_eq!(
+            VolumeDims::new([usize::MAX, 2, 1]).checked_total_voxels(),
+            None
+        );
     }
 }

@@ -7,7 +7,10 @@
 //! RITK presentation action reducer.
 
 use super::composition::compose_frames;
-use super::layout::{crosshair_overlay, NativeViewport};
+use super::layout::{
+    crosshair_overlay, oblique_crosshair_overlay, patient_measurement_overlay, NativeViewport,
+};
+use super::oblique::ObliqueView;
 use super::observation::{record_state, NativeViewerObservation};
 use super::projection::{
     empty_projection, render_projection_into, ProjectionRenderScratch, RenderedProjection,
@@ -19,6 +22,7 @@ use crate::dicom::loader::{
     load_volume_from_path, load_volume_from_series_uid, scan_folder_for_series,
 };
 use crate::dicom::series_tree::SeriesEntryView;
+use crate::geometry::affine::AffineTransform;
 use crate::launch::NativePresentationSelection;
 use crate::render::FrameRenderScratch;
 use crate::tools::interaction::ViewportOffset;
@@ -41,10 +45,16 @@ pub(super) struct NativeViewerSession {
     pub(super) render_scratch: [FrameRenderScratch; 3],
     pub(super) projection: Option<RenderedProjection>,
     pub(super) projection_scratch: ProjectionRenderScratch,
+    pub(super) oblique: Option<ObliqueView>,
     pub(super) presentation_mode: NativePresentationSelection,
     pub(super) framebuffer: Framebuffer,
     pub(super) viewports: [NativeViewport; 3],
+    pub(super) oblique_viewport: Option<crate::app::ObliqueViewport>,
     pub(super) active_view: Option<usize>,
+    pub(super) selected_oblique: bool,
+    pub(super) active_oblique: bool,
+    pub(super) ignored_pointer_capture: bool,
+    pub(super) oblique_gesture: Option<ObliqueGesture>,
     pub(super) surface_width: u32,
     pub(super) surface_height: u32,
     pub(super) dpi: u32,
@@ -56,9 +66,15 @@ pub(super) struct NativeViewerSession {
     pub(super) selection: Option<SeriesSelection>,
 }
 
+#[derive(Debug, Clone, Copy)]
+pub(super) enum ObliqueGesture {
+    Pan { last: [f64; 2] },
+    Zoom { start_y: f64, initial_zoom: f32 },
+}
+
 impl NativeViewerSession {
     pub(super) fn new_with_selection(
-        app: SnapApp,
+        mut app: SnapApp,
         observation: Arc<NativeViewerObservation>,
         capture_after_idle: bool,
         presentation_mode: NativePresentationSelection,
@@ -87,9 +103,18 @@ impl NativeViewerSession {
                 Some(projection)
             }
         };
-        let (framebuffer, viewports) = compose_frames(
+        let mut oblique = if presentation_mode == NativePresentationSelection::Oblique {
+            Some(ObliqueView::new()?)
+        } else {
+            None
+        };
+        if let Some(oblique) = oblique.as_mut() {
+            oblique.render_if_stale(&mut app)?;
+        }
+        let (framebuffer, viewports, oblique_viewport) = compose_frames(
             &views,
             projection.as_ref(),
+            oblique.as_ref(),
             presentation_mode,
             INITIAL_WIDTH,
             INITIAL_HEIGHT,
@@ -118,10 +143,16 @@ impl NativeViewerSession {
             render_scratch,
             projection,
             projection_scratch,
+            oblique,
             presentation_mode,
             framebuffer,
             viewports,
+            oblique_viewport,
             active_view: None,
+            selected_oblique: false,
+            active_oblique: false,
+            ignored_pointer_capture: false,
+            oblique_gesture: None,
             surface_width: INITIAL_WIDTH,
             surface_height: INITIAL_HEIGHT,
             dpi: 96,
@@ -170,9 +201,13 @@ impl NativeViewerSession {
                 }
             }
         }
-        let (framebuffer, viewports) = compose_frames(
+        if let Some(oblique) = self.oblique.as_mut() {
+            oblique.render_if_stale(&mut self.app)?;
+        }
+        let (framebuffer, viewports, oblique_viewport) = compose_frames(
             &self.views,
             self.projection.as_ref(),
+            self.oblique.as_ref(),
             self.presentation_mode,
             self.surface_width,
             self.surface_height,
@@ -184,6 +219,7 @@ impl NativeViewerSession {
         )?;
         self.framebuffer = framebuffer;
         self.viewports = viewports;
+        self.oblique_viewport = oblique_viewport;
         self.render_crosshair_overlay()?;
         if self.selection.is_some() {
             self.render_selection_overlay()?;
@@ -268,7 +304,44 @@ impl NativeViewerSession {
             self.app.show_crosshair,
         )?
         .render_to(&mut self.framebuffer);
+        if let (Some(viewport), Some(plane)) = (
+            self.oblique_viewport,
+            self.oblique.as_ref().and_then(|view| view.plane.as_ref()),
+        ) {
+            patient_measurement_overlay(
+                &self.app.annotations,
+                &self.app.tool_state,
+                viewport,
+                plane,
+            )?
+            .render_to(&mut self.framebuffer);
+        }
+        if self.app.show_crosshair {
+            if let (Some(viewport), Some(plane), Some(patient)) = (
+                self.oblique_viewport,
+                self.oblique.as_ref().and_then(|view| view.plane.as_ref()),
+                self.linked_cursor_patient()?,
+            ) {
+                oblique_crosshair_overlay(viewport, plane, patient)?
+                    .render_to(&mut self.framebuffer);
+            }
+        }
         Ok(())
+    }
+
+    fn linked_cursor_patient(&self) -> Result<Option<[f64; 3]>> {
+        let (Some(volume), Some(cursor)) = (&self.app.loaded, self.app.linked_cursor) else {
+            return Ok(None);
+        };
+        let voxel = cursor.voxel();
+        let voxel = [
+            f64::from(u32::try_from(voxel[0]).context("linked cursor depth exceeds u32")?),
+            f64::from(u32::try_from(voxel[1]).context("linked cursor row exceeds u32")?),
+            f64::from(u32::try_from(voxel[2]).context("linked cursor column exceeds u32")?),
+        ];
+        let affine = AffineTransform::from_parts(volume.origin, volume.direction, volume.spacing)
+            .context("validate linked cursor source affine")?;
+        Ok(Some(affine.voxel_to_patient(voxel)))
     }
 
     pub(super) fn reduce_selection_key(

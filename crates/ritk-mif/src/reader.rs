@@ -11,40 +11,10 @@ use crate::header::{
 };
 use anyhow::{anyhow, bail, Context, Result};
 use coeus_core::ComputeBackend;
-use ritk_image::Image;
+use ritk_image::{Image, VolumeGrid, VolumeSet};
 use ritk_spatial::{Direction, Point, Spacing, Vector};
 use std::io::Read;
 use std::path::Path;
-
-/// Decoded `.mif` voxel data: one flat `[Z, Y, X]` volume per frame,
-/// sharing one spatial grid.
-struct DecodedMif {
-    volumes: Vec<Vec<f32>>,
-    dims: [usize; 3],
-    origin: Point<3>,
-    spacing: Spacing<3>,
-    direction: Direction<3>,
-}
-
-impl DecodedMif {
-    fn into_single_volume(mut self) -> Result<DecodedMif> {
-        if self.volumes.len() != 1 {
-            return Err(anyhow!(
-                ".mif file has {} frames; this reader returns one 3-D volume. \
-                 Use the series reader for multi-frame files.",
-                self.volumes.len()
-            ));
-        }
-        self.volumes.truncate(1);
-        Ok(self)
-    }
-
-    fn single_volume_data(mut self) -> Vec<f32> {
-        self.volumes
-            .pop()
-            .expect("invariant: single_volume_data follows into_single_volume")
-    }
-}
 
 // ── Public API ──────────────────────────────────────────────────────────
 
@@ -64,14 +34,15 @@ pub fn read_mif<B: ComputeBackend, P: AsRef<Path>>(
     path: P,
     backend: &B,
 ) -> Result<Image<f32, B, 3>> {
-    let decoded = decode_mif(path)?.into_single_volume()?;
-    // Extract fields before consuming `decoded` for its data.
-    let dims = decoded.dims;
-    let origin = decoded.origin;
-    let spacing = decoded.spacing;
-    let direction = decoded.direction;
-    let data = decoded.single_volume_data();
-    Image::from_flat_on(data, dims, origin, spacing, direction, backend)
+    let (grid, data) = decode_mif(path)?.into_single_volume(".mif file", "frames")?;
+    Image::from_flat_on(
+        data,
+        grid.dims,
+        grid.origin,
+        grid.spacing,
+        grid.direction,
+        backend,
+    )
 }
 
 /// Read a `.mif` acquisition series as one image per volume.
@@ -85,23 +56,26 @@ pub fn read_mif_series<B: ComputeBackend, P: AsRef<Path>>(
     path: P,
     backend: &B,
 ) -> Result<Vec<Image<f32, B, 3>>> {
-    let DecodedMif {
-        volumes,
-        dims,
-        origin,
-        spacing,
-        direction,
-    } = decode_mif(path)?;
+    let (grid, volumes) = decode_mif(path)?.into_parts();
 
     volumes
         .into_iter()
-        .map(|data| Image::from_flat_on(data, dims, origin, spacing, direction, backend))
+        .map(|data| {
+            Image::from_flat_on(
+                data,
+                grid.dims,
+                grid.origin,
+                grid.spacing,
+                grid.direction,
+                backend,
+            )
+        })
         .collect()
 }
 
 // ── Internal decode ─────────────────────────────────────────────────────
 
-fn decode_mif<P: AsRef<Path>>(path: P) -> Result<DecodedMif> {
+fn decode_mif<P: AsRef<Path>>(path: P) -> Result<VolumeSet<VolumeGrid>> {
     let path = path.as_ref();
     let (header, mut reader) = parse_mif_header_from_path(path)?;
 
@@ -295,13 +269,15 @@ fn decode_mif<P: AsRef<Path>>(path: P) -> Result<DecodedMif> {
         }
     }
 
-    Ok(DecodedMif {
-        volumes: volume_data,
-        dims: [nz, ny, nx],
-        origin,
-        spacing,
-        direction,
-    })
+    Ok(VolumeSet::new(
+        VolumeGrid {
+            dims: [nz, ny, nx],
+            origin,
+            spacing,
+            direction,
+        },
+        volume_data,
+    ))
 }
 
 // ── Transform decomposition ──────────────────────────────────────────────

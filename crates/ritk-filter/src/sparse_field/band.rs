@@ -164,16 +164,20 @@ fn propagate_layer<T: SparseScalar>(
 }
 
 /// `ProcessStatusList`: consume `inl` from the front, move each voxel to `ct`,
-/// and mark its `sr`-status neighbours as `Changing` into a fresh output list.
+/// and mark its `sr`-status neighbours as `Changing` into `outl`.
+///
+/// Both queues are borrowed so the engine can reuse their allocations across
+/// iterations and ping-pong the output into the next layer transition.
 pub(crate) fn process_status_list(
     lists: &mut SparseFieldLayers,
     status: &mut [i32],
     topo: &GridTopology,
-    mut inl: VecDeque<usize>,
+    inl: &mut VecDeque<usize>,
+    outl: &mut VecDeque<usize>,
     ct: i32,
     sr: i32,
-) -> VecDeque<usize> {
-    let mut outl: VecDeque<usize> = VecDeque::new();
+) {
+    outl.clear();
     while let Some(f) = inl.pop_front() {
         move_to(lists, status, f, ct);
         for &off in topo.face_offsets() {
@@ -185,5 +189,4 @@ pub(crate) fn process_status_list(
             }
         }
     }
-    outl
 }

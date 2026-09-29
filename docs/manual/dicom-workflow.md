@@ -882,9 +882,12 @@ bounded work before reading a voxel. Nearest-neighbour and trilinear sampling
 are explicit, and maximum, minimum and average reductions share the same
 contract. `compute_into` lets repeated native or browser presentations retain
 their scalar scratch capacity. The output remains a format-neutral scalar
-plane; host wiring, GPU dispatch and interactive oblique gestures are separate
-surfaces. The decision and limits are recorded in
-[ADR 0044](../adr/0044-oblique-reslice-contract.md).
+plane. RITK's native Métis layout builds its fourth panel from that physical
+plane and uses the same plane for screen-to-patient mapping and millimetre
+measurements. The host sends bounded pointer and key events and receives RGBA
+pixels; it does not inspect DICOM geometry. The decision and limits are
+recorded in [ADR 0044](../adr/0044-oblique-reslice-contract.md) and
+[ADR 0052](../adr/0052-native-oblique-mpr.md).
 
 ### Capture the complete Métis application window
 
@@ -1202,6 +1205,55 @@ three real study frames are presented, and its status output reports the
 current `z,y,x` coordinate. The crosshair display-list and browser semantic
 tests provide geometry and state evidence; the saved MRI capture below remains
 the clinical pixel evidence for the decoded study.
+
+### Open the saved MRI in native oblique MPR
+
+The native oblique layout uses the same public MRI-DIR study and adds a fourth
+physical reslice pane. Build and launch it from the repository root:
+
+```powershell
+cargo run --locked -p ritk-snap --bin ritk-snap -- `
+  test_data\2_head_mri_t2\DICOM `
+  --metis-native `
+  --metis-native-layout oblique
+```
+
+Point to or click inside the oblique pane to select it. The arrow keys rotate
+its plane in five-degree steps. The mouse wheel shifts the plane along its
+normal; hold Ctrl or Meta while scrolling to zoom. Select **Pan** with `P` or
+**Zoom** with `Z`, then drag inside the oblique pane. Select **Length** with
+`L` and click two points to record a patient-space measurement in millimetres.
+Rotation, normal translation, pan, and zoom affect only the oblique plane or
+view. Clicking the oblique pane maps through that plane to the nearest voxel
+and updates the linked cursor, which synchronizes the orthogonal slice
+positions; Length endpoints do the same before recording the measurement. The
+orthogonal view transforms remain independent. If the chosen folder contains
+several DICOM series, the native series chooser stays available before any
+plane is constructed.
+
+Capture the exact rendered framebuffer with the same executable:
+
+```powershell
+New-Item -ItemType Directory -Force scratch\viewer | Out-Null
+cargo run --locked -p ritk-snap --bin ritk-snap -- `
+  test_data\2_head_mri_t2\DICOM `
+  --metis-native `
+  --metis-native-layout oblique `
+  --capture scratch\viewer\real-mri-metis-oblique.png `
+  --capture-application
+```
+
+The manual image below shows the three decoded orthogonal planes and the
+RITK-computed physical oblique plane from the 94 DICOM files totaling
+49,807,236 bytes in the public porcine-head T2 phantom directory. The directory
+also contains its 2,787-byte CC BY 4.0 license file. This is a phantom study,
+not private patient data. The tracked WebP is a lossless encoding of the 1280 ×
+800 RITK framebuffer capture; its RGBA pixels match the captured PNG. Capture
+and executable digests are recorded in
+[`dicom-metis-real-mri-oblique.json`](images/dicom-metis-real-mri-oblique.json).
+
+![Actual public MRI-DIR T2 phantom rendered as three orthogonal planes and one native physical oblique MPR pane](images/dicom-metis-real-mri-oblique.webp)
+
 The real MRI capture below remains the pixel evidence for the saved-study
 decode and three-plane Métis presentation; the test is the bounded input
 evidence for the interactive W/L transition.

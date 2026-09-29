@@ -9,6 +9,7 @@
 use thiserror::Error;
 
 use crate::geometry::affine::{AffineError, AffineTransform};
+use crate::geometry::{PatientPointError, PatientPointMm};
 use crate::LoadedVolume;
 
 use super::slab::{ProjectionStatistic, SlabProjection};
@@ -21,7 +22,7 @@ mod orientation;
 mod pixel;
 
 pub use orientation::ResliceOrientation;
-pub use pixel::{PatientPlaneProjection, ResliceSample};
+pub use pixel::ResliceSample;
 
 /// Interpolation used when a plane lands between source voxels.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -50,7 +51,209 @@ pub struct ReslicePlane {
     transform: AffineTransform,
 }
 
+/// Coordinates of a patient-space point projected into a reslice plane.
+#[derive(Debug, Clone, Copy, PartialEq)]
+pub struct PatientPlaneProjection {
+    pixel: [f64; 2],
+    distance_mm: f64,
+}
+
+impl PatientPlaneProjection {
+    /// Return the projected output coordinate in `[column, row]` order.
+    #[must_use]
+    pub const fn pixel(self) -> [f64; 2] {
+        self.pixel
+    }
+
+    /// Return the signed point-to-plane distance in millimetres.
+    #[must_use]
+    pub const fn distance_mm(self) -> f64 {
+        self.distance_mm
+    }
+}
+
 impl ReslicePlane {
+    /// Map a continuous output-pixel coordinate to patient millimetres.
+    ///
+    /// Coordinates use `[column, row]` order; integer values identify output
+    /// pixel centres. The returned point is validated as finite patient-space
+    /// millimetres.
+    ///
+    /// # Errors
+    ///
+    /// Returns [`ResliceError::InvalidPixelCoordinate`] for non-finite pixels,
+    /// [`ResliceError::PixelOutOfBounds`] outside the plane, or
+    /// [`ResliceError::InvalidPatientPoint`] when the mapped point is not
+    /// representable as finite patient coordinates.
+    ///
+    /// # Examples
+    ///
+    /// ```no_run
+    /// # use ritk_snap::geometry::PatientPointMm;
+    /// # use ritk_snap::render::{ResliceError, ReslicePlane};
+    /// # fn map(plane: ReslicePlane) -> Result<PatientPointMm, ResliceError> {
+    /// plane.patient_at_pixel([12.5, 8.0])
+    /// # }
+    /// ```
+    pub fn patient_at_pixel(self, pixel: [f64; 2]) -> Result<PatientPointMm, ResliceError> {
+        self.validate_pixel_coordinate(pixel)?;
+        let coordinates = add_scaled(
+            add_scaled(self.origin, self.horizontal_step, pixel[0]),
+            self.vertical_step,
+            pixel[1],
+        );
+        PatientPointMm::try_from(coordinates)
+            .map_err(|source| ResliceError::InvalidPatientPoint { source })
+    }
+
+    /// Project a patient-space point into the plane's physical basis.
+    ///
+    /// The returned distance is positive on the normal side defined by the
+    /// horizontal × vertical basis. Off-plane points retain their signed
+    /// distance. A forward-rounding enclosure admits round-tripped edge
+    /// pixels; projections whose enclosure lies outside the pixel extent are
+    /// rejected.
+    ///
+    /// # Errors
+    ///
+    /// Returns [`ResliceError::InvalidPatientPoint`] for non-finite input,
+    /// [`ResliceError::InvalidPatientProjection`] when finite input cannot be
+    /// projected with finite arithmetic, or
+    /// [`ResliceError::PixelOutOfBounds`] when the projection lies outside the
+    /// output plane.
+    ///
+    /// # Examples
+    ///
+    /// ```no_run
+    /// # use ritk_snap::render::reslice::PatientPlaneProjection;
+    /// # use ritk_snap::render::{ResliceError, ReslicePlane};
+    /// # fn project(plane: ReslicePlane) -> Result<PatientPlaneProjection, ResliceError> {
+    /// plane.project_patient([1.0, 2.0, 3.0])
+    /// # }
+    /// ```
+    pub fn project_patient(
+        self,
+        patient: [f64; 3],
+    ) -> Result<PatientPlaneProjection, ResliceError> {
+        let patient = PatientPointMm::try_from(patient)
+            .map_err(|source| ResliceError::InvalidPatientPoint { source })?
+            .coordinates();
+        let delta = orientation::subtract(patient, self.origin);
+        let horizontal_length = vector_norm(self.horizontal_step);
+        let horizontal_normal = sampling::cross_product(self.horizontal_step, self.vertical_step);
+        let normal_length = vector_norm(horizontal_normal);
+        if !horizontal_length.is_finite()
+            || horizontal_length == 0.0
+            || !normal_length.is_finite()
+            || normal_length == 0.0
+        {
+            return Err(ResliceError::InvalidPlaneBasis);
+        }
+
+        // Modified Gram-Schmidt avoids squaring the basis condition number in
+        // a 2×2 Gram determinant solve.
+        let horizontal_unit = self
+            .horizontal_step
+            .map(|component| component / horizontal_length);
+        let vertical_projection = orientation::dot(self.vertical_step, horizontal_unit);
+        let vertical_residual = orientation::subtract(
+            self.vertical_step,
+            horizontal_unit.map(|component| component * vertical_projection),
+        );
+        let vertical_length = vector_norm(vertical_residual);
+        if !vertical_projection.is_finite()
+            || !vertical_length.is_finite()
+            || vertical_length == 0.0
+        {
+            return Err(ResliceError::InvalidPlaneBasis);
+        }
+
+        let vertical_unit = vertical_residual.map(|component| component / vertical_length);
+        let row = orientation::dot(delta, vertical_unit) / vertical_length;
+        let column = (orientation::dot(delta, horizontal_unit) - vertical_projection * row)
+            / horizontal_length;
+        let pixel = [column, row];
+        if !delta.into_iter().all(f64::is_finite) || !pixel.into_iter().all(f64::is_finite) {
+            return Err(ResliceError::InvalidPatientProjection {
+                coordinate: patient,
+            });
+        }
+        let enclosures = self.patient_pixel_enclosure(patient).ok_or(
+            ResliceError::InvalidPatientProjection {
+                coordinate: patient,
+            },
+        )?;
+        let limits = self.pixel_limits()?;
+        let mut pixel = pixel;
+        for axis in 0..2 {
+            let enclosure = enclosures[axis];
+            if pixel[axis] < 0.0 {
+                if enclosure.contains(0.0) {
+                    pixel[axis] = 0.0;
+                } else {
+                    return Err(ResliceError::PixelOutOfBounds {
+                        coordinate: pixel,
+                        dimensions: self.dimensions,
+                    });
+                }
+            } else if pixel[axis] > limits[axis] {
+                if enclosure.contains(limits[axis]) {
+                    pixel[axis] = limits[axis];
+                } else {
+                    return Err(ResliceError::PixelOutOfBounds {
+                        coordinate: pixel,
+                        dimensions: self.dimensions,
+                    });
+                }
+            } else if enclosure.upper() < 0.0 || enclosure.lower() > limits[axis] {
+                return Err(ResliceError::PixelOutOfBounds {
+                    coordinate: pixel,
+                    dimensions: self.dimensions,
+                });
+            }
+        }
+
+        let distance_mm = orientation::dot(delta, horizontal_normal) / normal_length;
+        if !distance_mm.is_finite() {
+            return Err(ResliceError::InvalidPatientProjection {
+                coordinate: patient,
+            });
+        }
+        Ok(PatientPlaneProjection { pixel, distance_mm })
+    }
+
+    fn validate_pixel_coordinate(self, pixel: [f64; 2]) -> Result<(), ResliceError> {
+        if !pixel.into_iter().all(f64::is_finite) {
+            return Err(ResliceError::InvalidPixelCoordinate { coordinate: pixel });
+        }
+        let [maximum_column, maximum_row] = self.pixel_limits()?;
+        if pixel[0] < 0.0 || pixel[0] > maximum_column || pixel[1] < 0.0 || pixel[1] > maximum_row {
+            return Err(ResliceError::PixelOutOfBounds {
+                coordinate: pixel,
+                dimensions: self.dimensions,
+            });
+        }
+        Ok(())
+    }
+
+    fn pixel_limits(self) -> Result<[f64; 2], ResliceError> {
+        let [width, height] = self.dimensions;
+        let maximum_column = width.checked_sub(1).ok_or(ResliceError::EmptyRequest)?;
+        let maximum_row = height.checked_sub(1).ok_or(ResliceError::EmptyRequest)?;
+        Ok([
+            u32::try_from(maximum_column).map(f64::from).map_err(|_| {
+                ResliceError::OutputTooLarge {
+                    dimensions: self.dimensions,
+                }
+            })?,
+            u32::try_from(maximum_row).map(f64::from).map_err(|_| {
+                ResliceError::OutputTooLarge {
+                    dimensions: self.dimensions,
+                }
+            })?,
+        ])
+    }
+
     /// Validate and build a plane from patient-space pixel steps.
     pub fn try_new(
         volume: &LoadedVolume,
@@ -100,7 +303,7 @@ impl ReslicePlane {
         interpolation: ResliceInterpolation,
     ) -> Result<Self, ResliceError> {
         validate_volume(volume)?;
-        if axis > 2 {
+        if crate::ui::slice_navigation::normalize_axis(axis).is_none() {
             return Err(ResliceError::InvalidAxis { axis });
         }
         let extent = volume.shape[axis];
@@ -124,7 +327,7 @@ impl ReslicePlane {
     ) -> Result<Self, ResliceError> {
         let transform = validate_volume(volume)?;
         let axis = slab.axis();
-        if axis > 2 {
+        if crate::ui::slice_navigation::normalize_axis(axis).is_none() {
             return Err(ResliceError::InvalidAxis { axis });
         }
         if slab.shape() != volume.shape {
@@ -200,6 +403,19 @@ impl ReslicePlane {
     #[must_use]
     pub const fn interpolation(self) -> ResliceInterpolation {
         self.interpolation
+    }
+
+    /// Confirm that this plane still describes the supplied source volume.
+    ///
+    /// A retained plane must be rebuilt after the volume shape or patient
+    /// affine changes.
+    ///
+    /// # Errors
+    /// Returns the source validation error, [`ResliceError::ShapeChanged`], or
+    /// [`ResliceError::GeometryChanged`] when the current volume differs from
+    /// the one used to construct the plane.
+    pub fn validate_source(&self, volume: &LoadedVolume) -> Result<(), ResliceError> {
+        (*self).source_transform(volume).map(|_| ())
     }
 
     /// Compute a scalar plane into a newly allocated output.
@@ -382,6 +598,15 @@ pub enum ResliceError {
     /// A plane corner lies outside the source volume.
     #[error("reslice plane lies outside the source volume at voxel coordinate {coordinate:?}")]
     OutOfVolume { coordinate: [f64; 3] },
+    /// A patient point contains a non-finite coordinate.
+    #[error("reslice patient point is invalid: {source}")]
+    InvalidPatientPoint {
+        #[source]
+        source: PatientPointError,
+    },
+    /// Finite patient coordinates overflow while being projected into a plane.
+    #[error("patient point {coordinate:?} cannot be represented in the reslice plane basis")]
+    InvalidPatientProjection { coordinate: [f64; 3] },
     /// A requested output-pixel coordinate is non-finite.
     #[error("reslice pixel coordinate {coordinate:?} must be finite")]
     InvalidPixelCoordinate { coordinate: [f64; 2] },

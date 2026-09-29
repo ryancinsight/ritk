@@ -119,18 +119,18 @@ impl PresentationSnapshot {
     /// Returns the selected slice index for one orthogonal axis.
     #[must_use]
     pub const fn slice_index(self, axis: usize) -> Option<usize> {
-        match axis {
-            0..=2 => Some(self.slice_indices[axis]),
-            _ => None,
+        match crate::ui::slice_navigation::normalize_axis(axis) {
+            Some(axis) => Some(self.slice_indices[axis]),
+            None => None,
         }
     }
 
     /// Returns the number of slices available for one orthogonal axis.
     #[must_use]
     pub const fn slice_count(self, axis: usize) -> Option<usize> {
-        match axis {
-            0..=2 => Some(self.slice_counts[axis]),
-            _ => None,
+        match crate::ui::slice_navigation::normalize_axis(axis) {
+            Some(axis) => Some(self.slice_counts[axis]),
+            None => None,
         }
     }
 

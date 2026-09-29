@@ -176,6 +176,7 @@ impl MeasurementLayer {
                     }
                 }
             }
+            ToolState::PatientLength1 { .. } => {}
             ToolState::MeasureAngle2 { p1, p2 } => {
                 // Two anchor handles, p1→p2 line, rubber-band p2→cursor with live angle.
                 let sp1 = img_to_screen(egui_point(*p1));

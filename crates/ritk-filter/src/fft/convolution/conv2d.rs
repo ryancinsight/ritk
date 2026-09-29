@@ -1,6 +1,6 @@
 use crate::fft::convolution::fft_strategy::{fft2d, ForwardFft, InverseFft};
 use crate::fft::convolution::padding::{
-    checked_edge_shape_2d, checked_fft_shape_2d, edge_source_index,
+    checked_edge_shape_2d, checked_fft_shape, edge_source_index,
 };
 use anyhow::{anyhow, Result};
 use eunomia::Complex;
@@ -101,8 +101,9 @@ impl<B: Backend> FftConvolutionFilter<B> {
         let kc = self.kernel_cols;
 
         // Padding must be >= h + kr − 1 to suppress circular aliasing.
-        let fft_shape = checked_fft_shape_2d(dims, [kr, kc], "FftConvolutionFilter")?;
-        let (pad_r, pad_c, pad_n) = (fft_shape.rows, fft_shape.cols, fft_shape.len);
+        let fft_shape = checked_fft_shape::<2>(dims, [kr, kc], "FftConvolutionFilter")?;
+        let [pad_r, pad_c] = fft_shape.dims;
+        let pad_n = fft_shape.len;
 
         // Zero-padded image: placed at top-left (origin).
         let mut img_buf = vec![Complex::new(0.0_f32, 0.0); pad_n];

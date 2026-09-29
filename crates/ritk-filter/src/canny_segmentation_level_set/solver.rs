@@ -21,8 +21,9 @@ struct CannyStep<'a> {
 }
 
 impl SparseFieldStep<f64> for CannyStep<'_> {
-    fn stage(&self, phi: &[f64], active: &[usize]) -> (Vec<f64>, f64) {
-        let mut updates = Vec::with_capacity(active.len());
+    fn stage(&self, phi: &[f64], active: &[usize], updates: &mut Vec<f64>) -> f64 {
+        updates.clear();
+        updates.reserve(active.len());
         let mut maxc = 0.0f64;
         let mut maxp = 0.0f64;
         let mut maxa = 0.0f64;
@@ -34,7 +35,7 @@ impl SparseFieldStep<f64> for CannyStep<'_> {
             updates.push(update);
         }
         // ComputeGlobalTimeStep.
-        let dt = if maxc > 0.0 {
+        if maxc > 0.0 {
             if maxa + maxp > 0.0 {
                 (self.wave_dt / (maxa + maxp)).min(self.wave_dt / maxc)
             } else {
@@ -44,8 +45,7 @@ impl SparseFieldStep<f64> for CannyStep<'_> {
             self.wave_dt / (maxa + maxp)
         } else {
             0.0
-        };
-        (updates, dt)
+        }
     }
 }
 

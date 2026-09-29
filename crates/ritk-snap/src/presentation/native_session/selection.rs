@@ -4,11 +4,15 @@
 //! resulting framebuffer and the bounded keyboard events; DICOM discovery,
 //! labels and UID selection remain in this crate.
 
-use anyhow::{anyhow, Result};
-use metis_platform::{Color, DisplayScale, Framebuffer, Rect};
+use anyhow::{Result, anyhow};
+use metis_platform::rasterizer::CornerRadius;
+use metis_platform::{Color, Framebuffer, Rect};
 use metis_ui_lang::{DisplayCommand, DisplayList};
 use std::path::{Path, PathBuf};
 
+use super::layout::text::{
+    SELECTOR_FOOTER_SIZE, SELECTOR_ROW_SIZE, SELECTOR_TITLE_SIZE, text_style,
+};
 use crate::dicom::series_tree::{SeriesEntryView, SeriesTree};
 
 const KEY_ESCAPE: u32 = 0x1b;
@@ -185,6 +189,7 @@ impl SeriesSelection {
             &mut display,
             DisplayCommand::FillRect {
                 rect: Rect::new(x, y, box_width, box_height),
+                radius: CornerRadius::SQUARE,
                 color: OVERLAY_BACKGROUND,
             },
         )?;
@@ -193,6 +198,7 @@ impl SeriesSelection {
             DisplayCommand::DrawBorder {
                 rect: Rect::new(x, y, box_width, box_height),
                 width: 2,
+                radius: CornerRadius::SQUARE,
                 color: OVERLAY_BORDER,
             },
         )?;
@@ -202,9 +208,7 @@ impl SeriesSelection {
                 text: format!("Select DICOM series ({} found)", self.choices.len()),
                 x: x + MARGIN,
                 y: y + 14,
-                color: OVERLAY_TEXT,
-                scale: 2,
-                display_scale: DisplayScale::ONE,
+                style: text_style(OVERLAY_TEXT, SELECTOR_TITLE_SIZE)?,
             },
         )?;
         if let Some(notice) = &self.notice {
@@ -214,9 +218,7 @@ impl SeriesSelection {
                     text: notice.to_string(),
                     x: x + MARGIN,
                     y: y + 40,
-                    color: OVERLAY_WARNING,
-                    scale: 1,
-                    display_scale: DisplayScale::ONE,
+                    style: text_style(OVERLAY_WARNING, SELECTOR_ROW_SIZE)?,
                 },
             )?;
         }
@@ -240,13 +242,14 @@ impl SeriesSelection {
                     text: format!("{marker} {}. {}", index + 1, choice.label),
                     x: x + MARGIN,
                     y: row_y,
-                    color: if selected {
-                        OVERLAY_SELECTED
-                    } else {
-                        OVERLAY_TEXT
-                    },
-                    scale: 1,
-                    display_scale: DisplayScale::ONE,
+                    style: text_style(
+                        if selected {
+                            OVERLAY_SELECTED
+                        } else {
+                            OVERLAY_TEXT
+                        },
+                        SELECTOR_ROW_SIZE,
+                    )?,
                 },
             )?;
         }
@@ -260,9 +263,7 @@ impl SeriesSelection {
                 text: "Arrow keys or 1-9 select · Enter opens · Escape cancels".to_owned(),
                 x: x + MARGIN,
                 y: footer_y,
-                color: OVERLAY_MUTED,
-                scale: 1,
-                display_scale: DisplayScale::ONE,
+                style: text_style(OVERLAY_MUTED, SELECTOR_FOOTER_SIZE)?,
             },
         )?;
         display.render_to(framebuffer);

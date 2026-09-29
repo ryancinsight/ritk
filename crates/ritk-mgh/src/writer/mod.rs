@@ -13,7 +13,7 @@ use anyhow::{anyhow, Context, Result};
 use coeus_core::{ComputeBackend, CpuAddressableStorage};
 use flate2::write::GzEncoder;
 use flate2::Compression;
-use ritk_image::Image;
+use ritk_image::{ensure_single_grid, Image};
 use ritk_spatial::{Direction, Point, Spacing};
 use std::io::{BufWriter, Write};
 use std::path::Path;
@@ -147,32 +147,7 @@ where
     B::DeviceBuffer<f32>: CpuAddressableStorage<f32>,
     P: AsRef<Path>,
 {
-    let Some((first, rest)) = volumes.split_first() else {
-        return Err(anyhow!(
-            "write_mgh_series: a series requires at least one volume"
-        ));
-    };
-
-    let shape = first.shape();
-    for (index, volume) in rest.iter().enumerate() {
-        let position = index + 1;
-        if volume.shape() != shape {
-            return Err(anyhow!(
-                "write_mgh_series: volume {position} shape {:?} differs from volume 0 \
-                 {shape:?}; an MGH series has one spatial grid",
-                volume.shape()
-            ));
-        }
-        if volume.origin() != first.origin()
-            || volume.spacing() != first.spacing()
-            || volume.direction() != first.direction()
-        {
-            return Err(anyhow!(
-                "write_mgh_series: volume {position} origin, spacing, or direction \
-                 differs from volume 0; an MGH series has one spatial grid"
-            ));
-        }
-    }
+    let grid = ensure_single_grid("write_mgh_series", volumes)?;
 
     let path = path.as_ref();
     let file = std::fs::File::create(path)
@@ -182,10 +157,10 @@ where
         let mut encoder = GzEncoder::new(BufWriter::new(file), Compression::default());
         write_mgh_series_flat(
             &mut encoder,
-            shape,
-            *first.origin(),
-            *first.spacing(),
-            *first.direction(),
+            grid.dims,
+            grid.origin,
+            grid.spacing,
+            grid.direction,
             volumes,
             backend,
         )?;
@@ -194,10 +169,10 @@ where
         let mut writer = BufWriter::new(file);
         write_mgh_series_flat(
             &mut writer,
-            shape,
-            *first.origin(),
-            *first.spacing(),
-            *first.direction(),
+            grid.dims,
+            grid.origin,
+            grid.spacing,
+            grid.direction,
             volumes,
             backend,
         )?;

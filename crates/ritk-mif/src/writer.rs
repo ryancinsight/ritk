@@ -6,7 +6,7 @@
 
 use anyhow::{anyhow, Context, Result};
 use coeus_core::{ComputeBackend, CpuAddressableStorage};
-use ritk_image::Image;
+use ritk_image::{ensure_single_grid, write_le_f32, Image};
 use ritk_spatial::{Direction, Point, Spacing};
 use std::io::{BufWriter, Write};
 use std::path::Path;
@@ -64,37 +64,15 @@ where
     B::DeviceBuffer<f32>: CpuAddressableStorage<f32>,
     P: AsRef<Path>,
 {
-    let Some((first, rest)) = volumes.split_first() else {
-        return Err(anyhow!(
-            "write_mif_series: a series requires at least one volume"
-        ));
-    };
-
-    let shape = first.shape();
-    for (index, volume) in rest.iter().enumerate() {
-        let position = index + 1;
-        if volume.shape() != shape {
-            return Err(anyhow!(
-                "write_mif_series: volume {position} shape {:?} differs from volume 0 \
-                 {shape:?}; a .mif series has one spatial grid",
-                volume.shape()
-            ));
-        }
-        if volume.origin() != first.origin() || volume.spacing() != first.spacing() {
-            return Err(anyhow!(
-                "write_mif_series: volume {position} origin or spacing differs from \
-                 volume 0; a .mif series has one spatial grid"
-            ));
-        }
-    }
+    let grid = ensure_single_grid("write_mif_series", volumes)?;
 
     let payloads: Vec<_> = volumes.iter().map(|v| v.data_cow_on(backend)).collect();
     write_mif_flat(
         path.as_ref(),
-        shape,
-        first.spacing(),
-        first.origin(),
-        first.direction(),
+        grid.dims,
+        &grid.spacing,
+        &grid.origin,
+        &grid.direction,
         &payloads,
     )
 }
@@ -231,22 +209,6 @@ fn build_transform(
         [dx[2], dy[2], dz[2], origin[2]],
         [0.0, 0.0, 0.0, 1.0],
     ]
-}
-
-// ── Byte writing ─────────────────────────────────────────────────────────
-
-fn write_le_f32(writer: &mut impl Write, values: &[f32]) -> Result<()> {
-    #[cfg(target_endian = "little")]
-    writer.write_all(bytemuck::cast_slice(values))?;
-    #[cfg(target_endian = "big")]
-    {
-        let mut bytes = Vec::with_capacity(values.len() * 4);
-        for &v in values {
-            bytes.extend_from_slice(&v.to_le_bytes());
-        }
-        writer.write_all(&bytes)?;
-    }
-    Ok(())
 }
 
 // ── Public writer struct ─────────────────────────────────────────────────────

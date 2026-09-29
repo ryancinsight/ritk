@@ -1,14 +1,14 @@
 use anyhow::{anyhow, bail, Context, Result};
 use coeus_core::ComputeBackend;
 use flate2::read::GzDecoder;
-use ritk_image::Image;
+use ritk_image::{Image, VolumeGrid, VolumeSet};
 use std::fs;
 use std::io::Read;
 use std::path::Path;
 
 use crate::header::NiftiHeader;
 use crate::shape::checked_voxel_count;
-use crate::spatial::{metadata_from_nifti_ras_affine, InternalSpatialMetadata};
+use crate::spatial::metadata_from_nifti_ras_affine;
 
 const GZIP_MAGIC: [u8; 2] = [0x1f, 0x8b];
 const MAX_HEADER_PREFIX_BYTES: u64 = 544;
@@ -40,13 +40,13 @@ pub fn read_nifti_from_bytes<B: ComputeBackend>(
     bytes: &[u8],
     backend: &B,
 ) -> Result<Image<f32, B, 3>> {
-    let (data, dims, spatial) = decode_nifti_bytes(bytes)?.into_single_volume()?;
+    let (grid, data) = decode_nifti_bytes(bytes)?.into_single_volume("NIfTI file", "volumes")?;
     Image::from_flat_on(
         data,
-        dims,
-        spatial.origin,
-        spatial.spacing,
-        spatial.direction,
+        grid.dims,
+        grid.origin,
+        grid.spacing,
+        grid.direction,
         backend,
     )
 }
@@ -98,61 +98,25 @@ pub fn read_nifti_series_from_bytes<B: ComputeBackend>(
     bytes: &[u8],
     backend: &B,
 ) -> Result<Vec<Image<f32, B, 3>>> {
-    let DecodedNifti {
-        volumes,
-        dims,
-        spatial,
-    } = decode_nifti_bytes(bytes)?;
+    let (grid, volumes) = decode_nifti_bytes(bytes)?.into_parts();
 
     volumes
         .into_iter()
         .map(|data| {
             Image::from_flat_on(
                 data,
-                dims,
-                spatial.origin,
-                spatial.spacing,
-                spatial.direction,
+                grid.dims,
+                grid.origin,
+                grid.spacing,
+                grid.direction,
                 backend,
             )
         })
         .collect()
 }
 
-/// Decoded NIfTI payload: one entry per volume, each in `[nz, ny, nx]` order,
-/// sharing one spatial grid.
-struct DecodedNifti {
-    volumes: Vec<Vec<f32>>,
-    dims: [usize; 3],
-    spatial: InternalSpatialMetadata,
-}
-
-impl DecodedNifti {
-    /// Take the sole volume, rejecting a series.
-    ///
-    /// The single-volume readers carry a `[nz, ny, nx]` contract, so a series
-    /// has no correct representation through them; returning volume 0 would
-    /// discard the rest of the acquisition while reporting success.
-    fn into_single_volume(mut self) -> Result<(Vec<f32>, [usize; 3], InternalSpatialMetadata)> {
-        if self.volumes.len() != 1 {
-            bail!(
-                "NIfTI file declares {} volumes; this reader returns one 3-D volume. \
-                 Use the series reader to decode an acquisition series (diffusion, \
-                 time series) without discarding {} of its volumes.",
-                self.volumes.len(),
-                self.volumes.len() - 1
-            );
-        }
-        let data = self
-            .volumes
-            .pop()
-            .expect("invariant: length checked to be exactly one above");
-        Ok((data, self.dims, self.spatial))
-    }
-}
-
-/// Decode NIfTI bytes (gzip-detected) into a backend-agnostic [`DecodedNifti`].
-fn decode_nifti_bytes(bytes: &[u8]) -> Result<DecodedNifti> {
+/// Decode NIfTI bytes (gzip-detected) into a backend-agnostic volume set.
+fn decode_nifti_bytes(bytes: &[u8]) -> Result<VolumeSet<VolumeGrid>> {
     let decoded;
     let payload = if bytes.starts_with(&GZIP_MAGIC) {
         decoded = decode_gzip(bytes).context("Failed to decode gzipped NIfTI bytes")?;
@@ -164,7 +128,7 @@ fn decode_nifti_bytes(bytes: &[u8]) -> Result<DecodedNifti> {
     decode_single_file(payload)
 }
 
-fn decode_single_file(bytes: &[u8]) -> Result<DecodedNifti> {
+fn decode_single_file(bytes: &[u8]) -> Result<VolumeSet<VolumeGrid>> {
     let header = NiftiHeader::parse(bytes).context("Invalid NIfTI header")?;
     let spatial = metadata_from_nifti_ras_affine(header.affine()?)
         .context("Invalid NIfTI spatial metadata")?;
@@ -195,11 +159,15 @@ fn decode_single_file(bytes: &[u8]) -> Result<DecodedNifti> {
         })
         .collect::<Result<Vec<_>>>()?;
 
-    Ok(DecodedNifti {
+    Ok(VolumeSet::new(
+        VolumeGrid {
+            dims: [nz, ny, nx],
+            origin: spatial.origin,
+            spacing: spatial.spacing,
+            direction: spatial.direction,
+        },
         volumes,
-        dims: [nz, ny, nx],
-        spatial,
-    })
+    ))
 }
 
 /// Read a NIfTI file as an integer label map in ZYX order.

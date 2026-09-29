@@ -71,9 +71,9 @@ impl NativeFilterOutput {
         Self {
             data: output.data_cow_on(backend).into_owned(),
             shape: output.shape(),
-            origin: *output.origin(),
-            spacing: *output.spacing(),
-            direction: *output.direction(),
+            origin: output.origin().to_array(),
+            spacing: output.spacing().to_array(),
+            direction: output.direction().to_row_major(),
         }
     }
 

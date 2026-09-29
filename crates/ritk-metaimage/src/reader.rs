@@ -300,8 +300,8 @@ fn decode_metaimage<P: AsRef<Path>>(path: P) -> Result<DecodedMetaImage> {
 // ── Private helpers ───────────────────────────────────────────────────────────
 
 fn checked_voxel_count(nx: usize, ny: usize, nz: usize) -> Result<usize> {
-    nx.checked_mul(ny)
-        .and_then(|xy| xy.checked_mul(nz))
+    ritk_spatial::VolumeDims::new([nz, ny, nx])
+        .checked_total_voxels()
         .ok_or_else(|| {
             anyhow!(
                 "MetaImage voxel count overflow: DimSize = {} {} {}",

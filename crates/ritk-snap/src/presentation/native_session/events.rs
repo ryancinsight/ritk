@@ -78,7 +78,7 @@ impl NativeApplication for NativeViewerSession {
         // Establish the new viewport before reducing pointer events in the
         // same provider batch. Métis can coalesce a resize with input, and
         // those coordinates must use the new client rectangle.
-        let geometry_refreshed = if resized {
+        let mut frame_refreshed = if resized {
             self.refresh_frame().map_err(NativeViewerError::from)?;
             true
         } else {
@@ -98,12 +98,19 @@ impl NativeApplication for NativeViewerSession {
             if !terminal && is_open_shortcut && !open_shortcut_seen {
                 open_shortcut_seen = true;
                 match self.open_study_from_dialog() {
-                    Ok(reopened) => study_reopened |= reopened,
+                    Ok(reopened) => {
+                        study_reopened |= reopened;
+                        if reopened {
+                            self.refresh_frame().map_err(NativeViewerError::from)?;
+                            frame_refreshed = true;
+                        }
+                    }
                     Err(error) => {
                         self.app.status_message = format!(
                             "DICOM reopen failed; current study remains displayed: {error:#}"
                         );
                         study_reopened = true;
+                        frame_refreshed = false;
                     }
                 }
             }
@@ -128,7 +135,14 @@ impl NativeApplication for NativeViewerSession {
                     .map_err(NativeViewerError::from)?;
                 selection_changed |= changed;
                 selection_confirmed |= confirmed;
+                if changed {
+                    frame_refreshed = false;
+                }
             }
+        }
+        if selection_confirmed {
+            self.refresh_frame().map_err(NativeViewerError::from)?;
+            frame_refreshed = true;
         }
         let selection_visible = self.selection.is_some();
         let disposition = if selection_visible {
@@ -141,6 +155,9 @@ impl NativeApplication for NativeViewerSession {
             disposition,
             crate::app::action_adapter::ViewerActionDisposition::Continue { repaint: true }
         );
+        if repaint {
+            frame_refreshed = false;
+        }
         let cine_repaint = if matches!(
             disposition,
             crate::app::action_adapter::ViewerActionDisposition::Continue { .. }
@@ -152,6 +169,9 @@ impl NativeApplication for NativeViewerSession {
         } else {
             false
         };
+        if cine_repaint {
+            frame_refreshed = false;
+        }
         let frame_changed =
             repaint || cine_repaint || study_reopened || selection_changed || selection_confirmed;
         if terminal
@@ -160,9 +180,9 @@ impl NativeApplication for NativeViewerSession {
                 crate::app::action_adapter::ViewerActionDisposition::Exit
             )
         {
-            if !self.minimized && frame_changed && !geometry_refreshed {
+            if !self.minimized && frame_changed && !frame_refreshed {
                 self.refresh_frame().map_err(NativeViewerError::from)?;
-            } else if !geometry_refreshed {
+            } else if !frame_refreshed {
                 record_state(&self.observation, &self.app, self.dpi, self.minimized)
                     .map_err(NativeViewerError::from)?;
             }
@@ -171,14 +191,14 @@ impl NativeApplication for NativeViewerSession {
             return Ok(NativeFlow::Exit);
         }
 
-        if !self.minimized && frame_changed && !geometry_refreshed {
+        if !self.minimized && frame_changed && !frame_refreshed {
             self.refresh_frame().map_err(NativeViewerError::from)?;
-        } else if !geometry_refreshed {
+        } else if !frame_refreshed {
             record_state(&self.observation, &self.app, self.dpi, self.minimized)
                 .map_err(NativeViewerError::from)?;
         }
         Ok(NativeFlow::Continue {
-            repaint: !self.minimized && (geometry_refreshed || frame_changed),
+            repaint: !self.minimized && (frame_refreshed || frame_changed),
         })
     }
 }

@@ -3,9 +3,20 @@
 use crate::app::viewer_viewport::ViewerViewport;
 use crate::presentation::PresentationSpacing;
 use crate::tools::interaction::ViewportOffset;
-use anyhow::{anyhow, bail, Result};
+use anyhow::{Result, anyhow, bail};
 
 use super::super::frame::RenderedView;
+
+pub(crate) fn screen_coordinate(value: f64, label: &str) -> Result<i32> {
+    if !value.is_finite() || value < f64::from(i32::MIN) || value > f64::from(i32::MAX) {
+        bail!("{label} coordinate is outside the native display range")
+    }
+    #[expect(
+        clippy::cast_possible_truncation,
+        reason = "finite display coordinates are checked against the i32 host contract"
+    )]
+    Ok(value.round() as i32)
+}
 
 /// Pixel separator between the three native orthogonal panels.
 pub(super) const VIEW_GAP_PIXELS: u32 = 4;
@@ -29,6 +40,16 @@ impl NativeViewport {
 
     pub(crate) const fn mapping(self) -> ViewerViewport {
         self.mapping
+    }
+
+    #[cfg(test)]
+    pub(crate) const fn image_bounds(self) -> [f64; 4] {
+        [
+            self.image.x,
+            self.image.x + self.image.width,
+            self.image.y,
+            self.image.y + self.image.height,
+        ]
     }
 
     pub(crate) fn contains(self, x: f64, y: f64) -> bool {

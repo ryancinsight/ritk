@@ -104,10 +104,9 @@ pub(crate) fn checked_voxel_count(dims: [usize; 3]) -> Result<usize> {
 }
 
 fn checked_voxel_count_with_label(dims: [usize; 3], label: &str) -> Result<usize> {
-    dims.iter().try_fold(1usize, |acc, &dim| {
-        acc.checked_mul(dim)
-            .ok_or_else(|| anyhow!("{} {:?} product overflows usize", label, dims))
-    })
+    ritk_spatial::VolumeDims::new(dims)
+        .checked_total_voxels()
+        .ok_or_else(|| anyhow!("{} {:?} product overflows usize", label, dims))
 }
 
 #[cfg(test)]

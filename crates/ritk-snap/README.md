@@ -125,6 +125,23 @@ contract is scalar-only.
 
 The reviewed capture is shown in the [DICOM workflow manual](../../docs/manual/dicom-workflow.md#present-validated-ritk-views-through-metis).
 
+For an interactive physical oblique reslice, select the oblique layout:
+
+```console
+cargo run --locked -p ritk-snap -- path/to/study \
+  --metis-native --metis-native-layout oblique
+```
+
+Arrow keys rotate the selected plane, the wheel moves it along its normal, and
+the Pan, Zoom and Length tools operate on the oblique pane. RITK uses the same
+physical plane for displayed pixels, pointer mapping and millimetre
+measurements. The [native oblique MRI walkthrough](../../docs/manual/dicom-workflow.md#open-the-saved-mri-in-native-oblique-mpr)
+shows the complete workflow with the public MRI-DIR phantom.
+This major API change makes `Annotation` non-exhaustive and adds
+`ToolState::PatientLength1`; downstream matches require an `Annotation`
+wildcard and must handle the new `ToolState` variant or add a wildcard. See
+[ADR 0052](../../docs/adr/0052-native-oblique-mpr.md#migration).
+
 The native host also provides a responsive layout that selects one, two or
 four panes from the current surface extent:
 

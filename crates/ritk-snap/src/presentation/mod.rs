@@ -46,4 +46,6 @@ pub use web::{WebCanvasInputError, WebCanvasPresenter};
 #[cfg(windows)]
 pub use native::{run_native_frame, translate_native_events, NativeFrameOutcome};
 #[cfg(windows)]
-pub use native_session::{run_native_responsive_viewer, run_native_viewer, NativeViewerOutcome};
+pub use native_session::{
+    run_native_oblique_viewer, run_native_responsive_viewer, run_native_viewer, NativeViewerOutcome,
+};

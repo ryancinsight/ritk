@@ -1,11 +1,13 @@
 //! Linked voxel cursor projection for the native Métis display list.
 
-use anyhow::{bail, Result};
+use anyhow::Result;
 use metis_platform::Color;
 use metis_ui_lang::DisplayList;
 
 use super::super::frame::RenderedView;
-use super::geometry::NativeViewport;
+use super::geometry::{NativeViewport, screen_coordinate};
+use crate::app::ObliqueViewport;
+use crate::render::ReslicePlane;
 use crate::ui::map_voxel_to_view_row_col;
 
 pub(crate) const CROSSHAIR_COLOR: Color = Color::rgba(0, 229, 255, 255);
@@ -82,13 +84,45 @@ pub(crate) fn crosshair_overlay(
     Ok(overlay)
 }
 
-fn screen_coordinate(value: f64, label: &str) -> Result<i32> {
-    if !value.is_finite() || value < f64::from(i32::MIN) || value > f64::from(i32::MAX) {
-        bail!("{label} coordinate is outside the native display range")
+pub(crate) fn oblique_crosshair_overlay(
+    viewport: ObliqueViewport,
+    plane: &ReslicePlane,
+    patient: [f64; 3],
+) -> Result<DisplayList> {
+    let mut overlay = DisplayList::default();
+    let Ok(projection) = plane.project_patient(patient) else {
+        return Ok(overlay);
+    };
+    let Some([x, y]) = viewport.screen_point(projection.pixel()) else {
+        return Ok(overlay);
+    };
+    let Some([left, right, top, bottom]) = viewport.visible_pixel_bounds() else {
+        return Ok(overlay);
+    };
+    if x < left || x > right || y < top || y > bottom {
+        return Ok(overlay);
     }
-    #[expect(
-        clippy::cast_possible_truncation,
-        reason = "finite display coordinates are checked against the i32 host contract"
-    )]
-    Ok(value.round() as i32)
+    overlay.append_line(
+        (
+            screen_coordinate(left, "oblique crosshair left")?,
+            screen_coordinate(y, "oblique crosshair row")?,
+        ),
+        (
+            screen_coordinate(right, "oblique crosshair right")?,
+            screen_coordinate(y, "oblique crosshair row")?,
+        ),
+        CROSSHAIR_COLOR,
+    )?;
+    overlay.append_line(
+        (
+            screen_coordinate(x, "oblique crosshair column")?,
+            screen_coordinate(top, "oblique crosshair top")?,
+        ),
+        (
+            screen_coordinate(x, "oblique crosshair column")?,
+            screen_coordinate(bottom, "oblique crosshair bottom")?,
+        ),
+        CROSSHAIR_COLOR,
+    )?;
+    Ok(overlay)
 }

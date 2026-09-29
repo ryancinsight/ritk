@@ -94,6 +94,10 @@
 
 ### Changed
 
+- [patch][perf] `ritk-filter`'s shared SparseField engine now reuses active-band,
+  physics-update, and status-cascade scratch buffers across PDE iterations,
+  removing per-iteration allocations while preserving ordered layer updates;
+  a regression test guards the reuse contract.
 - [patch] Remove the unused eager `ColorVolume::data_vec()` from
   `ritk-image`. The colour family now exposes exactly the two-behaviour
   contract of [ADR 0051](docs/adr/0051-two-image-data-accessors.md):

@@ -1,5 +1,9 @@
 use super::state::SnapApp;
+#[cfg(not(target_arch = "wasm32"))]
+use crate::geometry::PatientPointMm;
 use crate::render::NamedColorMap;
+#[cfg(not(target_arch = "wasm32"))]
+use crate::tools::interaction::PatientLength;
 use crate::tools::interaction::{Annotation, ImagePoint, MeasurementError, RoiKind, ToolState};
 use crate::tools::kind::ToolKind;
 #[cfg(all(not(target_arch = "wasm32"), feature = "eframe-shell"))]
@@ -11,6 +15,9 @@ use crate::ui::{
 use crate::viewer::{DEFAULT_WINDOW_CENTER, DEFAULT_WINDOW_WIDTH};
 
 // ── Pointer / interaction event handlers ───────────────────────────────────
+
+#[cfg(not(target_arch = "wasm32"))]
+mod oblique;
 
 impl SnapApp {
     pub(crate) fn on_drag_start(&mut self, pos: Option<ImagePoint>) {
@@ -257,8 +264,9 @@ impl SnapApp {
             max,
             area_mm2,
         });
-        self.status_message =
-            format!("ROI: \u{03bc}={mean:.1} \u{03c3}={std_dev:.1} [{min:.0}, {max:.0}] {area_mm2:.1} mm\u{b2}");
+        self.status_message = format!(
+            "ROI: \u{03bc}={mean:.1} \u{03c3}={std_dev:.1} [{min:.0}, {max:.0}] {area_mm2:.1} mm\u{b2}"
+        );
     }
 
     fn finalise_roi_ellipse(&mut self, start: ImagePoint, end: ImagePoint) {

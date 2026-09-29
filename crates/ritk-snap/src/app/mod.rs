@@ -46,6 +46,8 @@ mod load_tasks;
 mod menu;
 #[cfg(all(not(target_arch = "wasm32"), feature = "eframe-shell"))]
 mod mesh_ops;
+#[cfg(not(target_arch = "wasm32"))]
+pub(crate) mod oblique_viewport;
 #[cfg(all(not(target_arch = "wasm32"), feature = "eframe-shell"))]
 mod pacs_ops;
 #[cfg(feature = "eframe-shell")]
@@ -100,6 +102,8 @@ mod tests;
 
 #[cfg(all(not(target_arch = "wasm32"), feature = "eframe-shell"))]
 pub(crate) use eframe::EguiApp;
+#[cfg(not(target_arch = "wasm32"))]
+pub(crate) use oblique_viewport::ObliqueViewport;
 #[cfg(windows)]
 pub(crate) use slice_ops::CineTick;
 pub(crate) use state::SnapApp;

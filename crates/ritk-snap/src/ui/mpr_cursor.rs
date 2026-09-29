@@ -123,11 +123,12 @@ impl LinkedCursor {
 
 /// Return `(width, height)` for the 2-D slice shown by `axis`.
 pub fn axis_slice_dimensions(shape: [usize; 3], axis: usize) -> Option<(usize, usize)> {
+    let axis = super::slice_navigation::normalize_axis(axis)?;
     match axis {
         0 => Some((shape[2], shape[1])),
         1 => Some((shape[2], shape[0])),
         2 => Some((shape[1], shape[0])),
-        _ => None,
+        _ => unreachable!("normalize_axis restricts orthogonal axes to 0..=2"),
     }
 }
 

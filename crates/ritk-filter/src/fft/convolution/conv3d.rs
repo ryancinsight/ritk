@@ -1,6 +1,6 @@
 use crate::fft::convolution::fft_strategy::{fft3d, ForwardFft, InverseFft};
 use crate::fft::convolution::padding::{
-    checked_edge_shape_3d, checked_fft_shape_3d, edge_source_index,
+    checked_edge_shape_3d, checked_fft_shape, edge_source_index,
 };
 use anyhow::{anyhow, Result};
 use eunomia::Complex;
@@ -128,14 +128,10 @@ impl<B: Backend> FftConvolution3DFilter<B> {
         let kw = self.kernel_cols;
 
         // Padding must be >= dim + krn − 1 to suppress circular aliasing.
-        let fft_shape = checked_fft_shape_3d(dims, [kd, kh, kw], "FftConvolution3DFilter")?;
-        let (pad_d, pad_h, pad_w, pad_n, slice) = (
-            fft_shape.depth,
-            fft_shape.rows,
-            fft_shape.cols,
-            fft_shape.len,
-            fft_shape.slice_len,
-        );
+        let fft_shape = checked_fft_shape::<3>(dims, [kd, kh, kw], "FftConvolution3DFilter")?;
+        let [pad_d, pad_h, pad_w] = fft_shape.dims;
+        let pad_n = fft_shape.len;
+        let slice = pad_h * pad_w;
 
         // Zero-padded volume: placed at top-left (origin).
         let mut vol_buf = vec![Complex::new(0.0_f32, 0.0); pad_n];

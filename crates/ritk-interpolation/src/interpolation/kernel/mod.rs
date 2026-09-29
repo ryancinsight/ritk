@@ -42,5 +42,7 @@ pub mod linear;
 pub mod nearest;
 pub mod sinc;
 
+mod scan;
+
 #[cfg(test)]
 mod tests_sinc;

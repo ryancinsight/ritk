@@ -106,8 +106,69 @@ impl ReslicePlane {
     ) -> Result<Self, ResliceError> {
         let transform = validate_volume(volume)?;
         validate_center(center_voxel, volume.shape)?;
-
         let center_patient = transform.voxel_to_patient(center_voxel);
+        Self::oblique_with_center(
+            volume,
+            center_voxel,
+            center_patient,
+            orientation,
+            interpolation,
+            transform,
+        )
+    }
+
+    /// Build an oblique plane through a patient-space centre.
+    ///
+    /// This constructor retains an exact physical centre when an existing
+    /// plane changes orientation. The centre must map inside the source volume.
+    ///
+    /// # Errors
+    /// Returns source validation errors, [`ResliceError::InvalidCenter`] when
+    /// the patient point is outside the volume, or a typed plane-construction
+    /// error when the requested field of view cannot be represented.
+    ///
+    /// # Examples
+    ///
+    /// ```no_run
+    /// # use ritk_snap::render::{ResliceInterpolation, ResliceOrientation, ReslicePlane};
+    /// # fn rotate(volume: &ritk_snap::LoadedVolume) -> Result<(), Box<dyn std::error::Error>> {
+    /// let plane = ReslicePlane::oblique_at_patient(
+    ///     volume,
+    ///     [0.0, 0.0, 0.0],
+    ///     ResliceOrientation::try_new(25.0, 10.0)?,
+    ///     ResliceInterpolation::Linear,
+    /// )?;
+    /// # let _ = plane;
+    /// # Ok(())
+    /// # }
+    /// ```
+    pub fn oblique_at_patient(
+        volume: &LoadedVolume,
+        center_patient: [f64; 3],
+        orientation: ResliceOrientation,
+        interpolation: ResliceInterpolation,
+    ) -> Result<Self, ResliceError> {
+        let transform = validate_volume(volume)?;
+        let center_voxel = transform.patient_to_voxel(center_patient);
+        validate_center(center_voxel, volume.shape)?;
+        Self::oblique_with_center(
+            volume,
+            center_voxel,
+            center_patient,
+            orientation,
+            interpolation,
+            transform,
+        )
+    }
+
+    fn oblique_with_center(
+        volume: &LoadedVolume,
+        center_voxel: [f64; 3],
+        center_patient: [f64; 3],
+        orientation: ResliceOrientation,
+        interpolation: ResliceInterpolation,
+        transform: crate::geometry::affine::AffineTransform,
+    ) -> Result<Self, ResliceError> {
         let column_step = voxel_step(&transform, center_voxel, 2);
         let row_step = voxel_step(&transform, center_voxel, 1);
         let depth_step = voxel_step(&transform, center_voxel, 0);
@@ -123,7 +184,7 @@ impl ReslicePlane {
 
         let horizontal = rotate(horizontal, vertical, orientation.yaw_degrees);
         let vertical = rotate(vertical, horizontal, orientation.pitch_degrees);
-        let normal = normalize(cross(horizontal, vertical))?;
+        let normal = normalize(super::sampling::cross_product(horizontal, vertical))?;
 
         let half_width = (volume.shape[2].saturating_sub(1) as f64) * column_spacing * 0.5;
         let half_height = (volume.shape[1].saturating_sub(1) as f64) * row_spacing * 0.5;
@@ -240,28 +301,24 @@ fn rotate(vector: [f64; 3], axis: [f64; 3], degrees: f64) -> [f64; 3] {
     let angle = degrees * DEGREES_TO_RADIANS;
     let (sine, cosine) = angle.sin_cos();
     add_scaled(
-        add_scaled(scale(vector, cosine), cross(axis, vector), sine),
+        add_scaled(
+            scale(vector, cosine),
+            super::sampling::cross_product(axis, vector),
+            sine,
+        ),
         axis,
         dot(axis, vector) * (1.0 - cosine),
     )
 }
 
-fn dot(left: [f64; 3], right: [f64; 3]) -> f64 {
+pub(super) fn dot(left: [f64; 3], right: [f64; 3]) -> f64 {
     left.into_iter().zip(right).map(|(a, b)| a * b).sum()
-}
-
-fn cross(left: [f64; 3], right: [f64; 3]) -> [f64; 3] {
-    [
-        left[1] * right[2] - left[2] * right[1],
-        left[2] * right[0] - left[0] * right[2],
-        left[0] * right[1] - left[1] * right[0],
-    ]
 }
 
 fn scale(vector: [f64; 3], factor: f64) -> [f64; 3] {
     vector.map(|component| component * factor)
 }
 
-fn subtract(left: [f64; 3], right: [f64; 3]) -> [f64; 3] {
+pub(super) fn subtract(left: [f64; 3], right: [f64; 3]) -> [f64; 3] {
     std::array::from_fn(|axis| left[axis] - right[axis])
 }

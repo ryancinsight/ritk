@@ -1,8 +1,9 @@
 use anyhow::{anyhow, Result};
+use ritk_spatial::VolumeDims;
 
 pub(crate) fn checked_voxel_count(nx: usize, ny: usize, nz: usize) -> Result<usize> {
-    nx.checked_mul(ny)
-        .and_then(|xy| xy.checked_mul(nz))
+    VolumeDims::new([nz, ny, nx])
+        .checked_total_voxels()
         .ok_or_else(|| anyhow!("NIfTI voxel count overflows usize: nx={nx}, ny={ny}, nz={nz}"))
 }
 

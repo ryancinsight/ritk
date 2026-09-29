@@ -24,6 +24,7 @@ use layout::NativeViewport;
 use projection::RenderedProjection;
 mod composition;
 mod events;
+mod oblique;
 mod routing;
 mod selection;
 mod startup;
@@ -33,6 +34,7 @@ use startup::prepare_initial_study;
 
 mod observation;
 mod session;
+use oblique::ObliqueView;
 use observation::{record_state, NativeViewerError, NativeViewerObservation};
 use session::NativeViewerSession;
 
@@ -98,6 +100,30 @@ pub fn run_native_responsive_viewer(
         initial_series_uid,
         capture,
         NativePresentationSelection::Responsive,
+        capture_application,
+    )
+}
+
+/// Run a DICOM study in the native four-plane orthogonal and oblique viewer.
+///
+/// The oblique plane uses the loaded volume's patient affine and the same
+/// scalar presentation policy as the orthogonal RITK views.
+///
+/// # Errors
+/// Returns the same DICOM load, frame conversion, native-host, and capture
+/// errors as [`run_native_viewer`].
+#[must_use = "the session outcome records host and viewer transitions"]
+pub fn run_native_oblique_viewer(
+    initial_path: impl AsRef<Path>,
+    initial_series_uid: Option<&str>,
+    capture: Option<&Path>,
+    capture_application: bool,
+) -> Result<NativeViewerOutcome> {
+    run_native_viewer_with_selection(
+        initial_path,
+        initial_series_uid,
+        capture,
+        NativePresentationSelection::Oblique,
         capture_application,
     )
 }
@@ -183,7 +209,11 @@ fn run_native_viewer_with_selection(
         surface_height: observation.surface_height.load(Ordering::Relaxed),
         initial_frame_width: observation.initial_frame_width.load(Ordering::Relaxed),
         initial_frame_height: observation.initial_frame_height.load(Ordering::Relaxed),
-        view_count: 3,
+        view_count: if presentation_mode == NativePresentationSelection::Oblique {
+            4
+        } else {
+            3
+        },
         presented_frames: observation.presented_frames.load(Ordering::Relaxed),
         event_batches: observation.event_batches.load(Ordering::Relaxed),
         translated_events: observation.translated_events.load(Ordering::Relaxed),

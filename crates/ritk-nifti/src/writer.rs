@@ -2,7 +2,7 @@ use anyhow::Result;
 use coeus_core::{ComputeBackend, CpuAddressableStorage};
 use flate2::write::GzEncoder;
 use flate2::Compression;
-use ritk_image::Image;
+use ritk_image::{ensure_single_grid, write_le_f32, write_le_u32, Image, VolumeGrid};
 use std::fs::File;
 use std::io::{BufWriter, Write};
 use std::path::Path;
@@ -108,14 +108,10 @@ fn write_nifti_labels_with_version<P: AsRef<Path>>(
     )?;
 
     write_single_file_with(path, &header, |writer| {
-        for z in 0..nz {
-            for y in 0..ny {
-                for x in 0..nx {
-                    writer.write_all(&labels[z * ny * nx + y * nx + x].to_le_bytes())?;
-                }
-            }
-        }
-        Ok(())
+        // Labels are already in `[Z, Y, X]` memory order, which is NIfTI's
+        // `[X, Y, Z]` file order, so the payload goes out as-is through the
+        // shared bounded-block writer rather than one `write_all` per voxel.
+        write_le_u32(writer, labels)
     })
 }
 
@@ -204,39 +200,13 @@ where
     B::DeviceBuffer<f32>: CpuAddressableStorage<f32>,
     P: AsRef<Path>,
 {
-    let Some((first, rest)) = volumes.split_first() else {
-        anyhow::bail!("write_nifti_series: a series requires at least one volume");
-    };
+    let VolumeGrid {
+        dims: [nz, ny, nx],
+        origin,
+        spacing,
+        direction,
+    } = ensure_single_grid("write_nifti_series", volumes)?;
 
-    let shape = first.shape();
-    let origin = first.origin();
-    let spacing = first.spacing();
-    let direction = direction_row_major(first.direction());
-
-    for (index, volume) in rest.iter().enumerate() {
-        let position = index + 1;
-        if volume.shape() != shape {
-            anyhow::bail!(
-                "write_nifti_series: volume {position} shape {:?} differs from volume 0 {shape:?}; \
-                 a NIfTI series has one spatial grid",
-                volume.shape()
-            );
-        }
-        if volume.origin() != origin || volume.spacing() != spacing {
-            anyhow::bail!(
-                "write_nifti_series: volume {position} origin or spacing differs from volume 0; \
-                 a NIfTI series has one spatial grid"
-            );
-        }
-        if direction_row_major(volume.direction()) != direction {
-            anyhow::bail!(
-                "write_nifti_series: volume {position} direction differs from volume 0; \
-                 a NIfTI series has one spatial grid"
-            );
-        }
-    }
-
-    let [nz, ny, nx] = shape;
     let expected = checked_voxel_count(nx, ny, nz)?;
     let payloads = volumes
         .iter()
@@ -258,15 +228,15 @@ where
         NiftiDatatype::Float32,
         [origin[0], origin[1], origin[2]],
         [spacing[0], spacing[1], spacing[2]],
-        direction,
+        direction.to_row_major(),
     )?;
 
     write_single_file_with(path, &header, |writer| {
         // The acquisition axis is slowest, so volumes serialize back to back in
-        // acquisition order, each in the same ZYX-to-XYZ voxel order as a
-        // single-volume file.
+        // acquisition order, each in the same `[Z, Y, X]` memory order (which is
+        // NIfTI's `[X, Y, Z]` file order) as a single-volume file.
         for payload in &payloads {
-            write_voxels_xyz(writer, payload, shape)?;
+            write_le_f32(writer, payload)?;
         }
         Ok(())
     })
@@ -295,25 +265,8 @@ where
         shape,
         [origin[0], origin[1], origin[2]],
         [spacing[0], spacing[1], spacing[2]],
-        direction_row_major(image.direction()),
+        image.direction().to_row_major(),
     )
-}
-
-/// Flatten a 3×3 direction-cosine matrix to the row-major layout the header
-/// builder consumes.
-fn direction_row_major(direction: &ritk_spatial::Direction<3>) -> [f64; 9] {
-    let d = direction.0;
-    [
-        d[(0, 0)],
-        d[(0, 1)],
-        d[(0, 2)],
-        d[(1, 0)],
-        d[(1, 1)],
-        d[(1, 2)],
-        d[(2, 0)],
-        d[(2, 1)],
-        d[(2, 2)],
-    ]
 }
 
 /// NIfTI serialization core: header plus the `[Z, Y, X]` voxel stream.
@@ -324,7 +277,7 @@ fn write_flat_with_version(
     shape: [usize; 3],
     origin: [f64; 3],
     spacing: [f64; 3],
-    direction_row_major: [f64; 9],
+    direction: [f64; 9],
 ) -> Result<()> {
     let [nz, ny, nx] = shape;
     let expected = checked_voxel_count(nx, ny, nz)?;
@@ -342,26 +295,13 @@ fn write_flat_with_version(
         NiftiDatatype::Float32,
         origin,
         spacing,
-        direction_row_major,
+        direction,
     )?;
 
-    write_single_file_with(path, &header, |writer| {
-        write_voxels_xyz(writer, voxels, shape)
-    })
-}
-
-/// Serialize one volume from RITK `[Z, Y, X]` order into NIfTI `[X, Y, Z]` file
-/// order, x varying fastest.
-fn write_voxels_xyz(writer: &mut dyn Write, voxels: &[f32], shape: [usize; 3]) -> Result<()> {
-    let [nz, ny, nx] = shape;
-    for z in 0..nz {
-        for y in 0..ny {
-            for x in 0..nx {
-                writer.write_all(&voxels[z * ny * nx + y * nx + x].to_le_bytes())?;
-            }
-        }
-    }
-    Ok(())
+    // RITK `[Z, Y, X]` memory order is NIfTI `[X, Y, Z]` file order, so the
+    // payload goes out as-is through the shared bounded-block writer instead of
+    // one `write_all` per voxel.
+    write_single_file_with(path, &header, |writer| write_le_f32(writer, voxels))
 }
 
 fn header_from_spatial(

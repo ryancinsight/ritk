@@ -109,6 +109,41 @@ fn continuous_pixel_mapping_preserves_rotated_physical_geometry() {
         .expect("interior output coordinate maps and samples");
     assert_eq!(sample.pixel(), [1.5, 0.5]);
     assert_eq!(sample.patient(), [6.25, 21.75, 38.5]);
+    let patient = plane
+        .patient_at_pixel([1.5, 0.5])
+        .expect("interior output coordinate maps to patient space");
+    assert_eq!(patient.coordinates(), [6.25, 21.75, 38.5]);
+    let projection = plane
+        .project_patient([6.25, 21.75, 38.5])
+        .expect("analytical patient point projects into the output plane");
+    assert_eq!(projection.distance_mm(), 0.0);
+    for coordinate in [
+        [f64::NAN, 21.0, 35.0],
+        [7.0, f64::NAN, 35.0],
+        [7.0, 21.0, f64::NAN],
+        [f64::INFINITY, 21.0, 35.0],
+        [7.0, f64::INFINITY, 35.0],
+        [7.0, 21.0, f64::INFINITY],
+        [f64::NEG_INFINITY, 21.0, 35.0],
+        [7.0, f64::NEG_INFINITY, 35.0],
+        [7.0, 21.0, f64::NEG_INFINITY],
+    ] {
+        assert!(matches!(
+            plane.project_patient(coordinate),
+            Err(ResliceError::InvalidPatientPoint { .. })
+        ));
+    }
+    for coordinate in [
+        [6.125, 21.0, 35.0],
+        [6.25, 23.0, 43.5],
+        [7.375, 21.5, 36.75],
+        [2.5, 21.5, 40.0],
+    ] {
+        assert!(matches!(
+            plane.project_patient(coordinate),
+            Err(ResliceError::PixelOutOfBounds { .. })
+        ));
+    }
     assert_eq!(sample.voxel(), [0.875, 1.25, 2.125]);
     assert_eq!(sample.nearest_voxel(), [1, 1, 2]);
     assert_eq!(sample.value(), 102.125);
@@ -124,13 +159,27 @@ fn continuous_pixel_mapping_rejects_invalid_coordinates_and_changed_sources() {
         plane.sample_pixel(&volume, [f64::NAN, 0.0]),
         Err(ResliceError::InvalidPixelCoordinate { .. })
     ));
+    for coordinate in [
+        [f64::NAN, 0.0],
+        [0.0, f64::NAN],
+        [f64::INFINITY, 0.0],
+        [0.0, f64::NEG_INFINITY],
+    ] {
+        assert!(matches!(
+            plane.patient_at_pixel(coordinate),
+            Err(ResliceError::InvalidPixelCoordinate { .. })
+        ));
+    }
     for coordinate in [[-f64::EPSILON, 0.0], [5.0, 0.0], [0.0, 4.0]] {
         assert!(matches!(
             plane.sample_pixel(&volume, coordinate),
             Err(ResliceError::PixelOutOfBounds { .. })
         ));
+        assert!(matches!(
+            plane.patient_at_pixel(coordinate),
+            Err(ResliceError::PixelOutOfBounds { .. })
+        ));
     }
-
     let mut changed_shape = volume.clone();
     changed_shape.shape = [2, 4, 5];
     changed_shape.data = Arc::new(changed_shape.data[..40].to_vec());
@@ -145,6 +194,124 @@ fn continuous_pixel_mapping_rejects_invalid_coordinates_and_changed_sources() {
         plane.sample_pixel(&changed_geometry, [0.0, 0.0]),
         Err(ResliceError::GeometryChanged)
     ));
+}
+
+#[test]
+fn patient_projection_uses_componentwise_forward_rounding_bounds() {
+    let volume = scalar_volume([5, 4, 3]);
+    let plane = ReslicePlane::try_new(
+        &volume,
+        [0.0; 3],
+        [1.0, 0.0, 0.0],
+        [0.0, 1.0, 0.0],
+        [0.0, 0.0, 1.0],
+        [5, 4],
+        1,
+        ResliceInterpolation::Nearest,
+    )
+    .expect("unit plane matches the source volume");
+
+    for pixel in [
+        [0.0, 0.0],
+        [4.0, 0.0],
+        [0.0, 3.0],
+        [4.0, 3.0],
+        [0.0, 2.5],
+        [3.75, 3.0],
+        [2.5, 0.0],
+        [1.25, 3.0],
+    ] {
+        let patient = plane
+            .patient_at_pixel(pixel)
+            .expect("in-bounds pixel maps to patient space");
+        let projection = plane
+            .project_patient(patient.coordinates())
+            .expect("forward-mapped edge and fractional pixels project back");
+        assert_eq!(projection.pixel(), pixel);
+    }
+
+    let distant_normal = plane
+        .project_patient([0.5, 0.5, 1.0e13])
+        .expect("normal distance does not widen independent pixel axes");
+    assert_eq!(distant_normal.pixel(), [0.5, 0.5]);
+
+    assert!(matches!(
+        plane.project_patient([-0.125, 0.5, 1.0e13]),
+        Err(ResliceError::PixelOutOfBounds { .. })
+    ));
+    assert!(matches!(
+        plane.project_patient([-f64::EPSILON, 0.5, 0.0]),
+        Err(ResliceError::PixelOutOfBounds { .. })
+    ));
+}
+
+#[test]
+fn patient_projection_round_trips_fractional_edges_on_oblique_anisotropic_plane() {
+    let volume = scalar_volume([16, 24, 24]);
+    let plane = ReslicePlane::try_new(
+        &volume,
+        [1.0, 8.0, 1.0],
+        [2.0, 4.0, 4.0],
+        [2.0, -2.0, 1.0],
+        [0.0; 3],
+        [4, 3],
+        1,
+        ResliceInterpolation::Nearest,
+    )
+    .expect("oblique anisotropic plane lies inside the source");
+
+    for pixel in [[0.0, 0.5], [3.0, 0.75], [1.5, 0.0], [1.25, 2.0]] {
+        let patient = plane
+            .patient_at_pixel(pixel)
+            .expect("fractional edge pixel maps to patient space");
+        let projection = plane
+            .project_patient(patient.coordinates())
+            .expect("forward-mapped fractional edge remains in bounds");
+        let enclosure = plane
+            .patient_pixel_enclosure(patient.coordinates())
+            .expect("finite patient point has a bounded pixel projection");
+        for ((reference, projected), bound) in
+            pixel.into_iter().zip(projection.pixel()).zip(enclosure)
+        {
+            assert!(bound.contains(reference));
+            assert!(bound.contains(projected));
+        }
+    }
+
+    let edge = plane
+        .patient_at_pixel([0.0, 0.5])
+        .expect("edge pixel maps to patient space")
+        .coordinates();
+    let off_plane = [edge[0] + 12.0, edge[1] + 6.0, edge[2] - 12.0];
+    let projection = plane
+        .project_patient(off_plane)
+        .expect("finite off-plane point retains its physical projection");
+    assert_eq!(projection.pixel(), [0.0, 0.5]);
+    assert_eq!(projection.distance_mm(), 18.0);
+}
+
+#[test]
+fn patient_projection_handles_basis_with_subnormal_squared_length() {
+    let volume = scalar_volume([2, 2, 2]);
+    let horizontal_step = 2.0_f64.powi(-537);
+    let plane = ReslicePlane::try_new(
+        &volume,
+        [0.0; 3],
+        [horizontal_step, 0.0, 0.0],
+        [0.0, 1.0, 0.0],
+        [0.0; 3],
+        [2, 2],
+        1,
+        ResliceInterpolation::Nearest,
+    )
+    .expect("nonzero minimum representable plane basis is valid");
+    let patient = plane
+        .patient_at_pixel([1.0, 0.5])
+        .expect("tiny physical step maps to patient space");
+    let projection = plane
+        .project_patient(patient.coordinates())
+        .expect("scaled norm keeps the nonzero basis invertible");
+    assert_eq!(projection.pixel(), [1.0, 0.5]);
 }
 
 #[test]
@@ -211,6 +378,52 @@ fn centered_oblique_plane_preserves_aspect_and_samples_linear_field() {
             assert!((sample.value() - expected).abs() <= 64.0 * f32::EPSILON);
             assert_eq!(pixels.pixels()[row * width + column], sample.value());
         }
+    }
+}
+
+#[test]
+fn oriented_oblique_plane_keeps_its_exact_patient_centre() {
+    let mut volume = scalar_volume([7, 9, 11]);
+    volume.spacing = [4.0, 2.0, 1.0];
+    volume.origin = [13.0, -7.0, 21.0];
+    volume.direction = [0.0, -1.0, 0.0, 1.0, 0.0, 0.0, 0.0, 0.0, 1.0];
+    let initial = ReslicePlane::centered_oblique(
+        &volume,
+        [3.0, 4.0, 5.0],
+        ResliceOrientation::default(),
+        ResliceInterpolation::Linear,
+    )
+    .expect("initial oblique plane is valid");
+    let initial_center = initial
+        .sample_pixel(
+            &volume,
+            [
+                (initial.dimensions()[0] - 1) as f64 * 0.5,
+                (initial.dimensions()[1] - 1) as f64 * 0.5,
+            ],
+        )
+        .expect("plane centre samples the source")
+        .patient();
+    let rotated = ReslicePlane::oblique_at_patient(
+        &volume,
+        initial_center,
+        ResliceOrientation::try_new(25.0, -13.0).expect("bounded orientation"),
+        ResliceInterpolation::Linear,
+    )
+    .expect("rotated plane around the retained patient centre");
+    let rotated_center = rotated
+        .sample_pixel(
+            &volume,
+            [
+                (rotated.dimensions()[0] - 1) as f64 * 0.5,
+                (rotated.dimensions()[1] - 1) as f64 * 0.5,
+            ],
+        )
+        .expect("rotated plane centre samples the source")
+        .patient();
+    for (actual, expected) in rotated_center.into_iter().zip(initial_center) {
+        let bound = 32.0 * f64::EPSILON * expected.abs().max(1.0);
+        assert!((actual - expected).abs() <= bound);
     }
 }
 

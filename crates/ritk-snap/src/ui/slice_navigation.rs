@@ -31,12 +31,21 @@
 //! Modular arithmetic over `Z_total` identifies values differing by multiples
 //! of `total`.
 
+/// Normalize a zero-based orthogonal viewer axis to the supported range.
+pub const fn normalize_axis(axis: usize) -> Option<usize> {
+    match axis {
+        0..=2 => Some(axis),
+        _ => None,
+    }
+}
+
 /// Return axis length for a `[depth, rows, cols]` shape.
 pub fn axis_total(shape: [usize; 3], axis: usize) -> usize {
-    match axis {
-        0 => shape[0],
-        1 => shape[1],
-        _ => shape[2],
+    match normalize_axis(axis) {
+        Some(0) => shape[0],
+        Some(1) => shape[1],
+        Some(2) => shape[2],
+        None | Some(_) => shape[2],
     }
 }
 

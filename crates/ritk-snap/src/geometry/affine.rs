@@ -118,9 +118,7 @@ impl AffineTransform {
     /// Return a unit vector for one voxel axis in patient space.
     #[must_use]
     pub fn axis_direction(&self, axis: usize) -> Option<[f64; 3]> {
-        if axis > 2 {
-            return None;
-        }
+        let axis = crate::ui::slice_navigation::normalize_axis(axis)?;
         let vector = [
             self.voxel_to_patient[axis],
             self.voxel_to_patient[3 + axis],

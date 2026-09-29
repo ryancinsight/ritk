@@ -130,7 +130,7 @@ impl SnapApp {
         axis: usize,
         index: usize,
     ) -> Result<bool, BrowserSliceSelectionError> {
-        if axis > 2 {
+        if crate::ui::slice_navigation::normalize_axis(axis).is_none() {
             return Err(BrowserSliceSelectionError::AxisOutOfRange { axis });
         }
         let shape = self

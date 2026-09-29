@@ -7,11 +7,16 @@
 
 use super::state::SnapApp;
 use super::viewer_viewport::ViewerViewport;
+#[cfg(not(target_arch = "wasm32"))]
+use crate::geometry::PatientPointError;
 use crate::presentation::{
     ActionDispatchError, PointerButton, PointerGesture, PresentationEvent, ViewerAction,
 };
 use crate::ui::{should_zoom_with_scroll, tool_kind_for_virtual_key, zoom_from_scroll};
 use thiserror::Error;
+
+#[cfg(not(target_arch = "wasm32"))]
+mod oblique;
 
 const PRIMARY_BUTTON: PointerButton = PointerButton::Left;
 pub(crate) const VIRTUAL_KEY_PAGE_UP: u32 = 0x21;
@@ -306,6 +311,18 @@ pub(crate) enum ViewerInputError {
     /// The reduced action had no corresponding RITK transition.
     #[error("viewer action application failed: {0}")]
     Action(#[from] ViewerActionError),
+    /// The current oblique plane could not sample the loaded volume.
+    #[cfg(not(target_arch = "wasm32"))]
+    #[error("oblique pointer sample rejected: {0}")]
+    Reslice(#[from] crate::render::ResliceError),
+    /// The screen mapper and physical plane use different pixel dimensions.
+    #[cfg(not(target_arch = "wasm32"))]
+    #[error("oblique viewport rejected: {0}")]
+    ObliqueViewport(#[from] super::oblique_viewport::ObliqueViewportError),
+    /// A sampled patient coordinate could not be represented as millimetres.
+    #[cfg(not(target_arch = "wasm32"))]
+    #[error("oblique patient coordinate rejected: {0}")]
+    PatientPoint(#[from] PatientPointError),
 }
 
 fn validate_presentation_event(event: &PresentationEvent) -> Result<(), ViewerActionError> {
@@ -355,7 +372,7 @@ fn ensure_primary(button: PointerButton) -> Result<(), ViewerActionError> {
     }
 }
 
-fn viewer_scroll_value(value: f64) -> Result<f32, ViewerActionError> {
+pub(crate) fn viewer_scroll_value(value: f64) -> Result<f32, ViewerActionError> {
     if !value.is_finite() || value < f64::from(f32::MIN) || value > f64::from(f32::MAX) {
         return Err(ViewerActionError::WheelDeltaOutOfRange { delta_y: value });
     }

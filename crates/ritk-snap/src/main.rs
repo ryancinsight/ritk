@@ -31,6 +31,7 @@ enum CliNativeLayout {
     OrthogonalWithMinip,
     OrthogonalWithAverage,
     Responsive,
+    Oblique,
 }
 
 #[cfg(not(target_arch = "wasm32"))]
@@ -45,7 +46,7 @@ impl CliNativeLayout {
             Self::OrthogonalWithAverage => {
                 Some(ritk_snap::NativePresentationMode::OrthogonalWithAverage)
             }
-            Self::Responsive => None,
+            Self::Responsive | Self::Oblique => None,
         }
     }
 }
@@ -148,6 +149,16 @@ fn main() -> anyhow::Result<()> {
     }
     if matches!(args.native_presentation_mode, CliNativeLayout::Responsive) {
         return ritk_snap::run_responsive_native_app_with_options(ritk_snap::AppLaunchOptions {
+            initial_path: args.initial_path,
+            initial_series_uid: args.initial_series_uid,
+            capture: args.capture,
+            capture_application: args.capture_application,
+            metis_native,
+            native_presentation_mode: ritk_snap::NativePresentationMode::Orthogonal,
+        });
+    }
+    if matches!(args.native_presentation_mode, CliNativeLayout::Oblique) {
+        return ritk_snap::run_oblique_native_app_with_options(ritk_snap::AppLaunchOptions {
             initial_path: args.initial_path,
             initial_series_uid: args.initial_series_uid,
             capture: args.capture,

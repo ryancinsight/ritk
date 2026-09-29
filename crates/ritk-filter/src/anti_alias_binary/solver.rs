@@ -12,14 +12,10 @@ struct CurvatureFlowStep<'a> {
 }
 
 impl SparseFieldStep<f32> for CurvatureFlowStep<'_> {
-    fn stage(&self, phi: &[f32], active: &[usize]) -> (Vec<f32>, f32) {
-        (
-            active
-                .iter()
-                .map(|&f| curvature(phi, &self.topo, f))
-                .collect(),
-            DT,
-        )
+    fn stage(&self, phi: &[f32], active: &[usize], updates: &mut Vec<f32>) -> f32 {
+        updates.clear();
+        updates.extend(active.iter().map(|&f| curvature(phi, &self.topo, f)));
+        DT
     }
 
     fn clamp(&self, f: usize, value: f32) -> f32 {

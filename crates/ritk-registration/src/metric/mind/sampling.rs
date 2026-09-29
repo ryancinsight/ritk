@@ -52,9 +52,8 @@ pub(super) fn select_indices(
 }
 
 pub(super) fn checked_voxel_count(shape: [usize; 3]) -> Result<usize, MindSscError> {
-    shape
-        .into_iter()
-        .try_fold(1_usize, |count, extent| count.checked_mul(extent))
+    ritk_spatial::VolumeDims::new(shape)
+        .checked_total_voxels()
         .ok_or(MindSscError::IndexOverflow)
 }
 

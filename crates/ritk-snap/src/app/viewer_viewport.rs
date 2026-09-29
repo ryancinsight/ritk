@@ -61,7 +61,7 @@ impl ViewerViewport {
         zoom: f32,
         pan: ViewportOffset,
     ) -> Result<Self, ViewerViewportError> {
-        if axis > 2 {
+        if crate::ui::slice_navigation::normalize_axis(axis).is_none() {
             return Err(ViewerViewportError::Axis { axis });
         }
         if source_size.contains(&0) {

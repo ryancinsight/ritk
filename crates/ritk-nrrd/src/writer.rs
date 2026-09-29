@@ -1,6 +1,6 @@
 use anyhow::{anyhow, Context, Result};
 use coeus_core::{ComputeBackend, CpuAddressableStorage};
-use ritk_image::Image;
+use ritk_image::{ensure_single_grid, write_le_f32, Image};
 use ritk_spatial::{Direction, Point, Spacing};
 use std::io::{BufWriter, Write};
 use std::path::Path;
@@ -100,7 +100,7 @@ fn write_nrrd_flat(
     // ── Spatial metadata ──────────────────────────────────────────────────
     let file_directions = file_space_directions_from_internal(
         [spacing[0], spacing[1], spacing[2]],
-        direction_row_major(direction),
+        direction.to_row_major(),
     );
     let sd0 = format_nrrd_vector(file_directions[0]);
     let sd1 = format_nrrd_vector(file_directions[1]);
@@ -175,29 +175,7 @@ where
     B::DeviceBuffer<f32>: CpuAddressableStorage<f32>,
     P: AsRef<Path>,
 {
-    let Some((first, rest)) = volumes.split_first() else {
-        return Err(anyhow!(
-            "write_nrrd_series: a series requires at least one volume"
-        ));
-    };
-
-    let shape = first.shape();
-    for (index, volume) in rest.iter().enumerate() {
-        let position = index + 1;
-        if volume.shape() != shape {
-            return Err(anyhow!(
-                "write_nrrd_series: volume {position} shape {:?} differs from volume 0 \
-                 {shape:?}; a NRRD series has one spatial grid",
-                volume.shape()
-            ));
-        }
-        if volume.origin() != first.origin() || volume.spacing() != first.spacing() {
-            return Err(anyhow!(
-                "write_nrrd_series: volume {position} origin or spacing differs from \
-                 volume 0; a NRRD series has one spatial grid"
-            ));
-        }
-    }
+    let grid = ensure_single_grid("write_nrrd_series", volumes)?;
 
     let payloads: Vec<_> = volumes
         .iter()
@@ -206,10 +184,10 @@ where
 
     write_nrrd_series_flat(
         path.as_ref(),
-        shape,
-        first.spacing(),
-        first.origin(),
-        first.direction(),
+        grid.dims,
+        &grid.spacing,
+        &grid.origin,
+        &grid.direction,
         &payloads,
     )
 }
@@ -245,7 +223,7 @@ fn write_nrrd_series_flat(
 
     let file_directions = file_space_directions_from_internal(
         [spacing[0], spacing[1], spacing[2]],
-        direction_row_major(direction),
+        direction.to_row_major(),
     );
 
     let file = std::fs::File::create(path)
@@ -289,41 +267,6 @@ fn write_nrrd_series_flat(
     write_le_f32(&mut writer, &interleaved)?;
 
     writer.flush().context("Failed to flush NRRD output file")?;
-    Ok(())
-}
-
-/// Flatten a 3×3 direction-cosine matrix to the row-major layout the space
-/// directions builder consumes.
-fn direction_row_major(direction: &Direction<3>) -> [f64; 9] {
-    let d = direction.0;
-    [
-        d[(0, 0)],
-        d[(0, 1)],
-        d[(0, 2)],
-        d[(1, 0)],
-        d[(1, 1)],
-        d[(1, 2)],
-        d[(2, 0)],
-        d[(2, 1)],
-        d[(2, 2)],
-    ]
-}
-
-/// Write `values` as little-endian IEEE 754 f32.
-///
-/// On little-endian targets the slice reinterprets to bytes with no copy; a
-/// per-element `write_all` loop is far slower across millions of voxels.
-fn write_le_f32(writer: &mut impl Write, values: &[f32]) -> Result<()> {
-    #[cfg(target_endian = "little")]
-    writer.write_all(bytemuck::cast_slice(values))?;
-    #[cfg(target_endian = "big")]
-    {
-        let mut bytes = Vec::with_capacity(values.len() * 4);
-        for &v in values {
-            bytes.extend_from_slice(&v.to_le_bytes());
-        }
-        writer.write_all(&bytes)?;
-    }
     Ok(())
 }
 

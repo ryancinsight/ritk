@@ -1,0 +1,64 @@
+{
+  "schema": 2,
+  "status": "passed",
+  "item": "RITK-SNAP-OBLIQUE-NATIVE-001",
+  "pull_request": "https://github.com/ryancinsight/ritk/pull/633",
+  "runtime": {
+    "host": "Windows native Métis surface",
+    "visual_scope": "Métis content framebuffer; operating-system chrome excluded",
+    "command": "cargo --config <generated-neutral-config> run --manifest-path D:/atlas/repos/ritk/Cargo.toml --locked --offline -p ritk-snap --bin ritk-snap -- D:/atlas/repos/ritk/test_data/2_head_mri_t2/DICOM --metis-native --metis-native-layout oblique --capture D:/atlas/repos/ritk/scratch/viewer/real-mri-metis-oblique.png --capture-application",
+    "configuration": "Atlas shared target and profiles retained; local development [patch] overlay omitted"
+  },
+  "dataset": {
+    "path": "test_data/2_head_mri_t2/DICOM",
+    "dicom_files": 94,
+    "dicom_bytes": 49807236,
+    "directory_entries": 95,
+    "license_file": "LICENSE",
+    "license_file_bytes": 2787,
+    "license": "CC BY 4.0",
+    "description": "public MRI-DIR porcine-head T2 MRI phantom; not private patient data"
+  },
+  "source_capture": {
+    "image": "scratch/viewer/real-mri-metis-oblique.png",
+    "width": 1280,
+    "height": 800,
+    "sha256": "1ae218828f79e02c8cd533b74e8225d86b2b44530e947cf7b001e34234d74fe0",
+    "bytes": 627493,
+    "non_black_pixels": 536584
+  },
+  "output": {
+    "image": "dicom-metis-real-mri-oblique.webp",
+    "width": 1280,
+    "height": 800,
+    "sha256": "81c4c8a87a903622ea68c8bf9871e708229acd22a3231058340c8973b5a8280f",
+    "bytes": 169864,
+    "executable_sha256": "534f9b08d52fa4cc86e3503918327709ba7868eafac96a05247532265a8569ba",
+    "executable_bytes": 26073600,
+    "encoding": "lossless WebP",
+    "decoded_rgba_matches_source_capture": true,
+    "planes": [
+      "axial",
+      "coronal",
+      "sagittal",
+      "oblique"
+    ],
+    "executable": "D:/atlas/target/debug/ritk-snap.exe"
+  },
+  "captured_at_utc": "2026-09-27T07:23:27Z",
+  "source_revision": {
+    "ritk_base_commit": "de32e1114df5398732eb65838e00b7c7c90b23f2",
+    "source_tree_sha256": "e2f7133aade94c2bfa856d7c3ed28fc8717a4fa27b0afd6efde9178c84678328",
+    "source_tree_files": 2280,
+    "source_tree_definition": "SHA-256 of sorted Cargo.toml, Cargo.lock, rust-toolchain.toml, rustfmt.toml, and present crates/** path-NUL-file-SHA256 entries",
+    "cargo_lock_sha256": "da5a97a0ccd47c18403b0e943055e54a4d33569a0d511dbd7cc0cee068f29708",
+    "dependencies": {
+      "metis": "d93a45688713fd4d57371243f6afa5413560d75d",
+      "moirai": "b3b37f7fae9de019939a53eaaaf5ada5ba5e806e"
+    },
+    "toolchain": {
+      "cargo": "cargo 1.97.0 (c980f4866 2026-06-30)",
+      "rustc": "rustc 1.97.0 (2d8144b78 2026-07-07)"
+    }
+  }
+}

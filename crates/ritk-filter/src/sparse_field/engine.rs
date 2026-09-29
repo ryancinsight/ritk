@@ -27,7 +27,10 @@ pub(crate) trait SparseFieldStep<T: SparseScalar> {
     /// Raw updates for the active layer, in iteration order, and the time step
     /// the caller's scheme assigns to them (`ComputeGlobalTimeStep` for Canny's
     /// variable scheme, the `CurvatureFlowImageFilter` constant for AntiAlias).
-    fn stage(&self, phi: &[T], active: &[usize]) -> (Vec<T>, T);
+    ///
+    /// The engine owns `updates` so its allocation is reused across iterations;
+    /// implementations clear and refill it rather than returning a fresh vector.
+    fn stage(&self, phi: &[T], active: &[usize], updates: &mut Vec<T>) -> T;
 
     /// Correction applied to the new value before the band tests: AntiAlias
     /// locks the sign to the input binary here. Identity by default, and the
@@ -137,13 +140,28 @@ pub(crate) fn evolve<T: SparseScalar, S: SparseFieldStep<T>>(
     propagate_all(&mut lists, &mut phi, &mut status, &topo, num, cgv);
 
     // ── ApplyUpdate ──────────────────────────────────────────────────────────
-    for _ in 0..cfg.iterations {
-        let active: Vec<usize> = lists.iter(0).collect();
-        let (updates, dt) = step.stage(&phi, &active);
+    // These are deliberately owned by the run, not the iteration. The active
+    // band, physics updates, and status queues are bounded by the narrow-band
+    // size; reusing their allocations avoids one allocation set per PDE
+    // iteration without changing the update order.
+    let mut active = Vec::with_capacity(n);
+    let mut updates = Vec::with_capacity(n);
+    let mut up: [VecDeque<usize>; 2] = [VecDeque::new(), VecDeque::new()];
+    let mut dn: [VecDeque<usize>; 2] = [VecDeque::new(), VecDeque::new()];
+    let mut keep: Vec<usize> = Vec::new();
+    let [up_first, up_second] = &mut up;
+    let [dn_first, dn_second] = &mut dn;
 
-        let mut up: [VecDeque<usize>; 2] = [VecDeque::new(), VecDeque::new()];
-        let mut dn: [VecDeque<usize>; 2] = [VecDeque::new(), VecDeque::new()];
-        let mut keep: Vec<usize> = Vec::new();
+    for _ in 0..cfg.iterations {
+        active.clear();
+        active.extend(lists.iter(0));
+        let dt = step.stage(&phi, &active, &mut updates);
+
+        up_first.clear();
+        up_second.clear();
+        dn_first.clear();
+        dn_second.clear();
+        keep.clear();
         let mut rms_acc = 0.0f64;
         let mut cnt = 0usize;
         for (k, &f) in active.iter().enumerate() {
@@ -168,7 +186,7 @@ pub(crate) fn evolve<T: SparseScalar, S: SparseFieldStep<T>>(
                     }
                 }
                 status[f] = ST_CUP;
-                up[0].push_front(f);
+                up_first.push_front(f);
             } else if nv < -cf {
                 if offsets
                     .iter()
@@ -188,7 +206,7 @@ pub(crate) fn evolve<T: SparseScalar, S: SparseFieldStep<T>>(
                     }
                 }
                 status[f] = ST_CDN;
-                dn[0].push_front(f);
+                dn_first.push_front(f);
             } else {
                 rms_acc += (nv - old).to_f64().powi(2);
                 cnt += 1;
@@ -198,41 +216,83 @@ pub(crate) fn evolve<T: SparseScalar, S: SparseFieldStep<T>>(
         }
         lists.replace(0, &keep);
 
-        // ProcessStatusList cascade, then ProcessOutsideList.
-        let mut u = process_status_list(
-            &mut lists,
-            &mut status,
-            &topo,
-            std::mem::take(&mut up[0]),
-            2,
-            1,
-        );
-        let mut d = process_status_list(
-            &mut lists,
-            &mut status,
-            &topo,
-            std::mem::take(&mut dn[0]),
-            1,
-            2,
-        );
+        // ProcessStatusList cascade, then ProcessOutsideList. Each side uses
+        // two queues as a reusable ping-pong pair; the previous output becomes
+        // the next input after every layer transition.
+        process_status_list(&mut lists, &mut status, &topo, up_first, up_second, 2, 1);
+        process_status_list(&mut lists, &mut status, &topo, dn_first, dn_second, 1, 2);
+        let mut u_in = 1usize;
+        let mut d_in = 1usize;
         let mut up_to = 0i32;
         let mut dn_to = 0i32;
         let mut us = 3i32;
         let mut ds = 4i32;
         while ds < num {
-            u = process_status_list(&mut lists, &mut status, &topo, u, up_to, us);
-            d = process_status_list(&mut lists, &mut status, &topo, d, dn_to, ds);
+            let u_out = 1 - u_in;
+            let d_out = 1 - d_in;
+            let (u_input, u_output) = if u_in == 0 {
+                (&mut *up_first, &mut *up_second)
+            } else {
+                (&mut *up_second, &mut *up_first)
+            };
+            let (d_input, d_output) = if d_in == 0 {
+                (&mut *dn_first, &mut *dn_second)
+            } else {
+                (&mut *dn_second, &mut *dn_first)
+            };
+            process_status_list(&mut lists, &mut status, &topo, u_input, u_output, up_to, us);
+            process_status_list(&mut lists, &mut status, &topo, d_input, d_output, dn_to, ds);
+            u_in = u_out;
+            d_in = d_out;
             up_to = if up_to == 0 { 1 } else { up_to + 2 };
             dn_to += 2;
             us += 2;
             ds += 2;
         }
-        u = process_status_list(&mut lists, &mut status, &topo, u, up_to, ST_NULL);
-        d = process_status_list(&mut lists, &mut status, &topo, d, dn_to, ST_NULL);
-        for f in u {
+        let u_out = 1 - u_in;
+        let d_out = 1 - d_in;
+        let (u_input, u_output) = if u_in == 0 {
+            (&mut *up_first, &mut *up_second)
+        } else {
+            (&mut *up_second, &mut *up_first)
+        };
+        let (d_input, d_output) = if d_in == 0 {
+            (&mut *dn_first, &mut *dn_second)
+        } else {
+            (&mut *dn_second, &mut *dn_first)
+        };
+        process_status_list(
+            &mut lists,
+            &mut status,
+            &topo,
+            u_input,
+            u_output,
+            up_to,
+            ST_NULL,
+        );
+        process_status_list(
+            &mut lists,
+            &mut status,
+            &topo,
+            d_input,
+            d_output,
+            dn_to,
+            ST_NULL,
+        );
+        let up_output = if u_out == 0 {
+            &mut *up_first
+        } else {
+            &mut *up_second
+        };
+        let down_output = if d_out == 0 {
+            &mut *dn_first
+        } else {
+            &mut *dn_second
+        };
+        for f in up_output.drain(..) {
             move_to(&mut lists, &mut status, f, num - 2);
         }
-        for f in d {
+        for f in down_output.drain(..) {
             move_to(&mut lists, &mut status, f, num - 1);
         }
 
@@ -284,8 +344,10 @@ mod tests {
     struct Noop;
 
     impl<T: SparseScalar> SparseFieldStep<T> for Noop {
-        fn stage(&self, _phi: &[T], active: &[usize]) -> (Vec<T>, T) {
-            (vec![T::zero(); active.len()], T::zero())
+        fn stage(&self, _phi: &[T], active: &[usize], updates: &mut Vec<T>) -> T {
+            updates.clear();
+            updates.extend(std::iter::repeat_n(T::zero(), active.len()));
+            T::zero()
         }
     }
 
@@ -336,5 +398,45 @@ mod tests {
             max_rms_error: 0.0,
         };
         assert_eq!(evolve(&shifted, &cfg, &Noop), vec![-3.0f32; 8]);
+    }
+
+    #[derive(Default)]
+    struct ReuseProbe {
+        active_ptr: std::cell::Cell<Option<usize>>,
+        updates_ptr: std::cell::Cell<Option<usize>>,
+    }
+
+    impl SparseFieldStep<f64> for ReuseProbe {
+        fn stage(&self, _phi: &[f64], active: &[usize], updates: &mut Vec<f64>) -> f64 {
+            let active_ptr = active.as_ptr() as usize;
+            let updates_ptr = updates.as_ptr() as usize;
+            if let Some(first) = self.active_ptr.get() {
+                assert_eq!(active_ptr, first, "active band allocation was replaced");
+                assert_eq!(
+                    updates_ptr,
+                    self.updates_ptr.get().expect("update pointer was recorded"),
+                    "update allocation was replaced",
+                );
+            } else {
+                self.active_ptr.set(Some(active_ptr));
+                self.updates_ptr.set(Some(updates_ptr));
+            }
+            updates.clear();
+            updates.resize(active.len(), 0.0);
+            0.0
+        }
+    }
+
+    #[test]
+    fn update_scratch_is_reused_across_iterations() {
+        let shifted = vec![-1.0f64, -1.0, 1.0, 1.0, -1.0, 1.0, 1.0, -1.0];
+        let cfg = SparseFieldConfig {
+            dims: [1, 2, 4],
+            number_of_layers: 2,
+            constant_gradient: 1.0,
+            iterations: 3,
+            max_rms_error: 0.0,
+        };
+        evolve(&shifted, &cfg, &ReuseProbe::default());
     }
 }

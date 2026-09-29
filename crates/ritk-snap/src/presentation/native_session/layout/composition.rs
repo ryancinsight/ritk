@@ -1,16 +1,19 @@
 //! Pixel composition for native presentation layouts.
 
-use anyhow::{anyhow, bail, Result};
-use metis_platform::{Color, DisplayScale, Framebuffer, Rect};
-use metis_ui_lang::{DisplayCommand, DisplayList};
-
 use super::super::frame::RenderedView;
 use super::super::projection::RenderedProjection;
 use super::geometry::{
-    placement, placement_geometry, placement_with_bounds, NativeViewport, ScreenRect,
-    VIEW_GAP_PIXELS,
+    NativeViewport, ScreenRect, VIEW_GAP_PIXELS, placement, placement_geometry,
+    placement_with_bounds,
 };
+use super::overlay::{
+    append_overlay_list, application_overlay, fourth_panel_overlay, projection_overlay,
+};
+use crate::app::ObliqueViewport;
+use crate::presentation::PresentationFrame;
 use crate::tools::interaction::ViewportOffset;
+use anyhow::{Result, anyhow, bail};
+use metis_platform::{Color, Framebuffer};
 
 /// Compose the three views into one bounded Métis framebuffer.
 pub(crate) fn surface_frames(
@@ -102,20 +105,125 @@ pub(crate) fn surface_frames_with_projection(
     cine_fps: f32,
     show_application_overlay: bool,
 ) -> Result<(Framebuffer, [NativeViewport; 3])> {
+    let (mut framebuffer, viewports, _, [panel_x, panel_y, panel_width, panel_height]) =
+        compose_four_panel(
+            views,
+            &projection.frame,
+            surface_width,
+            surface_height,
+            zoom,
+            pan_offset,
+            zoom,
+            pan_offset,
+        )?;
+    if show_application_overlay {
+        let mut overlay = application_overlay(views, &viewports, cine_enabled, cine_fps)?;
+        append_overlay_list(
+            &mut overlay,
+            projection_overlay(projection, panel_x, panel_y, panel_width, panel_height)?,
+        )?;
+        overlay.render_to(&mut framebuffer);
+    }
+    Ok((framebuffer, viewports))
+}
+
+/// Compose orthogonal planes and a physical RITK oblique reslice in one 2×2 grid.
+pub(crate) fn surface_frames_with_oblique(
+    views: &[RenderedView; 3],
+    frame: &PresentationFrame,
+    yaw_degrees: f64,
+    pitch_degrees: f64,
+    surface_width: u32,
+    surface_height: u32,
+    orthogonal_zoom: f32,
+    orthogonal_pan_offset: ViewportOffset,
+    oblique_zoom: f32,
+    oblique_pan_offset: ViewportOffset,
+    plane: Option<&crate::render::ReslicePlane>,
+    cine_enabled: bool,
+    cine_fps: f32,
+    show_application_overlay: bool,
+) -> Result<(Framebuffer, [NativeViewport; 3], Option<ObliqueViewport>)> {
+    let (mut framebuffer, viewports, image, [panel_x, panel_y, panel_width, panel_height]) =
+        compose_four_panel(
+            views,
+            frame,
+            surface_width,
+            surface_height,
+            orthogonal_zoom,
+            orthogonal_pan_offset,
+            oblique_zoom,
+            oblique_pan_offset,
+        )?;
+    let mapper = plane
+        .map(|plane| {
+            let mapper = ObliqueViewport::try_new(
+                [image.x, image.y],
+                [
+                    image.width / f64::from(frame.width()),
+                    image.height / f64::from(frame.height()),
+                ],
+                [frame.width(), frame.height()],
+                [
+                    f64::from(panel_x),
+                    f64::from(panel_y),
+                    f64::from(panel_x + panel_width),
+                    f64::from(panel_y + panel_height),
+                ],
+            )
+            .map_err(|error| anyhow!("construct native oblique viewport: {error}"))?;
+            mapper
+                .validate_dimensions(plane.dimensions())
+                .map_err(|error| anyhow!("validate native oblique viewport: {error}"))?;
+            Ok::<_, anyhow::Error>(mapper)
+        })
+        .transpose()?;
+    if show_application_overlay {
+        let mut overlay = application_overlay(views, &viewports, cine_enabled, cine_fps)?;
+        append_overlay_list(
+            &mut overlay,
+            fourth_panel_overlay(
+                &format!("METIS  RITK-SNAP  Oblique MPR  {yaw_degrees:.0}°/{pitch_degrees:.0}°"),
+                &format!("Physical reslice  {}x{}", frame.width(), frame.height()),
+                panel_x,
+                panel_y,
+                panel_width,
+                panel_height,
+            )?,
+        )?;
+        overlay.render_to(&mut framebuffer);
+    }
+    Ok((framebuffer, viewports, mapper))
+}
+
+fn compose_four_panel(
+    views: &[RenderedView; 3],
+    frame: &PresentationFrame,
+    surface_width: u32,
+    surface_height: u32,
+    orthogonal_zoom: f32,
+    orthogonal_pan_offset: ViewportOffset,
+    fourth_panel_zoom: f32,
+    fourth_panel_pan_offset: ViewportOffset,
+) -> Result<(Framebuffer, [NativeViewport; 3], ScreenRect, [u32; 4])> {
     if surface_width == 0 || surface_height == 0 {
         bail!("native surface dimensions must be nonzero while rendering");
     }
-    if !zoom.is_finite() || zoom <= 0.0 {
-        bail!("native viewer zoom must be finite and positive");
+    if !orthogonal_zoom.is_finite()
+        || orthogonal_zoom <= 0.0
+        || !fourth_panel_zoom.is_finite()
+        || fourth_panel_zoom <= 0.0
+    {
+        bail!("native four-panel zoom values must be finite and positive");
     }
     let available_width = surface_width
         .checked_sub(VIEW_GAP_PIXELS)
-        .ok_or_else(|| anyhow!("native projection layout is narrower than its separator"))?;
+        .ok_or_else(|| anyhow!("native four-panel layout is narrower than its separator"))?;
     let available_height = surface_height
         .checked_sub(VIEW_GAP_PIXELS)
-        .ok_or_else(|| anyhow!("native projection layout is shorter than its separator"))?;
+        .ok_or_else(|| anyhow!("native four-panel layout is shorter than its separator"))?;
     if available_width < 2 || available_height < 2 {
-        bail!("native projection layout cannot allocate four panels");
+        bail!("native four-panel layout cannot allocate four panels");
     }
     let column_widths = [
         available_width / 2 + available_width % 2,
@@ -126,7 +234,7 @@ pub(crate) fn surface_frames_with_projection(
         available_height / 2,
     ];
     let mut framebuffer = Framebuffer::new(surface_width, surface_height)
-        .map_err(|error| anyhow!("allocate native projection framebuffer: {error}"))?;
+        .map_err(|error| anyhow!("allocate native four-panel framebuffer: {error}"))?;
     framebuffer.clear(Color::BLACK);
     let viewports = [
         placement_with_bounds(
@@ -135,8 +243,8 @@ pub(crate) fn surface_frames_with_projection(
             0,
             column_widths[0],
             row_heights[0],
-            zoom,
-            pan_offset,
+            orthogonal_zoom,
+            orthogonal_pan_offset,
         )?,
         placement_with_bounds(
             &views[1],
@@ -144,8 +252,8 @@ pub(crate) fn surface_frames_with_projection(
             0,
             column_widths[1],
             row_heights[0],
-            zoom,
-            pan_offset,
+            orthogonal_zoom,
+            orthogonal_pan_offset,
         )?,
         placement_with_bounds(
             &views[2],
@@ -153,8 +261,8 @@ pub(crate) fn surface_frames_with_projection(
             row_heights[0] + VIEW_GAP_PIXELS,
             column_widths[0],
             row_heights[1],
-            zoom,
-            pan_offset,
+            orthogonal_zoom,
+            orthogonal_pan_offset,
         )?,
     ];
     for (view, viewport) in views.iter().zip(viewports) {
@@ -166,215 +274,41 @@ pub(crate) fn surface_frames_with_projection(
             surface_height,
         )?;
     }
-    let projection_panel = ScreenRect {
+    let fourth_panel = ScreenRect {
         x: f64::from(column_widths[0] + VIEW_GAP_PIXELS),
         y: f64::from(row_heights[0] + VIEW_GAP_PIXELS),
         width: f64::from(column_widths[1]),
         height: f64::from(row_heights[1]),
     };
-    let projection_image = placement_geometry(
-        [projection.frame.width(), projection.frame.height()],
-        projection.frame.display_spacing(),
+    let fourth_image = placement_geometry(
+        [frame.width(), frame.height()],
+        frame.display_spacing(),
         column_widths[0] + VIEW_GAP_PIXELS,
         row_heights[0] + VIEW_GAP_PIXELS,
         column_widths[1],
         row_heights[1],
-        zoom,
-        pan_offset,
+        fourth_panel_zoom,
+        fourth_panel_pan_offset,
     )?;
     blit_rgba_frame(
         &mut framebuffer,
-        &projection.frame,
-        projection_image,
-        projection_panel,
+        frame,
+        fourth_image,
+        fourth_panel,
         surface_width,
         surface_height,
     )?;
-    if show_application_overlay {
-        let mut overlay = application_overlay(views, &viewports, cine_enabled, cine_fps)?;
-        append_overlay_list(
-            &mut overlay,
-            projection_overlay(
-                projection,
-                column_widths[0] + VIEW_GAP_PIXELS,
-                row_heights[0] + VIEW_GAP_PIXELS,
-                column_widths[1],
-                row_heights[1],
-            )?,
-        )?;
-        overlay.render_to(&mut framebuffer);
-    }
-    Ok((framebuffer, viewports))
-}
-
-pub(crate) const OVERLAY_BAR_HEIGHT: i32 = 20;
-const OVERLAY_MARGIN: i32 = 6;
-const OVERLAY_BACKGROUND: Color = Color::rgba(0, 0, 0, 224);
-pub(crate) const OVERLAY_TEXT: Color = Color::rgba(255, 255, 160, 255);
-pub(crate) fn application_overlay(
-    views: &[RenderedView; 3],
-    viewports: &[NativeViewport; 3],
-    cine_enabled: bool,
-    cine_fps: f32,
-) -> Result<DisplayList> {
-    let mut overlay = DisplayList::default();
-    for (view, viewport) in views.iter().zip(viewports) {
-        let panel_x =
-            i32::try_from(viewport.panel_x).map_err(|_| anyhow!("native overlay x exceeds i32"))?;
-        let panel_y =
-            i32::try_from(viewport.panel_y).map_err(|_| anyhow!("native overlay y exceeds i32"))?;
-        let panel_width = i32::try_from(viewport.panel_width)
-            .map_err(|_| anyhow!("native overlay width exceeds i32"))?;
-        let panel_height = i32::try_from(viewport.panel_height)
-            .map_err(|_| anyhow!("native overlay height exceeds i32"))?;
-        if panel_width <= OVERLAY_MARGIN * 2 {
-            continue;
-        }
-        push_overlay_command(
-            &mut overlay,
-            DisplayCommand::FillRect {
-                rect: Rect::new(panel_x, panel_y, panel_width, OVERLAY_BAR_HEIGHT),
-                color: OVERLAY_BACKGROUND,
-            },
-        )?;
-        push_overlay_command(
-            &mut overlay,
-            DisplayCommand::FillRect {
-                rect: Rect::new(
-                    panel_x,
-                    panel_y + panel_height - OVERLAY_BAR_HEIGHT,
-                    panel_width,
-                    OVERLAY_BAR_HEIGHT,
-                ),
-                color: OVERLAY_BACKGROUND,
-            },
-        )?;
-        let title = format!("METIS  RITK-SNAP  {}", view.plane_name);
-        push_overlay_command(
-            &mut overlay,
-            DisplayCommand::DrawText {
-                text: title,
-                x: panel_x + OVERLAY_MARGIN,
-                y: panel_y + 2,
-                color: OVERLAY_TEXT,
-                scale: 1,
-                display_scale: DisplayScale::ONE,
-            },
-        )?;
-        let footer = format!(
-            "Slice {}/{}  {}x{}  W:{:.0} C:{:.0}",
-            view.slice_index.saturating_add(1),
-            view.slice_count,
-            view.frame.width(),
-            view.frame.height(),
-            view.window_level.width,
-            view.window_level.center
-        );
-        let footer = if cine_enabled {
-            format!("{footer}  Cine:{cine_fps:.0}fps  Space/-/+")
-        } else {
-            footer
-        };
-        push_overlay_command(
-            &mut overlay,
-            DisplayCommand::DrawText {
-                text: footer,
-                x: panel_x + OVERLAY_MARGIN,
-                y: panel_y + panel_height - OVERLAY_BAR_HEIGHT + 2,
-                color: OVERLAY_TEXT,
-                scale: 1,
-                display_scale: DisplayScale::ONE,
-            },
-        )?;
-    }
-    Ok(overlay)
-}
-
-pub(crate) fn projection_overlay(
-    projection: &RenderedProjection,
-    panel_x: u32,
-    panel_y: u32,
-    panel_width: u32,
-    panel_height: u32,
-) -> Result<DisplayList> {
-    let panel_x =
-        i32::try_from(panel_x).map_err(|_| anyhow!("native projection overlay x exceeds i32"))?;
-    let panel_y =
-        i32::try_from(panel_y).map_err(|_| anyhow!("native projection overlay y exceeds i32"))?;
-    let panel_width = i32::try_from(panel_width)
-        .map_err(|_| anyhow!("native projection overlay width exceeds i32"))?;
-    let panel_height = i32::try_from(panel_height)
-        .map_err(|_| anyhow!("native projection overlay height exceeds i32"))?;
-    let mut overlay = DisplayList::default();
-    if panel_width <= OVERLAY_MARGIN * 2 || panel_height <= OVERLAY_BAR_HEIGHT * 2 {
-        return Ok(overlay);
-    }
-    push_overlay_command(
-        &mut overlay,
-        DisplayCommand::FillRect {
-            rect: Rect::new(panel_x, panel_y, panel_width, OVERLAY_BAR_HEIGHT),
-            color: OVERLAY_BACKGROUND,
-        },
-    )?;
-    push_overlay_command(
-        &mut overlay,
-        DisplayCommand::FillRect {
-            rect: Rect::new(
-                panel_x,
-                panel_y + panel_height - OVERLAY_BAR_HEIGHT,
-                panel_width,
-                OVERLAY_BAR_HEIGHT,
-            ),
-            color: OVERLAY_BACKGROUND,
-        },
-    )?;
-    push_overlay_command(
-        &mut overlay,
-        DisplayCommand::DrawText {
-            text: format!("METIS  RITK-SNAP  3D {}", projection.statistic.label()),
-            x: panel_x + OVERLAY_MARGIN,
-            y: panel_y + 2,
-            color: OVERLAY_TEXT,
-            scale: 1,
-            display_scale: DisplayScale::ONE,
-        },
-    )?;
-    let footer = format!(
-        "Axial {}  {}x{}",
-        projection.statistic.label(),
-        projection.frame.width(),
-        projection.frame.height()
-    );
-    push_overlay_command(
-        &mut overlay,
-        DisplayCommand::DrawText {
-            text: footer,
-            x: panel_x + OVERLAY_MARGIN,
-            y: panel_y + panel_height - OVERLAY_BAR_HEIGHT + 2,
-            color: OVERLAY_TEXT,
-            scale: 1,
-            display_scale: DisplayScale::ONE,
-        },
-    )?;
-    Ok(overlay)
-}
-
-fn push_overlay_command(display: &mut DisplayList, command: DisplayCommand) -> Result<()> {
-    display
-        .commands
-        .try_reserve(1)
-        .map_err(|_| anyhow!("native viewer overlay command allocation failed"))?;
-    display.commands.push(command);
-    Ok(())
-}
-
-pub(super) fn append_overlay_list(target: &mut DisplayList, mut source: DisplayList) -> Result<()> {
-    target
-        .commands
-        .try_reserve(source.commands.len())
-        .map_err(|_| anyhow!("native viewer overlay command allocation failed"))?;
-    target.commands.append(&mut source.commands);
-    Ok(())
+    Ok((
+        framebuffer,
+        viewports,
+        fourth_image,
+        [
+            column_widths[0] + VIEW_GAP_PIXELS,
+            row_heights[0] + VIEW_GAP_PIXELS,
+            column_widths[1],
+            row_heights[1],
+        ],
+    ))
 }
 
 pub(super) fn blit_frame(

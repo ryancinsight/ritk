@@ -38,8 +38,9 @@ pub use filter::{BedSeparationConfigSerde, FilterKind};
 pub use geometry::{GeometrySummary, ModalityDisplay, ViewerResult, ViewerStatus};
 #[cfg(not(target_arch = "wasm32"))]
 pub use launch::{
-    run_app, run_app_with_options, run_responsive_native_app_with_options, AppLaunchOptions,
-    CompatibilityPresentation, NativePresentationMode,
+    run_app, run_app_with_options, run_oblique_native_app_with_options,
+    run_responsive_native_app_with_options, AppLaunchOptions, CompatibilityPresentation,
+    NativePresentationMode,
 };
 #[cfg(target_arch = "wasm32")]
 pub use launch::{run_app_with_options, AppLaunchOptions, NativePresentationMode};

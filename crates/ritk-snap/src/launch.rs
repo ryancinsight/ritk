@@ -51,6 +51,8 @@ pub(crate) enum NativePresentationSelection {
     Fixed(NativePresentationMode),
     /// Select one, two or four panes from the current native surface extent.
     Responsive,
+    /// Present three orthogonal planes and one physical oblique reslice.
+    Oblique,
 }
 
 #[cfg(all(not(target_arch = "wasm32"), windows))]
@@ -59,6 +61,7 @@ impl NativePresentationSelection {
         match self {
             Self::Fixed(mode) => mode.projection_statistic(),
             Self::Responsive => Some(ProjectionStatistic::Maximum),
+            Self::Oblique => None,
         }
     }
 }
@@ -264,6 +267,24 @@ pub fn run_responsive_native_app_with_options(options: AppLaunchOptions) -> anyh
     )
 }
 
+/// Launch the Métis native host with three orthogonal and one oblique plane.
+///
+/// RITK retains DICOM loading and reslicing; Métis receives the composed
+/// framebuffer and bounded native input events.
+///
+/// # Errors
+/// Returns the same host creation, DICOM load, event-loop, and capture errors
+/// as [`run_app_with_options`].
+#[cfg(not(target_arch = "wasm32"))]
+pub fn run_oblique_native_app_with_options(options: AppLaunchOptions) -> anyhow::Result<()> {
+    run_app_with_compatibility_selection(
+        options,
+        CompatibilityPresentation::FullApplication,
+        EframeViewport::default(),
+        NativePresentationSelection::Oblique,
+    )
+}
+
 #[cfg(not(target_arch = "wasm32"))]
 #[cfg(feature = "eframe-shell")]
 fn run_app_with_compatibility(
@@ -315,6 +336,14 @@ fn run_app_with_compatibility_selection(
                 }
                 NativePresentationSelection::Responsive => {
                     crate::presentation::run_native_responsive_viewer(
+                        &path,
+                        options.initial_series_uid.as_deref(),
+                        options.capture.as_deref(),
+                        options.capture_application,
+                    )?;
+                }
+                NativePresentationSelection::Oblique => {
+                    crate::presentation::run_native_oblique_viewer(
                         &path,
                         options.initial_series_uid.as_deref(),
                         options.capture.as_deref(),

@@ -11,6 +11,7 @@ use metis_platform::native::{ModifierState, NativeApplication, NativeFlow, Windo
 use metis_ui_lang::{DisplayCommand, DisplayList};
 use std::time::{Duration, Instant};
 mod interaction;
+mod oblique;
 mod selection;
 mod support;
 #[cfg(feature = "eframe-shell")]

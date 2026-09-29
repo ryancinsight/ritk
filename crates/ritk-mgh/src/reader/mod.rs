@@ -13,7 +13,7 @@ use crate::{is_gzip_path, GOOD_RAS_VALID, PADDING_LEN, VERSION};
 use anyhow::{bail, Context, Result};
 use coeus_core::ComputeBackend;
 use flate2::read::GzDecoder;
-use ritk_image::Image;
+use ritk_image::{reject_series, Image, VolumeGrid, VolumeSet};
 use std::io::{BufReader, Read};
 use std::path::Path;
 
@@ -52,16 +52,6 @@ pub fn read_mgh<B: ComputeBackend, P: AsRef<Path>>(
     }
 }
 
-/// Decoded MGH volume(s): one entry per frame, each in `[nz, ny, nx]` order,
-/// sharing one physical geometry.
-struct DecodedMgh {
-    volumes: Vec<Vec<f32>>,
-    dims: [usize; 3],
-    origin: ritk_spatial::Point<3>,
-    spacing: ritk_spatial::Spacing<3>,
-    direction: ritk_spatial::Direction<3>,
-}
-
 struct MghHeader {
     dims: [usize; 3],
     origin: ritk_spatial::Point<3>,
@@ -79,22 +69,20 @@ fn read_mgh_from_reader<B: ComputeBackend, R: Read>(
 ) -> Result<Image<f32, B, 3>> {
     let header = read_mgh_header(reader)?;
     if header.nframes != 1 {
-        bail!(
-            "MGH file declares {} frames; this reader returns a 3-D Image, which represents exactly one frame. Use read_mgh_series for this acquisition.",
-            header.nframes
-        );
+        return Err(reject_series("MGH file", "frames", header.nframes));
     }
-    let DecodedMgh {
-        mut volumes,
-        dims,
-        origin,
-        spacing,
-        direction,
-    } = decode_mgh_payload(reader, header)?;
+    let (grid, mut volumes) = decode_mgh_payload(reader, header)?.into_parts();
     let data = volumes
         .pop()
         .expect("invariant: single-frame header produces one decoded volume");
-    Image::from_flat_on(data, dims, origin, spacing, direction, backend)
+    Image::from_flat_on(
+        data,
+        grid.dims,
+        grid.origin,
+        grid.spacing,
+        grid.direction,
+        backend,
+    )
 }
 
 /// Read an MGH or MGZ acquisition series as one image per frame.
@@ -133,17 +121,20 @@ fn read_mgh_series_from_reader<B: ComputeBackend, R: Read>(
     reader: &mut R,
     backend: &B,
 ) -> Result<Vec<Image<f32, B, 3>>> {
-    let DecodedMgh {
-        volumes,
-        dims,
-        origin,
-        spacing,
-        direction,
-    } = decode_mgh(reader)?;
+    let (grid, volumes) = decode_mgh(reader)?.into_parts();
 
     volumes
         .into_iter()
-        .map(|data| Image::from_flat_on(data, dims, origin, spacing, direction, backend))
+        .map(|data| {
+            Image::from_flat_on(
+                data,
+                grid.dims,
+                grid.origin,
+                grid.spacing,
+                grid.direction,
+                backend,
+            )
+        })
         .collect()
 }
 
@@ -235,7 +226,7 @@ fn read_mgh_header<R: Read>(reader: &mut R) -> Result<MghHeader> {
     })
 }
 
-fn decode_mgh_payload<R: Read>(reader: &mut R, header: MghHeader) -> Result<DecodedMgh> {
+fn decode_mgh_payload<R: Read>(reader: &mut R, header: MghHeader) -> Result<VolumeSet<VolumeGrid>> {
     let volumes = voxel_decode::decode_volumes(
         reader,
         header.voxel_type,
@@ -248,16 +239,18 @@ fn decode_mgh_payload<R: Read>(reader: &mut R, header: MghHeader) -> Result<Deco
             header.data_size
         )
     })?;
-    Ok(DecodedMgh {
+    Ok(VolumeSet::new(
+        VolumeGrid {
+            dims: header.dims,
+            origin: header.origin,
+            spacing: header.spacing,
+            direction: header.direction,
+        },
         volumes,
-        dims: header.dims,
-        origin: header.origin,
-        spacing: header.spacing,
-        direction: header.direction,
-    })
+    ))
 }
 
-fn decode_mgh<R: Read>(reader: &mut R) -> Result<DecodedMgh> {
+fn decode_mgh<R: Read>(reader: &mut R) -> Result<VolumeSet<VolumeGrid>> {
     let header = read_mgh_header(reader)?;
     decode_mgh_payload(reader, header)
 }

@@ -20,8 +20,8 @@ fn assert_streamed_payload(
         payload,
     );
     let decoded = decode_mgh(&mut Cursor::new(bytes))?;
-    let volumes = decoded.volumes;
-    assert_eq!(decoded.dims, [1, 1, expected.len()], "{label} shape");
+    let (grid, volumes) = decoded.into_parts();
+    assert_eq!(grid.dims, [1, 1, expected.len()], "{label} shape");
     assert_eq!(volumes.len(), 1, "{label} single frame");
     assert_eq!(volumes[0].len(), expected.len(), "{label} length");
     for (index, (&actual, &expected)) in volumes[0].iter().zip(expected).enumerate() {
@@ -157,14 +157,15 @@ proptest! {
             );
         } else {
             let decoded = result.expect("complete arbitrary payload must decode");
-            prop_assert_eq!(decoded.dims, [nz, ny, nx]);
-            prop_assert_eq!(decoded.volumes.len(), 1, "arbitrary payload is single-frame");
+            let (grid, volumes) = decoded.into_parts();
+            prop_assert_eq!(grid.dims, [nz, ny, nx]);
+            prop_assert_eq!(volumes.len(), 1, "arbitrary payload is single-frame");
             let expected: Vec<f32> = payload[..voxel_count]
                 .iter()
                 .copied()
                 .map(f32::from)
                 .collect();
-            prop_assert_eq!(&decoded.volumes[0], &expected);
+            prop_assert_eq!(&volumes[0], &expected);
         }
     }
 }

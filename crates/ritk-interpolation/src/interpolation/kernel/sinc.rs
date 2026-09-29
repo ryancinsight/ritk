@@ -219,37 +219,17 @@ where
     B::DeviceBuffer<f32>: CpuAddressableStorage<f32>,
 {
     fn interpolate(&self, data: &Tensor<f32, B>, indices: Tensor<f32, B>) -> Tensor<f32, B> {
-        let shape = data.shape().to_vec();
-        let rank = shape.len();
-        assert!(
-            matches!(rank, 2 | 3),
-            "Lanczos interpolation only supports 2D and 3D data"
-        );
-
-        let idx_shape = indices.shape();
-        assert_eq!(idx_shape.len(), 2, "indices must be a 2D tensor [N, rank]");
-        let n_points = idx_shape[0];
-        let idx_rank = idx_shape[1];
-        assert_eq!(idx_rank, rank, "indices rank must match data rank");
-
-        let data_contig = data.to_contiguous();
-        let flat_slice = data_contig.as_slice();
-        let idx_contig = indices.to_contiguous();
-        let idx_slice = idx_contig.as_slice();
-
-        let mut results = Vec::with_capacity(n_points);
-
-        for i in 0..n_points {
-            let coords = &idx_slice[i * rank..(i + 1) * rank];
-            let value = match rank {
-                3 => interpolate_point_3d_flat::<A>(flat_slice, coords, &shape),
-                2 => interpolate_point_2d_flat::<A>(flat_slice, coords, &shape),
+        super::scan::scan(
+            data,
+            indices,
+            |rank| matches!(rank, 2 | 3),
+            "Lanczos interpolation only supports 2D and 3D data",
+            |data_slice, coords, shape, _strides| match shape.len() {
+                3 => interpolate_point_3d_flat::<A>(data_slice, coords, shape),
+                2 => interpolate_point_2d_flat::<A>(data_slice, coords, shape),
                 _ => unreachable!(),
-            };
-            results.push(value);
-        }
-
-        Tensor::from_slice([n_points], &results)
+            },
+        )
     }
 }
 

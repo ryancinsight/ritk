@@ -30,9 +30,8 @@ basis without changing the source geometry contract.
 Completed oblique lengths store validated patient-space endpoints and the
 derived millimetre distance. `ViewerSessionSnapshot` writes format 3 while
 the reader continues to accept formats 1 and 2. `Annotation` becomes
-non-exhaustive; consumers migrate by handling the patient-space length variant
-or adding a wildcard arm. This is a major API change, delivered without a
-registry release.
+non-exhaustive, and `ToolState` gains `PatientLength1` for the pending first
+endpoint. This is a major API change, delivered without a registry release.
 
 ## Alternatives
 
@@ -60,15 +59,19 @@ registry release.
 ## Migration
 
 The `Annotation` enum gains a patient-space length variant and becomes
-`#[non_exhaustive]`. Downstream exhaustive matches add a wildcard or handle
-the new variant. Session writers emit format 3; readers continue to accept
-formats 1 and 2 and validate format-3 endpoints. No registry release is part
-of this change.
+`#[non_exhaustive]`; downstream matches require a wildcard arm and may handle
+the new annotation explicitly. The public exhaustive `ToolState` enum gains
+`ToolState::PatientLength1`; downstream exhaustive matches add that pending
+measurement arm or a wildcard. Session writers emit format 3; readers
+continue to accept formats 1 and 2 and validate format-3 endpoints. No
+registry release is part of this change.
 
 ## Verification
 
 A rotated, anisotropic, non-square manufactured volume supplies exact
 pixel-to-patient-to-voxel and linked-cursor oracles. A 3–4–5 patient-space
 segment verifies length. Native pointer tests cover pan, zoom, wheel, key
-orientation and invalid boundaries. The public MRI-DIR phantom capture is
-the visual check for the complete host workflow.
+orientation and invalid boundaries. Separate regressions cover study
+replacement with changed geometry and a coalesced resize-plus-rotation batch,
+keeping the rendered frame and pointer mapper on one plane. The public MRI-DIR
+phantom capture is the visual check for the complete host workflow.

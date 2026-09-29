@@ -1,8 +1,8 @@
 use anyhow::{anyhow, Context, Result};
 use coeus_core::ComputeBackend;
 use ritk_codecs::{parse_f64_vec, parse_usize_vec, ByteOrder};
-use ritk_image::Image;
-use ritk_spatial::{Direction, Point, Spacing};
+use ritk_image::{Image, VolumeGrid, VolumeSet};
+use ritk_spatial::{CoordinateMap, Point};
 use std::io::{BufReader, Read};
 use std::path::Path;
 
@@ -13,40 +13,6 @@ use super::decode::{
 use super::header::parse_nrrd_header_map_from_reader;
 use crate::axes::{locate_acquisition_axis, AcquisitionAxis};
 use crate::spatial::{metadata_from_file_space_directions, metadata_from_file_spacings};
-
-/// Decode of a NRRD file into one flat `[Z, Y, X]` volume per acquisition,
-/// sharing one spatial grid.
-struct DecodedNrrd {
-    volumes: Vec<Vec<f32>>,
-    dims: [usize; 3],
-    origin: Point<3>,
-    spacing: Spacing<3>,
-    direction: Direction<3>,
-    /// Acquisition geometry from the header's key/value field; `Cartesian`
-    /// when absent, which is what every pre-existing NRRD means.
-    coordinate_map: ritk_spatial::CoordinateMap,
-}
-
-impl DecodedNrrd {
-    /// Take the sole volume, rejecting a series.
-    ///
-    /// The single-volume reader carries a `[nz, ny, nx]` contract, so a series
-    /// has no correct representation through it; returning volume 0 would
-    /// discard the rest of the acquisition while reporting success.
-    fn into_single_volume(mut self) -> Result<DecodedNrrd> {
-        if self.volumes.len() != 1 {
-            return Err(anyhow!(
-                "NRRD file declares {} volumes along its acquisition axis; this reader \
-                 returns one 3-D volume. Use the series reader to decode an acquisition \
-                 series (diffusion, time series) without discarding {} of its volumes.",
-                self.volumes.len(),
-                self.volumes.len() - 1
-            ));
-        }
-        self.volumes.truncate(1);
-        Ok(self)
-    }
-}
 
 /// Read a NRRD (Nearly Raw Raster Data) file into a 3-D `Image`.
 ///
@@ -81,24 +47,14 @@ pub fn read_nrrd<B: ComputeBackend, P: AsRef<Path>>(
     path: P,
     backend: &B,
 ) -> Result<Image<f32, B, 3>> {
-    let decoded = decode_nrrd(path)?.into_single_volume()?;
-    let DecodedNrrd {
-        dims,
-        origin,
-        spacing,
-        direction,
-        coordinate_map,
-        volumes,
-    } = decoded;
+    let (grid, data) = decode_nrrd(path)?.into_single_volume("NRRD file", "volumes")?;
+    let (grid, coordinate_map) = grid;
     Image::from_flat_on(
-        volumes
-            .into_iter()
-            .next()
-            .expect("single_volume guaranteed"),
-        dims,
-        origin,
-        spacing,
-        direction,
+        data,
+        grid.dims,
+        grid.origin,
+        grid.spacing,
+        grid.direction,
         backend,
     )?
     .with_coordinate_map(coordinate_map)
@@ -129,25 +85,26 @@ pub fn read_nrrd_series<B: ComputeBackend, P: AsRef<Path>>(
     path: P,
     backend: &B,
 ) -> Result<Vec<Image<f32, B, 3>>> {
-    let DecodedNrrd {
-        volumes,
-        dims,
-        origin,
-        spacing,
-        direction,
-        coordinate_map,
-    } = decode_nrrd(path)?;
+    let (grid, volumes) = decode_nrrd(path)?.into_parts();
+    let (grid, coordinate_map) = grid;
 
     volumes
         .into_iter()
         .map(|data| {
-            Image::from_flat_on(data, dims, origin, spacing, direction, backend)?
-                .with_coordinate_map(coordinate_map.clone())
+            Image::from_flat_on(
+                data,
+                grid.dims,
+                grid.origin,
+                grid.spacing,
+                grid.direction,
+                backend,
+            )?
+            .with_coordinate_map(coordinate_map.clone())
         })
         .collect()
 }
 
-fn decode_nrrd<P: AsRef<Path>>(path: P) -> Result<DecodedNrrd> {
+fn decode_nrrd<P: AsRef<Path>>(path: P) -> Result<VolumeSet<(VolumeGrid, CoordinateMap)>> {
     let path = path.as_ref();
 
     let file =
@@ -348,14 +305,18 @@ fn decode_nrrd<P: AsRef<Path>>(path: P) -> Result<DecodedNrrd> {
         volume_data[volume].push(value);
     }
 
-    Ok(DecodedNrrd {
-        volumes: volume_data,
-        dims: [nz, ny, nx],
-        origin,
-        spacing: spatial.spacing,
-        direction: spatial.direction,
-        coordinate_map: crate::coordinate_map::from_header(&headers)?,
-    })
+    Ok(VolumeSet::new(
+        (
+            VolumeGrid {
+                dims: [nz, ny, nx],
+                origin,
+                spacing: spatial.spacing,
+                direction: spatial.direction,
+            },
+            crate::coordinate_map::from_header(&headers)?,
+        ),
+        volume_data,
+    ))
 }
 
 /// Thin reader struct for NRRD files.

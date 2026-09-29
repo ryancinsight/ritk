@@ -2,6 +2,7 @@
 
 use super::super::kind::ToolKind;
 use super::{ImagePoint, ViewportOffset};
+use crate::geometry::PatientPointMm;
 
 // ── In-progress tool state ────────────────────────────────────────────────────
 
@@ -49,6 +50,12 @@ pub enum ToolState {
         p1: ImagePoint,
     },
 
+    /// First point of a length measurement placed on an oblique reslice.
+    PatientLength1 {
+        /// First measurement point in DICOM patient millimetres.
+        p1: PatientPointMm,
+    },
+
     /// First two points of a three-click angle measurement have been placed.
     MeasureAngle2 {
         /// First point in image pixel coordinates `[row, col]`.
@@ -89,6 +96,7 @@ impl ToolState {
             ToolState::Zooming { .. } => Some(ToolKind::Zoom),
             ToolState::WindowLevelDrag { .. } => Some(ToolKind::WindowLevel),
             ToolState::MeasureLength1 { .. } => Some(ToolKind::MeasureLength),
+            ToolState::PatientLength1 { .. } => Some(ToolKind::MeasureLength),
             ToolState::MeasureAngle2 { .. } => Some(ToolKind::MeasureAngle),
             ToolState::RoiDrag {
                 kind: RoiKind::Rect,

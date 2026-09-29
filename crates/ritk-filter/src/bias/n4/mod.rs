@@ -310,10 +310,9 @@ fn block_average(src: &[f32], dims: [usize; 3], sdims: [usize; 3], shrink: usize
 }
 
 fn checked_voxel_count(dims: [usize; 3]) -> anyhow::Result<usize> {
-    dims.iter().try_fold(1usize, |acc, &dim| {
-        acc.checked_mul(dim)
-            .ok_or_else(|| anyhow!("N4 image dims {:?} product overflows usize", dims))
-    })
+    VolumeDims::new(dims)
+        .checked_total_voxels()
+        .ok_or_else(|| anyhow!("N4 image dims {:?} product overflows usize", dims))
 }
 
 #[cfg(test)]
