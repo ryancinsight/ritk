@@ -357,8 +357,9 @@ pub(crate) fn match_block_at<T: Sample>(
 ///
 /// The grid partitions the image into non-overlapping tiles; the centre of each
 /// tile is the block centre. Axis `i` contributes
-/// `n_blocks[i] = (dims[i] - 2*block_radius[i]) / stride[i]` centres, placed
-/// at `block_radius[i] + k * stride[i]` for `k = 0 .. n_blocks[i]`.
+/// `n_blocks[i] = 0` when the block does not fit; otherwise
+/// `1 + (dims[i] - (2*block_radius[i] + 1)) / stride[i]` centres are placed
+/// at `block_radius[i] + k * stride[i]`.
 ///
 /// Choosing `stride = 2 * block_radius + 1` gives non-overlapping, dense
 /// coverage. A stride smaller than the block size gives overlapping tiles and

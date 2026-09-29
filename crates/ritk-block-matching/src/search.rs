@@ -682,7 +682,8 @@ impl<T: Sample> OwnedPyramid<T> {
     /// Returns an error when `scales` is empty, not strictly decreasing, ends
     /// anywhere other than `1`, contains a zero, when any extent is not
     /// divisible by its scale, when a derived voxel count overflows, or when
-    /// the buffers do not match `dims`.
+    /// the buffers do not match `dims`. The derived voxel count and `T` byte
+    /// capacity are checked before each level allocation.
     pub fn nearest(fixed: &[T], moving: &[T], dims: [usize; 3], scales: &[usize]) -> Result<Self> {
         validate_scales(dims, scales)?;
         check_buffer_lengths(fixed.len(), moving.len(), dims)?;
@@ -726,8 +727,10 @@ impl<T: Sample> OwnedPyramid<T> {
     ///
     /// # Errors
     ///
-    /// Same validation as [`Self::nearest`], including checked derived voxel
-    /// counts before allocating a level.
+    /// Same validation as [`Self::nearest`]. The doubled axial extent is
+    /// checked before deriving output dimensions, and both the converted `T`
+    /// output capacity and the `f64` reduction scratch capacity are checked
+    /// before allocation.
     pub fn min_max(fixed: &[T], moving: &[T], dims: [usize; 3], scales: &[usize]) -> Result<Self> {
         validate_scales(dims, scales)?;
         check_buffer_lengths(fixed.len(), moving.len(), dims)?;
