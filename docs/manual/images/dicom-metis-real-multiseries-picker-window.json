@@ -29,7 +29,6 @@
     },
     "caption_text_observed_by_GetWindowTextW": "RITK DICOM Viewer",
     "process_returncode_at_capture": null,
-    "process_returncode_after_close": 0,
     "command": "ritk-snap.exe scratch/viewer/multiseries-c84f6bfb5e9b4583b49b30c74cb5c937 --metis-native",
     "input_events": {
       "transport": "Win32 PostMessageW",
@@ -39,59 +38,32 @@
         "ArrowDown",
         "Space"
       ],
-      "pointer": {
-        "button": "Left",
-        "down": {
-          "x": 959,
-          "y": 646
-        },
-        "up": {
-          "x": 959,
-          "y": 646
-        }
-      },
-      "meaning": "Open the picker, select MR T2 and CT, then confirm both into independent panels"
+      "meaning": "Open the picker, select MR T2, move to CT, and select CT"
     }
   },
   "dataset": {
     "path": "scratch/viewer/multiseries-c84f6bfb5e9b4583b49b30c74cb5c937",
-    "description": "Public MRI-DIR porcine-head phantom with the matching MRI and CT series loaded together",
+    "description": "Public MRI-DIR porcine-head phantom; not private patient data",
     "license": "CC BY 4.0",
     "directory_regular_files": 503,
     "non_dicom_files": [],
     "dicom_instances_read": 503,
     "dicom_bytes_read": 265963652,
     "study_count": 2,
-    "series_count": 2,
-    "series": [
-      {
-        "series_instance_uid": "1.3.6.1.4.1.14519.5.2.1.1706.4996.123065603063404191260103927213",
-        "modality": "MR",
-        "description": "T2",
-        "instances": 94,
-        "panel": "P1"
-      },
-      {
-        "series_instance_uid": "1.3.6.1.4.1.14519.5.2.1.1706.4996.115936088547498980797393821518",
-        "modality": "CT",
-        "description": "CT",
-        "instances": 409,
-        "panel": "P2"
-      }
-    ]
+    "series_count": 2
   },
   "source_capture": {
-    "path": "scratch/viewer/live-f4-opened.png",
-    "sha256": "690cb241c634dd695e835160301a7f1770ef8bd58cc66d4cee6a734e4b4ebc32",
-    "bytes": 362151,
+    "path": "scratch/viewer/live-step-space-2.png",
+    "sha256": "04318b132138c000d41ade02f712747ae44a6bec1eb329f2af3eced4a8f073e7",
+    "bytes": 102389,
     "encoding": "PNG captured from the live native application window"
   },
   "output": {
-    "path": "docs/manual/images/dicom-metis-real-mri-ct-multiseries-window.webp",
+    "path": "docs/manual/images/dicom-metis-real-multiseries-picker-window.webp",
     "width": 1298,
     "height": 847,
-    "sha256": "2c06227a68aa799b1673d6d182ba55573ec4215b4f651728db03d69f22e48c65",
-    "bytes": 167952,
+    "sha256": "611a00689c0c6e0e6eb93846f605981b886659f2b45efc67fd2d1ea092734cf2",
+    "bytes": 50510,
     "encoding": "lossless WebP",
     "decoded_rgba_byte_equal_to_source_capture": true,
     "visible_controls": [
@@ -110,23 +82,37 @@
       "Cine",
       "Split screen",
       "Series bar",
-      "Panel maximize",
-      "Panel close",
-      "Series preview",
-      "Load to P1"
+      "Dialog: Open multiple series",
+      "Find text...",
+      "Cancel",
+      "Open"
     ],
-    "panels": [
-      "P1  |  MR  |  T2",
-      "P2  |  CT  |  CT"
+    "dialog_columns": [
+      "Patient",
+      "Study",
+      "Modality",
+      "Series",
+      "Images"
     ],
-    "visual_scope": "Actual running Métis native window after confirming MR T2 and CT in the F4 picker, with Windows chrome and title bar labeled RITK DICOM Viewer, File/View/Tools/Window menus, grouped toolbar buttons, panel title-bar maximize and close controls, left study and series preview bar with decoded MRI and CT thumbnails, thumbnail image-count badges (94 and 409), P1/P2 assignments, status bar, and both actual public image series",
+    "selected_series_count": 2,
+    "panel_limit": 20,
+    "selection_summary": "2 selected",
+    "capacity_summary": "maximum 20 panels",
+    "selected_series": [
+      {
+        "modality": "MR",
+        "series": "T2",
+        "images": 94
+      },
+      {
+        "modality": "CT",
+        "series": "CT",
+        "images": 409
+      }
+    ],
+    "visual_scope": "Actual running Métis window with operating-system title bar, application menus and toolbar, the native Open multiple series dialog, filter field, modality/series/image-count columns, both public phantom series selected, and the real MRI viewer behind the dialog",
     "clinical_patient_identifiers_displayed": false,
-    "panel_actions_visible": true,
-    "visible_annotations": [
-      "Image number and total count",
-      "Window width and centre",
-      "Source pixel dimensions"
-    ]
+    "panel_actions_visible": false
   },
-  "residual": "This capture establishes the native F4 multi-series workflow and full application layout; it does not establish complete RadiAnt feature parity."
+  "residual": "The capture records selected rows before confirmation; the adjacent two-panel capture records both series rendered by the viewer."
 }

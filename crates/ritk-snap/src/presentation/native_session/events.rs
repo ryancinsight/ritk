@@ -6,7 +6,7 @@ use super::routing::RoutedBatch;
 use super::WindowAction;
 use super::{record_state, NativeViewerError, NativeViewerSession, VIRTUAL_KEY_OPEN_STUDY};
 use crate::app::action_adapter::ViewerActionDisposition;
-use crate::presentation::{translate_native_events, PresentationEvent};
+use crate::presentation::{translate_native_events, PointerButton, PresentationEvent};
 use metis_platform::native::{NativeApplication, NativeFlow, WindowEvent};
 use metis_platform::Framebuffer;
 use std::sync::atomic::Ordering;
@@ -164,6 +164,14 @@ impl NativeApplication for NativeViewerSession {
             primary_app
         };
         viewer_events.retain(|event| {
+            let modal_pointer_down = window_chrome.multi_series_dialog_is_open()
+                && matches!(
+                    event,
+                    PresentationEvent::PointerDown {
+                        button: PointerButton::Left,
+                        ..
+                    }
+                );
             match window_chrome.handle_event(
                 event,
                 width,
@@ -176,6 +184,9 @@ impl NativeApplication for NativeViewerSession {
             ) {
                 Ok(chrome_event) => {
                     chrome_repaint |= chrome_event.repaint;
+                    if modal_pointer_down {
+                        suppress_cancelled_pointer_release = Some(PointerButton::Left);
+                    }
                     let cancelled_pointer_event = match event {
                         PresentationEvent::PointerUp { button, .. }
                             if suppress_cancelled_pointer_release == Some(*button) =>
@@ -329,7 +340,7 @@ impl NativeApplication for NativeViewerSession {
             }
             self.window_chrome.cancel_pointer_capture();
             self.active_view = None;
-            suppress_cancelled_pointer_release = Some(crate::presentation::PointerButton::Left);
+            suppress_cancelled_pointer_release = Some(PointerButton::Left);
         }
         self.suppress_cancelled_pointer_release = suppress_cancelled_pointer_release;
         // Keep the shortcut in the bounded event stream to preserve pointer

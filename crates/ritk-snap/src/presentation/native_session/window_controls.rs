@@ -117,7 +117,6 @@ impl WindowChrome {
         }
     }
 
-    #[cfg(test)]
     pub(super) const fn multi_series_dialog_is_open(&self) -> bool {
         self.multi_series_dialog.is_some()
     }

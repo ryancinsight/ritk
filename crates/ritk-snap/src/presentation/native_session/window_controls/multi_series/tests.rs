@@ -131,6 +131,33 @@ fn enter_opens_the_first_filtered_series_when_nothing_is_selected() {
 }
 
 #[test]
+fn space_selects_multiple_series_while_arrows_move_the_cursor() {
+    let (mut dialog, browser, _root) = dialog_with_series(3);
+    fn press(dialog: &mut MultiSeriesDialog, browser: &SeriesBrowser, virtual_key: u32) {
+        dialog
+            .handle_event(
+                &PresentationEvent::KeyDown {
+                    virtual_key,
+                    repeated: false,
+                    modifiers: crate::presentation::PresentationModifiers::NONE,
+                },
+                1_280,
+                800,
+                browser,
+                false,
+            )
+            .expect("navigate and select series");
+    }
+
+    press(&mut dialog, &browser, 0x20);
+    assert_eq!(dialog.selected().as_slice(), &[0]);
+    press(&mut dialog, &browser, 0x28);
+    press(&mut dialog, &browser, 0x20);
+    assert_eq!(dialog.selected().as_slice(), &[0, 1]);
+    assert_eq!(dialog.cursor, 1);
+}
+
+#[test]
 fn escape_cancels_without_committing_a_selection() {
     let (mut dialog, browser, _root) = dialog_with_series(2);
     let event = dialog

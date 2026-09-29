@@ -215,19 +215,12 @@ fn f4_picker_loads_multiple_clicked_series_from_the_native_window() {
         ])
         .expect("extend selection to the second series row with Control");
     viewer
-        .handle_events(&[
-            WindowEvent::PointerDown {
-                x: 950,
-                y: 645,
-                button: MouseButton::Left,
-            },
-            WindowEvent::PointerUp {
-                x: 950,
-                y: 645,
-                button: MouseButton::Left,
-            },
-        ])
-        .expect("open all selected series");
+        .handle_events(&[WindowEvent::PointerDown {
+            x: 950,
+            y: 645,
+            button: MouseButton::Left,
+        }])
+        .expect("open all selected series on the native button press");
 
     assert_eq!(
         viewer.workspace_layout.grid().map(PanelGrid::panel_count),
@@ -237,6 +230,25 @@ fn f4_picker_loads_multiple_clicked_series_from_the_native_window() {
     assert_eq!(viewer.primary_series_index, Some(0));
     assert_eq!(viewer.compare_panels[0].series_index, Some(1));
     assert!(!viewer.window_chrome.multi_series_dialog_is_open());
+    assert_eq!(
+        viewer.suppress_cancelled_pointer_release,
+        Some(crate::presentation::PointerButton::Left)
+    );
+
+    viewer
+        .handle_events(&[WindowEvent::PointerUp {
+            x: 950,
+            y: 645,
+            button: MouseButton::Left,
+        }])
+        .expect("consume the native button release after the dialog closes");
+
+    assert_eq!(
+        viewer.workspace_layout.grid().map(PanelGrid::panel_count),
+        Some(2)
+    );
+    assert_eq!(viewer.viewports.len(), 2);
+    assert_eq!(viewer.suppress_cancelled_pointer_release, None);
 }
 
 #[test]

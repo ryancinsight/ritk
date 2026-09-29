@@ -15,6 +15,9 @@ APPLICATION_IMAGE = (
 COMPARISON_IMAGE = (
     ROOT / "docs/manual/images/dicom-metis-real-mri-ct-multiseries-window.webp"
 )
+PICKER_IMAGE = (
+    ROOT / "docs/manual/images/dicom-metis-real-multiseries-picker-window.webp"
+)
 RESOURCE = ROOT / "docs/manual/images/dicom-metis-real-mri-resource.json"
 REPLAY = ROOT / "docs/manual/images/dicom-metis-real-mri.json"
 APPLICATION_REPLAY = (
@@ -23,6 +26,20 @@ APPLICATION_REPLAY = (
 COMPARISON_REPLAY = (
     ROOT / "docs/manual/images/dicom-metis-real-mri-ct-multiseries-window.json"
 )
+PICKER_REPLAY = (
+    ROOT / "docs/manual/images/dicom-metis-real-multiseries-picker-window.json"
+)
+
+
+def lossless_webp_dimensions(image: bytes) -> tuple[int, int]:
+    if image[:4] != b"RIFF" or image[8:12] != b"WEBP" or image[12:16] != b"VP8L":
+        raise ValueError("manual screenshot is not a lossless WebP image")
+    chunk_size = struct.unpack_from("<I", image, 16)[0]
+    payload = image[20 : 20 + chunk_size]
+    if len(payload) != chunk_size or not payload or payload[0] != 0x2F:
+        raise ValueError("manual screenshot has a malformed VP8L header")
+    dimensions = int.from_bytes(payload[1:5], "little")
+    return (dimensions & 0x3FFF) + 1, ((dimensions >> 14) & 0x3FFF) + 1
 
 
 class ManualImageProvenanceTests(unittest.TestCase):
@@ -89,20 +106,14 @@ class ManualImageProvenanceTests(unittest.TestCase):
                 source_capture = capture["source_capture"]
                 runtime = capture["runtime"]
                 image = image_path.read_bytes()
-                self.assertEqual(image[:4], b"RIFF")
-                self.assertEqual(image[8:12], b"WEBP")
-                self.assertEqual(image[12:16], b"VP8L")
-                chunk_size = struct.unpack_from("<I", image, 16)[0]
-                payload = image[20 : 20 + chunk_size]
-                self.assertEqual(payload[0], 0x2F)
-                dimensions = int.from_bytes(payload[1:5], "little")
-                width = (dimensions & 0x3FFF) + 1
-                height = ((dimensions >> 14) & 0x3FFF) + 1
                 self.assertEqual(output["path"], image_path.relative_to(ROOT).as_posix())
                 self.assertEqual(output["sha256"], hashlib.sha256(image).hexdigest())
                 self.assertEqual(output["bytes"], len(image))
                 self.assertLessEqual(len(image), 200_000)
-                self.assertEqual((output["width"], output["height"]), (width, height))
+                self.assertEqual(
+                    (output["width"], output["height"]),
+                    lossless_webp_dimensions(image),
+                )
                 self.assertEqual(output["encoding"], "lossless WebP")
                 self.assertTrue(output["decoded_rgba_byte_equal_to_source_capture"])
                 self.assertEqual(
@@ -154,6 +165,24 @@ class ManualImageProvenanceTests(unittest.TestCase):
                             "Source pixel dimensions",
                         ],
                     )
+                    self.assertEqual(
+                        runtime["input_events"]["keys"],
+                        ["F4", "Space", "ArrowDown", "Space"],
+                    )
+                    self.assertEqual(
+                        runtime["input_events"]["pointer"],
+                        {
+                            "button": "Left",
+                            "down": {"x": 959, "y": 646},
+                            "up": {"x": 959, "y": 646},
+                        },
+                    )
+                    self.assertNotIn(
+                        "--series-instance-uid", runtime["command"]
+                    )
+                    self.assertNotIn(
+                        "--compare-series-instance-uid", runtime["command"]
+                    )
                 self.assertFalse(output["clinical_patient_identifiers_displayed"])
                 self.assertIn(
                     "actual running métis native window",
@@ -162,4 +191,56 @@ class ManualImageProvenanceTests(unittest.TestCase):
                 self.assertIn("left study and series preview bar", output["visual_scope"])
                 self.assertIn("thumbnail image-count badges", output["visual_scope"])
                 if output["panel_actions_visible"]:
-                    self.assertIn("title-bar maximize and close controls", output["visual_scope"])
+                    self.assertIn(
+                        "title-bar maximize and close controls", output["visual_scope"]
+                    )
+
+    def test_multiseries_picker_capture_records_real_selected_series(self):
+        capture = json.loads(PICKER_REPLAY.read_text(encoding="utf-8"))
+        image = PICKER_IMAGE.read_bytes()
+        output = capture["output"]
+        dataset = capture["dataset"]
+        runtime = capture["runtime"]
+
+        self.assertEqual(output["path"], PICKER_IMAGE.relative_to(ROOT).as_posix())
+        self.assertEqual(output["sha256"], hashlib.sha256(image).hexdigest())
+        self.assertEqual(output["bytes"], len(image))
+        self.assertLessEqual(len(image), 200_000)
+        self.assertEqual(
+            (output["width"], output["height"]), lossless_webp_dimensions(image)
+        )
+        self.assertTrue(output["decoded_rgba_byte_equal_to_source_capture"])
+        self.assertEqual(dataset["dicom_instances_read"], 503)
+        self.assertEqual(dataset["dicom_bytes_read"], 265_963_652)
+        self.assertEqual(dataset["study_count"], 2)
+        self.assertEqual(dataset["series_count"], 2)
+        self.assertEqual(
+            runtime["executable_sha256"],
+            "28f291104f48c725a7961613364d737a7017dd5706ac6cba244a1818fad6332b",
+        )
+        self.assertEqual(runtime["executable_bytes"], 26_264_576)
+        self.assertIsNone(runtime["process_returncode_at_capture"])
+        self.assertEqual(
+            runtime["input_events"]["keys"],
+            ["F4", "Space", "ArrowDown", "Space"],
+        )
+        self.assertIn("--metis-native", runtime["command"])
+        self.assertEqual(output["selected_series_count"], 2)
+        self.assertEqual(output["panel_limit"], 20)
+        self.assertEqual(output["selection_summary"], "2 selected")
+        self.assertEqual(output["capacity_summary"], "maximum 20 panels")
+        self.assertEqual(
+            output["selected_series"],
+            [
+                {"modality": "MR", "series": "T2", "images": 94},
+                {"modality": "CT", "series": "CT", "images": 409},
+            ],
+        )
+        self.assertEqual(
+            output["dialog_columns"],
+            ["Patient", "Study", "Modality", "Series", "Images"],
+        )
+        self.assertIn("Open multiple series", output["visible_controls"])
+        self.assertIn("Cancel", output["visible_controls"])
+        self.assertIn("Open", output["visible_controls"])
+        self.assertFalse(output["clinical_patient_identifiers_displayed"])
