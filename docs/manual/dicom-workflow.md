@@ -1208,29 +1208,39 @@ the anatomical pixel evidence for the public phantom study.
 The first full-window capture shows the live Métis native viewer with the
 public 94-instance MRI-DIR phantom, three orthogonal MPR panes and a fourth
 maximum-intensity projection, File, View, Tools and Window menus, grouped
-toolbar buttons, a scrollable bottom series preview bar, and the status bar.
-The second full-window capture shows the MRI and CT
-from the same porcine phantom loaded simultaneously in two independent image
-panels. Its series cards show thumbnails from both decoded volumes and mark
-their panel assignments. RITK reads 94 MRI instances and 409 CT instances from
-the original public files.
+toolbar buttons, the vertical study-and-series preview bar on the left of the
+image workspace, and the status bar. The second full-window capture shows MRI
+and CT from the same porcine phantom loaded simultaneously in two independent
+image panels. The left preview bar shows decoded thumbnails, per-series image-count
+badges, and panel assignments. Each panel displays the image number and count,
+window width and centre, and source pixel dimensions in its image corners.
+These readouts track the active series render state. RITK reads 94 MRI
+instances and 409 CT instances from the original public files.
 
 To compare series, open the folder that contains them, then choose **Split
 screen** or **Panel layout...** from **Window**. The picker maps all 20
 column-and-row combinations from 1×1 through 5×4. Click a destination panel
-and select a series card, or drag the card directly from the bottom preview bar
-into its destination. The load-target label identifies the active panel, and the series
-card shows its panel assignment. Clicking an assigned card activates that
-panel. Slice, window/level, zoom, pan and cine state remain independent
-between panels. A series may occupy more than one panel. A failed load
-preserves the displayed volume. The bottom series preview bar, direct drag
-assignment and 5×4 grid picker reproduce RadiAnt's documented multi-series workflow.
+and select a series card in the left preview bar, or drag the card into its
+destination. Ctrl-clicking a series opens it in the next available panel. The
+active-panel label identifies the destination, and each series card shows its
+panel assignment. Clicking an assigned card activates that panel. Slice,
+window/level, zoom, pan and cine state remain independent between panels. A
+series may occupy more than one panel. A failed load preserves the displayed
+volume. These controls follow RadiAnt's documented series-browsing and
+multi-series workflow.
 
-The window does not show patient name or ID. The controls invoke the viewer’s
-study, tool, crosshair, cine, series preview bar, layout and reset actions. The
-menu, bottom series preview bar, panel grid picker and drag assignment implement the RadiAnt clone's
-documented series workflow ([series browsing](https://www.radiantviewer.com/dicom-viewer-manual/browse_series_and_images.html),
-[multiple-series viewing](https://www.radiantviewer.com/dicom-viewer-manual/view_multiple_series.html));
+The shareable captures use the public phantom and contain no clinical patient
+identifiers. In live use, the navigator shows Patient Name when the DICOM
+contains one, plus study and series labels; it does not display Patient ID.
+The controls invoke the viewer’s study, tool, crosshair, cine, series
+navigator, panel layout and reset actions. The native workspace clones RadiAnt's documented study-navigation and
+multi-panel workflow: it uses the menu and toolbar organization, left study-
+and-series preview bar, multi-panel image grid, F4 multi-series picker,
+Ctrl-click and drag assignment, and per-panel maximize/restore/close controls.
+This is a scoped clone of that workflow, not a claim of parity with every
+RadiAnt feature ([series
+browsing](https://www.radiantviewer.com/dicom-viewer-manual/browse_series_and_images.html),
+[multiple-series viewing](https://www.radiantviewer.com/dicom-viewer-manual/view_multiple_series.html)).
 RITK and Métis provide the application branding, rendering and DICOM pixels.
 These are captures of the running application, not annotated framebuffers or
 generated images.
@@ -1279,9 +1289,17 @@ python $captureUtility `
   --output scratch\viewer\real-mri-ct-multiseries-window.png
 ```
 
-![Full RITK/Métis viewer window with menus, grouped toolbar buttons, scrollable bottom series preview bar, status bar, three orthogonal RITK MPR panes and one MIP projection, and the real public MRI phantom](images/dicom-metis-real-mri-application-window.webp)
+![Full RITK/Métis viewer window with menus and grouped toolbar buttons above the workspace, a left study-and-series preview bar with thumbnail counts, status bar, three orthogonal RITK MPR panes and one MIP projection, and the real public MRI phantom](images/dicom-metis-real-mri-application-window.webp)
 
-![Full RITK/Métis viewer window with menus, grouped toolbar buttons, bottom preview bar showing real MRI and CT thumbnails and panel assignments, status bar, and the actual public series side by side](images/dicom-metis-real-mri-ct-multiseries-window.webp)
+![Full RITK/Métis viewer window with menus and grouped toolbar buttons above the workspace, left preview bar showing real MRI and CT thumbnails, image-count badges and panel assignments, status bar, and both actual public series side by side](images/dicom-metis-real-mri-ct-multiseries-window.webp)
+
+The comparison window shows two independent panels and a study-grouped series
+rail. Each panel title bar exposes maximize/restore and close controls. Use
+F4 or Window → Open multiple series to open the filterable Patient, Study,
+Modality, Series and Images list. Select several rows to open independent
+panels; Ctrl-click or drag a preview card to assign another series to a panel.
+This demonstration uses the public MRI-DIR porcine-head phantom, not patient
+data.
 
 The separate 1280 × 800 pane-only capture remains the pixel evidence for the
 saved-study decode; it deliberately excludes the application controls and
@@ -2606,9 +2624,10 @@ recomposes the three panels, so the next Métis framebuffer reflects the drag as
 well as the updated viewer state. This is a state-and-pixels check; it does not
 move DICOM parsing or geometry ownership into Métis.
 
-Keyboard page navigation follows the same RITK-owned action path. Page Down
-advances the active slice and recomposes the native Métis framebuffer; the
-native session test verifies both the slice index and changed pixels.
+Keyboard page navigation follows the same RITK-owned action path. Up and Down
+move one slice; Page Up and Page Down move ten slices as in RadiAnt's series
+navigation workflow. The native session recomposes the Métis framebuffer after
+each action, and RITK tests assert the resulting slice indices.
 
 Deferred viewer loads use a bounded Moirai task per primary or comparison
 target. RITK assigns each request a generation and checks cooperative

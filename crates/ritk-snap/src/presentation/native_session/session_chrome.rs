@@ -36,11 +36,11 @@ impl NativeViewerSession {
             primary_series_index,
         ) = (
             &mut self.framebuffer,
-            &self.window_chrome,
+            &mut self.window_chrome,
             &self.app,
             &self.views,
             &self.compare_panels,
-            self.series_browser.as_ref(),
+            self.series_browser.as_mut(),
             self.workspace_layout,
             self.active_panel,
             self.primary_series_index,

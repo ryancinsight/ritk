@@ -113,6 +113,7 @@ class ManualImageProvenanceTests(unittest.TestCase):
                 self.assertEqual(dataset["dicom_bytes_read"], byte_count)
                 self.assertEqual(dataset["study_count"], study_count)
                 self.assertEqual(dataset["series_count"], series_count)
+                self.assertIn(dataset["path"], runtime["command"])
                 self.assertEqual(
                     runtime["window"], {"width": 1_298, "height": 847, "dpi": 120}
                 )
@@ -122,30 +123,43 @@ class ManualImageProvenanceTests(unittest.TestCase):
                     "scripts/python_native_capture.py",
                 )
                 self.assertEqual(runtime["ritk_pull_request"], "ryancinsight/ritk#676")
-                self.assertEqual(
-                    output["visible_controls"],
-                    [
-                        "File",
-                        "View",
-                        "Tools",
-                        "Window",
-                        "Open Study",
-                        "W/L",
-                        "Pan",
-                        "Zoom",
-                        "Length",
-                        "Angle",
-                        "Crosshair",
-                        "Cine",
-                        "Split screen",
-                        "SERIES PREVIEW",
-                        "LOAD TARGET: P1",
-                    ],
-                )
+                expected_controls = [
+                    "File",
+                    "View",
+                    "Tools",
+                    "Window",
+                    "Open Study",
+                    "Open multiple series",
+                    "W/L",
+                    "Pan",
+                    "Zoom",
+                    "Length",
+                    "Angle",
+                    "Crosshair",
+                    "Cine",
+                    "Split screen",
+                    "Series bar",
+                ]
+                if output["panel_actions_visible"]:
+                    expected_controls.extend(["Panel maximize", "Panel close"])
+                expected_controls.extend(["Series preview", "Load to P1"])
+                self.assertEqual(output["visible_controls"], expected_controls)
                 self.assertEqual(output["panels"], panels)
-                self.assertFalse(output["patient_identifiers_displayed"])
+                if output["panel_actions_visible"]:
+                    self.assertEqual(
+                        output["visible_annotations"],
+                        [
+                            "Image number and total count",
+                            "Window width and centre",
+                            "Source pixel dimensions",
+                        ],
+                    )
+                self.assertFalse(output["clinical_patient_identifiers_displayed"])
                 self.assertIn(
                     "actual running métis native window",
                     output["visual_scope"].casefold(),
                 )
-                self.assertIn("bottom series preview bar", output["visual_scope"])
+                self.assertIn("left study and series preview bar", output["visual_scope"])
+                self.assertIn("thumbnail image-count badges", output["visual_scope"])
+                if output["panel_actions_visible"]:
+                    self.assertIn("title-bar maximize and close controls", output["visual_scope"])

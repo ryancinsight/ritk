@@ -7,10 +7,10 @@ use metis_platform::Rect;
 const MENU_HEIGHT: u32 = 30;
 const TOOLBAR_HEIGHT: u32 = 58;
 const STATUS_HEIGHT: u32 = 26;
-const SERIES_PREVIEW_HEIGHT: u32 = 132;
+const SERIES_PREVIEW_WIDTH: u32 = 276;
 const MIN_SERIES_PREVIEW_WINDOW_WIDTH: u32 = 640;
 const MIN_SERIES_PREVIEW_WINDOW_HEIGHT: u32 = 480;
-const MIN_VIEWPORT_HEIGHT: u32 = 240;
+const MIN_VIEWPORT_WIDTH: u32 = 360;
 
 pub(in crate::presentation::native_session::window_controls) struct ChromeGeometry {
     pub(in crate::presentation::native_session::window_controls) menu_bar: Rect,
@@ -41,11 +41,11 @@ impl ChromeGeometry {
             .saturating_sub(menu_height)
             .saturating_sub(toolbar_height)
             .saturating_sub(status_height);
-        let preview_height = if show_series_preview
+        let preview_width = if show_series_preview
             && width >= MIN_SERIES_PREVIEW_WINDOW_WIDTH
             && height >= MIN_SERIES_PREVIEW_WINDOW_HEIGHT
         {
-            SERIES_PREVIEW_HEIGHT.min(content_height.saturating_sub(MIN_VIEWPORT_HEIGHT))
+            SERIES_PREVIEW_WIDTH.min(width.saturating_sub(MIN_VIEWPORT_WIDTH))
         } else {
             0
         };
@@ -57,26 +57,24 @@ impl ChromeGeometry {
             .map_err(|_| anyhow!("native toolbar height exceeds i32"))?;
         let status_height_i32 = i32::try_from(status_height)
             .map_err(|_| anyhow!("native status height exceeds i32"))?;
-        let preview_height_i32 = i32::try_from(preview_height)
-            .map_err(|_| anyhow!("native series preview height exceeds i32"))?;
-        let viewport_height = content_height.saturating_sub(preview_height);
-        let preview_y = content_y
-            .checked_add(viewport_height)
-            .ok_or_else(|| anyhow!("native series preview y overflows"))?;
-        let preview_y_i32 =
-            i32::try_from(preview_y).map_err(|_| anyhow!("series preview y exceeds i32"))?;
+        let preview_width_i32 = i32::try_from(preview_width)
+            .map_err(|_| anyhow!("native series preview width exceeds i32"))?;
+        let content_y_i32 =
+            i32::try_from(content_y).map_err(|_| anyhow!("native content y exceeds i32"))?;
+        let content_height_i32 = i32::try_from(content_height)
+            .map_err(|_| anyhow!("native content height exceeds i32"))?;
         let status_y = i32::try_from(height.saturating_sub(status_height))
             .map_err(|_| anyhow!("native status y exceeds i32"))?;
         Ok(Self {
             menu_bar: Rect::new(0, 0, width_i32, menu_height_i32),
             toolbar: Rect::new(0, menu_height_i32, width_i32, toolbar_height_i32),
-            series_preview: Rect::new(0, preview_y_i32, width_i32, preview_height_i32),
+            series_preview: Rect::new(0, content_y_i32, preview_width_i32, content_height_i32),
             status_bar: Rect::new(0, status_y, width_i32, status_height_i32),
             viewport_area: ViewportArea {
-                x: 0,
+                x: preview_width,
                 y: content_y,
-                width,
-                height: viewport_height,
+                width: width.saturating_sub(preview_width),
+                height: content_height,
             },
             menu_height,
             toolbar_height,

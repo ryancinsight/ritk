@@ -53,6 +53,27 @@ impl ComparePanel {
         Ok(())
     }
 
+    pub(super) fn clear(&mut self) -> Result<()> {
+        self.app = SnapApp::default();
+        self.view = empty_axial_view()?;
+        self.scratch = FrameRenderScratch::default();
+        self.series_index = None;
+        Ok(())
+    }
+
+    pub(super) fn swap_primary(
+        &mut self,
+        app: &mut SnapApp,
+        view: &mut RenderedView,
+        scratch: &mut FrameRenderScratch,
+        series_index: &mut Option<usize>,
+    ) {
+        std::mem::swap(&mut self.app, app);
+        std::mem::swap(&mut self.view, view);
+        std::mem::swap(&mut self.scratch, scratch);
+        std::mem::swap(&mut self.series_index, series_index);
+    }
+
     pub(super) const fn axial_view(&self) -> &RenderedView {
         &self.view
     }
@@ -131,6 +152,7 @@ impl NativeViewerSession {
 
     pub(super) fn reset_comparison(&mut self) {
         self.compare_panels.clear();
+        self.maximized_panel = None;
         self.workspace_layout = WorkspaceLayout::Orthogonal;
         self.active_panel = 0;
         self.active_view = None;

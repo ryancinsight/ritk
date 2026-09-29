@@ -1,0 +1,137 @@
+//! Validated patient and study labels for the series navigator.
+
+use super::super::super::series_browser::SeriesChoice;
+use anyhow::{anyhow, Result};
+use arrayvec::ArrayString;
+use std::fmt::Write as _;
+
+pub(in crate::presentation::native_session::window_controls) fn patient_label(
+    choice: &SeriesChoice,
+) -> Result<ArrayString<96>> {
+    let name = display_patient_name(choice.acquisition.patient_name());
+    let mut label = ArrayString::new();
+    if name.as_str() == "Unknown patient" {
+        write!(&mut label, "Patient {}", choice.patient_number)
+    } else {
+        write!(&mut label, "{}", name.as_str())
+    }
+    .map_err(|_| anyhow!("patient label exceeds its display buffer"))?;
+    Ok(label)
+}
+
+pub(in crate::presentation::native_session::window_controls) fn study_label(
+    choice: &SeriesChoice,
+) -> Result<ArrayString<96>> {
+    let mut label = ArrayString::new();
+    if let Some(date) = choice.acquisition.study_date().and_then(format_dicom_date) {
+        write!(&mut label, "{date}")
+            .map_err(|_| anyhow!("study date exceeds its display buffer"))?;
+        if let Some(time) = choice.acquisition.study_time().and_then(format_dicom_time) {
+            write!(&mut label, " {time}")
+                .map_err(|_| anyhow!("study time exceeds its display buffer"))?;
+        }
+    }
+    let description = choice.acquisition.study_description().trim();
+    if !description.is_empty() {
+        if !label.is_empty() {
+            label
+                .try_push_str("  ")
+                .map_err(|_| anyhow!("study label exceeds its display buffer"))?;
+        }
+        label
+            .try_push_str(description)
+            .map_err(|_| anyhow!("study label exceeds its display buffer"))?;
+    }
+    if label.is_empty() {
+        write!(&mut label, "Study {}", choice.study_number)
+            .map_err(|_| anyhow!("study label exceeds its display buffer"))?;
+    }
+    Ok(label)
+}
+
+pub(in crate::presentation::native_session::window_controls) fn format_dicom_date(
+    value: &str,
+) -> Option<ArrayString<10>> {
+    if value.len() != 8 || !value.bytes().all(|byte| byte.is_ascii_digit()) {
+        return None;
+    }
+    let year = value.get(..4)?.parse::<u16>().ok()?;
+    let month = value.get(4..6)?.parse::<u8>().ok()?;
+    let day = value.get(6..)?.parse::<u8>().ok()?;
+    if year == 0 {
+        return None;
+    }
+    let last_day = match month {
+        1 | 3 | 5 | 7 | 8 | 10 | 12 => 31,
+        4 | 6 | 9 | 11 => 30,
+        2 if year % 4 == 0 && (year % 100 != 0 || year % 400 == 0) => 29,
+        2 => 28,
+        _ => return None,
+    };
+    if day == 0 || day > last_day {
+        return None;
+    }
+    let year = value.get(..4)?;
+    let month = value.get(4..6)?;
+    let day = value.get(6..)?;
+    let mut display = ArrayString::new();
+    write!(&mut display, "{year}-{month}-{day}").ok()?;
+    Some(display)
+}
+
+pub(in crate::presentation::native_session::window_controls) fn format_dicom_time(
+    value: &str,
+) -> Option<ArrayString<16>> {
+    let mut display = ArrayString::new();
+    for (index, character) in value.char_indices() {
+        if index == 2 || index == 4 {
+            display.try_push(':').ok()?;
+        }
+        display.try_push(character).ok()?;
+    }
+    Some(display)
+}
+
+pub(in crate::presentation::native_session::window_controls) fn display_patient_name(
+    name: &str,
+) -> ArrayString<64> {
+    let mut display = ArrayString::new();
+    for character in name.trim().chars() {
+        let normalized = if character == '^' { ' ' } else { character };
+        if (normalized.is_control() || display.try_push(normalized).is_err()) && display.is_full() {
+            break;
+        }
+    }
+    if display.is_empty() {
+        ArrayString::from("Unknown patient").expect("static label fits")
+    } else {
+        display
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::format_dicom_date;
+
+    #[test]
+    fn dicom_date_formatting_validates_calendar_days() {
+        assert_eq!(
+            format_dicom_date("20240229")
+                .expect("leap day exists in a leap year")
+                .as_str(),
+            "2024-02-29"
+        );
+        assert_eq!(format_dicom_date("19000229"), None);
+        assert_eq!(format_dicom_date("20230229"), None);
+        assert_eq!(format_dicom_date("19900191"), None);
+        assert_eq!(format_dicom_date("20241301"), None);
+        assert_eq!(format_dicom_date("20240200"), None);
+    }
+
+    #[test]
+    fn dicom_date_formatting_rejects_incomplete_or_nonnumeric_values() {
+        assert_eq!(format_dicom_date("2024011"), None);
+        assert_eq!(format_dicom_date("20240A01"), None);
+        assert_eq!(format_dicom_date("00000101"), None);
+    }
+}

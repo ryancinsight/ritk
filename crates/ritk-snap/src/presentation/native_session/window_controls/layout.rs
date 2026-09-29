@@ -8,9 +8,12 @@ mod render;
 use super::super::series_browser::SeriesBrowser;
 use super::series;
 use super::WindowAction;
+use crate::app::SnapApp;
+use crate::presentation::PresentationFrame;
+use anyhow::Result;
 use arrayvec::ArrayVec;
 pub(super) use geometry::ChromeGeometry;
-use metis_platform::Rect;
+use metis_platform::{Framebuffer, Rect};
 
 const CONTROL_CAPACITY: usize = 40;
 
@@ -34,7 +37,6 @@ struct ChromeControl {
 #[derive(Clone, Copy)]
 struct ToolbarGroup {
     x: i32,
-    label: &'static str,
 }
 
 pub(super) struct ChromeLayout {
@@ -45,6 +47,28 @@ pub(super) struct ChromeLayout {
 }
 
 impl ChromeLayout {
+    pub(super) fn render(
+        &self,
+        framebuffer: &mut Framebuffer,
+        app: &SnapApp,
+        series_previews: &[Option<&PresentationFrame>],
+        browser: Option<&SeriesBrowser>,
+        workspace_layout: super::super::layout::WorkspaceLayout,
+        active_panel: usize,
+        displayed_series: &[Option<usize>],
+    ) -> Result<()> {
+        render::render(
+            self,
+            framebuffer,
+            app,
+            series_previews,
+            browser,
+            workspace_layout,
+            active_panel,
+            displayed_series,
+        )
+    }
+
     pub(super) fn action_at(
         &self,
         x: f64,
@@ -58,9 +82,22 @@ impl ChromeLayout {
             .map(|control| control.action)
             .or_else(|| {
                 let browser = browser?;
-                let index = series::index_at(browser, self.geometry.series_preview, x, y)?;
+                let index =
+                    series::navigator::index_at(browser, self.geometry.series_preview, x, y)?;
                 Some(WindowAction::SelectSeries(index))
             })
+    }
+
+    #[cfg(test)]
+    pub(super) fn action_center(&self, action: WindowAction) -> Option<(i32, i32)> {
+        let control = self
+            .controls
+            .iter()
+            .find(|control| control.action == action)?;
+        Some((
+            control.rect.x.checked_add(control.rect.width / 2)?,
+            control.rect.y.checked_add(control.rect.height / 2)?,
+        ))
     }
 
     pub(super) fn series_index_at(
@@ -70,7 +107,16 @@ impl ChromeLayout {
         y: f64,
     ) -> Option<usize> {
         let browser = browser?;
-        series::index_at(browser, self.geometry.series_preview, x, y)
+        series::navigator::index_at(browser, self.geometry.series_preview, x, y)
+    }
+
+    #[cfg(test)]
+    pub(super) fn series_card_center(
+        &self,
+        browser: &SeriesBrowser,
+        index: usize,
+    ) -> Option<(i32, i32)> {
+        series::navigator::card_center(browser, self.geometry.series_preview, index)
     }
 
     #[cfg(test)]
@@ -78,13 +124,21 @@ impl ChromeLayout {
         self.geometry.viewport_area
     }
 
-    #[cfg(test)]
     pub(super) const fn series_preview_area(&self) -> Rect {
         self.geometry.series_preview
     }
 
     pub(super) fn visible_series(&self) -> usize {
-        series::visible_count(self.geometry.series_preview)
+        series::navigator::visible_count(self.geometry.series_preview)
+    }
+
+    pub(super) fn series_scroll_direction_at(
+        &self,
+        browser: &SeriesBrowser,
+        x: f64,
+        y: f64,
+    ) -> anyhow::Result<Option<i32>> {
+        series::scrollbar::page_direction(self.geometry.series_preview, browser, x, y)
     }
 
     pub(super) fn series_contains(&self, x: f64, y: f64) -> bool {

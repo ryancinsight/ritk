@@ -8,10 +8,11 @@ import tempfile
 import unittest
 from unittest import mock
 
-_metis_root = pathlib.Path(__file__).resolve().parents[3] / "metis"
 _ritk_root = pathlib.Path(__file__).resolve().parents[2]
 sys.path.insert(0, str(pathlib.Path(__file__).resolve().parents[1]))
-sys.path.insert(0, str(_metis_root / "scripts"))
+from workspace_paths import metis_scripts
+
+sys.path.insert(0, str(metis_scripts(__file__)))
 import browser_gallery
 import browser_gallery_projection
 import browser_canvas

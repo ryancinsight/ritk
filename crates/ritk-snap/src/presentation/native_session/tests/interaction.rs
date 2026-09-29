@@ -3,6 +3,23 @@
 use super::*;
 use crate::presentation::PaneLayout;
 
+fn projection_center(session: &NativeViewerSession) -> (i32, i32) {
+    let area = session
+        .window_chrome
+        .viewport_area(session.surface_width, session.surface_height)
+        .expect("bounded projection workspace");
+    let panes = PaneLayout::Quad
+        .partition(area.width, area.height, super::layout::VIEW_GAP_PIXELS)
+        .expect("partition the four projection panels");
+    let projection = panes[3].expect("quad layout has a projection panel");
+    let x = area.x + projection.x + projection.width / 2;
+    let y = area.y + projection.y + projection.height / 2;
+    (
+        i32::try_from(x).expect("projection x fits native pixel coordinates"),
+        i32::try_from(y).expect("projection y fits native pixel coordinates"),
+    )
+}
+
 #[test]
 fn native_session_drag_updates_pan_and_presented_frame() {
     let (mut session, _root) = session();
@@ -137,8 +154,9 @@ fn native_session_mip_layout_composes_a_fourth_display_panel() {
             .collect::<Vec<_>>(),
         vec![0, 1, 2]
     );
+    let (x, y) = projection_center(&session);
     assert_ne!(
-        session.framebuffer.get_pixel(960, 600),
+        session.framebuffer.get_pixel(x, y),
         metis_platform::Color::BLACK,
         "the fourth panel contains the rendered MIP"
     );
@@ -155,13 +173,13 @@ fn responsive_native_layout_selects_single_dual_and_quad_panes() {
     assert_eq!(
         viewport_area,
         super::layout::ViewportArea {
-            x: 0,
+            x: 276,
             y: 88,
-            width: 1_280,
-            height: 554,
+            width: 1_004,
+            height: 686,
         }
     );
-    assert_eq!(selected_layout, PaneLayout::Dual);
+    assert_eq!(selected_layout, PaneLayout::Quad);
     let panes = selected_layout
         .partition(
             viewport_area.width,
@@ -176,7 +194,7 @@ fn responsive_native_layout_selects_single_dual_and_quad_panes() {
     assert_ne!(
         session.framebuffer.get_pixel(center_x, center_y),
         metis_platform::Color::BLACK,
-        "responsive dual layout presents the second orthogonal plane"
+        "responsive quad layout presents the second orthogonal plane"
     );
 
     for (layout, width, height, expected_visible) in [
@@ -224,8 +242,9 @@ fn native_session_scalar_projection_modes_render_and_label() {
         let (session, _root) = session_with_mode(mode);
         let projection = session.projection.as_ref().expect("projection layout");
         assert_eq!(projection.statistic.label(), label);
+        let (x, y) = projection_center(&session);
         assert_ne!(
-            session.framebuffer.get_pixel(960, 600),
+            session.framebuffer.get_pixel(x, y),
             metis_platform::Color::BLACK,
             "the {label} panel contains rendered scalar pixels"
         );

@@ -25,6 +25,7 @@ mod routing;
 mod series;
 mod series_browser;
 mod startup;
+mod window_actions;
 mod window_controls;
 use composition::save_capture;
 use series_browser::SeriesBrowser;
@@ -32,6 +33,7 @@ use startup::prepare_initial_study;
 use window_controls::{WindowAction, WindowChrome};
 
 mod observation;
+mod panels;
 mod session;
 mod session_chrome;
 use observation::{record_state, NativeViewerError, NativeViewerObservation};

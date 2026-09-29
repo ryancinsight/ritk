@@ -2,20 +2,20 @@
   "schema": 1,
   "status": "passed",
   "runtime": {
-    "host": "Windows 11 native M\u00e9tis surface",
-    "date": "2026-09-28",
+    "host": "Windows 11 native Métis surface",
+    "date": "2026-09-29",
     "ritk_pull_request": "ryancinsight/ritk#676",
     "executable": "ritk-snap.exe",
-    "executable_sha256": "65902ac2e874699bfed54bc0d8d32af4a6be3e5c7a715959227b270368393a6b",
-    "executable_bytes": 26028544,
+    "executable_sha256": "54c7891dea285aabca3aea6478d1eb25929f9440133a17ae28cef245f173c671",
+    "executable_bytes": 26305536,
     "toolchain": "Rust 1.97.0 (2d8144b78 2026-07-07)",
-    "metis_revision": "d93a45688713fd4d57371243f6afa5413560d75d",
-    "metis_platform_revision": "d93a45688713fd4d57371243f6afa5413560d75d",
-    "moirai_pal_revision": "b3b37f7fae9de019939a53eaaaf5ada5ba5e806e",
+    "metis_revision": "57709a4958a78ec99a9b9128da03db39ee4d2b22",
+    "metis_platform_revision": "57709a4958a78ec99a9b9128da03db39ee4d2b22",
+    "moirai_pal_revision": "a3282e9f61e27e7ebfa42a264c6e3b184b462f47",
     "capture_utility": {
       "path": "scripts/python_native_capture.py",
-      "file_revision": "091e9c01b764dba1f478f13d579d388e61043f05",
-      "sha256": "600b5f1c2e3678cb71fad1d414c7c72466153e45b68419603add4812fa47a709",
+      "file_revision": "109e042d1a05d166fa478e44d9143083f2920c42",
+      "sha256": "612b51eab9f422249f41f0c4b863f66da3ec077ff15ef6358041a2a66cb69b77",
       "capture": "Win32 PrintWindow of the live RITK process window"
     },
     "client": {
@@ -27,7 +27,8 @@
       "height": 847,
       "dpi": 120
     },
-    "caption_text_observed_by_GetWindowTextW": "",
+    "caption_text_observed_by_GetWindowTextW": "RITK DICOM Viewer",
+    "process_returncode": 0,
     "command": "ritk-snap.exe test_data/2_head_mri_t2/DICOM --metis-native --metis-native-layout orthogonal-with-mip"
   },
   "dataset": {
@@ -48,16 +49,16 @@
   },
   "source_capture": {
     "path": "scratch/viewer/real-mri-mpr-application-window.png",
-    "sha256": "4b418f6d24e46d7f281cad544b7c8a1f3ea47b83017d1e81053bd0f6832b2b9d",
-    "bytes": 235301,
+    "sha256": "3792311e85e06cdafc4ea3b95ab856215a86c925a815c5a87952d4a4d7866397",
+    "bytes": 317289,
     "encoding": "PNG captured from the live native application window"
   },
   "output": {
     "path": "docs/manual/images/dicom-metis-real-mri-application-window.webp",
     "width": 1298,
     "height": 847,
-    "sha256": "78b370c0c0653bf87ab519dfcb163567d640cf1a443ea27addb5228c4bbe8370",
-    "bytes": 115764,
+    "sha256": "08717faa0f7dd782e66e7b8d414acfff39667f1a0e49e0a1c7c19f306769e4e6",
+    "bytes": 159288,
     "encoding": "lossless WebP",
     "decoded_rgba_byte_equal_to_source_capture": true,
     "visible_controls": [
@@ -66,6 +67,7 @@
       "Tools",
       "Window",
       "Open Study",
+      "Open multiple series",
       "W/L",
       "Pan",
       "Zoom",
@@ -74,8 +76,9 @@
       "Crosshair",
       "Cine",
       "Split screen",
-      "SERIES PREVIEW",
-      "LOAD TARGET: P1"
+      "Series bar",
+      "Series preview",
+      "Load to P1"
     ],
     "panels": [
       "MPR: axial",
@@ -83,8 +86,9 @@
       "MPR: sagittal",
       "MIP projection"
     ],
-    "visual_scope": "Actual running M\u00e9tis native window with Windows chrome, File/View/Tools/Window menus, grouped toolbar buttons, bottom series preview bar, status bar, three MRI planes and MIP projection",
-    "patient_identifiers_displayed": false
+    "visual_scope": "Actual running Métis native window with Windows chrome and title bar labeled RITK DICOM Viewer, File/View/Tools/Window menus, grouped toolbar buttons, left study and series preview bar with decoded MRI thumbnail, thumbnail image-count badges (94), status bar, three real MRI planes and a MIP projection",
+    "clinical_patient_identifiers_displayed": false,
+    "panel_actions_visible": false
   },
-  "residual": "The native window caption is blank in the captured frame although RITK supplies a title; viewer controls and DICOM panels render in the client area."
+  "residual": "This capture verifies the documented native workflow; it does not establish full RadiAnt feature parity."
 }

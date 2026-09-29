@@ -199,7 +199,7 @@ fn native_session_keyboard_navigation_updates_presented_frame() {
     let initial_slice = session.app.viewer_state.slice_index;
     session
         .handle_events(&[WindowEvent::KeyDown {
-            virtual_key: 0x22,
+            virtual_key: 0x28,
             repeated: false,
             modifiers: ModifierState::NONE,
         }])

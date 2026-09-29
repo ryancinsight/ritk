@@ -1,6 +1,50 @@
 //! Series-tray rendering value tests.
 
+use super::navigator::displayed_preview;
+use super::thumbnails::{draw_thumbnail, fit_dimensions};
 use super::*;
+use arrayvec::ArrayString;
+
+#[test]
+fn series_cards_show_order_within_their_study() {
+    use crate::dicom::loader::{scan_folder_for_series, tests::fixtures};
+
+    let root = tempfile::tempdir().expect("series root");
+    for (index, modality) in ["MR", "CT", "MR"].into_iter().enumerate() {
+        fixtures::write_study(root.path(), modality, &format!("2.25.20260906{index:04}"))
+            .expect("write series into the shared study");
+    }
+    let tree = scan_folder_for_series(root.path()).expect("scan the shared study");
+    let browser = SeriesBrowser::from_tree(&tree, None).expect("build the series catalog");
+
+    assert_eq!(browser.study_count(), 1);
+    assert_eq!(browser.len(), 3);
+    let first = browser.choice(0).expect("first series");
+    assert_eq!(first.acquisition.study_date(), Some("20260905"));
+    assert_eq!(
+        first.acquisition.study_instance_uid(),
+        Some("2.25.20260905")
+    );
+    assert_eq!(first.study_series_number, 1);
+    assert_eq!(first.study_series_count, 3);
+    let labels = (0..browser.len())
+        .map(|index| {
+            cards::series_position_label(
+                browser.choice(index).expect("series choice"),
+                browser.study_count(),
+            )
+            .expect("series position")
+        })
+        .collect::<Vec<_>>();
+    assert_eq!(
+        labels.iter().map(ArrayString::as_str).collect::<Vec<_>>(),
+        [
+            "Study 1/1 | Series 1/3",
+            "Study 1/1 | Series 2/3",
+            "Study 1/1 | Series 3/3"
+        ]
+    );
+}
 
 #[test]
 fn thumbnail_preserves_sampled_rgba_from_the_rendered_slice() {
@@ -59,4 +103,28 @@ fn thumbnail_rejects_zero_source_extent() {
             .to_string(),
         "series preview dimensions must be nonzero"
     );
+}
+
+#[test]
+fn thumbnail_count_badge_renders_the_series_image_count() {
+    let thumbnail = Rect::new(4, 5, 56, 72);
+    let mut ninety_four = Framebuffer::new(64, 80).expect("first count badge framebuffer");
+    let mut four_hundred_nine = Framebuffer::new(64, 80).expect("second count badge framebuffer");
+
+    cards::draw_image_count(&mut ninety_four, thumbnail, 94)
+        .expect("render the first series image count");
+    cards::draw_image_count(&mut four_hundred_nine, thumbnail, 409)
+        .expect("render the second series image count");
+
+    assert_eq!(ninety_four.get_pixel(40, 60), Color::rgb(23, 58, 77));
+    let first_pixels = (0..80)
+        .flat_map(|y| (0..64).map(move |x| (x, y)))
+        .map(|(x, y)| ninety_four.get_pixel(x, y))
+        .collect::<Vec<_>>();
+    let second_pixels = (0..80)
+        .flat_map(|y| (0..64).map(move |x| (x, y)))
+        .map(|(x, y)| four_hundred_nine.get_pixel(x, y))
+        .collect::<Vec<_>>();
+
+    assert_ne!(first_pixels, second_pixels);
 }

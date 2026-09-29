@@ -8,27 +8,41 @@ fn comparison_displays_two_independent_series_and_routes_each_panel() {
         .open_study_path(replacement.path())
         .expect("open two-series study");
     viewer.refresh_frame().expect("render first series");
+    let (picker_x, picker_y) = control_center(
+        &viewer,
+        None,
+        crate::presentation::native_session::window_controls::WindowAction::OpenMenu(
+            crate::presentation::native_session::window_controls::Menu::GridPicker,
+        ),
+    );
+    let (grid_x, grid_y) = control_center(
+        &viewer,
+        Some(crate::presentation::native_session::window_controls::Menu::GridPicker),
+        crate::presentation::native_session::window_controls::WindowAction::SetLayout(
+            WorkspaceLayout::Panels(PanelGrid::new(2, 1).expect("side-by-side grid")),
+        ),
+    );
 
     viewer
         .handle_events(&[
             WindowEvent::PointerDown {
-                x: 650,
-                y: 65,
+                x: picker_x,
+                y: picker_y,
                 button: MouseButton::Left,
             },
             WindowEvent::PointerUp {
-                x: 650,
-                y: 65,
+                x: picker_x,
+                y: picker_y,
                 button: MouseButton::Left,
             },
             WindowEvent::PointerDown {
-                x: 632,
-                y: 151,
+                x: grid_x,
+                y: grid_y,
                 button: MouseButton::Left,
             },
             WindowEvent::PointerUp {
-                x: 632,
-                y: 151,
+                x: grid_x,
+                y: grid_y,
                 button: MouseButton::Left,
             },
         ])
@@ -158,7 +172,7 @@ fn one_input_batch_routes_wheels_to_each_comparison_panel() {
 }
 
 #[test]
-fn rejected_comparison_batch_does_not_apply_an_earlier_panel_event() {
+fn wheel_after_maximizing_a_panel_keeps_the_presented_series_identity() {
     let (mut viewer, _initial_root) = session();
     let study = replacement_study();
     viewer
@@ -174,37 +188,50 @@ fn rejected_comparison_batch_does_not_apply_an_earlier_panel_event() {
         .expect("load the second series into panel two");
     viewer.refresh_frame().expect("render both series");
 
-    let primary_before = viewer.app.viewer_state.slice_index;
-    let secondary_before = viewer.compare_panels[0].app.viewer_state.slice_index;
-    let (left_x, left_y) = viewer.viewports[0].center();
-    let (right_x, right_y) = viewer.viewports[1].center();
-    let error = viewer
+    let first_slice = viewer.app.viewer_state.slice_index;
+    let second_slice = viewer.compare_panels[0].app.viewer_state.slice_index;
+    let second_view = viewer.viewports[1];
+    let (wheel_x, wheel_y) = second_view.center();
+    let panel = second_view.panel_rect().expect("second panel bounds");
+    let maximize_x = panel.x + panel.width - 23;
+    let maximize_y = panel.y - 13;
+
+    viewer
         .handle_events(&[
+            WindowEvent::PointerDown {
+                x: maximize_x,
+                y: maximize_y,
+                button: MouseButton::Left,
+            },
+            WindowEvent::PointerUp {
+                x: maximize_x,
+                y: maximize_y,
+                button: MouseButton::Left,
+            },
             WindowEvent::PointerWheel {
-                x: left_x,
-                y: left_y,
+                x: wheel_x,
+                y: wheel_y,
                 delta_x: 0,
                 delta_y: -120,
                 modifiers: ModifierState::NONE,
             },
-            WindowEvent::PointerUp {
-                x: right_x,
-                y: right_y,
-                button: MouseButton::Left,
-            },
         ])
-        .expect_err("reject release without a press in the second panel");
+        .expect("maximize the second series and route the following wheel");
 
-    assert!(error.to_string().contains("without a press"));
-    assert_eq!(viewer.app.viewer_state.slice_index, primary_before);
+    assert_eq!(loaded_series_uid(&viewer.app), Some(SECOND_SERIES_UID));
+    assert_ne!(viewer.app.viewer_state.slice_index, second_slice);
+    assert_eq!(
+        loaded_series_uid(&viewer.compare_panels[0].app),
+        Some(fixtures::SERIES_UID)
+    );
     assert_eq!(
         viewer.compare_panels[0].app.viewer_state.slice_index,
-        secondary_before
+        first_slice
     );
 }
 
 #[test]
-fn rejected_native_batch_does_not_apply_pane_events_before_toolbar_actions() {
+fn wheel_after_closing_the_primary_routes_to_the_promoted_series() {
     let (mut viewer, _initial_root) = session();
     let study = replacement_study();
     viewer
@@ -218,175 +245,42 @@ fn rejected_native_batch_does_not_apply_pane_events_before_toolbar_actions() {
     viewer
         .assign_series_to_panel(1, 1)
         .expect("load the second series into panel two");
-    viewer.active_panel = 0;
     viewer.refresh_frame().expect("render both series");
-    viewer.app.active_tool = crate::tools::kind::ToolKind::WindowLevel;
 
-    let primary_slice = viewer.app.viewer_state.slice_index;
-    let primary_tool = viewer.app.active_tool;
-    let (left_x, left_y) = viewer.viewports[0].center();
-    let (right_x, right_y) = viewer.viewports[1].center();
-    let error = viewer
+    let second_slice = viewer.compare_panels[0].app.viewer_state.slice_index;
+    let first_view = viewer.viewports[0];
+    let second_view = viewer.viewports[1];
+    let (wheel_x, wheel_y) = second_view.center();
+    let panel = first_view.panel_rect().expect("first panel bounds");
+    let close_x = panel.x + panel.width - 7;
+    let close_y = panel.y - 13;
+
+    viewer
         .handle_events(&[
+            WindowEvent::PointerDown {
+                x: close_x,
+                y: close_y,
+                button: MouseButton::Left,
+            },
+            WindowEvent::PointerUp {
+                x: close_x,
+                y: close_y,
+                button: MouseButton::Left,
+            },
             WindowEvent::PointerWheel {
-                x: left_x,
-                y: left_y,
+                x: wheel_x,
+                y: wheel_y,
                 delta_x: 0,
                 delta_y: -120,
                 modifiers: ModifierState::NONE,
             },
-            WindowEvent::PointerDown {
-                x: 200,
-                y: 48,
-                button: MouseButton::Left,
-            },
-            WindowEvent::PointerUp {
-                x: 200,
-                y: 48,
-                button: MouseButton::Left,
-            },
-            WindowEvent::PointerUp {
-                x: right_x,
-                y: right_y,
-                button: MouseButton::Left,
-            },
         ])
-        .expect_err("reject the unpressed release after all earlier inputs");
+        .expect("close the primary series and route the following wheel");
 
-    assert!(error.to_string().contains("without a press"));
-    assert_eq!(viewer.app.viewer_state.slice_index, primary_slice);
-    assert_eq!(viewer.app.active_tool, primary_tool);
-}
-
-#[test]
-fn pane_input_after_layout_selection_uses_the_presented_layout_snapshot() {
-    let (mut viewer, _initial_root) = session();
-    viewer
-        .refresh_frame()
-        .expect("render the orthogonal workspace");
-    let (sagittal_x, sagittal_y) = viewer.viewports[2].center();
-
-    viewer
-        .handle_events(&[
-            WindowEvent::PointerDown {
-                x: 690,
-                y: 65,
-                button: MouseButton::Left,
-            },
-            WindowEvent::PointerUp {
-                x: 690,
-                y: 65,
-                button: MouseButton::Left,
-            },
-            WindowEvent::PointerDown {
-                x: 632,
-                y: 151,
-                button: MouseButton::Left,
-            },
-            WindowEvent::PointerUp {
-                x: 632,
-                y: 151,
-                button: MouseButton::Left,
-            },
-            WindowEvent::PointerDown {
-                x: sagittal_x,
-                y: sagittal_y,
-                button: MouseButton::Left,
-            },
-            WindowEvent::PointerUp {
-                x: sagittal_x,
-                y: sagittal_y,
-                button: MouseButton::Left,
-            },
-        ])
-        .expect("reduce pane events against the layout visible at batch start");
-
-    assert!(viewer.workspace_layout.is_grid());
-    assert_eq!(viewer.viewports.len(), 2);
-    assert_eq!(viewer.app.axis, 2);
-}
-
-#[test]
-fn layout_change_cancels_a_captured_drag_before_remapping_panes() {
-    let (mut viewer, _initial_root) = session();
-    viewer
-        .refresh_frame()
-        .expect("render the orthogonal workspace");
-    let (sagittal_x, sagittal_y) = viewer.viewports[2].center();
-    viewer.app.active_tool = crate::tools::kind::ToolKind::Pan;
-
-    viewer
-        .handle_events(&[
-            WindowEvent::PointerDown {
-                x: 690,
-                y: 65,
-                button: MouseButton::Left,
-            },
-            WindowEvent::PointerUp {
-                x: 690,
-                y: 65,
-                button: MouseButton::Left,
-            },
-            WindowEvent::PointerDown {
-                x: 632,
-                y: 151,
-                button: MouseButton::Left,
-            },
-            WindowEvent::PointerUp {
-                x: 632,
-                y: 151,
-                button: MouseButton::Left,
-            },
-            WindowEvent::PointerDown {
-                x: sagittal_x,
-                y: sagittal_y,
-                button: MouseButton::Left,
-            },
-        ])
-        .expect("apply layout selection against the presented orthogonal frame");
-
-    assert!(viewer.workspace_layout.is_grid());
-    assert_eq!(viewer.viewports.len(), 2);
-    assert_eq!(viewer.active_view, None);
+    assert_eq!(loaded_series_uid(&viewer.app), Some(SECOND_SERIES_UID));
+    assert_ne!(viewer.app.viewer_state.slice_index, second_slice);
     assert_eq!(
-        viewer.suppress_cancelled_pointer_release,
-        Some(crate::presentation::PointerButton::Left)
+        viewer.workspace_layout.grid().map(PanelGrid::panel_count),
+        Some(1)
     );
-    assert!(viewer.app.tool_state.is_idle());
-
-    viewer
-        .handle_events(&[
-            WindowEvent::PointerDown {
-                x: 690,
-                y: 65,
-                button: MouseButton::Right,
-            },
-            WindowEvent::PointerUp {
-                x: 690,
-                y: 65,
-                button: MouseButton::Right,
-            },
-        ])
-        .expect("a different button does not release the canceled left gesture");
-    assert_eq!(
-        viewer.suppress_cancelled_pointer_release,
-        Some(crate::presentation::PointerButton::Left)
-    );
-
-    viewer
-        .handle_events(&[WindowEvent::PointerMove {
-            x: sagittal_x + 16,
-            y: sagittal_y + 12,
-        }])
-        .expect("ignore the canceled drag while the new layout is active");
-    viewer
-        .handle_events(&[WindowEvent::PointerUp {
-            x: sagittal_x + 16,
-            y: sagittal_y + 12,
-            button: MouseButton::Left,
-        }])
-        .expect("consume the release for the canceled drag");
-
-    assert_eq!(viewer.suppress_cancelled_pointer_release, None);
-    assert!(viewer.app.tool_state.is_idle());
 }

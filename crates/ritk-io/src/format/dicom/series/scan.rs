@@ -21,8 +21,11 @@ struct ScannedEntry {
     modality: ArrayString<16>,
     patient_id: String,
     patient_name: String,
+    patient_birth_date: Option<ArrayString<8>>,
     study_instance_uid: Option<ArrayString<64>>,
     study_date: Option<ArrayString<8>>,
+    study_time: Option<ArrayString<14>>,
+    study_description: String,
     file_path: PathBuf,
 }
 
@@ -68,10 +71,18 @@ pub fn scan_dicom_directory<P: AsRef<Path>>(path: P) -> Result<Vec<DicomSeriesIn
                 .unwrap_or_else(|| literal_arraystring("OT"));
             let patient_id = get_string(&obj, tags::PATIENT_ID).unwrap_or_default();
             let patient_name = get_string(&obj, tags::PATIENT_NAME).unwrap_or_default();
+            let patient_birth_date = get_string(&obj, tags::PATIENT_BIRTH_DATE)
+                .and_then(|value| valid_dicom_date(&value));
             let study_instance_uid = get_string(&obj, tags::STUDY_INSTANCE_UID)
                 .and_then(|value| valid_study_uid(&value));
             let study_date =
-                get_string(&obj, tags::STUDY_DATE).and_then(|value| valid_study_date(&value));
+                get_string(&obj, tags::STUDY_DATE).and_then(|value| valid_dicom_date(&value));
+            let study_time =
+                get_string(&obj, tags::STUDY_TIME).and_then(|value| valid_study_time(&value));
+            let study_description = bounded_text(
+                get_string(&obj, tags::STUDY_DESCRIPTION).unwrap_or_default(),
+                64,
+            );
 
             Ok(Some(ScannedEntry {
                 series_instance_uid: uid,
@@ -79,8 +90,11 @@ pub fn scan_dicom_directory<P: AsRef<Path>>(path: P) -> Result<Vec<DicomSeriesIn
                 modality,
                 patient_id,
                 patient_name,
+                patient_birth_date,
                 study_instance_uid,
                 study_date,
+                study_time,
+                study_description,
                 file_path: file_path.clone(),
             }))
         },
@@ -101,8 +115,11 @@ pub fn scan_dicom_directory<P: AsRef<Path>>(path: P) -> Result<Vec<DicomSeriesIn
                 modality: entry.modality,
                 patient_id: entry.patient_id,
                 patient_name: entry.patient_name,
+                patient_birth_date: entry.patient_birth_date,
                 study_instance_uid: entry.study_instance_uid,
                 study_date: entry.study_date,
+                study_time: entry.study_time,
+                study_description: entry.study_description,
                 file_paths: Vec::new(),
             })
             .file_paths
@@ -126,11 +143,73 @@ fn valid_study_uid(value: &str) -> Option<ArrayString<64>> {
         .then(|| ArrayString::from(value).expect("invariant: valid DICOM UID fits 64 bytes"))
 }
 
-fn valid_study_date(value: &str) -> Option<ArrayString<8>> {
+fn valid_dicom_date(value: &str) -> Option<ArrayString<8>> {
     let value = value.trim_end_matches('\0').trim();
-    (value.len() == 8 && value.bytes().all(|byte| byte.is_ascii_digit())).then(|| {
-        ArrayString::from(value).expect("invariant: eight-digit DICOM date fits its buffer")
-    })
+    if value.len() != 8 || !value.bytes().all(|byte| byte.is_ascii_digit()) {
+        return None;
+    }
+
+    let year = value.get(..4)?.parse::<u32>().ok()?;
+    let month = value.get(4..6)?.parse::<u32>().ok()?;
+    let day = value.get(6..8)?.parse::<u32>().ok()?;
+    let leap_year =
+        year.is_multiple_of(4) && (!year.is_multiple_of(100) || year.is_multiple_of(400));
+    let last_day = match month {
+        1 | 3 | 5 | 7 | 8 | 10 | 12 => 31,
+        4 | 6 | 9 | 11 => 30,
+        2 if leap_year => 29,
+        2 => 28,
+        _ => return None,
+    };
+    if year == 0 || day == 0 || day > last_day {
+        return None;
+    }
+
+    Some(ArrayString::from(value).expect("invariant: validated DICOM date fits its buffer"))
+}
+
+fn valid_study_time(value: &str) -> Option<ArrayString<14>> {
+    let value = value.trim_end_matches('\0').trim_end();
+    if value.len() > 14 || value.is_empty() {
+        return None;
+    }
+    let (clock, fraction) = match value.split_once('.') {
+        Some((clock, fraction)) if (1..=6).contains(&fraction.len()) => (clock, Some(fraction)),
+        Some(_) => return None,
+        None => (value, None),
+    };
+    if !clock.bytes().all(|byte| byte.is_ascii_digit())
+        || fraction.is_some_and(|digits| !digits.bytes().all(|byte| byte.is_ascii_digit()))
+        || !matches!(clock.len(), 2 | 4 | 6)
+        || fraction.is_some() && clock.len() != 6
+    {
+        return None;
+    }
+    let hour = clock.get(..2)?.parse::<u32>().ok()?;
+    let minute = if clock.len() >= 4 {
+        Some(clock.get(2..4)?.parse::<u32>().ok()?)
+    } else {
+        None
+    };
+    let second = if clock.len() == 6 {
+        Some(clock.get(4..6)?.parse::<u32>().ok()?)
+    } else {
+        None
+    };
+    if hour > 23 || minute.is_some_and(|value| value > 59) || second.is_some_and(|value| value > 60)
+    {
+        return None;
+    }
+    Some(ArrayString::from(value).expect("invariant: validated DICOM time fits its buffer"))
+}
+
+fn bounded_text(value: String, maximum_characters: usize) -> String {
+    value
+        .trim_end_matches('\0')
+        .chars()
+        .filter(|character| !character.is_control())
+        .take(maximum_characters)
+        .collect()
 }
 
 fn get_string(obj: &FileDicomObject<InMemDicomObject>, tag: dicom::core::Tag) -> Option<String> {
@@ -162,6 +241,9 @@ mod tests {
                 patient_name: "Patient Two".to_owned(),
                 study_instance_uid: Some(ArrayString::from("2.25.2").expect("study uid")),
                 study_date: Some(ArrayString::from("20260102").expect("study date")),
+                patient_birth_date: None,
+                study_time: None,
+                study_description: String::new(),
                 file_paths: vec![PathBuf::from("z/2.dcm")],
             },
             DicomSeriesInfo {
@@ -172,6 +254,9 @@ mod tests {
                 patient_name: "Patient One".to_owned(),
                 study_instance_uid: Some(ArrayString::from("2.25.1").expect("study uid")),
                 study_date: Some(ArrayString::from("20260101").expect("study date")),
+                patient_birth_date: None,
+                study_time: None,
+                study_description: String::new(),
                 file_paths: vec![PathBuf::from("a/1.dcm")],
             },
             DicomSeriesInfo {
@@ -182,6 +267,9 @@ mod tests {
                 patient_name: "Patient One".to_owned(),
                 study_instance_uid: Some(ArrayString::from("2.25.1").expect("study uid")),
                 study_date: Some(ArrayString::from("20260101").expect("study date")),
+                patient_birth_date: None,
+                study_time: None,
+                study_description: String::new(),
                 file_paths: vec![PathBuf::from("b/1.dcm")],
             },
         ];
@@ -201,10 +289,34 @@ mod tests {
         assert_eq!(valid_study_uid("2.25.01"), None);
         assert_eq!(valid_study_uid(&"1".repeat(65)), None);
         assert_eq!(
-            valid_study_date("20260927"),
+            valid_dicom_date("20260927"),
             Some(ArrayString::from("20260927").expect("date"))
         );
-        assert_eq!(valid_study_date("2026927"), None);
-        assert_eq!(valid_study_date("2026-09-27"), None);
+        assert_eq!(
+            valid_dicom_date("20240229"),
+            Some(ArrayString::from("20240229").expect("leap date"))
+        );
+        assert_eq!(valid_dicom_date("2026927"), None);
+        assert_eq!(valid_dicom_date("2026-09-27"), None);
+        assert_eq!(valid_dicom_date("20261301"), None);
+        assert_eq!(valid_dicom_date("20260229"), None);
+        assert_eq!(valid_dicom_date("19900191"), None);
+    }
+
+    #[test]
+    fn study_time_validation_accepts_partial_and_fractional_times() {
+        assert_eq!(valid_study_time("0000 ").as_deref(), Some("0000"));
+        assert_eq!(valid_study_time("1010").as_deref(), Some("1010"));
+        assert_eq!(
+            valid_study_time("070907.0705").as_deref(),
+            Some("070907.0705")
+        );
+        assert_eq!(valid_study_time("235960").as_deref(), Some("235960"));
+        assert_eq!(valid_study_time("021"), None);
+        assert_eq!(valid_study_time("2400"), None);
+        assert_eq!(valid_study_time("1260"), None);
+        assert_eq!(valid_study_time("126061"), None);
+        assert_eq!(valid_study_time("1234.1"), None);
+        assert_eq!(valid_study_time("123456.1234567"), None);
     }
 }

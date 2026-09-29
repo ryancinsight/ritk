@@ -1,6 +1,245 @@
 use super::*;
 
 #[test]
+fn multi_series_selection_opens_each_selected_study_series_in_its_own_panel() {
+    let (mut viewer, _initial_root) = session();
+    let study = four_series_study();
+    viewer
+        .open_study_path(study.path())
+        .expect("open four-series study");
+    let catalog = viewer
+        .series_browser
+        .as_ref()
+        .expect("study catalog remains available");
+    let expected_uids = [0, 2, 3].map(|index| {
+        catalog
+            .choice(index)
+            .map(|choice| choice.acquisition.series_instance_uid())
+            .expect("fixture series has an instance UID")
+            .to_owned()
+    });
+
+    viewer
+        .open_selected_series(&[0, 2, 3])
+        .expect("load selected series transactionally");
+    viewer.refresh_frame().expect("render all selected series");
+
+    assert_eq!(
+        viewer.workspace_layout.grid().map(PanelGrid::panel_count),
+        Some(3)
+    );
+    assert_eq!(viewer.viewports.len(), 3);
+    assert_eq!(viewer.active_panel, 0);
+    assert_eq!(viewer.primary_series_index, Some(0));
+    let actual_uids = std::iter::once(
+        viewer
+            .app
+            .loaded
+            .as_ref()
+            .and_then(|volume| volume.metadata.as_ref())
+            .and_then(|metadata| metadata.series_instance_uid.as_deref()),
+    )
+    .chain(viewer.compare_panels.iter().map(|panel| {
+        panel
+            .app
+            .loaded
+            .as_ref()
+            .and_then(|volume| volume.metadata.as_ref())
+            .and_then(|metadata| metadata.series_instance_uid.as_deref())
+    }))
+    .map(|uid| uid.expect("selected panel has DICOM metadata").to_owned())
+    .collect::<Vec<_>>();
+    assert_eq!(actual_uids, expected_uids);
+    for (index, viewport) in viewer.viewports.iter().enumerate() {
+        let (x, y) = viewport.center();
+        assert_ne!(
+            viewer.framebuffer.get_pixel(x, y),
+            metis_platform::Color::BLACK,
+            "selected panel {index} must display its own pixels"
+        );
+    }
+}
+
+#[test]
+fn multi_series_selection_pads_rounded_grid_with_empty_panels() {
+    let (mut viewer, _initial_root) = session();
+    let study = tempfile::tempdir().expect("create seven-series study");
+    for index in 0..7 {
+        let uid = format!("2.25.202609050{index:02}");
+        fixtures::write_study(study.path(), "MR", &uid).expect("write DICOM series");
+    }
+    viewer
+        .open_study_path(study.path())
+        .expect("open seven-series study");
+    let selected = (0..7).collect::<Vec<_>>();
+
+    viewer
+        .open_selected_series(&selected)
+        .expect("load all seven selected series");
+    viewer.refresh_frame().expect("render the rounded grid");
+
+    assert_eq!(
+        viewer.workspace_layout.grid().map(PanelGrid::dimensions),
+        Some((4, 2))
+    );
+    assert_eq!(viewer.viewports.len(), 8);
+    assert_eq!(viewer.compare_panels.len(), 7);
+    assert_eq!(viewer.compare_panels[5].series_index, Some(6));
+    assert!(viewer.compare_panels[6].series_index.is_none());
+}
+
+#[test]
+fn rejected_multi_series_selection_preserves_the_current_viewer() {
+    let (mut viewer, _initial_root) = session();
+    let study = four_series_study();
+    viewer
+        .open_study_path(study.path())
+        .expect("open four-series study");
+    let original_uid = viewer
+        .app
+        .loaded
+        .as_ref()
+        .and_then(|volume| volume.metadata.as_ref())
+        .and_then(|metadata| metadata.series_instance_uid.as_deref())
+        .expect("initial viewer has DICOM series metadata")
+        .to_owned();
+    let error = viewer
+        .open_selected_series(&[1, usize::MAX])
+        .expect_err("reject an index outside the study catalog");
+
+    assert!(error.to_string().contains("outside the catalog"));
+    assert_eq!(viewer.primary_series_index, Some(0));
+    assert_eq!(viewer.workspace_layout, WorkspaceLayout::Orthogonal);
+    assert_eq!(viewer.compare_panels.len(), 0);
+    assert_eq!(
+        viewer
+            .app
+            .loaded
+            .as_ref()
+            .and_then(|volume| volume.metadata.as_ref())
+            .and_then(|metadata| metadata.series_instance_uid.as_deref()),
+        Some(original_uid.as_str())
+    );
+}
+
+#[test]
+fn control_click_opens_a_series_in_the_next_available_panel() {
+    let (mut viewer, _initial_root) = session();
+    let study = four_series_study();
+    viewer
+        .open_study_path(study.path())
+        .expect("open four-series study");
+    let (x, y) = series_card_center(&viewer, 2);
+
+    viewer
+        .handle_events(&[
+            WindowEvent::KeyDown {
+                virtual_key: 0x11,
+                repeated: false,
+                modifiers: ModifierState::NONE,
+            },
+            WindowEvent::PointerDown {
+                x,
+                y,
+                button: MouseButton::Left,
+            },
+            WindowEvent::PointerUp {
+                x,
+                y,
+                button: MouseButton::Left,
+            },
+            WindowEvent::KeyUp {
+                virtual_key: 0x11,
+                modifiers: ModifierState::NONE,
+            },
+        ])
+        .expect("Control-click the series into a new panel");
+
+    assert_eq!(
+        viewer.workspace_layout.grid().map(PanelGrid::dimensions),
+        Some((2, 1))
+    );
+    assert_eq!(viewer.active_panel, 1);
+    assert_eq!(viewer.compare_panels[0].series_index, Some(2));
+}
+
+#[test]
+fn f4_picker_loads_multiple_clicked_series_from_the_native_window() {
+    let (mut viewer, _initial_root) = session();
+    let study = four_series_study();
+    viewer
+        .open_study_path(study.path())
+        .expect("open four-series study");
+    viewer
+        .handle_events(&[WindowEvent::KeyDown {
+            virtual_key: 0x73,
+            repeated: false,
+            modifiers: ModifierState::NONE,
+        }])
+        .expect("open the multiple-series picker with F4");
+    viewer
+        .handle_events(&[
+            WindowEvent::PointerDown {
+                x: 520,
+                y: 240,
+                button: MouseButton::Left,
+            },
+            WindowEvent::PointerUp {
+                x: 520,
+                y: 240,
+                button: MouseButton::Left,
+            },
+        ])
+        .expect("select the first series row");
+    viewer
+        .handle_events(&[
+            WindowEvent::KeyDown {
+                virtual_key: 0x11,
+                repeated: false,
+                modifiers: ModifierState::NONE,
+            },
+            WindowEvent::PointerDown {
+                x: 520,
+                y: 272,
+                button: MouseButton::Left,
+            },
+            WindowEvent::PointerUp {
+                x: 520,
+                y: 272,
+                button: MouseButton::Left,
+            },
+            WindowEvent::KeyUp {
+                virtual_key: 0x11,
+                modifiers: ModifierState::NONE,
+            },
+        ])
+        .expect("extend selection to the second series row with Control");
+    viewer
+        .handle_events(&[
+            WindowEvent::PointerDown {
+                x: 950,
+                y: 645,
+                button: MouseButton::Left,
+            },
+            WindowEvent::PointerUp {
+                x: 950,
+                y: 645,
+                button: MouseButton::Left,
+            },
+        ])
+        .expect("open all selected series");
+
+    assert_eq!(
+        viewer.workspace_layout.grid().map(PanelGrid::panel_count),
+        Some(2)
+    );
+    assert_eq!(viewer.viewports.len(), 2);
+    assert_eq!(viewer.primary_series_index, Some(0));
+    assert_eq!(viewer.compare_panels[0].series_index, Some(1));
+    assert!(!viewer.window_chrome.multi_series_dialog_is_open());
+}
+
+#[test]
 fn four_panel_layout_assigns_four_independent_dicom_series() {
     let (mut viewer, _initial_root) = session();
     let study = four_series_study();

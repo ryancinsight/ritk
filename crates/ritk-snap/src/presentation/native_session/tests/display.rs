@@ -1,12 +1,11 @@
 use super::super::layout::application_overlay;
 use super::support::session;
-use metis_platform::rasterizer::CornerRadius;
 use metis_platform::typeface::GlyphWeight;
 use metis_platform::{Color, Framebuffer, Rect};
 use metis_ui_lang::DisplayCommand;
 
 #[test]
-fn orthogonal_overlay_uses_current_metis_styles_and_composites_exact_rgba() {
+fn orthogonal_overlay_uses_embedded_typeface_and_composites_exact_rgba() {
     let (session, _root) = session();
     assert_eq!(
         (session.framebuffer.width(), session.framebuffer.height()),
@@ -37,13 +36,8 @@ fn orthogonal_overlay_uses_current_metis_styles_and_composites_exact_rgba() {
             .zip(&expected_fills[fill_index..fill_index + 2])
         {
             match command {
-                DisplayCommand::FillRect {
-                    rect,
-                    radius,
-                    color,
-                } => {
+                DisplayCommand::FillRect { rect, color, .. } => {
                     assert_eq!(*rect, *expected_rect);
-                    assert_eq!(*radius, CornerRadius::SQUARE);
                     assert_eq!(*color, Color::rgba(0, 0, 0, 224));
                 }
                 other => panic!("expected a panel bar fill, got {other:?}"),
@@ -62,14 +56,18 @@ fn orthogonal_overlay_uses_current_metis_styles_and_composites_exact_rgba() {
             view.window_level.center
         );
         for (command, expected_text, expected_size) in [
-            (&overlay.commands[command_index + 2], expected_title, 14.0),
-            (&overlay.commands[command_index + 3], expected_footer, 12.0),
+            (&overlay.commands[command_index + 2], expected_title, 16_u32),
+            (
+                &overlay.commands[command_index + 3],
+                expected_footer,
+                13_u32,
+            ),
         ] {
             match command {
                 DisplayCommand::DrawText { text, style, .. } => {
                     assert_eq!(text, &expected_text);
                     assert_eq!(style.color, Color::rgba(255, 255, 160, 255));
-                    assert_eq!(style.size.pixels(), expected_size);
+                    assert_eq!(style.size.pixels(), f64::from(expected_size));
                     assert_eq!(style.weight, GlyphWeight::Regular);
                 }
                 other => panic!("expected a styled text command, got {other:?}"),

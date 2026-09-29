@@ -8,7 +8,7 @@ use metis_ui_lang::{DisplayCommand, DisplayList};
 use super::super::frame::RenderedView;
 use super::super::projection::RenderedProjection;
 use super::geometry::NativeViewport;
-use super::text::{text_style, PANEL_DETAIL_SIZE, PANEL_TITLE_SIZE};
+use super::text::{text_command, text_style, PANEL_DETAIL_SIZE, PANEL_TITLE_SIZE};
 
 pub(crate) const OVERLAY_BAR_HEIGHT: i32 = 20;
 const OVERLAY_MARGIN: i32 = 6;
@@ -57,12 +57,12 @@ pub(crate) fn application_overlay(
         let title = format!("METIS  RITK-SNAP  {}", view.plane_name);
         push_overlay_command(
             &mut overlay,
-            DisplayCommand::DrawText {
-                text: title,
-                x: panel_x + OVERLAY_MARGIN,
-                y: panel_y + 2,
-                style: text_style(OVERLAY_TEXT, PANEL_TITLE_SIZE)?,
-            },
+            text_command(
+                title,
+                panel_x + OVERLAY_MARGIN,
+                panel_y + 2,
+                text_style(OVERLAY_TEXT, PANEL_TITLE_SIZE)?,
+            ),
         )?;
         let footer = format!(
             "Slice {}/{}  {}x{}  W:{:.0} C:{:.0}",
@@ -80,12 +80,12 @@ pub(crate) fn application_overlay(
         };
         push_overlay_command(
             &mut overlay,
-            DisplayCommand::DrawText {
-                text: footer,
-                x: panel_x + OVERLAY_MARGIN,
-                y: panel_y + panel_height - OVERLAY_BAR_HEIGHT + 2,
-                style: text_style(OVERLAY_TEXT, PANEL_DETAIL_SIZE)?,
-            },
+            text_command(
+                footer,
+                panel_x + OVERLAY_MARGIN,
+                panel_y + panel_height - OVERLAY_BAR_HEIGHT + 2,
+                text_style(OVERLAY_TEXT, PANEL_DETAIL_SIZE)?,
+            ),
         )?;
     }
     Ok(overlay)
@@ -133,26 +133,26 @@ pub(crate) fn projection_overlay(
     )?;
     push_overlay_command(
         &mut overlay,
-        DisplayCommand::DrawText {
-            text: format!("METIS  RITK-SNAP  3D {}", projection.statistic.label()),
-            x: panel_x + OVERLAY_MARGIN,
-            y: panel_y + 2,
-            style: text_style(OVERLAY_TEXT, PANEL_TITLE_SIZE)?,
-        },
+        text_command(
+            format!("METIS  RITK-SNAP  3D {}", projection.statistic.label()),
+            panel_x + OVERLAY_MARGIN,
+            panel_y + 2,
+            text_style(OVERLAY_TEXT, PANEL_TITLE_SIZE)?,
+        ),
     )?;
     push_overlay_command(
         &mut overlay,
-        DisplayCommand::DrawText {
-            text: format!(
+        text_command(
+            format!(
                 "Axial {}  {}x{}",
                 projection.statistic.label(),
                 projection.frame.width(),
                 projection.frame.height()
             ),
-            x: panel_x + OVERLAY_MARGIN,
-            y: panel_y + panel_height - OVERLAY_BAR_HEIGHT + 2,
-            style: text_style(OVERLAY_TEXT, PANEL_DETAIL_SIZE)?,
-        },
+            panel_x + OVERLAY_MARGIN,
+            panel_y + panel_height - OVERLAY_BAR_HEIGHT + 2,
+            text_style(OVERLAY_TEXT, PANEL_DETAIL_SIZE)?,
+        ),
     )?;
     Ok(overlay)
 }

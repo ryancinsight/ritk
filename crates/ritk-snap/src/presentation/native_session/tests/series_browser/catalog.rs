@@ -106,7 +106,7 @@ fn study_browser_input_does_not_start_a_viewport_gesture() {
     let (mut viewer, _initial_root) = session();
     let flow = viewer
         .handle_events(&[WindowEvent::PointerDown {
-            x: 16,
+            x: 100,
             y: 700,
             button: MouseButton::Left,
         }])
@@ -114,4 +114,61 @@ fn study_browser_input_does_not_start_a_viewport_gesture() {
 
     assert_eq!(flow, NativeFlow::Continue { repaint: false });
     assert_eq!(viewer.active_view, None);
+}
+
+#[test]
+fn horizontal_keys_and_wheel_switch_between_study_series() {
+    let (mut viewer, _initial_root) = session();
+    let replacement = replacement_study();
+    viewer
+        .open_study_path(replacement.path())
+        .expect("open replacement study");
+
+    viewer
+        .handle_events(&[WindowEvent::KeyDown {
+            virtual_key: 0x27,
+            repeated: false,
+            modifiers: ModifierState::NONE,
+        }])
+        .expect("select the next series with the right arrow");
+    assert_eq!(loaded_series_uid(&viewer.app), Some(SECOND_SERIES_UID));
+
+    viewer
+        .handle_events(&[WindowEvent::KeyDown {
+            virtual_key: 0x25,
+            repeated: true,
+            modifiers: ModifierState::NONE,
+        }])
+        .expect("ignore a repeated left arrow");
+    assert_eq!(loaded_series_uid(&viewer.app), Some(SECOND_SERIES_UID));
+
+    let (x, y) = viewer.viewports[0].center();
+    viewer
+        .handle_events(&[WindowEvent::PointerWheel {
+            x,
+            y,
+            delta_x: -120,
+            delta_y: 0,
+            modifiers: ModifierState::NONE,
+        }])
+        .expect("select the previous series with horizontal wheel input");
+    assert_eq!(loaded_series_uid(&viewer.app), Some(fixtures::SERIES_UID));
+
+    viewer
+        .handle_events(&[WindowEvent::KeyDown {
+            virtual_key: 0x23,
+            repeated: false,
+            modifiers: ModifierState::NONE,
+        }])
+        .expect("select the last series with End");
+    assert_eq!(loaded_series_uid(&viewer.app), Some(SECOND_SERIES_UID));
+
+    viewer
+        .handle_events(&[WindowEvent::KeyDown {
+            virtual_key: 0x24,
+            repeated: false,
+            modifiers: ModifierState::NONE,
+        }])
+        .expect("select the first series with Home");
+    assert_eq!(loaded_series_uid(&viewer.app), Some(fixtures::SERIES_UID));
 }

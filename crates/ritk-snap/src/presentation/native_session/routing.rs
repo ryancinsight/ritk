@@ -1,22 +1,28 @@
 //! Panel selection for the native presentation event stream.
 
-use super::layout::WorkspaceLayout;
+use super::layout::{WorkspaceLayout, MAX_GRID_PANELS};
+use super::panels::PanelRouteMap;
 use super::{NativeViewerError, NativeViewerSession};
 use crate::app::action_adapter::{preflight_presentation_events, ViewerActionDisposition};
+use crate::app::viewer_viewport::ViewerViewport;
 use crate::presentation::PresentationEvent;
 use arrayvec::ArrayVec;
 
 /// Input routes bound to the framebuffer visible when the host batch begins.
 pub(super) struct RoutedBatch {
     pub(super) layout: WorkspaceLayout,
-    pub(super) active_panel: usize,
     pub(super) active_view: Option<usize>,
     routes: ArrayVec<Option<usize>, { crate::presentation::MAX_PRESENTATION_EVENTS }>,
+    view_mappings: ArrayVec<ViewerViewport, MAX_GRID_PANELS>,
 }
 
 impl RoutedBatch {
     pub(super) fn routes(&self) -> &[Option<usize>] {
         &self.routes
+    }
+
+    pub(super) fn view_mappings(&self) -> &[ViewerViewport] {
+        &self.view_mappings
     }
 }
 
@@ -25,6 +31,20 @@ impl NativeViewerSession {
         self.viewports
             .iter()
             .position(|viewport| viewport.contains(x, y))
+    }
+
+    fn update_active_view(&self, active_view: &mut Option<usize>, event: &PresentationEvent) {
+        match event {
+            PresentationEvent::PointerDown { x, y, .. } => {
+                *active_view = self.view_at(*x, *y).or(*active_view);
+            }
+            PresentationEvent::PointerUp { .. }
+            | PresentationEvent::PointerCancel { .. }
+            | PresentationEvent::FocusLost
+            | PresentationEvent::CloseRequested
+            | PresentationEvent::Destroyed => *active_view = None,
+            _ => {}
+        }
     }
 
     fn event_view_index(
@@ -58,9 +78,8 @@ impl NativeViewerSession {
     fn app_for_panel_mut(
         &mut self,
         panel_index: usize,
-        layout: WorkspaceLayout,
     ) -> std::result::Result<&mut crate::app::SnapApp, NativeViewerError> {
-        if layout.is_grid() && panel_index > 0 {
+        if panel_index > 0 {
             self.compare_panels
                 .get_mut(panel_index - 1)
                 .map(|panel| &mut panel.app)
@@ -106,6 +125,12 @@ impl NativeViewerSession {
         }
 
         let mut routes = ArrayVec::<_, { crate::presentation::MAX_PRESENTATION_EVENTS }>::new();
+        let mut view_mappings = ArrayVec::<_, MAX_GRID_PANELS>::new();
+        for viewport in &self.viewports {
+            view_mappings
+                .try_push(viewport.mapping())
+                .map_err(|_| NativeViewerError::new("viewer viewport mapping capacity exceeded"))?;
+        }
         let mut active_panel = self.active_panel;
         let mut active_view = self.active_view;
         let mut active_axis = self.active_app().axis;
@@ -134,23 +159,13 @@ impl NativeViewerSession {
                 }
                 active_axis = self.viewports[index].axis();
             }
-            match event {
-                PresentationEvent::PointerDown { x, y, .. } => {
-                    active_view = self.view_at(*x, *y).or(active_view);
-                }
-                PresentationEvent::PointerUp { .. }
-                | PresentationEvent::PointerCancel { .. }
-                | PresentationEvent::FocusLost
-                | PresentationEvent::CloseRequested
-                | PresentationEvent::Destroyed => active_view = None,
-                _ => {}
-            }
+            self.update_active_view(&mut active_view, event);
         }
         Ok(RoutedBatch {
             layout: self.workspace_layout,
-            active_panel: self.active_panel,
             active_view,
             routes,
+            view_mappings,
         })
     }
 
@@ -158,8 +173,9 @@ impl NativeViewerSession {
         &mut self,
         events: &[PresentationEvent],
         routes: &[Option<usize>],
+        panel_routes: &PanelRouteMap,
+        view_mappings: &[ViewerViewport],
         layout: WorkspaceLayout,
-        initial_active_panel: usize,
     ) -> std::result::Result<ViewerActionDisposition, NativeViewerError> {
         if events.len() != routes.len() {
             return Err(NativeViewerError::new(
@@ -179,16 +195,24 @@ impl NativeViewerSession {
                 end += 1;
             }
             let panel_index = if grid.is_some() {
-                selected_view.unwrap_or(initial_active_panel)
+                selected_view.map_or(Some(self.active_panel), |presented_panel| {
+                    panel_routes.current_panel(presented_panel)
+                })
             } else {
-                0
+                Some(0)
+            };
+            let Some(panel_index) =
+                panel_index.filter(|index| panel_routes.contains_current_panel(*index))
+            else {
+                start = end;
+                continue;
             };
             if grid.is_some()
-                && selected_view.is_some_and(|index| {
-                    self.workspace_layout
-                        .grid()
-                        .is_some_and(|current| index < current.panel_count())
-                })
+                && self
+                    .workspace_layout
+                    .grid()
+                    .is_some_and(|current| panel_index < current.panel_count())
+                && selected_view.is_some()
             {
                 self.active_panel = panel_index;
             }
@@ -196,11 +220,11 @@ impl NativeViewerSession {
                 None
             } else {
                 selected_view
-                    .and_then(|index| self.viewports.get(index))
-                    .map(|viewport| viewport.mapping())
+                    .and_then(|index| view_mappings.get(index))
+                    .copied()
             };
             let (result, previous_axis) = {
-                let app = self.app_for_panel_mut(panel_index, layout)?;
+                let app = self.app_for_panel_mut(panel_index)?;
                 let previous_axis = app.axis;
                 if let Some(viewport) = viewport {
                     app.axis = viewport.axis();
@@ -213,7 +237,7 @@ impl NativeViewerSession {
             let disposition = match result {
                 Ok(disposition) => disposition,
                 Err(error) => {
-                    self.app_for_panel_mut(panel_index, layout)?.axis = previous_axis;
+                    self.app_for_panel_mut(panel_index)?.axis = previous_axis;
                     self.active_panel = previous_panel;
                     self.active_view = previous_active_view;
                     return Err(NativeViewerError::new(format!(
@@ -231,17 +255,7 @@ impl NativeViewerSession {
                 }
             }
             for event in &events[start..end] {
-                match event {
-                    PresentationEvent::PointerDown { x, y, .. } => {
-                        active_view = self.view_at(*x, *y).or(active_view);
-                    }
-                    PresentationEvent::PointerUp { .. }
-                    | PresentationEvent::PointerCancel { .. }
-                    | PresentationEvent::FocusLost
-                    | PresentationEvent::CloseRequested
-                    | PresentationEvent::Destroyed => active_view = None,
-                    _ => {}
-                }
+                self.update_active_view(&mut active_view, event);
             }
             start = end;
         }

@@ -1,12 +1,15 @@
 //! RITK-owned controls rendered in the visible Métis native client area.
 
+mod events;
 mod layout;
+mod multi_series;
 mod series;
 use self::layout::{ChromeGeometry, ChromeLayout};
-use super::layout::{NativeViewport, ViewportArea, WorkspaceLayout};
+use self::multi_series::MultiSeriesDialog;
+use super::layout::{ViewportArea, WorkspaceLayout};
 use super::series_browser::SeriesBrowser;
 use crate::app::SnapApp;
-use crate::presentation::{PointerButton, PresentationEvent, PresentationFrame};
+use crate::presentation::PresentationFrame;
 use crate::tools::kind::ToolKind;
 use anyhow::Result;
 use metis_platform::Framebuffer;
@@ -24,8 +27,21 @@ pub(super) enum Menu {
 pub(super) enum WindowAction {
     OpenMenu(Menu),
     OpenStudy,
+    OpenSeriesPicker,
+    LoadSelectedSeries,
     Exit,
     SelectSeries(usize),
+    OpenSeriesInNextPanel(usize),
+    MaximizePanel(usize),
+    ClosePanel {
+        index: usize,
+        kind: PanelCloseKind,
+    },
+    ToggleActivePanel,
+    CloseActivePanel,
+    CloseAllPanels,
+    ActivateNextPanel,
+    ActivatePreviousPanel,
     AssignSeries {
         series_index: usize,
         panel_index: usize,
@@ -36,6 +52,12 @@ pub(super) enum WindowAction {
     ToggleCrosshair,
     ToggleCine,
     ResetView,
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub(super) enum PanelCloseKind {
+    Close,
+    Clear,
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -75,7 +97,9 @@ impl WindowChromeEvent {
 pub(super) struct WindowChrome {
     visible: bool,
     open_menu: Option<Menu>,
+    multi_series_dialog: Option<MultiSeriesDialog>,
     show_series_preview: bool,
+    control_down: bool,
     pointer_owner: PointerOwner,
     pressed_buttons: u8,
 }
@@ -85,10 +109,70 @@ impl WindowChrome {
         Self {
             visible,
             open_menu: None,
+            multi_series_dialog: None,
             show_series_preview: true,
+            control_down: false,
             pointer_owner: PointerOwner::None,
             pressed_buttons: 0,
         }
+    }
+
+    #[cfg(test)]
+    pub(super) const fn multi_series_dialog_is_open(&self) -> bool {
+        self.multi_series_dialog.is_some()
+    }
+
+    #[cfg(test)]
+    pub(super) const fn open_menu(&self) -> Option<Menu> {
+        self.open_menu
+    }
+
+    #[cfg(test)]
+    pub(super) fn control_center(
+        &self,
+        width: u32,
+        height: u32,
+        app: &SnapApp,
+        workspace_layout: WorkspaceLayout,
+        open_menu: Option<Menu>,
+        action: WindowAction,
+    ) -> Result<Option<(i32, i32)>> {
+        if !self.visible {
+            return Ok(None);
+        }
+        Ok(ChromeLayout::new(
+            width,
+            height,
+            open_menu,
+            app,
+            self.show_series_preview,
+            workspace_layout,
+        )?
+        .action_center(action))
+    }
+
+    #[cfg(test)]
+    pub(super) fn series_card_center(
+        &self,
+        width: u32,
+        height: u32,
+        app: &SnapApp,
+        workspace_layout: WorkspaceLayout,
+        browser: &SeriesBrowser,
+        index: usize,
+    ) -> Result<Option<(i32, i32)>> {
+        if !self.visible {
+            return Ok(None);
+        }
+        Ok(ChromeLayout::new(
+            width,
+            height,
+            self.open_menu,
+            app,
+            self.show_series_preview,
+            workspace_layout,
+        )?
+        .series_card_center(browser, index))
     }
 
     pub(super) fn viewport_area(&self, width: u32, height: u32) -> Result<ViewportArea> {
@@ -103,7 +187,7 @@ impl WindowChrome {
         framebuffer: &mut Framebuffer,
         app: &SnapApp,
         series_previews: &[Option<&PresentationFrame>],
-        browser: Option<&SeriesBrowser>,
+        mut browser: Option<&mut SeriesBrowser>,
         workspace_layout: WorkspaceLayout,
         active_panel: usize,
         displayed_series: &[Option<usize>],
@@ -111,240 +195,34 @@ impl WindowChrome {
         if !self.visible {
             return Ok(());
         }
-        ChromeLayout::new(
+        let layout = ChromeLayout::new(
             framebuffer.width(),
             framebuffer.height(),
             self.open_menu,
             app,
             self.show_series_preview,
             workspace_layout,
-        )?
-        .render(
+        )?;
+        if let Some(series_browser) = browser.as_deref_mut() {
+            series::prepare_thumbnails(
+                series_browser,
+                layout.series_preview_area(),
+                displayed_series,
+            )?;
+        }
+        layout.render(
             framebuffer,
             app,
             series_previews,
-            browser,
+            browser.as_deref(),
             workspace_layout,
             active_panel,
             displayed_series,
-        )
-    }
-
-    pub(super) fn handle_event(
-        &mut self,
-        event: &PresentationEvent,
-        width: u32,
-        height: u32,
-        app: &SnapApp,
-        browser: &mut Option<SeriesBrowser>,
-        workspace_layout: WorkspaceLayout,
-        viewports: &[NativeViewport],
-    ) -> Result<WindowChromeEvent> {
-        if !self.visible {
-            return Ok(WindowChromeEvent::passed());
-        }
-        if matches!(
-            event,
-            PresentationEvent::KeyDown {
-                virtual_key: 0x1b,
-                repeated: false,
-                ..
-            }
-        ) && self.open_menu.take().is_some()
-        {
-            return Ok(WindowChromeEvent::consumed(true));
-        }
-
-        let layout = ChromeLayout::new(
-            width,
-            height,
-            self.open_menu,
-            app,
-            self.show_series_preview,
-            workspace_layout,
         )?;
-        match event {
-            PresentationEvent::PointerDown { x, y, button } => {
-                if self.pointer_owner == PointerOwner::None && *button == PointerButton::Left {
-                    if layout.popup_contains(*x, *y) {
-                        self.pointer_owner = PointerOwner::Chrome;
-                        self.press(*button);
-                        let action = layout.action_at(*x, *y, browser.as_ref());
-                        if let Some(WindowAction::OpenMenu(menu)) = action {
-                            self.open_menu = (self.open_menu != Some(menu)).then_some(menu);
-                            return Ok(WindowChromeEvent::consumed(true));
-                        }
-                        if let Some(action) = action {
-                            self.open_menu = None;
-                            return Ok(WindowChromeEvent {
-                                consumed: true,
-                                repaint: true,
-                                action: Some(action),
-                            });
-                        }
-                        return Ok(WindowChromeEvent::consumed(false));
-                    }
-                    if let Some(index) = layout.series_index_at(browser.as_ref(), *x, *y) {
-                        self.pointer_owner = PointerOwner::Series(index);
-                        self.press(*button);
-                        let repaint = self.open_menu.take().is_some();
-                        return Ok(WindowChromeEvent::consumed(repaint));
-                    }
-                }
-                if self.pointer_owner == PointerOwner::Chrome {
-                    self.press(*button);
-                    return Ok(WindowChromeEvent::consumed(false));
-                }
-                if matches!(self.pointer_owner, PointerOwner::Series(_)) {
-                    self.press(*button);
-                    return Ok(WindowChromeEvent::consumed(false));
-                }
-                if self.pointer_owner == PointerOwner::Pane {
-                    self.press(*button);
-                    return Ok(WindowChromeEvent::passed());
-                }
-                if layout.owns_pointer(*x, *y) || self.open_menu.is_some() {
-                    self.pointer_owner = PointerOwner::Chrome;
-                    self.press(*button);
-                    if *button != PointerButton::Left {
-                        return Ok(WindowChromeEvent::consumed(false));
-                    }
-                    let action = layout.action_at(*x, *y, browser.as_ref());
-                    if let Some(WindowAction::OpenMenu(menu)) = action {
-                        self.open_menu = (self.open_menu != Some(menu)).then_some(menu);
-                        return Ok(WindowChromeEvent::consumed(true));
-                    }
-                    if let Some(action) = action {
-                        self.open_menu = None;
-                        return Ok(WindowChromeEvent {
-                            consumed: true,
-                            repaint: true,
-                            action: Some(action),
-                        });
-                    }
-                    let repaint = self.open_menu.take().is_some();
-                    return Ok(WindowChromeEvent::consumed(repaint));
-                }
-                self.pointer_owner = PointerOwner::Pane;
-                self.press(*button);
-                Ok(WindowChromeEvent::passed())
-            }
-            PresentationEvent::PointerMove { x, y } => Ok(
-                if matches!(self.pointer_owner, PointerOwner::Series(_))
-                    || self.pointer_owner == PointerOwner::Chrome
-                    || self.open_menu.is_some()
-                    || self.pointer_owner == PointerOwner::None && layout.owns_pointer(*x, *y)
-                {
-                    WindowChromeEvent::consumed(false)
-                } else {
-                    WindowChromeEvent::passed()
-                },
-            ),
-            PresentationEvent::PointerUp { x, y, button } => {
-                let (consumed, action) = match self.pointer_owner {
-                    PointerOwner::Chrome => (true, None),
-                    PointerOwner::Pane => (false, None),
-                    PointerOwner::None => (layout.owns_pointer(*x, *y), None),
-                    PointerOwner::Series(index) => {
-                        let action = if *button != PointerButton::Left {
-                            None
-                        } else {
-                            let target_panel = viewports
-                                .iter()
-                                .position(|viewport| viewport.contains(*x, *y));
-                            if let Some(panel_index) = target_panel {
-                                Some(if workspace_layout.is_grid() {
-                                    WindowAction::AssignSeries {
-                                        series_index: index,
-                                        panel_index,
-                                    }
-                                } else {
-                                    WindowAction::SelectSeries(index)
-                                })
-                            } else if layout.series_index_at(browser.as_ref(), *x, *y)
-                                == Some(index)
-                            {
-                                Some(WindowAction::SelectSeries(index))
-                            } else {
-                                None
-                            }
-                        };
-                        (true, action)
-                    }
-                };
-                self.release(*button);
-                Ok(WindowChromeEvent {
-                    consumed,
-                    repaint: action.is_some(),
-                    action,
-                })
-            }
-            PresentationEvent::PointerCancel { x, y, .. } => {
-                let consumed = match self.pointer_owner {
-                    PointerOwner::Chrome => true,
-                    PointerOwner::Pane => false,
-                    PointerOwner::None => layout.owns_pointer(*x, *y),
-                    PointerOwner::Series(_) => true,
-                };
-                self.pointer_owner = PointerOwner::None;
-                self.pressed_buttons = 0;
-                Ok(if consumed {
-                    WindowChromeEvent::consumed(false)
-                } else {
-                    WindowChromeEvent::passed()
-                })
-            }
-            PresentationEvent::PointerWheel {
-                x,
-                y,
-                delta_x,
-                delta_y,
-                ..
-            } => {
-                if layout.popup_contains(*x, *y) {
-                    Ok(WindowChromeEvent::consumed(false))
-                } else if layout.series_contains(*x, *y) {
-                    let direction = if *delta_y != 0.0 { *delta_y } else { *delta_x };
-                    let delta = if direction > 0.0 {
-                        -3
-                    } else if direction < 0.0 {
-                        3
-                    } else {
-                        0
-                    };
-                    let changed = browser.as_mut().is_some_and(|series_browser| {
-                        series_browser.scroll_series(delta, layout.visible_series())
-                    });
-                    Ok(WindowChromeEvent::consumed(changed))
-                } else if self.open_menu.is_some() || layout.owns_pointer(*x, *y) {
-                    Ok(WindowChromeEvent::consumed(false))
-                } else {
-                    Ok(WindowChromeEvent::passed())
-                }
-            }
-            PresentationEvent::FocusLost => {
-                let repaint = self.open_menu.take().is_some();
-                self.pointer_owner = PointerOwner::None;
-                self.pressed_buttons = 0;
-                Ok(WindowChromeEvent {
-                    consumed: false,
-                    repaint,
-                    action: None,
-                })
-            }
-            _ => Ok(WindowChromeEvent::passed()),
+        if let (Some(dialog), Some(browser)) = (&self.multi_series_dialog, browser.as_deref()) {
+            dialog.render(framebuffer, browser)?;
         }
-    }
-
-    fn press(&mut self, button: PointerButton) {
-        self.pressed_buttons |= pointer_button_bit(button);
-    }
-
-    fn release(&mut self, button: PointerButton) {
-        self.pressed_buttons &= !pointer_button_bit(button);
-        if self.pressed_buttons == 0 {
-            self.pointer_owner = PointerOwner::None;
-        }
+        Ok(())
     }
 
     pub(super) fn toggle_series_preview(&mut self) {
@@ -352,19 +230,26 @@ impl WindowChrome {
         self.open_menu = None;
     }
 
+    pub(super) fn open_series_picker(&mut self, browser: Option<&SeriesBrowser>) -> Result<bool> {
+        let Some(browser) = browser else {
+            return Ok(false);
+        };
+        self.multi_series_dialog = Some(MultiSeriesDialog::new(browser)?);
+        self.open_menu = None;
+        Ok(true)
+    }
+
+    pub(super) fn take_selected_series(
+        &mut self,
+    ) -> Option<arrayvec::ArrayVec<usize, { super::layout::MAX_GRID_PANELS }>> {
+        self.multi_series_dialog
+            .take()
+            .map(|dialog| dialog.selected().clone())
+    }
+
     pub(super) fn cancel_pointer_capture(&mut self) {
         self.pointer_owner = PointerOwner::None;
         self.pressed_buttons = 0;
-    }
-}
-
-fn pointer_button_bit(button: PointerButton) -> u8 {
-    match button {
-        PointerButton::Left => 1,
-        PointerButton::Right => 2,
-        PointerButton::Middle => 4,
-        PointerButton::X1 => 8,
-        PointerButton::X2 => 16,
     }
 }
 

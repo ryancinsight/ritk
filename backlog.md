@@ -166,13 +166,24 @@
 - next: capture the completed viewer from the public phantom and validate the manual artifacts.
 - basis: 4e2e797c6af199d0c33e37148e784b2becc04981
 
+<a id="RITK-SNAP-WINDOW-CONTROLS-001"></a>
+## RITK-SNAP-WINDOW-CONTROLS-001: Organize the native viewer window
+- outcome: present DICOM studies and tools in an organized native viewer with independent series panels.
+- acceptance: the Métis window follows RadiAnt's documented organization: menus and toolbar above the dark image workspace, a left study/series preview bar, and a status bar. The rail groups validated study details, highlights panel assignments, and shows decoded thumbnails with image-count badges; MRI and CT open together in independently navigable panels. Left/Right and horizontal-wheel input switch series in the active panel. Full-window public-phantom captures and value-semantic interaction tests pass.
+- status: todo
+- priority: feature
+- needs: none
+- scope: `crates/ritk-io/src/format/dicom/series/`, `crates/ritk-snap/src/{launch.rs,main.rs,presentation/native_session/}`, crate README and DICOM manual captures.
+- next: match RadiAnt's left preview bar and image-count badges, validate multi-panel routing, regenerate the live public-phantom application captures, and run the locked native and provenance gates.
+- basis: fbcd7989277b340bfc8903e24500e4f9844af6aa
+
 <a id="RITK-SNAP-RADIANT-MULTISELECT-001"></a>
 ## RITK-SNAP-RADIANT-MULTISELECT-001: Open multiple series together
 - outcome: select and open multiple discovered series in one native workflow.
 - acceptance: F4 and Window menu open a filterable study-grouped series list; multiple selections open in independent panels, Enter opens the first filtered result, and selection limits never truncate silently.
 - status: todo
 - priority: feature
-- needs: none
+- needs: RITK-SNAP-WINDOW-CONTROLS-001
 - scope: `crates/ritk-snap/src/presentation/native_session/`, native tests, manual capture and provenance.
 - next: define the bounded selection and filtering state, then test selected, filtered, empty and capacity-bound inputs.
 - basis: fbcd7989277b340bfc8903e24500e4f9844af6aa
@@ -183,9 +194,20 @@
 - acceptance: Window menu and panel controls close the active panel, close all panels, and maximize or restore the active panel without losing other panel state; Tab switches panels and documented shortcuts perform the same actions.
 - status: todo
 - priority: feature
-- needs: none
+- needs: RITK-SNAP-WINDOW-CONTROLS-001
 - scope: `crates/ritk-snap/src/presentation/native_session/`, native tests, manual capture and provenance.
 - next: re-derive panel ownership so close and maximize preserve every loaded series and viewer state.
+- basis: fbcd7989277b340bfc8903e24500e4f9844af6aa
+
+<a id="RITK-SNAP-BROWSER-MULTISERIES-001"></a>
+## RITK-SNAP-BROWSER-MULTISERIES-001: Open multiple browser series
+- outcome: browse and compare more than one DICOM series in the RITK browser viewer.
+- acceptance: one study selection retains all discovered series; two or more series render in independent panels with per-panel navigation; selection and capacity failures are visible; Chromium, Firefox and WebKit runs use actual public MRI and CT files and capture the complete viewer UI.
+- status: todo
+- priority: feature
+- needs: none
+- scope: `crates/ritk-io/src/format/dicom/series/`, `crates/ritk-snap/src/{app/,presentation/web/,web/}`, browser tests, gallery runner and DICOM manual.
+- next: trace the browser byte-batch loader and identify the smallest host-neutral multi-series state boundary.
 - basis: fbcd7989277b340bfc8903e24500e4f9844af6aa
 
 <a id="RITK-BROWSER-READ-001"></a>

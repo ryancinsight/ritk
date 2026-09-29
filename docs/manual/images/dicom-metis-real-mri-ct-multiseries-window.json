@@ -2,20 +2,20 @@
   "schema": 1,
   "status": "passed",
   "runtime": {
-    "host": "Windows 11 native M\u00e9tis surface",
-    "date": "2026-09-28",
+    "host": "Windows 11 native Métis surface",
+    "date": "2026-09-29",
     "ritk_pull_request": "ryancinsight/ritk#676",
     "executable": "ritk-snap.exe",
-    "executable_sha256": "65902ac2e874699bfed54bc0d8d32af4a6be3e5c7a715959227b270368393a6b",
-    "executable_bytes": 26028544,
+    "executable_sha256": "54c7891dea285aabca3aea6478d1eb25929f9440133a17ae28cef245f173c671",
+    "executable_bytes": 26305536,
     "toolchain": "Rust 1.97.0 (2d8144b78 2026-07-07)",
-    "metis_revision": "d93a45688713fd4d57371243f6afa5413560d75d",
-    "metis_platform_revision": "d93a45688713fd4d57371243f6afa5413560d75d",
-    "moirai_pal_revision": "b3b37f7fae9de019939a53eaaaf5ada5ba5e806e",
+    "metis_revision": "57709a4958a78ec99a9b9128da03db39ee4d2b22",
+    "metis_platform_revision": "57709a4958a78ec99a9b9128da03db39ee4d2b22",
+    "moirai_pal_revision": "a3282e9f61e27e7ebfa42a264c6e3b184b462f47",
     "capture_utility": {
       "path": "scripts/python_native_capture.py",
-      "file_revision": "091e9c01b764dba1f478f13d579d388e61043f05",
-      "sha256": "600b5f1c2e3678cb71fad1d414c7c72466153e45b68419603add4812fa47a709",
+      "file_revision": "109e042d1a05d166fa478e44d9143083f2920c42",
+      "sha256": "612b51eab9f422249f41f0c4b863f66da3ec077ff15ef6358041a2a66cb69b77",
       "capture": "Win32 PrintWindow of the live RITK process window"
     },
     "client": {
@@ -27,11 +27,12 @@
       "height": 847,
       "dpi": 120
     },
-    "caption_text_observed_by_GetWindowTextW": "",
-    "command": "ritk-snap.exe scratch/viewer/multiseries-c90d4b6cfe9348a5878e55a08a4d2dc6 --metis-native --series-instance-uid 1.3.6.1.4.1.14519.5.2.1.1706.4996.123065603063404191260103927213 --compare-series-instance-uid 1.3.6.1.4.1.14519.5.2.1.1706.4996.115936088547498980797393821518"
+    "caption_text_observed_by_GetWindowTextW": "RITK DICOM Viewer",
+    "process_returncode": 0,
+    "command": "ritk-snap.exe scratch/viewer/multiseries-c84f6bfb5e9b4583b49b30c74cb5c937 --metis-native --series-instance-uid 1.3.6.1.4.1.14519.5.2.1.1706.4996.123065603063404191260103927213 --compare-series-instance-uid 1.3.6.1.4.1.14519.5.2.1.1706.4996.115936088547498980797393821518"
   },
   "dataset": {
-    "path": "scratch/viewer/multiseries-c90d4b6cfe9348a5878e55a08a4d2dc6",
+    "path": "scratch/viewer/multiseries-c84f6bfb5e9b4583b49b30c74cb5c937",
     "description": "Public MRI-DIR porcine-head phantom with the matching MRI and CT series loaded together",
     "license": "CC BY 4.0",
     "directory_regular_files": 503,
@@ -39,20 +40,36 @@
     "dicom_instances_read": 503,
     "dicom_bytes_read": 265963652,
     "study_count": 2,
-    "series_count": 2
+    "series_count": 2,
+    "series": [
+      {
+        "series_instance_uid": "1.3.6.1.4.1.14519.5.2.1.1706.4996.123065603063404191260103927213",
+        "modality": "MR",
+        "description": "T2",
+        "instances": 94,
+        "panel": "P1"
+      },
+      {
+        "series_instance_uid": "1.3.6.1.4.1.14519.5.2.1.1706.4996.115936088547498980797393821518",
+        "modality": "CT",
+        "description": "CT",
+        "instances": 409,
+        "panel": "P2"
+      }
+    ]
   },
   "source_capture": {
     "path": "scratch/viewer/real-mri-ct-multiseries-window.png",
-    "sha256": "bc2d8a7feb2b37b6c88a99a8ce50138ee011fadeedb70c8bfe15bff6c84a8b02",
-    "bytes": 369238,
+    "sha256": "690cb241c634dd695e835160301a7f1770ef8bd58cc66d4cee6a734e4b4ebc32",
+    "bytes": 362151,
     "encoding": "PNG captured from the live native application window"
   },
   "output": {
     "path": "docs/manual/images/dicom-metis-real-mri-ct-multiseries-window.webp",
     "width": 1298,
     "height": 847,
-    "sha256": "6e009b5a04a918adf14de87f9ebf489cdc88fab123659b8663408d52bffc9848",
-    "bytes": 163646,
+    "sha256": "2c06227a68aa799b1673d6d182ba55573ec4215b4f651728db03d69f22e48c65",
+    "bytes": 167952,
     "encoding": "lossless WebP",
     "decoded_rgba_byte_equal_to_source_capture": true,
     "visible_controls": [
@@ -61,6 +78,7 @@
       "Tools",
       "Window",
       "Open Study",
+      "Open multiple series",
       "W/L",
       "Pan",
       "Zoom",
@@ -69,15 +87,24 @@
       "Crosshair",
       "Cine",
       "Split screen",
-      "SERIES PREVIEW",
-      "LOAD TARGET: P1"
+      "Series bar",
+      "Panel maximize",
+      "Panel close",
+      "Series preview",
+      "Load to P1"
     ],
     "panels": [
       "P1  |  MR  |  T2",
       "P2  |  CT  |  CT"
     ],
-    "visual_scope": "Actual running M\u00e9tis native window with Windows chrome, File/View/Tools/Window menus, grouped toolbar buttons, bottom series preview bar with MRI and CT panel assignments, status bar, and both public image series",
-    "patient_identifiers_displayed": false
+    "visual_scope": "Actual running Métis native window with Windows chrome and title bar labeled RITK DICOM Viewer, File/View/Tools/Window menus, grouped toolbar buttons, panel title-bar maximize and close controls, left study and series preview bar with decoded MRI and CT thumbnails, thumbnail image-count badges (94 and 409), P1/P2 assignments, status bar, and both actual public image series",
+    "clinical_patient_identifiers_displayed": false,
+    "panel_actions_visible": true,
+    "visible_annotations": [
+      "Image number and total count",
+      "Window width and centre",
+      "Source pixel dimensions"
+    ]
   },
-  "residual": "The native window caption is blank in the captured frame although RITK supplies a title; viewer controls and DICOM panels render in the client area."
+  "residual": "This capture verifies the documented native workflow; it does not establish full RadiAnt feature parity."
 }

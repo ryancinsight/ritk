@@ -13,6 +13,7 @@ use super::layout::{
     MAX_GRID_PANELS,
 };
 use super::observation::{record_state, NativeViewerObservation};
+use super::panels::MaximizedPanel;
 use super::projection::{
     empty_projection, render_projection_into, ProjectionRenderScratch, RenderedProjection,
 };
@@ -57,6 +58,7 @@ pub(super) struct NativeViewerSession {
     pub(super) compare_panels: ArrayVec<ComparePanel, MAX_COMPARISON_PANELS>,
     pub(super) workspace_layout: WorkspaceLayout,
     pub(super) active_panel: usize,
+    pub(super) maximized_panel: Option<MaximizedPanel>,
     pub(super) window_chrome: WindowChrome,
     pub(super) suppress_cancelled_pointer_release: Option<crate::presentation::PointerButton>,
 }
@@ -151,6 +153,7 @@ impl NativeViewerSession {
             compare_panels: ArrayVec::new(),
             workspace_layout: WorkspaceLayout::Orthogonal,
             active_panel: 0,
+            maximized_panel: None,
             window_chrome,
             suppress_cancelled_pointer_release: None,
         };
@@ -188,8 +191,9 @@ impl NativeViewerSession {
     }
 
     pub(super) fn set_workspace_layout(&mut self, layout: WorkspaceLayout) -> Result<bool> {
+        let restored = self.restore_maximized_panel()?;
         if self.workspace_layout == layout {
-            return Ok(false);
+            return Ok(restored);
         }
         let was_grid = self.workspace_layout.is_grid();
         if let Some(grid) = layout.grid() {
@@ -281,6 +285,7 @@ impl NativeViewerSession {
                         view,
                         label: labels[index].as_str(),
                         navigation,
+                        maximized: self.maximized_panel.is_some() && index == 0,
                     })
                     .map_err(|_| anyhow!("native series grid exceeds panel capacity"))?;
             }

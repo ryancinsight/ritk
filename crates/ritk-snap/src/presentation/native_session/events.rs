@@ -1,11 +1,12 @@
 //! Native Métis event reduction and lifecycle for the RITK session.
 
+use super::layout::PanelGrid;
+use super::panels::PanelRouteMap;
 use super::routing::RoutedBatch;
 use super::WindowAction;
 use super::{record_state, NativeViewerError, NativeViewerSession, VIRTUAL_KEY_OPEN_STUDY};
 use crate::app::action_adapter::ViewerActionDisposition;
 use crate::presentation::{translate_native_events, PresentationEvent};
-use crate::tools::interaction::{ToolState, ViewportOffset};
 use metis_platform::native::{NativeApplication, NativeFlow, WindowEvent};
 use metis_platform::Framebuffer;
 use std::sync::atomic::Ordering;
@@ -36,77 +37,16 @@ impl NativeViewerSession {
         &mut self,
         events: &[PresentationEvent],
         routes: &[Option<usize>],
+        panel_routes: &PanelRouteMap,
         routed: &RoutedBatch,
     ) -> std::result::Result<ViewerActionDisposition, NativeViewerError> {
-        self.apply_events(events, routes, routed.layout, routed.active_panel)
-    }
-
-    fn apply_window_action(
-        &mut self,
-        action: WindowAction,
-    ) -> std::result::Result<bool, NativeViewerError> {
-        match action {
-            WindowAction::OpenMenu(_) => Ok(true),
-            WindowAction::OpenStudy => match self.open_study_from_dialog() {
-                Ok(reopened) => Ok(reopened),
-                Err(error) => {
-                    self.active_app_mut().status_message =
-                        format!("DICOM reopen failed; current study remains displayed: {error:#}");
-                    Ok(true)
-                }
-            },
-            WindowAction::SelectSeries(index) => match self.select_series(index) {
-                Ok(changed) => Ok(changed),
-                Err(error) => {
-                    self.active_app_mut().status_message = format!(
-                        "Series could not be opened; the active image remains displayed: {error:#}"
-                    );
-                    Ok(true)
-                }
-            },
-            WindowAction::AssignSeries {
-                series_index,
-                panel_index,
-            } => match self.assign_series_to_panel(series_index, panel_index) {
-                Ok(changed) => Ok(changed),
-                Err(error) => {
-                    self.active_app_mut().status_message = format!(
-                        "Series could not be assigned; the panel remains displayed: {error:#}"
-                    );
-                    Ok(true)
-                }
-            },
-            WindowAction::ToggleSeriesPreview => {
-                self.window_chrome.toggle_series_preview();
-                Ok(true)
-            }
-            WindowAction::SetLayout(layout) => self
-                .set_workspace_layout(layout)
-                .map_err(NativeViewerError::from),
-            WindowAction::Exit => Ok(true),
-            WindowAction::SelectTool(tool) => {
-                let app = self.active_app_mut();
-                app.active_tool = tool;
-                app.tool_state = ToolState::Idle;
-                Ok(true)
-            }
-            WindowAction::ToggleCrosshair => {
-                let app = self.active_app_mut();
-                app.show_crosshair = !app.show_crosshair;
-                Ok(true)
-            }
-            WindowAction::ToggleCine => {
-                self.active_app_mut().toggle_cine();
-                Ok(true)
-            }
-            WindowAction::ResetView => {
-                let app = self.active_app_mut();
-                app.zoom = 1.0;
-                app.pan_offset = ViewportOffset::new(0.0, 0.0);
-                app.tool_state = ToolState::Idle;
-                Ok(true)
-            }
-        }
+        self.apply_events(
+            events,
+            routes,
+            panel_routes,
+            routed.view_mappings(),
+            routed.layout,
+        )
     }
 }
 
@@ -202,6 +142,7 @@ impl NativeApplication for NativeViewerSession {
         let height = self.surface_height;
         let workspace_layout = self.workspace_layout;
         let active_panel = self.active_panel;
+        let maximized_panel = self.maximized_panel.is_some();
         let chrome_before = self.window_chrome.clone();
         let series_scroll_before = self
             .series_browser
@@ -230,6 +171,7 @@ impl NativeApplication for NativeViewerSession {
                 app,
                 browser,
                 workspace_layout,
+                maximized_panel,
                 viewports,
             ) {
                 Ok(chrome_event) => {
@@ -288,6 +230,10 @@ impl NativeApplication for NativeViewerSession {
                 return Err(error);
             }
         };
+        // Hit tests keep the layout visible when this native event batch began.
+        // Chrome actions can reorder panel state before later events are
+        // reduced, so translate those original panel slots through this map.
+        let mut panel_routes = PanelRouteMap::new(routed.layout);
 
         let mut open_study_requested = !terminal
             && viewer_events.iter().any(|event| {
@@ -309,6 +255,7 @@ impl NativeApplication for NativeViewerSession {
                 match self.apply_viewer_event_segment(
                     &viewer_events[viewer_event_cursor..event_end],
                     &routed.routes()[viewer_event_cursor..event_end],
+                    &panel_routes,
                     &routed,
                 )? {
                     ViewerActionDisposition::Continue { repaint } => {
@@ -325,16 +272,38 @@ impl NativeApplication for NativeViewerSession {
                 chrome_exit = true;
                 break;
             }
+            let Some(action) = panel_routes.route_action(action) else {
+                continue;
+            };
             if action == WindowAction::OpenStudy {
                 open_study_requested = true;
             } else {
-                chrome_repaint |= self.apply_window_action(action)?;
+                let maximized_before = self.maximized_panel.map(|panel| panel.panel_index);
+                let active_before = self.active_panel;
+                let layout_before = self.workspace_layout;
+                let panel_count_before = self
+                    .maximized_panel
+                    .map_or(layout_before, |panel| panel.layout)
+                    .grid()
+                    .map_or(1, PanelGrid::panel_count);
+                let changed = self.apply_window_action(action)?;
+                chrome_repaint |= changed;
+                let maximized_after = self.maximized_panel.map(|panel| panel.panel_index);
+                panel_routes.apply_action(
+                    action,
+                    maximized_before,
+                    maximized_after,
+                    active_before,
+                    panel_count_before,
+                    changed,
+                );
             }
         }
         if !chrome_exit && !viewer_exit && viewer_event_cursor < viewer_events.len() {
             match self.apply_viewer_event_segment(
                 &viewer_events[viewer_event_cursor..],
                 &routed.routes()[viewer_event_cursor..],
+                &panel_routes,
                 &routed,
             )? {
                 ViewerActionDisposition::Continue { repaint } => {

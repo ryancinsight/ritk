@@ -36,10 +36,10 @@ impl ViewportArea {
 #[derive(Debug, Clone, Copy)]
 pub(crate) struct NativeViewport {
     pub(super) panel: ScreenRect,
-    pub(super) panel_x: u32,
-    pub(super) panel_y: u32,
-    pub(super) panel_width: u32,
-    pub(super) panel_height: u32,
+    pub(in crate::presentation::native_session) panel_x: u32,
+    pub(in crate::presentation::native_session) panel_y: u32,
+    pub(in crate::presentation::native_session) panel_width: u32,
+    pub(in crate::presentation::native_session) panel_height: u32,
     pub(super) image: ScreenRect,
     pub(super) mapping: ViewerViewport,
 }

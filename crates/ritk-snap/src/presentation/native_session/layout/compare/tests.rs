@@ -2,6 +2,7 @@
 
 use super::*;
 use crate::presentation::native_session::frame::empty_axial_view;
+use crate::render::WindowLevel;
 
 fn grid(columns: u32, rows: u32) -> PanelGrid {
     PanelGrid::new(columns, rows).expect("grid dimensions are within the picker bounds")
@@ -14,6 +15,7 @@ fn twenty_panel_layout_places_every_panel_inside_the_surface() {
         view: None,
         label: "Select a series",
         navigation: (1.0, ViewportOffset::new(0.0, 0.0)),
+        maximized: false,
     };
     let panels = [panel; MAX_GRID_PANELS];
 
@@ -47,11 +49,13 @@ fn vertical_two_panel_layout_stacks_without_overlapping() {
             view: None,
             label: "P1",
             navigation: (1.0, ViewportOffset::new(0.0, 0.0)),
+            maximized: false,
         },
         GridPanel {
             view: None,
             label: "P2",
             navigation: (1.0, ViewportOffset::new(0.0, 0.0)),
+            maximized: false,
         },
     ];
 
@@ -78,6 +82,7 @@ fn twenty_panel_layout_rejects_a_surface_that_cannot_fit_headers() {
         view: None,
         label: "P",
         navigation: (1.0, ViewportOffset::new(0.0, 0.0)),
+        maximized: false,
     };
     let panels = [panel; MAX_GRID_PANELS];
 
@@ -101,7 +106,7 @@ fn twenty_panel_layout_rejects_a_surface_that_cannot_fit_headers() {
 }
 
 #[test]
-fn panel_grid_accepts_radiant_bounds_and_rejects_invalid_dimensions() {
+fn panel_grid_accepts_supported_bounds_and_rejects_invalid_dimensions() {
     for rows in 1..=MAX_GRID_ROWS {
         for columns in 1..=MAX_GRID_COLUMNS {
             let grid = grid(columns, rows);
@@ -141,4 +146,45 @@ fn panel_grid_selects_the_smallest_wide_layout_containing_a_panel() {
         Some((5, 4))
     );
     assert_eq!(PanelGrid::containing_panel(MAX_GRID_PANELS), None);
+}
+
+#[test]
+fn grid_panel_image_and_window_values_change_their_rendered_corner_readouts() {
+    let mut first_view = empty_axial_view().expect("empty axial frame");
+    first_view.slice_index = 17;
+    first_view.slice_count = 94;
+    first_view.window_level = WindowLevel::new(36.0, 1_204.0);
+    let mut next_view = first_view.clone();
+    next_view.slice_index = 18;
+    next_view.window_level = WindowLevel::new(48.0, 1_640.0);
+    let placeholder = empty_axial_view().expect("empty axial frame");
+    let render = |view: &RenderedView| {
+        surface_frames_grid(
+            &[GridPanel {
+                view: Some(view),
+                label: "P1  |  MR  |  T2",
+                navigation: (1.0, ViewportOffset::new(0.0, 0.0)),
+                maximized: false,
+            }],
+            grid(1, 1),
+            0,
+            &placeholder,
+            [320, 240],
+            ViewportArea::full(320, 240),
+        )
+        .expect("render the axial image and its corner values")
+        .framebuffer
+    };
+    let first = render(&first_view);
+    let next = render(&next_view);
+    let top_readout_changed =
+        (8..130).any(|x| (30..50).any(|y| first.get_pixel(x, y) != next.get_pixel(x, y)));
+    let bottom_readout_changed =
+        (8..150).any(|x| (218..236).any(|y| first.get_pixel(x, y) != next.get_pixel(x, y)));
+
+    assert!(top_readout_changed, "slice navigation updates Image n / N");
+    assert!(
+        bottom_readout_changed,
+        "window/level changes update W and C"
+    );
 }

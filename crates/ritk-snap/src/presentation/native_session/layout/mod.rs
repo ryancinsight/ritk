@@ -9,8 +9,8 @@ mod responsive;
 pub(super) mod text;
 
 pub(super) use compare::{
-    surface_frames_grid, GridPanel, PanelGrid, WorkspaceLayout, MAX_COMPARISON_PANELS,
-    MAX_GRID_COLUMNS, MAX_GRID_PANELS, MAX_GRID_ROWS,
+    panel_header_action_at, surface_frames_grid, GridPanel, PanelGrid, PanelHeaderAction,
+    WorkspaceLayout, MAX_COMPARISON_PANELS, MAX_GRID_COLUMNS, MAX_GRID_PANELS, MAX_GRID_ROWS,
 };
 pub(super) use composition::{surface_frames, surface_frames_with_projection};
 pub(super) use crosshair::crosshair_overlay;
@@ -24,4 +24,4 @@ pub(super) use overlay::{
     application_overlay, projection_overlay, OVERLAY_BAR_HEIGHT, OVERLAY_TEXT,
 };
 pub(super) use responsive::surface_frames_responsive;
-pub(super) use text::text_style;
+pub(super) use text::{draw_text, text_style, TextStyle};

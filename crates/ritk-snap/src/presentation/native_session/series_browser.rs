@@ -1,10 +1,23 @@
 //! Persistent study-series catalog for the native RITK viewer.
 
 use anyhow::{anyhow, Result};
+use arrayvec::ArrayVec;
 use ritk_io::DicomSeriesInfo;
 use std::sync::Arc;
 
+use crate::app::SnapApp;
+use crate::dicom::loader::load_volume_from_dicom_instance;
 use crate::dicom::series_tree::SeriesTree;
+use crate::presentation::{PresentationFrame, PresentationSpacing};
+
+// Twenty grid panels plus six rail cards, each retaining at most 16 KiB RGBA.
+const THUMBNAIL_CAPACITY: usize = 26;
+const THUMBNAIL_EDGE: u32 = 64;
+
+struct SeriesThumbnail {
+    index: usize,
+    frame: Option<PresentationFrame>,
+}
 
 /// One discovered series and the display metadata used by its preview card.
 pub(crate) struct SeriesChoice {
@@ -14,6 +27,8 @@ pub(crate) struct SeriesChoice {
     pub(crate) instance_count: usize,
     pub(crate) patient_number: usize,
     pub(crate) study_number: usize,
+    pub(crate) study_series_number: usize,
+    pub(crate) study_series_count: usize,
 }
 
 /// Discovered series retained while the user switches the active acquisition.
@@ -22,6 +37,7 @@ pub(crate) struct SeriesBrowser {
     active_index: usize,
     first_visible: usize,
     study_count: usize,
+    thumbnails: ArrayVec<SeriesThumbnail, THUMBNAIL_CAPACITY>,
 }
 
 impl SeriesBrowser {
@@ -41,7 +57,8 @@ impl SeriesBrowser {
                 .checked_add(patient.studies.len())
                 .ok_or_else(|| anyhow!("study count overflows usize"))?;
             for (study_index, study) in patient.studies.iter().enumerate() {
-                for series in &study.series {
+                let study_series_count = study.series.len();
+                for (series_index, series) in study.series.iter().enumerate() {
                     let acquisition = Arc::clone(&series.acquisition);
                     let description = acquisition.series_description.trim();
                     let description = description
@@ -59,6 +76,8 @@ impl SeriesBrowser {
                         description: description.into_boxed_str(),
                         patient_number: patient_index.saturating_add(1),
                         study_number: study_index.saturating_add(1),
+                        study_series_number: series_index.saturating_add(1),
+                        study_series_count,
                         acquisition,
                     });
                 }
@@ -83,6 +102,7 @@ impl SeriesBrowser {
             active_index,
             first_visible,
             study_count,
+            thumbnails: ArrayVec::new(),
         })
     }
 
@@ -109,6 +129,53 @@ impl SeriesBrowser {
 
     pub(crate) fn choice(&self, index: usize) -> Option<&SeriesChoice> {
         self.choices.get(index)
+    }
+
+    /// Decode a displayed row on first use, retaining only its bounded frame.
+    /// Missing or unsupported instances remain unavailable until eviction.
+    #[cfg(test)]
+    pub(crate) fn thumbnail(&mut self, index: usize) -> Option<&PresentationFrame> {
+        self.ensure_thumbnail(index).then_some(())?;
+        self.cached_thumbnail(index)
+    }
+
+    /// Cache the real first-instance preview for a catalog row.
+    pub(crate) fn ensure_thumbnail(&mut self, index: usize) -> bool {
+        let Some(choice) = self.choices.get(index) else {
+            return false;
+        };
+        let thumbnail =
+            if let Some(position) = self.thumbnails.iter().position(|item| item.index == index) {
+                self.thumbnails.remove(position)
+            } else {
+                if self.thumbnails.is_full() {
+                    self.thumbnails.remove(0);
+                }
+                match render_thumbnail(choice) {
+                    Ok(frame) => SeriesThumbnail {
+                        index,
+                        frame: Some(frame),
+                    },
+                    Err(_error) => {
+                        tracing::warn!(
+                            failure = "dicom_decode_or_presentation",
+                            "series preview unavailable"
+                        );
+                        SeriesThumbnail { index, frame: None }
+                    }
+                }
+            };
+        self.thumbnails.push(thumbnail);
+        true
+    }
+
+    /// Read a previously requested card without decoding during drawing.
+    pub(crate) fn cached_thumbnail(&self, index: usize) -> Option<&PresentationFrame> {
+        self.thumbnails
+            .iter()
+            .find(|item| item.index == index)?
+            .frame
+            .as_ref()
     }
 
     pub(crate) fn index_for_uid(&self, uid: &str) -> Option<usize> {
@@ -149,6 +216,63 @@ impl SeriesBrowser {
         self.first_visible = next;
         true
     }
+}
+
+fn render_thumbnail(choice: &SeriesChoice) -> Result<PresentationFrame> {
+    let path = choice
+        .acquisition
+        .file_paths
+        .first()
+        .ok_or_else(|| anyhow!("series preview requires an instance"))?;
+    let volume = load_volume_from_dicom_instance(path)?;
+    let mut app = SnapApp::default();
+    app.load_volume(volume, "Loaded series preview.".into());
+    let volume = app
+        .loaded
+        .as_ref()
+        .ok_or_else(|| anyhow!("series preview requires a loaded volume"))?;
+    let mut frame = PresentationFrame::from_slice(
+        volume,
+        0,
+        0,
+        super::frame::window_level_for_app(&app),
+        app.colormap,
+    )?;
+    let longest = frame.width().max(frame.height());
+    if longest <= THUMBNAIL_EDGE {
+        return Ok(frame);
+    }
+    let scaled = |length: u32| -> Result<u32> {
+        Ok(
+            u32::try_from(u64::from(length) * u64::from(THUMBNAIL_EDGE) / u64::from(longest))?
+                .max(1),
+        )
+    };
+    let width = scaled(frame.width())?;
+    let height = scaled(frame.height())?;
+    let byte_count = usize::try_from(width * height * 4)?;
+    let mut rgba = Vec::new();
+    rgba.try_reserve_exact(byte_count)?;
+    for row in 0..height {
+        let source_row = u64::from(row) * u64::from(frame.height()) / u64::from(height);
+        for column in 0..width {
+            let source_column = u64::from(column) * u64::from(frame.width()) / u64::from(width);
+            let offset =
+                usize::try_from((source_row * u64::from(frame.width()) + source_column) * 4)?;
+            let pixel = frame
+                .rgba()
+                .get(offset..offset + 4)
+                .ok_or_else(|| anyhow!("series preview sample lies outside frame"))?;
+            rgba.extend_from_slice(pixel);
+        }
+    }
+    let [row_spacing, column_spacing] = frame.display_spacing().values();
+    let spacing = PresentationSpacing::try_new(
+        row_spacing * f64::from(frame.height()) / f64::from(height),
+        column_spacing * f64::from(frame.width()) / f64::from(width),
+    )?;
+    frame.replace_rgba_storage(width, height, spacing, &mut rgba)?;
+    Ok(frame)
 }
 
 #[cfg(test)]

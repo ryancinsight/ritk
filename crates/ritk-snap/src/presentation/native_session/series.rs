@@ -1,17 +1,168 @@
 //! Study opening and multi-series workspace transitions.
 
-use super::layout::{PanelGrid, WorkspaceLayout};
+use super::compare::ComparePanel;
+use super::layout::{PanelGrid, WorkspaceLayout, MAX_COMPARISON_PANELS, MAX_GRID_PANELS};
 use super::series_browser::SeriesBrowser;
 use super::session::NativeViewerSession;
+use super::{frame, projection};
+use crate::app::SnapApp;
 use crate::dicom::loader::{
     load_volume_from_path, load_volume_from_series_info, scan_folder_for_series,
 };
+use crate::render::FrameRenderScratch;
 use anyhow::{anyhow, Context, Result};
+use arrayvec::ArrayVec;
 use metis_platform::native::{pick, DialogSelection};
 use std::path::Path;
 use std::sync::Arc;
 
 impl NativeViewerSession {
+    pub(super) fn open_selected_series(&mut self, selected: &[usize]) -> Result<bool> {
+        if selected.is_empty() {
+            return Ok(false);
+        }
+        if selected.len() > MAX_GRID_PANELS {
+            return Err(anyhow!(
+                "selected {} series but the viewer supports at most {MAX_GRID_PANELS} panels",
+                selected.len()
+            ));
+        }
+        let loaded = {
+            let browser = self
+                .series_browser
+                .as_ref()
+                .ok_or_else(|| anyhow!("opening multiple series requires a study catalog"))?;
+            let mut seen = ArrayVec::<usize, MAX_GRID_PANELS>::new();
+            let mut loaded = Vec::new();
+            loaded
+                .try_reserve_exact(selected.len())
+                .map_err(|_| anyhow!("selected series allocation failed"))?;
+            for index in selected.iter().copied() {
+                if seen.contains(&index) {
+                    return Err(anyhow!("series selection contains duplicate index {index}"));
+                }
+                seen.try_push(index)
+                    .map_err(|_| anyhow!("series selection exceeds panel capacity"))?;
+                let choice = browser.choice(index).ok_or_else(|| {
+                    anyhow!("selected series index {index} is outside the catalog")
+                })?;
+                let status = format!(
+                    "Loaded {} series ({} instances).",
+                    choice.modality, choice.instance_count
+                );
+                let volume = load_volume_from_series_info(&choice.acquisition)
+                    .with_context(|| format!("open selected series {index}"))?;
+                loaded.push((index, status, volume));
+            }
+            loaded
+        };
+
+        let mut loaded = loaded.into_iter();
+        let (primary_index, primary_status, primary_volume) = loaded
+            .next()
+            .ok_or_else(|| anyhow!("series selection lost its primary item"))?;
+        let mut primary_app = SnapApp::default();
+        primary_app.load_volume(primary_volume, primary_status);
+        let mut render_scratch = std::array::from_fn(|_| FrameRenderScratch::default());
+        let views = frame::render_orthogonal_views(&primary_app, &mut render_scratch)?;
+        let mut projection_scratch = projection::ProjectionRenderScratch::default();
+        let projection = match (
+            selected.len() == 1,
+            self.presentation_mode.projection_statistic(),
+        ) {
+            (false, _) | (_, None) => None,
+            (true, Some(statistic)) => {
+                let mut rendered = projection::empty_projection(statistic)?;
+                projection::render_projection_into(
+                    &primary_app,
+                    statistic,
+                    &mut rendered,
+                    &mut projection_scratch,
+                )?;
+                Some(rendered)
+            }
+        };
+
+        let mut compare_panels = ArrayVec::<ComparePanel, MAX_COMPARISON_PANELS>::new();
+        for (index, status, volume) in loaded {
+            let mut panel = ComparePanel::empty()?;
+            panel.replace(volume, index, status)?;
+            compare_panels
+                .try_push(panel)
+                .map_err(|_| anyhow!("selected series exceed comparison panel capacity"))?;
+        }
+        let layout = if selected.len() == 1 {
+            WorkspaceLayout::Orthogonal
+        } else {
+            let grid = PanelGrid::containing_panel(selected.len().saturating_sub(1))
+                .ok_or_else(|| anyhow!("selected series exceed supported panel layouts"))?;
+            while compare_panels.len() < grid.panel_count().saturating_sub(1) {
+                compare_panels
+                    .try_push(ComparePanel::empty()?)
+                    .map_err(|_| anyhow!("selected series exceed comparison panel capacity"))?;
+            }
+            WorkspaceLayout::Panels(grid)
+        };
+
+        self.app = primary_app;
+        self.views = views;
+        self.render_scratch = render_scratch;
+        self.projection_scratch = projection_scratch;
+        self.projection = projection;
+        self.compare_panels = compare_panels;
+        self.workspace_layout = layout;
+        self.active_panel = 0;
+        self.active_view = None;
+        self.primary_series_index = Some(primary_index);
+        self.series_browser
+            .as_mut()
+            .ok_or_else(|| anyhow!("study catalog closed during series selection"))?
+            .set_active(primary_index);
+        Ok(true)
+    }
+
+    pub(super) fn assign_series_to_next_panel(&mut self, index: usize) -> Result<bool> {
+        let browser = self
+            .series_browser
+            .as_ref()
+            .ok_or_else(|| anyhow!("series assignment requires a study catalog"))?;
+        if browser.choice(index).is_none() {
+            return Err(anyhow!("selected series row is outside the study"));
+        }
+        if self.primary_series_index == Some(index)
+            || self
+                .compare_panels
+                .iter()
+                .any(|panel| panel.series_index == Some(index))
+        {
+            return self.select_series(index);
+        }
+        self.restore_maximized_panel()?;
+        let target = self
+            .compare_panels
+            .iter()
+            .position(|panel| panel.series_index.is_none())
+            .map_or_else(
+                || self.compare_panels.len().saturating_add(1),
+                |index| index + 1,
+            );
+        if target >= MAX_GRID_PANELS {
+            return Err(anyhow!(
+                "the viewer has reached its {MAX_GRID_PANELS}-panel limit"
+            ));
+        }
+        if self
+            .workspace_layout
+            .grid()
+            .is_none_or(|grid| grid.panel_count() <= target)
+        {
+            let grid = PanelGrid::containing_panel(target)
+                .ok_or_else(|| anyhow!("selected series exceeds the supported panel range"))?;
+            self.set_workspace_layout(WorkspaceLayout::Panels(grid))?;
+        }
+        self.assign_series_to_panel(index, target)
+    }
+
     pub(super) fn open_study_path(&mut self, path: &Path) -> Result<()> {
         if path.is_dir() {
             let tree = scan_folder_for_series(path).context("discover selected RITK study")?;
@@ -58,6 +209,13 @@ impl NativeViewerSession {
         if browser.choice(index).is_none() {
             return Err(anyhow!("selected series row is outside the study"));
         }
+        if self.maximized_panel.is_some() && self.primary_series_index != Some(index) {
+            self.restore_maximized_panel()?;
+        }
+        let browser = self
+            .series_browser
+            .as_ref()
+            .ok_or_else(|| anyhow!("selected series lost its study catalog"))?;
         let browser_active_index = browser.active_index();
         if self.primary_series_index == Some(index) {
             let changed = self.active_panel != 0 || browser_active_index != index;
@@ -132,9 +290,9 @@ impl NativeViewerSession {
                 .ok_or_else(|| anyhow!("series assignment panel is not initialized"))?
                 .series_index
         };
-        self.active_panel = panel_index;
         let changed = previous_panel != panel_index || previous_series != Some(index);
         if previous_series == Some(index) {
+            self.active_panel = panel_index;
             self.series_browser
                 .as_mut()
                 .expect("invariant: selected series retains its study browser")
@@ -154,6 +312,7 @@ impl NativeViewerSession {
                 .ok_or_else(|| anyhow!("series assignment panel is not initialized"))?
                 .replace(volume, index, status)?;
         }
+        self.active_panel = panel_index;
         self.series_browser
             .as_mut()
             .expect("invariant: selected series retains its study browser")

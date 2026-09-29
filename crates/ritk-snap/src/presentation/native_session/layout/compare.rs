@@ -1,16 +1,19 @@
 //! Grid layouts for independently navigable DICOM series.
 
+mod annotations;
+mod panel_chrome;
+use self::annotations::draw_dicom_corner_values;
+use self::panel_chrome::draw_panel_actions;
 use super::super::frame::RenderedView;
 use super::composition::blit_frame;
 use super::geometry::{
     placement_with_bounds, NativeViewport, ScreenRect, ViewportArea, VIEW_GAP_PIXELS,
 };
-use super::text::text_style;
+use super::text::{draw_text, text_style};
 use crate::tools::interaction::ViewportOffset;
 use anyhow::{anyhow, bail, Result};
 use arrayvec::ArrayVec;
 use metis_platform::rasterizer::{fill_rect, CornerRadius};
-use metis_platform::typeface::draw_text;
 use metis_platform::{Color, Framebuffer, Rect};
 use std::num::NonZeroU8;
 
@@ -19,13 +22,25 @@ pub(in crate::presentation::native_session) const MAX_COMPARISON_PANELS: usize =
     MAX_GRID_PANELS - 1;
 pub(in crate::presentation::native_session) const MAX_GRID_COLUMNS: u32 = 5;
 pub(in crate::presentation::native_session) const MAX_GRID_ROWS: u32 = 4;
-const HEADER_HEIGHT: u32 = 26;
+pub(super) const PANEL_HEADER_HEIGHT: u32 = 28;
+const PANEL_ACTION_WIDTH: i32 = 16;
+const PANEL_ACTION_GAP: i32 = 2;
 const WORKSPACE_BACKGROUND: Color = Color::rgb(12, 14, 18);
 const PANEL_HEADER: Color = Color::rgb(40, 47, 56);
 const ACTIVE_PANEL: Color = Color::rgb(38, 111, 145);
 const INACTIVE_PANEL: Color = Color::rgb(73, 83, 94);
 const HEADER_TEXT: Color = Color::rgb(225, 233, 240);
 const PLACEHOLDER_TEXT: Color = Color::rgb(157, 171, 184);
+const PANEL_ACTION_BACKGROUND: Color = Color::rgb(57, 66, 77);
+const PANEL_ACTION_FOREGROUND: Color = Color::rgb(220, 228, 236);
+const DICOM_ANNOTATION_TEXT: Color = Color::rgb(238, 244, 250);
+const DICOM_ANNOTATION_SHADOW: Color = Color::rgb(0, 0, 0);
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub(in crate::presentation::native_session) enum PanelHeaderAction {
+    Maximize,
+    Close,
+}
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub(in crate::presentation::native_session) enum WorkspaceLayout {
@@ -111,6 +126,61 @@ pub(in crate::presentation::native_session) struct GridPanel<'a> {
     pub(in crate::presentation::native_session) view: Option<&'a RenderedView>,
     pub(in crate::presentation::native_session) label: &'a str,
     pub(in crate::presentation::native_session) navigation: (f32, ViewportOffset),
+    pub(in crate::presentation::native_session) maximized: bool,
+}
+
+pub(in crate::presentation::native_session) fn panel_header_action_at(
+    viewports: &[NativeViewport],
+    x: f64,
+    y: f64,
+    maximized: bool,
+) -> Option<(usize, PanelHeaderAction)> {
+    for (index, viewport) in viewports.iter().enumerate().rev() {
+        if (maximized || viewports.len() > 1)
+            && panel_action_rect(*viewport, PanelHeaderAction::Maximize)
+                .is_some_and(|rect| rect_contains(rect, x, y))
+        {
+            return Some((index, PanelHeaderAction::Maximize));
+        }
+        if panel_action_rect(*viewport, PanelHeaderAction::Close)
+            .is_some_and(|rect| rect_contains(rect, x, y))
+        {
+            return Some((index, PanelHeaderAction::Close));
+        }
+    }
+    None
+}
+
+fn panel_action_rect(viewport: NativeViewport, action: PanelHeaderAction) -> Option<Rect> {
+    let panel_x = i32::try_from(viewport.panel_x).ok()?;
+    let panel_y = i32::try_from(viewport.panel_y).ok()?;
+    let panel_width = i32::try_from(viewport.panel_width).ok()?;
+    if panel_width < PANEL_ACTION_WIDTH * 2 + PANEL_ACTION_GAP {
+        return None;
+    }
+    let right = panel_x.checked_add(panel_width)?;
+    let offset = match action {
+        PanelHeaderAction::Maximize => PANEL_ACTION_WIDTH + PANEL_ACTION_GAP,
+        PanelHeaderAction::Close => 0,
+    };
+    let x = right.checked_sub(PANEL_ACTION_WIDTH)?.checked_sub(offset)?;
+    let header_height = i32::try_from(PANEL_HEADER_HEIGHT).ok()?;
+    let y = panel_y.checked_sub(header_height)?.checked_add(4)?;
+    Some(Rect::new(
+        x,
+        y,
+        PANEL_ACTION_WIDTH,
+        header_height.saturating_sub(8),
+    ))
+}
+
+fn rect_contains(rect: Rect, x: f64, y: f64) -> bool {
+    if rect.width <= 0 || rect.height <= 0 || !x.is_finite() || !y.is_finite() {
+        return false;
+    }
+    let left = f64::from(rect.x);
+    let top = f64::from(rect.y);
+    x >= left && y >= top && x < left + f64::from(rect.width) && y < top + f64::from(rect.height)
 }
 
 pub(in crate::presentation::native_session) struct SeriesGrid {
@@ -161,15 +231,17 @@ pub(in crate::presentation::native_session) fn surface_frames_grid(
     let row_height = available_height / rows;
     let extra_columns = available_width % columns;
     let extra_rows = available_height % rows;
-    if column_width == 0 || row_height <= HEADER_HEIGHT {
+    if column_width == 0 || row_height <= PANEL_HEADER_HEIGHT {
         bail!("native surface cannot allocate visible series-grid panels");
     }
 
     let mut framebuffer = Framebuffer::new(surface_width, surface_height)
         .map_err(|error| anyhow!("allocate native series-grid framebuffer: {error}"))?;
     framebuffer.clear(WORKSPACE_BACKGROUND);
-    let header_style = text_style(HEADER_TEXT, 11)?;
+    let header_style = text_style(HEADER_TEXT, 12)?;
     let placeholder_style = text_style(PLACEHOLDER_TEXT, 13)?;
+    let annotation_style = text_style(DICOM_ANNOTATION_TEXT, 11)?;
+    let annotation_shadow = text_style(DICOM_ANNOTATION_SHADOW, 11)?;
     let mut viewports = ArrayVec::new();
 
     for (index, panel) in panels.iter().enumerate() {
@@ -194,9 +266,9 @@ pub(in crate::presentation::native_session) fn surface_frames_grid(
         let panel_width = column_width + u32::from(column < extra_columns);
         let panel_height = row_height + u32::from(row < extra_rows);
         let content_height = panel_height
-            .checked_sub(HEADER_HEIGHT)
+            .checked_sub(PANEL_HEADER_HEIGHT)
             .ok_or_else(|| anyhow!("native series-grid panel is shorter than its header"))?;
-        let header = make_rect(panel_x, panel_y, panel_width, HEADER_HEIGHT)?;
+        let header = make_rect(panel_x, panel_y, panel_width, PANEL_HEADER_HEIGHT)?;
         fill_rect(&mut framebuffer, header, CornerRadius::SQUARE, PANEL_HEADER);
         draw_text(
             &mut framebuffer,
@@ -205,9 +277,17 @@ pub(in crate::presentation::native_session) fn surface_frames_grid(
             panel.label,
             header_style,
         );
+        draw_panel_actions(
+            &mut framebuffer,
+            panel_x,
+            panel_y,
+            panel_width,
+            panel.maximized,
+            panels.len() > 1 || panel.maximized,
+        )?;
 
         let image_y = panel_y
-            .checked_add(HEADER_HEIGHT)
+            .checked_add(PANEL_HEADER_HEIGHT)
             .ok_or_else(|| anyhow!("native series-grid image y overflows"))?;
         let view = panel.view.unwrap_or(primary_placeholder);
         let (zoom, pan_offset) = panel.navigation;
@@ -230,6 +310,16 @@ pub(in crate::presentation::native_session) fn surface_frames_grid(
                 viewport,
                 surface_width,
                 surface_height,
+            )?;
+            draw_dicom_corner_values(
+                &mut framebuffer,
+                frame,
+                panel_x,
+                image_y,
+                panel_width,
+                content_height,
+                &annotation_style,
+                &annotation_shadow,
             )?;
         } else {
             let placeholder = make_rect(panel_x, image_y, panel_width, content_height)?;

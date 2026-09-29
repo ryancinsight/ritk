@@ -30,55 +30,67 @@ const MENU_TABS: [(Menu, &str, u32); 4] = [
     (Menu::Window, "Window", 78),
 ];
 
-const TOOLBAR_ITEMS: [(&str, u32, WindowAction, &str); 9] = [
-    ("Open Study", 98, WindowAction::OpenStudy, "STUDY"),
+const TOOLBAR_ITEMS: [(&str, u32, WindowAction, &str); 11] = [
+    ("Open Study", 98, WindowAction::OpenStudy, "Study"),
+    (
+        "Open multiple series",
+        180,
+        WindowAction::OpenSeriesPicker,
+        "Study",
+    ),
     (
         "W/L",
         58,
         WindowAction::SelectTool(ToolKind::WindowLevel),
-        "NAVIGATE",
+        "Navigate",
     ),
     (
         "Pan",
         58,
         WindowAction::SelectTool(ToolKind::Pan),
-        "NAVIGATE",
+        "Navigate",
     ),
     (
         "Zoom",
         64,
         WindowAction::SelectTool(ToolKind::Zoom),
-        "NAVIGATE",
+        "Navigate",
     ),
     (
         "Length",
         76,
         WindowAction::SelectTool(ToolKind::MeasureLength),
-        "MEASURE",
+        "Measure",
     ),
     (
         "Angle",
         64,
         WindowAction::SelectTool(ToolKind::MeasureAngle),
-        "MEASURE",
+        "Measure",
     ),
     (
         "Crosshair",
         90,
         WindowAction::SelectTool(ToolKind::Crosshair),
-        "DISPLAY",
+        "Display",
     ),
-    ("Cine", 60, WindowAction::ToggleCine, "DISPLAY"),
+    ("Cine", 60, WindowAction::ToggleCine, "Display"),
     (
         "Split screen",
         116,
         WindowAction::OpenMenu(Menu::GridPicker),
-        "LAYOUT",
+        "Layout",
+    ),
+    (
+        "Series bar",
+        104,
+        WindowAction::ToggleSeriesPreview,
+        "Layout",
     ),
 ];
 
 impl ChromeLayout {
-    pub(super) fn new(
+    pub(in crate::presentation::native_session::window_controls) fn new(
         width: u32,
         height: u32,
         open_menu: Option<Menu>,
@@ -117,7 +129,6 @@ impl ChromeLayout {
                     .try_push(ToolbarGroup {
                         x: i32::try_from(control_x)
                             .map_err(|_| anyhow!("native toolbar group x exceeds i32"))?,
-                        label: group,
                     })
                     .map_err(|_| anyhow!("native toolbar group capacity exceeded"))?;
                 previous_group = Some(group);
@@ -129,6 +140,7 @@ impl ChromeLayout {
             let active = match action {
                 WindowAction::SelectTool(tool) => app.active_tool == tool,
                 WindowAction::ToggleCine => app.cine.enabled,
+                WindowAction::ToggleSeriesPreview => show_series_preview,
                 WindowAction::OpenMenu(Menu::GridPicker) => {
                     workspace_layout.is_grid() || open_menu == Some(Menu::GridPicker)
                 }
@@ -265,7 +277,7 @@ fn menu_item_count(menu: Menu) -> usize {
         Menu::File => 2,
         Menu::View => 4,
         Menu::Tools => ToolKind::all().len(),
-        Menu::Window => 2,
+        Menu::Window => 6,
         Menu::GridPicker => 0,
     }
 }
@@ -284,7 +296,7 @@ fn menu_item(
         },
         Menu::View => match index {
             0 => Ok((
-                "Toggle series preview",
+                "Toggle series browser",
                 WindowAction::ToggleSeriesPreview,
                 false,
             )),
@@ -322,6 +334,26 @@ fn menu_item(
                 "Panel layout...",
                 WindowAction::OpenMenu(Menu::GridPicker),
                 workspace_layout.is_grid(),
+            )),
+            2 => Ok((
+                "Maximize / restore panel  Ctrl+M",
+                WindowAction::ToggleActivePanel,
+                false,
+            )),
+            3 => Ok((
+                "Close active panel  Ctrl+F4",
+                WindowAction::CloseActivePanel,
+                false,
+            )),
+            4 => Ok((
+                "Close all panels  Shift+F4",
+                WindowAction::CloseAllPanels,
+                false,
+            )),
+            5 => Ok((
+                "Open multiple series...  F4",
+                WindowAction::OpenSeriesPicker,
+                false,
             )),
             _ => Err(anyhow!("native Window menu row is outside its items")),
         },

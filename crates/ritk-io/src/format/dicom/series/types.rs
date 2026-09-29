@@ -11,8 +11,11 @@ pub struct DicomSeriesInfo {
     pub(crate) modality: ArrayString<16>,
     pub patient_id: String,
     pub(crate) patient_name: String,
+    pub(crate) patient_birth_date: Option<ArrayString<8>>,
     pub(crate) study_instance_uid: Option<ArrayString<64>>,
     pub(crate) study_date: Option<ArrayString<8>>,
+    pub(crate) study_time: Option<ArrayString<14>>,
+    pub(crate) study_description: String,
     pub file_paths: Vec<PathBuf>,
 }
 
@@ -36,8 +39,11 @@ impl DicomSeriesInfo {
                 .expect("invariant: modality must not exceed 16 characters"),
             patient_id,
             patient_name: String::new(),
+            patient_birth_date: None,
             study_instance_uid: None,
             study_date: None,
+            study_time: None,
+            study_description: String::new(),
             file_paths,
         }
     }
@@ -57,6 +63,11 @@ impl DicomSeriesInfo {
         &self.patient_name
     }
 
+    /// Returns a Gregorian PatientBirthDate, when the source value is valid.
+    pub fn patient_birth_date(&self) -> Option<&str> {
+        self.patient_birth_date.as_ref().map(ArrayString::as_str)
+    }
+
     /// Returns a syntactically valid StudyInstanceUID, when present.
     pub fn study_instance_uid(&self) -> Option<&str> {
         self.study_instance_uid.as_ref().map(ArrayString::as_str)
@@ -65,5 +76,15 @@ impl DicomSeriesInfo {
     /// Returns an eight-digit StudyDate, when present.
     pub fn study_date(&self) -> Option<&str> {
         self.study_date.as_ref().map(ArrayString::as_str)
+    }
+
+    /// Returns a valid DICOM StudyTime, when present.
+    pub fn study_time(&self) -> Option<&str> {
+        self.study_time.as_ref().map(ArrayString::as_str)
+    }
+
+    /// Returns the bounded StudyDescription retained during scanning.
+    pub fn study_description(&self) -> &str {
+        &self.study_description
     }
 }
