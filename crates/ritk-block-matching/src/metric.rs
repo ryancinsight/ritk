@@ -101,7 +101,7 @@ pub(crate) fn metric_image_at<T: Sample>(
     buffer_len::<f64>(block_dims, "metric block scratch")?;
 
     // Fixed block, mean-subtracted once: it is reused for every candidate.
-    let block = gather_block(fixed, dims, fixed_centre, radius);
+    let block = gather_block(fixed, dims, fixed_centre, radius)?;
     if block.iter().any(|value| !value.is_finite()) {
         bail!(
             "fixed block at {fixed_centre:?} contains a non-finite sample; every candidate would depend on unavailable data"
