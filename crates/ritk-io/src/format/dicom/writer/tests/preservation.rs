@@ -10,6 +10,59 @@ use dicom::core::Tag;
 use dicom::object::open_file;
 
 #[test]
+fn test_preservation_writes_empty_values_as_zero_length_elements() {
+    // `DicomValue::Empty` is a present, zero-length element (a Type 2
+    // attribute such as an anonymized PatientBirthDate), at the top level and
+    // inside a sequence item alike.
+    let mut preservation = DicomPreservationSet::new();
+    preservation.object.insert(DicomObjectNode {
+        tag: DicomTag::new(0x0010, 0x2160),
+        vr: Some(ArrayString::<2>::try_from("SH").unwrap_or_default()),
+        value: DicomValue::Empty,
+        element_class: DicomElementClass::Standard,
+        source: None,
+    });
+    let mut seq_item = DicomSequenceItem::new();
+    seq_item.insert(DicomObjectNode {
+        tag: DicomTag::new(0x0040, 0x0007),
+        vr: Some(ArrayString::<2>::try_from("LO").unwrap_or_default()),
+        value: DicomValue::Empty,
+        element_class: DicomElementClass::Standard,
+        source: None,
+    });
+    preservation.object.insert(DicomObjectNode {
+        tag: DicomTag::new(0x0040, 0x0275),
+        vr: Some(ArrayString::<2>::try_from("SQ").unwrap_or_default()),
+        value: DicomValue::Sequence(vec![seq_item]),
+        element_class: DicomElementClass::Standard,
+        source: None,
+    });
+    let mut meta = super::fixtures::make_test_metadata();
+    meta.preservation = preservation;
+
+    let image = make_image(1, 4, 4, 10.0);
+    let temp = tempfile::tempdir().unwrap();
+    let path = temp.path().join("empty_rt_series");
+    write_dicom_series_with_metadata(&path, &image, Some(&meta)).expect("write must succeed");
+
+    let obj = open_file(path.join("slice_0000.dcm")).expect("must open written DICOM");
+    let ethnic_group = obj
+        .element(Tag(0x0010, 0x2160))
+        .expect("an empty preserved value must still be written");
+    assert_eq!(ethnic_group.header().len.0, 0);
+    let items = obj
+        .element(Tag(0x0040, 0x0275))
+        .expect("the preserved sequence must be written")
+        .items()
+        .expect("the element must be a sequence");
+    assert_eq!(items.len(), 1);
+    let nested = items[0]
+        .element(Tag(0x0040, 0x0007))
+        .expect("an empty value inside a sequence item must still be written");
+    assert_eq!(nested.header().len.0, 0);
+}
+
+#[test]
 fn test_preservation_private_text_round_trip() {
     let mut preservation = DicomPreservationSet::new();
     preservation.object.insert(DicomObjectNode::text(
