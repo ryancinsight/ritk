@@ -142,9 +142,15 @@ pub(in crate::format::dicom) fn analyze_slice_spacing(positions: &[f64]) -> Slic
 
 /// Resample decoded frames from nonuniform source positions to a uniform grid.
 ///
+/// `decoded_frames` is one contiguous, row-major buffer of `src_positions.len()`
+/// fixed-length frames (`decoded_frames.len() == src_positions.len() * frame_len`),
+/// never a per-frame allocation; the result is the same flat layout over the
+/// resampled frame count.
+///
 /// # Mathematical specification
 ///
-/// Given sorted source positions p[0..N] and decoded frames src[0..N]:
+/// Given sorted source positions p[0..N] and decoded frames src[0..N] (each of
+/// length `frame_len`):
 /// - `N_target = round((p[N-1] - p[0]) / target_spacing) + 1`
 /// - `target[k] = p[0] + k × target_spacing`, k ∈ [0, N_target)
 ///
@@ -171,12 +177,16 @@ pub(in crate::format::dicom) fn resampled_frame_count(
 }
 
 pub(in crate::format::dicom) fn resample_frames_linear(
-    decoded_frames: &[Vec<f32>],
+    decoded_frames: &[f32],
+    frame_len: usize,
     src_positions: &[f64],
     target_spacing: f64,
-) -> Vec<Vec<f32>> {
-    debug_assert_eq!(decoded_frames.len(), src_positions.len());
-    if decoded_frames.is_empty() || target_spacing <= 0.0 || !target_spacing.is_finite() {
+) -> Vec<f32> {
+    debug_assert_eq!(
+        decoded_frames.len(),
+        frame_len.saturating_mul(src_positions.len())
+    );
+    if src_positions.is_empty() || target_spacing <= 0.0 || !target_spacing.is_finite() {
         return decoded_frames.to_vec();
     }
     let Some(&first) = src_positions.first() else {
@@ -189,32 +199,34 @@ pub(in crate::format::dicom) fn resample_frames_linear(
         return decoded_frames.to_vec();
     }
     let n_target = resampled_frame_count(src_positions, target_spacing);
-    let mut output = Vec::with_capacity(n_target);
+    let mut output = vec![0.0_f32; n_target * frame_len];
+    let frame_at = |i: usize| &decoded_frames[i * frame_len..(i + 1) * frame_len];
 
+    // Indexed slicing rather than `chunks_mut(frame_len)`: a degenerate
+    // zero-length frame (`frame_len == 0`) makes every output frame empty,
+    // which `chunks_mut` cannot express (it panics on a zero chunk size).
     for k in 0..n_target {
+        let dest = &mut output[k * frame_len..(k + 1) * frame_len];
         let target_pos = first + k as f64 * target_spacing;
         let idx = src_positions.partition_point(|&p| p <= target_pos);
-        let frame = if idx == 0 {
-            decoded_frames[0].clone()
+        if idx == 0 {
+            dest.copy_from_slice(frame_at(0));
         } else if idx >= src_positions.len() {
-            decoded_frames[src_positions.len() - 1].clone()
+            dest.copy_from_slice(frame_at(src_positions.len() - 1));
         } else {
             let lo = idx - 1;
             let hi = idx;
             let gap = src_positions[hi] - src_positions[lo];
             if gap < 1e-10 {
-                decoded_frames[lo].clone()
+                dest.copy_from_slice(frame_at(lo));
             } else {
                 let t = ((target_pos - src_positions[lo]) / gap) as f32;
                 let one_minus_t = 1.0_f32 - t;
-                decoded_frames[lo]
-                    .iter()
-                    .zip(decoded_frames[hi].iter())
-                    .map(|(&a, &b)| one_minus_t * a + t * b)
-                    .collect()
+                for ((d, &a), &b) in dest.iter_mut().zip(frame_at(lo)).zip(frame_at(hi)) {
+                    *d = one_minus_t * a + t * b;
+                }
             }
-        };
-        output.push(frame);
+        }
     }
     output
 }

@@ -312,19 +312,19 @@ pub(crate) fn load_multiframe_flat_from_object(
             || report.slice_coverage == SliceCoverage::HasMissingSlices
         {
             let frame_pixels = info.rows * info.cols;
-            let src_frames: Vec<Vec<f32>> = floats
-                .chunks(frame_pixels)
-                .take(actual_n)
-                .map(|c| c.to_vec())
-                .collect();
-
-            let resampled = crate::format::dicom::reader::resample_frames_linear(
-                &src_frames,
+            // `floats` is already exactly `actual_n` contiguous frames (each
+            // extend validated to `frame_pixels` above), so it is the flat
+            // source buffer directly -- no jagged intermediate.
+            let new_floats = crate::format::dicom::reader::resample_frames_linear(
+                &floats,
+                frame_pixels,
                 &src_positions,
                 report.nominal_spacing,
             );
-            let new_n = resampled.len();
-            let new_floats: Vec<f32> = resampled.into_iter().flatten().collect();
+            let new_n = crate::format::dicom::reader::resampled_frame_count(
+                &src_positions,
+                report.nominal_spacing,
+            );
             (new_floats, new_n, report.nominal_spacing)
         } else {
             (floats, actual_n, report.nominal_spacing)
