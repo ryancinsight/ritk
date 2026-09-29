@@ -11,6 +11,7 @@ use dicom::core::header::Length;
 use dicom::core::smallvec::SmallVec;
 use dicom::core::value::{DataSetSequence, Value as DicomCoreValue};
 use dicom::core::{DataElement, PrimitiveValue, Tag, VR};
+use dicom::object::mem::InMemElement;
 use dicom::object::InMemDicomObject;
 
 /// Convert one node into the element that encodes it.
@@ -52,4 +53,31 @@ pub(crate) fn sequence_item_to_dicom(item: &DicomSequenceItem) -> InMemDicomObje
         obj.put(node_to_element(node));
     }
     obj
+}
+
+/// Put an element built from its tag, VR and primitive value.
+///
+/// The value converts through `Into<PrimitiveValue>`, the same conversion
+/// `PrimitiveValue::from` applies, so the element is encoded as if built with
+/// `DataElement::new(tag, vr, PrimitiveValue::from(value))`.
+pub(crate) trait PutValue {
+    /// Insert the element, returning the element with the same tag that it
+    /// replaced, as `InMemDicomObject::put` does.
+    fn put_value(
+        &mut self,
+        tag: Tag,
+        vr: VR,
+        value: impl Into<PrimitiveValue>,
+    ) -> Option<InMemElement>;
+}
+
+impl PutValue for InMemDicomObject {
+    fn put_value(
+        &mut self,
+        tag: Tag,
+        vr: VR,
+        value: impl Into<PrimitiveValue>,
+    ) -> Option<InMemElement> {
+        self.put(DataElement::new(tag, vr, value.into()))
+    }
 }

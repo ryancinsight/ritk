@@ -50,6 +50,7 @@ pub enum CleaningPolicy {
     Clean,
 }
 
+use crate::format::dicom::writer::elements::PutValue;
 use anyhow::{Context, Result};
 use dicom::core::header::Header;
 use dicom::core::value::{DataSetSequence, Value};
@@ -288,19 +289,13 @@ fn apply_action(
             // `put` yields the element it displaced, so a suppressed value is
             // counted from the replacement itself rather than from a presence
             // check taken beforehand. Dummy replaces; count as zeroed.
-            if obj
-                .put(DataElement::new(tag, vr, PrimitiveValue::from(val)))
-                .is_some()
-            {
+            if obj.put_value(tag, vr, val).is_some() {
                 result.tags_zeroed += 1;
             }
         }
         TagAction::Empty => {
             let vr = obj.element(tag).map(|e| e.vr()).unwrap_or(VR::LO);
-            if obj
-                .put(DataElement::new(tag, vr, PrimitiveValue::Empty))
-                .is_some()
-            {
+            if obj.put_value(tag, vr, PrimitiveValue::Empty).is_some() {
                 result.tags_zeroed += 1;
             }
         }
@@ -323,11 +318,7 @@ fn apply_action(
                 .or_insert_with(|| generate_uid_from_hash(&orig, &opts.uid_salt))
                 .clone();
 
-            obj.put(DataElement::new(
-                tag,
-                VR::UI,
-                PrimitiveValue::from(new_uid.as_str()),
-            ));
+            obj.put_value(tag, VR::UI, new_uid.as_str());
             result.uids_remapped += 1;
         }
     }

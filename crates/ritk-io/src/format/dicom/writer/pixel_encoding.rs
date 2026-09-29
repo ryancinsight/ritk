@@ -1,5 +1,6 @@
+use crate::format::dicom::writer::elements::PutValue;
 use anyhow::{bail, Context, Result};
-use dicom::core::{DataElement, PrimitiveValue, Tag, VR};
+use dicom::core::{Tag, VR};
 use dicom::object::InMemDicomObject;
 use std::collections::HashSet;
 use std::path::{Path, PathBuf};
@@ -46,26 +47,10 @@ pub(crate) fn normalize_to_u16(data: &[f32]) -> (Vec<u16>, f32, f32) {
 /// BitsAllocated = 16, BitsStored = 16, HighBit = 15, PixelRepresentation = 0 (unsigned).
 /// Call sites may override individual tags afterwards if metadata specifies different values.
 pub(crate) fn emit_pixel_format_tags(obj: &mut InMemDicomObject) {
-    obj.put(DataElement::new(
-        Tag(0x0028, 0x0100),
-        VR::US,
-        PrimitiveValue::from(16u16),
-    ));
-    obj.put(DataElement::new(
-        Tag(0x0028, 0x0101),
-        VR::US,
-        PrimitiveValue::from(16u16),
-    ));
-    obj.put(DataElement::new(
-        Tag(0x0028, 0x0102),
-        VR::US,
-        PrimitiveValue::from(15u16),
-    ));
-    obj.put(DataElement::new(
-        Tag(0x0028, 0x0103),
-        VR::US,
-        PrimitiveValue::from(0u16),
-    ));
+    obj.put_value(Tag(0x0028, 0x0100), VR::US, 16u16);
+    obj.put_value(Tag(0x0028, 0x0101), VR::US, 16u16);
+    obj.put_value(Tag(0x0028, 0x0102), VR::US, 15u16);
+    obj.put_value(Tag(0x0028, 0x0103), VR::US, 0u16);
 }
 
 pub(super) fn format_triplet(value: [f64; 3]) -> String {

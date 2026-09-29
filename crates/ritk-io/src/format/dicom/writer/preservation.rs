@@ -1,8 +1,9 @@
 use super::super::object_model::DicomPreservationSet;
 use super::elements::node_to_element;
 use super::pixel_encoding::{str_to_vr, writer_tag_key};
+use crate::format::dicom::writer::elements::PutValue;
 use dicom::core::smallvec::SmallVec;
-use dicom::core::{DataElement, PrimitiveValue, Tag, VR};
+use dicom::core::{PrimitiveValue, Tag, VR};
 use dicom::object::InMemDicomObject;
 use std::collections::HashSet;
 
@@ -29,10 +30,10 @@ pub(super) fn emit_preservation_nodes(
         }
         let tag = Tag(elem.tag.group, elem.tag.element);
         let vr = elem.vr.as_deref().map(str_to_vr).unwrap_or(VR::UN);
-        obj.put(DataElement::new(
+        obj.put_value(
             tag,
             vr,
             PrimitiveValue::U8(SmallVec::from_vec(elem.bytes.clone())),
-        ));
+        );
     }
 }

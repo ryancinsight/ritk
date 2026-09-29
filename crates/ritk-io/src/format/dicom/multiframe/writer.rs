@@ -1,5 +1,6 @@
 //! Multi-frame DICOM writer: serializes a 3-D image as a single DICOM Part 10 file.
 
+use crate::format::dicom::writer::elements::PutValue;
 use anyhow::{bail, Context, Result};
 use coeus_core::MoiraiBackend;
 use dicom::core::smallvec::SmallVec;
@@ -175,153 +176,81 @@ fn write_multiframe_flat(
 
     let mut obj = InMemDicomObject::new_empty();
 
-    obj.put(DataElement::new(
-        Tag(0x0008, 0x0016),
-        VR::UI,
-        PrimitiveValue::from(config.sop_class_uid.as_str()),
-    ));
-    obj.put(DataElement::new(
-        Tag(0x0008, 0x0018),
-        VR::UI,
-        PrimitiveValue::from(sop_instance_uid.as_str()),
-    ));
+    obj.put_value(Tag(0x0008, 0x0016), VR::UI, config.sop_class_uid.as_str());
+    obj.put_value(Tag(0x0008, 0x0018), VR::UI, sop_instance_uid.as_str());
 
     // Patient Module — Type 2 mandatory (PS3.3 C.7.1.1)
-    obj.put(DataElement::new(
-        Tag(0x0010, 0x0010),
-        VR::PN,
-        PrimitiveValue::from(""),
-    ));
-    obj.put(DataElement::new(
-        Tag(0x0010, 0x0020),
-        VR::LO,
-        PrimitiveValue::from(""),
-    ));
+    obj.put_value(Tag(0x0010, 0x0010), VR::PN, "");
+    obj.put_value(Tag(0x0010, 0x0020), VR::LO, "");
 
     // General Study Module — Type 1/2 mandatory (PS3.3 C.7.2.1)
-    obj.put(DataElement::new(
-        Tag(0x0020, 0x000D),
-        VR::UI,
-        PrimitiveValue::from(study_instance_uid.as_str()),
-    ));
-    obj.put(DataElement::new(
-        Tag(0x0008, 0x0020),
-        VR::DA,
-        PrimitiveValue::from(""),
-    ));
-    obj.put(DataElement::new(
-        Tag(0x0008, 0x0090),
-        VR::PN,
-        PrimitiveValue::from(""),
-    ));
-    obj.put(DataElement::new(
-        Tag(0x0020, 0x0010),
-        VR::SH,
-        PrimitiveValue::from(""),
-    ));
+    obj.put_value(Tag(0x0020, 0x000D), VR::UI, study_instance_uid.as_str());
+    obj.put_value(Tag(0x0008, 0x0020), VR::DA, "");
+    obj.put_value(Tag(0x0008, 0x0090), VR::PN, "");
+    obj.put_value(Tag(0x0020, 0x0010), VR::SH, "");
 
     // General Series Module — Type 1/2 mandatory (PS3.3 C.7.3.1)
-    obj.put(DataElement::new(
-        Tag(0x0020, 0x000E),
-        VR::UI,
-        PrimitiveValue::from(series_instance_uid.as_str()),
-    ));
-    obj.put(DataElement::new(
-        Tag(0x0020, 0x0011),
-        VR::IS,
-        PrimitiveValue::from(""),
-    ));
-    obj.put(DataElement::new(
-        Tag(0x0008, 0x0060),
-        VR::CS,
-        PrimitiveValue::from(modality_str),
-    ));
-    obj.put(DataElement::new(
-        Tag(0x0008, 0x0064),
-        VR::CS,
-        PrimitiveValue::from("WSD"),
-    ));
-    obj.put(DataElement::new(
+    obj.put_value(Tag(0x0020, 0x000E), VR::UI, series_instance_uid.as_str());
+    obj.put_value(Tag(0x0020, 0x0011), VR::IS, "");
+    obj.put_value(Tag(0x0008, 0x0060), VR::CS, modality_str);
+    obj.put_value(Tag(0x0008, 0x0064), VR::CS, "WSD");
+    obj.put_value(
         Tag(0x0020, 0x0013),
         VR::IS,
-        PrimitiveValue::from(format!("{}", config.instance_number)),
-    ));
+        format!("{}", config.instance_number),
+    );
 
-    obj.put(DataElement::new(
-        Tag(0x0028, 0x0008),
-        VR::IS,
-        PrimitiveValue::from(format!("{}", n_frames)),
-    ));
-    obj.put(DataElement::new(
-        Tag(0x0028, 0x0002),
-        VR::US,
-        PrimitiveValue::from(1_u16),
-    ));
-    obj.put(DataElement::new(
-        Tag(0x0028, 0x0010),
-        VR::US,
-        PrimitiveValue::from(rows as u16),
-    ));
-    obj.put(DataElement::new(
-        Tag(0x0028, 0x0011),
-        VR::US,
-        PrimitiveValue::from(cols as u16),
-    ));
+    obj.put_value(Tag(0x0028, 0x0008), VR::IS, format!("{}", n_frames));
+    obj.put_value(Tag(0x0028, 0x0002), VR::US, 1_u16);
+    obj.put_value(Tag(0x0028, 0x0010), VR::US, rows as u16);
+    obj.put_value(Tag(0x0028, 0x0011), VR::US, cols as u16);
     emit_pixel_format_tags(&mut obj);
-    obj.put(DataElement::new(
-        Tag(0x0028, 0x0004),
-        VR::CS,
-        PrimitiveValue::from(MONOCHROME2),
-    ));
-    obj.put(DataElement::new(
-        Tag(0x0028, 0x1053),
-        VR::DS,
-        PrimitiveValue::from(format!("{:.6}", rescale_slope)),
-    ));
-    obj.put(DataElement::new(
+    obj.put_value(Tag(0x0028, 0x0004), VR::CS, MONOCHROME2);
+    obj.put_value(Tag(0x0028, 0x1053), VR::DS, format!("{:.6}", rescale_slope));
+    obj.put_value(
         Tag(0x0028, 0x1052),
         VR::DS,
-        PrimitiveValue::from(format!("{:.6}", rescale_intercept)),
-    ));
+        format!("{:.6}", rescale_intercept),
+    );
 
     if let Some(s) = &config.spatial {
         let o = &s.origin;
-        obj.put(DataElement::new(
+        obj.put_value(
             Tag(0x0020, 0x0032),
             VR::DS,
-            PrimitiveValue::from(format!("{:.6}\\{:.6}\\{:.6}", o[0], o[1], o[2])),
-        ));
+            format!("{:.6}\\{:.6}\\{:.6}", o[0], o[1], o[2]),
+        );
 
         let iop = &s.image_orientation;
-        obj.put(DataElement::new(
+        obj.put_value(
             Tag(0x0020, 0x0037),
             VR::DS,
-            PrimitiveValue::from(format!(
+            format!(
                 "{:.6}\\{:.6}\\{:.6}\\{:.6}\\{:.6}\\{:.6}",
                 iop[0], iop[1], iop[2], iop[3], iop[4], iop[5]
-            )),
-        ));
+            ),
+        );
 
         let ps = &s.pixel_spacing;
-        obj.put(DataElement::new(
+        obj.put_value(
             Tag(0x0028, 0x0030),
             VR::DS,
-            PrimitiveValue::from(format!("{:.6}\\{:.6}", ps[0], ps[1])),
-        ));
-        obj.put(DataElement::new(
+            format!("{:.6}\\{:.6}", ps[0], ps[1]),
+        );
+        obj.put_value(
             Tag(0x0018, 0x0050),
             VR::DS,
-            PrimitiveValue::from(format!("{:.6}", s.slice_thickness)),
-        ));
+            format!("{:.6}", s.slice_thickness),
+        );
     }
 
     match &config.transfer_syntax {
         TransferSyntaxKind::ExplicitVrLittleEndian => {
-            obj.put(DataElement::new(
+            obj.put_value(
                 Tag(0x7FE0, 0x0010),
                 VR::OW,
                 PrimitiveValue::U16(SmallVec::from_vec(pixel_u16)),
-            ));
+            );
         }
         TransferSyntaxKind::JpegLsLossless
         | TransferSyntaxKind::Jpeg2000Lossless

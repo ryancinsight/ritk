@@ -1,5 +1,6 @@
 //! RT Dose writer — serialize an [`RtDoseGrid`] to a DICOM Part-10 file.
 
+use crate::format::dicom::writer::elements::PutValue;
 use anyhow::{bail, Context, Result};
 use dicom::core::smallvec::SmallVec;
 use dicom::core::value::DataSetSequence;
@@ -69,81 +70,33 @@ pub fn write_rt_dose<P: AsRef<Path>>(path: P, grid: &RtDoseGrid) -> Result<()> {
 
     let mut obj = InMemDicomObject::new_empty();
 
-    obj.put(DataElement::new(
-        Tag(0x0008, 0x0016),
-        VR::UI,
-        PrimitiveValue::from(RT_DOSE_SOP_CLASS_UID),
-    ));
-    obj.put(DataElement::new(
-        Tag(0x0008, 0x0018),
-        VR::UI,
-        PrimitiveValue::from(sop_instance_uid.as_str()),
-    ));
-    obj.put(DataElement::new(
-        Tag(0x0008, 0x0060),
-        VR::CS,
-        PrimitiveValue::from("RTDOSE"),
-    ));
-    obj.put(DataElement::new(
-        Tag(0x0028, 0x0002),
-        VR::US,
-        PrimitiveValue::from(1u16),
-    ));
-    obj.put(DataElement::new(
-        Tag(0x0028, 0x0004),
-        VR::CS,
-        PrimitiveValue::from(MONOCHROME2),
-    ));
-    obj.put(DataElement::new(
+    obj.put_value(Tag(0x0008, 0x0016), VR::UI, RT_DOSE_SOP_CLASS_UID);
+    obj.put_value(Tag(0x0008, 0x0018), VR::UI, sop_instance_uid.as_str());
+    obj.put_value(Tag(0x0008, 0x0060), VR::CS, "RTDOSE");
+    obj.put_value(Tag(0x0028, 0x0002), VR::US, 1u16);
+    obj.put_value(Tag(0x0028, 0x0004), VR::CS, MONOCHROME2);
+    obj.put_value(
         Tag(0x0028, 0x0008),
         VR::IS,
-        PrimitiveValue::from(grid.n_frames.to_string().as_str()),
-    ));
-    obj.put(DataElement::new(
-        Tag(0x0028, 0x0010),
-        VR::US,
-        PrimitiveValue::from(grid.rows as u16),
-    ));
-    obj.put(DataElement::new(
-        Tag(0x0028, 0x0011),
-        VR::US,
-        PrimitiveValue::from(grid.cols as u16),
-    ));
-    obj.put(DataElement::new(
-        Tag(0x0028, 0x0100),
-        VR::US,
-        PrimitiveValue::from(32u16),
-    ));
-    obj.put(DataElement::new(
-        Tag(0x0028, 0x0101),
-        VR::US,
-        PrimitiveValue::from(32u16),
-    ));
-    obj.put(DataElement::new(
-        Tag(0x0028, 0x0102),
-        VR::US,
-        PrimitiveValue::from(31u16),
-    ));
-    obj.put(DataElement::new(
-        Tag(0x0028, 0x0103),
-        VR::US,
-        PrimitiveValue::from(0u16),
-    ));
-    obj.put(DataElement::new(
+        grid.n_frames.to_string().as_str(),
+    );
+    obj.put_value(Tag(0x0028, 0x0010), VR::US, grid.rows as u16);
+    obj.put_value(Tag(0x0028, 0x0011), VR::US, grid.cols as u16);
+    obj.put_value(Tag(0x0028, 0x0100), VR::US, 32u16);
+    obj.put_value(Tag(0x0028, 0x0101), VR::US, 32u16);
+    obj.put_value(Tag(0x0028, 0x0102), VR::US, 31u16);
+    obj.put_value(Tag(0x0028, 0x0103), VR::US, 0u16);
+    obj.put_value(
         Tag(0x3004, 0x0002),
         VR::CS,
-        PrimitiveValue::from(grid.dose_summation_type.as_dicom_str()),
-    ));
-    obj.put(DataElement::new(
-        Tag(0x3004, 0x0004),
-        VR::CS,
-        PrimitiveValue::from(grid.dose_type.as_dicom_str()),
-    ));
-    obj.put(DataElement::new(
+        grid.dose_summation_type.as_dicom_str(),
+    );
+    obj.put_value(Tag(0x3004, 0x0004), VR::CS, grid.dose_type.as_dicom_str());
+    obj.put_value(
         Tag(0x3004, 0x000E),
         VR::DS,
-        PrimitiveValue::from(format!("{}", grid.dose_grid_scaling).as_str()),
-    ));
+        format!("{}", grid.dose_grid_scaling).as_str(),
+    );
 
     let offset_str = grid
         .frame_offsets
@@ -151,19 +104,11 @@ pub fn write_rt_dose<P: AsRef<Path>>(path: P, grid: &RtDoseGrid) -> Result<()> {
         .map(|v| format!("{}", v))
         .collect::<Vec<_>>()
         .join("\\");
-    obj.put(DataElement::new(
-        Tag(0x3004, 0x000C),
-        VR::DS,
-        PrimitiveValue::from(offset_str.as_str()),
-    ));
+    obj.put_value(Tag(0x3004, 0x000C), VR::DS, offset_str.as_str());
 
     if let Some(pos) = grid.image_position {
         let s = format!("{}\\{}\\{}", pos[0], pos[1], pos[2]);
-        obj.put(DataElement::new(
-            Tag(0x0020, 0x0032),
-            VR::DS,
-            PrimitiveValue::from(s.as_str()),
-        ));
+        obj.put_value(Tag(0x0020, 0x0032), VR::DS, s.as_str());
     }
     if let Some(ori) = grid.image_orientation {
         let s = ori
@@ -171,19 +116,11 @@ pub fn write_rt_dose<P: AsRef<Path>>(path: P, grid: &RtDoseGrid) -> Result<()> {
             .map(|v| format!("{}", v))
             .collect::<Vec<_>>()
             .join("\\");
-        obj.put(DataElement::new(
-            Tag(0x0020, 0x0037),
-            VR::DS,
-            PrimitiveValue::from(s.as_str()),
-        ));
+        obj.put_value(Tag(0x0020, 0x0037), VR::DS, s.as_str());
     }
     if let Some(ps) = grid.pixel_spacing {
         let s = format!("{}\\{}", ps[0], ps[1]);
-        obj.put(DataElement::new(
-            Tag(0x0028, 0x0030),
-            VR::DS,
-            PrimitiveValue::from(s.as_str()),
-        ));
+        obj.put_value(Tag(0x0028, 0x0030), VR::DS, s.as_str());
     }
 
     if let Some(plan_uid) = grid
@@ -193,16 +130,8 @@ pub fn write_rt_dose<P: AsRef<Path>>(path: P, grid: &RtDoseGrid) -> Result<()> {
         .filter(|s| !s.is_empty())
     {
         let mut item = InMemDicomObject::new_empty();
-        item.put(DataElement::new(
-            Tag(0x0008, 0x1150),
-            VR::UI,
-            PrimitiveValue::from(RT_PLAN_SOP_CLASS_UID),
-        ));
-        item.put(DataElement::new(
-            Tag(0x0008, 0x1155),
-            VR::UI,
-            PrimitiveValue::from(plan_uid),
-        ));
+        item.put_value(Tag(0x0008, 0x1150), VR::UI, RT_PLAN_SOP_CLASS_UID);
+        item.put_value(Tag(0x0008, 0x1155), VR::UI, plan_uid);
         obj.put(DataElement::new(
             Tag(0x300C, 0x0002),
             VR::SQ,
@@ -213,11 +142,11 @@ pub fn write_rt_dose<P: AsRef<Path>>(path: P, grid: &RtDoseGrid) -> Result<()> {
         ));
     }
 
-    obj.put(DataElement::new(
+    obj.put_value(
         Tag(0x7FE0, 0x0010),
         VR::OW,
         PrimitiveValue::U8(SmallVec::from_vec(pixel_bytes)),
-    ));
+    );
 
     obj.with_meta(
         FileMetaTableBuilder::new()
