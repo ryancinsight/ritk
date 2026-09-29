@@ -4,6 +4,19 @@ use super::*;
 
 const DIMS: [usize; 3] = [1, 40, 40];
 
+#[derive(Clone, Copy)]
+struct ZeroSample;
+
+impl Sample for ZeroSample {
+    fn to_f64(self) -> f64 {
+        0.0
+    }
+
+    fn from_f64_saturating(_: f64) -> Self {
+        Self
+    }
+}
+
 fn config() -> BlockMatchingConfig {
     BlockMatchingConfig {
         block_radius: [0, 4, 4],
@@ -199,7 +212,6 @@ fn metric_image_centre_is_the_null_displacement() {
         "centre must be the null displacement with NCC 1, got {centre}"
     );
 }
-
 fn assert_fft_matches_direct(centre: [usize; 3]) {
     let fixed = shifted_image([0, 0, 0]);
     let moving = shifted_image([0, 3, -2]);
@@ -281,7 +293,6 @@ fn fft_match_recovers_integer_translation() {
     assert_eq!(fft.displacement, direct.displacement);
     assert!((fft.peak_similarity - direct.peak_similarity).abs() < 1.0e-9);
 }
-
 #[test]
 fn fft_ncc_rejects_featureless_and_mismatched_inputs() {
     let flat = vec![1.0_f32; DIMS[0] * DIMS[1] * DIMS[2]];
@@ -725,15 +736,13 @@ fn strain_for_single_block_field_is_zero() {
 /// `BlockGrid::dense` must enumerate a non-empty set of centres for a
 /// volume that fits at least one block.
 #[test]
-fn block_grid_dense_enumerates_centres() {
+fn block_grid_dense_enumerates_centres() -> anyhow::Result<()> {
     let config = BlockMatchingConfig {
         block_radius: [0, 4, 4],
         search_radius: [0, 3, 3],
     };
     let grid = BlockGrid::dense(config.block_radius);
-    let centres = grid
-        .centres([1, 32, 32], &config)
-        .expect("the centre grid fits");
+    let centres = grid.centres([1, 32, 32], &config)?;
     assert_eq!(
         centres,
         vec![
@@ -757,17 +766,19 @@ fn block_grid_dense_enumerates_centres() {
         assert!(y + config.block_radius[1] < 32);
         assert!(x + config.block_radius[2] < 32);
     }
+    Ok(())
 }
 
 #[test]
 fn block_grid_rejects_centre_byte_capacity_overflow() {
-    let axis = isize::MAX as usize / std::mem::size_of::<[usize; 3]>() + 1;
-    let dims = [1, 1, axis];
+    let block_radius = [0, 0, 0];
     let config = BlockMatchingConfig {
-        block_radius: [0, 0, 0],
+        block_radius,
         search_radius: [0, 0, 1],
     };
-    let error = BlockGrid { stride: [1, 1, 1] }
+    let axis = isize::MAX as usize / std::mem::size_of::<[usize; 3]>() + 1;
+    let dims = [1, 1, axis];
+    let error = BlockGrid::dense(block_radius)
         .centres(dims, &config)
         .expect_err("centre storage exceeds the allocator byte limit");
     assert_eq!(
@@ -784,8 +795,12 @@ fn block_grid_rejects_centre_byte_capacity_overflow() {
 fn block_grid_validates_stride_and_overflow() {
     let error = BlockGrid::try_dense([usize::MAX, 0, 0]).expect_err("axis 0 overflows");
     assert_eq!(
-        error.to_string(),
-        "dense grid stride extent overflows on axis 0"
+        error.downcast_ref::<BlockMatchingError>(),
+        Some(&BlockMatchingError::WindowExtentOverflow {
+            label: "dense grid stride",
+            axis: 0,
+            radius: usize::MAX,
+        })
     );
     assert!(BlockGrid { stride: [0, 1, 1] }.validate().is_err());
 
@@ -794,14 +809,191 @@ fn block_grid_validates_stride_and_overflow() {
         block_radius: [usize::MAX, usize::MAX, usize::MAX],
         search_radius: [1, 1, 1],
     };
+    let error = grid
+        .centres([1, 1, 1], &oversized)
+        .expect_err("block extent overflows");
     assert_eq!(
-        grid.centres([1, 1, 1], &oversized)
-            .expect_err("the block extent overflows")
-            .downcast_ref::<BlockMatchingError>(),
+        error.downcast_ref::<BlockMatchingError>(),
         Some(&BlockMatchingError::WindowExtentOverflow {
             label: "block",
             axis: 0,
-            radius: usize::MAX,
+            radius: usize::MAX
+        })
+    );
+}
+
+#[test]
+fn volume_entrypoints_propagate_centre_capacity_overflow() {
+    let dimensions = [1, 1, isize::MAX as usize];
+    let config = BlockMatchingConfig {
+        block_radius: [0, 0, 1],
+        search_radius: [0, 0, 1],
+    };
+    let grid = BlockGrid { stride: [1, 1, 1] };
+    let samples = {
+        let mut samples: Vec<ZeroSample> = Vec::with_capacity(isize::MAX as usize);
+        // SAFETY: `ZeroSample` is a zero-sized type, so every length slot is
+        // initialized without backing storage.
+        unsafe { samples.set_len(isize::MAX as usize) };
+        samples
+    };
+    let expected = BlockMatchingError::ByteCountOverflow {
+        label: "tracking centres",
+        dims: [1, 1, isize::MAX as usize - 2],
+        element_size: std::mem::size_of::<[usize; 3]>(),
+    };
+
+    let direct = track_volume(
+        &samples,
+        &samples,
+        dimensions,
+        config,
+        grid,
+        SubpixelRefinement::None,
+    )
+    .expect_err("centre allocation must be rejected before matching");
+    assert_eq!(direct.downcast_ref::<BlockMatchingError>(), Some(&expected));
+
+    let fft = track_volume_fft(
+        &samples,
+        &samples,
+        dimensions,
+        config,
+        grid,
+        SubpixelRefinement::None,
+    )
+    .expect_err("FFT centre allocation must be rejected before matching");
+    assert_eq!(fft.downcast_ref::<BlockMatchingError>(), Some(&expected));
+}
+
+#[test]
+fn volume_loops_propagate_typed_matching_overflow() {
+    let dimensions = [1, 1, 3];
+    let samples = vec![ZeroSample; 3];
+    let grid = BlockGrid { stride: [1, 1, 1] };
+    let direct_config = BlockMatchingConfig {
+        block_radius: [0, 0, 1],
+        search_radius: [0, 0, usize::MAX],
+    };
+    let direct_error = BlockMatchingError::WindowExtentOverflow {
+        label: "search",
+        axis: 2,
+        radius: usize::MAX,
+    };
+    let direct = track_volume(
+        &samples,
+        &samples,
+        dimensions,
+        direct_config,
+        grid,
+        SubpixelRefinement::None,
+    )
+    .expect_err("direct volume must propagate matching overflow");
+    assert_eq!(
+        direct.downcast_ref::<BlockMatchingError>(),
+        Some(&direct_error)
+    );
+
+    let fft_radius = isize::MAX as usize - 2;
+    let fft_config = BlockMatchingConfig {
+        block_radius: [0, 0, 1],
+        search_radius: [0, 0, fft_radius],
+    };
+    let fft_error = BlockMatchingError::FftPaddingExtentOverflow {
+        axis: 2,
+        extent: usize::MAX,
+    };
+    let fft = track_volume_fft(
+        &samples,
+        &samples,
+        dimensions,
+        fft_config,
+        grid,
+        SubpixelRefinement::None,
+    )
+    .expect_err("FFT volume must propagate matching overflow");
+    assert_eq!(fft.downcast_ref::<BlockMatchingError>(), Some(&fft_error));
+
+    let direct_plan =
+        MultiResolutionSearch::new([0, 0, 1], [0, 0, usize::MAX], 1).expect("direct pyramid plan");
+    let direct_pyramid = [PyramidLevel {
+        fixed: &samples,
+        moving: &samples,
+        dims: dimensions,
+    }];
+    let direct_pyramid_error = direct_plan
+        .track_volume_pyramid(&direct_pyramid, grid, SubpixelRefinement::None)
+        .expect_err("direct pyramid must propagate matching overflow");
+    assert_eq!(
+        direct_pyramid_error.downcast_ref::<BlockMatchingError>(),
+        Some(&direct_error)
+    );
+
+    let fft_plan =
+        MultiResolutionSearch::new([0, 0, 1], [0, 0, fft_radius], 1).expect("FFT pyramid plan");
+    let fft_pyramid_error = fft_plan
+        .track_volume_pyramid_fft(
+            &direct_pyramid,
+            grid,
+            SubpixelRefinement::None,
+            FftPadding::Zero,
+        )
+        .expect_err("FFT pyramid must propagate matching overflow");
+    assert_eq!(
+        fft_pyramid_error.downcast_ref::<BlockMatchingError>(),
+        Some(&fft_error)
+    );
+}
+
+#[test]
+fn fft_reports_typed_convolution_extent_overflow() {
+    let radius = isize::MAX as usize - 1;
+    let config = BlockMatchingConfig {
+        block_radius: [0, 0, 1],
+        search_radius: [0, 0, radius],
+    };
+    let samples = vec![ZeroSample; 3];
+    let error = metric_image_fft(
+        &samples,
+        MovingSamples::complete(&samples),
+        [1, 1, 3],
+        [0, 0, 1],
+        config,
+        FftPadding::Zero,
+    )
+    .expect_err("convolution extent must be checked");
+    assert_eq!(
+        error.downcast_ref::<BlockMatchingError>(),
+        Some(&BlockMatchingError::FftConvolutionExtentOverflow {
+            axis: 2,
+            roi: usize::MAX,
+            block: 3,
+        })
+    );
+}
+
+#[test]
+fn fft_reports_typed_padding_extent_overflow() {
+    let radius = isize::MAX as usize - 2;
+    let config = BlockMatchingConfig {
+        block_radius: [0, 0, 1],
+        search_radius: [0, 0, radius],
+    };
+    let samples = vec![ZeroSample; 3];
+    let error = metric_image_fft(
+        &samples,
+        MovingSamples::complete(&samples),
+        [1, 1, 3],
+        [0, 0, 1],
+        config,
+        FftPadding::Zero,
+    )
+    .expect_err("padded extent must be checked");
+    assert_eq!(
+        error.downcast_ref::<BlockMatchingError>(),
+        Some(&BlockMatchingError::FftPaddingExtentOverflow {
+            axis: 2,
+            extent: usize::MAX,
         })
     );
 }
@@ -944,7 +1136,6 @@ fn pyramid_matching_propagates_coarse_displacement() {
     assert_eq!(result.levels[2].moving_centre, [0, 28, 24]);
     assert!(result.peak_similarity > 0.999);
 }
-
 #[test]
 fn fft_pyramid_matches_direct_propagation_and_diagnostics() {
     let plan = MultiResolutionSearch::new([0, 4, 4], [0, 8, 8], 3).expect("valid plan");
@@ -1009,7 +1200,6 @@ fn fft_pyramid_matches_direct_propagation_and_diagnostics() {
         );
     }
 }
-
 #[test]
 fn fft_pyramid_volume_matches_direct_field() {
     let plan = MultiResolutionSearch::new([0, 4, 4], [0, 4, 4], 2).expect("valid plan");
@@ -1383,7 +1573,6 @@ fn pipeline_owned_pyramid_matches_explicit_levels() {
         explicit_diagnostics.diagnostics
     );
 }
-
 #[test]
 fn pipeline_owned_fft_pyramid_matches_direct_adapter() {
     let plan = MultiResolutionSearch::new([0, 4, 4], [0, 4, 4], 2).expect("valid plan");
@@ -1425,7 +1614,6 @@ fn pipeline_owned_fft_pyramid_matches_direct_adapter() {
         );
     }
 }
-
 #[test]
 fn pipeline_fft_pyramid_matches_direct_pipeline() {
     let plan = MultiResolutionSearch::new([0, 4, 4], [0, 4, 4], 2).expect("valid plan");
@@ -1610,7 +1798,6 @@ fn pyramid_diagnostics_validate_before_field_projection() {
     assert!(misaligned.validate().is_err());
     assert!(misaligned.try_as_field().is_err());
 }
-
 #[test]
 fn fft_pyramid_diagnostics_match_direct_diagnostics() {
     let plan = MultiResolutionSearch::new([0, 4, 4], [0, 4, 4], 2).expect("valid plan");

@@ -174,7 +174,7 @@ pub(crate) fn metric_image_fft_at<T: Sample>(
     ];
     let fft_len = buffer_len::<Complex64>(fft_dims, "FFT buffer")?;
 
-    let fixed_values = gather_fixed_block(fixed, dims, fixed_centre, config.block_radius);
+    let fixed_values = gather_fixed_block(fixed, dims, fixed_centre, config.block_radius)?;
     if fixed_values.iter().any(|value| !value.is_finite()) {
         bail!(
             "fixed block at {fixed_centre:?} contains a non-finite sample; every candidate would depend on unavailable data"
@@ -389,9 +389,9 @@ fn gather_fixed_block<T: Sample>(
     dims: [usize; 3],
     centre: [usize; 3],
     radius: [usize; 3],
-) -> Vec<f64> {
-    let mut values =
-        Vec::with_capacity((2 * radius[0] + 1) * (2 * radius[1] + 1) * (2 * radius[2] + 1));
+) -> Result<Vec<f64>> {
+    let extent = window_extents(radius, "block")?;
+    let mut values = Vec::with_capacity(buffer_len::<f64>(extent, "block")?);
     for z in centre[0] - radius[0]..=centre[0] + radius[0] {
         for y in centre[1] - radius[1]..=centre[1] + radius[1] {
             for x in centre[2] - radius[2]..=centre[2] + radius[2] {
@@ -399,7 +399,7 @@ fn gather_fixed_block<T: Sample>(
             }
         }
     }
-    values
+    Ok(values)
 }
 
 fn candidate_inside(
