@@ -37,6 +37,7 @@ struct ChromeControl {
 #[derive(Clone, Copy)]
 struct ToolbarGroup {
     x: i32,
+    label: &'static str,
 }
 
 pub(super) struct ChromeLayout {

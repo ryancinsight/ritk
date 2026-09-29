@@ -13,6 +13,17 @@ use std::fmt::Write as _;
 
 const STUDY_INFO_BACKGROUND: Color = Color::rgb(27, 45, 59);
 const STUDY_INFO_EDGE: Color = Color::rgb(91, 151, 184);
+const STUDY_DETAILS_BUFFER_CAPACITY: usize = 16 + 2 + decimal_width(usize::MAX) + 12 + 64 * 4;
+
+const fn decimal_width(mut value: usize) -> usize {
+    let mut digits = 1;
+    while value >= 10 {
+        value /= 10;
+        digits += 1;
+    }
+    digits
+}
+
 pub(super) fn render_study_metadata(
     framebuffer: &mut Framebuffer,
     area: Rect,
@@ -117,22 +128,11 @@ pub(super) fn render_study_metadata(
         value_style,
         text_width,
     );
-    let study_description = choice.acquisition.study_description().trim();
-    let mut study_details = ArrayString::<64>::new();
-    if study_description.is_empty() {
-        write!(
-            &mut study_details,
-            "{}: {} series",
-            choice.modality, choice.study_series_count
-        )
-    } else {
-        write!(
-            &mut study_details,
-            "{}: {} series  |  {}",
-            choice.modality, choice.study_series_count, study_description
-        )
-    }
-    .map_err(|_| anyhow!("study details exceed their display buffer"))?;
+    let study_details = format_study_details(
+        choice.modality.as_ref(),
+        choice.study_series_count,
+        choice.acquisition.study_description().trim(),
+    )?;
     draw_fit(
         framebuffer,
         text_x,
@@ -142,4 +142,41 @@ pub(super) fn render_study_metadata(
         text_width,
     );
     Ok(())
+}
+
+fn format_study_details(
+    modality: &str,
+    study_series_count: usize,
+    study_description: &str,
+) -> Result<ArrayString<STUDY_DETAILS_BUFFER_CAPACITY>> {
+    let mut details = ArrayString::new();
+    if study_description.is_empty() {
+        write!(&mut details, "{}: {} series", modality, study_series_count)
+    } else {
+        write!(
+            &mut details,
+            "{}: {} series  |  {}",
+            modality, study_series_count, study_description
+        )
+    }
+    .map_err(|_| anyhow!("study details exceed their DICOM metadata buffer"))?;
+    Ok(details)
+}
+
+#[cfg(test)]
+mod tests {
+    use super::{format_study_details, STUDY_DETAILS_BUFFER_CAPACITY};
+
+    #[test]
+    fn study_details_fit_maximum_dicom_metadata_and_series_count() {
+        let description = "😀".repeat(64);
+        let details = format_study_details("1234567890123456", usize::MAX, &description)
+            .expect("bounded DICOM metadata fits the study label");
+
+        assert_eq!(
+            details.as_str(),
+            format!("1234567890123456: {} series  |  {description}", usize::MAX)
+        );
+        assert_eq!(details.len(), STUDY_DETAILS_BUFFER_CAPACITY);
+    }
 }

@@ -97,14 +97,14 @@ impl NativeViewerSession {
             .choice(index)
             .ok_or_else(|| anyhow!("comparison series index is outside the study catalog"))?;
         let modality = choice.modality.to_string();
-        let instance_count = choice.instance_count;
+        let image_count = choice.image_count;
         let volume = load_volume_from_series_info(&choice.acquisition)
             .with_context(|| "open the comparison DICOM series")?;
         let mut panel = ComparePanel::empty()?;
         panel.replace(
             volume,
             index,
-            format!("Loaded {modality} series ({instance_count} instances)."),
+            format!("Loaded {modality} series ({image_count} images)."),
         )?;
         let grid = PanelGrid::new(2, 1).ok_or_else(|| {
             anyhow!("side-by-side comparison grid is outside the supported range")
@@ -132,14 +132,12 @@ impl NativeViewerSession {
             let choice = browser
                 .choice(index)
                 .ok_or_else(|| anyhow!("displayed series is absent from its study catalog"))?;
-            write!(&mut label, "P{}  |  {}  |  ", panel + 1, choice.modality)
-                .map_err(|_| anyhow!("comparison modality label exceeds its buffer"))?;
-            let remaining = 96_usize.saturating_sub(label.len());
-            for character in choice.description.chars().take(remaining) {
-                label
-                    .try_push(character)
-                    .map_err(|_| anyhow!("comparison series label exceeds its buffer"))?;
-            }
+            append_series_panel_label(
+                &mut label,
+                panel + 1,
+                &choice.modality,
+                &choice.description,
+            )?;
         } else if panel == 0 && self.app.loaded.is_some() {
             write!(&mut label, "P1  |  RITK volume")
                 .map_err(|_| anyhow!("primary comparison label exceeds its buffer"))?;
@@ -156,5 +154,46 @@ impl NativeViewerSession {
         self.workspace_layout = WorkspaceLayout::Orthogonal;
         self.active_panel = 0;
         self.active_view = None;
+    }
+}
+
+fn append_series_panel_label(
+    label: &mut ArrayString<96>,
+    panel: usize,
+    modality: &str,
+    description: &str,
+) -> Result<()> {
+    write!(label, "P{panel}  |  {modality}  |  ")
+        .map_err(|_| anyhow!("comparison modality label exceeds its buffer"))?;
+    let mut remaining = label.capacity().saturating_sub(label.len());
+    for character in description.chars() {
+        let bytes = character.len_utf8();
+        if bytes > remaining {
+            break;
+        }
+        label
+            .try_push(character)
+            .map_err(|_| anyhow!("comparison series label exceeds its buffer"))?;
+        remaining = remaining.saturating_sub(bytes);
+    }
+    Ok(())
+}
+
+#[cfg(test)]
+mod tests {
+    use super::append_series_panel_label;
+    use arrayvec::ArrayString;
+
+    #[test]
+    fn multibyte_series_descriptions_fit_the_panel_label_buffer() {
+        let description = "頭部画像".repeat(20);
+        let mut label = ArrayString::<96>::new();
+
+        append_series_panel_label(&mut label, 1, "MR", &description)
+            .expect("truncate the label at a UTF-8 character boundary");
+
+        assert_eq!(label.len(), 95);
+        assert!(label.as_str().starts_with("P1  |  MR  |  "));
+        assert!(label.as_str().ends_with("頭部画"));
     }
 }

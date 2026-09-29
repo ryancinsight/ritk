@@ -164,7 +164,7 @@ fn control_click_opens_a_series_in_the_next_available_panel() {
 }
 
 #[test]
-fn f4_picker_loads_multiple_clicked_series_from_the_native_window() {
+fn f4_picker_opens_every_keyboard_selected_series_in_the_native_window() {
     let (mut viewer, _initial_root) = session();
     let study = four_series_study();
     viewer
@@ -179,48 +179,28 @@ fn f4_picker_loads_multiple_clicked_series_from_the_native_window() {
         .expect("open the multiple-series picker with F4");
     viewer
         .handle_events(&[
-            WindowEvent::PointerDown {
-                x: 520,
-                y: 240,
-                button: MouseButton::Left,
-            },
-            WindowEvent::PointerUp {
-                x: 520,
-                y: 240,
-                button: MouseButton::Left,
-            },
-        ])
-        .expect("select the first series row");
-    viewer
-        .handle_events(&[
             WindowEvent::KeyDown {
-                virtual_key: 0x11,
+                virtual_key: 0x20,
                 repeated: false,
                 modifiers: ModifierState::NONE,
             },
-            WindowEvent::PointerDown {
-                x: 520,
-                y: 272,
-                button: MouseButton::Left,
+            WindowEvent::KeyDown {
+                virtual_key: 0x28,
+                repeated: false,
+                modifiers: ModifierState::NONE,
             },
-            WindowEvent::PointerUp {
-                x: 520,
-                y: 272,
-                button: MouseButton::Left,
+            WindowEvent::KeyDown {
+                virtual_key: 0x20,
+                repeated: false,
+                modifiers: ModifierState::NONE,
             },
-            WindowEvent::KeyUp {
-                virtual_key: 0x11,
+            WindowEvent::KeyDown {
+                virtual_key: 0x0d,
+                repeated: false,
                 modifiers: ModifierState::NONE,
             },
         ])
-        .expect("extend selection to the second series row with Control");
-    viewer
-        .handle_events(&[WindowEvent::PointerDown {
-            x: 950,
-            y: 645,
-            button: MouseButton::Left,
-        }])
-        .expect("open all selected series on the native button press");
+        .expect("select and open both series with the keyboard");
 
     assert_eq!(
         viewer.workspace_layout.grid().map(PanelGrid::panel_count),
@@ -230,25 +210,11 @@ fn f4_picker_loads_multiple_clicked_series_from_the_native_window() {
     assert_eq!(viewer.primary_series_index, Some(0));
     assert_eq!(viewer.compare_panels[0].series_index, Some(1));
     assert!(!viewer.window_chrome.multi_series_dialog_is_open());
+    assert_eq!(loaded_series_uid(&viewer.app), Some(fixtures::SERIES_UID));
     assert_eq!(
-        viewer.suppress_cancelled_pointer_release,
-        Some(crate::presentation::PointerButton::Left)
+        loaded_series_uid(&viewer.compare_panels[0].app),
+        Some(SECOND_SERIES_UID)
     );
-
-    viewer
-        .handle_events(&[WindowEvent::PointerUp {
-            x: 950,
-            y: 645,
-            button: MouseButton::Left,
-        }])
-        .expect("consume the native button release after the dialog closes");
-
-    assert_eq!(
-        viewer.workspace_layout.grid().map(PanelGrid::panel_count),
-        Some(2)
-    );
-    assert_eq!(viewer.viewports.len(), 2);
-    assert_eq!(viewer.suppress_cancelled_pointer_release, None);
 }
 
 #[test]

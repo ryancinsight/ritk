@@ -16,7 +16,7 @@ fn dialog_with_series(count: usize) -> (MultiSeriesDialog, SeriesBrowser, tempfi
 }
 
 #[test]
-fn enter_replaces_old_selection_with_the_first_filtered_series() {
+fn enter_preserves_a_selection_when_filtering_the_list() {
     let (mut dialog, browser, _root) = dialog_with_series(3);
     let previous_selection = (0..browser.len())
         .find(|index| {
@@ -46,7 +46,7 @@ fn enter_replaces_old_selection_with_the_first_filtered_series() {
         )
         .expect("confirm selections");
     assert_eq!(event.action, Some(DialogAction::Confirm));
-    assert_eq!(dialog.selected.as_slice(), &[dialog.matches[0]]);
+    assert_eq!(dialog.selected.as_slice(), &[previous_selection]);
 }
 
 #[test]
@@ -131,7 +131,7 @@ fn enter_opens_the_first_filtered_series_when_nothing_is_selected() {
 }
 
 #[test]
-fn space_selects_multiple_series_while_arrows_move_the_cursor() {
+fn enter_opens_every_series_selected_with_the_keyboard() {
     let (mut dialog, browser, _root) = dialog_with_series(3);
     fn press(dialog: &mut MultiSeriesDialog, browser: &SeriesBrowser, virtual_key: u32) {
         dialog
@@ -155,6 +155,23 @@ fn space_selects_multiple_series_while_arrows_move_the_cursor() {
     press(&mut dialog, &browser, 0x20);
     assert_eq!(dialog.selected().as_slice(), &[0, 1]);
     assert_eq!(dialog.cursor, 1);
+
+    let event = dialog
+        .handle_event(
+            &PresentationEvent::KeyDown {
+                virtual_key: 0x0d,
+                repeated: false,
+                modifiers: crate::presentation::PresentationModifiers::NONE,
+            },
+            1_280,
+            800,
+            &browser,
+            false,
+        )
+        .expect("open the keyboard selection");
+
+    assert_eq!(event.action, Some(DialogAction::Confirm));
+    assert_eq!(dialog.selected().as_slice(), &[0, 1]);
 }
 
 #[test]

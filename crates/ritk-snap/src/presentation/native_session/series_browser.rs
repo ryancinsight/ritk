@@ -24,7 +24,7 @@ pub(crate) struct SeriesChoice {
     pub(crate) acquisition: Arc<DicomSeriesInfo>,
     pub(crate) description: Box<str>,
     pub(crate) modality: Box<str>,
-    pub(crate) instance_count: usize,
+    pub(crate) image_count: usize,
     pub(crate) patient_number: usize,
     pub(crate) study_number: usize,
     pub(crate) study_series_number: usize,
@@ -71,7 +71,7 @@ impl SeriesBrowser {
                         description
                     };
                     choices.push(SeriesChoice {
-                        instance_count: acquisition.file_paths.len(),
+                        image_count: acquisition.image_count(),
                         modality: acquisition.modality().into(),
                         description: description.into_boxed_str(),
                         patient_number: patient_index.saturating_add(1),

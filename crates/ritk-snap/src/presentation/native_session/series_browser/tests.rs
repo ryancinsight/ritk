@@ -296,7 +296,7 @@ fn browser_retains_every_series_and_selects_by_uid() {
             .as_ref(),
         "Series 2"
     );
-    assert_eq!(browser.choice(1).expect("second series").instance_count, 3);
+    assert_eq!(browser.choice(1).expect("second series").image_count, 3);
 }
 
 #[test]

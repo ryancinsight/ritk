@@ -141,6 +141,23 @@ mod tests {
     use arrayvec::ArrayString;
 
     #[test]
+    fn assignment_badge_keeps_sparse_high_panel_identities() {
+        let mut displayed = [None; 20];
+        displayed[3] = Some(4);
+        displayed[19] = Some(4);
+
+        assert_eq!(
+            super::super::cards::assignment_badge(&displayed, 4).expect("bounded assignments"),
+            Some(ArrayString::from("P4, P20").expect("static badge fits"))
+        );
+        displayed[3] = None;
+        assert_eq!(
+            super::super::cards::assignment_badge(&displayed, 4).expect("bounded assignments"),
+            Some(ArrayString::from("P20").expect("static badge fits"))
+        );
+    }
+
+    #[test]
     fn repeated_panel_assignments_fit_a_bounded_badge() {
         let displayed = [Some(4); 20];
         assert_eq!(

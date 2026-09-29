@@ -1214,8 +1214,10 @@ and CT from the same porcine phantom loaded simultaneously in two independent
 image panels. The left preview bar shows decoded thumbnails, per-series image-count
 badges, and panel assignments. Each panel displays the image number and count,
 window width and centre, and source pixel dimensions in its image corners.
-These readouts track the active series render state. RITK reads 94 MRI
-instances and 409 CT instances from the original public files.
+These readouts track the active series render state. Scanned image counts
+include the frames declared by `NumberOfFrames`; a file without that attribute
+counts as one image. The MRI-DIR phantom series shown here are single-frame,
+so their image counts match their DICOM file counts.
 
 To compare series, open the folder that contains them, then choose **Split
 screen** or **Panel layout...** from **Window**. The picker maps all 20
@@ -1226,21 +1228,25 @@ active-panel label identifies the destination, and each series card shows its
 panel assignment. Clicking an assigned card activates that panel. Slice,
 window/level, zoom, pan and cine state remain independent between panels. A
 series may occupy more than one panel. A failed load preserves the displayed
-volume. These controls follow RadiAnt's documented series-browsing and
-multi-series workflow.
+volume. This reproduces RadiAnt's documented series-browsing and multi-series
+workflow.
 
 The shareable captures use the public phantom and contain no clinical patient
 identifiers. In live use, the navigator shows Patient Name when the DICOM
 contains one, plus study and series labels; it does not display Patient ID.
 The controls invoke the viewer’s study, tool, crosshair, cine, series
-navigator, panel layout and reset actions. The native workspace clones RadiAnt's documented study-navigation and
-multi-panel workflow: it uses the menu and toolbar organization, left study-
-and-series preview bar, multi-panel image grid, F4 multi-series picker,
-Ctrl-click and drag assignment, and per-panel maximize/restore/close controls.
-This is a scoped clone of that workflow, not a claim of parity with every
-RadiAnt feature ([series
-browsing](https://www.radiantviewer.com/dicom-viewer-manual/browse_series_and_images.html),
-[multiple-series viewing](https://www.radiantviewer.com/dicom-viewer-manual/view_multiple_series.html)).
+navigator, panel layout and reset actions. RITK is a RadiAnt clone for the
+documented native viewing workflow: menus and grouped toolbar, left
+study-and-series preview bar, multi-panel image grid, F4 multi-series picker,
+Ctrl-click and drag assignment, and per-panel maximize/restore/close
+controls. Toolbar groups organize study, navigation, measurement, display and
+layout actions. This clone does not yet provide RadiAnt's configurable
+mouse-button mappings or full image annotation overlays; those parity gaps are
+tracked in the [native viewer work](../../backlog.md#RITK-SNAP-RADIANT-INPUT-001)
+and [oblique MPR work](../../backlog.md#RITK-SNAP-OBLIQUE-NATIVE-001). The
+reference behavior appears in [series browsing](https://www.radiantviewer.com/dicom-viewer-manual/browse_series_and_images.html),
+[multiple-series viewing](https://www.radiantviewer.com/dicom-viewer-manual/view_multiple_series.html),
+and [mouse functions](https://www.radiantviewer.com/dicom-viewer-manual/mouse_functions.html).
 RITK and Métis provide the application branding, rendering and DICOM pixels.
 These are captures of the running application, not annotated framebuffers or
 generated images.
@@ -1293,23 +1299,21 @@ python $captureUtility `
 
 ![Full RITK/Métis viewer window with menus and grouped toolbar buttons above the workspace, left preview bar showing real MRI and CT thumbnails, image-count badges and panel assignments, status bar, and both actual public series side by side](images/dicom-metis-real-mri-ct-multiseries-window.webp)
 
-The two-panel screenshot comes from the native RadiAnt-clone workflow, not
-series-selection command-line parameters. Open the folder, press F4, select
-MR T2, move to CT with Arrow Down, select it with Space, then click Open. The
-viewer places the real 94-image MRI and 409-image CT in independent P1 and P2
-panels. Each panel has its own image navigation and window-level state. The
-left series bar shows patient and study details, both decoded thumbnails,
-image counts, and panel assignments. Each panel title bar exposes
+The two-panel screenshot shows the current native application with the actual
+94-image MRI and 409-image CT loaded in independent P1 and P2 panels. This
+capture launches the app with both series UIDs to make the displayed result
+repeatable; it does not depict the picker interaction. To open the same series
+through the viewer, open their folder, press F4 or choose **Open multiple
+series** from **Window**, select MR T2 and CT, then press Enter or click
+**Open**. Enter opens every selected row; with no selection, it opens the
+first filtered match. Each panel has independent image navigation and
+window-level state. The left series bar shows study details, decoded
+thumbnails, image counts and panel assignments. Each panel title bar exposes
 maximize/restore and close controls. Ctrl-click or drag a preview card to
-assign another series to a panel. This demonstration uses the public MRI-DIR
-porcine-head phantom, not patient data.
-
-The next capture shows the live F4 dialog with the application window and its
-menus, toolbar, study rail and loaded MRI visible behind it. Both phantom
-series are selected in the table: MR T2 with 94 images and CT with 409 images.
-The dialog reports two selections and the 20-panel limit before Open is used.
-
-![RITK clone of RadiAnt's multiple-series workflow, shown in the full application window with menus, toolbar, study rail and both public MR and CT series selected](images/dicom-metis-real-multiseries-picker-window.webp)
+assign another series to a panel. The public MRI-DIR porcine-head phantom is
+not patient data. Native input and state-transition tests cover the F4 picker
+and selection workflow; the full-window capture is visual evidence of the
+loaded multi-series result.
 
 The separate 1280 × 800 pane-only capture remains the pixel evidence for the
 saved-study decode; it deliberately excludes the application controls and
@@ -1321,7 +1325,6 @@ Each full-window capture has a provenance record containing the capture
 utility, executable digest, study input counts and image digest:
 [`MPR capture`](images/dicom-metis-real-mri-application-window.json),
 [`two-series viewer`](images/dicom-metis-real-mri-ct-multiseries-window.json),
-and [`multiple-series picker`](images/dicom-metis-real-multiseries-picker-window.json).
 The pane-only image and its separate decode provenance remain recorded in
 [`dicom-metis-real-mri.json`](images/dicom-metis-real-mri.json).
 The saved-study harness reran this workflow on 2026-09-14 at RITK

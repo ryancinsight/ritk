@@ -1,7 +1,7 @@
 //! Directory scanning and series discovery.
 
 use crate::format::dicom::reader::dicomdir::discover_files;
-use anyhow::{Context, Result};
+use anyhow::{anyhow, Context, Result};
 use arrayvec::ArrayString;
 use dicom::dictionary_std::tags;
 use dicom::object::{FileDicomObject, InMemDicomObject};
@@ -26,6 +26,7 @@ struct ScannedEntry {
     study_date: Option<ArrayString<8>>,
     study_time: Option<ArrayString<14>>,
     study_description: String,
+    image_count: usize,
     file_path: PathBuf,
 }
 
@@ -64,6 +65,7 @@ pub fn scan_dicom_directory<P: AsRef<Path>>(path: P) -> Result<Vec<DicomSeriesIn
             let Some(uid) = image_series_uid(&obj)? else {
                 return Ok(None);
             };
+            let image_count = dicom_image_count(&obj)?;
 
             let description = get_string(&obj, tags::SERIES_DESCRIPTION).unwrap_or_default();
             let modality = get_string(&obj, tags::MODALITY)
@@ -95,6 +97,7 @@ pub fn scan_dicom_directory<P: AsRef<Path>>(path: P) -> Result<Vec<DicomSeriesIn
                 study_date,
                 study_time,
                 study_description,
+                image_count,
                 file_path: file_path.clone(),
             }))
         },
@@ -108,7 +111,8 @@ pub fn scan_dicom_directory<P: AsRef<Path>>(path: P) -> Result<Vec<DicomSeriesIn
     // 2. Sequential merge — no Mutex required.
     let mut map: HashMap<ArrayString<64>, DicomSeriesInfo> = HashMap::new();
     for entry in raw {
-        map.entry(entry.series_instance_uid)
+        let series = map
+            .entry(entry.series_instance_uid)
             .or_insert_with(|| DicomSeriesInfo {
                 series_instance_uid: entry.series_instance_uid,
                 series_description: entry.series_description,
@@ -120,10 +124,13 @@ pub fn scan_dicom_directory<P: AsRef<Path>>(path: P) -> Result<Vec<DicomSeriesIn
                 study_date: entry.study_date,
                 study_time: entry.study_time,
                 study_description: entry.study_description,
+                image_count: 0,
                 file_paths: Vec::new(),
-            })
-            .file_paths
-            .push(entry.file_path);
+            });
+        series
+            .add_image_count(entry.image_count)
+            .context("DICOM series image count exceeds the platform limit")?;
+        series.file_paths.push(entry.file_path);
     }
 
     let mut series_list: Vec<DicomSeriesInfo> = map.into_values().collect();
@@ -135,6 +142,19 @@ pub fn scan_dicom_directory<P: AsRef<Path>>(path: P) -> Result<Vec<DicomSeriesIn
     sort_discovered_series(&mut series_list);
 
     Ok(series_list)
+}
+
+fn dicom_image_count(obj: &FileDicomObject<InMemDicomObject>) -> Result<usize> {
+    let Some(element) = obj.element_opt(tags::NUMBER_OF_FRAMES)? else {
+        return Ok(1);
+    };
+    let frames = element
+        .to_int::<u64>()
+        .context("invalid NumberOfFrames (0028,0008)")?;
+    if frames == 0 {
+        return Err(anyhow!("NumberOfFrames (0028,0008) must be positive"));
+    }
+    usize::try_from(frames).context("NumberOfFrames exceeds the platform image-count limit")
 }
 
 fn valid_study_uid(value: &str) -> Option<ArrayString<64>> {
@@ -244,6 +264,7 @@ mod tests {
                 patient_birth_date: None,
                 study_time: None,
                 study_description: String::new(),
+                image_count: 1,
                 file_paths: vec![PathBuf::from("z/2.dcm")],
             },
             DicomSeriesInfo {
@@ -257,6 +278,7 @@ mod tests {
                 patient_birth_date: None,
                 study_time: None,
                 study_description: String::new(),
+                image_count: 1,
                 file_paths: vec![PathBuf::from("a/1.dcm")],
             },
             DicomSeriesInfo {
@@ -270,6 +292,7 @@ mod tests {
                 patient_birth_date: None,
                 study_time: None,
                 study_description: String::new(),
+                image_count: 1,
                 file_paths: vec![PathBuf::from("b/1.dcm")],
             },
         ];
@@ -318,5 +341,107 @@ mod tests {
         assert_eq!(valid_study_time("126061"), None);
         assert_eq!(valid_study_time("1234.1"), None);
         assert_eq!(valid_study_time("123456.1234567"), None);
+    }
+
+    #[test]
+    fn directory_scan_counts_multiframe_images_and_single_frame_files() {
+        use dicom::core::{DataElement, PrimitiveValue, VR};
+        use dicom::object::meta::FileMetaTableBuilder;
+
+        let root = tempfile::tempdir().expect("temporary DICOM directory");
+        for (filename, instance_uid, frames) in [
+            ("multiframe.dcm", "2.25.72001.1", Some("5")),
+            ("single-frame.dcm", "2.25.72001.2", None),
+        ] {
+            let mut object = InMemDicomObject::new_empty();
+            for (tag, vr, value) in [
+                (
+                    tags::SOP_CLASS_UID,
+                    VR::UI,
+                    PrimitiveValue::from("1.2.840.10008.5.1.4.1.1.7.3"),
+                ),
+                (
+                    tags::SOP_INSTANCE_UID,
+                    VR::UI,
+                    PrimitiveValue::from(instance_uid),
+                ),
+                (
+                    tags::SERIES_INSTANCE_UID,
+                    VR::UI,
+                    PrimitiveValue::from("2.25.72001"),
+                ),
+                (tags::MODALITY, VR::CS, PrimitiveValue::from("OT")),
+            ] {
+                object.put(DataElement::new(tag, vr, value));
+            }
+            if let Some(frames) = frames {
+                object.put(DataElement::new(
+                    tags::NUMBER_OF_FRAMES,
+                    VR::IS,
+                    PrimitiveValue::from(frames),
+                ));
+            }
+            let path = root.path().join(filename);
+            object
+                .with_meta(
+                    FileMetaTableBuilder::new()
+                        .media_storage_sop_class_uid("1.2.840.10008.5.1.4.1.1.7.3")
+                        .media_storage_sop_instance_uid(instance_uid)
+                        .transfer_syntax("1.2.840.10008.1.2.1"),
+                )
+                .expect("valid Part 10 metadata")
+                .write_to_file(path)
+                .expect("write catalog input");
+        }
+
+        let series = scan_dicom_directory(root.path()).expect("scan real DICOM headers");
+        assert_eq!(series.len(), 1);
+        assert_eq!(series[0].file_paths.len(), 2);
+        assert_eq!(series[0].image_count(), 6);
+    }
+
+    #[test]
+    fn directory_scan_rejects_zero_multiframe_count() {
+        use dicom::core::{DataElement, PrimitiveValue, VR};
+        use dicom::object::meta::FileMetaTableBuilder;
+
+        let root = tempfile::tempdir().expect("temporary DICOM directory");
+        let mut object = InMemDicomObject::new_empty();
+        for (tag, vr, value) in [
+            (
+                tags::SOP_CLASS_UID,
+                VR::UI,
+                PrimitiveValue::from("1.2.840.10008.5.1.4.1.1.7.3"),
+            ),
+            (
+                tags::SOP_INSTANCE_UID,
+                VR::UI,
+                PrimitiveValue::from("2.25.72001.1"),
+            ),
+            (
+                tags::SERIES_INSTANCE_UID,
+                VR::UI,
+                PrimitiveValue::from("2.25.72001"),
+            ),
+            (tags::MODALITY, VR::CS, PrimitiveValue::from("OT")),
+            (tags::NUMBER_OF_FRAMES, VR::IS, PrimitiveValue::from("0")),
+        ] {
+            object.put(DataElement::new(tag, vr, value));
+        }
+        object
+            .with_meta(
+                FileMetaTableBuilder::new()
+                    .media_storage_sop_class_uid("1.2.840.10008.5.1.4.1.1.7.3")
+                    .media_storage_sop_instance_uid("2.25.72001.1")
+                    .transfer_syntax("1.2.840.10008.1.2.1"),
+            )
+            .expect("valid Part 10 metadata")
+            .write_to_file(root.path().join("zero-frames.dcm"))
+            .expect("write invalid image-count header");
+
+        let error = scan_dicom_directory(root.path()).expect_err("zero frames are invalid");
+        assert!(error
+            .to_string()
+            .contains("NumberOfFrames (0028,0008) must be positive"));
     }
 }

@@ -45,8 +45,8 @@ pub(super) fn prepare_initial_study(
         app.load_volume(
             volume,
             format!(
-                "Loaded {} series ({} instances).",
-                choice.modality, choice.instance_count
+                "Loaded {} series ({} images).",
+                choice.modality, choice.image_count
             ),
         );
         Ok(Some(browser))

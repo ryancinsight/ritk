@@ -53,7 +53,7 @@ impl MultiSeriesDialog {
             framebuffer,
             offset(geometry.dialog.x, 20)?,
             offset(geometry.dialog.y, 48)?,
-            "Ctrl-click series to select multiple panels; Enter opens the first match",
+            "Ctrl-click or Space selects series; Enter opens the selection or first match",
             detail,
         );
 
@@ -222,11 +222,11 @@ impl MultiSeriesDialog {
                 regular,
                 38,
             );
-            let mut instance_count = ArrayString::<24>::new();
-            write!(&mut instance_count, "{} images", choice.instance_count)
+            let mut image_count = ArrayString::<32>::new();
+            write!(&mut image_count, "{} images", choice.image_count)
                 .map_err(|_| anyhow!("series image count exceeds its display buffer"))?;
             let count_width = detail
-                .extent(0, 0, instance_count.as_str())
+                .extent(0, 0, image_count.as_str())
                 .map_or(0, |extent| extent.width);
             let count_x = bounds
                 .x
@@ -244,7 +244,7 @@ impl MultiSeriesDialog {
                 framebuffer,
                 count_x,
                 bounds.y.saturating_add(10),
-                instance_count.as_str(),
+                image_count.as_str(),
                 detail,
             );
         }

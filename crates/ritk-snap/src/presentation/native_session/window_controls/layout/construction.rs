@@ -129,6 +129,7 @@ impl ChromeLayout {
                     .try_push(ToolbarGroup {
                         x: i32::try_from(control_x)
                             .map_err(|_| anyhow!("native toolbar group x exceeds i32"))?,
+                        label: group,
                     })
                     .map_err(|_| anyhow!("native toolbar group capacity exceeded"))?;
                 previous_group = Some(group);

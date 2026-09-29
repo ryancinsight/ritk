@@ -47,8 +47,8 @@ impl NativeViewerSession {
                     anyhow!("selected series index {index} is outside the catalog")
                 })?;
                 let status = format!(
-                    "Loaded {} series ({} instances).",
-                    choice.modality, choice.instance_count
+                    "Loaded {} series ({} images).",
+                    choice.modality, choice.image_count
                 );
                 let volume = load_volume_from_series_info(&choice.acquisition)
                     .with_context(|| format!("open selected series {index}"))?;
@@ -181,12 +181,12 @@ impl NativeViewerSession {
                 .choice(browser.active_index())
                 .expect("invariant: a non-empty study browser has an active series");
             let modality = choice.modality.to_string();
-            let instance_count = choice.instance_count;
+            let image_count = choice.image_count;
             let volume = load_volume_from_series_info(&choice.acquisition)
                 .with_context(|| "open the first discovered DICOM series")?;
             self.app.load_volume(
                 volume,
-                format!("Loaded {modality} series ({instance_count} instances)."),
+                format!("Loaded {modality} series ({image_count} images)."),
             );
             self.primary_series_index = Some(browser.active_index());
             self.series_browser = Some(browser);
@@ -267,10 +267,10 @@ impl NativeViewerSession {
         let choice = browser
             .choice(index)
             .ok_or_else(|| anyhow!("selected series row is outside the study"))?;
-        let (acquisition, modality, instance_count) = (
+        let (acquisition, modality, image_count) = (
             Arc::clone(&choice.acquisition),
             choice.modality.to_string(),
-            choice.instance_count,
+            choice.image_count,
         );
         let panel_count = self
             .workspace_layout
@@ -302,7 +302,7 @@ impl NativeViewerSession {
 
         let volume = load_volume_from_series_info(&acquisition)
             .with_context(|| "open the selected DICOM series")?;
-        let status = format!("Loaded {modality} series ({instance_count} instances).");
+        let status = format!("Loaded {modality} series ({image_count} images).");
         if panel_index == 0 {
             self.app.load_volume(volume, status);
             self.primary_series_index = Some(index);

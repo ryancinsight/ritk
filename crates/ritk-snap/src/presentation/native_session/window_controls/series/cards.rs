@@ -274,7 +274,7 @@ impl CardPresentation<'_> {
                 thumbnail.width.saturating_sub(8),
             );
         }
-        draw_image_count(framebuffer, thumbnail, choice.instance_count)?;
+        draw_image_count(framebuffer, thumbnail, choice.image_count)?;
 
         let text_x = thumbnail
             .x
@@ -336,10 +336,10 @@ impl CardPresentation<'_> {
 pub(super) fn draw_image_count(
     framebuffer: &mut Framebuffer,
     thumbnail: Rect,
-    instance_count: usize,
+    image_count: usize,
 ) -> Result<()> {
-    let mut label = ArrayString::<16>::new();
-    write!(&mut label, "{instance_count}")
+    let mut label = ArrayString::<20>::new();
+    write!(&mut label, "{image_count}")
         .map_err(|_| anyhow!("series image count exceeds its display buffer"))?;
     let badge_style = text_style(COUNT_BADGE_TEXT, 10)?;
     let text_width = badge_style
@@ -404,9 +404,13 @@ pub(super) fn assignment_badge(
         return Ok(None);
     }
     let mut badge = ArrayString::new();
+    let mut emitted = 0;
     for (panel, assigned) in displayed_series.iter().enumerate() {
-        if *assigned != Some(series_index) || panel >= 3 {
+        if *assigned != Some(series_index) {
             continue;
+        }
+        if emitted == 3 {
+            break;
         }
         if !badge.is_empty() {
             badge
@@ -415,9 +419,11 @@ pub(super) fn assignment_badge(
         }
         write!(&mut badge, "P{}", panel + 1)
             .map_err(|_| anyhow!("panel assignment badge exceeds its display buffer"))?;
+        emitted += 1;
     }
-    if panel_count > 3 {
-        write!(&mut badge, ", +{}", panel_count.saturating_sub(3))
+    let omitted = panel_count.saturating_sub(emitted);
+    if omitted > 0 {
+        write!(&mut badge, ", +{omitted}")
             .map_err(|_| anyhow!("panel assignment badge exceeds its display buffer"))?;
     }
     Ok(Some(badge))

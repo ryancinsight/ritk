@@ -91,11 +91,15 @@ impl MultiSeriesDialog {
             } if !repeated => match *virtual_key {
                 0x1b => Ok(action(DialogAction::Cancel)),
                 0x0d => {
-                    if let Some(index) = self.matches.first().copied() {
-                        self.set_single(index);
-                        Ok(action(DialogAction::Confirm))
-                    } else {
+                    if self.selected.is_empty() {
+                        if let Some(index) = self.matches.first().copied() {
+                            self.set_single(index);
+                        }
+                    }
+                    if self.selected.is_empty() {
                         Ok(changed(false))
+                    } else {
+                        Ok(action(DialogAction::Confirm))
                     }
                 }
                 0x08 => {
@@ -221,7 +225,7 @@ impl MultiSeriesDialog {
                 study,
                 choice.patient_number,
                 choice.study_number,
-                choice.instance_count
+                choice.image_count
             );
             if searchable.to_lowercase().contains(&query) {
                 self.matches.push(index);

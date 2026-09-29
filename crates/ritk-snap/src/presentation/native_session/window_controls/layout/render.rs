@@ -23,6 +23,8 @@ const POPUP_BACKGROUND: Color = Color::rgb(31, 37, 45);
 const ICON_COLOR: Color = Color::rgb(194, 209, 222);
 const ICON_ACTIVE: Color = Color::rgb(180, 232, 255);
 const DIVIDER: Color = Color::rgb(82, 92, 103);
+const GROUP_TEXT: Color = Color::rgb(188, 200, 212);
+const GROUP_RULE: Color = Color::rgb(71, 108, 130);
 const STATUS_TEXT: Color = Color::rgb(190, 203, 215);
 
 pub(super) fn render(
@@ -113,13 +115,39 @@ pub(super) fn render(
 
     let control_style = text_style(CONTROL_TEXT, 12)?;
     let menu_item_style = text_style(CONTROL_TEXT, 13)?;
+    let group_style = text_style(GROUP_TEXT, 10)?;
+    let toolbar_y = i32::try_from(layout.geometry.menu_height)
+        .map_err(|_| anyhow!("native toolbar y exceeds i32"))?;
+    for (index, group) in layout.groups.iter().enumerate() {
+        let group_right = layout
+            .groups
+            .get(index.saturating_add(1))
+            .map_or(layout.geometry.status_bar.width, |next| next.x);
+        let group_width = group_right
+            .saturating_sub(group.x)
+            .saturating_sub(12)
+            .max(0);
+        series::draw_fit(
+            framebuffer,
+            group.x,
+            toolbar_y.saturating_add(3),
+            group.label,
+            group_style,
+            group_width.max(0),
+        );
+        if group_width > 0 {
+            fill_rect(
+                framebuffer,
+                Rect::new(group.x, toolbar_y.saturating_add(15), group_width, 1),
+                CornerRadius::SQUARE,
+                GROUP_RULE,
+            );
+        }
+    }
     for group in layout.groups.iter().skip(1) {
-        let toolbar_y = i32::try_from(layout.geometry.menu_height)
-            .map_err(|_| anyhow!("native toolbar y exceeds i32"))?
-            .saturating_add(10);
         fill_rect(
             framebuffer,
-            Rect::new(group.x - 8, toolbar_y, 1, 38),
+            Rect::new(group.x - 8, toolbar_y.saturating_add(6), 1, 46),
             CornerRadius::SQUARE,
             DIVIDER,
         );
