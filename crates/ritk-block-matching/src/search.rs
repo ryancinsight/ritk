@@ -277,7 +277,7 @@ impl MultiResolutionSearch {
             block_radius: finest.block_radius,
             search_radius: finest.search_radius,
         };
-        let centres = grid.centres(finest_dims, &config);
+        let centres = grid.centres(finest_dims, &config)?;
         let mut displacements = vec![[0.0; 3]; centres.len()];
         let mut peak_similarities = vec![f64::NAN; centres.len()];
 
@@ -436,7 +436,7 @@ impl MultiResolutionSearch {
             block_radius: finest.block_radius,
             search_radius: finest.search_radius,
         };
-        let centres = grid.centres(finest_dims, &config);
+        let centres = grid.centres(finest_dims, &config)?;
         let mut displacements = vec![[0.0; 3]; centres.len()];
         let mut peak_similarities = vec![f64::NAN; centres.len()];
         let mut level_diagnostics = vec![None; centres.len()];

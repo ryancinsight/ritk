@@ -661,7 +661,9 @@ fn block_grid_dense_enumerates_centres() {
         search_radius: [0, 3, 3],
     };
     let grid = BlockGrid::dense(config.block_radius);
-    let centres = grid.centres([1, 32, 32], &config);
+    let centres = grid
+        .centres([1, 32, 32], &config)
+        .expect("the centre grid fits");
     assert!(!centres.is_empty());
     // Every centre must be at least block_radius away from each image boundary.
     for &[z, y, x] in &centres {
@@ -688,7 +690,16 @@ fn block_grid_validates_stride_and_overflow() {
         block_radius: [usize::MAX, usize::MAX, usize::MAX],
         search_radius: [1, 1, 1],
     };
-    assert!(grid.centres([1, 1, 1], &oversized).is_empty());
+    assert_eq!(
+        grid.centres([1, 1, 1], &oversized)
+            .expect_err("the block extent overflows")
+            .downcast_ref::<BlockMatchingError>(),
+        Some(&BlockMatchingError::WindowExtentOverflow {
+            label: "block",
+            axis: 0,
+            radius: usize::MAX,
+        })
+    );
 }
 
 #[test]
