@@ -555,14 +555,16 @@ impl DisplacementField {
 /// Scans the fixed/moving buffer pair using the given `grid` layout and
 /// `config`, reporting `BlockDisplacement` at each centre. Blocks whose fixed
 /// window is constant (zero variance) are recorded with `peak_similarity = NAN`
-/// and zero displacement rather than propagating an error.
+/// and zero displacement rather than propagating that expected domain outcome.
+/// Typed geometry and allocation failures propagate.
 ///
 /// Both buffers are flat row-major `[nz, ny, nx]` with `nz * ny * nx` voxels.
 ///
 /// # Errors
 ///
-/// Returns an error when `dims` product does not equal `fixed.len()`, when the
-/// configuration is invalid, or when `grid.stride` is zero on any axis.
+/// Returns an error when `dims` product does not equal either buffer length,
+/// when the configuration or grid is invalid, or when a derived geometry or
+/// allocation capacity overflows.
 pub fn track_volume<T: Sample>(
     fixed: &[T],
     moving: &[T],
@@ -581,7 +583,7 @@ pub fn track_volume<T: Sample>(
     let mut peak_similarities = vec![f64::NAN; n];
 
     for (i, &centre) in centres.iter().enumerate() {
-        if let Ok(bd) = match_block(
+        match match_block(
             fixed,
             MovingSamples::complete(moving),
             dims,
@@ -589,8 +591,14 @@ pub fn track_volume<T: Sample>(
             config,
             refinement,
         ) {
-            displacements[i] = bd.displacement;
-            peak_similarities[i] = bd.peak_similarity;
+            Ok(bd) => {
+                displacements[i] = bd.displacement;
+                peak_similarities[i] = bd.peak_similarity;
+            }
+            Err(error) if error.downcast_ref::<BlockMatchingError>().is_some() => {
+                return Err(error);
+            }
+            Err(_) => {}
         }
         // constant block (Err) — leave NAN / zeros
     }
@@ -1073,7 +1081,7 @@ fn track_volume_fft<T: Sample>(
     let mut peak_similarities = vec![f64::NAN; n];
 
     for (i, &centre) in centres.iter().enumerate() {
-        if let Ok(bd) = match_block_fft(
+        match match_block_fft(
             fixed,
             MovingSamples::complete(moving),
             dims,
@@ -1082,8 +1090,14 @@ fn track_volume_fft<T: Sample>(
             refinement,
             FftPadding::Zero,
         ) {
-            displacements[i] = bd.displacement;
-            peak_similarities[i] = bd.peak_similarity;
+            Ok(bd) => {
+                displacements[i] = bd.displacement;
+                peak_similarities[i] = bd.peak_similarity;
+            }
+            Err(error) if error.downcast_ref::<BlockMatchingError>().is_some() => {
+                return Err(error);
+            }
+            Err(_) => {}
         }
     }
 

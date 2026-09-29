@@ -2,7 +2,7 @@
 
 use anyhow::{bail, Result};
 
-use crate::extent::{check_buffer_lengths, voxel_count, window_extents};
+use crate::extent::{buffer_len, check_buffer_lengths, window_extents};
 
 use super::{BlockMatchingConfig, MovingSamples, Sample};
 
@@ -95,7 +95,10 @@ pub(crate) fn metric_image_at<T: Sample>(
     let radius = config.block_radius;
     let search = config.search_radius;
     let extent = window_extents(search, "search")?;
-    let value_count = voxel_count(extent, "metric image")?;
+    let value_count = buffer_len::<f64>(extent, "metric image")?;
+    let block_dims = window_extents(radius, "block")?;
+    let block_count = buffer_len::<T>(block_dims, "metric block")?;
+    buffer_len::<f64>(block_dims, "metric block scratch")?;
 
     // Fixed block, mean-subtracted once: it is reused for every candidate.
     let block = gather_block(fixed, dims, fixed_centre, radius);
@@ -119,7 +122,7 @@ pub(crate) fn metric_image_at<T: Sample>(
     // One scratch buffer for every candidate. A speckle tracker calls this per
     // depth sample of every line, so allocating per candidate would put tens of
     // allocations into the inner loop of a volume-wide sweep.
-    let mut candidate = Vec::with_capacity(block.len());
+    let mut candidate = Vec::with_capacity(block_count);
     for (oz, dz) in (-(search[0] as isize)..=search[0] as isize).enumerate() {
         for (oy, dy) in (-(search[1] as isize)..=search[1] as isize).enumerate() {
             for (ox, dx) in (-(search[2] as isize)..=search[2] as isize).enumerate() {
