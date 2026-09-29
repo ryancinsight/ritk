@@ -109,7 +109,7 @@ class ManualImageProvenanceTests(unittest.TestCase):
                     lossless_webp_dimensions(image),
                 )
                 self.assertEqual(output["encoding"], "lossless WebP")
-                self.assertTrue(output["decoded_rgba_byte_equal_to_source_capture"])
+                self.assertNotIn("decoded_rgba_byte_equal_to_source_capture", output)
                 self.assertEqual(runtime["process_returncode"], 0)
                 self.assertRegex(source_capture["sha256"], r"\A[0-9a-f]{64}\Z")
                 self.assertGreater(source_capture["bytes"], 0)

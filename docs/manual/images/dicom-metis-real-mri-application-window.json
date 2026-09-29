@@ -73,7 +73,6 @@
     "sha256": "6652eb9ac25803e9ecf43f20240ee4dc4b1d78a71ecde7cad9dde3f281a51004",
     "bytes": 161016,
     "encoding": "lossless WebP",
-    "decoded_rgba_byte_equal_to_source_capture": true,
     "visible_controls": [
       "File",
       "View",
