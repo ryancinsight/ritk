@@ -2,9 +2,7 @@
 
 use super::{match_block, BlockMatchingConfig, MovingSamples, SubpixelRefinement};
 
-#[cfg(feature = "fft")]
 use super::{metric_image, BlockMetric};
-#[cfg(feature = "fft")]
 use crate::{metric_image_fft, FftPadding};
 
 const DIMS: [usize; 3] = [1, 40, 40];
@@ -184,7 +182,6 @@ fn moving_validity_rejects_a_mismatched_length() {
     assert!(error.to_string().contains("does not match sample length"));
 }
 
-#[cfg(feature = "fft")]
 #[test]
 fn fft_matches_direct_with_internal_missing_data() {
     let (fixed, moving, validity) = pair_with_missing_slab();
@@ -220,7 +217,6 @@ fn fft_matches_direct_with_internal_missing_data() {
     }
 }
 
-#[cfg(feature = "fft")]
 #[test]
 fn masked_finite_sentinels_do_not_contaminate_fft_candidates() {
     let (fixed, mut moving, validity) = pair_with_missing_slab();
