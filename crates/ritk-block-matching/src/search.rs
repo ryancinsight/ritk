@@ -322,7 +322,6 @@ impl MultiResolutionSearch {
     ///
     /// Returns the same errors as [`Self::match_pyramid`], plus any raised by
     /// the FFT provider.
-    #[cfg(feature = "fft")]
     pub fn match_pyramid_fft<T: Sample>(
         &self,
         pyramid: &[PyramidLevel<'_, T>],
@@ -354,7 +353,6 @@ impl MultiResolutionSearch {
     ///
     /// Returns the same errors as [`Self::track_volume_pyramid`], plus any
     /// raised by the FFT provider.
-    #[cfg(feature = "fft")]
     pub fn track_volume_pyramid_fft<T: Sample>(
         &self,
         pyramid: &[PyramidLevel<'_, T>],
@@ -372,7 +370,6 @@ impl MultiResolutionSearch {
     ///
     /// Returns the same errors as [`Self::track_volume_pyramid_diagnostics`],
     /// plus any raised by the FFT provider.
-    #[cfg(feature = "fft")]
     pub fn track_volume_pyramid_fft_diagnostics<T: Sample>(
         &self,
         pyramid: &[PyramidLevel<'_, T>],

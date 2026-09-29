@@ -200,7 +200,6 @@ fn metric_image_centre_is_the_null_displacement() {
     );
 }
 
-#[cfg(feature = "fft")]
 fn assert_fft_matches_direct(centre: [usize; 3]) {
     let fixed = shifted_image([0, 0, 0]);
     let moving = shifted_image([0, 3, -2]);
@@ -239,7 +238,6 @@ fn assert_fft_matches_direct(centre: [usize; 3]) {
 
 /// Apollo's finite linear NCC must match the direct metric away from image
 /// boundaries, including the full candidate surface rather than only its peak.
-#[cfg(feature = "fft")]
 #[test]
 fn fft_ncc_matches_direct_metric_interior() {
     assert_fft_matches_direct([0, 20, 20]);
@@ -248,7 +246,6 @@ fn fft_ncc_matches_direct_metric_interior() {
 /// Zero padding is an implementation detail, not correlation evidence: the
 /// FFT path must agree with the direct metric when negative candidates are
 /// excluded at a finite image boundary.
-#[cfg(feature = "fft")]
 #[test]
 fn fft_ncc_matches_direct_metric_at_boundary() {
     assert_fft_matches_direct([0, 8, 8]);
@@ -256,7 +253,6 @@ fn fft_ncc_matches_direct_metric_at_boundary() {
 
 /// The FFT matcher must preserve the public displacement convention and peak
 /// value for an exact translated texture.
-#[cfg(feature = "fft")]
 #[test]
 fn fft_match_recovers_integer_translation() {
     let fixed = shifted_image([0, 0, 0]);
@@ -286,7 +282,6 @@ fn fft_match_recovers_integer_translation() {
     assert!((fft.peak_similarity - direct.peak_similarity).abs() < 1.0e-9);
 }
 
-#[cfg(feature = "fft")]
 #[test]
 fn fft_ncc_rejects_featureless_and_mismatched_inputs() {
     let flat = vec![1.0_f32; DIMS[0] * DIMS[1] * DIMS[2]];
@@ -835,7 +830,6 @@ fn pyramid_matching_propagates_coarse_displacement() {
     assert!(result.peak_similarity > 0.999);
 }
 
-#[cfg(feature = "fft")]
 #[test]
 fn fft_pyramid_matches_direct_propagation_and_diagnostics() {
     let plan = MultiResolutionSearch::new([0, 4, 4], [0, 8, 8], 3).expect("valid plan");
@@ -901,7 +895,6 @@ fn fft_pyramid_matches_direct_propagation_and_diagnostics() {
     }
 }
 
-#[cfg(feature = "fft")]
 #[test]
 fn fft_pyramid_volume_matches_direct_field() {
     let plan = MultiResolutionSearch::new([0, 4, 4], [0, 4, 4], 2).expect("valid plan");
@@ -1276,7 +1269,6 @@ fn pipeline_owned_pyramid_matches_explicit_levels() {
     );
 }
 
-#[cfg(feature = "fft")]
 #[test]
 fn pipeline_owned_fft_pyramid_matches_direct_adapter() {
     let plan = MultiResolutionSearch::new([0, 4, 4], [0, 4, 4], 2).expect("valid plan");
@@ -1319,7 +1311,6 @@ fn pipeline_owned_fft_pyramid_matches_direct_adapter() {
     }
 }
 
-#[cfg(feature = "fft")]
 #[test]
 fn pipeline_fft_pyramid_matches_direct_pipeline() {
     let plan = MultiResolutionSearch::new([0, 4, 4], [0, 4, 4], 2).expect("valid plan");
@@ -1505,7 +1496,6 @@ fn pyramid_diagnostics_validate_before_field_projection() {
     assert!(misaligned.try_as_field().is_err());
 }
 
-#[cfg(feature = "fft")]
 #[test]
 fn fft_pyramid_diagnostics_match_direct_diagnostics() {
     let plan = MultiResolutionSearch::new([0, 4, 4], [0, 4, 4], 2).expect("valid plan");

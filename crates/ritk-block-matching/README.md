@@ -1,13 +1,12 @@
 # ritk-block-matching
 
-Dependency-light block-matching displacement estimation for speckle tracking
-and elastography.
+Block-matching displacement estimation for speckle tracking and elastography.
 
 The crate compares a fixed block with candidate blocks in a moving image using
 zero-mean normalized cross-correlation and returns the displacement of the
 best peak. Parabolic and cosine subpixel refinements are available. Inputs are
 caller-owned flat row-major `[z, y, x]` sample buffers; the crate does not
-depend on an image, tensor, or device backend.
+depend on an image or tensor crate. The FFT metric uses Apollo's FFT provider.
 
 ```rust
 use ritk_block_matching::{
@@ -56,8 +55,8 @@ evidence while still applying configured strain and Bayesian stages to its
 the pipeline's metric, refinement, strain-window, and Bayesian stages;
 `run_owned_pyramid` is the convenience adapter for [`OwnedPyramid`] values
 constructed by the crate's nearest-neighbour or min/max builders, and
-`run_owned_pyramid_with_diagnostics` retains their raw level evidence. With the
-optional `fft` feature, `match_pyramid_fft`, `track_volume_pyramid_fft`, and
+`run_owned_pyramid_with_diagnostics` retains their raw level evidence.
+`match_pyramid_fft`, `track_volume_pyramid_fft`, and
 `DisplacementPipeline`'s `PipelineMetric::Fft` mode run the same
 propagated-centre pipeline through Apollo's explicit zero-padded linear NCC. Their outputs and per-level
 coordinates are parity-tested against the direct path; zero padding is an FFT
