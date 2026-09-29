@@ -85,90 +85,118 @@ fn test_analyze_slice_spacing_missing_slice() {
 
 #[test]
 fn test_resample_frames_linear_identity_on_uniform() {
-    // 4 frames, 2×2 pixels each, uniform spacing 1.0 mm
-    let f0 = vec![1.0_f32, 2.0, 3.0, 4.0];
-    let f1 = vec![5.0_f32, 6.0, 7.0, 8.0];
-    let f2 = vec![9.0_f32, 10.0, 11.0, 12.0];
-    let f3 = vec![13.0_f32, 14.0, 15.0, 16.0];
-    let frames = vec![f0.clone(), f1.clone(), f2.clone(), f3.clone()];
+    // 4 frames, 2×2 pixels each, uniform spacing 1.0 mm, flat row-major storage.
+    let frame_len = 4;
+    let frames: Vec<f32> = vec![
+        1.0, 2.0, 3.0, 4.0, // frame 0
+        5.0, 6.0, 7.0, 8.0, // frame 1
+        9.0, 10.0, 11.0, 12.0, // frame 2
+        13.0, 14.0, 15.0, 16.0, // frame 3
+    ];
     let positions = vec![0.0_f64, 1.0, 2.0, 3.0];
-    let resampled = resample_frames_linear(&frames, &positions, 1.0);
-    assert_eq!(resampled.len(), 4, "frame count");
-    for (i, (orig, got)) in frames.iter().zip(resampled.iter()).enumerate() {
-        for (j, (&o, &g)) in orig.iter().zip(got.iter()).enumerate() {
-            assert!(
-                (o - g).abs() < 1e-5,
-                "frame[{}] pixel[{}]: expected {}, got {}",
-                i,
-                j,
-                o,
-                g
-            );
-        }
+    let resampled = resample_frames_linear(&frames, frame_len, &positions, 1.0);
+    assert_eq!(resampled.len(), 4 * frame_len, "flat element count");
+    for (i, (&o, &g)) in frames.iter().zip(resampled.iter()).enumerate() {
+        assert!(
+            (o - g).abs() < 1e-5,
+            "element[{}]: expected {}, got {}",
+            i,
+            o,
+            g
+        );
     }
 }
 
 #[test]
 fn test_resample_frames_linear_missing_slice() {
     // All-constant frames: src[0]=10, src[1]=20, src[2]=40, src[3]=50 (per-pixel)
-    let mk = |v: f32| vec![v; 4]; // 2×2 pixels
-    let frames = vec![mk(10.0), mk(20.0), mk(40.0), mk(50.0)];
+    let frame_len = 4; // 2×2 pixels
+    let mut frames = Vec::new();
+    for v in [10.0_f32, 20.0, 40.0, 50.0] {
+        frames.extend(std::iter::repeat_n(v, frame_len));
+    }
     let positions = vec![0.0_f64, 1.0, 3.0, 4.0];
-    let resampled = resample_frames_linear(&frames, &positions, 1.0);
+    let resampled = resample_frames_linear(&frames, frame_len, &positions, 1.0);
     // N_target = round((4.0 - 0.0) / 1.0) + 1 = 5
-    assert_eq!(resampled.len(), 5, "expected 5 output frames");
+    assert_eq!(resampled.len(), 5 * frame_len, "expected 5 output frames");
+    fn frame(resampled: &[f32], k: usize, frame_len: usize) -> &[f32] {
+        &resampled[k * frame_len..(k + 1) * frame_len]
+    }
     // Frame 0 (pos=0.0) → src[0] = 10.0
-    for &v in &resampled[0] {
+    for &v in frame(&resampled, 0, frame_len) {
         assert!((v - 10.0).abs() < 1e-5, "frame[0] pixel={}", v);
     }
     // Frame 1 (pos=1.0) → exactly src[1] = 20.0
-    for &v in &resampled[1] {
+    for &v in frame(&resampled, 1, frame_len) {
         assert!((v - 20.0).abs() < 1e-5, "frame[1] pixel={}", v);
     }
     // Frame 2 (pos=2.0) → midpoint of src[1](pos=1.0) and src[2](pos=3.0)
     // t = (2.0 - 1.0) / (3.0 - 1.0) = 0.5 → 0.5×20 + 0.5×40 = 30.0
-    for &v in &resampled[2] {
+    for &v in frame(&resampled, 2, frame_len) {
         assert!((v - 30.0).abs() < 1e-4, "frame[2] pixel={}", v);
     }
     // Frame 3 (pos=3.0) → exactly src[2] = 40.0
-    for &v in &resampled[3] {
+    for &v in frame(&resampled, 3, frame_len) {
         assert!((v - 40.0).abs() < 1e-5, "frame[3] pixel={}", v);
     }
     // Frame 4 (pos=4.0) → src[3] = 50.0
-    for &v in &resampled[4] {
+    for &v in frame(&resampled, 4, frame_len) {
         assert!((v - 50.0).abs() < 1e-5, "frame[4] pixel={}", v);
     }
 }
 
 #[test]
 fn test_resample_frames_linear_nonuniform_interpolation() {
-    let mk = |v: f32| vec![v; 1];
+    let frame_len = 1;
     // src values: 0, 10, 20, 30, 40
-    let frames = vec![mk(0.0), mk(10.0), mk(20.0), mk(30.0), mk(40.0)];
+    let frames: Vec<f32> = vec![0.0, 10.0, 20.0, 30.0, 40.0];
     let positions = vec![0.0_f64, 1.0, 2.1, 3.1, 4.1];
-    let resampled = resample_frames_linear(&frames, &positions, 1.0);
+    let resampled = resample_frames_linear(&frames, frame_len, &positions, 1.0);
     assert_eq!(resampled.len(), 5, "5 target frames");
     // Frame 0 → exact src[0] = 0.0 (t=0, clamp)
     assert!(
-        (resampled[0][0] - 0.0).abs() < 1e-5,
+        (resampled[0] - 0.0).abs() < 1e-5,
         "frame[0]={}",
-        resampled[0][0]
+        resampled[0]
     );
     // Frame 1 → exact src[1] = 10.0 (exact match at pos=1.0)
     assert!(
-        (resampled[1][0] - 10.0).abs() < 1e-5,
+        (resampled[1] - 10.0).abs() < 1e-5,
         "frame[1]={}",
-        resampled[1][0]
+        resampled[1]
     );
     // Frame 2 → interpolated between src[1](10.0) and src[2](20.0)
     let t = (2.0_f64 - 1.0) / (2.1 - 1.0);
     let expected = (1.0 - t) as f32 * 10.0 + t as f32 * 20.0;
     assert!(
-        (resampled[2][0] - expected).abs() < 1e-4,
+        (resampled[2] - expected).abs() < 1e-4,
         "frame[2]: expected {:.5}, got {:.5}",
         expected,
-        resampled[2][0]
+        resampled[2]
     );
+}
+
+#[test]
+fn test_resample_frames_linear_multirow_matches_scalar_per_row() {
+    // ATLAS-ARCH-008: flat multi-pixel-per-frame resampling must equal the
+    // scalar (frame_len=1) result applied independently to each pixel lane --
+    // the row-major flattening must not couple lanes.
+    let positions = vec![0.0_f64, 1.0, 2.6, 3.6];
+    let lane0: Vec<f32> = vec![0.0, 10.0, 20.0, 30.0];
+    let lane1: Vec<f32> = vec![100.0, 90.0, 80.0, 70.0];
+    let mut flat = Vec::with_capacity(lane0.len() * 2);
+    for (&a, &b) in lane0.iter().zip(lane1.iter()) {
+        flat.push(a);
+        flat.push(b);
+    }
+    let resampled = resample_frames_linear(&flat, 2, &positions, 1.0);
+    let expected_lane0 = resample_frames_linear(&lane0, 1, &positions, 1.0);
+    let expected_lane1 = resample_frames_linear(&lane1, 1, &positions, 1.0);
+    assert_eq!(resampled.len(), expected_lane0.len() * 2);
+    for (k, (&e0, &e1)) in expected_lane0.iter().zip(expected_lane1.iter()).enumerate() {
+        assert_eq!(resampled[k * 2], e0, "lane 0 at frame {k}");
+        assert_eq!(resampled[k * 2 + 1], e1, "lane 1 at frame {k}");
+    }
 }
 
 #[test]
