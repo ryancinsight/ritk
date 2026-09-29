@@ -1,3 +1,4 @@
+use consus_core::{read_integer, write_to};
 use std::collections::HashMap;
 use std::io::{BufRead, BufReader, Read, Write};
 
@@ -335,38 +336,12 @@ fn parse_transform(value: &str) -> Result<[[f64; 4]; 4], TckError> {
 
 /// Decode three scalars from a byte buffer according to `datatype`.
 fn decode_point(dt: TckDatatype, buf: &[u8]) -> (f64, f64, f64) {
-    match dt {
-        TckDatatype::Float32LE => {
-            let x =
-                f32::from_le_bytes(buf[0..4].try_into().expect("fixed-width byte field")) as f64;
-            let y =
-                f32::from_le_bytes(buf[4..8].try_into().expect("fixed-width byte field")) as f64;
-            let z =
-                f32::from_le_bytes(buf[8..12].try_into().expect("fixed-width byte field")) as f64;
-            (x, y, z)
-        }
-        TckDatatype::Float32BE => {
-            let x =
-                f32::from_be_bytes(buf[0..4].try_into().expect("fixed-width byte field")) as f64;
-            let y =
-                f32::from_be_bytes(buf[4..8].try_into().expect("fixed-width byte field")) as f64;
-            let z =
-                f32::from_be_bytes(buf[8..12].try_into().expect("fixed-width byte field")) as f64;
-            (x, y, z)
-        }
-        TckDatatype::Float64LE => {
-            let x = f64::from_le_bytes(buf[0..8].try_into().expect("fixed-width byte field"));
-            let y = f64::from_le_bytes(buf[8..16].try_into().expect("fixed-width byte field"));
-            let z = f64::from_le_bytes(buf[16..24].try_into().expect("fixed-width byte field"));
-            (x, y, z)
-        }
-        TckDatatype::Float64BE => {
-            let x = f64::from_be_bytes(buf[0..8].try_into().expect("fixed-width byte field"));
-            let y = f64::from_be_bytes(buf[8..16].try_into().expect("fixed-width byte field"));
-            let z = f64::from_be_bytes(buf[16..24].try_into().expect("fixed-width byte field"));
-            (x, y, z)
-        }
-    }
+    let width = dt.scalar_width();
+    (
+        decode_scalar(dt, buf),
+        decode_scalar(dt, &buf[width..]),
+        decode_scalar(dt, &buf[2 * width..]),
+    )
 }
 
 /// Encode three `f64` scalars and write them using `datatype`.
@@ -377,27 +352,8 @@ fn encode_and_write(
     dt: TckDatatype,
     writer: &mut impl Write,
 ) -> Result<(), TckError> {
-    match dt {
-        TckDatatype::Float32LE => {
-            writer.write_all(&(x as f32).to_le_bytes())?;
-            writer.write_all(&(y as f32).to_le_bytes())?;
-            writer.write_all(&(z as f32).to_le_bytes())?;
-        }
-        TckDatatype::Float32BE => {
-            writer.write_all(&(x as f32).to_be_bytes())?;
-            writer.write_all(&(y as f32).to_be_bytes())?;
-            writer.write_all(&(z as f32).to_be_bytes())?;
-        }
-        TckDatatype::Float64LE => {
-            writer.write_all(&x.to_le_bytes())?;
-            writer.write_all(&y.to_le_bytes())?;
-            writer.write_all(&z.to_le_bytes())?;
-        }
-        TckDatatype::Float64BE => {
-            writer.write_all(&x.to_be_bytes())?;
-            writer.write_all(&y.to_be_bytes())?;
-            writer.write_all(&z.to_be_bytes())?;
-        }
+    for value in [x, y, z] {
+        write_scalar(writer, dt, value as f32, value)?;
     }
     Ok(())
 }
@@ -429,51 +385,11 @@ pub fn write_tck_weights(
 
     for values in scalars {
         for &v in values.iter() {
-            let v = v as f64;
-            match datatype {
-                TckDatatype::Float32LE => {
-                    writer.write_all(&(v as f32).to_le_bytes())?;
-                }
-                TckDatatype::Float32BE => {
-                    writer.write_all(&(v as f32).to_be_bytes())?;
-                }
-                TckDatatype::Float64LE => {
-                    writer.write_all(&v.to_le_bytes())?;
-                }
-                TckDatatype::Float64BE => {
-                    writer.write_all(&v.to_be_bytes())?;
-                }
-            }
+            write_scalar(writer, datatype, v, f64::from(v))?;
         }
-        match datatype {
-            TckDatatype::Float32LE => {
-                writer.write_all(&f32::NAN.to_le_bytes())?;
-            }
-            TckDatatype::Float32BE => {
-                writer.write_all(&f32::NAN.to_be_bytes())?;
-            }
-            TckDatatype::Float64LE => {
-                writer.write_all(&f64::NAN.to_le_bytes())?;
-            }
-            TckDatatype::Float64BE => {
-                writer.write_all(&f64::NAN.to_be_bytes())?;
-            }
-        }
+        write_scalar(writer, datatype, f32::NAN, f64::NAN)?;
     }
-    match datatype {
-        TckDatatype::Float32LE => {
-            writer.write_all(&f32::INFINITY.to_le_bytes())?;
-        }
-        TckDatatype::Float32BE => {
-            writer.write_all(&f32::INFINITY.to_be_bytes())?;
-        }
-        TckDatatype::Float64LE => {
-            writer.write_all(&f64::INFINITY.to_le_bytes())?;
-        }
-        TckDatatype::Float64BE => {
-            writer.write_all(&f64::INFINITY.to_be_bytes())?;
-        }
-    }
+    write_scalar(writer, datatype, f32::INFINITY, f64::INFINITY)?;
 
     Ok(())
 }
@@ -520,10 +436,7 @@ pub fn read_tck_weights(reader: impl Read) -> Result<Vec<Box<[f32]>>, TckError> 
     let mut result: Vec<Box<[f32]>> = Vec::new();
     let mut current: Vec<f32> = Vec::new();
 
-    let scalar_size = match datatype {
-        TckDatatype::Float32LE | TckDatatype::Float32BE => 4usize,
-        TckDatatype::Float64LE | TckDatatype::Float64BE => 8usize,
-    };
+    let scalar_size = datatype.scalar_width();
     let mut buf = vec![0u8; scalar_size];
 
     loop {
@@ -556,20 +469,30 @@ pub fn read_tck_weights(reader: impl Read) -> Result<Vec<Box<[f32]>>, TckError> 
     Ok(result)
 }
 
-/// Decode a single scalar from a byte buffer according to `datatype`.
+/// Decode a single scalar from the start of `buf` according to `datatype`.
 fn decode_scalar(dt: TckDatatype, buf: &[u8]) -> f64 {
+    let order = dt.byte_order();
     match dt {
-        TckDatatype::Float32LE => {
-            f32::from_le_bytes(buf[..4].try_into().expect("fixed-width byte field")) as f64
+        TckDatatype::Float32LE | TckDatatype::Float32BE => {
+            read_integer::<f32>(buf, order).map(f64::from)
         }
-        TckDatatype::Float32BE => {
-            f32::from_be_bytes(buf[..4].try_into().expect("fixed-width byte field")) as f64
-        }
-        TckDatatype::Float64LE => {
-            f64::from_le_bytes(buf[..8].try_into().expect("fixed-width byte field"))
-        }
-        TckDatatype::Float64BE => {
-            f64::from_be_bytes(buf[..8].try_into().expect("fixed-width byte field"))
-        }
+        TckDatatype::Float64LE | TckDatatype::Float64BE => read_integer::<f64>(buf, order),
     }
+    .expect("invariant: the buffer holds one scalar of the datatype's width")
+}
+
+/// Write one scalar in `datatype`: `single` for the 32-bit datatypes, `double`
+/// for the 64-bit ones, so each writes exactly the bits it was given.
+fn write_scalar(
+    writer: &mut impl Write,
+    dt: TckDatatype,
+    single: f32,
+    double: f64,
+) -> Result<(), TckError> {
+    let order = dt.byte_order();
+    match dt {
+        TckDatatype::Float32LE | TckDatatype::Float32BE => write_to(writer, single, order)?,
+        TckDatatype::Float64LE | TckDatatype::Float64BE => write_to(writer, double, order)?,
+    }
+    Ok(())
 }

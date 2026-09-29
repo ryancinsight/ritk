@@ -60,6 +60,7 @@
 
 use anyhow::{anyhow, Context, Result};
 use coeus_core::ComputeBackend;
+use consus_core::{read_integer, ByteOrder};
 use ritk_spatial::{Direction, Point, Spacing};
 use std::fs::File;
 use std::io::{Read, Seek, SeekFrom};
@@ -251,12 +252,7 @@ fn decode_analyze<P: AsRef<Path>>(path: P) -> Result<DecodedAnalyze> {
     // big-endian file is not reported as arbitrary header corruption.
     let sizeof_hdr = read_le::<i32>(&hdr, 0);
     if sizeof_hdr != HDR_SIZE as i32 {
-        if i32::from_be_bytes(
-            hdr[0..4]
-                .try_into()
-                .expect("invariant: four-byte header field"),
-        ) == HDR_SIZE as i32
-        {
+        if read_integer::<i32>(&hdr, ByteOrder::BigEndian) == Some(HDR_SIZE as i32) {
             return Err(anyhow!(
                 "Unsupported big-endian Analyze file; RITK currently accepts little-endian Analyze 7.5 only"
             ));

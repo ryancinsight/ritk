@@ -28,11 +28,10 @@
 
 use std::io::{Read, Write};
 
-use super::big_endian::{
-    read_be, read_count, read_u24, reserve_for, write_be, write_count, write_u24,
-};
+use super::big_endian::{read_count, read_u24, reserve_for, write_count, write_u24};
 use super::surface::MAX_ELEMENTS;
 use super::{FreeSurferError, FreeSurferFormat};
+use consus_core::{ByteOrder, read_from, write_to};
 
 const FORMAT: FreeSurferFormat = FreeSurferFormat::Morphometry;
 
@@ -88,7 +87,7 @@ impl Morphometry {
         }
         let vertex_count = read_count(&mut reader, FORMAT, "vertex count", MAX_ELEMENTS)?;
         let face_count = read_count(&mut reader, FORMAT, "face count", MAX_ELEMENTS)?;
-        let per_vertex = read_be::<i32>(&mut reader)?;
+        let per_vertex = read_from::<i32, _>(&mut reader, ByteOrder::BigEndian)?;
         if per_vertex != 1 {
             return Err(FreeSurferError::Unsupported {
                 format: FORMAT,
@@ -98,7 +97,7 @@ impl Morphometry {
         }
         let mut values = Vec::with_capacity(reserve_for(vertex_count));
         for _ in 0..vertex_count {
-            values.push(read_be::<f32>(&mut reader)?);
+            values.push(read_from::<f32, _>(&mut reader, ByteOrder::BigEndian)?);
         }
         Ok(Self {
             values: values.into_boxed_slice(),
@@ -117,9 +116,9 @@ impl Morphometry {
         write_u24(writer, MAGIC)?;
         write_count(writer, FORMAT, "vertex count", self.values.len())?;
         write_count(writer, FORMAT, "face count", self.face_count)?;
-        write_be(writer, 1_i32)?;
+        write_to(writer, 1_i32, ByteOrder::BigEndian)?;
         for value in &self.values {
-            write_be(writer, *value)?;
+            write_to(writer, *value, ByteOrder::BigEndian)?;
         }
         Ok(())
     }

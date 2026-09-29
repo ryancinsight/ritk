@@ -18,12 +18,12 @@ impl<'input> Scanner<'input> {
     ) -> Result<usize> {
         let mut cursor = start;
         loop {
-            let tag = self.read_tag(cursor, encoding.little_endian)?;
+            let tag = self.read_tag(cursor, encoding.byte_order)?;
             if tag == Tag(ITEM_GROUP, ITEM_DELIMITER_ELEMENT) {
                 let length_start = cursor
                     .checked_add(4)
                     .context("DICOM item delimiter length offset overflow")?;
-                let length = self.read_u32(length_start, encoding.little_endian)?;
+                let length = self.read_field::<u32>(length_start, encoding.byte_order)?;
                 if length != 0 {
                     bail!("DICOM item delimiter length must be zero")
                 }
@@ -108,7 +108,7 @@ impl<'input> Scanner<'input> {
         }
         let mut cursor = start;
         loop {
-            let tag = self.read_tag(cursor, encoding.little_endian)?;
+            let tag = self.read_tag(cursor, encoding.byte_order)?;
             if tag == Tag(ITEM_GROUP, SEQUENCE_DELIMITER_ELEMENT) {
                 if length != UNDEFINED_LENGTH {
                     bail!("defined-length DICOM sequence contains a delimiter")
@@ -116,7 +116,7 @@ impl<'input> Scanner<'input> {
                 let length_start = cursor
                     .checked_add(4)
                     .context("DICOM sequence delimiter length offset overflow")?;
-                let delimiter_length = self.read_u32(length_start, encoding.little_endian)?;
+                let delimiter_length = self.read_field::<u32>(length_start, encoding.byte_order)?;
                 if delimiter_length != 0 {
                     bail!("DICOM sequence delimiter length must be zero")
                 }
@@ -130,7 +130,7 @@ impl<'input> Scanner<'input> {
             let length_start = cursor
                 .checked_add(4)
                 .context("DICOM sequence item length offset overflow")?;
-            let item_length = self.read_u32(length_start, encoding.little_endian)?;
+            let item_length = self.read_field::<u32>(length_start, encoding.byte_order)?;
             self.account_header(8, "DICOM sequence item")?;
             self.count_element("DICOM sequence item")?;
             let item_start = self.span_end(cursor, 8, sequence_end)?;

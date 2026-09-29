@@ -1,6 +1,7 @@
 //! PLY type system and header structures.
 
 use anyhow::{bail, Context, Result};
+use consus_core::{read_integer, ByteOrder, EndianScalar};
 
 // ── Type system ───────────────────────────────────────────────────────────────
 
@@ -73,36 +74,35 @@ impl PlyType {
     }
 
     pub(super) fn read_le_float(self, b: &[u8], off: usize) -> f32 {
+        let field = &b[off..];
         match self {
-            Self::Float => f32::from_le_bytes([b[off], b[off + 1], b[off + 2], b[off + 3]]),
-            Self::Double => f64::from_le_bytes([
-                b[off],
-                b[off + 1],
-                b[off + 2],
-                b[off + 3],
-                b[off + 4],
-                b[off + 5],
-                b[off + 6],
-                b[off + 7],
-            ]) as f32,
-            Self::Int => i32::from_le_bytes([b[off], b[off + 1], b[off + 2], b[off + 3]]) as f32,
-            Self::Uint => u32::from_le_bytes([b[off], b[off + 1], b[off + 2], b[off + 3]]) as f32,
-            Self::Short => i16::from_le_bytes([b[off], b[off + 1]]) as f32,
-            Self::Ushort => u16::from_le_bytes([b[off], b[off + 1]]) as f32,
-            Self::Char => b[off] as i8 as f32,
-            Self::Uchar => b[off] as f32,
+            Self::Float => le_field::<f32>(field),
+            Self::Double => le_field::<f64>(field) as f32,
+            Self::Int => le_field::<i32>(field) as f32,
+            Self::Uint => le_field::<u32>(field) as f32,
+            Self::Short => f32::from(le_field::<i16>(field)),
+            Self::Ushort => f32::from(le_field::<u16>(field)),
+            Self::Char => f32::from(le_field::<i8>(field)),
+            Self::Uchar => f32::from(le_field::<u8>(field)),
         }
     }
 
     pub(super) fn read_le_u32(self, b: &[u8], off: usize) -> u32 {
+        let field = &b[off..];
         match self {
-            Self::Uchar => b[off] as u32,
-            Self::Ushort => u16::from_le_bytes([b[off], b[off + 1]]) as u32,
-            Self::Int => i32::from_le_bytes([b[off], b[off + 1], b[off + 2], b[off + 3]]) as u32,
-            Self::Uint => u32::from_le_bytes([b[off], b[off + 1], b[off + 2], b[off + 3]]),
+            Self::Uchar => u32::from(le_field::<u8>(field)),
+            Self::Ushort => u32::from(le_field::<u16>(field)),
+            Self::Int => le_field::<i32>(field) as u32,
+            Self::Uint => le_field::<u32>(field),
             _ => 0,
         }
     }
+}
+
+/// Decode the little-endian `T` at the start of a PLY binary body field.
+fn le_field<T: EndianScalar>(field: &[u8]) -> T {
+    read_integer(field, ByteOrder::LittleEndian)
+        .expect("invariant: the body holds every property the header declares")
 }
 
 // ── Header model ──────────────────────────────────────────────────────────────

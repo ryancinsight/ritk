@@ -9,6 +9,7 @@ repository.workspace = true
 publish = false
 
 [dependencies]
+consus-core = { workspace = true }
 gaia = { workspace = true }
 leto = { workspace = true }
 thiserror.workspace = true

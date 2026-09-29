@@ -15,6 +15,7 @@ readme.workspace = true
 [features]
 
 [dependencies]
+consus-core = { workspace = true }
 anyhow = { workspace = true }
 consus-raster = { workspace = true }
 
