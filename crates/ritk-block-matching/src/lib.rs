@@ -57,8 +57,9 @@
 //!
 //! # Why its own crate
 //!
-//! The algorithm is plain arithmetic over sample buffers: no image type, no
-//! tensor, no backend. It first shipped inside `ritk-registration`, whose
+//! The algorithm is plain arithmetic over sample buffers: no image type and no
+//! tensor. Its FFT metric uses Apollo's FFT provider, which brings no image or
+//! tensor crate either. It first shipped inside `ritk-registration`, whose
 //! manifest pulls `ritk-image` and with it the coeus autograd/nn/wgpu stack —
 //! weight that a consumer wanting only speckle tracking should not inherit.
 //! kwavers' elastography is exactly such a consumer, and could not take the
@@ -122,7 +123,7 @@ impl Sample for f64 {
     }
 }
 
-#[cfg(feature = "fft")]
+mod extent;
 mod fft;
 mod input;
 mod metric;
@@ -139,7 +140,6 @@ mod tests;
 #[path = "tests_missing_data.rs"]
 mod tests_missing_data;
 
-#[cfg(feature = "fft")]
 pub use fft::{match_block_fft, metric_image_fft, FftPadding};
 pub use input::MovingSamples;
 pub use metric::{metric_image, BlockMetric, MetricImage};
@@ -387,14 +387,9 @@ impl BlockGrid {
     ///
     /// Returns an error when `2 * block_radius + 1` overflows on any axis.
     pub fn try_dense(block_radius: [usize; 3]) -> Result<Self> {
-        let mut stride = [0; 3];
-        for axis in 0..3 {
-            stride[axis] = block_radius[axis]
-                .checked_mul(2)
-                .and_then(|value| value.checked_add(1))
-                .ok_or_else(|| anyhow::anyhow!("dense grid stride overflows on axis {axis}"))?;
-        }
-        Ok(Self { stride })
+        Ok(Self {
+            stride: extent::window_extents(block_radius, "dense grid stride")?,
+        })
     }
 
     /// Validate the grid stride.
@@ -553,17 +548,7 @@ pub fn track_volume<T: Sample>(
 ) -> Result<DisplacementField> {
     config.validate()?;
     grid.validate()?;
-    let expected = dims[0]
-        .checked_mul(dims[1])
-        .and_then(|v| v.checked_mul(dims[2]))
-        .ok_or_else(|| anyhow::anyhow!("dims {dims:?} overflow the buffer size calculation"))?;
-    if fixed.len() != expected || moving.len() != expected {
-        bail!(
-            "fixed ({}) and moving ({}) buffers must both hold {expected} voxels for dims {dims:?}",
-            fixed.len(),
-            moving.len()
-        );
-    }
+    extent::check_buffer_lengths(fixed.len(), moving.len(), dims)?;
 
     let centres = grid.centres(dims, &config);
     let n = centres.len();
@@ -772,16 +757,14 @@ pub fn strain_from_displacement_filtered(
 
 /// Which correlation metric the pipeline's per-block matcher uses.
 ///
-/// The FFT variant is only available when the `fft` feature is enabled; it is
-/// the Apollo-backed finite-boundary path, equivalent to the direct metric up
-/// to the FFT kernel's floating-point error.
+/// The FFT variant is the Apollo-backed finite-boundary path, equivalent to
+/// the direct metric up to the FFT kernel's floating-point error.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Default)]
 pub enum PipelineMetric {
     /// Direct normalized cross-correlation over the finite candidate block.
     #[default]
     Direct,
     /// Apollo-FFT linear normalized cross-correlation with zero padding.
-    #[cfg(feature = "fft")]
     Fft,
 }
 
@@ -893,7 +876,6 @@ impl DisplacementPipeline {
             PipelineMetric::Direct => {
                 track_volume(fixed, moving, dims, config, self.grid, self.refinement)?
             }
-            #[cfg(feature = "fft")]
             PipelineMetric::Fft => {
                 track_volume_fft(fixed, moving, dims, config, self.grid, self.refinement)?
             }
@@ -971,7 +953,6 @@ impl DisplacementPipeline {
             PipelineMetric::Direct => {
                 search.track_volume_pyramid_diagnostics(pyramid, self.grid, self.refinement)?
             }
-            #[cfg(feature = "fft")]
             PipelineMetric::Fft => search.track_volume_pyramid_fft_diagnostics(
                 pyramid,
                 self.grid,
@@ -1046,8 +1027,7 @@ impl DisplacementPipeline {
 }
 
 /// FFT-backed volume tracking, mirroring [`track_volume`] with the Apollo
-/// finite-boundary metric. Only compiled with the `fft` feature.
-#[cfg(feature = "fft")]
+/// finite-boundary metric.
 fn track_volume_fft<T: Sample>(
     fixed: &[T],
     moving: &[T],
@@ -1060,17 +1040,7 @@ fn track_volume_fft<T: Sample>(
 
     config.validate()?;
     grid.validate()?;
-    let expected = dims[0]
-        .checked_mul(dims[1])
-        .and_then(|v| v.checked_mul(dims[2]))
-        .ok_or_else(|| anyhow::anyhow!("dims {dims:?} overflow the buffer size calculation"))?;
-    if fixed.len() != expected || moving.len() != expected {
-        bail!(
-            "fixed ({}) and moving ({}) buffers must both hold {expected} voxels for dims {dims:?}",
-            fixed.len(),
-            moving.len()
-        );
-    }
+    extent::check_buffer_lengths(fixed.len(), moving.len(), dims)?;
 
     let centres = grid.centres(dims, &config);
     let n = centres.len();

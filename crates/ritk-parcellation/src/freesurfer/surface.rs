@@ -41,10 +41,9 @@
 
 use std::io::{Read, Write};
 
-use super::big_endian::{
-    read_be, read_count, read_u24, reserve_for, write_be, write_count, write_u24,
-};
+use super::big_endian::{read_count, read_u24, reserve_for, write_count, write_u24};
 use super::{FreeSurferError, FreeSurferFormat};
+use consus_core::{ByteOrder, read_from, write_to};
 
 const FORMAT: FreeSurferFormat = FreeSurferFormat::Surface;
 
@@ -99,9 +98,9 @@ impl Surface {
         let mut vertices = Vec::with_capacity(reserve_for(vertices_len));
         for index in 0..vertices_len {
             let point = [
-                f64::from(read_be::<f32>(&mut reader)?),
-                f64::from(read_be::<f32>(&mut reader)?),
-                f64::from(read_be::<f32>(&mut reader)?),
+                f64::from(read_from::<f32, _>(&mut reader, ByteOrder::BigEndian)?),
+                f64::from(read_from::<f32, _>(&mut reader, ByteOrder::BigEndian)?),
+                f64::from(read_from::<f32, _>(&mut reader, ByteOrder::BigEndian)?),
             ];
             if point.iter().any(|value| !value.is_finite()) {
                 return Err(FreeSurferError::malformed(
@@ -118,7 +117,7 @@ impl Surface {
         for index in 0..faces_len {
             let mut triangle = [0_u32; 3];
             for slot in &mut triangle {
-                let value = read_be::<i32>(&mut reader)?;
+                let value = read_from::<i32, _>(&mut reader, ByteOrder::BigEndian)?;
                 *slot = u32::try_from(value)
                     .ok()
                     .filter(|vertex| (*vertex as usize) < vertices_len)
@@ -171,7 +170,7 @@ impl Surface {
                     clippy::cast_possible_truncation,
                     reason = "the triangle format stores f32 coordinates"
                 )]
-                write_be(writer, *coordinate as f32)?;
+                write_to(writer, *coordinate as f32, ByteOrder::BigEndian)?;
             }
         }
         for face in &self.faces {

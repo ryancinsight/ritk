@@ -3,7 +3,7 @@
 use std::str;
 
 use anyhow::{bail, Context, Result};
-use consus_core::ParseBudget;
+use consus_core::{read_integer, ByteOrder, EndianScalar, ParseBudget};
 use dicom::core::{Tag, VR};
 
 use crate::syntax::TransferSyntaxKind;
@@ -24,7 +24,7 @@ mod sequence;
 #[derive(Debug, Clone, Copy)]
 struct SyntaxEncoding {
     implicit_vr: bool,
-    little_endian: bool,
+    byte_order: ByteOrder,
 }
 
 impl SyntaxEncoding {
@@ -32,15 +32,15 @@ impl SyntaxEncoding {
         match syntax {
             TransferSyntaxKind::ImplicitVrLittleEndian => Ok(Self {
                 implicit_vr: true,
-                little_endian: true,
+                byte_order: ByteOrder::LittleEndian,
             }),
             TransferSyntaxKind::ExplicitVrLittleEndian => Ok(Self {
                 implicit_vr: false,
-                little_endian: true,
+                byte_order: ByteOrder::LittleEndian,
             }),
             TransferSyntaxKind::ExplicitVrBigEndian => Ok(Self {
                 implicit_vr: false,
-                little_endian: false,
+                byte_order: ByteOrder::BigEndian,
             }),
             TransferSyntaxKind::JpegBaseline
             | TransferSyntaxKind::JpegExtended
@@ -55,7 +55,7 @@ impl SyntaxEncoding {
             | TransferSyntaxKind::JpegXlJpegRecompression
             | TransferSyntaxKind::JpegXl => Ok(Self {
                 implicit_vr: false,
-                little_endian: true,
+                byte_order: ByteOrder::LittleEndian,
             }),
             TransferSyntaxKind::DeflatedExplicitVrLittleEndian => {
                 bail!(
@@ -161,7 +161,7 @@ impl<'input> Scanner<'input> {
     fn scan_file_meta(&mut self, start: usize) -> Result<(usize, TransferSyntaxKind)> {
         let encoding = SyntaxEncoding {
             implicit_vr: false,
-            little_endian: true,
+            byte_order: ByteOrder::LittleEndian,
         };
         let group_length_header = self.read_element_header(start, encoding)?;
         if group_length_header.tag != FILE_META_GROUP_LENGTH
@@ -175,7 +175,7 @@ impl<'input> Scanner<'input> {
             .checked_add(group_length_header.bytes)
             .context("DICOM file meta group length offset overflow")?;
         let group_length_end = self.span_end(group_length_start, 4, self.data.len())?;
-        let group_length = self.read_u32(group_length_start, true)?;
+        let group_length = self.read_field::<u32>(group_length_start, ByteOrder::LittleEndian)?;
         self.account_value(4, "DICOM file meta group length")?;
         let group_end = group_length_end
             .checked_add(
@@ -248,7 +248,7 @@ impl<'input> Scanner<'input> {
         cursor: usize,
         encoding: SyntaxEncoding,
     ) -> Result<ElementHeader> {
-        let tag = self.read_tag(cursor, encoding.little_endian)?;
+        let tag = self.read_tag(cursor, encoding.byte_order)?;
         if tag.group() == ITEM_GROUP {
             bail!("sequence item marker cannot be read as a data element")
         }
@@ -256,7 +256,7 @@ impl<'input> Scanner<'input> {
             let length_start = cursor
                 .checked_add(4)
                 .context("DICOM element length offset overflow")?;
-            let length = self.read_u32(length_start, encoding.little_endian)?;
+            let length = self.read_field::<u32>(length_start, encoding.byte_order)?;
             return Ok(ElementHeader {
                 tag,
                 vr: VR::UN,
@@ -274,12 +274,12 @@ impl<'input> Scanner<'input> {
             let length_start = cursor
                 .checked_add(6)
                 .context("DICOM short length offset overflow")?;
-            u32::from(self.read_u16(length_start, encoding.little_endian)?)
+            u32::from(self.read_field::<u16>(length_start, encoding.byte_order)?)
         } else {
             let length_start = cursor
                 .checked_add(8)
                 .context("DICOM long length offset overflow")?;
-            self.read_u32(length_start, encoding.little_endian)?
+            self.read_field::<u32>(length_start, encoding.byte_order)?
         };
         Ok(ElementHeader {
             tag,
@@ -290,37 +290,30 @@ impl<'input> Scanner<'input> {
     }
 
     fn next_tag_is_item(&self, cursor: usize) -> bool {
-        self.read_tag(cursor, true)
+        self.read_tag(cursor, ByteOrder::LittleEndian)
             .is_ok_and(|tag| tag == Tag(ITEM_GROUP, ITEM_ELEMENT))
     }
 
-    fn read_tag(&self, cursor: usize, little_endian: bool) -> Result<Tag> {
-        let group = self.read_u16(cursor, little_endian)?;
-        let element = self.read_u16(
+    fn read_tag(&self, cursor: usize, order: ByteOrder) -> Result<Tag> {
+        let group = self.read_field::<u16>(cursor, order)?;
+        let element = self.read_field::<u16>(
             cursor
                 .checked_add(2)
                 .context("DICOM tag element offset overflow")?,
-            little_endian,
+            order,
         )?;
         Ok(Tag(group, element))
     }
 
-    fn read_u16(&self, cursor: usize, little_endian: bool) -> Result<u16> {
-        let bytes = self.read_array::<2>(cursor)?;
-        Ok(if little_endian {
-            u16::from_le_bytes(bytes)
-        } else {
-            u16::from_be_bytes(bytes)
-        })
-    }
-
-    fn read_u32(&self, cursor: usize, little_endian: bool) -> Result<u32> {
-        let bytes = self.read_array::<4>(cursor)?;
-        Ok(if little_endian {
-            u32::from_le_bytes(bytes)
-        } else {
-            u32::from_be_bytes(bytes)
-        })
+    fn read_field<T: EndianScalar>(&self, cursor: usize, order: ByteOrder) -> Result<T> {
+        let end = cursor
+            .checked_add(T::BYTE_WIDTH)
+            .context("DICOM header offset overflow")?;
+        let bytes = self
+            .data
+            .get(cursor..end)
+            .context("truncated DICOM header")?;
+        read_integer(bytes, order).context("DICOM header has an invalid byte width")
     }
 
     fn read_array<const N: usize>(&self, cursor: usize) -> Result<[u8; N]> {

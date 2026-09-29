@@ -6,6 +6,7 @@
 //! - keep pixel-module ordering stable
 //! - verify private tag propagation for supported scalar tags
 
+pub(crate) mod elements;
 mod metadata;
 pub(crate) mod pixel_encoding;
 mod preservation;

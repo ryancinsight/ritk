@@ -5,6 +5,8 @@
 
 #![expect(dead_code, reason = "ratchet RITK-LINT-1")]
 
+use consus_core::{read_integer, ByteOrder};
+
 /// Start of Codestream (§A.4.1).
 pub const SOC: u16 = 0xFF4F;
 /// Image and tile size (§A.5.1).
@@ -53,15 +55,15 @@ pub fn read_u8(data: &[u8], pos: usize) -> anyhow::Result<u8> {
 /// Read a big-endian `u16` from `data[pos]`.
 #[inline]
 pub fn read_u16(data: &[u8], pos: usize) -> anyhow::Result<u16> {
-    data.get(pos..pos + 2)
-        .map(|b| u16::from_be_bytes([b[0], b[1]]))
+    data.get(pos..)
+        .and_then(|field| read_integer(field, ByteOrder::BigEndian))
         .ok_or_else(|| anyhow::anyhow!("J2K: read_u16 at {pos} beyond {}-byte buffer", data.len()))
 }
 
 /// Read a big-endian `u32` from `data[pos]`.
 #[inline]
 pub fn read_u32(data: &[u8], pos: usize) -> anyhow::Result<u32> {
-    data.get(pos..pos + 4)
-        .map(|b| u32::from_be_bytes([b[0], b[1], b[2], b[3]]))
+    data.get(pos..)
+        .and_then(|field| read_integer(field, ByteOrder::BigEndian))
         .ok_or_else(|| anyhow::anyhow!("J2K: read_u32 at {pos} beyond {}-byte buffer", data.len()))
 }

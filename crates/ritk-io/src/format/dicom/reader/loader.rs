@@ -10,7 +10,7 @@ use std::path::Path;
 #[cfg(not(target_arch = "wasm32"))]
 use std::sync::Mutex;
 
-use ritk_dicom::TransferSyntaxKind;
+use ritk_dicom::{ParseBudget, TransferSyntaxKind};
 use ritk_image::Image;
 use ritk_spatial::{Direction, Point, Spacing};
 
@@ -20,7 +20,7 @@ use super::geometry::{
 };
 use super::pixel::{read_slice_pixels, read_slice_pixels_from_bytes};
 use super::scan::scan_dicom_path_with_budget;
-use super::types::{DicomReadBudget, DicomReadMetadata, DicomSeriesInfo};
+use super::types::{DicomReadBudget, DicomReadMetadata, DicomSeriesInfo, DicomSliceMetadata};
 
 /// Read a DICOM series and return both the image and metadata.
 ///
@@ -259,66 +259,22 @@ fn decode_series(series: DicomSeriesInfo, budget: &DicomReadBudget) -> Result<De
         .checked_decoded_bytes(peak_workspace)
         .context("DICOM peak decoded workspace exceeds budget")?;
     let (volume, final_depth) = if needs_resample {
-        // Irregular z-spacing: decode to frame vectors then resample to uniform grid.
-        #[cfg(not(target_arch = "wasm32"))]
-        let decoded: Vec<Vec<f32>> = {
-            let decoded: Result<Vec<Vec<f32>>, anyhow::Error> =
-                moirai::map_collect_index_with::<moirai::Adaptive, _, _>(slices.len(), |z| {
-                    let slice = &slices[z];
-                    let data = if let Some(ref bytes) = slice.part10_bytes {
-                        read_slice_pixels_from_bytes(bytes, slice, &parser_budget)
-                    } else {
-                        read_slice_pixels(slice, &parser_budget)
-                    }
-                    .with_context(|| format!("failed to decode DICOM slice {:?}", slice.path))?;
-                    if data.len() != frame_len {
-                        bail!(
-                            "DICOM slice size mismatch: expected {} pixels, got {}",
-                            frame_len,
-                            data.len()
-                        );
-                    }
-                    Ok(data)
-                })
-                .into_iter()
-                .collect();
-            decoded?
-        };
-
-        #[cfg(target_arch = "wasm32")]
-        let decoded: Vec<Vec<f32>> = {
-            let mut decoded = Vec::with_capacity(depth);
-            for slice in slices.iter() {
-                let data = if let Some(ref bytes) = slice.part10_bytes {
-                    read_slice_pixels_from_bytes(bytes, slice, &parser_budget)
-                } else {
-                    read_slice_pixels(slice, &parser_budget)
-                }
-                .with_context(|| format!("failed to decode DICOM slice {:?}", slice.path))?;
-                if data.len() != frame_len {
-                    bail!(
-                        "DICOM slice size mismatch: expected {} pixels, got {}",
-                        frame_len,
-                        data.len()
-                    );
-                }
-                decoded.push(data);
-            }
-            decoded
-        };
+        // Irregular z-spacing: decode every slice into one contiguous,
+        // fixed-stride buffer (never a per-slice `Vec<f32>`) and resample
+        // that flat source directly into the flat output volume.
+        let decoded_len = frame_len
+            .checked_mul(slices.len())
+            .context("DICOM decoded source frame count overflow")?;
+        let mut decoded =
+            allocate_decoded_buffer(decoded_len, budget, "DICOM decoded source frames")?;
+        decode_slices_into(&mut decoded, &slices, &parser_budget, frame_len)?;
 
         let positions = resample_positions.as_ref().ok_or_else(|| {
             anyhow!("resample positions missing despite resample-required series")
         })?;
-        let resampled = resample_frames_linear(&decoded, positions, final_spacing_z);
-        let new_depth = resampled.len();
-        debug_assert_eq!(new_depth, target_depth);
-        let mut volume = allocate_decoded_buffer(volume_len, budget, "DICOM resampled volume")?;
-        for (z, frame) in resampled.iter().enumerate() {
-            let offset = z * frame_len;
-            volume[offset..offset + frame_len].copy_from_slice(frame);
-        }
-        (volume, new_depth)
+        let volume = resample_frames_linear(&decoded, frame_len, positions, final_spacing_z);
+        debug_assert_eq!(volume.len(), volume_len);
+        (volume, target_depth)
     } else {
         // Uniform z-spacing: decode directly into a preallocated contiguous volume.
         if slices.len() != depth {
@@ -329,75 +285,7 @@ fn decode_series(series: DicomSeriesInfo, budget: &DicomReadBudget) -> Result<De
             );
         }
         let mut volume = allocate_decoded_buffer(volume_len, budget, "DICOM decoded volume")?;
-
-        #[cfg(not(target_arch = "wasm32"))]
-        {
-            // Decode each slice into the destination chunk while the bounded
-            // Moirai scheduler walks worker-sized index ranges. The temporary
-            // frame is dropped after its copy, so decoded vectors do not
-            // accumulate for the whole study as a collected map would.
-            let failures = Mutex::new(Vec::<(usize, anyhow::Error)>::new());
-            moirai::for_each_chunk_mut_enumerated_with::<moirai::Adaptive, _, _>(
-                &mut volume,
-                frame_len,
-                |z, destination| {
-                    let slice = &slices[z];
-                    let decoded = if let Some(ref bytes) = slice.part10_bytes {
-                        read_slice_pixels_from_bytes(bytes, slice, &parser_budget)
-                    } else {
-                        read_slice_pixels(slice, &parser_budget)
-                    }
-                    .with_context(|| format!("failed to decode DICOM slice {:?}", slice.path))
-                    .and_then(|data| {
-                        if data.len() != frame_len {
-                            bail!(
-                                "DICOM slice size mismatch: expected {} pixels, got {}",
-                                frame_len,
-                                data.len()
-                            );
-                        }
-                        Ok(data)
-                    });
-                    match decoded {
-                        Ok(data) => destination.copy_from_slice(&data),
-                        Err(error) => {
-                            failures
-                                .lock()
-                                .unwrap_or_else(std::sync::PoisonError::into_inner)
-                                .push((z, error));
-                        }
-                    }
-                },
-            );
-            let mut failures = failures
-                .into_inner()
-                .unwrap_or_else(std::sync::PoisonError::into_inner);
-            if let Some((_, error)) = failures.drain(..).min_by_key(|(z, _)| *z) {
-                return Err(error);
-            }
-        }
-
-        #[cfg(target_arch = "wasm32")]
-        {
-            for (z, slice) in slices.iter().enumerate() {
-                let data = if let Some(ref bytes) = slice.part10_bytes {
-                    read_slice_pixels_from_bytes(bytes, slice, &parser_budget)
-                } else {
-                    read_slice_pixels(slice, &parser_budget)
-                }
-                .with_context(|| format!("failed to decode DICOM slice {:?}", slice.path))?;
-                if data.len() != frame_len {
-                    bail!(
-                        "DICOM slice size mismatch: expected {} pixels, got {}",
-                        frame_len,
-                        data.len()
-                    );
-                }
-                let offset = z * frame_len;
-                volume[offset..offset + frame_len].copy_from_slice(&data);
-            }
-        }
-
+        decode_slices_into(&mut volume, &slices, &parser_budget, frame_len)?;
         (volume, depth)
     };
 
@@ -417,6 +305,80 @@ fn decode_series(series: DicomSeriesInfo, budget: &DicomReadBudget) -> Result<De
         direction,
         metadata,
     })
+}
+
+/// Decode one slice's pixels and validate its length against the series'
+/// per-frame pixel count.
+///
+/// Shared by both decode branches (uniform and irregular z-spacing) and both
+/// their native/wasm32 arms, so the decode-and-validate sequence exists
+/// exactly once instead of four near-identical copies.
+fn decode_and_validate_slice(
+    slice: &DicomSliceMetadata,
+    parser_budget: &ParseBudget,
+    frame_len: usize,
+) -> Result<Vec<f32>> {
+    let data = if let Some(ref bytes) = slice.part10_bytes {
+        read_slice_pixels_from_bytes(bytes, slice, parser_budget)
+    } else {
+        read_slice_pixels(slice, parser_budget)
+    }
+    .with_context(|| format!("failed to decode DICOM slice {:?}", slice.path))?;
+    if data.len() != frame_len {
+        bail!(
+            "DICOM slice size mismatch: expected {} pixels, got {}",
+            frame_len,
+            data.len()
+        );
+    }
+    Ok(data)
+}
+
+/// Decode every slice into `destination`, one `frame_len`-sized chunk per
+/// slice in slice order: parallel (index-chunked, bounded by the Moirai
+/// scheduler) on native targets, serial on wasm32. Each temporary per-slice
+/// frame is dropped after its copy into `destination`, so decoded frames
+/// never accumulate as a collected `Vec<Vec<f32>>` would.
+fn decode_slices_into(
+    destination: &mut [f32],
+    slices: &[DicomSliceMetadata],
+    parser_budget: &ParseBudget,
+    frame_len: usize,
+) -> Result<()> {
+    #[cfg(not(target_arch = "wasm32"))]
+    {
+        let failures = Mutex::new(Vec::<(usize, anyhow::Error)>::new());
+        moirai::for_each_chunk_mut_enumerated_with::<moirai::Adaptive, _, _>(
+            destination,
+            frame_len,
+            |z, dest| match decode_and_validate_slice(&slices[z], parser_budget, frame_len) {
+                Ok(data) => dest.copy_from_slice(&data),
+                Err(error) => {
+                    failures
+                        .lock()
+                        .unwrap_or_else(std::sync::PoisonError::into_inner)
+                        .push((z, error));
+                }
+            },
+        );
+        let mut failures = failures
+            .into_inner()
+            .unwrap_or_else(std::sync::PoisonError::into_inner);
+        if let Some((_, error)) = failures.drain(..).min_by_key(|(z, _)| *z) {
+            return Err(error);
+        }
+    }
+
+    #[cfg(target_arch = "wasm32")]
+    {
+        for (z, slice) in slices.iter().enumerate() {
+            let data = decode_and_validate_slice(slice, parser_budget, frame_len)?;
+            let offset = z * frame_len;
+            destination[offset..offset + frame_len].copy_from_slice(&data);
+        }
+    }
+
+    Ok(())
 }
 
 fn dicom_frame_pixel_count(rows: usize, cols: usize) -> Result<usize> {

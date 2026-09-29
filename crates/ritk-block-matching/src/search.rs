@@ -4,7 +4,9 @@
 //! explicit pyramid levels. It does not resample images: callers provide the
 //! fixed and moving buffers for each level, in coarse-to-fine order.
 
-use anyhow::{bail, Result};
+use anyhow::{bail, Context, Result};
+
+use crate::extent::check_buffer_lengths;
 
 use super::{
     match_block_at, BayesianDisplacementPrior, BlockGrid, DisplacementField, MovingSamples, Sample,
@@ -320,7 +322,6 @@ impl MultiResolutionSearch {
     ///
     /// Returns the same errors as [`Self::match_pyramid`], plus any raised by
     /// the FFT provider.
-    #[cfg(feature = "fft")]
     pub fn match_pyramid_fft<T: Sample>(
         &self,
         pyramid: &[PyramidLevel<'_, T>],
@@ -352,7 +353,6 @@ impl MultiResolutionSearch {
     ///
     /// Returns the same errors as [`Self::track_volume_pyramid`], plus any
     /// raised by the FFT provider.
-    #[cfg(feature = "fft")]
     pub fn track_volume_pyramid_fft<T: Sample>(
         &self,
         pyramid: &[PyramidLevel<'_, T>],
@@ -370,7 +370,6 @@ impl MultiResolutionSearch {
     ///
     /// Returns the same errors as [`Self::track_volume_pyramid_diagnostics`],
     /// plus any raised by the FFT provider.
-    #[cfg(feature = "fft")]
     pub fn track_volume_pyramid_fft_diagnostics<T: Sample>(
         &self,
         pyramid: &[PyramidLevel<'_, T>],
@@ -472,17 +471,8 @@ impl MultiResolutionSearch {
             if level.dims.contains(&0) {
                 bail!("pyramid level {index} has a zero image dimension");
             }
-            let expected = level
-                .dims
-                .iter()
-                .try_fold(1usize, |size, &extent| size.checked_mul(extent))
-                .ok_or_else(|| anyhow::anyhow!("pyramid level {index} dimensions overflow"))?;
-            if level.fixed.len() != expected || level.moving.len() != expected {
-                bail!(
-                    "pyramid level {index} buffers must both hold {expected} voxels for dims {:?}",
-                    level.dims
-                );
-            }
+            check_buffer_lengths(level.fixed.len(), level.moving.len(), level.dims)
+                .with_context(|| format!("pyramid level {index}"))?;
         }
         Ok(())
     }
@@ -694,14 +684,7 @@ impl<T: Sample> OwnedPyramid<T> {
     /// divisible by its scale, or when the buffers do not match `dims`.
     pub fn nearest(fixed: &[T], moving: &[T], dims: [usize; 3], scales: &[usize]) -> Result<Self> {
         validate_scales(dims, scales)?;
-        let expected = dims[0] * dims[1] * dims[2];
-        if fixed.len() != expected || moving.len() != expected {
-            bail!(
-                "fixed ({}) and moving ({}) buffers must both hold {expected} voxels for dims {dims:?}",
-                fixed.len(),
-                moving.len()
-            );
-        }
+        check_buffer_lengths(fixed.len(), moving.len(), dims)?;
         let mut levels = Vec::with_capacity(scales.len());
         for scale in scales {
             let level_dims = [
@@ -745,14 +728,7 @@ impl<T: Sample> OwnedPyramid<T> {
     /// Same validation as [`Self::nearest`].
     pub fn min_max(fixed: &[T], moving: &[T], dims: [usize; 3], scales: &[usize]) -> Result<Self> {
         validate_scales(dims, scales)?;
-        let expected = dims[0] * dims[1] * dims[2];
-        if fixed.len() != expected || moving.len() != expected {
-            bail!(
-                "fixed ({}) and moving ({}) buffers must both hold {expected} voxels for dims {dims:?}",
-                fixed.len(),
-                moving.len()
-            );
-        }
+        check_buffer_lengths(fixed.len(), moving.len(), dims)?;
         let mut levels = Vec::with_capacity(scales.len());
         for scale in scales {
             let base_dims = [
@@ -900,40 +876,44 @@ fn ceil_div(value: usize, divisor: usize) -> usize {
 }
 
 fn ceil_div_axes(values: [usize; 3], divisor: usize) -> [usize; 3] {
-    [
-        ceil_div(values[0], divisor),
-        ceil_div(values[1], divisor),
-        ceil_div(values[2], divisor),
-    ]
+    values.map(|value| ceil_div(value, divisor))
 }
 
 fn scale_coordinate(coordinate: [usize; 3], scale: usize) -> [usize; 3] {
-    [
-        coordinate[0] / scale,
-        coordinate[1] / scale,
-        coordinate[2] / scale,
-    ]
+    coordinate.map(|value| value / scale)
 }
 
 fn scale_displacement(displacement: [f64; 3], scale: usize) -> [f64; 3] {
-    [
-        displacement[0] * scale as f64,
-        displacement[1] * scale as f64,
-        displacement[2] * scale as f64,
-    ]
+    displacement.map(|value| value * scale as f64)
 }
 
 fn add_displacement(centre: [usize; 3], displacement: [f64; 3]) -> [usize; 3] {
-    [
-        (centre[0] as f64 + displacement[0]).round().max(0.0) as usize,
-        (centre[1] as f64 + displacement[1]).round().max(0.0) as usize,
-        (centre[2] as f64 + displacement[2]).round().max(0.0) as usize,
-    ]
+    std::array::from_fn(|axis| (centre[axis] as f64 + displacement[axis]).round().max(0.0) as usize)
 }
 
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn pyramids_reject_a_grid_whose_voxel_count_overflows() {
+        // `scales = [1]` passes scale validation for any dims, so the
+        // voxel count is the first check that can refuse this grid.
+        let dims = [usize::MAX, 2, 1];
+        let empty: [f32; 0] = [];
+        for pyramid in [
+            OwnedPyramid::nearest(&empty, &empty, dims, &[1]),
+            OwnedPyramid::min_max(&empty, &empty, dims, &[1]),
+        ] {
+            let Err(error) = pyramid else {
+                panic!("the voxel count overflows, so construction must fail");
+            };
+            assert_eq!(
+                error.to_string(),
+                format!("image dimensions {dims:?} overflow")
+            );
+        }
+    }
 
     #[test]
     fn plans_coarse_to_fine_ceiling_radii() {

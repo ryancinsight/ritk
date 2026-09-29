@@ -650,20 +650,8 @@ impl SliceSeries {
         let rel = [world[0] - orig[0], world[1] - orig[1], world[2] - orig[2]];
 
         // Interpolated in-plane column vectors; project rel onto each.
-        let j_x = {
-            let rx = tf0.rotation[(0, 0)] * (1.0 - t) + tf1.rotation[(0, 0)] * t;
-            let ry = tf0.rotation[(1, 0)] * (1.0 - t) + tf1.rotation[(1, 0)] * t;
-            let rz = tf0.rotation[(2, 0)] * (1.0 - t) + tf1.rotation[(2, 0)] * t;
-            let ns = rx.mul_add(rx, ry.mul_add(ry, rz * rz));
-            (rx * rel[0] + ry * rel[1] + rz * rel[2]) / ns
-        };
-        let j_y = {
-            let rx = tf0.rotation[(0, 1)] * (1.0 - t) + tf1.rotation[(0, 1)] * t;
-            let ry = tf0.rotation[(1, 1)] * (1.0 - t) + tf1.rotation[(1, 1)] * t;
-            let rz = tf0.rotation[(2, 1)] * (1.0 - t) + tf1.rotation[(2, 1)] * t;
-            let ns = rx.mul_add(rx, ry.mul_add(ry, rz * rz));
-            (rx * rel[0] + ry * rel[1] + rz * rel[2]) / ns
-        };
+        let j_x = interpolated_in_plane_coordinate::<0>(tf0, tf1, t, rel);
+        let j_y = interpolated_in_plane_coordinate::<1>(tf0, tf1, t, rel);
 
         Some([j_x, j_y, slice_f])
     }
@@ -752,6 +740,21 @@ fn non_negative(parameter: &'static str, value: f64) -> Result<(), InvalidCoordi
     } else {
         Err(InvalidCoordinateMap::Negative { parameter, value })
     }
+}
+
+#[inline]
+fn interpolated_in_plane_coordinate<const COL: usize>(
+    tf0: &SliceTransform,
+    tf1: &SliceTransform,
+    t: f64,
+    rel: [f64; 3],
+) -> f64 {
+    let one_minus_t = 1.0 - t;
+    let rx = tf0.rotation[(0, COL)] * one_minus_t + tf1.rotation[(0, COL)] * t;
+    let ry = tf0.rotation[(1, COL)] * one_minus_t + tf1.rotation[(1, COL)] * t;
+    let rz = tf0.rotation[(2, COL)] * one_minus_t + tf1.rotation[(2, COL)] * t;
+    let ns = rx.mul_add(rx, ry.mul_add(ry, rz * rz));
+    (rx * rel[0] + ry * rel[1] + rz * rel[2]) / ns
 }
 
 #[cfg(test)]

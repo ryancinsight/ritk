@@ -5919,6 +5919,7 @@ dependencies = [
  "anyhow",
  "base64 0.22.1",
  "coeus-core",
+ "consus-core",
  "image 0.24.9",
  "ritk-core",
  "ritk-image",
@@ -5988,6 +5989,7 @@ version = "0.6.0"
 dependencies = [
  "anyhow",
  "base64 0.22.1",
+ "consus-core",
  "consus-raster",
  "criterion",
  "image 0.24.9",
@@ -6245,6 +6247,7 @@ dependencies = [
  "anyhow",
  "base64 0.22.1",
  "coeus-core",
+ "consus-core",
  "criterion",
  "flate2",
  "image 0.24.9",
@@ -6321,6 +6324,7 @@ version = "0.2.0"
 dependencies = [
  "anyhow",
  "coeus-core",
+ "consus-core",
  "flate2",
  "ritk-image",
  "ritk-spatial",
@@ -6348,6 +6352,7 @@ dependencies = [
 name = "ritk-parcellation"
 version = "0.1.0"
 dependencies = [
+ "consus-core",
  "proptest",
  "ritk-annotation",
  "ritk-spatial",
@@ -6537,6 +6542,7 @@ dependencies = [
 name = "ritk-tck"
 version = "0.1.0"
 dependencies = [
+ "consus-core",
  "gaia-mesh",
  "leto",
  "thiserror 2.0.21",
@@ -6635,6 +6641,7 @@ version = "0.2.0"
 dependencies = [
  "anyhow",
  "coeus-core",
+ "consus-core",
  "consus-io",
  "criterion",
  "gaia-mesh",

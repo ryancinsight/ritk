@@ -445,16 +445,16 @@ fn parse_siz(body: &[u8]) -> Result<SizMarker> {
     if body.len() < 36 {
         bail!("J2K: SIZ body too short ({})", body.len());
     }
-    let rsiz = u16::from_be_bytes([body[0], body[1]]);
-    let xsiz = u32::from_be_bytes([body[2], body[3], body[4], body[5]]);
-    let ysiz = u32::from_be_bytes([body[6], body[7], body[8], body[9]]);
-    let xo_siz = u32::from_be_bytes([body[10], body[11], body[12], body[13]]);
-    let yo_siz = u32::from_be_bytes([body[14], body[15], body[16], body[17]]);
-    let xt_siz = u32::from_be_bytes([body[18], body[19], body[20], body[21]]);
-    let yt_siz = u32::from_be_bytes([body[22], body[23], body[24], body[25]]);
-    let xto_siz = u32::from_be_bytes([body[26], body[27], body[28], body[29]]);
-    let yto_siz = u32::from_be_bytes([body[30], body[31], body[32], body[33]]);
-    let csiz = u16::from_be_bytes([body[34], body[35]]);
+    let rsiz = marker::read_u16(body, 0)?;
+    let xsiz = marker::read_u32(body, 2)?;
+    let ysiz = marker::read_u32(body, 6)?;
+    let xo_siz = marker::read_u32(body, 10)?;
+    let yo_siz = marker::read_u32(body, 14)?;
+    let xt_siz = marker::read_u32(body, 18)?;
+    let yt_siz = marker::read_u32(body, 22)?;
+    let xto_siz = marker::read_u32(body, 26)?;
+    let yto_siz = marker::read_u32(body, 30)?;
+    let csiz = marker::read_u16(body, 34)?;
     if csiz == 0 || csiz > 16384 {
         bail!("J2K: Csiz={csiz} out of range 1..=16384");
     }
@@ -539,7 +539,7 @@ fn parse_cod(body: &[u8]) -> Result<CodMarker> {
     }
     let scod = body[0];
     let progression_order = body[1];
-    let num_layers = u16::from_be_bytes([body[2], body[3]]);
+    let num_layers = marker::read_u16(body, 2)?;
     let mct = body[4];
     // Table A.11 bounds SPcod's decomposition levels to 0-32. The value feeds
     // `1usize << k` in the subband geometry, so an unbounded byte shifts past

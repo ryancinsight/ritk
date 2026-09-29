@@ -23,6 +23,17 @@
 - next: claim the item, map the required-check and reusable-workflow graph, then record the single-pipeline design in an indexed ADR before changing workflows.
 - basis: bf589f94b9826be8b4b05c85e5da31c338f01bab
 
+<a id="RITK-FORMAT-BULK-DECODE-001"></a>
+## RITK-FORMAT-BULK-DECODE-001: Decode sample buffers through one bulk path
+- outcome: format readers and writers convert whole sample buffers through one bulk byte-order path, choosing the byte order once per buffer, instead of per-type `chunks_exact` loops.
+- acceptance: the ritk-vtk binary scalar reader, ritk-mif's float writer, the ritk-nifti and ritk-analyze voxel decoders and the JPEG 2000 QCD step sizes use one shared bulk decode and encode, with the same output bytes and values; each crate's tests pass unchanged, and an instruction-count or pinned run shows no regression on each reader's decode loop.
+- status: todo
+- priority: tightening
+- needs: none
+- scope: `crates/ritk-codecs/src/byte_decode.rs`, `crates/ritk-vtk/src/io/reader.rs`, `crates/ritk-mif/src/writer.rs`, `crates/ritk-nifti/src/header/types.rs`, `crates/ritk-analyze/src/reader.rs`, `crates/ritk-codecs/src/jpeg_2000/codestream.rs`
+- next: measure the vtk and nifti decode loops, then extend `decode_bytes_to_f32` or consus-core with the slice forms those loops need.
+- basis: 83dd6a741a7a30e858a16f79c90d7030b063d1fc
+
 <a id="RITK-SNAP-INTERACTION-REGIONS-001"></a>
 ## RITK-SNAP-INTERACTION-REGIONS-001: Separate region interaction tests
 - outcome: give region tools one test module without changing behavior.

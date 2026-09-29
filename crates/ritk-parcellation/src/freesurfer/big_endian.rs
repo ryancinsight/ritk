@@ -1,11 +1,11 @@
-//! Big-endian wire primitives shared by the binary FreeSurfer formats.
+//! Big-endian wire helpers specific to the binary FreeSurfer formats.
 //!
-//! Every binary FreeSurfer surface-family file stores `i32` and `f32` in
-//! big-endian order, plus a three-byte big-endian magic (`fread3` in
-//! FreeSurfer's MATLAB tools). `ritk-mgh` carries an equivalent trait, but it is
-//! crate-private, reports through `anyhow`, and depending on it would pull an
-//! image stack into this vocabulary crate for four-byte reads.
+//! Binary FreeSurfer surface-family files store `i32` and `f32` big-endian,
+//! read and written through `consus_core::{read_from, write_to}`. This module
+//! keeps what is FreeSurfer's own: the three-byte magic (`fread3`/`fwrite3`)
+//! and the bounded element counts.
 
+use consus_core::{ByteOrder, read_from, write_to};
 use std::io::{self, Read, Write};
 
 use super::{FreeSurferError, FreeSurferFormat};
@@ -22,48 +22,6 @@ const RESERVE_LIMIT: usize = 1 << 16;
 /// Capacity to reserve for `count` elements announced by a header.
 pub(super) fn reserve_for(count: usize) -> usize {
     count.min(RESERVE_LIMIT)
-}
-
-/// A value with a fixed-width big-endian wire representation.
-pub(super) trait BigEndian: Sized {
-    /// The on-disk bytes.
-    type Bytes: AsRef<[u8]> + AsMut<[u8]> + Default;
-    /// Decode from big-endian bytes.
-    fn from_be(bytes: Self::Bytes) -> Self;
-    /// Encode to big-endian bytes.
-    fn to_be(self) -> Self::Bytes;
-}
-
-impl BigEndian for i32 {
-    type Bytes = [u8; 4];
-    fn from_be(bytes: Self::Bytes) -> Self {
-        Self::from_be_bytes(bytes)
-    }
-    fn to_be(self) -> Self::Bytes {
-        self.to_be_bytes()
-    }
-}
-
-impl BigEndian for f32 {
-    type Bytes = [u8; 4];
-    fn from_be(bytes: Self::Bytes) -> Self {
-        Self::from_be_bytes(bytes)
-    }
-    fn to_be(self) -> Self::Bytes {
-        self.to_be_bytes()
-    }
-}
-
-/// Read one big-endian `T`.
-pub(super) fn read_be<T: BigEndian>(reader: &mut impl Read) -> io::Result<T> {
-    let mut bytes = T::Bytes::default();
-    reader.read_exact(bytes.as_mut())?;
-    Ok(T::from_be(bytes))
-}
-
-/// Write one big-endian `T`.
-pub(super) fn write_be<T: BigEndian>(writer: &mut impl Write, value: T) -> io::Result<()> {
-    writer.write_all(value.to_be().as_ref())
 }
 
 /// Read a three-byte big-endian unsigned integer (FreeSurfer `fread3`).
@@ -85,7 +43,12 @@ pub(super) fn read_count(
     field: &'static str,
     max: usize,
 ) -> Result<usize, FreeSurferError> {
-    bounded_count(read_be::<i32>(reader)?, format, field, max)
+    bounded_count(
+        read_from::<i32, _>(reader, ByteOrder::BigEndian)?,
+        format,
+        field,
+        max,
+    )
 }
 
 /// Accept a count read from a header only within `0..=max`.
@@ -119,5 +82,5 @@ pub(super) fn write_count(
         count: i64::try_from(count).unwrap_or(i64::MAX),
         max: i64::from(i32::MAX),
     })?;
-    Ok(write_be(writer, value)?)
+    Ok(write_to(writer, value, ByteOrder::BigEndian)?)
 }
