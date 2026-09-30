@@ -1,8 +1,9 @@
 //! RITK-native codec implementations.
 //!
-//! This crate is the single source of truth for all DICOM pixel codec
-//! primitives: pixel layout arithmetic, native sample decoding, and all
-//! encapsulated transfer syntax decoders.
+//! This crate is the single source of truth for typed voxel samples shared by
+//! every volume format ([`sample`]) and for the DICOM pixel codec primitives:
+//! pixel layout arithmetic, native sample decoding, and all encapsulated
+//! transfer syntax decoders.
 //!
 //! # C/C++ dependency migration status
 //! | Codec       | C/C++ dep         | Pure Rust implementation             | Status |
@@ -17,18 +18,17 @@
 //! dependencies — all DICOM codec paths (decode and the JPEG 2000 / JPEG-LS
 //! encoders) are pure Rust with no C/C++ FFI.
 
-pub mod byte_decode;
 pub(crate) mod dimensions;
+pub mod header_text;
 pub mod jpeg;
 pub mod jpeg_2000;
 pub mod jpeg_ls;
 pub mod packbits;
 pub mod pixel_layout;
 pub mod rle;
+pub mod sample;
 
-pub use byte_decode::{
-    decode_bytes_to_f32, parse_f64_vec, parse_floats, parse_usize_vec, require_bytes, ByteOrder,
-};
+pub use header_text::{parse_f64_vec, parse_floats, parse_usize_vec};
 pub use jpeg::decode_jpeg_fragment;
 pub use jpeg_2000::decode_jpeg2000_fragment;
 pub use jpeg_ls::decode_jpeg_ls_fragment;
