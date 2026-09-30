@@ -16,6 +16,10 @@ count and shared scalar samples. `to_vtk_image_data` is an explicit copy
 boundary for legacy serializers and filters whose attribute arrays own a
 `Vec<f32>`.
 
+The legacy structured-points writer represents only Cartesian images with an
+identity direction matrix. It rejects other coordinate maps and directions
+before creating or truncating the output path.
+
 ## Usage
 
 ```toml
