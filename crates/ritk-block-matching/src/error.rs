@@ -4,6 +4,7 @@ use thiserror::Error;
 
 /// Failure raised while validating image dimensions or buffer ownership.
 #[derive(Debug, Clone, PartialEq, Eq, Error)]
+#[non_exhaustive]
 pub enum BlockMatchingError {
     /// A three-dimensional voxel count cannot be represented by `usize`.
     #[error("{label} dimensions {dims:?} overflow")]
