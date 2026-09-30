@@ -54,11 +54,20 @@ impl MultiSeriesDialog {
             framebuffer,
             offset(geometry.dialog.x, 20)?,
             offset(geometry.dialog.y, 48)?,
-            "Ctrl-click or Space selects series; Enter opens the selection or first match",
+            "Type to filter; Down moves to the list; Ctrl-click or Space selects; Enter opens",
             detail,
         );
 
         fill_rect(framebuffer, geometry.filter, CornerRadius::SQUARE, ROW);
+        draw_border(
+            framebuffer,
+            geometry.filter,
+            if self.focus == super::DialogFocus::Search {
+                SELECTED
+            } else {
+                BORDER
+            },
+        );
         draw_text(
             framebuffer,
             offset(geometry.filter.x, 10)?,

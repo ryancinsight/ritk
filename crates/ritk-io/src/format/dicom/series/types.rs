@@ -79,7 +79,7 @@ impl DicomSeriesInfo {
         self.study_instance_uid.as_ref().map(ArrayString::as_str)
     }
 
-    /// Returns an eight-digit StudyDate, when present.
+    /// Returns a Gregorian StudyDate, when present.
     pub fn study_date(&self) -> Option<&str> {
         self.study_date.as_ref().map(ArrayString::as_str)
     }

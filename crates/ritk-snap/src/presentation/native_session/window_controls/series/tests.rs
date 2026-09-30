@@ -29,20 +29,13 @@ fn series_cards_show_order_within_their_study() {
     assert_eq!(first.study_series_count, 3);
     let labels = (0..browser.len())
         .map(|index| {
-            cards::series_position_label(
-                browser.choice(index).expect("series choice"),
-                browser.study_count(),
-            )
-            .expect("series position")
+            cards::series_position_label(browser.choice(index).expect("series choice"))
+                .expect("series position")
         })
         .collect::<Vec<_>>();
     assert_eq!(
         labels.iter().map(ArrayString::as_str).collect::<Vec<_>>(),
-        [
-            "Study 1/1 | Series 1/3",
-            "Study 1/1 | Series 2/3",
-            "Study 1/1 | Series 3/3"
-        ]
+        ["Series 1/3", "Series 2/3", "Series 3/3"]
     );
 }
 

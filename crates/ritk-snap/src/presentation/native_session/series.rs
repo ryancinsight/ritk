@@ -168,33 +168,61 @@ impl NativeViewerSession {
                 return Ok(());
             }
 
-            let browser = SeriesBrowser::from_tree(&tree, None)?;
-            let choice = browser
-                .choice(browser.active_index())
-                .expect("invariant: a non-empty study browser has an active series");
-            let modality = choice.modality.to_string();
-            let image_count = choice.image_count;
-            let volume = match load_volume_from_series_info(&choice.acquisition) {
-                Ok(volume) => volume,
-                Err(error) => {
-                    self.series_browser = Some(browser);
-                    self.primary_series_index = None;
-                    self.reset_comparison();
-                    tracing::warn!(
-                        error_chain_depth = error.chain().count(),
-                        "first discovered series could not be opened; study catalog remains available"
-                    );
-                    self.app.status_message =
-                        "First series could not be opened; select another series from the preview bar."
-                            .to_owned();
-                    return Ok(());
+            let mut browser = SeriesBrowser::from_tree(&tree, None)?;
+            let mut opened = None;
+            let mut failed_series_count = 0_usize;
+            let mut first_error_chain_depth = None;
+            for index in 0..browser.len() {
+                let choice = browser
+                    .choice(index)
+                    .ok_or_else(|| anyhow!("study catalog lost a discovered series"))?;
+                match load_volume_from_series_info(&choice.acquisition) {
+                    Ok(volume) => {
+                        opened = Some((
+                            index,
+                            choice.modality.to_string(),
+                            choice.image_count,
+                            volume,
+                        ));
+                        break;
+                    }
+                    Err(error) => {
+                        failed_series_count = failed_series_count
+                            .checked_add(1)
+                            .ok_or_else(|| anyhow!("unreadable series count overflowed"))?;
+                        first_error_chain_depth.get_or_insert_with(|| error.chain().count());
+                    }
                 }
+            }
+            let Some((index, modality, image_count, volume)) = opened else {
+                tracing::warn!(
+                    series_count = browser.len(),
+                    failed_series_count,
+                    error_chain_depth = first_error_chain_depth.unwrap_or_default(),
+                    "no discovered series could be opened"
+                );
+                return Err(anyhow!("no series in the selected study could be opened"));
             };
-            self.app.load_volume(
-                volume,
-                format!("Loaded {modality} series ({image_count} images)."),
-            );
-            self.primary_series_index = Some(browser.active_index());
+            if failed_series_count > 0 {
+                tracing::warn!(
+                    selected_series_index = index,
+                    failed_series_count,
+                    error_chain_depth = first_error_chain_depth.unwrap_or_default(),
+                    "unreadable series skipped while opening study"
+                );
+            }
+            if !browser.set_active(index) {
+                return Err(anyhow!("selected series is outside the study catalog"));
+            }
+            let status = if failed_series_count == 0 {
+                format!("Loaded {modality} series ({image_count} images).")
+            } else {
+                format!(
+                    "Loaded {modality} series ({image_count} images); skipped {failed_series_count} unreadable series."
+                )
+            };
+            self.app.load_volume(volume, status);
+            self.primary_series_index = Some(index);
             self.series_browser = Some(browser);
             self.reset_comparison();
         } else {

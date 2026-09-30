@@ -297,7 +297,7 @@ impl CardPresentation<'_> {
                 .map_or(0, |rect| rect.width)
         });
         let first_line_width = text_width.saturating_sub(badge_width.saturating_add(4));
-        let label = series_position_label(choice, self.browser.study_count())?;
+        let label = series_position_label(choice)?;
         draw_fit(
             framebuffer,
             text_x,
@@ -382,15 +382,12 @@ pub(super) fn draw_image_count(
     Ok(())
 }
 
-pub(super) fn series_position_label(
-    choice: &SeriesChoice,
-    study_count: usize,
-) -> Result<ArrayString<64>> {
+pub(super) fn series_position_label(choice: &SeriesChoice) -> Result<ArrayString<32>> {
     let mut label = ArrayString::new();
     write!(
         &mut label,
-        "Study {}/{} | Series {}/{}",
-        choice.study_number, study_count, choice.study_series_number, choice.study_series_count
+        "Series {}/{}",
+        choice.study_series_number, choice.study_series_count
     )
     .map_err(|_| anyhow!("series position label exceeds its display buffer"))?;
     Ok(label)

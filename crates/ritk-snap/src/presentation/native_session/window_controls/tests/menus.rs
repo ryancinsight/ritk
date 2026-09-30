@@ -140,8 +140,15 @@ fn panel_layout_hides_crosshair_controls_that_are_not_rendered() {
 
     let view_menu = ChromeLayout::new(1_280, 800, Some(Menu::View), &app, true, workspace)
         .expect("comparison View menu layout");
-    assert!(view_menu.action_center(WindowAction::ToggleCine).is_some());
-    assert!(view_menu.action_center(WindowAction::ResetView).is_some());
+    for action in [WindowAction::ToggleCine, WindowAction::ResetView] {
+        let (x, y) = view_menu
+            .action_center(action)
+            .expect("View menu action has a visible hit target");
+        assert_eq!(
+            view_menu.action_at(f64::from(x), f64::from(y), None),
+            Some(action)
+        );
+    }
 }
 
 #[test]

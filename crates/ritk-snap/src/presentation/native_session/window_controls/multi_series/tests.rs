@@ -28,6 +28,7 @@ fn enter_opens_the_first_visible_series_after_filtering_the_list() {
     dialog.set_single(previous_selection);
     dialog.filter.try_push('C').expect("append filter");
     dialog.filter.try_push('T').expect("append filter");
+    dialog.focus = DialogFocus::Search;
     dialog.rebuild_matches(&browser).expect("filter series");
     assert_eq!(dialog.matches.len(), 1);
     assert_ne!(dialog.matches[0], previous_selection);
@@ -58,6 +59,7 @@ fn enter_does_not_confirm_a_hidden_selection_when_the_filter_has_no_matches() {
         .filter
         .try_push_str("no matching series")
         .expect("fit filter text");
+    dialog.focus = DialogFocus::Search;
     dialog.rebuild_matches(&browser).expect("filter series");
     assert!(dialog.matches.is_empty());
 
@@ -177,13 +179,26 @@ fn enter_opens_every_series_selected_with_the_keyboard() {
                 false,
             )
             .expect("navigate and select series");
+        if virtual_key == 0x20 {
+            dialog
+                .handle_event(
+                    &PresentationEvent::TextInput { character: ' ' },
+                    1_280,
+                    800,
+                    browser,
+                    false,
+                )
+                .expect("consume the text event paired with Space");
+        }
     }
 
     press(&mut dialog, &browser, 0x20);
     assert_eq!(dialog.selected().as_slice(), &[0]);
+    assert_eq!(dialog.focus, DialogFocus::SeriesList);
     press(&mut dialog, &browser, 0x28);
     press(&mut dialog, &browser, 0x20);
     assert_eq!(dialog.selected().as_slice(), &[0, 1]);
+    assert_eq!(dialog.focus, DialogFocus::SeriesList);
     assert_eq!(dialog.cursor, 1);
 
     let event = dialog
@@ -202,6 +217,45 @@ fn enter_opens_every_series_selected_with_the_keyboard() {
 
     assert_eq!(event.action, Some(DialogAction::Confirm));
     assert_eq!(dialog.selected().as_slice(), &[0, 1]);
+}
+
+#[test]
+fn search_accepts_spaces_after_keyboard_entry_focuses_the_filter() {
+    let (mut dialog, browser, _root) = dialog_with_series(3);
+    for character in ['C', 'T', ' '] {
+        if character == ' ' {
+            dialog
+                .handle_event(
+                    &PresentationEvent::KeyDown {
+                        virtual_key: 0x20,
+                        repeated: false,
+                        modifiers: crate::presentation::PresentationModifiers::NONE,
+                    },
+                    1_280,
+                    800,
+                    &browser,
+                    false,
+                )
+                .expect("leave the filter focused while typing a space");
+        }
+        dialog
+            .handle_event(
+                &PresentationEvent::TextInput { character },
+                1_280,
+                800,
+                &browser,
+                false,
+            )
+            .expect("append search text");
+    }
+
+    assert_eq!(dialog.filter.as_str(), "CT ");
+    assert!(!dialog.matches.is_empty());
+    assert!(dialog.matches.iter().all(|index| {
+        browser
+            .choice(*index)
+            .is_some_and(|choice| choice.modality.as_ref() == "CT")
+    }));
 }
 
 #[test]

@@ -184,6 +184,7 @@ fn f4_picker_opens_every_keyboard_selected_series_in_the_native_window() {
                 repeated: false,
                 modifiers: ModifierState::NONE,
             },
+            WindowEvent::TextInput { character: ' ' },
             WindowEvent::KeyDown {
                 virtual_key: 0x28,
                 repeated: false,
@@ -194,6 +195,7 @@ fn f4_picker_opens_every_keyboard_selected_series_in_the_native_window() {
                 repeated: false,
                 modifiers: ModifierState::NONE,
             },
+            WindowEvent::TextInput { character: ' ' },
             WindowEvent::KeyDown {
                 virtual_key: 0x0d,
                 repeated: false,

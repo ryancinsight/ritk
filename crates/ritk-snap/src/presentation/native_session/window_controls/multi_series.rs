@@ -36,6 +36,12 @@ pub(super) enum DialogAction {
 }
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
+enum DialogFocus {
+    Search,
+    SeriesList,
+}
+
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub(super) struct DialogEvent {
     pub(super) repaint: bool,
     pub(super) action: Option<DialogAction>,
@@ -49,6 +55,7 @@ pub(super) struct MultiSeriesDialog {
     cursor: usize,
     first_visible: usize,
     selection_limit_reached: bool,
+    focus: DialogFocus,
 }
 
 impl MultiSeriesDialog {
@@ -60,6 +67,7 @@ impl MultiSeriesDialog {
             cursor: 0,
             first_visible: 0,
             selection_limit_reached: false,
+            focus: DialogFocus::SeriesList,
         };
         dialog.rebuild_matches(browser)?;
         Ok(dialog)
@@ -91,7 +99,7 @@ impl MultiSeriesDialog {
             } if !repeated => match *virtual_key {
                 0x1b => Ok(action(DialogAction::Cancel)),
                 0x0d => {
-                    if !self.filter.is_empty() {
+                    if self.focus == DialogFocus::Search && !self.filter.is_empty() {
                         self.selected.clear();
                         if let Some(index) = self.matches.first().copied() {
                             self.set_single(index);
@@ -108,7 +116,7 @@ impl MultiSeriesDialog {
                     }
                 }
                 0x08 => {
-                    if self.filter.pop().is_some() {
+                    if self.focus == DialogFocus::Search && self.filter.pop().is_some() {
                         self.rebuild_matches(browser)?;
                         Ok(changed(true))
                     } else {
@@ -116,18 +124,30 @@ impl MultiSeriesDialog {
                     }
                 }
                 0x26 => Ok(changed(self.move_cursor(-1, geometry))),
+                0x28 if self.focus == DialogFocus::Search => {
+                    self.focus = DialogFocus::SeriesList;
+                    Ok(changed(true))
+                }
                 0x28 => Ok(changed(self.move_cursor(1, geometry))),
                 0x20 => {
-                    if let Some(index) = self.matches.get(self.cursor).copied() {
-                        self.toggle(index);
-                        Ok(changed(true))
-                    } else {
-                        Ok(changed(false))
+                    if self.focus != DialogFocus::SeriesList {
+                        return Ok(changed(false));
                     }
+                    let Some(index) = self.matches.get(self.cursor).copied() else {
+                        return Ok(changed(false));
+                    };
+                    self.toggle(index);
+                    Ok(changed(true))
                 }
                 _ => Ok(changed(false)),
             },
+            PresentationEvent::TextInput { character: ' ' }
+                if self.focus == DialogFocus::SeriesList =>
+            {
+                Ok(changed(false))
+            }
             PresentationEvent::TextInput { character } if !character.is_control() => {
+                self.focus = DialogFocus::Search;
                 if self.filter.len().saturating_add(character.len_utf8()) > MAX_FILTER_BYTES {
                     return Ok(changed(false));
                 }
@@ -142,7 +162,14 @@ impl MultiSeriesDialog {
                 y,
                 button: PointerButton::Left,
             } => {
-                if let Some(index) = row_at(geometry, &self.matches, self.first_visible, *x, *y) {
+                if rect_contains(geometry.filter, *x, *y) {
+                    let focus_changed = self.focus != DialogFocus::Search;
+                    self.focus = DialogFocus::Search;
+                    Ok(changed(focus_changed))
+                } else if let Some(index) =
+                    row_at(geometry, &self.matches, self.first_visible, *x, *y)
+                {
+                    self.focus = DialogFocus::SeriesList;
                     self.cursor = index;
                     let series_index = self.matches[index];
                     if control_down {

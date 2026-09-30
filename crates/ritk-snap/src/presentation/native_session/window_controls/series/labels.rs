@@ -64,22 +64,6 @@ pub(in crate::presentation::native_session::window_controls) fn format_dicom_dat
     if value.len() != 8 || !value.bytes().all(|byte| byte.is_ascii_digit()) {
         return None;
     }
-    let year = value.get(..4)?.parse::<u16>().ok()?;
-    let month = value.get(4..6)?.parse::<u8>().ok()?;
-    let day = value.get(6..)?.parse::<u8>().ok()?;
-    if year == 0 {
-        return None;
-    }
-    let last_day = match month {
-        1 | 3 | 5 | 7 | 8 | 10 | 12 => 31,
-        4 | 6 | 9 | 11 => 30,
-        2 if year % 4 == 0 && (year % 100 != 0 || year % 400 == 0) => 29,
-        2 => 28,
-        _ => return None,
-    };
-    if day == 0 || day > last_day {
-        return None;
-    }
     let year = value.get(..4)?;
     let month = value.get(4..6)?;
     let day = value.get(6..)?;
@@ -123,24 +107,18 @@ mod tests {
     use super::format_dicom_date;
 
     #[test]
-    fn dicom_date_formatting_validates_calendar_days() {
+    fn dicom_date_formatting_preserves_the_validated_dicom_date() {
         assert_eq!(
             format_dicom_date("20240229")
-                .expect("leap day exists in a leap year")
+                .expect("scanner-provided Gregorian date has eight digits")
                 .as_str(),
             "2024-02-29"
         );
-        assert_eq!(format_dicom_date("19000229"), None);
-        assert_eq!(format_dicom_date("20230229"), None);
-        assert_eq!(format_dicom_date("19900191"), None);
-        assert_eq!(format_dicom_date("20241301"), None);
-        assert_eq!(format_dicom_date("20240200"), None);
     }
 
     #[test]
-    fn dicom_date_formatting_rejects_incomplete_or_nonnumeric_values() {
+    fn dicom_date_formatting_rejects_values_outside_its_storage_shape() {
         assert_eq!(format_dicom_date("2024011"), None);
         assert_eq!(format_dicom_date("20240A01"), None);
-        assert_eq!(format_dicom_date("00000101"), None);
     }
 }

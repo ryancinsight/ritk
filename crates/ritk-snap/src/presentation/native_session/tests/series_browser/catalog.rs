@@ -43,7 +43,7 @@ fn native_study_navigator_retains_and_loads_each_discovered_series() {
 }
 
 #[test]
-fn undecodable_first_series_keeps_the_catalog_and_allows_a_later_series() {
+fn opening_a_study_skips_an_undecodable_first_series() {
     let root = tempfile::tempdir().expect("study root");
     fixtures::write_grayscale_presentation(root.path(), "MONOCHROME3", None)
         .expect("write a catalogued series with unsupported pixel presentation");
@@ -51,15 +51,9 @@ fn undecodable_first_series_keeps_the_catalog_and_allows_a_later_series() {
         .expect("write a valid later series");
 
     let (mut viewer, _initial_root) = session();
-    let previous_uid = viewer
-        .app
-        .loaded
-        .as_ref()
-        .and_then(|volume| volume.metadata.as_ref())
-        .and_then(|metadata| metadata.series_instance_uid);
     viewer
         .open_study_path(root.path())
-        .expect("keep the discoverable series catalog when the first decode fails");
+        .expect("load the first readable series after an earlier decode failure");
 
     let browser = viewer.series_browser.as_ref().expect("retained catalog");
     assert_eq!(browser.len(), 2);
@@ -71,20 +65,6 @@ fn undecodable_first_series_keeps_the_catalog_and_allows_a_later_series() {
             .series_instance_uid(),
         "2.25.20260905005"
     );
-    assert_eq!(viewer.primary_series_index, None);
-    assert_eq!(
-        viewer
-            .app
-            .loaded
-            .as_ref()
-            .and_then(|volume| volume.metadata.as_ref())
-            .and_then(|metadata| metadata.series_instance_uid.as_deref()),
-        previous_uid.as_deref()
-    );
-    assert!(viewer.app.status_message.contains("select another series"));
-
-    click_series(&mut viewer, 1);
-
     assert_eq!(viewer.primary_series_index, Some(1));
     assert_eq!(
         viewer
@@ -94,6 +74,79 @@ fn undecodable_first_series_keeps_the_catalog_and_allows_a_later_series() {
             .and_then(|volume| volume.metadata.as_ref())
             .and_then(|metadata| metadata.series_instance_uid.as_deref()),
         Some(fixtures::SERIES_UID)
+    );
+    assert!(viewer
+        .app
+        .status_message
+        .contains("skipped 1 unreadable series"));
+}
+
+#[test]
+fn unopenable_replacement_study_preserves_every_populated_panel() {
+    let (mut viewer, _initial_root) = session();
+    let study = four_series_study();
+    viewer
+        .open_study_path(study.path())
+        .expect("open four-series study");
+    viewer
+        .open_selected_series(&[0, 2])
+        .expect("fill both comparison panels");
+    let original_primary = viewer
+        .app
+        .loaded
+        .as_ref()
+        .and_then(|volume| volume.metadata.as_ref())
+        .and_then(|metadata| metadata.series_instance_uid.as_deref())
+        .expect("primary DICOM series")
+        .to_owned();
+    let original_secondary = viewer.compare_panels[0]
+        .app
+        .loaded
+        .as_ref()
+        .and_then(|volume| volume.metadata.as_ref())
+        .and_then(|metadata| metadata.series_instance_uid.as_deref())
+        .expect("comparison DICOM series")
+        .to_owned();
+    let original_layout = viewer.workspace_layout;
+
+    let invalid = tempfile::tempdir().expect("invalid replacement study root");
+    fixtures::write_grayscale_presentation(invalid.path(), "MONOCHROME3", None)
+        .expect("write an undecodable DICOM series");
+    let error = viewer
+        .open_study_path(invalid.path())
+        .expect_err("reject a replacement with no readable series");
+
+    assert!(error.to_string().contains("no series"));
+    assert_eq!(viewer.workspace_layout, original_layout);
+    assert_eq!(viewer.active_panel, 0);
+    assert_eq!(viewer.compare_panels.len(), 1);
+    assert_eq!(viewer.primary_series_index, Some(0));
+    assert_eq!(viewer.compare_panels[0].series_index, Some(2));
+    assert_eq!(
+        viewer
+            .app
+            .loaded
+            .as_ref()
+            .and_then(|volume| volume.metadata.as_ref())
+            .and_then(|metadata| metadata.series_instance_uid.as_deref()),
+        Some(original_primary.as_str())
+    );
+    assert_eq!(
+        viewer.compare_panels[0]
+            .app
+            .loaded
+            .as_ref()
+            .and_then(|volume| volume.metadata.as_ref())
+            .and_then(|metadata| metadata.series_instance_uid.as_deref()),
+        Some(original_secondary.as_str())
+    );
+    assert_eq!(
+        viewer
+            .series_browser
+            .as_ref()
+            .expect("current catalog remains active")
+            .len(),
+        4
     );
 }
 

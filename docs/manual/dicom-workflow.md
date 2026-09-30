@@ -304,7 +304,7 @@ Use **File → Open DICOM file…** to select a particular acquisition in a fold
 containing several series. The selected instance's SeriesInstanceUID determines
 which neighbouring image files load. **File → Open Study…** discovers the
 series catalog and displays its preview bar. The desktop viewer loads the first
-discovered series initially. Selecting a series card loads it into the active
+readable series initially. Selecting a series card loads it into the active
 panel; if it is already open, the viewer activates its existing panel. Ctrl-click
 opens that series in the next panel. Each panel retains its own series
 assignment. The highlighted card tracks the active panel.
@@ -330,10 +330,12 @@ Ctrl-click opens it in the next panel. The **Open multiple series** button or
 F4 opens the catalog picker, where checkboxes select several series and Enter
 loads them into separate panels. **Escape** closes the picker without changing
 series assignments. Left/Right browses series in the active panel; a horizontal
-wheel over an image panel browses that panel's series. If the first discovered
-series cannot be decoded, the catalog stays available so another card can be
-opened, and the previously displayed primary image remains visible. A failed
-scan reports its error without terminating the native host.
+wheel over an image panel browses that panel's series. If a discovered series
+cannot be decoded before a readable one, the viewer loads the first readable
+series and reports how many unreadable entries it skipped. If no series in the
+replacement study can be opened, the prior catalog and every populated panel
+remain unchanged and the failure appears in the status bar. Selecting an
+unreadable series likewise preserves its assigned panel image.
 
 **Open DICOMDIR…** uses the index's referenced image set. Missing references or
 an invalid index report an error; unreferenced subdirectories do not supply a
@@ -1245,9 +1247,11 @@ horizontal wheel browses relative to the series shown in the panel under the
 pointer and replaces only that panel's series. Activating a series card still
 switches to the panel already assigned to that card.
 
-The F4 multiple-series picker can filter the catalog by typing. Enter loads the
-first visible result while the filter is active; a filter with no results clears
-the prior selection and leaves the picker open.
+The F4 multiple-series picker opens with its series list focused. Typing moves
+focus to the filter; spaces remain search text there. Press Down or click a row
+to return to the list, where Space toggles the selected series. Enter loads all
+selected rows, or the first visible result when no row is selected. A filter
+with no results cannot load a hidden selection and leaves the picker open.
 
 The shareable captures use the public phantom and contain no clinical patient
 identifiers. The preview rail groups each study with separate patient and
