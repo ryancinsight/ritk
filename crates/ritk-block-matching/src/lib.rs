@@ -427,6 +427,7 @@ impl BlockGrid {
             [counts[0], counts[1], counts[2]],
             "tracking centres",
         )?;
+        extent::buffer_len::<[f64; 3]>([1, 1, centre_count], "tracking displacements")?;
         let mut out = Vec::with_capacity(centre_count);
         let mut z = r[0];
         while z.checked_add(r[0]).is_some_and(|high| high < dims[0]) {
@@ -561,8 +562,8 @@ impl DisplacementField {
 ///
 /// # Errors
 ///
-/// Returns an error when `dims` product does not equal `fixed.len()`, when the
-/// configuration is invalid, or when `grid.stride` is zero on any axis.
+/// Returns an error for invalid dimensions, buffers, configuration, or stride,
+/// and when result buffers exceed the platform allocation limit.
 pub fn track_volume<T: Sample>(
     fixed: &[T],
     moving: &[T],

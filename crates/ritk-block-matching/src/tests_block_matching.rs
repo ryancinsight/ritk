@@ -664,20 +664,12 @@ fn block_grid_dense_enumerates_centres() {
     let centres = grid
         .centres([1, 32, 32], &config)
         .expect("the centre grid fits");
-    assert_eq!(
-        centres,
-        vec![
-            [0, 4, 4],
-            [0, 4, 13],
-            [0, 4, 22],
-            [0, 13, 4],
-            [0, 13, 13],
-            [0, 13, 22],
-            [0, 22, 4],
-            [0, 22, 13],
-            [0, 22, 22],
-        ]
-    );
+    let axis = [4, 13, 22];
+    let expected = axis
+        .into_iter()
+        .flat_map(|y| axis.into_iter().map(move |x| [0, y, x]))
+        .collect::<Vec<_>>();
+    assert_eq!(centres, expected);
     // Every centre must be at least block_radius away from each image boundary.
     for &[z, y, x] in &centres {
         assert!(z >= config.block_radius[0]);
@@ -690,15 +682,24 @@ fn block_grid_dense_enumerates_centres() {
 }
 
 #[test]
-fn block_grid_rejects_centre_byte_capacity_overflow() {
-    let axis = isize::MAX as usize / std::mem::size_of::<[usize; 3]>() + 1;
-    let dims = [1, 1, axis];
-    let config = BlockMatchingConfig {
-        block_radius: [0, 0, 0],
-        search_radius: [0, 0, 1],
-    };
-    let error = BlockGrid { stride: [1, 1, 1] }
-        .centres(dims, &config)
+fn block_grid_validates_geometry_and_capacity() {
+    let error = BlockGrid::try_dense([usize::MAX, 0, 0]).expect_err("axis 0 overflows");
+    assert_eq!(
+        error.to_string(),
+        "dense grid stride extent overflows on axis 0"
+    );
+    assert!(BlockGrid { stride: [0, 1, 1] }.validate().is_err());
+
+    let limit = usize::try_from(isize::MAX).expect("isize::MAX fits usize");
+    let dims = [1, 1, limit / std::mem::size_of::<[usize; 3]>() + 1];
+    let error = BlockGrid { stride: [1; 3] }
+        .centres(
+            dims,
+            &BlockMatchingConfig {
+                block_radius: [0; 3],
+                search_radius: [0, 0, 1],
+            },
+        )
         .expect_err("centre storage exceeds the allocator byte limit");
     assert_eq!(
         error.downcast_ref::<BlockMatchingError>(),
@@ -708,16 +709,6 @@ fn block_grid_rejects_centre_byte_capacity_overflow() {
             element_size: std::mem::size_of::<[usize; 3]>(),
         })
     );
-}
-
-#[test]
-fn block_grid_validates_stride_and_overflow() {
-    let error = BlockGrid::try_dense([usize::MAX, 0, 0]).expect_err("axis 0 overflows");
-    assert_eq!(
-        error.to_string(),
-        "dense grid stride extent overflows on axis 0"
-    );
-    assert!(BlockGrid { stride: [0, 1, 1] }.validate().is_err());
 
     let grid = BlockGrid { stride: [1, 1, 1] };
     let oversized = BlockMatchingConfig {

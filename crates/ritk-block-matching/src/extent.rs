@@ -4,7 +4,7 @@
 //! so a `dims` whose voxel count overflows is an error on every entry point
 //! instead of a panic in debug builds and a wrapped, wrong count in release.
 
-use anyhow::Result;
+use anyhow::{bail, Result};
 use std::mem::size_of;
 
 use crate::BlockMatchingError;
@@ -27,23 +27,29 @@ pub(crate) fn voxel_count(dims: [usize; 3], label: &'static str) -> Result<usize
 ///
 /// Returns an error when the voxel count or its byte capacity cannot be represented safely.
 pub(crate) fn buffer_len<T>(dims: [usize; 3], label: &'static str) -> Result<usize> {
+    buffer_len_with_limit::<T>(
+        dims,
+        label,
+        usize::try_from(isize::MAX).expect("invariant: isize::MAX fits usize"),
+    )
+}
+
+/// Capacity calculation with an explicit platform limit for cross-width tests.
+pub(crate) fn buffer_len_with_limit<T>(
+    dims: [usize; 3],
+    label: &'static str,
+    byte_limit: usize,
+) -> Result<usize> {
     let count = voxel_count(dims, label)?;
     let element_size = size_of::<T>();
-    let bytes = count
+    count
         .checked_mul(element_size)
+        .filter(|bytes| *bytes <= byte_limit)
         .ok_or(BlockMatchingError::ByteCountOverflow {
             label,
             dims,
             element_size,
         })?;
-    if bytes > isize::MAX as usize {
-        return Err(BlockMatchingError::ByteCountOverflow {
-            label,
-            dims,
-            element_size,
-        }
-        .into());
-    }
     Ok(count)
 }
 
@@ -76,21 +82,22 @@ pub(crate) fn window_extents(radius: [usize; 3], label: &'static str) -> Result<
 pub(crate) fn check_buffer_lengths(fixed: usize, moving: usize, dims: [usize; 3]) -> Result<usize> {
     let expected = voxel_count(dims, "image")?;
     if fixed != expected || moving != expected {
-        return Err(BlockMatchingError::BufferLengthMismatch {
-            fixed,
-            moving,
-            expected,
-            dims,
-        }
-        .into());
+        bail!("fixed ({fixed}) and moving ({moving}) buffers must both hold {expected} voxels for dims {dims:?}");
     }
     Ok(expected)
 }
 
 #[cfg(test)]
 mod tests {
-    use super::{buffer_len, check_buffer_lengths, voxel_count, window_extents};
+    use super::{
+        buffer_len, buffer_len_with_limit, check_buffer_lengths, voxel_count, window_extents,
+    };
     use crate::BlockMatchingError;
+
+    fn assert_error<T: std::fmt::Debug>(result: anyhow::Result<T>, expected: BlockMatchingError) {
+        let error = result.expect_err("operation must reject invalid input");
+        assert_eq!(error.downcast_ref::<BlockMatchingError>(), Some(&expected));
+    }
 
     #[test]
     fn voxel_count_multiplies_the_axes() {
@@ -100,13 +107,12 @@ mod tests {
 
     #[test]
     fn voxel_count_rejects_an_overflowing_grid() {
-        let error = voxel_count([usize::MAX, 2, 1], "image").expect_err("the product overflows");
-        assert_eq!(
-            error.downcast_ref::<BlockMatchingError>(),
-            Some(&BlockMatchingError::VoxelCountOverflow {
+        assert_error(
+            voxel_count([usize::MAX, 2, 1], "image"),
+            BlockMatchingError::VoxelCountOverflow {
                 label: "image",
                 dims: [usize::MAX, 2, 1],
-            })
+            },
         );
     }
 
@@ -120,15 +126,31 @@ mod tests {
             Some(boundary)
         );
         let dims = [1, 1, boundary + 1];
-        let error = buffer_len::<f64>(dims, "min/max pyramid level")
-            .expect_err("the f64 byte capacity exceeds the allocator limit");
-        assert_eq!(
-            error.downcast_ref::<BlockMatchingError>(),
-            Some(&BlockMatchingError::ByteCountOverflow {
+        assert_error(
+            buffer_len::<f64>(dims, "min/max pyramid level"),
+            BlockMatchingError::ByteCountOverflow {
                 label: "min/max pyramid level",
                 dims,
                 element_size: std::mem::size_of::<f64>(),
-            })
+            },
+        );
+    }
+
+    #[test]
+    fn displacement_capacity_fails_when_32_bit_centres_still_fit() {
+        let byte_limit = usize::try_from(isize::MAX).expect("isize::MAX fits usize");
+        let dims = [1, 1, byte_limit / std::mem::size_of::<[f64; 3]>() + 1];
+        assert_eq!(
+            buffer_len_with_limit::<[u32; 3]>(dims, "tracking centres", byte_limit).ok(),
+            Some(dims[2])
+        );
+        assert_error(
+            buffer_len_with_limit::<[f64; 3]>(dims, "tracking displacements", byte_limit),
+            BlockMatchingError::ByteCountOverflow {
+                label: "tracking displacements",
+                dims,
+                element_size: std::mem::size_of::<[f64; 3]>(),
+            },
         );
     }
 
@@ -139,48 +161,35 @@ mod tests {
 
     #[test]
     fn window_extents_name_the_overflowing_axis() {
-        let error =
-            window_extents([1, usize::MAX / 2 + 1, 1], "search").expect_err("axis 1 overflows");
-        assert_eq!(
-            error.downcast_ref::<BlockMatchingError>(),
-            Some(&BlockMatchingError::WindowExtentOverflow {
-                label: "search",
-                axis: 1,
-                radius: usize::MAX / 2 + 1,
-            })
-        );
-        let error =
-            window_extents([1, 1, usize::MAX / 2 + 1], "search").expect_err("axis 2 overflows");
-        assert_eq!(
-            error.downcast_ref::<BlockMatchingError>(),
-            Some(&BlockMatchingError::WindowExtentOverflow {
-                label: "search",
-                axis: 2,
-                radius: usize::MAX / 2 + 1,
-            })
-        );
+        for (radius, axis) in [
+            ([1, usize::MAX / 2 + 1, 1], 1),
+            ([1, 1, usize::MAX / 2 + 1], 2),
+        ] {
+            assert_error(
+                window_extents(radius, "search"),
+                BlockMatchingError::WindowExtentOverflow {
+                    label: "search",
+                    axis,
+                    radius: radius[axis],
+                },
+            );
+        }
     }
 
     #[test]
     fn buffer_lengths_must_match_the_grid() {
         assert_eq!(check_buffer_lengths(24, 24, [2, 3, 4]).ok(), Some(24));
-        let error = check_buffer_lengths(24, 23, [2, 3, 4]).expect_err("moving is short");
+        let error = check_buffer_lengths(24, 23, [2, 3, 4]).expect_err("moving buffer is short");
         assert_eq!(
-            error.downcast_ref::<BlockMatchingError>(),
-            Some(&BlockMatchingError::BufferLengthMismatch {
-                fixed: 24,
-                moving: 23,
-                expected: 24,
-                dims: [2, 3, 4],
-            })
+            error.to_string(),
+            "fixed (24) and moving (23) buffers must both hold 24 voxels for dims [2, 3, 4]"
         );
-        let error = check_buffer_lengths(0, 0, [usize::MAX, 2, 1]).expect_err("the grid overflows");
-        assert_eq!(
-            error.downcast_ref::<BlockMatchingError>(),
-            Some(&BlockMatchingError::VoxelCountOverflow {
+        assert_error(
+            check_buffer_lengths(0, 0, [usize::MAX, 2, 1]),
+            BlockMatchingError::VoxelCountOverflow {
                 label: "image",
                 dims: [usize::MAX, 2, 1],
-            })
+            },
         );
     }
 }

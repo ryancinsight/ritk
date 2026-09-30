@@ -58,18 +58,4 @@ pub enum BlockMatchingError {
         /// Convolution extent that cannot be padded.
         extent: usize,
     },
-    /// The fixed and moving buffers do not contain one sample per voxel.
-    #[error(
-        "fixed ({fixed}) and moving ({moving}) buffers must both hold {expected} voxels for dims {dims:?}"
-    )]
-    BufferLengthMismatch {
-        /// Number of fixed samples supplied.
-        fixed: usize,
-        /// Number of moving samples supplied.
-        moving: usize,
-        /// Required voxel count.
-        expected: usize,
-        /// Image dimensions used to derive `expected`.
-        dims: [usize; 3],
-    },
 }
