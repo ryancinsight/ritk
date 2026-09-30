@@ -1,6 +1,6 @@
 [package]
 name = "ritk-spatial"
-version = "0.2.0"
+version = "0.3.0"
 description = "Validated spatial geometry and coordinate transforms for RITK"
 keywords.workspace = true
 categories.workspace = true
