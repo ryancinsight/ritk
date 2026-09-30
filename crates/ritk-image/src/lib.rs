@@ -1,7 +1,4 @@
-//! Image types and operations — Image, RgbVolume, ColorVolume, grid generation, metadata.
-//!
-//! Depends on `ritk-spatial` for spatial types and `coeus` for the Atlas-native
-//! tensor backend.
+#![doc = include_str!("../README.md")]
 
 pub mod access;
 pub mod color;
@@ -12,6 +9,7 @@ pub mod region;
 pub mod test_support;
 pub mod transform;
 pub mod types;
+pub mod voxel;
 
 pub use color::{ColorVolume, RgbVolume};
 // The coordinate map is pure geometry and lives with the rest of the spatial
@@ -25,6 +23,7 @@ pub use ritk_spatial::{
     SliceTransform,
 };
 pub use types::Image;
+pub use voxel::VoxelImage;
 
 /// Coeus-backed tensor and module surface re-exported for downstream crates.
 pub mod coeus {
