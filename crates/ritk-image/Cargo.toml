@@ -13,7 +13,7 @@ edition = "2021"
 license.workspace = true
 
 [dependencies]
-ritk-spatial = { path = "../ritk-spatial", version = "0.2.0" }
+ritk-spatial = { path = "../ritk-spatial", version = "0.3.0" }
 ritk-wgpu-compat = { path = "../ritk-wgpu-compat", version = "0.2.0" }
 anyhow = { workspace = true }
 coeus-core = { workspace = true }
