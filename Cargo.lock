@@ -5904,7 +5904,7 @@ dependencies = [
 
 [[package]]
 name = "ritk-annotation"
-version = "0.2.0"
+version = "0.3.0"
 dependencies = [
  "ritk-spatial",
  "serde",
@@ -5987,7 +5987,7 @@ dependencies = [
 
 [[package]]
 name = "ritk-core"
-version = "0.10.0"
+version = "0.11.0"
 dependencies = [
  "coeus-core",
  "coeus-tensor",
@@ -6117,7 +6117,7 @@ dependencies = [
 
 [[package]]
 name = "ritk-interpolation"
-version = "0.5.0"
+version = "0.6.0"
 dependencies = [
  "anyhow",
  "coeus-core",
@@ -6491,7 +6491,7 @@ dependencies = [
 
 [[package]]
 name = "ritk-spatial"
-version = "0.2.0"
+version = "0.3.0"
 dependencies = [
  "leto",
  "serde",
@@ -6500,7 +6500,7 @@ dependencies = [
 
 [[package]]
 name = "ritk-statistics"
-version = "0.4.0"
+version = "0.5.0"
 dependencies = [
  "anyhow",
  "coeus-core",
@@ -6524,7 +6524,7 @@ dependencies = [
 
 [[package]]
 name = "ritk-tensor-ops"
-version = "0.2.0"
+version = "0.3.0"
 dependencies = [
  "anyhow",
  "coeus-core",
@@ -6568,7 +6568,7 @@ dependencies = [
 
 [[package]]
 name = "ritk-transform"
-version = "0.2.0"
+version = "0.3.0"
 dependencies = [
  "coeus-autograd",
  "coeus-core",

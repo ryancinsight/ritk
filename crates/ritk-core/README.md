@@ -23,5 +23,5 @@ Algorithms live in the operation crates (`ritk-filter`, `ritk-segmentation`,
 
 ```toml
 [dependencies]
-ritk-core = "0.10.0"
+ritk-core = "0.11.0"
 ```

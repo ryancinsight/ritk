@@ -23,5 +23,5 @@ per scalar type or dimensionality.
 
 ```toml
 [dependencies]
-ritk-transform = "0.2.0"
+ritk-transform = "0.3.0"
 ```

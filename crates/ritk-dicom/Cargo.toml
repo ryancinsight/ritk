@@ -20,7 +20,7 @@ dicom = { workspace = true }
 moirai-pal = { workspace = true }
 ritk-codecs = { workspace = true }
 ritk-diffusion-scheme = { path = "../ritk-diffusion-scheme", version = "0.2.0" }
-ritk-spatial = { path = "../ritk-spatial", version = "0.2.0" }
+ritk-spatial = { path = "../ritk-spatial", version = "0.3.0" }
 
 [target.'cfg(not(target_arch = "wasm32"))'.dependencies]
 dicom-pixeldata = { workspace = true, features = ["native"] }
