@@ -5919,6 +5919,7 @@ dependencies = [
  "anyhow",
  "apollo-fft",
  "eunomia",
+ "thiserror 2.0.20",
 ]
 
 [[package]]
