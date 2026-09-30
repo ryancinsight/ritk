@@ -34,6 +34,17 @@
 - next: measure the vtk and nifti decode loops, then extend `decode_bytes_to_f32` or consus-core with the slice forms those loops need.
 - basis: 83dd6a741a7a30e858a16f79c90d7030b063d1fc
 
+<a id="RITK-VTK-GEOMETRY-REJECTION-001"></a>
+## RITK-VTK-GEOMETRY-REJECTION-001: Reject legacy VTK writes that lose image geometry
+- outcome: legacy structured-points export does not silently drop direction or a non-Cartesian coordinate map.
+- acceptance: reject both unsupported cases before destination create/truncate; preserve existing destination bytes; retain Cartesian identity round-trip values and geometry.
+- status: todo
+- priority: correctness
+- needs: none
+- scope: `crates/ritk-vtk/src/io/writer.rs`, `crates/ritk-vtk/src/io/mod.rs`, README
+- next: validate representable geometry before opening the output path and add value-based regressions.
+- risk: [patch]; preserve the existing Cartesian encoding.
+- basis: f1f1b7c4d6e34750b1e65bae8ae6b0ecaffb687a; governed by ADR 0039.
 <a id="RITK-SNAP-INTERACTION-REGIONS-001"></a>
 ## RITK-SNAP-INTERACTION-REGIONS-001: Separate region interaction tests
 - outcome: give region tools one test module without changing behavior.
