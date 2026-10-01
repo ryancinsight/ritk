@@ -18,6 +18,7 @@
 use anyhow::{Context, Result};
 use coeus_core::{ComputeBackend, CpuAddressableStorage};
 use ritk_image::Image;
+use ritk_spatial::Direction;
 use std::io::{BufWriter, Write};
 use std::path::Path;
 
@@ -42,6 +43,10 @@ use std::path::Path;
 ///
 /// The header is always ASCII (VTK's `BINARY` declaration governs only the data
 /// section). The writer is flushed before return.
+///
+/// This flat-data encoder has no direction or coordinate-map inputs. Callers
+/// writing an [`Image`] should use [`write_vtk`], which checks that its
+/// geometry is representable before touching the destination.
 ///
 /// # Errors
 ///
@@ -145,6 +150,9 @@ pub fn encode_vtk_flat<W: Write>(
 /// # Errors
 ///
 /// Returns an error when:
+/// - The image has a non-identity direction or non-Cartesian coordinate map,
+///   which legacy structured points cannot represent. This check occurs before
+///   the destination is created or truncated.
 /// - The file cannot be created or written.
 /// - The tensor data cannot be extracted as `f32`.
 pub fn write_vtk<B, P>(path: P, image: &Image<f32, B, 3>, backend: &B) -> Result<()>
@@ -154,6 +162,15 @@ where
     P: AsRef<Path>,
 {
     let path = path.as_ref();
+    anyhow::ensure!(
+        image.coordinate_map().is_cartesian(),
+        "legacy VTK structured points cannot preserve a non-Cartesian coordinate map"
+    );
+    anyhow::ensure!(
+        image.direction() == &Direction::identity(),
+        "legacy VTK structured points cannot preserve a non-identity direction matrix"
+    );
+
     let file = std::fs::File::create(path)
         .with_context(|| format!("failed to create VTK file: {}", path.display()))?;
     let mut writer = BufWriter::new(file);

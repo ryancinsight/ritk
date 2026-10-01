@@ -15,7 +15,7 @@ path = "src/main.rs"
 [dependencies]
 ritk-core = { path = "../ritk-core", version = "0.10.0" }
 ritk-image = { path = "../ritk-image", version = "0.4.0" }
-ritk-spatial = { path = "../ritk-spatial", version = "0.2.0" }
+ritk-spatial = { path = "../ritk-spatial", version = "0.3.0" }
 ritk-statistics = { path = "../ritk-statistics", version = "0.4.0" }
 ritk-interpolation = { path = "../ritk-interpolation", version = "0.5.0" }
 serde_json = { workspace = true }
@@ -45,6 +45,7 @@ mnemosyne = { workspace = true }
 
 [dev-dependencies]
 tempfile = { workspace = true }
+ritk-core = { path = "../ritk-core", features = ["test-helpers"], version = "0.10.0" }
 ritk-nifti = { path = "../ritk-nifti", version = "0.2.0" }
 
 [lints]

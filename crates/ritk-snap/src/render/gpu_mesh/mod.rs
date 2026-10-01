@@ -328,6 +328,6 @@ fn build_uniforms(
 
 impl LightUniform {
     fn zeroed() -> Self {
-        bytemuck::Zeroable::zeroed()
+        eunomia::Zeroable::zeroed()
     }
 }

@@ -23,6 +23,18 @@
 - next: claim the item, map the required-check and reusable-workflow graph, then record the single-pipeline design in an indexed ADR before changing workflows.
 - basis: bf589f94b9826be8b4b05c85e5da31c338f01bab
 
+<a id="RITK-SNAP-METIS-SHARED-TEXT-001"></a>
+## RITK-SNAP-METIS-SHARED-TEXT-001: Build display text from shared strings
+- outcome: ritk-snap builds and passes against metis-ui-lang once its `DrawText` text and `ElementRect` ids become `Arc<str>` (ryancinsight/metis#458).
+- acceptance: the lock advances metis past d93a456 to the commit landing metis#458; every `DisplayCommand::DrawText` construction in `crates/ritk-snap/src/presentation/native_session/` (`layout/overlay.rs`, `selection.rs`) passes `Arc<str>`, and text comparisons there and in `native_session/tests*` compare `&**text` or `text.as_ref()`; ritk-snap clippy `-D warnings` and nextest pass; native display tests keep their expected text.
+- status: blocked
+- blocker: metis#458 is not merged; re-open when it merges.
+- priority: correctness
+- needs: none
+- scope: `crates/ritk-snap/src/presentation/native_session/`, `Cargo.lock`
+- next: after metis#458 merges, `cargo update -p metis-ui-lang -p metis-platform -p metis-web` and fix the call sites the checker reports.
+- basis: d6b9f79f
+
 <a id="RITK-FORMAT-BULK-DECODE-001"></a>
 ## RITK-FORMAT-BULK-DECODE-001: Decode sample buffers through one bulk path
 - outcome: format readers and writers convert whole sample buffers through one bulk byte-order path, choosing the byte order once per buffer, instead of per-type `chunks_exact` loops.
