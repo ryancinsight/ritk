@@ -436,17 +436,23 @@ def test_read_write_image_nifti_roundtrip():
         os.unlink(path)
 
 
-def test_write_image_vtk_roundtrips_native_values(tmp_path):
-    """VTK native image I/O preserves shape and voxel values."""
+def test_write_image_vtk_rejects_non_identity_direction(tmp_path):
+    """Legacy VTK cannot encode direction: rejection precedes file creation.
+
+    Every Python image carries `numpy_array_direction()` (a permutation), and
+    the legacy structured-points writer deliberately rejects non-identity
+    directions rather than silently misorienting the volume (49dcdf05). The
+    round trip this test previously asserted is therefore impossible by
+    decision, not by defect; what this test now proves is the fail-closed
+    behavior, including that no output file appears.
+    """
     values = np.arange(8, dtype=np.float32).reshape(2, 2, 2)
     img = _ritk(values)
     path = tmp_path / "out.vtk"
 
-    rio.write_image(img, str(path))
-    assert path.stat().st_size > 0
-    restored = rio.read_image(str(path)).to_numpy()
-    assert restored.shape == values.shape
-    np.testing.assert_array_equal(restored, values)
+    with pytest.raises(OSError, match="non-identity direction"):
+        rio.write_image(img, str(path))
+    assert not path.exists()
 
 
 def test_read_write_transform_translation_roundtrip():
