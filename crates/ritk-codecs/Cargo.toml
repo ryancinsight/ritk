@@ -6,7 +6,7 @@ repository.workspace = true
 publish = true
 edition = "2021"
 license.workspace = true
-description = "RITK-native codec implementations: JPEG, JPEG-LS, JPEG 2000, PackBits, RLE Lossless"
+description = "RITK typed voxel samples and native codecs: JPEG, JPEG-LS, JPEG 2000, PackBits, RLE Lossless"
 keywords.workspace = true
 categories.workspace = true
 homepage.workspace = true
@@ -17,10 +17,14 @@ readme.workspace = true
 [dependencies]
 consus-core = { workspace = true }
 anyhow = { workspace = true }
+coeus-core = { workspace = true }
 consus-raster = { workspace = true }
+thiserror = { workspace = true }
+tracing = { workspace = true }
 
 [dev-dependencies]
 base64 = { workspace = true }
+eunomia = { workspace = true }
 image = { workspace = true }
 proptest = { workspace = true }
 

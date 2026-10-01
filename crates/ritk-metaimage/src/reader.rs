@@ -1,7 +1,11 @@
 use crate::spatial::metadata_from_file_transform;
 use anyhow::{anyhow, Context, Result};
 use coeus_core::ComputeBackend;
-use ritk_codecs::{decode_bytes_to_f32, parse_f64_vec, parse_usize_vec, ByteOrder};
+use consus_core::ByteOrder;
+use ritk_codecs::{
+    parse_header_values,
+    sample::{Cast, Conversion, SampleBuffer, SampleType},
+};
 use ritk_image::Image;
 use ritk_spatial::Point;
 use std::collections::HashMap;
@@ -114,7 +118,7 @@ fn decode_metaimage<P: AsRef<Path>>(path: P) -> Result<DecodedMetaImage> {
         return Err(anyhow!("Expected NDims = 2 or 3, found {}", ndims));
     }
 
-    let dim_sizes = parse_usize_vec(
+    let dim_sizes = parse_header_values::<usize>(
         headers
             .get("DimSize")
             .ok_or_else(|| anyhow!("Missing 'DimSize' in MetaImage header"))?,
@@ -125,7 +129,7 @@ fn decode_metaimage<P: AsRef<Path>>(path: P) -> Result<DecodedMetaImage> {
     let ny = dim_sizes[1];
     let nz = if ndims == 3 { dim_sizes[2] } else { 1 };
 
-    let spacing_raw = parse_f64_vec(
+    let spacing_raw = parse_header_values::<f64>(
         headers
             .get("ElementSpacing")
             .ok_or_else(|| anyhow!("Missing 'ElementSpacing' in MetaImage header"))?,
@@ -143,7 +147,7 @@ fn decode_metaimage<P: AsRef<Path>>(path: P) -> Result<DecodedMetaImage> {
         .get("Offset")
         .or_else(|| headers.get("Position"))
         .ok_or_else(|| anyhow!("Missing 'Offset' (or 'Position') in MetaImage header"))?;
-    let offset_raw = parse_f64_vec(offset_str, "Offset", ndims)?;
+    let offset_raw = parse_header_values::<f64>(offset_str, "Offset", ndims)?;
     let offset_vals = if ndims == 3 {
         offset_raw
     } else {
@@ -162,7 +166,7 @@ fn decode_metaimage<P: AsRef<Path>>(path: P) -> Result<DecodedMetaImage> {
         .get("TransformMatrix")
         .map(|s| s.as_str())
         .unwrap_or(tm_default);
-    let tm_raw = parse_f64_vec(tm_src, "TransformMatrix", ndims * ndims)?;
+    let tm_raw = parse_header_values::<f64>(tm_src, "TransformMatrix", ndims * ndims)?;
     let tm_vals = if ndims == 3 {
         tm_raw
     } else {
@@ -175,15 +179,14 @@ fn decode_metaimage<P: AsRef<Path>>(path: P) -> Result<DecodedMetaImage> {
         .get("ElementType")
         .ok_or_else(|| anyhow!("Missing 'ElementType' in MetaImage header"))?
         .clone();
-    let (elem_size, signed, is_float) = element_type_spec(&element_type)?;
+    let sample_type = element_type_spec(&element_type)?;
+    let elem_size = sample_type.byte_width();
 
     // BinaryDataByteOrderMSB = True → big-endian; default is little-endian.
-    let byte_order = ByteOrder::from_metaimage_msb(
-        headers
-            .get("BinaryDataByteOrderMSB")
-            .map(|s| s.as_str())
-            .unwrap_or("FALSE"),
-    );
+    let byte_order = match headers.get("BinaryDataByteOrderMSB").map(String::as_str) {
+        Some(value) if value.eq_ignore_ascii_case("TRUE") => ByteOrder::BigEndian,
+        _ => ByteOrder::LittleEndian,
+    };
 
     // CompressedData = True → the payload is zlib-deflated; default is raw.
     let compressed = headers
@@ -259,15 +262,11 @@ fn decode_metaimage<P: AsRef<Path>>(path: P) -> Result<DecodedMetaImage> {
         ));
     }
 
-    let f32_data: Vec<f32> = decode_bytes_to_f32(
+    let f32_data = Cast.convert::<f32>(SampleBuffer::decode(
         &raw_bytes,
-        elem_size,
-        signed,
-        is_float,
+        sample_type,
         byte_order,
-        total_voxels,
-        &element_type,
-    )?;
+    )?)?;
 
     if f32_data.len() != total_voxels {
         return Err(anyhow!(
@@ -313,18 +312,17 @@ fn checked_voxel_count(nx: usize, ny: usize, nz: usize) -> Result<usize> {
 }
 
 /// Translate a MetaImage `ElementType` name into the shared byte-decoder spec.
-fn element_type_spec(element_type: &str) -> Result<(usize, bool, bool)> {
-    let spec = match element_type {
-        "MET_UCHAR" => (1_usize, false, false),
-        "MET_SHORT" => (2, true, false),
-        "MET_USHORT" => (2, false, false),
-        "MET_INT" => (4, true, false),
-        "MET_UINT" => (4, false, false),
-        "MET_FLOAT" => (4, false, true),
-        "MET_DOUBLE" => (8, false, true),
-        other => return Err(anyhow!("Unsupported MetaImage ElementType: '{}'", other)),
-    };
-    Ok(spec)
+fn element_type_spec(element_type: &str) -> Result<SampleType> {
+    match element_type {
+        "MET_UCHAR" => Ok(SampleType::U8),
+        "MET_SHORT" => Ok(SampleType::I16),
+        "MET_USHORT" => Ok(SampleType::U16),
+        "MET_INT" => Ok(SampleType::I32),
+        "MET_UINT" => Ok(SampleType::U32),
+        "MET_FLOAT" => Ok(SampleType::F32),
+        "MET_DOUBLE" => Ok(SampleType::F64),
+        other => Err(anyhow!("Unsupported MetaImage ElementType: '{}'", other)),
+    }
 }
 
 // ── Public reader struct ──────────────────────────────────────────────────────

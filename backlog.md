@@ -35,17 +35,116 @@
 - next: after metis#458 merges, `cargo update -p metis-ui-lang -p metis-platform -p metis-web` and fix the call sites the checker reports.
 - basis: d6b9f79f
 
-<a id="RITK-FORMAT-BULK-DECODE-001"></a>
-## RITK-FORMAT-BULK-DECODE-001: Decode sample buffers through one bulk path
-- outcome: format readers and writers convert whole sample buffers through one bulk byte-order path, choosing the byte order once per buffer, instead of per-type `chunks_exact` loops.
-- acceptance: the ritk-vtk binary scalar reader, ritk-mif's float writer, the ritk-nifti and ritk-analyze voxel decoders and the JPEG 2000 QCD step sizes use one shared bulk decode and encode, with the same output bytes and values; each crate's tests pass unchanged, and an instruction-count or pinned run shows no regression on each reader's decode loop.
+<a id="RITK-TYPED-SAMPLES-002"></a>
+## RITK-TYPED-SAMPLES-002: Preserve NIfTI stored samples and rescale
+- outcome: NIfTI-1 and NIfTI-2 read and write supported stored sample types in RITK and apply `scl_slope`/`scl_inter` under an explicit conversion policy.
+- acceptance: ten-type value-semantic round trips cover both byte orders; NIfTI-1/2 rescale and series behavior match the format contract; labels reject fractional, negative, and out-of-range values; the NIfTI crate docs and example describe the policy.
 - status: todo
-- priority: tightening
+- priority: correctness
 - needs: none
-- scope: `crates/ritk-codecs/src/byte_decode.rs`, `crates/ritk-vtk/src/io/reader.rs`, `crates/ritk-mif/src/writer.rs`, `crates/ritk-nifti/src/header/types.rs`, `crates/ritk-analyze/src/reader.rs`, `crates/ritk-codecs/src/jpeg_2000/codestream.rs`
-- next: measure the vtk and nifti decode loops, then extend `decode_bytes_to_f32` or consus-core with the slice forms those loops need.
-- basis: 83dd6a741a7a30e858a16f79c90d7030b063d1fc
-
+- scope: `crates/ritk-nifti/`, `docs/book/nifti_format.md`, its examples and tests
+- next: revalidate the stale PR #699 work against the merged sample API, then complete its reader/writer and scaling tests.
+- basis: ed9e3834a5251a932959a0bdb88c922910a8eae6
+<a id="RITK-TYPED-SAMPLES-003"></a>
+## RITK-TYPED-SAMPLES-003: Read and write MGH in the stored sample type
+- outcome: MGH/MGZ reads its four voxel types into `Image<T, B, 3>` and writes the type of `T`, rejecting types MGH cannot store with a typed error (ADR 0053).
+- acceptance: generic round trip over u8, i16, i32, f32; an i32 sample above 2^24 survives; `voxel_decode.rs`'s per-type f32 functions are deleted.
+- status: todo
+- priority: correctness
+- needs: none
+- scope: `crates/ritk-mgh/`
+- next: map `VoxelType` onto `SampleType` and decode through `SampleBuffer::decode`.
+- basis: ed9e3834a5251a932959a0bdb88c922910a8eae6
+<a id="RITK-TYPED-SAMPLES-004"></a>
+## RITK-TYPED-SAMPLES-004: Read and write Analyze 7.5 in the stored sample type
+- outcome: Analyze reads u8, i16, i32, f32, f64 into `Image<T, B, 3>`, carries `funused1` as the shared rescale, and writes the type of `T` (ADR 0053).
+- acceptance: generic round trip over the five types; a scaled file reads physical values in f32/f64; the `AnalyzeVoxel` trait and `decode_payload` are deleted.
+- status: todo
+- priority: correctness
+- needs: none
+- scope: `crates/ritk-analyze/`
+- next: replace `AnalyzeDatatype` with a `SampleType` code map.
+- basis: ed9e3834a5251a932959a0bdb88c922910a8eae6
+<a id="RITK-TYPED-SAMPLES-005"></a>
+## RITK-TYPED-SAMPLES-005: Read and write MIF in the stored sample type
+- outcome: MIF reads and writes all MRtrix integer and float types including Int64/UInt64 in the stored type and byte order, fixing the width-only decoder that reads int32/uint32 as float bits, uint16 as i16 and int8 as u8 (ADR 0053).
+- acceptance: generic round trip over ten types in LE and BE; `decode.rs` and the local `parse_f64_vec` are deleted; the float writer emits the type of `T`.
+- status: todo
+- priority: correctness
+- needs: none
+- scope: `crates/ritk-mif/`
+- next: make `parse_datatype` return `(SampleType, ByteOrder)`.
+- basis: ed9e3834a5251a932959a0bdb88c922910a8eae6
+<a id="RITK-TYPED-SAMPLES-006"></a>
+## RITK-TYPED-SAMPLES-006: Read and write NRRD in the stored sample type
+- outcome: NRRD reads every NRRD scalar type including `int64`/`uint64` into `Image<T, B, 3>` and writes the type of `T`; an unknown `endian` value is a typed error (ADR 0053).
+- acceptance: generic round trip over ten types, raw and gzip, both byte orders; type names match the NRRD file format specification's full list.
+- status: todo
+- priority: correctness
+- needs: none
+- scope: `crates/ritk-nrrd/`
+- next: make `read_nrrd` generic over `T` using `SampleBuffer::into_vec`.
+- basis: ed9e3834a5251a932959a0bdb88c922910a8eae6
+<a id="RITK-TYPED-SAMPLES-007"></a>
+## RITK-TYPED-SAMPLES-007: Read and write MetaImage in the stored sample type
+- outcome: MetaImage reads `MET_CHAR` through `MET_ULONG_LONG` and both float types into `Image<T, B, 3>` and writes the `ElementType` of `T` (ADR 0053).
+- acceptance: generic round trip over ten types, inline and detached, raw and zlib, both byte orders.
+- status: todo
+- priority: correctness
+- needs: none
+- scope: `crates/ritk-metaimage/`
+- next: extend `element_sample_type` with the missing `MET_*` names, then make the reader generic.
+- basis: ed9e3834a5251a932959a0bdb88c922910a8eae6
+<a id="RITK-TYPED-SAMPLES-008"></a>
+## RITK-TYPED-SAMPLES-008: Read and write legacy VTK scalars in the stored sample type
+- outcome: the VTK binary and ASCII structured-points readers keep the stored scalar type and the writer emits the type of `T` (ADR 0053).
+- acceptance: generic round trip over the VTK scalar types; the per-type f32 decode in `io/reader.rs` and the count-free `xml_helpers::parse_floats` are deleted.
+- status: todo
+- priority: correctness
+- needs: none
+- scope: `crates/ritk-vtk/src/io/`
+- next: map `VtkScalarType` onto `SampleType`.
+- basis: ed9e3834a5251a932959a0bdb88c922910a8eae6
+<a id="RITK-TYPED-SAMPLES-009"></a>
+## RITK-TYPED-SAMPLES-009: Read and write MINC 2 in the stored sample type
+- outcome: MINC reads its stored HDF5 type with `valid_range`/`image-min`/`image-max` as the shared rescale, and writes the type of `T` (ADR 0053).
+- acceptance: generic round trip over the stored types; per-slice scaling reproduces the existing `tests_scaling.rs` values in f32 and f64; `convert.rs`'s f32 decode is deleted.
+- status: todo
+- priority: correctness
+- needs: none
+- scope: `crates/ritk-minc/`
+- next: express `IntegerScaling` as per-slice rescale coefficients.
+- basis: ed9e3834a5251a932959a0bdb88c922910a8eae6
+<a id="RITK-TYPED-SAMPLES-010"></a>
+## RITK-TYPED-SAMPLES-010: Dispatch image I/O over the sample type
+- outcome: `ritk-io` reads and writes `Image<T, NativeBackend, 3>` for every `T: Sample` under the caller's `Conversion`, adds MINC and MIF to `ImageFormat`, and exposes a stored-type read returning `SampleBuffer`; its `f32` surfaces stop defaulting to `Cast` (ADR 0053).
+- acceptance: the capability tables derive from the dispatch match; a u16 file round-trips through `read_image`/`write_image` as u16 for every format that stores u16; CLI and Python keep `f32` call sites compiling with explicit annotations.
+- status: todo
+- priority: correctness
+- needs: RITK-TYPED-SAMPLES-002, RITK-TYPED-SAMPLES-003, RITK-TYPED-SAMPLES-004, RITK-TYPED-SAMPLES-005, RITK-TYPED-SAMPLES-006, RITK-TYPED-SAMPLES-007, RITK-TYPED-SAMPLES-008, RITK-TYPED-SAMPLES-009
+- scope: `crates/ritk-io/src/dispatch.rs`, `crates/ritk-io/src/format/`, `crates/ritk-io/src/domain/mod.rs`, CLI and Python call sites
+- next: decide the stored-type image carrier: the `VoxelImage` of draft PR #700 against `SampleBuffer` plus geometry, keeping `SampleType` the one runtime descriptor; then probe with `cargo check --message-format=json` after making `read_image_native` generic.
+- basis: ed9e3834a5251a932959a0bdb88c922910a8eae6
+<a id="RITK-TYPED-SAMPLES-011"></a>
+## RITK-TYPED-SAMPLES-011: Read and write DICOM pixels in the stored sample type
+- outcome: DICOM decodes stored samples after `BitsStored` masking into their integer type, carries Rescale Slope/Intercept as `f64`, and writes integer images at their own bit depth without re-quantizing (ADR 0053).
+- acceptance: an i16 CT series round-trips bit-exact with its rescale; f32 input still writes with a computed rescale whose error bound is derived; `decode_native_pixel_bytes_checked` returns `SampleBuffer`.
+- status: todo
+- priority: correctness
+- needs: RITK-TYPED-SAMPLES-010
+- scope: `crates/ritk-codecs/src/pixel_layout*`, `crates/ritk-io/src/format/dicom/`, `crates/ritk-dicom/`
+- next: change `PixelLayout` rescale fields to `f64` and route the native decode through `SampleBuffer`.
+- basis: ed9e3834a5251a932959a0bdb88c922910a8eae6
+<a id="RITK-IO-FORMAT-CONVERSION-001"></a>
+## RITK-IO-FORMAT-CONVERSION-001: Plan loss-aware image conversions
+- outcome: `ritk-io` owns format discovery, conversion planning, and execution across the RITK image formats; GUI, CLI, and Python code call this API.
+- acceptance: the registry covers every RITK-supported reader/writer, including DICOM, NIfTI, NRRD, MetaImage, MGH, Analyze, VTK, TIFF, PNG, JPEG, MIF, and MINC; preflight reports sample, geometry, metadata, and lossy-encoding changes before opening output; DICOM series selection is explicit and DICOM output reports derived metadata and quantization; round trips assert typed samples and supported geometry; CLI and user manual use the same RITK API.
+- status: todo
+- priority: correctness
+- needs: RITK-TYPED-SAMPLES-010, RITK-TYPED-SAMPLES-011
+- scope: `crates/ritk-io/`, `crates/ritk-cli/`, and the RITK user manual and format examples
+- next: repair the preserved conversion candidate against typed dispatch and pixel contracts; deliver preflight before writing and verify every supported lossless pair.
+- basis: ed9e3834a5251a932959a0bdb88c922910a8eae6
 <a id="RITK-SNAP-INTERACTION-REGIONS-001"></a>
 ## RITK-SNAP-INTERACTION-REGIONS-001: Separate region interaction tests
 - outcome: give region tools one test module without changing behavior.
