@@ -95,8 +95,26 @@ impl<B: ComputeBackend> VtkWriter<B> {
 mod tests {
     use super::*;
     use coeus_core::SequentialBackend;
-    use ritk_spatial::{Direction, Point, Spacing};
+    use ritk_spatial::{CoordinateMap, CurvilinearArray, Direction, Point, Spacing};
     use tempfile::tempdir;
+
+    fn native_image(
+        direction: Direction<3>,
+        coordinate_map: CoordinateMap,
+    ) -> Image<f32, SequentialBackend, 3> {
+        let image = Image::from_flat_on(
+            vec![1.25, -4.5],
+            [1, 1, 2],
+            Point::new([1.0, -2.0, 3.5]),
+            Spacing::new([0.5, 0.75, 1.25]),
+            direction,
+            &SequentialBackend,
+        )
+        .expect("valid image values and dimensions");
+        image
+            .with_coordinate_map(coordinate_map)
+            .expect("valid coordinate map for a three-dimensional image")
+    }
 
     #[test]
     fn native_scalar_round_trip_preserves_values_and_spatial_metadata() {
@@ -129,5 +147,51 @@ mod tests {
         assert_eq!(*loaded.origin(), origin);
         assert_eq!(*loaded.spacing(), spacing);
         assert_eq!(*loaded.direction(), Direction::identity());
+    }
+
+    #[test]
+    fn legacy_writer_rejects_non_identity_direction_before_creating_output() {
+        let direction = Direction::from_rows([[0.0, -1.0, 0.0], [1.0, 0.0, 0.0], [0.0, 0.0, 1.0]]);
+        let image = native_image(direction, CoordinateMap::Cartesian);
+        let directory = tempdir().expect("temporary directory");
+        let path = directory.path().join("rotated.vtk");
+
+        let error = VtkWriter::new(SequentialBackend)
+            .write(&path, &image)
+            .expect_err("legacy structured points cannot encode image direction");
+
+        assert_eq!(
+            error.to_string(),
+            "legacy VTK structured points cannot preserve a non-identity direction matrix"
+        );
+        assert!(!path.exists(), "rejection must happen before file creation");
+    }
+
+    #[test]
+    fn legacy_writer_rejects_non_cartesian_map_without_truncating_output() {
+        let geometry = CurvilinearArray::centred(1.0e-4, 0.06, 0.5_f64.to_radians(), 129)
+            .expect("valid curvilinear geometry");
+        let image = native_image(
+            Direction::identity(),
+            CoordinateMap::CurvilinearArray(geometry),
+        );
+        let directory = tempdir().expect("temporary directory");
+        let path = directory.path().join("curvilinear.vtk");
+        let original = b"preserve existing output";
+        std::fs::write(&path, original).expect("create prior output");
+
+        let error = VtkWriter::new(SequentialBackend)
+            .write(&path, &image)
+            .expect_err("legacy structured points cannot encode a non-Cartesian map");
+
+        assert_eq!(
+            error.to_string(),
+            "legacy VTK structured points cannot preserve a non-Cartesian coordinate map"
+        );
+        assert_eq!(
+            std::fs::read(&path).expect("read prior output"),
+            original,
+            "rejection must happen before truncating the destination"
+        );
     }
 }
