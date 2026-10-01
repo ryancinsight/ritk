@@ -169,7 +169,7 @@ impl GpuMeshFrameCache {
         let kernel_data: [[f32; 4]; 16] = build_ssao_kernel();
         let ssao_kernel_buf = device.create_buffer_init(&wgpu::util::BufferInitDescriptor {
             label: Some("mesh_ssao_kernel_buf"),
-            contents: bytemuck::cast_slice(&kernel_data),
+            contents: eunomia::layout::cast_slice(&kernel_data),
             usage: wgpu::BufferUsages::STORAGE,
         });
 

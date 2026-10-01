@@ -94,7 +94,7 @@ impl GpuVolumeRenderer {
             .device
             .create_buffer_init(&wgpu::util::BufferInitDescriptor {
                 label: Some("gpu_vol_data"),
-                contents: bytemuck::cast_slice(slice),
+                contents: eunomia::layout::cast_slice(slice),
                 usage: wgpu::BufferUsages::STORAGE,
             });
 

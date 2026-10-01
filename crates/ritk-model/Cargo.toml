@@ -14,7 +14,6 @@ license.workspace = true
 
 [dependencies]
 thiserror = { workspace = true }
-bytemuck = { workspace = true }
 tracing = { workspace = true }
 eunomia = { workspace = true }
 coeus-tensor = { workspace = true }
