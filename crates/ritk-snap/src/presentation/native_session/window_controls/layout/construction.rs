@@ -171,58 +171,57 @@ impl ChromeLayout {
 
         let mut grid_popup = None;
         if open_menu == Some(Menu::GridPicker) {
-            if let Some(anchor) = controls
+            let anchor = controls
                 .iter()
                 .find(|control| control.action == WindowAction::OpenMenu(Menu::GridPicker))
                 .map(|control| control.rect)
-            {
-                if let Some(popup) = grid_popup_bounds(width, height, &geometry, anchor)? {
-                    grid_popup = Some(popup);
-                    let (selected_columns, selected_rows) = workspace_layout
-                        .grid()
-                        .map_or((0, 0), PanelGrid::dimensions);
-                    for row in 1..=MAX_GRID_ROWS {
-                        for column in 1..=MAX_GRID_COLUMNS {
-                            let grid = PanelGrid::new(column, row).ok_or_else(|| {
-                                anyhow!("panel grid picker generated an invalid grid")
-                            })?;
-                            let label = grid.menu_label().ok_or_else(|| {
-                                anyhow!("panel grid picker label is outside its range")
-                            })?;
-                            let cell_x = GRID_POPUP_PADDING
-                                .checked_add(
-                                    (column - 1).saturating_mul(GRID_CELL_WIDTH + GRID_CELL_GAP),
+                .or_else(|| {
+                    controls
+                        .iter()
+                        .find(|control| control.action == WindowAction::OpenMenu(Menu::Window))
+                        .map(|control| control.rect)
+                });
+            if let Some(popup) = grid_popup_bounds(width, height, &geometry, anchor)? {
+                grid_popup = Some(popup);
+                let (selected_columns, selected_rows) = workspace_layout
+                    .grid()
+                    .map_or((0, 0), PanelGrid::dimensions);
+                for row in 1..=MAX_GRID_ROWS {
+                    for column in 1..=MAX_GRID_COLUMNS {
+                        let grid = PanelGrid::new(column, row).ok_or_else(|| {
+                            anyhow!("panel grid picker generated an invalid grid")
+                        })?;
+                        let label = grid.menu_label().ok_or_else(|| {
+                            anyhow!("panel grid picker label is outside its range")
+                        })?;
+                        let cell_x = GRID_POPUP_PADDING
+                            .checked_add(
+                                (column - 1).saturating_mul(GRID_CELL_WIDTH + GRID_CELL_GAP),
+                            )
+                            .and_then(|offset| offset.checked_add(u32::try_from(popup.x).ok()?))
+                            .ok_or_else(|| anyhow!("panel grid picker x overflows"))?;
+                        let cell_y = u32::try_from(popup.y)
+                            .map_err(|_| anyhow!("panel grid picker y is negative"))?
+                            .checked_add(GRID_POPUP_PADDING)
+                            .and_then(|value| value.checked_add(GRID_POPUP_HEADER_HEIGHT))
+                            .and_then(|value| {
+                                value.checked_add(
+                                    (row - 1).saturating_mul(GRID_CELL_HEIGHT + GRID_CELL_GAP),
                                 )
-                                .and_then(|offset| offset.checked_add(u32::try_from(popup.x).ok()?))
-                                .ok_or_else(|| anyhow!("panel grid picker x overflows"))?;
-                            let cell_y = u32::try_from(popup.y)
-                                .map_err(|_| anyhow!("panel grid picker y is negative"))?
-                                .checked_add(GRID_POPUP_PADDING)
-                                .and_then(|value| value.checked_add(GRID_POPUP_HEADER_HEIGHT))
-                                .and_then(|value| {
-                                    value.checked_add(
-                                        (row - 1).saturating_mul(GRID_CELL_HEIGHT + GRID_CELL_GAP),
-                                    )
-                                })
-                                .ok_or_else(|| anyhow!("panel grid picker y overflows"))?;
-                            push_control(
-                                &mut controls,
-                                ChromeControl {
-                                    rect: make_rect(
-                                        cell_x,
-                                        cell_y,
-                                        GRID_CELL_WIDTH,
-                                        GRID_CELL_HEIGHT,
-                                    )?,
-                                    label,
-                                    action: WindowAction::SetLayout(WorkspaceLayout::Panels(grid)),
-                                    kind: ControlKind::Grid,
-                                    active: workspace_layout.is_grid()
-                                        && column <= selected_columns
-                                        && row <= selected_rows,
-                                },
-                            )?;
-                        }
+                            })
+                            .ok_or_else(|| anyhow!("panel grid picker y overflows"))?;
+                        push_control(
+                            &mut controls,
+                            ChromeControl {
+                                rect: make_rect(cell_x, cell_y, GRID_CELL_WIDTH, GRID_CELL_HEIGHT)?,
+                                label,
+                                action: WindowAction::SetLayout(WorkspaceLayout::Panels(grid)),
+                                kind: ControlKind::Grid,
+                                active: workspace_layout.is_grid()
+                                    && column <= selected_columns
+                                    && row <= selected_rows,
+                            },
+                        )?;
                     }
                 }
             }
@@ -398,18 +397,20 @@ fn grid_popup_bounds(
     width: u32,
     height: u32,
     geometry: &ChromeGeometry,
-    anchor: Rect,
+    anchor: Option<Rect>,
 ) -> Result<Option<Rect>> {
     if width < GRID_POPUP_WIDTH || height < GRID_POPUP_HEIGHT {
         return Ok(None);
     }
-    let anchor_x =
-        u32::try_from(anchor.x).map_err(|_| anyhow!("panel grid picker anchor x is negative"))?;
-    let anchor_width = u32::try_from(anchor.width)
-        .map_err(|_| anyhow!("panel grid picker anchor width is negative"))?;
-    let center = anchor_x
-        .checked_add(anchor_width / 2)
-        .ok_or_else(|| anyhow!("panel grid picker anchor center overflows"))?;
+    let center = anchor.map_or(Ok(width / 2), |anchor| {
+        let anchor_x = u32::try_from(anchor.x)
+            .map_err(|_| anyhow!("panel grid picker anchor x is negative"))?;
+        let anchor_width = u32::try_from(anchor.width)
+            .map_err(|_| anyhow!("panel grid picker anchor width is negative"))?;
+        anchor_x
+            .checked_add(anchor_width / 2)
+            .ok_or_else(|| anyhow!("panel grid picker anchor center overflows"))
+    })?;
     let x = center
         .saturating_sub(GRID_POPUP_WIDTH / 2)
         .min(width.saturating_sub(GRID_POPUP_WIDTH));

@@ -98,6 +98,37 @@ fn grid_picker_selects_every_supported_column_and_row_extent() {
 }
 
 #[test]
+fn window_menu_opens_grid_picker_when_toolbar_anchor_is_clipped() {
+    let app = SnapApp::default();
+    let layout = ChromeLayout::new(
+        320,
+        320,
+        Some(Menu::GridPicker),
+        &app,
+        true,
+        WorkspaceLayout::Orthogonal,
+    )
+    .expect("narrow grid picker layout");
+    let action = WindowAction::SetLayout(WorkspaceLayout::Panels(
+        PanelGrid::new(2, 1).expect("side-by-side layout"),
+    ));
+
+    assert_eq!(
+        layout.action_center(WindowAction::OpenMenu(Menu::GridPicker)),
+        None,
+        "narrow toolbar omits the grid-picker button"
+    );
+    let (x, y) = layout
+        .action_center(action)
+        .expect("Window-menu panel layout remains available without a toolbar anchor");
+    assert_eq!(
+        layout.action_at(f64::from(x), f64::from(y), None),
+        Some(action)
+    );
+    assert!(layout.controls_fit_within(320, 320));
+}
+
+#[test]
 fn tools_menu_hit_tests_each_ritk_tool() {
     let app = SnapApp::default();
     let layout = ChromeLayout::new(

@@ -1,11 +1,14 @@
 //! Native Métis event reduction and lifecycle for the RITK session.
 
+mod panel_state;
+use self::panel_state::KeyboardPanelState;
 use super::layout::PanelGrid;
 use super::panels::PanelRouteMap;
 use super::routing::RoutedBatch;
 use super::WindowAction;
 use super::{record_state, NativeViewerError, NativeViewerSession, VIRTUAL_KEY_OPEN_STUDY};
 use crate::app::action_adapter::ViewerActionDisposition;
+use crate::presentation::PresentationModifiers;
 use crate::presentation::{translate_native_events, PointerButton, PresentationEvent};
 use metis_platform::native::{NativeApplication, NativeFlow, WindowEvent};
 use metis_platform::Framebuffer;
@@ -142,7 +145,7 @@ impl NativeApplication for NativeViewerSession {
         let height = self.surface_height;
         let workspace_layout = self.workspace_layout;
         let active_panel = self.active_panel;
-        let maximized_panel = self.maximized_panel.is_some();
+        let maximized_panel = self.maximized_panel;
         let displayed_series: [Option<usize>; super::layout::MAX_GRID_PANELS] =
             std::array::from_fn(|index| {
                 if index == 0 {
@@ -153,6 +156,19 @@ impl NativeApplication for NativeViewerSession {
                         .and_then(|panel| panel.series_index)
                 }
             });
+        let browser_active_index = self
+            .series_browser
+            .as_ref()
+            .map(|browser| browser.active_index());
+        let mut keyboard_panel_state = KeyboardPanelState::new(
+            workspace_layout,
+            active_panel,
+            self.active_view,
+            self.active_app().axis,
+            maximized_panel,
+            displayed_series,
+            browser_active_index,
+        )?;
         let chrome_before = self.window_chrome.clone();
         let series_scroll_before = self
             .series_browser
@@ -174,6 +190,25 @@ impl NativeApplication for NativeViewerSession {
             primary_app
         };
         viewer_events.retain(|event| {
+            let is_keyboard = matches!(
+                event,
+                PresentationEvent::KeyDown { .. } | PresentationEvent::KeyUp { .. }
+            );
+            let (layout, maximized, panel) = if is_keyboard {
+                (
+                    keyboard_panel_state.layout(),
+                    keyboard_panel_state.maximized(),
+                    keyboard_panel_state.active_panel(),
+                )
+            } else {
+                (workspace_layout, maximized_panel.is_some(), active_panel)
+            };
+            let navigation_series = keyboard_panel_state.navigation_series();
+            let event_series = if is_keyboard {
+                &navigation_series
+            } else {
+                &displayed_series
+            };
             let modal_pointer_down = window_chrome.multi_series_dialog_is_open()
                 && matches!(
                     event,
@@ -188,11 +223,11 @@ impl NativeApplication for NativeViewerSession {
                 height,
                 app,
                 browser,
-                workspace_layout,
-                maximized_panel,
+                layout,
+                maximized,
                 viewports,
-                &displayed_series,
-                active_panel,
+                event_series,
+                panel,
             ) {
                 Ok(chrome_event) => {
                     chrome_repaint |= chrome_event.repaint;
@@ -220,9 +255,26 @@ impl NativeApplication for NativeViewerSession {
                     };
                     if !chrome_event.consumed && !cancelled_pointer_event {
                         retained_event_count += 1;
+                        keyboard_panel_state.retain_event(event, viewports);
                     }
                     if let Some(action) = chrome_event.action {
-                        chrome_actions.push((retained_event_count, action));
+                        if let Err(error) = keyboard_panel_state.apply_action(action, is_keyboard) {
+                            chrome_error = Some(error.into());
+                        }
+                        let keyboard_key = match event {
+                            PresentationEvent::KeyDown {
+                                virtual_key,
+                                modifiers,
+                                ..
+                            } if is_keyboard => Some((*virtual_key, *modifiers)),
+                            _ => None,
+                        };
+                        chrome_actions.push((
+                            retained_event_count,
+                            action,
+                            is_keyboard,
+                            keyboard_key,
+                        ));
                     }
                     !chrome_event.consumed && !cancelled_pointer_event
                 }
@@ -273,7 +325,7 @@ impl NativeApplication for NativeViewerSession {
         let mut viewer_exit = false;
         let mut viewer_repaint = false;
         let mut viewer_event_cursor = 0;
-        for (event_end, action) in chrome_actions {
+        for (event_end, action, is_keyboard, keyboard_key) in chrome_actions {
             if event_end > viewer_event_cursor {
                 match self.apply_viewer_event_segment(
                     &viewer_events[viewer_event_cursor..event_end],
@@ -295,7 +347,22 @@ impl NativeApplication for NativeViewerSession {
                 chrome_exit = true;
                 break;
             }
-            let Some(action) = panel_routes.route_action(action) else {
+            let action = match (is_keyboard, action) {
+                (true, WindowAction::BrowseSeries { series_index, .. }) => {
+                    let panel_index = self.active_panel;
+                    Some(WindowAction::BrowseSeries {
+                        series_index: keyboard_key
+                            .and_then(|(virtual_key, modifiers)| {
+                                self.resolve_keyboard_series(virtual_key, modifiers, panel_index)
+                            })
+                            .unwrap_or(series_index),
+                        panel_index,
+                    })
+                }
+                (false, action) => panel_routes.route_action(action),
+                (true, action) => Some(action),
+            };
+            let Some(action) = action else {
                 continue;
             };
             if action == WindowAction::OpenStudy {
@@ -416,5 +483,40 @@ impl NativeApplication for NativeViewerSession {
         Ok(NativeFlow::Continue {
             repaint: !self.minimized && (geometry_refreshed || frame_changed),
         })
+    }
+}
+
+impl NativeViewerSession {
+    fn resolve_keyboard_series(
+        &self,
+        virtual_key: u32,
+        modifiers: PresentationModifiers,
+        panel_index: usize,
+    ) -> Option<usize> {
+        if modifiers != PresentationModifiers::NONE {
+            return None;
+        }
+        let browser = self.series_browser.as_ref()?;
+        let current = if panel_index == 0 {
+            self.primary_series_index
+        } else {
+            self.compare_panels
+                .get(panel_index.saturating_sub(1))
+                .and_then(|panel| panel.series_index)
+        }
+        .or_else(|| Some(browser.active_index()))?;
+        match virtual_key {
+            0x24 if current != 0 => Some(0),
+            0x23 if current.saturating_add(1) < browser.len() => {
+                Some(browser.len().saturating_sub(1))
+            }
+            0x25 => current
+                .checked_sub(1)
+                .filter(|index| browser.choice(*index).is_some()),
+            0x27 => current
+                .checked_add(1)
+                .filter(|index| browser.choice(*index).is_some()),
+            _ => None,
+        }
     }
 }
