@@ -45,6 +45,7 @@ mnemosyne = { workspace = true }
 
 [dev-dependencies]
 tempfile = { workspace = true }
+ritk-core = { path = "../ritk-core", features = ["test-helpers"], version = "0.10.0" }
 ritk-nifti = { path = "../ritk-nifti", version = "0.2.0" }
 
 [lints]

@@ -30,6 +30,7 @@ serde_json = { workspace = true }
 
 [dev-dependencies]
 tempfile = { workspace = true }
+ritk-core = { path = "../ritk-core", features = ["test-helpers"], version = "0.10.0" }
 
 [lints]
 workspace = true
