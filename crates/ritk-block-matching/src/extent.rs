@@ -27,23 +27,29 @@ pub(crate) fn voxel_count(dims: [usize; 3], label: &'static str) -> Result<usize
 ///
 /// Returns an error when the voxel count or its byte capacity cannot be represented safely.
 pub(crate) fn buffer_len<T>(dims: [usize; 3], label: &'static str) -> Result<usize> {
+    buffer_len_with_limit::<T>(
+        dims,
+        label,
+        usize::try_from(isize::MAX).expect("invariant: isize::MAX fits usize"),
+    )
+}
+
+/// Calculate an element count under an explicit byte limit.
+pub(crate) fn buffer_len_with_limit<T>(
+    dims: [usize; 3],
+    label: &'static str,
+    byte_limit: usize,
+) -> Result<usize> {
     let count = voxel_count(dims, label)?;
     let element_size = size_of::<T>();
-    let bytes = count
+    count
         .checked_mul(element_size)
+        .filter(|bytes| *bytes <= byte_limit)
         .ok_or(BlockMatchingError::ByteCountOverflow {
             label,
             dims,
             element_size,
         })?;
-    if bytes > isize::MAX as usize {
-        return Err(BlockMatchingError::ByteCountOverflow {
-            label,
-            dims,
-            element_size,
-        }
-        .into());
-    }
     Ok(count)
 }
 
@@ -89,7 +95,9 @@ pub(crate) fn check_buffer_lengths(fixed: usize, moving: usize, dims: [usize; 3]
 
 #[cfg(test)]
 mod tests {
-    use super::{buffer_len, check_buffer_lengths, voxel_count, window_extents};
+    use super::{
+        buffer_len, buffer_len_with_limit, check_buffer_lengths, voxel_count, window_extents,
+    };
     use crate::BlockMatchingError;
 
     #[test]
@@ -128,6 +136,26 @@ mod tests {
                 label: "min/max pyramid level",
                 dims,
                 element_size: std::mem::size_of::<f64>(),
+            })
+        );
+    }
+
+    #[test]
+    fn displacement_capacity_checks_element_size_independently_of_centres() {
+        let byte_limit = usize::try_from(isize::MAX).expect("invariant: isize::MAX fits usize");
+        let dims = [1, 1, byte_limit / std::mem::size_of::<[f64; 3]>() + 1];
+        assert_eq!(
+            buffer_len_with_limit::<[u32; 3]>(dims, "tracking centres", byte_limit).ok(),
+            Some(dims[2])
+        );
+        let error = buffer_len_with_limit::<[f64; 3]>(dims, "tracking displacements", byte_limit)
+            .expect_err("the displacement output must exceed the byte limit");
+        assert_eq!(
+            error.downcast_ref::<BlockMatchingError>(),
+            Some(&BlockMatchingError::ByteCountOverflow {
+                label: "tracking displacements",
+                dims,
+                element_size: std::mem::size_of::<[f64; 3]>(),
             })
         );
     }

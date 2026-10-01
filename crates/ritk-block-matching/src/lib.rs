@@ -138,6 +138,9 @@ mod search;
 #[path = "tests_block_matching.rs"]
 mod tests;
 #[cfg(test)]
+#[path = "tests_capacity.rs"]
+mod tests_capacity;
+#[cfg(test)]
 #[path = "tests_missing_data.rs"]
 mod tests_missing_data;
 
@@ -427,6 +430,7 @@ impl BlockGrid {
             [counts[0], counts[1], counts[2]],
             "tracking centres",
         )?;
+        extent::buffer_len::<[f64; 3]>([1, 1, centre_count], "tracking displacements")?;
         let mut out = Vec::with_capacity(centre_count);
         let mut z = r[0];
         while z.checked_add(r[0]).is_some_and(|high| high < dims[0]) {
@@ -595,12 +599,15 @@ pub fn track_volume<T: Sample>(
                 displacements[i] = bd.displacement;
                 peak_similarities[i] = bd.peak_similarity;
             }
-            Err(error) if error.downcast_ref::<BlockMatchingError>().is_some() => {
-                return Err(error);
+            Err(error) => {
+                let has_no_displacement = error
+                    .downcast_ref::<BlockMatchingError>()
+                    .is_some_and(BlockMatchingError::has_no_displacement);
+                if !has_no_displacement {
+                    return Err(error);
+                }
             }
-            Err(_) => {}
         }
-        // constant block (Err) — leave NAN / zeros
     }
 
     Ok(DisplacementField {
@@ -1094,10 +1101,14 @@ fn track_volume_fft<T: Sample>(
                 displacements[i] = bd.displacement;
                 peak_similarities[i] = bd.peak_similarity;
             }
-            Err(error) if error.downcast_ref::<BlockMatchingError>().is_some() => {
-                return Err(error);
+            Err(error) => {
+                let has_no_displacement = error
+                    .downcast_ref::<BlockMatchingError>()
+                    .is_some_and(BlockMatchingError::has_no_displacement);
+                if !has_no_displacement {
+                    return Err(error);
+                }
             }
-            Err(_) => {}
         }
     }
 

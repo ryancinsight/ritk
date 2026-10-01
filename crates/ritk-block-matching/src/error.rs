@@ -4,6 +4,7 @@ use thiserror::Error;
 
 /// Failure raised while validating image dimensions or buffer ownership.
 #[derive(Debug, Clone, PartialEq, Eq, Error)]
+#[non_exhaustive]
 pub enum BlockMatchingError {
     /// A three-dimensional voxel count cannot be represented by `usize`.
     #[error("{label} dimensions {dims:?} overflow")]
@@ -23,6 +24,12 @@ pub enum BlockMatchingError {
         /// Size of one buffer element in bytes.
         element_size: usize,
     },
+    /// The fixed block has no variation for normalized correlation.
+    #[error("fixed block at {centre:?} has zero variance")]
+    FeaturelessFixedBlock {
+        /// Fixed block centre in image coordinates.
+        centre: [usize; 3],
+    },
     /// A window extent `2 * radius + 1` cannot be represented by `usize`.
     #[error("{label} extent overflows on axis {axis}")]
     WindowExtentOverflow {
@@ -32,6 +39,12 @@ pub enum BlockMatchingError {
         axis: usize,
         /// Radius supplied on the overflowing axis.
         radius: usize,
+    },
+    /// The fixed block contains a non-finite sample.
+    #[error("fixed block at {centre:?} contains a non-finite sample")]
+    NonFiniteFixedBlock {
+        /// Fixed block centre in image coordinates.
+        centre: [usize; 3],
     },
     /// A min/max pyramid cannot double its axial extent.
     #[error("min/max pyramid axial extent overflows")]
@@ -81,4 +94,10 @@ pub enum BlockMatchingError {
         /// Image dimensions used to derive `expected`.
         dims: [usize; 3],
     },
+}
+
+impl BlockMatchingError {
+    pub(crate) const fn has_no_displacement(&self) -> bool {
+        matches!(self, Self::FeaturelessFixedBlock { .. })
+    }
 }

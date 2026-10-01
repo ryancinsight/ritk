@@ -73,7 +73,9 @@ impl MultiResolutionSearch {
             bail!("multi-resolution level count {levels} is too large");
         }
 
-        let mut regions = Vec::with_capacity(levels);
+        let region_count =
+            crate::extent::buffer_len::<SearchRegion>([1, 1, levels], "search regions")?;
+        let mut regions = Vec::with_capacity(region_count);
         for level in (0..levels).rev() {
             let scale = 1usize
                 .checked_shl(level as u32)
@@ -106,8 +108,9 @@ impl MultiResolutionSearch {
     /// # Errors
     ///
     /// Returns an error when the number of images differs from the plan, when a
-    /// level has invalid dimensions/buffers, or when a propagated moving block
-    /// centre cannot fit in the moving image without padding.
+    /// level has invalid dimensions/buffers, when derived diagnostic storage
+    /// exceeds the allocation limit, or when a propagated moving block centre
+    /// cannot fit in the moving image without padding.
     pub fn match_pyramid<T: Sample>(
         &self,
         pyramid: &[PyramidLevel<'_, T>],
@@ -162,7 +165,11 @@ impl MultiResolutionSearch {
 
         let mut previous_moving: Option<[usize; 3]> = None;
         let mut previous_scale = 0usize;
-        let mut diagnostics = Vec::with_capacity(pyramid.len());
+        let diagnostic_count = crate::extent::buffer_len::<PyramidLevelDisplacement>(
+            [1, 1, pyramid.len()],
+            "pyramid diagnostics",
+        )?;
+        let mut diagnostics = Vec::with_capacity(diagnostic_count);
 
         for (index, (level, region)) in pyramid.iter().zip(&self.regions).enumerate() {
             let fixed_centre = scale_coordinate(finest_centre, region.scale);
@@ -251,7 +258,8 @@ impl MultiResolutionSearch {
     /// # Errors
     ///
     /// Returns an error when the pyramid level count, dimensions, or buffer
-    /// lengths are invalid, or when any grid stride is zero.
+    /// lengths are invalid, a derived result capacity exceeds the allocation
+    /// limit, or any grid stride is zero.
     pub fn track_volume_pyramid<T: Sample>(
         &self,
         pyramid: &[PyramidLevel<'_, T>],
@@ -278,6 +286,10 @@ impl MultiResolutionSearch {
             search_radius: finest.search_radius,
         };
         let centres = grid.centres(finest_dims, &config)?;
+        crate::extent::buffer_len::<Option<Vec<MultiResolutionDisplacement>>>(
+            [1, 1, centres.len()],
+            "pyramid level diagnostics",
+        )?;
         let mut displacements = vec![[0.0; 3]; centres.len()];
         let mut peak_similarities = vec![f64::NAN; centres.len()];
 
@@ -287,10 +299,10 @@ impl MultiResolutionSearch {
                     displacements[index] = result.displacement;
                     peak_similarities[index] = result.peak_similarity;
                 }
-                Err(error) if error.downcast_ref::<BlockMatchingError>().is_some() => {
-                    return Err(error);
-                }
-                Err(_) => {}
+                Err(error) if error
+                    .downcast_ref::<BlockMatchingError>()
+                    .is_some_and(BlockMatchingError::has_no_displacement) => {}
+                Err(error) => return Err(error),
             }
         }
 
@@ -448,18 +460,18 @@ impl MultiResolutionSearch {
         let mut level_diagnostics = vec![None; centres.len()];
 
         for (index, &centre) in centres.iter().enumerate() {
-            // A failed block keeps its NaN peak and `None` diagnostics: it was
-            // not measured, which is distinct from measuring zero displacement.
+            // A failed featureless block keeps its NaN peak and `None`
+            // diagnostics; all geometry and allocation failures propagate.
             match match_at(centre) {
                 Ok(result) => {
                     displacements[index] = result.displacement;
                     peak_similarities[index] = result.peak_similarity;
                     level_diagnostics[index] = Some(result.levels);
                 }
-                Err(error) if error.downcast_ref::<BlockMatchingError>().is_some() => {
-                    return Err(error);
-                }
-                Err(_) => {}
+                Err(error) if error
+                    .downcast_ref::<BlockMatchingError>()
+                    .is_some_and(BlockMatchingError::has_no_displacement) => {}
+                Err(error) => return Err(error),
             }
         }
 
@@ -700,7 +712,8 @@ impl<T: Sample> OwnedPyramid<T> {
     pub fn nearest(fixed: &[T], moving: &[T], dims: [usize; 3], scales: &[usize]) -> Result<Self> {
         validate_scales(dims, scales)?;
         check_buffer_lengths(fixed.len(), moving.len(), dims)?;
-        let mut levels = Vec::with_capacity(scales.len());
+        let level_count = pyramid_level_count::<T>(scales.len())?;
+        let mut levels = Vec::with_capacity(level_count);
         for scale in scales {
             let level_dims = [
                 level_extent(dims[0], *scale),
@@ -749,7 +762,8 @@ impl<T: Sample> OwnedPyramid<T> {
     pub fn min_max(fixed: &[T], moving: &[T], dims: [usize; 3], scales: &[usize]) -> Result<Self> {
         validate_scales(dims, scales)?;
         check_buffer_lengths(fixed.len(), moving.len(), dims)?;
-        let mut levels = Vec::with_capacity(scales.len());
+        let level_count = pyramid_level_count::<T>(scales.len())?;
+        let mut levels = Vec::with_capacity(level_count);
         for scale in scales {
             let base_dims = [
                 level_extent(dims[0], *scale),
@@ -856,6 +870,10 @@ fn level_extent(extent: usize, scale: usize) -> usize {
     }
 }
 
+fn pyramid_level_count<T: Sample>(count: usize) -> Result<usize> {
+    crate::extent::buffer_len::<OwnedLevel<T>>([1, 1, count], "pyramid levels")
+}
+
 fn validate_scales(dims: [usize; 3], scales: &[usize]) -> Result<()> {
     if scales.is_empty() {
         bail!("a pyramid needs at least one scale");
@@ -917,6 +935,25 @@ fn add_displacement(centre: [usize; 3], displacement: [f64; 3]) -> [usize; 3] {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn pyramid_level_metadata_capacity_is_checked_before_growth() {
+        let element_size = std::mem::size_of::<OwnedLevel<f32>>();
+        let error = crate::extent::buffer_len_with_limit::<OwnedLevel<f32>>(
+            [1, 1, 2],
+            "pyramid levels",
+            element_size,
+        )
+        .expect_err("two level records exceed the explicit byte limit");
+        assert_eq!(
+            error.downcast_ref::<BlockMatchingError>(),
+            Some(&BlockMatchingError::ByteCountOverflow {
+                label: "pyramid levels",
+                dims: [1, 1, 2],
+                element_size,
+            })
+        );
+    }
 
     #[test]
     fn pyramids_reject_a_grid_whose_voxel_count_overflows() {

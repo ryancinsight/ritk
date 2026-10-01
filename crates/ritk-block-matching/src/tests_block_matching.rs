@@ -367,21 +367,40 @@ fn track_volume_propagates_typed_geometry_overflow() {
         block_radius: [0, 0, 1],
         search_radius: [0, 0, usize::MAX],
     };
-    let error = track_volume(
+    let grid = BlockGrid::dense([1, 1, 3]);
+    let direct = track_volume(
         &samples,
         &samples,
         dims,
         config,
-        BlockGrid::dense([1, 1, 3]),
+        grid,
         SubpixelRefinement::None,
     )
     .expect_err("the typed search extent overflow must reach the volume API");
     assert_eq!(
-        error.downcast_ref::<BlockMatchingError>(),
+        direct.downcast_ref::<BlockMatchingError>(),
         Some(&BlockMatchingError::WindowExtentOverflow {
             label: "search",
             axis: 2,
             radius: usize::MAX,
+        })
+    );
+
+    let fft = track_volume_fft(
+        &samples,
+        &samples,
+        dims,
+        config,
+        grid,
+        SubpixelRefinement::None,
+    )
+    .expect_err("the FFT reach overflow must reach the volume API");
+    assert_eq!(
+        fft.downcast_ref::<BlockMatchingError>(),
+        Some(&BlockMatchingError::FftReachExtentOverflow {
+            axis: 2,
+            block_radius: 1,
+            search_radius: usize::MAX,
         })
     );
 }
