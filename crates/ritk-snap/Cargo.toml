@@ -51,7 +51,7 @@ rfd = { workspace = true, optional = true }
 image = { workspace = true }
 gaia = { workspace = true }
 walkdir = { workspace = true }
-bytemuck = { workspace = true }
+eunomia = { workspace = true }
 moirai = { workspace = true }
 metis-platform = { workspace = true }
 metis-ui-lang = { workspace = true }

@@ -82,10 +82,10 @@ pub(super) fn submit_vr_async(
 
     // Update cached uniform and LUT buffers without re-allocation.
     ctx.queue
-        .write_buffer(&cache.params_buf, 0, bytemuck::bytes_of(&params));
+        .write_buffer(&cache.params_buf, 0, eunomia::layout::bytes_of(&params));
     let lut_data = build_colormap_lut(colormap);
     ctx.queue
-        .write_buffer(&cache.lut_buf, 0, bytemuck::cast_slice(&lut_data));
+        .write_buffer(&cache.lut_buf, 0, eunomia::layout::cast_slice(&lut_data));
 
     let bg = ctx.device.create_bind_group(&wgpu::BindGroupDescriptor {
         label: Some("gpu_vr_bg"),

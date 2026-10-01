@@ -12,10 +12,10 @@
 //! | `SsaoUniforms` | 48 | 16 |
 //! | `CompositeUniforms` | 16 | 4 |
 //!
-//! All structs are `#[repr(C)]` + `bytemuck::{Pod, Zeroable}` for safe
+//! All structs are `#[repr(C)]` + `eunomia::{Pod, Zeroable}` for safe
 //! byte-cast upload via `queue.write_buffer` / `create_buffer_init`.
 
-use bytemuck::{Pod, Zeroable};
+use eunomia::{Pod, Zeroable};
 use std::f32::consts::TAU;
 
 // ── Vertex layout ─────────────────────────────────────────────────────────────
@@ -159,6 +159,17 @@ pub(super) struct CompositeUniforms {
     pub cols: u32,
     pub _pad: [u32; 2],
 }
+
+// Sizes mandated by the WGSL uniform/vertex bindings; drift breaks the build.
+const _: () = {
+    assert!(size_of::<MeshVertex>() == 32);
+    assert!(size_of::<SceneUniforms>() == 144);
+    assert!(size_of::<LightUniform>() == 48);
+    assert!(size_of::<LightBlock>() == 96);
+    assert!(size_of::<MaterialUniforms>() == 48);
+    assert!(size_of::<SsaoUniforms>() == 48);
+    assert!(size_of::<CompositeUniforms>() == 16);
+};
 
 // ── SSAO hemisphere kernel ────────────────────────────────────────────────────
 
