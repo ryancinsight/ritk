@@ -17,6 +17,7 @@ ritk-spatial = { path = "../ritk-spatial", version = "0.3.0" }
 anyhow = { workspace = true }
 image = { workspace = true }
 coeus-core = { workspace = true }
+thiserror = { workspace = true }
 
 [dev-dependencies]
 tempfile = { workspace = true }

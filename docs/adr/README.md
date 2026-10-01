@@ -11,7 +11,7 @@
 | --- | ----- | ------ |
 | [0001](0001-coeus-native-registration-traits.md) | Coeus-native registration `Transform`/`Metric` trait surface | Accepted |
 | [0002](0002-core-image-burn-to-coeus-migration.md) | Core `Image` / tensor-substrate Burn→Coeus migration strategy | Accepted |
-| [0003](0003-cli-python-native-cutover.md) | CLI / Python consumer cutover to the native substrate | Accepted |
+| [0003](0003-cli-python-native-cutover.md) | CLI and Python native I/O cutover | Accepted |
 | [0004](0004-trainable-displacement-field-cutover.md) | Trainable displacement-field native cutover | Accepted |
 | [0005](0005-static-displacement-native-boundary.md) | Static displacement and SSMMorph native boundary | Accepted |
 | [0006](0006-isolated-watershed-hierarchy.md) | Isolated watershed hierarchy ownership | Accepted |

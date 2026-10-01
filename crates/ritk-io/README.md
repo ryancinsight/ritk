@@ -11,16 +11,25 @@ byte-level parsing lives in the per-format crates.
 | NIfTI (`.nii` / `.nii.gz`) | yes | yes |
 | MetaImage (`.mha` / `.mhd`) | yes | yes |
 | NRRD | yes | yes |
-| PNG | yes | yes |
+| MINC2 (`.mnc` / `.mnc2`) | yes | yes |
+| PNG | yes | one 2-D grayscale slice |
 | TIFF / BigTIFF | yes | yes |
 | MGH / MGZ (FreeSurfer) | yes | yes |
 | Analyze 7.5 | yes | yes |
-| MINC2 | yes | yes |
 | VTK legacy structured points | yes | yes |
 | JPEG | yes | 2-D grayscale only |
 
-`read_image_native` and `write_image_native` select the format by path and
-content. The crate also ships a native-only DICOMweb client (QIDO / WADO /
+`read_image_native` and `write_image_native` select file formats by path;
+`write_image_native_with_format` also supports explicit formats and directory
+outputs such as DICOM Secondary Capture series. PNG output accepts finite,
+nonnegative integral samples through 65,535 and does not preserve physical
+geometry. DICOM output is derived and does not copy patient or study metadata.
+PNG and JPEG accept one 2-D slice; JPEG is lossy. TIFF does not store physical
+geometry, Analyze does not store direction, and VTK writing requires identity
+direction. The unified scalar image carrier is `f32`, so it cannot represent
+every wide integer sample exactly. Rank-4 NIfTI, NRRD, and MGH acquisition
+series use the separate series APIs.
+The crate also ships a native-only DICOMweb client (QIDO / WADO /
 STOW), backed by a blocking desktop transport, and a PS 3.15 Annex E
 de-identification toolset with an export-time metadata integrity gate — see
 `examples/anonymize_pacs_export.rs`. Browser hosts use their platform fetch

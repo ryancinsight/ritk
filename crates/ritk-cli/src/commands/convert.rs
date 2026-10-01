@@ -5,65 +5,99 @@
 //! overridden via `--format`).
 //!
 //! # Supported input formats
-//! NIfTI (`.nii`, `.nii.gz`), MetaImage (`.mha`, `.mhd`), NRRD (`.nrrd`,
-//! `.nhdr`), PNG (`.png`), DICOM (`.dcm`).
+//! Uses RITK readers for NIfTI, MetaImage, NRRD, PNG, DICOM, MINC2, MGH, TIFF,
+//! VTK, JPEG, and Analyze. This command converts scalar `f32` 3-D images;
+//! rank-4 NIfTI, NRRD, and MGH series use RITK's separate series APIs. RGB DICOM
+//! uses RITK's color-volume API rather than this scalar converter. DICOM files
+//! and series directories are accepted; a directory with multiple image series
+//! requires `--series-uid`.
 //!
 //! # Supported output formats
-//! NIfTI, MetaImage, NRRD.  PNG and DICOM output are not supported because
-//! `ritk-io` does not export write implementations for those formats.
+//! Uses RITK writers for NIfTI, MetaImage, NRRD, PNG, MINC2, MGH, TIFF, VTK,
+//! JPEG, Analyze, and DICOM. PNG output is one grayscale slice with exact unsigned
+//! 8-bit or 16-bit integer samples and no physical-space metadata. DICOM output
+//! is a derived Secondary Capture series: each slice is quantized to unsigned
+//! 16-bit pixels with a rescale, and source patient and study metadata is not
+//! copied.
 #![expect(
     clippy::print_stdout,
     reason = "RITK-LINT-1: ritk-cli is the application output layer"
 )]
 
-use anyhow::{anyhow, Result};
+use anyhow::{anyhow, bail, Context, Result};
 use clap::Args;
+use ritk_image::Image;
 use ritk_io::ImageFormat;
 use std::path::PathBuf;
 use tracing::info;
 
-use super::{infer_format, is_read_capable, is_write_capable, read_image, write_image};
+use super::{infer_format, is_read_capable, is_write_capable, read_image, write_image, Backend};
 
 // ── CLI arguments ─────────────────────────────────────────────────────────────
 
 /// Override output format.
 #[derive(clap::ValueEnum, Clone, Debug)]
 pub enum OutputFormat {
+    /// Neuroimaging Informatics Technology Initiative.
     #[value(name = "nifti")]
     Nifti,
+    /// MetaIO's MetaImage format.
     #[value(name = "metaimage")]
     MetaImage,
+    /// Nearly Raw Raster Data.
     #[value(name = "nrrd")]
     Nrrd,
+    /// Grayscale Portable Network Graphics.
+    Png,
+    /// Medical Imaging NetCDF, version 2.
+    Minc,
+    /// FreeSurfer volume.
     Mgh,
+    /// Tagged Image File Format.
     Tiff,
+    /// Legacy VTK structured points.
     Vtk,
+    /// Joint Photographic Experts Group.
     Jpeg,
+    /// Analyze 7.5 volume.
     Analyze,
+    /// Digital Imaging and Communications in Medicine Secondary Capture.
+    #[value(name = "dicom")]
+    Dicom,
 }
 
 /// Arguments for the `convert` subcommand.
 #[derive(Args, Debug)]
 pub struct ConvertArgs {
-    /// Input image path.  Format is inferred from the file extension.
+    /// Input image file (format inferred from extension) or DICOM series directory.
     #[arg(short, long)]
     pub input: PathBuf,
 
-    /// Output image path.  Format is inferred from the file extension unless
-    /// `--format` is supplied.
+    /// Output file path, or a directory for DICOM output. Format is inferred
+    /// from the extension unless `--format` is supplied.
     #[arg(short, long)]
     pub output: PathBuf,
 
     /// Override the output format.
-    #[arg(long, value_enum, value_name = "FORMAT")]
+    #[arg(
+        long,
+        value_enum,
+        value_name = "FORMAT",
+        long_help = "Output format: nifti, metaimage, nrrd, png, minc, mgh, tiff, vtk, jpeg, analyze, or dicom. This command converts scalar f32 3-D images; rank-4 NIfTI, NRRD, and MGH series use RITK's separate series APIs. RGB DICOM uses RITK's color-volume API. PNG is one grayscale slice with exact unsigned 8-bit or 16-bit integer samples and no physical-space metadata. DICOM output is a derived Secondary Capture series in a directory, with unsigned 16-bit per-slice rescaling; source patient and study metadata is not copied. JPEG output is lossy 8-bit grayscale and accepts one slice. TIFF and JPEG do not preserve physical-space metadata; Analyze does not store direction. VTK output requires identity direction. Conversion uses RITK's f32 image model, so wide integer samples are not guaranteed exact."
+    )]
     pub format: Option<OutputFormat>,
+
+    /// Select a DICOM SeriesInstanceUID when the input directory contains multiple image series.
+    #[arg(long, value_name = "UID")]
+    pub series_uid: Option<String>,
 }
 
 // ── Command handler ───────────────────────────────────────────────────────────
 
 /// Execute the `convert` subcommand.
 ///
-/// 1. Reads the image at `args.input` (format inferred from extension).
+/// 1. Reads the image at `args.input` (file format inferred from extension, or
+///    DICOM series selected from a directory).
 /// 2. Writes the image to `args.output` (format taken from `--format` or
 ///    inferred from the output extension).
 /// 3. Prints a one-line summary: path pair, shape in ZxYxX, and spacing.
@@ -79,12 +113,20 @@ pub fn run(args: ConvertArgs) -> Result<()> {
         args.output.display()
     );
 
-    let in_fmt = infer_format(&args.input).ok_or_else(|| {
-        anyhow!(
-            "Cannot infer input format from path: {}",
-            args.input.display()
-        )
-    })?;
+    let in_fmt = if args.input.is_dir() {
+        ImageFormat::Dicom
+    } else {
+        infer_format(&args.input).ok_or_else(|| {
+            anyhow!(
+                "Cannot infer input format from path: {}",
+                args.input.display()
+            )
+        })?
+    };
+
+    if args.series_uid.is_some() && !args.input.is_dir() {
+        bail!("--series-uid requires a DICOM input directory");
+    }
 
     // Resolve output format: explicit flag takes precedence over extension.
     let out_fmt: ImageFormat = match args.format {
@@ -92,16 +134,18 @@ pub fn run(args: ConvertArgs) -> Result<()> {
             OutputFormat::Nifti => ImageFormat::NIfTI,
             OutputFormat::MetaImage => ImageFormat::MetaImage,
             OutputFormat::Nrrd => ImageFormat::Nrrd,
+            OutputFormat::Png => ImageFormat::Png,
+            OutputFormat::Minc => ImageFormat::Minc,
             OutputFormat::Mgh => ImageFormat::Mgh,
             OutputFormat::Tiff => ImageFormat::Tiff,
             OutputFormat::Vtk => ImageFormat::Vtk,
             OutputFormat::Jpeg => ImageFormat::Jpeg,
             OutputFormat::Analyze => ImageFormat::Analyze,
+            OutputFormat::Dicom => ImageFormat::Dicom,
         },
         None => infer_format(&args.output).ok_or_else(|| {
             anyhow!(
-                "Cannot infer output format from path '{}'. \
-                     Specify --format nifti|metaimage|nrrd.",
+                "Cannot infer output format from path '{}'. Specify --format for directory outputs such as DICOM.",
                 args.output.display()
             )
         })?,
@@ -117,7 +161,11 @@ pub fn run(args: ConvertArgs) -> Result<()> {
         "convert does not support {:?} output until its native writer exists",
         out_fmt
     );
-    let image = read_image(&args.input)?;
+    let image = if args.input.is_dir() {
+        read_dicom_directory(&args.input, args.series_uid.as_deref())?
+    } else {
+        read_image(&args.input)?
+    };
     let shape = image.shape();
     let spacing = *image.spacing();
     write_image(&args.output, &image, out_fmt)?;
@@ -134,6 +182,25 @@ pub fn run(args: ConvertArgs) -> Result<()> {
         spacing[2],
     );
 
+    match out_fmt {
+        ImageFormat::Png => println!(
+            "PNG output stores one grayscale slice as unsigned 8-bit or 16-bit integer samples and does not preserve physical-space metadata."
+        ),
+        ImageFormat::Dicom => println!(
+            "DICOM output is derived Secondary Capture: unsigned 16-bit per-slice rescaling; source patient and study metadata is not copied."
+        ),
+        ImageFormat::Jpeg => println!(
+            "JPEG output is lossy 8-bit grayscale, limited to one slice, and does not preserve physical-space metadata."
+        ),
+        ImageFormat::Tiff => println!(
+            "TIFF output does not preserve physical-space metadata; readers use default geometry."
+        ),
+        ImageFormat::Analyze => println!(
+            "Analyze output does not store image direction; readers assume identity direction."
+        ),
+        _ => {}
+    }
+
     info!(
         "convert: complete input={} output={} shape={:?}",
         args.input.display(),
@@ -144,315 +211,23 @@ pub fn run(args: ConvertArgs) -> Result<()> {
     Ok(())
 }
 
+fn read_dicom_directory(
+    path: &std::path::Path,
+    selected_uid: Option<&str>,
+) -> Result<Image<f32, Backend, 3>> {
+    match selected_uid {
+        Some(uid) => ritk_io::format::dicom::read_native_dicom_series_with_uid(
+            path,
+            uid,
+            &Backend::default(),
+        ),
+        None => ritk_io::format::dicom::read_native_dicom_series(path, &Backend::default()),
+    }
+    .with_context(|| format!("Failed to read DICOM series from {}", path.display()))
+}
+
 // ── Tests ─────────────────────────────────────────────────────────────────────
 
 #[cfg(test)]
-mod tests {
-    #![expect(clippy::unwrap_used, reason = "ratchet RITK-UNWRAP-1")]
-    use super::*;
-    use ritk_core::rejection::assert_rejects;
-    use ritk_image::Image;
-    use ritk_spatial::{Direction, Point, Spacing};
-    use tempfile::tempdir;
-
-    use crate::commands::Backend;
-
-    /// Build a small deterministic 3-D image for testing.
-    ///
-    /// Shape is [3, 4, 5] (nz=3, ny=4, nx=5).  Voxel value at flat index i is
-    /// `i as f32`.  Origin and spacing are identity.
-    fn make_test_image() -> Image<f32, Backend, 3> {
-        let n = 3 * 4 * 5;
-        let values: Vec<f32> = (0..n).map(|i| i as f32).collect();
-        Image::from_flat_on(
-            values,
-            [3, 4, 5],
-            Point::new([0.0; 3]),
-            Spacing::new([1.0, 1.5, 2.0]),
-            Direction::identity(),
-            &Backend::default(),
-        )
-        .expect("invariant: image data matches shape")
-    }
-
-    // ── Positive: NIfTI round-trip ────────────────────────────────────────────
-
-    /// Writing a NIfTI file and converting it back to another NIfTI must
-    /// produce an output file with the same shape.
-    #[test]
-    fn test_convert_nifti_to_nifti_round_trip() {
-        let dir = tempdir().unwrap();
-        let input = dir.path().join("input.nii");
-        let output = dir.path().join("output.nii");
-
-        let image = make_test_image();
-        write_image(&input, &image, ImageFormat::NIfTI).unwrap();
-
-        run(ConvertArgs {
-            input: input.clone(),
-            output: output.clone(),
-            format: None,
-        })
-        .unwrap();
-
-        assert!(output.exists(), "output NIfTI must be created");
-        let recovered = read_image(&output).unwrap();
-        assert_eq!(
-            recovered.shape(),
-            [3, 4, 5],
-            "shape must survive the round-trip"
-        );
-    }
-
-    // ── Positive: NIfTI → MetaImage ───────────────────────────────────────────
-
-    /// Converting a NIfTI to a MetaImage must produce a `.mha` file with the
-    /// same shape.
-    #[test]
-    fn test_convert_nifti_to_metaimage() {
-        let dir = tempdir().unwrap();
-        let input = dir.path().join("input.nii");
-        let output = dir.path().join("output.mha");
-
-        let image = make_test_image();
-        write_image(&input, &image, ImageFormat::NIfTI).unwrap();
-
-        run(ConvertArgs {
-            input: input.clone(),
-            output: output.clone(),
-            format: None,
-        })
-        .unwrap();
-
-        assert!(output.exists(), "output MHA must be created");
-        let recovered = read_image(&output).unwrap();
-        assert_eq!(recovered.shape(), [3, 4, 5]);
-    }
-
-    // ── Positive: NIfTI → NRRD ───────────────────────────────────────────────
-
-    /// Converting a NIfTI to NRRD must produce a `.nrrd` file with the
-    /// same shape.
-    #[test]
-    fn test_convert_nifti_to_nrrd() {
-        let dir = tempdir().unwrap();
-        let input = dir.path().join("input.nii");
-        let output = dir.path().join("output.nrrd");
-
-        let image = make_test_image();
-        write_image(&input, &image, ImageFormat::NIfTI).unwrap();
-
-        run(ConvertArgs {
-            input: input.clone(),
-            output: output.clone(),
-            format: None,
-        })
-        .unwrap();
-
-        assert!(output.exists(), "output NRRD must be created");
-        let recovered = read_image(&output).unwrap();
-        assert_eq!(recovered.shape(), [3, 4, 5]);
-    }
-
-    // ── Positive: explicit --format overrides extension ───────────────────────
-
-    /// When `--format nifti` is passed the output extension is ignored and a
-    /// valid NIfTI file is produced.
-    #[test]
-    fn test_convert_explicit_format_flag_overrides_extension() {
-        let dir = tempdir().unwrap();
-        let input = dir.path().join("input.nii");
-        // Deliberately give the output a non-NIfTI extension.
-        let output = dir.path().join("output.nii");
-
-        let image = make_test_image();
-        write_image(&input, &image, ImageFormat::NIfTI).unwrap();
-
-        run(ConvertArgs {
-            input: input.clone(),
-            output: output.clone(),
-            format: Some(OutputFormat::Nifti),
-        })
-        .unwrap();
-
-        assert!(output.exists());
-    }
-
-    // ── Negative: unknown output extension without --format ───────────────────
-
-    /// When the output path has an unrecognised extension and no `--format`
-    /// flag is provided, the command must return an error (not panic).
-    #[test]
-    fn test_convert_unknown_output_extension_returns_error() {
-        let dir = tempdir().unwrap();
-        let input = dir.path().join("input.nii");
-        let output = dir.path().join("output.xyz");
-
-        let image = make_test_image();
-        write_image(&input, &image, ImageFormat::NIfTI).unwrap();
-
-        let result = run(ConvertArgs {
-            input,
-            output,
-            format: None,
-        });
-        let msg = result
-            .expect_err("unknown output extension must yield an error")
-            .to_string();
-        assert!(
-            msg.contains("Cannot infer output format"),
-            "error must explain the problem, got: {msg}"
-        );
-    }
-
-    // ── Negative: non-existent input file ─────────────────────────────────────
-
-    /// Attempting to convert a path that does not exist must return an error.
-    #[test]
-    fn test_convert_missing_input_returns_error() {
-        let dir = tempdir().unwrap();
-        let input = dir.path().join("does_not_exist.nii");
-        let output = dir.path().join("output.nii");
-
-        let result = run(ConvertArgs {
-            input,
-            output,
-            format: None,
-        });
-        assert_rejects(result, "Failed to read NIfTI file");
-    }
-
-    // ── Boundary: MetaImage round-trip ────────────────────────────────────────
-
-    /// Writing a MetaImage and converting it back to NIfTI must preserve shape.
-    #[test]
-    fn test_convert_metaimage_to_nifti() {
-        let dir = tempdir().unwrap();
-        let input = dir.path().join("input.mha");
-        let output = dir.path().join("output.nii");
-
-        let image = make_test_image();
-        write_image(&input, &image, ImageFormat::MetaImage).unwrap();
-
-        run(ConvertArgs {
-            input,
-            output: output.clone(),
-            format: None,
-        })
-        .unwrap();
-
-        assert!(output.exists());
-        let recovered = read_image(&output).unwrap();
-        assert_eq!(recovered.shape(), [3, 4, 5]);
-    }
-
-    // ── ADR 0003 Phase A: native-dispatch coverage ────────────────────────────
-
-    /// `is_read_capable`/`is_write_capable` must agree exactly
-    /// with the native format matrix: VTK is now read and written through its
-    /// native adapter, while PNG and DICOM remain read-only. A drift here would silently misroute a
-    /// command onto the wrong substrate without any other test catching it.
-    #[test]
-    fn test_native_capability_predicates_match_adr_0003_matrix() {
-        use super::super::{is_read_capable, is_write_capable};
-
-        let read_and_write = [
-            ImageFormat::NIfTI,
-            ImageFormat::Nrrd,
-            ImageFormat::Analyze,
-            ImageFormat::Mgh,
-            ImageFormat::MetaImage,
-            ImageFormat::Tiff,
-            ImageFormat::Jpeg,
-            ImageFormat::Vtk,
-        ];
-        for fmt in read_and_write {
-            assert!(is_read_capable(fmt), "{fmt:?} must read natively");
-            assert!(is_write_capable(fmt), "{fmt:?} must write natively");
-        }
-
-        assert!(is_read_capable(ImageFormat::Png), "PNG reads natively");
-        assert!(
-            !is_write_capable(ImageFormat::Png),
-            "PNG has no native writer"
-        );
-
-        assert!(is_read_capable(ImageFormat::Dicom), "DICOM reads natively");
-        assert!(
-            !is_write_capable(ImageFormat::Dicom),
-            "DICOM has no native writer yet"
-        );
-
-        assert!(is_read_capable(ImageFormat::Vtk), "VTK reads natively");
-        assert!(is_write_capable(ImageFormat::Vtk), "VTK writes natively");
-    }
-
-    /// Conversion preserves native NIfTI serialization bytes when no format
-    /// conversion is requested.
-    #[test]
-    fn test_native_convert_output_is_byte_identical_to_coeus_writer() {
-        let dir = tempdir().unwrap();
-        let input = dir.path().join("input.nii");
-        let native_output = dir.path().join("via_convert.nii");
-        let direct_output = dir.path().join("via_native_direct.nii");
-
-        let image = make_test_image();
-        write_image(&input, &image, ImageFormat::NIfTI).unwrap();
-
-        run(ConvertArgs {
-            input: input.clone(),
-            output: native_output.clone(),
-            format: None,
-        })
-        .unwrap();
-
-        write_image(&direct_output, &image, ImageFormat::NIfTI).unwrap();
-
-        assert_eq!(
-            std::fs::read(&native_output).unwrap(),
-            std::fs::read(&direct_output).unwrap(),
-            "convert must preserve the native NIfTI serialization contract"
-        );
-    }
-
-    /// VTK input is decoded through the native reader and converted to NIfTI.
-    #[test]
-    fn test_convert_vtk_input_native_round_trip() {
-        let dir = tempdir().unwrap();
-        let input = dir.path().join("input.vtk");
-        let output = dir.path().join("output.nii");
-        let image = make_test_image();
-        write_image(&input, &image, ImageFormat::Vtk).unwrap();
-
-        run(ConvertArgs {
-            input,
-            output: output.clone(),
-            format: None,
-        })
-        .expect("native VTK input conversion");
-        let recovered = read_image(&output).unwrap();
-        assert_eq!(recovered.shape(), image.shape());
-        assert_eq!(recovered.data_slice().unwrap(), image.data_slice().unwrap());
-    }
-
-    /// VTK output is encoded through the native writer.
-    #[test]
-    fn test_convert_vtk_output_native_round_trip() {
-        let dir = tempdir().unwrap();
-        let input = dir.path().join("input.nii");
-        let output = dir.path().join("output.vtk");
-
-        let image = make_test_image();
-        write_image(&input, &image, ImageFormat::NIfTI).unwrap();
-
-        run(ConvertArgs {
-            input,
-            output: output.clone(),
-            format: Some(OutputFormat::Vtk),
-        })
-        .expect("native VTK output conversion");
-        let recovered = read_image(&output).unwrap();
-        assert_eq!(recovered.shape(), image.shape());
-        assert_eq!(recovered.data_slice().unwrap(), image.data_slice().unwrap());
-    }
-}
+#[path = "convert/tests.rs"]
+mod tests;

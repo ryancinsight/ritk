@@ -6344,6 +6344,7 @@ dependencies = [
  "ritk-image",
  "ritk-spatial",
  "tempfile",
+ "thiserror 2.0.20",
 ]
 
 [[package]]
