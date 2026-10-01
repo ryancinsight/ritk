@@ -68,7 +68,8 @@ pub mod native {
         B::DeviceBuffer<f32>: CpuAddressableStorage<f32>,
     {
         fn write<P: AsRef<Path>>(&self, path: P, image: &Image<f32, B, 3>) -> std::io::Result<()> {
-            ritk_png::write_png(path, image, &self.backend).map_err(to_io_err)
+            ritk_png::write_png(path, image, &self.backend)
+                .map_err(|error| to_io_err(anyhow::Error::new(error)))
         }
     }
 

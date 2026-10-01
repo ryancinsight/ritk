@@ -1,10 +1,10 @@
-use std::collections::TryReserveError;
-use std::error::Error as StdError;
-use std::path::PathBuf;
 use coeus_core::{ComputeBackend, CpuAddressableStorage};
 use image::{ImageBuffer, ImageFormat, Luma};
 use ritk_image::Image;
+use std::collections::TryReserveError;
+use std::error::Error as StdError;
 use std::path::Path;
+use std::path::PathBuf;
 
 /// A failure while writing a grayscale PNG image.
 #[derive(Debug, thiserror::Error)]
@@ -53,7 +53,9 @@ pub enum PngWriteError {
         expected: usize,
     },
     /// A voxel cannot be represented as an unsigned 16-bit PNG sample.
-    #[error("PNG sample at flat index {index} is not a nonnegative integer through 65535: {value}")]
+    #[error(
+        "PNG sample at flat index {index} is not a nonnegative integer through 65535: {value}"
+    )]
     InvalidSample {
         /// Zero-based index of the first unsupported value.
         index: usize,
@@ -146,10 +148,8 @@ where
     }
 
     let depth = sample_depth(&values)?;
-    let width =
-        u32::try_from(width).map_err(|_| PngWriteError::WidthTooLarge { width })?;
-    let height =
-        u32::try_from(height).map_err(|_| PngWriteError::HeightTooLarge { height })?;
+    let width = u32::try_from(width).map_err(|_| PngWriteError::WidthTooLarge { width })?;
+    let height = u32::try_from(height).map_err(|_| PngWriteError::HeightTooLarge { height })?;
     let path = path.as_ref();
 
     match depth {
