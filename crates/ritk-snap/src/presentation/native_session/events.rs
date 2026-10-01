@@ -1,5 +1,6 @@
 //! Native Métis event reduction and lifecycle for the RITK session.
 
+mod keyboard_series;
 mod panel_state;
 use self::panel_state::KeyboardPanelState;
 use super::layout::PanelGrid;
@@ -8,7 +9,6 @@ use super::routing::RoutedBatch;
 use super::WindowAction;
 use super::{record_state, NativeViewerError, NativeViewerSession, VIRTUAL_KEY_OPEN_STUDY};
 use crate::app::action_adapter::ViewerActionDisposition;
-use crate::presentation::PresentationModifiers;
 use crate::presentation::{translate_native_events, PointerButton, PresentationEvent};
 use metis_platform::native::{NativeApplication, NativeFlow, WindowEvent};
 use metis_platform::Framebuffer;
@@ -483,40 +483,5 @@ impl NativeApplication for NativeViewerSession {
         Ok(NativeFlow::Continue {
             repaint: !self.minimized && (geometry_refreshed || frame_changed),
         })
-    }
-}
-
-impl NativeViewerSession {
-    fn resolve_keyboard_series(
-        &self,
-        virtual_key: u32,
-        modifiers: PresentationModifiers,
-        panel_index: usize,
-    ) -> Option<usize> {
-        if modifiers != PresentationModifiers::NONE {
-            return None;
-        }
-        let browser = self.series_browser.as_ref()?;
-        let current = if panel_index == 0 {
-            self.primary_series_index
-        } else {
-            self.compare_panels
-                .get(panel_index.saturating_sub(1))
-                .and_then(|panel| panel.series_index)
-        }
-        .or_else(|| Some(browser.active_index()))?;
-        match virtual_key {
-            0x24 if current != 0 => Some(0),
-            0x23 if current.saturating_add(1) < browser.len() => {
-                Some(browser.len().saturating_sub(1))
-            }
-            0x25 => current
-                .checked_sub(1)
-                .filter(|index| browser.choice(*index).is_some()),
-            0x27 => current
-                .checked_add(1)
-                .filter(|index| browser.choice(*index).is_some()),
-            _ => None,
-        }
     }
 }
