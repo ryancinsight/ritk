@@ -24,5 +24,5 @@ differentially tested against `scipy` where an equivalent exists.
 
 ```toml
 [dependencies]
-ritk-statistics = "0.4.0"
+ritk-statistics = "0.5.0"
 ```

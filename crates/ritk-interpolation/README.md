@@ -17,5 +17,5 @@ filters.
 
 ```toml
 [dependencies]
-ritk-interpolation = "0.5.0"
+ritk-interpolation = "0.6.0"
 ```

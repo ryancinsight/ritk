@@ -26,5 +26,5 @@ serialization live on the newtype rather than the provider type.
 
 ```toml
 [dependencies]
-ritk-spatial = "0.2.0"
+ritk-spatial = "0.3.0"
 ```
