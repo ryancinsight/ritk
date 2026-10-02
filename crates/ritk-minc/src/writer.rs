@@ -11,14 +11,20 @@
 //!       │   └── zspace (group, same attrs)
 //!       └── image/ (group)
 //!           └── 0/ (group)
-//!               └── image (dataset: f32 voxel data, contiguous layout)
-//!                   Contiguous little-endian f32 voxels
+//!               ├── image (dataset: voxel data, contiguous layout)
+//!               │   Contiguous little-endian voxels of the image's sample type
+//!               ├── image-min (scalar f64, integer images only)
+//!               └── image-max (scalar f64, integer images only)
 //! ```
 //!
 //! # Data Type
 //!
-//! Voxel data is always written as little-endian IEEE 754 `f32`,
-//! consistent with the RITK tensor representation.
+//! Voxel data is written as little-endian samples of the image's own type `T`:
+//! `u8`, `i8`, `u16`, `i16`, `u32`, `i32`, `f32`, or `f64`. MINC2 has no 64-bit
+//! integer voxel type, so `u64` and `i64` images are refused before any file is
+//! created. An integer image carries `image-min` and `image-max` equal to its
+//! type's range; with the default `valid_range` this is the identity map, so
+//! the stored values are the real values.
 //!
 //! # direction_cosines
 //!
@@ -26,13 +32,13 @@
 //! encoded as a 1-D HDF5 float array of 3 `f64` values. This is the
 //! format the MINC2 reader's `parse_dimension_attrs` expects.
 
+use crate::datatype::check_storable;
 use crate::hdf5_binary::write_minc2_hdf5;
 use anyhow::{bail, Context, Result};
+use ritk_codecs::sample::Sample;
 use std::path::Path;
 
-// ── Public API ────────────────────────────────────────────────────────────
-
-/// Write a 3-D `Image` as a MINC2 (.mnc) HDF5 file.
+/// Write a 3-D `Image` of `T` as a MINC2 (.mnc) HDF5 file storing `T`'s samples.
 ///
 /// # Arguments
 ///
@@ -41,32 +47,36 @@ use std::path::Path;
 ///
 /// # Errors
 ///
-/// Returns `Err` when the file cannot be created, tensor data extraction
-/// fails, or an I/O error occurs during HDF5 writing.
-pub fn write_minc<B, P>(image: &ritk_image::Image<f32, B, 3>, path: P, backend: &B) -> Result<()>
+/// Returns `Err` when MINC2 cannot store `T` (it has no 64-bit integer
+/// type), when the geometry is invalid, when the file cannot be created,
+/// tensor data extraction fails, or an I/O error occurs during HDF5 writing.
+/// The first two checks run before any file is created.
+pub fn write_minc<T, B, P>(image: &ritk_image::Image<T, B, 3>, path: P, backend: &B) -> Result<()>
 where
+    T: Sample,
     B: coeus_core::ComputeBackend + Default,
-    B::DeviceBuffer<f32>: coeus_core::CpuAddressableStorage<f32>,
+    B::DeviceBuffer<T>: coeus_core::CpuAddressableStorage<T>,
     P: AsRef<Path>,
 {
+    check_storable(T::TYPE)?;
     let shape = image.shape();
     let origin = image.origin();
     let spacing = image.spacing();
     let direction = image.direction();
-    let total_voxels = validate_geometry(shape, origin, spacing, direction)?;
-    let f32_values = image.data_cow_on(backend);
+    let total_voxels = validate_geometry::<T>(shape, origin, spacing, direction)?;
+    let values = image.data_cow_on(backend);
 
-    if f32_values.len() != total_voxels {
+    if values.len() != total_voxels {
         bail!(
             "Tensor data length {} does not match shape {:?} ({total_voxels} voxels)",
-            f32_values.len(),
+            values.len(),
             shape
         );
     }
 
     write_minc2_hdf5(
         path.as_ref(),
-        &f32_values,
+        &values,
         shape,
         [origin[0], origin[1], origin[2]],
         [spacing[0], spacing[1], spacing[2]],
@@ -76,7 +86,7 @@ where
     Ok(())
 }
 
-fn validate_geometry(
+fn validate_geometry<T: Sample>(
     shape: [usize; 3],
     origin: &ritk_spatial::Point<3>,
     spacing: &ritk_spatial::Spacing<3>,
@@ -96,7 +106,7 @@ fn validate_geometry(
         })?;
     }
     total_voxels
-        .checked_mul(size_of::<f32>())
+        .checked_mul(T::TYPE.byte_width())
         .context("MINC2 voxel byte count overflows usize")?;
 
     for (axis, coordinate) in origin.as_slice().iter().copied().enumerate() {
@@ -120,7 +130,7 @@ fn validate_geometry(
     Ok(total_voxels)
 }
 
-/// Typed writer wrapping `write_minc` for API consistency.
+/// Backend-bound MINC2 writer.
 pub struct MincWriter<B: coeus_core::ComputeBackend> {
     backend: B,
 }
@@ -131,11 +141,19 @@ impl<B: coeus_core::ComputeBackend> MincWriter<B> {
         Self { backend }
     }
 
-    /// Write a 3-D image as a MINC2 file.
-    pub fn write<P: AsRef<Path>>(&self, image: &ritk_image::Image<f32, B, 3>, path: P) -> Result<()>
+    /// Write a 3-D image of `T` as a MINC2 file.
+    ///
+    /// # Errors
+    ///
+    /// Returns the error of [`write_minc`].
+    pub fn write<T: Sample, P: AsRef<Path>>(
+        &self,
+        image: &ritk_image::Image<T, B, 3>,
+        path: P,
+    ) -> Result<()>
     where
         B: Default,
-        B::DeviceBuffer<f32>: coeus_core::CpuAddressableStorage<f32>,
+        B::DeviceBuffer<T>: coeus_core::CpuAddressableStorage<T>,
     {
         write_minc(image, path, &self.backend)
     }

@@ -9,11 +9,15 @@
 //! 3. Navigate to `/minc-2.0/image/0/image` and read the dataset
 //!    metadata (shape, datatype, storage layout).
 //! 4. Parse the `dimorder` attribute to determine axis mapping.
-//! 5. Validate integer `valid_range` and scalar/per-slice image ranges.
-//! 6. Stream raw voxel chunks into the final `f32` buffer, applying integer
-//!    real-value scaling without retaining a second volume-sized byte buffer.
-//! 7. Construct `Image<f32, B, 3>` with spatial metadata derived from
-//!    dimension attributes and the dimorder axis mapping.
+//! 5. For an integer image, validate `valid_range` and the scalar or per-slice
+//!    `image-min` / `image-max` real ranges into one real-value map per slice
+//!    (expanded to one per slice only after the voxel payload is read).
+//! 6. Read the voxels in the stored sample type in bounded steps and reject any
+//!    integer sample outside `valid_range`.
+//! 7. Convert the stored samples to the requested type under the caller's
+//!    [`Conversion`], apply each slice's map in that type, and construct
+//!    `Image<T, B, 3>` with spatial metadata derived from the dimension
+//!    attributes and the dimorder axis mapping.
 //!
 //! # Contiguous Storage Requirement
 //!
@@ -28,9 +32,11 @@
 //! <https://www.bic.mni.mcgill.ca/software/minc/minc1_format/node5.html>.
 
 use crate::{
-    attrs::extract_numeric_range,
-    convert::{decode_float_bytes, decode_raw_bytes_into},
-    scaling::{default_integer_valid_range, IntegerScaling},
+    datatype::stored_type,
+    image_ranges::{read_image_ranges, read_valid_range},
+    payload::read_payload,
+    real_map::RealValueMap,
+    scaling::{integer_storage_range, IntegerScaling},
     spatial::{
         build_spatial_metadata, order_dimensions_by_dimorder, read_dimension_metadata,
         read_dimorder,
@@ -38,14 +44,12 @@ use crate::{
     IMAGE_PATH,
 };
 use anyhow::{bail, Context, Result};
-use consus_core::Datatype;
+use coeus_core::ComputeBackend;
 use consus_hdf5::dataset::StorageLayout;
 use consus_hdf5::file::Hdf5File;
+use eunomia::NumericElement;
+use ritk_codecs::sample::{Conversion, Sample};
 use std::path::Path;
-
-const IMAGE_MIN_PATH: &str = "minc-2.0/image/0/image-min";
-const IMAGE_MAX_PATH: &str = "minc-2.0/image/0/image-max";
-const VOXEL_READ_BYTES: usize = 8 * 1_024;
 
 fn checked_product(values: &[usize], label: &str) -> Result<usize> {
     values.iter().copied().try_fold(1_usize, |product, value| {
@@ -55,163 +59,24 @@ fn checked_product(values: &[usize], label: &str) -> Result<usize> {
     })
 }
 
-fn optional_path(file: &Hdf5File<std::fs::File>, path: &str) -> Result<Option<u64>> {
-    match file.open_path(path) {
-        Ok(address) => Ok(Some(address)),
-        Err(consus_core::Error::NotFound { .. }) => Ok(None),
-        Err(error) => Err(anyhow::anyhow!(
-            "Cannot inspect optional MINC2 dataset {path}: {error}"
-        )),
-    }
-}
-
-fn read_image_range_dataset(
-    file: &Hdf5File<std::fs::File>,
-    address: u64,
-    path: &str,
-    slice_count: usize,
-) -> Result<(Vec<f64>, Vec<usize>)> {
-    let dataset = file
-        .dataset_at(address)
-        .map_err(|error| anyhow::anyhow!("Cannot read {path} metadata: {error}"))?;
-    if dataset.layout != StorageLayout::Contiguous {
-        bail!(
-            "MINC2 dataset {path} uses {:?} storage; only Contiguous is supported",
-            dataset.layout
-        );
-    }
-    if !matches!(&dataset.datatype, Datatype::Float { .. }) {
-        bail!(
-            "MINC2 dataset {path} must use a floating-point datatype, got {:?}",
-            dataset.datatype
-        );
-    }
-    let dims = dataset.shape.current_dims().to_vec();
-    let count = match dims.as_slice() {
-        [] => 1,
-        [count] if *count == slice_count => *count,
-        _ => {
-            bail!("MINC2 dataset {path} must be scalar or have shape [{slice_count}], got {dims:?}")
-        }
-    };
-    let element_size = dataset
-        .datatype
-        .element_size()
-        .context("Variable-length MINC2 image-range datatype is unsupported")?;
-    let total_bytes = count
-        .checked_mul(element_size)
-        .with_context(|| format!("MINC2 dataset {path} byte count overflows usize"))?;
-    let data_address = dataset
-        .data_address
-        .with_context(|| format!("MINC2 dataset {path} has no contiguous data address"))?;
-    let raw = ritk_core::io_bounds::read_bounded_with(total_bytes, |offset, destination| {
-        file.read_contiguous_dataset_bytes(data_address, offset, destination)
-    })
-    .map_err(|error| anyhow::anyhow!("Failed to read MINC2 dataset {path}: {error}"))?;
-    let values = decode_float_bytes(&raw, &dataset.datatype)
-        .with_context(|| format!("Decode MINC2 dataset {path}"))?;
-    if values.len() != count {
-        bail!(
-            "MINC2 dataset {path} decoded {} values, expected {count}",
-            values.len()
-        );
-    }
-    Ok((values, dims))
-}
-
-fn read_image_ranges(
-    file: &Hdf5File<std::fs::File>,
-    slice_count: usize,
-) -> Result<(Vec<f64>, Vec<f64>)> {
-    let minimum_address = optional_path(file, IMAGE_MIN_PATH)?;
-    let maximum_address = optional_path(file, IMAGE_MAX_PATH)?;
-    match (minimum_address, maximum_address) {
-        (None, None) => Ok((vec![0.0], vec![1.0])),
-        (Some(_), None) => bail!("MINC2 image-min exists but image-max is missing"),
-        (None, Some(_)) => bail!("MINC2 image-max exists but image-min is missing"),
-        (Some(minimum_address), Some(maximum_address)) => {
-            let (minima, minimum_shape) =
-                read_image_range_dataset(file, minimum_address, IMAGE_MIN_PATH, slice_count)?;
-            let (maxima, maximum_shape) =
-                read_image_range_dataset(file, maximum_address, IMAGE_MAX_PATH, slice_count)?;
-            if minimum_shape != maximum_shape {
-                bail!(
-                    "MINC2 image-min/image-max shape mismatch: {minimum_shape:?} versus {maximum_shape:?}"
-                );
-            }
-            Ok((minima, maxima))
-        }
-    }
-}
-
-fn read_valid_range(
-    attributes: &[consus_hdf5::attribute::Hdf5Attribute],
-    default: [f64; 2],
-) -> Result<[f64; 2]> {
-    let Some(attribute) = attributes
-        .iter()
-        .find(|attribute| attribute.name == "valid_range")
-    else {
-        return Ok(default);
-    };
-    let value = attribute
-        .decode_value()
-        .map_err(|error| anyhow::anyhow!("Cannot decode MINC2 valid_range: {error}"))?;
-    extract_numeric_range(&value).context("Invalid MINC2 valid_range")
-}
-
-fn read_voxels(
-    file: &Hdf5File<std::fs::File>,
-    data_address: u64,
-    datatype: &consus_core::Datatype,
-    total_elements: usize,
-    total_bytes: usize,
-    scaling: Option<&IntegerScaling>,
-) -> Result<Vec<f32>> {
-    let element_size = datatype
-        .element_size()
-        .context("Variable-length MINC2 image datatype is unsupported")?;
-    let chunk_capacity = VOXEL_READ_BYTES / element_size * element_size;
-    if chunk_capacity == 0 {
-        bail!("MINC2 voxel element width {element_size} exceeds read scratch capacity");
-    }
-    let mut scratch = [0_u8; VOXEL_READ_BYTES];
-    let mut output = Vec::new();
-    let mut byte_offset = 0_usize;
-    while byte_offset < total_bytes {
-        let chunk_bytes = (total_bytes - byte_offset).min(chunk_capacity);
-        let destination = &mut scratch[..chunk_bytes];
-        let file_offset = u64::try_from(byte_offset).context("MINC2 read offset exceeds u64")?;
-        file.read_contiguous_dataset_bytes(data_address, file_offset, destination)
-            .map_err(|error| {
-                anyhow::anyhow!(
-                    "Failed to read MINC2 voxel data at byte offset {byte_offset}: {error}"
-                )
-            })?;
-        let start_index = output.len();
-        decode_raw_bytes_into(destination, datatype, start_index, &mut output, scaling)
-            .with_context(|| format!("Decode MINC2 voxel chunk at element {start_index}"))?;
-        byte_offset = byte_offset
-            .checked_add(chunk_bytes)
-            .context("MINC2 read offset overflows usize")?;
-    }
-    if output.len() != total_elements {
-        bail!(
-            "MINC2 voxel payload decoded {} elements, expected {total_elements}",
-            output.len()
-        );
-    }
-    Ok(output)
-}
-
-// ── Public API ────────────────────────────────────────────────────────────────
-
-/// Read a MINC2 (.mnc / .mnc2) file into a 3-D `Image`.
+/// Read a MINC2 (.mnc / .mnc2) file into a 3-D `Image` of `T` holding real
+/// intensities.
+///
+/// The stored samples (`u8`, `i8`, `u16`, `i16`, `u32`, `i32`, `u64`, `i64`,
+/// `f32`, or `f64`) convert to `T` under `conversion`
+/// ([`Exact`](ritk_codecs::sample::Exact) refuses any conversion that could
+/// change a value). An integer image then maps each slice from its
+/// `valid_range` to its `image-min` / `image-max` real range, in `T`'s
+/// arithmetic: `real = (stored - valid_min) * slope + image_min` with
+/// `slope = (image_max - image_min) / (valid_max - valid_min)`
+/// ([`RealValueMap`]). A floating-point image bypasses that map. A file that stores no `image-min` / `image-max` maps to the MINC
+/// default real range `[0, 1]`.
 ///
 /// # Arguments
 ///
 /// - `path`: filesystem path to the MINC2 HDF5 file.
 /// - `backend`: Coeus compute backend used for tensor allocation.
+/// - `conversion`: how the stored samples become `T`.
 ///
 /// # Errors
 ///
@@ -220,34 +85,119 @@ fn read_voxels(
 /// - The required MINC2 HDF5 structure is missing or malformed.
 /// - The image dataset uses chunked storage (not yet supported).
 /// - Integer scaling metadata or a stored sample violates the MINC2 contract.
-/// - A data type conversion fails.
-pub fn read_minc<B, P>(path: P, backend: &B) -> Result<ritk_image::Image<f32, B, 3>>
+/// - `conversion` refuses the stored type.
+/// - A slice's map is not the identity and `T` is an integer type, or the map
+///   leaves the range of `T` — use [`read_minc_stored`] for the stored samples
+///   and the maps.
+pub fn read_minc<T, C, B, P>(
+    path: P,
+    backend: &B,
+    conversion: C,
+) -> Result<ritk_image::Image<T, B, 3>>
 where
-    B: coeus_core::ComputeBackend,
+    T: Sample,
+    C: Conversion,
+    B: ComputeBackend,
     P: AsRef<Path>,
 {
-    let DecodedMinc {
-        data,
-        dims,
-        origin,
-        spacing,
-        direction,
-    } = decode_minc(path)?;
-    ritk_image::Image::from_flat_on(data, dims, origin, spacing, direction, backend)
+    let mut decoded = decode_minc::<T, C>(path.as_ref(), conversion)?;
+    apply_slice_maps(&mut decoded.data, &decoded.maps, decoded.slice_length)?;
+    decoded.into_image(backend)
 }
 
-/// Backend-agnostic decoded MINC2 volume: voxels plus derived physical metadata.
-/// Shared by format validation and native image construction.
-struct DecodedMinc {
-    data: Vec<f32>,
+/// Read a MINC2 file as its stored samples in `T`, with each slice's real-value
+/// map left unapplied.
+///
+/// The returned [`RealValueMap`]s hold one map per slice along the first
+/// spatial axis, mapping the stored samples to real intensities (the identity
+/// for a floating-point image). Reading in the stored type keeps every sample
+/// exact.
+///
+/// # Errors
+///
+/// Returns the errors of [`read_minc`] except the map refusals.
+pub fn read_minc_stored<T, C, B, P>(
+    path: P,
+    backend: &B,
+    conversion: C,
+) -> Result<(ritk_image::Image<T, B, 3>, Vec<RealValueMap>)>
+where
+    T: Sample,
+    C: Conversion,
+    B: ComputeBackend,
+    P: AsRef<Path>,
+{
+    let mut decoded = decode_minc::<T, C>(path.as_ref(), conversion)?;
+    let maps = std::mem::take(&mut decoded.maps);
+    let image = decoded.into_image(backend)?;
+    Ok((image, maps))
+}
+
+/// Backend-agnostic decoded MINC2 volume: stored samples converted to `T`,
+/// the unapplied per-slice maps, and the derived physical metadata.
+struct DecodedMinc<T> {
+    data: Vec<T>,
+    maps: Vec<RealValueMap>,
+    slice_length: usize,
     dims: [usize; 3],
     origin: ritk_spatial::Point<3>,
     spacing: ritk_spatial::Spacing<3>,
     direction: ritk_spatial::Direction<3>,
 }
 
-fn decode_minc<P: AsRef<Path>>(path: P) -> Result<DecodedMinc> {
-    let path = path.as_ref();
+impl<T: Sample> DecodedMinc<T> {
+    fn into_image<B: ComputeBackend>(self, backend: &B) -> Result<ritk_image::Image<T, B, 3>> {
+        ritk_image::Image::from_flat_on(
+            self.data,
+            self.dims,
+            self.origin,
+            self.spacing,
+            self.direction,
+            backend,
+        )
+    }
+}
+
+/// Map each slice of `data` by its [`RealValueMap`] in `T`.
+fn apply_slice_maps<T: Sample>(
+    data: &mut [T],
+    maps: &[RealValueMap],
+    slice_length: usize,
+) -> Result<()> {
+    if slice_length == 0 {
+        return Ok(());
+    }
+    for (index, (slice, map)) in data.chunks_exact_mut(slice_length).zip(maps).enumerate() {
+        if map.is_identity() {
+            continue;
+        }
+        map.apply(slice).with_context(|| {
+            format!(
+                "MINC2 slice {index} maps stored values by (x - {}) * {} + {}; \
+                 read_minc_stored returns the stored samples and the maps",
+                map.valid_minimum(),
+                map.slope(),
+                map.intercept()
+            )
+        })?;
+        if let Some(offset) = slice
+            .iter()
+            .position(|&value| !NumericElement::to_f64(value).is_finite())
+        {
+            bail!(
+                "MINC2 scaled voxel {} leaves the finite range of {}: the mapped value or its \
+                 intermediate (x - valid_min) * slope is not representable in {}; \
+                 read into a wider floating-point type",
+                index * slice_length + offset,
+                T::TYPE,
+                T::TYPE
+            );
+        }
+    }
+    Ok(())
+}
+
+fn decode_minc<T: Sample, C: Conversion>(path: &Path, conversion: C) -> Result<DecodedMinc<T>> {
     let file =
         std::fs::File::open(path).with_context(|| format!("Cannot open MINC2 file {:?}", path))?;
     let hdf5 = Hdf5File::open(file)
@@ -300,47 +250,43 @@ fn decode_minc<P: AsRef<Path>>(path: P) -> Result<DecodedMinc> {
         );
     }
 
-    let element_size = dataset
-        .datatype
-        .element_size()
-        .context("Variable-length MINC2 image datatype is unsupported")?;
-    let total_bytes = total_elements
-        .checked_mul(element_size)
-        .context("MINC2 voxel data size overflows usize")?;
+    let stored = stored_type(&dataset.datatype)?;
     let data_address = dataset
         .data_address
         .context("MINC2 image dataset has no contiguous data address")?;
 
-    let default_valid_range = default_integer_valid_range(&dataset.datatype)?;
-    let scaling = match default_valid_range {
+    let slice_length = shape_arr[1]
+        .checked_mul(shape_arr[2])
+        .context("MINC2 slice element count overflows usize")?;
+    let scaling = match integer_storage_range(stored.sample_type) {
         None => None,
-        Some(default_valid_range) => {
-            let valid_range = read_valid_range(&image_attrs, default_valid_range)?;
+        Some(storage_range) => {
+            let valid_range = read_valid_range(&image_attrs, storage_range)?;
             let (image_minima, image_maxima) = read_image_ranges(&hdf5, shape_arr[0])?;
-            let slice_length = shape_arr[1]
-                .checked_mul(shape_arr[2])
-                .context("MINC2 slice element count overflows usize")?;
             Some(IntegerScaling::new(
                 valid_range,
-                default_valid_range,
-                image_minima,
-                image_maxima,
+                storage_range,
+                &image_minima,
+                &image_maxima,
                 slice_length,
                 total_elements,
             )?)
         }
     };
-    let f32_data = read_voxels(
-        &hdf5,
-        data_address,
-        &dataset.datatype,
-        total_elements,
-        total_bytes,
-        scaling.as_ref(),
-    )?;
+    let samples = read_payload(&hdf5, data_address, stored, total_elements)?;
+    let maps = match &scaling {
+        Some(scaling) => {
+            scaling.check_stored(&samples)?;
+            scaling.slice_maps()
+        }
+        None => vec![RealValueMap::IDENTITY; shape_arr[0]],
+    };
+    let data = conversion.convert::<T>(samples)?;
 
     Ok(DecodedMinc {
-        data: f32_data,
+        data,
+        maps,
+        slice_length,
         dims: shape_arr,
         origin,
         spacing,
@@ -349,18 +295,26 @@ fn decode_minc<P: AsRef<Path>>(path: P) -> Result<DecodedMinc> {
 }
 
 /// Backend-bound MINC2 reader.
-pub struct MincReader<B: coeus_core::ComputeBackend> {
+pub struct MincReader<B: ComputeBackend> {
     backend: B,
 }
 
-impl<B: coeus_core::ComputeBackend> MincReader<B> {
+impl<B: ComputeBackend> MincReader<B> {
     /// Construct a reader that creates images on `backend`.
     pub fn new(backend: B) -> Self {
         Self { backend }
     }
 
-    /// Read a MINC2 file into a 3-D image using the stored backend.
-    pub fn read_image<P: AsRef<Path>>(&self, path: P) -> Result<ritk_image::Image<f32, B, 3>> {
-        read_minc(path, &self.backend)
+    /// Read a MINC2 file into a 3-D image of `T` using the stored backend.
+    ///
+    /// # Errors
+    ///
+    /// Returns the error of [`read_minc`].
+    pub fn read<T: Sample, C: Conversion, P: AsRef<Path>>(
+        &self,
+        path: P,
+        conversion: C,
+    ) -> Result<ritk_image::Image<T, B, 3>> {
+        read_minc(path, &self.backend, conversion)
     }
 }

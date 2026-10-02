@@ -3,6 +3,14 @@
 //! Builds a v1-object-header HDF5 file with the MINC2 group hierarchy.
 //! Uses `consus_io::WriteAt` for positioned writes.
 //!
+//! # Voxel type and real range
+//!
+//! The image dataset stores the samples of the image's own type, little-endian.
+//! An integer image also carries scalar `image-min` and `image-max` datasets
+//! equal to the stored type's range, which with the default `valid_range` is
+//! the identity map from stored to real values; a floating-point image has
+//! none, because MINC applies no scaling to floats.
+//!
 //! # direction_cosines Encoding
 //!
 //! The `direction_cosines` attribute is written as a 1-D HDF5 float array
@@ -10,11 +18,28 @@
 //! MINC2 reader's `parse_dimension_attrs` expects when it calls
 //! `extract_float_array_3` on an `AttributeValue::FloatArray(3)`.
 
+mod messages;
+
+use crate::scaling::integer_storage_range;
 use anyhow::{Context, Result};
+use consus_core::{extend_encoded, ByteOrder};
 use consus_io::WriteAt;
+use messages::{
+    build_attr_msg_float, build_attr_msg_float_array, build_attr_msg_int, build_link_msg,
+    dataset_messages, float_datatype, sample_datatype, write_v1_oh,
+};
+use ritk_codecs::sample::Sample;
 use ritk_spatial::Direction;
 
 const VOXEL_STREAM_VALUES: usize = 2_048;
+const OFFSET_SIZE: u8 = 8;
+const LENGTH_SIZE: u8 = 8;
+
+/// Generous object-header size budgets.
+const OH_GROUP: u64 = 256;
+/// Dimension groups carry 4 attributes each.
+const OH_DIM: u64 = 512;
+const OH_DATASET: u64 = 512;
 
 /// Geometry parameters for a MINC2 volume.
 #[derive(Debug, Clone, Copy)]
@@ -30,14 +55,14 @@ struct Minc2VolumeGeometry {
 /// # Arguments
 ///
 /// - `path`: output file path.
-/// - `voxels`: voxel values, encoded as little-endian `f32` while writing.
+/// - `voxels`: voxel values, encoded as little-endian `T` while writing.
 /// - `shape`: `[nz, ny, nx]`.
 /// - `origin`: physical start per dimorder axis.
 /// - `spacing`: voxel spacing per dimorder axis.
 /// - `direction`: 3×3 direction matrix (columns = axis direction cosines).
-pub fn write_minc2_hdf5(
+pub fn write_minc2_hdf5<T: Sample>(
     path: &std::path::Path,
-    voxels: &[f32],
+    voxels: &[T],
     shape: [usize; 3],
     origin: [f64; 3],
     spacing: [f64; 3],
@@ -45,10 +70,6 @@ pub fn write_minc2_hdf5(
 ) -> Result<()> {
     let mut file = std::fs::File::create(path)
         .map_err(|e| anyhow::anyhow!("Cannot create MINC2 file {:?}: {}", path, e))?;
-
-    let dim_names = ["zspace", "yspace", "xspace"];
-    let offset_size: u8 = 8;
-    let length_size: u8 = 8;
 
     build_minc2_hdf5_binary(
         &mut file,
@@ -59,9 +80,7 @@ pub fn write_minc2_hdf5(
             spacing,
             direction: *direction,
         },
-        dim_names,
-        offset_size,
-        length_size,
+        ["zspace", "yspace", "xspace"],
     )?;
 
     std::io::Write::flush(&mut file)
@@ -69,212 +88,6 @@ pub fn write_minc2_hdf5(
 
     Ok(())
 }
-
-// ── Object header helpers ─────────────────────────────────────────────────────
-
-/// Write a v1 object header with the given messages at `offset`.
-///
-/// v1 OH layout (HDF5 spec §IV.A.1):
-///   version(1) + reserved(1) + num_messages(2) + ref_count(4) +
-///   header_data_size(4) + padding(4) + messages
-///
-/// The 4 padding bytes at offset 12–15 are mandatory: the reader advances
-/// to byte 16 before parsing the first message (`V1_HEADER_PADDING = 4`).
-fn write_v1_oh(file: &mut std::fs::File, offset: u64, messages: &[Vec<u8>]) -> Result<u64> {
-    let msg_total: usize = messages.iter().map(|m| m.len()).sum();
-    // 12-byte prefix + 4-byte mandatory padding + messages
-    let mut header = Vec::with_capacity(16 + msg_total);
-    header.push(1); // version
-    header.push(0); // reserved
-    header.extend_from_slice(&(messages.len() as u16).to_le_bytes());
-    header.extend_from_slice(&1u32.to_le_bytes()); // ref_count
-    header.extend_from_slice(&(msg_total as u32).to_le_bytes()); // header_data_size
-    header.extend_from_slice(&[0u8; 4]); // 4-byte padding (bytes 12–15)
-    for msg in messages {
-        header.extend_from_slice(msg);
-    }
-    file.write_at(offset, &header)
-        .map_err(|e| anyhow::anyhow!("Failed to write OH at {}: {}", offset, e))?;
-    Ok(offset + header.len() as u64)
-}
-
-/// Build a v1 hard-link message (type 0x0006).
-fn build_link_msg(name: &str, target_addr: u64) -> Vec<u8> {
-    let name_bytes = name.as_bytes();
-    let flags: u8 = 0x00; // hard link, 1-byte name length, no extras
-    let mut msg_data = Vec::new();
-    msg_data.push(1); // link message version
-    msg_data.push(flags);
-    msg_data.push(name_bytes.len() as u8);
-    msg_data.extend_from_slice(name_bytes);
-    msg_data.extend_from_slice(&target_addr.to_le_bytes());
-
-    wrap_message(0x0006, msg_data)
-}
-
-// ── Attribute message helpers ─────────────────────────────────────────────────
-
-#[inline]
-fn pad8(n: usize) -> usize {
-    (n + 7) & !7
-}
-
-/// Wrap message data in a v1 object-header message envelope.
-///
-/// Envelope: type(2) + size(2) + flags(1) + reserved(3), then the data. The
-/// HDF5 v1 object header format requires each message to occupy a multiple of
-/// eight bytes and the size field to be rounded up to that boundary, so the data
-/// is zero-padded and `size` reports the padded length. Without this, every
-/// message after the first parses at a misaligned offset and the file is
-/// unreadable.
-fn wrap_message(type_code: u16, mut msg_data: Vec<u8>) -> Vec<u8> {
-    let padded = pad8(msg_data.len());
-    msg_data.resize(padded, 0);
-    let mut envelope = Vec::with_capacity(8 + padded);
-    envelope.extend_from_slice(&type_code.to_le_bytes());
-    envelope.extend_from_slice(&(padded as u16).to_le_bytes());
-    envelope.push(0);
-    envelope.extend_from_slice(&[0u8; 3]);
-    envelope.extend_from_slice(&msg_data);
-    envelope
-}
-
-/// HDF5 datatype descriptor for a little-endian IEEE-754 float (class 1, v1).
-///
-/// `size` is 4 (`f32`) or 8 (`f64`). The descriptor is the 8-byte header plus
-/// the 12 mandatory floating-point property bytes (bit offset/precision,
-/// exponent/mantissa location and size, exponent bias); omitting the properties
-/// makes the type unreadable ("floating-point properties truncated").
-fn float_datatype(size: u32) -> Vec<u8> {
-    let (exp_size, mant_size, bias): (u8, u8, u32) = match size {
-        4 => (8, 23, 127),
-        8 => (11, 52, 1023),
-        other => unreachable!("unsupported float datatype size {other}"),
-    };
-    let precision = (size * 8) as u16;
-    let mut dt = vec![0u8; 20];
-    dt[0] = 0x11; // version 1, class 1 (floating-point)
-    dt[1] = 0x20; // bit field: LE byte order, mantissa normalization = 2
-    dt[2] = (size * 8 - 1) as u8; // sign bit location
-    dt[4..8].copy_from_slice(&size.to_le_bytes());
-    dt[10..12].copy_from_slice(&precision.to_le_bytes()); // bit precision (offset stays 0)
-    dt[12] = mant_size; // exponent location
-    dt[13] = exp_size; // exponent size
-    dt[15] = mant_size; // mantissa size (location stays 0)
-    dt[16..20].copy_from_slice(&bias.to_le_bytes());
-    dt
-}
-
-/// HDF5 datatype descriptor for a little-endian fixed-point integer (class 0,
-/// v1): 8-byte header plus the 4 mandatory bit-offset/precision property bytes.
-fn int_datatype(size: u32, signed: bool) -> Vec<u8> {
-    let mut dt = vec![0u8; 12];
-    dt[0] = 0x10; // version 1, class 0 (fixed-point)
-    dt[1] = if signed { 0x08 } else { 0x00 }; // LE byte order; bit 3 = signed
-    dt[4..8].copy_from_slice(&size.to_le_bytes());
-    dt[10..12].copy_from_slice(&((size * 8) as u16).to_le_bytes()); // bit precision
-    dt
-}
-
-/// Build the shared attribute message header and body for a scalar attribute.
-///
-/// Encodes the name (null-terminated, padded to 8 bytes), the given datatype
-/// bytes, a scalar dataspace (rank=0, 8 bytes), and the value bytes, then
-/// wraps the whole in an attribute envelope.
-fn build_scalar_attr_raw(
-    name: &str,
-    datatype_bytes: impl AsRef<[u8]>,
-    value_bytes: impl AsRef<[u8]>,
-) -> Vec<u8> {
-    let name_bytes = name.as_bytes();
-    let name_size = name_bytes.len() + 1; // null-terminated
-    let dt_bytes = datatype_bytes.as_ref();
-    let dt_size = dt_bytes.len() as u16;
-    let ds_size: u16 = 8; // scalar dataspace
-
-    let mut msg_data = Vec::new();
-    msg_data.push(1); // attribute version
-    msg_data.push(0); // reserved
-    msg_data.extend_from_slice(&(name_size as u16).to_le_bytes());
-    msg_data.extend_from_slice(&dt_size.to_le_bytes());
-    msg_data.extend_from_slice(&ds_size.to_le_bytes());
-
-    // Name: null-terminated, padded to 8 bytes.
-    msg_data.extend_from_slice(name_bytes);
-    msg_data.push(0);
-    msg_data.resize(msg_data.len() + pad8(name_size) - name_size, 0);
-
-    // Datatype, padded to an 8-byte boundary (the reader advances by
-    // `align_up(dt_size, 8)`; the size field stays the unpadded length).
-    msg_data.extend_from_slice(dt_bytes);
-    msg_data.resize(msg_data.len() + pad8(dt_bytes.len()) - dt_bytes.len(), 0);
-
-    // Dataspace: scalar (rank=0).
-    msg_data.extend_from_slice(&[1u8, 0, 0, 0, 0, 0, 0, 0]);
-
-    // Data.
-    msg_data.extend_from_slice(value_bytes.as_ref());
-
-    wrap_attr_envelope(msg_data)
-}
-
-/// Build an attribute message (type 0x000C, v1) for a scalar `f64`.
-pub(crate) fn build_attr_msg_float(name: &str, value: f64) -> Vec<u8> {
-    build_scalar_attr_raw(name, float_datatype(8), value.to_le_bytes())
-}
-
-/// Build an attribute message (type 0x000C, v1) for a scalar `i32`.
-pub(crate) fn build_attr_msg_int(name: &str, value: i32) -> Vec<u8> {
-    build_scalar_attr_raw(name, int_datatype(4, true), value.to_le_bytes())
-}
-
-/// Build an attribute message for a 3-element `f64` array.
-///
-/// Encodes `direction_cosines` as a 1-D HDF5 float array of 3 `f64` values.
-/// The reader's `extract_float_array_3` expects `AttributeValue::FloatArray(3)`.
-pub(crate) fn build_attr_msg_float_array(name: &str, values: &[f64; 3]) -> Vec<u8> {
-    let name_bytes = name.as_bytes();
-    let name_size = name_bytes.len() + 1;
-    let datatype = float_datatype(8);
-    let dt_size = datatype.len() as u16; // f64 datatype descriptor
-    let ds_size: u16 = 16; // 1-D dataspace: version(1)+rank(1)+flags(1)+rsvd(1)+rsvd(4)+dim0(8)
-
-    let mut msg_data = Vec::new();
-    msg_data.push(1);
-    msg_data.push(0);
-    msg_data.extend_from_slice(&(name_size as u16).to_le_bytes());
-    msg_data.extend_from_slice(&dt_size.to_le_bytes());
-    msg_data.extend_from_slice(&ds_size.to_le_bytes());
-
-    msg_data.extend_from_slice(name_bytes);
-    msg_data.push(0);
-    msg_data.resize(msg_data.len() + pad8(name_size) - name_size, 0);
-
-    // Datatype: 64-bit LE float, padded to an 8-byte boundary.
-    msg_data.extend_from_slice(&datatype);
-    msg_data.resize(msg_data.len() + pad8(datatype.len()) - datatype.len(), 0);
-
-    // Dataspace: 1-D, dim0 = 3.
-    let mut ds = [0u8; 16];
-    ds[0] = 1; // version
-    ds[1] = 1; // rank = 1
-               // ds[2] = 0 (no max dims), ds[3..8] reserved
-    ds[8..16].copy_from_slice(&3u64.to_le_bytes());
-    msg_data.extend_from_slice(&ds);
-
-    // Data: 3 × f64 LE.
-    for &v in values {
-        msg_data.extend_from_slice(&v.to_le_bytes());
-    }
-
-    wrap_attr_envelope(msg_data)
-}
-
-fn wrap_attr_envelope(msg_data: Vec<u8>) -> Vec<u8> {
-    wrap_message(0x000C, msg_data)
-}
-
-// ── Main builder ──────────────────────────────────────────────────────────────
 
 /// Build the HDF5 binary of a MINC2 file using positioned writes.
 ///
@@ -289,17 +102,18 @@ fn wrap_attr_envelope(msg_data: Vec<u8>) -> Vec<u8> {
 /// ...          yspace OH      → (same)
 /// ...          zspace OH      → (same)
 /// ...          image grp OH   → link "0"
-/// ...          0 grp OH       → link "image"
+/// ...          0 grp OH       → links "image", and "image-min", "image-max"
+/// ...                           for an integer image
 /// ...          image ds OH    → datatype, dataspace, layout
-/// offset N:    raw voxel data (contiguous f32 LE)
+/// ...          image-min OH, image-max OH → scalar f64 datasets
+/// offset N:    raw voxel data (contiguous, little-endian)
+/// offset M:    image-min and image-max values (integer images)
 /// ```
-fn build_minc2_hdf5_binary(
+fn build_minc2_hdf5_binary<T: Sample>(
     file: &mut std::fs::File,
-    voxels: &[f32],
+    voxels: &[T],
     geom: Minc2VolumeGeometry,
     dim_names: [&str; 3],
-    offset_size: u8,
-    length_size: u8,
 ) -> Result<()> {
     let Minc2VolumeGeometry {
         shape,
@@ -307,42 +121,42 @@ fn build_minc2_hdf5_binary(
         spacing,
         direction,
     } = geom;
-    let _s = offset_size as usize;
-    let _l = length_size as usize;
-
-    // Generous object-header size budgets.
-    let oh_group: u64 = 256;
-    let oh_dim: u64 = 512; // dimension groups carry 4 attributes each
-    let oh_dataset: u64 = 512;
 
     let root_addr: u64 = 44;
-    let minc20_addr = root_addr + oh_group;
-    let dims_addr = minc20_addr + oh_group;
-    let xspace_addr = dims_addr + oh_group;
-    let yspace_addr = xspace_addr + oh_dim;
-    let zspace_addr = yspace_addr + oh_dim;
-    let image_grp_addr = zspace_addr + oh_dim;
-    let zero_grp_addr = image_grp_addr + oh_group;
-    let image_ds_addr = zero_grp_addr + oh_group;
+    let minc20_addr = root_addr + OH_GROUP;
+    let dims_addr = minc20_addr + OH_GROUP;
+    let xspace_addr = dims_addr + OH_GROUP;
+    let yspace_addr = xspace_addr + OH_DIM;
+    let zspace_addr = yspace_addr + OH_DIM;
+    let image_grp_addr = zspace_addr + OH_DIM;
+    let zero_grp_addr = image_grp_addr + OH_GROUP;
+    let image_ds_addr = zero_grp_addr + OH_GROUP;
+    let image_min_addr = image_ds_addr + OH_DATASET;
+    let image_max_addr = image_min_addr + OH_DATASET;
 
-    let min_data_offset = image_ds_addr + oh_dataset;
+    let min_data_offset = image_max_addr + OH_DATASET;
     let data_offset = (min_data_offset + 511) & !511; // 512-byte aligned
 
     let voxel_bytes = voxels
         .len()
-        .checked_mul(size_of::<f32>())
+        .checked_mul(T::TYPE.byte_width())
         .context("MINC2 voxel byte count overflows usize")?;
     let voxel_bytes_u64 = u64::try_from(voxel_bytes).context("MINC2 voxel payload exceeds u64")?;
-    let eof = data_offset
+    let voxel_end = data_offset
         .checked_add(voxel_bytes_u64)
         .context("MINC2 file length overflows u64")?;
+    let image_range = integer_storage_range(T::TYPE);
+    let ranges_offset = (voxel_end + 7) & !7;
+    let eof = match image_range {
+        Some(_) => ranges_offset + 16,
+        None => voxel_end,
+    };
 
-    // ── Superblock v2 ─────────────────────────────────────────────────────
     let mut sb = [0u8; 44];
     sb[0..8].copy_from_slice(b"\x89HDF\r\n\x1a\n");
     sb[8] = 2; // version
-    sb[9] = offset_size;
-    sb[10] = length_size;
+    sb[9] = OFFSET_SIZE;
+    sb[10] = LENGTH_SIZE;
     sb[11] = 0; // consistency flags
     sb[12..20].copy_from_slice(&0u64.to_le_bytes()); // base address
     sb[20..28].copy_from_slice(&u64::MAX.to_le_bytes()); // extension = UNDEF
@@ -351,16 +165,13 @@ fn build_minc2_hdf5_binary(
     file.write_at(0, &sb)
         .map_err(|e| anyhow::anyhow!("Failed to write superblock: {}", e))?;
 
-    // ── Root group OH ────────────────────────────────────────────────────
     let link_minc20 = build_link_msg("minc-2.0", minc20_addr);
     write_v1_oh(file, root_addr, &[link_minc20])?;
 
-    // ── minc-2.0 group OH ────────────────────────────────────────────────
     let link_dims = build_link_msg("dimensions", dims_addr);
     let link_image = build_link_msg("image", image_grp_addr);
     write_v1_oh(file, minc20_addr, &[link_dims, link_image])?;
 
-    // ── dimensions group OH ──────────────────────────────────────────────
     let dim_addrs = [xspace_addr, yspace_addr, zspace_addr];
     let dim_links: Vec<Vec<u8>> = dim_names
         .iter()
@@ -369,7 +180,6 @@ fn build_minc2_hdf5_binary(
         .collect();
     write_v1_oh(file, dims_addr, &dim_links)?;
 
-    // ── Dimension group OHs ───────────────────────────────────────────────
     for (i, &addr) in dim_addrs.iter().enumerate() {
         let start_attr = build_attr_msg_float("start", origin[i]);
         let step_attr = build_attr_msg_float("step", spacing[i]);
@@ -381,73 +191,64 @@ fn build_minc2_hdf5_binary(
         write_v1_oh(file, addr, &[start_attr, step_attr, length_attr, dc_attr])?;
     }
 
-    // ── image group OH ────────────────────────────────────────────────────
     let link_zero = build_link_msg("0", zero_grp_addr);
     write_v1_oh(file, image_grp_addr, &[link_zero])?;
 
-    // ── 0 group OH ────────────────────────────────────────────────────────
-    let link_image_ds = build_link_msg("image", image_ds_addr);
-    write_v1_oh(file, zero_grp_addr, &[link_image_ds])?;
-
-    // ── image dataset OH ──────────────────────────────────────────────────
-    // DATATYPE (0x0003): 32-bit LE float.
-    let dt_msg = wrap_msg(0x0003, &float_datatype(4));
-
-    // DATASPACE (0x0001): 3-D fixed.
-    let mut ds_data = vec![1u8, 3u8, 0u8, 0u8]; // version, rank=3, flags, reserved
-    ds_data.extend_from_slice(&0u32.to_le_bytes()); // reserved
-    for &dim in &shape {
-        ds_data.extend_from_slice(&(dim as u64).to_le_bytes());
+    let mut zero_links = vec![build_link_msg("image", image_ds_addr)];
+    if image_range.is_some() {
+        zero_links.push(build_link_msg("image-min", image_min_addr));
+        zero_links.push(build_link_msg("image-max", image_max_addr));
     }
-    let ds_msg = wrap_msg(0x0001, &ds_data);
+    write_v1_oh(file, zero_grp_addr, &zero_links)?;
 
-    // DATA LAYOUT (0x0008): contiguous.
-    let mut layout_data = Vec::new();
-    layout_data.push(3u8); // version 3
-    layout_data.push(1u8); // class 1 = contiguous
-    layout_data.extend_from_slice(&data_offset.to_le_bytes());
-    layout_data.extend_from_slice(&voxel_bytes_u64.to_le_bytes());
-    let layout_msg = wrap_msg(0x0008, &layout_data);
-
-    write_v1_oh(file, image_ds_addr, &[dt_msg, ds_msg, layout_msg])?;
-
-    // ── Raw voxel data ────────────────────────────────────────────────────
+    let image_messages = dataset_messages(
+        &sample_datatype(T::TYPE),
+        &shape,
+        data_offset,
+        voxel_bytes_u64,
+    );
+    write_v1_oh(file, image_ds_addr, &image_messages)?;
     write_voxel_stream(file, data_offset, voxels)?;
+
+    if let Some([minimum, maximum]) = image_range {
+        for (address, offset, value) in [
+            (image_min_addr, ranges_offset, minimum),
+            (image_max_addr, ranges_offset + 8, maximum),
+        ] {
+            let messages = dataset_messages(&float_datatype(8), &[], offset, 8);
+            write_v1_oh(file, address, &messages)?;
+            file.write_at(offset, &value.to_le_bytes())
+                .map_err(|error| anyhow::anyhow!("Failed to write image range: {error}"))?;
+        }
+    }
 
     Ok(())
 }
 
-fn write_voxel_stream(file: &mut std::fs::File, data_offset: u64, voxels: &[f32]) -> Result<()> {
-    let scratch_bytes = VOXEL_STREAM_VALUES
-        .checked_mul(size_of::<f32>())
-        .context("MINC2 scratch size overflows usize")?;
-    let mut encoded = [0_u8; VOXEL_STREAM_VALUES * size_of::<f32>()];
-
+/// Write `voxels` as little-endian samples at `data_offset`, one bounded block
+/// at a time.
+fn write_voxel_stream<T: Sample>(
+    file: &mut std::fs::File,
+    data_offset: u64,
+    voxels: &[T],
+) -> Result<()> {
+    let mut encoded =
+        Vec::with_capacity(VOXEL_STREAM_VALUES.min(voxels.len()) * T::TYPE.byte_width());
     let mut written = 0_u64;
     for chunk in voxels.chunks(VOXEL_STREAM_VALUES) {
-        for (destination, voxel) in encoded.chunks_exact_mut(size_of::<f32>()).zip(chunk) {
-            destination.copy_from_slice(&voxel.to_le_bytes());
-        }
-        let chunk_bytes = chunk
-            .len()
-            .checked_mul(size_of::<f32>())
-            .context("MINC2 chunk byte count overflows usize")?;
+        encoded.clear();
+        extend_encoded(&mut encoded, chunk.iter().copied(), ByteOrder::LittleEndian);
         let offset = data_offset
             .checked_add(written)
             .context("MINC2 voxel write offset overflows u64")?;
-        file.write_at(offset, &encoded[..chunk_bytes])
+        file.write_at(offset, &encoded)
             .map_err(|error| anyhow::anyhow!("Failed to write voxel data: {error}"))?;
-        let chunk_bytes = u64::try_from(chunk_bytes).context("MINC2 chunk exceeds u64")?;
+        let chunk_bytes = u64::try_from(encoded.len()).context("MINC2 chunk exceeds u64")?;
         written = written
             .checked_add(chunk_bytes)
             .context("MINC2 written byte count overflows u64")?;
     }
-    debug_assert_eq!(scratch_bytes, encoded.len());
     Ok(())
-}
-
-fn wrap_msg(msg_type: u16, data: &[u8]) -> Vec<u8> {
-    wrap_message(msg_type, data.to_vec())
 }
 
 #[cfg(test)]
