@@ -5,6 +5,7 @@ use base64::{engine::general_purpose::STANDARD, Engine as _};
 use coeus_core::SequentialBackend;
 use image::{codecs::png::PngEncoder, ColorType, ImageEncoder};
 use ritk_analyze::{read_analyze, write_analyze};
+use ritk_codecs::sample::Exact;
 use ritk_image::Image;
 use ritk_spatial::{Direction, Point, Spacing};
 use std::fmt::Write as _;
@@ -336,7 +337,8 @@ fn main() -> Result<()> {
     let path = directory.path().join("phantom.hdr");
     let source = make_volume(phantom_values()?)?;
     write_analyze(&path, &source, &SequentialBackend).context("write Analyze phantom")?;
-    let decoded = read_analyze(&path, &SequentialBackend).context("read Analyze phantom")?;
+    let decoded = read_analyze::<f32, _, _, _>(&path, &SequentialBackend, Exact)
+        .context("read Analyze phantom")?;
     verify_round_trip(&source, &decoded)?;
 
     let header_bytes = std::fs::metadata(&path)
@@ -354,7 +356,7 @@ fn main() -> Result<()> {
         .context("open Analyze payload for malformed-tail check")?
         .write_all(&[0])
         .context("append malformed Analyze tail")?;
-    let error = read_analyze(&path, &SequentialBackend)
+    let error = read_analyze::<f32, _, _, _>(&path, &SequentialBackend, Exact)
         .expect_err("Analyze reader must reject trailing payload bytes");
     if !error.to_string().contains("length mismatch") {
         bail!("unexpected malformed-tail error: {error:#}");

@@ -39,11 +39,16 @@
 //! When the flag is unset, default spatial metadata is used (identity
 //! direction, unit spacing, zero origin).
 //!
-//! # Pixel types
+//! # Sample types
 //!
-//! The reader handles all four MGH data types (`MRI_UCHAR` u8,
-//! `MRI_SHORT` i16, `MRI_INT` i32, `MRI_FLOAT` f32), converting all
-//! to f32 for the RITK tensor.  The writer always emits `MRI_FLOAT`.
+//! MGH stores four sample types: `MRI_UCHAR` (`u8`), `MRI_SHORT` (`i16`),
+//! `MRI_INT` (`i32`), and `MRI_FLOAT` (`f32`), always big-endian. The readers
+//! return an image of the caller's sample type `T` under a
+//! [`Conversion`](ritk_codecs::sample::Conversion) policy: `Exact` returns the
+//! stored values or widens them losslessly and refuses a narrowing read (an
+//! `i32` file read as `f32`), and `Cast` converts with a warning (ADR 0053).
+//! The writers store the image's own sample type and refuse the types MGH has
+//! no code for.
 
 mod reader;
 mod spatial;

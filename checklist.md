@@ -313,12 +313,10 @@
 ## Sprint 425 — Native NIfTI-2 Single-File Codec
 
 - [ ] MIG-425-01 [minor]: Add paired NIfTI `ni1`/`ni2` `.hdr`/`.img` support if a caller needs NIfTI pairs; do not route Analyze 7.5 through `ritk-nifti`.
-- [ ] MIG-424-02 [minor]: Extend native NIfTI datatype coverage beyond Float32 images and UInt32/Float32 labels when a caller needs additional scalar kinds.
 - [ ] MIG-387-01 [arch]: Continue Burn/Coeus tensor replacement as a separate contract-preserving slice.
 
 ## Sprint 424 — Native RITK NIfTI Codec
 
-- [ ] MIG-424-02 [minor]: Extend native NIfTI datatype coverage beyond Float32 images and UInt32/Float32 labels when a caller needs additional scalar kinds.
 - [ ] MIG-424-03 [minor]: Add NIfTI-2 and header/img pair support if those file variants become required by an integration contract.
 - [ ] MIG-387-01 [arch]: Continue Burn/Coeus tensor replacement as a separate contract-preserving slice.
 

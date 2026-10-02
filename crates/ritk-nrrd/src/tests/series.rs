@@ -9,6 +9,7 @@
 use crate::{read_nrrd, read_nrrd_series, write_nrrd, write_nrrd_series};
 use anyhow::Result;
 use coeus_core::SequentialBackend;
+use ritk_codecs::sample::Exact;
 use ritk_image::Image;
 use ritk_spatial::{Direction, Point, Spacing};
 use std::io::Write;
@@ -106,7 +107,7 @@ fn series_round_trips_through_the_writer() -> Result<()> {
     let expected = series_fixture(5, [2, 3, 4]);
 
     write_nrrd_series(&path, &expected, &backend)?;
-    let actual = read_nrrd_series::<TestBackend, _>(&path, &backend)?;
+    let actual = read_nrrd_series::<f32, _, TestBackend, _>(&path, &backend, Exact)?;
 
     assert_eq!(actual.len(), expected.len(), "volume count must round-trip");
     for (position, (got, want)) in actual.iter().zip(&expected).enumerate() {
@@ -131,7 +132,7 @@ fn leading_acquisition_axis_deinterleaves() -> Result<()> {
     ];
 
     write_manual_series(&path, &volumes, [2, 2, 2], true)?;
-    let series = read_nrrd_series::<TestBackend, _>(&path, &backend)?;
+    let series = read_nrrd_series::<f32, _, TestBackend, _>(&path, &backend, Exact)?;
 
     assert_eq!(series.len(), 3);
     for (position, expected) in volumes.iter().enumerate() {
@@ -155,7 +156,7 @@ fn trailing_acquisition_axis_reads_contiguous_volumes() -> Result<()> {
     ];
 
     write_manual_series(&path, &volumes, [2, 2, 2], false)?;
-    let series = read_nrrd_series::<TestBackend, _>(&path, &backend)?;
+    let series = read_nrrd_series::<f32, _, TestBackend, _>(&path, &backend, Exact)?;
 
     assert_eq!(series.len(), 2);
     for (position, expected) in volumes.iter().enumerate() {
@@ -181,8 +182,8 @@ fn both_layouts_decode_to_the_same_series() -> Result<()> {
     write_manual_series(&fast, &volumes, [2, 2, 2], true)?;
     write_manual_series(&slow, &volumes, [2, 2, 2], false)?;
 
-    let from_fast = read_nrrd_series::<TestBackend, _>(&fast, &backend)?;
-    let from_slow = read_nrrd_series::<TestBackend, _>(&slow, &backend)?;
+    let from_fast = read_nrrd_series::<f32, _, TestBackend, _>(&fast, &backend, Exact)?;
+    let from_slow = read_nrrd_series::<f32, _, TestBackend, _>(&slow, &backend, Exact)?;
 
     assert_eq!(from_fast.len(), from_slow.len());
     for position in 0..from_fast.len() {
@@ -205,9 +206,9 @@ fn series_preserves_the_shared_spatial_grid() -> Result<()> {
     let volumes = vec![vec![0.0; 8], vec![1.0; 8]];
 
     write_manual_series(&path, &volumes, [2, 2, 2], true)?;
-    let series = read_nrrd_series::<TestBackend, _>(&path, &backend)?;
+    let series = read_nrrd_series::<f32, _, TestBackend, _>(&path, &backend, Exact)?;
 
-    let reference = read_nrrd_series::<TestBackend, _>(&path, &backend)?;
+    let reference = read_nrrd_series::<f32, _, TestBackend, _>(&path, &backend, Exact)?;
     assert_eq!(series[0].spacing(), reference[0].spacing());
     // space directions (0.75,0,0) (0,1.5,0) (0,0,2) in file [x,y,z] order maps
     // to RITK [depth,row,col] = [z,y,x] spacing.
@@ -238,7 +239,7 @@ fn single_volume_series_writes_a_rank_three_file() -> Result<()> {
         "a one-volume series is a rank-3 file, got header: {header}"
     );
 
-    let single = read_nrrd::<TestBackend, _>(&path, &backend)?;
+    let single = read_nrrd::<f32, _, TestBackend, _>(&path, &backend, Exact)?;
     assert_eq!(voxels_of(&single), voxels_of(&expected[0]));
     Ok(())
 }
@@ -251,7 +252,7 @@ fn rank_three_file_reads_as_a_one_volume_series() -> Result<()> {
     let image = series_fixture(1, [2, 2, 2]).remove(0);
 
     write_nrrd(&path, &image, &backend)?;
-    let series = read_nrrd_series::<TestBackend, _>(&path, &backend)?;
+    let series = read_nrrd_series::<f32, _, TestBackend, _>(&path, &backend, Exact)?;
 
     assert_eq!(series.len(), 1);
     assert_eq!(voxels_of(&series[0]), voxels_of(&image));
@@ -267,7 +268,7 @@ fn single_volume_reader_rejects_a_series() -> Result<()> {
     let backend = TestBackend::default();
     write_nrrd_series(&path, &series_fixture(4, [2, 2, 2]), &backend)?;
 
-    let err = read_nrrd::<TestBackend, _>(&path, &backend)
+    let err = read_nrrd::<f32, _, TestBackend, _>(&path, &backend, Exact)
         .expect_err("a 4-volume series has no single-volume representation");
     let message = format!("{err:#}");
     assert!(
@@ -293,7 +294,7 @@ fn four_dimensional_file_without_an_acquisition_axis_is_rejected() -> Result<()>
     file.write_all(&[0u8; 64])?;
     drop(file);
 
-    let err = read_nrrd_series::<TestBackend, _>(&path, &backend)
+    let err = read_nrrd_series::<f32, _, TestBackend, _>(&path, &backend, Exact)
         .expect_err("four spatial axes cannot reduce to a 3-D grid");
     assert!(format!("{err:#}").contains("non-spatial acquisition axis"));
     Ok(())
@@ -342,7 +343,7 @@ fn truncated_series_payload_is_rejected() -> Result<()> {
     let full = std::fs::read(&path)?;
     std::fs::write(&path, &full[..full.len() - 8 * std::mem::size_of::<f32>()])?;
 
-    let err = read_nrrd_series::<TestBackend, _>(&path, &backend)
+    let err = read_nrrd_series::<f32, _, TestBackend, _>(&path, &backend, Exact)
         .expect_err("a truncated series payload must fail");
     let message = format!("{err:#}");
     // The declared byte count spans every volume, so the shortfall is reported

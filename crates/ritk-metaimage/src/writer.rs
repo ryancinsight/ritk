@@ -1,12 +1,15 @@
+use crate::element_type::element_type_name;
 use crate::spatial::file_spatial_fields_from_internal;
 use anyhow::{anyhow, Context, Result};
 use coeus_core::{ComputeBackend, CpuAddressableStorage};
+use consus_core::ByteOrder;
+use ritk_codecs::sample::{write_samples, Sample};
 use ritk_image::Image;
 use ritk_spatial::{Direction, Point, Spacing};
 use std::io::{BufWriter, Write};
 use std::path::Path;
 
-/// Write a 3-D `Image` to a `.mha` (MetaImage single-file) format.
+/// Write a 3-D `Image` of `T` to a `.mha` (MetaImage single-file) format.
 ///
 /// # Axis convention
 /// RITK stores voxels in `[Z, Y, X]` order. Its row-major flat payload is
@@ -19,12 +22,22 @@ use std::path::Path;
 /// `[X,Y,Z]` file-axis order.
 ///
 /// # Binary payload
-/// Voxel values are written as 32-bit IEEE 754 floats in little-endian byte
-/// order immediately after the `ElementDataFile = LOCAL` header line.
-pub fn write_metaimage<B, P>(path: P, image: &Image<f32, B, 3>, backend: &B) -> Result<()>
+/// Voxel values are written as `T` samples in little-endian byte order,
+/// uncompressed, immediately after the `ElementDataFile = LOCAL` header line,
+/// and `ElementType` names `T`: `MET_CHAR`, `MET_UCHAR`, `MET_SHORT`,
+/// `MET_USHORT`, `MET_INT`, `MET_UINT`, `MET_LONG_LONG`, `MET_ULONG_LONG`,
+/// `MET_FLOAT`, or `MET_DOUBLE` for `i8`, `u8`, `i16`, `u16`, `i32`, `u32`,
+/// `i64`, `u64`, `f32`, or `f64`. Every sample round-trips bit for bit.
+///
+/// # Errors
+///
+/// Returns an error when the image shape overflows `usize`, or when the file
+/// cannot be created or written.
+pub fn write_metaimage<T, B, P>(path: P, image: &Image<T, B, 3>, backend: &B) -> Result<()>
 where
+    T: Sample,
     B: ComputeBackend + Default,
-    B::DeviceBuffer<f32>: CpuAddressableStorage<f32>,
+    B::DeviceBuffer<T>: CpuAddressableStorage<T>,
     P: AsRef<Path>,
 {
     let voxels = image.data_cow_on(backend);
@@ -34,14 +47,18 @@ where
 /// Like [`write_metaimage`] but uses caller-provided voxel data.
 ///
 /// `image` supplies only spatial metadata (shape, spacing, origin, direction);
-/// the binary payload comes from `f32_slice`.  This lets a caller that already
+/// the binary payload comes from `values`.  This lets a caller that already
 /// holds a fast (e.g. zero-copy NdArray) slice skip the generic
 /// `into_data()` materialization, which dominates write time for large volumes.
-/// `f32_slice.len()` must equal the image voxel count.
-pub fn write_metaimage_with_data<B: ComputeBackend, P: AsRef<Path>>(
+///
+/// # Errors
+///
+/// Returns an error, before creating any file, when `values.len()` differs from
+/// the image voxel count; otherwise as [`write_metaimage`].
+pub fn write_metaimage_with_data<T: Sample, B: ComputeBackend, P: AsRef<Path>>(
     path: P,
-    image: &Image<f32, B, 3>,
-    f32_slice: &[f32],
+    image: &Image<T, B, 3>,
+    values: &[T],
 ) -> Result<()> {
     write_metaimage_flat(
         path.as_ref(),
@@ -49,20 +66,20 @@ pub fn write_metaimage_with_data<B: ComputeBackend, P: AsRef<Path>>(
         image.spacing(),
         image.origin(),
         image.direction(),
-        f32_slice,
+        values,
     )
 }
 
 /// MetaImage serialization core. Takes flat `[Z, Y, X]` voxels plus the
 /// (backend-independent) spatial metadata so header emission and byte layout
-/// live in exactly one place. `f32_slice.len()` must equal the voxel count.
-fn write_metaimage_flat(
+/// live in exactly one place. `values.len()` must equal the voxel count.
+fn write_metaimage_flat<T: Sample>(
     path: &Path,
     shape: [usize; 3],
     spacing: &Spacing<3>,
     origin: &Point<3>,
     direction: &Direction<3>,
-    f32_slice: &[f32],
+    values: &[T],
 ) -> Result<()> {
     // shape is [nz, ny, nx] in RITK convention.
     // MetaImage DimSize is written in [nx, ny, nz] file-axis order.
@@ -73,10 +90,10 @@ fn write_metaimage_flat(
         .checked_mul(ny)
         .and_then(|plane| plane.checked_mul(nz))
         .ok_or_else(|| anyhow!("MetaImage shape [{nz}, {ny}, {nx}] voxel count overflows usize"))?;
-    if f32_slice.len() != voxel_count {
+    if values.len() != voxel_count {
         return Err(anyhow!(
             "MetaImage payload has {} voxels but shape [{nz}, {ny}, {nx}] requires {voxel_count}",
-            f32_slice.len()
+            values.len()
         ));
     }
 
@@ -125,24 +142,14 @@ fn write_metaimage_flat(
     )?;
     // DimSize is in MetaImage [X, Y, Z] order.
     writeln!(writer, "DimSize = {} {} {}", nx, ny, nz)?;
-    writeln!(writer, "ElementType = MET_FLOAT")?;
+    writeln!(writer, "ElementType = {}", element_type_name(T::TYPE))?;
     // LOCAL signals that binary data follows immediately.
     writeln!(writer, "ElementDataFile = LOCAL")?;
 
-    // Binary payload — little-endian f32, written in a single bulk call.
-    // On little-endian targets the f32 slice reinterprets to bytes with no copy
-    // (BinaryDataByteOrderMSB = False); a per-element `write_all` loop is ~10×
-    // slower from the per-call overhead across millions of voxels.
-    #[cfg(target_endian = "little")]
-    writer.write_all(bytemuck::cast_slice(f32_slice))?;
-    #[cfg(target_endian = "big")]
-    {
-        let mut bytes = Vec::with_capacity(f32_slice.len() * 4);
-        for &v in f32_slice {
-            bytes.extend_from_slice(&v.to_le_bytes());
-        }
-        writer.write_all(&bytes)?;
-    }
+    // Binary payload: `T` samples little-endian (`BinaryDataByteOrderMSB = False`),
+    // encoded in bounded blocks so no second copy of the volume is held.
+    write_samples(values, ByteOrder::LittleEndian, &mut writer)
+        .context("Failed to write MetaImage payload")?;
 
     writer
         .flush()
@@ -171,10 +178,18 @@ impl<B: ComputeBackend> MetaImageWriter<B> {
 impl<B> MetaImageWriter<B>
 where
     B: ComputeBackend + Default,
-    B::DeviceBuffer<f32>: CpuAddressableStorage<f32>,
 {
-    /// Write `image` to the MetaImage file at `path`.
-    pub fn write<P: AsRef<Path>>(&self, path: P, image: &Image<f32, B, 3>) -> Result<()> {
+    /// Write `image` to the MetaImage file at `path`, storing its samples as `T`.
+    ///
+    /// # Errors
+    ///
+    /// See [`write_metaimage`].
+    pub fn write<T, P>(&self, path: P, image: &Image<T, B, 3>) -> Result<()>
+    where
+        T: Sample,
+        B::DeviceBuffer<T>: CpuAddressableStorage<T>,
+        P: AsRef<Path>,
+    {
         write_metaimage(path, image, &self.backend)
     }
 }

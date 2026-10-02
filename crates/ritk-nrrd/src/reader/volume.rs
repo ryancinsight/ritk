@@ -1,23 +1,29 @@
-use anyhow::{anyhow, Context, Result};
+use anyhow::{anyhow, bail, Context, Result};
 use coeus_core::ComputeBackend;
-use ritk_codecs::{parse_f64_vec, parse_usize_vec, ByteOrder};
+use consus_core::ByteOrder;
+use flate2::bufread::MultiGzDecoder;
+use ritk_codecs::parse_header_values;
+use ritk_codecs::sample::{
+    count_payload_bytes, validate_remaining_payload, Conversion, Sample, SampleBuffer, SampleType,
+};
 use ritk_image::Image;
 use ritk_spatial::{Direction, Point, Spacing};
-use std::io::{BufReader, Read};
+use std::io::{BufRead, BufReader, Read, Seek, SeekFrom};
 use std::path::Path;
 
 use super::decode::{
-    decode_element_bytes, element_type_spec, parse_nrrd_point, parse_nrrd_point_planar,
-    parse_space_direction_slots, parse_space_directions, parse_space_directions_planar,
+    parse_endian, parse_nrrd_point, parse_nrrd_point_planar, parse_space_direction_slots,
+    parse_space_directions, parse_space_directions_planar,
 };
 use super::header::parse_nrrd_header_map_from_reader;
 use crate::axes::{locate_acquisition_axis, AcquisitionAxis};
 use crate::spatial::{metadata_from_file_space_directions, metadata_from_file_spacings};
+use crate::types::sample_type_from_name;
 
 /// Decode of a NRRD file into one flat `[Z, Y, X]` volume per acquisition,
 /// sharing one spatial grid.
-struct DecodedNrrd {
-    volumes: Vec<Vec<f32>>,
+struct DecodedNrrd<T> {
+    volumes: Vec<Vec<T>>,
     dims: [usize; 3],
     origin: Point<3>,
     spacing: Spacing<3>,
@@ -27,13 +33,13 @@ struct DecodedNrrd {
     coordinate_map: ritk_spatial::CoordinateMap,
 }
 
-impl DecodedNrrd {
+impl<T> DecodedNrrd<T> {
     /// Take the sole volume, rejecting a series.
     ///
     /// The single-volume reader carries a `[nz, ny, nx]` contract, so a series
     /// has no correct representation through it; returning volume 0 would
     /// discard the rest of the acquisition while reporting success.
-    fn into_single_volume(mut self) -> Result<DecodedNrrd> {
+    fn into_single_volume(mut self) -> Result<Self> {
         if self.volumes.len() != 1 {
             return Err(anyhow!(
                 "NRRD file declares {} volumes along its acquisition axis; this reader \
@@ -48,7 +54,7 @@ impl DecodedNrrd {
     }
 }
 
-/// Read a NRRD (Nearly Raw Raster Data) file into a 3-D `Image`.
+/// Read a NRRD (Nearly Raw Raster Data) file into a 3-D `Image` of `T`.
 ///
 /// # Axis convention
 /// NRRD files produced by ITK-compatible tools store voxels in `[X, Y, Z]`
@@ -68,20 +74,45 @@ impl DecodedNrrd {
 /// an error with an actionable message.
 ///
 /// # Supported types
-/// `float`, `double`, `short`, `unsigned short`, `int`, `unsigned int`,
-/// `uchar` / `unsigned char`, `char` / `signed char`.
-/// All are converted to `f32` in the tensor.
+/// Every numeric type of the NRRD specification, under each of its names:
+/// `signed char`, `unsigned char`, `short`, `unsigned short`, `int`,
+/// `unsigned int`, `long long int`, `unsigned long long int`, `float`, and
+/// `double`. The samples decode in the stored type, then convert to `T` under
+/// `conversion`: [`Exact`](ritk_codecs::sample::Exact) accepts the stored type
+/// or a type it widens to and refuses anything else, and
+/// [`Cast`](ritk_codecs::sample::Cast) converts with a warning. `block` is not
+/// a numeric type and is rejected.
+///
+/// # Byte order
+/// The `endian` field is `big` or `little`. It is required when the sample
+/// type is wider than one byte, because the payload is raw or gzip-compressed
+/// binary whose order the file must state; the specification (section 5,
+/// field `endian`) requires it exactly then, and Teem `formatNRRD.c` refuses
+/// such a file with "require endian info". An absent field is accepted for a
+/// one-byte type, which has no byte order. Any other value is an error.
 ///
 /// # Inline vs. detached data
 /// * Inline: no `data file` field (or `data file: INTERNAL`) — binary data
 ///   follows the blank header-terminator line in the same file.
 /// * Detached: `data file: <filename>` — binary data is in a separate file
 ///   resolved relative to the NRRD header file's directory.
-pub fn read_nrrd<B: ComputeBackend, P: AsRef<Path>>(
-    path: P,
-    backend: &B,
-) -> Result<Image<f32, B, 3>> {
-    let decoded = decode_nrrd(path)?.into_single_volume()?;
+///
+/// # Errors
+///
+/// Returns an error when the file cannot be opened or read, the header is
+/// invalid, the `type`, `endian`, or `encoding` value is unsupported, the
+/// `endian` field is absent for a sample type wider than one byte, a detached
+/// `data file` cannot be opened, the payload is shorter than the header
+/// declares, the file declares more than one acquisition volume, or
+/// `conversion` refuses the stored type.
+pub fn read_nrrd<T, C, B, P>(path: P, backend: &B, conversion: C) -> Result<Image<T, B, 3>>
+where
+    T: Sample,
+    C: Conversion,
+    B: ComputeBackend,
+    P: AsRef<Path>,
+{
+    let decoded = decode_nrrd(path, conversion)?.into_single_volume()?;
     let DecodedNrrd {
         dims,
         origin,
@@ -104,7 +135,7 @@ pub fn read_nrrd<B: ComputeBackend, P: AsRef<Path>>(
     .with_coordinate_map(coordinate_map)
 }
 
-/// Read a NRRD acquisition series as one image per volume.
+/// Read a NRRD acquisition series as one image of `T` per volume.
 ///
 /// # Acquisition axis
 ///
@@ -120,15 +151,29 @@ pub fn read_nrrd<B: ComputeBackend, P: AsRef<Path>>(
 /// ordinary volume; [`read_nrrd`] does not accept the converse, rejecting a
 /// series rather than returning its first volume.
 ///
+/// The stored samples convert to `T` under `conversion`, as in [`read_nrrd`].
+///
 /// # Errors
 ///
-/// Returns an error when the header is invalid, when the acquisition axis is
-/// absent or in an unsupported position on a 4-D file, or when the payload does
-/// not match the declared sizes.
-pub fn read_nrrd_series<B: ComputeBackend, P: AsRef<Path>>(
+/// Returns an error when the file cannot be opened or read, when the header is
+/// invalid, when the `type`, `endian`, or `encoding` value is unsupported, when
+/// the acquisition axis is absent or in an unsupported position on a 4-D file,
+/// when the `endian` field is absent for a sample type wider than one byte,
+/// when a detached `data file` cannot be opened, when the payload is shorter
+/// than the declared sizes require, when a gzip checksum is invalid, when a
+/// gzip stream expands beyond the declared sizes, or when `conversion` refuses
+/// the stored type. Raw bytes beyond the declared sizes are not read.
+pub fn read_nrrd_series<T, C, B, P>(
     path: P,
     backend: &B,
-) -> Result<Vec<Image<f32, B, 3>>> {
+    conversion: C,
+) -> Result<Vec<Image<T, B, 3>>>
+where
+    T: Sample,
+    C: Conversion,
+    B: ComputeBackend,
+    P: AsRef<Path>,
+{
     let DecodedNrrd {
         volumes,
         dims,
@@ -136,7 +181,7 @@ pub fn read_nrrd_series<B: ComputeBackend, P: AsRef<Path>>(
         spacing,
         direction,
         coordinate_map,
-    } = decode_nrrd(path)?;
+    } = decode_nrrd(path, conversion)?;
 
     volumes
         .into_iter()
@@ -147,7 +192,10 @@ pub fn read_nrrd_series<B: ComputeBackend, P: AsRef<Path>>(
         .collect()
 }
 
-fn decode_nrrd<P: AsRef<Path>>(path: P) -> Result<DecodedNrrd> {
+fn decode_nrrd<T: Sample, C: Conversion, P: AsRef<Path>>(
+    path: P,
+    conversion: C,
+) -> Result<DecodedNrrd<T>> {
     let path = path.as_ref();
 
     let file =
@@ -194,7 +242,7 @@ fn decode_nrrd<P: AsRef<Path>>(path: P) -> Result<DecodedNrrd> {
     let sizes_str = headers
         .get("sizes")
         .ok_or_else(|| anyhow!("Missing 'sizes' in NRRD header"))?;
-    let sizes = parse_usize_vec(sizes_str, "sizes", dimension)?;
+    let sizes = parse_header_values::<usize>(sizes_str, "sizes", dimension)?;
 
     let (volumes, spatial_sizes): (usize, &[usize]) = match acquisition {
         AcquisitionAxis::Absent => (1, &sizes[..]),
@@ -227,15 +275,9 @@ fn decode_nrrd<P: AsRef<Path>>(path: P) -> Result<DecodedNrrd> {
             return Err(anyhow!(
                 "Unsupported NRRD encoding '{}'. Supported: 'raw', 'gzip'.",
                 other
-            ))
+            ));
         }
     };
-
-    let endian_str = headers
-        .get("endian")
-        .map(String::as_str)
-        .unwrap_or("little");
-    let byte_order = ByteOrder::from_nrrd(endian_str);
 
     let spatial = if let Some(sd_str) = headers.get("space directions") {
         let dirs = if dimension == 2 {
@@ -245,7 +287,7 @@ fn decode_nrrd<P: AsRef<Path>>(path: P) -> Result<DecodedNrrd> {
         };
         metadata_from_file_space_directions(dirs)?
     } else if let Some(sp_str) = headers.get("spacings") {
-        let sp = parse_f64_vec(sp_str, "spacings", dimension)?;
+        let sp = parse_header_values::<f64>(sp_str, "spacings", dimension)?;
         let sp: Vec<f64> = match acquisition {
             AcquisitionAxis::Absent => sp,
             AcquisitionAxis::Fastest => sp[1..].to_vec(),
@@ -274,60 +316,45 @@ fn decode_nrrd<P: AsRef<Path>>(path: P) -> Result<DecodedNrrd> {
     let total_voxels = voxels_per_volume
         .checked_mul(volumes)
         .ok_or_else(|| anyhow!("NRRD series element count overflows usize"))?;
-    let (element_size, _, _) = element_type_spec(&element_type)?;
+    let sample_type = sample_type_from_name(&element_type)?;
+    let element_size = sample_type.byte_width();
+    let byte_order = match headers.get("endian") {
+        Some(value) => parse_endian(value)?,
+        None if element_size == 1 => ByteOrder::LittleEndian,
+        None => bail!(
+            "NRRD type '{element_type}' is {element_size} bytes wide, so the 'endian' field is required to read its '{encoding}' payload"
+        ),
+    };
     let expected_payload_bytes = total_voxels.checked_mul(element_size).ok_or_else(|| {
         anyhow!("NRRD byte count overflows usize: {total_voxels} voxels x {element_size} bytes")
     })?;
-    let data_file_field = headers.get("data file").cloned();
 
-    let payload: Vec<u8> = match &data_file_field {
-        None => {
-            let mut bytes = Vec::new();
-            reader
-                .read_to_end(&mut bytes)
-                .context("Failed to read inline NRRD binary data")?;
-            bytes
-        }
-        Some(df) if df.to_uppercase() == "INTERNAL" => {
-            let mut bytes = Vec::new();
-            reader
-                .read_to_end(&mut bytes)
-                .context("Failed to read inline NRRD binary data (INTERNAL)")?;
-            bytes
-        }
-        Some(df) => {
-            let raw_path = path.parent().unwrap_or_else(|| Path::new(".")).join(df);
-            std::fs::read(&raw_path)
-                .with_context(|| format!("Cannot read NRRD data file {:?}", raw_path))?
-        }
+    let payload = Payload {
+        sample_type,
+        byte_order,
+        count: total_voxels,
+        expected_bytes: expected_payload_bytes,
+        gzipped,
     };
-
-    let raw_bytes: Vec<u8> = if gzipped {
-        let output_limit = u64::try_from(expected_payload_bytes)
-            .context("NRRD payload length exceeds u64")?
-            .checked_add(1)
-            .ok_or_else(|| anyhow!("NRRD payload read limit overflows u64"))?;
-        let mut out = Vec::new();
-        flate2::read::GzDecoder::new(&payload[..])
-            .take(output_limit)
-            .read_to_end(&mut out)
-            .context("Failed to inflate gzip-encoded NRRD payload")?;
-        out
-    } else {
-        payload
-    };
-
-    let f32_data: Vec<f32> =
-        decode_element_bytes(&raw_bytes, &element_type, total_voxels, byte_order)?;
-    drop(raw_bytes);
-
-    if f32_data.len() != total_voxels {
-        return Err(anyhow!(
-            "NRRD voxel count mismatch: sizes implies {} voxels but {} were decoded",
-            total_voxels,
-            f32_data.len()
-        ));
+    let buffer = match headers.get("data file") {
+        Some(data_file) if !data_file.eq_ignore_ascii_case("INTERNAL") => {
+            let raw_path = path
+                .parent()
+                .unwrap_or_else(|| Path::new("."))
+                .join(data_file);
+            let file = std::fs::File::open(&raw_path)
+                .with_context(|| format!("Cannot read NRRD data file {:?}", raw_path))?;
+            payload.read(BufReader::new(file))
+        }
+        _ => payload.read(reader),
     }
+    .with_context(|| {
+        format!(
+            "Cannot read {encoding}-encoded NRRD payload: {total_voxels} {sample_type} \
+             samples need {expected_payload_bytes} bytes"
+        )
+    })?;
+    let samples: Vec<T> = conversion.convert(buffer)?;
 
     let mut volume_data = Vec::new();
     volume_data
@@ -340,7 +367,7 @@ fn decode_nrrd<P: AsRef<Path>>(path: P) -> Result<DecodedNrrd> {
             .context("cannot allocate decoded NRRD volume")?;
         volume_data.push(volume);
     }
-    for (flat_index, value) in f32_data.into_iter().enumerate() {
+    for (flat_index, value) in samples.into_iter().enumerate() {
         let volume = match acquisition {
             AcquisitionAxis::Fastest => flat_index % volumes,
             AcquisitionAxis::Absent | AcquisitionAxis::Slowest => flat_index / voxels_per_volume,
@@ -358,6 +385,63 @@ fn decode_nrrd<P: AsRef<Path>>(path: P) -> Result<DecodedNrrd> {
     })
 }
 
+/// How a NRRD payload is laid out in its stream.
+struct Payload {
+    sample_type: SampleType,
+    byte_order: ByteOrder,
+    /// Samples across every volume.
+    count: usize,
+    /// Exact number of bytes the header's count and stored type require.
+    expected_bytes: usize,
+    gzipped: bool,
+}
+
+impl Payload {
+    /// Decode `count` samples from `stream`, inflating it first when gzipped.
+    ///
+    /// Validate the payload length before allocating or decoding typed samples.
+    ///
+    /// Compressed input is inflated into a bounded sink on the first pass; the
+    /// second pass decodes into the typed buffer and verifies the gzip trailer.
+    fn read<R: BufRead + Seek>(&self, mut stream: R) -> Result<SampleBuffer> {
+        let start = stream.stream_position()?;
+        if self.gzipped {
+            let actual = {
+                let mut decoder = MultiGzDecoder::new(&mut stream);
+                count_payload_bytes(&mut decoder, self.expected_bytes)?
+            };
+            match actual {
+                None => bail!("gzip NRRD payload expands beyond the declared sample count"),
+                Some(actual) if actual != self.expected_bytes => {
+                    bail!(
+                        "gzip NRRD payload expands to {actual} bytes; the declared sample count needs {} bytes",
+                        self.expected_bytes
+                    );
+                }
+                Some(_) => {}
+            }
+            stream.seek(SeekFrom::Start(start))?;
+            let mut decoder = MultiGzDecoder::new(stream);
+            let samples = SampleBuffer::read_from(
+                &mut decoder,
+                self.sample_type,
+                self.byte_order,
+                self.count,
+            )?;
+            let mut excess = [0_u8; 1];
+            if decoder.read(&mut excess)? != 0 {
+                bail!("gzip NRRD payload expands beyond the declared sample count");
+            }
+            Ok(samples)
+        } else {
+            validate_remaining_payload(&mut stream, self.expected_bytes)?;
+            stream.seek(SeekFrom::Start(start))?;
+            SampleBuffer::read_from(&mut stream, self.sample_type, self.byte_order, self.count)
+                .map_err(Into::into)
+        }
+    }
+}
+
 /// Thin reader struct for NRRD files.
 ///
 /// The backend `B` and device are supplied per-call so a single `NrrdReader`
@@ -365,12 +449,23 @@ fn decode_nrrd<P: AsRef<Path>>(path: P) -> Result<DecodedNrrd> {
 pub struct NrrdReader;
 
 impl NrrdReader {
-    /// Read a NRRD file at `path` into an [`Image`] on `device`.
-    pub fn read<B: ComputeBackend, P: AsRef<Path>>(
-        &self,
-        path: P,
-        backend: &B,
-    ) -> Result<Image<f32, B, 3>> {
-        read_nrrd(path, backend)
+    /// Read a NRRD file at `path` into an [`Image`] of `T` on `backend`,
+    /// converting the stored samples under `conversion` (see [`read_nrrd`]).
+    ///
+    /// # Errors
+    ///
+    /// Returns the errors of [`read_nrrd`]: a header or detached data file that
+    /// cannot be opened or read, an invalid header, an unsupported
+    /// `type`, `encoding`, or `endian`, a missing `endian` on a type wider than
+    /// one byte, a payload shorter than the header declares, a file with more
+    /// than one volume, or a stored type `conversion` refuses.
+    pub fn read<T, C, B, P>(&self, path: P, backend: &B, conversion: C) -> Result<Image<T, B, 3>>
+    where
+        T: Sample,
+        C: Conversion,
+        B: ComputeBackend,
+        P: AsRef<Path>,
+    {
+        read_nrrd(path, backend, conversion)
     }
 }

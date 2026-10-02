@@ -2,7 +2,9 @@
 
 use crate::reader::read_nifti;
 use crate::writer::write_nifti;
-use coeus_core::{ComputeBackend, CpuAddressableStorage};
+use coeus_core::ComputeBackend;
+use ritk_codecs::into_io_error;
+use ritk_codecs::sample::{Conversion, Sample};
 use ritk_image::Image;
 use std::path::Path;
 
@@ -17,9 +19,20 @@ impl<B: ComputeBackend> NiftiReader<B> {
         Self { backend }
     }
 
-    /// Read `path` as a 3-D `f32` image.
-    pub fn read<P: AsRef<Path>>(&self, path: P) -> std::io::Result<Image<f32, B, 3>> {
-        read_nifti(path, &self.backend).map_err(|e| std::io::Error::other(e.to_string()))
+    /// Read `path` as a 3-D image of physical values in `T`, converting the
+    /// stored samples under `conversion`.
+    ///
+    /// # Errors
+    ///
+    /// Returns the error of [`read_nifti`] as an I/O error whose source chain
+    /// carries every cause and whose kind is the root I/O failure's, or
+    /// [`std::io::ErrorKind::Other`] when no I/O call failed.
+    pub fn read<T: Sample, C: Conversion, P: AsRef<Path>>(
+        &self,
+        path: P,
+        conversion: C,
+    ) -> std::io::Result<Image<T, B, 3>> {
+        read_nifti(path, &self.backend, conversion).map_err(into_io_error)
     }
 }
 
@@ -34,12 +47,18 @@ impl<B: ComputeBackend> NiftiWriter<B> {
         Self { backend }
     }
 
-    /// Write `image` to `path` as NIfTI-1.
-    pub fn write<P: AsRef<Path>>(&self, path: P, image: &Image<f32, B, 3>) -> std::io::Result<()>
-    where
-        B: Default,
-        B::DeviceBuffer<f32>: CpuAddressableStorage<f32>,
-    {
-        write_nifti(path, image, &self.backend).map_err(|e| std::io::Error::other(e.to_string()))
+    /// Write `image` to `path` as NIfTI-1 samples of `T`.
+    ///
+    /// # Errors
+    ///
+    /// Returns the error of [`write_nifti`] as an I/O error whose source
+    /// chain carries every cause and whose kind is the root I/O failure's, or
+    /// [`std::io::ErrorKind::Other`] when no I/O call failed.
+    pub fn write<T: Sample, P: AsRef<Path>>(
+        &self,
+        path: P,
+        image: &Image<T, B, 3>,
+    ) -> std::io::Result<()> {
+        write_nifti(path, image, &self.backend).map_err(into_io_error)
     }
 }

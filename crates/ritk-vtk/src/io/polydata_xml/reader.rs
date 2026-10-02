@@ -2,8 +2,7 @@
 
 use crate::domain::vtk_data_object::VtkPolyData;
 use crate::io::xml_helpers::{
-    attr_usize, extract_da_content, find_section, find_tag, named_da, parse_attrs, parse_floats,
-    parse_ints,
+    attr_usize, find_section, find_tag, first_array_values, index_values, named_da, parse_attrs,
 };
 use anyhow::{bail, Context, Result};
 use std::path::Path;
@@ -20,7 +19,7 @@ pub(crate) fn parse_vtp(input: &str) -> Result<VtkPolyData> {
 
     let points_sec =
         find_section(input, "Points").ok_or_else(|| anyhow::anyhow!("missing <Points>"))?;
-    let coords: Vec<f32> = parse_floats(&extract_da_content(&points_sec));
+    let coords = first_array_values(&points_sec).context("<Points> coordinates")?;
     if coords.len() != n_points * 3 {
         bail!(
             "expected {} coord values, got {}",
@@ -32,43 +31,35 @@ pub(crate) fn parse_vtp(input: &str) -> Result<VtkPolyData> {
 
     let poly = VtkPolyData {
         points,
-        vertices: parse_cells(input, "Verts"),
-        lines: parse_cells(input, "Lines"),
-        polygons: parse_cells(input, "Polys"),
-        triangle_strips: parse_cells(input, "Strips"),
+        vertices: parse_cells(input, "Verts")?,
+        lines: parse_cells(input, "Lines")?,
+        polygons: parse_cells(input, "Polys")?,
+        triangle_strips: parse_cells(input, "Strips")?,
         point_data: find_section(input, "PointData")
             .map(|sec| parse_attrs(&sec))
+            .transpose()?
             .unwrap_or_default(),
         cell_data: find_section(input, "CellData")
             .map(|sec| parse_attrs(&sec))
+            .transpose()?
             .unwrap_or_default(),
     };
     Ok(poly)
 }
 
-fn parse_cells(input: &str, sname: &str) -> Vec<Vec<u32>> {
-    let sec = match find_section(input, sname) {
-        Some(s) => s,
-        None => return vec![],
+fn parse_cells(input: &str, sname: &str) -> Result<Vec<Vec<u32>>> {
+    let Some(sec) = find_section(input, sname) else {
+        return Ok(vec![]);
     };
-    let conn_da = match named_da(&sec, "connectivity") {
-        Some(s) => s,
-        None => return vec![],
+    let (Some(conn_da), Some(offs_da)) =
+        (named_da(&sec, "connectivity"), named_da(&sec, "offsets"))
+    else {
+        return Ok(vec![]);
     };
-    let offs_da = match named_da(&sec, "offsets") {
-        Some(s) => s,
-        None => return vec![],
-    };
-    let conn: Vec<u32> = parse_ints(&extract_da_content(&conn_da))
-        .into_iter()
-        .map(|v| v as u32)
-        .collect();
-    let offs: Vec<u32> = parse_ints(&extract_da_content(&offs_da))
-        .into_iter()
-        .map(|v| v as u32)
-        .collect();
+    let conn = index_values(&conn_da, "connectivity")?;
+    let offs = index_values(&offs_da, "offsets")?;
     if offs.is_empty() {
-        return vec![];
+        return Ok(vec![]);
     }
     let mut cells = Vec::new();
     let mut prev = 0usize;
@@ -79,7 +70,7 @@ fn parse_cells(input: &str, sname: &str) -> Vec<Vec<u32>> {
         }
         prev = off;
     }
-    cells
+    Ok(cells)
 }
 
 // ── Tests ─────────────────────────────────────────────────────────────────────

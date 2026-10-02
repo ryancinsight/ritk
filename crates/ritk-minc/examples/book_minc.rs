@@ -3,7 +3,9 @@
 use anyhow::{bail, Context, Result};
 use base64::{engine::general_purpose::STANDARD, Engine as _};
 use coeus_core::SequentialBackend;
+use consus_core::ByteOrder;
 use image::{codecs::png::PngEncoder, ColorType, ImageEncoder};
+use ritk_codecs::sample::Exact;
 use ritk_image::Image;
 use ritk_minc::{read_minc, write_minc};
 use ritk_spatial::{Direction, Point, Spacing};
@@ -435,25 +437,27 @@ fn main() -> Result<()> {
     let path = directory.path().join("phantom.mnc");
     let source = make_volume(phantom_values()?)?;
     write_minc(&source, &path, &SequentialBackend).context("write MINC2 phantom")?;
-    let decoded = read_minc(&path, &SequentialBackend).context("read MINC2 phantom")?;
+    let decoded = read_minc::<f32, _, _, _>(&path, &SequentialBackend, Exact)
+        .context("read MINC2 phantom")?;
     verify_round_trip(&source, &decoded)?;
     let file_bytes = std::fs::metadata(&path)
         .context("inspect MINC2 file size")?
         .len();
     let scaled_path = directory.path().join("scaled-int16.mnc");
     let stored = [0_i16, 25, 50, 100, 0, 25, 50, 100];
-    scaled_fixture::write_scaled_integer_fixture(
+    scaled_fixture::write_fixture(
         &scaled_path,
         &stored,
         [2, 2, 2],
         [0, 100],
+        ByteOrder::LittleEndian,
         scaled_fixture::ImageRangeFixture::Complete {
             minima: &[-1_000.0, 0.0],
             maxima: &[1_000.0, 200.0],
         },
     )
     .context("write deterministic scaled-integer MINC2 fixture")?;
-    let scaled = read_minc(&scaled_path, &SequentialBackend)
+    let scaled = read_minc::<f32, _, _, _>(&scaled_path, &SequentialBackend, Exact)
         .context("read deterministic scaled-integer MINC2 fixture")?;
     write_figure(
         &output_path(),

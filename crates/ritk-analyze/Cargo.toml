@@ -18,6 +18,7 @@ ritk-spatial = { path = "../ritk-spatial", version = "0.2.0" }
 coeus-core = { workspace = true }
 anyhow = { workspace = true }
 consus-core = { workspace = true }
+ritk-codecs = { workspace = true }
 tracing = { workspace = true }
 
 [dev-dependencies]

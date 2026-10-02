@@ -1,9 +1,8 @@
 //! Value-semantic coverage for the native NIfTI reader path.
 
-use crate::header::{
-    write_single_file_bytes, HeaderDims, HeaderSpatial, NiftiDatatype, NiftiHeader,
-};
+use crate::header::{write_single_file_bytes, HeaderDims, HeaderSpatial, NiftiHeader};
 use coeus_core::SequentialBackend;
+use ritk_codecs::sample::{Exact, SampleType};
 
 #[test]
 fn read_nifti_native_preserves_shape_and_voxels() {
@@ -15,7 +14,7 @@ fn read_nifti_native_preserves_shape_and_voxels() {
             ny: 2,
             nz: 2,
         },
-        NiftiDatatype::Float32,
+        SampleType::F32,
         HeaderSpatial {
             pixdim: [1.0, 0.75, 1.5, 2.0, 1.0, 1.0, 1.0, 1.0],
             srow_x: [-0.75, 0.0, 0.0, -11.0],
@@ -29,7 +28,8 @@ fn read_nifti_native_preserves_shape_and_voxels() {
     let bytes = write_single_file_bytes(&header, &data);
 
     let backend = SequentialBackend;
-    let image = crate::read_nifti_from_bytes(&bytes, &backend).expect("native NIfTI read");
+    let image = crate::read_nifti_from_bytes::<f32, _, _>(&bytes, &backend, Exact)
+        .expect("native NIfTI read");
 
     assert_eq!(
         image.shape(),
@@ -69,7 +69,8 @@ fn native_writer_round_trips_through_native_reader() {
     let path = dir.path().join("coeus_roundtrip.nii");
     crate::write_nifti(&path, &image, &backend).expect("native NIfTI write");
 
-    let loaded = crate::read_nifti(&path, &backend).expect("native NIfTI read");
+    let loaded =
+        crate::read_nifti::<f32, _, _, _>(&path, &backend, Exact).expect("native NIfTI read");
     assert_eq!(loaded.shape(), dims);
     assert_eq!(
         loaded.data_slice().expect("contiguous"),

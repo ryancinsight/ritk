@@ -46,6 +46,7 @@ mnemosyne = { workspace = true }
 [dev-dependencies]
 tempfile = { workspace = true }
 ritk-nifti = { path = "../ritk-nifti", version = "0.2.0" }
+ritk-codecs = { workspace = true }
 
 [lints]
 workspace = true

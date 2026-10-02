@@ -6,11 +6,23 @@
 //! byte-level logic from the polymorphic I/O dispatch layer in `ritk-io` and
 //! does not depend on `nifti-rs` or ndarray conversion surfaces.
 //!
-//! The current codec supports uncompressed `.nii` and gzip-wrapped `.nii.gz`
-//! streams for the RITK image contracts used in this workspace: 3-D Float32
-//! images, 4-D Float32 acquisition series, UInt32 label maps, sform/qform
-//! spatial metadata, checked shape products, and bounded payload reads before
+//! The codec supports uncompressed `.nii` and gzip-wrapped `.nii.gz` streams:
+//! 3-D images and 4-D acquisition series in any of the ten fixed-width sample
+//! types (signed and unsigned 8- to 64-bit integers, `float32`, `float64`), the
+//! `scl_slope`/`scl_inter` rescale, UInt32 label maps, sform/qform spatial
+//! metadata, checked shape products, and bounded payload reads before
 //! allocation.
+//!
+//! # Sample types
+//!
+//! Readers are generic over the requested sample type `T` (ADR 0053) and take
+//! the caller's conversion policy as a zero-sized value: under
+//! `ritk_codecs::sample::Exact` the stored samples reach `T` only as the stored
+//! type or a type it widens to, so no value changes; `Cast` casts instead. The
+//! header's rescale then applies in `T`'s arithmetic. A rescale into an
+//! integer `T` is an error; [`read_nifti_stored`] and
+//! [`read_nifti_series_stored`] return the stored samples with the rescale
+//! unapplied. Writers emit the `datatype` code of `T` and no rescale.
 //!
 //! Analyze 7.5 `.hdr`/`.img` pairs are owned by `ritk-analyze`. Paired NIfTI
 //! headers (`ni1`/`ni2`) are a distinct NIfTI extension point and are not mixed
@@ -19,9 +31,11 @@
 //! # Key APIs
 //!
 //! - [`read_nifti`]: Read a NIfTI file as a native image with spatial metadata
+//! - [`read_nifti_stored`]: Read the stored samples and the declared rescale
 //! - [`write_nifti`]: Write an Image to a NIfTI file with full sform affine encoding
 //! - [`write_nifti2`]: Write an Image to a NIfTI-2 file with full sform affine encoding
 //! - [`read_nifti_series`]: Read an acquisition series as one image per volume
+//! - [`read_nifti_series_stored`]: Read the stored samples of a series and its rescale
 //! - [`write_nifti_series`]: Write an acquisition series to a NIfTI-1 file
 //! - [`write_nifti2_series`]: Write an acquisition series to a NIfTI-2 file
 //! - [`read_nifti_labels`]: Read label maps (segmentations) as ZYX-ordered u32 vectors
@@ -68,7 +82,7 @@ mod writer;
 
 pub use reader::{
     read_nifti, read_nifti_from_bytes, read_nifti_labels, read_nifti_series,
-    read_nifti_series_from_bytes,
+    read_nifti_series_from_bytes, read_nifti_series_stored, read_nifti_stored,
 };
 pub use typed::{NiftiReader, NiftiWriter};
 pub use writer::{

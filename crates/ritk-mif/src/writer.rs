@@ -4,14 +4,25 @@
 //! terminated by `END`, followed by raw binary voxel data in the declared
 //! datatype and layout.
 
+use crate::header::datatype_name;
 use anyhow::{anyhow, Context, Result};
 use coeus_core::{ComputeBackend, CpuAddressableStorage};
+use consus_core::ByteOrder;
+use ritk_codecs::sample::{write_samples, Sample};
 use ritk_image::Image;
 use ritk_spatial::{Direction, Point, Spacing};
+use std::fmt::Write as _;
 use std::io::{BufWriter, Write};
 use std::path::Path;
 
-/// Write a 3‑D [`Image`] to a `.mif` file.
+/// The byte order the writer stores multi-byte samples in.
+const STORED_BYTE_ORDER: ByteOrder = ByteOrder::LittleEndian;
+
+/// Write a 3‑D [`Image`] of `T` to a `.mif` file storing `T`'s samples.
+///
+/// MRtrix stores every sample type RITK has, so the writer never converts: the
+/// `datatype` key names the type of `T` and the voxels are written as `T`,
+/// little-endian.
 ///
 /// # Format
 ///
@@ -19,19 +30,26 @@ use std::path::Path;
 /// - `dim: nx ny nz` (X, Y, Z order — MRtrix convention)
 /// - `vox: sx sy sz` (voxel sizes in mm)
 /// - `layout: +0,+1,+2` (contiguous)
-/// - `datatype: Float32LE`
+/// - `datatype:` the type of `T` (`Int8`, `UInt8`, `Int16LE`, …, `Float64LE`)
 /// - `transform:` followed by 4 matrix rows
-/// - `END\n` then raw binary
+/// - `file: . N` where `N` is the byte offset of the first voxel from the start
+///   of the file, a multiple of 4 (MRtrix aligns inline data to 4 bytes)
+/// - `END\n`, zero padding up to offset `N`, then raw binary
 ///
 /// # Spatial metadata
 ///
 /// The `.mif` `transform` is assembled from RITK `origin` + `spacing` +
 /// `direction` as the voxel→scanner affine.  Columns are reordered from
 /// internal ZYX to file XYZ order.
-pub fn write_mif<B, P>(path: P, image: &Image<f32, B, 3>, backend: &B) -> Result<()>
+///
+/// # Errors
+///
+/// Returns an error when creating or writing the file fails.
+pub fn write_mif<T, B, P>(path: P, image: &Image<T, B, 3>, backend: &B) -> Result<()>
 where
+    T: Sample,
     B: ComputeBackend + Default,
-    B::DeviceBuffer<f32>: CpuAddressableStorage<f32>,
+    B::DeviceBuffer<T>: CpuAddressableStorage<T>,
     P: AsRef<Path>,
 {
     let voxels = image.data_cow_on(backend);
@@ -58,10 +76,11 @@ where
 ///
 /// Returns an error when `volumes` is empty, when any volume's grid differs
 /// from the first, or when writing fails.
-pub fn write_mif_series<B, P>(path: P, volumes: &[Image<f32, B, 3>], backend: &B) -> Result<()>
+pub fn write_mif_series<T, B, P>(path: P, volumes: &[Image<T, B, 3>], backend: &B) -> Result<()>
 where
+    T: Sample,
     B: ComputeBackend + Default,
-    B::DeviceBuffer<f32>: CpuAddressableStorage<f32>,
+    B::DeviceBuffer<T>: CpuAddressableStorage<T>,
     P: AsRef<Path>,
 {
     let Some((first, rest)) = volumes.split_first() else {
@@ -101,13 +120,38 @@ where
 
 // ── Core serialisation ───────────────────────────────────────────────────
 
-fn write_mif_flat(
+/// Length in bytes of `file: . ` and of the `\nEND\n` that closes the header,
+/// the part of the `file` line that does not depend on the offset.
+const FILE_LINE_FRAME_LEN: usize = "file: . ".len() + "\nEND\n".len();
+
+/// The byte offset of the first voxel of an inline `.mif` whose header, up to
+/// but excluding the `file` line, is `preceding_len` bytes long.
+///
+/// MRtrix defines the offset as bytes from the start of the file, rounded up
+/// to a multiple of 4 beyond the `END` line (`core/formats/mrtrix.cpp`,
+/// `MRtrix::create`). The `file` line spells the offset in decimal, so the
+/// line's own length depends on the offset it carries; the smallest digit
+/// count whose aligned offset has that many digits is the fixed point.
+fn inline_data_offset(preceding_len: usize) -> usize {
+    let mut digits = 1;
+    loop {
+        let end = preceding_len + FILE_LINE_FRAME_LEN + digits;
+        let offset = end.next_multiple_of(4);
+        let needed = offset.ilog10() as usize + 1;
+        if needed <= digits {
+            return offset;
+        }
+        digits = needed;
+    }
+}
+
+fn write_mif_flat<T: Sample>(
     path: &Path,
     shape: [usize; 3],
     spacing: &Spacing<3>,
     origin: &Point<3>,
     direction: &Direction<3>,
-    payloads: &[impl std::ops::Deref<Target = [f32]>],
+    payloads: &[impl std::ops::Deref<Target = [T]>],
 ) -> Result<()> {
     let [nz, ny, nx] = shape;
     let nframes = payloads.len();
@@ -127,49 +171,62 @@ fn write_mif_flat(
         }
     }
 
-    let file = std::fs::File::create(path)
-        .with_context(|| format!("Cannot create .mif file {:?}", path))?;
-    let mut writer = BufWriter::new(file);
-
     // ── Header ───────────────────────────────────────────────────────────
 
+    let mut header = String::new();
+
     // Magic.
-    writeln!(writer, "mrtrix image: version 3.0")?;
-    writeln!(writer, "# Written by ritk-mif")?;
+    writeln!(header, "mrtrix image: version 3.0")?;
+    writeln!(header, "# Written by ritk-mif")?;
 
     // Dimensions: X, Y, Z [, frames]
     if nframes > 1 {
-        writeln!(writer, "dim: {nx} {ny} {nz} {nframes}")?;
-        writeln!(writer, "layout: +0,+1,+2,+3")?;
+        writeln!(header, "dim: {nx} {ny} {nz} {nframes}")?;
+        writeln!(header, "layout: +0,+1,+2,+3")?;
     } else {
-        writeln!(writer, "dim: {nx} {ny} {nz}")?;
-        writeln!(writer, "layout: +0,+1,+2")?;
+        writeln!(header, "dim: {nx} {ny} {nz}")?;
+        writeln!(header, "layout: +0,+1,+2")?;
     }
 
     // Voxel sizes: spatial only, in X,Y,Z order.
     let vx = spacing[2];
     let vy = spacing[1];
     let vz = spacing[0];
-    writeln!(writer, "vox: {vx} {vy} {vz}")?;
+    writeln!(header, "vox: {vx} {vy} {vz}")?;
 
-    writeln!(writer, "datatype: Float32LE")?;
+    writeln!(
+        header,
+        "datatype: {}",
+        datatype_name(T::TYPE, STORED_BYTE_ORDER)
+    )?;
 
     // Transform: 4×4 voxel→scanner affine (standard MRtrix multi-line).
     let transform = build_transform(origin, spacing, direction);
-    writeln!(writer, "transform:")?;
+    writeln!(header, "transform:")?;
     for row in &transform {
         writeln!(
-            writer,
+            header,
             "{:.6} {:.6} {:.6} {:.6}",
             row[0], row[1], row[2], row[3]
         )?;
     }
 
-    // Reference to the data file.  Inline: "." with offset 0.
-    writeln!(writer, "file: . 0")?;
+    // Inline data: `file: . N`, N the byte offset from the start of the file.
+    let offset = inline_data_offset(header.len());
+    writeln!(header, "file: . {offset}")?;
+    writeln!(header, "END")?;
 
-    // END marker.
-    writeln!(writer, "END")?;
+    let file = std::fs::File::create(path)
+        .with_context(|| format!("Cannot create .mif file {:?}", path))?;
+    let mut writer = BufWriter::new(file);
+    writer
+        .write_all(header.as_bytes())
+        .context("Failed to write .mif header")?;
+    // Zero padding from the END line to the aligned data offset, as MRtrix writes.
+    let padding = offset - header.len();
+    writer
+        .write_all(&vec![0_u8; padding])
+        .context("Failed to write .mif header padding")?;
 
     // ── Binary data ──────────────────────────────────────────────────────
     // Interleave frames: axis 3 varies fastest (per MRtrix convention).
@@ -181,9 +238,11 @@ fn write_mif_flat(
                 interleaved.push(payload[voxel]);
             }
         }
-        write_le_f32(&mut writer, &interleaved)?;
+        write_samples(&interleaved, STORED_BYTE_ORDER, &mut writer)
+            .context("Failed to write .mif voxel data")?;
     } else {
-        write_le_f32(&mut writer, &payloads[0])?;
+        write_samples(&payloads[0], STORED_BYTE_ORDER, &mut writer)
+            .context("Failed to write .mif voxel data")?;
     }
 
     writer.flush().context("Failed to flush .mif output file")?;
@@ -233,22 +292,6 @@ fn build_transform(
     ]
 }
 
-// ── Byte writing ─────────────────────────────────────────────────────────
-
-fn write_le_f32(writer: &mut impl Write, values: &[f32]) -> Result<()> {
-    #[cfg(target_endian = "little")]
-    writer.write_all(bytemuck::cast_slice(values))?;
-    #[cfg(target_endian = "big")]
-    {
-        let mut bytes = Vec::with_capacity(values.len() * 4);
-        for &v in values {
-            bytes.extend_from_slice(&v.to_le_bytes());
-        }
-        writer.write_all(&bytes)?;
-    }
-    Ok(())
-}
-
 // ── Public writer struct ─────────────────────────────────────────────────────
 
 /// Thin writer struct for `.mif` files.
@@ -257,21 +300,28 @@ pub struct MifWriter<B: ComputeBackend> {
 }
 
 impl<B: ComputeBackend> MifWriter<B> {
+    /// Creates a writer that extracts image storage through `backend`.
     pub fn new(backend: B) -> Self {
         Self { backend }
     }
 }
 
-impl<B> MifWriter<B>
-where
-    B: ComputeBackend + Default,
-    B::DeviceBuffer<f32>: CpuAddressableStorage<f32>,
-{
-    pub fn write<P: AsRef<Path>>(&self, path: P, image: &Image<f32, B, 3>) -> Result<()> {
+impl<B: ComputeBackend + Default> MifWriter<B> {
+    /// Write `image` to the `.mif` file at `path`, storing `T`'s samples.
+    ///
+    /// # Errors
+    ///
+    /// Returns the error of [`write_mif`].
+    pub fn write<T, P>(&self, path: P, image: &Image<T, B, 3>) -> Result<()>
+    where
+        T: Sample,
+        B::DeviceBuffer<T>: CpuAddressableStorage<T>,
+        P: AsRef<Path>,
+    {
         write_mif(path, image, &self.backend)
     }
 }
 
 #[cfg(test)]
-#[path = "writer_tests.rs"]
+#[path = "tests_writer.rs"]
 mod tests;

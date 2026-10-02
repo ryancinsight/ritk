@@ -1,13 +1,12 @@
 //! MINC writer tests migrated to the Atlas-native (Coeus) path — ADR 0002.
 
 use coeus_core::SequentialBackend;
+use consus_core::ByteOrder;
+use ritk_codecs::sample::Exact;
 use ritk_image::Image;
 use ritk_spatial::{Direction, Point, Spacing};
 
 type B = SequentialBackend;
-
-#[path = "scaled_fixture.rs"]
-mod scaled_fixture;
 
 fn make_test_image(
     nz: usize,
@@ -101,7 +100,7 @@ fn write_minc_then_read_minc_round_trips_voxels() {
     let path = dir.path().join("roundtrip.mnc");
     crate::write_minc(&image, &path, &backend).expect("write MINC");
 
-    let read = crate::read_minc(&path, &backend).expect("read MINC");
+    let read = crate::read_minc::<f32, _, _, _>(&path, &backend, Exact).expect("read MINC");
     assert_eq!(read.shape(), [2, 2, 2]);
     let loaded = read.data_slice().expect("contiguous host data");
     let mut got = loaded.to_vec();
@@ -130,7 +129,7 @@ fn read_minc_rejects_shape_exceeding_backed_data() {
     )
     .expect("infallible: validated precondition");
 
-    let error = crate::read_minc(&path, &backend)
+    let error = crate::read_minc::<f32, _, _, _>(&path, &backend, Exact)
         .expect_err("shape exceeding backed data must error, not OOM");
     assert!(
         format!("{error:#}").contains("voxel data"),
@@ -188,7 +187,8 @@ fn write_minc_round_trips_across_stream_chunks() {
     let path = directory.path().join("streamed.mnc");
 
     crate::write_minc(&image, &path, &backend).expect("write streamed MINC2 volume");
-    let decoded = crate::read_minc(&path, &backend).expect("read streamed MINC2 volume");
+    let decoded = crate::read_minc::<f32, _, _, _>(&path, &backend, Exact)
+        .expect("read streamed MINC2 volume");
 
     assert_eq!(decoded.shape(), shape);
     assert_eq!(decoded.origin(), image.origin());
@@ -203,7 +203,7 @@ fn geometry_preflight_rejects_unrepresentable_axis_length() {
         .expect("usize represents i32::MAX")
         .checked_add(1)
         .expect("supported targets represent i32::MAX + 1");
-    let error = super::validate_geometry(
+    let error = super::validate_geometry::<f32>(
         [oversized_axis, 1, 1],
         &Point::origin(),
         &Spacing::uniform(1.0),
@@ -221,16 +221,17 @@ fn geometry_preflight_rejects_unrepresentable_axis_length() {
 
 #[test]
 fn read_minc_applies_per_slice_integer_scaling() {
-    use scaled_fixture::{write_scaled_integer_fixture, ImageRangeFixture};
+    use crate::scaled_fixture::{write_fixture, ImageRangeFixture};
 
     let directory = tempfile::tempdir().expect("create temporary directory");
     let path = directory.path().join("scaled-int16.mnc");
     let stored = [0_i16, 25, 50, 100, 0, 25, 50, 100];
-    write_scaled_integer_fixture(
+    write_fixture(
         &path,
         &stored,
         [2, 2, 2],
         [0, 100],
+        ByteOrder::LittleEndian,
         ImageRangeFixture::Complete {
             minima: &[-1_000.0, 0.0],
             maxima: &[1_000.0, 200.0],
@@ -238,7 +239,8 @@ fn read_minc_applies_per_slice_integer_scaling() {
     )
     .expect("write scaled fixture");
 
-    let image = crate::read_minc(&path, &SequentialBackend).expect("read scaled fixture");
+    let image = crate::read_minc::<f32, _, _, _>(&path, &SequentialBackend, Exact)
+        .expect("read scaled fixture");
     assert_eq!(image.shape(), [2, 2, 2]);
     assert_eq!(
         image.data_slice().expect("host data"),
@@ -248,9 +250,9 @@ fn read_minc_applies_per_slice_integer_scaling() {
 
 #[test]
 fn read_minc_preserves_per_slice_scaling_across_stream_chunks() {
-    use scaled_fixture::{write_scaled_integer_fixture, ImageRangeFixture};
+    use crate::scaled_fixture::{write_fixture, ImageRangeFixture};
 
-    const SHAPE: [usize; 3] = [2, 33, 64];
+    const SHAPE: [usize; 3] = [2, 65, 64];
     const SLICE_LENGTH: usize = SHAPE[1] * SHAPE[2];
     const STORED_PATTERN: [i16; 4] = [0, 25, 50, 100];
     const FIRST_SLICE_PATTERN: [f32; 4] = [-1_000.0, -500.0, 0.0, 1_000.0];
@@ -261,11 +263,12 @@ fn read_minc_preserves_per_slice_scaling_across_stream_chunks() {
         .collect();
     let directory = tempfile::tempdir().expect("create temporary directory");
     let path = directory.path().join("scaled-int16-stream-boundary.mnc");
-    write_scaled_integer_fixture(
+    write_fixture(
         &path,
         &stored,
         SHAPE,
         [0, 100],
+        ByteOrder::LittleEndian,
         ImageRangeFixture::Complete {
             minima: &[-1_000.0, 0.0],
             maxima: &[1_000.0, 200.0],
@@ -273,8 +276,8 @@ fn read_minc_preserves_per_slice_scaling_across_stream_chunks() {
     )
     .expect("write scaled stream-boundary fixture");
 
-    let image =
-        crate::read_minc(&path, &SequentialBackend).expect("read scaled stream-boundary fixture");
+    let image = crate::read_minc::<f32, _, _, _>(&path, &SequentialBackend, Exact)
+        .expect("read scaled stream-boundary fixture");
     let expected: Vec<f32> = (0..stored.len())
         .map(|index| {
             let pattern = if index < SLICE_LENGTH {
@@ -290,20 +293,22 @@ fn read_minc_preserves_per_slice_scaling_across_stream_chunks() {
 
 #[test]
 fn read_minc_uses_default_real_range_when_image_ranges_are_absent() {
-    use scaled_fixture::{write_scaled_integer_fixture, ImageRangeFixture};
+    use crate::scaled_fixture::{write_fixture, ImageRangeFixture};
 
     let directory = tempfile::tempdir().expect("create temporary directory");
     let path = directory.path().join("default-range.mnc");
-    write_scaled_integer_fixture(
+    write_fixture(
         &path,
         &[0_i16, 25, 50, 100],
         [1, 2, 2],
         [0, 100],
+        ByteOrder::LittleEndian,
         ImageRangeFixture::Omitted,
     )
     .expect("write default-range fixture");
 
-    let image = crate::read_minc(&path, &SequentialBackend).expect("read default-range fixture");
+    let image = crate::read_minc::<f32, _, _, _>(&path, &SequentialBackend, Exact)
+        .expect("read default-range fixture");
     assert_eq!(
         image.data_slice().expect("host data"),
         [0.0, 0.25, 0.5, 1.0]
@@ -312,20 +317,21 @@ fn read_minc_uses_default_real_range_when_image_ranges_are_absent() {
 
 #[test]
 fn read_minc_rejects_incomplete_image_range_pair() {
-    use scaled_fixture::{write_scaled_integer_fixture, ImageRangeFixture};
+    use crate::scaled_fixture::{write_fixture, ImageRangeFixture};
 
     let directory = tempfile::tempdir().expect("create temporary directory");
     let path = directory.path().join("missing-image-max.mnc");
-    write_scaled_integer_fixture(
+    write_fixture(
         &path,
         &[0_i16, 25, 50, 100],
         [1, 2, 2],
         [0, 100],
+        ByteOrder::LittleEndian,
         ImageRangeFixture::MinimumOnly { minima: &[-100.0] },
     )
     .expect("write malformed range fixture");
 
-    let error = crate::read_minc(&path, &SequentialBackend)
+    let error = crate::read_minc::<f32, _, _, _>(&path, &SequentialBackend, Exact)
         .expect_err("an incomplete image-range pair must fail");
     assert!(
         error.to_string().contains("image-max is missing"),
@@ -335,15 +341,16 @@ fn read_minc_rejects_incomplete_image_range_pair() {
 
 #[test]
 fn read_minc_rejects_stored_integer_outside_valid_range() {
-    use scaled_fixture::{write_scaled_integer_fixture, ImageRangeFixture};
+    use crate::scaled_fixture::{write_fixture, ImageRangeFixture};
 
     let directory = tempfile::tempdir().expect("create temporary directory");
     let path = directory.path().join("invalid-stored-value.mnc");
-    write_scaled_integer_fixture(
+    write_fixture(
         &path,
         &[0_i16, 25, 101, 100],
         [1, 2, 2],
         [0, 100],
+        ByteOrder::LittleEndian,
         ImageRangeFixture::Complete {
             minima: &[-100.0],
             maxima: &[300.0],
@@ -351,7 +358,7 @@ fn read_minc_rejects_stored_integer_outside_valid_range() {
     )
     .expect("write out-of-range fixture");
 
-    let error = crate::read_minc(&path, &SequentialBackend)
+    let error = crate::read_minc::<f32, _, _, _>(&path, &SequentialBackend, Exact)
         .expect_err("out-of-range stored values must not be silently mapped");
     assert!(
         format!("{error:#}").contains("stored voxel 2 value 101"),

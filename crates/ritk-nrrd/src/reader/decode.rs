@@ -1,7 +1,7 @@
 //! NRRD header parsing and byte decoding helpers.
 
 use anyhow::{anyhow, Context, Result};
-use ritk_codecs::{decode_bytes_to_f32, ByteOrder};
+use consus_core::ByteOrder;
 use ritk_spatial::Point;
 
 /// Parse a `space directions` field into three NRRD file-axis vectors.
@@ -186,50 +186,35 @@ fn parse_vector_components<const N: usize>(inner: &str) -> Result<[f64; N]> {
     Ok(values)
 }
 
-/// Decode a raw byte buffer into `Vec<f32>` according to the NRRD `type`.
+/// The payload byte order a NRRD `endian` field names.
 ///
-/// Translates the NRRD type-name string to a (size, signed, is_float) triple
-/// and delegates to [`ritk_codecs::decode_bytes_to_f32`].
-pub(super) fn decode_element_bytes(
-    bytes: &[u8],
-    element_type: &str,
-    count: usize,
-    byte_order: ByteOrder,
-) -> Result<Vec<f32>> {
-    let (elem_size, signed, is_float) = element_type_spec(element_type)?;
-    decode_bytes_to_f32(
-        bytes,
-        elem_size,
-        signed,
-        is_float,
-        byte_order,
-        count,
-        element_type,
-    )
-}
-
-pub(super) fn element_type_spec(element_type: &str) -> Result<(usize, bool, bool)> {
-    let normalised = element_type.to_lowercase();
-    let spec = match normalised.as_str() {
-        "uchar" | "unsigned char" | "uint8" => (1_usize, false, false),
-        "char" | "signed char" | "int8" => (1, true, false),
-        "short" | "int16" | "signed short" | "int 16" => (2, true, false),
-        "unsigned short" | "uint16" | "ushort" | "unsigned short int" => (2, false, false),
-        "int" | "int32" | "signed int" | "int 32" => (4, true, false),
-        "unsigned int" | "uint32" | "uint" | "unsigned int 32" => (4, false, false),
-        "float" => (4, false, true),
-        "double" => (8, false, true),
-        other => return Err(anyhow!("Unsupported NRRD type: '{}'", other)),
-    };
-    Ok(spec)
+/// NRRD allows only `big` or `little`, compared case-insensitively with
+/// surrounding whitespace ignored.
+///
+/// # Errors
+///
+/// Returns an error for any other value: a payload read in a guessed byte
+/// order is silently wrong data.
+pub(super) fn parse_endian(value: &str) -> Result<ByteOrder> {
+    let value = value.trim();
+    if value.eq_ignore_ascii_case("big") {
+        Ok(ByteOrder::BigEndian)
+    } else if value.eq_ignore_ascii_case("little") {
+        Ok(ByteOrder::LittleEndian)
+    } else {
+        Err(anyhow!(
+            "Unsupported NRRD endian '{value}'; the format allows 'big' or 'little'"
+        ))
+    }
 }
 
 #[cfg(test)]
 mod tests {
     use super::{
-        parse_nrrd_point, parse_nrrd_point_planar, parse_parenthesized_vectors,
+        parse_endian, parse_nrrd_point, parse_nrrd_point_planar, parse_parenthesized_vectors,
         parse_space_direction_slots, parse_space_directions, parse_space_directions_planar,
     };
+    use consus_core::ByteOrder;
 
     #[test]
     fn parse_space_directions_skips_none_axes() {
@@ -354,5 +339,39 @@ mod tests {
                 .contains("'space origin' must contain exactly 1 vector, found 2"),
             "space origin error must name the vector-count contract, got {err}"
         );
+    }
+
+    #[test]
+    fn parse_endian_reads_big_and_little_case_insensitively() {
+        for (value, expected) in [
+            ("big", ByteOrder::BigEndian),
+            ("BIG", ByteOrder::BigEndian),
+            ("  big  ", ByteOrder::BigEndian),
+            ("little", ByteOrder::LittleEndian),
+            ("Little", ByteOrder::LittleEndian),
+        ] {
+            assert_eq!(parse_endian(value).expect("valid endian"), expected);
+        }
+    }
+
+    #[test]
+    fn parse_endian_refuses_any_other_value() {
+        for value in [
+            "msbfirst",
+            "mostsignificantbytefirst",
+            "",
+            "middle",
+            "bi g",
+            "lit tle",
+            "bigg",
+            "littl",
+        ] {
+            let err = parse_endian(value).expect_err(value);
+            assert!(
+                err.to_string()
+                    .contains(&format!("Unsupported NRRD endian '{value}'")),
+                "{value:?}: {err}"
+            );
+        }
     }
 }

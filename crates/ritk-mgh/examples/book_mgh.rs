@@ -10,6 +10,7 @@ use anyhow::{bail, Context, Result};
 use base64::{engine::general_purpose::STANDARD, Engine as _};
 use coeus_core::SequentialBackend;
 use image::{codecs::png::PngEncoder, ColorType, ImageEncoder};
+use ritk_codecs::sample::Exact;
 use ritk_image::Image;
 use ritk_mgh::{read_mgh, write_mgh};
 use ritk_spatial::{Direction, Point, Spacing};
@@ -285,7 +286,7 @@ fn verify_multi_frame_rejection(single_frame_path: &Path, output_path: &Path) ->
     bytes.extend_from_slice(&frame);
     std::fs::write(output_path, bytes).context("write complete two-frame MGH fixture")?;
 
-    let error = read_mgh(output_path, &SequentialBackend)
+    let error = read_mgh::<f32, _, _, _>(output_path, &SequentialBackend, Exact)
         .err()
         .context("two-frame MGH was accepted as a three-dimensional image")?;
     let message = format!("{error:#}");
@@ -428,8 +429,10 @@ fn main() -> Result<()> {
 
     write_mgh(&source, &mgh_path, &SequentialBackend).context("write MGH volume")?;
     write_mgh(&source, &mgz_path, &SequentialBackend).context("write MGZ volume")?;
-    let decoded_mgh = read_mgh(&mgh_path, &SequentialBackend).context("read MGH volume")?;
-    let decoded_mgz = read_mgh(&mgz_path, &SequentialBackend).context("read MGZ volume")?;
+    let decoded_mgh = read_mgh::<f32, _, _, _>(&mgh_path, &SequentialBackend, Exact)
+        .context("read MGH volume")?;
+    let decoded_mgz = read_mgh::<f32, _, _, _>(&mgz_path, &SequentialBackend, Exact)
+        .context("read MGZ volume")?;
     verify_round_trip(&source, &decoded_mgh, "MGH")?;
     verify_round_trip(&source, &decoded_mgz, "MGZ")?;
     verify_multi_frame_rejection(&mgh_path, &multi_frame_path)?;

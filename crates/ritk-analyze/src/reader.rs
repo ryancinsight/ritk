@@ -28,7 +28,7 @@
 //! |     84 | f32   | `pixdim[2]`       | Y spacing (mm)                           |
 //! |     88 | f32   | `pixdim[3]`       | Z spacing (mm)                           |
 //! |    108 | f32   | `vox_offset`      | Byte offset to data in `.img` (0 = start)|
-//! |    112 | f32   | `funused1`        | Intensity scale factor (0 or 1 = no-op)  |
+//! |    112 | f32   | `funused1`        | Scale factor (0 or 1 = no-op)            |
 //! |    253 | i16×5 | `originator`      | Voxel-space origin (x, y, z, 0, 0)       |
 //!
 //! # Axis Convention
@@ -61,122 +61,29 @@
 use anyhow::{anyhow, Context, Result};
 use coeus_core::ComputeBackend;
 use consus_core::{read_integer, ByteOrder};
+use ritk_codecs::sample::{Conversion, Rescale, Sample, SampleBuffer};
 use ritk_spatial::{Direction, Point, Spacing};
 use std::fs::File;
 use std::io::{Read, Seek, SeekFrom};
-use std::mem::size_of;
 use std::path::Path;
 
-use crate::codec::{read_le, HDR_SIZE};
+use crate::codec::{bitpix, read_le, sample_type_from_code, HDR_SIZE};
 pub use crate::codec::{DT_DOUBLE, DT_FLOAT, DT_SIGNED_INT, DT_SIGNED_SHORT, DT_UNSIGNED_CHAR};
-
-const DECODE_CHUNK_BYTES: usize = 8 * 1024;
-
-trait AnalyzeVoxel: Sized {
-    fn decode(bytes: &[u8]) -> f32;
-}
-
-impl AnalyzeVoxel for u8 {
-    fn decode(bytes: &[u8]) -> f32 {
-        f32::from(bytes[0])
-    }
-}
-
-impl AnalyzeVoxel for i16 {
-    fn decode(bytes: &[u8]) -> f32 {
-        f32::from(i16::from_le_bytes(
-            bytes
-                .try_into()
-                .expect("invariant: i16 Analyze chunks contain two bytes"),
-        ))
-    }
-}
-
-impl AnalyzeVoxel for i32 {
-    fn decode(bytes: &[u8]) -> f32 {
-        i32::from_le_bytes(
-            bytes
-                .try_into()
-                .expect("invariant: i32 Analyze chunks contain four bytes"),
-        ) as f32
-    }
-}
-
-impl AnalyzeVoxel for f32 {
-    fn decode(bytes: &[u8]) -> f32 {
-        Self::from_le_bytes(
-            bytes
-                .try_into()
-                .expect("invariant: f32 Analyze chunks contain four bytes"),
-        )
-    }
-}
-
-impl AnalyzeVoxel for f64 {
-    fn decode(bytes: &[u8]) -> f32 {
-        Self::from_le_bytes(
-            bytes
-                .try_into()
-                .expect("invariant: f64 Analyze chunks contain eight bytes"),
-        ) as f32
-    }
-}
-
-#[derive(Clone, Copy)]
-enum AnalyzeDatatype {
-    UnsignedChar,
-    SignedShort,
-    SignedInt,
-    Float,
-    Double,
-}
-
-impl AnalyzeDatatype {
-    fn parse(code: i16) -> Result<Self> {
-        match code {
-            DT_UNSIGNED_CHAR => Ok(Self::UnsignedChar),
-            DT_SIGNED_SHORT => Ok(Self::SignedShort),
-            DT_SIGNED_INT => Ok(Self::SignedInt),
-            DT_FLOAT => Ok(Self::Float),
-            DT_DOUBLE => Ok(Self::Double),
-            other => Err(anyhow!(
-                "Unsupported Analyze datatype {other}. Supported codes: 2 (u8), 4 (i16), 8 (i32), 16 (f32), 64 (f64)."
-            )),
-        }
-    }
-
-    fn width(self) -> usize {
-        match self {
-            Self::UnsignedChar => size_of::<u8>(),
-            Self::SignedShort => size_of::<i16>(),
-            Self::SignedInt => size_of::<i32>(),
-            Self::Float => size_of::<f32>(),
-            Self::Double => size_of::<f64>(),
-        }
-    }
-
-    fn decode(self, reader: &mut File, voxel_count: usize, scale: f32) -> Result<Vec<f32>> {
-        match self {
-            Self::UnsignedChar => decode_payload::<u8>(reader, voxel_count, scale),
-            Self::SignedShort => decode_payload::<i16>(reader, voxel_count, scale),
-            Self::SignedInt => decode_payload::<i32>(reader, voxel_count, scale),
-            Self::Float => decode_payload::<f32>(reader, voxel_count, scale),
-            Self::Double => decode_payload::<f64>(reader, voxel_count, scale),
-        }
-    }
-}
 
 // ── Public API ────────────────────────────────────────────────────────────────
 
-/// Read a 3-D image from an Analyze 7.5 `.hdr` / `.img` file pair.
+/// Read a 3-D image from an Analyze 7.5 `.hdr` / `.img` file pair as physical
+/// values in `T`.
 ///
 /// `path` may point to either the `.hdr` or the `.img` file.  The sibling file
 /// is located automatically by replacing the extension.
 ///
-/// # Supported datatypes
-/// `DT_UNSIGNED_CHAR` (2), `DT_SIGNED_SHORT` (4), `DT_SIGNED_INT` (8),
-/// `DT_FLOAT` (16), `DT_DOUBLE` (64).  All are converted to `f32` in the
-/// returned native image buffer.
+/// The stored samples — `DT_UNSIGNED_CHAR` (2, `u8`), `DT_SIGNED_SHORT` (4,
+/// `i16`), `DT_SIGNED_INT` (8, `i32`), `DT_FLOAT` (16, `f32`), or `DT_DOUBLE`
+/// (64, `f64`) — convert to `T` under `conversion`
+/// ([`Exact`](ritk_codecs::sample::Exact) refuses any conversion that could
+/// change a value), and a `funused1` scale factor other than 0 or 1 is then
+/// applied in `T`'s arithmetic.
 ///
 /// # Errors
 /// Returns an error when:
@@ -189,35 +96,89 @@ impl AnalyzeDatatype {
 /// - Spacing, scale, or offset metadata is non-finite, or the offset is not a
 ///   supported whole-byte position.
 /// - The `.img` file length differs from the exact declared payload size.
+/// - `conversion` refuses the stored type.
+/// - The header declares a scale and `T` is an integer type — use
+///   [`read_analyze_stored`] for the stored integers and the scale.
 /// - Output allocation, seeking, decoding, or image construction fails.
-pub fn read_analyze<B: ComputeBackend, P: AsRef<Path>>(
+pub fn read_analyze<T, C, B, P>(
     path: P,
     backend: &B,
-) -> Result<ritk_image::Image<f32, B, 3>> {
-    let DecodedAnalyze {
-        data,
-        dims,
-        origin,
-        spacing,
-        direction,
-    } = decode_analyze(path)?;
+    conversion: C,
+) -> Result<ritk_image::Image<T, B, 3>>
+where
+    T: Sample,
+    C: Conversion,
+    B: ComputeBackend,
+    P: AsRef<Path>,
+{
+    let mut decoded = decode_analyze::<T, C>(path.as_ref(), conversion)?;
+    let rescale = decoded.rescale;
+    rescale.apply(&mut decoded.data).with_context(|| {
+        format!(
+            "Analyze funused1 scale {} declares a rescale; read_analyze_stored \
+             returns the stored samples and the scale",
+            rescale.slope()
+        )
+    })?;
+    decoded.into_image(backend)
+}
 
-    ritk_image::Image::from_flat_on(data, dims, origin, spacing, direction, backend)
+/// Read an Analyze 7.5 volume as its stored samples in `T`, with the
+/// `funused1` scale factor left unapplied.
+///
+/// Reading a file in its stored type keeps every sample exact; the returned
+/// [`Rescale`] (slope `funused1`, intercept 0, or the identity for a factor of
+/// 0 or 1) maps those samples to physical values.
+///
+/// # Errors
+///
+/// Returns the errors of [`read_analyze`] except the integer-rescale refusal.
+pub fn read_analyze_stored<T, C, B, P>(
+    path: P,
+    backend: &B,
+    conversion: C,
+) -> Result<(ritk_image::Image<T, B, 3>, Rescale)>
+where
+    T: Sample,
+    C: Conversion,
+    B: ComputeBackend,
+    P: AsRef<Path>,
+{
+    let decoded = decode_analyze::<T, C>(path.as_ref(), conversion)?;
+    let rescale = decoded.rescale;
+    Ok((decoded.into_image(backend)?, rescale))
 }
 
 /// Substrate-agnostic decode of an Analyze `.hdr`/`.img` pair into flat
-/// `[Z, Y, X]` voxels plus spatial metadata for the public reader.
-struct DecodedAnalyze {
-    data: Vec<f32>,
+/// `[Z, Y, X]` samples of `T`, the spatial metadata, and the scale still to
+/// apply.
+struct DecodedAnalyze<T> {
+    data: Vec<T>,
     dims: [usize; 3],
     origin: Point<3>,
     spacing: Spacing<3>,
     direction: Direction<3>,
+    rescale: Rescale,
 }
 
-fn decode_analyze<P: AsRef<Path>>(path: P) -> Result<DecodedAnalyze> {
-    let path = path.as_ref();
+impl<T: Sample> DecodedAnalyze<T> {
+    fn into_image<B: ComputeBackend>(self, backend: &B) -> Result<ritk_image::Image<T, B, 3>> {
+        let Self {
+            data,
+            dims,
+            origin,
+            spacing,
+            direction,
+            rescale: _,
+        } = self;
+        ritk_image::Image::from_flat_on(data, dims, origin, spacing, direction, backend)
+    }
+}
 
+fn decode_analyze<T: Sample, C: Conversion>(
+    path: &Path,
+    conversion: C,
+) -> Result<DecodedAnalyze<T>> {
     // Derive sibling paths regardless of which file the caller passed.
     let hdr_path = path.with_extension("hdr");
     let img_path = path.with_extension("img");
@@ -289,14 +250,13 @@ fn decode_analyze<P: AsRef<Path>>(path: P) -> Result<DecodedAnalyze> {
 
     // ── Parse voxel type ──────────────────────────────────────────────────────
     let datatype_code = read_le::<i16>(&hdr, 70);
-    let datatype = AnalyzeDatatype::parse(datatype_code)?;
-    let bytes_per_voxel = datatype.width();
-    let bitpix = read_le::<i16>(&hdr, 72);
-    let expected_bitpix = i16::try_from(bytes_per_voxel * 8)
-        .expect("invariant: supported Analyze voxel widths fit in i16 bits");
-    if bitpix != expected_bitpix {
+    let sample_type = sample_type_from_code(datatype_code)?;
+    let bytes_per_voxel = sample_type.byte_width();
+    let stored_bitpix = read_le::<i16>(&hdr, 72);
+    let expected_bitpix = bitpix(sample_type);
+    if stored_bitpix != expected_bitpix {
         return Err(anyhow!(
-            "Analyze bitpix {bitpix} does not match datatype {datatype_code}; expected {expected_bitpix}"
+            "Analyze bitpix {stored_bitpix} does not match datatype {datatype_code}; expected {expected_bitpix}"
         ));
     }
 
@@ -311,7 +271,11 @@ fn decode_analyze<P: AsRef<Path>>(path: P) -> Result<DecodedAnalyze> {
 
     // ── Parse scale factor (funused1 at offset 112) ───────────────────────────
     let scale_raw = finite_header_value(read_le::<f32>(&hdr, 112), "funused1 scale")?;
-    let scale = if scale_raw == 0.0 { 1.0_f32 } else { scale_raw };
+    let rescale = if scale_raw == 0.0 {
+        Rescale::IDENTITY
+    } else {
+        Rescale::new(f64::from(scale_raw), 0.0)?
+    };
 
     // ── Parse vox_offset (offset 108) ────────────────────────────────────────
     let vox_offset_raw = f64::from(finite_header_value(
@@ -356,7 +320,14 @@ fn decode_analyze<P: AsRef<Path>>(path: P) -> Result<DecodedAnalyze> {
         .seek(SeekFrom::Start(vox_offset))
         .context("Cannot seek to Analyze voxel payload")?;
 
-    let vals = datatype.decode(&mut img_file, voxel_count, scale)?;
+    let stored = SampleBuffer::read_from(
+        &mut img_file,
+        sample_type,
+        ByteOrder::LittleEndian,
+        voxel_count,
+    )
+    .context("Cannot read validated Analyze voxel payload")?;
+    let data = conversion.convert::<T>(stored)?;
 
     tracing::debug!(
         nx,
@@ -369,11 +340,12 @@ fn decode_analyze<P: AsRef<Path>>(path: P) -> Result<DecodedAnalyze> {
     // Spacing reverses file `[sx, sy, sz]` into core tensor-axis order
     // `[sz, sy, sx]`; origin stays a world-space `[x, y, z]` point.
     Ok(DecodedAnalyze {
-        data: vals,
+        data,
         dims: [nz, ny, nx],
         origin: Point::new([ox, oy, oz]),
         spacing: Spacing::new([sz, sy, sx]),
         direction: Direction::identity(),
+        rescale,
     })
 }
 
@@ -401,41 +373,6 @@ fn finite_header_value(raw: f32, field: &str) -> Result<f32> {
     }
 }
 
-fn decode_payload<T: AnalyzeVoxel>(
-    reader: &mut File,
-    voxel_count: usize,
-    scale: f32,
-) -> Result<Vec<f32>> {
-    let voxel_width = size_of::<T>();
-    let voxels_per_chunk = DECODE_CHUNK_BYTES / voxel_width;
-    debug_assert!(voxels_per_chunk > 0);
-    let mut values = Vec::new();
-    values
-        .try_reserve_exact(voxel_count)
-        .context("Cannot allocate Analyze output volume")?;
-    let mut bytes = [0u8; DECODE_CHUNK_BYTES];
-    let mut remaining = voxel_count;
-
-    while remaining > 0 {
-        let chunk_voxels = remaining.min(voxels_per_chunk);
-        let chunk_bytes = chunk_voxels
-            .checked_mul(voxel_width)
-            .expect("invariant: decode chunk byte count fits its fixed buffer");
-        let input = &mut bytes[..chunk_bytes];
-        reader
-            .read_exact(input)
-            .context("Cannot read validated Analyze voxel payload")?;
-        values.extend(
-            input
-                .chunks_exact(voxel_width)
-                .map(|voxel| T::decode(voxel) * scale),
-        );
-        remaining -= chunk_voxels;
-    }
-
-    Ok(values)
-}
-
 // ── Reader wrapper type ───────────────────────────────────────────────────────
 
 /// Read-side wrapper type implementing the `ImageReader` domain trait.
@@ -449,8 +386,17 @@ impl<B: ComputeBackend> AnalyzeReader<B> {
         Self { backend }
     }
 
-    /// Read an Analyze image through the bound backend.
-    pub fn read<P: AsRef<Path>>(&self, path: P) -> Result<ritk_image::Image<f32, B, 3>> {
-        read_analyze(path, &self.backend)
+    /// Read an Analyze image of physical values in `T` through the bound
+    /// backend, converting the stored samples under `conversion`.
+    ///
+    /// # Errors
+    ///
+    /// Returns the errors of [`read_analyze`].
+    pub fn read<T: Sample, C: Conversion, P: AsRef<Path>>(
+        &self,
+        path: P,
+        conversion: C,
+    ) -> Result<ritk_image::Image<T, B, 3>> {
+        read_analyze(path, &self.backend, conversion)
     }
 }

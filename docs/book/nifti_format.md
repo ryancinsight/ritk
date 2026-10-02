@@ -12,9 +12,11 @@ is a facade re-export. Analyze 7.5 `.hdr`/`.img` pairs belong to
 
 The native codec supports:
 
-- three-dimensional `f32` scalar images;
-- four-dimensional `f32` acquisition series;
-- three-dimensional `u32` label maps;
+- three-dimensional scalar images of every fixed-width NIfTI sample type
+  (`uint8` through `uint64`, `int8` through `int64`, `float32`, `float64`);
+- four-dimensional acquisition series of the same types;
+- the `scl_slope`/`scl_inter` rescale from stored to physical values;
+- three-dimensional `u32` label maps read from any of those types;
 - NIfTI sform and qform spatial metadata; and
 - NIfTI-1 and NIfTI-2 single-file streams, compressed or uncompressed.
 
@@ -49,7 +51,7 @@ The fourth axis can represent diffusion gradient directions, functional
 timepoints, or another repeated measurement. NIfTI stores this axis slowest,
 so the complete voxels for volume 0 are followed by volume 1, then volume 2,
 and so on. `read_nifti_series` preserves that acquisition order and returns
-one `Image<f32, B, 3>` per volume.
+one `Image<T, B, 3>` per volume.
 
 Every volume shares one shape and one physical grid because a NIfTI series
 carries one spatial transform. The series writers therefore reject an empty
@@ -77,24 +79,51 @@ to `write_nifti_series` is written as rank 3 and remains readable by
 
 ### Public API
 
+The example below writes a volume through NIfTI-1 and NIfTI-2, a
+three-volume series, and an `int16` volume read as `i16`, widened to `f32`,
+and refused as `u8`. It is compiled and run as
+`cargo run --example nifti_roundtrip -p ritk-nifti`.
+
 ```rust,ignore
-use coeus_core::SequentialBackend;
-use ritk_nifti::{
-    read_nifti_series, write_nifti2_series, write_nifti_series,
-};
-
-let backend = SequentialBackend;
-
-// All images must have the same shape and physical metadata.
-write_nifti_series("diffusion.nii.gz", &volumes, &backend)?;
-let decoded = read_nifti_series("diffusion.nii.gz", &backend)?;
-
-// Select NIfTI-2 explicitly when its wider header fields are required.
-write_nifti2_series("diffusion-nifti2.nii", &decoded, &backend)?;
+{{#include ../../crates/ritk-nifti/examples/nifti_roundtrip.rs}}
 ```
 
 `read_nifti_series_from_bytes` provides the same decoding contract for an
 in-memory `.nii` or `.nii.gz` payload.
+
+## Sample Types and Conversion
+
+The `datatype` field names how each sample is stored. Every reader is
+generic over the sample type `T` the caller asks for, and takes a conversion
+policy from `ritk_codecs::sample` as a zero-sized value (ADR 0053):
+
+| Policy | Accepts | Effect |
+|---|---|---|
+| `Exact` | the stored type, or a type it widens to without loss | no value changes; any other request is an error that names both types |
+| `Cast` | every type | the primitive `as` cast, with a warning when the stored type does not widen |
+
+The widening pairs are the ones the standard library implements `From`
+for: `int16` widens to `int32`, `int64`, `float32`, and `float64`; `uint32`
+widens to `float64` but not to `float32`, which cannot hold every `uint32`.
+
+A nonzero, finite `scl_slope` declares the rescale
+`physical = scl_slope · stored + scl_inter`. The readers apply it in `T`'s
+own arithmetic after conversion, so a CT stored as `int16` reads directly as
+Hounsfield units in `f32`. A rescale into an integer `T` has no faithful
+result and is an error; `read_nifti_stored` and `read_nifti_series_stored`
+return the stored samples together with the `Rescale`, leaving the mapping to
+the caller. A zero or non-finite slope means no rescale; a valid slope with a
+non-finite intercept is an error. A coefficient outside `T`'s range, or a
+nonzero slope that rounds to zero in `T`, is the error `RescaleOutOfRange`
+and leaves the samples unchanged.
+
+The writers emit the `datatype` code and `bitpix` of the image's `T` and no
+rescale, so a written file reads back in its own type unchanged.
+
+Label maps read from any stored type: an integer voxel must fit `u32`, and a
+floating-point voxel must hold a whole number in `0..=u32::MAX`. A negative,
+fractional, or out-of-range voxel is an error rather than a rounded or
+clamped label.
 
 ## Validation and Failure Semantics
 

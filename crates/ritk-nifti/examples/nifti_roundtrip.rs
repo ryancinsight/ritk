@@ -8,18 +8,22 @@
 //! round-trip that asserts bit-exact voxels and geometry rather than merely
 //! asserting the calls succeeded.
 //!
-//! The example covers the three surfaces a caller actually uses:
-//!   1. a single anisotropic volume through NIfTI-1,
+//! The example covers the four surfaces a caller actually uses:
+//!   1. a single anisotropic volume through NIfTI-1;
 //!   2. the same volume through NIfTI-2, whose wider header must not change
-//!      the recovered values, and
+//!      the recovered values;
 //!   3. a multi-volume series, which shares one affine across frames, so what
-//!      must survive is each frame's voxels staying attached to its own frame.
+//!      must survive is each frame's voxels staying attached to its own frame;
+//!      and
+//!   4. a volume stored as `int16`, read in its stored type, read widened to
+//!      `f32`, and refused as `uint8`, which cannot hold every `int16`.
 //!
 //! Run with `cargo run --example nifti_roundtrip -p ritk-nifti`.
 #![expect(clippy::print_stdout, reason = "ratchet RITK-LINT-1")]
 
 use anyhow::{bail, Context, Result};
 use coeus_core::SequentialBackend;
+use ritk_codecs::sample::{Exact, SampleType};
 use ritk_image::Image;
 use ritk_nifti::{read_nifti, read_nifti_series, write_nifti, write_nifti2, write_nifti_series};
 use ritk_spatial::{Direction, Point, Spacing};
@@ -36,8 +40,9 @@ const SPACING_MM: [f64; 3] = [4.0, 0.75, 1.25];
 /// Scanner origin in LPS millimetres, offset on every axis.
 const ORIGIN_MM: [f64; 3] = [-12.5, 33.25, 7.0];
 
-/// Voxel comparisons are exact: NIfTI stores `f32` and RITK writes `f32`, so a
-/// lossless round-trip has no representation error to absorb. Geometry is
+/// Voxel comparisons are exact: the writer stores the image's own sample type
+/// and the reader returns it unchanged, so a lossless round-trip has no
+/// representation error to absorb. Geometry is
 /// compared against this bound because the affine travels through an LPS/RAS
 /// sign flip and a column reversal in `f64`, where only rounding is expected.
 const GEOMETRY_TOLERANCE_MM: f64 = 1e-9;
@@ -135,6 +140,56 @@ fn assert_roundtrip_preserved(label: &str, original: &Volume, loaded: &Volume) -
     Ok(())
 }
 
+/// Write a CT-like volume stored as `int16` and read it back in three sample
+/// types under the `Exact` conversion policy.
+fn typed_samples(dir: &std::path::Path, backend: &SequentialBackend) -> Result<()> {
+    // Air, water, bone, and the type's extremes, repeated over the grid.
+    let stored: Vec<i16> = [-1024_i16, -1, 0, 1, 3071, i16::MIN, i16::MAX]
+        .into_iter()
+        .cycle()
+        .take(SHAPE.iter().product())
+        .collect();
+    let ct = Image::from_flat_on(
+        stored.clone(),
+        SHAPE,
+        Point::new(ORIGIN_MM),
+        Spacing::new(SPACING_MM),
+        Direction::identity(),
+        backend,
+    )
+    .context("CT dimensions do not match the voxel count")?;
+    let path = dir.join("ct_int16.nii");
+    write_nifti(&path, &ct, backend).context("failed to write the int16 volume")?;
+
+    // The stored type reads back unchanged; the file declares `int16`.
+    let exact: Image<i16, SequentialBackend, 3> =
+        read_nifti(&path, backend, Exact).context("failed to read int16 as int16")?;
+    if exact.data_slice().context("int16 not contiguous")? != stored.as_slice() {
+        bail!("int16 samples changed across the round trip");
+    }
+
+    // `int16` widens to `f32` without loss, so `Exact` accepts it.
+    let widened: Volume = read_nifti(&path, backend, Exact).context("failed to widen to f32")?;
+    let expected: Vec<f32> = stored.iter().copied().map(f32::from).collect();
+    if widened.data_slice().context("f32 not contiguous")? != expected.as_slice() {
+        bail!("int16 samples changed when widened to f32");
+    }
+
+    // `uint8` cannot hold -1024, so `Exact` refuses rather than wrap it.
+    let refused = read_nifti::<u8, _, _, _>(&path, backend, Exact);
+    let Err(error) = refused else {
+        bail!("an int16 volume read as uint8 under Exact must be refused");
+    };
+    println!(
+        "{} volume read as {} and {}; {} refused: {error:#}",
+        SampleType::I16,
+        SampleType::I16,
+        SampleType::F32,
+        SampleType::U8
+    );
+    Ok(())
+}
+
 fn main() -> Result<()> {
     let backend = SequentialBackend;
     let dir = tempdir().context("failed to create a temporary working directory")?;
@@ -144,16 +199,16 @@ fn main() -> Result<()> {
     // 1. NIfTI-1, the default single-file surface.
     let nifti1_path = dir.path().join("phantom.nii");
     write_nifti(&nifti1_path, &volume, &backend).context("failed to write the NIfTI-1 volume")?;
-    let nifti1_loaded =
-        read_nifti(&nifti1_path, &backend).context("failed to read the NIfTI-1 volume back")?;
+    let nifti1_loaded = read_nifti(&nifti1_path, &backend, Exact)
+        .context("failed to read the NIfTI-1 volume back")?;
     assert_roundtrip_preserved("NIfTI-1", &volume, &nifti1_loaded)?;
 
     // 2. NIfTI-2. The wider header changes the on-disk layout but must recover
     //    identical voxels and geometry; the reader auto-detects the version.
     let nifti2_path = dir.path().join("phantom.nii2");
     write_nifti2(&nifti2_path, &volume, &backend).context("failed to write the NIfTI-2 volume")?;
-    let nifti2_loaded =
-        read_nifti(&nifti2_path, &backend).context("failed to read the NIfTI-2 volume back")?;
+    let nifti2_loaded = read_nifti(&nifti2_path, &backend, Exact)
+        .context("failed to read the NIfTI-2 volume back")?;
     assert_roundtrip_preserved("NIfTI-2", &volume, &nifti2_loaded)?;
 
     // The two on-disk formats must agree voxel for voxel, which a single
@@ -199,7 +254,7 @@ fn main() -> Result<()> {
     let series_path = dir.path().join("phantom_series.nii");
     write_nifti_series(&series_path, &series, &backend)
         .context("failed to write the NIfTI series")?;
-    let series_loaded = read_nifti_series(&series_path, &backend)
+    let series_loaded = read_nifti_series(&series_path, &backend, Exact)
         .context("failed to read the NIfTI series back")?;
 
     if series_loaded.len() != series.len() {
@@ -212,6 +267,10 @@ fn main() -> Result<()> {
     for (index, (original, loaded)) in series.iter().zip(&series_loaded).enumerate() {
         assert_roundtrip_preserved(&format!("series volume {index}"), original, loaded)?;
     }
+
+    // 4. Typed samples: the reader returns the stored type, or a type it
+    //    widens to, and refuses a narrowing under `Exact`.
+    typed_samples(dir.path(), &backend)?;
 
     println!(
         "NIfTI round trip complete: {} single volumes and a {}-volume series preserved exactly",

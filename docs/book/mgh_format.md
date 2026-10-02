@@ -34,19 +34,28 @@ axis varies fastest, followed by the second and third axes. RITK maps that
 ordering to the crate's `[z, y, x]` image shape without transposing the stored
 voxel sequence.
 
-The reader accepts four on-disk scalar types:
+MGH stores four sample types, named by the header's `type` field:
 
-| MGH type | Stored scalar | RITK image scalar |
-|---|---:|---:|
-| `MRI_UCHAR` | `u8` | `f32` |
-| `MRI_SHORT` | big-endian `i16` | `f32` |
-| `MRI_INT` | big-endian `i32` | `f32` |
-| `MRI_FLOAT` | big-endian `f32` | `f32` |
+| MGH type | Stored sample | Exact reads | Cast reads |
+|---|---|---|---|
+| `MRI_UCHAR` | `u8` | `u8` and every wider type | any type |
+| `MRI_SHORT` | big-endian `i16` | `i16`, `i32`, `i64`, `f32`, `f64` | any type |
+| `MRI_INT` | big-endian `i32` | `i32`, `i64`, `f64` | any type |
+| `MRI_FLOAT` | big-endian `f32` | `f32`, `f64` | any type |
 
-The writer emits `MRI_FLOAT`. Float input therefore round-trips bit for bit,
-including signed zero and finite values. Integer input is converted according
-to Rust's integer-to-`f32` conversion; integers outside the exact binary32
-integer range can round.
+`read_mgh::<T, ..>` returns an image of the caller's sample type `T` under a
+conversion policy (ADR 0053). `Exact` returns the stored values or a lossless
+widening and refuses a read that could change a value: an `MRI_INT` file read
+as `f32` fails, because binary32 holds integers exactly only up to 2^24.
+`Cast` converts and logs a warning when the stored type does not widen to `T`.
+The `f32` surfaces of `ritk-io` read under `Cast`, the conversion they always
+performed.
+
+The writer stores the image's own sample type: a `u8`, `i16`, `i32`, or `f32`
+image writes `MRI_UCHAR`, `MRI_SHORT`, `MRI_INT`, or `MRI_FLOAT`, and every
+sample round-trips bit for bit, including signed zero. MGH has no code for the
+other sample types, so the writer refuses them before creating a file; convert
+such an image to one of the four first.
 
 ## Frames are a dimensional contract
 
@@ -101,13 +110,18 @@ not imply equal physical space.
 ## Bounded streaming decode
 
 The reader validates version, dimensions, frame count, scalar type, and
-geometry before constructing an image. It then converts the payload through a
-fixed 16 KiB input scratch buffer directly into the final `Vec<f32>`.
+geometry before constructing an image. It then decodes the payload through a
+fixed 16 KiB input step directly into the final vector of the stored sample
+type (`SampleBuffer::read_from` over consus-core's `read_extend`), and converts
+that vector to `T` only when `T` differs.
 
-The output allocation grows only after the corresponding input bytes have
-been read. This matters for untrusted files: a header can declare a large
-volume, but a truncated payload cannot force the reader to commit the complete
-decoded allocation before proving that data exists. Multiplication of
+The output allocation and the frame table grow only after the corresponding
+input bytes have been read: each frame is appended once its bytes have arrived.
+This matters for untrusted files: a header can declare a large volume or up to
+`i32::MAX` frames, but a truncated payload cannot force the reader to commit
+the decoded allocation, or a slot per declared frame, before proving that data
+exists. A test pins this: a one-voxel file declaring `i32::MAX` frames fails at
+frame 1 with the truncation error while peak allocation stays under 16 KiB. Multiplication of
 dimensions and byte counts uses checked arithmetic, and allocation failure is
 returned as an error.
 
@@ -116,7 +130,8 @@ The former whole-payload path additionally retained another 64 MiB encoded
 buffer while converting it. The streaming path retains approximately the
 decoded output plus 16 KiB of input scratch. The output vector can have unused
 geometric capacity, and a reallocation can temporarily involve both its old
-and new allocations. This is an allocation model, not a process-RSS claim:
+and new allocations. A read into a type other than the stored one also holds
+the stored vector and its converted copy until the conversion finishes. This is an allocation model, not a process-RSS claim:
 allocator, backend, gzip, and image-construction state still contribute to
 observed resident memory.
 

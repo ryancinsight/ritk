@@ -112,13 +112,14 @@ malformed/truncated/corrupt input, concentrated in `ritk-codecs` and
 header-declared counts, validates the positions and offsets array lengths
 against them, and records in a comment exactly which overflow it is preventing.
 That is the standard a fuzz corpus should be defending, not a substitute for it.
-The 39 production `.unwrap()` sites sit in exactly these parsers — 16 in
-`crates/ritk-tck/src/io.rs`, 7 in `crates/ritk-trx/src/parse.rs`, 7 in
-`ritk-trk`, 5 in `crates/ritk-dicom/src/diffusion/vendor.rs`, 3 in
-`crates/ritk-mif/src/decode.rs`. Every sampled one is a `try_into()` on a
-fixed-width slice reached after a length check, so these are proven invariants
-written in the panicking form rather than reachable panics. They should carry
-`expect("invariant: ...")` so the proof ships at the panic site.
+None of these parsers keeps a production `.unwrap()`. They keep 20
+production `expect` sites: 7 in `crates/ritk-trx/src/parse.rs`, 7 in
+`ritk-trk`, 5 in `crates/ritk-dicom/src/diffusion/vendor.rs`, and 1 in
+`crates/ritk-tck/src/io.rs`. Every sampled one is a `try_into()` on a
+fixed-width slice reached after a length check, so these are proven
+invariants, not reachable panics. Nineteen carry the message "fixed-width
+byte field", which names the field rather than the invariant; they should
+state it, as the TCK site does with `expect("invariant: ...")`.
 
 ### F4 — Test budgets raised inside the default profile
 

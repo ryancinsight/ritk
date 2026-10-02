@@ -1,6 +1,17 @@
+//! NRRD through the native provider at the `f32` surfaces of this crate.
+//!
+//! These surfaces return `f32` images until the dispatch reads in the caller's
+//! type (ADR 0053 decision 6), so they read under [`Cast`]: an `int`,
+//! `unsigned int`, `long long int`, `unsigned long long int`, or `double`
+//! file, whose samples `f32` cannot all hold, is cast with a warning rather
+//! than refused. Files whose stored type widens to
+//! `f32` (`signed char`, `unsigned char`, `short`, `unsigned short`, and
+//! `float`) read exactly.
+
 use crate::domain::ImageWriter;
 use anyhow::Result;
 use coeus_core::SequentialBackend;
+use ritk_codecs::sample::Cast;
 use ritk_core::image::Image;
 use ritk_image::tensor::Backend;
 
@@ -38,7 +49,8 @@ fn legacy_metadata_to_native<B: Backend>(
 
 /// Reads NRRD through the native provider and converts at this legacy boundary.
 pub fn read_nrrd<B: Backend, P: AsRef<Path>>(path: P, device: &B) -> Result<Image<f32, B, 3>> {
-    ritk_nrrd::read_nrrd(path, &SequentialBackend).map(|native| native_to_legacy(native, device))
+    ritk_nrrd::read_nrrd(path, &SequentialBackend, Cast)
+        .map(|native| native_to_legacy(native, device))
 }
 
 /// Reads a NRRD acquisition series through the native provider.
@@ -46,7 +58,7 @@ pub fn read_nrrd_series<B: Backend, P: AsRef<Path>>(
     path: P,
     device: &B,
 ) -> Result<Vec<Image<f32, B, 3>>> {
-    let natives = ritk_nrrd::read_nrrd_series(path, &SequentialBackend)?;
+    let natives = ritk_nrrd::read_nrrd_series(path, &SequentialBackend, Cast)?;
     natives
         .into_iter()
         .map(|native| Ok(native_to_legacy(native, device)))
@@ -113,7 +125,7 @@ pub mod native {
 
     impl<B: ComputeBackend> ImageReader<Image<f32, B, 3>> for NrrdReader<B> {
         fn read<P: AsRef<Path>>(&self, path: P) -> std::io::Result<Image<f32, B, 3>> {
-            ritk_nrrd::read_nrrd(path, &self.backend).map_err(to_io_err)
+            ritk_nrrd::read_nrrd(path, &self.backend, ritk_codecs::sample::Cast).map_err(to_io_err)
         }
     }
 

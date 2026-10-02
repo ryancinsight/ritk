@@ -4,6 +4,7 @@
 use crate::test_support::{build_mgh_bytes, IDENTITY_DIR};
 use crate::{MRI_FLOAT, SINGLE_FRAME};
 use coeus_core::SequentialBackend;
+use ritk_codecs::sample::Exact;
 use tempfile::tempdir;
 
 #[test]
@@ -25,7 +26,7 @@ fn native_read_mgh_preserves_shape_and_voxels() {
     std::fs::write(&path, &mgh).unwrap();
 
     let backend = SequentialBackend;
-    let image = crate::read_mgh(&path, &backend).expect("coeus MGH read");
+    let image = crate::read_mgh::<f32, _, _, _>(&path, &backend, Exact).expect("coeus MGH read");
 
     assert_eq!(
         image.shape(),

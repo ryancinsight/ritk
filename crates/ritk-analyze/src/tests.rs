@@ -10,6 +10,7 @@ use crate::{
     read_analyze, write_analyze, DT_DOUBLE, DT_FLOAT, DT_SIGNED_INT, DT_SIGNED_SHORT,
     DT_UNSIGNED_CHAR,
 };
+use ritk_codecs::sample::Exact;
 
 fn analyze_header(datatype: i16, bitpix: i16, shape_xyz: [i16; 3]) -> [u8; HDR_SIZE] {
     let mut header = [0u8; HDR_SIZE];
@@ -41,9 +42,11 @@ fn read_error(header: &[u8; HDR_SIZE], payload: &[u8]) -> Result<String> {
     let directory = tempdir()?;
     let path = directory.path().join("malformed.hdr");
     write_analyze_fixture(&path, header, payload)?;
-    Ok(read_analyze(&path, &SequentialBackend)
-        .expect_err("malformed Analyze fixture must be rejected")
-        .to_string())
+    Ok(
+        read_analyze::<f32, _, _, _>(&path, &SequentialBackend, Exact)
+            .expect_err("malformed Analyze fixture must be rejected")
+            .to_string(),
+    )
 }
 
 fn make_image(
@@ -83,7 +86,7 @@ fn analyze_roundtrip_preserves_shape_spacing_origin_and_values() -> Result<()> {
     )?;
 
     write_analyze(&path, &image, &backend)?;
-    let loaded = read_analyze(&path, &backend)?;
+    let loaded = read_analyze::<f32, _, _, _>(&path, &backend, Exact)?;
 
     assert_eq!(loaded.shape(), [2, 3, 4]);
     assert_eq!(*loaded.spacing(), Spacing::new([1.25, 2.5, 3.75]));
@@ -135,12 +138,12 @@ fn analyze_reader_accepts_img_path_and_rejects_invalid_header() -> Result<()> {
     )?;
 
     write_analyze(&hdr_path, &image, &backend)?;
-    let loaded = read_analyze(&img_path, &backend)?;
+    let loaded = read_analyze::<f32, _, _, _>(&img_path, &backend, Exact)?;
     assert_eq!(loaded.shape(), [1, 1, 2]);
     assert_eq!(loaded.data_slice()?, &[1.0, 2.0]);
 
     std::fs::write(&hdr_path, [0u8; 348])?;
-    let err = read_analyze(&hdr_path, &backend).unwrap_err();
+    let err = read_analyze::<f32, _, _, _>(&hdr_path, &backend, Exact).unwrap_err();
     assert!(
         err.to_string().contains("sizeof_hdr"),
         "error must identify invalid Analyze header, got: {err:#}"
@@ -179,7 +182,7 @@ fn analyze_writer_output_is_byte_stable_for_native_image() -> Result<()> {
 }
 
 #[test]
-fn analyze_reader_decodes_every_supported_scalar_with_scale() -> Result<()> {
+fn analyze_reader_scales_every_supported_scalar() -> Result<()> {
     let cases = [
         (DT_UNSIGNED_CHAR, 8, vec![1, 7, 127], vec![2.0, 14.0, 254.0]),
         (
@@ -226,7 +229,7 @@ fn analyze_reader_decodes_every_supported_scalar_with_scale() -> Result<()> {
         let mut header = analyze_header(datatype, bitpix, [3, 1, 1]);
         write_le::<f32>(&mut header, 112, 2.0);
         write_analyze_fixture(&path, &header, &payload)?;
-        let image = read_analyze(&path, &SequentialBackend)?;
+        let image = read_analyze::<f64, _, _, _>(&path, &SequentialBackend, Exact)?;
         assert_eq!(image.shape(), [1, 1, 3]);
         assert_eq!(image.data_slice()?, expected.as_slice());
     }
@@ -292,7 +295,7 @@ fn analyze_reader_requires_exact_header_length() -> Result<()> {
     std::fs::write(&path, extended)?;
     std::fs::write(path.with_extension("img"), 1.0_f32.to_le_bytes())?;
 
-    let error = read_analyze(&path, &SequentialBackend)
+    let error = read_analyze::<f32, _, _, _>(&path, &SequentialBackend, Exact)
         .expect_err("extended Analyze header must be rejected")
         .to_string();
     assert!(error.contains("found 349"), "unexpected error: {error}");
@@ -315,7 +318,7 @@ fn analyze_reader_identifies_paired_nifti_header() -> Result<()> {
         std::fs::write(&path, paired_header)?;
         std::fs::write(path.with_extension("img"), 1.0_f32.to_le_bytes())?;
 
-        let error = read_analyze(&path, &SequentialBackend)
+        let error = read_analyze::<f32, _, _, _>(&path, &SequentialBackend, Exact)
             .expect_err("paired NIfTI must not be decoded as Analyze 7.5")
             .to_string();
         assert!(
@@ -363,7 +366,7 @@ fn analyze_reader_requires_exact_payload_and_honors_offset() -> Result<()> {
     let mut offset_header = header;
     write_le::<f32>(&mut offset_header, 108, 4.0);
     write_analyze_fixture(&path, &offset_header, &[9, 8, 7, 6, 1, 0, 2, 0])?;
-    let image = read_analyze(&path, &SequentialBackend)?;
+    let image = read_analyze::<f32, _, _, _>(&path, &SequentialBackend, Exact)?;
     assert_eq!(image.data_slice()?, &[1.0, 2.0]);
 
     Ok(())
@@ -382,7 +385,7 @@ fn analyze_reader_preserves_values_across_decode_chunk_boundaries() -> Result<()
         .collect();
     write_analyze_fixture(&path, &header, &payload)?;
 
-    let image = read_analyze(&path, &SequentialBackend)?;
+    let image = read_analyze::<f32, _, _, _>(&path, &SequentialBackend, Exact)?;
     assert_eq!(image.shape(), [1, 1, VOXELS as usize]);
     assert_eq!(image.data_slice()?, expected.as_slice());
 

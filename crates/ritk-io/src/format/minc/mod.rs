@@ -1,4 +1,13 @@
-//! MINC2 I/O adapters over Coeus-backed images.
+//! MINC2 through the native provider at the `f32` surfaces of this crate.
+//!
+//! These surfaces return `f32` images until the dispatch reads in the caller's
+//! type (ADR 0053 decision 6), so they read under [`Cast`]: an integer or `f64`
+//! image whose stored values `f32` cannot all hold is cast with a warning
+//! rather than refused. A stored integer is then mapped through the
+//! `image-min` / `image-max` real range, from its `valid_range`, into `f32`, so
+//! the returned intensities are real values. The result is exact only when
+//! that map is the identity, as for files the RITK writer produced, and `f32`
+//! holds the stored type. The writer stores the `f32` samples as `f32`.
 
 /// Atlas-native-substrate implementors of [`crate::domain::ImageReader`].
 ///
@@ -8,6 +17,7 @@
 pub mod native {
     use crate::domain::{to_io_err, ImageReader, ImageWriter};
     use coeus_core::{ComputeBackend, CpuAddressableStorage};
+    use ritk_codecs::sample::Cast;
     use ritk_image::Image;
     use std::path::Path;
 
@@ -25,7 +35,7 @@ pub mod native {
 
     impl<B: ComputeBackend> ImageReader<Image<f32, B, 3>> for MincReader<B> {
         fn read<P: AsRef<Path>>(&self, path: P) -> std::io::Result<Image<f32, B, 3>> {
-            ritk_minc::read_minc(path, &self.backend).map_err(to_io_err)
+            ritk_minc::read_minc(path, &self.backend, Cast).map_err(to_io_err)
         }
     }
 

@@ -2,6 +2,15 @@
 //!
 //! `ritk-vtk` owns the VTK parsers and encoders. This module only binds those
 //! operations to the native `ImageReader` and `ImageWriter` contracts.
+//!
+//! The native contracts return and accept `f32` images until the dispatch
+//! reads in the caller's type (ADR 0053 decision 6), so the reader converts the
+//! stored scalar type under [`Cast`](ritk_codecs::sample::Cast). The stored
+//! types whose samples `f32` cannot all hold are cast with a warning rather
+//! than refused: `int` (and its alias `vtkidtype`), `unsigned_int`, the 64-bit
+//! integer types `vtktypeint64` and `vtktypeuint64`, and `double`.
+//! `unsigned_char`, `char`, `signed_char`, `short`, `unsigned_short` and `float`
+//! files read exactly. The writer stores `f32` as `float`.
 
 pub use ritk_vtk::{
     read_obj_mesh, read_ply_mesh, read_stl_mesh, read_vti_binary_appended,
@@ -53,6 +62,7 @@ pub use mesh_writer::{mesh_to_vtk_string, write_mesh_as_vtk};
 pub mod native {
     use crate::domain::{to_io_err, ImageReader, ImageWriter};
     use coeus_core::{ComputeBackend, CpuAddressableStorage};
+    use ritk_codecs::sample::Cast;
     use ritk_image::Image;
     use std::path::Path;
 
@@ -70,11 +80,16 @@ pub mod native {
 
     impl<B: ComputeBackend> ImageReader<Image<f32, B, 3>> for VtkReader<B> {
         fn read<P: AsRef<Path>>(&self, path: P) -> std::io::Result<Image<f32, B, 3>> {
-            ritk_vtk::read_vtk(path, &self.backend).map_err(to_io_err)
+            ritk_vtk::read_vtk(path, &self.backend, Cast).map_err(to_io_err)
         }
     }
 
-    /// Backend-bound VTK writer.
+    /// Backend-bound legacy VTK structured-points writer.
+    ///
+    /// The legacy representation cannot store a direction matrix or
+    /// acquisition coordinate map. Writes therefore reject non-identity
+    /// directions and non-Cartesian maps before creating or truncating the
+    /// destination.
     pub struct VtkWriter<B: ComputeBackend> {
         backend: B,
     }

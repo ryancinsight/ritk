@@ -7,10 +7,39 @@
 //!
 //! # Key APIs
 //!
-//! - [`read_mif`]: Read a `.mif` file as a native 3‑D image with spatial metadata
-//! - [`write_mif`]: Write an Image to a `.mif` file with full transform encoding
+//! - [`read_mif`]: Read a `.mif` file as a native 3‑D image of the caller's
+//!   sample type, with spatial metadata
+//! - [`write_mif`]: Write an Image to a `.mif` file in its own sample type, with
+//!   full transform encoding
 //! - [`read_mif_series`]: Read an acquisition series as one image per volume
 //! - [`write_mif_series`]: Write an acquisition series with interleaved frames
+//!
+//! # Sample types
+//!
+//! The `datatype` key names the stored type and, for types wider than a byte,
+//! the byte order: `Int8`, `UInt8`, `Int16`, `UInt16`, `Int32`, `UInt32`,
+//! `Int64`, `UInt64`, `Float32`, and `Float64`, each with an `LE` or `BE`
+//! suffix when wider than one byte. The readers decode in that type and byte
+//! order and convert to the requested `T` under a
+//! [`Conversion`](ritk_codecs::sample::Conversion): `Exact` refuses any
+//! conversion that could change a value and `Cast` converts with a warning.
+//! The writers store `T` itself, little-endian, and convert nothing. `Bit` and
+//! the complex types (`CFloat32`, `CFloat64`) hold something other than one
+//! real scalar per voxel and are rejected. The `scaling` header key is not
+//! interpreted.
+//!
+//! # Data offset
+//!
+//! The header's `file: <name> <offset>` key locates the voxels, and `<offset>`
+//! is a byte count from the **start of the file** that holds them. For an
+//! inline file (`file: . <offset>`) the offset lies after the `END` line:
+//! MRtrix rounds it up to a multiple of 4 and zero-pads between `END` and the
+//! data, and it refuses an inline offset of 0. The writers emit exactly that
+//! layout; the readers refuse an inline offset inside the header or past the
+//! end of the file. A detached file (`file: volume.dat <offset>`) is read from
+//! its own byte `<offset>`. Source: MRtrix3 `docs/getting_started/image_data.rst`
+//! (key `file`), `core/formats/mrtrix.cpp` (`MRtrix::create`), and
+//! `core/formats/mrtrix_utils.cpp` (`get_mrtrix_file_path`).
 //!
 //! # Acquisition axis
 //!
@@ -41,7 +70,6 @@
 //! [`ritk_diffusion_scheme::read_mrtrix_scheme`]; callers use that crate
 //! directly when reading a DWI series.
 
-pub(crate) mod decode;
 pub mod header;
 pub mod reader;
 pub mod writer;
@@ -51,3 +79,5 @@ pub use writer::{write_mif, write_mif_series, MifWriter};
 
 #[cfg(test)]
 mod tests;
+#[cfg(test)]
+mod tests_samples;

@@ -3,7 +3,7 @@
 use std::{collections::HashMap, path::Path};
 
 use anyhow::{anyhow, bail, Context, Result};
-use ritk_codecs::parse_usize_vec;
+use ritk_codecs::parse_header_values;
 use ritk_diffusion_scheme::{GradientFrame, GradientScheme};
 use ritk_spatial::Vector;
 
@@ -129,7 +129,8 @@ fn acquisition_volume_count(headers: &HashMap<String, String>) -> Result<usize> 
     if dimension != 4 {
         bail!("NRRD DWI metadata requires dimension 4, got {dimension}");
     }
-    let sizes = parse_usize_vec(required_value(headers, "sizes")?, "sizes", dimension)?;
+    let sizes =
+        parse_header_values::<usize>(required_value(headers, "sizes")?, "sizes", dimension)?;
     let direction_slots = headers
         .get("space directions")
         .map(|value| parse_space_direction_slots(value))

@@ -1,6 +1,7 @@
 use crate::write_metaimage_with_data;
 use anyhow::Result;
 use coeus_core::SequentialBackend;
+use ritk_codecs::sample::Exact;
 use ritk_spatial::{Direction, Point, Spacing};
 use tempfile::tempdir;
 
@@ -331,7 +332,7 @@ fn test_non_identity_direction_reordered_in_header() -> Result<()> {
     );
 
     // Round-trip: reading the written file must recover the exact direction.
-    let read_back = crate::read_metaimage(&path, &backend)?;
+    let read_back = crate::read_metaimage::<f32, _, _, _>(&path, &backend, Exact)?;
     let got = read_back.direction().0;
     for i in 0..3 {
         for j in 0..3 {

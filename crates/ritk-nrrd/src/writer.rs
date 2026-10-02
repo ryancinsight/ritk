@@ -1,17 +1,22 @@
 use anyhow::{anyhow, Context, Result};
 use coeus_core::{ComputeBackend, CpuAddressableStorage};
+use consus_core::ByteOrder;
+use ritk_codecs::sample::{write_samples, Sample};
 use ritk_image::Image;
 use ritk_spatial::{Direction, Point, Spacing};
 use std::io::{BufWriter, Write};
 use std::path::Path;
 
 use crate::spatial::file_space_directions_from_internal;
+use crate::types::name_for;
 
-/// Write a 3-D `Image` to a NRRD (Nearly Raw Raster Data) file.
+/// Write a 3-D `Image` of `T` to a NRRD (Nearly Raw Raster Data) file.
 ///
 /// # Format
 /// Writes NRRD version 4 (`NRRD0004`) with `encoding: raw` and
-/// `endian: little`.  The file is self-contained (inline data).
+/// `endian: little`.  The file is self-contained (inline data). The `type`
+/// field names the sample type `T`: NRRD stores all ten of them, so no `T` is
+/// refused.
 ///
 /// # Axis convention
 /// RITK stores voxels in `[Z, Y, X]` order. NRRD stores raw data with X as
@@ -26,12 +31,18 @@ use crate::spatial::file_space_directions_from_internal;
 /// * `space origin` — the image origin in physical `[X, Y, Z]` space.
 ///
 /// # Binary payload
-/// Voxel values are written as 32-bit IEEE 754 floats in little-endian byte
-/// order, immediately after a blank header-terminator line.
-pub fn write_nrrd<B, P>(path: P, image: &Image<f32, B, 3>, backend: &B) -> Result<()>
+/// Voxel values are written as packed `T` samples in little-endian byte order,
+/// immediately after a blank header-terminator line.
+///
+/// # Errors
+///
+/// Returns an error when the file cannot be created or written, or when an
+/// extent overflows the voxel count.
+pub fn write_nrrd<T, B, P>(path: P, image: &Image<T, B, 3>, backend: &B) -> Result<()>
 where
+    T: Sample,
     B: ComputeBackend + Default,
-    B::DeviceBuffer<f32>: CpuAddressableStorage<f32>,
+    B::DeviceBuffer<T>: CpuAddressableStorage<T>,
     P: AsRef<Path>,
 {
     // RITK [Z,Y,X] flat layout is already NRRD X-fastest raw order.  Extract via
@@ -51,13 +62,19 @@ where
 /// Like [`write_nrrd`] but uses caller-provided voxel data.
 ///
 /// `image` supplies only spatial metadata; the binary payload comes from
-/// `f32_slice`.  This lets a caller that already holds a fast (e.g. zero-copy
+/// `values`.  This lets a caller that already holds a fast (e.g. zero-copy
 /// NdArray) slice skip the generic `into_data()` materialization that dominates
-/// write time for large volumes.  `f32_slice.len()` must equal the voxel count.
-pub fn write_nrrd_with_data<B: ComputeBackend, P: AsRef<Path>>(
+/// write time for large volumes.  `values.len()` must equal the voxel count.
+///
+/// # Errors
+///
+/// Returns an error, before creating a file, when `values.len()` differs from
+/// the voxel count of `image`, and an error when creating or writing the file
+/// fails.
+pub fn write_nrrd_with_data<T: Sample, B: ComputeBackend, P: AsRef<Path>>(
     path: P,
-    image: &Image<f32, B, 3>,
-    f32_slice: &[f32],
+    image: &Image<T, B, 3>,
+    values: &[T],
 ) -> Result<()> {
     write_nrrd_flat(
         path.as_ref(),
@@ -65,21 +82,21 @@ pub fn write_nrrd_with_data<B: ComputeBackend, P: AsRef<Path>>(
         image.spacing(),
         image.origin(),
         image.direction(),
-        f32_slice,
+        values,
         crate::coordinate_map::encode(image.coordinate_map()),
     )
 }
 
 /// NRRD serialization core. Takes flat `[Z, Y, X]` voxels plus the
 /// (backend-independent) spatial metadata so header emission and byte layout
-/// live in exactly one place. `f32_slice.len()` must equal the voxel count.
-fn write_nrrd_flat(
+/// live in exactly one place. `values.len()` must equal the voxel count.
+fn write_nrrd_flat<T: Sample>(
     path: &Path,
     shape: [usize; 3],
     spacing: &Spacing<3>,
     origin: &Point<3>,
     direction: &Direction<3>,
-    f32_slice: &[f32],
+    values: &[T],
     coordinate_map: Option<String>,
 ) -> Result<()> {
     // shape is [nz, ny, nx] in RITK convention.
@@ -90,10 +107,10 @@ fn write_nrrd_flat(
         .checked_mul(ny)
         .and_then(|plane| plane.checked_mul(nz))
         .ok_or_else(|| anyhow!("NRRD shape [{nz}, {ny}, {nx}] voxel count overflows usize"))?;
-    if f32_slice.len() != voxel_count {
+    if values.len() != voxel_count {
         return Err(anyhow!(
             "NRRD payload has {} voxels but shape [{nz}, {ny}, {nx}] requires {voxel_count}",
-            f32_slice.len()
+            values.len()
         ));
     }
 
@@ -116,7 +133,7 @@ fn write_nrrd_flat(
     // Header — field order matches the ITK NrrdIO convention.
     writeln!(writer, "NRRD0004")?;
     writeln!(writer, "# Complete NRRD file written by ritk")?;
-    writeln!(writer, "type: float")?;
+    writeln!(writer, "type: {}", name_for(T::TYPE))?;
     writeln!(writer, "dimension: 3")?;
     // ITK/SimpleITK and ritk's own reader work in LPS: the reader stores the
     // `space origin` / `space directions` verbatim (no space conversion), and ITK
@@ -144,14 +161,15 @@ fn write_nrrd_flat(
     // Blank line terminates the header; binary data follows immediately.
     writeln!(writer)?;
 
-    write_le_f32(&mut writer, f32_slice)?;
+    write_samples(values, ByteOrder::LittleEndian, &mut writer)
+        .context("Failed to write NRRD payload")?;
 
     writer.flush().context("Failed to flush NRRD output file")?;
 
     Ok(())
 }
 
-/// Write an acquisition series to a NRRD file.
+/// Write an acquisition series of `T` images to a NRRD file.
 ///
 /// # Acquisition axis
 ///
@@ -169,10 +187,11 @@ fn write_nrrd_flat(
 ///
 /// Returns an error when `volumes` is empty, when any volume's grid differs
 /// from the first, or when writing fails.
-pub fn write_nrrd_series<B, P>(path: P, volumes: &[Image<f32, B, 3>], backend: &B) -> Result<()>
+pub fn write_nrrd_series<T, B, P>(path: P, volumes: &[Image<T, B, 3>], backend: &B) -> Result<()>
 where
+    T: Sample,
     B: ComputeBackend + Default,
-    B::DeviceBuffer<f32>: CpuAddressableStorage<f32>,
+    B::DeviceBuffer<T>: CpuAddressableStorage<T>,
     P: AsRef<Path>,
 {
     let Some((first, rest)) = volumes.split_first() else {
@@ -214,13 +233,13 @@ where
     )
 }
 
-fn write_nrrd_series_flat(
+fn write_nrrd_series_flat<T: Sample>(
     path: &Path,
     shape: [usize; 3],
     spacing: &Spacing<3>,
     origin: &Point<3>,
     direction: &Direction<3>,
-    payloads: &[impl std::ops::Deref<Target = [f32]>],
+    payloads: &[impl std::ops::Deref<Target = [T]>],
 ) -> Result<()> {
     // One volume has no acquisition axis to declare, so it takes the ordinary
     // rank-3 path and stays byte-identical to `write_nrrd`.
@@ -254,7 +273,7 @@ fn write_nrrd_series_flat(
 
     writeln!(writer, "NRRD0004")?;
     writeln!(writer, "# Complete NRRD file written by ritk")?;
-    writeln!(writer, "type: float")?;
+    writeln!(writer, "type: {}", name_for(T::TYPE))?;
     writeln!(writer, "dimension: 4")?;
     writeln!(writer, "space: left-posterior-superior")?;
     // The acquisition axis leads, so `sizes` and every per-axis field carry it
@@ -286,7 +305,8 @@ fn write_nrrd_series_flat(
             interleaved.push(payload[voxel]);
         }
     }
-    write_le_f32(&mut writer, &interleaved)?;
+    write_samples(&interleaved, ByteOrder::LittleEndian, &mut writer)
+        .context("Failed to write NRRD payload")?;
 
     writer.flush().context("Failed to flush NRRD output file")?;
     Ok(())
@@ -307,24 +327,6 @@ fn direction_row_major(direction: &Direction<3>) -> [f64; 9] {
         d[(2, 1)],
         d[(2, 2)],
     ]
-}
-
-/// Write `values` as little-endian IEEE 754 f32.
-///
-/// On little-endian targets the slice reinterprets to bytes with no copy; a
-/// per-element `write_all` loop is far slower across millions of voxels.
-fn write_le_f32(writer: &mut impl Write, values: &[f32]) -> Result<()> {
-    #[cfg(target_endian = "little")]
-    writer.write_all(bytemuck::cast_slice(values))?;
-    #[cfg(target_endian = "big")]
-    {
-        let mut bytes = Vec::with_capacity(values.len() * 4);
-        for &v in values {
-            bytes.extend_from_slice(&v.to_le_bytes());
-        }
-        writer.write_all(&bytes)?;
-    }
-    Ok(())
 }
 
 fn format_nrrd_vector(vector: [f64; 3]) -> String {
@@ -348,13 +350,19 @@ impl<B: ComputeBackend> NrrdWriter<B> {
     }
 }
 
-impl<B> NrrdWriter<B>
-where
-    B: ComputeBackend + Default,
-    B::DeviceBuffer<f32>: CpuAddressableStorage<f32>,
-{
-    /// Write `image` to the NRRD file at `path`.
-    pub fn write<P: AsRef<Path>>(&self, path: P, image: &Image<f32, B, 3>) -> Result<()> {
+impl<B: ComputeBackend + Default> NrrdWriter<B> {
+    /// Write `image` to the NRRD file at `path`, storing its sample type `T`.
+    ///
+    /// # Errors
+    ///
+    /// Returns the errors of [`write_nrrd`]: the file cannot be created or
+    /// written, or an extent overflows the voxel count.
+    pub fn write<T, P>(&self, path: P, image: &Image<T, B, 3>) -> Result<()>
+    where
+        T: Sample,
+        B::DeviceBuffer<T>: CpuAddressableStorage<T>,
+        P: AsRef<Path>,
+    {
         write_nrrd(path, image, &self.backend)
     }
 }

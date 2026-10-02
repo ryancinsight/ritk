@@ -67,7 +67,7 @@ fn series_round_trips_through_nifti1() -> Result<()> {
     let expected = series_fixture(5, [2, 3, 4]);
 
     write_nifti_series(&path, &expected, &backend)?;
-    let actual = read_nifti_series::<TestBackend, _>(&path, &backend)?;
+    let actual = read_nifti_series::<f32, _, TestBackend, _>(&path, &backend, Exact)?;
 
     assert_series_matches(&actual, &expected);
     Ok(())
@@ -81,7 +81,7 @@ fn series_round_trips_through_nifti2() -> Result<()> {
     let expected = series_fixture(3, [2, 2, 2]);
 
     write_nifti2_series(&path, &expected, &backend)?;
-    let actual = read_nifti_series::<TestBackend, _>(&path, &backend)?;
+    let actual = read_nifti_series::<f32, _, TestBackend, _>(&path, &backend, Exact)?;
 
     assert_series_matches(&actual, &expected);
     Ok(())
@@ -95,7 +95,7 @@ fn series_round_trips_through_gzip() -> Result<()> {
     let expected = series_fixture(4, [2, 2, 3]);
 
     write_nifti_series(&path, &expected, &backend)?;
-    let actual = read_nifti_series::<TestBackend, _>(&path, &backend)?;
+    let actual = read_nifti_series::<f32, _, TestBackend, _>(&path, &backend, Exact)?;
 
     // The gzip read limit derives from the header's declared byte range, so a
     // series that did not extend that range would decompress short.
@@ -119,7 +119,7 @@ fn single_volume_series_writes_a_rank_three_header() -> Result<()> {
     assert_eq!(header.dim[0], 3, "a one-volume series is a rank-3 file");
     assert_eq!(header.volume_count(), 1);
 
-    let single = read_nifti::<TestBackend, _>(&path, &backend)?;
+    let single = read_nifti::<f32, _, TestBackend, _>(&path, &backend, Exact)?;
     assert_eq!(
         single.data_slice().expect("contiguous host voxels"),
         expected[0].data_slice().expect("contiguous host voxels"),
@@ -155,7 +155,7 @@ fn rank_three_file_reads_as_a_one_volume_series() -> Result<()> {
     let image = series_fixture(1, [2, 2, 2]).remove(0);
 
     write_nifti(&path, &image, &backend)?;
-    let series = read_nifti_series::<TestBackend, _>(&path, &backend)?;
+    let series = read_nifti_series::<f32, _, TestBackend, _>(&path, &backend, Exact)?;
 
     assert_eq!(series.len(), 1);
     assert_eq!(
@@ -174,7 +174,7 @@ fn single_volume_reader_rejects_a_series_rather_than_returning_volume_zero() -> 
     let backend = TestBackend::default();
     write_nifti_series(&path, &series_fixture(6, [2, 2, 2]), &backend)?;
 
-    let err = read_nifti::<TestBackend, _>(&path, &backend)
+    let err = read_nifti::<f32, _, TestBackend, _>(&path, &backend, Exact)
         .expect_err("a 6-volume series has no single-volume representation");
     let message = format!("{err:#}");
 
@@ -279,7 +279,7 @@ fn truncated_series_payload_is_rejected() -> Result<()> {
     let one_volume_end = full.len() - 3 * 8 * std::mem::size_of::<f32>();
     std::fs::write(&path, &full[..one_volume_end])?;
 
-    let err = read_nifti_series::<TestBackend, _>(&path, &backend)
+    let err = read_nifti_series::<f32, _, TestBackend, _>(&path, &backend, Exact)
         .expect_err("a truncated series payload must fail");
     assert!(
         format!("{err:#}").contains("truncated"),

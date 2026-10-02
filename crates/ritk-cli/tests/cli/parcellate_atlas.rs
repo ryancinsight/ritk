@@ -145,8 +145,12 @@ fn read_labels(path: &Path) -> Vec<u32> {
 
 /// Read the agreement map back off disk as the ordinary float image it is.
 fn read_agreement(path: &Path) -> Vec<f32> {
-    let image = ritk_nifti::read_nifti::<SequentialBackend, _>(path, &SequentialBackend)
-        .expect("reading the agreement map");
+    let image = ritk_nifti::read_nifti::<f32, _, SequentialBackend, _>(
+        path,
+        &SequentialBackend,
+        ritk_codecs::sample::Exact,
+    )
+    .expect("reading the agreement map");
     image
         .data_slice()
         .expect("the agreement map is contiguous")

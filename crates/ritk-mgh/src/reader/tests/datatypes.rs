@@ -1,156 +1,119 @@
 use super::*;
+use crate::test_support::assert_bits_eq;
+use ritk_codecs::sample::{Cast, Exact, Sample};
 
-#[test]
-fn test_read_float_data() -> Result<()> {
-    let dir = tempdir()?;
-    let path = dir.path().join("f32.mgh");
-    let backend = TestBackend::default();
-    let values = [
-        std::f32::consts::PI,
-        std::f32::consts::E,
-        std::f32::consts::SQRT_2,
-        std::f32::consts::LN_2,
-        1.0 / 7.0,
-        -std::f32::consts::FRAC_PI_2,
-        2.0 * std::f32::consts::E,
-        1.0 / 3.0,
-    ];
-    let data_bytes: Vec<u8> = values.iter().flat_map(|v: &f32| v.to_be_bytes()).collect();
-    let mgh = build_mgh_bytes(
+/// A 2x3x2 MGH file of `code` holding `values` big-endian.
+fn file_of<T: Sample>(code: i32, values: &[T]) -> Vec<u8> {
+    let mut payload = Vec::new();
+    ritk_codecs::sample::write_samples(values, consus_core::ByteOrder::BigEndian, &mut payload)
+        .expect("a vector accepts every byte");
+    build_mgh_bytes(
         1,
-        [2, 2, 2],
+        [2, 3, 2],
         SINGLE_FRAME,
-        MRI_FLOAT,
+        code,
         [1.0, 1.0, 1.0],
         IDENTITY_DIR,
         [0.0, 0.0, 0.0],
-        &data_bytes,
-    );
-    std::fs::write(&path, &mgh)?;
+        &payload,
+    )
+}
 
-    let image = read_mgh::<TestBackend, _>(&path, &backend)?;
-    assert_eq!(image.shape(), [2, 2, 2]);
-    image.data_slice().map(|loaded| {
-        assert_eq!(loaded.len(), values.len());
-        for (i, (&got, &expected)) in loaded.iter().zip(values.iter()).enumerate() {
-            assert_eq!(
-                got.to_bits(),
-                expected.to_bits(),
-                "f32 voxel[{i}]: expected {expected}, got {got}"
-            );
-        }
-    })?;
+/// Write `values` as `code`, then read them back in their own type, bit for
+/// bit.
+fn reads_in_the_stored_type<T: Sample>(code: i32, values: [T; 12]) -> Result<()> {
+    let dir = tempdir()?;
+    let path = dir.path().join("stored.mgh");
+    std::fs::write(&path, file_of(code, &values))?;
+    let image = read_mgh::<T, _, _, _>(&path, &TestBackend::default(), Exact)?;
+    assert_eq!(image.shape(), [2, 3, 2]);
+    assert_bits_eq(image.data_slice()?, &values, T::TYPE.name());
     Ok(())
 }
 
 #[test]
-fn test_read_byte_data() -> Result<()> {
-    let dir = tempdir()?;
-    let path = dir.path().join("u8.mgh");
-    let backend = TestBackend::default();
-    let u8_vals: Vec<u8> = (0u8..12).map(|i| i * 10).collect();
-    let expected: Vec<f32> = u8_vals.iter().map(|&v| v as f32).collect();
-    let mgh = build_mgh_bytes(
-        1,
-        [2, 3, 2],
-        SINGLE_FRAME,
+fn every_mgh_type_reads_in_its_stored_type() -> Result<()> {
+    reads_in_the_stored_type(
         MRI_UCHAR,
-        [1.0, 1.0, 1.0],
-        IDENTITY_DIR,
-        [0.0, 0.0, 0.0],
-        &u8_vals,
-    );
-    std::fs::write(&path, &mgh)?;
-
-    let image = read_mgh::<TestBackend, _>(&path, &backend)?;
-    assert_eq!(image.shape(), [2, 3, 2]);
-    image.data_slice().map(|loaded| {
-        assert_eq!(loaded.len(), expected.len());
-        for (i, (&got, &expected)) in loaded.iter().zip(expected.iter()).enumerate() {
-            assert_eq!(
-                got, expected,
-                "u8 voxel[{i}]: expected {expected}, got {got}"
-            );
-        }
-    })?;
-    Ok(())
-}
-
-#[test]
-fn test_read_signed_short_data() -> Result<()> {
-    let dir = tempdir()?;
-    let path = dir.path().join("i16.mgh");
-    let backend = TestBackend::default();
-    let i16_vals = vec![
-        -1000, -100, 0, 100, 200, 300, 400, 500, -500, -200, 150, 750,
-    ];
-    let expected: Vec<f32> = i16_vals.iter().map(|&v| v as f32).collect();
-    let data_bytes: Vec<u8> = i16_vals
-        .iter()
-        .flat_map(|v: &i16| v.to_be_bytes())
-        .collect();
-    let mgh = build_mgh_bytes(
-        1,
-        [2, 3, 2],
-        SINGLE_FRAME,
+        [0_u8, 1, 2, 10, 20, 50, 100, 127, 128, 200, 254, 255],
+    )?;
+    reads_in_the_stored_type(
         MRI_SHORT,
-        [1.0, 1.0, 1.0],
-        IDENTITY_DIR,
-        [0.0, 0.0, 0.0],
-        &data_bytes,
-    );
-    std::fs::write(&path, &mgh)?;
-
-    let image = read_mgh::<TestBackend, _>(&path, &backend)?;
-    assert_eq!(image.shape(), [2, 3, 2]);
-    image.data_slice().map(|loaded| {
-        assert_eq!(loaded.len(), expected.len());
-        for (i, (&got, &expected)) in loaded.iter().zip(expected.iter()).enumerate() {
-            assert_eq!(
-                got, expected,
-                "i16 voxel[{i}]: expected {expected}, got {got}"
-            );
-        }
-    })?;
-    Ok(())
+        [
+            i16::MIN,
+            -1000,
+            -100,
+            -1,
+            0,
+            1,
+            100,
+            300,
+            500,
+            750,
+            3071,
+            i16::MAX,
+        ],
+    )?;
+    // 2^24 + 1 and the extremes have no exact f32 value.
+    reads_in_the_stored_type(
+        MRI_INT,
+        [
+            i32::MIN,
+            -100_000,
+            -1,
+            0,
+            1,
+            16_777_217,
+            50_000,
+            75_000,
+            -16_777_217,
+            3,
+            4,
+            i32::MAX,
+        ],
+    )?;
+    reads_in_the_stored_type(
+        MRI_FLOAT,
+        [
+            std::f32::consts::PI,
+            std::f32::consts::E,
+            -0.0,
+            f32::MIN_POSITIVE,
+            1.0 / 7.0,
+            -std::f32::consts::FRAC_PI_2,
+            f32::MAX,
+            f32::MIN,
+            1.0 / 3.0,
+            0.0,
+            f32::EPSILON,
+            -1.0,
+        ],
+    )
 }
 
+/// `u8` and `i16` widen to `f32` exactly; `i32` does not, so `Exact` refuses
+/// it and `Cast` rounds it.
 #[test]
-fn test_read_signed_int_data() -> Result<()> {
+fn exact_reads_widen_and_refuse_by_the_stored_type() -> Result<()> {
     let dir = tempdir()?;
-    let path = dir.path().join("i32.mgh");
     let backend = TestBackend::default();
-    let i32_vals = vec![
-        -100_000, -10_000, 0, 10_000, 20_000, 30_000, 40_000, 50_000, -50_000, -20_000, 15_000,
-        75_000,
-    ];
-    let expected: Vec<f32> = i32_vals.iter().map(|&v| v as f32).collect();
-    let data_bytes: Vec<u8> = i32_vals
-        .iter()
-        .flat_map(|v: &i32| v.to_be_bytes())
-        .collect();
-    let mgh = build_mgh_bytes(
-        1,
-        [2, 3, 2],
-        SINGLE_FRAME,
-        MRI_INT,
-        [1.0, 1.0, 1.0],
-        IDENTITY_DIR,
-        [0.0, 0.0, 0.0],
-        &data_bytes,
-    );
-    std::fs::write(&path, &mgh)?;
 
-    let image = read_mgh::<TestBackend, _>(&path, &backend)?;
-    assert_eq!(image.shape(), [2, 3, 2]);
-    image.data_slice().map(|loaded| {
-        assert_eq!(loaded.len(), expected.len());
-        for (i, (&got, &expected)) in loaded.iter().zip(expected.iter()).enumerate() {
-            assert_eq!(
-                got, expected,
-                "i32 voxel[{i}]: expected {expected}, got {got}"
-            );
-        }
-    })?;
+    let shorts = [-1024_i16, -1, 0, 1, 2, 3, 4, 5, 6, 7, 8, 3071];
+    let short_path = dir.path().join("i16.mgh");
+    std::fs::write(&short_path, file_of(MRI_SHORT, &shorts))?;
+    let widened = read_mgh::<f32, _, _, _>(&short_path, &backend, Exact)?;
+    assert_eq!(widened.data_slice()?, shorts.map(f32::from));
+
+    let ints = [16_777_217_i32, -3, 0, 1, 2, 3, 4, 5, 6, 7, 8, 9];
+    let int_path = dir.path().join("i32.mgh");
+    std::fs::write(&int_path, file_of(MRI_INT, &ints))?;
+    let refused = read_mgh::<f32, _, _, _>(&int_path, &backend, Exact)
+        .expect_err("i32 does not widen to f32");
+    assert!(
+        format!("{refused:#}").contains("i32 samples do not all have exact f32 values"),
+        "{refused:#}"
+    );
+    let cast = read_mgh::<f32, _, _, _>(&int_path, &backend, Cast)?;
+    assert_eq!(cast.data_slice()?[..2], [16_777_216.0, -3.0]);
     Ok(())
 }

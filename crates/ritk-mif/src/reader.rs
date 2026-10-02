@@ -3,31 +3,43 @@
 //! Reads the MRtrix3 `.mif` container format — a text header followed by raw
 //! binary voxel data.  Both inline (single-file) and detached (`file:` key
 //! pointing to `.mif.dat`) layouts are supported.
+//!
+//! # Data offset
+//!
+//! The `file` key is `file: <name> <offset>`, and `<offset>` counts bytes from
+//! the beginning of the file that holds the data, not from the end of the
+//! header.  For an inline file (`<name>` is `.`) the data file is the `.mif`
+//! itself, and the offset must lie at or after the end of the `END` line:
+//! MRtrix writes it rounded up to a multiple of four, with zero padding
+//! between `END` and the data, and refuses an inline offset of 0.  Sources are
+//! the MRtrix3 documentation `getting_started/image_data.rst` (key `file`),
+//! `core/formats/mrtrix.cpp` (`MRtrix::create`), and
+//! `core/formats/mrtrix_utils.cpp` (`get_mrtrix_file_path`).
 
-use crate::decode;
 use crate::header::{
-    parse_datatype, parse_dim, parse_f64_vec, parse_layout, parse_mif_header_from_path,
-    parse_transform,
+    parse_datatype, parse_dim, parse_layout, parse_mif_header_from_path, parse_transform, parse_vox,
 };
 use anyhow::{anyhow, bail, Context, Result};
 use coeus_core::ComputeBackend;
+use consus_core::ByteOrder;
+use ritk_codecs::sample::{Conversion, Sample, SampleBuffer, SampleType};
 use ritk_image::Image;
 use ritk_spatial::{Direction, Point, Spacing, Vector};
-use std::io::Read;
+use std::io::{self, Read, Seek};
 use std::path::Path;
 
 /// Decoded `.mif` voxel data: one flat `[Z, Y, X]` volume per frame,
 /// sharing one spatial grid.
-struct DecodedMif {
-    volumes: Vec<Vec<f32>>,
+struct DecodedMif<T> {
+    volumes: Vec<Vec<T>>,
     dims: [usize; 3],
     origin: Point<3>,
     spacing: Spacing<3>,
     direction: Direction<3>,
 }
 
-impl DecodedMif {
-    fn into_single_volume(mut self) -> Result<DecodedMif> {
+impl<T> DecodedMif<T> {
+    fn into_single_volume(mut self) -> Result<Self> {
         if self.volumes.len() != 1 {
             return Err(anyhow!(
                 ".mif file has {} frames; this reader returns one 3-D volume. \
@@ -39,7 +51,7 @@ impl DecodedMif {
         Ok(self)
     }
 
-    fn single_volume_data(mut self) -> Vec<f32> {
+    fn single_volume_data(mut self) -> Vec<T> {
         self.volumes
             .pop()
             .expect("invariant: single_volume_data follows into_single_volume")
@@ -48,10 +60,32 @@ impl DecodedMif {
 
 // ── Public API ──────────────────────────────────────────────────────────
 
-/// Read a `.mif` file into a single 3‑D [`Image`].
+/// Read a `.mif` file into a single 3‑D [`Image`] of `T`.
+///
+/// The voxels decode in the type and byte order the `datatype` key names
+/// (`Int8` through `UInt64`, `Float32`, `Float64`), then convert to `T` under
+/// `conversion`: [`Exact`](ritk_codecs::sample::Exact) accepts the stored type
+/// or a type it widens to, and [`Cast`](ritk_codecs::sample::Cast) converts
+/// with a warning. The header's `scaling` key is not interpreted.
 ///
 /// Rejects multi-frame files; use [`read_mif_series`] for diffusion or
 /// time‑series data.
+///
+/// # Errors
+///
+/// Returns an error when the file cannot be opened or read, when the header
+/// ends before its `END` line, when the header lacks `dim` or `datatype`, when
+/// `dim` is malformed or has an axis with no extent, when the voxel count
+/// overflows `usize`, when a `vox`,
+/// `transform`, or `layout` value is malformed, when the `datatype` is `Bit`,
+/// complex, or unknown, when the `datatype` is a one-byte type with a
+/// byte-order suffix (`UInt8LE`), when the `file` key is missing or malformed,
+/// when it names a detached file by an absolute path or through `..`, or one
+/// that cannot be opened, when an inline `file` offset lies
+/// inside the header (including the MRtrix-invalid `file: . 0`) or past the end
+/// of the file, when the payload is shorter than `dim` requires, when
+/// `conversion` refuses the stored type, or when the file has more than one
+/// frame.
 ///
 /// # Spatial convention
 ///
@@ -60,11 +94,14 @@ impl DecodedMif {
 /// same decomposition the other format crates use.  When no `transform` key
 /// is present, the `vox` sizes produce axis‑aligned spacing and the origin is
 /// zero.
-pub fn read_mif<B: ComputeBackend, P: AsRef<Path>>(
-    path: P,
-    backend: &B,
-) -> Result<Image<f32, B, 3>> {
-    let decoded = decode_mif(path)?.into_single_volume()?;
+pub fn read_mif<T, C, B, P>(path: P, backend: &B, conversion: C) -> Result<Image<T, B, 3>>
+where
+    T: Sample,
+    C: Conversion,
+    B: ComputeBackend,
+    P: AsRef<Path>,
+{
+    let decoded = decode_mif(path, conversion)?.into_single_volume()?;
     // Extract fields before consuming `decoded` for its data.
     let dims = decoded.dims;
     let origin = decoded.origin;
@@ -80,18 +117,30 @@ pub fn read_mif<B: ComputeBackend, P: AsRef<Path>>(
 /// axis — by convention axis 3 — whose extent is the frame count.  A
 /// single‑frame file is a one‑volume series.
 ///
-/// Every returned image shares the file's single spatial grid.
-pub fn read_mif_series<B: ComputeBackend, P: AsRef<Path>>(
+/// Every returned image shares the file's single spatial grid. The voxels
+/// decode and convert as [`read_mif`] describes.
+///
+/// # Errors
+///
+/// Returns the errors of [`read_mif`] other than the frame-count rejection.
+pub fn read_mif_series<T, C, B, P>(
     path: P,
     backend: &B,
-) -> Result<Vec<Image<f32, B, 3>>> {
+    conversion: C,
+) -> Result<Vec<Image<T, B, 3>>>
+where
+    T: Sample,
+    C: Conversion,
+    B: ComputeBackend,
+    P: AsRef<Path>,
+{
     let DecodedMif {
         volumes,
         dims,
         origin,
         spacing,
         direction,
-    } = decode_mif(path)?;
+    } = decode_mif(path, conversion)?;
 
     volumes
         .into_iter()
@@ -101,7 +150,10 @@ pub fn read_mif_series<B: ComputeBackend, P: AsRef<Path>>(
 
 // ── Internal decode ─────────────────────────────────────────────────────
 
-fn decode_mif<P: AsRef<Path>>(path: P) -> Result<DecodedMif> {
+fn decode_mif<T: Sample, C: Conversion, P: AsRef<Path>>(
+    path: P,
+    conversion: C,
+) -> Result<DecodedMif<T>> {
     let path = path.as_ref();
     let (header, mut reader) = parse_mif_header_from_path(path)?;
 
@@ -136,10 +188,7 @@ fn decode_mif<P: AsRef<Path>>(path: P) -> Result<DecodedMif> {
         .get("datatype")
         .ok_or_else(|| anyhow!("Missing 'datatype' in .mif header"))?
         .as_line();
-    let (elem_size, _signed, _float) = parse_datatype(dt_str)?;
-
-    // Determine endianness from the datatype string suffix.
-    let is_big_endian = dt_str.trim().to_lowercase().ends_with("be");
+    let (sample_type, byte_order) = parse_datatype(dt_str)?;
 
     // ── Layout ────────────────────────────────────────────────────────────
     let layout = if let Some(layout_val) = header.entries.get("layout") {
@@ -152,14 +201,7 @@ fn decode_mif<P: AsRef<Path>>(path: P) -> Result<DecodedMif> {
 
     // ── Voxel sizes ──────────────────────────────────────────────────────
     let vox_sizes: Vec<f64> = if let Some(vox_val) = header.entries.get("vox") {
-        let v = parse_f64_vec(vox_val.as_line())?;
-        if v.len() < 3 {
-            return Err(anyhow!(
-                ".mif 'vox' expected at least 3 spatial sizes, got {}",
-                v.len()
-            ));
-        }
-        v
+        parse_vox(vox_val.as_line())?
     } else {
         vec![1.0, 1.0, 1.0]
     };
@@ -186,92 +228,78 @@ fn decode_mif<P: AsRef<Path>>(path: P) -> Result<DecodedMif> {
     let total_voxels = voxels_per_volume
         .checked_mul(nframes)
         .ok_or_else(|| anyhow!(".mif series element count overflows usize"))?;
-    let expected_bytes = total_voxels
-        .checked_mul(elem_size)
-        .ok_or_else(|| anyhow!(".mif byte count overflows usize"))?;
 
-    // Handle detached data file.
-    let raw_bytes: Vec<u8> = if let Some(file_val) = header.entries.get("file") {
-        let file_spec = file_val.as_line();
-        // "file: . 2" means data starts at byte offset 2 in the same file.
-        // "file: sub-01_dwi.mif.dat 0" means a detached file.
-        let parts: Vec<&str> = file_spec.split_whitespace().collect();
-        if parts.len() >= 2 {
-            let fname = parts[0];
-            let offset: u64 = parts[1]
-                .parse()
-                .context("Invalid offset in .mif 'file' key")?;
-            if fname == "." {
-                // Inline data at offset — consume from the current reader.
-                // We already read the header, so we need to account for that.
-                // Actually, parse_mif_header_from_path leaves the reader
-                // positioned right after END\n, so offset 0 here means
-                // "start now".  >0 means skip additional bytes.
-                if offset > 0 {
-                    // Discard through a fixed scratch rather than allocating
-                    // the offset: it is a number on a header line, not a fact
-                    // about the file, so `vec![0u8; offset]` let
-                    // `file: . 4000000000` zero-fill 4 GB from a 300-byte input
-                    // — and succeed, which is silent exhaustion rather than a
-                    // crash. Copying to a sink is bounded by the bytes that
-                    // actually arrive, so an overstated offset fails as the
-                    // truncation it is.
-                    let skipped = std::io::copy(
-                        &mut std::io::Read::by_ref(&mut reader).take(offset),
-                        &mut std::io::sink(),
-                    )
-                    .context("Failed to skip inline data offset in .mif")?;
-                    if skipped != offset {
-                        bail!(
-                            ".mif 'file' key declares offset {offset}, but only {skipped} bytes                              follow the header"
-                        );
-                    }
-                }
-                let mut bytes = Vec::new();
-                reader
-                    .read_to_end(&mut bytes)
-                    .context("Failed to read inline .mif binary data")?;
-                bytes
-            } else {
-                let data_path = path.parent().unwrap_or_else(|| Path::new(".")).join(fname);
-                let mut bytes = std::fs::read(&data_path)
-                    .with_context(|| format!("Cannot read .mif data file {:?}", data_path))?;
-                if offset > 0 {
-                    bytes.drain(..(offset as usize).min(bytes.len()));
-                }
-                bytes
-            }
-        } else {
+    // `file: <name> [N]`, which MRtrix requires: N counts bytes from the
+    // start of the file that holds the data and defaults to 0, as
+    // `File::MRtrix::get_mrtrix_file_path` reads it. `.` names this file,
+    // whose header occupies the first `header_end` bytes; any other name is a
+    // detached file beside this one, read from its byte N.
+    let header_end = reader
+        .stream_position()
+        .context("Cannot locate the end of the .mif header")?;
+    let file_spec = header
+        .entries
+        .get("file")
+        .map(|value| value.as_line().to_owned());
+    let samples = match file_spec.as_deref().map(str::split_whitespace) {
+        None => {
             return Err(anyhow!(
-                "Invalid 'file' key in .mif header: '{}'",
-                file_spec
-            ));
+                ".mif header has no 'file' key; MRtrix requires one naming the data file and offset"
+            ))
         }
-    } else {
-        // Inline data right after END — read from the current reader position.
-        let mut bytes = Vec::new();
-        reader
-            .read_to_end(&mut bytes)
-            .context("Failed to read inline .mif binary data")?;
-        bytes
+        Some(mut parts) => {
+            let Some(name) = parts.next() else {
+                return Err(anyhow!("Invalid 'file' key in .mif header: no file name"));
+            };
+            let offset: u64 = parts
+                .next()
+                .map(str::parse)
+                .transpose()
+                .context("Invalid offset in .mif 'file' key")?
+                .unwrap_or(0);
+            if name == "." {
+                read_payload(
+                    &mut reader,
+                    header_end,
+                    offset,
+                    sample_type,
+                    byte_order,
+                    total_voxels,
+                )?
+            } else {
+                let detached = Path::new(name);
+                if !detached
+                    .components()
+                    .all(|part| matches!(part, std::path::Component::Normal(_)))
+                {
+                    return Err(anyhow!(
+                        ".mif 'file' key names '{name}'; a detached data file must be a relative path without '..'"
+                    ));
+                }
+                let data_path = path
+                    .parent()
+                    .unwrap_or_else(|| Path::new("."))
+                    .join(detached);
+                let file = std::fs::File::open(&data_path)
+                    .with_context(|| format!("Cannot read .mif data file {data_path:?}"))?;
+                read_payload(
+                    &mut io::BufReader::new(file),
+                    0,
+                    offset,
+                    sample_type,
+                    byte_order,
+                    total_voxels,
+                )?
+            }
+        }
     };
-
-    if raw_bytes.len() < expected_bytes {
-        return Err(anyhow!(
-            ".mif payload has {} bytes but dim requires {expected_bytes}",
-            raw_bytes.len()
-        ));
-    }
-    let raw_bytes = &raw_bytes[..expected_bytes];
-
-    // ── Decode to f32 ────────────────────────────────────────────────────
-    let f32_data = decode::decode_bytes(raw_bytes, elem_size, total_voxels, is_big_endian)?;
+    let samples = conversion.convert::<T>(samples)?;
 
     // ── De-interleave frames ─────────────────────────────────────────────
     // MRtrix data is stored with the fastest-varying axis determined by
     // the layout.  For a contiguous 4-D file with layout +0,+1,+2,+3
     // this means axis 3 varies fastest (interleaved by frame).
-    let mut volume_data: Vec<Vec<f32>> = Vec::with_capacity(nframes);
+    let mut volume_data: Vec<Vec<T>> = Vec::with_capacity(nframes);
     for _ in 0..nframes {
         volume_data.push(Vec::with_capacity(voxels_per_volume));
     }
@@ -283,14 +311,14 @@ fn decode_mif<P: AsRef<Path>>(path: P) -> Result<DecodedMif> {
     // (frames are interleaved per-voxel).
     if nframes > 1 && layout.len() >= 4 {
         // axis-3 (frame) varies fastest: for each voxel, iterate frames.
-        for chunk in f32_data.chunks(nframes) {
+        for chunk in samples.chunks(nframes) {
             for (fi, &val) in chunk.iter().enumerate() {
                 volume_data[fi].push(val);
             }
         }
     } else {
         // Single frame or frames-outermost: contiguous volumes.
-        for (fi, chunk) in f32_data.chunks(voxels_per_volume).enumerate() {
+        for (fi, chunk) in samples.chunks(voxels_per_volume).enumerate() {
             volume_data[fi].extend_from_slice(chunk);
         }
     }
@@ -301,6 +329,50 @@ fn decode_mif<P: AsRef<Path>>(path: P) -> Result<DecodedMif> {
         origin,
         spacing,
         direction,
+    })
+}
+
+/// Read `count` samples of `sample_type` stored in `byte_order`, starting at
+/// the absolute byte `offset` of the file `reader` is positioned in.
+///
+/// `position` is where `reader` currently stands in that file: the end of the
+/// header for the inline file, 0 for a detached one. An offset before
+/// `position` points into the header and is refused.
+///
+/// Both the offset and the count are numbers on header lines, not facts about
+/// the file, so neither sizes an allocation: the gap to the offset is discarded
+/// through a sink and the samples are read in bounded steps, which makes an
+/// overstated value fail as the truncation it is.
+fn read_payload<R: Read>(
+    reader: &mut R,
+    position: u64,
+    offset: u64,
+    sample_type: SampleType,
+    byte_order: ByteOrder,
+    count: usize,
+) -> Result<SampleBuffer> {
+    let Some(gap) = offset.checked_sub(position) else {
+        bail!(
+            ".mif 'file' key declares offset {offset}, inside the {position}-byte header; \
+             the offset counts from the start of the file and must lie after the END line"
+        );
+    };
+    if gap > 0 {
+        let skipped = io::copy(&mut reader.by_ref().take(gap), &mut io::sink())
+            .context("Failed to skip to the .mif data offset")?;
+        if skipped != gap {
+            let length = position + skipped;
+            bail!(
+                ".mif 'file' key declares offset {offset}, past the end of the \
+                 {length}-byte file"
+            );
+        }
+    }
+    SampleBuffer::read_from(reader, sample_type, byte_order, count).map_err(|error| {
+        match error.kind() {
+            io::ErrorKind::UnexpectedEof => anyhow!(".mif voxel payload is truncated: {error}"),
+            _ => anyhow::Error::new(error).context("Failed to read .mif voxel data"),
+        }
     })
 }
 
@@ -383,16 +455,22 @@ fn decompose_transform_affine(
 pub struct MifReader;
 
 impl MifReader {
-    /// Read a `.mif` file at `path` into an [`Image`] on `backend`.
-    pub fn read<B: ComputeBackend, P: AsRef<Path>>(
-        &self,
-        path: P,
-        backend: &B,
-    ) -> Result<Image<f32, B, 3>> {
-        read_mif(path, backend)
+    /// Read a `.mif` file at `path` into an [`Image`] of `T` on `backend`.
+    ///
+    /// # Errors
+    ///
+    /// Returns the error of [`read_mif`].
+    pub fn read<T, C, B, P>(&self, path: P, backend: &B, conversion: C) -> Result<Image<T, B, 3>>
+    where
+        T: Sample,
+        C: Conversion,
+        B: ComputeBackend,
+        P: AsRef<Path>,
+    {
+        read_mif(path, backend, conversion)
     }
 }
 
 #[cfg(test)]
-#[path = "reader_tests.rs"]
+#[path = "tests_reader.rs"]
 mod tests;

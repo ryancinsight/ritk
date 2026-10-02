@@ -1,5 +1,6 @@
 use crate::HEADER_SIZE;
 use coeus_core::SequentialBackend;
+use ritk_codecs::sample::{write_samples, Sample};
 use ritk_image::Image;
 use ritk_spatial::{Direction, Point, Spacing};
 
@@ -90,4 +91,30 @@ pub(crate) fn make_image_with_spatial(
         &SequentialBackend,
     )
     .expect("invariant: test voxel count matches the declared shape")
+}
+
+/// The little-endian encoding of `values`.
+fn encoded<T: Sample>(values: &[T]) -> Vec<u8> {
+    let mut bytes = Vec::new();
+    write_samples(values, consus_core::ByteOrder::LittleEndian, &mut bytes)
+        .expect("a vector accepts every byte");
+    bytes
+}
+
+/// Assert `actual` holds `expected` bit for bit.
+///
+/// Comparing the encoded bytes distinguishes `-0.0` from `0.0` and one NaN
+/// payload from another, which `==` on floats does not.
+pub(crate) fn assert_bits_eq<T: Sample>(actual: &[T], expected: &[T], context: &str) {
+    assert_eq!(actual.len(), expected.len(), "{context}: sample count");
+    let (actual, expected) = (encoded(actual), encoded(expected));
+    if let Some(byte) = actual.iter().zip(&expected).position(|(a, e)| a != e) {
+        let sample = byte / T::TYPE.byte_width();
+        panic!(
+            "{context}: {} sample {sample} differs in its bits: {:02x?} != {:02x?}",
+            T::TYPE,
+            &actual[sample * T::TYPE.byte_width()..][..T::TYPE.byte_width()],
+            &expected[sample * T::TYPE.byte_width()..][..T::TYPE.byte_width()],
+        );
+    }
 }

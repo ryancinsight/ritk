@@ -1,6 +1,17 @@
+//! MetaImage through the native provider at the `f32` surfaces of this crate.
+//!
+//! These surfaces return `f32` images until the dispatch reads in the caller's
+//! type (ADR 0053 decision 6), so they read under [`Cast`]: an `MET_INT`,
+//! `MET_UINT`, `MET_LONG`, `MET_ULONG`, `MET_LONG_LONG`, `MET_ULONG_LONG`, or
+//! `MET_DOUBLE` file, whose samples `f32` cannot all hold, is cast with a
+//! warning rather than refused.
+//! `MET_CHAR`, `MET_UCHAR`, `MET_SHORT`, `MET_USHORT`, and `MET_FLOAT` files
+//! read exactly.
+
 use crate::domain::ImageWriter;
 use anyhow::Result;
 use coeus_core::SequentialBackend;
+use ritk_codecs::sample::Cast;
 use ritk_core::image::Image;
 use ritk_image::tensor::Backend;
 
@@ -38,7 +49,7 @@ fn legacy_metadata_to_native<B: Backend>(
 
 /// Reads MetaImage through the native provider and converts at this legacy boundary.
 pub fn read_metaimage<B: Backend, P: AsRef<Path>>(path: P, device: &B) -> Result<Image<f32, B, 3>> {
-    ritk_metaimage::read_metaimage(path, &SequentialBackend)
+    ritk_metaimage::read_metaimage(path, &SequentialBackend, Cast)
         .map(|native| native_to_legacy(native, device))
 }
 
@@ -105,7 +116,8 @@ pub mod native {
 
     impl<B: ComputeBackend> ImageReader<Image<f32, B, 3>> for MetaImageReader<B> {
         fn read<P: AsRef<Path>>(&self, path: P) -> std::io::Result<Image<f32, B, 3>> {
-            ritk_metaimage::read_metaimage(path, &self.backend).map_err(to_io_err)
+            ritk_metaimage::read_metaimage(path, &self.backend, ritk_codecs::sample::Cast)
+                .map_err(to_io_err)
         }
     }
 

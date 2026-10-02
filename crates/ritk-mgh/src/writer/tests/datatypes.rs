@@ -1,137 +1,121 @@
-#![expect(clippy::unwrap_used, reason = "ratchet RITK-UNWRAP-1")]
 use super::*;
+use crate::test_support::assert_bits_eq;
+use ritk_codecs::sample::Sample;
+use ritk_image::Image;
 
-#[test]
-fn test_all_four_data_types_readable() -> Result<()> {
+/// A 2x2x2 image of `values` on the unit grid.
+fn image_of<T: Sample>(values: [T; 8]) -> Result<Image<T, TestBackend, 3>> {
+    Image::from_flat_on(
+        values.to_vec(),
+        [2, 2, 2],
+        Point::new([0.0, 0.0, 0.0]),
+        Spacing::new([1.0, 1.0, 1.0]),
+        Direction::identity(),
+        &TestBackend::default(),
+    )
+}
+
+/// The big-endian `type` field at byte 20 of an MGH header.
+fn type_code(bytes: &[u8]) -> i32 {
+    i32::from_be_bytes(
+        bytes[20..24]
+            .try_into()
+            .expect("invariant: four header bytes"),
+    )
+}
+
+/// Write `values` in `T`, check the header names `code`, and read them back in
+/// `T` bit for bit, through MGH and gzip-wrapped MGZ.
+fn writes_the_type_code<T: Sample>(code: i32, values: [T; 8]) -> Result<()> {
     let dir = tempdir()?;
     let backend = TestBackend::default();
-
-    let vals: Vec<u8> = vec![0, 50, 100, 150, 200, 250, 128, 64];
-    let expected: Vec<f32> = vals.iter().map(|&v| v as f32).collect();
-    let path = dir.path().join("types_u8.mgh");
-    let mgh = build_mgh_bytes(
-        1,
-        [2, 2, 2],
-        SINGLE_FRAME,
-        MRI_UCHAR,
-        [1.0, 1.0, 1.0],
-        IDENTITY_DIR,
-        [0.0, 0.0, 0.0],
-        &vals,
-    );
-    std::fs::write(&path, &mgh)?;
-    assert_read_values(&path, &backend, &expected, "u8")?;
-
-    let vals: Vec<i16> = vec![-32000, -1000, 0, 1000, 5000, 10000, -5000, 32000];
-    let expected: Vec<f32> = vals.iter().map(|&v| v as f32).collect();
-    let data_bytes: Vec<u8> = vals.iter().flat_map(|v| v.to_be_bytes()).collect();
-    let path = dir.path().join("types_i16.mgh");
-    let mgh = build_mgh_bytes(
-        1,
-        [2, 2, 2],
-        SINGLE_FRAME,
-        MRI_SHORT,
-        [1.0, 1.0, 1.0],
-        IDENTITY_DIR,
-        [0.0, 0.0, 0.0],
-        &data_bytes,
-    );
-    std::fs::write(&path, &mgh)?;
-    assert_read_values(&path, &backend, &expected, "i16")?;
-
-    let vals: Vec<i32> = vec![-100_000, -1, 0, 1, 50_000, 100_000, -50_000, 12345];
-    let expected: Vec<f32> = vals.iter().map(|&v| v as f32).collect();
-    let data_bytes: Vec<u8> = vals.iter().flat_map(|v| v.to_be_bytes()).collect();
-    let path = dir.path().join("types_i32.mgh");
-    let mgh = build_mgh_bytes(
-        1,
-        [2, 2, 2],
-        SINGLE_FRAME,
-        MRI_INT,
-        [1.0, 1.0, 1.0],
-        IDENTITY_DIR,
-        [0.0, 0.0, 0.0],
-        &data_bytes,
-    );
-    std::fs::write(&path, &mgh)?;
-    assert_read_values(&path, &backend, &expected, "i32")?;
-
-    let vals = [
-        std::f32::consts::PI,
-        -std::f32::consts::E,
-        0.0,
-        f32::MIN_POSITIVE,
-        1.0 / 7.0,
-        std::f32::consts::SQRT_2,
-        -123_456.79,
-        std::f32::consts::LN_2,
-    ];
-    let data_bytes: Vec<u8> = vals.iter().flat_map(|v: &f32| v.to_be_bytes()).collect();
-    let path = dir.path().join("types_f32.mgh");
-    let mgh = build_mgh_bytes(
-        1,
-        [2, 2, 2],
-        SINGLE_FRAME,
-        MRI_FLOAT,
-        [1.0, 1.0, 1.0],
-        IDENTITY_DIR,
-        [0.0, 0.0, 0.0],
-        &data_bytes,
-    );
-    std::fs::write(&path, &mgh)?;
-    let image = crate::read_mgh::<TestBackend, _>(&path, &backend)?;
-    image.data_slice().map(|loaded| {
-        for (i, (&got, &expected)) in loaded.iter().zip(vals.iter()).enumerate() {
-            assert_eq!(
-                got.to_bits(),
-                expected.to_bits(),
-                "f32 voxel[{i}]: expected {expected}, got {got}"
-            );
+    let image = image_of(values)?;
+    for name in ["typed.mgh", "typed.mgz"] {
+        let path = dir.path().join(name);
+        write_mgh(&image, &path, &backend)?;
+        if name.ends_with(".mgh") {
+            let bytes = std::fs::read(&path)?;
+            assert_eq!(type_code(&bytes), code, "{}", T::TYPE);
+            assert_eq!(bytes.len(), HEADER_SIZE + 8 * T::TYPE.byte_width());
         }
-    })?;
+        let loaded = crate::read_mgh::<T, _, TestBackend, _>(&path, &backend, Exact)?;
+        assert_bits_eq(
+            loaded.data_slice()?,
+            &values,
+            &format!("{} {name}", T::TYPE),
+        );
+    }
     Ok(())
 }
 
 #[test]
-fn test_invalid_version_rejected() {
-    let dir = tempdir().unwrap();
-    let path = dir.path().join("bad_ver.mgh");
-    let backend = TestBackend::default();
-    let mgh = build_mgh_bytes(
-        99,
-        [2, 2, 2],
-        SINGLE_FRAME,
+fn each_mgh_sample_type_writes_its_code() -> Result<()> {
+    writes_the_type_code(MRI_UCHAR, [0_u8, 1, 2, 127, 128, 200, 254, 255])?;
+    writes_the_type_code(
+        MRI_SHORT,
+        [i16::MIN, -1024, -1, 0, 1, 3071, 30_000, i16::MAX],
+    )?;
+    writes_the_type_code(
+        MRI_INT,
+        [
+            i32::MIN,
+            -16_777_217,
+            -1,
+            0,
+            1,
+            16_777_217,
+            70_000,
+            i32::MAX,
+        ],
+    )?;
+    writes_the_type_code(
         MRI_FLOAT,
-        [1.0, 1.0, 1.0],
-        IDENTITY_DIR,
-        [0.0, 0.0, 0.0],
-        &[0u8; 2 * 2 * 2 * 4],
-    );
-    std::fs::write(&path, &mgh).unwrap();
-
-    let result = crate::read_mgh::<TestBackend, _>(&path, &backend);
-    let msg = format!("{:#}", result.unwrap_err());
-    assert!(
-        msg.contains("version"),
-        "Error must mention 'version', got: {msg}"
-    );
+        [
+            -0.0,
+            0.0,
+            f32::MIN_POSITIVE,
+            1.0 / 7.0,
+            -123_456.79,
+            f32::MAX,
+            f32::MIN,
+            f32::EPSILON,
+        ],
+    )
 }
 
-fn assert_read_values(
-    path: &std::path::Path,
-    backend: &TestBackend,
-    expected: &[f32],
-    label: &str,
-) -> Result<()> {
-    let image = crate::read_mgh::<TestBackend, _>(path, backend)?;
-    image.data_slice().map(|loaded| {
-        assert_eq!(loaded.len(), expected.len());
-        for (i, (&got, &expected)) in loaded.iter().zip(expected.iter()).enumerate() {
-            assert_eq!(
-                got, expected,
-                "{label} voxel[{i}]: expected {expected}, got {got}"
-            );
-        }
-    })?;
+#[test]
+fn a_series_writes_its_sample_type_code() -> Result<()> {
+    let dir = tempdir()?;
+    let backend = TestBackend::default();
+    let path = dir.path().join("series.mgh");
+    let frames = [image_of([1_i16; 8])?, image_of([-2_i16; 8])?];
+    crate::write_mgh_series(&path, &frames, &backend)?;
+    let bytes = std::fs::read(&path)?;
+    assert_eq!(type_code(&bytes), MRI_SHORT);
+    let loaded = crate::read_mgh_series::<i16, _, TestBackend, _>(&path, &backend, Exact)?;
+    assert_eq!(loaded.len(), 2);
+    assert_eq!(loaded[0].data_slice()?, [1_i16; 8]);
+    assert_eq!(loaded[1].data_slice()?, [-2_i16; 8]);
+    Ok(())
+}
+
+/// MGH has no code for these types; the writer refuses them before creating
+/// a file.
+#[test]
+fn types_mgh_cannot_store_are_refused() -> Result<()> {
+    let dir = tempdir()?;
+    let backend = TestBackend::default();
+    let unsigned = dir.path().join("u16.mgh");
+    let err =
+        write_mgh(&image_of([7_u16; 8])?, &unsigned, &backend).expect_err("MGH has no uint16 code");
+    assert!(
+        format!("{err:#}").contains("MGH cannot store u16 samples"),
+        "{err:#}"
+    );
+    assert!(!unsigned.exists());
+    let double = dir.path().join("f64.mgh");
+    let err = crate::write_mgh_series(&double, &[image_of([0.5_f64; 8])?], &backend)
+        .expect_err("MGH has no float64 code");
+    assert!(format!("{err:#}").contains("f64"), "{err:#}");
     Ok(())
 }

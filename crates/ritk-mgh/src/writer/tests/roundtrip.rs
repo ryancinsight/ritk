@@ -11,7 +11,7 @@ fn test_round_trip_float_values() -> Result<()> {
     let image = make_image(data_vec.clone(), 2, 3, 5);
 
     write_mgh(&image, &path, &backend)?;
-    let loaded = crate::read_mgh::<TestBackend, _>(&path, &backend)?;
+    let loaded = crate::read_mgh::<f32, _, TestBackend, _>(&path, &backend, Exact)?;
     assert_eq!(loaded.shape(), [2, 3, 5]);
     loaded.data_slice().map(|loaded_vals| {
         assert_eq!(loaded_vals.len(), data_vec.len());
@@ -41,7 +41,7 @@ fn test_round_trip_mgz() -> Result<()> {
     assert_eq!(bytes[0], 0x1f);
     assert_eq!(bytes[1], 0x8b);
 
-    let loaded = crate::read_mgh::<TestBackend, _>(&path, &backend)?;
+    let loaded = crate::read_mgh::<f32, _, TestBackend, _>(&path, &backend, Exact)?;
     assert_eq!(loaded.shape(), [3, 4, 2]);
     loaded.data_slice().map(|loaded_vals| {
         for (i, (&got, &expected)) in loaded_vals.iter().zip(data_vec.iter()).enumerate() {
@@ -68,7 +68,7 @@ fn test_round_trip_mgh_gz_extension() -> Result<()> {
     assert_eq!(bytes[0], 0x1f);
     assert_eq!(bytes[1], 0x8b);
 
-    let loaded = crate::read_mgh::<TestBackend, _>(&path, &backend)?;
+    let loaded = crate::read_mgh::<f32, _, TestBackend, _>(&path, &backend, Exact)?;
     loaded.data_slice().map(|loaded_vals| {
         for (i, (&got, &expected)) in loaded_vals.iter().zip(data_vec.iter()).enumerate() {
             assert_eq!(got.to_bits(), expected.to_bits(), "voxel[{i}]");
@@ -90,7 +90,7 @@ fn test_round_trip_uppercase_gzip_extensions() -> Result<()> {
         let bytes = std::fs::read(&path)?;
         assert_eq!(&bytes[..2], &[0x1f, 0x8b], "{name} gzip magic");
 
-        let loaded = crate::read_mgh::<TestBackend, _>(&path, &backend)?;
+        let loaded = crate::read_mgh::<f32, _, TestBackend, _>(&path, &backend, Exact)?;
         loaded.data_slice().map(|loaded_vals| {
             for (i, (&got, &expected)) in loaded_vals.iter().zip(data_vec.iter()).enumerate() {
                 assert_eq!(got.to_bits(), expected.to_bits(), "{name} voxel[{i}]");
@@ -123,7 +123,7 @@ fn test_round_trip_nondefault_spatial() -> Result<()> {
     );
 
     write_mgh(&image, &path, &backend)?;
-    let loaded = crate::read_mgh::<TestBackend, _>(&path, &backend)?;
+    let loaded = crate::read_mgh::<f32, _, TestBackend, _>(&path, &backend, Exact)?;
     assert_eq!(loaded.shape(), [2, 3, 4]);
     assert!((loaded.spacing()[0] - 0.5).abs() < 1e-6);
     assert!((loaded.spacing()[1] - 0.75).abs() < 1e-6);
@@ -158,7 +158,7 @@ fn test_writer_struct_delegates() -> Result<()> {
         "Output file must be non-empty"
     );
 
-    let loaded = crate::read_mgh::<TestBackend, _>(&path, &backend)?;
+    let loaded = crate::read_mgh::<f32, _, TestBackend, _>(&path, &backend, Exact)?;
     assert_eq!(loaded.shape(), [2, 2, 2]);
     loaded.data_slice().map(|loaded_vals| {
         for (i, &got) in loaded_vals.iter().enumerate() {
@@ -186,7 +186,7 @@ fn test_edge_case_values_round_trip() -> Result<()> {
     let image = make_image(values.clone(), 2, 2, 2);
 
     write_mgh(&image, &path, &backend)?;
-    let loaded = crate::read_mgh::<TestBackend, _>(&path, &backend)?;
+    let loaded = crate::read_mgh::<f32, _, TestBackend, _>(&path, &backend, Exact)?;
     loaded.data_slice().map(|loaded_vals| {
         assert_eq!(loaded_vals.len(), values.len());
         for (i, (&got, &expected)) in loaded_vals.iter().zip(values.iter()).enumerate() {
@@ -221,7 +221,7 @@ fn test_round_trip_mgz_with_spatial() -> Result<()> {
     assert_eq!(bytes[0], 0x1f);
     assert_eq!(bytes[1], 0x8b);
 
-    let loaded = crate::read_mgh::<TestBackend, _>(&path, &backend)?;
+    let loaded = crate::read_mgh::<f32, _, TestBackend, _>(&path, &backend, Exact)?;
     assert_eq!(loaded.shape(), [2, 2, 2]);
     assert!((loaded.spacing()[0] - 2.0).abs() < 1e-6);
     assert!((loaded.spacing()[1] - 3.0).abs() < 1e-6);

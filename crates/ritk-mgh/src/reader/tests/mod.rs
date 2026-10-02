@@ -5,9 +5,16 @@ use crate::{HEADER_SIZE, MRI_FLOAT, MRI_INT, MRI_SHORT, MRI_UCHAR, SINGLE_FRAME,
 use anyhow::Result;
 use flate2::write::GzEncoder;
 use flate2::Compression;
+use ritk_codecs::sample::Exact;
+use ritk_core::alloc_probe::PeakTrackingAllocator;
 use ritk_spatial::{Direction, Point, Spacing};
 use std::io::Write;
 use tempfile::tempdir;
+
+// `#[global_allocator]` is per binary, so the declaration lives here while the
+// mechanism lives in `ritk_core::alloc_probe`.
+#[global_allocator]
+static ALLOCATOR: PeakTrackingAllocator = PeakTrackingAllocator;
 
 mod datatypes;
 mod errors;

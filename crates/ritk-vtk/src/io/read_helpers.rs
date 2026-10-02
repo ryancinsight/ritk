@@ -4,6 +4,7 @@
 use anyhow::{bail, Context, Result};
 use consus_core::{ByteOrder, EndianScalar};
 use consus_io::{bounded_capacity, read_exact_bounded};
+use ritk_codecs::sample::{SampleBuffer, SampleType};
 use std::io::{BufRead, Read};
 
 /// Read `count` ASCII whitespace-delimited numeric values from a buffered reader.
@@ -42,6 +43,31 @@ where
         bail!("expected {count} {type_name} values, got {}", out.len());
     }
     Ok(out)
+}
+
+/// Read `count` ASCII values of `sample_type` into a [`SampleBuffer`].
+///
+/// Each token parses in the stored type itself, so a 64-bit integer or an `f64`
+/// is never rounded through a narrower type, and a token that is not a value of
+/// that type (`300` as `u8`, `1.5` as `i32`) is an error naming it.
+pub(crate) fn read_ascii_samples(
+    reader: &mut dyn BufRead,
+    sample_type: SampleType,
+    count: usize,
+) -> Result<SampleBuffer> {
+    let name = sample_type.name();
+    Ok(match sample_type {
+        SampleType::U8 => SampleBuffer::U8(read_ascii(reader, count, name)?),
+        SampleType::I8 => SampleBuffer::I8(read_ascii(reader, count, name)?),
+        SampleType::U16 => SampleBuffer::U16(read_ascii(reader, count, name)?),
+        SampleType::I16 => SampleBuffer::I16(read_ascii(reader, count, name)?),
+        SampleType::U32 => SampleBuffer::U32(read_ascii(reader, count, name)?),
+        SampleType::I32 => SampleBuffer::I32(read_ascii(reader, count, name)?),
+        SampleType::U64 => SampleBuffer::U64(read_ascii(reader, count, name)?),
+        SampleType::I64 => SampleBuffer::I64(read_ascii(reader, count, name)?),
+        SampleType::F32 => SampleBuffer::F32(read_ascii(reader, count, name)?),
+        SampleType::F64 => SampleBuffer::F64(read_ascii(reader, count, name)?),
+    })
 }
 
 /// Read the next non-blank line from a buffered reader.

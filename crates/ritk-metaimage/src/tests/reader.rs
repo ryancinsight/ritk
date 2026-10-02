@@ -1,6 +1,7 @@
 #![expect(clippy::unwrap_used, reason = "ratchet RITK-UNWRAP-1")]
 use anyhow::Result;
 use coeus_core::SequentialBackend;
+use ritk_codecs::sample::Exact;
 use ritk_core::rejection::assert_rejects;
 use ritk_spatial::{Direction, Point, Spacing};
 use tempfile::tempdir;
@@ -91,14 +92,14 @@ fn write_compressed_mha_with_dims(
 #[test]
 fn test_compressed_hostile_dimsize_errors_without_oom() {
     // DimSize claims a 1024^3 float volume (~4.3 GiB) but the zlib payload
-    // inflates to 16 bytes. The capped capacity hint must avoid a multi-GiB
-    // reservation; the post-inflation length check then rejects the file.
+    // inflates to 16 bytes. The streaming preflight rejects the short payload
+    // before the typed sample buffer can reserve space for the declared count.
     let dir = tempdir().unwrap();
     let path = dir.path().join("hostile_compressed.mha");
     write_compressed_mha_with_dims(&path, &[0u8; 16], 1024, 1024, 1024);
 
     let backend = SequentialBackend;
-    let result = crate::read_metaimage(&path, &backend);
+    let result = crate::read_metaimage::<f32, _, _, _>(&path, &backend, Exact);
     assert_rejects(
         result,
         "MetaImage payload length mismatch: expected 4294967296",
@@ -122,7 +123,7 @@ fn test_shape_mapped_to_zyx_without_permutation() -> Result<()> {
     write_minimal_mha(&path, &data, nx, ny, nz, [1.0, 2.0, 3.0], [0.0, 0.0, 0.0]);
 
     let backend = SequentialBackend;
-    let image = crate::read_metaimage(&path, &backend)?;
+    let image = crate::read_metaimage::<f32, _, _, _>(&path, &backend, Exact)?;
 
     assert_eq!(image.shape(), [nz, ny, nx], "shape must be [nz, ny, nx]");
     Ok(())
@@ -140,7 +141,7 @@ fn test_x_fastest_payload_values_are_not_permuted() -> Result<()> {
     write_minimal_mha(&path, &data, nx, ny, nz, [1.0, 1.0, 1.0], [0.0, 0.0, 0.0]);
 
     let backend = SequentialBackend;
-    let image = crate::read_metaimage(&path, &backend)?;
+    let image = crate::read_metaimage::<f32, _, _, _>(&path, &backend, Exact)?;
     {
         let values = image.data_slice().expect("contiguous host data");
         assert_eq!(values, data.as_slice());
@@ -157,7 +158,7 @@ fn test_spacing_metadata_reordered_to_internal_axes() -> Result<()> {
     write_minimal_mha(&path, &data, 4, 3, 2, [0.9, 0.8, 1.5], [5.0, 6.0, 7.0]);
 
     let backend = SequentialBackend;
-    let image = crate::read_metaimage(&path, &backend)?;
+    let image = crate::read_metaimage::<f32, _, _, _>(&path, &backend, Exact)?;
 
     assert!((image.spacing()[0] - 1.5).abs() < 1e-9);
     assert!((image.spacing()[1] - 0.8).abs() < 1e-9);
@@ -178,7 +179,7 @@ fn test_file_identity_direction_reordered_to_internal_axes() -> Result<()> {
     write_minimal_mha(&path, &data, 2, 2, 2, [1.0, 1.0, 1.0], [0.0, 0.0, 0.0]);
 
     let backend = SequentialBackend;
-    let image = crate::read_metaimage(&path, &backend)?;
+    let image = crate::read_metaimage::<f32, _, _, _>(&path, &backend, Exact)?;
 
     let d = image.direction().0;
     let expected = Direction::from_row_major([0.0, 0.0, 1.0, 0.0, 1.0, 0.0, 1.0, 0.0, 0.0]);
@@ -215,7 +216,7 @@ fn test_round_trip_mha() -> Result<()> {
     let image = make_image(data_vec.clone(), [2, 3, 4], origin, spacing, direction);
 
     crate::write_metaimage(&path, &image, &backend)?;
-    let loaded = crate::read_metaimage(&path, &backend)?;
+    let loaded = crate::read_metaimage::<f32, _, _, _>(&path, &backend, Exact)?;
 
     // Shape
     assert_eq!(loaded.shape(), [2, 3, 4]);
@@ -252,7 +253,8 @@ fn test_round_trip_mha() -> Result<()> {
 #[test]
 fn test_missing_file_returns_error() {
     let backend = SequentialBackend;
-    let result = crate::read_metaimage("/nonexistent/path/file.mha", &backend);
+    let result =
+        crate::read_metaimage::<f32, _, _, _>("/nonexistent/path/file.mha", &backend, Exact);
     let msg = match result {
         Ok(_) => panic!("missing file must fail"),
         Err(err) => format!("{err:?}"),
@@ -280,7 +282,7 @@ fn test_missing_required_field_returns_error() -> Result<()> {
         writeln!(f, "ElementDataFile = LOCAL")?;
     }
     let backend = SequentialBackend;
-    let result = crate::read_metaimage(&path, &backend);
+    let result = crate::read_metaimage::<f32, _, _, _>(&path, &backend, Exact);
     let msg = match result {
         Ok(_) => panic!("missing DimSize must fail"),
         Err(err) => format!("{err:?}"),
@@ -306,17 +308,16 @@ fn test_unsupported_element_type_returns_error() -> Result<()> {
         writeln!(f, "ElementSpacing = 1 1 1")?;
         writeln!(f, "Offset = 0 0 0")?;
         writeln!(f, "TransformMatrix = 1 0 0 0 1 0 0 0 1")?;
-        writeln!(f, "ElementType = MET_LONG")?; // not supported
+        writeln!(f, "ElementType = MET_STRING")?; // not a numeric sample
         writeln!(f, "ElementDataFile = LOCAL")?;
-        // Write 8*8 = 64 bytes of dummy data (MET_LONG = 8 bytes each, 8 voxels)
-        let dummy = vec![0u8; 64];
+        let dummy = vec![0u8; 8];
         f.write_all(&dummy)?;
     }
     let backend = SequentialBackend;
-    let result = crate::read_metaimage(&path, &backend);
+    let result = crate::read_metaimage::<f32, _, _, _>(&path, &backend, Exact);
     let msg = format!("{:?}", result.unwrap_err());
     assert!(
-        msg.contains("MET_LONG"),
+        msg.contains("MET_STRING"),
         "Error message must name the unsupported type; got: {}",
         msg
     );
@@ -348,7 +349,7 @@ fn test_extra_payload_bytes_return_error() -> Result<()> {
     }
 
     let backend = SequentialBackend;
-    let result = crate::read_metaimage(&path, &backend);
+    let result = crate::read_metaimage::<f32, _, _, _>(&path, &backend, Exact);
     let msg = result
         .expect_err("extra payload bytes must fail")
         .to_string();
@@ -382,7 +383,7 @@ fn test_dim_size_overflow_returns_error() -> Result<()> {
     }
 
     let backend = SequentialBackend;
-    let result = crate::read_metaimage(&path, &backend);
+    let result = crate::read_metaimage::<f32, _, _, _>(&path, &backend, Exact);
     let msg = result
         .expect_err("overflowing DimSize must fail")
         .to_string();
@@ -432,7 +433,7 @@ fn test_mhd_external_raw_file() -> Result<()> {
     }
 
     let backend = SequentialBackend;
-    let image = crate::read_metaimage(&mhd_path, &backend)?;
+    let image = crate::read_metaimage::<f32, _, _, _>(&mhd_path, &backend, Exact)?;
 
     // Shape must be [nz, ny, nx] = [2, 2, 2]
     assert_eq!(image.shape(), [nz, ny, nx]);
@@ -458,7 +459,8 @@ fn native_read_metaimage_preserves_shape_and_voxels() {
     write_minimal_mha(&path, &data, nx, ny, nz, [1.5, 2.0, 2.5], [0.0, 0.0, 0.0]);
 
     let backend = SequentialBackend;
-    let image = crate::read_metaimage(&path, &backend).expect("coeus MetaImage read");
+    let image = crate::read_metaimage::<f32, _, _, _>(&path, &backend, Exact)
+        .expect("coeus MetaImage read");
 
     assert_eq!(
         image.shape(),

@@ -1,7 +1,10 @@
 use anyhow::{anyhow, bail, Context, Result};
 use coeus_core::ComputeBackend;
 use flate2::read::GzDecoder;
+use ritk_codecs::sample::{Conversion, Rescale, Sample, SampleBuffer};
 use ritk_image::Image;
+use std::borrow::Cow;
+use std::fmt::Display;
 use std::fs;
 use std::io::Read;
 use std::path::Path;
@@ -13,16 +16,32 @@ use crate::spatial::{metadata_from_nifti_ras_affine, InternalSpatialMetadata};
 const GZIP_MAGIC: [u8; 2] = [0x1f, 0x8b];
 const MAX_HEADER_PREFIX_BYTES: u64 = 544;
 
-pub fn read_nifti<B: ComputeBackend, P: AsRef<Path>>(
-    path: P,
-    backend: &B,
-) -> Result<Image<f32, B, 3>> {
-    let bytes = fs::read(path.as_ref()).map_err(|e| {
-        tracing::error!("Failed to read NIfTI file {:?}: {}", path.as_ref(), e);
-        anyhow!("Failed to read NIfTI file")
-    })?;
-
-    read_nifti_from_bytes(&bytes, backend).map_err(|e| {
+/// Read a NIfTI volume as physical values in `T`.
+///
+/// The stored samples convert to `T` under `conversion`
+/// ([`Exact`](ritk_codecs::sample::Exact) refuses any conversion that could
+/// change a value) and the header's `scl_slope`/`scl_inter` rescale is then
+/// applied in `T`'s arithmetic.
+///
+/// # Errors
+///
+/// Returns an error when the file cannot be read, the header, spatial
+/// metadata, or payload length is invalid, the file declares more than one
+/// volume, `conversion` refuses the stored type, the header declares a
+/// rescale and `T` is an integer type — use [`read_nifti_stored`] for the
+/// stored integers and the rescale — or a rescale coefficient lies outside
+/// `T`'s range ([`SampleError::RescaleOutOfRange`]).
+///
+/// [`SampleError::RescaleOutOfRange`]: ritk_codecs::sample::SampleError::RescaleOutOfRange
+pub fn read_nifti<T, C, B, P>(path: P, backend: &B, conversion: C) -> Result<Image<T, B, 3>>
+where
+    T: Sample,
+    C: Conversion,
+    B: ComputeBackend,
+    P: AsRef<Path>,
+{
+    let bytes = read_file(path.as_ref())?;
+    read_nifti_from_bytes(&bytes, backend, conversion).map_err(|e| {
         tracing::error!("Failed to decode NIfTI file: {e:#}");
         if format!("{e:#}").contains("Invalid NIfTI spatial metadata") {
             e.context("Invalid NIfTI spatial metadata")
@@ -32,26 +51,61 @@ pub fn read_nifti<B: ComputeBackend, P: AsRef<Path>>(
     })
 }
 
-/// Read a NIfTI payload from in-memory bytes.
+/// Read a NIfTI volume from in-memory bytes as physical values in `T`.
 ///
 /// Accepts `.nii` bytes directly and `.nii.gz` bytes by detecting the gzip
 /// header. The decoded payload must be a single-file NIfTI-1 or NIfTI-2 stream.
-pub fn read_nifti_from_bytes<B: ComputeBackend>(
+///
+/// # Errors
+///
+/// Returns an error under the conditions of [`read_nifti`] past the file read.
+pub fn read_nifti_from_bytes<T, C, B>(
     bytes: &[u8],
     backend: &B,
-) -> Result<Image<f32, B, 3>> {
-    let (data, dims, spatial) = decode_nifti_bytes(bytes)?.into_single_volume()?;
-    Image::from_flat_on(
-        data,
-        dims,
-        spatial.origin,
-        spatial.spacing,
-        spatial.direction,
-        backend,
-    )
+    conversion: C,
+) -> Result<Image<T, B, 3>>
+where
+    T: Sample,
+    C: Conversion,
+    B: ComputeBackend,
+{
+    decode_nifti_bytes(bytes, conversion)?
+        .into_physical()?
+        .into_single_volume()?
+        .into_image(backend)
 }
 
-/// Read a NIfTI acquisition series as one image per volume.
+/// Read a NIfTI volume as its stored samples in `T`, with the rescale the
+/// header declares left unapplied.
+///
+/// Reading a file in its stored type keeps every sample exact; the returned
+/// [`Rescale`] maps those samples to physical values.
+///
+/// # Errors
+///
+/// Returns an error when the file cannot be read, the header, spatial
+/// metadata, or payload length is invalid, `conversion` refuses the stored
+/// type, or the file declares more than one volume.
+pub fn read_nifti_stored<T, C, B, P>(
+    path: P,
+    backend: &B,
+    conversion: C,
+) -> Result<(Image<T, B, 3>, Rescale)>
+where
+    T: Sample,
+    C: Conversion,
+    B: ComputeBackend,
+    P: AsRef<Path>,
+{
+    let bytes = read_file(path.as_ref())?;
+    let decoded =
+        decode_nifti_bytes::<T, C>(&bytes, conversion).context("Failed to read NIfTI file")?;
+    let rescale = decoded.rescale;
+    Ok((decoded.into_single_volume()?.into_image(backend)?, rescale))
+}
+
+/// Read a NIfTI acquisition series as one image per volume, in physical values
+/// of `T`.
 ///
 /// A NIfTI file carries its acquisition axis in `dim[4]` — the axis diffusion,
 /// functional, and other repeated acquisitions vary along. Every returned image
@@ -64,22 +118,24 @@ pub fn read_nifti_from_bytes<B: ComputeBackend>(
 ///
 /// # Errors
 ///
-/// Returns an error when the header, spatial metadata, or payload length is
-/// invalid, or when a voxel lane cannot be decoded.
-pub fn read_nifti_series<B: ComputeBackend, P: AsRef<Path>>(
+/// Returns an error when the file cannot be read, the header, spatial
+/// metadata, or payload length is invalid, `conversion` refuses the stored
+/// type, the header declares a rescale and `T` is an integer type — use
+/// [`read_nifti_series_stored`] for the stored integers and the rescale — or
+/// a rescale coefficient lies outside `T`'s range.
+pub fn read_nifti_series<T, C, B, P>(
     path: P,
     backend: &B,
-) -> Result<Vec<Image<f32, B, 3>>> {
-    let bytes = fs::read(path.as_ref()).map_err(|e| {
-        tracing::error!(
-            "Failed to read NIfTI series file {:?}: {}",
-            path.as_ref(),
-            e
-        );
-        anyhow!("Failed to read NIfTI series file")
-    })?;
-
-    read_nifti_series_from_bytes(&bytes, backend).map_err(|e| {
+    conversion: C,
+) -> Result<Vec<Image<T, B, 3>>>
+where
+    T: Sample,
+    C: Conversion,
+    B: ComputeBackend,
+    P: AsRef<Path>,
+{
+    let bytes = read_file(path.as_ref())?;
+    read_nifti_series_from_bytes(&bytes, backend, conversion).map_err(|e| {
         tracing::error!("Failed to decode NIfTI series file: {e:#}");
         e.context("Failed to read NIfTI series file")
     })
@@ -92,106 +148,179 @@ pub fn read_nifti_series<B: ComputeBackend, P: AsRef<Path>>(
 ///
 /// # Errors
 ///
-/// Returns an error when the header, spatial metadata, or payload length is
-/// invalid, or when a voxel lane cannot be decoded.
-pub fn read_nifti_series_from_bytes<B: ComputeBackend>(
+/// Returns an error under the conditions of [`read_nifti_series`] past the
+/// file read.
+pub fn read_nifti_series_from_bytes<T, C, B>(
     bytes: &[u8],
     backend: &B,
-) -> Result<Vec<Image<f32, B, 3>>> {
-    let DecodedNifti {
-        volumes,
-        dims,
-        spatial,
-    } = decode_nifti_bytes(bytes)?;
+    conversion: C,
+) -> Result<Vec<Image<T, B, 3>>>
+where
+    T: Sample,
+    C: Conversion,
+    B: ComputeBackend,
+{
+    decode_nifti_bytes(bytes, conversion)?
+        .into_physical()?
+        .into_images(backend)
+}
 
-    volumes
-        .into_iter()
-        .map(|data| {
-            Image::from_flat_on(
-                data,
-                dims,
-                spatial.origin,
-                spatial.spacing,
-                spatial.direction,
-                backend,
-            )
-        })
-        .collect()
+/// Read a NIfTI acquisition series as its stored samples in `T`, one image per
+/// volume, with the rescale the header declares left unapplied.
+///
+/// The series counterpart of [`read_nifti_stored`]: the returned [`Rescale`]
+/// maps every volume's samples to physical values.
+///
+/// # Errors
+///
+/// Returns an error when the file cannot be read, the header, spatial
+/// metadata, or payload length is invalid, or `conversion` refuses the stored
+/// type.
+pub fn read_nifti_series_stored<T, C, B, P>(
+    path: P,
+    backend: &B,
+    conversion: C,
+) -> Result<(Vec<Image<T, B, 3>>, Rescale)>
+where
+    T: Sample,
+    C: Conversion,
+    B: ComputeBackend,
+    P: AsRef<Path>,
+{
+    let bytes = read_file(path.as_ref())?;
+    let decoded = decode_nifti_bytes::<T, C>(&bytes, conversion)
+        .context("Failed to read NIfTI series file")?;
+    let rescale = decoded.rescale;
+    Ok((decoded.into_images(backend)?, rescale))
+}
+
+/// Read `path`, keeping the I/O failure as the error's source. The context
+/// names no path: an `io::Error` from `fs::read` displays only the operating
+/// system's message and code, so the chain carries no caller path either.
+fn read_file(path: &Path) -> Result<Vec<u8>> {
+    fs::read(path).map_err(|e| {
+        tracing::error!("Failed to read NIfTI file {path:?}: {e}");
+        anyhow::Error::new(e).context("Failed to read NIfTI file")
+    })
 }
 
 /// Decoded NIfTI payload: one entry per volume, each in `[nz, ny, nx]` order,
-/// sharing one spatial grid.
-struct DecodedNifti {
-    volumes: Vec<Vec<f32>>,
+/// sharing one spatial grid, with the rescale still to apply.
+struct DecodedNifti<T> {
+    volumes: Vec<Vec<T>>,
+    dims: [usize; 3],
+    spatial: InternalSpatialMetadata,
+    rescale: Rescale,
+}
+
+/// One decoded volume and the grid it lies on.
+struct DecodedVolume<T> {
+    data: Vec<T>,
     dims: [usize; 3],
     spatial: InternalSpatialMetadata,
 }
 
-impl DecodedNifti {
+impl<T: Sample> DecodedNifti<T> {
+    /// Apply the header's rescale to every volume.
+    fn into_physical(mut self) -> Result<Self> {
+        for volume in &mut self.volumes {
+            self.rescale.apply(volume).with_context(|| {
+                format!(
+                    "NIfTI scl_slope {} and scl_inter {} declare a rescale; \
+                     read_nifti_stored and read_nifti_series_stored return the \
+                     stored samples and the rescale",
+                    self.rescale.slope(),
+                    self.rescale.intercept()
+                )
+            })?;
+        }
+        Ok(self)
+    }
+
+    /// One image per volume, every one on the file's spatial grid.
+    fn into_images<B: ComputeBackend>(self, backend: &B) -> Result<Vec<Image<T, B, 3>>> {
+        let Self {
+            volumes,
+            dims,
+            spatial,
+            rescale: _,
+        } = self;
+        volumes
+            .into_iter()
+            .map(|data| {
+                Image::from_flat_on(
+                    data,
+                    dims,
+                    spatial.origin,
+                    spatial.spacing,
+                    spatial.direction,
+                    backend,
+                )
+            })
+            .collect()
+    }
+
     /// Take the sole volume, rejecting a series.
     ///
     /// The single-volume readers carry a `[nz, ny, nx]` contract, so a series
     /// has no correct representation through them; returning volume 0 would
     /// discard the rest of the acquisition while reporting success.
-    fn into_single_volume(mut self) -> Result<(Vec<f32>, [usize; 3], InternalSpatialMetadata)> {
-        if self.volumes.len() != 1 {
+    fn into_single_volume(mut self) -> Result<DecodedVolume<T>> {
+        let count = self.volumes.len();
+        let (Some(data), true) = (self.volumes.pop(), count == 1) else {
             bail!(
-                "NIfTI file declares {} volumes; this reader returns one 3-D volume. \
+                "NIfTI file declares {count} volumes; this reader returns one 3-D volume. \
                  Use the series reader to decode an acquisition series (diffusion, \
                  time series) without discarding {} of its volumes.",
-                self.volumes.len(),
-                self.volumes.len() - 1
+                count.saturating_sub(1)
             );
-        }
-        let data = self
-            .volumes
-            .pop()
-            .expect("invariant: length checked to be exactly one above");
-        Ok((data, self.dims, self.spatial))
+        };
+        Ok(DecodedVolume {
+            data,
+            dims: self.dims,
+            spatial: self.spatial,
+        })
     }
 }
 
-/// Decode NIfTI bytes (gzip-detected) into a backend-agnostic [`DecodedNifti`].
-fn decode_nifti_bytes(bytes: &[u8]) -> Result<DecodedNifti> {
-    let decoded;
-    let payload = if bytes.starts_with(&GZIP_MAGIC) {
-        decoded = decode_gzip(bytes).context("Failed to decode gzipped NIfTI bytes")?;
-        decoded.as_slice()
-    } else {
-        bytes
-    };
-
-    decode_single_file(payload)
+impl<T: Sample> DecodedVolume<T> {
+    fn into_image<B: ComputeBackend>(self, backend: &B) -> Result<Image<T, B, 3>> {
+        Image::from_flat_on(
+            self.data,
+            self.dims,
+            self.spatial.origin,
+            self.spatial.spacing,
+            self.spatial.direction,
+            backend,
+        )
+    }
 }
 
-fn decode_single_file(bytes: &[u8]) -> Result<DecodedNifti> {
-    let header = NiftiHeader::parse(bytes).context("Invalid NIfTI header")?;
+/// Decode NIfTI bytes (gzip-detected) into stored samples converted to `T`
+/// under `conversion`.
+fn decode_nifti_bytes<T: Sample, C: Conversion>(
+    bytes: &[u8],
+    conversion: C,
+) -> Result<DecodedNifti<T>> {
+    let payload = single_file_payload(bytes)?;
+    let header = NiftiHeader::parse(&payload).context("Invalid NIfTI header")?;
     let spatial = metadata_from_nifti_ras_affine(header.affine()?)
         .context("Invalid NIfTI spatial metadata")?;
-    let [nx, ny, nz] = dims_xyz(&header)?;
-    let voxel_count = checked_voxel_count(nx, ny, nz)?;
-    let range = header.volume_byte_range(bytes.len())?;
-    let data_bytes = &bytes[range];
-    let lane_width = header.datatype.byte_width();
+    let [nx, ny, nz] = dims_xyz(&header);
+    let range = header.volume_byte_range(payload.len())?;
+    let volume_bytes = checked_voxel_count(nx, ny, nz)?
+        .checked_mul(header.sample_type.byte_width())
+        .ok_or_else(|| anyhow!("NIfTI volume byte count overflows usize"))?;
 
-    // NIfTI stores x fastest, then y, z, and finally the acquisition axis, so
-    // each volume is one contiguous block of `voxel_count` voxels.
-    let volumes = (0..header.volume_count())
-        .map(|volume| {
-            let base = volume * voxel_count * lane_width;
-            let mut data_vec = vec![0.0_f32; voxel_count];
-            for z in 0..nz {
-                for y in 0..ny {
-                    for x in 0..nx {
-                        let file_index = x + nx * (y + ny * z);
-                        let offset = base + file_index * lane_width;
-                        let value =
-                            header.read_f32_voxel(&data_bytes[offset..offset + lane_width])?;
-                        data_vec[z * ny * nx + y * nx + x] = value;
-                    }
-                }
-            }
-            Ok(data_vec)
+    // NIfTI stores x fastest, then y, z, and finally the acquisition axis —
+    // RITK's `[nz, ny, nx]` flat order — so each volume is one contiguous
+    // block decoded in a single pass. The range spans exactly `volume_count`
+    // blocks of `volume_bytes` (non-zero: every axis and width is positive).
+    let volumes = payload[range]
+        .chunks_exact(volume_bytes)
+        .map(|block| {
+            let samples = SampleBuffer::decode(block, header.sample_type, header.byte_order())?;
+            Ok(conversion.convert::<T>(samples)?)
         })
         .collect::<Result<Vec<_>>>()?;
 
@@ -199,6 +328,7 @@ fn decode_single_file(bytes: &[u8]) -> Result<DecodedNifti> {
         volumes,
         dims: [nz, ny, nx],
         spatial,
+        rescale: header.rescale,
     })
 }
 
@@ -206,12 +336,21 @@ fn decode_single_file(bytes: &[u8]) -> Result<DecodedNifti> {
 ///
 /// # Label extraction
 ///
-/// Float32 volumes convert with `max(0.0).round() as u32`; UInt32 volumes are
-/// copied exactly. The returned shape is `[nz, ny, nx]`.
+/// Labels are the stored samples; `scl_slope`/`scl_inter` are not applied,
+/// since a label is an identifier rather than a measurement. Integer samples
+/// convert exactly; a float sample is accepted only when it is a whole number,
+/// and a negative, fractional, or over-`u32` label is an error rather than a
+/// rounded or clamped one. The returned shape is `[nz, ny, nx]`.
+///
+/// # Errors
+///
+/// Returns an error when the file cannot be read, the header or payload length
+/// is invalid, the file declares more than one volume, or a label voxel is not
+/// a whole number in the `u32` range.
 pub fn read_nifti_labels<P: AsRef<Path>>(path: P) -> Result<(Vec<u32>, [usize; 3])> {
     let bytes = fs::read(path.as_ref()).map_err(|e| {
         tracing::error!("Failed to read NIfTI label file: {}", e);
-        anyhow!("Failed to read NIfTI label file")
+        anyhow::Error::new(e).context("Failed to read NIfTI label file")
     })?;
     read_nifti_labels_from_bytes(&bytes).map_err(|e| {
         tracing::error!("Failed to decode NIfTI label file: {e:#}");
@@ -220,15 +359,8 @@ pub fn read_nifti_labels<P: AsRef<Path>>(path: P) -> Result<(Vec<u32>, [usize; 3
 }
 
 fn read_nifti_labels_from_bytes(bytes: &[u8]) -> Result<(Vec<u32>, [usize; 3])> {
-    let decoded;
-    let payload = if bytes.starts_with(&GZIP_MAGIC) {
-        decoded = decode_gzip(bytes).context("Failed to decode gzipped NIfTI label bytes")?;
-        decoded.as_slice()
-    } else {
-        bytes
-    };
-
-    let header = NiftiHeader::parse(payload).context("Invalid NIfTI label header")?;
+    let payload = single_file_payload(bytes)?;
+    let header = NiftiHeader::parse(&payload).context("Invalid NIfTI label header")?;
     if header.volume_count() != 1 {
         // The label contract is one `[nz, ny, nx]` map. Decoding only the first
         // volume of a series would report success over a discarded acquisition.
@@ -237,29 +369,72 @@ fn read_nifti_labels_from_bytes(bytes: &[u8]) -> Result<(Vec<u32>, [usize; 3])> 
             header.volume_count()
         );
     }
-    let [nx, ny, nz] = dims_xyz(&header)?;
-    let voxel_count = checked_voxel_count(nx, ny, nz)?;
+    let [nx, ny, nz] = dims_xyz(&header);
     let range = header.volume_byte_range(payload.len())?;
-    let data_bytes = &payload[range];
-    let lane_width = header.datatype.byte_width();
-    let mut labels = vec![0_u32; voxel_count];
-
-    for z in 0..nz {
-        for y in 0..ny {
-            for x in 0..nx {
-                let file_index = x + nx * (y + ny * z);
-                let offset = file_index * lane_width;
-                labels[z * ny * nx + y * nx + x] =
-                    header.read_label_voxel(&data_bytes[offset..offset + lane_width])?;
-            }
-        }
-    }
-
-    Ok((labels, [nz, ny, nx]))
+    let samples = SampleBuffer::decode(&payload[range], header.sample_type, header.byte_order())?;
+    Ok((labels_from_samples(samples)?, [nz, ny, nx]))
 }
 
-fn dims_xyz(header: &NiftiHeader) -> Result<[usize; 3]> {
-    Ok([header.dim[1], header.dim[2], header.dim[3]])
+fn labels_from_samples(samples: SampleBuffer) -> Result<Vec<u32>> {
+    match samples {
+        SampleBuffer::U32(labels) => Ok(labels),
+        SampleBuffer::U8(values) => checked_labels(values),
+        SampleBuffer::I8(values) => checked_labels(values),
+        SampleBuffer::U16(values) => checked_labels(values),
+        SampleBuffer::I16(values) => checked_labels(values),
+        SampleBuffer::I32(values) => checked_labels(values),
+        SampleBuffer::U64(values) => checked_labels(values),
+        SampleBuffer::I64(values) => checked_labels(values),
+        SampleBuffer::F32(values) => values
+            .into_iter()
+            .map(|value| float_label(f64::from(value)))
+            .collect(),
+        SampleBuffer::F64(values) => values.into_iter().map(float_label).collect(),
+    }
+}
+
+/// A floating-point label voxel holding a whole number in the `u32` range.
+fn float_label(value: f64) -> Result<u32> {
+    if value.fract() == 0.0 && (0.0..=f64::from(u32::MAX)).contains(&value) {
+        #[expect(
+            clippy::cast_possible_truncation,
+            clippy::cast_sign_loss,
+            reason = "a whole number in 0..=u32::MAX converts to u32 exactly"
+        )]
+        Ok(value as u32)
+    } else {
+        Err(label_range_error(value))
+    }
+}
+
+fn label_range_error(value: impl Display) -> anyhow::Error {
+    anyhow!("NIfTI label voxel must be a whole number in 0..=4294967295, got {value}")
+}
+
+fn checked_labels<S: Copy + Display>(values: Vec<S>) -> Result<Vec<u32>>
+where
+    u32: TryFrom<S>,
+{
+    values
+        .into_iter()
+        .map(|value| u32::try_from(value).map_err(|_| label_range_error(value)))
+        .collect()
+}
+
+fn dims_xyz(header: &NiftiHeader) -> [usize; 3] {
+    [header.dim[1], header.dim[2], header.dim[3]]
+}
+
+/// The single-file NIfTI stream in `bytes`: borrowed for `.nii`, inflated for
+/// `.nii.gz`.
+fn single_file_payload(bytes: &[u8]) -> Result<Cow<'_, [u8]>> {
+    if bytes.starts_with(&GZIP_MAGIC) {
+        Ok(Cow::Owned(
+            decode_gzip(bytes).context("Failed to decode gzipped NIfTI bytes")?,
+        ))
+    } else {
+        Ok(Cow::Borrowed(bytes))
+    }
 }
 
 fn decode_gzip(bytes: &[u8]) -> Result<Vec<u8>> {

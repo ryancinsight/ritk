@@ -36,6 +36,8 @@ pub use mesh_indexed::{
 
 pub(crate) mod legacy_write_attribute;
 pub(crate) mod read_helpers;
+pub(crate) mod scalar_type;
+pub(crate) mod xml_array;
 pub(crate) mod xml_helpers;
 pub mod xml_write_attr;
 
@@ -46,6 +48,7 @@ pub use reader::{read_vtk, read_vtk_flat};
 pub use writer::{encode_vtk_flat, write_vtk};
 
 use coeus_core::{ComputeBackend, CpuAddressableStorage};
+use ritk_codecs::sample::{Conversion, Sample};
 use ritk_image::Image;
 use std::path::Path;
 
@@ -62,9 +65,18 @@ impl<B: ComputeBackend> VtkReader<B> {
         Self { backend }
     }
 
-    /// Read a VTK legacy structured-points file at `path`.
-    pub fn read<P: AsRef<Path>>(&self, path: P) -> anyhow::Result<Image<f32, B, 3>> {
-        read_vtk(path, &self.backend)
+    /// Read a VTK legacy structured-points file at `path` into an image of
+    /// `T`, converting the stored scalar type under `conversion`.
+    ///
+    /// # Errors
+    ///
+    /// Returns the error of [`read_vtk`].
+    pub fn read<T: Sample, C: Conversion, P: AsRef<Path>>(
+        &self,
+        path: P,
+        conversion: C,
+    ) -> anyhow::Result<Image<T, B, 3>> {
+        read_vtk(path, &self.backend, conversion)
     }
 }
 
@@ -81,22 +93,54 @@ impl<B: ComputeBackend> VtkWriter<B> {
         Self { backend }
     }
 
-    /// Write a VTK legacy structured-points file to `path`.
-    pub fn write<P: AsRef<Path>>(&self, path: P, image: &Image<f32, B, 3>) -> anyhow::Result<()>
+    /// Write a VTK legacy structured-points file to `path`, storing `T`.
+    ///
+    /// # Errors
+    ///
+    /// Returns the error of [`write_vtk`].
+    pub fn write<T: Sample, P: AsRef<Path>>(
+        &self,
+        path: P,
+        image: &Image<T, B, 3>,
+    ) -> anyhow::Result<()>
     where
         B: Default,
-        B::DeviceBuffer<f32>: CpuAddressableStorage<f32>,
+        B::DeviceBuffer<T>: CpuAddressableStorage<T>,
     {
         write_vtk(path, image, &self.backend)
     }
 }
 
 #[cfg(test)]
+mod tests_samples;
+#[cfg(test)]
+mod tests_xml_arrays;
+
+#[cfg(test)]
 mod tests {
     use super::*;
     use coeus_core::SequentialBackend;
-    use ritk_spatial::{Direction, Point, Spacing};
+    use ritk_codecs::sample::Exact;
+    use ritk_spatial::{CoordinateMap, CurvilinearArray, Direction, Point, Spacing};
     use tempfile::tempdir;
+
+    fn native_image(
+        direction: Direction<3>,
+        coordinate_map: CoordinateMap,
+    ) -> Image<f32, SequentialBackend, 3> {
+        let image = Image::from_flat_on(
+            vec![1.25, -4.5],
+            [1, 1, 2],
+            Point::new([1.0, -2.0, 3.5]),
+            Spacing::new([0.5, 0.75, 1.25]),
+            direction,
+            &SequentialBackend,
+        )
+        .expect("valid image values and dimensions");
+        image
+            .with_coordinate_map(coordinate_map)
+            .expect("valid coordinate map for a three-dimensional image")
+    }
 
     #[test]
     fn native_scalar_round_trip_preserves_values_and_spatial_metadata() {
@@ -122,12 +166,60 @@ mod tests {
         VtkWriter::new(backend)
             .write(&path, &image)
             .expect("write VTK");
-        let loaded = VtkReader::new(backend).read(&path).expect("read VTK");
+        let loaded = VtkReader::new(backend)
+            .read::<f32, _, _>(&path, Exact)
+            .expect("read VTK");
 
         assert_eq!(loaded.shape(), shape);
         assert_eq!(loaded.data_slice().expect("contiguous image"), values);
         assert_eq!(*loaded.origin(), origin);
         assert_eq!(*loaded.spacing(), spacing);
         assert_eq!(*loaded.direction(), Direction::identity());
+    }
+
+    #[test]
+    fn legacy_writer_rejects_non_identity_direction_before_creating_output() {
+        let direction = Direction::from_rows([[0.0, -1.0, 0.0], [1.0, 0.0, 0.0], [0.0, 0.0, 1.0]]);
+        let image = native_image(direction, CoordinateMap::Cartesian);
+        let directory = tempdir().expect("temporary directory");
+        let path = directory.path().join("rotated.vtk");
+
+        let error = VtkWriter::new(SequentialBackend)
+            .write(&path, &image)
+            .expect_err("legacy structured points cannot encode image direction");
+
+        assert_eq!(
+            error.to_string(),
+            "legacy VTK structured points cannot preserve a non-identity direction matrix"
+        );
+        assert!(!path.exists(), "rejection must happen before file creation");
+    }
+
+    #[test]
+    fn legacy_writer_rejects_non_cartesian_map_without_truncating_output() {
+        let geometry = CurvilinearArray::centred(1.0e-4, 0.06, 0.5_f64.to_radians(), 129)
+            .expect("valid curvilinear geometry");
+        let image = native_image(
+            Direction::identity(),
+            CoordinateMap::CurvilinearArray(geometry),
+        );
+        let directory = tempdir().expect("temporary directory");
+        let path = directory.path().join("curvilinear.vtk");
+        let original = b"preserve existing output";
+        std::fs::write(&path, original).expect("create prior output");
+
+        let error = VtkWriter::new(SequentialBackend)
+            .write(&path, &image)
+            .expect_err("legacy structured points cannot encode a non-Cartesian map");
+
+        assert_eq!(
+            error.to_string(),
+            "legacy VTK structured points cannot preserve a non-Cartesian coordinate map"
+        );
+        assert_eq!(
+            std::fs::read(&path).expect("read prior output"),
+            original,
+            "rejection must happen before truncating the destination"
+        );
     }
 }

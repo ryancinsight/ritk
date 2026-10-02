@@ -6,11 +6,13 @@
 use std::path::PathBuf;
 
 use coeus_core::SequentialBackend;
+use ritk_codecs::sample::Exact;
 use ritk_image::Image;
 use ritk_spatial::{Direction, Point, Spacing};
 
 use ritk_core::alloc_probe::{peak_bytes_during, PeakTrackingAllocator};
 
+use crate::tests::mrtrix_inline_file;
 use crate::{read_mif, read_mif_series, write_mif, write_mif_series};
 
 // `#[global_allocator]` is per binary, so the declaration lives here while the
@@ -78,7 +80,7 @@ fn single_volume_round_trip_recovers_identical_voxels() {
     write_mif(&path, &image, &backend).expect("write .mif");
 
     let round_tripped: Image<f32, SequentialBackend, 3> =
-        read_mif(&path, &backend).expect("read .mif");
+        read_mif(&path, &backend, Exact).expect("read .mif");
 
     // Clean up.
     let _ = std::fs::remove_file(&path);
@@ -112,7 +114,7 @@ fn single_volume_round_trip_preserves_spatial_metadata() {
 
     let path = temp_mif_path();
     write_mif(&path, &image, &backend).expect("write .mif");
-    let rt: Image<f32, SequentialBackend, 3> = read_mif(&path, &backend).expect("read .mif");
+    let rt: Image<f32, SequentialBackend, 3> = read_mif(&path, &backend, Exact).expect("read .mif");
     let _ = std::fs::remove_file(&path);
 
     for axis in 0..3 {
@@ -160,7 +162,7 @@ fn series_round_trip_recovers_all_frames() {
     let path = temp_mif_path();
     write_mif_series(&path, &volumes, &backend).expect("write .mif series");
     let rt_volumes: Vec<Image<f32, SequentialBackend, 3>> =
-        read_mif_series(&path, &backend).expect("read .mif series");
+        read_mif_series(&path, &backend, Exact).expect("read .mif series");
     let _ = std::fs::remove_file(&path);
 
     assert_eq!(rt_volumes.len(), nframes, "frame count mismatch");
@@ -204,7 +206,7 @@ fn single_volume_reader_rejects_multi_frame_file() {
 
     let path = temp_mif_path();
     write_mif_series(&path, &volumes, &backend).expect("write .mif series");
-    let result: Result<Image<f32, SequentialBackend, 3>, _> = read_mif(&path, &backend);
+    let result: Result<Image<f32, SequentialBackend, 3>, _> = read_mif(&path, &backend, Exact);
     let _ = std::fs::remove_file(&path);
 
     let msg = result.expect_err("the call must be rejected").to_string();
@@ -214,20 +216,156 @@ fn single_volume_reader_rejects_multi_frame_file() {
     );
 }
 
-// ── Detached data file ───────────────────────────────────────────────────
+// ── Inline data offset ───────────────────────────────────────────────────
 
 #[test]
-fn inline_file_dot_zero_is_read_correctly() {
+fn a_file_laid_out_as_mrtrix_writes_it_reads_value_equal() {
     let backend = SequentialBackend;
-    let image = make_test_image(&backend);
-
+    let values = [1.5_f32, -2.25, 3.0, 4.5, 5.75, -6.0, 7.0, 8.125];
+    let payload: Vec<u8> = values.iter().flat_map(|v| v.to_le_bytes()).collect();
     let path = temp_mif_path();
-    write_mif(&path, &image, &backend).expect("write .mif");
+    std::fs::write(&path, mrtrix_inline_file(&header_body("2 2 2"), &payload))
+        .expect("write MRtrix-layout fixture");
 
-    let rt: Image<f32, SequentialBackend, 3> = read_mif(&path, &backend).expect("read .mif");
+    let image: Image<f32, SequentialBackend, 3> =
+        read_mif(&path, &backend, Exact).expect("read .mif");
     let _ = std::fs::remove_file(&path);
 
-    assert_eq!(rt.shape(), image.shape());
+    assert_eq!(image.data_slice().expect("host data"), values);
+}
+
+/// An inline offset inside the header is refused, and `file: . 0` is the
+/// instance MRtrix rejects by name (`get_mrtrix_file_path`).
+///
+/// The offset counts from the start of the file, so a position the header
+/// itself occupies cannot locate voxels. Reading it as a distance past the
+/// header, as an earlier reader did, would accept both values here and decode
+/// the 32-byte payload.
+#[test]
+fn an_inline_offset_inside_the_header_is_refused() {
+    let backend = SequentialBackend;
+    for offset in ["0", "10"] {
+        let path = write_raw_mif(&header_with("2 2 2", &format!(". {offset}")), &[0_u8; 32]);
+        let result: Result<Image<f32, SequentialBackend, 3>, _> = read_mif(&path, &backend, Exact);
+        let _ = std::fs::remove_file(&path);
+
+        let message = format!("{:#}", result.expect_err("an offset inside the header"));
+        assert!(
+            message.contains(&format!("offset {offset}, inside the")),
+            "offset {offset} should be refused as lying inside the header, got: {message}"
+        );
+    }
+}
+
+/// A header without a `file:` line is refused: MRtrix requires the key
+/// (`image_data.rst`, "file"), so no position for the voxels is defined.
+#[test]
+fn a_header_without_a_file_key_is_refused() {
+    let backend = SequentialBackend;
+    let path = write_raw_mif(&format!("{}END\n", header_body("2 2 2")), &[0_u8; 32]);
+    let result: Result<Image<f32, SequentialBackend, 3>, _> = read_mif(&path, &backend, Exact);
+    let _ = std::fs::remove_file(&path);
+
+    let message = format!("{:#}", result.expect_err("a header without a file key"));
+    assert!(message.contains("has no 'file' key"), "{message}");
+}
+
+/// A detached `file:` name without an offset reads its voxels from byte 0 of
+/// that file, as MRtrix's `get_mrtrix_file_path` defaults the offset.
+#[test]
+fn a_detached_file_without_an_offset_reads_from_its_first_byte() {
+    let backend = SequentialBackend;
+    let values: [f32; 8] = [0.1, -0.0, 1.5, -2.25, 16_777_216.0, 3.0e-38, 7.0, -8.5];
+    let data_path = unique_temp_path("ritk_mif_detached", "dat");
+    let payload: Vec<u8> = values.iter().flat_map(|v| v.to_le_bytes()).collect();
+    std::fs::write(&data_path, &payload).expect("write detached payload");
+    let name = data_path
+        .file_name()
+        .and_then(|name| name.to_str())
+        .expect("a UTF-8 file name");
+    let path = write_raw_mif(&header_with("2 2 2", name), &[]);
+
+    let result: Result<Image<f32, SequentialBackend, 3>, _> = read_mif(&path, &backend, Exact);
+    let _ = std::fs::remove_file(&path);
+    let _ = std::fs::remove_file(&data_path);
+
+    let image = result.expect("a detached file with the default offset");
+    let read: Vec<u32> = image
+        .data_slice()
+        .expect("host data")
+        .iter()
+        .map(|v| v.to_bits())
+        .collect();
+    assert_eq!(read, values.map(f32::to_bits));
+}
+
+/// A detached `file:` name is joined to the header's directory, so an
+/// absolute name, or one climbing out through `..`, is refused before any file
+/// is opened: `Path::join` would otherwise discard the directory or leave it.
+#[test]
+fn a_detached_file_outside_the_header_directory_is_refused() {
+    let backend = SequentialBackend;
+    let absolute = std::env::temp_dir().join("ritk_mif_outside.dat");
+    let absolute = absolute.to_str().expect("a UTF-8 temp path").to_owned();
+    for name in [
+        "../ritk_mif_outside.dat",
+        "sub/../../outside.dat",
+        absolute.as_str(),
+    ] {
+        let path = write_raw_mif(&header_with("2 2 2", &format!("{name} 0")), &[]);
+        let result: Result<Image<f32, SequentialBackend, 3>, _> = read_mif(&path, &backend, Exact);
+        let _ = std::fs::remove_file(&path);
+
+        let message = format!("{:#}", result.expect_err("a name outside the directory"));
+        assert!(
+            message.contains("must be a relative path without '..'"),
+            "{name}: {message}"
+        );
+    }
+}
+
+/// An inline offset one byte past the end of the file is refused as such, and
+/// an offset exactly at the end of the file, with voxels still owed, is a
+/// truncated payload.
+#[test]
+fn an_inline_offset_past_the_end_of_the_file_is_refused() {
+    const PAYLOAD_LEN: usize = 32;
+    let backend = SequentialBackend;
+    let body = header_body("2 2 2");
+    let frame = "file: . ".len() + "\nEND\n".len();
+
+    // The offset spells itself in the header, so find the one whose digits make
+    // the file exactly one byte shorter than it.
+    let one_past = (100..10_000_usize)
+        .find(|offset| *offset == body.len() + frame + offset.to_string().len() + PAYLOAD_LEN + 1)
+        .expect("an offset one past the end exists");
+    let path = write_raw_mif(
+        &header_with("2 2 2", &format!(". {one_past}")),
+        &[0_u8; PAYLOAD_LEN],
+    );
+    let result: Result<Image<f32, SequentialBackend, 3>, _> = read_mif(&path, &backend, Exact);
+    let _ = std::fs::remove_file(&path);
+    let message = format!(
+        "{:#}",
+        result.expect_err("an offset past the end of the file")
+    );
+    assert!(
+        message.contains(&format!(
+            "offset {one_past}, past the end of the {}-byte file",
+            one_past - 1
+        )),
+        "an offset one byte beyond the file should be refused as such, got: {message}"
+    );
+
+    let at_end = temp_mif_path();
+    std::fs::write(&at_end, mrtrix_inline_file(&body, &[])).expect("write header-only fixture");
+    let result: Result<Image<f32, SequentialBackend, 3>, _> = read_mif(&at_end, &backend, Exact);
+    let _ = std::fs::remove_file(&at_end);
+    let message = format!("{:#}", result.expect_err("no voxels follow the offset"));
+    assert!(
+        message.contains("payload is truncated"),
+        "an offset at the end of the file should leave the payload truncated, got: {message}"
+    );
 }
 
 // ── Malformed header contracts ──────────────────────────────────────────
@@ -245,12 +383,15 @@ fn write_raw_mif(body: &str, payload: &[u8]) -> PathBuf {
     path
 }
 
-/// A minimal well-formed header, so each test varies exactly one field.
+/// A minimal well-formed header up to, not including, its `file:` line, so
+/// each test varies exactly one field.
+fn header_body(dim: &str) -> String {
+    format!("mrtrix image\ndim: {dim}\nvox: 1 1 1\nlayout: +0,+1,+2\ndatatype: Float32LE\n")
+}
+
+/// [`header_body`] closed by an explicit `file:` line and `END`.
 fn header_with(dim: &str, file_key: &str) -> String {
-    format!(
-        "mrtrix image\ndim: {dim}\nvox: 1 1 1\nlayout: +0,+1,+2\ndatatype: Float32LE\n\
-         file: {file_key}\nEND\n"
-    )
+    format!("{}file: {file_key}\nEND\n", header_body(dim))
 }
 
 /// An overstated `file:` offset must fail as truncation, not allocate for it.
@@ -258,7 +399,8 @@ fn header_with(dim: &str, file_key: &str) -> String {
 /// The offset is a number on a header line, not a fact about the file. It
 /// previously sized a zero-filled `Vec` directly, so `file: . 4000000000` in a
 /// 300-byte file demanded 4 GB — and succeeded, which is silent exhaustion
-/// rather than a crash.
+/// rather than a crash. The offset counts from the start of the file, so the
+/// fixture file is shorter than it by construction.
 ///
 /// Threshold: the fixture is well under a kilobyte and decodes to nothing, so
 /// an honest read touches kilobytes. 64 MiB sits far above that and two orders
@@ -271,15 +413,15 @@ fn an_overstated_file_offset_does_not_drive_allocation() {
 
     let (result, peak) =
         peak_bytes_during(|| -> anyhow::Result<Image<f32, SequentialBackend, 3>> {
-            read_mif(&path, &backend)
+            read_mif(&path, &backend, Exact)
         });
     let _ = std::fs::remove_file(&path);
 
     let err = result.expect_err("a 32-byte payload cannot satisfy a 4 GB offset");
     let message = format!("{err:#}");
     assert!(
-        message.contains("offset"),
-        "the error should name the offset that could not be satisfied, got: {message}"
+        message.contains("offset 4000000000") && message.contains("past the end"),
+        "the error should name the offset that lies past the end of the file, got: {message}"
     );
     assert!(
         peak < PEAK_LIMIT,
@@ -302,8 +444,10 @@ fn a_zero_extent_on_any_axis_is_rejected() {
         ("4 4 0", "z"),
         ("4 4 4 0", "frame"),
     ] {
-        let path = write_raw_mif(&header_with(dim, ". 0"), &[]);
-        let result: Result<Image<f32, SequentialBackend, 3>, _> = read_mif(&path, &backend);
+        let path = temp_mif_path();
+        std::fs::write(&path, mrtrix_inline_file(&header_body(dim), &[]))
+            .expect("write zero-extent .mif fixture");
+        let result: Result<Image<f32, SequentialBackend, 3>, _> = read_mif(&path, &backend, Exact);
         let _ = std::fs::remove_file(&path);
 
         let err = result.expect_err("a zero extent cannot describe a voxel grid");

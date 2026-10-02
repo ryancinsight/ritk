@@ -180,7 +180,7 @@ fn read_int32_label_map_preserves_nonnegative_voxels() -> Result<()> {
             ny: 1,
             nz: 1,
         },
-        NiftiDatatype::Int32,
+        SampleType::I32,
         HeaderSpatial {
             pixdim: [1.0; 8],
             srow_x: [1.0, 0.0, 0.0, 0.0],
@@ -195,36 +195,6 @@ fn read_int32_label_map_preserves_nonnegative_voxels() -> Result<()> {
 
     assert_eq!(shape, [1, 1, 2]);
     assert_eq!(labels, vec![4, 7]);
-    Ok(())
-}
-
-#[test]
-fn read_int32_label_map_rejects_negative_voxels() -> Result<()> {
-    let dir = tempdir()?;
-    let path = dir.path().join("negative-int32-label.nii");
-    let header = NiftiHeader::new_volume(
-        HeaderDims {
-            nx: 1,
-            ny: 1,
-            nz: 1,
-        },
-        NiftiDatatype::Int32,
-        HeaderSpatial {
-            pixdim: [1.0; 8],
-            srow_x: [1.0, 0.0, 0.0, 0.0],
-            srow_y: [0.0, 1.0, 0.0, 0.0],
-            srow_z: [0.0, 0.0, 1.0, 0.0],
-        },
-    )?;
-    let bytes = write_single_file_bytes(&header, &(-1_i32).to_le_bytes());
-    std::fs::write(&path, bytes)?;
-
-    let error = read_nifti_labels(&path).expect_err("negative labels must fail");
-
-    assert!(
-        format!("{error:#}").contains("must be non-negative"),
-        "error should identify the label invariant: {error:#}"
-    );
     Ok(())
 }
 

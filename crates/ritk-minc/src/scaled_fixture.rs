@@ -1,16 +1,18 @@
-//! Deterministic foreign-style scaled-integer MINC2 fixture authoring.
+//! Deterministic foreign-style MINC2 fixture authoring.
 //!
 //! This module is included only by tests and the executable book example. It
-//! uses the generic Consus HDF5 writer so the production RITK writer remains
-//! restricted to its documented `f32` contract.
+//! uses the generic Consus HDF5 writer to author what the production RITK
+//! writer does not: either byte order, 64-bit integer voxels, a `valid_range`,
+//! and per-slice image ranges.
 
 use anyhow::{bail, Context, Result};
-use consus_core::{ByteOrder, Datatype, Shape, StringEncoding};
+use consus_core::{extend_encoded, ByteOrder, Datatype, Shape, StringEncoding};
 use consus_hdf5::{
     file::writer::{ChildDatasetSpec, ChildGroupSpec, Hdf5FileBuilder},
     property_list::{DatasetCreationProps, FileCreationProps},
 };
 use core::num::NonZeroUsize;
+use ritk_codecs::sample::{Sample, SampleType};
 use std::path::Path;
 
 /// Image-range datasets to include in a scaled integer fixture.
@@ -28,7 +30,7 @@ pub(crate) enum ImageRangeFixture<'a> {
     MinimumOnly { minima: &'a [f64] },
 }
 
-fn encode_f64(values: &[f64]) -> Vec<u8> {
+fn encode_real_values(values: &[f64]) -> Vec<u8> {
     values
         .iter()
         .flat_map(|value| value.to_le_bytes())
@@ -45,12 +47,32 @@ fn range_shape(range_count: usize, slice_count: usize) -> Result<Shape> {
     }
 }
 
-/// Write a tiny contiguous `i16` MINC2 file for reader and book verification.
-pub(crate) fn write_scaled_integer_fixture(
+/// The HDF5 datatype storing `sample_type` in `byte_order`.
+fn storage_datatype(sample_type: SampleType, byte_order: ByteOrder) -> Result<Datatype> {
+    let bits = NonZeroUsize::new(sample_type.byte_width() * 8)
+        .context("invariant: sample widths are nonzero")?;
+    Ok(if sample_type.is_float() {
+        Datatype::Float { bits, byte_order }
+    } else {
+        Datatype::Integer {
+            bits,
+            byte_order,
+            signed: matches!(
+                sample_type,
+                SampleType::I8 | SampleType::I16 | SampleType::I32 | SampleType::I64
+            ),
+        }
+    })
+}
+
+/// Write a tiny contiguous MINC2 file of `T` voxels in `byte_order` for reader
+/// and book verification.
+pub(crate) fn write_fixture<T: Sample>(
     path: &Path,
-    voxels: &[i16],
+    voxels: &[T],
     shape: [usize; 3],
-    valid_range: [i16; 2],
+    valid_range: [T; 2],
+    byte_order: ByteOrder,
     image_ranges: ImageRangeFixture<'_>,
 ) -> Result<()> {
     if shape.contains(&0) {
@@ -68,11 +90,7 @@ pub(crate) fn write_scaled_integer_fixture(
         );
     }
 
-    let int16 = Datatype::Integer {
-        bits: NonZeroUsize::new(16).context("invariant: 16 is nonzero")?,
-        byte_order: ByteOrder::LittleEndian,
-        signed: true,
-    };
+    let stored = storage_datatype(T::TYPE, byte_order)?;
     let int32 = Datatype::Integer {
         bits: NonZeroUsize::new(32).context("invariant: 32 is nonzero")?,
         byte_order: ByteOrder::LittleEndian,
@@ -92,17 +110,13 @@ pub(crate) fn write_scaled_integer_fixture(
     let triple_shape = Shape::fixed(&[3]);
     let pair_shape = Shape::fixed(&[2]);
     let image_shape = Shape::fixed(&shape);
-    let voxel_bytes: Vec<u8> = voxels
-        .iter()
-        .flat_map(|value| value.to_le_bytes())
-        .collect();
-    let valid_range_bytes: Vec<u8> = valid_range
-        .iter()
-        .flat_map(|value| value.to_le_bytes())
-        .collect();
+    let mut voxel_bytes = Vec::new();
+    extend_encoded(&mut voxel_bytes, voxels.iter().copied(), byte_order);
+    let mut valid_range_bytes = Vec::new();
+    extend_encoded(&mut valid_range_bytes, valid_range, byte_order);
     let image_attributes: [(&str, &Datatype, &Shape, &[u8]); 2] = [
         ("dimorder", &dimorder_type, &scalar_shape, dimorder_bytes),
-        ("valid_range", &int16, &pair_shape, &valid_range_bytes),
+        ("valid_range", &stored, &pair_shape, &valid_range_bytes),
     ];
 
     let starts = [0.0_f64.to_le_bytes(); 3];
@@ -119,9 +133,9 @@ pub(crate) fn write_scaled_integer_fixture(
             .to_le_bytes(),
     ];
     let directions = [
-        encode_f64(&[0.0, 0.0, 1.0]),
-        encode_f64(&[0.0, 1.0, 0.0]),
-        encode_f64(&[1.0, 0.0, 0.0]),
+        encode_real_values(&[0.0, 0.0, 1.0]),
+        encode_real_values(&[0.0, 1.0, 0.0]),
+        encode_real_values(&[1.0, 0.0, 0.0]),
     ];
     let z_attributes = [
         ("start", &float64, &scalar_shape, starts[0].as_slice()),
@@ -185,7 +199,7 @@ pub(crate) fn write_scaled_integer_fixture(
 
     let image_dataset = ChildDatasetSpec {
         name: "image",
-        datatype: &int16,
+        datatype: &stored,
         shape: &image_shape,
         raw_data: &voxel_bytes,
         dcpl: DatasetCreationProps::default(),
@@ -207,8 +221,8 @@ pub(crate) fn write_scaled_integer_fixture(
             }
             range_shapes.push(range_shape(minima.len(), shape[0])?);
             range_shapes.push(range_shape(maxima.len(), shape[0])?);
-            range_bytes.push(encode_f64(minima));
-            range_bytes.push(encode_f64(maxima));
+            range_bytes.push(encode_real_values(minima));
+            range_bytes.push(encode_real_values(maxima));
             image_datasets.push(ChildDatasetSpec {
                 name: "image-min",
                 datatype: &float64,
@@ -229,7 +243,7 @@ pub(crate) fn write_scaled_integer_fixture(
         #[cfg(test)]
         ImageRangeFixture::MinimumOnly { minima } => {
             range_shapes.push(range_shape(minima.len(), shape[0])?);
-            range_bytes.push(encode_f64(minima));
+            range_bytes.push(encode_real_values(minima));
             image_datasets.push(ChildDatasetSpec {
                 name: "image-min",
                 datatype: &float64,
@@ -257,8 +271,7 @@ pub(crate) fn write_scaled_integer_fixture(
     let mut builder = Hdf5FileBuilder::new(FileCreationProps::default());
     builder
         .add_group_with_children("minc-2.0", &[], &[], &minc_groups)
-        .context("build scaled-integer MINC2 hierarchy")?;
-    let bytes = builder.finish().context("finish scaled-integer HDF5")?;
-    std::fs::write(path, bytes)
-        .with_context(|| format!("write scaled-integer MINC2 fixture {path:?}"))
+        .context("build MINC2 fixture hierarchy")?;
+    let bytes = builder.finish().context("finish MINC2 fixture HDF5")?;
+    std::fs::write(path, bytes).with_context(|| format!("write MINC2 fixture {path:?}"))
 }

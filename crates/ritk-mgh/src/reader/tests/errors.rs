@@ -19,7 +19,7 @@ fn test_read_invalid_version() {
     );
     std::fs::write(&path, &mgh).unwrap();
 
-    let result = read_mgh::<TestBackend, _>(&path, &backend);
+    let result = read_mgh::<f32, _, TestBackend, _>(&path, &backend, Exact);
     let msg = format!("{:#}", result.unwrap_err());
     assert!(
         msg.contains("version"),
@@ -44,7 +44,7 @@ fn test_read_unsupported_type_code() {
     );
     std::fs::write(&path, &mgh).unwrap();
 
-    let result = read_mgh::<TestBackend, _>(&path, &backend);
+    let result = read_mgh::<f32, _, TestBackend, _>(&path, &backend, Exact);
     let msg = format!("{:#}", result.unwrap_err());
     assert!(
         msg.contains("data type"),
@@ -66,7 +66,7 @@ fn test_read_truncated_file() {
     buf[20..24].copy_from_slice(&MRI_FLOAT.to_be_bytes());
     std::fs::write(&path, &buf).unwrap();
 
-    let result = read_mgh::<TestBackend, _>(&path, &backend);
+    let result = read_mgh::<f32, _, TestBackend, _>(&path, &backend, Exact);
     assert_rejects(result, "Failed to parse MGH file");
 }
 
@@ -91,7 +91,7 @@ fn test_read_multi_frame_fails_rather_than_returning_frame_zero() {
     );
     std::fs::write(&path, &mgh).unwrap();
 
-    let err = read_mgh::<TestBackend, _>(&path, &backend)
+    let err = read_mgh::<f32, _, TestBackend, _>(&path, &backend, Exact)
         .expect_err("a 3-frame MGH has no 3-D representation and must not read as one");
 
     let msg = format!("{err:#}");
@@ -128,7 +128,7 @@ fn test_read_single_frame_still_reads_at_the_rejection_boundary() {
     );
     std::fs::write(&path, &mgh).unwrap();
 
-    let image = read_mgh::<TestBackend, _>(&path, &backend)
+    let image = read_mgh::<f32, _, TestBackend, _>(&path, &backend, Exact)
         .expect("a single-frame MGH is the accepted case");
     let loaded = image.data_slice().expect("contiguous host voxel data");
     assert_eq!(
@@ -157,6 +157,6 @@ fn test_read_hostile_dims_does_not_oom() {
     );
     std::fs::write(&path, &mgh).unwrap();
 
-    let result = read_mgh::<TestBackend, _>(&path, &backend);
+    let result = read_mgh::<f32, _, TestBackend, _>(&path, &backend, Exact);
     assert_rejects(result, "Failed to parse MGH file");
 }

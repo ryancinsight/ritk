@@ -23,7 +23,7 @@ RITK provides a comprehensive framework for medical image analysis:
   over Leto-owned storage; current RITK entry points use deterministic
   sequential or Moirai-parallel CPU backends
 - **Deep Module Hierarchy**: Strict DIP/SSOT/SoC/SRP architecture across workspace crates
-- **Broad Format Support**: DICOM, NIfTI, MetaImage, NRRD, PNG, TIFF/BigTIFF, MGH/MGZ, VTK, JPEG
+- **Broad Format Support**: DICOM, NIfTI, MetaImage, NRRD, MINC2, Analyze 7.5, PNG, TIFF/BigTIFF, MGH/MGZ, VTK, JPEG
 - **Classical & Deformable Registration**: Rigid, affine, B-Spline FFD, Demons, SyN, LDDMM, Atlas/Groupwise
 - **Deep-Learning Registration**: TransMorph and SSMMorph through Coeus
   autodiff
@@ -251,13 +251,18 @@ physical-to-index transforms.
 | NIfTI (.nii/.nii.gz) | ✓ | ✓ |
 | MetaImage (.mha/.mhd) | ✓ | ✓ |
 | NRRD | ✓ | ✓ |
-| PNG | ✓ | ✓ |
+| MINC2 (.mnc/.mnc2) | ✓ | ✓ |
+| PNG | ✓ | ✓* |
 | TIFF / BigTIFF | ✓ | ✓ |
 | MGH / MGZ (FreeSurfer) | ✓ | ✓ |
+| Analyze 7.5 | ✓ | ✓ |
 | VTK legacy structured points (`.vtk`) | ✓ | ✓ |
 | JPEG (`.jpg`, `.jpeg`) | ✓ | ✓* |
 
-*JPEG write support is limited to 2-D grayscale images represented in RITK as shape `[1, height, width]`.
+PNG writes one 2-D grayscale slice of finite integral samples in the unsigned
+16-bit range and stores no physical-space metadata. DICOM writes a derived
+Secondary Capture series without copying source patient or study metadata.
+JPEG write support is limited to one 2-D grayscale slice and is lossy.
 
 `ritk-dicom` owns DICOM transfer-syntax classification and native pixel-codec
 primitives. Native Rust decode covers uncompressed little-endian pixels, RLE
@@ -344,8 +349,33 @@ PyO3 + maturin package exposing:
 
 ### CLI (`ritk-cli`)
 
+`ritk convert` reads and writes NIfTI, MetaImage, NRRD, MINC2, PNG, DICOM,
+MGH, TIFF, VTK, JPEG, and Analyze through RITK. DICOM input accepts a
+single file or a series directory, and a directory containing multiple image
+series requires an explicit `--series-uid`. DICOM output is a derived Secondary
+Capture series with unsigned 16-bit per-slice rescaling; it does not copy source
+patient or study metadata. PNG output requires one slice with finite, integral
+unsigned 16-bit grayscale samples and drops physical-space metadata. JPEG is
+lossy and one-slice only; TIFF/JPEG omit physical-space metadata; Analyze omits
+direction; VTK requires identity direction. The command converts scalar `f32`
+3-D images; rank-4 NIfTI, NRRD, and MGH series use RITK's separate series APIs.
+RGB DICOM uses RITK's color-volume API rather than the scalar converter. Since
+the shared image carrier is `f32`, some wide integer source samples cannot be
+represented exactly. RITK performs format routing and conversion; Métis receives
+decoded image data only.
+
+```text
+ritk convert --input volume.nii.gz --output volume.nrrd
+ritk convert --input volume.nii.gz --output volume.mnc
+ritk convert --input dicom-study/ --output volume.nii.gz --series-uid 1.2.3
+ritk convert --input volume.nii.gz --output dicom-series/ --format dicom
 ```
-ritk convert   <input> <output>          # Format conversion
+
+RITK owns the format readers, writers, and conversion path. The viewer consumes
+decoded image data and does not implement format conversion.
+
+```
+ritk convert --input INPUT --output OUTPUT [--format FORMAT] [--series-uid UID]
 ritk viewer    <input> [opts]            # Inspect a DICOM study using the viewer core
 ritk filter    <input> <output> [opts]   # Apply filters
 ritk register  <fixed> <moving> [opts]   # Run registration

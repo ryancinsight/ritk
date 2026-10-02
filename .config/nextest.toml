@@ -22,6 +22,7 @@ test-group = 'ritk-snap-native-serial'
 
 [profile.default]
 retries = 0
+fail-fast = false
 # Mark tests slow after 30 seconds and terminate hangs after 60 seconds.
 slow-timeout = { period = "30s", terminate-after = 2 }
 

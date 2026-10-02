@@ -1,7 +1,17 @@
+//! NIfTI through the native provider at the `f32` surfaces of this crate.
+//!
+//! These surfaces return `f32` images until the dispatch reads in the caller's
+//! type (ADR 0053 decision 6), so they read under [`Cast`]: a stored type
+//! `f32` cannot hold exactly (`int32`, `uint32`, 64-bit, `float64`) is cast,
+//! with a warning, rather than refused. A header's `scl_slope`/`scl_inter`
+//! rescale is then applied in `f32`, so a CT stored as `int16` reads as
+//! Hounsfield units rather than stored integers.
+
 pub use ritk_nifti::{read_nifti_labels, write_nifti_labels};
 
 use anyhow::Result;
 use coeus_core::SequentialBackend;
+use ritk_codecs::sample::Cast;
 use ritk_core::image::Image;
 use ritk_image::tensor::Backend;
 
@@ -25,7 +35,8 @@ fn native_to_legacy<B: Backend>(
 
 /// Reads NIfTI through the native provider and converts at this legacy boundary.
 pub fn read_nifti<B: Backend, P: AsRef<Path>>(path: P, device: &B) -> Result<Image<f32, B, 3>> {
-    ritk_nifti::read_nifti(path, &SequentialBackend).map(|native| native_to_legacy(native, device))
+    ritk_nifti::read_nifti(path, &SequentialBackend, Cast)
+        .map(|native| native_to_legacy(native, device))
 }
 
 /// Reads a NIfTI acquisition series through the native provider.
@@ -33,7 +44,7 @@ pub fn read_nifti_series<B: Backend, P: AsRef<Path>>(
     path: P,
     device: &B,
 ) -> Result<Vec<Image<f32, B, 3>>> {
-    let natives = ritk_nifti::read_nifti_series(path, &SequentialBackend)?;
+    let natives = ritk_nifti::read_nifti_series(path, &SequentialBackend, Cast)?;
     natives
         .into_iter()
         .map(|native| Ok(native_to_legacy(native, device)))
@@ -42,7 +53,7 @@ pub fn read_nifti_series<B: Backend, P: AsRef<Path>>(
 
 /// Reads in-memory NIfTI through the native provider and converts at this boundary.
 pub fn read_nifti_from_bytes<B: Backend>(bytes: &[u8], device: &B) -> Result<Image<f32, B, 3>> {
-    ritk_nifti::read_nifti_from_bytes(bytes, &SequentialBackend)
+    ritk_nifti::read_nifti_from_bytes(bytes, &SequentialBackend, Cast)
         .map(|native| native_to_legacy(native, device))
 }
 
@@ -51,7 +62,7 @@ pub fn read_nifti_from_bytes_native<B: coeus_core::ComputeBackend>(
     bytes: &[u8],
     backend: &B,
 ) -> Result<ritk_image::Image<f32, B, 3>> {
-    ritk_nifti::read_nifti_from_bytes(bytes, backend)
+    ritk_nifti::read_nifti_from_bytes(bytes, backend, Cast)
 }
 
 /// Writes a legacy image through the native NIfTI provider.
@@ -115,7 +126,8 @@ pub mod native {
 
     impl<B: ComputeBackend> ImageReader<Image<f32, B, 3>> for NiftiReader<B> {
         fn read<P: AsRef<Path>>(&self, path: P) -> std::io::Result<Image<f32, B, 3>> {
-            ritk_nifti::read_nifti(path, &self.backend).map_err(to_io_err)
+            ritk_nifti::read_nifti(path, &self.backend, ritk_codecs::sample::Cast)
+                .map_err(to_io_err)
         }
     }
 

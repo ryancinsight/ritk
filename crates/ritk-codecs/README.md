@@ -4,6 +4,24 @@ RITK-native pixel codec implementations for [RITK](https://github.com/ryancinsig
 
 Single source of truth for DICOM pixel codec primitives: pixel layout
 arithmetic, native sample decoding, and encapsulated transfer-syntax decoders.
+It also owns fixed-width sample buffers shared by RITK volume-format adapters.
+The buffers retain the type selected by the format header; adapters choose
+whether to require an exact conversion or apply an explicit cast.
+`Conversion::report` describes possible value changes from the source and
+target types without claiming to count data-dependent changes. Physical-value
+rescale coefficients stay separate from stored samples; applying them uses the
+requested floating-point sample type's arithmetic.
+
+See the [typed sample I/O migration guide](../../docs/migration_typed_sample_io.md)
+for exact and explicit-cast examples.
+It also owns fixed-width sample buffers shared by RITK volume-format adapters.
+The buffers retain the type selected by the format header; adapters choose
+whether to require an exact conversion or apply an explicit cast.
+`Conversion::report` describes possible value changes from the source and
+target types without claiming to count data-dependent changes.
+
+See the [typed sample I/O migration guide](../../docs/migration_typed_sample_io.md)
+for exact and explicit-cast examples.
 
 | Codec | Implementation |
 |---|---|

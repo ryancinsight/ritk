@@ -1,13 +1,15 @@
 use anyhow::Result;
-use coeus_core::{ComputeBackend, CpuAddressableStorage};
+use coeus_core::ComputeBackend;
+use consus_core::ByteOrder;
 use flate2::write::GzEncoder;
 use flate2::Compression;
+use ritk_codecs::sample::{write_samples, Sample, SampleType};
 use ritk_image::Image;
 use std::fs::File;
 use std::io::{BufWriter, Write};
 use std::path::Path;
 
-use crate::header::{HeaderDims, HeaderSpatial, HeaderVersion, NiftiDatatype, NiftiHeader};
+use crate::header::{HeaderDims, HeaderSpatial, HeaderVersion, NiftiHeader};
 use crate::shape::checked_voxel_count;
 use crate::spatial::sform_from_internal_lps_metadata;
 
@@ -91,35 +93,19 @@ fn write_nifti_labels_with_version<P: AsRef<Path>>(
     let header = header_from_spatial(
         version,
         HeaderDims { nx, ny, nz },
-        NiftiDatatype::Uint32,
+        SampleType::U32,
         origin.map(f64::from),
         spacing.map(f64::from),
-        [
-            direction[0] as f64,
-            direction[1] as f64,
-            direction[2] as f64,
-            direction[3] as f64,
-            direction[4] as f64,
-            direction[5] as f64,
-            direction[6] as f64,
-            direction[7] as f64,
-            direction[8] as f64,
-        ],
+        direction.map(f64::from),
     )?;
 
-    write_single_file_with(path, &header, |writer| {
-        for z in 0..nz {
-            for y in 0..ny {
-                for x in 0..nx {
-                    writer.write_all(&labels[z * ny * nx + y * nx + x].to_le_bytes())?;
-                }
-            }
-        }
-        Ok(())
-    })
+    write_single_file_with(path, &header, |writer| write_volume(writer, labels))
 }
 
 /// Write an image to a NIfTI-1 single-file stream with full sform metadata.
+///
+/// The samples are written in `T`, under the `datatype` code for `T`, with no
+/// rescale.
 ///
 /// # Spatial convention
 ///
@@ -127,10 +113,15 @@ fn write_nifti_labels_with_version<P: AsRef<Path>>(
 /// The writer emits file columns `[internal X, internal Y, internal Z]`, i.e.
 /// `[direction.col(2)*spacing[2], direction.col(1)*spacing[1],
 /// direction.col(0)*spacing[0]]`, then converts LPS rows to RAS rows.
-pub fn write_nifti<B, P>(path: P, image: &Image<f32, B, 3>, backend: &B) -> Result<()>
+///
+/// # Errors
+///
+/// Returns an error when the shape cannot be represented by a NIfTI-1 header
+/// or when writing fails.
+pub fn write_nifti<T, B, P>(path: P, image: &Image<T, B, 3>, backend: &B) -> Result<()>
 where
-    B: ComputeBackend + Default,
-    B::DeviceBuffer<f32>: CpuAddressableStorage<f32>,
+    T: Sample,
+    B: ComputeBackend,
     P: AsRef<Path>,
 {
     write_nifti_with_version(HeaderVersion::One, path, image, backend)
@@ -140,11 +131,15 @@ where
 ///
 /// The reader auto-detects NIfTI-1 and NIfTI-2. This writer is explicit so
 /// callers do not silently change on-disk format when NIfTI-1 dimensions still
-/// suffice.
-pub fn write_nifti2<B, P>(path: P, image: &Image<f32, B, 3>, backend: &B) -> Result<()>
+/// suffice. The samples are written in `T`, as by [`write_nifti`].
+///
+/// # Errors
+///
+/// Returns an error when writing fails.
+pub fn write_nifti2<T, B, P>(path: P, image: &Image<T, B, 3>, backend: &B) -> Result<()>
 where
-    B: ComputeBackend + Default,
-    B::DeviceBuffer<f32>: CpuAddressableStorage<f32>,
+    T: Sample,
+    B: ComputeBackend,
     P: AsRef<Path>,
 {
     write_nifti_with_version(HeaderVersion::Two, path, image, backend)
@@ -167,10 +162,10 @@ where
 /// Returns an error when `volumes` is empty, when any volume's grid differs from
 /// the first, when the shape or volume count exceeds the header's capacity, or
 /// when writing fails.
-pub fn write_nifti_series<B, P>(path: P, volumes: &[Image<f32, B, 3>], backend: &B) -> Result<()>
+pub fn write_nifti_series<T, B, P>(path: P, volumes: &[Image<T, B, 3>], backend: &B) -> Result<()>
 where
-    B: ComputeBackend + Default,
-    B::DeviceBuffer<f32>: CpuAddressableStorage<f32>,
+    T: Sample,
+    B: ComputeBackend,
     P: AsRef<Path>,
 {
     write_series_with_version(HeaderVersion::One, path, volumes, backend)
@@ -184,24 +179,24 @@ where
 /// # Errors
 ///
 /// Returns an error under the same conditions as [`write_nifti_series`].
-pub fn write_nifti2_series<B, P>(path: P, volumes: &[Image<f32, B, 3>], backend: &B) -> Result<()>
+pub fn write_nifti2_series<T, B, P>(path: P, volumes: &[Image<T, B, 3>], backend: &B) -> Result<()>
 where
-    B: ComputeBackend + Default,
-    B::DeviceBuffer<f32>: CpuAddressableStorage<f32>,
+    T: Sample,
+    B: ComputeBackend,
     P: AsRef<Path>,
 {
     write_series_with_version(HeaderVersion::Two, path, volumes, backend)
 }
 
-fn write_series_with_version<B, P>(
+fn write_series_with_version<T, B, P>(
     version: HeaderVersion,
     path: P,
-    volumes: &[Image<f32, B, 3>],
+    volumes: &[Image<T, B, 3>],
     backend: &B,
 ) -> Result<()>
 where
-    B: ComputeBackend + Default,
-    B::DeviceBuffer<f32>: CpuAddressableStorage<f32>,
+    T: Sample,
+    B: ComputeBackend,
     P: AsRef<Path>,
 {
     let Some((first, rest)) = volumes.split_first() else {
@@ -255,7 +250,7 @@ where
         version,
         HeaderDims { nx, ny, nz },
         payloads.len(),
-        NiftiDatatype::Float32,
+        T::TYPE,
         [origin[0], origin[1], origin[2]],
         [spacing[0], spacing[1], spacing[2]],
         direction,
@@ -263,24 +258,23 @@ where
 
     write_single_file_with(path, &header, |writer| {
         // The acquisition axis is slowest, so volumes serialize back to back in
-        // acquisition order, each in the same ZYX-to-XYZ voxel order as a
-        // single-volume file.
+        // acquisition order.
         for payload in &payloads {
-            write_voxels_xyz(writer, payload, shape)?;
+            write_volume(writer, payload)?;
         }
         Ok(())
     })
 }
 
-fn write_nifti_with_version<B, P>(
+fn write_nifti_with_version<T, B, P>(
     version: HeaderVersion,
     path: P,
-    image: &Image<f32, B, 3>,
+    image: &Image<T, B, 3>,
     backend: &B,
 ) -> Result<()>
 where
-    B: ComputeBackend + Default,
-    B::DeviceBuffer<f32>: CpuAddressableStorage<f32>,
+    T: Sample,
+    B: ComputeBackend,
     P: AsRef<Path>,
 {
     let shape = image.shape();
@@ -317,10 +311,10 @@ fn direction_row_major(direction: &ritk_spatial::Direction<3>) -> [f64; 9] {
 }
 
 /// NIfTI serialization core: header plus the `[Z, Y, X]` voxel stream.
-fn write_flat_with_version(
+fn write_flat_with_version<T: Sample>(
     version: HeaderVersion,
     path: &Path,
-    voxels: &[f32],
+    voxels: &[T],
     shape: [usize; 3],
     origin: [f64; 3],
     spacing: [f64; 3],
@@ -339,47 +333,40 @@ fn write_flat_with_version(
     let header = header_from_spatial(
         version,
         HeaderDims { nx, ny, nz },
-        NiftiDatatype::Float32,
+        T::TYPE,
         origin,
         spacing,
         direction_row_major,
     )?;
 
-    write_single_file_with(path, &header, |writer| {
-        write_voxels_xyz(writer, voxels, shape)
-    })
+    write_single_file_with(path, &header, |writer| write_volume(writer, voxels))
 }
 
-/// Serialize one volume from RITK `[Z, Y, X]` order into NIfTI `[X, Y, Z]` file
-/// order, x varying fastest.
-fn write_voxels_xyz(writer: &mut dyn Write, voxels: &[f32], shape: [usize; 3]) -> Result<()> {
-    let [nz, ny, nx] = shape;
-    for z in 0..nz {
-        for y in 0..ny {
-            for x in 0..nx {
-                writer.write_all(&voxels[z * ny * nx + y * nx + x].to_le_bytes())?;
-            }
-        }
-    }
+/// Serialize one volume little-endian.
+///
+/// RITK's flat `[Z, Y, X]` order has x varying fastest, then y, then z, which
+/// is NIfTI's file order, so the samples stream out as stored.
+fn write_volume<T: Sample>(writer: &mut dyn Write, voxels: &[T]) -> Result<()> {
+    write_samples(voxels, ByteOrder::LittleEndian, writer)?;
     Ok(())
 }
 
 fn header_from_spatial(
     version: HeaderVersion,
     dims: HeaderDims,
-    datatype: NiftiDatatype,
+    sample_type: SampleType,
     origin: [f64; 3],
     spacing: [f64; 3],
     direction: [f64; 9],
 ) -> Result<NiftiHeader> {
-    header_from_spatial_with_volumes(version, dims, 1, datatype, origin, spacing, direction)
+    header_from_spatial_with_volumes(version, dims, 1, sample_type, origin, spacing, direction)
 }
 
 fn header_from_spatial_with_volumes(
     version: HeaderVersion,
     dims: HeaderDims,
     volumes: usize,
-    datatype: NiftiDatatype,
+    sample_type: SampleType,
     origin: [f64; 3],
     spacing: [f64; 3],
     direction: [f64; 9],
@@ -393,7 +380,7 @@ fn header_from_spatial_with_volumes(
         version,
         dims,
         volumes,
-        datatype,
+        sample_type,
         HeaderSpatial {
             pixdim,
             srow_x: sform.x.map(f64::from),

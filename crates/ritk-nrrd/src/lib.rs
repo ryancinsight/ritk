@@ -5,10 +5,27 @@
 //!
 //! # Key APIs
 //!
-//! - [`read_nrrd`]: Read a NRRD file as a native image with spatial metadata
-//! - [`write_nrrd`]: Write an Image to a NRRD file with full space directions and origin encoding
+//! - [`read_nrrd`]: Read a NRRD file as an image of the caller's sample type with spatial metadata
+//! - [`write_nrrd`]: Write an image to a NRRD file, storing its sample type, with full space
+//!   directions and origin encoding
 //! - [`read_nrrd_series`]: Read an acquisition series as one image per volume
 //! - [`write_nrrd_series`]: Write an acquisition series with a leading acquisition axis
+//!
+//! # Sample Types
+//!
+//! NRRD stores ten numeric types: `signed char`, `unsigned char`, `short`,
+//! `unsigned short`, `int`, `unsigned int`, `long long int`,
+//! `unsigned long long int`, `float`, and `double`, each readable under every
+//! alias the format specification lists. The readers decode the stored type
+//! and then convert to the caller's `T` under a
+//! [`Conversion`](ritk_codecs::sample::Conversion):
+//! [`Exact`](ritk_codecs::sample::Exact) refuses a read that could change a
+//! value, and [`Cast`](ritk_codecs::sample::Cast) converts with a warning. The
+//! writers store `T` itself, so a round trip in one type is bit for bit. The
+//! `endian` field is `big` or `little`, and a type wider than one byte requires
+//! it; any other value is an error. The `block` type is not a numeric sample
+//! type and is rejected. The diffusion gradient reader decodes header fields
+//! only and reads no samples.
 //!
 //! # Acquisition Axis
 //!
@@ -60,50 +77,13 @@ mod axes;
 pub mod coordinate_map;
 pub mod reader;
 mod spatial;
+mod types;
 pub mod writer;
 
 pub use reader::{
     read_nrrd, read_nrrd_gradient_scheme, read_nrrd_header_map, read_nrrd_series, NrrdReader,
 };
 pub use writer::{write_nrrd, write_nrrd_series, write_nrrd_with_data, NrrdWriter};
-
-use coeus_core::{ComputeBackend, CpuAddressableStorage};
-use ritk_image::Image;
-use std::path::Path;
-
-/// DIP boundary executing strict spatial metadata preservation over standard NRRD datasets.
-pub struct NrrdDipReader<B: ComputeBackend> {
-    backend: B,
-}
-
-impl<B: ComputeBackend> NrrdDipReader<B> {
-    pub fn new(backend: B) -> Self {
-        Self { backend }
-    }
-
-    pub fn read<P: AsRef<Path>>(&self, path: P) -> anyhow::Result<Image<f32, B, 3>> {
-        read_nrrd(path, &self.backend)
-    }
-}
-
-/// DIP boundary executing strict spatial metadata preservation over standard NRRD datasets.
-pub struct NrrdDipWriter<B: ComputeBackend> {
-    backend: B,
-}
-
-impl<B: ComputeBackend> NrrdDipWriter<B> {
-    pub fn new(backend: B) -> Self {
-        Self { backend }
-    }
-
-    pub fn write<P: AsRef<Path>>(&self, path: P, image: &Image<f32, B, 3>) -> anyhow::Result<()>
-    where
-        B: Default,
-        B::DeviceBuffer<f32>: CpuAddressableStorage<f32>,
-    {
-        write_nrrd(path, image, &self.backend)
-    }
-}
 
 #[cfg(test)]
 mod tests;

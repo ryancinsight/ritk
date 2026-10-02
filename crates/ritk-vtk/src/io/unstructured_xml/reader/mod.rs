@@ -5,7 +5,8 @@
 //!
 //! # Parsing Contract
 //! - Finds the first `<Piece>` tag and reads `NumberOfPoints` / `NumberOfCells`.
-//! - `<Points>` section: single DataArray of `n_points * 3` f32 coordinates.
+//! - `<Points>` section: single DataArray of `n_points * 3` coordinates in its
+//!   declared numeric type, converted to `f32`.
 //! - `<Cells>` section contains three named DataArrays:
 //!   - `"connectivity"` : flat point-index list (length = sum of all cell sizes).
 //!   - `"offsets"`      : cumulative cell-size sums; `offsets[i] = Σ size[0..=i]`.

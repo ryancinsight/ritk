@@ -3,17 +3,10 @@
 //! Each predicate names the violated invariant and the offending value in its
 //! error, per the project error-handling discipline.
 
-use super::{HeaderDims, HeaderVersion, NiftiDatatype};
+use super::datatype::{bitpix, datatype_code};
+use super::{HeaderDims, HeaderVersion};
 use anyhow::{anyhow, bail, Context, Result};
-
-pub(super) fn checked_lane<const N: usize>(raw: &[u8]) -> Result<[u8; N]> {
-    raw.try_into().map_err(|_| {
-        anyhow!(
-            "NIfTI voxel lane width mismatch: expected {N}, got {}",
-            raw.len()
-        )
-    })
-}
+use ritk_codecs::sample::SampleType;
 
 pub(super) fn qfac_from_pixdim(value: f64) -> Result<f64> {
     if !value.is_finite() {
@@ -130,11 +123,12 @@ pub(super) fn validate_dims(dim: [usize; 8]) -> Result<()> {
     Ok(())
 }
 
-pub(super) fn validate_bitpix(datatype: NiftiDatatype, bitpix: i16) -> Result<()> {
-    if bitpix != datatype.bitpix() {
+pub(super) fn validate_bitpix(sample_type: SampleType, declared: i16) -> Result<()> {
+    let expected = bitpix(sample_type);
+    if declared != expected {
         bail!(
-            "NIfTI bitpix {bitpix} does not match datatype {}",
-            datatype.code()
+            "NIfTI bitpix {declared} does not match datatype {} ({sample_type}, {expected} bits)",
+            datatype_code(sample_type)
         );
     }
     Ok(())

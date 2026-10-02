@@ -19,16 +19,21 @@
 //! DW_scheme: 2,4
 //! 0,0,0,0
 //! 1,0,0,1000
-//! file: . 2
+//! file: . 256
 //! END
 //! ```
 //!
-//! After `END`, raw binary voxel data follows directly in the stream.
+//! The `file` offset counts bytes from the start of the file and, for an inline
+//! file, lies at or after the end of the `END` line (the example above is 256
+//! bytes, so its data starts at byte 256). The parser stops after `END`; the
+//! reader locates the data from that position and the `file` offset.
 
 use std::collections::HashMap;
 use std::io::{BufRead, BufReader};
 
 use anyhow::{anyhow, Context, Result};
+use consus_core::ByteOrder;
+use ritk_codecs::sample::SampleType;
 
 /// Parsed `.mif` header key-value map plus the multi-file offset hint.
 #[derive(Debug)]
@@ -77,7 +82,8 @@ impl HeaderValue {
 /// trailing `\`) are collected into `HeaderValue::Block`.
 ///
 /// The reader is left positioned immediately after the `END\n` line so
-/// the caller can read the binary payload directly.
+/// the caller can take its position as the header length. The binary payload
+/// starts at the `file` offset, which may lie further on (alignment padding).
 pub(crate) fn parse_mif_header<R: BufRead>(reader: &mut R) -> Result<MifHeader> {
     let mut entries: HashMap<String, HeaderValue> = HashMap::new();
 
@@ -176,7 +182,7 @@ fn collect_logical_lines<R: BufRead>(reader: &mut R) -> Result<Vec<String>> {
 ///
 /// Opens `path`, wraps in a `BufReader`, and delegates to
 /// [`parse_mif_header`].  The returned reader consumes the header;
-/// the caller can continue reading binary data from it.
+/// the caller locates the data from the stream position and the `file` offset.
 pub(crate) fn parse_mif_header_from_path(
     path: &std::path::Path,
 ) -> Result<(MifHeader, BufReader<std::fs::File>)> {
@@ -209,15 +215,25 @@ pub(crate) fn parse_dim(value: &str, expected_count: usize) -> Result<Vec<usize>
     Ok(parts)
 }
 
-/// Parse a space-separated list of `f64` from a header value.
-pub(crate) fn parse_f64_vec(value: &str) -> Result<Vec<f64>> {
-    value
+/// Parse the `vox` value into the voxel sizes of the spatial axes.
+///
+/// A fourth component, when present, is the frame spacing and is returned with
+/// the rest; callers read the first three.
+pub(crate) fn parse_vox(value: &str) -> Result<Vec<f64>> {
+    let sizes: Vec<f64> = value
         .split_whitespace()
         .map(|s| {
             s.parse::<f64>()
-                .with_context(|| format!("Invalid float component '{}'", s))
+                .with_context(|| format!("Invalid voxel size '{s}'"))
         })
-        .collect()
+        .collect::<Result<_>>()?;
+    if sizes.len() < 3 {
+        return Err(anyhow!(
+            ".mif 'vox' expected at least 3 spatial sizes, got {}",
+            sizes.len()
+        ));
+    }
+    Ok(sizes)
 }
 
 /// Parse the `layout` value into axis strides.
@@ -247,24 +263,106 @@ pub(crate) fn parse_layout(value: &str) -> Result<Vec<isize>> {
         .collect()
 }
 
-/// Parse the `datatype` header value into (byte_size, is_signed, is_float).
-pub(crate) fn parse_datatype(value: &str) -> Result<(usize, bool, bool)> {
-    let lower = value.trim().to_lowercase();
-    // Strip endian suffix to match the base type.
-    let base = lower
-        .strip_suffix("le")
-        .or_else(|| lower.strip_suffix("be"))
-        .unwrap_or(&lower);
-    match base {
-        "float32" => Ok((4, true, true)),
-        "float64" => Ok((8, true, true)),
-        "int32" => Ok((4, true, false)),
-        "uint32" => Ok((4, false, false)),
-        "int16" => Ok((2, true, false)),
-        "uint16" => Ok((2, false, false)),
-        "int8" => Ok((1, true, false)),
-        "uint8" => Ok((1, false, false)),
-        _ => Err(anyhow!("Unsupported .mif datatype '{}'", value.trim())),
+/// Parse the `datatype` header value into the stored sample type and its byte
+/// order.
+///
+/// MRtrix spells a type as a case-insensitive name (`Int8`, `UInt8`, `Int16`,
+/// `UInt16`, `Int32`, `UInt32`, `Int64`, `UInt64`, `Float32`, `Float64`) and,
+/// for types wider than one byte, an `LE` or `BE` suffix. A multi-byte name
+/// without a suffix is stored in the byte order of the machine that wrote it,
+/// which MRtrix reads as the order of the reading machine; so does this parser.
+/// A one-byte type has no byte order, and a suffix on one is rejected as MRtrix
+/// rejects it.
+///
+/// # Sources
+///
+/// - MRtrix3 documentation, "Image data" page (`getting_started/image_data`),
+///   section "Data types": the specifier table lists `Bit`, `Int8`, `UInt8`,
+///   and `Int16` through `Float64` and the complex `CFloat32`/`CFloat64`, each
+///   with `LE`/`BE` variants for the multi-byte types. It states that
+///   specifiers are case-insensitive and that a name without a suffix uses the
+///   native endianness.
+/// - MRtrix3 `core/datatype.cpp`, `DataType::parse`: the table omits `Int64`
+///   and `UInt64`, which `parse` accepts as `int64`, `uint64`, and their
+///   `le`/`be` forms, matched on the lower-cased name.
+/// - MRtrix3 `core/datatype.h`: `Int16`, `UInt16`, and the other multi-byte
+///   names are defined without the `LittleEndian` (`0x40`) or `BigEndian`
+///   (`0x80`) bit, and `DataType::set_byte_order_native` adds the bit of the
+///   host to every type but `Bit`, `Int8`, and `UInt8`; a bare multi-byte name
+///   therefore means native order.
+///
+/// # Errors
+///
+/// Returns an error for `Bit`, the complex types `CFloat32` and `CFloat64`
+/// (which store two values per voxel), a one-byte type with a byte-order
+/// suffix, and any other name.
+pub(crate) fn parse_datatype(value: &str) -> Result<(SampleType, ByteOrder)> {
+    let name = value.trim();
+    let lower = name.to_ascii_lowercase();
+    let (base, suffix) = if let Some(base) = lower.strip_suffix("le") {
+        (base, Some(ByteOrder::LittleEndian))
+    } else if let Some(base) = lower.strip_suffix("be") {
+        (base, Some(ByteOrder::BigEndian))
+    } else {
+        (lower.as_str(), None)
+    };
+    let sample_type = match base {
+        "int8" => SampleType::I8,
+        "uint8" => SampleType::U8,
+        "int16" => SampleType::I16,
+        "uint16" => SampleType::U16,
+        "int32" => SampleType::I32,
+        "uint32" => SampleType::U32,
+        "int64" => SampleType::I64,
+        "uint64" => SampleType::U64,
+        "float32" => SampleType::F32,
+        "float64" => SampleType::F64,
+        "bit" | "cfloat32" | "cfloat64" => {
+            return Err(anyhow!(
+                "Unsupported .mif datatype '{name}': RITK images hold one real scalar per voxel, and Bit and complex voxels are not one"
+            ))
+        }
+        _ => return Err(anyhow!("Unknown .mif datatype '{name}'")),
+    };
+    match (sample_type.byte_width(), suffix) {
+        (1, Some(_)) => Err(anyhow!(
+            "Invalid .mif datatype '{name}': a one-byte type has no byte order"
+        )),
+        (1, None) => Ok((sample_type, ByteOrder::LittleEndian)),
+        (_, Some(order)) => Ok((sample_type, order)),
+        (_, None) => Ok((sample_type, native_byte_order())),
+    }
+}
+
+/// The `datatype` header value that stores `sample_type` in `order`: the
+/// inverse of [`parse_datatype`], with the `LE` or `BE` suffix on every type
+/// wider than one byte.
+pub(crate) fn datatype_name(sample_type: SampleType, order: ByteOrder) -> String {
+    let base = match sample_type {
+        SampleType::I8 => "Int8",
+        SampleType::U8 => "UInt8",
+        SampleType::I16 => "Int16",
+        SampleType::U16 => "UInt16",
+        SampleType::I32 => "Int32",
+        SampleType::U32 => "UInt32",
+        SampleType::I64 => "Int64",
+        SampleType::U64 => "UInt64",
+        SampleType::F32 => "Float32",
+        SampleType::F64 => "Float64",
+    };
+    match (sample_type.byte_width(), order) {
+        (1, _) => base.to_owned(),
+        (_, ByteOrder::LittleEndian) => format!("{base}LE"),
+        (_, ByteOrder::BigEndian) => format!("{base}BE"),
+    }
+}
+
+/// The byte order of the machine this code runs on.
+const fn native_byte_order() -> ByteOrder {
+    if cfg!(target_endian = "big") {
+        ByteOrder::BigEndian
+    } else {
+        ByteOrder::LittleEndian
     }
 }
 
@@ -297,5 +395,5 @@ pub(crate) fn parse_transform(block: &[String]) -> Result<[[f64; 4]; 4]> {
 }
 
 #[cfg(test)]
-#[path = "header_tests.rs"]
+#[path = "tests_header.rs"]
 mod tests;

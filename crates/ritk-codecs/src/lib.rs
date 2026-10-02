@@ -1,8 +1,9 @@
 //! RITK-native codec implementations.
 //!
-//! This crate is the single source of truth for all DICOM pixel codec
-//! primitives: pixel layout arithmetic, native sample decoding, and all
-//! encapsulated transfer syntax decoders.
+//! This crate holds the typed voxel sample vocabulary the RITK volume formats
+//! converge on ([`sample`], ADR 0053) and is the single source of truth for
+//! the DICOM pixel codec primitives: pixel layout arithmetic, native sample
+//! decoding, and all encapsulated transfer syntax decoders.
 //!
 //! # C/C++ dependency migration status
 //! | Codec       | C/C++ dep         | Pure Rust implementation             | Status |
@@ -25,6 +26,7 @@ pub mod jpeg_ls;
 pub mod packbits;
 pub mod pixel_layout;
 pub mod rle;
+pub mod sample;
 
 pub use byte_decode::{
     decode_bytes_to_f32, parse_f64_vec, parse_floats, parse_usize_vec, require_bytes, ByteOrder,

@@ -24,7 +24,7 @@ RITK deliberately reads a narrow, unambiguous subset:
 | Logical shape | one 3-D volume |
 | Header | exactly 348 bytes |
 | Scalar types | `u8`, `i16`, `i32`, `f32`, or `f64` |
-| Returned voxels | `f32` |
+| Returned voxels | the caller's sample type `T`, under a conversion policy |
 | Payload offset | finite, non-negative whole-byte offset |
 | Payload length | exactly offset plus declared voxel bytes |
 
@@ -79,15 +79,28 @@ file `[sx, sy, sz]` becomes RITK tensor-axis spacing `[sz, sy, sx]`.
 ## Scalar conversion and scaling
 
 `datatype` selects the stored scalar and `bitpix` must match it. RITK checks
-that pair before calculating payload bytes. Each stored value is converted to
-`f32`; integer values outside binary32's exact integer range and finite `f64`
-values can round under that explicit output contract.
+that pair before calculating payload bytes. `read_analyze::<T, ..>` returns an
+image of the caller's sample type under a conversion policy (ADR 0053):
+`Exact` returns the stored values or a lossless widening and refuses a read
+that could change a value, such as an `i32` or `f64` file read as `f32`;
+`Cast` converts and logs a warning when the stored type does not widen to `T`.
+The `f32` surfaces of `ritk-io` read under `Cast`, the conversion they always
+performed.
+
+The writer stores the image's own sample type: a `u8`, `i16`, `i32`, `f32`, or
+`f64` image writes `datatype` 2, 4, 8, 16, or 64 with the matching `bitpix`,
+and every sample round-trips bit for bit. Analyze has no code for the other
+sample types, so the writer refuses them before creating either file.
 
 The historical `funused1` field is used by several Analyze-derived writers as
-an intensity scale. RITK applies a finite nonzero scale after scalar decoding;
-zero means one. This convention is not uniform across every Analyze variant,
-so a foreign pipeline should verify representative values rather than infer
-calibration from the filename.
+an intensity scale. RITK carries a finite factor other than 0 or 1 as a
+`Rescale` with that slope and a zero intercept; 0 and 1 are the identity.
+`read_analyze` applies it in `T`'s arithmetic and so refuses an integer `T`
+for a scaled file, since a scaled integer has no faithful integer result;
+`read_analyze_stored` returns the stored samples and the `Rescale` separately.
+This convention is not uniform across every Analyze variant, so a foreign
+pipeline should verify representative values rather than infer calibration
+from the filename.
 
 ## Spatial metadata limits
 
@@ -111,16 +124,19 @@ which format is present.
 
 Before allocating output, the reader validates signed dimensions, checked
 voxel and byte products, datatype/bit-depth agreement, finite metadata, offset,
-and exact file length. It then fallibly reserves the final `Vec<f32>` and
-streams conversion through an 8 KiB fixed buffer. Peak decoder-owned storage is
-therefore the returned `f32` volume plus constant scratch, not the complete
-encoded payload plus the returned volume.
+and exact file length. It then decodes the payload in its stored type through
+fixed 16 KiB steps (`SampleBuffer::read_from` over consus-core's
+`read_extend`), growing the output only by samples already read and reporting
+allocation failure as an error. Peak decoder-owned storage is therefore the
+stored volume plus constant scratch, not the complete encoded payload plus the
+returned volume; a read into a type other than the stored one also holds the
+converted copy until the conversion finishes.
 
 The writer validates dimensions, value count, checked byte size, finite spacing
 representable in the header's `f32` fields, and origin voxel coordinates within
 the format's `i16` range before creating either file. Header spacing can round
-from RITK's `f64` metadata to `f32`. The writer streams little-endian voxel
-bytes through an 8 KiB buffer and publishes the header after the payload
+from RITK's `f64` metadata to `f32`. The writer streams little-endian samples
+in bounded blocks (`write_samples`) and publishes the header after the payload
 completes; it does not construct a second volume-sized byte vector.
 
 ## Failure behavior

@@ -22,7 +22,7 @@ fn test_read_mgz() -> Result<()> {
     encoder.write_all(&mgh)?;
     std::fs::write(&path, encoder.finish()?)?;
 
-    let image = read_mgh::<TestBackend, _>(&path, &backend)?;
+    let image = read_mgh::<f32, _, TestBackend, _>(&path, &backend, Exact)?;
     assert_eq!(image.shape(), [2, 2, 2]);
     image.data_slice().map(|loaded| {
         assert_eq!(loaded.len(), values.len());
@@ -59,7 +59,7 @@ fn test_read_mgh_gz_extension() -> Result<()> {
     encoder.write_all(&mgh)?;
     std::fs::write(&path, encoder.finish()?)?;
 
-    let image = read_mgh::<TestBackend, _>(&path, &backend)?;
+    let image = read_mgh::<f32, _, TestBackend, _>(&path, &backend, Exact)?;
     image.data_slice().map(|loaded| {
         for (i, (&got, &expected)) in loaded.iter().zip(values.iter()).enumerate() {
             assert_eq!(got, expected, "voxel[{i}]");
@@ -94,7 +94,7 @@ fn test_read_external_uppercase_gzip_extensions() -> Result<()> {
         encoder.write_all(&mgh)?;
         std::fs::write(&path, encoder.finish()?)?;
 
-        let image = read_mgh::<TestBackend, _>(&path, &backend)?;
+        let image = read_mgh::<f32, _, TestBackend, _>(&path, &backend, Exact)?;
         image.data_slice().map(|loaded| {
             for (i, (&got, &expected)) in loaded.iter().zip(values.iter()).enumerate() {
                 assert_eq!(got.to_bits(), expected.to_bits(), "{name} voxel[{i}]");

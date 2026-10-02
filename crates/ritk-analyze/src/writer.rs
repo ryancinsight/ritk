@@ -6,7 +6,8 @@
 //! same base name:
 //!
 //! * `<name>.hdr` — 348-byte binary header (little-endian).
-//! * `<name>.img` — raw IEEE-754 single-precision voxel values (little-endian).
+//! * `<name>.img` — raw voxel values (little-endian) in the image's own sample
+//!   type: `u8`, `i16`, `i32`, `f32`, or `f64`, named by the `datatype` field.
 //!
 //! # Axis Convention
 //!
@@ -38,16 +39,19 @@
 
 use anyhow::{Context, Result};
 use coeus_core::{ComputeBackend, CpuAddressableStorage};
+use consus_core::ByteOrder;
+use ritk_codecs::sample::{write_samples, Sample};
 use ritk_spatial::{Point, Spacing};
 
-use crate::codec::{write_le, DT_FLOAT, EXTENTS, HDR_SIZE};
+use crate::codec::{bitpix, code_for, write_le, EXTENTS, HDR_SIZE};
 use std::fs::File;
 use std::io::{BufWriter, Write};
 use std::path::Path;
 
 // ── Public API ────────────────────────────────────────────────────────────────
 
-/// Write a 3-D image to an Analyze 7.5 `.hdr` + `.img` file pair.
+/// Write a 3-D image of `T` to an Analyze 7.5 `.hdr` + `.img` file pair storing
+/// `T`'s samples.
 ///
 /// `path` must have a `.hdr` extension (or any other extension); the `.img`
 /// sibling file is derived by replacing the extension with `.img`.  An existing
@@ -55,6 +59,8 @@ use std::path::Path;
 ///
 /// # Errors
 /// Returns an error if:
+/// - Analyze has no `datatype` code for `T` (it stores `u8`, `i16`, `i32`,
+///   `f32`, and `f64`).
 /// - `path`'s parent directory does not exist.
 /// - Any dimension is zero or exceeds `i16::MAX` (32 767).
 /// - The image storage length does not match its shape.
@@ -62,10 +68,15 @@ use std::path::Path;
 ///   spatial metadata is non-finite.
 /// - The rounded origin voxel coordinate exceeds the format's `i16` field.
 /// - Writing the header or data file fails.
-pub fn write_analyze<B, P>(path: P, image: &ritk_image::Image<f32, B, 3>, backend: &B) -> Result<()>
+pub fn write_analyze<T, B, P>(
+    path: P,
+    image: &ritk_image::Image<T, B, 3>,
+    backend: &B,
+) -> Result<()>
 where
+    T: Sample,
     B: ComputeBackend + Default,
-    B::DeviceBuffer<f32>: CpuAddressableStorage<f32>,
+    B::DeviceBuffer<T>: CpuAddressableStorage<T>,
     P: AsRef<Path>,
 {
     let vals = image.data_cow_on(backend);
@@ -81,13 +92,15 @@ where
 /// Substrate-agnostic Analyze serialization core. Takes flat `[Z, Y, X]` voxels plus the
 /// (backend-independent) spatial metadata so header layout and byte order live
 /// in exactly one place. Analyze 7.5 has no direction field (identity implied).
-fn write_analyze_flat(
+fn write_analyze_flat<T: Sample>(
     path: &Path,
     shape: [usize; 3],
     spacing: &Spacing<3>,
     origin: &Point<3>,
-    vals: &[f32],
+    vals: &[T],
 ) -> Result<()> {
+    let datatype = code_for(T::TYPE)?;
+
     // Derive sibling paths (<base>.hdr, <base>.img).
     let hdr_path = path.with_extension("hdr");
     let img_path = path.with_extension("img");
@@ -123,7 +136,7 @@ fn write_analyze_flat(
         );
     }
     voxel_count
-        .checked_mul(size_of::<f32>())
+        .checked_mul(T::TYPE.byte_width())
         .context("Analyze payload byte count overflows usize")?;
     let sx_header = header_spacing("x", sx)?;
     let sy_header = header_spacing("y", sy)?;
@@ -148,8 +161,8 @@ fn write_analyze_flat(
     write_le::<i16>(&mut hdr, 46, nz as i16); // dim[3] = Z
     write_le::<i16>(&mut hdr, 48, 1); // dim[4] = time (1 volume)
 
-    write_le::<i16>(&mut hdr, 70, DT_FLOAT); // datatype = DT_FLOAT (16)
-    write_le::<i16>(&mut hdr, 72, 32); // bitpix   = 32 bits
+    write_le::<i16>(&mut hdr, 70, datatype);
+    write_le::<i16>(&mut hdr, 72, bitpix(T::TYPE));
 
     // pixdim[8] at offset 76
     write_le::<f32>(&mut hdr, 76, 4.0_f32); // pixdim[0] = number of dims
@@ -173,15 +186,11 @@ fn write_analyze_flat(
     write_le::<i16>(&mut hdr, 255, oy_vox); // originator[1] = y voxel
     write_le::<i16>(&mut hdr, 257, oz_vox); // originator[2] = z voxel
 
-    // ── Write .img (raw f32 little-endian, same memory order as RITK) ─────────
-    // RITK layout: flat[iz*ny*nx + iy*nx + ix] — identical to Analyze X-fastest.
+    // RITK layout flat[iz*ny*nx + iy*nx + ix] is Analyze's X-fastest order.
     let img_file = File::create(&img_path).context("Failed to create Analyze data file")?;
-    let mut img_data = BufWriter::with_capacity(8 * 1024, img_file);
-    for v in vals {
-        img_data
-            .write_all(&v.to_le_bytes())
-            .context("Failed to write Analyze voxel data")?;
-    }
+    let mut img_data = BufWriter::new(img_file);
+    write_samples(vals, ByteOrder::LittleEndian, &mut img_data)
+        .context("Failed to write Analyze voxel data")?;
     img_data.flush().context("Failed to flush Analyze data")?;
 
     // Publish the header only after the complete voxel payload was written.
@@ -208,11 +217,17 @@ impl<B: ComputeBackend> AnalyzeWriter<B> {
         Self { backend }
     }
 
-    /// Write an Analyze image through the bound backend.
-    pub fn write<P: AsRef<Path>>(&self, path: P, image: &ritk_image::Image<f32, B, 3>) -> Result<()>
+    /// Write an Analyze image of `T` through the bound backend.
+    ///
+    /// # Errors
+    ///
+    /// Returns the errors of [`write_analyze`].
+    pub fn write<T, P>(&self, path: P, image: &ritk_image::Image<T, B, 3>) -> Result<()>
     where
+        T: Sample,
         B: Default,
-        B::DeviceBuffer<f32>: CpuAddressableStorage<f32>,
+        B::DeviceBuffer<T>: CpuAddressableStorage<T>,
+        P: AsRef<Path>,
     {
         write_analyze(path, image, &self.backend)
     }
@@ -272,7 +287,7 @@ mod tests {
             [1, 0, 1],
             &Spacing::new([1.0; 3]),
             &Point::new([0.0; 3]),
-            &[],
+            &[] as &[f32],
         )
         .expect_err("zero dimensions must be rejected");
         assert!(
