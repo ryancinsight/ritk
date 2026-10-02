@@ -6,13 +6,12 @@
 //!
 //! ## Coordinate Convention
 //!
-//! VTK header fields `DIMENSIONS`, `ORIGIN`, `SPACING` are in **[X, Y, Z]**
-//! order. RITK spatial metadata (`Point`, `Spacing`) also uses **[X, Y, Z]**
-//! order, so values transfer directly without permutation.
+//! VTK header dimensions and spacing use **[X, Y, Z]** order. RITK tensors
+//! use **[Z, Y, X]** axis order; the reader reverses dimensions and spacing and
+//! records the corresponding direction columns. Physical origin remains XYZ.
 //!
-//! RITK tensor shape is **[nz, ny, nx]** (Z varies slowest, X varies fastest).
-//! VTK stores scalar data with X varying fastest, matching RITK's memory
-//! layout. No data permutation is required.
+//! VTK stores scalar data with X varying fastest, matching the final X axis of
+//! RITK's [Z, Y, X] tensor layout. Scalar data needs no permutation.
 //!
 //! ## Supported Scalar Types
 //!
@@ -22,7 +21,7 @@
 use anyhow::{bail, Context, Result};
 use coeus_core::ComputeBackend;
 use ritk_image::Image;
-use ritk_spatial::{Direction, Point, Spacing};
+use ritk_spatial::{Point, Spacing};
 use std::io::{BufRead, BufReader, Read};
 use std::path::Path;
 
@@ -100,7 +99,7 @@ struct VtkHeader {
 /// - `dims` is `[nx, ny, nz]` — VTK header `DIMENSIONS` **[X, Y, Z]** order, not
 ///   yet permuted to tensor `[nz, ny, nx]` order.
 /// - `origin` / `spacing` are `[ox, oy, oz]` / `[sx, sy, sz]` in VTK **[X, Y, Z]**
-///   order, transferring directly to RITK spatial metadata without permutation.
+///   file order. [`read_vtk`] keeps origin XYZ and maps spacing to RITK ZYX.
 ///
 /// All scalar types (`float`, `double`, `unsigned_char`, `short`,
 /// `unsigned_short`, `int`, `unsigned_int`) decode to `f32`. Binary payloads are
@@ -181,8 +180,8 @@ pub fn read_vtk<B: ComputeBackend, P: AsRef<Path>>(
     let (data_f32, [nx, ny, nz], origin_arr, spacing_arr) = read_vtk_flat(path)?;
 
     let origin = Point::new(origin_arr);
-    let spacing = Spacing::new(spacing_arr);
-    let direction = Direction::identity();
+    let spacing = Spacing::new(super::axis_order::xyz_to_zyx(spacing_arr));
+    let direction = super::axis_order::vtk_image_direction();
 
     tracing::debug!(
         ?origin,

@@ -141,7 +141,7 @@ pub fn load_volume_from_path<P: AsRef<Path>>(path: P) -> Result<LoadedVolume> {
             path.display()
         )
     })?;
-    convert::volume_from_image_no_meta(image, path.to_path_buf(), format)
+    convert::volume_from_image_no_meta(image, path.to_path_buf())
 }
 
 /// Load a pathless in-memory medical payload.
@@ -159,11 +159,7 @@ pub fn load_volume_from_bytes(name_hint: &str, bytes: &[u8]) -> Result<LoadedVol
         let backend = coeus_core::SequentialBackend;
         let image = ritk_io::read_nifti_from_bytes_native(bytes, &backend)
             .with_context(|| format!("failed to read dropped NIfTI bytes '{}'", name_hint))?;
-        return convert::volume_from_image_no_meta(
-            image,
-            PathBuf::from(name_hint),
-            ritk_io::ImageFormat::NIfTI,
-        );
+        return convert::volume_from_image_no_meta(image, PathBuf::from(name_hint));
     }
 
     anyhow::bail!(

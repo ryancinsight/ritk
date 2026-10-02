@@ -56,35 +56,30 @@ fn viewer_path_dispatch_preserves_nrrd_and_vtk_values_and_geometry() {
         .collect();
     let origin = [1.25, -2.5, 3.75];
     let spacing = [0.5, 1.5, 2.0];
-    let image = ritk_image::Image::from_flat_on(
-        pixels.clone(),
-        fixtures::SHAPE,
-        Point::new(origin),
-        Spacing::new(spacing),
-        Direction::identity(),
-        &backend,
-    )
-    .expect("construct viewer format fixture image");
+    let vtk_direction = Direction::from_rows([[0.0, 0.0, 1.0], [0.0, 1.0, 0.0], [1.0, 0.0, 0.0]]);
 
-    for filename in ["study.nrrd", "study.vtk"] {
+    for (filename, direction) in [
+        ("study.nrrd", Direction::identity()),
+        ("study.vtk", vtk_direction),
+    ] {
+        let expected_direction = direction.to_row_major();
+        let image = ritk_image::Image::from_flat_on(
+            pixels.clone(),
+            fixtures::SHAPE,
+            Point::new(origin),
+            Spacing::new(spacing),
+            direction,
+            &backend,
+        )
+        .expect("construct viewer format fixture image");
         let path = dir.path().join(filename);
         ritk_io::write_image_native(&path, &image).expect("write native format fixture");
         let volume = load_volume_from_path(&path).expect("load through the viewer path");
 
         assert_eq!(volume.shape, fixtures::SHAPE);
         assert_eq!(volume.data.as_slice(), pixels);
-        let expected_spacing = if filename.ends_with(".vtk") {
-            [spacing[2], spacing[1], spacing[0]]
-        } else {
-            spacing
-        };
-        assert_eq!(volume.spacing, expected_spacing);
+        assert_eq!(volume.spacing, spacing);
         assert_eq!(volume.origin, origin);
-        let expected_direction = if filename.ends_with(".vtk") {
-            [0.0, 0.0, 1.0, 0.0, 1.0, 0.0, 1.0, 0.0, 0.0]
-        } else {
-            [1.0, 0.0, 0.0, 0.0, 1.0, 0.0, 0.0, 0.0, 1.0]
-        };
         assert_eq!(volume.direction, expected_direction);
         assert_eq!(volume.source.as_deref(), Some(path.as_path()));
         assert!(volume.metadata.is_none());

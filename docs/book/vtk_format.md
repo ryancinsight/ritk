@@ -33,6 +33,14 @@ x-fastest interleaved samples while sharing the source allocation. Call
 requires VTK's owned `Vec<f32>` attribute arrays; that operation is explicit
 and retains the direction matrix on the carrier.
 
+Legacy structured-points files declare dimensions, origin, and spacing in XYZ
+order, with X as the fastest-varying sample axis. [VTK's dataset-format
+specification](https://docs.vtk.org/en/v9.6.1/vtk_file_formats/vtk_legacy_file_format.html#dataset-format)
+describes that ordering. RITK maps dimensions and spacing to ZYX tensor order
+and keeps the sample sequence unchanged. Because this legacy dataset stores no
+direction matrix, RITK uses the fixed XYZ-to-ZYX axis mapping; the writer
+rejects images with a different direction before opening the destination.
+
 ## Example Summary
 
 | Example | Status | Focus |

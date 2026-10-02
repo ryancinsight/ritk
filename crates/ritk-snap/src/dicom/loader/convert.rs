@@ -3,10 +3,8 @@
 use std::path::PathBuf;
 use std::sync::Arc;
 
-use crate::geometry::axis_order::{reverse_axis_order, reverse_direction_axes};
 use crate::LoadedVolume;
 use anyhow::Result;
-use ritk_io::ImageFormat;
 
 /// Extract spacing, origin, and direction from a 3-D image as typed arrays.
 ///
@@ -16,16 +14,13 @@ use ritk_io::ImageFormat;
 /// - `origin`: `[f64; 3]` — physical coordinate of the first voxel.
 /// - `direction`: `[f64; 9]` — row-major 3×3 direction cosine matrix.
 ///
-/// VTK's native reader supplies spacing and direction in file `[x, y, z]`
-/// order; the viewer adapter converts those axes to `[depth, row, column]`.
-/// Other registered image readers already return RITK's viewer axis order.
+/// The format reader expresses this geometry in the returned image's axis order.
 ///
 /// # Contract
 /// The `image` must be 3-dimensional. The direction matrix must be 3×3
 /// (9 elements), which is guaranteed by `Direction<3>`.
 pub(super) fn extract_spatial_metadata(
     image: &ritk_image::Image<f32, coeus_core::SequentialBackend, 3>,
-    format: ImageFormat,
 ) -> ([f64; 3], [f64; 3], [f64; 9]) {
     let sp = image.spacing();
     let orig = image.origin();
@@ -34,14 +29,6 @@ pub(super) fn extract_spatial_metadata(
     let spacing = [sp[0], sp[1], sp[2]];
     let origin = [orig.0[0], orig.0[1], orig.0[2]];
     let direction = dir.to_row_major();
-    let (spacing, direction) = if format == ImageFormat::Vtk {
-        (
-            reverse_axis_order(spacing),
-            reverse_direction_axes(*dir).to_row_major(),
-        )
-    } else {
-        (spacing, direction)
-    };
 
     (spacing, origin, direction)
 }
@@ -54,10 +41,9 @@ pub(super) fn extract_spatial_metadata(
 pub(super) fn volume_from_image_no_meta(
     image: ritk_image::Image<f32, coeus_core::SequentialBackend, 3>,
     source_path: PathBuf,
-    format: ImageFormat,
 ) -> Result<LoadedVolume> {
     let shape = image.shape();
-    let (spacing, origin, direction) = extract_spatial_metadata(&image, format);
+    let (spacing, origin, direction) = extract_spatial_metadata(&image);
 
     let pixels = image
         .data_cow_on(&coeus_core::SequentialBackend)

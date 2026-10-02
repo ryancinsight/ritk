@@ -1,5 +1,7 @@
 //! VTK I/O module — free functions, VtkReader/VtkWriter wrappers, and sub-modules.
 
+mod axis_order;
+
 pub mod polydata;
 pub use polydata::{read_vtk_polydata, write_vtk_polydata};
 pub mod polydata_xml;
@@ -125,15 +127,10 @@ mod tests {
             .collect();
         let origin = Point::new([1.0, -2.0, 3.5]);
         let spacing = Spacing::new([0.5, 0.75, 1.25]);
-        let image = Image::from_flat_on(
-            values.clone(),
-            shape,
-            origin,
-            spacing,
-            Direction::identity(),
-            &backend,
-        )
-        .expect("native image");
+        let direction = super::axis_order::vtk_image_direction();
+        let image =
+            Image::from_flat_on(values.clone(), shape, origin, spacing, direction, &backend)
+                .expect("native image");
         let directory = tempdir().expect("temporary directory");
         let path = directory.path().join("roundtrip.vtk");
 
@@ -146,11 +143,16 @@ mod tests {
         assert_eq!(loaded.data_slice().expect("contiguous image"), values);
         assert_eq!(*loaded.origin(), origin);
         assert_eq!(*loaded.spacing(), spacing);
-        assert_eq!(*loaded.direction(), Direction::identity());
+        let (_, file_dims, file_origin, file_spacing) =
+            read_vtk_flat(&path).expect("read VTK fields");
+        assert_eq!(file_dims, [shape[2], shape[1], shape[0]]);
+        assert_eq!(file_origin, [origin[0], origin[1], origin[2]]);
+        assert_eq!(file_spacing, [1.25, 0.75, 0.5]);
+        assert_eq!(*loaded.direction(), direction);
     }
 
     #[test]
-    fn legacy_writer_rejects_non_identity_direction_before_creating_output() {
+    fn legacy_writer_rejects_unrepresentable_direction_before_creating_output() {
         let direction = Direction::from_rows([[0.0, -1.0, 0.0], [1.0, 0.0, 0.0], [0.0, 0.0, 1.0]]);
         let image = native_image(direction, CoordinateMap::Cartesian);
         let directory = tempdir().expect("temporary directory");
@@ -158,11 +160,11 @@ mod tests {
 
         let error = VtkWriter::new(SequentialBackend)
             .write(&path, &image)
-            .expect_err("legacy structured points cannot encode image direction");
+            .expect_err("legacy structured points cannot encode this direction");
 
         assert_eq!(
             error.to_string(),
-            "legacy VTK structured points cannot preserve a non-identity direction matrix"
+            "legacy VTK structured points cannot preserve a direction matrix outside the VTK-aligned ZYX-to-XYZ axis order"
         );
         assert!(!path.exists(), "rejection must happen before file creation");
     }

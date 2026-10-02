@@ -9,8 +9,9 @@
 //! VTK `DIMENSIONS` expects **[nx, ny, nz]** order, so the first and last
 //! tensor dimensions are swapped when emitting the header.
 //!
-//! RITK spatial metadata (`Point`, `Spacing`) uses **[X, Y, Z]** order,
-//! matching VTK's `ORIGIN` and `SPACING` fields directly.
+//! RITK spacing and direction columns follow tensor axes **[Z, Y, X]**. The
+//! writer maps spacing to VTK **[X, Y, Z]** and accepts only the corresponding
+//! VTK-aligned direction. Physical origin remains XYZ.
 //!
 //! VTK stores scalar data with X varying fastest, matching RITK's memory
 //! layout. No data permutation is required.
@@ -18,7 +19,6 @@
 use anyhow::{Context, Result};
 use coeus_core::{ComputeBackend, CpuAddressableStorage};
 use ritk_image::Image;
-use ritk_spatial::Direction;
 use std::io::{BufWriter, Write};
 use std::path::Path;
 
@@ -150,9 +150,9 @@ pub fn encode_vtk_flat<W: Write>(
 /// # Errors
 ///
 /// Returns an error when:
-/// - The image has a non-identity direction or non-Cartesian coordinate map,
-///   which legacy structured points cannot represent. This check occurs before
-///   the destination is created or truncated.
+/// - The image has a non-Cartesian coordinate map or a direction outside the
+///   VTK-aligned ZYX-to-XYZ axis order. These checks occur before the destination
+///   is created or truncated.
 /// - The file cannot be created or written.
 /// - The tensor data cannot be extracted as `f32`.
 pub fn write_vtk<B, P>(path: P, image: &Image<f32, B, 3>, backend: &B) -> Result<()>
@@ -167,8 +167,8 @@ where
         "legacy VTK structured points cannot preserve a non-Cartesian coordinate map"
     );
     anyhow::ensure!(
-        image.direction() == &Direction::identity(),
-        "legacy VTK structured points cannot preserve a non-identity direction matrix"
+        image.direction() == &super::axis_order::vtk_image_direction(),
+        "legacy VTK structured points cannot preserve a direction matrix outside the VTK-aligned ZYX-to-XYZ axis order"
     );
 
     let file = std::fs::File::create(path)
@@ -177,9 +177,9 @@ where
 
     let dims = image.shape(); // [nz, ny, nx]
     let origin = image.origin(); // [X, Y, Z] order
-    let spacing = image.spacing(); // [X, Y, Z] order
+    let spacing = image.spacing(); // [Z, Y, X] tensor-axis order
     let origin_arr = [origin[0], origin[1], origin[2]];
-    let spacing_arr = [spacing[0], spacing[1], spacing[2]];
+    let spacing_arr = super::axis_order::xyz_to_zyx([spacing[0], spacing[1], spacing[2]]);
 
     let f32_vec = image.data_cow_on(backend);
 
