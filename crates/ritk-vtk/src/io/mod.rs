@@ -412,6 +412,24 @@ mod tests {
     }
 
     #[test]
+    fn legacy_reader_rejects_scalar_keywords_with_trailing_text() {
+        let directory = tempdir().expect("temporary directory");
+        let path = directory.path().join("invalid-scalar-keyword.vtk");
+        let contents = scalar_header([2, 1, 1], 2, "ASCII", "float", Some("1"))
+            .replace("SCALARS scalars", "SCALARS_BROKEN scalars")
+            + "10 20\n";
+        std::fs::write(&path, contents).expect("write invalid scalar keyword fixture");
+
+        let error =
+            read_vtk_flat(&path).expect_err("a prefixed keyword must not be accepted as SCALARS");
+
+        assert!(
+            format!("{error:#}").contains("VTK header missing SCALARS"),
+            "unexpected parser error: {error:#}"
+        );
+    }
+
+    #[test]
     fn legacy_reader_defaults_omitted_scalar_component_count_to_one() {
         let directory = tempdir().expect("temporary directory");
         let path = directory.path().join("implicit-scalar-component.vtk");

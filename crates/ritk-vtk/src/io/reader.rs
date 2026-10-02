@@ -261,9 +261,10 @@ fn parse_header(reader: &mut BufReader<std::fs::File>) -> Result<VtkHeader> {
     // Line 4: dataset type
     let ds_line =
         next_meaningful_line(reader)?.with_context(|| "unexpected EOF before VTK DATASET line")?;
-    if !ds_line
-        .to_ascii_uppercase()
-        .starts_with("DATASET STRUCTURED_POINTS")
+    let dataset_tokens = ds_line.split_whitespace().collect::<Vec<_>>();
+    if dataset_tokens.len() != 2
+        || !dataset_tokens[0].eq_ignore_ascii_case("DATASET")
+        || !dataset_tokens[1].eq_ignore_ascii_case("STRUCTURED_POINTS")
     {
         bail!(
             "unsupported VTK dataset type (expected STRUCTURED_POINTS, got '{}')",
@@ -284,10 +285,10 @@ fn parse_header(reader: &mut BufReader<std::fs::File>) -> Result<VtkHeader> {
             Some(l) => l,
             None => break,
         };
-        let upper = line.to_ascii_uppercase();
         let tokens: Vec<&str> = line.split_whitespace().collect();
+        let keyword = tokens.first().copied().unwrap_or_default();
 
-        if upper.starts_with("DIMENSIONS") {
+        if keyword.eq_ignore_ascii_case("DIMENSIONS") {
             if tokens.len() < 4 {
                 bail!("DIMENSIONS line requires 3 values, got: '{}'", line);
             }
@@ -296,7 +297,7 @@ fn parse_header(reader: &mut BufReader<std::fs::File>) -> Result<VtkHeader> {
             let nz: usize = tokens[3].parse().with_context(|| "bad DIMENSIONS nz")?;
             dims = Some([nx, ny, nz]);
             tracing::debug!(nx, ny, nz, "VTK DIMENSIONS parsed");
-        } else if upper.starts_with("ORIGIN") {
+        } else if keyword.eq_ignore_ascii_case("ORIGIN") {
             if tokens.len() < 4 {
                 bail!("ORIGIN line requires 3 values, got: '{}'", line);
             }
@@ -305,7 +306,9 @@ fn parse_header(reader: &mut BufReader<std::fs::File>) -> Result<VtkHeader> {
             let oz: f64 = tokens[3].parse().with_context(|| "bad ORIGIN oz")?;
             origin = Some([ox, oy, oz]);
             tracing::debug!(ox, oy, oz, "VTK ORIGIN parsed");
-        } else if upper.starts_with("SPACING") || upper.starts_with("ASPECT_RATIO") {
+        } else if keyword.eq_ignore_ascii_case("SPACING")
+            || keyword.eq_ignore_ascii_case("ASPECT_RATIO")
+        {
             if tokens.len() < 4 {
                 bail!("SPACING line requires 3 values, got: '{}'", line);
             }
@@ -314,14 +317,14 @@ fn parse_header(reader: &mut BufReader<std::fs::File>) -> Result<VtkHeader> {
             let sz: f64 = tokens[3].parse().with_context(|| "bad SPACING sz")?;
             spacing = Some([sx, sy, sz]);
             tracing::debug!(sx, sy, sz, "VTK SPACING parsed");
-        } else if upper.starts_with("POINT_DATA") {
+        } else if keyword.eq_ignore_ascii_case("POINT_DATA") {
             if tokens.len() < 2 {
                 bail!("POINT_DATA line requires a count, got: '{}'", line);
             }
             let n: usize = tokens[1].parse().with_context(|| "bad POINT_DATA count")?;
             point_data_n = Some(n);
             tracing::debug!(n, "VTK POINT_DATA parsed");
-        } else if upper.starts_with("SCALARS") {
+        } else if keyword.eq_ignore_ascii_case("SCALARS") {
             // SCALARS name type [ncomp]
             if tokens.len() < 3 {
                 bail!(
@@ -343,7 +346,7 @@ fn parse_header(reader: &mut BufReader<std::fs::File>) -> Result<VtkHeader> {
                 .with_context(|| format!("bad SCALARS type in line: '{}'", line))?;
             scalar_type = Some(stype);
             tracing::debug!(?stype, name = tokens[1], "VTK SCALARS parsed");
-        } else if upper.starts_with("LOOKUP_TABLE") {
+        } else if keyword.eq_ignore_ascii_case("LOOKUP_TABLE") {
             // Marks the end of the header; data follows immediately.
             tracing::debug!("VTK LOOKUP_TABLE line reached; data follows");
             break;
