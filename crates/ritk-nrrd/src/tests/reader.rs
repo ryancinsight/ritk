@@ -704,6 +704,27 @@ fn every_truncation_of_a_valid_nrrd_errors_or_reads_exactly() -> Result<()> {
     Ok(())
 }
 
+#[test]
+fn trailing_nrrd_payload_bytes_are_rejected() -> Result<()> {
+    let dir = tempdir()?;
+    let path = dir.path().join("trailing.nrrd");
+    let data: Vec<f32> = (0..8).map(|i| i as f32).collect();
+    write_inline_nrrd(&path, &data, 2, 2, 2, [1.0, 1.0, 1.0], [0.0, 0.0, 0.0]);
+    let mut complete = std::fs::read(&path)?;
+    complete.push(0);
+    std::fs::write(&path, complete)?;
+
+    let backend = SequentialBackend;
+    let err = crate::read_nrrd::<SequentialBackend, _>(&path, &backend)
+        .expect_err("surplus payload bytes must not be ignored");
+    let message = format!("{err:#}");
+    assert!(
+        message.contains("NRRD payload length mismatch") && message.contains("got 33 bytes"),
+        "error must report the exact surplus byte, got: {message}"
+    );
+    Ok(())
+}
+
 /// Single-byte corruption yields an error or a self-consistent image.
 ///
 /// The header is text, so a substituted byte can turn a digit into another

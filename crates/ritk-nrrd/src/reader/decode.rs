@@ -1,7 +1,8 @@
 //! NRRD header parsing and byte decoding helpers.
 
 use anyhow::{anyhow, Context, Result};
-use ritk_codecs::{decode_bytes_to_f32, ByteOrder};
+use consus_core::ByteOrder;
+use ritk_codecs::sample::SampleType;
 use ritk_spatial::Point;
 
 /// Parse a `space directions` field into three NRRD file-axis vectors.
@@ -186,50 +187,46 @@ fn parse_vector_components<const N: usize>(inner: &str) -> Result<[f64; N]> {
     Ok(values)
 }
 
-/// Decode a raw byte buffer into `Vec<f32>` according to the NRRD `type`.
-///
-/// Translates the NRRD type-name string to a (size, signed, is_float) triple
-/// and delegates to [`ritk_codecs::decode_bytes_to_f32`].
-pub(super) fn decode_element_bytes(
-    bytes: &[u8],
-    element_type: &str,
-    count: usize,
-    byte_order: ByteOrder,
-) -> Result<Vec<f32>> {
-    let (elem_size, signed, is_float) = element_type_spec(element_type)?;
-    decode_bytes_to_f32(
-        bytes,
-        elem_size,
-        signed,
-        is_float,
-        byte_order,
-        count,
-        element_type,
-    )
-}
-
-pub(super) fn element_type_spec(element_type: &str) -> Result<(usize, bool, bool)> {
+/// The stored sample type a NRRD `type` field names.
+pub(super) fn element_sample_type(element_type: &str) -> Result<SampleType> {
     let normalised = element_type.to_lowercase();
-    let spec = match normalised.as_str() {
-        "uchar" | "unsigned char" | "uint8" => (1_usize, false, false),
-        "char" | "signed char" | "int8" => (1, true, false),
-        "short" | "int16" | "signed short" | "int 16" => (2, true, false),
-        "unsigned short" | "uint16" | "ushort" | "unsigned short int" => (2, false, false),
-        "int" | "int32" | "signed int" | "int 32" => (4, true, false),
-        "unsigned int" | "uint32" | "uint" | "unsigned int 32" => (4, false, false),
-        "float" => (4, false, true),
-        "double" => (8, false, true),
+    let sample_type = match normalised.as_str() {
+        "uchar" | "unsigned char" | "uint8" => SampleType::U8,
+        "char" | "signed char" | "int8" => SampleType::I8,
+        "short" | "int16" | "signed short" | "int 16" => SampleType::I16,
+        "unsigned short" | "uint16" | "ushort" | "unsigned short int" => SampleType::U16,
+        "int" | "int32" | "signed int" | "int 32" => SampleType::I32,
+        "unsigned int" | "uint32" | "uint" | "unsigned int 32" => SampleType::U32,
+        "float" => SampleType::F32,
+        "double" => SampleType::F64,
         other => return Err(anyhow!("Unsupported NRRD type: '{}'", other)),
     };
-    Ok(spec)
+    Ok(sample_type)
+}
+
+/// The payload byte order a NRRD `endian` field names.
+///
+/// NRRD §3.5 allows only `big` or `little` (case-insensitive, surrounding
+/// whitespace allowed).
+pub(super) fn parse_endian(value: &str) -> Result<ByteOrder> {
+    if value.trim().eq_ignore_ascii_case("big") {
+        Ok(ByteOrder::BigEndian)
+    } else if value.trim().eq_ignore_ascii_case("little") {
+        Ok(ByteOrder::LittleEndian)
+    } else {
+        Err(anyhow!(
+            "Unsupported NRRD endian value '{value}'; expected 'big' or 'little'"
+        ))
+    }
 }
 
 #[cfg(test)]
 mod tests {
     use super::{
-        parse_nrrd_point, parse_nrrd_point_planar, parse_parenthesized_vectors,
+        parse_endian, parse_nrrd_point, parse_nrrd_point_planar, parse_parenthesized_vectors,
         parse_space_direction_slots, parse_space_directions, parse_space_directions_planar,
     };
+    use consus_core::ByteOrder;
 
     #[test]
     fn parse_space_directions_skips_none_axes() {
@@ -354,5 +351,46 @@ mod tests {
                 .contains("'space origin' must contain exactly 1 vector, found 2"),
             "space origin error must name the vector-count contract, got {err}"
         );
+    }
+
+    #[test]
+    fn parse_endian_reads_big_and_little_case_insensitively() {
+        assert_eq!(
+            parse_endian("big").expect("valid endian"),
+            ByteOrder::BigEndian
+        );
+        assert_eq!(
+            parse_endian("BIG").expect("valid endian"),
+            ByteOrder::BigEndian
+        );
+        assert_eq!(
+            parse_endian("  big  ").expect("valid endian"),
+            ByteOrder::BigEndian
+        );
+        assert_eq!(
+            parse_endian("little").expect("valid endian"),
+            ByteOrder::LittleEndian
+        );
+        assert_eq!(
+            parse_endian("Little").expect("valid endian"),
+            ByteOrder::LittleEndian
+        );
+    }
+
+    #[test]
+    fn parse_endian_rejects_unknown_values() {
+        for value in [
+            "msbfirst",
+            "mostsignificantbytefirst",
+            "",
+            "middle",
+            "bi g",
+            "lit tle",
+            "bigg",
+            "littl",
+        ] {
+            let error = parse_endian(value).expect_err("unknown endian must fail");
+            assert!(error.to_string().contains("expected 'big' or 'little'"));
+        }
     }
 }

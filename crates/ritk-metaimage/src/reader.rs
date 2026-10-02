@@ -1,7 +1,9 @@
 use crate::spatial::metadata_from_file_transform;
 use anyhow::{anyhow, Context, Result};
 use coeus_core::ComputeBackend;
-use ritk_codecs::{decode_bytes_to_f32, parse_f64_vec, parse_usize_vec, ByteOrder};
+use consus_core::ByteOrder;
+use ritk_codecs::sample::{SampleBuffer, SampleType};
+use ritk_codecs::{parse_f64_vec, parse_usize_vec};
 use ritk_image::Image;
 use ritk_spatial::Point;
 use std::collections::HashMap;
@@ -22,7 +24,8 @@ use std::path::Path;
 ///
 /// # Supported element types
 /// `MET_UCHAR`, `MET_SHORT`, `MET_USHORT`, `MET_INT`, `MET_UINT`,
-/// `MET_FLOAT`, `MET_DOUBLE`.  All are converted to `f32` in the tensor.
+/// `MET_FLOAT`, `MET_DOUBLE`. This convenience API returns `f32`; its
+/// explicit sample conversion emits a warning when values change.
 ///
 /// # File formats
 /// * `.mha` — single file; header followed immediately by binary data
@@ -175,20 +178,22 @@ fn decode_metaimage<P: AsRef<Path>>(path: P) -> Result<DecodedMetaImage> {
         .get("ElementType")
         .ok_or_else(|| anyhow!("Missing 'ElementType' in MetaImage header"))?
         .clone();
-    let (elem_size, signed, is_float) = element_type_spec(&element_type)?;
+    let sample_type = element_sample_type(&element_type)?;
+    let elem_size = sample_type.byte_width();
 
     // BinaryDataByteOrderMSB = True → big-endian; default is little-endian.
-    let byte_order = ByteOrder::from_metaimage_msb(
+    let byte_order = parse_byte_order_msb(
         headers
             .get("BinaryDataByteOrderMSB")
             .map(|s| s.as_str())
             .unwrap_or("FALSE"),
-    );
+    )?;
 
     // CompressedData = True → the payload is zlib-deflated; default is raw.
     let compressed = headers
         .get("CompressedData")
-        .map(|s| s.to_uppercase() == "TRUE")
+        .map(|value| parse_metaimage_bool(value, "CompressedData"))
+        .transpose()?
         .unwrap_or(false);
 
     let element_data_file = headers
@@ -259,23 +264,18 @@ fn decode_metaimage<P: AsRef<Path>>(path: P) -> Result<DecodedMetaImage> {
         ));
     }
 
-    let f32_data: Vec<f32> = decode_bytes_to_f32(
-        &raw_bytes,
-        elem_size,
-        signed,
-        is_float,
-        byte_order,
-        total_voxels,
-        &element_type,
-    )?;
-
-    if f32_data.len() != total_voxels {
-        return Err(anyhow!(
-            "Voxel count mismatch: DimSize implies {} voxels but {} were decoded",
-            total_voxels,
-            f32_data.len()
-        ));
+    let converted =
+        SampleBuffer::decode(&raw_bytes, sample_type, byte_order)?.convert_lossy::<f32>()?;
+    let report = converted.report();
+    if report.changed_samples > 0 {
+        tracing::warn!(
+            source_type = %report.source_type,
+            target_type = %report.target_type,
+            changed_samples = report.changed_samples,
+            "MetaImage sample conversion changed stored representations"
+        );
     }
+    let f32_data = converted.into_parts().0;
 
     // ── Spatial metadata ──────────────────────────────────────────────────
     // MetaImage X-fastest flat order equals row-major order for RITK [Z,Y,X].
@@ -312,19 +312,44 @@ fn checked_voxel_count(nx: usize, ny: usize, nz: usize) -> Result<usize> {
         })
 }
 
-/// Translate a MetaImage `ElementType` name into the shared byte-decoder spec.
-fn element_type_spec(element_type: &str) -> Result<(usize, bool, bool)> {
-    let spec = match element_type {
-        "MET_UCHAR" => (1_usize, false, false),
-        "MET_SHORT" => (2, true, false),
-        "MET_USHORT" => (2, false, false),
-        "MET_INT" => (4, true, false),
-        "MET_UINT" => (4, false, false),
-        "MET_FLOAT" => (4, false, true),
-        "MET_DOUBLE" => (8, false, true),
+/// The stored sample type a MetaImage `ElementType` names.
+fn element_sample_type(element_type: &str) -> Result<SampleType> {
+    let sample_type = match element_type {
+        "MET_UCHAR" => SampleType::U8,
+        "MET_SHORT" => SampleType::I16,
+        "MET_USHORT" => SampleType::U16,
+        "MET_INT" => SampleType::I32,
+        "MET_UINT" => SampleType::U32,
+        "MET_FLOAT" => SampleType::F32,
+        "MET_DOUBLE" => SampleType::F64,
         other => return Err(anyhow!("Unsupported MetaImage ElementType: '{}'", other)),
     };
-    Ok(spec)
+    Ok(sample_type)
+}
+
+/// The payload byte order a `BinaryDataByteOrderMSB` value names.
+///
+/// # Errors
+///
+/// Returns an error unless `value` is `True` or `False`, case-insensitively.
+pub(crate) fn parse_byte_order_msb(value: &str) -> Result<ByteOrder> {
+    if parse_metaimage_bool(value, "BinaryDataByteOrderMSB")? {
+        Ok(ByteOrder::BigEndian)
+    } else {
+        Ok(ByteOrder::LittleEndian)
+    }
+}
+
+pub(crate) fn parse_metaimage_bool(value: &str, field: &str) -> Result<bool> {
+    if value.trim().eq_ignore_ascii_case("TRUE") {
+        Ok(true)
+    } else if value.trim().eq_ignore_ascii_case("FALSE") {
+        Ok(false)
+    } else {
+        Err(anyhow!(
+            "Invalid MetaImage {field} value '{value}'; expected 'True' or 'False'"
+        ))
+    }
 }
 
 // ── Public reader struct ──────────────────────────────────────────────────────

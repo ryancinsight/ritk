@@ -468,3 +468,49 @@ fn native_read_metaimage_preserves_shape_and_voxels() {
     let loaded = image.data_slice().expect("contiguous host voxel data");
     assert_eq!(loaded, data.as_slice());
 }
+
+#[test]
+fn byte_order_msb_true_in_any_case_is_big_endian() {
+    use crate::reader::parse_byte_order_msb;
+    use consus_core::ByteOrder;
+    for value in ["True", "TRUE", "true", "tRuE"] {
+        assert_eq!(
+            parse_byte_order_msb(value).expect("valid flag"),
+            ByteOrder::BigEndian,
+            "{value:?}"
+        );
+    }
+}
+
+#[test]
+fn byte_order_msb_false_is_little_endian() {
+    use crate::reader::parse_byte_order_msb;
+    use consus_core::ByteOrder;
+    for value in ["False", "FALSE", "fAlSe", "false ", " false"] {
+        assert_eq!(
+            parse_byte_order_msb(value).expect("valid flag"),
+            ByteOrder::LittleEndian,
+            "{value:?}"
+        );
+    }
+}
+
+#[test]
+fn byte_order_msb_rejects_values_outside_the_header_contract() {
+    use crate::reader::parse_byte_order_msb;
+    for value in ["", "yes", "1", "on", "True.", "big"] {
+        let error = parse_byte_order_msb(value).expect_err("invalid flag must fail");
+        assert!(error.to_string().contains("expected 'True' or 'False'"));
+    }
+}
+
+#[test]
+fn metaimage_boolean_header_values_reject_unknown_text() {
+    use crate::reader::parse_metaimage_bool;
+
+    assert!(parse_metaimage_bool("TRUE", "CompressedData").expect("valid flag"));
+    assert!(!parse_metaimage_bool("false", "CompressedData").expect("valid flag"));
+    let error = parse_metaimage_bool("yes", "CompressedData")
+        .expect_err("unrecognized compression flag must not be treated as false");
+    assert!(error.to_string().contains("CompressedData"));
+}
