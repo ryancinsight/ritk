@@ -345,6 +345,39 @@ Older path-based sessions remain readable, but an ambiguous folder requires
 selection. See the [public API migration guide](../migration_selected_dicom.md).
 This session format does not persist the secondary comparison acquisition.
 
+## Open native volume files
+
+Pass a single image path when launching `ritk-snap`. RITK infers the format through the shared
+`ritk-io::ImageFormat` registry and loads it through the RITK reader. The
+current native-readable path formats are:
+
+| Format | Recognized suffixes |
+| --- | --- |
+| NIfTI | `.nii`, `.nii.gz` |
+| MetaImage | `.mha`, `.mhd` |
+| NRRD | `.nrrd`, `.nhdr` |
+| PNG | `.png` |
+| DICOM | `.dcm`, `.dicom`, `.ima`, `DICOMDIR`, study directories |
+| MGH | `.mgh`, `.mgz`, `.mgh.gz` |
+| TIFF | `.tif`, `.tiff` |
+| VTK image | `.vtk` |
+| JPEG | `.jpg`, `.jpeg` |
+| Analyze 7.5 | `.hdr`, `.img` |
+
+For example:
+
+```console
+cargo run --locked -p ritk-snap -- path/to/volume.nrrd
+```
+
+DICOM files, directories, and DICOMDIR continue through RITK's series-aware
+discovery and selection path. This path-based list does not imply that every
+format has a byte reader: a dropped file without a filesystem path currently
+supports NIfTI `.nii` / `.nii.gz` and DICOM payloads.
+
+RITK also contains MIF and MINC readers, but they are not yet registered with
+`ritk-io::ImageFormat` and cannot currently be opened through this viewer path.
+
 Native tests exercise the RITK series selector and exact UID load path alongside
 the existing egui series-row pointer events, primary/secondary loads, failed
 replacement, and session restore with deterministic Part 10 files.

@@ -5,6 +5,7 @@ use std::path::Path;
 use tracing::info;
 
 use crate::LoadedVolume;
+use ritk_io::ImageFormat;
 
 use super::convert::volume_from_image_no_meta;
 
@@ -26,5 +27,5 @@ pub fn load_nifti_volume<P: AsRef<Path>>(path: P) -> Result<LoadedVolume> {
 
     let image = ritk_io::read_image_native(path)
         .with_context(|| format!("failed to read NIfTI file '{}'", path.display()))?;
-    volume_from_image_no_meta(image, path.to_path_buf())
+    volume_from_image_no_meta(image, path.to_path_buf(), ImageFormat::NIfTI)
 }
