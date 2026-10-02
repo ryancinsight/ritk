@@ -1,7 +1,8 @@
 //! NRRD header parsing and byte decoding helpers.
 
 use anyhow::{anyhow, Context, Result};
-use ritk_codecs::{decode_bytes_to_f32, ByteOrder};
+use consus_core::ByteOrder;
+use ritk_codecs::sample::{Cast, Conversion, SampleBuffer, SampleType};
 use ritk_spatial::Point;
 
 /// Parse a `space directions` field into three NRRD file-axis vectors.
@@ -186,42 +187,39 @@ fn parse_vector_components<const N: usize>(inner: &str) -> Result<[f64; N]> {
     Ok(values)
 }
 
-/// Decode a raw byte buffer into `Vec<f32>` according to the NRRD `type`.
-///
-/// Translates the NRRD type-name string to a (size, signed, is_float) triple
-/// and delegates to [`ritk_codecs::decode_bytes_to_f32`].
+/// Decode a raw byte buffer according to the NRRD `type` and explicitly cast
+/// the stored samples to the reader's current `f32` image type.
 pub(super) fn decode_element_bytes(
     bytes: &[u8],
     element_type: &str,
     count: usize,
     byte_order: ByteOrder,
 ) -> Result<Vec<f32>> {
-    let (elem_size, signed, is_float) = element_type_spec(element_type)?;
-    decode_bytes_to_f32(
-        bytes,
-        elem_size,
-        signed,
-        is_float,
-        byte_order,
-        count,
-        element_type,
-    )
+    let sample_type = element_type_spec(element_type)?;
+    let samples = SampleBuffer::decode(bytes, sample_type, byte_order)?;
+    let values = Cast.convert::<f32>(samples)?;
+    if values.len() != count {
+        return Err(anyhow!(
+            "NRRD voxel count mismatch for '{element_type}': expected {count}, decoded {}",
+            values.len()
+        ));
+    }
+    Ok(values)
 }
 
-pub(super) fn element_type_spec(element_type: &str) -> Result<(usize, bool, bool)> {
-    let normalised = element_type.to_lowercase();
-    let spec = match normalised.as_str() {
-        "uchar" | "unsigned char" | "uint8" => (1_usize, false, false),
-        "char" | "signed char" | "int8" => (1, true, false),
-        "short" | "int16" | "signed short" | "int 16" => (2, true, false),
-        "unsigned short" | "uint16" | "ushort" | "unsigned short int" => (2, false, false),
-        "int" | "int32" | "signed int" | "int 32" => (4, true, false),
-        "unsigned int" | "uint32" | "uint" | "unsigned int 32" => (4, false, false),
-        "float" => (4, false, true),
-        "double" => (8, false, true),
-        other => return Err(anyhow!("Unsupported NRRD type: '{}'", other)),
-    };
-    Ok(spec)
+pub(super) fn element_type_spec(element_type: &str) -> Result<SampleType> {
+    let normalised = element_type.trim().to_ascii_lowercase();
+    match normalised.as_str() {
+        "uchar" | "unsigned char" | "uint8" => Ok(SampleType::U8),
+        "char" | "signed char" | "int8" => Ok(SampleType::I8),
+        "short" | "int16" | "signed short" | "int 16" => Ok(SampleType::I16),
+        "unsigned short" | "uint16" | "ushort" | "unsigned short int" => Ok(SampleType::U16),
+        "int" | "int32" | "signed int" | "int 32" => Ok(SampleType::I32),
+        "unsigned int" | "uint32" | "uint" | "unsigned int 32" => Ok(SampleType::U32),
+        "float" => Ok(SampleType::F32),
+        "double" => Ok(SampleType::F64),
+        other => Err(anyhow!("Unsupported NRRD type: '{}'", other)),
+    }
 }
 
 #[cfg(test)]

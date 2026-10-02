@@ -1,6 +1,7 @@
 use anyhow::{anyhow, Context, Result};
 use coeus_core::ComputeBackend;
-use ritk_codecs::{parse_f64_vec, parse_usize_vec, ByteOrder};
+use consus_core::ByteOrder;
+use ritk_codecs::parse_header_values;
 use ritk_image::Image;
 use ritk_spatial::{Direction, Point, Spacing};
 use std::io::{BufReader, Read};
@@ -194,7 +195,7 @@ fn decode_nrrd<P: AsRef<Path>>(path: P) -> Result<DecodedNrrd> {
     let sizes_str = headers
         .get("sizes")
         .ok_or_else(|| anyhow!("Missing 'sizes' in NRRD header"))?;
-    let sizes = parse_usize_vec(sizes_str, "sizes", dimension)?;
+    let sizes = parse_header_values::<usize>(sizes_str, "sizes", dimension)?;
 
     let (volumes, spatial_sizes): (usize, &[usize]) = match acquisition {
         AcquisitionAxis::Absent => (1, &sizes[..]),
@@ -235,7 +236,11 @@ fn decode_nrrd<P: AsRef<Path>>(path: P) -> Result<DecodedNrrd> {
         .get("endian")
         .map(String::as_str)
         .unwrap_or("little");
-    let byte_order = ByteOrder::from_nrrd(endian_str);
+    let byte_order = if endian_str.trim().eq_ignore_ascii_case("big") {
+        ByteOrder::BigEndian
+    } else {
+        ByteOrder::LittleEndian
+    };
 
     let spatial = if let Some(sd_str) = headers.get("space directions") {
         let dirs = if dimension == 2 {
@@ -245,7 +250,7 @@ fn decode_nrrd<P: AsRef<Path>>(path: P) -> Result<DecodedNrrd> {
         };
         metadata_from_file_space_directions(dirs)?
     } else if let Some(sp_str) = headers.get("spacings") {
-        let sp = parse_f64_vec(sp_str, "spacings", dimension)?;
+        let sp = parse_header_values::<f64>(sp_str, "spacings", dimension)?;
         let sp: Vec<f64> = match acquisition {
             AcquisitionAxis::Absent => sp,
             AcquisitionAxis::Fastest => sp[1..].to_vec(),
