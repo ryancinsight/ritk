@@ -11,7 +11,9 @@
 //!
 //! RITK spacing and direction columns follow tensor axes **[Z, Y, X]**. The
 //! writer maps spacing to VTK **[X, Y, Z]** and accepts only the corresponding
-//! VTK-aligned direction. Physical origin remains XYZ.
+//! VTK-aligned direction. Spacing components must be finite and strictly
+//! positive; image geometry is checked before opening the destination. Physical
+//! origin remains XYZ.
 //!
 //! VTK stores scalar data with X varying fastest, matching RITK's memory
 //! layout. No data permutation is required.
@@ -51,7 +53,8 @@ use std::path::Path;
 /// # Errors
 ///
 /// Returns an error when the writer fails, or when `slice.len()` does not equal
-/// the product of `dims`.
+/// the positive, overflow-checked product of `dims`, or when spacing is not
+/// finite and strictly positive.
 pub fn encode_vtk_flat<W: Write>(
     writer: &mut W,
     slice: &[f32],
@@ -60,7 +63,17 @@ pub fn encode_vtk_flat<W: Write>(
     spacing: [f64; 3],
 ) -> Result<()> {
     let [nz, ny, nx] = dims;
-    let total_voxels = nx * ny * nz;
+    let total_voxels = crate::io::structured_points::voxel_count([nx, ny, nz])?;
+    crate::io::structured_points::validate_spacing(spacing)?;
+    anyhow::ensure!(
+        slice.len() == total_voxels,
+        "data contains {} elements but expected {} ({}×{}×{})",
+        slice.len(),
+        total_voxels,
+        nx,
+        ny,
+        nz
+    );
 
     let [ox, oy, oz] = origin;
     let [sx, sy, sz] = spacing;
@@ -104,17 +117,6 @@ pub fn encode_vtk_flat<W: Write>(
     writeln!(writer, "LOOKUP_TABLE default").with_context(|| "failed to write VTK LOOKUP_TABLE")?;
 
     // --- Write binary scalar data (big-endian f32) ---
-    if slice.len() != total_voxels {
-        anyhow::bail!(
-            "data contains {} elements but expected {} ({}×{}×{})",
-            slice.len(),
-            total_voxels,
-            nx,
-            ny,
-            nz
-        );
-    }
-
     let mut binary_buf = Vec::with_capacity(total_voxels * 4);
     for &value in slice {
         binary_buf.extend_from_slice(&value.to_be_bytes());
@@ -153,6 +155,8 @@ pub fn encode_vtk_flat<W: Write>(
 /// - The image has a non-Cartesian coordinate map or a direction outside the
 ///   VTK-aligned ZYX-to-XYZ axis order. These checks occur before the destination
 ///   is created or truncated.
+/// - A spacing component is non-finite or not strictly positive. This check
+///   occurs before the destination is created or truncated.
 /// - The file cannot be created or written.
 /// - The tensor data cannot be extracted as `f32`.
 pub fn write_vtk<B, P>(path: P, image: &Image<f32, B, 3>, backend: &B) -> Result<()>
@@ -167,25 +171,65 @@ where
         "legacy VTK structured points cannot preserve a non-Cartesian coordinate map"
     );
     anyhow::ensure!(
-        image.direction() == &super::axis_order::vtk_image_direction(),
+        image.direction() == &crate::domain::axis_order::vtk_image_direction(),
         "legacy VTK structured points cannot preserve a direction matrix outside the VTK-aligned ZYX-to-XYZ axis order"
+    );
+
+    let dims = image.shape(); // [nz, ny, nx]
+    let [nz, ny, nx] = dims;
+    let dims_xyz = [nx, ny, nz];
+    let expected_voxels = crate::io::structured_points::voxel_count(dims_xyz)?;
+
+    let image_spacing = image.spacing();
+    let spacing_arr = crate::domain::axis_order::reverse_axes([
+        image_spacing[0],
+        image_spacing[1],
+        image_spacing[2],
+    ]);
+    crate::io::structured_points::validate_spacing(spacing_arr)?;
+
+    let origin = image.origin(); // [X, Y, Z] order
+    let origin_arr = [origin[0], origin[1], origin[2]];
+    let f32_vec = image.data_cow_on(backend);
+    anyhow::ensure!(
+        f32_vec.len() == expected_voxels,
+        "image data length does not match VTK DIMENSIONS"
     );
 
     let file = std::fs::File::create(path)
         .with_context(|| format!("failed to create VTK file: {}", path.display()))?;
     let mut writer = BufWriter::new(file);
 
-    let dims = image.shape(); // [nz, ny, nx]
-    let origin = image.origin(); // [X, Y, Z] order
-    let spacing = image.spacing(); // [Z, Y, X] tensor-axis order
-    let origin_arr = [origin[0], origin[1], origin[2]];
-    let spacing_arr = super::axis_order::xyz_to_zyx([spacing[0], spacing[1], spacing[2]]);
-
-    let f32_vec = image.data_cow_on(backend);
-
     encode_vtk_flat(&mut writer, &f32_vec, dims, origin_arr, spacing_arr)?;
 
     tracing::debug!(path = %path.display(), "VTK file written");
 
     Ok(())
+}
+
+#[cfg(test)]
+mod tests {
+    use super::encode_vtk_flat;
+
+    #[test]
+    fn flat_encoder_rejects_nonfinite_or_nonpositive_spacing_before_writing() {
+        for spacing in [
+            [0.0, 1.0, 1.0],
+            [-1.0, 1.0, 1.0],
+            [f64::NAN, 1.0, 1.0],
+            [f64::INFINITY, 1.0, 1.0],
+        ] {
+            let mut output = Vec::new();
+            let error = encode_vtk_flat(&mut output, &[1.0], [1, 1, 1], [0.0; 3], spacing)
+                .expect_err("invalid spacing must be rejected");
+
+            assert!(
+                error
+                    .to_string()
+                    .contains("legacy VTK structured points requires finite, positive SPACING"),
+                "unexpected validation error: {error}"
+            );
+            assert!(output.is_empty(), "invalid geometry must write no bytes");
+        }
+    }
 }

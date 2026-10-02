@@ -1,20 +1,18 @@
 use std::sync::Arc;
 
-use ritk_spatial::Direction;
 use ritk_vtk::VtkImageVolume;
 
-use crate::geometry::axis_order::{reverse_axis_order, reverse_direction_axes};
 use crate::LoadedVolume;
 
 impl TryFrom<&LoadedVolume> for VtkImageVolume {
     type Error = ritk_vtk::VtkImageVolumeError;
 
     fn try_from(volume: &LoadedVolume) -> Result<Self, Self::Error> {
-        VtkImageVolume::from_parts(
-            reverse_axis_order(volume.shape),
+        VtkImageVolume::from_tensor_parts(
+            volume.shape,
             volume.origin,
-            reverse_axis_order(volume.spacing),
-            reverse_direction_axes(Direction::from_row_major(volume.direction)).to_row_major(),
+            volume.spacing,
+            volume.direction,
             usize::from(volume.channels),
             Arc::clone(&volume.data),
         )

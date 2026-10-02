@@ -23,11 +23,11 @@ DICOM identifiers or pixel storage. Annotation state is bounded to a count and
 the latest kind/value summary; RITK retains the measurement math and units.
 
 For downstream VTK work, `LoadedVolume` implements
-`TryFrom<&LoadedVolume> for ritk_vtk::VtkImageVolume`. The conversion reorders
-the RITK `[depth, row, column]` geometry into VTK `[x, y, z]` order without
-copying the scalar allocation. DICOM parsing and clinical semantics remain in
-RITK; `to_vtk_image_data` is an explicit copy boundary only for legacy VTK
-serializers and filters.
+`TryFrom<&LoadedVolume> for ritk_vtk::VtkImageVolume`. It passes its
+`[depth, row, column]` geometry to `ritk-vtk`, where the format-owned boundary
+maps metadata into VTK `[x, y, z]` order without copying the scalar allocation.
+DICOM parsing and clinical semantics remain in RITK; `to_vtk_image_data` is an
+explicit copy boundary only for legacy VTK serializers and filters.
 
 From a standalone RITK checkout, open a study directory with:
 

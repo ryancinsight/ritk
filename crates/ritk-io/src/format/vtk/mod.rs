@@ -79,7 +79,8 @@ pub mod native {
     /// The legacy representation stores XYZ spacing but not a full affine.
     /// Writes therefore accept only the VTK-aligned direction represented in
     /// RITK's ZYX tensor axes, and reject other directions or non-Cartesian maps
-    /// before creating or truncating the destination.
+    /// and non-finite or non-positive spacing before creating or truncating the
+    /// destination.
     pub struct VtkWriter<B: ComputeBackend> {
         backend: B,
     }

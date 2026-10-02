@@ -1,5 +1,4 @@
 pub mod affine;
-pub(crate) mod axis_order;
 mod patient_point;
 
 pub use patient_point::{PatientPointError, PatientPointMm};

@@ -1,8 +1,8 @@
 //! VTK legacy structured points format reader.
 //!
 //! Parses the VTK legacy file format (version 1.0–5.1) restricted to
-//! `DATASET STRUCTURED_POINTS` with scalar point data. Both ASCII and
-//! BINARY encoding are supported.
+//! `DATASET STRUCTURED_POINTS` with single-component scalar point data. Both
+//! ASCII and BINARY encoding are supported.
 //!
 //! ## Coordinate Convention
 //!
@@ -16,7 +16,8 @@
 //! ## Supported Scalar Types
 //!
 //! `float`, `double`, `unsigned_char`, `short`, `unsigned_short`, `int`,
-//! `unsigned_int`. All are converted to `f32` for the output tensor.
+//! `unsigned_int`. All are converted to `f32` for the output tensor. A declared
+//! component count other than one is rejected rather than silently truncated.
 
 use anyhow::{bail, Context, Result};
 use coeus_core::ComputeBackend;
@@ -110,6 +111,10 @@ struct VtkHeader {
 /// Returns an error when:
 /// - The file cannot be opened or read.
 /// - The header does not conform to VTK legacy structured-points format.
+/// - A dimension is zero, the dimension product overflows, or spacing is not
+///   finite and strictly positive.
+/// - The scalar count cannot fit the returned `Vec<f32>`, or `SCALARS` declares
+///   anything other than one component.
 /// - The declared scalar type is unsupported.
 /// - The data section is truncated or malformed.
 // The 4-tuple is a flat decode bundle (scalars, dims, origin, spacing) whose
@@ -128,10 +133,14 @@ pub fn read_vtk_flat<P: AsRef<Path>>(
     let header = parse_header(&mut reader).with_context(|| "failed to parse VTK header")?;
 
     let [nx, ny, nz] = header.dims;
-    let expected_voxels = nx
-        .checked_mul(ny)
-        .and_then(|plane| plane.checked_mul(nz))
-        .with_context(|| format!("VTK DIMENSIONS product overflows usize: {nx}×{ny}×{nz}"))?;
+    let expected_voxels = crate::io::structured_points::voxel_count(header.dims)?;
+    std::alloc::Layout::array::<f32>(expected_voxels)
+        .map(|_| ())
+        .with_context(|| {
+            format!("VTK scalar count {expected_voxels} cannot fit a Vec<f32> allocation")
+        })?;
+    crate::io::structured_points::validate_spacing(header.spacing)
+        .context("VTK SPACING components must be finite and strictly positive")?;
 
     if header.point_data_n != expected_voxels {
         bail!(
@@ -171,6 +180,10 @@ pub fn read_vtk_flat<P: AsRef<Path>>(
 /// Returns an error when:
 /// - The file cannot be opened or read.
 /// - The header does not conform to VTK legacy structured-points format.
+/// - A dimension is zero, the dimension product overflows, or spacing is not
+///   finite and strictly positive.
+/// - The scalar count cannot fit the returned `Vec<f32>`, or `SCALARS` declares
+///   anything other than one component.
 /// - The declared scalar type is unsupported.
 /// - The data section is truncated or malformed.
 pub fn read_vtk<B: ComputeBackend, P: AsRef<Path>>(
@@ -180,8 +193,8 @@ pub fn read_vtk<B: ComputeBackend, P: AsRef<Path>>(
     let (data_f32, [nx, ny, nz], origin_arr, spacing_arr) = read_vtk_flat(path)?;
 
     let origin = Point::new(origin_arr);
-    let spacing = Spacing::new(super::axis_order::xyz_to_zyx(spacing_arr));
-    let direction = super::axis_order::vtk_image_direction();
+    let spacing = Spacing::new(crate::domain::axis_order::reverse_axes(spacing_arr));
+    let direction = crate::domain::axis_order::vtk_image_direction();
 
     tracing::debug!(
         ?origin,
@@ -316,6 +329,16 @@ fn parse_header(reader: &mut BufReader<std::fs::File>) -> Result<VtkHeader> {
                     line
                 );
             }
+            if tokens.len() > 4 {
+                bail!("SCALARS line contains fields after its component count");
+            }
+            let component_count = tokens
+                .get(3)
+                .map_or(Ok(1), |value| value.parse::<usize>())
+                .with_context(|| "bad SCALARS component count")?;
+            if component_count != 1 {
+                bail!("unsupported VTK SCALARS component count: expected 1, got {component_count}");
+            }
             let stype = VtkScalarType::from_str(tokens[2])
                 .with_context(|| format!("bad SCALARS type in line: '{}'", line))?;
             scalar_type = Some(stype);
@@ -358,6 +381,11 @@ fn read_binary_scalars(
     let total_bytes = count
         .checked_mul(byte_width)
         .with_context(|| "scalar data size overflow")?;
+    std::alloc::Layout::array::<u8>(total_bytes)
+        .map(|_| ())
+        .with_context(|| {
+            format!("VTK binary payload size {total_bytes} cannot fit a Vec<u8> allocation")
+        })?;
 
     // Bound the speculative allocation: `count` is a header field and may exceed
     // the bytes actually present. `read_exact_bounded` grows the buffer per

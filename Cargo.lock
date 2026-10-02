@@ -6619,6 +6619,7 @@ dependencies = [
  "criterion",
  "gaia-mesh",
  "iris-viz",
+ "proptest",
  "ritk-core",
  "ritk-image",
  "ritk-spatial",
