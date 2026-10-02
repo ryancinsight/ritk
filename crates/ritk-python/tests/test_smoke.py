@@ -502,7 +502,7 @@ def test_ritk_has_version():
     assert isinstance(ritk.__version__, str), (
         f"__version__ must be str, got {type(ritk.__version__)}"
     )
-    assert ritk.__version__ == importlib.metadata.version("ritk")
+    assert ritk.__version__ == importlib.metadata.version("ritk-python")
 
 
 def test_python_version_is_supported():
