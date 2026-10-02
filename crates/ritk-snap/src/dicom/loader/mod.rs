@@ -35,8 +35,6 @@ mod dicom_load;
 mod nifti_load;
 mod scan;
 
-pub(crate) use bytes::is_likely_dicom_bytes;
-
 #[cfg(test)]
 pub(crate) mod tests;
 
