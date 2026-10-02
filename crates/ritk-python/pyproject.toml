@@ -3,7 +3,7 @@ requires = ["maturin>=1.9.4,<2.0"]
 build-backend = "maturin"
 
 [project]
-name = "ritk"
+name = "ritk-python"
 requires-python = ">=3.9"
 description = "Python bindings for the RITK medical imaging toolkit"
 readme = "README.md"
