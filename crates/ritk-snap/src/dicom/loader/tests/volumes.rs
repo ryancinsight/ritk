@@ -29,7 +29,7 @@ fn nifti_file_and_bytes_preserve_values_and_geometry() {
         let path = dir.path().join(filename);
         ritk_io::write_image_native(&path, &image).expect("write NIfTI fixture");
         let bytes = std::fs::read(&path).expect("read NIfTI fixture bytes");
-        let from_file = load_nifti_volume(&path).expect("load NIfTI file");
+        let from_file = load_volume_from_path(&path).expect("load NIfTI through viewer path");
         let from_bytes = load_volume_from_bytes(filename, &bytes).expect("load NIfTI bytes");
         for volume in [&from_file, &from_bytes] {
             assert_eq!(volume.shape, fixtures::SHAPE);
