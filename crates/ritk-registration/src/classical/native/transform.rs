@@ -1,7 +1,7 @@
 //! Coordinate-frame conversion for classical affine registration.
 
 use coeus_core::ComputeBackend;
-use eunomia::CastFrom;
+use eunomia::FloatElement;
 use leto::FixedMatrix;
 use ritk_image::Image;
 use ritk_transform::transform::affine::AtlasAffineTransform;
@@ -147,7 +147,7 @@ fn narrow(value: f64, role: &'static str) -> std::result::Result<f32, NativeConv
     if !value.is_finite() || value.abs() > f64::from(f32::MAX) {
         return Err(NativeConversionError::NonRepresentablePhysicalAffine { role, value });
     }
-    Ok(f32::cast_from(value))
+    Ok(f32::from_f64(value))
 }
 
 fn narrow_rigid(
@@ -157,7 +157,7 @@ fn narrow_rigid(
     if !value.is_finite() || value.abs() > f64::from(f32::MAX) {
         return Err(RigidPhysicalAffineError::NonRepresentable { role, value });
     }
-    Ok(f32::cast_from(value))
+    Ok(f32::from_f64(value))
 }
 
 #[cfg(test)]

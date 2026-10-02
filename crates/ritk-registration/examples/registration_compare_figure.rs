@@ -18,7 +18,7 @@ use std::path::PathBuf;
 
 use anyhow::{bail, Context, Result};
 use coeus_core::SequentialBackend;
-use eunomia::CastFrom;
+use eunomia::{CastFrom, FloatElement};
 use image::{Rgb, RgbImage};
 use ritk_filter::resample::native::{fixed_world_points, resample_moving_at_world};
 use ritk_image::Image;
@@ -123,7 +123,7 @@ fn ncc(fixed: &[f32], moving: &[f32]) -> Result<f64> {
             moving.len()
         );
     }
-    let count = f64::cast_from(u64::try_from(fixed.len()).context("voxel count exceeds u64")?);
+    let count = f64::from_count(fixed.len());
     let fixed_mean = fixed.iter().copied().map(f64::from).sum::<f64>() / count;
     let moving_mean = moving.iter().copied().map(f64::from).sum::<f64>() / count;
     let (numerator, fixed_energy, moving_energy) =

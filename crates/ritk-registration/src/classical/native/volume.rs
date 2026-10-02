@@ -1,7 +1,7 @@
 //! Coeus image and Leto volume conversion for classical registration.
 
 use coeus_core::{ComputeBackend, CpuAddressableStorage};
-use eunomia::CastFrom;
+use eunomia::FloatElement;
 use leto::Array3;
 use ritk_image::Image;
 
@@ -56,7 +56,7 @@ where
     B: ComputeBackend,
 {
     let shape = volume.shape();
-    let values = volume.iter().copied().map(f32::cast_from).collect();
+    let values = volume.iter().copied().map(f32::from_f64).collect();
     Image::from_flat_on(
         values,
         shape,

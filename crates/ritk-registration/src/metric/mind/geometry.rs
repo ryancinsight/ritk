@@ -3,7 +3,7 @@
 use coeus_core::ComputeBackend;
 #[cfg(test)]
 use coeus_core::CpuAddressableStorage;
-use eunomia::CastFrom;
+use eunomia::{CastFrom, FloatElement};
 use ritk_image::Image;
 use ritk_transform::transform::affine::AtlasAffineTransform;
 
@@ -46,7 +46,7 @@ impl CartesianGeometry {
         for metadata_axis in 0..3 {
             let origin_value = image.origin()[metadata_axis];
             validate_geometry_value(role, "origin", metadata_axis, origin_value, false)?;
-            origin[metadata_axis] = f32::cast_from(origin_value);
+            origin[metadata_axis] = f32::from_f64(origin_value);
             let spacing = image.spacing()[metadata_axis];
             validate_geometry_value(role, "spacing", metadata_axis, spacing, true)?;
             let data_axis = 2 - metadata_axis;
@@ -59,9 +59,9 @@ impl CartesianGeometry {
                     direction,
                     false,
                 )?;
-                data_index_to_world[world_axis][data_axis] = f32::cast_from(direction * spacing);
+                data_index_to_world[world_axis][data_axis] = f32::from_f64(direction * spacing);
                 world_to_data_index[data_axis][world_axis] =
-                    f32::cast_from(inverse[(metadata_axis, world_axis)] / spacing);
+                    f32::from_f64(inverse[(metadata_axis, world_axis)] / spacing);
             }
         }
         Ok(Self {
@@ -78,7 +78,7 @@ impl CartesianGeometry {
                 let coordinate =
                     u32::try_from(coordinate).map_err(|_| MindSscError::IndexOverflow)?;
                 world[world_axis] = self.data_index_to_world[world_axis][data_axis]
-                    .mul_add(f32::cast_from(coordinate), world[world_axis]);
+                    .mul_add(f32::from_integer(i64::from(coordinate)), world[world_axis]);
             }
         }
         Ok(world)
@@ -165,7 +165,7 @@ pub(super) fn trilinear_background(
             });
         }
         let extent = u32::try_from(shape[axis]).map_err(|_| MindSscError::IndexOverflow)?;
-        let extent = f32::cast_from(extent);
+        let extent = f32::from_integer(i64::from(extent));
         if point[axis] < -0.5 || point[axis] >= extent - 0.5 {
             return Ok(0.0);
         }
@@ -176,7 +176,7 @@ pub(super) fn trilinear_background(
     let fraction: [f32; 3] = std::array::from_fn(|axis| {
         let lower = u32::try_from(lower[axis])
             .expect("invariant: lower coordinate is less than validated image extent");
-        clamped[axis] - f32::cast_from(lower)
+        clamped[axis] - f32::from_integer(i64::from(lower))
     });
     let mut result = 0.0_f32;
     for z_upper in [false, true] {
