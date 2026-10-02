@@ -78,6 +78,7 @@ where
 
     let eps = T::from_f64(1e-5);
     let ncc = div(&num, &scalar_add(&sqrt(&mul(&d_f, &d_m)), eps));
+
     neg(&mean(&ncc))
 }
 
@@ -110,6 +111,7 @@ where
 
     let eps = T::from_f64(1e-5);
     let cc = div(&cov, &scalar_add(&sqrt(&mul(&var_f, &var_m)), eps));
+
     neg(&mean(&cc))
 }
 
@@ -189,7 +191,8 @@ where
     let soft = |img: &Var<T, B>| -> Var<T, B> {
         let col = broadcast_to(&reshape(img, [n, 1]), [n, num_bins]);
         let d = sub(&col, &bins_row);
-        exp(&scalar_mul(&square(&d), T::from_f64(inv_2sigma2)))
+        let exponent = scalar_mul(&square(&d), T::from_f64(inv_2sigma2));
+        exp(&exponent)
     };
     let w_f = soft(fixed); // [N, bins]
     let w_m = soft(moving); // [N, bins]
@@ -214,7 +217,9 @@ where
     let log_pm = log(&scalar_add(&p_m, eps));
     // MI = Σ P(i,j)·(log P(i,j) − log P(i) − log P(j)); loss = −MI.
     let term = sub(&sub(&log_joint, &log_pf), &log_pm);
-    neg(&sum(&mul(&joint_p, &term)))
+    let weighted_terms = mul(&joint_p, &term);
+    let mutual_information = sum(&weighted_terms);
+    neg(&mutual_information)
 }
 
 #[cfg(test)]

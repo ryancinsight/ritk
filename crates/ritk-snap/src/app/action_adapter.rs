@@ -186,10 +186,10 @@ impl SnapApp {
                 ensure_primary(*button)?;
                 let mapped = viewport.and_then(|viewport| viewport.map(*position));
                 if *gesture == PointerGesture::Click {
-                    if let Some(viewport) = viewport {
-                        if let Some(image) = mapped {
-                            self.update_linked_cursor_from_pointer(viewport.axis(), Some(image));
-                        }
+                    if let Some(viewport) = viewport
+                        && let Some(image) = mapped
+                    {
+                        self.update_linked_cursor_from_pointer(viewport.axis(), Some(image));
                     }
                     self.on_click(mapped);
                     self.on_click_end();
@@ -315,10 +315,10 @@ fn validate_presentation_event(event: &PresentationEvent) -> Result<(), ViewerAc
     if let PresentationEvent::PointerWheel {
         delta_y, modifiers, ..
     } = event
+        && delta_y.is_finite()
+        && should_zoom_with_scroll(modifiers.ctrl() || modifiers.meta())
     {
-        if delta_y.is_finite() && should_zoom_with_scroll(modifiers.ctrl() || modifiers.meta()) {
-            viewer_scroll_value(*delta_y)?;
-        }
+        viewer_scroll_value(*delta_y)?;
     }
     Ok(())
 }

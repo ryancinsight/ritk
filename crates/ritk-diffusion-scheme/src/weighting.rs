@@ -1,8 +1,8 @@
 //! Physically typed diffusion weighting.
 
-use aequitas::Quantity;
 use aequitas::dimension::DivideDimension;
 use aequitas::systems::si::dimensions::{Area, Time};
+use aequitas::Quantity;
 
 use crate::GradientSchemeError;
 

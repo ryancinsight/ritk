@@ -178,7 +178,7 @@ fn compute_white_stripe(
             all_slice
                 .iter()
                 .zip(mask_slice.iter())
-                .filter(|(_, &mv)| mv > crate::FOREGROUND_THRESHOLD)
+                .filter(|&(_, &mv)| mv > crate::FOREGROUND_THRESHOLD)
                 .map(|(&v, _)| v as f64)
                 .collect()
         }

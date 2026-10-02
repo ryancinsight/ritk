@@ -36,7 +36,7 @@
 mod io;
 mod types;
 
-pub use io::{TckError, read_tck_weights, write_tck_weights};
+pub use io::{read_tck_weights, write_tck_weights, TckError};
 pub use types::{TckDatatype, TckHeader, TckTractogram};
 
 #[cfg(test)]

@@ -9,7 +9,7 @@ readme.workspace = true
 authors.workspace = true
 repository.workspace = true
 publish = true
-edition = "2021"
+edition.workspace = true
 license.workspace = true
 
 # The API is `&[f32]` buffers plus dimensions and returns plain `f64`

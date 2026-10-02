@@ -106,7 +106,7 @@ impl CcSats {
         }
 
         macro_rules! accumulate_channels {
-            ($index:expr, $previous:expr) => {
+            ($index:expr_2021, $previous:expr_2021) => {
                 self.sat_f[$index] += self.sat_f[$previous];
                 self.sat_m[$index] += self.sat_m[$previous];
                 self.sat_f2[$index] += self.sat_f2[$previous];
@@ -168,7 +168,7 @@ impl CcSats {
         let box_q = |sat: &[f64]| -> f64 {
             // 3-D inclusion-exclusion on 1-based SAT.
             macro_rules! s {
-                ($z:expr, $y:expr, $x:expr) => {
+                ($z:expr_2021, $y:expr_2021, $x:expr_2021) => {
                     sat[$z * sny * snx + $y * snx + $x]
                 };
             }

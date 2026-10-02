@@ -82,10 +82,10 @@ impl AdditiveGaussianNoiseFilter {
     }
 
     fn apply_values(&self, values: &[f32]) -> Vec<f32> {
-        let mut gen = FastNorm::new(hash(self.seed, 0) as i32);
+        let mut r#gen = FastNorm::new(hash(self.seed, 0) as i32);
         values
             .iter()
-            .map(|&v| (v as f64 + self.mean + self.std * gen.variate()) as f32)
+            .map(|&v| (v as f64 + self.mean + self.std * r#gen.variate()) as f32)
             .collect()
     }
 }

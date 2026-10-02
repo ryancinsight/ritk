@@ -98,28 +98,28 @@ pub(super) fn show_results_section(
                         });
                 });
 
-            if let Some(idx) = *selected_row {
-                if idx < rows.len() {
-                    ui.separator();
-                    let study_uid = rows[idx].study_instance_uid.clone();
-                    ui.horizontal(|ui| {
-                        if ui.button("\u{25b6} Retrieve (C-MOVE)").clicked() {
-                            *action = PacsPanelAction::SubmitRetrieve { study_uid };
-                        }
-                        ui.weak(format!(
-                            "\u{2192} destination AE: {}",
-                            config.move_destination
-                        ));
-                    });
-                    ui.horizontal(|ui| {
-                        if ui.button("Show Series").clicked() {
-                            *action = PacsPanelAction::SubmitFindSeries {
-                                study_instance_uid: rows[idx].study_instance_uid.clone(),
-                            };
-                        }
-                        ui.weak("Drill down to see series-level details");
-                    });
-                }
+            if let Some(idx) = *selected_row
+                && idx < rows.len()
+            {
+                ui.separator();
+                let study_uid = rows[idx].study_instance_uid.clone();
+                ui.horizontal(|ui| {
+                    if ui.button("\u{25b6} Retrieve (C-MOVE)").clicked() {
+                        *action = PacsPanelAction::SubmitRetrieve { study_uid };
+                    }
+                    ui.weak(format!(
+                        "\u{2192} destination AE: {}",
+                        config.move_destination
+                    ));
+                });
+                ui.horizontal(|ui| {
+                    if ui.button("Show Series").clicked() {
+                        *action = PacsPanelAction::SubmitFindSeries {
+                            study_instance_uid: rows[idx].study_instance_uid.clone(),
+                        };
+                    }
+                    ui.weak("Drill down to see series-level details");
+                });
             }
         }
         QueryState::SeriesResults {
@@ -206,34 +206,34 @@ pub(super) fn show_results_section(
                         });
                 });
 
-            if let Some(idx) = *selected_series_row {
-                if idx < series.len() {
-                    ui.separator();
-                    let srow = &series[idx];
-                    let series_uid = srow.series_instance_uid.clone();
-                    let study_uid = srow.study_instance_uid.clone();
-                    let label = format!(
-                        "\u{25b6} Retrieve {} {} (C-MOVE)",
-                        srow.modality,
-                        if srow.series_number.is_empty() {
-                            String::new()
-                        } else {
-                            format!("#{} ", srow.series_number)
-                        }
-                    );
-                    ui.horizontal(|ui| {
-                        if ui.button(label.trim()).clicked() {
-                            *action = PacsPanelAction::SubmitRetrieveSeries {
-                                series_uid,
-                                study_uid,
-                            };
-                        }
-                        ui.weak(format!(
-                            "\u{2192} destination AE: {}",
-                            config.move_destination
-                        ));
-                    });
-                }
+            if let Some(idx) = *selected_series_row
+                && idx < series.len()
+            {
+                ui.separator();
+                let srow = &series[idx];
+                let series_uid = srow.series_instance_uid.clone();
+                let study_uid = srow.study_instance_uid.clone();
+                let label = format!(
+                    "\u{25b6} Retrieve {} {} (C-MOVE)",
+                    srow.modality,
+                    if srow.series_number.is_empty() {
+                        String::new()
+                    } else {
+                        format!("#{} ", srow.series_number)
+                    }
+                );
+                ui.horizontal(|ui| {
+                    if ui.button(label.trim()).clicked() {
+                        *action = PacsPanelAction::SubmitRetrieveSeries {
+                            series_uid,
+                            study_uid,
+                        };
+                    }
+                    ui.weak(format!(
+                        "\u{2192} destination AE: {}",
+                        config.move_destination
+                    ));
+                });
             }
         }
     }

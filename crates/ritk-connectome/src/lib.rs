@@ -64,7 +64,7 @@
 pub mod build;
 pub mod measures;
 
-pub use build::{ConnectomeConfig, EdgeWeighting, EndpointAssignment, build_connectivity_matrix};
+pub use build::{build_connectivity_matrix, ConnectomeConfig, EdgeWeighting, EndpointAssignment};
 pub use measures::{Communities, GraphMeasures};
 
 use ritk_parcellation::ParcellationError;

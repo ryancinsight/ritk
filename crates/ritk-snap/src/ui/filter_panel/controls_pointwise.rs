@@ -27,7 +27,7 @@ pub fn show_controls(ui: &mut egui::Ui, active_filter: &mut FilterKind) -> bool 
             if ui.checkbox(&mut use_fixed, "Use fixed maximum").changed() {
                 *maximum = if use_fixed { Some(255.0) } else { None };
             }
-            if let Some(ref mut m) = maximum {
+            if let Some(m) = maximum {
                 ui.horizontal(|ui| {
                     ui.label("Maximum:");
                     ui.add(egui::DragValue::new(m).speed(1.0).range(0.0..=f32::MAX));

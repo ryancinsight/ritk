@@ -92,19 +92,18 @@ pub(crate) fn axis_order_from_vectors(vectors: [[f64; 3]; 3]) -> [usize; 3] {
 }
 
 fn axis_vectors_for_volume(volume: &LoadedVolume) -> [[f64; 3]; 3] {
-    if let Some(meta) = volume.metadata.as_ref() {
-        if let Some(iop) = meta
+    if let Some(meta) = volume.metadata.as_ref()
+        && let Some(iop) = meta
             .slices
             .first()
             .and_then(|s| s.image_orientation_patient)
-        {
-            let row = [iop[0], iop[1], iop[2]];
-            let col = [iop[3], iop[4], iop[5]];
-            let normal = normalize(cross(row, col));
-            // Internal axis convention: axis0=depth(normal), axis1=row-index axis,
-            // axis2=col-index axis.
-            return [normal, col, row];
-        }
+    {
+        let row = [iop[0], iop[1], iop[2]];
+        let col = [iop[3], iop[4], iop[5]];
+        let normal = normalize(cross(row, col));
+        // Internal axis convention: axis0=depth(normal), axis1=row-index axis,
+        // axis2=col-index axis.
+        return [normal, col, row];
     }
 
     [

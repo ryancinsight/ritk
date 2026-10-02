@@ -1,7 +1,7 @@
 use std::num::NonZeroU8;
 
 use super::*;
-use crate::dti::{DtiConfig, estimate_dti};
+use crate::dti::{estimate_dti, DtiConfig};
 use crate::test_support::{
     add_rician_noise, dti_signal, mean, rmse, scheme, schemes_with_references, seeded_rng,
 };

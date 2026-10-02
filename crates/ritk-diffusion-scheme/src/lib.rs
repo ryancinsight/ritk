@@ -21,7 +21,7 @@ mod weighting;
 
 pub use error::GradientSchemeError;
 pub use fsl::{
-    FSL_UNIT_ROUNDING_TOLERANCE, parse_fsl_bval, parse_fsl_bvec, read_fsl_scheme, write_fsl_scheme,
+    parse_fsl_bval, parse_fsl_bvec, read_fsl_scheme, write_fsl_scheme, FSL_UNIT_ROUNDING_TOLERANCE,
 };
 pub use gradient::{GradientDirection, GradientFrame};
 pub use mrtrix::{read_mrtrix_scheme, write_mrtrix_scheme};

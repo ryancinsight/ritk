@@ -161,7 +161,8 @@ fn download_datasets(name: &str, output: &Path, force: bool) -> Result<()> {
 
     for dataset in datasets {
         info!("Downloading {}...", dataset.name());
-        match manager.download(dataset.as_ref(), force) {
+        let result = manager.download(dataset.as_ref(), force);
+        match result {
             Ok(()) => info!("Successfully downloaded {}", dataset.name()),
             Err(e) => warn!("Failed to download {}: {}", dataset.name(), e),
         }
@@ -310,16 +311,16 @@ fn find_image_pairs(data_dir: &Path) -> Result<Vec<(PathBuf, PathBuf)>> {
         let entry = entry?;
         let path = entry.path();
 
-        if let Some(stem) = path.file_stem().and_then(|s| s.to_str()) {
-            if let Some(base) = stem.strip_suffix("_fixed") {
-                let moving = path.with_file_name(format!("{}_moving.nii.gz", base));
-                if moving.exists()
-                    && !pairs
-                        .iter()
-                        .any(|(fixed, candidate)| fixed == path && candidate == &moving)
-                {
-                    pairs.push((path.to_path_buf(), moving));
-                }
+        if let Some(stem) = path.file_stem().and_then(|s| s.to_str())
+            && let Some(base) = stem.strip_suffix("_fixed")
+        {
+            let moving = path.with_file_name(format!("{}_moving.nii.gz", base));
+            if moving.exists()
+                && !pairs
+                    .iter()
+                    .any(|(fixed, candidate)| fixed == path && candidate == &moving)
+            {
+                pairs.push((path.to_path_buf(), moving));
             }
         }
     }

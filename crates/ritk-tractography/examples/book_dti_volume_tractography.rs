@@ -10,12 +10,12 @@ use std::error::Error;
 use std::fmt::Write as _;
 use std::path::{Path, PathBuf};
 
-use ritk_diffusion::maps::{DiffusionMapsConfig, DtiVolume, fit_diffusion_maps};
+use ritk_diffusion::maps::{fit_diffusion_maps, DiffusionMapsConfig, DtiVolume};
 use ritk_diffusion_scheme::{DiffusionWeighting, GradientDirection, GradientFrame, GradientScheme};
 use ritk_spatial::Vector;
 use ritk_tractography::{
-    DtiTractographyConfig, TerminationReason, TrackingDirection, TractographyConfig,
-    dti_volume_seed_points, dti_volume_tractography,
+    dti_volume_seed_points, dti_volume_tractography, DtiTractographyConfig, TerminationReason,
+    TrackingDirection, TractographyConfig,
 };
 
 const VOXEL_COUNT: usize = 12;

@@ -5,7 +5,7 @@ description = "Command-line medical image tools for RITK"
 authors.workspace = true
 repository.workspace = true
 publish = false
-edition = "2021"
+edition.workspace = true
 license.workspace = true
 
 [[bin]]

@@ -63,7 +63,8 @@ fn c_echo_loopback_returns_success_status() {
             .unwrap_or(1);
 
         loop {
-            match assoc.receive() {
+            let received = assoc.receive();
+            match received {
                 Ok(Pdu::PData { data: pdv_list }) => {
                     let cmd_bytes: Vec<u8> = pdv_list
                         .iter()
@@ -151,7 +152,8 @@ fn c_find_loopback_returns_synthetic_study_result() {
             .unwrap_or(1);
 
         loop {
-            match assoc.receive() {
+            let received = assoc.receive();
+            match received {
                 Ok(Pdu::PData { data: pdv_list }) => {
                     let cmd_bytes: Vec<u8> = pdv_list
                         .iter()
@@ -296,7 +298,8 @@ fn c_move_loopback_returns_final_success_status() {
             .unwrap_or(1);
 
         loop {
-            match assoc.receive() {
+            let received = assoc.receive();
+            match received {
                 Ok(Pdu::PData { data: pdv_list }) => {
                     let cmd_bytes: Vec<u8> = pdv_list
                         .iter()

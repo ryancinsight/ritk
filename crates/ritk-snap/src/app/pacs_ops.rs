@@ -20,11 +20,11 @@ impl SnapApp {
         // Clear auto-loaded notification from the previous frame.
         self.pacs_auto_loaded_this_frame = None;
 
-        if let Some(worker) = &self.pacs_worker {
-            if let Some(resp) = worker.try_recv() {
-                self.pacs_worker = None;
-                self.apply_pacs_response(resp);
-            }
+        if let Some(worker) = &self.pacs_worker
+            && let Some(resp) = worker.try_recv()
+        {
+            self.pacs_worker = None;
+            self.apply_pacs_response(resp);
         }
 
         #[cfg(not(target_arch = "wasm32"))]

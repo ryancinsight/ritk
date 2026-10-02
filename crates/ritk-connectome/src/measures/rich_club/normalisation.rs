@@ -7,7 +7,7 @@ use rand::rngs::StdRng;
 use rand::{Rng, SeedableRng};
 use serde::{Deserialize, Serialize};
 
-use super::{RichClubLevel, rich_club};
+use super::{rich_club, RichClubLevel};
 use crate::{ConnectivityMatrix, ConnectomeError};
 
 /// How the null-model ensemble is generated.

@@ -106,7 +106,7 @@ fn test_normalized_white_stripe_mean_zero_std_one() {
     let stripe_norm: Vec<f64> = data
         .iter()
         .zip(norm_vals.iter())
-        .filter(|(&orig, _)| {
+        .filter(|&(&orig, _)| {
             let o = orig as f64;
             o >= lo_int && o <= hi_int
         })

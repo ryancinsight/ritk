@@ -3,10 +3,10 @@
 
 use std::io::Write as _;
 
-use base64::Engine as _;
 use base64::engine::general_purpose::STANDARD;
-use flate2::Compression;
+use base64::Engine as _;
 use flate2::write::ZlibEncoder;
+use flate2::Compression;
 
 use super::{error_of, one_array, read};
 use crate::{ArrayData, GiftiError};

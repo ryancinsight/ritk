@@ -165,21 +165,20 @@ impl EguiApp {
         let opacity_alpha = overlay_alpha(self.rt_dose_opacity);
         let view_transform = self.view_transform;
 
-        if let Some(entry) = self.render.rt_dose_overlay_cache[axis_slot].as_ref() {
-            if entry.slice_idx == slice_idx
-                && entry.vol_shape == vol_shape
-                && entry.dose_dims == dose_dims
-                && entry.opacity_alpha == opacity_alpha
-                && entry.view_transform == view_transform
-            {
-                painter.image(
-                    entry.texture.id(),
-                    rect,
-                    egui::Rect::from_min_max(egui::pos2(0.0, 0.0), egui::pos2(1.0, 1.0)),
-                    egui::Color32::WHITE,
-                );
-                return;
-            }
+        if let Some(entry) = self.render.rt_dose_overlay_cache[axis_slot].as_ref()
+            && entry.slice_idx == slice_idx
+            && entry.vol_shape == vol_shape
+            && entry.dose_dims == dose_dims
+            && entry.opacity_alpha == opacity_alpha
+            && entry.view_transform == view_transform
+        {
+            painter.image(
+                entry.texture.id(),
+                rect,
+                egui::Rect::from_min_max(egui::pos2(0.0, 0.0), egui::pos2(1.0, 1.0)),
+                egui::Color32::WHITE,
+            );
+            return;
         }
 
         let [depth, rows, cols] = vol_shape;
@@ -394,16 +393,16 @@ impl SnapApp {
                     egui::Stroke::new(1.5_f32, color),
                 );
             }
-            if contour.closed {
-                if let (Some(first), Some(last)) = (
+            if contour.closed
+                && let (Some(first), Some(last)) = (
                     contour.points_row_col.first().copied(),
                     contour.points_row_col.last().copied(),
-                ) {
-                    painter.line_segment(
-                        [to_screen(last[0], last[1]), to_screen(first[0], first[1])],
-                        egui::Stroke::new(1.5_f32, color),
-                    );
-                }
+                )
+            {
+                painter.line_segment(
+                    [to_screen(last[0], last[1]), to_screen(first[0], first[1])],
+                    egui::Stroke::new(1.5_f32, color),
+                );
             }
         }
     }

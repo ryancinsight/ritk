@@ -39,8 +39,8 @@
 //! [Jensen et al. (2005)](https://doi.org/10.1002/mrm.20508)
 
 use coeus_optim::{
-    LeastSquaresProblem, LeastSquaresReport, LevenbergMarquardtConfig, ProblemError,
-    levenberg_marquardt,
+    levenberg_marquardt, LeastSquaresProblem, LeastSquaresReport, LevenbergMarquardtConfig,
+    ProblemError,
 };
 use ritk_diffusion_scheme::{DiffusionWeighting, GradientFrame, GradientScheme};
 

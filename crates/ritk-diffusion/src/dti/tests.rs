@@ -271,8 +271,8 @@ fn rotation_y(angle: f64) -> [[f64; 3]; 3] {
 /// scheme recovers the original PEV; fitting with the original scheme
 /// (i.e., skipping reorientation) recovers a different, wrong PEV.
 #[test]
-fn reorient_gradients_recover_original_pev_skip_reorientation_gives_wrong_pev()
--> Result<(), DtiError> {
+fn reorient_gradients_recover_original_pev_skip_reorientation_gives_wrong_pev(
+) -> Result<(), DtiError> {
     // ── Setup ────────────────────────────────────────────────────────────
     let scheme = scheme(60);
     // Tensor with PEV along +z: D = diag(0.0003, 0.0003, 0.0017).

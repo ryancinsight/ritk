@@ -92,11 +92,12 @@ pub(crate) fn evolve<T: SparseScalar, S: SparseFieldStep<T>>(
         if is_active[f] {
             move_to(&mut lists, &mut status, f, 0);
             for &off in offsets {
-                if let Some(g) = topo.neighbor(f, off) {
-                    if !is_active[g] && status[g] == ST_NULL {
-                        let ln = if shifted[g] < T::zero() { 1 } else { 2 };
-                        move_to(&mut lists, &mut status, g, ln);
-                    }
+                if let Some(g) = topo.neighbor(f, off)
+                    && !is_active[g]
+                    && status[g] == ST_NULL
+                {
+                    let ln = if shifted[g] < T::zero() { 1 } else { 2 };
+                    move_to(&mut lists, &mut status, g, ln);
                 }
             }
         }
@@ -105,10 +106,10 @@ pub(crate) fn evolve<T: SparseScalar, S: SparseFieldStep<T>>(
     for i in 1..(num - 2) {
         for f in lists.iter(i as usize).collect::<Vec<_>>() {
             for &off in offsets {
-                if let Some(g) = topo.neighbor(f, off) {
-                    if status[g] == ST_NULL {
-                        move_to(&mut lists, &mut status, g, i + 2);
-                    }
+                if let Some(g) = topo.neighbor(f, off)
+                    && status[g] == ST_NULL
+                {
+                    move_to(&mut lists, &mut status, g, i + 2);
                 }
             }
         }
@@ -161,10 +162,11 @@ pub(crate) fn evolve<T: SparseScalar, S: SparseFieldStep<T>>(
                 cnt += 1;
                 let tv = nv - cgv;
                 for &off in offsets {
-                    if let Some(g) = topo.neighbor(f, off) {
-                        if status[g] == 1 && (phi[g] < -cf || tv.abs() < phi[g].abs()) {
-                            phi[g] = tv;
-                        }
+                    if let Some(g) = topo.neighbor(f, off)
+                        && status[g] == 1
+                        && (phi[g] < -cf || tv.abs() < phi[g].abs())
+                    {
+                        phi[g] = tv;
                     }
                 }
                 status[f] = ST_CUP;
@@ -181,10 +183,11 @@ pub(crate) fn evolve<T: SparseScalar, S: SparseFieldStep<T>>(
                 cnt += 1;
                 let tv = nv + cgv;
                 for &off in offsets {
-                    if let Some(g) = topo.neighbor(f, off) {
-                        if status[g] == 2 && (phi[g] >= cf || tv.abs() < phi[g].abs()) {
-                            phi[g] = tv;
-                        }
+                    if let Some(g) = topo.neighbor(f, off)
+                        && status[g] == 2
+                        && (phi[g] >= cf || tv.abs() < phi[g].abs())
+                    {
+                        phi[g] = tv;
                     }
                 }
                 status[f] = ST_CDN;

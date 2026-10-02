@@ -68,10 +68,9 @@ impl<B: Backend + BackendOps<f32>, const D: usize> ScaleTransform<B, D> {
         let target = vec![shape[0], D];
         let center = broadcast_variable(&reshape(&self.center, [1, D]), target.clone());
         let scale = broadcast_variable(&reshape(&self.scale, [1, D]), target);
-        add_variables(
-            &mul_variables(&sub_variables(points, &center), &scale),
-            &center,
-        )
+        let centered = sub_variables(points, &center);
+        let scaled = mul_variables(&centered, &scale);
+        add_variables(&scaled, &center)
     }
 }
 
@@ -90,11 +89,9 @@ where
         let target = [shape[0], D];
         let center = broadcast_to(&self.center.tensor.reshape([1, D]), &target, &backend);
         let scale = broadcast_to(&self.scale.tensor.reshape([1, D]), &target, &backend);
-        add(
-            &mul(&sub(&points, &center, &backend), &scale, &backend),
-            &center,
-            &backend,
-        )
+        let centered = sub(&points, &center, &backend);
+        let scaled = mul(&centered, &scale, &backend);
+        add(&scaled, &center, &backend)
     }
 }
 

@@ -7,7 +7,7 @@
 //! `write_image_native` API.
 #![expect(clippy::unwrap_used, reason = "ratchet RITK-UNWRAP-1")]
 
-use ritk_io::{NativeImage, read_image_native, write_image_native};
+use ritk_io::{read_image_native, write_image_native, NativeImage};
 use ritk_spatial::{Direction, Point, Spacing};
 
 /// Build a small 3-D f32 volume with known spatial metadata.

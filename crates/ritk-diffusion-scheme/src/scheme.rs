@@ -3,8 +3,8 @@
 use ritk_spatial::Vector;
 
 use crate::{
-    DEFAULT_B0_THRESHOLD_SECONDS_PER_SQUARE_MILLIMETER, DiffusionWeighting, GradientDirection,
-    GradientFrame, GradientSchemeError,
+    DiffusionWeighting, GradientDirection, GradientFrame, GradientSchemeError,
+    DEFAULT_B0_THRESHOLD_SECONDS_PER_SQUARE_MILLIMETER,
 };
 
 const ROTATION_TOLERANCE: f64 = 1.0e-9;

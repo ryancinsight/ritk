@@ -9,11 +9,11 @@
 
 use std::io::{Read, Write};
 
-use base64::Engine as _;
 use base64::engine::general_purpose::STANDARD;
-use flate2::Compression;
+use base64::Engine as _;
 use flate2::read::ZlibDecoder;
 use flate2::write::ZlibEncoder;
+use flate2::Compression;
 
 use crate::{ArrayData, DataEncoding, GiftiError};
 

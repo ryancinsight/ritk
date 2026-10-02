@@ -139,10 +139,10 @@ pub fn multi_label_staple(
     let mut w = vec![0.0f64; l];
     let mut iterations = 0usize;
     loop {
-        if let Some(m) = max_iter {
-            if iterations >= m {
-                break;
-            }
+        if let Some(m) = max_iter
+            && iterations >= m
+        {
+            break;
         }
         updated.iter_mut().for_each(|x| *x = 0.0);
         for vox in 0..n {

@@ -8,18 +8,18 @@
 
 use std::io::Read;
 
-use quick_xml::Reader;
 use quick_xml::escape::resolve_predefined_entity;
 use quick_xml::events::{BytesStart, Event};
+use quick_xml::Reader;
 
 mod element;
 mod fields;
 
 use element::{Element, MAX_DEPTH};
-use fields::{Attributes, parse_label, parse_matrix};
+use fields::{parse_label, parse_matrix, Attributes};
 
 use crate::decode::{self, DataType, Endian, Payload};
-use crate::model::{MAX_DIMENSIONS, element_count};
+use crate::model::{element_count, MAX_DIMENSIONS};
 use crate::{
     CoordinateTransform, DataArray, GiftiError, GiftiImage, GiftiLabel, IndexingOrder, Intent,
     MetaData,

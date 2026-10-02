@@ -5,7 +5,7 @@
 //! keeps what is FreeSurfer's own: the three-byte magic (`fread3`/`fwrite3`)
 //! and the bounded element counts.
 
-use consus_core::{ByteOrder, read_from, write_to};
+use consus_core::{read_from, write_to, ByteOrder};
 use std::io::{self, Read, Write};
 
 use super::{FreeSurferError, FreeSurferFormat};

@@ -100,7 +100,7 @@ fn write_analyze_flat(
     let (sx, sy, sz) = (sp[2], sp[1], sp[0]);
 
     // Validate the complete logical input before creating either file.
-    for (name, &val) in [("nx", &nx), ("ny", &ny), ("nz", &nz)].iter() {
+    for &(name, &val) in [("nx", &nx), ("ny", &ny), ("nz", &nz)].iter() {
         if val == 0 {
             anyhow::bail!("Analyze: dimension {name} must be positive");
         }

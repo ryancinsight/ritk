@@ -166,10 +166,10 @@ fn validate_pixel_description(object: &DefaultDicomObject, layout: PixelLayout) 
         (Tag(0x0028, 0x0100), "BitsAllocated", layout.bits_allocated),
         (Tag(0x0028, 0x0101), "BitsStored", layout.bits_stored),
     ] {
-        if let Some(actual) = pixel_attribute(object, tag, name)? {
-            if actual != declared {
-                bail!("DICOM {name}={actual} does not match frame layout {name}={declared}");
-            }
+        if let Some(actual) = pixel_attribute(object, tag, name)?
+            && actual != declared
+        {
+            bail!("DICOM {name}={actual} does not match frame layout {name}={declared}");
         }
     }
     if let Some(high_bit) = pixel_attribute(object, Tag(0x0028, 0x0102), "HighBit")? {

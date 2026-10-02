@@ -37,11 +37,10 @@ fn run<const D: usize>(values: Vec<f32>, dims: [usize; D], superpixels: usize) -
     let config = SlicConfig::new(superpixels)
         .and_then(|config| config.with_max_iterations(6))
         .expect("invariant: 6 iterations and a nonzero count are valid");
-    SlicSuperpixelFilter::new(config)
+    let output = SlicSuperpixelFilter::new(config)
         .apply(&image)
-        .expect("invariant: fixture is finite, 2-D/3-D, and nonempty")
-        .data()
-        .to_vec()
+        .expect("invariant: fixture is finite, 2-D/3-D, and nonempty");
+    output.data().to_vec()
 }
 
 #[test]

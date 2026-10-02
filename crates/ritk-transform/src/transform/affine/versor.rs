@@ -96,7 +96,8 @@ where
             &centered,
             &coeus_autograd::transpose_2d(&self.rotation_matrix()),
         );
-        add(&add(&rotated, &center), &translation)
+        let centered_output = add(&rotated, &center);
+        add(&centered_output, &translation)
     }
 
     fn rotation_matrix(&self) -> Var<f32, B> {

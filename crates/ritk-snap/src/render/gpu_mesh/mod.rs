@@ -152,19 +152,19 @@ impl GpuMeshRenderer {
         let _ = self.ctx.device.poll(wgpu::Maintain::Poll);
 
         // Collect completed readback if available.
-        if let Some(ref pending) = self.pending {
-            if let Ok(Ok(())) = pending.rx.try_recv() {
-                let (rows, cols) = (pending.rows, pending.cols);
-                // Dimensions must match cache; if resize occurred, discard.
-                let image = self
-                    .cache
-                    .as_ref()
-                    .filter(|c| c.rows == rows && c.cols == cols)
-                    .map(collect_mesh_result);
-                self.pending = None;
-                if let Some(img) = image {
-                    self.last = Some(img);
-                }
+        if let Some(ref pending) = self.pending
+            && let Ok(Ok(())) = pending.rx.try_recv()
+        {
+            let (rows, cols) = (pending.rows, pending.cols);
+            // Dimensions must match cache; if resize occurred, discard.
+            let image = self
+                .cache
+                .as_ref()
+                .filter(|c| c.rows == rows && c.cols == cols)
+                .map(collect_mesh_result);
+            self.pending = None;
+            if let Some(img) = image {
+                self.last = Some(img);
             }
         }
 
@@ -193,27 +193,27 @@ impl GpuMeshRenderer {
         }
 
         // If no pending readback is in-flight, submit new GPU work.
-        if self.pending.is_none() {
-            if let (Some(cache), Some(gpu_mesh)) = (self.cache.as_ref(), self.mesh.as_ref()) {
-                let (scene, lights_block, material, ssao_u) =
-                    build_uniforms(camera, mat, lights, config, height, width);
+        if self.pending.is_none()
+            && let (Some(cache), Some(gpu_mesh)) = (self.cache.as_ref(), self.mesh.as_ref())
+        {
+            let (scene, lights_block, material, ssao_u) =
+                build_uniforms(camera, mat, lights, config, height, width);
 
-                let rx = submit_mesh_async(
-                    &self.ctx,
-                    cache,
-                    gpu_mesh,
-                    scene,
-                    lights_block,
-                    material,
-                    ssao_u,
-                    config.peel_layers,
-                );
-                self.pending = Some(PendingMeshReadback {
-                    rx,
-                    rows: height,
-                    cols: width,
-                });
-            }
+            let rx = submit_mesh_async(
+                &self.ctx,
+                cache,
+                gpu_mesh,
+                scene,
+                lights_block,
+                material,
+                ssao_u,
+                config.peel_layers,
+            );
+            self.pending = Some(PendingMeshReadback {
+                rx,
+                rows: height,
+                cols: width,
+            });
         }
 
         self.last.clone()
