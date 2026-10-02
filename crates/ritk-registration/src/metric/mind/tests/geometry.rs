@@ -1,5 +1,5 @@
 use anyhow::Result;
-use eunomia::CastFrom;
+use eunomia::{CastFrom, FloatElement};
 use ritk_spatial::{Direction, Point, Spacing};
 
 use super::{identity_image, image, synthetic_values};
@@ -171,5 +171,5 @@ fn trilinear_oracle(values: &[f32], shape: [usize; 3], point: [f64; 3]) -> f32 {
             }
         }
     }
-    f32::cast_from(result)
+    f32::from_f64(result)
 }

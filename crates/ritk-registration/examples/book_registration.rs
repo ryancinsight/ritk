@@ -15,7 +15,7 @@
 use anyhow::{bail, Context, Result};
 use base64::{engine::general_purpose::STANDARD, Engine as _};
 use coeus_core::SequentialBackend;
-use eunomia::CastFrom;
+use eunomia::{CastFrom, FloatElement};
 use image::{codecs::png::PngEncoder, ColorType, ImageEncoder};
 use ritk_filter::resample::native::{fixed_world_points, resample_moving_at_world};
 use ritk_image::Image;
@@ -219,9 +219,7 @@ fn absolute_difference(left: &[f32], right: &[f32]) -> Result<(Vec<f32>, f32, f3
         .copied()
         .max_by(f32::total_cmp)
         .context("registration comparison has no maximum")?;
-    let sample_count = u32::try_from(difference.len())
-        .context("registration comparison sample count exceeds u32")?;
-    let mean = difference.iter().sum::<f32>() / f32::cast_from(sample_count);
+    let mean = difference.iter().sum::<f32>() / f32::from_count(difference.len());
     Ok((difference, maximum, mean))
 }
 

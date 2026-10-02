@@ -5,7 +5,7 @@
 use super::line::LineUnringer;
 use super::TvWindow;
 use apollo_fft::application::execution::kernel::{fft_forward, fft_inverse, FftPrecision};
-use eunomia::{CastFrom, Complex, NumericElement, RealField};
+use eunomia::{Complex, NumericElement, RealField};
 
 /// Reusable buffers for slices of one fixed `rows × cols` shape, row-major
 /// (`cols` contiguous). Rows run along the first in-plane axis.
@@ -34,7 +34,7 @@ where
     pub(super) fn new(rows: usize, cols: usize, half_shifts: u16) -> Self {
         let row_c = axis_cosine::<T>(rows);
         let col_c = axis_cosine::<T>(cols);
-        let half = <T as CastFrom<i32>>::cast_from(1) / <T as CastFrom<i32>>::cast_from(2);
+        let half = T::from_integer(1) / T::from_integer(2);
         let mut row_axis_weight = Vec::with_capacity(rows * cols);
         for &cr in &row_c {
             for &cc in &col_c {
@@ -127,15 +127,11 @@ where
 /// `1 + cos k` factor of Eq. 6 with the reference implementation's scaling,
 /// which cancels in the ratio.
 fn axis_cosine<T: RealField>(n: usize) -> Vec<T> {
-    let n_t = <T as CastFrom<i32>>::cast_from(
-        i32::try_from(n).expect("invariant: the driver bounds line lengths by i32::MAX"),
-    );
-    let two = <T as CastFrom<i32>>::cast_from(2);
+    let n_t = T::from_count(n);
+    let two = T::from_integer(2);
     (0..n)
         .map(|k| {
-            let k_t = <T as CastFrom<i32>>::cast_from(
-                i32::try_from(k).expect("invariant: k < n <= i32::MAX"),
-            );
+            let k_t = T::from_count(k);
             (T::ONE + (two * T::PI * k_t / n_t).cos()) / two
         })
         .collect()
