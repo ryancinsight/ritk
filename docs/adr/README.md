@@ -61,3 +61,4 @@
 | [0050](0050-responsive-metis-pane-layout.md) | Responsive Métis pane layout | Accepted |
 | [0051](0051-two-image-data-accessors.md) | Two host-data accessors on `Image`, one grid-transform family | Accepted |
 | [0052](0052-native-oblique-mpr.md) | Native oblique MPR presentation | Accepted |
+| [0053](0053-typed-sample-io.md) | Typed sample I/O | Accepted |

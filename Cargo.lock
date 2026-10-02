@@ -5963,12 +5963,16 @@ version = "0.6.0"
 dependencies = [
  "anyhow",
  "base64 0.22.1",
+ "bytemuck",
+ "coeus-core",
  "consus-core",
  "consus-raster",
  "criterion",
  "image 0.24.9",
+ "num-traits",
  "proptest",
  "tempfile",
+ "thiserror 2.0.20",
 ]
 
 [[package]]
@@ -6206,6 +6210,7 @@ dependencies = [
  "anyhow",
  "bytemuck",
  "coeus-core",
+ "consus-core",
  "flate2",
  "ritk-codecs",
  "ritk-core",
@@ -6312,6 +6317,7 @@ dependencies = [
  "anyhow",
  "bytemuck",
  "coeus-core",
+ "consus-core",
  "flate2",
  "ritk-codecs",
  "ritk-core",

@@ -1,13 +1,14 @@
 use anyhow::{anyhow, Context, Result};
 use coeus_core::ComputeBackend;
-use ritk_codecs::{parse_f64_vec, parse_usize_vec, ByteOrder};
+use ritk_codecs::sample::SampleBuffer;
+use ritk_codecs::{parse_f64_vec, parse_usize_vec};
 use ritk_image::Image;
 use ritk_spatial::{Direction, Point, Spacing};
 use std::io::{BufReader, Read};
 use std::path::Path;
 
 use super::decode::{
-    decode_element_bytes, element_type_spec, parse_nrrd_point, parse_nrrd_point_planar,
+    element_sample_type, parse_endian, parse_nrrd_point, parse_nrrd_point_planar,
     parse_space_direction_slots, parse_space_directions, parse_space_directions_planar,
 };
 use super::header::parse_nrrd_header_map_from_reader;
@@ -235,7 +236,7 @@ fn decode_nrrd<P: AsRef<Path>>(path: P) -> Result<DecodedNrrd> {
         .get("endian")
         .map(String::as_str)
         .unwrap_or("little");
-    let byte_order = ByteOrder::from_nrrd(endian_str);
+    let byte_order = parse_endian(endian_str);
 
     let spatial = if let Some(sd_str) = headers.get("space directions") {
         let dirs = if dimension == 2 {
@@ -274,7 +275,8 @@ fn decode_nrrd<P: AsRef<Path>>(path: P) -> Result<DecodedNrrd> {
     let total_voxels = voxels_per_volume
         .checked_mul(volumes)
         .ok_or_else(|| anyhow!("NRRD series element count overflows usize"))?;
-    let (element_size, _, _) = element_type_spec(&element_type)?;
+    let sample_type = element_sample_type(&element_type)?;
+    let element_size = sample_type.byte_width();
     let expected_payload_bytes = total_voxels.checked_mul(element_size).ok_or_else(|| {
         anyhow!("NRRD byte count overflows usize: {total_voxels} voxels x {element_size} bytes")
     })?;
@@ -317,17 +319,15 @@ fn decode_nrrd<P: AsRef<Path>>(path: P) -> Result<DecodedNrrd> {
         payload
     };
 
+    let sample_bytes = raw_bytes.get(..expected_payload_bytes).ok_or_else(|| {
+        anyhow!(
+            "NRRD payload holds {} bytes; {total_voxels} {sample_type} samples need {expected_payload_bytes} bytes",
+            raw_bytes.len()
+        )
+    })?;
     let f32_data: Vec<f32> =
-        decode_element_bytes(&raw_bytes, &element_type, total_voxels, byte_order)?;
+        SampleBuffer::decode(sample_bytes, sample_type, byte_order)?.into_vec();
     drop(raw_bytes);
-
-    if f32_data.len() != total_voxels {
-        return Err(anyhow!(
-            "NRRD voxel count mismatch: sizes implies {} voxels but {} were decoded",
-            total_voxels,
-            f32_data.len()
-        ));
-    }
 
     let mut volume_data = Vec::new();
     volume_data

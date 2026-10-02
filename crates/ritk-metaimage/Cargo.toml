@@ -14,6 +14,7 @@ homepage.workspace = true
 [dependencies]
 ritk-image = { path = "../ritk-image", version = "0.4.0" }
 ritk-spatial = { path = "../ritk-spatial", version = "0.3.0" }
+consus-core = { workspace = true }
 ritk-codecs = { path = "../ritk-codecs", version = "0.6.0" }
 anyhow = { workspace = true }
 bytemuck = { workspace = true }

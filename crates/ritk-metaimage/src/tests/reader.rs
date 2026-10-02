@@ -468,3 +468,31 @@ fn native_read_metaimage_preserves_shape_and_voxels() {
     let loaded = image.data_slice().expect("contiguous host voxel data");
     assert_eq!(loaded, data.as_slice());
 }
+
+#[test]
+fn byte_order_msb_true_in_any_case_is_big_endian() {
+    use crate::reader::parse_byte_order_msb;
+    use consus_core::ByteOrder;
+    for value in ["True", "TRUE", "true", "tRuE"] {
+        assert_eq!(
+            parse_byte_order_msb(value),
+            ByteOrder::BigEndian,
+            "{value:?}"
+        );
+    }
+}
+
+#[test]
+fn byte_order_msb_any_other_value_is_little_endian() {
+    use crate::reader::parse_byte_order_msb;
+    use consus_core::ByteOrder;
+    for value in [
+        "False", "FALSE", "fAlSe", "", "yes", "1", "on", "true ", " true", "True.", "big",
+    ] {
+        assert_eq!(
+            parse_byte_order_msb(value),
+            ByteOrder::LittleEndian,
+            "{value:?}"
+        );
+    }
+}
