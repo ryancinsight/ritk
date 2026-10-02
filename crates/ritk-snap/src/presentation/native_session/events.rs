@@ -97,7 +97,8 @@ impl NativeApplication for NativeViewerSession {
             );
             if !terminal && is_open_shortcut && !open_shortcut_seen {
                 open_shortcut_seen = true;
-                match self.open_study_from_dialog() {
+                let result = self.open_study_from_dialog();
+                match result {
                     Ok(reopened) => study_reopened |= reopened,
                     Err(error) => {
                         self.app.status_message = format!(

@@ -364,7 +364,8 @@ fn decode_slices_into(
         let mut failures = failures
             .into_inner()
             .unwrap_or_else(std::sync::PoisonError::into_inner);
-        if let Some((_, error)) = failures.drain(..).min_by_key(|(z, _)| *z) {
+        let earliest_failure = failures.drain(..).min_by_key(|(z, _)| *z);
+        if let Some((_, error)) = earliest_failure {
             return Err(error);
         }
     }

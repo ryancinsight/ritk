@@ -1,7 +1,7 @@
 [package]
 name = "ritk-trx"
 version = "0.1.0"
-edition = "2024"
+edition.workspace = true
 rust-version = "1.95"
 license.workspace = true
 description = "TRX (Tractography Reference eXchange) format reader and writer"

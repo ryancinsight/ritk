@@ -130,20 +130,27 @@ pub(super) fn parse_sequence_item(
                         source: None,
                     });
                 }
-            } else if let Ok(s) = element.to_str() {
-                seq_item.insert(DicomObjectNode::text(dicom_tag, vr_str, s.to_string()));
-            } else if let Ok(bytes) = element.to_bytes() {
-                seq_item.insert(DicomObjectNode {
-                    tag: dicom_tag,
-                    vr: Some(ArrayString::<2>::try_from(vr_str).unwrap_or_default()),
-                    value: DicomValue::Bytes(bytes.to_vec()),
-                    element_class: if is_private_tag(dicom_tag) {
-                        DicomElementClass::Private
-                    } else {
-                        DicomElementClass::Standard
-                    },
-                    source: None,
-                });
+            } else {
+                match element.to_str() {
+                    Ok(s) => {
+                        seq_item.insert(DicomObjectNode::text(dicom_tag, vr_str, s.to_string()));
+                    }
+                    _ => {
+                        if let Ok(bytes) = element.to_bytes() {
+                            seq_item.insert(DicomObjectNode {
+                                tag: dicom_tag,
+                                vr: Some(ArrayString::<2>::try_from(vr_str).unwrap_or_default()),
+                                value: DicomValue::Bytes(bytes.to_vec()),
+                                element_class: if is_private_tag(dicom_tag) {
+                                    DicomElementClass::Private
+                                } else {
+                                    DicomElementClass::Standard
+                                },
+                                source: None,
+                            });
+                        }
+                    }
+                }
             }
         }
     }

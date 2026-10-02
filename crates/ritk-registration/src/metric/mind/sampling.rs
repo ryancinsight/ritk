@@ -15,13 +15,13 @@ pub(super) fn select_indices(
     mask: Option<&[bool]>,
 ) -> Result<Vec<usize>, MindSscError> {
     let voxel_count = checked_voxel_count(shape)?;
-    if let Some(mask) = mask {
-        if mask.len() != voxel_count {
-            return Err(MindSscError::MaskLength {
-                expected: voxel_count,
-                actual: mask.len(),
-            });
-        }
+    if let Some(mask) = mask
+        && mask.len() != voxel_count
+    {
+        return Err(MindSscError::MaskLength {
+            expected: voxel_count,
+            actual: mask.len(),
+        });
     }
     validate_shape(shape, halo)?;
 

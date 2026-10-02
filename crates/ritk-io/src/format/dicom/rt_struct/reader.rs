@@ -55,124 +55,124 @@ pub fn read_rt_struct<P: AsRef<Path>>(path: P) -> Result<RtStructureSet> {
 
     // Step 1: build ROI map from StructureSetROISequence (3006,0020).
     let mut roi_map: HashMap<u32, RtRoiInfo> = HashMap::new();
-    if let Ok(seq_elem) = obj.element(Tag(0x3006, 0x0020)) {
-        if let Value::Sequence(seq) = seq_elem.value() {
-            for item in seq.items() {
-                let roi_number: u32 = item
-                    .element(Tag(0x3006, 0x0022))
-                    .ok()
-                    .and_then(|e| e.to_str().ok())
-                    .and_then(|s| s.trim().parse().ok())
-                    .unwrap_or(0);
+    if let Ok(seq_elem) = obj.element(Tag(0x3006, 0x0020))
+        && let Value::Sequence(seq) = seq_elem.value()
+    {
+        for item in seq.items() {
+            let roi_number: u32 = item
+                .element(Tag(0x3006, 0x0022))
+                .ok()
+                .and_then(|e| e.to_str().ok())
+                .and_then(|s| s.trim().parse().ok())
+                .unwrap_or(0);
 
-                let roi_name = item
-                    .element(Tag(0x3006, 0x0026))
-                    .ok()
-                    .and_then(|e| e.to_str().ok())
-                    .map(|s| s.trim().to_string())
-                    .unwrap_or_default();
+            let roi_name = item
+                .element(Tag(0x3006, 0x0026))
+                .ok()
+                .and_then(|e| e.to_str().ok())
+                .map(|s| s.trim().to_string())
+                .unwrap_or_default();
 
-                let roi_description = item
-                    .element(Tag(0x3006, 0x0028))
-                    .ok()
-                    .and_then(|e| e.to_str().ok())
-                    .map(|s| s.trim().to_string())
-                    .filter(|s| !s.is_empty());
+            let roi_description = item
+                .element(Tag(0x3006, 0x0028))
+                .ok()
+                .and_then(|e| e.to_str().ok())
+                .map(|s| s.trim().to_string())
+                .filter(|s| !s.is_empty());
 
-                roi_map.insert(
+            roi_map.insert(
+                roi_number,
+                RtRoiInfo {
                     roi_number,
-                    RtRoiInfo {
-                        roi_number,
-                        roi_name,
-                        roi_description,
-                        roi_interpreted_type: None,
-                        display_color: None,
-                        contours: Vec::new(),
-                    },
-                );
-            }
+                    roi_name,
+                    roi_description,
+                    roi_interpreted_type: None,
+                    display_color: None,
+                    contours: Vec::new(),
+                },
+            );
         }
     }
 
     // Step 2: update roi_interpreted_type from RTROIObservationsSequence (3006,0080).
-    if let Ok(seq_elem) = obj.element(Tag(0x3006, 0x0080)) {
-        if let Value::Sequence(seq) = seq_elem.value() {
-            for item in seq.items() {
-                let ref_roi: u32 = item
-                    .element(Tag(0x3006, 0x0084))
-                    .ok()
-                    .and_then(|e| e.to_str().ok())
-                    .and_then(|s| s.trim().parse().ok())
-                    .unwrap_or(0);
+    if let Ok(seq_elem) = obj.element(Tag(0x3006, 0x0080))
+        && let Value::Sequence(seq) = seq_elem.value()
+    {
+        for item in seq.items() {
+            let ref_roi: u32 = item
+                .element(Tag(0x3006, 0x0084))
+                .ok()
+                .and_then(|e| e.to_str().ok())
+                .and_then(|s| s.trim().parse().ok())
+                .unwrap_or(0);
 
-                let interpreted_type = item
-                    .element(Tag(0x3006, 0x00A4))
-                    .ok()
-                    .and_then(|e| e.to_str().ok())
-                    .filter(|s| !s.trim().is_empty())
-                    .map(|s| RtRoiInterpretedType::from_dicom_str(s.trim()));
+            let interpreted_type = item
+                .element(Tag(0x3006, 0x00A4))
+                .ok()
+                .and_then(|e| e.to_str().ok())
+                .filter(|s| !s.trim().is_empty())
+                .map(|s| RtRoiInterpretedType::from_dicom_str(s.trim()));
 
-                if let Some(roi) = roi_map.get_mut(&ref_roi) {
-                    roi.roi_interpreted_type = interpreted_type;
-                }
+            if let Some(roi) = roi_map.get_mut(&ref_roi) {
+                roi.roi_interpreted_type = interpreted_type;
             }
         }
     }
 
     // Step 3: update display_color + contours from ROIContourSequence (3006,0039).
-    if let Ok(seq_elem) = obj.element(Tag(0x3006, 0x0039)) {
-        if let Value::Sequence(seq) = seq_elem.value() {
-            for item in seq.items() {
-                let ref_roi: u32 = item
-                    .element(Tag(0x3006, 0x0084))
-                    .ok()
-                    .and_then(|e| e.to_str().ok())
-                    .and_then(|s| s.trim().parse().ok())
-                    .unwrap_or(0);
+    if let Ok(seq_elem) = obj.element(Tag(0x3006, 0x0039))
+        && let Value::Sequence(seq) = seq_elem.value()
+    {
+        for item in seq.items() {
+            let ref_roi: u32 = item
+                .element(Tag(0x3006, 0x0084))
+                .ok()
+                .and_then(|e| e.to_str().ok())
+                .and_then(|s| s.trim().parse().ok())
+                .unwrap_or(0);
 
-                let display_color = item
-                    .element(Tag(0x3006, 0x002A))
-                    .ok()
-                    .and_then(|e| e.to_str().ok())
-                    .and_then(|s| parse_color(s.trim()));
+            let display_color = item
+                .element(Tag(0x3006, 0x002A))
+                .ok()
+                .and_then(|e| e.to_str().ok())
+                .and_then(|s| parse_color(s.trim()));
 
-                let mut contours: Vec<RtContour> = Vec::new();
-                if let Ok(cs_elem) = item.element(Tag(0x3006, 0x0040)) {
-                    if let Value::Sequence(cs) = cs_elem.value() {
-                        for ci in cs.items() {
-                            let geometric_type = ci
-                                .element(Tag(0x3006, 0x0042))
-                                .ok()
-                                .and_then(|e| e.to_str().ok())
-                                .and_then(|s| ContourGeometricType::from_dicom_str(s.trim()))
-                                .unwrap_or(ContourGeometricType::ClosedPlanar);
+            let mut contours: Vec<RtContour> = Vec::new();
+            if let Ok(cs_elem) = item.element(Tag(0x3006, 0x0040))
+                && let Value::Sequence(cs) = cs_elem.value()
+            {
+                for ci in cs.items() {
+                    let geometric_type = ci
+                        .element(Tag(0x3006, 0x0042))
+                        .ok()
+                        .and_then(|e| e.to_str().ok())
+                        .and_then(|s| ContourGeometricType::from_dicom_str(s.trim()))
+                        .unwrap_or(ContourGeometricType::ClosedPlanar);
 
-                            let points = match ci.element(Tag(0x3006, 0x0050)) {
-                                Ok(element) => {
-                                    let raw = element.to_str().with_context(|| {
-                                        format!("Read ContourData for ROI {}", ref_roi)
-                                    })?;
-                                    parse_contour_data(raw.trim()).with_context(|| {
-                                        format!("Invalid ContourData for ROI {}", ref_roi)
-                                    })?
-                                }
-                                Err(_) => Vec::new(),
-                            };
-
-                            contours.push(RtContour {
-                                geometric_type,
-                                points,
-                            });
+                    let points = match ci.element(Tag(0x3006, 0x0050)) {
+                        Ok(element) => {
+                            let raw = element
+                                .to_str()
+                                .with_context(|| format!("Read ContourData for ROI {}", ref_roi))?;
+                            parse_contour_data(raw.trim()).with_context(|| {
+                                format!("Invalid ContourData for ROI {}", ref_roi)
+                            })?
                         }
-                    }
-                }
+                        Err(_) => Vec::new(),
+                    };
 
-                if let Some(roi) = roi_map.get_mut(&ref_roi) {
-                    if display_color.is_some() {
-                        roi.display_color = display_color;
-                    }
-                    roi.contours = contours;
+                    contours.push(RtContour {
+                        geometric_type,
+                        points,
+                    });
                 }
+            }
+
+            if let Some(roi) = roi_map.get_mut(&ref_roi) {
+                if display_color.is_some() {
+                    roi.display_color = display_color;
+                }
+                roi.contours = contours;
             }
         }
     }

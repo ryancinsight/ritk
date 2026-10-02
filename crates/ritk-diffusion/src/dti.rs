@@ -40,7 +40,7 @@ use ritk_diffusion_scheme::{DiffusionWeighting, GradientFrame, GradientScheme};
 
 pub use fit::TensorFit;
 
-pub(crate) use eigen::{SymmetricEigen, symmetric_eigen};
+pub(crate) use eigen::{symmetric_eigen, SymmetricEigen};
 
 // ── Error ─────────────────────────────────────────────────────────────────────
 

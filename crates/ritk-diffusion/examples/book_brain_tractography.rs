@@ -42,11 +42,11 @@ use anyhow::{Context, Result};
 use data::{HumanAtlas, HumanDataset};
 use render::{HumanMetrics, SlicePanel};
 use ritk_diffusion::maps::{
-    DiffusionMapsConfig, DirectionInterpolation, DtiVolume, fit_diffusion_maps,
+    fit_diffusion_maps, DiffusionMapsConfig, DirectionInterpolation, DtiVolume,
 };
-use ritk_diffusion_scheme::{GradientScheme, read_fsl_scheme};
+use ritk_diffusion_scheme::{read_fsl_scheme, GradientScheme};
 use ritk_spatial::Point;
-use ritk_tractography::{TrackingDirection, TractographyConfig, euler_tractography};
+use ritk_tractography::{euler_tractography, TrackingDirection, TractographyConfig};
 
 /// Conventional high-confidence white-matter seeding floor.
 const SEED_FA_FLOOR: f64 = 0.25;

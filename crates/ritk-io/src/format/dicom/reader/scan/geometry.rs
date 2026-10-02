@@ -60,31 +60,30 @@ pub(super) fn synthesize_gantry_tilt(slices: &mut [DicomSliceMetadata]) {
             .zip(axial.iter())
             .all(|(a, e)| (a - e).abs() < AXIAL_IOP_THRESHOLD)
     });
-    if is_effectively_axial {
-        if let Some(tilt_deg) = slices.first().and_then(|s| s.gantry_tilt) {
-            if tilt_deg.abs() > GANTRY_TILT_MIN_DEGREES {
-                let theta = tilt_deg.to_radians();
-                let cos_t = theta.cos();
-                let sin_t = theta.sin();
-                let synthesized_iop = [1.0_f64, 0.0, 0.0, 0.0, cos_t, -sin_t];
-                tracing::info!(
-                    tilt_deg,
-                    cos_t,
-                    sin_t,
-                    "GantryDetectorTilt: synthesizing oblique IOP from tilt angle"
-                );
-                for slice in slices {
-                    if slice.image_orientation_patient.is_none()
-                        || slice.image_orientation_patient.is_some_and(|iop| {
-                            let axial = [1.0_f64, 0.0, 0.0, 0.0, 1.0, 0.0];
-                            iop.iter()
-                                .zip(axial.iter())
-                                .all(|(a, e)| (a - e).abs() < AXIAL_IOP_THRESHOLD)
-                        })
-                    {
-                        slice.image_orientation_patient = Some(synthesized_iop);
-                    }
-                }
+    if is_effectively_axial
+        && let Some(tilt_deg) = slices.first().and_then(|s| s.gantry_tilt)
+        && tilt_deg.abs() > GANTRY_TILT_MIN_DEGREES
+    {
+        let theta = tilt_deg.to_radians();
+        let cos_t = theta.cos();
+        let sin_t = theta.sin();
+        let synthesized_iop = [1.0_f64, 0.0, 0.0, 0.0, cos_t, -sin_t];
+        tracing::info!(
+            tilt_deg,
+            cos_t,
+            sin_t,
+            "GantryDetectorTilt: synthesizing oblique IOP from tilt angle"
+        );
+        for slice in slices {
+            if slice.image_orientation_patient.is_none()
+                || slice.image_orientation_patient.is_some_and(|iop| {
+                    let axial = [1.0_f64, 0.0, 0.0, 0.0, 1.0, 0.0];
+                    iop.iter()
+                        .zip(axial.iter())
+                        .all(|(a, e)| (a - e).abs() < AXIAL_IOP_THRESHOLD)
+                })
+            {
+                slice.image_orientation_patient = Some(synthesized_iop);
             }
         }
     }

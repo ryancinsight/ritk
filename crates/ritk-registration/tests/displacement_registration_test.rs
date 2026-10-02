@@ -39,7 +39,8 @@ fn named_adam_optimizes_displacement_through_registration_seam() {
 
     let objective = |transform: &DisplacementFieldTransform<SequentialBackend, 3>| {
         let residual = sub(&apply_registration_transform(transform, &points), &target);
-        mean(&mul(&residual, &residual))
+        let squared_residual = mul(&residual, &residual);
+        mean(&squared_residual)
     };
     let initial = objective(&transform).tensor.as_slice()[0];
     optimizer.zero_grad();

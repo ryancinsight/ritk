@@ -205,40 +205,40 @@ impl EguiApp {
         }
 
         // DICOM 4-corner overlay.
-        if self.show_overlay {
-            if let Some(vol) = &self.loaded {
-                let wc = self
-                    .viewer_state
-                    .window_center
-                    .unwrap_or(DEFAULT_WINDOW_CENTER) as f64;
-                let ww = self
-                    .viewer_state
-                    .window_width
-                    .unwrap_or(DEFAULT_WINDOW_WIDTH)
-                    .max(1.0) as f64;
-                let wl = WindowLevel::new(wc, ww);
+        if self.show_overlay
+            && let Some(vol) = &self.loaded
+        {
+            let wc = self
+                .viewer_state
+                .window_center
+                .unwrap_or(DEFAULT_WINDOW_CENTER) as f64;
+            let ww = self
+                .viewer_state
+                .window_width
+                .unwrap_or(DEFAULT_WINDOW_WIDTH)
+                .max(1.0) as f64;
+            let wl = WindowLevel::new(wc, ww);
 
-                let cursor_value = self.current_cursor_value();
+            let cursor_value = self.current_cursor_value();
 
-                let details = OverlayRenderer::draw(
-                    &painter,
-                    response.rect,
-                    vol,
-                    OverlayContext {
-                        axis,
-                        slice_index: slice_idx,
-                        wl,
-                        zoom: self.zoom,
-                        cursor_value,
-                        pointer_intensity: self.pointer_intensity,
-                        cursor_suv: self.current_cursor_suv(),
-                        pointer_suv: self.pointer_suv,
-                        view_transform,
-                    },
-                );
-                if let Some(details) = details {
-                    OverlayRenderer::show_details(ui, response.rect, &details);
-                }
+            let details = OverlayRenderer::draw(
+                &painter,
+                response.rect,
+                vol,
+                OverlayContext {
+                    axis,
+                    slice_index: slice_idx,
+                    wl,
+                    zoom: self.zoom,
+                    cursor_value,
+                    pointer_intensity: self.pointer_intensity,
+                    cursor_suv: self.current_cursor_suv(),
+                    pointer_suv: self.pointer_suv,
+                    view_transform,
+                },
+            );
+            if let Some(details) = details {
+                OverlayRenderer::show_details(ui, response.rect, &details);
             }
         }
 
@@ -253,28 +253,26 @@ impl EguiApp {
         }
 
         // Crosshair at the linked study-coordinate cursor.
-        if self.show_crosshair {
-            if let (Some(vol), Some(cursor)) = (&self.loaded, self.linked_cursor) {
-                if let Some(crosshair) =
-                    cursor.viewport_crosshair(vol.shape, axis, response.rect, view_transform)
-                {
-                    let color = egui::Color32::from_rgba_unmultiplied(255, 255, 0, 120);
-                    painter.line_segment(
-                        [
-                            egui::pos2(response.rect.min.x, crosshair.y),
-                            egui::pos2(response.rect.max.x, crosshair.y),
-                        ],
-                        egui::Stroke::new(1.0_f32, color),
-                    );
-                    painter.line_segment(
-                        [
-                            egui::pos2(crosshair.x, response.rect.min.y),
-                            egui::pos2(crosshair.x, response.rect.max.y),
-                        ],
-                        egui::Stroke::new(1.0_f32, color),
-                    );
-                }
-            }
+        if self.show_crosshair
+            && let (Some(vol), Some(cursor)) = (&self.loaded, self.linked_cursor)
+            && let Some(crosshair) =
+                cursor.viewport_crosshair(vol.shape, axis, response.rect, view_transform)
+        {
+            let color = egui::Color32::from_rgba_unmultiplied(255, 255, 0, 120);
+            painter.line_segment(
+                [
+                    egui::pos2(response.rect.min.x, crosshair.y),
+                    egui::pos2(response.rect.max.x, crosshair.y),
+                ],
+                egui::Stroke::new(1.0_f32, color),
+            );
+            painter.line_segment(
+                [
+                    egui::pos2(crosshair.x, response.rect.min.y),
+                    egui::pos2(crosshair.x, response.rect.max.y),
+                ],
+                egui::Stroke::new(1.0_f32, color),
+            );
         }
 
         // ── 7. Measurement annotations and live tool preview ───────────────────
@@ -390,12 +388,11 @@ impl EguiApp {
                     y: pointer.y(),
                 });
             }
-            if !events.is_empty() {
-                if let Err(error) = self.apply_presentation_events(&events, Some(&action_viewport))
-                {
-                    self.status_message = format!("Presentation input rejected: {error}");
-                    tracing::error!(error = %error, "RITK presentation event batch rejected");
-                }
+            if !events.is_empty()
+                && let Err(error) = self.apply_presentation_events(&events, Some(&action_viewport))
+            {
+                self.status_message = format!("Presentation input rejected: {error}");
+                tracing::error!(error = %error, "RITK presentation event batch rejected");
             }
         } else if response.drag_stopped() {
             // A host can end a drag after its final pointer coordinate has

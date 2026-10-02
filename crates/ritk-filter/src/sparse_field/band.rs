@@ -124,31 +124,31 @@ fn propagate_layer<T: SparseScalar>(
         let mut val = T::zero();
         let mut found = false;
         for &off in offsets {
-            if let Some(g) = topo.neighbor(f, off) {
-                if status[g] == from {
-                    let vt = phi[g];
-                    if !found {
-                        val = vt;
-                    } else {
-                        val = match side {
-                            LevelSetSide::Inside => {
-                                if val > vt {
-                                    val
-                                } else {
-                                    vt
-                                }
+            if let Some(g) = topo.neighbor(f, off)
+                && status[g] == from
+            {
+                let vt = phi[g];
+                if !found {
+                    val = vt;
+                } else {
+                    val = match side {
+                        LevelSetSide::Inside => {
+                            if val > vt {
+                                val
+                            } else {
+                                vt
                             }
-                            LevelSetSide::Outside => {
-                                if val < vt {
-                                    val
-                                } else {
-                                    vt
-                                }
+                        }
+                        LevelSetSide::Outside => {
+                            if val < vt {
+                                val
+                            } else {
+                                vt
                             }
-                        };
-                    }
-                    found = true;
+                        }
+                    };
                 }
+                found = true;
             }
         }
         if found {
@@ -177,11 +177,11 @@ pub(crate) fn process_status_list(
     while let Some(f) = inl.pop_front() {
         move_to(lists, status, f, ct);
         for &off in topo.face_offsets() {
-            if let Some(g) = topo.neighbor(f, off) {
-                if status[g] == sr {
-                    move_to(lists, status, g, ST_CHG);
-                    outl.push_front(g);
-                }
+            if let Some(g) = topo.neighbor(f, off)
+                && status[g] == sr
+            {
+                move_to(lists, status, g, ST_CHG);
+                outl.push_front(g);
             }
         }
     }

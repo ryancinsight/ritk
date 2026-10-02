@@ -41,9 +41,9 @@
 //! | Response | Implicit (Funk–Radon of signal SH) | Explicit (rotational harmonics `r_l`) |
 //! | Purpose | Orientation distribution | Fibre orientation density |
 
-use apollo_sht::{RealShError, RealSphericalHarmonicBasis, real_spherical_harmonic};
+use apollo_sht::{real_spherical_harmonic, RealShError, RealSphericalHarmonicBasis};
 use leto::{Array1, Array2};
-use leto_ops::{NnlsConfig, NnlsResult, nnls};
+use leto_ops::{nnls, NnlsConfig, NnlsResult};
 use ritk_diffusion_scheme::{DiffusionWeighting, GradientFrame, GradientScheme};
 
 // ── Error ─────────────────────────────────────────────────────────────────────

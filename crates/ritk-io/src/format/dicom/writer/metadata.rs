@@ -174,11 +174,11 @@ pub fn write_dicom_series_with_metadata<B: Backend, P: AsRef<Path>>(
         }
 
         // Emit preservation nodes before PixelData to maintain Image Pixel Module ordering.
-        if let Some(m) = metadata {
-            if !m.preservation.is_empty() {
-                let exclusion = writer_exclusion_tags();
-                emit_preservation_nodes(&mut obj, &m.preservation, &exclusion);
-            }
+        if let Some(m) = metadata
+            && !m.preservation.is_empty()
+        {
+            let exclusion = writer_exclusion_tags();
+            emit_preservation_nodes(&mut obj, &m.preservation, &exclusion);
         }
         obj.put_value(
             Tag(0x7FE0, 0x0010),

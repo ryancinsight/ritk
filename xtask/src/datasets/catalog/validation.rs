@@ -54,10 +54,10 @@ pub(super) fn list_nifti_files(dir: &Path) -> Result<Vec<PathBuf>> {
     for entry in walkdir::WalkDir::new(dir) {
         let entry = entry?;
         let path = entry.path();
-        if let Some(ext) = path.extension().and_then(|e| e.to_str()) {
-            if ext == "nii" || ext == "gz" {
-                files.push(path.to_path_buf());
-            }
+        if let Some(ext) = path.extension().and_then(|e| e.to_str())
+            && (ext == "nii" || ext == "gz")
+        {
+            files.push(path.to_path_buf());
         }
     }
     Ok(files)
@@ -139,10 +139,10 @@ pub(super) fn count_nifti_files(dir: &Path) -> Result<usize> {
         let entry = entry?;
         let path = entry.path();
 
-        if let Some(ext) = path.extension().and_then(|e| e.to_str()) {
-            if ext == "nii" || ext == "gz" {
-                count += 1;
-            }
+        if let Some(ext) = path.extension().and_then(|e| e.to_str())
+            && (ext == "nii" || ext == "gz")
+        {
+            count += 1;
         }
     }
 

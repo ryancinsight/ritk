@@ -21,7 +21,8 @@ where
     B::DeviceBuffer<f32>: coeus_core::CpuAddressableStorage<f32> + CpuAddressableStorageMut<f32>,
 {
     let indices = ritk_image::grid::generate_grid::<f32, B, 3>(fixed.shape(), &B::default());
-    fixed.index_to_world_native(&indices).as_slice().to_vec()
+    let world_coordinates = fixed.index_to_world_native(&indices);
+    world_coordinates.as_slice().to_vec()
 }
 
 /// Sample `moving` at axis-major world points, returning zero outside its buffer.

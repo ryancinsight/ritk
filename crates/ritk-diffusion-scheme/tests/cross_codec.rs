@@ -15,8 +15,8 @@
 use std::path::PathBuf;
 
 use ritk_diffusion_scheme::{
-    DiffusionWeighting, GradientDirection, GradientFrame, GradientScheme, read_fsl_scheme,
-    read_mrtrix_scheme, write_fsl_scheme, write_mrtrix_scheme,
+    read_fsl_scheme, read_mrtrix_scheme, write_fsl_scheme, write_mrtrix_scheme, DiffusionWeighting,
+    GradientDirection, GradientFrame, GradientScheme,
 };
 use ritk_spatial::Vector;
 

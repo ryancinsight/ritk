@@ -90,12 +90,10 @@ impl TractographyResult {
                 "scalars vec length must match streamline count"
             );
 
-            debug_assert!(
-                scalars
-                    .iter()
-                    .zip(self.streamlines.iter())
-                    .all(|(s, streamline)| s.len() == streamline.geometry().len() * n_scalars)
-            );
+            debug_assert!(scalars
+                .iter()
+                .zip(self.streamlines.iter())
+                .all(|(s, streamline)| s.len() == streamline.geometry().len() * n_scalars));
         }
 
         let mut trk = self.to_trk_header(dim, voxel_size, None);

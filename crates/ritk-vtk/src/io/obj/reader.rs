@@ -63,13 +63,12 @@ pub(crate) fn parse_obj(reader: impl BufRead) -> Result<VtkPolyData> {
                 let face = parse_face_line(rest, line_idx + 1)?;
                 // Assign normals to point positions; last-seen face reference wins.
                 for &(vi, _, ni_opt) in &face {
-                    if let Some(ni) = ni_opt {
-                        if let Some(&n) = normals_raw.get(ni as usize) {
-                            if (vi as usize) < point_normals.len() {
-                                point_normals[vi as usize] = Some(n);
-                                has_face_normals = true;
-                            }
-                        }
+                    if let Some(ni) = ni_opt
+                        && let Some(&n) = normals_raw.get(ni as usize)
+                        && (vi as usize) < point_normals.len()
+                    {
+                        point_normals[vi as usize] = Some(n);
+                        has_face_normals = true;
                     }
                 }
                 polygons.push(face.into_iter().map(|(vi, _, _)| vi).collect());

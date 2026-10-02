@@ -335,7 +335,7 @@ fn enforce_slic_connectivity(
     // `marker == 0` from `seed`, marking them; if `relabel_to` is Some, also set
     // their label. Returns the component as flat indices in `comp`.
     macro_rules! flood {
-        ($seed:expr, $req:expr, $relabel_to:expr) => {{
+        ($seed:expr_2021, $req:expr_2021, $relabel_to:expr_2021) => {{
             comp.clear();
             marker[$seed] = 1;
             if let Some(out) = $relabel_to {

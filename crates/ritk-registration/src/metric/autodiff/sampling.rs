@@ -130,7 +130,9 @@ where
     let axis = axis_interp(coords, len, &backend);
     let v0 = gather(signal, 0, &index_var(&axis.idx0, &backend));
     let v1 = gather(signal, 0, &index_var(&axis.idx1, &backend));
-    add(&mul(&v0, &axis.w0), &mul(&v1, &axis.w1))
+    let left = mul(&v0, &axis.w0);
+    let right = mul(&v1, &axis.w1);
+    add(&left, &right)
 }
 
 /// Differentiable trilinear interpolation of a flattened 3-D `signal` (shape

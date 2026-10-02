@@ -54,7 +54,8 @@ impl<B: Backend + BackendOps<f32>, const D: usize> TranslationTransform<B, D> {
             "translation transform requires points shaped [N, {D}], got {shape:?}"
         );
         let translation = reshape(&self.translation, [1, D]);
-        add_variables(points, &broadcast_variable(&translation, vec![shape[0], D]))
+        let broadcast_translation = broadcast_variable(&translation, vec![shape[0], D]);
+        add_variables(points, &broadcast_translation)
     }
 }
 
