@@ -19,7 +19,7 @@ pub(crate) const CROSSHAIR_COLOR: Color = Color::rgba(0, 229, 255, 255);
 /// clipped to the panel so the overlay cannot paint application chrome.
 pub(crate) fn crosshair_overlay(
     views: &[RenderedView; 3],
-    viewports: &[NativeViewport; 3],
+    viewports: &[NativeViewport],
     shape: Option<[usize; 3]>,
     cursor: Option<[usize; 3]>,
     visible: bool,

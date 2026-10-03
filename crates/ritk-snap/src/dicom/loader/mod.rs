@@ -24,7 +24,6 @@
 
 use std::path::{Path, PathBuf};
 
-use crate::dicom::input_path::classify_dicom_input_path;
 use crate::LoadedVolume;
 use anyhow::{Context, Result};
 
@@ -36,6 +35,8 @@ mod scan;
 #[cfg(test)]
 pub(crate) mod tests;
 
+#[cfg(windows)]
+pub(crate) use dicom_load::load_volume_from_dicom_instance;
 pub(crate) use dicom_load::load_volume_from_series_info;
 pub use dicom_load::{load_dicom_volume, load_volume_from_scanned_series};
 pub use nifti_load::load_nifti_volume;
@@ -116,7 +117,10 @@ pub(crate) fn validate_series_uid(series_uid: &str) -> Result<()> {
 pub fn load_volume_from_path<P: AsRef<Path>>(path: P) -> Result<LoadedVolume> {
     let path = path.as_ref();
 
-    if classify_dicom_input_path(path).dicom_root().is_some() {
+    if crate::dicom::input_path::classify_dicom_input_path(path)
+        .dicom_root()
+        .is_some()
+    {
         return load_dicom_volume(path);
     }
 

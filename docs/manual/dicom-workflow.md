@@ -302,10 +302,12 @@ exact NIfTI file/byte roundtrips for `.nii` and `.nii.gz`.
 
 Use **File → Open DICOM file…** to select a particular acquisition in a folder
 containing several series. The selected instance's SeriesInstanceUID determines
-which neighbouring image files load. **Open DICOM folder…** discovers the series
-browser; if the folder contains several series, choose a series there instead of
-accepting an arbitrary largest series. The highlighted series changes after
-successful loading. Selecting a secondary series retains its own exact files.
+which neighbouring image files load. **File → Open Study…** discovers the
+series catalog and displays its preview bar. The desktop viewer loads the first
+readable series initially. Selecting a series card loads it into the active
+panel; if it is already open, the viewer activates its existing panel. Ctrl-click
+opens that series in the next panel. Each panel retains its own series
+assignment. The highlighted card tracks the active panel.
 
 For a scripted startup or a Métis-native capture, pass the selected
 SeriesInstanceUID explicitly. RITK discovers the path and verifies the exact
@@ -317,17 +319,23 @@ cargo run --locked -p ritk-snap -- path/to/study \
 ```
 
 An unknown UID, a non-DICOM path, or a changed member list fails with a typed
-diagnostic. The launcher never chooses the largest or first series. This is the
-safe path for saved patient folders that contain multiple acquisitions; keep
-clinical files local and do not add them to the repository or its captures.
+diagnostic. Scripted startup requires an explicit UID whenever a folder has
+multiple series. This is the safe path for saved patient folders that contain
+multiple acquisitions; keep clinical files local and do not add them to the
+repository or its captures.
 
-The interactive Windows Métis shell follows the same rule. `Ctrl+O` opens the
-bounded folder picker; when the folder contains several acquisitions, RITK
-renders a series selector over the current framebuffer. Use **Arrow Up/Down**
-or **1–9**, then **Enter** to load the highlighted SeriesInstanceUID. **Escape**
-cancels without replacing the current study. A failed scan or decode reports
-the failure in the selector and keeps the previous decoded frame available,
-so a recoverable reopen never terminates the Métis host.
+In the native desktop shell, use **File → Open Study…** to choose a folder.
+Click a series card in the left preview bar to load it into the active panel;
+Ctrl-click opens it in the next panel. The **Open multiple series** button or
+F4 opens the catalog picker, where checkboxes select several series and Enter
+loads them into separate panels. **Escape** closes the picker without changing
+series assignments. Left/Right browses series in the active panel; a horizontal
+wheel over an image panel browses that panel's series. If a discovered series
+cannot be decoded before a readable one, the viewer loads the first readable
+series and reports how many unreadable entries it skipped. If no series in the
+replacement study can be opened, the prior catalog and every populated panel
+remain unchanged and the failure appears in the status bar. Selecting an
+unreadable series likewise preserves its assigned panel image.
 
 **Open DICOMDIR…** uses the index's referenced image set. Missing references or
 an invalid index report an error; unreferenced subdirectories do not supply a
@@ -1204,16 +1212,152 @@ attributes on every canvas. The browser control remains disabled until all
 three real study frames are presented, and its status output reports the
 current `z,y,x` coordinate. The crosshair display-list and browser semantic
 tests provide geometry and state evidence; the saved MRI capture below remains
-the clinical pixel evidence for the decoded study.
-The real MRI capture below remains the pixel evidence for the saved-study
-decode and three-plane Métis presentation; the test is the bounded input
-evidence for the interactive W/L transition.
-The reviewed 1280 × 800 output below is the actual run, not a made image:
+the anatomical pixel evidence for the public phantom study.
+The first full-window capture shows the live Métis native viewer with the
+public 94-instance MRI-DIR phantom, three orthogonal MPR panes and a fourth
+maximum-intensity projection, File, View, Tools and Window menus, a compact
+toolbar with separated tool groups, the study-and-series preview bar on the
+left of the image workspace, and the status bar. The second full-window
+capture shows MRI and CT from the same porcine phantom loaded simultaneously
+in two independent image panels. The left preview bar shows decoded
+thumbnails, per-series image-count badges, and panel assignments. Each panel
+displays the image number and count, window width and centre, and source pixel
+dimensions in its image corners.
+These readouts track the active series render state. Scanned image counts
+include the frames declared by `NumberOfFrames`; a file without that attribute
+counts as one image. The MRI-DIR phantom series shown here are single-frame,
+so their image counts match their DICOM file counts.
 
-![Actual MRI-DIR T2 series rendered through the Métis native surface](images/dicom-metis-real-mri.png)
+To compare series, open the folder that contains them, then choose **Split
+screen** or **Panel layout...** from **Window**. The picker maps all 20
+column-and-row combinations from 1×1 through 5×4. Click a destination panel
+and select a series card in the left preview bar, or drag the card into its
+destination. Ctrl-clicking a series opens it in the next available panel,
+including when that series is already displayed. Repeated panels share decoded
+voxel samples while retaining independent navigation and display state. The
+active-panel label identifies the destination, and each series card shows its
+panel assignment. Clicking an assigned card activates that panel. Slice,
+window/level, zoom, pan and cine state remain independent between panels. A
+series may occupy more than one panel. A failed load preserves the displayed
+volume. This reproduces RadiAnt's documented series-browsing and multi-series
+workflow.
 
-The input byte count, source revisions, executable digest and image digest are
-recorded in [`dicom-metis-real-mri.json`](images/dicom-metis-real-mri.json).
+Left and Right browse the previous or next series in the active panel. A
+horizontal wheel browses relative to the series shown in the panel under the
+pointer and replaces only that panel's series. Activating a series card still
+switches to the panel already assigned to that card.
+
+The F4 multiple-series picker opens with its series list focused. Typing moves
+focus to the filter; spaces remain search text there. Press Down or click a row
+to return to the list, where Space toggles the selected series. Enter loads all
+selected rows, or the first visible result when no row is selected. A filter
+with no results cannot load a hidden selection and leaves the picker open.
+
+The shareable captures use the public phantom and contain no clinical patient
+identifiers. The preview rail groups each study with separate patient and
+study headers. They show Patient Name, then study date/acquisition time,
+series description, modality and series count; Patient ID is not displayed. Series
+cards follow each header and show thumbnails, image counts and panel
+assignments. The controls invoke study loading, image tools, crosshair, cine,
+series navigation, panel layout, and reset actions. RITK is being built as a
+RadiAnt DICOM Viewer clone. This native slice follows its desktop organization:
+a Windows menu bar, dark compact toolbar with vertical separators between tool
+groups, study-and-series preview bar, multi-panel image grid, F4 multi-series
+picker, Ctrl-click and drag assignment, and per-panel maximize/restore/close
+controls. Configurable mouse-button mappings and the full image annotation set
+remain open parity gaps, tracked in the
+[native viewer work](../../backlog.md#RITK-SNAP-RADIANT-INPUT-001) and
+[oblique MPR work](../../backlog.md#RITK-SNAP-OBLIQUE-NATIVE-001). The
+reference behavior appears in [series browsing](https://www.radiantviewer.com/dicom-viewer-manual/browse_series_and_images.html),
+[multiple-series viewing](https://www.radiantviewer.com/dicom-viewer-manual/view_multiple_series.html),
+and [mouse functions](https://www.radiantviewer.com/dicom-viewer-manual/mouse_functions.html).
+RITK and Métis provide the application branding, rendering, and DICOM pixels.
+The captures show the running application rather than annotated framebuffers
+or generated images.
+
+From the RITK repository root, build and capture the visible MPR window. Then
+place hard links to the two public series in one temporary folder and capture
+the comparison window. The source DICOM files remain unchanged:
+
+```powershell
+cargo build --locked -p ritk-snap --bin ritk-snap
+$target = (cargo metadata --format-version 1 --no-deps |
+  ConvertFrom-Json).target_directory
+$captureOutput = Join-Path $PWD 'scratch\viewer\radiant-clone'
+New-Item -ItemType Directory -Path $captureOutput -Force | Out-Null
+$atlasRoot = (Get-Item $PWD).Parent.Parent.FullName
+$captureUtility = Join-Path $atlasRoot 'repos\metis\scripts\python_native_capture.py'
+python $captureUtility `
+  --command (Join-Path $target "debug\ritk-snap.exe") `
+  --cwd (Get-Location).Path `
+  --argument=test_data\2_head_mri_t2\DICOM `
+  --argument=--metis-native `
+  --argument=--metis-native-layout `
+  --argument=orthogonal-with-mip `
+  --title 'RITK DICOM Viewer' `
+  --width 1280 `
+  --height 800 `
+  --output scratch\viewer\radiant-clone\real-mri-mpr-application-window.png
+$comparisonStudy = Join-Path $captureOutput ("multiseries-" + [Guid]::NewGuid().ToString("N"))
+New-Item -ItemType Directory -Path $comparisonStudy | Out-Null
+foreach ($source in @(
+  @{ Prefix = "MR"; Path = "test_data\2_head_mri_t2\DICOM" },
+  @{ Prefix = "CT"; Path = "test_data\3_head_ct_mridir\DICOM" }
+)) {
+  Get-ChildItem $source.Path -Filter *.dcm | ForEach-Object {
+    New-Item -ItemType HardLink `
+      -Path (Join-Path $comparisonStudy ($source.Prefix + "-" + $_.Name)) `
+      -Target $_.FullName | Out-Null
+  }
+}
+python $captureUtility `
+  --command (Join-Path $target "debug\ritk-snap.exe") `
+  --cwd (Get-Location).Path `
+  --argument=$comparisonStudy `
+  --argument=--metis-native `
+  --argument=--series-instance-uid `
+  --argument=1.3.6.1.4.1.14519.5.2.1.1706.4996.123065603063404191260103927213 `
+  --argument=--compare-series-instance-uid `
+  --argument=1.3.6.1.4.1.14519.5.2.1.1706.4996.115936088547498980797393821518 `
+  --title 'RITK DICOM Viewer' `
+  --width 1280 `
+  --height 800 `
+  --output scratch\viewer\radiant-clone\real-mri-ct-multiseries-window.png
+```
+
+![Full RITK/Métis viewer window with menus and a compact separated toolbar above the workspace, a left study-and-series preview bar with thumbnail counts, status bar, three orthogonal RITK MPR panes and one MIP projection, and the real public MRI phantom](images/dicom-metis-real-mri-application-window.webp)
+
+![Full RITK/Métis viewer window with menus and a compact separated toolbar above the workspace, left preview bar showing real MRI and CT thumbnails, image-count badges and panel assignments, status bar, and both actual public series side by side](images/dicom-metis-real-mri-ct-multiseries-window.webp)
+
+The two-panel screenshot shows the current native application with the actual
+94-image MRI and 409-image CT loaded in independent P1 and P2 panels. This
+capture launches the app with both series UIDs to make the displayed result
+repeatable; it does not depict the picker interaction. To open the same series
+through the viewer, open their folder, press F4 or choose **Open multiple
+series** from **Window**, select MR T2 and CT, then press Enter or click
+**Open**. Enter opens every selected row; with no selection, it opens the
+first filtered match. Each panel has independent image navigation and
+window-level state. The left series bar groups studies into patient/study
+headers, then shows decoded series thumbnails, image counts and panel
+assignments. Each panel title bar exposes
+maximize/restore and close controls. Ctrl-click or drag a preview card to
+assign another series to a panel. The public MRI-DIR porcine-head phantom is
+not patient data. Native input and state-transition tests cover the F4 picker
+and selection workflow; the full-window capture is visual evidence of the
+loaded multi-series result.
+
+The separate 1280 × 800 pane-only capture remains the pixel evidence for the
+saved-study decode; it deliberately excludes the application controls and
+Windows chrome:
+
+[`dicom-metis-real-mri.png`](images/dicom-metis-real-mri.png)
+
+Each full-window capture has a provenance record containing the capture
+utility, executable digest, study input counts and image digest:
+[`MPR capture`](images/dicom-metis-real-mri-application-window.json),
+[`two-series viewer`](images/dicom-metis-real-mri-ct-multiseries-window.json),
+The pane-only image and its separate decode provenance remain recorded in
+[`dicom-metis-real-mri.json`](images/dicom-metis-real-mri.json).
 The saved-study harness reran this workflow on 2026-09-14 at RITK
 `f6e82835b856c55adcc1b97ad173686903e6a974`, Métis
 `ed3806811f23271310cb04078dff55aba5c90944` and Moirai
@@ -1340,7 +1484,7 @@ recorded in
 [`dicom-metis-real-browser-mri.json`](images/dicom-metis-real-browser-mri.json).
 The capture excludes browser chrome. This run proves the saved MRI study through
 one Chromium browser host and a bounded programmatic drop; physical drag-and-
-drop, Firefox/WebKit, WebGPU and complete application-window capture remain
+drop, Firefox/WebKit, WebGPU and complete browser-window capture remain
 separate acceptance work.
 
 A clean-main replay on 2026-09-16 used the standard W3C chooser in headless
@@ -1391,7 +1535,7 @@ SHA-256 digest are recorded in
 capture scope is the canvas pixels; it excludes browser chrome. This run uses
 a bounded programmatic `DataTransfer` in one Chromium host, so it demonstrates
 real DICOM decoding and browser presentation but does not close physical
-drag-and-drop, Firefox/WebKit, WebGPU or complete application-window capture.
+drag-and-drop, Firefox/WebKit, WebGPU or complete browser-window capture.
 
 ### Three orthogonal canvases from the complete bounded real series
 
@@ -1419,7 +1563,7 @@ bytes; this public 409-slice study is within both bounds. The capture scope is
 the canvas pixels, excluding browser chrome. It demonstrates actual DICOM
 loading and orthogonal presentation in the Codex in-app Chromium host through
 a programmatic `DataTransfer`; physical drag-and-drop, Firefox/WebKit,
-WebGPU and complete application-window capture remain separate acceptance
+WebGPU and complete browser-window capture remain separate acceptance
 work. The public phantom data is the only committed image source; private
 clinical studies stay local. A second run through Metis's pinned
 `browser_drop.py` and Edge 153.0.4234.19 used a configured W3C session with
@@ -2300,7 +2444,7 @@ This image is the PNG exported by the canvas during that run and is inspected
 as an application-content snapshot. The synthetic DOM event is untrusted, so
 the smoke proves the packaged byte-to-frame path but does not close physical
 drag-and-drop, physical pointer input, cross-engine browser input, GPU, or
-complete application-window capture acceptance.
+complete browser-window capture acceptance.
 
 ## Inspect the browser orthogonal visual capture
 
@@ -2316,7 +2460,7 @@ contains no patient data, and preserves the axial/coronal/sagittal order.
 
 This runtime capture proves the packaged three-canvas presentation path. The
 drop event is still synthetic, so physical drag-and-drop, cross-engine pointer
-input, GPU upload, and complete application-window capture remain open. The
+input, GPU upload, and complete browser-window capture remain open. The
 format-neutral pointer and wheel handoff itself is implemented: each canvas
 retains a bounded queue, preserves target-local coordinates, normalizes line
 and page wheel units, routes events to its RITK axis, and cancels an active
@@ -2525,9 +2669,10 @@ recomposes the three panels, so the next Métis framebuffer reflects the drag as
 well as the updated viewer state. This is a state-and-pixels check; it does not
 move DICOM parsing or geometry ownership into Métis.
 
-Keyboard page navigation follows the same RITK-owned action path. Page Down
-advances the active slice and recomposes the native Métis framebuffer; the
-native session test verifies both the slice index and changed pixels.
+Keyboard page navigation follows the same RITK-owned action path. Up and Down
+move one slice; Page Up and Page Down move ten slices as in RadiAnt's series
+navigation workflow. The native session recomposes the Métis framebuffer after
+each action, and RITK tests assert the resulting slice indices.
 
 Deferred viewer loads use a bounded Moirai task per primary or comparison
 target. RITK assigns each request a generation and checks cooperative
@@ -2666,7 +2811,7 @@ covered by the completed [RITK-SNAP-FRAMES-001](../../backlog.md#RITK-SNAP-FRAME
 item. These workflows prepare the egui baseline for the Métis migration. The
 browser handoff now has a compiled RITK adapter, manual workflow, and a local
 synthetic runtime visual smoke. Browser WebGPU is an explicit opt-in path;
-physical browser input, a real GPU visual run and full application-window
+physical browser input, a real GPU visual run and full browser-window
 capture remain separate acceptance items in
 [RITK-SNAP-METIS-001](../../backlog.md#RITK-SNAP-METIS-001).
 

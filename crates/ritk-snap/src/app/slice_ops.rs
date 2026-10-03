@@ -5,6 +5,9 @@ use crate::LoadedVolume;
 
 use super::state::SnapApp;
 
+/// RadiAnt's documented Page Up/Down stride in the active image series.
+const PAGE_NAVIGATION_STEP: i32 = 10;
+
 /// Host-neutral result of one cine timing sample.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub(crate) enum CineTick {
@@ -158,10 +161,14 @@ impl SnapApp {
         home: bool,
         end: bool,
     ) {
-        if arrow_up || page_up {
+        if arrow_up {
             self.step_slice(-1);
-        } else if arrow_down || page_down {
+        } else if page_up {
+            self.step_slice(-PAGE_NAVIGATION_STEP);
+        } else if arrow_down {
             self.step_slice(1);
+        } else if page_down {
+            self.step_slice(PAGE_NAVIGATION_STEP);
         } else if home {
             self.jump_active_axis_slice_boundary(false);
         } else if end {
