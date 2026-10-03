@@ -195,8 +195,9 @@ with `xtask burn-migration-audit`) rather than allowlisted.
 
 The native flat-buffer trilinear sampler was the interpolation crate's final
 direct `num-traits` consumer. Its public generic contract now uses Eunomia's
-sealed `FloatElement` seam and provider-owned `CastFrom<T> for usize`
-conversion. Because this narrows the set of external scalar implementations,
+sealed `FloatElement` seam. Revised 2026-10-03: the `usize: CastFrom<T>`
+bound it first carried is gone; the index conversion is Eunomia's
+`IntegerTarget::from_truncated`. Because this narrows the set of external scalar implementations,
 `ritk-interpolation` advances from 0.3.0 to 0.4.0.
 
 This scalar-provider change does not satisfy the crate-level Burn removal

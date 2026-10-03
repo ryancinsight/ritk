@@ -3,7 +3,8 @@
 use coeus_core::ComputeBackend;
 #[cfg(test)]
 use coeus_core::CpuAddressableStorage;
-use eunomia::{CastFrom, FloatElement};
+use eunomia::convert::IntegerTarget;
+use eunomia::FloatElement;
 use ritk_image::Image;
 use ritk_transform::transform::affine::AtlasAffineTransform;
 
@@ -171,7 +172,7 @@ pub(super) fn trilinear_background(
         }
         clamped[axis] = point[axis].clamp(0.0, extent - 1.0);
     }
-    let lower = clamped.map(|coordinate| usize::cast_from(coordinate.floor()));
+    let lower = clamped.map(usize::from_floor);
     let upper: [usize; 3] = std::array::from_fn(|axis| (lower[axis] + 1).min(shape[axis] - 1));
     let fraction: [f32; 3] = std::array::from_fn(|axis| {
         let lower = u32::try_from(lower[axis])

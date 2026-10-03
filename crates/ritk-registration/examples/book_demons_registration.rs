@@ -12,7 +12,7 @@
 use anyhow::{bail, Context, Result};
 use base64::{engine::general_purpose::STANDARD, Engine as _};
 use coeus_core::SequentialBackend;
-use eunomia::CastFrom;
+use eunomia::convert::IntegerTarget;
 use image::{codecs::png::PngEncoder, ColorType, ImageEncoder, Rgb, RgbImage};
 use ritk_io::{format::metaimage::native::MetaImageReader, ImageReader};
 use ritk_registration::{DemonsConfig, ThirionDemonsRegistration};
@@ -190,7 +190,7 @@ enum Panel<'a> {
 }
 
 fn channel(value: f32) -> u8 {
-    u8::cast_from((value.clamp(0.0, 1.0) * 255.0).round())
+    u8::from_truncated(f64::from((value.clamp(0.0, 1.0) * 255.0).round()))
 }
 
 fn render_panel(panel: Panel<'_>) -> Result<RgbImage> {

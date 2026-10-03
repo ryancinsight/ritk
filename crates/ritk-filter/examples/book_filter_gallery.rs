@@ -8,7 +8,7 @@
 use anyhow::{bail, Context, Result};
 use base64::{engine::general_purpose::STANDARD, Engine as _};
 use coeus_core::SequentialBackend;
-use eunomia::CastFrom;
+use eunomia::convert::IntegerTarget;
 use image::{codecs::png::PngEncoder, ColorType, ImageEncoder};
 use ritk_filter::{CannyEdgeDetector, GaussianFilter, GaussianSigma};
 use ritk_image::Image;
@@ -90,7 +90,7 @@ fn svg_panel(svg: &mut String, values: &[f32], title: &str, offset_x: u32) -> Re
         .context("filter panel raster size overflows usize")?;
     let mut raster = Vec::with_capacity(raster_capacity);
     for value in values {
-        let intensity = u8::cast_from((value.clamp(0.0, 1.0) * 255.0).round());
+        let intensity = u8::from_truncated(f64::from((value.clamp(0.0, 1.0) * 255.0).round()));
         raster.extend_from_slice(&[intensity, intensity, intensity]);
     }
     let mut png = Vec::new();
