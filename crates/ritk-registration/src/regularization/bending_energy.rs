@@ -18,7 +18,7 @@
 //! - L2 penalty on second derivatives
 
 use super::trait_::Regularizer;
-use coeus_core::{ComputeBackend, CpuAddressableStorage, Scalar};
+use coeus_core::{ComputeBackend, CpuAddressableStorage, FloatElement, Scalar};
 use coeus_tensor::Tensor;
 
 /// Bending energy regularizer for displacement fields.
@@ -61,7 +61,7 @@ impl Default for BendingEnergyRegularizer {
 
 impl<T, B> Regularizer<T, B> for BendingEnergyRegularizer
 where
-    T: Scalar,
+    T: Scalar + FloatElement,
     B: ComputeBackend + Default,
     B::DeviceBuffer<T>: CpuAddressableStorage<T>,
 {

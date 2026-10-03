@@ -167,7 +167,7 @@ impl MpPcaDenoiser {
                 coverage
                     .iter()
                     .enumerate()
-                    .map(|(voxel, &count)| sum[voxel * depth + d] / T::from_usize(count))
+                    .map(|(voxel, &count)| sum[voxel * depth + d] / T::from_count(count))
                     .collect()
             })
             .collect();
@@ -387,7 +387,7 @@ impl<T: RealScalar> WindowWorkspace<T> {
 
         // Lower triangle only: the eigensolver reads no other entry. Each
         // entry still sums its products in ascending row (or column) order.
-        let scale = T::from_usize(n);
+        let scale = T::from_count(n);
         let mut gram = std::mem::take(&mut self.gram);
         gram.clear();
         gram.resize(m * m, T::ZERO);

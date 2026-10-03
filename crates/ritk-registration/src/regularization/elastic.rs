@@ -25,7 +25,7 @@
 //! - Modern variants: Hyperelastic (volume-preserving) formulations
 
 use super::trait_::Regularizer;
-use coeus_core::{ComputeBackend, CpuAddressableStorage, Scalar};
+use coeus_core::{ComputeBackend, CpuAddressableStorage, FloatElement, Scalar};
 use coeus_tensor::Tensor;
 
 /// Elastic regularizer combining membrane and volume-preserving terms.
@@ -99,7 +99,7 @@ impl Default for ElasticRegularizer {
 
 impl<T, B> Regularizer<T, B> for ElasticRegularizer
 where
-    T: Scalar,
+    T: Scalar + FloatElement,
     B: ComputeBackend + Default,
     B::DeviceBuffer<T>: CpuAddressableStorage<T>,
 {

@@ -30,7 +30,7 @@
 //! - Extensions for flow and displacement fields
 
 use super::trait_::Regularizer;
-use coeus_core::{ComputeBackend, CpuAddressableStorage, Scalar};
+use coeus_core::{ComputeBackend, CpuAddressableStorage, FloatElement, Scalar};
 use coeus_tensor::Tensor;
 
 /// Total Variation regularizer for displacement fields.
@@ -77,7 +77,7 @@ impl Default for TotalVariationRegularizer {
 
 impl<T, B> Regularizer<T, B> for TotalVariationRegularizer
 where
-    T: Scalar,
+    T: Scalar + FloatElement,
     B: ComputeBackend + Default,
     B::DeviceBuffer<T>: CpuAddressableStorage<T>,
 {
