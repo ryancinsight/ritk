@@ -202,12 +202,12 @@ fn adapter_accumulates_repaint_across_actions_in_one_batch() {
         .apply_presentation_events(
             &[
                 PresentationEvent::KeyDown {
-                    virtual_key: 0x22,
+                    virtual_key: 0x28,
                     repeated: false,
                     modifiers: PresentationModifiers::NONE,
                 },
                 PresentationEvent::KeyUp {
-                    virtual_key: 0x22,
+                    virtual_key: 0x28,
                     modifiers: PresentationModifiers::NONE,
                 },
             ],

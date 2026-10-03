@@ -10,10 +10,13 @@ use ritk_io::{
     load_dicom_from_series, load_dicom_multiframe_flat, load_dicom_multiframe_flat_from_bytes,
     read_multiframe_info, read_multiframe_info_from_bytes,
 };
+use ritk_io::{load_dicom_from_series_with_budget, scan_dicom_files_with_budget, DicomReadBudget};
 use tracing::info;
 
 use crate::render::GrayscalePresentation;
 use crate::LoadedVolume;
+
+const SERIES_PREVIEW_DECODED_BYTE_BUDGET: usize = 64 * 1024 * 1024;
 
 /// Load a DICOM series from a pre-scanned series descriptor into a [`LoadedVolume`].
 ///
@@ -42,6 +45,21 @@ pub fn load_volume_from_scanned_series(
     } else {
         load_dicom_scalar_volume_from_scanned_series(series)
     }
+}
+
+pub(crate) fn load_volume_from_dicom_instance(path: &Path) -> Result<LoadedVolume> {
+    let budget = DicomReadBudget::try_new(
+        DicomReadBudget::DEFAULT.parser(),
+        SERIES_PREVIEW_DECODED_BYTE_BUDGET,
+        SERIES_PREVIEW_DECODED_BYTE_BUDGET,
+    )?;
+    let paths = [path.to_path_buf()];
+    let series = scan_dicom_files_with_budget(&paths, &budget)
+        .with_context(|| format!("scan DICOM preview instance '{}'", path.display()))?;
+    let backend = SequentialBackend;
+    let (image, metadata) = load_dicom_from_series_with_budget(series, &backend, &budget)
+        .with_context(|| format!("decode DICOM preview instance '{}'", path.display()))?;
+    loaded_volume_from_scalar_image(image, metadata, None, &backend)
 }
 
 /// Return the frame count carried by a scanned member, using its retained

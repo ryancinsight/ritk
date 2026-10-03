@@ -25,7 +25,7 @@
 //! - [`SeriesTree::find_by_uid`] returns `Some` for every Series Instance UID that
 //!   appears in any series stored in the tree.
 
-use ritk_io::DicomSeriesInfo;
+use ritk_io::{DicomReadMetadata, DicomSeriesInfo};
 use std::borrow::Cow;
 use std::path::Path;
 use std::sync::Arc;
@@ -136,6 +136,8 @@ pub struct SeriesEntry<'a> {
     pub study_date: Option<Cow<'a, str>>,
     /// Study Instance UID, when known.
     pub study_uid: Option<Cow<'a, str>>,
+    /// Series acquisition time, when known.
+    pub series_time: Option<Cow<'a, str>>,
 }
 
 impl SeriesEntryView for SeriesEntry<'_> {
@@ -169,14 +171,25 @@ impl SeriesEntryView for SeriesEntry<'_> {
 }
 
 impl SeriesEntry<'_> {
-    /// Retain a discovered acquisition without losing its file selection.
-    pub fn from_dicom_series_info(mut info: DicomSeriesInfo) -> Self {
+    /// Retain a discovered acquisition and its validated display metadata.
+    pub fn from_dicom_series_info(mut info: DicomSeriesInfo, metadata: DicomReadMetadata) -> Self {
         info.file_paths.sort();
+        let patient_name = Cow::Owned(metadata.patient_name.unwrap_or_default());
+        let study_date = metadata
+            .study_date
+            .map(|date| Cow::Owned(date.as_str().to_owned()));
+        let study_uid = metadata
+            .study_instance_uid
+            .map(|uid| Cow::Owned(uid.as_str().to_owned()));
+        let series_time = metadata
+            .series_time
+            .map(|time| Cow::Owned(time.as_str().to_owned()));
         Self {
             acquisition: Arc::new(info),
-            patient_name: Cow::Borrowed(""),
-            study_date: None,
-            study_uid: None,
+            patient_name,
+            study_date,
+            study_uid,
+            series_time,
         }
     }
     /// Display the series description, modality and slice count.
@@ -251,6 +264,8 @@ pub struct StudyNode<'a> {
     pub study_uid: Option<Cow<'a, str>>,
     /// Study date in `YYYYMMDD` format — `None` when absent.
     pub study_date: Option<Cow<'a, str>>,
+    /// Series acquisition time used for the study display, when known.
+    pub series_time: Option<Cow<'a, str>>,
     /// Series belonging to this study, in insertion order.
     pub series: Vec<SeriesNode>,
 }
@@ -307,6 +322,7 @@ impl<'a> SeriesTree<'a> {
                 patient_name,
                 study_date,
                 study_uid,
+                series_time,
             } = entry;
             let patient_id: Cow<'_, str> = Cow::Owned(acquisition.patient_id.clone());
 
@@ -351,6 +367,7 @@ impl<'a> SeriesTree<'a> {
                     patient.studies.push(StudyNode {
                         study_uid: None,
                         study_date: None,
+                        series_time,
                         series: Vec::new(),
                     });
                     patient.studies.len() - 1
@@ -362,6 +379,7 @@ impl<'a> SeriesTree<'a> {
                         patient.studies.push(StudyNode {
                             study_uid,
                             study_date,
+                            series_time,
                             series: Vec::new(),
                         });
                         let idx = patient.studies.len() - 1;

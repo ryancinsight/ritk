@@ -81,8 +81,22 @@ fn slice_navigation_shortcuts_advance_or_rewind_active_axis() {
     app.apply_slice_navigation_shortcuts(true, false, false, false, false, false);
     assert_eq!(app.viewer_state.slice_index, 0);
 
-    app.apply_slice_navigation_shortcuts(false, false, false, true, false, false);
+    app.apply_slice_navigation_shortcuts(false, true, false, false, false, false);
     assert_eq!(app.viewer_state.slice_index, 1);
+}
+
+#[test]
+fn page_navigation_shortcuts_move_ten_slices() {
+    let mut app = SnapApp::default();
+    app.loaded = Some(test_volume([24, 4, 5]));
+    app.axis = 0;
+    app.viewer_state.slice_index = 12;
+
+    app.apply_slice_navigation_shortcuts(false, false, true, false, false, false);
+    assert_eq!(app.viewer_state.slice_index, 2);
+
+    app.apply_slice_navigation_shortcuts(false, false, false, true, false, false);
+    assert_eq!(app.viewer_state.slice_index, 12);
 }
 
 #[test]

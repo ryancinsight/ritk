@@ -4,20 +4,42 @@ use crate::app::viewer_viewport::ViewerViewport;
 use crate::presentation::PresentationSpacing;
 use crate::tools::interaction::ViewportOffset;
 use anyhow::{anyhow, bail, Result};
+#[cfg(test)]
+use metis_platform::Rect;
 
 use super::super::frame::RenderedView;
 
 /// Pixel separator between native viewer panels.
-pub(super) const VIEW_GAP_PIXELS: u32 = 4;
+pub(crate) const VIEW_GAP_PIXELS: u32 = 4;
+
+/// Bounded client-area region reserved for medical-image panes.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub(in crate::presentation::native_session) struct ViewportArea {
+    pub(in crate::presentation::native_session) x: u32,
+    pub(in crate::presentation::native_session) y: u32,
+    pub(in crate::presentation::native_session) width: u32,
+    pub(in crate::presentation::native_session) height: u32,
+}
+
+impl ViewportArea {
+    pub(in crate::presentation::native_session) const fn full(width: u32, height: u32) -> Self {
+        Self {
+            x: 0,
+            y: 0,
+            width,
+            height,
+        }
+    }
+}
 
 /// Screen placement and RITK coordinate mapping for one composed view.
 #[derive(Debug, Clone, Copy)]
 pub(crate) struct NativeViewport {
     pub(super) panel: ScreenRect,
-    pub(super) panel_x: u32,
-    pub(super) panel_y: u32,
-    pub(super) panel_width: u32,
-    pub(super) panel_height: u32,
+    pub(in crate::presentation::native_session) panel_x: u32,
+    pub(in crate::presentation::native_session) panel_y: u32,
+    pub(in crate::presentation::native_session) panel_width: u32,
+    pub(in crate::presentation::native_session) panel_height: u32,
     pub(super) image: ScreenRect,
     pub(super) mapping: ViewerViewport,
 }
@@ -57,6 +79,16 @@ impl NativeViewport {
     }
 
     #[cfg(test)]
+    pub(crate) fn panel_rect(self) -> Result<Rect> {
+        Ok(Rect::new(
+            i32::try_from(self.panel_x).map_err(|_| anyhow!("panel x exceeds i32"))?,
+            i32::try_from(self.panel_y).map_err(|_| anyhow!("panel y exceeds i32"))?,
+            i32::try_from(self.panel_width).map_err(|_| anyhow!("panel width exceeds i32"))?,
+            i32::try_from(self.panel_height).map_err(|_| anyhow!("panel height exceeds i32"))?,
+        ))
+    }
+
+    #[cfg(test)]
     pub(crate) fn center(self) -> (i32, i32) {
         let x = (self.image.x + self.image.width * 0.5).round();
         let y = (self.image.y + self.image.height * 0.5).round();
@@ -91,25 +123,6 @@ impl ScreenRect {
             && x < self.x + self.width
             && y < self.y + self.height
     }
-}
-
-pub(super) fn placement(
-    view: &RenderedView,
-    panel_x: u32,
-    panel_width: u32,
-    surface_height: u32,
-    zoom: f32,
-    pan_offset: ViewportOffset,
-) -> Result<NativeViewport> {
-    placement_with_bounds(
-        view,
-        panel_x,
-        0,
-        panel_width,
-        surface_height,
-        zoom,
-        pan_offset,
-    )
 }
 
 pub(super) fn placement_with_bounds(

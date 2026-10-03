@@ -8,7 +8,8 @@
 use super::state::SnapApp;
 use super::viewer_viewport::ViewerViewport;
 use crate::presentation::{
-    ActionDispatchError, PointerButton, PointerGesture, PresentationEvent, ViewerAction,
+    ActionDispatchError, PointerButton, PointerGesture, PresentationDispatcher, PresentationEvent,
+    ViewerAction,
 };
 use crate::ui::{should_zoom_with_scroll, tool_kind_for_virtual_key, zoom_from_scroll};
 use thiserror::Error;
@@ -71,13 +72,8 @@ impl SnapApp {
         events: &[PresentationEvent],
         viewport: Option<&ViewerViewport>,
     ) -> Result<ViewerActionDisposition, ViewerInputError> {
-        for event in events {
-            validate_presentation_event(event)?;
-        }
-        let actions = self.presentation_dispatcher.dispatch(events)?;
-        for action in actions.iter() {
-            validate_viewer_action(action)?;
-        }
+        let mut next_dispatcher = self.presentation_dispatcher.clone();
+        let actions = reduce_presentation_events(&mut next_dispatcher, events)?;
         let mut repaint = false;
         for action in actions.iter() {
             match self.apply_viewer_action(action, viewport)? {
@@ -85,10 +81,12 @@ impl SnapApp {
                     repaint |= needed;
                 }
                 ViewerActionDisposition::Exit => {
+                    self.presentation_dispatcher = next_dispatcher;
                     return Ok(ViewerActionDisposition::Exit);
                 }
             }
         }
+        self.presentation_dispatcher = next_dispatcher;
         Ok(ViewerActionDisposition::Continue { repaint })
     }
 
@@ -97,7 +95,7 @@ impl SnapApp {
     /// A native or browser host can terminate a drag without a final client
     /// coordinate. Clearing both reducer and viewer gesture state keeps the
     /// next press admissible and mirrors the focus-loss cancellation path.
-    #[cfg(any(target_arch = "wasm32", feature = "eframe-shell"))]
+    #[cfg(any(target_arch = "wasm32", windows, feature = "eframe-shell"))]
     pub(crate) fn cancel_presentation_gesture(&mut self) {
         self.presentation_dispatcher.cancel_pointers();
         self.on_drag_end(None);
@@ -306,6 +304,27 @@ pub(crate) enum ViewerInputError {
     /// The reduced action had no corresponding RITK transition.
     #[error("viewer action application failed: {0}")]
     Action(#[from] ViewerActionError),
+}
+
+pub(crate) fn preflight_presentation_events(
+    dispatcher: &mut PresentationDispatcher,
+    events: &[PresentationEvent],
+) -> Result<(), ViewerInputError> {
+    reduce_presentation_events(dispatcher, events).map(|_| ())
+}
+
+fn reduce_presentation_events(
+    dispatcher: &mut PresentationDispatcher,
+    events: &[PresentationEvent],
+) -> Result<Box<[ViewerAction]>, ViewerInputError> {
+    for event in events {
+        validate_presentation_event(event)?;
+    }
+    let actions = dispatcher.dispatch(events)?;
+    for action in actions.iter() {
+        validate_viewer_action(action)?;
+    }
+    Ok(actions)
 }
 
 fn validate_presentation_event(event: &PresentationEvent) -> Result<(), ViewerActionError> {

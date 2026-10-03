@@ -44,6 +44,7 @@ fn compose(
         views,
         fourth_frame,
         surface_size,
+        ViewportArea::full(surface_size[0], surface_size[1]),
         navigation(),
         navigation(),
     )
@@ -244,11 +245,11 @@ fn four_panel_composition_rejects_zero_and_unpartitionable_surfaces() {
         ),
         (
             [3, 60],
-            "native four-panel layout is narrower than its separator",
+            "native four-panel viewport is narrower than its separator",
         ),
         (
             [80, 3],
-            "native four-panel layout is shorter than its separator",
+            "native four-panel viewport is shorter than its separator",
         ),
         (
             [5, 60],
@@ -260,10 +261,17 @@ fn four_panel_composition_rejects_zero_and_unpartitionable_surfaces() {
         ),
     ] {
         assert_eq!(
-            compose_four_panel(&views, &fourth, surface_size, navigation(), navigation(),)
-                .err()
-                .map(|error| error.to_string())
-                .as_deref(),
+            compose_four_panel(
+                &views,
+                &fourth,
+                surface_size,
+                ViewportArea::full(surface_size[0], surface_size[1]),
+                navigation(),
+                navigation(),
+            )
+            .err()
+            .map(|error| error.to_string())
+            .as_deref(),
             Some(expected)
         );
     }

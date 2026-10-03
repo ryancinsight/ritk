@@ -12,8 +12,9 @@ use metis_ui_lang::{DisplayCommand, DisplayList};
 use std::time::{Duration, Instant};
 mod display;
 mod interaction;
-mod selection;
+mod series_browser;
 mod support;
+mod window_controls;
 #[cfg(feature = "eframe-shell")]
 use support::{expected_native_frame, session_with_volume};
 use support::{session, session_with_mode, session_with_responsive_mode};
@@ -198,7 +199,7 @@ fn native_session_keyboard_navigation_updates_presented_frame() {
     let initial_slice = session.app.viewer_state.slice_index;
     session
         .handle_events(&[WindowEvent::KeyDown {
-            virtual_key: 0x22,
+            virtual_key: 0x28,
             repeated: false,
             modifiers: ModifierState::NONE,
         }])
@@ -231,10 +232,7 @@ fn native_session_reopens_selected_study_through_the_ritk_loader() {
     assert_eq!(session.views[0].frame().width(), 4);
     assert_eq!(session.views[0].frame().height(), 1);
     assert!(!session.app.cine.enabled);
-    assert!(session
-        .app
-        .status_message
-        .contains("Loaded native Métis series"));
+    assert!(session.app.status_message.contains("Loaded CT series"));
     assert!(
         session
             .observation
@@ -317,6 +315,32 @@ fn native_session_crosshair_key_repaints_and_updates_snapshot() {
     assert_eq!(repeated, NativeFlow::Continue { repaint: false });
     assert!(session.app.show_crosshair);
     assert_eq!(session.framebuffer.pixels(), shown.pixels());
+}
+
+#[test]
+fn panel_layout_clears_crosshair_and_ignores_its_shortcut() {
+    let (mut session, _root) = session();
+    session.app.show_crosshair = true;
+    session.app.active_tool = crate::tools::kind::ToolKind::Crosshair;
+    session
+        .set_workspace_layout(super::layout::WorkspaceLayout::Panels(
+            super::layout::PanelGrid::new(2, 1).expect("two-panel layout"),
+        ))
+        .expect("enable panel layout");
+    session.refresh_frame().expect("render panel layout");
+
+    assert!(!session.app.show_crosshair);
+    assert_eq!(session.app.active_tool, crate::tools::kind::ToolKind::Pan);
+
+    let flow = session
+        .handle_events(&[WindowEvent::KeyDown {
+            virtual_key: crate::app::action_adapter::VIRTUAL_KEY_CROSSHAIR_TOGGLE,
+            repeated: false,
+            modifiers: ModifierState::NONE,
+        }])
+        .expect("ignore unavailable panel crosshair shortcut");
+    assert_eq!(flow, NativeFlow::Continue { repaint: false });
+    assert!(!session.app.show_crosshair);
 }
 
 #[test]
