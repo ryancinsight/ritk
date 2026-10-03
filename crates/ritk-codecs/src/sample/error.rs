@@ -1,6 +1,7 @@
 use std::collections::TryReserveError;
 use std::error::Error;
 use std::fmt;
+use std::io;
 
 use super::buffer::{SampleBuffer, SampleType};
 
@@ -52,6 +53,8 @@ pub enum SampleError {
         /// The sample representation being decoded or encoded.
         sample_type: SampleType,
     },
+    /// The output stream rejected encoded sample bytes.
+    Io(io::Error),
 }
 
 impl fmt::Display for SampleError {
@@ -77,6 +80,7 @@ impl fmt::Display for SampleError {
                 formatter,
                 "fixed-width scalar codec rejected an exact {sample_type:?} sample"
             ),
+            Self::Io(error) => write!(formatter, "cannot write encoded samples: {error}"),
         }
     }
 }
@@ -85,10 +89,17 @@ impl Error for SampleError {
     fn source(&self) -> Option<&(dyn Error + 'static)> {
         match self {
             Self::Allocation(error) => Some(error),
+            Self::Io(error) => Some(error),
             Self::PartialSample { .. }
             | Self::EncodedLengthOverflow { .. }
             | Self::ScalarCodecRejected { .. } => None,
         }
+    }
+}
+
+impl From<io::Error> for SampleError {
+    fn from(error: io::Error) -> Self {
+        Self::Io(error)
     }
 }
 

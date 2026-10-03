@@ -1,4 +1,5 @@
 use std::fmt::Debug;
+use std::io::{self, Write};
 
 use crate::ByteOrder;
 
@@ -17,6 +18,11 @@ where
         ByteOrder::MostSignificantByteFirst,
     ] {
         let encoded = buffer.encode(byte_order).expect("sample encoding");
+        let mut streamed = Vec::new();
+        buffer
+            .write_to(&mut streamed, byte_order)
+            .expect("streamed sample encoding");
+        assert_eq!(streamed, encoded);
         let decoded =
             SampleBuffer::decode(T::SAMPLE_TYPE, &encoded, byte_order).expect("sample decoding");
         assert_eq!(
@@ -134,6 +140,11 @@ fn floating_sample_encoding_preserves_signed_zero_and_nan_payload_bits() {
         let f32_values = f32_bits.map(f32::from_bits).to_vec();
         let f32_buffer = SampleBuffer::from_samples(f32_values);
         let f32_bytes = f32_buffer.encode(byte_order).expect("f32 encoding");
+        let mut streamed_f32 = Vec::new();
+        f32_buffer
+            .write_to(&mut streamed_f32, byte_order)
+            .expect("streamed f32 encoding");
+        assert_eq!(streamed_f32, f32_bytes);
         let decoded_f32 = SampleBuffer::decode(SampleType::F32, &f32_bytes, byte_order)
             .expect("f32 decoding")
             .try_into_samples::<f32>()
@@ -149,6 +160,11 @@ fn floating_sample_encoding_preserves_signed_zero_and_nan_payload_bits() {
         let f64_values = f64_bits.map(f64::from_bits).to_vec();
         let f64_buffer = SampleBuffer::from_samples(f64_values);
         let f64_bytes = f64_buffer.encode(byte_order).expect("f64 encoding");
+        let mut streamed_f64 = Vec::new();
+        f64_buffer
+            .write_to(&mut streamed_f64, byte_order)
+            .expect("streamed f64 encoding");
+        assert_eq!(streamed_f64, f64_bytes);
         let decoded_f64 = SampleBuffer::decode(SampleType::F64, &f64_bytes, byte_order)
             .expect("f64 decoding")
             .try_into_samples::<f64>()
@@ -161,6 +177,47 @@ fn floating_sample_encoding_preserves_signed_zero_and_nan_payload_bits() {
             f64_bits
         );
     }
+}
+
+#[derive(Debug)]
+struct FailingWriter {
+    accepted: Vec<u8>,
+    limit: usize,
+}
+
+impl Write for FailingWriter {
+    fn write(&mut self, bytes: &[u8]) -> io::Result<usize> {
+        let remaining = self.limit.saturating_sub(self.accepted.len());
+        if remaining == 0 {
+            return Err(io::Error::new(io::ErrorKind::BrokenPipe, "closed output"));
+        }
+        let accepted = remaining.min(bytes.len());
+        self.accepted.extend_from_slice(&bytes[..accepted]);
+        Ok(accepted)
+    }
+
+    fn flush(&mut self) -> io::Result<()> {
+        Ok(())
+    }
+}
+
+#[test]
+fn stream_write_preserves_the_written_prefix_and_reports_io_failure() {
+    let samples = SampleBuffer::from_samples(vec![0x1234_u16]);
+    let mut writer = FailingWriter {
+        accepted: Vec::new(),
+        limit: 1,
+    };
+
+    let error = samples
+        .write_to(&mut writer, ByteOrder::LeastSignificantByteFirst)
+        .expect_err("a failed output stream must be reported");
+
+    assert!(matches!(
+        error,
+        SampleError::Io(error) if error.kind() == io::ErrorKind::BrokenPipe
+    ));
+    assert_eq!(writer.accepted, [0x34]);
 }
 
 #[test]
