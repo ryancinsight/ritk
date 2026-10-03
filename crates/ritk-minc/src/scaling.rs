@@ -1,58 +1,56 @@
-//! MINC2 stored-integer to real-intensity scaling.
+//! MINC2 stored-integer to real-intensity scaling as per-slice real-value maps.
 //!
-//! Integer image samples map from the image dataset's `valid_range` to the
-//! scalar or per-slice `image-min` / `image-max` range. Floating-point image
-//! datasets bypass this module, as required by the MINC conversion contract.
+//! Integer image samples map from the image dataset's `valid_range`
+//! \[`valid_min`, `valid_max`\] to the scalar or per-slice `image-min` /
+//! `image-max` real range \[`image_min`, `image_max`\] by the MINC pixel
+//! conversion:
+//!
+//! ```text
+//! real = (stored - valid_min) / (valid_max - valid_min) * (image_max - image_min) + image_min
+//! ```
+//!
+//! This is the map `real = (stored - valid_min) * slope + intercept` with
+//! `slope = (image_max - image_min) / (valid_max - valid_min)` and
+//! `intercept = image_min`, so each slice is one [`RealValueMap`]. A scalar
+//! real range gives every slice the same map. A slice with
+//! `image_min == image_max` is uniform: slope zero, intercept `image_min`.
+//! Floating-point image datasets bypass this module, as the MINC conversion
+//! contract requires.
+//!
+//! Definitions:
+//! <https://www.bic.mni.mcgill.ca/software/minc/prog_guide/node19.html> and
+//! <https://www.bic.mni.mcgill.ca/software/minc/minc1_format/node5.html>.
 
+use crate::real_map::RealValueMap;
 use anyhow::{bail, Context, Result};
-use consus_core::Datatype;
+use eunomia::NumericElement;
+use ritk_codecs::sample::{Sample, SampleBuffer, SampleType};
 
-#[derive(Debug, Clone, Copy)]
-struct RealRange {
-    minimum: f64,
-    maximum: f64,
-}
-
-impl RealRange {
-    fn new(minimum: f64, maximum: f64, index: usize) -> Result<Self> {
-        if !minimum.is_finite() || !maximum.is_finite() {
-            bail!("MINC2 image range {index} must be finite, got [{minimum}, {maximum}]");
-        }
-        if minimum > maximum {
-            bail!(
-                "MINC2 image range {index} has image-min {minimum} greater than image-max {maximum}"
-            );
-        }
-        if !(minimum as f32).is_finite() || !(maximum as f32).is_finite() {
-            bail!("MINC2 image range {index} [{minimum}, {maximum}] exceeds the f32 output range");
-        }
-        Ok(Self { minimum, maximum })
-    }
-}
-
-#[derive(Debug)]
-enum ImageRanges {
-    Global(RealRange),
-    PerSlice(Box<[RealRange]>),
-}
-
-/// Validated scaling metadata for one integer image dataset.
+/// Validated scaling metadata for one integer image dataset: its stored
+/// `valid_range` and the real-value map of each slice.
+///
+/// The maps are held as the file states them, one for a scalar real range and
+/// one per slice otherwise, so the allocation follows the range datasets the
+/// file holds and never the slice count its header claims.
 #[derive(Debug)]
 pub(crate) struct IntegerScaling {
     valid_minimum: f64,
     valid_maximum: f64,
-    image_ranges: ImageRanges,
-    slice_length: usize,
-    total_elements: usize,
+    maps: Box<[RealValueMap]>,
+    slice_count: usize,
 }
 
 impl IntegerScaling {
     /// Validate and construct the scaling contract.
+    ///
+    /// `image_minima` and `image_maxima` hold one entry per slice, or one entry
+    /// for every slice. `slice_length` voxels make one slice and
+    /// `total_elements` voxels make the volume.
     pub(crate) fn new(
         valid_range: [f64; 2],
         storage_range: [f64; 2],
-        image_minima: Vec<f64>,
-        image_maxima: Vec<f64>,
+        image_minima: &[f64],
+        image_maxima: &[f64],
         slice_length: usize,
         total_elements: usize,
     ) -> Result<Self> {
@@ -90,96 +88,113 @@ impl IntegerScaling {
         }
 
         let slice_count = total_elements / slice_length;
-        let ranges: Vec<RealRange> = image_minima
-            .into_iter()
+        let valid_width = valid_maximum - valid_minimum;
+        let maps: Vec<RealValueMap> = image_minima
+            .iter()
             .zip(image_maxima)
             .enumerate()
-            .map(|(index, (minimum, maximum))| RealRange::new(minimum, maximum, index))
+            .map(|(index, (&minimum, &maximum))| {
+                slice_map(index, [minimum, maximum], valid_minimum, valid_width)
+            })
             .collect::<Result<_>>()?;
-        let image_ranges = match ranges.as_slice() {
-            [range] => ImageRanges::Global(*range),
-            _ if ranges.len() == slice_count => ImageRanges::PerSlice(ranges.into_boxed_slice()),
-            _ => bail!(
+        if maps.len() != 1 && maps.len() != slice_count {
+            bail!(
                 "MINC2 image ranges must be scalar or have one entry per slice ({slice_count}), got {}",
-                ranges.len()
-            ),
-        };
+                maps.len()
+            );
+        }
 
         Ok(Self {
             valid_minimum,
             valid_maximum,
-            image_ranges,
-            slice_length,
-            total_elements,
+            maps: maps.into_boxed_slice(),
+            slice_count,
         })
     }
 
-    /// Map one stored integer value to its real `f32` intensity.
-    pub(crate) fn scale(&self, stored: f64, linear_index: usize) -> Result<f32> {
-        if linear_index >= self.total_elements {
-            bail!(
-                "MINC2 voxel index {linear_index} exceeds declared element count {}",
-                self.total_elements
-            );
+    /// The real-value map of each slice along the first spatial axis.
+    ///
+    /// Materialises one map per slice, so call it only once the voxel payload
+    /// has proved the slice count is backed by the file.
+    pub(crate) fn slice_maps(&self) -> Vec<RealValueMap> {
+        match self.maps.as_ref() {
+            [map] => vec![*map; self.slice_count],
+            maps => maps.to_vec(),
         }
-        if stored < self.valid_minimum || stored > self.valid_maximum {
-            bail!(
-                "MINC2 stored voxel {linear_index} value {stored} is outside valid_range [{}, {}]",
-                self.valid_minimum,
-                self.valid_maximum
-            );
-        }
+    }
 
-        let range = match &self.image_ranges {
-            ImageRanges::Global(range) => *range,
-            ImageRanges::PerSlice(ranges) => {
-                let slice = linear_index / self.slice_length;
-                *ranges
-                    .get(slice)
-                    .context("MINC2 scaling slice index exceeds image ranges")?
+    /// Reject the first stored sample outside `valid_range`.
+    ///
+    /// Such samples denote missing data; the image contract has no mask for
+    /// them, so a read fails instead of mapping them.
+    pub(crate) fn check_stored(&self, samples: &SampleBuffer) -> Result<()> {
+        match samples {
+            SampleBuffer::U8(values) => self.check(values),
+            SampleBuffer::I8(values) => self.check(values),
+            SampleBuffer::U16(values) => self.check(values),
+            SampleBuffer::I16(values) => self.check(values),
+            SampleBuffer::U32(values) => self.check(values),
+            SampleBuffer::I32(values) => self.check(values),
+            SampleBuffer::U64(values) => self.check(values),
+            SampleBuffer::I64(values) => self.check(values),
+            SampleBuffer::F32(values) => self.check(values),
+            SampleBuffer::F64(values) => self.check(values),
+        }
+    }
+
+    fn check<S: Sample>(&self, values: &[S]) -> Result<()> {
+        for (index, &value) in values.iter().enumerate() {
+            let stored = NumericElement::to_f64(value);
+            if stored < self.valid_minimum || stored > self.valid_maximum {
+                bail!(
+                    "MINC2 stored voxel {index} value {stored} is outside valid_range [{}, {}]",
+                    self.valid_minimum,
+                    self.valid_maximum
+                );
             }
-        };
-        if stored == self.valid_minimum || range.minimum == range.maximum {
-            return Ok(range.minimum as f32);
         }
-        if stored == self.valid_maximum {
-            return Ok(range.maximum as f32);
-        }
-
-        let scale = (range.maximum - range.minimum) / (self.valid_maximum - self.valid_minimum);
-        let real = (stored - self.valid_minimum).mul_add(scale, range.minimum);
-        let output = real as f32;
-        if !output.is_finite() {
-            bail!(
-                "MINC2 scaled voxel {linear_index} value {real} exceeds the finite f32 output range"
-            );
-        }
-        Ok(output)
+        Ok(())
     }
 }
 
-/// Default MINC valid range for an integer-like HDF5 image datatype.
-pub(crate) fn default_integer_valid_range(datatype: &Datatype) -> Result<Option<[f64; 2]>> {
-    match datatype {
-        Datatype::Integer { bits, signed, .. } => {
-            let width = bits.get();
-            let range = match (width, signed) {
-                (8, true) => [f64::from(i8::MIN), f64::from(i8::MAX)],
-                (8, false) => [0.0, f64::from(u8::MAX)],
-                (16, true) => [f64::from(i16::MIN), f64::from(i16::MAX)],
-                (16, false) => [0.0, f64::from(u16::MAX)],
-                (32, true) => [f64::from(i32::MIN), f64::from(i32::MAX)],
-                (32, false) => [0.0, f64::from(u32::MAX)],
-                (64, true) => [i64::MIN as f64, i64::MAX as f64],
-                (64, false) => [0.0, u64::MAX as f64],
-                _ => bail!("Unsupported MINC2 integer width for scaling: {width}"),
-            };
-            Ok(Some(range))
-        }
-        Datatype::Boolean => Ok(Some([0.0, 1.0])),
-        Datatype::Float { .. } => Ok(None),
-        other => bail!("Unsupported MINC2 voxel datatype for scaling: {other:?}"),
+/// The real-value map of slice `index` from its real range.
+fn slice_map(
+    index: usize,
+    [minimum, maximum]: [f64; 2],
+    valid_minimum: f64,
+    valid_width: f64,
+) -> Result<RealValueMap> {
+    if !minimum.is_finite() || !maximum.is_finite() {
+        bail!("MINC2 image range {index} must be finite, got [{minimum}, {maximum}]");
     }
+    if minimum > maximum {
+        bail!("MINC2 image range {index} has image-min {minimum} greater than image-max {maximum}");
+    }
+    let slope = if minimum == maximum {
+        0.0
+    } else {
+        (maximum - minimum) / valid_width
+    };
+    RealValueMap::new(valid_minimum, slope, minimum)
+        .with_context(|| format!("MINC2 image range {index} [{minimum}, {maximum}]"))
+}
+
+/// The range of values an integer sample type stores, `None` for a float type.
+pub(crate) fn integer_storage_range(sample_type: SampleType) -> Option<[f64; 2]> {
+    Some(match sample_type {
+        SampleType::U8 => [0.0, f64::from(u8::MAX)],
+        SampleType::I8 => [f64::from(i8::MIN), f64::from(i8::MAX)],
+        SampleType::U16 => [0.0, f64::from(u16::MAX)],
+        SampleType::I16 => [f64::from(i16::MIN), f64::from(i16::MAX)],
+        SampleType::U32 => [0.0, f64::from(u32::MAX)],
+        SampleType::I32 => [f64::from(i32::MIN), f64::from(i32::MAX)],
+        SampleType::U64 => [0.0, f64::from_unsigned_sample(u64::MAX)],
+        SampleType::I64 => [
+            f64::from_signed_sample(i64::MIN),
+            f64::from_signed_sample(i64::MAX),
+        ],
+        SampleType::F32 | SampleType::F64 => return None,
+    })
 }
 
 #[cfg(test)]

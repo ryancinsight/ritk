@@ -55,27 +55,55 @@
 //!
 //! # Data Type Handling
 //!
-//! The reader converts contiguous MINC2 voxel data types (u8, i8, u16, i16,
-//! u32, i32, f32, f64) to `f32` for the RITK tensor. Integer images are mapped
-//! from their `valid_range` to scalar or per-slice `image-min` / `image-max`
-//! real ranges. Values outside `valid_range` are rejected because the public
-//! image contract has no missing-value mask. Floating-point datasets bypass
-//! real-value scaling. The writer emits one contiguous little-endian `f32`
-//! volume.
+//! The reader keeps the stored voxel type: contiguous MINC2 `u8`, `i8`, `u16`,
+//! `i16`, `u32`, `i32`, `u64`, `i64`, `f32`, and `f64` datasets, in either byte
+//! order, decode in that type and convert to the caller's `T` under a
+//! [`Conversion`](ritk_codecs::sample::Conversion): [`Exact`] refuses any
+//! conversion that could change a value, [`Cast`] converts and warns.
+//!
+//! Integer images carry the MINC pixel conversion from the stored
+//! `valid_range` to the scalar or per-slice `image-min` / `image-max` real
+//! range. It is one [`RealValueMap`], `(stored - valid_min) * slope +
+//! image_min`, per slice along the first spatial axis, applied in `T`;
+//! [`read_minc`] returns real intensities and
+//! [`read_minc_stored`] returns the stored samples with the unapplied maps, the
+//! only way to read an image whose maps are not the identity into an integer
+//! `T`. Values outside `valid_range` are rejected because the public image
+//! contract has no missing-value mask. Floating-point datasets bypass the map.
+//!
+//! The writer stores the image's own type, little-endian: `u8`, `i8`, `u16`,
+//! `i16`, `u32`, `i32`, `f32`, or `f64`. MINC2 has no 64-bit integer voxel
+//! type, so the writer refuses `u64` and `i64` before creating a file. An
+//! integer image is written with `image-min` and `image-max` equal to its
+//! type's range, the identity map, so it reads back unchanged.
 //!
 //! This follows the MINC
 //! [pixel-conversion contract](https://www.bic.mni.mcgill.ca/software/minc/prog_guide/node19.html)
 //! and [standard image variables](https://www.bic.mni.mcgill.ca/software/minc/minc1_format/node5.html).
+//!
+//! [`Exact`]: ritk_codecs::sample::Exact
+//! [`Cast`]: ritk_codecs::sample::Cast
 
 pub mod attrs;
-pub mod convert;
+mod datatype;
 mod dimension;
 pub(crate) mod hdf5_binary;
+mod image_ranges;
+mod payload;
 pub mod reader;
+mod real_map;
+#[cfg(test)]
+mod scaled_fixture;
 mod scaling;
 pub mod spatial;
 pub mod writer;
 
 pub use dimension::{MincDimension, DIMENSIONS_PATH, IMAGE_PATH, SPATIAL_DIM_NAMES};
-pub use reader::{read_minc, MincReader};
+pub use reader::{read_minc, read_minc_stored, MincReader};
+pub use real_map::RealValueMap;
 pub use writer::{write_minc, MincWriter};
+
+#[cfg(test)]
+mod tests_reader_errors;
+#[cfg(test)]
+mod tests_samples;
