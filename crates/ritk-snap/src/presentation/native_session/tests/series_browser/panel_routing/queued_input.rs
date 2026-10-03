@@ -1,6 +1,57 @@
 use super::*;
 
 #[test]
+fn resize_and_f4_in_one_batch_present_the_picker() {
+    let (mut batched, _batched_root) = session();
+    let (mut sequential, _sequential_root) = session();
+    let study = replacement_study();
+    batched
+        .open_study_path(study.path())
+        .expect("open the study for coalesced input");
+    sequential
+        .open_study_path(study.path())
+        .expect("open the study for sequential input");
+    let resize = || WindowEvent::Resized {
+        width: 1_024,
+        height: 720,
+    };
+    let open_picker = || WindowEvent::KeyDown {
+        virtual_key: 0x73,
+        repeated: false,
+        modifiers: ModifierState::NONE,
+    };
+
+    batched
+        .handle_events(&[resize(), open_picker()])
+        .expect("resize and open the multiple-series picker in one batch");
+    sequential
+        .handle_events(&[resize()])
+        .expect("resize before opening the multiple-series picker");
+    sequential
+        .handle_events(&[open_picker()])
+        .expect("open the multiple-series picker after resizing");
+
+    assert_eq!(
+        (
+            batched.window_chrome.multi_series_dialog_is_open(),
+            sequential.window_chrome.multi_series_dialog_is_open(),
+        ),
+        (true, true),
+        "both event delivery shapes must open the picker"
+    );
+    assert_eq!(batched.framebuffer.width(), sequential.framebuffer.width());
+    assert_eq!(
+        batched.framebuffer.height(),
+        sequential.framebuffer.height()
+    );
+    assert_eq!(
+        batched.framebuffer.pixels(),
+        sequential.framebuffer.pixels(),
+        "coalesced resize and input must present the post-input frame"
+    );
+}
+
+#[test]
 fn queued_input_keeps_its_original_panel_owner_after_maximize() {
     let (mut viewer, _initial_root) = session();
     let study = replacement_study();

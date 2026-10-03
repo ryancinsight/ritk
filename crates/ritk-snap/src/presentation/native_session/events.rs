@@ -453,7 +453,7 @@ impl NativeApplication for NativeViewerSession {
             )
             || chrome_exit
         {
-            if !self.minimized && frame_changed && !geometry_refreshed {
+            if !self.minimized && frame_changed {
                 self.refresh_frame().map_err(NativeViewerError::from)?;
             } else if !geometry_refreshed {
                 record_state(
@@ -469,7 +469,7 @@ impl NativeApplication for NativeViewerSession {
             return Ok(NativeFlow::Exit);
         }
 
-        if !self.minimized && frame_changed && !geometry_refreshed {
+        if !self.minimized && frame_changed {
             self.refresh_frame().map_err(NativeViewerError::from)?;
         } else if !geometry_refreshed {
             record_state(
