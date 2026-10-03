@@ -1,6 +1,9 @@
 use super::*;
 use crate::presentation::{PointerButton, PresentationEvent};
 
+#[path = "series/navigation.rs"]
+mod navigation;
+
 #[test]
 fn visible_workspace_places_the_series_preview_to_the_left_of_the_image_panels() {
     let app = SnapApp::default();

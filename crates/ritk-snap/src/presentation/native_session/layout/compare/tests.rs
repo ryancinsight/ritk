@@ -2,6 +2,7 @@
 
 use super::*;
 use crate::presentation::native_session::frame::empty_axial_view;
+use crate::presentation::native_session::window_controls::WindowChrome;
 use crate::render::WindowLevel;
 
 fn grid(columns: u32, rows: u32) -> PanelGrid {
@@ -76,7 +77,54 @@ fn vertical_two_panel_layout_stacks_without_overlapping() {
 }
 
 #[test]
-fn twenty_panel_layout_rejects_a_surface_that_cannot_fit_headers() {
+fn compact_four_row_layout_preserves_populated_panel_geometry() {
+    let view = empty_axial_view().expect("empty axial frame");
+    let panel = GridPanel {
+        view: Some(&view),
+        label: "P",
+        navigation: (1.0, ViewportOffset::new(0.0, 0.0)),
+        maximized: false,
+    };
+    let panels = [panel; 4];
+    let viewport_area = WindowChrome::new(true)
+        .viewport_area(640, 220)
+        .expect("derive the image area from native window chrome");
+
+    let rendered = surface_frames_grid(&panels, grid(1, 4), 3, &view, [640, 220], viewport_area)
+        .expect("render four populated rows in the compact native surface");
+
+    let total_gaps = (MAX_GRID_ROWS - 1) * VIEW_GAP_PIXELS;
+    let row_height = (viewport_area.height - total_gaps) / MAX_GRID_ROWS;
+    assert_eq!(rendered.viewports.len(), panels.len());
+    for (row, viewport) in rendered.viewports.iter().enumerate() {
+        let row = u32::try_from(row).expect("four rows fit in u32");
+        let expected_y = viewport_area.y + row * (row_height + VIEW_GAP_PIXELS);
+        assert_eq!(viewport.panel_y, expected_y);
+        assert_eq!(viewport.panel_width, viewport_area.width);
+        assert_eq!(viewport.panel_height, row_height);
+        assert_eq!(viewport.axis(), view.axis);
+        assert!(viewport.contains(
+            f64::from(viewport_area.width / 2),
+            f64::from(expected_y + row_height / 2)
+        ));
+    }
+    let final_viewport = rendered.viewports[3];
+    assert_eq!(
+        rendered.framebuffer.get_pixel(0, viewport_area.y),
+        INACTIVE_PANEL
+    );
+    assert_eq!(
+        rendered.framebuffer.get_pixel(0, final_viewport.panel_y),
+        ACTIVE_PANEL
+    );
+    assert_eq!(
+        final_viewport.panel_y + final_viewport.panel_height,
+        viewport_area.y + viewport_area.height
+    );
+}
+
+#[test]
+fn twenty_panel_layout_rejects_a_surface_without_nonzero_cells() {
     let placeholder = empty_axial_view().expect("empty axial frame");
     let panel = GridPanel {
         view: None,
@@ -91,11 +139,11 @@ fn twenty_panel_layout_rejects_a_surface_that_cannot_fit_headers() {
         grid(5, 4),
         0,
         &placeholder,
-        [50, 50],
-        ViewportArea::full(50, 50),
+        [19, 50],
+        ViewportArea::full(19, 50),
     );
     let error = match result {
-        Ok(_) => panic!("reject cells shorter than their headers"),
+        Ok(_) => panic!("reject zero-width cells"),
         Err(error) => error,
     };
 
