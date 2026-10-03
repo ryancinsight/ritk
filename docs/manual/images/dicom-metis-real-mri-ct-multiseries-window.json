@@ -3,13 +3,13 @@
   "status": "passed",
   "runtime": {
     "host": "Windows 11 native Métis surface",
-    "date": "2026-09-29",
+    "date": "2026-10-02",
     "ritk_pull_request": "ryancinsight/ritk#676",
-    "ritk_revision": "f006bc7130f09107308b0bef3b76f7850d9f5595",
-    "ritk_tree": "257cd94ae8a7e0dd7eb613b53f652798a00e9694",
+    "ritk_revision": "50ef4c769508714cc464968e2dd8bd1cf2418780",
+    "ritk_tree": "a1f6ede8a8e8ebd77685037e5d3bc8e48fe3a051",
     "executable": "ritk-snap.exe",
-    "executable_sha256": "924f2fd42b772feb1dc81960d138ed0ee22381b56709e6caf97785e35ac9853a",
-    "executable_bytes": 26278400,
+    "executable_sha256": "5f30b117fc1a6db94061e00da755ce8d491fa9fe1075c162e81dc22e9b628fbc",
+    "executable_bytes": 26374144,
     "toolchain": "rustc 1.97.0 (2d8144b78 2026-07-07)",
     "metis_revision": "57709a4958a78ec99a9b9128da03db39ee4d2b22",
     "metis_platform_revision": "57709a4958a78ec99a9b9128da03db39ee4d2b22",
@@ -33,10 +33,10 @@
     },
     "caption_text_observed_by_GetWindowTextW": "RITK DICOM Viewer",
     "process_returncode": 0,
-    "command": "ritk-snap.exe scratch/viewer/radiant-clone/multiseries --metis-native --series-instance-uid 1.3.6.1.4.1.14519.5.2.1.1706.4996.123065603063404191260103927213 --compare-series-instance-uid 1.3.6.1.4.1.14519.5.2.1.1706.4996.115936088547498980797393821518"
+    "command": "ritk-snap.exe %TEMP%/ritk-snap-window-controls-3bfe46227661436a857d2336b9b95f8c/capture-data/multiseries --metis-native --series-instance-uid 1.3.6.1.4.1.14519.5.2.1.1706.4996.123065603063404191260103927213 --compare-series-instance-uid 1.3.6.1.4.1.14519.5.2.1.1706.4996.115936088547498980797393821518"
   },
   "dataset": {
-    "path": "scratch/viewer/radiant-clone/multiseries",
+    "path": "%TEMP%/ritk-snap-window-controls-3bfe46227661436a857d2336b9b95f8c/capture-data/multiseries",
     "description": "Public MRI-DIR porcine-head phantom with the matching MRI and CT series loaded together",
     "license": "CC BY 4.0",
     "directory_regular_files": 503,
@@ -63,17 +63,17 @@
     ]
   },
   "source_capture": {
-    "path": "scratch/viewer/radiant-clone/real-mri-ct-multiseries-window.png",
-    "sha256": "8071520a59b924ddfc4e9e64cb37d1c9e489031b6b714a81d31dfa3b8e3af6e9",
-    "bytes": 361462,
+    "path": "%TEMP%/ritk-snap-window-controls-3bfe46227661436a857d2336b9b95f8c/mri-ct-window.png",
+    "sha256": "2dcdd5ff334d92e9382ec8d4621f5313bfe339d4036fc9922a60f870ef7b079a",
+    "bytes": 356621,
     "encoding": "PNG captured from the live native application window"
   },
   "output": {
     "path": "docs/manual/images/dicom-metis-real-mri-ct-multiseries-window.webp",
     "width": 1298,
     "height": 847,
-    "sha256": "a6e85d5c3167476dceca6a8064db27ea55e89f4cccd8272bfef05f59306c23cb",
-    "bytes": 167174,
+    "sha256": "aa48c3bce6443e7581070549d21e099ff7d1d529addf0f1e5e2db367b8fe4dd4",
+    "bytes": 163102,
     "encoding": "lossless WebP",
     "visible_controls": [
       "File",
