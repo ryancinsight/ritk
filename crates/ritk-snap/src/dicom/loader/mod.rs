@@ -24,8 +24,8 @@
 
 use std::path::{Path, PathBuf};
 
-use crate::dicom::input_path::classify_dicom_input_path;
 use crate::LoadedVolume;
+use crate::dicom::input_path::classify_dicom_input_path;
 use anyhow::{Context, Result};
 
 mod bytes;
@@ -36,8 +36,10 @@ mod scan;
 #[cfg(test)]
 pub(crate) mod tests;
 
+#[cfg(windows)]
+pub(crate) use dicom_load::load_volume_from_dicom_instance;
+pub(crate) use dicom_load::load_volume_from_series_info;
 pub use dicom_load::{load_dicom_volume, load_volume_from_scanned_series};
-pub(crate) use dicom_load::{load_volume_from_dicom_instance, load_volume_from_series_info};
 pub use nifti_load::load_nifti_volume;
 pub use scan::scan_folder_for_series;
 

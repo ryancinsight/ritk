@@ -306,6 +306,7 @@ pub(crate) enum ViewerInputError {
     Action(#[from] ViewerActionError),
 }
 
+#[cfg(windows)]
 pub(crate) fn preflight_presentation_events(
     dispatcher: &mut PresentationDispatcher,
     events: &[PresentationEvent],

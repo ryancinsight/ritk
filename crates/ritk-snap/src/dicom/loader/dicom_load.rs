@@ -3,19 +3,21 @@
 use std::path::Path;
 use std::sync::Arc;
 
-use anyhow::{bail, Context, Result};
+use anyhow::{Context, Result, bail};
 use coeus_core::SequentialBackend;
+#[cfg(windows)]
+use ritk_io::{DicomReadBudget, load_dicom_from_series_with_budget, scan_dicom_files_with_budget};
 use ritk_io::{
     load_color_multiframe_flat, load_color_multiframe_flat_from_bytes, load_color_volume_flat,
     load_dicom_from_series, load_dicom_multiframe_flat, load_dicom_multiframe_flat_from_bytes,
     read_multiframe_info, read_multiframe_info_from_bytes,
 };
-use ritk_io::{load_dicom_from_series_with_budget, scan_dicom_files_with_budget, DicomReadBudget};
 use tracing::info;
 
-use crate::render::GrayscalePresentation;
 use crate::LoadedVolume;
+use crate::render::GrayscalePresentation;
 
+#[cfg(windows)]
 const SERIES_PREVIEW_DECODED_BYTE_BUDGET: usize = 64 * 1024 * 1024;
 
 /// Load a DICOM series from a pre-scanned series descriptor into a [`LoadedVolume`].
@@ -47,6 +49,7 @@ pub fn load_volume_from_scanned_series(
     }
 }
 
+#[cfg(windows)]
 pub(crate) fn load_volume_from_dicom_instance(path: &Path) -> Result<LoadedVolume> {
     let budget = DicomReadBudget::try_new(
         DicomReadBudget::DEFAULT.parser(),
