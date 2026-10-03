@@ -262,7 +262,7 @@ fn overlay_fits_or_discloses_complete_metadata_at_small_sizes() {
         } else {
             assert_eq!(disclosure, None);
             assert_eq!(texts.len(), 8);
-            assert_eq!(texts[0].galley.text(), patient);
+            assert_eq!(texts[0].galley.text(), "Example Patient\nID: RITK-TEST-001");
             assert!(texts[1].galley.text().contains(series));
             let backings: Vec<_> = output
                 .shapes

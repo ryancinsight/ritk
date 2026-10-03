@@ -6,7 +6,7 @@ use metis_platform::{Color, Framebuffer};
 use super::super::frame::RenderedView;
 use super::super::projection::RenderedProjection;
 use super::geometry::{
-    placement, placement_geometry, placement_with_bounds, NativeViewport, ScreenRect,
+    placement_geometry, placement_with_bounds, NativeViewport, ScreenRect, ViewportArea,
     VIEW_GAP_PIXELS,
 };
 use super::overlay::{append_overlay_list, application_overlay, projection_overlay};
@@ -18,6 +18,7 @@ pub(crate) fn surface_frames(
     views: &[RenderedView; 3],
     surface_width: u32,
     surface_height: u32,
+    viewport_area: ViewportArea,
     zoom: f32,
     pan_offset: ViewportOffset,
     cine_enabled: bool,
@@ -33,9 +34,10 @@ pub(crate) fn surface_frames(
     let gaps = VIEW_GAP_PIXELS
         .checked_mul(2)
         .ok_or_else(|| anyhow!("native view gap arithmetic overflows"))?;
-    let available_width = surface_width
+    let available_width = viewport_area
+        .width
         .checked_sub(gaps)
-        .ok_or_else(|| anyhow!("native surface is narrower than its view separators"))?;
+        .ok_or_else(|| anyhow!("native viewport area is narrower than its view separators"))?;
     if available_width < 3 {
         bail!("native surface cannot allocate three orthogonal view panels");
     }
@@ -46,31 +48,48 @@ pub(crate) fn surface_frames(
         base_width + u32::from(remainder > 1),
         base_width,
     ];
+    let third_panel_offset = panel_widths[0]
+        .checked_add(VIEW_GAP_PIXELS)
+        .and_then(|x| x.checked_add(panel_widths[1]))
+        .and_then(|x| x.checked_add(VIEW_GAP_PIXELS))
+        .ok_or_else(|| anyhow!("native third panel offset overflows"))?;
+    let panel_x1 = viewport_area
+        .x
+        .checked_add(panel_widths[0])
+        .and_then(|x| x.checked_add(VIEW_GAP_PIXELS))
+        .ok_or_else(|| anyhow!("native second panel x overflows"))?;
+    let panel_x2 = viewport_area
+        .x
+        .checked_add(third_panel_offset)
+        .ok_or_else(|| anyhow!("native third panel x overflows"))?;
     let mut framebuffer = Framebuffer::new(surface_width, surface_height)
         .map_err(|error| anyhow!("allocate native viewer framebuffer: {error}"))?;
     framebuffer.clear(Color::BLACK);
     let viewports = [
-        placement(
+        placement_with_bounds(
             &views[0],
-            0,
+            viewport_area.x,
+            viewport_area.y,
             panel_widths[0],
-            surface_height,
+            viewport_area.height,
             zoom,
             pan_offset,
         )?,
-        placement(
+        placement_with_bounds(
             &views[1],
-            panel_widths[0] + VIEW_GAP_PIXELS,
+            panel_x1,
+            viewport_area.y,
             panel_widths[1],
-            surface_height,
+            viewport_area.height,
             zoom,
             pan_offset,
         )?,
-        placement(
+        placement_with_bounds(
             &views[2],
-            panel_widths[0] + VIEW_GAP_PIXELS + panel_widths[1] + VIEW_GAP_PIXELS,
+            panel_x2,
+            viewport_area.y,
             panel_widths[2],
-            surface_height,
+            viewport_area.height,
             zoom,
             pan_offset,
         )?,
@@ -97,6 +116,7 @@ pub(crate) fn surface_frames_with_projection(
     projection: &RenderedProjection,
     surface_width: u32,
     surface_height: u32,
+    viewport_area: ViewportArea,
     zoom: f32,
     pan_offset: ViewportOffset,
     cine_enabled: bool,
@@ -107,6 +127,7 @@ pub(crate) fn surface_frames_with_projection(
         views,
         &projection.frame,
         [surface_width, surface_height],
+        viewport_area,
         PaneNavigation { zoom, pan_offset },
         PaneNavigation { zoom, pan_offset },
     )?;
@@ -164,6 +185,7 @@ fn compose_four_panel(
     views: &[RenderedView; 3],
     fourth_frame: &PresentationFrame,
     surface_size: [u32; 2],
+    viewport_area: ViewportArea,
     orthogonal: PaneNavigation,
     fourth: PaneNavigation,
 ) -> Result<FourPanelComposition> {
@@ -177,12 +199,14 @@ fn compose_four_panel(
     if !fourth.zoom.is_finite() || fourth.zoom <= 0.0 {
         bail!("native fourth-panel zoom must be finite and positive");
     }
-    let available_width = surface_width
+    let available_width = viewport_area
+        .width
         .checked_sub(VIEW_GAP_PIXELS)
-        .ok_or_else(|| anyhow!("native four-panel layout is narrower than its separator"))?;
-    let available_height = surface_height
+        .ok_or_else(|| anyhow!("native four-panel viewport is narrower than its separator"))?;
+    let available_height = viewport_area
+        .height
         .checked_sub(VIEW_GAP_PIXELS)
-        .ok_or_else(|| anyhow!("native four-panel layout is shorter than its separator"))?;
+        .ok_or_else(|| anyhow!("native four-panel viewport is shorter than its separator"))?;
     if available_width < 2 || available_height < 2 {
         bail!("native four-panel layout cannot allocate four panels");
     }
@@ -194,11 +218,21 @@ fn compose_four_panel(
         available_height / 2 + available_height % 2,
         available_height / 2,
     ];
+    let right_x = viewport_area
+        .x
+        .checked_add(column_widths[0])
+        .and_then(|x| x.checked_add(VIEW_GAP_PIXELS))
+        .ok_or_else(|| anyhow!("native right panel x overflows"))?;
+    let bottom_y = viewport_area
+        .y
+        .checked_add(row_heights[0])
+        .and_then(|y| y.checked_add(VIEW_GAP_PIXELS))
+        .ok_or_else(|| anyhow!("native bottom panel y overflows"))?;
     let viewports = [
         placement_with_bounds(
             &views[0],
-            0,
-            0,
+            viewport_area.x,
+            viewport_area.y,
             column_widths[0],
             row_heights[0],
             orthogonal.zoom,
@@ -206,8 +240,8 @@ fn compose_four_panel(
         )?,
         placement_with_bounds(
             &views[1],
-            column_widths[0] + VIEW_GAP_PIXELS,
-            0,
+            right_x,
+            viewport_area.y,
             column_widths[1],
             row_heights[0],
             orthogonal.zoom,
@@ -215,8 +249,8 @@ fn compose_four_panel(
         )?,
         placement_with_bounds(
             &views[2],
-            0,
-            row_heights[0] + VIEW_GAP_PIXELS,
+            viewport_area.x,
+            bottom_y,
             column_widths[0],
             row_heights[1],
             orthogonal.zoom,
@@ -224,8 +258,8 @@ fn compose_four_panel(
         )?,
     ];
     let fourth_panel = PanelBounds {
-        x: column_widths[0] + VIEW_GAP_PIXELS,
-        y: row_heights[0] + VIEW_GAP_PIXELS,
+        x: right_x,
+        y: bottom_y,
         width: column_widths[1],
         height: row_heights[1],
     };

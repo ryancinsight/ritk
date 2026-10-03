@@ -3,7 +3,7 @@
 use std::mem::{size_of, size_of_val};
 
 use coeus_core::{ComputeBackend, CpuAddressableStorage};
-use eunomia::CastFrom;
+use eunomia::FloatElement;
 use ritk_image::Image;
 
 use crate::classical::rigid_physical_affine_to_native;
@@ -209,8 +209,9 @@ where
                 trilinear_background(moving_values, moving_shape, moving_index)
             })?;
             let weight = self.weights.as_deref().map_or(1.0, |values| values[sample]);
-            let different_bits =
-                f32::cast_from((fixed_descriptor ^ moving_descriptor).count_ones());
+            let different_bits = f32::from_integer(i64::from(
+                (fixed_descriptor ^ moving_descriptor).count_ones(),
+            ));
             loss = different_bits.mul_add(weight, loss);
         }
         // Both sums use the same positive weights, so the exact result lies in

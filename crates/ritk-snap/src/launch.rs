@@ -3,11 +3,18 @@ use std::path::PathBuf;
 
 use crate::render::ProjectionStatistic;
 
+#[cfg(not(target_arch = "wasm32"))]
+mod series_comparison;
 mod viewport;
-pub use viewport::{EframeViewport, EframeViewportError};
-
+#[cfg(not(target_arch = "wasm32"))]
+pub use series_comparison::run_app_with_series_comparison;
+#[cfg(not(target_arch = "wasm32"))]
+mod responsive;
+#[cfg(not(target_arch = "wasm32"))]
+pub use responsive::run_responsive_native_app_with_options;
 #[cfg(windows)]
 use std::path::Path;
+pub use viewport::{EframeViewport, EframeViewportError};
 
 #[cfg(all(not(target_arch = "wasm32"), feature = "eframe-shell"))]
 mod capture;
@@ -242,25 +249,7 @@ pub fn run_app_with_options(options: AppLaunchOptions) -> anyhow::Result<()> {
         CompatibilityPresentation::FullApplication,
         EframeViewport::default(),
         presentation_selection,
-    )
-}
-
-/// Launch the Métis native host with its responsive pane layout.
-///
-/// This additive entrypoint preserves the public fixed-layout enum and its
-/// existing exhaustive matches while exposing adaptive native presentation to
-/// library consumers.
-///
-/// # Errors
-/// Returns the same window, event-loop, DICOM load, and capture errors as
-/// [`run_app_with_options`].
-#[cfg(not(target_arch = "wasm32"))]
-pub fn run_responsive_native_app_with_options(options: AppLaunchOptions) -> anyhow::Result<()> {
-    run_app_with_compatibility_selection(
-        options,
-        CompatibilityPresentation::FullApplication,
-        EframeViewport::default(),
-        NativePresentationSelection::Responsive,
+        None,
     )
 }
 
@@ -278,6 +267,7 @@ fn run_app_with_compatibility(
         compatibility_presentation,
         viewport,
         presentation_selection,
+        None,
     )
 }
 
@@ -287,6 +277,7 @@ fn run_app_with_compatibility_selection(
     compatibility_presentation: CompatibilityPresentation,
     viewport: EframeViewport,
     presentation_selection: NativePresentationSelection,
+    comparison_series_uid: Option<String>,
 ) -> anyhow::Result<()> {
     #[cfg(not(feature = "eframe-shell"))]
     let _ = viewport;
@@ -305,15 +296,36 @@ fn run_app_with_compatibility_selection(
             })?;
             match presentation_selection {
                 NativePresentationSelection::Fixed(mode) => {
-                    crate::presentation::run_native_viewer(
-                        &path,
-                        options.initial_series_uid.as_deref(),
-                        options.capture.as_deref(),
-                        mode,
-                        options.capture_application,
-                    )?;
+                    if let Some(comparison_uid) = comparison_series_uid.as_deref() {
+                        let primary_uid =
+                            options.initial_series_uid.as_deref().ok_or_else(|| {
+                                anyhow::anyhow!(
+                                    "series comparison requires --series-instance-uid for panel 1"
+                                )
+                            })?;
+                        crate::presentation::run_native_comparison_viewer(
+                            &path,
+                            primary_uid,
+                            comparison_uid,
+                            options.capture.as_deref(),
+                            mode,
+                            options.capture_application,
+                        )?;
+                    } else {
+                        crate::presentation::run_native_viewer(
+                            &path,
+                            options.initial_series_uid.as_deref(),
+                            options.capture.as_deref(),
+                            mode,
+                            options.capture_application,
+                        )?;
+                    }
                 }
                 NativePresentationSelection::Responsive => {
+                    anyhow::ensure!(
+                        comparison_series_uid.is_none(),
+                        "series comparison currently requires a fixed native layout"
+                    );
                     crate::presentation::run_native_responsive_viewer(
                         &path,
                         options.initial_series_uid.as_deref(),
@@ -329,11 +341,16 @@ fn run_app_with_compatibility_selection(
             let _ = options.capture;
             let _ = options.capture_application;
             let _ = presentation_selection;
+            let _ = comparison_series_uid;
             anyhow::bail!("--metis-native requires a Windows Métis native host");
         }
     }
     #[cfg(feature = "eframe-shell")]
     {
+        anyhow::ensure!(
+            comparison_series_uid.is_none(),
+            "series comparison requires the Métis native host"
+        );
         if presentation_selection
             != NativePresentationSelection::Fixed(NativePresentationMode::Orthogonal)
         {
@@ -391,6 +408,7 @@ fn run_app_with_compatibility_selection(
     #[cfg(not(feature = "eframe-shell"))]
     {
         let _ = options;
+        let _ = comparison_series_uid;
         anyhow::bail!("legacy eframe shell requires the `eframe-shell` feature")
     }
 }

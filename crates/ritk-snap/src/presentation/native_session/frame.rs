@@ -49,13 +49,21 @@ pub(super) fn render_orthogonal_views_into(
 }
 
 pub(super) fn empty_orthogonal_views() -> Result<[RenderedView; 3]> {
-    let frame = PresentationFrame::from_rgba_storage(1, 1, vec![0, 0, 0, 255])
-        .context("construct empty native selection frame")?;
+    let frame = empty_frame()?;
     Ok([
         empty_view(frame.clone(), 0, "Axial"),
         empty_view(frame.clone(), 1, "Coronal"),
         empty_view(frame, 2, "Sagittal"),
     ])
+}
+
+pub(super) fn empty_axial_view() -> Result<RenderedView> {
+    Ok(empty_view(empty_frame()?, 0, "Axial"))
+}
+
+fn empty_frame() -> Result<PresentationFrame> {
+    PresentationFrame::from_rgba_storage(1, 1, vec![0, 0, 0, 255])
+        .context("construct empty native selection frame")
 }
 
 fn empty_view(frame: PresentationFrame, axis: usize, plane_name: &'static str) -> RenderedView {
@@ -122,6 +130,15 @@ fn render_view_into(
     view.source_size = source_size;
     view.transform = transform;
     Ok(())
+}
+
+/// Render the axial image for one independently navigated comparison volume.
+pub(super) fn render_axial_view_into(
+    app: &SnapApp,
+    view: &mut RenderedView,
+    scratch: &mut FrameRenderScratch,
+) -> Result<()> {
+    render_view_into(app, 0, view, scratch)
 }
 
 pub(super) fn window_level_for_app(app: &SnapApp) -> WindowLevel {

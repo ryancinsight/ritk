@@ -27,6 +27,7 @@ fn sort_series_entries_is_deterministic() {
             patient_name: Cow::Borrowed(name),
             study_date: Some(Cow::Borrowed(date)),
             study_uid: Some(Cow::Borrowed(study)),
+            series_time: None,
         },
     )
     .collect();

@@ -3,7 +3,7 @@
 
 use super::TvWindow;
 use apollo_fft::application::execution::kernel::{fft_forward, fft_inverse, FftPrecision};
-use eunomia::{CastFrom, Complex, RealField};
+use eunomia::{Complex, RealField};
 
 /// Reusable buffers for unringing lines of one fixed length.
 ///
@@ -48,17 +48,13 @@ where
         } else {
             len / 2 - 1
         };
-        let n = <T as CastFrom<i32>>::cast_from(
-            i32::try_from(len).expect("invariant: the driver bounds line lengths by i32::MAX"),
-        );
-        let m_t = <T as CastFrom<i32>>::cast_from(m);
+        let n = T::from_count(len);
+        let m_t = T::from_integer(i64::from(m));
         let mut ramps = Vec::with_capacity(shifts.len() * last_ramp_bin);
         for &shift in &shifts {
-            let shift_t = <T as CastFrom<i32>>::cast_from(shift);
+            let shift_t = T::from_integer(i64::from(shift));
             for k in 1..=last_ramp_bin {
-                let k_t = <T as CastFrom<i32>>::cast_from(
-                    i32::try_from(k).expect("invariant: k < len <= i32::MAX"),
-                );
+                let k_t = T::from_count(k);
                 // Eq. 2: the phase ramp e^{i2πk·s/(2M)/n} moves the line to
                 // I(x + s/(2M)) under the inverse kernel e^{+i2πkx/n}.
                 let phase = T::PI * shift_t * k_t / (n * m_t);
@@ -114,7 +110,7 @@ where
                 }
             }
             let shifted = &self.shifted[chosen * n..(chosen + 1) * n];
-            let s = <T as CastFrom<i32>>::cast_from(self.shifts[chosen]) / self.shift_denominator;
+            let s = T::from_integer(i64::from(self.shifts[chosen])) / self.shift_denominator;
             let centre = shifted[x];
             *out = if s > T::ZERO {
                 centre * (T::ONE - s) + shifted[(x + n - 1) % n] * s

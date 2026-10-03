@@ -3,6 +3,23 @@
 use super::*;
 use crate::presentation::PaneLayout;
 
+fn projection_center(session: &NativeViewerSession) -> (i32, i32) {
+    let area = session
+        .window_chrome
+        .viewport_area(session.surface_width, session.surface_height)
+        .expect("bounded projection workspace");
+    let panes = PaneLayout::Quad
+        .partition(area.width, area.height, super::layout::VIEW_GAP_PIXELS)
+        .expect("partition the four projection panels");
+    let projection = panes[3].expect("quad layout has a projection panel");
+    let x = area.x + projection.x + projection.width / 2;
+    let y = area.y + projection.y + projection.height / 2;
+    (
+        i32::try_from(x).expect("projection x fits native pixel coordinates"),
+        i32::try_from(y).expect("projection y fits native pixel coordinates"),
+    )
+}
+
 #[test]
 fn native_session_drag_updates_pan_and_presented_frame() {
     let (mut session, _root) = session();
@@ -137,8 +154,9 @@ fn native_session_mip_layout_composes_a_fourth_display_panel() {
             .collect::<Vec<_>>(),
         vec![0, 1, 2]
     );
+    let (x, y) = projection_center(&session);
     assert_ne!(
-        session.framebuffer.get_pixel(960, 600),
+        session.framebuffer.get_pixel(x, y),
         metis_platform::Color::BLACK,
         "the fourth panel contains the rendered MIP"
     );
@@ -147,13 +165,36 @@ fn native_session_mip_layout_composes_a_fourth_display_panel() {
 #[test]
 fn responsive_native_layout_selects_single_dual_and_quad_panes() {
     let (session, _root) = session_with_responsive_mode();
-    assert_eq!(session.viewports[0].panel_width(), 638);
-    assert_eq!(session.viewports[1].panel_width(), 638);
-    assert_eq!(session.viewports[2].panel_width(), 638);
+    let viewport_area = session
+        .window_chrome
+        .viewport_area(session.surface_width, session.surface_height)
+        .expect("bounded image workspace");
+    let selected_layout = PaneLayout::responsive(viewport_area.width, viewport_area.height);
+    assert_eq!(
+        viewport_area,
+        super::layout::ViewportArea {
+            x: 276,
+            y: 78,
+            width: 1_004,
+            height: 696,
+        }
+    );
+    assert_eq!(selected_layout, PaneLayout::Quad);
+    let panes = selected_layout
+        .partition(
+            viewport_area.width,
+            viewport_area.height,
+            super::layout::VIEW_GAP_PIXELS,
+        )
+        .expect("partition the image workspace");
+    for (viewport, pane) in session.viewports.iter().zip(panes.iter().take(3)) {
+        assert_eq!(viewport.panel_width(), pane.map_or(0, |pane| pane.width));
+    }
+    let (center_x, center_y) = session.viewports[1].center();
     assert_ne!(
-        session.framebuffer.get_pixel(960, 600),
+        session.framebuffer.get_pixel(center_x, center_y),
         metis_platform::Color::BLACK,
-        "responsive quad layout presents the real scalar projection"
+        "responsive quad layout presents the second orthogonal plane"
     );
 
     for (layout, width, height, expected_visible) in [
@@ -167,6 +208,7 @@ fn responsive_native_layout_selects_single_dual_and_quad_panes() {
             layout,
             width,
             height,
+            super::layout::ViewportArea::full(width, height),
             session.app.zoom,
             session.app.pan_offset,
             false,
@@ -200,8 +242,9 @@ fn native_session_scalar_projection_modes_render_and_label() {
         let (session, _root) = session_with_mode(mode);
         let projection = session.projection.as_ref().expect("projection layout");
         assert_eq!(projection.statistic.label(), label);
+        let (x, y) = projection_center(&session);
         assert_ne!(
-            session.framebuffer.get_pixel(960, 600),
+            session.framebuffer.get_pixel(x, y),
             metis_platform::Color::BLACK,
             "the {label} panel contains rendered scalar pixels"
         );
@@ -223,6 +266,7 @@ fn native_session_mip_application_overlay_labels_the_fourth_panel() {
         projection,
         INITIAL_WIDTH,
         INITIAL_HEIGHT,
+        super::layout::ViewportArea::full(INITIAL_WIDTH, INITIAL_HEIGHT),
         session.app.zoom,
         session.app.pan_offset,
         false,
@@ -245,6 +289,7 @@ fn native_application_capture_adds_bounded_ritk_overlays() {
         &session.views,
         INITIAL_WIDTH,
         INITIAL_HEIGHT,
+        super::layout::ViewportArea::full(INITIAL_WIDTH, INITIAL_HEIGHT),
         session.app.zoom,
         session.app.pan_offset,
         false,
@@ -256,6 +301,7 @@ fn native_application_capture_adds_bounded_ritk_overlays() {
         &session.views,
         INITIAL_WIDTH,
         INITIAL_HEIGHT,
+        super::layout::ViewportArea::full(INITIAL_WIDTH, INITIAL_HEIGHT),
         session.app.zoom,
         session.app.pan_offset,
         false,
@@ -349,7 +395,7 @@ fn native_session_focus_loss_cancels_pointer_gesture() {
         ])
         .expect("focus cancellation");
     assert!(session.app.tool_state.is_idle());
-    assert!(session.active_view.is_none());
+    assert_eq!(session.active_view, None);
 }
 
 #[test]

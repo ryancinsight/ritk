@@ -1,0 +1,113 @@
+{
+  "schema": 1,
+  "status": "passed",
+  "runtime": {
+    "host": "Windows 11 native Métis surface",
+    "date": "2026-10-02",
+    "ritk_pull_request": "ryancinsight/ritk#676",
+    "ritk_revision": "5442491ccb4940a7dd76959e5f9459c85f35161c",
+    "ritk_tree": "9ab6067f8a4c6c28dcc5dc9e2621edfeea31aad0",
+    "executable": "ritk-snap.exe",
+    "executable_sha256": "d2bb6d4d2e7048966a245ab0ccb28a9004492ad261130e1dbd97a70c4bdde4ea",
+    "executable_bytes": 26265600,
+    "toolchain": "rustc 1.97.0 (2d8144b78 2026-07-07)",
+    "metis_revision": "57709a4958a78ec99a9b9128da03db39ee4d2b22",
+    "metis_platform_revision": "57709a4958a78ec99a9b9128da03db39ee4d2b22",
+    "moirai_pal_revision": "a3282e9f61e27e7ebfa42a264c6e3b184b462f47",
+    "capture_utility": {
+      "path": "scripts/python_native_capture.py",
+      "repository": "ryancinsight/metis",
+      "file_revision": "091e9c01b764dba1f478f13d579d388e61043f05",
+      "git_blob": "05db2c28a5deb55be86d690caf7a7b00ba78dee8",
+      "sha256": "600b5f1c2e3678cb71fad1d414c7c72466153e45b68419603add4812fa47a709",
+      "capture": "Win32 PrintWindow of the live RITK process window"
+    },
+    "client": {
+      "width": 1280,
+      "height": 800
+    },
+    "window": {
+      "width": 1298,
+      "height": 847,
+      "dpi": 120
+    },
+    "caption_text_observed_by_GetWindowTextW": "RITK DICOM Viewer",
+    "process_returncode": 0,
+    "command": "ritk-snap.exe %TEMP%/ritk-snap-window-controls-3bfe46227661436a857d2336b9b95f8c/capture-data/multiseries --metis-native --series-instance-uid 1.3.6.1.4.1.14519.5.2.1.1706.4996.123065603063404191260103927213 --compare-series-instance-uid 1.3.6.1.4.1.14519.5.2.1.1706.4996.115936088547498980797393821518"
+  },
+  "dataset": {
+    "path": "%TEMP%/ritk-snap-window-controls-3bfe46227661436a857d2336b9b95f8c/capture-data/multiseries",
+    "description": "Public MRI-DIR porcine-head phantom with the matching MRI and CT series loaded together",
+    "license": "CC BY 4.0",
+    "directory_regular_files": 503,
+    "non_dicom_files": [],
+    "dicom_instances_read": 503,
+    "dicom_bytes_read": 265963652,
+    "study_count": 2,
+    "series_count": 2,
+    "series": [
+      {
+        "series_instance_uid": "1.3.6.1.4.1.14519.5.2.1.1706.4996.123065603063404191260103927213",
+        "modality": "MR",
+        "description": "T2",
+        "instances": 94,
+        "panel": "P1"
+      },
+      {
+        "series_instance_uid": "1.3.6.1.4.1.14519.5.2.1.1706.4996.115936088547498980797393821518",
+        "modality": "CT",
+        "description": "CT",
+        "instances": 409,
+        "panel": "P2"
+      }
+    ]
+  },
+  "source_capture": {
+    "path": "%TEMP%/ritk-snap-window-controls-3bfe46227661436a857d2336b9b95f8c/mri-ct-window-final.png",
+    "sha256": "31803fafa5e1e1a61d97a0543490625a09f8cb3d1e8c0f9955decdb9668777f0",
+    "bytes": 354031,
+    "encoding": "PNG captured from the live native application window"
+  },
+  "output": {
+    "path": "docs/manual/images/dicom-metis-real-mri-ct-multiseries-window.webp",
+    "width": 1298,
+    "height": 847,
+    "sha256": "3583dd8dfd660d96308fdd485c2753b59ac7e9293d52e1dc165d7b66d20f5f12",
+    "bytes": 161276,
+    "encoding": "lossless WebP",
+    "visible_controls": [
+      "File",
+      "View",
+      "Tools",
+      "Window",
+      "Open Study...",
+      "Open multiple series",
+      "W/L",
+      "Pan",
+      "Zoom",
+      "Length",
+      "Angle",
+      "Cine",
+      "Split screen",
+      "Series bar",
+      "Panel maximize",
+      "Panel close",
+      "Series preview",
+      "Load to P1"
+    ],
+    "panels": [
+      "P1  |  MR  |  T2",
+      "P2  |  CT  |  CT"
+    ],
+    "visual_scope": "Actual running Métis native window with Windows chrome and a blank rendered title bar, File/View/Tools/Window menus, five compact toolbar groups divided by four vertical separators, two independent image panels, panel maximize and close controls, left study and series preview bar with decoded MRI and CT thumbnails and thumbnail image-count badges (94 and 409), P1/P2 assignments, status bar, and both real public phantom series. The runtime window-title field records RITK DICOM Viewer separately from the rendered pixels.",
+    "clinical_patient_identifiers_displayed": false,
+    "panel_actions_visible": true,
+    "toolbar_divider_count": 4,
+    "visible_annotations": [
+      "Image number and total count",
+      "Window width and centre",
+      "Source pixel dimensions"
+    ]
+  },
+  "residual": "The capture verifies simultaneous rendering of both public series. Native event and state-transition tests cover the F4 picker interaction; the screenshot does not claim complete RadiAnt feature parity."
+}

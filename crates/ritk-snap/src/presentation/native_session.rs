@@ -7,39 +7,42 @@
 //! surface and receives only that framebuffer.
 
 use crate::app::SnapApp;
-use crate::dicom::loader::load_volume_from_series_uid;
 use crate::launch::{NativePresentationMode, NativePresentationSelection};
-use anyhow::{anyhow, Context, Result};
+use anyhow::{anyhow, Result};
 use metis_platform::native::{run_native_application, WindowConfig, WindowVisibility};
 use std::path::Path;
 use std::sync::atomic::Ordering;
 use std::sync::Arc;
 use std::time::Duration;
 
+mod compare;
+mod composition;
+mod events;
 mod frame;
 mod layout;
 mod projection;
-use frame::RenderedView;
-use layout::NativeViewport;
-use projection::RenderedProjection;
-mod composition;
-mod events;
 mod routing;
-mod selection;
+mod series;
+mod series_browser;
 mod startup;
+mod window_actions;
+mod window_controls;
 use composition::save_capture;
-use selection::SeriesSelection;
+use series_browser::SeriesBrowser;
 use startup::prepare_initial_study;
+use window_controls::{WindowAction, WindowChrome};
 
 mod observation;
+mod panels;
 mod session;
+mod session_chrome;
 use observation::{record_state, NativeViewerError, NativeViewerObservation};
 use session::NativeViewerSession;
 
 const INITIAL_WIDTH: u32 = 1_280;
 const INITIAL_HEIGHT: u32 = 800;
 const EVENT_WAIT: Duration = Duration::from_millis(16);
-const NATIVE_TITLE: &str = "RITK-SNAP — Métis native";
+const NATIVE_TITLE: &str = "RITK DICOM Viewer";
 const VIRTUAL_KEY_OPEN_STUDY: u32 = 0x4f;
 
 mod outcome;
@@ -68,12 +71,42 @@ pub fn run_native_viewer(
     presentation_mode: NativePresentationMode,
     capture_application: bool,
 ) -> Result<NativeViewerOutcome> {
-    run_native_viewer_with_selection(
+    run_native_viewer_with_browser(
         initial_path,
         initial_series_uid,
         capture,
         NativePresentationSelection::Fixed(presentation_mode),
         capture_application,
+        None,
+    )
+}
+
+/// Run two DICOM series in side-by-side comparison panels.
+///
+/// RITK discovers the startup study, loads `initial_series_uid` into panel 1,
+/// and loads `comparison_series_uid` into panel 2. The two panels retain
+/// independent slice, zoom, pan and cine state. Both identifiers must name
+/// different series in the selected study directory.
+///
+/// # Errors
+/// Returns an error if either series is absent, the identifiers are equal, a
+/// series cannot be decoded, or the native host cannot present the window.
+#[must_use = "the session outcome records host and viewer transitions"]
+pub fn run_native_comparison_viewer(
+    initial_path: impl AsRef<Path>,
+    initial_series_uid: &str,
+    comparison_series_uid: &str,
+    capture: Option<&Path>,
+    presentation_mode: NativePresentationMode,
+    capture_application: bool,
+) -> Result<NativeViewerOutcome> {
+    run_native_viewer_with_browser(
+        initial_path,
+        Some(initial_series_uid),
+        capture,
+        NativePresentationSelection::Fixed(presentation_mode),
+        capture_application,
+        Some(comparison_series_uid),
     )
 }
 
@@ -93,51 +126,42 @@ pub fn run_native_responsive_viewer(
     capture: Option<&Path>,
     capture_application: bool,
 ) -> Result<NativeViewerOutcome> {
-    run_native_viewer_with_selection(
+    run_native_viewer_with_browser(
         initial_path,
         initial_series_uid,
         capture,
         NativePresentationSelection::Responsive,
         capture_application,
+        None,
     )
 }
 
-fn run_native_viewer_with_selection(
+fn run_native_viewer_with_browser(
     initial_path: impl AsRef<Path>,
     initial_series_uid: Option<&str>,
     capture: Option<&Path>,
     presentation_mode: NativePresentationSelection,
     capture_application: bool,
+    comparison_series_uid: Option<&str>,
 ) -> Result<NativeViewerOutcome> {
     let initial_path = initial_path.as_ref();
     let mut app = SnapApp::default();
-    let selection = match initial_series_uid {
-        Some(series_uid) => {
-            let volume =
-                load_volume_from_series_uid(initial_path, series_uid).with_context(|| {
-                    format!("open selected RITK series from {}", initial_path.display())
-                })?;
-            app.load_volume(
-                volume,
-                format!(
-                    "Loaded native Métis series {}: {}",
-                    series_uid,
-                    initial_path.display()
-                ),
-            );
-            None
-        }
-        None => prepare_initial_study(&mut app, initial_path, capture.is_some())?,
-    };
+    let series_browser = prepare_initial_study(
+        &mut app,
+        initial_path,
+        initial_series_uid,
+        capture.is_some(),
+    )?;
 
     let observation = Arc::new(NativeViewerObservation::default());
-    let session = NativeViewerSession::new_with_selection(
+    let session = NativeViewerSession::new_with_browser(
         app,
         Arc::clone(&observation),
         capture.is_some(),
         presentation_mode,
         capture_application,
-        selection,
+        series_browser,
+        comparison_series_uid,
     )?;
     let config = WindowConfig::with_visibility(
         NATIVE_TITLE,

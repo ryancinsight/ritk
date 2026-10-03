@@ -2,7 +2,7 @@
 use crate::dicom::input_path::classify_dicom_input_path;
 use crate::dicom::series_tree::{SeriesEntry, SeriesEntryView, SeriesTree};
 use anyhow::{Context, Result};
-use ritk_io::scan_dicom_directory;
+use ritk_io::{scan_dicom_directory, scan_dicom_files, DicomReadMetadata, DicomSeriesInfo};
 use std::path::{Path, PathBuf};
 use walkdir::WalkDir;
 
@@ -18,11 +18,7 @@ pub fn scan_folder_for_series<P: AsRef<Path>>(folder: P) -> Result<SeriesTree<'s
     let requested = folder.as_ref();
     let mut entries: Vec<SeriesEntry> = Vec::new();
     if is_index(requested) && !requested.is_dir() {
-        entries.extend(
-            scan_dicom_directory(requested)?
-                .into_iter()
-                .map(SeriesEntry::from_dicom_series_info),
-        );
+        entries.extend(entries_with_metadata(scan_dicom_directory(requested)?)?);
     } else {
         let root = classify_dicom_input_path(requested)
             .dicom_root()
@@ -43,11 +39,7 @@ pub fn scan_folder_for_series<P: AsRef<Path>>(folder: P) -> Result<SeriesTree<'s
                 .map(|child| child.map(|child| child.path()))
                 .collect::<std::io::Result<_>>()?;
             let indexed = children.iter().any(|child| is_index(child));
-            entries.extend(
-                scan_dicom_directory(entry.path())?
-                    .into_iter()
-                    .map(SeriesEntry::from_dicom_series_info),
-            );
+            entries.extend(entries_with_metadata(scan_dicom_directory(entry.path())?)?);
             if indexed {
                 directories.skip_current_dir();
             }
@@ -55,6 +47,26 @@ pub fn scan_folder_for_series<P: AsRef<Path>>(folder: P) -> Result<SeriesTree<'s
     }
     sort_series_entries_deterministically(&mut entries);
     Ok(SeriesTree::from_entries(entries))
+}
+
+fn entries_with_metadata(series: Vec<DicomSeriesInfo>) -> Result<Vec<SeriesEntry<'static>>> {
+    series
+        .into_iter()
+        .map(|info| {
+            let metadata = first_instance_metadata(&info)?;
+            Ok(SeriesEntry::from_dicom_series_info(info, metadata))
+        })
+        .collect()
+}
+
+fn first_instance_metadata(info: &DicomSeriesInfo) -> Result<DicomReadMetadata> {
+    let first = info
+        .file_paths
+        .first()
+        .context("discovered DICOM series has no instances")?;
+    scan_dicom_files(std::slice::from_ref(first))
+        .with_context(|| format!("read DICOM display metadata from '{}'", first.display()))
+        .map(|series| series.metadata)
 }
 
 fn is_index(path: &Path) -> bool {
