@@ -61,24 +61,36 @@
 <a id="RITK-TYPED-SAMPLES-001"></a>
 ## RITK-TYPED-SAMPLES-001: Preserve fixed-width stored samples
 - outcome: decode and encode image samples in RITK without implicit numeric conversion.
-- acceptance: ten fixed-width types round-trip both byte orders and float bits; partial samples fail; mismatched extraction preserves the buffer; old callers remain intact until migrated.
-- status: todo
+- acceptance: ten fixed-width types round-trip both byte orders and float bits; partial samples fail; mismatched extraction preserves the buffer; migrated callers preserve their documented numeric semantics.
+- status: blocked
+- blocker: The exact-revision pre-push gate for commit be04d9051 reached its 600-second deadline while an Atlas Kwavers nextest held the shared Cargo target; no tests or Clippy result were obtained. Reopen after the target is available and the exact gate passes.
 - priority: architecture
 - needs: none
-- scope: `crates/ritk-codecs/src/sample/`, codec exports and README, [ADR 0053](docs/adr/0053-typed-sample-io.md).
-- next: 001a lands the sealed vocabulary plus buffer/decode core; next is 001a-2 (conversion/rescale/stream/encode, header_text, io_error, migration guide), then 001b adapters and 002-009 per-format conversions.
-- basis: fb1ff642dcc2ce722780dc9b051cb0796897ca25
+- scope: `crates/ritk-codecs/src/sample/`, typed conversion and calibration operations, format adapters, codec exports and README, [ADR 0053](docs/adr/0053-typed-sample-io.md).
+- next: Resume from rescue PR #746, rerun the exact gate, then complete the stored-sample operations and migrate callers.
+- basis: 6b6c10d06533c9391e419924a834541b97b8b756
 
 <a id="RITK-FORMAT-CONVERSION-001"></a>
 ## RITK-FORMAT-CONVERSION-001: Convert image formats through RITK
-- outcome: read, write, and convert the supported medical and scientific image formats through RITK's shared typed image-I/O path.
-- acceptance: DICOM, NIfTI, NRRD, MetaImage, MINC, MIF, MGH/MGZ, Analyze, VTK, PNG, TIFF, and JPEG have explicit read/write and shape capabilities; every advertised scalar-volume conversion pair passes value, geometry, and calibration round trips or fails with a typed error before output; Métis has no format parser or converter.
+- outcome: keep every supported medical-image and scientific-image parser, writer, and conversion in RITK behind typed format capabilities.
+- acceptance: DICOM, NIfTI, NRRD, MetaImage, MINC, MIF, MGH/MGZ, Analyze, VTK, PNG, TIFF, JPEG, and GIFTI declare readable and writable data models; each compatible conversion preserves samples, geometry, calibration, and acquisition metadata or returns a typed loss report before output; DICOM directory loading exposes every series; Metis consumes RITK APIs and contains no parser or converter.
 - status: todo
 - priority: architecture
+- needs: RITK-TYPED-SAMPLES-001, RITK-TYPED-SAMPLES-006
+- scope: `crates/ritk-image-io/`, `crates/ritk-io/`, every listed format crate, conversion tests, and the RITK user manual.
+- next: after both dependencies land, publish the format capability table and implement loss-aware conversion preflight and execution for compatible data models.
+- basis: 6b6c10d06533c9391e419924a834541b97b8b756
+
+<a id="RITK-TYPED-SAMPLES-006"></a>
+## RITK-TYPED-SAMPLES-006: Preserve NRRD stored samples and semantics
+- outcome: read and write NRRD volumes through one shared stored-volume contract without implicit sample conversion.
+- acceptance: all ten fixed-width types and float bits round-trip; axis units, non-orthogonal geometry, measurement frame, coordinate maps, bounds, centering, calibration, and diffusion axes are preserved or rejected with a typed error before output; conflicting headers and resource-limit violations fail explicitly; manual examples cover supported cases.
+- status: todo
+- priority: correctness
 - needs: RITK-TYPED-SAMPLES-001
-- scope: `crates/ritk-io/`, every `crates/ritk-*` format reader/writer, their tests and manuals.
-- next: inventory registered formats and conversion semantics, then define the canonical typed image and capability contracts in an indexed ADR before adapting readers.
-- basis: fb1ff642dcc2ce722780dc9b051cb0796897ca25
+- scope: `crates/ritk-image-io/`, `crates/ritk-nrrd/`, `crates/ritk-codecs/`, `crates/ritk-spatial/`, the NRRD format manual, and ADR 0054.
+- next: after typed-sample I/O lands, resolve the independent-review findings for alias and spatial-field conflicts, duplicated coordinate-map parameters, diffusion-axis validation, and bounded payload allocation; run the focused RITK gates.
+- basis: 6b6c10d06533c9391e419924a834541b97b8b756
 
 <a id="RITK-SNAP-INTERACTION-REGIONS-001"></a>
 ## RITK-SNAP-INTERACTION-REGIONS-001: Separate region interaction tests
