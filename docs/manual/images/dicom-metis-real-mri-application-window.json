@@ -5,10 +5,10 @@
     "host": "Windows 11 native Métis surface",
     "date": "2026-10-02",
     "ritk_pull_request": "ryancinsight/ritk#676",
-    "ritk_revision": "5457f2126d801a1b4c45a6fc81d6d680f7ab518a",
-    "ritk_tree": "fcd28d2f66d4ae97fdb9845c7c87210734f9eab4",
+    "ritk_revision": "c6ad04281036c629abd3547fa5d117a2ff2ec24f",
+    "ritk_tree": "e0ab538b4e913dca6ce7f0434121670440f68650",
     "executable": "ritk-snap.exe",
-    "executable_sha256": "dc0182c960d8a782643aa909a4e5393ca3d71e3b94da03f6c540678750b06038",
+    "executable_sha256": "d2bb6d4d2e7048966a245ab0ccb28a9004492ad261130e1dbd97a70c4bdde4ea",
     "executable_bytes": 26265600,
     "toolchain": "rustc 1.97.0 (2d8144b78 2026-07-07)",
     "metis_revision": "57709a4958a78ec99a9b9128da03db39ee4d2b22",
@@ -98,7 +98,7 @@
       "MPR: sagittal",
       "MIP projection"
     ],
-    "visual_scope": "Actual running Métis native window with Windows chrome and title bar labeled RITK DICOM Viewer, File/View/Tools/Window menus, five compact toolbar groups divided by four vertical separators, left study and series preview bar with decoded MRI thumbnail and thumbnail image-count badges (94), status bar, three real MRI planes and one MIP projection.",
+    "visual_scope": "Actual running Métis native window with Windows chrome and a blank rendered title bar, File/View/Tools/Window menus, five compact toolbar groups divided by four vertical separators, left study and series preview bar with decoded MRI thumbnail and thumbnail image-count badges (94), status bar, three real MRI planes and one MIP projection. The runtime window-title field records RITK DICOM Viewer separately from the rendered pixels.",
     "clinical_patient_identifiers_displayed": false,
     "panel_actions_visible": false,
     "toolbar_divider_count": 4
