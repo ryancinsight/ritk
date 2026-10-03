@@ -1,28 +1,28 @@
 //! VTK legacy structured points format reader.
 //!
 //! Parses the VTK legacy file format (version 1.0–5.1) restricted to
-//! `DATASET STRUCTURED_POINTS` with scalar point data. Both ASCII and
-//! BINARY encoding are supported.
+//! `DATASET STRUCTURED_POINTS` with single-component scalar point data. Both
+//! ASCII and BINARY encoding are supported.
 //!
 //! ## Coordinate Convention
 //!
-//! VTK header fields `DIMENSIONS`, `ORIGIN`, `SPACING` are in **[X, Y, Z]**
-//! order. RITK spatial metadata (`Point`, `Spacing`) also uses **[X, Y, Z]**
-//! order, so values transfer directly without permutation.
+//! VTK header dimensions and spacing use **[X, Y, Z]** order. RITK tensors
+//! use **[Z, Y, X]** axis order; the reader reverses dimensions and spacing and
+//! records the corresponding direction columns. Physical origin remains XYZ.
 //!
-//! RITK tensor shape is **[nz, ny, nx]** (Z varies slowest, X varies fastest).
-//! VTK stores scalar data with X varying fastest, matching RITK's memory
-//! layout. No data permutation is required.
+//! VTK stores scalar data with X varying fastest, matching the final X axis of
+//! RITK's [Z, Y, X] tensor layout. Scalar data needs no permutation.
 //!
 //! ## Supported Scalar Types
 //!
 //! `float`, `double`, `unsigned_char`, `short`, `unsigned_short`, `int`,
-//! `unsigned_int`. All are converted to `f32` for the output tensor.
+//! `unsigned_int`. All are converted to `f32` for the output tensor. A declared
+//! component count other than one is rejected rather than silently truncated.
 
 use anyhow::{bail, Context, Result};
 use coeus_core::ComputeBackend;
 use ritk_image::Image;
-use ritk_spatial::{Direction, Point, Spacing};
+use ritk_spatial::{Point, Spacing};
 use std::io::{BufRead, BufReader, Read};
 use std::path::Path;
 
@@ -100,7 +100,7 @@ struct VtkHeader {
 /// - `dims` is `[nx, ny, nz]` — VTK header `DIMENSIONS` **[X, Y, Z]** order, not
 ///   yet permuted to tensor `[nz, ny, nx]` order.
 /// - `origin` / `spacing` are `[ox, oy, oz]` / `[sx, sy, sz]` in VTK **[X, Y, Z]**
-///   order, transferring directly to RITK spatial metadata without permutation.
+///   file order. [`read_vtk`] keeps origin XYZ and maps spacing to RITK ZYX.
 ///
 /// All scalar types (`float`, `double`, `unsigned_char`, `short`,
 /// `unsigned_short`, `int`, `unsigned_int`) decode to `f32`. Binary payloads are
@@ -111,6 +111,10 @@ struct VtkHeader {
 /// Returns an error when:
 /// - The file cannot be opened or read.
 /// - The header does not conform to VTK legacy structured-points format.
+/// - A dimension is zero, the dimension product overflows, or spacing is not
+///   finite and strictly positive.
+/// - The scalar count cannot fit the returned `Vec<f32>`, or `SCALARS` declares
+///   anything other than one component.
 /// - The declared scalar type is unsupported.
 /// - The data section is truncated or malformed.
 // The 4-tuple is a flat decode bundle (scalars, dims, origin, spacing) whose
@@ -129,10 +133,14 @@ pub fn read_vtk_flat<P: AsRef<Path>>(
     let header = parse_header(&mut reader).with_context(|| "failed to parse VTK header")?;
 
     let [nx, ny, nz] = header.dims;
-    let expected_voxels = nx
-        .checked_mul(ny)
-        .and_then(|plane| plane.checked_mul(nz))
-        .with_context(|| format!("VTK DIMENSIONS product overflows usize: {nx}×{ny}×{nz}"))?;
+    let expected_voxels = crate::io::structured_points::voxel_count(header.dims)?;
+    std::alloc::Layout::array::<f32>(expected_voxels)
+        .map(|_| ())
+        .with_context(|| {
+            format!("VTK scalar count {expected_voxels} cannot fit a Vec<f32> allocation")
+        })?;
+    crate::io::structured_points::validate_spacing(header.spacing)
+        .context("VTK SPACING components must be finite and strictly positive")?;
 
     if header.point_data_n != expected_voxels {
         bail!(
@@ -172,6 +180,10 @@ pub fn read_vtk_flat<P: AsRef<Path>>(
 /// Returns an error when:
 /// - The file cannot be opened or read.
 /// - The header does not conform to VTK legacy structured-points format.
+/// - A dimension is zero, the dimension product overflows, or spacing is not
+///   finite and strictly positive.
+/// - The scalar count cannot fit the returned `Vec<f32>`, or `SCALARS` declares
+///   anything other than one component.
 /// - The declared scalar type is unsupported.
 /// - The data section is truncated or malformed.
 pub fn read_vtk<B: ComputeBackend, P: AsRef<Path>>(
@@ -181,8 +193,8 @@ pub fn read_vtk<B: ComputeBackend, P: AsRef<Path>>(
     let (data_f32, [nx, ny, nz], origin_arr, spacing_arr) = read_vtk_flat(path)?;
 
     let origin = Point::new(origin_arr);
-    let spacing = Spacing::new(spacing_arr);
-    let direction = Direction::identity();
+    let spacing = Spacing::new(crate::domain::axis_order::reverse_axes(spacing_arr));
+    let direction = crate::domain::axis_order::vtk_image_direction();
 
     tracing::debug!(
         ?origin,
@@ -249,9 +261,10 @@ fn parse_header(reader: &mut BufReader<std::fs::File>) -> Result<VtkHeader> {
     // Line 4: dataset type
     let ds_line =
         next_meaningful_line(reader)?.with_context(|| "unexpected EOF before VTK DATASET line")?;
-    if !ds_line
-        .to_ascii_uppercase()
-        .starts_with("DATASET STRUCTURED_POINTS")
+    let dataset_tokens = ds_line.split_whitespace().collect::<Vec<_>>();
+    if dataset_tokens.len() != 2
+        || !dataset_tokens[0].eq_ignore_ascii_case("DATASET")
+        || !dataset_tokens[1].eq_ignore_ascii_case("STRUCTURED_POINTS")
     {
         bail!(
             "unsupported VTK dataset type (expected STRUCTURED_POINTS, got '{}')",
@@ -272,10 +285,10 @@ fn parse_header(reader: &mut BufReader<std::fs::File>) -> Result<VtkHeader> {
             Some(l) => l,
             None => break,
         };
-        let upper = line.to_ascii_uppercase();
         let tokens: Vec<&str> = line.split_whitespace().collect();
+        let keyword = tokens.first().copied().unwrap_or_default();
 
-        if upper.starts_with("DIMENSIONS") {
+        if keyword.eq_ignore_ascii_case("DIMENSIONS") {
             if tokens.len() < 4 {
                 bail!("DIMENSIONS line requires 3 values, got: '{}'", line);
             }
@@ -284,7 +297,7 @@ fn parse_header(reader: &mut BufReader<std::fs::File>) -> Result<VtkHeader> {
             let nz: usize = tokens[3].parse().with_context(|| "bad DIMENSIONS nz")?;
             dims = Some([nx, ny, nz]);
             tracing::debug!(nx, ny, nz, "VTK DIMENSIONS parsed");
-        } else if upper.starts_with("ORIGIN") {
+        } else if keyword.eq_ignore_ascii_case("ORIGIN") {
             if tokens.len() < 4 {
                 bail!("ORIGIN line requires 3 values, got: '{}'", line);
             }
@@ -293,7 +306,9 @@ fn parse_header(reader: &mut BufReader<std::fs::File>) -> Result<VtkHeader> {
             let oz: f64 = tokens[3].parse().with_context(|| "bad ORIGIN oz")?;
             origin = Some([ox, oy, oz]);
             tracing::debug!(ox, oy, oz, "VTK ORIGIN parsed");
-        } else if upper.starts_with("SPACING") || upper.starts_with("ASPECT_RATIO") {
+        } else if keyword.eq_ignore_ascii_case("SPACING")
+            || keyword.eq_ignore_ascii_case("ASPECT_RATIO")
+        {
             if tokens.len() < 4 {
                 bail!("SPACING line requires 3 values, got: '{}'", line);
             }
@@ -302,14 +317,14 @@ fn parse_header(reader: &mut BufReader<std::fs::File>) -> Result<VtkHeader> {
             let sz: f64 = tokens[3].parse().with_context(|| "bad SPACING sz")?;
             spacing = Some([sx, sy, sz]);
             tracing::debug!(sx, sy, sz, "VTK SPACING parsed");
-        } else if upper.starts_with("POINT_DATA") {
+        } else if keyword.eq_ignore_ascii_case("POINT_DATA") {
             if tokens.len() < 2 {
                 bail!("POINT_DATA line requires a count, got: '{}'", line);
             }
             let n: usize = tokens[1].parse().with_context(|| "bad POINT_DATA count")?;
             point_data_n = Some(n);
             tracing::debug!(n, "VTK POINT_DATA parsed");
-        } else if upper.starts_with("SCALARS") {
+        } else if keyword.eq_ignore_ascii_case("SCALARS") {
             // SCALARS name type [ncomp]
             if tokens.len() < 3 {
                 bail!(
@@ -317,11 +332,21 @@ fn parse_header(reader: &mut BufReader<std::fs::File>) -> Result<VtkHeader> {
                     line
                 );
             }
+            if tokens.len() > 4 {
+                bail!("SCALARS line contains fields after its component count");
+            }
+            let component_count = tokens
+                .get(3)
+                .map_or(Ok(1), |value| value.parse::<usize>())
+                .with_context(|| "bad SCALARS component count")?;
+            if component_count != 1 {
+                bail!("unsupported VTK SCALARS component count: expected 1, got {component_count}");
+            }
             let stype = VtkScalarType::from_str(tokens[2])
                 .with_context(|| format!("bad SCALARS type in line: '{}'", line))?;
             scalar_type = Some(stype);
             tracing::debug!(?stype, name = tokens[1], "VTK SCALARS parsed");
-        } else if upper.starts_with("LOOKUP_TABLE") {
+        } else if keyword.eq_ignore_ascii_case("LOOKUP_TABLE") {
             // Marks the end of the header; data follows immediately.
             tracing::debug!("VTK LOOKUP_TABLE line reached; data follows");
             break;
@@ -359,6 +384,11 @@ fn read_binary_scalars(
     let total_bytes = count
         .checked_mul(byte_width)
         .with_context(|| "scalar data size overflow")?;
+    std::alloc::Layout::array::<u8>(total_bytes)
+        .map(|_| ())
+        .with_context(|| {
+            format!("VTK binary payload size {total_bytes} cannot fit a Vec<u8> allocation")
+        })?;
 
     // Bound the speculative allocation: `count` is a header field and may exceed
     // the bytes actually present. `read_exact_bounded` grows the buffer per

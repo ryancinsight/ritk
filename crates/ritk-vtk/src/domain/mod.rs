@@ -2,6 +2,7 @@
 //! modification-time tracking, smart mapper, multi-block datasets, and
 //! concrete geometry filters.
 
+pub(crate) mod axis_order;
 pub mod filters;
 pub mod mapper;
 pub mod mesh_bridge;
