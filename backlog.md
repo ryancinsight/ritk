@@ -41,10 +41,32 @@
 - acceptance: the ritk-vtk binary scalar reader, ritk-mif's float writer, the ritk-nifti and ritk-analyze voxel decoders and the JPEG 2000 QCD step sizes use one shared bulk decode and encode, with the same output bytes and values; each crate's tests pass unchanged, and an instruction-count or pinned run shows no regression on each reader's decode loop.
 - status: todo
 - priority: tightening
-- needs: none
 - scope: `crates/ritk-codecs/src/byte_decode.rs`, `crates/ritk-vtk/src/io/reader.rs`, `crates/ritk-mif/src/writer.rs`, `crates/ritk-nifti/src/header/types.rs`, `crates/ritk-analyze/src/reader.rs`, `crates/ritk-codecs/src/jpeg_2000/codestream.rs`
-- next: measure the vtk and nifti decode loops, then extend `decode_bytes_to_f32` or consus-core with the slice forms those loops need.
-- basis: 83dd6a741a7a30e858a16f79c90d7030b063d1fc
+- needs: RITK-TYPED-SAMPLES-001
+- next: after typed sample I/O lands, profile these call sites and route the required bulk operations through the locked `EndianScalar` API; keep any conversion to `f32` explicit at the image boundary.
+- basis: fb1ff642dcc2ce722780dc9b051cb0796897ca25
+
+<a id="RITK-TYPED-SAMPLES-001"></a>
+## RITK-TYPED-SAMPLES-001: Preserve fixed-width stored samples
+- outcome: decode and encode image samples in RITK without implicit numeric conversion.
+- acceptance: ten fixed-width types round-trip both byte orders and float bits; partial samples fail; mismatched extraction preserves the buffer; old callers remain intact until migrated.
+- status: todo
+- priority: architecture
+- needs: none
+- scope: `crates/ritk-codecs/src/sample/`, codec exports and README, [ADR 0053](docs/adr/0053-typed-sample-io.md).
+- next: 001a lands the sealed vocabulary plus buffer/decode core; next is 001a-2 (conversion/rescale/stream/encode, header_text, io_error, migration guide), then 001b adapters and 002-009 per-format conversions.
+- basis: fb1ff642dcc2ce722780dc9b051cb0796897ca25
+
+<a id="RITK-FORMAT-CONVERSION-001"></a>
+## RITK-FORMAT-CONVERSION-001: Convert image formats through RITK
+- outcome: read, write, and convert the supported medical and scientific image formats through RITK's shared typed image-I/O path.
+- acceptance: DICOM, NIfTI, NRRD, MetaImage, MINC, MIF, MGH/MGZ, Analyze, VTK, PNG, TIFF, and JPEG have explicit read/write and shape capabilities; every advertised scalar-volume conversion pair passes value, geometry, and calibration round trips or fails with a typed error before output; Métis has no format parser or converter.
+- status: todo
+- priority: architecture
+- needs: RITK-TYPED-SAMPLES-001
+- scope: `crates/ritk-io/`, every `crates/ritk-*` format reader/writer, their tests and manuals.
+- next: inventory registered formats and conversion semantics, then define the canonical typed image and capability contracts in an indexed ADR before adapting readers.
+- basis: fb1ff642dcc2ce722780dc9b051cb0796897ca25
 
 <a id="RITK-SNAP-INTERACTION-REGIONS-001"></a>
 ## RITK-SNAP-INTERACTION-REGIONS-001: Separate region interaction tests

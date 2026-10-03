@@ -2,8 +2,9 @@
 
 RITK-native pixel codec implementations for [RITK](https://github.com/ryancinsight/ritk).
 
-Single source of truth for DICOM pixel codec primitives: pixel layout
-arithmetic, native sample decoding, and encapsulated transfer-syntax decoders.
+Single source of truth for RITK image-format sample and codec primitives:
+fixed-width stored-sample decoding, pixel layout arithmetic, and encapsulated
+transfer-syntax decoders.
 
 | Codec | Implementation |
 |---|---|
@@ -14,6 +15,21 @@ arithmetic, native sample decoding, and encapsulated transfer-syntax decoders.
 | RLE Lossless | RITK-native |
 
 Every codec is pure Rust; none links a C or C++ library.
+
+## Stored samples
+
+`SampleBuffer` decodes and encodes signed and unsigned 8-, 16-, 32-, and 64-bit
+integers plus 32- and 64-bit floats in either byte order. It preserves the
+declared sample type and floating-point bit patterns. A partial trailing sample
+is an error. Extracting another sample type returns the original buffer in the
+error, without rounding or discarding data.
+
+The codec layer does not depend on Coeus' algorithm scalar contract. Format
+adapters retain geometry and format-specific intensity calibration beside the
+stored samples, then make any numeric conversion explicit at the image or
+algorithm boundary. The existing `byte_decode` API remains available while
+format readers migrate. See [ADR 0053](../../docs/adr/0053-typed-sample-io.md) for
+the stored-sample ownership and conversion boundary.
 
 ## Usage
 
