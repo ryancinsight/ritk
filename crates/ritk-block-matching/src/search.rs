@@ -6,7 +6,7 @@
 
 use anyhow::{bail, Context, Result};
 
-use crate::extent::check_buffer_lengths;
+use crate::{extent::check_buffer_lengths, BlockMatchingError};
 
 use super::{
     match_block_at, BayesianDisplacementPrior, BlockGrid, DisplacementField, MovingSamples, Sample,
@@ -73,7 +73,9 @@ impl MultiResolutionSearch {
             bail!("multi-resolution level count {levels} is too large");
         }
 
-        let mut regions = Vec::with_capacity(levels);
+        let region_count =
+            crate::extent::buffer_len::<SearchRegion>([1, 1, levels], "search regions")?;
+        let mut regions = Vec::with_capacity(region_count);
         for level in (0..levels).rev() {
             let scale = 1usize
                 .checked_shl(level as u32)
@@ -106,8 +108,9 @@ impl MultiResolutionSearch {
     /// # Errors
     ///
     /// Returns an error when the number of images differs from the plan, when a
-    /// level has invalid dimensions/buffers, or when a propagated moving block
-    /// centre cannot fit in the moving image without padding.
+    /// level has invalid dimensions/buffers, when derived diagnostic storage
+    /// exceeds the allocation limit, or when a propagated moving block centre
+    /// cannot fit in the moving image without padding.
     pub fn match_pyramid<T: Sample>(
         &self,
         pyramid: &[PyramidLevel<'_, T>],
@@ -162,7 +165,11 @@ impl MultiResolutionSearch {
 
         let mut previous_moving: Option<[usize; 3]> = None;
         let mut previous_scale = 0usize;
-        let mut diagnostics = Vec::with_capacity(pyramid.len());
+        let diagnostic_count = crate::extent::buffer_len::<PyramidLevelDisplacement>(
+            [1, 1, pyramid.len()],
+            "pyramid diagnostics",
+        )?;
+        let mut diagnostics = Vec::with_capacity(diagnostic_count);
 
         for (index, (level, region)) in pyramid.iter().zip(&self.regions).enumerate() {
             let fixed_centre = scale_coordinate(finest_centre, region.scale);
@@ -251,7 +258,8 @@ impl MultiResolutionSearch {
     /// # Errors
     ///
     /// Returns an error when the pyramid level count, dimensions, or buffer
-    /// lengths are invalid, or when any grid stride is zero.
+    /// lengths are invalid, a derived result capacity exceeds the allocation
+    /// limit, or any grid stride is zero.
     pub fn track_volume_pyramid<T: Sample>(
         &self,
         pyramid: &[PyramidLevel<'_, T>],
@@ -277,14 +285,24 @@ impl MultiResolutionSearch {
             block_radius: finest.block_radius,
             search_radius: finest.search_radius,
         };
-        let centres = grid.centres(finest_dims, &config);
+        let centres = grid.centres(finest_dims, &config)?;
+        crate::extent::buffer_len::<Option<Vec<MultiResolutionDisplacement>>>(
+            [1, 1, centres.len()],
+            "pyramid level diagnostics",
+        )?;
         let mut displacements = vec![[0.0; 3]; centres.len()];
         let mut peak_similarities = vec![f64::NAN; centres.len()];
 
         for (index, &centre) in centres.iter().enumerate() {
-            if let Ok(result) = self.match_pyramid(pyramid, centre, refinement) {
-                displacements[index] = result.displacement;
-                peak_similarities[index] = result.peak_similarity;
+            match self.match_pyramid(pyramid, centre, refinement) {
+                Ok(result) => {
+                    displacements[index] = result.displacement;
+                    peak_similarities[index] = result.peak_similarity;
+                }
+                Err(error) if error
+                    .downcast_ref::<BlockMatchingError>()
+                    .is_some_and(BlockMatchingError::has_no_displacement) => {}
+                Err(error) => return Err(error),
             }
         }
 
@@ -436,18 +454,24 @@ impl MultiResolutionSearch {
             block_radius: finest.block_radius,
             search_radius: finest.search_radius,
         };
-        let centres = grid.centres(finest_dims, &config);
+        let centres = grid.centres(finest_dims, &config)?;
         let mut displacements = vec![[0.0; 3]; centres.len()];
         let mut peak_similarities = vec![f64::NAN; centres.len()];
         let mut level_diagnostics = vec![None; centres.len()];
 
         for (index, &centre) in centres.iter().enumerate() {
-            // A failed block keeps its NaN peak and `None` diagnostics: it was
-            // not measured, which is distinct from measuring zero displacement.
-            if let Ok(result) = match_at(centre) {
-                displacements[index] = result.displacement;
-                peak_similarities[index] = result.peak_similarity;
-                level_diagnostics[index] = Some(result.levels);
+            // A failed featureless block keeps its NaN peak and `None`
+            // diagnostics; all geometry and allocation failures propagate.
+            match match_at(centre) {
+                Ok(result) => {
+                    displacements[index] = result.displacement;
+                    peak_similarities[index] = result.peak_similarity;
+                    level_diagnostics[index] = Some(result.levels);
+                }
+                Err(error) if error
+                    .downcast_ref::<BlockMatchingError>()
+                    .is_some_and(BlockMatchingError::has_no_displacement) => {}
+                Err(error) => return Err(error),
             }
         }
 
@@ -671,7 +695,8 @@ impl<T: Sample> OwnedPyramid<T> {
     /// Build a nearest-neighbour decimated pyramid.
     ///
     /// `scales` must be strictly decreasing coarse-to-fine, end at `1`, and
-    /// divide every image extent. Nearest-neighbour decimation is only a valid
+    /// divide every non-singleton image extent. Singleton axes are preserved
+    /// at extent `1`. Nearest-neighbour decimation is only a valid
     /// RF pyramid when the source is already band-limited at the coarsened
     /// resolution; this function deliberately does not filter. Callers that
     /// need an anti-aliased pyramid for wideband RF should use
@@ -681,18 +706,21 @@ impl<T: Sample> OwnedPyramid<T> {
     ///
     /// Returns an error when `scales` is empty, not strictly decreasing, ends
     /// anywhere other than `1`, contains a zero, when any extent is not
-    /// divisible by its scale, or when the buffers do not match `dims`.
+    /// divisible by its scale, when a derived voxel count overflows, or when
+    /// the buffers do not match `dims`. The derived voxel count and `T` byte
+    /// capacity are checked before each level allocation.
     pub fn nearest(fixed: &[T], moving: &[T], dims: [usize; 3], scales: &[usize]) -> Result<Self> {
         validate_scales(dims, scales)?;
         check_buffer_lengths(fixed.len(), moving.len(), dims)?;
-        let mut levels = Vec::with_capacity(scales.len());
+        let level_count = pyramid_level_count::<T>(scales.len())?;
+        let mut levels = Vec::with_capacity(level_count);
         for scale in scales {
             let level_dims = [
                 level_extent(dims[0], *scale),
                 level_extent(dims[1], *scale),
                 level_extent(dims[2], *scale),
             ];
-            let level_len = level_dims[0] * level_dims[1] * level_dims[2];
+            let level_len = crate::extent::buffer_len::<T>(level_dims, "pyramid level")?;
             let mut fixed_level = Vec::with_capacity(level_len);
             let mut moving_level = Vec::with_capacity(level_len);
             for z in 0..level_dims[0] {
@@ -725,11 +753,17 @@ impl<T: Sample> OwnedPyramid<T> {
     ///
     /// # Errors
     ///
-    /// Same validation as [`Self::nearest`].
+    /// Same validation as [`Self::nearest`]. For each axis the base extent is
+    /// `1` for a singleton source axis and otherwise `dims[axis] / scale`.
+    /// The doubled axial extent is
+    /// checked before deriving output dimensions, and both the converted `T`
+    /// output capacity and the `f64` reduction scratch capacity are checked
+    /// before allocation.
     pub fn min_max(fixed: &[T], moving: &[T], dims: [usize; 3], scales: &[usize]) -> Result<Self> {
         validate_scales(dims, scales)?;
         check_buffer_lengths(fixed.len(), moving.len(), dims)?;
-        let mut levels = Vec::with_capacity(scales.len());
+        let level_count = pyramid_level_count::<T>(scales.len())?;
+        let mut levels = Vec::with_capacity(level_count);
         for scale in scales {
             let base_dims = [
                 level_extent(dims[0], *scale),
@@ -743,10 +777,15 @@ impl<T: Sample> OwnedPyramid<T> {
                 reduction_window(dims[1], *scale),
                 reduction_window(dims[2], *scale),
             ];
-            let level_dims = [base_dims[0], base_dims[1], 2 * base_dims[2]];
-            let level_len = level_dims[0] * level_dims[1] * level_dims[2];
-            let mut fixed_level = vec![f64::NAN; level_len];
-            let mut moving_level = vec![f64::NAN; level_len];
+            let axial_extent = base_dims[2]
+                .checked_mul(2)
+                .ok_or(BlockMatchingError::AxialPairExtentOverflow { base_dims })?;
+            let level_dims = [base_dims[0], base_dims[1], axial_extent];
+            let output_len = crate::extent::buffer_len::<T>(level_dims, "min/max pyramid level")?;
+            let scratch_len =
+                crate::extent::buffer_len::<f64>(level_dims, "min/max pyramid level")?;
+            let mut fixed_level = vec![f64::NAN; scratch_len];
+            let mut moving_level = vec![f64::NAN; scratch_len];
             for z in 0..base_dims[0] {
                 for y in 0..base_dims[1] {
                     for x in 0..base_dims[2] {
@@ -774,14 +813,12 @@ impl<T: Sample> OwnedPyramid<T> {
                     }
                 }
             }
-            let fixed_level: Vec<T> = fixed_level
-                .into_iter()
-                .map(T::from_f64_saturating)
-                .collect();
-            let moving_level: Vec<T> = moving_level
-                .into_iter()
-                .map(T::from_f64_saturating)
-                .collect();
+            let mut converted_fixed = Vec::with_capacity(output_len);
+            converted_fixed.extend(fixed_level.into_iter().map(T::from_f64_saturating));
+            let fixed_level = converted_fixed;
+            let mut converted_moving = Vec::with_capacity(output_len);
+            converted_moving.extend(moving_level.into_iter().map(T::from_f64_saturating));
+            let moving_level = converted_moving;
             levels.push(OwnedLevel {
                 fixed: fixed_level,
                 moving: moving_level,
@@ -831,6 +868,10 @@ fn level_extent(extent: usize, scale: usize) -> usize {
     } else {
         extent / scale
     }
+}
+
+fn pyramid_level_count<T: Sample>(count: usize) -> Result<usize> {
+    crate::extent::buffer_len::<OwnedLevel<T>>([1, 1, count], "pyramid levels")
 }
 
 fn validate_scales(dims: [usize; 3], scales: &[usize]) -> Result<()> {
@@ -896,6 +937,25 @@ mod tests {
     use super::*;
 
     #[test]
+    fn pyramid_level_metadata_capacity_is_checked_before_growth() {
+        let element_size = std::mem::size_of::<OwnedLevel<f32>>();
+        let error = crate::extent::buffer_len_with_limit::<OwnedLevel<f32>>(
+            [1, 1, 2],
+            "pyramid levels",
+            element_size,
+        )
+        .expect_err("two level records exceed the explicit byte limit");
+        assert_eq!(
+            error.downcast_ref::<BlockMatchingError>(),
+            Some(&BlockMatchingError::ByteCountOverflow {
+                label: "pyramid levels",
+                dims: [1, 1, 2],
+                element_size,
+            })
+        );
+    }
+
+    #[test]
     fn pyramids_reject_a_grid_whose_voxel_count_overflows() {
         // `scales = [1]` passes scale validation for any dims, so the
         // voxel count is the first check that can refuse this grid.
@@ -909,10 +969,73 @@ mod tests {
                 panic!("the voxel count overflows, so construction must fail");
             };
             assert_eq!(
-                error.to_string(),
-                format!("image dimensions {dims:?} overflow")
+                error.downcast_ref::<BlockMatchingError>(),
+                Some(&BlockMatchingError::VoxelCountOverflow {
+                    label: "image",
+                    dims,
+                })
             );
         }
+    }
+
+    #[test]
+    fn min_max_rejects_axial_pair_extent_overflow_before_allocating() {
+        #[derive(Clone, Copy, Debug)]
+        struct ZeroSizedSample;
+
+        impl Sample for ZeroSizedSample {
+            fn to_f64(self) -> f64 {
+                0.0
+            }
+
+            fn from_f64_saturating(_: f64) -> Self {
+                Self
+            }
+        }
+
+        let sample = ZeroSizedSample;
+        // SAFETY: the zero-sized sample has no backing storage requirement and
+        // min/max returns before dereferencing this maximal slice.
+        let image = unsafe { std::slice::from_raw_parts(&sample, usize::MAX) };
+        let error = OwnedPyramid::min_max(image, image, [1, 1, usize::MAX], &[1])
+            .expect_err("the min/max axial pair extent overflows");
+        assert_eq!(
+            error.downcast_ref::<BlockMatchingError>(),
+            Some(&BlockMatchingError::AxialPairExtentOverflow {
+                base_dims: [1, 1, usize::MAX],
+            })
+        );
+    }
+
+    #[test]
+    fn min_max_rejects_f64_capacity_overflow_for_zero_sized_samples() {
+        #[derive(Clone, Copy, Debug)]
+        struct ZeroSizedSample;
+
+        impl Sample for ZeroSizedSample {
+            fn to_f64(self) -> f64 {
+                0.0
+            }
+
+            fn from_f64_saturating(_: f64) -> Self {
+                Self
+            }
+        }
+
+        let sample = ZeroSizedSample;
+        // SAFETY: min/max checks the derived f64 capacity before reading.
+        let image = unsafe { std::slice::from_raw_parts(&sample, usize::MAX / 2) };
+        let dims = [1, 1, usize::MAX / 2];
+        let error = OwnedPyramid::min_max(image, image, dims, &[1])
+            .expect_err("the f64 output capacity exceeds the allocator limit");
+        assert_eq!(
+            error.downcast_ref::<BlockMatchingError>(),
+            Some(&BlockMatchingError::ByteCountOverflow {
+                label: "min/max pyramid level",
+                dims: [1, 1, usize::MAX - 1],
+                element_size: std::mem::size_of::<f64>(),
+            })
+        );
     }
 
     #[test]
