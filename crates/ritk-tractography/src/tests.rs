@@ -1,5 +1,5 @@
 #![expect(clippy::unwrap_used, reason = "ratchet RITK-UNWRAP-1")]
-use ritk_diffusion::maps::{DiffusionMapsConfig, DtiVolume, fit_diffusion_maps};
+use ritk_diffusion::maps::{fit_diffusion_maps, DiffusionMapsConfig, DtiVolume};
 use ritk_diffusion_scheme::{DiffusionWeighting, GradientDirection, GradientFrame, GradientScheme};
 use ritk_spatial::{Point, Vector};
 
@@ -224,7 +224,7 @@ fn dti_pev_field_produces_straight_streamline() -> Result<(), TractographyError>
     // Construct a minimal DTI-like PEV directly — the dti_pev_direction_field
     // function takes a DiffusionTensor reference, so we build a synthetic
     // tensor with a known PEV via the public DTI estimation path.
-    use ritk_diffusion::dti::{DtiConfig, estimate_dti};
+    use ritk_diffusion::dti::{estimate_dti, DtiConfig};
     use ritk_diffusion_scheme::{
         DiffusionWeighting, GradientDirection, GradientFrame, GradientScheme,
     };
@@ -300,7 +300,7 @@ fn dti_pev_field_is_skipped_for_untrackable_seed() -> Result<(), TractographyErr
     // A degenerate (isotropic, FA ~= 0) DTI result produces no streamlines:
     // the direction field returns None everywhere because the PEV is not
     // trackable for a near-isotropic tensor.
-    use ritk_diffusion::dti::{DtiConfig, estimate_dti};
+    use ritk_diffusion::dti::{estimate_dti, DtiConfig};
     use ritk_diffusion_scheme::{
         DiffusionWeighting, GradientDirection, GradientFrame, GradientScheme,
     };
@@ -357,7 +357,7 @@ fn dti_pev_field_is_skipped_for_untrackable_seed() -> Result<(), TractographyErr
 
 #[test]
 fn fod_volume_field_tracks_through_homogeneous_z_fibre() -> Result<(), TractographyError> {
-    use ritk_diffusion::csd::{CsdConfig, CsdError, FodVolume, ResponseFunction, estimate_fod};
+    use ritk_diffusion::csd::{estimate_fod, CsdConfig, CsdError, FodVolume, ResponseFunction};
     use ritk_diffusion_scheme::{
         DiffusionWeighting, GradientDirection, GradientFrame, GradientScheme,
     };
@@ -485,7 +485,7 @@ fn fod_volume_field_tracks_through_homogeneous_z_fibre() -> Result<(), Tractogra
 
 #[test]
 fn noddi_volume_field_tracks_through_homogeneous_z_fibre() -> Result<(), TractographyError> {
-    use ritk_diffusion::noddi::{NoddiConfig, NoddiVolume, estimate_noddi};
+    use ritk_diffusion::noddi::{estimate_noddi, NoddiConfig, NoddiVolume};
     use ritk_diffusion_scheme::{
         DiffusionWeighting, GradientDirection, GradientFrame, GradientScheme,
     };
@@ -901,8 +901,8 @@ fn trk_and_tck_recover_identical_coordinates() -> Result<(), TractographyError> 
 // ── Cross-codec with non-identity affine ─────────────────────────────────
 
 #[test]
-fn cross_codec_non_identity_affine_recovers_same_physical_coordinates()
--> Result<(), TractographyError> {
+fn cross_codec_non_identity_affine_recovers_same_physical_coordinates(
+) -> Result<(), TractographyError> {
     use ritk_tck::TckTractogram;
     use ritk_trk::TrkTractogram;
 

@@ -229,14 +229,14 @@ fn validate_inputs(
             regions.len()
         )));
     }
-    if let Some(selection) = mask {
-        if selection.len() != fixed.len() {
-            return Err(RegistrationError::InvalidInput(format!(
-                "mutual-information mask length {} differs from sample length {}",
-                selection.len(),
-                fixed.len()
-            )));
-        }
+    if let Some(selection) = mask
+        && selection.len() != fixed.len()
+    {
+        return Err(RegistrationError::InvalidInput(format!(
+            "mutual-information mask length {} differs from sample length {}",
+            selection.len(),
+            fixed.len()
+        )));
     }
     Ok(())
 }

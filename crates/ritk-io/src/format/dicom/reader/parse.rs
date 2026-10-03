@@ -99,14 +99,14 @@ pub(super) fn extract_dicom_metadata(
     };
 
     // --- Per-slice fields ---
-    if slice_meta.sop_instance_uid.is_none() {
-        if let Ok(elem) = obj.element(Tag(0x0008, 0x0018)) {
-            slice_meta.sop_instance_uid = elem
-                .to_str()
-                .ok()
-                .as_ref()
-                .and_then(|s| uid_to_arraystring(s));
-        }
+    if slice_meta.sop_instance_uid.is_none()
+        && let Ok(elem) = obj.element(Tag(0x0008, 0x0018))
+    {
+        slice_meta.sop_instance_uid = elem
+            .to_str()
+            .ok()
+            .as_ref()
+            .and_then(|s| uid_to_arraystring(s));
     }
     if let Ok(elem) = obj.element(Tag(0x0020, 0x0013)) {
         slice_meta.instance_number = elem.to_str().ok().and_then(|s| s.parse().ok());
@@ -114,20 +114,20 @@ pub(super) fn extract_dicom_metadata(
     if let Ok(elem) = obj.element(Tag(0x0020, 0x1041)) {
         slice_meta.slice_location = elem.to_str().ok().and_then(|s| s.parse().ok());
     }
-    if let Ok(elem) = obj.element(Tag(0x0020, 0x0032)) {
-        if let Ok(s) = elem.to_str() {
-            slice_meta.image_position_patient = parse_ds_array::<3>(&s);
-        }
+    if let Ok(elem) = obj.element(Tag(0x0020, 0x0032))
+        && let Ok(s) = elem.to_str()
+    {
+        slice_meta.image_position_patient = parse_ds_array::<3>(&s);
     }
-    if let Ok(elem) = obj.element(Tag(0x0020, 0x0037)) {
-        if let Ok(s) = elem.to_str() {
-            slice_meta.image_orientation_patient = parse_ds_array::<6>(&s);
-        }
+    if let Ok(elem) = obj.element(Tag(0x0020, 0x0037))
+        && let Ok(s) = elem.to_str()
+    {
+        slice_meta.image_orientation_patient = parse_ds_array::<6>(&s);
     }
-    if let Ok(elem) = obj.element(Tag(0x0028, 0x0030)) {
-        if let Ok(s) = elem.to_str() {
-            slice_meta.pixel_spacing = parse_ds_array::<2>(&s).and_then(usable_pixel_spacing);
-        }
+    if let Ok(elem) = obj.element(Tag(0x0028, 0x0030))
+        && let Ok(s) = elem.to_str()
+    {
+        slice_meta.pixel_spacing = parse_ds_array::<2>(&s).and_then(usable_pixel_spacing);
     }
     if let Ok(elem) = obj.element(Tag(0x0018, 0x0050)) {
         slice_meta.slice_thickness = elem.to_str().ok().and_then(|s| s.parse().ok());
@@ -221,145 +221,138 @@ pub(super) fn extract_dicom_metadata(
     if first.cols.is_none() {
         first.cols = this_cols;
     }
-    if first.pixel_spacing.is_none() {
-        if let Ok(elem) = obj.element(Tag(0x0028, 0x0030)) {
-            if let Ok(s) = elem.to_str() {
-                let parts: Vec<f64> = s.split('\\').flat_map(|p| p.parse()).collect();
-                if parts.len() >= 2 {
-                    first.pixel_spacing = usable_pixel_spacing([parts[0], parts[1]]);
-                }
-            }
+    if first.pixel_spacing.is_none()
+        && let Ok(elem) = obj.element(Tag(0x0028, 0x0030))
+        && let Ok(s) = elem.to_str()
+    {
+        let parts: Vec<f64> = s.split('\\').flat_map(|p| p.parse()).collect();
+        if parts.len() >= 2 {
+            first.pixel_spacing = usable_pixel_spacing([parts[0], parts[1]]);
         }
     }
-    if first.slice_thickness.is_none() {
-        if let Ok(elem) = obj.element(Tag(0x0018, 0x0050)) {
-            first.slice_thickness = elem.to_str().ok().and_then(|s| s.parse().ok());
-        }
+    if first.slice_thickness.is_none()
+        && let Ok(elem) = obj.element(Tag(0x0018, 0x0050))
+    {
+        first.slice_thickness = elem.to_str().ok().and_then(|s| s.parse().ok());
     }
-    if first.series_instance_uid.is_none() {
-        if let Ok(elem) = obj.element(Tag(0x0020, 0x000E)) {
-            first.series_instance_uid = elem
-                .to_str()
-                .ok()
-                .as_ref()
-                .and_then(|s| uid_to_arraystring(s));
-        }
+    if first.series_instance_uid.is_none()
+        && let Ok(elem) = obj.element(Tag(0x0020, 0x000E))
+    {
+        first.series_instance_uid = elem
+            .to_str()
+            .ok()
+            .as_ref()
+            .and_then(|s| uid_to_arraystring(s));
     }
-    if first.study_instance_uid.is_none() {
-        if let Ok(elem) = obj.element(Tag(0x0020, 0x000D)) {
-            first.study_instance_uid = elem
-                .to_str()
-                .ok()
-                .as_ref()
-                .and_then(|s| uid_to_arraystring(s));
-        }
+    if first.study_instance_uid.is_none()
+        && let Ok(elem) = obj.element(Tag(0x0020, 0x000D))
+    {
+        first.study_instance_uid = elem
+            .to_str()
+            .ok()
+            .as_ref()
+            .and_then(|s| uid_to_arraystring(s));
     }
-    if first.series_description.is_none() {
-        if let Ok(elem) = obj.element(Tag(0x0008, 0x103E)) {
-            first.series_description = elem.to_str().ok().map(String::from);
-        }
+    if first.series_description.is_none()
+        && let Ok(elem) = obj.element(Tag(0x0008, 0x103E))
+    {
+        first.series_description = elem.to_str().ok().map(String::from);
     }
-    if first.modality.is_none() {
-        if let Ok(elem) = obj.element(Tag(0x0008, 0x0060)) {
-            first.modality = elem.to_str().ok().map(|s| cs_to_arraystring(s.trim()));
-        }
+    if first.modality.is_none()
+        && let Ok(elem) = obj.element(Tag(0x0008, 0x0060))
+    {
+        first.modality = elem.to_str().ok().map(|s| cs_to_arraystring(s.trim()));
     }
-    if first.patient_id.is_none() {
-        if let Ok(elem) = obj.element(Tag(0x0010, 0x0020)) {
-            first.patient_id = elem.to_str().ok().map(String::from);
-        }
+    if first.patient_id.is_none()
+        && let Ok(elem) = obj.element(Tag(0x0010, 0x0020))
+    {
+        first.patient_id = elem.to_str().ok().map(String::from);
     }
-    if first.patient_name.is_none() {
-        if let Ok(elem) = obj.element(Tag(0x0010, 0x0010)) {
-            first.patient_name = elem.to_str().ok().map(String::from);
-        }
+    if first.patient_name.is_none()
+        && let Ok(elem) = obj.element(Tag(0x0010, 0x0010))
+    {
+        first.patient_name = elem.to_str().ok().map(String::from);
     }
-    if first.study_date.is_none() {
-        if let Ok(elem) = obj.element(Tag(0x0008, 0x0020)) {
-            first.study_date = elem.to_str().ok().map(|s| da_to_arraystring(s.trim()));
-        }
+    if first.study_date.is_none()
+        && let Ok(elem) = obj.element(Tag(0x0008, 0x0020))
+    {
+        first.study_date = elem.to_str().ok().map(|s| da_to_arraystring(s.trim()));
     }
-    if first.series_date.is_none() {
-        if let Ok(elem) = obj.element(Tag(0x0008, 0x0021)) {
-            first.series_date = elem.to_str().ok().map(|s| da_to_arraystring(s.trim()));
-        }
+    if first.series_date.is_none()
+        && let Ok(elem) = obj.element(Tag(0x0008, 0x0021))
+    {
+        first.series_date = elem.to_str().ok().map(|s| da_to_arraystring(s.trim()));
     }
-    if first.series_time.is_none() {
-        if let Ok(elem) = obj.element(Tag(0x0008, 0x0031)) {
-            first.series_time = elem.to_str().ok().map(|s| tm_to_arraystring(s.trim()));
-        }
+    if first.series_time.is_none()
+        && let Ok(elem) = obj.element(Tag(0x0008, 0x0031))
+    {
+        first.series_time = elem.to_str().ok().map(|s| tm_to_arraystring(s.trim()));
     }
-    if first.frame_of_reference_uid.is_none() {
-        if let Ok(elem) = obj.element(Tag(0x0020, 0x0052)) {
-            first.frame_of_reference_uid = elem
-                .to_str()
-                .ok()
-                .as_ref()
-                .and_then(|s| uid_to_arraystring(s));
-        }
+    if first.frame_of_reference_uid.is_none()
+        && let Ok(elem) = obj.element(Tag(0x0020, 0x0052))
+    {
+        first.frame_of_reference_uid = elem
+            .to_str()
+            .ok()
+            .as_ref()
+            .and_then(|s| uid_to_arraystring(s));
     }
-    if first.bits_allocated.is_none() {
-        if let Ok(elem) = obj.element(Tag(0x0028, 0x0100)) {
-            first.bits_allocated = elem.to_str().ok().and_then(|s| s.parse().ok());
-        }
+    if first.bits_allocated.is_none()
+        && let Ok(elem) = obj.element(Tag(0x0028, 0x0100))
+    {
+        first.bits_allocated = elem.to_str().ok().and_then(|s| s.parse().ok());
     }
-    if first.bits_stored.is_none() {
-        if let Ok(elem) = obj.element(Tag(0x0028, 0x0101)) {
-            first.bits_stored = elem.to_str().ok().and_then(|s| s.parse().ok());
-        }
+    if first.bits_stored.is_none()
+        && let Ok(elem) = obj.element(Tag(0x0028, 0x0101))
+    {
+        first.bits_stored = elem.to_str().ok().and_then(|s| s.parse().ok());
     }
-    if first.high_bit.is_none() {
-        if let Ok(elem) = obj.element(Tag(0x0028, 0x0102)) {
-            first.high_bit = elem.to_str().ok().and_then(|s| s.parse().ok());
-        }
+    if first.high_bit.is_none()
+        && let Ok(elem) = obj.element(Tag(0x0028, 0x0102))
+    {
+        first.high_bit = elem.to_str().ok().and_then(|s| s.parse().ok());
     }
-    if first.photometric_interpretation.is_none() {
-        if let Ok(elem) = obj.element(Tag(0x0028, 0x0004)) {
-            first.photometric_interpretation =
-                elem.to_str().ok().map(|s| cs_to_arraystring(s.trim()));
-        }
+    if first.photometric_interpretation.is_none()
+        && let Ok(elem) = obj.element(Tag(0x0028, 0x0004))
+    {
+        first.photometric_interpretation = elem.to_str().ok().map(|s| cs_to_arraystring(s.trim()));
     }
     if first.transfer_syntax_uid.is_none() {
         first.transfer_syntax_uid = uid_to_arraystring(obj.meta().transfer_syntax());
     }
-    if first.patient_weight_kg.is_none() {
-        if let Ok(elem) = obj.element(Tag(0x0010, 0x1030)) {
-            first.patient_weight_kg = elem.to_str().ok().and_then(|s| s.trim().parse().ok());
-        }
+    if first.patient_weight_kg.is_none()
+        && let Ok(elem) = obj.element(Tag(0x0010, 0x1030))
+    {
+        first.patient_weight_kg = elem.to_str().ok().and_then(|s| s.trim().parse().ok());
     }
-    if first.decay_correction.is_none() {
-        if let Ok(elem) = obj.element(Tag(0x0054, 0x1102)) {
-            first.decay_correction = elem.to_str().ok().map(|s| cs_to_arraystring(s.trim()));
-        }
+    if first.decay_correction.is_none()
+        && let Ok(elem) = obj.element(Tag(0x0054, 0x1102))
+    {
+        first.decay_correction = elem.to_str().ok().map(|s| cs_to_arraystring(s.trim()));
     }
     // RadiopharmaceuticalInformationSequence (0054,0016) → first item sub-fields.
-    if first.radionuclide_total_dose_bq.is_none()
+    if (first.radionuclide_total_dose_bq.is_none()
         || first.radionuclide_half_life_s.is_none()
-        || first.radiopharmaceutical_start_time.is_none()
+        || first.radiopharmaceutical_start_time.is_none())
+        && let Ok(seq_elem) = obj.element(Tag(0x0054, 0x0016))
+        && let Some(items) = seq_elem.value().items()
+        && let Some(first_item) = items.first()
     {
-        if let Ok(seq_elem) = obj.element(Tag(0x0054, 0x0016)) {
-            if let Some(items) = seq_elem.value().items() {
-                if let Some(first_item) = items.first() {
-                    if first.radionuclide_total_dose_bq.is_none() {
-                        if let Ok(e) = first_item.element(Tag(0x0018, 0x1074)) {
-                            first.radionuclide_total_dose_bq =
-                                e.to_str().ok().and_then(|s| s.trim().parse().ok());
-                        }
-                    }
-                    if first.radionuclide_half_life_s.is_none() {
-                        if let Ok(e) = first_item.element(Tag(0x0018, 0x1075)) {
-                            first.radionuclide_half_life_s =
-                                e.to_str().ok().and_then(|s| s.trim().parse().ok());
-                        }
-                    }
-                    if first.radiopharmaceutical_start_time.is_none() {
-                        if let Ok(e) = first_item.element(Tag(0x0018, 0x1072)) {
-                            first.radiopharmaceutical_start_time =
-                                e.to_str().ok().map(|s| tm_to_arraystring(s.trim()));
-                        }
-                    }
-                }
-            }
+        if first.radionuclide_total_dose_bq.is_none()
+            && let Ok(e) = first_item.element(Tag(0x0018, 0x1074))
+        {
+            first.radionuclide_total_dose_bq = e.to_str().ok().and_then(|s| s.trim().parse().ok());
+        }
+        if first.radionuclide_half_life_s.is_none()
+            && let Ok(e) = first_item.element(Tag(0x0018, 0x1075))
+        {
+            first.radionuclide_half_life_s = e.to_str().ok().and_then(|s| s.trim().parse().ok());
+        }
+        if first.radiopharmaceutical_start_time.is_none()
+            && let Ok(e) = first_item.element(Tag(0x0018, 0x1072))
+        {
+            first.radiopharmaceutical_start_time =
+                e.to_str().ok().map(|s| tm_to_arraystring(s.trim()));
         }
     }
 
@@ -409,20 +402,27 @@ pub(super) fn extract_dicom_metadata(
                             bytes.to_vec(),
                         ));
                     }
-                } else if let Ok(s) = element.to_str() {
-                    slice_meta.preservation.object.insert(DicomObjectNode {
-                        tag: dicom_tag,
-                        vr: Some(ArrayString::<2>::try_from(vr_str).unwrap_or_default()),
-                        value: DicomValue::Text(s.to_string()),
-                        element_class,
-                        source: None,
-                    });
-                } else if let Ok(bytes) = element.to_bytes() {
-                    slice_meta.preservation.preserve(DicomPreservedElement::new(
-                        dicom_tag,
-                        Some(ArrayString::<2>::try_from(vr_str).unwrap_or_default()),
-                        bytes.to_vec(),
-                    ));
+                } else {
+                    match element.to_str() {
+                        Ok(s) => {
+                            slice_meta.preservation.object.insert(DicomObjectNode {
+                                tag: dicom_tag,
+                                vr: Some(ArrayString::<2>::try_from(vr_str).unwrap_or_default()),
+                                value: DicomValue::Text(s.to_string()),
+                                element_class,
+                                source: None,
+                            });
+                        }
+                        _ => {
+                            if let Ok(bytes) = element.to_bytes() {
+                                slice_meta.preservation.preserve(DicomPreservedElement::new(
+                                    dicom_tag,
+                                    Some(ArrayString::<2>::try_from(vr_str).unwrap_or_default()),
+                                    bytes.to_vec(),
+                                ));
+                            }
+                        }
+                    }
                 }
             }
         }

@@ -176,13 +176,13 @@ where
             [batch, sequence, self.input_dim],
         );
         let output = self.forward(&flat)?;
-        Ok(reshape(
-            &permute(
-                &reshape(&output, [batch, sequence, self.output_dim]),
-                &[0, 2, 1],
-            ),
+        let sequence_output = reshape(&output, [batch, sequence, self.output_dim]);
+        let channel_output = permute(&sequence_output, &[0, 2, 1]);
+        let volume_output = reshape(
+            &channel_output,
             [batch, self.output_dim, depth, height, width],
-        ))
+        );
+        Ok(volume_output)
     }
 }
 

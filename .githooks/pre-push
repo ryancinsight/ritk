@@ -20,8 +20,11 @@
 # same overlay, which is why local verification never sees the problem, and
 # fails every `--locked` job in CI, which has no overlay.
 #
-# `scripts/lockfile.py --check` runs cargo from outside the overlay and is the
-# same check CI runs, so a push that would fail there never reaches a runner.
+# The stack's `scripts/lockfile.py --check` runs cargo from outside the overlay
+# and is the same check CI runs (the `lockfile-guard` workflow), so a push that
+# would fail there never reaches a runner. This hook runs it from the stack's
+# fetched default, beside the other stack tools; a member's own copy of the
+# script (counted by `member_lockfile_copies`) is never run.
 #
 # Single source: this file is owned here and deployed outward to every
 # member's `.githooks/` by `scripts/atlas-lock-form.py sync-hooks`
@@ -38,7 +41,10 @@
 #     SKIP_LOCAL_GATE=1 git push       (fast gate section only)
 #
 # SKIP_LOCKFILE_CHECK is not honoured: a lock check that fails, or cannot
-# run, refuses the push either way. coeus's checker contract (scripts/tests/
+# run, refuses the push either way. The one arm that lets a push through
+# unchecked is a clone outside any stack: it has no checker to run, says so,
+# and leaves the lock to the `lockfile-guard` CI job that runs the same one.
+# coeus's checker contract (scripts/tests/
 # test_hooks.py::test_skip_variable_cannot_hide_checker_failures) requires
 # that no variable can hide a checker failure, and this hook's own skip used
 # to exit 0 on an absent checker or interpreter -- hiding a failure exactly
@@ -340,102 +346,41 @@ export_revision() {
 # naming its owner (`.pre-push-owner`) goes only once that pid is gone. One
 # naming none was written by an older hook that records no owner and may
 # still be building in it -- a run can take most of an hour -- so it goes only
-# after a day.
-if [ -n "$python_bin" ]; then
-  for stale in "$tmp_base"/pre-push-lock.* "$tmp_base"/pre-push-gate.* "$tmp_base"/pl.* "$tmp_base"/pg.* "$tmp_base"/pg-log.*; do
-    [ -e "$stale" ] || continue
-    stale_owner="$(cat "$stale/.pre-push-owner" 2>/dev/null || true)"
-    if [ -n "$stale_owner" ]; then
-      kill -0 "$stale_owner" 2>/dev/null && continue
-    else
-      "$python_bin" -c 'import os, sys, time; sys.exit(time.time() - os.path.getmtime(sys.argv[1]) < 86400)' "$stale" || continue
-    fi
-    rm -rf "$stale" 2>/dev/null || true
-  done
-  # A checkout's reusable export (see the gate below) outlives its runs by
-  # design; one no run has claimed for a week belongs to a checkout that is
-  # gone, and goes unless a live run holds its lock.
-  for stable in "$tmp_base"/pg-??????????; do
-    [ -d "$stable" ] || continue
-    holder="$(cat "$stable.lock/pid" 2>/dev/null || true)"
-    [ -n "$holder" ] && kill -0 "$holder" 2>/dev/null && continue
-    "$python_bin" -c 'import os, sys, time; sys.exit(time.time() - os.path.getmtime(sys.argv[1]) < 7 * 86400)' "$stable" || continue
-    rm -rf "$stable" "$stable.lock" 2>/dev/null || true
-  done
-fi
-
-# The skips above fall through to the code gate, so this whole section runs
-# only when the lock still wants verifying.
-if [ "$skip_lockfile" = "0" ]; then
-# The lock is checked on an export of the pushed revision, with that
-# revision's own checker, outside the stack: the working tree is neither the
-# push (a peer's branch, a plumbing push) nor stable (any cargo command inside
-# the stack flattens its lock), so a verdict on it was evidence about the
-# wrong state either way. The dependency-source check below reads the same
-# export.
-lock_rev="${pushed_tip:-${gate_tip:-HEAD}}"
-new_run_temp lock_root pl
-lock_export="$lock_root/tree"
-if ! export_revision "$(git rev-parse --verify "$lock_rev^{commit}")" "$lock_export"; then
-  echo "pre-push: could not export $lock_rev for the lockfile check" >&2
-  exit 1
-fi
-checker="$lock_export/scripts/lockfile.py"
-
-if [ ! -f "$checker" ]; then
-  # A guard that reports its own absence and lets the push through is the
-  # absence. The code gate below would still have run, but the lock is what
-  # this section is for, and an unverified lock is the failure it exists to
-  # stop -- so refuse here; there is no deliberate way through.
-  echo "pre-push: scripts/lockfile.py not present; lockfile not verified" >&2
-  exit 1
-elif [ -z "$python_bin" ]; then
-  echo "pre-push: no python interpreter found; lockfile not verified" >&2
-  exit 1
-elif ! (cd "$lock_export" && "$python_bin" "$checker" --check); then
-  cat >&2 <<MESSAGE
-
-pre-push: the Cargo.lock in $lock_rev does not resolve under --locked, so
-every CI job that passes --locked would fail on this push.
-
-The usual cause is a cargo command run from inside the Atlas stack, which
-strips the lock's git sources. Repair it with:
-
-    python3 scripts/lockfile.py --regenerate
-
-then stage the result and push again.
-MESSAGE
-  exit 1
-fi
-
-# Dependency sources. A lock advance can bring in git sources `deny.toml`
-# does not allow, and nothing above reads them: harmonia#19 merged on a green
-# `--locked` build and left CI red until harmonia#21 allowed three new
-# first-party sources. cargo-deny cannot run in this checkout -- it resolves
-# from the workspace root, so inside the stack the development overlay
-# answers, every git source reads as unencountered, `sources ok` is vacuous,
-# and the lock is rewritten -- so it runs on an export of the pushed revision
-# outside the stack, which is exactly what CI resolves. The working tree is
-# never touched.
-if [ -f "$lock_export/deny.toml" ]; then
-  if ! cargo deny --version >/dev/null 2>&1; then
-    echo "pre-push: cargo-deny is not installed, so the dependency sources of this" >&2
-    echo "lock change are unverified. Install it: cargo install --locked cargo-deny" >&2
-    exit 1
+# after a day. The sweep visits every leftover of every push since the last
+# one, and a spawned process costs most of a second on a loaded Windows host,
+# so it spawns none per entry: ages compare against two marker files
+# (`-ot`), and owners and holders read by `read`, which unlike a command
+# substitution keeps the carriage return of a file written on Windows. A marker
+# that could not be written compares false, so a failed `touch` keeps every
+# entry.
+new_run_temp age_marks pl
+touch -d '1 day ago' "$age_marks/day" 2>/dev/null || true
+touch -d '7 days ago' "$age_marks/week" 2>/dev/null || true
+for stale in "$tmp_base"/pre-push-lock.* "$tmp_base"/pre-push-gate.* "$tmp_base"/pl.* "$tmp_base"/pg.* "$tmp_base"/pg-log.*; do
+  [ -e "$stale" ] || continue
+  stale_owner=""
+  { read -r stale_owner < "$stale/.pre-push-owner"; } 2>/dev/null || true
+  stale_owner="${stale_owner%$'\r'}"
+  if [ -n "$stale_owner" ]; then
+    kill -0 "$stale_owner" 2>/dev/null && continue
+  else
+    [ "$stale" -ot "$age_marks/day" ] || continue
   fi
-  if ! (cd "$lock_export" && cargo deny --locked check sources >&2); then
-    cat >&2 <<MESSAGE
+  rm -rf "$stale" 2>/dev/null || true
+done
+# A checkout's reusable export (see the gate below) outlives its runs by
+# design; one no run has claimed for a week belongs to a checkout that is
+# gone, and goes unless a live run holds its lock.
+for stable in "$tmp_base"/pg-??????????; do
+  [ -d "$stable" ] || continue
+  holder=""
+  { read -r holder < "$stable.lock/pid"; } 2>/dev/null || true
+  holder="${holder%$'\r'}"
+  [ -n "$holder" ] && kill -0 "$holder" 2>/dev/null && continue
+  [ "$stable" -ot "$age_marks/week" ] || continue
+  rm -rf "$stable" "$stable.lock" 2>/dev/null || true
+done
 
-pre-push: the pushed Cargo.lock resolves a source deny.toml does not allow,
-so the CI supply-chain job would fail on this push. Allow the source in
-deny.toml (a first-party git source goes under [sources] allow-git) or drop
-the dependency.
-MESSAGE
-    exit 1
-  fi
-fi
-fi
-# End of the lockfile section; the code gate below runs unconditionally.
 
 # ---------------------------------------------------------------------------
 # Stack tools: the artifact-budget checker, the secret scanner, the debt
@@ -517,6 +462,83 @@ if [ -n "$stack_baseline" ] \
     stack_scripts="$checker_dir/scripts"
   fi
 fi
+
+# The skips above fall through to the code gate, so this whole section runs
+# only when the lock still wants verifying.
+if [ "$skip_lockfile" = "0" ]; then
+# The lock is checked on an export of the pushed revision, outside the stack,
+# by the stack's own `scripts/lockfile.py` from the fetched default (Stack
+# tools, above): the working tree is neither the push (a peer's branch, a
+# plumbing push) nor stable (any cargo command inside the stack flattens its
+# lock), so a verdict on it was evidence about the wrong state either way. A
+# member carries no copy of the checker, so one that lacks the file pushes
+# exactly as one that has it. The dependency-source check below reads the same
+# export.
+lock_rev="${pushed_tip:-${gate_tip:-HEAD}}"
+new_run_temp lock_root pl
+lock_export="$lock_root/tree"
+if ! export_revision "$(git rev-parse --verify "$lock_rev^{commit}")" "$lock_export"; then
+  echo "pre-push: could not export $lock_rev for the lockfile check" >&2
+  exit 1
+fi
+checker="${stack_scripts:+$stack_scripts/lockfile.py}"
+
+if [ -z "$stack_baseline" ]; then
+  echo "pre-push: no stack checker reachable from this clone; lockfile not verified here, the lockfile-guard CI job enforces it" >&2
+elif [ ! -f "$checker" ]; then
+  # A guard that reports its own absence and lets the push through is the
+  # absence. The stack is reachable here, so its fetched default is what
+  # lacks the checker (or could not be extracted), and the lock is what this
+  # section is for -- refuse; there is no deliberate way through.
+  echo "pre-push: the stack's scripts at ${stack_baseline:0:12} carry no lockfile.py; lockfile not verified" >&2
+  exit 1
+elif [ -z "$python_bin" ]; then
+  echo "pre-push: no python interpreter found; lockfile not verified" >&2
+  exit 1
+elif ! (cd "$lock_export" && "$python_bin" "$checker" --check --manifest-path "$lock_export/Cargo.toml"); then
+  cat >&2 <<MESSAGE
+
+pre-push: the Cargo.lock in $lock_rev does not resolve under --locked, so
+every CI job that passes --locked would fail on this push.
+
+The usual cause is a cargo command run from inside the Atlas stack, which
+strips the lock's git sources. Repair it from the member's root with:
+
+    python3 $stack_root/scripts/lockfile.py --regenerate --manifest-path Cargo.toml
+
+then stage the result and push again.
+MESSAGE
+  exit 1
+fi
+
+# Dependency sources. A lock advance can bring in git sources `deny.toml`
+# does not allow, and nothing above reads them: harmonia#19 merged on a green
+# `--locked` build and left CI red until harmonia#21 allowed three new
+# first-party sources. cargo-deny cannot run in this checkout -- it resolves
+# from the workspace root, so inside the stack the development overlay
+# answers, every git source reads as unencountered, `sources ok` is vacuous,
+# and the lock is rewritten -- so it runs on an export of the pushed revision
+# outside the stack, which is exactly what CI resolves. The working tree is
+# never touched.
+if [ -f "$lock_export/deny.toml" ]; then
+  if ! cargo deny --version >/dev/null 2>&1; then
+    echo "pre-push: cargo-deny is not installed, so the dependency sources of this" >&2
+    echo "lock change are unverified. Install it: cargo install --locked cargo-deny" >&2
+    exit 1
+  fi
+  if ! (cd "$lock_export" && cargo deny --locked check sources >&2); then
+    cat >&2 <<MESSAGE
+
+pre-push: the pushed Cargo.lock resolves a source deny.toml does not allow,
+so the CI supply-chain job would fail on this push. Allow the source in
+deny.toml (a first-party git source goes under [sources] allow-git) or drop
+the dependency.
+MESSAGE
+    exit 1
+  fi
+fi
+fi
+# End of the lockfile section; the code gate below runs unconditionally.
 
 # ---------------------------------------------------------------------------
 # Artifact budgets: PM boards under their line budget, tracked images under
@@ -867,6 +889,27 @@ fi
 # without it the flag joins the subcommand ("--no-deps--manifest-path").
 gate_manifest=" --manifest-path $gate_export/Cargo.toml"
 
+# Packages with no target nextest can run (a `test = false` cdylib such as a
+# PyO3 extension) produce no test artifact, so the source-identity checker would
+# report "no artifact found" for a package the tests stage has nothing to build.
+# Cargo metadata marks each target with `test`; a package none of whose targets
+# has it is skipped by the tests stage only. Its clippy and rustdoc stages stay.
+if ! untestable_packages="$(
+  cd "$gate_export" && cargo metadata --no-deps --format-version 1 $gate_manifest |
+    "$python_bin" -c 'import json, sys
+sys.stdout.reconfigure(newline="\n")
+metadata = json.load(sys.stdin)
+members = set(metadata["workspace_members"])
+for package in metadata["packages"]:
+    targets = package.get("targets")
+    if package["id"] in members and targets and not any(t.get("test", True) for t in targets):
+        print(package["name"])'
+)"; then
+  echo "pre-push: cargo metadata could not establish testable packages" >&2
+  echo "pre-push: push anyway with SKIP_LOCAL_GATE=1 git push" >&2
+  exit 1
+fi
+
 # Cargo is the authority on which package manifests belong to this workspace.
 # A nested standalone manifest (cargo-fuzz is the common case) can legally use
 # the same package name as a member, so names alone cannot establish ownership.
@@ -900,8 +943,15 @@ fi
 # inputs to the owning package's tests even when no Rust source changed.
 gate_packages=""
 excluded_manifests=""
+standalone_manifests=""
 while IFS= read -r changed_path; do
   [ -n "$changed_path" ] || continue
+  # Git hooks and CI definitions are input to no cargo invocation. Without
+  # this, a single-package repository mapped them to its root package and a
+  # hook-only push ran clippy, tests and rustdoc for the whole package.
+  case "$changed_path" in
+    .githooks/* | .github/*) continue ;;
+  esac
   owner_dir="$(dirname "$changed_path")"
   package_dir=""
   excluded_manifest=""
@@ -948,9 +998,9 @@ while IFS= read -r changed_path; do
   relative_manifest="${relative_manifest#./}"
   package_name="$(printf '%s\n' "$workspace_members" | awk -F '\t' -v manifest="$relative_manifest" '$1 == manifest { print $2; exit }')"
   if [ -z "$package_name" ]; then
-    case " $excluded_manifests " in
+    case " $standalone_manifests " in
       *" $relative_manifest "*) ;;
-      *) excluded_manifests="$excluded_manifests $relative_manifest" ;;
+      *) standalone_manifests="$standalone_manifests $relative_manifest" ;;
     esac
     continue
   fi
@@ -974,6 +1024,42 @@ SKIP_LOCAL_GATE=1 git push.
 MESSAGE
   exit 1
 fi
+
+# A standalone crate outside the parent workspace (cargo-fuzz is the common
+# case) cannot be named by a parent-workspace `-p`, and its targets need a
+# toolchain this host may lack (nightly, sanitizers), so its compile and run
+# verification stays with CI. What every host can establish is checked here:
+# its own lockfile resolves under `--locked` and its sources are
+# rustfmt-clean. Refusing the push instead left no way to change a fuzz
+# target at all. A nested virtual workspace, whose members deserve a real
+# gate, is still refused above.
+for standalone_manifest in $standalone_manifests; do
+  if ! (cd "$gate_export" && cargo metadata --locked --no-deps --format-version 1 \
+    --manifest-path "$gate_export/$standalone_manifest" >/dev/null 2>&1); then
+    cat >&2 <<MESSAGE
+
+pre-push: the lockfile of the standalone crate $standalone_manifest does not
+resolve under --locked on $gate_sha.
+
+From a checkout of $gate_sha outside the stack overlay:
+
+    cargo metadata --locked --no-deps --manifest-path $standalone_manifest
+
+To push anyway: SKIP_LOCAL_GATE=1 git push
+MESSAGE
+    exit 1
+  fi
+  if ! (cd "$gate_export" && cargo fmt --manifest-path "$gate_export/$standalone_manifest" -- --check >/dev/null); then
+    cat >&2 <<MESSAGE
+
+pre-push: \`cargo fmt --check\` fails for the standalone crate $standalone_manifest on $gate_sha.
+
+Run \`cargo fmt --manifest-path $standalone_manifest\` and commit the result. To push anyway: SKIP_LOCAL_GATE=1 git push
+MESSAGE
+    exit 1
+  fi
+  echo "pre-push: standalone crate $standalone_manifest: lockfile and formatting checked; CI builds it" >&2
+done
 
 if [ -z "${gate_packages// /}" ]; then
   echo "pre-push: no package owns the changed files; local gate not needed" >&2
@@ -1108,7 +1194,7 @@ MESSAGE
   grep -m 1 -A 3 -E '^error' "$log" >&2 || true
   cat >&2 <<'MESSAGE'
 
-Check with `python scripts/lockfile.py --check` in the member.
+Check with `python3 <stack>/scripts/lockfile.py --check --manifest-path Cargo.toml` in the member.
 MESSAGE
 }
 
@@ -1148,22 +1234,43 @@ else
   echo "pre-push: source identity checker not reachable from this clone; CI enforces it" >&2
 fi
 
+# run_identity_step <step> <packages> <command...>: one source-identity run
+# for the whole step. The command gets `-p <package>` for every gated
+# package, so cargo builds them in one invocation, and the checker keeps one
+# record for each of <packages>, those that write an artifact in this step.
+# A run per package read the snapshot, took the leases and queued behind every
+# peer gate's cargo for each of them: a 12-package metis push was 36 runs, and
+# its leases were held across all 36 queues. Every step names the same `-p`
+# set, whatever it records: cargo unifies features across one invocation's
+# packages, so a record belongs to its set, and steps naming different sets
+# would each clean the artifacts the next one's record names.
 run_identity_step() {
-  local package_name="$1" step_name="$2"
+  local step_name="$1" packages="$2"
   shift 2
+  local package_name package_arguments=() selection_arguments=() selection=()
+  for package_name in $packages; do
+    package_arguments+=(--package "$package_name")
+  done
+  [ "${#package_arguments[@]}" -gt 0 ] || return 0
+  for package_name in $gate_packages; do
+    selection_arguments+=(--selection "$package_name")
+    selection+=(-p "$package_name")
+  done
   local identity_command
   identity_command=(
     "$python_bin" "$identity_checker" run
     --root "$gate_export"
-    --package "$package_name"
+    "${package_arguments[@]}"
+    "${selection_arguments[@]}"
     --target-dir "$identity_target_dir"
     --profile debug
     --target "$identity_target"
     --manifest "$gate_export/Cargo.toml"
     --command-cwd "$gate_export"
-    --command-key "atlas-pre-push:$package_name"
+    --command-key "atlas-pre-push"
     --
     "$@"
+    "${selection[@]}"
   )
   local verdict
   verdict="$(classify_gate_step "$gate_log" "${identity_command[@]}")"
@@ -1172,7 +1279,7 @@ run_identity_step() {
     identity)
       cat >&2 <<MESSAGE
 
-pre-push: source identity blocked $step_name for $package_name; no artifact was accepted.
+pre-push: source identity blocked $step_name for$packages; no artifact was accepted.
 MESSAGE
       grep -m 1 'atlas-build-identity:' "$gate_log" >&2 || true
       exit 1
@@ -1180,7 +1287,7 @@ MESSAGE
     ours)
       cat >&2 <<MESSAGE
 
-pre-push: $step_name fails for $package_name, so the source-identity build did not complete.
+pre-push: $step_name fails for$packages, so the source-identity build did not complete.
 MESSAGE
       grep -m 1 '^error' "$gate_log" >&2 || true
       exit 1
@@ -1244,9 +1351,7 @@ gate_log="$(mktemp "$tmp_base/pg-log.XXXXXX")"
 run_temps+=("$gate_log")
 
 if [ "$identity_enabled" -eq 1 ]; then
-  for package_name in $gate_packages; do
-    run_identity_step "$package_name" clippy cargo clippy "${identity_cargo_manifest_args[@]}" -p "$package_name" --all-targets --locked
-  done
+  run_identity_step clippy "$gate_packages" cargo clippy "${identity_cargo_manifest_args[@]}" --all-targets --locked
 else
   case "$(classify_gate_step "$gate_log" cargo clippy $gate_specs --all-targets)" in
     ours)
@@ -1271,9 +1376,14 @@ fi
 
 if command -v cargo-nextest >/dev/null 2>&1; then
   if [ "$identity_enabled" -eq 1 ]; then
+    testable_packages=""
     for package_name in $gate_packages; do
-      run_identity_step "$package_name" tests cargo nextest run "${identity_cargo_manifest_args[@]}" -p "$package_name" --locked --no-tests=pass
+      case $'\n'"$untestable_packages"$'\n' in
+        *$'\n'"$package_name"$'\n'*) continue ;;
+      esac
+      testable_packages="$testable_packages $package_name"
     done
+    run_identity_step tests "$testable_packages" cargo nextest run "${identity_cargo_manifest_args[@]}" --locked --no-tests=pass
   else
     case "$(classify_gate_step "$gate_log" cargo nextest run $gate_specs --no-tests=pass)" in
       ours)
@@ -1304,9 +1414,38 @@ fi
 # after the merge (a redundant link target from apollo#508 did). The changed
 # packages are documented here the same way.
 if [ "$identity_enabled" -eq 1 ]; then
+  # `cargo doc` writes an artifact only for a package with a documented lib or
+  # bin target. A bench-only package (moirai-benchmarks) or a `[lib] doc =
+  # false` one (consus-python) writes none, so the identity step would refuse
+  # every push touching it; cargo's own target list is the authority.
+  if ! documented_packages="$(
+    cd "$gate_export" && cargo metadata --no-deps --format-version 1 $gate_manifest |
+      "$python_bin" -c 'import json, sys
+sys.stdout.reconfigure(newline="\n")
+documented = {"lib", "rlib", "dylib", "cdylib", "staticlib", "proc-macro", "bin"}
+for package in json.load(sys.stdin)["packages"]:
+    targets = package.get("targets")
+    if targets is None or any(
+        target.get("doc", True) and documented.intersection(target["kind"])
+        for target in targets
+    ):
+        print(package["name"])'
+  )"; then
+    echo "pre-push: cargo metadata did not list the documented packages" >&2
+    exit 1
+  fi
+  rustdoc_packages=""
   for package_name in $gate_packages; do
-    run_identity_step "$package_name" rustdoc env RUSTDOCFLAGS="-D warnings" cargo doc --no-deps "${identity_cargo_manifest_args[@]}" -p "$package_name" --locked
+    case "
+$documented_packages
+" in
+      *"
+$package_name
+"*) rustdoc_packages="$rustdoc_packages $package_name" ;;
+      *) echo "pre-push: rustdoc skipped for $package_name; it has no documented lib or bin target" >&2 ;;
+    esac
   done
+  run_identity_step rustdoc "$rustdoc_packages" env RUSTDOCFLAGS="-D warnings" cargo doc --no-deps "${identity_cargo_manifest_args[@]}" --locked
 else
   case "$(classify_gate_step "$gate_log" env RUSTDOCFLAGS="-D warnings" cargo doc --no-deps $gate_specs)" in
     ours)

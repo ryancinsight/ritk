@@ -75,11 +75,8 @@ where
     #[must_use]
     pub fn world_to_index_tensor(&self, points: &Tensor<f32, B>) -> Tensor<f32, B> {
         let backend = B::default();
-        coeus_ops::matmul(
-            &coeus_ops::sub(points, &self.origin_tensor, &backend),
-            &self.world_to_index_matrix,
-            &backend,
-        )
+        let relative_points = coeus_ops::sub(points, &self.origin_tensor, &backend);
+        coeus_ops::matmul(&relative_points, &self.world_to_index_matrix, &backend)
     }
 
     pub(crate) fn sample_components(
@@ -174,11 +171,10 @@ where
         }
         let components = self.field.sample_components(points, self.boundary)?;
         let references = components.iter().collect::<Vec<_>>();
-        Ok(coeus_ops::add(
-            points,
-            &coeus_ops::stack(&references, 1),
-            &B::default(),
-        ))
+        let displacement = coeus_ops::stack(&references, 1);
+        let backend = B::default();
+        let output = coeus_ops::add(points, &displacement, &backend);
+        Ok(output)
     }
 
     /// Resample the transform onto a new grid.

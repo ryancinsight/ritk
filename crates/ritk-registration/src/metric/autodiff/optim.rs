@@ -50,7 +50,8 @@ where
         .map(|(&pv, &gv)| pv - lr * gv)
         .collect();
     let shape = param.tensor.shape().to_vec();
-    Var::new(Tensor::from_slice_on(shape, &updated, &B::default()), true)
+    let tensor = Tensor::from_slice_on(shape, &updated, &B::default());
+    Var::new(tensor, true)
 }
 
 #[cfg(test)]

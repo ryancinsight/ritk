@@ -6,7 +6,7 @@
 - acceptance: all child items land; invalid geometry is rejected; the public phantom capture shows one complete, uncropped app window with visible menus or toolbar buttons and all four anatomical panes; native visual and value-semantic gates pass.
 - status: todo
 - priority: architecture
-- needs: RITK-SNAP-INTERACTION-REGIONS-001, RITK-SNAP-INTERACTION-MEASUREMENTS-001, RITK-SNAP-INTERACTION-STATE-001, RITK-SNAP-INTERACTION-WINDOW-LEVEL-001, RITK-SNAP-OBLIQUE-APP-ADAPTER-001, RITK-SNAP-OBLIQUE-APP-TESTS-001, RITK-SNAP-OBLIQUE-SESSION-MODULES-001, RITK-SNAP-OBLIQUE-SESSION-WIRING-001, RITK-SNAP-OBLIQUE-ROUTING-001, RITK-SNAP-PATIENT-MEASUREMENT-OVERLAY-001, RITK-SNAP-OBLIQUE-SESSION-TESTS-001, RITK-SNAP-OBLIQUE-INTERACTION-TESTS-001, RITK-SNAP-OBLIQUE-MANUAL-001, RITK-SNAP-RADIANT-INPUT-001
+- needs: RITK-SNAP-INTERACTION-REGIONS-001, RITK-SNAP-INTERACTION-MEASUREMENTS-001, RITK-SNAP-INTERACTION-STATE-001, RITK-SNAP-INTERACTION-WINDOW-LEVEL-001, RITK-SNAP-OBLIQUE-APP-ADAPTER-001, RITK-SNAP-OBLIQUE-APP-TESTS-001, RITK-SNAP-OBLIQUE-SESSION-MODULES-001, RITK-SNAP-OBLIQUE-SESSION-WIRING-001, RITK-SNAP-OBLIQUE-ROUTING-001, RITK-SNAP-PATIENT-MEASUREMENT-OVERLAY-001, RITK-SNAP-OBLIQUE-SESSION-TESTS-001, RITK-SNAP-OBLIQUE-INTERACTION-TESTS-001, RITK-SNAP-WINDOW-CONTROLS-001, RITK-SNAP-OBLIQUE-MANUAL-001
 - scope: `crates/ritk-snap/src/{app,presentation,render,tools/interaction,session}/`, `crates/ritk-snap/src/main.rs`, crate README, ADRs, manual, and provenance.
 - next: deliver ready child items in dependency order; preserve the public MRI-DIR phantom as the shareable visual fixture.
 - risk: [major] [arch]; patient-space annotations and session format 3; no registry release is authorized.
@@ -23,16 +23,50 @@
 - next: claim the item, map the required-check and reusable-workflow graph, then record the single-pipeline design in an indexed ADR before changing workflows.
 - basis: bf589f94b9826be8b4b05c85e5da31c338f01bab
 
+<a id="RITK-SNAP-METIS-SHARED-TEXT-001"></a>
+## RITK-SNAP-METIS-SHARED-TEXT-001: Build display text from shared strings
+- outcome: ritk-snap builds and passes against metis-ui-lang once its `DrawText` text and `ElementRect` ids become `Arc<str>` (ryancinsight/metis#458).
+- acceptance: the lock advances metis past d93a456 to the commit landing metis#458; every `DisplayCommand::DrawText` construction in `crates/ritk-snap/src/presentation/native_session/` (`layout/overlay.rs`, `selection.rs`) passes `Arc<str>`, and text comparisons there and in `native_session/tests*` compare `&**text` or `text.as_ref()`; ritk-snap clippy `-D warnings` and nextest pass; native display tests keep their expected text.
+- status: blocked
+- blocker: metis#458 is not merged; re-open when it merges.
+- priority: correctness
+- needs: none
+- scope: `crates/ritk-snap/src/presentation/native_session/`, `Cargo.lock`
+- next: after metis#458 merges, `cargo update -p metis-ui-lang -p metis-platform -p metis-web` and fix the call sites the checker reports.
+- basis: d6b9f79f
+
 <a id="RITK-FORMAT-BULK-DECODE-001"></a>
 ## RITK-FORMAT-BULK-DECODE-001: Decode sample buffers through one bulk path
 - outcome: format readers and writers convert whole sample buffers through one bulk byte-order path, choosing the byte order once per buffer, instead of per-type `chunks_exact` loops.
 - acceptance: the ritk-vtk binary scalar reader, ritk-mif's float writer, the ritk-nifti and ritk-analyze voxel decoders and the JPEG 2000 QCD step sizes use one shared bulk decode and encode, with the same output bytes and values; each crate's tests pass unchanged, and an instruction-count or pinned run shows no regression on each reader's decode loop.
 - status: todo
 - priority: tightening
-- needs: none
 - scope: `crates/ritk-codecs/src/byte_decode.rs`, `crates/ritk-vtk/src/io/reader.rs`, `crates/ritk-mif/src/writer.rs`, `crates/ritk-nifti/src/header/types.rs`, `crates/ritk-analyze/src/reader.rs`, `crates/ritk-codecs/src/jpeg_2000/codestream.rs`
-- next: measure the vtk and nifti decode loops, then extend `decode_bytes_to_f32` or consus-core with the slice forms those loops need.
-- basis: 83dd6a741a7a30e858a16f79c90d7030b063d1fc
+- needs: RITK-TYPED-SAMPLES-001
+- next: after typed sample I/O lands, profile these call sites and route the required bulk operations through the locked `EndianScalar` API; keep any conversion to `f32` explicit at the image boundary.
+- basis: fb1ff642dcc2ce722780dc9b051cb0796897ca25
+
+<a id="RITK-TYPED-SAMPLES-001"></a>
+## RITK-TYPED-SAMPLES-001: Preserve fixed-width stored samples
+- outcome: decode and encode image samples in RITK without implicit numeric conversion.
+- acceptance: ten fixed-width types round-trip both byte orders and float bits; partial samples fail; mismatched extraction preserves the buffer; old callers remain intact until migrated.
+- status: todo
+- priority: architecture
+- needs: none
+- scope: `crates/ritk-codecs/src/sample/`, codec exports and README, [ADR 0053](docs/adr/0053-typed-sample-io.md).
+- next: 001a lands the sealed vocabulary plus buffer/decode core; next is 001a-2 (conversion/rescale/stream/encode, header_text, io_error, migration guide), then 001b adapters and 002-009 per-format conversions.
+- basis: fb1ff642dcc2ce722780dc9b051cb0796897ca25
+
+<a id="RITK-FORMAT-CONVERSION-001"></a>
+## RITK-FORMAT-CONVERSION-001: Convert image formats through RITK
+- outcome: read, write, and convert the supported medical and scientific image formats through RITK's shared typed image-I/O path.
+- acceptance: DICOM, NIfTI, NRRD, MetaImage, MINC, MIF, MGH/MGZ, Analyze, VTK, PNG, TIFF, and JPEG have explicit read/write and shape capabilities; every advertised scalar-volume conversion pair passes value, geometry, and calibration round trips or fails with a typed error before output; Métis has no format parser or converter.
+- status: todo
+- priority: architecture
+- needs: RITK-TYPED-SAMPLES-001
+- scope: `crates/ritk-io/`, every `crates/ritk-*` format reader/writer, their tests and manuals.
+- next: inventory registered formats and conversion semantics, then define the canonical typed image and capability contracts in an indexed ADR before adapting readers.
+- basis: fb1ff642dcc2ce722780dc9b051cb0796897ca25
 
 <a id="RITK-SNAP-INTERACTION-REGIONS-001"></a>
 ## RITK-SNAP-INTERACTION-REGIONS-001: Separate region interaction tests
@@ -172,32 +206,21 @@
 - acceptance: CLI, README, and manual show the 94-file public phantom in a complete app window with working menus or toolbar controls, pane controls, and all four anatomical panes; provenance identifies the exact capture revision.
 - status: todo
 - priority: verification
-- needs: RITK-SNAP-OBLIQUE-INTERACTION-TESTS-001, RITK-SNAP-OBLIQUE-SESSION-TESTS-001
+- needs: RITK-SNAP-OBLIQUE-INTERACTION-TESTS-001, RITK-SNAP-OBLIQUE-SESSION-TESTS-001, RITK-SNAP-WINDOW-CONTROLS-001
 - scope: `crates/ritk-snap/src/{launch.rs,main.rs}`, crate README, `docs/manual/`, provenance tests
 - next: capture the completed viewer from the public phantom and validate the manual artifacts.
 - basis: 4e2e797c6af199d0c33e37148e784b2becc04981
 
-<a id="RITK-SNAP-RADIANT-INPUT-001"></a>
-## RITK-SNAP-RADIANT-INPUT-001: Map native mouse buttons to viewer tools
-- outcome: operate the viewer with RadiAnt's native mouse-button assignments.
-- acceptance: left browses, middle adjusts window/level, right zooms, back pans, and forward measures length by default; users can reassign each supported button; gestures stay isolated per panel and cancel on focus loss; native event tests assert resulting viewer state and the manual documents the assignments.
+<a id="RITK-SNAP-WINDOW-CONTROLS-001"></a>
+## RITK-SNAP-WINDOW-CONTROLS-001: Add functional controls to the app window
+- outcome: show RITK menus, tool controls, and study status around real views in the Métis native window.
+- acceptance: File/View/Tools menus and toolbar controls perform their named viewer actions; chrome input never reaches image panes; the pane-only pixel capture remains unchanged; the public MRI manual image shows the complete app window and working controls.
 - status: todo
 - priority: feature
 - needs: none
-- scope: `crates/ritk-snap/src/{app/action_adapter.rs,presentation/,tools/kind.rs,ui/toolbar.rs,session/}`, native tests, DICOM manual.
-- next: trace button identity through the reducer and app adapter, then define the mapping state, reassignment UI and persistence owner.
-- basis: ec2621dab19b61e31ccbf1a75b68cd03beeaea43
-
-<a id="RITK-SNAP-BROWSER-MULTISERIES-001"></a>
-## RITK-SNAP-BROWSER-MULTISERIES-001: Open multiple browser series
-- outcome: browse and compare more than one DICOM series in the RITK browser viewer.
-- acceptance: one study selection retains all discovered series; two or more series render in independent panels with per-panel navigation; selection and capacity failures are visible; Chromium, Firefox and WebKit runs use actual public MRI and CT files and capture the complete viewer UI.
-- status: todo
-- priority: feature
-- needs: none
-- scope: `crates/ritk-io/src/format/dicom/series/`, `crates/ritk-snap/src/{app/,presentation/web/,web/}`, browser tests, gallery runner and DICOM manual.
-- next: trace the browser byte-batch loader and identify the smallest host-neutral multi-series state boundary.
-- basis: fbcd7989277b340bfc8903e24500e4f9844af6aa
+- scope: `crates/ritk-snap/src/presentation/native_session/`, `docs/manual/`, screenshot provenance.
+- next: implement chrome layout and event reduction in RITK, then capture and inspect the public MRI workflow.
+- basis: 4e2e797c6af199d0c33e37148e784b2becc04981
 
 <a id="RITK-BROWSER-READ-001"></a>
 ## RITK-BROWSER-READ-001 â€” Reproduce and close WebKit study reads
@@ -370,3 +393,15 @@
 ## RITK-GAP-2026-08-20-09 [patch] â€” derive or remove the MI subsample stride
 - Status: todo; compacted 2026-09-18; full delivery history remains in git.
 - Scope: historical item contract retained in the archived source block; re-open with the original DoR.
+
+<a id="RITK-PYTHON-VTK-DIRECTION-001"></a>
+## RITK-PYTHON-VTK-DIRECTION-001: Python images cannot be written to legacy VTK
+- outcome: a Python-created image reaches a VTK file with its geometry intact, or the restriction is a recorded, accepted product decision rather than a silent dead path.
+- acceptance: either `rio.write_image` handles the permutation direction `numpy_array_direction()` produces (axis permutation, no resampling needed) and a roundtrip test proves values + geometry survive, or the restriction is documented at the `write_image` contract with the typed error asserted by `test_write_image_vtk_rejects_non_identity_direction`.
+- status: todo
+- priority: correctness
+- needs: none
+- scope: `crates/ritk-python/src/image.rs` (constructor direction), `crates/ritk-vtk/src/io/writer.rs` (representability check), `crates/ritk-python/tests/test_coverage_gaps.py`.
+- next: decide whether the legacy writer gains permutation support or the Python surface gains a direction parameter; until then the rejection test (not a roundtrip) is the correct gate.
+- risk: silent axis misorientation in medical images; the fail-closed rejection exists precisely to prevent it, so any writer change must preserve it for genuinely unrepresentable geometry.
+- basis: f095910f

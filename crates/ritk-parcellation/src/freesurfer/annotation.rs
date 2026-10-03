@@ -44,7 +44,7 @@ use super::lut::{color_from_stored, stored_components};
 use super::surface::MAX_ELEMENTS;
 use super::{FreeSurferError, FreeSurferFormat};
 use crate::BACKGROUND;
-use consus_core::{ByteOrder, read_from, write_to};
+use consus_core::{read_from, write_to, ByteOrder};
 
 const FORMAT: FreeSurferFormat = FreeSurferFormat::Annotation;
 

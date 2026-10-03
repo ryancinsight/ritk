@@ -10,7 +10,7 @@
 //! not constrained spherical deconvolution or a fiber orientation density.
 //! <https://doi.org/10.1002/mrm.21277>
 
-use apollo_sht::{RealShError, RealSphericalHarmonicBasis, real_spherical_harmonic};
+use apollo_sht::{real_spherical_harmonic, RealShError, RealSphericalHarmonicBasis};
 use leto::{Array1, Array2};
 use ritk_diffusion_scheme::{DiffusionWeighting, GradientFrame, GradientScheme};
 

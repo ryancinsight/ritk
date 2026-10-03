@@ -29,8 +29,8 @@
 //! [Zhang et al. (2012)](https://doi.org/10.1016/j.neuroimage.2012.03.072)
 
 use coeus_optim::{
-    LeastSquaresProblem, LeastSquaresReport, LevenbergMarquardtConfig, ProblemError,
-    levenberg_marquardt,
+    levenberg_marquardt, LeastSquaresProblem, LeastSquaresReport, LevenbergMarquardtConfig,
+    ProblemError,
 };
 use ritk_diffusion_scheme::{DiffusionWeighting, GradientFrame, GradientScheme};
 use std::sync::OnceLock;

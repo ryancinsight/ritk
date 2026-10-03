@@ -6294,7 +6294,6 @@ dependencies = [
 name = "ritk-model"
 version = "0.2.0"
 dependencies = [
- "bytemuck",
  "coeus-autograd",
  "coeus-core",
  "coeus-leto",
@@ -6467,11 +6466,11 @@ version = "0.1.0"
 dependencies = [
  "anyhow",
  "arrayvec",
- "bytemuck",
  "clap",
  "coeus-core",
  "eframe",
  "egui",
+ "eunomia",
  "gaia-mesh",
  "getrandom 0.2.17",
  "getrandom 0.3.4",
@@ -6517,7 +6516,7 @@ dependencies = [
 
 [[package]]
 name = "ritk-spatial"
-version = "0.2.0"
+version = "0.3.0"
 dependencies = [
  "leto",
  "serde",

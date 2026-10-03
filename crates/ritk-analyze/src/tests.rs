@@ -41,9 +41,10 @@ fn read_error(header: &[u8; HDR_SIZE], payload: &[u8]) -> Result<String> {
     let directory = tempdir()?;
     let path = directory.path().join("malformed.hdr");
     write_analyze_fixture(&path, header, payload)?;
-    Ok(read_analyze(&path, &SequentialBackend)
+    let error = read_analyze(&path, &SequentialBackend)
         .expect_err("malformed Analyze fixture must be rejected")
-        .to_string())
+        .to_string();
+    Ok(error)
 }
 
 fn make_image(

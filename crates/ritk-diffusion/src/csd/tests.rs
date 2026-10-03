@@ -354,8 +354,8 @@ fn rotation_y(angle: f64) -> [[f64; 3]; 3] {
 }
 
 #[test]
-fn reorient_gradients_recovers_original_peak_skip_reorientation_gives_wrong_peak()
--> Result<(), CsdError> {
+fn reorient_gradients_recovers_original_peak_skip_reorientation_gives_wrong_peak(
+) -> Result<(), CsdError> {
     let scheme = scheme(60);
     let response = ResponseFunction::from_tensor(3_000.0, 0.0017, 0.0003, 8)?;
     let config = CsdConfig::new(8, weighting(50.0), NnlsConfig::default())?;

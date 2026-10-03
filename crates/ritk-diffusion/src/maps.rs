@@ -50,7 +50,7 @@ pub use volume::{DirectionInterpolation, DtiVolume};
 use ritk_diffusion_scheme::{GradientFrame, GradientScheme};
 use thiserror::Error;
 
-use crate::dti::{DtiConfig, estimate_dti, invariants};
+use crate::dti::{estimate_dti, invariants, DtiConfig};
 
 /// Percentile of the reference signal that sets the masking scale.
 ///

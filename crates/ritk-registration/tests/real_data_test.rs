@@ -111,10 +111,9 @@ fn identity_samples(image: &Image<f32, B, 3>, points: &[[usize; 3]]) -> Vec<f32>
     )
     .expect("invariant: identity sample coordinates match the interpolation grid shape");
 
-    trilinear_interpolation(&input, &coordinates)
-        .expect("invariant: native identity interpolation accepts generated grid")
-        .data_cow_on(&B::default())
-        .into_owned()
+    let interpolated = trilinear_interpolation(&input, &coordinates)
+        .expect("invariant: native identity interpolation accepts generated grid");
+    interpolated.data_cow_on(&B::default()).into_owned()
 }
 
 #[test]

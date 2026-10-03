@@ -28,10 +28,9 @@ where
     let forcing = mul(&discretized_input, &signal);
     let hidden = parallel_scan(transition, forcing);
     let output_expanded = reshape(output_matrix, [batch, sequence, 1, state_dim]);
-    reshape(
-        &sum_axis(&mul(&hidden, &output_expanded), 3),
-        [batch, sequence, inner],
-    )
+    let projected = mul(&hidden, &output_expanded);
+    let reduced = sum_axis(&projected, 3);
+    reshape(&reduced, [batch, sequence, inner])
 }
 
 /// Hillis-Steele scan for `h[t] = transition[t] * h[t-1] + forcing[t]`.

@@ -1,7 +1,7 @@
 //! Attribute and text-field parsing for the GIFTI elements.
 
-use quick_xml::XmlVersion;
 use quick_xml::events::BytesStart;
+use quick_xml::XmlVersion;
 
 use super::Element;
 use crate::GiftiError;

@@ -143,7 +143,9 @@ where
 
         let project = |lin: &Linear<f32, B>| -> Result<Var<f32, B>, ModelError> {
             let y = lin.forward(x)?;
-            Ok(permute(&reshape(&y, [b, n, nh, hd]), &[0, 2, 1, 3]))
+            let shaped = reshape(&y, [b, n, nh, hd]);
+            let projected = permute(&shaped, &[0, 2, 1, 3]);
+            Ok(projected)
         };
         let q = project(&self.query)?; // [B, nH, N, hd]
         let k = project(&self.key)?;

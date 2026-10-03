@@ -4,7 +4,7 @@ version = "0.2.0"
 authors.workspace = true
 repository.workspace = true
 publish = true
-edition = "2021"
+edition.workspace = true
 description = "VTK-native data model and I/O for the RITK toolkit."
 keywords.workspace = true
 categories.workspace = true
@@ -16,7 +16,7 @@ license.workspace = true
 consus-core = { workspace = true }
 iris = { workspace = true }
 ritk-image = { path = "../ritk-image", version = "0.4.0" }
-ritk-spatial = { path = "../ritk-spatial", version = "0.2.0" }
+ritk-spatial = { path = "../ritk-spatial", version = "0.3.0" }
 coeus-core = { workspace = true }
 consus-io = { workspace = true }
 anyhow = { workspace = true }

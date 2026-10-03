@@ -101,7 +101,8 @@ impl<B: Backend + BackendOps<f32>, const D: usize> AffineTransform<B, D> {
         let translation = broadcast_variable(&reshape(&self.translation, [1, D]), target);
         let centered = sub_variables(points, &center);
         let linear = matmul_variables(&centered, &transpose_2d(&self.matrix));
-        add_variables(&add_variables(&linear, &center), &translation)
+        let centered_output = add_variables(&linear, &center);
+        add_variables(&centered_output, &translation)
     }
 }
 
@@ -122,7 +123,8 @@ where
         let translation = broadcast_to(&self.translation.tensor.reshape([1, D]), &target, &backend);
         let centered = sub(&points, &center, &backend);
         let linear = matmul(&centered, &self.matrix.tensor.t(), &backend);
-        add(&add(&linear, &center, &backend), &translation, &backend)
+        let centered_output = add(&linear, &center, &backend);
+        add(&centered_output, &translation, &backend)
     }
 }
 

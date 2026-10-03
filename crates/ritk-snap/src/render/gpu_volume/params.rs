@@ -9,7 +9,7 @@
 //! a multiple of 16 bytes, satisfying the wgpu uniform-buffer minimum
 //! alignment requirement.
 
-use bytemuck::{Pod, Zeroable};
+use eunomia::{Pod, Zeroable};
 
 /// Uniform parameters for the MIP compute shader.
 ///
@@ -90,3 +90,9 @@ pub(super) struct VrParams {
     /// DICOM VOI function and MONOCHROME1 inversion bitfield.
     pub presentation: u32,
 }
+
+// Sizes mandated by the WGSL uniform bindings; drift breaks the build.
+const _: () = {
+    assert!(size_of::<RenderParams>() == 32);
+    assert!(size_of::<VrParams>() == 32);
+};

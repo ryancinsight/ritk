@@ -23,7 +23,7 @@
 
 use ritk_spatial::Point;
 
-use crate::{BACKGROUND, Parcellation};
+use crate::{Parcellation, BACKGROUND};
 
 /// Size, position, and extent of one labelled region.
 #[derive(Debug, Clone, PartialEq)]

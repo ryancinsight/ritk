@@ -153,10 +153,10 @@ fn generate_merges(segments: &mut [Segment], merge_limit: f64) -> Vec<Merge> {
     let mut parent: Vec<usize> = (0..segments.len()).collect();
     let mut heap = BinaryHeap::new();
     for from in 0..segments.len() {
-        if let Some(candidate) = candidate_for(from, segments, &mut parent) {
-            if f64::from(candidate.saliency) < merge_limit {
-                heap.push(Candidate(candidate));
-            }
+        if let Some(candidate) = candidate_for(from, segments, &mut parent)
+            && f64::from(candidate.saliency) < merge_limit
+        {
+            heap.push(Candidate(candidate));
         }
     }
     let mut merges = Vec::with_capacity(segments.len().saturating_sub(1));

@@ -64,7 +64,8 @@ where
         }
         let displacements = self.field.sample_components(points, self.boundary)?;
         let references = displacements.iter().collect::<Vec<_>>();
-        Ok(add(points, &stack(&references, 1)))
+        let displacement = stack(&references, 1);
+        Ok(add(points, &displacement))
     }
 }
 

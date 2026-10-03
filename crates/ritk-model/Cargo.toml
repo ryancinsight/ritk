@@ -9,12 +9,11 @@ readme.workspace = true
 authors.workspace = true
 repository.workspace = true
 publish = true
-edition = "2021"
+edition.workspace = true
 license.workspace = true
 
 [dependencies]
 thiserror = { workspace = true }
-bytemuck = { workspace = true }
 tracing = { workspace = true }
 eunomia = { workspace = true }
 coeus-tensor = { workspace = true }

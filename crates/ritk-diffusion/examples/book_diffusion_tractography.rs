@@ -7,12 +7,12 @@
 //! as correctness evidence.
 #![expect(clippy::print_stdout, reason = "ratchet RITK-LINT-1")]
 
-use anyhow::{Context, Result, bail};
-use ritk_diffusion::odf::{OdField, OdfConfig, estimate_odf};
+use anyhow::{bail, Context, Result};
+use ritk_diffusion::odf::{estimate_odf, OdField, OdfConfig};
 use ritk_diffusion_scheme::{GradientFrame, GradientScheme};
 use ritk_spatial::{Point, Vector};
 use ritk_tractography::{
-    TerminationReason, TrackingDirection, TractographyConfig, euler_tractography,
+    euler_tractography, TerminationReason, TrackingDirection, TractographyConfig,
 };
 use std::fmt::Write as _;
 use std::path::{Path, PathBuf};

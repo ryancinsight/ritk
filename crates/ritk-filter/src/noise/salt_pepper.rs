@@ -77,12 +77,12 @@ impl SaltAndPepperNoiseFilter {
     }
 
     fn apply_values(&self, values: &[f32]) -> Vec<f32> {
-        let mut gen = MersenneTwister::new(hash(self.seed, 0));
+        let mut r#gen = MersenneTwister::new(hash(self.seed, 0));
         values
             .iter()
             .map(|&v| {
-                if gen.variate() < self.probability {
-                    if gen.variate() < 0.5 {
+                if r#gen.variate() < self.probability {
+                    if r#gen.variate() < 0.5 {
                         self.salt_value
                     } else {
                         self.pepper_value

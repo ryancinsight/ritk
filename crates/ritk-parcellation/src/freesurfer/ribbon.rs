@@ -44,7 +44,7 @@
 //! `c_ras` translation — see [`super::surface`], and apply
 //! [`Surface::translated`] before calling this.
 
-use crate::{BACKGROUND, Parcellation, ParcellationError, ParcellationGrid};
+use crate::{Parcellation, ParcellationError, ParcellationGrid, BACKGROUND};
 
 use super::{Surface, SurfaceAnnotation};
 

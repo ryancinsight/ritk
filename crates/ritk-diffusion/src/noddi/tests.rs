@@ -350,40 +350,34 @@ fn volume_construction_validates_inputs() {
     let dirs: Box<[f64]> = vec![0.0; 8 * 3].into_boxed_slice();
 
     // Zero shape.
-    assert!(
-        NoddiVolume::new(
-            dirs.clone(),
-            [0, 2, 2],
-            [2.0, 2.0, 2.0],
-            [0.0, 0.0, 0.0],
-            GradientFrame::ImageAxis,
-        )
-        .is_err()
-    );
+    assert!(NoddiVolume::new(
+        dirs.clone(),
+        [0, 2, 2],
+        [2.0, 2.0, 2.0],
+        [0.0, 0.0, 0.0],
+        GradientFrame::ImageAxis,
+    )
+    .is_err());
 
     // Mismatched direction count.
-    assert!(
-        NoddiVolume::new(
-            vec![0.0; 4 * 3].into_boxed_slice(),
-            [2, 2, 2],
-            [2.0, 2.0, 2.0],
-            [0.0, 0.0, 0.0],
-            GradientFrame::ImageAxis,
-        )
-        .is_err()
-    );
+    assert!(NoddiVolume::new(
+        vec![0.0; 4 * 3].into_boxed_slice(),
+        [2, 2, 2],
+        [2.0, 2.0, 2.0],
+        [0.0, 0.0, 0.0],
+        GradientFrame::ImageAxis,
+    )
+    .is_err());
 
     // Negative spacing.
-    assert!(
-        NoddiVolume::new(
-            dirs.clone(),
-            [2, 2, 2],
-            [-1.0, 2.0, 2.0],
-            [0.0, 0.0, 0.0],
-            GradientFrame::ImageAxis,
-        )
-        .is_err()
-    );
+    assert!(NoddiVolume::new(
+        dirs.clone(),
+        [2, 2, 2],
+        [-1.0, 2.0, 2.0],
+        [0.0, 0.0, 0.0],
+        GradientFrame::ImageAxis,
+    )
+    .is_err());
 }
 
 #[test]
@@ -405,17 +399,13 @@ fn direction_at_voxel_centre_recovers_z_axis() -> Result<(), NoddiError> {
 fn direction_at_outside_volume_returns_none() {
     let volume = two_by_two_z_volume().expect("valid volume");
 
-    assert!(
-        volume
-            .direction_at(&Point::new([-10.0, 0.0, 0.0]))
-            .is_none()
-    );
+    assert!(volume
+        .direction_at(&Point::new([-10.0, 0.0, 0.0]))
+        .is_none());
     assert!(volume.direction_at(&Point::new([0.0, 0.0, 10.0])).is_none());
-    assert!(
-        volume
-            .direction_at(&Point::new([f64::NAN, 0.0, 0.0]))
-            .is_none()
-    );
+    assert!(volume
+        .direction_at(&Point::new([f64::NAN, 0.0, 0.0]))
+        .is_none());
 }
 
 #[test]

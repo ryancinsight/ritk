@@ -14,13 +14,11 @@ use super::*;
 fn read_every_format(bytes: &[u8]) {
     if let Ok(surface) = Surface::read(bytes) {
         let vertices = surface.vertex_count();
-        assert!(
-            surface
-                .faces()
-                .iter()
-                .flatten()
-                .all(|v| (*v as usize) < vertices)
-        );
+        assert!(surface
+            .faces()
+            .iter()
+            .flatten()
+            .all(|v| (*v as usize) < vertices));
         assert!(surface.vertices().iter().flatten().all(|c| c.is_finite()));
     }
     if let Ok(data) = Morphometry::read(bytes) {
@@ -29,12 +27,10 @@ fn read_every_format(bytes: &[u8]) {
     }
     if let Ok(annotation) = SurfaceAnnotation::read(bytes) {
         let table = annotation.color_table();
-        assert!(
-            annotation
-                .vertex_labels()
-                .iter()
-                .all(|label| *label == crate::BACKGROUND || table.get_label(*label).is_some())
-        );
+        assert!(annotation
+            .vertex_labels()
+            .iter()
+            .all(|label| *label == crate::BACKGROUND || table.get_label(*label).is_some()));
     }
     if let Ok(label) = SurfaceLabel::read(bytes) {
         assert!(label.vertices().iter().all(|point| point.value.is_finite()));

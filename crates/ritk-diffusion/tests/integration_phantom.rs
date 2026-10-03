@@ -14,14 +14,14 @@
 mod phantom;
 
 use phantom::{
-    Phantom, Tissue, add_rician_noise, extract_b1000_signals, multi_shell_scheme,
-    single_shell_scheme,
+    add_rician_noise, extract_b1000_signals, multi_shell_scheme, single_shell_scheme, Phantom,
+    Tissue,
 };
 
-use ritk_diffusion::csd::{CsdConfig, ResponseFunction, estimate_fod};
-use ritk_diffusion::dki::{KtiConfig, estimate_dki};
-use ritk_diffusion::dti::{DtiConfig, estimate_dti};
-use ritk_diffusion::noddi::{NoddiConfig, estimate_noddi};
+use ritk_diffusion::csd::{estimate_fod, CsdConfig, ResponseFunction};
+use ritk_diffusion::dki::{estimate_dki, KtiConfig};
+use ritk_diffusion::dti::{estimate_dti, DtiConfig};
+use ritk_diffusion::noddi::{estimate_noddi, NoddiConfig};
 use ritk_diffusion_scheme::{DiffusionWeighting, GradientFrame};
 
 fn b0_threshold() -> DiffusionWeighting {

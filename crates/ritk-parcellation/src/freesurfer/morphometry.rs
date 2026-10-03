@@ -31,7 +31,7 @@ use std::io::{Read, Write};
 use super::big_endian::{read_count, read_u24, reserve_for, write_count, write_u24};
 use super::surface::MAX_ELEMENTS;
 use super::{FreeSurferError, FreeSurferFormat};
-use consus_core::{ByteOrder, read_from, write_to};
+use consus_core::{read_from, write_to, ByteOrder};
 
 const FORMAT: FreeSurferFormat = FreeSurferFormat::Morphometry;
 

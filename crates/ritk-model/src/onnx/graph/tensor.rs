@@ -55,10 +55,8 @@ impl OnnxTensor {
         if self.data_type != OnnxElementType::Float {
             return Err(format!("Expected Float, got {}", self.data_type));
         }
-        if !self.raw_data.len().is_multiple_of(4) {
-            return Err("Invalid data alignment".to_string());
-        }
-        Ok(bytemuck::cast_slice(&self.raw_data))
+        eunomia::layout::try_cast_slice(&self.raw_data)
+            .map_err(|e| format!("Invalid raw data: {e}"))
     }
 
     /// Extract data as i64 slice (if type is compatible).
@@ -66,9 +64,7 @@ impl OnnxTensor {
         if self.data_type != OnnxElementType::Int64 {
             return Err(format!("Expected Int64, got {}", self.data_type));
         }
-        if !self.raw_data.len().is_multiple_of(8) {
-            return Err("Invalid data alignment".to_string());
-        }
-        Ok(bytemuck::cast_slice(&self.raw_data))
+        eunomia::layout::try_cast_slice(&self.raw_data)
+            .map_err(|e| format!("Invalid raw data: {e}"))
     }
 }

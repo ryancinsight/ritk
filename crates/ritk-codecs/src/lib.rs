@@ -25,6 +25,7 @@ pub mod jpeg_ls;
 pub mod packbits;
 pub mod pixel_layout;
 pub mod rle;
+pub mod sample;
 
 pub use byte_decode::{
     decode_bytes_to_f32, parse_f64_vec, parse_floats, parse_usize_vec, require_bytes, ByteOrder,
@@ -35,3 +36,4 @@ pub use jpeg_ls::decode_jpeg_ls_fragment;
 pub use packbits::packbits_decode;
 pub use pixel_layout::{decode_native_pixel_bytes_checked, PixelLayout, PixelSignedness};
 pub use rle::{decode_rle_lossless_fragment, encode_rle_lossless_fragment_u16_grayscale};
+pub use sample::{Sample, SampleBuffer, SampleError, SampleExtractionError, SampleType};

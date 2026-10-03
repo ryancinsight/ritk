@@ -191,7 +191,7 @@ pub(crate) fn fill_holes_3d(data: &[f32], dims: [usize; 3], fg: ForegroundValue)
         let ix = rem % nx;
 
         macro_rules! try_neighbor {
-            ($nz:expr, $ny_:expr, $nx_:expr) => {
+            ($nz:expr_2021, $ny_:expr_2021, $nx_:expr_2021) => {
                 let nidx = $nz * ny * nx + $ny_ * nx + $nx_;
                 if data[nidx] != fg && !reached[nidx] {
                     reached[nidx] = true;

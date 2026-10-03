@@ -9,14 +9,14 @@ readme.workspace = true
 authors.workspace = true
 repository.workspace = true
 publish = true
-edition = "2021"
+edition.workspace = true
 license.workspace = true
 
 [dependencies]
 ritk-core = { path = "../ritk-core", version = "0.10.0" }
 ritk-image = { path = "../ritk-image", version = "0.4.0" }
 ritk-wgpu-compat = { path = "../ritk-wgpu-compat", version = "0.2.0" }
-ritk-spatial = { path = "../ritk-spatial", version = "0.2.0" }
+ritk-spatial = { path = "../ritk-spatial", version = "0.3.0" }
 ritk-interpolation = { path = "../ritk-interpolation", version = "0.5.0" }
 coeus-core = { workspace = true }
 coeus-tensor = { workspace = true }
@@ -30,6 +30,7 @@ serde_json = { workspace = true }
 
 [dev-dependencies]
 tempfile = { workspace = true }
+ritk-core = { path = "../ritk-core", features = ["test-helpers"], version = "0.10.0" }
 
 [lints]
 workspace = true

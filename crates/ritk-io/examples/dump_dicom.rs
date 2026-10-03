@@ -37,10 +37,13 @@ fn main() -> anyhow::Result<()> {
     ];
 
     for (tag, name) in &tags_to_check {
-        if let Ok(elem) = obj.element(*tag) {
-            println!("{}: {}", name, elem.to_str().unwrap_or("?".into()));
-        } else {
-            println!("{}: <missing>", name);
+        match obj.element(*tag) {
+            Ok(elem) => {
+                println!("{}: {}", name, elem.to_str().unwrap_or("?".into()));
+            }
+            _ => {
+                println!("{}: <missing>", name);
+            }
         }
     }
 
@@ -88,17 +91,20 @@ fn main() -> anyhow::Result<()> {
     }
 
     // Pixel data info
-    if let Ok(pd) = obj.decode_pixel_data() {
-        println!(
-            "PixelData: {} samples, {} bits, {} frames",
-            pd.samples_per_pixel(),
-            pd.bits_allocated(),
-            pd.number_of_frames()
-        );
-        let vec_f32 = pd.to_vec::<f32>()?;
-        println!("Decoded f32 length: {}", vec_f32.len());
-    } else {
-        println!("PixelData: <failed to decode>");
+    match obj.decode_pixel_data() {
+        Ok(pd) => {
+            println!(
+                "PixelData: {} samples, {} bits, {} frames",
+                pd.samples_per_pixel(),
+                pd.bits_allocated(),
+                pd.number_of_frames()
+            );
+            let vec_f32 = pd.to_vec::<f32>()?;
+            println!("Decoded f32 length: {}", vec_f32.len());
+        }
+        _ => {
+            println!("PixelData: <failed to decode>");
+        }
     }
 
     Ok(())

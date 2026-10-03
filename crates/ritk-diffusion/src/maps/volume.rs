@@ -27,9 +27,9 @@ use ritk_spatial::{Point, Vector};
 
 use crate::dti::symmetric_eigen;
 
-use super::{DiffusionMaps, DiffusionMapsError};
 #[cfg(test)]
-use super::{DiffusionMapsConfig, fit_diffusion_maps};
+use super::{fit_diffusion_maps, DiffusionMapsConfig};
+use super::{DiffusionMaps, DiffusionMapsError};
 
 /// Relative gap below which the interpolated dyadic has no dominant axis.
 ///

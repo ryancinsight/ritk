@@ -319,11 +319,12 @@ fn hybrid_reconstruct<P: Polarity>(
 
         let jp = j[p];
         for &o in &offsets.anti {
-            if let Some(q) = neighbour_index(iz, iy, ix, o, dims) {
-                if P::dominates(jp, j[q]) && P::dominates(mask[q], j[q]) {
-                    queue.push_back(p);
-                    break;
-                }
+            if let Some(q) = neighbour_index(iz, iy, ix, o, dims)
+                && P::dominates(jp, j[q])
+                && P::dominates(mask[q], j[q])
+            {
+                queue.push_back(p);
+                break;
             }
         }
     }
@@ -333,11 +334,12 @@ fn hybrid_reconstruct<P: Polarity>(
         let (iz, iy, ix) = coords(p);
         let jp = j[p];
         for &o in &offsets.full {
-            if let Some(q) = neighbour_index(iz, iy, ix, o, dims) {
-                if P::dominates(jp, j[q]) && j[q] != mask[q] {
-                    j[q] = P::cap(jp, mask[q]);
-                    queue.push_back(q);
-                }
+            if let Some(q) = neighbour_index(iz, iy, ix, o, dims)
+                && P::dominates(jp, j[q])
+                && j[q] != mask[q]
+            {
+                j[q] = P::cap(jp, mask[q]);
+                queue.push_back(q);
             }
         }
     }

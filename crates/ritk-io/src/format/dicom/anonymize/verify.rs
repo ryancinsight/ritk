@@ -301,15 +301,15 @@ fn check_geometry(obj: &FileDicomObject<InMemDicomObject>, report: &mut FileVeri
 
     let expected_bytes_per_frame =
         rows as usize * cols as usize * samples as usize * (bits as usize).div_ceil(8);
-    if let Some(len) = pixel_bytes {
-        if len < expected_bytes_per_frame {
-            report.issues.push(VerifyIssue::GeometryMismatch {
-                detail: format!(
-                    "PixelData length {len} < expected single-frame {expected_bytes_per_frame} \
+    if let Some(len) = pixel_bytes
+        && len < expected_bytes_per_frame
+    {
+        report.issues.push(VerifyIssue::GeometryMismatch {
+            detail: format!(
+                "PixelData length {len} < expected single-frame {expected_bytes_per_frame} \
                      (rows={rows} cols={cols} samples={samples} bits={bits})"
-                ),
-            });
-        }
+            ),
+        });
     }
 }
 
@@ -470,13 +470,13 @@ pub fn ensure_dicom_file_clean(path: impl AsRef<Path>, options: &VerifyOptions) 
 /// Returns an error when any verified file has an issue.
 pub fn ensure_dicom_directory_clean(dir: impl AsRef<Path>, options: &VerifyOptions) -> Result<()> {
     let report = verify_dicom_directory(dir, options)?;
-    if let Some(file) = report.files.first() {
-        if let Some(issue) = file.issues.first() {
-            bail!(
-                "directory export verification failed for {:?}: {issue}",
-                file.path
-            );
-        }
+    if let Some(file) = report.files.first()
+        && let Some(issue) = file.issues.first()
+    {
+        bail!(
+            "directory export verification failed for {:?}: {issue}",
+            file.path
+        );
     }
     Ok(())
 }

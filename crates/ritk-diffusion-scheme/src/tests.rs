@@ -4,8 +4,8 @@ mod reorient_per_volume;
 use ritk_spatial::Vector;
 
 use crate::{
-    DiffusionWeighting, GradientDirection, GradientFrame, GradientScheme, GradientSchemeError,
     parse_fsl_bval, read_fsl_scheme, read_mrtrix_scheme, write_fsl_scheme, write_mrtrix_scheme,
+    DiffusionWeighting, GradientDirection, GradientFrame, GradientScheme, GradientSchemeError,
 };
 
 fn weighting(value: f64) -> DiffusionWeighting {

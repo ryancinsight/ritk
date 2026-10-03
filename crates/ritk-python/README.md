@@ -33,7 +33,7 @@ a wheel.
 Install the wheel selected for the current interpreter:
 
 ```sh
-python -m pip install --force-reinstall --no-index --find-links dist ritk
+python -m pip install --force-reinstall --no-index --find-links dist ritk-python
 ```
 
 The release workflow builds the `abi3-py39` wheel matrix and the `abi3t` stable

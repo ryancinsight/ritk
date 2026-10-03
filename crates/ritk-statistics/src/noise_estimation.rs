@@ -175,7 +175,7 @@ where
     let mut values: Vec<f32> = img_slice
         .iter()
         .zip(mask_slice.iter())
-        .filter(|(_, &m)| m > crate::FOREGROUND_THRESHOLD)
+        .filter(|&(_, &m)| m > crate::FOREGROUND_THRESHOLD)
         .map(|(&v, _)| v)
         .collect();
 
@@ -225,7 +225,7 @@ pub fn estimate_noise_mad_masked_from_slices(img_slice: &[f32], mask_slice: &[f3
     let mut values: Vec<f32> = img_slice
         .iter()
         .zip(mask_slice.iter())
-        .filter(|(_, &m)| m > crate::FOREGROUND_THRESHOLD)
+        .filter(|&(_, &m)| m > crate::FOREGROUND_THRESHOLD)
         .map(|(&v, _)| v)
         .collect();
     mad_sigma(&mut values)

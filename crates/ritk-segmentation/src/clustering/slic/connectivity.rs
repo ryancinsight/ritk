@@ -88,10 +88,10 @@ pub fn enforce_connectivity(
         for i in 0..n {
             // Forward adjacency: +1 along each axis (face-connected).
             for (d, &stride) in strides.iter().enumerate() {
-                if let Some(nbr) = neighbor_index(i, d, 1, shape, stride) {
-                    if new_label[i] == new_label[nbr] {
-                        uf.union(i, nbr);
-                    }
+                if let Some(nbr) = neighbor_index(i, d, 1, shape, stride)
+                    && new_label[i] == new_label[nbr]
+                {
+                    uf.union(i, nbr);
                 }
             }
         }
@@ -113,7 +113,7 @@ pub fn enforce_connectivity(
         // Identify small components.
         let small_roots: Vec<usize> = comp_sizes
             .iter()
-            .filter(|(_, &size)| size < min_size)
+            .filter(|&(_, &size)| size < min_size)
             .map(|(&root, _)| root)
             .collect();
 

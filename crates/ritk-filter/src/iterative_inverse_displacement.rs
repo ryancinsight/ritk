@@ -155,18 +155,18 @@ impl IterativeInverseDisplacementField {
                         }
                         for k in 0..3 {
                             m[k] += step;
-                            if let Some(t) = err_at(m) {
-                                if t < smallest_error {
-                                    smallest_error = t;
-                                    new_p = m;
-                                }
+                            if let Some(t) = err_at(m)
+                                && t < smallest_error
+                            {
+                                smallest_error = t;
+                                new_p = m;
                             }
                             m[k] -= 2.0 * step;
-                            if let Some(t) = err_at(m) {
-                                if t < smallest_error {
-                                    smallest_error = t;
-                                    new_p = m;
-                                }
+                            if let Some(t) = err_at(m)
+                                && t < smallest_error
+                            {
+                                smallest_error = t;
+                                new_p = m;
                             }
                             m[k] += step;
                         }

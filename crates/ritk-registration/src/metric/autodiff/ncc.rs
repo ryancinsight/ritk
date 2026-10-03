@@ -71,6 +71,7 @@ where
     // NCC = num / √(d_F·d_M + ε); loss = −NCC.
     let eps = T::from_f64(1e-10);
     let denominator = sqrt(&scalar_add(&mul(&d_f, &d_m), eps));
+
     neg(&div(&num, &denominator))
 }
 

@@ -23,11 +23,11 @@
 use std::path::{Path, PathBuf};
 
 use leto_ops::NnlsConfig;
-use ritk_diffusion::csd::{CsdConfig, ResponseFunction, estimate_fod};
-use ritk_diffusion::dki::{KtiConfig, estimate_dki};
-use ritk_diffusion::dti::{DtiConfig, estimate_dti};
+use ritk_diffusion::csd::{estimate_fod, CsdConfig, ResponseFunction};
+use ritk_diffusion::dki::{estimate_dki, KtiConfig};
+use ritk_diffusion::dti::{estimate_dti, DtiConfig};
 use ritk_diffusion_scheme::{
-    DiffusionWeighting, GradientFrame, GradientScheme, read_fsl_scheme, write_fsl_scheme,
+    read_fsl_scheme, write_fsl_scheme, DiffusionWeighting, GradientFrame, GradientScheme,
 };
 
 // ═══════════════════════════════════════════════════════════════════════════

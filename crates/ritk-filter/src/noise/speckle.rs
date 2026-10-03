@@ -71,7 +71,7 @@ impl SpeckleNoiseFilter {
         if self.std == 0.0 {
             return values.to_vec();
         }
-        let mut gen = MersenneTwister::new(hash(self.seed, 0));
+        let mut r#gen = MersenneTwister::new(hash(self.seed, 0));
 
         // Gamma(k, theta) with mean k*theta = 1, variance k*theta^2 = std^2.
         let theta = self.std * self.std;
@@ -86,9 +86,9 @@ impl SpeckleNoiseFilter {
                 // Marsaglia–Tsang gamma for the fractional shape `delta`.
                 let (mut xi, mut nu);
                 loop {
-                    let v1 = 1.0 - gen.variate_open_upper();
-                    let v2 = 1.0 - gen.variate_open_upper();
-                    let v3 = 1.0 - gen.variate_open_upper();
+                    let v1 = 1.0 - r#gen.variate_open_upper();
+                    let v2 = 1.0 - r#gen.variate_open_upper();
+                    let v3 = 1.0 - r#gen.variate_open_upper();
                     if v1 <= v0 {
                         xi = v2.powf(1.0 / delta);
                         nu = v3 * xi.powf(delta - 1.0);
@@ -102,7 +102,7 @@ impl SpeckleNoiseFilter {
                 }
                 let mut gamma = xi;
                 for _ in 0..(floork as i64) {
-                    gamma -= (1.0 - gen.variate_open_upper()).ln();
+                    gamma -= (1.0 - r#gen.variate_open_upper()).ln();
                 }
                 gamma *= theta;
                 (gamma * v as f64) as f32

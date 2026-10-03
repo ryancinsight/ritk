@@ -136,7 +136,8 @@ fn module_forward_propagates_nonfinite_interpolation_errors() {
         false,
     );
 
-    match transform.forward(&points) {
+    let result = transform.forward(&points);
+    match result {
         Err(ModuleError::Interpolation(InterpolationError::NonFiniteCoordinate {
             axis: 0,
             point: 0,

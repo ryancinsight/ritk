@@ -74,7 +74,12 @@ pub mod native {
         }
     }
 
-    /// Backend-bound VTK writer.
+    /// Backend-bound legacy VTK structured-points writer.
+    ///
+    /// The legacy representation cannot store a direction matrix or
+    /// acquisition coordinate map. Writes therefore reject non-identity
+    /// directions and non-Cartesian maps before creating or truncating the
+    /// destination.
     pub struct VtkWriter<B: ComputeBackend> {
         backend: B,
     }

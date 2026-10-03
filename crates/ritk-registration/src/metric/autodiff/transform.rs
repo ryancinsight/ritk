@@ -94,7 +94,8 @@ where
         assert_eq!(self.t.tensor.shape(), [3], "Translation: t must be [3]");
         let n = shape[0];
         let t_row = reshape(&self.t, [1usize, 3]);
-        add(points, &broadcast_to(&t_row, vec![n, 3]))
+        let translation = broadcast_to(&t_row, vec![n, 3]);
+        add(points, &translation)
     }
 }
 

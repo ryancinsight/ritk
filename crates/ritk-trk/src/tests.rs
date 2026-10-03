@@ -2,7 +2,7 @@
 use std::alloc::{GlobalAlloc, Layout, System};
 use std::sync::atomic::{AtomicUsize, Ordering};
 
-use super::parse::{TRK_MAGIC, encode_header, parse_header};
+use super::parse::{encode_header, parse_header, TRK_MAGIC};
 use super::*;
 
 /// Live heap bytes across the test binary.

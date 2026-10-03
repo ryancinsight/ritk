@@ -73,7 +73,7 @@ use serde::{Deserialize, Serialize};
 mod normalisation;
 
 pub use normalisation::{
-    NormalisedRichClubLevel, RandomisationConfig, RandomisationReport, normalised_rich_club,
+    normalised_rich_club, NormalisedRichClubLevel, RandomisationConfig, RandomisationReport,
 };
 
 use crate::ConnectivityMatrix;

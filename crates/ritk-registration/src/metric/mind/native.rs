@@ -110,13 +110,13 @@ where
                 })?;
         let shape = fixed.shape();
         let voxel_count = checked_voxel_count(shape)?;
-        if let Some(weights) = weights {
-            if weights.len() != voxel_count {
-                return Err(MindSscError::WeightLength {
-                    expected: voxel_count,
-                    actual: weights.len(),
-                });
-            }
+        if let Some(weights) = weights
+            && weights.len() != voxel_count
+        {
+            return Err(MindSscError::WeightLength {
+                expected: voxel_count,
+                actual: weights.len(),
+            });
         }
         let geometry = config.geometry();
         let spacing = [fixed.spacing()[2], fixed.spacing()[1], fixed.spacing()[0]];

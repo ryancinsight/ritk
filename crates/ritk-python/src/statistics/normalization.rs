@@ -271,10 +271,10 @@ pub fn nyul_udupa_normalize(
         ));
     }
 
-    if let Some(ref p) = percentiles {
-        if let Err(e) = validate_percentiles(p) {
-            return Err(RitkPyError::value(e));
-        }
+    if let Some(ref p) = percentiles
+        && let Err(e) = validate_percentiles(p)
+    {
+        return Err(RitkPyError::value(e));
     }
 
     let training_arcs: Vec<_> = training_images

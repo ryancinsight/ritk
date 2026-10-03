@@ -4,7 +4,7 @@ version = "0.1.0"
 authors.workspace = true
 repository.workspace = true
 publish = false
-edition = "2021"
+edition.workspace = true
 description = "RITK DICOM image viewer — full-featured medical workstation viewer"
 license.workspace = true
 
@@ -34,7 +34,7 @@ clap = { workspace = true, features = ["derive"] }
 ritk-core = { workspace = true }
 ritk-annotation = { path = "../ritk-annotation", version = "0.2.0" }
 ritk-image = { path = "../ritk-image", version = "0.4.0" }
-ritk-spatial = { path = "../ritk-spatial", version = "0.2.0" }
+ritk-spatial = { path = "../ritk-spatial", version = "0.3.0" }
 ritk-filter = { workspace = true }
 ritk-segmentation = { workspace = true }
 ritk-io = { workspace = true }
@@ -51,7 +51,7 @@ rfd = { workspace = true, optional = true }
 image = { workspace = true }
 gaia = { workspace = true }
 walkdir = { workspace = true }
-bytemuck = { workspace = true }
+eunomia = { workspace = true }
 moirai = { workspace = true }
 metis-platform = { workspace = true }
 metis-ui-lang = { workspace = true }

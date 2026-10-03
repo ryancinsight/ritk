@@ -801,12 +801,11 @@ impl PipelineStages {
         if let Some(window) = self.least_squares_prior {
             window.validate()?;
         }
-        if let Some(minimum_peak_similarity) = self.minimum_peak_similarity {
-            if !minimum_peak_similarity.is_finite()
-                || !(0.0..=1.0).contains(&minimum_peak_similarity)
-            {
-                bail!("minimum peak similarity must be finite and in [0, 1]");
-            }
+        if let Some(minimum_peak_similarity) = self.minimum_peak_similarity
+            && (!minimum_peak_similarity.is_finite()
+                || !(0.0..=1.0).contains(&minimum_peak_similarity))
+        {
+            bail!("minimum peak similarity must be finite and in [0, 1]");
         }
         Ok(())
     }

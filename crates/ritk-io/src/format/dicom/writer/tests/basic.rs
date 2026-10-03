@@ -116,8 +116,10 @@ fn test_series_pixel_clamp_unsigned_range() {
             continue;
         }
         let obj = dicom::object::open_file(&path).expect("open_file");
-        if let Ok(elem) = obj.element(dicom::core::Tag(0x7FE0, 0x0010)) {
-            if let Ok(bytes) = elem.value().to_bytes() {
+        let element = obj.element(dicom::core::Tag(0x7FE0, 0x0010));
+        if let Ok(elem) = element {
+            let pixel_bytes = elem.value().to_bytes();
+            if let Ok(bytes) = pixel_bytes {
                 let mut has_non_zero = false;
                 let mut maximum = 0_u16;
                 for chunk in bytes.chunks_exact(2) {

@@ -218,11 +218,11 @@ pub fn draw_histogram(
         );
         return Some((new_c, new_w));
     }
-    if response.clicked() {
-        if let Some(pos) = response.interact_pointer_pos() {
-            let new_c = wl_center_from_click(pos.x, hist_min, hist_max, rect.left(), rect.right());
-            return Some((new_c, window_width));
-        }
+    if response.clicked()
+        && let Some(pos) = response.interact_pointer_pos()
+    {
+        let new_c = wl_center_from_click(pos.x, hist_min, hist_max, rect.left(), rect.right());
+        return Some((new_c, window_width));
     }
     None
 }

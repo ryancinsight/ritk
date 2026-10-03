@@ -44,7 +44,7 @@ pub use annotation::SurfaceAnnotation;
 pub use error::{FreeSurferError, FreeSurferFormat};
 pub use label::{LabelVertex, SurfaceLabel};
 pub use morphometry::Morphometry;
-pub use ribbon::{RibbonError, RibbonReport, rasterise_ribbon};
+pub use ribbon::{rasterise_ribbon, RibbonError, RibbonReport};
 pub use surface::Surface;
 
 #[cfg(test)]

@@ -11,8 +11,8 @@
 //! the staging buffer.  `collect_mesh_result` reads the mapped data and returns
 //! a `ColorImage`.  Both functions mirror the protocol from `mip_pass.rs`.
 
-use bytemuck::cast_slice;
 use egui::ColorImage;
+use eunomia::layout::cast_slice;
 use std::sync::mpsc;
 
 use super::{

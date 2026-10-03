@@ -35,7 +35,7 @@
 
 use ritk_spatial::Point;
 
-use crate::{BACKGROUND, Parcellation, ParcellationError, ParcellationGrid};
+use crate::{Parcellation, ParcellationError, ParcellationGrid, BACKGROUND};
 
 /// A labelled voxel found near a query point.
 #[derive(Debug, Clone, Copy, PartialEq)]

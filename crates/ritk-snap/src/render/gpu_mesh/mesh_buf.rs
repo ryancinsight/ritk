@@ -44,13 +44,13 @@ impl GpuMeshBufs {
 
         let vertex_buf = device.create_buffer_init(&wgpu::util::BufferInitDescriptor {
             label: Some("mesh_vertex_buf"),
-            contents: bytemuck::cast_slice(&vertices),
+            contents: eunomia::layout::cast_slice(&vertices),
             usage: wgpu::BufferUsages::VERTEX,
         });
 
         let index_buf = device.create_buffer_init(&wgpu::util::BufferInitDescriptor {
             label: Some("mesh_index_buf"),
-            contents: bytemuck::cast_slice(&indices),
+            contents: eunomia::layout::cast_slice(&indices),
             usage: wgpu::BufferUsages::INDEX,
         });
 

@@ -341,7 +341,11 @@ fn contribution_of(
             // A streamline of zero length has no pathway to normalise against.
             // It cannot arise from an inter-region pair — two distinct regions
             // are at least one voxel apart — so this only guards the diagonal.
-            if length > 0.0 { 1.0 / length } else { 0.0 }
+            if length > 0.0 {
+                1.0 / length
+            } else {
+                0.0
+            }
         }
         // A region with no volume cannot occur: every label in the set has at
         // least the voxel that put it there. The guard keeps the function total.

@@ -125,7 +125,8 @@ where
         let translation = broadcast_variable(&reshape(&self.translation, [1, D]), target);
         let centered = sub_variables(points, &center);
         let rotated = matmul_variables(&centered, &transpose_2d(&self.rotation_matrix_variables()));
-        add_variables(&add_variables(&rotated, &center), &translation)
+        let centered_output = add_variables(&rotated, &center);
+        add_variables(&centered_output, &translation)
     }
 
     fn rotation_matrix_variables(&self) -> Var<f32, B> {
@@ -209,7 +210,8 @@ where
         let translation = broadcast_to(&self.translation.tensor.reshape([1, D]), &target, &backend);
         let centered = sub(&points, &center, &backend);
         let rotated = matmul(&centered, &self.build_rotation_matrix().t(), &backend);
-        add(&add(&rotated, &center, &backend), &translation, &backend)
+        let centered_output = add(&rotated, &center, &backend);
+        add(&centered_output, &translation, &backend)
     }
 }
 

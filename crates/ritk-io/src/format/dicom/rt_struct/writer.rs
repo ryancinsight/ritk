@@ -41,10 +41,10 @@ pub fn write_rt_struct<P: AsRef<Path>>(path: P, ss: &RtStructureSet) -> Result<(
     obj.put_value(Tag(0x0008, 0x0018), VR::UI, sop_instance_uid.as_str());
     obj.put_value(Tag(0x0008, 0x0060), VR::CS, "RTSTRUCT");
     obj.put_value(Tag(0x3006, 0x0002), VR::LO, ss.structure_set_label.as_str());
-    if let Some(name) = &ss.structure_set_name {
-        if !name.is_empty() {
-            obj.put_value(Tag(0x3006, 0x0004), VR::LO, name.as_str());
-        }
+    if let Some(name) = &ss.structure_set_name
+        && !name.is_empty()
+    {
+        obj.put_value(Tag(0x3006, 0x0004), VR::LO, name.as_str());
     }
     if !roi_seq_items.is_empty() {
         obj.put(DataElement::new(
@@ -92,10 +92,10 @@ fn build_roi_seq_item(roi: &RtRoiInfo) -> InMemDicomObject {
         roi.roi_number.to_string().as_str(),
     );
     item.put_value(Tag(0x3006, 0x0026), VR::LO, roi.roi_name.as_str());
-    if let Some(desc) = &roi.roi_description {
-        if !desc.is_empty() {
-            item.put_value(Tag(0x3006, 0x0028), VR::ST, desc.as_str());
-        }
+    if let Some(desc) = &roi.roi_description
+        && !desc.is_empty()
+    {
+        item.put_value(Tag(0x3006, 0x0028), VR::ST, desc.as_str());
     }
     item
 }

@@ -7,8 +7,8 @@ use gaia::Polyline;
 use leto::geometry::Point3;
 
 use crate::parse::{
-    TRK_HEADER_SIZE, TRK_MAGIC, apply_affine, encode_header, invert_affine, parse_header,
-    read_exact,
+    apply_affine, encode_header, invert_affine, parse_header, read_exact, TRK_HEADER_SIZE,
+    TRK_MAGIC,
 };
 use crate::{TrkError, TrkTractogram};
 
