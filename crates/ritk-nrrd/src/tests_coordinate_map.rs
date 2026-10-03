@@ -57,6 +57,19 @@ fn non_cartesian_maps_round_trip_exactly() {
 }
 
 #[test]
+fn streamed_key_value_matches_the_public_coordinate_map_encoding() {
+    for map in [curvilinear(), phased(), slice_series()] {
+        let mut output = Vec::new();
+        write_key_value(&mut output, &map).expect("write to byte buffer");
+        let expected = format!(
+            "{COORDINATE_MAP_KEY}:={}\n",
+            encode(&map).expect("encoded map")
+        );
+        assert_eq!(output, expected.as_bytes());
+    }
+}
+
+#[test]
 fn slice_series_rejects_wrong_component_counts_and_nonfinite_values() {
     let short_transform = "slice_series count=1 transforms=1,0,0,0,1,0,0,0,1,0,0";
     assert!(decode(short_transform)

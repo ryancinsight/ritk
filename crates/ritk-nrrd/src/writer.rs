@@ -1,11 +1,21 @@
 use anyhow::{anyhow, Context, Result};
 use coeus_core::{ComputeBackend, CpuAddressableStorage};
-use ritk_image::Image;
-use ritk_spatial::{Direction, Point, Spacing};
-use std::io::{BufWriter, Write};
+use ritk_image::{Image, ImageMetadata};
+use ritk_image_io::{validate_coordinate_map, validate_physical_geometry, SeriesAxis};
+use ritk_spatial::{CoordinateMap, Direction, Point, Spacing};
+use std::io::{self, BufWriter, Write};
 use std::path::Path;
 
 use crate::spatial::file_space_directions_from_internal;
+
+mod stored;
+pub use stored::{write_nrrd_stored, write_nrrd_stored_series, NrrdStoredWriteError};
+
+#[derive(Clone, Copy)]
+pub(super) enum SeriesLayout {
+    AcquisitionFastest,
+    AcquisitionSlowest,
+}
 
 /// Write a 3-D `Image` to a NRRD (Nearly Raw Raster Data) file.
 ///
@@ -44,7 +54,7 @@ where
         image.origin(),
         image.direction(),
         &voxels,
-        crate::coordinate_map::encode(image.coordinate_map()),
+        image.coordinate_map(),
     )
 }
 
@@ -66,7 +76,7 @@ pub fn write_nrrd_with_data<B: ComputeBackend, P: AsRef<Path>>(
         image.origin(),
         image.direction(),
         f32_slice,
-        crate::coordinate_map::encode(image.coordinate_map()),
+        image.coordinate_map(),
     )
 }
 
@@ -80,7 +90,7 @@ fn write_nrrd_flat(
     origin: &Point<3>,
     direction: &Direction<3>,
     f32_slice: &[f32],
-    coordinate_map: Option<String>,
+    coordinate_map: &CoordinateMap,
 ) -> Result<()> {
     // shape is [nz, ny, nx] in RITK convention.
     let nz = shape[0];
@@ -96,59 +106,188 @@ fn write_nrrd_flat(
             f32_slice.len()
         ));
     }
+    validate_physical_geometry(&ImageMetadata::new(*origin, *spacing, *direction))?;
+    validate_coordinate_map(coordinate_map, shape)?;
 
-    // ── Spatial metadata ──────────────────────────────────────────────────
-    let file_directions = file_space_directions_from_internal(
-        [spacing[0], spacing[1], spacing[2]],
-        direction_row_major(direction),
+    let mut header = HeaderBuffer::new();
+    let header_result = write_nrrd_header(
+        &mut header,
+        shape,
+        spacing,
+        origin,
+        direction,
+        "float",
+        coordinate_map,
     );
-    let sd0 = format_nrrd_vector(file_directions[0]);
-    let sd1 = format_nrrd_vector(file_directions[1]);
-    let sd2 = format_nrrd_vector(file_directions[2]);
+    if header.exceeded_limit() {
+        let maximum_bytes = crate::reader::MAX_HEADER_BYTES;
+        anyhow::bail!("NRRD output header is larger than {maximum_bytes} bytes");
+    }
+    header_result?;
 
-    let space_origin = format!("({},{},{})", origin[0], origin[1], origin[2]);
-
-    // ── File I/O ──────────────────────────────────────────────────────────
     let file = std::fs::File::create(path)
         .with_context(|| format!("Cannot create NRRD file {:?}", path))?;
     let mut writer = BufWriter::new(file);
-
-    // Header — field order matches the ITK NrrdIO convention.
-    writeln!(writer, "NRRD0004")?;
-    writeln!(writer, "# Complete NRRD file written by ritk")?;
-    writeln!(writer, "type: float")?;
-    writeln!(writer, "dimension: 3")?;
-    // ITK/SimpleITK and ritk's own reader work in LPS: the reader stores the
-    // `space origin` / `space directions` verbatim (no space conversion), and ITK
-    // NRRDs are written LPS. Declaring RAS here made SimpleITK reinterpret the
-    // LPS-valued origin/directions and negate the x and y (R↔L, A↔P) components on
-    // read, corrupting the origin of an anisotropic-origin volume on round-trip.
-    writeln!(writer, "space: left-posterior-superior")?;
-    // sizes is in NRRD [X, Y, Z] order.
-    writeln!(writer, "sizes: {} {} {}", nx, ny, nz)?;
-    writeln!(writer, "space directions: {} {} {}", sd0, sd1, sd2)?;
-    writeln!(writer, "kinds: domain domain domain")?;
-    writeln!(writer, "endian: little")?;
-    writeln!(writer, "encoding: raw")?;
-    writeln!(writer, "space origin: {}", space_origin)?;
-    // Acquisition geometry, as a NRRD key/value field. Cartesian is written by
-    // omission, so ordinary volumes are byte-identical to before.
-    if let Some(encoded) = coordinate_map {
-        writeln!(
-            writer,
-            "{}:={}",
-            crate::coordinate_map::COORDINATE_MAP_KEY,
-            encoded
-        )?;
-    }
-    // Blank line terminates the header; binary data follows immediately.
-    writeln!(writer)?;
+    writer.write_all(header.bytes())?;
 
     write_le_f32(&mut writer, f32_slice)?;
 
     writer.flush().context("Failed to flush NRRD output file")?;
 
     Ok(())
+}
+
+pub(super) fn write_nrrd_header(
+    writer: &mut impl Write,
+    shape: [usize; 3],
+    spacing: &Spacing<3>,
+    origin: &Point<3>,
+    direction: &Direction<3>,
+    element_type: &str,
+    coordinate_map: &CoordinateMap,
+) -> std::io::Result<()> {
+    let [nz, ny, nx] = shape;
+    let file_directions = file_space_directions_from_internal(
+        [spacing[0], spacing[1], spacing[2]],
+        direction_row_major(direction),
+    );
+    writeln!(writer, "NRRD0004")?;
+    writeln!(writer, "# Complete NRRD file written by ritk")?;
+    writeln!(writer, "type: {element_type}")?;
+    writeln!(writer, "dimension: 3")?;
+    // RITK and ITK NRRDs use LPS physical coordinates; declaring RAS would
+    // invert the first two physical axes when ITK-compatible readers load it.
+    writeln!(writer, "space: left-posterior-superior")?;
+    writeln!(writer, "space units: \"mm\" \"mm\" \"mm\"")?;
+    writeln!(writer, "sizes: {nx} {ny} {nz}")?;
+    writeln!(
+        writer,
+        "space directions: {} {} {}",
+        format_nrrd_vector(file_directions[0]),
+        format_nrrd_vector(file_directions[1]),
+        format_nrrd_vector(file_directions[2])
+    )?;
+    writeln!(writer, "kinds: domain domain domain")?;
+    writeln!(writer, "endian: little")?;
+    writeln!(writer, "encoding: raw")?;
+    writeln!(
+        writer,
+        "space origin: ({},{},{})",
+        origin[0], origin[1], origin[2]
+    )?;
+    crate::coordinate_map::write_key_value(writer, coordinate_map)?;
+    writeln!(writer)?;
+    Ok(())
+}
+
+pub(super) fn write_nrrd_series_header(
+    writer: &mut impl Write,
+    shape: [usize; 3],
+    volume_count: usize,
+    spacing: &Spacing<3>,
+    origin: &Point<3>,
+    direction: &Direction<3>,
+    element_type: &str,
+    coordinate_map: &CoordinateMap,
+    layout: SeriesLayout,
+    axis: &SeriesAxis,
+) -> std::io::Result<()> {
+    let [nz, ny, nx] = shape;
+    let file_directions = file_space_directions_from_internal(
+        [spacing[0], spacing[1], spacing[2]],
+        direction_row_major(direction),
+    );
+    writeln!(writer, "NRRD0004")?;
+    writeln!(writer, "# Complete NRRD file written by ritk")?;
+    writeln!(writer, "type: {element_type}")?;
+    writeln!(writer, "dimension: 4")?;
+    writeln!(writer, "space: left-posterior-superior")?;
+    writeln!(writer, "space units: \"mm\" \"mm\" \"mm\"")?;
+    match layout {
+        SeriesLayout::AcquisitionFastest => {
+            writeln!(writer, "sizes: {volume_count} {nx} {ny} {nz}")?;
+            writeln!(
+                writer,
+                "space directions: none {} {} {}",
+                format_nrrd_vector(file_directions[0]),
+                format_nrrd_vector(file_directions[1]),
+                format_nrrd_vector(file_directions[2])
+            )?;
+            write_series_axis(writer, axis, layout)?;
+        }
+        SeriesLayout::AcquisitionSlowest => {
+            writeln!(writer, "sizes: {nx} {ny} {nz} {volume_count}")?;
+            writeln!(
+                writer,
+                "space directions: {} {} {} none",
+                format_nrrd_vector(file_directions[0]),
+                format_nrrd_vector(file_directions[1]),
+                format_nrrd_vector(file_directions[2])
+            )?;
+            write_series_axis(writer, axis, layout)?;
+        }
+    }
+    writeln!(writer, "endian: little")?;
+    writeln!(writer, "encoding: raw")?;
+    writeln!(
+        writer,
+        "space origin: ({},{},{})",
+        origin[0], origin[1], origin[2]
+    )?;
+    crate::coordinate_map::write_key_value(writer, coordinate_map)?;
+    if let SeriesAxis::Diffusion(scheme) = axis {
+        let nominal = scheme
+            .directions()
+            .iter()
+            .map(|entry| entry.weighting().seconds_per_square_millimeter())
+            .fold(0.0_f64, f64::max);
+        writeln!(writer, "modality:=DWMRI")?;
+        writeln!(writer, "DWMRI_b-value:={nominal}")?;
+        for (index, entry) in scheme.directions().iter().enumerate() {
+            let weighting = entry.weighting().seconds_per_square_millimeter();
+            let [x, y, z] = entry.direction().to_array();
+            let scale = if weighting == 0.0 {
+                0.0
+            } else {
+                (weighting / nominal).sqrt()
+            };
+            writeln!(
+                writer,
+                "DWMRI_gradient_{index:04}:={} {} {}",
+                x * scale,
+                y * scale,
+                z * scale
+            )?;
+        }
+    }
+    writeln!(writer)?;
+    Ok(())
+}
+
+fn write_series_axis(
+    writer: &mut impl Write,
+    axis: &SeriesAxis,
+    layout: SeriesLayout,
+) -> std::io::Result<()> {
+    match axis {
+        SeriesAxis::SingleVolume => Err(std::io::Error::new(
+            std::io::ErrorKind::InvalidInput,
+            "single-volume data cannot use a four-dimensional series header",
+        )),
+        SeriesAxis::Unspecified => Ok(()),
+        SeriesAxis::List | SeriesAxis::Diffusion(_) => match layout {
+            SeriesLayout::AcquisitionFastest => {
+                writeln!(writer, "kinds: list domain domain domain")
+            }
+            SeriesLayout::AcquisitionSlowest => {
+                writeln!(writer, "kinds: domain domain domain list")
+            }
+        },
+        _ => Err(std::io::Error::new(
+            std::io::ErrorKind::InvalidInput,
+            "NRRD cannot encode this acquisition-axis meaning",
+        )),
+    }
 }
 
 /// Write an acquisition series to a NRRD file.
@@ -191,10 +330,19 @@ where
                 volume.shape()
             ));
         }
-        if volume.origin() != first.origin() || volume.spacing() != first.spacing() {
+        if volume.origin() != first.origin()
+            || volume.spacing() != first.spacing()
+            || volume.direction() != first.direction()
+        {
             return Err(anyhow!(
-                "write_nrrd_series: volume {position} origin or spacing differs from \
+                "write_nrrd_series: volume {position} physical geometry differs from \
                  volume 0; a NRRD series has one spatial grid"
+            ));
+        }
+        if volume.coordinate_map() != first.coordinate_map() {
+            return Err(anyhow!(
+                "write_nrrd_series: volume {position} coordinate map differs from \
+                 volume 0; a NRRD series has one coordinate map"
             ));
         }
     }
@@ -211,6 +359,7 @@ where
         first.origin(),
         first.direction(),
         &payloads,
+        first.coordinate_map(),
     )
 }
 
@@ -221,11 +370,20 @@ fn write_nrrd_series_flat(
     origin: &Point<3>,
     direction: &Direction<3>,
     payloads: &[impl std::ops::Deref<Target = [f32]>],
+    coordinate_map: &CoordinateMap,
 ) -> Result<()> {
     // One volume has no acquisition axis to declare, so it takes the ordinary
     // rank-3 path and stays byte-identical to `write_nrrd`.
     if let [single] = payloads {
-        return write_nrrd_flat(path, shape, spacing, origin, direction, single, None);
+        return write_nrrd_flat(
+            path,
+            shape,
+            spacing,
+            origin,
+            direction,
+            single,
+            coordinate_map,
+        );
     }
 
     let [nz, ny, nx] = shape;
@@ -243,39 +401,32 @@ fn write_nrrd_series_flat(
         }
     }
 
-    let file_directions = file_space_directions_from_internal(
-        [spacing[0], spacing[1], spacing[2]],
-        direction_row_major(direction),
+    validate_physical_geometry(&ImageMetadata::new(*origin, *spacing, *direction))?;
+    validate_coordinate_map(coordinate_map, shape)?;
+
+    let mut header = HeaderBuffer::new();
+    let header_result = write_nrrd_series_header(
+        &mut header,
+        shape,
+        payloads.len(),
+        spacing,
+        origin,
+        direction,
+        "float",
+        coordinate_map,
+        SeriesLayout::AcquisitionFastest,
+        &SeriesAxis::List,
     );
+    if header.exceeded_limit() {
+        let maximum_bytes = crate::reader::MAX_HEADER_BYTES;
+        anyhow::bail!("NRRD output header is larger than {maximum_bytes} bytes");
+    }
+    header_result?;
 
     let file = std::fs::File::create(path)
         .with_context(|| format!("Cannot create NRRD file {:?}", path))?;
     let mut writer = BufWriter::new(file);
-
-    writeln!(writer, "NRRD0004")?;
-    writeln!(writer, "# Complete NRRD file written by ritk")?;
-    writeln!(writer, "type: float")?;
-    writeln!(writer, "dimension: 4")?;
-    writeln!(writer, "space: left-posterior-superior")?;
-    // The acquisition axis leads, so `sizes` and every per-axis field carry it
-    // in slot 0 while the spatial axes keep file order [x, y, z].
-    writeln!(writer, "sizes: {} {} {} {}", payloads.len(), nx, ny, nz)?;
-    writeln!(
-        writer,
-        "space directions: none {} {} {}",
-        format_nrrd_vector(file_directions[0]),
-        format_nrrd_vector(file_directions[1]),
-        format_nrrd_vector(file_directions[2])
-    )?;
-    writeln!(writer, "kinds: list domain domain domain")?;
-    writeln!(writer, "endian: little")?;
-    writeln!(writer, "encoding: raw")?;
-    writeln!(
-        writer,
-        "space origin: ({},{},{})",
-        origin[0], origin[1], origin[2]
-    )?;
-    writeln!(writer)?;
+    writer.write_all(header.bytes())?;
 
     // The acquisition axis varies fastest, so voxel i of every volume is
     // written before voxel i+1 of any of them. A bulk per-volume write is not
@@ -291,6 +442,10 @@ fn write_nrrd_series_flat(
     writer.flush().context("Failed to flush NRRD output file")?;
     Ok(())
 }
+
+#[cfg(test)]
+#[path = "tests/writer_geometry.rs"]
+mod geometry_tests;
 
 /// Flatten a 3×3 direction-cosine matrix to the row-major layout the space
 /// directions builder consumes.
@@ -325,6 +480,55 @@ fn write_le_f32(writer: &mut impl Write, values: &[f32]) -> Result<()> {
         writer.write_all(&bytes)?;
     }
     Ok(())
+}
+
+pub(super) struct HeaderBuffer {
+    bytes: Vec<u8>,
+    exceeded_limit: bool,
+}
+
+impl HeaderBuffer {
+    fn new() -> Self {
+        Self {
+            bytes: Vec::new(),
+            exceeded_limit: false,
+        }
+    }
+
+    pub(super) fn bytes(&self) -> &[u8] {
+        &self.bytes
+    }
+
+    pub(super) const fn exceeded_limit(&self) -> bool {
+        self.exceeded_limit
+    }
+}
+
+impl Write for HeaderBuffer {
+    fn write(&mut self, input: &[u8]) -> io::Result<usize> {
+        let maximum_bytes = crate::reader::MAX_HEADER_BYTES;
+        let remaining = maximum_bytes - self.bytes.len();
+        if input.len() > remaining {
+            self.bytes
+                .try_reserve(remaining)
+                .map_err(io::Error::other)?;
+            self.bytes.extend_from_slice(&input[..remaining]);
+            self.exceeded_limit = true;
+            return Err(io::Error::new(
+                io::ErrorKind::InvalidData,
+                "NRRD output header exceeds the parser limit",
+            ));
+        }
+        self.bytes
+            .try_reserve(input.len())
+            .map_err(io::Error::other)?;
+        self.bytes.extend_from_slice(input);
+        Ok(input.len())
+    }
+
+    fn flush(&mut self) -> io::Result<()> {
+        Ok(())
+    }
 }
 
 fn format_nrrd_vector(vector: [f64; 3]) -> String {

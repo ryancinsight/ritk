@@ -24,12 +24,15 @@ provides compute-ready `f32` images.
 The native image API remains convenient for processing. Use
 `read_nrrd_stored` and `read_nrrd_stored_series` when a format conversion must
 retain the original sample representation and exact payload values.
+The stored writer streams samples through a buffered file writer without
+creating another volume-sized encoded payload.
 
 ```rust,no_run
 use ritk_image_io::ImageReadBudget;
-use ritk_nrrd::read_nrrd_stored;
+use ritk_nrrd::{read_nrrd_stored, write_nrrd_stored};
 
 let volume = read_nrrd_stored("input.nrrd", ImageReadBudget::DEFAULT)?;
+write_nrrd_stored("output.nrrd", &volume)?;
 # Ok::<(), Box<dyn std::error::Error>>(())
 ```
 

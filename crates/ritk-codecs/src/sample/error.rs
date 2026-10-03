@@ -1,8 +1,10 @@
 use std::collections::TryReserveError;
 use std::error::Error;
 use std::fmt;
+use std::io;
 
 use super::buffer::{SampleBuffer, SampleType};
+use thiserror::Error as ThisError;
 
 /// Failure to decode or encode a complete fixed-width sample buffer.
 ///
@@ -90,6 +92,18 @@ impl Error for SampleError {
             | Self::ScalarCodecRejected { .. } => None,
         }
     }
+}
+
+/// Failure while writing encoded samples to an output stream.
+#[derive(Debug, ThisError)]
+#[non_exhaustive]
+pub enum SampleWriteError {
+    /// The fixed-width scalar codec rejected an exact-width output slice.
+    #[error(transparent)]
+    Sample(#[from] SampleError),
+    /// The output stream rejected encoded sample bytes.
+    #[error("cannot write fixed-width samples: {0}")]
+    Io(#[from] io::Error),
 }
 
 /// A typed extraction failure that retains the original samples.

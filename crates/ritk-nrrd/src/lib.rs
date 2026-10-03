@@ -13,7 +13,7 @@
 //!
 //! # Acquisition Axis
 //!
-//! A 4-D NRRD carries three spatial axes plus one non-spatial axis ΓÇö the
+//! A 4-D NRRD carries three spatial axes plus one non-spatial axis — the
 //! diffusion gradient index of a DWI file, a functional timepoint. NRRD does
 //! not fix that axis's position the way NIfTI does. The NA-MIC convention
 //! Slicer and DTIPrep emit places it first:
@@ -71,7 +71,10 @@ pub use reader::{
     read_nrrd_stored_series, NrrdHeaderError, NrrdReader, NrrdSpatialMetadataField,
     NrrdStoredReadError,
 };
-pub use writer::{write_nrrd, write_nrrd_series, write_nrrd_with_data, NrrdWriter};
+pub use writer::{
+    write_nrrd, write_nrrd_series, write_nrrd_stored, write_nrrd_stored_series,
+    write_nrrd_with_data, NrrdStoredWriteError, NrrdWriter,
+};
 
 #[cfg(test)]
 mod tests;

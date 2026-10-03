@@ -1,10 +1,11 @@
 use consus_core::types::datatype::ByteOrder as ConsusByteOrder;
+use std::io::Write;
 
 use crate::ByteOrder;
 
 use super::buffer::{SampleBuffer, SampleType, StoredSamples};
 use super::element::Sample;
-use super::error::SampleError;
+use super::error::{SampleError, SampleWriteError};
 
 pub(super) fn decode(
     sample_type: SampleType,
@@ -41,6 +42,25 @@ pub(super) fn encode(
         StoredSamples::I64(values) => encode_samples(values, byte_order),
         StoredSamples::F32(values) => encode_samples(values, byte_order),
         StoredSamples::F64(values) => encode_samples(values, byte_order),
+    }
+}
+
+pub(super) fn write<W: Write>(
+    samples: &StoredSamples,
+    byte_order: ByteOrder,
+    writer: &mut W,
+) -> Result<(), SampleWriteError> {
+    match samples {
+        StoredSamples::U8(values) => write_samples(values, byte_order, writer),
+        StoredSamples::I8(values) => write_samples(values, byte_order, writer),
+        StoredSamples::U16(values) => write_samples(values, byte_order, writer),
+        StoredSamples::I16(values) => write_samples(values, byte_order, writer),
+        StoredSamples::U32(values) => write_samples(values, byte_order, writer),
+        StoredSamples::I32(values) => write_samples(values, byte_order, writer),
+        StoredSamples::U64(values) => write_samples(values, byte_order, writer),
+        StoredSamples::I64(values) => write_samples(values, byte_order, writer),
+        StoredSamples::F32(values) => write_samples(values, byte_order, writer),
+        StoredSamples::F64(values) => write_samples(values, byte_order, writer),
     }
 }
 
@@ -103,6 +123,29 @@ fn encode_samples<T: Sample>(samples: &[T], byte_order: ByteOrder) -> Result<Vec
         bytes.extend_from_slice(output);
     }
     Ok(bytes)
+}
+
+fn write_samples<T: Sample, W: Write>(
+    samples: &[T],
+    byte_order: ByteOrder,
+    writer: &mut W,
+) -> Result<(), SampleWriteError> {
+    let byte_order = consus_byte_order(byte_order);
+    let mut encoded = [0_u8; 8];
+    for sample in samples {
+        let output = encoded
+            .get_mut(..T::BYTE_WIDTH)
+            .ok_or(SampleError::ScalarCodecRejected {
+                sample_type: T::SAMPLE_TYPE,
+            })?;
+        sample
+            .to_bytes(output, byte_order)
+            .ok_or(SampleError::ScalarCodecRejected {
+                sample_type: T::SAMPLE_TYPE,
+            })?;
+        writer.write_all(output)?;
+    }
+    Ok(())
 }
 
 const fn consus_byte_order(byte_order: ByteOrder) -> ConsusByteOrder {

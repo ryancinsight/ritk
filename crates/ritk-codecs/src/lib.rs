@@ -36,4 +36,6 @@ pub use jpeg_ls::decode_jpeg_ls_fragment;
 pub use packbits::packbits_decode;
 pub use pixel_layout::{decode_native_pixel_bytes_checked, PixelLayout, PixelSignedness};
 pub use rle::{decode_rle_lossless_fragment, encode_rle_lossless_fragment_u16_grayscale};
-pub use sample::{Sample, SampleBuffer, SampleError, SampleExtractionError, SampleType};
+pub use sample::{
+    Sample, SampleBuffer, SampleError, SampleExtractionError, SampleType, SampleWriteError,
+};

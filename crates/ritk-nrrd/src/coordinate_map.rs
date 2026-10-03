@@ -100,6 +100,53 @@ pub fn encode(map: &CoordinateMap) -> Option<String> {
     }
 }
 
+pub(crate) fn write_key_value(
+    writer: &mut impl std::io::Write,
+    map: &CoordinateMap,
+) -> std::io::Result<()> {
+    match map {
+        CoordinateMap::Cartesian => Ok(()),
+        CoordinateMap::CurvilinearArray(geometry) => writeln!(
+            writer,
+            "{COORDINATE_MAP_KEY}:=curvilinear radius_sample_size={} first_sample_distance={} lateral_angular_separation={} first_lateral_angle={}",
+            geometry.radius_sample_size(),
+            geometry.first_sample_distance(),
+            geometry.lateral_angular_separation(),
+            geometry.first_lateral_angle()
+        ),
+        CoordinateMap::PhasedArray3D(geometry) => writeln!(
+            writer,
+            "{COORDINATE_MAP_KEY}:=phased_array_3d radius_sample_size={} first_sample_distance={} azimuth_angular_separation={} elevation_angular_separation={} first_azimuth_angle={} first_elevation_angle={}",
+            geometry.radius_sample_size(),
+            geometry.first_sample_distance(),
+            geometry.azimuth_angular_separation(),
+            geometry.elevation_angular_separation(),
+            geometry.first_azimuth_angle(),
+            geometry.first_elevation_angle()
+        ),
+        CoordinateMap::SliceSeries(series) => {
+            write!(writer, "{COORDINATE_MAP_KEY}:=slice_series count={} transforms=", series.len())?;
+            for (index, transform) in series.transforms().iter().enumerate() {
+                if index != 0 {
+                    writer.write_all(b";")?;
+                }
+                for row in 0..3 {
+                    for column in 0..3 {
+                        if row != 0 || column != 0 {
+                            writer.write_all(b",")?;
+                        }
+                        write!(writer, "{}", transform.rotation()[(row, column)])?;
+                    }
+                }
+                for component in transform.translation() {
+                    write!(writer, ",{}", component)?;
+                }
+            }
+            writer.write_all(b"\n")
+        }
+    }
+}
+
 /// Decode a NRRD key/value payload into a map.
 ///
 /// # Errors

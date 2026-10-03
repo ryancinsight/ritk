@@ -17,6 +17,11 @@ where
         ByteOrder::MostSignificantByteFirst,
     ] {
         let encoded = buffer.encode(byte_order).expect("sample encoding");
+        let mut streamed = Vec::new();
+        buffer
+            .write_to(&mut streamed, byte_order)
+            .expect("streamed sample encoding");
+        assert_eq!(streamed, encoded);
         let decoded =
             SampleBuffer::decode(T::SAMPLE_TYPE, &encoded, byte_order).expect("sample decoding");
         assert_eq!(

@@ -7,6 +7,7 @@ use crate::{
 };
 use anyhow::Result;
 use ritk_codecs::{ByteOrder, SampleBuffer, SampleType};
+use ritk_image::ImageMetadata;
 use ritk_image_io::{
     ImageReadBudget, IntensityCalibration, SeriesAxis, StoredSeries, StoredVolume,
 };
@@ -117,6 +118,18 @@ pub(super) fn sample_cases() -> Vec<(SampleType, &'static str, SampleBuffer)> {
             ]),
         ),
     ]
+}
+
+pub(super) fn stored_u64(values: Vec<u64>, calibration: IntensityCalibration) -> StoredVolume {
+    let shape = [1, 1, values.len()];
+    StoredVolume::new(
+        shape,
+        SampleBuffer::from_samples(values),
+        ImageMetadata::default_for_shape(shape),
+        CoordinateMap::Cartesian,
+        calibration,
+    )
+    .expect("valid test volume")
 }
 
 #[cfg(test)]

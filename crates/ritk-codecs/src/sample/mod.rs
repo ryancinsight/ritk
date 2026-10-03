@@ -26,7 +26,7 @@ mod error;
 
 pub use buffer::{SampleBuffer, SampleType};
 pub use element::Sample;
-pub use error::{SampleError, SampleExtractionError};
+pub use error::{SampleError, SampleExtractionError, SampleWriteError};
 
 #[cfg(test)]
 mod tests;
