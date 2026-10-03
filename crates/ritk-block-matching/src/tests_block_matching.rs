@@ -661,8 +661,15 @@ fn block_grid_dense_enumerates_centres() {
         search_radius: [0, 3, 3],
     };
     let grid = BlockGrid::dense(config.block_radius);
-    let centres = grid.centres([1, 32, 32], &config);
-    assert!(!centres.is_empty());
+    let centres = grid
+        .centres([1, 32, 32], &config)
+        .expect("the centre grid fits");
+    let axis = [4, 13, 22];
+    let expected = axis
+        .into_iter()
+        .flat_map(|y| axis.into_iter().map(move |x| [0, y, x]))
+        .collect::<Vec<_>>();
+    assert_eq!(centres, expected);
     // Every centre must be at least block_radius away from each image boundary.
     for &[z, y, x] in &centres {
         assert!(z >= config.block_radius[0]);
@@ -675,7 +682,7 @@ fn block_grid_dense_enumerates_centres() {
 }
 
 #[test]
-fn block_grid_validates_stride_and_overflow() {
+fn block_grid_validates_geometry_and_capacity() {
     let error = BlockGrid::try_dense([usize::MAX, 0, 0]).expect_err("axis 0 overflows");
     assert_eq!(
         error.to_string(),
@@ -683,12 +690,41 @@ fn block_grid_validates_stride_and_overflow() {
     );
     assert!(BlockGrid { stride: [0, 1, 1] }.validate().is_err());
 
+    let limit = usize::try_from(isize::MAX).expect("isize::MAX fits usize");
+    let dims = [1, 1, limit / std::mem::size_of::<[usize; 3]>() + 1];
+    let error = BlockGrid { stride: [1; 3] }
+        .centres(
+            dims,
+            &BlockMatchingConfig {
+                block_radius: [0; 3],
+                search_radius: [0, 0, 1],
+            },
+        )
+        .expect_err("centre storage exceeds the allocator byte limit");
+    assert_eq!(
+        error.downcast_ref::<BlockMatchingError>(),
+        Some(&BlockMatchingError::ByteCountOverflow {
+            label: "tracking centres",
+            dims,
+            element_size: std::mem::size_of::<[usize; 3]>(),
+        })
+    );
+
     let grid = BlockGrid { stride: [1, 1, 1] };
     let oversized = BlockMatchingConfig {
         block_radius: [usize::MAX, usize::MAX, usize::MAX],
         search_radius: [1, 1, 1],
     };
-    assert!(grid.centres([1, 1, 1], &oversized).is_empty());
+    assert_eq!(
+        grid.centres([1, 1, 1], &oversized)
+            .expect_err("the block extent overflows")
+            .downcast_ref::<BlockMatchingError>(),
+        Some(&BlockMatchingError::WindowExtentOverflow {
+            label: "block",
+            axis: 0,
+            radius: usize::MAX,
+        })
+    );
 }
 
 #[test]
