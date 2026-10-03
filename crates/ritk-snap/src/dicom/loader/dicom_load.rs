@@ -3,19 +3,18 @@
 use std::path::Path;
 use std::sync::Arc;
 
-use anyhow::{Context, Result, bail};
+use anyhow::{Context, Result};
 use coeus_core::SequentialBackend;
-#[cfg(windows)]
-use ritk_io::{DicomReadBudget, load_dicom_from_series_with_budget, scan_dicom_files_with_budget};
 use ritk_io::{
     load_color_multiframe_flat, load_color_multiframe_flat_from_bytes, load_color_volume_flat,
     load_dicom_from_series, load_dicom_multiframe_flat, load_dicom_multiframe_flat_from_bytes,
     read_multiframe_info, read_multiframe_info_from_bytes,
 };
+#[cfg(windows)]
+use ritk_io::{load_dicom_from_series_with_budget, scan_dicom_files_with_budget};
 use tracing::info;
 
 use crate::LoadedVolume;
-use crate::render::GrayscalePresentation;
 
 #[cfg(windows)]
 const SERIES_PREVIEW_DECODED_BYTE_BUDGET: usize = 64 * 1024 * 1024;
@@ -51,8 +50,8 @@ pub fn load_volume_from_scanned_series(
 
 #[cfg(windows)]
 pub(crate) fn load_volume_from_dicom_instance(path: &Path) -> Result<LoadedVolume> {
-    let budget = DicomReadBudget::try_new(
-        DicomReadBudget::DEFAULT.parser(),
+    let budget = ritk_io::DicomReadBudget::try_new(
+        ritk_io::DicomReadBudget::DEFAULT.parser(),
         SERIES_PREVIEW_DECODED_BYTE_BUDGET,
         SERIES_PREVIEW_DECODED_BYTE_BUDGET,
     )?;
@@ -91,12 +90,12 @@ fn multiframe_count_for_series(series: &ritk_io::ScannedDicomSeries) -> Result<O
             continue;
         }
         if series.metadata.slices.len() != 1 {
-            bail!(
+            anyhow::bail!(
                 "DICOM series mixes multi-frame and single-frame members; select one multi-frame object"
             );
         }
         if count.replace(current).is_some() {
-            bail!("DICOM series contains more than one multi-frame object");
+            anyhow::bail!("DICOM series contains more than one multi-frame object");
         }
     }
     Ok(count)
@@ -163,7 +162,7 @@ fn loaded_volume_from_scalar_data(
         radiopharmaceutical_start_time: None,
         decay_correction: None,
     };
-    GrayscalePresentation::for_volume(&volume)
+    crate::render::GrayscalePresentation::for_volume(&volume)
         .map_err(|error| anyhow::anyhow!("invalid DICOM grayscale presentation: {error}"))?;
     Ok(volume)
 }
@@ -178,7 +177,7 @@ fn load_dicom_multiframe_volume_from_scanned_series(
     series: ritk_io::ScannedDicomSeries,
 ) -> Result<LoadedVolume> {
     if series.metadata.slices.len() != 1 {
-        bail!(
+        anyhow::bail!(
             "DICOM multi-frame loading requires exactly one object, got {} members",
             series.metadata.slices.len()
         );
@@ -219,7 +218,7 @@ fn load_dicom_multiframe_volume_from_scanned_series(
         ));
     }
     if info_samples.samples_per_pixel != 1 {
-        bail!(
+        anyhow::bail!(
             "DICOM multi-frame viewer loading currently accepts scalar SamplesPerPixel=1; {} declares SamplesPerPixel={}",
             info_path.display(),
             info_samples.samples_per_pixel
@@ -345,12 +344,12 @@ pub(crate) fn load_volume_from_series_info(
     info: &ritk_io::DicomSeriesInfo,
 ) -> Result<LoadedVolume> {
     if info.file_paths.is_empty() {
-        bail!("selected DICOM series has no files");
+        anyhow::bail!("selected DICOM series has no files");
     }
     let scanned = ritk_io::scan_dicom_files(&info.file_paths)
         .with_context(|| "failed to re-scan selected DICOM series members")?;
     if scanned.metadata.series_instance_uid.as_deref() != Some(info.series_instance_uid()) {
-        bail!("selected DICOM SeriesInstanceUID changed since discovery");
+        anyhow::bail!("selected DICOM SeriesInstanceUID changed since discovery");
     }
     let mut expected: Vec<_> = info.file_paths.iter().collect();
     let mut actual: Vec<_> = scanned
@@ -362,7 +361,7 @@ pub(crate) fn load_volume_from_series_info(
     expected.sort();
     actual.sort();
     if actual != expected {
-        bail!("selected DICOM acquisition membership changed since discovery");
+        anyhow::bail!("selected DICOM acquisition membership changed since discovery");
     }
     let mut volume = load_volume_from_scanned_series(scanned)?;
     volume.source = info.file_paths.first().cloned();

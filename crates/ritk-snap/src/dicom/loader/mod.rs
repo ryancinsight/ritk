@@ -25,7 +25,6 @@
 use std::path::{Path, PathBuf};
 
 use crate::LoadedVolume;
-use crate::dicom::input_path::classify_dicom_input_path;
 use anyhow::{Context, Result};
 
 mod bytes;
@@ -118,7 +117,10 @@ pub(crate) fn validate_series_uid(series_uid: &str) -> Result<()> {
 pub fn load_volume_from_path<P: AsRef<Path>>(path: P) -> Result<LoadedVolume> {
     let path = path.as_ref();
 
-    if classify_dicom_input_path(path).dicom_root().is_some() {
+    if crate::dicom::input_path::classify_dicom_input_path(path)
+        .dicom_root()
+        .is_some()
+    {
         return load_dicom_volume(path);
     }
 
