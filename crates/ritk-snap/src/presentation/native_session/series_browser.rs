@@ -25,6 +25,9 @@ pub(crate) struct SeriesChoice {
     pub(crate) description: Box<str>,
     pub(crate) modality: Box<str>,
     pub(crate) image_count: usize,
+    pub(crate) patient_name: Box<str>,
+    pub(crate) study_date: Option<Box<str>>,
+    pub(crate) series_time: Option<Box<str>>,
     pub(crate) patient_number: usize,
     pub(crate) study_number: usize,
     pub(crate) study_series_number: usize,
@@ -71,9 +74,12 @@ impl SeriesBrowser {
                         description
                     };
                     choices.push(SeriesChoice {
-                        image_count: acquisition.image_count(),
+                        image_count: acquisition.file_paths.len(),
                         modality: acquisition.modality().into(),
                         description: description.into_boxed_str(),
+                        patient_name: patient.patient_name.as_ref().into(),
+                        study_date: study.study_date.as_deref().map(|value| value.into()),
+                        series_time: study.series_time.as_deref().map(|value| value.into()),
                         patient_number: patient_index.saturating_add(1),
                         study_number: study_index.saturating_add(1),
                         study_series_number: series_index.saturating_add(1),

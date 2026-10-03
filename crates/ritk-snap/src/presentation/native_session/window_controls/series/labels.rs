@@ -8,12 +8,7 @@ use std::fmt::Write as _;
 pub(in crate::presentation::native_session::window_controls) fn patient_label(
     choice: &SeriesChoice,
 ) -> Result<ArrayString<96>> {
-    let name = display_patient_name(choice.acquisition.patient_name());
-    let birth_date = choice
-        .acquisition
-        .patient_birth_date()
-        .and_then(format_dicom_date)
-        .unwrap_or_else(|| ArrayString::from("N/A").expect("static label fits"));
+    let name = display_patient_name(&choice.patient_name);
     let mut label = ArrayString::new();
     if name.as_str() == "Unknown patient" {
         write!(&mut label, "Patient {}", choice.patient_number)
@@ -23,8 +18,6 @@ pub(in crate::presentation::native_session::window_controls) fn patient_label(
             .try_push_str(name.as_str())
             .map_err(|_| anyhow!("patient label exceeds its display buffer"))?;
     }
-    write!(&mut label, "  ·  DOB {}", birth_date.as_str())
-        .map_err(|_| anyhow!("patient label exceeds its display buffer"))?;
     Ok(label)
 }
 
@@ -32,24 +25,13 @@ pub(in crate::presentation::native_session::window_controls) fn study_label(
     choice: &SeriesChoice,
 ) -> Result<ArrayString<320>> {
     let mut label = ArrayString::new();
-    if let Some(date) = choice.acquisition.study_date().and_then(format_dicom_date) {
+    if let Some(date) = choice.study_date.as_deref().and_then(format_dicom_date) {
         write!(&mut label, "{date}")
             .map_err(|_| anyhow!("study date exceeds its display buffer"))?;
-        if let Some(time) = choice.acquisition.study_time().and_then(format_dicom_time) {
+        if let Some(time) = choice.series_time.as_deref().and_then(format_dicom_time) {
             write!(&mut label, " {time}")
                 .map_err(|_| anyhow!("study time exceeds its display buffer"))?;
         }
-    }
-    let description = choice.acquisition.study_description().trim();
-    if !description.is_empty() {
-        if !label.is_empty() {
-            label
-                .try_push_str("  ")
-                .map_err(|_| anyhow!("study label exceeds its display buffer"))?;
-        }
-        label
-            .try_push_str(description)
-            .map_err(|_| anyhow!("study label exceeds its display buffer"))?;
     }
     if label.is_empty() {
         write!(&mut label, "Study {}", choice.study_number)

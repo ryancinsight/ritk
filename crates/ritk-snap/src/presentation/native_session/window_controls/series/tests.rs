@@ -20,9 +20,9 @@ fn series_cards_show_order_within_their_study() {
     assert_eq!(browser.study_count(), 1);
     assert_eq!(browser.len(), 3);
     let first = browser.choice(0).expect("first series");
-    assert_eq!(first.acquisition.study_date(), Some("20260905"));
+    assert_eq!(first.study_date.as_deref(), Some("20260905"));
     assert_eq!(
-        first.acquisition.study_instance_uid(),
+        tree.patients[0].studies[0].study_uid.as_deref(),
         Some("2.25.20260905")
     );
     assert_eq!(first.study_series_number, 1);

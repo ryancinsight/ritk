@@ -1255,8 +1255,8 @@ with no results cannot load a hidden selection and leaves the picker open.
 
 The shareable captures use the public phantom and contain no clinical patient
 identifiers. The preview rail groups each study with separate patient and
-study headers. They show Patient Name and birth date, then study date/time,
-description, modality and series count; Patient ID is not displayed. Series
+study headers. They show Patient Name, then study date/acquisition time,
+series description, modality and series count; Patient ID is not displayed. Series
 cards follow each header and show thumbnails, image counts and panel
 assignments. The controls invoke study loading, image tools, crosshair, cine,
 series navigation, panel layout, and reset actions. RITK is being built as a

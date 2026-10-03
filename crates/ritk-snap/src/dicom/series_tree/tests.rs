@@ -26,6 +26,7 @@ fn make_entry<'a>(
         patient_name: Cow::Borrowed(patient_name),
         study_date: study_date.map(Cow::Borrowed),
         study_uid: study_uid.map(Cow::Borrowed),
+        series_time: None,
     }
 }
 
@@ -217,13 +218,24 @@ fn test_series_entry_from_dicom_series_info_uses_file_parent_and_slice_count() {
             PathBuf::from("C:/study/series/slice_0002.dcm"),
         ],
     );
-    let entry = SeriesEntry::from_dicom_series_info(info);
+    let metadata = DicomReadMetadata {
+        patient_name: Some("Fixture^Patient".to_owned()),
+        study_date: Some(ritk_io::literal_arraystring("20260905")),
+        study_instance_uid: Some(ritk_io::literal_arraystring("2.25.20260905")),
+        series_time: Some(ritk_io::literal_arraystring("141516")),
+        ..DicomReadMetadata::default()
+    };
+    let entry = SeriesEntry::from_dicom_series_info(info, metadata);
     assert_eq!(entry.series_uid(), "1.2.3");
     assert_eq!(entry.folder(), Path::new("C:/study/series"));
     assert_eq!(entry.acquisition.patient_id, "P001");
     assert_eq!(entry.modality(), "CT");
     assert_eq!(entry.series_description(), "Axial CT");
     assert_eq!(entry.num_slices(), 2);
+    assert_eq!(entry.patient_name, "Fixture^Patient");
+    assert_eq!(entry.study_date.as_deref(), Some("20260905"));
+    assert_eq!(entry.study_uid.as_deref(), Some("2.25.20260905"));
+    assert_eq!(entry.series_time.as_deref(), Some("141516"));
 }
 
 /// `modality_icon()` must return a non-empty string for every supported
@@ -350,6 +362,7 @@ fn test_bench_tree_construction() {
             patient_name: Cow::Owned(format!("Patient {}", i % 50)),
             study_date: Some(Cow::Borrowed("20260615")),
             study_uid: Some(Cow::Owned(study_uid)),
+            series_time: None,
         });
     }
 

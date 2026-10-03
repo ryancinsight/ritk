@@ -81,15 +81,15 @@ pub(super) fn render_study_metadata(
         .map_or(0, |rect| rect.width)
         .min(text_width);
     let description_width = text_width.saturating_sub(summary_width.saturating_add(8));
-    let study_description = choice.acquisition.study_description().trim();
+    let series_description = choice.description.trim();
     draw_fit(
         framebuffer,
         text_x,
         study_box.y.saturating_add(15),
-        if study_description.is_empty() {
-            "No study description"
+        if series_description.is_empty() {
+            "No series description"
         } else {
-            study_description
+            series_description
         },
         detail_style,
         description_width,
@@ -114,11 +114,11 @@ fn study_identity_label(
     study_count: usize,
 ) -> Result<ArrayString<STUDY_LABEL_CAPACITY>> {
     let date = choice
-        .acquisition
-        .study_date()
+        .study_date
+        .as_deref()
         .and_then(format_dicom_date)
         .unwrap_or_else(|| ArrayString::from("Date N/A").expect("static label fits"));
-    let time = choice.acquisition.study_time().and_then(format_dicom_time);
+    let time = choice.series_time.as_deref().and_then(format_dicom_time);
     let mut label = ArrayString::new();
     write!(
         &mut label,
