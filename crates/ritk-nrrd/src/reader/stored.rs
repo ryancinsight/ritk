@@ -149,6 +149,12 @@ pub enum NrrdStoredReadError {
     /// Both NRRD spatial direction and scalar-spacing representations are present.
     #[error("NRRD header contains both `space directions` and `spacings`")]
     ConflictingSpatialFields,
+    /// Sample-value units are not represented by the stored-volume contract.
+    #[error("NRRD sample units {units:?} are not represented by StoredVolume")]
+    UnsupportedSampleUnits {
+        /// Declared units for each stored scalar value.
+        units: String,
+    },
     /// The decoded voxel count overflows `usize`.
     #[error("NRRD voxel count overflows for sizes {sizes:?}")]
     VoxelCountOverflow {
@@ -355,6 +361,12 @@ pub enum NrrdSpatialMetadataField {
     Spacings,
     /// The world-space origin.
     SpaceOrigin,
+    /// Per-axis units the stored-volume geometry cannot model.
+    AxisUnits,
+    /// Per-axis bounds the stored-volume geometry cannot model.
+    AxisBounds,
+    /// Per-axis sample centering the stored-volume geometry cannot model.
+    Centering,
 }
 
 impl std::fmt::Display for NrrdSpatialMetadataField {
@@ -364,6 +376,9 @@ impl std::fmt::Display for NrrdSpatialMetadataField {
             Self::SpaceDirections => "space directions",
             Self::Spacings => "spacings",
             Self::SpaceOrigin => "space origin",
+            Self::AxisUnits => "axis units",
+            Self::AxisBounds => "axis bounds",
+            Self::Centering => "centering",
         };
         formatter.write_str(field)
     }

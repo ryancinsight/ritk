@@ -77,9 +77,9 @@ fn stored_reader_preserves_orientation_for_small_positive_spacings() -> Result<(
 }
 
 #[test]
-fn stored_reader_rejects_competing_spatial_fields_before_using_either() -> Result<()> {
+fn stored_reader_rejects_finite_competing_spacing_and_invalid_spacing() -> Result<()> {
     let directory = tempdir()?;
-    for spacings in ["0.5 0.5 0.5", "not a spacing list"] {
+    for (spacings, expected_conflict) in [("0.5 0.5 0.5", true), ("not a spacing list", false)] {
         let path = directory.path().join("conflicting-spatial-fields.nrrd");
         let fields = [
             "type: unsigned char",
@@ -90,11 +90,162 @@ fn stored_reader_rejects_competing_spatial_fields_before_using_either() -> Resul
         ];
         write_header(&path, &fields, &[7])?;
 
-        assert!(matches!(
-            read_nrrd_stored(&path),
-            Err(NrrdStoredReadError::ConflictingSpatialFields)
-        ));
+        let error = read_nrrd_stored(&path).expect_err("invalid competing spacing metadata");
+        if expected_conflict {
+            assert!(matches!(
+                error,
+                NrrdStoredReadError::ConflictingSpatialFields
+            ));
+        } else {
+            assert!(matches!(
+                error,
+                NrrdStoredReadError::SpatialMetadata {
+                    field: NrrdSpatialMetadataField::Spacings,
+                    ..
+                }
+            ));
+        }
     }
+    Ok(())
+}
+
+#[test]
+fn stored_reader_rejects_unrepresented_axis_bounds_before_payload_read() -> Result<()> {
+    let directory = tempdir()?;
+    let path = directory.path().join("axis-bounds.nrrd");
+    let fields = [
+        "type: unsigned char",
+        "dimension: 3",
+        "sizes: 2 2 2",
+        "spacings: 1 1 1",
+        "axis mins: 0 0 0",
+        "axis maxs: 1 1 1",
+    ];
+    write_header(&path, &fields, &[])?;
+
+    let error = read_nrrd_stored(&path).expect_err("axis support bounds are not in StoredVolume");
+    assert!(matches!(
+        error,
+        NrrdStoredReadError::SpatialMetadata {
+            field: NrrdSpatialMetadataField::AxisBounds,
+            ..
+        }
+    ));
+    Ok(())
+}
+
+#[test]
+fn stored_reader_rejects_unrepresented_centering_before_payload_read() -> Result<()> {
+    let directory = tempdir()?;
+    let path = directory.path().join("cell-centered.nrrd");
+    let fields = [
+        "type: unsigned char",
+        "dimension: 3",
+        "sizes: 1 1 1",
+        "space directions: (1,0,0) (0,1,0) (0,0,1)",
+        "centers: \"cell\" \"cell\" \"cell\"",
+    ];
+    write_header(&path, &fields, &[])?;
+
+    let error = read_nrrd_stored(&path).expect_err("cell support is not in StoredVolume");
+    assert!(matches!(
+        error,
+        NrrdStoredReadError::SpatialMetadata {
+            field: NrrdSpatialMetadataField::Centering,
+            ..
+        }
+    ));
+    Ok(())
+}
+
+#[test]
+fn stored_reader_rejects_sample_units_before_payload_read() -> Result<()> {
+    let directory = tempdir()?;
+    let path = directory.path().join("sample-units.nrrd");
+    let fields = [
+        "type: unsigned char",
+        "dimension: 3",
+        "sizes: 1 1 1",
+        "sample units: \"HU\"",
+    ];
+    write_header(&path, &fields, &[])?;
+
+    assert!(matches!(
+        read_nrrd_stored(&path),
+        Err(NrrdStoredReadError::UnsupportedSampleUnits { .. })
+    ));
+    Ok(())
+}
+
+#[test]
+fn stored_reader_accepts_nan_spacings_along_direction_axes() -> Result<()> {
+    let directory = tempdir()?;
+    let path = directory
+        .path()
+        .join("directions-with-unspecified-spacings.nrrd");
+    let fields = [
+        "type: unsigned char",
+        "dimension: 3",
+        "sizes: 1 1 1",
+        "space directions: (2,0,0) (0,3,0) (0,0,4)",
+        "spacings: nan nan nan",
+    ];
+    write_header(&path, &fields, &[17])?;
+
+    let volume = read_nrrd_stored(&path)?;
+    assert_eq!(volume.metadata().spacing().to_array(), [4.0, 3.0, 2.0]);
+    assert_eq!(
+        volume
+            .samples()
+            .encode(ByteOrder::LeastSignificantByteFirst)?,
+        [17]
+    );
+    Ok(())
+}
+
+#[test]
+fn stored_reader_converts_per_axis_spacing_units_to_millimeters() -> Result<()> {
+    let directory = tempdir()?;
+    let path = directory.path().join("per-axis-spacing-units.nrrd");
+    let fields = [
+        "type: unsigned char",
+        "dimension: 3",
+        "sizes: 1 1 1",
+        "space: LPS",
+        "space units: \"mm\" \"mm\" \"mm\"",
+        "spacings: 1 2 3",
+        "units: \"cm\" \"mm\" \"m\"",
+    ];
+    write_header(&path, &fields, &[23])?;
+
+    let volume = read_nrrd_stored(&path)?;
+    assert_eq!(volume.metadata().spacing().to_array(), [3_000.0, 2.0, 10.0]);
+    // NRRD axes are i,j,k; StoredVolume axes are depth,row,column = k,j,i.
+    assert_eq!(
+        *volume.metadata().direction(),
+        Direction::from_rows([[0.0, 0.0, 1.0], [0.0, 1.0, 0.0], [1.0, 0.0, 0.0]])
+    );
+    Ok(())
+}
+
+#[test]
+fn stored_reader_rejects_singular_coordinate_map_before_payload_read() -> Result<()> {
+    let directory = tempdir()?;
+    let path = directory.path().join("singular-coordinate-map.nrrd");
+    let fields = [
+        "type: unsigned char",
+        "dimension: 3",
+        "sizes: 2 2 1",
+        "ritk_coordinate_map:=slice_series count=1 transforms=0,0,0,0,0,0,0,0,0,0,0,0",
+    ];
+    write_header(&path, &fields, &[])?;
+
+    let error = read_nrrd_stored(&path).expect_err("singular map must reject before payload use");
+    assert!(matches!(error, NrrdStoredReadError::CoordinateMap { .. }));
+    assert_eq!(
+        error.to_string(),
+        "NRRD coordinate map is invalid: slice 0 rotation matrix is singular"
+    );
     Ok(())
 }
 

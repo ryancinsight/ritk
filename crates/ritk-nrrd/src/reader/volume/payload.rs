@@ -1,25 +1,17 @@
 //! NRRD header, spatial metadata, and stored payload parsing.
 
 use anyhow::Result;
-use ritk_codecs::{parse_f64_vec, parse_usize_vec, ByteOrder};
+use ritk_codecs::{parse_usize_vec, ByteOrder};
 use ritk_image_io::{ImageReadBudget, ImageReadResource};
-use ritk_spatial::Point;
 use std::io::{BufReader, Seek};
 use std::path::Path;
 
-use super::super::decode::{
-    element_type_spec, parse_nrrd_point, parse_nrrd_point_planar, parse_space_direction_slots,
-    parse_space_directions, parse_space_directions_planar, parse_space_directions_planar_world,
-    sample_type,
-};
+use super::super::decode::{element_type_spec, parse_space_direction_slots, sample_type};
 use super::super::header::parse_nrrd_header_from_reader;
 use super::super::stored::{NrrdSpatialMetadataField, NrrdStoredReadError};
+use super::geometry;
 use super::{NrrdReadPurpose, RawNrrd};
 use crate::axes::{locate_acquisition_axis, AcquisitionAxis};
-use crate::spatial::{
-    directions_to_lps, metadata_from_file_space_directions,
-    metadata_from_planar_file_space_directions, vector_to_lps, world_to_lps_factors,
-};
 
 mod ascii;
 mod input;
@@ -48,9 +40,6 @@ pub(in crate::reader) fn parse_nrrd_raw<P: AsRef<Path>>(
     let header = parse_nrrd_header_from_reader(&mut reader)
         .map_err(|source| NrrdStoredReadError::HeaderParse { source })?;
     let headers = &header.fields;
-    if headers.contains_key("space directions") && headers.contains_key("spacings") {
-        return Err(NrrdStoredReadError::ConflictingSpatialFields);
-    }
     let header_data_start = reader
         .stream_position()
         .map_err(|source| NrrdStoredReadError::PayloadIo { source })?;
@@ -73,16 +62,6 @@ pub(in crate::reader) fn parse_nrrd_raw<P: AsRef<Path>>(
     if !(2..=4).contains(&dimension) {
         return Err(NrrdStoredReadError::UnsupportedDimension { dimension });
     }
-
-    let world_to_lps = world_to_lps_factors(
-        headers.get("space").map(String::as_str),
-        headers.get("space dimension").map(String::as_str),
-        headers.get("space units").map(String::as_str),
-    )
-    .map_err(|error| NrrdStoredReadError::SpatialMetadata {
-        field: NrrdSpatialMetadataField::CoordinateSystem,
-        source: error,
-    })?;
 
     let direction_slots = if dimension == 2
         && !headers.contains_key("space")
@@ -182,153 +161,12 @@ pub(in crate::reader) fn parse_nrrd_raw<P: AsRef<Path>>(
     let line_skip = input::parse_line_skip(headers)?;
     let byte_skip = input::parse_byte_skip(headers)?;
 
-    let spatial = if let Some(sd_str) = headers.get("space directions") {
-        if dimension == 2 && headers.contains_key("space") {
-            let planar_directions =
-                parse_space_directions_planar_world(sd_str).map_err(|error| {
-                    NrrdStoredReadError::SpatialMetadata {
-                        field: NrrdSpatialMetadataField::SpaceDirections,
-                        source: error,
-                    }
-                })?;
-            metadata_from_planar_file_space_directions(planar_directions, world_to_lps).map_err(
-                |error| NrrdStoredReadError::SpatialMetadata {
-                    field: NrrdSpatialMetadataField::SpaceDirections,
-                    source: error,
-                },
-            )?
-        } else if dimension == 2 {
-            let mut dirs = parse_space_directions_planar(sd_str).map_err(|error| {
-                NrrdStoredReadError::SpatialMetadata {
-                    field: NrrdSpatialMetadataField::SpaceDirections,
-                    source: error,
-                }
-            })?;
-            dirs[0] = vector_to_lps(dirs[0], world_to_lps).map_err(|source| {
-                NrrdStoredReadError::SpatialMetadata {
-                    field: NrrdSpatialMetadataField::SpaceDirections,
-                    source,
-                }
-            })?;
-            dirs[1] = vector_to_lps(dirs[1], world_to_lps).map_err(|source| {
-                NrrdStoredReadError::SpatialMetadata {
-                    field: NrrdSpatialMetadataField::SpaceDirections,
-                    source,
-                }
-            })?;
-            dirs[2] = [0.0, 0.0, 1.0];
-            metadata_from_file_space_directions(dirs).map_err(|error| {
-                NrrdStoredReadError::SpatialMetadata {
-                    field: NrrdSpatialMetadataField::SpaceDirections,
-                    source: error,
-                }
-            })?
-        } else {
-            let dirs = parse_space_directions(sd_str).map_err(|error| {
-                NrrdStoredReadError::SpatialMetadata {
-                    field: NrrdSpatialMetadataField::SpaceDirections,
-                    source: error,
-                }
-            })?;
-            let dirs = directions_to_lps(dirs, world_to_lps).map_err(|source| {
-                NrrdStoredReadError::SpatialMetadata {
-                    field: NrrdSpatialMetadataField::SpaceDirections,
-                    source,
-                }
-            })?;
-            metadata_from_file_space_directions(dirs).map_err(|error| {
-                NrrdStoredReadError::SpatialMetadata {
-                    field: NrrdSpatialMetadataField::SpaceDirections,
-                    source: error,
-                }
-            })?
-        }
-    } else if let Some(sp_str) = headers.get("spacings") {
-        let sp = parse_f64_vec(sp_str, "spacings", dimension).map_err(|error| {
-            NrrdStoredReadError::SpatialMetadata {
-                field: NrrdSpatialMetadataField::Spacings,
-                source: error,
-            }
-        })?;
-        let sp: Vec<f64> = match acquisition {
-            AcquisitionAxis::Absent => sp,
-            AcquisitionAxis::Fastest => sp[1..].to_vec(),
-            AcquisitionAxis::Slowest => sp[..3].to_vec(),
-        };
-        let sz = if sp.len() >= 3 { sp[2] } else { 1.0 };
-        let file_directions = [[sp[0], 0.0, 0.0], [0.0, sp[1], 0.0], [0.0, 0.0, sz]];
-        let directions = if dimension == 2 {
-            [
-                vector_to_lps(file_directions[0], world_to_lps).map_err(|source| {
-                    NrrdStoredReadError::SpatialMetadata {
-                        field: NrrdSpatialMetadataField::Spacings,
-                        source,
-                    }
-                })?,
-                vector_to_lps(file_directions[1], world_to_lps).map_err(|source| {
-                    NrrdStoredReadError::SpatialMetadata {
-                        field: NrrdSpatialMetadataField::Spacings,
-                        source,
-                    }
-                })?,
-                [0.0, 0.0, 1.0],
-            ]
-        } else {
-            directions_to_lps(file_directions, world_to_lps).map_err(|source| {
-                NrrdStoredReadError::SpatialMetadata {
-                    field: NrrdSpatialMetadataField::Spacings,
-                    source,
-                }
-            })?
-        };
-        metadata_from_file_space_directions(directions).map_err(|error| {
-            NrrdStoredReadError::SpatialMetadata {
-                field: NrrdSpatialMetadataField::Spacings,
-                source: error,
-            }
-        })?
-    } else {
-        let default_directions = directions_to_lps(
-            [[1.0, 0.0, 0.0], [0.0, 1.0, 0.0], [0.0, 0.0, 1.0]],
-            world_to_lps,
-        )
-        .map_err(|source| NrrdStoredReadError::SpatialMetadata {
-            field: NrrdSpatialMetadataField::CoordinateSystem,
-            source,
-        })?;
-        metadata_from_file_space_directions(default_directions).map_err(|error| {
-            NrrdStoredReadError::SpatialMetadata {
-                field: NrrdSpatialMetadataField::Spacings,
-                source: error,
-            }
-        })?
-    };
-
-    let origin = if let Some(so_str) = headers.get("space origin") {
-        if dimension == 2 && !headers.contains_key("space") {
-            parse_nrrd_point_planar(so_str).map_err(|error| {
-                NrrdStoredReadError::SpatialMetadata {
-                    field: NrrdSpatialMetadataField::SpaceOrigin,
-                    source: error,
-                }
-            })?
-        } else {
-            parse_nrrd_point(so_str).map_err(|error| NrrdStoredReadError::SpatialMetadata {
-                field: NrrdSpatialMetadataField::SpaceOrigin,
-                source: error,
-            })?
-        }
-    } else {
-        Point::new([0.0, 0.0, 0.0])
-    };
-    let file_origin = origin.to_array();
-    let lps_origin = vector_to_lps(file_origin, world_to_lps).map_err(|source| {
-        NrrdStoredReadError::SpatialMetadata {
-            field: NrrdSpatialMetadataField::SpaceOrigin,
-            source,
-        }
-    })?;
-    let origin = Point::new(lps_origin);
+    let spatial = geometry::parse_spatial_metadata(
+        headers,
+        dimension,
+        acquisition,
+        direction_flags.as_deref(),
+    )?;
 
     let sizes_xyz = [nx, ny, nz];
     let voxels_per_volume = nx
@@ -452,7 +290,7 @@ pub(in crate::reader) fn parse_nrrd_raw<P: AsRef<Path>>(
         volumes,
         voxels_per_volume,
         dims: [nz, ny, nx],
-        origin,
+        origin: spatial.origin,
         spacing: spatial.spacing,
         direction: spatial.direction,
         coordinate_map,

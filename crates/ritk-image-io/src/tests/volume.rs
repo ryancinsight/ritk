@@ -229,7 +229,7 @@ fn stored_volume_rejects_unrepresentable_physical_axis_geometry() {
 }
 
 #[test]
-fn stored_volume_requires_one_finite_transform_per_slice() {
+fn stored_volume_requires_one_transform_per_slice() {
     let direction = Direction::from_rows([[1.0, 0.0, 0.0], [0.0, 1.0, 0.0], [0.0, 0.0, 1.0]]);
     let map = || {
         CoordinateMap::SliceSeries(
@@ -237,7 +237,6 @@ fn stored_volume_requires_one_finite_transform_per_slice() {
                 .expect("one transform"),
         )
     };
-    let metadata = || ImageMetadata::default_for_shape([1, 1, 1]);
     let samples = || SampleBuffer::from_samples(vec![1_u16, 2]);
     assert!(matches!(
         StoredVolume::new(
@@ -251,22 +250,5 @@ fn stored_volume_requires_one_finite_transform_per_slice() {
             expected: 2,
             actual: 1
         })
-    ));
-    let non_finite = CoordinateMap::SliceSeries(
-        SliceSeries::try_new(vec![SliceTransform::new(
-            direction,
-            [0.0, f64::INFINITY, 0.0],
-        )])
-        .expect("one transform"),
-    );
-    assert!(matches!(
-        StoredVolume::new(
-            [1, 1, 1],
-            SampleBuffer::from_samples(vec![1_u16]),
-            metadata(),
-            non_finite,
-            IntensityCalibration::Identity,
-        ),
-        Err(VolumeError::CoordinateMapNonFiniteTransform { slice: 0 })
     ));
 }

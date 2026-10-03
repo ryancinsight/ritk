@@ -36,18 +36,18 @@ fn oversized_nrrd_header_preserves_existing_destination() -> Result<()> {
     let directory = tempdir()?;
     let path = directory.path().join("oversized-header.nrrd");
     std::fs::write(&path, b"existing destination")?;
-    let direction = Direction::from_rows([[f64::MAX; 3]; 3]);
-    let transforms = (0..6400)
-        .map(|_| SliceTransform::new(direction, [0.0; 3]))
+    let direction = Direction::identity();
+    let transforms = (0..18_000)
+        .map(|_| SliceTransform::new(direction, [f64::MAX; 3]))
         .collect();
     let coordinate_map = CoordinateMap::SliceSeries(
         SliceSeries::try_new(transforms).expect("slice series has transforms"),
     );
-    let samples = vec![7.0; 6400];
+    let samples = vec![7.0; 18_000];
 
     let error = write_nrrd_flat(
         &path,
-        [6400, 1, 1],
+        [18_000, 1, 1],
         &Spacing::new([1.0; 3]),
         &Point::origin(),
         &Direction::from_rows([[1.0, 0.0, 0.0], [0.0, 1.0, 0.0], [0.0, 0.0, 1.0]]),

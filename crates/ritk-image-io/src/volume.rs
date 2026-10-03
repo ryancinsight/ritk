@@ -107,42 +107,21 @@ impl StoredVolume {
 /// # Errors
 ///
 /// Returns a typed error when the map does not support three-dimensional
-/// images, a per-slice transform count differs from the depth, or any stored
-/// transform contains a non-finite component.
+/// images or a per-slice transform count differs from the depth. Slice-series
+/// transforms are finite by construction through
+/// [`ritk_spatial::SliceSeries::try_new`].
 pub fn validate_coordinate_map(
     coordinate_map: &CoordinateMap,
     shape: [usize; 3],
 ) -> Result<(), VolumeError> {
     coordinate_map.validate_dimensionality(3)?;
-    if let CoordinateMap::SliceSeries(series) = coordinate_map {
-        if series.len() != shape[0] {
-            return Err(VolumeError::CoordinateMapSliceCountMismatch {
-                expected: shape[0],
-                actual: series.len(),
-            });
-        }
-        for (slice, transform) in series.transforms().iter().enumerate() {
-            let rotation = transform.rotation();
-            let rotation_values = [
-                rotation[(0, 0)],
-                rotation[(0, 1)],
-                rotation[(0, 2)],
-                rotation[(1, 0)],
-                rotation[(1, 1)],
-                rotation[(1, 2)],
-                rotation[(2, 0)],
-                rotation[(2, 1)],
-                rotation[(2, 2)],
-            ];
-            let translation = transform.translation();
-            if rotation_values
-                .iter()
-                .chain(translation.iter())
-                .any(|value| !value.is_finite())
-            {
-                return Err(VolumeError::CoordinateMapNonFiniteTransform { slice });
-            }
-        }
+    if let CoordinateMap::SliceSeries(series) = coordinate_map
+        && series.len() != shape[0]
+    {
+        return Err(VolumeError::CoordinateMapSliceCountMismatch {
+            expected: shape[0],
+            actual: series.len(),
+        });
     }
     Ok(())
 }
@@ -314,12 +293,6 @@ pub enum VolumeError {
         expected: usize,
         /// Supplied transform count.
         actual: usize,
-    },
-    /// A per-slice coordinate transform contains a non-finite component.
-    #[error("slice-series coordinate map transform {slice} contains a non-finite component")]
-    CoordinateMapNonFiniteTransform {
-        /// Transform index in depth order.
-        slice: usize,
     },
     /// Per-frame calibration does not match the depth axis.
     #[error(transparent)]
