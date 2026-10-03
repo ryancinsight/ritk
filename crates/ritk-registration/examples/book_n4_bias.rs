@@ -12,7 +12,7 @@
 use anyhow::{bail, Context, Result};
 use base64::{engine::general_purpose::STANDARD, Engine as _};
 use coeus_core::SequentialBackend;
-use eunomia::CastFrom;
+use eunomia::convert::IntegerTarget;
 use image::{codecs::png::PngEncoder, ColorType, ImageEncoder, Rgb, RgbImage};
 use ritk_filter::{bias::N4Config, N4BiasFieldCorrectionFilter};
 use ritk_io::{format::metaimage::native::MetaImageReader, ImageReader};
@@ -79,7 +79,7 @@ fn grayscale(values: &[f32], lower: f32, upper: f32) -> Result<Vec<Rgb<u8>>> {
         .iter()
         .map(|value| {
             let intensity = ((*value - lower) / (upper - lower)).clamp(0.0, 1.0) * 255.0;
-            let intensity = u8::cast_from(intensity.round());
+            let intensity = u8::from_truncated(f64::from(intensity.round()));
             Rgb([intensity, intensity, intensity])
         })
         .collect())
@@ -106,9 +106,9 @@ fn diverging(values: &[f32], extent: f32) -> Result<Vec<Rgb<u8>>> {
             }
             let position = ((*value / extent).clamp(-1.0, 1.0) + 1.0) * 0.5;
             let channel = if position < 0.5 {
-                u8::cast_from((position * 2.0 * 255.0).round())
+                u8::from_truncated(f64::from((position * 2.0 * 255.0).round()))
             } else {
-                u8::cast_from(((1.0 - position) * 2.0 * 255.0).round())
+                u8::from_truncated(f64::from(((1.0 - position) * 2.0 * 255.0).round()))
             };
             if position < 0.5 {
                 Rgb([channel, channel, 255])

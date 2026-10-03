@@ -1,5 +1,6 @@
 use anyhow::Result;
-use eunomia::{CastFrom, FloatElement};
+use eunomia::convert::IntegerTarget;
+use eunomia::FloatElement;
 use ritk_spatial::{Direction, Point, Spacing};
 
 use super::{identity_image, image, synthetic_values};
@@ -145,7 +146,7 @@ fn trilinear_oracle(values: &[f32], shape: [usize; 3], point: [f64; 3]) -> f32 {
         let extent = f64::from(u32::try_from(shape[axis]).expect("test extent fits u32"));
         point[axis].clamp(0.0, extent - 1.0)
     });
-    let lower = point.map(|coordinate| usize::cast_from(coordinate.floor()));
+    let lower = point.map(|coordinate| usize::from_floor(coordinate));
     let upper: [usize; 3] = std::array::from_fn(|axis| (lower[axis] + 1).min(shape[axis] - 1));
     let fraction: [f64; 3] = std::array::from_fn(|axis| {
         point[axis] - f64::from(u32::try_from(lower[axis]).expect("test index fits u32"))

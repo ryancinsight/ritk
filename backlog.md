@@ -35,18 +35,6 @@
 - next: after metis#458 merges, `cargo update -p metis-ui-lang -p metis-platform -p metis-web` and fix the call sites the checker reports.
 - basis: d6b9f79f
 
-<a id="RITK-CASTFROM-MIGRATE"></a>
-## RITK-CASTFROM-MIGRATE: Retire `CastFrom` from ritk
-- outcome: no ritk source uses eunomia `CastFrom`/`CastTo`; each site converts through std or a named eunomia method.
-- acceptance: `git grep -c -E '(cast_from|cast_to|CastFrom|CastTo)' -- '*.rs'` is empty; ritk builds against the eunomia that drops `NumericElement: CastFrom<i32>`.
-- status: blocked
-- blocker: the 15 remaining call sites convert a float to an integer (`u8`, `u32`, `usize`) with rounding or flooring, and eunomia has no method for that conversion; re-open when eunomia lands a named float-to-integer method.
-- priority: architecture
-- needs: none
-- scope: `crates/ritk-filter/examples/`, `crates/ritk-io/examples/`, `crates/ritk-registration/{examples,src/metric/mind}/`, `crates/ritk-interpolation/src/native.rs` (its `usize: CastFrom<T>` bounds).
-- next: replace each remaining site with the eunomia method once it exists, then delete the `CastFrom` imports.
-- links: consumer slice of [EUNOMIA-CASTFROM-RETIRE](../eunomia/backlog.md#EUNOMIA-CASTFROM-RETIRE); 27 of the 56 original sites converted to `FloatElement::{from_count, from_integer, from_f64}`.
-
 <a id="RITK-FORMAT-BULK-DECODE-001"></a>
 ## RITK-FORMAT-BULK-DECODE-001: Decode sample buffers through one bulk path
 - outcome: format readers and writers convert whole sample buffers through one bulk byte-order path, choosing the byte order once per buffer, instead of per-type `chunks_exact` loops.

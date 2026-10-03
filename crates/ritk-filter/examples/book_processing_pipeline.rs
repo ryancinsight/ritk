@@ -7,7 +7,7 @@
 
 use anyhow::{bail, Context, Result};
 use coeus_core::SequentialBackend;
-use eunomia::CastFrom;
+use eunomia::convert::IntegerTarget;
 use ritk_filter::{
     BinaryDilateFilter, BinaryErodeFilter, CurvatureFlowConfig, CurvatureFlowImageFilter,
     DiffusionConfig, GradientMagnitudeFilter, GrayscaleOpeningFilter, SigmoidImageFilter,
@@ -113,7 +113,7 @@ fn gray(value: f32, lower: f32, upper: f32) -> u8 {
         return 0;
     }
     let mapped = ((value - lower) / (upper - lower)).clamp(0.0, 1.0) * 255.0;
-    u8::cast_from(mapped.round())
+    u8::from_truncated(f64::from(mapped.round()))
 }
 
 fn draw_image_panel(
