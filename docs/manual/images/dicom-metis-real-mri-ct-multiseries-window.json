@@ -5,11 +5,11 @@
     "host": "Windows 11 native Métis surface",
     "date": "2026-10-02",
     "ritk_pull_request": "ryancinsight/ritk#676",
-    "ritk_revision": "50ef4c769508714cc464968e2dd8bd1cf2418780",
-    "ritk_tree": "a1f6ede8a8e8ebd77685037e5d3bc8e48fe3a051",
+    "ritk_revision": "5457f2126d801a1b4c45a6fc81d6d680f7ab518a",
+    "ritk_tree": "fcd28d2f66d4ae97fdb9845c7c87210734f9eab4",
     "executable": "ritk-snap.exe",
-    "executable_sha256": "5f30b117fc1a6db94061e00da755ce8d491fa9fe1075c162e81dc22e9b628fbc",
-    "executable_bytes": 26374144,
+    "executable_sha256": "dc0182c960d8a782643aa909a4e5393ca3d71e3b94da03f6c540678750b06038",
+    "executable_bytes": 26265600,
     "toolchain": "rustc 1.97.0 (2d8144b78 2026-07-07)",
     "metis_revision": "57709a4958a78ec99a9b9128da03db39ee4d2b22",
     "metis_platform_revision": "57709a4958a78ec99a9b9128da03db39ee4d2b22",
@@ -63,17 +63,17 @@
     ]
   },
   "source_capture": {
-    "path": "%TEMP%/ritk-snap-window-controls-3bfe46227661436a857d2336b9b95f8c/mri-ct-window.png",
-    "sha256": "2dcdd5ff334d92e9382ec8d4621f5313bfe339d4036fc9922a60f870ef7b079a",
-    "bytes": 356621,
+    "path": "%TEMP%/ritk-snap-window-controls-3bfe46227661436a857d2336b9b95f8c/mri-ct-window-final.png",
+    "sha256": "31803fafa5e1e1a61d97a0543490625a09f8cb3d1e8c0f9955decdb9668777f0",
+    "bytes": 354031,
     "encoding": "PNG captured from the live native application window"
   },
   "output": {
     "path": "docs/manual/images/dicom-metis-real-mri-ct-multiseries-window.webp",
     "width": 1298,
     "height": 847,
-    "sha256": "aa48c3bce6443e7581070549d21e099ff7d1d529addf0f1e5e2db367b8fe4dd4",
-    "bytes": 163102,
+    "sha256": "3583dd8dfd660d96308fdd485c2753b59ac7e9293d52e1dc165d7b66d20f5f12",
+    "bytes": 161276,
     "encoding": "lossless WebP",
     "visible_controls": [
       "File",
