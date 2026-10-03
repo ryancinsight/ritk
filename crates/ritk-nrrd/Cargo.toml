@@ -10,16 +10,19 @@ description = "NRRD (Nearly Raw Raster Data) I/O for RITK"
 keywords.workspace = true
 categories.workspace = true
 homepage.workspace = true
+readme.workspace = true
 
 [dependencies]
 ritk-image = { path = "../ritk-image", version = "0.4.0" }
 ritk-spatial = { path = "../ritk-spatial", version = "0.3.0" }
 ritk-codecs = { path = "../ritk-codecs", version = "0.6.0" }
+ritk-image-io = { workspace = true }
 ritk-diffusion-scheme = { path = "../ritk-diffusion-scheme", version = "0.2.0" }
 coeus-core = { workspace = true }
 anyhow = { workspace = true }
 bytemuck = { workspace = true }
 flate2 = { workspace = true }
+thiserror = { workspace = true }
 
 [dev-dependencies]
 # Rejection assertions shared across the workspace's test modules.

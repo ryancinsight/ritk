@@ -1,4 +1,5 @@
 //! NRRD (Nearly Raw Raster Data) I/O for RITK.
+#![doc = include_str!("../README.md")]
 //!
 //! This crate provides canonical single-source-of-truth implementations for reading and writing
 //! NRRD files. It separates NRRD logic from the polymorphic I/O dispatch layer in `ritk-io`.
@@ -12,7 +13,7 @@
 //!
 //! # Acquisition Axis
 //!
-//! A 4-D NRRD carries three spatial axes plus one non-spatial axis — the
+//! A 4-D NRRD carries three spatial axes plus one non-spatial axis ΓÇö the
 //! diffusion gradient index of a DWI file, a functional timepoint. NRRD does
 //! not fix that axis's position the way NIfTI does. The NA-MIC convention
 //! Slicer and DTIPrep emit places it first:
@@ -27,8 +28,9 @@
 //! while other tools place it last. The two differ in stride, not meaning: a
 //! leading axis varies fastest, so volumes interleave voxel-by-voxel; a
 //! trailing axis varies slowest, so volumes are contiguous blocks. Both are
-//! read. Writing always emits the leading form, which diffusion tooling
-//! expects.
+//! read. The compute-image writer emits the leading form, which diffusion
+//! tooling expects. The stored-sample writer emits a trailing contiguous axis
+//! so each volume remains a contiguous payload.
 //!
 //! The single-volume and series entry points are asymmetric on purpose. The
 //! series reader accepts a rank-3 file as a one-volume series, because that is
@@ -58,52 +60,18 @@
 
 mod axes;
 pub mod coordinate_map;
+mod dip;
 pub mod reader;
 mod spatial;
 pub mod writer;
 
+pub use dip::{NrrdDipReader, NrrdDipWriter};
 pub use reader::{
-    read_nrrd, read_nrrd_gradient_scheme, read_nrrd_header_map, read_nrrd_series, NrrdReader,
+    read_nrrd, read_nrrd_gradient_scheme, read_nrrd_header_map, read_nrrd_series, read_nrrd_stored,
+    read_nrrd_stored_series, NrrdHeaderError, NrrdReader, NrrdSpatialMetadataField,
+    NrrdStoredReadError,
 };
 pub use writer::{write_nrrd, write_nrrd_series, write_nrrd_with_data, NrrdWriter};
-
-use coeus_core::{ComputeBackend, CpuAddressableStorage};
-use ritk_image::Image;
-use std::path::Path;
-
-/// DIP boundary executing strict spatial metadata preservation over standard NRRD datasets.
-pub struct NrrdDipReader<B: ComputeBackend> {
-    backend: B,
-}
-
-impl<B: ComputeBackend> NrrdDipReader<B> {
-    pub fn new(backend: B) -> Self {
-        Self { backend }
-    }
-
-    pub fn read<P: AsRef<Path>>(&self, path: P) -> anyhow::Result<Image<f32, B, 3>> {
-        read_nrrd(path, &self.backend)
-    }
-}
-
-/// DIP boundary executing strict spatial metadata preservation over standard NRRD datasets.
-pub struct NrrdDipWriter<B: ComputeBackend> {
-    backend: B,
-}
-
-impl<B: ComputeBackend> NrrdDipWriter<B> {
-    pub fn new(backend: B) -> Self {
-        Self { backend }
-    }
-
-    pub fn write<P: AsRef<Path>>(&self, path: P, image: &Image<f32, B, 3>) -> anyhow::Result<()>
-    where
-        B: Default,
-        B::DeviceBuffer<f32>: CpuAddressableStorage<f32>,
-    {
-        write_nrrd(path, image, &self.backend)
-    }
-}
 
 #[cfg(test)]
 mod tests;

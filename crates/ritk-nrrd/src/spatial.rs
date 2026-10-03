@@ -11,13 +11,115 @@
 //! A_internal[:, col]   = A_nrrd[:, x]
 //! ```
 
-use anyhow::{Context, Result};
+use anyhow::{anyhow, bail, Context, Result};
 use ritk_spatial::{Direction, Spacing, Vector};
 
 #[derive(Clone, Copy, Debug, PartialEq)]
 pub(crate) struct InternalSpatialMetadata {
     pub(crate) spacing: Spacing<3>,
     pub(crate) direction: Direction<3>,
+}
+
+/// Convert NRRD physical coordinates into RITK's canonical LPS millimeters.
+///
+/// NRRD names the coordinate basis independently of the image-axis order.
+/// Files without a named space or units retain RITK's historical LPS/mm
+/// interpretation. Anonymous or scanner coordinate systems cannot be mapped
+/// to patient LPS without additional registration data.
+pub(crate) fn world_to_lps_factors(
+    space: Option<&str>,
+    space_dimension: Option<&str>,
+    units: Option<&str>,
+) -> Result<[f64; 3]> {
+    let basis = world_to_lps_basis(space, space_dimension)?;
+    let millimeters = parse_space_units(units)?;
+    Ok(std::array::from_fn(|axis| basis[axis] * millimeters[axis]))
+}
+
+/// Convert named NRRD world-axis directions into the LPS basis without
+/// applying physical-coordinate units.
+pub(crate) fn world_to_lps_basis(
+    space: Option<&str>,
+    space_dimension: Option<&str>,
+) -> Result<[f64; 3]> {
+    if space.is_some() && space_dimension.is_some() {
+        bail!("NRRD orientation cannot declare both 'space' and 'space dimension'");
+    }
+    if let Some(dimension) = space_dimension {
+        bail!("NRRD anonymous 'space dimension' {dimension:?} cannot be converted to patient LPS");
+    }
+    let signs = match space.map(str::trim).map(str::to_ascii_lowercase).as_deref() {
+        None | Some("left-posterior-superior") | Some("lps") => [1.0, 1.0, 1.0],
+        Some("right-anterior-superior") | Some("ras") => [-1.0, -1.0, 1.0],
+        Some("left-anterior-superior") | Some("las") => [1.0, -1.0, 1.0],
+        Some(other) => {
+            bail!("NRRD space '{other}' cannot be converted to patient LPS")
+        }
+    };
+    Ok(signs)
+}
+
+/// Parse three quoted NRRD physical-coordinate units into millimeter scales.
+fn parse_space_units(units: Option<&str>) -> Result<[f64; 3]> {
+    let Some(units) = units else {
+        return Ok([1.0; 3]);
+    };
+    let tokens = units.split_whitespace().collect::<Vec<_>>();
+    if tokens.len() != 3 {
+        bail!(
+            "NRRD space units must contain three quoted coordinate units, found {}",
+            tokens.len()
+        );
+    }
+    let scales = tokens
+        .into_iter()
+        .map(|token| {
+            let unit = token
+                .strip_prefix('"')
+                .and_then(|unit| unit.strip_suffix('"'))
+                .ok_or_else(|| anyhow!("NRRD space unit {token:?} must be quoted"))?;
+            match unit {
+                "mm" => Ok(1.0),
+                "cm" => Ok(10.0),
+                "m" => Ok(1_000.0),
+                "um" => Ok(0.001),
+                "nm" => Ok(0.000_001),
+                _ => bail!("NRRD space unit {unit:?} cannot be converted to millimeters"),
+            }
+        })
+        .collect::<Result<Vec<_>>>()?;
+    scales
+        .try_into()
+        .map_err(|values: Vec<f64>| anyhow!("expected 3 NRRD space units, found {}", values.len()))
+}
+
+/// Apply a world-axis scale and handedness transform to a coordinate vector.
+pub(crate) fn vector_to_lps(vector: [f64; 3], factors: [f64; 3]) -> Result<[f64; 3]> {
+    let converted: [f64; 3] = std::array::from_fn(|axis| vector[axis] * factors[axis]);
+    if let Some(axis) =
+        vector
+            .iter()
+            .zip(converted)
+            .enumerate()
+            .find_map(|(axis, (source, value))| {
+                (!value.is_finite() || (*source != 0.0 && value == 0.0)).then_some(axis)
+            })
+    {
+        bail!("NRRD world-coordinate conversion makes vector component {axis} unrepresentable");
+    }
+    Ok(converted)
+}
+
+/// Apply the world-to-LPS transform to NRRD file-axis direction vectors.
+pub(crate) fn directions_to_lps(
+    file_vectors: [[f64; 3]; 3],
+    factors: [f64; 3],
+) -> Result<[[f64; 3]; 3]> {
+    Ok([
+        vector_to_lps(file_vectors[0], factors)?,
+        vector_to_lps(file_vectors[1], factors)?,
+        vector_to_lps(file_vectors[2], factors)?,
+    ])
 }
 
 /// Convert NRRD `[x,y,z]` space-direction vectors into RITK internal
@@ -41,21 +143,27 @@ pub(crate) fn metadata_from_file_space_directions(
     metadata_from_internal_scaled_columns(scaled_columns)
 }
 
-/// Convert NRRD `[x,y,z]` scalar spacings into RITK internal
-/// `[depth,row,col]` spacing with the canonical axis-aligned direction
-/// columns `[z,y,x]`.
-///
-/// # Errors
-///
-/// Returns an error when a spacing is zero or non-finite.
-pub(crate) fn metadata_from_file_spacings(
-    file_spacing: [f64; 3],
+/// Promote two NRRD image-axis vectors in 3-D world space to one-slice volume
+/// metadata. The missing slice axis uses a one-millimeter step along the
+/// normalized plane normal.
+pub(crate) fn metadata_from_planar_file_space_directions(
+    file_vectors: [[f64; 3]; 2],
+    world_to_lps: [f64; 3],
 ) -> Result<InternalSpatialMetadata> {
-    metadata_from_file_space_directions([
-        [file_spacing[0], 0.0, 0.0],
-        [0.0, file_spacing[1], 0.0],
-        [0.0, 0.0, file_spacing[2]],
-    ])
+    let file_x = Vector::new(vector_to_lps(file_vectors[0], world_to_lps)?);
+    let file_y = Vector::new(vector_to_lps(file_vectors[1], world_to_lps)?);
+    let unit_x = file_x
+        .normalized()
+        .ok_or_else(|| anyhow!("NRRD rank-2 X direction is zero or non-finite"))?;
+    let unit_y = file_y
+        .normalized()
+        .ok_or_else(|| anyhow!("NRRD rank-2 Y direction is zero or non-finite"))?;
+    let normal = unit_x
+        .cross(&unit_y)
+        .normalized()
+        .ok_or_else(|| anyhow!("NRRD rank-2 directions do not define a physical plane"))?;
+
+    metadata_from_file_space_directions([file_x.to_array(), file_y.to_array(), normal.to_array()])
 }
 
 /// Build NRRD `[x,y,z]` space-direction vectors from RITK internal
@@ -88,15 +196,30 @@ fn metadata_from_internal_scaled_columns(
     .context("NRRD spatial metadata does not describe a physical grid")?;
 
     let direction_columns = [
-        scaled_columns[0].unit_direction_or(spacing[0], Vector::z_axis()),
-        scaled_columns[1].unit_direction_or(spacing[1], Vector::y_axis()),
-        scaled_columns[2].unit_direction_or(spacing[2], Vector::x_axis()),
+        normalized_physical_axis(scaled_columns[0], spacing[0])?,
+        normalized_physical_axis(scaled_columns[1], spacing[1])?,
+        normalized_physical_axis(scaled_columns[2], spacing[2])?,
     ];
+    let direction = Direction::from_columns(direction_columns);
+    let determinant = direction.determinant();
+    if !determinant.is_finite() || determinant == 0.0 {
+        return Err(anyhow!("NRRD physical grid direction matrix is singular"));
+    }
 
-    Ok(InternalSpatialMetadata {
-        spacing,
-        direction: Direction::from_columns(direction_columns),
-    })
+    Ok(InternalSpatialMetadata { spacing, direction })
+}
+
+fn normalized_physical_axis(scaled_axis: Vector<3>, length: f64) -> Result<Vector<3>> {
+    let components = scaled_axis.to_array();
+    let normalized = std::array::from_fn(|index| components[index] / length);
+    if components
+        .into_iter()
+        .zip(normalized)
+        .any(|(component, direction)| component != 0.0 && direction == 0.0)
+    {
+        bail!("NRRD physical grid direction loses a nonzero component when normalized");
+    }
+    Ok(Vector::new(normalized))
 }
 
 fn vector_from_array(value: [f64; 3]) -> Vector<3> {
@@ -155,5 +278,71 @@ mod tests {
         assert_eq!(directions[0], [4.0, 0.0, 0.0]);
         assert_eq!(directions[1], [0.0, 3.0, 0.0]);
         assert_eq!(directions[2], [0.0, 0.0, 2.0]);
+    }
+
+    #[test]
+    fn patient_spaces_and_units_normalize_to_lps_millimeters() {
+        assert_eq!(
+            world_to_lps_factors(Some("RAS"), None, Some("\"cm\" \"cm\" \"cm\""))
+                .expect("supported RAS units"),
+            [-10.0, -10.0, 10.0]
+        );
+        assert_eq!(
+            world_to_lps_factors(Some("left-anterior-superior"), None, None)
+                .expect("supported LAS basis"),
+            [1.0, -1.0, 1.0]
+        );
+        assert_eq!(
+            world_to_lps_basis(Some("RAS"), None).expect("supported RAS basis"),
+            [-1.0, -1.0, 1.0]
+        );
+        assert_eq!(
+            vector_to_lps([1.0, 2.0, 3.0], [-10.0, -10.0, 10.0])
+                .expect("finite coordinate transform"),
+            [-10.0, -20.0, 30.0]
+        );
+    }
+
+    #[test]
+    fn coordinate_unit_conversion_rejects_lost_nonzero_components() {
+        let error = vector_to_lps([1.0, f64::from_bits(1), 0.0], [1.0e-6, 1.0e-6, 1.0e-6])
+            .expect_err("unit conversion cannot erase a nonzero direction component");
+
+        assert_eq!(
+            error.to_string(),
+            "NRRD world-coordinate conversion makes vector component 1 unrepresentable"
+        );
+    }
+
+    #[test]
+    fn unsupported_space_and_units_are_rejected() {
+        assert!(world_to_lps_factors(Some("scanner-xyz"), None, None).is_err());
+        assert!(world_to_lps_factors(Some("LPS"), Some("3"), None).is_err());
+        assert!(world_to_lps_factors(None, Some("3"), None).is_err());
+        assert!(world_to_lps_factors(Some("RAS"), None, Some("\"parsec\" \"mm\" \"mm\"")).is_err());
+        assert!(world_to_lps_factors(Some("LPS"), None, Some("mm mm mm")).is_err());
+        assert!(world_to_lps_factors(Some("LPS"), None, Some("\"mm\" \"mm\"")).is_err());
+    }
+
+    #[test]
+    fn singular_file_directions_are_rejected() {
+        assert!(metadata_from_file_space_directions([
+            [1.0, 0.0, 0.0],
+            [2.0, 0.0, 0.0],
+            [0.0, 0.0, 1.0],
+        ])
+        .is_err());
+    }
+
+    #[test]
+    fn normalization_rejects_lost_physical_axis_components() {
+        let error = metadata_from_file_space_directions([
+            [1e308, 1e-308, 0.0],
+            [0.0, 1.0, 0.0],
+            [0.0, 0.0, 1.0],
+        ])
+        .expect_err("a nonzero physical-axis component cannot disappear");
+
+        assert!(error.to_string().contains("loses a nonzero component"));
     }
 }

@@ -62,4 +62,4 @@ partial-sample rejection, and mismatch recovery. The decision changes if an
 independent format-conversion oracle demonstrates that this stored-sample
 boundary cannot preserve a supported format's value or metadata semantics.
 
-Driving item: `RITK-TYPED-SAMPLES-001` (PR #696).
+Driving item: `RITK-TYPED-SAMPLES-001` (PR #735).

@@ -5969,6 +5969,7 @@ dependencies = [
  "image 0.24.9",
  "proptest",
  "tempfile",
+ "thiserror 2.0.20",
 ]
 
 [[package]]
@@ -6113,6 +6114,17 @@ dependencies = [
  "rand 0.9.5",
  "ritk-spatial",
  "ritk-wgpu-compat",
+]
+
+[[package]]
+name = "ritk-image-io"
+version = "0.1.0"
+dependencies = [
+ "ritk-codecs",
+ "ritk-diffusion-scheme",
+ "ritk-image",
+ "ritk-spatial",
+ "thiserror 2.0.20",
 ]
 
 [[package]]
@@ -6317,8 +6329,10 @@ dependencies = [
  "ritk-core",
  "ritk-diffusion-scheme",
  "ritk-image",
+ "ritk-image-io",
  "ritk-spatial",
  "tempfile",
+ "thiserror 2.0.20",
 ]
 
 [[package]]

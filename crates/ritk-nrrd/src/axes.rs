@@ -87,7 +87,7 @@ fn non_spatial_indices(
     kinds: Option<&str>,
     space_direction_slots: Option<&[bool]>,
 ) -> Result<Vec<usize>> {
-    if let Some(kinds) = kinds {
+    let kind_indices = if let Some(kinds) = kinds {
         let labels: Vec<&str> = kinds.split_whitespace().collect();
         if labels.len() != dimension {
             bail!(
@@ -95,32 +95,52 @@ fn non_spatial_indices(
                 labels.len()
             );
         }
-        return Ok(labels
-            .iter()
-            .enumerate()
-            .filter(|(_, label)| !SPATIAL_KINDS.contains(&label.to_lowercase().as_str()))
-            .map(|(index, _)| index)
-            .collect());
-    }
+        Some(
+            labels
+                .iter()
+                .enumerate()
+                .filter(|(_, label)| {
+                    !SPATIAL_KINDS
+                        .iter()
+                        .any(|spatial| label.eq_ignore_ascii_case(spatial))
+                })
+                .map(|(index, _)| index)
+                .collect::<Vec<_>>(),
+        )
+    } else {
+        None
+    };
 
     // `space directions` marks a non-spatial axis with the bare token `none`,
     // which the caller has already reduced to one flag per axis.
-    if let Some(slots) = space_direction_slots {
+    let direction_indices = if let Some(slots) = space_direction_slots {
         if slots.len() != dimension {
             bail!(
                 "NRRD 'space directions' lists {} axes but 'dimension' is {dimension}",
                 slots.len()
             );
         }
-        return Ok(slots
-            .iter()
-            .enumerate()
-            .filter(|(_, has_direction)| !**has_direction)
-            .map(|(index, _)| index)
-            .collect());
-    }
+        Some(
+            slots
+                .iter()
+                .enumerate()
+                .filter(|(_, has_direction)| !**has_direction)
+                .map(|(index, _)| index)
+                .collect::<Vec<_>>(),
+        )
+    } else {
+        None
+    };
 
-    Ok(Vec::new())
+    match (kind_indices, direction_indices) {
+        (Some(kinds), Some(directions)) if kinds == directions => Ok(kinds),
+        (Some(kinds), Some(directions)) => bail!(
+            "NRRD 'kinds' identifies non-spatial axes {kinds:?} but 'space directions' identifies {directions:?}"
+        ),
+        (Some(kinds), None) => Ok(kinds),
+        (None, Some(directions)) => Ok(directions),
+        (None, None) => Ok(Vec::new()),
+    }
 }
 
 #[cfg(test)]
@@ -149,20 +169,14 @@ mod tests {
     }
 
     #[test]
-    fn kinds_outranks_space_directions() {
-        // A file may carry both; `kinds` is the field whose purpose is this
-        // statement, so it decides.
-        let axis = locate_acquisition_axis(
+    fn contradictory_kinds_and_space_directions_are_rejected() {
+        let error = locate_acquisition_axis(
             4,
             Some("domain domain domain list"),
             Some(&[false, true, true, true]),
         )
-        .expect("located");
-        assert_eq!(
-            axis,
-            AcquisitionAxis::Slowest,
-            "kinds must decide when both fields are present"
-        );
+        .expect_err("conflicting axis declarations cannot be reconciled");
+        assert!(error.to_string().contains("identifies non-spatial axes"));
     }
 
     #[test]
