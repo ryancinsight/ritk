@@ -1,4 +1,4 @@
-//! Native PNG single-slice, sequential-volume, and RGB image I/O.
+#![doc = include_str!("../README.md")]
 
 use anyhow::{Context, Result};
 use coeus_core::ComputeBackend;
@@ -10,10 +10,12 @@ use std::io::BufReader;
 use std::path::{Path, PathBuf};
 
 mod color;
+mod writer;
 
 pub use color::{
     read_png_color_series, read_png_color_to_volume, PngColorReader, PngColorSeriesReader,
 };
+pub use writer::write_png;
 
 /// Reads a grayscale PNG into a native image shaped `[1, height, width]`.
 pub fn read_png_to_image<B, P>(path: P, backend: &B) -> Result<Image<f32, B, 3>>
@@ -36,32 +38,57 @@ where
 }
 
 fn decode_png_single(path: &Path) -> Result<(Vec<f32>, [usize; 3])> {
-    let image = open_png(path)?.to_luma8();
-    let (width, height) = image.dimensions();
-    Ok((
-        image.into_raw().into_iter().map(f32::from).collect(),
-        [1, height as usize, width as usize],
-    ))
+    let (pixels, width, height) = decode_grayscale(open_png(path)?);
+    Ok((pixels, [1, height as usize, width as usize]))
 }
 
 fn decode_png_series(directory: &Path) -> Result<(Vec<f32>, [usize; 3])> {
     let files = sorted_png_files(directory)?;
-    let first = open_png(&files[0])?.to_luma8();
-    let (width, height) = first.dimensions();
-    let mut pixels = Vec::new();
-    append_gray_pixels(&mut pixels, &first)?;
+    let (mut pixels, width, height) = decode_grayscale(open_png(&files[0])?);
     for file in &files[1..] {
-        let image = open_png(file)?.to_luma8();
-        let (actual_width, actual_height) = image.dimensions();
+        let (slice_pixels, actual_width, actual_height) = decode_grayscale(open_png(file)?);
         if (actual_width, actual_height) != (width, height) {
             anyhow::bail!(
                 "PNG size mismatch: {} is {actual_width}x{actual_height} but expected {width}x{height}",
                 file.display()
             );
         }
-        append_gray_pixels(&mut pixels, &image)?;
+        pixels
+            .try_reserve(slice_pixels.len())
+            .context("PNG series pixel allocation failed")?;
+        pixels.extend(slice_pixels);
     }
     Ok((pixels, [files.len(), height as usize, width as usize]))
+}
+
+fn decode_grayscale(image: DynamicImage) -> (Vec<f32>, u32, u32) {
+    match image {
+        DynamicImage::ImageLuma8(gray) => {
+            let (width, height) = gray.dimensions();
+            (
+                gray.into_raw().into_iter().map(f32::from).collect(),
+                width,
+                height,
+            )
+        }
+        DynamicImage::ImageLuma16(gray) => {
+            let (width, height) = gray.dimensions();
+            (
+                gray.into_raw().into_iter().map(f32::from).collect(),
+                width,
+                height,
+            )
+        }
+        other => {
+            let gray = other.to_luma8();
+            let (width, height) = gray.dimensions();
+            (
+                gray.into_raw().into_iter().map(f32::from).collect(),
+                width,
+                height,
+            )
+        }
+    }
 }
 
 pub(crate) fn open_png(path: &Path) -> Result<DynamicImage> {
@@ -69,14 +96,6 @@ pub(crate) fn open_png(path: &Path) -> Result<DynamicImage> {
         File::open(path).with_context(|| format!("failed to open PNG: {}", path.display()))?;
     image::load(BufReader::new(file), ImageFormat::Png)
         .with_context(|| format!("failed to decode PNG: {}", path.display()))
-}
-
-fn append_gray_pixels(output: &mut Vec<f32>, image: &image::GrayImage) -> Result<()> {
-    output
-        .try_reserve(image.as_raw().len())
-        .context("PNG series pixel allocation failed")?;
-    output.extend(image.as_raw().iter().copied().map(f32::from));
-    Ok(())
 }
 
 fn image_from_flat_pixels<B: ComputeBackend>(

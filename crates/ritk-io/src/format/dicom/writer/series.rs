@@ -5,7 +5,7 @@ use super::pixel_encoding::{
 };
 use crate::format::dicom::writer::elements::PutValue;
 use anyhow::{bail, Context, Result};
-use coeus_core::MoiraiBackend;
+use coeus_core::{ComputeBackend, CpuAddressableStorage};
 use dicom::core::smallvec::SmallVec;
 use dicom::core::{PrimitiveValue, Tag, VR};
 use dicom::object::meta::FileMetaTableBuilder;
@@ -67,8 +67,8 @@ pub fn write_dicom_series<B: Backend, P: AsRef<Path>>(
     write_series_flat(path.as_ref(), &all_data, image.shape(), &geom)
 }
 
-/// Write a native `Image<f32, MoiraiBackend, 3>` with shape `[depth, rows,
-/// cols]` as a series of per-slice single-frame DICOM Part 10 files.
+/// Write a native `Image<f32, B, 3>` with shape `[depth, rows, cols]` as a
+/// series of per-slice single-frame DICOM Part 10 files.
 ///
 /// Native counterpart of [`write_dicom_series`]: both route through the shared
 /// substrate-free `write_series_flat` encode core, so they emit
@@ -92,10 +92,12 @@ pub fn write_dicom_series<B: Backend, P: AsRef<Path>>(
 /// - Pixel representation: unsigned 16-bit MONOCHROME2; a single per-slice
 ///   linear rescale (slope/intercept) maps the slice's f32 range onto
 ///   `[0, 65535]` (see `normalize_to_u16`).
-pub fn write_dicom_series_native<P: AsRef<Path>>(
-    path: P,
-    image: &NativeImage<f32, MoiraiBackend, 3>,
-) -> Result<()> {
+pub fn write_dicom_series_native<B, P>(path: P, image: &NativeImage<f32, B, 3>) -> Result<()>
+where
+    B: ComputeBackend,
+    B::DeviceBuffer<f32>: CpuAddressableStorage<f32>,
+    P: AsRef<Path>,
+{
     let all_data = image
         .data_slice()
         .context("DICOM series writer requires contiguous f32 image data")?;

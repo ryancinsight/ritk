@@ -31,7 +31,8 @@ struct Cli {
 
 #[derive(Subcommand, Debug)]
 enum Commands {
-    /// Convert an image between supported formats (NIfTI, MetaImage, NRRD, PNG, MGH, TIFF).
+    /// Convert supported medical image formats.
+    /// DICOM directories require series selection when ambiguous.
     Convert(commands::convert::ConvertArgs),
 
     /// Process diffusion-weighted images (tensor fitting and scalar maps).

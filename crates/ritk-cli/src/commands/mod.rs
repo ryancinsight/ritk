@@ -16,11 +16,10 @@ pub mod stats;
 pub mod tract;
 pub mod viewer;
 
-use anyhow::{anyhow, bail, Context, Result};
+use anyhow::{anyhow, Context, Result};
 use coeus_core::SequentialBackend;
 use ritk_image::Image;
-use ritk_io::{is_rgb_dicom_series, ImageFormat};
-use ritk_io::{ImageReader, ImageWriter};
+use ritk_io::ImageFormat;
 use std::path::Path;
 
 // ── Shared backend ────────────────────────────────────────────────────────────
@@ -49,78 +48,21 @@ pub(crate) fn infer_format(path: &Path) -> Option<ImageFormat> {
 /// Returns an error when the extension is unrecognised or the underlying
 /// reader fails.
 pub(crate) fn read_image(path: &Path) -> Result<Image<f32, Backend, 3>> {
-    let backend = Backend::default();
     let fmt = infer_format(path)
         .ok_or_else(|| anyhow!("Cannot infer input format from path: {}", path.display()))?;
-
-    match fmt {
-        ImageFormat::Dicom => {
-            if is_rgb_dicom_series(path).unwrap_or(false) {
-                bail!(
-                    "RGB DICOM colour series are not supported by the CLI. \
-                     Use `ritk-snap` (the graphical viewer) to load and inspect RGB DICOM volumes."
-                );
-            }
-            ImageReader::read(
-                &ritk_io::format::dicom::native::DicomReader::new(backend),
-                path,
-            )
-            .with_context(|| format!("Failed to read DICOM series (native): {}", path.display()))
-        }
-        ImageFormat::Vtk => {
-            ImageReader::read(&ritk_io::format::vtk::native::VtkReader::new(backend), path)
-                .with_context(|| format!("Failed to read VTK file (native): {}", path.display()))
-        }
-        ImageFormat::NIfTI => ImageReader::read(
-            &ritk_io::format::nifti::native::NiftiReader::new(backend),
-            path,
-        )
-        .with_context(|| format!("Failed to read NIfTI file (native): {}", path.display())),
-        ImageFormat::MetaImage => ImageReader::read(
-            &ritk_io::format::metaimage::native::MetaImageReader::new(backend),
-            path,
-        )
-        .with_context(|| format!("Failed to read MetaImage file (native): {}", path.display())),
-        ImageFormat::Nrrd => ImageReader::read(
-            &ritk_io::format::nrrd::native::NrrdReader::new(backend),
-            path,
-        )
-        .with_context(|| format!("Failed to read NRRD file (native): {}", path.display())),
-        ImageFormat::Png => {
-            ImageReader::read(&ritk_io::format::png::native::PngReader::new(backend), path)
-                .with_context(|| format!("Failed to read PNG file (native): {}", path.display()))
-        }
-        ImageFormat::Mgh => {
-            ImageReader::read(&ritk_io::format::mgh::native::MghReader::new(backend), path)
-                .with_context(|| format!("Failed to read MGH file (native): {}", path.display()))
-        }
-        ImageFormat::Tiff => ImageReader::read(
-            &ritk_io::format::tiff::native::TiffReader::new(backend),
-            path,
-        )
-        .with_context(|| format!("Failed to read TIFF file (native): {}", path.display())),
-        ImageFormat::Jpeg => ImageReader::read(
-            &ritk_io::format::jpeg::native::JpegReader::new(backend),
-            path,
-        )
-        .with_context(|| format!("Failed to read JPEG file (native): {}", path.display())),
-        ImageFormat::Analyze => {
-            ImageReader::read(&ritk_io::format::analyze::AnalyzeReader::new(backend), path)
-                .with_context(|| {
-                    format!("Failed to read Analyze file (native): {}", path.display())
-                })
-        }
-    }
+    ritk_io::read_image_native(path)
+        .with_context(|| format!("Failed to read {fmt:?} file (native): {}", path.display()))
 }
 
 // ── Write helpers ─────────────────────────────────────────────────────────────
 
 /// Write `image` to `path` using the explicitly supplied `format`.
 ///
-/// Accepted formats: `NIfTI`, `MetaImage`, `Nrrd`, `Mgh`, `Tiff`, `Vtk`,
-/// `Jpeg`, `Analyze`.
-/// `Png` is recognised but unsupported (returns a descriptive `Err`).
-/// `Dicom` write is supported via [`ritk_io::write_dicom_series`].
+/// Dispatches through `ritk-io`'s native writer contract. DICOM writes a
+/// directory of derived Secondary Capture slices. PNG writes one grayscale
+/// slice with finite integer samples in the unsigned 16-bit range.
+/// JPEG output is lossy and limited to one grayscale slice; TIFF and JPEG do
+/// not retain physical-space metadata, and Analyze does not retain direction.
 ///
 /// # Errors
 /// Returns an error when the format is unsupported or the writer fails.
@@ -129,42 +71,8 @@ pub(crate) fn write_image(
     image: &Image<f32, Backend, 3>,
     format: ImageFormat,
 ) -> Result<()> {
-    match format {
-        ImageFormat::NIfTI => ritk_io::write_nifti::<Backend, _>(path, image)
-            .with_context(|| format!("Failed to write NIfTI file: {}", path.display())),
-        ImageFormat::MetaImage => ritk_io::write_metaimage::<Backend, _>(path, image)
-            .with_context(|| format!("Failed to write MetaImage file: {}", path.display())),
-        ImageFormat::Nrrd => ritk_io::write_nrrd::<Backend, _>(path, image)
-            .with_context(|| format!("Failed to write NRRD file: {}", path.display())),
-        ImageFormat::Mgh => ritk_io::write_mgh::<Backend, _>(image, path)
-            .with_context(|| format!("Failed to write MGH file: {}", path.display())),
-        ImageFormat::Tiff => ImageWriter::write(
-            &ritk_io::format::tiff::native::TiffWriter::new(Backend::default()),
-            path,
-            image,
-        )
-        .with_context(|| format!("Failed to write TIFF file: {}", path.display())),
-        ImageFormat::Jpeg => ImageWriter::write(
-            &ritk_io::format::jpeg::native::JpegWriter::new(Backend::default()),
-            path,
-            image,
-        )
-        .with_context(|| format!("Failed to write JPEG file: {}", path.display())),
-        ImageFormat::Vtk => ImageWriter::write(
-            &ritk_io::format::vtk::native::VtkWriter::new(Backend::default()),
-            path,
-            image,
-        )
-        .with_context(|| format!("Failed to write VTK file: {}", path.display())),
-        ImageFormat::Png => Err(anyhow!(
-            "PNG output is not supported: ritk-io has no write_png implementation. \
-             Convert to NIfTI, MetaImage, or NRRD instead."
-        )),
-        ImageFormat::Dicom => ritk_io::write_dicom_series::<Backend, _>(path, image)
-            .with_context(|| format!("Failed to write DICOM series to: {}", path.display())),
-        ImageFormat::Analyze => ritk_io::write_analyze::<Backend, _>(path, image)
-            .with_context(|| format!("Failed to write Analyze file: {}", path.display())),
-    }
+    ritk_io::write_image_native_with_format(path, image, format)
+        .with_context(|| format!("Failed to write {format:?} file: {}", path.display()))
 }
 
 /// Write `image` to `path`, inferring the output format from the path extension.
@@ -183,36 +91,12 @@ pub(crate) fn write_image_inferred(path: &Path, image: &Image<f32, Backend, 3>) 
 
 /// True when `fmt` has an Atlas-native reader (ADR 0003 Phase A coverage).
 pub(crate) fn is_read_capable(fmt: ImageFormat) -> bool {
-    matches!(
-        fmt,
-        ImageFormat::NIfTI
-            | ImageFormat::Nrrd
-            | ImageFormat::Analyze
-            | ImageFormat::Mgh
-            | ImageFormat::MetaImage
-            | ImageFormat::Tiff
-            | ImageFormat::Jpeg
-            | ImageFormat::Vtk
-            | ImageFormat::Png
-            | ImageFormat::Dicom
-    )
+    ritk_io::is_native_read_capable(fmt)
 }
 
 /// True when `fmt` has an Atlas-native writer (ADR 0003 Phase A coverage).
-///
-/// Narrower than [`is_read_capable`]: PNG has no native writer.
 pub(crate) fn is_write_capable(fmt: ImageFormat) -> bool {
-    matches!(
-        fmt,
-        ImageFormat::NIfTI
-            | ImageFormat::Nrrd
-            | ImageFormat::Analyze
-            | ImageFormat::Mgh
-            | ImageFormat::MetaImage
-            | ImageFormat::Tiff
-            | ImageFormat::Jpeg
-            | ImageFormat::Vtk
-    )
+    ritk_io::is_native_write_capable(fmt)
 }
 
 // ── Tests ──────────────────────────────────────────────────────────────────────
@@ -259,6 +143,18 @@ mod tests {
         assert_eq!(
             infer_format(Path::new("volume.nrrd")),
             Some(ImageFormat::Nrrd)
+        );
+    }
+
+    #[test]
+    fn test_infer_format_minc() {
+        assert_eq!(
+            infer_format(Path::new("volume.mnc")),
+            Some(ImageFormat::Minc)
+        );
+        assert_eq!(
+            infer_format(Path::new("volume.mnc2")),
+            Some(ImageFormat::Minc)
         );
     }
 
@@ -356,10 +252,7 @@ mod tests {
             is_read_capable(ImageFormat::Dicom),
             "DICOM reads must route through the native reader"
         );
-        assert!(
-            !is_write_capable(ImageFormat::Dicom),
-            "DICOM writes remain on the legacy writer until a native writer exists"
-        );
+        assert!(is_write_capable(ImageFormat::Dicom));
         assert!(is_read_capable(ImageFormat::Vtk));
     }
 }

@@ -1,6 +1,6 @@
 # Example: DICOM to NIfTI Conversion
 
-Analyze 7.5 to NIfTI converter example.
+Reads a DICOM series through RITK and writes a NIfTI volume.
 
 ## Source
 
@@ -8,17 +8,18 @@ Analyze 7.5 to NIfTI converter example.
 
 ## Description
 
-This example loads an Analyze 7.5 image pair and saves it as a NIfTI file.
-It exercises the `ritk-io` DICOM reader and NIfTI writer boundaries.
+The optional `series_uid` selects a series from a directory containing more
+than one image series. Without it, RITK accepts only an unambiguous directory.
+Both pixel decoding and NIfTI output use the RITK I/O APIs.
 
 ## Usage
 
 ```bash
-cargo run --example dicom_to_nifti -- <input_dir> <output_nifti>
+cargo run --example dicom_to_nifti -- <input_dicom_series_dir> <output_nifti> [series_uid]
 ```
 
 ## Verification
 
-- Reads a scalar Analyze 7.5 image
-- Writes a NIfTI file with correct affine metadata
-- Round-trips through `ritk-image` boundary types
+- Reads one selected DICOM image series
+- Writes a NIfTI file with preserved image geometry
+- Rejects ambiguous series directories unless a UID is supplied
