@@ -16,7 +16,7 @@
 //! - L2 smoothness penalty
 
 use super::trait_::Regularizer;
-use coeus_core::{ComputeBackend, CpuAddressableStorage, Scalar};
+use coeus_core::{ComputeBackend, CpuAddressableStorage, FloatElement, Scalar};
 use coeus_tensor::Tensor;
 
 /// Diffusion regularizer for displacement fields.
@@ -59,7 +59,7 @@ impl Default for DiffusionRegularizer {
 
 impl<T, B> Regularizer<T, B> for DiffusionRegularizer
 where
-    T: Scalar,
+    T: Scalar + FloatElement,
     B: ComputeBackend + Default,
     B::DeviceBuffer<T>: CpuAddressableStorage<T>,
 {

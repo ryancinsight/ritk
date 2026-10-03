@@ -8,7 +8,9 @@
 //! `Var` this reduction consumes.
 
 use coeus_autograd::{mean, mul, sub, Var};
-use coeus_core::{ComputeBackend, CpuAddressableStorage, CpuAddressableStorageMut, Float, Scalar};
+use coeus_core::{
+    ComputeBackend, CpuAddressableStorage, CpuAddressableStorageMut, Float, FloatElement, Scalar,
+};
 use coeus_ops::BackendOps;
 
 use super::traits::Metric;
@@ -33,7 +35,7 @@ use super::traits::Metric;
 /// elementwise `sub` contract (a caller invariant, not input-data error).
 pub fn mean_squared_error<T, B>(moving: &Var<T, B>, fixed: &Var<T, B>) -> Var<T, B>
 where
-    T: Scalar,
+    T: Scalar + FloatElement,
     B: ComputeBackend + BackendOps<T> + Default,
 {
     let diff = sub(moving, fixed);
@@ -48,7 +50,7 @@ pub struct Mse;
 
 impl<T, B> Metric<T, B> for Mse
 where
-    T: Float,
+    T: Float + FloatElement,
     B: ComputeBackend + BackendOps<T> + Default,
     B::DeviceBuffer<T>: CpuAddressableStorage<T> + CpuAddressableStorageMut<T>,
 {

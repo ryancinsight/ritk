@@ -15,7 +15,9 @@ use coeus_autograd::{
     avg_pool3d, broadcast_to, div, exp, log, matmul, mean, mul, neg, permute, reshape, scalar_add,
     scalar_div, scalar_mul, sqrt, sub, sum, sum_axis, Var,
 };
-use coeus_core::{ComputeBackend, CpuAddressableStorage, CpuAddressableStorageMut, Float};
+use coeus_core::{
+    ComputeBackend, CpuAddressableStorage, CpuAddressableStorageMut, Float, FloatElement,
+};
 use coeus_ops::BackendOps;
 use coeus_tensor::Tensor;
 
@@ -36,7 +38,7 @@ where
 /// inputs; the reverse pass yields `∂MSE/∂moving = (2/N)·(moving − fixed)`.
 pub fn mse_loss<T, B>(fixed: &Var<T, B>, moving: &Var<T, B>) -> Var<T, B>
 where
-    T: Float,
+    T: Float + FloatElement,
     B: ComputeBackend + BackendOps<T> + Default,
     B::DeviceBuffer<T>: CpuAddressableStorage<T> + CpuAddressableStorageMut<T>,
 {
@@ -54,7 +56,7 @@ where
 /// broadcasting is needed and gradients flow to both inputs.
 pub fn ncc_loss<T, B>(fixed: &Var<T, B>, moving: &Var<T, B>) -> Var<T, B>
 where
-    T: Float,
+    T: Float + FloatElement,
     B: ComputeBackend + BackendOps<T> + Default,
     B::DeviceBuffer<T>: CpuAddressableStorage<T> + CpuAddressableStorageMut<T>,
 {
@@ -70,13 +72,13 @@ where
     let s_mm = sum_axis(&square(&m), 1);
     let s_fm = sum_axis(&mul(&f, &m), 1);
 
-    let inv_n = T::from_f64(n as f64);
+    let inv_n = T::from_count(n);
     // num = S_FM − S_F·S_M / N ; d_X = S_XX − S_X² / N.
     let num = sub(&s_fm, &scalar_div(&mul(&s_f, &s_m), inv_n));
     let d_f = sub(&s_ff, &scalar_div(&square(&s_f), inv_n));
     let d_m = sub(&s_mm, &scalar_div(&square(&s_m), inv_n));
 
-    let eps = T::from_f64(1e-5);
+    let eps = <T as FloatElement>::from_f64(1e-5);
     let ncc = div(&num, &scalar_add(&sqrt(&mul(&d_f, &d_m)), eps));
 
     neg(&mean(&ncc))
@@ -94,7 +96,7 @@ where
 /// fields; `LNCC = Cov / √(Var_F·Var_M + ε)`.
 pub fn lncc_loss<T, B>(fixed: &Var<T, B>, moving: &Var<T, B>, kernel_size: usize) -> Var<T, B>
 where
-    T: Float,
+    T: Float + FloatElement,
     B: ComputeBackend + BackendOps<T> + Default,
     B::DeviceBuffer<T>: CpuAddressableStorage<T> + CpuAddressableStorageMut<T>,
 {
@@ -109,7 +111,7 @@ where
     let var_m = sub(&mean_m2, &square(&mean_m));
     let cov = sub(&mean_fm, &mul(&mean_f, &mean_m));
 
-    let eps = T::from_f64(1e-5);
+    let eps = <T as FloatElement>::from_f64(1e-5);
     let cc = div(&cov, &scalar_add(&sqrt(&mul(&var_f, &var_m)), eps));
 
     neg(&mean(&cc))

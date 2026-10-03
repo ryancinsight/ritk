@@ -19,7 +19,9 @@
 //! is a thin convenience wrapper constructing an [`Affine`] and dispatching.
 
 use coeus_autograd::{reshape, slice, Var};
-use coeus_core::{ComputeBackend, CpuAddressableStorage, CpuAddressableStorageMut, Float};
+use coeus_core::{
+    ComputeBackend, CpuAddressableStorage, CpuAddressableStorageMut, Float, FloatElement,
+};
 use coeus_ops::BackendOps;
 
 use super::mse::Mse;
@@ -57,7 +59,7 @@ pub fn affine_mse<T, B>(
     t: &Var<T, B>,
 ) -> Var<T, B>
 where
-    T: Float,
+    T: Float + FloatElement,
     B: ComputeBackend + BackendOps<T> + Default,
     B::DeviceBuffer<T>: CpuAddressableStorage<T> + CpuAddressableStorageMut<T>,
 {
@@ -81,7 +83,7 @@ pub fn mse_metric<T, B, Tf>(
     transform: &Tf,
 ) -> Var<T, B>
 where
-    T: Float,
+    T: Float + FloatElement,
     B: ComputeBackend + BackendOps<T> + Default,
     B::DeviceBuffer<T>: CpuAddressableStorage<T> + CpuAddressableStorageMut<T>,
     Tf: Transform<T, B>,

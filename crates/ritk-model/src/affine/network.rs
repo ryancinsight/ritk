@@ -11,7 +11,7 @@
 //! or backends cross this boundary.
 
 use coeus_autograd::{add, relu, reshape, Parameter, Var};
-use coeus_core::{CpuAddressableStorageMut, Float, MoiraiBackend};
+use coeus_core::{CpuAddressableStorageMut, Float, FloatElement, MoiraiBackend};
 use coeus_nn::module::Module;
 use coeus_nn::{Conv3d, GlobalAvgPool3d, InstanceNorm3d, Linear};
 use coeus_ops::{BackendOps, CpuBackend};
@@ -158,7 +158,7 @@ where
 
 impl<T, B> Module<T, B> for AffineNetwork<T, B>
 where
-    T: Float,
+    T: Float + FloatElement,
     B: BackendOps<T> + Default,
 {
     fn parameters(&self) -> Vec<Var<T, B>> {
@@ -240,7 +240,7 @@ where
 
 impl<T, B> AffineNetwork<T, B>
 where
-    T: Float,
+    T: Float + FloatElement,
     B: BackendOps<T> + Default,
 {
     /// The five `conv → norm` stages as trait objects, in forward order.
