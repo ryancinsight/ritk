@@ -15,7 +15,8 @@
 use anyhow::{bail, Context, Result};
 use base64::{engine::general_purpose::STANDARD, Engine as _};
 use coeus_core::SequentialBackend;
-use eunomia::{CastFrom, FloatElement};
+use eunomia::convert::IntegerTarget;
+use eunomia::FloatElement;
 use image::{codecs::png::PngEncoder, ColorType, ImageEncoder};
 use ritk_filter::resample::native::{fixed_world_points, resample_moving_at_world};
 use ritk_image::Image;
@@ -238,7 +239,7 @@ struct SvgPanel<'a> {
 }
 
 fn channel(value: f32) -> u8 {
-    u8::cast_from(value.clamp(0.0, 255.0).round())
+    u8::from_truncated(f64::from(value.clamp(0.0, 255.0).round()))
 }
 
 fn panel_png_data_uri(content: &PanelContent<'_>, shape: [usize; 3]) -> Result<String> {
