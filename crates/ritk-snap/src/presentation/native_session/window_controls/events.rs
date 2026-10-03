@@ -97,48 +97,46 @@ impl WindowChrome {
                 });
             }
         }
-        if self.open_menu.is_none() {
-            if let PresentationEvent::KeyDown {
+        if self.open_menu.is_none()
+            && let PresentationEvent::KeyDown {
                 virtual_key,
                 repeated: false,
                 modifiers,
             } = event
-            {
-                if *modifiers == PresentationModifiers::NONE {
-                    let current_series = displayed_series
-                        .get(active_panel)
-                        .copied()
-                        .flatten()
-                        .or_else(|| browser.as_ref().map(SeriesBrowser::active_index));
-                    let index = match *virtual_key {
-                        0x24 => browser
-                            .as_ref()
-                            .filter(|_| current_series.is_some_and(|current| current != 0))
-                            .map(|_| 0),
-                        0x23 => browser.as_ref().and_then(|browser| {
-                            current_series
-                                .is_some_and(|current| current.saturating_add(1) < browser.len())
-                                .then_some(browser.len().saturating_sub(1))
-                        }),
-                        0x25 => browser
-                            .as_ref()
-                            .and_then(|browser| adjacent_series(browser, current_series?, -1)),
-                        0x27 => browser
-                            .as_ref()
-                            .and_then(|browser| adjacent_series(browser, current_series?, 1)),
-                        _ => None,
-                    };
-                    if let Some(index) = index {
-                        return Ok(WindowChromeEvent {
-                            consumed: true,
-                            repaint: true,
-                            action: Some(WindowAction::BrowseSeries {
-                                series_index: index,
-                                panel_index: active_panel,
-                            }),
-                        });
-                    }
-                }
+            && *modifiers == PresentationModifiers::NONE
+        {
+            let current_series = displayed_series
+                .get(active_panel)
+                .copied()
+                .flatten()
+                .or_else(|| browser.as_ref().map(SeriesBrowser::active_index));
+            let index = match *virtual_key {
+                0x24 => browser
+                    .as_ref()
+                    .filter(|_| current_series.is_some_and(|current| current != 0))
+                    .map(|_| 0),
+                0x23 => browser.as_ref().and_then(|browser| {
+                    current_series
+                        .is_some_and(|current| current.saturating_add(1) < browser.len())
+                        .then_some(browser.len().saturating_sub(1))
+                }),
+                0x25 => browser
+                    .as_ref()
+                    .and_then(|browser| adjacent_series(browser, current_series?, -1)),
+                0x27 => browser
+                    .as_ref()
+                    .and_then(|browser| adjacent_series(browser, current_series?, 1)),
+                _ => None,
+            };
+            if let Some(index) = index {
+                return Ok(WindowChromeEvent {
+                    consumed: true,
+                    repaint: true,
+                    action: Some(WindowAction::BrowseSeries {
+                        series_index: index,
+                        panel_index: active_panel,
+                    }),
+                });
             }
         }
         if matches!(

@@ -104,10 +104,10 @@ impl MultiSeriesDialog {
                         if let Some(index) = self.matches.first().copied() {
                             self.set_single(index);
                         }
-                    } else if self.selected.is_empty() {
-                        if let Some(index) = self.matches.first().copied() {
-                            self.set_single(index);
-                        }
+                    } else if self.selected.is_empty()
+                        && let Some(index) = self.matches.first().copied()
+                    {
+                        self.set_single(index);
                     }
                     if self.selected.is_empty() {
                         Ok(changed(false))

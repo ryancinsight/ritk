@@ -166,7 +166,7 @@ impl NativeApplication for NativeViewerSession {
             self.active_view,
             self.active_app().axis,
             maximized_panel,
-            displayed_series,
+            &displayed_series,
             browser_active_index,
         )?;
         let chrome_before = self.window_chrome.clone();

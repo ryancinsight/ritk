@@ -174,19 +174,21 @@ impl NativeViewerSession {
     }
 
     pub(super) fn active_app(&self) -> &SnapApp {
-        if self.workspace_layout.is_grid() && self.active_panel > 0 {
-            if let Some(panel) = self.compare_panels.get(self.active_panel - 1) {
-                return &panel.app;
-            }
+        if self.workspace_layout.is_grid()
+            && self.active_panel > 0
+            && let Some(panel) = self.compare_panels.get(self.active_panel - 1)
+        {
+            return &panel.app;
         }
         &self.app
     }
 
     pub(super) fn active_app_mut(&mut self) -> &mut SnapApp {
-        if self.workspace_layout.is_grid() && self.active_panel > 0 {
-            if let Some(panel) = self.compare_panels.get_mut(self.active_panel - 1) {
-                return &mut panel.app;
-            }
+        if self.workspace_layout.is_grid()
+            && self.active_panel > 0
+            && let Some(panel) = self.compare_panels.get_mut(self.active_panel - 1)
+        {
+            return &mut panel.app;
         }
         &mut self.app
     }

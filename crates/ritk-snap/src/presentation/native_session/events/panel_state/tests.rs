@@ -4,7 +4,7 @@ use super::*;
 fn keyboard_series_navigation_uses_the_predicted_browser_cursor() {
     let layout = WorkspaceLayout::Panels(PanelGrid::new(2, 1).expect("two-panel grid"));
     let displayed_series = std::array::from_fn(|index| (index == 0).then_some(0));
-    let mut state = KeyboardPanelState::new(layout, 0, None, 0, None, displayed_series, Some(0))
+    let mut state = KeyboardPanelState::new(layout, 0, None, 0, None, &displayed_series, Some(0))
         .expect("valid panel state");
 
     state
@@ -33,7 +33,7 @@ fn closing_a_panel_resets_the_predicted_browser_cursor_to_primary() {
         1 => Some(2),
         _ => None,
     });
-    let mut state = KeyboardPanelState::new(layout, 1, None, 0, None, displayed_series, Some(2))
+    let mut state = KeyboardPanelState::new(layout, 1, None, 0, None, &displayed_series, Some(2))
         .expect("valid panel state");
 
     state

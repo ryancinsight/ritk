@@ -28,9 +28,9 @@ impl RoutedBatch {
 
 /// Tracks pointer capture and keyboard fallback within one host event batch.
 pub(super) struct PanelEventRouter {
-    active_panel: usize,
-    active_view: Option<usize>,
-    active_axis: usize,
+    panel: usize,
+    view: Option<usize>,
+    axis: usize,
 }
 
 impl PanelEventRouter {
@@ -40,18 +40,18 @@ impl PanelEventRouter {
         active_axis: usize,
     ) -> Self {
         Self {
-            active_panel,
-            active_view,
-            active_axis,
+            panel: active_panel,
+            view: active_view,
+            axis: active_axis,
         }
     }
 
     pub(super) const fn active_panel(&self) -> usize {
-        self.active_panel
+        self.panel
     }
 
     pub(super) const fn active_view(&self) -> Option<usize> {
-        self.active_view
+        self.view
     }
 
     pub(super) fn route(
@@ -60,23 +60,17 @@ impl PanelEventRouter {
         layout: WorkspaceLayout,
         viewports: &[super::layout::NativeViewport],
     ) -> Option<usize> {
-        let selected_view = event_view_index(
-            event,
-            self.active_view,
-            self.active_panel,
-            self.active_axis,
-            layout,
-            viewports,
-        );
+        let selected_view =
+            event_view_index(event, self.view, self.panel, self.axis, layout, viewports);
         if let Some(index) = selected_view {
             if layout.is_grid() {
-                self.active_panel = index;
+                self.panel = index;
             }
             if let Some(viewport) = viewports.get(index) {
-                self.active_axis = viewport.axis();
+                self.axis = viewport.axis();
             }
         }
-        update_active_view(&mut self.active_view, event, viewports);
+        update_active_view(&mut self.view, event, viewports);
         selected_view
     }
 }

@@ -26,16 +26,16 @@ impl KeyboardPanelState {
         active_view: Option<usize>,
         active_axis: usize,
         maximized_panel: Option<MaximizedPanel>,
-        displayed_series: [Option<usize>; MAX_GRID_PANELS],
+        displayed_series: &[Option<usize>; MAX_GRID_PANELS],
         browser_active_index: Option<usize>,
     ) -> Result<Self, NativeViewerError> {
-        let panel_series = displayed_series;
-        if let Some(maximized) = maximized_panel {
-            if maximized.panel_index >= panel_series.len() {
-                return Err(NativeViewerError::new(
-                    "maximized series panel is outside the supported panel range",
-                ));
-            }
+        let panel_series = *displayed_series;
+        if let Some(maximized) = maximized_panel
+            && maximized.panel_index >= panel_series.len()
+        {
+            return Err(NativeViewerError::new(
+                "maximized series panel is outside the supported panel range",
+            ));
         }
         Ok(Self {
             layout,
@@ -44,7 +44,7 @@ impl KeyboardPanelState {
             maximized_panel,
             panel_routes: PanelRouteMap::new(layout),
             panel_series,
-            displayed_series,
+            displayed_series: *displayed_series,
             browser_active_index,
             input_router: PanelEventRouter::new(active_panel, active_view, active_axis),
         })
