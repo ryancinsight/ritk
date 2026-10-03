@@ -1,7 +1,7 @@
 //! Native-window pointer, keyboard and dialog input ownership.
 
 use super::super::layout::{
-    NativeViewport, PanelHeaderAction, WorkspaceLayout, panel_header_action_at,
+    panel_header_action_at, NativeViewport, PanelHeaderAction, WorkspaceLayout,
 };
 use super::super::series_browser::SeriesBrowser;
 use super::layout::ChromeLayout;
@@ -9,7 +9,7 @@ use super::multi_series::DialogAction;
 use super::{PanelCloseKind, PointerOwner, WindowAction, WindowChrome, WindowChromeEvent};
 use crate::app::SnapApp;
 use crate::presentation::{PointerButton, PresentationEvent, PresentationModifiers};
-use anyhow::{Result, anyhow};
+use anyhow::{anyhow, Result};
 
 impl WindowChrome {
     pub(in crate::presentation::native_session) fn handle_event(

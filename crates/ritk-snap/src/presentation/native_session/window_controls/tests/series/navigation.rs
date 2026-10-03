@@ -1,5 +1,5 @@
 use super::*;
-use crate::presentation::native_session::layout::{GridPanel, MAX_GRID_PANELS, NativeViewport};
+use crate::presentation::native_session::layout::{GridPanel, NativeViewport, MAX_GRID_PANELS};
 use crate::tools::interaction::ViewportOffset;
 
 fn four_pane_viewports(

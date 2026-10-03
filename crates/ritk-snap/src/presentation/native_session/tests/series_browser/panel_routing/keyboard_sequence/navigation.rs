@@ -97,7 +97,10 @@ fn queued_navigation_recomputes_after_a_real_series_load_failure() {
             .map(|browser| browser.active_index()),
         Some(0)
     );
-    assert_eq!(viewer.compare_panels[0].series_index, None);
+    assert!(
+        viewer.compare_panels.is_empty(),
+        "failed primary series loads must not create comparison panels"
+    );
 }
 
 #[test]

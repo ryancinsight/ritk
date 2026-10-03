@@ -13,14 +13,10 @@ fn closing_an_empty_selected_panel_preserves_the_survivor_assignments() {
         ))
         .expect("select three-panel layout");
     viewer.refresh_frame().expect("render the primary series");
-    viewer
-        .handle_events(&[WindowEvent::KeyDown {
-            virtual_key: 0x09,
-            repeated: false,
-            modifiers: ModifierState::NONE,
-        }])
-        .expect("select the empty second panel");
-    assert_eq!(viewer.active_panel, 1);
+    assert_eq!(
+        viewer.active_panel, 1,
+        "new panel layout selects the first empty comparison panel"
+    );
 
     viewer
         .handle_events(&[WindowEvent::KeyDown {

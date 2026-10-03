@@ -110,11 +110,17 @@ fn compact_four_row_layout_preserves_populated_panel_geometry() {
     }
     let final_viewport = rendered.viewports[3];
     assert_eq!(
-        rendered.framebuffer.get_pixel(0, viewport_area.y),
+        rendered.framebuffer.get_pixel(
+            0,
+            i32::try_from(viewport_area.y).expect("test viewport y fits i32"),
+        ),
         INACTIVE_PANEL
     );
     assert_eq!(
-        rendered.framebuffer.get_pixel(0, final_viewport.panel_y),
+        rendered.framebuffer.get_pixel(
+            0,
+            i32::try_from(final_viewport.panel_y).expect("test panel y fits i32"),
+        ),
         ACTIVE_PANEL
     );
     assert_eq!(

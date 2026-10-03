@@ -7,13 +7,13 @@ use self::panel_chrome::draw_panel_actions;
 use super::super::frame::RenderedView;
 use super::composition::blit_frame;
 use super::geometry::{
-    NativeViewport, ScreenRect, VIEW_GAP_PIXELS, ViewportArea, placement_with_bounds,
+    placement_with_bounds, NativeViewport, ScreenRect, ViewportArea, VIEW_GAP_PIXELS,
 };
 use super::text::{draw_text, text_style};
 use crate::tools::interaction::ViewportOffset;
-use anyhow::{Result, anyhow, bail};
+use anyhow::{anyhow, bail, Result};
 use arrayvec::ArrayVec;
-use metis_platform::rasterizer::{CornerRadius, fill_rect};
+use metis_platform::rasterizer::{fill_rect, CornerRadius};
 use metis_platform::{Color, Framebuffer, Rect};
 use std::num::NonZeroU8;
 
