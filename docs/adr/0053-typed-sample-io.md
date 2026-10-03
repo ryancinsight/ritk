@@ -1,6 +1,6 @@
-# 0053: Typed stored-sample I/O
+# ADR 0053: Typed stored-sample I/O
 
-Status: Accepted
+- Status: Accepted
 
 This decision is retroactive. It records the stored-sample boundary required
 by `RITK-TYPED-SAMPLES-001` and the format-conversion campaign
