@@ -6,10 +6,9 @@ import sys
 import unittest
 
 _scripts_root = pathlib.Path(__file__).resolve().parents[1]
+_metis_root = pathlib.Path(__file__).resolve().parents[3] / "metis"
 sys.path.insert(0, str(_scripts_root))
-from workspace_paths import metis_scripts
-
-sys.path.insert(0, str(metis_scripts(__file__)))
+sys.path.insert(0, str(_metis_root / "scripts"))
 
 import browser_gallery
 

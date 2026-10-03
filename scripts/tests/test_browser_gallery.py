@@ -8,10 +8,9 @@ import tempfile
 import unittest
 from unittest import mock
 
+_metis_root = pathlib.Path(__file__).resolve().parents[3] / "metis"
 sys.path.insert(0, str(pathlib.Path(__file__).resolve().parents[1]))
-from workspace_paths import metis_scripts
-
-sys.path.insert(0, str(metis_scripts(__file__)))
+sys.path.insert(0, str(_metis_root / "scripts"))
 import browser_gallery
 import browser_gallery_cine
 import browser_gallery_tools
