@@ -11,7 +11,8 @@
 //! - `grid`:  `[b, 3, out_d, out_h, out_w]` channel 0=z, 1=y, 2=x
 //! - output:  `[b, c, out_d, out_h, out_w]`
 
-use eunomia::{CastFrom, FloatElement};
+use eunomia::convert::IntegerTarget;
+use eunomia::FloatElement;
 
 /// Trilinear image sampling on a flat voxel buffer.
 ///
@@ -35,7 +36,6 @@ pub fn trilinear_interpolation<T>(
 ) -> Vec<T>
 where
     T: Copy + FloatElement,
-    usize: CastFrom<T>,
 {
     assert_eq!(
         image.len(),
@@ -109,12 +109,11 @@ where
 fn split<T>(coord: T, size: usize) -> (usize, usize, T)
 where
     T: Copy + FloatElement,
-    usize: CastFrom<T>,
 {
     let max = T::from_f64(size.saturating_sub(1) as f64);
     let c = coord.max(T::ZERO).min(max);
     let fl = c.floor();
-    let i0 = usize::cast_from(fl).min(size.saturating_sub(1));
+    let i0 = usize::from_truncated(fl.to_f64()).min(size.saturating_sub(1));
     let i1 = (i0 + 1).min(size.saturating_sub(1));
     (i0, i1, c - fl)
 }
@@ -127,12 +126,11 @@ fn at<T: Copy>(buf: &[T], base: usize, zi: usize, yi: usize, xi: usize, h: usize
 #[cfg(test)]
 mod tests {
     use super::trilinear_interpolation;
-    use eunomia::{CastFrom, FloatElement};
+    use eunomia::FloatElement;
 
     fn assert_sampling_contract<T>()
     where
         T: Copy + core::fmt::Debug + PartialEq + FloatElement,
-        usize: CastFrom<T>,
     {
         let image = (0..8)
             .map(|value| T::from_f64(f64::from(value)))

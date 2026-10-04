@@ -10,7 +10,7 @@
 use anyhow::{bail, Context, Result};
 use base64::{engine::general_purpose::STANDARD, Engine as _};
 use coeus_core::SequentialBackend;
-use eunomia::CastFrom;
+use eunomia::convert::IntegerTarget;
 use image::{codecs::png::PngEncoder, ColorType, ImageEncoder};
 use ritk_filter::{IntensityWindowingFilter, RescaleIntensityFilter};
 use ritk_io::{format::metaimage::native::MetaImageReader, ImageReader};
@@ -67,7 +67,9 @@ fn intensity_to_gray(value: f32, lower: f32, upper: f32) -> u8 {
     if !value.is_finite() {
         return 0;
     }
-    u8::cast_from(((((value - lower) / (upper - lower)).clamp(0.0, 1.0)) * 255.0).round())
+    u8::from_truncated(f64::from(
+        ((((value - lower) / (upper - lower)).clamp(0.0, 1.0)) * 255.0).round(),
+    ))
 }
 
 struct ImagePanel<'a> {
@@ -155,7 +157,7 @@ fn draw_histogram_panel(
         .filter(|value| value.is_finite() && *value >= lower && *value <= upper)
     {
         let scaled = ((value - lower) / (upper - lower)) * bin_count;
-        let index = usize::cast_from(scaled.floor()).min(HISTOGRAM_BINS - 1);
+        let index = usize::from_floor(scaled).min(HISTOGRAM_BINS - 1);
         bins[index] = bins[index]
             .checked_add(1)
             .context("histogram bin count overflows usize")?;
