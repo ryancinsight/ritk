@@ -8,6 +8,7 @@ use std::path::Path;
 
 use crate::axes::AcquisitionAxis;
 
+mod geometry;
 mod payload;
 pub(super) use payload::parse_nrrd_raw;
 

@@ -25,7 +25,7 @@
 
 use std::sync::Arc;
 
-use crate::Direction;
+use crate::{Direction, Vector};
 
 /// Why a coordinate map or its geometry was rejected.
 #[derive(Debug, Clone, PartialEq, thiserror::Error)]
@@ -67,6 +67,30 @@ pub enum InvalidCoordinateMap {
     /// A [`SliceSeries`] must carry at least one transform.
     #[error("slice series must have at least one transform, got zero")]
     TooFewSlices,
+    /// A slice transform contains a non-finite matrix or translation value.
+    #[error("slice {slice} {field} component {component} is not finite: {value}")]
+    NonFiniteSliceTransform {
+        /// Index of the invalid slice.
+        slice: usize,
+        /// Transform component group: `rotation` or `translation`.
+        field: &'static str,
+        /// Row-major matrix component or translation component index.
+        component: usize,
+        /// Non-finite component value.
+        value: f64,
+    },
+    /// A slice transform's linear map collapses at least one dimension.
+    #[error("slice {slice} rotation matrix is singular")]
+    SingularSliceTransform {
+        /// Index of the singular slice.
+        slice: usize,
+    },
+    /// A finite matrix produced a non-finite determinant in `f64` arithmetic.
+    #[error("slice {slice} rotation determinant is not representable")]
+    UnrepresentableSliceTransform {
+        /// Index of the affected slice.
+        slice: usize,
+    },
 }
 
 /// Convex (curvilinear) array acquisition geometry.
@@ -503,9 +527,28 @@ impl SliceTransform {
             world[1] - self.translation[1],
             world[2] - self.translation[2],
         ];
-        self.rotation[(0, 2)] * rel[0]
-            + self.rotation[(1, 2)] * rel[1]
-            + self.rotation[(2, 2)] * rel[2]
+        let normal = self.plane_normal();
+        normal[0] * rel[0] + normal[1] * rel[1] + normal[2] * rel[2]
+    }
+
+    fn plane_normal(&self) -> [f64; 3] {
+        let scale = (0..3)
+            .flat_map(|row| [self.rotation[(row, 0)].abs(), self.rotation[(row, 1)].abs()])
+            .fold(0.0_f64, f64::max);
+        let first = std::array::from_fn(|row| self.rotation[(row, 0)] / scale);
+        let second = std::array::from_fn(|row| self.rotation[(row, 1)] / scale);
+        let mut normal = Vector::new(first)
+            .cross(&Vector::new(second))
+            .normalized()
+            .expect("invariant: validated slice transform spans an in-plane basis");
+        let third_scale = (0..3)
+            .map(|row| self.rotation[(row, 2)].abs())
+            .fold(0.0_f64, f64::max);
+        let third = std::array::from_fn(|row| self.rotation[(row, 2)] / third_scale);
+        if normal.dot(&Vector::new(third)) < 0.0 {
+            normal = -normal;
+        }
+        normal.to_array()
     }
 }
 
@@ -550,11 +593,41 @@ impl SliceSeries {
     ///
     /// # Errors
     ///
-    /// Returns [`InvalidCoordinateMap::TooFewSlices`] when `transforms` is
-    /// empty.
+    /// Returns an error when `transforms` is empty or contains a non-finite
+    /// component, a singular matrix, or a matrix whose determinant overflows
+    /// `f64`.
     pub fn try_new(transforms: Vec<SliceTransform>) -> Result<Self, InvalidCoordinateMap> {
         if transforms.is_empty() {
             return Err(InvalidCoordinateMap::TooFewSlices);
+        }
+        for (slice, transform) in transforms.iter().enumerate() {
+            for (component, value) in transform.rotation.iter().enumerate() {
+                if !value.is_finite() {
+                    return Err(InvalidCoordinateMap::NonFiniteSliceTransform {
+                        slice,
+                        field: "rotation",
+                        component,
+                        value: *value,
+                    });
+                }
+            }
+            for (component, value) in transform.translation.iter().enumerate() {
+                if !value.is_finite() {
+                    return Err(InvalidCoordinateMap::NonFiniteSliceTransform {
+                        slice,
+                        field: "translation",
+                        component,
+                        value: *value,
+                    });
+                }
+            }
+            let determinant = transform.rotation.determinant();
+            if !determinant.is_finite() {
+                return Err(InvalidCoordinateMap::UnrepresentableSliceTransform { slice });
+            }
+            if determinant == 0.0 {
+                return Err(InvalidCoordinateMap::SingularSliceTransform { slice });
+            }
         }
         Ok(Self {
             transforms: Arc::new(transforms),
@@ -620,28 +693,36 @@ impl SliceSeries {
         if d0 < 0.0 || dn > 0.0 {
             return None;
         }
+        if !d0.is_finite() || !dn.is_finite() || world.iter().any(|value| !value.is_finite()) {
+            return None;
+        }
 
         // Find the consecutive pair that brackets the point.
-        let mut i0 = n - 1;
-        let mut i1 = n - 1;
-        let mut t = 0.0_f64;
-        let mut d_cur = d0;
-
-        for i in 0..n - 1 {
-            let d_next = self.transforms[i + 1].signed_distance(world);
-            if d_cur >= 0.0 && d_next <= 0.0 {
-                i0 = i;
-                i1 = i + 1;
-                let denom = d_cur - d_next;
-                t = if denom.abs() < f64::EPSILON * 1.0e3 {
-                    0.5
-                } else {
-                    (d_cur / denom).clamp(0.0, 1.0)
-                };
-                break;
+        let (i0, i1, t) = if n == 1 {
+            (0, 0, 0.0)
+        } else {
+            let mut bracket = None;
+            let mut d_cur = d0;
+            for i in 0..n - 1 {
+                let d_next = self.transforms[i + 1].signed_distance(world);
+                if !d_next.is_finite() {
+                    return None;
+                }
+                if d_cur >= 0.0 && d_next <= 0.0 {
+                    let distance_scale = d_cur.abs().max(d_next.abs());
+                    if distance_scale == 0.0 || !distance_scale.is_finite() {
+                        return None;
+                    }
+                    let scaled_current = d_cur / distance_scale;
+                    let scaled_next = d_next / distance_scale;
+                    let t = (scaled_current / (scaled_current - scaled_next)).clamp(0.0, 1.0);
+                    bracket = Some((i, i + 1, t));
+                    break;
+                }
+                d_cur = d_next;
             }
-            d_cur = d_next;
-        }
+            bracket?
+        };
 
         let slice_f = i0 as f64 + t;
 
@@ -655,9 +736,36 @@ impl SliceSeries {
         ];
         let rel = [world[0] - orig[0], world[1] - orig[1], world[2] - orig[2]];
 
-        // Interpolated in-plane column vectors; project rel onto each.
-        let j_x = interpolated_in_plane_coordinate::<0>(tf0, tf1, t, rel);
-        let j_y = interpolated_in_plane_coordinate::<1>(tf0, tf1, t, rel);
+        let columns: [[f64; 3]; 2] = std::array::from_fn(|column| {
+            std::array::from_fn(|row| {
+                tf0.rotation[(row, column)] * (1.0 - t) + tf1.rotation[(row, column)] * t
+            })
+        });
+        let scale = columns
+            .iter()
+            .flatten()
+            .map(|value| value.abs())
+            .fold(0.0_f64, f64::max);
+        if !scale.is_finite() || scale == 0.0 {
+            return None;
+        }
+        let first = columns[0].map(|value| value / scale);
+        let second = columns[1].map(|value| value / scale);
+        let relative = rel.map(|value| value / scale);
+        let aa = dot(first, first);
+        let ab = dot(first, second);
+        let bb = dot(second, second);
+        let determinant = aa.mul_add(bb, -(ab * ab));
+        if !determinant.is_finite() || determinant <= 0.0 {
+            return None;
+        }
+        let ar = dot(first, relative);
+        let br = dot(second, relative);
+        let j_x = (ar.mul_add(bb, -(br * ab))) / determinant;
+        let j_y = (br.mul_add(aa, -(ar * ab))) / determinant;
+        if !j_x.is_finite() || !j_y.is_finite() {
+            return None;
+        }
 
         Some([j_x, j_y, slice_f])
     }
@@ -747,18 +855,8 @@ fn non_negative(parameter: &'static str, value: f64) -> Result<(), InvalidCoordi
 }
 
 #[inline]
-fn interpolated_in_plane_coordinate<const COL: usize>(
-    tf0: &SliceTransform,
-    tf1: &SliceTransform,
-    t: f64,
-    rel: [f64; 3],
-) -> f64 {
-    let one_minus_t = 1.0 - t;
-    let rx = tf0.rotation[(0, COL)] * one_minus_t + tf1.rotation[(0, COL)] * t;
-    let ry = tf0.rotation[(1, COL)] * one_minus_t + tf1.rotation[(1, COL)] * t;
-    let rz = tf0.rotation[(2, COL)] * one_minus_t + tf1.rotation[(2, COL)] * t;
-    let ns = rx.mul_add(rx, ry.mul_add(ry, rz * rz));
-    (rx * rel[0] + ry * rel[1] + rz * rel[2]) / ns
+fn dot(left: [f64; 3], right: [f64; 3]) -> f64 {
+    left[0].mul_add(right[0], left[1].mul_add(right[1], left[2] * right[2]))
 }
 
 #[cfg(test)]
@@ -1048,6 +1146,63 @@ mod tests {
     #[test]
     fn slice_series_rejects_empty_transform_list() {
         assert!(SliceSeries::try_new(vec![]).is_err());
+    }
+
+    #[test]
+    fn slice_series_rejects_singular_transform() {
+        let rotation = Direction::from_rows([[0.0; 3]; 3]);
+        let transform = SliceTransform::new(rotation, [0.0; 3]);
+
+        assert_eq!(
+            SliceSeries::try_new(vec![transform]).expect_err("singular transform is invalid"),
+            InvalidCoordinateMap::SingularSliceTransform { slice: 0 }
+        );
+    }
+
+    #[test]
+    fn slice_series_rejects_non_finite_components() {
+        let rotation =
+            Direction::from_rows([[1.0, 0.0, 0.0], [0.0, f64::INFINITY, 0.0], [0.0, 0.0, 1.0]]);
+        let transform = SliceTransform::new(rotation, [0.0; 3]);
+        assert!(matches!(
+            SliceSeries::try_new(vec![transform]),
+            Err(InvalidCoordinateMap::NonFiniteSliceTransform {
+                slice: 0,
+                field: "rotation",
+                component: 4,
+                value
+            }) if value == f64::INFINITY
+        ));
+
+        let rotation = Direction::from_rows([[1.0, 0.0, 0.0], [0.0, 1.0, 0.0], [0.0, 0.0, 1.0]]);
+        let transform = SliceTransform::new(rotation, [0.0, f64::NAN, 0.0]);
+        assert!(matches!(
+            SliceSeries::try_new(vec![transform]),
+            Err(InvalidCoordinateMap::NonFiniteSliceTransform {
+                slice: 0,
+                field: "translation",
+                component: 1,
+                value
+            }) if value.is_nan()
+        ));
+    }
+
+    #[test]
+    fn slice_series_inverts_non_orthogonal_in_plane_axes() {
+        let basis = Direction::from_rows([[1.0, 1.0, 0.0], [0.0, 1.0, 0.0], [0.0, 0.0, 1.0]]);
+        let series = SliceSeries::try_new(vec![SliceTransform::new(basis, [0.0; 3])])
+            .expect("a non-singular sheared basis is representable");
+        let world = series.world_from_index(0.0, 1.0, 0.0);
+
+        assert_eq!(world, [1.0, 1.0, 0.0]);
+        assert_eq!(series.index_from_world(world), Some([0.0, 1.0, 0.0]));
+    }
+
+    #[test]
+    fn slice_series_rejects_world_points_with_non_finite_coordinates() {
+        let series = translation_sweep(2, 1.0);
+        assert_eq!(series.index_from_world([f64::NAN, 0.0, 0.0]), None);
+        assert_eq!(series.index_from_world([0.0, f64::INFINITY, 0.0]), None);
     }
 
     #[test]

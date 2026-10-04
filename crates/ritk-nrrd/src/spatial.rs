@@ -64,33 +64,107 @@ fn parse_space_units(units: Option<&str>) -> Result<[f64; 3]> {
     let Some(units) = units else {
         return Ok([1.0; 3]);
     };
-    let tokens = units.split_whitespace().collect::<Vec<_>>();
-    if tokens.len() != 3 {
-        bail!(
-            "NRRD space units must contain three quoted coordinate units, found {}",
-            tokens.len()
-        );
-    }
+    let tokens = parse_quoted_strings(units, "space units", 3)?;
     let scales = tokens
-        .into_iter()
-        .map(|token| {
-            let unit = token
-                .strip_prefix('"')
-                .and_then(|unit| unit.strip_suffix('"'))
-                .ok_or_else(|| anyhow!("NRRD space unit {token:?} must be quoted"))?;
-            match unit {
-                "mm" => Ok(1.0),
-                "cm" => Ok(10.0),
-                "m" => Ok(1_000.0),
-                "um" => Ok(0.001),
-                "nm" => Ok(0.000_001),
-                _ => bail!("NRRD space unit {unit:?} cannot be converted to millimeters"),
-            }
-        })
+        .iter()
+        .map(|unit| millimeters_per_unit(unit, "space units"))
         .collect::<Result<Vec<_>>>()?;
     scales
         .try_into()
         .map_err(|values: Vec<f64>| anyhow!("expected 3 NRRD space units, found {}", values.len()))
+}
+
+/// Parse per-axis NRRD units into optional millimeter scales.
+///
+/// Empty unit strings carry no scale. Non-empty values must name one of the
+/// supported metric length units. Other axis dimensions and unit systems have
+/// no representation in image geometry and are rejected by the caller.
+pub(crate) fn parse_axis_units(units: &str, dimension: usize) -> Result<Vec<Option<f64>>> {
+    parse_quoted_strings(units, "units", dimension)?
+        .iter()
+        .map(|unit| {
+            if unit.is_empty() {
+                Ok(None)
+            } else {
+                millimeters_per_unit(unit, "units").map(Some)
+            }
+        })
+        .collect()
+}
+
+/// Parses per-axis sample centering and reports whether each axis is cell- or
+/// node-centered.
+pub(crate) fn parse_axis_centerings(value: &str, dimension: usize) -> Result<Vec<bool>> {
+    parse_quoted_strings(value, "centers", dimension)?
+        .iter()
+        .map(|centering| match centering.to_ascii_lowercase().as_str() {
+            "cell" | "node" => Ok(true),
+            "none" | "???" => Ok(false),
+            _ => bail!("NRRD centers value {centering:?} is unsupported"),
+        })
+        .collect()
+}
+
+fn parse_quoted_strings(value: &str, field: &str, expected: usize) -> Result<Vec<String>> {
+    let mut characters = value.chars().peekable();
+    let mut strings = Vec::with_capacity(expected);
+    loop {
+        while matches!(characters.peek(), Some(' ' | '\t')) {
+            characters.next();
+        }
+        if characters.peek().is_none() {
+            break;
+        }
+        if strings.len() == expected {
+            bail!("NRRD {field} contains more than {expected} quoted values");
+        }
+        if characters.next() != Some('"') {
+            bail!("NRRD {field} values must be quoted");
+        }
+        let mut string = String::new();
+        let mut closed = false;
+        while let Some(character) = characters.next() {
+            match character {
+                '"' => {
+                    closed = true;
+                    break;
+                }
+                '\\' => match characters.next() {
+                    Some('"') => string.push('"'),
+                    _ => bail!("NRRD {field} only permits escaped double quotes"),
+                },
+                value => string.push(value),
+            }
+        }
+        if !closed {
+            bail!("NRRD {field} contains an unterminated quoted value");
+        }
+        if characters
+            .peek()
+            .is_some_and(|character| !matches!(character, ' ' | '\t'))
+        {
+            bail!("NRRD {field} quoted values must be separated by horizontal whitespace");
+        }
+        strings.push(string);
+    }
+    if strings.len() != expected {
+        bail!(
+            "NRRD {field} must contain {expected} quoted values, found {}",
+            strings.len()
+        );
+    }
+    Ok(strings)
+}
+
+fn millimeters_per_unit(unit: &str, field: &str) -> Result<f64> {
+    match unit {
+        "mm" => Ok(1.0),
+        "cm" => Ok(10.0),
+        "m" => Ok(1_000.0),
+        "um" => Ok(0.001),
+        "nm" => Ok(0.000_001),
+        _ => bail!("NRRD {field} unit {unit:?} cannot be converted to millimeters"),
+    }
 }
 
 /// Apply a world-axis scale and handedness transform to a coordinate vector.
