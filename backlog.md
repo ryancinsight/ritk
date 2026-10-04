@@ -56,7 +56,7 @@
 - scope: `crates/ritk-codecs/src/byte_decode.rs`, `crates/ritk-vtk/src/io/reader.rs`, `crates/ritk-mif/src/writer.rs`, `crates/ritk-nifti/src/header/types.rs`, `crates/ritk-analyze/src/reader.rs`, `crates/ritk-codecs/src/jpeg_2000/codestream.rs`
 - needs: none
 - next: profile these call sites, route required bulk operations through `EndianScalar`, and remove the duplicated loops without changing output bytes or values.
-- basis: fb1ff642dcc2ce722780dc9b051cb0796897ca25
+- basis: 78bcf856d5f58a8ed2a3943aba1cac845ff655f1
 
 <a id="RITK-FORMAT-CONVERSION-001"></a>
 ## RITK-FORMAT-CONVERSION-001: Convert image formats through RITK
@@ -67,7 +67,7 @@
 - needs: RITK-TYPED-SAMPLES-006
 - scope: `crates/ritk-image-io/`, `crates/ritk-io/`, every listed format crate, conversion tests, and the RITK user manual.
 - next: after RITK-TYPED-SAMPLES-006 lands, publish the format capability table and implement loss-aware preflight and execution for compatible data models.
-- basis: 6b6c10d06533c9391e419924a834541b97b8b756
+- basis: 78bcf856d5f58a8ed2a3943aba1cac845ff655f1
 
 <a id="RITK-TYPED-SAMPLES-006"></a>
 ## RITK-TYPED-SAMPLES-006: Preserve NRRD stored samples and semantics
@@ -78,7 +78,7 @@
 - needs: none
 - scope: `crates/ritk-image-io/`, `crates/ritk-nrrd/`, `crates/ritk-codecs/`, `crates/ritk-spatial/`, the NRRD format manual, and ADR 0054.
 - next: resolve the independent-review findings for alias and spatial-field conflicts, duplicated coordinate-map parameters, diffusion-axis validation, and bounded payload allocation; run the focused RITK gates.
-- basis: 6b6c10d06533c9391e419924a834541b97b8b756
+- basis: 78bcf856d5f58a8ed2a3943aba1cac845ff655f1
 
 <a id="RITK-SNAP-INTERACTION-REGIONS-001"></a>
 ## RITK-SNAP-INTERACTION-REGIONS-001: Separate region interaction tests
