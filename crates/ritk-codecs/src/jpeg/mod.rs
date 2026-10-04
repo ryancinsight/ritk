@@ -73,8 +73,8 @@ pub fn decode_jpeg_fragment(fragment: &[u8], layout: PixelLayout) -> Result<Vec<
 /// silently narrowed.
 ///
 /// A DICOM encapsulated fragment must have even length, so a single pad byte is
-/// appended when the codestream is odd. That is the same trailing byte
-/// [`strip_dicom_padding`] removes on the way back in.
+/// appended when the codestream is odd. [`decode_jpeg_fragment`] removes that
+/// trailing byte when reading the fragment.
 ///
 /// # Errors
 ///

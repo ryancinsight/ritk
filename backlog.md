@@ -60,15 +60,14 @@
 
 <a id="RITK-TYPED-SAMPLES-001"></a>
 ## RITK-TYPED-SAMPLES-001: Preserve fixed-width stored samples
-- outcome: decode and encode image samples in RITK without implicit numeric conversion.
-- acceptance: ten fixed-width types round-trip both byte orders and float bits; partial samples fail; mismatched extraction preserves the buffer; migrated callers preserve their documented numeric semantics.
-- status: blocked
-- blocker: The exact-revision pre-push gate for commit be04d9051 reached its 600-second deadline while an Atlas Kwavers nextest held the shared Cargo target; no tests or Clippy result were obtained. Reopen after the target is available and the exact gate passes.
+- outcome: preserve exact fixed-width sample representations through typed decode, extraction, encoded output, and streamed output in RITK.
+- acceptance: all ten fixed-width types round-trip both byte orders and float bits; partial samples fail; mismatched extraction preserves the buffer; streamed bytes equal buffered encoding and retain I/O errors; crate documentation describes the exact-sample contract.
+- status: todo
 - priority: architecture
 - needs: none
-- scope: `crates/ritk-codecs/src/sample/`, typed conversion and calibration operations, format adapters, codec exports and README, [ADR 0053](docs/adr/0053-typed-sample-io.md).
-- next: Resume from rescue PR #746, rerun the exact gate, then complete the stored-sample operations and migrate callers.
-- basis: 6b6c10d06533c9391e419924a834541b97b8b756
+- scope: [typed sample buffer](crates/ritk-codecs/src/sample/), codec exports and README, sample value-semantic tests.
+- next: finish PR #753's exact stream-output increment. Then complete the NRRD stored-volume adapter under RITK-TYPED-SAMPLES-006; migrate the other format readers and add loss-aware conversion preflight under RITK-FORMAT-CONVERSION-001.
+- basis: feeb56d868556816f2db4bf4f87429f3a6d3dcf7
 
 <a id="RITK-FORMAT-CONVERSION-001"></a>
 ## RITK-FORMAT-CONVERSION-001: Convert image formats through RITK
