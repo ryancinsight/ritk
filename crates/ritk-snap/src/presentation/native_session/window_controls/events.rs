@@ -1,7 +1,7 @@
 //! Native-window pointer, keyboard and dialog input ownership.
 
 use super::super::layout::{
-    panel_header_action_at, NativeViewport, PanelHeaderAction, WorkspaceLayout,
+    NativeViewport, PanelHeaderAction, WorkspaceLayout, panel_header_action_at,
 };
 use super::super::series_browser::SeriesBrowser;
 use super::layout::ChromeLayout;
@@ -9,7 +9,7 @@ use super::multi_series::DialogAction;
 use super::{PanelCloseKind, PointerOwner, WindowAction, WindowChrome, WindowChromeEvent};
 use crate::app::SnapApp;
 use crate::presentation::{PointerButton, PresentationEvent, PresentationModifiers};
-use anyhow::{anyhow, Result};
+use anyhow::{Result, anyhow};
 
 impl WindowChrome {
     pub(in crate::presentation::native_session) fn handle_event(
@@ -370,9 +370,16 @@ impl WindowChrome {
                     && viewports.iter().any(|viewport| viewport.contains(*x, *y))
                 {
                     let direction = if *delta_x > 0.0 { 1 } else { -1 };
-                    let panel_index = viewports
+                    let viewport_index = viewports
                         .iter()
                         .position(|viewport| viewport.contains(*x, *y));
+                    let panel_index = viewport_index.map(|viewport_index| {
+                        if workspace_layout.is_grid() {
+                            viewport_index
+                        } else {
+                            0
+                        }
+                    });
                     let current_series = panel_index
                         .and_then(|index| displayed_series.get(index).copied().flatten())
                         .or_else(|| browser.as_ref().map(SeriesBrowser::active_index));

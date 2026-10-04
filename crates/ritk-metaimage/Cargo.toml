@@ -19,6 +19,7 @@ anyhow = { workspace = true }
 bytemuck = { workspace = true }
 flate2 = { workspace = true }
 coeus-core = { workspace = true }
+tracing = { workspace = true }
 
 [dev-dependencies]
 # Rejection assertions shared across the workspace's test modules.

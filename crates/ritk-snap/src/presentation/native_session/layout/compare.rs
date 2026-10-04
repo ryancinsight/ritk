@@ -7,13 +7,13 @@ use self::panel_chrome::draw_panel_actions;
 use super::super::frame::RenderedView;
 use super::composition::blit_frame;
 use super::geometry::{
-    placement_with_bounds, NativeViewport, ScreenRect, ViewportArea, VIEW_GAP_PIXELS,
+    NativeViewport, ScreenRect, VIEW_GAP_PIXELS, ViewportArea, placement_with_bounds,
 };
 use super::text::{draw_text, text_style};
 use crate::tools::interaction::ViewportOffset;
-use anyhow::{anyhow, bail, Result};
+use anyhow::{Result, anyhow, bail};
 use arrayvec::ArrayVec;
-use metis_platform::rasterizer::{fill_rect, CornerRadius};
+use metis_platform::rasterizer::{CornerRadius, fill_rect};
 use metis_platform::{Color, Framebuffer, Rect};
 use std::num::NonZeroU8;
 
@@ -231,7 +231,7 @@ pub(in crate::presentation::native_session) fn surface_frames_grid(
     let row_height = available_height / rows;
     let extra_columns = available_width % columns;
     let extra_rows = available_height % rows;
-    if column_width == 0 || row_height <= PANEL_HEADER_HEIGHT {
+    if column_width == 0 || row_height == 0 {
         bail!("native surface cannot allocate visible series-grid panels");
     }
 
@@ -265,29 +265,36 @@ pub(in crate::presentation::native_session) fn surface_frames_grid(
         )?;
         let panel_width = column_width + u32::from(column < extra_columns);
         let panel_height = row_height + u32::from(row < extra_rows);
+        let header_height = if panel_height > PANEL_HEADER_HEIGHT {
+            PANEL_HEADER_HEIGHT
+        } else {
+            0
+        };
         let content_height = panel_height
-            .checked_sub(PANEL_HEADER_HEIGHT)
+            .checked_sub(header_height)
             .ok_or_else(|| anyhow!("native series-grid panel is shorter than its header"))?;
-        let header = make_rect(panel_x, panel_y, panel_width, PANEL_HEADER_HEIGHT)?;
-        fill_rect(&mut framebuffer, header, CornerRadius::SQUARE, PANEL_HEADER);
-        draw_text(
-            &mut framebuffer,
-            header.x.saturating_add(8),
-            header.y.saturating_add(7),
-            panel.label,
-            header_style,
-        );
-        draw_panel_actions(
-            &mut framebuffer,
-            panel_x,
-            panel_y,
-            panel_width,
-            panel.maximized,
-            panels.len() > 1 || panel.maximized,
-        )?;
+        if header_height > 0 {
+            let header = make_rect(panel_x, panel_y, panel_width, header_height)?;
+            fill_rect(&mut framebuffer, header, CornerRadius::SQUARE, PANEL_HEADER);
+            draw_text(
+                &mut framebuffer,
+                header.x.saturating_add(8),
+                header.y.saturating_add(7),
+                panel.label,
+                header_style,
+            );
+            draw_panel_actions(
+                &mut framebuffer,
+                panel_x,
+                panel_y,
+                panel_width,
+                panel.maximized,
+                panels.len() > 1 || panel.maximized,
+            )?;
+        }
 
         let image_y = panel_y
-            .checked_add(PANEL_HEADER_HEIGHT)
+            .checked_add(header_height)
             .ok_or_else(|| anyhow!("native series-grid image y overflows"))?;
         let view = panel.view.unwrap_or(primary_placeholder);
         let (zoom, pan_offset) = panel.navigation;

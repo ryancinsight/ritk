@@ -47,6 +47,76 @@ fn nifti_file_and_bytes_preserve_values_and_geometry() {
     }
 }
 
+#[test]
+fn viewer_path_dispatch_loads_vtk_values_and_geometry() {
+    let dir = tempdir().expect("create VTK fixture directory");
+    let backend = coeus_core::SequentialBackend;
+    let pixels: Vec<f32> = (0_u8..24)
+        .map(|value| f32::from(value) * 0.5 - 4.0)
+        .collect();
+    let origin = [1.25, -2.5, 3.75];
+    let spacing = [0.5, 1.5, 2.0];
+    let image = ritk_image::Image::from_flat_on(
+        pixels.clone(),
+        fixtures::SHAPE,
+        Point::new(origin),
+        Spacing::new(spacing),
+        Direction::identity(),
+        &backend,
+    )
+    .expect("construct VTK fixture image");
+    let path = dir.path().join("study.vtk");
+    ritk_io::write_image_native(&path, &image).expect("write VTK fixture");
+
+    let volume = load_volume_from_path(&path).expect("load VTK through the viewer path");
+
+    assert_eq!(volume.shape, fixtures::SHAPE);
+    assert_eq!(volume.data.as_slice(), pixels);
+    assert_eq!(volume.spacing, spacing);
+    assert_eq!(volume.origin, origin);
+    assert_eq!(
+        volume.direction,
+        [1.0, 0.0, 0.0, 0.0, 1.0, 0.0, 0.0, 0.0, 1.0]
+    );
+    assert_eq!(volume.source.as_deref(), Some(path.as_path()));
+    assert!(volume.metadata.is_none());
+}
+
+#[test]
+fn viewer_path_dispatch_loads_vtk_when_description_contains_dicom_marker() {
+    let dir = tempdir().expect("create VTK fixture directory");
+    let path = dir.path().join("study.vtk");
+    let version_line = "# vtk DataFile Version 3.0\n";
+    let description = format!("{}DICM", "x".repeat(128 - version_line.len()));
+    let vtk = format!(
+        "{version_line}{description}\n\
+         ASCII\n\
+         DATASET STRUCTURED_POINTS\n\
+         DIMENSIONS 2 1 1\n\
+         ORIGIN 1.25 -2.5 3.75\n\
+         SPACING 0.5 1.5 2\n\
+         POINT_DATA 2\n\
+         SCALARS scalars float 1\n\
+         LOOKUP_TABLE default\n\
+         7 11\n"
+    );
+    assert_eq!(&vtk.as_bytes()[128..132], b"DICM");
+    std::fs::write(&path, vtk).expect("write ASCII VTK fixture");
+
+    let volume = load_volume_from_path(&path)
+        .expect("registered VTK path must reach the native image reader");
+
+    assert_eq!(volume.shape, [2, 1, 1]);
+    assert_eq!(volume.data.as_slice(), [7.0, 11.0]);
+    assert_eq!(volume.spacing, [0.5, 1.5, 2.0]);
+    assert_eq!(volume.origin, [1.25, -2.5, 3.75]);
+    assert_eq!(
+        volume.direction,
+        [1.0, 0.0, 0.0, 0.0, 1.0, 0.0, 0.0, 0.0, 1.0]
+    );
+    assert_eq!(volume.source.as_deref(), Some(path.as_path()));
+}
+
 /// Spatial sorting must override reversed names, instance numbers, and byte order.
 #[test]
 fn dicom_file_bytes_and_scanned_studies_preserve_values_and_geometry() {

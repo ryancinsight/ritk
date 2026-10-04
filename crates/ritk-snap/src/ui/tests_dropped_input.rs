@@ -2,7 +2,7 @@ use std::fs;
 use std::path::PathBuf;
 use std::time::{SystemTime, UNIX_EPOCH};
 
-use super::{decide_dropped_input_action, DroppedInput, DroppedInputAction};
+use super::{DroppedInput, DroppedInputAction, decide_dropped_input_action};
 
 fn dropped_with_path(path: &str) -> DroppedInput {
     DroppedInput::new(
@@ -68,6 +68,60 @@ fn supported_volume_path_is_loaded_when_no_dicom_is_present() {
     assert_eq!(
         action,
         DroppedInputAction::LoadVolume(PathBuf::from("study.nrrd"))
+    );
+}
+
+#[test]
+fn filesystem_drops_follow_every_registered_native_format() {
+    let cases = [
+        ("study.nii", ritk_io::ImageFormat::NIfTI),
+        ("study.nii.gz", ritk_io::ImageFormat::NIfTI),
+        ("study.mha", ritk_io::ImageFormat::MetaImage),
+        ("study.mhd", ritk_io::ImageFormat::MetaImage),
+        ("study.nrrd", ritk_io::ImageFormat::Nrrd),
+        ("study.nhdr", ritk_io::ImageFormat::Nrrd),
+        ("study.png", ritk_io::ImageFormat::Png),
+        ("slice.dcm", ritk_io::ImageFormat::Dicom),
+        ("slice.dicom", ritk_io::ImageFormat::Dicom),
+        ("slice.ima", ritk_io::ImageFormat::Dicom),
+        ("study.mgh", ritk_io::ImageFormat::Mgh),
+        ("study.mgz", ritk_io::ImageFormat::Mgh),
+        ("study.mgh.gz", ritk_io::ImageFormat::Mgh),
+        ("study.tif", ritk_io::ImageFormat::Tiff),
+        ("study.tiff", ritk_io::ImageFormat::Tiff),
+        ("study.vtk", ritk_io::ImageFormat::Vtk),
+        ("study.jpg", ritk_io::ImageFormat::Jpeg),
+        ("study.jpeg", ritk_io::ImageFormat::Jpeg),
+        ("study.hdr", ritk_io::ImageFormat::Analyze),
+        ("study.img", ritk_io::ImageFormat::Analyze),
+    ];
+
+    for (name, format) in cases {
+        let path = PathBuf::from(name);
+        assert_eq!(
+            ritk_io::ImageFormat::from_path(&path),
+            Some(format),
+            "RITK registry recognizes {name}"
+        );
+        assert!(
+            ritk_io::is_native_read_capable(format),
+            "RITK registry exposes a native reader for {name}"
+        );
+        let expected = if format == ritk_io::ImageFormat::Dicom {
+            DroppedInputAction::QueueDicom(path.clone())
+        } else {
+            DroppedInputAction::LoadVolume(path.clone())
+        };
+        assert_eq!(
+            decide_dropped_input_action(&[dropped_with_path(name)]),
+            expected,
+            "viewer routes {name} according to its RITK format"
+        );
+    }
+
+    assert_eq!(
+        decide_dropped_input_action(&[dropped_with_path("study/DICOMDIR")]),
+        DroppedInputAction::QueueDicom(PathBuf::from("study/DICOMDIR"))
     );
 }
 

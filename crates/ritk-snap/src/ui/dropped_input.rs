@@ -99,10 +99,7 @@ pub fn decide_dropped_input_action(files: &[DroppedInput]) -> DroppedInputAction
 
     for file in files {
         if let Some(path) = file.filesystem_path() {
-            if crate::dicom::classify_dicom_input_path(path)
-                .dicom_root()
-                .is_some()
-            {
+            if is_dicom_path(path) {
                 return DroppedInputAction::QueueDicom(path.to_path_buf());
             }
 
@@ -188,15 +185,16 @@ fn is_likely_dicom_payload(name: &str, mime: &str, bytes: &[u8]) -> bool {
 }
 
 fn is_supported_volume_path(path: &Path) -> bool {
-    let s = path.to_string_lossy().to_lowercase();
-    s.ends_with(".nii")
-        || s.ends_with(".nii.gz")
-        || s.ends_with(".mha")
-        || s.ends_with(".mhd")
-        || s.ends_with(".nrrd")
-        || s.ends_with(".nhdr")
-        || s.ends_with(".mgh")
-        || s.ends_with(".mgz")
+    ritk_io::ImageFormat::from_path(path).is_some_and(|format| {
+        format != ritk_io::ImageFormat::Dicom && ritk_io::is_native_read_capable(format)
+    })
+}
+
+fn is_dicom_path(path: &Path) -> bool {
+    crate::dicom::classify_dicom_input_path(path)
+        .dicom_root()
+        .is_some()
+        || ritk_io::ImageFormat::from_path(path) == Some(ritk_io::ImageFormat::Dicom)
 }
 
 #[cfg(test)]

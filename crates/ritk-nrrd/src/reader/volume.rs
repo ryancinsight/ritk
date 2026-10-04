@@ -1,13 +1,15 @@
 use anyhow::{anyhow, Context, Result};
 use coeus_core::ComputeBackend;
-use ritk_codecs::{parse_f64_vec, parse_usize_vec, ByteOrder};
+use consus_core::ByteOrder;
+use ritk_codecs::sample::SampleBuffer;
+use ritk_codecs::{parse_f64_vec, parse_usize_vec};
 use ritk_image::Image;
 use ritk_spatial::{Direction, Point, Spacing};
 use std::io::{BufReader, Read};
 use std::path::Path;
 
 use super::decode::{
-    decode_element_bytes, element_type_spec, parse_nrrd_point, parse_nrrd_point_planar,
+    element_sample_type, parse_endian, parse_nrrd_point, parse_nrrd_point_planar,
     parse_space_direction_slots, parse_space_directions, parse_space_directions_planar,
 };
 use super::header::parse_nrrd_header_map_from_reader;
@@ -70,7 +72,8 @@ impl DecodedNrrd {
 /// # Supported types
 /// `float`, `double`, `short`, `unsigned short`, `int`, `unsigned int`,
 /// `uchar` / `unsigned char`, `char` / `signed char`.
-/// All are converted to `f32` in the tensor.
+/// This convenience API returns `f32`; its explicit sample conversion emits a
+/// warning when values change.
 ///
 /// # Inline vs. detached data
 /// * Inline: no `data file` field (or `data file: INTERNAL`) — binary data
@@ -231,11 +234,11 @@ fn decode_nrrd<P: AsRef<Path>>(path: P) -> Result<DecodedNrrd> {
         }
     };
 
-    let endian_str = headers
+    let byte_order = headers
         .get("endian")
-        .map(String::as_str)
-        .unwrap_or("little");
-    let byte_order = ByteOrder::from_nrrd(endian_str);
+        .map(|value| parse_endian(value))
+        .transpose()?
+        .unwrap_or(ByteOrder::LittleEndian);
 
     let spatial = if let Some(sd_str) = headers.get("space directions") {
         let dirs = if dimension == 2 {
@@ -274,7 +277,8 @@ fn decode_nrrd<P: AsRef<Path>>(path: P) -> Result<DecodedNrrd> {
     let total_voxels = voxels_per_volume
         .checked_mul(volumes)
         .ok_or_else(|| anyhow!("NRRD series element count overflows usize"))?;
-    let (element_size, _, _) = element_type_spec(&element_type)?;
+    let sample_type = element_sample_type(&element_type)?;
+    let element_size = sample_type.byte_width();
     let expected_payload_bytes = total_voxels.checked_mul(element_size).ok_or_else(|| {
         anyhow!("NRRD byte count overflows usize: {total_voxels} voxels x {element_size} bytes")
     })?;
@@ -317,17 +321,25 @@ fn decode_nrrd<P: AsRef<Path>>(path: P) -> Result<DecodedNrrd> {
         payload
     };
 
-    let f32_data: Vec<f32> =
-        decode_element_bytes(&raw_bytes, &element_type, total_voxels, byte_order)?;
-    drop(raw_bytes);
-
-    if f32_data.len() != total_voxels {
+    if raw_bytes.len() != expected_payload_bytes {
         return Err(anyhow!(
-            "NRRD voxel count mismatch: sizes implies {} voxels but {} were decoded",
-            total_voxels,
-            f32_data.len()
+            "NRRD payload length mismatch: expected {expected_payload_bytes} bytes from {total_voxels} {sample_type} samples, got {} bytes",
+            raw_bytes.len()
         ));
+    };
+    let converted =
+        SampleBuffer::decode(&raw_bytes, sample_type, byte_order)?.convert_lossy::<f32>()?;
+    let report = converted.report();
+    if report.changed_samples > 0 {
+        tracing::warn!(
+            source_type = %report.source_type,
+            target_type = %report.target_type,
+            changed_samples = report.changed_samples,
+            "NRRD sample conversion changed stored representations"
+        );
     }
+    let f32_data = converted.into_parts().0;
+    drop(raw_bytes);
 
     let mut volume_data = Vec::new();
     volume_data

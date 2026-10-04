@@ -1,10 +1,11 @@
-//! Volume loading from DICOM folders and NIfTI files.
+//! Volume loading from RITK image formats and DICOM studies.
 //!
 //! # Functions
 //!
 //! - [`load_dicom_volume`] — load a DICOM series folder into a [`LoadedVolume`].
-//! - [`load_nifti_volume`] — load a NIfTI `.nii` / `.nii.gz` file.
-//! - [`load_volume_from_path`] — auto-detect format and dispatch to the above.
+//! - [`load_nifti_volume`] — load a NIfTI `.nii` / `.nii.gz` file directly.
+//! - [`load_volume_from_path`] — dispatch native-readable image formats through
+//!   RITK and preserve DICOM series discovery.
 //! - [`load_volume_from_series_uid`] — open one explicitly selected DICOM acquisition.
 //! - [`load_volume_from_bytes`] — load a pathless in-memory medical file payload.
 //! - [`scan_folder_for_series`] — walk a directory tree and return a `SeriesTree`.
@@ -36,8 +37,8 @@ mod scan;
 #[cfg(test)]
 pub(crate) mod tests;
 
+pub(crate) use dicom_load::load_volume_from_series_info;
 pub use dicom_load::{load_dicom_volume, load_volume_from_scanned_series};
-pub(crate) use dicom_load::{load_volume_from_dicom_instance, load_volume_from_series_info};
 pub use nifti_load::load_nifti_volume;
 pub use scan::scan_folder_for_series;
 
@@ -100,14 +101,11 @@ pub(crate) fn validate_series_uid(series_uid: &str) -> Result<()> {
 
 /// Auto-detect the volume format from `path` and load accordingly.
 ///
-/// | Condition | Dispatched to |
-/// |------------------------------------------------------|-------------------------|
-/// | `path` is a directory | [`load_dicom_volume`] |
-/// | Extension is `.nii` or the path ends in `.nii.gz` | [`load_nifti_volume`] |
-/// | Extension is `.mha` or `.mhd` | MetaImage (via ritk_io) |
-/// | Extension is `.nrrd` | NRRD (via ritk_io) |
-/// | Extension is `.mgh` or `.mgz` | MGH (via ritk_io) |
-/// | No extension / unknown extension | [`load_dicom_volume`] |
+/// DICOM directories, DICOMDIR files, DICOM instances, and paths registered as
+/// DICOM use [`load_dicom_volume`]. Other formats recognized by
+/// [`ritk_io::ImageFormat`] use the native reader when
+/// [`ritk_io::is_native_read_capable`] reports support. Unknown paths are
+/// checked by the DICOM loader and return its error when they are not DICOM.
 ///
 /// # Errors
 ///
@@ -120,28 +118,29 @@ pub fn load_volume_from_path<P: AsRef<Path>>(path: P) -> Result<LoadedVolume> {
         return load_dicom_volume(path);
     }
 
-    let path_str = path.to_string_lossy().to_lowercase();
-    if path_str.ends_with(".nii.gz") || path_str.ends_with(".nii") {
-        return load_nifti_volume(path);
-    }
-    if path_str.ends_with(".mha") || path_str.ends_with(".mhd") {
-        let image = ritk_io::read_image_native(path)
-            .with_context(|| format!("failed to read MetaImage '{}'", path.display()))?;
-        return convert::volume_from_image_no_meta(image, path.to_path_buf());
-    }
-    if path_str.ends_with(".nrrd") || path_str.ends_with(".nhdr") {
-        let image = ritk_io::read_image_native(path)
-            .with_context(|| format!("failed to read NRRD '{}'", path.display()))?;
-        return convert::volume_from_image_no_meta(image, path.to_path_buf());
-    }
-    if path_str.ends_with(".mgh") || path_str.ends_with(".mgz") {
-        let image = ritk_io::read_image_native(path)
-            .with_context(|| format!("failed to read MGH '{}'", path.display()))?;
-        return convert::volume_from_image_no_meta(image, path.to_path_buf());
+    let Some(format) = ritk_io::ImageFormat::from_path(path) else {
+        return load_dicom_volume(path);
+    };
+
+    if format == ritk_io::ImageFormat::Dicom {
+        return load_dicom_volume(path);
     }
 
-    // Fallback: treat as DICOM folder or single-file DICOM.
-    load_dicom_volume(path)
+    if !ritk_io::is_native_read_capable(format) {
+        anyhow::bail!(
+            "RITK image format '{}' has no native reader",
+            format.as_str()
+        );
+    }
+
+    let image = ritk_io::read_image_native(path).with_context(|| {
+        format!(
+            "failed to read {} file '{}'",
+            format.as_str(),
+            path.display()
+        )
+    })?;
+    convert::volume_from_image_no_meta(image, path.to_path_buf())
 }
 
 /// Load a pathless in-memory medical payload.

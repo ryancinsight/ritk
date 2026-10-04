@@ -35,6 +35,11 @@ From a standalone RITK checkout, open a study directory with:
 cargo run --locked -p ritk-snap -- path/to/study
 ```
 
+Native filesystem paths also accept the single-volume formats registered by
+`ritk-io`. The [viewer input manual](../../docs/manual/dicom-workflow.md#open-native-volume-files)
+lists the supported suffixes and the narrower byte-input support used by
+hosts without filesystem paths.
+
 The [synthetic DICOM workflow](../../docs/manual/dicom-workflow.md) explains
 the deterministic study used to check real file decoding, coordinates, and
 rendered slice pixels. It includes reproducible captures and the current

@@ -9,28 +9,31 @@
 use super::compare::ComparePanel;
 use super::composition::compose_frames;
 use super::layout::{
-    surface_frames_grid, GridPanel, NativeViewport, WorkspaceLayout, MAX_COMPARISON_PANELS,
-    MAX_GRID_PANELS,
+    GridPanel, MAX_COMPARISON_PANELS, MAX_GRID_PANELS, NativeViewport, WorkspaceLayout,
+    surface_frames_grid,
 };
-use super::observation::{record_state, NativeViewerObservation};
+use super::observation::{NativeViewerObservation, record_state};
 use super::panels::MaximizedPanel;
 use super::projection::{
-    empty_projection, render_projection_into, ProjectionRenderScratch, RenderedProjection,
+    ProjectionRenderScratch, RenderedProjection, empty_projection, render_projection_into,
 };
 use super::series_browser::SeriesBrowser;
-use super::{frame, WindowChrome, INITIAL_HEIGHT, INITIAL_WIDTH};
+use super::{INITIAL_HEIGHT, INITIAL_WIDTH, WindowChrome, frame};
 use crate::app::SnapApp;
 use crate::launch::NativePresentationSelection;
 use crate::render::FrameRenderScratch;
 use crate::tools::interaction::{ToolState, ViewportOffset};
 use crate::tools::kind::ToolKind;
-use anyhow::{anyhow, Result};
+use anyhow::{Result, anyhow};
 use arrayvec::{ArrayString, ArrayVec};
-use frame::{render_orthogonal_views, render_orthogonal_views_into, RenderedView};
+use frame::{RenderedView, render_orthogonal_views, render_orthogonal_views_into};
 use metis_platform::Framebuffer;
-use std::sync::atomic::Ordering;
 use std::sync::Arc;
+use std::sync::atomic::Ordering;
 use std::time::Instant;
+
+#[path = "annotations.rs"]
+mod annotations;
 
 fn viewport_offset(app: &SnapApp) -> ViewportOffset {
     app.pan_offset
@@ -163,6 +166,7 @@ impl NativeViewerSession {
             session.refresh_frame()?;
         } else {
             session.render_crosshair_overlay()?;
+            session.render_measurement_overlays()?;
             session.render_chrome()?;
             record_state(&session.observation, &session.app, 96, false)?;
         }
@@ -333,6 +337,7 @@ impl NativeViewerSession {
         self.framebuffer = framebuffer;
         self.viewports = viewports;
         self.render_crosshair_overlay()?;
+        self.render_measurement_overlays()?;
         self.render_chrome()?;
         self.observation
             .frame_generations
@@ -344,6 +349,44 @@ impl NativeViewerSession {
             self.minimized,
         )?;
         Ok(())
+    }
+
+    fn render_measurement_overlays(&mut self) -> Result<()> {
+        if let Some(grid) = self.workspace_layout.grid() {
+            for panel_index in 0..grid.panel_count().min(self.viewports.len()) {
+                let viewport = self.viewports[panel_index];
+                if panel_index == 0 {
+                    annotations::render_measurements(
+                        &mut self.framebuffer,
+                        &self.app,
+                        &self.views[0],
+                        viewport,
+                    )?;
+                } else {
+                    let panel = self
+                        .compare_panels
+                        .get(panel_index - 1)
+                        .ok_or_else(|| anyhow!("native measurement panel state is missing"))?;
+                    annotations::render_measurements(
+                        &mut self.framebuffer,
+                        &panel.app,
+                        panel.axial_view(),
+                        viewport,
+                    )?;
+                }
+            }
+            return Ok(());
+        }
+
+        let Some((view, viewport)) = self
+            .views
+            .iter()
+            .zip(self.viewports.iter().copied())
+            .find(|(view, _)| view.axis == self.app.axis)
+        else {
+            return Ok(());
+        };
+        annotations::render_measurements(&mut self.framebuffer, &self.app, view, viewport)
     }
 
     pub(super) fn record_terminal_frame(&self, destroyed: bool) -> Result<()> {

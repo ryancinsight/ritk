@@ -123,6 +123,7 @@ impl Sample for f64 {
     }
 }
 
+mod error;
 mod extent;
 mod fft;
 mod input;
@@ -137,9 +138,13 @@ mod search;
 #[path = "tests_block_matching.rs"]
 mod tests;
 #[cfg(test)]
+#[path = "tests_capacity.rs"]
+mod tests_capacity;
+#[cfg(test)]
 #[path = "tests_missing_data.rs"]
 mod tests_missing_data;
 
+pub use error::BlockMatchingError;
 pub use fft::{match_block_fft, metric_image_fft, FftPadding};
 pub use input::MovingSamples;
 pub use metric::{metric_image, BlockMetric, MetricImage};
@@ -355,8 +360,9 @@ pub(crate) fn match_block_at<T: Sample>(
 ///
 /// The grid partitions the image into non-overlapping tiles; the centre of each
 /// tile is the block centre. Axis `i` contributes
-/// `n_blocks[i] = (dims[i] - 2*block_radius[i]) / stride[i]` centres, placed
-/// at `block_radius[i] + k * stride[i]` for `k = 0 .. n_blocks[i]`.
+/// `n_blocks[i] = 0` when the block does not fit; otherwise
+/// `1 + (dims[i] - (2*block_radius[i] + 1)) / stride[i]` centres are placed
+/// at `block_radius[i] + k * stride[i]`.
 ///
 /// Choosing `stride = 2 * block_radius + 1` gives non-overlapping, dense
 /// coverage. A stride smaller than the block size gives overlapping tiles and
@@ -408,9 +414,23 @@ impl BlockGrid {
     }
 
     /// Enumerate block centres within `dims` for `config`.
-    fn centres(&self, dims: [usize; 3], config: &BlockMatchingConfig) -> Vec<[usize; 3]> {
+    fn centres(
+        &self,
+        dims: [usize; 3],
+        config: &BlockMatchingConfig,
+    ) -> anyhow::Result<Vec<[usize; 3]>> {
         let r = config.block_radius;
-        let mut out = Vec::new();
+        let block_dims = extent::window_extents(r, "block")?;
+        let counts = [
+            centre_count(dims[0], block_dims[0], self.stride[0]),
+            centre_count(dims[1], block_dims[1], self.stride[1]),
+            centre_count(dims[2], block_dims[2], self.stride[2]),
+        ];
+        let centre_count = extent::buffer_len::<[usize; 3]>(
+            [counts[0], counts[1], counts[2]],
+            "tracking centres",
+        )?;
+        let mut out = Vec::with_capacity(centre_count);
         let mut z = r[0];
         while z.checked_add(r[0]).is_some_and(|high| high < dims[0]) {
             let mut y = r[1];
@@ -433,7 +453,15 @@ impl BlockGrid {
                 None => break,
             };
         }
-        out
+        Ok(out)
+    }
+}
+
+fn centre_count(dim: usize, block_extent: usize, stride: usize) -> usize {
+    if block_extent > dim {
+        0
+    } else {
+        (dim - block_extent) / stride + 1
     }
 }
 
@@ -530,14 +558,16 @@ impl DisplacementField {
 /// Scans the fixed/moving buffer pair using the given `grid` layout and
 /// `config`, reporting `BlockDisplacement` at each centre. Blocks whose fixed
 /// window is constant (zero variance) are recorded with `peak_similarity = NAN`
-/// and zero displacement rather than propagating an error.
+/// and zero displacement rather than propagating that expected domain outcome.
+/// Typed geometry and allocation failures propagate.
 ///
 /// Both buffers are flat row-major `[nz, ny, nx]` with `nz * ny * nx` voxels.
 ///
 /// # Errors
 ///
-/// Returns an error when `dims` product does not equal `fixed.len()`, when the
-/// configuration is invalid, or when `grid.stride` is zero on any axis.
+/// Returns an error when `dims` product does not equal either buffer length,
+/// when the configuration or grid is invalid, or when a derived geometry or
+/// allocation capacity overflows.
 pub fn track_volume<T: Sample>(
     fixed: &[T],
     moving: &[T],
@@ -550,13 +580,13 @@ pub fn track_volume<T: Sample>(
     grid.validate()?;
     extent::check_buffer_lengths(fixed.len(), moving.len(), dims)?;
 
-    let centres = grid.centres(dims, &config);
+    let centres = grid.centres(dims, &config)?;
     let n = centres.len();
     let mut displacements = vec![[0.0f64; 3]; n];
     let mut peak_similarities = vec![f64::NAN; n];
 
     for (i, &centre) in centres.iter().enumerate() {
-        if let Ok(bd) = match_block(
+        match match_block(
             fixed,
             MovingSamples::complete(moving),
             dims,
@@ -564,10 +594,19 @@ pub fn track_volume<T: Sample>(
             config,
             refinement,
         ) {
-            displacements[i] = bd.displacement;
-            peak_similarities[i] = bd.peak_similarity;
+            Ok(bd) => {
+                displacements[i] = bd.displacement;
+                peak_similarities[i] = bd.peak_similarity;
+            }
+            Err(error) => {
+                let has_no_displacement = error
+                    .downcast_ref::<BlockMatchingError>()
+                    .is_some_and(BlockMatchingError::has_no_displacement);
+                if !has_no_displacement {
+                    return Err(error);
+                }
+            }
         }
-        // constant block (Err) — leave NAN / zeros
     }
 
     Ok(DisplacementField {
@@ -1042,13 +1081,13 @@ fn track_volume_fft<T: Sample>(
     grid.validate()?;
     extent::check_buffer_lengths(fixed.len(), moving.len(), dims)?;
 
-    let centres = grid.centres(dims, &config);
+    let centres = grid.centres(dims, &config)?;
     let n = centres.len();
     let mut displacements = vec![[0.0f64; 3]; n];
     let mut peak_similarities = vec![f64::NAN; n];
 
     for (i, &centre) in centres.iter().enumerate() {
-        if let Ok(bd) = match_block_fft(
+        match match_block_fft(
             fixed,
             MovingSamples::complete(moving),
             dims,
@@ -1057,8 +1096,18 @@ fn track_volume_fft<T: Sample>(
             refinement,
             FftPadding::Zero,
         ) {
-            displacements[i] = bd.displacement;
-            peak_similarities[i] = bd.peak_similarity;
+            Ok(bd) => {
+                displacements[i] = bd.displacement;
+                peak_similarities[i] = bd.peak_similarity;
+            }
+            Err(error) => {
+                let has_no_displacement = error
+                    .downcast_ref::<BlockMatchingError>()
+                    .is_some_and(BlockMatchingError::has_no_displacement);
+                if !has_no_displacement {
+                    return Err(error);
+                }
+            }
         }
     }
 

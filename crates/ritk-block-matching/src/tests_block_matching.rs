@@ -349,6 +349,99 @@ fn refuses_a_featureless_block() {
 }
 
 #[test]
+fn track_volume_propagates_typed_geometry_overflow() {
+    let dims = [1, 1, 3];
+    let samples = [1.0_f32; 3];
+    let config = BlockMatchingConfig {
+        block_radius: [0, 0, 1],
+        search_radius: [0, 0, usize::MAX],
+    };
+    let grid = BlockGrid::dense([1, 1, 3]);
+
+    let direct = track_volume(
+        &samples,
+        &samples,
+        dims,
+        config,
+        grid,
+        SubpixelRefinement::None,
+    )
+    .expect_err("the typed search extent overflow must reach the volume API");
+    assert_eq!(
+        direct.downcast_ref::<BlockMatchingError>(),
+        Some(&BlockMatchingError::WindowExtentOverflow {
+            label: "search",
+            axis: 2,
+            radius: usize::MAX,
+        })
+    );
+
+    let fft = track_volume_fft(
+        &samples,
+        &samples,
+        dims,
+        config,
+        grid,
+        SubpixelRefinement::None,
+    )
+    .expect_err("the FFT reach overflow must reach the volume API");
+    assert_eq!(
+        fft.downcast_ref::<BlockMatchingError>(),
+        Some(&BlockMatchingError::FftReachExtentOverflow {
+            axis: 2,
+            block_radius: 1,
+            search_radius: usize::MAX,
+        })
+    );
+}
+
+#[test]
+fn metric_and_fft_reject_capacity_before_allocation() {
+    let dims = [1, 1, 3];
+    let samples = [1.0_f32, 2.0, 3.0];
+    let config = BlockMatchingConfig {
+        block_radius: [0, 0, 1],
+        search_radius: [0, 0, 1usize << 59],
+    };
+
+    let direct = metric_image(
+        &samples,
+        MovingSamples::complete(&samples),
+        dims,
+        [0, 0, 1],
+        config,
+        BlockMetric::NormalizedCrossCorrelation,
+    )
+    .expect_err("the direct metric image exceeds its f64 byte capacity");
+    assert_eq!(
+        direct.downcast_ref::<BlockMatchingError>(),
+        Some(&BlockMatchingError::ByteCountOverflow {
+            label: "metric image",
+            dims: [1, 1, (1usize << 60) + 1],
+            element_size: std::mem::size_of::<f64>(),
+        })
+    );
+
+    let fft = metric_image_fft(
+        &samples,
+        MovingSamples::complete(&samples),
+        dims,
+        [0, 0, 1],
+        config,
+        FftPadding::Zero,
+    )
+    .expect_err("the FFT buffer exceeds its Complex64 byte capacity");
+    assert_eq!(
+        fft.downcast_ref::<BlockMatchingError>(),
+        Some(&BlockMatchingError::ByteCountOverflow {
+            label: "FFT buffer",
+            dims: [1, 1, 1usize << 61],
+            element_size: std::mem::size_of::<eunomia::Complex64>(),
+        })
+    );
+}
+
+#[test]
 fn rejects_invalid_geometry_and_out_of_bounds_blocks() {
     let fixed = shifted_image([0, 0, 0]);
     // A flat axis is valid — a 2-D acquisition is a 3-D image with a singleton
@@ -661,8 +754,23 @@ fn block_grid_dense_enumerates_centres() {
         search_radius: [0, 3, 3],
     };
     let grid = BlockGrid::dense(config.block_radius);
-    let centres = grid.centres([1, 32, 32], &config);
-    assert!(!centres.is_empty());
+    let centres = grid
+        .centres([1, 32, 32], &config)
+        .expect("the centre grid fits");
+    assert_eq!(
+        centres,
+        vec![
+            [0, 4, 4],
+            [0, 4, 13],
+            [0, 4, 22],
+            [0, 13, 4],
+            [0, 13, 13],
+            [0, 13, 22],
+            [0, 22, 4],
+            [0, 22, 13],
+            [0, 22, 22],
+        ]
+    );
     // Every centre must be at least block_radius away from each image boundary.
     for &[z, y, x] in &centres {
         assert!(z >= config.block_radius[0]);
@@ -672,6 +780,29 @@ fn block_grid_dense_enumerates_centres() {
         assert!(y + config.block_radius[1] < 32);
         assert!(x + config.block_radius[2] < 32);
     }
+}
+
+#[test]
+fn block_grid_rejects_centre_byte_capacity_overflow() {
+    let allocation_limit =
+        usize::try_from(isize::MAX).expect("usize represents the positive isize range");
+    let axis = allocation_limit / std::mem::size_of::<[usize; 3]>() + 1;
+    let dims = [1, 1, axis];
+    let config = BlockMatchingConfig {
+        block_radius: [0, 0, 0],
+        search_radius: [0, 0, 1],
+    };
+    let error = BlockGrid { stride: [1, 1, 1] }
+        .centres(dims, &config)
+        .expect_err("centre storage exceeds the allocator byte limit");
+    assert_eq!(
+        error.downcast_ref::<BlockMatchingError>(),
+        Some(&BlockMatchingError::ByteCountOverflow {
+            label: "tracking centres",
+            dims,
+            element_size: std::mem::size_of::<[usize; 3]>(),
+        })
+    );
 }
 
 #[test]
@@ -688,7 +819,16 @@ fn block_grid_validates_stride_and_overflow() {
         block_radius: [usize::MAX, usize::MAX, usize::MAX],
         search_radius: [1, 1, 1],
     };
-    assert!(grid.centres([1, 1, 1], &oversized).is_empty());
+    assert_eq!(
+        grid.centres([1, 1, 1], &oversized)
+            .expect_err("the block extent overflows")
+            .downcast_ref::<BlockMatchingError>(),
+        Some(&BlockMatchingError::WindowExtentOverflow {
+            label: "block",
+            axis: 0,
+            radius: usize::MAX,
+        })
+    );
 }
 
 #[test]

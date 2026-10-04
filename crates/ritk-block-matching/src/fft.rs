@@ -8,11 +8,12 @@
 
 use anyhow::{bail, Result};
 
-use crate::extent::{check_buffer_lengths, voxel_count, window_extents};
+use crate::extent::{buffer_len, check_buffer_lengths, window_extents};
 use eunomia::Complex64;
 
 use super::{
-    BlockDisplacement, BlockMatchingConfig, MetricImage, MovingSamples, Sample, SubpixelRefinement,
+    BlockDisplacement, BlockMatchingConfig, BlockMatchingError, MetricImage, MovingSamples, Sample,
+    SubpixelRefinement,
 };
 
 /// Boundary padding policy for the FFT correlation path.
@@ -112,48 +113,32 @@ pub(crate) fn metric_image_fft_at<T: Sample>(
     config: BlockMatchingConfig,
     padding: FftPadding,
 ) -> Result<MetricImage> {
-    validate_inputs(fixed, moving, dims, fixed_centre, moving_centre, config)?;
+    let reach = validate_inputs(fixed, moving, dims, fixed_centre, moving_centre, config)?;
     match padding {
         FftPadding::Zero => {}
     }
 
     let block_dims = window_extents(config.block_radius, "block")?;
     let search_dims = window_extents(config.search_radius, "search")?;
-    let reach = [
-        config.block_radius[0]
-            .checked_add(config.search_radius[0])
-            .ok_or_else(|| anyhow::anyhow!("block/search radius overflows on axis 0"))?,
-        config.block_radius[1]
-            .checked_add(config.search_radius[1])
-            .ok_or_else(|| anyhow::anyhow!("block/search radius overflows on axis 1"))?,
-        config.block_radius[2]
-            .checked_add(config.search_radius[2])
-            .ok_or_else(|| anyhow::anyhow!("block/search radius overflows on axis 2"))?,
-    ];
     let roi_dims = window_extents(reach, "moving ROI")?;
     let convolution_dims = [
-        roi_dims[0]
-            .checked_add(block_dims[0] - 1)
-            .ok_or_else(|| anyhow::anyhow!("FFT convolution extent overflows on axis 0"))?,
-        roi_dims[1]
-            .checked_add(block_dims[1] - 1)
-            .ok_or_else(|| anyhow::anyhow!("FFT convolution extent overflows on axis 1"))?,
-        roi_dims[2]
-            .checked_add(block_dims[2] - 1)
-            .ok_or_else(|| anyhow::anyhow!("FFT convolution extent overflows on axis 2"))?,
+        convolution_extent(roi_dims[0], block_dims[0], 0)?,
+        convolution_extent(roi_dims[1], block_dims[1], 1)?,
+        convolution_extent(roi_dims[2], block_dims[2], 2)?,
     ];
     let fft_dims = [
-        next_power_of_two(convolution_dims[0], "axis 0")?,
-        next_power_of_two(convolution_dims[1], "axis 1")?,
-        next_power_of_two(convolution_dims[2], "axis 2")?,
+        next_power_of_two(convolution_dims[0], 0)?,
+        next_power_of_two(convolution_dims[1], 1)?,
+        next_power_of_two(convolution_dims[2], 2)?,
     ];
-    let fft_len = voxel_count(fft_dims, "FFT buffer")?;
+    let fft_len = buffer_len::<Complex64>(fft_dims, "FFT buffer")?;
 
     let fixed_values = gather_fixed_block(fixed, dims, fixed_centre, config.block_radius);
     if fixed_values.iter().any(|value| !value.is_finite()) {
-        bail!(
-            "fixed block at {fixed_centre:?} contains a non-finite sample; every candidate would depend on unavailable data"
-        );
+        return Err(BlockMatchingError::NonFiniteFixedBlock {
+            centre: fixed_centre,
+        }
+        .into());
     }
     let fixed_mean = fixed_values.iter().sum::<f64>() / fixed_values.len() as f64;
     let fixed_energy = fixed_values
@@ -164,9 +149,10 @@ pub(crate) fn metric_image_fft_at<T: Sample>(
         })
         .sum::<f64>();
     if fixed_energy <= 0.0 {
-        bail!(
-            "fixed block at {fixed_centre:?} has zero variance; normalized correlation is undefined"
-        );
+        return Err(BlockMatchingError::FeaturelessFixedBlock {
+            centre: fixed_centre,
+        }
+        .into());
     }
 
     let mut moving_spectrum = vec![Complex64::new(0.0, 0.0); fft_len];
@@ -236,7 +222,7 @@ pub(crate) fn metric_image_fft_at<T: Sample>(
     fft3d(&mut moving_spectrum, fft_dims, true);
     let inverse_scale = 1.0 / fft_len as f64;
 
-    let mut values = vec![f64::NEG_INFINITY; voxel_count(search_dims, "metric image")?];
+    let mut values = vec![f64::NEG_INFINITY; buffer_len::<f64>(search_dims, "metric image")?];
     let mut candidate = Vec::with_capacity(fixed_values.len());
     for (oz, dz) in
         (-(config.search_radius[0] as isize)..=config.search_radius[0] as isize).enumerate()
@@ -312,43 +298,64 @@ fn validate_inputs<T: Sample>(
     fixed_centre: [usize; 3],
     moving_centre: [usize; 3],
     config: BlockMatchingConfig,
-) -> Result<()> {
+) -> Result<[usize; 3]> {
     config.validate()?;
     check_buffer_lengths(fixed.len(), moving.values().len(), dims)?;
+    let reach = [
+        config.block_radius[0]
+            .checked_add(config.search_radius[0])
+            .ok_or(BlockMatchingError::FftReachExtentOverflow {
+                axis: 0,
+                block_radius: config.block_radius[0],
+                search_radius: config.search_radius[0],
+            })?,
+        config.block_radius[1]
+            .checked_add(config.search_radius[1])
+            .ok_or(BlockMatchingError::FftReachExtentOverflow {
+                axis: 1,
+                block_radius: config.block_radius[1],
+                search_radius: config.search_radius[1],
+            })?,
+        config.block_radius[2]
+            .checked_add(config.search_radius[2])
+            .ok_or(BlockMatchingError::FftReachExtentOverflow {
+                axis: 2,
+                block_radius: config.block_radius[2],
+                search_radius: config.search_radius[2],
+            })?,
+    ];
+    window_extents(config.block_radius, "block")?;
+    window_extents(config.search_radius, "search")?;
     for &dimension in &dims {
         isize::try_from(dimension)?;
     }
     for axis in 0..3 {
-        let fixed_hi = fixed_centre[axis]
-            .checked_add(config.block_radius[axis])
-            .ok_or_else(|| anyhow::anyhow!("fixed centre overflows on axis {axis}"))?;
-        if fixed_centre[axis]
-            .checked_sub(config.block_radius[axis])
-            .is_none()
-            || fixed_hi >= dims[axis]
-        {
-            bail!("fixed block at {fixed_centre:?} leaves the image on axis {axis}");
+        for (label, centre) in [("fixed", fixed_centre), ("moving", moving_centre)] {
+            let radius = config.block_radius[axis];
+            let high = centre[axis].checked_add(radius);
+            if centre[axis].checked_sub(radius).is_none()
+                || high.is_none_or(|value| value >= dims[axis])
+            {
+                bail!("{label} block at {centre:?} leaves the image on axis {axis}");
+            }
         }
-        let moving_hi = moving_centre[axis]
-            .checked_add(config.block_radius[axis])
-            .ok_or_else(|| anyhow::anyhow!("moving centre overflows on axis {axis}"))?;
-        if moving_centre[axis]
-            .checked_sub(config.block_radius[axis])
-            .is_none()
-            || moving_hi >= dims[axis]
-        {
-            bail!("moving block at {moving_centre:?} leaves the image on axis {axis}");
-        }
-        isize::try_from(config.block_radius[axis])?;
-        isize::try_from(config.search_radius[axis])?;
     }
-    Ok(())
+    Ok(reach)
 }
 
-fn next_power_of_two(value: usize, axis: &str) -> Result<usize> {
-    value
-        .checked_next_power_of_two()
-        .ok_or_else(|| anyhow::anyhow!("FFT padded extent overflows on {axis}"))
+fn next_power_of_two(value: usize, axis: usize) -> Result<usize> {
+    value.checked_next_power_of_two().ok_or(
+        BlockMatchingError::FftPaddingExtentOverflow {
+            axis,
+            extent: value,
+        }
+        .into(),
+    )
+}
+
+fn convolution_extent(roi: usize, block: usize, axis: usize) -> Result<usize> {
+    roi.checked_add(block - 1)
+        .ok_or(BlockMatchingError::FftConvolutionExtentOverflow { axis, roi, block }.into())
 }
 
 fn flat_index([z, y, x]: [usize; 3], dims: [usize; 3]) -> usize {
@@ -455,5 +462,36 @@ fn transform_line(line: &mut [Complex64], inverse: bool) {
         apollo_fft::application::execution::kernel::fft_inverse_unnorm(line);
     } else {
         apollo_fft::application::execution::kernel::fft_forward(line);
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::{convolution_extent, next_power_of_two};
+    use crate::BlockMatchingError;
+
+    #[test]
+    fn convolution_extent_reports_its_operands_and_axis() {
+        let error = convolution_extent(usize::MAX, 2, 1)
+            .expect_err("the linear convolution extent exceeds usize");
+        assert_eq!(
+            error.downcast_ref::<BlockMatchingError>(),
+            Some(&BlockMatchingError::FftConvolutionExtentOverflow {
+                axis: 1,
+                roi: usize::MAX,
+                block: 2,
+            })
+        );
+    }
+
+    #[test]
+    fn power_of_two_extent_reports_its_axis_and_input() {
+        let extent = usize::MAX;
+        let error = next_power_of_two(extent, 2)
+            .expect_err("the extent cannot be rounded to a power of two");
+        assert_eq!(
+            error.downcast_ref::<BlockMatchingError>(),
+            Some(&BlockMatchingError::FftPaddingExtentOverflow { axis: 2, extent })
+        );
     }
 }

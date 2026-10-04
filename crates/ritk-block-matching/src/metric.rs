@@ -2,9 +2,9 @@
 
 use anyhow::{bail, Result};
 
-use crate::extent::{check_buffer_lengths, voxel_count, window_extents};
+use crate::extent::{buffer_len, check_buffer_lengths, window_extents};
 
-use super::{BlockMatchingConfig, MovingSamples, Sample};
+use super::{BlockMatchingConfig, BlockMatchingError, MovingSamples, Sample};
 
 /// Similarity measure evaluated between the fixed block and a candidate moving
 /// block.
@@ -95,23 +95,27 @@ pub(crate) fn metric_image_at<T: Sample>(
     let radius = config.block_radius;
     let search = config.search_radius;
     let extent = window_extents(search, "search")?;
-    let value_count = voxel_count(extent, "metric image")?;
+    let value_count = buffer_len::<f64>(extent, "metric image")?;
+    let block_dims = window_extents(radius, "block")?;
+    let block_count = buffer_len::<T>(block_dims, "metric block")?;
+    buffer_len::<f64>(block_dims, "metric block scratch")?;
 
     // Fixed block, mean-subtracted once: it is reused for every candidate.
     let block = gather_block(fixed, dims, fixed_centre, radius);
     if block.iter().any(|value| !value.is_finite()) {
-        bail!(
-            "fixed block at {fixed_centre:?} contains a non-finite sample; every candidate would depend on unavailable data"
-        );
+        return Err(BlockMatchingError::NonFiniteFixedBlock {
+            centre: fixed_centre,
+        }
+        .into());
     }
     let block_mean = block.iter().sum::<f64>() / block.len() as f64;
     let fixed_centred: Vec<f64> = block.iter().map(|&v| v - block_mean).collect();
     let fixed_energy: f64 = fixed_centred.iter().map(|v| v * v).sum();
     if fixed_energy <= 0.0 {
-        bail!(
-            "fixed block at {fixed_centre:?} has zero variance; normalized correlation is undefined \
-             and any peak would be an artefact of iteration order"
-        );
+        return Err(BlockMatchingError::FeaturelessFixedBlock {
+            centre: fixed_centre,
+        }
+        .into());
     }
     let fixed_norm = fixed_energy.sqrt();
 
@@ -119,7 +123,7 @@ pub(crate) fn metric_image_at<T: Sample>(
     // One scratch buffer for every candidate. A speckle tracker calls this per
     // depth sample of every line, so allocating per candidate would put tens of
     // allocations into the inner loop of a volume-wide sweep.
-    let mut candidate = Vec::with_capacity(block.len());
+    let mut candidate = Vec::with_capacity(block_count);
     for (oz, dz) in (-(search[0] as isize)..=search[0] as isize).enumerate() {
         for (oy, dy) in (-(search[1] as isize)..=search[1] as isize).enumerate() {
             for (ox, dx) in (-(search[2] as isize)..=search[2] as isize).enumerate() {
@@ -195,6 +199,8 @@ fn validate_inputs<T: Sample>(
 ) -> Result<()> {
     config.validate()?;
     check_buffer_lengths(fixed.len(), moving.values().len(), dims)?;
+    window_extents(config.block_radius, "block")?;
+    window_extents(config.search_radius, "search")?;
     for axis in 0..3 {
         for (label, centre) in [("fixed", fixed_centre), ("moving", moving_centre)] {
             let radius = config.block_radius[axis];

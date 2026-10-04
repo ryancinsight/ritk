@@ -5,19 +5,29 @@ Unified medical image I/O for [RITK](https://github.com/ryancinsight/ritk).
 Owns cross-format dispatch and the `ImageReader` / `ImageWriter` contracts; the
 byte-level parsing lives in the per-format crates.
 
-| Format | Read | Write |
+| Format | Native image read | Native image write |
 |---|---|---|
-| DICOM (series) | yes | yes |
+| DICOM | yes | no; use the DICOM series writer |
 | NIfTI (`.nii` / `.nii.gz`) | yes | yes |
 | MetaImage (`.mha` / `.mhd`) | yes | yes |
 | NRRD | yes | yes |
-| PNG | yes | yes |
-| TIFF / BigTIFF | yes | yes |
+| PNG | yes | no |
+| TIFF | yes | yes |
 | MGH / MGZ (FreeSurfer) | yes | yes |
 | Analyze 7.5 | yes | yes |
-| MINC2 | yes | yes |
 | VTK legacy structured points | yes | yes |
-| JPEG | yes | 2-D grayscale only |
+| JPEG | yes | yes, 2-D grayscale only |
+
+This table describes the path-based single-image dispatch. Its registered
+formats are defined by [`ImageFormat`](src/dispatch.rs). The native acquisition
+series dispatch is narrower: it reads DICOM directories, NIfTI, NRRD, and MGH;
+it writes NIfTI, NRRD, and MGH. DICOM output uses the explicit DICOM series
+writer because it must retain acquisition metadata. MINC2 is not registered in
+the path-based dispatch.
+
+The generic native image carrier and the CLI conversion path use `f32`.
+Cross-format conversion through that path can lose source sample precision and
+does not preserve every stored sample type.
 
 `read_image_native` and `write_image_native` select the format by path and
 content. The crate also ships a native-only DICOMweb client (QIDO / WADO /
