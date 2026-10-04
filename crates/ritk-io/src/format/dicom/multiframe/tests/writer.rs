@@ -283,6 +283,91 @@ fn test_write_multiframe_jpeg_baseline_round_trip() {
 }
 
 #[test]
+fn test_write_multiframe_jpeg_baseline_preserves_small_rescale_values() {
+    let tmp = tempfile::tempdir().expect("tempdir");
+    let out_path = tmp.path().join("mf_jpeg_small_range.dcm");
+    let frame_pixels = 8 * 8;
+    let voxels = [vec![0.0_f32; frame_pixels], vec![1.0e-8_f32; frame_pixels]].concat();
+    let image = native_image(voxels, [2, 8, 8], [0.0; 3], [1.0; 3]);
+    let config = MultiFrameWriterConfig {
+        transfer_syntax: TransferSyntaxKind::JpegBaseline,
+        ..MultiFrameWriterConfig::default()
+    };
+
+    write_dicom_multiframe_native_with_config(&out_path, &image, &config)
+        .expect("JPEG baseline multiframe write");
+
+    let obj = parse_file_with::<DicomRsBackend, _>(&out_path).expect("parse output");
+    let slope = obj
+        .element(Tag(0x0028, 0x1053))
+        .expect("RescaleSlope must be present")
+        .to_str()
+        .expect("RescaleSlope must be readable")
+        .trim()
+        .parse::<f64>()
+        .expect("RescaleSlope must be numeric");
+    assert!(
+        slope > 0.0,
+        "small positive range must retain a positive slope"
+    );
+
+    let decoded = load_dicom_multiframe_flat(&out_path).expect("decode JPEG baseline multiframe");
+    assert_eq!(decoded.shape, [2, 8, 8]);
+    assert_eq!(decoded.data[0], 0.0);
+    let reconstruction_error = (f64::from(decoded.data[frame_pixels]) - 1.0e-8).abs();
+    assert!(
+        reconstruction_error <= slope / 2.0,
+        "small endpoint reconstruction error {reconstruction_error} exceeds half-step {}",
+        slope / 2.0
+    );
+}
+
+#[test]
+fn test_write_multiframe_jpeg_baseline_uses_u8_calibration_before_validation() {
+    let tmp = tempfile::tempdir().expect("tempdir");
+    let out_path = tmp.path().join("mf_jpeg_subnormal_range.dcm");
+    let frame_pixels = 8 * 8;
+    // 32_895 = 129 * 255. The endpoint is therefore exactly representable
+    // through the u8 calibration slope, while the u16 slope rounds to one
+    // subnormal step and fails its endpoint reconstruction bound.
+    let endpoint = f32::from_bits(32_895);
+    let voxels = [vec![0.0_f32; frame_pixels], vec![endpoint; frame_pixels]].concat();
+    let image = native_image(voxels, [2, 8, 8], [0.0; 3], [1.0; 3]);
+    let config = MultiFrameWriterConfig {
+        transfer_syntax: TransferSyntaxKind::JpegBaseline,
+        ..MultiFrameWriterConfig::default()
+    };
+
+    write_dicom_multiframe_native_with_config(&out_path, &image, &config)
+        .expect("JPEG baseline multiframe write");
+
+    let obj = parse_file_with::<DicomRsBackend, _>(&out_path).expect("parse output");
+    let slope = obj
+        .element(Tag(0x0028, 0x1053))
+        .expect("RescaleSlope must be present")
+        .to_str()
+        .expect("RescaleSlope must be readable")
+        .trim()
+        .parse::<f64>()
+        .expect("RescaleSlope must be numeric");
+    let rescale_endpoint_error = (f64::from(u8::MAX) * slope - f64::from(endpoint)).abs();
+    assert!(
+        rescale_endpoint_error <= slope / 2.0,
+        "rescale endpoint error {rescale_endpoint_error} exceeds half-step {}",
+        slope / 2.0
+    );
+
+    let decoded = load_dicom_multiframe_flat(&out_path).expect("decode JPEG baseline multiframe");
+    assert_eq!(decoded.shape, [2, 8, 8]);
+    let reconstruction_error = (f64::from(decoded.data[frame_pixels]) - f64::from(endpoint)).abs();
+    assert!(
+        reconstruction_error <= slope / 2.0,
+        "subnormal endpoint reconstruction error {reconstruction_error} exceeds half-step {}",
+        slope / 2.0
+    );
+}
+
+#[test]
 fn test_write_multiframe_jpeg_baseline_declares_eight_bit_pixel_format() {
     let tmp = tempfile::tempdir().expect("tempdir");
     let out_path = tmp.path().join("mf_jpeg_tags.dcm");

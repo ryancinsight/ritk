@@ -45,12 +45,17 @@ impl DicomPixelSample for u16 {
 /// A nonconstant plane uses its exact finite range, with slope equal to range
 /// divided by the type maximum and intercept equal to the minimum. Quantization
 /// rounds to nearest with ties away from zero, so reconstruction error is at
-/// most half the rescale slope. A constant plane uses unit range and is
-/// reconstructed exactly from the intercept.
+/// most half the rescale slope in exact arithmetic. A nonconstant plane's
+/// maximum stored code is reconstructed with the decoder's binary32 arithmetic
+/// and rejected if it overflows or differs from the source maximum by more than
+/// half a rescale step. A constant plane uses unit range, zero samples, and the
+/// intercept.
 ///
 /// # Errors
 /// Returns an error for empty or non-finite input, an unrepresentable range, or
-/// a rescale slope that underflows to zero.
+/// a nonconstant calibration whose maximum stored code cannot reconstruct the
+/// source range within half the rescale slope using the decoder's
+/// `sample * slope + intercept` arithmetic.
 pub(crate) fn normalize_samples<T: DicomPixelSample>(data: &[f32]) -> Result<(Vec<T>, f32, f32)> {
     if data.is_empty() {
         bail!("cannot normalize an empty pixel buffer");
@@ -75,6 +80,19 @@ pub(crate) fn normalize_samples<T: DicomPixelSample>(data: &[f32]) -> Result<(Ve
     let rescale_slope = range / T::MAXIMUM;
     if !rescale_slope.is_finite() || rescale_slope <= 0.0 {
         bail!("pixel rescale slope is not representable as positive finite f32");
+    }
+
+    if observed_range != 0.0 {
+        let reconstructed_maximum = T::MAXIMUM * rescale_slope + minimum;
+        let reconstruction_error = (f64::from(reconstructed_maximum) - f64::from(maximum)).abs();
+        if !reconstructed_maximum.is_finite()
+            || !reconstruction_error.is_finite()
+            || reconstruction_error > f64::from(rescale_slope) / 2.0
+        {
+            bail!(
+                "pixel rescale calibration cannot reconstruct the maximum sample within half the DICOM rescale step: source={maximum} decoded={reconstructed_maximum} slope={rescale_slope}"
+            );
+        }
     }
 
     let pixels = data
@@ -321,6 +339,16 @@ mod tests {
                 .to_string(),
             "pixel rescale slope is not representable as positive finite f32"
         );
+        for extreme in [[0.0, f32::MAX], [0.0, f32::from_bits(32_768)]] {
+            let error = normalize_samples::<u16>(&extreme)
+                .expect_err("the decoder must not overflow or exceed the quantization bound");
+            assert!(
+                error.to_string().contains(
+                    "cannot reconstruct the maximum sample within half the DICOM rescale step"
+                ),
+                "unexpected calibration error: {error}"
+            );
+        }
     }
 
     #[test]
