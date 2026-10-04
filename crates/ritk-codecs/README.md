@@ -22,7 +22,9 @@ Every codec is pure Rust; none links a C or C++ library.
 integers plus 32- and 64-bit floats in either byte order. It preserves the
 declared sample type and floating-point bit patterns. A partial trailing sample
 is an error. Extracting another sample type returns the original buffer in the
-error, without rounding or discarding data.
+error, without rounding or discarding data. `SampleBuffer::write_to` streams the
+encoded bytes to a `std::io::Write` implementation without allocating a second
+buffer the size of the image; file adapters should pass a buffered writer.
 
 The codec layer does not depend on Coeus' algorithm scalar contract. Format
 adapters retain geometry and format-specific intensity calibration beside the
