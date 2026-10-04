@@ -86,7 +86,7 @@ pub fn write_dicom_series_with_metadata<B: Backend, P: AsRef<Path>>(
         obj.put_value(Tag(0x0028, 0x0002), VR::US, 1_u16);
         obj.put_value(Tag(0x0028, 0x0010), VR::US, rows as u16);
         obj.put_value(Tag(0x0028, 0x0011), VR::US, cols as u16);
-        emit_pixel_format_tags(&mut obj);
+        emit_pixel_format_tags(&mut obj, 16);
         obj.put_value(Tag(0x0028, 0x1053), VR::DS, format!("{:.6}", rescale_slope));
         obj.put_value(
             Tag(0x0028, 0x1052),

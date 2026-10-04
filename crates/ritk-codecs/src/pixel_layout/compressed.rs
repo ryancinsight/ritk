@@ -36,7 +36,7 @@ pub(crate) fn encode_stored_sample(value: f32, layout: PixelLayout) -> Result<i3
 /// over one saturated sample would make a valid image unwritable. The clamp is
 /// at the *encoding* boundary on purpose -- the decode path still rejects
 /// out-of-range stored samples, so this asymmetry cannot mask a decoder bug.
-pub(crate) fn encode_gray_u8_samples<I>(values: I, layout: PixelLayout) -> Result<Vec<u8>>
+pub(crate) fn encode_grayscale_stored_bytes<I>(values: I, layout: PixelLayout) -> Result<Vec<u8>>
 where
     I: ExactSizeIterator<Item = f32>,
 {

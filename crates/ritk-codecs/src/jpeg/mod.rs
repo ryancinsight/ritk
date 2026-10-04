@@ -11,7 +11,9 @@
 use anyhow::{bail, Context, Result};
 use consus_raster::{jpeg, Compression, DecodeLimits, PixelFormat};
 
-use crate::pixel_layout::{decode_compressed_samples, encode_gray_u8_samples, PixelSignedness};
+use crate::pixel_layout::{
+    decode_compressed_samples, encode_grayscale_stored_bytes, PixelSignedness,
+};
 use crate::PixelLayout;
 
 /// Decode one JPEG fragment using the supplied DICOM pixel layout.
@@ -81,7 +83,7 @@ pub fn decode_jpeg_fragment(fragment: &[u8], layout: PixelLayout) -> Result<Vec<
 /// when the provider rejects the request.
 pub fn encode_jpeg_fragment(samples: &[f32], layout: PixelLayout, quality: u8) -> Result<Vec<u8>> {
     validate_encodable_layout(layout)?;
-    let pixels = encode_gray_u8_samples(samples.iter().copied(), layout)?;
+    let pixels = encode_grayscale_stored_bytes(samples.iter().copied(), layout)?;
     let width = u32::try_from(layout.cols).context("DICOM JPEG columns exceed u32")?;
     let height = u32::try_from(layout.rows).context("DICOM JPEG rows exceed u32")?;
     let mut fragment = jpeg::encode_gray(&pixels, width, height, quality)
