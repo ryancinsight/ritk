@@ -135,7 +135,7 @@ fn write_series_flat(
     for z in 0..depth {
         let slice_offset = z * slice_len;
         let slice_f32 = &all_data[slice_offset..slice_offset + slice_len];
-        let (pixel_u16, rescale_slope, rescale_intercept) = normalize_to_u16(slice_f32);
+        let (pixel_u16, rescale_slope, rescale_intercept) = normalize_to_u16(slice_f32)?;
         let sop_instance_uid = generate_instance_uid(&series_uid, z);
         let zf = z as f64;
         let image_position = [

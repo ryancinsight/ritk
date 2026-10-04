@@ -166,7 +166,7 @@ fn write_multiframe_flat(
         );
     }
 
-    let (pixel_u16, rescale_slope, rescale_intercept) = normalize_to_u16(all_data);
+    let (pixel_u16, rescale_slope, rescale_intercept) = normalize_to_u16(all_data)?;
 
     let sop_instance_uid = generate_series_uid();
     let study_instance_uid = generate_series_uid();
@@ -278,7 +278,7 @@ fn write_multiframe_flat(
             // Baseline JPEG carries eight-bit samples, so the 16-bit
             // normalisation and the 16-bit pixel tags do not apply to this
             // transfer syntax. Re-derive both from the modality data.
-            let (pixel_u8, jpeg_slope, jpeg_intercept) = normalize_to_u8(all_data);
+            let (pixel_u8, jpeg_slope, jpeg_intercept) = normalize_to_u8(all_data)?;
             emit_pixel_format_tags_u8(&mut obj);
             let layout = PixelLayout {
                 rows,
