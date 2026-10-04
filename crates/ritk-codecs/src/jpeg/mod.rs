@@ -11,7 +11,7 @@
 use anyhow::{bail, Context, Result};
 use consus_raster::{jpeg, Compression, DecodeLimits, PixelFormat};
 
-use crate::pixel_layout::decode_compressed_samples;
+use crate::pixel_layout::{decode_compressed_samples, encode_gray_u8_samples, PixelSignedness};
 use crate::PixelLayout;
 
 /// Decode one JPEG fragment using the supplied DICOM pixel layout.
@@ -55,6 +55,68 @@ pub fn decode_jpeg_fragment(fragment: &[u8], layout: PixelLayout) -> Result<Vec<
         }
         _ => bail!("JPEG decoder returned an unsupported pixel format"),
     }
+}
+
+/// Encode one frame as a DICOM encapsulated baseline JPEG fragment.
+///
+/// This is the write half of [`decode_jpeg_fragment`]: the same `layout` that
+/// describes how to read a frame back describes how to write it. Samples arrive
+/// in the modality domain and are mapped back through the inverse rescale, so a
+/// frame written and re-read returns the values it started with up to the lossy
+/// DCT step.
+///
+/// Only eight-bit unsigned grayscale is encodable, because that is what the
+/// pure-Rust provider encodes; every other DICOM JPEG flavour the reader accepts
+/// (RGB, 12/16-bit, signed) has no encoder here and is rejected rather than
+/// silently narrowed.
+///
+/// A DICOM encapsulated fragment must have even length, so a single pad byte is
+/// appended when the codestream is odd. That is the same trailing byte
+/// [`strip_dicom_padding`] removes on the way back in.
+///
+/// # Errors
+///
+/// Returns an error when `layout` is not eight-bit unsigned grayscale, when the
+/// sample count does not match `layout`, when the rescale is not invertible, or
+/// when the provider rejects the request.
+pub fn encode_jpeg_fragment(samples: &[f32], layout: PixelLayout, quality: u8) -> Result<Vec<u8>> {
+    validate_encodable_layout(layout)?;
+    let pixels = encode_gray_u8_samples(samples.iter().copied(), layout)?;
+    let width = u32::try_from(layout.cols).context("DICOM JPEG columns exceed u32")?;
+    let height = u32::try_from(layout.rows).context("DICOM JPEG rows exceed u32")?;
+    let mut fragment = jpeg::encode_gray(&pixels, width, height, quality)
+        .context("failed to encode DICOM JPEG fragment")?;
+    if !fragment.len().is_multiple_of(2) {
+        fragment.push(0);
+    }
+    Ok(fragment)
+}
+
+fn validate_encodable_layout(layout: PixelLayout) -> Result<()> {
+    layout.pixels_per_frame()?;
+    layout.validate_rescale_parameters()?;
+    if layout.samples_per_pixel != 1 {
+        bail!(
+            "JPEG baseline encoding is grayscale only; layout declares {} samples per pixel",
+            layout.samples_per_pixel
+        );
+    }
+    if layout.bits_allocated != 8 {
+        bail!(
+            "JPEG baseline encoding is eight-bit only; layout allocates {} bits",
+            layout.bits_allocated
+        );
+    }
+    if layout.bits_stored != 8 {
+        bail!(
+            "JPEG baseline encoding is eight-bit only; layout stores {} bits",
+            layout.bits_stored
+        );
+    }
+    if layout.pixel_representation != PixelSignedness::Unsigned {
+        bail!("JPEG baseline encoding cannot represent signed DICOM samples");
+    }
+    Ok(())
 }
 
 fn strip_dicom_padding(fragment: &[u8]) -> &[u8] {
@@ -177,4 +239,8 @@ fn decode_jpeg_samples(
 
 #[cfg(test)]
 #[path = "tests_jpeg_decode.rs"]
-mod tests;
+mod tests_decode;
+
+#[cfg(test)]
+#[path = "tests_jpeg_encode.rs"]
+mod tests_encode;

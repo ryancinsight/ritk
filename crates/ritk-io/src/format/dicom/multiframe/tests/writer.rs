@@ -245,3 +245,88 @@ fn test_write_multiframe_rle_lossless_round_trip() {
         );
     }
 }
+
+#[test]
+fn test_write_multiframe_jpeg_baseline_round_trip() {
+    let tmp = tempfile::tempdir().expect("tempdir");
+    let out_path = tmp.path().join("mf_jpeg.dcm");
+    // A smooth ramp: baseline JPEG is lossy, so a hard-edged pattern would fail
+    // on the DCT step rather than on anything the writer controls.
+    let voxels: Vec<f32> = (0..24).map(|i| i as f32).collect();
+    let image = native_image(voxels.clone(), [2, 3, 4], [0.0; 3], [1.0; 3]);
+    let config = MultiFrameWriterConfig {
+        transfer_syntax: TransferSyntaxKind::JpegBaseline,
+        ..MultiFrameWriterConfig::default()
+    };
+
+    write_dicom_multiframe_native_with_config(&out_path, &image, &config)
+        .expect("JPEG baseline multiframe write");
+
+    let ts_uid = parse_file_with::<DicomRsBackend, _>(&out_path)
+        .expect("parse file")
+        .meta()
+        .transfer_syntax()
+        .to_owned();
+    assert_eq!(ts_uid, TransferSyntaxKind::JpegBaseline.uid());
+
+    let decoded = load_dicom_multiframe_flat(&out_path).expect("decode JPEG baseline multiframe");
+    assert_eq!(decoded.shape, [2, 3, 4]);
+    // Eight-bit storage bounds the reconstruction: the modality range is
+    // written across 255 levels, so a voxel can move by up to half a level of
+    // the 23-level source range, plus the lossy DCT's own quantisation.
+    for (actual, expected) in decoded.data.iter().zip(voxels.iter()) {
+        assert!(
+            (actual - expected).abs() <= 1.5,
+            "decoded voxel {actual} differed too much from source {expected}"
+        );
+    }
+}
+
+#[test]
+fn test_write_multiframe_jpeg_baseline_declares_eight_bit_pixel_format() {
+    let tmp = tempfile::tempdir().expect("tempdir");
+    let out_path = tmp.path().join("mf_jpeg_tags.dcm");
+    let voxels: Vec<f32> = (0..12).map(|i| i as f32).collect();
+    let image = native_image(voxels, [1, 3, 4], [0.0; 3], [1.0; 3]);
+    let config = MultiFrameWriterConfig {
+        transfer_syntax: TransferSyntaxKind::JpegBaseline,
+        ..MultiFrameWriterConfig::default()
+    };
+
+    write_dicom_multiframe_native_with_config(&out_path, &image, &config)
+        .expect("JPEG baseline multiframe write");
+
+    let obj = parse_file_with::<DicomRsBackend, _>(&out_path).expect("parse file");
+    // Baseline JPEG carries eight-bit samples; the 16-bit tags would describe a
+    // pixel format the fragments do not contain.
+    assert_eq!(
+        obj.element(Tag(0x0028, 0x0100))
+            .expect("BitsAllocated")
+            .to_str()
+            .expect("US renders as text")
+            .trim()
+            .parse::<u16>()
+            .expect("US parses"),
+        8
+    );
+    assert_eq!(
+        obj.element(Tag(0x0028, 0x0101))
+            .expect("BitsStored")
+            .to_str()
+            .expect("US renders as text")
+            .trim()
+            .parse::<u16>()
+            .expect("US parses"),
+        8
+    );
+    assert_eq!(
+        obj.element(Tag(0x0028, 0x0102))
+            .expect("HighBit")
+            .to_str()
+            .expect("US renders as text")
+            .trim()
+            .parse::<u16>()
+            .expect("US parses"),
+        7
+    );
+}

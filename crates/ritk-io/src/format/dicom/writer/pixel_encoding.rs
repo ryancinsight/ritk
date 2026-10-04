@@ -13,6 +13,62 @@ pub(crate) const MONOCHROME2: &str = "MONOCHROME2";
 
 pub(crate) const DICOM_SOP_CLASS_SECONDARY_CAPTURE: &str = "1.2.840.10008.5.1.4.1.1.7";
 
+/// Maximum u8 pixel value as f32, used for normalization (u8::MAX = 255).
+pub(crate) const U8_MAX_F: f32 = 255.0;
+
+/// Quality used for DICOM baseline (lossy) JPEG fragments.
+///
+/// Baseline JPEG is chosen here because a receiver demanded it, not because it
+/// saves space -- DICOM stores a *transport* encoding, and an image archived as
+/// lossy JPEG is not archived losslessly no matter what quality is chosen. So
+/// the default is high enough that the DCT step is a rounding error against the
+/// eight-bit quantisation already inherent in the format, and low enough that
+/// the fragment stays recognisably JPEG. Overridable per call.
+pub(crate) const JPEG_BASELINE_QUALITY: u8 = 95;
+
+/// Normalize a slice of f32 pixel values to u8, computing min/max rescale parameters.
+///
+/// Returns `(pixel_u8, rescale_slope, rescale_intercept)`.
+///
+/// # Mathematical specification
+///
+/// Let range = max(max_val - min_val, ε). Then:
+///   `pixel[i] = round((v[i] - min) / range × 255).clamp(0, 255)`
+///   `rescale_slope = range / 255`
+///   `rescale_intercept = min_val`
+///
+/// This is [`normalize_to_u16`] with 65535 replaced by 255, and it carries the
+/// same reconstruction invariant: `|v[i] - (pixel[i] × slope + intercept)| ≤
+/// slope / 2`. Baseline JPEG can only carry eight-bit samples, so a writer that
+/// supports it needs this normalisation rather than truncating the u16 form.
+pub(crate) fn normalize_to_u8(data: &[f32]) -> (Vec<u8>, f32, f32) {
+    let min_val = data.iter().copied().fold(f32::INFINITY, f32::min);
+    let max_val = data.iter().copied().fold(f32::NEG_INFINITY, f32::max);
+    let range = (max_val - min_val).max(f32::EPSILON);
+    let rescale_slope = range / U8_MAX_F;
+    let rescale_intercept = min_val;
+    let pixels: Vec<u8> = data
+        .iter()
+        .map(|&v| {
+            ((v - min_val) / range * U8_MAX_F)
+                .round()
+                .clamp(0.0, U8_MAX_F) as u8
+        })
+        .collect();
+    (pixels, rescale_slope, rescale_intercept)
+}
+
+/// Emit the four DICOM tags that define unsigned 8-bit pixel format.
+///
+/// BitsAllocated = 8, BitsStored = 8, HighBit = 7, PixelRepresentation = 0.
+/// Required by the baseline JPEG transfer syntax, whose samples are eight-bit.
+pub(crate) fn emit_pixel_format_tags_u8(obj: &mut InMemDicomObject) {
+    obj.put_value(Tag(0x0028, 0x0100), VR::US, 8u16);
+    obj.put_value(Tag(0x0028, 0x0101), VR::US, 8u16);
+    obj.put_value(Tag(0x0028, 0x0102), VR::US, 7u16);
+    obj.put_value(Tag(0x0028, 0x0103), VR::US, 0u16);
+}
+
 /// Normalize a slice of f32 pixel values to u16, computing min/max rescale parameters.
 ///
 /// Returns `(pixel_u16, rescale_slope, rescale_intercept)`.

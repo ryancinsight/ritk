@@ -6,7 +6,7 @@
 use anyhow::{bail, Result};
 
 mod compressed;
-pub(crate) use compressed::decode_compressed_samples;
+pub(crate) use compressed::{decode_compressed_samples, encode_gray_u8_samples};
 
 /// Pixel signedness, replacing ad-hoc `u16` / `bool` representations.
 ///
