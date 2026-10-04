@@ -149,6 +149,36 @@ fn tile_bounds_reject_out_of_range_sot_index() {
 }
 
 #[test]
+fn qcd_decodes_step_sizes_at_the_style_width() {
+    // Style 0: one byte per entry, widened to u16.
+    let unquantized = parse_qcd(&[0x00, 0x2A, 0x00, 0xFF]).expect("style 0 must parse");
+    assert_eq!(unquantized.step_sizes, vec![0x2A_u16, 0x00, 0xFF]);
+
+    // Styles 1 and 2: big-endian two-byte entries per ISO 15444-1 §A.6.4.
+    let scalar = parse_qcd(&[0x01, 0x12, 0x34, 0xAB, 0xCD]).expect("style 1 must parse");
+    assert_eq!(scalar.step_sizes, vec![0x1234_u16, 0xABCD]);
+    let derived = parse_qcd(&[0x02, 0x00, 0x01]).expect("style 2 must parse");
+    assert_eq!(derived.step_sizes, vec![0x0001_u16]);
+}
+
+#[test]
+fn qcd_rejects_partial_entries_and_unknown_styles() {
+    let empty = parse_qcd(&[]).expect_err("empty QCD body must fail");
+    assert!(empty.to_string().contains("body empty"), "got: {empty:#}");
+
+    let odd = parse_qcd(&[0x01, 0x12]).expect_err("odd-length scalar body must fail");
+    assert!(odd.to_string().contains("odd length 1"), "got: {odd:#}");
+
+    let unknown = parse_qcd(&[0x1F]).expect_err("unknown style must fail");
+    assert!(
+        unknown
+            .to_string()
+            .contains("unknown QCD quantization style 31"),
+        "got: {unknown:#}"
+    );
+}
+
+#[test]
 fn sot_rejects_reserved_or_too_short_fields() {
     for (segment, expected) in [
         (sot_segment(u16::MAX, 14, 0), "Isot=65535 is reserved"),
