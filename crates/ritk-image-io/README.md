@@ -1,0 +1,37 @@
+# ritk-image-io
+
+ritk-image-io defines the typed, geometry-aware volume exchanged by RITK
+format adapters. It keeps fixed-width stored samples separate from Coeus
+compute scalars and carries calibration as metadata without silently applying
+it. Spatial metadata uses patient LPS coordinates and millimeters; each format
+adapter converts its source basis and units at the file boundary.
+Stored-volume construction preserves every finite positive spacing and rejects
+direction-times-spacing components that overflow or underflow to zero, keeping
+format writers from emitting unrepresentable physical axes.
+
+`ImageReadBudget` provides encoded-byte, decoded-byte, and series-volume
+ceilings to format readers. Its default is 1 GiB for encoded and decoded
+payloads and 65,536 volumes; applications may construct smaller or larger
+limits for their data and memory policy.
+
+~~~rust
+use ritk_codecs::SampleBuffer;
+use ritk_image::ImageMetadata;
+use ritk_image_io::{IntensityCalibration, StoredVolume};
+use ritk_spatial::CoordinateMap;
+
+let volume = StoredVolume::new(
+    [1, 1, 2],
+    SampleBuffer::from_samples(vec![16_777_u16, 16_778]),
+    ImageMetadata::default_for_shape([1, 1, 2]),
+    CoordinateMap::Cartesian,
+    IntensityCalibration::Identity,
+)?;
+assert_eq!(volume.shape(), [1, 1, 2]);
+# Ok::<(), Box<dyn std::error::Error>>(())
+~~~
+
+Format crates parse and write their own headers and payloads. Their stored
+volume adapters preserve sample representation, geometry, coordinate mapping,
+and calibration or return an explicit unsupported-capability error before
+creating output.

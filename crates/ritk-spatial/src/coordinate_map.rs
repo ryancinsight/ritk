@@ -23,6 +23,8 @@
 //!   (`TransformContinuousIndexToPhysicalPoint` and its inverse) — the formulas
 //!   and the lateral-centering convention below are taken from that source.
 
+use std::sync::Arc;
+
 use crate::Direction;
 
 /// Why a coordinate map or its geometry was rejected.
@@ -527,6 +529,8 @@ impl SliceTransform {
 /// This matches the ITK `GetSliceTransform` forward convention (forward clamp,
 /// not reject).
 ///
+/// Clones share the immutable transform list rather than copying every slice.
+///
 /// # Inverse map (world → index)
 ///
 /// Finds the consecutive slice pair whose planes bracket the point, then
@@ -538,7 +542,7 @@ impl SliceTransform {
 /// - `itkSliceSeriesSpecialCoordinatesImage.h`, KitwareMedical/ITKUltrasound
 #[derive(Clone, Debug, PartialEq)]
 pub struct SliceSeries {
-    transforms: Vec<SliceTransform>,
+    transforms: Arc<Vec<SliceTransform>>,
 }
 
 impl SliceSeries {
@@ -552,7 +556,9 @@ impl SliceSeries {
         if transforms.is_empty() {
             return Err(InvalidCoordinateMap::TooFewSlices);
         }
-        Ok(Self { transforms })
+        Ok(Self {
+            transforms: Arc::new(transforms),
+        })
     }
 
     /// The per-slice transforms.
@@ -661,10 +667,8 @@ impl SliceSeries {
 ///
 /// See the module documentation for why this is a closed enum.
 ///
-/// Note: this enum is `Clone` but not `Copy` because the [`SliceSeries`]
-/// variant owns a heap-allocated transform list. Existing callers use the map
-/// by reference or clone-on-attach; this is therefore a mechanical
-/// (non-functional) breaking change.
+/// This enum is `Clone` but not `Copy` because the [`SliceSeries`] variant
+/// owns a heap-allocated transform list. Clones share that immutable list.
 #[derive(Clone, Debug, Default, PartialEq)]
 pub enum CoordinateMap {
     /// Affine `origin + Direction · (index ⊙ spacing)` — the ordinary raster.
@@ -1166,5 +1170,14 @@ mod tests {
         assert!(map.validate_dimensionality(2).is_err());
         assert!(map.validate_dimensionality(3).is_ok());
         assert!(map.validate_dimensionality(4).is_err());
+    }
+
+    #[test]
+    fn slice_series_clones_share_the_transform_list() {
+        let sweep = translation_sweep(3, 1.0);
+        let cloned = sweep.clone();
+
+        assert!(Arc::ptr_eq(&sweep.transforms, &cloned.transforms));
+        assert_eq!(cloned.transforms(), sweep.transforms());
     }
 }

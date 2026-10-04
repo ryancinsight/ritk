@@ -30,13 +30,15 @@ fn make_image(values: Vec<f32>, dims: [usize; 3]) -> Image<f32, TestBackend, 3> 
     .expect("valid image")
 }
 
-/// Build `volumes` images on one grid, volume `v` filled with `v * 100 + i`.
+/// Build distinct voxel values across `volumes` images on one grid.
 fn series_fixture(volumes: usize, dims: [usize; 3]) -> Vec<Image<f32, TestBackend, 3>> {
     let voxels = dims[0] * dims[1] * dims[2];
     (0..volumes)
         .map(|volume| {
             make_image(
-                (0..voxels).map(|i| (volume * 100 + i) as f32).collect(),
+                (0..voxels)
+                    .map(|i| sample_value(volume * voxels + i))
+                    .collect(),
                 dims,
             )
         })
@@ -344,13 +346,18 @@ fn truncated_series_payload_is_rejected() -> Result<()> {
 
     let err = read_nrrd_series::<TestBackend, _>(&path, &backend)
         .expect_err("a truncated series payload must fail");
-    let message = format!("{err:#}");
-    // The declared byte count spans every volume, so the shortfall is reported
-    // against the whole series (4 volumes x 8 voxels x 4 bytes = 128), not
-    // against one volume's worth.
+    // The declared byte count spans every volume: 4 volumes x 8 voxels x 4
+    // bytes = 128, while removing one volume leaves 96.
     assert!(
-        message.contains("need 128 bytes"),
-        "error must name the full series byte requirement, got: {message}"
+        matches!(
+            err.downcast_ref::<crate::reader::NrrdStoredReadError>(),
+            Some(crate::reader::NrrdStoredReadError::TruncatedPayload {
+                expected_bytes: 128,
+                actual_bytes: 96,
+            })
+        ),
+        "error must carry the full series byte counts, got: {err:#}"
     );
     Ok(())
 }
+use super::fixtures::sample_value;

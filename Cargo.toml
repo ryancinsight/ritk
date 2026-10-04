@@ -7,6 +7,7 @@ members = [
   "crates/ritk-core",
   "crates/ritk-dicom",
   "crates/ritk-codecs",
+  "crates/ritk-image-io",
   "crates/ritk-nifti",
   "crates/ritk-nrrd",
   "crates/ritk-metaimage",
@@ -71,6 +72,7 @@ ritk-segmentation = { path = "crates/ritk-segmentation", version = "0.3.0" }
 ritk-core = { path = "crates/ritk-core", version = "0.10.0" }
 ritk-dicom = { path = "crates/ritk-dicom", version = "0.2.0" }
 ritk-codecs = { path = "crates/ritk-codecs", version = "0.6.0" }
+ritk-image-io = { path = "crates/ritk-image-io", version = "0.1.0" }
 ritk-nifti = { path = "crates/ritk-nifti", version = "0.2.0" }
 ritk-nrrd = { path = "crates/ritk-nrrd", version = "0.2.0" }
 ritk-metaimage = { path = "crates/ritk-metaimage", version = "0.2.0" }

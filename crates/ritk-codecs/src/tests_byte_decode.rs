@@ -7,15 +7,15 @@ use std::f64::consts::PI;
 #[test]
 fn from_nrrd_big_is_most_significant_byte_first() {
     assert_eq!(
-        ByteOrder::from_nrrd("big"),
-        ByteOrder::MostSignificantByteFirst
+        ByteOrder::from_nrrd("big").expect("valid endian marker"),
+        ByteOrder::MostSignificantByteFirst,
     );
 }
 
 #[test]
 fn from_nrrd_little_is_least_significant_byte_first() {
     assert_eq!(
-        ByteOrder::from_nrrd("little"),
+        ByteOrder::from_nrrd("little").expect("valid endian marker"),
         ByteOrder::LeastSignificantByteFirst
     );
 }
@@ -23,11 +23,11 @@ fn from_nrrd_little_is_least_significant_byte_first() {
 #[test]
 fn from_nrrd_is_case_insensitive() {
     assert_eq!(
-        ByteOrder::from_nrrd("BIG"),
+        ByteOrder::from_nrrd("BIG").expect("valid endian marker"),
         ByteOrder::MostSignificantByteFirst
     );
     assert_eq!(
-        ByteOrder::from_nrrd("Little"),
+        ByteOrder::from_nrrd("Little").expect("valid endian marker"),
         ByteOrder::LeastSignificantByteFirst
     );
 }
@@ -35,53 +35,45 @@ fn from_nrrd_is_case_insensitive() {
 #[test]
 fn from_nrrd_trims_whitespace() {
     assert_eq!(
-        ByteOrder::from_nrrd("  big  "),
+        ByteOrder::from_nrrd("  big  ").expect("valid endian marker"),
         ByteOrder::MostSignificantByteFirst
     );
 }
 
 #[test]
-fn from_nrrd_unknown_defaults_to_little_endian() {
-    assert_eq!(
-        ByteOrder::from_nrrd("msbfirst"),
-        ByteOrder::LeastSignificantByteFirst
-    );
-    assert_eq!(
-        ByteOrder::from_nrrd("mostsignificantbytefirst"),
-        ByteOrder::LeastSignificantByteFirst
-    );
-    assert_eq!(
-        ByteOrder::from_nrrd(""),
-        ByteOrder::LeastSignificantByteFirst
-    );
-    assert_eq!(
-        ByteOrder::from_nrrd("middle"),
-        ByteOrder::LeastSignificantByteFirst
-    );
+fn from_nrrd_rejects_unknown_markers() {
+    for value in ["msbfirst", "mostsignificantbytefirst", "", "middle"] {
+        assert_eq!(
+            ByteOrder::from_nrrd(value),
+            Err(super::NrrdByteOrderError::InvalidMarker {
+                value: value.to_owned()
+            })
+        );
+    }
 }
 
 #[test]
-fn from_nrrd_embedded_whitespace_defaults_to_little_endian() {
-    assert_eq!(
-        ByteOrder::from_nrrd("bi g"),
-        ByteOrder::LeastSignificantByteFirst
-    );
-    assert_eq!(
-        ByteOrder::from_nrrd("lit tle"),
-        ByteOrder::LeastSignificantByteFirst
-    );
+fn from_nrrd_rejects_embedded_whitespace() {
+    for value in ["bi g", "lit tle"] {
+        assert_eq!(
+            ByteOrder::from_nrrd(value),
+            Err(super::NrrdByteOrderError::InvalidMarker {
+                value: value.to_owned()
+            })
+        );
+    }
 }
 
 #[test]
-fn from_nrrd_partial_match_defaults_to_little_endian() {
-    assert_eq!(
-        ByteOrder::from_nrrd("bigg"),
-        ByteOrder::LeastSignificantByteFirst
-    );
-    assert_eq!(
-        ByteOrder::from_nrrd("littl"),
-        ByteOrder::LeastSignificantByteFirst
-    );
+fn from_nrrd_rejects_partial_matches() {
+    for value in ["bigg", "littl"] {
+        assert_eq!(
+            ByteOrder::from_nrrd(value),
+            Err(super::NrrdByteOrderError::InvalidMarker {
+                value: value.to_owned()
+            })
+        );
+    }
 }
 
 // ── ByteOrder::from_metaimage_msb ─────────────────────────────────────
