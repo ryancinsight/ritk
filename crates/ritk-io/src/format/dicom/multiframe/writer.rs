@@ -340,7 +340,7 @@ fn write_multiframe_flat(
                 bits_allocated: 8,
                 bits_stored: 8,
                 pixel_representation: PixelSignedness::Unsigned,
-                // `pixel_u8` already holds *stored* samples, so the encoder's
+                // `pixels` already holds *stored* samples, so the encoder's
                 // layout must be the identity. Carrying the modality rescale
                 // here would make `encode_jpeg_fragment` invert it a second
                 // time, scaling each sample by 255/range on the way in. The
