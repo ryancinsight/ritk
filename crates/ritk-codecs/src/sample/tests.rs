@@ -213,6 +213,11 @@ fn stream_write_preserves_the_written_prefix_and_reports_io_failure() {
         .write_to(&mut writer, ByteOrder::LeastSignificantByteFirst)
         .expect_err("a failed output stream must be reported");
 
+    let source = std::error::Error::source(&error).expect("I/O error source is retained");
+    assert_eq!(
+        source.downcast_ref::<io::Error>().map(io::Error::kind),
+        Some(io::ErrorKind::BrokenPipe)
+    );
     assert!(matches!(
         error,
         SampleError::Io(error) if error.kind() == io::ErrorKind::BrokenPipe
