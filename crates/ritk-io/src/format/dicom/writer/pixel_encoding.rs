@@ -2,6 +2,7 @@ use crate::format::dicom::writer::elements::PutValue;
 use anyhow::{bail, Context, Result};
 use dicom::core::{Tag, VR};
 use dicom::object::InMemDicomObject;
+use eunomia::convert::IntegerTarget;
 use std::collections::HashSet;
 use std::path::{Path, PathBuf};
 
@@ -43,20 +44,22 @@ pub(crate) const JPEG_BASELINE_QUALITY: u8 = 95;
 /// supports it needs this normalisation rather than truncating the u16 form.
 ///
 /// # Errors
-/// Returns an error when a pixel sample is not finite.
+/// Returns an error for an empty buffer, a non-finite sample, or a sample
+/// range whose width overflows f32.
 pub(crate) fn normalize_to_u8(data: &[f32]) -> Result<(Vec<u8>, f32, f32)> {
     validate_normalization_samples(data)?;
     let min_val = data.iter().copied().fold(f32::INFINITY, f32::min);
     let max_val = data.iter().copied().fold(f32::NEG_INFINITY, f32::max);
-    let range = (max_val - min_val).max(f32::EPSILON);
+    let range = normalization_range(min_val, max_val)?;
     let rescale_slope = range / U8_MAX_F;
     let rescale_intercept = min_val;
     let pixels: Vec<u8> = data
         .iter()
         .map(|&v| {
-            ((v - min_val) / range * U8_MAX_F)
+            let quantized = ((v - min_val) / range * U8_MAX_F)
                 .round()
-                .clamp(0.0, U8_MAX_F) as u8
+                .clamp(0.0, U8_MAX_F);
+            u8::from_truncated(f64::from(quantized))
         })
         .collect();
     Ok((pixels, rescale_slope, rescale_intercept))
@@ -87,32 +90,45 @@ pub(crate) fn emit_pixel_format_tags_u8(obj: &mut InMemDicomObject) {
 /// Reconstruction invariant: `|v[i] - (pixel[i] × slope + intercept)| ≤ slope / 2`.
 ///
 /// # Errors
-/// Returns an error when a pixel sample is not finite.
+/// Returns an error for an empty buffer, a non-finite sample, or a sample
+/// range whose width overflows f32.
 pub(crate) fn normalize_to_u16(data: &[f32]) -> Result<(Vec<u16>, f32, f32)> {
     validate_normalization_samples(data)?;
     let min_val = data.iter().copied().fold(f32::INFINITY, f32::min);
     let max_val = data.iter().copied().fold(f32::NEG_INFINITY, f32::max);
-    let range = (max_val - min_val).max(f32::EPSILON);
+    let range = normalization_range(min_val, max_val)?;
     let rescale_slope = range / U16_MAX_F;
     let rescale_intercept = min_val;
     let pixels: Vec<u16> = data
         .iter()
         .map(|&v| {
-            ((v - min_val) / range * U16_MAX_F)
+            let quantized = ((v - min_val) / range * U16_MAX_F)
                 .round()
-                .clamp(0.0, U16_MAX_F) as u16
+                .clamp(0.0, U16_MAX_F);
+            u16::from_truncated(f64::from(quantized))
         })
         .collect();
     Ok((pixels, rescale_slope, rescale_intercept))
 }
 
 fn validate_normalization_samples(data: &[f32]) -> Result<()> {
+    if data.is_empty() {
+        bail!("cannot normalize an empty pixel buffer");
+    }
     for (index, &value) in data.iter().enumerate() {
         if !value.is_finite() {
             bail!("pixel sample at index {index} is not finite: {value}");
         }
     }
     Ok(())
+}
+
+fn normalization_range(min_val: f32, max_val: f32) -> Result<f32> {
+    let range = max_val - min_val;
+    if !range.is_finite() {
+        bail!("pixel range width is not representable as finite f32");
+    }
+    Ok(range.max(f32::EPSILON))
 }
 
 #[cfg(test)]
@@ -131,7 +147,7 @@ mod tests {
     }
 
     #[test]
-    fn normalizers_reject_non_finite_samples_before_casting() {
+    fn normalizers_reject_non_finite_samples_before_conversion() {
         for invalid in [f32::NAN, f32::INFINITY, f32::NEG_INFINITY] {
             let expected = format!("pixel sample at index 1 is not finite: {invalid}");
             let u8_error = normalize_to_u8(&[0.0, invalid, 255.0])
@@ -141,6 +157,32 @@ mod tests {
             assert_eq!(u8_error.to_string(), expected);
             assert_eq!(u16_error.to_string(), expected);
         }
+    }
+
+    #[test]
+    fn normalizers_reject_empty_buffers() {
+        let u8_error = normalize_to_u8(&[]).expect_err("an empty pixel buffer has no range");
+        let u16_error = normalize_to_u16(&[]).expect_err("an empty pixel buffer has no range");
+        assert_eq!(
+            u8_error.to_string(),
+            "cannot normalize an empty pixel buffer"
+        );
+        assert_eq!(
+            u16_error.to_string(),
+            "cannot normalize an empty pixel buffer"
+        );
+    }
+
+    #[test]
+    fn normalizers_reject_ranges_that_overflow_f32() {
+        let samples = [-f32::MAX, f32::MAX];
+        let u8_error =
+            normalize_to_u8(&samples).expect_err("the pixel range width must remain finite");
+        let u16_error =
+            normalize_to_u16(&samples).expect_err("the pixel range width must remain finite");
+        let expected = "pixel range width is not representable as finite f32";
+        assert_eq!(u8_error.to_string(), expected);
+        assert_eq!(u16_error.to_string(), expected);
     }
 }
 

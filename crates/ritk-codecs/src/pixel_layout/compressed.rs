@@ -1,6 +1,7 @@
 //! Encapsulated-codec sample conversion into the DICOM modality domain.
 
 use anyhow::{bail, Context, Result};
+use eunomia::convert::IntegerTarget;
 
 use super::{PixelLayout, PixelSignedness};
 
@@ -8,7 +9,7 @@ use super::{PixelLayout, PixelSignedness};
 ///
 /// This inverts the `* slope + intercept` transform applied by
 /// [`decode_compressed_samples`]. Rounding follows [`f32::round`], which sends
-/// halfway cases away from zero.
+/// halfway cases away from zero; conversion to i32 saturates at its bounds.
 pub(crate) fn encode_stored_sample(value: f32, layout: PixelLayout) -> Result<i32> {
     layout.validate_rescale_parameters()?;
     if layout.rescale_slope == 0.0 {
@@ -18,7 +19,7 @@ pub(crate) fn encode_stored_sample(value: f32, layout: PixelLayout) -> Result<i3
         bail!("cannot encode a non-finite sample {value}");
     }
     let stored = (value - layout.rescale_intercept) / layout.rescale_slope;
-    Ok(stored.round() as i32)
+    Ok(i32::from_truncated(f64::from(stored.round())))
 }
 
 /// Inverse of [`decode_compressed_samples`] for the eight-bit grayscale case.
@@ -42,7 +43,8 @@ where
     values
         .map(|value| {
             let stored = encode_stored_sample(value, layout)?;
-            Ok(u8::try_from(stored.clamp(0, i32::from(u8::MAX))).unwrap_or(u8::MAX))
+            u8::try_from(stored.clamp(0, i32::from(u8::MAX)))
+                .context("clamped stored sample must fit u8")
         })
         .collect()
 }

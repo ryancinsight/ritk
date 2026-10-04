@@ -62,13 +62,12 @@
 ## RITK-TYPED-SAMPLES-001: Preserve fixed-width stored samples
 - outcome: decode and encode image samples in RITK without implicit numeric conversion.
 - acceptance: ten fixed-width types round-trip both byte orders and float bits; partial samples fail; mismatched extraction preserves the buffer; migrated callers preserve their documented numeric semantics.
-- status: blocked
-- blocker: The exact-revision pre-push gate for commit be04d9051 reached its 600-second deadline while an Atlas Kwavers nextest held the shared Cargo target; no tests or Clippy result were obtained. Reopen after the target is available and the exact gate passes.
+- status: todo
 - priority: architecture
 - needs: none
 - scope: `crates/ritk-codecs/src/sample/`, typed conversion and calibration operations, format adapters, codec exports and README, [ADR 0053](docs/adr/0053-typed-sample-io.md).
-- next: Resume from rescue PR #746, rerun the exact gate, then complete the stored-sample operations and migrate callers.
-- basis: 6b6c10d06533c9391e419924a834541b97b8b756
+- next: Complete typed value conversion, calibration, and caller migrations; then advance NRRD stored-volume support.
+- basis: 78bcf856d5f58a8ed2a3943aba1cac845ff655f1
 
 <a id="RITK-FORMAT-CONVERSION-001"></a>
 ## RITK-FORMAT-CONVERSION-001: Convert image formats through RITK
