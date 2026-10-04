@@ -9,6 +9,8 @@
 #![expect(dead_code, reason = "ratchet RITK-LINT-1")]
 
 use anyhow::{bail, Context, Result};
+use consus_core::decode_extend;
+use consus_core::types::datatype::ByteOrder;
 
 use super::marker;
 
@@ -588,25 +590,34 @@ fn parse_qcd(body: &[u8]) -> Result<QcdMarker> {
     let sqcd = body[0];
     let style = sqcd & 0x1F;
     let data = &body[1..];
-    let step_sizes = match style {
+    // Both widths decode through the shared bulk decoder at the width the
+    // quantization style fixes: single-byte exponents widen to `u16`, and
+    // two-byte scalar entries decode big-endian per ISO 15444-1 §A.6.4.
+    // A trailing partial entry is never dropped silently.
+    let mut step_sizes = Vec::new();
+    match style {
         0 => {
             // No quantization: each entry is 1 byte (exponent only).
-            data.iter().map(|&b| b as u16).collect()
+            decode_extend::<u8, u16>(data, ByteOrder::BigEndian, &mut step_sizes, u16::from)
+                .expect("invariant: single-byte entries always fill whole scalars");
         }
         1 | 2 => {
             // Scalar quantization: each entry is 2 bytes.
-            if !data.len().is_multiple_of(2) {
-                bail!(
+            decode_extend::<u16, u16>(
+                data,
+                ByteOrder::BigEndian,
+                &mut step_sizes,
+                core::convert::identity,
+            )
+            .ok_or_else(|| {
+                anyhow::anyhow!(
                     "J2K: QCD scalar quantization body has odd length {}",
                     data.len()
-                );
-            }
-            data.chunks_exact(2)
-                .map(|c| u16::from_be_bytes([c[0], c[1]]))
-                .collect()
+                )
+            })?;
         }
         other => bail!("J2K: unknown QCD quantization style {other}"),
-    };
+    }
     Ok(QcdMarker { sqcd, step_sizes })
 }
 
