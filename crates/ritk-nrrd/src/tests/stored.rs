@@ -28,31 +28,36 @@ fn read_nrrd_stored_series<P: AsRef<std::path::Path>>(
 }
 
 fn write_header(path: &std::path::Path, fields: &[&str], bytes: &[u8]) -> Result<()> {
-    write_header_exact(
-        path,
-        fields,
-        bytes,
-        !fields.iter().any(|field| {
-            field
-                .split_once(':')
-                .is_some_and(|(name, _)| name.trim().eq_ignore_ascii_case("encoding"))
-        }),
-    )
+    let mut version = "NRRD0004";
+    let mut encoding = Some("raw");
+    for field in fields {
+        let Some((name, _)) = field.split_once(':') else {
+            continue;
+        };
+        if name.trim().eq_ignore_ascii_case("measurement frame") {
+            version = "NRRD0005";
+        }
+        if name.trim().eq_ignore_ascii_case("encoding") {
+            encoding = None;
+        }
+    }
+    write_header_with_version(path, fields, bytes, version, encoding)
 }
 
-fn write_header_exact(
+fn write_header_with_version(
     path: &std::path::Path,
     fields: &[&str],
     bytes: &[u8],
-    add_raw_encoding: bool,
+    version: &str,
+    encoding: Option<&str>,
 ) -> Result<()> {
     let mut file = std::fs::File::create(path)?;
-    writeln!(file, "NRRD0004")?;
+    writeln!(file, "{version}")?;
     for field in fields {
         writeln!(file, "{field}")?;
     }
-    if add_raw_encoding {
-        writeln!(file, "encoding: raw")?;
+    if let Some(encoding) = encoding {
+        writeln!(file, "encoding: {encoding}")?;
     }
     writeln!(file)?;
     file.write_all(bytes)?;

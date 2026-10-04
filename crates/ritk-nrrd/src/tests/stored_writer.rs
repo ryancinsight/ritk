@@ -242,6 +242,8 @@ fn diffusion_series_writer_preserves_the_gradient_scheme() -> Result<()> {
 
     write_nrrd_stored_series(&path, &series)?;
     let output = std::fs::read_to_string(&path)?;
+    assert!(output.starts_with("NRRD0005\n"));
+    assert!(output.contains("measurement frame: (1,0,0) (0,1,0) (0,0,1)"));
     assert!(output.contains("modality:=DWMRI"));
     assert!(output.contains("DWMRI_b-value:=1000"));
     let decoded = read_nrrd_stored_series(&path, ImageReadBudget::DEFAULT)?;
@@ -320,7 +322,7 @@ fn diffusion_header_entry_limit_preserves_existing_output() -> Result<()> {
     assert!(matches!(
         error,
         NrrdStoredWriteError::HeaderTooManyEntries {
-            entries: 65_537,
+            entries: 65_538,
             maximum_entries: 65_536,
         }
     ));

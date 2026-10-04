@@ -84,6 +84,20 @@ pub(super) fn parse_spatial_metadata(
     )?;
     let has_directions = headers.contains_key("space directions");
 
+    if !has_directions
+        && spacings.is_none()
+        && axis_units.as_deref().is_some_and(|units| {
+            file_axes
+                .iter()
+                .any(|axis| units.get(*axis).copied().flatten().is_some())
+        })
+    {
+        return Err(spatial_error(
+            NrrdSpatialMetadataField::AxisUnits,
+            anyhow::anyhow!("per-axis units without spacings or space directions cannot define physical geometry"),
+        ));
+    }
+
     if has_directions {
         validate_direction_axis_fields(
             dimension,

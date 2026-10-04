@@ -315,11 +315,12 @@ fn concatenated_gzip_members_form_one_nrrd_payload() -> Result<()> {
 fn stored_reader_requires_encoding_and_rejects_invalid_skips_before_payload_use() -> Result<()> {
     let directory = tempdir()?;
     let missing = directory.path().join("missing-encoding.nrrd");
-    write_header_exact(
+    write_header_with_version(
         &missing,
         &["type: unsigned char", "dimension: 3", "sizes: 1 1 1"],
         &[7],
-        false,
+        "NRRD0004",
+        None,
     )?;
     assert!(matches!(
         read_nrrd_stored(&missing),

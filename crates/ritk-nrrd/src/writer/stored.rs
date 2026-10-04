@@ -1,6 +1,6 @@
 //! Exact stored-sample writes through the shared RITK image-I/O contract.
 
-use ritk_codecs::{ByteOrder, SampleError, SampleType, SampleWriteError};
+use ritk_codecs::{ByteOrder, SampleError, SampleType};
 use ritk_diffusion_scheme::GradientFrame;
 use ritk_image_io::{
     validate_coordinate_map, validate_physical_geometry, SeriesAxis, StoredSeries, StoredVolume,
@@ -233,13 +233,8 @@ fn write_sample_payload<W: Write>(
         .samples()
         .write_to(writer, ByteOrder::LeastSignificantByteFirst)
         .map_err(|source| match source {
-            SampleWriteError::Sample(source) => NrrdStoredWriteError::SampleEncoding { source },
-            SampleWriteError::Io(source) => NrrdStoredWriteError::Io(source),
-            // `SampleWriteError` is `#[non_exhaustive]` for forward compatibility;
-            // the two variants above are exhaustive for the current `ritk-codecs`
-            // release, so this arm is unreachable until a new variant is added
-            // upstream (which then extends this mapping instead of panicking).
-            _ => unreachable!("exhaustive SampleWriteError mapping covers all current variants"),
+            SampleError::Io(source) => NrrdStoredWriteError::Io(source),
+            source => NrrdStoredWriteError::SampleEncoding { source },
         })
 }
 
@@ -274,7 +269,7 @@ fn validate_series_header_entries(
         SeriesAxis::Diffusion(scheme) => {
             scheme
                 .len()
-                .checked_add(2)
+                .checked_add(3)
                 .ok_or(NrrdStoredWriteError::HeaderTooManyEntries {
                     entries: usize::MAX,
                     maximum_entries: crate::reader::MAX_HEADER_ENTRIES,

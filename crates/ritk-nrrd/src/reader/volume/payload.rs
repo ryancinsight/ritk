@@ -195,6 +195,29 @@ pub(in crate::reader) fn parse_nrrd_raw<P: AsRef<Path>>(
             sample_width: element_size,
         },
     )?;
+    let expected_payload_bytes_u64 = u64::try_from(expected_payload_bytes).map_err(|_| {
+        NrrdStoredReadError::PayloadLengthNotRepresentable {
+            expected_bytes: expected_payload_bytes,
+        }
+    })?;
+    let gzip_skip_bytes = if encoding == NrrdEncoding::Gzip && byte_skip > 0 {
+        u64::try_from(byte_skip).map_err(|_| NrrdStoredReadError::InvalidByteSkip {
+            value: byte_skip,
+            reason: "gzip byte skips must be nonnegative",
+        })?
+    } else {
+        0
+    };
+    let expanded_payload_bytes = expected_payload_bytes_u64
+        .checked_add(gzip_skip_bytes)
+        .ok_or(NrrdStoredReadError::ExpandedPayloadByteCountOverflow {
+            payload_bytes: expected_payload_bytes_u64,
+            skipped_bytes: gzip_skip_bytes,
+        })?;
+    budget.check(
+        ImageReadResource::DecodedBytes,
+        expanded_payload_bytes.max(decoded_bytes_u64),
+    )?;
     let coordinate_map = crate::coordinate_map::from_header_for_depth(&header.key_values, nz)
         .map_err(|error| NrrdStoredReadError::CoordinateMap { source: error })?;
     let series_axis = match read_purpose {

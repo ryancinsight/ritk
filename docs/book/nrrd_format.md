@@ -96,6 +96,17 @@ contiguous axes. `write_nrrd_stored_series` writes the trailing contiguous
 layout; the existing compute-image series writer keeps its leading NA-MIC
 layout.
 
+Diffusion series output uses the NRRD0005 magic and writes an explicit identity
+measurement frame because its gradient vectors are already in LPS coordinates.
+Other stored series retain NRRD0004. The reader accepts the standard
+`axismins`, `axismaxs`, and `centerings` aliases and canonicalizes them before
+checking duplicate fields. Per-axis physical units without `space directions`
+or `spacings` are rejected because they cannot determine sample geometry.
+Stored scalar or list data with a `measurement frame` but no DWMRI scheme is
+rejected before payload reading because the stored-volume model cannot retain
+that frame. Axis support bounds and cell/node centering are likewise rejected
+instead of being discarded.
+
 The custom RITK coordinate-map field serializes Cartesian, curvilinear,
 phased-array, and per-slice transform maps. Slice-series transforms store nine
 row-major direction components and three translation coordinates per depth
@@ -116,7 +127,8 @@ fields are parsed before payload decoding; positive byte skips on gzip data
 apply after decompression, while `byte skip: -1` is accepted only for raw data.
 
 Stored reads accept an `ImageReadBudget` that caps encoded payload bytes,
-decoded sample bytes, and the number of volumes in an acquisition series.
+decoded sample bytes, gzip-expanded payload bytes including discarded byte-skip
+data, and the number of volumes in an acquisition series.
 The default limits are 1 GiB for each byte count and 65,536 volumes. The
 adapter checks declared counts before allocating decoded sample storage. The
 stored writer validates format semantics before opening the destination and

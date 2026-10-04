@@ -80,3 +80,57 @@ fn custom_key_value_names_cannot_replace_structural_fields() -> Result<()> {
     );
     Ok(())
 }
+
+#[test]
+fn stored_reader_rejects_measurement_frame_without_diffusion_metadata() -> Result<()> {
+    let directory = tempdir()?;
+    let path = directory.path().join("orphan-measurement-frame.nrrd");
+    let measurement_frame = "(0,1,0) (1,0,0) (0,0,1)";
+    write_header(
+        &path,
+        &[
+            "type: unsigned char",
+            "dimension: 3",
+            "sizes: 1 1 1",
+            "measurement frame: (0,1,0) (1,0,0) (0,0,1)",
+        ],
+        &[],
+    )?;
+
+    let error = read_nrrd_stored(&path)
+        .expect_err("the stored-volume contract cannot retain an unrelated measurement frame");
+    assert!(matches!(
+        error,
+        NrrdStoredReadError::UnsupportedMeasurementFrame { measurement_frame: value }
+            if value == measurement_frame
+    ));
+    Ok(())
+}
+
+#[test]
+fn stored_series_rejects_measurement_frame_without_diffusion_metadata() -> Result<()> {
+    let directory = tempdir()?;
+    let path = directory.path().join("list-measurement-frame.nrrd");
+    let measurement_frame = "(1,0,0) (0,1,0) (0,0,1)";
+    write_header(
+        &path,
+        &[
+            "type: unsigned char",
+            "dimension: 4",
+            "sizes: 1 1 1 1",
+            "kinds: domain domain domain list",
+            "space directions: (1,0,0) (0,1,0) (0,0,1) none",
+            "measurement frame: (1,0,0) (0,1,0) (0,0,1)",
+        ],
+        &[],
+    )?;
+
+    let error = read_nrrd_stored_series(&path)
+        .expect_err("a list series cannot retain an unrelated measurement frame");
+    assert!(matches!(
+        error,
+        NrrdStoredReadError::UnsupportedMeasurementFrame { measurement_frame: value }
+            if value == measurement_frame
+    ));
+    Ok(())
+}

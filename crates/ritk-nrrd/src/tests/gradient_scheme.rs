@@ -370,7 +370,10 @@ fn missing_and_malformed_dwi_contracts_are_rejected() -> Result<()> {
         ],
     )?;
     let error = read_nrrd_gradient_scheme(list).expect_err("the nominal b-value is scalar");
-    assert_eq!(error.to_string(), "invalid DWMRI_b-value");
+    assert_eq!(
+        error.to_string(),
+        "cannot parse DWMRI_b-value value '0 1000 1000'"
+    );
 
     let non_finite = directory.path().join("non_finite.nrrd");
     write_header(

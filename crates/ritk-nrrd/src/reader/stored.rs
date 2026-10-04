@@ -155,6 +155,12 @@ pub enum NrrdStoredReadError {
         /// Declared units for each stored scalar value.
         units: String,
     },
+    /// A measurement frame is not represented outside a diffusion scheme.
+    #[error("NRRD measurement frame {measurement_frame:?} is not represented by the stored-volume contract")]
+    UnsupportedMeasurementFrame {
+        /// Declared frame vectors from the NRRD header.
+        measurement_frame: String,
+    },
     /// The decoded voxel count overflows `usize`.
     #[error("NRRD voxel count overflows for sizes {sizes:?}")]
     VoxelCountOverflow {
@@ -185,6 +191,16 @@ pub enum NrrdStoredReadError {
     DecodedByteCountNotRepresentable {
         /// Decoded sample bytes required by the output representation.
         decoded_bytes: usize,
+    },
+    /// A gzip skip plus decoded payload exceeds the byte-count representation.
+    #[error(
+        "NRRD expanded payload byte count overflows for {payload_bytes} payload bytes and {skipped_bytes} skipped bytes"
+    )]
+    ExpandedPayloadByteCountOverflow {
+        /// Bytes declared for the decoded payload.
+        payload_bytes: u64,
+        /// Bytes expanded and discarded before the declared payload.
+        skipped_bytes: u64,
     },
     /// The coordinate-map field cannot be represented.
     #[error("NRRD coordinate map is invalid: {source}")]
@@ -395,9 +411,10 @@ impl std::fmt::Display for NrrdSpatialMetadataField {
 /// Returns a [`NrrdStoredReadError`] that identifies an invalid header field,
 /// unsupported encoding or geometry, truncated payload, sample decoding
 /// failure, allocation failure, or a violation of the shared stored-volume
-/// contract. `budget` bounds encoded payload bytes, decoded sample bytes, and
-/// series volume count before payload allocation. A multi-volume acquisition
-/// returns [`NrrdStoredReadError::AcquisitionAxisRequiresSeries`].
+/// contract. `budget` bounds encoded payload bytes, decoded sample bytes,
+/// gzip-expanded payload bytes (including a declared byte skip), and series
+/// volume count before payload allocation. A multi-volume acquisition returns
+/// [`NrrdStoredReadError::AcquisitionAxisRequiresSeries`].
 pub fn read_nrrd_stored<P: AsRef<Path>>(
     path: P,
     budget: ImageReadBudget,
@@ -423,7 +440,9 @@ pub fn read_nrrd_stored<P: AsRef<Path>>(
 /// Returns a [`NrrdStoredReadError`] that identifies an invalid header field,
 /// unsupported encoding or geometry, truncated payload, sample decoding
 /// failure, allocation failure, or a violation of the shared stored-volume
-/// contract.
+/// contract. `budget` bounds encoded bytes, decoded samples, gzip-expanded
+/// bytes (including a declared byte skip), and series volume count before
+/// payload allocation.
 pub fn read_nrrd_stored_series<P: AsRef<Path>>(
     path: P,
     budget: ImageReadBudget,
@@ -445,6 +464,11 @@ pub(super) fn stored_series_axis(
         (key.eq_ignore_ascii_case("modality") && value.eq_ignore_ascii_case("DWMRI"))
             || key.to_ascii_uppercase().starts_with("DWMRI_")
     });
+    if !has_diffusion && let Some(measurement_frame) = header.fields.get("measurement frame") {
+        return Err(NrrdStoredReadError::UnsupportedMeasurementFrame {
+            measurement_frame: measurement_frame.clone(),
+        });
+    }
     if has_diffusion {
         if acquisition == AcquisitionAxis::Absent {
             return Err(NrrdStoredReadError::DiffusionRequiresAcquisitionAxis);

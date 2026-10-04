@@ -3,6 +3,8 @@
 use super::{parse_nrrd_raw, NrrdReadPurpose};
 use crate::reader::stored::NrrdStoredReadError;
 use anyhow::Result;
+use flate2::write::GzEncoder;
+use flate2::Compression;
 use ritk_image_io::{ImageReadBudget, ImageReadBudgetError, ImageReadResource};
 use std::io::Write;
 use tempfile::tempdir;
@@ -90,6 +92,39 @@ fn decoded_sample_and_compute_output_limits_precede_payload_read() -> Result<()>
                 resource: ImageReadResource::DecodedBytes,
                 actual: 16,
                 maximum: 15,
+            }
+        }
+    ));
+    Ok(())
+}
+
+#[test]
+fn gzip_byte_skip_counts_against_the_decoded_byte_budget() -> Result<()> {
+    let directory = tempdir()?;
+    let path = directory.path().join("gzip-byte-skip.nrrd");
+    let mut encoder = GzEncoder::new(Vec::new(), Compression::default());
+    encoder.write_all(b"12345678DATA")?;
+    let payload = encoder.finish()?;
+    write_nrrd(
+        &path,
+        &[
+            "dimension: 3",
+            "sizes: 4 1 1",
+            "encoding: gzip",
+            "byte skip: 8",
+        ],
+        &payload,
+    )?;
+
+    let error = parse_nrrd_raw(&path, budget(128, 11, 1), NrrdReadPurpose::StoredVolume)
+        .expect_err("expanded bytes skipped before the sample payload use the same bound");
+    assert!(matches!(
+        error,
+        NrrdStoredReadError::ReadBudget {
+            source: ImageReadBudgetError::Exceeded {
+                resource: ImageReadResource::DecodedBytes,
+                actual: 12,
+                maximum: 11,
             }
         }
     ));

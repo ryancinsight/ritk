@@ -73,6 +73,9 @@ fn standard_field_aliases_share_one_canonical_key_and_reject_conflicts() {
         ("byte skip", "byteskip", "12"),
         ("line skip", "lineskip", "3"),
         ("data file", "datafile", "volume.raw"),
+        ("axis mins", "axismins", "0 0 0"),
+        ("axis maxs", "axismaxs", "1 1 1"),
+        ("centers", "centerings", "\"node\" \"node\" \"node\""),
     ] {
         let input = format!("NRRD0005\n{alias}: {value}\n\n");
         let mut reader = Cursor::new(input);

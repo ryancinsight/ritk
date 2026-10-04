@@ -229,6 +229,30 @@ fn stored_reader_converts_per_axis_spacing_units_to_millimeters() -> Result<()> 
 }
 
 #[test]
+fn stored_reader_rejects_per_axis_units_without_grid_spacing() -> Result<()> {
+    let directory = tempdir()?;
+    let path = directory.path().join("units-without-spacing.nrrd");
+    let fields = [
+        "type: unsigned char",
+        "dimension: 3",
+        "sizes: 1 1 1",
+        "units: \"cm\" \"mm\" \"m\"",
+    ];
+    write_header(&path, &fields, &[])?;
+
+    let error = read_nrrd_stored(&path)
+        .expect_err("axis units need a grid spacing before physical geometry is representable");
+    assert!(matches!(
+        error,
+        NrrdStoredReadError::SpatialMetadata {
+            field: NrrdSpatialMetadataField::AxisUnits,
+            ..
+        }
+    ));
+    Ok(())
+}
+
+#[test]
 fn stored_reader_rejects_singular_coordinate_map_before_payload_read() -> Result<()> {
     let directory = tempdir()?;
     let path = directory.path().join("singular-coordinate-map.nrrd");

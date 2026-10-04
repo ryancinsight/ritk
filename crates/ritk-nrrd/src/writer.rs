@@ -197,7 +197,12 @@ pub(super) fn write_nrrd_series_header(
         [spacing[0], spacing[1], spacing[2]],
         direction_row_major(direction),
     );
-    writeln!(writer, "NRRD0004")?;
+    let format_version = if matches!(axis, SeriesAxis::Diffusion(_)) {
+        "NRRD0005"
+    } else {
+        "NRRD0004"
+    };
+    writeln!(writer, "{format_version}")?;
     writeln!(writer, "# Complete NRRD file written by ritk")?;
     writeln!(writer, "type: {element_type}")?;
     writeln!(writer, "dimension: 4")?;
@@ -234,6 +239,9 @@ pub(super) fn write_nrrd_series_header(
         "space origin: ({},{},{})",
         origin[0], origin[1], origin[2]
     )?;
+    if matches!(axis, SeriesAxis::Diffusion(_)) {
+        writeln!(writer, "measurement frame: (1,0,0) (0,1,0) (0,0,1)")?;
+    }
     crate::coordinate_map::write_key_value(writer, coordinate_map)?;
     if let SeriesAxis::Diffusion(scheme) = axis {
         let nominal = scheme

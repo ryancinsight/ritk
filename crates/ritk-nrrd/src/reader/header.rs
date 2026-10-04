@@ -350,6 +350,12 @@ fn canonical_field_name(field: &str) -> &str {
         "line skip"
     } else if field.eq_ignore_ascii_case("datafile") {
         "data file"
+    } else if field.eq_ignore_ascii_case("axismins") {
+        "axis mins"
+    } else if field.eq_ignore_ascii_case("axismaxs") {
+        "axis maxs"
+    } else if field.eq_ignore_ascii_case("centerings") {
+        "centers"
     } else {
         field
     }
