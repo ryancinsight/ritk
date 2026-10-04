@@ -2,8 +2,14 @@
 
 - Status: Accepted
 
+- Revision 2026-10-04: nonzero NRRD DWI gradients require an explicit
+  measurement frame; an all-zero baseline remains valid without one. The
+  format defines no safe implied mapping when omitted ([Teem NRRD
+  specification, section 4](https://teem.sourceforge.net/nrrd/format.html)).
+
 This decision is retroactive. It records the shared RITK image-I/O contract
-implemented for `RITK-FORMAT-CONVERSION-001`, beginning with the NRRD stored-sample adapter in PR #710.
+implemented for [RITK-TYPED-SAMPLES-006](../../backlog.md#RITK-TYPED-SAMPLES-006),
+beginning with the NRRD stored-sample adapter in PR #710.
 
 ## Context
 
@@ -92,4 +98,6 @@ test checks the typed decoded-byte budget error. Revise this decision if a
 format's required image semantics cannot be represented by this value without
 loss or if an independent format-conversion oracle contradicts these tests.
 
-Driving item: `RITK-FORMAT-CONVERSION-001` (PR #710).
+Driving item: [RITK-TYPED-SAMPLES-006](../../backlog.md#RITK-TYPED-SAMPLES-006)
+(PR #710). Its conversion consumer is
+[RITK-FORMAT-CONVERSION-001](../../backlog.md#RITK-FORMAT-CONVERSION-001).

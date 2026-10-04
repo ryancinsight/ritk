@@ -52,8 +52,14 @@ in `ritk-io`, CLI, and viewer code consume the same authoritative API.
 
 `read_nrrd_gradient_scheme` implements the NA-MIC DWI convention. One nominal
 `DWMRI_b-value` is combined with each `DWMRI_gradient_XXXX` squared norm to
-recover the per-volume effective b-value. The measurement frame maps gradients
-to world coordinates; RAS world coordinates are converted once to RITK LPS.
+recover the per-volume effective b-value. The measurement frame maps gradient
+coordinates to world coordinates; RAS world coordinates are converted once to
+RITK LPS. Although NRRD makes this field optional, a nonzero gradient without
+it has no defined coordinate mapping. RITK rejects that input instead of
+assuming the gradient frame matches the image orientation; an all-zero baseline
+does not need a gradient-frame mapping. See [Teem's NRRD specification,
+section 4](https://teem.sourceforge.net/nrrd/format.html) for the coordinate-
+frame contract.
 Every encoded nonzero weighting is preserved, including values below the
 scanner-input baseline threshold used by `ritk-diffusion-scheme` constructors.
 Missing indices, non-finite values, `DWMRI_NEX`, and B-matrix encodings fail

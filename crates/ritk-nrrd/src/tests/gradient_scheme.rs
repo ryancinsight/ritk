@@ -10,6 +10,8 @@ use tempfile::tempdir;
 
 use crate::read_nrrd_gradient_scheme;
 
+const IDENTITY_MEASUREMENT_FRAME: &str = "measurement frame: (1,0,0) (0,1,0) (0,0,1)";
+
 fn write_header(path: &Path, fields: &[&str]) -> Result<()> {
     let mut file = std::fs::File::create(path)?;
     writeln!(file, "NRRD0005")?;
@@ -45,8 +47,8 @@ fn write_header(path: &Path, fields: &[&str]) -> Result<()> {
 }
 
 /// Write NRRD header fields for a gradient scheme suitable for
-/// [`read_nrrd_gradient_scheme`].  Returns the DWMRI_b-value and
-/// DWMRI_gradient_NNNN lines.
+/// [`read_nrrd_gradient_scheme`], including an explicit identity measurement
+/// frame and the DWMRI weighting and gradient entries.
 ///
 /// The NRRD DWI convention encodes effective b-values via gradient
 /// magnitude: `b_eff = nominal * (|g| / max|g|)²`.  This helper computes
@@ -63,6 +65,7 @@ fn nrrd_scheme_fields(scheme: &GradientScheme) -> Vec<String> {
     let mut fields: Vec<String> = Vec::new();
     let count = scheme.len();
     fields.push(format!("sizes: {count} 2 2 2"));
+    fields.push(IDENTITY_MEASUREMENT_FRAME.to_owned());
     fields.push("modality:=DWMRI".to_owned());
     fields.push(format!("DWMRI_b-value:={max_b}"));
     for (index, entry) in scheme.directions().iter().enumerate() {
@@ -177,6 +180,7 @@ fn nominal_weighting_and_gradient_magnitude_form_multiple_shells() -> Result<()>
     write_header(
         &path,
         &[
+            IDENTITY_MEASUREMENT_FRAME,
             "modality:=DWMRI",
             "DWMRI_b-value:=1000",
             "DWMRI_gradient_0000:=0 0 0",
@@ -211,6 +215,7 @@ fn low_effective_weighting_is_preserved() -> Result<()> {
         &path,
         &[
             "modality:=DWMRI",
+            IDENTITY_MEASUREMENT_FRAME,
             "DWMRI_b-value:=1000",
             "DWMRI_gradient_0000:=0 0 0",
             "DWMRI_gradient_0001:=0.2 0 0",
@@ -271,6 +276,7 @@ fn physical_space_units_do_not_scale_dwi_gradient_directions() -> Result<()> {
         &[
             "space: RAS",
             "space units: \"cm\" \"cm\" \"cm\"",
+            IDENTITY_MEASUREMENT_FRAME,
             "modality:=DWMRI",
             "DWMRI_b-value:=1000",
             "DWMRI_gradient_0000:=0 0 0",
@@ -293,11 +299,64 @@ fn physical_space_units_do_not_scale_dwi_gradient_directions() -> Result<()> {
 }
 
 #[test]
+fn nonzero_gradients_require_a_measurement_frame() -> Result<()> {
+    let directory = tempdir()?;
+    let path = directory.path().join("missing-measurement-frame.nrrd");
+    write_header(
+        &path,
+        &[
+            "sizes: 2 2 2 2",
+            "modality:=DWMRI",
+            "DWMRI_b-value:=1000",
+            "DWMRI_gradient_0000:=0 0 0",
+            "DWMRI_gradient_0001:=1 0 0",
+        ],
+    )?;
+
+    let error = read_nrrd_gradient_scheme(path)
+        .expect_err("nonzero gradients need an explicit coordinate frame");
+    assert_eq!(
+        error.to_string(),
+        "NRRD DWI nonzero gradients require an explicit measurement frame"
+    );
+    Ok(())
+}
+
+#[test]
+fn zero_gradient_baseline_does_not_require_a_measurement_frame() -> Result<()> {
+    let directory = tempdir()?;
+    let path = directory.path().join("baseline-without-frame.nrrd");
+    write_header(
+        &path,
+        &[
+            "sizes: 1 2 2 2",
+            "modality:=DWMRI",
+            "DWMRI_b-value:=0",
+            "DWMRI_gradient_0000:=0 0 0",
+        ],
+    )?;
+
+    let scheme = read_nrrd_gradient_scheme(path)?;
+    assert_eq!(scheme.len(), 1);
+    assert_eq!(scheme.frame(), GradientFrame::Lps);
+    assert_eq!(scheme.directions()[0].weighting(), weighting(0.0));
+    assert_eq!(
+        scheme.directions()[0].direction(),
+        Vector::new([0.0, 0.0, 0.0])
+    );
+    Ok(())
+}
+
+#[test]
 fn missing_and_malformed_dwi_contracts_are_rejected() -> Result<()> {
     let directory = tempdir()?;
     let missing = directory.path().join("missing.nrrd");
     write_header(&missing, &["modality:=DWMRI", "DWMRI_b-value:=1000"])?;
-    assert!(read_nrrd_gradient_scheme(missing).is_err());
+    let error = read_nrrd_gradient_scheme(missing).expect_err("a gradient table is required");
+    assert_eq!(
+        error.to_string(),
+        "NRRD DWI header has no DWMRI_gradient_NNNN entries"
+    );
 
     let list = directory.path().join("list.nrrd");
     write_header(
@@ -310,7 +369,8 @@ fn missing_and_malformed_dwi_contracts_are_rejected() -> Result<()> {
             "DWMRI_gradient_0002:=0 1 0",
         ],
     )?;
-    assert!(read_nrrd_gradient_scheme(list).is_err());
+    let error = read_nrrd_gradient_scheme(list).expect_err("the nominal b-value is scalar");
+    assert_eq!(error.to_string(), "invalid DWMRI_b-value");
 
     let non_finite = directory.path().join("non_finite.nrrd");
     write_header(
@@ -323,21 +383,34 @@ fn missing_and_malformed_dwi_contracts_are_rejected() -> Result<()> {
             "DWMRI_gradient_0002:=0 1 0",
         ],
     )?;
-    assert!(read_nrrd_gradient_scheme(non_finite).is_err());
+    let error = read_nrrd_gradient_scheme(non_finite).expect_err("gradient components are finite");
+    assert_eq!(
+        error.to_string(),
+        "DWMRI gradient component must be finite, got NaN"
+    );
     Ok(())
 }
 
 #[test]
 fn nex_and_b_matrix_encodings_fail_explicitly() -> Result<()> {
     let directory = tempdir()?;
-    for (name, extra) in [
-        ("nex", "DWMRI_NEX_0000:=2"),
-        ("matrix", "DWMRI_B-matrix_0000:=1 0 0 1 0 1"),
+    for (name, extra, expected) in [
+        (
+            "nex",
+            "DWMRI_NEX_0000:=2",
+            "NRRD DWMRI_NEX compressed acquisition metadata is not supported",
+        ),
+        (
+            "matrix",
+            "DWMRI_B-matrix_0000:=1 0 0 1 0 1",
+            "NRRD DWMRI_B-matrix metadata is not supported by the gradient-vector reader",
+        ),
     ] {
         let path = directory.path().join(format!("{name}.nrrd"));
         write_header(
             &path,
             &[
+                IDENTITY_MEASUREMENT_FRAME,
                 "modality:=DWMRI",
                 "DWMRI_b-value:=1000",
                 "DWMRI_gradient_0000:=0 0 0",
@@ -346,7 +419,8 @@ fn nex_and_b_matrix_encodings_fail_explicitly() -> Result<()> {
                 extra,
             ],
         )?;
-        assert!(read_nrrd_gradient_scheme(path).is_err());
+        let error = read_nrrd_gradient_scheme(path).expect_err("the encoding is unsupported");
+        assert_eq!(error.to_string(), expected);
     }
     Ok(())
 }
@@ -359,6 +433,7 @@ fn gradient_count_must_match_acquisition_extent() -> Result<()> {
         &path,
         &[
             "sizes: 4 2 2 2",
+            IDENTITY_MEASUREMENT_FRAME,
             "modality:=DWMRI",
             "DWMRI_b-value:=1000",
             "DWMRI_gradient_0000:=0 0 0",

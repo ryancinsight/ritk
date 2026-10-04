@@ -28,7 +28,9 @@ use crate::{
 /// # Errors
 ///
 /// Returns an error when the file cannot be opened, the header is missing
-/// required DWMRI fields, or the gradient table fails validation.
+/// required DWMRI fields, a nonzero gradient has no measurement frame, or the
+/// gradient table fails validation. NRRD assigns no implied mapping when the
+/// `measurement frame` field is absent ([section 4](https://teem.sourceforge.net/nrrd/format.html)).
 pub fn read_nrrd_gradient_scheme<P: AsRef<Path>>(
     path: P,
 ) -> Result<ritk_diffusion_scheme::GradientScheme> {
@@ -41,7 +43,9 @@ pub fn read_nrrd_gradient_scheme<P: AsRef<Path>>(
 /// The NRRD DWI convention stores one nominal `DWMRI_b-value`; each raw
 /// gradient magnitude scales its effective weighting quadratically. The
 /// measurement frame maps raw gradient coordinates into the declared world
-/// space. RAS world coordinates are converted once to RITK physical LPS.
+/// space. Nonzero gradients require this field because NRRD defines no frame
+/// mapping when it is absent ([section 4](https://teem.sourceforge.net/nrrd/format.html)).
+/// RAS world coordinates are converted once to RITK physical LPS.
 pub(super) fn scheme_from_header(header: &NrrdHeader) -> Result<GradientScheme> {
     let fields = &header.fields;
     let key_values = &header.key_values;
@@ -142,6 +146,9 @@ pub(super) fn scheme_from_header(header: &NrrdHeader) -> Result<GradientScheme> 
         }
         let effective = nominal * (norm / maximum_norm).powi(2);
         let unit = raw / norm;
+        let Some(measurement_frame) = measurement_frame else {
+            bail!("NRRD DWI nonzero gradients require an explicit measurement frame");
+        };
         let world = multiply_columns(measurement_frame, unit);
         let lps = Vector::new(vector_to_lps(world, world_to_lps)?);
         let weighting = DiffusionWeighting::from_seconds_per_square_millimeter(effective)
@@ -220,9 +227,9 @@ fn parse_gradient(value: &str) -> Result<Vector<3>> {
     Ok(Vector::new(components))
 }
 
-fn parse_measurement_frame(value: Option<&String>) -> Result<[[f64; 3]; 3]> {
+fn parse_measurement_frame(value: Option<&String>) -> Result<Option<[[f64; 3]; 3]>> {
     let Some(value) = value else {
-        return Ok([[1.0, 0.0, 0.0], [0.0, 1.0, 0.0], [0.0, 0.0, 1.0]]);
+        return Ok(None);
     };
     let columns = parse_parenthesized_vectors(value)?;
     let columns: [[f64; 3]; 3] = columns.try_into().map_err(|values: Vec<[f64; 3]>| {
@@ -234,7 +241,7 @@ fn parse_measurement_frame(value: Option<&String>) -> Result<[[f64; 3]; 3]> {
     if columns.iter().flatten().any(|value| !value.is_finite()) {
         bail!("NRRD measurement frame contains a non-finite component");
     }
-    Ok(columns)
+    Ok(Some(columns))
 }
 
 fn multiply_columns(columns: [[f64; 3]; 3], vector: Vector<3>) -> [f64; 3] {
