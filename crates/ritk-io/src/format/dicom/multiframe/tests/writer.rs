@@ -330,3 +330,70 @@ fn test_write_multiframe_jpeg_baseline_declares_eight_bit_pixel_format() {
         7
     );
 }
+
+#[test]
+fn test_write_multiframe_jpeg_ls_lossy_round_trip() {
+    let tmp = tempfile::tempdir().expect("tempdir");
+    let out_path = tmp.path().join("mf_jpegls_lossy.dcm");
+    let voxels: Vec<f32> = (0..24).map(|i| i as f32).collect();
+    let image = native_image(voxels.clone(), [2, 3, 4], [0.0; 3], [1.0; 3]);
+    let config = MultiFrameWriterConfig {
+        transfer_syntax: TransferSyntaxKind::JpegLsLossy,
+        ..MultiFrameWriterConfig::default()
+    };
+
+    write_dicom_multiframe_native_with_config(&out_path, &image, &config)
+        .expect("JPEG-LS lossy multiframe write");
+
+    let ts_uid = parse_file_with::<DicomRsBackend, _>(&out_path)
+        .expect("parse file")
+        .meta()
+        .transfer_syntax()
+        .to_owned();
+    assert_eq!(ts_uid, TransferSyntaxKind::JpegLsLossy.uid());
+
+    let decoded = load_dicom_multiframe_flat(&out_path).expect("decode JPEG-LS lossy multiframe");
+    assert_eq!(decoded.shape, [2, 3, 4]);
+    // NEAR is the transfer syntax's own error bound: JPEG-LS near-lossless
+    // guarantees |decoded - original| <= NEAR on the *stored* samples, so the
+    // bound here is the rescale step plus that NEAR, not an arbitrary slack.
+    for (actual, expected) in decoded.data.iter().zip(voxels.iter()) {
+        assert!(
+            (actual - expected).abs() <= 1.5,
+            "decoded voxel {actual} exceeded the NEAR bound for source {expected}"
+        );
+    }
+}
+
+#[test]
+fn test_write_multiframe_jpeg2000_lossy_round_trip() {
+    let tmp = tempfile::tempdir().expect("tempdir");
+    let out_path = tmp.path().join("mf_j2k_lossy.dcm");
+    let voxels: Vec<f32> = (0..24).map(|i| i as f32).collect();
+    let image = native_image(voxels.clone(), [2, 3, 4], [0.0; 3], [1.0; 3]);
+    let config = MultiFrameWriterConfig {
+        transfer_syntax: TransferSyntaxKind::Jpeg2000Lossy,
+        ..MultiFrameWriterConfig::default()
+    };
+
+    write_dicom_multiframe_native_with_config(&out_path, &image, &config)
+        .expect("JPEG 2000 lossy multiframe write");
+
+    let ts_uid = parse_file_with::<DicomRsBackend, _>(&out_path)
+        .expect("parse file")
+        .meta()
+        .transfer_syntax()
+        .to_owned();
+    assert_eq!(ts_uid, TransferSyntaxKind::Jpeg2000Lossy.uid());
+
+    let decoded = load_dicom_multiframe_flat(&out_path).expect("decode JPEG 2000 lossy multiframe");
+    assert_eq!(decoded.shape, [2, 3, 4]);
+    // A unit quantization step on the irreversible transform keeps the error
+    // within one stored level; the rescale step is the other term.
+    for (actual, expected) in decoded.data.iter().zip(voxels.iter()) {
+        assert!(
+            (actual - expected).abs() <= 1.5,
+            "decoded voxel {actual} exceeded the quantisation bound for source {expected}"
+        );
+    }
+}
