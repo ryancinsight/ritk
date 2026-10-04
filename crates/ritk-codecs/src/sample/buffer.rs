@@ -1,4 +1,5 @@
 use std::fmt;
+use std::io::Write;
 
 use crate::ByteOrder;
 
@@ -235,6 +236,35 @@ impl SampleBuffer {
     /// ```
     pub fn encode(&self, byte_order: ByteOrder) -> Result<Vec<u8>, SampleError> {
         codec::encode(&self.samples, byte_order)
+    }
+
+    /// Writes stored samples without creating a separate encoded byte buffer.
+    ///
+    /// The caller selects output buffering. Use a buffered writer for files to
+    /// combine the per-sample writes into larger I/O operations.
+    ///
+    /// # Errors
+    ///
+    /// Returns [`SampleError::ScalarCodecRejected`] if the scalar codec rejects
+    /// an exact-width sample, or [`SampleError::Io`] if the stream fails.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// use ritk_codecs::{ByteOrder, SampleBuffer};
+    ///
+    /// let samples = SampleBuffer::from_samples(vec![0x1234_u16]);
+    /// let mut bytes = Vec::new();
+    /// samples.write_to(&mut bytes, ByteOrder::LeastSignificantByteFirst)?;
+    /// assert_eq!(bytes, [0x34, 0x12]);
+    /// # Ok::<(), Box<dyn std::error::Error>>(())
+    /// ```
+    pub fn write_to<W: Write>(
+        &self,
+        writer: &mut W,
+        byte_order: ByteOrder,
+    ) -> Result<(), SampleError> {
+        codec::write(&self.samples, byte_order, writer)
     }
 
     /// Extracts samples only when the requested type matches exactly.

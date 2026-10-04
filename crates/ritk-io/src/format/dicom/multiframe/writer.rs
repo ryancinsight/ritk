@@ -22,8 +22,8 @@ use std::path::Path;
 
 use super::types::{MultiFrameSpatialMetadata, MultiFrameWriterConfig};
 use crate::format::dicom::writer::pixel_encoding::{
-    emit_pixel_format_tags, emit_pixel_format_tags_u8, generate_series_uid, normalize_to_u16,
-    normalize_to_u8, MONOCHROME2,
+    dicom_pixel_dimensions, emit_pixel_format_tags, format_ds_value, format_ds_values,
+    generate_series_uid, normalize_samples, MONOCHROME2,
 };
 
 /// Write a 3-D `Image<f32, B, 3>` with shape `[n_frames, rows, cols]` as a single
@@ -166,7 +166,61 @@ fn write_multiframe_flat(
         );
     }
 
-    let (pixel_u16, rescale_slope, rescale_intercept) = normalize_to_u16(all_data);
+    let (rows_tag, cols_tag) = dicom_pixel_dimensions(rows, cols)?;
+    enum PixelEncoding {
+        ExplicitVrLittleEndian {
+            pixels: Vec<u16>,
+            rescale_slope: f32,
+            rescale_intercept: f32,
+        },
+        LosslessCompressed {
+            pixels: Vec<u16>,
+            rescale_slope: f32,
+            rescale_intercept: f32,
+            syntax: TransferSyntaxKind,
+        },
+        JpegBaseline {
+            pixels: Vec<u8>,
+            rescale_slope: f32,
+            rescale_intercept: f32,
+        },
+    }
+
+    let pixel_encoding = match &config.transfer_syntax {
+        TransferSyntaxKind::ExplicitVrLittleEndian => {
+            let (pixels, rescale_slope, rescale_intercept) = normalize_samples::<u16>(all_data)?;
+            PixelEncoding::ExplicitVrLittleEndian {
+                pixels,
+                rescale_slope,
+                rescale_intercept,
+            }
+        }
+        TransferSyntaxKind::JpegLsLossless
+        | TransferSyntaxKind::Jpeg2000Lossless
+        | TransferSyntaxKind::RleLossless => {
+            let (pixels, rescale_slope, rescale_intercept) = normalize_samples::<u16>(all_data)?;
+            PixelEncoding::LosslessCompressed {
+                pixels,
+                rescale_slope,
+                rescale_intercept,
+                syntax: config.transfer_syntax.clone(),
+            }
+        }
+        TransferSyntaxKind::JpegBaseline => {
+            let (pixels, rescale_slope, rescale_intercept) = normalize_samples::<u8>(all_data)?;
+            PixelEncoding::JpegBaseline {
+                pixels,
+                rescale_slope,
+                rescale_intercept,
+            }
+        }
+        syntax => {
+            bail!(
+                "DICOM multiframe write transfer syntax '{}' is not supported; supported output syntaxes are Explicit VR Little Endian, JPEG Baseline, JPEG-LS Lossless, JPEG 2000 Lossless, and RLE Lossless",
+                syntax.uid()
+            );
+        }
+    };
 
     let sop_instance_uid = generate_series_uid();
     let study_instance_uid = generate_series_uid();
@@ -206,66 +260,70 @@ fn write_multiframe_flat(
 
     obj.put_value(Tag(0x0028, 0x0008), VR::IS, format!("{}", n_frames));
     obj.put_value(Tag(0x0028, 0x0002), VR::US, 1_u16);
-    obj.put_value(Tag(0x0028, 0x0010), VR::US, rows as u16);
-    obj.put_value(Tag(0x0028, 0x0011), VR::US, cols as u16);
-    emit_pixel_format_tags(&mut obj);
+    obj.put_value(Tag(0x0028, 0x0010), VR::US, rows_tag);
+    obj.put_value(Tag(0x0028, 0x0011), VR::US, cols_tag);
+    let (rescale_slope, rescale_intercept) = match &pixel_encoding {
+        PixelEncoding::ExplicitVrLittleEndian {
+            rescale_slope,
+            rescale_intercept,
+            ..
+        }
+        | PixelEncoding::LosslessCompressed {
+            rescale_slope,
+            rescale_intercept,
+            ..
+        } => {
+            emit_pixel_format_tags::<u16>(&mut obj);
+            (*rescale_slope, *rescale_intercept)
+        }
+        PixelEncoding::JpegBaseline {
+            rescale_slope,
+            rescale_intercept,
+            ..
+        } => {
+            emit_pixel_format_tags::<u8>(&mut obj);
+            (*rescale_slope, *rescale_intercept)
+        }
+    };
     obj.put_value(Tag(0x0028, 0x0004), VR::CS, MONOCHROME2);
-    obj.put_value(Tag(0x0028, 0x1053), VR::DS, format!("{:.6}", rescale_slope));
+    obj.put_value(
+        Tag(0x0028, 0x1053),
+        VR::DS,
+        format_ds_value(f64::from(rescale_slope))?,
+    );
     obj.put_value(
         Tag(0x0028, 0x1052),
         VR::DS,
-        format!("{:.6}", rescale_intercept),
+        format_ds_value(f64::from(rescale_intercept))?,
     );
 
     if let Some(s) = &config.spatial {
         let o = &s.origin;
-        obj.put_value(
-            Tag(0x0020, 0x0032),
-            VR::DS,
-            format!("{:.6}\\{:.6}\\{:.6}", o[0], o[1], o[2]),
-        );
+        obj.put_value(Tag(0x0020, 0x0032), VR::DS, format_ds_values(*o)?);
 
         let iop = &s.image_orientation;
-        obj.put_value(
-            Tag(0x0020, 0x0037),
-            VR::DS,
-            format!(
-                "{:.6}\\{:.6}\\{:.6}\\{:.6}\\{:.6}\\{:.6}",
-                iop[0], iop[1], iop[2], iop[3], iop[4], iop[5]
-            ),
-        );
+        obj.put_value(Tag(0x0020, 0x0037), VR::DS, format_ds_values(*iop)?);
 
         let ps = &s.pixel_spacing;
-        obj.put_value(
-            Tag(0x0028, 0x0030),
-            VR::DS,
-            format!("{:.6}\\{:.6}", ps[0], ps[1]),
-        );
+        obj.put_value(Tag(0x0028, 0x0030), VR::DS, format_ds_values(*ps)?);
         obj.put_value(
             Tag(0x0018, 0x0050),
             VR::DS,
-            format!("{:.6}", s.slice_thickness),
+            format_ds_value(s.slice_thickness)?,
         );
     }
 
-    match &config.transfer_syntax {
-        TransferSyntaxKind::ExplicitVrLittleEndian => {
+    match pixel_encoding {
+        PixelEncoding::ExplicitVrLittleEndian { pixels, .. } => {
             obj.put_value(
                 Tag(0x7FE0, 0x0010),
                 VR::OW,
-                PrimitiveValue::U16(SmallVec::from_vec(pixel_u16)),
+                PrimitiveValue::U16(SmallVec::from_vec(pixels)),
             );
         }
-        TransferSyntaxKind::JpegLsLossless
-        | TransferSyntaxKind::Jpeg2000Lossless
-        | TransferSyntaxKind::RleLossless => {
-            let encoded_fragments = encode_compressed_frames(
-                &pixel_u16,
-                n_frames,
-                rows,
-                cols,
-                &config.transfer_syntax,
-            )?;
+        PixelEncoding::LosslessCompressed { pixels, syntax, .. } => {
+            let encoded_fragments =
+                encode_compressed_frames(&pixels, n_frames, rows, cols, &syntax)?;
             obj.put(DataElement::new(
                 Tag(0x7FE0, 0x0010),
                 VR::OB,
@@ -274,12 +332,7 @@ fn write_multiframe_flat(
                 )),
             ));
         }
-        TransferSyntaxKind::JpegBaseline => {
-            // Baseline JPEG carries eight-bit samples, so the 16-bit
-            // normalisation and the 16-bit pixel tags do not apply to this
-            // transfer syntax. Re-derive both from the modality data.
-            let (pixel_u8, jpeg_slope, jpeg_intercept) = normalize_to_u8(all_data);
-            emit_pixel_format_tags_u8(&mut obj);
+        PixelEncoding::JpegBaseline { pixels, .. } => {
             let layout = PixelLayout {
                 rows,
                 cols,
@@ -287,7 +340,7 @@ fn write_multiframe_flat(
                 bits_allocated: 8,
                 bits_stored: 8,
                 pixel_representation: PixelSignedness::Unsigned,
-                // `pixel_u8` already holds *stored* samples, so the encoder's
+                // `pixels` already holds *stored* samples, so the encoder's
                 // layout must be the identity. Carrying the modality rescale
                 // here would make `encode_jpeg_fragment` invert it a second
                 // time, scaling each sample by 255/range on the way in. The
@@ -300,7 +353,7 @@ fn write_multiframe_flat(
             let frame_pixels = rows * cols;
             for frame_index in 0..n_frames {
                 let start = frame_index * frame_pixels;
-                let frame = pixel_u8[start..start + frame_pixels]
+                let frame = pixels[start..start + frame_pixels]
                     .iter()
                     .map(|&v| f32::from(v))
                     .collect::<Vec<_>>();
@@ -315,20 +368,6 @@ fn write_multiframe_flat(
                 VR::OB,
                 PixelFragmentSequence::<Vec<u8>>::new_fragments(SmallVec::from_vec(fragments)),
             ));
-            if rescale_slope != jpeg_slope || rescale_intercept != jpeg_intercept {
-                obj.put_value(Tag(0x0028, 0x1053), VR::DS, format!("{:.10}", jpeg_slope));
-                obj.put_value(
-                    Tag(0x0028, 0x1052),
-                    VR::DS,
-                    format!("{:.10}", jpeg_intercept),
-                );
-            }
-        }
-        syntax => {
-            bail!(
-                "DICOM multiframe write transfer syntax '{}' is not supported; supported output syntaxes are Explicit VR Little Endian, JPEG Baseline, JPEG-LS Lossless, JPEG 2000 Lossless, and RLE Lossless",
-                syntax.uid()
-            );
         }
     }
 

@@ -6,6 +6,8 @@
 use crate::format::dicom::read_native_dicom_series;
 use crate::format::dicom::writer::write_dicom_series_native;
 use coeus_core::{MoiraiBackend, SequentialBackend};
+use dicom::core::Tag;
+use dicom::object::open_file;
 use ritk_image::Image as NativeImage;
 use ritk_spatial::{Direction, Point, Spacing};
 
@@ -64,13 +66,71 @@ fn native_series_writer_round_trips_native_image() {
     );
 }
 
+/// A small, representable image range survives DICOM Decimal String encoding.
+///
+/// The two input endpoints quantize exactly to 0 and 65535, so only the
+/// `RescaleSlope` path contributes reconstruction error. At this magnitude,
+/// the 16-byte Decimal String retains at least seven significant digits.
+/// Its relative rounding bound is therefore 0.5×10⁻⁶. Three f32 roundings
+/// cover slope division, Decimal String parsing, and sample multiplication;
+/// the composed factor bounds the restored endpoint error.
+#[test]
+fn native_series_writer_preserves_small_range_calibration() {
+    let tmp = tempfile::tempdir().expect("tempdir");
+    let dir = tmp.path().join("small_range");
+    let span = 1.0e-8_f32;
+    let slice_len = DIMS[1] * DIMS[2];
+    let data: Vec<f32> = (0..DIMS[0] * slice_len)
+        .map(|index| {
+            if (index % slice_len).is_multiple_of(2) {
+                0.0
+            } else {
+                span
+            }
+        })
+        .collect();
+
+    write_dicom_series_native(&dir, &native_image(data.clone())).expect("native write");
+
+    let first_slice = open_file(dir.join("slice_0000.dcm")).expect("open first slice");
+    let encoded_slope = first_slice
+        .element(Tag(0x0028, 0x1053))
+        .expect("RescaleSlope (0028,1053) is present")
+        .to_str()
+        .expect("RescaleSlope is readable")
+        .trim()
+        .parse::<f32>()
+        .expect("RescaleSlope is numeric");
+    let expected_slope = span / f32::from(u16::MAX);
+    assert!(encoded_slope.is_finite() && encoded_slope > 0.0);
+    assert_eq!(encoded_slope, expected_slope);
+
+    let reloaded = read_native_dicom_series(&dir, &SequentialBackend).expect("native read");
+    assert_eq!(reloaded.shape(), DIMS);
+    let recovered = reloaded.data_slice().expect("contiguous reloaded data");
+    assert_eq!(recovered.len(), data.len());
+
+    let unit_roundoff = f64::from(f32::EPSILON) / 2.0;
+    let decimal_relative_bound = 0.5_f64 / 1_000_000.0;
+    let relative_error_bound = (1.0 + unit_roundoff).powi(3) * (1.0 + decimal_relative_bound) - 1.0;
+    let error_bound = f64::from(span) * relative_error_bound;
+    for (index, (&expected, &actual)) in data.iter().zip(recovered).enumerate() {
+        let error = (f64::from(actual) - f64::from(expected)).abs();
+        assert!(
+            error <= error_bound,
+            "voxel[{index}]: |{actual} - {expected}| = {error} > derived bound {error_bound}"
+        );
+    }
+}
+
 /// A native-written series round-trips through the native reader to the same
 /// voxels (within the per-slice rescale bound) and geometry.
 ///
-/// Per-slice `normalize_to_u16` reconstruction bound: for a slice of range `R`,
-/// `slope = R / 65535`; DS `{:.6}` formatting adds ≤ 0.5e-6 per coefficient, and
-/// quantization adds ≤ slope/2. The linear ramp gives every slice the same
-/// range `R = (slice_len − 1) · 1.5`.
+/// Per-slice `normalize_samples` reconstruction bound: for a slice of range
+/// `R`, `slope = R / 65535`, and integer quantization adds at most `slope/2`.
+/// The Decimal String formatter preserves values that fit the 16-byte limit
+/// and uses bounded scientific notation otherwise. The linear ramp gives every
+/// slice the same range `R = (slice_len − 1) · 1.5`.
 #[test]
 fn native_series_writer_round_trips_through_native_reader() {
     let tmp = tempfile::tempdir().expect("tempdir");

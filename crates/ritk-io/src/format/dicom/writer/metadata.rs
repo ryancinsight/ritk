@@ -1,8 +1,8 @@
 use super::super::reader::DicomReadMetadata;
 use super::pixel_encoding::{
-    emit_pixel_format_tags, ensure_series_directory, format_pair, format_six, format_triplet,
-    generate_instance_uid, generate_series_uid, normalize_to_u16, writer_exclusion_tags,
-    DICOM_SOP_CLASS_SECONDARY_CAPTURE,
+    dicom_pixel_dimensions, emit_pixel_format_tags, ensure_series_directory, format_ds_value,
+    format_ds_values, generate_instance_uid, generate_series_uid, normalize_samples,
+    writer_exclusion_tags, DICOM_SOP_CLASS_SECONDARY_CAPTURE,
 };
 use super::preservation::emit_preservation_nodes;
 use crate::format::dicom::transfer_syntax::EXPLICIT_VR_LE;
@@ -39,6 +39,7 @@ pub fn write_dicom_series_with_metadata<B: Backend, P: AsRef<Path>>(
     if depth == 0 || rows == 0 || cols == 0 {
         bail!("DICOM: depth={depth} rows={rows} cols={cols} must be >0");
     }
+    let (rows_tag, cols_tag) = dicom_pixel_dimensions(rows, cols)?;
     let series_dir = ensure_series_directory(path)?;
 
     let generated_uid = generate_series_uid();
@@ -70,7 +71,7 @@ pub fn write_dicom_series_with_metadata<B: Backend, P: AsRef<Path>>(
     for z in 0..depth {
         let slice_offset = z * slice_len;
         let slice_f32 = &all_data[slice_offset..slice_offset + slice_len];
-        let (pixel_u16, rescale_slope, rescale_intercept) = normalize_to_u16(slice_f32);
+        let (pixel_u16, rescale_slope, rescale_intercept) = normalize_samples::<u16>(slice_f32)?;
 
         let sop_instance_uid = generate_instance_uid(series_uid, z);
         let mut obj = InMemDicomObject::new_empty();
@@ -84,14 +85,18 @@ pub fn write_dicom_series_with_metadata<B: Backend, P: AsRef<Path>>(
         obj.put_value(Tag(0x0020, 0x0013), VR::IS, format!("{}", z + 1));
 
         obj.put_value(Tag(0x0028, 0x0002), VR::US, 1_u16);
-        obj.put_value(Tag(0x0028, 0x0010), VR::US, rows as u16);
-        obj.put_value(Tag(0x0028, 0x0011), VR::US, cols as u16);
-        emit_pixel_format_tags(&mut obj);
-        obj.put_value(Tag(0x0028, 0x1053), VR::DS, format!("{:.6}", rescale_slope));
+        obj.put_value(Tag(0x0028, 0x0010), VR::US, rows_tag);
+        obj.put_value(Tag(0x0028, 0x0011), VR::US, cols_tag);
+        emit_pixel_format_tags::<u16>(&mut obj);
+        obj.put_value(
+            Tag(0x0028, 0x1053),
+            VR::DS,
+            format_ds_value(f64::from(rescale_slope))?,
+        );
         obj.put_value(
             Tag(0x0028, 0x1052),
             VR::DS,
-            format!("{:.6}", rescale_intercept),
+            format_ds_value(f64::from(rescale_intercept))?,
         );
         obj.put_value(Tag(0x0028, 0x0004), VR::CS, photometric);
 
@@ -102,29 +107,29 @@ pub fn write_dicom_series_with_metadata<B: Backend, P: AsRef<Path>>(
             obj.put_value(
                 Tag(0x0020, 0x0032),
                 VR::DS,
-                format_triplet([ipp_x, ipp_y, ipp_z]),
+                format_ds_values([ipp_x, ipp_y, ipp_z])?,
             );
             // IOP = [F_r, F_c] = [direction[6..9], direction[3..6]]
             obj.put_value(
                 Tag(0x0020, 0x0037),
                 VR::DS,
-                format_six([
+                format_ds_values([
                     direction[6],
                     direction[7],
                     direction[8],
                     direction[3],
                     direction[4],
                     direction[5],
-                ]),
+                ])?,
             );
             // PixelSpacing = [ΔRow, ΔCol] = [spacing[1], spacing[2]]
             obj.put_value(
                 Tag(0x0028, 0x0030),
                 VR::DS,
-                format_pair([spacing[1], spacing[2]]),
+                format_ds_values([spacing[1], spacing[2]])?,
             );
             // SliceThickness = Δz = spacing[0]
-            obj.put_value(Tag(0x0018, 0x0050), VR::DS, format!("{:.6}", spacing[0]));
+            obj.put_value(Tag(0x0018, 0x0050), VR::DS, format_ds_value(spacing[0])?);
         }
 
         // DICOM PS3.3 Type 2: tag must be present even when value is unknown; empty string is valid.

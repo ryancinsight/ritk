@@ -27,6 +27,7 @@ ritk-annotation = { path = "../ritk-annotation", version = "0.2.0" }
 ritk-filter = { path = "../ritk-filter", version = "0.4.0" }
 ritk-dicom = { workspace = true }
 ritk-codecs = { workspace = true }
+eunomia = { workspace = true }
 ritk-nifti = { workspace = true }
 ritk-nrrd = { workspace = true }
 ritk-metaimage = { workspace = true }
@@ -70,7 +71,6 @@ ritk-codecs = { path = "../ritk-codecs" }  # path-only: dev-deps form a publish 
 ritk-core = { path = "../ritk-core", features = ["test-helpers"] }
 tempfile = { workspace = true }
 base64 = { workspace = true }
-eunomia = { workspace = true }
 zune-jpegxl = { workspace = true, default-features = false, features = ["std"] }
 zune-core = { workspace = true, default-features = false }
 

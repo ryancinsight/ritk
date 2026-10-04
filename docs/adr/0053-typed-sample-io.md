@@ -31,6 +31,11 @@ policy and failure mode. Shared image conversion belongs in RITK's image-I/O
 layer; GUI consumers select and present its results and do not parse or
 convert file formats.
 
+[DICOM PS3.5 §6.2, Table 6.2-1](https://dicom.nema.org/medical/Dicom/current/output/chtml/part05/sect_6.2.html)
+defines Decimal String as a numeric representation that may contain leading or
+trailing spaces. Geometry tests parse the value rather than require an
+incidental zero-padded spelling.
+
 The existing `byte_decode` API remains until every caller is migrated in
 dependency order. It is not a second long-term conversion path.
 
