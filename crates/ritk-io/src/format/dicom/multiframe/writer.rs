@@ -1,7 +1,9 @@
 //! Multi-frame DICOM writer: serializes a 3-D image as a single DICOM Part 10 file.
 
 use crate::format::dicom::writer::elements::PutValue;
-use crate::format::dicom::writer::pixel_encoding::JPEG_BASELINE_QUALITY;
+use crate::format::dicom::writer::pixel_encoding::{
+    JPEG_2000_QUANTIZATION_STEP, JPEG_BASELINE_QUALITY, JPEG_LS_NEAR, U8_MAX_F,
+};
 use anyhow::{bail, Context, Result};
 use coeus_core::MoiraiBackend;
 use dicom::core::smallvec::SmallVec;
@@ -22,8 +24,8 @@ use std::path::Path;
 
 use super::types::{MultiFrameSpatialMetadata, MultiFrameWriterConfig};
 use crate::format::dicom::writer::pixel_encoding::{
-    emit_pixel_format_tags, emit_pixel_format_tags_u8, generate_series_uid, normalize_to_u16,
-    normalize_to_u8, MONOCHROME2,
+    emit_pixel_format_tags, generate_series_uid, normalization_window, normalize_to_u16,
+    MONOCHROME2,
 };
 
 /// Write a 3-D `Image<f32, B, 3>` with shape `[n_frames, rows, cols]` as a single
@@ -208,7 +210,7 @@ fn write_multiframe_flat(
     obj.put_value(Tag(0x0028, 0x0002), VR::US, 1_u16);
     obj.put_value(Tag(0x0028, 0x0010), VR::US, rows as u16);
     obj.put_value(Tag(0x0028, 0x0011), VR::US, cols as u16);
-    emit_pixel_format_tags(&mut obj);
+    emit_pixel_format_tags(&mut obj, 16);
     obj.put_value(Tag(0x0028, 0x0004), VR::CS, MONOCHROME2);
     obj.put_value(Tag(0x0028, 0x1053), VR::DS, format!("{:.6}", rescale_slope));
     obj.put_value(
@@ -257,7 +259,9 @@ fn write_multiframe_flat(
             );
         }
         TransferSyntaxKind::JpegLsLossless
+        | TransferSyntaxKind::JpegLsLossy
         | TransferSyntaxKind::Jpeg2000Lossless
+        | TransferSyntaxKind::Jpeg2000Lossy
         | TransferSyntaxKind::RleLossless => {
             let encoded_fragments = encode_compressed_frames(
                 &pixel_u16,
@@ -278,8 +282,21 @@ fn write_multiframe_flat(
             // Baseline JPEG carries eight-bit samples, so the 16-bit
             // normalisation and the 16-bit pixel tags do not apply to this
             // transfer syntax. Re-derive both from the modality data.
-            let (pixel_u8, jpeg_slope, jpeg_intercept) = normalize_to_u8(all_data);
-            emit_pixel_format_tags_u8(&mut obj);
+            // Same window the u16 path uses; only the stored width differs, so
+            // the scaling is spelled out here rather than duplicated into a
+            // second normalisation function.
+            let (minimum, range) = normalization_window(all_data);
+            let jpeg_slope = range / U8_MAX_F;
+            let jpeg_intercept = minimum;
+            let pixel_u8: Vec<u8> = all_data
+                .iter()
+                .map(|&v| {
+                    ((v - minimum) / range * U8_MAX_F)
+                        .round()
+                        .clamp(0.0, U8_MAX_F) as u8
+                })
+                .collect();
+            emit_pixel_format_tags(&mut obj, 8);
             let layout = PixelLayout {
                 rows,
                 cols,
@@ -326,7 +343,7 @@ fn write_multiframe_flat(
         }
         syntax => {
             bail!(
-                "DICOM multiframe write transfer syntax '{}' is not supported; supported output syntaxes are Explicit VR Little Endian, JPEG Baseline, JPEG-LS Lossless, JPEG 2000 Lossless, and RLE Lossless",
+                "DICOM multiframe write transfer syntax '{}' is not supported; supported output syntaxes are Explicit VR Little Endian, JPEG Baseline, \n                JPEG-LS Lossless, JPEG-LS Lossy (near-lossless), JPEG 2000 Lossless, \n                JPEG 2000 Lossy, and RLE Lossless",
                 syntax.uid()
             );
         }
@@ -401,6 +418,27 @@ fn encode_compressed_frames(
                 .with_context(|| {
                     format!("JPEG 2000 lossless encode failed for frame {frame_index}")
                 })?
+            }
+            TransferSyntaxKind::JpegLsLossy => {
+                encode_grayscale_jpeg_ls(frame, rows as u32, cols as u32, 16, JPEG_LS_NEAR)
+                    .with_context(|| {
+                        format!("JPEG-LS near-lossless encode failed for frame {frame_index}")
+                    })?
+            }
+            TransferSyntaxKind::Jpeg2000Lossy => {
+                let frame_i32: Vec<i32> = frame.iter().map(|&v| i32::from(v)).collect();
+                encode_grayscale_j2k(
+                    &frame_i32,
+                    rows as u32,
+                    cols as u32,
+                    16,
+                    ritk_dicom::PixelSignedness::Unsigned,
+                    Jpeg2000Encoding::Lossy {
+                        decomposition_levels: 1,
+                        quantization_step: JPEG_2000_QUANTIZATION_STEP,
+                    },
+                )
+                .with_context(|| format!("JPEG 2000 lossy encode failed for frame {frame_index}"))?
             }
             TransferSyntaxKind::RleLossless => encode_rle_lossless_fragment_u16_grayscale(frame),
             _ => bail!(

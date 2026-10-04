@@ -2,6 +2,7 @@ use crate::format::dicom::writer::elements::PutValue;
 use anyhow::{bail, Context, Result};
 use dicom::core::{Tag, VR};
 use dicom::object::InMemDicomObject;
+use ritk_codecs::jpeg_2000::encoder::QuantizationStep;
 use std::collections::HashSet;
 use std::path::{Path, PathBuf};
 
@@ -26,47 +27,17 @@ pub(crate) const U8_MAX_F: f32 = 255.0;
 /// the fragment stays recognisably JPEG. Overridable per call.
 pub(crate) const JPEG_BASELINE_QUALITY: u8 = 95;
 
-/// Normalize a slice of f32 pixel values to u8, computing min/max rescale parameters.
+/// The `(minimum, range)` window every normalisation in this module maps onto.
 ///
-/// Returns `(pixel_u8, rescale_slope, rescale_intercept)`.
-///
-/// # Mathematical specification
-///
-/// Let range = max(max_val - min_val, ε). Then:
-///   `pixel[i] = round((v[i] - min) / range × 255).clamp(0, 255)`
-///   `rescale_slope = range / 255`
-///   `rescale_intercept = min_val`
-///
-/// This is [`normalize_to_u16`] with 65535 replaced by 255, and it carries the
-/// same reconstruction invariant: `|v[i] - (pixel[i] × slope + intercept)| ≤
-/// slope / 2`. Baseline JPEG can only carry eight-bit samples, so a writer that
-/// supports it needs this normalisation rather than truncating the u16 form.
-pub(crate) fn normalize_to_u8(data: &[f32]) -> (Vec<u8>, f32, f32) {
+/// Exposed so a caller writing a narrower stored format -- eight-bit for
+/// baseline JPEG, for PNG -- derives its own scaling from the same window the
+/// sixteen-bit path uses, instead of a second normalisation function that
+/// differs only in the output width.
+pub(crate) fn normalization_window(data: &[f32]) -> (f32, f32) {
     let min_val = data.iter().copied().fold(f32::INFINITY, f32::min);
     let max_val = data.iter().copied().fold(f32::NEG_INFINITY, f32::max);
     let range = (max_val - min_val).max(f32::EPSILON);
-    let rescale_slope = range / U8_MAX_F;
-    let rescale_intercept = min_val;
-    let pixels: Vec<u8> = data
-        .iter()
-        .map(|&v| {
-            ((v - min_val) / range * U8_MAX_F)
-                .round()
-                .clamp(0.0, U8_MAX_F) as u8
-        })
-        .collect();
-    (pixels, rescale_slope, rescale_intercept)
-}
-
-/// Emit the four DICOM tags that define unsigned 8-bit pixel format.
-///
-/// BitsAllocated = 8, BitsStored = 8, HighBit = 7, PixelRepresentation = 0.
-/// Required by the baseline JPEG transfer syntax, whose samples are eight-bit.
-pub(crate) fn emit_pixel_format_tags_u8(obj: &mut InMemDicomObject) {
-    obj.put_value(Tag(0x0028, 0x0100), VR::US, 8u16);
-    obj.put_value(Tag(0x0028, 0x0101), VR::US, 8u16);
-    obj.put_value(Tag(0x0028, 0x0102), VR::US, 7u16);
-    obj.put_value(Tag(0x0028, 0x0103), VR::US, 0u16);
+    (min_val, range)
 }
 
 /// Normalize a slice of f32 pixel values to u16, computing min/max rescale parameters.
@@ -98,14 +69,23 @@ pub(crate) fn normalize_to_u16(data: &[f32]) -> (Vec<u16>, f32, f32) {
     (pixels, rescale_slope, rescale_intercept)
 }
 
-/// Emit the four DICOM tags that define unsigned 16-bit pixel format.
+/// Emit the four DICOM tags that define unsigned pixel format.
 ///
-/// BitsAllocated = 16, BitsStored = 16, HighBit = 15, PixelRepresentation = 0 (unsigned).
-/// Call sites may override individual tags afterwards if metadata specifies different values.
-pub(crate) fn emit_pixel_format_tags(obj: &mut InMemDicomObject) {
-    obj.put_value(Tag(0x0028, 0x0100), VR::US, 16u16);
-    obj.put_value(Tag(0x0028, 0x0101), VR::US, 16u16);
-    obj.put_value(Tag(0x0028, 0x0102), VR::US, 15u16);
+/// BitsAllocated = BitsStored = `bits_allocated`, HighBit = `bits_allocated - 1`,
+/// PixelRepresentation = 0 (unsigned).
+///
+/// One function rather than a 16-bit and an 8-bit copy: the four tags differ only
+/// by the width, and a per-width pair is exactly the kind of type-suffixed
+/// duplicate this crate is measured for. Call sites may override individual tags
+/// afterwards if metadata specifies different values.
+pub(crate) fn emit_pixel_format_tags(obj: &mut InMemDicomObject, bits_allocated: u16) {
+    obj.put_value(Tag(0x0028, 0x0100), VR::US, bits_allocated);
+    obj.put_value(Tag(0x0028, 0x0101), VR::US, bits_allocated);
+    obj.put_value(
+        Tag(0x0028, 0x0102),
+        VR::US,
+        bits_allocated.saturating_sub(1),
+    );
     obj.put_value(Tag(0x0028, 0x0103), VR::US, 0u16);
 }
 
@@ -235,3 +215,22 @@ pub(super) fn ensure_series_directory(path: &Path) -> Result<PathBuf> {
         .with_context(|| "failed to create DICOM series output directory")?;
     Ok(path.to_path_buf())
 }
+
+/// NEAR parameter for the JPEG-LS Lossy (near-lossless) transfer syntax.
+///
+/// JPEG-LS lossless mode is `NEAR = 0`; `NEAR > 0` permits a per-sample
+/// reconstruction error of up to `NEAR` levels. One is the setting that makes
+/// the transfer syntax's own contract hold at the tolerance this workspace's
+/// round-trip tests already assert, and it is the conservative end of the range:
+/// a lossy syntax should be chosen when a receiver demands it, not because a
+/// caller wanted a smaller file.
+pub(crate) const JPEG_LS_NEAR: u32 = 1;
+
+/// Quantization step for the JPEG 2000 Lossy transfer syntax.
+///
+/// This is the irreversible 9/7 transform's dead-zone width in stored-sample
+/// levels, so a decoded sample can differ from the original by roughly this much
+/// per coefficient. `1.0` keeps that at one level -- below the eight-bit
+/// quantisation the lossless path is compared against -- which is the same
+/// conservative posture as [`JPEG_LS_NEAR`] and [`JPEG_BASELINE_QUALITY`].
+pub(crate) const JPEG_2000_QUANTIZATION_STEP: QuantizationStep = QuantizationStep::UNIT;

@@ -1,4 +1,5 @@
-//! Native PNG single-slice, sequential-volume, and RGB image I/O.
+//! Native PNG single-slice, sequential-volume, and RGB image I/O, reading
+//! and writing.
 
 use anyhow::{Context, Result};
 use coeus_core::ComputeBackend;
@@ -10,10 +11,12 @@ use std::io::BufReader;
 use std::path::{Path, PathBuf};
 
 mod color;
+mod write;
 
 pub use color::{
     read_png_color_series, read_png_color_to_volume, PngColorReader, PngColorSeriesReader,
 };
+pub use write::{encode_png_slice, window_bounds, write_png, write_png_volume};
 
 /// Reads a grayscale PNG into a native image shaped `[1, height, width]`.
 pub fn read_png_to_image<B, P>(path: P, backend: &B) -> Result<Image<f32, B, 3>>
@@ -210,6 +213,40 @@ fn natural_cmp(left: &str, right: &str) -> std::cmp::Ordering {
             (None, Some(_)) => return std::cmp::Ordering::Less,
             (None, None) => return std::cmp::Ordering::Equal,
         }
+    }
+}
+
+/// Backend-bound grayscale PNG writer.
+///
+/// The counterpart of [`PngReader`]: PNG could be read but not written before
+/// this, which left the format usable in one direction only.
+pub struct PngWriter<B: ComputeBackend> {
+    _backend: std::marker::PhantomData<B>,
+}
+
+impl<B: ComputeBackend> Default for PngWriter<B> {
+    fn default() -> Self {
+        Self {
+            _backend: std::marker::PhantomData,
+        }
+    }
+}
+
+impl<B: ComputeBackend> PngWriter<B> {
+    /// Writes one `[1, rows, cols]` slice to `path`.
+    pub fn write_image<P: AsRef<Path>>(&self, image: &Image<f32, B, 3>, path: P) -> Result<()>
+    where
+        B::DeviceBuffer<f32>: coeus_core::CpuAddressableStorage<f32>,
+    {
+        write_png(image, path)
+    }
+
+    /// Writes a `[depth, rows, cols]` volume as a directory of slices.
+    pub fn write_volume<P: AsRef<Path>>(&self, image: &Image<f32, B, 3>, directory: P) -> Result<()>
+    where
+        B::DeviceBuffer<f32>: coeus_core::CpuAddressableStorage<f32>,
+    {
+        write_png_volume(image, directory)
     }
 }
 
