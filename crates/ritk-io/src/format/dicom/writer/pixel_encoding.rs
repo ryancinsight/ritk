@@ -2,20 +2,14 @@ use crate::format::dicom::writer::elements::PutValue;
 use anyhow::{bail, Context, Result};
 use dicom::core::{Tag, VR};
 use dicom::object::InMemDicomObject;
-use eunomia::convert::IntegerTarget;
+use eunomia::CastFrom;
 use std::collections::HashSet;
 use std::path::{Path, PathBuf};
-
-/// Maximum u16 pixel value as f32, used for normalization (u16::MAX = 65535).
-pub(crate) const U16_MAX_F: f32 = 65535.0;
 
 /// Photometric interpretation for scalar/grayscale images in DICOM writers.
 pub(crate) const MONOCHROME2: &str = "MONOCHROME2";
 
 pub(crate) const DICOM_SOP_CLASS_SECONDARY_CAPTURE: &str = "1.2.840.10008.5.1.4.1.1.7";
-
-/// Maximum u8 pixel value as f32, used for normalization (u8::MAX = 255).
-pub(crate) const U8_MAX_F: f32 = 255.0;
 
 /// Quality used for DICOM baseline (lossy) JPEG fragments.
 ///
@@ -27,91 +21,37 @@ pub(crate) const U8_MAX_F: f32 = 255.0;
 /// the fragment stays recognisably JPEG. Overridable per call.
 pub(crate) const JPEG_BASELINE_QUALITY: u8 = 95;
 
-/// Normalize finite pixel values to u8 and compute min/max rescale parameters.
+/// DICOM integer pixel types whose quantization and stored width are supported.
+pub(crate) trait DicomPixelSample: CastFrom<f64> {
+    /// Largest unsigned stored sample for this type.
+    const MAXIMUM: f32;
+
+    /// Bits Allocated and Bits Stored for this type.
+    const BITS: u16;
+}
+
+impl DicomPixelSample for u8 {
+    const MAXIMUM: f32 = 255.0;
+    const BITS: u16 = 8;
+}
+
+impl DicomPixelSample for u16 {
+    const MAXIMUM: f32 = 65_535.0;
+    const BITS: u16 = 16;
+}
+
+/// Normalize a finite image plane into its DICOM integer sample type.
 ///
-/// Returns `(pixel_u8, rescale_slope, rescale_intercept)`.
-///
-/// # Mathematical specification
-///
-/// Let range = max(max_val - min_val, ε). Then:
-///   `pixel[i] = round((v[i] - min) / range × 255).clamp(0, 255)`
-///   `rescale_slope = range / 255`
-///   `rescale_intercept = min_val`
-///
-/// This is [`normalize_to_u16`] with 65535 replaced by 255, and it carries the
-/// same reconstruction invariant: `|v[i] - (pixel[i] × slope + intercept)| ≤
-/// slope / 2`. Baseline JPEG can only carry eight-bit samples, so a writer that
-/// supports it needs this normalisation rather than truncating the u16 form.
+/// A nonconstant plane uses its exact finite range, with slope equal to range
+/// divided by the type maximum and intercept equal to the minimum. Quantization
+/// rounds to nearest with ties away from zero, so reconstruction error is at
+/// most half the rescale slope. A constant plane uses unit range and is
+/// reconstructed exactly from the intercept.
 ///
 /// # Errors
-/// Returns an error for an empty buffer, a non-finite sample, or a sample
-/// range whose width overflows f32.
-pub(crate) fn normalize_to_u8(data: &[f32]) -> Result<(Vec<u8>, f32, f32)> {
-    validate_normalization_samples(data)?;
-    let min_val = data.iter().copied().fold(f32::INFINITY, f32::min);
-    let max_val = data.iter().copied().fold(f32::NEG_INFINITY, f32::max);
-    let range = normalization_range(min_val, max_val)?;
-    let rescale_slope = range / U8_MAX_F;
-    let rescale_intercept = min_val;
-    let pixels: Vec<u8> = data
-        .iter()
-        .map(|&v| {
-            let quantized = ((v - min_val) / range * U8_MAX_F)
-                .round()
-                .clamp(0.0, U8_MAX_F);
-            u8::from_truncated(f64::from(quantized))
-        })
-        .collect();
-    Ok((pixels, rescale_slope, rescale_intercept))
-}
-
-/// Emit the four DICOM tags that define unsigned 8-bit pixel format.
-///
-/// BitsAllocated = 8, BitsStored = 8, HighBit = 7, PixelRepresentation = 0.
-/// Required by the baseline JPEG transfer syntax, whose samples are eight-bit.
-pub(crate) fn emit_pixel_format_tags_u8(obj: &mut InMemDicomObject) {
-    obj.put_value(Tag(0x0028, 0x0100), VR::US, 8u16);
-    obj.put_value(Tag(0x0028, 0x0101), VR::US, 8u16);
-    obj.put_value(Tag(0x0028, 0x0102), VR::US, 7u16);
-    obj.put_value(Tag(0x0028, 0x0103), VR::US, 0u16);
-}
-
-/// Normalize a slice of f32 pixel values to u16, computing min/max rescale parameters.
-///
-/// Returns `(pixel_u16, rescale_slope, rescale_intercept)`.
-///
-/// # Mathematical specification
-///
-/// Let range = max(max_val - min_val, ε). Then:
-///   `pixel[i] = round((v[i] - min) / range × 65535).clamp(0, 65535)`
-///   `rescale_slope = range / 65535`
-///   `rescale_intercept = min_val`
-///
-/// Reconstruction invariant: `|v[i] - (pixel[i] × slope + intercept)| ≤ slope / 2`.
-///
-/// # Errors
-/// Returns an error for an empty buffer, a non-finite sample, or a sample
-/// range whose width overflows f32.
-pub(crate) fn normalize_to_u16(data: &[f32]) -> Result<(Vec<u16>, f32, f32)> {
-    validate_normalization_samples(data)?;
-    let min_val = data.iter().copied().fold(f32::INFINITY, f32::min);
-    let max_val = data.iter().copied().fold(f32::NEG_INFINITY, f32::max);
-    let range = normalization_range(min_val, max_val)?;
-    let rescale_slope = range / U16_MAX_F;
-    let rescale_intercept = min_val;
-    let pixels: Vec<u16> = data
-        .iter()
-        .map(|&v| {
-            let quantized = ((v - min_val) / range * U16_MAX_F)
-                .round()
-                .clamp(0.0, U16_MAX_F);
-            u16::from_truncated(f64::from(quantized))
-        })
-        .collect();
-    Ok((pixels, rescale_slope, rescale_intercept))
-}
-
-fn validate_normalization_samples(data: &[f32]) -> Result<()> {
+/// Returns an error for empty or non-finite input, an unrepresentable range, or
+/// a rescale slope that underflows to zero.
+pub(crate) fn normalize_samples<T: DicomPixelSample>(data: &[f32]) -> Result<(Vec<T>, f32, f32)> {
     if data.is_empty() {
         bail!("cannot normalize an empty pixel buffer");
     }
@@ -120,96 +60,88 @@ fn validate_normalization_samples(data: &[f32]) -> Result<()> {
             bail!("pixel sample at index {index} is not finite: {value}");
         }
     }
-    Ok(())
-}
 
-fn normalization_range(min_val: f32, max_val: f32) -> Result<f32> {
-    let range = max_val - min_val;
-    if !range.is_finite() {
+    let minimum = data.iter().copied().fold(f32::INFINITY, f32::min);
+    let maximum = data.iter().copied().fold(f32::NEG_INFINITY, f32::max);
+    let observed_range = maximum - minimum;
+    if !observed_range.is_finite() {
         bail!("pixel range width is not representable as finite f32");
     }
-    Ok(range.max(f32::EPSILON))
+    let range = if observed_range == 0.0 {
+        1.0
+    } else {
+        observed_range
+    };
+    let rescale_slope = range / T::MAXIMUM;
+    if !rescale_slope.is_finite() || rescale_slope <= 0.0 {
+        bail!("pixel rescale slope is not representable as positive finite f32");
+    }
+
+    let pixels = data
+        .iter()
+        .map(|&value| {
+            let quantized = ((value - minimum) / range * T::MAXIMUM)
+                .round()
+                .clamp(0.0, T::MAXIMUM);
+            T::cast_from(f64::from(quantized))
+        })
+        .collect();
+    Ok((pixels, rescale_slope, minimum))
 }
 
-#[cfg(test)]
-mod tests {
-    use super::{normalize_to_u16, normalize_to_u8};
-
-    #[test]
-    fn normalizers_preserve_finite_quantization_values() {
-        let u8_result =
-            normalize_to_u8(&[0.0, 127.5, 255.0]).expect("finite samples normalize successfully");
-        assert_eq!(u8_result, (vec![0, 128, 255], 1.0, 0.0));
-
-        let u16_result = normalize_to_u16(&[0.0, 32_767.5, 65_535.0])
-            .expect("finite samples normalize successfully");
-        assert_eq!(u16_result, (vec![0, 32_768, 65_535], 1.0, 0.0));
-    }
-
-    #[test]
-    fn normalizers_reject_non_finite_samples_before_conversion() {
-        for invalid in [f32::NAN, f32::INFINITY, f32::NEG_INFINITY] {
-            let expected = format!("pixel sample at index 1 is not finite: {invalid}");
-            let u8_error = normalize_to_u8(&[0.0, invalid, 255.0])
-                .expect_err("non-finite samples cannot be normalized");
-            let u16_error = normalize_to_u16(&[0.0, invalid, 65_535.0])
-                .expect_err("non-finite samples cannot be normalized");
-            assert_eq!(u8_error.to_string(), expected);
-            assert_eq!(u16_error.to_string(), expected);
-        }
-    }
-
-    #[test]
-    fn normalizers_reject_empty_buffers() {
-        let u8_error = normalize_to_u8(&[]).expect_err("an empty pixel buffer has no range");
-        let u16_error = normalize_to_u16(&[]).expect_err("an empty pixel buffer has no range");
-        assert_eq!(
-            u8_error.to_string(),
-            "cannot normalize an empty pixel buffer"
-        );
-        assert_eq!(
-            u16_error.to_string(),
-            "cannot normalize an empty pixel buffer"
-        );
-    }
-
-    #[test]
-    fn normalizers_reject_ranges_that_overflow_f32() {
-        let samples = [-f32::MAX, f32::MAX];
-        let u8_error =
-            normalize_to_u8(&samples).expect_err("the pixel range width must remain finite");
-        let u16_error =
-            normalize_to_u16(&samples).expect_err("the pixel range width must remain finite");
-        let expected = "pixel range width is not representable as finite f32";
-        assert_eq!(u8_error.to_string(), expected);
-        assert_eq!(u16_error.to_string(), expected);
-    }
-}
-
-/// Emit the four DICOM tags that define unsigned 16-bit pixel format.
-///
-/// BitsAllocated = 16, BitsStored = 16, HighBit = 15, PixelRepresentation = 0 (unsigned).
-/// Call sites may override individual tags afterwards if metadata specifies different values.
-pub(crate) fn emit_pixel_format_tags(obj: &mut InMemDicomObject) {
-    obj.put_value(Tag(0x0028, 0x0100), VR::US, 16u16);
-    obj.put_value(Tag(0x0028, 0x0101), VR::US, 16u16);
-    obj.put_value(Tag(0x0028, 0x0102), VR::US, 15u16);
+/// Emit DICOM unsigned grayscale pixel tags for a stored sample type.
+pub(crate) fn emit_pixel_format_tags<T: DicomPixelSample>(obj: &mut InMemDicomObject) {
+    obj.put_value(Tag(0x0028, 0x0100), VR::US, T::BITS);
+    obj.put_value(Tag(0x0028, 0x0101), VR::US, T::BITS);
+    obj.put_value(Tag(0x0028, 0x0102), VR::US, T::BITS - 1);
     obj.put_value(Tag(0x0028, 0x0103), VR::US, 0u16);
 }
 
-pub(super) fn format_triplet(value: [f64; 3]) -> String {
-    format!("{:.6}\\{:.6}\\{:.6}", value[0], value[1], value[2])
+/// Validate rows and columns before encoding them in DICOM US tags.
+///
+/// # Errors
+/// Returns an error for zero dimensions or values that exceed u16::MAX.
+pub(crate) fn dicom_pixel_dimensions(rows: usize, cols: usize) -> Result<(u16, u16)> {
+    if rows == 0 || cols == 0 {
+        bail!("DICOM rows and columns must be greater than zero: rows={rows} cols={cols}");
+    }
+    let rows_tag = u16::try_from(rows)
+        .with_context(|| format!("DICOM Rows dimension {rows} exceeds u16::MAX"))?;
+    let cols_tag = u16::try_from(cols)
+        .with_context(|| format!("DICOM Columns dimension {cols} exceeds u16::MAX"))?;
+    Ok((rows_tag, cols_tag))
 }
 
-pub(super) fn format_pair(value: [f64; 2]) -> String {
-    format!("{:.6}\\{:.6}", value[0], value[1])
+const DICOM_DECIMAL_MAX_BYTES: usize = 16;
+
+/// Format one finite DICOM Decimal String value within its 16-byte limit.
+pub(crate) fn format_ds_value(value: f64) -> Result<String> {
+    if !value.is_finite() {
+        bail!("DICOM Decimal String values must be finite");
+    }
+    let shortest = value.to_string();
+    if shortest.len() <= DICOM_DECIMAL_MAX_BYTES {
+        return Ok(shortest);
+    }
+    for precision in (0..=14).rev() {
+        let candidate = format!("{value:.precision$e}");
+        if candidate.len() <= DICOM_DECIMAL_MAX_BYTES {
+            return Ok(candidate);
+        }
+    }
+    bail!("finite value cannot fit the DICOM Decimal String limit")
 }
 
-pub(super) fn format_six(value: [f64; 6]) -> String {
-    format!(
-        "{:.6}\\{:.6}\\{:.6}\\{:.6}\\{:.6}\\{:.6}",
-        value[0], value[1], value[2], value[3], value[4], value[5]
-    )
+/// Format a DICOM multi-value Decimal String with bounded components.
+pub(crate) fn format_ds_values<const N: usize>(values: [f64; N]) -> Result<String> {
+    let mut result = String::new();
+    for (index, value) in values.into_iter().enumerate() {
+        if index != 0 {
+            result.push('\\');
+        }
+        result.push_str(&format_ds_value(value)?);
+    }
+    Ok(result)
 }
 
 pub(crate) fn generate_series_uid() -> String {
@@ -322,4 +254,114 @@ pub(super) fn ensure_series_directory(path: &Path) -> Result<PathBuf> {
     std::fs::create_dir_all(path)
         .with_context(|| "failed to create DICOM series output directory")?;
     Ok(path.to_path_buf())
+}
+
+#[cfg(test)]
+mod tests {
+    use super::{
+        dicom_pixel_dimensions, format_ds_value, format_ds_values, normalize_samples,
+        DICOM_DECIMAL_MAX_BYTES,
+    };
+
+    #[test]
+    fn normalizers_preserve_quantization_and_calibration() {
+        assert_eq!(
+            normalize_samples::<u8>(&[0.0, 127.5, 255.0]).expect("finite plane"),
+            (vec![0, 128, 255], 1.0, 0.0)
+        );
+        assert_eq!(
+            normalize_samples::<u16>(&[0.0, 32_767.5, 65_535.0]).expect("finite plane"),
+            (vec![0, 32_768, 65_535], 1.0, 0.0)
+        );
+        let (pixels, slope, intercept) =
+            normalize_samples::<u16>(&[4.0, 4.0]).expect("constant plane");
+        assert_eq!(pixels, [0, 0]);
+        assert_eq!(slope, 1.0 / 65_535.0);
+        assert_eq!(intercept, 4.0);
+    }
+
+    #[test]
+    fn normalizers_preserve_ranges_below_f32_epsilon() {
+        let span = 1.0e-8_f32;
+        assert_eq!(
+            normalize_samples::<u8>(&[0.0, span / 2.0, span]).expect("finite plane"),
+            (vec![0, 128, 255], span / 255.0, 0.0)
+        );
+        assert_eq!(
+            normalize_samples::<u16>(&[0.0, span / 2.0, span]).expect("finite plane"),
+            (vec![0, 32_768, 65_535], span / 65_535.0, 0.0)
+        );
+    }
+
+    #[test]
+    fn normalizers_reject_invalid_inputs_and_unrepresentable_calibration() {
+        for invalid in [f32::NAN, f32::INFINITY, f32::NEG_INFINITY] {
+            let error = normalize_samples::<u16>(&[0.0, invalid])
+                .expect_err("non-finite samples are invalid");
+            assert_eq!(
+                error.to_string(),
+                format!("pixel sample at index 1 is not finite: {invalid}")
+            );
+        }
+        assert_eq!(
+            normalize_samples::<u8>(&[])
+                .expect_err("empty planes have no range")
+                .to_string(),
+            "cannot normalize an empty pixel buffer"
+        );
+        assert_eq!(
+            normalize_samples::<u16>(&[-f32::MAX, f32::MAX])
+                .expect_err("range overflow is not representable")
+                .to_string(),
+            "pixel range width is not representable as finite f32"
+        );
+        assert_eq!(
+            normalize_samples::<u16>(&[0.0, f32::from_bits(1)])
+                .expect_err("zero slope cannot represent distinct samples")
+                .to_string(),
+            "pixel rescale slope is not representable as positive finite f32"
+        );
+    }
+
+    #[test]
+    fn dimensions_fit_dicom_us_without_truncation() {
+        assert_eq!(
+            dicom_pixel_dimensions(1, usize::from(u16::MAX)).expect("maximum dimension"),
+            (1, u16::MAX)
+        );
+        assert_eq!(
+            dicom_pixel_dimensions(usize::from(u16::MAX) + 1, 1)
+                .expect_err("oversized dimensions cannot truncate")
+                .to_string(),
+            format!(
+                "DICOM Rows dimension {} exceeds u16::MAX",
+                usize::from(u16::MAX) + 1
+            )
+        );
+    }
+
+    #[test]
+    fn decimal_strings_preserve_small_values_within_the_wire_limit() {
+        assert_eq!(
+            format_ds_value(1.0e-9).expect("finite DS value"),
+            "0.000000001"
+        );
+        let tiny = format_ds_value(1.0e-30).expect("finite DS value");
+        assert!(tiny.len() <= DICOM_DECIMAL_MAX_BYTES);
+        assert_eq!(tiny.parse::<f64>().expect("valid DS number"), 1.0e-30);
+        assert_eq!(
+            format_ds_values([1.0e-9, -2.5, 0.0]).expect("finite DS values"),
+            "0.000000001\\-2.5\\0"
+        );
+    }
+
+    #[test]
+    fn decimal_strings_reject_non_finite_values() {
+        assert_eq!(
+            format_ds_value(f64::NAN)
+                .expect_err("DICOM DS cannot represent NaN")
+                .to_string(),
+            "DICOM Decimal String values must be finite"
+        );
+    }
 }

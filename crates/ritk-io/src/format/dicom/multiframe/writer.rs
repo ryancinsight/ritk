@@ -22,8 +22,8 @@ use std::path::Path;
 
 use super::types::{MultiFrameSpatialMetadata, MultiFrameWriterConfig};
 use crate::format::dicom::writer::pixel_encoding::{
-    emit_pixel_format_tags, emit_pixel_format_tags_u8, generate_series_uid, normalize_to_u16,
-    normalize_to_u8, MONOCHROME2,
+    dicom_pixel_dimensions, emit_pixel_format_tags, format_ds_value, format_ds_values,
+    generate_series_uid, normalize_samples, MONOCHROME2,
 };
 
 /// Write a 3-D `Image<f32, B, 3>` with shape `[n_frames, rows, cols]` as a single
@@ -166,7 +166,8 @@ fn write_multiframe_flat(
         );
     }
 
-    let (pixel_u16, rescale_slope, rescale_intercept) = normalize_to_u16(all_data)?;
+    let (rows_tag, cols_tag) = dicom_pixel_dimensions(rows, cols)?;
+    let (pixel_u16, rescale_slope, rescale_intercept) = normalize_samples::<u16>(all_data)?;
 
     let sop_instance_uid = generate_series_uid();
     let study_instance_uid = generate_series_uid();
@@ -206,45 +207,34 @@ fn write_multiframe_flat(
 
     obj.put_value(Tag(0x0028, 0x0008), VR::IS, format!("{}", n_frames));
     obj.put_value(Tag(0x0028, 0x0002), VR::US, 1_u16);
-    obj.put_value(Tag(0x0028, 0x0010), VR::US, rows as u16);
-    obj.put_value(Tag(0x0028, 0x0011), VR::US, cols as u16);
-    emit_pixel_format_tags(&mut obj);
+    obj.put_value(Tag(0x0028, 0x0010), VR::US, rows_tag);
+    obj.put_value(Tag(0x0028, 0x0011), VR::US, cols_tag);
+    emit_pixel_format_tags::<u16>(&mut obj);
     obj.put_value(Tag(0x0028, 0x0004), VR::CS, MONOCHROME2);
-    obj.put_value(Tag(0x0028, 0x1053), VR::DS, format!("{:.6}", rescale_slope));
+    obj.put_value(
+        Tag(0x0028, 0x1053),
+        VR::DS,
+        format_ds_value(f64::from(rescale_slope))?,
+    );
     obj.put_value(
         Tag(0x0028, 0x1052),
         VR::DS,
-        format!("{:.6}", rescale_intercept),
+        format_ds_value(f64::from(rescale_intercept))?,
     );
 
     if let Some(s) = &config.spatial {
         let o = &s.origin;
-        obj.put_value(
-            Tag(0x0020, 0x0032),
-            VR::DS,
-            format!("{:.6}\\{:.6}\\{:.6}", o[0], o[1], o[2]),
-        );
+        obj.put_value(Tag(0x0020, 0x0032), VR::DS, format_ds_values(*o)?);
 
         let iop = &s.image_orientation;
-        obj.put_value(
-            Tag(0x0020, 0x0037),
-            VR::DS,
-            format!(
-                "{:.6}\\{:.6}\\{:.6}\\{:.6}\\{:.6}\\{:.6}",
-                iop[0], iop[1], iop[2], iop[3], iop[4], iop[5]
-            ),
-        );
+        obj.put_value(Tag(0x0020, 0x0037), VR::DS, format_ds_values(*iop)?);
 
         let ps = &s.pixel_spacing;
-        obj.put_value(
-            Tag(0x0028, 0x0030),
-            VR::DS,
-            format!("{:.6}\\{:.6}", ps[0], ps[1]),
-        );
+        obj.put_value(Tag(0x0028, 0x0030), VR::DS, format_ds_values(*ps)?);
         obj.put_value(
             Tag(0x0018, 0x0050),
             VR::DS,
-            format!("{:.6}", s.slice_thickness),
+            format_ds_value(s.slice_thickness)?,
         );
     }
 
@@ -278,8 +268,8 @@ fn write_multiframe_flat(
             // Baseline JPEG carries eight-bit samples, so the 16-bit
             // normalisation and the 16-bit pixel tags do not apply to this
             // transfer syntax. Re-derive both from the modality data.
-            let (pixel_u8, jpeg_slope, jpeg_intercept) = normalize_to_u8(all_data)?;
-            emit_pixel_format_tags_u8(&mut obj);
+            let (pixel_u8, jpeg_slope, jpeg_intercept) = normalize_samples::<u8>(all_data)?;
+            emit_pixel_format_tags::<u8>(&mut obj);
             let layout = PixelLayout {
                 rows,
                 cols,
