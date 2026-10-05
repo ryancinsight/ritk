@@ -58,6 +58,23 @@ mod tests {
     use dicom::core::Tag;
     use dicom::object::open_file;
 
+    fn pixel_model(attributes: &[(u16, u16, u16)], payload: Vec<u8>) -> DicomObjectModel {
+        let mut model = DicomObjectModel::new();
+        for &(group, element, value) in attributes {
+            model.insert(DicomObjectNode::with_value(
+                DicomTag::new(group, element),
+                "US",
+                value,
+            ));
+        }
+        model.insert(DicomObjectNode::bytes(
+            DicomTag::new(0x7FE0, 0x0010),
+            "OB",
+            payload,
+        ));
+        model
+    }
+
     #[test]
     fn test_write_object_empty_model_creates_file() {
         let tmp = tempfile::tempdir().expect("tempdir");
@@ -166,28 +183,22 @@ mod tests {
         );
         assert_eq!(std::fs::read(&path).expect("sentinel remains"), b"sentinel");
     }
-
     #[test]
     fn test_write_object_rejects_missing_rows_before_replacing_file() {
         let tmp = tempfile::tempdir().expect("tempdir");
         let path = tmp.path().join("missing-rows.dcm");
         std::fs::write(&path, b"sentinel").expect("sentinel");
-        let mut model = DicomObjectModel::new();
-        for (tag, value) in [
-            (DicomTag::new(0x0028, 0x0002), 1u16),
-            (DicomTag::new(0x0028, 0x0011), 2u16),
-            (DicomTag::new(0x0028, 0x0100), 8u16),
-            (DicomTag::new(0x0028, 0x0101), 8u16),
-            (DicomTag::new(0x0028, 0x0102), 7u16),
-            (DicomTag::new(0x0028, 0x0103), 0u16),
-        ] {
-            model.insert(DicomObjectNode::with_value(tag, "US", value));
-        }
-        model.insert(DicomObjectNode::bytes(
-            DicomTag::new(0x7FE0, 0x0010),
-            "OB",
-            vec![0u8; 2],
-        ));
+        let model = pixel_model(
+            &[
+                (0x0028, 0x0002, 1),
+                (0x0028, 0x0011, 2),
+                (0x0028, 0x0100, 8),
+                (0x0028, 0x0101, 8),
+                (0x0028, 0x0102, 7),
+                (0x0028, 0x0103, 0),
+            ],
+            vec![0; 2],
+        );
         let error = write_object(&model, &path).expect_err("missing Rows must fail");
         assert_eq!(
             error.downcast_ref::<DicomWriteError>(),
@@ -201,24 +212,19 @@ mod tests {
         let tmp = tempfile::tempdir().expect("tempdir");
         let path = tmp.path().join("payload-length.dcm");
         std::fs::write(&path, b"sentinel").expect("sentinel");
-        let mut model = DicomObjectModel::new();
-        for (tag, value) in [
-            (DicomTag::new(0x0028, 0x0002), 2u16),
-            (DicomTag::new(0x0028, 0x0008), 2u16),
-            (DicomTag::new(0x0028, 0x0010), 2u16),
-            (DicomTag::new(0x0028, 0x0011), 2u16),
-            (DicomTag::new(0x0028, 0x0100), 8u16),
-            (DicomTag::new(0x0028, 0x0101), 8u16),
-            (DicomTag::new(0x0028, 0x0102), 7u16),
-            (DicomTag::new(0x0028, 0x0103), 0u16),
-        ] {
-            model.insert(DicomObjectNode::with_value(tag, "US", value));
-        }
-        model.insert(DicomObjectNode::bytes(
-            DicomTag::new(0x7FE0, 0x0010),
-            "OB",
-            vec![0u8; 4],
-        ));
+        let model = pixel_model(
+            &[
+                (0x0028, 0x0002, 2),
+                (0x0028, 0x0008, 2),
+                (0x0028, 0x0010, 2),
+                (0x0028, 0x0011, 2),
+                (0x0028, 0x0100, 8),
+                (0x0028, 0x0101, 8),
+                (0x0028, 0x0102, 7),
+                (0x0028, 0x0103, 0),
+            ],
+            vec![0; 4],
+        );
         let error = write_object(&model, &path).expect_err("short payload must fail");
         assert_eq!(
             error.downcast_ref::<DicomWriteError>(),

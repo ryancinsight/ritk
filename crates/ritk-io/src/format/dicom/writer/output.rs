@@ -4,7 +4,6 @@ use crate::format::dicom::writer::error::DicomWriteError;
 use anyhow::{bail, Context, Result};
 use dicom::core::{Tag, VR};
 use std::path::Path;
-
 pub(crate) fn serialize_file(object: &dicom::object::DefaultDicomObject) -> Result<Vec<u8>> {
     validate_pixel_module(object)?;
     let mut bytes = Vec::new();
@@ -13,7 +12,6 @@ pub(crate) fn serialize_file(object: &dicom::object::DefaultDicomObject) -> Resu
         .context("DICOM serialization failed")?;
     Ok(bytes)
 }
-
 fn unsigned_scalar(
     object: &dicom::object::DefaultDicomObject,
     tag: Tag,
@@ -30,7 +28,6 @@ fn unsigned_scalar(
         })
         .map_err(Into::into)
 }
-
 fn pixel_scalar(
     object: &dicom::object::DefaultDicomObject,
     tag: Tag,
@@ -43,7 +40,6 @@ fn pixel_scalar(
         .map_err(|_| DicomWriteError::InvalidPixelAttribute { attribute: name })
         .map_err(Into::into)
 }
-
 fn validate_pixel_module(object: &dicom::object::DefaultDicomObject) -> Result<()> {
     let Ok(pixel_data) = object.element(Tag(0x7FE0, 0x0010)) else {
         return Ok(());
@@ -68,28 +64,25 @@ fn validate_pixel_module(object: &dicom::object::DefaultDicomObject) -> Result<(
     let rows = pixel_scalar(object, Tag(0x0028, 0x0010), "Rows")?;
     let columns = pixel_scalar(object, Tag(0x0028, 0x0011), "Columns")?;
     let samples_per_pixel = pixel_scalar(object, Tag(0x0028, 0x0002), "SamplesPerPixel")?;
-    if rows == 0 || columns == 0 || samples_per_pixel == 0 {
-        return Err(DicomWriteError::InvalidPixelAttribute {
-            attribute: if rows == 0 {
-                "Rows"
-            } else if columns == 0 {
-                "Columns"
-            } else {
-                "SamplesPerPixel"
-            },
-        }
-        .into());
+    if let Some((_, attribute)) = [
+        (rows, "Rows"),
+        (columns, "Columns"),
+        (samples_per_pixel, "SamplesPerPixel"),
+    ]
+    .into_iter()
+    .find(|(value, _)| *value == 0)
+    {
+        return Err(DicomWriteError::InvalidPixelAttribute { attribute }.into());
     }
-    let number_of_frames = match object.element(Tag(0x0028, 0x0008)) {
-        Ok(element) => {
+    let number_of_frames = object
+        .element(Tag(0x0028, 0x0008))
+        .map_or(Ok(1), |element| {
             element
                 .to_int::<u16>()
                 .map_err(|_| DicomWriteError::InvalidPixelAttribute {
                     attribute: "NumberOfFrames",
-                })?
-        }
-        Err(_) => 1,
-    };
+                })
+        })?;
     if number_of_frames == 0 {
         return Err(DicomWriteError::InvalidPixelAttribute {
             attribute: "NumberOfFrames",
