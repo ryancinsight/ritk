@@ -8,9 +8,10 @@ maps through `ritk-image-io`. It writes raw payloads in little-endian order.
 Binary reads and writes preserve floating-point payload bits; ASCII values are
 parsed from text into their declared sample type.
 
-The reader bounds one header to 16 MiB and 65,536 distinct fields and
-key/value pairs. Oversized headers return a typed error before payload
-allocation.
+The reader bounds one header to 16 MiB and 65,536 retained entries across
+standard fields, comments, and custom key/value records. Repeated custom keys
+count as separate records. Oversized headers return a typed error before
+payload allocation.
 Stored readers also accept `ImageReadBudget`, which limits encoded bytes,
 decoded sample bytes, and series volume count before allocating sample data.
 The default byte ceilings are 1 GiB and the default series limit is 65,536.
@@ -26,6 +27,12 @@ The native image API remains convenient for processing. Use
 retain the original sample representation and exact payload values.
 The stored writer streams samples through a buffered file writer without
 creating another volume-sized encoded payload.
+
+`read_nrrd_header` reads metadata without decoding samples. Its `NrrdHeader`
+exposes canonical standard fields, the format version, comment lines, the
+effective custom key/value map, and every decoded custom record in source
+order. Repeated keys remain inspectable even though the effective map follows
+NRRD's last-value rule.
 
 ```rust,no_run
 use ritk_image_io::ImageReadBudget;

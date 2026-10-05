@@ -2,7 +2,100 @@
 
 use std::io::Cursor;
 
-use super::{parse_nrrd_header_from_reader, NrrdHeaderError, MAX_HEADER_BYTES};
+use super::{parse_nrrd_header_from_reader, NrrdHeaderError, MAX_HEADER_BYTES, MAX_HEADER_ENTRIES};
+
+#[test]
+fn public_header_reader_retains_comments_and_repeated_custom_records() {
+    let directory = tempfile::tempdir().expect("create header test directory");
+    let path = directory.path().join("metadata.nrrd");
+    std::fs::write(
+        &path,
+        b"NRRD0005\n# first comment\ntype: unsigned char\ncustom:=first\n# second comment\ncustom:=second\n\n",
+    )
+    .expect("write header fixture");
+
+    let header = crate::read_nrrd_header(&path).expect("read public header");
+
+    assert_eq!(header.format_version(), 5);
+    assert_eq!(
+        header.fields().get("type").map(String::as_str),
+        Some("unsigned char")
+    );
+    assert_eq!(
+        header.key_values().get("custom").map(String::as_str),
+        Some("second")
+    );
+    let records = header.key_value_records();
+    assert_eq!(records.len(), 2);
+    let [first, second] = records else {
+        panic!("two custom records were parsed");
+    };
+    assert_eq!(first.key(), "custom");
+    assert_eq!(first.value(), "first");
+    assert_eq!(second.key(), "custom");
+    assert_eq!(second.value(), "second");
+    assert_eq!(
+        header.comments(),
+        [
+            String::from("# first comment"),
+            String::from("# second comment")
+        ]
+    );
+}
+
+#[test]
+fn repeated_custom_records_count_toward_the_header_entry_limit() {
+    let mut accepted = Vec::with_capacity(MAX_HEADER_ENTRIES * 10);
+    accepted.extend_from_slice(b"NRRD0005\n");
+    for _ in 0..MAX_HEADER_ENTRIES {
+        accepted.extend_from_slice(b"custom:=x\n");
+    }
+    accepted.push(b'\n');
+    let mut reader = Cursor::new(accepted);
+    let header = parse_nrrd_header_from_reader(&mut reader).expect("limit permits exact count");
+    assert_eq!(header.key_value_records.len(), MAX_HEADER_ENTRIES);
+
+    let mut rejected = Vec::with_capacity((MAX_HEADER_ENTRIES + 1) * 10);
+    rejected.extend_from_slice(b"NRRD0005\n");
+    for _ in 0..=MAX_HEADER_ENTRIES {
+        rejected.extend_from_slice(b"custom:=x\n");
+    }
+    rejected.push(b'\n');
+    let mut reader = Cursor::new(rejected);
+
+    assert!(matches!(
+        parse_nrrd_header_from_reader(&mut reader),
+        Err(NrrdHeaderError::TooManyEntries { maximum_entries })
+            if maximum_entries == MAX_HEADER_ENTRIES
+    ));
+}
+
+#[test]
+fn comments_count_toward_the_header_entry_limit() {
+    let mut accepted = Vec::with_capacity(MAX_HEADER_ENTRIES * 2 + 10);
+    accepted.extend_from_slice(b"NRRD0005\n");
+    for _ in 0..MAX_HEADER_ENTRIES {
+        accepted.extend_from_slice(b"#\n");
+    }
+    accepted.push(b'\n');
+    let mut reader = Cursor::new(accepted);
+    let header = parse_nrrd_header_from_reader(&mut reader).expect("limit permits exact count");
+    assert_eq!(header.comments.len(), MAX_HEADER_ENTRIES);
+
+    let mut rejected = Vec::with_capacity((MAX_HEADER_ENTRIES + 1) * 2 + 10);
+    rejected.extend_from_slice(b"NRRD0005\n");
+    for _ in 0..=MAX_HEADER_ENTRIES {
+        rejected.extend_from_slice(b"#\n");
+    }
+    rejected.push(b'\n');
+    let mut reader = Cursor::new(rejected);
+
+    assert!(matches!(
+        parse_nrrd_header_from_reader(&mut reader),
+        Err(NrrdHeaderError::TooManyEntries { maximum_entries })
+            if maximum_entries == MAX_HEADER_ENTRIES
+    ));
+}
 
 #[test]
 fn header_fields_and_custom_pairs_keep_separate_namespaces() {
@@ -28,6 +121,23 @@ fn header_fields_and_custom_pairs_keep_separate_namespaces() {
     );
 }
 
+#[test]
+fn custom_key_value_delimiter_takes_precedence_inside_the_key() {
+    let input = b"NRRD0005
+custom: name:=value
+
+";
+    let mut reader = Cursor::new(input);
+    let header = parse_nrrd_header_from_reader(&mut reader).expect("valid custom record");
+
+    assert_eq!(
+        header.key_values.get("custom: name").map(String::as_str),
+        Some("value")
+    );
+    assert_eq!(header.key_value_records.len(), 1);
+    assert_eq!(header.key_value_records[0].key(), "custom: name");
+    assert_eq!(header.key_value_records[0].value(), "value");
+}
 #[test]
 fn header_key_values_preserve_case_unescape_and_last_value() {
     let input = b"NRRD0005\nDWMRI_gradient_0000:=one\\ntwo\\\\three\nDWMRI_gradient_0000:=last\n\n";

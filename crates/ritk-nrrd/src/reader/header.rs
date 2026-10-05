@@ -4,24 +4,20 @@ use std::io::{self, BufRead, BufReader};
 use std::path::{Path, PathBuf};
 use thiserror::Error;
 
+mod parsed;
+pub use parsed::{NrrdHeader, NrrdKeyValueRecord};
+
 /// Maximum bytes retained while parsing one NRRD header.
 ///
 /// This bounds both the current line and the cumulative header, including
 /// comments and the required blank separator.
 pub(crate) const MAX_HEADER_BYTES: usize = 16 * 1024 * 1024;
 
-/// Maximum number of distinct standard fields and key/value pairs retained.
+/// Maximum number of standard fields, comments, and key/value records retained.
 ///
-/// The entry cap bounds hash-table and string-header overhead independently
-/// of the byte budget. It admits more than 65,000 diffusion gradient records.
+/// The entry cap bounds collection and string-header overhead independently
+/// of the byte budget. Repeated key/value keys count as separate records.
 pub(crate) const MAX_HEADER_ENTRIES: usize = 65_536;
-
-/// Parsed NRRD structural fields and format key/value metadata.
-#[derive(Debug)]
-pub(super) struct NrrdHeader {
-    pub(super) fields: HashMap<String, String>,
-    pub(super) key_values: HashMap<String, String>,
-}
 
 /// A failure while reading or parsing a NRRD header.
 #[derive(Debug, Error)]
@@ -60,10 +56,10 @@ pub enum NrrdHeaderError {
         /// Maximum accepted cumulative header size.
         maximum_bytes: usize,
     },
-    /// The header contains too many distinct metadata entries.
+    /// The header contains too many retained fields, comments, and records.
     #[error("NRRD header exceeds the {maximum_entries}-entry limit")]
     TooManyEntries {
-        /// Maximum accepted count of distinct fields and key/value pairs.
+        /// Maximum accepted count of retained fields, comments, and records.
         maximum_entries: usize,
     },
     /// A header line contains bytes outside the NRRD ASCII header encoding.
@@ -135,8 +131,8 @@ pub enum NrrdHeaderError {
 /// Names are returned in lowercase for map lookup. The separate namespaces
 /// merge only when their names do not collide; a collision returns a typed
 /// error instead of replacing a structural field. Header parsing is limited to
-/// 16 MiB and 65,536 distinct metadata entries to bound memory use on untrusted
-/// input.
+/// 16 MiB and 65,536 standard fields, comments, and key/value records to bound
+/// memory use on untrusted input.
 ///
 /// # Errors
 ///
@@ -146,6 +142,7 @@ pub fn read_nrrd_header_map<P: AsRef<Path>>(path: P) -> anyhow::Result<HashMap<S
     let NrrdHeader {
         mut fields,
         key_values,
+        ..
     } = read_nrrd_header(path)?;
     for (key, value) in key_values {
         let mut key = copy_string(&key, "combined map key")?;
@@ -164,7 +161,32 @@ pub fn read_nrrd_header_map<P: AsRef<Path>>(path: P) -> anyhow::Result<HashMap<S
     Ok(fields)
 }
 
-pub(super) fn read_nrrd_header<P: AsRef<Path>>(path: P) -> Result<NrrdHeader, NrrdHeaderError> {
+/// Reads and parses a NRRD header without decoding its sample payload.
+///
+/// The result retains canonical standard fields, comments, the effective
+/// custom key/value map, every decoded key/value record in source order, and
+/// the format version. Repeated custom keys follow NRRD's last-value lookup
+/// rule while remaining available as individual records.
+///
+/// Header size and retained-entry count are bounded to limit memory use on
+/// untrusted input.
+///
+/// # Errors
+///
+/// Returns a typed error if the file cannot be opened or read, its header is
+/// malformed, or either resource limit is exceeded.
+///
+/// # Examples
+///
+/// ```no_run
+/// use ritk_nrrd::read_nrrd_header;
+///
+/// let header = read_nrrd_header("input.nrrd")?;
+/// assert_eq!(header.format_version(), 4);
+/// assert!(header.fields().contains_key("dimension"));
+/// # Ok::<(), Box<dyn std::error::Error>>(())
+/// ```
+pub fn read_nrrd_header<P: AsRef<Path>>(path: P) -> Result<NrrdHeader, NrrdHeaderError> {
     let path = path.as_ref();
     let file = std::fs::File::open(path).map_err(|source| NrrdHeaderError::Open {
         path: path.to_path_buf(),
@@ -193,6 +215,9 @@ pub(super) fn parse_nrrd_header_from_reader<R: BufRead>(
     let mut header = NrrdHeader {
         fields: HashMap::new(),
         key_values: HashMap::new(),
+        key_value_records: Vec::new(),
+        comments: Vec::new(),
+        format_version,
     };
     let mut line_number = 1_usize;
     loop {
@@ -212,43 +237,36 @@ pub(super) fn parse_nrrd_header_from_reader<R: BufRead>(
             return Ok(header);
         }
         if text.starts_with('#') {
+            reserve_entry(
+                header.fields.len(),
+                header.key_value_records.len(),
+                header.comments.len(),
+            )?;
+            header
+                .comments
+                .try_reserve(1)
+                .map_err(|source| NrrdHeaderError::Allocation {
+                    operation: "comment table",
+                    source,
+                })?;
+            header.comments.push(copy_string(text, "comment line")?);
             continue;
         }
-        match (text.find(":="), text.find(": ")) {
-            (Some(key_value), Some(field)) if field < key_value => {
-                let (field, value) = text
-                    .split_once(": ")
-                    .expect("invariant: delimiter was found");
-                insert_field(
-                    &mut header,
-                    field,
-                    value.trim_end(),
-                    line_number,
-                    format_version,
-                )?;
+        if let Some((key, value)) = text.split_once(":=") {
+            if format_version < 2 {
+                return Err(NrrdHeaderError::KeyValueBeforeVersionTwo { line_number });
             }
-            (Some(_), _) => {
-                if format_version < 2 {
-                    return Err(NrrdHeaderError::KeyValueBeforeVersionTwo { line_number });
-                }
-                let (key, value) = text
-                    .split_once(":=")
-                    .expect("invariant: delimiter was found");
-                insert_key_value(&mut header, key, value, line_number)?;
-            }
-            (None, Some(_)) => {
-                let (field, value) = text
-                    .split_once(": ")
-                    .expect("invariant: delimiter was found");
-                insert_field(
-                    &mut header,
-                    field,
-                    value.trim_end(),
-                    line_number,
-                    format_version,
-                )?;
-            }
-            (None, None) => return Err(NrrdHeaderError::MalformedLine { line_number }),
+            insert_key_value(&mut header, key, value, line_number)?;
+        } else if let Some((field, value)) = text.split_once(": ") {
+            insert_field(
+                &mut header,
+                field,
+                value.trim_end(),
+                line_number,
+                format_version,
+            )?;
+        } else {
+            return Err(NrrdHeaderError::MalformedLine { line_number });
         }
     }
 }
@@ -330,7 +348,11 @@ fn insert_field(
     if header.fields.contains_key(&key) {
         return Err(NrrdHeaderError::DuplicateField { field: key });
     }
-    reserve_entry(header.fields.len(), header.key_values.len())?;
+    reserve_entry(
+        header.fields.len(),
+        header.key_value_records.len(),
+        header.comments.len(),
+    )?;
     header
         .fields
         .try_reserve(1)
@@ -382,8 +404,12 @@ fn insert_key_value(
     }
     let key = unescape_key_value(key, line_number)?;
     let value = unescape_key_value(value, line_number)?;
+    reserve_entry(
+        header.fields.len(),
+        header.key_value_records.len(),
+        header.comments.len(),
+    )?;
     if !header.key_values.contains_key(&key) {
-        reserve_entry(header.fields.len(), header.key_values.len())?;
         header
             .key_values
             .try_reserve(1)
@@ -392,6 +418,18 @@ fn insert_key_value(
                 source,
             })?;
     }
+    header
+        .key_value_records
+        .try_reserve(1)
+        .map_err(|source| NrrdHeaderError::Allocation {
+            operation: "key/value record table",
+            source,
+        })?;
+    let record_key = copy_string(&key, "key/value record key")?;
+    let record_value = copy_string(&value, "key/value record value")?;
+    header
+        .key_value_records
+        .push(NrrdKeyValueRecord::new(record_key, record_value));
     header.key_values.insert(key, value);
     Ok(())
 }
@@ -423,9 +461,14 @@ fn unescape_key_value(value: &str, line_number: usize) -> Result<String, NrrdHea
     Ok(decoded)
 }
 
-fn reserve_entry(field_count: usize, key_value_count: usize) -> Result<(), NrrdHeaderError> {
+fn reserve_entry(
+    field_count: usize,
+    key_value_count: usize,
+    comment_count: usize,
+) -> Result<(), NrrdHeaderError> {
     let count = field_count
         .checked_add(key_value_count)
+        .and_then(|count| count.checked_add(comment_count))
         .and_then(|count| count.checked_add(1))
         .ok_or(NrrdHeaderError::TooManyEntries {
             maximum_entries: MAX_HEADER_ENTRIES,
