@@ -4,5 +4,6 @@ mod convert_roundtrip;
 mod convert_single_label;
 mod external;
 mod fixtures;
+mod pixel_encoding;
 mod read;
 mod write;

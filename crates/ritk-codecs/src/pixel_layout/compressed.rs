@@ -1,18 +1,15 @@
 //! Encapsulated-codec sample conversion into the DICOM modality domain.
 
 use anyhow::{bail, Context, Result};
+use eunomia::convert::IntegerTarget;
 
 use super::{PixelLayout, PixelSignedness};
 
 /// Encode one value from the modality domain back to its stored sample.
 ///
-/// This is the exact inverse of the `* slope + intercept` transform applied by
-/// [`decode_compressed_samples`]. Rounding is half-away-from-zero rather than
-/// `f32::round`'s half-to-even: stored samples are integers obtained by
-/// rescaling continuous detector values, and the midpoint case is a tie between
-/// two equally valid integers, so either is defensible -- what is *not*
-/// defensible is a rule that biases every tie the same way on a large image,
-/// which is why this is stated rather than left implicit.
+/// Invert the `sample * slope + intercept` modality transform, then round to
+/// the nearest integer with ties away from zero (`f32::round`). Arithmetic and
+/// rounding stay in f32; the integral result widens exactly for conversion.
 pub(crate) fn encode_stored_sample(value: f32, layout: PixelLayout) -> Result<i32> {
     layout.validate_rescale_parameters()?;
     if layout.rescale_slope == 0.0 {
@@ -22,11 +19,10 @@ pub(crate) fn encode_stored_sample(value: f32, layout: PixelLayout) -> Result<i3
         bail!("cannot encode a non-finite sample {value}");
     }
     let stored = (value - layout.rescale_intercept) / layout.rescale_slope;
-    Ok(if stored < 0.0 {
-        (stored - 0.5).round() as i32
-    } else {
-        (stored + 0.5).round() as i32
-    })
+    if !stored.is_finite() {
+        bail!("inverse rescale produces a non-finite stored sample");
+    }
+    Ok(i32::from_truncated(f64::from(stored.round())))
 }
 
 /// Inverse of [`decode_compressed_samples`] for the eight-bit grayscale case.
@@ -50,7 +46,8 @@ where
     values
         .map(|value| {
             let stored = encode_stored_sample(value, layout)?;
-            Ok(u8::try_from(stored.clamp(0, i32::from(u8::MAX))).unwrap_or(u8::MAX))
+            Ok(u8::try_from(stored.clamp(0, i32::from(u8::MAX)))
+                .expect("invariant: clamped stored sample lies in 0..=255"))
         })
         .collect()
 }

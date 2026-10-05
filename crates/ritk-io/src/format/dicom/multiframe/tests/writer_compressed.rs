@@ -7,7 +7,28 @@
 //! size the scanner measures.
 
 use super::*;
+use dicom::core::Tag;
+use dicom::object::DefaultDicomObject;
 use ritk_dicom::{parse_file_with, DicomRsBackend, TransferSyntaxKind};
+
+fn assert_pixel_format(object: &DefaultDicomObject, bits_allocated: u16) {
+    for (tag, expected) in [
+        (Tag(0x0028, 0x0100), bits_allocated),
+        (Tag(0x0028, 0x0101), bits_allocated),
+        (Tag(0x0028, 0x0102), bits_allocated - 1),
+        (Tag(0x0028, 0x0103), 0),
+    ] {
+        let actual = object
+            .element(tag)
+            .expect("pixel attribute must exist")
+            .to_str()
+            .expect("US attribute must render")
+            .trim()
+            .parse::<u16>()
+            .expect("US attribute must parse");
+        assert_eq!(actual, expected, "pixel attribute {tag}");
+    }
+}
 
 #[test]
 fn test_write_multiframe_jpegls_lossless_round_trip() {
@@ -23,11 +44,9 @@ fn test_write_multiframe_jpegls_lossless_round_trip() {
     write_dicom_multiframe_native_with_config(&out_path, &image, &config)
         .expect("JPEG-LS multiframe write");
 
-    let ts_uid = parse_file_with::<DicomRsBackend, _>(&out_path)
-        .expect("parse file")
-        .meta()
-        .transfer_syntax()
-        .to_owned();
+    let object = parse_file_with::<DicomRsBackend, _>(&out_path).expect("parse file");
+    assert_pixel_format(&object, 16);
+    let ts_uid = object.meta().transfer_syntax().to_owned();
     assert_eq!(ts_uid, TransferSyntaxKind::JpegLsLossless.uid());
 
     let decoded = load_dicom_multiframe_flat(&out_path).expect("decode JPEG-LS multiframe");
@@ -153,6 +172,7 @@ fn test_write_multiframe_jpeg_baseline_declares_eight_bit_pixel_format() {
         .expect("JPEG baseline multiframe write");
 
     let obj = parse_file_with::<DicomRsBackend, _>(&out_path).expect("parse file");
+    assert_pixel_format(&obj, 8);
     // Baseline JPEG carries eight-bit samples; the 16-bit tags would describe a
     // pixel format the fragments do not contain.
     assert_eq!(
@@ -184,6 +204,16 @@ fn test_write_multiframe_jpeg_baseline_declares_eight_bit_pixel_format() {
             .parse::<u16>()
             .expect("US parses"),
         7
+    );
+    assert_eq!(
+        obj.element(Tag(0x0028, 0x0103))
+            .expect("PixelRepresentation")
+            .to_str()
+            .expect("US renders as text")
+            .trim()
+            .parse::<u16>()
+            .expect("US parses"),
+        0
     );
 }
 

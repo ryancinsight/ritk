@@ -134,11 +134,30 @@ fn test_scan_metadata_round_trip_spatial_fields() {
         "bits_allocated must round-trip as 16; got {:?}",
         m.bits_allocated
     );
-    assert_eq!(m.bits_stored, Some(12), "bits_stored must round-trip");
-    assert!(
-        m.slices.iter().all(|slice| slice.bits_stored == 12),
-        "each slice must retain its own BitsStored value"
+    // The input's 12-bit description cannot describe the writer's u16
+    // representation: PS3.5 8.1.1 requires tags to describe the emitted cells.
+    assert_eq!(
+        m.bits_stored,
+        Some(16),
+        "BitsStored describes encoded samples"
     );
+    assert_eq!(m.high_bit, Some(15));
+    assert!(
+        m.slices.iter().all(|slice| slice.bits_stored == 16),
+        "each slice describes the encoded width"
+    );
+    let object = dicom::object::open_file(series_path.join("slice_0000.dcm")).unwrap();
+    let width = object
+        .element(Tag(0x0028, 0x0100))
+        .unwrap()
+        .to_int::<usize>()
+        .unwrap();
+    let payload = object
+        .element(Tag(0x7FE0, 0x0010))
+        .unwrap()
+        .to_bytes()
+        .unwrap();
+    assert_eq!(payload.len() * 8, rows * cols * width);
     assert_eq!(
         m.dimensions[2], depth,
         "slice count must equal depth {}; got {}",

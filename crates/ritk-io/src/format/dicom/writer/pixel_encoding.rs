@@ -1,21 +1,51 @@
 use crate::format::dicom::writer::elements::PutValue;
-use anyhow::{bail, Context, Result};
+use anyhow::Result;
 use dicom::core::{Tag, VR};
 use dicom::object::InMemDicomObject;
+use eunomia::convert::IntegerTarget;
 use ritk_codecs::jpeg_2000::encoder::QuantizationStep;
 use std::collections::HashSet;
-use std::path::{Path, PathBuf};
+use std::marker::PhantomData;
 
-/// Maximum u16 pixel value as f32, used for normalization (u16::MAX = 65535).
-pub(crate) const U16_MAX_F: f32 = 65535.0;
+use super::error::DicomWriteError;
 
 /// Photometric interpretation for scalar/grayscale images in DICOM writers.
 pub(crate) const MONOCHROME2: &str = "MONOCHROME2";
 
 pub(crate) const DICOM_SOP_CLASS_SECONDARY_CAPTURE: &str = "1.2.840.10008.5.1.4.1.1.7";
 
-/// Maximum u8 pixel value as f32, used for normalization (u8::MAX = 255).
-pub(crate) const U8_MAX_F: f32 = 255.0;
+/// Unsigned representations supported by scalar DICOM image writers.
+pub(crate) trait UnsignedPixelSample: Copy {
+    /// Pixel width in bits for DICOM BitsAllocated, BitsStored, and HighBit.
+    const BITS: u16;
+}
+
+impl UnsignedPixelSample for u8 {
+    const BITS: u16 = 8;
+}
+
+impl UnsignedPixelSample for u16 {
+    const BITS: u16 = 16;
+}
+
+impl UnsignedPixelSample for u32 {
+    const BITS: u16 = 32;
+}
+
+/// Encodings whose complete unsigned code range is exact in f32 arithmetic.
+/// RT Dose uses its supplied f64 scale instead of this image-range mapping.
+pub(crate) trait RescaledPixelSample: UnsignedPixelSample + IntegerTarget {
+    /// Greatest exactly representable unsigned code.
+    const MAXIMUM_CODE: f32;
+}
+
+impl RescaledPixelSample for u8 {
+    const MAXIMUM_CODE: f32 = 255.0;
+}
+
+impl RescaledPixelSample for u16 {
+    const MAXIMUM_CODE: f32 = 65535.0;
+}
 
 /// Quality used for DICOM baseline (lossy) JPEG fragments.
 ///
@@ -27,81 +57,269 @@ pub(crate) const U8_MAX_F: f32 = 255.0;
 /// the fragment stays recognisably JPEG. Overridable per call.
 pub(crate) const JPEG_BASELINE_QUALITY: u8 = 95;
 
-/// The `(minimum, range)` window every normalisation in this module maps onto.
-///
-/// Exposed so a caller writing a narrower stored format -- eight-bit for
-/// baseline JPEG, for PNG -- derives its own scaling from the same window the
-/// sixteen-bit path uses, instead of a second normalisation function that
-/// differs only in the output width.
-pub(crate) fn normalization_window(data: &[f32]) -> (f32, f32) {
-    let min_val = data.iter().copied().fold(f32::INFINITY, f32::min);
-    let max_val = data.iter().copied().fold(f32::NEG_INFINITY, f32::max);
-    let range = (max_val - min_val).max(f32::EPSILON);
-    (min_val, range)
+/// Dimensions validated against the DICOM Image Pixel Module and the buffer.
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+pub(crate) struct DicomImageShape {
+    /// Number of slices or frames.
+    pub(crate) depth: usize,
+    /// Number of rows.
+    pub(crate) rows: usize,
+    /// Number of columns.
+    pub(crate) columns: usize,
+    /// Rows representable in DICOM's US Rows attribute.
+    pub(crate) rows_attribute: u16,
+    /// Columns representable in DICOM's US Columns attribute.
+    pub(crate) columns_attribute: u16,
+    /// Samples in one frame.
+    pub(crate) frame_samples: usize,
+    /// Samples in the complete image.
+    pub(crate) total_samples: usize,
 }
 
-/// Normalize a slice of f32 pixel values to u16, computing min/max rescale parameters.
-///
-/// Returns `(pixel_u16, rescale_slope, rescale_intercept)`.
-///
-/// # Mathematical specification
-///
-/// Let range = max(max_val - min_val, ε). Then:
-///   `pixel[i] = round((v[i] - min) / range × 65535).clamp(0, 65535)`
-///   `rescale_slope = range / 65535`
-///   `rescale_intercept = min_val`
-///
-/// Reconstruction invariant: `|v[i] - (pixel[i] × slope + intercept)| ≤ slope / 2`.
-pub(crate) fn normalize_to_u16(data: &[f32]) -> (Vec<u16>, f32, f32) {
-    let min_val = data.iter().copied().fold(f32::INFINITY, f32::min);
-    let max_val = data.iter().copied().fold(f32::NEG_INFINITY, f32::max);
-    let range = (max_val - min_val).max(f32::EPSILON);
-    let rescale_slope = range / U16_MAX_F;
-    let rescale_intercept = min_val;
-    let pixels: Vec<u16> = data
+/// Validate nonzero dimensions, checked sample count, and DICOM row/column limits.
+pub(crate) fn validate_image_shape(
+    [depth, rows, columns]: [usize; 3],
+    actual_samples: usize,
+) -> Result<DicomImageShape> {
+    if depth == 0 || rows == 0 || columns == 0 {
+        return Err(DicomWriteError::InvalidDimensions {
+            depth,
+            rows,
+            columns,
+        }
+        .into());
+    }
+    let frame_samples = rows
+        .checked_mul(columns)
+        .ok_or(DicomWriteError::PixelCountOverflow)?;
+    let total_samples = depth
+        .checked_mul(frame_samples)
+        .ok_or(DicomWriteError::PixelCountOverflow)?;
+    if actual_samples != total_samples {
+        return Err(DicomWriteError::PixelCountMismatch {
+            expected: total_samples,
+            actual: actual_samples,
+        }
+        .into());
+    }
+    let rows_attribute =
+        u16::try_from(rows).map_err(|_| DicomWriteError::RowsOutOfRange { rows })?;
+    let columns_attribute =
+        u16::try_from(columns).map_err(|_| DicomWriteError::ColumnsOutOfRange { columns })?;
+    Ok(DicomImageShape {
+        depth,
+        rows,
+        columns,
+        rows_attribute,
+        columns_attribute,
+        frame_samples,
+        total_samples,
+    })
+}
+
+/// One linear mapping from modality values to the selected unsigned pixel range.
+#[derive(Clone, Copy, Debug, PartialEq)]
+pub(crate) struct PixelEncodingPlan<T> {
+    minimum: f32,
+    range: f32,
+    rescale_slope: f32,
+    rescale_intercept: f32,
+    sample: PhantomData<T>,
+}
+
+impl<T: RescaledPixelSample> PixelEncodingPlan<T> {
+    /// Derive a rescale and prove every sample is finite and representable.
+    ///
+    /// Nonconstant data maps `[minimum, maximum]` to `[0, maximum_code]`.
+    /// Constant data uses a unit input range, so every stored value is zero and
+    /// the intercept reconstructs the constant exactly without an epsilon.
+    pub(crate) fn prepare(data: &[f32], index_start: usize) -> Result<Self> {
+        let Some(&first) = data.first() else {
+            return Err(DicomWriteError::PixelRangeOutOfRange.into());
+        };
+        if !first.is_finite() {
+            return Err(DicomWriteError::NonFinitePixel { index: index_start }.into());
+        }
+        let (minimum, maximum) = data.iter().copied().enumerate().try_fold(
+            (first, first),
+            |(minimum, maximum), (offset, value)| {
+                if !value.is_finite() {
+                    let index = index_start
+                        .checked_add(offset)
+                        .ok_or(DicomWriteError::PixelCountOverflow)?;
+                    return Err(DicomWriteError::NonFinitePixel { index });
+                }
+                Ok((minimum.min(value), maximum.max(value)))
+            },
+        )?;
+        let maximum_code = T::MAXIMUM_CODE;
+        let range = if minimum == maximum {
+            1.0
+        } else {
+            maximum - minimum
+        };
+        let rescale_slope = range / maximum_code;
+        if !range.is_finite() || range <= 0.0 || !rescale_slope.is_finite() || rescale_slope <= 0.0
+        {
+            return Err(DicomWriteError::PixelRangeOutOfRange.into());
+        }
+        let plan = Self {
+            minimum,
+            range,
+            rescale_slope,
+            rescale_intercept: minimum,
+            sample: PhantomData,
+        };
+        plan.validate(data, index_start)?;
+        Ok(plan)
+    }
+
+    /// Prove that conversion through Eunomia's saturating API cannot clamp.
+    fn validate(&self, data: &[f32], index_start: usize) -> Result<()> {
+        for (offset, value) in data.iter().copied().enumerate() {
+            let index = index_start
+                .checked_add(offset)
+                .ok_or(DicomWriteError::PixelCountOverflow)?;
+            self.encoded_sample(value, index)?;
+        }
+        Ok(())
+    }
+
+    /// Encode values with the previously validated mapping.
+    pub(crate) fn encode(&self, data: &[f32], index_start: usize) -> Result<Vec<T>> {
+        let mut encoded = Vec::new();
+        encoded
+            .try_reserve_exact(data.len())
+            .map_err(|_| DicomWriteError::PixelAllocationFailed)?;
+        for (offset, value) in data.iter().copied().enumerate() {
+            let index = index_start
+                .checked_add(offset)
+                .ok_or(DicomWriteError::PixelCountOverflow)?;
+            let sample = self.encoded_sample(value, index)?;
+            encoded.push(sample);
+        }
+        Ok(encoded)
+    }
+
+    /// Rescale slope used by DICOM readers to recover modality values.
+    #[must_use]
+    pub(crate) const fn rescale_slope(self) -> f32 {
+        self.rescale_slope
+    }
+
+    /// Rescale intercept used by DICOM readers to recover modality values.
+    #[must_use]
+    pub(crate) const fn rescale_intercept(self) -> f32 {
+        self.rescale_intercept
+    }
+
+    fn normalized(self, value: f32) -> f32 {
+        ((value - self.minimum) / self.range * T::MAXIMUM_CODE).round()
+    }
+
+    fn encoded_sample(&self, value: f32, index: usize) -> Result<T> {
+        let normalized = self.normalized(value);
+        if !normalized.is_finite() || normalized < 0.0 || normalized > T::MAXIMUM_CODE {
+            return Err(DicomWriteError::EncodedPixelOutOfRange { index }.into());
+        }
+        // The range proof above excludes the saturating cases of from_truncated.
+        Ok(T::from_truncated(f64::from(normalized)))
+    }
+}
+
+/// Preflight one sample encoding for every frame without allocating the payload.
+pub(crate) fn prepare_frame_encodings<T: RescaledPixelSample>(
+    data: &[f32],
+    shape: DicomImageShape,
+) -> Result<Vec<PixelEncodingPlan<T>>> {
+    let mut plans = Vec::new();
+    plans
+        .try_reserve_exact(shape.depth)
+        .map_err(|_| DicomWriteError::PixelAllocationFailed)?;
+    for frame_index in 0..shape.depth {
+        let start = frame_index
+            .checked_mul(shape.frame_samples)
+            .ok_or(DicomWriteError::PixelCountOverflow)?;
+        let end = start
+            .checked_add(shape.frame_samples)
+            .ok_or(DicomWriteError::PixelCountOverflow)?;
+        let frame = data
+            .get(start..end)
+            .ok_or(DicomWriteError::PixelCountMismatch {
+                expected: shape.total_samples,
+                actual: data.len(),
+            })?;
+        plans.push(PixelEncodingPlan::<T>::prepare(frame, start)?);
+    }
+    Ok(plans)
+}
+
+/// Validate the geometry values emitted by the scalar image writers.
+pub(crate) fn validate_spatial_metadata(
+    spacing: &[f64],
+    origin: &[f64],
+    direction: &[f64],
+) -> Result<()> {
+    let spacing_is_valid = spacing
         .iter()
-        .map(|&v| {
-            ((v - min_val) / range * U16_MAX_F)
-                .round()
-                .clamp(0.0, U16_MAX_F) as u16
-        })
-        .collect();
-    (pixels, rescale_slope, rescale_intercept)
+        .all(|value| value.is_finite() && *value > 0.0);
+    let origin_is_valid = origin.iter().all(|value| value.is_finite());
+    let direction_is_valid = direction.iter().all(|value| value.is_finite());
+    if spacing_is_valid && origin_is_valid && direction_is_valid && orthonormal_axes(direction) {
+        Ok(())
+    } else {
+        Err(DicomWriteError::InvalidSpatialMetadata.into())
+    }
+}
+
+// PS3.3 C.7.6.2.1.1 requires unit, orthogonal direction cosines:
+// https://dicom.nema.org/medical/dicom/current/output/chtml/part03/sect_C.7.6.2.html
+// Admit directions rounded once to f32, then widened without further loss.
+// For component errors <= u, a three-term squared norm or orthogonal dot
+// changes by <= 6u + 3u². Five f64 operations add at most
+// 3 * gamma(5) * (1+u)². This is an input accuracy contract, not a fitted epsilon.
+const DIRECTION_UNIT_ROUNDOFF: f64 = 1.0 / 16_777_216.0; // 2^-24
+const DOT_UNIT_ROUNDOFF: f64 = f64::EPSILON / 2.0;
+const DOT_GAMMA: f64 = 5.0 * DOT_UNIT_ROUNDOFF / (1.0 - 5.0 * DOT_UNIT_ROUNDOFF);
+const DIRECTION_DOT_BOUND: f64 = 6.0 * DIRECTION_UNIT_ROUNDOFF
+    + 3.0 * DIRECTION_UNIT_ROUNDOFF * DIRECTION_UNIT_ROUNDOFF
+    + 3.0 * DOT_GAMMA * (1.0 + DIRECTION_UNIT_ROUNDOFF) * (1.0 + DIRECTION_UNIT_ROUNDOFF);
+
+fn orthonormal_axes(direction: &[f64]) -> bool {
+    if direction.is_empty() {
+        return true;
+    }
+    if direction.len() != 6 && direction.len() != 9 {
+        return false;
+    }
+    let axes = direction.chunks_exact(3);
+    for (index, axis) in axes.clone().enumerate() {
+        let norm_squared = axis.iter().map(|value| value * value).sum::<f64>();
+        if (norm_squared - 1.0).abs() > DIRECTION_DOT_BOUND {
+            return false;
+        }
+        for other in axes.clone().skip(index + 1) {
+            let dot = axis.iter().zip(other).map(|(a, b)| a * b).sum::<f64>();
+            if dot.abs() > DIRECTION_DOT_BOUND {
+                return false;
+            }
+        }
+    }
+    true
 }
 
 /// Emit the four DICOM tags that define unsigned pixel format.
 ///
-/// BitsAllocated = BitsStored = `bits_allocated`, HighBit = `bits_allocated - 1`,
+/// BitsAllocated = BitsStored = `T::BITS`, HighBit = `T::BITS - 1`,
 /// PixelRepresentation = 0 (unsigned).
 ///
-/// One function rather than a 16-bit and an 8-bit copy: the four tags differ only
-/// by the width, and a per-width pair is exactly the kind of type-suffixed
-/// duplicate this crate is measured for. Call sites may override individual tags
-/// afterwards if metadata specifies different values.
-pub(crate) fn emit_pixel_format_tags(obj: &mut InMemDicomObject, bits_allocated: u16) {
-    obj.put_value(Tag(0x0028, 0x0100), VR::US, bits_allocated);
-    obj.put_value(Tag(0x0028, 0x0101), VR::US, bits_allocated);
-    obj.put_value(
-        Tag(0x0028, 0x0102),
-        VR::US,
-        bits_allocated.saturating_sub(1),
-    );
+/// The serialized sample type determines all four tags, so metadata from a
+/// differently encoded source cannot contradict the output pixel payload.
+pub(crate) fn emit_pixel_format_tags<T: UnsignedPixelSample>(obj: &mut InMemDicomObject) {
+    obj.put_value(Tag(0x0028, 0x0100), VR::US, T::BITS);
+    obj.put_value(Tag(0x0028, 0x0101), VR::US, T::BITS);
+    obj.put_value(Tag(0x0028, 0x0102), VR::US, T::BITS - 1);
     obj.put_value(Tag(0x0028, 0x0103), VR::US, 0u16);
-}
-
-pub(super) fn format_triplet(value: [f64; 3]) -> String {
-    format!("{:.6}\\{:.6}\\{:.6}", value[0], value[1], value[2])
-}
-
-pub(super) fn format_pair(value: [f64; 2]) -> String {
-    format!("{:.6}\\{:.6}", value[0], value[1])
-}
-
-pub(super) fn format_six(value: [f64; 6]) -> String {
-    format!(
-        "{:.6}\\{:.6}\\{:.6}\\{:.6}\\{:.6}\\{:.6}",
-        value[0], value[1], value[2], value[3], value[4], value[5]
-    )
 }
 
 pub(crate) fn generate_series_uid() -> String {
@@ -186,6 +404,8 @@ pub(super) fn writer_exclusion_tags() -> HashSet<u32> {
     s.insert(writer_tag_key(0x0020, 0x0037)); // ImageOrientationPatient
     s.insert(writer_tag_key(0x0020, 0x0052)); // FrameOfReferenceUID
     s.insert(writer_tag_key(0x0028, 0x0004)); // PhotometricInterpretation
+    s.insert(writer_tag_key(0x0028, 0x0006)); // PlanarConfiguration: scalar output
+    s.insert(writer_tag_key(0x0028, 0x0008)); // NumberOfFrames: single-frame slices
     s.insert(writer_tag_key(0x0028, 0x0010)); // Rows
     s.insert(writer_tag_key(0x0028, 0x0011)); // Columns
     s.insert(writer_tag_key(0x0028, 0x0100)); // BitsAllocated
@@ -197,23 +417,13 @@ pub(super) fn writer_exclusion_tags() -> HashSet<u32> {
     s.insert(writer_tag_key(0x0028, 0x1053)); // RescaleSlope
     s.insert(writer_tag_key(0x0029, 0x10BB)); // Private (hardcoded in writer)
     s.insert(writer_tag_key(0x7FE0, 0x0010)); // PixelData
+    s.insert(writer_tag_key(0x7FE0, 0x0008)); // FloatPixelData: replaced by integer samples
+    s.insert(writer_tag_key(0x7FE0, 0x0009)); // DoubleFloatPixelData
     s.insert(writer_tag_key(0x0008, 0x0064)); // ConversionType
     s.insert(writer_tag_key(0x0008, 0x0090)); // ReferringPhysicianName
     s.insert(writer_tag_key(0x0020, 0x0011)); // SeriesNumber
     s.insert(writer_tag_key(0x0028, 0x0002)); // SamplesPerPixel
     s
-}
-
-pub(super) fn ensure_series_directory(path: &Path) -> Result<PathBuf> {
-    if path.exists() {
-        if !path.is_dir() {
-            bail!("DICOM output path is not a directory");
-        }
-        return Ok(path.to_path_buf());
-    }
-    std::fs::create_dir_all(path)
-        .with_context(|| "failed to create DICOM series output directory")?;
-    Ok(path.to_path_buf())
 }
 
 /// NEAR parameter for the JPEG-LS Lossy (near-lossless) transfer syntax.

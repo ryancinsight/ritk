@@ -13,11 +13,15 @@
 //!
 //! ## BINARY pixel unpacking invariant
 //!
-//! For frame f with rows×cols pixels, frame_bytes = ⌈rows×cols / 8⌉.
-//! The flat pixel index i ∈ [0, rows×cols) maps to:
-//!   byte   = i / 8
-//!   bit    = 7 - (i % 8)   (MSB-first within each byte)
+//! For frame f, the stream index is `f * rows * cols + i`.
+//! That index maps to:
+//!   byte   = index / 8
+//!   bit    = index % 8   (least significant bit first)
 //!   value  = (raw_byte >> bit) & 1
+//! Frames have no individual padding. This replaces the previous MSB-first,
+//! byte-aligned interpretation, which contradicted
+//! [PS3.5 D.1](https://dicom.nema.org/medical/dicom/current/output/chtml/part05/chapter_D.html)
+//! and section 8.1.1. The asymmetric nine-sample test pins the specified bytes.
 //!
 //! FRACTIONAL frames: pixel i of frame f = raw_bytes[f * rows*cols + i].
 

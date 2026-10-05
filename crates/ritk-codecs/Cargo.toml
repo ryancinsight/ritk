@@ -18,6 +18,7 @@ readme.workspace = true
 consus-core = { workspace = true }
 anyhow = { workspace = true }
 consus-raster = { workspace = true }
+eunomia = { workspace = true }
 thiserror = { workspace = true }
 
 [dev-dependencies]

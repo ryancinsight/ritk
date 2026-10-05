@@ -113,17 +113,6 @@
 - next: implement stored-pixel import and selected-series flow, then expose only conversions with verified DICOM pixel encoding.
 - basis: c58d8906bee373a7d2f87468fafc140310b9ec70
 
-<a id="RITK-DICOM-PIXEL-ENCODING-001"></a>
-## RITK-DICOM-PIXEL-ENCODING-001: Align DICOM pixel tags with payload
-- outcome: make every DICOM writer emit pixel tags that describe the bytes it actually writes.
-- acceptance: BitsAllocated, BitsStored, HighBit, PixelRepresentation, and payload width agree for each writer mode; malformed metadata and non-finite values fail with typed errors before an existing output changes.
-- status: todo
-- priority: correctness
-- needs: none
-- scope: crates/ritk-io/src/format/dicom/, crates/ritk-codecs/src/pixel_layout/, DICOM writer tests
-- next: derive the tag tuple from each encoded payload type and assert parsed tags and byte width together.
-- basis: c58d8906bee373a7d2f87468fafc140310b9ec70
-
 <a id="RITK-DICOM-STORED-IMPORT-001"></a>
 ## RITK-DICOM-STORED-IMPORT-001: Retain DICOM stored pixel values
 - outcome: decode DICOM PixelData into its declared fixed-width sample type without applying display rescale in the stored value.

@@ -2,6 +2,25 @@
 use super::*;
 
 #[test]
+fn grayscale_encoding_preserves_integer_samples_and_rounds_once() {
+    let layout = PixelLayout {
+        rows: 1,
+        cols: 7,
+        samples_per_pixel: 1,
+        bits_allocated: 8,
+        bits_stored: 8,
+        pixel_representation: PixelSignedness::Unsigned,
+        rescale_slope: 2.0,
+        rescale_intercept: -1.0,
+    };
+    // Inverse rescale yields [0, 1, 2, 254, 255, 2.25, 2.5].
+    let encoded =
+        encode_grayscale_stored_bytes([-1.0, 1.0, 3.0, 507.0, 509.0, 3.5, 4.0].into_iter(), layout)
+            .expect("finite encodable samples");
+    assert_eq!(encoded, [0, 1, 2, 254, 255, 2, 3]);
+}
+
+#[test]
 fn native_signed_16_decode_applies_linear_modality_lut() {
     let bytes = [-2i16, 0, 10]
         .iter()

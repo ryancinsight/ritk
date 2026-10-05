@@ -1,9 +1,9 @@
 #![expect(clippy::unwrap_used, reason = "ratchet RITK-UNWRAP-1")]
 use super::super::write_dicom_series_with_metadata;
+use super::super::DicomWriteError;
 use super::fixtures::{make_image_with_spatial, make_test_metadata};
 use dicom::core::Tag;
 use dicom::object::open_file;
-use ritk_core::rejection::assert_rejects;
 
 #[test]
 fn test_metadata_writer_spatial_tags_first_slice() {
@@ -157,13 +157,47 @@ fn test_metadata_writer_rejects_zero_dimension() {
     let image = make_image(0, 4, 4, 0.0);
     let temp = tempfile::tempdir().unwrap();
     let path = temp.path().join("zero_series");
-    let result = write_dicom_series_with_metadata(&path, &image, Some(&meta));
-    assert_rejects(result, "depth=0 rows=4 cols=4 must be >0");
+    let error = write_dicom_series_with_metadata(&path, &image, Some(&meta))
+        .expect_err("zero depth must be rejected");
+    assert!(matches!(
+        error.downcast_ref::<DicomWriteError>(),
+        Some(DicomWriteError::InvalidDimensions {
+            depth: 0,
+            rows: 4,
+            columns: 4
+        })
+    ));
+    assert!(!path.exists());
+}
+
+#[test]
+fn test_metadata_writer_rejects_incomplete_pixel_description_before_output_change() {
+    let mut meta = make_test_metadata();
+    meta.bits_stored = None;
+    let image = make_image_with_spatial(1, 4, 4, 3.0, meta.origin, meta.spacing);
+    let temp = tempfile::tempdir().unwrap();
+    let path = temp.path().join("existing_series");
+    std::fs::create_dir(&path).unwrap();
+    let existing = path.join("slice_0000.dcm");
+    let original = b"existing metadata output";
+    std::fs::write(&existing, original).unwrap();
+
+    let error = write_dicom_series_with_metadata(&path, &image, Some(&meta))
+        .expect_err("incomplete source pixel metadata must be rejected");
+    assert!(matches!(
+        error.downcast_ref::<DicomWriteError>(),
+        Some(DicomWriteError::IncompleteSourcePixelDescription)
+    ));
+    assert_eq!(std::fs::read(&existing).unwrap(), original);
+    assert_eq!(std::fs::read_dir(&path).unwrap().count(), 1);
 }
 
 #[test]
 fn test_metadata_writer_pixel_tags_precede_pixel_data_and_are_unique() {
-    let meta = make_test_metadata();
+    let mut meta = make_test_metadata();
+    meta.bits_allocated = Some(8);
+    meta.bits_stored = Some(8);
+    meta.high_bit = Some(7);
     let image = make_image_with_spatial(1, 4, 4, 42.0, meta.origin, meta.spacing);
     let temp = tempfile::tempdir().unwrap();
     let path = temp.path().join("pixel_tag_order_series");
@@ -172,6 +206,27 @@ fn test_metadata_writer_pixel_tags_precede_pixel_data_and_are_unique() {
 
     let dcm_path = path.join("slice_0000.dcm");
     let bytes = std::fs::read(&dcm_path).expect("slice file must exist");
+    let obj = open_file(&dcm_path).expect("written DICOM must parse");
+    let read_unsigned_pixel_tag = |tag| {
+        obj.element(tag)
+            .expect("pixel module attribute must exist")
+            .to_str()
+            .expect("US attribute must render")
+            .trim()
+            .parse::<u16>()
+            .expect("US attribute must parse")
+    };
+    assert_eq!(read_unsigned_pixel_tag(Tag(0x0028, 0x0100)), 16);
+    assert_eq!(read_unsigned_pixel_tag(Tag(0x0028, 0x0101)), 16);
+    assert_eq!(read_unsigned_pixel_tag(Tag(0x0028, 0x0102)), 15);
+    assert_eq!(read_unsigned_pixel_tag(Tag(0x0028, 0x0103)), 0);
+    let pixel_bytes = obj
+        .element(Tag(0x7FE0, 0x0010))
+        .expect("PixelData must exist")
+        .value()
+        .to_bytes()
+        .expect("native PixelData must expose bytes");
+    assert_eq!(pixel_bytes.len(), 4 * 4 * 2);
 
     let bits_allocated = [0x28_u8, 0x00, 0x00, 0x01];
     let bits_stored = [0x28_u8, 0x00, 0x01, 0x01];
