@@ -35,7 +35,7 @@ jobs:
     if: >-
       github.event_name == 'workflow_dispatch' ||
       startsWith(github.event.release.tag_name, 'crate-')
-    uses: ryancinsight/atlas/.github/workflows/semver-gate.yml@b44c45c3875c9c03ac9fc83994ee068c1805bb49
+    uses: ryancinsight/atlas/.github/workflows/semver-gate.yml@50802ef4c975bdb1e668b94a700d8310f0348e9c
     with:
       release-gate: true
       package: ritk-analyze,ritk-annotation,ritk-codecs,ritk-core,ritk-dicom,ritk-diffusion-scheme,ritk-filter,ritk-image,ritk-interpolation,ritk-io,ritk-jpeg,ritk-metaimage,ritk-mgh,ritk-mif,ritk-minc,ritk-model,ritk-morphology,ritk-nifti,ritk-nrrd,ritk-png,ritk-registration,ritk-segmentation,ritk-spatial,ritk-statistics,ritk-tensor-ops,ritk-tiff,ritk-transform,ritk-vtk,ritk-wgpu-compat
@@ -66,7 +66,7 @@ jobs:
   # skip on push and schedule events.
   publish-pending:
     if: github.event_name == 'push' || github.event_name == 'schedule'
-    uses: ryancinsight/atlas/.github/workflows/crates-publish-pending.yml@ee2b7200c4781e39b5ea3e379d2aa97947758099
+    uses: ryancinsight/atlas/.github/workflows/crates-publish-pending.yml@50802ef4c975bdb1e668b94a700d8310f0348e9c
     permissions:
       contents: write # Creates the release tags.
       id-token: write # OIDC trusted publishing; no stored registry token.
