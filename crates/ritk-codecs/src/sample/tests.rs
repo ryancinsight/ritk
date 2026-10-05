@@ -1,5 +1,5 @@
 use std::fmt::Debug;
-use std::io::{self, Write};
+use std::io::{self, Cursor, Read, Write};
 
 use crate::ByteOrder;
 
@@ -29,6 +29,16 @@ where
             decoded
                 .try_into_samples::<T>()
                 .expect("matching sample type"),
+            samples
+        );
+        let mut input = ChunkedReader::new(encoded, 3, None);
+        let decoded =
+            SampleBuffer::read_from(T::SAMPLE_TYPE, &mut input, samples.len(), byte_order)
+                .expect("streamed sample decoding");
+        assert_eq!(
+            decoded
+                .try_into_samples::<T>()
+                .expect("matching streamed sample type"),
             samples
         );
     }
@@ -156,6 +166,18 @@ fn floating_sample_encoding_preserves_signed_zero_and_nan_payload_bits() {
                 .collect::<Vec<_>>(),
             f32_bits
         );
+        let mut f32_input = Cursor::new(f32_bytes);
+        let streamed_f32 = SampleBuffer::read_from(SampleType::F32, &mut f32_input, 4, byte_order)
+            .expect("streamed f32 decoding")
+            .try_into_samples::<f32>()
+            .expect("streamed f32 sample type");
+        assert_eq!(
+            streamed_f32
+                .iter()
+                .map(|value| value.to_bits())
+                .collect::<Vec<_>>(),
+            f32_bits
+        );
 
         let f64_values = f64_bits.map(f64::from_bits).to_vec();
         let f64_buffer = SampleBuffer::from_samples(f64_values);
@@ -176,6 +198,18 @@ fn floating_sample_encoding_preserves_signed_zero_and_nan_payload_bits() {
                 .collect::<Vec<_>>(),
             f64_bits
         );
+        let mut f64_input = Cursor::new(f64_bytes);
+        let streamed_f64 = SampleBuffer::read_from(SampleType::F64, &mut f64_input, 4, byte_order)
+            .expect("streamed f64 decoding")
+            .try_into_samples::<f64>()
+            .expect("streamed f64 sample type");
+        assert_eq!(
+            streamed_f64
+                .iter()
+                .map(|value| value.to_bits())
+                .collect::<Vec<_>>(),
+            f64_bits
+        );
     }
 }
 
@@ -183,6 +217,57 @@ fn floating_sample_encoding_preserves_signed_zero_and_nan_payload_bits() {
 struct FailingWriter {
     accepted: Vec<u8>,
     limit: usize,
+}
+
+#[derive(Debug)]
+struct ChunkedReader {
+    input: Cursor<Vec<u8>>,
+    maximum_read: usize,
+    failure_after: Option<usize>,
+    bytes_read: usize,
+    calls: usize,
+}
+
+impl ChunkedReader {
+    fn new(bytes: Vec<u8>, maximum_read: usize, failure_after: Option<usize>) -> Self {
+        Self {
+            input: Cursor::new(bytes),
+            maximum_read,
+            failure_after,
+            bytes_read: 0,
+            calls: 0,
+        }
+    }
+}
+
+impl Read for ChunkedReader {
+    fn read(&mut self, destination: &mut [u8]) -> io::Result<usize> {
+        self.calls += 1;
+        if destination.is_empty() {
+            return Ok(0);
+        }
+        if let Some(limit) = self.failure_after
+            && self.bytes_read >= limit
+        {
+            return Err(io::Error::new(io::ErrorKind::BrokenPipe, "closed input"));
+        }
+        let failure_remaining = self
+            .failure_after
+            .map_or(usize::MAX, |limit| limit - self.bytes_read);
+        let length = destination
+            .len()
+            .min(self.maximum_read)
+            .min(failure_remaining);
+        let window = destination.get_mut(..length).ok_or_else(|| {
+            io::Error::new(
+                io::ErrorKind::InvalidInput,
+                "requested read window is outside destination",
+            )
+        })?;
+        let count = self.input.read(window)?;
+        self.bytes_read += count;
+        Ok(count)
+    }
 }
 
 impl Write for FailingWriter {
@@ -268,6 +353,93 @@ fn partial_sample_payload_is_rejected_with_its_remainder() {
             }
         }
     }
+}
+
+#[test]
+fn stream_read_reports_the_number_of_complete_samples_before_truncation() {
+    for sample_type in SampleType::ALL {
+        let width = sample_type.byte_width();
+        let bytes = vec![0; width * 2 - 1];
+        let mut input = ChunkedReader::new(bytes, 3, None);
+        let error = SampleBuffer::read_from(
+            sample_type,
+            &mut input,
+            2,
+            ByteOrder::LeastSignificantByteFirst,
+        )
+        .expect_err("truncated declared sample count must fail");
+        assert!(matches!(
+            error,
+            SampleError::TruncatedInput {
+                sample_type: actual_type,
+                sample_count: 2,
+                completed_samples: 1,
+            } if actual_type == sample_type
+        ));
+    }
+}
+
+#[test]
+fn stream_read_leaves_bytes_after_the_declared_sample_count_unread() {
+    let bytes = [0x34, 0x12, 0xaa];
+    let mut input = Cursor::new(bytes);
+    let samples = SampleBuffer::read_from(
+        SampleType::U16,
+        &mut input,
+        1,
+        ByteOrder::LeastSignificantByteFirst,
+    )
+    .expect("one complete sample");
+    assert_eq!(
+        samples
+            .try_into_samples::<u16>()
+            .expect("matching sample type"),
+        [0x1234]
+    );
+    assert_eq!(input.position(), 2);
+}
+
+#[test]
+fn stream_read_batches_samples_without_staging_the_complete_payload() {
+    // One byte beyond an 8 KiB staging block requires a second block read.
+    let sample_count = 8 * 1024 + 1;
+    let mut input = ChunkedReader::new(vec![0x5a; sample_count], usize::MAX, None);
+    let samples = SampleBuffer::read_from(
+        SampleType::U8,
+        &mut input,
+        sample_count,
+        ByteOrder::LeastSignificantByteFirst,
+    )
+    .expect("full sample stream");
+    let actual = samples
+        .try_into_samples::<u8>()
+        .expect("matching sample type");
+
+    assert_eq!(actual, vec![0x5a; sample_count]);
+    assert!(input.calls < sample_count);
+}
+
+#[test]
+fn stream_read_preserves_non_eof_input_errors() {
+    let mut input = ChunkedReader::new(vec![0x34, 0x12, 0x78, 0x56], 2, Some(2));
+    let error = SampleBuffer::read_from(
+        SampleType::U16,
+        &mut input,
+        2,
+        ByteOrder::LeastSignificantByteFirst,
+    )
+    .expect_err("input failures must be propagated");
+
+    assert!(matches!(
+        &error,
+        SampleError::Io(error) if error.kind() == io::ErrorKind::BrokenPipe
+    ));
+    let source = std::error::Error::source(&error).expect("input error source is retained");
+    assert_eq!(
+        source.downcast_ref::<io::Error>().map(io::Error::kind),
+        Some(io::ErrorKind::BrokenPipe)
+    );
+    assert_eq!(input.bytes_read, 2);
 }
 
 #[test]

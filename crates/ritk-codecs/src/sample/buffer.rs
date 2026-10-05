@@ -1,5 +1,5 @@
 use std::fmt;
-use std::io::Write;
+use std::io::{Read, Write};
 
 use crate::ByteOrder;
 
@@ -126,6 +126,43 @@ impl SampleBuffer {
         byte_order: ByteOrder,
     ) -> Result<Self, SampleError> {
         codec::decode(sample_type, bytes, byte_order)
+    }
+
+    /// Reads an exact number of stored samples from a stream.
+    ///
+    /// The buffer retains the typed sample allocation and stages encoded bytes
+    /// through a fixed 8 KiB block; it does not copy the full encoded payload.
+    /// Bytes after `sample_count` samples remain unread.
+    ///
+    /// # Errors
+    ///
+    /// Returns [`SampleError::TruncatedInput`] when the stream ends before all
+    /// samples arrive, [`SampleError::Io`] for another stream error, or an
+    /// allocation or scalar codec error.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// use std::io::Cursor;
+    /// use ritk_codecs::{ByteOrder, SampleBuffer, SampleType};
+    ///
+    /// let mut input = Cursor::new(16_777_217_u32.to_le_bytes());
+    /// let samples = SampleBuffer::read_from(
+    ///     SampleType::U32,
+    ///     &mut input,
+    ///     1,
+    ///     ByteOrder::LeastSignificantByteFirst,
+    /// )?;
+    /// assert_eq!(samples.try_into_samples::<u32>()?, [16_777_217]);
+    /// # Ok::<(), Box<dyn std::error::Error>>(())
+    /// ```
+    pub fn read_from<R: Read>(
+        sample_type: SampleType,
+        reader: &mut R,
+        sample_count: usize,
+        byte_order: ByteOrder,
+    ) -> Result<Self, SampleError> {
+        codec::read(sample_type, reader, sample_count, byte_order)
     }
 
     /// Takes ownership of values while recording their stored sample type.

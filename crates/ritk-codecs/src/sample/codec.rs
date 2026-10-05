@@ -1,5 +1,5 @@
 use consus_core::types::datatype::ByteOrder as ConsusByteOrder;
-use std::io::Write;
+use std::io::{self, Read, Write};
 
 use crate::ByteOrder;
 
@@ -9,23 +9,65 @@ use super::error::SampleError;
 
 // F64 is a widest stored sample in SampleType::ALL.
 const MAX_SAMPLE_WIDTH: usize = SampleType::F64.byte_width();
+// Keep stream staging bounded to the standard library's current 8 KiB
+// BufReader capacity, independent of the image's sample count.
+const READ_BUFFER_BYTES: usize = 8 * 1024;
 
 pub(super) fn decode(
     sample_type: SampleType,
     bytes: &[u8],
     byte_order: ByteOrder,
 ) -> Result<SampleBuffer, SampleError> {
+    let width = sample_type.byte_width();
+    let trailing_bytes = bytes.len() % width;
+    if trailing_bytes != 0 {
+        return Err(SampleError::PartialSample {
+            sample_type,
+            byte_length: bytes.len(),
+            trailing_bytes,
+        });
+    }
+    let mut reader = io::Cursor::new(bytes);
+    read(sample_type, &mut reader, bytes.len() / width, byte_order)
+}
+
+pub(super) fn read<R: Read>(
+    sample_type: SampleType,
+    reader: &mut R,
+    sample_count: usize,
+    byte_order: ByteOrder,
+) -> Result<SampleBuffer, SampleError> {
     let samples = match sample_type {
-        SampleType::U8 => StoredSamples::U8(decode_samples::<u8>(bytes, byte_order)?),
-        SampleType::I8 => StoredSamples::I8(decode_samples::<i8>(bytes, byte_order)?),
-        SampleType::U16 => StoredSamples::U16(decode_samples::<u16>(bytes, byte_order)?),
-        SampleType::I16 => StoredSamples::I16(decode_samples::<i16>(bytes, byte_order)?),
-        SampleType::U32 => StoredSamples::U32(decode_samples::<u32>(bytes, byte_order)?),
-        SampleType::I32 => StoredSamples::I32(decode_samples::<i32>(bytes, byte_order)?),
-        SampleType::U64 => StoredSamples::U64(decode_samples::<u64>(bytes, byte_order)?),
-        SampleType::I64 => StoredSamples::I64(decode_samples::<i64>(bytes, byte_order)?),
-        SampleType::F32 => StoredSamples::F32(decode_samples::<f32>(bytes, byte_order)?),
-        SampleType::F64 => StoredSamples::F64(decode_samples::<f64>(bytes, byte_order)?),
+        SampleType::U8 => {
+            StoredSamples::U8(read_samples::<u8, _>(reader, sample_count, byte_order)?)
+        }
+        SampleType::I8 => {
+            StoredSamples::I8(read_samples::<i8, _>(reader, sample_count, byte_order)?)
+        }
+        SampleType::U16 => {
+            StoredSamples::U16(read_samples::<u16, _>(reader, sample_count, byte_order)?)
+        }
+        SampleType::I16 => {
+            StoredSamples::I16(read_samples::<i16, _>(reader, sample_count, byte_order)?)
+        }
+        SampleType::U32 => {
+            StoredSamples::U32(read_samples::<u32, _>(reader, sample_count, byte_order)?)
+        }
+        SampleType::I32 => {
+            StoredSamples::I32(read_samples::<i32, _>(reader, sample_count, byte_order)?)
+        }
+        SampleType::U64 => {
+            StoredSamples::U64(read_samples::<u64, _>(reader, sample_count, byte_order)?)
+        }
+        SampleType::I64 => {
+            StoredSamples::I64(read_samples::<i64, _>(reader, sample_count, byte_order)?)
+        }
+        SampleType::F32 => {
+            StoredSamples::F32(read_samples::<f32, _>(reader, sample_count, byte_order)?)
+        }
+        SampleType::F64 => {
+            StoredSamples::F64(read_samples::<f64, _>(reader, sample_count, byte_order)?)
+        }
     };
     Ok(SampleBuffer { samples })
 }
@@ -67,31 +109,77 @@ pub(super) fn write<W: Write>(
     }
 }
 
-fn decode_samples<T: Sample>(bytes: &[u8], byte_order: ByteOrder) -> Result<Vec<T>, SampleError> {
+fn read_samples<T: Sample, R: Read>(
+    reader: &mut R,
+    sample_count: usize,
+    byte_order: ByteOrder,
+) -> Result<Vec<T>, SampleError> {
     let width = T::BYTE_WIDTH;
-    let trailing_bytes = bytes.len() % width;
-    if trailing_bytes != 0 {
-        return Err(SampleError::PartialSample {
-            sample_type: T::SAMPLE_TYPE,
-            byte_length: bytes.len(),
-            trailing_bytes,
-        });
-    }
-
-    let sample_count = bytes.len() / width;
     let mut samples = Vec::new();
     samples
         .try_reserve_exact(sample_count)
         .map_err(SampleError::Allocation)?;
 
     let byte_order = consus_byte_order(byte_order);
-    for chunk in bytes.chunks_exact(width) {
-        let sample = T::from_bytes(chunk, byte_order).ok_or(SampleError::ScalarCodecRejected {
-            sample_type: T::SAMPLE_TYPE,
-        })?;
-        samples.push(sample);
+    let mut encoded = [0_u8; READ_BUFFER_BYTES];
+    let mut completed_samples = 0;
+    while completed_samples < sample_count {
+        let block_samples = (sample_count - completed_samples).min(READ_BUFFER_BYTES / width);
+        let block_bytes = block_samples * width;
+        let mut bytes_read = 0;
+        while bytes_read < block_bytes {
+            let destination = encoded.get_mut(bytes_read..block_bytes).ok_or(
+                SampleError::ScalarCodecRejected {
+                    sample_type: T::SAMPLE_TYPE,
+                },
+            )?;
+            match reader.read(destination) {
+                Ok(0) => {
+                    return Err(truncated_input(
+                        T::SAMPLE_TYPE,
+                        sample_count,
+                        completed_samples + bytes_read / width,
+                    ));
+                }
+                Ok(count) => bytes_read += count,
+                Err(error) if error.kind() == io::ErrorKind::Interrupted => continue,
+                Err(error) if error.kind() == io::ErrorKind::UnexpectedEof => {
+                    return Err(truncated_input(
+                        T::SAMPLE_TYPE,
+                        sample_count,
+                        completed_samples + bytes_read / width,
+                    ));
+                }
+                Err(error) => return Err(SampleError::Io(error)),
+            }
+        }
+        let block = encoded
+            .get(..block_bytes)
+            .ok_or(SampleError::ScalarCodecRejected {
+                sample_type: T::SAMPLE_TYPE,
+            })?;
+        for raw in block.chunks_exact(width) {
+            let sample =
+                T::from_bytes(raw, byte_order).ok_or(SampleError::ScalarCodecRejected {
+                    sample_type: T::SAMPLE_TYPE,
+                })?;
+            samples.push(sample);
+        }
+        completed_samples += block_samples;
     }
     Ok(samples)
+}
+
+fn truncated_input(
+    sample_type: SampleType,
+    sample_count: usize,
+    completed_samples: usize,
+) -> SampleError {
+    SampleError::TruncatedInput {
+        sample_type,
+        sample_count,
+        completed_samples,
+    }
 }
 
 fn encode_samples<T: Sample>(samples: &[T], byte_order: ByteOrder) -> Result<Vec<u8>, SampleError> {
