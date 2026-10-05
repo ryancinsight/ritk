@@ -122,7 +122,6 @@ fn header_fields_and_custom_pairs_keep_separate_namespaces() {
 }
 
 #[test]
-#[test]
 fn custom_key_value_delimiter_takes_precedence_inside_the_key() {
     let input = b"NRRD0005
 custom: name:=value
@@ -139,6 +138,7 @@ custom: name:=value
     assert_eq!(header.key_value_records[0].key(), "custom: name");
     assert_eq!(header.key_value_records[0].value(), "value");
 }
+#[test]
 fn header_key_values_preserve_case_unescape_and_last_value() {
     let input = b"NRRD0005\nDWMRI_gradient_0000:=one\\ntwo\\\\three\nDWMRI_gradient_0000:=last\n\n";
     let mut reader = Cursor::new(input);
