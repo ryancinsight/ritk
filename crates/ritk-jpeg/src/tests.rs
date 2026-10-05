@@ -393,3 +393,39 @@ fn wide_grayscale_reader_preserves_luma8_scaling_contract() -> Result<()> {
     assert_eq!(image.data_cow_on(&SequentialBackend).as_ref(), &[18.0]);
     Ok(())
 }
+
+#[test]
+fn lossy_round_trip_bounds_reconstruction_error() {
+    let backend = SequentialBackend;
+    let (nz, ny, nx) = (1usize, 32usize, 32usize);
+    // Smooth full-range gradient: DCT energy sits in the DC and first AC
+    // coefficients, whose quality-75 steps are the finest in the table, so
+    // reconstruction error stays in the single digits by construction of
+    // the fixture. The bound below guards that contract with headroom; a
+    // larger measured error would implicate the encoder or decoder tables,
+    // never a cue to raise the bound.
+    let total = nz * ny * nx;
+    let original: Vec<f32> = (0..total)
+        .map(|i| i as f32 / (total - 1) as f32 * 255.0)
+        .collect();
+
+    let image = image_from_values([nz, ny, nx], original.clone());
+    let dir = tempdir().expect("failed to create tempdir");
+    let path = dir.path().join("roundtrip.jpg");
+
+    crate::write_jpeg(&path, &image, &backend).expect("write failed");
+    let loaded = crate::read_jpeg(&path, &backend).expect("read failed");
+
+    assert_eq!(loaded.shape(), [nz, ny, nx]);
+    let read = loaded.data_slice().expect("contiguous host data");
+    assert_eq!(read.len(), original.len());
+    let max_error = original
+        .iter()
+        .zip(read.iter())
+        .map(|(expected, actual)| (expected - actual).abs())
+        .fold(0.0f32, f32::max);
+    assert!(
+        max_error <= 8.0,
+        "quality-75 smooth-gradient round trip drifted by {max_error}"
+    );
+}
