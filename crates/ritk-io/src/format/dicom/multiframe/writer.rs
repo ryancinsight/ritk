@@ -1,6 +1,7 @@
 //! Multi-frame DICOM writer: serializes a 3-D image as a single DICOM Part 10 file.
 
 use crate::format::dicom::writer::elements::PutValue;
+use crate::format::dicom::writer::pixel_encoding::JPEG_BASELINE_QUALITY;
 use anyhow::{bail, Context, Result};
 use coeus_core::MoiraiBackend;
 use dicom::core::smallvec::SmallVec;
@@ -8,9 +9,11 @@ use dicom::core::value::PixelFragmentSequence;
 use dicom::core::{DataElement, PrimitiveValue, Tag, VR};
 use dicom::object::meta::FileMetaTableBuilder;
 use dicom::object::InMemDicomObject;
+use ritk_codecs::encode_jpeg_fragment;
 use ritk_codecs::encode_rle_lossless_fragment_u16_grayscale;
 use ritk_codecs::jpeg_2000::encoder::{encode_grayscale_j2k, Jpeg2000Encoding};
 use ritk_codecs::jpeg_ls::encoder::encode_grayscale_jpeg_ls;
+use ritk_codecs::{PixelLayout, PixelSignedness};
 use ritk_core::image::Image;
 use ritk_dicom::TransferSyntaxKind;
 use ritk_image::tensor::Backend;
@@ -19,7 +22,8 @@ use std::path::Path;
 
 use super::types::{MultiFrameSpatialMetadata, MultiFrameWriterConfig};
 use crate::format::dicom::writer::pixel_encoding::{
-    emit_pixel_format_tags, generate_series_uid, normalize_to_u16, MONOCHROME2,
+    emit_pixel_format_tags, emit_pixel_format_tags_u8, generate_series_uid, normalize_to_u16,
+    normalize_to_u8, MONOCHROME2,
 };
 
 /// Write a 3-D `Image<f32, B, 3>` with shape `[n_frames, rows, cols]` as a single
@@ -162,7 +166,7 @@ fn write_multiframe_flat(
         );
     }
 
-    let (pixel_u16, rescale_slope, rescale_intercept) = normalize_to_u16(all_data);
+    let (pixel_u16, rescale_slope, rescale_intercept) = normalize_to_u16(all_data)?;
 
     let sop_instance_uid = generate_series_uid();
     let study_instance_uid = generate_series_uid();
@@ -270,9 +274,59 @@ fn write_multiframe_flat(
                 )),
             ));
         }
+        TransferSyntaxKind::JpegBaseline => {
+            // Baseline JPEG carries eight-bit samples, so the 16-bit
+            // normalisation and the 16-bit pixel tags do not apply to this
+            // transfer syntax. Re-derive both from the modality data.
+            let (pixel_u8, jpeg_slope, jpeg_intercept) = normalize_to_u8(all_data)?;
+            emit_pixel_format_tags_u8(&mut obj);
+            let layout = PixelLayout {
+                rows,
+                cols,
+                samples_per_pixel: 1,
+                bits_allocated: 8,
+                bits_stored: 8,
+                pixel_representation: PixelSignedness::Unsigned,
+                // `pixel_u8` already holds *stored* samples, so the encoder's
+                // layout must be the identity. Carrying the modality rescale
+                // here would make `encode_jpeg_fragment` invert it a second
+                // time, scaling each sample by 255/range on the way in. The
+                // rescale belongs in the DICOM tags below, which is where a
+                // reader looks for it.
+                rescale_slope: 1.0,
+                rescale_intercept: 0.0,
+            };
+            let mut fragments = Vec::with_capacity(n_frames);
+            let frame_pixels = rows * cols;
+            for frame_index in 0..n_frames {
+                let start = frame_index * frame_pixels;
+                let frame = pixel_u8[start..start + frame_pixels]
+                    .iter()
+                    .map(|&v| f32::from(v))
+                    .collect::<Vec<_>>();
+                let fragment = encode_jpeg_fragment(&frame, layout, JPEG_BASELINE_QUALITY)
+                    .with_context(|| {
+                        format!("JPEG baseline encode failed for frame {frame_index}")
+                    })?;
+                fragments.push(fragment);
+            }
+            obj.put(DataElement::new(
+                Tag(0x7FE0, 0x0010),
+                VR::OB,
+                PixelFragmentSequence::<Vec<u8>>::new_fragments(SmallVec::from_vec(fragments)),
+            ));
+            if rescale_slope != jpeg_slope || rescale_intercept != jpeg_intercept {
+                obj.put_value(Tag(0x0028, 0x1053), VR::DS, format!("{:.10}", jpeg_slope));
+                obj.put_value(
+                    Tag(0x0028, 0x1052),
+                    VR::DS,
+                    format!("{:.10}", jpeg_intercept),
+                );
+            }
+        }
         syntax => {
             bail!(
-                "DICOM multiframe write transfer syntax '{}' is not supported; supported output syntaxes are Explicit VR Little Endian, JPEG-LS Lossless, JPEG 2000 Lossless, and RLE Lossless",
+                "DICOM multiframe write transfer syntax '{}' is not supported; supported output syntaxes are Explicit VR Little Endian, JPEG Baseline, JPEG-LS Lossless, JPEG 2000 Lossless, and RLE Lossless",
                 syntax.uid()
             );
         }

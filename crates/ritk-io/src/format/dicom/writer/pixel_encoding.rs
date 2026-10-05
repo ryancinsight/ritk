@@ -13,6 +13,66 @@ pub(crate) const MONOCHROME2: &str = "MONOCHROME2";
 
 pub(crate) const DICOM_SOP_CLASS_SECONDARY_CAPTURE: &str = "1.2.840.10008.5.1.4.1.1.7";
 
+/// Maximum u8 pixel value as f32, used for normalization (u8::MAX = 255).
+pub(crate) const U8_MAX_F: f32 = 255.0;
+
+/// Quality used for DICOM baseline (lossy) JPEG fragments.
+///
+/// Baseline JPEG is chosen here because a receiver demanded it, not because it
+/// saves space -- DICOM stores a *transport* encoding, and an image archived as
+/// lossy JPEG is not archived losslessly no matter what quality is chosen. So
+/// the default is high enough that the DCT step is a rounding error against the
+/// eight-bit quantisation already inherent in the format, and low enough that
+/// the fragment stays recognisably JPEG. Overridable per call.
+pub(crate) const JPEG_BASELINE_QUALITY: u8 = 95;
+
+/// Normalize finite pixel values to u8 and compute min/max rescale parameters.
+///
+/// Returns `(pixel_u8, rescale_slope, rescale_intercept)`.
+///
+/// # Mathematical specification
+///
+/// Let range = max(max_val - min_val, ε). Then:
+///   `pixel[i] = round((v[i] - min) / range × 255).clamp(0, 255)`
+///   `rescale_slope = range / 255`
+///   `rescale_intercept = min_val`
+///
+/// This is [`normalize_to_u16`] with 65535 replaced by 255, and it carries the
+/// same reconstruction invariant: `|v[i] - (pixel[i] × slope + intercept)| ≤
+/// slope / 2`. Baseline JPEG can only carry eight-bit samples, so a writer that
+/// supports it needs this normalisation rather than truncating the u16 form.
+///
+/// # Errors
+/// Returns an error when a pixel sample is not finite.
+pub(crate) fn normalize_to_u8(data: &[f32]) -> Result<(Vec<u8>, f32, f32)> {
+    validate_normalization_samples(data)?;
+    let min_val = data.iter().copied().fold(f32::INFINITY, f32::min);
+    let max_val = data.iter().copied().fold(f32::NEG_INFINITY, f32::max);
+    let range = (max_val - min_val).max(f32::EPSILON);
+    let rescale_slope = range / U8_MAX_F;
+    let rescale_intercept = min_val;
+    let pixels: Vec<u8> = data
+        .iter()
+        .map(|&v| {
+            ((v - min_val) / range * U8_MAX_F)
+                .round()
+                .clamp(0.0, U8_MAX_F) as u8
+        })
+        .collect();
+    Ok((pixels, rescale_slope, rescale_intercept))
+}
+
+/// Emit the four DICOM tags that define unsigned 8-bit pixel format.
+///
+/// BitsAllocated = 8, BitsStored = 8, HighBit = 7, PixelRepresentation = 0.
+/// Required by the baseline JPEG transfer syntax, whose samples are eight-bit.
+pub(crate) fn emit_pixel_format_tags_u8(obj: &mut InMemDicomObject) {
+    obj.put_value(Tag(0x0028, 0x0100), VR::US, 8u16);
+    obj.put_value(Tag(0x0028, 0x0101), VR::US, 8u16);
+    obj.put_value(Tag(0x0028, 0x0102), VR::US, 7u16);
+    obj.put_value(Tag(0x0028, 0x0103), VR::US, 0u16);
+}
+
 /// Normalize a slice of f32 pixel values to u16, computing min/max rescale parameters.
 ///
 /// Returns `(pixel_u16, rescale_slope, rescale_intercept)`.
@@ -25,7 +85,11 @@ pub(crate) const DICOM_SOP_CLASS_SECONDARY_CAPTURE: &str = "1.2.840.10008.5.1.4.
 ///   `rescale_intercept = min_val`
 ///
 /// Reconstruction invariant: `|v[i] - (pixel[i] × slope + intercept)| ≤ slope / 2`.
-pub(crate) fn normalize_to_u16(data: &[f32]) -> (Vec<u16>, f32, f32) {
+///
+/// # Errors
+/// Returns an error when a pixel sample is not finite.
+pub(crate) fn normalize_to_u16(data: &[f32]) -> Result<(Vec<u16>, f32, f32)> {
+    validate_normalization_samples(data)?;
     let min_val = data.iter().copied().fold(f32::INFINITY, f32::min);
     let max_val = data.iter().copied().fold(f32::NEG_INFINITY, f32::max);
     let range = (max_val - min_val).max(f32::EPSILON);
@@ -39,7 +103,45 @@ pub(crate) fn normalize_to_u16(data: &[f32]) -> (Vec<u16>, f32, f32) {
                 .clamp(0.0, U16_MAX_F) as u16
         })
         .collect();
-    (pixels, rescale_slope, rescale_intercept)
+    Ok((pixels, rescale_slope, rescale_intercept))
+}
+
+fn validate_normalization_samples(data: &[f32]) -> Result<()> {
+    for (index, &value) in data.iter().enumerate() {
+        if !value.is_finite() {
+            bail!("pixel sample at index {index} is not finite: {value}");
+        }
+    }
+    Ok(())
+}
+
+#[cfg(test)]
+mod tests {
+    use super::{normalize_to_u16, normalize_to_u8};
+
+    #[test]
+    fn normalizers_preserve_finite_quantization_values() {
+        let u8_result =
+            normalize_to_u8(&[0.0, 127.5, 255.0]).expect("finite samples normalize successfully");
+        assert_eq!(u8_result, (vec![0, 128, 255], 1.0, 0.0));
+
+        let u16_result = normalize_to_u16(&[0.0, 32_767.5, 65_535.0])
+            .expect("finite samples normalize successfully");
+        assert_eq!(u16_result, (vec![0, 32_768, 65_535], 1.0, 0.0));
+    }
+
+    #[test]
+    fn normalizers_reject_non_finite_samples_before_casting() {
+        for invalid in [f32::NAN, f32::INFINITY, f32::NEG_INFINITY] {
+            let expected = format!("pixel sample at index 1 is not finite: {invalid}");
+            let u8_error = normalize_to_u8(&[0.0, invalid, 255.0])
+                .expect_err("non-finite samples cannot be normalized");
+            let u16_error = normalize_to_u16(&[0.0, invalid, 65_535.0])
+                .expect_err("non-finite samples cannot be normalized");
+            assert_eq!(u8_error.to_string(), expected);
+            assert_eq!(u16_error.to_string(), expected);
+        }
+    }
 }
 
 /// Emit the four DICOM tags that define unsigned 16-bit pixel format.
