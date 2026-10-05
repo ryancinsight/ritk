@@ -407,8 +407,8 @@ fn stored_rank_two_named_space_uses_three_dimensional_world_coordinates() -> Res
         [0.0, 0.0, 1.0, -0.8, 0.6, 0.0, 0.6, 0.8, 0.0]
     );
 
-    let malformed = directory.path().join("rank-two-short-world-vectors.nrrd");
-    let malformed_fields = [
+    let planar_named = directory.path().join("rank-two-named-planar.nrrd");
+    let planar_named_fields = [
         "type: unsigned char",
         "dimension: 2",
         "sizes: 1 1",
@@ -416,9 +416,46 @@ fn stored_rank_two_named_space_uses_three_dimensional_world_coordinates() -> Res
         "space directions: (1,0) (0,1)",
         "space origin: (0,0)",
     ];
-    write_header(&malformed, &malformed_fields, &[9])?;
-    let error = read_nrrd_stored(&malformed)
-        .expect_err("named three-dimensional space needs three-component vectors");
+    write_header(&planar_named, &planar_named_fields, &[9])?;
+    let planar = read_nrrd_stored(&planar_named)?;
+    assert_eq!(planar.shape(), [1, 1, 1]);
+    assert_eq!(planar.metadata().origin().to_array(), [0.0, 0.0, 0.0]);
+    assert_eq!(planar.metadata().spacing().to_array(), [1.0, 1.0, 1.0]);
+    assert_eq!(
+        planar.metadata().direction().to_row_major(),
+        [0.0, 0.0, 1.0, 0.0, 1.0, 0.0, 1.0, 0.0, 0.0]
+    );
+
+    let anonymous_planar = directory.path().join("rank-two-anonymous-planar.nrrd");
+    let anonymous_planar_fields = [
+        "type: unsigned char",
+        "dimension: 2",
+        "sizes: 1 1",
+        "space dimension: 2",
+        "space directions: (1,0) (0,1)",
+        "space origin: (0,0)",
+    ];
+    write_header(&anonymous_planar, &anonymous_planar_fields, &[9])?;
+    let anonymous = read_nrrd_stored(&anonymous_planar)?;
+    assert_eq!(anonymous.shape(), [1, 1, 1]);
+    assert_eq!(anonymous.metadata().origin().to_array(), [0.0, 0.0, 0.0]);
+    assert_eq!(anonymous.metadata().spacing().to_array(), [1.0, 1.0, 1.0]);
+    assert_eq!(
+        anonymous.metadata().direction().to_row_major(),
+        [0.0, 0.0, 1.0, 0.0, 1.0, 0.0, 1.0, 0.0, 0.0]
+    );
+
+    let ragged = directory.path().join("rank-two-ragged-vectors.nrrd");
+    let ragged_fields = [
+        "type: unsigned char",
+        "dimension: 2",
+        "sizes: 1 1",
+        "space: LPS",
+        "space directions: (1) (0,1)",
+        "space origin: (0,0)",
+    ];
+    write_header(&ragged, &ragged_fields, &[9])?;
+    let error = read_nrrd_stored(&ragged).expect_err("vectors of different widths are malformed");
     assert!(matches!(
         error,
         NrrdStoredReadError::SpatialMetadata {

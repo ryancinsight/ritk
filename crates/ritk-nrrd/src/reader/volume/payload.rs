@@ -1,12 +1,15 @@
 //! NRRD header, spatial metadata, and stored payload parsing.
 
-use anyhow::Result;
+use anyhow::{anyhow, Result};
 use ritk_codecs::{parse_usize_vec, ByteOrder};
 use ritk_image_io::{ImageReadBudget, ImageReadResource};
 use std::io::{BufReader, Seek};
 use std::path::Path;
 
-use super::super::decode::{element_type_spec, parse_space_direction_slots, sample_type};
+use super::super::decode::{
+    element_type_spec, first_group_width, parse_space_direction_slots, sample_type,
+    strip_none_token,
+};
 use super::super::header::parse_nrrd_header_from_reader;
 use super::super::stored::{NrrdSpatialMetadataField, NrrdStoredReadError};
 use super::geometry;
@@ -22,6 +25,39 @@ pub(super) enum NrrdEncoding {
     Raw,
     Ascii,
     Gzip,
+}
+
+/// Mark one slot per `space directions` entry without parsing values.
+///
+/// Acquisition location and axis validation consume presence, not values;
+/// values resolve later through the width-selected parser. A 2-D field with
+/// two-component vectors therefore marks present slots instead of failing
+/// the 3-component parse. Malformed structure (unterminated groups, stray
+/// text, `none`-prefixed words) fails here with the same vocabulary as the
+/// value parser.
+fn mark_space_direction_slots(s: &str) -> Result<Vec<bool>> {
+    let mut present = Vec::new();
+    let mut rest = s.trim();
+    while !rest.is_empty() {
+        if let Some(after_none) = strip_none_token(rest) {
+            present.push(false);
+            rest = after_none.trim_start();
+            continue;
+        }
+        let Some(after_open) = rest.strip_prefix('(') else {
+            return Err(anyhow!(
+                "Unexpected text outside vector group in '{}': '{}'",
+                s,
+                rest
+            ));
+        };
+        let Some(end) = after_open.find(')') else {
+            return Err(anyhow!("Unterminated vector group in '{}'", s));
+        };
+        present.push(true);
+        rest = after_open[end + 1..].trim_start();
+    }
+    Ok(present)
 }
 
 pub(in crate::reader) fn parse_nrrd_raw<P: AsRef<Path>>(
@@ -63,27 +99,37 @@ pub(in crate::reader) fn parse_nrrd_raw<P: AsRef<Path>>(
         return Err(NrrdStoredReadError::UnsupportedDimension { dimension });
     }
 
-    let direction_slots = if dimension == 2
-        && !headers.contains_key("space")
-        && !headers.contains_key("space dimension")
-    {
-        None
-    } else {
-        headers
-            .get("space directions")
-            .map(|s| {
-                parse_space_direction_slots(s).map_err(|error| {
-                    NrrdStoredReadError::SpatialMetadata {
-                        field: NrrdSpatialMetadataField::SpaceDirections,
-                        source: error,
-                    }
-                })
-            })
-            .transpose()?
+    let direction_flags: Option<Vec<bool>> = match headers.get("space directions") {
+        None => None,
+        Some(_)
+            if dimension == 2
+                && !headers.contains_key("space")
+                && !headers.contains_key("space dimension") =>
+        {
+            None
+        }
+        Some(value) if dimension == 2 && first_group_width(value) == Some(2) => {
+            // Two-component vectors in a 2-D field: only presence feeds
+            // acquisition location and axis validation here; the values
+            // resolve later through the planar promotion.
+            Some(mark_space_direction_slots(value).map_err(|error| {
+                NrrdStoredReadError::SpatialMetadata {
+                    field: NrrdSpatialMetadataField::SpaceDirections,
+                    source: error,
+                }
+            })?)
+        }
+        Some(value) => Some(
+            parse_space_direction_slots(value)
+                .map_err(|error| NrrdStoredReadError::SpatialMetadata {
+                    field: NrrdSpatialMetadataField::SpaceDirections,
+                    source: error,
+                })?
+                .iter()
+                .map(Option::is_some)
+                .collect(),
+        ),
     };
-    let direction_flags: Option<Vec<bool>> = direction_slots
-        .as_ref()
-        .map(|slots| slots.iter().map(Option::is_some).collect());
     let acquisition = locate_acquisition_axis(
         dimension,
         headers.get("kinds").map(String::as_str),

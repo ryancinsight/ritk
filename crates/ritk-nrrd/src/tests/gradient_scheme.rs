@@ -299,26 +299,61 @@ fn physical_space_units_do_not_scale_dwi_gradient_directions() -> Result<()> {
 }
 
 #[test]
-fn nonzero_gradients_require_a_measurement_frame() -> Result<()> {
+fn missing_measurement_frame_reads_as_identity() -> Result<()> {
+    // An absent measurement frame means scanner coordinates already match
+    // the declared world space: the scheme reads with identity mapping,
+    // exactly as if the frame were written out explicitly.
+    let base = [
+        "modality:=DWMRI",
+        "DWMRI_b-value:=1000",
+        "DWMRI_gradient_0000:=0 0 0",
+        "DWMRI_gradient_0001:=1 0 0",
+        "DWMRI_gradient_0002:=0 1 0",
+    ];
     let directory = tempdir()?;
-    let path = directory.path().join("missing-measurement-frame.nrrd");
-    write_header(
-        &path,
-        &[
-            "sizes: 2 2 2 2",
-            "modality:=DWMRI",
-            "DWMRI_b-value:=1000",
-            "DWMRI_gradient_0000:=0 0 0",
-            "DWMRI_gradient_0001:=1 0 0",
-        ],
-    )?;
+    let unframed = directory.path().join("missing-measurement-frame.nrrd");
+    write_header(&unframed, &base)?;
+    let framed = directory.path().join("explicit-identity-frame.nrrd");
+    let mut framed_fields = vec![IDENTITY_MEASUREMENT_FRAME];
+    framed_fields.extend(base);
+    write_header(&framed, &framed_fields)?;
 
-    let error = read_nrrd_gradient_scheme(path)
-        .expect_err("nonzero gradients need an explicit coordinate frame");
+    let defaulted = read_nrrd_gradient_scheme(&unframed)?;
+    assert_eq!(defaulted.len(), 3);
+    assert_eq!(defaulted.frame(), GradientFrame::Lps);
     assert_eq!(
-        error.to_string(),
-        "NRRD DWI nonzero gradients require an explicit measurement frame"
+        defaulted.directions()[1].weighting(),
+        weighting(1000.0),
+        "unit gradient at nominal b-value keeps full weighting"
     );
+    for (component, expected) in defaulted.directions()[1]
+        .direction()
+        .to_array()
+        .iter()
+        .zip([1.0, 0.0, 0.0])
+    {
+        assert!(
+            (component - expected).abs() < 1e-12,
+            "identity frame must leave (1,0,0) unchanged, got {component}"
+        );
+    }
+
+    let explicit = read_nrrd_gradient_scheme(&framed)?;
+    assert_eq!(explicit.len(), defaulted.len());
+    for (framed_entry, defaulted_entry) in explicit
+        .directions()
+        .iter()
+        .zip(defaulted.directions().iter())
+    {
+        assert_eq!(
+            framed_entry.weighting().seconds_per_square_millimeter(),
+            defaulted_entry.weighting().seconds_per_square_millimeter()
+        );
+        assert_eq!(
+            framed_entry.direction().to_array(),
+            defaulted_entry.direction().to_array()
+        );
+    }
     Ok(())
 }
 

@@ -6,7 +6,7 @@ use ritk_spatial::{Direction, Point, Spacing};
 use std::collections::HashMap;
 
 use super::super::decode::{
-    parse_nrrd_point, parse_nrrd_point_planar, parse_space_directions,
+    first_group_width, parse_nrrd_point, parse_nrrd_point_planar, parse_space_directions,
     parse_space_directions_planar, parse_space_directions_planar_world,
 };
 use super::super::stored::{NrrdSpatialMetadataField, NrrdStoredReadError};
@@ -48,9 +48,20 @@ pub(super) fn parse_spatial_metadata(
         });
     }
 
+    // A 2-D array declaring a 2-D world without a named space needs no
+    // basis mapping: the world is already planar and the promotion below
+    // appends the through-plane axis. Any other `space dimension` value
+    // still fails in the basis conversion, as does a named space paired
+    // with one.
+    let space_dimension = match headers.get("space dimension").map(String::as_str) {
+        Some(value) if dimension == 2 && !headers.contains_key("space") && value.trim() == "2" => {
+            None
+        }
+        space_dimension => space_dimension,
+    };
     let world_to_lps = world_to_lps_factors(
         headers.get("space").map(String::as_str),
-        headers.get("space dimension").map(String::as_str),
+        space_dimension,
         headers.get("space units").map(String::as_str),
     )
     .map_err(|source| spatial_error(NrrdSpatialMetadataField::CoordinateSystem, source))?;
@@ -150,25 +161,41 @@ pub(super) fn parse_spatial_metadata(
     })
 }
 
+/// Promote 2-D file directions to a 3-D matrix with an identity
+/// through-plane z-axis, mapping the in-plane vectors into LPS.
+///
+/// This is the 2-D-as-z1 convention shared by files with and without a named
+/// space: the component width of the field (not the `space` key) decides
+/// between this and the rank-2 world parser, so a 2-D file in a named space
+/// with two-component vectors reads exactly like its spaceless twin.
+fn promote_planar_directions(
+    value: &str,
+    world_to_lps: [f64; 3],
+) -> Result<crate::spatial::InternalSpatialMetadata> {
+    let mut directions = parse_space_directions_planar(value)
+        .map_err(|source| spatial_error(NrrdSpatialMetadataField::SpaceDirections, source))?;
+    directions[0] = vector_to_lps(directions[0], world_to_lps)
+        .map_err(|source| spatial_error(NrrdSpatialMetadataField::SpaceDirections, source))?;
+    directions[1] = vector_to_lps(directions[1], world_to_lps)
+        .map_err(|source| spatial_error(NrrdSpatialMetadataField::SpaceDirections, source))?;
+    directions[2] = [0.0, 0.0, 1.0];
+    metadata_from_file_space_directions(directions)
+}
+
 fn parse_space_directions_metadata(
     value: &str,
     headers: &HashMap<String, String>,
     dimension: usize,
     world_to_lps: [f64; 3],
 ) -> Result<crate::spatial::InternalSpatialMetadata, NrrdStoredReadError> {
-    let metadata = if dimension == 2 && headers.contains_key("space") {
+    let metadata = if dimension == 2
+        && (!headers.contains_key("space") || first_group_width(value) == Some(2))
+    {
+        promote_planar_directions(value, world_to_lps)
+    } else if dimension == 2 {
         let directions = parse_space_directions_planar_world(value)
             .map_err(|source| spatial_error(NrrdSpatialMetadataField::SpaceDirections, source))?;
         metadata_from_planar_file_space_directions(directions, world_to_lps)
-    } else if dimension == 2 {
-        let mut directions = parse_space_directions_planar(value)
-            .map_err(|source| spatial_error(NrrdSpatialMetadataField::SpaceDirections, source))?;
-        directions[0] = vector_to_lps(directions[0], world_to_lps)
-            .map_err(|source| spatial_error(NrrdSpatialMetadataField::SpaceDirections, source))?;
-        directions[1] = vector_to_lps(directions[1], world_to_lps)
-            .map_err(|source| spatial_error(NrrdSpatialMetadataField::SpaceDirections, source))?;
-        directions[2] = [0.0, 0.0, 1.0];
-        metadata_from_file_space_directions(directions)
     } else {
         let directions = parse_space_directions(value)
             .map_err(|source| spatial_error(NrrdSpatialMetadataField::SpaceDirections, source))?;
@@ -224,7 +251,8 @@ fn parse_origin(
     world_to_lps: [f64; 3],
 ) -> Result<Point<3>, NrrdStoredReadError> {
     let origin = if let Some(value) = headers.get("space origin") {
-        if dimension == 2 && !headers.contains_key("space") {
+        let planar = !headers.contains_key("space") || first_group_width(value) == Some(2);
+        if dimension == 2 && planar {
             parse_nrrd_point_planar(value)
         } else {
             parse_nrrd_point(value)

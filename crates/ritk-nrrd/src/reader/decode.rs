@@ -73,7 +73,7 @@ pub(super) fn spatial_space_directions(s: &str) -> Result<Vec<[f64; 3]>> {
 ///
 /// The token must be followed by whitespace or end of input so a hypothetical
 /// future field value beginning with those letters is not silently consumed.
-fn strip_none_token(rest: &str) -> Option<&str> {
+pub(super) fn strip_none_token(rest: &str) -> Option<&str> {
     let candidate = rest.get(..4)?;
     if !candidate.eq_ignore_ascii_case("none") {
         return None;
@@ -152,6 +152,19 @@ pub(super) fn parse_nrrd_point_planar(s: &str) -> Result<Point<3>> {
 /// Extract all `(v0,v1,v2)` groups from `s` as `Vec<[f64;3]>`.
 pub(super) fn parse_parenthesized_vectors(s: &str) -> Result<Vec<[f64; 3]>> {
     parse_vectors::<3>(s)
+}
+
+/// Count the comma-separated components of the first parenthesised group.
+///
+/// Returns `None` when the value holds no `(...)` group. The count is
+/// syntactic -- `(1, 0)` measures 2 whatever its components parse to -- so
+/// read paths use it to choose the 2-D or 3-D parser before any numeric
+/// validation runs. A malformed value still fails in the selected parser
+/// with a typed error.
+pub(super) fn first_group_width(s: &str) -> Option<usize> {
+    let after_open = s.trim_start().strip_prefix('(')?;
+    let end = after_open.find(')')?;
+    Some(after_open[..end].split(',').count())
 }
 
 /// Extract all parenthesised groups of exactly `N` comma-separated f64
