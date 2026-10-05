@@ -39,6 +39,15 @@ pub enum SampleError {
         /// Bytes left after consuming complete samples.
         trailing_bytes: usize,
     },
+    /// The input stream ended before the declared number of samples arrived.
+    TruncatedInput {
+        /// The sample representation declared by the format header.
+        sample_type: SampleType,
+        /// Number of samples requested from the stream.
+        sample_count: usize,
+        /// Number of complete samples read before end of input.
+        completed_samples: usize,
+    },
     /// The requested byte allocation could not be reserved.
     Allocation(TryReserveError),
     /// The output byte length overflowed `usize` arithmetic.
@@ -53,7 +62,7 @@ pub enum SampleError {
         /// The sample representation being decoded or encoded.
         sample_type: SampleType,
     },
-    /// The output stream rejected encoded sample bytes.
+    /// An input or output stream failed while reading or writing samples.
     Io(io::Error),
 }
 
@@ -68,6 +77,14 @@ impl fmt::Display for SampleError {
                 formatter,
                 "{sample_type:?} payload of {byte_length} bytes has {trailing_bytes} trailing bytes"
             ),
+            Self::TruncatedInput {
+                sample_type,
+                sample_count,
+                completed_samples,
+            } => write!(
+                formatter,
+                "sample stream ended after {completed_samples} of {sample_count} declared {sample_type:?} samples"
+            ),
             Self::Allocation(error) => write!(formatter, "cannot reserve sample buffer: {error}"),
             Self::EncodedLengthOverflow {
                 sample_count,
@@ -80,7 +97,7 @@ impl fmt::Display for SampleError {
                 formatter,
                 "fixed-width scalar codec rejected an exact {sample_type:?} sample"
             ),
-            Self::Io(error) => write!(formatter, "cannot write encoded samples: {error}"),
+            Self::Io(error) => write!(formatter, "sample stream failed: {error}"),
         }
     }
 }
@@ -91,6 +108,7 @@ impl Error for SampleError {
             Self::Allocation(error) => Some(error),
             Self::Io(error) => Some(error),
             Self::PartialSample { .. }
+            | Self::TruncatedInput { .. }
             | Self::EncodedLengthOverflow { .. }
             | Self::ScalarCodecRejected { .. } => None,
         }

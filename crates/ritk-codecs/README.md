@@ -25,6 +25,9 @@ is an error. Extracting another sample type returns the original buffer in the
 error, without rounding or discarding data. `SampleBuffer::write_to` streams the
 encoded bytes to a `std::io::Write` implementation without allocating a second
 buffer the size of the image; file adapters should pass a buffered writer.
+`SampleBuffer::read_from` reads an exact declared sample count through a fixed
+8 KiB byte block, leaving later stream content unread and reporting truncation
+with the number of complete samples received.
 
 The codec layer does not depend on Coeus' algorithm scalar contract. Format
 adapters retain geometry and format-specific intensity calibration beside the

@@ -3,9 +3,11 @@
 - Status: Accepted
 
 This decision is retroactive. The sealed `SampleBuffer` core landed in
-[PR #735](https://github.com/ryancinsight/ritk/pull/735), and the complete
-typed stream contract landed in [PR #756](https://github.com/ryancinsight/ritk/pull/756).
-Format conversion remains tracked by
+[PR #735](https://github.com/ryancinsight/ritk/pull/735), and streamed sample
+writing landed in [PR #756](https://github.com/ryancinsight/ritk/pull/756).
+Exact-count stream reading is delivered by
+[PR #759](https://github.com/ryancinsight/ritk/pull/759). Format conversion
+remains tracked by
 [RITK-FORMAT-CONVERSION-001](../../backlog.md#RITK-FORMAT-CONVERSION-001).
 `ByteOrder::from_nrrd` is fallible: callers handle `NrrdByteOrderError` for an
 explicit marker other than `big` or `little`, rather than relying on an
@@ -63,9 +65,15 @@ by `RITK-FORMAT-CONVERSION-001`.
 
 The boundary is exercised by endian round trips, wide-integer values beyond
 binary32's exact-integer range, float signed-zero and NaN-payload bit checks,
-partial-sample rejection, and mismatch recovery. The decision changes if an
-independent format-conversion oracle demonstrates that this stored-sample
-boundary cannot preserve a supported format's value or metadata semantics.
+partial-sample rejection, mismatch recovery, and exact-count stream reads with
+fragmented input, bounded staging, truncation counts, unread following bytes,
+and preserved I/O errors. The decision changes if an independent format-
+conversion oracle demonstrates that this stored-sample boundary cannot
+preserve a supported format's value or metadata semantics.
 
 Delivery: [PR #735](https://github.com/ryancinsight/ritk/pull/735) and
-[PR #756](https://github.com/ryancinsight/ritk/pull/756).
+[PR #756](https://github.com/ryancinsight/ritk/pull/756), with stream reading in
+[PR #759](https://github.com/ryancinsight/ritk/pull/759).
+
+Revision 2026-10-05: distinguish the landed stream writer from the exact-count
+reader now added to the same typed boundary.
