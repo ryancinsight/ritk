@@ -13,6 +13,7 @@ use dicom::object::meta::FileMetaTableBuilder;
 use dicom::object::InMemDicomObject;
 use ritk_codecs::encode_jpeg_fragment;
 use ritk_codecs::encode_rle_lossless_fragment_u16_grayscale;
+use ritk_codecs::jpeg::lossless::{encode_grayscale_jpeg_lossless, JpegLosslessPrediction};
 use ritk_codecs::jpeg_2000::encoder::{encode_grayscale_j2k, Jpeg2000Encoding};
 use ritk_codecs::jpeg_ls::encoder::encode_grayscale_jpeg_ls;
 use ritk_codecs::{PixelLayout, PixelSignedness};
@@ -260,6 +261,7 @@ fn write_multiframe_flat(
         }
         TransferSyntaxKind::JpegLsLossless
         | TransferSyntaxKind::JpegLsLossy
+        | TransferSyntaxKind::JpegLosslessFirstOrderPrediction
         | TransferSyntaxKind::Jpeg2000Lossless
         | TransferSyntaxKind::Jpeg2000Lossy
         | TransferSyntaxKind::RleLossless => {
@@ -343,7 +345,7 @@ fn write_multiframe_flat(
         }
         syntax => {
             bail!(
-                "DICOM multiframe write transfer syntax '{}' is not supported; supported output syntaxes are Explicit VR Little Endian, JPEG Baseline, \n                JPEG-LS Lossless, JPEG-LS Lossy (near-lossless), JPEG 2000 Lossless, \n                JPEG 2000 Lossy, and RLE Lossless",
+                "DICOM multiframe write transfer syntax '{}' is not supported; supported output syntaxes are Explicit VR Little Endian, JPEG Baseline, \n                JPEG-LS Lossless, JPEG-LS Lossy (near-lossless), JPEG 2000 Lossless, \n                JPEG 2000 Lossy, JPEG Lossless (first-order prediction), and RLE Lossless",
                 syntax.uid()
             );
         }
@@ -439,6 +441,12 @@ fn encode_compressed_frames(
                     },
                 )
                 .with_context(|| format!("JPEG 2000 lossy encode failed for frame {frame_index}"))?
+            }
+            TransferSyntaxKind::JpegLosslessFirstOrderPrediction => {
+                encode_grayscale_jpeg_lossless(frame, rows, cols, 16, JpegLosslessPrediction::Left)
+                    .with_context(|| {
+                        format!("JPEG lossless encode failed for frame {frame_index}")
+                    })?
             }
             TransferSyntaxKind::RleLossless => encode_rle_lossless_fragment_u16_grayscale(frame),
             _ => bail!(
