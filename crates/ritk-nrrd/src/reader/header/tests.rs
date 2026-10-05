@@ -4,6 +4,9 @@ use std::io::Cursor;
 
 use super::{parse_nrrd_header_from_reader, NrrdHeaderError, MAX_HEADER_BYTES, MAX_HEADER_ENTRIES};
 
+#[path = "tests/properties.rs"]
+mod properties;
+
 #[test]
 fn non_ascii_header_lines_are_rejected() {
     for input in [
@@ -344,6 +347,27 @@ fn compact_alias_reports_canonical_version_error() {
             actual_version: 3,
         }) if field == "sample units"
     ));
+}
+
+#[test]
+fn header_byte_limit_accepts_an_exact_sized_header_and_retains_its_field() {
+    let fixed_bytes = b"NRRD0005\ncontent: ";
+    let content_bytes = MAX_HEADER_BYTES - fixed_bytes.len() - 2;
+    let mut input = Vec::with_capacity(MAX_HEADER_BYTES);
+    input.extend_from_slice(fixed_bytes);
+    input.resize(input.len() + content_bytes, b'x');
+    input.extend_from_slice(b"\n\n");
+    assert_eq!(input.len(), MAX_HEADER_BYTES);
+    let mut reader = Cursor::new(input);
+
+    let header = parse_nrrd_header_from_reader(&mut reader).expect("exact byte limit is valid");
+    let content = header
+        .fields
+        .get("content")
+        .expect("content field is retained");
+    assert_eq!(content.len(), content_bytes);
+    assert_eq!(content.as_bytes().first(), Some(&b'x'));
+    assert_eq!(content.as_bytes().last(), Some(&b'x'));
 }
 
 #[test]
