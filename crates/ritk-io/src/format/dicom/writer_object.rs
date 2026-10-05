@@ -112,47 +112,18 @@ mod tests {
     fn test_write_object_bytes_node_non_empty() {
         let tmp = tempfile::tempdir().expect("tempdir");
         let path = tmp.path().join("bytes.dcm");
-        let mut model = DicomObjectModel::new();
-        model.insert(DicomObjectNode::with_value(
-            DicomTag::new(0x0028, 0x0010),
-            "US",
-            2u16,
-        ));
-        model.insert(DicomObjectNode::with_value(
-            DicomTag::new(0x0028, 0x0011),
-            "US",
-            5u16,
-        ));
-        model.insert(DicomObjectNode::with_value(
-            DicomTag::new(0x0028, 0x0002),
-            "US",
-            1u16,
-        ));
-        model.insert(DicomObjectNode::with_value(
-            DicomTag::new(0x0028, 0x0100),
-            "US",
-            8u16,
-        ));
-        model.insert(DicomObjectNode::with_value(
-            DicomTag::new(0x0028, 0x0101),
-            "US",
-            8u16,
-        ));
-        model.insert(DicomObjectNode::with_value(
-            DicomTag::new(0x0028, 0x0102),
-            "US",
-            7u16,
-        ));
-        model.insert(DicomObjectNode::with_value(
-            DicomTag::new(0x0028, 0x0103),
-            "US",
-            0u16,
-        ));
-        model.insert(DicomObjectNode::bytes(
-            DicomTag::new(0x7FE0, 0x0010),
-            "OB",
-            vec![0u8; 10],
-        ));
+        let model = pixel_model(
+            &[
+                (0x0028, 0x0010, 2),
+                (0x0028, 0x0011, 5),
+                (0x0028, 0x0002, 1),
+                (0x0028, 0x0100, 8),
+                (0x0028, 0x0101, 8),
+                (0x0028, 0x0102, 7),
+                (0x0028, 0x0103, 0),
+            ],
+            vec![0; 10],
+        );
         write_object(&model, &path).expect("write_object");
         let len = std::fs::metadata(&path).expect("metadata").len();
         assert!(len > 128, "file must exceed preamble size, got {len}");
