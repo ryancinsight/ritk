@@ -1,17 +1,21 @@
 use super::super::reader::DicomReadMetadata;
+use super::decimal_string::{format_dicom_decimal, format_pair, format_six, format_triplet};
+use super::error::DicomWriteError;
+use super::output::{serialize_file, write_series_files};
 use super::pixel_encoding::{
-    emit_pixel_format_tags, ensure_series_directory, format_pair, format_six, format_triplet,
-    generate_instance_uid, generate_series_uid, normalize_to_u16, writer_exclusion_tags,
+    emit_pixel_format_tags, generate_instance_uid, generate_series_uid, prepare_frame_encodings,
+    validate_image_shape, validate_spatial_metadata, writer_exclusion_tags,
     DICOM_SOP_CLASS_SECONDARY_CAPTURE,
 };
 use super::preservation::emit_preservation_nodes;
 use crate::format::dicom::transfer_syntax::EXPLICIT_VR_LE;
 use crate::format::dicom::writer::elements::PutValue;
-use anyhow::{bail, Result};
+use anyhow::Result;
 use dicom::core::smallvec::SmallVec;
 use dicom::core::{PrimitiveValue, Tag, VR};
 use dicom::object::meta::FileMetaTableBuilder;
 use dicom::object::InMemDicomObject;
+use eunomia::FloatElement;
 use ritk_core::image::Image;
 use ritk_image::tensor::Backend;
 use std::marker::PhantomData;
@@ -29,17 +33,22 @@ use std::path::{Path, PathBuf};
 /// supported series writer: scalar metadata tags are propagated through the
 /// write path, and the emitted file layout keeps Image Pixel Module elements
 /// before Pixel Data.
+///
+/// Encoded samples are unsigned 16-bit. Source bit attributes are validated,
+/// but the output bit attributes always describe those encoded samples.
+/// All slices are serialized before the output directory or files change;
+/// this retains the serialized volume in memory. Persistence errors can leave
+/// partial output, but input and serialization errors preserve existing files.
 pub fn write_dicom_series_with_metadata<B: Backend, P: AsRef<Path>>(
     path: P,
     image: &Image<f32, B, 3>,
     metadata: Option<&DicomReadMetadata>,
 ) -> Result<()> {
     let path = path.as_ref();
-    let [depth, rows, cols] = image.shape();
-    if depth == 0 || rows == 0 || cols == 0 {
-        bail!("DICOM: depth={depth} rows={rows} cols={cols} must be >0");
-    }
-    let series_dir = ensure_series_directory(path)?;
+    let all_data = image.data_cow_on(&B::default()).into_owned();
+    let dimensions = validate_image_shape(image.shape(), all_data.len())?;
+    validate_source_pixel_description(metadata)?;
+    let pixel_plans = prepare_frame_encodings::<u16>(&all_data, dimensions)?;
 
     let generated_uid = generate_series_uid();
     let series_uid = metadata
@@ -61,16 +70,54 @@ pub fn write_dicom_series_with_metadata<B: Backend, P: AsRef<Path>>(
     let direction = metadata
         .map(|m| m.direction)
         .unwrap_or([1.0, 0.0, 0.0, 0.0, 1.0, 0.0, 0.0, 0.0, 1.0]);
+    validate_spatial_metadata(&spacing, &origin, &direction)?;
+    validate_scalar_photometric_interpretation(photometric)?;
     // Slice normal is column 0 of direction matrix = direction[0..3] = NÌ‚.
     let normal = [direction[0], direction[1], direction[2]];
 
-    let all_data = image.data_cow_on(&B::default()).into_owned();
-    let slice_len = rows * cols;
+    if metadata.is_some() {
+        for z in 0..dimensions.depth {
+            let zf = f64::from_count(z);
+            let position = [
+                origin[0] + zf * spacing[0] * normal[0],
+                origin[1] + zf * spacing[0] * normal[1],
+                origin[2] + zf * spacing[0] * normal[2],
+            ];
+            if position.iter().any(|coordinate| !coordinate.is_finite()) {
+                return Err(DicomWriteError::InvalidSpatialMetadata.into());
+            }
+        }
+    }
 
-    for z in 0..depth {
-        let slice_offset = z * slice_len;
-        let slice_f32 = &all_data[slice_offset..slice_offset + slice_len];
-        let (pixel_u16, rescale_slope, rescale_intercept) = normalize_to_u16(slice_f32);
+    let mut slices = Vec::new();
+    slices
+        .try_reserve_exact(dimensions.depth)
+        .map_err(|_| DicomWriteError::PixelAllocationFailed)?;
+
+    for z in 0..dimensions.depth {
+        let slice_offset = z
+            .checked_mul(dimensions.frame_samples)
+            .ok_or(DicomWriteError::PixelCountOverflow)?;
+        let slice_end = slice_offset
+            .checked_add(dimensions.frame_samples)
+            .ok_or(DicomWriteError::PixelCountOverflow)?;
+        let slice_f32 =
+            all_data
+                .get(slice_offset..slice_end)
+                .ok_or(DicomWriteError::PixelCountMismatch {
+                    expected: dimensions.total_samples,
+                    actual: all_data.len(),
+                })?;
+        let plan = pixel_plans
+            .get(z)
+            .copied()
+            .ok_or(DicomWriteError::PixelCountMismatch {
+                expected: dimensions.depth,
+                actual: pixel_plans.len(),
+            })?;
+        let pixel_u16 = plan.encode(slice_f32, slice_offset)?;
+        let rescale_slope = plan.rescale_slope();
+        let rescale_intercept = plan.rescale_intercept();
 
         let sop_instance_uid = generate_instance_uid(series_uid, z);
         let mut obj = InMemDicomObject::new_empty();
@@ -84,25 +131,30 @@ pub fn write_dicom_series_with_metadata<B: Backend, P: AsRef<Path>>(
         obj.put_value(Tag(0x0020, 0x0013), VR::IS, format!("{}", z + 1));
 
         obj.put_value(Tag(0x0028, 0x0002), VR::US, 1_u16);
-        obj.put_value(Tag(0x0028, 0x0010), VR::US, rows as u16);
-        obj.put_value(Tag(0x0028, 0x0011), VR::US, cols as u16);
-        emit_pixel_format_tags(&mut obj, 16);
-        obj.put_value(Tag(0x0028, 0x1053), VR::DS, format!("{:.6}", rescale_slope));
+        obj.put_value(Tag(0x0028, 0x0010), VR::US, dimensions.rows_attribute);
+        obj.put_value(Tag(0x0028, 0x0011), VR::US, dimensions.columns_attribute);
+        emit_pixel_format_tags::<u16>(&mut obj);
+        obj.put_value(
+            Tag(0x0028, 0x1053),
+            VR::DS,
+            format_dicom_decimal(f64::from(rescale_slope))?,
+        );
         obj.put_value(
             Tag(0x0028, 0x1052),
             VR::DS,
-            format!("{:.6}", rescale_intercept),
+            format_dicom_decimal(f64::from(rescale_intercept))?,
         );
         obj.put_value(Tag(0x0028, 0x0004), VR::CS, photometric);
 
         if metadata.is_some() {
-            let ipp_x = origin[0] + (z as f64) * spacing[0] * normal[0];
-            let ipp_y = origin[1] + (z as f64) * spacing[0] * normal[1];
-            let ipp_z = origin[2] + (z as f64) * spacing[0] * normal[2];
+            let zf = f64::from_count(z);
+            let ipp_x = origin[0] + zf * spacing[0] * normal[0];
+            let ipp_y = origin[1] + zf * spacing[0] * normal[1];
+            let ipp_z = origin[2] + zf * spacing[0] * normal[2];
             obj.put_value(
                 Tag(0x0020, 0x0032),
                 VR::DS,
-                format_triplet([ipp_x, ipp_y, ipp_z]),
+                format_triplet([ipp_x, ipp_y, ipp_z])?,
             );
             // IOP = [F_r, F_c] = [direction[6..9], direction[3..6]]
             obj.put_value(
@@ -115,16 +167,19 @@ pub fn write_dicom_series_with_metadata<B: Backend, P: AsRef<Path>>(
                     direction[3],
                     direction[4],
                     direction[5],
-                ]),
+                ])?,
             );
             // PixelSpacing = [ΔRow, ΔCol] = [spacing[1], spacing[2]]
             obj.put_value(
                 Tag(0x0028, 0x0030),
                 VR::DS,
-                format_pair([spacing[1], spacing[2]]),
+                format_pair([spacing[1], spacing[2]])?,
             );
-            // SliceThickness = Δz = spacing[0]
-            obj.put_value(Tag(0x0018, 0x0050), VR::DS, format!("{:.6}", spacing[0]));
+            obj.put_value(
+                Tag(0x0018, 0x0050),
+                VR::DS,
+                format_dicom_decimal(spacing[0])?,
+            );
         }
 
         // DICOM PS3.3 Type 2: tag must be present even when value is unknown; empty string is valid.
@@ -156,15 +211,6 @@ pub fn write_dicom_series_with_metadata<B: Backend, P: AsRef<Path>>(
             if let Some(ref st) = m.series_time {
                 obj.put_value(Tag(0x0008, 0x0031), VR::TM, st.as_str());
             }
-            if let Some(bits) = m.bits_allocated {
-                obj.put_value(Tag(0x0028, 0x0100), VR::US, bits);
-            }
-            if let Some(bits) = m.bits_stored {
-                obj.put_value(Tag(0x0028, 0x0101), VR::US, bits);
-            }
-            if let Some(bits) = m.high_bit {
-                obj.put_value(Tag(0x0028, 0x0102), VR::US, bits);
-            }
             if let Some(private_value) = m.private_tags.get("0019,10AA") {
                 obj.put_value(Tag(0x0019, 0x10AA), VR::LO, private_value.as_str());
             }
@@ -194,12 +240,48 @@ pub fn write_dicom_series_with_metadata<B: Backend, P: AsRef<Path>>(
                     .transfer_syntax(EXPLICIT_VR_LE),
             )
             .map_err(|e| anyhow::anyhow!("DICOM meta failed slice {z}: {e}"))?;
-        let slice_path = series_dir.join(format!("slice_{z:04}.dcm"));
-        file_obj
-            .write_to_file(&slice_path)
-            .map_err(|e| anyhow::anyhow!("write slice {z} failed: {e}"))?;
+        slices.push(serialize_file(&file_obj)?);
     }
-    Ok(())
+    write_series_files(path, &slices)
+}
+
+fn validate_source_pixel_description(metadata: Option<&DicomReadMetadata>) -> Result<()> {
+    let Some(metadata) = metadata else {
+        return Ok(());
+    };
+    match (
+        metadata.bits_allocated,
+        metadata.bits_stored,
+        metadata.high_bit,
+    ) {
+        (None, None, None) => Ok(()),
+        (Some(bits_allocated), Some(bits_stored), Some(high_bit)) => {
+            let allocated_is_valid = bits_allocated == 1 || bits_allocated.is_multiple_of(8);
+            let stored_is_valid = bits_stored > 0 && bits_stored <= bits_allocated;
+            let high_bit_is_valid = bits_stored
+                .checked_sub(1)
+                .is_some_and(|expected_high_bit| high_bit == expected_high_bit);
+            if allocated_is_valid && stored_is_valid && high_bit_is_valid {
+                Ok(())
+            } else {
+                Err(DicomWriteError::InvalidSourcePixelDescription {
+                    bits_allocated,
+                    bits_stored,
+                    high_bit,
+                }
+                .into())
+            }
+        }
+        _ => Err(DicomWriteError::IncompleteSourcePixelDescription.into()),
+    }
+}
+
+fn validate_scalar_photometric_interpretation(value: &str) -> Result<()> {
+    if matches!(value, "MONOCHROME1" | "MONOCHROME2") {
+        Ok(())
+    } else {
+        Err(DicomWriteError::UnsupportedPhotometricInterpretation.into())
+    }
 }
 
 pub struct DicomWriter<B> {

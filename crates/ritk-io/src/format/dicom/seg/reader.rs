@@ -281,10 +281,11 @@ fn parse_shared_functional_groups(
 ///
 /// # BINARY unpacking (BitsAllocated == 1)
 ///
-/// frame_bytes = ⌈rows × cols / 8⌉
+/// Frames form one contiguous stream of bits without individual padding.
 /// Pixel i of frame f:
-///   raw_byte = px_bytes[f * frame_bytes + i / 8]
-///   bit      = 7 - (i % 8)
+///   index    = f * rows * cols + i
+///   raw_byte = px_bytes[index / 8]
+///   bit      = index % 8
 ///   value    = (raw_byte >> bit) & 1
 ///
 /// # FRACTIONAL (BitsAllocated == 8)
@@ -298,25 +299,32 @@ fn unpack_pixel_data(
     bits_allocated: u16,
     segmentation_type: &SegmentationType,
 ) -> Result<Vec<Vec<u8>>> {
-    let n_pixels = rows * cols;
+    let n_pixels = rows.checked_mul(cols).context("SEG frame size overflows")?;
+    let sample_count = n_frames
+        .checked_mul(n_pixels)
+        .context("SEG sample count overflows")?;
+    if n_pixels == 0 || n_frames == 0 {
+        bail!("SEG dimensions must be non-zero");
+    }
 
     match (bits_allocated, segmentation_type) {
         (1, SegmentationType::Binary) => {
-            let frame_bytes = n_pixels.div_ceil(8);
-            let expected = n_frames * frame_bytes;
+            let expected = sample_count.div_ceil(8);
             if px_bytes.len() < expected {
                 bail!(
-                    "PixelData too short for BINARY: got {} bytes, need {} ({}×{}px/8 per frame × {} frames)",
-                    px_bytes.len(), expected, rows, cols, n_frames
+                    "PixelData too short for BINARY: got {} bytes, need {}",
+                    px_bytes.len(),
+                    expected
                 );
             }
             let mut frames = Vec::with_capacity(n_frames);
             for f in 0..n_frames {
-                let base = f * frame_bytes;
+                let base = f * n_pixels;
                 let mut decoded = Vec::with_capacity(n_pixels);
                 for i in 0..n_pixels {
-                    let byte_idx = base + i / 8;
-                    let bit_pos = 7 - (i % 8);
+                    let index = base + i;
+                    let byte_idx = index / 8;
+                    let bit_pos = index % 8;
                     let v = (px_bytes[byte_idx] >> bit_pos) & 1;
                     decoded.push(v);
                 }
@@ -326,7 +334,7 @@ fn unpack_pixel_data(
         }
         (8, SegmentationType::Fractional) => {
             let frame_bytes = n_pixels;
-            let expected = n_frames * frame_bytes;
+            let expected = sample_count;
             if px_bytes.len() < expected {
                 bail!(
                     "PixelData too short for FRACTIONAL: got {} bytes, need {}",

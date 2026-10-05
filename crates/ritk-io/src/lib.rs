@@ -40,14 +40,14 @@ pub use format::dicom::{
     AnonymizeResult, AnonymizeStats, AssociationConfig, CleaningPolicy, ColorMultiFrameVolume,
     ContourGeometricType, DicomAddress, DicomObjectModel, DicomObjectNode, DicomPreservationSet,
     DicomPreservedElement, DicomReadBudget, DicomReadMetadata, DicomSegmentInfo, DicomSegmentation,
-    DicomSequenceItem, DicomSeriesInfo, DicomSliceMetadata, DicomTag, DicomValue, DicomWriter,
-    EchoResponse, FindLevel, FindQuery, FindResult, MoveDestination, MoveResponse, MultiFrameInfo,
-    MultiFrameSpatialMetadata, MultiFrameVolume, MultiFrameWriterConfig, NetworkingError,
-    PatientPosition, PixelSignedness, RtBeamInfo, RtContour, RtDoseGrid, RtDoseSummationType,
-    RtDoseType, RtFractionGroup, RtPlanInfo, RtRoiInfo, RtRoiInterpretedType, RtStructureSet,
-    ScannedDicomSeries, ScpConfig, SegEncoding, SegmentAlgorithmType, SegmentationType,
-    StoreResponse, StoreScp, StoreScpHandle, StoredInstance, TagAction, TransferSyntaxKind,
-    RT_DOSE_SOP_CLASS_UID, RT_PLAN_SOP_CLASS_UID,
+    DicomSequenceItem, DicomSeriesInfo, DicomSliceMetadata, DicomTag, DicomValue, DicomWriteError,
+    DicomWriter, EchoResponse, FindLevel, FindQuery, FindResult, MoveDestination, MoveResponse,
+    MultiFrameInfo, MultiFrameSpatialMetadata, MultiFrameVolume, MultiFrameWriterConfig,
+    NetworkingError, PatientPosition, PixelSignedness, RtBeamInfo, RtContour, RtDoseGrid,
+    RtDoseSummationType, RtDoseType, RtFractionGroup, RtPlanInfo, RtRoiInfo, RtRoiInterpretedType,
+    RtStructureSet, ScannedDicomSeries, ScpConfig, SegEncoding, SegmentAlgorithmType,
+    SegmentationType, StoreResponse, StoreScp, StoreScpHandle, StoredInstance, TagAction,
+    TransferSyntaxKind, RT_DOSE_SOP_CLASS_UID, RT_PLAN_SOP_CLASS_UID,
 };
 #[cfg(not(target_arch = "wasm32"))]
 pub use format::dicomweb::{DicomWebClient, QidoSearchParams, StowFailure, StowResponse};

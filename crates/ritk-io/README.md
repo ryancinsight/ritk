@@ -34,6 +34,14 @@ reader; no second decoder or browser-specific volume model is introduced.
 ritk-io = "0.3.0"
 ```
 
+DICOM writers derive pixel bit attributes from their encoded sample type:
+unsigned 16-bit for series and most multi-frame syntaxes, unsigned 8-bit for
+baseline JPEG. Input and serialization preflight finish before output changes;
+invalid input preserves existing files. A `DicomWriteError` cause identifies
+invalid pixels, dimensions, or metadata through the existing writer result.
+Preflight retains serialized output in memory; persistence errors can leave a
+partially written series. See the [DICOM format chapter](../../docs/book/dicom_format.md).
+
 DICOM opening preserves acquisition identity: `scan_dicom_path` accepts a
 selected instance, directory, or explicit DICOMDIR; `scan_dicom_files` scans
 an exact discovered member set. Feed the resulting descriptor to

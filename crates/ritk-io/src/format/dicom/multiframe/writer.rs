@@ -1,22 +1,15 @@
 //! Multi-frame DICOM writer: serializes a 3-D image as a single DICOM Part 10 file.
 
-use crate::format::dicom::writer::elements::PutValue;
-use crate::format::dicom::writer::pixel_encoding::{
-    JPEG_2000_QUANTIZATION_STEP, JPEG_BASELINE_QUALITY, JPEG_LS_NEAR, U8_MAX_F,
+use crate::format::dicom::writer::decimal_string::{
+    format_dicom_decimal, format_pair, format_six, format_triplet,
 };
+use crate::format::dicom::writer::elements::PutValue;
 use anyhow::{bail, Context, Result};
 use coeus_core::MoiraiBackend;
 use dicom::core::smallvec::SmallVec;
-use dicom::core::value::PixelFragmentSequence;
 use dicom::core::{DataElement, PrimitiveValue, Tag, VR};
 use dicom::object::meta::FileMetaTableBuilder;
 use dicom::object::InMemDicomObject;
-use ritk_codecs::encode_jpeg_fragment;
-use ritk_codecs::encode_rle_lossless_fragment_u16_grayscale;
-use ritk_codecs::jpeg::lossless::{encode_grayscale_jpeg_lossless, JpegLosslessPrediction};
-use ritk_codecs::jpeg_2000::encoder::{encode_grayscale_j2k, Jpeg2000Encoding};
-use ritk_codecs::jpeg_ls::encoder::encode_grayscale_jpeg_ls;
-use ritk_codecs::{PixelLayout, PixelSignedness};
 use ritk_core::image::Image;
 use ritk_dicom::TransferSyntaxKind;
 use ritk_image::tensor::Backend;
@@ -25,20 +18,28 @@ use std::path::Path;
 
 use super::types::{MultiFrameSpatialMetadata, MultiFrameWriterConfig};
 use crate::format::dicom::writer::pixel_encoding::{
-    emit_pixel_format_tags, generate_series_uid, normalization_window, normalize_to_u16,
-    MONOCHROME2,
+    emit_pixel_format_tags, generate_series_uid, validate_image_shape, validate_spatial_metadata,
+    PixelEncodingPlan, MONOCHROME2,
 };
+mod compression;
+use compression::{encode_baseline_jpeg_frames, encode_compressed_frames};
+
+enum EncodedPixelSamples {
+    NativeWord(Vec<u16>, PixelEncodingPlan<u16>),
+    EncapsulatedWord(Vec<u16>, PixelEncodingPlan<u16>),
+    BaselineByte(Vec<u8>, PixelEncodingPlan<u8>),
+}
 
 /// Write a 3-D `Image<f32, B, 3>` with shape `[n_frames, rows, cols]` as a single
 /// multi-frame DICOM Part 10 file.
 ///
 /// ## Invariants
 /// - `n_frames >= 1`, `rows >= 1`, `cols >= 1`; returns `Err` otherwise.
-/// - A single linear rescale (slope/intercept) maps the full f32 volume to
-///   the [0, 65535] u16 range. When max == min, slope ≈ ε/65535 and
-///   intercept = min_val (flat-image degenerate case; reconstruction is exact).
-/// - The emitted file is readable by `load_dicom_multiframe` (round-trip
-///   invariant: abs(recovered - original) <= rescale_slope + 1.0).
+/// - A single linear rescale maps the full finite f32 volume to unsigned
+///   16-bit samples, or unsigned 8-bit samples for baseline JPEG.
+/// - Constant input stores zero with the constant as intercept.
+/// - Pixel bit attributes describe the encoded sample type.
+/// - Input validation and serialization finish before the output file changes.
 ///
 /// ## Encoding
 /// Defaults to Explicit VR Little Endian (1.2.840.10008.1.2.1). Use
@@ -79,7 +80,8 @@ pub fn write_dicom_multiframe_with_options<B: Backend, P: AsRef<Path>>(
 ///
 /// ## Invariants
 /// - `n_frames >= 1`, `rows >= 1`, `cols >= 1`; returns `Err` otherwise.
-/// - Round-trip invariant: |recovered − original| ≤ rescale_slope + 1.0.
+/// - Non-finite pixels, unrepresentable ranges, and invalid spatial metadata
+///   are rejected before the output file changes.
 pub fn write_dicom_multiframe_with_config<B: Backend, P: AsRef<Path>>(
     path: P,
     image: &Image<f32, B, 3>,
@@ -159,17 +161,51 @@ fn write_multiframe_flat(
     shape: [usize; 3],
     config: &MultiFrameWriterConfig,
 ) -> Result<()> {
-    let [n_frames, rows, cols] = shape;
-    if n_frames == 0 || rows == 0 || cols == 0 {
-        bail!(
-            "DICOM multiframe write: n_frames={} rows={} cols={} must all be >0",
-            n_frames,
-            rows,
-            cols
-        );
-    }
-
-    let (pixel_u16, rescale_slope, rescale_intercept) = normalize_to_u16(all_data);
+    let dimensions = validate_image_shape(shape, all_data.len())?;
+    let n_frames = dimensions.depth;
+    let spatial_tags = if let Some(spatial) = &config.spatial {
+        validate_spatial_metadata(
+            &[
+                spatial.slice_thickness,
+                spatial.pixel_spacing[0],
+                spatial.pixel_spacing[1],
+            ],
+            &spatial.origin,
+            &spatial.image_orientation,
+        )?;
+        Some((
+            format_triplet(spatial.origin)?,
+            format_six(spatial.image_orientation)?,
+            format_pair(spatial.pixel_spacing)?,
+            format_dicom_decimal(spatial.slice_thickness)?,
+        ))
+    } else {
+        None
+    };
+    let encoded_pixels = match &config.transfer_syntax {
+        TransferSyntaxKind::ExplicitVrLittleEndian => {
+            let plan = PixelEncodingPlan::<u16>::prepare(all_data, 0)?;
+            EncodedPixelSamples::NativeWord(plan.encode(all_data, 0)?, plan)
+        }
+        TransferSyntaxKind::JpegLsLossless
+        | TransferSyntaxKind::JpegLsLossy
+        | TransferSyntaxKind::JpegLosslessFirstOrderPrediction
+        | TransferSyntaxKind::JpegLosslessNonHierarchical
+        | TransferSyntaxKind::Jpeg2000Lossless
+        | TransferSyntaxKind::Jpeg2000Lossy
+        | TransferSyntaxKind::RleLossless => {
+            let plan = PixelEncodingPlan::<u16>::prepare(all_data, 0)?;
+            EncodedPixelSamples::EncapsulatedWord(plan.encode(all_data, 0)?, plan)
+        }
+        TransferSyntaxKind::JpegBaseline => {
+            let plan = PixelEncodingPlan::<u8>::prepare(all_data, 0)?;
+            EncodedPixelSamples::BaselineByte(plan.encode(all_data, 0)?, plan)
+        }
+        syntax => bail!(
+            "DICOM multiframe write transfer syntax '{}' is not supported; supported output syntaxes are Explicit VR Little Endian, JPEG Baseline, JPEG-LS Lossless, JPEG-LS Lossy (near-lossless), JPEG 2000 Lossless, JPEG 2000 Lossy, JPEG Lossless (first-order prediction), and RLE Lossless",
+            syntax.uid()
+        ),
+    };
 
     let sop_instance_uid = generate_series_uid();
     let study_instance_uid = generate_series_uid();
@@ -209,147 +245,80 @@ fn write_multiframe_flat(
 
     obj.put_value(Tag(0x0028, 0x0008), VR::IS, format!("{}", n_frames));
     obj.put_value(Tag(0x0028, 0x0002), VR::US, 1_u16);
-    obj.put_value(Tag(0x0028, 0x0010), VR::US, rows as u16);
-    obj.put_value(Tag(0x0028, 0x0011), VR::US, cols as u16);
-    emit_pixel_format_tags(&mut obj, 16);
+    obj.put_value(Tag(0x0028, 0x0010), VR::US, dimensions.rows_attribute);
+    obj.put_value(Tag(0x0028, 0x0011), VR::US, dimensions.columns_attribute);
+    match &encoded_pixels {
+        EncodedPixelSamples::NativeWord(_, plan)
+        | EncodedPixelSamples::EncapsulatedWord(_, plan) => {
+            emit_pixel_format_tags::<u16>(&mut obj);
+            obj.put_value(
+                Tag(0x0028, 0x1053),
+                VR::DS,
+                format_dicom_decimal(f64::from(plan.rescale_slope()))?,
+            );
+            obj.put_value(
+                Tag(0x0028, 0x1052),
+                VR::DS,
+                format_dicom_decimal(f64::from(plan.rescale_intercept()))?,
+            );
+        }
+        EncodedPixelSamples::BaselineByte(_, plan) => {
+            emit_pixel_format_tags::<u8>(&mut obj);
+            obj.put_value(
+                Tag(0x0028, 0x1053),
+                VR::DS,
+                format_dicom_decimal(f64::from(plan.rescale_slope()))?,
+            );
+            obj.put_value(
+                Tag(0x0028, 0x1052),
+                VR::DS,
+                format_dicom_decimal(f64::from(plan.rescale_intercept()))?,
+            );
+        }
+    }
     obj.put_value(Tag(0x0028, 0x0004), VR::CS, MONOCHROME2);
-    obj.put_value(Tag(0x0028, 0x1053), VR::DS, format!("{:.6}", rescale_slope));
-    obj.put_value(
-        Tag(0x0028, 0x1052),
-        VR::DS,
-        format!("{:.6}", rescale_intercept),
-    );
 
-    if let Some(s) = &config.spatial {
-        let o = &s.origin;
-        obj.put_value(
-            Tag(0x0020, 0x0032),
-            VR::DS,
-            format!("{:.6}\\{:.6}\\{:.6}", o[0], o[1], o[2]),
-        );
-
-        let iop = &s.image_orientation;
-        obj.put_value(
-            Tag(0x0020, 0x0037),
-            VR::DS,
-            format!(
-                "{:.6}\\{:.6}\\{:.6}\\{:.6}\\{:.6}\\{:.6}",
-                iop[0], iop[1], iop[2], iop[3], iop[4], iop[5]
-            ),
-        );
-
-        let ps = &s.pixel_spacing;
-        obj.put_value(
-            Tag(0x0028, 0x0030),
-            VR::DS,
-            format!("{:.6}\\{:.6}", ps[0], ps[1]),
-        );
-        obj.put_value(
-            Tag(0x0018, 0x0050),
-            VR::DS,
-            format!("{:.6}", s.slice_thickness),
-        );
+    if let Some((origin, orientation, pixel_spacing, slice_thickness)) = spatial_tags {
+        obj.put_value(Tag(0x0020, 0x0032), VR::DS, origin);
+        obj.put_value(Tag(0x0020, 0x0037), VR::DS, orientation);
+        obj.put_value(Tag(0x0028, 0x0030), VR::DS, pixel_spacing);
+        obj.put_value(Tag(0x0018, 0x0050), VR::DS, slice_thickness);
     }
 
-    match &config.transfer_syntax {
-        TransferSyntaxKind::ExplicitVrLittleEndian => {
+    match (&config.transfer_syntax, encoded_pixels) {
+        (
+            TransferSyntaxKind::ExplicitVrLittleEndian,
+            EncodedPixelSamples::NativeWord(pixel_u16, _),
+        ) => {
             obj.put_value(
                 Tag(0x7FE0, 0x0010),
                 VR::OW,
                 PrimitiveValue::U16(SmallVec::from_vec(pixel_u16)),
             );
         }
-        TransferSyntaxKind::JpegLsLossless
-        | TransferSyntaxKind::JpegLsLossy
-        | TransferSyntaxKind::JpegLosslessFirstOrderPrediction
-        | TransferSyntaxKind::JpegLosslessNonHierarchical
-        | TransferSyntaxKind::Jpeg2000Lossless
-        | TransferSyntaxKind::Jpeg2000Lossy
-        | TransferSyntaxKind::RleLossless => {
-            let encoded_fragments = encode_compressed_frames(
-                &pixel_u16,
-                n_frames,
-                rows,
-                cols,
-                &config.transfer_syntax,
-            )?;
+        (
+            TransferSyntaxKind::JpegLsLossless
+            | TransferSyntaxKind::JpegLsLossy
+            | TransferSyntaxKind::JpegLosslessFirstOrderPrediction
+            | TransferSyntaxKind::JpegLosslessNonHierarchical
+            | TransferSyntaxKind::Jpeg2000Lossless
+            | TransferSyntaxKind::Jpeg2000Lossy
+            | TransferSyntaxKind::RleLossless,
+            EncodedPixelSamples::EncapsulatedWord(pixel_u16, _),
+        ) => {
+            let encoded_fragments =
+                encode_compressed_frames(&pixel_u16, dimensions, &config.transfer_syntax)?;
             obj.put(DataElement::new(
                 Tag(0x7FE0, 0x0010),
                 VR::OB,
-                PixelFragmentSequence::<Vec<u8>>::new_fragments(SmallVec::from_vec(
-                    encoded_fragments,
-                )),
+                encoded_fragments,
             ));
         }
-        TransferSyntaxKind::JpegBaseline => {
-            // Baseline JPEG carries eight-bit samples, so the 16-bit
-            // normalisation and the 16-bit pixel tags do not apply to this
-            // transfer syntax. Re-derive both from the modality data.
-            // Same window the u16 path uses; only the stored width differs, so
-            // the scaling is spelled out here rather than duplicated into a
-            // second normalisation function.
-            let (minimum, range) = normalization_window(all_data);
-            let jpeg_slope = range / U8_MAX_F;
-            let jpeg_intercept = minimum;
-            let pixel_u8: Vec<u8> = all_data
-                .iter()
-                .map(|&v| {
-                    ((v - minimum) / range * U8_MAX_F)
-                        .round()
-                        .clamp(0.0, U8_MAX_F) as u8
-                })
-                .collect();
-            emit_pixel_format_tags(&mut obj, 8);
-            let layout = PixelLayout {
-                rows,
-                cols,
-                samples_per_pixel: 1,
-                bits_allocated: 8,
-                bits_stored: 8,
-                pixel_representation: PixelSignedness::Unsigned,
-                // `pixel_u8` already holds *stored* samples, so the encoder's
-                // layout must be the identity. Carrying the modality rescale
-                // here would make `encode_jpeg_fragment` invert it a second
-                // time, scaling each sample by 255/range on the way in. The
-                // rescale belongs in the DICOM tags below, which is where a
-                // reader looks for it.
-                rescale_slope: 1.0,
-                rescale_intercept: 0.0,
-            };
-            let mut fragments = Vec::with_capacity(n_frames);
-            let frame_pixels = rows * cols;
-            for frame_index in 0..n_frames {
-                let start = frame_index * frame_pixels;
-                let frame = pixel_u8[start..start + frame_pixels]
-                    .iter()
-                    .map(|&v| f32::from(v))
-                    .collect::<Vec<_>>();
-                let fragment = encode_jpeg_fragment(&frame, layout, JPEG_BASELINE_QUALITY)
-                    .with_context(|| {
-                        format!("JPEG baseline encode failed for frame {frame_index}")
-                    })?;
-                fragments.push(fragment);
-            }
-            obj.put(DataElement::new(
-                Tag(0x7FE0, 0x0010),
-                VR::OB,
-                PixelFragmentSequence::<Vec<u8>>::new_fragments(SmallVec::from_vec(fragments)),
-            ));
-            if rescale_slope != jpeg_slope || rescale_intercept != jpeg_intercept {
-                obj.put_value(Tag(0x0028, 0x1053), VR::DS, format!("{:.10}", jpeg_slope));
-                obj.put_value(
-                    Tag(0x0028, 0x1052),
-                    VR::DS,
-                    format!("{:.10}", jpeg_intercept),
-                );
-            }
+        (TransferSyntaxKind::JpegBaseline, EncodedPixelSamples::BaselineByte(pixel_u8, _)) => {
+            let fragments = encode_baseline_jpeg_frames(&pixel_u8, dimensions)?;
+            obj.put(DataElement::new(Tag(0x7FE0, 0x0010), VR::OB, fragments));
         }
-        syntax => {
-            bail!(
-                "DICOM multiframe write transfer syntax '{}' is not supported; supported output syntaxes are Explicit VR Little Endian, JPEG Baseline, \n                JPEG-LS Lossless, JPEG-LS Lossy (near-lossless), JPEG 2000 Lossless, \n                JPEG 2000 Lossy, JPEG Lossless (first-order prediction), and RLE Lossless",
-                syntax.uid()
-            );
-        }
+        _ => bail!("DICOM transfer syntax and prepared pixel sample type disagree"),
     }
 
     let file_obj = obj
@@ -361,111 +330,5 @@ fn write_multiframe_flat(
         )
         .map_err(|e| anyhow::anyhow!("DICOM multiframe meta build failed: {e}"))?;
 
-    file_obj
-        .write_to_file(path)
-        .map_err(|e| anyhow::anyhow!("DICOM multiframe write to {:?} failed: {e}", path))?;
-
-    Ok(())
-}
-
-fn encode_compressed_frames(
-    pixels_u16: &[u16],
-    n_frames: usize,
-    rows: usize,
-    cols: usize,
-    syntax: &TransferSyntaxKind,
-) -> Result<Vec<Vec<u8>>> {
-    let frame_pixels = rows
-        .checked_mul(cols)
-        .context("DICOM multiframe compressed write frame size overflow")?;
-    let expected = n_frames
-        .checked_mul(frame_pixels)
-        .context("DICOM multiframe compressed write total size overflow")?;
-    if pixels_u16.len() != expected {
-        bail!(
-            "DICOM multiframe compressed write expected {} u16 pixels for shape [{}, {}, {}], got {}",
-            expected,
-            n_frames,
-            rows,
-            cols,
-            pixels_u16.len()
-        );
-    }
-
-    let mut fragments = Vec::with_capacity(n_frames);
-    for frame_index in 0..n_frames {
-        let start = frame_index
-            .checked_mul(frame_pixels)
-            .context("DICOM multiframe compressed write frame offset overflow")?;
-        let end = start + frame_pixels;
-        let frame = &pixels_u16[start..end];
-
-        let encoded = match syntax {
-            TransferSyntaxKind::JpegLsLossless => {
-                encode_grayscale_jpeg_ls(frame, rows as u32, cols as u32, 16, 0).with_context(
-                    || format!("JPEG-LS lossless encode failed for frame {frame_index}"),
-                )?
-            }
-            TransferSyntaxKind::Jpeg2000Lossless => {
-                let frame_i32: Vec<i32> = frame.iter().map(|&v| i32::from(v)).collect();
-                encode_grayscale_j2k(
-                    &frame_i32,
-                    rows as u32,
-                    cols as u32,
-                    16,
-                    ritk_dicom::PixelSignedness::Unsigned,
-                    Jpeg2000Encoding::Lossless {
-                        decomposition_levels: 1,
-                    },
-                )
-                .with_context(|| {
-                    format!("JPEG 2000 lossless encode failed for frame {frame_index}")
-                })?
-            }
-            TransferSyntaxKind::JpegLsLossy => {
-                encode_grayscale_jpeg_ls(frame, rows as u32, cols as u32, 16, JPEG_LS_NEAR)
-                    .with_context(|| {
-                        format!("JPEG-LS near-lossless encode failed for frame {frame_index}")
-                    })?
-            }
-            TransferSyntaxKind::Jpeg2000Lossy => {
-                let frame_i32: Vec<i32> = frame.iter().map(|&v| i32::from(v)).collect();
-                encode_grayscale_j2k(
-                    &frame_i32,
-                    rows as u32,
-                    cols as u32,
-                    16,
-                    ritk_dicom::PixelSignedness::Unsigned,
-                    Jpeg2000Encoding::Lossy {
-                        decomposition_levels: 1,
-                        quantization_step: JPEG_2000_QUANTIZATION_STEP,
-                    },
-                )
-                .with_context(|| format!("JPEG 2000 lossy encode failed for frame {frame_index}"))?
-            }
-            TransferSyntaxKind::JpegLosslessFirstOrderPrediction => {
-                encode_grayscale_jpeg_lossless(frame, rows, cols, 16, JpegLosslessPrediction::Left)
-                    .with_context(|| {
-                        format!("JPEG lossless encode failed for frame {frame_index}")
-                    })?
-            }
-            TransferSyntaxKind::JpegLosslessNonHierarchical => encode_grayscale_jpeg_lossless(
-                frame,
-                rows,
-                cols,
-                16,
-                JpegLosslessPrediction::AboveOnly,
-            )
-            .with_context(|| {
-                format!("JPEG lossless (non-hierarchical) encode failed for frame {frame_index}")
-            })?,
-            TransferSyntaxKind::RleLossless => encode_rle_lossless_fragment_u16_grayscale(frame),
-            _ => bail!(
-                "internal error: compressed frame encoder called with non-compressed syntax '{}'",
-                syntax.uid()
-            ),
-        };
-        fragments.push(encoded);
-    }
-    Ok(fragments)
+    crate::format::dicom::writer::output::write_file(path, &file_obj)
 }

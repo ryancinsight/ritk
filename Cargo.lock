@@ -5992,6 +5992,7 @@ dependencies = [
  "consus-core",
  "consus-raster",
  "criterion",
+ "eunomia",
  "image 0.24.9",
  "proptest",
  "tempfile",

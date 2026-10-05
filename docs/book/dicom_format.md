@@ -41,6 +41,44 @@ inferring it from BitsAllocated. When HighBit is present, the DICOM object
 boundary requires it to equal BitsStored minus one, which establishes the
 right-justified sample layout used by native decoding.
 
+## Pixel output
+
+Series writers encode unsigned 16-bit samples. Multi-frame output uses
+unsigned 8-bit samples for baseline JPEG and unsigned 16-bit samples for
+native, JPEG-LS, JPEG 2000, lossless JPEG, and RLE transfer syntaxes.
+BitsAllocated and BitsStored equal that sample width, HighBit equals the
+width minus one, and PixelRepresentation is zero. These attributes describe
+the encoded samples as required by [DICOM PS3.5 section 8.1.1](https://dicom.nema.org/medical/dicom/current/output/chtml/part05/chapter_8.html#sect_8.1.1);
+compressed fragment lengths describe the codestream, not the decoded sample
+width. Source bit attributes are checked for consistency but never copied
+over the output representation.
+
+RT Dose emits unsigned 32-bit samples after checking the supplied positive
+dose scaling and each rounded sample's range. SEG derives one-bit or eight-bit
+storage from BINARY or FRACTIONAL segmentation, rejecting a contradictory
+declared width. BINARY pixels follow the least-significant-bit-first stream in
+[PS3.5 D.1](https://dicom.nema.org/medical/dicom/current/output/chtml/part05/chapter_D.html):
+frames share boundary bytes, and padding follows the complete value. The former
+MSB-first, per-frame-padded reader and writer contradicted this wire contract;
+both now use the specified packing.
+
+Each series slice has its own linear rescale; a multi-frame object has one
+rescale for the entire volume. Constant input encodes as zero with the input
+constant as intercept. Nonconstant input maps its finite range onto the full
+unsigned sample range with nearest-integer rounding. Non-finite samples,
+unrepresentable ranges, invalid dimensions, malformed source bit attributes,
+and invalid spatial values return a `DicomWriteError` cause through the
+existing writer result. Decimal String components fit the 16-byte wire limit.
+Spacing is positive and direction cosines are orthonormal within a bound
+derived from one rounding of each component to single precision followed by
+the double-precision dot product. No orientation normalization occurs silently.
+
+Writers prepare and serialize all output before creating a directory or
+replacing any file. This preflight retains the serialized volume in memory
+and preserves existing output on input or serialization failure. Filesystem
+failures during persistence can still leave partial output; this is not an
+atomic transaction across a series.
+
 ## Diffusion metadata
 
 `read_dicom_gradient_scheme_from_file` reads one classic single-frame volume,

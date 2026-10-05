@@ -1,5 +1,5 @@
 use crate::format::dicom::writer::elements::PutValue;
-use anyhow::{bail, Context, Result};
+use anyhow::{Context, Result};
 use dicom::core::header::Length;
 use dicom::core::smallvec::SmallVec;
 use dicom::core::value::{DataSetSequence, Value};
@@ -8,69 +8,112 @@ use dicom::object::meta::FileMetaTableBuilder;
 use dicom::object::InMemDicomObject;
 use std::path::Path;
 
-use super::types::{DicomSegmentation, SEG_SOP_CLASS_UID};
+use super::types::{DicomSegmentation, SegmentationType, SEG_SOP_CLASS_UID};
 use crate::format::dicom::transfer_syntax::EXPLICIT_VR_LE;
-use crate::format::dicom::writer::pixel_encoding::{generate_series_uid, MONOCHROME2};
+use crate::format::dicom::writer::decimal_string::{
+    format_dicom_decimal, format_pair, format_six, format_triplet,
+};
+use crate::format::dicom::writer::pixel_encoding::{
+    generate_series_uid, validate_image_shape, validate_spatial_metadata, MONOCHROME2,
+};
+use crate::format::dicom::writer::DicomWriteError;
 
 /// Write a [`DicomSegmentation`] to a DICOM Segmentation Storage file.
 ///
 /// # Invariants
 /// - SOP Class UID = 1.2.840.10008.5.1.4.1.1.66.4 (Segmentation Storage).
-/// - BitsAllocated = 1 (BINARY) or 8 (FRACTIONAL) based on `seg.bits_allocated`.
-/// - BINARY pixel data is packed MSB-first within each byte per DICOM PS3.5 §8.2:
-///   pixel i → byte = i/8, bit = 7-(i%8).
+/// - BitsAllocated = 1 (BINARY) or 8 (FRACTIONAL) from the segmentation type;
+///   a contradictory `seg.bits_allocated` is rejected.
+/// - BINARY samples occupy consecutive bits, least significant bit first, with
+///   padding only after the complete multi-frame payload, per
+///   [DICOM PS3.5 D.1](https://dicom.nema.org/medical/dicom/current/output/chtml/part05/chapter_D.html).
 /// - `seg.pixel_data.len()` must equal `seg.n_frames`.
 /// - Each `seg.pixel_data[f].len()` must equal `seg.rows * seg.cols`.
+///
+/// # Errors
+/// Invalid dimensions, samples, frame counts, or spatial metadata return a
+/// [`DicomWriteError`] before opening the output. Serialization completes in
+/// memory first; filesystem failures can still leave a partially written file.
 pub fn write_dicom_seg<P: AsRef<Path>>(path: P, seg: &DicomSegmentation) -> Result<()> {
-    if seg.pixel_data.len() != seg.n_frames {
-        bail!(
-            "pixel_data.len()={} != n_frames={}",
-            seg.pixel_data.len(),
-            seg.n_frames
-        );
-    }
-    if seg.frame_segment_numbers.len() != seg.n_frames {
-        bail!(
-            "frame_segment_numbers.len()={} != n_frames={}",
-            seg.frame_segment_numbers.len(),
-            seg.n_frames
-        );
-    }
-    let n_pixels = seg.rows * seg.cols;
-    for (f, frame) in seg.pixel_data.iter().enumerate() {
-        if frame.len() != n_pixels {
-            bail!(
-                "pixel_data[{}].len()={} != rows*cols={}",
-                f,
-                frame.len(),
-                n_pixels
-            );
+    for actual in [
+        seg.pixel_data.len(),
+        seg.frame_segment_numbers.len(),
+        seg.image_position_per_frame.len(),
+    ] {
+        if actual != seg.n_frames {
+            return Err(DicomWriteError::FrameMetadataCountMismatch {
+                expected: seg.n_frames,
+                actual,
+            }
+            .into());
         }
+    }
+    let sample_count = seg.pixel_data.iter().try_fold(0usize, |total, frame| {
+        total
+            .checked_add(frame.len())
+            .ok_or(DicomWriteError::PixelCountOverflow)
+    })?;
+    let dimensions = validate_image_shape([seg.n_frames, seg.rows, seg.cols], sample_count)?;
+    for frame in &seg.pixel_data {
+        if frame.len() != dimensions.frame_samples {
+            return Err(DicomWriteError::PixelCountMismatch {
+                expected: dimensions.frame_samples,
+                actual: frame.len(),
+            }
+            .into());
+        }
+    }
+    let bits = match seg.segmentation_type {
+        SegmentationType::Binary => 1,
+        SegmentationType::Fractional => 8,
+    };
+    if seg.bits_allocated != bits {
+        return Err(DicomWriteError::PixelDescriptionMismatch {
+            declared: seg.bits_allocated,
+            encoded: bits,
+        }
+        .into());
+    }
+    let spacing = seg.pixel_spacing.unwrap_or([1.0; 2]);
+    let spacing = [spacing[0], spacing[1], seg.slice_thickness.unwrap_or(1.0)];
+    validate_spatial_metadata(
+        &spacing,
+        &[],
+        seg.image_orientation.as_ref().map_or(&[], |v| v.as_slice()),
+    )?;
+    for position in seg.image_position_per_frame.iter().flatten() {
+        validate_spatial_metadata(&[], position, &[])?;
     }
 
     let sop_instance_uid = generate_series_uid();
     let study_instance_uid = generate_series_uid();
     let series_instance_uid = generate_series_uid();
 
-    // BINARY: MSB-first packing — inverse of unpack_pixel_data (BitsAllocated == 1).
-    // FRACTIONAL: raw byte-per-pixel concatenation (BitsAllocated == 8).
-    let pixel_bytes: Vec<u8> = match seg.bits_allocated {
-        1 => {
-            let frame_byte_count = n_pixels.div_ceil(8);
-            let mut buf = vec![0u8; seg.n_frames * frame_byte_count];
-            for (f, frame) in seg.pixel_data.iter().enumerate() {
-                let base = f * frame_byte_count;
-                for (i, &px) in frame.iter().enumerate() {
-                    if px != 0 {
-                        buf[base + i / 8] |= 1u8 << (7 - (i % 8));
-                    }
-                }
-            }
-            buf
-        }
-        8 => seg.pixel_data.iter().flatten().copied().collect(),
-        _ => bail!("unsupported bits_allocated={}", seg.bits_allocated),
+    // PS3.5 8.1.1 and Annex D: concatenate frames without per-frame padding;
+    // the first BINARY sample occupies the least significant bit.
+    let payload_bytes = if bits == 1 {
+        sample_count.div_ceil(8)
+    } else {
+        sample_count
     };
+    let padded_bytes = payload_bytes
+        .checked_add(payload_bytes % 2)
+        .ok_or(DicomWriteError::PixelCountOverflow)?;
+    let mut pixel_bytes = Vec::new();
+    pixel_bytes
+        .try_reserve_exact(padded_bytes)
+        .map_err(|_| DicomWriteError::PixelAllocationFailed)?;
+    pixel_bytes.resize(padded_bytes, 0);
+    for (index, &sample) in seg.pixel_data.iter().flatten().enumerate() {
+        if bits == 1 {
+            if sample > 1 {
+                return Err(DicomWriteError::InvalidBinaryPixel { index }.into());
+            }
+            pixel_bytes[index / 8] |= sample << (index % 8);
+        } else {
+            pixel_bytes[index] = sample;
+        }
+    }
 
     let seg_items: Vec<InMemDicomObject> = seg
         .segments
@@ -109,11 +152,11 @@ pub fn write_dicom_seg<P: AsRef<Path>>(path: P, seg: &DicomSegmentation) -> Resu
         VR::IS,
         seg.n_frames.to_string().as_str(),
     );
-    obj.put_value(Tag(0x0028, 0x0010), VR::US, seg.rows as u16);
-    obj.put_value(Tag(0x0028, 0x0011), VR::US, seg.cols as u16);
-    obj.put_value(Tag(0x0028, 0x0100), VR::US, seg.bits_allocated);
-    obj.put_value(Tag(0x0028, 0x0101), VR::US, seg.bits_allocated);
-    obj.put_value(Tag(0x0028, 0x0102), VR::US, seg.bits_allocated - 1);
+    obj.put_value(Tag(0x0028, 0x0010), VR::US, dimensions.rows_attribute);
+    obj.put_value(Tag(0x0028, 0x0011), VR::US, dimensions.columns_attribute);
+    obj.put_value(Tag(0x0028, 0x0100), VR::US, bits);
+    obj.put_value(Tag(0x0028, 0x0101), VR::US, bits);
+    obj.put_value(Tag(0x0028, 0x0102), VR::US, bits - 1);
     obj.put_value(Tag(0x0028, 0x0103), VR::US, 0u16);
     obj.put_value(Tag(0x0028, 0x0002), VR::US, 1u16);
     obj.put_value(Tag(0x0028, 0x0004), VR::CS, MONOCHROME2);
@@ -137,10 +180,7 @@ pub fn write_dicom_seg<P: AsRef<Path>>(path: P, seg: &DicomSegmentation) -> Resu
 
     if let Some(iop) = seg.image_orientation {
         let mut ori_item = InMemDicomObject::new_empty();
-        let iop_ds = format!(
-            "{}\\{}\\{}\\{}\\{}\\{}",
-            iop[0], iop[1], iop[2], iop[3], iop[4], iop[5]
-        );
+        let iop_ds = format_six(iop)?;
         ori_item.put_value(Tag(0x0020, 0x0037), VR::DS, iop_ds.as_str());
         let ori_seq = DataSetSequence::new(vec![ori_item], Length::UNDEFINED);
         shared_item.put(DataElement::new(
@@ -154,11 +194,11 @@ pub fn write_dicom_seg<P: AsRef<Path>>(path: P, seg: &DicomSegmentation) -> Resu
     if seg.pixel_spacing.is_some() || seg.slice_thickness.is_some() {
         let mut px_item = InMemDicomObject::new_empty();
         if let Some(ps) = seg.pixel_spacing {
-            let ps_ds = format!("{}\\{}", ps[0], ps[1]);
+            let ps_ds = format_pair(ps)?;
             px_item.put_value(Tag(0x0028, 0x0030), VR::DS, ps_ds.as_str());
         }
         if let Some(st) = seg.slice_thickness {
-            let st_ds = st.to_string();
+            let st_ds = format_dicom_decimal(st)?;
             px_item.put_value(Tag(0x0018, 0x0050), VR::DS, st_ds.as_str());
         }
         let px_seq = DataSetSequence::new(vec![px_item], Length::UNDEFINED);
@@ -195,7 +235,7 @@ pub fn write_dicom_seg<P: AsRef<Path>>(path: P, seg: &DicomSegmentation) -> Resu
 
         if let Some(Some(pos)) = seg.image_position_per_frame.get(frame_idx) {
             let mut pos_item = InMemDicomObject::new_empty();
-            let pos_ds = format!("{}\\{}\\{}", pos[0], pos[1], pos[2]);
+            let pos_ds = format_triplet(*pos)?;
             pos_item.put_value(Tag(0x0020, 0x0032), VR::DS, pos_ds.as_str());
             let pos_seq = DataSetSequence::new(vec![pos_item], Length::UNDEFINED);
             frame_item.put(DataElement::new(
@@ -223,15 +263,13 @@ pub fn write_dicom_seg<P: AsRef<Path>>(path: P, seg: &DicomSegmentation) -> Resu
     );
 
     let path = path.as_ref();
-    obj.with_meta(
-        FileMetaTableBuilder::new()
-            .media_storage_sop_class_uid(SEG_SOP_CLASS_UID)
-            .media_storage_sop_instance_uid(sop_instance_uid.as_str())
-            .transfer_syntax(EXPLICIT_VR_LE),
-    )
-    .with_context(|| "build DICOM-SEG file meta")?
-    .write_to_file(path)
-    .with_context(|| format!("write DICOM-SEG to {}", path.display()))?;
-
-    Ok(())
+    let file = obj
+        .with_meta(
+            FileMetaTableBuilder::new()
+                .media_storage_sop_class_uid(SEG_SOP_CLASS_UID)
+                .media_storage_sop_instance_uid(sop_instance_uid.as_str())
+                .transfer_syntax(EXPLICIT_VR_LE),
+        )
+        .context("build DICOM-SEG file meta")?;
+    crate::format::dicom::writer::output::write_file(path, &file)
 }
