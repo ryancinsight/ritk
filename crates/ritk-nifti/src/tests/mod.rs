@@ -1,4 +1,4 @@
-//! NIfTI codec tests using the native image entry points and
+//! NIfTI codec tests using the shared image entry points and
 //! `SequentialBackend`.
 
 use super::*;
@@ -52,6 +52,29 @@ fn test_read_write_nifti_cycle() -> Result<()> {
     assert!((l_origin[2] - 30.0).abs() < 1e-5);
     assert!((l_spacing[0] - 0.5).abs() < 1e-5);
     assert!((l_spacing[2] - 2.0).abs() < 1e-5);
+    Ok(())
+}
+
+#[test]
+fn nifti1_writer_preserves_destination_when_geometry_exceeds_binary32() -> Result<()> {
+    let dir = tempdir()?;
+    let file_path = dir.path().join("out_of_range.nii");
+    let backend = SequentialBackend;
+    let image = make_image(
+        vec![1.0],
+        [1, 1, 1],
+        Point::new([f64::from(f32::MAX) * 2.0, 0.0, 0.0]),
+        Spacing::new([1.0; 3]),
+        Direction::identity(),
+    );
+    let sentinel = b"destination must remain unchanged";
+    std::fs::write(&file_path, sentinel)?;
+
+    let error = crate::write_nifti(&file_path, &image, &backend)
+        .expect_err("NIfTI-1 must reject geometry outside binary32 range");
+
+    assert!(format!("{error:#}").contains("NIfTI-1 sform"));
+    assert_eq!(std::fs::read(&file_path)?, sentinel);
     Ok(())
 }
 
@@ -404,6 +427,8 @@ fn read_nifti_rejects_zero_sform_column() -> Result<()> {
     Ok(())
 }
 
+mod stored;
+mod stored_fuzz;
 mod tests_format_sources;
 mod tests_labels;
 #[path = "tests_native.rs"]

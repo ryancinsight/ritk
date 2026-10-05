@@ -5,7 +5,7 @@
 //! semantics live here, only the byte layer the NIfTI-1/2 header parser and
 //! encoder build on.
 
-use super::convert::f64_to_f32;
+use super::convert::encode_header_scalar;
 use anyhow::{anyhow, Result};
 use consus_core::{read_integer, write_integer, ByteOrder, EndianScalar};
 
@@ -60,7 +60,7 @@ pub(super) fn read_f64x4(bytes: &[u8], offset: usize, order: ByteOrder) -> Resul
 
 pub(super) fn write_f32x4(out: &mut [u8], offset: usize, values: [f64; 4]) {
     for (index, value) in values.into_iter().enumerate() {
-        write_field(out, offset + index * 4, f64_to_f32(value, "srow"));
+        write_field(out, offset + index * 4, encode_header_scalar(value));
     }
 }
 

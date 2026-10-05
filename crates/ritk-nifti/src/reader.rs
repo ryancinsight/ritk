@@ -166,7 +166,7 @@ fn decode_nifti_bytes(bytes: &[u8]) -> Result<DecodedNifti> {
 
 fn decode_single_file(bytes: &[u8]) -> Result<DecodedNifti> {
     let header = NiftiHeader::parse(bytes).context("Invalid NIfTI header")?;
-    let spatial = metadata_from_nifti_ras_affine(header.affine()?)
+    let spatial = metadata_from_nifti_ras_affine(header.affine()?, header.spatial_unit_scale()?)
         .context("Invalid NIfTI spatial metadata")?;
     let [nx, ny, nz] = dims_xyz(&header)?;
     let voxel_count = checked_voxel_count(nx, ny, nz)?;
@@ -206,8 +206,9 @@ fn decode_single_file(bytes: &[u8]) -> Result<DecodedNifti> {
 ///
 /// # Label extraction
 ///
-/// Float32 volumes convert with `max(0.0).round() as u32`; UInt32 volumes are
-/// copied exactly. The returned shape is `[nz, ny, nx]`.
+/// Floating-point values map to nonnegative rounded `u32` labels, saturating
+/// at `u32::MAX`; unsigned 32-bit volumes are copied exactly. The returned
+/// shape is `[nz, ny, nx]`.
 pub fn read_nifti_labels<P: AsRef<Path>>(path: P) -> Result<(Vec<u32>, [usize; 3])> {
     let bytes = fs::read(path.as_ref()).map_err(|e| {
         tracing::error!("Failed to read NIfTI label file: {}", e);

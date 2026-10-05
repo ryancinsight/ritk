@@ -44,28 +44,8 @@ The example fails before writing the figure if:
 
 ## Adapt the workflow
 
-```rust
-extern crate ritk_statistics;
-
-use ritk_statistics::{
-    compute_statistics_from_slice, histogram_from_slice, masked_statistics_from_slices,
-};
-
-fn main() -> Result<(), Box<dyn std::error::Error>> {
-    let image_values = [0.0_f32, 40.0, 80.0, 120.0];
-    let mask_values = [0.0_f32, 1.0, 1.0, 0.0];
-
-    let full = compute_statistics_from_slice(&image_values, 0)?;
-    let masked = masked_statistics_from_slices(&image_values, &mask_values, 0)?;
-    let full_histogram = histogram_from_slice(&image_values, 0.0, 120.0, 4)?;
-
-    assert_eq!(full.min, 0.0);
-    assert_eq!(full.max, 120.0);
-    assert_eq!(masked.min, 40.0);
-    assert_eq!(masked.max, 80.0);
-    assert_eq!(full_histogram.total(), image_values.len());
-    Ok(())
-}
+```rust,ignore
+{{#include ../../../crates/ritk-statistics/examples/book_descriptive_statistics.rs:population_statistics}}
 ```
 
 Use identical histogram edges when comparing populations. Different ranges or

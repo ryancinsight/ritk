@@ -1,4 +1,8 @@
-use super::convert::{f64_affine_to_f32, f64_to_f32, f64x4_to_f32x4};
+use super::convert::{
+    encode_header_scalar, intensity_from_signed_voxel, intensity_from_unsigned_voxel,
+    label_value_from_intensity, validate_nifti1_scalar,
+};
+use super::error::NiftiHeaderError;
 use super::raw::{
     read_array, read_f32x4_as_f64, read_f64x4, read_field, write_f32x4, write_f64x4, write_field,
 };
@@ -35,42 +39,63 @@ impl HeaderVersion {
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
 pub(crate) enum NiftiDatatype {
     Uint8,
+    Int8,
+    Uint16,
     Int16,
+    Uint32,
     Int32,
     Float32,
-    Uint32,
+    Float64,
+    Int64,
+    Uint64,
 }
 
 impl NiftiDatatype {
     pub(crate) const fn code(self) -> i16 {
         match self {
             Self::Uint8 => 2,
+            Self::Int8 => 256,
+            Self::Uint16 => 512,
             Self::Int16 => 4,
+            Self::Uint32 => 768,
             Self::Int32 => 8,
             Self::Float32 => 16,
-            Self::Uint32 => 768,
+            Self::Float64 => 64,
+            Self::Int64 => 1024,
+            Self::Uint64 => 1280,
         }
     }
 
     pub(super) const fn bitpix(self) -> i16 {
         match self {
-            Self::Uint8 => 8,
-            Self::Int16 => 16,
-            Self::Int32 | Self::Float32 | Self::Uint32 => 32,
+            Self::Uint8 | Self::Int8 => 8,
+            Self::Uint16 | Self::Int16 => 16,
+            Self::Uint32 | Self::Int32 | Self::Float32 => 32,
+            Self::Float64 | Self::Int64 | Self::Uint64 => 64,
         }
     }
 
     pub(crate) const fn byte_width(self) -> usize {
-        (self.bitpix() / 8) as usize
+        match self {
+            Self::Uint8 | Self::Int8 => 1,
+            Self::Uint16 | Self::Int16 => 2,
+            Self::Uint32 | Self::Int32 | Self::Float32 => 4,
+            Self::Float64 | Self::Int64 | Self::Uint64 => 8,
+        }
     }
 
     pub(crate) fn from_code(code: i16) -> Result<Self> {
         match code {
             2 => Ok(Self::Uint8),
+            256 => Ok(Self::Int8),
+            512 => Ok(Self::Uint16),
             4 => Ok(Self::Int16),
+            768 => Ok(Self::Uint32),
             8 => Ok(Self::Int32),
             16 => Ok(Self::Float32),
-            768 => Ok(Self::Uint32),
+            64 => Ok(Self::Float64),
+            1024 => Ok(Self::Int64),
+            1280 => Ok(Self::Uint64),
             _ => bail!("Unsupported NIfTI datatype code {code}"),
         }
     }
@@ -94,6 +119,8 @@ pub(crate) struct NiftiHeader {
     pub(crate) srow_x: [f64; 4],
     pub(crate) srow_y: [f64; 4],
     pub(crate) srow_z: [f64; 4],
+    pub(crate) scl_slope: f64,
+    pub(crate) scl_inter: f64,
     pub(crate) xyzt_units: i32,
     endian: ByteOrder,
 }
@@ -154,6 +181,8 @@ impl NiftiHeader {
             srow_x: spatial.srow_x,
             srow_y: spatial.srow_y,
             srow_z: spatial.srow_z,
+            scl_slope: 1.0,
+            scl_inter: 0.0,
             xyzt_units: 2,
             endian: ByteOrder::LittleEndian,
         })
@@ -225,6 +254,8 @@ impl NiftiHeader {
             srow_x: read_f32x4_as_f64(bytes, 280, endian)?,
             srow_y: read_f32x4_as_f64(bytes, 296, endian)?,
             srow_z: read_f32x4_as_f64(bytes, 312, endian)?,
+            scl_slope: f64::from(read_field::<f32>(bytes, 112, endian)?),
+            scl_inter: f64::from(read_field::<f32>(bytes, 116, endian)?),
             xyzt_units: i32::from(bytes[123]),
             endian,
         })
@@ -280,16 +311,45 @@ impl NiftiHeader {
             srow_x: read_f64x4(bytes, 400, endian)?,
             srow_y: read_f64x4(bytes, 432, endian)?,
             srow_z: read_f64x4(bytes, 464, endian)?,
+            scl_slope: read_field::<f64>(bytes, 176, endian)?,
+            scl_inter: read_field::<f64>(bytes, 184, endian)?,
             xyzt_units: read_field::<i32>(bytes, 500, endian)?,
             endian,
         })
     }
 
-    pub(crate) fn encode(&self) -> Vec<u8> {
+    pub(crate) fn encode(&self) -> std::result::Result<Vec<u8>, NiftiHeaderError> {
         match self.version {
-            HeaderVersion::One => self.encode_nifti1().to_vec(),
-            HeaderVersion::Two => self.encode_nifti2().to_vec(),
+            HeaderVersion::One => {
+                self.validate_nifti1_fields()?;
+                Ok(self.encode_nifti1().to_vec())
+            }
+            HeaderVersion::Two => Ok(self.encode_nifti2().to_vec()),
         }
+    }
+
+    fn validate_nifti1_fields(&self) -> std::result::Result<(), NiftiHeaderError> {
+        for value in self.pixdim {
+            validate_nifti1_scalar(value, "pixdim").map_err(NiftiHeaderError::from)?;
+        }
+        for row in [&self.srow_x, &self.srow_y, &self.srow_z] {
+            for value in row {
+                validate_nifti1_scalar(*value, "sform").map_err(NiftiHeaderError::from)?;
+            }
+        }
+        for (value, field) in [
+            (self.scl_slope, "scl_slope"),
+            (self.scl_inter, "scl_inter"),
+            (self.quatern_b, "quatern_b"),
+            (self.quatern_c, "quatern_c"),
+            (self.quatern_d, "quatern_d"),
+            (self.quatern_x, "quatern_x"),
+            (self.quatern_y, "quatern_y"),
+            (self.quatern_z, "quatern_z"),
+        ] {
+            validate_nifti1_scalar(value, field).map_err(NiftiHeaderError::from)?;
+        }
+        Ok(())
     }
 
     fn encode_nifti1(&self) -> [u8; NIFTI1_HEADER_LEN] {
@@ -306,14 +366,13 @@ impl NiftiHeader {
         write_field::<i16>(&mut out, 70, self.datatype.code());
         write_field::<i16>(&mut out, 72, self.datatype.bitpix());
         for (index, value) in self.pixdim.iter().copied().enumerate() {
-            write_field::<f32>(&mut out, 76 + index * 4, f64_to_f32(value, "pixdim"));
+            write_field::<f32>(&mut out, 76 + index * 4, encode_header_scalar(value));
         }
-        write_field::<f32>(
-            &mut out,
-            108,
-            f64_to_f32(self.vox_offset as f64, "vox_offset"),
-        );
-        write_field::<f32>(&mut out, 112, 1.0);
+        let voxel_offset =
+            u32::try_from(self.vox_offset).expect("invariant: NIfTI-1 voxel offset fits u32");
+        write_field::<f32>(&mut out, 108, encode_header_scalar(f64::from(voxel_offset)));
+        write_field::<f32>(&mut out, 112, encode_header_scalar(self.scl_slope));
+        write_field::<f32>(&mut out, 116, encode_header_scalar(self.scl_inter));
         out[123] = u8::try_from(self.xyzt_units)
             .expect("invariant: NIfTI-1 xyzt_units is set to a u8-compatible value");
         write_field::<i16>(
@@ -326,12 +385,12 @@ impl NiftiHeader {
             254,
             i16::try_from(self.sform_code).expect("invariant: NIfTI-1 sform_code fits i16"),
         );
-        write_field::<f32>(&mut out, 256, f64_to_f32(self.quatern_b, "quatern_b"));
-        write_field::<f32>(&mut out, 260, f64_to_f32(self.quatern_c, "quatern_c"));
-        write_field::<f32>(&mut out, 264, f64_to_f32(self.quatern_d, "quatern_d"));
-        write_field::<f32>(&mut out, 268, f64_to_f32(self.quatern_x, "quatern_x"));
-        write_field::<f32>(&mut out, 272, f64_to_f32(self.quatern_y, "quatern_y"));
-        write_field::<f32>(&mut out, 276, f64_to_f32(self.quatern_z, "quatern_z"));
+        write_field::<f32>(&mut out, 256, encode_header_scalar(self.quatern_b));
+        write_field::<f32>(&mut out, 260, encode_header_scalar(self.quatern_c));
+        write_field::<f32>(&mut out, 264, encode_header_scalar(self.quatern_d));
+        write_field::<f32>(&mut out, 268, encode_header_scalar(self.quatern_x));
+        write_field::<f32>(&mut out, 272, encode_header_scalar(self.quatern_y));
+        write_field::<f32>(&mut out, 276, encode_header_scalar(self.quatern_z));
         write_f32x4(&mut out, 280, self.srow_x);
         write_f32x4(&mut out, 296, self.srow_y);
         write_f32x4(&mut out, 312, self.srow_z);
@@ -361,7 +420,8 @@ impl NiftiHeader {
             168,
             i64::try_from(self.vox_offset).expect("invariant: vox_offset fits i64"),
         );
-        write_field::<f64>(&mut out, 176, 1.0);
+        write_field::<f64>(&mut out, 176, self.scl_slope);
+        write_field::<f64>(&mut out, 184, self.scl_inter);
         write_field::<i32>(&mut out, 344, self.qform_code);
         write_field::<i32>(&mut out, 348, self.sform_code);
         write_field::<f64>(&mut out, 352, self.quatern_b);
@@ -396,15 +456,36 @@ impl NiftiHeader {
         Ok(match self.datatype {
             NiftiDatatype::Uint8 => f32::from(raw[0]),
             NiftiDatatype::Int16 => f32::from(self.read_lane::<i16, 2>(checked_lane::<2>(raw)?)),
-            NiftiDatatype::Int32 => self.read_lane::<i32, 4>(checked_lane::<4>(raw)?) as f32,
+            NiftiDatatype::Int32 => {
+                intensity_from_signed_voxel(self.read_lane::<i32, 4>(checked_lane::<4>(raw)?))
+            }
             NiftiDatatype::Float32 => self.read_lane::<f32, 4>(checked_lane::<4>(raw)?),
-            NiftiDatatype::Uint32 => self.read_lane::<u32, 4>(checked_lane::<4>(raw)?) as f32,
+            NiftiDatatype::Uint32 => {
+                intensity_from_unsigned_voxel(self.read_lane::<u32, 4>(checked_lane::<4>(raw)?))
+            }
+            NiftiDatatype::Int8
+            | NiftiDatatype::Uint16
+            | NiftiDatatype::Float64
+            | NiftiDatatype::Int64
+            | NiftiDatatype::Uint64 => {
+                bail!(
+                    "NIfTI datatype {} requires the stored-sample reader",
+                    self.datatype.code()
+                )
+            }
         })
     }
 
     pub(crate) fn read_label_voxel(&self, raw: &[u8]) -> Result<u32> {
         Ok(match self.datatype {
             NiftiDatatype::Uint8 => u32::from(raw[0]),
+            NiftiDatatype::Int8 => {
+                let value = self.read_lane::<i8, 1>(checked_lane::<1>(raw)?);
+                u32::try_from(value).with_context(|| {
+                    format!("NIfTI label voxel must be non-negative, got {value}")
+                })?
+            }
+            NiftiDatatype::Uint16 => u32::from(self.read_lane::<u16, 2>(checked_lane::<2>(raw)?)),
             NiftiDatatype::Int16 => {
                 let value = self.read_lane::<i16, 2>(checked_lane::<2>(raw)?);
                 u32::try_from(value).with_context(|| {
@@ -417,22 +498,29 @@ impl NiftiHeader {
                     format!("NIfTI label voxel must be non-negative, got {value}")
                 })?
             }
-            NiftiDatatype::Float32 => self
-                .read_lane::<f32, 4>(checked_lane::<4>(raw)?)
-                .max(0.0)
-                .round() as u32,
+            NiftiDatatype::Float32 => {
+                label_value_from_intensity(self.read_lane::<f32, 4>(checked_lane::<4>(raw)?))
+            }
             NiftiDatatype::Uint32 => self.read_lane::<u32, 4>(checked_lane::<4>(raw)?),
+            NiftiDatatype::Int64 => {
+                let value = self.read_lane::<i64, 8>(checked_lane::<8>(raw)?);
+                u32::try_from(value)
+                    .with_context(|| format!("NIfTI label voxel must fit UInt32, got {value}"))?
+            }
+            NiftiDatatype::Uint64 => {
+                let value = self.read_lane::<u64, 8>(checked_lane::<8>(raw)?);
+                u32::try_from(value)
+                    .with_context(|| format!("NIfTI label voxel must fit UInt32, got {value}"))?
+            }
+            NiftiDatatype::Float64 => {
+                bail!("NIfTI Float64 labels require an explicit label conversion")
+            }
         })
     }
 
-    pub(crate) fn affine(&self) -> Result<[[f32; 4]; 4]> {
+    pub(crate) fn affine(&self) -> Result<[[f64; 4]; 4]> {
         if self.sform_code > 0 {
-            Ok([
-                f64x4_to_f32x4(self.srow_x, "srow_x")?,
-                f64x4_to_f32x4(self.srow_y, "srow_y")?,
-                f64x4_to_f32x4(self.srow_z, "srow_z")?,
-                [0.0, 0.0, 0.0, 1.0],
-            ])
+            Ok([self.srow_x, self.srow_y, self.srow_z, [0.0, 0.0, 0.0, 1.0]])
         } else if self.qform_code > 0 {
             let b = self.quatern_b;
             let c = self.quatern_c;
@@ -458,15 +546,28 @@ impl NiftiHeader {
                 [r31 * dx, r32 * dy, r33 * dz, self.quatern_z],
                 [0.0, 0.0, 0.0, 1.0],
             ];
-            f64_affine_to_f32(affine)
+            Ok(affine)
         } else {
             let [dx, dy, dz] = checked_spatial_pixdim(self.pixdim)?;
             Ok([
-                [f64_to_f32(dx, "pixdim[1]"), 0.0, 0.0, 0.0],
-                [0.0, f64_to_f32(dy, "pixdim[2]"), 0.0, 0.0],
-                [0.0, 0.0, f64_to_f32(dz, "pixdim[3]"), 0.0],
+                [dx, 0.0, 0.0, 0.0],
+                [0.0, dy, 0.0, 0.0],
+                [0.0, 0.0, dz, 0.0],
                 [0.0, 0.0, 0.0, 1.0],
             ])
+        }
+    }
+
+    pub(crate) const fn byte_order(&self) -> ByteOrder {
+        self.endian
+    }
+
+    pub(crate) fn spatial_unit_scale(&self) -> Result<f64> {
+        match self.xyzt_units & 0x07 {
+            1 => Ok(1000.0),
+            2 => Ok(1.0),
+            3 => Ok(0.001),
+            units => bail!("NIfTI spatial units code {units} is unknown or unsupported"),
         }
     }
 
@@ -505,7 +606,11 @@ impl NiftiHeader {
 #[cfg(test)]
 pub(crate) fn write_single_file_bytes(header: &NiftiHeader, data: &[u8]) -> Vec<u8> {
     let mut out = Vec::with_capacity(header.vox_offset + data.len());
-    out.extend_from_slice(&header.encode());
+    out.extend_from_slice(
+        &header
+            .encode()
+            .expect("test header fields are representable in the selected NIfTI version"),
+    );
     out.extend_from_slice(&[0, 0, 0, 0]);
     out.extend_from_slice(data);
     out
@@ -533,7 +638,12 @@ mod tests {
         )
         .expect("valid header");
 
-        let parsed = NiftiHeader::parse(&header.encode()).expect("encoded header parses");
+        let parsed = NiftiHeader::parse(
+            &header
+                .encode()
+                .expect("NIfTI-1 test header fields are representable"),
+        )
+        .expect("encoded header parses");
         assert_eq!(parsed.version, HeaderVersion::One);
         assert_eq!(parsed.dim, [3, 4, 3, 2, 1, 1, 1, 1]);
         assert_eq!(parsed.datatype, NiftiDatatype::Float32);
@@ -561,7 +671,12 @@ mod tests {
         )
         .expect("valid header");
 
-        let parsed = NiftiHeader::parse(&header.encode()).expect("encoded header parses");
+        let parsed = NiftiHeader::parse(
+            &header
+                .encode()
+                .expect("NIfTI-2 test header fields are encodable"),
+        )
+        .expect("encoded header parses");
         assert_eq!(parsed.version, HeaderVersion::Two);
         assert_eq!(parsed.dim, [3, 70_000, 3, 2, 1, 1, 1, 1]);
         assert_eq!(parsed.datatype, NiftiDatatype::Uint32);
@@ -591,6 +706,30 @@ mod tests {
             err.to_string().contains("u16"),
             "error must name NIfTI-1 dimension bound: {err}"
         );
+    }
+
+    #[test]
+    fn nifti1_rejects_finite_values_outside_binary32_range() {
+        let mut header = NiftiHeader::new_volume(
+            HeaderDims {
+                nx: 1,
+                ny: 1,
+                nz: 1,
+            },
+            NiftiDatatype::Float32,
+            HeaderSpatial {
+                pixdim: [1.0; 8],
+                srow_x: [1.0, 0.0, 0.0, 0.0],
+                srow_y: [0.0, 1.0, 0.0, 0.0],
+                srow_z: [0.0, 0.0, 1.0, 0.0],
+            },
+        )
+        .expect("valid NIfTI-1 header");
+        header.srow_x[3] = f64::MAX;
+        let error = header
+            .encode()
+            .expect_err("out-of-range geometry cannot be encoded as NIfTI-1");
+        assert!(error.to_string().contains("NIfTI-1 sform"));
     }
 }
 
@@ -625,4 +764,4 @@ macro_rules! nifti_lane {
 // bodies are the std constructors themselves; a declarative macro is the one
 // place this file needs to name each scalar, and it is generated once here
 // rather than written out four times.
-nifti_lane!(i16 => 2, i32 => 4, u32 => 4, f32 => 4);
+nifti_lane!(i8 => 1, u16 => 2, i16 => 2, u32 => 4, i32 => 4, u64 => 8, i64 => 8, f32 => 4, f64 => 8);

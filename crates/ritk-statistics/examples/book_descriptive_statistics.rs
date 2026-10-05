@@ -360,6 +360,7 @@ fn draw_statistics_table(
 }
 
 fn write_figure(path: &Path, phantom: &Phantom) -> Result<()> {
+    // ANCHOR: population_statistics
     let full = compute_statistics_from_slice(&phantom.intensities, 0)?;
     let masked = masked_statistics_from_slices(&phantom.intensities, &phantom.mask, 0)?;
     let foreground: Vec<f32> = phantom
@@ -389,6 +390,7 @@ fn write_figure(path: &Path, phantom: &Phantom) -> Result<()> {
     if masked.mean - full.mean < 45.0 || masked.percentiles[1] - full.percentiles[1] < 45.0 {
         bail!("phantom does not make full and masked populations visually distinct");
     }
+    // ANCHOR_END: population_statistics
 
     let mut svg = String::new();
     writeln!(

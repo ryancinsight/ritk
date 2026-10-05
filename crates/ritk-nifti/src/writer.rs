@@ -4,12 +4,18 @@ use flate2::write::GzEncoder;
 use flate2::Compression;
 use ritk_image::Image;
 use std::fs::File;
-use std::io::{BufWriter, Write};
+use std::io::{self, BufWriter, Write};
 use std::path::Path;
 
-use crate::header::{HeaderDims, HeaderSpatial, HeaderVersion, NiftiDatatype, NiftiHeader};
+use crate::header::{
+    HeaderDims, HeaderSpatial, HeaderVersion, NiftiDatatype, NiftiHeader, NiftiHeaderError,
+};
 use crate::shape::checked_voxel_count;
 use crate::spatial::sform_from_internal_lps_metadata;
+
+mod stored;
+
+pub use stored::{write_nifti_stored, NiftiStoredWriteError};
 
 /// Write a label map to a NIfTI-1 file with `DT_UINT32` data type.
 ///
@@ -94,17 +100,7 @@ fn write_nifti_labels_with_version<P: AsRef<Path>>(
         NiftiDatatype::Uint32,
         origin.map(f64::from),
         spacing.map(f64::from),
-        [
-            direction[0] as f64,
-            direction[1] as f64,
-            direction[2] as f64,
-            direction[3] as f64,
-            direction[4] as f64,
-            direction[5] as f64,
-            direction[6] as f64,
-            direction[7] as f64,
-            direction[8] as f64,
-        ],
+        direction.map(f64::from),
     )?;
 
     write_single_file_with(path, &header, |writer| {
@@ -396,37 +392,73 @@ fn header_from_spatial_with_volumes(
         datatype,
         HeaderSpatial {
             pixdim,
-            srow_x: sform.x.map(f64::from),
-            srow_y: sform.y.map(f64::from),
-            srow_z: sform.z.map(f64::from),
+            srow_x: sform.x,
+            srow_y: sform.y,
+            srow_z: sform.z,
         },
     )
 }
 
-fn write_single_file_with<P, F>(path: P, header: &NiftiHeader, write_payload: F) -> Result<()>
+fn write_single_file_with<P, F, E>(
+    path: P,
+    header: &NiftiHeader,
+    write_payload: F,
+) -> std::result::Result<(), E>
 where
     P: AsRef<Path>,
-    F: FnOnce(&mut dyn Write) -> Result<()>,
+    F: FnOnce(&mut NiftiOutput) -> std::result::Result<(), E>,
+    E: From<std::io::Error> + From<NiftiHeaderError>,
 {
     let path = path.as_ref();
-    if is_gzip_path(path) {
+    let header_bytes = header.encode()?;
+    let mut output = if is_gzip_path(path) {
         let file = File::create(path)?;
-        let mut encoder = GzEncoder::new(BufWriter::new(file), Compression::fast());
-        write_header(&mut encoder, header)?;
-        write_payload(&mut encoder)?;
-        encoder.finish()?;
+        NiftiOutput::Gzip(GzEncoder::new(BufWriter::new(file), Compression::fast()))
     } else {
         let file = File::create(path)?;
-        let mut writer = BufWriter::new(file);
-        write_header(&mut writer, header)?;
-        write_payload(&mut writer)?;
-        writer.flush()?;
-    }
+        NiftiOutput::Plain(BufWriter::new(file))
+    };
+    write_header(&mut output, &header_bytes)?;
+    write_payload(&mut output)?;
+    output.finish()?;
     Ok(())
 }
 
-fn write_header(mut writer: impl Write, header: &NiftiHeader) -> Result<()> {
-    writer.write_all(&header.encode())?;
+enum NiftiOutput {
+    Plain(BufWriter<File>),
+    Gzip(GzEncoder<BufWriter<File>>),
+}
+
+impl Write for NiftiOutput {
+    fn write(&mut self, bytes: &[u8]) -> io::Result<usize> {
+        match self {
+            Self::Plain(writer) => writer.write(bytes),
+            Self::Gzip(writer) => writer.write(bytes),
+        }
+    }
+
+    fn flush(&mut self) -> io::Result<()> {
+        match self {
+            Self::Plain(writer) => writer.flush(),
+            Self::Gzip(writer) => writer.flush(),
+        }
+    }
+}
+
+impl NiftiOutput {
+    fn finish(self) -> io::Result<()> {
+        match self {
+            Self::Plain(mut writer) => writer.flush(),
+            Self::Gzip(encoder) => {
+                let mut writer = encoder.finish()?;
+                writer.flush()
+            }
+        }
+    }
+}
+
+fn write_header(mut writer: impl Write, header: &[u8]) -> std::io::Result<()> {
+    writer.write_all(header)?;
     writer.write_all(&[0, 0, 0, 0])?;
     Ok(())
 }

@@ -3,6 +3,7 @@
 //! Each predicate names the violated invariant and the offending value in its
 //! error, per the project error-handling discipline.
 
+use super::convert::voxel_offset;
 use super::{HeaderDims, HeaderVersion, NiftiDatatype};
 use anyhow::{anyhow, bail, Context, Result};
 
@@ -142,15 +143,17 @@ pub(super) fn validate_bitpix(datatype: NiftiDatatype, bitpix: i16) -> Result<()
 
 pub(super) fn validate_vox_offset(version: HeaderVersion, vox_offset: f64) -> Result<usize> {
     let minimum = version.single_file_vox_offset();
-    if !vox_offset.is_finite() || vox_offset < minimum as f64 {
+    let minimum_in_file =
+        f64::from(u32::try_from(minimum).context("NIfTI minimum voxel offset must fit u32")?);
+    if !vox_offset.is_finite() || vox_offset < minimum_in_file {
         bail!("NIfTI vox_offset must be at least {minimum}, got {vox_offset}");
     }
     if vox_offset.fract() != 0.0 {
         bail!("NIfTI vox_offset must be an integer byte offset, got {vox_offset}");
     }
 
-    usize::try_from(vox_offset as u128)
-        .map_err(|_| anyhow!("NIfTI vox_offset does not fit usize, got {vox_offset}"))
+    voxel_offset(vox_offset)
+        .ok_or_else(|| anyhow!("NIfTI vox_offset does not fit usize, got {vox_offset}"))
 }
 
 pub(super) fn validate_i64_vox_offset(version: HeaderVersion, vox_offset: i64) -> Result<usize> {

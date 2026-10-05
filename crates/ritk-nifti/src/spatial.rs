@@ -23,19 +23,23 @@ pub(crate) struct InternalSpatialMetadata {
 
 #[derive(Clone, Copy, Debug, PartialEq)]
 pub(crate) struct NiftiSformRows {
-    pub(crate) x: [f32; 4],
-    pub(crate) y: [f32; 4],
-    pub(crate) z: [f32; 4],
+    pub(crate) x: [f64; 4],
+    pub(crate) y: [f64; 4],
+    pub(crate) z: [f64; 4],
 }
 
 /// Convert a NIfTI RAS affine into RITK LPS metadata for internal `[z,y,x]`
 /// tensor axes.
 pub(crate) fn metadata_from_nifti_ras_affine(
-    affine: [[f32; 4]; 4],
+    affine: [[f64; 4]; 4],
+    millimeters_per_unit: f64,
 ) -> Result<InternalSpatialMetadata> {
-    ensure_finite_affine(affine)?;
+    ensure_finite_affine(affine, millimeters_per_unit)?;
 
-    let lps_file = ras_affine_to_lps_file_axes(affine);
+    let lps_file = ras_affine_to_lps_file_axes(affine, millimeters_per_unit);
+    if lps_file.iter().flatten().any(|value| !value.is_finite()) {
+        bail!("NIfTI affine overflows when spatial units are converted to millimeters");
+    }
     let origin = Point::new([lps_file[0][3], lps_file[1][3], lps_file[2][3]]);
 
     let scaled_columns = [
@@ -91,50 +95,53 @@ pub(crate) fn sform_from_internal_lps_metadata(
 
     NiftiSformRows {
         x: [
-            -(file_columns[0][0] as f32),
-            -(file_columns[1][0] as f32),
-            -(file_columns[2][0] as f32),
-            -(origin[0] as f32),
+            -file_columns[0][0],
+            -file_columns[1][0],
+            -file_columns[2][0],
+            -origin[0],
         ],
         y: [
-            -(file_columns[0][1] as f32),
-            -(file_columns[1][1] as f32),
-            -(file_columns[2][1] as f32),
-            -(origin[1] as f32),
+            -file_columns[0][1],
+            -file_columns[1][1],
+            -file_columns[2][1],
+            -origin[1],
         ],
         z: [
-            file_columns[0][2] as f32,
-            file_columns[1][2] as f32,
-            file_columns[2][2] as f32,
-            origin[2] as f32,
+            file_columns[0][2],
+            file_columns[1][2],
+            file_columns[2][2],
+            origin[2],
         ],
     }
 }
 
-fn ras_affine_to_lps_file_axes(affine: [[f32; 4]; 4]) -> [[f64; 4]; 3] {
+fn ras_affine_to_lps_file_axes(affine: [[f64; 4]; 4], millimeters_per_unit: f64) -> [[f64; 4]; 3] {
     [
         [
-            -(affine[0][0] as f64),
-            -(affine[0][1] as f64),
-            -(affine[0][2] as f64),
-            -(affine[0][3] as f64),
+            -affine[0][0] * millimeters_per_unit,
+            -affine[0][1] * millimeters_per_unit,
+            -affine[0][2] * millimeters_per_unit,
+            -affine[0][3] * millimeters_per_unit,
         ],
         [
-            -(affine[1][0] as f64),
-            -(affine[1][1] as f64),
-            -(affine[1][2] as f64),
-            -(affine[1][3] as f64),
+            -affine[1][0] * millimeters_per_unit,
+            -affine[1][1] * millimeters_per_unit,
+            -affine[1][2] * millimeters_per_unit,
+            -affine[1][3] * millimeters_per_unit,
         ],
         [
-            affine[2][0] as f64,
-            affine[2][1] as f64,
-            affine[2][2] as f64,
-            affine[2][3] as f64,
+            affine[2][0] * millimeters_per_unit,
+            affine[2][1] * millimeters_per_unit,
+            affine[2][2] * millimeters_per_unit,
+            affine[2][3] * millimeters_per_unit,
         ],
     ]
 }
 
-fn ensure_finite_affine(affine: [[f32; 4]; 4]) -> Result<()> {
+fn ensure_finite_affine(affine: [[f64; 4]; 4], millimeters_per_unit: f64) -> Result<()> {
+    if !millimeters_per_unit.is_finite() || millimeters_per_unit <= 0.0 {
+        bail!("NIfTI spatial unit scale must be positive and finite, got {millimeters_per_unit}");
+    }
     for (row_idx, row) in affine.iter().enumerate() {
         for (col_idx, &value) in row.iter().enumerate() {
             if !value.is_finite() {
@@ -188,7 +195,7 @@ mod tests {
             [0.0, 0.0, 0.0, 1.0],
         ];
 
-        let metadata = metadata_from_nifti_ras_affine(affine)
+        let metadata = metadata_from_nifti_ras_affine(affine, 1.0)
             .expect("positive finite affine must produce spatial metadata");
 
         assert_close(metadata.origin[0], 10.0);
@@ -211,7 +218,7 @@ mod tests {
             [0.0, 0.0, 0.0, 1.0],
         ];
 
-        let err = metadata_from_nifti_ras_affine(affine)
+        let err = metadata_from_nifti_ras_affine(affine, 1.0)
             .expect_err("zero NIfTI z column must be rejected");
 
         assert!(
@@ -221,21 +228,51 @@ mod tests {
     }
 
     #[test]
+    fn spatial_units_are_normalized_to_millimeters() {
+        let affine = [
+            [-1.0, 0.0, 0.0, -0.01],
+            [0.0, -2.0, 0.0, -0.02],
+            [0.0, 0.0, 3.0, 0.03],
+            [0.0, 0.0, 0.0, 1.0],
+        ];
+        let metadata = metadata_from_nifti_ras_affine(affine, 1000.0)
+            .expect("meter coordinates convert to finite millimeters");
+        assert_eq!(metadata.origin, Point::new([10.0, 20.0, 30.0]));
+        assert_eq!(
+            metadata.spacing,
+            Spacing::try_new([3000.0, 2000.0, 1000.0]).expect("positive millimeter spacing")
+        );
+    }
+
+    #[test]
     fn non_finite_affine_entry_is_rejected() {
         let affine = [
-            [1.0, 0.0, 0.0, f32::NAN],
+            [1.0, 0.0, 0.0, f64::NAN],
             [0.0, 1.0, 0.0, 0.0],
             [0.0, 0.0, 1.0, 0.0],
             [0.0, 0.0, 0.0, 1.0],
         ];
 
-        let err = metadata_from_nifti_ras_affine(affine)
+        let err = metadata_from_nifti_ras_affine(affine, 1.0)
             .expect_err("non-finite NIfTI affine entry must be rejected");
 
         assert!(
             err.to_string().contains("must be finite"),
             "error must name finite affine invariant: {err}"
         );
+    }
+
+    #[test]
+    fn non_finite_spatial_unit_scale_is_rejected() {
+        let affine = [
+            [1.0, 0.0, 0.0, 0.0],
+            [0.0, 1.0, 0.0, 0.0],
+            [0.0, 0.0, 1.0, 0.0],
+            [0.0, 0.0, 0.0, 1.0],
+        ];
+        let err = metadata_from_nifti_ras_affine(affine, f64::INFINITY)
+            .expect_err("non-finite unit scale must not enter spatial metadata");
+        assert!(err.to_string().contains("unit scale"));
     }
 
     #[test]

@@ -6337,9 +6337,13 @@ dependencies = [
  "coeus-core",
  "consus-core",
  "flate2",
+ "proptest",
+ "ritk-codecs",
  "ritk-image",
+ "ritk-image-io",
  "ritk-spatial",
  "tempfile",
+ "thiserror 2.0.21",
  "tracing",
 ]
 

@@ -1,8 +1,8 @@
 # NIfTI Format Boundary
 
-`ritk-nifti` is RITK's native single-source-of-truth implementation for the
-single-file NIfTI boundary. It reads NIfTI-1 and NIfTI-2 `.nii` files, detects
-gzip-wrapped `.nii.gz` input, and writes either header version explicitly.
+`ritk-nifti` implements RITK's single-file NIfTI reader and writer. It reads
+NIfTI-1 and NIfTI-2 `.nii` files, detects gzip-wrapped `.nii.gz` input, and
+writes either header version explicitly.
 
 ## Ownership
 
@@ -10,11 +10,12 @@ gzip-wrapped `.nii.gz` input, and writes either header version explicitly.
 is a facade re-export. Analyze 7.5 `.hdr`/`.img` pairs belong to
 `ritk-analyze`; they are not interpreted as NIfTI by this crate.
 
-The native codec supports:
+The codec supports:
 
 - three-dimensional `f32` scalar images;
 - four-dimensional `f32` acquisition series;
 - three-dimensional `u32` label maps;
+- three-dimensional typed stored volumes covering all ten RITK scalar types;
 - NIfTI sform and qform spatial metadata; and
 - NIfTI-1 and NIfTI-2 single-file streams, compressed or uncompressed.
 
@@ -34,6 +35,59 @@ order.
 RITK physical metadata uses LPS coordinates, while NIfTI affines use RAS.
 The boundary performs the LPS/RAS sign conversion; callers must not pre-flip
 their images.
+
+## Exact Stored Samples
+
+The legacy `read_nifti` API returns `f32` images. Use the stored-volume API
+when the on-disk sample representation must remain exact. It reads only one
+rank-three volume and retains the sample type and every stored bit pattern;
+calibration remains separate from the sample buffer.
+
+| NIfTI scalar datatype | RITK stored type |
+|---|---|
+| `DT_UINT8` | `u8` |
+| `DT_INT8` | `i8` |
+| `DT_UINT16` | `u16` |
+| `DT_INT16` | `i16` |
+| `DT_UINT32` | `u32` |
+| `DT_INT32` | `i32` |
+| `DT_UINT64` | `u64` |
+| `DT_INT64` | `i64` |
+| `DT_FLOAT32` | `f32` |
+| `DT_FLOAT64` | `f64` |
+
+The reader accepts single-file `.nii` and gzip-compressed `.nii.gz`. It checks
+the encoded and decoded byte limits from the header before allocating the
+sample buffer. NIfTI extension records are rejected because
+`StoredVolume` has no extension-metadata field; returning the voxel values
+while silently dropping an extension would not preserve the input.
+
+`write_nifti_stored` writes NIfTI-2 so the affine and linear calibration fields
+retain their `f64` values. `.nii.gz` selects gzip output. The writer preserves
+Cartesian LPS-millimeter geometry, sample type, and sample bits. NIfTI provides
+one global linear intensity transform: identity and nonzero linear calibration
+are representable, and identical per-frame transforms collapse to that global
+transform. Modality lookup tables, varying per-frame transforms, zero-slope
+linear calibration, and non-Cartesian coordinate maps are rejected before the
+destination is created or truncated. A zero `scl_slope` disables NIfTI scaling,
+so it cannot represent a non-identity zero-slope transform.
+
+```rust,ignore
+{{#include ../../crates/ritk-nifti/examples/nifti_stored_roundtrip.rs}}
+```
+
+Run the same source used by this page with an input NIfTI volume and an output
+path:
+
+```bash
+cargo run -p ritk-nifti --example nifti_stored_roundtrip -- scan.nii.gz copy.nii.gz
+```
+
+NIfTI datatype codes follow the [NIfTI-1 specification](https://nifti.nimh.nih.gov/dfwg/presentations/nifti1_cox.pdf/download).
+NIfTI-2 widens the header fields for 64-bit storage and addressing, as defined
+by the [NIfTI-2 format specification](https://nifti.nimh.nih.gov/nifti-2/index_html/view.html).
+The `scl_slope` and `scl_inter` behavior follows the official
+[data-scaling description](https://nifti.nimh.nih.gov/dfwg/presentations/nifti-1-rationale.html).
 
 ## Acquisition Series
 
