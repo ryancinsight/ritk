@@ -31,6 +31,19 @@ fn unsigned_scalar(
         .map_err(Into::into)
 }
 
+fn pixel_scalar(
+    object: &dicom::object::DefaultDicomObject,
+    tag: Tag,
+    name: &'static str,
+) -> Result<u16> {
+    object
+        .element(tag)
+        .map_err(|_| DicomWriteError::MissingPixelAttribute { attribute: name })?
+        .to_int::<u16>()
+        .map_err(|_| DicomWriteError::InvalidPixelAttribute { attribute: name })
+        .map_err(Into::into)
+}
+
 fn validate_pixel_module(object: &dicom::object::DefaultDicomObject) -> Result<()> {
     let Ok(pixel_data) = object.element(Tag(0x7FE0, 0x0010)) else {
         return Ok(());
@@ -52,15 +65,42 @@ fn validate_pixel_module(object: &dicom::object::DefaultDicomObject) -> Result<(
         }
         .into());
     }
+    let rows = pixel_scalar(object, Tag(0x0028, 0x0010), "Rows")?;
+    let columns = pixel_scalar(object, Tag(0x0028, 0x0011), "Columns")?;
+    let samples_per_pixel = pixel_scalar(object, Tag(0x0028, 0x0002), "SamplesPerPixel")?;
+    if rows == 0 || columns == 0 || samples_per_pixel == 0 {
+        return Err(DicomWriteError::InvalidPixelAttribute {
+            attribute: if rows == 0 {
+                "Rows"
+            } else if columns == 0 {
+                "Columns"
+            } else {
+                "SamplesPerPixel"
+            },
+        }
+        .into());
+    }
+    let number_of_frames = match object.element(Tag(0x0028, 0x0008)) {
+        Ok(element) => {
+            element
+                .to_int::<u16>()
+                .map_err(|_| DicomWriteError::InvalidPixelAttribute {
+                    attribute: "NumberOfFrames",
+                })?
+        }
+        Err(_) => 1,
+    };
+    if number_of_frames == 0 {
+        return Err(DicomWriteError::InvalidPixelAttribute {
+            attribute: "NumberOfFrames",
+        }
+        .into());
+    }
     if matches!(pixel_data.vr(), VR::OB | VR::OW) {
-        let (Ok(rows), Ok(columns)) = (
-            unsigned_scalar(object, Tag(0x0028, 0x0010), "Rows"),
-            unsigned_scalar(object, Tag(0x0028, 0x0011), "Columns"),
-        ) else {
-            return Ok(());
-        };
         let samples = usize::from(rows)
             .checked_mul(usize::from(columns))
+            .and_then(|value| value.checked_mul(usize::from(number_of_frames)))
+            .and_then(|value| value.checked_mul(usize::from(samples_per_pixel)))
             .ok_or(DicomWriteError::PixelCountOverflow)?;
         let expected = if bits_allocated == 1 {
             samples
@@ -72,13 +112,11 @@ fn validate_pixel_module(object: &dicom::object::DefaultDicomObject) -> Result<(
                 .checked_mul(usize::from(bits_allocated / 8))
                 .ok_or(DicomWriteError::PixelCountOverflow)?
         };
-        let actual = pixel_data
-            .to_bytes()
-            .map_err(|_| DicomWriteError::PixelPayloadLengthMismatch {
-                expected,
-                actual: 0,
-            })?
-            .len();
+        let Ok(bytes) = pixel_data.to_bytes() else {
+            // Encapsulated transfer syntaxes expose fragments, not native bytes.
+            return Ok(());
+        };
+        let actual = bytes.len();
         if actual != expected {
             return Err(DicomWriteError::PixelPayloadLengthMismatch { expected, actual }.into());
         }

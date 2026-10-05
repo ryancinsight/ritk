@@ -125,4 +125,10 @@ pub enum DicomWriteError {
         /// Serialized byte count.
         actual: usize,
     },
+    /// A required image-pixel dimension or multiplicity is zero or malformed.
+    #[error("DICOM {attribute} must be a positive unsigned value")]
+    InvalidPixelAttribute {
+        /// Name of the invalid attribute.
+        attribute: &'static str,
+    },
 }
