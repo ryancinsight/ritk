@@ -1,3 +1,5 @@
+\\?\C:\Users\RyanClanton\AppData\Local\Temp\dicom-mod-lf.rs:
+
 //! DICOM series writer using dicom-rs v0.8.2.
 //! Transfer syntax: Explicit VR LE. Each .dcm has 128-byte preamble + DICM magic.
 
