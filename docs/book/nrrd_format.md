@@ -7,6 +7,19 @@ Single source of truth for NRRD file I/O.
 `ritk-nrrd` owns the NRRD file reader and writer. `ritk-io::format::nrrd`
 is a facade re-export.
 
+`read_nrrd_header` parses the bounded header without decoding the payload. Its
+result exposes canonical standard fields, the declared format version,
+comment lines, an effective custom key/value map, and source-ordered decoded
+key/value records, including repeated keys. The effective map follows NRRD's
+rule that the last value for a repeated key is the stored value; the record
+list retains earlier values for inspection during format conversion. The
+parser limits headers to 16 MiB and 65,536 retained entries across standard
+fields, comments, and key/value records. These header records do not imply
+that payload conversion preserves every format's metadata.
+
+The repeated-key and comment rules follow [Section 1.2 of the Teem NRRD format
+specification](https://teem.sourceforge.net/nrrd/format.html#basic-header-structure).
+
 ## Spatial Contract
 
 NRRD file-axis `[x,y,z]` maps to RITK `[depth,row,col]` via `crates/ritk-nrrd/src/spatial.rs`.

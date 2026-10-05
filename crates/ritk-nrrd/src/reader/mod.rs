@@ -7,7 +7,9 @@ mod stored;
 mod volume;
 
 pub use diffusion::read_nrrd_gradient_scheme;
-pub use header::{read_nrrd_header_map, NrrdHeaderError};
+pub use header::{
+    read_nrrd_header, read_nrrd_header_map, NrrdHeader, NrrdHeaderError, NrrdKeyValueRecord,
+};
 pub(crate) use header::{MAX_HEADER_BYTES, MAX_HEADER_ENTRIES};
 pub use stored::{
     read_nrrd_stored, read_nrrd_stored_series, NrrdSpatialMetadataField, NrrdStoredReadError,

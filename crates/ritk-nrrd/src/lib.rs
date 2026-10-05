@@ -67,9 +67,9 @@ pub mod writer;
 
 pub use dip::{NrrdDipReader, NrrdDipWriter};
 pub use reader::{
-    read_nrrd, read_nrrd_gradient_scheme, read_nrrd_header_map, read_nrrd_series, read_nrrd_stored,
-    read_nrrd_stored_series, NrrdHeaderError, NrrdReader, NrrdSpatialMetadataField,
-    NrrdStoredReadError,
+    read_nrrd, read_nrrd_gradient_scheme, read_nrrd_header, read_nrrd_header_map, read_nrrd_series,
+    read_nrrd_stored, read_nrrd_stored_series, NrrdHeader, NrrdHeaderError, NrrdKeyValueRecord,
+    NrrdReader, NrrdSpatialMetadataField, NrrdStoredReadError,
 };
 pub use writer::{
     write_nrrd, write_nrrd_series, write_nrrd_stored, write_nrrd_stored_series,
