@@ -201,17 +201,6 @@
 - next: separate image-data conversion contracts from mesh and scene readers.
 - basis: c58d8906bee373a7d2f87468fafc140310b9ec70
 
-<a id="RITK-JPEG-LOSSY-ORACLE-001"></a>
-## RITK-JPEG-LOSSY-ORACLE-001: Derive JPEG reconstruction checks
-- outcome: make JPEG lossy round-trip assertions derive from quantization and transform error or an independent reference decoder.
-- acceptance: quality-75 reconstruction bounds have a reproducible oracle and a mutation in quantization or IDCT violates it.
-- status: todo
-- priority: correctness
-- needs: none
-- scope: crates/ritk-jpeg/src/, JPEG tests and manual
-- next: derive the reconstruction bound from quantization tables and encoder/decoder arithmetic; replace the unexplained pixel threshold.
-- basis: c58d8906bee373a7d2f87468fafc140310b9ec70
-
 <a id="RITK-RASTER-CONVERSION-001"></a>
 ## RITK-RASTER-CONVERSION-001: Convert PNG, TIFF, and JPEG rasters
 - outcome: convert raster formats through a typed model that distinguishes color, sample depth, and frame structure.
