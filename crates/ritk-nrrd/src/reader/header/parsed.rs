@@ -56,7 +56,7 @@ impl NrrdHeader {
         &self.key_value_records
     }
 
-    /// Returns comment lines in source order, including each leading `#`.
+    /// Returns non-empty comment lines in source order, including each leading `#`.
     #[must_use]
     pub fn comments(&self) -> &[String] {
         &self.comments

@@ -5,7 +5,9 @@ use std::path::{Path, PathBuf};
 use thiserror::Error;
 
 mod parsed;
+mod records;
 pub use parsed::{NrrdHeader, NrrdKeyValueRecord};
+use records::insert_key_value;
 
 /// Maximum bytes retained while parsing one NRRD header.
 ///
@@ -237,19 +239,21 @@ pub(super) fn parse_nrrd_header_from_reader<R: BufRead>(
             return Ok(header);
         }
         if text.starts_with('#') {
-            reserve_entry(
-                header.fields.len(),
-                header.key_value_records.len(),
-                header.comments.len(),
-            )?;
-            header
-                .comments
-                .try_reserve(1)
-                .map_err(|source| NrrdHeaderError::Allocation {
-                    operation: "comment table",
-                    source,
-                })?;
-            header.comments.push(copy_string(text, "comment line")?);
+            if !text.trim_start_matches(['#', ' ']).is_empty() {
+                reserve_entry(
+                    header.fields.len(),
+                    header.key_value_records.len(),
+                    header.comments.len(),
+                )?;
+                header
+                    .comments
+                    .try_reserve(1)
+                    .map_err(|source| NrrdHeaderError::Allocation {
+                        operation: "comment table",
+                        source,
+                    })?;
+                header.comments.push(copy_string(text, "comment line")?);
+            }
             continue;
         }
         if let Some((key, value)) = text.split_once(":=") {
@@ -334,6 +338,11 @@ fn insert_field(
         return Err(NrrdHeaderError::MalformedLine { line_number });
     }
     let field = canonical_field_name(field);
+    reserve_entry(
+        header.fields.len(),
+        header.key_value_records.len(),
+        header.comments.len(),
+    )?;
     if let Some(minimum_version) = minimum_field_version(field)
         && format_version < minimum_version
     {
@@ -348,11 +357,6 @@ fn insert_field(
     if header.fields.contains_key(&key) {
         return Err(NrrdHeaderError::DuplicateField { field: key });
     }
-    reserve_entry(
-        header.fields.len(),
-        header.key_value_records.len(),
-        header.comments.len(),
-    )?;
     header
         .fields
         .try_reserve(1)
@@ -378,90 +382,43 @@ fn canonical_field_name(field: &str) -> &str {
         "axis maxs"
     } else if field.eq_ignore_ascii_case("centerings") {
         "centers"
+    } else if field.eq_ignore_ascii_case("blocksize") {
+        "block size"
+    } else if field.eq_ignore_ascii_case("oldmin") {
+        "old min"
+    } else if field.eq_ignore_ascii_case("oldmax") {
+        "old max"
+    } else if field.eq_ignore_ascii_case("sampleunits") {
+        "sample units"
     } else {
         field
     }
 }
 
 fn minimum_field_version(field: &str) -> Option<u8> {
-    match field.to_ascii_lowercase().as_str() {
-        "kinds" => Some(3),
-        "thicknesses" | "sample units" | "space" | "space dimension" | "space directions"
-        | "space origin" | "space units" => Some(4),
-        "measurement frame" => Some(5),
-        _ => None,
+    if field.eq_ignore_ascii_case("kinds") {
+        Some(3)
+    } else if [
+        "thicknesses",
+        "sample units",
+        "space",
+        "space dimension",
+        "space directions",
+        "space origin",
+        "space units",
+    ]
+    .iter()
+    .any(|name| field.eq_ignore_ascii_case(name))
+    {
+        Some(4)
+    } else if field.eq_ignore_ascii_case("measurement frame") {
+        Some(5)
+    } else {
+        None
     }
 }
 
-fn insert_key_value(
-    header: &mut NrrdHeader,
-    key: &str,
-    value: &str,
-    line_number: usize,
-) -> Result<(), NrrdHeaderError> {
-    if key.is_empty() {
-        return Err(NrrdHeaderError::EmptyKey { line_number });
-    }
-    let key = unescape_key_value(key, line_number)?;
-    let value = unescape_key_value(value, line_number)?;
-    reserve_entry(
-        header.fields.len(),
-        header.key_value_records.len(),
-        header.comments.len(),
-    )?;
-    if !header.key_values.contains_key(&key) {
-        header
-            .key_values
-            .try_reserve(1)
-            .map_err(|source| NrrdHeaderError::Allocation {
-                operation: "key/value table",
-                source,
-            })?;
-    }
-    header
-        .key_value_records
-        .try_reserve(1)
-        .map_err(|source| NrrdHeaderError::Allocation {
-            operation: "key/value record table",
-            source,
-        })?;
-    let record_key = copy_string(&key, "key/value record key")?;
-    let record_value = copy_string(&value, "key/value record value")?;
-    header
-        .key_value_records
-        .push(NrrdKeyValueRecord::new(record_key, record_value));
-    header.key_values.insert(key, value);
-    Ok(())
-}
-
-fn unescape_key_value(value: &str, line_number: usize) -> Result<String, NrrdHeaderError> {
-    let mut decoded = String::new();
-    decoded
-        .try_reserve_exact(value.len())
-        .map_err(|source| NrrdHeaderError::Allocation {
-            operation: "key/value string",
-            source,
-        })?;
-    let bytes = value.as_bytes();
-    let mut index = 0_usize;
-    while let Some(byte) = bytes.get(index).copied() {
-        if byte != b'\\' {
-            decoded.push(char::from(byte));
-            index += 1;
-            continue;
-        }
-        index += 1;
-        match bytes.get(index).copied() {
-            Some(b'n') => decoded.push('\n'),
-            Some(b'\\') => decoded.push('\\'),
-            Some(_) | None => return Err(NrrdHeaderError::InvalidKeyValueEscape { line_number }),
-        }
-        index += 1;
-    }
-    Ok(decoded)
-}
-
-fn reserve_entry(
+pub(super) fn reserve_entry(
     field_count: usize,
     key_value_count: usize,
     comment_count: usize,
@@ -481,7 +438,7 @@ fn reserve_entry(
     Ok(())
 }
 
-fn copy_string(value: &str, operation: &'static str) -> Result<String, NrrdHeaderError> {
+pub(super) fn copy_string(value: &str, operation: &'static str) -> Result<String, NrrdHeaderError> {
     let mut copied = String::new();
     copied
         .try_reserve_exact(value.len())
