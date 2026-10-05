@@ -5,6 +5,22 @@ use std::io::Cursor;
 use super::{parse_nrrd_header_from_reader, NrrdHeaderError, MAX_HEADER_BYTES, MAX_HEADER_ENTRIES};
 
 #[test]
+fn non_ascii_header_lines_are_rejected() {
+    for input in [
+        b"NRRD0005\n# caf\xc3\xa9\n\n".as_slice(),
+        b"NRRD0005\ncontent: caf\xc3\xa9\n\n",
+        b"NRRD0005\ncustom:=caf\xc3\xa9\n\n",
+    ] {
+        let mut reader = Cursor::new(input);
+
+        assert!(matches!(
+            parse_nrrd_header_from_reader(&mut reader),
+            Err(NrrdHeaderError::NonAsciiLine { line_number: 2 })
+        ));
+    }
+}
+
+#[test]
 fn public_header_reader_retains_comments_and_repeated_custom_records() {
     let directory = tempfile::tempdir().expect("create header test directory");
     let path = directory.path().join("metadata.nrrd");
@@ -72,24 +88,111 @@ fn repeated_custom_records_count_toward_the_header_entry_limit() {
 
 #[test]
 fn comments_count_toward_the_header_entry_limit() {
-    let mut accepted = Vec::with_capacity(MAX_HEADER_ENTRIES * 2 + 10);
+    let mut accepted = Vec::with_capacity(MAX_HEADER_ENTRIES * 4 + 10);
     accepted.extend_from_slice(b"NRRD0005\n");
     for _ in 0..MAX_HEADER_ENTRIES {
-        accepted.extend_from_slice(b"#\n");
+        accepted.extend_from_slice(b"# x\n");
     }
     accepted.push(b'\n');
     let mut reader = Cursor::new(accepted);
     let header = parse_nrrd_header_from_reader(&mut reader).expect("limit permits exact count");
     assert_eq!(header.comments.len(), MAX_HEADER_ENTRIES);
 
-    let mut rejected = Vec::with_capacity((MAX_HEADER_ENTRIES + 1) * 2 + 10);
+    let mut rejected = Vec::with_capacity((MAX_HEADER_ENTRIES + 1) * 4 + 10);
     rejected.extend_from_slice(b"NRRD0005\n");
     for _ in 0..=MAX_HEADER_ENTRIES {
-        rejected.extend_from_slice(b"#\n");
+        rejected.extend_from_slice(b"# x\n");
     }
     rejected.push(b'\n');
     let mut reader = Cursor::new(rejected);
 
+    assert!(matches!(
+        parse_nrrd_header_from_reader(&mut reader),
+        Err(NrrdHeaderError::TooManyEntries { maximum_entries })
+            if maximum_entries == MAX_HEADER_ENTRIES
+    ));
+}
+
+#[test]
+fn entry_capacity_rejects_before_malformed_record_decoding() {
+    let mut input = Vec::with_capacity(MAX_HEADER_ENTRIES * 4 + 32);
+    input.extend_from_slice(b"NRRD0005\n");
+    for _ in 0..MAX_HEADER_ENTRIES {
+        input.extend_from_slice(b"# x\n");
+    }
+    input.extend_from_slice(b"custom:=\\q\n\n");
+    let mut reader = Cursor::new(input);
+
+    assert!(matches!(
+        parse_nrrd_header_from_reader(&mut reader),
+        Err(NrrdHeaderError::TooManyEntries { maximum_entries })
+            if maximum_entries == MAX_HEADER_ENTRIES
+    ));
+}
+
+#[test]
+fn ignored_comments_count_toward_the_header_byte_limit() {
+    let prefix = b"NRRD0005\n";
+    let suffix = b"\n\n";
+    let comment_bytes = MAX_HEADER_BYTES - prefix.len() - suffix.len();
+    let mut input = Vec::with_capacity(MAX_HEADER_BYTES + 1);
+    input.extend_from_slice(prefix);
+    input.resize(input.len() + comment_bytes, b'#');
+    input.extend_from_slice(suffix);
+    let mut reader = Cursor::new(&input);
+    let header = parse_nrrd_header_from_reader(&mut reader).expect("exact byte limit is valid");
+    assert!(header.comments.is_empty());
+
+    input.insert(input.len() - suffix.len(), b'#');
+    let mut reader = Cursor::new(input);
+    assert!(matches!(
+        parse_nrrd_header_from_reader(&mut reader),
+        Err(NrrdHeaderError::HeaderTooLarge { maximum_bytes })
+            if maximum_bytes == MAX_HEADER_BYTES
+    ));
+}
+
+#[test]
+fn empty_comment_strings_are_ignored_and_do_not_consume_entry_capacity() {
+    let mut input = Vec::with_capacity((MAX_HEADER_ENTRIES + 1) * 2 + 32);
+    input.extend_from_slice(b"NRRD0005\ndimension: 3\n");
+    for _ in 0..=MAX_HEADER_ENTRIES {
+        input.extend_from_slice(b"# \n");
+    }
+    input.push(b'\n');
+    let mut reader = Cursor::new(input);
+
+    let header = parse_nrrd_header_from_reader(&mut reader)
+        .expect("empty comment strings are not retained entries");
+    assert_eq!(
+        header.fields.get("dimension").map(String::as_str),
+        Some("3")
+    );
+    assert!(header.comments.is_empty());
+}
+
+#[test]
+fn fields_comments_and_records_share_the_entry_limit() {
+    let record_count = MAX_HEADER_ENTRIES - 2;
+    let mut accepted = Vec::with_capacity(record_count * 10 + 32);
+    accepted.extend_from_slice(b"NRRD0005\ndimension: 3\n# retained\n");
+    for _ in 0..record_count {
+        accepted.extend_from_slice(b"custom:=x\n");
+    }
+    accepted.push(b'\n');
+    let mut reader = Cursor::new(accepted);
+    let header = parse_nrrd_header_from_reader(&mut reader).expect("exact combined limit is valid");
+    assert_eq!(header.fields.len(), 1);
+    assert_eq!(header.comments.len(), 1);
+    assert_eq!(header.key_value_records.len(), record_count);
+
+    let mut rejected = Vec::with_capacity((record_count + 1) * 10 + 32);
+    rejected.extend_from_slice(b"NRRD0005\ndimension: 3\n# retained\n");
+    for _ in 0..=record_count {
+        rejected.extend_from_slice(b"custom:=x\n");
+    }
+    rejected.push(b'\n');
+    let mut reader = Cursor::new(rejected);
     assert!(matches!(
         parse_nrrd_header_from_reader(&mut reader),
         Err(NrrdHeaderError::TooManyEntries { maximum_entries })
@@ -138,6 +241,7 @@ custom: name:=value
     assert_eq!(header.key_value_records[0].key(), "custom: name");
     assert_eq!(header.key_value_records[0].value(), "value");
 }
+
 #[test]
 fn header_key_values_preserve_case_unescape_and_last_value() {
     let input = b"NRRD0005\nDWMRI_gradient_0000:=one\\ntwo\\\\three\nDWMRI_gradient_0000:=last\n\n";
@@ -157,6 +261,23 @@ fn header_key_values_preserve_case_unescape_and_last_value() {
     assert_eq!(
         header.key_values.get("CustomCase").map(String::as_str),
         Some("one\ntwo\\three")
+    );
+}
+
+#[test]
+fn escaped_record_keys_and_values_preserve_case_and_spaces() {
+    let input = b"NRRD0005\n Key\\nPart\\\\ := Value\\nTail\\\\ \n\n";
+    let mut reader = Cursor::new(input);
+    let header = parse_nrrd_header_from_reader(&mut reader).expect("valid escaped record");
+    let record = header.key_value_records.first().expect("retained record");
+
+    assert_eq!(
+        (record.key(), record.value()),
+        (" Key\nPart\\ ", " Value\nTail\\ ")
+    );
+    assert_eq!(
+        header.key_values.get(record.key()).map(String::as_str),
+        Some(record.value())
     );
 }
 
@@ -186,6 +307,10 @@ fn standard_field_aliases_share_one_canonical_key_and_reject_conflicts() {
         ("axis mins", "axismins", "0 0 0"),
         ("axis maxs", "axismaxs", "1 1 1"),
         ("centers", "centerings", "\"node\" \"node\" \"node\""),
+        ("block size", "blocksize", "4"),
+        ("old min", "oldmin", "0"),
+        ("old max", "oldmax", "255"),
+        ("sample units", "sampleunits", "HU"),
     ] {
         let input = format!("NRRD0005\n{alias}: {value}\n\n");
         let mut reader = Cursor::new(input);
@@ -205,6 +330,20 @@ fn standard_field_aliases_share_one_canonical_key_and_reject_conflicts() {
             ));
         }
     }
+}
+
+#[test]
+fn compact_alias_reports_canonical_version_error() {
+    let mut reader = Cursor::new(b"NRRD0003\nSAMPLEUNITS: HU\n\n");
+
+    assert!(matches!(
+        parse_nrrd_header_from_reader(&mut reader),
+        Err(NrrdHeaderError::FieldRequiresVersion {
+            field,
+            minimum_version: 4,
+            actual_version: 3,
+        }) if field == "sample units"
+    ));
 }
 
 #[test]
