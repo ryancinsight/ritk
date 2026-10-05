@@ -10,7 +10,7 @@ use crate::axes::AcquisitionAxis;
 
 mod geometry;
 mod payload;
-pub(super) use payload::parse_nrrd_raw;
+pub(super) use payload::{parse_nrrd_raw, NrrdPayloadPlan};
 
 use super::decode::decode_element_bytes;
 
@@ -18,13 +18,16 @@ use super::decode::decode_element_bytes;
 pub(super) enum NrrdReadPurpose {
     StoredVolume,
     StoredSeries,
+    StoredDocument,
     ComputeF32,
 }
 
 impl NrrdReadPurpose {
     const fn sample_width(self, stored_type: SampleType) -> usize {
         match self {
-            Self::StoredVolume | Self::StoredSeries => stored_type.byte_width(),
+            Self::StoredVolume | Self::StoredSeries | Self::StoredDocument => {
+                stored_type.byte_width()
+            }
             Self::ComputeF32 => std::mem::size_of::<f32>(),
         }
     }

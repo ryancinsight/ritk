@@ -2,6 +2,10 @@
 
 - Status: Accepted
 
+- Revision 2026-10-05: `StoredVolume` remains the shared value for semantics it
+  can represent; format-specific documents retain additional source fields
+  rather than discarding them or widening the volume model. The NRRD document
+  reader/writer establishes this boundary under RITK-FORMAT-CONVERSION-001.
 - Revision 2026-10-04: nonzero NRRD DWI gradients require an explicit
   measurement frame; an all-zero baseline remains valid without one. The
   stored writer emits NRRD0005 with an identity frame for LPS gradients.
@@ -32,12 +36,15 @@ direction matrix, finite nonzero direction-times-spacing components,
 coordinate-map rank, and per-frame calibration depth. Small positive spacings
 retain their direction; only zero or non-finite lengths use an axis fallback.
 
-Format crates own header parsing and serialization. They exchange
-`StoredVolume` for lossless stored-sample reads, writes, and conversions. A
-format that cannot preserve a volume's calibration or another required
-semantic returns a typed capability error before creating output. A caller
-that wants compute-ready values uses the existing image API or an explicit
-calibration operation; stored reads do not silently rescale samples.
+Format crates own header parsing and serialization. `StoredVolume` is the
+shared representation for exact samples, common physical metadata, coordinate
+mapping, and calibration; it is not a complete format document. When a source
+contains additional semantics, its format crate may retain a format-specific
+document instead of discarding those fields or forcing them into the shared
+volume type. A conversion maps source semantics into the target contract or
+returns typed loss before output. A caller that wants compute-ready values
+uses the existing image API or an explicit calibration operation; stored
+reads do not silently rescale samples.
 
 NRRD maps all ten fixed-width codec sample types and the standard type aliases
 to its declared element type, reads both binary payload byte orders, writes
@@ -88,12 +95,16 @@ because the stored-volume model cannot retain those semantics.
   bits cannot be preserved.
 - Ignore calibration when the target format cannot represent it: the output
   would decode to a different physical intensity.
+- Drop source fields absent from `StoredVolume`: a later converter would be
+  unable to distinguish unsupported semantics from metadata that never
+  existed in the source document.
 
 ## Consequences
 
 The shared crate depends inward on codecs, image metadata, and spatial mapping;
-format adapters depend on the shared contract. It does not parse a format or
-convert values. Capability declarations and pairwise round-trip tests remain
+format adapters depend on the shared contract and own any richer document
+model required by their source format. The shared crate does not parse a format
+or convert values. Capability declarations and pairwise round-trip tests live
 in each format adapter and the `ritk-io` conversion surface.
 
 ## Evidence and revision criteria
@@ -105,9 +116,13 @@ unsupported calibration without changing an existing output. A public-reader
 test checks the typed decoded-byte budget error, including gzip byte skips.
 Header tests cover standard alias canonicalization, geometry tests reject
 per-axis units without a spacing source, and diffusion writer tests assert the
-NRRD0005 measurement frame. Revise this decision if a
-format's required image semantics cannot be represented by this value without
-loss or if an independent format-conversion oracle contradicts these tests.
+NRRD0005 measurement frame. The NRRD document round-trip in
+[PR #762](https://github.com/ryancinsight/ritk/pull/762) checks retained
+sample units, thicknesses, measurement frames, comments, repeated custom
+records, and exact big-endian samples while normalizing payload packaging.
+Revise this decision if a format's required image semantics cannot be
+represented by the shared value or its format-specific document without loss,
+or if an independent conversion oracle contradicts these tests.
 
 Its conversion consumer is
 [RITK-FORMAT-CONVERSION-001](../../backlog.md#RITK-FORMAT-CONVERSION-001).

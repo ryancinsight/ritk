@@ -363,6 +363,22 @@ pub enum NrrdStoredReadError {
     /// The stored-series parser did not retain its preflighted axis meaning.
     #[error("NRRD stored-series axis semantics were not retained")]
     MissingSeriesAxis,
+    /// The product of the declared NRRD axis sizes overflows `usize`.
+    #[error("NRRD element count overflows for sizes {sizes:?}")]
+    ArrayElementCountOverflow {
+        /// Sizes declared in NRRD file-axis order.
+        sizes: Vec<usize>,
+    },
+    /// Spatial/acquisition decomposition disagrees with the declared element count.
+    #[error(
+        "NRRD dimensions describe {actual_samples} samples; the header declares {expected_samples}"
+    )]
+    ArraySampleCountMismatch {
+        /// Element count from the sizes field.
+        expected_samples: usize,
+        /// Element count from the spatial axes and acquisition axis.
+        actual_samples: usize,
+    },
 }
 
 /// The NRRD spatial field whose value failed parsing or conversion.

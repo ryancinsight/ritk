@@ -8,7 +8,11 @@ use std::path::Path;
 
 use crate::spatial::file_space_directions_from_internal;
 
+mod document;
 mod stored;
+pub use document::{
+    prepare_nrrd_document, write_nrrd_document, NrrdDocumentWriteError, PreparedNrrdDocument,
+};
 pub use stored::{write_nrrd_stored, write_nrrd_stored_series, NrrdStoredWriteError};
 
 #[derive(Clone, Copy)]

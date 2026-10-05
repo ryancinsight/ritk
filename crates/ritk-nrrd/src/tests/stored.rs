@@ -1,9 +1,9 @@
 //! Stored NRRD sample and acquisition-axis contracts.
 
 use crate::{
-    read_nrrd_stored as read_nrrd_stored_with_budget,
-    read_nrrd_stored_series as read_nrrd_stored_series_with_budget, NrrdSpatialMetadataField,
-    NrrdStoredReadError,
+    read_nrrd_document, read_nrrd_stored as read_nrrd_stored_with_budget,
+    read_nrrd_stored_series as read_nrrd_stored_series_with_budget, write_nrrd_document,
+    NrrdSpatialMetadataField, NrrdStoredReadError,
 };
 use anyhow::Result;
 use ritk_codecs::{ByteOrder, SampleBuffer, SampleType};
@@ -139,6 +139,8 @@ pub(super) fn stored_u64(values: Vec<u64>, calibration: IntensityCalibration) ->
 
 #[cfg(test)]
 mod detached;
+#[cfg(test)]
+mod document;
 #[cfg(test)]
 mod geometry;
 #[cfg(test)]
