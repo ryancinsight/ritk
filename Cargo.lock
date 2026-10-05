@@ -6351,6 +6351,7 @@ dependencies = [
  "bytemuck",
  "coeus-core",
  "flate2",
+ "proptest",
  "ritk-codecs",
  "ritk-core",
  "ritk-diffusion-scheme",

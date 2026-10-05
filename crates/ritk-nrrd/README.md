@@ -32,7 +32,8 @@ creating another volume-sized encoded payload.
 exposes canonical standard fields, the format version, comment lines, the
 effective custom key/value map, and every decoded custom record in source
 order. Repeated keys remain inspectable even though the effective map follows
-NRRD's last-value rule.
+NRRD's last-value rule. Empty comment strings are ignored; retained comment
+lines preserve their leading `#`.
 
 ```rust,no_run
 use ritk_image_io::ImageReadBudget;

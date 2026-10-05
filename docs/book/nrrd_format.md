@@ -17,8 +17,15 @@ parser limits headers to 16 MiB and 65,536 retained entries across standard
 fields, comments, and key/value records. These header records do not imply
 that payload conversion preserves every format's metadata.
 
-The repeated-key and comment rules follow [Section 1.2 of the Teem NRRD format
-specification](https://teem.sourceforge.net/nrrd/format.html#basic-header-structure).
+Field identifiers are case-insensitive. Teem's equivalent spellings
+(`byteskip`, `lineskip`, `datafile`, `axismins`, `axismaxs`, `centerings`,
+`blocksize`, `oldmin`, `oldmax`, and `sampleunits`) map to canonical lowercase
+field names before duplicate checks. Empty comment strings are ignored;
+retained comment lines keep their leading `#` and source order. NRRD header
+lines use ASCII; non-ASCII bytes return a typed parse error. These delimiter,
+key, field, alias, and comment rules follow the [Teem NRRD format
+definition](https://teem.sourceforge.net/nrrd/format.html), Sections 1.2, 1.6,
+5, and 6.
 
 ## Spatial Contract
 
