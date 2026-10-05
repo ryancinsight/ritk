@@ -61,7 +61,7 @@ impl Default for BendingEnergyRegularizer {
 
 impl<T, B> Regularizer<T, B> for BendingEnergyRegularizer
 where
-    T: Scalar,
+    T: Scalar + eunomia::FloatElement,
     B: ComputeBackend + Default,
     B::DeviceBuffer<T>: CpuAddressableStorage<T>,
 {

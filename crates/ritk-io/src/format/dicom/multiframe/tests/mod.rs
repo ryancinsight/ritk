@@ -6,6 +6,8 @@ mod reader;
 mod roundtrip;
 #[cfg(test)]
 mod writer;
+#[cfg(test)]
+mod writer_compressed;
 
 pub(super) use super::per_frame::extract_functional_groups;
 pub(super) use super::types::{PerFrameInfo, MF_GRAYSCALE_WORD_SC_UID};

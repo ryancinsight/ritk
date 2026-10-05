@@ -101,27 +101,43 @@ fn both_prediction_modes_agree_on_a_mixed_image() {
 }
 
 #[test]
-fn zero_ss_is_rejected_by_this_stacks_decoder() {
-    // The provider's frame reader validates the scan header with `1..=7` for
-    // `Ss`, so DICOM's non-hierarchical mode (`Ss = 0`) cannot be read by this
-    // stack at all. Recorded as a test so the gap is measured rather than
-    // assumed, and so it flips loudly if the provider gains support.
-    let samples: Vec<u16> = (0..16).map(|i| i as u16).collect();
-    let stream = encode_grayscale_jpeg_lossless(&samples, 4, 4, 8, JpegLosslessPrediction::Left)
-        .expect("encode lossless");
-    // Rewrite Ss to 0 in place to reproduce what a non-hierarchical writer emits.
-    let sos = stream
-        .windows(2)
-        .position(|pair| pair == [0xFF, 0xDA])
-        .expect("SOS marker");
-    let mut non_hierarchical = stream.clone();
-    non_hierarchical[sos + 5] = 0;
-    let error = crate::decode_jpeg_fragment(&non_hierarchical, layout(4, 4, 8, false))
-        .expect_err("this decoder rejects Ss = 0");
-    assert!(
-        format!("{error:#}").contains("decode"),
-        "unexpected error: {error:#}"
+fn non_hierarchical_round_trips_exactly() {
+    // DICOM's `JpegLosslessNonHierarchical` writes `Ss = 0`, which T.81's table
+    // does not define. The provider now accepts it and maps it to the same `Rb`
+    // prediction selector 2 asks for, so this is a real round-trip rather than
+    // a recorded limitation.
+    let rows = 5usize;
+    let cols = 7usize;
+    let samples: Vec<u16> = (0..rows * cols)
+        .map(|i| ((i * 29 + i / cols) % 4095) as u16)
+        .collect();
+    let decoded = round_trip(&samples, rows, cols, 12, JpegLosslessPrediction::AboveOnly);
+    for (index, expected) in samples.iter().enumerate() {
+        assert_eq!(
+            decoded[index],
+            f32::from(*expected),
+            "non-hierarchical sample {index}"
+        );
+    }
+}
+
+#[test]
+fn non_hierarchical_and_selector_two_reconstruct_identically() {
+    // The provider maps `Ss = 0` and `Ss = 2` to the same predictor, so the two
+    // streams must decode to the same samples. That equivalence is the contract
+    // the `AboveOnly` variant rests on.
+    let rows = 4usize;
+    let cols = 5usize;
+    let samples: Vec<u16> = (0..rows * cols).map(|i| (i * 11) as u16).collect();
+    let zero = round_trip(&samples, rows, cols, 16, JpegLosslessPrediction::AboveOnly);
+    let two = round_trip(&samples, rows, cols, 16, JpegLosslessPrediction::Above);
+    assert_eq!(
+        zero, two,
+        "Ss = 0 and Ss = 2 are the same predictor and must agree"
     );
+    for (index, expected) in samples.iter().enumerate() {
+        assert_eq!(zero[index], f32::from(*expected), "sample {index}");
+    }
 }
 
 #[test]

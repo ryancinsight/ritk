@@ -4,6 +4,7 @@ use anyhow::{anyhow, Result};
 use metis_platform::typeface::TextSize;
 use metis_platform::{Color, Framebuffer};
 use metis_ui_lang::DisplayCommand;
+use std::sync::Arc;
 
 pub(in crate::presentation::native_session) use metis_platform::typeface::TextStyle;
 
@@ -36,7 +37,7 @@ pub(in crate::presentation::native_session) fn text_command(
     style: TextStyle,
 ) -> DisplayCommand {
     DisplayCommand::DrawText {
-        text: text.into(),
+        text: Arc::<str>::from(text.into()),
         x,
         y,
         style,

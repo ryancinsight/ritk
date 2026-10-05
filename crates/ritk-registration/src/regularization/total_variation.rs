@@ -77,7 +77,7 @@ impl Default for TotalVariationRegularizer {
 
 impl<T, B> Regularizer<T, B> for TotalVariationRegularizer
 where
-    T: Scalar,
+    T: Scalar + eunomia::FloatElement,
     B: ComputeBackend + Default,
     B::DeviceBuffer<T>: CpuAddressableStorage<T>,
 {

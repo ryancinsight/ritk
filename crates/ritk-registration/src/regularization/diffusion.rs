@@ -59,7 +59,7 @@ impl Default for DiffusionRegularizer {
 
 impl<T, B> Regularizer<T, B> for DiffusionRegularizer
 where
-    T: Scalar,
+    T: Scalar + eunomia::FloatElement,
     B: ComputeBackend + Default,
     B::DeviceBuffer<T>: CpuAddressableStorage<T>,
 {

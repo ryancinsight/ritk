@@ -262,6 +262,7 @@ fn write_multiframe_flat(
         TransferSyntaxKind::JpegLsLossless
         | TransferSyntaxKind::JpegLsLossy
         | TransferSyntaxKind::JpegLosslessFirstOrderPrediction
+        | TransferSyntaxKind::JpegLosslessNonHierarchical
         | TransferSyntaxKind::Jpeg2000Lossless
         | TransferSyntaxKind::Jpeg2000Lossy
         | TransferSyntaxKind::RleLossless => {
@@ -448,6 +449,16 @@ fn encode_compressed_frames(
                         format!("JPEG lossless encode failed for frame {frame_index}")
                     })?
             }
+            TransferSyntaxKind::JpegLosslessNonHierarchical => encode_grayscale_jpeg_lossless(
+                frame,
+                rows,
+                cols,
+                16,
+                JpegLosslessPrediction::AboveOnly,
+            )
+            .with_context(|| {
+                format!("JPEG lossless (non-hierarchical) encode failed for frame {frame_index}")
+            })?,
             TransferSyntaxKind::RleLossless => encode_rle_lossless_fragment_u16_grayscale(frame),
             _ => bail!(
                 "internal error: compressed frame encoder called with non-compressed syntax '{}'",
