@@ -15,7 +15,7 @@ pub(super) fn checked_lane<const N: usize>(raw: &[u8]) -> Result<[u8; N]> {
     })
 }
 
-pub(super) fn qfac_from_pixdim(value: f64) -> Result<f64> {
+pub(crate) fn qfac_from_pixdim(value: f64) -> Result<f64> {
     if !value.is_finite() {
         bail!("NIfTI pixdim[0] qfac must be finite, got {value}");
     }
@@ -29,7 +29,7 @@ pub(super) fn qfac_from_pixdim(value: f64) -> Result<f64> {
     }
 }
 
-pub(super) fn checked_spatial_pixdim(pixdim: [f64; 8]) -> Result<[f64; 3]> {
+pub(crate) fn checked_spatial_pixdim(pixdim: [f64; 8]) -> Result<[f64; 3]> {
     let spatial = [pixdim[1], pixdim[2], pixdim[3]];
     for (offset, value) in spatial.iter().enumerate() {
         let index = offset + 1;
