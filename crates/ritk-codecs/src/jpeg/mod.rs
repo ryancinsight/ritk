@@ -16,6 +16,9 @@ use crate::pixel_layout::{
 };
 use crate::PixelLayout;
 
+pub mod lossless;
+pub use lossless::{encode_grayscale_jpeg_lossless, JpegLosslessPrediction};
+
 /// Decode one JPEG fragment using the supplied DICOM pixel layout.
 ///
 /// The encoded raster is decoded without applying display-orientation

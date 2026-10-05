@@ -397,3 +397,68 @@ fn test_write_multiframe_jpeg2000_lossy_round_trip() {
         );
     }
 }
+
+#[test]
+fn test_write_multiframe_jpeg_lossless_round_trip_is_bit_exact() {
+    let tmp = tempfile::tempdir().expect("tempdir");
+    let out_path = tmp.path().join("mf_jpeg_lossless.dcm");
+    let voxels: Vec<f32> = (0..24).map(|i| i as f32 * 37.0).collect();
+    let image = native_image(voxels.clone(), [2, 3, 4], [0.0; 3], [1.0; 3]);
+    let config = MultiFrameWriterConfig {
+        transfer_syntax: TransferSyntaxKind::JpegLosslessFirstOrderPrediction,
+        ..MultiFrameWriterConfig::default()
+    };
+
+    write_dicom_multiframe_native_with_config(&out_path, &image, &config)
+        .expect("JPEG lossless multiframe write");
+
+    let ts_uid = parse_file_with::<DicomRsBackend, _>(&out_path)
+        .expect("parse file")
+        .meta()
+        .transfer_syntax()
+        .to_owned();
+    assert_eq!(
+        ts_uid,
+        TransferSyntaxKind::JpegLosslessFirstOrderPrediction.uid()
+    );
+
+    let decoded = load_dicom_multiframe_flat(&out_path).expect("decode JPEG lossless multiframe");
+    assert_eq!(decoded.shape, [2, 3, 4]);
+
+    // Two different losses are in play and this test separates them.
+    //
+    // SOF3 is the one JPEG mode that reconstructs *bit-exactly*, and that is why
+    // a study gets archived under this syntax. But every syntax here stores
+    // 16-bit normalised samples, so the modality values come back quantised --
+    // that loss belongs to the container, not the codec.
+    //
+    // Asserting against the quantised expectation rather than the original
+    // voxels is what makes the claim specific: any error the JPEG stage
+    // introduced would show up as a mismatch, while the container's own
+    // half-level rounding is accounted for exactly.
+    let minimum = voxels.iter().copied().fold(f32::INFINITY, f32::min);
+    let maximum = voxels.iter().copied().fold(f32::NEG_INFINITY, f32::max);
+    let range = maximum - minimum;
+    let slope = range / 65535.0;
+    for (actual, expected) in decoded.data.iter().zip(voxels.iter()) {
+        let stored = (((expected - minimum) / range) * 65535.0).round();
+        let quantised = stored * slope + minimum;
+        // The bound is derived, not chosen: the codec contributes nothing here
+        // (the `ritk-codecs` lossless tests assert stored-sample equality
+        // directly), so what is left is the container. Two terms --
+        //
+        //   - sixteen-bit normalisation rounds the stored sample by at most
+        //     `slope / 2`;
+        //   - the rescale tags are written as DS with six decimals, so the slope
+        //     read back can differ by up to 5e-7, which at the largest stored
+        //     sample is 65535 * 5e-7 ~= 0.033.
+        //
+        // Both are the container's, and neither would grow if the codec were
+        // lossier -- which is what makes this assertion about SOF3 specific.
+        let bound = slope / 2.0 + 65535.0 * 5e-7 + f32::EPSILON * 65535.0;
+        assert!(
+            (*actual - quantised).abs() <= bound,
+            "SOF3 must reconstruct the stored sample exactly; {actual}              differs from {quantised} by more than the container's {bound}              (source {expected})"
+        );
+    }
+}
