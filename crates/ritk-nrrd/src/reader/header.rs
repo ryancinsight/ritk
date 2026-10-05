@@ -10,17 +10,68 @@ use thiserror::Error;
 /// comments and the required blank separator.
 pub(crate) const MAX_HEADER_BYTES: usize = 16 * 1024 * 1024;
 
-/// Maximum number of distinct standard fields and key/value pairs retained.
+/// Maximum number of standard fields and key/value records retained.
 ///
-/// The entry cap bounds hash-table and string-header overhead independently
-/// of the byte budget. It admits more than 65,000 diffusion gradient records.
+/// The record cap bounds hash-table and string-header overhead independently
+/// of the byte budget. Repeated key/value keys count as separate records.
 pub(crate) const MAX_HEADER_ENTRIES: usize = 65_536;
 
-/// Parsed NRRD structural fields and format key/value metadata.
+/// Parsed NRRD header fields, comments, and format key/value records.
+///
+/// # Example
+///
+/// ```no_run
+/// use ritk_image_io::ImageReadBudget;
+/// use ritk_nrrd::read_nrrd_document;
+///
+/// let document = read_nrrd_document("input.nrrd", ImageReadBudget::DEFAULT)?;
+/// let header = document.header();
+/// assert!(header.fields().contains_key("dimension"));
+/// let _comments = header.comments();
+/// let _custom_records = header.key_value_records();
+/// # Ok::<(), Box<dyn std::error::Error>>(())
+/// ```
 #[derive(Debug)]
-pub(super) struct NrrdHeader {
+pub struct NrrdHeader {
     pub(super) fields: HashMap<String, String>,
     pub(super) key_values: HashMap<String, String>,
+    pub(super) key_value_records: Vec<(String, String)>,
+    pub(super) comments: Vec<String>,
+    pub(super) format_version: u8,
+}
+
+impl NrrdHeader {
+    /// Returns the canonical standard fields retained from the source header.
+    #[must_use]
+    pub fn fields(&self) -> &HashMap<String, String> {
+        &self.fields
+    }
+
+    /// Returns the effective custom key/value map, where the last repeated
+    /// key supplies the effective value.
+    #[must_use]
+    pub fn key_values(&self) -> &HashMap<String, String> {
+        &self.key_values
+    }
+
+    /// Returns every custom key/value record in source order, including
+    /// repeated keys.
+    #[must_use]
+    pub fn key_value_records(&self) -> &[(String, String)] {
+        &self.key_value_records
+    }
+
+    /// Returns comments in source order, without changing their text.
+    #[must_use]
+    pub fn comments(&self) -> &[String] {
+        &self.comments
+    }
+
+    /// Returns the format version declared by the NRRD magic line.
+    #[must_use]
+    pub const fn format_version(&self) -> u8 {
+        self.format_version
+    }
 }
 
 /// A failure while reading or parsing a NRRD header.
@@ -60,10 +111,10 @@ pub enum NrrdHeaderError {
         /// Maximum accepted cumulative header size.
         maximum_bytes: usize,
     },
-    /// The header contains too many distinct metadata entries.
+    /// The header contains too many standard fields and key/value records.
     #[error("NRRD header exceeds the {maximum_entries}-entry limit")]
     TooManyEntries {
-        /// Maximum accepted count of distinct fields and key/value pairs.
+        /// Maximum accepted count of standard fields and key/value records.
         maximum_entries: usize,
     },
     /// A header line contains bytes outside the NRRD ASCII header encoding.
@@ -135,8 +186,7 @@ pub enum NrrdHeaderError {
 /// Names are returned in lowercase for map lookup. The separate namespaces
 /// merge only when their names do not collide; a collision returns a typed
 /// error instead of replacing a structural field. Header parsing is limited to
-/// 16 MiB and 65,536 distinct metadata entries to bound memory use on untrusted
-/// input.
+/// 16 MiB and 65,536 metadata records to bound memory use on untrusted input.
 ///
 /// # Errors
 ///
@@ -146,6 +196,7 @@ pub fn read_nrrd_header_map<P: AsRef<Path>>(path: P) -> anyhow::Result<HashMap<S
     let NrrdHeader {
         mut fields,
         key_values,
+        ..
     } = read_nrrd_header(path)?;
     for (key, value) in key_values {
         let mut key = copy_string(&key, "combined map key")?;
@@ -193,6 +244,9 @@ pub(super) fn parse_nrrd_header_from_reader<R: BufRead>(
     let mut header = NrrdHeader {
         fields: HashMap::new(),
         key_values: HashMap::new(),
+        key_value_records: Vec::new(),
+        comments: Vec::new(),
+        format_version,
     };
     let mut line_number = 1_usize;
     loop {
@@ -212,6 +266,14 @@ pub(super) fn parse_nrrd_header_from_reader<R: BufRead>(
             return Ok(header);
         }
         if text.starts_with('#') {
+            header
+                .comments
+                .try_reserve(1)
+                .map_err(|source| NrrdHeaderError::Allocation {
+                    operation: "comment table",
+                    source,
+                })?;
+            header.comments.push(copy_string(text, "comment")?);
             continue;
         }
         match (text.find(":="), text.find(": ")) {
@@ -330,7 +392,7 @@ fn insert_field(
     if header.fields.contains_key(&key) {
         return Err(NrrdHeaderError::DuplicateField { field: key });
     }
-    reserve_entry(header.fields.len(), header.key_values.len())?;
+    reserve_entry(header.fields.len(), header.key_value_records.len())?;
     header
         .fields
         .try_reserve(1)
@@ -382,8 +444,8 @@ fn insert_key_value(
     }
     let key = unescape_key_value(key, line_number)?;
     let value = unescape_key_value(value, line_number)?;
+    reserve_entry(header.fields.len(), header.key_value_records.len())?;
     if !header.key_values.contains_key(&key) {
-        reserve_entry(header.fields.len(), header.key_values.len())?;
         header
             .key_values
             .try_reserve(1)
@@ -392,6 +454,16 @@ fn insert_key_value(
                 source,
             })?;
     }
+    header
+        .key_value_records
+        .try_reserve(1)
+        .map_err(|source| NrrdHeaderError::Allocation {
+            operation: "key/value record table",
+            source,
+        })?;
+    let record_key = copy_string(&key, "key/value record key")?;
+    let record_value = copy_string(&value, "key/value record value")?;
+    header.key_value_records.push((record_key, record_value));
     header.key_values.insert(key, value);
     Ok(())
 }

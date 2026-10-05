@@ -67,11 +67,29 @@ explicitly rather than being guessed.
 
 ## Stored samples and format conversion
 
-Use `read_nrrd_stored` when NRRD is an input to a format conversion. It
-returns `ritk_image_io::StoredVolume`, retaining the element type, each stored
-value, the spatial metadata, the coordinate map, and the calibration state.
-The ordinary `read_nrrd` API remains the compute path and converts values to
-`f32`.
+Use `read_nrrd_stored` when the conversion target represents the shared
+`ritk_image_io::StoredVolume` contract: element type, exact stored values,
+spatial metadata, coordinate map, and calibration state. The ordinary
+`read_nrrd` API remains the compute path and converts values to `f32`.
+
+Use `read_nrrd_document` when a conversion must retain parsed NRRD fields or
+custom records that `StoredVolume` cannot represent. `NrrdDocument` retains
+the canonical standard fields, comments, repeated key/value records in source
+order, file-axis sizes, declared sample type, byte order, and decoded payload
+bytes. Binary payload bits remain unchanged. ASCII values decode into the
+declared fixed-width representation; their original text spelling is not
+retained. The document path does not project spatial or acquisition metadata
+into another model.
+
+`write_nrrd_document` preflights the dimensions, sample count, header size, and
+record count before creating its same-directory temporary output. It preserves
+semantic header fields, comments, custom records, sample values, and binary
+sample bits, then normalizes storage to one inline raw payload with the
+document's byte order. It removes source packaging fields (`data file`, `line
+skip`, and `byte skip`) because the written payload has no detached-file or
+skip layout. It does not preserve the source encoding or byte-for-byte header
+spelling. A cross-format converter must map each retained field to the target
+contract or report typed loss before opening the destination.
 
 The stored reader supports signed and unsigned 8-, 16-, 32-, and 64-bit
 integers plus IEEE 754 32- and 64-bit floats. It accepts the aliases listed
@@ -102,10 +120,11 @@ Other stored series retain NRRD0004. The reader accepts the standard
 `axismins`, `axismaxs`, and `centerings` aliases and canonicalizes them before
 checking duplicate fields. Per-axis physical units without `space directions`
 or `spacings` are rejected because they cannot determine sample geometry.
-Stored scalar or list data with a `measurement frame` but no DWMRI scheme is
-rejected before payload reading because the stored-volume model cannot retain
-that frame. Axis support bounds and cell/node centering are likewise rejected
-instead of being discarded.
+The stored-volume reader rejects scalar or list data with a `measurement
+frame` but no DWMRI scheme, axis support bounds, and cell/node centering before
+payload reading because `StoredVolume` cannot retain those semantics. The
+document reader retains those parsed fields for a conversion that has a
+matching target representation.
 
 The custom RITK coordinate-map field serializes Cartesian, curvilinear,
 phased-array, and per-slice transform maps. Slice-series transforms store nine
