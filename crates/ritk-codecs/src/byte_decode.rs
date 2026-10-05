@@ -19,6 +19,7 @@
 //! [`ritk-minc`]: https://docs.rs/ritk-minc
 
 use anyhow::{anyhow, Context, Result};
+use thiserror::Error;
 
 /// Byte order for multi-byte element data.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -31,8 +32,7 @@ pub enum ByteOrder {
 
 impl ByteOrder {
     /// Parse the textual byte-order markers used by MetaImage (`"True"` /
-    /// `"False"`) and NRRD (`"big"` / `"little"`). Unknown values fall back
-    /// to little-endian to preserve the pre-refactor default.
+    /// `"False"`) and NRRD (`"big"` / `"little"`).
     pub fn from_metaimage_msb(value: &str) -> Self {
         if value.eq_ignore_ascii_case("TRUE") {
             Self::MostSignificantByteFirst
@@ -41,17 +41,34 @@ impl ByteOrder {
         }
     }
 
-    /// NRRD byte-order string per the NRRD spec §3.5: only `"big"` or
-    /// `"little"` (case-insensitive, leading/trailing whitespace allowed).
-    /// Unknown values default to [`Self::LeastSignificantByteFirst`] to
-    /// preserve the pre-refactor behavior of silently accepting
-    /// unspecified / misspelled byte-order strings as little-endian.
-    pub fn from_nrrd(value: &str) -> Self {
-        match value.trim().to_ascii_lowercase().as_str() {
-            "big" => Self::MostSignificantByteFirst,
-            _ => Self::LeastSignificantByteFirst,
+    /// Parse the NRRD `endian` marker. Missing markers are handled by the
+    /// format reader; an explicit value must be `big` or `little`.
+    ///
+    /// # Errors
+    ///
+    /// Returns [`NrrdByteOrderError`] when the explicit marker is unknown.
+    pub fn from_nrrd(value: &str) -> Result<Self, NrrdByteOrderError> {
+        if value.trim().eq_ignore_ascii_case("big") {
+            Ok(Self::MostSignificantByteFirst)
+        } else if value.trim().eq_ignore_ascii_case("little") {
+            Ok(Self::LeastSignificantByteFirst)
+        } else {
+            Err(NrrdByteOrderError::InvalidMarker {
+                value: value.to_owned(),
+            })
         }
     }
+}
+
+/// An explicit NRRD byte-order marker is not recognized.
+#[derive(Debug, Error, PartialEq, Eq)]
+pub enum NrrdByteOrderError {
+    /// The NRRD `endian` field is neither `big` nor `little`.
+    #[error("invalid NRRD endian marker {value:?}; expected 'big' or 'little'")]
+    InvalidMarker {
+        /// The original marker from the NRRD header.
+        value: String,
+    },
 }
 
 /// Verify that a buffer has at least `count * elem_size` bytes available.

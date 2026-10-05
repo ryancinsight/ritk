@@ -4,60 +4,77 @@ use std::{collections::HashMap, path::Path};
 
 use anyhow::{anyhow, bail, Context, Result};
 use ritk_codecs::parse_usize_vec;
-use ritk_diffusion_scheme::{GradientFrame, GradientScheme};
+use ritk_diffusion_scheme::{DiffusionWeighting, GradientDirection, GradientFrame, GradientScheme};
 use ritk_spatial::Vector;
 
 use super::{
     decode::{parse_parenthesized_vectors, parse_space_direction_slots},
-    header::read_nrrd_header_map,
+    header::{read_nrrd_header, NrrdHeader},
 };
-use crate::axes::{locate_acquisition_axis, AcquisitionAxis};
+use crate::{
+    axes::{locate_acquisition_axis, AcquisitionAxis},
+    spatial::{vector_to_lps, world_to_lps_basis},
+};
 
 /// Read the diffusion gradient scheme from a NRRD header.
 ///
 /// Extracts `DWMRI_gradient_NNNN` direction keys and `DWMRI_b-value` from the
 /// NRRD header and returns a validated [`ritk_diffusion_scheme::GradientScheme`].
 /// Directions are mapped through the measurement frame into the declared
-/// world space and returned in RITK physical LPS coordinates.
+/// world space and returned in RITK physical LPS coordinates. Every encoded
+/// nonzero effective weighting remains weighted; scanner-input baseline
+/// thresholding is not applied while reading stored NRRD metadata.
 ///
 /// # Errors
 ///
 /// Returns an error when the file cannot be opened, the header is missing
-/// required DWMRI fields, or the gradient table fails validation.
+/// required DWMRI fields, or the gradient table fails validation. An absent
+/// `measurement frame` field means scanner coordinates already match the
+/// declared world space, so the reader and the writer agree on identity and
+/// files the writer emits read back.
 pub fn read_nrrd_gradient_scheme<P: AsRef<Path>>(
     path: P,
 ) -> Result<ritk_diffusion_scheme::GradientScheme> {
-    let headers = read_nrrd_header_map(path)?;
-    scheme_from_headers(&headers)
+    let header = read_nrrd_header(path)?;
+    scheme_from_header(&header)
 }
 
-/// Decode a validated gradient scheme from lowercased NRRD header fields.
+/// Decode a validated gradient scheme from NRRD fields and key/value metadata.
 ///
 /// The NRRD DWI convention stores one nominal `DWMRI_b-value`; each raw
 /// gradient magnitude scales its effective weighting quadratically. The
 /// measurement frame maps raw gradient coordinates into the declared world
-/// space. RAS world coordinates are converted once to RITK physical LPS.
-pub(super) fn scheme_from_headers(headers: &HashMap<String, String>) -> Result<GradientScheme> {
-    let modality = required_value(headers, "modality")?;
+/// space, defaulting to identity when the field is absent. RAS world
+/// coordinates are converted once to RITK physical LPS.
+pub(super) fn scheme_from_header(header: &NrrdHeader) -> Result<GradientScheme> {
+    let fields = &header.fields;
+    let key_values = &header.key_values;
+    let modality = required_value(key_values, "modality")?;
     if !modality.eq_ignore_ascii_case("DWMRI") {
         bail!("NRRD modality must be DWMRI, got '{modality}'");
     }
-    if headers.keys().any(|key| key.starts_with("dwmri_b-matrix_")) {
+    if key_values
+        .keys()
+        .any(|key| key.starts_with("DWMRI_B-matrix_"))
+    {
         bail!("NRRD DWMRI_B-matrix metadata is not supported by the gradient-vector reader");
     }
-    if headers.keys().any(|key| key.starts_with("dwmri_nex_")) {
+    if key_values.keys().any(|key| key.starts_with("DWMRI_NEX_")) {
         bail!("NRRD DWMRI_NEX compressed acquisition metadata is not supported");
     }
 
-    let nominal = parse_finite(required_value(headers, "dwmri_b-value")?, "DWMRI_b-value")?;
+    let nominal = parse_finite(
+        required_value(key_values, "DWMRI_b-value")?,
+        "DWMRI_b-value",
+    )?;
     if nominal < 0.0 {
         bail!("NRRD DWMRI_b-value must be nonnegative, got {nominal}");
     }
 
-    let mut indexed = headers
+    let mut indexed = key_values
         .iter()
         .filter_map(|(key, value)| {
-            key.strip_prefix("dwmri_gradient_")
+            key.strip_prefix("DWMRI_gradient_")
                 .map(|index| (index, value))
         })
         .map(|(index, value)| {
@@ -78,7 +95,18 @@ pub(super) fn scheme_from_headers(headers: &HashMap<String, String>) -> Result<G
             );
         }
     }
-    let volume_count = acquisition_volume_count(headers)?;
+    let (acquisition, volume_count) = acquisition_volume_count(fields)?;
+    if let Some(kind) = fields.get("kinds").and_then(|kinds| {
+        let axis = match acquisition {
+            AcquisitionAxis::Absent => return None,
+            AcquisitionAxis::Fastest => 0,
+            AcquisitionAxis::Slowest => 3,
+        };
+        kinds.split_whitespace().nth(axis)
+    }) && !kind.eq_ignore_ascii_case("list")
+    {
+        bail!("NRRD DWI acquisition kind {kind:?} is not supported; expected 'list'");
+    }
     if indexed.len() != volume_count {
         bail!(
             "NRRD DWI gradient count {} does not match acquisition-axis extent {volume_count}",
@@ -98,31 +126,40 @@ pub(super) fn scheme_from_headers(headers: &HashMap<String, String>) -> Result<G
         bail!("NRRD nominal b-value is zero but a gradient vector is nonzero");
     }
 
-    let measurement_frame = parse_measurement_frame(headers.get("measurement frame"))?;
-    let ras_to_lps = world_to_lps(required_value(headers, "space")?)?;
-    let mut pairs = Vec::with_capacity(indexed.len());
-    for (_, raw) in indexed {
+    let measurement_frame = parse_measurement_frame(fields.get("measurement frame"))?;
+    let world_to_lps = world_to_lps_basis(
+        Some(required_value(fields, "space")?),
+        fields.get("space dimension").map(String::as_str),
+    )?;
+    let mut directions = Vec::with_capacity(indexed.len());
+    for (index, (_, raw)) in indexed.into_iter().enumerate() {
         let norm = raw.norm();
         if norm == 0.0 {
-            pairs.push((0.0, Vector::new([0.0, 0.0, 0.0])));
+            let weighting = DiffusionWeighting::from_seconds_per_square_millimeter(0.0)
+                .with_context(|| format!("invalid DWMRI weighting at acquisition index {index}"))?;
+            directions.push(
+                GradientDirection::new(weighting, Vector::new([0.0, 0.0, 0.0])).with_context(
+                    || format!("invalid DWMRI direction at acquisition index {index}"),
+                )?,
+            );
             continue;
         }
         let effective = nominal * (norm / maximum_norm).powi(2);
         let unit = raw / norm;
         let world = multiply_columns(measurement_frame, unit);
-        let lps = Vector::new([
-            ras_to_lps[0] * world[0],
-            ras_to_lps[1] * world[1],
-            ras_to_lps[2] * world[2],
-        ]);
-        pairs.push((effective, lps));
+        let lps = Vector::new(vector_to_lps(world, world_to_lps)?);
+        let weighting = DiffusionWeighting::from_seconds_per_square_millimeter(effective)
+            .with_context(|| format!("invalid DWMRI weighting at acquisition index {index}"))?;
+        directions
+            .push(GradientDirection::new(weighting, lps).with_context(|| {
+                format!("invalid DWMRI direction at acquisition index {index}")
+            })?);
     }
 
-    GradientScheme::from_seconds_per_square_millimeter(pairs, GradientFrame::Lps)
-        .map_err(anyhow::Error::from)
+    GradientScheme::new(directions, GradientFrame::Lps).map_err(anyhow::Error::from)
 }
 
-fn acquisition_volume_count(headers: &HashMap<String, String>) -> Result<usize> {
+fn acquisition_volume_count(headers: &HashMap<String, String>) -> Result<(AcquisitionAxis, usize)> {
     let dimension = required_value(headers, "dimension")?
         .parse::<usize>()
         .context("NRRD DWI 'dimension' is not a valid integer")?;
@@ -152,19 +189,15 @@ fn acquisition_volume_count(headers: &HashMap<String, String>) -> Result<usize> 
     if count == 0 {
         bail!("NRRD DWI acquisition axis must contain at least one volume");
     }
-    Ok(count)
+    Ok((acquisition, count))
 }
 
 fn required_value<'a>(headers: &'a HashMap<String, String>, key: &str) -> Result<&'a str> {
     headers
         .get(key)
         .map(String::as_str)
-        .map(strip_key_value_marker)
+        .map(str::trim)
         .ok_or_else(|| anyhow!("NRRD DWI header is missing required '{key}' field"))
-}
-
-fn strip_key_value_marker(value: &str) -> &str {
-    value.strip_prefix('=').unwrap_or(value).trim()
 }
 
 fn parse_finite(value: &str, field: &str) -> Result<f64> {
@@ -178,7 +211,7 @@ fn parse_finite(value: &str, field: &str) -> Result<f64> {
 }
 
 fn parse_gradient(value: &str) -> Result<Vector<3>> {
-    let components = strip_key_value_marker(value)
+    let components = value
         .split_whitespace()
         .map(|token| parse_finite(token, "DWMRI gradient component"))
         .collect::<Result<Vec<_>>>()?;
@@ -206,16 +239,6 @@ fn parse_measurement_frame(value: Option<&String>) -> Result<[[f64; 3]; 3]> {
         bail!("NRRD measurement frame contains a non-finite component");
     }
     Ok(columns)
-}
-
-fn world_to_lps(space: &str) -> Result<[f64; 3]> {
-    match space.to_ascii_lowercase().as_str() {
-        "left-posterior-superior" | "lps" => Ok([1.0, 1.0, 1.0]),
-        "right-anterior-superior" | "ras" => Ok([-1.0, -1.0, 1.0]),
-        other => bail!(
-            "NRRD DWI space '{other}' is unsupported; expected left-posterior-superior or right-anterior-superior"
-        ),
-    }
 }
 
 fn multiply_columns(columns: [[f64; 3]; 3], vector: Vector<3>) -> [f64; 3] {

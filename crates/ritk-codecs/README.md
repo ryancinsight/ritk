@@ -33,6 +33,10 @@ algorithm boundary. The existing `byte_decode` API remains available while
 format readers migrate. See [ADR 0053](../../docs/adr/0053-typed-sample-io.md) for
 the stored-sample ownership and conversion boundary.
 
+`ByteOrder::from_nrrd` now returns `Result<ByteOrder, NrrdByteOrderError>`.
+Callers must propagate or match the error for an explicit marker other than
+`big` or `little`; unknown markers no longer select little-endian implicitly.
+
 ## Usage
 
 ```toml

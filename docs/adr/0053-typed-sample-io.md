@@ -2,9 +2,14 @@
 
 - Status: Accepted
 
-This decision is retroactive. It records the stored-sample boundary required
-by `RITK-TYPED-SAMPLES-001` and the format-conversion campaign
-`RITK-FORMAT-CONVERSION-001`.
+This decision is retroactive. The sealed `SampleBuffer` core landed in
+[PR #735](https://github.com/ryancinsight/ritk/pull/735), and the complete
+typed stream contract landed in [PR #756](https://github.com/ryancinsight/ritk/pull/756).
+Format conversion remains tracked by
+[RITK-FORMAT-CONVERSION-001](../../backlog.md#RITK-FORMAT-CONVERSION-001).
+`ByteOrder::from_nrrd` is fallible: callers handle `NrrdByteOrderError` for an
+explicit marker other than `big` or `little`, rather than relying on an
+implicit little-endian fallback.
 
 ## Context
 
@@ -62,4 +67,5 @@ partial-sample rejection, and mismatch recovery. The decision changes if an
 independent format-conversion oracle demonstrates that this stored-sample
 boundary cannot preserve a supported format's value or metadata semantics.
 
-Driving item: `RITK-TYPED-SAMPLES-001` (PR #696).
+Delivery: [PR #735](https://github.com/ryancinsight/ritk/pull/735) and
+[PR #756](https://github.com/ryancinsight/ritk/pull/756).

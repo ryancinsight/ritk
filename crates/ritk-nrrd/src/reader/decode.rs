@@ -1,7 +1,7 @@
 //! NRRD header parsing and byte decoding helpers.
 
 use anyhow::{anyhow, Context, Result};
-use ritk_codecs::{decode_bytes_to_f32, ByteOrder};
+use ritk_codecs::{decode_bytes_to_f32, ByteOrder, SampleType};
 use ritk_spatial::Point;
 
 /// Parse a `space directions` field into three NRRD file-axis vectors.
@@ -73,7 +73,7 @@ pub(super) fn spatial_space_directions(s: &str) -> Result<Vec<[f64; 3]>> {
 ///
 /// The token must be followed by whitespace or end of input so a hypothetical
 /// future field value beginning with those letters is not silently consumed.
-fn strip_none_token(rest: &str) -> Option<&str> {
+pub(super) fn strip_none_token(rest: &str) -> Option<&str> {
     let candidate = rest.get(..4)?;
     if !candidate.eq_ignore_ascii_case("none") {
         return None;
@@ -101,6 +101,18 @@ pub(super) fn parse_space_directions_planar(s: &str) -> Result<[[f64; 3]; 3]> {
     ])
 }
 
+/// Parse two rank-2 image axes expressed in a three-dimensional world space.
+pub(super) fn parse_space_directions_planar_world(s: &str) -> Result<[[f64; 3]; 2]> {
+    let vectors = parse_vectors::<3>(s)?;
+    if vectors.len() != 2 {
+        return Err(anyhow!(
+            "rank-2 'space directions' in a 3-D world must contain 2 vectors, found {}",
+            vectors.len()
+        ));
+    }
+    Ok([vectors[0], vectors[1]])
+}
+
 /// Parse a `space origin` field into a `Point<3>`.
 ///
 /// The field value must contain exactly one `(v0,v1,v2)` group.
@@ -112,7 +124,11 @@ pub(super) fn parse_nrrd_point(s: &str) -> Result<Point<3>> {
             vecs.len()
         ));
     }
-    Ok(Point::new([vecs[0][0], vecs[0][1], vecs[0][2]]))
+    let point = [vecs[0][0], vecs[0][1], vecs[0][2]];
+    if point.iter().any(|value| !value.is_finite()) {
+        return Err(anyhow!("'space origin' contains a non-finite coordinate"));
+    }
+    Ok(Point::new(point))
 }
 
 /// Parse a 2-D `space origin` "(x,y)" and promote it to the 3-D point `[x,y,0]`.
@@ -124,12 +140,31 @@ pub(super) fn parse_nrrd_point_planar(s: &str) -> Result<Point<3>> {
             vecs.len()
         ));
     }
-    Ok(Point::new([vecs[0][0], vecs[0][1], 0.0]))
+    let point = [vecs[0][0], vecs[0][1], 0.0];
+    if point.iter().any(|value| !value.is_finite()) {
+        return Err(anyhow!(
+            "2-D 'space origin' contains a non-finite coordinate"
+        ));
+    }
+    Ok(Point::new(point))
 }
 
 /// Extract all `(v0,v1,v2)` groups from `s` as `Vec<[f64;3]>`.
 pub(super) fn parse_parenthesized_vectors(s: &str) -> Result<Vec<[f64; 3]>> {
     parse_vectors::<3>(s)
+}
+
+/// Count the comma-separated components of the first parenthesised group.
+///
+/// Returns `None` when the value holds no `(...)` group. The count is
+/// syntactic -- `(1, 0)` measures 2 whatever its components parse to -- so
+/// read paths use it to choose the 2-D or 3-D parser before any numeric
+/// validation runs. A malformed value still fails in the selected parser
+/// with a typed error.
+pub(super) fn first_group_width(s: &str) -> Option<usize> {
+    let after_open = s.trim_start().strip_prefix('(')?;
+    let end = after_open.find(')')?;
+    Some(after_open[..end].split(',').count())
 }
 
 /// Extract all parenthesised groups of exactly `N` comma-separated f64
@@ -209,19 +244,42 @@ pub(super) fn decode_element_bytes(
 }
 
 pub(super) fn element_type_spec(element_type: &str) -> Result<(usize, bool, bool)> {
-    let normalised = element_type.to_lowercase();
-    let spec = match normalised.as_str() {
-        "uchar" | "unsigned char" | "uint8" => (1_usize, false, false),
-        "char" | "signed char" | "int8" => (1, true, false),
-        "short" | "int16" | "signed short" | "int 16" => (2, true, false),
-        "unsigned short" | "uint16" | "ushort" | "unsigned short int" => (2, false, false),
-        "int" | "int32" | "signed int" | "int 32" => (4, true, false),
-        "unsigned int" | "uint32" | "uint" | "unsigned int 32" => (4, false, false),
-        "float" => (4, false, true),
-        "double" => (8, false, true),
-        other => return Err(anyhow!("Unsupported NRRD type: '{}'", other)),
+    let stored_type = sample_type(element_type)?;
+    let signed = matches!(
+        stored_type,
+        SampleType::I8 | SampleType::I16 | SampleType::I32 | SampleType::I64
+    );
+    let is_float = matches!(stored_type, SampleType::F32 | SampleType::F64);
+    Ok((stored_type.byte_width(), signed, is_float))
+}
+
+pub(super) fn sample_type(element_type: &str) -> Result<SampleType> {
+    let normalised = element_type.trim().to_ascii_lowercase();
+    let stored_type = match normalised.as_str() {
+        "uchar" | "unsigned char" | "uint8" | "uint8_t" => SampleType::U8,
+        "char" | "signed char" | "int8" | "int8_t" => SampleType::I8,
+        "short" | "short int" | "signed short" | "signed short int" | "int16" | "int16_t"
+        | "int 16" => SampleType::I16,
+        "unsigned short" | "unsigned short int" | "uint16" | "uint16_t" | "ushort" => {
+            SampleType::U16
+        }
+        "int" | "signed int" | "int32" | "int32_t" | "int 32" => SampleType::I32,
+        "unsigned int" | "uint32" | "uint32_t" | "uint" | "unsigned int 32" => SampleType::U32,
+        "long long"
+        | "long long int"
+        | "signed long long"
+        | "signed long long int"
+        | "longlong"
+        | "int64"
+        | "int64_t" => SampleType::I64,
+        "unsigned long long" | "unsigned long long int" | "ulonglong" | "uint64" | "uint64_t" => {
+            SampleType::U64
+        }
+        "float" => SampleType::F32,
+        "double" => SampleType::F64,
+        other => return Err(anyhow!("Unsupported NRRD type: '{other}'")),
     };
-    Ok(spec)
+    Ok(stored_type)
 }
 
 #[cfg(test)]
@@ -229,7 +287,65 @@ mod tests {
     use super::{
         parse_nrrd_point, parse_nrrd_point_planar, parse_parenthesized_vectors,
         parse_space_direction_slots, parse_space_directions, parse_space_directions_planar,
+        sample_type,
     };
+    use ritk_codecs::SampleType;
+
+    #[test]
+    fn nrrd_sample_names_cover_every_fixed_width_codec_type() {
+        let names = [
+            ("unsigned char", SampleType::U8),
+            ("uint8", SampleType::U8),
+            ("uint8_t", SampleType::U8),
+            ("signed char", SampleType::I8),
+            ("int8", SampleType::I8),
+            ("int8_t", SampleType::I8),
+            ("unsigned short", SampleType::U16),
+            ("unsigned short int", SampleType::U16),
+            ("uint16", SampleType::U16),
+            ("uint16_t", SampleType::U16),
+            ("short", SampleType::I16),
+            ("short int", SampleType::I16),
+            ("signed short", SampleType::I16),
+            ("signed short int", SampleType::I16),
+            ("int16", SampleType::I16),
+            ("int16_t", SampleType::I16),
+            ("unsigned int", SampleType::U32),
+            ("uint", SampleType::U32),
+            ("uint32", SampleType::U32),
+            ("uint32_t", SampleType::U32),
+            ("int", SampleType::I32),
+            ("signed int", SampleType::I32),
+            ("int32", SampleType::I32),
+            ("int32_t", SampleType::I32),
+            ("unsigned long long", SampleType::U64),
+            ("unsigned long long int", SampleType::U64),
+            ("ulonglong", SampleType::U64),
+            ("uint64", SampleType::U64),
+            ("uint64_t", SampleType::U64),
+            ("long long", SampleType::I64),
+            ("long long int", SampleType::I64),
+            ("signed long long", SampleType::I64),
+            ("signed long long int", SampleType::I64),
+            ("longlong", SampleType::I64),
+            ("int64", SampleType::I64),
+            ("int64_t", SampleType::I64),
+            ("float", SampleType::F32),
+            ("double", SampleType::F64),
+            ("char", SampleType::I8),
+            ("uchar", SampleType::U8),
+            ("ushort", SampleType::U16),
+        ];
+        for (name, expected) in names {
+            assert_eq!(sample_type(name).expect("supported NRRD type"), expected);
+        }
+        assert_eq!(
+            sample_type(" uint64_t ").expect("trimmed alias"),
+            SampleType::U64
+        );
+        let error = sample_type("long double").expect_err("unsupported type is rejected");
+        assert!(error.to_string().contains("long double"));
+    }
 
     #[test]
     fn parse_space_directions_skips_none_axes() {
