@@ -67,7 +67,7 @@
 - needs: RITK-IMAGE-CONVERSION-PREFLIGHT-001, RITK-IO-FORMAT-CAPABILITIES-001, RITK-NRRD-DOCUMENT-001, RITK-NIFTI-DOCUMENT-001, RITK-NRRD-NIFTI-001, RITK-DICOM-CONVERSION-001, RITK-METAIMAGE-CONVERSION-001, RITK-MINC-CONVERSION-001, RITK-MIF-CONVERSION-001, RITK-MGH-CONVERSION-001, RITK-ANALYZE-CONVERSION-001, RITK-VTK-VOLUME-CONVERSION-001, RITK-JPEG-LOSSY-ORACLE-001, RITK-RASTER-CONVERSION-001, RITK-GIFTI-SURFACE-001, RITK-MESH-CONVERSION-001, RITK-TRACTOGRAM-CONVERSION-001
 - scope: crates/ritk-image-io/, crates/ritk-io/, all listed format crates, conversion tests, and the RITK user manual
 - next: deliver the typed volume preflight, then exact NRRD↔NIfTI conversion; keep each other format family in its own acceptance slice.
-- basis: c58d8906bee373a7d2f87468fafc140310b9ec70
+- basis: e8db1595f018b0eec23e8b5f2f8b2a16f8e711d2
 
 <a id="RITK-IMAGE-CONVERSION-PREFLIGHT-001"></a>
 ## RITK-IMAGE-CONVERSION-PREFLIGHT-001: Preflight stored-volume conversions
@@ -89,7 +89,7 @@
 - needs: RITK-NRRD-HEADER-RECORDS-001
 - scope: crates/ritk-nrrd/, NRRD guide, document tests
 - next: define a validated document constructor and preserve existing parser diagnostics while preparing complete output.
-- basis: c58d8906bee373a7d2f87468fafc140310b9ec70
+- basis: e8db1595f018b0eec23e8b5f2f8b2a16f8e711d2
 
 <a id="RITK-NIFTI-DOCUMENT-001"></a>
 ## RITK-NIFTI-DOCUMENT-001: Retain complete NIfTI documents
@@ -111,7 +111,7 @@
 - needs: RITK-IMAGE-CONVERSION-PREFLIGHT-001, RITK-NRRD-DOCUMENT-001, RITK-NIFTI-DOCUMENT-001
 - scope: crates/ritk-io/, crates/ritk-nrrd/, crates/ritk-nifti/, pair tests
 - next: implement after both typed document paths and shared preflight are available.
-- basis: c58d8906bee373a7d2f87468fafc140310b9ec70
+- basis: e8db1595f018b0eec23e8b5f2f8b2a16f8e711d2
 
 <a id="RITK-DICOM-CONVERSION-001"></a>
 ## RITK-DICOM-CONVERSION-001: Convert DICOM series through RITK
@@ -131,7 +131,7 @@
 - status: todo
 - priority: correctness
 - needs: none
-- scope: crates/ritk-dicom/src/writer/, pixel-encoding tests
+- scope: crates/ritk-io/src/format/dicom/, crates/ritk-codecs/src/pixel_layout/, DICOM writer tests
 - next: derive the tag tuple from each encoded payload type and assert parsed tags and byte width together.
 - basis: c58d8906bee373a7d2f87468fafc140310b9ec70
 
@@ -142,7 +142,7 @@
 - status: todo
 - priority: correctness
 - needs: RITK-IMAGE-CONVERSION-PREFLIGHT-001
-- scope: crates/ritk-dicom/, crates/ritk-image-io/, stored-pixel tests and DICOM guide
+- scope: crates/ritk-dicom/, crates/ritk-io/src/format/dicom/reader/, crates/ritk-image-io/, stored-pixel tests and DICOM guide
 - next: map supported DICOM pixel encodings and rescale tags to the current stored and calibration types.
 - basis: c58d8906bee373a7d2f87468fafc140310b9ec70
 
@@ -153,7 +153,7 @@
 - status: todo
 - priority: correctness
 - needs: none
-- scope: crates/ritk-dicom/, crates/ritk-io/, crates/ritk-snap/, series fixtures and manual
+- scope: crates/ritk-io/src/format/dicom/series/, crates/ritk-io/src/dispatch.rs, crates/ritk-python/src/io/, crates/ritk-cli/src/commands/, crates/ritk-snap/src/dicom/, series fixtures and manual
 - next: connect the existing directory scanner and UID loader through one typed catalog-and-selection API.
 - basis: c58d8906bee373a7d2f87468fafc140310b9ec70
 
@@ -292,11 +292,11 @@
 <a id="RITK-SNAP-RADIANT-UI-001"></a>
 ## RITK-SNAP-RADIANT-UI-001: Organize the DICOM viewer workspace
 - outcome: give RITK-SNAP a RadiAnt-style DICOM workspace with clear tool, study/series, viewport, and status regions.
-- acceptance: a public DICOM study opens from RITK codecs; series selection updates the viewport and metadata; full application captures include menus, toolbar, series panel, viewport, and status controls rather than image-only crops.
+- acceptance: a study with two distinct DICOM series lists both; loading either series shows its own pixels and metadata in its selected viewport without replacing the other panel; full-window public-phantom captures show menus, toolbar, series panel, viewport panels, and status controls.
 - status: todo
 - priority: feature
 - needs: RITK-DICOM-STUDY-CATALOG-001
-- scope: crates/ritk-snap/src/ui/, crates/ritk-snap/src/session/, docs/manual/
+- scope: crates/ritk-snap/src/app/, crates/ritk-snap/src/dicom/, crates/ritk-snap/src/launch/, crates/ritk-snap/src/presentation/, docs/manual/
 - next: inspect current RITK-SNAP behavior and verified RadiAnt reference screenshots, then map the full application layout and interaction tests.
 - basis: c58d8906bee373a7d2f87468fafc140310b9ec70
 
