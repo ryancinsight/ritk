@@ -61,12 +61,20 @@ const SHORT_CODE_SLOTS: usize = 9;
 /// |---|---|---|
 /// | [`Left`](Self::Left) | 1 | `JpegLosslessFirstOrderPrediction` |
 /// | [`Above`](Self::Above) | 2 | -- |
+/// | [`AboveOnly`](Self::AboveOnly) | 0 | `JpegLosslessNonHierarchical` |
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub enum JpegLosslessPrediction {
     /// `Ss = 1`: predict from `Ra`, the reconstructed sample to the left.
     Left,
     /// `Ss = 2`: predict from `Rb`, the reconstructed sample above.
     Above,
+    /// `Ss = 0`: no predictor selector; predict from `Rb`.
+    ///
+    /// Outside T.81's 1..=7 table and defined by DICOM for
+    /// `JpegLosslessNonHierarchical`. It reconstructs identically to
+    /// [`Above`](Self::Above): the provider's `lossless_predictor` maps
+    /// `0 | 2 => above`.
+    AboveOnly,
 }
 
 impl JpegLosslessPrediction {
@@ -74,6 +82,7 @@ impl JpegLosslessPrediction {
         match self {
             Self::Above => 2,
             Self::Left => 1,
+            Self::AboveOnly => 0,
         }
     }
 }
@@ -276,7 +285,9 @@ fn scan_differences(
             } else {
                 match prediction {
                     JpegLosslessPrediction::Left => i32::from(samples[base + column - 1]),
-                    JpegLosslessPrediction::Above => previous[column],
+                    JpegLosslessPrediction::Above | JpegLosslessPrediction::AboveOnly => {
+                        previous[column]
+                    }
                 }
             };
             differences.push(sample - predicted);

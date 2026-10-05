@@ -67,7 +67,7 @@ impl Default for CurvatureRegularizer {
 
 impl<T, B> Regularizer<T, B> for CurvatureRegularizer
 where
-    T: Scalar,
+    T: Scalar + eunomia::FloatElement,
     B: ComputeBackend + Default,
     B::DeviceBuffer<T>: CpuAddressableStorage<T>,
 {

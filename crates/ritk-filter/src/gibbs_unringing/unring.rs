@@ -115,7 +115,7 @@ impl GibbsUnringer {
     /// - [`GibbsError::NonFinite`] for a NaN or infinite sample.
     pub fn unring<T>(&self, shape: [usize; 3], volumes: &[&[T]]) -> Result<Vec<Vec<T>>, GibbsError>
     where
-        T: RealField,
+        T: RealField + eunomia::FloatElement,
         Complex<T>: FftPrecision,
     {
         let voxel_count: usize = shape.iter().product();
@@ -166,7 +166,7 @@ impl GibbsUnringer {
     pub(super) fn correct_slices<P, T>(&self, shape: [usize; 3], volumes: &[&[T]]) -> Vec<Vec<T>>
     where
         P: moirai::ExecutionPolicy,
-        T: RealField,
+        T: RealField + eunomia::FloatElement,
         Complex<T>: FftPrecision,
     {
         let voxel_count: usize = shape.iter().product();

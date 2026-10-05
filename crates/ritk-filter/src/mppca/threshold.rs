@@ -74,7 +74,7 @@ pub(crate) fn marchenko_pastur_boundary<T: RealScalar>(
 ) -> NoiseBoundary<T> {
     let m = descending.len();
     debug_assert!(m >= 1 && n >= m, "invariant: 1 ≤ m ≤ n");
-    let four = T::from_usize(4);
+    let four = T::from_count(4);
     let smallest = descending[m - 1];
     // Suffix sums let every candidate read its trailing sum in O(1).
     trailing.clear();
@@ -85,9 +85,9 @@ pub(crate) fn marchenko_pastur_boundary<T: RealScalar>(
     for p in 0..m {
         let count = m - p;
         let sum = trailing[p];
-        let count_t = T::from_usize(count);
+        let count_t = T::from_count(count);
         let accept = p + 1 == m || {
-            let gamma = count_t / T::from_usize(estimator.residual_columns(n, p));
+            let gamma = count_t / T::from_count(estimator.residual_columns(n, p));
             let bulk_variance = (descending[p] - smallest) / (four * gamma.sqrt());
             sum >= count_t * bulk_variance
         };

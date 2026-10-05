@@ -114,23 +114,23 @@ coeus-optim = { version = "0.10.0", git = "https://github.com/ryancinsight/Coeus
 pyo3 = { version = "0.29.2", default-features = false }
 numpy = { version = "0.29.0", git = "https://github.com/PyO3/rust-numpy", rev = "9df402373716a60f0e7825b6043568abe4e63b46" }
 dicom = { version = "0.10.0", default-features = false }
-moirai = { package = "moirai-runtime", version = "0.6.0", git = "https://github.com/ryancinsight/Moirai.git", features = ["melinoe"] }
-moirai-pal = { package = "moirai-pal", version = "0.6.0", git = "https://github.com/ryancinsight/Moirai.git", default-features = false }
+moirai = { package = "moirai-runtime", version = "0.7.0", git = "https://github.com/ryancinsight/Moirai.git", features = ["melinoe"] }
+moirai-pal = { package = "moirai-pal", version = "0.7.0", git = "https://github.com/ryancinsight/Moirai.git", default-features = false }
 metis-platform = { package = "metis-platform", version = "0.1.0", git = "https://github.com/ryancinsight/metis.git" }
 metis-web = { package = "metis-web", version = "0.1.0", git = "https://github.com/ryancinsight/metis.git" }
 metis-ui-lang = { package = "metis-ui-lang", version = "0.1.0", git = "https://github.com/ryancinsight/metis.git" }
 # Apollo FFT scratch caches use Eunomia complex values through Mnemosyne.
-mnemosyne = { package = "mnemosyne-memory", version = "0.7.0", git = "https://github.com/ryancinsight/Mnemosyne.git", default-features = false, features = ["std_tls", "eunomia"] }
-eunomia = { version = "0.8.0", git = "https://github.com/ryancinsight/eunomia", default-features = false }
+mnemosyne = { package = "mnemosyne-memory", version = "0.9.0", git = "https://github.com/ryancinsight/Mnemosyne.git", default-features = false, features = ["std_tls", "eunomia"] }
+eunomia = { version = "0.9.0", git = "https://github.com/ryancinsight/eunomia", default-features = false }
 coeus-core = { version = "0.10.0", git = "https://github.com/ryancinsight/Coeus.git" }
 coeus-tensor = { version = "0.10.0", git = "https://github.com/ryancinsight/Coeus.git" }
 coeus-ops = { version = "0.10.0", git = "https://github.com/ryancinsight/Coeus.git" }
 coeus-leto = { version = "0.10.0", git = "https://github.com/ryancinsight/Coeus.git" }
 coeus-autograd = { version = "0.10.0", git = "https://github.com/ryancinsight/Coeus.git" }
-leto = { version = "0.43.0", git = "https://github.com/ryancinsight/leto.git" }
-leto-ops = { version = "0.43.0", git = "https://github.com/ryancinsight/leto.git" }
+leto = { version = "0.45.0", git = "https://github.com/ryancinsight/leto.git" }
+leto-ops = { version = "0.45.0", git = "https://github.com/ryancinsight/leto.git" }
 apollo-fft = { version = "0.27.0", git = "https://github.com/ryancinsight/apollo" }
-apollo-sht = { version = "0.7.0", git = "https://github.com/ryancinsight/apollo" }
+apollo-sht = { version = "0.8.0", git = "https://github.com/ryancinsight/apollo" }
 aequitas = { version = "0.2.0", git = "https://github.com/ryancinsight/aequitas" }
 anyhow = "1.0"
 libc = "0.2"

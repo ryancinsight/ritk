@@ -99,7 +99,7 @@ impl Default for ElasticRegularizer {
 
 impl<T, B> Regularizer<T, B> for ElasticRegularizer
 where
-    T: Scalar,
+    T: Scalar + eunomia::FloatElement,
     B: ComputeBackend + Default,
     B::DeviceBuffer<T>: CpuAddressableStorage<T>,
 {

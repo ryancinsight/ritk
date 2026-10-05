@@ -52,12 +52,13 @@ fn rank_dims<const N: usize>(shape: &[usize], op: &str) -> [usize; N] {
 #[inline]
 pub fn dispatch_bending_energy<T, B>(field: &Tensor<T, B>, weight: f64) -> T
 where
-    T: Scalar,
+    T: coeus_core::FloatElement + Scalar,
     B: ComputeBackend + Default,
     B::DeviceBuffer<T>: CpuAddressableStorage<T>,
 {
     with_field_data(field, |data, shape| {
-        laplacian_squared_mean(data, shape, "bending_energy") * T::from_f64(weight)
+        laplacian_squared_mean(data, shape, "bending_energy")
+            * coeus_core::FloatElement::from_f64(weight)
     })
 }
 
@@ -68,12 +69,13 @@ where
 #[inline]
 pub fn dispatch_curvature<T, B>(field: &Tensor<T, B>, weight: f64) -> T
 where
-    T: Scalar,
+    T: coeus_core::FloatElement + Scalar,
     B: ComputeBackend + Default,
     B::DeviceBuffer<T>: CpuAddressableStorage<T>,
 {
     with_field_data(field, |data, shape| {
-        laplacian_squared_mean(data, shape, "curvature") * T::from_f64(weight)
+        laplacian_squared_mean(data, shape, "curvature")
+            * coeus_core::FloatElement::from_f64(weight)
     })
 }
 
@@ -81,12 +83,12 @@ where
 #[inline]
 pub fn dispatch_diffusion<T, B>(field: &Tensor<T, B>, weight: f64) -> T
 where
-    T: Scalar,
+    T: coeus_core::FloatElement + Scalar,
     B: ComputeBackend + Default,
     B::DeviceBuffer<T>: CpuAddressableStorage<T>,
 {
     with_field_data(field, |data, shape| {
-        gradient_squared_mean(data, shape, "diffusion") * T::from_f64(weight)
+        gradient_squared_mean(data, shape, "diffusion") * coeus_core::FloatElement::from_f64(weight)
     })
 }
 
@@ -94,12 +96,13 @@ where
 #[inline]
 pub fn dispatch_total_variation<T, B>(field: &Tensor<T, B>, weight: f64) -> T
 where
-    T: Scalar,
+    T: coeus_core::FloatElement + Scalar,
     B: ComputeBackend + Default,
     B::DeviceBuffer<T>: CpuAddressableStorage<T>,
 {
     with_field_data(field, |data, shape| {
-        gradient_magnitude_mean(data, shape, "total_variation") * T::from_f64(weight)
+        gradient_magnitude_mean(data, shape, "total_variation")
+            * coeus_core::FloatElement::from_f64(weight)
     })
 }
 
@@ -107,19 +110,28 @@ where
 #[inline]
 pub fn dispatch_elastic<T, B>(field: &Tensor<T, B>, alpha: f64, beta: f64) -> T
 where
-    T: Scalar,
+    T: coeus_core::FloatElement + Scalar,
     B: ComputeBackend + Default,
     B::DeviceBuffer<T>: CpuAddressableStorage<T>,
 {
     with_field_data(field, |data, shape| {
-        elastic(data, shape, T::from_f64(alpha), T::from_f64(beta))
+        elastic(
+            data,
+            shape,
+            coeus_core::FloatElement::from_f64(alpha),
+            coeus_core::FloatElement::from_f64(beta),
+        )
     })
 }
 
 // ── Rank dispatch over the native kernels ────────────────────────────────────
 
 #[inline]
-fn laplacian_squared_mean<T: Scalar>(data: &[T], shape: &[usize], op: &str) -> T {
+fn laplacian_squared_mean<T: eunomia::FloatElement + Scalar + eunomia::FloatElement>(
+    data: &[T],
+    shape: &[usize],
+    op: &str,
+) -> T {
     match shape.len() {
         4 => {
             let [b, c, h, w] = rank_dims(shape, op);
@@ -134,7 +146,11 @@ fn laplacian_squared_mean<T: Scalar>(data: &[T], shape: &[usize], op: &str) -> T
 }
 
 #[inline]
-fn gradient_squared_mean<T: Scalar>(data: &[T], shape: &[usize], op: &str) -> T {
+fn gradient_squared_mean<T: eunomia::FloatElement + Scalar + eunomia::FloatElement>(
+    data: &[T],
+    shape: &[usize],
+    op: &str,
+) -> T {
     match shape.len() {
         4 => {
             let [b, c, h, w] = rank_dims(shape, op);
@@ -149,7 +165,11 @@ fn gradient_squared_mean<T: Scalar>(data: &[T], shape: &[usize], op: &str) -> T 
 }
 
 #[inline]
-fn gradient_magnitude_mean<T: Scalar>(data: &[T], shape: &[usize], op: &str) -> T {
+fn gradient_magnitude_mean<T: eunomia::FloatElement + Scalar + eunomia::FloatElement>(
+    data: &[T],
+    shape: &[usize],
+    op: &str,
+) -> T {
     match shape.len() {
         4 => {
             let [b, c, h, w] = rank_dims(shape, op);
@@ -164,7 +184,12 @@ fn gradient_magnitude_mean<T: Scalar>(data: &[T], shape: &[usize], op: &str) -> 
 }
 
 #[inline]
-fn elastic<T: Scalar>(data: &[T], shape: &[usize], alpha: T, beta: T) -> T {
+fn elastic<T: eunomia::FloatElement + Scalar + eunomia::FloatElement>(
+    data: &[T],
+    shape: &[usize],
+    alpha: T,
+    beta: T,
+) -> T {
     match shape.len() {
         4 => {
             let [b, c, h, w] = rank_dims(shape, "elastic");
@@ -182,7 +207,13 @@ fn elastic<T: Scalar>(data: &[T], shape: &[usize], alpha: T, beta: T) -> T {
 
 /// Forward difference along an axis, zero-padded at the last index.
 #[inline]
-fn fwd_diff<T: Scalar>(data: &[T], offset: usize, local: usize, extent: usize, stride: usize) -> T {
+fn fwd_diff<T: eunomia::FloatElement + Scalar + eunomia::FloatElement>(
+    data: &[T],
+    offset: usize,
+    local: usize,
+    extent: usize,
+    stride: usize,
+) -> T {
     if local + 1 < extent {
         data[offset + stride] - data[offset]
     } else {
@@ -194,8 +225,15 @@ fn fwd_diff<T: Scalar>(data: &[T], offset: usize, local: usize, extent: usize, s
 ///
 /// Border voxels (`i∈{0,h-1}` or `j∈{0,w-1}`) contribute a zero Laplacian, so
 /// the loop visits only the interior; the mean divides by the full voxel count.
-fn laplacian_squared_mean_planar<T: Scalar>(data: &[T], bc: usize, h: usize, w: usize) -> T {
-    let four = T::from_f64(4.0);
+fn laplacian_squared_mean_planar<
+    T: eunomia::FloatElement + coeus_core::FloatElement + Scalar + eunomia::FloatElement,
+>(
+    data: &[T],
+    bc: usize,
+    h: usize,
+    w: usize,
+) -> T {
+    let four = <T as eunomia::FloatElement>::from_f64(4.0);
     let mut acc = T::zero();
     for plane in 0..bc {
         let base = plane * h * w;
@@ -207,11 +245,16 @@ fn laplacian_squared_mean_planar<T: Scalar>(data: &[T], bc: usize, h: usize, w: 
             }
         }
     }
-    acc / T::from_usize(bc * h * w)
+    acc / <T as eunomia::FloatElement>::from_count(bc * h * w)
 }
 
 /// Mean over all voxels of `|∇u|²` via forward differences (zero-padded edges).
-fn gradient_squared_mean_planar<T: Scalar>(data: &[T], bc: usize, h: usize, w: usize) -> T {
+fn gradient_squared_mean_planar<T: eunomia::FloatElement + Scalar + eunomia::FloatElement>(
+    data: &[T],
+    bc: usize,
+    h: usize,
+    w: usize,
+) -> T {
     let mut acc = T::zero();
     for plane in 0..bc {
         let base = plane * h * w;
@@ -224,11 +267,16 @@ fn gradient_squared_mean_planar<T: Scalar>(data: &[T], bc: usize, h: usize, w: u
             }
         }
     }
-    acc / T::from_usize(bc * h * w)
+    acc / <T as eunomia::FloatElement>::from_count(bc * h * w)
 }
 
 /// Mean over all voxels of `|∇u| = √(g_h² + g_w²)` (isotropic total variation).
-fn gradient_magnitude_mean_planar<T: Scalar>(data: &[T], bc: usize, h: usize, w: usize) -> T {
+fn gradient_magnitude_mean_planar<T: eunomia::FloatElement + Scalar + eunomia::FloatElement>(
+    data: &[T],
+    bc: usize,
+    h: usize,
+    w: usize,
+) -> T {
     let mut acc = T::zero();
     for plane in 0..bc {
         let base = plane * h * w;
@@ -241,7 +289,7 @@ fn gradient_magnitude_mean_planar<T: Scalar>(data: &[T], bc: usize, h: usize, w:
             }
         }
     }
-    acc / T::from_usize(bc * h * w)
+    acc / <T as eunomia::FloatElement>::from_count(bc * h * w)
 }
 
 /// Elastic loss: `α·mean(|∇u|²) + β·mean((div u)²)`.
@@ -250,7 +298,7 @@ fn gradient_magnitude_mean_planar<T: Scalar>(data: &[T], bc: usize, h: usize, w:
 /// width-gradient (`div u = ∂u_x/∂x + ∂u_y/∂y`), so the field must carry at
 /// least two displacement channels; its mean is over `B·H·W` (one divergence
 /// scalar per spatial site), distinct from the membrane mean over `B·C·H·W`.
-fn elastic_planar<T: Scalar>(
+fn elastic_planar<T: eunomia::FloatElement + Scalar + eunomia::FloatElement>(
     data: &[T],
     b: usize,
     c: usize,
@@ -280,20 +328,22 @@ fn elastic_planar<T: Scalar>(
             }
         }
     }
-    let divergence_mean = div_acc / T::from_usize(b * h * w);
+    let divergence_mean = div_acc / <T as eunomia::FloatElement>::from_count(b * h * w);
     membrane_mean * alpha + divergence_mean * beta
 }
 
 // ── Native finite-difference kernels (volumetric, `[BC, D, H, W]`) ────────────
 
-fn laplacian_squared_mean_volumetric<T: Scalar>(
+fn laplacian_squared_mean_volumetric<
+    T: eunomia::FloatElement + coeus_core::FloatElement + Scalar + eunomia::FloatElement,
+>(
     data: &[T],
     bc: usize,
     d: usize,
     h: usize,
     w: usize,
 ) -> T {
-    let six = T::from_f64(6.0);
+    let six = <T as eunomia::FloatElement>::from_f64(6.0);
     let hw = h * w;
     let dhw = d * hw;
     let mut acc = T::zero();
@@ -315,10 +365,10 @@ fn laplacian_squared_mean_volumetric<T: Scalar>(
             }
         }
     }
-    acc / T::from_usize(bc * dhw)
+    acc / <T as eunomia::FloatElement>::from_count(bc * dhw)
 }
 
-fn gradient_squared_mean_volumetric<T: Scalar>(
+fn gradient_squared_mean_volumetric<T: eunomia::FloatElement + Scalar + eunomia::FloatElement>(
     data: &[T],
     bc: usize,
     d: usize,
@@ -342,10 +392,10 @@ fn gradient_squared_mean_volumetric<T: Scalar>(
             }
         }
     }
-    acc / T::from_usize(bc * dhw)
+    acc / <T as eunomia::FloatElement>::from_count(bc * dhw)
 }
 
-fn gradient_magnitude_mean_volumetric<T: Scalar>(
+fn gradient_magnitude_mean_volumetric<T: eunomia::FloatElement + Scalar + eunomia::FloatElement>(
     data: &[T],
     bc: usize,
     d: usize,
@@ -369,10 +419,10 @@ fn gradient_magnitude_mean_volumetric<T: Scalar>(
             }
         }
     }
-    acc / T::from_usize(bc * dhw)
+    acc / <T as eunomia::FloatElement>::from_count(bc * dhw)
 }
 
-fn elastic_volumetric<T: Scalar>(
+fn elastic_volumetric<T: eunomia::FloatElement + Scalar + eunomia::FloatElement>(
     data: &[T],
     b: usize,
     c: usize,
@@ -408,7 +458,7 @@ fn elastic_volumetric<T: Scalar>(
             }
         }
     }
-    let divergence_mean = div_acc / T::from_usize(b * dhw);
+    let divergence_mean = div_acc / <T as eunomia::FloatElement>::from_count(b * dhw);
     membrane_mean * alpha + divergence_mean * beta
 }
 
