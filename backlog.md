@@ -91,17 +91,6 @@
 - next: define a validated document constructor and preserve existing parser diagnostics while preparing complete output.
 - basis: e8db1595f018b0eec23e8b5f2f8b2a16f8e711d2
 
-<a id="RITK-NIFTI-DOCUMENT-001"></a>
-## RITK-NIFTI-DOCUMENT-001: Retain complete NIfTI documents
-- outcome: read and write NIfTI samples with their header, forms, units, extensions, and declared metadata intact.
-- acceptance: .nii and .nii.gz retain supported sample bits and parsed header semantics, or return typed errors before output; qform/sform conflicts are explicit and tested.
-- status: todo
-- priority: correctness
-- needs: none
-- scope: crates/ritk-nifti/, NIfTI manual, format tests
-- next: inventory header fields against the parser and writer, then define a document round-trip oracle.
-- basis: c58d8906bee373a7d2f87468fafc140310b9ec70
-
 <a id="RITK-NRRD-NIFTI-001"></a>
 ## RITK-NRRD-NIFTI-001: Convert NRRD and NIfTI volumes
 - outcome: convert supported NRRD and NIfTI volumes without changing voxel bits or represented physical semantics.

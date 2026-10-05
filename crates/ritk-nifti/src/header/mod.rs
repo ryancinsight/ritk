@@ -10,3 +10,4 @@ mod types;
 mod validate;
 
 pub(crate) use types::*;
+pub(crate) use validate::{checked_spatial_pixdim, qfac_from_pixdim};

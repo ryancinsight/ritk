@@ -59,6 +59,7 @@
 //! `[internal_col, internal_row, internal_depth]` and the first two physical
 //! rows are sign-flipped between LPS and RAS.
 
+mod document;
 mod header;
 mod reader;
 mod shape;
@@ -66,6 +67,10 @@ mod spatial;
 mod typed;
 mod writer;
 
+pub use document::{
+    transcode_nifti_document, NiftiDocument, NiftiDocumentError, NiftiDocumentHeader, NiftiVersion,
+    SpatialFormRelation,
+};
 pub use reader::{
     read_nifti, read_nifti_from_bytes, read_nifti_labels, read_nifti_series,
     read_nifti_series_from_bytes,

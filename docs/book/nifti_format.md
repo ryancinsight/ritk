@@ -18,6 +18,23 @@ The native codec supports:
 - NIfTI sform and qform spatial metadata; and
 - NIfTI-1 and NIfTI-2 single-file streams, compressed or uncompressed.
 
+`NiftiDocument` is the lossless transport surface. It retains the complete uncompressed single-file
+stream, including unprojected header fields, the extension indicator and blocks, and exact sample bits.
+Writing to `.nii` reproduces those bytes; writing to `.nii.gz` changes only the gzip
+framing. The gzip reader drains the stream through its checksum trailer before acceptance.
+
+The typed header view exposes both transform codes and classifies the active forms as qform-only,
+sform-only, compatible in handedness, or conflicting in handedness. Both forms remain in the document
+when they differ: qform can describe scanner coordinates while sform describes a standard space. A
+handedness conflict is reported explicitly because the NIfTI-1 specification
+states that operations on such an image are unspecified. See the official
+[NIfTI-1 FAQ, questions 19 and 21](https://nifti.nimh.nih.gov/nifti-1/documentation/faq.html).
+
+`transcode_nifti_document` performs `.nii`/`.nii.gz` framing conversion inside
+RITK. It validates and, for gzip output, finishes compression before opening
+the destination, so format or compression errors leave an existing output
+unchanged.
+
 ## Spatial Contract
 
 NIfTI file-axis RAS maps to RITK `[depth, row, col]` through the format

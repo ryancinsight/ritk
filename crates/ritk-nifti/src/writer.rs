@@ -431,7 +431,7 @@ fn write_header(mut writer: impl Write, header: &NiftiHeader) -> Result<()> {
     Ok(())
 }
 
-fn is_gzip_path(path: &Path) -> bool {
+pub(crate) fn is_gzip_path(path: &Path) -> bool {
     path.extension()
         .and_then(|ext| ext.to_str())
         .is_some_and(|ext| ext.eq_ignore_ascii_case("gz"))

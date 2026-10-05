@@ -10,7 +10,7 @@ use crate::header::NiftiHeader;
 use crate::shape::checked_voxel_count;
 use crate::spatial::{metadata_from_nifti_ras_affine, InternalSpatialMetadata};
 
-const GZIP_MAGIC: [u8; 2] = [0x1f, 0x8b];
+pub(crate) const GZIP_MAGIC: [u8; 2] = [0x1f, 0x8b];
 const MAX_HEADER_PREFIX_BYTES: u64 = 544;
 
 pub fn read_nifti<B: ComputeBackend, P: AsRef<Path>>(
