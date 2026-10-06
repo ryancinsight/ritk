@@ -6336,6 +6336,7 @@ dependencies = [
  "coeus-core",
  "consus-core",
  "flate2",
+ "ritk-codecs",
  "ritk-image",
  "ritk-spatial",
  "tempfile",
