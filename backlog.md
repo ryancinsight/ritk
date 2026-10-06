@@ -69,16 +69,38 @@
 - next: deliver the typed volume preflight, then exact NRRD↔NIfTI conversion; keep each other format family in its own acceptance slice.
 - basis: e8db1595f018b0eec23e8b5f2f8b2a16f8e711d2
 
-<a id="RITK-IMAGE-CONVERSION-PREFLIGHT-001"></a>
-## RITK-IMAGE-CONVERSION-PREFLIGHT-001: Preflight stored-volume conversions
-- outcome: determine typed volume-conversion compatibility and information loss before opening the target.
-- acceptance: a conversion plan identifies source and target capabilities and reports sample, geometry, calibration, acquisition, and format-metadata preservation or typed loss; rejected plans leave an existing destination unchanged.
+<a id="RITK-IMAGE-CONVERSION-CAPABILITIES-001"></a>
+## RITK-IMAGE-CONVERSION-CAPABILITIES-001: Report conversion capabilities
+- outcome: compare stored-volume semantics with a target's declared capabilities without authorizing output.
+- acceptance: reports identify source and target formats, target capabilities, each unsupported series or volume feature, and adapter-supplied metadata losses scoped to series, volume, or frame; reporting opens no destination and returns no prepared-conversion witness.
 - status: todo
 - priority: architecture
 - needs: none
-- scope: crates/ritk-image-io/, crates/ritk-io/, conversion tests, docs/adr/0054-stored-volume-contract.md
-- next: revise ADR 0054 in place to define capability, loss, and prepare-before-write contracts; then test a real NRRD↔NIfTI round trip.
-- basis: c58d8906bee373a7d2f87468fafc140310b9ec70
+- scope: crates/ritk-image-io/, conversion tests, ADR 0054
+- next: deliver the report-only API, then use it to implement complete value-based preflight.
+- basis: cd90957d25988d7e1455b43f7202162385e94b39
+
+<a id="RITK-IMAGE-CONVERSION-PREFLIGHT-001"></a>
+## RITK-IMAGE-CONVERSION-PREFLIGHT-001: Preflight stored-volume conversions
+- outcome: prepare a conversion only after the target accepts per-volume, cross-volume, and adapter-specific semantics.
+- acceptance: target constraints check sample type, shape, geometry, calibration, coordinate maps, acquisition values, and format metadata; every rejection carries exact series, volume, or frame scope, no prepared witness exists on loss, and adapters leave an existing destination unchanged.
+- status: todo
+- priority: architecture
+- needs: RITK-IMAGE-CONVERSION-CAPABILITIES-001
+- scope: crates/ritk-image-io/, crates/ritk-io/, format adapters, conversion tests, docs/adr/0054-stored-volume-contract.md
+- next: compare cross-volume values and add target-owned checks for format-specific value limits before NRRD/NIfTI writers consume prepared conversions.
+- basis: cd90957d25988d7e1455b43f7202162385e94b39
+
+<a id="RITK-NIFTI-DOCUMENT-001"></a>
+## RITK-NIFTI-DOCUMENT-001: Construct NIfTI documents from stored series
+- outcome: create NIfTI documents from stored RITK series without an intermediate file.
+- acceptance: supported NIfTI-1 and NIfTI-2 documents preserve exact samples, spatial mapping, calibration, and acquisition metadata; unrepresentable semantics return typed loss before destination creation.
+- status: todo
+- priority: correctness
+- needs: RITK-IMAGE-CONVERSION-PREFLIGHT-001
+- scope: crates/ritk-nifti/, NIfTI guide, document tests
+- next: define the typed document constructor and reader/writer contract for supported sample and spatial forms.
+- basis: cd90957d25988d7e1455b43f7202162385e94b39
 
 <a id="RITK-NRRD-DOCUMENT-001"></a>
 ## RITK-NRRD-DOCUMENT-001: Read and write complete NRRD documents
