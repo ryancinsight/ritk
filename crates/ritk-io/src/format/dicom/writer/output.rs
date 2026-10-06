@@ -26,23 +26,6 @@ fn unsigned_scalar(
     })
 }
 
-fn positive_scalar(
-    object: &dicom::object::DefaultDicomObject,
-    tag: Tag,
-    name: &'static str,
-) -> Result<usize> {
-    let element = object
-        .element(tag)
-        .map_err(|_| DicomWriteError::MissingPixelAttribute { attribute: name })?;
-    element.to_int::<usize>().map_err(|_| {
-        DicomWriteError::MalformedPixelAttribute {
-            attribute: name,
-            value: value_debug(element.value()),
-        }
-        .into()
-    })
-}
-
 fn optional_frame_count(object: &dicom::object::DefaultDicomObject) -> Result<usize> {
     let Some(element) = object.get(Tag(0x0028, 0x0008)) else {
         return Ok(1);
@@ -101,9 +84,9 @@ fn validate_pixel_module(object: &dicom::object::DefaultDicomObject) -> Result<(
         }
         .into());
     }
-    let rows = positive_scalar(object, Tag(0x0028, 0x0010), "Rows")?;
-    let columns = positive_scalar(object, Tag(0x0028, 0x0011), "Columns")?;
-    let samples_per_pixel = positive_scalar(object, Tag(0x0028, 0x0002), "SamplesPerPixel")?;
+    let rows = usize::from(unsigned_scalar(object, Tag(0x0028, 0x0010), "Rows")?);
+    let columns = usize::from(unsigned_scalar(object, Tag(0x0028, 0x0011), "Columns")?);
+    let samples_per_pixel = usize::from(unsigned_scalar(object, Tag(0x0028, 0x0002), "SamplesPerPixel")?);
     for (attribute, value) in [
         ("Rows", rows),
         ("Columns", columns),
