@@ -38,7 +38,10 @@ impl NrrdDocument {
         records: Vec<(String, String)>,
     ) -> Result<Self, NrrdDocumentError> {
         if comments.iter().any(|comment| {
-            !comment.is_ascii() || !comment.starts_with('#') || comment.contains(['\r', '\n'])
+            !comment.is_ascii()
+                || comment.len() < 2
+                || !comment.starts_with('#')
+                || comment.contains(['\r', '\n'])
         }) {
             return Err(NrrdDocumentError::UnsupportedField {
                 field: "metadata".to_owned(),
@@ -52,6 +55,7 @@ impl NrrdDocument {
                 || key.contains(['\r', '\n'])
                 || !value.is_ascii()
                 || value.contains('\r')
+                || unsupported_dwmri_name(key)
         }) {
             return Err(NrrdDocumentError::UnsupportedField {
                 field: "metadata".to_owned(),
@@ -73,14 +77,15 @@ impl NrrdDocument {
         &self.records
     }
     fn write_to<P: AsRef<Path>>(&self, path: P) -> Result<(), NrrdDocumentError> {
-        let first = self
-            .series
-            .volumes()
-            .first()
-            .ok_or(NrrdStoredWriteError::EmptySeries)?;
+        let Some(first) = self.series.volumes().first() else {
+            return Err(NrrdStoredWriteError::EmptySeries.into());
+        };
         for (name, _) in self.records.iter() {
             if generated_metadata_name(name) {
                 return Err(NrrdDocumentError::ConflictingMetadata { name: name.clone() });
+            }
+            if unsupported_dwmri_name(name) {
+                return Err(NrrdDocumentError::UnsupportedField { field: name.clone() });
             }
         }
         let mut header = HeaderBuffer::new();
@@ -178,14 +183,8 @@ pub fn read_nrrd_document<P: AsRef<Path>>(
 ) -> Result<NrrdDocument, NrrdDocumentError> {
     let header = read_nrrd_header(path.as_ref())?;
     let series = read_nrrd_stored_series(path, budget)?;
-    let comments = header.comments().to_vec();
-    let diffusion = matches!(series.axis(), SeriesAxis::Diffusion(_));
-    if !diffusion
-        && header
-            .key_value_records()
-            .iter()
-            .any(|record| record.key().to_ascii_lowercase().starts_with("dwmri_"))
-    {
+    let comments = header.comments().iter().filter(|c| c.as_str() != GENERATED_COMMENT).cloned().collect();
+    if header.key_value_records().iter().any(|r| unsupported_dwmri_name(r.key())) {
         return Err(NrrdDocumentError::UnsupportedField {
             field: "DWMRI metadata on a non-diffusion axis".to_owned(),
         });
@@ -208,10 +207,11 @@ pub fn read_nrrd_document<P: AsRef<Path>>(
     }
     NrrdDocument::new(series, comments, records)
 }
+const GENERATED_COMMENT: &str = "# Complete NRRD file written by ritk";
+
 fn generated_metadata_name(name: &str) -> bool {
-    let lower = name.to_ascii_lowercase();
     matches!(
-        lower.as_str(),
+        name,
         "type"
             | "dimension"
             | "space"
@@ -225,8 +225,12 @@ fn generated_metadata_name(name: &str) -> bool {
             | "measurement frame"
             | "ritk_coordinate_map"
             | "modality"
-            | "dwmri_b-value"
-    ) || lower.starts_with("dwmri_gradient_")
+            | "DWMRI_b-value"
+    ) || name.starts_with("DWMRI_gradient_")
+}
+
+fn unsupported_dwmri_name(name: &str) -> bool {
+    name.starts_with("DWMRI_") && !generated_metadata_name(name)
 }
 pub fn write_nrrd_document<P: AsRef<Path>>(
     path: P,
