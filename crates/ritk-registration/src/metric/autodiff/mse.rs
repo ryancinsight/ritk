@@ -48,7 +48,7 @@ pub struct Mse;
 
 impl<T, B> Metric<T, B> for Mse
 where
-    T: Float + leto_ops::RealScalar,
+    T: Float,
     B: ComputeBackend + BackendOps<T> + Default,
     B::DeviceBuffer<T>: CpuAddressableStorage<T> + CpuAddressableStorageMut<T>,
 {
