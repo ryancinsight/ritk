@@ -9,7 +9,6 @@ use std::fs::File;
 use std::io::{BufWriter, Write};
 use std::path::Path;
 use thiserror::Error;
-
 #[derive(Debug)]
 pub struct NrrdDocument {
     series: StoredSeries,
@@ -32,13 +31,6 @@ pub enum NrrdDocumentError {
     Io(#[from] std::io::Error),
 }
 impl NrrdDocument {
-    /// Constructs a document without an intermediate file.
-    ///
-    /// Unsupported standard fields and parser-dropped comment forms return a typed error.
-    /// Constructs a document without an intermediate file.
-    ///
-    /// Standard fields outside the generated subset, non-ASCII metadata, and
-    /// comments beginning with `# ` or `##` return [`NrrdDocumentError::UnsupportedField`].
     pub fn new(
         series: StoredSeries,
         comments: Vec<String>,
@@ -221,7 +213,6 @@ pub fn read_nrrd_document<P: AsRef<Path>>(
 }
 const GENERATED_COMMENT: &str = "# Complete NRRD file written by ritk";
 const STANDARD_FIELDS: &str = "type|dimension|space|space units|sizes|space directions|kinds|endian|encoding|space origin|measurement frame|content|labels";
-const GENERATED_STANDARD_FIELDS: &str = "type|dimension|space|space units|sizes|space directions|kinds|endian|encoding|space origin|measurement frame";
 
 fn generated_metadata_name(name: &str, value: &str) -> bool {
     matches!(name, "ritk_coordinate_map" | "DWMRI_b-value")
@@ -232,9 +223,7 @@ fn standard_metadata_name(name: &str) -> bool {
     STANDARD_FIELDS.split('|').any(|field| field == name)
 }
 fn generated_standard_field(name: &str) -> bool {
-    GENERATED_STANDARD_FIELDS
-        .split('|')
-        .any(|field| field == name)
+    standard_metadata_name(name) && !matches!(name, "content" | "labels")
 }
 fn unsupported_dwmri_name(name: &str) -> bool {
     name.get(..6)
