@@ -64,21 +64,43 @@
 - acceptance: DICOM, NIfTI, NRRD, MetaImage, MINC, MIF, MGH/MGZ, Analyze, VTK, PNG, TIFF, JPEG, GIFTI, mesh, and tractogram paths declare their readable and writable models; each exposed conversion preserves represented samples, geometry, calibration, and acquisition metadata or returns typed loss before destination mutation. Scalar volumes, color rasters, surfaces, meshes, and tractograms retain distinct models. Métis consumes RITK and contains no format parser or converter.
 - status: todo
 - priority: architecture
-- needs: RITK-IO-FORMAT-CAPABILITIES-001, RITK-NIFTI-DOCUMENT-001, RITK-NRRD-NIFTI-001, RITK-DICOM-CONVERSION-001, RITK-METAIMAGE-CONVERSION-001, RITK-MINC-CONVERSION-001, RITK-MIF-CONVERSION-001, RITK-MGH-CONVERSION-001, RITK-ANALYZE-CONVERSION-001, RITK-VTK-VOLUME-CONVERSION-001, RITK-JPEG-LOSSY-ORACLE-001, RITK-RASTER-CONVERSION-001, RITK-GIFTI-SURFACE-001, RITK-MESH-CONVERSION-001, RITK-TRACTOGRAM-CONVERSION-001
+- needs: RITK-IO-FORMAT-CAPABILITIES-001, RITK-NIFTI-SCALAR-SAMPLES-001, RITK-NIFTI-STORED-SERIES-001, RITK-NIFTI-STORED-READ-001, RITK-NRRD-NIFTI-001, RITK-DICOM-CONVERSION-001, RITK-METAIMAGE-CONVERSION-001, RITK-MINC-CONVERSION-001, RITK-MIF-CONVERSION-001, RITK-MGH-CONVERSION-001, RITK-ANALYZE-CONVERSION-001, RITK-VTK-VOLUME-CONVERSION-001, RITK-JPEG-LOSSY-ORACLE-001, RITK-RASTER-CONVERSION-001, RITK-GIFTI-SURFACE-001, RITK-MESH-CONVERSION-001, RITK-TRACTOGRAM-CONVERSION-001
 - scope: crates/ritk-image-io/, crates/ritk-io/, all listed format crates, conversion tests, and the RITK user manual
-- next: construct NIfTI documents from stored series, then convert NRRD to NIfTI and back; continue the remaining format families in dependency order.
-- basis: 207fe51571dad7b864a262931ecac172bfa18ba4
+- next: finish NIfTI scalar, stored-series, and stored-reader support, then complete NRRD/NIfTI and the remaining formats in dependency order.
+- basis: 1ec26f82e536e524da083d3260b561e518d121a7
 
-<a id="RITK-NIFTI-DOCUMENT-001"></a>
-## RITK-NIFTI-DOCUMENT-001: Construct NIfTI documents from stored series
-- outcome: create NIfTI documents from stored RITK series without an intermediate file.
-- acceptance: supported NIfTI-1 and NIfTI-2 documents preserve exact samples, spatial mapping, calibration, and acquisition metadata; unrepresentable semantics return typed loss before destination creation.
+<a id="RITK-NIFTI-SCALAR-SAMPLES-001"></a>
+## RITK-NIFTI-SCALAR-SAMPLES-001: Preserve NIfTI scalar sample types
+- outcome: map RITK's fixed-width stored samples to NIfTI-1 and NIfTI-2 scalar representations.
+- acceptance: all ten `SampleType` variants map to the standard datatype code, `bitpix`, and payload width; stored writes preserve integer values and float bits without conversion through `f32`; unsupported codes, inconsistent `bitpix`, and invalid payload lengths fail before output changes.
 - status: todo
 - priority: correctness
 - needs: none
+- scope: `crates/ritk-nifti/src/header/`, writer, tests, NIfTI guide
+- next: split the 628-line header module, then add the ten scalar mappings and exact payload tests.
+- basis: 1ec26f82e536e524da083d3260b561e518d121a7
+
+<a id="RITK-NIFTI-STORED-SERIES-001"></a>
+## RITK-NIFTI-STORED-SERIES-001: Construct NIfTI documents from stored series
+- outcome: create NIfTI documents from stored RITK series without an intermediate file.
+- acceptance: supported NIfTI-1 and NIfTI-2 documents preserve exact samples, spatial mapping, calibration, and acquisition metadata; unrepresentable semantics return typed loss before destination creation.
+- status: blocked
+- priority: correctness
+- needs: RITK-NIFTI-SCALAR-SAMPLES-001
 - scope: crates/ritk-nifti/, NIfTI guide, document tests
-- next: implement a constructor from StoredSeries using the existing NIfTI encoder and typed loss errors.
-- basis: 207fe51571dad7b864a262931ecac172bfa18ba4
+- next: after scalar support merges, reopen PR #794 and split its stored-series construction into bounded increments.
+- basis: 1ec26f82e536e524da083d3260b561e518d121a7
+
+<a id="RITK-NIFTI-STORED-READ-001"></a>
+## RITK-NIFTI-STORED-READ-001: Read NIfTI into stored series
+- outcome: decode NIfTI documents into exact RITK stored samples and series metadata.
+- acceptance: NIfTI-1 and NIfTI-2 reads preserve all ten sample representations, spatial mapping, calibration, and representable ordered-volume axes; unmodeled semantics return typed loss before a partial series is exposed.
+- status: todo
+- priority: correctness
+- needs: RITK-NIFTI-SCALAR-SAMPLES-001
+- scope: `crates/ritk-nifti/`, `crates/ritk-image-io/`, conversion tests, NIfTI guide
+- next: implement typed document decoding from NIfTI payload bytes into `StoredSeries`.
+- basis: 1ec26f82e536e524da083d3260b561e518d121a7
 
 <a id="RITK-NRRD-NIFTI-001"></a>
 ## RITK-NRRD-NIFTI-001: Convert NRRD and NIfTI volumes
@@ -86,7 +108,7 @@
 - acceptance: both directions preserve samples and spatial/calibration semantics under the prepared plan; unsupported header semantics return typed loss before output mutation.
 - status: todo
 - priority: correctness
-- needs: RITK-NIFTI-DOCUMENT-001
+- needs: RITK-NIFTI-STORED-SERIES-001, RITK-NIFTI-STORED-READ-001
 - scope: crates/ritk-io/, crates/ritk-nrrd/, crates/ritk-nifti/, pair tests
 - next: implement both directions after NIfTI documents can be constructed from StoredSeries.
 - basis: 207fe51571dad7b864a262931ecac172bfa18ba4
