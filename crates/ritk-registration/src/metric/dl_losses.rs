@@ -191,7 +191,10 @@ where
     let soft = |img: &Var<T, B>| -> Var<T, B> {
         let col = broadcast_to(&reshape(img, [n, 1]), [n, num_bins]);
         let d = sub(&col, &bins_row);
-        let exponent = scalar_mul(&square(&d), <T as coeus_core::Scalar>::from_f64(inv_2sigma2));
+        let exponent = scalar_mul(
+            &square(&d),
+            <T as coeus_core::Scalar>::from_f64(inv_2sigma2),
+        );
         exp(&exponent)
     };
     let w_f = soft(fixed); // [N, bins]
@@ -335,5 +338,3 @@ mod tests {
         );
     }
 }
-
-

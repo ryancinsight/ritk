@@ -48,7 +48,7 @@ pub struct Mse;
 
 impl<T, B> Metric<T, B> for Mse
 where
-    T: Float,
+    T: Float + leto_ops::RealScalar,
     B: ComputeBackend + BackendOps<T> + Default,
     B::DeviceBuffer<T>: CpuAddressableStorage<T> + CpuAddressableStorageMut<T>,
 {
@@ -61,4 +61,3 @@ where
 #[cfg(test)]
 #[path = "tests_mse.rs"]
 mod tests;
-

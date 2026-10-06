@@ -74,8 +74,7 @@ where
     B::DeviceBuffer<T>: CpuAddressableStorage<T>,
 {
     with_field_data(field, |data, shape| {
-        laplacian_squared_mean(data, shape, "curvature")
-            * eunomia::FloatElement::from_f64(weight)
+        laplacian_squared_mean(data, shape, "curvature") * eunomia::FloatElement::from_f64(weight)
     })
 }
 

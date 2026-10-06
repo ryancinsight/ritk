@@ -106,7 +106,10 @@ fn test_read_external_uppercase_gzip_extensions() -> Result<()> {
 }
 
 #[test]
-#[expect(clippy::unwrap_used, reason = "test assertions surface failures immediately")]
+#[expect(
+    clippy::unwrap_used,
+    reason = "test assertions surface failures immediately"
+)]
 fn mgz_decompression_bomb_is_rejected() {
     let dir = tempdir().unwrap();
     let path = dir.path().join("bomb.mgz");

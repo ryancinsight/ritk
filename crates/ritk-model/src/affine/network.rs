@@ -74,7 +74,7 @@ impl AffineNetworkConfig {
     /// Panics if `channels` does not contain exactly five entries.
     pub fn init<T, B>(&self) -> AffineNetwork<T, B>
     where
-        T: Float,
+        T: Float + leto_ops::RealScalar,
         B: BackendOps<T> + CpuBackend + Default,
         B::DeviceBuffer<T>: CpuAddressableStorageMut<T>,
     {
@@ -158,7 +158,7 @@ where
 
 impl<T, B> Module<T, B> for AffineNetwork<T, B>
 where
-    T: Float,
+    T: Float + leto_ops::RealScalar,
     B: BackendOps<T> + Default,
 {
     fn parameters(&self) -> Vec<Var<T, B>> {
@@ -240,7 +240,7 @@ where
 
 impl<T, B> AffineNetwork<T, B>
 where
-    T: Float,
+    T: Float + leto_ops::RealScalar,
     B: BackendOps<T> + Default,
 {
     /// The five `conv → norm` stages as trait objects, in forward order.
@@ -405,5 +405,3 @@ mod tests {
         );
     }
 }
-
-

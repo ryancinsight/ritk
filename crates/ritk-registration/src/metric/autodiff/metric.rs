@@ -57,7 +57,7 @@ pub fn affine_mse<T, B>(
     t: &Var<T, B>,
 ) -> Var<T, B>
 where
-    T: Float,
+    T: Float + leto_ops::RealScalar,
     B: ComputeBackend + BackendOps<T> + Default,
     B::DeviceBuffer<T>: CpuAddressableStorage<T> + CpuAddressableStorageMut<T>,
 {
@@ -81,7 +81,7 @@ pub fn mse_metric<T, B, Tf>(
     transform: &Tf,
 ) -> Var<T, B>
 where
-    T: Float,
+    T: Float + leto_ops::RealScalar,
     B: ComputeBackend + BackendOps<T> + Default,
     B::DeviceBuffer<T>: CpuAddressableStorage<T> + CpuAddressableStorageMut<T>,
     Tf: Transform<T, B>,
@@ -117,7 +117,7 @@ pub fn evaluate<T, B, M, Tf>(
     transform: &Tf,
 ) -> Var<T, B>
 where
-    T: Float,
+    T: Float + leto_ops::RealScalar,
     B: ComputeBackend + BackendOps<T> + Default,
     B::DeviceBuffer<T>: CpuAddressableStorage<T> + CpuAddressableStorageMut<T>,
     M: Metric<T, B>,
@@ -139,4 +139,3 @@ where
 #[cfg(test)]
 #[path = "tests_metric.rs"]
 mod tests;
-

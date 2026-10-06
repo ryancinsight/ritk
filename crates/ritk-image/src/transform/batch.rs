@@ -49,7 +49,9 @@ where
         let matrix = (0..D)
             .flat_map(|input_axis| {
                 (0..D).map(move |output_axis| {
-                    <T as coeus_core::Scalar>::from_f64(inverse[(output_axis, input_axis)] / self.spacing[output_axis])
+                    <T as coeus_core::Scalar>::from_f64(
+                        inverse[(output_axis, input_axis)] / self.spacing[output_axis],
+                    )
                 })
             })
             .collect::<Vec<_>>();
@@ -128,7 +130,8 @@ where
         for (r, row) in t.iter_mut().enumerate() {
             for (c, cell) in row.iter_mut().enumerate() {
                 let axis = D - 1 - c;
-                *cell = <T as coeus_core::Scalar>::from_f64(inv_dir[(axis, r)] / self.spacing()[axis]);
+                *cell =
+                    <T as coeus_core::Scalar>::from_f64(inv_dir[(axis, r)] / self.spacing()[axis]);
             }
         }
         let origin_t = self.origin_narrowed();
@@ -202,7 +205,9 @@ where
         for (r, row) in m.iter_mut().enumerate() {
             let axis = D - 1 - r;
             for (c, cell) in row.iter_mut().enumerate() {
-                *cell = <T as coeus_core::Scalar>::from_f64(self.spacing()[axis] * self.direction()[(c, axis)]);
+                *cell = <T as coeus_core::Scalar>::from_f64(
+                    self.spacing()[axis] * self.direction()[(c, axis)],
+                );
             }
         }
         let origin_t = self.origin_narrowed();
@@ -245,7 +250,9 @@ where
         for (r, row) in m.iter_mut().enumerate() {
             let axis = D - 1 - r;
             for (c, cell) in row.iter_mut().enumerate() {
-                *cell = <T as coeus_core::Scalar>::from_f64(self.spacing()[axis] * self.direction()[(c, axis)]);
+                *cell = <T as coeus_core::Scalar>::from_f64(
+                    self.spacing()[axis] * self.direction()[(c, axis)],
+                );
             }
         }
         let origin_t = self.origin_narrowed();
@@ -293,7 +300,8 @@ where
         for (r, row) in t.iter_mut().enumerate() {
             for (c, cell) in row.iter_mut().enumerate() {
                 let axis = D - 1 - c;
-                *cell = <T as coeus_core::Scalar>::from_f64(inv_dir[(axis, r)] / self.spacing()[axis]);
+                *cell =
+                    <T as coeus_core::Scalar>::from_f64(inv_dir[(axis, r)] / self.spacing()[axis]);
             }
         }
         let origin_t = self.origin_narrowed();
@@ -364,7 +372,8 @@ where
                     for c in 0..D {
                         let mut acc = origin_t[c];
                         for r in 0..D {
-                            acc += <T as coeus_core::Scalar>::from_f64(dir[(c, r)]) * <T as coeus_core::Scalar>::from_f64(probe[r]);
+                            acc += <T as coeus_core::Scalar>::from_f64(dir[(c, r)])
+                                * <T as coeus_core::Scalar>::from_f64(probe[r]);
                         }
                         o[c] = acc;
                     }
@@ -548,4 +557,3 @@ where
         self.index_to_world_native_on(indices, &B::default())
     }
 }
-
