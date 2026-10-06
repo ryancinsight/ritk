@@ -150,113 +150,83 @@ mod tests {
         assert_eq!(obj.iter().count(), 1);
     }
 
+    fn insert_u16(model: &mut DicomObjectModel, element: u16, value: u16) {
+        model.insert(DicomObjectNode::with_value(
+            DicomTag::new(0x0028, element),
+            "US",
+            value,
+        ));
+    }
+
+    fn set_pixel_format(
+        model: &mut DicomObjectModel,
+        bits: u16,
+        representation: &str,
+        payload: Vec<u8>,
+    ) {
+        for (element, value) in [(0x0100, bits), (0x0101, bits), (0x0102, bits - 1)] {
+            insert_u16(model, element, value);
+        }
+        model.insert(DicomObjectNode::bytes(
+            DicomTag::new(0x7FE0, 0x0010),
+            representation,
+            payload,
+        ));
+    }
+
+    fn assert_pixels(model: &DicomObjectModel, path: &std::path::Path, expected: &[u8]) {
+        write_object(model, path).expect("write_object");
+        let object = open_file(path).expect("open_file");
+        assert_eq!(
+            object.element(Tag(0x7FE0, 0x0010)).expect("PixelData")
+                .to_bytes().expect("pixel bytes"),
+            expected
+        );
+    }
+
     #[test]
     fn test_write_object_bytes_node_non_empty() {
         let tmp = tempfile::tempdir().expect("tempdir");
         let path = tmp.path().join("bytes.dcm");
-        let model = pixel_model(Some(1), Some(1), 1, Some(1), vec![7]);
-        write_object(&model, &path).expect("write_object");
-        let obj = open_file(&path).expect("open_file");
-        assert_eq!(
-            obj.element(Tag(0x7FE0, 0x0010))
-                .expect("PixelData")
-                .to_bytes()
-                .expect("pixel bytes"),
-            vec![7, 0]
-        );
+        assert_pixels(&pixel_model(Some(1), Some(1), 1, Some(1), vec![7]), &path, &[7, 0]);
     }
 
     #[test]
     fn test_write_object_allows_single_frame_without_number_of_frames() {
         let tmp = tempfile::tempdir().expect("tempdir");
         let path = tmp.path().join("single-frame.dcm");
-        write_object(&pixel_model(Some(1), Some(1), 1, None, vec![7]), &path)
-            .expect("single frame may omit NumberOfFrames");
-        let obj = open_file(&path).expect("open_file");
-        assert_eq!(
-            obj.element(Tag(0x7FE0, 0x0010))
-                .expect("PixelData")
-                .to_bytes()
-                .expect("pixel bytes"),
-            vec![7, 0]
-        );
+        assert_pixels(&pixel_model(Some(1), Some(1), 1, None, vec![7]), &path, &[7, 0]);
     }
 
     #[test]
     fn test_write_object_round_trips_unsigned_and_signed_width_pixels() {
         let tmp = tempfile::tempdir().expect("tempdir");
         let path = tmp.path().join("wide-pixels.dcm");
-        let mut model = pixel_model(
-            Some(1),
-            Some(2),
-            1,
-            Some(2),
-            vec![1, 0, 255, 255, 0, 128, 0, 64],
-        );
-        for (element, value) in [(0x0100, 16_u16), (0x0101, 16), (0x0102, 15)] {
-            model.insert(DicomObjectNode::with_value(
-                DicomTag::new(0x0028, element),
-                "US",
-                value,
-            ));
-        }
-        model.insert(DicomObjectNode::bytes(
-            DicomTag::new(0x7FE0, 0x0010),
-            "OW",
-            vec![1, 0, 255, 255, 0, 128, 0, 64],
-        ));
-        write_object(&model, &path).expect("16-bit unsigned native pixels");
-        let obj = open_file(&path).expect("open_file");
-        assert_eq!(
-            obj.element(Tag(0x7FE0, 0x0010))
-                .expect("PixelData")
-                .to_bytes()
-                .expect("pixel bytes"),
-            vec![1, 0, 255, 255, 0, 128, 0, 64]
-        );
-        model.insert(DicomObjectNode::with_value(
-            DicomTag::new(0x0028, 0x0103),
-            "US",
-            1_u16,
-        ));
-        write_object(&model, &path).expect("16-bit signed native pixels");
-        let obj = open_file(&path).expect("open_file signed");
-        assert_eq!(
-            obj.element(Tag(0x7FE0, 0x0010))
-                .expect("PixelData signed")
-                .to_bytes()
-                .expect("pixel bytes signed"),
-            vec![1, 0, 255, 255, 0, 128, 0, 64]
-        );
+        let mut model = pixel_model(Some(1), Some(2), 1, Some(2), vec![]);
+        let pixels = vec![1, 0, 255, 255, 0, 128, 0, 64];
+        set_pixel_format(&mut model, 16, "OW", pixels.clone());
+        assert_pixels(&model, &path, &pixels);
+        insert_u16(&mut model, 0x0103, 1);
+        assert_pixels(&model, &path, &pixels);
     }
 
     #[test]
     fn test_write_object_rejects_short_payload_without_replacing_file() {
         assert_rejected(
             pixel_model(Some(2), Some(2), 1, Some(1), vec![7]),
-            DicomWriteError::PixelPayloadLengthMismatch {
-                expected: 4,
-                actual: 1,
-            },
+            DicomWriteError::PixelPayloadLengthMismatch { expected: 4, actual: 1 },
         );
     }
 
     #[test]
     fn test_write_object_rejects_malformed_attribute_with_exact_value() {
         let mut model = pixel_model(Some(1), Some(1), 1, Some(1), vec![7]);
-        model.insert(DicomObjectNode::text(
-            DicomTag::new(0x0028, 0x0010),
-            "US",
-            "bad",
-        ));
+        model.insert(DicomObjectNode::text(DicomTag::new(0x0028, 0x0010), "US", "bad"));
         let tmp = tempfile::tempdir().expect("tempdir");
         let path = tmp.path().join("malformed.dcm");
         std::fs::write(&path, b"sentinel").expect("sentinel");
         let error = write_object(&model, &path).expect_err("malformed Rows must fail");
-        let typed = error
-            .downcast_ref::<DicomWriteError>()
-            .expect("typed error");
-        match typed {
+        match error.downcast_ref::<DicomWriteError>().expect("typed error") {
             DicomWriteError::MalformedPixelAttribute { attribute, value } => {
                 assert_eq!(*attribute, "Rows");
                 assert!(value.contains("bad"), "exact value was {value}");
@@ -269,33 +239,20 @@ mod tests {
     #[test]
     fn test_write_object_rejects_16_bit_ob_pixel_data() {
         let mut model = pixel_model(Some(1), Some(1), 1, Some(1), vec![7, 0]);
-        for (element, value) in [(0x0100, 16_u16), (0x0101, 16), (0x0102, 15)] {
-            model.insert(DicomObjectNode::with_value(
-                DicomTag::new(0x0028, element),
-                "US",
-                value,
-            ));
-        }
+        set_pixel_format(&mut model, 16, "OB", vec![7, 0]);
         assert_rejected(
             model,
-            DicomWriteError::PixelDataVrMismatch {
-                value: "OB".to_owned(),
-                bits_allocated: 16,
-            },
+            DicomWriteError::PixelDataVrMismatch { value: "OB".to_owned(), bits_allocated: 16 },
         );
     }
 
     #[test]
     fn test_write_object_requires_planar_configuration_for_rgb() {
         let mut model = pixel_model(Some(1), Some(1), 3, Some(1), vec![1, 2, 3]);
-        model
-            .nodes
-            .retain(|node| node.tag != DicomTag::new(0x0028, 0x0006));
+        model.nodes.retain(|node| node.tag != DicomTag::new(0x0028, 0x0006));
         assert_rejected(
             model,
-            DicomWriteError::MissingPixelAttribute {
-                attribute: "PlanarConfiguration",
-            },
+            DicomWriteError::MissingPixelAttribute { attribute: "PlanarConfiguration" },
         );
     }
 
@@ -303,37 +260,18 @@ mod tests {
     fn test_write_object_uses_ybr_full_422_encoded_length() {
         let mut model = pixel_model(Some(1), Some(3), 3, Some(1), vec![0; 8]);
         model.insert(DicomObjectNode::text(
-            DicomTag::new(0x0028, 0x0004),
-            "CS",
-            "YBR_FULL_422",
+            DicomTag::new(0x0028, 0x0004), "CS", "YBR_FULL_422",
         ));
-        model
-            .nodes
-            .retain(|node| node.tag != DicomTag::new(0x0028, 0x0006));
+        model.nodes.retain(|node| node.tag != DicomTag::new(0x0028, 0x0006));
         let tmp = tempfile::tempdir().expect("tempdir");
         let path = tmp.path().join("ybr422.dcm");
-        write_object(&model, &path).expect("valid YBR_FULL_422 payload");
-        let decoded = open_file(&path).expect("open_file");
-        assert_eq!(
-            decoded
-                .element(Tag(0x7FE0, 0x0010))
-                .expect("PixelData")
-                .to_bytes()
-                .expect("bytes")
-                .len(),
-            8
-        );
+        assert_pixels(&model, &path, &[0; 8]);
         model.insert(DicomObjectNode::bytes(
-            DicomTag::new(0x7FE0, 0x0010),
-            "OB",
-            vec![0; 6],
+            DicomTag::new(0x7FE0, 0x0010), "OB", vec![0; 6],
         ));
         assert_rejected(
             model,
-            DicomWriteError::YbrFull422PayloadLengthMismatch {
-                expected: 8,
-                actual: 6,
-            },
+            DicomWriteError::YbrFull422PayloadLengthMismatch { expected: 8, actual: 6 },
         );
     }
 
