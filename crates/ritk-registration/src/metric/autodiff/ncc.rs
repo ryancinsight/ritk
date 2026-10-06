@@ -40,7 +40,7 @@ use super::traits::Metric;
 /// contract) — a caller invariant.
 pub fn normalized_cross_correlation<T, B>(moving: &Var<T, B>, fixed: &Var<T, B>) -> Var<T, B>
 where
-    T: Float + leto_ops::RealScalar,
+    T: Float,
     B: ComputeBackend + BackendOps<T> + Default,
     B::DeviceBuffer<T>: CpuAddressableStorage<T> + CpuAddressableStorageMut<T>,
 {
@@ -82,7 +82,7 @@ pub struct Ncc;
 
 impl<T, B> Metric<T, B> for Ncc
 where
-    T: Float + leto_ops::RealScalar,
+    T: Float,
     B: ComputeBackend + BackendOps<T> + Default,
     B::DeviceBuffer<T>: CpuAddressableStorage<T> + CpuAddressableStorageMut<T>,
 {
@@ -95,4 +95,5 @@ where
 #[cfg(test)]
 #[path = "tests_ncc.rs"]
 mod tests;
+
 

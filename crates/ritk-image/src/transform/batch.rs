@@ -44,12 +44,12 @@ where
             .try_inverse()
             .ok_or_else(|| anyhow!("image direction matrix is singular"))?;
         let origin = (0..D)
-            .map(|axis| T::from_f64(self.origin[axis]))
+            .map(|axis| <T as coeus_core::Scalar>::from_f64(self.origin[axis]))
             .collect::<Vec<_>>();
         let matrix = (0..D)
             .flat_map(|input_axis| {
                 (0..D).map(move |output_axis| {
-                    T::from_f64(inverse[(output_axis, input_axis)] / self.spacing[output_axis])
+                    <T as coeus_core::Scalar>::from_f64(inverse[(output_axis, input_axis)] / self.spacing[output_axis])
                 })
             })
             .collect::<Vec<_>>();
@@ -128,7 +128,7 @@ where
         for (r, row) in t.iter_mut().enumerate() {
             for (c, cell) in row.iter_mut().enumerate() {
                 let axis = D - 1 - c;
-                *cell = T::from_f64(inv_dir[(axis, r)] / self.spacing()[axis]);
+                *cell = <T as coeus_core::Scalar>::from_f64(inv_dir[(axis, r)] / self.spacing()[axis]);
             }
         }
         let origin_t = self.origin_narrowed();
@@ -202,7 +202,7 @@ where
         for (r, row) in m.iter_mut().enumerate() {
             let axis = D - 1 - r;
             for (c, cell) in row.iter_mut().enumerate() {
-                *cell = T::from_f64(self.spacing()[axis] * self.direction()[(c, axis)]);
+                *cell = <T as coeus_core::Scalar>::from_f64(self.spacing()[axis] * self.direction()[(c, axis)]);
             }
         }
         let origin_t = self.origin_narrowed();
@@ -245,7 +245,7 @@ where
         for (r, row) in m.iter_mut().enumerate() {
             let axis = D - 1 - r;
             for (c, cell) in row.iter_mut().enumerate() {
-                *cell = T::from_f64(self.spacing()[axis] * self.direction()[(c, axis)]);
+                *cell = <T as coeus_core::Scalar>::from_f64(self.spacing()[axis] * self.direction()[(c, axis)]);
             }
         }
         let origin_t = self.origin_narrowed();
@@ -255,8 +255,8 @@ where
         for (idx, o) in src.chunks_exact(D).zip(out.chunks_exact_mut(D)) {
             let (radius, angle) =
                 geometry.polar_from_index(Scalar::to_f64(idx[0]), Scalar::to_f64(idx[1]));
-            o[D - 1] = T::from_f64(radius * angle.sin());
-            o[D - 2] = T::from_f64(radius * angle.cos());
+            o[D - 1] = <T as coeus_core::Scalar>::from_f64(radius * angle.sin());
+            o[D - 2] = <T as coeus_core::Scalar>::from_f64(radius * angle.cos());
             for c in 0..D - 2 {
                 let mut acc = T::zero();
                 for r in 0..D {
@@ -293,7 +293,7 @@ where
         for (r, row) in t.iter_mut().enumerate() {
             for (c, cell) in row.iter_mut().enumerate() {
                 let axis = D - 1 - c;
-                *cell = T::from_f64(inv_dir[(axis, r)] / self.spacing()[axis]);
+                *cell = <T as coeus_core::Scalar>::from_f64(inv_dir[(axis, r)] / self.spacing()[axis]);
             }
         }
         let origin_t = self.origin_narrowed();
@@ -305,12 +305,12 @@ where
             let axial = Scalar::to_f64(p[D - 2]);
             match geometry.index_from_cartesian(lateral, axial) {
                 Some((sample, beam)) => {
-                    o[0] = T::from_f64(sample);
-                    o[1] = T::from_f64(beam);
+                    o[0] = <T as coeus_core::Scalar>::from_f64(sample);
+                    o[1] = <T as coeus_core::Scalar>::from_f64(beam);
                 }
                 None => {
-                    o[0] = T::from_f64(f64::NAN);
-                    o[1] = T::from_f64(f64::NAN);
+                    o[0] = <T as coeus_core::Scalar>::from_f64(f64::NAN);
+                    o[1] = <T as coeus_core::Scalar>::from_f64(f64::NAN);
                 }
             }
             for c in 2..D {
@@ -364,14 +364,14 @@ where
                     for c in 0..D {
                         let mut acc = origin_t[c];
                         for r in 0..D {
-                            acc += T::from_f64(dir[(c, r)]) * T::from_f64(probe[r]);
+                            acc += <T as coeus_core::Scalar>::from_f64(dir[(c, r)]) * <T as coeus_core::Scalar>::from_f64(probe[r]);
                         }
                         o[c] = acc;
                     }
                 }
                 None => {
                     for value in o.iter_mut() {
-                        *value = T::from_f64(f64::NAN);
+                        *value = <T as coeus_core::Scalar>::from_f64(f64::NAN);
                     }
                 }
             }
@@ -415,13 +415,13 @@ where
             // probe is in axis order [depth, elevation, azimuth]
             match geometry.index_from_cartesian(probe[2], probe[1], probe[0]) {
                 Some((azimuth_index, elevation_index, sample)) => {
-                    o[0] = T::from_f64(azimuth_index);
-                    o[1] = T::from_f64(elevation_index);
-                    o[2] = T::from_f64(sample);
+                    o[0] = <T as coeus_core::Scalar>::from_f64(azimuth_index);
+                    o[1] = <T as coeus_core::Scalar>::from_f64(elevation_index);
+                    o[2] = <T as coeus_core::Scalar>::from_f64(sample);
                 }
                 None => {
                     for value in o.iter_mut() {
-                        *value = T::from_f64(f64::NAN);
+                        *value = <T as coeus_core::Scalar>::from_f64(f64::NAN);
                     }
                 }
             }
@@ -451,9 +451,9 @@ where
             let slice_f = Scalar::to_f64(idx[2]);
             let world = sweep.world_from_index(j_x, j_y, slice_f);
             // Write axis-major: column c = spatial axis c.
-            o[D - 1] = T::from_f64(world[0]);
-            o[D - 2] = T::from_f64(world[1]);
-            o[D - 3] = T::from_f64(world[2]);
+            o[D - 1] = <T as coeus_core::Scalar>::from_f64(world[0]);
+            o[D - 2] = <T as coeus_core::Scalar>::from_f64(world[1]);
+            o[D - 3] = <T as coeus_core::Scalar>::from_f64(world[2]);
         }
         Tensor::from_slice_on([n, D], &out, backend)
     }
@@ -481,13 +481,13 @@ where
             ];
             match sweep.index_from_world(world) {
                 Some(idx) => {
-                    o[0] = T::from_f64(idx[0]);
-                    o[1] = T::from_f64(idx[1]);
-                    o[2] = T::from_f64(idx[2]);
+                    o[0] = <T as coeus_core::Scalar>::from_f64(idx[0]);
+                    o[1] = <T as coeus_core::Scalar>::from_f64(idx[1]);
+                    o[2] = <T as coeus_core::Scalar>::from_f64(idx[2]);
                 }
                 None => {
                     for value in o.iter_mut() {
-                        *value = T::from_f64(f64::NAN);
+                        *value = <T as coeus_core::Scalar>::from_f64(f64::NAN);
                     }
                 }
             }
@@ -499,7 +499,7 @@ where
     fn origin_narrowed(&self) -> [T; D] {
         let mut origin_t = [T::zero(); D];
         for (i, o) in origin_t.iter_mut().enumerate() {
-            *o = T::from_f64(self.origin()[i]);
+            *o = <T as coeus_core::Scalar>::from_f64(self.origin()[i]);
         }
         origin_t
     }
@@ -548,3 +548,4 @@ where
         self.index_to_world_native_on(indices, &B::default())
     }
 }
+

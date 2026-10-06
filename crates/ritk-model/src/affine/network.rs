@@ -74,7 +74,7 @@ impl AffineNetworkConfig {
     /// Panics if `channels` does not contain exactly five entries.
     pub fn init<T, B>(&self) -> AffineNetwork<T, B>
     where
-        T: Float + leto_ops::RealScalar,
+        T: Float,
         B: BackendOps<T> + CpuBackend + Default,
         B::DeviceBuffer<T>: CpuAddressableStorageMut<T>,
     {
@@ -144,7 +144,7 @@ pub struct AffineNetwork<T: Float, B: BackendOps<T> + Default = MoiraiBackend> {
 /// Append `module`'s named parameters under `prefix` to `out`.
 fn extend_named<T, B, M>(out: &mut Vec<Parameter<T, B>>, prefix: &str, module: &M)
 where
-    T: Float + leto_ops::RealScalar,
+    T: Float,
     B: BackendOps<T> + Default,
     M: Module<T, B>,
 {
@@ -158,7 +158,7 @@ where
 
 impl<T, B> Module<T, B> for AffineNetwork<T, B>
 where
-    T: Float + leto_ops::RealScalar,
+    T: Float,
     B: BackendOps<T> + Default,
 {
     fn parameters(&self) -> Vec<Var<T, B>> {
@@ -240,7 +240,7 @@ where
 
 impl<T, B> AffineNetwork<T, B>
 where
-    T: Float + leto_ops::RealScalar,
+    T: Float,
     B: BackendOps<T> + Default,
 {
     /// The five `conv → norm` stages as trait objects, in forward order.
@@ -405,4 +405,5 @@ mod tests {
         );
     }
 }
+
 

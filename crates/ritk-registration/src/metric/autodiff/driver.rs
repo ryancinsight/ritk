@@ -74,7 +74,7 @@ pub fn gradient_descent<T, B, M, Tf, F>(
     config: GradientDescentConfig<T>,
 ) -> RegistrationOutcome<T, B>
 where
-    T: Float + leto_ops::RealScalar,
+    T: Float,
     B: ComputeBackend + BackendOps<T> + Default,
     B::DeviceBuffer<T>: CpuAddressableStorage<T> + CpuAddressableStorageMut<T>,
     M: Metric<T, B>,
@@ -120,3 +120,4 @@ where
 #[cfg(test)]
 #[path = "tests_driver.rs"]
 mod tests;
+
