@@ -23,7 +23,7 @@ use coeus_tensor::Tensor;
 #[inline]
 fn square<T, B>(x: &Var<T, B>) -> Var<T, B>
 where
-    T: Float + leto_ops::RealScalar,
+    T: Float,
     B: ComputeBackend + BackendOps<T> + Default,
     B::DeviceBuffer<T>: CpuAddressableStorage<T> + CpuAddressableStorageMut<T>,
 {
@@ -36,7 +36,7 @@ where
 /// inputs; the reverse pass yields `∂MSE/∂moving = (2/N)·(moving − fixed)`.
 pub fn mse_loss<T, B>(fixed: &Var<T, B>, moving: &Var<T, B>) -> Var<T, B>
 where
-    T: Float + leto_ops::RealScalar,
+    T: Float,
     B: ComputeBackend + BackendOps<T> + Default,
     B::DeviceBuffer<T>: CpuAddressableStorage<T> + CpuAddressableStorageMut<T>,
 {
@@ -54,7 +54,7 @@ where
 /// broadcasting is needed and gradients flow to both inputs.
 pub fn ncc_loss<T, B>(fixed: &Var<T, B>, moving: &Var<T, B>) -> Var<T, B>
 where
-    T: Float + leto_ops::RealScalar,
+    T: Float,
     B: ComputeBackend + BackendOps<T> + Default,
     B::DeviceBuffer<T>: CpuAddressableStorage<T> + CpuAddressableStorageMut<T>,
 {
@@ -94,7 +94,7 @@ where
 /// fields; `LNCC = Cov / √(Var_F·Var_M + ε)`.
 pub fn lncc_loss<T, B>(fixed: &Var<T, B>, moving: &Var<T, B>, kernel_size: usize) -> Var<T, B>
 where
-    T: Float + leto_ops::RealScalar,
+    T: Float,
     B: ComputeBackend + BackendOps<T> + Default,
     B::DeviceBuffer<T>: CpuAddressableStorage<T> + CpuAddressableStorageMut<T>,
 {
@@ -119,7 +119,7 @@ where
 /// tracked 3-D average pooling with stride 1 and `kernel_size/2` zero padding.
 fn box_filter<T, B>(x: &Var<T, B>, kernel_size: usize) -> Var<T, B>
 where
-    T: Float + leto_ops::RealScalar,
+    T: Float,
     B: ComputeBackend + BackendOps<T> + Default,
     B::DeviceBuffer<T>: CpuAddressableStorage<T> + CpuAddressableStorageMut<T>,
 {
@@ -165,7 +165,7 @@ pub fn mi_loss<T, B>(
     sigma: f64,
 ) -> Var<T, B>
 where
-    T: Float + leto_ops::RealScalar,
+    T: Float,
     B: ComputeBackend + BackendOps<T> + Default,
     B::DeviceBuffer<T>: CpuAddressableStorage<T> + CpuAddressableStorageMut<T>,
 {
@@ -191,7 +191,10 @@ where
     let soft = |img: &Var<T, B>| -> Var<T, B> {
         let col = broadcast_to(&reshape(img, [n, 1]), [n, num_bins]);
         let d = sub(&col, &bins_row);
-        let exponent = scalar_mul(&square(&d), <T as coeus_core::Scalar>::from_f64(inv_2sigma2));
+        let exponent = scalar_mul(
+            &square(&d),
+            <T as coeus_core::Scalar>::from_f64(inv_2sigma2),
+        );
         exp(&exponent)
     };
     let w_f = soft(fixed); // [N, bins]
@@ -335,4 +338,3 @@ mod tests {
         );
     }
 }
-

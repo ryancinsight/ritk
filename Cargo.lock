@@ -150,7 +150,7 @@ dependencies = [
 [[package]]
 name = "aequitas"
 version = "0.2.1"
-source = "git+https://github.com/ryancinsight/aequitas#221639b614fce4b9a88e27669b428160bcbae910"
+source = "git+https://github.com/ryancinsight/aequitas#891b62e1083dacd3403d6c97fe955029eadbe720"
 dependencies = [
  "eunomia",
  "typenum",
@@ -325,7 +325,7 @@ checksum = "330a5ed07fa54e4702c9d6c4174f74427fc0ef6e214bbd677ae50a5099946470"
 [[package]]
 name = "apollo-dctdst-core"
 version = "0.16.0"
-source = "git+https://github.com/ryancinsight/apollo#7c8d7ba080f5ce433b6c7a81fe8e11d7e79feccb"
+source = "git+https://github.com/ryancinsight/apollo#0d5aae5a0eab7be4bb7f0915c3afafc3ec5a30c2"
 dependencies = [
  "eunomia",
 ]
@@ -333,7 +333,7 @@ dependencies = [
 [[package]]
 name = "apollo-fft"
 version = "0.27.0"
-source = "git+https://github.com/ryancinsight/apollo#7c8d7ba080f5ce433b6c7a81fe8e11d7e79feccb"
+source = "git+https://github.com/ryancinsight/apollo#0d5aae5a0eab7be4bb7f0915c3afafc3ec5a30c2"
 dependencies = [
  "apollo-fft-macros",
  "apollo-leto-interop",
@@ -353,7 +353,7 @@ dependencies = [
 [[package]]
 name = "apollo-fft-macros"
 version = "0.3.0"
-source = "git+https://github.com/ryancinsight/apollo#7c8d7ba080f5ce433b6c7a81fe8e11d7e79feccb"
+source = "git+https://github.com/ryancinsight/apollo#0d5aae5a0eab7be4bb7f0915c3afafc3ec5a30c2"
 dependencies = [
  "proc-macro2",
  "quote",
@@ -363,7 +363,7 @@ dependencies = [
 [[package]]
 name = "apollo-leto-interop"
 version = "0.19.0"
-source = "git+https://github.com/ryancinsight/apollo#7c8d7ba080f5ce433b6c7a81fe8e11d7e79feccb"
+source = "git+https://github.com/ryancinsight/apollo#0d5aae5a0eab7be4bb7f0915c3afafc3ec5a30c2"
 dependencies = [
  "leto",
 ]
@@ -371,7 +371,7 @@ dependencies = [
 [[package]]
 name = "apollo-sht"
 version = "0.8.0"
-source = "git+https://github.com/ryancinsight/apollo#7c8d7ba080f5ce433b6c7a81fe8e11d7e79feccb"
+source = "git+https://github.com/ryancinsight/apollo#0d5aae5a0eab7be4bb7f0915c3afafc3ec5a30c2"
 dependencies = [
  "apollo-fft",
  "apollo-leto-interop",
