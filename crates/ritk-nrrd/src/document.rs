@@ -123,12 +123,11 @@ impl NrrdDocument {
             ));
         }
         result?;
-        let entries = header
-            .bytes()
-            .iter()
-            .filter(|&&byte| byte == b'\n')
+        let entries = std::str::from_utf8(header.bytes())
+            .expect("invariant: generated NRRD header is UTF-8")
+            .lines()
             .count()
-            .saturating_sub(2);
+            .saturating_sub(1);
         if entries > crate::reader::MAX_HEADER_ENTRIES {
             return Err(NrrdDocumentError::Header(NrrdHeaderError::TooManyEntries {
                 maximum_entries: crate::reader::MAX_HEADER_ENTRIES,
