@@ -96,6 +96,9 @@ impl ConversionRejection for NiftiStoredSeriesRejection {
 #[derive(Clone, Debug, Error, Eq, PartialEq)]
 #[non_exhaustive]
 pub enum NiftiStoredSeriesIssue {
+    /// A one-volume ordered list would lose its acquisition axis in a rank-3 header.
+    #[error("NIfTI requires at least two volumes to preserve an ordered-list axis")]
+    ListAxisRequiresMultipleVolumes,
     /// Volumes in one NIfTI series must share one spatial shape.
     #[error("volume shape differs from the first volume")]
     ShapeMismatch {

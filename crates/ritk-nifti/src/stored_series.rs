@@ -6,7 +6,7 @@ use crate::spatial::sform_from_internal_lps_metadata;
 use ritk_codecs::{ByteOrder as SampleByteOrder, SampleType};
 use ritk_image_io::{
     ConversionAdapter, ConversionFeature, ConversionLocation, ConversionPrepareError,
-    ConversionTarget, IntensityCalibration, StoredSeries,
+    ConversionTarget, IntensityCalibration, SeriesAxis, StoredSeries,
 };
 
 mod error;
@@ -33,7 +33,6 @@ const NIFTI_FEATURES: &[ConversionFeature] = &[
     ConversionFeature::PerFrameLinearCalibration,
     ConversionFeature::SingleVolumeAxis,
     ConversionFeature::ListAxis,
-    ConversionFeature::UnspecifiedAxis,
 ];
 
 struct NiftiTarget {
@@ -56,6 +55,12 @@ impl ConversionAdapter for NiftiTarget {
     type Rejection = NiftiStoredSeriesRejection;
 
     fn prepare(&self, series: &StoredSeries) -> Result<Self::Plan, Self::Rejection> {
+        if matches!(series.axis(), SeriesAxis::List) && series.volumes().len() == 1 {
+            return Err(reject(
+                ConversionLocation::Series,
+                NiftiStoredSeriesIssue::ListAxisRequiresMultipleVolumes,
+            ));
+        }
         let first = series
             .volumes()
             .first()
@@ -197,11 +202,13 @@ impl NiftiDocument {
     /// Builds a NIfTI-1 or NIfTI-2 document from exact stored samples.
     ///
     /// The conversion retains all ten RITK scalar sample types and their bit
-    /// patterns. A series must use one shared Cartesian grid and one global
-    /// linear calibration; the NIfTI header cannot encode varying volume
-    /// geometry, nonlinear calibration, or diffusion-axis metadata. NIfTI-1
-    /// stores spatial and calibration scalars as 32-bit floats, while NIfTI-2
-    /// stores them as 64-bit floats.
+    /// patterns. Single volumes and ordered lists with at least two volumes
+    /// retain their axis shape. A singleton list is rejected because a rank-3
+    /// NIfTI header would erase its list axis; unspecified and diffusion axes
+    /// return typed capability losses. The volumes must use one shared
+    /// Cartesian grid and representable calibration. NIfTI-1 stores spatial
+    /// and calibration scalars as 32-bit floats, while NIfTI-2 stores them as
+    /// 64-bit floats.
     ///
     /// # Errors
     ///

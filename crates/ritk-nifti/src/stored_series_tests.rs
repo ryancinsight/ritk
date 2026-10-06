@@ -4,7 +4,8 @@ use crate::stored_series::{NiftiStoredSeriesError, NiftiStoredSeriesIssue};
 use ritk_codecs::{ByteOrder, SampleBuffer, SampleType};
 use ritk_image::ImageMetadata;
 use ritk_image_io::{
-    IntensityCalibration, LinearCalibration, SeriesAxis, StoredSeries, StoredVolume,
+    ConversionFeature, ConversionLocation, ConversionLoss, IntensityCalibration, LinearCalibration,
+    SeriesAxis, StoredSeries, StoredVolume,
 };
 use ritk_spatial::{CoordinateMap, Direction, Point, Spacing};
 
@@ -138,8 +139,8 @@ fn list_axis_becomes_rank_four_in_acquisition_order() {
     .expect("two-volume list fixture is valid");
 
     let document = NiftiDocument::from_stored_series(&series, NiftiVersion::Two)
-        .expect("uniform list converts to one NIfTI acquisition axis");
-    let header = NiftiHeader::parse(document.uncompressed_bytes()).expect("produced header parses");
+        .expect("uniform ordered list converts to a rank-four NIfTI document");
+    let header = NiftiHeader::parse(document.uncompressed_bytes()).expect("header parses");
 
     assert_eq!(header.dim, [4, 2, 1, 1, 2, 1, 1, 1]);
     assert_eq!(header.datatype, NiftiDatatype::Uint16);
@@ -148,6 +149,63 @@ fn list_axis_becomes_rank_four_in_acquisition_order() {
     assert_eq!(header.srow_x, [-4.0, -0.0, -0.0, -10.0]);
     assert_eq!(header.srow_y, [-0.0, -3.0, -0.0, -20.0]);
     assert_eq!(header.srow_z, [0.0, 0.0, 2.0, 30.0]);
+}
+
+#[test]
+fn singleton_list_axis_is_rejected_before_axis_is_erased() {
+    let series = StoredSeries::new(
+        vec![volume(
+            [1, 1, 1],
+            SampleType::U8,
+            &[7],
+            metadata([0.0; 3], [1.0; 3]),
+            IntensityCalibration::Identity,
+        )],
+        SeriesAxis::List,
+    )
+    .expect("singleton list fixture is valid");
+
+    assert!(matches!(
+        NiftiDocument::from_stored_series(&series, NiftiVersion::Two),
+        Err(NiftiStoredSeriesError::Rejected(rejection))
+            if rejection.issue == NiftiStoredSeriesIssue::ListAxisRequiresMultipleVolumes
+    ));
+}
+
+fn unspecified_axis_is_reported_before_document_creation(volume_count: usize) {
+    let volumes = (0..volume_count)
+        .map(|_| {
+            volume(
+                [1, 1, 1],
+                SampleType::U8,
+                &[7],
+                metadata([0.0; 3], [1.0; 3]),
+                IntensityCalibration::Identity,
+            )
+        })
+        .collect();
+    let series = StoredSeries::new(volumes, SeriesAxis::Unspecified)
+        .expect("unspecified-axis fixture is valid");
+
+    let Err(NiftiStoredSeriesError::Capabilities(report)) =
+        NiftiDocument::from_stored_series(&series, NiftiVersion::Two)
+    else {
+        panic!("unsupported axis must be reported before document creation");
+    };
+    assert_eq!(
+        report.losses.as_ref(),
+        &[ConversionLoss::UnsupportedFeature {
+            location: ConversionLocation::Series,
+            feature: ConversionFeature::UnspecifiedAxis,
+        }]
+    );
+}
+
+#[test]
+fn unspecified_axis_is_reported_for_single_and_multiple_volumes() {
+    for volume_count in [1, 2] {
+        unspecified_axis_is_reported_before_document_creation(volume_count);
+    }
 }
 
 #[test]
@@ -381,7 +439,16 @@ fn nifti_one_rejects_geometry_outside_its_header_precision_range() {
         Err(NiftiStoredSeriesError::Rejected(rejection))
             if matches!(rejection.issue, NiftiStoredSeriesIssue::HeaderField { .. })
     ));
-    assert!(NiftiDocument::from_stored_series(&oversized_geometry, NiftiVersion::Two).is_ok());
+    let document = NiftiDocument::from_stored_series(&oversized_geometry, NiftiVersion::Two)
+        .expect("NIfTI-2 retains the supported f64 spacing");
+    let header = NiftiHeader::parse(document.uncompressed_bytes()).expect("header parses");
+    assert_eq!(header.dim, [3, 1, 1, 1, 1, 1, 1, 1]);
+    assert_eq!(header.datatype, NiftiDatatype::Uint8);
+    assert_eq!(header.pixdim[1..4], [1.0e100, 1.0, 1.0]);
+    assert_eq!(header.srow_x, [0.0, 0.0, -1.0, 0.0]);
+    assert_eq!(header.srow_y, [0.0, -1.0, 0.0, 0.0]);
+    assert_eq!(header.srow_z, [1.0e100, 0.0, 0.0, 0.0]);
+    assert_eq!(document.sample_bytes(), [7]);
 }
 
 #[test]

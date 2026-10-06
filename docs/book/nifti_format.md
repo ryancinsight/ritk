@@ -18,8 +18,10 @@ stored datatype and exact sample bit patterns must be retained.
 `NiftiDocument::from_stored_series` constructs a document from RITK's
 `StoredSeries` without an intermediate file. It writes exact payload bits for
 the supported scalar types `u8`, `i8`, `u16`, `i16`, `u32`, `i32`, `u64`,
-`i64`, `f32`, and `f64`. A multi-volume series becomes rank 4, and each
-volume's complete payload is written in the original volume order. NIfTI-1
+`i64`, `f32`, and `f64`. It preserves a single-volume axis and an ordered-list
+axis with at least two volumes. A singleton list is rejected because a rank-3
+header would erase its fourth axis; unspecified and diffusion axes return
+typed capability losses. NIfTI-1
 stores dimensions as signed 16-bit integers, so every positive axis and volume
 count is bounded by 32,767, as specified by the official [NIfTI-1 dimension
 field reference](https://nifti.nimh.nih.gov/nifti-1/documentation/nifti1fields/nifti1fields_pages/dim.html/document_view.html)
