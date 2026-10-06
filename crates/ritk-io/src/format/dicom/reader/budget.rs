@@ -18,6 +18,7 @@ pub struct DicomReadBudget {
     parser: ParseBudget,
     max_retained_bytes: usize,
     max_decoded_bytes: usize,
+    max_instances: usize,
 }
 
 impl Default for DicomReadBudget {
@@ -36,6 +37,7 @@ impl DicomReadBudget {
         parser: ParseBudget::DEFAULT,
         max_retained_bytes: DEFAULT_MAX_RETAINED_BYTES,
         max_decoded_bytes: DEFAULT_MAX_DECODED_BYTES,
+        max_instances: ParseBudget::DEFAULT.max_elements,
     };
 
     /// Construct a workflow budget with explicit storage ceilings.
@@ -48,16 +50,39 @@ impl DicomReadBudget {
         max_retained_bytes: usize,
         max_decoded_bytes: usize,
     ) -> Result<Self> {
+        Self::try_new_with_max_instances(
+            parser,
+            max_retained_bytes,
+            max_decoded_bytes,
+            parser.max_elements,
+        )
+    }
+
+    /// Construct a workflow budget with an explicit candidate-instance ceiling.
+    ///
+    /// # Errors
+    ///
+    /// Returns an error when any workflow ceiling is zero.
+    pub fn try_new_with_max_instances(
+        parser: ParseBudget,
+        max_retained_bytes: usize,
+        max_decoded_bytes: usize,
+        max_instances: usize,
+    ) -> Result<Self> {
         if max_retained_bytes == 0 {
             bail!("DICOM retained-byte budget must be nonzero");
         }
         if max_decoded_bytes == 0 {
             bail!("DICOM decoded-byte budget must be nonzero");
         }
+        if max_instances == 0 {
+            bail!("DICOM instance-count budget must be nonzero");
+        }
         Ok(Self {
             parser,
             max_retained_bytes,
             max_decoded_bytes,
+            max_instances,
         })
     }
 
@@ -77,6 +102,12 @@ impl DicomReadBudget {
     #[must_use]
     pub const fn max_decoded_bytes(&self) -> usize {
         self.max_decoded_bytes
+    }
+
+    /// Return the maximum candidate instances admitted by one discovery.
+    #[must_use]
+    pub const fn max_instances(&self) -> usize {
+        self.max_instances
     }
 
     /// Check a cumulative retained-byte total before storing another member.
@@ -107,5 +138,20 @@ impl DicomReadBudget {
             );
         }
         Ok(bytes)
+    }
+
+    /// Check a candidate-instance count before parsing any catalog member.
+    ///
+    /// # Errors
+    ///
+    /// Returns an error when `instances` exceeds the workflow ceiling.
+    pub fn checked_instances(&self, instances: usize) -> Result<usize> {
+        if instances > self.max_instances {
+            bail!(
+                "DICOM candidate instance count {instances} exceeds budget {}",
+                self.max_instances
+            );
+        }
+        Ok(instances)
     }
 }

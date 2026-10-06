@@ -17,12 +17,6 @@ pub(super) fn is_dicomdir(path: &Path) -> bool {
         .is_some_and(|name| name.eq_ignore_ascii_case("DICOMDIR"))
 }
 
-/// Resolve a directory or an explicitly selected index to its exact file set.
-/// An existing index is authoritative: malformed or missing references fail.
-pub(in crate::format::dicom) fn discover_files(path: &Path) -> Result<Vec<PathBuf>> {
-    discover_files_with_budget(path, &ParseBudget::DEFAULT)
-}
-
 pub(in crate::format::dicom) fn discover_files_with_budget(
     path: &Path,
     budget: &ParseBudget,
@@ -30,10 +24,30 @@ pub(in crate::format::dicom) fn discover_files_with_budget(
     if is_dicomdir(path) && !path.is_dir() {
         return read_dicomdir(path, budget);
     }
-    let entries = std::fs::read_dir(path)
-        .context("failed to read DICOM directory")?
-        .map(|entry| entry.map(|entry| entry.path()))
-        .collect::<std::io::Result<Vec<_>>>()?;
+    let mut entries = Vec::new();
+    for entry in std::fs::read_dir(path).context("failed to read DICOM directory")? {
+        let next_count = entries
+            .len()
+            .checked_add(1)
+            .context("DICOM directory entry count overflow")?;
+        let budget_count = u64::try_from(next_count)
+            .context("DICOM directory entry count does not fit the parser budget")?;
+        budget
+            .checked_elements(
+                budget_count,
+                std::mem::size_of::<PathBuf>(),
+                "DICOM directory entries",
+            )
+            .context("DICOM directory entry count exceeds parse budget")?;
+        entries
+            .try_reserve(1)
+            .context("failed to reserve DICOM directory entry storage")?;
+        entries.push(
+            entry
+                .context("failed to inspect DICOM directory entry")?
+                .path(),
+        );
+    }
     let indexes: Vec<_> = entries.iter().filter(|entry| is_dicomdir(entry)).collect();
     match indexes.as_slice() {
         [] => {
