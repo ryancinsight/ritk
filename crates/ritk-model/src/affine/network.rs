@@ -144,7 +144,7 @@ pub struct AffineNetwork<T: Float, B: BackendOps<T> + Default = MoiraiBackend> {
 /// Append `module`'s named parameters under `prefix` to `out`.
 fn extend_named<T, B, M>(out: &mut Vec<Parameter<T, B>>, prefix: &str, module: &M)
 where
-    T: Float + leto_ops::RealScalar,
+    T: Float,
     B: BackendOps<T> + Default,
     M: Module<T, B>,
 {
