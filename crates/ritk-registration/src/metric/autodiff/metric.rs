@@ -81,7 +81,7 @@ pub fn mse_metric<T, B, Tf>(
     transform: &Tf,
 ) -> Var<T, B>
 where
-    T: Float,
+    T: Float + leto_ops::RealScalar,
     B: ComputeBackend + BackendOps<T> + Default,
     B::DeviceBuffer<T>: CpuAddressableStorage<T> + CpuAddressableStorageMut<T>,
     Tf: Transform<T, B>,
