@@ -39,7 +39,11 @@ fn document_round_trip_retains_samples_comments_and_records() -> Result<()> {
     write_nrrd_document(&path, &document())?;
     let decoded = read_nrrd_document(&path, ImageReadBudget::DEFAULT)?;
     assert_eq!(decoded.records(), document().records());
-    assert!(fs::read(&path)?.ends_with(&[11, 0, 29, 0, 47, 0]));
+    let raw = fs::read(&path)?;
+    assert!(
+        raw.ends_with(&[11, 0, 29, 0, 47, 0]),
+        "NRRD payload must end with the raw u16 sample bytes [11,29,47] in LE; got {raw:?}"
+    );
     write_nrrd_document(&path, &decoded)?;
     let cycled = read_nrrd_document(&path, ImageReadBudget::DEFAULT)?;
     assert_eq!(cycled.comments(), decoded.comments());

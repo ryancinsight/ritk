@@ -48,9 +48,7 @@ impl NrrdDocument {
                 || comment.chars().all(|character| character == '#')
                 || comment == GENERATED_COMMENT
         }) {
-            return Err(NrrdDocumentError::UnsupportedField {
-                field: "metadata".to_owned(),
-            });
+            return Err(metadata_error());
         }
         if records.iter().any(|(key, value)| {
             key.is_empty()
@@ -63,9 +61,7 @@ impl NrrdDocument {
                 || unsupported_dwmri_name(key)
                 || unsupported_modality(key, value)
         }) {
-            return Err(NrrdDocumentError::UnsupportedField {
-                field: "metadata".to_owned(),
-            });
+            return Err(metadata_error());
         }
         Ok(Self {
             series,
@@ -218,6 +214,12 @@ pub fn read_nrrd_document<P: AsRef<Path>>(
 }
 const SUPPORTED_FIELDS: &str = "type|dimension|space|space units|sizes|space directions|kinds|endian|encoding|space origin|measurement frame";
 const GENERATED_COMMENT: &str = "# Complete NRRD file written by ritk";
+
+fn metadata_error() -> NrrdDocumentError {
+    NrrdDocumentError::UnsupportedField {
+        field: "metadata".to_owned(),
+    }
+}
 
 fn generated_metadata_name(name: &str, value: &str) -> bool {
     matches!(
