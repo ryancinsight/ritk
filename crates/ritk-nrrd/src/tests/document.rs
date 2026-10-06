@@ -20,7 +20,7 @@ fn document() -> NrrdDocument {
     .expect("valid stored volume");
     NrrdDocument::new(
         StoredSeries::new(vec![volume], SeriesAxis::SingleVolume).expect("single-volume series"),
-        vec!["# retained note".to_owned()],
+        vec!["#retained note".to_owned()],
         vec![
             ("source".to_owned(), "scanner".to_owned()),
             (
@@ -39,7 +39,7 @@ fn document_round_trip_retains_samples_comments_and_records() -> Result<()> {
     let decoded = read_nrrd_document(&path, ImageReadBudget::DEFAULT)?;
     assert_eq!(
         decoded.comments().last().map(String::as_str),
-        Some("# retained note")
+        Some("#retained note")
     );
     assert_eq!(decoded.records(), document().records());
     assert!(fs::read(&path)?.ends_with(&[11, 0, 29, 0, 47, 0]));

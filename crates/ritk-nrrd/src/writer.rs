@@ -10,8 +10,7 @@ use crate::spatial::file_space_directions_from_internal;
 
 mod stored;
 pub(crate) use stored::{
-    nrrd_type_name, validate_calibration, validate_series_axis, validate_series_header_entries,
-    write_sample_payload,
+    nrrd_type_name, validate_calibration, validate_series_axis, write_sample_payload,
 };
 pub use stored::{write_nrrd_stored, write_nrrd_stored_series, NrrdStoredWriteError};
 
