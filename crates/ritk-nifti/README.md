@@ -42,14 +42,17 @@ RITK images use `[depth, row, column]` sample order and LPS physical
 coordinates. NIfTI stores `[x, y, z]` with RAS affines. The codec performs the
 axis permutation and coordinate conversion at the format boundary.
 
-Multiple volumes become one rank-4 NIfTI series in input order. All volumes
-must share shape, sample type, geometry, and representable calibration. NIfTI-1
-stores dimensions as signed 16-bit integers and spatial and scaling fields as
-32-bit floats. Each positive axis and volume count therefore fits at most
-32,767, and floating-point fields reject values that would need rounding.
-NIfTI-2 stores dimensions as signed 64-bit integers and spatial and scaling
-fields as 64-bit floats. The sample payload remains in its declared scalar
-datatype in either version.
+`SingleVolume` maps to rank 3. An ordered `List` with at least two volumes
+maps to rank 4 in input order. A singleton `List` is rejected because rank 3
+cannot retain its axis meaning. `Unspecified` and `Diffusion` axes produce
+typed capability losses; the adapter does not silently discard acquisition
+semantics. All volumes must share shape, sample type, geometry, and
+representable calibration. NIfTI-1 stores dimensions as signed 16-bit integers
+and spatial and scaling fields as 32-bit floats. Each positive axis and volume
+count therefore fits at most 32,767, and floating-point fields reject values
+that would need rounding. NIfTI-2 stores dimensions as signed 64-bit integers
+and spatial and scaling fields as 64-bit floats. The sample payload remains in
+its declared scalar datatype in either version.
 
 ## Documentation
 

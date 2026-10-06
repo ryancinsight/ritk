@@ -6337,6 +6337,7 @@ dependencies = [
  "consus-core",
  "flate2",
  "ritk-codecs",
+ "ritk-diffusion-scheme",
  "ritk-image",
  "ritk-image-io",
  "ritk-spatial",

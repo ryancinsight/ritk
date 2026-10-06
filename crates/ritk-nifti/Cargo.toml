@@ -25,6 +25,7 @@ flate2 = { workspace = true }
 coeus-core = { workspace = true }
 
 [dev-dependencies]
+ritk-diffusion-scheme = { workspace = true }
 tempfile = { workspace = true }
 
 [lints]

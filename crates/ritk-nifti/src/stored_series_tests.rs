@@ -1,3 +1,6 @@
+#[path = "stored_series_tests/axis.rs"]
+mod axis;
+
 use crate::document::{NiftiDocument, NiftiVersion};
 use crate::header::{NiftiDatatype, NiftiHeader};
 use crate::stored_series::{NiftiStoredSeriesError, NiftiStoredSeriesIssue};
