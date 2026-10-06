@@ -9,12 +9,14 @@ use std::fs::File;
 use std::io::{BufWriter, Write};
 use std::path::Path;
 use thiserror::Error;
+/// In-memory NRRD samples and round-trippable metadata.
 #[derive(Debug)]
 pub struct NrrdDocument {
     series: StoredSeries,
     comments: Vec<String>,
     pub(crate) records: Vec<(String, String)>,
 }
+/// Typed construction, parsing, and serialization failure.
 #[derive(Debug, Error)]
 pub enum NrrdDocumentError {
     #[error(transparent)]
@@ -31,6 +33,10 @@ pub enum NrrdDocumentError {
     Io(#[from] std::io::Error),
 }
 impl NrrdDocument {
+    /// Constructs a document without an intermediate file.
+    ///
+    /// Returns [`NrrdDocumentError::UnsupportedField`] for metadata that cannot
+    /// be retained safely.
     pub fn new(
         series: StoredSeries,
         comments: Vec<String>,
@@ -42,6 +48,8 @@ impl NrrdDocument {
                 || !comment.starts_with('#')
                 || comment.contains(['\r', '\n'])
                 || comment.chars().all(|character| character == '#')
+                || comment.starts_with("# ")
+                || comment.starts_with("##")
                 || comment == GENERATED_COMMENT
         }) || records.iter().any(|(key, value)| {
             key.is_empty()
@@ -64,12 +72,15 @@ impl NrrdDocument {
             records,
         })
     }
+    /// Returns the typed stored series.
     pub fn series(&self) -> &StoredSeries {
         &self.series
     }
+    /// Returns comments retained for round-trip output.
     pub fn comments(&self) -> &[String] {
         &self.comments
     }
+    /// Returns retained non-generated key/value records.
     pub fn records(&self) -> &[(String, String)] {
         &self.records
     }
@@ -78,7 +89,10 @@ impl NrrdDocument {
             return Err(NrrdStoredWriteError::EmptySeries.into());
         };
         for (name, value) in self.records.iter() {
-            if generated_metadata_name(name, value) {
+            if generated_metadata_name(name, value)
+                || standard_metadata_name(name)
+                || (matches!(self.series.axis(), SeriesAxis::Diffusion(_)) && name == "modality")
+            {
                 return Err(NrrdDocumentError::ConflictingMetadata { name: name.clone() });
             }
             if unsupported_dwmri_name(name) || unsupported_modality(name, value) {
@@ -172,6 +186,7 @@ impl NrrdDocument {
         Ok(())
     }
 }
+/// Reads a complete document and reports unrepresentable fields before output.
 pub fn read_nrrd_document<P: AsRef<Path>>(
     path: P,
     budget: ImageReadBudget,
@@ -199,12 +214,27 @@ pub fn read_nrrd_document<P: AsRef<Path>>(
             field: "standard header field".to_owned(),
         });
     }
+    if header
+        .key_value_records()
+        .iter()
+        .any(|record| standard_metadata_name(record.key()))
+    {
+        return Err(NrrdDocumentError::UnsupportedField {
+            field: "custom standard metadata".to_owned(),
+        });
+    }
     NrrdDocument::new(series, comments, records)
 }
 const SUPPORTED_FIELDS: &str = "type|dimension|space|space units|sizes|space directions|kinds|endian|encoding|space origin|measurement frame";
 const GENERATED_COMMENT: &str = "# Complete NRRD file written by ritk";
 
 fn generated_metadata_name(name: &str, value: &str) -> bool {
+    matches!(name, "ritk_coordinate_map" | "DWMRI_b-value")
+        || name.starts_with("DWMRI_gradient_")
+        || (name == "modality" && value == "DWMRI")
+}
+
+fn standard_metadata_name(name: &str) -> bool {
     matches!(
         name,
         "type"
@@ -218,10 +248,7 @@ fn generated_metadata_name(name: &str, value: &str) -> bool {
             | "encoding"
             | "space origin"
             | "measurement frame"
-            | "ritk_coordinate_map"
-            | "DWMRI_b-value"
-    ) || name.starts_with("DWMRI_gradient_")
-        || (name == "modality" && value == "DWMRI")
+    )
 }
 
 fn unsupported_dwmri_name(name: &str) -> bool {
@@ -234,6 +261,7 @@ fn unsupported_modality(name: &str, value: &str) -> bool {
     name.eq_ignore_ascii_case("modality")
         && (name != "modality" || value.eq_ignore_ascii_case("DWMRI"))
 }
+/// Writes validated samples and metadata without opening invalid destinations.
 pub fn write_nrrd_document<P: AsRef<Path>>(
     path: P,
     document: &NrrdDocument,
