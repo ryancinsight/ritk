@@ -23,7 +23,10 @@ fn document() -> NrrdDocument {
         vec!["# retained note".to_owned()],
         vec![
             ("source".to_owned(), "scanner".to_owned()),
-            ("source:raw\\path".to_owned(), "line\nnext".to_owned()),
+            (
+                "source:raw\\path".to_owned(),
+                "line-continuation-test".to_owned(),
+            ),
         ],
     )
     .expect("valid document metadata")
