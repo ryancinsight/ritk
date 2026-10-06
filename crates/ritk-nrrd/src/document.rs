@@ -237,6 +237,9 @@ pub fn read_nrrd_document<P: AsRef<Path>>(
                 || record.value() != "DWMRI"
                 || records
                     .iter()
+                    .any(|candidate| candidate.key() == "modality" && candidate.value() != "DWMRI")
+                || records
+                    .iter()
                     .filter(|candidate| {
                         candidate.key() == "modality" && candidate.value() == "DWMRI"
                     })

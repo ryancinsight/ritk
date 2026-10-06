@@ -214,6 +214,7 @@ fn document_round_trip_retains_samples_comments_and_records() -> Result<()> {
         b"ritk_coordinate_map:=cartesian\nritk_coordinate_map:=cartesian\n".as_slice(),
         b"MoDaLiTy:=DWMRI\n".as_slice(),
         b"modality:=DWMRI\nmodality:=DWMRI\n".as_slice(),
+        b"modality:=DWMRI\nmodality:=CT\n".as_slice(),
         b"DWMRI_GRADIENT_0000:=0 0 0\n".as_slice(),
         b"DWMRI_gradient_0000:=0 0 0\nDWMRI_gradient_0000:=0 0 0\n".as_slice(),
     ] {
