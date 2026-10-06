@@ -119,7 +119,7 @@
 - acceptance: every exposed DICOM conversion preserves its declared pixel, geometry, calibration, and acquisition semantics or returns typed loss before output; separate series remain independently selectable and export is labeled secondary capture when source semantics are not retained.
 - status: todo
 - priority: architecture
-- needs: RITK-IMAGE-CONVERSION-PREFLIGHT-001, RITK-DICOM-PIXEL-ENCODING-001, RITK-DICOM-STORED-IMPORT-001, RITK-DICOM-STUDY-CATALOG-001
+- needs: RITK-IMAGE-CONVERSION-PREFLIGHT-001, RITK-DICOM-PIXEL-ENCODING-001, RITK-DICOM-STORED-IMPORT-001
 - scope: crates/ritk-dicom/, crates/ritk-io/, crates/ritk-snap/, DICOM tests and user manual
 - next: implement stored-pixel import and selected-series flow, then expose only conversions with verified DICOM pixel encoding.
 - basis: c58d8906bee373a7d2f87468fafc140310b9ec70
@@ -133,17 +133,6 @@
 - needs: RITK-IMAGE-CONVERSION-PREFLIGHT-001
 - scope: crates/ritk-dicom/, crates/ritk-io/src/format/dicom/reader/, crates/ritk-image-io/, stored-pixel tests and DICOM guide
 - next: map supported DICOM pixel encodings and rescale tags to the current stored and calibration types.
-- basis: c58d8906bee373a7d2f87468fafc140310b9ec70
-
-<a id="RITK-DICOM-STUDY-CATALOG-001"></a>
-## RITK-DICOM-STUDY-CATALOG-001: Expose every DICOM series
-- outcome: return a study catalog with each DICOM series represented independently and selectable by series UID.
-- acceptance: a directory with multiple series exposes each UID, instance count, and series metadata; selection loads only the requested series with its expected decoded pixels and geometry.
-- status: todo
-- priority: correctness
-- needs: none
-- scope: crates/ritk-io/src/format/dicom/series/, crates/ritk-io/src/dispatch.rs, crates/ritk-python/src/io/, crates/ritk-cli/src/commands/, crates/ritk-snap/src/dicom/, series fixtures and manual
-- next: connect the existing directory scanner and UID loader through one typed catalog-and-selection API.
 - basis: c58d8906bee373a7d2f87468fafc140310b9ec70
 
 <a id="RITK-METAIMAGE-CONVERSION-001"></a>

@@ -12,12 +12,9 @@
     reason = "RITK-LINT-1: ritk-cli is the application output layer"
 )]
 
-use anyhow::{Context, Result};
+use anyhow::{bail, Context, Result};
 use clap::Parser;
-use ritk_io::{
-    load_dicom_series_with_metadata, scan_dicom_directory, DicomReadMetadata, DicomSeriesInfo,
-    DicomSliceMetadata,
-};
+use ritk_io::{DicomReadMetadata, DicomSeriesInfo, DicomSliceMetadata, DicomStudyCatalog};
 use ritk_snap::GeometrySummary;
 use std::path::PathBuf;
 
@@ -31,6 +28,10 @@ pub struct ViewerArgs {
     /// Part 10 files.
     #[arg(value_name = "PATH")]
     pub path: PathBuf,
+
+    /// Select this SeriesInstanceUID when the study contains multiple series.
+    #[arg(long, value_name = "UID")]
+    pub series_instance_uid: Option<String>,
 
     /// Print the geometry summary.
     #[arg(long)]
@@ -49,13 +50,29 @@ pub struct ViewerArgs {
 pub fn run(args: ViewerArgs) -> Result<()> {
     let path = args.path.as_path();
 
-    let series_list = scan_dicom_directory(path)
+    let catalog = DicomStudyCatalog::scan(path)
         .with_context(|| format!("failed to scan DICOM study at {}", path.display()))?;
-    let selected_series = series_list
-        .iter()
-        .max_by_key(|series| series.file_paths.len())
-        .with_context(|| format!("no DICOM series found at {}", path.display()))?;
-    let (image, metadata) = load_scalar_dicom_for_viewer(path)?;
+    let selected_uid = match args.series_instance_uid {
+        Some(uid) => uid,
+        None => match catalog.series() {
+            [] => bail!("no DICOM series found at {}", path.display()),
+            [series] => series.series_instance_uid().to_owned(),
+            series => bail!(
+                "multiple DICOM series found at {}; select one with --series-instance-uid (available: {})",
+                path.display(),
+                series
+                    .iter()
+                    .map(DicomSeriesInfo::series_instance_uid)
+                    .collect::<Vec<_>>()
+                    .join(", ")
+            ),
+        },
+    };
+    let selected_series = catalog.select(&selected_uid)?;
+    let backend = Backend::default();
+    let (image, metadata) = catalog
+        .load(&selected_uid, &backend)
+        .with_context(|| format!("failed to load DICOM series {selected_uid}"))?;
 
     print_summary(path, selected_series, &image);
 
@@ -72,16 +89,6 @@ pub fn run(args: ViewerArgs) -> Result<()> {
     }
 
     Ok(())
-}
-
-fn load_scalar_dicom_for_viewer(
-    path: &std::path::Path,
-) -> Result<(ritk_image::Image<f32, Backend, 3>, DicomReadMetadata)> {
-    let backend = Backend::default();
-    let (image, metadata) = load_dicom_series_with_metadata(path, &backend)
-        .with_context(|| format!("failed to load DICOM study at {}", path.display()))?;
-
-    Ok((image, metadata))
 }
 
 fn print_summary(
@@ -179,14 +186,25 @@ mod tests {
     fn test_viewer_args_path_round_trip() {
         let args = ViewerArgs {
             path: PathBuf::from("test_data/2_skull_ct"),
+            series_instance_uid: None,
             geometry: true,
             slices: true,
             summary: false,
         };
         assert_eq!(args.path, PathBuf::from("test_data/2_skull_ct"));
+        assert_eq!(args.series_instance_uid, None);
         assert!(args.geometry);
         assert!(args.slices);
         assert!(!args.summary);
+    }
+
+    #[test]
+    fn viewer_args_parse_explicit_series_selection() {
+        let args =
+            ViewerArgs::try_parse_from(["viewer", "study", "--series-instance-uid", "2.25.73002"])
+                .expect("viewer arguments");
+        assert_eq!(args.path, PathBuf::from("study"));
+        assert_eq!(args.series_instance_uid.as_deref(), Some("2.25.73002"));
     }
 
     #[test]

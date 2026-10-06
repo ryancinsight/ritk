@@ -6,6 +6,7 @@ use super::super::scan::{
 };
 use super::super::DicomReadBudget;
 mod fixtures;
+use crate::DicomStudyCatalog;
 use fixtures::{
     index, instance, set_record_in_use, set_record_next, set_record_sop_instance, OTHER, SERIES,
 };
@@ -83,6 +84,70 @@ fn selected_file_and_exact_members_preserve_minority_pixels_and_metadata() {
             &[31.0, 31.0, 31.0, 31.0, 37.0, 37.0, 37.0, 37.0]
         );
     }
+}
+
+#[test]
+fn study_catalog_exposes_and_loads_each_series_independently() {
+    let directory = tempfile::tempdir().expect("directory");
+    for (name, uid, number, value) in [
+        ("first.dcm", SERIES, 1, 31),
+        ("second.dcm", SERIES, 2, 37),
+        ("other.dcm", OTHER, 3, 91),
+    ] {
+        std::fs::write(
+            directory.path().join(name),
+            instance(Some(uid), number, value),
+        )
+        .expect("catalog fixture instance");
+    }
+
+    let catalog = DicomStudyCatalog::scan(directory.path()).expect("study catalog");
+    assert_eq!(catalog.series().len(), 2);
+    let first = catalog.select(SERIES).expect("first series");
+    assert_eq!(first.instance_count(), 2);
+    assert_eq!(first.modality(), "CT");
+    assert_eq!(first.series_description, "Acquisition 31");
+    let other = catalog.select(OTHER).expect("other series");
+    assert_eq!(other.instance_count(), 1);
+    assert_eq!(other.series_description, "Acquisition 91");
+    let missing = catalog
+        .select("2.25.73999")
+        .expect_err("unknown series UID must reject");
+    assert!(missing.to_string().contains("2.25.73999"));
+
+    let backend = coeus_core::SequentialBackend;
+    let (image, metadata) = catalog.load(OTHER, &backend).expect("selected load");
+    assert_eq!(metadata.series_instance_uid.as_deref(), Some(OTHER));
+    assert_eq!(
+        metadata.series_description.as_deref(),
+        Some("Acquisition 91")
+    );
+    assert_eq!(image.shape(), [1, 2, 2]);
+    assert_eq!(image.origin().to_array(), [10.0, 20.0, 6.0]);
+    assert_eq!(image.spacing().to_array(), [2.0, 0.5, 0.5]);
+    assert_eq!(
+        metadata.direction,
+        [0.0, 0.0, 1.0, 0.0, 1.0, 0.0, 1.0, 0.0, 0.0]
+    );
+    assert_eq!(image.data_cow_on(&backend).as_ref(), &[91.0; 4]);
+}
+
+#[test]
+fn study_catalog_rejects_selected_member_replaced_by_another_series() {
+    let directory = tempfile::tempdir().expect("directory");
+    let path = directory.path().join("selected.dcm");
+    std::fs::write(&path, instance(Some(OTHER), 1, 91)).expect("catalog instance");
+    let catalog = DicomStudyCatalog::scan(directory.path()).expect("study catalog");
+
+    std::fs::write(&path, instance(Some(SERIES), 2, 31)).expect("replacement instance");
+
+    let error = catalog
+        .load(OTHER, &coeus_core::SequentialBackend)
+        .expect_err("replacement SeriesInstanceUID must reject");
+    assert!(
+        format!("{error:#}").contains("selected DICOM series changed from"),
+        "unexpected replacement error: {error:#}"
+    );
 }
 
 #[test]
