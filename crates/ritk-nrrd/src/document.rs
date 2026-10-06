@@ -199,6 +199,19 @@ pub fn read_nrrd_document<P: AsRef<Path>>(
 ) -> Result<NrrdDocument, NrrdDocumentError> {
     let header = read_nrrd_header(path.as_ref())?;
     for record in header.key_value_records() {
+        if record.key().eq_ignore_ascii_case("DWMRI_b-value")
+            && (record.key() != "DWMRI_b-value"
+                || header
+                    .key_value_records()
+                    .iter()
+                    .filter(|candidate| candidate.key() == "DWMRI_b-value")
+                    .count()
+                    != 1)
+        {
+            return Err(NrrdDocumentError::UnsupportedField {
+                field: record.key().to_owned(),
+            });
+        }
         if record
             .key()
             .eq_ignore_ascii_case(crate::coordinate_map::COORDINATE_MAP_KEY)

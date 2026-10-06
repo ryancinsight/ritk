@@ -207,5 +207,22 @@ fn document_round_trip_retains_samples_comments_and_records() -> Result<()> {
         Err(NrrdDocumentError::UnsupportedField { field })
             if field == "RITK_COORDINATE_MAP"
     ));
+    for metadata in [
+        b"DWMRI_B-VALUE:=1000\n".as_slice(),
+        b"DWMRI_b-value:=1000\nDWMRI_b-value:=1000\n".as_slice(),
+    ] {
+        let diffusion_path = directory.path().join("invalid-diffusion.nrrd");
+        let mut diffusion = fs::read(&source_path)?;
+        let separator = diffusion
+            .windows(2)
+            .position(|window| window == b"\n\n")
+            .expect("writer emits a header separator");
+        diffusion.splice(separator + 1..separator + 1, metadata.iter().copied());
+        fs::write(&diffusion_path, diffusion)?;
+        assert!(matches!(
+            read_nrrd_document(&diffusion_path, ImageReadBudget::DEFAULT),
+            Err(NrrdDocumentError::UnsupportedField { .. })
+        ));
+    }
     Ok(())
 }

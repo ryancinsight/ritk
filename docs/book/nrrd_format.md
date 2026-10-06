@@ -96,9 +96,10 @@ The document boundary retains only the generated structural fields and the
 custom records it can emit unchanged. It rejects standard fields such as
 `content`, `labels`, `data file`, and `spacings`, detached payload references,
 and malformed generated records rather than dropping them. It also rejects
-empty `#` and `##` comments, non-ASCII comments, and the writer's generated
-banner. The header parser retains non-empty forms such as `# note` and
-`##note`; the document boundary preserves those values unchanged.
+non-ASCII comments and caller-supplied copies of the writer's generated banner.
+The header reader drops empty `#` and `##` lines and filters the generated
+banner before construction; non-empty forms such as `# note` and `##note` are
+retained and the document boundary preserves them unchanged.
 The document constructor runs the same header, series, geometry, calibration,
 and entry-limit checks as its writer, so construction cannot produce a value
 that serialization would reject.
