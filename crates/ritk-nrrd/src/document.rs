@@ -222,17 +222,14 @@ fn generated_metadata_name(name: &str, value: &str) -> bool {
         || name.starts_with("DWMRI_gradient_")
         || (name == "modality" && value == "DWMRI")
 }
-
 fn standard_metadata_name(name: &str) -> bool {
     STANDARD_FIELDS.split('|').any(|field| field == name)
 }
-
 fn unsupported_dwmri_name(name: &str) -> bool {
     name.get(..6)
         .is_some_and(|prefix| prefix.eq_ignore_ascii_case("DWMRI_"))
         && !generated_metadata_name(name, "DWMRI")
 }
-
 fn unsupported_modality(name: &str, value: &str) -> bool {
     name.eq_ignore_ascii_case("modality")
         && (name != "modality" || value.eq_ignore_ascii_case("DWMRI"))
