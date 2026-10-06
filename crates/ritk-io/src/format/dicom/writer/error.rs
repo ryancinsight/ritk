@@ -131,4 +131,7 @@ pub enum DicomWriteError {
         /// Name of the invalid attribute.
         attribute: &'static str,
     },
+    /// PixelData uses a value representation other than OB or OW.
+    #[error("DICOM PixelData VR must be OB or OW")]
+    InvalidPixelDataVr,
 }

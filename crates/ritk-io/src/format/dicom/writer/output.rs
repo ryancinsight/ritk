@@ -74,45 +74,37 @@ fn validate_pixel_module(object: &dicom::object::DefaultDicomObject) -> Result<(
     {
         return Err(DicomWriteError::InvalidPixelAttribute { attribute }.into());
     }
-    let number_of_frames = object
-        .element(Tag(0x0028, 0x0008))
-        .map_or(Ok(1), |element| {
-            element
-                .to_int::<u16>()
-                .map_err(|_| DicomWriteError::InvalidPixelAttribute {
-                    attribute: "NumberOfFrames",
-                })
-        })?;
+    let number_of_frames = pixel_scalar(object, Tag(0x0028, 0x0008), "NumberOfFrames")?;
     if number_of_frames == 0 {
         return Err(DicomWriteError::InvalidPixelAttribute {
             attribute: "NumberOfFrames",
         }
         .into());
     }
-    if matches!(pixel_data.vr(), VR::OB | VR::OW) {
-        let samples = usize::from(rows)
-            .checked_mul(usize::from(columns))
-            .and_then(|value| value.checked_mul(usize::from(number_of_frames)))
-            .and_then(|value| value.checked_mul(usize::from(samples_per_pixel)))
-            .ok_or(DicomWriteError::PixelCountOverflow)?;
-        let expected = if bits_allocated == 1 {
-            samples
-                .checked_add(7)
-                .ok_or(DicomWriteError::PixelCountOverflow)?
-                / 8
-        } else {
-            samples
-                .checked_mul(usize::from(bits_allocated / 8))
-                .ok_or(DicomWriteError::PixelCountOverflow)?
-        };
-        let Ok(bytes) = pixel_data.to_bytes() else {
-            // Encapsulated transfer syntaxes expose fragments, not native bytes.
-            return Ok(());
-        };
-        let actual = bytes.len();
-        if actual != expected {
-            return Err(DicomWriteError::PixelPayloadLengthMismatch { expected, actual }.into());
-        }
+    if !matches!(pixel_data.vr(), VR::OB | VR::OW) {
+        return Err(DicomWriteError::InvalidPixelDataVr.into());
+    }
+    let samples = usize::from(rows)
+        .checked_mul(usize::from(columns))
+        .and_then(|value| value.checked_mul(usize::from(number_of_frames)))
+        .and_then(|value| value.checked_mul(usize::from(samples_per_pixel)))
+        .ok_or(DicomWriteError::PixelCountOverflow)?;
+    let expected = if bits_allocated == 1 {
+        samples
+            .checked_add(7)
+            .ok_or(DicomWriteError::PixelCountOverflow)?
+            / 8
+    } else {
+        samples
+            .checked_mul(usize::from(bits_allocated / 8))
+            .ok_or(DicomWriteError::PixelCountOverflow)?
+    };
+    let Ok(bytes) = pixel_data.to_bytes() else {
+        return Ok(());
+    };
+    let actual = bytes.len();
+    if actual != expected {
+        return Err(DicomWriteError::PixelPayloadLengthMismatch { expected, actual }.into());
     }
     Ok(())
 }
