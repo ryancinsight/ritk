@@ -108,7 +108,6 @@ fn validate_pixel_module(object: &dicom::object::DefaultDicomObject) -> Result<(
     }
     Ok(())
 }
-
 pub(crate) fn write_file(path: &Path, object: &dicom::object::DefaultDicomObject) -> Result<()> {
     let bytes = serialize_file(object)?;
     std::fs::write(path, bytes).context("DICOM output write failed")
