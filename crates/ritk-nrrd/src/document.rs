@@ -47,10 +47,7 @@ impl NrrdDocument {
                 || comment.contains(['\r', '\n'])
                 || comment.chars().all(|character| character == '#')
                 || comment == GENERATED_COMMENT
-        }) {
-            return Err(metadata_error());
-        }
-        if records.iter().any(|(key, value)| {
+        }) || records.iter().any(|(key, value)| {
             key.is_empty()
                 || !key.is_ascii()
                 || key.starts_with('#')
