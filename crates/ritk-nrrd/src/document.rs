@@ -9,14 +9,12 @@ use std::fs::File;
 use std::io::{BufWriter, Write};
 use std::path::Path;
 use thiserror::Error;
-/// An in-memory NRRD document retaining typed samples and representable metadata.
 #[derive(Debug)]
 pub struct NrrdDocument {
     series: StoredSeries,
     comments: Vec<String>,
     pub(crate) records: Vec<(String, String)>,
 }
-/// Failure returned while constructing, reading, or writing a document.
 #[derive(Debug, Error)]
 pub enum NrrdDocumentError {
     #[error(transparent)]
@@ -33,8 +31,6 @@ pub enum NrrdDocumentError {
     Io(#[from] std::io::Error),
 }
 impl NrrdDocument {
-    /// Constructs a document without an intermediate file.
-    /// Returns a typed error for metadata the reader cannot retain.
     pub fn new(
         series: StoredSeries,
         comments: Vec<String>,
@@ -66,15 +62,12 @@ impl NrrdDocument {
             records,
         })
     }
-    /// Returns the typed stored series.
     pub fn series(&self) -> &StoredSeries {
         &self.series
     }
-    /// Returns comments retained for round-trip output.
     pub fn comments(&self) -> &[String] {
         &self.comments
     }
-    /// Returns non-generated key/value records retained for round-trip output.
     pub fn records(&self) -> &[(String, String)] {
         &self.records
     }
@@ -178,8 +171,6 @@ impl NrrdDocument {
         Ok(())
     }
 }
-/// Reads a complete NRRD document without an intermediate conversion file.
-/// Returns a typed loss error for fields the document cannot represent.
 pub fn read_nrrd_document<P: AsRef<Path>>(
     path: P,
     budget: ImageReadBudget,
@@ -248,8 +239,6 @@ fn unsupported_modality(name: &str, value: &str) -> bool {
     name.eq_ignore_ascii_case("modality")
         && (name != "modality" || value.eq_ignore_ascii_case("DWMRI"))
 }
-/// Writes a document atomically with respect to validation failures.
-/// Returns before opening the destination when retained metadata is invalid.
 pub fn write_nrrd_document<P: AsRef<Path>>(
     path: P,
     document: &NrrdDocument,
