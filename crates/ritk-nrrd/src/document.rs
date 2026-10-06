@@ -129,18 +129,13 @@ impl NrrdDocument {
                 maximum_entries: crate::reader::MAX_HEADER_ENTRIES,
             }));
         }
-        let rest = self
-            .series
-            .volumes()
-            .split_first()
-            .map_or(&[][..], |(_, rest)| rest);
         crate::writer::validate_series_axis(self.series.axis())?;
         crate::writer::validate_series_header_entries(self.series.axis(), first.coordinate_map())?;
         crate::writer::validate_calibration(first)?;
         validate_physical_geometry(first.metadata())
             .map_err(|source| NrrdStoredWriteError::PhysicalGeometry { source })?;
         let sample_type = first.samples().sample_type();
-        for (offset, volume) in rest.iter().enumerate() {
+        for (offset, volume) in self.series.volumes().iter().skip(1).enumerate() {
             let index = offset + 1;
             crate::writer::validate_calibration(volume)?;
             if volume.shape() != first.shape() {
