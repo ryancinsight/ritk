@@ -7,6 +7,7 @@ use super::validate::{
     qform_quaternion_scalar, validate_bitpix, validate_dims, validate_i64_vox_offset,
     validate_vox_offset, volume_count,
 };
+use super::{NiftiDatatype, NiftiLane};
 use anyhow::{anyhow, bail, Context, Result};
 use consus_core::ByteOrder;
 
@@ -28,50 +29,6 @@ impl HeaderVersion {
         match self {
             Self::One => NIFTI1_SINGLE_FILE_VOX_OFFSET,
             Self::Two => NIFTI2_SINGLE_FILE_VOX_OFFSET,
-        }
-    }
-}
-
-#[derive(Clone, Copy, Debug, Eq, PartialEq)]
-pub(crate) enum NiftiDatatype {
-    Uint8,
-    Int16,
-    Int32,
-    Float32,
-    Uint32,
-}
-
-impl NiftiDatatype {
-    pub(crate) const fn code(self) -> i16 {
-        match self {
-            Self::Uint8 => 2,
-            Self::Int16 => 4,
-            Self::Int32 => 8,
-            Self::Float32 => 16,
-            Self::Uint32 => 768,
-        }
-    }
-
-    pub(super) const fn bitpix(self) -> i16 {
-        match self {
-            Self::Uint8 => 8,
-            Self::Int16 => 16,
-            Self::Int32 | Self::Float32 | Self::Uint32 => 32,
-        }
-    }
-
-    pub(crate) const fn byte_width(self) -> usize {
-        (self.bitpix() / 8) as usize
-    }
-
-    pub(crate) fn from_code(code: i16) -> Result<Self> {
-        match code {
-            2 => Ok(Self::Uint8),
-            4 => Ok(Self::Int16),
-            8 => Ok(Self::Int32),
-            16 => Ok(Self::Float32),
-            768 => Ok(Self::Uint32),
-            _ => bail!("Unsupported NIfTI datatype code {code}"),
         }
     }
 }
@@ -510,119 +467,3 @@ pub(crate) fn write_single_file_bytes(header: &NiftiHeader, data: &[u8]) -> Vec<
     out.extend_from_slice(data);
     out
 }
-
-#[cfg(test)]
-mod tests {
-    use super::{HeaderDims, HeaderSpatial, HeaderVersion, NiftiDatatype, NiftiHeader};
-
-    #[test]
-    fn header_round_trip_preserves_nifti1_core_fields() {
-        let header = NiftiHeader::new_volume(
-            HeaderDims {
-                nx: 4,
-                ny: 3,
-                nz: 2,
-            },
-            NiftiDatatype::Float32,
-            HeaderSpatial {
-                pixdim: [1.0, 0.75, 1.5, 2.0, 1.0, 1.0, 1.0, 1.0],
-                srow_x: [-0.75, 0.0, 0.0, -11.0],
-                srow_y: [0.0, -1.5, 0.0, 7.5],
-                srow_z: [0.0, 0.0, 2.0, 3.25],
-            },
-        )
-        .expect("valid header");
-
-        let parsed = NiftiHeader::parse(&header.encode()).expect("encoded header parses");
-        assert_eq!(parsed.version, HeaderVersion::One);
-        assert_eq!(parsed.dim, [3, 4, 3, 2, 1, 1, 1, 1]);
-        assert_eq!(parsed.datatype, NiftiDatatype::Float32);
-        assert_eq!(parsed.srow_x, [-0.75, 0.0, 0.0, -11.0]);
-        assert_eq!(parsed.vox_offset, 352);
-    }
-
-    #[test]
-    fn header_round_trip_preserves_nifti2_core_fields() {
-        let header = NiftiHeader::new_with_version(
-            HeaderVersion::Two,
-            HeaderDims {
-                nx: 70_000,
-                ny: 3,
-                nz: 2,
-            },
-            1,
-            NiftiDatatype::Uint32,
-            HeaderSpatial {
-                pixdim: [1.0, 0.75, 1.5, 2.0, 1.0, 1.0, 1.0, 1.0],
-                srow_x: [-0.75, 0.0, 0.0, -11.0],
-                srow_y: [0.0, -1.5, 0.0, 7.5],
-                srow_z: [0.0, 0.0, 2.0, 3.25],
-            },
-        )
-        .expect("valid header");
-
-        let parsed = NiftiHeader::parse(&header.encode()).expect("encoded header parses");
-        assert_eq!(parsed.version, HeaderVersion::Two);
-        assert_eq!(parsed.dim, [3, 70_000, 3, 2, 1, 1, 1, 1]);
-        assert_eq!(parsed.datatype, NiftiDatatype::Uint32);
-        assert_eq!(parsed.srow_x, [-0.75, 0.0, 0.0, -11.0]);
-        assert_eq!(parsed.vox_offset, 544);
-    }
-
-    #[test]
-    fn nifti1_rejects_dimensions_above_u16() {
-        let err = NiftiHeader::new_volume(
-            HeaderDims {
-                nx: 70_000,
-                ny: 1,
-                nz: 1,
-            },
-            NiftiDatatype::Float32,
-            HeaderSpatial {
-                pixdim: [1.0; 8],
-                srow_x: [1.0, 0.0, 0.0, 0.0],
-                srow_y: [0.0, 1.0, 0.0, 0.0],
-                srow_z: [0.0, 0.0, 1.0, 0.0],
-            },
-        )
-        .expect_err("NIfTI-1 dimensions above u16 must be rejected");
-
-        assert!(
-            err.to_string().contains("u16"),
-            "error must name NIfTI-1 dimension bound: {err}"
-        );
-    }
-}
-
-/// A NIfTI header scalar decodable from `N` raw bytes of either byte order.
-///
-/// Sealed by visibility: the set is exactly the scalars `NiftiDatatype` admits,
-/// and it grows here when that enum grows.
-pub(crate) trait NiftiLane<const N: usize>: Sized {
-    /// Decodes the value from little-endian bytes.
-    fn from_little_endian(raw: [u8; N]) -> Self;
-    /// Decodes the value from big-endian bytes.
-    fn from_big_endian(raw: [u8; N]) -> Self;
-}
-
-macro_rules! nifti_lane {
-    ($($scalar:ty => $width:literal),+ $(,)?) => {
-        $(impl NiftiLane<$width> for $scalar {
-            #[inline]
-            fn from_little_endian(raw: [u8; $width]) -> Self {
-                Self::from_le_bytes(raw)
-            }
-
-            #[inline]
-            fn from_big_endian(raw: [u8; $width]) -> Self {
-                Self::from_be_bytes(raw)
-            }
-        })+
-    };
-}
-
-// The impls are byte-for-byte identical past the scalar and its width, and the
-// bodies are the std constructors themselves; a declarative macro is the one
-// place this file needs to name each scalar, and it is generated once here
-// rather than written out four times.
-nifti_lane!(i16 => 2, i32 => 4, u32 => 4, f32 => 4);
