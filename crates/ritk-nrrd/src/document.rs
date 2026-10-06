@@ -1,4 +1,3 @@
-//! Validated NRRD documents for loss-aware format conversion.
 use crate::reader::NrrdHeaderError;
 use crate::writer::{
     write_nrrd_header_with_metadata, write_nrrd_series_header_with_metadata, HeaderBuffer,
