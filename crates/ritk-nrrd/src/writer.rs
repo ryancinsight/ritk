@@ -9,6 +9,9 @@ use std::path::Path;
 use crate::spatial::file_space_directions_from_internal;
 
 mod stored;
+pub(crate) use stored::{
+    nrrd_type_name, validate_calibration, validate_series_axis, write_sample_payload,
+};
 pub use stored::{write_nrrd_stored, write_nrrd_stored_series, NrrdStoredWriteError};
 
 #[derive(Clone, Copy)]
@@ -146,6 +149,30 @@ pub(super) fn write_nrrd_header(
     element_type: &str,
     coordinate_map: &CoordinateMap,
 ) -> std::io::Result<()> {
+    write_nrrd_header_with_metadata(
+        writer,
+        shape,
+        spacing,
+        origin,
+        direction,
+        element_type,
+        coordinate_map,
+        &[],
+        &[],
+    )
+}
+
+pub(super) fn write_nrrd_header_with_metadata(
+    writer: &mut impl Write,
+    shape: [usize; 3],
+    spacing: &Spacing<3>,
+    origin: &Point<3>,
+    direction: &Direction<3>,
+    element_type: &str,
+    coordinate_map: &CoordinateMap,
+    comments: &[String],
+    records: &[(String, String)],
+) -> std::io::Result<()> {
     let [nz, ny, nx] = shape;
     let file_directions = file_space_directions_from_internal(
         [spacing[0], spacing[1], spacing[2]],
@@ -176,8 +203,23 @@ pub(super) fn write_nrrd_header(
         origin[0], origin[1], origin[2]
     )?;
     crate::coordinate_map::write_key_value(writer, coordinate_map)?;
+    for comment in comments {
+        writeln!(writer, "{comment}")?;
+    }
+    for (key, value) in records {
+        writeln!(
+            writer,
+            "{}:={}",
+            escape_key_value(key),
+            escape_key_value(value)
+        )?;
+    }
     writeln!(writer)?;
     Ok(())
+}
+
+fn escape_key_value(value: &str) -> String {
+    value.replace('\\', "\\\\").replace('\n', "\\n")
 }
 
 pub(super) fn write_nrrd_series_header(
@@ -191,6 +233,36 @@ pub(super) fn write_nrrd_series_header(
     coordinate_map: &CoordinateMap,
     layout: SeriesLayout,
     axis: &SeriesAxis,
+) -> std::io::Result<()> {
+    write_nrrd_series_header_with_metadata(
+        writer,
+        shape,
+        volume_count,
+        spacing,
+        origin,
+        direction,
+        element_type,
+        coordinate_map,
+        layout,
+        axis,
+        &[],
+        &[],
+    )
+}
+
+pub(super) fn write_nrrd_series_header_with_metadata(
+    writer: &mut impl Write,
+    shape: [usize; 3],
+    volume_count: usize,
+    spacing: &Spacing<3>,
+    origin: &Point<3>,
+    direction: &Direction<3>,
+    element_type: &str,
+    coordinate_map: &CoordinateMap,
+    layout: SeriesLayout,
+    axis: &SeriesAxis,
+    comments: &[String],
+    records: &[(String, String)],
 ) -> std::io::Result<()> {
     let [nz, ny, nx] = shape;
     let file_directions = file_space_directions_from_internal(
@@ -267,6 +339,17 @@ pub(super) fn write_nrrd_series_header(
                 z * scale
             )?;
         }
+    }
+    for comment in comments {
+        writeln!(writer, "{comment}")?;
+    }
+    for (key, value) in records {
+        writeln!(
+            writer,
+            "{}:={}",
+            escape_key_value(key),
+            escape_key_value(value)
+        )?;
     }
     writeln!(writer)?;
     Ok(())
@@ -496,7 +579,7 @@ pub(super) struct HeaderBuffer {
 }
 
 impl HeaderBuffer {
-    fn new() -> Self {
+    pub(super) fn new() -> Self {
         Self {
             bytes: Vec::new(),
             exceeded_limit: false,

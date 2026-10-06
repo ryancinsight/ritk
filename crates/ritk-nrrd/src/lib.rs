@@ -61,11 +61,13 @@
 mod axes;
 pub mod coordinate_map;
 mod dip;
+pub mod document;
 pub mod reader;
 mod spatial;
 pub mod writer;
 
 pub use dip::{NrrdDipReader, NrrdDipWriter};
+pub use document::{read_nrrd_document, write_nrrd_document, NrrdDocument, NrrdDocumentError};
 pub use reader::{
     read_nrrd, read_nrrd_gradient_scheme, read_nrrd_header, read_nrrd_header_map, read_nrrd_series,
     read_nrrd_stored, read_nrrd_stored_series, NrrdHeader, NrrdHeaderError, NrrdKeyValueRecord,
