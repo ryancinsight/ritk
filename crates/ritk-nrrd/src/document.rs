@@ -42,36 +42,18 @@ impl NrrdDocument {
         comments: Vec<String>,
         records: Vec<(String, String)>,
     ) -> Result<Self, NrrdDocumentError> {
-        if comments.iter().any(|comment| {
-            !comment.is_ascii()
-                || comment.len() < 2
-                || !comment.starts_with('#')
-                || comment.contains(['\r', '\n'])
-                || comment.chars().all(|character| character == '#')
-                || comment.starts_with("# ")
-                || comment.starts_with("##")
-                || comment == GENERATED_COMMENT
-        }) || records.iter().any(|(key, value)| {
-            key.is_empty()
-                || !key.is_ascii()
-                || key.starts_with('#')
-                || key.contains(":=")
-                || key.contains(['\r', '\n'])
-                || !value.is_ascii()
-                || value.contains(['\r', '\n'])
-                || unsupported_dwmri_name(key)
-                || unsupported_modality(key, value)
-                || generated_metadata_name(key, value)
-        }) {
-            return Err(NrrdDocumentError::UnsupportedField {
-                field: "metadata".into(),
-            });
-        }
-        Ok(Self {
+        let document = Self {
             series,
             comments,
             records,
-        })
+        };
+        document.validate_for_write().map_err(|error| match error {
+            NrrdDocumentError::ConflictingMetadata { .. } => NrrdDocumentError::UnsupportedField {
+                field: "metadata".into(),
+            },
+            other => other,
+        })?;
+        Ok(document)
     }
     pub fn series(&self) -> &StoredSeries {
         &self.series
@@ -82,10 +64,34 @@ impl NrrdDocument {
     pub fn records(&self) -> &[(String, String)] {
         &self.records
     }
-    fn write_to<P: AsRef<Path>>(&self, path: P) -> Result<(), NrrdDocumentError> {
+    fn validate_for_write(&self) -> Result<HeaderBuffer, NrrdDocumentError> {
         let Some(first) = self.series.volumes().first() else {
             return Err(NrrdStoredWriteError::EmptySeries.into());
         };
+        if self.comments.iter().any(|comment| {
+            !comment.is_ascii()
+                || comment.len() < 2
+                || !comment.starts_with('#')
+                || comment.contains(['\r', '\n'])
+                || comment.chars().all(|character| character == '#')
+                || comment.starts_with("# ")
+                || comment.starts_with("##")
+                || comment == GENERATED_COMMENT
+        }) || self.records.iter().any(|(key, value)| {
+            key.is_empty()
+                || !key.is_ascii()
+                || key.starts_with('#')
+                || key.contains(":=")
+                || key.contains(['\r', '\n'])
+                || !value.is_ascii()
+                || value.contains(['\r', '\n'])
+                || unsupported_dwmri_name(key)
+                || generated_metadata_name(key, value)
+        }) {
+            return Err(NrrdDocumentError::UnsupportedField {
+                field: "metadata".into(),
+            });
+        }
         for (name, value) in self.records.iter() {
             if generated_metadata_name(name, value)
                 || standard_metadata_name(name)
@@ -174,6 +180,10 @@ impl NrrdDocument {
                 return Err(NrrdStoredWriteError::SampleTypeMismatch { index }.into());
             }
         }
+        Ok(header)
+    }
+    fn write_to<P: AsRef<Path>>(&self, path: P) -> Result<(), NrrdDocumentError> {
+        let header = self.validate_for_write()?;
         let file = File::create(path)?;
         let mut output = BufWriter::new(file);
         output.write_all(header.bytes())?;
@@ -190,6 +200,17 @@ pub fn read_nrrd_document<P: AsRef<Path>>(
     budget: ImageReadBudget,
 ) -> Result<NrrdDocument, NrrdDocumentError> {
     let header = read_nrrd_header(path.as_ref())?;
+    for record in header.key_value_records() {
+        if record
+            .key()
+            .eq_ignore_ascii_case(crate::coordinate_map::COORDINATE_MAP_KEY)
+            && crate::coordinate_map::decode(record.value()).is_err()
+        {
+            return Err(NrrdDocumentError::UnsupportedField {
+                field: record.key().to_owned(),
+            });
+        }
+    }
     let series = read_nrrd_stored_series(path, budget)?;
     let comments = header
         .comments()
@@ -219,10 +240,12 @@ pub fn read_nrrd_document<P: AsRef<Path>>(
     NrrdDocument::new(series, comments, records)
 }
 const GENERATED_COMMENT: &str = "# Complete NRRD file written by ritk";
-const STANDARD_FIELDS: &str = "type|dimension|space|space units|sizes|space directions|kinds|endian|encoding|space origin|measurement frame|content|labels";
+const STANDARD_FIELDS: &str = "type|dimension|space|space units|sizes|space directions|kinds|endian|encoding|space origin|measurement frame|content|labels|data file|line skip|byte skip|spacings|thicknesses|axis mins|axis maxs|centers|block size|old min|old max|sample units|space dimension";
+const GENERATED_STANDARD_FIELDS: &str = "type|dimension|space|space units|sizes|space directions|kinds|endian|encoding|space origin|measurement frame";
 
 fn generated_metadata_name(name: &str, value: &str) -> bool {
-    matches!(name, "ritk_coordinate_map" | "DWMRI_b-value")
+    name.eq_ignore_ascii_case("ritk_coordinate_map")
+        || name.eq_ignore_ascii_case("DWMRI_b-value")
         || name.starts_with("DWMRI_gradient_")
         || (name == "modality" && value == "DWMRI")
 }
@@ -230,7 +253,9 @@ fn standard_metadata_name(name: &str) -> bool {
     STANDARD_FIELDS.split('|').any(|field| field == name)
 }
 fn generated_standard_field(name: &str) -> bool {
-    standard_metadata_name(name) && !matches!(name, "content" | "labels")
+    GENERATED_STANDARD_FIELDS
+        .split('|')
+        .any(|field| field == name)
 }
 fn unsupported_dwmri_name(name: &str) -> bool {
     name.get(..6)

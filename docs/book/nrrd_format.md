@@ -92,6 +92,16 @@ custom records without an intermediate file. Writing derives structural fields
 from the samples, validates first, and leaves an existing destination
 unchanged on rejection.
 
+The document boundary retains only the generated structural fields and the
+custom records it can emit unchanged. It rejects standard fields such as
+`content`, `labels`, `data file`, and `spacings`, detached payload references,
+and malformed generated records rather than dropping them. It also rejects
+empty comments, `# ` and `##` comment forms, non-ASCII comments, and the
+writer's generated banner because the parser does not preserve those values.
+The document constructor runs the same header, series, geometry, calibration,
+and entry-limit checks as its writer, so construction cannot produce a value
+that serialization would reject.
+
 Use `read_nrrd_stored` when NRRD is an input to a format conversion. It
 returns `ritk_image_io::StoredVolume`, retaining the element type, each stored
 value, the spatial metadata, the coordinate map, and the calibration state.
@@ -123,7 +133,10 @@ layout.
 
 Diffusion series output uses the NRRD0005 magic and writes an explicit identity
 measurement frame because its gradient vectors are already in LPS coordinates.
-Other stored series retain NRRD0004. The reader accepts the standard
+Other stored series retain NRRD0004. There is no implicit diffusion default:
+`modality:=DWMRI`, a declared acquisition axis, one nominal `DWMRI_b-value`,
+and contiguous gradient entries are required before a diffusion series is
+constructed. The reader accepts the standard
 `axismins`, `axismaxs`, and `centerings` aliases and canonicalizes them before
 checking duplicate fields. Per-axis physical units without `space directions`
 or `spacings` are rejected because they cannot determine sample geometry.
