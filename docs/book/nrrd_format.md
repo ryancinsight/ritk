@@ -85,11 +85,80 @@ scanner-input baseline threshold used by `ritk-diffusion-scheme` constructors.
 Missing indices, non-finite values, `DWMRI_NEX`, and B-matrix encodings fail
 explicitly rather than being guessed.
 
+## Document construction and retained metadata
+
+`NrrdDocument::new(series, comments, records)` consumes a `StoredSeries`, a
+`Vec<String>` of comments, and a `Vec<(String, String)>` of custom key/value
+records. It constructs a document without an intermediate file. The borrowed
+`series()`, `comments()`, and `records()` accessors expose its samples and
+retained metadata. Construction uses the same validation as the writer:
+identity calibration, supported series axes, physical geometry, matching
+volume shapes, sample types, geometry and coordinate maps, and serialized
+header byte and entry limits. Generated header entries count toward the
+16 MiB and 65,536-entry limits.
+
+`read_nrrd_document(path, budget)` checks retained metadata and the regenerated
+header limits before decoding samples. Its header and attached payload remain
+bound to one opened source file. The resulting document keeps the stored
+sample representation and values through `StoredSeries`.
+
+### Retained order
+
+Comments retain their leading `#`, text, and relative order. Non-empty forms
+such as `# note` and `##note` are supported. The header parser drops comment
+lines containing only `#` and spaces; the constructor rejects those forms,
+non-ASCII text, embedded carriage returns or newlines, and caller-supplied
+copies of `# Complete NRRD file written by ritk`. The document reader filters
+that generated banner, and each write emits it once.
+
+Custom records are decoded key/value strings, kept in their supplied or source
+order, including repeated keys. For example, `source:=scanner` followed by
+`source:=reviewed` remains two records in `records()`, while the header's
+effective map reports `reviewed`. Writing escapes backslashes again. Keys must
+be non-empty ASCII, must not start with `#` or contain `:=`, and keys and values
+must not contain carriage returns or newlines. Values must also be ASCII.
+
+The writer groups retained comments before custom records, after generated
+fields. It preserves order within each list, rather than their original
+interleaving with one another or with standard fields. Whitespace, escaping,
+field spelling, and the original header bytes are not a document round-trip
+contract.
+
+### Regenerated fields and typed loss
+
+Serialization derives `type`, `dimension`, `sizes`, `kinds`, `space`, `space
+units`, `space directions`, and `space origin` from the typed series. Output
+uses patient LPS millimeter coordinates, `encoding: raw`, `endian: little`,
+and an attached payload. Acquisition volumes use the trailing contiguous axis.
+Coordinate-map records and diffusion metadata (`modality:=DWMRI`,
+`DWMRI_b-value`, gradient records, and the identity measurement frame) are
+regenerated where applicable. Output uses NRRD0005 for diffusion and NRRD0004
+otherwise; source version and encoding are not retained as formatting choices.
+Callers supply the corresponding typed values, rather than copies of generated
+records in the custom-record list.
+
+The current document reader rejects standard fields outside that generated
+structural set, including `content`, `labels`, `data file`, `spacings`, and
+skip fields. The constructor likewise rejects standard field names passed as
+custom records. These failures return `NrrdDocumentError::UnsupportedField`;
+the error's `field` may describe a metadata category rather than the specific
+source field. Reserved coordinate-map or DWMRI records, malformed or repeated
+generated records on input, and unsupported DWMRI extensions are also rejected.
+`read_nrrd_header` remains available to inspect those fields. The stored-sample
+reader's support for a payload form, such as detached data, does not imply that
+the document boundary can retain its header semantics.
+
+### Validation before destination mutation
+
+`write_nrrd_document` builds the bounded output header and validates the whole
+series before `File::create` can create or truncate the destination. Metadata
+conflicts, unsupported fields, header limits, calibration, and series mismatch
+errors therefore leave an existing destination unchanged. Construction performs
+these checks too; writing rechecks them before opening the destination. This
+is a validation guarantee: a later I/O error during header or payload writing,
+or flushing, can leave partial output.
+
 ## Stored samples and format conversion
-
-`NrrdDocument` combines a validated `StoredSeries` with retained comments and custom records without an intermediate file. Writing derives structural fields from the samples, validates first, and leaves an existing destination unchanged on rejection.
-
-The document boundary retains only generated structural fields and custom records it can emit unchanged. It rejects standard fields such as `content`, `labels`, `data file`, and `spacings`, detached payload references, malformed generated records, non-ASCII comments, and caller-supplied copies of the writer's generated banner rather than dropping them. The header reader retains comment lines and drops empty `#` and `##` lines; the document reader filters the generated banner before construction. Non-empty forms such as `# note` and `##note` are retained and the document boundary preserves them unchanged. The constructor runs the same header, series, geometry, calibration, and entry-limit checks as its writer, so construction cannot produce a value that serialization would reject.
 
 Use `read_nrrd_stored` when NRRD is an input to a format conversion. It
 returns `ritk_image_io::StoredVolume`, retaining the element type, each stored

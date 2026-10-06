@@ -43,10 +43,47 @@ write_nrrd_document("output.nrrd", &document)?;
 # Ok::<(), Box<dyn std::error::Error>>(())
 ```
 
-`NrrdDocument` is the complete-file conversion boundary. It retains comments
-and custom records while deriving structural fields from validated samples
-before output is opened; invalid metadata leaves an existing destination
-unchanged.
+## Documents with retained metadata
+
+`NrrdDocument::new(series, comments, records)` constructs a document directly
+from a `ritk_image_io::StoredSeries`, comment strings, and ordered `(String,
+String)` custom key/value pairs. `series()`, `comments()`, and `records()`
+provide borrowed access. Construction checks the same metadata, header limits,
+series consistency, physical geometry, and identity calibration as writing.
+
+```rust
+use ritk_image_io::StoredSeries;
+use ritk_nrrd::{NrrdDocument, NrrdDocumentError};
+
+fn document_with_provenance(series: StoredSeries) -> Result<NrrdDocument, NrrdDocumentError> {
+    NrrdDocument::new(
+        series,
+        vec!["# imported scan".to_owned()],
+        vec![
+            ("source".to_owned(), "scanner".to_owned()),
+            ("source".to_owned(), "reviewed".to_owned()),
+        ],
+    )
+}
+```
+
+Retained comments keep their leading `#` and their order. Custom records keep
+all repeated keys and their order; an effective key/value map uses the last
+value. The writer emits generated fields, then retained comments, then custom
+records, so source interleaving and header bytes are not preserved. It
+regenerates the sample type, shape, spatial fields, acquisition fields, and
+coordinate-map and diffusion records from the typed series, with an attached
+raw little-endian payload. The document reader removes the writer's generated
+banner so successive writes do not accumulate it.
+
+`read_nrrd_document` and the constructor return
+`NrrdDocumentError::UnsupportedField` for metadata the document cannot retain,
+including standard `content` and `labels` fields. Caller-supplied structural
+or reserved generated records are rejected. Use `read_nrrd_header` to inspect
+unsupported header fields; document conversion does not silently discard them.
+`write_nrrd_document` completes validation before creating or truncating the
+destination. Validation errors leave an existing destination unchanged; an I/O
+failure after opening the file can leave partial output.
 
 The [NRRD format manual](https://ryancinsight.github.io/ritk/nrrd_format.html)
 documents axis ordering, spatial metadata, acquisition series, payload rules,
