@@ -84,11 +84,6 @@ impl NrrdDocument {
             if generated_metadata_name(name) {
                 return Err(NrrdDocumentError::ConflictingMetadata { name: name.clone() });
             }
-            if unsupported_dwmri_name(name) {
-                return Err(NrrdDocumentError::UnsupportedField {
-                    field: name.clone(),
-                });
-            }
         }
         let mut header = HeaderBuffer::new();
         let result = if matches!(self.series.axis(), SeriesAxis::SingleVolume) {
@@ -128,20 +123,17 @@ impl NrrdDocument {
             ));
         }
         result?;
-        let entries = header
-            .bytes()
-            .split(|byte| *byte == b'\n')
-            .skip(1)
-            .take_while(|line| !line.is_empty())
-            .count();
+        let entries = header.bytes().iter().filter(|&&byte| byte == b'\n').count().saturating_sub(2);
         if entries > crate::reader::MAX_HEADER_ENTRIES {
             return Err(NrrdDocumentError::Header(NrrdHeaderError::TooManyEntries {
                 maximum_entries: crate::reader::MAX_HEADER_ENTRIES,
             }));
         }
-        let Some((first, rest)) = self.series.volumes().split_first() else {
-            return Err(NrrdStoredWriteError::EmptySeries.into());
-        };
+        let rest = self
+            .series
+            .volumes()
+            .split_first()
+            .map_or(&[][..], |(_, rest)| rest);
         crate::writer::validate_series_axis(self.series.axis())?;
         crate::writer::validate_series_header_entries(self.series.axis(), first.coordinate_map())?;
         crate::writer::validate_calibration(first)?;
@@ -206,11 +198,10 @@ pub fn read_nrrd_document<P: AsRef<Path>>(
         .filter(|record| !generated_metadata_name(record.key()))
         .map(|record| (record.key().to_owned(), record.value().to_owned()))
         .collect();
-    let supported = "type|dimension|space|space units|sizes|space directions|kinds|endian|encoding|space origin|measurement frame";
     if header
         .fields()
         .keys()
-        .any(|key| !supported.split('|').any(|field| field == key))
+        .any(|key| !SUPPORTED_FIELDS.split('|').any(|field| field == key))
     {
         return Err(NrrdDocumentError::UnsupportedField {
             field: "standard header field".to_owned(),
@@ -218,6 +209,7 @@ pub fn read_nrrd_document<P: AsRef<Path>>(
     }
     NrrdDocument::new(series, comments, records)
 }
+const SUPPORTED_FIELDS: &str = "type|dimension|space|space units|sizes|space directions|kinds|endian|encoding|space origin|measurement frame";
 const GENERATED_COMMENT: &str = "# Complete NRRD file written by ritk";
 
 fn generated_metadata_name(name: &str) -> bool {

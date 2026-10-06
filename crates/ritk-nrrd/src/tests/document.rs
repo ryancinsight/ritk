@@ -40,21 +40,11 @@ fn document_round_trip_retains_samples_comments_and_records() -> Result<()> {
     );
     assert_eq!(decoded.records(), document().records());
     assert!(fs::read(&path)?.ends_with(&[11, 0, 29, 0, 47, 0]));
-    Ok(())
-}
-#[test]
-fn rejected_document_leaves_existing_destination_unchanged() -> Result<()> {
-    let directory = tempdir()?;
-    let path = directory.path().join("existing.nrrd");
     fs::write(&path, b"sentinel")?;
-    let mut document = document();
-    document
-        .records
-        .push(("type".to_owned(), "float".to_owned()));
-    assert!(matches!(
-        write_nrrd_document(&path, &document),
-        Err(crate::NrrdDocumentError::ConflictingMetadata { .. })
-    ));
+    let mut invalid = document();
+    invalid.records = vec![("type".to_owned(), "float".to_owned())];
+    let error = write_nrrd_document(&path, &invalid);
+    assert!(matches!(error, Err(crate::NrrdDocumentError::ConflictingMetadata { .. })));
     assert_eq!(fs::read(&path)?, b"sentinel");
     Ok(())
 }
