@@ -155,7 +155,10 @@ fn document_round_trip_retains_samples_comments_and_records() -> Result<()> {
         .windows(2)
         .position(|window| window == b"\n\n")
         .expect("writer emits a header separator");
-    input.splice(separator..separator, b"content: lost\n".iter().copied());
+    input.splice(
+        separator + 1..separator + 1,
+        b"content: lost\n".iter().copied(),
+    );
     fs::write(&input_path, input)?;
     assert!(matches!(
         read_nrrd_document(&input_path, ImageReadBudget::DEFAULT),
