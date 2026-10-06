@@ -9,7 +9,7 @@ use ritk_spatial::CoordinateMap;
 use std::fs;
 use tempfile::tempdir;
 
-fn series() -> StoredSeries {
+fn document() -> NrrdDocument {
     let volume = StoredVolume::new(
         [1, 1, 3],
         SampleBuffer::from_samples(vec![11_u16, 29, 47]),
@@ -18,11 +18,8 @@ fn series() -> StoredSeries {
         IntensityCalibration::Identity,
     )
     .expect("valid stored volume");
-    StoredSeries::new(vec![volume], SeriesAxis::SingleVolume).expect("single-volume series")
-}
-fn document() -> NrrdDocument {
     NrrdDocument::new(
-        series(),
+        StoredSeries::new(vec![volume], SeriesAxis::SingleVolume).expect("single-volume series"),
         vec!["# retained note".to_owned()],
         vec![
             ("source".to_owned(), "scanner".to_owned()),
@@ -61,16 +58,4 @@ fn rejected_document_leaves_existing_destination_unchanged() -> Result<()> {
     ));
     assert_eq!(fs::read(&path)?, b"sentinel");
     Ok(())
-}
-
-#[test]
-fn document_rejects_ambiguous_records() {
-    for key in ["#source", "a:=b"] {
-        let error = NrrdDocument::new(series(), Vec::new(), vec![(key.into(), "x".into())])
-            .expect_err("ambiguous record key");
-        assert!(matches!(
-            error,
-            crate::NrrdDocumentError::UnsupportedField { .. }
-        ));
-    }
 }

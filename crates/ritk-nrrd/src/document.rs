@@ -10,32 +10,24 @@ use std::fs::File;
 use std::io::{BufWriter, Write};
 use std::path::Path;
 use thiserror::Error;
-/// A complete NRRD document with stored samples and retained header metadata.
 #[derive(Debug)]
 pub struct NrrdDocument {
     series: StoredSeries,
     comments: Vec<String>,
     pub(crate) records: Vec<(String, String)>,
 }
-/// A document construction or serialization failure.
 #[derive(Debug, Error)]
 pub enum NrrdDocumentError {
-    /// The stored source could not be read.
     #[error(transparent)]
     Read(#[from] NrrdStoredReadError),
-    /// Header syntax is invalid.
     #[error(transparent)]
     Header(#[from] NrrdHeaderError),
-    /// A retained field or record would override generated structure.
     #[error("NRRD metadata conflicts with generated field {name:?}")]
     ConflictingMetadata { name: String },
-    /// A standard field cannot be retained by this document model.
     #[error("NRRD standard field {field:?} cannot be retained")]
     UnsupportedField { field: String },
-    /// Series validation rejected the document before output.
     #[error(transparent)]
     Write(#[from] NrrdStoredWriteError),
-    /// Output creation or flushing failed.
     #[error(transparent)]
     Io(#[from] std::io::Error),
 }
@@ -72,15 +64,12 @@ impl NrrdDocument {
             records,
         })
     }
-    /// Returns the stored volumes in acquisition order.
     pub fn series(&self) -> &StoredSeries {
         &self.series
     }
-    /// Returns retained comments in source order.
     pub fn comments(&self) -> &[String] {
         &self.comments
     }
-    /// Returns retained custom records in source order.
     pub fn records(&self) -> &[(String, String)] {
         &self.records
     }
@@ -184,7 +173,6 @@ impl NrrdDocument {
         Ok(())
     }
 }
-/// Reads one-volume documents while retaining their exact metadata.
 pub fn read_nrrd_document<P: AsRef<Path>>(
     path: P,
     budget: ImageReadBudget,
@@ -241,7 +229,6 @@ fn generated_metadata_name(name: &str) -> bool {
             | "dwmri_b-value"
     ) || lower.starts_with("dwmri_gradient_")
 }
-/// Writes a validated NRRD document without an intermediate conversion file.
 pub fn write_nrrd_document<P: AsRef<Path>>(
     path: P,
     document: &NrrdDocument,
