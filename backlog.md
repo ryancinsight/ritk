@@ -86,7 +86,7 @@
 - acceptance: callers construct valid typed documents without an intermediate file; read/write retains samples and fields or returns typed loss before destination mutation.
 - status: todo
 - priority: correctness
-- needs: RITK-NRRD-HEADER-RECORDS-001
+- needs: none
 - scope: crates/ritk-nrrd/, NRRD guide, document tests
 - next: define a validated document constructor and preserve existing parser diagnostics while preparing complete output.
 - basis: e8db1595f018b0eec23e8b5f2f8b2a16f8e711d2
