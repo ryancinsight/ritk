@@ -4,7 +4,7 @@ use arrayvec::ArrayString;
 use std::path::PathBuf;
 
 /// Metadata for a discovered DICOM series.
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, PartialEq, Eq)]
 pub struct DicomSeriesInfo {
     pub(crate) series_instance_uid: ArrayString<64>,
     pub series_description: String,
@@ -44,5 +44,11 @@ impl DicomSeriesInfo {
     /// Returns the Modality as a string slice.
     pub fn modality(&self) -> &str {
         self.modality.as_str()
+    }
+
+    /// Return the number of instances discovered for this series.
+    #[must_use]
+    pub fn instance_count(&self) -> usize {
+        self.file_paths.len()
     }
 }
