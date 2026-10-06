@@ -67,7 +67,7 @@ fn native_series_writer_round_trips_native_image() {
 /// A native-written series round-trips through the native reader to the same
 /// voxels (within the per-slice rescale bound) and geometry.
 ///
-/// Per-slice `normalize_to_u16` reconstruction bound: for a slice of range `R`,
+/// Per-slice pixel normalization reconstruction bound: for a slice of range `R`,
 /// `slope = R / 65535`; DS `{:.6}` formatting adds ≤ 0.5e-6 per coefficient, and
 /// quantization adds ≤ slope/2. The linear ramp gives every slice the same
 /// range `R = (slice_len − 1) · 1.5`.

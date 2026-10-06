@@ -2,7 +2,7 @@
 
 use crate::format::dicom::writer::elements::PutValue;
 use crate::format::dicom::writer::pixel_encoding::{
-    JPEG_2000_QUANTIZATION_STEP, JPEG_BASELINE_QUALITY, JPEG_LS_NEAR, U8_MAX_F,
+    JPEG_2000_QUANTIZATION_STEP, JPEG_BASELINE_QUALITY, JPEG_LS_NEAR,
 };
 use anyhow::{bail, Context, Result};
 use coeus_core::MoiraiBackend;
@@ -24,8 +24,7 @@ use std::path::Path;
 
 use super::types::{MultiFrameSpatialMetadata, MultiFrameWriterConfig};
 use crate::format::dicom::writer::pixel_encoding::{
-    emit_pixel_format_tags, generate_series_uid, normalization_window, normalize_to_u16,
-    MONOCHROME2,
+    emit_pixel_format_tags, generate_series_uid, normalize_pixels, MONOCHROME2,
 };
 
 /// Write a 3-D `Image<f32, B, 3>` with shape `[n_frames, rows, cols]` as a single
@@ -168,7 +167,7 @@ fn write_multiframe_flat(
         );
     }
 
-    let (pixel_u16, rescale_slope, rescale_intercept) = normalize_to_u16(all_data);
+    let (pixel_u16, rescale_slope, rescale_intercept) = normalize_pixels::<u16>(all_data)?;
 
     let sop_instance_uid = generate_series_uid();
     let study_instance_uid = generate_series_uid();
@@ -210,7 +209,7 @@ fn write_multiframe_flat(
     obj.put_value(Tag(0x0028, 0x0002), VR::US, 1_u16);
     obj.put_value(Tag(0x0028, 0x0010), VR::US, rows as u16);
     obj.put_value(Tag(0x0028, 0x0011), VR::US, cols as u16);
-    emit_pixel_format_tags(&mut obj, 16);
+    emit_pixel_format_tags::<u16>(&mut obj);
     obj.put_value(Tag(0x0028, 0x0004), VR::CS, MONOCHROME2);
     obj.put_value(Tag(0x0028, 0x1053), VR::DS, format!("{:.6}", rescale_slope));
     obj.put_value(
@@ -282,21 +281,8 @@ fn write_multiframe_flat(
             // Baseline JPEG carries eight-bit samples, so the 16-bit
             // normalisation and the 16-bit pixel tags do not apply to this
             // transfer syntax. Re-derive both from the modality data.
-            // Same window the u16 path uses; only the stored width differs, so
-            // the scaling is spelled out here rather than duplicated into a
-            // second normalisation function.
-            let (minimum, range) = normalization_window(all_data);
-            let jpeg_slope = range / U8_MAX_F;
-            let jpeg_intercept = minimum;
-            let pixel_u8: Vec<u8> = all_data
-                .iter()
-                .map(|&v| {
-                    ((v - minimum) / range * U8_MAX_F)
-                        .round()
-                        .clamp(0.0, U8_MAX_F) as u8
-                })
-                .collect();
-            emit_pixel_format_tags(&mut obj, 8);
+            let (pixel_u8, jpeg_slope, jpeg_intercept) = normalize_pixels::<u8>(all_data)?;
+            emit_pixel_format_tags::<u8>(&mut obj);
             let layout = PixelLayout {
                 rows,
                 cols,

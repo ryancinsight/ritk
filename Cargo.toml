@@ -119,7 +119,7 @@ metis-web = { package = "metis-web", version = "0.1.0", git = "https://github.co
 metis-ui-lang = { package = "metis-ui-lang", version = "0.1.0", git = "https://github.com/ryancinsight/metis.git" }
 # Apollo FFT scratch caches use Eunomia complex values through Mnemosyne.
 mnemosyne = { package = "mnemosyne-memory", version = "0.7.0", git = "https://github.com/ryancinsight/Mnemosyne.git", default-features = false, features = ["std_tls", "eunomia"] }
-eunomia = { version = "0.8.0", git = "https://github.com/ryancinsight/eunomia", default-features = false }
+eunomia = { version = "0.9.0", git = "https://github.com/ryancinsight/eunomia", default-features = false }
 coeus-core = { version = "0.10.0", git = "https://github.com/ryancinsight/Coeus.git" }
 coeus-tensor = { version = "0.10.0", git = "https://github.com/ryancinsight/Coeus.git" }
 coeus-ops = { version = "0.10.0", git = "https://github.com/ryancinsight/Coeus.git" }

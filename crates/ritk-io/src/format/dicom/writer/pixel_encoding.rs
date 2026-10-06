@@ -2,6 +2,7 @@ use crate::format::dicom::writer::elements::PutValue;
 use anyhow::{bail, Context, Result};
 use dicom::core::{Tag, VR};
 use dicom::object::InMemDicomObject;
+use eunomia::convert::{IntegerConversionError, IntegerTarget};
 use ritk_codecs::jpeg_2000::encoder::QuantizationStep;
 use std::collections::HashSet;
 use std::path::{Path, PathBuf};
@@ -27,65 +28,93 @@ pub(crate) const U8_MAX_F: f32 = 255.0;
 /// the fragment stays recognisably JPEG. Overridable per call.
 pub(crate) const JPEG_BASELINE_QUALITY: u8 = 95;
 
-/// The `(minimum, range)` window every normalisation in this module maps onto.
-///
-/// Exposed so a caller writing a narrower stored format -- eight-bit for
-/// baseline JPEG, for PNG -- derives its own scaling from the same window the
-/// sixteen-bit path uses, instead of a second normalisation function that
-/// differs only in the output width.
-pub(crate) fn normalization_window(data: &[f32]) -> (f32, f32) {
-    let min_val = data.iter().copied().fold(f32::INFINITY, f32::min);
-    let max_val = data.iter().copied().fold(f32::NEG_INFINITY, f32::max);
-    let range = (max_val - min_val).max(f32::EPSILON);
-    (min_val, range)
+/// Failure while mapping modality values into a stored DICOM sample range.
+#[derive(Debug, thiserror::Error)]
+pub(crate) enum PixelEncodingError {
+    /// The writer received no samples.
+    #[error("DICOM pixel buffer is empty")]
+    Empty,
+    /// The writer received a non-finite modality value.
+    #[error("DICOM pixel value {value} must be finite")]
+    NonFinite { value: f32 },
+    /// The finite endpoints have a range that cannot be represented in `f32`.
+    #[error("DICOM pixel range from {minimum} to {maximum} exceeds f32")]
+    RangeOverflow { minimum: f32, maximum: f32 },
+    /// A normalized value was outside the target sample's integer range.
+    #[error("normalized DICOM pixel is outside the stored sample range")]
+    SampleConversion(#[from] IntegerConversionError),
 }
 
-/// Normalize a slice of f32 pixel values to u16, computing min/max rescale parameters.
+/// Unsigned integer widths supported by the DICOM writer's scalar pixel path.
+pub(crate) trait DicomStoredSample: IntegerTarget {
+    const ALLOCATED_BITS: u16;
+    const MAX_PIXEL_VALUE: f32;
+}
+
+impl DicomStoredSample for u8 {
+    const ALLOCATED_BITS: u16 = 8;
+    const MAX_PIXEL_VALUE: f32 = U8_MAX_F;
+}
+
+impl DicomStoredSample for u16 {
+    const ALLOCATED_BITS: u16 = 16;
+    const MAX_PIXEL_VALUE: f32 = U16_MAX_F;
+}
+
+/// Normalize modality values to the requested unsigned DICOM sample type.
 ///
-/// Returns `(pixel_u16, rescale_slope, rescale_intercept)`.
+/// For `R = max - min`, each value maps to
+/// `round((v - min) / max(R, ε) × T::MAX_PIXEL_VALUE)`, clamped to the
+/// destination range. Rounding uses `f32::round` (nearest, ties away from zero)
+/// before Eunomia checks representability; this preserves the existing writer's
+/// sample values. The resulting reconstruction error is at most half the
+/// RescaleSlope, apart from `f32` arithmetic rounding.
 ///
-/// # Mathematical specification
+/// # Errors
 ///
-/// Let range = max(max_val - min_val, ε). Then:
-///   `pixel[i] = round((v[i] - min) / range × 65535).clamp(0, 65535)`
-///   `rescale_slope = range / 65535`
-///   `rescale_intercept = min_val`
-///
-/// Reconstruction invariant: `|v[i] - (pixel[i] × slope + intercept)| ≤ slope / 2`.
-pub(crate) fn normalize_to_u16(data: &[f32]) -> (Vec<u16>, f32, f32) {
-    let min_val = data.iter().copied().fold(f32::INFINITY, f32::min);
-    let max_val = data.iter().copied().fold(f32::NEG_INFINITY, f32::max);
-    let range = (max_val - min_val).max(f32::EPSILON);
-    let rescale_slope = range / U16_MAX_F;
-    let rescale_intercept = min_val;
-    let pixels: Vec<u16> = data
+/// Returns an error for empty input, non-finite values, an overflowing range,
+/// or a sample that cannot be represented by `T`.
+pub(crate) fn normalize_pixels<T: DicomStoredSample>(
+    data: &[f32],
+) -> std::result::Result<(Vec<T>, f32, f32), PixelEncodingError> {
+    let first = data.first().copied().ok_or(PixelEncodingError::Empty)?;
+    if !first.is_finite() {
+        return Err(PixelEncodingError::NonFinite { value: first });
+    }
+    let (minimum, maximum) = data.iter().copied().skip(1).try_fold(
+        (first, first),
+        |(minimum, maximum), value| {
+            if !value.is_finite() {
+                return Err(PixelEncodingError::NonFinite { value });
+            }
+            Ok::<_, PixelEncodingError>((minimum.min(value), maximum.max(value)))
+        },
+    )?;
+    let extent = maximum - minimum;
+    if !extent.is_finite() {
+        return Err(PixelEncodingError::RangeOverflow { minimum, maximum });
+    }
+    let range = extent.max(f32::EPSILON);
+    let rescale_slope = range / T::MAX_PIXEL_VALUE;
+    let rescale_intercept = minimum;
+    let pixels = data
         .iter()
-        .map(|&v| {
-            ((v - min_val) / range * U16_MAX_F)
+        .map(|&value| {
+            let normalized = ((value - minimum) / range * T::MAX_PIXEL_VALUE)
                 .round()
-                .clamp(0.0, U16_MAX_F) as u16
+                .clamp(0.0, T::MAX_PIXEL_VALUE);
+            T::try_from_rounded(normalized).map_err(PixelEncodingError::SampleConversion)
         })
-        .collect();
-    (pixels, rescale_slope, rescale_intercept)
+        .collect::<std::result::Result<Vec<T>, PixelEncodingError>>()?;
+    Ok((pixels, rescale_slope, rescale_intercept))
 }
 
-/// Emit the four DICOM tags that define unsigned pixel format.
-///
-/// BitsAllocated = BitsStored = `bits_allocated`, HighBit = `bits_allocated - 1`,
-/// PixelRepresentation = 0 (unsigned).
-///
-/// One function rather than a 16-bit and an 8-bit copy: the four tags differ only
-/// by the width, and a per-width pair is exactly the kind of type-suffixed
-/// duplicate this crate is measured for. Call sites may override individual tags
-/// afterwards if metadata specifies different values.
-pub(crate) fn emit_pixel_format_tags(obj: &mut InMemDicomObject, bits_allocated: u16) {
-    obj.put_value(Tag(0x0028, 0x0100), VR::US, bits_allocated);
-    obj.put_value(Tag(0x0028, 0x0101), VR::US, bits_allocated);
-    obj.put_value(
-        Tag(0x0028, 0x0102),
-        VR::US,
-        bits_allocated.saturating_sub(1),
-    );
+/// Emit the unsigned DICOM pixel-format tags for the stored sample type.
+pub(crate) fn emit_pixel_format_tags<T: DicomStoredSample>(obj: &mut InMemDicomObject) {
+    let high_bit = T::ALLOCATED_BITS - 1;
+    obj.put_value(Tag(0x0028, 0x0100), VR::US, T::ALLOCATED_BITS);
+    obj.put_value(Tag(0x0028, 0x0101), VR::US, T::ALLOCATED_BITS);
+    obj.put_value(Tag(0x0028, 0x0102), VR::US, high_bit);
     obj.put_value(Tag(0x0028, 0x0103), VR::US, 0u16);
 }
 
@@ -234,3 +263,93 @@ pub(crate) const JPEG_LS_NEAR: u32 = 1;
 /// quantisation the lossless path is compared against -- which is the same
 /// conservative posture as [`JPEG_LS_NEAR`] and [`JPEG_BASELINE_QUALITY`].
 pub(crate) const JPEG_2000_QUANTIZATION_STEP: QuantizationStep = QuantizationStep::UNIT;
+
+#[cfg(test)]
+mod tests {
+    use super::{
+        emit_pixel_format_tags, normalize_pixels, DicomStoredSample, InMemDicomObject,
+        PixelEncodingError, Tag,
+    };
+
+    #[test]
+    fn normalization_uses_the_destination_sample_width() {
+        let (pixels_8, slope_8, intercept_8) = normalize_pixels::<u8>(&[-1.0, 0.0, 1.0])
+            .expect("finite range fits eight-bit normalization");
+        let (pixels_16, slope_16, intercept_16) = normalize_pixels::<u16>(&[-1.0, 0.0, 1.0])
+            .expect("finite range fits sixteen-bit normalization");
+
+        assert_eq!(pixels_8, [0, 128, 255]);
+        assert_eq!(pixels_16, [0, 32768, 65535]);
+        assert_eq!(slope_8, 2.0 / 255.0);
+        assert_eq!(slope_16, 2.0 / 65535.0);
+        assert_eq!(intercept_8, -1.0);
+        assert_eq!(intercept_16, -1.0);
+    }
+
+    #[test]
+    fn normalization_handles_constant_and_invalid_ranges() {
+        let (pixels, slope, intercept) = normalize_pixels::<u8>(&[5.0, 5.0])
+            .expect("constant finite values have a nonzero encoding range");
+
+        assert_eq!(pixels, [0, 0]);
+        assert_eq!(slope, f32::EPSILON / 255.0);
+        assert_eq!(intercept, 5.0);
+        assert!(matches!(
+            normalize_pixels::<u8>(&[]),
+            Err(PixelEncodingError::Empty)
+        ));
+        assert!(matches!(
+            normalize_pixels::<u8>(&[f32::NAN]),
+            Err(PixelEncodingError::NonFinite { value }) if value.is_nan()
+        ));
+        assert!(matches!(
+            normalize_pixels::<u16>(&[-f32::MAX, f32::MAX]),
+            Err(PixelEncodingError::RangeOverflow { minimum, maximum })
+                if minimum == -f32::MAX && maximum == f32::MAX
+        ));
+    }
+
+    #[test]
+    fn pixel_format_tags_follow_the_stored_sample_type() {
+        assert_pixel_format_tags::<u8>(8, 7);
+        assert_pixel_format_tags::<u16>(16, 15);
+    }
+
+    fn assert_pixel_format_tags<T: DicomStoredSample>(allocated: u16, high_bit: u16) {
+        let mut object = InMemDicomObject::new_empty();
+        emit_pixel_format_tags::<T>(&mut object);
+
+        assert_eq!(
+            object
+                .element(Tag(0x0028, 0x0100))
+                .expect("BitsAllocated is present")
+                .to_int::<u16>()
+                .expect("BitsAllocated is unsigned short"),
+            allocated
+        );
+        assert_eq!(
+            object
+                .element(Tag(0x0028, 0x0101))
+                .expect("BitsStored is present")
+                .to_int::<u16>()
+                .expect("BitsStored is unsigned short"),
+            allocated
+        );
+        assert_eq!(
+            object
+                .element(Tag(0x0028, 0x0102))
+                .expect("HighBit is present")
+                .to_int::<u16>()
+                .expect("HighBit is unsigned short"),
+            high_bit
+        );
+        assert_eq!(
+            object
+                .element(Tag(0x0028, 0x0103))
+                .expect("PixelRepresentation is present")
+                .to_int::<u16>()
+                .expect("PixelRepresentation is unsigned short"),
+            0
+        );
+    }
+}

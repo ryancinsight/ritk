@@ -1,33 +1,9 @@
 //! Encapsulated-codec sample conversion into the DICOM modality domain.
 
 use anyhow::{bail, Context, Result};
+use eunomia::convert::IntegerTarget;
 
 use super::{PixelLayout, PixelSignedness};
-
-/// Encode one value from the modality domain back to its stored sample.
-///
-/// This is the exact inverse of the `* slope + intercept` transform applied by
-/// [`decode_compressed_samples`]. Rounding is half-away-from-zero rather than
-/// `f32::round`'s half-to-even: stored samples are integers obtained by
-/// rescaling continuous detector values, and the midpoint case is a tie between
-/// two equally valid integers, so either is defensible -- what is *not*
-/// defensible is a rule that biases every tie the same way on a large image,
-/// which is why this is stated rather than left implicit.
-pub(crate) fn encode_stored_sample(value: f32, layout: PixelLayout) -> Result<i32> {
-    layout.validate_rescale_parameters()?;
-    if layout.rescale_slope == 0.0 {
-        bail!("rescale_slope=0 has no inverse; encoding is undefined");
-    }
-    if !value.is_finite() {
-        bail!("cannot encode a non-finite sample {value}");
-    }
-    let stored = (value - layout.rescale_intercept) / layout.rescale_slope;
-    Ok(if stored < 0.0 {
-        (stored - 0.5).round() as i32
-    } else {
-        (stored + 0.5).round() as i32
-    })
-}
 
 /// Inverse of [`decode_compressed_samples`] for the eight-bit grayscale case.
 ///
@@ -40,6 +16,10 @@ pub(crate) fn encode_grayscale_stored_bytes<I>(values: I, layout: PixelLayout) -
 where
     I: ExactSizeIterator<Item = f32>,
 {
+    layout.validate_rescale_parameters()?;
+    if layout.rescale_slope == 0.0 {
+        bail!("rescale_slope=0 has no inverse; encoding is undefined");
+    }
     let expected = layout.samples_per_frame()?;
     if values.len() != expected {
         bail!(
@@ -47,10 +27,16 @@ where
             values.len()
         );
     }
+    let maximum = f32::from(u8::MAX);
     values
         .map(|value| {
-            let stored = encode_stored_sample(value, layout)?;
-            Ok(u8::try_from(stored.clamp(0, i32::from(u8::MAX))).unwrap_or(u8::MAX))
+            if !value.is_finite() {
+                bail!("cannot encode a non-finite sample {value}");
+            }
+            let stored = (value - layout.rescale_intercept) / layout.rescale_slope;
+            let rounded = stored.clamp(0.0, maximum).round();
+            u8::try_from_rounded(rounded)
+                .context("clamped JPEG sample must fit the unsigned eight-bit range")
         })
         .collect()
 }
@@ -114,4 +100,55 @@ where
             Ok(value * layout.rescale_slope + layout.rescale_intercept)
         })
         .collect()
+}
+
+#[cfg(test)]
+mod tests {
+    use super::encode_grayscale_stored_bytes;
+    use crate::pixel_layout::{PixelLayout, PixelSignedness};
+
+    fn layout(slope: f32, intercept: f32) -> PixelLayout {
+        PixelLayout {
+            rows: 1,
+            cols: 3,
+            samples_per_pixel: 1,
+            bits_allocated: 8,
+            bits_stored: 8,
+            pixel_representation: PixelSignedness::Unsigned,
+            rescale_slope: slope,
+            rescale_intercept: intercept,
+        }
+    }
+
+    #[test]
+    fn grayscale_encoding_rounds_and_saturates_the_rescaled_samples() {
+        let encoded = encode_grayscale_stored_bytes(
+            [-100.0, 0.0, 509.0].into_iter(),
+            layout(2.0, -1.0),
+        )
+        .expect("finite samples matching the layout fit the clamped output range");
+
+        assert_eq!(encoded, [0, 1, 255]);
+    }
+
+    #[test]
+    fn grayscale_encoding_rejects_non_finite_samples_and_invalid_layouts() {
+        let error = encode_grayscale_stored_bytes(
+            [f32::NAN, 0.0, 1.0].into_iter(),
+            layout(1.0, 0.0),
+        )
+        .expect_err("NaN cannot produce a stored sample");
+        assert!(error.to_string().contains("non-finite sample"));
+
+        let error = encode_grayscale_stored_bytes(
+            [0.0, 1.0, 2.0].into_iter(),
+            layout(0.0, 0.0),
+        )
+        .expect_err("zero slope has no inverse mapping");
+        assert!(error.to_string().contains("rescale_slope=0"));
+
+        let error = encode_grayscale_stored_bytes([0.0, 1.0].into_iter(), layout(1.0, 0.0))
+            .expect_err("the encoded count must match the frame layout");
+        assert!(error.to_string().contains("layout expects 3"));
+    }
 }

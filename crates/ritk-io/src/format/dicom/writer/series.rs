@@ -1,6 +1,6 @@
 use super::pixel_encoding::{
     emit_pixel_format_tags, ensure_series_directory, format_pair, format_six, format_triplet,
-    generate_instance_uid, generate_series_uid, normalize_to_u16,
+    generate_instance_uid, generate_series_uid, normalize_pixels,
     DICOM_SOP_CLASS_SECONDARY_CAPTURE, MONOCHROME2,
 };
 use crate::format::dicom::writer::elements::PutValue;
@@ -91,7 +91,7 @@ pub fn write_dicom_series<B: Backend, P: AsRef<Path>>(
 ///   spacing fallback the reader uses when `depth == 1`).
 /// - Pixel representation: unsigned 16-bit MONOCHROME2; a single per-slice
 ///   linear rescale (slope/intercept) maps the slice's f32 range onto
-///   `[0, 65535]` (see `normalize_to_u16`).
+///   `[0, 65535]` (see `normalize_pixels`).
 pub fn write_dicom_series_native<P: AsRef<Path>>(
     path: P,
     image: &NativeImage<f32, MoiraiBackend, 3>,
@@ -135,7 +135,7 @@ fn write_series_flat(
     for z in 0..depth {
         let slice_offset = z * slice_len;
         let slice_f32 = &all_data[slice_offset..slice_offset + slice_len];
-        let (pixel_u16, rescale_slope, rescale_intercept) = normalize_to_u16(slice_f32);
+        let (pixel_u16, rescale_slope, rescale_intercept) = normalize_pixels::<u16>(slice_f32)?;
         let sop_instance_uid = generate_instance_uid(&series_uid, z);
         let zf = z as f64;
         let image_position = [
@@ -172,7 +172,7 @@ fn write_series_flat(
         obj.put_value(Tag(0x0028, 0x0002), VR::US, 1_u16);
         obj.put_value(Tag(0x0028, 0x0010), VR::US, rows as u16);
         obj.put_value(Tag(0x0028, 0x0011), VR::US, cols as u16);
-        emit_pixel_format_tags(&mut obj, 16);
+        emit_pixel_format_tags::<u16>(&mut obj);
         obj.put_value(Tag(0x0028, 0x1053), VR::DS, format!("{:.6}", rescale_slope));
         obj.put_value(
             Tag(0x0028, 0x1052),

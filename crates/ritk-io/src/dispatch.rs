@@ -131,8 +131,8 @@ pub fn is_native_read_capable(fmt: ImageFormat) -> bool {
 
 /// True when `fmt` has a native writer in the unified `ritk-io` contract.
 ///
-/// PNG has no image writer and DICOM writes still target the legacy series
-/// writer.
+/// DICOM is the only readable format without a native writer here; it still
+/// targets the legacy series writer.
 #[must_use]
 pub fn is_native_write_capable(fmt: ImageFormat) -> bool {
     matches!(
@@ -144,6 +144,7 @@ pub fn is_native_write_capable(fmt: ImageFormat) -> bool {
             | ImageFormat::Tiff
             | ImageFormat::Vtk
             | ImageFormat::Jpeg
+            | ImageFormat::Png
             | ImageFormat::Analyze
     )
 }
@@ -274,9 +275,11 @@ pub fn write_image_native<P: AsRef<std::path::Path>>(
             path,
             image,
         ),
-        ImageFormat::Png => Err(std::io::Error::other(
-            "PNG image writing is not implemented on the native substrate",
-        )),
+        ImageFormat::Png => crate::ImageWriter::write(
+            &format::png::native::PngWriter::new(NativeBackend::default()),
+            path,
+            image,
+        ),
         ImageFormat::Dicom => Err(std::io::Error::other(
             "DICOM image writing is not implemented on the native substrate",
         )),
@@ -397,15 +400,44 @@ mod native_dispatch_tests {
             ImageFormat::Tiff,
             ImageFormat::Vtk,
             ImageFormat::Jpeg,
+            ImageFormat::Png,
             ImageFormat::Analyze,
         ] {
             assert!(is_native_read_capable(fmt), "{fmt:?} must read natively");
             assert!(is_native_write_capable(fmt), "{fmt:?} must write natively");
         }
-        assert!(is_native_read_capable(ImageFormat::Png));
         assert!(is_native_read_capable(ImageFormat::Dicom));
-        assert!(!is_native_write_capable(ImageFormat::Png));
         assert!(!is_native_write_capable(ImageFormat::Dicom));
+    }
+
+    /// The capability matrix is a claim about `write_image_native`, so it is
+    /// checked against the function rather than trusted: every format the
+    /// matrix advertises must actually write through dispatch.
+    #[test]
+    fn advertised_write_capability_matches_dispatch() {
+        let dir = tempfile::tempdir().expect("tempdir");
+        let image = native_volume();
+
+        for (fmt, extension) in [
+            (ImageFormat::NIfTI, "nii"),
+            (ImageFormat::MetaImage, "mha"),
+            (ImageFormat::Nrrd, "nrrd"),
+            (ImageFormat::Mgh, "mgh"),
+            (ImageFormat::Tiff, "tif"),
+            (ImageFormat::Jpeg, "jpg"),
+            (ImageFormat::Png, "png"),
+            (ImageFormat::Analyze, "img"),
+            (ImageFormat::Vtk, "vtk"),
+        ] {
+            if !is_native_write_capable(fmt) {
+                continue;
+            }
+            let path = dir.path().join(format!("probe.{extension}"));
+            write_image_native(&path, &image).unwrap_or_else(|e| {
+                panic!("{fmt:?} is advertised as natively writable but dispatch failed: {e}")
+            });
+            assert!(path.exists(), "{fmt:?} must leave a file behind");
+        }
     }
 
     #[test]
