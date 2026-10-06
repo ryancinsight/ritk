@@ -9,14 +9,12 @@ use std::fs::File;
 use std::io::{BufWriter, Write};
 use std::path::Path;
 use thiserror::Error;
-/// In-memory NRRD samples and round-trippable metadata.
 #[derive(Debug)]
 pub struct NrrdDocument {
     series: StoredSeries,
     comments: Vec<String>,
     pub(crate) records: Vec<(String, String)>,
 }
-/// Typed construction, parsing, and serialization failure.
 #[derive(Debug, Error)]
 pub enum NrrdDocumentError {
     #[error(transparent)]
@@ -33,10 +31,6 @@ pub enum NrrdDocumentError {
     Io(#[from] std::io::Error),
 }
 impl NrrdDocument {
-    /// Constructs a document without an intermediate file.
-    ///
-    /// Returns [`NrrdDocumentError::UnsupportedField`] for metadata that cannot
-    /// be retained safely.
     pub fn new(
         series: StoredSeries,
         comments: Vec<String>,
@@ -72,15 +66,12 @@ impl NrrdDocument {
             records,
         })
     }
-    /// Returns the typed stored series.
     pub fn series(&self) -> &StoredSeries {
         &self.series
     }
-    /// Returns comments retained for round-trip output.
     pub fn comments(&self) -> &[String] {
         &self.comments
     }
-    /// Returns retained non-generated key/value records.
     pub fn records(&self) -> &[(String, String)] {
         &self.records
     }
@@ -186,7 +177,6 @@ impl NrrdDocument {
         Ok(())
     }
 }
-/// Reads a complete document and reports unrepresentable fields before output.
 pub fn read_nrrd_document<P: AsRef<Path>>(
     path: P,
     budget: ImageReadBudget,
@@ -239,7 +229,6 @@ fn unsupported_modality(name: &str, value: &str) -> bool {
     name.eq_ignore_ascii_case("modality")
         && (name != "modality" || value.eq_ignore_ascii_case("DWMRI"))
 }
-/// Writes validated samples and metadata without opening invalid destinations.
 pub fn write_nrrd_document<P: AsRef<Path>>(
     path: P,
     document: &NrrdDocument,
