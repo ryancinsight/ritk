@@ -77,7 +77,7 @@
 - priority: correctness
 - needs: none
 - scope: `crates/ritk-nifti/src/header/`, writer, tests, NIfTI guide
-- next: split the 628-line header module, then add the ten scalar mappings and exact payload tests.
+- next: map all ten scalar types to NIfTI codes and add exact payload tests.
 - basis: 1ec26f82e536e524da083d3260b561e518d121a7
 
 <a id="RITK-NIFTI-STORED-SERIES-001"></a>
