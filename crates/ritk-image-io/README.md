@@ -31,7 +31,6 @@ assert_eq!(volume.shape(), [1, 1, 2]);
 # Ok::<(), Box<dyn std::error::Error>>(())
 ~~~
 
-Format crates parse and write their own headers and payloads. Their stored
-volume adapters preserve sample representation, geometry, coordinate mapping,
-and calibration or return an explicit unsupported-capability error before
-creating output.
+Format adapters own validation. Capabilities list feature categories and scoped
+metadata losses but do not validate cross-volume or format-specific limits or
+authorize output; writers validate values before creating or replacing files.
