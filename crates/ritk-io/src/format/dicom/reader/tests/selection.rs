@@ -4,7 +4,7 @@ use super::super::loader::load_dicom_from_series;
 use super::super::scan::{
     scan_dicom_files, scan_dicom_part10_bytes, scan_dicom_path, scan_dicom_path_with_budget,
 };
-use super::super::types::DicomReadBudget;
+use super::super::DicomReadBudget;
 mod fixtures;
 use fixtures::{
     index, instance, set_record_in_use, set_record_next, set_record_sop_instance, OTHER, SERIES,

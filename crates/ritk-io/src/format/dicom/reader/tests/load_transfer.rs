@@ -12,8 +12,9 @@ use super::super::loader::{
 use super::super::pixel::{decode_pixel_bytes, read_slice_pixels};
 use super::super::scan::scan_dicom_directory;
 use super::super::types::{
-    DicomReadBudget, DicomReadMetadata, DicomSeriesInfo, DicomSliceMetadata, PatientPosition,
+    DicomReadMetadata, DicomSeriesInfo, DicomSliceMetadata, PatientPosition,
 };
+use super::super::DicomReadBudget;
 use super::support::*;
 use crate::format::dicom::{
     DicomObjectNode, DicomPreservationSet, DicomPreservedElement, DicomTag, DicomValue,
