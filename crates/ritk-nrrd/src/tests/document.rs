@@ -164,5 +164,20 @@ fn document_round_trip_retains_samples_comments_and_records() -> Result<()> {
         read_nrrd_document(&input_path, ImageReadBudget::DEFAULT),
         Err(NrrdDocumentError::UnsupportedField { .. })
     ));
+    let malformed_map_path = directory.path().join("malformed-map.nrrd");
+    let mut malformed_map = fs::read(&source_path)?;
+    let separator = malformed_map
+        .windows(2)
+        .position(|window| window == b"\n\n")
+        .expect("writer emits a header separator");
+    malformed_map.splice(
+        separator + 1..separator + 1,
+        b"ritk_coordinate_map:=cartesian extra=1\n".iter().copied(),
+    );
+    fs::write(&malformed_map_path, malformed_map)?;
+    assert!(matches!(
+        read_nrrd_document(&malformed_map_path, ImageReadBudget::DEFAULT),
+        Err(NrrdDocumentError::UnsupportedField { .. })
+    ));
     Ok(())
 }
