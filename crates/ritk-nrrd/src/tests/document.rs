@@ -28,7 +28,11 @@ fn series() -> StoredSeries {
 fn document() -> NrrdDocument {
     NrrdDocument::new(
         series(),
-        vec!["#retained note".to_owned()],
+        vec![
+            "#retained note".to_owned(),
+            "# note".to_owned(),
+            "##note".to_owned(),
+        ],
         vec![
             ("source".to_owned(), "scanner".to_owned()),
             ("modality".to_owned(), "CT".to_owned()),
@@ -70,7 +74,14 @@ fn document_round_trip_retains_samples_comments_and_records() -> Result<()> {
             .encode(ByteOrder::LeastSignificantByteFirst)?,
         [11, 0, 29, 0, 47, 0]
     );
-    assert_eq!(decoded.comments(), &[String::from("#retained note")]);
+    assert_eq!(
+        decoded.comments(),
+        &[
+            String::from("#retained note"),
+            String::from("# note"),
+            String::from("##note"),
+        ]
+    );
     assert_eq!(decoded.records(), source.records());
     let raw = fs::read(&path)?;
     assert!(
@@ -122,7 +133,8 @@ fn document_round_trip_retains_samples_comments_and_records() -> Result<()> {
         "#",
         "##",
         "# ",
-        "## #",
+        "##",
+        "## ",
         "# Complete NRRD file written by ritk",
     ] {
         let invalid = NrrdDocument::new(series(), vec![comment.to_owned()], Vec::new());
@@ -178,6 +190,22 @@ fn document_round_trip_retains_samples_comments_and_records() -> Result<()> {
     assert!(matches!(
         read_nrrd_document(&malformed_map_path, ImageReadBudget::DEFAULT),
         Err(NrrdDocumentError::UnsupportedField { .. })
+    ));
+    let uppercase_map_path = directory.path().join("uppercase-map.nrrd");
+    let mut uppercase_map = fs::read(&source_path)?;
+    let separator = uppercase_map
+        .windows(2)
+        .position(|window| window == b"\n\n")
+        .expect("writer emits a header separator");
+    uppercase_map.splice(
+        separator + 1..separator + 1,
+        b"RITK_COORDINATE_MAP:=cartesian\n".iter().copied(),
+    );
+    fs::write(&uppercase_map_path, uppercase_map)?;
+    assert!(matches!(
+        read_nrrd_document(&uppercase_map_path, ImageReadBudget::DEFAULT),
+        Err(NrrdDocumentError::UnsupportedField { field })
+            if field == "RITK_COORDINATE_MAP"
     ));
     Ok(())
 }

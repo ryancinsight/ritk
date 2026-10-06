@@ -73,9 +73,7 @@ impl NrrdDocument {
                 || comment.len() < 2
                 || !comment.starts_with('#')
                 || comment.contains(['\r', '\n'])
-                || comment.chars().all(|character| character == '#')
-                || comment.starts_with("# ")
-                || comment.starts_with("##")
+                || comment.trim_start_matches(['#', ' ']).is_empty()
                 || comment == GENERATED_COMMENT
         }) || self.records.iter().any(|(key, value)| {
             key.is_empty()
@@ -204,11 +202,14 @@ pub fn read_nrrd_document<P: AsRef<Path>>(
         if record
             .key()
             .eq_ignore_ascii_case(crate::coordinate_map::COORDINATE_MAP_KEY)
-            && crate::coordinate_map::decode(record.value()).is_err()
         {
-            return Err(NrrdDocumentError::UnsupportedField {
-                field: record.key().to_owned(),
-            });
+            if record.key() != crate::coordinate_map::COORDINATE_MAP_KEY
+                || crate::coordinate_map::decode(record.value()).is_err()
+            {
+                return Err(NrrdDocumentError::UnsupportedField {
+                    field: record.key().to_owned(),
+                });
+            }
         }
     }
     let series = read_nrrd_stored_series(path, budget)?;

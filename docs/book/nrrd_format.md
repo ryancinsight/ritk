@@ -74,10 +74,10 @@ in `ritk-io`, CLI, and viewer code consume the same authoritative API.
 `DWMRI_b-value` is combined with each `DWMRI_gradient_XXXX` squared norm to
 recover the per-volume effective b-value. The measurement frame maps gradient
 coordinates to world coordinates; RAS world coordinates are converted once to
-RITK LPS. Although NRRD makes this field optional, a nonzero gradient without
-it has no defined coordinate mapping. RITK rejects that input instead of
-assuming the gradient frame matches the image orientation; an all-zero baseline
-does not need a gradient-frame mapping. See [Teem's NRRD specification,
+RITK LPS. When the field is absent, the reader uses the identity frame. A
+nonzero gradient therefore uses scanner coordinates directly unless an
+explicit frame is present; an all-zero baseline also needs no frame. See
+[Teem's NRRD specification,
 section 4](https://teem.sourceforge.net/nrrd/format.html) for the coordinate-
 frame contract.
 Every encoded nonzero weighting is preserved, including values below the
@@ -96,8 +96,9 @@ The document boundary retains only the generated structural fields and the
 custom records it can emit unchanged. It rejects standard fields such as
 `content`, `labels`, `data file`, and `spacings`, detached payload references,
 and malformed generated records rather than dropping them. It also rejects
-empty comments, `# ` and `##` comment forms, non-ASCII comments, and the
-writer's generated banner because the parser does not preserve those values.
+empty `#` and `##` comments, non-ASCII comments, and the writer's generated
+banner. The header parser retains non-empty forms such as `# note` and
+`##note`; the document boundary preserves those values unchanged.
 The document constructor runs the same header, series, geometry, calibration,
 and entry-limit checks as its writer, so construction cannot produce a value
 that serialization would reject.
