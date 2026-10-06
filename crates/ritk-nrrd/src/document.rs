@@ -215,8 +215,7 @@ pub fn read_nrrd_document<P: AsRef<Path>>(
         if record
             .key()
             .eq_ignore_ascii_case(crate::coordinate_map::COORDINATE_MAP_KEY)
-        {
-            if record.key() != crate::coordinate_map::COORDINATE_MAP_KEY
+            && (record.key() != crate::coordinate_map::COORDINATE_MAP_KEY
                 || records
                     .iter()
                     .filter(|candidate| {
@@ -224,12 +223,11 @@ pub fn read_nrrd_document<P: AsRef<Path>>(
                     })
                     .count()
                     != 1
-                || crate::coordinate_map::decode(record.value()).is_err()
-            {
-                return Err(NrrdDocumentError::UnsupportedField {
-                    field: record.key().to_owned(),
-                });
-            }
+                || crate::coordinate_map::decode(record.value()).is_err())
+        {
+            return Err(NrrdDocumentError::UnsupportedField {
+                field: record.key().to_owned(),
+            });
         }
         if record.key().eq_ignore_ascii_case("modality")
             && record.value().eq_ignore_ascii_case("DWMRI")
