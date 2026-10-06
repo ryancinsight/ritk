@@ -10,14 +10,12 @@ use std::io::{BufWriter, Write};
 use std::path::Path;
 use thiserror::Error;
 
-/// In-memory NRRD samples with validated, round-trippable metadata.
 #[derive(Debug)]
 pub struct NrrdDocument {
     series: StoredSeries,
     comments: Vec<String>,
     pub(crate) records: Vec<(String, String)>,
 }
-/// Typed construction, parsing, and serialization failure.
 #[derive(Debug, Error)]
 pub enum NrrdDocumentError {
     #[error(transparent)]
@@ -184,7 +182,6 @@ impl NrrdDocument {
         Ok(())
     }
 }
-/// Reads a complete document and rejects standard fields it cannot retain.
 pub fn read_nrrd_document<P: AsRef<Path>>(
     path: P,
     budget: ImageReadBudget,
@@ -242,8 +239,6 @@ fn unsupported_modality(name: &str, value: &str) -> bool {
         && (name != "modality" || value.eq_ignore_ascii_case("DWMRI"))
         || standard_metadata_name(name)
 }
-/// Writes validated samples and metadata without opening invalid destinations.
-/// Writes a complete document after validating all output-bound metadata.
 pub fn write_nrrd_document<P: AsRef<Path>>(
     path: P,
     document: &NrrdDocument,
