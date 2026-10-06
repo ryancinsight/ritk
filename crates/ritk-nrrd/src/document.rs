@@ -206,15 +206,6 @@ pub fn read_nrrd_document<P: AsRef<Path>>(
         .map(|record| (record.key().to_owned(), record.value().to_owned()))
         .collect();
     if header
-        .fields()
-        .keys()
-        .any(|key| !SUPPORTED_FIELDS.split('|').any(|field| field == key))
-    {
-        return Err(NrrdDocumentError::UnsupportedField {
-            field: "standard header field".to_owned(),
-        });
-    }
-    if header
         .key_value_records()
         .iter()
         .any(|record| standard_metadata_name(record.key()))
@@ -225,8 +216,8 @@ pub fn read_nrrd_document<P: AsRef<Path>>(
     }
     NrrdDocument::new(series, comments, records)
 }
-const SUPPORTED_FIELDS: &str = "type|dimension|space|space units|sizes|space directions|kinds|endian|encoding|space origin|measurement frame";
 const GENERATED_COMMENT: &str = "# Complete NRRD file written by ritk";
+const STANDARD_FIELDS: &str = "type|dimension|space|space units|sizes|space directions|kinds|endian|encoding|space origin|measurement frame";
 
 fn generated_metadata_name(name: &str, value: &str) -> bool {
     matches!(name, "ritk_coordinate_map" | "DWMRI_b-value")
@@ -235,20 +226,7 @@ fn generated_metadata_name(name: &str, value: &str) -> bool {
 }
 
 fn standard_metadata_name(name: &str) -> bool {
-    matches!(
-        name,
-        "type"
-            | "dimension"
-            | "space"
-            | "space units"
-            | "sizes"
-            | "space directions"
-            | "kinds"
-            | "endian"
-            | "encoding"
-            | "space origin"
-            | "measurement frame"
-    )
+    STANDARD_FIELDS.split('|').any(|field| field == name)
 }
 
 fn unsupported_dwmri_name(name: &str) -> bool {
