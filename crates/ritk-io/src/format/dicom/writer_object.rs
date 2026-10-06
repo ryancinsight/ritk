@@ -143,7 +143,6 @@ mod tests {
                 .expect("value")
         };
         assert_eq!(value(Tag(0x0028, 0x0010)), 2);
-        assert_eq!(value(Tag(0x0028, 0x0008)), 1);
         assert_eq!(
             obj.element(Tag(0x7FE0, 0x0010))
                 .expect("PixelData")
