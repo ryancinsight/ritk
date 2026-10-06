@@ -102,16 +102,12 @@ fn validate_pixel_module(object: &dicom::object::DefaultDicomObject) -> Result<(
     let Ok(bytes) = pixel_data.to_bytes() else {
         return Ok(());
     };
-    let wire_expected = expected
+    let padded = expected
         .checked_add(expected % 2)
         .ok_or(DicomWriteError::PixelCountOverflow)?;
     let actual = bytes.len();
-    if actual != wire_expected {
-        return Err(DicomWriteError::PixelPayloadLengthMismatch {
-            expected: wire_expected,
-            actual,
-        }
-        .into());
+    if actual != expected && actual != padded {
+        return Err(DicomWriteError::PixelPayloadLengthMismatch { expected, actual }.into());
     }
     Ok(())
 }

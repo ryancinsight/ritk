@@ -133,7 +133,7 @@ mod tests {
     fn test_write_object_bytes_node_non_empty() {
         let tmp = tempfile::tempdir().expect("tempdir");
         let path = tmp.path().join("bytes.dcm");
-        let model = pixel_model(Some(2), Some(5), 1, Some(1), vec![0; 10]);
+        let model = pixel_model(Some(1), Some(1), 1, Some(1), vec![7]);
         write_object(&model, &path).expect("write_object");
         let obj = open_file(&path).expect("open_file");
         let value = |tag| {
@@ -142,13 +142,13 @@ mod tests {
                 .to_int::<u16>()
                 .expect("value")
         };
-        assert_eq!(value(Tag(0x0028, 0x0010)), 2);
+        assert_eq!(value(Tag(0x0028, 0x0010)), 1);
         assert_eq!(
             obj.element(Tag(0x7FE0, 0x0010))
                 .expect("PixelData")
                 .to_bytes()
                 .expect("pixel bytes"),
-            vec![0; 10]
+            vec![7]
         );
     }
 
