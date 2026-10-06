@@ -173,26 +173,26 @@ fn decode_single_file(bytes: &[u8]) -> Result<DecodedNifti> {
     let range = header.volume_byte_range(bytes.len())?;
     let data_bytes = &bytes[range];
     let lane_width = header.datatype.byte_width();
+    let volume_byte_len = voxel_count
+        .checked_mul(lane_width)
+        .context("NIfTI volume byte length overflows usize")?;
+    let volume_count = header.volume_count();
+    let expected_byte_len = volume_byte_len
+        .checked_mul(volume_count)
+        .context("NIfTI payload byte length overflows usize")?;
+    if data_bytes.len() != expected_byte_len {
+        bail!(
+            "NIfTI sample payload has {} bytes; {volume_count} volumes require {} bytes",
+            data_bytes.len(),
+            expected_byte_len
+        );
+    }
 
-    // NIfTI stores x fastest, then y, z, and finally the acquisition axis, so
-    // each volume is one contiguous block of `voxel_count` voxels.
-    let volumes = (0..header.volume_count())
-        .map(|volume| {
-            let base = volume * voxel_count * lane_width;
-            let mut data_vec = vec![0.0_f32; voxel_count];
-            for z in 0..nz {
-                for y in 0..ny {
-                    for x in 0..nx {
-                        let file_index = x + nx * (y + ny * z);
-                        let offset = base + file_index * lane_width;
-                        let value =
-                            header.read_f32_voxel(&data_bytes[offset..offset + lane_width])?;
-                        data_vec[z * ny * nx + y * nx + x] = value;
-                    }
-                }
-            }
-            Ok(data_vec)
-        })
+    // NIfTI stores x fastest, then y, z, and finally the acquisition axis.
+    // That order is already contiguous ZYX storage, so bulk-decode each volume.
+    let volumes = data_bytes
+        .chunks_exact(volume_byte_len)
+        .map(|volume| header.read_f32_samples(volume, voxel_count))
         .collect::<Result<Vec<_>>>()?;
 
     Ok(DecodedNifti {

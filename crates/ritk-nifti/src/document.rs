@@ -13,7 +13,7 @@ use std::io::{self, Read, Write};
 use std::ops::Range;
 use std::path::Path;
 
-const MAX_DOCUMENT_BYTES: u64 = 1 << 30;
+pub(crate) const MAX_DOCUMENT_BYTES: u64 = 1 << 30;
 
 /// NIfTI header version carried by a [`NiftiDocument`].
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
@@ -54,6 +54,10 @@ pub struct NiftiDocumentHeader {
     pub bits_per_sample: u16,
     /// Sampling intervals, including the qform handedness value at index zero.
     pub pixel_dimensions: [f64; 8],
+    /// Global multiplier applied to stored samples, or zero when scaling is off.
+    pub scl_slope: f64,
+    /// Global offset applied to stored samples when scaling is enabled.
+    pub scl_inter: f64,
     /// Start of the sample payload in the uncompressed stream.
     pub voxel_offset: usize,
     /// Quaternion transform code.
@@ -135,6 +139,15 @@ impl NiftiDocument {
         } else {
             encoded.to_vec()
         };
+        Self::from_uncompressed_bytes(bytes)
+    }
+
+    pub(super) fn from_uncompressed_bytes(bytes: Vec<u8>) -> Result<Self, NiftiDocumentError> {
+        let byte_len = u64::try_from(bytes.len())
+            .map_err(|_| NiftiDocumentError::DecodedSizeLimit(MAX_DOCUMENT_BYTES))?;
+        if byte_len > MAX_DOCUMENT_BYTES {
+            return Err(NiftiDocumentError::DecodedSizeLimit(MAX_DOCUMENT_BYTES));
+        }
         let parsed = NiftiHeader::parse(&bytes).map_err(NiftiDocumentError::Header)?;
         let samples = parsed
             .volume_byte_range(bytes.len())
@@ -152,6 +165,8 @@ impl NiftiDocument {
             datatype_code: parsed.datatype.code(),
             bits_per_sample,
             pixel_dimensions: parsed.pixdim,
+            scl_slope: parsed.scl_slope,
+            scl_inter: parsed.scl_inter,
             voxel_offset: parsed.vox_offset,
             qform_code: parsed.qform_code,
             sform_code: parsed.sform_code,
@@ -285,7 +300,7 @@ mod tests {
         header.qform_code = 1;
         header.sform_code = 2;
         header.vox_offset = 368;
-        let mut bytes = header.encode();
+        let mut bytes = header.encode().expect("valid test header encodes");
         bytes.extend_from_slice(&[1, 0, 0, 0]);
         bytes.extend_from_slice(&16_i32.to_le_bytes());
         bytes.extend_from_slice(&6_i32.to_le_bytes());

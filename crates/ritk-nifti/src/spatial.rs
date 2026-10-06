@@ -23,9 +23,9 @@ pub(crate) struct InternalSpatialMetadata {
 
 #[derive(Clone, Copy, Debug, PartialEq)]
 pub(crate) struct NiftiSformRows {
-    pub(crate) x: [f32; 4],
-    pub(crate) y: [f32; 4],
-    pub(crate) z: [f32; 4],
+    pub(crate) x: [f64; 4],
+    pub(crate) y: [f64; 4],
+    pub(crate) z: [f64; 4],
 }
 
 /// Convert a NIfTI RAS affine into RITK LPS metadata for internal `[z,y,x]`
@@ -91,22 +91,22 @@ pub(crate) fn sform_from_internal_lps_metadata(
 
     NiftiSformRows {
         x: [
-            -(file_columns[0][0] as f32),
-            -(file_columns[1][0] as f32),
-            -(file_columns[2][0] as f32),
-            -(origin[0] as f32),
+            -file_columns[0][0],
+            -file_columns[1][0],
+            -file_columns[2][0],
+            -origin[0],
         ],
         y: [
-            -(file_columns[0][1] as f32),
-            -(file_columns[1][1] as f32),
-            -(file_columns[2][1] as f32),
-            -(origin[1] as f32),
+            -file_columns[0][1],
+            -file_columns[1][1],
+            -file_columns[2][1],
+            -origin[1],
         ],
         z: [
-            file_columns[0][2] as f32,
-            file_columns[1][2] as f32,
-            file_columns[2][2] as f32,
-            origin[2] as f32,
+            file_columns[0][2],
+            file_columns[1][2],
+            file_columns[2][2],
+            origin[2],
         ],
     }
 }
@@ -114,22 +114,22 @@ pub(crate) fn sform_from_internal_lps_metadata(
 fn ras_affine_to_lps_file_axes(affine: [[f32; 4]; 4]) -> [[f64; 4]; 3] {
     [
         [
-            -(affine[0][0] as f64),
-            -(affine[0][1] as f64),
-            -(affine[0][2] as f64),
-            -(affine[0][3] as f64),
+            -f64::from(affine[0][0]),
+            -f64::from(affine[0][1]),
+            -f64::from(affine[0][2]),
+            -f64::from(affine[0][3]),
         ],
         [
-            -(affine[1][0] as f64),
-            -(affine[1][1] as f64),
-            -(affine[1][2] as f64),
-            -(affine[1][3] as f64),
+            -f64::from(affine[1][0]),
+            -f64::from(affine[1][1]),
+            -f64::from(affine[1][2]),
+            -f64::from(affine[1][3]),
         ],
         [
-            affine[2][0] as f64,
-            affine[2][1] as f64,
-            affine[2][2] as f64,
-            affine[2][3] as f64,
+            f64::from(affine[2][0]),
+            f64::from(affine[2][1]),
+            f64::from(affine[2][2]),
+            f64::from(affine[2][3]),
         ],
     ]
 }

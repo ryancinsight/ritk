@@ -78,10 +78,11 @@ pub(super) fn dims_for_version(
     }
 
     if matches!(version, HeaderVersion::One) {
-        u16::try_from(dims.nx).context("NIfTI-1 nx exceeds u16 header capacity")?;
-        u16::try_from(dims.ny).context("NIfTI-1 ny exceeds u16 header capacity")?;
-        u16::try_from(dims.nz).context("NIfTI-1 nz exceeds u16 header capacity")?;
-        u16::try_from(volumes).context("NIfTI-1 volume count exceeds u16 header capacity")?;
+        i16::try_from(dims.nx).context("NIfTI-1 nx exceeds positive signed 16-bit capacity")?;
+        i16::try_from(dims.ny).context("NIfTI-1 ny exceeds positive signed 16-bit capacity")?;
+        i16::try_from(dims.nz).context("NIfTI-1 nz exceeds positive signed 16-bit capacity")?;
+        i16::try_from(volumes)
+            .context("NIfTI-1 volume count exceeds positive signed 16-bit capacity")?;
     } else {
         i64::try_from(dims.nx).context("NIfTI-2 nx exceeds i64 header capacity")?;
         i64::try_from(dims.ny).context("NIfTI-2 ny exceeds i64 header capacity")?;

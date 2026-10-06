@@ -10,13 +10,26 @@ gzip-wrapped `.nii.gz` input, and writes either header version explicitly.
 is a facade re-export. Analyze 7.5 `.hdr`/`.img` pairs belong to
 `ritk-analyze`; they are not interpreted as NIfTI by this crate.
 
-The native codec supports:
+The image convenience API reads and writes three-dimensional `f32` images,
+four-dimensional `f32` acquisition series, and `u32` label maps. These APIs
+project voxel values to their image surface types. Use `NiftiDocument` when the
+stored datatype and exact sample bit patterns must be retained.
 
-- three-dimensional `f32` scalar images;
-- four-dimensional `f32` acquisition series;
-- three-dimensional `u32` label maps;
-- NIfTI sform and qform spatial metadata; and
-- NIfTI-1 and NIfTI-2 single-file streams, compressed or uncompressed.
+`NiftiDocument::from_stored_series` constructs a document from RITK's
+`StoredSeries` without an intermediate file. It writes exact payload bits for
+the supported scalar types `u8`, `i8`, `u16`, `i16`, `u32`, `i32`, `u64`,
+`i64`, `f32`, and `f64`. A multi-volume series becomes rank 4, and each
+volume's complete payload is written in the original volume order. NIfTI-1
+stores dimensions as signed 16-bit integers, so every positive axis and volume
+count is bounded by 32,767, as specified by the official [NIfTI-1 dimension
+field reference](https://nifti.nimh.nih.gov/nifti-1/documentation/nifti1fields/nifti1fields_pages/dim.html/document_view.html)
+and [data-format FAQ](https://nifti.nimh.nih.gov/nifti-1/documentation/faq.html).
+It represents spatial and scaling fields as 32-bit floats and rejects values
+that would need rounding. NIfTI-2 stores dimensions as signed 64-bit integers
+([NIfTI-2 format overview](https://nifti.nimh.nih.gov/nifti-2/index_html/view.html))
+and represents spatial and scaling fields as 64-bit floats. The converter
+rejects values outside the selected header representation before producing a
+document.
 
 `NiftiDocument` is the lossless transport surface. It retains the complete uncompressed single-file
 stream, including unprojected header fields, the extension indicator and blocks, and exact sample bits.
@@ -34,6 +47,10 @@ states that operations on such an image are unspecified. See the official
 RITK. It validates and, for gzip output, finishes compression before opening
 the destination, so format or compression errors leave an existing output
 unchanged.
+
+The official [NIfTI-1 field reference](https://nifti.nimh.nih.gov/nifti-1/documentation/nifti1fields/index.html)
+defines the scalar field widths, and the [NIfTI-1 FAQ](https://nifti.nimh.nih.gov/nifti-1/documentation/faq.html)
+defines zero `scl_slope` as the scaling-disabled value.
 
 ## Spatial Contract
 
@@ -73,6 +90,15 @@ carries one spatial transform. The series writers therefore reject an empty
 series or any volume whose shape, origin, spacing, or direction differs from
 volume 0. This prevents one header from silently describing only part of the
 written data.
+
+The stored-series constructor also requires one sample type and one global
+linear calibration across the series. Identity calibration disables NIfTI
+scaling; a zero-slope source mapping, nonlinear modality lookup, or differing
+per-frame mappings is rejected because it cannot be represented by the NIfTI
+header. Diffusion metadata and non-Cartesian coordinates are reported through
+the conversion capability error rather than discarded. The header stores one
+sform in RAS coordinates; RITK's LPS origin, spacing, direction, and
+`[depth,row,column]` axes are mapped at the codec boundary.
 
 ### Rank behavior
 

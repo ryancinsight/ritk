@@ -64,21 +64,10 @@
 - acceptance: DICOM, NIfTI, NRRD, MetaImage, MINC, MIF, MGH/MGZ, Analyze, VTK, PNG, TIFF, JPEG, GIFTI, mesh, and tractogram paths declare their readable and writable models; each exposed conversion preserves represented samples, geometry, calibration, and acquisition metadata or returns typed loss before destination mutation. Scalar volumes, color rasters, surfaces, meshes, and tractograms retain distinct models. Métis consumes RITK and contains no format parser or converter.
 - status: todo
 - priority: architecture
-- needs: RITK-IO-FORMAT-CAPABILITIES-001, RITK-NIFTI-DOCUMENT-001, RITK-NRRD-NIFTI-001, RITK-DICOM-CONVERSION-001, RITK-METAIMAGE-CONVERSION-001, RITK-MINC-CONVERSION-001, RITK-MIF-CONVERSION-001, RITK-MGH-CONVERSION-001, RITK-ANALYZE-CONVERSION-001, RITK-VTK-VOLUME-CONVERSION-001, RITK-JPEG-LOSSY-ORACLE-001, RITK-RASTER-CONVERSION-001, RITK-GIFTI-SURFACE-001, RITK-MESH-CONVERSION-001, RITK-TRACTOGRAM-CONVERSION-001
+- needs: RITK-IO-FORMAT-CAPABILITIES-001, RITK-NRRD-NIFTI-001, RITK-DICOM-CONVERSION-001, RITK-METAIMAGE-CONVERSION-001, RITK-MINC-CONVERSION-001, RITK-MIF-CONVERSION-001, RITK-MGH-CONVERSION-001, RITK-ANALYZE-CONVERSION-001, RITK-VTK-VOLUME-CONVERSION-001, RITK-JPEG-LOSSY-ORACLE-001, RITK-RASTER-CONVERSION-001, RITK-GIFTI-SURFACE-001, RITK-MESH-CONVERSION-001, RITK-TRACTOGRAM-CONVERSION-001
 - scope: crates/ritk-image-io/, crates/ritk-io/, all listed format crates, conversion tests, and the RITK user manual
-- next: construct NIfTI documents from stored series, then convert NRRD to NIfTI and back; continue the remaining format families in dependency order.
-- basis: 207fe51571dad7b864a262931ecac172bfa18ba4
-
-<a id="RITK-NIFTI-DOCUMENT-001"></a>
-## RITK-NIFTI-DOCUMENT-001: Construct NIfTI documents from stored series
-- outcome: create NIfTI documents from stored RITK series without an intermediate file.
-- acceptance: supported NIfTI-1 and NIfTI-2 documents preserve exact samples, spatial mapping, calibration, and acquisition metadata; unrepresentable semantics return typed loss before destination creation.
-- status: todo
-- priority: correctness
-- needs: none
-- scope: crates/ritk-nifti/, NIfTI guide, document tests
-- next: implement a constructor from StoredSeries using the existing NIfTI encoder and typed loss errors.
-- basis: 207fe51571dad7b864a262931ecac172bfa18ba4
+- next: convert NRRD to NIfTI and back, then continue the remaining format families in dependency order.
+- basis: a864b96f9dd62e12e73daf64512e872c075d4282
 
 <a id="RITK-NRRD-NIFTI-001"></a>
 ## RITK-NRRD-NIFTI-001: Convert NRRD and NIfTI volumes
@@ -86,10 +75,10 @@
 - acceptance: both directions preserve samples and spatial/calibration semantics under the prepared plan; unsupported header semantics return typed loss before output mutation.
 - status: todo
 - priority: correctness
-- needs: RITK-NIFTI-DOCUMENT-001
+- needs: none
 - scope: crates/ritk-io/, crates/ritk-nrrd/, crates/ritk-nifti/, pair tests
-- next: implement both directions after NIfTI documents can be constructed from StoredSeries.
-- basis: 207fe51571dad7b864a262931ecac172bfa18ba4
+- next: add both conversion directions through the prepared plan and test exact samples, geometry, calibration, and preflight rejections.
+- basis: a864b96f9dd62e12e73daf64512e872c075d4282
 
 <a id="RITK-DICOM-CONVERSION-001"></a>
 ## RITK-DICOM-CONVERSION-001: Convert DICOM series through RITK

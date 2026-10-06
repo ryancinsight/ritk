@@ -2,6 +2,7 @@
 name = "ritk-nifti"
 version = "0.2.0"
 description = "NIfTI medical image I/O for RITK"
+readme = "README.md"
 keywords.workspace = true
 categories.workspace = true
 homepage.workspace = true
@@ -14,7 +15,10 @@ license.workspace = true
 [dependencies]
 ritk-image = { path = "../ritk-image", version = "0.4.0" }
 ritk-spatial = { path = "../ritk-spatial", version = "0.3.0" }
+ritk-image-io = { workspace = true }
+ritk-codecs = { workspace = true }
 anyhow = { workspace = true }
+thiserror = { workspace = true }
 consus-core = { workspace = true }
 tracing = { workspace = true }
 flate2 = { workspace = true }
