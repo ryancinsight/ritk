@@ -217,12 +217,53 @@ pub fn read_nrrd_document<P: AsRef<Path>>(
             .eq_ignore_ascii_case(crate::coordinate_map::COORDINATE_MAP_KEY)
         {
             if record.key() != crate::coordinate_map::COORDINATE_MAP_KEY
+                || header
+                    .key_value_records()
+                    .iter()
+                    .filter(|candidate| {
+                        candidate.key() == crate::coordinate_map::COORDINATE_MAP_KEY
+                    })
+                    .count()
+                    != 1
                 || crate::coordinate_map::decode(record.value()).is_err()
             {
                 return Err(NrrdDocumentError::UnsupportedField {
                     field: record.key().to_owned(),
                 });
             }
+        }
+        if record.key().eq_ignore_ascii_case("modality")
+            && record.value().eq_ignore_ascii_case("DWMRI")
+            && (record.key() != "modality"
+                || record.value() != "DWMRI"
+                || header
+                    .key_value_records()
+                    .iter()
+                    .filter(|candidate| {
+                        candidate.key() == "modality" && candidate.value() == "DWMRI"
+                    })
+                    .count()
+                    != 1)
+        {
+            return Err(NrrdDocumentError::UnsupportedField {
+                field: record.key().to_owned(),
+            });
+        }
+        if record
+            .key()
+            .get(..15)
+            .is_some_and(|prefix| prefix.eq_ignore_ascii_case("DWMRI_gradient_"))
+            && (record.key().get(..15) != Some("DWMRI_gradient_")
+                || header
+                    .key_value_records()
+                    .iter()
+                    .filter(|candidate| candidate.key() == record.key())
+                    .count()
+                    != 1)
+        {
+            return Err(NrrdDocumentError::UnsupportedField {
+                field: record.key().to_owned(),
+            });
         }
     }
     let series = read_nrrd_stored_series(path, budget)?;

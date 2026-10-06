@@ -210,6 +210,12 @@ fn document_round_trip_retains_samples_comments_and_records() -> Result<()> {
     for metadata in [
         b"DWMRI_B-VALUE:=1000\n".as_slice(),
         b"DWMRI_b-value:=1000\nDWMRI_b-value:=1000\n".as_slice(),
+            b"RITK_COORDINATE_MAP:=cartesian\n".as_slice(),
+            b"ritk_coordinate_map:=cartesian\nritk_coordinate_map:=cartesian\n".as_slice(),
+            b"MoDaLiTy:=DWMRI\n".as_slice(),
+            b"modality:=DWMRI\nmodality:=DWMRI\n".as_slice(),
+            b"DWMRI_GRADIENT_0000:=0 0 0\n".as_slice(),
+            b"DWMRI_gradient_0000:=0 0 0\nDWMRI_gradient_0000:=0 0 0\n".as_slice(),
     ] {
         let diffusion_path = directory.path().join("invalid-diffusion.nrrd");
         let mut diffusion = fs::read(&source_path)?;
