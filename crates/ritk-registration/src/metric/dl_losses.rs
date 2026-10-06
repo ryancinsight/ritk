@@ -23,7 +23,7 @@ use coeus_tensor::Tensor;
 #[inline]
 fn square<T, B>(x: &Var<T, B>) -> Var<T, B>
 where
-    T: Float,
+    T: Float + leto_ops::RealScalar,
     B: ComputeBackend + BackendOps<T> + Default,
     B::DeviceBuffer<T>: CpuAddressableStorage<T> + CpuAddressableStorageMut<T>,
 {
@@ -36,7 +36,7 @@ where
 /// inputs; the reverse pass yields `∂MSE/∂moving = (2/N)·(moving − fixed)`.
 pub fn mse_loss<T, B>(fixed: &Var<T, B>, moving: &Var<T, B>) -> Var<T, B>
 where
-    T: Float,
+    T: Float + leto_ops::RealScalar,
     B: ComputeBackend + BackendOps<T> + Default,
     B::DeviceBuffer<T>: CpuAddressableStorage<T> + CpuAddressableStorageMut<T>,
 {
@@ -54,7 +54,7 @@ where
 /// broadcasting is needed and gradients flow to both inputs.
 pub fn ncc_loss<T, B>(fixed: &Var<T, B>, moving: &Var<T, B>) -> Var<T, B>
 where
-    T: Float,
+    T: Float + leto_ops::RealScalar,
     B: ComputeBackend + BackendOps<T> + Default,
     B::DeviceBuffer<T>: CpuAddressableStorage<T> + CpuAddressableStorageMut<T>,
 {
@@ -70,13 +70,13 @@ where
     let s_mm = sum_axis(&square(&m), 1);
     let s_fm = sum_axis(&mul(&f, &m), 1);
 
-    let inv_n = T::from_f64(n as f64);
+    let inv_n = <T as coeus_core::Scalar>::from_f64(n as f64);
     // num = S_FM − S_F·S_M / N ; d_X = S_XX − S_X² / N.
     let num = sub(&s_fm, &scalar_div(&mul(&s_f, &s_m), inv_n));
     let d_f = sub(&s_ff, &scalar_div(&square(&s_f), inv_n));
     let d_m = sub(&s_mm, &scalar_div(&square(&s_m), inv_n));
 
-    let eps = T::from_f64(1e-5);
+    let eps = <T as coeus_core::Scalar>::from_f64(1e-5);
     let ncc = div(&num, &scalar_add(&sqrt(&mul(&d_f, &d_m)), eps));
 
     neg(&mean(&ncc))
@@ -94,7 +94,7 @@ where
 /// fields; `LNCC = Cov / √(Var_F·Var_M + ε)`.
 pub fn lncc_loss<T, B>(fixed: &Var<T, B>, moving: &Var<T, B>, kernel_size: usize) -> Var<T, B>
 where
-    T: Float,
+    T: Float + leto_ops::RealScalar,
     B: ComputeBackend + BackendOps<T> + Default,
     B::DeviceBuffer<T>: CpuAddressableStorage<T> + CpuAddressableStorageMut<T>,
 {
@@ -109,7 +109,7 @@ where
     let var_m = sub(&mean_m2, &square(&mean_m));
     let cov = sub(&mean_fm, &mul(&mean_f, &mean_m));
 
-    let eps = T::from_f64(1e-5);
+    let eps = <T as coeus_core::Scalar>::from_f64(1e-5);
     let cc = div(&cov, &scalar_add(&sqrt(&mul(&var_f, &var_m)), eps));
 
     neg(&mean(&cc))
@@ -119,7 +119,7 @@ where
 /// tracked 3-D average pooling with stride 1 and `kernel_size/2` zero padding.
 fn box_filter<T, B>(x: &Var<T, B>, kernel_size: usize) -> Var<T, B>
 where
-    T: Float,
+    T: Float + leto_ops::RealScalar,
     B: ComputeBackend + BackendOps<T> + Default,
     B::DeviceBuffer<T>: CpuAddressableStorage<T> + CpuAddressableStorageMut<T>,
 {
@@ -165,7 +165,7 @@ pub fn mi_loss<T, B>(
     sigma: f64,
 ) -> Var<T, B>
 where
-    T: Float,
+    T: Float + leto_ops::RealScalar,
     B: ComputeBackend + BackendOps<T> + Default,
     B::DeviceBuffer<T>: CpuAddressableStorage<T> + CpuAddressableStorageMut<T>,
 {
@@ -176,7 +176,7 @@ where
     // Bin centers over [0, 1] (constant leaf, no gradient), row `[1, num_bins]`.
     let denom = (num_bins as f64 - 1.0).max(1.0);
     let bin_data: Vec<T> = (0..num_bins)
-        .map(|i| T::from_f64(i as f64 / denom))
+        .map(|i| <T as coeus_core::Scalar>::from_f64(i as f64 / denom))
         .collect();
     let bins_row = broadcast_to(
         &Var::new(
@@ -191,7 +191,7 @@ where
     let soft = |img: &Var<T, B>| -> Var<T, B> {
         let col = broadcast_to(&reshape(img, [n, 1]), [n, num_bins]);
         let d = sub(&col, &bins_row);
-        let exponent = scalar_mul(&square(&d), T::from_f64(inv_2sigma2));
+        let exponent = scalar_mul(&square(&d), <T as coeus_core::Scalar>::from_f64(inv_2sigma2));
         exp(&exponent)
     };
     let w_f = soft(fixed); // [N, bins]
@@ -199,7 +199,7 @@ where
 
     // Joint histogram Wá¶ áµ€·Wᵐ (`[bins, bins]`), normalized to a probability.
     let joint = matmul(&permute(&w_f, &[1, 0]), &w_m);
-    let joint_p = scalar_div(&joint, T::from_f64(n as f64));
+    let joint_p = scalar_div(&joint, <T as coeus_core::Scalar>::from_f64(n as f64));
 
     // Marginals broadcast back to `[bins, bins]`.
     let p_f = broadcast_to(
@@ -211,7 +211,7 @@ where
         [num_bins, num_bins],
     );
 
-    let eps = T::from_f64(1e-10);
+    let eps = <T as coeus_core::Scalar>::from_f64(1e-10);
     let log_joint = log(&scalar_add(&joint_p, eps));
     let log_pf = log(&scalar_add(&p_f, eps));
     let log_pm = log(&scalar_add(&p_m, eps));
@@ -335,3 +335,4 @@ mod tests {
         );
     }
 }
+

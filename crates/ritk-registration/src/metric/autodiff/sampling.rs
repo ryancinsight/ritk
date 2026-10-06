@@ -56,7 +56,7 @@ where
 /// on the tape via `w1 = coords − ⌊coords⌋`.
 fn axis_interp<T, B>(coords: &Var<T, B>, extent: usize, backend: &B) -> AxisInterp<T, B>
 where
-    T: Scalar,
+    T: Scalar + leto_ops::RealScalar,
     B: ComputeBackend + BackendOps<T> + Default,
     B::DeviceBuffer<T>: CpuAddressableStorage<T> + CpuAddressableStorageMut<T>,
 {
@@ -72,7 +72,7 @@ where
     let mut idx1 = Vec::with_capacity(n);
     for &c in coord_vals {
         let floor = <T as Scalar>::to_f64(c).floor();
-        floor_vals.push(T::from_f64(floor));
+        floor_vals.push(<T as coeus_core::Scalar>::from_f64(floor));
         idx0.push(clamp_index(floor, max_index));
         idx1.push(clamp_index(floor + 1.0, max_index));
     }
@@ -88,10 +88,10 @@ where
 /// Build a constant index `Var` of shape `[N]` from flat `usize` indices.
 fn index_var<T, B>(indices: &[usize], backend: &B) -> Var<T, B>
 where
-    T: Scalar,
+    T: Scalar + leto_ops::RealScalar,
     B: ComputeBackend + BackendOps<T> + Default,
 {
-    let vals: Vec<T> = indices.iter().map(|&i| T::from_f64(i as f64)).collect();
+    let vals: Vec<T> = indices.iter().map(|&i| <T as coeus_core::Scalar>::from_f64(i as f64)).collect();
     Var::new(
         Tensor::from_slice_on([indices.len()], &vals, backend),
         false,
@@ -113,7 +113,7 @@ where
 /// errors.
 pub fn sample_linear_1d<T, B>(signal: &Var<T, B>, coords: &Var<T, B>) -> Var<T, B>
 where
-    T: Scalar,
+    T: Scalar + leto_ops::RealScalar,
     B: ComputeBackend + BackendOps<T> + Default,
     B::DeviceBuffer<T>: CpuAddressableStorage<T> + CpuAddressableStorageMut<T>,
 {
@@ -163,7 +163,7 @@ pub fn sample_trilinear<T, B>(
     coords_x: &Var<T, B>,
 ) -> Var<T, B>
 where
-    T: Scalar,
+    T: Scalar + leto_ops::RealScalar,
     B: ComputeBackend + BackendOps<T> + Default,
     B::DeviceBuffer<T>: CpuAddressableStorage<T> + CpuAddressableStorageMut<T>,
 {
@@ -238,3 +238,4 @@ fn clamp_index(floor: f64, max_index: usize) -> usize {
 #[cfg(test)]
 #[path = "tests_sampling.rs"]
 mod tests;
+

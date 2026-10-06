@@ -33,7 +33,7 @@ use super::traits::Metric;
 /// elementwise `sub` contract (a caller invariant, not input-data error).
 pub fn mean_squared_error<T, B>(moving: &Var<T, B>, fixed: &Var<T, B>) -> Var<T, B>
 where
-    T: Scalar,
+    T: Scalar + leto_ops::RealScalar,
     B: ComputeBackend + BackendOps<T> + Default,
 {
     let diff = sub(moving, fixed);
@@ -48,7 +48,7 @@ pub struct Mse;
 
 impl<T, B> Metric<T, B> for Mse
 where
-    T: Float,
+    T: Float + leto_ops::RealScalar,
     B: ComputeBackend + BackendOps<T> + Default,
     B::DeviceBuffer<T>: CpuAddressableStorage<T> + CpuAddressableStorageMut<T>,
 {

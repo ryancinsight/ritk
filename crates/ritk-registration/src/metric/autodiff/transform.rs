@@ -38,7 +38,7 @@ use super::traits::Transform;
 /// — caller invariants.
 pub fn affine_transform<T, B>(coords: &Var<T, B>, r: &Var<T, B>, t: &Var<T, B>) -> Var<T, B>
 where
-    T: Scalar,
+    T: Scalar + leto_ops::RealScalar,
     B: ComputeBackend + BackendOps<T> + Default,
     B::DeviceBuffer<T>: CpuAddressableStorage<T> + CpuAddressableStorageMut<T>,
 {
@@ -82,7 +82,7 @@ where
 
 impl<T, B> Transform<T, B> for Translation<T, B>
 where
-    T: Scalar,
+    T: Scalar + leto_ops::RealScalar,
     B: ComputeBackend + BackendOps<T> + Default,
     B::DeviceBuffer<T>: CpuAddressableStorage<T> + CpuAddressableStorageMut<T>,
 {
@@ -115,7 +115,7 @@ where
 
 impl<T, B> Transform<T, B> for Affine<T, B>
 where
-    T: Scalar,
+    T: Scalar + leto_ops::RealScalar,
     B: ComputeBackend + BackendOps<T> + Default,
     B::DeviceBuffer<T>: CpuAddressableStorage<T> + CpuAddressableStorageMut<T>,
 {

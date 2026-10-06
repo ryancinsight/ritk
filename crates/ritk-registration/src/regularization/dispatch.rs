@@ -52,13 +52,13 @@ fn rank_dims<const N: usize>(shape: &[usize], op: &str) -> [usize; N] {
 #[inline]
 pub fn dispatch_bending_energy<T, B>(field: &Tensor<T, B>, weight: f64) -> T
 where
-    T: coeus_core::FloatElement + Scalar,
+    T: eunomia::FloatElement + Scalar,
     B: ComputeBackend + Default,
     B::DeviceBuffer<T>: CpuAddressableStorage<T>,
 {
     with_field_data(field, |data, shape| {
         laplacian_squared_mean(data, shape, "bending_energy")
-            * coeus_core::FloatElement::from_f64(weight)
+            * eunomia::FloatElement::from_f64(weight)
     })
 }
 
@@ -69,13 +69,13 @@ where
 #[inline]
 pub fn dispatch_curvature<T, B>(field: &Tensor<T, B>, weight: f64) -> T
 where
-    T: coeus_core::FloatElement + Scalar,
+    T: eunomia::FloatElement + Scalar,
     B: ComputeBackend + Default,
     B::DeviceBuffer<T>: CpuAddressableStorage<T>,
 {
     with_field_data(field, |data, shape| {
         laplacian_squared_mean(data, shape, "curvature")
-            * coeus_core::FloatElement::from_f64(weight)
+            * eunomia::FloatElement::from_f64(weight)
     })
 }
 
@@ -83,12 +83,12 @@ where
 #[inline]
 pub fn dispatch_diffusion<T, B>(field: &Tensor<T, B>, weight: f64) -> T
 where
-    T: coeus_core::FloatElement + Scalar,
+    T: eunomia::FloatElement + Scalar,
     B: ComputeBackend + Default,
     B::DeviceBuffer<T>: CpuAddressableStorage<T>,
 {
     with_field_data(field, |data, shape| {
-        gradient_squared_mean(data, shape, "diffusion") * coeus_core::FloatElement::from_f64(weight)
+        gradient_squared_mean(data, shape, "diffusion") * eunomia::FloatElement::from_f64(weight)
     })
 }
 
@@ -96,13 +96,13 @@ where
 #[inline]
 pub fn dispatch_total_variation<T, B>(field: &Tensor<T, B>, weight: f64) -> T
 where
-    T: coeus_core::FloatElement + Scalar,
+    T: eunomia::FloatElement + Scalar,
     B: ComputeBackend + Default,
     B::DeviceBuffer<T>: CpuAddressableStorage<T>,
 {
     with_field_data(field, |data, shape| {
         gradient_magnitude_mean(data, shape, "total_variation")
-            * coeus_core::FloatElement::from_f64(weight)
+            * eunomia::FloatElement::from_f64(weight)
     })
 }
 
@@ -110,7 +110,7 @@ where
 #[inline]
 pub fn dispatch_elastic<T, B>(field: &Tensor<T, B>, alpha: f64, beta: f64) -> T
 where
-    T: coeus_core::FloatElement + Scalar,
+    T: eunomia::FloatElement + Scalar,
     B: ComputeBackend + Default,
     B::DeviceBuffer<T>: CpuAddressableStorage<T>,
 {
@@ -118,8 +118,8 @@ where
         elastic(
             data,
             shape,
-            coeus_core::FloatElement::from_f64(alpha),
-            coeus_core::FloatElement::from_f64(beta),
+            eunomia::FloatElement::from_f64(alpha),
+            eunomia::FloatElement::from_f64(beta),
         )
     })
 }

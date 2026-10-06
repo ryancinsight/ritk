@@ -40,7 +40,7 @@ use super::traits::Metric;
 /// contract) — a caller invariant.
 pub fn normalized_cross_correlation<T, B>(moving: &Var<T, B>, fixed: &Var<T, B>) -> Var<T, B>
 where
-    T: Float,
+    T: Float + leto_ops::RealScalar,
     B: ComputeBackend + BackendOps<T> + Default,
     B::DeviceBuffer<T>: CpuAddressableStorage<T> + CpuAddressableStorageMut<T>,
 {
@@ -56,20 +56,20 @@ where
     // num = S_FM − S_F·S_M / N
     let num = sub(
         &s_fm,
-        &scalar_div(&mul(&s_f, &s_m), T::from_f64(inv_n_scale)),
+        &scalar_div(&mul(&s_f, &s_m), <T as coeus_core::Scalar>::from_f64(inv_n_scale)),
     );
     // d_F = S_FF − S_F² / N ; d_M = S_MM − S_M² / N
     let d_f = sub(
         &s_ff,
-        &scalar_div(&mul(&s_f, &s_f), T::from_f64(inv_n_scale)),
+        &scalar_div(&mul(&s_f, &s_f), <T as coeus_core::Scalar>::from_f64(inv_n_scale)),
     );
     let d_m = sub(
         &s_mm,
-        &scalar_div(&mul(&s_m, &s_m), T::from_f64(inv_n_scale)),
+        &scalar_div(&mul(&s_m, &s_m), <T as coeus_core::Scalar>::from_f64(inv_n_scale)),
     );
 
     // NCC = num / √(d_F·d_M + ε); loss = −NCC.
-    let eps = T::from_f64(1e-10);
+    let eps = <T as coeus_core::Scalar>::from_f64(1e-10);
     let denominator = sqrt(&scalar_add(&mul(&d_f, &d_m), eps));
 
     neg(&div(&num, &denominator))
@@ -82,7 +82,7 @@ pub struct Ncc;
 
 impl<T, B> Metric<T, B> for Ncc
 where
-    T: Float,
+    T: Float + leto_ops::RealScalar,
     B: ComputeBackend + BackendOps<T> + Default,
     B::DeviceBuffer<T>: CpuAddressableStorage<T> + CpuAddressableStorageMut<T>,
 {
@@ -95,3 +95,4 @@ where
 #[cfg(test)]
 #[path = "tests_ncc.rs"]
 mod tests;
+

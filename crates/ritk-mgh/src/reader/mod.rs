@@ -17,6 +17,9 @@ use ritk_image::Image;
 use std::io::{BufReader, Read};
 use std::path::Path;
 
+/// Decompression cap for MGZ files (1 GiB).
+const MAX_MGZ_UNCOMPRESSED_BYTES: u64 = 1 << 30;
+
 #[cfg(test)]
 mod tests;
 mod voxel_decode;
@@ -36,12 +39,20 @@ pub fn read_mgh<B: ComputeBackend, P: AsRef<Path>>(
     path: P,
     backend: &B,
 ) -> Result<Image<f32, B, 3>> {
+    read_mgh_with_limit(path, backend, MAX_MGZ_UNCOMPRESSED_BYTES)
+}
+
+fn read_mgh_with_limit<B: ComputeBackend, P: AsRef<Path>>(
+    path: P,
+    backend: &B,
+    limit: u64,
+) -> Result<Image<f32, B, 3>> {
     let path = path.as_ref();
     let file = std::fs::File::open(path)
         .with_context(|| format!("Cannot open MGH/MGZ file {:?}", path))?;
 
     if is_gzip_path(path) {
-        let gz = GzDecoder::new(BufReader::new(file));
+        let gz = GzDecoder::new(BufReader::new(file)).take(limit);
         let mut reader = BufReader::new(gz);
         read_mgh_from_reader(&mut reader, backend)
             .with_context(|| format!("Failed to parse MGZ file {:?}", path))
@@ -113,12 +124,20 @@ pub fn read_mgh_series<B: ComputeBackend, P: AsRef<Path>>(
     path: P,
     backend: &B,
 ) -> Result<Vec<Image<f32, B, 3>>> {
+    read_mgh_series_with_limit(path, backend, MAX_MGZ_UNCOMPRESSED_BYTES)
+}
+
+fn read_mgh_series_with_limit<B: ComputeBackend, P: AsRef<Path>>(
+    path: P,
+    backend: &B,
+    limit: u64,
+) -> Result<Vec<Image<f32, B, 3>>> {
     let path = path.as_ref();
     let file = std::fs::File::open(path)
         .with_context(|| format!("Cannot open MGH/MGZ file {:?}", path))?;
 
     if is_gzip_path(path) {
-        let gz = GzDecoder::new(BufReader::new(file));
+        let gz = GzDecoder::new(BufReader::new(file)).take(limit);
         let mut reader = BufReader::new(gz);
         read_mgh_series_from_reader(&mut reader, backend)
             .with_context(|| format!("Failed to parse MGZ series {:?}", path))

@@ -340,7 +340,7 @@ fn native_overlay_is_emitted_as_metis_display_commands() {
     );
     assert!(overlay.commands.iter().any(|command| matches!(
         command,
-        DisplayCommand::DrawText { text, .. } if text.as_ref() == "METIS  RITK-SNAP  Axial"
+        DisplayCommand::DrawText { text, .. } if &**text == "METIS  RITK-SNAP  Axial"
     )));
     assert!(overlay.commands.iter().any(|command| matches!(
         command,

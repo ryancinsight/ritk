@@ -65,7 +65,7 @@ fn orthogonal_overlay_uses_embedded_typeface_and_composites_exact_rgba() {
         ] {
             match command {
                 DisplayCommand::DrawText { text, style, .. } => {
-                    assert_eq!(text.as_ref(), expected_text.as_str());
+                    assert_eq!(&**text, expected_text);
                     assert_eq!(style.color, Color::rgba(255, 255, 160, 255));
                     assert_eq!(style.size.pixels(), f64::from(expected_size));
                     assert_eq!(style.weight, GlyphWeight::Regular);

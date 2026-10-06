@@ -1,4 +1,5 @@
 use super::*;
+use crate::reader::{read_mgh_with_limit, MAX_MGZ_UNCOMPRESSED_BYTES};
 
 #[test]
 fn test_read_mgz() -> Result<()> {
@@ -102,4 +103,21 @@ fn test_read_external_uppercase_gzip_extensions() -> Result<()> {
         })?;
     }
     Ok(())
+}
+
+#[test]
+#[expect(clippy::unwrap_used, reason = "test assertions surface failures immediately")]
+fn mgz_decompression_bomb_is_rejected() {
+    let dir = tempdir().unwrap();
+    let path = dir.path().join("bomb.mgz");
+    let backend = TestBackend::default();
+    let _ = MAX_MGZ_UNCOMPRESSED_BYTES;
+
+    let mut encoder = GzEncoder::new(Vec::new(), Compression::best());
+    encoder.write_all(&vec![0u8; 2048]).unwrap();
+    std::fs::write(&path, encoder.finish().unwrap()).unwrap();
+
+    let Err(_) = read_mgh_with_limit::<TestBackend, _>(&path, &backend, 1024) else {
+        panic!("MGZ exceeding the decompression limit must be rejected");
+    };
 }
