@@ -9,12 +9,15 @@ use std::fs::File;
 use std::io::{BufWriter, Write};
 use std::path::Path;
 use thiserror::Error;
+
+/// In-memory NRRD samples with validated, round-trippable metadata.
 #[derive(Debug)]
 pub struct NrrdDocument {
     series: StoredSeries,
     comments: Vec<String>,
     pub(crate) records: Vec<(String, String)>,
 }
+/// Typed construction, parsing, and serialization failure.
 #[derive(Debug, Error)]
 pub enum NrrdDocumentError {
     #[error(transparent)]
@@ -31,6 +34,9 @@ pub enum NrrdDocumentError {
     Io(#[from] std::io::Error),
 }
 impl NrrdDocument {
+    /// Constructs a document without an intermediate file.
+    ///
+    /// Unsupported standard fields and parser-dropped comment forms return a typed error.
     /// Constructs a document without an intermediate file.
     ///
     /// Standard fields outside the generated subset, non-ASCII metadata, and
@@ -59,6 +65,7 @@ impl NrrdDocument {
                 || value.contains(['\r', '\n'])
                 || unsupported_dwmri_name(key)
                 || unsupported_modality(key, value)
+                || generated_metadata_name(key, value)
         }) {
             return Err(NrrdDocumentError::UnsupportedField {
                 field: "metadata".into(),
@@ -181,6 +188,7 @@ impl NrrdDocument {
         Ok(())
     }
 }
+/// Reads a document and rejects metadata the typed model cannot retain.
 pub fn read_nrrd_document<P: AsRef<Path>>(
     path: P,
     budget: ImageReadBudget,
@@ -202,7 +210,7 @@ pub fn read_nrrd_document<P: AsRef<Path>>(
     if header
         .fields()
         .keys()
-        .any(|key| !standard_metadata_name(key))
+        .any(|key| !generated_standard_field(key))
         || header
             .key_value_records()
             .iter()
@@ -225,6 +233,22 @@ fn generated_metadata_name(name: &str, value: &str) -> bool {
 fn standard_metadata_name(name: &str) -> bool {
     STANDARD_FIELDS.split('|').any(|field| field == name)
 }
+fn generated_standard_field(name: &str) -> bool {
+    matches!(
+        name,
+        "type"
+            | "dimension"
+            | "space"
+            | "space units"
+            | "sizes"
+            | "space directions"
+            | "kinds"
+            | "endian"
+            | "encoding"
+            | "space origin"
+            | "measurement frame"
+    )
+}
 fn unsupported_dwmri_name(name: &str) -> bool {
     name.get(..6)
         .is_some_and(|prefix| prefix.eq_ignore_ascii_case("DWMRI_"))
@@ -235,6 +259,7 @@ fn unsupported_modality(name: &str, value: &str) -> bool {
         && (name != "modality" || value.eq_ignore_ascii_case("DWMRI"))
         || standard_metadata_name(name)
 }
+/// Writes a validated document without opening invalid destinations.
 pub fn write_nrrd_document<P: AsRef<Path>>(
     path: P,
     document: &NrrdDocument,
