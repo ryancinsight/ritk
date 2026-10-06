@@ -1,7 +1,7 @@
 //! Validate and persist native Explicit VR Little Endian DICOM objects.
 
 use crate::format::dicom::writer::error::DicomWriteError;
-use anyhow::{bail, Context, Result};
+use anyhow::{Context, Result, bail};
 use dicom::core::{Tag, VR};
 use std::path::Path;
 
@@ -86,7 +86,11 @@ fn validate_pixel_module(object: &dicom::object::DefaultDicomObject) -> Result<(
     }
     let rows = usize::from(unsigned_scalar(object, Tag(0x0028, 0x0010), "Rows")?);
     let columns = usize::from(unsigned_scalar(object, Tag(0x0028, 0x0011), "Columns")?);
-    let samples_per_pixel = usize::from(unsigned_scalar(object, Tag(0x0028, 0x0002), "SamplesPerPixel")?);
+    let samples_per_pixel = usize::from(unsigned_scalar(
+        object,
+        Tag(0x0028, 0x0002),
+        "SamplesPerPixel",
+    )?);
     for (attribute, value) in [
         ("Rows", rows),
         ("Columns", columns),

@@ -14,7 +14,7 @@ use super::writer::elements::node_to_element;
 use super::writer::output::write_file;
 use super::writer::pixel_encoding::DICOM_SOP_CLASS_SECONDARY_CAPTURE;
 use anyhow::Result;
-use dicom::object::{meta::FileMetaTableBuilder, InMemDicomObject};
+use dicom::object::{InMemDicomObject, meta::FileMetaTableBuilder};
 use std::path::Path;
 
 /// Convert a `DicomObjectModel` to an `InMemDicomObject`.
@@ -59,25 +59,48 @@ mod tests {
     use dicom::object::open_file;
 
     fn insert_u16(model: &mut DicomObjectModel, element: u16, value: u16) {
-        model.insert(DicomObjectNode::with_value(DicomTag::new(0x0028, element), "US", value));
+        model.insert(DicomObjectNode::with_value(
+            DicomTag::new(0x0028, element),
+            "US",
+            value,
+        ));
     }
 
     fn pixel_model(
-        rows: Option<u16>, columns: Option<u16>, samples: u16, frames: Option<u16>,
+        rows: Option<u16>,
+        columns: Option<u16>,
+        samples: u16,
+        frames: Option<u16>,
         payload: Vec<u8>,
     ) -> DicomObjectModel {
         let mut model = DicomObjectModel::new();
-        for (element, value) in [(0x0002, samples), (0x0100, 8), (0x0101, 8), (0x0102, 7), (0x0103, 0)] {
+        for (element, value) in [
+            (0x0002, samples),
+            (0x0100, 8),
+            (0x0101, 8),
+            (0x0102, 7),
+            (0x0103, 0),
+        ] {
             insert_u16(&mut model, element, value);
         }
         model.insert(DicomObjectNode::text(
-            DicomTag::new(0x0028, 0x0004), "CS", if samples == 1 { "MONOCHROME2" } else { "RGB" },
+            DicomTag::new(0x0028, 0x0004),
+            "CS",
+            if samples == 1 { "MONOCHROME2" } else { "RGB" },
         ));
-        if samples > 1 { insert_u16(&mut model, 0x0006, 0); }
-        for (element, value) in [(0x0010, rows), (0x0011, columns), (0x0008, frames)] {
-            if let Some(value) = value { insert_u16(&mut model, element, value); }
+        if samples > 1 {
+            insert_u16(&mut model, 0x0006, 0);
         }
-        model.insert(DicomObjectNode::bytes(DicomTag::new(0x7FE0, 0x0010), "OB", payload));
+        for (element, value) in [(0x0010, rows), (0x0011, columns), (0x0008, frames)] {
+            if let Some(value) = value {
+                insert_u16(&mut model, element, value);
+            }
+        }
+        model.insert(DicomObjectNode::bytes(
+            DicomTag::new(0x7FE0, 0x0010),
+            "OB",
+            payload,
+        ));
         model
     }
 
@@ -135,15 +158,22 @@ mod tests {
         for (element, value) in [(0x0100, bits), (0x0101, bits), (0x0102, bits - 1)] {
             insert_u16(model, element, value);
         }
-        model.insert(DicomObjectNode::bytes(DicomTag::new(0x7FE0, 0x0010), vr, payload));
+        model.insert(DicomObjectNode::bytes(
+            DicomTag::new(0x7FE0, 0x0010),
+            vr,
+            payload,
+        ));
     }
 
     fn assert_pixels(model: &DicomObjectModel, path: &std::path::Path, expected: &[u8]) {
         write_object(model, path).expect("write_object");
         let object = open_file(path).expect("open_file");
         assert_eq!(
-            object.element(Tag(0x7FE0, 0x0010)).expect("PixelData")
-                .to_bytes().expect("pixel bytes"),
+            object
+                .element(Tag(0x7FE0, 0x0010))
+                .expect("PixelData")
+                .to_bytes()
+                .expect("pixel bytes"),
             expected
         );
     }
@@ -153,7 +183,11 @@ mod tests {
         for (frames, name) in [(Some(1), "bytes.dcm"), (None, "single-frame.dcm")] {
             let tmp = tempfile::tempdir().expect("tempdir");
             let path = tmp.path().join(name);
-            assert_pixels(&pixel_model(Some(1), Some(1), 1, frames, vec![7]), &path, &[7, 0]);
+            assert_pixels(
+                &pixel_model(Some(1), Some(1), 1, frames, vec![7]),
+                &path,
+                &[7, 0],
+            );
         }
     }
 
@@ -172,34 +206,62 @@ mod tests {
     #[test]
     fn test_write_object_rejects_pixel_contracts_without_replacing_file() {
         let mut rgb = pixel_model(Some(1), Some(1), 3, Some(1), vec![1, 2, 3]);
-        rgb.nodes.retain(|node| node.tag != DicomTag::new(0x0028, 0x0006));
+        rgb.nodes
+            .retain(|node| node.tag != DicomTag::new(0x0028, 0x0006));
         let mut wide = pixel_model(Some(1), Some(1), 1, Some(1), vec![7, 0]);
         set_pixel_format(&mut wide, 16, "OB", vec![7, 0]);
         let cases = [
-            (pixel_model(Some(2), Some(2), 1, Some(1), vec![7]),
-             DicomWriteError::PixelPayloadLengthMismatch { expected: 4, actual: 1 }),
-            (wide, DicomWriteError::PixelDataVrMismatch { value: "OB".to_owned(), bits_allocated: 16 }),
-            (rgb, DicomWriteError::MissingPixelAttribute { attribute: "PlanarConfiguration" }),
+            (
+                pixel_model(Some(2), Some(2), 1, Some(1), vec![7]),
+                DicomWriteError::PixelPayloadLengthMismatch {
+                    expected: 4,
+                    actual: 1,
+                },
+            ),
+            (
+                wide,
+                DicomWriteError::PixelDataVrMismatch {
+                    value: "OB".to_owned(),
+                    bits_allocated: 16,
+                },
+            ),
+            (
+                rgb,
+                DicomWriteError::MissingPixelAttribute {
+                    attribute: "PlanarConfiguration",
+                },
+            ),
         ];
-        for (model, expected) in cases { assert_rejected(model, expected); }
+        for (model, expected) in cases {
+            assert_rejected(model, expected);
+        }
     }
 
     #[test]
     fn test_write_object_uses_ybr_full_422_encoded_length() {
         let mut model = pixel_model(Some(1), Some(3), 3, Some(1), vec![0; 8]);
         model.insert(DicomObjectNode::text(
-            DicomTag::new(0x0028, 0x0004), "CS", "YBR_FULL_422",
+            DicomTag::new(0x0028, 0x0004),
+            "CS",
+            "YBR_FULL_422",
         ));
-        model.nodes.retain(|node| node.tag != DicomTag::new(0x0028, 0x0006));
+        model
+            .nodes
+            .retain(|node| node.tag != DicomTag::new(0x0028, 0x0006));
         let tmp = tempfile::tempdir().expect("tempdir");
         let path = tmp.path().join("ybr422.dcm");
         assert_pixels(&model, &path, &[0; 8]);
         model.insert(DicomObjectNode::bytes(
-            DicomTag::new(0x7FE0, 0x0010), "OB", vec![0; 6],
+            DicomTag::new(0x7FE0, 0x0010),
+            "OB",
+            vec![0; 6],
         ));
         assert_rejected(
             model,
-            DicomWriteError::YbrFull422PayloadLengthMismatch { expected: 8, actual: 6 },
+            DicomWriteError::YbrFull422PayloadLengthMismatch {
+                expected: 8,
+                actual: 6,
+            },
         );
     }
 
