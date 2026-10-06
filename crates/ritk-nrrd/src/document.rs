@@ -9,7 +9,6 @@ use std::fs::File;
 use std::io::{BufWriter, Write};
 use std::path::Path;
 use thiserror::Error;
-
 #[derive(Debug)]
 pub struct NrrdDocument {
     series: StoredSeries,
@@ -61,9 +60,7 @@ impl NrrdDocument {
                 || unsupported_dwmri_name(key)
                 || unsupported_modality(key, value)
         }) {
-            return Err(NrrdDocumentError::UnsupportedField {
-                field: "metadata".into(),
-            });
+            return Err(NrrdDocumentError::UnsupportedField { field: "metadata".into() });
         }
         Ok(Self {
             series,
@@ -209,9 +206,7 @@ pub fn read_nrrd_document<P: AsRef<Path>>(
             .iter()
             .any(|record| standard_metadata_name(record.key()))
     {
-        return Err(NrrdDocumentError::UnsupportedField {
-            field: "standard metadata".to_owned(),
-        });
+        return Err(NrrdDocumentError::UnsupportedField { field: "standard metadata".to_owned() });
     }
     NrrdDocument::new(series, comments, records)
 }
