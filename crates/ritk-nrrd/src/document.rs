@@ -85,7 +85,9 @@ impl NrrdDocument {
                 return Err(NrrdDocumentError::ConflictingMetadata { name: name.clone() });
             }
             if unsupported_dwmri_name(name) {
-                return Err(NrrdDocumentError::UnsupportedField { field: name.clone() });
+                return Err(NrrdDocumentError::UnsupportedField {
+                    field: name.clone(),
+                });
             }
         }
         let mut header = HeaderBuffer::new();
@@ -183,8 +185,17 @@ pub fn read_nrrd_document<P: AsRef<Path>>(
 ) -> Result<NrrdDocument, NrrdDocumentError> {
     let header = read_nrrd_header(path.as_ref())?;
     let series = read_nrrd_stored_series(path, budget)?;
-    let comments = header.comments().iter().filter(|c| c.as_str() != GENERATED_COMMENT).cloned().collect();
-    if header.key_value_records().iter().any(|r| unsupported_dwmri_name(r.key())) {
+    let comments = header
+        .comments()
+        .iter()
+        .filter(|c| c.as_str() != GENERATED_COMMENT)
+        .cloned()
+        .collect();
+    if header
+        .key_value_records()
+        .iter()
+        .any(|r| unsupported_dwmri_name(r.key()))
+    {
         return Err(NrrdDocumentError::UnsupportedField {
             field: "DWMRI metadata on a non-diffusion axis".to_owned(),
         });

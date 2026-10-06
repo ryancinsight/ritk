@@ -34,7 +34,10 @@ fn document_round_trip_retains_samples_comments_and_records() -> Result<()> {
     let path = directory.path().join("document.nrrd");
     write_nrrd_document(&path, &document())?;
     let decoded = read_nrrd_document(&path, ImageReadBudget::DEFAULT)?;
-    assert_eq!(decoded.comments().last().map(String::as_str), Some("# retained note"));
+    assert_eq!(
+        decoded.comments().last().map(String::as_str),
+        Some("# retained note")
+    );
     assert_eq!(decoded.records(), document().records());
     assert!(fs::read(&path)?.ends_with(&[11, 0, 29, 0, 47, 0]));
     Ok(())
