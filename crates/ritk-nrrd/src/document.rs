@@ -9,12 +9,14 @@ use std::fs::File;
 use std::io::{BufWriter, Write};
 use std::path::Path;
 use thiserror::Error;
+/// In-memory NRRD samples and round-trippable metadata.
 #[derive(Debug)]
 pub struct NrrdDocument {
     series: StoredSeries,
     comments: Vec<String>,
     pub(crate) records: Vec<(String, String)>,
 }
+/// Typed construction, parsing, and serialization failure.
 #[derive(Debug, Error)]
 pub enum NrrdDocumentError {
     #[error(transparent)]
@@ -31,6 +33,10 @@ pub enum NrrdDocumentError {
     Io(#[from] std::io::Error),
 }
 impl NrrdDocument {
+    /// Constructs a document without an intermediate file.
+    ///
+    /// Returns [`NrrdDocumentError::UnsupportedField`] for metadata that cannot
+    /// be retained safely.
     pub fn new(
         series: StoredSeries,
         comments: Vec<String>,
@@ -66,12 +72,15 @@ impl NrrdDocument {
             records,
         })
     }
+    /// Returns the typed stored series.
     pub fn series(&self) -> &StoredSeries {
         &self.series
     }
+    /// Returns comments retained for round-trip output.
     pub fn comments(&self) -> &[String] {
         &self.comments
     }
+    /// Returns retained non-generated key/value records.
     pub fn records(&self) -> &[(String, String)] {
         &self.records
     }
@@ -177,6 +186,7 @@ impl NrrdDocument {
         Ok(())
     }
 }
+/// Reads a complete document and reports unrepresentable fields before output.
 pub fn read_nrrd_document<P: AsRef<Path>>(
     path: P,
     budget: ImageReadBudget,
@@ -196,18 +206,22 @@ pub fn read_nrrd_document<P: AsRef<Path>>(
         .map(|record| (record.key().to_owned(), record.value().to_owned()))
         .collect();
     if header
-        .key_value_records()
-        .iter()
-        .any(|record| standard_metadata_name(record.key()))
+        .fields()
+        .keys()
+        .any(|key| !standard_metadata_name(key))
+        || header
+            .key_value_records()
+            .iter()
+            .any(|record| standard_metadata_name(record.key()))
     {
         return Err(NrrdDocumentError::UnsupportedField {
-            field: "custom standard metadata".to_owned(),
+            field: "standard metadata".to_owned(),
         });
     }
     NrrdDocument::new(series, comments, records)
 }
 const GENERATED_COMMENT: &str = "# Complete NRRD file written by ritk";
-const STANDARD_FIELDS: &str = "type|dimension|space|space units|sizes|space directions|kinds|endian|encoding|space origin|measurement frame";
+const STANDARD_FIELDS: &str = "type|dimension|space|space units|sizes|space directions|kinds|endian|encoding|space origin|measurement frame|content|labels";
 
 fn generated_metadata_name(name: &str, value: &str) -> bool {
     matches!(name, "ritk_coordinate_map" | "DWMRI_b-value")
@@ -229,6 +243,7 @@ fn unsupported_modality(name: &str, value: &str) -> bool {
     name.eq_ignore_ascii_case("modality")
         && (name != "modality" || value.eq_ignore_ascii_case("DWMRI"))
 }
+/// Writes validated samples and metadata without opening invalid destinations.
 pub fn write_nrrd_document<P: AsRef<Path>>(
     path: P,
     document: &NrrdDocument,
