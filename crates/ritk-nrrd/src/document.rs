@@ -54,7 +54,9 @@ impl NrrdDocument {
                 || unsupported_dwmri_name(key)
                 || unsupported_modality(key, value)
         }) {
-            return Err(metadata_error());
+            return Err(NrrdDocumentError::UnsupportedField {
+                field: "metadata".into(),
+            });
         }
         Ok(Self {
             series,
@@ -135,7 +137,6 @@ impl NrrdDocument {
             }));
         }
         crate::writer::validate_series_axis(self.series.axis())?;
-        crate::writer::validate_series_header_entries(self.series.axis(), first.coordinate_map())?;
         crate::writer::validate_calibration(first)?;
         validate_physical_geometry(first.metadata())
             .map_err(|source| NrrdStoredWriteError::PhysicalGeometry { source })?;
@@ -202,12 +203,6 @@ pub fn read_nrrd_document<P: AsRef<Path>>(
 }
 const SUPPORTED_FIELDS: &str = "type|dimension|space|space units|sizes|space directions|kinds|endian|encoding|space origin|measurement frame";
 const GENERATED_COMMENT: &str = "# Complete NRRD file written by ritk";
-
-fn metadata_error() -> NrrdDocumentError {
-    NrrdDocumentError::UnsupportedField {
-        field: "metadata".to_owned(),
-    }
-}
 
 fn generated_metadata_name(name: &str, value: &str) -> bool {
     matches!(
