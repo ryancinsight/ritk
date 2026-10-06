@@ -198,11 +198,11 @@ pub fn read_nrrd_document<P: AsRef<Path>>(
     budget: ImageReadBudget,
 ) -> Result<NrrdDocument, NrrdDocumentError> {
     let header = read_nrrd_header(path.as_ref())?;
-    for record in header.key_value_records() {
+    let records = header.key_value_records();
+    for record in records {
         if record.key().eq_ignore_ascii_case("DWMRI_b-value")
             && (record.key() != "DWMRI_b-value"
-                || header
-                    .key_value_records()
+                || records
                     .iter()
                     .filter(|candidate| candidate.key() == "DWMRI_b-value")
                     .count()
@@ -217,8 +217,7 @@ pub fn read_nrrd_document<P: AsRef<Path>>(
             .eq_ignore_ascii_case(crate::coordinate_map::COORDINATE_MAP_KEY)
         {
             if record.key() != crate::coordinate_map::COORDINATE_MAP_KEY
-                || header
-                    .key_value_records()
+                || records
                     .iter()
                     .filter(|candidate| {
                         candidate.key() == crate::coordinate_map::COORDINATE_MAP_KEY
@@ -236,8 +235,7 @@ pub fn read_nrrd_document<P: AsRef<Path>>(
             && record.value().eq_ignore_ascii_case("DWMRI")
             && (record.key() != "modality"
                 || record.value() != "DWMRI"
-                || header
-                    .key_value_records()
+                || records
                     .iter()
                     .filter(|candidate| {
                         candidate.key() == "modality" && candidate.value() == "DWMRI"
@@ -254,8 +252,7 @@ pub fn read_nrrd_document<P: AsRef<Path>>(
             .get(..15)
             .is_some_and(|prefix| prefix.eq_ignore_ascii_case("DWMRI_gradient_"))
             && (record.key().get(..15) != Some("DWMRI_gradient_")
-                || header
-                    .key_value_records()
+                || records
                     .iter()
                     .filter(|candidate| candidate.key() == record.key())
                     .count()
@@ -273,8 +270,7 @@ pub fn read_nrrd_document<P: AsRef<Path>>(
         .filter(|c| c.as_str() != GENERATED_COMMENT)
         .cloned()
         .collect();
-    let records = header
-        .key_value_records()
+    let retained_records = records
         .iter()
         .filter(|record| !generated_metadata_name(record.key(), record.value()))
         .map(|record| (record.key().to_owned(), record.value().to_owned()))
@@ -283,8 +279,7 @@ pub fn read_nrrd_document<P: AsRef<Path>>(
         .fields()
         .keys()
         .any(|key| !generated_standard_field(key))
-        || header
-            .key_value_records()
+        || records
             .iter()
             .any(|record| standard_metadata_name(record.key()))
     {
@@ -292,7 +287,7 @@ pub fn read_nrrd_document<P: AsRef<Path>>(
             field: "standard metadata".to_owned(),
         });
     }
-    NrrdDocument::new(series, comments, records)
+    NrrdDocument::new(series, comments, retained_records)
 }
 const GENERATED_COMMENT: &str = "# Complete NRRD file written by ritk";
 const STANDARD_FIELDS: &str = "type|dimension|space|space units|sizes|space directions|kinds|endian|encoding|space origin|measurement frame|content|labels|data file|line skip|byte skip|spacings|thicknesses|axis mins|axis maxs|centers|block size|old min|old max|sample units|space dimension";
