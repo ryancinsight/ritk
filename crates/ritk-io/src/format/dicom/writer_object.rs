@@ -96,6 +96,15 @@ mod tests {
         model
     }
 
+    fn assert_rejected(model: DicomObjectModel, expected: DicomWriteError) {
+        let tmp = tempfile::tempdir().expect("tempdir");
+        let path = tmp.path().join("rejected.dcm");
+        std::fs::write(&path, b"sentinel").expect("sentinel");
+        let error = write_object(&model, &path).expect_err("invalid pixel model must fail");
+        assert_eq!(error.downcast_ref::<DicomWriteError>(), Some(&expected));
+        assert_eq!(std::fs::read(&path).expect("sentinel remains"), b"sentinel");
+    }
+
     #[test]
     fn test_write_object_empty_model_creates_file() {
         let tmp = tempfile::tempdir().expect("tempdir");
@@ -196,6 +205,38 @@ mod tests {
             })
         );
         assert_eq!(std::fs::read(&path).expect("sentinel remains"), b"sentinel");
+    }
+
+    #[test]
+    fn test_write_object_rejects_malformed_zero_and_overflow_attributes() {
+        let mut malformed = pixel_model(Some(1), Some(1), 1, Some(1), vec![0]);
+        malformed.insert(DicomObjectNode::text(
+            DicomTag::new(0x0028, 0x0010), "US", "bad",
+        ));
+        assert_rejected(
+            malformed,
+            DicomWriteError::MalformedPixelAttribute { attribute: "Rows" },
+        );
+        assert_rejected(
+            pixel_model(Some(0), Some(1), 1, Some(1), vec![]),
+            DicomWriteError::ZeroPixelAttribute { attribute: "Rows" },
+        );
+        let mut overflow = pixel_model(
+            Some(u16::MAX), Some(u16::MAX), u16::MAX, Some(u16::MAX), vec![],
+        );
+        for (tag, value) in [(0x0100, u16::MAX - 7), (0x0101, u16::MAX - 7), (0x0102, u16::MAX - 8)] {
+            overflow.insert(DicomObjectNode::with_value(DicomTag::new(0x0028, tag), "US", value));
+        }
+        assert_rejected(overflow, DicomWriteError::PixelCountOverflow);
+    }
+
+    #[test]
+    fn test_write_object_rejects_invalid_pixel_vr_before_replacing_file() {
+        let mut model = pixel_model(Some(1), Some(1), 1, Some(1), vec![7]);
+        model.insert(DicomObjectNode::text(
+            DicomTag::new(0x7FE0, 0x0010), "UN", "7",
+        ));
+        assert_rejected(model, DicomWriteError::InvalidPixelDataVr);
     }
 
     #[test]
