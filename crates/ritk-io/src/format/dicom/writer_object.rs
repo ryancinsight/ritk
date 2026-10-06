@@ -54,7 +54,7 @@ mod tests {
         DicomObjectModel, DicomObjectNode, DicomSequenceItem, DicomTag,
     };
     use super::*;
-    use dicom::core::Tag;
+    use dicom::core::{Tag, VR};
     use dicom::object::open_file;
 
     #[test]
@@ -95,14 +95,37 @@ mod tests {
         let tmp = tempfile::tempdir().expect("tempdir");
         let path = tmp.path().join("bytes.dcm");
         let mut model = DicomObjectModel::new();
+        for (tag, value) in [
+            (DicomTag::new(0x0028, 0x0002), 1u16),
+            (DicomTag::new(0x0028, 0x0010), 2u16),
+            (DicomTag::new(0x0028, 0x0011), 2u16),
+            (DicomTag::new(0x0028, 0x0100), 8u16),
+            (DicomTag::new(0x0028, 0x0101), 8u16),
+            (DicomTag::new(0x0028, 0x0102), 7u16),
+            (DicomTag::new(0x0028, 0x0103), 0u16),
+        ] {
+            model.insert(DicomObjectNode::with_value(tag, "US", value));
+        }
+        model.insert(DicomObjectNode::text(
+            DicomTag::new(0x0028, 0x0004),
+            "CS",
+            "MONOCHROME2",
+        ));
+        let pixels = vec![1u8, 2, 3, 4];
         model.insert(DicomObjectNode::bytes(
             DicomTag::new(0x7FE0, 0x0010),
             "OB",
-            vec![0u8; 20],
+            pixels.clone(),
         ));
         write_object(&model, &path).expect("write_object");
-        let len = std::fs::metadata(&path).expect("metadata").len();
-        assert!(len > 128, "file must exceed preamble size, got {len}");
+        let obj = open_file(&path).expect("open_file");
+        let pixel_data = obj.element(Tag(0x7FE0, 0x0010)).expect("PixelData");
+        assert_eq!(pixel_data.vr(), VR::OB, "PixelData VR");
+        assert_eq!(
+            pixel_data.to_bytes().expect("pixel bytes").as_ref(),
+            pixels.as_slice(),
+            "decoded pixel values",
+        );
     }
 
     #[test]
