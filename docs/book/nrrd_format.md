@@ -87,6 +87,11 @@ explicitly rather than being guessed.
 
 ## Stored samples and format conversion
 
+`NrrdDocument` combines a validated `StoredSeries` with retained comments and
+custom records without an intermediate file. Writing derives structural fields
+from the samples, validates first, and leaves an existing destination
+unchanged on rejection.
+
 Use `read_nrrd_stored` when NRRD is an input to a format conversion. It
 returns `ritk_image_io::StoredVolume`, retaining the element type, each stored
 value, the spatial metadata, the coordinate map, and the calibration state.
