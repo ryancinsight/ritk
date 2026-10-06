@@ -123,7 +123,12 @@ impl NrrdDocument {
             ));
         }
         result?;
-        let entries = header.bytes().iter().filter(|&&byte| byte == b'\n').count().saturating_sub(2);
+        let entries = header
+            .bytes()
+            .iter()
+            .filter(|&&byte| byte == b'\n')
+            .count()
+            .saturating_sub(2);
         if entries > crate::reader::MAX_HEADER_ENTRIES {
             return Err(NrrdDocumentError::Header(NrrdHeaderError::TooManyEntries {
                 maximum_entries: crate::reader::MAX_HEADER_ENTRIES,

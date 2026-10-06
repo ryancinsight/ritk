@@ -44,7 +44,10 @@ fn document_round_trip_retains_samples_comments_and_records() -> Result<()> {
     let mut invalid = document();
     invalid.records = vec![("type".to_owned(), "float".to_owned())];
     let error = write_nrrd_document(&path, &invalid);
-    assert!(matches!(error, Err(crate::NrrdDocumentError::ConflictingMetadata { .. })));
+    assert!(matches!(
+        error,
+        Err(crate::NrrdDocumentError::ConflictingMetadata { .. })
+    ));
     assert_eq!(fs::read(&path)?, b"sentinel");
     Ok(())
 }
