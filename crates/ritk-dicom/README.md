@@ -8,9 +8,11 @@ layer; the pixel codecs themselves are RITK-native (`ritk-codecs`).
 
 Native decode covers uncompressed little-endian pixels, RLE Lossless, grayscale
 JPEG Baseline / Extended / Lossless, grayscale JPEG-LS, JPEG 2000, and JPEG XL.
-Frame requests carry BitsAllocated and BitsStored independently, preserving
-full-precision clinical samples and the stored sign bit through codec decode.
 No supported DICOM pixel path requires a C or C++ codec library.
+
+`decode_stored_pixel_frame` returns typed `SampleBuffer` integers; display
+`DecodedFrame` uses rescaled `f32`. Stored samples normalize BitsStored before
+rescale; geometry/calibration and color/packed one-bit data use separate models.
 
 The crate also provides DIMSE association handling for PACS SCU/SCP workflows.
 

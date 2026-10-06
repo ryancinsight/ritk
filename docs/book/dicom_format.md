@@ -41,6 +41,9 @@ inferring it from BitsAllocated. When HighBit is present, the DICOM object
 boundary requires it to equal BitsStored minus one, which establishes the
 right-justified sample layout used by native decoding.
 
+`decode_stored_pixel_frame` returns typed stored integers before modality rescale;
+display decoding remains a separate rescaled `f32` path.
+
 ## Pixel output
 
 Series writers encode unsigned 16-bit samples. Multi-frame output uses
