@@ -70,7 +70,7 @@ impl NrrdDocument {
                 || !value.is_ascii()
                 || value.contains('\r')
                 || unsupported_dwmri_name(key)
-                || (key.eq_ignore_ascii_case("modality") && value.eq_ignore_ascii_case("DWMRI"))
+                || unsupported_modality(key, value)
         }) {
             return Err(NrrdDocumentError::UnsupportedField {
                 field: "metadata".to_owned(),
@@ -102,9 +102,7 @@ impl NrrdDocument {
             if generated_metadata_name(name, value) {
                 return Err(NrrdDocumentError::ConflictingMetadata { name: name.clone() });
             }
-            if unsupported_dwmri_name(name)
-                || (name.eq_ignore_ascii_case("modality") && value.eq_ignore_ascii_case("DWMRI"))
-            {
+            if unsupported_dwmri_name(name) || unsupported_modality(name, value) {
                 return Err(NrrdDocumentError::UnsupportedField {
                     field: name.clone(),
                 });
@@ -213,10 +211,11 @@ pub fn read_nrrd_document<P: AsRef<Path>>(
         .filter(|c| c.as_str() != GENERATED_COMMENT)
         .cloned()
         .collect();
-    if header.key_value_records().iter().any(|r| {
-        unsupported_dwmri_name(r.key())
-            || (r.key().eq_ignore_ascii_case("modality") && r.value().eq_ignore_ascii_case("DWMRI"))
-    }) {
+    if header
+        .key_value_records()
+        .iter()
+        .any(|r| unsupported_dwmri_name(r.key()) || unsupported_modality(r.key(), r.value()))
+    {
         return Err(NrrdDocumentError::UnsupportedField {
             field: "DWMRI metadata on a non-diffusion axis".to_owned(),
         });
@@ -265,6 +264,11 @@ fn unsupported_dwmri_name(name: &str) -> bool {
     name.get(..6)
         .is_some_and(|prefix| prefix.eq_ignore_ascii_case("DWMRI_"))
         && !generated_metadata_name(name, "DWMRI")
+}
+
+fn unsupported_modality(name: &str, value: &str) -> bool {
+    name.eq_ignore_ascii_case("modality")
+        && (name != "modality" || value.eq_ignore_ascii_case("DWMRI"))
 }
 /// Writes a document atomically with respect to validation failures.
 ///
