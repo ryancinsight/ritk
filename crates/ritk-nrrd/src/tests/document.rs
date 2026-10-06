@@ -1,3 +1,5 @@
+use crate::document::read_nrrd_document_from_session;
+use crate::reader::{NrrdHeaderError, NrrdReadSession, MAX_HEADER_ENTRIES};
 use crate::{read_nrrd_document, write_nrrd_document, NrrdDocument, NrrdDocumentError};
 use anyhow::Result;
 use ritk_codecs::{ByteOrder, SampleBuffer};
@@ -7,6 +9,7 @@ use ritk_image_io::{
 };
 use ritk_spatial::{CoordinateMap, Direction, Point, Spacing};
 use std::fs;
+use std::io::Write;
 use tempfile::tempdir;
 
 fn series() -> StoredSeries {
@@ -231,5 +234,135 @@ fn document_round_trip_retains_samples_comments_and_records() -> Result<()> {
             Err(NrrdDocumentError::UnsupportedField { .. })
         ));
     }
+    Ok(())
+}
+
+#[test]
+fn document_header_and_payload_stay_bound_to_one_open_source() -> Result<()> {
+    let directory = tempdir()?;
+    let path = directory.path().join("document.nrrd");
+    let preserved_path = directory.path().join("preserved.nrrd");
+    let original = document();
+    write_nrrd_document(&path, &original)?;
+    let session = NrrdReadSession::open(&path)?;
+
+    let replacement_volume = StoredVolume::new(
+        [1, 1, 3],
+        SampleBuffer::from_samples(vec![2_u16, 3, 5]),
+        ImageMetadata::new(
+            Point::new([1.0, 2.0, 3.0]),
+            Spacing::new([2.0, 3.0, 4.0]),
+            Direction::identity(),
+        ),
+        CoordinateMap::Cartesian,
+        IntensityCalibration::Identity,
+    )
+    .expect("valid replacement volume");
+    let replacement = NrrdDocument::new(
+        StoredSeries::new(vec![replacement_volume], SeriesAxis::SingleVolume)
+            .expect("single-volume replacement series"),
+        vec!["#replacement source".to_owned()],
+        vec![("source".to_owned(), "replacement".to_owned())],
+    )
+    .expect("valid replacement document");
+    fs::rename(&path, &preserved_path)?;
+    write_nrrd_document(&path, &replacement)?;
+
+    let replacement_read = read_nrrd_document(&path, ImageReadBudget::DEFAULT)?;
+    assert_eq!(replacement_read.comments(), replacement.comments());
+    assert_eq!(replacement_read.records(), replacement.records());
+    assert_eq!(
+        replacement_read.series().volumes()[0]
+            .samples()
+            .encode(ByteOrder::LeastSignificantByteFirst)?,
+        [2, 0, 3, 0, 5, 0]
+    );
+
+    let decoded = read_nrrd_document_from_session(session, ImageReadBudget::DEFAULT)?;
+    let original_volume = &original.series().volumes()[0];
+    let decoded_volume = &decoded.series().volumes()[0];
+    assert_eq!(decoded.comments(), original.comments());
+    assert_eq!(decoded.records(), original.records());
+    assert_eq!(decoded_volume.shape(), original_volume.shape());
+    assert_eq!(decoded_volume.metadata(), original_volume.metadata());
+    assert_eq!(
+        decoded_volume.coordinate_map(),
+        original_volume.coordinate_map()
+    );
+    assert_eq!(
+        decoded_volume
+            .samples()
+            .encode(ByteOrder::LeastSignificantByteFirst)?,
+        [11, 0, 29, 0, 47, 0]
+    );
+    Ok(())
+}
+
+#[test]
+fn document_metadata_validation_precedes_payload_decode() -> Result<()> {
+    let directory = tempdir()?;
+    let source_path = directory.path().join("source.nrrd");
+    write_nrrd_document(&source_path, &document())?;
+    let source = fs::read(&source_path)?;
+    let metadata_cases: [(&[u8], &str); 2] = [
+        (b"note:=line\\nnext\n", "metadata"),
+        (b"MoDaLiTy:=CT\n", "MoDaLiTy"),
+    ];
+
+    for (index, (metadata, expected_field)) in metadata_cases.into_iter().enumerate() {
+        let mut input = source.clone();
+        let separator = input
+            .windows(2)
+            .position(|window| window == b"\n\n")
+            .expect("writer emits a header separator");
+        input.splice(separator + 1..separator + 1, metadata.iter().copied());
+        input.truncate(separator + metadata.len() + 2);
+        let path = directory
+            .path()
+            .join(format!("invalid-metadata-{index}.nrrd"));
+        fs::write(&path, input)?;
+
+        assert!(matches!(
+            read_nrrd_document(&path, ImageReadBudget::DEFAULT),
+            Err(NrrdDocumentError::UnsupportedField { field }) if field == expected_field
+        ));
+    }
+    Ok(())
+}
+
+#[test]
+fn canonical_header_entry_limit_precedes_payload_decode() -> Result<()> {
+    let directory = tempdir()?;
+    let source_path = directory.path().join("source.nrrd");
+    write_nrrd_document(&source_path, &document())?;
+    let source = fs::read(&source_path)?;
+    let separator = source
+        .windows(2)
+        .position(|window| window == b"\n\n")
+        .expect("writer emits a header separator");
+    let header = std::str::from_utf8(&source[..separator])?;
+    let lines = header
+        .lines()
+        .filter(|line| *line != "kinds: domain domain domain")
+        .collect::<Vec<_>>();
+    let entry_count = lines.len().checked_sub(1).expect("magic line exists");
+    let additional_records = MAX_HEADER_ENTRIES
+        .checked_sub(entry_count)
+        .expect("source header is below its entry limit");
+    let mut input = lines.join("\n").into_bytes();
+    input.push(b'\n');
+    for index in 0..additional_records {
+        writeln!(&mut input, "padding_{index}:=x")?;
+    }
+    input.push(b'\n');
+    let path = directory.path().join("entry-limit-before-payload.nrrd");
+    fs::write(&path, input)?;
+
+    assert!(matches!(
+        read_nrrd_document(&path, ImageReadBudget::DEFAULT),
+        Err(NrrdDocumentError::Header(NrrdHeaderError::TooManyEntries {
+            maximum_entries
+        })) if maximum_entries == MAX_HEADER_ENTRIES
+    ));
     Ok(())
 }

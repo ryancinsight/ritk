@@ -11,7 +11,9 @@ pub use header::{
     read_nrrd_header, read_nrrd_header_map, NrrdHeader, NrrdHeaderError, NrrdKeyValueRecord,
 };
 pub(crate) use header::{MAX_HEADER_BYTES, MAX_HEADER_ENTRIES};
+pub(crate) use stored::{has_diffusion_metadata, NrrdReadSession};
 pub use stored::{
     read_nrrd_stored, read_nrrd_stored_series, NrrdSpatialMetadataField, NrrdStoredReadError,
 };
+pub(crate) use volume::NrrdReadPlan;
 pub use volume::{read_nrrd, read_nrrd_series, NrrdReader};

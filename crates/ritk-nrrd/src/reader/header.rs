@@ -189,13 +189,20 @@ pub fn read_nrrd_header_map<P: AsRef<Path>>(path: P) -> anyhow::Result<HashMap<S
 /// # Ok::<(), Box<dyn std::error::Error>>(())
 /// ```
 pub fn read_nrrd_header<P: AsRef<Path>>(path: P) -> Result<NrrdHeader, NrrdHeaderError> {
-    let path = path.as_ref();
+    let (_, header) = open_nrrd_header_reader(path.as_ref())?;
+    Ok(header)
+}
+
+pub(super) fn open_nrrd_header_reader(
+    path: &Path,
+) -> Result<(BufReader<std::fs::File>, NrrdHeader), NrrdHeaderError> {
     let file = std::fs::File::open(path).map_err(|source| NrrdHeaderError::Open {
         path: path.to_path_buf(),
         source,
     })?;
     let mut reader = BufReader::new(file);
-    parse_nrrd_header_from_reader(&mut reader)
+    let header = parse_nrrd_header_from_reader(&mut reader)?;
+    Ok((reader, header))
 }
 
 pub(super) fn parse_nrrd_header_from_reader<R: BufRead>(
