@@ -1,5 +1,7 @@
 use super::{ImageReadBudget, ImageReadBudgetError, ImageReadResource};
 
+mod conversion;
+
 #[test]
 fn default_budget_matches_the_documented_resource_ceilings() {
     assert_eq!(ImageReadBudget::DEFAULT.max_encoded_bytes(), 1_073_741_824);

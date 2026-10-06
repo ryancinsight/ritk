@@ -71,14 +71,25 @@
 
 <a id="RITK-IMAGE-CONVERSION-PREFLIGHT-001"></a>
 ## RITK-IMAGE-CONVERSION-PREFLIGHT-001: Preflight stored-volume conversions
-- outcome: determine typed volume-conversion compatibility and information loss before opening the target.
-- acceptance: a conversion plan identifies source and target capabilities and reports sample, geometry, calibration, acquisition, and format-metadata preservation or typed loss; rejected plans leave an existing destination unchanged.
+- outcome: compare stored-series semantics with a format's capabilities before output preparation.
+- acceptance: success borrows the source and reports target capabilities; rejection lists each unsupported sample, geometry, coordinate-map, calibration, acquisition, or declared metadata semantic, with volume indices. Adapters prepare before opening output.
 - status: todo
 - priority: architecture
 - needs: none
 - scope: crates/ritk-image-io/, crates/ritk-io/, conversion tests, docs/adr/0054-stored-volume-contract.md
-- next: revise ADR 0054 in place to define capability, loss, and prepare-before-write contracts; then test a real NRRD↔NIfTI round trip.
-- basis: c58d8906bee373a7d2f87468fafc140310b9ec70
+- next: finish the typed preflight, then integrate it into the RITK NRRD↔NIfTI document conversion.
+- basis: cd90957d25988d7e1455b43f7202162385e94b39
+
+<a id="RITK-NIFTI-DOCUMENT-001"></a>
+## RITK-NIFTI-DOCUMENT-001: Read and write typed NIfTI documents
+- outcome: construct NIfTI documents from stored RITK series without an intermediate file.
+- acceptance: supported NIfTI-1 and NIfTI-2 documents preserve exact stored samples, spatial mapping, calibration, and acquisition metadata; unrepresentable header semantics return typed losses before destination creation.
+- status: todo
+- priority: correctness
+- needs: RITK-IMAGE-CONVERSION-PREFLIGHT-001
+- scope: crates/ritk-nifti/, NIfTI guide, document tests
+- next: define the typed document constructor and reader/writer contract for supported sample and spatial forms.
+- basis: cd90957d25988d7e1455b43f7202162385e94b39
 
 <a id="RITK-NRRD-DOCUMENT-001"></a>
 ## RITK-NRRD-DOCUMENT-001: Read and write complete NRRD documents
