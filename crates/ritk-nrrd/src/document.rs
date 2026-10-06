@@ -19,31 +19,22 @@ pub struct NrrdDocument {
 /// Failure returned while constructing, reading, or writing a document.
 #[derive(Debug, Error)]
 pub enum NrrdDocumentError {
-    /// The stored-series reader rejected the source.
     #[error(transparent)]
     Read(#[from] NrrdStoredReadError),
-    /// The NRRD header parser rejected the source or entry budget.
     #[error(transparent)]
     Header(#[from] NrrdHeaderError),
-    /// Caller metadata would replace a typed field.
     #[error("NRRD metadata conflicts with generated field {name:?}")]
     ConflictingMetadata { name: String },
-    /// The document model cannot retain the named field.
     #[error("NRRD standard field {field:?} cannot be retained")]
     UnsupportedField { field: String },
-    /// The stored-series writer rejected the typed data.
     #[error(transparent)]
     Write(#[from] NrrdStoredWriteError),
-    /// The destination could not be created or written.
     #[error(transparent)]
     Io(#[from] std::io::Error),
 }
 impl NrrdDocument {
     /// Constructs a document without an intermediate file.
-    ///
-    /// # Errors
-    /// Returns [`NrrdDocumentError::UnsupportedField`] for metadata the reader
-    /// cannot retain or the writer cannot encode safely.
+    /// Returns a typed error for metadata the reader cannot retain.
     pub fn new(
         series: StoredSeries,
         comments: Vec<String>,
@@ -68,7 +59,7 @@ impl NrrdDocument {
                 || key.contains(":=")
                 || key.contains(['\r', '\n'])
                 || !value.is_ascii()
-                || value.contains('\r')
+                || value.contains(['\r', '\n'])
                 || unsupported_dwmri_name(key)
                 || unsupported_modality(key, value)
         }) {
@@ -195,10 +186,7 @@ impl NrrdDocument {
     }
 }
 /// Reads a complete NRRD document without an intermediate conversion file.
-///
-/// # Errors
-/// Returns a typed loss error before any destination is opened when a standard
-/// field or record cannot be represented by [`NrrdDocument`].
+/// Returns a typed loss error for fields the document cannot represent.
 pub fn read_nrrd_document<P: AsRef<Path>>(
     path: P,
     budget: ImageReadBudget,
@@ -211,15 +199,6 @@ pub fn read_nrrd_document<P: AsRef<Path>>(
         .filter(|c| c.as_str() != GENERATED_COMMENT)
         .cloned()
         .collect();
-    if header
-        .key_value_records()
-        .iter()
-        .any(|r| unsupported_dwmri_name(r.key()) || unsupported_modality(r.key(), r.value()))
-    {
-        return Err(NrrdDocumentError::UnsupportedField {
-            field: "DWMRI metadata on a non-diffusion axis".to_owned(),
-        });
-    }
     let records = header
         .key_value_records()
         .iter()
@@ -271,10 +250,7 @@ fn unsupported_modality(name: &str, value: &str) -> bool {
         && (name != "modality" || value.eq_ignore_ascii_case("DWMRI"))
 }
 /// Writes a document atomically with respect to validation failures.
-///
-/// # Errors
-/// Returns before opening the destination when retained metadata conflicts with
-/// typed output or exceeds the parser's header-entry budget.
+/// Returns before opening the destination when retained metadata is invalid.
 pub fn write_nrrd_document<P: AsRef<Path>>(
     path: P,
     document: &NrrdDocument,

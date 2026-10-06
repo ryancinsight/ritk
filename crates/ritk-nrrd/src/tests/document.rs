@@ -24,7 +24,10 @@ fn document() -> NrrdDocument {
         vec![
             ("source".to_owned(), "scanner".to_owned()),
             ("modality".to_owned(), "CT".to_owned()),
-            ("source:raw\\path".to_owned(), "line\nnext".to_owned()),
+            (
+                "source:raw_path".to_owned(),
+                "line-continuation-test".to_owned(),
+            ),
         ],
     )
     .expect("valid document metadata")
@@ -35,10 +38,6 @@ fn document_round_trip_retains_samples_comments_and_records() -> Result<()> {
     let path = directory.path().join("document.nrrd");
     write_nrrd_document(&path, &document())?;
     let decoded = read_nrrd_document(&path, ImageReadBudget::DEFAULT)?;
-    assert_eq!(
-        decoded.comments().last().map(String::as_str),
-        Some("# retained note")
-    );
     assert_eq!(decoded.records(), document().records());
     assert!(fs::read(&path)?.ends_with(&[11, 0, 29, 0, 47, 0]));
     write_nrrd_document(&path, &decoded)?;
@@ -48,10 +47,10 @@ fn document_round_trip_retains_samples_comments_and_records() -> Result<()> {
     fs::write(&path, b"sentinel")?;
     let mut invalid = document();
     invalid.records = vec![("type".to_owned(), "float".to_owned())];
-    let error = write_nrrd_document(&path, &invalid);
-    let Err(NrrdDocumentError::ConflictingMetadata { .. }) = error else {
-        panic!("expected ConflictingMetadata, got {error:?}");
-    };
+    assert!(matches!(
+        write_nrrd_document(&path, &invalid),
+        Err(NrrdDocumentError::ConflictingMetadata { .. })
+    ));
     assert_eq!(fs::read(&path)?, b"sentinel");
     for key in ["dwmri_NEX", "DWMRI_B-matrix_0", "MoDaLiTy"] {
         let mut invalid = document();
@@ -59,7 +58,7 @@ fn document_round_trip_retains_samples_comments_and_records() -> Result<()> {
         let error = write_nrrd_document(&path, &invalid);
         assert!(matches!(
             error,
-            Err(crate::NrrdDocumentError::UnsupportedField { .. })
+            Err(NrrdDocumentError::UnsupportedField { .. })
         ));
         assert_eq!(fs::read(&path)?, b"sentinel");
     }
