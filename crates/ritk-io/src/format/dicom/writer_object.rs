@@ -148,7 +148,7 @@ mod tests {
                 .expect("PixelData")
                 .to_bytes()
                 .expect("pixel bytes"),
-            vec![7]
+            vec![7, 0]
         );
     }
 
