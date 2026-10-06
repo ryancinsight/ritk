@@ -20,7 +20,8 @@ use super::geometry::{
 };
 use super::pixel::{read_slice_pixels, read_slice_pixels_from_bytes};
 use super::scan::scan_dicom_path_with_budget;
-use super::types::{DicomReadBudget, DicomReadMetadata, DicomSeriesInfo, DicomSliceMetadata};
+use super::types::{DicomReadMetadata, DicomSeriesInfo, DicomSliceMetadata};
+use super::DicomReadBudget;
 
 /// Read a DICOM series and return both the image and metadata.
 ///

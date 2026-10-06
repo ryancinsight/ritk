@@ -163,4 +163,11 @@ fn test_dicom_read_budget_rejects_zero_workflow_ceiling() {
         decoded_error.to_string().contains("decoded-byte"),
         "unexpected decoded ceiling error: {decoded_error}"
     );
+
+    let instance_error = DicomReadBudget::try_new_with_max_instances(ParseBudget::DEFAULT, 1, 1, 0)
+        .expect_err("zero candidate instances must be rejected");
+    assert!(
+        instance_error.to_string().contains("instance-count"),
+        "unexpected instance ceiling error: {instance_error}"
+    );
 }

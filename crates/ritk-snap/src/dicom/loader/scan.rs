@@ -2,7 +2,7 @@
 use crate::dicom::input_path::classify_dicom_input_path;
 use crate::dicom::series_tree::{SeriesEntry, SeriesEntryView, SeriesTree};
 use anyhow::{Context, Result};
-use ritk_io::{scan_dicom_directory, scan_dicom_files, DicomReadMetadata, DicomSeriesInfo};
+use ritk_io::{scan_dicom_files, DicomReadMetadata, DicomSeriesInfo, DicomStudyCatalog};
 use std::path::{Path, PathBuf};
 use walkdir::WalkDir;
 
@@ -18,7 +18,9 @@ pub fn scan_folder_for_series<P: AsRef<Path>>(folder: P) -> Result<SeriesTree<'s
     let requested = folder.as_ref();
     let mut entries: Vec<SeriesEntry> = Vec::new();
     if is_index(requested) && !requested.is_dir() {
-        entries.extend(entries_with_metadata(scan_dicom_directory(requested)?)?);
+        entries.extend(entries_with_metadata(
+            DicomStudyCatalog::scan(requested)?.into_series(),
+        )?);
     } else {
         let root = classify_dicom_input_path(requested)
             .dicom_root()
@@ -39,7 +41,9 @@ pub fn scan_folder_for_series<P: AsRef<Path>>(folder: P) -> Result<SeriesTree<'s
                 .map(|child| child.map(|child| child.path()))
                 .collect::<std::io::Result<_>>()?;
             let indexed = children.iter().any(|child| is_index(child));
-            entries.extend(entries_with_metadata(scan_dicom_directory(entry.path())?)?);
+            entries.extend(entries_with_metadata(
+                DicomStudyCatalog::scan(entry.path())?.into_series(),
+            )?);
             if indexed {
                 directories.skip_current_dir();
             }

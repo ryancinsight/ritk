@@ -356,6 +356,11 @@ This session format does not persist the secondary comparison acquisition.
 Native tests exercise the RITK series selector and exact UID load path alongside
 the existing egui series-row pointer events, primary/secondary loads, failed
 replacement, and session restore with deterministic Part 10 files.
+`ritk_io::DicomStudyCatalog` is the shared discovery boundary: each row exposes
+the series UID, instance count, description, modality, patient identifier, and
+member paths. CLI inspection accepts `--series-instance-uid <UID>` and rejects
+an ambiguous study when the option is absent. Python's `series_instance_uid`
+argument and RITK-SNAP's series tree use the same exact-selection contract.
 The IO tests load a complete synthetic linked PATIENT/STUDY/SERIES/IMAGE index,
 then exercise inactive and unreachable records, malformed links, identity
 mismatches, and final-component symlinks. They compare active member paths and

@@ -17,6 +17,7 @@ use std::path::{Path, PathBuf};
 
 use crate::format::dicom::transfer_syntax::TransferSyntaxKind;
 
+use super::catalog::DicomStudyCatalog;
 use super::scan::scan_dicom_directory;
 use super::types::DicomSeriesInfo;
 
@@ -320,11 +321,6 @@ pub fn read_native_dicom_series_with_uid<B: ComputeBackend, P: AsRef<Path>>(
     series_instance_uid: &str,
     backend: &B,
 ) -> Result<NativeImage<f32, B, 3>> {
-    let requested_uid = series_instance_uid.trim();
-    if requested_uid.is_empty() {
-        bail!("SeriesInstanceUID selection must not be empty");
-    }
-
     let path = path.as_ref();
     if !path.is_dir() {
         bail!(
@@ -332,20 +328,9 @@ pub fn read_native_dicom_series_with_uid<B: ComputeBackend, P: AsRef<Path>>(
             path.display()
         );
     }
-
-    let series_list = scan_dicom_directory(path)?;
-    let series = series_list
-        .into_iter()
-        .find(|series| series.series_instance_uid() == requested_uid)
-        .ok_or_else(|| {
-            anyhow::anyhow!(
-                "SeriesInstanceUID {:?} was not found in DICOM directory {}",
-                requested_uid,
-                path.display()
-            )
-        })?;
-
-    load_native_dicom_series(&series, backend)
+    DicomStudyCatalog::scan(path)?
+        .load(series_instance_uid, backend)
+        .map(|(image, _metadata)| image)
 }
 
 // --- Helpers ---

@@ -60,15 +60,25 @@ Native directory callers that already have the acquisition UID use
 UID, and only then decodes the selected series. Omitting an explicit selection
 continues to require one unambiguous image series.
 
+Multi-series workflows use `DicomStudyCatalog::scan`. Its `series()` slice
+reports each `SeriesInstanceUID`, `instance_count()`, description, modality,
+patient identifier, and member paths. `load(uid, backend)` validates only the
+selected member set, then returns its decoded image and complete geometry
+metadata. `scan_with_budget` rejects an excessive candidate count or cumulative
+encoded size before parsing any candidate. The catalog never selects the
+largest or first series implicitly.
+
 The bounded DICOM reader scan and series-load entry points have a `*_with_budget`
 form accepting the typed `DicomReadBudget`. Its parser component is the Atlas
-`ritk_dicom::ParseBudget`; the other fields set independent retained-study and
-decoded-workspace ceilings. Construct one with
+`ritk_dicom::ParseBudget`; the other fields set independent candidate-count,
+retained-study, and decoded-workspace ceilings. Construct one with
 `DicomReadBudget::try_new(parser, max_retained_bytes, max_decoded_bytes)` when a
-host needs limits below the finite default. Structural validation runs before
-dicom-rs object materialization, retained bytes are charged before each slice
-is stored, and the loader checks the planned peak frame/resample/volume
-workspace before allocation. Budgeted filesystem reads resolve a path once,
+host needs limits below the finite default, or
+`DicomReadBudget::try_new_with_max_instances` to set the candidate ceiling
+independently. Structural validation runs before dicom-rs object
+materialization, retained bytes are charged before each slice is stored, and
+the loader checks the planned peak frame/resample/volume workspace before
+allocation. Budgeted filesystem reads resolve a path once,
 compare the opened handle with the resolved path metadata, and read from that
 handle. Scanned slices retain those validated bytes for later decoding.
 
