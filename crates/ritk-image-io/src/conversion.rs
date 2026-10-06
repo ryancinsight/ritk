@@ -182,6 +182,120 @@ pub fn report_conversion_capabilities<T: ConversionTarget>(
     }
 }
 
+/// A target adapter that can prepare a write plan from a stored series.
+///
+/// Implementations check every input-dependent constraint that their format
+/// imposes, including cross-volume values and format-specific limits. They
+/// inspect the supplied series without opening or changing an output. A plan
+/// is returned only when the complete input can be represented.
+pub trait ConversionAdapter: ConversionTarget {
+    /// Target-owned immutable data required by the corresponding writer.
+    type Plan;
+
+    /// Typed reason that the target cannot represent the source.
+    type Rejection: ConversionRejection;
+
+    /// Prepare target-owned data without mutating an output.
+    ///
+    /// Rejections identify the exact series, volume, or frame that violates
+    /// the target contract.
+    fn prepare(&self, series: &StoredSeries) -> Result<Self::Plan, Self::Rejection>;
+}
+
+/// A target rejection with the exact scope that cannot be represented.
+pub trait ConversionRejection: std::error::Error {
+    /// Returns the series, volume, or frame rejected by the target.
+    fn location(&self) -> ConversionLocation;
+}
+
+/// A conversion blocked by reported information loss or a target constraint.
+#[derive(Debug, thiserror::Error)]
+#[non_exhaustive]
+pub enum ConversionPrepareError<E: ConversionRejection> {
+    /// The capability report contains one or more unsupported semantics.
+    #[error("conversion is blocked by unsupported source semantics")]
+    Capabilities(ConversionCapabilityReport),
+    /// The target rejected an input-dependent value or combination.
+    #[error("target {target_format} rejects input at {location:?}: {source}")]
+    Target {
+        /// Stable format identifier declared by the adapter.
+        target_format: &'static str,
+        /// Exact source scope rejected by the adapter.
+        location: ConversionLocation,
+        /// Target-owned typed rejection.
+        #[source]
+        source: E,
+    },
+}
+
+/// A target plan tied to the exact immutable source series it checked.
+#[must_use = "pass the prepared conversion to its target writer"]
+pub struct PreparedConversion<'a, T: ConversionAdapter> {
+    target: &'a T,
+    series: &'a StoredSeries,
+    capabilities: ConversionCapabilityReport,
+    plan: T::Plan,
+}
+
+impl<'a, T: ConversionAdapter> PreparedConversion<'a, T> {
+    /// Returns the target adapter that prepared this conversion.
+    pub const fn target(&self) -> &T {
+        self.target
+    }
+
+    /// Returns the exact immutable stored series checked by the target.
+    pub const fn series(&self) -> &StoredSeries {
+        self.series
+    }
+
+    /// Returns the report for the source and target formats.
+    pub const fn capabilities(&self) -> &ConversionCapabilityReport {
+        &self.capabilities
+    }
+
+    /// Returns the target-owned write plan.
+    pub const fn plan(&self) -> &T::Plan {
+        &self.plan
+    }
+}
+
+/// Checks declared losses and target-owned value constraints before writing.
+///
+/// The capability report is a first rejection boundary. If it is loss-free,
+/// the target adapter checks input-dependent constraints and constructs the
+/// exact plan returned to the writer. This function accepts no destination,
+/// so a rejected conversion cannot create or alter an output.
+///
+/// # Errors
+///
+/// Returns the complete scoped capability report when any declared semantic
+/// cannot be preserved, or the target's typed rejection for an unrepresentable
+/// value or cross-volume combination.
+pub fn prepare_conversion<'a, T: ConversionAdapter>(
+    target: &'a T,
+    source_format: &'static str,
+    series: &'a StoredSeries,
+    metadata_losses: impl IntoIterator<Item = FormatMetadataLoss>,
+) -> Result<PreparedConversion<'a, T>, ConversionPrepareError<T::Rejection>> {
+    let capabilities = report_conversion_capabilities::<T>(source_format, series, metadata_losses);
+    if !capabilities.losses.is_empty() {
+        return Err(ConversionPrepareError::Capabilities(capabilities));
+    }
+    let plan = target
+        .prepare(series)
+        .map_err(|source| ConversionPrepareError::Target {
+            target_format: T::FORMAT,
+            location: source.location(),
+            source,
+        })?;
+    Ok(PreparedConversion {
+        target,
+        series,
+        capabilities,
+        plan,
+    })
+}
+
 fn coordinate_feature(map: &CoordinateMap) -> ConversionFeature {
     match map {
         CoordinateMap::Cartesian => ConversionFeature::CartesianCoordinates,

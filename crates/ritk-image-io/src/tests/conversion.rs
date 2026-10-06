@@ -4,10 +4,12 @@ use ritk_image::ImageMetadata;
 use ritk_spatial::{CoordinateMap, PhasedArray3D, Vector};
 
 use crate::{
-    report_conversion_capabilities, ConversionCapabilityReport, ConversionFeature,
-    ConversionLocation, ConversionLoss, ConversionTarget, FormatMetadataLoss, IntensityCalibration,
-    LinearCalibration, SeriesAxis, StoredSeries, StoredVolume,
+    prepare_conversion, report_conversion_capabilities, ConversionAdapter,
+    ConversionCapabilityReport, ConversionFeature, ConversionLocation, ConversionLoss,
+    ConversionPrepareError, ConversionRejection, ConversionTarget, FormatMetadataLoss,
+    IntensityCalibration, LinearCalibration, SeriesAxis, StoredSeries, StoredVolume,
 };
+use thiserror::Error;
 
 struct FullTarget;
 
@@ -143,5 +145,155 @@ fn unsupported_feature_report_identifies_each_volume_and_series_axis() {
             volume_loss(1, ConversionFeature::IdentityCalibration),
             unsupported(ConversionLocation::Series, ConversionFeature::DiffusionAxis,),
         ]
+    );
+}
+
+#[derive(Default)]
+struct UniformTarget {
+    preparation_calls: std::cell::Cell<usize>,
+}
+
+impl ConversionTarget for UniformTarget {
+    const FORMAT: &'static str = "uniform";
+    const FEATURES: &'static [ConversionFeature] = &[
+        ConversionFeature::SampleType(SampleType::U16),
+        ConversionFeature::PhysicalGeometry,
+        ConversionFeature::CartesianCoordinates,
+        ConversionFeature::IdentityCalibration,
+        ConversionFeature::SingleVolumeAxis,
+        ConversionFeature::ListAxis,
+    ];
+}
+
+struct UniformPlan {
+    shape: [usize; 3],
+}
+
+#[derive(Debug, Error, Eq, PartialEq)]
+enum TargetRejection {
+    #[error("volume shape {actual:?} differs from {expected:?}")]
+    ShapeMismatch {
+        location: ConversionLocation,
+        expected: [usize; 3],
+        actual: [usize; 3],
+    },
+    #[error("stored series contains no volume")]
+    EmptySeries,
+}
+
+impl ConversionRejection for TargetRejection {
+    fn location(&self) -> ConversionLocation {
+        match self {
+            Self::ShapeMismatch { location, .. } => *location,
+            Self::EmptySeries => ConversionLocation::Series,
+        }
+    }
+}
+
+impl ConversionAdapter for UniformTarget {
+    type Plan = UniformPlan;
+    type Rejection = TargetRejection;
+
+    fn prepare(&self, series: &StoredSeries) -> Result<Self::Plan, Self::Rejection> {
+        self.preparation_calls.set(self.preparation_calls.get() + 1);
+        let Some((first, rest)) = series.volumes().split_first() else {
+            return Err(TargetRejection::EmptySeries);
+        };
+        let shape = first.shape();
+        for (offset, volume) in rest.iter().enumerate() {
+            if volume.shape() != shape {
+                return Err(TargetRejection::ShapeMismatch {
+                    location: ConversionLocation::Volume {
+                        volume_index: offset + 1,
+                    },
+                    expected: shape,
+                    actual: volume.shape(),
+                });
+            }
+        }
+        Ok(UniformPlan { shape })
+    }
+}
+
+#[test]
+fn prepared_conversion_carries_the_target_plan_and_exact_source() {
+    let target = UniformTarget::default();
+    let series = StoredSeries::new(
+        vec![
+            volume(vec![17, 29], IntensityCalibration::Identity),
+            volume(vec![31, 47], IntensityCalibration::Identity),
+        ],
+        SeriesAxis::List,
+    )
+    .expect("two-volume list series");
+
+    let prepared = prepare_conversion(&target, "dicom", &series, [])
+        .expect("target accepts matching volume shapes");
+
+    assert_eq!(target.preparation_calls.get(), 1);
+    assert!(std::ptr::eq(prepared.target(), &target));
+    assert!(std::ptr::eq(prepared.series(), &series));
+    assert_eq!(prepared.plan().shape, [1, 1, 2]);
+    assert_eq!(prepared.capabilities().source_format, "dicom");
+    assert_eq!(prepared.capabilities().target_format, "uniform");
+    assert!(prepared.capabilities().losses.is_empty());
+}
+
+#[test]
+fn prepared_conversion_reports_cross_volume_mismatch_at_the_later_volume() {
+    let target = UniformTarget::default();
+    let series = StoredSeries::new(
+        vec![
+            volume(vec![17, 29], IntensityCalibration::Identity),
+            volume(vec![31], IntensityCalibration::Identity),
+        ],
+        SeriesAxis::List,
+    )
+    .expect("stored series permits per-volume shapes");
+
+    let Err(ConversionPrepareError::Target {
+        target_format,
+        location,
+        source: TargetRejection::ShapeMismatch {
+            expected, actual, ..
+        },
+    }) = prepare_conversion(&target, "dicom", &series, [])
+    else {
+        panic!("target must reject the non-uniform series at its mismatching volume");
+    };
+
+    assert_eq!(target.preparation_calls.get(), 1);
+    assert_eq!(target_format, "uniform");
+    assert_eq!(location, ConversionLocation::Volume { volume_index: 1 });
+    assert_eq!(expected, [1, 1, 2]);
+    assert_eq!(actual, [1, 1, 1]);
+}
+
+#[test]
+fn reported_information_loss_prevents_target_preparation() {
+    let target = UniformTarget::default();
+    let series = StoredSeries::new(
+        vec![volume(vec![17], IntensityCalibration::Identity)],
+        SeriesAxis::SingleVolume,
+    )
+    .expect("single-volume series");
+    let loss = FormatMetadataLoss::UnknownSemantics {
+        location: ConversionLocation::Frame {
+            volume_index: 0,
+            frame_index: 0,
+        },
+        field: Box::from("private_geometry_tag"),
+    };
+
+    let Err(ConversionPrepareError::Capabilities(report)) =
+        prepare_conversion(&target, "dicom", &series, [loss.clone()])
+    else {
+        panic!("reported metadata loss must prevent a prepared conversion");
+    };
+
+    assert_eq!(target.preparation_calls.get(), 0);
+    assert_eq!(
+        report.losses.as_ref(),
+        &[ConversionLoss::FormatMetadata(loss)]
     );
 }

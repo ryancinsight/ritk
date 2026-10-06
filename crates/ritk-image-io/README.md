@@ -31,6 +31,10 @@ assert_eq!(volume.shape(), [1, 1, 2]);
 # Ok::<(), Box<dyn std::error::Error>>(())
 ~~~
 
-Format adapters own validation. Capabilities list feature categories and scoped
-metadata losses but do not validate cross-volume or format-specific limits or
-authorize output; writers validate values before creating or replacing files.
+Format adapters own validation. Capability reports list feature categories and
+scoped metadata losses. `prepare_conversion` rejects reported losses, then asks
+the selected target adapter to validate cross-volume values and format limits
+and produce a target-owned plan. Its `PreparedConversion` keeps the plan tied to
+the exact immutable series checked. Source readers supply losses for metadata
+that the shared model cannot retain. Preparation takes no destination path, so
+a writer receives a witness only after the full target contract passes.

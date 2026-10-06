@@ -19,8 +19,10 @@ pub use calibration::{
     LutOutputBits, ModalityLookupTable,
 };
 pub use conversion::{
-    report_conversion_capabilities, ConversionCapabilityReport, ConversionFeature,
-    ConversionLocation, ConversionLoss, ConversionTarget, FormatMetadataLoss,
+    prepare_conversion, report_conversion_capabilities, ConversionAdapter,
+    ConversionCapabilityReport, ConversionFeature, ConversionLocation, ConversionLoss,
+    ConversionPrepareError, ConversionRejection, ConversionTarget, FormatMetadataLoss,
+    PreparedConversion,
 };
 pub use read_budget::{ImageReadBudget, ImageReadBudgetError, ImageReadResource};
 pub use series::{SeriesAxis, StoredSeries, StoredSeriesError};

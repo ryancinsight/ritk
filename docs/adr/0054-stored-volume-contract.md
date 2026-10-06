@@ -2,7 +2,8 @@
 
 - Status: Accepted
 
-- Revision 2026-10-06: Added report-only capabilities; full preflight remains separate (PR #785).
+- Revision 2026-10-06: Added source-bound preparation after capability
+  reporting (PR #777, following PR #785).
 - Revision 2026-10-04: nonzero NRRD DWI gradients require an explicit
   measurement frame; an all-zero baseline remains valid without one. The
   stored writer emits NRRD0005 with an identity frame for LPS gradients.
@@ -34,11 +35,15 @@ coordinate-map rank, and per-frame calibration depth. Small positive spacings
 retain their direction; only zero or non-finite lengths use an axis fallback.
 
 Format adapters own header parsing and serialization and exchange
-`StoredVolume` for lossless reads and writes. `ritk-image-io` reports feature
-categories and scoped metadata losses; preflight checks value, cross-volume
-uniformity, and adapter-specific limits before output. A caller
-that wants compute-ready values uses the existing image API or an explicit
-calibration operation; stored reads do not silently rescale samples.
+`StoredVolume` values for lossless reads and writes. `ritk-image-io` reports
+feature categories and scoped metadata losses. `prepare_conversion` rejects
+those losses before calling a target `ConversionAdapter`; the target validates
+input values and cross-volume constraints and returns a target-owned plan tied
+to the exact immutable series. Preparation takes no destination, so a rejected
+conversion cannot create or change output. Callers supply metadata losses for
+source fields the shared model cannot retain. Callers that want compute-ready
+values use the existing image API or an explicit calibration operation; stored
+reads do not silently rescale samples.
 
 NRRD maps all ten fixed-width codec sample types and the standard type aliases
 to its declared element type, reads both binary payload byte orders, writes
@@ -94,9 +99,13 @@ because the stored-volume model cannot retain those semantics.
 
 The shared crate depends inward on codecs, image metadata, and spatial mapping;
 format adapters depend on the shared contract. It does not parse a format or
-convert values. Its capability report inventories categories, while the shared
-preparation contract and each adapter establish actual representability before
-writing. Pairwise round-trip tests remain format-owned.
+convert values. Its capability report inventories categories but does not authorize
+output. `PreparedConversion` pairs a loss-free report with a target-owned plan
+and its exact source. Each format-conversion entry point must pass the
+prepared value to its target writer before opening output. The first
+NRRD/NIfTI conversion consumer is tracked by
+[RITK-NRRD-NIFTI-001](../../backlog.md#RITK-NRRD-NIFTI-001). Pairwise
+round-trip tests remain format-owned.
 
 ## Evidence and revision criteria
 
@@ -105,6 +114,8 @@ read all sample types in both byte orders and round-trip each sample type in
 the writer's little-endian encoding, preserve wide integer and floating-point bit patterns, verify both acquisition layouts, and reject
 unsupported calibration without changing an existing output. A public-reader
 test checks the typed decoded-byte budget error, including gzip byte skips.
+Conversion tests check scoped reports, exact source-bound plans, later-volume
+rejection, and rejection before a plan is returned when declared loss remains.
 Header tests cover standard alias canonicalization, geometry tests reject
 per-axis units without a spacing source, and diffusion writer tests assert the
 NRRD0005 measurement frame. Revise this decision if a
