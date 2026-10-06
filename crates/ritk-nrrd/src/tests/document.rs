@@ -1,4 +1,4 @@
-use crate::{NrrdDocument, NrrdDocumentError, read_nrrd_document, write_nrrd_document};
+use crate::{read_nrrd_document, write_nrrd_document, NrrdDocument, NrrdDocumentError};
 use anyhow::Result;
 use ritk_codecs::{ByteOrder, SampleBuffer};
 use ritk_image::ImageMetadata;
