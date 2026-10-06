@@ -195,8 +195,7 @@ impl ConversionAdapter for UniformTarget {
     type Rejection = TargetRejection;
 
     fn prepare(&self, series: &StoredSeries) -> Result<Self::Plan, Self::Rejection> {
-        self.preparation_calls
-            .set(self.preparation_calls.get() + 1);
+        self.preparation_calls.set(self.preparation_calls.get() + 1);
         let Some((first, rest)) = series.volumes().split_first() else {
             return Err(TargetRejection::EmptySeries);
         };
