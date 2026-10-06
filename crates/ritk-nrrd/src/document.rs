@@ -9,29 +9,41 @@ use std::fs::File;
 use std::io::{BufWriter, Write};
 use std::path::Path;
 use thiserror::Error;
+/// An in-memory NRRD document retaining typed samples and representable metadata.
 #[derive(Debug)]
 pub struct NrrdDocument {
     series: StoredSeries,
     comments: Vec<String>,
     pub(crate) records: Vec<(String, String)>,
 }
+/// Failure returned while constructing, reading, or writing a document.
 #[derive(Debug, Error)]
 pub enum NrrdDocumentError {
+    /// The stored-series reader rejected the source.
     #[error(transparent)]
     Read(#[from] NrrdStoredReadError),
+    /// The NRRD header parser rejected the source or entry budget.
     #[error(transparent)]
     Header(#[from] NrrdHeaderError),
+    /// Caller metadata would replace a typed field.
     #[error("NRRD metadata conflicts with generated field {name:?}")]
     ConflictingMetadata { name: String },
+    /// The document model cannot retain the named field.
     #[error("NRRD standard field {field:?} cannot be retained")]
     UnsupportedField { field: String },
+    /// The stored-series writer rejected the typed data.
     #[error(transparent)]
     Write(#[from] NrrdStoredWriteError),
+    /// The destination could not be created or written.
     #[error(transparent)]
     Io(#[from] std::io::Error),
 }
 impl NrrdDocument {
-    /// Constructs a document without writing an intermediate file.
+    /// Constructs a document without an intermediate file.
+    ///
+    /// # Errors
+    /// Returns [`NrrdDocumentError::UnsupportedField`] for metadata the reader
+    /// cannot retain or the writer cannot encode safely.
     pub fn new(
         series: StoredSeries,
         comments: Vec<String>,
@@ -42,6 +54,8 @@ impl NrrdDocument {
                 || comment.len() < 2
                 || !comment.starts_with('#')
                 || comment.contains(['\r', '\n'])
+                || comment.chars().all(|character| character == '#')
+                || comment == GENERATED_COMMENT
         }) {
             return Err(NrrdDocumentError::UnsupportedField {
                 field: "metadata".to_owned(),
@@ -56,6 +70,7 @@ impl NrrdDocument {
                 || !value.is_ascii()
                 || value.contains('\r')
                 || unsupported_dwmri_name(key)
+                || (key.eq_ignore_ascii_case("modality") && value.eq_ignore_ascii_case("DWMRI"))
         }) {
             return Err(NrrdDocumentError::UnsupportedField {
                 field: "metadata".to_owned(),
@@ -67,12 +82,15 @@ impl NrrdDocument {
             records,
         })
     }
+    /// Returns the typed stored series.
     pub fn series(&self) -> &StoredSeries {
         &self.series
     }
+    /// Returns comments retained for round-trip output.
     pub fn comments(&self) -> &[String] {
         &self.comments
     }
+    /// Returns non-generated key/value records retained for round-trip output.
     pub fn records(&self) -> &[(String, String)] {
         &self.records
     }
@@ -80,9 +98,16 @@ impl NrrdDocument {
         let Some(first) = self.series.volumes().first() else {
             return Err(NrrdStoredWriteError::EmptySeries.into());
         };
-        for (name, _) in self.records.iter() {
-            if generated_metadata_name(name) {
+        for (name, value) in self.records.iter() {
+            if generated_metadata_name(name, value) {
                 return Err(NrrdDocumentError::ConflictingMetadata { name: name.clone() });
+            }
+            if unsupported_dwmri_name(name)
+                || (name.eq_ignore_ascii_case("modality") && value.eq_ignore_ascii_case("DWMRI"))
+            {
+                return Err(NrrdDocumentError::UnsupportedField {
+                    field: name.clone(),
+                });
             }
         }
         let mut header = HeaderBuffer::new();
@@ -123,11 +148,12 @@ impl NrrdDocument {
             ));
         }
         result?;
-        let entries = std::str::from_utf8(header.bytes())
-            .expect("invariant: generated NRRD header is UTF-8")
-            .lines()
-            .count()
-            .saturating_sub(1);
+        let entries = header
+            .bytes()
+            .split(|byte| *byte == b'\n')
+            .skip(1)
+            .take_while(|line| !line.is_empty())
+            .count();
         if entries > crate::reader::MAX_HEADER_ENTRIES {
             return Err(NrrdDocumentError::Header(NrrdHeaderError::TooManyEntries {
                 maximum_entries: crate::reader::MAX_HEADER_ENTRIES,
@@ -170,6 +196,11 @@ impl NrrdDocument {
         Ok(())
     }
 }
+/// Reads a complete NRRD document without an intermediate conversion file.
+///
+/// # Errors
+/// Returns a typed loss error before any destination is opened when a standard
+/// field or record cannot be represented by [`NrrdDocument`].
 pub fn read_nrrd_document<P: AsRef<Path>>(
     path: P,
     budget: ImageReadBudget,
@@ -182,11 +213,10 @@ pub fn read_nrrd_document<P: AsRef<Path>>(
         .filter(|c| c.as_str() != GENERATED_COMMENT)
         .cloned()
         .collect();
-    if header
-        .key_value_records()
-        .iter()
-        .any(|r| unsupported_dwmri_name(r.key()))
-    {
+    if header.key_value_records().iter().any(|r| {
+        unsupported_dwmri_name(r.key())
+            || (r.key().eq_ignore_ascii_case("modality") && r.value().eq_ignore_ascii_case("DWMRI"))
+    }) {
         return Err(NrrdDocumentError::UnsupportedField {
             field: "DWMRI metadata on a non-diffusion axis".to_owned(),
         });
@@ -194,7 +224,7 @@ pub fn read_nrrd_document<P: AsRef<Path>>(
     let records = header
         .key_value_records()
         .iter()
-        .filter(|record| !generated_metadata_name(record.key()))
+        .filter(|record| !generated_metadata_name(record.key(), record.value()))
         .map(|record| (record.key().to_owned(), record.value().to_owned()))
         .collect();
     if header
@@ -211,7 +241,7 @@ pub fn read_nrrd_document<P: AsRef<Path>>(
 const SUPPORTED_FIELDS: &str = "type|dimension|space|space units|sizes|space directions|kinds|endian|encoding|space origin|measurement frame";
 const GENERATED_COMMENT: &str = "# Complete NRRD file written by ritk";
 
-fn generated_metadata_name(name: &str) -> bool {
+fn generated_metadata_name(name: &str, value: &str) -> bool {
     matches!(
         name,
         "type"
@@ -226,14 +256,21 @@ fn generated_metadata_name(name: &str) -> bool {
             | "space origin"
             | "measurement frame"
             | "ritk_coordinate_map"
-            | "modality"
             | "DWMRI_b-value"
     ) || name.starts_with("DWMRI_gradient_")
+        || (name == "modality" && value == "DWMRI")
 }
 
 fn unsupported_dwmri_name(name: &str) -> bool {
-    name.starts_with("DWMRI_") && !generated_metadata_name(name)
+    name.get(..6)
+        .is_some_and(|prefix| prefix.eq_ignore_ascii_case("DWMRI_"))
+        && !generated_metadata_name(name, "DWMRI")
 }
+/// Writes a document atomically with respect to validation failures.
+///
+/// # Errors
+/// Returns before opening the destination when retained metadata conflicts with
+/// typed output or exceeds the parser's header-entry budget.
 pub fn write_nrrd_document<P: AsRef<Path>>(
     path: P,
     document: &NrrdDocument,

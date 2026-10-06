@@ -1,4 +1,4 @@
-use crate::{read_nrrd_document, write_nrrd_document, NrrdDocument};
+use crate::{read_nrrd_document, write_nrrd_document, NrrdDocument, NrrdDocumentError};
 use anyhow::Result;
 use ritk_codecs::SampleBuffer;
 use ritk_image::ImageMetadata;
@@ -23,6 +23,7 @@ fn document() -> NrrdDocument {
         vec!["# retained note".to_owned()],
         vec![
             ("source".to_owned(), "scanner".to_owned()),
+            ("modality".to_owned(), "CT".to_owned()),
             ("source:raw\\path".to_owned(), "line\nnext".to_owned()),
         ],
     )
@@ -40,14 +41,27 @@ fn document_round_trip_retains_samples_comments_and_records() -> Result<()> {
     );
     assert_eq!(decoded.records(), document().records());
     assert!(fs::read(&path)?.ends_with(&[11, 0, 29, 0, 47, 0]));
+    write_nrrd_document(&path, &decoded)?;
+    let cycled = read_nrrd_document(&path, ImageReadBudget::DEFAULT)?;
+    assert_eq!(cycled.comments(), decoded.comments());
+    assert_eq!(cycled.records(), decoded.records());
     fs::write(&path, b"sentinel")?;
     let mut invalid = document();
     invalid.records = vec![("type".to_owned(), "float".to_owned())];
     let error = write_nrrd_document(&path, &invalid);
-    assert!(matches!(
-        error,
-        Err(crate::NrrdDocumentError::ConflictingMetadata { .. })
-    ));
+    let Err(NrrdDocumentError::ConflictingMetadata { .. }) = error else {
+        panic!("expected ConflictingMetadata, got {error:?}");
+    };
     assert_eq!(fs::read(&path)?, b"sentinel");
+    for key in ["dwmri_NEX", "DWMRI_B-matrix_0", "MoDaLiTy"] {
+        let mut invalid = document();
+        invalid.records = vec![(key.to_owned(), "1".to_owned())];
+        let error = write_nrrd_document(&path, &invalid);
+        assert!(matches!(
+            error,
+            Err(crate::NrrdDocumentError::UnsupportedField { .. })
+        ));
+        assert_eq!(fs::read(&path)?, b"sentinel");
+    }
     Ok(())
 }
