@@ -13,7 +13,8 @@ use ritk_dicom::{
 
 use super::dicomdir::{discover_files_with_budget, is_dicomdir};
 use super::parse::extract_dicom_metadata;
-use super::types::{DicomReadBudget, DicomSeriesInfo, DicomSliceMetadata, SeriesFirstSeen};
+use super::types::{DicomSeriesInfo, DicomSliceMetadata, SeriesFirstSeen};
+use super::DicomReadBudget;
 use crate::format::dicom::identity::image_series_uid;
 use crate::format::dicom::networking::scp::StoredInstance;
 use crate::format::dicom::object_model::{DicomObjectModel, DicomObjectNode, DicomTag};

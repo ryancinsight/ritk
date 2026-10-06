@@ -14,6 +14,7 @@
 //!   dedicated color loaders.
 //! - Pixel transfer syntax handling is centralized in `ritk-dicom`.
 
+mod budget;
 pub(super) mod detection;
 pub(super) mod dicomdir;
 mod dicomdir_bytes;
@@ -40,7 +41,8 @@ pub use scan::{
 };
 // scan::scan_dicom_directory is accessed directly via `reader::scan::scan_dicom_directory`
 // by sibling modules (color.rs). No re-export needed.
-pub use types::{literal_arraystring, DicomReadBudget};
+pub use budget::DicomReadBudget;
+pub use types::literal_arraystring;
 pub use types::{
     DicomReadMetadata, DicomSeriesInfo as ScannedDicomSeries, DicomSliceMetadata, PatientPosition,
 };
