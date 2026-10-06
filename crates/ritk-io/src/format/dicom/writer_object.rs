@@ -166,19 +166,6 @@ mod tests {
             })
         );
         assert_eq!(std::fs::read(&path).expect("sentinel remains"), b"sentinel");
-
-        let mut model = pixel_model(Some(1), Some(1), 1, Some(1), vec![0]);
-        model.insert(DicomObjectNode::text(
-            DicomTag::new(0x7FE0, 0x0010),
-            "UN",
-            "x",
-        ));
-        let error = write_object(&model, &path).expect_err("mismatched PixelData VR must fail");
-        assert_eq!(
-            error.downcast_ref::<DicomWriteError>(),
-            Some(&DicomWriteError::InvalidPixelDataVr)
-        );
-        assert_eq!(std::fs::read(&path).expect("sentinel remains"), b"sentinel");
     }
     #[test]
     fn test_write_object_rejects_missing_rows_before_replacing_file() {

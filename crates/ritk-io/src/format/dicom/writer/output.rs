@@ -37,7 +37,7 @@ fn pixel_scalar(
         .element(tag)
         .map_err(|_| DicomWriteError::MissingPixelAttribute { attribute: name })?
         .to_int::<u16>()
-        .map_err(|_| DicomWriteError::InvalidPixelAttribute { attribute: name })
+        .map_err(|_| DicomWriteError::MalformedPixelAttribute { attribute: name })
         .map_err(Into::into)
 }
 fn validate_pixel_module(object: &dicom::object::DefaultDicomObject) -> Result<()> {
@@ -72,11 +72,11 @@ fn validate_pixel_module(object: &dicom::object::DefaultDicomObject) -> Result<(
     .into_iter()
     .find(|(value, _)| *value == 0)
     {
-        return Err(DicomWriteError::InvalidPixelAttribute { attribute }.into());
+        return Err(DicomWriteError::ZeroPixelAttribute { attribute }.into());
     }
     let number_of_frames = pixel_scalar(object, Tag(0x0028, 0x0008), "NumberOfFrames")?;
     if number_of_frames == 0 {
-        return Err(DicomWriteError::InvalidPixelAttribute {
+        return Err(DicomWriteError::ZeroPixelAttribute {
             attribute: "NumberOfFrames",
         }
         .into());
@@ -102,9 +102,16 @@ fn validate_pixel_module(object: &dicom::object::DefaultDicomObject) -> Result<(
     let Ok(bytes) = pixel_data.to_bytes() else {
         return Ok(());
     };
+    let wire_expected = expected
+        .checked_add(expected % 2)
+        .ok_or(DicomWriteError::PixelCountOverflow)?;
     let actual = bytes.len();
-    if actual != expected {
-        return Err(DicomWriteError::PixelPayloadLengthMismatch { expected, actual }.into());
+    if actual != wire_expected {
+        return Err(DicomWriteError::PixelPayloadLengthMismatch {
+            expected: wire_expected,
+            actual,
+        }
+        .into());
     }
     Ok(())
 }

@@ -125,12 +125,12 @@ pub enum DicomWriteError {
         /// Serialized byte count.
         actual: usize,
     },
-    /// A required image-pixel dimension or multiplicity is zero or malformed.
-    #[error("DICOM {attribute} must be a positive unsigned value")]
-    InvalidPixelAttribute {
-        /// Name of the invalid attribute.
-        attribute: &'static str,
-    },
+    /// A required image-pixel attribute has an invalid encoded value.
+    #[error("DICOM {attribute} is malformed")]
+    MalformedPixelAttribute { attribute: &'static str },
+    /// A required image-pixel dimension or multiplicity is zero.
+    #[error("DICOM {attribute} must be positive")]
+    ZeroPixelAttribute { attribute: &'static str },
     /// PixelData uses a value representation other than OB or OW.
     #[error("DICOM PixelData VR must be OB or OW")]
     InvalidPixelDataVr,
