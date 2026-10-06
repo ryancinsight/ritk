@@ -40,10 +40,7 @@ fn document_round_trip_retains_samples_comments_and_records() -> Result<()> {
         decoded.comments().last().map(String::as_str),
         Some("# retained note")
     );
-    assert_eq!(
-        decoded.records().last().map(|record| record.1.as_str()),
-        Some("line\nnext")
-    );
+    assert_eq!(decoded.records(), document().records());
     assert!(fs::read(&path)?.ends_with(&[11, 0, 29, 0, 47, 0]));
     Ok(())
 }
@@ -57,7 +54,23 @@ fn rejected_document_leaves_existing_destination_unchanged() -> Result<()> {
     document
         .records
         .push(("type".to_owned(), "float".to_owned()));
-    assert!(write_nrrd_document(&path, &document).is_err());
+    assert!(matches!(
+        write_nrrd_document(&path, &document),
+        Err(crate::NrrdDocumentError::ConflictingMetadata { .. })
+    ));
     assert_eq!(fs::read(&path)?, b"sentinel");
     Ok(())
+}
+
+#[test]
+fn document_rejects_ambiguous_records() {
+    let series = document().series().clone();
+    for key in ["#source", "a:=b"] {
+        let error = NrrdDocument::new(series.clone(), Vec::new(), vec![(key.into(), "x".into())])
+            .expect_err("ambiguous record key");
+        assert!(matches!(
+            error,
+            crate::NrrdDocumentError::UnsupportedField { .. }
+        ));
+    }
 }

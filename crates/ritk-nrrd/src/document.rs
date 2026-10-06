@@ -54,7 +54,13 @@ impl NrrdDocument {
             });
         }
         if records.iter().any(|(key, value)| {
-            key.is_empty() || !key.is_ascii() || !value.is_ascii() || value.contains('\r')
+            key.is_empty()
+                || !key.is_ascii()
+                || key.starts_with('#')
+                || key.contains(":=")
+                || key.contains(['\r', '\n'])
+                || !value.is_ascii()
+                || value.contains('\r')
         }) {
             return Err(NrrdDocumentError::UnsupportedField {
                 field: "metadata".to_owned(),
@@ -84,18 +90,8 @@ impl NrrdDocument {
             .volumes()
             .first()
             .ok_or(NrrdStoredWriteError::EmptySeries)?;
-        let entries = 32usize
-            .saturating_add(self.series.volumes().len())
-            .saturating_add(self.comments.len())
-            .saturating_add(self.records.len());
-        if entries > crate::reader::MAX_HEADER_ENTRIES {
-            return Err(NrrdDocumentError::Header(NrrdHeaderError::TooManyEntries {
-                maximum_entries: crate::reader::MAX_HEADER_ENTRIES,
-            }));
-        }
         for (name, _) in self.records.iter() {
-            if generated_metadata_name(name, matches!(self.series.axis(), SeriesAxis::Diffusion(_)))
-            {
+            if generated_metadata_name(name) {
                 return Err(NrrdDocumentError::ConflictingMetadata { name: name.clone() });
             }
         }
@@ -137,6 +133,17 @@ impl NrrdDocument {
             ));
         }
         result?;
+        let entries = header
+            .bytes()
+            .split(|byte| *byte == b'\n')
+            .skip(1)
+            .take_while(|line| !line.is_empty())
+            .count();
+        if entries > crate::reader::MAX_HEADER_ENTRIES {
+            return Err(NrrdDocumentError::Header(NrrdHeaderError::TooManyEntries {
+                maximum_entries: crate::reader::MAX_HEADER_ENTRIES,
+            }));
+        }
         let Some((first, rest)) = self.series.volumes().split_first() else {
             return Err(NrrdStoredWriteError::EmptySeries.into());
         };
@@ -185,9 +192,21 @@ pub fn read_nrrd_document<P: AsRef<Path>>(
     let header = read_nrrd_header(path.as_ref())?;
     let series = read_nrrd_stored_series(path, budget)?;
     let comments = header.comments().to_vec();
+    let diffusion = matches!(series.axis(), SeriesAxis::Diffusion(_));
+    if !diffusion
+        && header
+            .key_value_records()
+            .iter()
+            .any(|record| record.key().to_ascii_lowercase().starts_with("dwmri_"))
+    {
+        return Err(NrrdDocumentError::UnsupportedField {
+            field: "DWMRI metadata on a non-diffusion axis".to_owned(),
+        });
+    }
     let records = header
         .key_value_records()
         .iter()
+        .filter(|record| !generated_metadata_name(record.key()))
         .map(|record| (record.key().to_owned(), record.value().to_owned()))
         .collect();
     let supported = "type|dimension|space|space units|sizes|space directions|kinds|endian|encoding|space origin|measurement frame";
@@ -202,7 +221,7 @@ pub fn read_nrrd_document<P: AsRef<Path>>(
     }
     NrrdDocument::new(series, comments, records)
 }
-fn generated_metadata_name(name: &str, diffusion: bool) -> bool {
+fn generated_metadata_name(name: &str) -> bool {
     let lower = name.to_ascii_lowercase();
     matches!(
         lower.as_str(),
@@ -217,10 +236,10 @@ fn generated_metadata_name(name: &str, diffusion: bool) -> bool {
             | "encoding"
             | "space origin"
             | "measurement frame"
-            | "ritk:coordinate-map"
+            | "ritk_coordinate_map"
             | "modality"
             | "dwmri_b-value"
-    ) || (diffusion && lower.starts_with("dwmri_gradient_"))
+    ) || lower.starts_with("dwmri_gradient_")
 }
 /// Writes a validated NRRD document without an intermediate conversion file.
 pub fn write_nrrd_document<P: AsRef<Path>>(
