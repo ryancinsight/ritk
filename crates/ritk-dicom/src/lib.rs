@@ -28,5 +28,8 @@ pub use diffusion::{
     extract_diffusion_pair, read_dicom_gradient_scheme_from_file,
     read_dicom_gradient_scheme_from_files,
 };
-pub use pixel::{decode_native_pixel_bytes_checked, PixelLayout, PixelSignedness};
+pub use pixel::{
+    decode_native_pixel_bytes_checked, decode_stored_pixel_frame, PixelLayout, PixelSignedness,
+    StoredPixelError,
+};
 pub use syntax::TransferSyntaxKind;

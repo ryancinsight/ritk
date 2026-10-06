@@ -29,6 +29,10 @@ buffer the size of the image; file adapters should pass a buffered writer.
 8 KiB byte block, leaving later stream content unread and reporting truncation
 with the number of complete samples received.
 
+`decode_stored_pixel_frame` returns typed integers from one monochrome frame.
+It normalizes BitsStored without rescale and stores 24-bit values as 32-bit.
+Input excludes trailing Value Field padding.
+
 The codec layer does not depend on Coeus' algorithm scalar contract. Format
 adapters retain geometry and format-specific intensity calibration beside the
 stored samples, then make any numeric conversion explicit at the image or

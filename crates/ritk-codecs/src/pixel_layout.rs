@@ -1,12 +1,16 @@
 //! Pixel layout and native sample decoding.
 //!
 //! # Contract
-//! Native byte decode applies `output = sample * slope + intercept`.
+//! [`decode_native_pixel_bytes_checked`] applies the modality transform
+//! `output = sample * slope + intercept`; [`decode_stored_pixel_frame`]
+//! returns the untransformed typed samples.
 
 use anyhow::{bail, Result};
 
 mod compressed;
+mod stored;
 pub(crate) use compressed::{decode_compressed_samples, encode_grayscale_stored_bytes};
+pub use stored::{decode_stored_pixel_frame, StoredPixelError};
 
 /// Pixel signedness, replacing ad-hoc `u16` / `bool` representations.
 ///
@@ -173,7 +177,12 @@ fn decode_native_pixel_bytes_unchecked(bytes: &[u8], layout: PixelLayout) -> Vec
             .collect(),
         24 => bytes
             .chunks_exact(3)
-            .map(|c| apply_rescale(stored_sample(u24_le(c), layout), &layout))
+            .map(|c| {
+                apply_rescale(
+                    stored_sample(u24(c, crate::ByteOrder::LeastSignificantByteFirst), layout),
+                    &layout,
+                )
+            })
             .collect(),
         32 => bytes
             .chunks_exact(4)
@@ -186,8 +195,17 @@ fn decode_native_pixel_bytes_unchecked(bytes: &[u8], layout: PixelLayout) -> Vec
     }
 }
 
-fn u24_le(bytes: &[u8]) -> u32 {
-    u32::from(bytes[0]) | (u32::from(bytes[1]) << 8) | (u32::from(bytes[2]) << 16)
+pub(super) fn u24(bytes: &[u8], byte_order: crate::ByteOrder) -> u32 {
+    let [first, second, third] =
+        <[u8; 3]>::try_from(bytes).expect("invariant: 24-bit samples contain exactly three bytes");
+    match byte_order {
+        crate::ByteOrder::LeastSignificantByteFirst => {
+            u32::from(first) | (u32::from(second) << 8) | (u32::from(third) << 16)
+        }
+        crate::ByteOrder::MostSignificantByteFirst => {
+            (u32::from(first) << 16) | (u32::from(second) << 8) | u32::from(third)
+        }
+    }
 }
 
 pub fn decode_native_pixel_bytes_checked(bytes: &[u8], layout: PixelLayout) -> Result<Vec<f32>> {
@@ -206,3 +224,7 @@ pub fn decode_native_pixel_bytes_checked(bytes: &[u8], layout: PixelLayout) -> R
 #[cfg(test)]
 #[path = "pixel_layout/tests.rs"]
 mod tests;
+
+#[cfg(test)]
+#[path = "pixel_layout/stored_tests.rs"]
+mod stored_tests;
