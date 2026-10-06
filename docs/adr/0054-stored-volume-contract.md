@@ -2,6 +2,7 @@
 
 - Status: Accepted
 
+- Revision 2026-10-06: Added report-only capabilities; full preflight remains separate (PR #785).
 - Revision 2026-10-04: nonzero NRRD DWI gradients require an explicit
   measurement frame; an all-zero baseline remains valid without one. The
   stored writer emits NRRD0005 with an identity frame for LPS gradients.
@@ -32,10 +33,10 @@ direction matrix, finite nonzero direction-times-spacing components,
 coordinate-map rank, and per-frame calibration depth. Small positive spacings
 retain their direction; only zero or non-finite lengths use an axis fallback.
 
-Format crates own header parsing and serialization. They exchange
-`StoredVolume` for lossless stored-sample reads, writes, and conversions. A
-format that cannot preserve a volume's calibration or another required
-semantic returns a typed capability error before creating output. A caller
+Format adapters own header parsing and serialization and exchange
+`StoredVolume` for lossless reads and writes. `ritk-image-io` reports feature
+categories and scoped metadata losses; preflight checks value, cross-volume
+uniformity, and adapter-specific limits before output. A caller
 that wants compute-ready values uses the existing image API or an explicit
 calibration operation; stored reads do not silently rescale samples.
 
@@ -93,8 +94,9 @@ because the stored-volume model cannot retain those semantics.
 
 The shared crate depends inward on codecs, image metadata, and spatial mapping;
 format adapters depend on the shared contract. It does not parse a format or
-convert values. Capability declarations and pairwise round-trip tests remain
-in each format adapter and the `ritk-io` conversion surface.
+convert values. Its capability report inventories categories, while the shared
+preparation contract and each adapter establish actual representability before
+writing. Pairwise round-trip tests remain format-owned.
 
 ## Evidence and revision criteria
 

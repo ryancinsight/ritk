@@ -64,21 +64,10 @@
 - acceptance: DICOM, NIfTI, NRRD, MetaImage, MINC, MIF, MGH/MGZ, Analyze, VTK, PNG, TIFF, JPEG, GIFTI, mesh, and tractogram paths declare their readable and writable models; each exposed conversion preserves represented samples, geometry, calibration, and acquisition metadata or returns typed loss before destination mutation. Scalar volumes, color rasters, surfaces, meshes, and tractograms retain distinct models. Métis consumes RITK and contains no format parser or converter.
 - status: todo
 - priority: architecture
-- needs: RITK-IMAGE-CONVERSION-PREFLIGHT-001, RITK-IO-FORMAT-CAPABILITIES-001, RITK-NRRD-DOCUMENT-001, RITK-NIFTI-DOCUMENT-001, RITK-NRRD-NIFTI-001, RITK-DICOM-CONVERSION-001, RITK-METAIMAGE-CONVERSION-001, RITK-MINC-CONVERSION-001, RITK-MIF-CONVERSION-001, RITK-MGH-CONVERSION-001, RITK-ANALYZE-CONVERSION-001, RITK-VTK-VOLUME-CONVERSION-001, RITK-JPEG-LOSSY-ORACLE-001, RITK-RASTER-CONVERSION-001, RITK-GIFTI-SURFACE-001, RITK-MESH-CONVERSION-001, RITK-TRACTOGRAM-CONVERSION-001
+- needs: RITK-IMAGE-CONVERSION-PREFLIGHT-001, RITK-NRRD-DOCUMENT-001, RITK-NIFTI-DOCUMENT-001, RITK-NRRD-NIFTI-001, RITK-DICOM-CONVERSION-001, RITK-METAIMAGE-CONVERSION-001, RITK-MINC-CONVERSION-001, RITK-MIF-CONVERSION-001, RITK-MGH-CONVERSION-001, RITK-ANALYZE-CONVERSION-001, RITK-VTK-VOLUME-CONVERSION-001, RITK-JPEG-LOSSY-ORACLE-001, RITK-RASTER-CONVERSION-001, RITK-GIFTI-SURFACE-001, RITK-MESH-CONVERSION-001, RITK-TRACTOGRAM-CONVERSION-001
 - scope: crates/ritk-image-io/, crates/ritk-io/, all listed format crates, conversion tests, and the RITK user manual
 - next: deliver the typed volume preflight, then exact NRRD↔NIfTI conversion; keep each other format family in its own acceptance slice.
 - basis: e8db1595f018b0eec23e8b5f2f8b2a16f8e711d2
-
-<a id="RITK-IMAGE-CONVERSION-CAPABILITIES-001"></a>
-## RITK-IMAGE-CONVERSION-CAPABILITIES-001: Report conversion capabilities
-- outcome: compare stored-volume semantics with a target's declared capabilities without authorizing output.
-- acceptance: reports identify source and target formats, target capabilities, each unsupported series or volume feature, and adapter-supplied metadata losses scoped to series, volume, or frame; reporting opens no destination and returns no prepared-conversion witness.
-- status: todo
-- priority: architecture
-- needs: none
-- scope: crates/ritk-image-io/, conversion tests, ADR 0054
-- next: deliver the report-only API, then use it to implement complete value-based preflight.
-- basis: cd90957d25988d7e1455b43f7202162385e94b39
 
 <a id="RITK-IMAGE-CONVERSION-PREFLIGHT-001"></a>
 ## RITK-IMAGE-CONVERSION-PREFLIGHT-001: Preflight stored-volume conversions
@@ -86,7 +75,7 @@
 - acceptance: target constraints check sample type, shape, geometry, calibration, coordinate maps, acquisition values, and format metadata; every rejection carries exact series, volume, or frame scope, no prepared witness exists on loss, and adapters leave an existing destination unchanged.
 - status: todo
 - priority: architecture
-- needs: RITK-IMAGE-CONVERSION-CAPABILITIES-001
+- needs: none
 - scope: crates/ritk-image-io/, crates/ritk-io/, format adapters, conversion tests, docs/adr/0054-stored-volume-contract.md
 - next: compare cross-volume values and add target-owned checks for format-specific value limits before NRRD/NIfTI writers consume prepared conversions.
 - basis: cd90957d25988d7e1455b43f7202162385e94b39
