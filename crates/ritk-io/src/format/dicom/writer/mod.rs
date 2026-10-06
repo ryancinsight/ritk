@@ -1,4 +1,4 @@
-//! DICOM series writer using dicom-rs v0.8.2.
+//! DICOM image writers with pixel and metadata consistency checks.
 //! Transfer syntax: Explicit VR LE. Each .dcm has 128-byte preamble + DICM magic.
 //!
 //! Stage 1 scope:
@@ -6,8 +6,11 @@
 //! - keep pixel-module ordering stable
 //! - verify private tag propagation for supported scalar tags
 
+pub(crate) mod decimal_string;
 pub(crate) mod elements;
+mod error;
 mod metadata;
+pub(crate) mod output;
 pub(crate) mod pixel_encoding;
 mod preservation;
 mod series;
@@ -15,6 +18,7 @@ mod series;
 #[cfg(test)]
 mod tests;
 
+pub use error::DicomWriteError;
 pub use metadata::{write_dicom_series_with_metadata, DicomWriter};
 pub use series::{write_dicom_series, write_dicom_series_native};
 

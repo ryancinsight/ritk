@@ -1,15 +1,19 @@
+use super::decimal_string::{format_dicom_decimal, format_pair, format_six, format_triplet};
+use super::error::DicomWriteError;
+use super::output::{serialize_file, write_series_files};
 use super::pixel_encoding::{
-    emit_pixel_format_tags, ensure_series_directory, format_pair, format_six, format_triplet,
-    generate_instance_uid, generate_series_uid, normalize_to_u16,
-    DICOM_SOP_CLASS_SECONDARY_CAPTURE, MONOCHROME2,
+    emit_pixel_format_tags, generate_instance_uid, generate_series_uid, prepare_frame_encodings,
+    validate_image_shape, validate_spatial_metadata, DICOM_SOP_CLASS_SECONDARY_CAPTURE,
+    MONOCHROME2,
 };
 use crate::format::dicom::writer::elements::PutValue;
-use anyhow::{bail, Context, Result};
+use anyhow::{Context, Result};
 use coeus_core::MoiraiBackend;
 use dicom::core::smallvec::SmallVec;
 use dicom::core::{PrimitiveValue, Tag, VR};
 use dicom::object::meta::FileMetaTableBuilder;
 use dicom::object::InMemDicomObject;
+use eunomia::FloatElement;
 use ritk_core::image::Image;
 use ritk_image::tensor::Backend;
 use ritk_image::Image as NativeImage;
@@ -58,6 +62,9 @@ fn series_geometry(
 /// carrier only supplies the host pixel buffer and spatial geometry. Retained
 /// for consumers not yet migrated off the Coeus `Image`; new native code uses
 /// [`write_dicom_series_native`].
+/// Input and serialization preflight cover every slice before output changes.
+/// Preflight retains the serialized volume in memory; filesystem failures
+/// during persistence can leave a partial series.
 pub fn write_dicom_series<B: Backend, P: AsRef<Path>>(
     path: P,
     image: &Image<f32, B, 3>,
@@ -91,7 +98,7 @@ pub fn write_dicom_series<B: Backend, P: AsRef<Path>>(
 ///   spacing fallback the reader uses when `depth == 1`).
 /// - Pixel representation: unsigned 16-bit MONOCHROME2; a single per-slice
 ///   linear rescale (slope/intercept) maps the slice's f32 range onto
-///   `[0, 65535]` (see `normalize_to_u16`).
+///   `[0, 65535]`.
 pub fn write_dicom_series_native<P: AsRef<Path>>(
     path: P,
     image: &NativeImage<f32, MoiraiBackend, 3>,
@@ -116,11 +123,14 @@ fn write_series_flat(
     shape: [usize; 3],
     geom: &SeriesGeometry,
 ) -> Result<()> {
-    let [depth, rows, cols] = shape;
-    if depth == 0 || rows == 0 || cols == 0 {
-        bail!("DICOM: depth={depth} rows={rows} cols={cols} must be >0");
-    }
-    let series_dir = ensure_series_directory(path)?;
+    let dimensions = validate_image_shape(shape, all_data.len())?;
+    validate_series_geometry(geom)?;
+    let pixel_plans = prepare_frame_encodings::<u16>(all_data, dimensions)?;
+    validate_series_positions(geom, dimensions.depth)?;
+    let mut slices = Vec::new();
+    slices
+        .try_reserve_exact(dimensions.depth)
+        .map_err(|_| DicomWriteError::PixelAllocationFailed)?;
     let series_uid = generate_series_uid();
     let study_uid = series_uid.clone();
     let series_instance_uid = format!("{}.1", series_uid);
@@ -131,13 +141,32 @@ fn write_series_flat(
     let slice_spacing = geom.spacing[2];
     let orientation = [dir_x[0], dir_x[1], dir_x[2], dir_y[0], dir_y[1], dir_y[2]];
 
-    let slice_len = rows * cols;
-    for z in 0..depth {
-        let slice_offset = z * slice_len;
-        let slice_f32 = &all_data[slice_offset..slice_offset + slice_len];
-        let (pixel_u16, rescale_slope, rescale_intercept) = normalize_to_u16(slice_f32);
+    for z in 0..dimensions.depth {
+        let slice_offset = z
+            .checked_mul(dimensions.frame_samples)
+            .ok_or(DicomWriteError::PixelCountOverflow)?;
+        let slice_end = slice_offset
+            .checked_add(dimensions.frame_samples)
+            .ok_or(DicomWriteError::PixelCountOverflow)?;
+        let slice_f32 =
+            all_data
+                .get(slice_offset..slice_end)
+                .ok_or(DicomWriteError::PixelCountMismatch {
+                    expected: dimensions.total_samples,
+                    actual: all_data.len(),
+                })?;
+        let plan = pixel_plans
+            .get(z)
+            .copied()
+            .ok_or(DicomWriteError::PixelCountMismatch {
+                expected: dimensions.depth,
+                actual: pixel_plans.len(),
+            })?;
+        let pixel_u16 = plan.encode(slice_f32, slice_offset)?;
+        let rescale_slope = plan.rescale_slope();
+        let rescale_intercept = plan.rescale_intercept();
         let sop_instance_uid = generate_instance_uid(&series_uid, z);
-        let zf = z as f64;
+        let zf = f64::from_count(z);
         let image_position = [
             geom.origin[0] + zf * slice_spacing * dir_z[0],
             geom.origin[1] + zf * slice_spacing * dir_z[1],
@@ -165,19 +194,27 @@ fn write_series_flat(
         obj.put_value(Tag(0x0020, 0x0011), VR::IS, "0");
         // PS3.3 C.7.6.2 Image Plane Module: spatial geometry (round-trips
         // through the series reader; see `write_dicom_series_native` docs).
-        obj.put_value(Tag(0x0018, 0x0050), VR::DS, format!("{:.6}", slice_spacing));
-        obj.put_value(Tag(0x0020, 0x0032), VR::DS, format_triplet(image_position));
-        obj.put_value(Tag(0x0020, 0x0037), VR::DS, format_six(orientation));
-        obj.put_value(Tag(0x0028, 0x0030), VR::DS, format_pair(pixel_spacing));
+        obj.put_value(
+            Tag(0x0018, 0x0050),
+            VR::DS,
+            format_dicom_decimal(slice_spacing)?,
+        );
+        obj.put_value(Tag(0x0020, 0x0032), VR::DS, format_triplet(image_position)?);
+        obj.put_value(Tag(0x0020, 0x0037), VR::DS, format_six(orientation)?);
+        obj.put_value(Tag(0x0028, 0x0030), VR::DS, format_pair(pixel_spacing)?);
         obj.put_value(Tag(0x0028, 0x0002), VR::US, 1_u16);
-        obj.put_value(Tag(0x0028, 0x0010), VR::US, rows as u16);
-        obj.put_value(Tag(0x0028, 0x0011), VR::US, cols as u16);
-        emit_pixel_format_tags(&mut obj, 16);
-        obj.put_value(Tag(0x0028, 0x1053), VR::DS, format!("{:.6}", rescale_slope));
+        obj.put_value(Tag(0x0028, 0x0010), VR::US, dimensions.rows_attribute);
+        obj.put_value(Tag(0x0028, 0x0011), VR::US, dimensions.columns_attribute);
+        emit_pixel_format_tags::<u16>(&mut obj);
+        obj.put_value(
+            Tag(0x0028, 0x1053),
+            VR::DS,
+            format_dicom_decimal(f64::from(rescale_slope))?,
+        );
         obj.put_value(
             Tag(0x0028, 0x1052),
             VR::DS,
-            format!("{:.6}", rescale_intercept),
+            format_dicom_decimal(f64::from(rescale_intercept))?,
         );
         obj.put_value(Tag(0x0028, 0x0004), VR::CS, MONOCHROME2);
         obj.put_value(
@@ -193,10 +230,39 @@ fn write_series_flat(
                     .transfer_syntax(EXPLICIT_VR_LE),
             )
             .map_err(|e| anyhow::anyhow!("DICOM meta failed slice {z}: {e}"))?;
-        let slice_path = series_dir.join(format!("slice_{z:04}.dcm"));
-        file_obj
-            .write_to_file(&slice_path)
-            .map_err(|e| anyhow::anyhow!("write slice {z} failed: {e}"))?;
+        slices.push(serialize_file(&file_obj)?);
+    }
+    write_series_files(path, &slices)
+}
+
+fn validate_series_geometry(geom: &SeriesGeometry) -> Result<()> {
+    let direction = [
+        geom.direction_columns[0][0],
+        geom.direction_columns[0][1],
+        geom.direction_columns[0][2],
+        geom.direction_columns[1][0],
+        geom.direction_columns[1][1],
+        geom.direction_columns[1][2],
+        geom.direction_columns[2][0],
+        geom.direction_columns[2][1],
+        geom.direction_columns[2][2],
+    ];
+    validate_spatial_metadata(&geom.spacing, &geom.origin, &direction)
+}
+
+fn validate_series_positions(geom: &SeriesGeometry, depth: usize) -> Result<()> {
+    let dir_z = geom.direction_columns[2];
+    let slice_spacing = geom.spacing[2];
+    for z in 0..depth {
+        let zf = f64::from_count(z);
+        let position = [
+            geom.origin[0] + zf * slice_spacing * dir_z[0],
+            geom.origin[1] + zf * slice_spacing * dir_z[1],
+            geom.origin[2] + zf * slice_spacing * dir_z[2],
+        ];
+        if position.iter().any(|coordinate| !coordinate.is_finite()) {
+            return Err(DicomWriteError::InvalidSpatialMetadata.into());
+        }
     }
     Ok(())
 }

@@ -2,6 +2,10 @@
 
 - Status: Accepted
 
+- Revision 2026-10-05: `ritk-image-io` reports indexed typed losses without an
+  output handle; adapters validate before opening destinations. Parsing and
+  writing remain adapter-owned. Delivered in
+  [PR #777](https://github.com/ryancinsight/ritk/pull/777).
 - Revision 2026-10-04: nonzero NRRD DWI gradients require an explicit
   measurement frame; an all-zero baseline remains valid without one. The
   stored writer emits NRRD0005 with an identity frame for LPS gradients.
@@ -38,6 +42,10 @@ format that cannot preserve a volume's calibration or another required
 semantic returns a typed capability error before creating output. A caller
 that wants compute-ready values uses the existing image API or an explicit
 calibration operation; stored reads do not silently rescale samples.
+
+`ritk-image-io` compares stored-volume and axis semantics with target
+capabilities and returns indexed losses without I/O. Adapters map headers and
+prepare complete documents before opening output paths.
 
 NRRD maps all ten fixed-width codec sample types and the standard type aliases
 to its declared element type, reads both binary payload byte orders, writes
@@ -94,7 +102,8 @@ because the stored-volume model cannot retain those semantics.
 The shared crate depends inward on codecs, image metadata, and spatial mapping;
 format adapters depend on the shared contract. It does not parse a format or
 convert values. Capability declarations and pairwise round-trip tests remain
-in each format adapter and the `ritk-io` conversion surface.
+in each format adapter and the `ritk-io` conversion surface. Adapter
+round-trip tests remain the serialization oracle.
 
 ## Evidence and revision criteria
 

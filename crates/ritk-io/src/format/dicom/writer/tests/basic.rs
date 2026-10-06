@@ -1,20 +1,87 @@
 #![expect(clippy::unwrap_used, reason = "ratchet RITK-UNWRAP-1")]
-use super::super::{generate_series_uid, write_dicom_series};
+use super::super::pixel_encoding::PixelEncodingPlan;
+use super::super::{generate_series_uid, write_dicom_series, DicomWriteError};
 use super::fixtures::{make_image, Backend};
 use dicom::core::Tag;
 use dicom::object::open_file;
 use ritk_core::image::Image;
-use ritk_core::rejection::assert_rejects;
 use ritk_image::tensor::Tensor;
 use ritk_spatial::{Direction, Point, Spacing};
+
+#[test]
+fn pixel_encoding_preserves_dicom_halfway_rounding() {
+    let pixels = [0.0_f32, 1.0, 6.0];
+    let plan = PixelEncodingPlan::<u8>::prepare(&pixels, 0)
+        .expect("finite samples have a representable byte encoding");
+    assert_eq!(
+        plan.encode(&pixels, 0)
+            .expect("validated samples remain representable"),
+        [0, 43, u8::MAX]
+    );
+}
 
 #[test]
 fn test_writer_rejects_zero_dimension() {
     let image = make_image(0, 4, 4, 0.5);
     let temp = tempfile::tempdir().unwrap();
     let path = temp.path().join("series");
-    let result = write_dicom_series(&path, &image);
-    assert_rejects(result, "depth=0 rows=4 cols=4 must be >0");
+    let error = write_dicom_series(&path, &image).expect_err("zero depth must be rejected");
+    assert!(matches!(
+        error.downcast_ref::<DicomWriteError>(),
+        Some(DicomWriteError::InvalidDimensions {
+            depth: 0,
+            rows: 4,
+            columns: 4
+        })
+    ));
+    assert!(!path.exists());
+}
+
+#[test]
+fn test_writer_rejects_non_finite_pixels_without_changing_existing_files() {
+    let image = make_image(1, 2, 2, f32::NAN);
+    let temp = tempfile::tempdir().unwrap();
+    let path = temp.path().join("existing_series");
+    std::fs::create_dir(&path).unwrap();
+    let existing = path.join("slice_0000.dcm");
+    let original = b"existing DICOM data";
+    std::fs::write(&existing, original).unwrap();
+
+    let error = write_dicom_series(&path, &image).expect_err("NaN pixels must be rejected");
+    assert!(matches!(
+        error.downcast_ref::<DicomWriteError>(),
+        Some(DicomWriteError::NonFinitePixel { index: 0 })
+    ));
+    assert_eq!(std::fs::read(&existing).unwrap(), original);
+    assert_eq!(std::fs::read_dir(&path).unwrap().count(), 1);
+}
+
+#[test]
+fn test_writer_rejects_unrepresentable_pixel_range_without_changing_existing_files() {
+    let device = Default::default();
+    let pixels = [-f32::MAX, f32::MAX];
+    let tensor = Tensor::<f32, Backend>::from_slice_on([1, 1, 2], &pixels, &device);
+    let image = Image::new(
+        tensor,
+        Point::new([0.0, 0.0, 0.0]),
+        Spacing::new([1.0, 1.0, 1.0]),
+        Direction::identity(),
+    )
+    .expect("fixture tensor has the declared rank");
+    let temp = tempfile::tempdir().unwrap();
+    let path = temp.path().join("existing_series");
+    std::fs::create_dir(&path).unwrap();
+    let existing = path.join("slice_0000.dcm");
+    let original = b"existing DICOM data";
+    std::fs::write(&existing, original).unwrap();
+
+    let error = write_dicom_series(&path, &image).expect_err("range overflow must be rejected");
+    assert!(matches!(
+        error.downcast_ref::<DicomWriteError>(),
+        Some(DicomWriteError::PixelRangeOutOfRange)
+    ));
+    assert_eq!(std::fs::read(&existing).unwrap(), original);
+    assert_eq!(std::fs::read_dir(&path).unwrap().count(), 1);
 }
 
 #[test]
@@ -80,6 +147,37 @@ fn test_series_writer_has_samples_per_pixel_one() {
         .parse()
         .expect("SamplesPerPixel must be numeric");
     assert_eq!(spp, 1, "SamplesPerPixel must equal 1 for grayscale series");
+}
+
+#[test]
+fn test_series_writer_pixel_tags_match_payload_width() {
+    let image = make_image(1, 2, 3, 0.0);
+    let temp = tempfile::tempdir().unwrap();
+    let path = temp.path().join("word_series");
+    write_dicom_series(&path, &image).expect("series write");
+
+    let object = open_file(path.join("slice_0000.dcm")).expect("written slice parses");
+    let read_unsigned_pixel_tag = |tag| {
+        object
+            .element(tag)
+            .expect("pixel module attribute must exist")
+            .to_str()
+            .expect("US attribute must render")
+            .trim()
+            .parse::<u16>()
+            .expect("US attribute must parse")
+    };
+    assert_eq!(read_unsigned_pixel_tag(Tag(0x0028, 0x0100)), 16);
+    assert_eq!(read_unsigned_pixel_tag(Tag(0x0028, 0x0101)), 16);
+    assert_eq!(read_unsigned_pixel_tag(Tag(0x0028, 0x0102)), 15);
+    assert_eq!(read_unsigned_pixel_tag(Tag(0x0028, 0x0103)), 0);
+    let pixel_bytes = object
+        .element(Tag(0x7FE0, 0x0010))
+        .expect("PixelData must exist")
+        .value()
+        .to_bytes()
+        .expect("native PixelData must expose bytes");
+    assert_eq!(pixel_bytes.len(), 2 * 3 * 2);
 }
 
 /// Pixel clamp invariant: no encoded u16 value may exceed 65535 even when

@@ -52,13 +52,13 @@ fn rank_dims<const N: usize>(shape: &[usize], op: &str) -> [usize; N] {
 #[inline]
 pub fn dispatch_bending_energy<T, B>(field: &Tensor<T, B>, weight: f64) -> T
 where
-    T: coeus_core::FloatElement + Scalar,
+    T: eunomia::FloatElement + Scalar,
     B: ComputeBackend + Default,
     B::DeviceBuffer<T>: CpuAddressableStorage<T>,
 {
     with_field_data(field, |data, shape| {
         laplacian_squared_mean(data, shape, "bending_energy")
-            * coeus_core::FloatElement::from_f64(weight)
+            * eunomia::FloatElement::from_f64(weight)
     })
 }
 
@@ -69,13 +69,13 @@ where
 #[inline]
 pub fn dispatch_curvature<T, B>(field: &Tensor<T, B>, weight: f64) -> T
 where
-    T: coeus_core::FloatElement + Scalar,
+    T: eunomia::FloatElement + Scalar,
     B: ComputeBackend + Default,
     B::DeviceBuffer<T>: CpuAddressableStorage<T>,
 {
     with_field_data(field, |data, shape| {
         laplacian_squared_mean(data, shape, "curvature")
-            * coeus_core::FloatElement::from_f64(weight)
+            * eunomia::FloatElement::from_f64(weight)
     })
 }
 
@@ -83,12 +83,12 @@ where
 #[inline]
 pub fn dispatch_diffusion<T, B>(field: &Tensor<T, B>, weight: f64) -> T
 where
-    T: coeus_core::FloatElement + Scalar,
+    T: eunomia::FloatElement + Scalar,
     B: ComputeBackend + Default,
     B::DeviceBuffer<T>: CpuAddressableStorage<T>,
 {
     with_field_data(field, |data, shape| {
-        gradient_squared_mean(data, shape, "diffusion") * coeus_core::FloatElement::from_f64(weight)
+        gradient_squared_mean(data, shape, "diffusion") * eunomia::FloatElement::from_f64(weight)
     })
 }
 
@@ -96,13 +96,13 @@ where
 #[inline]
 pub fn dispatch_total_variation<T, B>(field: &Tensor<T, B>, weight: f64) -> T
 where
-    T: coeus_core::FloatElement + Scalar,
+    T: eunomia::FloatElement + Scalar,
     B: ComputeBackend + Default,
     B::DeviceBuffer<T>: CpuAddressableStorage<T>,
 {
     with_field_data(field, |data, shape| {
         gradient_magnitude_mean(data, shape, "total_variation")
-            * coeus_core::FloatElement::from_f64(weight)
+            * eunomia::FloatElement::from_f64(weight)
     })
 }
 
@@ -110,7 +110,7 @@ where
 #[inline]
 pub fn dispatch_elastic<T, B>(field: &Tensor<T, B>, alpha: f64, beta: f64) -> T
 where
-    T: coeus_core::FloatElement + Scalar,
+    T: eunomia::FloatElement + Scalar,
     B: ComputeBackend + Default,
     B::DeviceBuffer<T>: CpuAddressableStorage<T>,
 {
@@ -118,8 +118,8 @@ where
         elastic(
             data,
             shape,
-            coeus_core::FloatElement::from_f64(alpha),
-            coeus_core::FloatElement::from_f64(beta),
+            eunomia::FloatElement::from_f64(alpha),
+            eunomia::FloatElement::from_f64(beta),
         )
     })
 }
@@ -226,7 +226,7 @@ fn fwd_diff<T: eunomia::FloatElement + Scalar + eunomia::FloatElement>(
 /// Border voxels (`i∈{0,h-1}` or `j∈{0,w-1}`) contribute a zero Laplacian, so
 /// the loop visits only the interior; the mean divides by the full voxel count.
 fn laplacian_squared_mean_planar<
-    T: eunomia::FloatElement + coeus_core::FloatElement + Scalar + eunomia::FloatElement,
+    T: eunomia::FloatElement + eunomia::FloatElement + Scalar + eunomia::FloatElement,
 >(
     data: &[T],
     bc: usize,
@@ -335,7 +335,7 @@ fn elastic_planar<T: eunomia::FloatElement + Scalar + eunomia::FloatElement>(
 // ── Native finite-difference kernels (volumetric, `[BC, D, H, W]`) ────────────
 
 fn laplacian_squared_mean_volumetric<
-    T: eunomia::FloatElement + coeus_core::FloatElement + Scalar + eunomia::FloatElement,
+    T: eunomia::FloatElement + eunomia::FloatElement + Scalar + eunomia::FloatElement,
 >(
     data: &[T],
     bc: usize,

@@ -225,7 +225,7 @@ pub fn write_nrrd_stored_series<P: AsRef<Path>>(
     Ok(())
 }
 
-fn write_sample_payload<W: Write>(
+pub(crate) fn write_sample_payload<W: Write>(
     volume: &StoredVolume,
     writer: &mut W,
 ) -> Result<(), NrrdStoredWriteError> {
@@ -238,7 +238,7 @@ fn write_sample_payload<W: Write>(
         })
 }
 
-fn validate_series_axis(axis: &SeriesAxis) -> Result<(), NrrdStoredWriteError> {
+pub(crate) fn validate_series_axis(axis: &SeriesAxis) -> Result<(), NrrdStoredWriteError> {
     let SeriesAxis::Diffusion(scheme) = axis else {
         return Ok(());
     };
@@ -261,7 +261,7 @@ fn validate_series_axis(axis: &SeriesAxis) -> Result<(), NrrdStoredWriteError> {
     Ok(())
 }
 
-fn validate_series_header_entries(
+pub(crate) fn validate_series_header_entries(
     axis: &SeriesAxis,
     coordinate_map: &ritk_spatial::CoordinateMap,
 ) -> Result<(), NrrdStoredWriteError> {
@@ -302,7 +302,7 @@ fn validate_series_header_entries(
     Ok(())
 }
 
-fn validate_calibration(volume: &StoredVolume) -> Result<(), NrrdStoredWriteError> {
+pub(crate) fn validate_calibration(volume: &StoredVolume) -> Result<(), NrrdStoredWriteError> {
     if !volume.calibration().is_identity() {
         return Err(NrrdStoredWriteError::UnsupportedCalibration);
     }
@@ -324,7 +324,9 @@ fn ensure_header_result(
     Ok(())
 }
 
-fn nrrd_type_name(sample_type: SampleType) -> Result<&'static str, NrrdStoredWriteError> {
+pub(crate) fn nrrd_type_name(
+    sample_type: SampleType,
+) -> Result<&'static str, NrrdStoredWriteError> {
     let name = match sample_type {
         SampleType::U8 => "unsigned char",
         SampleType::I8 => "signed char",

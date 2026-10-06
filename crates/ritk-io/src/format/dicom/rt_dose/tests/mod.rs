@@ -1,6 +1,7 @@
 #![expect(clippy::unwrap_used, reason = "ratchet RITK-UNWRAP-1")]
 
 use super::*;
+mod pixel_encoding;
 use arrayvec::ArrayString;
 use dicom::core::{DataElement, PrimitiveValue, Tag, VR};
 use dicom::object::meta::FileMetaTableBuilder;

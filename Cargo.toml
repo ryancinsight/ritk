@@ -131,7 +131,7 @@ leto = { version = "0.45.0", git = "https://github.com/ryancinsight/leto.git" }
 leto-ops = { version = "0.45.0", git = "https://github.com/ryancinsight/leto.git" }
 apollo-fft = { version = "0.27.0", git = "https://github.com/ryancinsight/apollo" }
 apollo-sht = { version = "0.8.0", git = "https://github.com/ryancinsight/apollo" }
-aequitas = { version = "0.2.0", git = "https://github.com/ryancinsight/aequitas" }
+aequitas = { version = "0.2.1", git = "https://github.com/ryancinsight/aequitas" }
 anyhow = "1.0"
 libc = "0.2"
 thiserror = "2.0"

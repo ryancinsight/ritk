@@ -1,5 +1,6 @@
 #[cfg(test)]
 mod per_frame;
+mod pixel_encoding;
 #[cfg(test)]
 mod reader;
 #[cfg(test)]

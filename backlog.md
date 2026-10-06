@@ -38,7 +38,7 @@
 <a id="RITK-CASTFROM-MIGRATE"></a>
 ## RITK-CASTFROM-MIGRATE: Retire `CastFrom` from ritk
 - outcome: no ritk source uses eunomia `CastFrom`/`CastTo`; each site converts through std or a named eunomia method.
-- acceptance: `git grep -c -E '(cast_from|cast_to|CastFrom|CastTo)' -- '*.rs'` is empty; ritk builds against the eunomia that drops `NumericElement: CastFrom<i32>`.
+- acceptance: `git grep -c -E '\b(cast_from|cast_to|CastFrom|CastTo)\b' -- '*.rs'` is empty; ritk builds against the eunomia that drops `NumericElement: CastFrom<i32>`.
 - status: blocked
 - blocker: the 15 remaining call sites convert a float to an integer (`u8`, `u32`, `usize`) with rounding or flooring, and eunomia has no method for that conversion; re-open when eunomia lands a named float-to-integer method.
 - priority: architecture
@@ -59,15 +59,224 @@
 - basis: fb1ff642dcc2ce722780dc9b051cb0796897ca25
 
 <a id="RITK-FORMAT-CONVERSION-001"></a>
-## RITK-FORMAT-CONVERSION-001: Convert image formats through RITK
-- outcome: keep every supported medical-image and scientific-image parser, writer, and format conversion in RITK behind typed format capabilities.
-- acceptance: DICOM, NIfTI, NRRD, MetaImage, MINC, MIF, MGH/MGZ, Analyze, VTK, PNG, TIFF, JPEG, and GIFTI declare their readable and writable data models; each supported conversion preserves represented samples, geometry, calibration, and acquisition metadata or returns a typed loss report before output; DICOM directory loading exposes multiple series; Métis only consumes RITK and contains no format parser or converter.
+## RITK-FORMAT-CONVERSION-001: Convert supported formats through RITK
+- outcome: keep supported medical and scientific format readers, writers, and conversions in RITK behind typed data models and capability declarations.
+- acceptance: DICOM, NIfTI, NRRD, MetaImage, MINC, MIF, MGH/MGZ, Analyze, VTK, PNG, TIFF, JPEG, GIFTI, mesh, and tractogram paths declare their readable and writable models; each exposed conversion preserves represented samples, geometry, calibration, and acquisition metadata or returns typed loss before destination mutation. Scalar volumes, color rasters, surfaces, meshes, and tractograms retain distinct models. Métis consumes RITK and contains no format parser or converter.
+- status: todo
+- priority: architecture
+- needs: RITK-IMAGE-CONVERSION-PREFLIGHT-001, RITK-IO-FORMAT-CAPABILITIES-001, RITK-NRRD-DOCUMENT-001, RITK-NIFTI-DOCUMENT-001, RITK-NRRD-NIFTI-001, RITK-DICOM-CONVERSION-001, RITK-METAIMAGE-CONVERSION-001, RITK-MINC-CONVERSION-001, RITK-MIF-CONVERSION-001, RITK-MGH-CONVERSION-001, RITK-ANALYZE-CONVERSION-001, RITK-VTK-VOLUME-CONVERSION-001, RITK-JPEG-LOSSY-ORACLE-001, RITK-RASTER-CONVERSION-001, RITK-GIFTI-SURFACE-001, RITK-MESH-CONVERSION-001, RITK-TRACTOGRAM-CONVERSION-001
+- scope: crates/ritk-image-io/, crates/ritk-io/, all listed format crates, conversion tests, and the RITK user manual
+- next: deliver the typed volume preflight, then exact NRRD↔NIfTI conversion; keep each other format family in its own acceptance slice.
+- basis: e8db1595f018b0eec23e8b5f2f8b2a16f8e711d2
+
+<a id="RITK-IMAGE-CONVERSION-PREFLIGHT-001"></a>
+## RITK-IMAGE-CONVERSION-PREFLIGHT-001: Preflight stored-volume conversions
+- outcome: compare stored-series semantics with a format's capabilities before output preparation.
+- acceptance: success borrows the source and reports target capabilities; rejection lists each unsupported sample, geometry, coordinate-map, calibration, acquisition, or declared metadata semantic, with volume indices. Adapters prepare before opening output.
 - status: todo
 - priority: architecture
 - needs: none
-- scope: [shared image-I/O](crates/ritk-image-io/), [format dispatcher](crates/ritk-io/), each listed format crate, conversion tests, and the RITK user manual.
-- next: add typed conversion preflight and a complete NRRD↔NIfTI stored-volume round trip, then implement the remaining volume and non-volume format pairs with explicit loss reports. Keep surfaces in their own RITK data model and expose every DICOM series in directory loads.
-- basis: 3a4191227001782e5550f4a08fa057c3d6f9812f
+- scope: crates/ritk-image-io/, crates/ritk-io/, conversion tests, docs/adr/0054-stored-volume-contract.md
+- next: finish the typed preflight, then integrate it into the RITK NRRD↔NIfTI document conversion.
+- basis: cd90957d25988d7e1455b43f7202162385e94b39
+
+<a id="RITK-NIFTI-DOCUMENT-001"></a>
+## RITK-NIFTI-DOCUMENT-001: Read and write typed NIfTI documents
+- outcome: construct NIfTI documents from stored RITK series without an intermediate file.
+- acceptance: supported NIfTI-1 and NIfTI-2 documents preserve exact stored samples, spatial mapping, calibration, and acquisition metadata; unrepresentable header semantics return typed losses before destination creation.
+- status: todo
+- priority: correctness
+- needs: RITK-IMAGE-CONVERSION-PREFLIGHT-001
+- scope: crates/ritk-nifti/, NIfTI guide, document tests
+- next: define the typed document constructor and reader/writer contract for supported sample and spatial forms.
+- basis: cd90957d25988d7e1455b43f7202162385e94b39
+
+<a id="RITK-NRRD-DOCUMENT-001"></a>
+## RITK-NRRD-DOCUMENT-001: Read and write complete NRRD documents
+- outcome: construct and serialize NRRD documents so converters can map samples and retained metadata into a target document.
+- acceptance: callers construct valid typed documents without an intermediate file; read/write retains samples and fields or returns typed loss before destination mutation.
+- status: todo
+- priority: correctness
+- needs: RITK-NRRD-HEADER-RECORDS-001
+- scope: crates/ritk-nrrd/, NRRD guide, document tests
+- next: define a validated document constructor and preserve existing parser diagnostics while preparing complete output.
+- basis: e8db1595f018b0eec23e8b5f2f8b2a16f8e711d2
+
+<a id="RITK-NRRD-NIFTI-001"></a>
+## RITK-NRRD-NIFTI-001: Convert NRRD and NIfTI volumes
+- outcome: convert supported NRRD and NIfTI volumes without changing voxel bits or represented physical semantics.
+- acceptance: both directions preserve samples and spatial/calibration semantics under the prepared plan; unsupported header semantics return typed loss before output mutation.
+- status: todo
+- priority: correctness
+- needs: RITK-IMAGE-CONVERSION-PREFLIGHT-001, RITK-NRRD-DOCUMENT-001, RITK-NIFTI-DOCUMENT-001
+- scope: crates/ritk-io/, crates/ritk-nrrd/, crates/ritk-nifti/, pair tests
+- next: implement after both typed document paths and shared preflight are available.
+- basis: e8db1595f018b0eec23e8b5f2f8b2a16f8e711d2
+
+<a id="RITK-DICOM-CONVERSION-001"></a>
+## RITK-DICOM-CONVERSION-001: Convert DICOM series through RITK
+- outcome: expose DICOM import and export through typed RITK models with explicit series selection and preservation contracts.
+- acceptance: every exposed DICOM conversion preserves its declared pixel, geometry, calibration, and acquisition semantics or returns typed loss before output; separate series remain independently selectable and export is labeled secondary capture when source semantics are not retained.
+- status: todo
+- priority: architecture
+- needs: RITK-IMAGE-CONVERSION-PREFLIGHT-001, RITK-DICOM-PIXEL-ENCODING-001, RITK-DICOM-STORED-IMPORT-001, RITK-DICOM-STUDY-CATALOG-001
+- scope: crates/ritk-dicom/, crates/ritk-io/, crates/ritk-snap/, DICOM tests and user manual
+- next: implement stored-pixel import and selected-series flow, then expose only conversions with verified DICOM pixel encoding.
+- basis: c58d8906bee373a7d2f87468fafc140310b9ec70
+
+<a id="RITK-DICOM-STORED-IMPORT-001"></a>
+## RITK-DICOM-STORED-IMPORT-001: Retain DICOM stored pixel values
+- outcome: decode DICOM PixelData into its declared fixed-width sample type without applying display rescale in the stored value.
+- acceptance: signedness, allocated/stored bits, exact sample values, geometry, and modality calibration round-trip in typed RITK values; color pixels remain a separate color model; unsupported tags return typed errors before conversion.
+- status: todo
+- priority: correctness
+- needs: RITK-IMAGE-CONVERSION-PREFLIGHT-001
+- scope: crates/ritk-dicom/, crates/ritk-io/src/format/dicom/reader/, crates/ritk-image-io/, stored-pixel tests and DICOM guide
+- next: map supported DICOM pixel encodings and rescale tags to the current stored and calibration types.
+- basis: c58d8906bee373a7d2f87468fafc140310b9ec70
+
+<a id="RITK-DICOM-STUDY-CATALOG-001"></a>
+## RITK-DICOM-STUDY-CATALOG-001: Expose every DICOM series
+- outcome: return a study catalog with each DICOM series represented independently and selectable by series UID.
+- acceptance: a directory with multiple series exposes each UID, instance count, and series metadata; selection loads only the requested series with its expected decoded pixels and geometry.
+- status: todo
+- priority: correctness
+- needs: none
+- scope: crates/ritk-io/src/format/dicom/series/, crates/ritk-io/src/dispatch.rs, crates/ritk-python/src/io/, crates/ritk-cli/src/commands/, crates/ritk-snap/src/dicom/, series fixtures and manual
+- next: connect the existing directory scanner and UID loader through one typed catalog-and-selection API.
+- basis: c58d8906bee373a7d2f87468fafc140310b9ec70
+
+<a id="RITK-METAIMAGE-CONVERSION-001"></a>
+## RITK-METAIMAGE-CONVERSION-001: Preserve MetaImage volume semantics
+- outcome: convert MetaImage volumes through RITK without silent sample or metadata loss.
+- acceptance: supported MHA/MHD element types, byte order, geometry, and calibration round-trip; unsupported semantics fail preflight before output changes.
+- status: todo
+- priority: correctness
+- needs: RITK-IMAGE-CONVERSION-PREFLIGHT-001
+- scope: crates/ritk-metaimage/, crates/ritk-io/, MetaImage tests and manual
+- next: compare current header and stored-sample paths with the typed conversion oracle.
+- basis: c58d8906bee373a7d2f87468fafc140310b9ec70
+
+<a id="RITK-MINC-CONVERSION-001"></a>
+## RITK-MINC-CONVERSION-001: Preserve MINC volume semantics
+- outcome: convert MINC volumes through RITK while retaining their declared numeric and spatial semantics.
+- acceptance: supported MINC sample types, dimension metadata, geometry, and calibration round-trip or return typed loss before output changes.
+- status: todo
+- priority: correctness
+- needs: RITK-IMAGE-CONVERSION-PREFLIGHT-001
+- scope: crates/ritk-minc/, crates/ritk-io/, MINC tests and manual
+- next: inventory dimensions, attributes, and sample representations against the stored-volume model.
+- basis: c58d8906bee373a7d2f87468fafc140310b9ec70
+
+<a id="RITK-MIF-CONVERSION-001"></a>
+## RITK-MIF-CONVERSION-001: Preserve MRtrix image volume semantics
+- outcome: convert MIF volumes through RITK while retaining header and payload semantics.
+- acceptance: supported scalar types, transforms, strides, scaling, and metadata round-trip or return typed loss before output changes.
+- status: todo
+- priority: correctness
+- needs: RITK-IMAGE-CONVERSION-PREFLIGHT-001
+- scope: crates/ritk-mif/, crates/ritk-io/, MIF tests and manual
+- next: inventory header, scaling, and payload behavior against current reader/writer paths.
+- basis: c58d8906bee373a7d2f87468fafc140310b9ec70
+
+<a id="RITK-MGH-CONVERSION-001"></a>
+## RITK-MGH-CONVERSION-001: Preserve MGH and MGZ volume semantics
+- outcome: convert MGH/MGZ volumes through RITK without changing represented samples or geometry.
+- acceptance: supported scalar types, affine geometry, calibration, and compressed/uncompressed packaging round-trip or return typed loss before output changes.
+- status: todo
+- priority: correctness
+- needs: RITK-IMAGE-CONVERSION-PREFLIGHT-001
+- scope: crates/ritk-mgh/, crates/ritk-io/, MGH tests and manual
+- next: inventory header, affine, and compression support against the conversion oracle.
+- basis: c58d8906bee373a7d2f87468fafc140310b9ec70
+
+<a id="RITK-ANALYZE-CONVERSION-001"></a>
+## RITK-ANALYZE-CONVERSION-001: Preserve Analyze volume semantics
+- outcome: convert Analyze image/header pairs through RITK without silent sample or geometry changes.
+- acceptance: supported scalar types, paired-file identity, byte order, and spatial semantics round-trip or return typed loss before output changes.
+- status: todo
+- priority: correctness
+- needs: RITK-IMAGE-CONVERSION-PREFLIGHT-001
+- scope: crates/ritk-analyze/, crates/ritk-io/, Analyze tests and manual
+- next: inventory paired-file and orientation behavior against the conversion oracle.
+- basis: c58d8906bee373a7d2f87468fafc140310b9ec70
+
+<a id="RITK-VTK-VOLUME-CONVERSION-001"></a>
+## RITK-VTK-VOLUME-CONVERSION-001: Preserve VTK image-volume semantics
+- outcome: convert VTK image-data files through RITK while retaining scalar arrays and physical geometry.
+- acceptance: supported scalar types, origin, spacing, direction, and array layout round-trip or return typed loss before output changes.
+- status: todo
+- priority: correctness
+- needs: RITK-IMAGE-CONVERSION-PREFLIGHT-001
+- scope: crates/ritk-vtk/, crates/ritk-io/, VTK image-data tests and manual
+- next: separate image-data conversion contracts from mesh and scene readers.
+- basis: c58d8906bee373a7d2f87468fafc140310b9ec70
+
+<a id="RITK-RASTER-CONVERSION-001"></a>
+## RITK-RASTER-CONVERSION-001: Convert PNG, TIFF, and JPEG rasters
+- outcome: convert raster formats through a typed model that distinguishes color, sample depth, and frame structure.
+- acceptance: lossless edges preserve supported pixels and metadata; JPEG losses return typed reports before output; decoded pixels match their value oracle.
+- status: todo
+- priority: architecture
+- needs: RITK-JPEG-LOSSY-ORACLE-001
+- scope: crates/ritk-image-io/, crates/ritk-png/, crates/ritk-tiff/, crates/ritk-jpeg/, crates/ritk-io/
+- next: define a raster model from reader/writer contracts without projecting color or frames into StoredVolume.
+- basis: c58d8906bee373a7d2f87468fafc140310b9ec70
+
+<a id="RITK-GIFTI-SURFACE-001"></a>
+## RITK-GIFTI-SURFACE-001: Preserve complete GIFTI surface documents
+- outcome: read, convert, and write GIFTI surface arrays without dropping unselected data arrays or metadata.
+- acceptance: pointsets, triangles, coordinate systems, intents, metadata, and extensions round-trip or report typed loss before output.
+- status: todo
+- priority: architecture
+- needs: none
+- scope: crates/ritk-gifti/, crates/ritk-io/, surface model, tests and manual
+- next: replace first-array extraction as the conversion contract with a complete typed surface document.
+- basis: c58d8906bee373a7d2f87468fafc140310b9ec70
+
+<a id="RITK-MESH-CONVERSION-001"></a>
+## RITK-MESH-CONVERSION-001: Convert supported mesh formats
+- outcome: convert VTK/VTP, STL, OBJ, PLY, and GLB through RITK mesh models.
+- acceptance: geometry, coordinate frame, normals, topology, and supported attributes round-trip; unsupported attributes return typed loss before output.
+- status: todo
+- priority: architecture
+- needs: none
+- scope: crates/ritk-vtk/, crates/ritk-io/, mesh tests and manual
+- next: compare each mesh codec model and write a generic value-level conformance suite.
+- basis: c58d8906bee373a7d2f87468fafc140310b9ec70
+
+<a id="RITK-TRACTOGRAM-CONVERSION-001"></a>
+## RITK-TRACTOGRAM-CONVERSION-001: Convert supported tractogram formats
+- outcome: convert TCK, TRK, and TRX through RITK tractogram data models.
+- acceptance: streamline coordinates, coordinate conventions, point and streamline attributes round-trip or return typed loss before output.
+- status: todo
+- priority: architecture
+- needs: none
+- scope: crates/ritk-tck/, crates/ritk-trk/, crates/ritk-trx/, crates/ritk-tractography/, crates/ritk-io/, tests and manual
+- next: map each format contract onto the current tractogram types and define differential fixtures.
+- basis: c58d8906bee373a7d2f87468fafc140310b9ec70
+
+<a id="RITK-IO-FORMAT-CAPABILITIES-001"></a>
+## RITK-IO-FORMAT-CAPABILITIES-001: Declare format read and write capabilities
+- outcome: make the RITK dispatcher report the exact read and write capabilities of every format adapter.
+- acceptance: extension inference, public capability queries, CLI, and Python dispatch agree with crate APIs; unsupported operations return typed errors before opening output; MINC, MIF, and PNG writer support match their actual adapters.
+- status: todo
+- priority: architecture
+- needs: RITK-IMAGE-CONVERSION-PREFLIGHT-001, RITK-NRRD-NIFTI-001, RITK-DICOM-CONVERSION-001, RITK-METAIMAGE-CONVERSION-001, RITK-MINC-CONVERSION-001, RITK-MIF-CONVERSION-001, RITK-MGH-CONVERSION-001, RITK-ANALYZE-CONVERSION-001, RITK-VTK-VOLUME-CONVERSION-001, RITK-RASTER-CONVERSION-001, RITK-GIFTI-SURFACE-001, RITK-MESH-CONVERSION-001, RITK-TRACTOGRAM-CONVERSION-001
+- scope: crates/ritk-io/, CLI crates, PyO3 crates, all format adapters
+- next: derive each capability from its actual reader/writer API, then update every dispatcher caller and its value-semantic tests.
+- basis: c58d8906bee373a7d2f87468fafc140310b9ec70
+
+<a id="RITK-SNAP-RADIANT-UI-001"></a>
+## RITK-SNAP-RADIANT-UI-001: Organize the DICOM viewer workspace
+- outcome: give RITK-SNAP a RadiAnt-style DICOM workspace with clear tool, study/series, viewport, and status regions.
+- acceptance: a study with two distinct DICOM series lists both; loading either series shows its own pixels and metadata in its selected viewport without replacing the other panel; full-window public-phantom captures show menus, toolbar, series panel, viewport panels, and status controls.
+- status: todo
+- priority: feature
+- needs: RITK-DICOM-STUDY-CATALOG-001
+- scope: crates/ritk-snap/src/app/, crates/ritk-snap/src/dicom/, crates/ritk-snap/src/launch/, crates/ritk-snap/src/presentation/, docs/manual/
+- next: inspect current RITK-SNAP behavior and verified RadiAnt reference screenshots, then map the full application layout and interaction tests.
+- basis: c58d8906bee373a7d2f87468fafc140310b9ec70
 
 <a id="RITK-SNAP-INTERACTION-REGIONS-001"></a>
 ## RITK-SNAP-INTERACTION-REGIONS-001: Separate region interaction tests

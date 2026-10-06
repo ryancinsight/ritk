@@ -12,6 +12,8 @@ use crate::{read_jpeg, write_jpeg, JpegReader, JpegWriter};
 
 type TestBackend = SequentialBackend;
 
+mod reconstruction;
+
 pub(crate) fn dct_twelve_midpoint(component_ids: &[u8]) -> Vec<u8> {
     let mut bytes = vec![0xff, 0xd8, 0xff, 0xdb, 0x00, 0x83, 0x10];
     for _ in 0..64 {
@@ -64,40 +66,6 @@ fn reference_luma_values(path: &std::path::Path) -> Vec<f32> {
         .into_iter()
         .map(f32::from)
         .collect()
-}
-
-#[test]
-fn reader_matches_independent_decoder_for_gradient() {
-    let backend = SequentialBackend;
-    let (nz, ny, nx) = (1usize, 32usize, 32usize);
-    let total = nz * ny * nx;
-
-    let mut data_vec: Vec<f32> = Vec::with_capacity(total);
-    let max_idx = (ny * nx - 1) as f32;
-    for y in 0..ny {
-        for x in 0..nx {
-            let idx = (y * nx + x) as f32;
-            let val = if max_idx > 0.0 {
-                idx / max_idx * 255.0
-            } else {
-                0.0
-            };
-            data_vec.push(val);
-        }
-    }
-
-    let image = image_from_values([nz, ny, nx], data_vec.clone());
-    let dir = tempdir().expect("failed to create tempdir");
-    let path = dir.path().join("gradient.jpg");
-
-    crate::write_jpeg(&path, &image, &backend).expect("write_jpeg failed");
-    let loaded = crate::read_jpeg(&path, &backend).expect("read_jpeg failed");
-
-    assert_eq!(loaded.shape(), [nz, ny, nx]);
-    assert_eq!(
-        loaded.data_slice().expect("contiguous host data"),
-        reference_luma_values(&path)
-    );
 }
 
 #[test]
@@ -223,38 +191,6 @@ fn grayscale_reader_scales_wide_rgb_before_luminance() -> Result<()> {
         loaded.data_slice().expect("contiguous host data"),
         &[128.0; 64]
     );
-    Ok(())
-}
-
-#[test]
-fn writer_preserves_rounded_clamped_constant_blocks() -> Result<()> {
-    const HEIGHT: usize = 8;
-    const BLOCK_WIDTH: usize = 8;
-    const WIDTH: usize = 3 * BLOCK_WIDTH;
-
-    let mut values = Vec::with_capacity(HEIGHT * WIDTH);
-    for _ in 0..HEIGHT {
-        values.extend(std::iter::repeat_n(-20.0, BLOCK_WIDTH));
-        values.extend(std::iter::repeat_n(127.6, BLOCK_WIDTH));
-        values.extend(std::iter::repeat_n(300.0, BLOCK_WIDTH));
-    }
-    let image = image_from_values([1, HEIGHT, WIDTH], values);
-    let directory = tempdir()?;
-    let path = directory.path().join("constant-blocks.jpg");
-
-    write_jpeg(&path, &image, &SequentialBackend)?;
-
-    // At quality 75 the luminance DC quantizer is 8. An 8x8 constant block
-    // has DC coefficient 8 * (sample - 128), so quantization is exact and all
-    // AC coefficients are zero. The decoded samples therefore equal the
-    // writer's documented round-and-clamp result.
-    let mut expected = Vec::with_capacity(HEIGHT * WIDTH);
-    for _ in 0..HEIGHT {
-        expected.extend(std::iter::repeat_n(0.0, BLOCK_WIDTH));
-        expected.extend(std::iter::repeat_n(128.0, BLOCK_WIDTH));
-        expected.extend(std::iter::repeat_n(255.0, BLOCK_WIDTH));
-    }
-    assert_eq!(reference_luma_values(&path), expected);
     Ok(())
 }
 

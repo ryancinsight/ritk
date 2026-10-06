@@ -1,5 +1,5 @@
 use super::*;
-use ritk_core::rejection::assert_rejects;
+use crate::format::dicom::writer::DicomWriteError;
 use ritk_dicom::{parse_file_with, DicomRsBackend};
 
 #[test]
@@ -7,8 +7,37 @@ fn test_write_multiframe_rejects_zero_dimension() {
     let tmp = tempfile::tempdir().expect("tempdir");
     let out_path = tmp.path().join("zero.dcm");
     let image = native_image(vec![], [1, 0, 5], [0.0; 3], [1.0; 3]);
-    let result = write_dicom_multiframe_native(&out_path, &image);
-    assert_rejects(result, "rows=0 cols=5 must all be >0");
+    let error =
+        write_dicom_multiframe_native(&out_path, &image).expect_err("zero rows must be rejected");
+    assert!(matches!(
+        error.downcast_ref::<DicomWriteError>(),
+        Some(DicomWriteError::InvalidDimensions {
+            depth: 1,
+            rows: 0,
+            columns: 5
+        })
+    ));
+    assert!(!out_path.exists());
+}
+
+#[test]
+fn test_multiframe_rejects_non_finite_pixels_without_changing_existing_file() {
+    let tmp = tempfile::tempdir().expect("tempdir");
+    let out_path = tmp.path().join("existing.dcm");
+    let original = b"existing multiframe output";
+    std::fs::write(&out_path, original).expect("write prior file");
+    let image = native_image(vec![0.0, f32::INFINITY], [1, 1, 2], [0.0; 3], [1.0; 3]);
+
+    let error = write_dicom_multiframe_native(&out_path, &image)
+        .expect_err("infinite pixels must be rejected");
+    assert!(matches!(
+        error.downcast_ref::<DicomWriteError>(),
+        Some(DicomWriteError::NonFinitePixel { index: 1 })
+    ));
+    assert_eq!(
+        std::fs::read(&out_path).expect("prior file remains"),
+        original
+    );
 }
 
 #[test]
@@ -48,6 +77,39 @@ fn test_written_multiframe_has_samples_per_pixel_one() {
         spp, 1,
         "SamplesPerPixel must equal 1 for grayscale multi-frame"
     );
+}
+
+#[test]
+fn test_native_multiframe_pixel_attributes_match_word_payload() {
+    let tmp = tempfile::tempdir().expect("tempdir");
+    let out_path = tmp.path().join("mf_pixel_width.dcm");
+    let image = native_image(vec![0.0, 10.0, 20.0, 30.0], [1, 2, 2], [0.0; 3], [1.0; 3]);
+    write_dicom_multiframe_native(&out_path, &image).expect("write");
+
+    let object = dicom::object::open_file(&out_path).expect("open written DICOM");
+    for (tag, expected) in [
+        (dicom::core::Tag(0x0028, 0x0100), 16),
+        (dicom::core::Tag(0x0028, 0x0101), 16),
+        (dicom::core::Tag(0x0028, 0x0102), 15),
+        (dicom::core::Tag(0x0028, 0x0103), 0),
+    ] {
+        let actual = object
+            .element(tag)
+            .expect("pixel attribute must exist")
+            .to_str()
+            .expect("US attribute must render")
+            .trim()
+            .parse::<u16>()
+            .expect("US attribute must parse");
+        assert_eq!(actual, expected, "pixel attribute {tag}");
+    }
+    let pixel_bytes = object
+        .element(dicom::core::Tag(0x7FE0, 0x0010))
+        .expect("PixelData must exist")
+        .value()
+        .to_bytes()
+        .expect("native PixelData must expose bytes");
+    assert_eq!(pixel_bytes.len(), 4 * 2);
 }
 
 #[test]

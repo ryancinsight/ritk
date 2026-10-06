@@ -1,3 +1,4 @@
+mod document;
 mod fixtures;
 mod gradient_scheme;
 mod reader;

@@ -9,6 +9,7 @@
 //! adapter cannot silently replace one with a compute scalar.
 
 mod calibration;
+mod conversion;
 mod read_budget;
 mod series;
 mod volume;
@@ -16,6 +17,10 @@ mod volume;
 pub use calibration::{
     CalibrationError, CalibrationShapeError, IntensityCalibration, LinearCalibration,
     LutOutputBits, ModalityLookupTable,
+};
+pub use conversion::{
+    preflight_conversion, ConversionFeature, ConversionLoss, ConversionPlan, ConversionTarget,
+    FormatMetadataLoss, PreparedConversion,
 };
 pub use read_budget::{ImageReadBudget, ImageReadBudgetError, ImageReadResource};
 pub use series::{SeriesAxis, StoredSeries, StoredSeriesError};

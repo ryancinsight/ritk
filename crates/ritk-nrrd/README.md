@@ -36,12 +36,17 @@ NRRD's last-value rule.
 
 ```rust,no_run
 use ritk_image_io::ImageReadBudget;
-use ritk_nrrd::{read_nrrd_stored, write_nrrd_stored};
+use ritk_nrrd::{read_nrrd_document, write_nrrd_document};
 
-let volume = read_nrrd_stored("input.nrrd", ImageReadBudget::DEFAULT)?;
-write_nrrd_stored("output.nrrd", &volume)?;
+let document = read_nrrd_document("input.nrrd", ImageReadBudget::DEFAULT)?;
+write_nrrd_document("output.nrrd", &document)?;
 # Ok::<(), Box<dyn std::error::Error>>(())
 ```
+
+`NrrdDocument` is the complete-file conversion boundary. It retains comments
+and custom records while deriving structural fields from validated samples
+before output is opened; invalid metadata leaves an existing destination
+unchanged.
 
 The [NRRD format manual](https://ryancinsight.github.io/ritk/nrrd_format.html)
 documents axis ordering, spatial metadata, acquisition series, payload rules,

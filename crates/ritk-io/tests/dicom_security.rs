@@ -141,7 +141,8 @@ fn test_dicom_write_preserves_private_tags_and_metadata() {
     let st = obj
         .element(Tag(0x0018, 0x0050))
         .expect("SliceThickness must exist");
-    assert_eq!(st.to_str().unwrap().trim(), "2.500000");
+    // DS permits multiple decimal spellings; 2.5 is exact in binary too.
+    assert_eq!(st.to_float64().expect("SliceThickness is numeric"), 2.5);
 
     let tag_a = obj
         .element(Tag(0x0019, 0x10AA))
