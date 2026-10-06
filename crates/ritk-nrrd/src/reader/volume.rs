@@ -11,6 +11,7 @@ use crate::axes::AcquisitionAxis;
 mod geometry;
 mod payload;
 pub(super) use payload::parse_nrrd_raw;
+pub(crate) use payload::{parse_nrrd_read_plan, read_nrrd_payload, NrrdReadPlan};
 
 use super::decode::decode_element_bytes;
 

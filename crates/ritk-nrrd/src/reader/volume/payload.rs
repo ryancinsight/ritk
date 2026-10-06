@@ -1,8 +1,9 @@
 //! NRRD header, spatial metadata, and stored payload parsing.
 
 use anyhow::{anyhow, Result};
-use ritk_codecs::{parse_usize_vec, ByteOrder};
-use ritk_image_io::{ImageReadBudget, ImageReadResource};
+use ritk_codecs::{parse_usize_vec, ByteOrder, SampleType};
+use ritk_image_io::{ImageReadBudget, ImageReadResource, SeriesAxis};
+use ritk_spatial::{CoordinateMap, Direction, Point, Spacing};
 use std::io::{BufReader, Seek};
 use std::path::Path;
 
@@ -10,7 +11,7 @@ use super::super::decode::{
     element_type_spec, first_group_width, parse_space_direction_slots, sample_type,
     strip_none_token,
 };
-use super::super::header::parse_nrrd_header_from_reader;
+use super::super::header::{parse_nrrd_header_from_reader, NrrdHeader};
 use super::super::stored::{NrrdSpatialMetadataField, NrrdStoredReadError};
 use super::geometry;
 use super::{NrrdReadPurpose, RawNrrd};
@@ -25,6 +26,28 @@ pub(super) enum NrrdEncoding {
     Raw,
     Ascii,
     Gzip,
+}
+
+pub(crate) struct NrrdReadPlan {
+    pub(crate) series_axis: Option<SeriesAxis>,
+    pub(crate) volumes: usize,
+    pub(crate) dims: [usize; 3],
+    pub(crate) origin: Point<3>,
+    pub(crate) spacing: Spacing<3>,
+    pub(crate) direction: Direction<3>,
+    pub(crate) coordinate_map: CoordinateMap,
+    pub(crate) sample_type: SampleType,
+    header_data_start: u64,
+    element_type: String,
+    encoding: NrrdEncoding,
+    byte_order: ByteOrder,
+    acquisition: AcquisitionAxis,
+    voxels_per_volume: usize,
+    total_voxels: usize,
+    expected_payload_bytes: usize,
+    line_skip: i32,
+    byte_skip: i32,
+    data_file_field: Option<String>,
 }
 
 /// Mark one slot per `space directions` entry without parsing values.
@@ -75,6 +98,26 @@ pub(in crate::reader) fn parse_nrrd_raw<P: AsRef<Path>>(
 
     let header = parse_nrrd_header_from_reader(&mut reader)
         .map_err(|source| NrrdStoredReadError::HeaderParse { source })?;
+    parse_nrrd_raw_with_header(path, &mut reader, &header, budget, read_purpose)
+}
+
+fn parse_nrrd_raw_with_header(
+    path: &Path,
+    reader: &mut BufReader<std::fs::File>,
+    header: &NrrdHeader,
+    budget: ImageReadBudget,
+    read_purpose: NrrdReadPurpose,
+) -> Result<RawNrrd, NrrdStoredReadError> {
+    let plan = parse_nrrd_read_plan(reader, header, budget, read_purpose)?;
+    read_nrrd_payload(path, reader, plan, budget)
+}
+
+pub(crate) fn parse_nrrd_read_plan(
+    reader: &mut BufReader<std::fs::File>,
+    header: &NrrdHeader,
+    budget: ImageReadBudget,
+    read_purpose: NrrdReadPurpose,
+) -> Result<NrrdReadPlan, NrrdStoredReadError> {
     let headers = &header.fields;
     let header_data_start = reader
         .stream_position()
@@ -271,20 +314,69 @@ pub(in crate::reader) fn parse_nrrd_raw<P: AsRef<Path>>(
             if acquisition != AcquisitionAxis::Absent {
                 return Err(NrrdStoredReadError::AcquisitionAxisRequiresSeries {
                     axis: super::super::stored::acquisition_axis_index(acquisition),
-                    kind: super::super::stored::acquisition_kind(&header, acquisition)
+                    kind: super::super::stored::acquisition_kind(header, acquisition)
                         .map(str::to_owned),
                 });
             }
-            super::super::stored::stored_series_axis(&header, acquisition)?;
+            super::super::stored::stored_series_axis(header, acquisition)?;
             None
         }
         NrrdReadPurpose::StoredSeries => Some(super::super::stored::stored_series_axis(
-            &header,
+            header,
             acquisition,
         )?),
         NrrdReadPurpose::ComputeF32 => None,
     };
-    let data_file_field = headers.get("data file").cloned();
+    Ok(NrrdReadPlan {
+        series_axis,
+        volumes,
+        dims: [nz, ny, nx],
+        origin: spatial.origin,
+        spacing: spatial.spacing,
+        direction: spatial.direction,
+        coordinate_map,
+        sample_type,
+        header_data_start,
+        element_type,
+        encoding,
+        byte_order,
+        acquisition,
+        voxels_per_volume,
+        total_voxels,
+        expected_payload_bytes,
+        line_skip,
+        byte_skip,
+        data_file_field: headers.get("data file").cloned(),
+    })
+}
+
+pub(crate) fn read_nrrd_payload(
+    path: &Path,
+    mut reader: &mut BufReader<std::fs::File>,
+    plan: NrrdReadPlan,
+    budget: ImageReadBudget,
+) -> Result<RawNrrd, NrrdStoredReadError> {
+    let NrrdReadPlan {
+        series_axis,
+        volumes,
+        dims,
+        origin,
+        spacing,
+        direction,
+        coordinate_map,
+        sample_type,
+        header_data_start,
+        element_type,
+        encoding,
+        byte_order,
+        acquisition,
+        voxels_per_volume,
+        total_voxels,
+        expected_payload_bytes,
+        line_skip,
+        byte_skip,
+        data_file_field,
+    } = plan;
     let raw_bytes = match data_file_field.as_deref() {
         None => {
             source::check_encoded_source(
@@ -358,10 +450,10 @@ pub(in crate::reader) fn parse_nrrd_raw<P: AsRef<Path>>(
         acquisition,
         volumes,
         voxels_per_volume,
-        dims: [nz, ny, nx],
-        origin: spatial.origin,
-        spacing: spatial.spacing,
-        direction: spatial.direction,
+        dims,
+        origin,
+        spacing,
+        direction,
         coordinate_map,
     })
 }

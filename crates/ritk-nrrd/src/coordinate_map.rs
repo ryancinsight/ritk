@@ -195,31 +195,74 @@ fn decode_with_depth(value: &str, expected_depth: Option<usize>) -> Result<Coord
     };
 
     match tag {
-        "cartesian" => Ok(CoordinateMap::Cartesian),
-        "curvilinear" => Ok(CoordinateMap::CurvilinearArray(CurvilinearArray::try_new(
-            get("radius_sample_size")?,
-            get("first_sample_distance")?,
-            get("lateral_angular_separation")?,
-            get("first_lateral_angle")?,
-        )?)),
-        "phased_array_3d" => Ok(CoordinateMap::PhasedArray3D(PhasedArray3D::try_new(
-            get("radius_sample_size")?,
-            get("first_sample_distance")?,
-            get("azimuth_angular_separation")?,
-            get("elevation_angular_separation")?,
-            get("first_azimuth_angle")?,
-            get("first_elevation_angle")?,
-        )?)),
-        "slice_series" => decode_slice_series(
-            parameter(params, tag, "count")?,
-            parameter(params, tag, "transforms")?,
-            expected_depth,
-        ),
+        "cartesian" => {
+            reject_unrecognized_parameters(params, tag, &[])?;
+            Ok(CoordinateMap::Cartesian)
+        }
+        "curvilinear" => {
+            reject_unrecognized_parameters(
+                params,
+                tag,
+                &[
+                    "radius_sample_size",
+                    "first_sample_distance",
+                    "lateral_angular_separation",
+                    "first_lateral_angle",
+                ],
+            )?;
+            Ok(CoordinateMap::CurvilinearArray(CurvilinearArray::try_new(
+                get("radius_sample_size")?,
+                get("first_sample_distance")?,
+                get("lateral_angular_separation")?,
+                get("first_lateral_angle")?,
+            )?))
+        }
+        "phased_array_3d" => {
+            reject_unrecognized_parameters(
+                params,
+                tag,
+                &[
+                    "radius_sample_size",
+                    "first_sample_distance",
+                    "azimuth_angular_separation",
+                    "elevation_angular_separation",
+                    "first_azimuth_angle",
+                    "first_elevation_angle",
+                ],
+            )?;
+            Ok(CoordinateMap::PhasedArray3D(PhasedArray3D::try_new(
+                get("radius_sample_size")?,
+                get("first_sample_distance")?,
+                get("azimuth_angular_separation")?,
+                get("elevation_angular_separation")?,
+                get("first_azimuth_angle")?,
+                get("first_elevation_angle")?,
+            )?))
+        }
+        "slice_series" => {
+            reject_unrecognized_parameters(params, tag, &["count", "transforms"])?;
+            decode_slice_series(
+                parameter(params, tag, "count")?,
+                parameter(params, tag, "transforms")?,
+                expected_depth,
+            )
+        }
         other => bail!(
             "unknown {COORDINATE_MAP_KEY} tag '{other}'; this file was written by a newer ritk \
              and its geometry cannot be interpreted here"
         ),
     }
+}
+
+fn reject_unrecognized_parameters(
+    params: &[(&str, &str)],
+    tag: &str,
+    allowed: &[&str],
+) -> Result<()> {
+    if let Some((name, _)) = params.iter().find(|(name, _)| !allowed.contains(name)) {
+        bail!("{COORDINATE_MAP_KEY} '{tag}' has unrecognized parameter '{name}'");
+    }
+    Ok(())
 }
 
 fn parameter<'a>(params: &'a [(&str, &str)], tag: &str, name: &str) -> Result<&'a str> {

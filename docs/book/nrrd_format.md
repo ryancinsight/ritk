@@ -74,10 +74,10 @@ in `ritk-io`, CLI, and viewer code consume the same authoritative API.
 `DWMRI_b-value` is combined with each `DWMRI_gradient_XXXX` squared norm to
 recover the per-volume effective b-value. The measurement frame maps gradient
 coordinates to world coordinates; RAS world coordinates are converted once to
-RITK LPS. Although NRRD makes this field optional, a nonzero gradient without
-it has no defined coordinate mapping. RITK rejects that input instead of
-assuming the gradient frame matches the image orientation; an all-zero baseline
-does not need a gradient-frame mapping. See [Teem's NRRD specification,
+RITK LPS. When the field is absent, the reader uses the identity frame. A
+nonzero gradient therefore uses scanner coordinates directly unless an
+explicit frame is present; an all-zero baseline also needs no frame. See
+[Teem's NRRD specification,
 section 4](https://teem.sourceforge.net/nrrd/format.html) for the coordinate-
 frame contract.
 Every encoded nonzero weighting is preserved, including values below the
@@ -86,6 +86,10 @@ Missing indices, non-finite values, `DWMRI_NEX`, and B-matrix encodings fail
 explicitly rather than being guessed.
 
 ## Stored samples and format conversion
+
+`NrrdDocument` combines a validated `StoredSeries` with retained comments and custom records without an intermediate file. Writing derives structural fields from the samples, validates first, and leaves an existing destination unchanged on rejection.
+
+The document boundary retains only generated structural fields and custom records it can emit unchanged. It rejects standard fields such as `content`, `labels`, `data file`, and `spacings`, detached payload references, malformed generated records, non-ASCII comments, and caller-supplied copies of the writer's generated banner rather than dropping them. The header reader retains comment lines and drops empty `#` and `##` lines; the document reader filters the generated banner before construction. Non-empty forms such as `# note` and `##note` are retained and the document boundary preserves them unchanged. The constructor runs the same header, series, geometry, calibration, and entry-limit checks as its writer, so construction cannot produce a value that serialization would reject.
 
 Use `read_nrrd_stored` when NRRD is an input to a format conversion. It
 returns `ritk_image_io::StoredVolume`, retaining the element type, each stored
@@ -118,7 +122,7 @@ layout.
 
 Diffusion series output uses the NRRD0005 magic and writes an explicit identity
 measurement frame because its gradient vectors are already in LPS coordinates.
-Other stored series retain NRRD0004. The reader accepts the standard
+Other stored series retain NRRD0004. There is no implicit diffusion default: `modality:=DWMRI`, a declared acquisition axis, one nominal `DWMRI_b-value`, and contiguous gradient entries are required before a diffusion series is constructed. The reader accepts the standard
 `axismins`, `axismaxs`, and `centerings` aliases and canonicalizes them before
 checking duplicate fields. Per-axis physical units without `space directions`
 or `spacings` are rejected because they cannot determine sample geometry.

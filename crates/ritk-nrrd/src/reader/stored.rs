@@ -8,14 +8,16 @@ use ritk_image_io::{
     StoredVolume, VolumeError,
 };
 use std::collections::TryReserveError;
-use std::io;
+use std::io::{self, BufReader};
 use std::num::ParseIntError;
 use std::path::{Path, PathBuf};
 use thiserror::Error;
 
 use super::diffusion::scheme_from_header;
-use super::header::{NrrdHeader, NrrdHeaderError};
-use super::volume::{parse_nrrd_raw, NrrdReadPurpose};
+use super::header::{open_nrrd_header_reader, NrrdHeader, NrrdHeaderError};
+use super::volume::{
+    parse_nrrd_raw, parse_nrrd_read_plan, read_nrrd_payload, NrrdReadPlan, NrrdReadPurpose, RawNrrd,
+};
 use crate::axes::AcquisitionAxis;
 
 /// A NRRD stored-sample read failed at a format, payload, allocation, or value boundary.
@@ -447,7 +449,10 @@ pub fn read_nrrd_stored_series<P: AsRef<Path>>(
     path: P,
     budget: ImageReadBudget,
 ) -> Result<StoredSeries, NrrdStoredReadError> {
-    let mut parsed = parse_nrrd_raw(path, budget, NrrdReadPurpose::StoredSeries)?;
+    stored_series(parse_nrrd_raw(path, budget, NrrdReadPurpose::StoredSeries)?)
+}
+
+fn stored_series(mut parsed: RawNrrd) -> Result<StoredSeries, NrrdStoredReadError> {
     let axis = parsed
         .series_axis
         .take()
@@ -456,14 +461,83 @@ pub fn read_nrrd_stored_series<P: AsRef<Path>>(
     StoredSeries::new(volumes, axis).map_err(|source| NrrdStoredReadError::StoredSeries { source })
 }
 
+/// One opened NRRD source with its parsed header and unread payload stream.
+pub(crate) struct NrrdReadSession {
+    path: PathBuf,
+    reader: BufReader<std::fs::File>,
+    header: NrrdHeader,
+}
+
+impl NrrdReadSession {
+    /// Opens one source and parses its header without reopening the path.
+    pub(crate) fn open(path: &Path) -> Result<Self, NrrdHeaderError> {
+        let path = path.to_path_buf();
+        let (reader, header) = open_nrrd_header_reader(&path)?;
+        Ok(Self {
+            path,
+            reader,
+            header,
+        })
+    }
+
+    /// Returns the parsed header while the same source remains open.
+    pub(crate) fn header(&self) -> &NrrdHeader {
+        &self.header
+    }
+
+    /// Prepares the stored series metadata without reading its voxel payload.
+    pub(crate) fn prepare_stored_series(
+        mut self,
+        budget: ImageReadBudget,
+    ) -> Result<PreparedNrrdSeries, NrrdStoredReadError> {
+        let plan = parse_nrrd_read_plan(
+            &mut self.reader,
+            &self.header,
+            budget,
+            NrrdReadPurpose::StoredSeries,
+        )?;
+        Ok(PreparedNrrdSeries {
+            path: self.path,
+            reader: self.reader,
+            plan,
+        })
+    }
+}
+
+pub(crate) struct PreparedNrrdSeries {
+    path: PathBuf,
+    reader: BufReader<std::fs::File>,
+    plan: NrrdReadPlan,
+}
+
+impl PreparedNrrdSeries {
+    /// Returns the parsed stored-series layout before payload decoding.
+    pub(crate) fn plan(&self) -> &NrrdReadPlan {
+        &self.plan
+    }
+
+    /// Reads the voxel payload from the same open source and builds its series.
+    pub(crate) fn into_stored_series(
+        mut self,
+        budget: ImageReadBudget,
+    ) -> Result<StoredSeries, NrrdStoredReadError> {
+        let parsed = read_nrrd_payload(&self.path, &mut self.reader, self.plan, budget)?;
+        stored_series(parsed)
+    }
+}
+
+pub(crate) fn has_diffusion_metadata(header: &NrrdHeader) -> bool {
+    header.key_values.iter().any(|(key, value)| {
+        (key.eq_ignore_ascii_case("modality") && value.eq_ignore_ascii_case("DWMRI"))
+            || key.to_ascii_uppercase().starts_with("DWMRI_")
+    })
+}
+
 pub(super) fn stored_series_axis(
     header: &NrrdHeader,
     acquisition: AcquisitionAxis,
 ) -> Result<SeriesAxis, NrrdStoredReadError> {
-    let has_diffusion = header.key_values.iter().any(|(key, value)| {
-        (key.eq_ignore_ascii_case("modality") && value.eq_ignore_ascii_case("DWMRI"))
-            || key.to_ascii_uppercase().starts_with("DWMRI_")
-    });
+    let has_diffusion = has_diffusion_metadata(header);
     if !has_diffusion && let Some(measurement_frame) = header.fields.get("measurement frame") {
         return Err(NrrdStoredReadError::UnsupportedMeasurementFrame {
             measurement_frame: measurement_frame.clone(),
