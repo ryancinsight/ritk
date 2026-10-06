@@ -1,10 +1,10 @@
 use crate::reader::NrrdHeaderError;
 use crate::writer::{
-    write_nrrd_header_with_metadata, write_nrrd_series_header_with_metadata, HeaderBuffer,
-    SeriesLayout,
+    HeaderBuffer, SeriesLayout, write_nrrd_header_with_metadata,
+    write_nrrd_series_header_with_metadata,
 };
-use crate::{read_nrrd_header, read_nrrd_stored_series, NrrdStoredReadError, NrrdStoredWriteError};
-use ritk_image_io::{validate_physical_geometry, ImageReadBudget, SeriesAxis, StoredSeries};
+use crate::{NrrdStoredReadError, NrrdStoredWriteError, read_nrrd_header, read_nrrd_stored_series};
+use ritk_image_io::{ImageReadBudget, SeriesAxis, StoredSeries, validate_physical_geometry};
 use std::fs::File;
 use std::io::{BufWriter, Write};
 use std::path::Path;
