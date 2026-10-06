@@ -5,15 +5,16 @@
 //!
 //! # Invariants
 //! - Every node in the model appears exactly once in the output.
-//! - Byte nodes use OB VR unconditionally.
+//! - Byte nodes preserve their declared OB or OW VR.
 //! - Sequence nodes produce SQ elements with undefined length.
 
 use super::object_model::{DicomObjectModel, DicomTag};
 use super::transfer_syntax::EXPLICIT_VR_LE;
 use super::writer::elements::node_to_element;
+use super::writer::output::write_file;
 use super::writer::pixel_encoding::DICOM_SOP_CLASS_SECONDARY_CAPTURE;
 use anyhow::Result;
-use dicom::object::{meta::FileMetaTableBuilder, InMemDicomObject};
+use dicom::object::{InMemDicomObject, meta::FileMetaTableBuilder};
 use std::path::Path;
 
 /// Convert a `DicomObjectModel` to an `InMemDicomObject`.
@@ -44,10 +45,7 @@ pub fn write_object(model: &DicomObjectModel, path: &Path) -> Result<()> {
                 .transfer_syntax(EXPLICIT_VR_LE),
         )
         .map_err(|e| anyhow::anyhow!("DICOM meta build failed: {e}"))?;
-    file_obj
-        .write_to_file(path)
-        .map_err(|e| anyhow::anyhow!("write_to_file {:?} failed: {e}", path))?;
-    Ok(())
+    write_file(path, &file_obj)
 }
 
 #[cfg(test)]
