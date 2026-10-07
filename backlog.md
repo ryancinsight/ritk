@@ -37,7 +37,7 @@
 <a id="RITK-GIFTI-SURFACE-001"></a>- [RITK-GIFTI-SURFACE-001](backlog/RITK-GIFTI-SURFACE-001.md) — Preserve complete GIFTI surface documents — todo
 <a id="RITK-MESH-CONVERSION-001"></a>- [RITK-MESH-CONVERSION-001](backlog/RITK-MESH-CONVERSION-001.md) — Convert supported mesh formats — todo
 <a id="RITK-TRACTOGRAM-CONVERSION-001"></a>- [RITK-TRACTOGRAM-CONVERSION-001](backlog/RITK-TRACTOGRAM-CONVERSION-001.md) — Convert supported tractogram formats — todo
-<a id="RITK-IO-FORMAT-CAPABILITIES-001"></a>- [RITK-IO-FORMAT-CAPABILITIES-001](backlog/RITK-IO-FORMAT-CAPABILITIES-001.md) — Declare shared format route capabilities — todo
+<a id="RITK-IO-FORMAT-CAPABILITIES-001"></a>- [RITK-IO-FORMAT-CAPABILITIES-001](backlog/RITK-IO-FORMAT-CAPABILITIES-001.md) — Declare shared format route capabilities — done
 <a id="RITK-GAP-2026-08-20-01"></a>- [RITK-GAP-2026-08-20-01](backlog/RITK-GAP-2026-08-20-01.md) — Retire duplicate X and X_native APIs — todo
 <a id="RITK-RASTER-CONVERSION-001"></a>- [RITK-RASTER-CONVERSION-001](backlog/RITK-RASTER-CONVERSION-001.md) — Convert PNG TIFF and JPEG rasters — blocked
 <a id="RITK-SNAP-OBLIQUE-SESSION-MODULES-001"></a>- [RITK-SNAP-OBLIQUE-SESSION-MODULES-001](backlog/RITK-SNAP-OBLIQUE-SESSION-MODULES-001.md) — Separate native oblique session concerns — blocked

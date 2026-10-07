@@ -31,6 +31,7 @@ ritk-nifti = { workspace = true }
 ritk-nrrd = { workspace = true }
 ritk-metaimage = { workspace = true }
 ritk-mgh = { workspace = true }
+ritk-mif = { workspace = true }
 ritk-analyze = { workspace = true }
 ritk-vtk = { workspace = true }
 ritk-jpeg = { workspace = true }

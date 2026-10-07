@@ -6205,6 +6205,7 @@ dependencies = [
  "ritk-jpeg",
  "ritk-metaimage",
  "ritk-mgh",
+ "ritk-mif",
  "ritk-minc",
  "ritk-nifti",
  "ritk-nrrd",

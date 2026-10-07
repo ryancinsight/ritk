@@ -96,7 +96,9 @@ fn confidence_connected_rejects_invalid_multiplier_before_io() {
 #[test]
 fn region_growing_rejects_nonnative_output_before_io() {
     let dir = tempdir().unwrap();
-    let output = dir.path().join("output.png");
+    // DICOM is the one format with a reader but no single-file writer: its
+    // output is a series directory, so it cannot be a `segment` destination.
+    let output = dir.path().join("output.dcm");
     let mut args = default_args(
         dir.path().join("input.vtk"),
         output.clone(),

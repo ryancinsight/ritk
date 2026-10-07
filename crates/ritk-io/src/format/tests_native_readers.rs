@@ -189,6 +189,17 @@ fn native_minc_writer_reader_contract_round_trips() {
 }
 
 #[test]
+fn native_mif_writer_reader_contract_round_trips() {
+    let dir = tempfile::tempdir().expect("tempdir");
+    assert_native_writer_reader_round_trips(
+        &dir.path().join("contract.mif"),
+        &super::mif::native::MifWriter::new(SequentialBackend),
+        &super::mif::native::MifReader::new(SequentialBackend),
+        SpatialFidelity::Full,
+    );
+}
+
+#[test]
 fn native_vtk_writer_reader_contract_round_trips() {
     let dir = tempfile::tempdir().expect("tempdir");
     // Legacy VTK structured points cannot carry a direction matrix, so the
@@ -288,4 +299,68 @@ fn native_png_series_reader_matches_coeus() {
     .expect("native PNG series read");
     assert_eq!(loaded.shape(), [2, 4, 6]);
     assert_eq!(loaded.data_slice().expect("contiguous PNG data").len(), 48);
+}
+
+/// PNG now writes through the unified contract, not only reads.
+///
+/// The fixture's extremes are exactly `0` and `255`, so the codec's min/max
+/// window is the identity map and every intermediate value is representable in
+/// 8 bits — the round trip is therefore exact rather than tolerance-bounded.
+/// Values that fall between representable levels are still lossy, which is why
+/// the codec's contract is stated as "ranks and shape", not "values".
+#[test]
+fn native_png_writer_reader_contract_round_trips_a_slice() {
+    let dir = tempfile::tempdir().expect("tempdir");
+    let path = dir.path().join("contract.png");
+
+    let values: Vec<f32> = (0..12).map(|i| (i * 255 / 11) as f32).collect();
+    let image = NativeImage::from_flat_on(
+        values.clone(),
+        [1usize, 3, 4],
+        Point::origin(),
+        Spacing::uniform(1.0),
+        Direction::identity(),
+        &SequentialBackend,
+    )
+    .expect("slice fixture");
+
+    ImageWriter::write(&super::png::native::PngWriter, &path, &image).expect("png write");
+    let loaded = ImageReader::read(
+        &super::png::native::PngReader::new(SequentialBackend),
+        &path,
+    )
+    .expect("png read");
+
+    assert_eq!(loaded.shape(), [1, 3, 4], "PNG round-trip preserves shape");
+    assert_eq!(
+        loaded.data_slice().expect("contiguous PNG data"),
+        values.as_slice(),
+        "with the window pinned at 0..255 the 8-bit map is the identity"
+    );
+}
+
+/// The PNG writer rejects a volume rather than writing only its first slice.
+///
+/// This is the codec's shape policy, reached through the same `ImageWriter`
+/// route the dispatch uses — not a dispatch-level special case.
+#[test]
+fn native_png_writer_rejects_a_volume() {
+    let dir = tempfile::tempdir().expect("tempdir");
+    let path = dir.path().join("volume.png");
+    let image = NativeImage::from_flat_on(
+        vec![0.0f32; 24],
+        [2usize, 3, 4],
+        Point::origin(),
+        Spacing::uniform(1.0),
+        Direction::identity(),
+        &SequentialBackend,
+    )
+    .expect("volume fixture");
+
+    let error = ImageWriter::write(&super::png::native::PngWriter, &path, &image)
+        .expect_err("a [2, 3, 4] volume is not a single PNG slice");
+    assert!(
+        error.to_string().contains("single slice"),
+        "rejection must name the slice constraint, got: {error}"
+    );
 }
