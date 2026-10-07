@@ -167,8 +167,18 @@ fn dicom_multiframe_rejects_temporal_organization() {
 #[test]
 fn dicom_multiframe_rejects_declared_frame_count_mismatch() {
     let dir = tempdir().expect("create invalid-count fixture directory");
-    let (filename, bytes) = fixtures::write_multiframe(dir.path(), 3, None)
-        .expect("write invalid-count multiframe fixture");
+    // The object writer now guarantees that declared frame counts match the
+    // pixel payload, so the fixture writes a consistent two-frame object and
+    // rewrites the serialized NumberOfFrames IS value ("2 " -> "3 ") to
+    // recreate the mismatch the loader must reject.
+    let (filename, mut bytes) = fixtures::write_multiframe(dir.path(), 2, None)
+        .expect("write valid-count multiframe fixture");
+    let number_of_frames = [0x28u8, 0x00, 0x08, 0x00, b'I', b'S', 0x02, 0x00, b'2', b' '];
+    let at = bytes
+        .windows(number_of_frames.len())
+        .position(|window| window == number_of_frames)
+        .expect("serialized NumberOfFrames element");
+    bytes[at + number_of_frames.len() - 2] = b'3';
     let error = load_volume_from_bytes(&filename, &bytes)
         .expect_err("declared frame count exceeding pixel data must reject");
     let diagnostic = format!("{error:#}");
